@@ -186,7 +186,9 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FMINNUM_IEEE:               return "fminnum_ieee";
   case ISD::FMAXNUM_IEEE:               return "fmaxnum_ieee";
   case ISD::FMINIMUM:                   return "fminimum";
+  case ISD::STRICT_FMINIMUM:            return "strict_fminimum";
   case ISD::FMAXIMUM:                   return "fmaximum";
+  case ISD::STRICT_FMAXIMUM:            return "strict_fmaximum";
   case ISD::FNEG:                       return "fneg";
   case ISD::FSQRT:                      return "fsqrt";
   case ISD::STRICT_FSQRT:               return "strict_fsqrt";
@@ -270,6 +272,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::STRICT_FPOWI:               return "strict_fpowi";
   case ISD::SETCC:                      return "setcc";
   case ISD::SETCCCARRY:                 return "setcccarry";
+  case ISD::STRICT_FSETCC:              return "strict_fsetcc";
+  case ISD::STRICT_FSETCCS:             return "strict_fsetccs";
   case ISD::SELECT:                     return "select";
   case ISD::VSELECT:                    return "vselect";
   case ISD::SELECT_CC:                  return "select_cc";
@@ -280,6 +284,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::EXTRACT_SUBVECTOR:          return "extract_subvector";
   case ISD::SCALAR_TO_VECTOR:           return "scalar_to_vector";
   case ISD::VECTOR_SHUFFLE:             return "vector_shuffle";
+  case ISD::SPLAT_VECTOR:               return "splat_vector";
   case ISD::CARRY_FALSE:                return "carry_false";
   case ISD::ADDC:                       return "addc";
   case ISD::ADDE:                       return "adde";
@@ -305,6 +310,10 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::SMULFIX:                    return "smulfix";
   case ISD::SMULFIXSAT:                 return "smulfixsat";
   case ISD::UMULFIX:                    return "umulfix";
+  case ISD::UMULFIXSAT:                 return "umulfixsat";
+
+  case ISD::SDIVFIX:                    return "sdivfix";
+  case ISD::UDIVFIX:                    return "udivfix";
 
   // Conversion operators.
   case ISD::SIGN_EXTEND:                return "sign_extend";
@@ -318,22 +327,29 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::FP_ROUND:                   return "fp_round";
   case ISD::STRICT_FP_ROUND:            return "strict_fp_round";
   case ISD::FLT_ROUNDS_:                return "flt_rounds";
-  case ISD::FP_ROUND_INREG:             return "fp_round_inreg";
   case ISD::FP_EXTEND:                  return "fp_extend";
   case ISD::STRICT_FP_EXTEND:           return "strict_fp_extend";
 
   case ISD::SINT_TO_FP:                 return "sint_to_fp";
+  case ISD::STRICT_SINT_TO_FP:          return "strict_sint_to_fp";
   case ISD::UINT_TO_FP:                 return "uint_to_fp";
+  case ISD::STRICT_UINT_TO_FP:          return "strict_uint_to_fp";
   case ISD::FP_TO_SINT:                 return "fp_to_sint";
+  case ISD::STRICT_FP_TO_SINT:          return "strict_fp_to_sint";
   case ISD::FP_TO_UINT:                 return "fp_to_uint";
+  case ISD::STRICT_FP_TO_UINT:          return "strict_fp_to_uint";
   case ISD::BITCAST:                    return "bitcast";
   case ISD::ADDRSPACECAST:              return "addrspacecast";
   case ISD::FP16_TO_FP:                 return "fp16_to_fp";
   case ISD::FP_TO_FP16:                 return "fp_to_fp16";
   case ISD::LROUND:                     return "lround";
+  case ISD::STRICT_LROUND:              return "strict_lround";
   case ISD::LLROUND:                    return "llround";
+  case ISD::STRICT_LLROUND:             return "strict_llround";
   case ISD::LRINT:                      return "lrint";
+  case ISD::STRICT_LRINT:               return "strict_lrint";
   case ISD::LLRINT:                     return "llrint";
+  case ISD::STRICT_LLRINT:              return "strict_llrint";
 
     // Control flow instructions
   case ISD::BR:                         return "br";
@@ -534,6 +550,9 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
   if (getFlags().hasVectorReduction())
     OS << " vector-reduction";
 
+  if (getFlags().hasNoFPExcept())
+    OS << " nofpexcept";
+
   if (const MachineSDNode *MN = dyn_cast<MachineSDNode>(this)) {
     if (!MN->memoperands_empty()) {
       OS << "<";
@@ -678,6 +697,10 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
     if (doExt)
       OS << " from " << MLd->getMemoryVT().getEVTString();
 
+    const char *AM = getIndexedModeName(MLd->getAddressingMode());
+    if (*AM)
+      OS << ", " << AM;
+
     if (MLd->isExpandingLoad())
       OS << ", expanding";
 
@@ -688,6 +711,10 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
 
     if (MSt->isTruncatingStore())
       OS << ", trunc to " << MSt->getMemoryVT().getEVTString();
+
+    const char *AM = getIndexedModeName(MSt->getAddressingMode());
+    if (*AM)
+      OS << ", " << AM;
 
     if (MSt->isCompressingStore())
       OS << ", compressing";

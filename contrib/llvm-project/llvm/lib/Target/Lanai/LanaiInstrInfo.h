@@ -36,8 +36,7 @@ public:
   }
 
   bool areMemAccessesTriviallyDisjoint(const MachineInstr &MIa,
-                                       const MachineInstr &MIb,
-                                       AliasAnalysis *AA) const override;
+                                       const MachineInstr &MIb) const override;
 
   unsigned isLoadFromStackSlot(const MachineInstr &MI,
                                int &FrameIndex) const override;
@@ -49,8 +48,8 @@ public:
                               int &FrameIndex) const override;
 
   void copyPhysReg(MachineBasicBlock &MBB, MachineBasicBlock::iterator Position,
-                   const DebugLoc &DL, unsigned DestinationRegister,
-                   unsigned SourceRegister, bool KillSource) const override;
+                   const DebugLoc &DL, MCRegister DestinationRegister,
+                   MCRegister SourceRegister, bool KillSource) const override;
 
   void
   storeRegToStackSlot(MachineBasicBlock &MBB,

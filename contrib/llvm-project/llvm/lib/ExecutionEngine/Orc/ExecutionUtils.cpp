@@ -8,6 +8,7 @@
 
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 
+#include "llvm/ExecutionEngine/Orc/Layer.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -17,6 +18,32 @@
 
 namespace llvm {
 namespace orc {
+
+int runAsMain(int (*Main)(int, char *[]), ArrayRef<std::string> Args,
+              Optional<StringRef> ProgramName) {
+  std::vector<std::unique_ptr<char[]>> ArgVStorage;
+  std::vector<char *> ArgV;
+
+  ArgVStorage.reserve(Args.size() + (ProgramName ? 1 : 0));
+  ArgV.reserve(Args.size() + 1 + (ProgramName ? 1 : 0));
+
+  if (ProgramName) {
+    ArgVStorage.push_back(std::make_unique<char[]>(ProgramName->size() + 1));
+    llvm::copy(*ProgramName, &ArgVStorage.back()[0]);
+    ArgVStorage.back()[ProgramName->size()] = '\0';
+    ArgV.push_back(ArgVStorage.back().get());
+  }
+
+  for (auto &Arg : Args) {
+    ArgVStorage.push_back(std::make_unique<char[]>(Arg.size() + 1));
+    llvm::copy(Arg, &ArgVStorage.back()[0]);
+    ArgVStorage.back()[Arg.size()] = '\0';
+    ArgV.push_back(ArgVStorage.back().get());
+  }
+  ArgV.push_back(nullptr);
+
+  return Main(Args.size() + !!ProgramName, ArgV.data());
+}
 
 CtorDtorIterator::CtorDtorIterator(const GlobalVariable *GV, bool End)
   : InitList(
@@ -67,7 +94,7 @@ CtorDtorIterator::Element CtorDtorIterator::operator*() const {
     }
   }
 
-  ConstantInt *Priority = dyn_cast<ConstantInt>(CS->getOperand(0));
+  auto *Priority = cast<ConstantInt>(CS->getOperand(0));
   Value *Data = CS->getNumOperands() == 3 ? CS->getOperand(2) : nullptr;
   if (Data && !isa<GlobalValue>(Data))
     Data = nullptr;
@@ -87,14 +114,14 @@ iterator_range<CtorDtorIterator> getDestructors(const Module &M) {
 }
 
 void CtorDtorRunner::add(iterator_range<CtorDtorIterator> CtorDtors) {
-  if (empty(CtorDtors))
+  if (CtorDtors.empty())
     return;
 
   MangleAndInterner Mangle(
       JD.getExecutionSession(),
       (*CtorDtors.begin()).Func->getParent()->getDataLayout());
 
-  for (const auto &CtorDtor : CtorDtors) {
+  for (auto CtorDtor : CtorDtors) {
     assert(CtorDtor.Func && CtorDtor.Func->hasName() &&
            "Ctor/Dtor function must be named to be runnable under the JIT");
 
@@ -117,19 +144,17 @@ void CtorDtorRunner::add(iterator_range<CtorDtorIterator> CtorDtors) {
 Error CtorDtorRunner::run() {
   using CtorDtorTy = void (*)();
 
-  SymbolNameSet Names;
-
-  for (auto &KV : CtorDtorsByPriority) {
-    for (auto &Name : KV.second) {
-      auto Added = Names.insert(Name).second;
-      (void)Added;
-      assert(Added && "Ctor/Dtor names clashed");
-    }
-  }
+  SymbolLookupSet LookupSet;
+  for (auto &KV : CtorDtorsByPriority)
+    for (auto &Name : KV.second)
+      LookupSet.add(Name);
+  assert(!LookupSet.containsDuplicates() &&
+         "Ctor/Dtor list contains duplicates");
 
   auto &ES = JD.getExecutionSession();
-  if (auto CtorDtorMap =
-          ES.lookup(JITDylibSearchList({{&JD, true}}), std::move(Names))) {
+  if (auto CtorDtorMap = ES.lookup(
+          makeJITDylibSearchOrder(&JD, JITDylibLookupFlags::MatchAllSymbols),
+          std::move(LookupSet))) {
     for (auto &KV : CtorDtorsByPriority) {
       for (auto &Name : KV.second) {
         assert(CtorDtorMap->count(Name) && "No entry for Name");
@@ -178,26 +203,27 @@ DynamicLibrarySearchGenerator::DynamicLibrarySearchGenerator(
     : Dylib(std::move(Dylib)), Allow(std::move(Allow)),
       GlobalPrefix(GlobalPrefix) {}
 
-Expected<DynamicLibrarySearchGenerator>
+Expected<std::unique_ptr<DynamicLibrarySearchGenerator>>
 DynamicLibrarySearchGenerator::Load(const char *FileName, char GlobalPrefix,
                                     SymbolPredicate Allow) {
   std::string ErrMsg;
   auto Lib = sys::DynamicLibrary::getPermanentLibrary(FileName, &ErrMsg);
   if (!Lib.isValid())
     return make_error<StringError>(std::move(ErrMsg), inconvertibleErrorCode());
-  return DynamicLibrarySearchGenerator(std::move(Lib), GlobalPrefix,
-                                       std::move(Allow));
+  return std::make_unique<DynamicLibrarySearchGenerator>(
+      std::move(Lib), GlobalPrefix, std::move(Allow));
 }
 
-Expected<SymbolNameSet>
-DynamicLibrarySearchGenerator::operator()(JITDylib &JD,
-                                          const SymbolNameSet &Names) {
-  orc::SymbolNameSet Added;
+Error DynamicLibrarySearchGenerator::tryToGenerate(
+    LookupKind K, JITDylib &JD, JITDylibLookupFlags JDLookupFlags,
+    const SymbolLookupSet &Symbols) {
   orc::SymbolMap NewSymbols;
 
   bool HasGlobalPrefix = (GlobalPrefix != '\0');
 
-  for (auto &Name : Names) {
+  for (auto &KV : Symbols) {
+    auto &Name = KV.first;
+
     if ((*Name).empty())
       continue;
 
@@ -210,21 +236,87 @@ DynamicLibrarySearchGenerator::operator()(JITDylib &JD,
     std::string Tmp((*Name).data() + HasGlobalPrefix,
                     (*Name).size() - HasGlobalPrefix);
     if (void *Addr = Dylib.getAddressOfSymbol(Tmp.c_str())) {
-      Added.insert(Name);
       NewSymbols[Name] = JITEvaluatedSymbol(
           static_cast<JITTargetAddress>(reinterpret_cast<uintptr_t>(Addr)),
           JITSymbolFlags::Exported);
     }
   }
 
-  // Add any new symbols to JD. Since the generator is only called for symbols
-  // that are not already defined, this will never trigger a duplicate
-  // definition error, so we can wrap this call in a 'cantFail'.
-  if (!NewSymbols.empty())
-    cantFail(JD.define(absoluteSymbols(std::move(NewSymbols))));
+  if (NewSymbols.empty())
+    return Error::success();
 
-  return Added;
+  return JD.define(absoluteSymbols(std::move(NewSymbols)));
 }
+
+Expected<std::unique_ptr<StaticLibraryDefinitionGenerator>>
+StaticLibraryDefinitionGenerator::Load(ObjectLayer &L, const char *FileName) {
+  auto ArchiveBuffer = errorOrToExpected(MemoryBuffer::getFile(FileName));
+
+  if (!ArchiveBuffer)
+    return ArchiveBuffer.takeError();
+
+  return Create(L, std::move(*ArchiveBuffer));
+}
+
+Expected<std::unique_ptr<StaticLibraryDefinitionGenerator>>
+StaticLibraryDefinitionGenerator::Create(
+    ObjectLayer &L, std::unique_ptr<MemoryBuffer> ArchiveBuffer) {
+  Error Err = Error::success();
+
+  std::unique_ptr<StaticLibraryDefinitionGenerator> ADG(
+      new StaticLibraryDefinitionGenerator(L, std::move(ArchiveBuffer), Err));
+
+  if (Err)
+    return std::move(Err);
+
+  return std::move(ADG);
+}
+
+Error StaticLibraryDefinitionGenerator::tryToGenerate(
+    LookupKind K, JITDylib &JD, JITDylibLookupFlags JDLookupFlags,
+    const SymbolLookupSet &Symbols) {
+
+  // Don't materialize symbols from static archives unless this is a static
+  // lookup.
+  if (K != LookupKind::Static)
+    return Error::success();
+
+  // Bail out early if we've already freed the archive.
+  if (!Archive)
+    return Error::success();
+
+  DenseSet<std::pair<StringRef, StringRef>> ChildBufferInfos;
+
+  for (const auto &KV : Symbols) {
+    const auto &Name = KV.first;
+    auto Child = Archive->findSym(*Name);
+    if (!Child)
+      return Child.takeError();
+    if (*Child == None)
+      continue;
+    auto ChildBuffer = (*Child)->getMemoryBufferRef();
+    if (!ChildBuffer)
+      return ChildBuffer.takeError();
+    ChildBufferInfos.insert(
+        {ChildBuffer->getBuffer(), ChildBuffer->getBufferIdentifier()});
+  }
+
+  for (auto ChildBufferInfo : ChildBufferInfos) {
+    MemoryBufferRef ChildBufferRef(ChildBufferInfo.first,
+                                   ChildBufferInfo.second);
+
+    if (auto Err =
+            L.add(JD, MemoryBuffer::getMemBuffer(ChildBufferRef), VModuleKey()))
+      return Err;
+  }
+
+  return Error::success();
+}
+
+StaticLibraryDefinitionGenerator::StaticLibraryDefinitionGenerator(
+    ObjectLayer &L, std::unique_ptr<MemoryBuffer> ArchiveBuffer, Error &Err)
+    : L(L), ArchiveBuffer(std::move(ArchiveBuffer)),
+      Archive(std::make_unique<object::Archive>(*this->ArchiveBuffer, Err)) {}
 
 } // End namespace orc.
 } // End namespace llvm.

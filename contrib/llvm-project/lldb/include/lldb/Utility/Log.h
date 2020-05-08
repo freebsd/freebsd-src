@@ -14,6 +14,7 @@
 #include "lldb/lldb-defines.h"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Error.h"
@@ -112,6 +113,14 @@ public:
   static bool ListChannelCategories(llvm::StringRef channel,
                                     llvm::raw_ostream &stream);
 
+  /// Returns the list of log channels.
+  static std::vector<llvm::StringRef> ListChannels();
+  /// Calls the given lambda for every category in the given channel.
+  /// If no channel with the given name exists, lambda is never called.
+  static void ForEachChannelCategory(
+      llvm::StringRef channel,
+      llvm::function_ref<void(llvm::StringRef, llvm::StringRef)> lambda);
+
   static void DisableAllLogChannels();
 
   static void ListAllLogChannels(llvm::raw_ostream &stream);
@@ -142,13 +151,10 @@ public:
                          std::forward<Args>(args)...));
   }
 
+  /// Prefer using LLDB_LOGF whenever possible.
   void Printf(const char *format, ...) __attribute__((format(printf, 2, 3)));
 
-  void VAPrintf(const char *format, va_list args);
-
   void Error(const char *fmt, ...) __attribute__((format(printf, 2, 3)));
-
-  void VAError(const char *format, va_list args);
 
   void Verbose(const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 
@@ -159,6 +165,9 @@ public:
   const Flags GetMask() const;
 
   bool GetVerbose() const;
+
+  void VAPrintf(const char *format, va_list args);
+  void VAError(const char *format, va_list args);
 
 private:
   Channel &m_channel;
@@ -193,6 +202,10 @@ private:
   typedef llvm::StringMap<Log> ChannelMap;
   static llvm::ManagedStatic<ChannelMap> g_channel_map;
 
+  static void ForEachCategory(
+      const Log::ChannelMap::value_type &entry,
+      llvm::function_ref<void(llvm::StringRef, llvm::StringRef)> lambda);
+
   static void ListCategories(llvm::raw_ostream &stream,
                              const ChannelMap::value_type &entry);
   static uint32_t GetFlags(llvm::raw_ostream &stream, const ChannelMap::value_type &entry,
@@ -206,11 +219,38 @@ private:
 
 } // namespace lldb_private
 
+/// The LLDB_LOG* macros defined below are the way to emit log messages.
+///
+/// Note that the macros surround the arguments in a check for the log
+/// being on, so you can freely call methods in arguments without affecting
+/// the non-log execution flow.
+///
+/// If you need to do more complex computations to prepare the log message
+/// be sure to add your own if (log) check, since we don't want logging to
+/// have any effect when not on.
+///
+/// However, the LLDB_LOG macro uses the llvm::formatv system (see the
+/// ProgrammersManual page in the llvm docs for more details).  This allows
+/// the use of "format_providers" to auto-format datatypes, and there are
+/// already formatters for some of the llvm and lldb datatypes.
+///
+/// So if you need to do non-trivial formatting of one of these types, be
+/// sure to grep the lldb and llvm sources for "format_provider" to see if
+/// there is already a formatter before doing in situ formatting, and if
+/// possible add a provider if one does not already exist.
+
 #define LLDB_LOG(log, ...)                                                     \
   do {                                                                         \
     ::lldb_private::Log *log_private = (log);                                  \
     if (log_private)                                                           \
       log_private->Format(__FILE__, __func__, __VA_ARGS__);                    \
+  } while (0)
+
+#define LLDB_LOGF(log, ...)                                                    \
+  do {                                                                         \
+    ::lldb_private::Log *log_private = (log);                                  \
+    if (log_private)                                                           \
+      log_private->Printf(__VA_ARGS__);                                        \
   } while (0)
 
 #define LLDB_LOGV(log, ...)                                                    \

@@ -11,12 +11,12 @@
 
 #include "lldb/Host/File.h"
 #include "lldb/Utility/DataBufferLLVM.h"
-#include "lldb/Utility/FileCollector.h"
 #include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Status.h"
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/Support/Chrono.h"
+#include "llvm/Support/FileCollector.h"
 #include "llvm/Support/VirtualFileSystem.h"
 
 #include "lldb/lldb-types.h"
@@ -34,8 +34,8 @@ public:
   FileSystem()
       : m_fs(llvm::vfs::getRealFileSystem()), m_collector(nullptr),
         m_mapped(false) {}
-  FileSystem(FileCollector &collector)
-      : m_fs(llvm::vfs::getRealFileSystem()), m_collector(&collector),
+  FileSystem(std::shared_ptr<llvm::FileCollector> collector)
+      : m_fs(llvm::vfs::getRealFileSystem()), m_collector(collector),
         m_mapped(false) {}
   FileSystem(llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs,
              bool mapped = false)
@@ -47,7 +47,7 @@ public:
   static FileSystem &Instance();
 
   static void Initialize();
-  static void Initialize(FileCollector &collector);
+  static void Initialize(std::shared_ptr<llvm::FileCollector> collector);
   static llvm::Error Initialize(const FileSpec &mapping);
   static void Initialize(llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> fs);
   static void Terminate();
@@ -63,9 +63,10 @@ public:
   /// Wraps ::open in a platform-independent way.
   int Open(const char *path, int flags, int mode);
 
-  Status Open(File &File, const FileSpec &file_spec, uint32_t options,
-              uint32_t permissions = lldb::eFilePermissionsFileDefault,
-              bool should_close_fd = true);
+  llvm::Expected<std::unique_ptr<File>>
+  Open(const FileSpec &file_spec, File::OpenOptions options,
+       uint32_t permissions = lldb::eFilePermissionsFileDefault,
+       bool should_close_fd = true);
 
   /// Get a directory iterator.
   /// \{
@@ -188,7 +189,7 @@ public:
 private:
   static llvm::Optional<FileSystem> &InstanceImpl();
   llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> m_fs;
-  FileCollector *m_collector;
+  std::shared_ptr<llvm::FileCollector> m_collector;
   bool m_mapped;
 };
 } // namespace lldb_private

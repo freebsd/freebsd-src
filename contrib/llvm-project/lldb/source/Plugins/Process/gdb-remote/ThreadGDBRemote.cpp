@@ -215,8 +215,7 @@ StructuredData::ObjectSP ThreadGDBRemote::FetchThreadExtendedInfo() {
   StructuredData::ObjectSP object_sp;
   const lldb::user_id_t tid = GetProtocolID();
   Log *log(GetLogIfAnyCategoriesSet(GDBR_LOG_THREAD));
-  if (log)
-    log->Printf("Fetching extended information for thread %4.4" PRIx64, tid);
+  LLDB_LOGF(log, "Fetching extended information for thread %4.4" PRIx64, tid);
   ProcessSP process_sp(GetProcess());
   if (process_sp) {
     ProcessGDBRemote *gdb_process =
@@ -230,9 +229,8 @@ void ThreadGDBRemote::WillResume(StateType resume_state) {
   int signo = GetResumeSignal();
   const lldb::user_id_t tid = GetProtocolID();
   Log *log(GetLogIfAnyCategoriesSet(GDBR_LOG_THREAD));
-  if (log)
-    log->Printf("Resuming thread: %4.4" PRIx64 " with state: %s.", tid,
-                StateAsCString(resume_state));
+  LLDB_LOGF(log, "Resuming thread: %4.4" PRIx64 " with state: %s.", tid,
+            StateAsCString(resume_state));
 
   ProcessSP process_sp(GetProcess());
   if (process_sp) {
@@ -303,13 +301,14 @@ ThreadGDBRemote::CreateRegisterContextForFrame(StackFrame *frame) {
     if (process_sp) {
       ProcessGDBRemote *gdb_process =
           static_cast<ProcessGDBRemote *>(process_sp.get());
-      // read_all_registers_at_once will be true if 'p' packet is not
-      // supported.
+      bool pSupported =
+          gdb_process->GetGDBRemote().GetpPacketSupported(GetID());
       bool read_all_registers_at_once =
-          !gdb_process->GetGDBRemote().GetpPacketSupported(GetID());
+          !pSupported || gdb_process->m_use_g_packet_for_reading;
+      bool write_all_registers_at_once = !pSupported;
       reg_ctx_sp = std::make_shared<GDBRemoteRegisterContext>(
           *this, concrete_frame_idx, gdb_process->m_register_info,
-          read_all_registers_at_once);
+          read_all_registers_at_once, write_all_registers_at_once);
     }
   } else {
     Unwind *unwinder = GetUnwinder();

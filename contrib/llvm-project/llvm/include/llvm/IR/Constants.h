@@ -522,9 +522,10 @@ public:
     return cast<VectorType>(Value::getType());
   }
 
-  /// If this is a splat constant, meaning that all of the elements have the
-  /// same value, return that value. Otherwise return NULL.
-  Constant *getSplatValue() const;
+  /// If all elements of the vector constant have the same value, return that
+  /// value. Otherwise, return nullptr. Ignore undefined elements by setting
+  /// AllowUndefs to true.
+  Constant *getSplatValue(bool AllowUndefs = false) const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {
@@ -1250,7 +1251,7 @@ public:
   /// which would take a ConstantExpr parameter, but that would have spread
   /// implementation details of ConstantExpr outside of Constants.cpp, which
   /// would make it harder to remove ConstantExprs altogether.
-  Instruction *getAsInstruction();
+  Instruction *getAsInstruction() const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
   static bool classof(const Value *V) {

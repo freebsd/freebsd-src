@@ -149,7 +149,8 @@ EmulateInstructionARM64::CreateInstance(const ArchSpec &arch,
                                         InstructionType inst_type) {
   if (EmulateInstructionARM64::SupportsEmulatingInstructionsOfTypeStatic(
           inst_type)) {
-    if (arch.GetTriple().getArch() == llvm::Triple::aarch64) {
+    if (arch.GetTriple().getArch() == llvm::Triple::aarch64 ||
+        arch.GetTriple().getArch() == llvm::Triple::aarch64_32) {
       return new EmulateInstructionARM64(arch);
     }
   }
@@ -479,6 +480,7 @@ bool EmulateInstructionARM64::CreateFunctionEntryUnwind(
   unwind_plan.SetSourceName("EmulateInstructionARM64");
   unwind_plan.SetSourcedFromCompiler(eLazyBoolNo);
   unwind_plan.SetUnwindPlanValidAtAllInstructions(eLazyBoolYes);
+  unwind_plan.SetUnwindPlanForSignalTrap(eLazyBoolNo);
   unwind_plan.SetReturnAddressRegister(gpr_lr_arm64);
   return true;
 }

@@ -150,7 +150,8 @@ static bool isKnownLibFunction(Function &F, TargetLibraryInfo &TLI) {
   return TLI.getLibFunc(F, LF) || TLI.isFunctionVectorizable(F.getName());
 }
 
-LazyCallGraph::LazyCallGraph(Module &M, TargetLibraryInfo &TLI) {
+LazyCallGraph::LazyCallGraph(
+    Module &M, function_ref<TargetLibraryInfo &(Function &)> GetTLI) {
   LLVM_DEBUG(dbgs() << "Building CG for module: " << M.getModuleIdentifier()
                     << "\n");
   for (Function &F : M) {
@@ -159,7 +160,7 @@ LazyCallGraph::LazyCallGraph(Module &M, TargetLibraryInfo &TLI) {
     // If this function is a known lib function to LLVM then we want to
     // synthesize reference edges to it to model the fact that LLVM can turn
     // arbitrary code into a library function call.
-    if (isKnownLibFunction(F, TLI))
+    if (isKnownLibFunction(F, GetTLI(F)))
       LibFunctions.insert(&F);
 
     if (F.hasLocalLinkage())
@@ -631,7 +632,7 @@ LazyCallGraph::RefSCC::switchInternalEdgeToCall(
 
   // If the merge range is empty, then adding the edge didn't actually form any
   // new cycles. We're done.
-  if (empty(MergeRange)) {
+  if (MergeRange.empty()) {
     // Now that the SCC structure is finalized, flip the kind to call.
     SourceN->setEdgeKind(TargetN, Edge::Call);
     return false; // No new cycle.
@@ -1751,16 +1752,14 @@ static void printNode(raw_ostream &OS, LazyCallGraph::Node &N) {
 }
 
 static void printSCC(raw_ostream &OS, LazyCallGraph::SCC &C) {
-  ptrdiff_t Size = size(C);
-  OS << "    SCC with " << Size << " functions:\n";
+  OS << "    SCC with " << C.size() << " functions:\n";
 
   for (LazyCallGraph::Node &N : C)
     OS << "      " << N.getFunction().getName() << "\n";
 }
 
 static void printRefSCC(raw_ostream &OS, LazyCallGraph::RefSCC &C) {
-  ptrdiff_t Size = size(C);
-  OS << "  RefSCC with " << Size << " call SCCs:\n";
+  OS << "  RefSCC with " << C.size() << " call SCCs:\n";
 
   for (LazyCallGraph::SCC &InnerC : C)
     printSCC(OS, InnerC);

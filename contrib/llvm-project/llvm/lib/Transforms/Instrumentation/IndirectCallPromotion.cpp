@@ -36,6 +36,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Casting.h"
@@ -403,7 +404,7 @@ static bool promoteIndirectCalls(Module &M, ProfileSummaryInfo *PSI,
           AM->getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
       ORE = &FAM.getResult<OptimizationRemarkEmitterAnalysis>(F);
     } else {
-      OwnedORE = llvm::make_unique<OptimizationRemarkEmitter>(&F);
+      OwnedORE = std::make_unique<OptimizationRemarkEmitter>(&F);
       ORE = OwnedORE.get();
     }
 

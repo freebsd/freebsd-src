@@ -23,16 +23,18 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Object/SymbolSize.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/InitLLVM.h"
+#include "llvm/Support/MSVCErrorWorkarounds.h"
 #include "llvm/Support/Memory.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/MSVCErrorWorkarounds.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <future>
@@ -138,7 +140,20 @@ PrintAllocationRequests("print-alloc-requests",
                                  "manager by RuntimeDyld"),
                         cl::Hidden);
 
+static cl::opt<bool> ShowTimes("show-times",
+                               cl::desc("Show times for llvm-rtdyld phases"),
+                               cl::init(false));
+
 ExitOnError ExitOnErr;
+
+struct RTDyldTimers {
+  TimerGroup RTDyldTG{"llvm-rtdyld timers", "timers for llvm-rtdyld phases"};
+  Timer LoadObjectsTimer{"load", "time to load/add object files", RTDyldTG};
+  Timer LinkTimer{"link", "time to link object files", RTDyldTG};
+  Timer RunTimer{"run", "time to execute jitlink'd code", RTDyldTG};
+};
+
+std::unique_ptr<RTDyldTimers> Timers;
 
 /* *** */
 
@@ -441,8 +456,6 @@ static int printLineInfoForInput(bool LoadObjects, bool UseDebugObj) {
             continue;
           }
           object::section_iterator Sec = *SecOrErr;
-          StringRef SecName;
-          Sec->getName(SecName);
           Address.SectionIndex = Sec->getIndex();
           uint64_t SectionLoadAddress =
             LoadedObjInfo->getSectionLoadAddress(*Sec);
@@ -491,35 +504,41 @@ static int executeInput() {
   // If we don't have any input files, read from stdin.
   if (!InputFileList.size())
     InputFileList.push_back("-");
-  for (auto &File : InputFileList) {
-    // Load the input memory buffer.
-    ErrorOr<std::unique_ptr<MemoryBuffer>> InputBuffer =
-        MemoryBuffer::getFileOrSTDIN(File);
-    if (std::error_code EC = InputBuffer.getError())
-      ErrorAndExit("unable to read input: '" + EC.message() + "'");
-    Expected<std::unique_ptr<ObjectFile>> MaybeObj(
-      ObjectFile::createObjectFile((*InputBuffer)->getMemBufferRef()));
+  {
+    TimeRegion TR(Timers ? &Timers->LoadObjectsTimer : nullptr);
+    for (auto &File : InputFileList) {
+      // Load the input memory buffer.
+      ErrorOr<std::unique_ptr<MemoryBuffer>> InputBuffer =
+          MemoryBuffer::getFileOrSTDIN(File);
+      if (std::error_code EC = InputBuffer.getError())
+        ErrorAndExit("unable to read input: '" + EC.message() + "'");
+      Expected<std::unique_ptr<ObjectFile>> MaybeObj(
+          ObjectFile::createObjectFile((*InputBuffer)->getMemBufferRef()));
 
-    if (!MaybeObj) {
-      std::string Buf;
-      raw_string_ostream OS(Buf);
-      logAllUnhandledErrors(MaybeObj.takeError(), OS);
-      OS.flush();
-      ErrorAndExit("unable to create object file: '" + Buf + "'");
-    }
+      if (!MaybeObj) {
+        std::string Buf;
+        raw_string_ostream OS(Buf);
+        logAllUnhandledErrors(MaybeObj.takeError(), OS);
+        OS.flush();
+        ErrorAndExit("unable to create object file: '" + Buf + "'");
+      }
 
-    ObjectFile &Obj = **MaybeObj;
+      ObjectFile &Obj = **MaybeObj;
 
-    // Load the object file
-    Dyld.loadObject(Obj);
-    if (Dyld.hasError()) {
-      ErrorAndExit(Dyld.getErrorString());
+      // Load the object file
+      Dyld.loadObject(Obj);
+      if (Dyld.hasError()) {
+        ErrorAndExit(Dyld.getErrorString());
+      }
     }
   }
 
-  // Resove all the relocations we can.
-  // FIXME: Error out if there are unresolved relocations.
-  Dyld.resolveRelocations();
+  {
+    TimeRegion TR(Timers ? &Timers->LinkTimer : nullptr);
+    // Resove all the relocations we can.
+    // FIXME: Error out if there are unresolved relocations.
+    Dyld.resolveRelocations();
+  }
 
   // Get the address of the entry point (_main by default).
   void *MainAddress = Dyld.getSymbolLocalAddress(EntryPoint);
@@ -551,7 +570,13 @@ static int executeInput() {
   for (auto &Arg : InputArgv)
     Argv.push_back(Arg.data());
   Argv.push_back(nullptr);
-  return Main(Argv.size() - 1, Argv.data());
+  int Result = 0;
+  {
+    TimeRegion TR(Timers ? &Timers->RunTimer : nullptr);
+    Result = Main(Argv.size() - 1, Argv.data());
+  }
+
+  return Result;
 }
 
 static int checkAllExpressions(RuntimeDyldChecker &Checker) {
@@ -725,7 +750,9 @@ static int linkAndVerify() {
   if (!MRI)
     ErrorAndExit("Unable to create target register info!");
 
-  std::unique_ptr<MCAsmInfo> MAI(TheTarget->createMCAsmInfo(*MRI, TripleName));
+  MCTargetOptions MCOptions;
+  std::unique_ptr<MCAsmInfo> MAI(
+      TheTarget->createMCAsmInfo(*MRI, TripleName, MCOptions));
   if (!MAI)
     ErrorAndExit("Unable to create target asm info!");
 
@@ -891,7 +918,7 @@ static int linkAndVerify() {
     ObjectFile &Obj = **MaybeObj;
 
     if (!Checker)
-      Checker = llvm::make_unique<RuntimeDyldChecker>(
+      Checker = std::make_unique<RuntimeDyldChecker>(
           IsSymbolValid, GetSymbolInfo, GetSectionInfo, GetStubInfo,
           GetStubInfo, Obj.isLittleEndian() ? support::little : support::big,
           Disassembler.get(), InstPrinter.get(), dbgs());
@@ -937,16 +964,28 @@ int main(int argc, char **argv) {
 
   ExitOnErr.setBanner(std::string(argv[0]) + ": ");
 
+  Timers = ShowTimes ? std::make_unique<RTDyldTimers>() : nullptr;
+
+  int Result;
   switch (Action) {
   case AC_Execute:
-    return executeInput();
+    Result = executeInput();
+    break;
   case AC_PrintDebugLineInfo:
-    return printLineInfoForInput(/* LoadObjects */ true,/* UseDebugObj */ true);
+    Result =
+        printLineInfoForInput(/* LoadObjects */ true, /* UseDebugObj */ true);
+    break;
   case AC_PrintLineInfo:
-    return printLineInfoForInput(/* LoadObjects */ true,/* UseDebugObj */false);
+    Result =
+        printLineInfoForInput(/* LoadObjects */ true, /* UseDebugObj */ false);
+    break;
   case AC_PrintObjectLineInfo:
-    return printLineInfoForInput(/* LoadObjects */false,/* UseDebugObj */false);
+    Result =
+        printLineInfoForInput(/* LoadObjects */ false, /* UseDebugObj */ false);
+    break;
   case AC_Verify:
-    return linkAndVerify();
+    Result = linkAndVerify();
+    break;
   }
+  return Result;
 }

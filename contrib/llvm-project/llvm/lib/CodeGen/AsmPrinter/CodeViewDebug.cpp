@@ -98,7 +98,8 @@ using namespace llvm::codeview;
 namespace {
 class CVMCAdapter : public CodeViewRecordStreamer {
 public:
-  CVMCAdapter(MCStreamer &OS) : OS(&OS) {}
+  CVMCAdapter(MCStreamer &OS, TypeCollection &TypeTable)
+      : OS(&OS), TypeTable(TypeTable) {}
 
   void EmitBytes(StringRef Data) { OS->EmitBytes(Data); }
 
@@ -110,8 +111,24 @@ public:
 
   void AddComment(const Twine &T) { OS->AddComment(T); }
 
+  void AddRawComment(const Twine &T) { OS->emitRawComment(T); }
+
+  bool isVerboseAsm() { return OS->isVerboseAsm(); }
+
+  std::string getTypeName(TypeIndex TI) {
+    std::string TypeName;
+    if (!TI.isNoneType()) {
+      if (TI.isSimple())
+        TypeName = TypeIndex::simpleTypeName(TI);
+      else
+        TypeName = TypeTable.getTypeName(TI);
+    }
+    return TypeName;
+  }
+
 private:
   MCStreamer *OS = nullptr;
+  TypeCollection &TypeTable;
 };
 } // namespace
 
@@ -617,13 +634,6 @@ emitNullTerminatedSymbolName(MCStreamer &OS, StringRef S,
   OS.EmitBytes(NullTerminatedString);
 }
 
-static StringRef getTypeLeafName(TypeLeafKind TypeKind) {
-  for (const EnumEntry<TypeLeafKind> &EE : getTypeLeafNames())
-    if (EE.Value == TypeKind)
-      return EE.Name;
-  return "";
-}
-
 void CodeViewDebug::emitTypeInformation() {
   if (TypeTable.empty())
     return;
@@ -632,30 +642,11 @@ void CodeViewDebug::emitTypeInformation() {
   OS.SwitchSection(Asm->getObjFileLowering().getCOFFDebugTypesSection());
   emitCodeViewMagicVersion();
 
-  SmallString<8> CommentPrefix;
-  if (OS.isVerboseAsm()) {
-    CommentPrefix += '\t';
-    CommentPrefix += Asm->MAI->getCommentString();
-    CommentPrefix += ' ';
-  }
-
   TypeTableCollection Table(TypeTable.records());
-  SmallString<512> CommentBlock;
-  raw_svector_ostream CommentOS(CommentBlock);
-  std::unique_ptr<ScopedPrinter> SP;
-  std::unique_ptr<TypeDumpVisitor> TDV;
   TypeVisitorCallbackPipeline Pipeline;
 
-  if (OS.isVerboseAsm()) {
-    // To construct block comment describing the type record for readability.
-    SP = llvm::make_unique<ScopedPrinter>(CommentOS);
-    SP->setPrefix(CommentPrefix);
-    TDV = llvm::make_unique<TypeDumpVisitor>(Table, SP.get(), false);
-    Pipeline.addCallbackToPipeline(*TDV);
-  }
-
   // To emit type record using Codeview MCStreamer adapter
-  CVMCAdapter CVMCOS(OS);
+  CVMCAdapter CVMCOS(OS, Table);
   TypeRecordMapping typeMapping(CVMCOS);
   Pipeline.addCallbackToPipeline(typeMapping);
 
@@ -664,17 +655,6 @@ void CodeViewDebug::emitTypeInformation() {
     // This will fail if the record data is invalid.
     CVType Record = Table.getType(*B);
 
-    CommentBlock.clear();
-
-    auto RecordLen = Record.length();
-    auto RecordKind = Record.kind();
-    if (OS.isVerboseAsm())
-      CVMCOS.AddComment("Record length");
-    CVMCOS.EmitIntValue(RecordLen - 2, 2);
-    if (OS.isVerboseAsm())
-      CVMCOS.AddComment("Record kind: " + getTypeLeafName(RecordKind));
-    CVMCOS.EmitIntValue(RecordKind, sizeof(RecordKind));
-
     Error E = codeview::visitTypeRecord(Record, *B, Pipeline);
 
     if (E) {
@@ -682,13 +662,6 @@ void CodeViewDebug::emitTypeInformation() {
       llvm_unreachable("produced malformed type record");
     }
 
-    if (OS.isVerboseAsm()) {
-      // emitRawComment will insert its own tab and comment string before
-      // the first line, so strip off our first one. It also prints its own
-      // newline.
-      OS.emitRawComment(
-          CommentOS.str().drop_front(CommentPrefix.size() - 1).rtrim());
-    }
     B = Table.getNext(*B);
   }
 }
@@ -1357,7 +1330,7 @@ void CodeViewDebug::beginFunctionImpl(const MachineFunction *MF) {
   const TargetRegisterInfo *TRI = TSI.getRegisterInfo();
   const MachineFrameInfo &MFI = MF->getFrameInfo();
   const Function &GV = MF->getFunction();
-  auto Insertion = FnDebugInfo.insert({&GV, llvm::make_unique<FunctionInfo>()});
+  auto Insertion = FnDebugInfo.insert({&GV, std::make_unique<FunctionInfo>()});
   assert(Insertion.second && "function already has info");
   CurFn = Insertion.first->second.get();
   CurFn->FuncId = NextFuncId++;
@@ -2637,17 +2610,6 @@ void CodeViewDebug::emitLocalVariableList(const FunctionInfo &FI,
       emitLocalVariable(FI, L);
 }
 
-/// Only call this on endian-specific types like ulittle16_t and little32_t, or
-/// structs composed of them.
-template <typename T>
-static void copyBytesForDefRange(SmallString<20> &BytePrefix,
-                                 SymbolKind SymKind, const T &DefRangeHeader) {
-  BytePrefix.resize(2 + sizeof(T));
-  ulittle16_t SymKindLE = ulittle16_t(SymKind);
-  memcpy(&BytePrefix[0], &SymKindLE, 2);
-  memcpy(&BytePrefix[2], &DefRangeHeader, sizeof(T));
-}
-
 void CodeViewDebug::emitLocalVariable(const FunctionInfo &FI,
                                       const LocalVariable &Var) {
   // LocalSym record, see SymbolRecord.h for more info.
@@ -2696,8 +2658,9 @@ void CodeViewDebug::emitLocalVariable(const FunctionInfo &FI,
           (bool(Flags & LocalSymFlags::IsParameter)
                ? (EncFP == FI.EncodedParamFramePtrReg)
                : (EncFP == FI.EncodedLocalFramePtrReg))) {
-        little32_t FPOffset = little32_t(Offset);
-        copyBytesForDefRange(BytePrefix, S_DEFRANGE_FRAMEPOINTER_REL, FPOffset);
+        DefRangeFramePointerRelHeader DRHdr;
+        DRHdr.Offset = Offset;
+        OS.EmitCVDefRangeDirective(DefRange.Ranges, DRHdr);
       } else {
         uint16_t RegRelFlags = 0;
         if (DefRange.IsSubfield) {
@@ -2705,28 +2668,27 @@ void CodeViewDebug::emitLocalVariable(const FunctionInfo &FI,
                         (DefRange.StructOffset
                          << DefRangeRegisterRelSym::OffsetInParentShift);
         }
-        DefRangeRegisterRelSym::Header DRHdr;
+        DefRangeRegisterRelHeader DRHdr;
         DRHdr.Register = Reg;
         DRHdr.Flags = RegRelFlags;
         DRHdr.BasePointerOffset = Offset;
-        copyBytesForDefRange(BytePrefix, S_DEFRANGE_REGISTER_REL, DRHdr);
+        OS.EmitCVDefRangeDirective(DefRange.Ranges, DRHdr);
       }
     } else {
       assert(DefRange.DataOffset == 0 && "unexpected offset into register");
       if (DefRange.IsSubfield) {
-        DefRangeSubfieldRegisterSym::Header DRHdr;
+        DefRangeSubfieldRegisterHeader DRHdr;
         DRHdr.Register = DefRange.CVRegister;
         DRHdr.MayHaveNoName = 0;
         DRHdr.OffsetInParent = DefRange.StructOffset;
-        copyBytesForDefRange(BytePrefix, S_DEFRANGE_SUBFIELD_REGISTER, DRHdr);
+        OS.EmitCVDefRangeDirective(DefRange.Ranges, DRHdr);
       } else {
-        DefRangeRegisterSym::Header DRHdr;
+        DefRangeRegisterHeader DRHdr;
         DRHdr.Register = DefRange.CVRegister;
         DRHdr.MayHaveNoName = 0;
-        copyBytesForDefRange(BytePrefix, S_DEFRANGE_REGISTER, DRHdr);
+        OS.EmitCVDefRangeDirective(DefRange.Ranges, DRHdr);
       }
     }
-    OS.EmitCVDefRangeDirective(DefRange.Ranges, BytePrefix);
   }
 }
 
@@ -2910,6 +2872,14 @@ void CodeViewDebug::endFunctionImpl(const MachineFunction *MF) {
   CurFn = nullptr;
 }
 
+// Usable locations are valid with non-zero line numbers. A line number of zero
+// corresponds to optimized code that doesn't have a distinct source location.
+// In this case, we try to use the previous or next source location depending on
+// the context.
+static bool isUsableDebugLoc(DebugLoc DL) {
+  return DL && DL.getLine() != 0;
+}
+
 void CodeViewDebug::beginInstruction(const MachineInstr *MI) {
   DebugHandlerBase::beginInstruction(MI);
 
@@ -2921,19 +2891,21 @@ void CodeViewDebug::beginInstruction(const MachineInstr *MI) {
   // If the first instruction of a new MBB has no location, find the first
   // instruction with a location and use that.
   DebugLoc DL = MI->getDebugLoc();
-  if (!DL && MI->getParent() != PrevInstBB) {
+  if (!isUsableDebugLoc(DL) && MI->getParent() != PrevInstBB) {
     for (const auto &NextMI : *MI->getParent()) {
       if (NextMI.isDebugInstr())
         continue;
       DL = NextMI.getDebugLoc();
-      if (DL)
+      if (isUsableDebugLoc(DL))
         break;
     }
+    // FIXME: Handle the case where the BB has no valid locations. This would
+    // probably require doing a real dataflow analysis.
   }
   PrevInstBB = MI->getParent();
 
   // If we still don't have a debug location, don't record a location.
-  if (!DL)
+  if (!isUsableDebugLoc(DL))
     return;
 
   maybeRecordLocation(DL, Asm->MF);
@@ -3040,7 +3012,7 @@ void CodeViewDebug::collectGlobalVariableInfo() {
         auto Insertion = ScopeGlobals.insert(
             {Scope, std::unique_ptr<GlobalVariableList>()});
         if (Insertion.second)
-          Insertion.first->second = llvm::make_unique<GlobalVariableList>();
+          Insertion.first->second = std::make_unique<GlobalVariableList>();
         VariableList = Insertion.first->second.get();
       } else if (GV->hasComdat())
         // Emit this global variable into a COMDAT section.

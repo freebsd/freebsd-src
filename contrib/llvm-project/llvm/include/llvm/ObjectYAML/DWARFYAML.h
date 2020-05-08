@@ -161,8 +161,6 @@ struct Data {
 } // end namespace DWARFYAML
 } // end namespace llvm
 
-LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::yaml::Hex64)
-LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::yaml::Hex8)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::DWARFYAML::AttributeAbbrev)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::DWARFYAML::Abbrev)
 LLVM_YAML_IS_SEQUENCE_VECTOR(llvm::DWARFYAML::ARangeDescriptor)
@@ -234,7 +232,7 @@ template <> struct MappingTraits<DWARFYAML::InitialLength> {
   static void mapping(IO &IO, DWARFYAML::InitialLength &DWARF);
 };
 
-#define HANDLE_DW_TAG(unused, name, unused2, unused3)                          \
+#define HANDLE_DW_TAG(unused, name, unused2, unused3, unused4)                 \
   io.enumCase(value, "DW_TAG_" #name, dwarf::DW_TAG_##name);
 
 template <> struct ScalarEnumerationTraits<dwarf::Tag> {

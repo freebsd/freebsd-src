@@ -15,6 +15,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclOpenMP.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/OpenMPKinds.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -43,6 +44,8 @@ OMPClause::child_range OMPClause::used_children() {
 #include "clang/Basic/OpenMPKinds.def"
   case OMPC_threadprivate:
   case OMPC_uniform:
+  case OMPC_device_type:
+  case OMPC_match:
   case OMPC_unknown:
     break;
   }
@@ -82,9 +85,16 @@ const OMPClauseWithPreInit *OMPClauseWithPreInit::get(const OMPClause *C) {
     return static_cast<const OMPThreadLimitClause *>(C);
   case OMPC_device:
     return static_cast<const OMPDeviceClause *>(C);
+  case OMPC_grainsize:
+    return static_cast<const OMPGrainsizeClause *>(C);
+  case OMPC_num_tasks:
+    return static_cast<const OMPNumTasksClause *>(C);
+  case OMPC_final:
+    return static_cast<const OMPFinalClause *>(C);
+  case OMPC_priority:
+    return static_cast<const OMPPriorityClause *>(C);
   case OMPC_default:
   case OMPC_proc_bind:
-  case OMPC_final:
   case OMPC_safelen:
   case OMPC_simdlen:
   case OMPC_allocator:
@@ -110,10 +120,7 @@ const OMPClauseWithPreInit *OMPClauseWithPreInit::get(const OMPClause *C) {
   case OMPC_threads:
   case OMPC_simd:
   case OMPC_map:
-  case OMPC_priority:
-  case OMPC_grainsize:
   case OMPC_nogroup:
-  case OMPC_num_tasks:
   case OMPC_hint:
   case OMPC_defaultmap:
   case OMPC_unknown:
@@ -127,6 +134,9 @@ const OMPClauseWithPreInit *OMPClauseWithPreInit::get(const OMPClause *C) {
   case OMPC_reverse_offload:
   case OMPC_dynamic_allocators:
   case OMPC_atomic_default_mem_order:
+  case OMPC_device_type:
+  case OMPC_match:
+  case OMPC_nontemporal:
     break;
   }
 
@@ -203,6 +213,9 @@ const OMPClauseWithPostUpdate *OMPClauseWithPostUpdate::get(const OMPClause *C) 
   case OMPC_reverse_offload:
   case OMPC_dynamic_allocators:
   case OMPC_atomic_default_mem_order:
+  case OMPC_device_type:
+  case OMPC_match:
+  case OMPC_nontemporal:
     break;
   }
 
@@ -226,6 +239,30 @@ OMPClause::child_range OMPIfClause::used_children() {
   if (Stmt **C = getAddrOfExprAsWritten(getPreInitStmt()))
     return child_range(C, C + 1);
   return child_range(&Condition, &Condition + 1);
+}
+
+OMPClause::child_range OMPGrainsizeClause::used_children() {
+  if (Stmt **C = getAddrOfExprAsWritten(getPreInitStmt()))
+    return child_range(C, C + 1);
+  return child_range(&Grainsize, &Grainsize + 1);
+}
+
+OMPClause::child_range OMPNumTasksClause::used_children() {
+  if (Stmt **C = getAddrOfExprAsWritten(getPreInitStmt()))
+    return child_range(C, C + 1);
+  return child_range(&NumTasks, &NumTasks + 1);
+}
+
+OMPClause::child_range OMPFinalClause::used_children() {
+  if (Stmt **C = getAddrOfExprAsWritten(getPreInitStmt()))
+    return child_range(C, C + 1);
+  return child_range(&Condition, &Condition + 1);
+}
+
+OMPClause::child_range OMPPriorityClause::used_children() {
+  if (Stmt **C = getAddrOfExprAsWritten(getPreInitStmt()))
+    return child_range(C, C + 1);
+  return child_range(&Priority, &Priority + 1);
 }
 
 OMPOrderedClause *OMPOrderedClause::Create(const ASTContext &C, Expr *Num,
@@ -368,11 +405,12 @@ void OMPLastprivateClause::setAssignmentOps(ArrayRef<Expr *> AssignmentOps) {
 OMPLastprivateClause *OMPLastprivateClause::Create(
     const ASTContext &C, SourceLocation StartLoc, SourceLocation LParenLoc,
     SourceLocation EndLoc, ArrayRef<Expr *> VL, ArrayRef<Expr *> SrcExprs,
-    ArrayRef<Expr *> DstExprs, ArrayRef<Expr *> AssignmentOps, Stmt *PreInit,
-    Expr *PostUpdate) {
+    ArrayRef<Expr *> DstExprs, ArrayRef<Expr *> AssignmentOps,
+    OpenMPLastprivateModifier LPKind, SourceLocation LPKindLoc,
+    SourceLocation ColonLoc, Stmt *PreInit, Expr *PostUpdate) {
   void *Mem = C.Allocate(totalSizeToAlloc<Expr *>(5 * VL.size()));
-  OMPLastprivateClause *Clause =
-      new (Mem) OMPLastprivateClause(StartLoc, LParenLoc, EndLoc, VL.size());
+  OMPLastprivateClause *Clause = new (Mem) OMPLastprivateClause(
+      StartLoc, LParenLoc, EndLoc, LPKind, LPKindLoc, ColonLoc, VL.size());
   Clause->setVarRefs(VL);
   Clause->setSourceExprs(SrcExprs);
   Clause->setDestinationExprs(DstExprs);
@@ -429,15 +467,23 @@ void OMPLinearClause::setFinals(ArrayRef<Expr *> FL) {
   std::copy(FL.begin(), FL.end(), getUpdates().end());
 }
 
+void OMPLinearClause::setUsedExprs(ArrayRef<Expr *> UE) {
+  assert(
+      UE.size() == varlist_size() + 1 &&
+      "Number of used expressions is not the same as the preallocated buffer");
+  std::copy(UE.begin(), UE.end(), getFinals().end() + 2);
+}
+
 OMPLinearClause *OMPLinearClause::Create(
     const ASTContext &C, SourceLocation StartLoc, SourceLocation LParenLoc,
     OpenMPLinearClauseKind Modifier, SourceLocation ModifierLoc,
     SourceLocation ColonLoc, SourceLocation EndLoc, ArrayRef<Expr *> VL,
     ArrayRef<Expr *> PL, ArrayRef<Expr *> IL, Expr *Step, Expr *CalcStep,
     Stmt *PreInit, Expr *PostUpdate) {
-  // Allocate space for 4 lists (Vars, Inits, Updates, Finals) and 2 expressions
-  // (Step and CalcStep).
-  void *Mem = C.Allocate(totalSizeToAlloc<Expr *>(5 * VL.size() + 2));
+  // Allocate space for 5 lists (Vars, Inits, Updates, Finals), 2 expressions
+  // (Step and CalcStep), list of used expression + step.
+  void *Mem =
+      C.Allocate(totalSizeToAlloc<Expr *>(5 * VL.size() + 2 + VL.size() + 1));
   OMPLinearClause *Clause = new (Mem) OMPLinearClause(
       StartLoc, LParenLoc, Modifier, ModifierLoc, ColonLoc, EndLoc, VL.size());
   Clause->setVarRefs(VL);
@@ -449,6 +495,8 @@ OMPLinearClause *OMPLinearClause::Create(
             nullptr);
   std::fill(Clause->getUpdates().end(), Clause->getUpdates().end() + VL.size(),
             nullptr);
+  std::fill(Clause->getUsedExprs().begin(), Clause->getUsedExprs().end(),
+            nullptr);
   Clause->setStep(Step);
   Clause->setCalcStep(CalcStep);
   Clause->setPreInitStmt(PreInit);
@@ -458,10 +506,17 @@ OMPLinearClause *OMPLinearClause::Create(
 
 OMPLinearClause *OMPLinearClause::CreateEmpty(const ASTContext &C,
                                               unsigned NumVars) {
-  // Allocate space for 4 lists (Vars, Inits, Updates, Finals) and 2 expressions
-  // (Step and CalcStep).
-  void *Mem = C.Allocate(totalSizeToAlloc<Expr *>(5 * NumVars + 2));
+  // Allocate space for 5 lists (Vars, Inits, Updates, Finals), 2 expressions
+  // (Step and CalcStep), list of used expression + step.
+  void *Mem = C.Allocate(totalSizeToAlloc<Expr *>(5 * NumVars + 2 + NumVars  +1));
   return new (Mem) OMPLinearClause(NumVars);
+}
+
+OMPClause::child_range OMPLinearClause::used_children() {
+  // Range includes only non-nullptr elements.
+  return child_range(
+      reinterpret_cast<Stmt **>(getUsedExprs().begin()),
+      reinterpret_cast<Stmt **>(llvm::find(getUsedExprs(), nullptr)));
 }
 
 OMPAlignedClause *
@@ -1104,13 +1159,38 @@ OMPIsDevicePtrClause::CreateEmpty(const ASTContext &C,
   return new (Mem) OMPIsDevicePtrClause(Sizes);
 }
 
+OMPNontemporalClause *OMPNontemporalClause::Create(const ASTContext &C,
+                                                   SourceLocation StartLoc,
+                                                   SourceLocation LParenLoc,
+                                                   SourceLocation EndLoc,
+                                                   ArrayRef<Expr *> VL) {
+  // Allocate space for nontemporal variables + private references.
+  void *Mem = C.Allocate(totalSizeToAlloc<Expr *>(2 * VL.size()));
+  auto *Clause =
+      new (Mem) OMPNontemporalClause(StartLoc, LParenLoc, EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  return Clause;
+}
+
+OMPNontemporalClause *OMPNontemporalClause::CreateEmpty(const ASTContext &C,
+                                                        unsigned N) {
+  void *Mem = C.Allocate(totalSizeToAlloc<Expr *>(2 * N));
+  return new (Mem) OMPNontemporalClause(N);
+}
+
+void OMPNontemporalClause::setPrivateRefs(ArrayRef<Expr *> VL) {
+  assert(VL.size() == varlist_size() && "Number of private references is not "
+                                        "the same as the preallocated buffer");
+  std::copy(VL.begin(), VL.end(), varlist_end());
+}
+
 //===----------------------------------------------------------------------===//
 //  OpenMP clauses printing methods
 //===----------------------------------------------------------------------===//
 
 void OMPClausePrinter::VisitOMPIfClause(OMPIfClause *Node) {
   OS << "if(";
-  if (Node->getNameModifier() != OMPD_unknown)
+  if (Node->getNameModifier() != llvm::omp::OMPD_unknown)
     OS << getOpenMPDirectiveName(Node->getNameModifier()) << ": ";
   Node->getCondition()->printPretty(OS, nullptr, Policy, 0);
   OS << ")";
@@ -1160,7 +1240,8 @@ void OMPClausePrinter::VisitOMPDefaultClause(OMPDefaultClause *Node) {
 
 void OMPClausePrinter::VisitOMPProcBindClause(OMPProcBindClause *Node) {
   OS << "proc_bind("
-     << getOpenMPSimpleClauseTypeName(OMPC_proc_bind, Node->getProcBindKind())
+     << getOpenMPSimpleClauseTypeName(OMPC_proc_bind,
+                                      unsigned(Node->getProcBindKind()))
      << ")";
 }
 
@@ -1350,7 +1431,13 @@ void OMPClausePrinter::VisitOMPFirstprivateClause(OMPFirstprivateClause *Node) {
 void OMPClausePrinter::VisitOMPLastprivateClause(OMPLastprivateClause *Node) {
   if (!Node->varlist_empty()) {
     OS << "lastprivate";
-    VisitOMPClauseList(Node, '(');
+    OpenMPLastprivateModifier LPKind = Node->getKind();
+    if (LPKind != OMPC_LASTPRIVATE_unknown) {
+      OS << "("
+         << getOpenMPSimpleClauseTypeName(OMPC_lastprivate, Node->getKind())
+         << ":";
+    }
+    VisitOMPClauseList(Node, LPKind == OMPC_LASTPRIVATE_unknown ? '(' : ' ');
     OS << ")";
   }
 }
@@ -1597,3 +1684,10 @@ void OMPClausePrinter::VisitOMPIsDevicePtrClause(OMPIsDevicePtrClause *Node) {
   }
 }
 
+void OMPClausePrinter::VisitOMPNontemporalClause(OMPNontemporalClause *Node) {
+  if (!Node->varlist_empty()) {
+    OS << "nontemporal";
+    VisitOMPClauseList(Node, '(');
+    OS << ")";
+  }
+}

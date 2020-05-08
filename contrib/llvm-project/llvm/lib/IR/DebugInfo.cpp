@@ -279,7 +279,7 @@ bool DebugInfoFinder::addScope(DIScope *Scope) {
 }
 
 static MDNode *stripDebugLocFromLoopID(MDNode *N) {
-  assert(!empty(N->operands()) && "Missing self reference?");
+  assert(!N->operands().empty() && "Missing self reference?");
 
   // if there is no debug location, we do not have to rewrite this MDNode.
   if (std::none_of(N->op_begin() + 1, N->op_end(), [](const MDOperand &Op) {
@@ -782,12 +782,12 @@ LLVMDIBuilderCreateModule(LLVMDIBuilderRef Builder, LLVMMetadataRef ParentScope,
                           const char *Name, size_t NameLen,
                           const char *ConfigMacros, size_t ConfigMacrosLen,
                           const char *IncludePath, size_t IncludePathLen,
-                          const char *ISysRoot, size_t ISysRootLen) {
+                          const char *SysRoot, size_t SysRootLen) {
   return wrap(unwrap(Builder)->createModule(
       unwrapDI<DIScope>(ParentScope), StringRef(Name, NameLen),
       StringRef(ConfigMacros, ConfigMacrosLen),
       StringRef(IncludePath, IncludePathLen),
-      StringRef(ISysRoot, ISysRootLen)));
+      StringRef(SysRoot, SysRootLen)));
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateNameSpace(LLVMDIBuilderRef Builder,
@@ -927,6 +927,26 @@ const char *LLVMDIFileGetSource(LLVMMetadataRef File, unsigned *Len) {
   }
   *Len = 0;
   return "";
+}
+
+LLVMMetadataRef LLVMDIBuilderCreateMacro(LLVMDIBuilderRef Builder,
+                                         LLVMMetadataRef ParentMacroFile,
+                                         unsigned Line,
+                                         LLVMDWARFMacinfoRecordType RecordType,
+                                         const char *Name, size_t NameLen,
+                                         const char *Value, size_t ValueLen) {
+  return wrap(
+      unwrap(Builder)->createMacro(unwrapDI<DIMacroFile>(ParentMacroFile), Line,
+                                   static_cast<MacinfoRecordType>(RecordType),
+                                   {Name, NameLen}, {Value, ValueLen}));
+}
+
+LLVMMetadataRef
+LLVMDIBuilderCreateTempMacroFile(LLVMDIBuilderRef Builder,
+                                 LLVMMetadataRef ParentMacroFile, unsigned Line,
+                                 LLVMMetadataRef File) {
+  return wrap(unwrap(Builder)->createTempMacroFile(
+      unwrapDI<DIMacroFile>(ParentMacroFile), Line, unwrapDI<DIFile>(File)));
 }
 
 LLVMMetadataRef LLVMDIBuilderCreateEnumerator(LLVMDIBuilderRef Builder,
@@ -1088,11 +1108,10 @@ LLVMMetadataRef
 LLVMDIBuilderCreateTypedef(LLVMDIBuilderRef Builder, LLVMMetadataRef Type,
                            const char *Name, size_t NameLen,
                            LLVMMetadataRef File, unsigned LineNo,
-                           LLVMMetadataRef Scope) {
+                           LLVMMetadataRef Scope, uint32_t AlignInBits) {
   return wrap(unwrap(Builder)->createTypedef(
-                  unwrapDI<DIType>(Type), {Name, NameLen},
-                  unwrapDI<DIFile>(File), LineNo,
-                  unwrapDI<DIScope>(Scope)));
+      unwrapDI<DIType>(Type), {Name, NameLen}, unwrapDI<DIFile>(File), LineNo,
+      unwrapDI<DIScope>(Scope), AlignInBits));
 }
 
 LLVMMetadataRef
@@ -1270,7 +1289,7 @@ LLVMMetadataRef LLVMDIBuilderCreateGlobalVariableExpression(
   return wrap(unwrap(Builder)->createGlobalVariableExpression(
       unwrapDI<DIScope>(Scope), {Name, NameLen}, {Linkage, LinkLen},
       unwrapDI<DIFile>(File), LineNo, unwrapDI<DIType>(Ty), LocalToUnit,
-      unwrap<DIExpression>(Expr), unwrapDI<MDNode>(Decl),
+      true, unwrap<DIExpression>(Expr), unwrapDI<MDNode>(Decl),
       nullptr, AlignInBits));
 }
 

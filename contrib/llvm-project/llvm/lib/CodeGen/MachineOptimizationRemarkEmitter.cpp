@@ -17,6 +17,7 @@
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -76,7 +77,7 @@ bool MachineOptimizationRemarkEmitterPass::runOnMachineFunction(
   else
     MBFI = nullptr;
 
-  ORE = llvm::make_unique<MachineOptimizationRemarkEmitter>(MF, MBFI);
+  ORE = std::make_unique<MachineOptimizationRemarkEmitter>(MF, MBFI);
   return false;
 }
 

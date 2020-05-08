@@ -10,6 +10,7 @@
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/PrettyPrinter.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/TargetInfo.h"
@@ -105,16 +106,26 @@ using namespace lldb_private;
 class ClangExpressionParser::LLDBPreprocessorCallbacks : public PPCallbacks {
   ClangModulesDeclVendor &m_decl_vendor;
   ClangPersistentVariables &m_persistent_vars;
+  clang::SourceManager &m_source_mgr;
   StreamString m_error_stream;
   bool m_has_errors = false;
 
 public:
   LLDBPreprocessorCallbacks(ClangModulesDeclVendor &decl_vendor,
-                            ClangPersistentVariables &persistent_vars)
-      : m_decl_vendor(decl_vendor), m_persistent_vars(persistent_vars) {}
+                            ClangPersistentVariables &persistent_vars,
+                            clang::SourceManager &source_mgr)
+      : m_decl_vendor(decl_vendor), m_persistent_vars(persistent_vars),
+        m_source_mgr(source_mgr) {}
 
   void moduleImport(SourceLocation import_location, clang::ModuleIdPath path,
                     const clang::Module * /*null*/) override {
+    // Ignore modules that are imported in the wrapper code as these are not
+    // loaded by the user.
+    llvm::StringRef filename =
+        m_source_mgr.getPresumedLoc(import_location).getFilename();
+    if (filename == ClangExpressionSourceCode::g_prefix_file_name)
+      return;
+
     SourceModule module;
 
     for (const std::pair<IdentifierInfo *, SourceLocation> &component : path)
@@ -137,12 +148,14 @@ public:
 
 class ClangDiagnosticManagerAdapter : public clang::DiagnosticConsumer {
 public:
-  ClangDiagnosticManagerAdapter()
-      : m_passthrough(new clang::TextDiagnosticBuffer) {}
-
-  ClangDiagnosticManagerAdapter(
-      const std::shared_ptr<clang::TextDiagnosticBuffer> &passthrough)
-      : m_passthrough(passthrough) {}
+  ClangDiagnosticManagerAdapter(DiagnosticOptions &opts) {
+    DiagnosticOptions *m_options = new DiagnosticOptions(opts);
+    m_options->ShowPresumedLoc = true;
+    m_options->ShowLevel = false;
+    m_os.reset(new llvm::raw_string_ostream(m_output));
+    m_passthrough.reset(
+        new clang::TextDiagnosticPrinter(*m_os, m_options, false));
+  }
 
   void ResetManager(DiagnosticManager *manager = nullptr) {
     m_manager = manager;
@@ -150,79 +163,92 @@ public:
 
   void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
                         const clang::Diagnostic &Info) override {
-    if (m_manager) {
-      llvm::SmallVector<char, 32> diag_str;
-      Info.FormatDiagnostic(diag_str);
-      diag_str.push_back('\0');
-      const char *data = diag_str.data();
-
-      lldb_private::DiagnosticSeverity severity;
-      bool make_new_diagnostic = true;
-
-      switch (DiagLevel) {
-      case DiagnosticsEngine::Level::Fatal:
-      case DiagnosticsEngine::Level::Error:
-        severity = eDiagnosticSeverityError;
-        break;
-      case DiagnosticsEngine::Level::Warning:
-        severity = eDiagnosticSeverityWarning;
-        break;
-      case DiagnosticsEngine::Level::Remark:
-      case DiagnosticsEngine::Level::Ignored:
-        severity = eDiagnosticSeverityRemark;
-        break;
-      case DiagnosticsEngine::Level::Note:
-        m_manager->AppendMessageToDiagnostic(data);
-        make_new_diagnostic = false;
+    if (!m_manager) {
+      // We have no DiagnosticManager before/after parsing but we still could
+      // receive diagnostics (e.g., by the ASTImporter failing to copy decls
+      // when we move the expression result ot the ScratchASTContext). Let's at
+      // least log these diagnostics until we find a way to properly render
+      // them and display them to the user.
+      Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
+      if (log) {
+        llvm::SmallVector<char, 32> diag_str;
+        Info.FormatDiagnostic(diag_str);
+        diag_str.push_back('\0');
+        const char *plain_diag = diag_str.data();
+        LLDB_LOG(log, "Received diagnostic outside parsing: {0}", plain_diag);
       }
-      if (make_new_diagnostic) {
-        ClangDiagnostic *new_diagnostic =
-            new ClangDiagnostic(data, severity, Info.getID());
-        m_manager->AddDiagnostic(new_diagnostic);
-
-        // Don't store away warning fixits, since the compiler doesn't have
-        // enough context in an expression for the warning to be useful.
-        // FIXME: Should we try to filter out FixIts that apply to our generated
-        // code, and not the user's expression?
-        if (severity == eDiagnosticSeverityError) {
-          size_t num_fixit_hints = Info.getNumFixItHints();
-          for (size_t i = 0; i < num_fixit_hints; i++) {
-            const clang::FixItHint &fixit = Info.getFixItHint(i);
-            if (!fixit.isNull())
-              new_diagnostic->AddFixitHint(fixit);
-          }
-        }
-      }
+      return;
     }
 
+    // Render diagnostic message to m_output.
+    m_output.clear();
     m_passthrough->HandleDiagnostic(DiagLevel, Info);
+    m_os->flush();
+
+    lldb_private::DiagnosticSeverity severity;
+    bool make_new_diagnostic = true;
+
+    switch (DiagLevel) {
+    case DiagnosticsEngine::Level::Fatal:
+    case DiagnosticsEngine::Level::Error:
+      severity = eDiagnosticSeverityError;
+      break;
+    case DiagnosticsEngine::Level::Warning:
+      severity = eDiagnosticSeverityWarning;
+      break;
+    case DiagnosticsEngine::Level::Remark:
+    case DiagnosticsEngine::Level::Ignored:
+      severity = eDiagnosticSeverityRemark;
+      break;
+    case DiagnosticsEngine::Level::Note:
+      m_manager->AppendMessageToDiagnostic(m_output);
+      make_new_diagnostic = false;
+    }
+    if (make_new_diagnostic) {
+      // ClangDiagnostic messages are expected to have no whitespace/newlines
+      // around them.
+      std::string stripped_output = llvm::StringRef(m_output).trim();
+
+      auto new_diagnostic = std::make_unique<ClangDiagnostic>(
+          stripped_output, severity, Info.getID());
+
+      // Don't store away warning fixits, since the compiler doesn't have
+      // enough context in an expression for the warning to be useful.
+      // FIXME: Should we try to filter out FixIts that apply to our generated
+      // code, and not the user's expression?
+      if (severity == eDiagnosticSeverityError) {
+        size_t num_fixit_hints = Info.getNumFixItHints();
+        for (size_t i = 0; i < num_fixit_hints; i++) {
+          const clang::FixItHint &fixit = Info.getFixItHint(i);
+          if (!fixit.isNull())
+            new_diagnostic->AddFixitHint(fixit);
+        }
+      }
+
+      m_manager->AddDiagnostic(std::move(new_diagnostic));
+    }
   }
 
-  void FlushDiagnostics(DiagnosticsEngine &Diags) {
-    m_passthrough->FlushDiagnostics(Diags);
-  }
-
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-    return new ClangDiagnosticManagerAdapter(m_passthrough);
-  }
-
-  clang::TextDiagnosticBuffer *GetPassthrough() { return m_passthrough.get(); }
+  clang::TextDiagnosticPrinter *GetPassthrough() { return m_passthrough.get(); }
 
 private:
   DiagnosticManager *m_manager = nullptr;
-  std::shared_ptr<clang::TextDiagnosticBuffer> m_passthrough;
+  std::shared_ptr<clang::TextDiagnosticPrinter> m_passthrough;
+  /// Output stream of m_passthrough.
+  std::shared_ptr<llvm::raw_string_ostream> m_os;
+  /// Output string filled by m_os.
+  std::string m_output;
 };
 
-static void
-SetupModuleHeaderPaths(CompilerInstance *compiler,
-                       std::vector<ConstString> include_directories,
-                       lldb::TargetSP target_sp) {
+static void SetupModuleHeaderPaths(CompilerInstance *compiler,
+                                   std::vector<std::string> include_directories,
+                                   lldb::TargetSP target_sp) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
   HeaderSearchOptions &search_opts = compiler->getHeaderSearchOpts();
 
-  for (ConstString dir : include_directories) {
-    search_opts.AddPath(dir.AsCString(), frontend::System, false, true);
+  for (const std::string &dir : include_directories) {
+    search_opts.AddPath(dir, frontend::System, false, true);
     LLDB_LOG(log, "Added user include dir: {0}", dir);
   }
 
@@ -232,27 +258,9 @@ SetupModuleHeaderPaths(CompilerInstance *compiler,
   search_opts.ModuleCachePath = module_cache.str();
   LLDB_LOG(log, "Using module cache path: {0}", module_cache.c_str());
 
-  FileSpec clang_resource_dir = GetClangResourceDir();
-  std::string resource_dir = clang_resource_dir.GetPath();
-  if (FileSystem::Instance().IsDirectory(resource_dir)) {
-    search_opts.ResourceDir = resource_dir;
-    std::string resource_include = resource_dir + "/include";
-    search_opts.AddPath(resource_include, frontend::System, false, true);
-
-    LLDB_LOG(log, "Added resource include dir: {0}", resource_include);
-  }
+  search_opts.ResourceDir = GetClangResourceDir().GetPath();
 
   search_opts.ImplicitModuleMaps = true;
-
-  std::vector<std::string> system_include_directories =
-      target_sp->GetPlatform()->GetSystemIncludeDirectories(
-          lldb::eLanguageTypeC_plus_plus);
-
-  for (const std::string &include_dir : system_include_directories) {
-    search_opts.AddPath(include_dir, frontend::System, false, true);
-
-    LLDB_LOG(log, "Added system include dir: {0}", include_dir);
-  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -261,10 +269,12 @@ SetupModuleHeaderPaths(CompilerInstance *compiler,
 
 ClangExpressionParser::ClangExpressionParser(
     ExecutionContextScope *exe_scope, Expression &expr,
-    bool generate_debug_info, std::vector<ConstString> include_directories)
+    bool generate_debug_info, std::vector<std::string> include_directories,
+    std::string filename)
     : ExpressionParser(exe_scope, expr, generate_debug_info), m_compiler(),
       m_pp_callbacks(nullptr),
-      m_include_directories(std::move(include_directories)) {
+      m_include_directories(std::move(include_directories)),
+      m_filename(std::move(filename)) {
   Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_EXPRESSIONS));
 
   // We can't compile expressions without a target.  So if the exe_scope is
@@ -331,9 +341,8 @@ ClangExpressionParser::ClangExpressionParser(
 
   if (process_sp && frame_lang != lldb::eLanguageTypeUnknown) {
     lang_rt = process_sp->GetLanguageRuntime(frame_lang);
-    if (log)
-      log->Printf("Frame has language of type %s",
-                  Language::GetNameForLanguageType(frame_lang));
+    LLDB_LOGF(log, "Frame has language of type %s",
+              Language::GetNameForLanguageType(frame_lang));
   }
 
   // 2. Configure the compiler with a set of default options that are
@@ -341,9 +350,8 @@ ClangExpressionParser::ClangExpressionParser(
   if (target_arch.IsValid()) {
     std::string triple = target_arch.GetTriple().str();
     m_compiler->getTargetOpts().Triple = triple;
-    if (log)
-      log->Printf("Using %s as the target triple",
-                  m_compiler->getTargetOpts().Triple.c_str());
+    LLDB_LOGF(log, "Using %s as the target triple",
+              m_compiler->getTargetOpts().Triple.c_str());
   } else {
     // If we get here we don't have a valid target and just have to guess.
     // Sometimes this will be ok to just use the host target triple (when we
@@ -352,9 +360,8 @@ ClangExpressionParser::ClangExpressionParser(
     // the host triple. In such a case the language runtime should expose an
     // overridden options set (3), below.
     m_compiler->getTargetOpts().Triple = llvm::sys::getDefaultTargetTriple();
-    if (log)
-      log->Printf("Using default target triple of %s",
-                  m_compiler->getTargetOpts().Triple.c_str());
+    LLDB_LOGF(log, "Using default target triple of %s",
+              m_compiler->getTargetOpts().Triple.c_str());
   }
   // Now add some special fixes for known architectures: Any arm32 iOS
   // environment, but not on arm64
@@ -408,12 +415,13 @@ ClangExpressionParser::ClangExpressionParser(
   auto target_info = TargetInfo::CreateTargetInfo(
       m_compiler->getDiagnostics(), m_compiler->getInvocation().TargetOpts);
   if (log) {
-    log->Printf("Using SIMD alignment: %d", target_info->getSimdDefaultAlign());
-    log->Printf("Target datalayout string: '%s'",
-                target_info->getDataLayout().getStringRepresentation().c_str());
-    log->Printf("Target ABI: '%s'", target_info->getABI().str().c_str());
-    log->Printf("Target vector alignment: %d",
-                target_info->getMaxVectorAlign());
+    LLDB_LOGF(log, "Using SIMD alignment: %d",
+              target_info->getSimdDefaultAlign());
+    LLDB_LOGF(log, "Target datalayout string: '%s'",
+              target_info->getDataLayout().getStringRepresentation().c_str());
+    LLDB_LOGF(log, "Target ABI: '%s'", target_info->getABI().str().c_str());
+    LLDB_LOGF(log, "Target vector alignment: %d",
+              target_info->getMaxVectorAlign());
   }
   m_compiler->setTarget(target_info);
 
@@ -508,6 +516,9 @@ ClangExpressionParser::ClangExpressionParser(
     lang_opts.DoubleSquareBracketAttributes = true;
     lang_opts.CPlusPlus11 = true;
 
+    // The Darwin libc expects this macro to be set.
+    lang_opts.GNUCVersion = 40201;
+
     SetupModuleHeaderPaths(m_compiler.get(), m_include_directories,
                            target_sp);
   }
@@ -537,8 +548,8 @@ ClangExpressionParser::ClangExpressionParser(
   // Set CodeGen options
   m_compiler->getCodeGenOpts().EmitDeclMetadata = true;
   m_compiler->getCodeGenOpts().InstrumentFunctions = false;
-  m_compiler->getCodeGenOpts().DisableFPElim = true;
-  m_compiler->getCodeGenOpts().OmitLeafFramePointer = false;
+  m_compiler->getCodeGenOpts().setFramePointer(
+                                    CodeGenOptions::FramePointerKind::All);
   if (generate_debug_info)
     m_compiler->getCodeGenOpts().setDebugInfo(codegenoptions::FullDebugInfo);
   else
@@ -560,7 +571,9 @@ ClangExpressionParser::ClangExpressionParser(
 
   // 6. Set up the diagnostic buffer for reporting errors
 
-  m_compiler->getDiagnostics().setClient(new ClangDiagnosticManagerAdapter);
+  auto diag_mgr = new ClangDiagnosticManagerAdapter(
+      m_compiler->getDiagnostics().getDiagnosticOptions());
+  m_compiler->getDiagnostics().setClient(diag_mgr);
 
   // 7. Set up the source management objects inside the compiler
   m_compiler->createFileManager();
@@ -570,15 +583,16 @@ ClangExpressionParser::ClangExpressionParser(
 
   if (ClangModulesDeclVendor *decl_vendor =
           target_sp->GetClangModulesDeclVendor()) {
-    ClangPersistentVariables *clang_persistent_vars =
-        llvm::cast<ClangPersistentVariables>(
+    if (auto *clang_persistent_vars = llvm::cast<ClangPersistentVariables>(
             target_sp->GetPersistentExpressionStateForLanguage(
-                lldb::eLanguageTypeC));
-    std::unique_ptr<PPCallbacks> pp_callbacks(
-        new LLDBPreprocessorCallbacks(*decl_vendor, *clang_persistent_vars));
-    m_pp_callbacks =
-        static_cast<LLDBPreprocessorCallbacks *>(pp_callbacks.get());
-    m_compiler->getPreprocessor().addPPCallbacks(std::move(pp_callbacks));
+                lldb::eLanguageTypeC))) {
+      std::unique_ptr<PPCallbacks> pp_callbacks(
+          new LLDBPreprocessorCallbacks(*decl_vendor, *clang_persistent_vars,
+                                        m_compiler->getSourceManager()));
+      m_pp_callbacks =
+          static_cast<LLDBPreprocessorCallbacks *>(pp_callbacks.get());
+      m_compiler->getPreprocessor().addPPCallbacks(std::move(pp_callbacks));
+    }
   }
 
   // 8. Most of this we get from the CompilerInstance, but we also want to give
@@ -592,9 +606,7 @@ ClangExpressionParser::ClangExpressionParser(
   m_compiler->createASTContext();
   clang::ASTContext &ast_context = m_compiler->getASTContext();
 
-  m_ast_context.reset(
-      new ClangASTContext(m_compiler->getTargetOpts().Triple.c_str()));
-  m_ast_context->setASTContext(&ast_context);
+  m_ast_context.reset(new ClangASTContext(ast_context));
 
   std::string module_name("$__lldb_module");
 
@@ -686,10 +698,7 @@ class CodeComplete : public CodeCompleteConsumer {
 
 public:
   /// Constructs a CodeComplete consumer that can be attached to a Sema.
-  /// \param[out] matches
-  ///    The list of matches that the lldb completion API expects as a result.
-  ///    This may already contain matches, so it's only allowed to append
-  ///    to this variable.
+  ///
   /// \param[out] expr
   ///    The whole expression string that we are currently parsing. This
   ///    string needs to be equal to the input the user typed, and NOT the
@@ -872,8 +881,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
   ClangDiagnosticManagerAdapter *adapter =
       static_cast<ClangDiagnosticManagerAdapter *>(
           m_compiler->getDiagnostics().getClient());
-  clang::TextDiagnosticBuffer *diag_buf = adapter->GetPassthrough();
-  diag_buf->FlushDiagnostics(m_compiler->getDiagnostics());
+  auto diag_buf = adapter->GetPassthrough();
 
   adapter->ResetManager(&diagnostic_manager);
 
@@ -904,16 +912,19 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
     }
 
     if (temp_fd != -1) {
-      lldb_private::File file(temp_fd, true);
+      lldb_private::NativeFile file(temp_fd, File::eOpenOptionWrite, true);
       const size_t expr_text_len = strlen(expr_text);
       size_t bytes_written = expr_text_len;
       if (file.Write(expr_text, bytes_written).Success()) {
         if (bytes_written == expr_text_len) {
           file.Close();
-          source_mgr.setMainFileID(source_mgr.createFileID(
-              m_compiler->getFileManager().getFile(result_path),
-              SourceLocation(), SrcMgr::C_User));
-          created_main_file = true;
+          if (auto fileEntry =
+                  m_compiler->getFileManager().getFile(result_path)) {
+            source_mgr.setMainFileID(source_mgr.createFileID(
+                *fileEntry,
+                SourceLocation(), SrcMgr::C_User));
+            created_main_file = true;
+          }
         }
       }
     }
@@ -921,7 +932,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
 
   if (!created_main_file) {
     std::unique_ptr<MemoryBuffer> memory_buffer =
-        MemoryBuffer::getMemBufferCopy(expr_text, "<lldb-expr>");
+        MemoryBuffer::getMemBufferCopy(expr_text, m_filename);
     source_mgr.setMainFileID(source_mgr.createFileID(std::move(memory_buffer)));
   }
 
@@ -964,7 +975,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
   m_compiler->setASTConsumer(std::move(Consumer));
 
   if (ast_context.getLangOpts().Modules) {
-    m_compiler->createModuleManager();
+    m_compiler->createASTReader();
     m_ast_context->setSema(&m_compiler->getSema());
   }
 
@@ -987,7 +998,7 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
     } else {
       ast_context.setExternalSource(ast_source);
     }
-    decl_map->InstallASTContext(ast_context, m_compiler->getFileManager());
+    decl_map->InstallASTContext(*m_ast_context);
   }
 
   // Check that the ASTReader is properly attached to ASTContext and Sema.
@@ -1021,15 +1032,6 @@ ClangExpressionParser::ParseInternal(DiagnosticManager &diagnostic_manager,
                                  "while importing modules:");
     diagnostic_manager.AppendMessageToDiagnostic(
         m_pp_callbacks->getErrorString());
-  }
-
-  if (!num_errors) {
-    if (type_system_helper->DeclMap() &&
-        !type_system_helper->DeclMap()->ResolveUnknownTypes()) {
-      diagnostic_manager.Printf(eDiagnosticSeverityError,
-                                "Couldn't infer the type of a variable");
-      num_errors++;
-    }
   }
 
   if (!num_errors) {
@@ -1092,8 +1094,8 @@ bool ClangExpressionParser::RewriteExpression(
   if (num_diags == 0)
     return false;
 
-  for (const Diagnostic *diag : diagnostic_manager.Diagnostics()) {
-    const ClangDiagnostic *diagnostic = llvm::dyn_cast<ClangDiagnostic>(diag);
+  for (const auto &diag : diagnostic_manager.Diagnostics()) {
+    const auto *diagnostic = llvm::dyn_cast<ClangDiagnostic>(diag.get());
     if (diagnostic && diagnostic->HasFixIts()) {
       for (const FixItHint &fixit : diagnostic->FixIts()) {
         // This is cobbed from clang::Rewrite::FixItRewriter.
@@ -1181,9 +1183,8 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
                                    m_expr.FunctionName());
       return err;
     } else {
-      if (log)
-        log->Printf("Found function %s for %s", function_name.AsCString(),
-                    m_expr.FunctionName());
+      LLDB_LOGF(log, "Found function %s for %s", function_name.AsCString(),
+                m_expr.FunctionName());
     }
   }
 
@@ -1198,9 +1199,8 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
   LLVMUserExpression::IRPasses custom_passes;
   {
     auto lang = m_expr.Language();
-    if (log)
-      log->Printf("%s - Current expression language is %s\n", __FUNCTION__,
-                  Language::GetNameForLanguageType(lang));
+    LLDB_LOGF(log, "%s - Current expression language is %s\n", __FUNCTION__,
+              Language::GetNameForLanguageType(lang));
     lldb::ProcessSP process_sp = exe_ctx.GetProcessSP();
     if (process_sp && lang != lldb::eLanguageTypeUnknown) {
       auto runtime = process_sp->GetLanguageRuntime(lang);
@@ -1210,10 +1210,10 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
   }
 
   if (custom_passes.EarlyPasses) {
-    if (log)
-      log->Printf("%s - Running Early IR Passes from LanguageRuntime on "
-                  "expression module '%s'",
-                  __FUNCTION__, m_expr.FunctionName());
+    LLDB_LOGF(log,
+              "%s - Running Early IR Passes from LanguageRuntime on "
+              "expression module '%s'",
+              __FUNCTION__, m_expr.FunctionName());
 
     custom_passes.EarlyPasses->run(*llvm_module_up);
   }
@@ -1230,12 +1230,10 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
       type_system_helper->DeclMap(); // result can be NULL
 
   if (decl_map) {
-    Stream *error_stream = nullptr;
     Target *target = exe_ctx.GetTargetPtr();
-    error_stream = target->GetDebugger().GetErrorFile().get();
-
+    auto &error_stream = target->GetDebugger().GetErrorStream();
     IRForTarget ir_for_target(decl_map, m_expr.NeedsVariableResolution(),
-                              *execution_unit_sp, *error_stream,
+                              *execution_unit_sp, error_stream,
                               function_name.AsCString());
 
     bool ir_can_run =
@@ -1260,8 +1258,9 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
           interpret_error, interpret_function_calls);
 
       if (!can_interpret && execution_policy == eExecutionPolicyNever) {
-        err.SetErrorStringWithFormat("Can't run the expression locally: %s",
-                                     interpret_error.AsCString());
+        err.SetErrorStringWithFormat(
+            "Can't evaluate the expression without a running target due to: %s",
+            interpret_error.AsCString());
         return err;
       }
     }
@@ -1298,9 +1297,8 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
 
           process->SetDynamicCheckers(dynamic_checkers);
 
-          if (log)
-            log->Printf("== [ClangExpressionParser::PrepareForExecution] "
-                        "Finished installing dynamic checkers ==");
+          LLDB_LOGF(log, "== [ClangExpressionParser::PrepareForExecution] "
+                         "Finished installing dynamic checkers ==");
         }
 
         if (auto *checker_funcs = llvm::dyn_cast<ClangDynamicCheckerFunctions>(
@@ -1316,10 +1314,10 @@ lldb_private::Status ClangExpressionParser::PrepareForExecution(
           }
 
           if (custom_passes.LatePasses) {
-            if (log)
-              log->Printf("%s - Running Late IR Passes from LanguageRuntime on "
-                          "expression module '%s'",
-                          __FUNCTION__, m_expr.FunctionName());
+            LLDB_LOGF(log,
+                      "%s - Running Late IR Passes from LanguageRuntime on "
+                      "expression module '%s'",
+                      __FUNCTION__, m_expr.FunctionName());
 
             custom_passes.LatePasses->run(*module);
           }

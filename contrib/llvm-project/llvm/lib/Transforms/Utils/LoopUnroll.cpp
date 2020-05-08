@@ -22,17 +22,18 @@
 #include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/SimplifyIndVar.h"
@@ -870,7 +871,7 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
   assert(!DT || !UnrollVerifyDomtree ||
          DT->verify(DominatorTree::VerificationLevel::Fast));
 
-  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Eager);
+  DomTreeUpdater DTU(DT, DomTreeUpdater::UpdateStrategy::Lazy);
   // Merge adjacent basic blocks, if possible.
   for (BasicBlock *Latch : Latches) {
     BranchInst *Term = dyn_cast<BranchInst>(Latch->getTerminator());
@@ -890,6 +891,8 @@ LoopUnrollResult llvm::UnrollLoop(Loop *L, UnrollLoopOptions ULO, LoopInfo *LI,
       }
     }
   }
+  // Apply updates to the DomTree.
+  DT = &DTU.getDomTree();
 
   // At this point, the code is well formed.  We now simplify the unrolled loop,
   // doing constant propagation and dead code elimination as we go.

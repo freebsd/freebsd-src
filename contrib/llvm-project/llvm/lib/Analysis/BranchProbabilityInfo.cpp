@@ -16,6 +16,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
@@ -31,9 +32,11 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
@@ -60,6 +63,12 @@ INITIALIZE_PASS_DEPENDENCY(LoopInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_END(BranchProbabilityInfoWrapperPass, "branch-prob",
                     "Branch Probability Analysis", false, true)
+
+BranchProbabilityInfoWrapperPass::BranchProbabilityInfoWrapperPass()
+    : FunctionPass(ID) {
+  initializeBranchProbabilityInfoWrapperPassPass(
+      *PassRegistry::getPassRegistry());
+}
 
 char BranchProbabilityInfoWrapperPass::ID = 0;
 
@@ -118,6 +127,13 @@ static const uint32_t ZH_NONTAKEN_WEIGHT = 12;
 static const uint32_t FPH_TAKEN_WEIGHT = 20;
 static const uint32_t FPH_NONTAKEN_WEIGHT = 12;
 
+/// This is the probability for an ordered floating point comparison.
+static const uint32_t FPH_ORD_WEIGHT = 1024 * 1024 - 1;
+/// This is the probability for an unordered floating point comparison, it means
+/// one or two of the operands are NaN. Usually it is used to test for an
+/// exceptional case, so the result is unlikely.
+static const uint32_t FPH_UNO_WEIGHT = 1;
+
 /// Invoke-terminating normal branch taken weight
 ///
 /// This is the weight for branching to the normal destination of an invoke
@@ -131,69 +147,83 @@ static const uint32_t IH_TAKEN_WEIGHT = 1024 * 1024 - 1;
 /// instruction. This is essentially never taken.
 static const uint32_t IH_NONTAKEN_WEIGHT = 1;
 
-/// Add \p BB to PostDominatedByUnreachable set if applicable.
-void
-BranchProbabilityInfo::updatePostDominatedByUnreachable(const BasicBlock *BB) {
-  const Instruction *TI = BB->getTerminator();
-  if (TI->getNumSuccessors() == 0) {
-    if (isa<UnreachableInst>(TI) ||
-        // If this block is terminated by a call to
-        // @llvm.experimental.deoptimize then treat it like an unreachable since
-        // the @llvm.experimental.deoptimize call is expected to practically
-        // never execute.
-        BB->getTerminatingDeoptimizeCall())
-      PostDominatedByUnreachable.insert(BB);
-    return;
-  }
+static void UpdatePDTWorklist(const BasicBlock *BB, PostDominatorTree *PDT,
+                              SmallVectorImpl<const BasicBlock *> &WorkList,
+                              SmallPtrSetImpl<const BasicBlock *> &TargetSet) {
+  SmallVector<BasicBlock *, 8> Descendants;
+  SmallPtrSet<const BasicBlock *, 16> NewItems;
 
-  // If the terminator is an InvokeInst, check only the normal destination block
-  // as the unwind edge of InvokeInst is also very unlikely taken.
-  if (auto *II = dyn_cast<InvokeInst>(TI)) {
-    if (PostDominatedByUnreachable.count(II->getNormalDest()))
-      PostDominatedByUnreachable.insert(BB);
-    return;
-  }
-
-  for (auto *I : successors(BB))
-    // If any of successor is not post dominated then BB is also not.
-    if (!PostDominatedByUnreachable.count(I))
-      return;
-
-  PostDominatedByUnreachable.insert(BB);
+  PDT->getDescendants(const_cast<BasicBlock *>(BB), Descendants);
+  for (auto *BB : Descendants)
+    if (TargetSet.insert(BB).second)
+      for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI)
+        if (!TargetSet.count(*PI))
+          NewItems.insert(*PI);
+  WorkList.insert(WorkList.end(), NewItems.begin(), NewItems.end());
 }
 
-/// Add \p BB to PostDominatedByColdCall set if applicable.
-void
-BranchProbabilityInfo::updatePostDominatedByColdCall(const BasicBlock *BB) {
-  assert(!PostDominatedByColdCall.count(BB));
-  const Instruction *TI = BB->getTerminator();
-  if (TI->getNumSuccessors() == 0)
-    return;
-
-  // If all of successor are post dominated then BB is also done.
-  if (llvm::all_of(successors(BB), [&](const BasicBlock *SuccBB) {
-        return PostDominatedByColdCall.count(SuccBB);
-      })) {
-    PostDominatedByColdCall.insert(BB);
-    return;
+/// Compute a set of basic blocks that are post-dominated by unreachables.
+void BranchProbabilityInfo::computePostDominatedByUnreachable(
+    const Function &F, PostDominatorTree *PDT) {
+  SmallVector<const BasicBlock *, 8> WorkList;
+  for (auto &BB : F) {
+    const Instruction *TI = BB.getTerminator();
+    if (TI->getNumSuccessors() == 0) {
+      if (isa<UnreachableInst>(TI) ||
+          // If this block is terminated by a call to
+          // @llvm.experimental.deoptimize then treat it like an unreachable
+          // since the @llvm.experimental.deoptimize call is expected to
+          // practically never execute.
+          BB.getTerminatingDeoptimizeCall())
+        UpdatePDTWorklist(&BB, PDT, WorkList, PostDominatedByUnreachable);
+    }
   }
 
-  // If the terminator is an InvokeInst, check only the normal destination
-  // block as the unwind edge of InvokeInst is also very unlikely taken.
-  if (auto *II = dyn_cast<InvokeInst>(TI))
-    if (PostDominatedByColdCall.count(II->getNormalDest())) {
-      PostDominatedByColdCall.insert(BB);
-      return;
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+    if (PostDominatedByUnreachable.count(BB))
+      continue;
+    // If the terminator is an InvokeInst, check only the normal destination
+    // block as the unwind edge of InvokeInst is also very unlikely taken.
+    if (auto *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+      if (PostDominatedByUnreachable.count(II->getNormalDest()))
+        UpdatePDTWorklist(BB, PDT, WorkList, PostDominatedByUnreachable);
     }
+    // If all the successors are unreachable, BB is unreachable as well.
+    else if (!successors(BB).empty() &&
+             llvm::all_of(successors(BB), [this](const BasicBlock *Succ) {
+               return PostDominatedByUnreachable.count(Succ);
+             }))
+      UpdatePDTWorklist(BB, PDT, WorkList, PostDominatedByUnreachable);
+  }
+}
 
-  // Otherwise, if the block itself contains a cold function, add it to the
-  // set of blocks post-dominated by a cold call.
-  for (auto &I : *BB)
-    if (const CallInst *CI = dyn_cast<CallInst>(&I))
-      if (CI->hasFnAttr(Attribute::Cold)) {
-        PostDominatedByColdCall.insert(BB);
-        return;
-      }
+/// compute a set of basic blocks that are post-dominated by ColdCalls.
+void BranchProbabilityInfo::computePostDominatedByColdCall(
+    const Function &F, PostDominatorTree *PDT) {
+  SmallVector<const BasicBlock *, 8> WorkList;
+  for (auto &BB : F)
+    for (auto &I : BB)
+      if (const CallInst *CI = dyn_cast<CallInst>(&I))
+        if (CI->hasFnAttr(Attribute::Cold))
+          UpdatePDTWorklist(&BB, PDT, WorkList, PostDominatedByColdCall);
+
+  while (!WorkList.empty()) {
+    const BasicBlock *BB = WorkList.pop_back_val();
+
+    // If the terminator is an InvokeInst, check only the normal destination
+    // block as the unwind edge of InvokeInst is also very unlikely taken.
+    if (auto *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+      if (PostDominatedByColdCall.count(II->getNormalDest()))
+        UpdatePDTWorklist(BB, PDT, WorkList, PostDominatedByColdCall);
+    }
+    // If all of successor are post dominated then BB is also done.
+    else if (!successors(BB).empty() &&
+             llvm::all_of(successors(BB), [this](const BasicBlock *Succ) {
+               return PostDominatedByColdCall.count(Succ);
+             }))
+      UpdatePDTWorklist(BB, PDT, WorkList, PostDominatedByColdCall);
+  }
 }
 
 /// Calculate edge weights for successors lead to unreachable.
@@ -778,6 +808,8 @@ bool BranchProbabilityInfo::calcFloatingPointHeuristics(const BasicBlock *BB) {
   if (!FCmp)
     return false;
 
+  uint32_t TakenWeight = FPH_TAKEN_WEIGHT;
+  uint32_t NontakenWeight = FPH_NONTAKEN_WEIGHT;
   bool isProb;
   if (FCmp->isEquality()) {
     // f1 == f2 -> Unlikely
@@ -786,9 +818,13 @@ bool BranchProbabilityInfo::calcFloatingPointHeuristics(const BasicBlock *BB) {
   } else if (FCmp->getPredicate() == FCmpInst::FCMP_ORD) {
     // !isnan -> Likely
     isProb = true;
+    TakenWeight = FPH_ORD_WEIGHT;
+    NontakenWeight = FPH_UNO_WEIGHT;
   } else if (FCmp->getPredicate() == FCmpInst::FCMP_UNO) {
     // isnan -> Unlikely
     isProb = false;
+    TakenWeight = FPH_ORD_WEIGHT;
+    NontakenWeight = FPH_UNO_WEIGHT;
   } else {
     return false;
   }
@@ -798,8 +834,7 @@ bool BranchProbabilityInfo::calcFloatingPointHeuristics(const BasicBlock *BB) {
   if (!isProb)
     std::swap(TakenIdx, NonTakenIdx);
 
-  BranchProbability TakenProb(FPH_TAKEN_WEIGHT,
-                              FPH_TAKEN_WEIGHT + FPH_NONTAKEN_WEIGHT);
+  BranchProbability TakenProb(TakenWeight, TakenWeight + NontakenWeight);
   setEdgeProbability(BB, TakenIdx, TakenProb);
   setEdgeProbability(BB, NonTakenIdx, TakenProb.getCompl());
   return true;
@@ -963,13 +998,16 @@ void BranchProbabilityInfo::calculate(const Function &F, const LoopInfo &LI,
     LLVM_DEBUG(dbgs() << "\n");
   }
 
+  std::unique_ptr<PostDominatorTree> PDT =
+      std::make_unique<PostDominatorTree>(const_cast<Function &>(F));
+  computePostDominatedByUnreachable(F, PDT.get());
+  computePostDominatedByColdCall(F, PDT.get());
+
   // Walk the basic blocks in post-order so that we can build up state about
   // the successors of a block iteratively.
   for (auto BB : post_order(&F.getEntryBlock())) {
     LLVM_DEBUG(dbgs() << "Computing probabilities for " << BB->getName()
                       << "\n");
-    updatePostDominatedByUnreachable(BB);
-    updatePostDominatedByColdCall(BB);
     // If there is no at least two successors, no sense to set probability.
     if (BB->getTerminator()->getNumSuccessors() < 2)
       continue;
@@ -1014,7 +1052,8 @@ void BranchProbabilityInfoWrapperPass::getAnalysisUsage(
 
 bool BranchProbabilityInfoWrapperPass::runOnFunction(Function &F) {
   const LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
-  const TargetLibraryInfo &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+  const TargetLibraryInfo &TLI =
+      getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
   BPI.calculate(F, LI, &TLI);
   return false;
 }

@@ -30,11 +30,6 @@
 namespace llvm {
 namespace symbolize {
 
-// By default, DILineInfo contains "<invalid>" for function/filename it
-// cannot fetch. We replace it to "??" to make our output closer to addr2line.
-static const char kDILineInfoBadString[] = "<invalid>";
-static const char kBadString[] = "??";
-
 // Prints source code around in the FileName the Line.
 void DIPrinter::printContext(const std::string &FileName, int64_t Line) {
   if (PrintSourceContext <= 0)
@@ -68,16 +63,16 @@ void DIPrinter::printContext(const std::string &FileName, int64_t Line) {
 void DIPrinter::print(const DILineInfo &Info, bool Inlined) {
   if (PrintFunctionNames) {
     std::string FunctionName = Info.FunctionName;
-    if (FunctionName == kDILineInfoBadString)
-      FunctionName = kBadString;
+    if (FunctionName == DILineInfo::BadString)
+      FunctionName = DILineInfo::Addr2LineBadString;
 
     StringRef Delimiter = PrintPretty ? " at " : "\n";
     StringRef Prefix = (PrintPretty && Inlined) ? " (inlined by) " : "";
     OS << Prefix << FunctionName << Delimiter;
   }
   std::string Filename = Info.FileName;
-  if (Filename == kDILineInfoBadString)
-    Filename = kBadString;
+  if (Filename == DILineInfo::BadString)
+    Filename = DILineInfo::Addr2LineBadString;
   else if (Basenames)
     Filename = llvm::sys::path::filename(Filename);
   if (!Verbose) {
@@ -115,29 +110,40 @@ DIPrinter &DIPrinter::operator<<(const DIInliningInfo &Info) {
 
 DIPrinter &DIPrinter::operator<<(const DIGlobal &Global) {
   std::string Name = Global.Name;
-  if (Name == kDILineInfoBadString)
-    Name = kBadString;
+  if (Name == DILineInfo::BadString)
+    Name = DILineInfo::Addr2LineBadString;
   OS << Name << "\n";
   OS << Global.Start << " " << Global.Size << "\n";
   return *this;
 }
 
 DIPrinter &DIPrinter::operator<<(const DILocal &Local) {
-  OS << Local.FunctionName << '\n';
-  OS << Local.Name << '\n';
+  if (Local.FunctionName.empty())
+    OS << "??\n";
+  else
+    OS << Local.FunctionName << '\n';
+
+  if (Local.Name.empty())
+    OS << "??\n";
+  else
+    OS << Local.Name << '\n';
+
   if (Local.DeclFile.empty())
     OS << "??";
   else
     OS << Local.DeclFile;
   OS << ':' << Local.DeclLine << '\n';
+
   if (Local.FrameOffset)
     OS << *Local.FrameOffset << ' ';
   else
     OS << "?? ";
+
   if (Local.Size)
     OS << *Local.Size << ' ';
   else
     OS << "?? ";
+
   if (Local.TagOffset)
     OS << *Local.TagOffset << '\n';
   else

@@ -78,8 +78,10 @@ CFLAGS+=	-nostdinc++
 CFLAGS+=	-nostdlib
 CFLAGS+=	-D_LIBCPP_BUILDING_LIBRARY
 CFLAGS+=	-DLIBCXXRT
+CFLAGS+=	-ffunction-sections
+CFLAGS+=	-fdata-sections
 .if empty(CXXFLAGS:M-std=*)
-CXXFLAGS+=	-std=c++11
+CXXFLAGS+=	-std=c++14
 .endif
 
 LIBADD+=	cxxrt

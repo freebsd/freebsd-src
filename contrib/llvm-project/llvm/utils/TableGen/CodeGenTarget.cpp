@@ -98,6 +98,7 @@ StringRef llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v256i8:   return "MVT::v256i8";
   case MVT::v1i16:    return "MVT::v1i16";
   case MVT::v2i16:    return "MVT::v2i16";
+  case MVT::v3i16:    return "MVT::v3i16";
   case MVT::v4i16:    return "MVT::v4i16";
   case MVT::v8i16:    return "MVT::v8i16";
   case MVT::v16i16:   return "MVT::v16i16";
@@ -126,8 +127,11 @@ StringRef llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v32i64:   return "MVT::v32i64";
   case MVT::v1i128:   return "MVT::v1i128";
   case MVT::v2f16:    return "MVT::v2f16";
+  case MVT::v3f16:    return "MVT::v3f16";
   case MVT::v4f16:    return "MVT::v4f16";
   case MVT::v8f16:    return "MVT::v8f16";
+  case MVT::v16f16:   return "MVT::v16f16";
+  case MVT::v32f16:   return "MVT::v32f16";
   case MVT::v1f32:    return "MVT::v1f32";
   case MVT::v2f32:    return "MVT::v2f32";
   case MVT::v3f32:    return "MVT::v3f32";
@@ -256,7 +260,7 @@ Record *CodeGenTarget::getAsmParser() const {
   return LI[AsmParserNum];
 }
 
-/// getAsmParserVariant - Return the AssmblyParserVariant definition for
+/// getAsmParserVariant - Return the AssemblyParserVariant definition for
 /// this target.
 ///
 Record *CodeGenTarget::getAsmParserVariant(unsigned i) const {
@@ -268,7 +272,7 @@ Record *CodeGenTarget::getAsmParserVariant(unsigned i) const {
   return LI[i];
 }
 
-/// getAsmParserVariantCount - Return the AssmblyParserVariant definition
+/// getAsmParserVariantCount - Return the AssemblyParserVariant definition
 /// available for this target.
 ///
 unsigned CodeGenTarget::getAsmParserVariantCount() const {
@@ -289,8 +293,55 @@ Record *CodeGenTarget::getAsmWriter() const {
 
 CodeGenRegBank &CodeGenTarget::getRegBank() const {
   if (!RegBank)
-    RegBank = llvm::make_unique<CodeGenRegBank>(Records, getHwModes());
+    RegBank = std::make_unique<CodeGenRegBank>(Records, getHwModes());
   return *RegBank;
+}
+
+Optional<CodeGenRegisterClass *>
+CodeGenTarget::getSuperRegForSubReg(const ValueTypeByHwMode &ValueTy,
+                                    CodeGenRegBank &RegBank,
+                                    const CodeGenSubRegIndex *SubIdx) const {
+  std::vector<CodeGenRegisterClass *> Candidates;
+  auto &RegClasses = RegBank.getRegClasses();
+
+  // Try to find a register class which supports ValueTy, and also contains
+  // SubIdx.
+  for (CodeGenRegisterClass &RC : RegClasses) {
+    // Is there a subclass of this class which contains this subregister index?
+    CodeGenRegisterClass *SubClassWithSubReg = RC.getSubClassWithSubReg(SubIdx);
+    if (!SubClassWithSubReg)
+      continue;
+
+    // We have a class. Check if it supports this value type.
+    if (llvm::none_of(SubClassWithSubReg->VTs,
+                      [&ValueTy](const ValueTypeByHwMode &ClassVT) {
+                        return ClassVT == ValueTy;
+                      }))
+      continue;
+
+    // We have a register class which supports both the value type and
+    // subregister index. Remember it.
+    Candidates.push_back(SubClassWithSubReg);
+  }
+
+  // If we didn't find anything, we're done.
+  if (Candidates.empty())
+    return None;
+
+  // Find and return the largest of our candidate classes.
+  llvm::stable_sort(Candidates, [&](const CodeGenRegisterClass *A,
+                                    const CodeGenRegisterClass *B) {
+    if (A->getMembers().size() > B->getMembers().size())
+      return true;
+
+    if (A->getMembers().size() < B->getMembers().size())
+      return false;
+
+    // Order by name as a tie-breaker.
+    return StringRef(A->getName()) < B->getName();
+  });
+
+  return Candidates[0];
 }
 
 void CodeGenTarget::ReadRegAltNameIndices() const {
@@ -339,7 +390,7 @@ void CodeGenTarget::ReadLegalValueTypes() const {
 
 CodeGenSchedModels &CodeGenTarget::getSchedModels() const {
   if (!SchedModels)
-    SchedModels = llvm::make_unique<CodeGenSchedModels>(Records, *this);
+    SchedModels = std::make_unique<CodeGenSchedModels>(Records, *this);
   return *SchedModels;
 }
 
@@ -352,7 +403,7 @@ void CodeGenTarget::ReadInstructions() const {
 
   // Parse the instructions defined in the .td file.
   for (unsigned i = 0, e = Insts.size(); i != e; ++i)
-    Instructions[Insts[i]] = llvm::make_unique<CodeGenInstruction>(Insts[i]);
+    Instructions[Insts[i]] = std::make_unique<CodeGenInstruction>(Insts[i]);
 }
 
 static const CodeGenInstruction *
@@ -427,7 +478,8 @@ void CodeGenTarget::reverseBitsForLittleEndianEncoding() {
   if (!isLittleEndianEncoding())
     return;
 
-  std::vector<Record*> Insts = Records.getAllDerivedDefinitions("Instruction");
+  std::vector<Record *> Insts =
+      Records.getAllDerivedDefinitions("InstructionEncoding");
   for (Record *R : Insts) {
     if (R->getValueAsString("Namespace") == "TargetOpcode" ||
         R->getValueAsBit("isPseudo"))
@@ -522,17 +574,14 @@ ComplexPattern::ComplexPattern(Record *R) {
 // CodeGenIntrinsic Implementation
 //===----------------------------------------------------------------------===//
 
-CodeGenIntrinsicTable::CodeGenIntrinsicTable(const RecordKeeper &RC,
-                                             bool TargetOnly) {
+CodeGenIntrinsicTable::CodeGenIntrinsicTable(const RecordKeeper &RC) {
   std::vector<Record*> Defs = RC.getAllDerivedDefinitions("Intrinsic");
 
   Intrinsics.reserve(Defs.size());
 
-  for (unsigned I = 0, e = Defs.size(); I != e; ++I) {
-    bool isTarget = Defs[I]->getValueAsBit("isTarget");
-    if (isTarget == TargetOnly)
-      Intrinsics.push_back(CodeGenIntrinsic(Defs[I]));
-  }
+  for (unsigned I = 0, e = Defs.size(); I != e; ++I)
+    Intrinsics.push_back(CodeGenIntrinsic(Defs[I]));
+
   llvm::sort(Intrinsics,
              [](const CodeGenIntrinsic &LHS, const CodeGenIntrinsic &RHS) {
                return std::tie(LHS.TargetPrefix, LHS.Name) <
@@ -733,6 +782,9 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     else if (Property->isSubClassOf("NoCapture")) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, NoCapture));
+    } else if (Property->isSubClassOf("NoAlias")) {
+      unsigned ArgNo = Property->getValueAsInt("ArgNo");
+      ArgumentAttributes.push_back(std::make_pair(ArgNo, NoAlias));
     } else if (Property->isSubClassOf("Returned")) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, Returned));
@@ -757,4 +809,17 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
 
   // Sort the argument attributes for later benefit.
   llvm::sort(ArgumentAttributes);
+}
+
+bool CodeGenIntrinsic::isParamAPointer(unsigned ParamIdx) const {
+  if (ParamIdx >= IS.ParamVTs.size())
+    return false;
+  MVT ParamType = MVT(IS.ParamVTs[ParamIdx]);
+  return ParamType == MVT::iPTR || ParamType == MVT::iPTRAny;
+}
+
+bool CodeGenIntrinsic::isParamImmArg(unsigned ParamIdx) const {
+  std::pair<unsigned, ArgAttribute> Val = {ParamIdx, ImmArg};
+  return std::binary_search(ArgumentAttributes.begin(),
+                            ArgumentAttributes.end(), Val);
 }

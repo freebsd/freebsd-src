@@ -749,7 +749,7 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
   case X86Local::RawFrmImm8:
   case X86Local::RawFrmImm16:
   case X86Local::AddCCFrm:
-    filter = llvm::make_unique<DumbFilter>();
+    filter = std::make_unique<DumbFilter>();
     break;
   case X86Local::MRMDestReg:
   case X86Local::MRMSrcReg:
@@ -758,7 +758,7 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
   case X86Local::MRMSrcRegCC:
   case X86Local::MRMXrCC:
   case X86Local::MRMXr:
-    filter = llvm::make_unique<ModFilter>(true);
+    filter = std::make_unique<ModFilter>(true);
     break;
   case X86Local::MRMDestMem:
   case X86Local::MRMSrcMem:
@@ -767,22 +767,22 @@ void RecognizableInstr::emitDecodePath(DisassemblerTables &tables) const {
   case X86Local::MRMSrcMemCC:
   case X86Local::MRMXmCC:
   case X86Local::MRMXm:
-    filter = llvm::make_unique<ModFilter>(false);
+    filter = std::make_unique<ModFilter>(false);
     break;
   case X86Local::MRM0r: case X86Local::MRM1r:
   case X86Local::MRM2r: case X86Local::MRM3r:
   case X86Local::MRM4r: case X86Local::MRM5r:
   case X86Local::MRM6r: case X86Local::MRM7r:
-    filter = llvm::make_unique<ExtendedFilter>(true, Form - X86Local::MRM0r);
+    filter = std::make_unique<ExtendedFilter>(true, Form - X86Local::MRM0r);
     break;
   case X86Local::MRM0m: case X86Local::MRM1m:
   case X86Local::MRM2m: case X86Local::MRM3m:
   case X86Local::MRM4m: case X86Local::MRM5m:
   case X86Local::MRM6m: case X86Local::MRM7m:
-    filter = llvm::make_unique<ExtendedFilter>(false, Form - X86Local::MRM0m);
+    filter = std::make_unique<ExtendedFilter>(false, Form - X86Local::MRM0m);
     break;
   X86_INSTR_MRM_MAPPING
-    filter = llvm::make_unique<ExactFilter>(0xC0 + Form - X86Local::MRM_C0);
+    filter = std::make_unique<ExactFilter>(0xC0 + Form - X86Local::MRM_C0);
     break;
   } // switch (Form)
 
@@ -854,6 +854,7 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("GR64",                TYPE_R64)
   TYPE("i8mem",               TYPE_M)
   TYPE("i8imm",               TYPE_IMM)
+  TYPE("u4imm",               TYPE_UIMM8)
   TYPE("u8imm",               TYPE_UIMM8)
   TYPE("i16u8imm",            TYPE_UIMM8)
   TYPE("i32u8imm",            TYPE_UIMM8)
@@ -878,9 +879,9 @@ OperandType RecognizableInstr::typeFromString(const std::string &s,
   TYPE("i128mem",             TYPE_M)
   TYPE("i256mem",             TYPE_M)
   TYPE("i512mem",             TYPE_M)
-  TYPE("i64i32imm_pcrel",     TYPE_REL)
-  TYPE("i16imm_pcrel",        TYPE_REL)
-  TYPE("i32imm_pcrel",        TYPE_REL)
+  TYPE("i64i32imm_brtarget",  TYPE_REL)
+  TYPE("i16imm_brtarget",     TYPE_REL)
+  TYPE("i32imm_brtarget",     TYPE_REL)
   TYPE("ccode",               TYPE_IMM)
   TYPE("AVX512RC",            TYPE_IMM)
   TYPE("brtarget32",          TYPE_REL)
@@ -973,6 +974,7 @@ RecognizableInstr::immediateEncodingFromString(const std::string &s,
   ENCODING("i64i32imm",       ENCODING_ID)
   ENCODING("i64i8imm",        ENCODING_IB)
   ENCODING("i8imm",           ENCODING_IB)
+  ENCODING("u4imm",           ENCODING_IB)
   ENCODING("u8imm",           ENCODING_IB)
   ENCODING("i16u8imm",        ENCODING_IB)
   ENCODING("i32u8imm",        ENCODING_IB)
@@ -1167,45 +1169,45 @@ RecognizableInstr::relocationEncodingFromString(const std::string &s,
   if(OpSize != X86Local::OpSize16) {
     // For instructions without an OpSize prefix, a declared 16-bit register or
     // immediate encoding is special.
-    ENCODING("i16imm",        ENCODING_IW)
+    ENCODING("i16imm",           ENCODING_IW)
   }
-  ENCODING("i16imm",          ENCODING_Iv)
-  ENCODING("i16i8imm",        ENCODING_IB)
-  ENCODING("i32imm",          ENCODING_Iv)
-  ENCODING("i32i8imm",        ENCODING_IB)
-  ENCODING("i64i32imm",       ENCODING_ID)
-  ENCODING("i64i8imm",        ENCODING_IB)
-  ENCODING("i8imm",           ENCODING_IB)
-  ENCODING("u8imm",           ENCODING_IB)
-  ENCODING("i16u8imm",        ENCODING_IB)
-  ENCODING("i32u8imm",        ENCODING_IB)
-  ENCODING("i64u8imm",        ENCODING_IB)
-  ENCODING("i64i32imm_pcrel", ENCODING_ID)
-  ENCODING("i16imm_pcrel",    ENCODING_IW)
-  ENCODING("i32imm_pcrel",    ENCODING_ID)
-  ENCODING("brtarget32",      ENCODING_ID)
-  ENCODING("brtarget16",      ENCODING_IW)
-  ENCODING("brtarget8",       ENCODING_IB)
-  ENCODING("i64imm",          ENCODING_IO)
-  ENCODING("offset16_8",      ENCODING_Ia)
-  ENCODING("offset16_16",     ENCODING_Ia)
-  ENCODING("offset16_32",     ENCODING_Ia)
-  ENCODING("offset32_8",      ENCODING_Ia)
-  ENCODING("offset32_16",     ENCODING_Ia)
-  ENCODING("offset32_32",     ENCODING_Ia)
-  ENCODING("offset32_64",     ENCODING_Ia)
-  ENCODING("offset64_8",      ENCODING_Ia)
-  ENCODING("offset64_16",     ENCODING_Ia)
-  ENCODING("offset64_32",     ENCODING_Ia)
-  ENCODING("offset64_64",     ENCODING_Ia)
-  ENCODING("srcidx8",         ENCODING_SI)
-  ENCODING("srcidx16",        ENCODING_SI)
-  ENCODING("srcidx32",        ENCODING_SI)
-  ENCODING("srcidx64",        ENCODING_SI)
-  ENCODING("dstidx8",         ENCODING_DI)
-  ENCODING("dstidx16",        ENCODING_DI)
-  ENCODING("dstidx32",        ENCODING_DI)
-  ENCODING("dstidx64",        ENCODING_DI)
+  ENCODING("i16imm",             ENCODING_Iv)
+  ENCODING("i16i8imm",           ENCODING_IB)
+  ENCODING("i32imm",             ENCODING_Iv)
+  ENCODING("i32i8imm",           ENCODING_IB)
+  ENCODING("i64i32imm",          ENCODING_ID)
+  ENCODING("i64i8imm",           ENCODING_IB)
+  ENCODING("i8imm",              ENCODING_IB)
+  ENCODING("u8imm",              ENCODING_IB)
+  ENCODING("i16u8imm",           ENCODING_IB)
+  ENCODING("i32u8imm",           ENCODING_IB)
+  ENCODING("i64u8imm",           ENCODING_IB)
+  ENCODING("i64i32imm_brtarget", ENCODING_ID)
+  ENCODING("i16imm_brtarget",    ENCODING_IW)
+  ENCODING("i32imm_brtarget",    ENCODING_ID)
+  ENCODING("brtarget32",         ENCODING_ID)
+  ENCODING("brtarget16",         ENCODING_IW)
+  ENCODING("brtarget8",          ENCODING_IB)
+  ENCODING("i64imm",             ENCODING_IO)
+  ENCODING("offset16_8",         ENCODING_Ia)
+  ENCODING("offset16_16",        ENCODING_Ia)
+  ENCODING("offset16_32",        ENCODING_Ia)
+  ENCODING("offset32_8",         ENCODING_Ia)
+  ENCODING("offset32_16",        ENCODING_Ia)
+  ENCODING("offset32_32",        ENCODING_Ia)
+  ENCODING("offset32_64",        ENCODING_Ia)
+  ENCODING("offset64_8",         ENCODING_Ia)
+  ENCODING("offset64_16",        ENCODING_Ia)
+  ENCODING("offset64_32",        ENCODING_Ia)
+  ENCODING("offset64_64",        ENCODING_Ia)
+  ENCODING("srcidx8",            ENCODING_SI)
+  ENCODING("srcidx16",           ENCODING_SI)
+  ENCODING("srcidx32",           ENCODING_SI)
+  ENCODING("srcidx64",           ENCODING_SI)
+  ENCODING("dstidx8",            ENCODING_DI)
+  ENCODING("dstidx16",           ENCODING_DI)
+  ENCODING("dstidx32",           ENCODING_DI)
+  ENCODING("dstidx64",           ENCODING_DI)
   errs() << "Unhandled relocation encoding " << s << "\n";
   llvm_unreachable("Unhandled relocation encoding");
 }

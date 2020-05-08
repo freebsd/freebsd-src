@@ -20,6 +20,7 @@
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -381,11 +382,10 @@ public:
         static RegularExpression s_regex(
             llvm::StringRef("[ \t]*([^ ^\t]+)[ \t]*([^ ^\t].*)?"));
 
-        RegularExpression::Match matches(3);
-
+        llvm::SmallVector<llvm::StringRef, 4> matches;
         if (s_regex.Execute(out_string, &matches)) {
-          matches.GetMatchAtIndex(out_string.c_str(), 1, m_opcode_name);
-          matches.GetMatchAtIndex(out_string.c_str(), 2, m_mnemonics);
+          m_opcode_name = matches[1].str();
+          m_mnemonics = matches[2].str();
         }
       }
     }
@@ -950,8 +950,9 @@ DisassemblerLLVMC::MCDisasmInstance::Create(const char *triple, const char *cpu,
   if (!subtarget_info_up)
     return Instance();
 
+  llvm::MCTargetOptions MCOptions;
   std::unique_ptr<llvm::MCAsmInfo> asm_info_up(
-      curr_target->createMCAsmInfo(*reg_info_up, triple));
+      curr_target->createMCAsmInfo(*reg_info_up, triple, MCOptions));
   if (!asm_info_up)
     return Instance();
 
@@ -1019,7 +1020,7 @@ uint64_t DisassemblerLLVMC::MCDisasmInstance::GetMCInst(
 
   uint64_t new_inst_size;
   status = m_disasm_up->getInstruction(mc_inst, new_inst_size, data, pc,
-                                       llvm::nulls(), llvm::nulls());
+                                       llvm::nulls());
   if (status == llvm::MCDisassembler::Success)
     return new_inst_size;
   else
@@ -1033,8 +1034,8 @@ void DisassemblerLLVMC::MCDisasmInstance::PrintMCInst(
   llvm::raw_string_ostream comments_stream(comments_string);
 
   m_instr_printer_up->setCommentStream(comments_stream);
-  m_instr_printer_up->printInst(&mc_inst, inst_stream, llvm::StringRef(),
-                                *m_subtarget_info_up);
+  m_instr_printer_up->printInst(&mc_inst, 0, llvm::StringRef(),
+                                *m_subtarget_info_up, inst_stream);
   m_instr_printer_up->setCommentStream(llvm::nulls());
   comments_stream.flush();
 
@@ -1190,10 +1191,12 @@ DisassemblerLLVMC::DisassemblerLLVMC(const ArchSpec &arch,
 
   // If any AArch64 variant, enable the ARMv8.5 ISA with SVE extensions so we
   // can disassemble newer instructions.
-  if (triple.getArch() == llvm::Triple::aarch64)
+  if (triple.getArch() == llvm::Triple::aarch64 || 
+      triple.getArch() == llvm::Triple::aarch64_32)
     features_str += "+v8.5a,+sve2";
 
-  if (triple.getArch() == llvm::Triple::aarch64
+  if ((triple.getArch() == llvm::Triple::aarch64 ||
+       triple.getArch() == llvm::Triple::aarch64_32)
       && triple.getVendor() == llvm::Triple::Apple) {
     cpu = "apple-latest";
   }
@@ -1211,7 +1214,7 @@ DisassemblerLLVMC::DisassemblerLLVMC(const ArchSpec &arch,
   if (llvm_arch == llvm::Triple::arm) {
     std::string thumb_triple(thumb_arch.GetTriple().getTriple());
     m_alternate_disasm_up =
-        MCDisasmInstance::Create(thumb_triple.c_str(), "", features_str.c_str(), 
+        MCDisasmInstance::Create(thumb_triple.c_str(), "", features_str.c_str(),
                                  flavor, *this);
     if (!m_alternate_disasm_up)
       m_disasm_up.reset();

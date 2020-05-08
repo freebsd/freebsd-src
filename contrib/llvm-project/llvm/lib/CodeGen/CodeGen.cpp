@@ -22,12 +22,14 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeAtomicExpandPass(Registry);
   initializeBranchFolderPassPass(Registry);
   initializeBranchRelaxationPass(Registry);
+  initializeCFGuardLongjmpPass(Registry);
   initializeCFIInstrInserterPass(Registry);
   initializeCodeGenPreparePass(Registry);
   initializeDeadMachineInstructionElimPass(Registry);
   initializeDetectDeadLanesPass(Registry);
   initializeDwarfEHPreparePass(Registry);
   initializeEarlyIfConverterPass(Registry);
+  initializeEarlyIfPredicatorPass(Registry);
   initializeEarlyMachineLICMPass(Registry);
   initializeEarlyTailDuplicatePass(Registry);
   initializeExpandMemCmpPassPass(Registry);
@@ -53,6 +55,7 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeLocalStackSlotPassPass(Registry);
   initializeLowerIntrinsicsPass(Registry);
   initializeMIRCanonicalizerPass(Registry);
+  initializeMIRNamerPass(Registry);
   initializeMachineBlockFrequencyInfoPass(Registry);
   initializeMachineBlockPlacementPass(Registry);
   initializeMachineBlockPlacementStatsPass(Registry);
@@ -63,10 +66,11 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeMachineFunctionPrinterPassPass(Registry);
   initializeMachineLICMPass(Registry);
   initializeMachineLoopInfoPass(Registry);
-  initializeMachineModuleInfoPass(Registry);
+  initializeMachineModuleInfoWrapperPassPass(Registry);
   initializeMachineOptimizationRemarkEmitterPassPass(Registry);
   initializeMachineOutlinerPass(Registry);
   initializeMachinePipelinerPass(Registry);
+  initializeModuloScheduleTestPass(Registry);
   initializeMachinePostDominatorTreePass(Registry);
   initializeMachineRegionInfoPassPass(Registry);
   initializeMachineSchedulerPass(Registry);
@@ -101,6 +105,7 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeTailDuplicatePass(Registry);
   initializeTargetPassConfigPass(Registry);
   initializeTwoAddressInstructionPassPass(Registry);
+  initializeTypePromotionPass(Registry);
   initializeUnpackMachineBundlesPass(Registry);
   initializeUnreachableBlockElimLegacyPassPass(Registry);
   initializeUnreachableMachineBlockElimPass(Registry);

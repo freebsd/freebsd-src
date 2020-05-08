@@ -109,7 +109,9 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
                                        MachineBasicBlock::iterator MBBI,
                                        unsigned BitSize) {
   MachineInstr &MI = *MBBI;
-  unsigned DstReg = MI.getOperand(0).getReg();
+  Register DstReg = MI.getOperand(0).getReg();
+  uint64_t RenamableState =
+      MI.getOperand(0).isRenamable() ? RegState::Renamable : 0;
   uint64_t Imm = MI.getOperand(1).getImm();
 
   if (DstReg == AArch64::XZR || DstReg == AArch64::WZR) {
@@ -144,18 +146,20 @@ bool AArch64ExpandPseudo::expandMOVImm(MachineBasicBlock &MBB,
       bool DstIsDead = MI.getOperand(0).isDead();
       MIBS.push_back(BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(I->Opcode))
         .addReg(DstReg, RegState::Define |
-                getDeadRegState(DstIsDead && LastItem))
+                getDeadRegState(DstIsDead && LastItem) |
+                RenamableState)
         .addImm(I->Op1)
         .addImm(I->Op2));
       } break;
     case AArch64::MOVKWi:
     case AArch64::MOVKXi: {
-      unsigned DstReg = MI.getOperand(0).getReg();
+      Register DstReg = MI.getOperand(0).getReg();
       bool DstIsDead = MI.getOperand(0).isDead();
       MIBS.push_back(BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(I->Opcode))
         .addReg(DstReg,
                 RegState::Define |
-                getDeadRegState(DstIsDead && LastItem))
+                getDeadRegState(DstIsDead && LastItem) |
+                RenamableState)
         .addReg(DstReg)
         .addImm(I->Op1)
         .addImm(I->Op2));
@@ -174,14 +178,14 @@ bool AArch64ExpandPseudo::expandCMP_SWAP(
   MachineInstr &MI = *MBBI;
   DebugLoc DL = MI.getDebugLoc();
   const MachineOperand &Dest = MI.getOperand(0);
-  unsigned StatusReg = MI.getOperand(1).getReg();
+  Register StatusReg = MI.getOperand(1).getReg();
   bool StatusDead = MI.getOperand(1).isDead();
   // Duplicating undef operands into 2 instructions does not guarantee the same
   // value on both; However undef should be replaced by xzr anyway.
   assert(!MI.getOperand(2).isUndef() && "cannot handle undef");
-  unsigned AddrReg = MI.getOperand(2).getReg();
-  unsigned DesiredReg = MI.getOperand(3).getReg();
-  unsigned NewReg = MI.getOperand(4).getReg();
+  Register AddrReg = MI.getOperand(2).getReg();
+  Register DesiredReg = MI.getOperand(3).getReg();
+  Register NewReg = MI.getOperand(4).getReg();
 
   MachineFunction *MF = MBB.getParent();
   auto LoadCmpBB = MF->CreateMachineBasicBlock(MBB.getBasicBlock());
@@ -254,16 +258,16 @@ bool AArch64ExpandPseudo::expandCMP_SWAP_128(
   DebugLoc DL = MI.getDebugLoc();
   MachineOperand &DestLo = MI.getOperand(0);
   MachineOperand &DestHi = MI.getOperand(1);
-  unsigned StatusReg = MI.getOperand(2).getReg();
+  Register StatusReg = MI.getOperand(2).getReg();
   bool StatusDead = MI.getOperand(2).isDead();
   // Duplicating undef operands into 2 instructions does not guarantee the same
   // value on both; However undef should be replaced by xzr anyway.
   assert(!MI.getOperand(3).isUndef() && "cannot handle undef");
-  unsigned AddrReg = MI.getOperand(3).getReg();
-  unsigned DesiredLoReg = MI.getOperand(4).getReg();
-  unsigned DesiredHiReg = MI.getOperand(5).getReg();
-  unsigned NewLoReg = MI.getOperand(6).getReg();
-  unsigned NewHiReg = MI.getOperand(7).getReg();
+  Register AddrReg = MI.getOperand(3).getReg();
+  Register DesiredLoReg = MI.getOperand(4).getReg();
+  Register DesiredHiReg = MI.getOperand(5).getReg();
+  Register NewLoReg = MI.getOperand(6).getReg();
+  Register NewHiReg = MI.getOperand(7).getReg();
 
   MachineFunction *MF = MBB.getParent();
   auto LoadCmpBB = MF->CreateMachineBasicBlock(MBB.getBasicBlock());
@@ -475,7 +479,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
 
   case AArch64::LOADgot: {
     MachineFunction *MF = MBB.getParent();
-    unsigned DstReg = MI.getOperand(0).getReg();
+    Register DstReg = MI.getOperand(0).getReg();
     const MachineOperand &MO1 = MI.getOperand(1);
     unsigned Flags = MO1.getTargetFlags();
 
@@ -495,12 +499,26 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
       }
     } else {
       // Small codemodel expand into ADRP + LDR.
+      MachineFunction &MF = *MI.getParent()->getParent();
+      DebugLoc DL = MI.getDebugLoc();
       MachineInstrBuilder MIB1 =
           BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADRP), DstReg);
-      MachineInstrBuilder MIB2 =
-          BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::LDRXui))
-              .add(MI.getOperand(0))
-              .addReg(DstReg);
+
+      MachineInstrBuilder MIB2;
+      if (MF.getSubtarget<AArch64Subtarget>().isTargetILP32()) {
+        auto TRI = MBB.getParent()->getSubtarget().getRegisterInfo();
+        unsigned Reg32 = TRI->getSubReg(DstReg, AArch64::sub_32);
+        unsigned DstFlags = MI.getOperand(0).getTargetFlags();
+        MIB2 = BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::LDRWui))
+                   .addDef(Reg32)
+                   .addReg(DstReg, RegState::Kill)
+                   .addReg(DstReg, DstFlags | RegState::Implicit);
+      } else {
+        unsigned DstReg = MI.getOperand(0).getReg();
+        MIB2 = BuildMI(MBB, MBBI, DL, TII->get(AArch64::LDRXui))
+                   .add(MI.getOperand(0))
+                   .addUse(DstReg, RegState::Kill);
+      }
 
       if (MO1.isGlobal()) {
         MIB1.addGlobalAddress(MO1.getGlobal(), 0, Flags | AArch64II::MO_PAGE);
@@ -534,10 +552,27 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
   case AArch64::MOVaddrTLS:
   case AArch64::MOVaddrEXT: {
     // Expand into ADRP + ADD.
-    unsigned DstReg = MI.getOperand(0).getReg();
+    Register DstReg = MI.getOperand(0).getReg();
     MachineInstrBuilder MIB1 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADRP), DstReg)
             .add(MI.getOperand(1));
+
+    if (MI.getOperand(1).getTargetFlags() & AArch64II::MO_TAGGED) {
+      // MO_TAGGED on the page indicates a tagged address. Set the tag now.
+      // We do so by creating a MOVK that sets bits 48-63 of the register to
+      // (global address + 0x100000000 - PC) >> 48. This assumes that we're in
+      // the small code model so we can assume a binary size of <= 4GB, which
+      // makes the untagged PC relative offset positive. The binary must also be
+      // loaded into address range [0, 2^48). Both of these properties need to
+      // be ensured at runtime when using tagged addresses.
+      auto Tag = MI.getOperand(1);
+      Tag.setTargetFlags(AArch64II::MO_PREL | AArch64II::MO_G3);
+      Tag.setOffset(0x100000000);
+      BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::MOVKXi), DstReg)
+          .addReg(DstReg)
+          .add(Tag)
+          .addImm(48);
+    }
 
     MachineInstrBuilder MIB2 =
         BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADDXri))
@@ -561,7 +596,7 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
     return true;
 
   case AArch64::MOVbaseTLS: {
-    unsigned DstReg = MI.getOperand(0).getReg();
+    Register DstReg = MI.getOperand(0).getReg();
     auto SysReg = AArch64SysReg::TPIDR_EL0;
     MachineFunction *MF = MBB.getParent();
     if (MF->getTarget().getTargetTriple().isOSFuchsia() &&
@@ -642,11 +677,12 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
      // instruction sequence.
      int BaseOffset = -AFI->getTaggedBasePointerOffset();
      unsigned FrameReg;
-     int FrameRegOffset = TFI->resolveFrameOffsetReference(
-         MF, BaseOffset, false /*isFixed*/, FrameReg, /*PreferFP=*/false,
+     StackOffset FrameRegOffset = TFI->resolveFrameOffsetReference(
+         MF, BaseOffset, false /*isFixed*/, false /*isSVE*/, FrameReg,
+         /*PreferFP=*/false,
          /*ForSimm=*/true);
      Register SrcReg = FrameReg;
-     if (FrameRegOffset != 0) {
+     if (FrameRegOffset) {
        // Use output register as temporary.
        SrcReg = MI.getOperand(0).getReg();
        emitFrameOffset(MBB, &MI, MI.getDebugLoc(), SrcReg, FrameReg,
@@ -660,10 +696,12 @@ bool AArch64ExpandPseudo::expandMI(MachineBasicBlock &MBB,
      return true;
    }
    case AArch64::TAGPstack: {
-     BuildMI(MBB, MBBI, MI.getDebugLoc(), TII->get(AArch64::ADDG))
+     int64_t Offset = MI.getOperand(2).getImm();
+     BuildMI(MBB, MBBI, MI.getDebugLoc(),
+             TII->get(Offset >= 0 ? AArch64::ADDG : AArch64::SUBG))
          .add(MI.getOperand(0))
          .add(MI.getOperand(1))
-         .add(MI.getOperand(2))
+         .addImm(std::abs(Offset))
          .add(MI.getOperand(4));
      MI.eraseFromParent();
      return true;

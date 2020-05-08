@@ -13,6 +13,8 @@
 #ifndef LLVM_LIB_TARGET_AMDGPU_AMDGPUREGISTERBANKINFO_H
 #define LLVM_LIB_TARGET_AMDGPU_AMDGPUREGISTERBANKINFO_H
 
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/Register.h"
 #include "llvm/CodeGen/GlobalISel/RegisterBankInfo.h"
 
@@ -23,7 +25,9 @@
 namespace llvm {
 
 class LLT;
+class GCNSubtarget;
 class MachineIRBuilder;
+class SIInstrInfo;
 class SIRegisterInfo;
 class TargetRegisterInfo;
 
@@ -36,9 +40,30 @@ protected:
 #include "AMDGPUGenRegisterBank.inc"
 };
 class AMDGPURegisterBankInfo : public AMDGPUGenRegisterBankInfo {
+public:
+  const GCNSubtarget &Subtarget;
   const SIRegisterInfo *TRI;
+  const SIInstrInfo *TII;
 
-  void executeInWaterfallLoop(MachineInstr &MI,
+  bool buildVCopy(MachineIRBuilder &B, Register DstReg, Register SrcReg) const;
+
+  bool collectWaterfallOperands(
+    SmallSet<Register, 4> &SGPROperandRegs,
+    MachineInstr &MI,
+    MachineRegisterInfo &MRI,
+    ArrayRef<unsigned> OpIndices) const;
+
+  bool executeInWaterfallLoop(
+    MachineIRBuilder &B,
+    iterator_range<MachineBasicBlock::iterator> Range,
+    SmallSet<Register, 4> &SGPROperandRegs,
+    MachineRegisterInfo &MRI) const;
+
+  bool executeInWaterfallLoop(MachineIRBuilder &B,
+                              MachineInstr &MI,
+                              MachineRegisterInfo &MRI,
+                              ArrayRef<unsigned> OpIndices) const;
+  bool executeInWaterfallLoop(MachineInstr &MI,
                               MachineRegisterInfo &MRI,
                               ArrayRef<unsigned> OpIndices) const;
 
@@ -47,6 +72,21 @@ class AMDGPURegisterBankInfo : public AMDGPUGenRegisterBankInfo {
   bool applyMappingWideLoad(MachineInstr &MI,
                             const AMDGPURegisterBankInfo::OperandsMapper &OpdMapper,
                             MachineRegisterInfo &MRI) const;
+  bool
+  applyMappingImage(MachineInstr &MI,
+                    const AMDGPURegisterBankInfo::OperandsMapper &OpdMapper,
+                    MachineRegisterInfo &MRI, int RSrcIdx) const;
+
+  void lowerScalarMinMax(MachineIRBuilder &B, MachineInstr &MI) const;
+
+  Register handleD16VData(MachineIRBuilder &B, MachineRegisterInfo &MRI,
+                          Register Reg) const;
+
+  std::pair<Register, unsigned>
+  splitBufferOffsets(MachineIRBuilder &B, Register Offset) const;
+
+  MachineInstr *selectStoreIntrinsic(MachineIRBuilder &B,
+                                     MachineInstr &MI) const;
 
   /// See RegisterBankInfo::applyMapping.
   void applyMappingImpl(const OperandsMapper &OpdMapper) const override;
@@ -57,6 +97,21 @@ class AMDGPURegisterBankInfo : public AMDGPUGenRegisterBankInfo {
   unsigned getRegBankID(Register Reg, const MachineRegisterInfo &MRI,
                         const TargetRegisterInfo &TRI,
                         unsigned Default = AMDGPU::VGPRRegBankID) const;
+
+  // Return a value mapping for an operand that is required to be an SGPR.
+  const ValueMapping *getSGPROpMapping(Register Reg,
+                                       const MachineRegisterInfo &MRI,
+                                       const TargetRegisterInfo &TRI) const;
+
+  // Return a value mapping for an operand that is required to be a VGPR.
+  const ValueMapping *getVGPROpMapping(Register Reg,
+                                       const MachineRegisterInfo &MRI,
+                                       const TargetRegisterInfo &TRI) const;
+
+  // Return a value mapping for an operand that is required to be a AGPR.
+  const ValueMapping *getAGPROpMapping(Register Reg,
+                                       const MachineRegisterInfo &MRI,
+                                       const TargetRegisterInfo &TRI) const;
 
   /// Split 64-bit value \p Reg into two 32-bit halves and populate them into \p
   /// Regs. This appropriately sets the regbank of the new registers.
@@ -86,12 +141,18 @@ class AMDGPURegisterBankInfo : public AMDGPUGenRegisterBankInfo {
       const MachineInstr &MI, const MachineRegisterInfo &MRI) const;
 
   bool isSALUMapping(const MachineInstr &MI) const;
+
   const InstructionMapping &getDefaultMappingSOP(const MachineInstr &MI) const;
   const InstructionMapping &getDefaultMappingVOP(const MachineInstr &MI) const;
   const InstructionMapping &getDefaultMappingAllVGPR(
     const MachineInstr &MI) const;
+
+  const InstructionMapping &getImageMapping(const MachineRegisterInfo &MRI,
+                                            const MachineInstr &MI,
+                                            int RsrcIdx) const;
+
 public:
-  AMDGPURegisterBankInfo(const TargetRegisterInfo &TRI);
+  AMDGPURegisterBankInfo(const GCNSubtarget &STI);
 
   unsigned copyCost(const RegisterBank &A, const RegisterBank &B,
                     unsigned Size) const override;
@@ -99,8 +160,8 @@ public:
   unsigned getBreakDownCost(const ValueMapping &ValMapping,
                             const RegisterBank *CurBank = nullptr) const override;
 
-  const RegisterBank &
-  getRegBankFromRegClass(const TargetRegisterClass &RC) const override;
+  const RegisterBank &getRegBankFromRegClass(const TargetRegisterClass &RC,
+                                             LLT) const override;
 
   InstructionMappings
   getInstrAlternativeMappings(const MachineInstr &MI) const override;

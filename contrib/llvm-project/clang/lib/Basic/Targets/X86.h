@@ -22,6 +22,21 @@
 namespace clang {
 namespace targets {
 
+static const unsigned X86AddrSpaceMap[] = {
+    0,   // Default
+    0,   // opencl_global
+    0,   // opencl_local
+    0,   // opencl_constant
+    0,   // opencl_private
+    0,   // opencl_generic
+    0,   // cuda_device
+    0,   // cuda_constant
+    0,   // cuda_shared
+    270, // ptr32_sptr
+    271, // ptr32_uptr
+    272  // ptr64
+};
+
 // X86 target abstract base class; x86-32 and x86-64 are very close, so
 // most of the implementation can be shared.
 class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
@@ -45,6 +60,7 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
     AMD3DNowAthlon
   } MMX3DNowLevel = NoMMX3DNow;
   enum XOPEnum { NoXOP, SSE4A, FMA4, XOP } XOPLevel = NoXOP;
+  enum AddrSpace { ptr32_sptr = 270, ptr32_uptr = 271, ptr64 = 272 };
 
   bool HasAES = false;
   bool HasVAES = false;
@@ -80,7 +96,6 @@ class LLVM_LIBRARY_VISIBILITY X86TargetInfo : public TargetInfo {
   bool HasAVX512IFMA = false;
   bool HasAVX512VP2INTERSECT = false;
   bool HasSHA = false;
-  bool HasMPX = false;
   bool HasSHSTK = false;
   bool HasSGX = false;
   bool HasCX8 = false;
@@ -131,6 +146,7 @@ public:
   X86TargetInfo(const llvm::Triple &Triple, const TargetOptions &)
       : TargetInfo(Triple) {
     LongDoubleFormat = &llvm::APFloat::x87DoubleExtended();
+    AddrSpaceMap = &X86AddrSpaceMap;
   }
 
   const char *getLongDoubleMangling() const override {
@@ -178,9 +194,11 @@ public:
     return false;
   }
 
-  bool validateOutputSize(StringRef Constraint, unsigned Size) const override;
+  bool validateOutputSize(const llvm::StringMap<bool> &FeatureMap,
+                          StringRef Constraint, unsigned Size) const override;
 
-  bool validateInputSize(StringRef Constraint, unsigned Size) const override;
+  bool validateInputSize(const llvm::StringMap<bool> &FeatureMap,
+                         StringRef Constraint, unsigned Size) const override;
 
   virtual bool
   checkCFProtectionReturnSupported(DiagnosticsEngine &Diags) const override {
@@ -192,8 +210,8 @@ public:
     return true;
   };
 
-
-  virtual bool validateOperandSize(StringRef Constraint, unsigned Size) const;
+  virtual bool validateOperandSize(const llvm::StringMap<bool> &FeatureMap,
+                                   StringRef Constraint, unsigned Size) const;
 
   std::string convertConstraint(const char *&Constraint) const override;
   const char *getClobbers() const override {
@@ -329,6 +347,18 @@ public:
   void setSupportedOpenCLOpts() override {
     getSupportedOpenCLOpts().supportAll();
   }
+
+  uint64_t getPointerWidthV(unsigned AddrSpace) const override {
+    if (AddrSpace == ptr32_sptr || AddrSpace == ptr32_uptr)
+      return 32;
+    if (AddrSpace == ptr64)
+      return 64;
+    return PointerWidth;
+  }
+
+  uint64_t getPointerAlignV(unsigned AddrSpace) const override {
+    return getPointerWidthV(AddrSpace);
+  }
 };
 
 // X86-32 generic target
@@ -340,7 +370,8 @@ public:
     LongDoubleWidth = 96;
     LongDoubleAlign = 32;
     SuitableAlign = 128;
-    resetDataLayout("e-m:e-p:32:32-f64:32:64-f80:32-n8:16:32-S128");
+    resetDataLayout("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-"
+                    "f80:32-n8:16:32-S128");
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
     IntPtrType = SignedInt;
@@ -368,7 +399,8 @@ public:
     return -1;
   }
 
-  bool validateOperandSize(StringRef Constraint, unsigned Size) const override {
+  bool validateOperandSize(const llvm::StringMap<bool> &FeatureMap,
+                           StringRef Constraint, unsigned Size) const override {
     switch (Constraint[0]) {
     default:
       break;
@@ -386,7 +418,7 @@ public:
       return Size <= 64;
     }
 
-    return X86TargetInfo::validateOperandSize(Constraint, Size);
+    return X86TargetInfo::validateOperandSize(FeatureMap, Constraint, Size);
   }
 
   void setMaxAtomicWidth() override {
@@ -440,7 +472,8 @@ public:
       UseSignedCharForObjCBool = false;
     SizeType = UnsignedLong;
     IntPtrType = SignedLong;
-    resetDataLayout("e-m:o-p:32:32-f64:32:64-f80:128-n8:16:32-S128");
+    resetDataLayout("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-f64:32:64-"
+                    "f80:128-n8:16:32-S128");
     HasAlignMac68kSupport = true;
   }
 
@@ -465,9 +498,10 @@ public:
     DoubleAlign = LongLongAlign = 64;
     bool IsWinCOFF =
         getTriple().isOSWindows() && getTriple().isOSBinFormatCOFF();
-    resetDataLayout(IsWinCOFF
-                        ? "e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32"
-                        : "e-m:e-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32");
+    resetDataLayout(IsWinCOFF ? "e-m:x-p:32:32-p270:32:32-p271:32:32-p272:64:"
+                                "64-i64:64-f80:32-n8:16:32-a:0:32-S32"
+                              : "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:"
+                                "64-i64:64-f80:32-n8:16:32-a:0:32-S32");
   }
 };
 
@@ -515,7 +549,8 @@ public:
       : X86_32TargetInfo(Triple, Opts) {
     this->WCharType = TargetInfo::UnsignedShort;
     DoubleAlign = LongLongAlign = 64;
-    resetDataLayout("e-m:x-p:32:32-i64:64-f80:32-n8:16:32-a:0:32-S32");
+    resetDataLayout("e-m:x-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:"
+                    "32-n8:16:32-a:0:32-S32");
   }
 
   void getTargetDefines(const LangOptions &Opts,
@@ -552,7 +587,8 @@ public:
       : X86_32TargetInfo(Triple, Opts) {
     LongDoubleWidth = 64;
     LongDoubleFormat = &llvm::APFloat::IEEEdouble();
-    resetDataLayout("e-m:e-p:32:32-i64:32-f64:32-f128:32-n8:16:32-a:0:32-S32");
+    resetDataLayout("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:32-f64:"
+                    "32-f128:32-n8:16:32-a:0:32-S32");
     WIntType = UnsignedInt;
   }
 
@@ -611,10 +647,12 @@ public:
     RegParmMax = 6;
 
     // Pointers are 32-bit in x32.
-    resetDataLayout(IsX32
-                        ? "e-m:e-p:32:32-i64:64-f80:128-n8:16:32:64-S128"
-                        : IsWinCOFF ? "e-m:w-i64:64-f80:128-n8:16:32:64-S128"
-                                    : "e-m:e-i64:64-f80:128-n8:16:32:64-S128");
+    resetDataLayout(IsX32 ? "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-"
+                            "i64:64-f80:128-n8:16:32:64-S128"
+                          : IsWinCOFF ? "e-m:w-p270:32:32-p271:32:32-p272:64:"
+                                        "64-i64:64-f80:128-n8:16:32:64-S128"
+                                      : "e-m:e-p270:32:32-p271:32:32-p272:64:"
+                                        "64-i64:64-f80:128-n8:16:32:64-S128");
 
     // Use fpret only for long double.
     RealTypeUsesObjCFPRet = (1 << TargetInfo::LongDouble);
@@ -804,7 +842,8 @@ public:
     llvm::Triple T = llvm::Triple(Triple);
     if (T.isiOS())
       UseSignedCharForObjCBool = false;
-    resetDataLayout("e-m:o-i64:64-f80:128-n8:16:32:64-S128");
+    resetDataLayout("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:"
+                    "16:32:64-S128");
   }
 
   bool handleTargetFeatures(std::vector<std::string> &Features,

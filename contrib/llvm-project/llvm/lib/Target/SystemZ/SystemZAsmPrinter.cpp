@@ -16,11 +16,13 @@
 #include "SystemZConstantPoolValue.h"
 #include "SystemZMCInstLower.h"
 #include "TargetInfo/SystemZTargetInfo.h"
+#include "llvm/BinaryFormat/ELF.h"
 #include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInstBuilder.h"
+#include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/Support/TargetRegistry.h"
 
@@ -501,6 +503,10 @@ void SystemZAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     }
     break;
 
+  case TargetOpcode::FENTRY_CALL:
+    LowerFENTRY_CALL(*MI, Lower);
+    return;
+
   case TargetOpcode::STACKMAP:
     LowerSTACKMAP(*MI);
     return;
@@ -539,11 +545,36 @@ static unsigned EmitNop(MCContext &OutContext, MCStreamer &OutStreamer,
   else {
     MCSymbol *DotSym = OutContext.createTempSymbol();
     const MCSymbolRefExpr *Dot = MCSymbolRefExpr::create(DotSym, OutContext);
+    OutStreamer.EmitLabel(DotSym);
     OutStreamer.EmitInstruction(MCInstBuilder(SystemZ::BRCLAsm)
                                   .addImm(0).addExpr(Dot), STI);
-    OutStreamer.EmitLabel(DotSym);
     return 6;
   }
+}
+
+void SystemZAsmPrinter::LowerFENTRY_CALL(const MachineInstr &MI,
+                                         SystemZMCInstLower &Lower) {
+  MCContext &Ctx = MF->getContext();
+  if (MF->getFunction().hasFnAttribute("mrecord-mcount")) {
+    MCSymbol *DotSym = OutContext.createTempSymbol();
+    OutStreamer->PushSection();
+    OutStreamer->SwitchSection(
+        Ctx.getELFSection("__mcount_loc", ELF::SHT_PROGBITS, ELF::SHF_ALLOC));
+    OutStreamer->EmitSymbolValue(DotSym, 8);
+    OutStreamer->PopSection();
+    OutStreamer->EmitLabel(DotSym);
+  }
+
+  if (MF->getFunction().hasFnAttribute("mnop-mcount")) {
+    EmitNop(Ctx, *OutStreamer, 6, getSubtargetInfo());
+    return;
+  }
+
+  MCSymbol *fentry = Ctx.getOrCreateSymbol("__fentry__");
+  const MCSymbolRefExpr *Op =
+      MCSymbolRefExpr::create(fentry, MCSymbolRefExpr::VK_PLT, Ctx);
+  OutStreamer->EmitInstruction(MCInstBuilder(SystemZ::BRASL)
+                       .addReg(SystemZ::R0D).addExpr(Op), getSubtargetInfo());
 }
 
 void SystemZAsmPrinter::LowerSTACKMAP(const MachineInstr &MI) {
@@ -552,7 +583,11 @@ void SystemZAsmPrinter::LowerSTACKMAP(const MachineInstr &MI) {
 
   unsigned NumNOPBytes = MI.getOperand(1).getImm();
 
-  SM.recordStackMap(MI);
+  auto &Ctx = OutStreamer->getContext();
+  MCSymbol *MILabel = Ctx.createTempSymbol();
+  OutStreamer->EmitLabel(MILabel);
+  
+  SM.recordStackMap(*MILabel, MI);
   assert(NumNOPBytes % 2 == 0 && "Invalid number of NOP bytes requested!");
 
   // Scan ahead to trim the shadow.
@@ -581,7 +616,11 @@ void SystemZAsmPrinter::LowerSTACKMAP(const MachineInstr &MI) {
 // [<def>], <id>, <numBytes>, <target>, <numArgs>
 void SystemZAsmPrinter::LowerPATCHPOINT(const MachineInstr &MI,
                                         SystemZMCInstLower &Lower) {
-  SM.recordPatchPoint(MI);
+  auto &Ctx = OutStreamer->getContext();
+  MCSymbol *MILabel = Ctx.createTempSymbol();
+  OutStreamer->EmitLabel(MILabel);
+
+  SM.recordPatchPoint(*MILabel, MI);
   PatchPointOpers Opers(&MI);
 
   unsigned EncodedBytes = 0;
@@ -685,6 +724,6 @@ void SystemZAsmPrinter::EmitEndOfAsmFile(Module &M) {
 }
 
 // Force static initialization.
-extern "C" void LLVMInitializeSystemZAsmPrinter() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeSystemZAsmPrinter() {
   RegisterAsmPrinter<SystemZAsmPrinter> X(getTheSystemZTarget());
 }

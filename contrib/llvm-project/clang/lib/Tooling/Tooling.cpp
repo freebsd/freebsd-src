@@ -91,7 +91,34 @@ static const llvm::opt::ArgStringList *getCC1Arguments(
   // We expect to get back exactly one Command job, if we didn't something
   // failed. Extract that job from the Compilation.
   const driver::JobList &Jobs = Compilation->getJobs();
-  if (Jobs.size() != 1 || !isa<driver::Command>(*Jobs.begin())) {
+  const driver::ActionList &Actions = Compilation->getActions();
+  bool OffloadCompilation = false;
+  if (Jobs.size() > 1) {
+    for (auto A : Actions){
+      // On MacOSX real actions may end up being wrapped in BindArchAction
+      if (isa<driver::BindArchAction>(A))
+        A = *A->input_begin();
+      if (isa<driver::OffloadAction>(A)) {
+        // Offload compilation has 2 top-level actions, one (at the front) is
+        // the original host compilation and the other is offload action
+        // composed of at least one device compilation. For such case, general
+        // tooling will consider host-compilation only. For tooling on device
+        // compilation, device compilation only option, such as
+        // `--cuda-device-only`, needs specifying.
+        assert(Actions.size() > 1);
+        assert(
+            isa<driver::CompileJobAction>(Actions.front()) ||
+            // On MacOSX real actions may end up being wrapped in
+            // BindArchAction.
+            (isa<driver::BindArchAction>(Actions.front()) &&
+             isa<driver::CompileJobAction>(*Actions.front()->input_begin())));
+        OffloadCompilation = true;
+        break;
+      }
+    }
+  }
+  if (Jobs.size() == 0 || !isa<driver::Command>(*Jobs.begin()) ||
+      (Jobs.size() > 1 && !OffloadCompilation)) {
     SmallString<256> error_msg;
     llvm::raw_svector_ostream error_stream(error_msg);
     Jobs.Print(error_stream, "; ", true);
@@ -118,20 +145,18 @@ CompilerInvocation *newInvocation(
     DiagnosticsEngine *Diagnostics, const llvm::opt::ArgStringList &CC1Args) {
   assert(!CC1Args.empty() && "Must at least contain the program name!");
   CompilerInvocation *Invocation = new CompilerInvocation;
-  CompilerInvocation::CreateFromArgs(
-      *Invocation, CC1Args.data() + 1, CC1Args.data() + CC1Args.size(),
-      *Diagnostics);
+  CompilerInvocation::CreateFromArgs(*Invocation, CC1Args, *Diagnostics);
   Invocation->getFrontendOpts().DisableFree = false;
   Invocation->getCodeGenOpts().DisableFree = false;
   return Invocation;
 }
 
-bool runToolOnCode(FrontendAction *ToolAction, const Twine &Code,
-                   const Twine &FileName,
+bool runToolOnCode(std::unique_ptr<FrontendAction> ToolAction,
+                   const Twine &Code, const Twine &FileName,
                    std::shared_ptr<PCHContainerOperations> PCHContainerOps) {
-  return runToolOnCodeWithArgs(ToolAction, Code, std::vector<std::string>(),
-                               FileName, "clang-tool",
-                               std::move(PCHContainerOps));
+  return runToolOnCodeWithArgs(std::move(ToolAction), Code,
+                               std::vector<std::string>(), FileName,
+                               "clang-tool", std::move(PCHContainerOps));
 }
 
 } // namespace tooling
@@ -153,7 +178,7 @@ namespace clang {
 namespace tooling {
 
 bool runToolOnCodeWithArgs(
-    FrontendAction *ToolAction, const Twine &Code,
+    std::unique_ptr<FrontendAction> ToolAction, const Twine &Code,
     llvm::IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS,
     const std::vector<std::string> &Args, const Twine &FileName,
     const Twine &ToolName,
@@ -166,13 +191,12 @@ bool runToolOnCodeWithArgs(
   ArgumentsAdjuster Adjuster = getClangStripDependencyFileAdjuster();
   ToolInvocation Invocation(
       getSyntaxOnlyToolArgs(ToolName, Adjuster(Args, FileNameRef), FileNameRef),
-      ToolAction, Files.get(),
-      std::move(PCHContainerOps));
+      std::move(ToolAction), Files.get(), std::move(PCHContainerOps));
   return Invocation.run();
 }
 
 bool runToolOnCodeWithArgs(
-    FrontendAction *ToolAction, const Twine &Code,
+    std::unique_ptr<FrontendAction> ToolAction, const Twine &Code,
     const std::vector<std::string> &Args, const Twine &FileName,
     const Twine &ToolName,
     std::shared_ptr<PCHContainerOperations> PCHContainerOps,
@@ -194,8 +218,8 @@ bool runToolOnCodeWithArgs(
         llvm::MemoryBuffer::getMemBuffer(FilenameWithContent.second));
   }
 
-  return runToolOnCodeWithArgs(ToolAction, Code, OverlayFileSystem, Args,
-                               FileName, ToolName);
+  return runToolOnCodeWithArgs(std::move(ToolAction), Code, OverlayFileSystem,
+                               Args, FileName, ToolName);
 }
 
 llvm::Expected<std::string> getAbsolutePath(llvm::vfs::FileSystem &FS,
@@ -249,12 +273,15 @@ void addTargetAndModeForProgramName(std::vector<std::string> &CommandLine,
 namespace {
 
 class SingleFrontendActionFactory : public FrontendActionFactory {
-  FrontendAction *Action;
+  std::unique_ptr<FrontendAction> Action;
 
 public:
-  SingleFrontendActionFactory(FrontendAction *Action) : Action(Action) {}
+  SingleFrontendActionFactory(std::unique_ptr<FrontendAction> Action)
+      : Action(std::move(Action)) {}
 
-  FrontendAction *create() override { return Action; }
+  std::unique_ptr<FrontendAction> create() override {
+    return std::move(Action);
+  }
 };
 
 } // namespace
@@ -266,11 +293,13 @@ ToolInvocation::ToolInvocation(
       Files(Files), PCHContainerOps(std::move(PCHContainerOps)) {}
 
 ToolInvocation::ToolInvocation(
-    std::vector<std::string> CommandLine, FrontendAction *FAction,
-    FileManager *Files, std::shared_ptr<PCHContainerOperations> PCHContainerOps)
+    std::vector<std::string> CommandLine,
+    std::unique_ptr<FrontendAction> FAction, FileManager *Files,
+    std::shared_ptr<PCHContainerOperations> PCHContainerOps)
     : CommandLine(std::move(CommandLine)),
-      Action(new SingleFrontendActionFactory(FAction)), OwnsAction(true),
-      Files(Files), PCHContainerOps(std::move(PCHContainerOps)) {}
+      Action(new SingleFrontendActionFactory(std::move(FAction))),
+      OwnsAction(true), Files(Files),
+      PCHContainerOps(std::move(PCHContainerOps)) {}
 
 ToolInvocation::~ToolInvocation() {
   if (OwnsAction)
@@ -290,8 +319,7 @@ bool ToolInvocation::run() {
   const char *const BinaryName = Argv[0];
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
   unsigned MissingArgIndex, MissingArgCount;
-  std::unique_ptr<llvm::opt::OptTable> Opts = driver::createDriverOptTable();
-  llvm::opt::InputArgList ParsedArgs = Opts->ParseArgs(
+  llvm::opt::InputArgList ParsedArgs = driver::getDriverOptTable().ParseArgs(
       ArrayRef<const char *>(Argv).slice(1), MissingArgIndex, MissingArgCount);
   ParseDiagnosticArgs(*DiagOpts, ParsedArgs);
   TextDiagnosticPrinter DiagnosticPrinter(
@@ -375,16 +403,20 @@ bool FrontendActionFactory::runInvocation(
 ClangTool::ClangTool(const CompilationDatabase &Compilations,
                      ArrayRef<std::string> SourcePaths,
                      std::shared_ptr<PCHContainerOperations> PCHContainerOps,
-                     IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS)
+                     IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS,
+                     IntrusiveRefCntPtr<FileManager> Files)
     : Compilations(Compilations), SourcePaths(SourcePaths),
       PCHContainerOps(std::move(PCHContainerOps)),
       OverlayFileSystem(new llvm::vfs::OverlayFileSystem(std::move(BaseFS))),
       InMemoryFileSystem(new llvm::vfs::InMemoryFileSystem),
-      Files(new FileManager(FileSystemOptions(), OverlayFileSystem)) {
+      Files(Files ? Files
+                  : new FileManager(FileSystemOptions(), OverlayFileSystem)) {
   OverlayFileSystem->pushOverlay(InMemoryFileSystem);
   appendArgumentsAdjuster(getClangStripOutputAdjuster());
   appendArgumentsAdjuster(getClangSyntaxOnlyAdjuster());
   appendArgumentsAdjuster(getClangStripDependencyFileAdjuster());
+  if (Files)
+    Files->setVirtualFileSystem(OverlayFileSystem);
 }
 
 ClangTool::~ClangTool() = default;
@@ -587,7 +619,7 @@ buildASTFromCode(StringRef Code, StringRef FileName,
 std::unique_ptr<ASTUnit> buildASTFromCodeWithArgs(
     StringRef Code, const std::vector<std::string> &Args, StringRef FileName,
     StringRef ToolName, std::shared_ptr<PCHContainerOperations> PCHContainerOps,
-    ArgumentsAdjuster Adjuster) {
+    ArgumentsAdjuster Adjuster, const FileContentMappings &VirtualMappedFiles) {
   std::vector<std::unique_ptr<ASTUnit>> ASTs;
   ASTBuilderAction Action(ASTs);
   llvm::IntrusiveRefCntPtr<llvm::vfs::OverlayFileSystem> OverlayFileSystem(
@@ -604,6 +636,12 @@ std::unique_ptr<ASTUnit> buildASTFromCodeWithArgs(
 
   InMemoryFileSystem->addFile(FileName, 0,
                               llvm::MemoryBuffer::getMemBufferCopy(Code));
+  for (auto &FilenameWithContent : VirtualMappedFiles) {
+    InMemoryFileSystem->addFile(
+        FilenameWithContent.first, 0,
+        llvm::MemoryBuffer::getMemBuffer(FilenameWithContent.second));
+  }
+
   if (!Invocation.run())
     return nullptr;
 

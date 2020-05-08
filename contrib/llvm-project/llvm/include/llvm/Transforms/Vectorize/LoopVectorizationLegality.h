@@ -33,18 +33,6 @@
 
 namespace llvm {
 
-/// Create an analysis remark that explains why vectorization failed
-///
-/// \p PassName is the name of the pass (e.g. can be AlwaysPrint).  \p
-/// RemarkName is the identifier for the remark.  If \p I is passed it is an
-/// instruction that prevents vectorization.  Otherwise \p TheLoop is used for
-/// the location of the remark.  \return the remark object that can be
-/// streamed to.
-OptimizationRemarkAnalysis createLVMissedAnalysis(const char *PassName,
-                                                  StringRef RemarkName,
-                                                  Loop *TheLoop,
-                                                  Instruction *I = nullptr);
-
 /// Utility class for getting and setting loop vectorizer hints in the form
 /// of loop metadata.
 /// This class keeps a number of loop annotations locally (as member variables)
@@ -55,7 +43,8 @@ OptimizationRemarkAnalysis createLVMissedAnalysis(const char *PassName,
 /// for example 'force', means a decision has been made. So, we need to be
 /// careful NOT to add them if the user hasn't specifically asked so.
 class LoopVectorizeHints {
-  enum HintKind { HK_WIDTH, HK_UNROLL, HK_FORCE, HK_ISVECTORIZED };
+  enum HintKind { HK_WIDTH, HK_UNROLL, HK_FORCE, HK_ISVECTORIZED,
+                  HK_PREDICATE };
 
   /// Hint - associates name and validation with the hint value.
   struct Hint {
@@ -80,6 +69,9 @@ class LoopVectorizeHints {
 
   /// Already Vectorized
   Hint IsVectorized;
+
+  /// Vector Predicate
+  Hint Predicate;
 
   /// Return the loop metadata prefix.
   static StringRef Prefix() { return "llvm.loop."; }
@@ -109,6 +101,7 @@ public:
   unsigned getWidth() const { return Width.Value; }
   unsigned getInterleave() const { return Interleave.Value; }
   unsigned getIsVectorized() const { return IsVectorized.Value; }
+  unsigned getPredicate() const { return Predicate.Value; }
   enum ForceKind getForce() const {
     if ((ForceKind)Force.Value == FK_Undefined &&
         hasDisableAllTransformsHint(TheLoop))
@@ -235,8 +228,8 @@ public:
   bool canVectorize(bool UseVPlanNativePath);
 
   /// Return true if we can vectorize this loop while folding its tail by
-  /// masking.
-  bool canFoldTailByMasking();
+  /// masking, and mark all respective loads/stores for masking.
+  bool prepareToFoldTailByMasking();
 
   /// Returns the primary induction variable.
   PHINode *getPrimaryInduction() { return PrimaryInduction; }
@@ -362,9 +355,16 @@ private:
   bool canVectorizeOuterLoop();
 
   /// Return true if all of the instructions in the block can be speculatively
-  /// executed. \p SafePtrs is a list of addresses that are known to be legal
-  /// and we know that we can read from them without segfault.
-  bool blockCanBePredicated(BasicBlock *BB, SmallPtrSetImpl<Value *> &SafePtrs);
+  /// executed, and record the loads/stores that require masking. If's that
+  /// guard loads can be ignored under "assume safety" unless \p PreserveGuards
+  /// is true. This can happen when we introduces guards for which the original
+  /// "unguarded-loads are safe" assumption does not hold. For example, the
+  /// vectorizer's fold-tail transformation changes the loop to execute beyond
+  /// its original trip-count, under a proper guard, which should be preserved.
+  /// \p SafePtrs is a list of addresses that are known to be legal and we know
+  /// that we can read from them without segfault.
+  bool blockCanBePredicated(BasicBlock *BB, SmallPtrSetImpl<Value *> &SafePtrs,
+                            bool PreserveGuards = false);
 
   /// Updates the vectorization state by adding \p Phi to the inductions list.
   /// This can set \p Phi as the main induction of the loop if \p Phi is a
@@ -381,14 +381,6 @@ private:
     // masked access.
     return LAI ? &LAI->getSymbolicStrides() : nullptr;
   }
-
-  /// Reports a vectorization illegality: print \p DebugMsg for debugging
-  /// purposes along with the corresponding optimization remark \p RemarkName.
-  /// If \p I is passed it is an instruction that prevents vectorization.
-  /// Otherwise the loop is used for the location of the remark.
-  void reportVectorizationFailure(const StringRef DebugMsg,
-      const StringRef OREMsg, const StringRef ORETag,
-      Instruction *I = nullptr) const;
 
   /// The loop that we evaluate.
   Loop *TheLoop;

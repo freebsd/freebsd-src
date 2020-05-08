@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Config/llvm-config.h"
+#include "lldb/Host/Config.h"
 
 #include "lldb/Host/MainLoop.h"
 #include "lldb/Host/PosixApi.h"
@@ -320,6 +321,7 @@ MainLoop::RegisterSignal(int signo, const Callback &callback, Status &error) {
   // Even if using kqueue, the signal handler will still be invoked, so it's
   // important to replace it with our "benign" handler.
   int ret = sigaction(signo, &new_action, &info.old_action);
+  (void)ret;
   assert(ret == 0 && "sigaction failed");
 
 #if HAVE_SYS_EVENT_H

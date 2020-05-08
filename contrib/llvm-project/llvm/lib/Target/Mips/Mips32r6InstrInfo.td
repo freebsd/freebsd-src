@@ -765,12 +765,12 @@ class LL_R6_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,
   InstrItinClass Itinerary = itin;
 }
 
-class LL_R6_DESC : LL_R6_DESC_BASE<"ll", GPR32Opnd, mem_simm9, II_LL>;
+class LL_R6_DESC : LL_R6_DESC_BASE<"ll", GPR32Opnd, mem_simm9_exp, II_LL>;
 
 class SC_R6_DESC_BASE<string instr_asm, RegisterOperand GPROpnd,
                       InstrItinClass itin> {
   dag OutOperandList = (outs GPROpnd:$dst);
-  dag InOperandList = (ins GPROpnd:$rt, mem_simm9:$addr);
+  dag InOperandList = (ins GPROpnd:$rt, mem_simm9_exp:$addr);
   string AsmString = !strconcat(instr_asm, "\t$rt, $addr");
   list<dag> Pattern = [];
   bit mayStore = 1;
@@ -996,13 +996,15 @@ def : MipsInstAlias<"evp", (EVP ZERO), 0>, ISA_MIPS32R6;
 let AdditionalPredicates = [NotInMicroMips] in {
 def : MipsInstAlias<"sdbbp", (SDBBP_R6 0)>, ISA_MIPS32R6;
 def : MipsInstAlias<"sigrie", (SIGRIE 0)>, ISA_MIPS32R6;
-def : MipsInstAlias<"jr $rs", (JALR ZERO, GPR32Opnd:$rs), 1>, ISA_MIPS32R6, GPR_32;
+def : MipsInstAlias<"jr $rs", (JALR ZERO, GPR32Opnd:$rs), 1>,
+      ISA_MIPS32R6, GPR_32;
 }
 
 def : MipsInstAlias<"jrc $rs", (JIC GPR32Opnd:$rs, 0), 1>, ISA_MIPS32R6, GPR_32;
 
 let AdditionalPredicates = [NotInMicroMips] in {
-def : MipsInstAlias<"jalrc $rs", (JIALC GPR32Opnd:$rs, 0), 1>, ISA_MIPS32R6, GPR_32;
+def : MipsInstAlias<"jalrc $rs", (JIALC GPR32Opnd:$rs, 0), 1>,
+      ISA_MIPS32R6, GPR_32;
 }
 
 def : MipsInstAlias<"div $rs, $rt", (DIV GPR32Opnd:$rs, GPR32Opnd:$rs,

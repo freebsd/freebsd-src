@@ -21,12 +21,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Compiler.h"
 
-// Support building against older versions of LLVM, this macro was added
-// recently.
-#ifndef LLVM_EXTENSION
-#define LLVM_EXTENSION
-#endif
-
 #include "RegisterContextDarwin_x86_64.h"
 
 using namespace lldb;
@@ -552,22 +546,6 @@ int RegisterContextDarwin_x86_64::GetSetForNativeRegNum(int reg_num) {
   else if (reg_num < k_num_registers)
     return EXCRegSet;
   return -1;
-}
-
-void RegisterContextDarwin_x86_64::LogGPR(Log *log, const char *format, ...) {
-  if (log) {
-    if (format) {
-      va_list args;
-      va_start(args, format);
-      log->VAPrintf(format, args);
-      va_end(args);
-    }
-    for (uint32_t i = 0; i < k_num_gpr_registers; i++) {
-      uint32_t reg = gpr_rax + i;
-      log->Printf("%12s = 0x%16.16" PRIx64, g_register_infos[reg].name,
-                  (&gpr.rax)[reg]);
-    }
-  }
 }
 
 int RegisterContextDarwin_x86_64::ReadGPR(bool force) {

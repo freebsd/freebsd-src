@@ -73,7 +73,7 @@ addOperand(MCInst &Inst, const MCOperand& Opnd) {
   Inst.addOperand(Opnd);
   return Opnd.isValid() ?
     MCDisassembler::Success :
-    MCDisassembler::SoftFail;
+    MCDisassembler::Fail;
 }
 
 static int insertNamedMCOperand(MCInst &MI, const MCOperand &Op,
@@ -268,7 +268,6 @@ static bool isValidDPP8(const MCInst &MI) {
 DecodeStatus AMDGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
                                                 ArrayRef<uint8_t> Bytes_,
                                                 uint64_t Address,
-                                                raw_ostream &WS,
                                                 raw_ostream &CS) const {
   CommentStream = &CS;
   bool IsSDWA = false;
@@ -303,15 +302,6 @@ DecodeStatus AMDGPUDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
       Res = tryDecodeInst(DecoderTableSDWA1064, MI, QW, Address);
       if (Res) { IsSDWA = true;  break; }
-
-      // Some GFX9 subtargets repurposed the v_mad_mix_f32, v_mad_mixlo_f16 and
-      // v_mad_mixhi_f16 for FMA variants. Try to decode using this special
-      // table first so we print the correct name.
-
-      if (STI.getFeatureBits()[AMDGPU::FeatureFmaMixInsts]) {
-        Res = tryDecodeInst(DecoderTableGFX9_DL64, MI, QW, Address);
-        if (Res) break;
-      }
 
       if (STI.getFeatureBits()[AMDGPU::FeatureUnpackedD16VMem]) {
         Res = tryDecodeInst(DecoderTableGFX80_UNPACKED64, MI, QW, Address);
@@ -1095,6 +1085,7 @@ MCOperand AMDGPUDisassembler::decodeSpecialReg64(unsigned Val) const {
   case 106: return createRegOperand(VCC);
   case 108: return createRegOperand(TBA);
   case 110: return createRegOperand(TMA);
+  case 125: return createRegOperand(SGPR_NULL);
   case 126: return createRegOperand(EXEC);
   case 235: return createRegOperand(SRC_SHARED_BASE);
   case 236: return createRegOperand(SRC_SHARED_LIMIT);
@@ -1172,7 +1163,8 @@ MCOperand AMDGPUDisassembler::decodeSDWAVopcDst(unsigned Val) const {
 
     int TTmpIdx = getTTmpIdx(Val);
     if (TTmpIdx >= 0) {
-      return createSRegOperand(getTtmpClassId(OPW64), TTmpIdx);
+      auto TTmpClsId = getTtmpClassId(IsWave64 ? OPW64 : OPW32);
+      return createSRegOperand(TTmpClsId, TTmpIdx);
     } else if (Val > SGPR_MAX) {
       return IsWave64 ? decodeSpecialReg64(Val)
                       : decodeSpecialReg32(Val);
@@ -1260,7 +1252,7 @@ static MCDisassembler *createAMDGPUDisassembler(const Target &T,
   return new AMDGPUDisassembler(STI, Ctx, T.createMCInstrInfo());
 }
 
-extern "C" void LLVMInitializeAMDGPUDisassembler() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeAMDGPUDisassembler() {
   TargetRegistry::RegisterMCDisassembler(getTheGCNTarget(),
                                          createAMDGPUDisassembler);
   TargetRegistry::RegisterMCSymbolizer(getTheGCNTarget(),

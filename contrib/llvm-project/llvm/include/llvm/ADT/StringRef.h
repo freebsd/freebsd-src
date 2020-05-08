@@ -21,6 +21,12 @@
 #include <type_traits>
 #include <utility>
 
+// Declare the __builtin_strlen intrinsic for MSVC so it can be used in
+// constexpr context.
+#if defined(_MSC_VER)
+extern "C" size_t __builtin_strlen(const char *);
+#endif
+
 namespace llvm {
 
   class APInt;
@@ -67,6 +73,21 @@ namespace llvm {
       return ::memcmp(Lhs,Rhs,Length);
     }
 
+    // Constexpr version of std::strlen.
+    static constexpr size_t strLen(const char *Str) {
+#if __cplusplus > 201402L
+      return std::char_traits<char>::length(Str);
+#elif __has_builtin(__builtin_strlen) || defined(__GNUC__) || \
+    (defined(_MSC_VER) && _MSC_VER >= 1916)
+      return __builtin_strlen(Str);
+#else
+      const char *Begin = Str;
+      while (*Str != '\0')
+        ++Str;
+      return Str - Begin;
+#endif
+    }
+
   public:
     /// @name Constructors
     /// @{
@@ -79,8 +100,8 @@ namespace llvm {
     StringRef(std::nullptr_t) = delete;
 
     /// Construct a string ref from a cstring.
-    /*implicit*/ StringRef(const char *Str)
-        : Data(Str), Length(Str ? ::strlen(Str) : 0) {}
+    /*implicit*/ constexpr StringRef(const char *Str)
+        : Data(Str), Length(Str ? strLen(Str) : 0) {}
 
     /// Construct a string ref from a pointer and length.
     /*implicit*/ constexpr StringRef(const char *data, size_t length)
@@ -546,7 +567,8 @@ namespace llvm {
     ///
     /// If \p AllowInexact is false, the function will fail if the string
     /// cannot be represented exactly.  Otherwise, the function only fails
-    /// in case of an overflow or underflow.
+    /// in case of an overflow or underflow, or an invalid floating point
+    /// representation.
     bool getAsDouble(double &Result, bool AllowInexact = true) const;
 
     /// @}

@@ -26,6 +26,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/BinaryFormat/Dwarf.h"
@@ -39,6 +40,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
+#include "llvm/CodeGen/TargetLowering.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/DebugInfo/DWARF/DWARFExpression.h"
@@ -82,6 +84,8 @@
 using namespace llvm;
 
 #define DEBUG_TYPE "dwarfdebug"
+
+STATISTIC(NumCSParams, "Number of dbg call site params created");
 
 static cl::opt<bool>
 DisableDebugInfoPrinting("disable-debug-info-print", cl::Hidden,
@@ -166,26 +170,26 @@ static const char *const DbgTimerDescription = "DWARF Debug Writer";
 static constexpr unsigned ULEB128PadSize = 4;
 
 void DebugLocDwarfExpression::emitOp(uint8_t Op, const char *Comment) {
-  BS.EmitInt8(
+  getActiveStreamer().EmitInt8(
       Op, Comment ? Twine(Comment) + " " + dwarf::OperationEncodingString(Op)
                   : dwarf::OperationEncodingString(Op));
 }
 
 void DebugLocDwarfExpression::emitSigned(int64_t Value) {
-  BS.EmitSLEB128(Value, Twine(Value));
+  getActiveStreamer().EmitSLEB128(Value, Twine(Value));
 }
 
 void DebugLocDwarfExpression::emitUnsigned(uint64_t Value) {
-  BS.EmitULEB128(Value, Twine(Value));
+  getActiveStreamer().EmitULEB128(Value, Twine(Value));
 }
 
 void DebugLocDwarfExpression::emitData1(uint8_t Value) {
-  BS.EmitInt8(Value, Twine(Value));
+  getActiveStreamer().EmitInt8(Value, Twine(Value));
 }
 
 void DebugLocDwarfExpression::emitBaseTypeRef(uint64_t Idx) {
   assert(Idx < (1ULL << (ULEB128PadSize * 7)) && "Idx wont fit");
-  BS.EmitULEB128(Idx, Twine(Idx), ULEB128PadSize);
+  getActiveStreamer().EmitULEB128(Idx, Twine(Idx), ULEB128PadSize);
 }
 
 bool DebugLocDwarfExpression::isFrameRegister(const TargetRegisterInfo &TRI,
@@ -194,54 +198,34 @@ bool DebugLocDwarfExpression::isFrameRegister(const TargetRegisterInfo &TRI,
   return false;
 }
 
-bool DbgVariable::isBlockByrefVariable() const {
-  assert(getVariable() && "Invalid complex DbgVariable!");
-  return getVariable()->getType()->isBlockByrefStruct();
+void DebugLocDwarfExpression::enableTemporaryBuffer() {
+  assert(!IsBuffering && "Already buffering?");
+  if (!TmpBuf)
+    TmpBuf = std::make_unique<TempBuffer>(OutBS.GenerateComments);
+  IsBuffering = true;
+}
+
+void DebugLocDwarfExpression::disableTemporaryBuffer() { IsBuffering = false; }
+
+unsigned DebugLocDwarfExpression::getTemporaryBufferSize() {
+  return TmpBuf ? TmpBuf->Bytes.size() : 0;
+}
+
+void DebugLocDwarfExpression::commitTemporaryBuffer() {
+  if (!TmpBuf)
+    return;
+  for (auto Byte : enumerate(TmpBuf->Bytes)) {
+    const char *Comment = (Byte.index() < TmpBuf->Comments.size())
+                              ? TmpBuf->Comments[Byte.index()].c_str()
+                              : "";
+    OutBS.EmitInt8(Byte.value(), Comment);
+  }
+  TmpBuf->Bytes.clear();
+  TmpBuf->Comments.clear();
 }
 
 const DIType *DbgVariable::getType() const {
-  DIType *Ty = getVariable()->getType();
-  // FIXME: isBlockByrefVariable should be reformulated in terms of complex
-  // addresses instead.
-  if (Ty->isBlockByrefStruct()) {
-    /* Byref variables, in Blocks, are declared by the programmer as
-       "SomeType VarName;", but the compiler creates a
-       __Block_byref_x_VarName struct, and gives the variable VarName
-       either the struct, or a pointer to the struct, as its type.  This
-       is necessary for various behind-the-scenes things the compiler
-       needs to do with by-reference variables in blocks.
-
-       However, as far as the original *programmer* is concerned, the
-       variable should still have type 'SomeType', as originally declared.
-
-       The following function dives into the __Block_byref_x_VarName
-       struct to find the original type of the variable.  This will be
-       passed back to the code generating the type for the Debug
-       Information Entry for the variable 'VarName'.  'VarName' will then
-       have the original type 'SomeType' in its debug information.
-
-       The original type 'SomeType' will be the type of the field named
-       'VarName' inside the __Block_byref_x_VarName struct.
-
-       NOTE: In order for this to not completely fail on the debugger
-       side, the Debug Information Entry for the variable VarName needs to
-       have a DW_AT_location that tells the debugger how to unwind through
-       the pointers and __Block_byref_x_VarName struct to find the actual
-       value of the variable.  The function addBlockByrefType does this.  */
-    DIType *subType = Ty;
-    uint16_t tag = Ty->getTag();
-
-    if (tag == dwarf::DW_TAG_pointer_type)
-      subType = cast<DIDerivedType>(Ty)->getBaseType();
-
-    auto Elements = cast<DICompositeType>(subType)->getElements();
-    for (unsigned i = 0, N = Elements.size(); i < N; ++i) {
-      auto *DT = cast<DIDerivedType>(Elements[i]);
-      if (getName() == DT->getName())
-        return DT->getBaseType();
-    }
-  }
-  return Ty;
+  return getVariable()->getType();
 }
 
 /// Get .debug_loc entry for the instruction range starting at MI.
@@ -256,6 +240,11 @@ static DbgValueLoc getDebugLocValue(const MachineInstr *MI) {
     assert((!Op1.isImm() || (Op1.getImm() == 0)) && "unexpected offset");
     MachineLocation MLoc(RegOp.getReg(), Op1.isImm());
     return DbgValueLoc(Expr, MLoc);
+  }
+  if (MI->getOperand(0).isTargetIndex()) {
+    auto Op = MI->getOperand(0);
+    return DbgValueLoc(Expr,
+                       TargetIndexLocation(Op.getIndex(), Op.getOffset()));
   }
   if (MI->getOperand(0).isImm())
     return DbgValueLoc(Expr, MI->getOperand(0).getImm());
@@ -275,7 +264,7 @@ void DbgVariable::initializeDbgValue(const MachineInstr *DbgValue) {
   assert(getInlinedAt() == DbgValue->getDebugLoc()->getInlinedAt() &&
          "Wrong inlined-at");
 
-  ValueLoc = llvm::make_unique<DbgValueLoc>(getDebugLocValue(DbgValue));
+  ValueLoc = std::make_unique<DbgValueLoc>(getDebugLocValue(DbgValue));
   if (auto *E = DbgValue->getDebugExpression())
     if (E->getNumElements())
       FrameIndexExprs.push_back({0, E});
@@ -551,6 +540,161 @@ void DwarfDebug::constructAbstractSubprogramScopeDIE(DwarfCompileUnit &SrcCU,
   }
 }
 
+/// Try to interpret values loaded into registers that forward parameters
+/// for \p CallMI. Store parameters with interpreted value into \p Params.
+static void collectCallSiteParameters(const MachineInstr *CallMI,
+                                      ParamSet &Params) {
+  auto *MF = CallMI->getMF();
+  auto CalleesMap = MF->getCallSitesInfo();
+  auto CallFwdRegsInfo = CalleesMap.find(CallMI);
+
+  // There is no information for the call instruction.
+  if (CallFwdRegsInfo == CalleesMap.end())
+    return;
+
+  auto *MBB = CallMI->getParent();
+  const auto &TRI = MF->getSubtarget().getRegisterInfo();
+  const auto &TII = MF->getSubtarget().getInstrInfo();
+  const auto &TLI = MF->getSubtarget().getTargetLowering();
+
+  // Skip the call instruction.
+  auto I = std::next(CallMI->getReverseIterator());
+
+  DenseSet<unsigned> ForwardedRegWorklist;
+  // Add all the forwarding registers into the ForwardedRegWorklist.
+  for (auto ArgReg : CallFwdRegsInfo->second) {
+    bool InsertedReg = ForwardedRegWorklist.insert(ArgReg.Reg).second;
+    assert(InsertedReg && "Single register used to forward two arguments?");
+    (void)InsertedReg;
+  }
+
+  // We erase, from the ForwardedRegWorklist, those forwarding registers for
+  // which we successfully describe a loaded value (by using
+  // the describeLoadedValue()). For those remaining arguments in the working
+  // list, for which we do not describe a loaded value by
+  // the describeLoadedValue(), we try to generate an entry value expression
+  // for their call site value desctipion, if the call is within the entry MBB.
+  // The RegsForEntryValues maps a forwarding register into the register holding
+  // the entry value.
+  // TODO: Handle situations when call site parameter value can be described
+  // as the entry value within basic blocks other then the first one.
+  bool ShouldTryEmitEntryVals = MBB->getIterator() == MF->begin();
+  DenseMap<unsigned, unsigned> RegsForEntryValues;
+
+  // If the MI is an instruction defining one or more parameters' forwarding
+  // registers, add those defines. We can currently only describe forwarded
+  // registers that are explicitly defined, but keep track of implicit defines
+  // also to remove those registers from the work list.
+  auto getForwardingRegsDefinedByMI = [&](const MachineInstr &MI,
+                                          SmallVectorImpl<unsigned> &Explicit,
+                                          SmallVectorImpl<unsigned> &Implicit) {
+    if (MI.isDebugInstr())
+      return;
+
+    for (const MachineOperand &MO : MI.operands()) {
+      if (MO.isReg() && MO.isDef() &&
+          Register::isPhysicalRegister(MO.getReg())) {
+        for (auto FwdReg : ForwardedRegWorklist) {
+          if (TRI->regsOverlap(FwdReg, MO.getReg())) {
+            if (MO.isImplicit())
+              Implicit.push_back(FwdReg);
+            else
+              Explicit.push_back(FwdReg);
+          }
+        }
+      }
+    }
+  };
+
+  auto finishCallSiteParam = [&](DbgValueLoc DbgLocVal, unsigned Reg) {
+    unsigned FwdReg = Reg;
+    if (ShouldTryEmitEntryVals) {
+      auto EntryValReg = RegsForEntryValues.find(Reg);
+      if (EntryValReg != RegsForEntryValues.end())
+        FwdReg = EntryValReg->second;
+    }
+
+    DbgCallSiteParam CSParm(FwdReg, DbgLocVal);
+    Params.push_back(CSParm);
+    ++NumCSParams;
+  };
+
+  // Search for a loading value in forwarding registers.
+  for (; I != MBB->rend(); ++I) {
+    // Skip bundle headers.
+    if (I->isBundle())
+      continue;
+
+    // If the next instruction is a call we can not interpret parameter's
+    // forwarding registers or we finished the interpretation of all parameters.
+    if (I->isCall())
+      return;
+
+    if (ForwardedRegWorklist.empty())
+      return;
+
+    SmallVector<unsigned, 4> ExplicitFwdRegDefs;
+    SmallVector<unsigned, 4> ImplicitFwdRegDefs;
+    getForwardingRegsDefinedByMI(*I, ExplicitFwdRegDefs, ImplicitFwdRegDefs);
+    if (ExplicitFwdRegDefs.empty() && ImplicitFwdRegDefs.empty())
+      continue;
+
+    // If the MI clobbers more then one forwarding register we must remove
+    // all of them from the working list.
+    for (auto Reg : concat<unsigned>(ExplicitFwdRegDefs, ImplicitFwdRegDefs))
+      ForwardedRegWorklist.erase(Reg);
+
+    for (auto ParamFwdReg : ExplicitFwdRegDefs) {
+      if (auto ParamValue = TII->describeLoadedValue(*I, ParamFwdReg)) {
+        if (ParamValue->first.isImm()) {
+          int64_t Val = ParamValue->first.getImm();
+          DbgValueLoc DbgLocVal(ParamValue->second, Val);
+          finishCallSiteParam(DbgLocVal, ParamFwdReg);
+        } else if (ParamValue->first.isReg()) {
+          Register RegLoc = ParamValue->first.getReg();
+          // TODO: For now, there is no use of describing the value loaded into the
+          //       register that is also the source registers (e.g. $r0 = add $r0, x).
+          if (ParamFwdReg == RegLoc)
+            continue;
+
+          unsigned SP = TLI->getStackPointerRegisterToSaveRestore();
+          Register FP = TRI->getFrameRegister(*MF);
+          bool IsSPorFP = (RegLoc == SP) || (RegLoc == FP);
+          if (TRI->isCalleeSavedPhysReg(RegLoc, *MF) || IsSPorFP) {
+            DbgValueLoc DbgLocVal(ParamValue->second,
+                                  MachineLocation(RegLoc,
+                                                  /*IsIndirect=*/IsSPorFP));
+            finishCallSiteParam(DbgLocVal, ParamFwdReg);
+          // TODO: Add support for entry value plus an expression.
+          } else if (ShouldTryEmitEntryVals &&
+                     ParamValue->second->getNumElements() == 0) {
+            ForwardedRegWorklist.insert(RegLoc);
+            RegsForEntryValues[RegLoc] = ParamFwdReg;
+          }
+        }
+      }
+    }
+  }
+
+  // Emit the call site parameter's value as an entry value.
+  if (ShouldTryEmitEntryVals) {
+    // Create an expression where the register's entry value is used.
+    DIExpression *EntryExpr = DIExpression::get(
+        MF->getFunction().getContext(), {dwarf::DW_OP_LLVM_entry_value, 1});
+    for (auto RegEntry : ForwardedRegWorklist) {
+      unsigned FwdReg = RegEntry;
+      auto EntryValReg = RegsForEntryValues.find(RegEntry);
+        if (EntryValReg != RegsForEntryValues.end())
+          FwdReg = EntryValReg->second;
+
+      DbgValueLoc DbgLocVal(EntryExpr, MachineLocation(RegEntry));
+      DbgCallSiteParam CSParm(FwdReg, DbgLocVal);
+      Params.push_back(CSParm);
+      ++NumCSParams;
+    }
+  }
+}
+
 void DwarfDebug::constructCallSiteEntryDIEs(const DISubprogram &SP,
                                             DwarfCompileUnit &CU, DIE &ScopeDIE,
                                             const MachineFunction &MF) {
@@ -563,14 +707,21 @@ void DwarfDebug::constructCallSiteEntryDIEs(const DISubprogram &SP,
   // for both tail and non-tail calls. Don't use DW_AT_call_all_source_calls
   // because one of its requirements is not met: call site entries for
   // optimized-out calls are elided.
-  CU.addFlag(ScopeDIE, dwarf::DW_AT_call_all_calls);
+  CU.addFlag(ScopeDIE, CU.getDwarf5OrGNUAttr(dwarf::DW_AT_call_all_calls));
 
   const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   assert(TII && "TargetInstrInfo not found: cannot label tail calls");
+  bool ApplyGNUExtensions = getDwarfVersion() == 4 && tuneForGDB();
 
   // Emit call site entries for each call or tail call in the function.
   for (const MachineBasicBlock &MBB : MF) {
     for (const MachineInstr &MI : MBB.instrs()) {
+      // Bundles with call in them will pass the isCall() test below but do not
+      // have callee operand information so skip them here. Iterator will
+      // eventually reach the call MI.
+      if (MI.isBundle())
+        continue;
+
       // Skip instructions which aren't calls. Both calls and tail-calling jump
       // instructions (e.g TAILJMPd64) are classified correctly here.
       if (!MI.isCall())
@@ -581,30 +732,75 @@ void DwarfDebug::constructCallSiteEntryDIEs(const DISubprogram &SP,
         return;
 
       // If this is a direct call, find the callee's subprogram.
+      // In the case of an indirect call find the register that holds
+      // the callee.
       const MachineOperand &CalleeOp = MI.getOperand(0);
-      if (!CalleeOp.isGlobal())
-        continue;
-      const Function *CalleeDecl = dyn_cast<Function>(CalleeOp.getGlobal());
-      if (!CalleeDecl || !CalleeDecl->getSubprogram())
+      if (!CalleeOp.isGlobal() && !CalleeOp.isReg())
         continue;
 
+      unsigned CallReg = 0;
+      const DISubprogram *CalleeSP = nullptr;
+      const Function *CalleeDecl = nullptr;
+      if (CalleeOp.isReg()) {
+        CallReg = CalleeOp.getReg();
+        if (!CallReg)
+          continue;
+      } else {
+        CalleeDecl = dyn_cast<Function>(CalleeOp.getGlobal());
+        if (!CalleeDecl || !CalleeDecl->getSubprogram())
+          continue;
+        CalleeSP = CalleeDecl->getSubprogram();
+      }
+
       // TODO: Omit call site entries for runtime calls (objc_msgSend, etc).
-      // TODO: Add support for indirect calls.
 
       bool IsTail = TII->isTailCall(MI);
 
-      // For tail calls, no return PC information is needed. For regular calls,
-      // the return PC is needed to disambiguate paths in the call graph which
-      // could lead to some target function.
-      const MCExpr *PCOffset =
-          IsTail ? nullptr : getFunctionLocalOffsetAfterInsn(&MI);
+      // If MI is in a bundle, the label was created after the bundle since
+      // EmitFunctionBody iterates over top-level MIs. Get that top-level MI
+      // to search for that label below.
+      const MachineInstr *TopLevelCallMI =
+          MI.isInsideBundle() ? &*getBundleStart(MI.getIterator()) : &MI;
 
-      assert((IsTail || PCOffset) && "Call without return PC information");
+      // For tail calls, for non-gdb tuning, no return PC information is needed.
+      // For regular calls (and tail calls in GDB tuning), the return PC
+      // is needed to disambiguate paths in the call graph which could lead to
+      // some target function.
+      const MCExpr *PCOffset =
+          (IsTail && !tuneForGDB())
+              ? nullptr
+              : getFunctionLocalOffsetAfterInsn(TopLevelCallMI);
+
+      // Return address of a call-like instruction for a normal call or a
+      // jump-like instruction for a tail call. This is needed for
+      // GDB + DWARF 4 tuning.
+      const MCSymbol *PCAddr =
+          ApplyGNUExtensions
+              ? const_cast<MCSymbol *>(getLabelAfterInsn(TopLevelCallMI))
+              : nullptr;
+
+      assert((IsTail || PCOffset || PCAddr) &&
+             "Call without return PC information");
+
       LLVM_DEBUG(dbgs() << "CallSiteEntry: " << MF.getName() << " -> "
-                        << CalleeDecl->getName() << (IsTail ? " [tail]" : "")
-                        << "\n");
-      CU.constructCallSiteEntryDIE(ScopeDIE, *CalleeDecl->getSubprogram(),
-                                   IsTail, PCOffset);
+                        << (CalleeDecl ? CalleeDecl->getName()
+                                       : StringRef(MF.getSubtarget()
+                                                       .getRegisterInfo()
+                                                       ->getName(CallReg)))
+                        << (IsTail ? " [IsTail]" : "") << "\n");
+
+      DIE &CallSiteDIE =
+            CU.constructCallSiteEntryDIE(ScopeDIE, CalleeSP, IsTail, PCAddr,
+                                         PCOffset, CallReg);
+
+      // GDB and LLDB support call site parameter debug info.
+      if (Asm->TM.Options.EnableDebugEntryValues &&
+          (tuneForGDB() || tuneForLLDB())) {
+        ParamSet Params;
+        // Try to interpret values of call site parameters.
+        collectCallSiteParameters(&MI, Params);
+        CU.constructCallSiteParmEntryDIEs(CallSiteDIE, Params);
+      }
     }
   }
 }
@@ -665,10 +861,13 @@ void DwarfDebug::finishUnitAttributes(const DICompileUnit *DIUnit,
     // This CU is either a clang module DWO or a skeleton CU.
     NewCU.addUInt(Die, dwarf::DW_AT_GNU_dwo_id, dwarf::DW_FORM_data8,
                   DIUnit->getDWOId());
-    if (!DIUnit->getSplitDebugFilename().empty())
+    if (!DIUnit->getSplitDebugFilename().empty()) {
       // This is a prefabricated skeleton CU.
-      NewCU.addString(Die, dwarf::DW_AT_GNU_dwo_name,
-                      DIUnit->getSplitDebugFilename());
+      dwarf::Attribute attrDWOName = getDwarfVersion() >= 5
+                                         ? dwarf::DW_AT_dwo_name
+                                         : dwarf::DW_AT_GNU_dwo_name;
+      NewCU.addString(Die, attrDWOName, DIUnit->getSplitDebugFilename());
+    }
   }
 }
 // Create new DwarfCompileUnit for the given metadata node with tag
@@ -680,7 +879,7 @@ DwarfDebug::getOrCreateDwarfCompileUnit(const DICompileUnit *DIUnit) {
 
   CompilationDir = DIUnit->getDirectory();
 
-  auto OwnedUnit = llvm::make_unique<DwarfCompileUnit>(
+  auto OwnedUnit = std::make_unique<DwarfCompileUnit>(
       InfoHolder.getUnits().size(), DIUnit, Asm, this, &InfoHolder);
   DwarfCompileUnit &NewCU = *OwnedUnit;
   InfoHolder.addUnit(std::move(OwnedUnit));
@@ -793,8 +992,6 @@ void DwarfDebug::beginModule() {
     DwarfFile &Holder = useSplitDwarf() ? SkeletonHolder : InfoHolder;
     Holder.setRnglistsTableBaseSym(
         Asm->createTempSymbol("rnglists_table_base"));
-    Holder.setLoclistsTableBaseSym(
-        Asm->createTempSymbol("loclists_table_base"));
 
     if (useSplitDwarf())
       InfoHolder.setRnglistsTableBaseSym(
@@ -804,6 +1001,7 @@ void DwarfDebug::beginModule() {
   // Create the symbol that points to the first entry following the debug
   // address table (.debug_addr) header.
   AddrPool.setLabel(Asm->createTempSymbol("addr_table_base"));
+  DebugLocs.setSym(Asm->createTempSymbol("loclists_table_base"));
 
   for (DICompileUnit *CUNode : M->debug_compile_units()) {
     // FIXME: Move local imported entities into a list attached to the
@@ -907,11 +1105,17 @@ void DwarfDebug::finalizeModuleInfo() {
     // If we're splitting the dwarf out now that we've got the entire
     // CU then add the dwo id to it.
     auto *SkCU = TheCU.getSkeleton();
-    if (useSplitDwarf() && !empty(TheCU.getUnitDie().children())) {
+
+    bool HasSplitUnit = SkCU && !TheCU.getUnitDie().children().empty();
+
+    if (HasSplitUnit) {
+      dwarf::Attribute attrDWOName = getDwarfVersion() >= 5
+                                         ? dwarf::DW_AT_dwo_name
+                                         : dwarf::DW_AT_GNU_dwo_name;
       finishUnitAttributes(TheCU.getCUNode(), TheCU);
-      TheCU.addString(TheCU.getUnitDie(), dwarf::DW_AT_GNU_dwo_name,
+      TheCU.addString(TheCU.getUnitDie(), attrDWOName,
                       Asm->TM.Options.MCOptions.SplitDwarfFile);
-      SkCU->addString(SkCU->getUnitDie(), dwarf::DW_AT_GNU_dwo_name,
+      SkCU->addString(SkCU->getUnitDie(), attrDWOName,
                       Asm->TM.Options.MCOptions.SplitDwarfFile);
       // Emit a unique identifier for this CU.
       uint64_t ID =
@@ -951,31 +1155,40 @@ void DwarfDebug::finalizeModuleInfo() {
         // 2.17.3).
         U.addUInt(U.getUnitDie(), dwarf::DW_AT_low_pc, dwarf::DW_FORM_addr, 0);
       else
-        U.setBaseAddress(TheCU.getRanges().front().getStart());
+        U.setBaseAddress(TheCU.getRanges().front().Begin);
       U.attachRangesOrLowHighPC(U.getUnitDie(), TheCU.takeRanges());
     }
 
     // We don't keep track of which addresses are used in which CU so this
     // is a bit pessimistic under LTO.
-    if (!AddrPool.isEmpty() &&
-        (getDwarfVersion() >= 5 ||
-         (SkCU && !empty(TheCU.getUnitDie().children()))))
+    if ((!AddrPool.isEmpty() || TheCU.hasRangeLists()) &&
+        (getDwarfVersion() >= 5 || HasSplitUnit))
       U.addAddrTableBase();
 
     if (getDwarfVersion() >= 5) {
       if (U.hasRangeLists())
         U.addRnglistsBase();
 
-      if (!DebugLocs.getLists().empty() && !useSplitDwarf())
-        U.addLoclistsBase();
+      if (!DebugLocs.getLists().empty()) {
+        if (!useSplitDwarf())
+          U.addSectionLabel(U.getUnitDie(), dwarf::DW_AT_loclists_base,
+                            DebugLocs.getSym(),
+                            TLOF.getDwarfLoclistsSection()->getBeginSymbol());
+      }
     }
 
     auto *CUNode = cast<DICompileUnit>(P.first);
     // If compile Unit has macros, emit "DW_AT_macro_info" attribute.
-    if (CUNode->getMacros())
-      U.addSectionLabel(U.getUnitDie(), dwarf::DW_AT_macro_info,
-                        U.getMacroLabelBegin(),
-                        TLOF.getDwarfMacinfoSection()->getBeginSymbol());
+    if (CUNode->getMacros()) {
+      if (useSplitDwarf())
+        TheCU.addSectionDelta(TheCU.getUnitDie(), dwarf::DW_AT_macro_info,
+                            U.getMacroLabelBegin(),
+                            TLOF.getDwarfMacinfoDWOSection()->getBeginSymbol());
+      else
+        U.addSectionLabel(U.getUnitDie(), dwarf::DW_AT_macro_info,
+                          U.getMacroLabelBegin(),
+                          TLOF.getDwarfMacinfoSection()->getBeginSymbol());
+    }
   }
 
   // Emit all frontend-produced Skeleton CUs, i.e., Clang modules.
@@ -1011,9 +1224,10 @@ void DwarfDebug::endModule() {
   emitDebugStr();
 
   if (useSplitDwarf())
+    // Emit debug_loc.dwo/debug_loclists.dwo section.
     emitDebugLocDWO();
   else
-    // Emit info into a debug loc section.
+    // Emit debug_loc/debug_loclists section.
     emitDebugLoc();
 
   // Corresponding abbreviations into a abbrev section.
@@ -1029,8 +1243,12 @@ void DwarfDebug::endModule() {
   // Emit info into a debug ranges section.
   emitDebugRanges();
 
+  if (useSplitDwarf())
+  // Emit info into a debug macinfo.dwo section.
+    emitDebugMacinfoDWO();
+  else
   // Emit info into a debug macinfo section.
-  emitDebugMacinfo();
+    emitDebugMacinfo();
 
   if (useSplitDwarf()) {
     emitDebugStrDWO();
@@ -1105,7 +1323,7 @@ void DwarfDebug::collectVariableInfoFromMFTable(
       continue;
 
     ensureAbstractEntityIsCreatedIfScoped(TheCU, Var.first, Scope->getScopeNode());
-    auto RegVar = llvm::make_unique<DbgVariable>(
+    auto RegVar = std::make_unique<DbgVariable>(
                     cast<DILocalVariable>(Var.first), Var.second);
     RegVar->initializeMMI(VI.Expr, VI.Slot);
     if (DbgVariable *DbgVar = MFVars.lookup(Var))
@@ -1316,13 +1534,13 @@ DbgEntity *DwarfDebug::createConcreteEntity(DwarfCompileUnit &TheCU,
   ensureAbstractEntityIsCreatedIfScoped(TheCU, Node, Scope.getScopeNode());
   if (isa<const DILocalVariable>(Node)) {
     ConcreteEntities.push_back(
-        llvm::make_unique<DbgVariable>(cast<const DILocalVariable>(Node),
+        std::make_unique<DbgVariable>(cast<const DILocalVariable>(Node),
                                        Location));
     InfoHolder.addScopeVariable(&Scope,
         cast<DbgVariable>(ConcreteEntities.back().get()));
   } else if (isa<const DILabel>(Node)) {
     ConcreteEntities.push_back(
-        llvm::make_unique<DbgLabel>(cast<const DILabel>(Node),
+        std::make_unique<DbgLabel>(cast<const DILabel>(Node),
                                     Location, Sym));
     InfoHolder.addScopeLabel(&Scope,
         cast<DbgLabel>(ConcreteEntities.back().get()));
@@ -1419,11 +1637,14 @@ void DwarfDebug::collectEntityInfo(DwarfCompileUnit &TheCU,
 
     LexicalScope *Scope = nullptr;
     const DILabel *Label = cast<DILabel>(IL.first);
+    // The scope could have an extra lexical block file.
+    const DILocalScope *LocalScope =
+        Label->getScope()->getNonLexicalBlockFileScope();
     // Get inlined DILocation if it is inlined label.
     if (const DILocation *IA = IL.second)
-      Scope = LScopes.findInlinedScope(Label->getScope(), IA);
+      Scope = LScopes.findInlinedScope(LocalScope, IA);
     else
-      Scope = LScopes.findLexicalScope(Label->getScope());
+      Scope = LScopes.findLexicalScope(LocalScope);
     // If label scope is not found then skip this label.
     if (!Scope)
       continue;
@@ -1607,6 +1828,9 @@ void DwarfDebug::beginFunctionImpl(const MachineFunction *MF) {
   if (SP->getUnit()->getEmissionKind() == DICompileUnit::NoDebug)
     return;
 
+  SectionLabels.insert(std::make_pair(&Asm->getFunctionBegin()->getSection(),
+                                      Asm->getFunctionBegin()));
+
   DwarfCompileUnit &CU = getOrCreateDwarfCompileUnit(SP->getUnit());
 
   // Set DwarfDwarfCompileUnitID in MCContext to the Compile Unit this function
@@ -1654,7 +1878,7 @@ void DwarfDebug::endFunctionImpl(const MachineFunction *MF) {
   collectEntityInfo(TheCU, SP, Processed);
 
   // Add the range of this function to the list of ranges for the CU.
-  TheCU.addRange(RangeSpan(Asm->getFunctionBegin(), Asm->getFunctionEnd()));
+  TheCU.addRange({Asm->getFunctionBegin(), Asm->getFunctionEnd()});
 
   // Under -gmlt, skip building the subprogram if there are no inlined
   // subroutines inside it. But with -fdebug-info-for-profiling, the subprogram
@@ -1836,9 +2060,10 @@ static dwarf::PubIndexEntryDescriptor computeIndexValue(DwarfUnit *CU,
   case dwarf::DW_TAG_union_type:
   case dwarf::DW_TAG_enumeration_type:
     return dwarf::PubIndexEntryDescriptor(
-        dwarf::GIEK_TYPE, CU->getLanguage() != dwarf::DW_LANG_C_plus_plus
-                              ? dwarf::GIEL_STATIC
-                              : dwarf::GIEL_EXTERNAL);
+        dwarf::GIEK_TYPE,
+        dwarf::isCPlusPlus((dwarf::SourceLanguage)CU->getLanguage())
+            ? dwarf::GIEL_EXTERNAL
+            : dwarf::GIEL_STATIC);
   case dwarf::DW_TAG_typedef:
   case dwarf::DW_TAG_base_type:
   case dwarf::DW_TAG_subrange_type:
@@ -1967,7 +2192,7 @@ void DwarfDebug::emitDebugLocEntry(ByteStreamer &Streamer,
   DWARFExpression Expr(Data, getDwarfVersion(), PtrSize);
 
   using Encoding = DWARFExpression::Operation::Encoding;
-  uint32_t Offset = 0;
+  uint64_t Offset = 0;
   for (auto &Op : Expr) {
     assert(Op.getCode() != dwarf::DW_OP_const_type &&
            "3 operand ops not yet supported");
@@ -1990,7 +2215,7 @@ void DwarfDebug::emitDebugLocEntry(ByteStreamer &Streamer,
             if (Comment != End)
               Comment++;
       } else {
-        for (uint32_t J = Offset; J < Op.getOperandEndOffset(I); ++J)
+        for (uint64_t J = Offset; J < Op.getOperandEndOffset(I); ++J)
           Streamer.EmitInt8(Data.getData()[J], Comment != End ? *(Comment++) : "");
       }
       Offset = Op.getOperandEndOffset(I);
@@ -2020,13 +2245,18 @@ void DwarfDebug::emitDebugLocValue(const AsmPrinter &AP, const DIBasicType *BT,
 
     if (DIExpr->isEntryValue()) {
       DwarfExpr.setEntryValueFlag();
-      DwarfExpr.addEntryValueExpression(Cursor);
+      DwarfExpr.beginEntryValueExpression(Cursor);
     }
 
     const TargetRegisterInfo &TRI = *AP.MF->getSubtarget().getRegisterInfo();
     if (!DwarfExpr.addMachineRegExpression(TRI, Cursor, Location.getReg()))
       return;
     return DwarfExpr.addExpression(std::move(Cursor));
+  } else if (Value.isTargetIndexLocation()) {
+    TargetIndexLocation Loc = Value.getTargetIndexLocation();
+    // TODO TargetIndexLocation is a target-independent. Currently only the WebAssembly-specific
+    // encoding is supported.
+    DwarfExpr.addWasmLocation(Loc.Index, Loc.Offset);
   } else if (Value.isConstantFP()) {
     APInt RawBytes = Value.getConstantFP()->getValueAPF().bitcastToAPInt();
     DwarfExpr.addUnsignedConstant(RawBytes);
@@ -2061,6 +2291,8 @@ void DebugLocEntry::finalize(const AsmPrinter &AP,
     DwarfDebug::emitDebugLocValue(AP, BT, Value, DwarfExpr);
   }
   DwarfExpr.finalize();
+  if (DwarfExpr.TagOffset)
+    List.setTagOffset(*DwarfExpr.TagOffset);
 }
 
 void DwarfDebug::emitDebugLocEntryLocation(const DebugLocStream::Entry &Entry,
@@ -2083,7 +2315,7 @@ void DwarfDebug::emitDebugLocEntryLocation(const DebugLocStream::Entry &Entry,
 }
 
 // Emit the common part of the DWARF 5 range/locations list tables header.
-static void emitListsTableHeaderStart(AsmPrinter *Asm, const DwarfFile &Holder,
+static void emitListsTableHeaderStart(AsmPrinter *Asm,
                                       MCSymbol *TableStart,
                                       MCSymbol *TableEnd) {
   // Build the table header, which starts with the length field.
@@ -2108,14 +2340,14 @@ static MCSymbol *emitRnglistsTableHeader(AsmPrinter *Asm,
                                          const DwarfFile &Holder) {
   MCSymbol *TableStart = Asm->createTempSymbol("debug_rnglist_table_start");
   MCSymbol *TableEnd = Asm->createTempSymbol("debug_rnglist_table_end");
-  emitListsTableHeaderStart(Asm, Holder, TableStart, TableEnd);
+  emitListsTableHeaderStart(Asm, TableStart, TableEnd);
 
   Asm->OutStreamer->AddComment("Offset entry count");
   Asm->emitInt32(Holder.getRangeLists().size());
   Asm->OutStreamer->EmitLabel(Holder.getRnglistsTableBaseSym());
 
   for (const RangeSpanList &List : Holder.getRangeLists())
-    Asm->EmitLabelDifference(List.getSym(), Holder.getRnglistsTableBaseSym(),
+    Asm->EmitLabelDifference(List.Label, Holder.getRnglistsTableBaseSym(),
                              4);
 
   return TableEnd;
@@ -2125,104 +2357,170 @@ static MCSymbol *emitRnglistsTableHeader(AsmPrinter *Asm,
 // designates the end of the table for the caller to emit when the table is
 // complete.
 static MCSymbol *emitLoclistsTableHeader(AsmPrinter *Asm,
-                                         const DwarfFile &Holder) {
+                                         const DwarfDebug &DD) {
   MCSymbol *TableStart = Asm->createTempSymbol("debug_loclist_table_start");
   MCSymbol *TableEnd = Asm->createTempSymbol("debug_loclist_table_end");
-  emitListsTableHeaderStart(Asm, Holder, TableStart, TableEnd);
+  emitListsTableHeaderStart(Asm, TableStart, TableEnd);
 
-  // FIXME: Generate the offsets table and use DW_FORM_loclistx with the
-  // DW_AT_loclists_base attribute. Until then set the number of offsets to 0.
+  const auto &DebugLocs = DD.getDebugLocs();
+
   Asm->OutStreamer->AddComment("Offset entry count");
-  Asm->emitInt32(0);
-  Asm->OutStreamer->EmitLabel(Holder.getLoclistsTableBaseSym());
+  Asm->emitInt32(DebugLocs.getLists().size());
+  Asm->OutStreamer->EmitLabel(DebugLocs.getSym());
+
+  for (const auto &List : DebugLocs.getLists())
+    Asm->EmitLabelDifference(List.Label, DebugLocs.getSym(), 4);
 
   return TableEnd;
 }
 
-// Emit locations into the .debug_loc/.debug_rnglists section.
-void DwarfDebug::emitDebugLoc() {
+template <typename Ranges, typename PayloadEmitter>
+static void emitRangeList(
+    DwarfDebug &DD, AsmPrinter *Asm, MCSymbol *Sym, const Ranges &R,
+    const DwarfCompileUnit &CU, unsigned BaseAddressx, unsigned OffsetPair,
+    unsigned StartxLength, unsigned EndOfList,
+    StringRef (*StringifyEnum)(unsigned),
+    bool ShouldUseBaseAddress,
+    PayloadEmitter EmitPayload) {
+
+  auto Size = Asm->MAI->getCodePointerSize();
+  bool UseDwarf5 = DD.getDwarfVersion() >= 5;
+
+  // Emit our symbol so we can find the beginning of the range.
+  Asm->OutStreamer->EmitLabel(Sym);
+
+  // Gather all the ranges that apply to the same section so they can share
+  // a base address entry.
+  MapVector<const MCSection *, std::vector<decltype(&*R.begin())>> SectionRanges;
+
+  for (const auto &Range : R)
+    SectionRanges[&Range.Begin->getSection()].push_back(&Range);
+
+  const MCSymbol *CUBase = CU.getBaseAddress();
+  bool BaseIsSet = false;
+  for (const auto &P : SectionRanges) {
+    auto *Base = CUBase;
+    if (!Base && ShouldUseBaseAddress) {
+      const MCSymbol *Begin = P.second.front()->Begin;
+      const MCSymbol *NewBase = DD.getSectionLabel(&Begin->getSection());
+      if (!UseDwarf5) {
+        Base = NewBase;
+        BaseIsSet = true;
+        Asm->OutStreamer->EmitIntValue(-1, Size);
+        Asm->OutStreamer->AddComment("  base address");
+        Asm->OutStreamer->EmitSymbolValue(Base, Size);
+      } else if (NewBase != Begin || P.second.size() > 1) {
+        // Only use a base address if
+        //  * the existing pool address doesn't match (NewBase != Begin)
+        //  * or, there's more than one entry to share the base address
+        Base = NewBase;
+        BaseIsSet = true;
+        Asm->OutStreamer->AddComment(StringifyEnum(BaseAddressx));
+        Asm->emitInt8(BaseAddressx);
+        Asm->OutStreamer->AddComment("  base address index");
+        Asm->EmitULEB128(DD.getAddressPool().getIndex(Base));
+      }
+    } else if (BaseIsSet && !UseDwarf5) {
+      BaseIsSet = false;
+      assert(!Base);
+      Asm->OutStreamer->EmitIntValue(-1, Size);
+      Asm->OutStreamer->EmitIntValue(0, Size);
+    }
+
+    for (const auto *RS : P.second) {
+      const MCSymbol *Begin = RS->Begin;
+      const MCSymbol *End = RS->End;
+      assert(Begin && "Range without a begin symbol?");
+      assert(End && "Range without an end symbol?");
+      if (Base) {
+        if (UseDwarf5) {
+          // Emit offset_pair when we have a base.
+          Asm->OutStreamer->AddComment(StringifyEnum(OffsetPair));
+          Asm->emitInt8(OffsetPair);
+          Asm->OutStreamer->AddComment("  starting offset");
+          Asm->EmitLabelDifferenceAsULEB128(Begin, Base);
+          Asm->OutStreamer->AddComment("  ending offset");
+          Asm->EmitLabelDifferenceAsULEB128(End, Base);
+        } else {
+          Asm->EmitLabelDifference(Begin, Base, Size);
+          Asm->EmitLabelDifference(End, Base, Size);
+        }
+      } else if (UseDwarf5) {
+        Asm->OutStreamer->AddComment(StringifyEnum(StartxLength));
+        Asm->emitInt8(StartxLength);
+        Asm->OutStreamer->AddComment("  start index");
+        Asm->EmitULEB128(DD.getAddressPool().getIndex(Begin));
+        Asm->OutStreamer->AddComment("  length");
+        Asm->EmitLabelDifferenceAsULEB128(End, Begin);
+      } else {
+        Asm->OutStreamer->EmitSymbolValue(Begin, Size);
+        Asm->OutStreamer->EmitSymbolValue(End, Size);
+      }
+      EmitPayload(*RS);
+    }
+  }
+
+  if (UseDwarf5) {
+    Asm->OutStreamer->AddComment(StringifyEnum(EndOfList));
+    Asm->emitInt8(EndOfList);
+  } else {
+    // Terminate the list with two 0 values.
+    Asm->OutStreamer->EmitIntValue(0, Size);
+    Asm->OutStreamer->EmitIntValue(0, Size);
+  }
+}
+
+// Handles emission of both debug_loclist / debug_loclist.dwo
+static void emitLocList(DwarfDebug &DD, AsmPrinter *Asm, const DebugLocStream::List &List) {
+  emitRangeList(DD, Asm, List.Label, DD.getDebugLocs().getEntries(List),
+                *List.CU, dwarf::DW_LLE_base_addressx,
+                dwarf::DW_LLE_offset_pair, dwarf::DW_LLE_startx_length,
+                dwarf::DW_LLE_end_of_list, llvm::dwarf::LocListEncodingString,
+                /* ShouldUseBaseAddress */ true,
+                [&](const DebugLocStream::Entry &E) {
+                  DD.emitDebugLocEntryLocation(E, List.CU);
+                });
+}
+
+void DwarfDebug::emitDebugLocImpl(MCSection *Sec) {
   if (DebugLocs.getLists().empty())
     return;
 
-  bool IsLocLists = getDwarfVersion() >= 5;
+  Asm->OutStreamer->SwitchSection(Sec);
+
   MCSymbol *TableEnd = nullptr;
-  if (IsLocLists) {
-    Asm->OutStreamer->SwitchSection(
-        Asm->getObjFileLowering().getDwarfLoclistsSection());
-    TableEnd = emitLoclistsTableHeader(Asm, useSplitDwarf() ? SkeletonHolder
-                                                            : InfoHolder);
-  } else {
-    Asm->OutStreamer->SwitchSection(
-        Asm->getObjFileLowering().getDwarfLocSection());
-  }
+  if (getDwarfVersion() >= 5)
+    TableEnd = emitLoclistsTableHeader(Asm, *this);
 
-  unsigned char Size = Asm->MAI->getCodePointerSize();
-  for (const auto &List : DebugLocs.getLists()) {
-    Asm->OutStreamer->EmitLabel(List.Label);
-
-    const DwarfCompileUnit *CU = List.CU;
-    const MCSymbol *Base = CU->getBaseAddress();
-    for (const auto &Entry : DebugLocs.getEntries(List)) {
-      if (Base) {
-        // Set up the range. This range is relative to the entry point of the
-        // compile unit. This is a hard coded 0 for low_pc when we're emitting
-        // ranges, or the DW_AT_low_pc on the compile unit otherwise.
-        if (IsLocLists) {
-          Asm->OutStreamer->AddComment("DW_LLE_offset_pair");
-          Asm->OutStreamer->EmitIntValue(dwarf::DW_LLE_offset_pair, 1);
-          Asm->OutStreamer->AddComment("  starting offset");
-          Asm->EmitLabelDifferenceAsULEB128(Entry.BeginSym, Base);
-          Asm->OutStreamer->AddComment("  ending offset");
-          Asm->EmitLabelDifferenceAsULEB128(Entry.EndSym, Base);
-        } else {
-          Asm->EmitLabelDifference(Entry.BeginSym, Base, Size);
-          Asm->EmitLabelDifference(Entry.EndSym, Base, Size);
-        }
-
-        emitDebugLocEntryLocation(Entry, CU);
-        continue;
-      }
-
-      // We have no base address.
-      if (IsLocLists) {
-        // TODO: Use DW_LLE_base_addressx + DW_LLE_offset_pair, or
-        // DW_LLE_startx_length in case if there is only a single range.
-        // That should reduce the size of the debug data emited.
-        // For now just use the DW_LLE_startx_length for all cases.
-        Asm->OutStreamer->AddComment("DW_LLE_startx_length");
-        Asm->emitInt8(dwarf::DW_LLE_startx_length);
-        Asm->OutStreamer->AddComment("  start idx");
-        Asm->EmitULEB128(AddrPool.getIndex(Entry.BeginSym));
-        Asm->OutStreamer->AddComment("  length");
-        Asm->EmitLabelDifferenceAsULEB128(Entry.EndSym, Entry.BeginSym);
-      } else {
-        Asm->OutStreamer->EmitSymbolValue(Entry.BeginSym, Size);
-        Asm->OutStreamer->EmitSymbolValue(Entry.EndSym, Size);
-      }
-
-      emitDebugLocEntryLocation(Entry, CU);
-    }
-
-    if (IsLocLists) {
-      // .debug_loclists section ends with DW_LLE_end_of_list.
-      Asm->OutStreamer->AddComment("DW_LLE_end_of_list");
-      Asm->OutStreamer->EmitIntValue(dwarf::DW_LLE_end_of_list, 1);
-    } else {
-      // Terminate the .debug_loc list with two 0 values.
-      Asm->OutStreamer->EmitIntValue(0, Size);
-      Asm->OutStreamer->EmitIntValue(0, Size);
-    }
-  }
+  for (const auto &List : DebugLocs.getLists())
+    emitLocList(*this, Asm, List);
 
   if (TableEnd)
     Asm->OutStreamer->EmitLabel(TableEnd);
 }
 
+// Emit locations into the .debug_loc/.debug_loclists section.
+void DwarfDebug::emitDebugLoc() {
+  emitDebugLocImpl(
+      getDwarfVersion() >= 5
+          ? Asm->getObjFileLowering().getDwarfLoclistsSection()
+          : Asm->getObjFileLowering().getDwarfLocSection());
+}
+
+// Emit locations into the .debug_loc.dwo/.debug_loclists.dwo section.
 void DwarfDebug::emitDebugLocDWO() {
+  if (getDwarfVersion() >= 5) {
+    emitDebugLocImpl(
+        Asm->getObjFileLowering().getDwarfLoclistsDWOSection());
+
+    return;
+  }
+
   for (const auto &List : DebugLocs.getLists()) {
     Asm->OutStreamer->SwitchSection(
         Asm->getObjFileLowering().getDwarfLocDWOSection());
     Asm->OutStreamer->EmitLabel(List.Label);
+
     for (const auto &Entry : DebugLocs.getEntries(List)) {
       // GDB only supports startx_length in pre-standard split-DWARF.
       // (in v5 standard loclists, it currently* /only/ supports base_address +
@@ -2232,10 +2530,11 @@ void DwarfDebug::emitDebugLocDWO() {
       // Ideally/in v5, this could use SectionLabels to reuse existing addresses
       // in the address pool to minimize object size/relocations.
       Asm->emitInt8(dwarf::DW_LLE_startx_length);
-      unsigned idx = AddrPool.getIndex(Entry.BeginSym);
+      unsigned idx = AddrPool.getIndex(Entry.Begin);
       Asm->EmitULEB128(idx);
-      Asm->EmitLabelDifference(Entry.EndSym, Entry.BeginSym, 4);
-
+      // Also the pre-standard encoding is slightly different, emitting this as
+      // an address-length entry here, but its a ULEB128 in DWARFv5 loclists.
+      Asm->EmitLabelDifference(Entry.End, Entry.Begin, 4);
       emitDebugLocEntryLocation(Entry, List.CU);
     }
     Asm->emitInt8(dwarf::DW_LLE_end_of_list);
@@ -2360,7 +2659,7 @@ void DwarfDebug::emitDebugARanges() {
 
     // 7.20 in the Dwarf specs requires the table to be aligned to a tuple.
     unsigned Padding =
-        OffsetToAlignment(sizeof(int32_t) + ContentSize, TupleSize);
+        offsetToAlignment(sizeof(int32_t) + ContentSize, Align(TupleSize));
 
     ContentSize += Padding;
     ContentSize += (List.size() + 1) * TupleSize;
@@ -2405,99 +2704,33 @@ void DwarfDebug::emitDebugARanges() {
 /// Emit a single range list. We handle both DWARF v5 and earlier.
 static void emitRangeList(DwarfDebug &DD, AsmPrinter *Asm,
                           const RangeSpanList &List) {
-
-  auto DwarfVersion = DD.getDwarfVersion();
-  // Emit our symbol so we can find the beginning of the range.
-  Asm->OutStreamer->EmitLabel(List.getSym());
-  // Gather all the ranges that apply to the same section so they can share
-  // a base address entry.
-  MapVector<const MCSection *, std::vector<const RangeSpan *>> SectionRanges;
-  // Size for our labels.
-  auto Size = Asm->MAI->getCodePointerSize();
-
-  for (const RangeSpan &Range : List.getRanges())
-    SectionRanges[&Range.getStart()->getSection()].push_back(&Range);
-
-  const DwarfCompileUnit &CU = List.getCU();
-  const MCSymbol *CUBase = CU.getBaseAddress();
-  bool BaseIsSet = false;
-  for (const auto &P : SectionRanges) {
-    // Don't bother with a base address entry if there's only one range in
-    // this section in this range list - for example ranges for a CU will
-    // usually consist of single regions from each of many sections
-    // (-ffunction-sections, or just C++ inline functions) except under LTO
-    // or optnone where there may be holes in a single CU's section
-    // contributions.
-    auto *Base = CUBase;
-    if (!Base && (P.second.size() > 1 || DwarfVersion < 5) &&
-        (CU.getCUNode()->getRangesBaseAddress() || DwarfVersion >= 5)) {
-      BaseIsSet = true;
-      // FIXME/use care: This may not be a useful base address if it's not
-      // the lowest address/range in this object.
-      Base = P.second.front()->getStart();
-      if (DwarfVersion >= 5) {
-        Base = DD.getSectionLabel(&Base->getSection());
-        Asm->OutStreamer->AddComment("DW_RLE_base_addressx");
-        Asm->OutStreamer->EmitIntValue(dwarf::DW_RLE_base_addressx, 1);
-        Asm->OutStreamer->AddComment("  base address index");
-        Asm->EmitULEB128(DD.getAddressPool().getIndex(Base));
-      } else {
-        Asm->OutStreamer->EmitIntValue(-1, Size);
-        Asm->OutStreamer->AddComment("  base address");
-        Asm->OutStreamer->EmitSymbolValue(Base, Size);
-      }
-    } else if (BaseIsSet && DwarfVersion < 5) {
-      BaseIsSet = false;
-      assert(!Base);
-      Asm->OutStreamer->EmitIntValue(-1, Size);
-      Asm->OutStreamer->EmitIntValue(0, Size);
-    }
-
-    for (const auto *RS : P.second) {
-      const MCSymbol *Begin = RS->getStart();
-      const MCSymbol *End = RS->getEnd();
-      assert(Begin && "Range without a begin symbol?");
-      assert(End && "Range without an end symbol?");
-      if (Base) {
-        if (DwarfVersion >= 5) {
-          // Emit DW_RLE_offset_pair when we have a base.
-          Asm->OutStreamer->AddComment("DW_RLE_offset_pair");
-          Asm->OutStreamer->EmitIntValue(dwarf::DW_RLE_offset_pair, 1);
-          Asm->OutStreamer->AddComment("  starting offset");
-          Asm->EmitLabelDifferenceAsULEB128(Begin, Base);
-          Asm->OutStreamer->AddComment("  ending offset");
-          Asm->EmitLabelDifferenceAsULEB128(End, Base);
-        } else {
-          Asm->EmitLabelDifference(Begin, Base, Size);
-          Asm->EmitLabelDifference(End, Base, Size);
-        }
-      } else if (DwarfVersion >= 5) {
-        Asm->OutStreamer->AddComment("DW_RLE_startx_length");
-        Asm->OutStreamer->EmitIntValue(dwarf::DW_RLE_startx_length, 1);
-        Asm->OutStreamer->AddComment("  start index");
-        Asm->EmitULEB128(DD.getAddressPool().getIndex(Begin));
-        Asm->OutStreamer->AddComment("  length");
-        Asm->EmitLabelDifferenceAsULEB128(End, Begin);
-      } else {
-        Asm->OutStreamer->EmitSymbolValue(Begin, Size);
-        Asm->OutStreamer->EmitSymbolValue(End, Size);
-      }
-    }
-  }
-  if (DwarfVersion >= 5) {
-    Asm->OutStreamer->AddComment("DW_RLE_end_of_list");
-    Asm->OutStreamer->EmitIntValue(dwarf::DW_RLE_end_of_list, 1);
-  } else {
-    // Terminate the list with two 0 values.
-    Asm->OutStreamer->EmitIntValue(0, Size);
-    Asm->OutStreamer->EmitIntValue(0, Size);
-  }
+  emitRangeList(DD, Asm, List.Label, List.Ranges, *List.CU,
+                dwarf::DW_RLE_base_addressx, dwarf::DW_RLE_offset_pair,
+                dwarf::DW_RLE_startx_length, dwarf::DW_RLE_end_of_list,
+                llvm::dwarf::RangeListEncodingString,
+                List.CU->getCUNode()->getRangesBaseAddress() ||
+                    DD.getDwarfVersion() >= 5,
+                [](auto) {});
 }
 
-static void emitDebugRangesImpl(DwarfDebug &DD, AsmPrinter *Asm,
-                                const DwarfFile &Holder, MCSymbol *TableEnd) {
+void DwarfDebug::emitDebugRangesImpl(const DwarfFile &Holder, MCSection *Section) {
+  if (Holder.getRangeLists().empty())
+    return;
+
+  assert(useRangesSection());
+  assert(!CUMap.empty());
+  assert(llvm::any_of(CUMap, [](const decltype(CUMap)::value_type &Pair) {
+    return !Pair.second->getCUNode()->isDebugDirectivesOnly();
+  }));
+
+  Asm->OutStreamer->SwitchSection(Section);
+
+  MCSymbol *TableEnd = nullptr;
+  if (getDwarfVersion() >= 5)
+    TableEnd = emitRnglistsTableHeader(Asm, Holder);
+
   for (const RangeSpanList &List : Holder.getRangeLists())
-    emitRangeList(DD, Asm, List);
+    emitRangeList(*this, Asm, List);
 
   if (TableEnd)
     Asm->OutStreamer->EmitLabel(TableEnd);
@@ -2506,55 +2739,17 @@ static void emitDebugRangesImpl(DwarfDebug &DD, AsmPrinter *Asm,
 /// Emit address ranges into the .debug_ranges section or into the DWARF v5
 /// .debug_rnglists section.
 void DwarfDebug::emitDebugRanges() {
-  if (CUMap.empty())
-    return;
-
   const auto &Holder = useSplitDwarf() ? SkeletonHolder : InfoHolder;
 
-  if (Holder.getRangeLists().empty())
-    return;
-
-  assert(useRangesSection());
-  assert(llvm::none_of(CUMap, [](const decltype(CUMap)::value_type &Pair) {
-    return Pair.second->getCUNode()->isDebugDirectivesOnly();
-  }));
-
-  // Start the dwarf ranges section.
-  MCSymbol *TableEnd = nullptr;
-  if (getDwarfVersion() >= 5) {
-    Asm->OutStreamer->SwitchSection(
-        Asm->getObjFileLowering().getDwarfRnglistsSection());
-    TableEnd = emitRnglistsTableHeader(Asm, Holder);
-  } else
-    Asm->OutStreamer->SwitchSection(
-        Asm->getObjFileLowering().getDwarfRangesSection());
-
-  emitDebugRangesImpl(*this, Asm, Holder, TableEnd);
+  emitDebugRangesImpl(Holder,
+                      getDwarfVersion() >= 5
+                          ? Asm->getObjFileLowering().getDwarfRnglistsSection()
+                          : Asm->getObjFileLowering().getDwarfRangesSection());
 }
 
 void DwarfDebug::emitDebugRangesDWO() {
-  assert(useSplitDwarf());
-
-  if (CUMap.empty())
-    return;
-
-  const auto &Holder = InfoHolder;
-
-  if (Holder.getRangeLists().empty())
-    return;
-
-  assert(getDwarfVersion() >= 5);
-  assert(useRangesSection());
-  assert(llvm::none_of(CUMap, [](const decltype(CUMap)::value_type &Pair) {
-    return Pair.second->getCUNode()->isDebugDirectivesOnly();
-  }));
-
-  // Start the dwarf ranges section.
-  Asm->OutStreamer->SwitchSection(
-      Asm->getObjFileLowering().getDwarfRnglistsDWOSection());
-  MCSymbol *TableEnd = emitRnglistsTableHeader(Asm, Holder);
-
-  emitDebugRangesImpl(*this, Asm, Holder, TableEnd);
+  emitDebugRangesImpl(InfoHolder,
+                      Asm->getObjFileLowering().getDwarfRnglistsDWOSection());
 }
 
 void DwarfDebug::handleMacroNodes(DIMacroNodeArray Nodes, DwarfCompileUnit &U) {
@@ -2591,35 +2786,30 @@ void DwarfDebug::emitMacroFile(DIMacroFile &F, DwarfCompileUnit &U) {
   Asm->EmitULEB128(dwarf::DW_MACINFO_end_file);
 }
 
-/// Emit macros into a debug macinfo section.
-void DwarfDebug::emitDebugMacinfo() {
-  if (CUMap.empty())
-    return;
-
-  if (llvm::all_of(CUMap, [](const decltype(CUMap)::value_type &Pair) {
-        return Pair.second->getCUNode()->isDebugDirectivesOnly();
-      }))
-    return;
-
-  // Start the dwarf macinfo section.
-  Asm->OutStreamer->SwitchSection(
-      Asm->getObjFileLowering().getDwarfMacinfoSection());
-
+void DwarfDebug::emitDebugMacinfoImpl(MCSection *Section) {
   for (const auto &P : CUMap) {
     auto &TheCU = *P.second;
-    if (TheCU.getCUNode()->isDebugDirectivesOnly())
-      continue;
     auto *SkCU = TheCU.getSkeleton();
     DwarfCompileUnit &U = SkCU ? *SkCU : TheCU;
     auto *CUNode = cast<DICompileUnit>(P.first);
     DIMacroNodeArray Macros = CUNode->getMacros();
-    if (!Macros.empty()) {
-      Asm->OutStreamer->EmitLabel(U.getMacroLabelBegin());
-      handleMacroNodes(Macros, U);
-    }
+    if (Macros.empty())
+      continue;
+    Asm->OutStreamer->SwitchSection(Section);
+    Asm->OutStreamer->EmitLabel(U.getMacroLabelBegin());
+    handleMacroNodes(Macros, U);
+    Asm->OutStreamer->AddComment("End Of Macro List Mark");
+    Asm->emitInt8(0);
   }
-  Asm->OutStreamer->AddComment("End Of Macro List Mark");
-  Asm->emitInt8(0);
+}
+
+/// Emit macros into a debug macinfo section.
+void DwarfDebug::emitDebugMacinfo() {
+  emitDebugMacinfoImpl(Asm->getObjFileLowering().getDwarfMacinfoSection());
+}
+
+void DwarfDebug::emitDebugMacinfoDWO() {
+  emitDebugMacinfoImpl(Asm->getObjFileLowering().getDwarfMacinfoDWOSection());
 }
 
 // DWARF5 Experimental Separate Dwarf emitters.
@@ -2637,8 +2827,9 @@ void DwarfDebug::initSkeletonUnit(const DwarfUnit &U, DIE &Die,
 
 DwarfCompileUnit &DwarfDebug::constructSkeletonCU(const DwarfCompileUnit &CU) {
 
-  auto OwnedUnit = llvm::make_unique<DwarfCompileUnit>(
-      CU.getUniqueID(), CU.getCUNode(), Asm, this, &SkeletonHolder);
+  auto OwnedUnit = std::make_unique<DwarfCompileUnit>(
+      CU.getUniqueID(), CU.getCUNode(), Asm, this, &SkeletonHolder,
+      UnitKind::Skeleton);
   DwarfCompileUnit &NewCU = *OwnedUnit;
   NewCU.setSection(Asm->getObjFileLowering().getDwarfInfoSection());
 
@@ -2737,7 +2928,7 @@ void DwarfDebug::addDwarfTypeUnitType(DwarfCompileUnit &CU,
   bool TopLevelType = TypeUnitsUnderConstruction.empty();
   AddrPool.resetUsedFlag();
 
-  auto OwnedUnit = llvm::make_unique<DwarfTypeUnit>(CU, Asm, this, &InfoHolder,
+  auto OwnedUnit = std::make_unique<DwarfTypeUnit>(CU, Asm, this, &InfoHolder,
                                                     getDwoLineTable(CU));
   DwarfTypeUnit &NewTU = *OwnedUnit;
   DIE &UnitDie = NewTU.getUnitDie();
@@ -2877,10 +3068,6 @@ void DwarfDebug::addAccelType(const DICompileUnit &CU, StringRef Name,
 
 uint16_t DwarfDebug::getDwarfVersion() const {
   return Asm->OutStreamer->getContext().getDwarfVersion();
-}
-
-void DwarfDebug::addSectionLabel(const MCSymbol *Sym) {
-  SectionLabels.insert(std::make_pair(&Sym->getSection(), Sym));
 }
 
 const MCSymbol *DwarfDebug::getSectionLabel(const MCSection *S) {

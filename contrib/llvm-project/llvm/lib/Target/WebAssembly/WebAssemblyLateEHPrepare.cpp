@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/WasmEHFuncInfo.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/Support/Debug.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "wasm-late-eh-prepare"
@@ -131,7 +132,7 @@ bool WebAssemblyLateEHPrepare::addCatches(MachineFunction &MF) {
       auto InsertPos = MBB.begin();
       if (InsertPos->isEHLabel()) // EH pad starts with an EH label
         ++InsertPos;
-      unsigned DstReg = MRI.createVirtualRegister(&WebAssembly::EXNREFRegClass);
+      Register DstReg = MRI.createVirtualRegister(&WebAssembly::EXNREFRegClass);
       BuildMI(MBB, InsertPos, MBB.begin()->getDebugLoc(),
               TII.get(WebAssembly::CATCH), DstReg);
     }
@@ -168,7 +169,7 @@ bool WebAssemblyLateEHPrepare::replaceFuncletReturns(MachineFunction &MF) {
       if (CatchPos->isEHLabel()) // EH pad starts with an EH label
         ++CatchPos;
       MachineInstr *Catch = &*CatchPos;
-      unsigned ExnReg = Catch->getOperand(0).getReg();
+      Register ExnReg = Catch->getOperand(0).getReg();
       BuildMI(MBB, TI, TI->getDebugLoc(), TII.get(WebAssembly::RETHROW))
           .addReg(ExnReg);
       TI->eraseFromParent();
@@ -233,6 +234,7 @@ bool WebAssemblyLateEHPrepare::removeUnnecessaryUnreachables(
 // it. The pseudo instruction will be deleted later.
 bool WebAssemblyLateEHPrepare::addExceptionExtraction(MachineFunction &MF) {
   const auto &TII = *MF.getSubtarget<WebAssemblySubtarget>().getInstrInfo();
+  MachineRegisterInfo &MRI = MF.getRegInfo();
   auto *EHInfo = MF.getWasmEHFuncInfo();
   SmallVector<MachineInstr *, 16> ExtractInstrs;
   SmallVector<MachineInstr *, 8> ToDelete;
@@ -292,7 +294,7 @@ bool WebAssemblyLateEHPrepare::addExceptionExtraction(MachineFunction &MF) {
     // thenbb:
     //   %exn:i32 = extract_exception
     //   ... use exn ...
-    unsigned ExnReg = Catch->getOperand(0).getReg();
+    Register ExnReg = Catch->getOperand(0).getReg();
     auto *ThenMBB = MF.CreateMachineBasicBlock();
     auto *ElseMBB = MF.CreateMachineBasicBlock();
     MF.insert(std::next(MachineFunction::iterator(EHPad)), ElseMBB);
@@ -339,9 +341,11 @@ bool WebAssemblyLateEHPrepare::addExceptionExtraction(MachineFunction &MF) {
               WebAssembly::ClangCallTerminateFn);
       assert(ClangCallTerminateFn &&
              "There is no __clang_call_terminate() function");
+      Register Reg = MRI.createVirtualRegister(&WebAssembly::I32RegClass);
+      BuildMI(ElseMBB, DL, TII.get(WebAssembly::CONST_I32), Reg).addImm(0);
       BuildMI(ElseMBB, DL, TII.get(WebAssembly::CALL_VOID))
           .addGlobalAddress(ClangCallTerminateFn)
-          .addImm(0);
+          .addReg(Reg);
       BuildMI(ElseMBB, DL, TII.get(WebAssembly::UNREACHABLE));
 
     } else {

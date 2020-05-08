@@ -99,7 +99,16 @@ public:
 
   /// Explicitly trigger a crash recovery in the current process, and
   /// return failure from RunSafely(). This function does not return.
-  void HandleCrash();
+  LLVM_ATTRIBUTE_NORETURN
+  void HandleExit(int RetCode);
+
+  /// In case of a crash, this is the crash identifier.
+  int RetCode = 0;
+
+  /// Selects whether handling of failures should be done in the same way as
+  /// for regular crashes. When this is active, a crash would print the
+  /// callstack, clean-up any temporary files and create a coredump/minidump.
+  bool DumpStackAndCleanupOnFailure = false;
 };
 
 /// Abstract base class of cleanup handlers.
@@ -111,12 +120,12 @@ public:
 /// a crash recovery context.
 class CrashRecoveryContextCleanup {
 protected:
-  CrashRecoveryContext *context;
+  CrashRecoveryContext *context = nullptr;
   CrashRecoveryContextCleanup(CrashRecoveryContext *context)
-      : context(context), cleanupFired(false) {}
+      : context(context) {}
 
 public:
-  bool cleanupFired;
+  bool cleanupFired = false;
 
   virtual ~CrashRecoveryContextCleanup();
   virtual void recoverResources() = 0;
@@ -127,7 +136,7 @@ public:
 
 private:
   friend class CrashRecoveryContext;
-  CrashRecoveryContextCleanup *prev, *next;
+  CrashRecoveryContextCleanup *prev = nullptr, *next = nullptr;
 };
 
 /// Base class of cleanup handler that controls recovery of resources of the

@@ -37,6 +37,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -62,6 +63,23 @@ STATISTIC(NumSDivs,     "Number of sdiv converted to udiv");
 STATISTIC(NumUDivs,     "Number of udivs whose width was decreased");
 STATISTIC(NumAShrs,     "Number of ashr converted to lshr");
 STATISTIC(NumSRems,     "Number of srem converted to urem");
+STATISTIC(NumSExt,      "Number of sext converted to zext");
+STATISTIC(NumAnd,       "Number of ands removed");
+STATISTIC(NumNW,        "Number of no-wrap deductions");
+STATISTIC(NumNSW,       "Number of no-signed-wrap deductions");
+STATISTIC(NumNUW,       "Number of no-unsigned-wrap deductions");
+STATISTIC(NumAddNW,     "Number of no-wrap deductions for add");
+STATISTIC(NumAddNSW,    "Number of no-signed-wrap deductions for add");
+STATISTIC(NumAddNUW,    "Number of no-unsigned-wrap deductions for add");
+STATISTIC(NumSubNW,     "Number of no-wrap deductions for sub");
+STATISTIC(NumSubNSW,    "Number of no-signed-wrap deductions for sub");
+STATISTIC(NumSubNUW,    "Number of no-unsigned-wrap deductions for sub");
+STATISTIC(NumMulNW,     "Number of no-wrap deductions for mul");
+STATISTIC(NumMulNSW,    "Number of no-signed-wrap deductions for mul");
+STATISTIC(NumMulNUW,    "Number of no-unsigned-wrap deductions for mul");
+STATISTIC(NumShlNW,     "Number of no-wrap deductions for shl");
+STATISTIC(NumShlNSW,    "Number of no-signed-wrap deductions for shl");
+STATISTIC(NumShlNUW,    "Number of no-unsigned-wrap deductions for shl");
 STATISTIC(NumOverflows, "Number of overflow checks removed");
 STATISTIC(NumSaturating,
     "Number of saturating arithmetics converted to normal arithmetics");
@@ -85,6 +103,7 @@ namespace {
       AU.addRequired<LazyValueInfoWrapperPass>();
       AU.addPreserved<GlobalsAAWrapperPass>();
       AU.addPreserved<DominatorTreeWrapperPass>();
+      AU.addPreserved<LazyValueInfoWrapperPass>();
     }
   };
 
@@ -176,7 +195,14 @@ static bool simplifyCommonValuePhi(PHINode *P, LazyValueInfo *LVI,
   }
 
   // All constant incoming values map to the same variable along the incoming
-  // edges of the phi. The phi is unnecessary.
+  // edges of the phi. The phi is unnecessary. However, we must drop all
+  // poison-generating flags to ensure that no poison is propagated to the phi
+  // location by performing this substitution.
+  // Warning: If the underlying analysis changes, this may not be enough to
+  //          guarantee that poison is not propagated.
+  // TODO: We may be able to re-infer flags by re-analyzing the instruction.
+  if (auto *CommonInst = dyn_cast<Instruction>(CommonValue))
+    CommonInst->dropPoisonGeneratingFlags();
   P->replaceAllUsesWith(CommonValue);
   P->eraseFromParent();
   ++NumPhiCommon;
@@ -416,37 +442,96 @@ static bool willNotOverflow(BinaryOpIntrinsic *BO, LazyValueInfo *LVI) {
   return NWRegion.contains(LRange);
 }
 
-static void processOverflowIntrinsic(WithOverflowInst *WO) {
-  IRBuilder<> B(WO);
-  Value *NewOp = B.CreateBinOp(
-      WO->getBinaryOp(), WO->getLHS(), WO->getRHS(), WO->getName());
-  // Constant-folding could have happened.
-  if (auto *Inst = dyn_cast<Instruction>(NewOp)) {
-    if (WO->isSigned())
-      Inst->setHasNoSignedWrap();
-    else
-      Inst->setHasNoUnsignedWrap();
+static void setDeducedOverflowingFlags(Value *V, Instruction::BinaryOps Opcode,
+                                       bool NewNSW, bool NewNUW) {
+  Statistic *OpcNW, *OpcNSW, *OpcNUW;
+  switch (Opcode) {
+  case Instruction::Add:
+    OpcNW = &NumAddNW;
+    OpcNSW = &NumAddNSW;
+    OpcNUW = &NumAddNUW;
+    break;
+  case Instruction::Sub:
+    OpcNW = &NumSubNW;
+    OpcNSW = &NumSubNSW;
+    OpcNUW = &NumSubNUW;
+    break;
+  case Instruction::Mul:
+    OpcNW = &NumMulNW;
+    OpcNSW = &NumMulNSW;
+    OpcNUW = &NumMulNUW;
+    break;
+  case Instruction::Shl:
+    OpcNW = &NumShlNW;
+    OpcNSW = &NumShlNSW;
+    OpcNUW = &NumShlNUW;
+    break;
+  default:
+    llvm_unreachable("Will not be called with other binops");
   }
 
-  Value *NewI = B.CreateInsertValue(UndefValue::get(WO->getType()), NewOp, 0);
-  NewI = B.CreateInsertValue(NewI, ConstantInt::getFalse(WO->getContext()), 1);
+  auto *Inst = dyn_cast<Instruction>(V);
+  if (NewNSW) {
+    ++NumNW;
+    ++*OpcNW;
+    ++NumNSW;
+    ++*OpcNSW;
+    if (Inst)
+      Inst->setHasNoSignedWrap();
+  }
+  if (NewNUW) {
+    ++NumNW;
+    ++*OpcNW;
+    ++NumNUW;
+    ++*OpcNUW;
+    if (Inst)
+      Inst->setHasNoUnsignedWrap();
+  }
+}
+
+static bool processBinOp(BinaryOperator *BinOp, LazyValueInfo *LVI);
+
+// Rewrite this with.overflow intrinsic as non-overflowing.
+static void processOverflowIntrinsic(WithOverflowInst *WO, LazyValueInfo *LVI) {
+  IRBuilder<> B(WO);
+  Instruction::BinaryOps Opcode = WO->getBinaryOp();
+  bool NSW = WO->isSigned();
+  bool NUW = !WO->isSigned();
+
+  Value *NewOp =
+      B.CreateBinOp(Opcode, WO->getLHS(), WO->getRHS(), WO->getName());
+  setDeducedOverflowingFlags(NewOp, Opcode, NSW, NUW);
+
+  StructType *ST = cast<StructType>(WO->getType());
+  Constant *Struct = ConstantStruct::get(ST,
+      { UndefValue::get(ST->getElementType(0)),
+        ConstantInt::getFalse(ST->getElementType(1)) });
+  Value *NewI = B.CreateInsertValue(Struct, NewOp, 0);
   WO->replaceAllUsesWith(NewI);
   WO->eraseFromParent();
   ++NumOverflows;
+
+  // See if we can infer the other no-wrap too.
+  if (auto *BO = dyn_cast<BinaryOperator>(NewOp))
+    processBinOp(BO, LVI);
 }
 
-static void processSaturatingInst(SaturatingInst *SI) {
+static void processSaturatingInst(SaturatingInst *SI, LazyValueInfo *LVI) {
+  Instruction::BinaryOps Opcode = SI->getBinaryOp();
+  bool NSW = SI->isSigned();
+  bool NUW = !SI->isSigned();
   BinaryOperator *BinOp = BinaryOperator::Create(
-      SI->getBinaryOp(), SI->getLHS(), SI->getRHS(), SI->getName(), SI);
+      Opcode, SI->getLHS(), SI->getRHS(), SI->getName(), SI);
   BinOp->setDebugLoc(SI->getDebugLoc());
-  if (SI->isSigned())
-    BinOp->setHasNoSignedWrap();
-  else
-    BinOp->setHasNoUnsignedWrap();
+  setDeducedOverflowingFlags(BinOp, Opcode, NSW, NUW);
 
   SI->replaceAllUsesWith(BinOp);
   SI->eraseFromParent();
   ++NumSaturating;
+
+  // See if we can infer the other no-wrap too.
+  if (auto *BO = dyn_cast<BinaryOperator>(BinOp))
+    processBinOp(BO, LVI);
 }
 
 /// Infer nonnull attributes for the arguments at the specified callsite.
@@ -456,14 +541,14 @@ static bool processCallSite(CallSite CS, LazyValueInfo *LVI) {
 
   if (auto *WO = dyn_cast<WithOverflowInst>(CS.getInstruction())) {
     if (WO->getLHS()->getType()->isIntegerTy() && willNotOverflow(WO, LVI)) {
-      processOverflowIntrinsic(WO);
+      processOverflowIntrinsic(WO, LVI);
       return true;
     }
   }
 
   if (auto *SI = dyn_cast<SaturatingInst>(CS.getInstruction())) {
     if (SI->getType()->isIntegerTy() && willNotOverflow(SI, LVI)) {
-      processSaturatingInst(SI);
+      processSaturatingInst(SI, LVI);
       return true;
     }
   }
@@ -632,6 +717,27 @@ static bool processAShr(BinaryOperator *SDI, LazyValueInfo *LVI) {
   return true;
 }
 
+static bool processSExt(SExtInst *SDI, LazyValueInfo *LVI) {
+  if (SDI->getType()->isVectorTy())
+    return false;
+
+  Value *Base = SDI->getOperand(0);
+
+  Constant *Zero = ConstantInt::get(Base->getType(), 0);
+  if (LVI->getPredicateAt(ICmpInst::ICMP_SGE, Base, Zero, SDI) !=
+      LazyValueInfo::True)
+    return false;
+
+  ++NumSExt;
+  auto *ZExt =
+      CastInst::CreateZExtOrBitCast(Base, SDI->getType(), SDI->getName(), SDI);
+  ZExt->setDebugLoc(SDI->getDebugLoc());
+  SDI->replaceAllUsesWith(ZExt);
+  SDI->eraseFromParent();
+
+  return true;
+}
+
 static bool processBinOp(BinaryOperator *BinOp, LazyValueInfo *LVI) {
   using OBO = OverflowingBinaryOperator;
 
@@ -648,6 +754,7 @@ static bool processBinOp(BinaryOperator *BinOp, LazyValueInfo *LVI) {
 
   BasicBlock *BB = BinOp->getParent();
 
+  Instruction::BinaryOps Opcode = BinOp->getOpcode();
   Value *LHS = BinOp->getOperand(0);
   Value *RHS = BinOp->getOperand(1);
 
@@ -655,23 +762,47 @@ static bool processBinOp(BinaryOperator *BinOp, LazyValueInfo *LVI) {
   ConstantRange RRange = LVI->getConstantRange(RHS, BB, BinOp);
 
   bool Changed = false;
+  bool NewNUW = false, NewNSW = false;
   if (!NUW) {
     ConstantRange NUWRange = ConstantRange::makeGuaranteedNoWrapRegion(
-        BinOp->getOpcode(), RRange, OBO::NoUnsignedWrap);
-    bool NewNUW = NUWRange.contains(LRange);
-    BinOp->setHasNoUnsignedWrap(NewNUW);
+        Opcode, RRange, OBO::NoUnsignedWrap);
+    NewNUW = NUWRange.contains(LRange);
     Changed |= NewNUW;
   }
   if (!NSW) {
     ConstantRange NSWRange = ConstantRange::makeGuaranteedNoWrapRegion(
-        BinOp->getOpcode(), RRange, OBO::NoSignedWrap);
-    bool NewNSW = NSWRange.contains(LRange);
-    BinOp->setHasNoSignedWrap(NewNSW);
+        Opcode, RRange, OBO::NoSignedWrap);
+    NewNSW = NSWRange.contains(LRange);
     Changed |= NewNSW;
   }
 
+  setDeducedOverflowingFlags(BinOp, Opcode, NewNSW, NewNUW);
+
   return Changed;
 }
+
+static bool processAnd(BinaryOperator *BinOp, LazyValueInfo *LVI) {
+  if (BinOp->getType()->isVectorTy())
+    return false;
+
+  // Pattern match (and lhs, C) where C includes a superset of bits which might
+  // be set in lhs.  This is a common truncation idiom created by instcombine.
+  BasicBlock *BB = BinOp->getParent();
+  Value *LHS = BinOp->getOperand(0);
+  ConstantInt *RHS = dyn_cast<ConstantInt>(BinOp->getOperand(1));
+  if (!RHS || !RHS->getValue().isMask())
+    return false;
+
+  ConstantRange LRange = LVI->getConstantRange(LHS, BB, BinOp);
+  if (!LRange.getUnsignedMax().ule(RHS->getValue()))
+    return false;
+
+  BinOp->replaceAllUsesWith(LHS);
+  BinOp->eraseFromParent();
+  NumAnd++;
+  return true;
+}
+
 
 static Constant *getConstantAt(Value *V, Instruction *At, LazyValueInfo *LVI) {
   if (Constant *C = LVI->getConstant(V, At->getParent(), At))
@@ -740,9 +871,17 @@ static bool runImpl(Function &F, LazyValueInfo *LVI, DominatorTree *DT,
       case Instruction::AShr:
         BBChanged |= processAShr(cast<BinaryOperator>(II), LVI);
         break;
+      case Instruction::SExt:
+        BBChanged |= processSExt(cast<SExtInst>(II), LVI);
+        break;
       case Instruction::Add:
       case Instruction::Sub:
+      case Instruction::Mul:
+      case Instruction::Shl:
         BBChanged |= processBinOp(cast<BinaryOperator>(II), LVI);
+        break;
+      case Instruction::And:
+        BBChanged |= processAnd(cast<BinaryOperator>(II), LVI);
         break;
       }
     }
@@ -796,5 +935,6 @@ CorrelatedValuePropagationPass::run(Function &F, FunctionAnalysisManager &AM) {
   PreservedAnalyses PA;
   PA.preserve<GlobalsAA>();
   PA.preserve<DominatorTreeAnalysis>();
+  PA.preserve<LazyValueAnalysis>();
   return PA;
 }

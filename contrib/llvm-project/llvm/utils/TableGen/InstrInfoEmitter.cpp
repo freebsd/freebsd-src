@@ -164,6 +164,11 @@ InstrInfoEmitter::GetOperandInfo(const CodeGenInstruction &Inst) {
       if (Op.Rec->isSubClassOf("OptionalDefOperand"))
         Res += "|(1<<MCOI::OptionalDef)";
 
+      // Branch target operands.  Check to see if the original unexpanded
+      // operand was of type BranchTargetOperand.
+      if (Op.Rec->isSubClassOf("BranchTargetOperand"))
+        Res += "|(1<<MCOI::BranchTarget)";
+
       // Fill in operand type.
       Res += ", ";
       assert(!Op.OperandType.empty() && "Invalid operand type.");
@@ -332,6 +337,10 @@ void InstrInfoEmitter::emitOperandTypeMappings(
 
   StringRef Namespace = Target.getInstNamespace();
   std::vector<Record *> Operands = Records.getAllDerivedDefinitions("Operand");
+  std::vector<Record *> RegisterOperands =
+      Records.getAllDerivedDefinitions("RegisterOperand");
+  std::vector<Record *> RegisterClasses =
+      Records.getAllDerivedDefinitions("RegisterClass");
 
   OS << "#ifdef GET_INSTRINFO_OPERAND_TYPES_ENUM\n";
   OS << "#undef GET_INSTRINFO_OPERAND_TYPES_ENUM\n";
@@ -341,10 +350,13 @@ void InstrInfoEmitter::emitOperandTypeMappings(
   OS << "enum OperandType {\n";
 
   unsigned EnumVal = 0;
-  for (const Record *Op : Operands) {
-    if (!Op->isAnonymous())
-      OS << "  " << Op->getName() << " = " << EnumVal << ",\n";
-    ++EnumVal;
+  for (const std::vector<Record *> *RecordsToAdd :
+       {&Operands, &RegisterOperands, &RegisterClasses}) {
+    for (const Record *Op : *RecordsToAdd) {
+      if (!Op->isAnonymous())
+        OS << "  " << Op->getName() << " = " << EnumVal << ",\n";
+      ++EnumVal;
+    }
   }
 
   OS << "  OPERAND_TYPE_LIST_END" << "\n};\n";
@@ -358,7 +370,8 @@ void InstrInfoEmitter::emitOperandTypeMappings(
   OS << "namespace llvm {\n";
   OS << "namespace " << Namespace << " {\n";
   OS << "LLVM_READONLY\n";
-  OS << "int getOperandType(uint16_t Opcode, uint16_t OpIdx) {\n";
+  OS << "static int getOperandType(uint16_t Opcode, uint16_t OpIdx) {\n";
+  // TODO: Factor out instructions with same operands to compress the tables.
   if (!NumberedInstructions.empty()) {
     std::vector<int> OperandOffsets;
     std::vector<Record *> OperandRecords;
@@ -399,7 +412,10 @@ void InstrInfoEmitter::emitOperandTypeMappings(
           OS << "/**/\n    ";
       }
       Record *OpR = OperandRecords[I];
-      if (OpR->isSubClassOf("Operand") && !OpR->isAnonymous())
+      if ((OpR->isSubClassOf("Operand") ||
+           OpR->isSubClassOf("RegisterOperand") ||
+           OpR->isSubClassOf("RegisterClass")) &&
+          !OpR->isAnonymous())
         OS << "OpTypes::" << OpR->getName();
       else
         OS << -1;
@@ -414,7 +430,7 @@ void InstrInfoEmitter::emitOperandTypeMappings(
   OS << "}\n";
   OS << "} // end namespace " << Namespace << "\n";
   OS << "} // end namespace llvm\n";
-  OS << "#endif //GET_INSTRINFO_OPERAND_TYPE\n\n";
+  OS << "#endif // GET_INSTRINFO_OPERAND_TYPE\n\n";
 }
 
 void InstrInfoEmitter::emitMCIIHelperMethods(raw_ostream &OS,
@@ -436,8 +452,8 @@ void InstrInfoEmitter::emitMCIIHelperMethods(raw_ostream &OS,
         << "(const MCInst &MI);\n";
   }
 
-  OS << "\n} // end " << TargetName << "_MC namespace\n";
-  OS << "} // end llvm namespace\n\n";
+  OS << "\n} // end namespace " << TargetName << "_MC\n";
+  OS << "} // end namespace llvm\n\n";
 
   OS << "#endif // GET_INSTRINFO_MC_HELPER_DECLS\n\n";
 
@@ -459,8 +475,8 @@ void InstrInfoEmitter::emitMCIIHelperMethods(raw_ostream &OS,
     OS << "\n}\n\n";
   }
 
-  OS << "} // end " << TargetName << "_MC namespace\n";
-  OS << "} // end llvm namespace\n\n";
+  OS << "} // end namespace " << TargetName << "_MC\n";
+  OS << "} // end namespace llvm\n\n";
 
   OS << "#endif // GET_GENISTRINFO_MC_HELPERS\n";
 }
@@ -576,7 +592,7 @@ void InstrInfoEmitter::run(raw_ostream &OS) {
      << TargetName << "InstrNameIndices, " << TargetName << "InstrNameData, "
      << NumberedInstructions.size() << ");\n}\n\n";
 
-  OS << "} // end llvm namespace\n";
+  OS << "} // end namespace llvm\n";
 
   OS << "#endif // GET_INSTRINFO_MC_DESC\n\n";
 
@@ -592,7 +608,7 @@ void InstrInfoEmitter::run(raw_ostream &OS) {
      << "  ~" << ClassName << "() override = default;\n";
 
 
-  OS << "\n};\n} // end llvm namespace\n";
+  OS << "\n};\n} // end namespace llvm\n";
 
   OS << "#endif // GET_INSTRINFO_HEADER\n\n";
 
@@ -620,7 +636,7 @@ void InstrInfoEmitter::run(raw_ostream &OS) {
      << "  InitMCInstrInfo(" << TargetName << "Insts, " << TargetName
      << "InstrNameIndices, " << TargetName << "InstrNameData, "
      << NumberedInstructions.size() << ");\n}\n";
-  OS << "} // end llvm namespace\n";
+  OS << "} // end namespace llvm\n";
 
   OS << "#endif // GET_INSTRINFO_CTOR_DTOR\n\n";
 
@@ -651,6 +667,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   CodeGenTarget &Target = CDP.getTargetInfo();
 
   // Emit all of the target independent flags...
+  if (Inst.isPreISelOpcode)    OS << "|(1ULL<<MCID::PreISelOpcode)";
   if (Inst.isPseudo)           OS << "|(1ULL<<MCID::Pseudo)";
   if (Inst.isReturn)           OS << "|(1ULL<<MCID::Return)";
   if (Inst.isEHScopeReturn)    OS << "|(1ULL<<MCID::EHScopeReturn)";
@@ -691,6 +708,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   if (Inst.isInsertSubreg) OS << "|(1ULL<<MCID::InsertSubreg)";
   if (Inst.isConvergent) OS << "|(1ULL<<MCID::Convergent)";
   if (Inst.variadicOpsAreDefs) OS << "|(1ULL<<MCID::VariadicOpsAreDefs)";
+  if (Inst.isAuthenticated) OS << "|(1ULL<<MCID::Authenticated)";
 
   // Emit all of the target-specific flags...
   BitsInit *TSF = Inst.TheDef->getValueAsBitsInit("TSFlags");
@@ -765,8 +783,8 @@ void InstrInfoEmitter::emitEnums(raw_ostream &OS) {
     OS << "    " << Inst->TheDef->getName() << "\t= " << Num++ << ",\n";
   OS << "    INSTRUCTION_LIST_END = " << Num << "\n";
   OS << "  };\n\n";
-  OS << "} // end " << Namespace << " namespace\n";
-  OS << "} // end llvm namespace\n";
+  OS << "} // end namespace " << Namespace << "\n";
+  OS << "} // end namespace llvm\n";
   OS << "#endif // GET_INSTRINFO_ENUM\n\n";
 
   OS << "#ifdef GET_INSTRINFO_SCHED_ENUM\n";
@@ -780,9 +798,9 @@ void InstrInfoEmitter::emitEnums(raw_ostream &OS) {
     OS << "    " << Class.Name << "\t= " << Num++ << ",\n";
   OS << "    SCHED_LIST_END = " << Num << "\n";
   OS << "  };\n";
-  OS << "} // end Sched namespace\n";
-  OS << "} // end " << Namespace << " namespace\n";
-  OS << "} // end llvm namespace\n";
+  OS << "} // end namespace Sched\n";
+  OS << "} // end namespace " << Namespace << "\n";
+  OS << "} // end namespace llvm\n";
 
   OS << "#endif // GET_INSTRINFO_SCHED_ENUM\n\n";
 }
@@ -794,4 +812,4 @@ void EmitInstrInfo(RecordKeeper &RK, raw_ostream &OS) {
   EmitMapTable(RK, OS);
 }
 
-} // end llvm namespace
+} // end namespace llvm

@@ -59,13 +59,15 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Transforms/Utils/Local.h"
 
 using namespace llvm;
 using namespace PatternMatch;
@@ -562,7 +564,7 @@ struct CallSiteSplittingLegacyPass : public FunctionPass {
     if (skipFunction(F))
       return false;
 
-    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
+    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
     auto &TTI = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
     auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
     return doCallSiteSplitting(F, TLI, TTI, DT);

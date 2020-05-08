@@ -144,9 +144,9 @@ LanaiTargetLowering::LanaiTargetLowering(const TargetMachine &TM,
   setTargetDAGCombine(ISD::OR);
   setTargetDAGCombine(ISD::XOR);
 
-  // Function alignments (log2)
-  setMinFunctionAlignment(2);
-  setPrefFunctionAlignment(2);
+  // Function alignments
+  setMinFunctionAlignment(Align(4));
+  setPrefFunctionAlignment(Align(4));
 
   setJumpIsExpensive(true);
 
@@ -212,10 +212,11 @@ SDValue LanaiTargetLowering::LowerOperation(SDValue Op,
 //                       Lanai Inline Assembly Support
 //===----------------------------------------------------------------------===//
 
-unsigned LanaiTargetLowering::getRegisterByName(const char *RegName, EVT /*VT*/,
-                                                SelectionDAG & /*DAG*/) const {
+Register LanaiTargetLowering::getRegisterByName(
+  const char *RegName, LLT /*VT*/,
+  const MachineFunction & /*MF*/) const {
   // Only unallocatable registers should be matched here.
-  unsigned Reg = StringSwitch<unsigned>(RegName)
+  Register Reg = StringSwitch<unsigned>(RegName)
                      .Case("pc", Lanai::PC)
                      .Case("sp", Lanai::SP)
                      .Case("fp", Lanai::FP)
@@ -459,7 +460,7 @@ SDValue LanaiTargetLowering::LowerCCCArguments(
       EVT RegVT = VA.getLocVT();
       switch (RegVT.getSimpleVT().SimpleTy) {
       case MVT::i32: {
-        unsigned VReg = RegInfo.createVirtualRegister(&Lanai::GPRRegClass);
+        Register VReg = RegInfo.createVirtualRegister(&Lanai::GPRRegClass);
         RegInfo.addLiveIn(VA.getLocReg(), VReg);
         SDValue ArgValue = DAG.getCopyFromReg(Chain, DL, VReg, RegVT);
 

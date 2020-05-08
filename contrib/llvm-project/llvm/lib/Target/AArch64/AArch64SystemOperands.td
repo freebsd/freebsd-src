@@ -612,6 +612,7 @@ def : ROSysReg<"ISR_EL1",            0b11, 0b000, 0b1100, 0b0001, 0b000>;
 def : ROSysReg<"CNTPCT_EL0",         0b11, 0b011, 0b1110, 0b0000, 0b001>;
 def : ROSysReg<"CNTVCT_EL0",         0b11, 0b011, 0b1110, 0b0000, 0b010>;
 def : ROSysReg<"ID_MMFR4_EL1",       0b11, 0b000, 0b0000, 0b0010, 0b110>;
+def : ROSysReg<"ID_MMFR5_EL1",       0b11, 0b000, 0b0000, 0b0011, 0b110>;
 
 // Trace registers
 //                                 Op0    Op1     CRn     CRm    Op2
@@ -1321,6 +1322,12 @@ def : RWSysReg<"CNTHPS_CTL_EL2",  0b11, 0b100, 0b1110, 0b0101, 0b001>;
 def : RWSysReg<"SDER32_EL2", 0b11, 0b100, 0b0001, 0b0011, 0b001>;
 } // FeatureSEL2
 
+// v8.4a PMU registers
+//                          Op0   Op1    CRn     CRm     Op2
+let Requires = [{ {AArch64::FeaturePMU} }] in {
+def : RWSysReg<"PMMIR_EL1", 0b11, 0b000, 0b1001, 0b1110, 0b110>;
+} // FeaturePMU
+
 // v8.4a RAS registers
 //                              Op0   Op1    CRn     CRm     Op2
 let Requires = [{ {AArch64::FeatureRASv8_4} }] in {
@@ -1452,15 +1459,38 @@ let Requires = [{ {AArch64::FeatureMTE} }] in {
 def : RWSysReg<"TCO",              0b11, 0b011, 0b0100, 0b0010, 0b111>;
 def : RWSysReg<"GCR_EL1",          0b11, 0b000, 0b0001, 0b0000, 0b110>;
 def : RWSysReg<"RGSR_EL1",         0b11, 0b000, 0b0001, 0b0000, 0b101>;
-def : RWSysReg<"TFSR_EL1",         0b11, 0b000, 0b0110, 0b0101, 0b000>;
-def : RWSysReg<"TFSR_EL2",         0b11, 0b100, 0b0110, 0b0101, 0b000>;
-def : RWSysReg<"TFSR_EL3",         0b11, 0b110, 0b0110, 0b0110, 0b000>;
-def : RWSysReg<"TFSR_EL12",        0b11, 0b101, 0b0110, 0b0110, 0b000>;
-def : RWSysReg<"TFSRE0_EL1",       0b11, 0b000, 0b0110, 0b0110, 0b001>;
+def : RWSysReg<"TFSR_EL1",         0b11, 0b000, 0b0101, 0b0110, 0b000>;
+def : RWSysReg<"TFSR_EL2",         0b11, 0b100, 0b0101, 0b0110, 0b000>;
+def : RWSysReg<"TFSR_EL3",         0b11, 0b110, 0b0101, 0b0110, 0b000>;
+def : RWSysReg<"TFSR_EL12",        0b11, 0b101, 0b0101, 0b0110, 0b000>;
+def : RWSysReg<"TFSRE0_EL1",       0b11, 0b000, 0b0101, 0b0110, 0b001>;
 def : ROSysReg<"GMID_EL1",         0b11, 0b001, 0b0000, 0b0000, 0b100>;
 } // HasMTE
 
+// Embedded Trace Extension R/W System registers
+let Requires = [{ {AArch64::FeatureETE} }] in {
+//              Name            Op0   Op1    CRn     CRm     Op2
+def : RWSysReg<"TRCRSR",        0b10, 0b001, 0b0000, 0b1010, 0b000>;
+//  TRCEXTINSELR0 has the same encoding as ETM TRCEXTINSELR
+def : RWSysReg<"TRCEXTINSELR0", 0b10, 0b001, 0b0000, 0b1000, 0b100>;
+def : RWSysReg<"TRCEXTINSELR1", 0b10, 0b001, 0b0000, 0b1001, 0b100>;
+def : RWSysReg<"TRCEXTINSELR2", 0b10, 0b001, 0b0000, 0b1010, 0b100>;
+def : RWSysReg<"TRCEXTINSELR3", 0b10, 0b001, 0b0000, 0b1011, 0b100>;
+} // FeatureETE
+
+// Trace Buffer Extension System registers
+let Requires = [{ {AArch64::FeatureTRBE} }] in {
+//                   Name       Op0   Op1    CRn     CRm     Op2
+def : RWSysReg<"TRBLIMITR_EL1", 0b11, 0b000, 0b1001, 0b1011, 0b000>;
+def : RWSysReg<"TRBPTR_EL1",    0b11, 0b000, 0b1001, 0b1011, 0b001>;
+def : RWSysReg<"TRBBASER_EL1",  0b11, 0b000, 0b1001, 0b1011, 0b010>;
+def : RWSysReg<"TRBSR_EL1",     0b11, 0b000, 0b1001, 0b1011, 0b011>;
+def : RWSysReg<"TRBMAR_EL1",    0b11, 0b000, 0b1001, 0b1011, 0b100>;
+def : RWSysReg<"TRBTRG_EL1",    0b11, 0b000, 0b1001, 0b1011, 0b110>;
+def : ROSysReg<"TRBIDR_EL1",    0b11, 0b000, 0b1001, 0b1011, 0b111>;
+} // FeatureTRBE
+
 // Cyclone specific system registers
 //                                 Op0    Op1     CRn     CRm    Op2
-let Requires = [{ {AArch64::ProcCyclone} }] in
+let Requires = [{ {AArch64::ProcAppleA7} }] in
 def : RWSysReg<"CPM_IOACC_CTL_EL3", 0b11, 0b111, 0b1111, 0b0010, 0b000>;

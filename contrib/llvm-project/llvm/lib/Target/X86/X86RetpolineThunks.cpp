@@ -58,18 +58,18 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     MachineFunctionPass::getAnalysisUsage(AU);
-    AU.addRequired<MachineModuleInfo>();
-    AU.addPreserved<MachineModuleInfo>();
+    AU.addRequired<MachineModuleInfoWrapperPass>();
+    AU.addPreserved<MachineModuleInfoWrapperPass>();
   }
 
 private:
-  MachineModuleInfo *MMI;
-  const TargetMachine *TM;
-  bool Is64Bit;
-  const X86Subtarget *STI;
-  const X86InstrInfo *TII;
+  MachineModuleInfo *MMI = nullptr;
+  const TargetMachine *TM = nullptr;
+  bool Is64Bit = false;
+  const X86Subtarget *STI = nullptr;
+  const X86InstrInfo *TII = nullptr;
 
-  bool InsertedThunks;
+  bool InsertedThunks = false;
 
   void createThunkFunction(Module &M, StringRef Name);
   void insertRegReturnAddrClobber(MachineBasicBlock &MBB, unsigned Reg);
@@ -97,7 +97,7 @@ bool X86RetpolineThunks::runOnMachineFunction(MachineFunction &MF) {
   TII = STI->getInstrInfo();
   Is64Bit = TM->getTargetTriple().getArch() == Triple::x86_64;
 
-  MMI = &getAnalysis<MachineModuleInfo>();
+  MMI = &getAnalysis<MachineModuleInfoWrapperPass>().getMMI();
   Module &M = const_cast<Module &>(*MMI->getModule());
 
   // If this function is not a thunk, check to see if we need to insert
@@ -279,7 +279,7 @@ void X86RetpolineThunks::populateThunk(MachineFunction &MF,
 
   CallTarget->addLiveIn(Reg);
   CallTarget->setHasAddressTaken();
-  CallTarget->setAlignment(4);
+  CallTarget->setAlignment(Align(16));
   insertRegReturnAddrClobber(*CallTarget, Reg);
   CallTarget->back().setPreInstrSymbol(MF, TargetSym);
   BuildMI(CallTarget, DebugLoc(), TII->get(RetOpc));

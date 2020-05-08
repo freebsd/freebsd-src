@@ -22,15 +22,15 @@
 #include "lldb/API/SBFileSpec.h"
 #include "lldb/API/SBHostOS.h"
 #include "lldb/API/SBReproducer.h"
-
 #include "lldb/Host/FileSystem.h"
+#include "lldb/lldb-private.h"
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::repro;
 
 SBRegistry::SBRegistry() {
-  Registry& R = *this;
+  Registry &R = *this;
 
   RegisterMethods<SBAddress>(R);
   RegisterMethods<SBAttachInfo>(R);
@@ -52,6 +52,7 @@ SBRegistry::SBRegistry() {
   RegisterMethods<SBEvent>(R);
   RegisterMethods<SBExecutionContext>(R);
   RegisterMethods<SBExpressionOptions>(R);
+  RegisterMethods<SBFile>(R);
   RegisterMethods<SBFileSpec>(R);
   RegisterMethods<SBFileSpecList>(R);
   RegisterMethods<SBFrame>(R);
@@ -124,6 +125,10 @@ const char *SBReproducer::Capture(const char *path) {
 }
 
 const char *SBReproducer::Replay(const char *path) {
+  return SBReproducer::Replay(path, false);
+}
+
+const char *SBReproducer::Replay(const char *path, bool skip_version_check) {
   static std::string error;
   if (auto e = Reproducer::Initialize(ReproducerMode::Replay, FileSpec(path))) {
     error = llvm::toString(std::move(e));
@@ -136,6 +141,22 @@ const char *SBReproducer::Replay(const char *path) {
     return error.c_str();
   }
 
+  if (!skip_version_check) {
+    llvm::Expected<std::string> version = loader->LoadBuffer<VersionProvider>();
+    if (!version) {
+      error = llvm::toString(version.takeError());
+      return error.c_str();
+    }
+    if (lldb_private::GetVersion() != llvm::StringRef(*version).rtrim()) {
+      error = "reproducer capture and replay version don't match:\n";
+      error.append("reproducer captured with:\n");
+      error.append(*version);
+      error.append("reproducer replayed with:\n");
+      error.append(lldb_private::GetVersion());
+      return error.c_str();
+    }
+  }
+
   FileSpec file = loader->GetFile<SBProvider::Info>();
   if (!file) {
     error = "unable to get replay data from reproducer.";
@@ -146,6 +167,22 @@ const char *SBReproducer::Replay(const char *path) {
   registry.Replay(file);
 
   return nullptr;
+}
+
+bool SBReproducer::Generate() {
+  auto &r = Reproducer::Instance();
+  if (auto generator = r.GetGenerator()) {
+    generator->Keep();
+    return true;
+  }
+  return false;
+}
+
+const char *SBReproducer::GetPath() {
+  static std::string path;
+  auto &r = Reproducer::Instance();
+  path = r.GetReproducerPath().GetCString();
+  return path.c_str();
 }
 
 char lldb_private::repro::SBProvider::ID = 0;

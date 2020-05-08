@@ -73,7 +73,8 @@ bool formDedicatedExitBlocks(Loop *L, DominatorTree *DT, LoopInfo *LI,
 ///
 /// Returns true if any modifications are made.
 bool formLCSSAForInstructions(SmallVectorImpl<Instruction *> &Worklist,
-                              DominatorTree &DT, LoopInfo &LI);
+                              DominatorTree &DT, LoopInfo &LI,
+                              ScalarEvolution *SE);
 
 /// Put loop into LCSSA form.
 ///
@@ -132,7 +133,7 @@ bool sinkRegion(DomTreeNode *, AliasAnalysis *, LoopInfo *, DominatorTree *,
 /// ORE. It returns changed status.
 bool hoistRegion(DomTreeNode *, AliasAnalysis *, LoopInfo *, DominatorTree *,
                  TargetLibraryInfo *, Loop *, AliasSetTracker *,
-                 MemorySSAUpdater *, ICFLoopSafetyInfo *,
+                 MemorySSAUpdater *, ScalarEvolution *, ICFLoopSafetyInfo *,
                  SinkAndHoistLICMFlags &, OptimizationRemarkEmitter *);
 
 /// This function deletes dead loops. The caller of this function needs to
@@ -215,6 +216,9 @@ makeFollowupLoopID(MDNode *OrigLoopID, ArrayRef<StringRef> FollowupAttrs,
 /// Look for the loop attribute that disables all transformation heuristic.
 bool hasDisableAllTransformsHint(const Loop *L);
 
+/// Look for the loop attribute that disables the LICM transformation heuristics.
+bool hasDisableLICMTransformsHint(const Loop *L);
+
 /// The mode sets how eager a transformation should be applied.
 enum TransformationMode {
   /// The pass can use heuristics to determine whether a transformation should
@@ -252,6 +256,8 @@ TransformationMode hasLICMVersioningTransformation(Loop *L);
 /// @}
 
 /// Set input string into loop metadata by keeping other values intact.
+/// If the string is already in loop metadata update value if it is
+/// different.
 void addStringMetadataToLoop(Loop *TheLoop, const char *MDString,
                              unsigned V = 0);
 

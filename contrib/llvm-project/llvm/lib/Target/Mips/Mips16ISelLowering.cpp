@@ -252,9 +252,6 @@ void Mips16TargetLowering::setMips16HardFloatLibCalls() {
     if (HardFloatLibCalls[I].Libcall != RTLIB::UNKNOWN_LIBCALL)
       setLibcallName(HardFloatLibCalls[I].Libcall, HardFloatLibCalls[I].Name);
   }
-
-  setLibcallName(RTLIB::O_F64, "__mips16_unorddf2");
-  setLibcallName(RTLIB::O_F32, "__mips16_unordsf2");
 }
 
 //
@@ -708,8 +705,8 @@ Mips16TargetLowering::emitFEXT_T8I816_ins(unsigned BtOpc, unsigned CmpOpc,
   if (DontExpandCondPseudos16)
     return BB;
   const TargetInstrInfo *TII = Subtarget.getInstrInfo();
-  unsigned regX = MI.getOperand(0).getReg();
-  unsigned regY = MI.getOperand(1).getReg();
+  Register regX = MI.getOperand(0).getReg();
+  Register regY = MI.getOperand(1).getReg();
   MachineBasicBlock *target = MI.getOperand(2).getMBB();
   BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(CmpOpc))
       .addReg(regX)
@@ -725,7 +722,7 @@ MachineBasicBlock *Mips16TargetLowering::emitFEXT_T8I8I16_ins(
   if (DontExpandCondPseudos16)
     return BB;
   const TargetInstrInfo *TII = Subtarget.getInstrInfo();
-  unsigned regX = MI.getOperand(0).getReg();
+  Register regX = MI.getOperand(0).getReg();
   int64_t imm = MI.getOperand(1).getImm();
   MachineBasicBlock *target = MI.getOperand(2).getMBB();
   unsigned CmpOpc;
@@ -758,9 +755,9 @@ Mips16TargetLowering::emitFEXT_CCRX16_ins(unsigned SltOpc, MachineInstr &MI,
   if (DontExpandCondPseudos16)
     return BB;
   const TargetInstrInfo *TII = Subtarget.getInstrInfo();
-  unsigned CC = MI.getOperand(0).getReg();
-  unsigned regX = MI.getOperand(1).getReg();
-  unsigned regY = MI.getOperand(2).getReg();
+  Register CC = MI.getOperand(0).getReg();
+  Register regX = MI.getOperand(1).getReg();
+  Register regY = MI.getOperand(2).getReg();
   BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(SltOpc))
       .addReg(regX)
       .addReg(regY);
@@ -777,8 +774,8 @@ Mips16TargetLowering::emitFEXT_CCRXI16_ins(unsigned SltiOpc, unsigned SltiXOpc,
   if (DontExpandCondPseudos16)
     return BB;
   const TargetInstrInfo *TII = Subtarget.getInstrInfo();
-  unsigned CC = MI.getOperand(0).getReg();
-  unsigned regX = MI.getOperand(1).getReg();
+  Register CC = MI.getOperand(0).getReg();
+  Register regX = MI.getOperand(1).getReg();
   int64_t Imm = MI.getOperand(2).getImm();
   unsigned SltOpc = Mips16WhichOp8uOr16simm(SltiOpc, SltiXOpc, Imm);
   BuildMI(*BB, MI, MI.getDebugLoc(), TII->get(SltOpc)).addReg(regX).addImm(Imm);

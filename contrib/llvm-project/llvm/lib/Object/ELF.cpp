@@ -255,6 +255,8 @@ StringRef llvm::object::getELFSectionTypeName(uint32_t Machine, unsigned Type) {
     STRINGIFY_ENUM_CASE(ELF, SHT_LLVM_ADDRSIG);
     STRINGIFY_ENUM_CASE(ELF, SHT_LLVM_DEPENDENT_LIBRARIES);
     STRINGIFY_ENUM_CASE(ELF, SHT_LLVM_SYMPART);
+    STRINGIFY_ENUM_CASE(ELF, SHT_LLVM_PART_EHDR);
+    STRINGIFY_ENUM_CASE(ELF, SHT_LLVM_PART_PHDR);
     STRINGIFY_ENUM_CASE(ELF, SHT_GNU_ATTRIBUTES);
     STRINGIFY_ENUM_CASE(ELF, SHT_GNU_HASH);
     STRINGIFY_ENUM_CASE(ELF, SHT_GNU_verdef);
@@ -475,7 +477,7 @@ std::string ELFFile<ELFT>::getDynamicTagAsString(unsigned Arch,
 #define PPC64_DYNAMIC_TAG(name, value)
 // Also ignore marker tags such as DT_HIOS (maps to DT_VERNEEDNUM), etc.
 #define DYNAMIC_TAG_MARKER(name, value)
-#define DYNAMIC_TAG(name, value) DYNAMIC_STRINGIFY_ENUM(name, value)
+#define DYNAMIC_TAG(name, value) case value: return #name;
 #include "llvm/BinaryFormat/DynamicTags.def"
 #undef DYNAMIC_TAG
 #undef AARCH64_DYNAMIC_TAG

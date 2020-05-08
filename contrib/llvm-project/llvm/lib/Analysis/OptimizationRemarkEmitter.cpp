@@ -18,6 +18,7 @@
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -39,7 +40,7 @@ OptimizationRemarkEmitter::OptimizationRemarkEmitter(const Function *F)
   BPI.calculate(*F, LI);
 
   // Finally compute BFI.
-  OwnedBFI = llvm::make_unique<BlockFrequencyInfo>(*F, BPI, LI);
+  OwnedBFI = std::make_unique<BlockFrequencyInfo>(*F, BPI, LI);
   BFI = OwnedBFI.get();
 }
 
@@ -97,7 +98,7 @@ bool OptimizationRemarkEmitterWrapperPass::runOnFunction(Function &Fn) {
   else
     BFI = nullptr;
 
-  ORE = llvm::make_unique<OptimizationRemarkEmitter>(&Fn, BFI);
+  ORE = std::make_unique<OptimizationRemarkEmitter>(&Fn, BFI);
   return false;
 }
 

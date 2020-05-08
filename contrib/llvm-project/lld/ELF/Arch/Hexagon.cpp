@@ -19,8 +19,9 @@ using namespace llvm;
 using namespace llvm::object;
 using namespace llvm::support::endian;
 using namespace llvm::ELF;
-using namespace lld;
-using namespace lld::elf;
+
+namespace lld {
+namespace elf {
 
 namespace {
 class Hexagon final : public TargetInfo {
@@ -29,10 +30,11 @@ public:
   uint32_t calcEFlags() const override;
   RelExpr getRelExpr(RelType type, const Symbol &s,
                      const uint8_t *loc) const override;
+  RelType getDynRel(RelType type) const override;
   void relocateOne(uint8_t *loc, RelType type, uint64_t val) const override;
   void writePltHeader(uint8_t *buf) const override;
-  void writePlt(uint8_t *buf, uint64_t gotPltEntryAddr, uint64_t pltEntryAddr,
-                int32_t index, unsigned relOff) const override;
+  void writePlt(uint8_t *buf, const Symbol &sym,
+                uint64_t pltEntryAddr) const override;
 };
 } // namespace
 
@@ -52,6 +54,7 @@ Hexagon::Hexagon() {
   // Hexagon Linux uses 64K pages by default.
   defaultMaxPageSize = 0x10000;
   noneRel = R_HEX_NONE;
+  tlsGotRel = R_HEX_TPREL_32;
 }
 
 uint32_t Hexagon::calcEFlags() const {
@@ -86,25 +89,66 @@ static uint32_t applyMask(uint32_t mask, uint32_t data) {
 RelExpr Hexagon::getRelExpr(RelType type, const Symbol &s,
                             const uint8_t *loc) const {
   switch (type) {
+  case R_HEX_NONE:
+    return R_NONE;
+  case R_HEX_6_X:
+  case R_HEX_8_X:
+  case R_HEX_9_X:
+  case R_HEX_10_X:
+  case R_HEX_11_X:
+  case R_HEX_12_X:
+  case R_HEX_16_X:
+  case R_HEX_32:
+  case R_HEX_32_6_X:
+  case R_HEX_HI16:
+  case R_HEX_LO16:
+    return R_ABS;
   case R_HEX_B9_PCREL:
-  case R_HEX_B9_PCREL_X:
   case R_HEX_B13_PCREL:
   case R_HEX_B15_PCREL:
-  case R_HEX_B15_PCREL_X:
   case R_HEX_6_PCREL_X:
   case R_HEX_32_PCREL:
     return R_PC;
+  case R_HEX_B9_PCREL_X:
+  case R_HEX_B15_PCREL_X:
   case R_HEX_B22_PCREL:
   case R_HEX_PLT_B22_PCREL:
   case R_HEX_B22_PCREL_X:
   case R_HEX_B32_PCREL_X:
     return R_PLT_PC;
+  case R_HEX_IE_32_6_X:
+  case R_HEX_IE_16_X:
+  case R_HEX_IE_HI16:
+  case R_HEX_IE_LO16:
+    return R_GOT;
+  case R_HEX_GOTREL_11_X:
+  case R_HEX_GOTREL_16_X:
+  case R_HEX_GOTREL_32_6_X:
+  case R_HEX_GOTREL_HI16:
+  case R_HEX_GOTREL_LO16:
+    return R_GOTPLTREL;
   case R_HEX_GOT_11_X:
   case R_HEX_GOT_16_X:
   case R_HEX_GOT_32_6_X:
-    return R_HEXAGON_GOT;
+    return R_GOTPLT;
+  case R_HEX_IE_GOT_11_X:
+  case R_HEX_IE_GOT_16_X:
+  case R_HEX_IE_GOT_32_6_X:
+  case R_HEX_IE_GOT_HI16:
+  case R_HEX_IE_GOT_LO16:
+    config->hasStaticTlsModel = true;
+    return R_GOTPLT;
+  case R_HEX_TPREL_11_X:
+  case R_HEX_TPREL_16:
+  case R_HEX_TPREL_16_X:
+  case R_HEX_TPREL_32_6_X:
+  case R_HEX_TPREL_HI16:
+  case R_HEX_TPREL_LO16:
+    return R_TLS;
   default:
-    return R_ABS;
+    error(getErrorLocation(loc) + "unknown relocation (" + Twine(type) +
+          ") against symbol " + toString(s));
+    return R_NONE;
   }
 }
 
@@ -196,15 +240,25 @@ void Hexagon::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     or32le(loc, applyMask(0x00203fe0, val & 0x3f));
     break;
   case R_HEX_11_X:
+  case R_HEX_IE_GOT_11_X:
   case R_HEX_GOT_11_X:
+  case R_HEX_GOTREL_11_X:
+  case R_HEX_TPREL_11_X:
     or32le(loc, applyMask(findMaskR11(read32le(loc)), val & 0x3f));
     break;
   case R_HEX_12_X:
     or32le(loc, applyMask(0x000007e0, val));
     break;
   case R_HEX_16_X: // These relocs only have 6 effective bits.
+  case R_HEX_IE_16_X:
+  case R_HEX_IE_GOT_16_X:
   case R_HEX_GOT_16_X:
+  case R_HEX_GOTREL_16_X:
+  case R_HEX_TPREL_16_X:
     or32le(loc, applyMask(findMaskR16(read32le(loc)), val & 0x3f));
+    break;
+  case R_HEX_TPREL_16:
+    or32le(loc, applyMask(findMaskR16(read32le(loc)), val & 0xffff));
     break;
   case R_HEX_32:
   case R_HEX_32_PCREL:
@@ -212,18 +266,25 @@ void Hexagon::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     break;
   case R_HEX_32_6_X:
   case R_HEX_GOT_32_6_X:
+  case R_HEX_GOTREL_32_6_X:
+  case R_HEX_IE_GOT_32_6_X:
+  case R_HEX_IE_32_6_X:
+  case R_HEX_TPREL_32_6_X:
     or32le(loc, applyMask(0x0fff3fff, val >> 6));
     break;
   case R_HEX_B9_PCREL:
+    checkInt(loc, val, 11, type);
     or32le(loc, applyMask(0x003000fe, val >> 2));
     break;
   case R_HEX_B9_PCREL_X:
     or32le(loc, applyMask(0x003000fe, val & 0x3f));
     break;
   case R_HEX_B13_PCREL:
+    checkInt(loc, val, 15, type);
     or32le(loc, applyMask(0x00202ffe, val >> 2));
     break;
   case R_HEX_B15_PCREL:
+    checkInt(loc, val, 17, type);
     or32le(loc, applyMask(0x00df20fe, val >> 2));
     break;
   case R_HEX_B15_PCREL_X:
@@ -231,6 +292,7 @@ void Hexagon::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     break;
   case R_HEX_B22_PCREL:
   case R_HEX_PLT_B22_PCREL:
+    checkInt(loc, val, 22, type);
     or32le(loc, applyMask(0x1ff3ffe, val >> 2));
     break;
   case R_HEX_B22_PCREL_X:
@@ -239,15 +301,22 @@ void Hexagon::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
   case R_HEX_B32_PCREL_X:
     or32le(loc, applyMask(0x0fff3fff, val >> 6));
     break;
+  case R_HEX_GOTREL_HI16:
   case R_HEX_HI16:
+  case R_HEX_IE_GOT_HI16:
+  case R_HEX_IE_HI16:
+  case R_HEX_TPREL_HI16:
     or32le(loc, applyMask(0x00c03fff, val >> 16));
     break;
+  case R_HEX_GOTREL_LO16:
   case R_HEX_LO16:
+  case R_HEX_IE_GOT_LO16:
+  case R_HEX_IE_LO16:
+  case R_HEX_TPREL_LO16:
     or32le(loc, applyMask(0x00c03fff, val));
     break;
   default:
-    error(getErrorLocation(loc) + "unrecognized relocation " + toString(type));
-    break;
+    llvm_unreachable("unknown relocation");
   }
 }
 
@@ -270,9 +339,8 @@ void Hexagon::writePltHeader(uint8_t *buf) const {
   relocateOne(buf + 4, R_HEX_6_PCREL_X, off);
 }
 
-void Hexagon::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
-                       uint64_t pltEntryAddr, int32_t index,
-                       unsigned relOff) const {
+void Hexagon::writePlt(uint8_t *buf, const Symbol &sym,
+                       uint64_t pltEntryAddr) const {
   const uint8_t inst[] = {
       0x00, 0x40, 0x00, 0x00, // { immext (#0)
       0x0e, 0xc0, 0x49, 0x6a, //   r14 = add (pc, ##GOTn@PCREL) }
@@ -281,11 +349,21 @@ void Hexagon::writePlt(uint8_t *buf, uint64_t gotPltEntryAddr,
   };
   memcpy(buf, inst, sizeof(inst));
 
+  uint64_t gotPltEntryAddr = sym.getGotPltVA();
   relocateOne(buf, R_HEX_B32_PCREL_X, gotPltEntryAddr - pltEntryAddr);
   relocateOne(buf + 4, R_HEX_6_PCREL_X, gotPltEntryAddr - pltEntryAddr);
 }
 
-TargetInfo *elf::getHexagonTargetInfo() {
+RelType Hexagon::getDynRel(RelType type) const {
+  if (type == R_HEX_32)
+    return type;
+  return R_HEX_NONE;
+}
+
+TargetInfo *getHexagonTargetInfo() {
   static Hexagon target;
   return &target;
 }
+
+} // namespace elf
+} // namespace lld

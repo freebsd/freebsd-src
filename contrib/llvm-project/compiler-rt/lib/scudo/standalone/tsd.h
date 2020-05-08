@@ -14,6 +14,7 @@
 #include "mutex.h"
 
 #include <limits.h> // for PTHREAD_DESTRUCTOR_ITERATIONS
+#include <pthread.h>
 
 // With some build setups, this might still not be defined.
 #ifndef PTHREAD_DESTRUCTOR_ITERATIONS
@@ -38,7 +39,7 @@ template <class Allocator> struct ALIGNED(SCUDO_CACHE_LINE_SIZE) TSD {
 
   void commitBack(Allocator *Instance) { Instance->commitBack(this); }
 
-  INLINE bool tryLock() {
+  inline bool tryLock() {
     if (Mutex.tryLock()) {
       atomic_store_relaxed(&Precedence, 0);
       return true;
@@ -49,12 +50,12 @@ template <class Allocator> struct ALIGNED(SCUDO_CACHE_LINE_SIZE) TSD {
           static_cast<uptr>(getMonotonicTime() >> FIRST_32_SECOND_64(16, 0)));
     return false;
   }
-  INLINE void lock() {
+  inline void lock() {
     atomic_store_relaxed(&Precedence, 0);
     Mutex.lock();
   }
-  INLINE void unlock() { Mutex.unlock(); }
-  INLINE uptr getPrecedence() { return atomic_load_relaxed(&Precedence); }
+  inline void unlock() { Mutex.unlock(); }
+  inline uptr getPrecedence() { return atomic_load_relaxed(&Precedence); }
 
 private:
   HybridMutex Mutex;

@@ -30,6 +30,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -86,7 +87,9 @@ public:
     ReversedVersion[3] = Options.Version[0];
     ReversedVersion[4] = '\0';
   }
-  bool runOnModule(Module &M, const TargetLibraryInfo &TLI);
+  bool
+  runOnModule(Module &M,
+              std::function<const TargetLibraryInfo &(Function &F)> GetTLI);
 
 private:
   // Create the .gcno files for the Module based on DebugInfo.
@@ -102,9 +105,9 @@ private:
                                       std::vector<Regex> &Regexes);
 
   // Get pointers to the functions in the runtime library.
-  FunctionCallee getStartFileFunc();
-  FunctionCallee getEmitFunctionFunc();
-  FunctionCallee getEmitArcsFunc();
+  FunctionCallee getStartFileFunc(const TargetLibraryInfo *TLI);
+  FunctionCallee getEmitFunctionFunc(const TargetLibraryInfo *TLI);
+  FunctionCallee getEmitArcsFunc(const TargetLibraryInfo *TLI);
   FunctionCallee getSummaryInfoFunc();
   FunctionCallee getEndFileFunc();
 
@@ -126,9 +129,9 @@ private:
   // Checksum, produced by hash of EdgeDestinations
   SmallVector<uint32_t, 4> FileChecksums;
 
-  Module *M;
-  const TargetLibraryInfo *TLI;
-  LLVMContext *Ctx;
+  Module *M = nullptr;
+  std::function<const TargetLibraryInfo &(Function &F)> GetTLI;
+  LLVMContext *Ctx = nullptr;
   SmallVector<std::unique_ptr<GCOVFunction>, 16> Funcs;
   std::vector<Regex> FilterRe;
   std::vector<Regex> ExcludeRe;
@@ -147,8 +150,9 @@ public:
   StringRef getPassName() const override { return "GCOV Profiler"; }
 
   bool runOnModule(Module &M) override {
-    auto &TLI = getAnalysis<TargetLibraryInfoWrapperPass>().getTLI();
-    return Profiler.runOnModule(M, TLI);
+    return Profiler.runOnModule(M, [this](Function &F) -> TargetLibraryInfo & {
+      return getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(F);
+    });
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
@@ -381,7 +385,7 @@ namespace {
       return EdgeDestinations;
     }
 
-    uint32_t getFuncChecksum() {
+    uint32_t getFuncChecksum() const {
       return FuncChecksum;
     }
 
@@ -555,9 +559,10 @@ std::string GCOVProfiler::mangleName(const DICompileUnit *CU,
   return CurPath.str();
 }
 
-bool GCOVProfiler::runOnModule(Module &M, const TargetLibraryInfo &TLI) {
+bool GCOVProfiler::runOnModule(
+    Module &M, std::function<const TargetLibraryInfo &(Function &F)> GetTLI) {
   this->M = &M;
-  this->TLI = &TLI;
+  this->GetTLI = std::move(GetTLI);
   Ctx = &M.getContext();
 
   AddFlushBeforeForkAndExec();
@@ -574,9 +579,12 @@ PreservedAnalyses GCOVProfilerPass::run(Module &M,
                                         ModuleAnalysisManager &AM) {
 
   GCOVProfiler Profiler(GCOVOpts);
+  FunctionAnalysisManager &FAM =
+      AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
-  auto &TLI = AM.getResult<TargetLibraryAnalysis>(M);
-  if (!Profiler.runOnModule(M, TLI))
+  if (!Profiler.runOnModule(M, [&](Function &F) -> TargetLibraryInfo & {
+        return FAM.getResult<TargetLibraryAnalysis>(F);
+      }))
     return PreservedAnalyses::all();
 
   return PreservedAnalyses::none();
@@ -624,6 +632,7 @@ static bool shouldKeepInEntry(BasicBlock::iterator It) {
 void GCOVProfiler::AddFlushBeforeForkAndExec() {
   SmallVector<Instruction *, 2> ForkAndExecs;
   for (auto &F : M->functions()) {
+    auto *TLI = &GetTLI(F);
     for (auto &I : instructions(F)) {
       if (CallInst *CI = dyn_cast<CallInst>(&I)) {
         if (Function *Callee = CI->getCalledFunction()) {
@@ -669,7 +678,8 @@ void GCOVProfiler::emitProfileNotes() {
       continue;
 
     std::error_code EC;
-    raw_fd_ostream out(mangleName(CU, GCovFileType::GCNO), EC, sys::fs::F_None);
+    raw_fd_ostream out(mangleName(CU, GCovFileType::GCNO), EC,
+                       sys::fs::OF_None);
     if (EC) {
       Ctx->emitError(Twine("failed to open coverage notes file for writing: ") +
                      EC.message());
@@ -695,7 +705,7 @@ void GCOVProfiler::emitProfileNotes() {
         ++It;
       EntryBlock.splitBasicBlock(It);
 
-      Funcs.push_back(make_unique<GCOVFunction>(SP, &F, &out, FunctionIdent++,
+      Funcs.push_back(std::make_unique<GCOVFunction>(SP, &F, &out, FunctionIdent++,
                                                 Options.UseCfgChecksum,
                                                 Options.ExitBlockBeforeBody));
       GCOVFunction &Func = *Funcs.back();
@@ -704,7 +714,10 @@ void GCOVProfiler::emitProfileNotes() {
       // to have a counter for the function definition.
       uint32_t Line = SP->getLine();
       auto Filename = getFilename(SP);
-      Func.getBlock(&EntryBlock).getFile(Filename).addLine(Line);
+
+      // Artificial functions such as global initializers
+      if (!SP->isArtificial())
+        Func.getBlock(&EntryBlock).getFile(Filename).addLine(Line);
 
       for (auto &BB : F) {
         GCOVBlock &Block = Func.getBlock(&BB);
@@ -873,7 +886,7 @@ bool GCOVProfiler::emitProfileArcs() {
   return Result;
 }
 
-FunctionCallee GCOVProfiler::getStartFileFunc() {
+FunctionCallee GCOVProfiler::getStartFileFunc(const TargetLibraryInfo *TLI) {
   Type *Args[] = {
     Type::getInt8PtrTy(*Ctx),  // const char *orig_filename
     Type::getInt8PtrTy(*Ctx),  // const char version[4]
@@ -887,7 +900,7 @@ FunctionCallee GCOVProfiler::getStartFileFunc() {
   return Res;
 }
 
-FunctionCallee GCOVProfiler::getEmitFunctionFunc() {
+FunctionCallee GCOVProfiler::getEmitFunctionFunc(const TargetLibraryInfo *TLI) {
   Type *Args[] = {
     Type::getInt32Ty(*Ctx),    // uint32_t ident
     Type::getInt8PtrTy(*Ctx),  // const char *function_name
@@ -906,7 +919,7 @@ FunctionCallee GCOVProfiler::getEmitFunctionFunc() {
   return M->getOrInsertFunction("llvm_gcda_emit_function", FTy);
 }
 
-FunctionCallee GCOVProfiler::getEmitArcsFunc() {
+FunctionCallee GCOVProfiler::getEmitArcsFunc(const TargetLibraryInfo *TLI) {
   Type *Args[] = {
     Type::getInt32Ty(*Ctx),     // uint32_t num_counters
     Type::getInt64PtrTy(*Ctx),  // uint64_t *counters
@@ -943,9 +956,11 @@ Function *GCOVProfiler::insertCounterWriteout(
   BasicBlock *BB = BasicBlock::Create(*Ctx, "entry", WriteoutF);
   IRBuilder<> Builder(BB);
 
-  FunctionCallee StartFile = getStartFileFunc();
-  FunctionCallee EmitFunction = getEmitFunctionFunc();
-  FunctionCallee EmitArcs = getEmitArcsFunc();
+  auto *TLI = &GetTLI(*WriteoutF);
+
+  FunctionCallee StartFile = getStartFileFunc(TLI);
+  FunctionCallee EmitFunction = getEmitFunctionFunc(TLI);
+  FunctionCallee EmitArcs = getEmitArcsFunc(TLI);
   FunctionCallee SummaryInfo = getSummaryInfoFunc();
   FunctionCallee EndFile = getEndFileFunc();
 

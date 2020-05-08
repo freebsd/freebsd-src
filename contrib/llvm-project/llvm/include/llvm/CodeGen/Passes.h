@@ -226,6 +226,10 @@ namespace llvm {
   /// inserting cmov instructions.
   extern char &EarlyIfConverterID;
 
+  /// EarlyIfPredicator - This pass performs if-conversion on SSA form by
+  /// predicating if/else block and insert select at the join point.
+  extern char &EarlyIfPredicatorID;
+
   /// This pass performs instruction combining using trace metrics to estimate
   /// critical-path and resource depth.
   extern char &MachineCombinerID;
@@ -270,6 +274,11 @@ namespace llvm {
 
   /// MachineCSE - This pass performs global CSE on machine instructions.
   extern char &MachineCSEID;
+
+  /// MIRCanonicalizer - This pass canonicalizes MIR by renaming vregs
+  /// according to the semantics of the instruction as well as hoists
+  /// code.
+  extern char &MIRCanonicalizerID;
 
   /// ImplicitNullChecks - This pass folds null pointer checks into nearby
   /// memory operations.
@@ -447,8 +456,15 @@ namespace llvm {
   /// Creates CFI Instruction Inserter pass. \see CFIInstrInserter.cpp
   FunctionPass *createCFIInstrInserter();
 
+  /// Creates CFGuard longjmp target identification pass.
+  /// \see CFGuardLongjmp.cpp
+  FunctionPass *createCFGuardLongjmpPass();
+
   /// Create Hardware Loop pass. \see HardwareLoops.cpp
   FunctionPass *createHardwareLoopsPass();
+
+  /// Create IR Type Promotion pass. \see TypePromotion.cpp
+  FunctionPass *createTypePromotionPass();
 
 } // End llvm namespace
 

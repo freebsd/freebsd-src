@@ -155,6 +155,14 @@ enum NodeType : unsigned {
   SMAXV,
   UMAXV,
 
+  SMAXV_PRED,
+  UMAXV_PRED,
+  SMINV_PRED,
+  UMINV_PRED,
+  ORV_PRED,
+  EORV_PRED,
+  ANDV_PRED,
+
   // Vector bitwise negation
   NOT,
 
@@ -191,6 +199,52 @@ enum NodeType : unsigned {
   FRECPE, FRECPS,
   FRSQRTE, FRSQRTS,
 
+  SUNPKHI,
+  SUNPKLO,
+  UUNPKHI,
+  UUNPKLO,
+
+  CLASTA_N,
+  CLASTB_N,
+  LASTA,
+  LASTB,
+  REV,
+  TBL,
+
+  INSR,
+  PTEST,
+  PTRUE,
+
+  // Unsigned gather loads.
+  GLD1,
+  GLD1_SCALED,
+  GLD1_UXTW,
+  GLD1_SXTW,
+  GLD1_UXTW_SCALED,
+  GLD1_SXTW_SCALED,
+  GLD1_IMM,
+
+  // Signed gather loads
+  GLD1S,
+  GLD1S_SCALED,
+  GLD1S_UXTW,
+  GLD1S_SXTW,
+  GLD1S_UXTW_SCALED,
+  GLD1S_SXTW_SCALED,
+  GLD1S_IMM,
+  // Scatter store
+  SST1,
+  SST1_SCALED,
+  SST1_UXTW,
+  SST1_SXTW,
+  SST1_UXTW_SCALED,
+  SST1_SXTW_SCALED,
+  SST1_IMM,
+
+  // Strict (exception-raising) floating point comparison
+  STRICT_FCMP = ISD::FIRST_TARGET_STRICTFP_OPCODE,
+  STRICT_FCMPE,
+
   // NEON Load/Store with post-increment base updates
   LD2post = ISD::FIRST_TARGET_MEMORY_OPCODE,
   LD3post,
@@ -219,8 +273,10 @@ enum NodeType : unsigned {
   STG,
   STZG,
   ST2G,
-  STZ2G
+  STZ2G,
 
+  LDP,
+  STP
 };
 
 } // end namespace AArch64ISD
@@ -261,6 +317,14 @@ public:
                                      const SelectionDAG &DAG,
                                      unsigned Depth = 0) const override;
 
+  MVT getPointerTy(const DataLayout &DL, uint32_t AS = 0) const override {
+    // Returning i64 unconditionally here (i.e. even for ILP32) means that the
+    // *DAG* representation of pointers will always be 64-bits. They will be
+    // truncated and extended when transferred to memory, but the 64-bit DAG
+    // allows us to use AArch64's addressing modes much more easily.
+    return MVT::getIntegerVT(64);
+  }
+
   bool targetShrinkDemandedConstant(SDValue Op, const APInt &Demanded,
                                     TargetLoweringOpt &TLO) const override;
 
@@ -272,6 +336,10 @@ public:
       EVT VT, unsigned AddrSpace = 0, unsigned Align = 1,
       MachineMemOperand::Flags Flags = MachineMemOperand::MONone,
       bool *Fast = nullptr) const override;
+  /// LLT variant.
+  bool allowsMisalignedMemoryAccesses(
+    LLT Ty, unsigned AddrSpace, unsigned Align, MachineMemOperand::Flags Flags,
+    bool *Fast = nullptr) const override;
 
   /// Provide custom lowering hooks for some operations.
   SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const override;
@@ -358,6 +426,10 @@ public:
                           bool IsMemset, bool ZeroMemset, bool MemcpyStrSrc,
                           const AttributeList &FuncAttributes) const override;
 
+  LLT getOptimalMemOpLLT(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
+                          bool IsMemset, bool ZeroMemset, bool MemcpyStrSrc,
+                          const AttributeList &FuncAttributes) const override;
+
   /// Return true if the addressing mode represented by AM is legal for this
   /// target, for a load/store of the specified type.
   bool isLegalAddressingMode(const DataLayout &DL, const AddrMode &AM, Type *Ty,
@@ -375,7 +447,9 @@ public:
   /// Return true if an FMA operation is faster than a pair of fmul and fadd
   /// instructions. fmuladd intrinsics will be expanded to FMAs when this method
   /// returns true, otherwise fmuladd is expanded to fmul + fadd.
-  bool isFMAFasterThanFMulAndFAdd(EVT VT) const override;
+  bool isFMAFasterThanFMulAndFAdd(const MachineFunction &MF,
+                                  EVT VT) const override;
+  bool isFMAFasterThanFMulAndFAdd(const Function &F, Type *Ty) const override;
 
   const MCPhysReg *getScratchRegisters(CallingConv::ID CC) const override;
 
@@ -479,6 +553,11 @@ public:
 
     return VT.getSizeInBits() >= 64; // vector 'bic'
   }
+
+  bool shouldProduceAndByConstByHoistingConstFromShiftsLHSOfAnd(
+      SDValue X, ConstantSDNode *XC, ConstantSDNode *CC, SDValue Y,
+      unsigned OldShiftOpcode, unsigned NewShiftOpcode,
+      SelectionDAG &DAG) const override;
 
   bool shouldExpandShift(SelectionDAG &DAG, SDNode *N) const override;
 
@@ -622,6 +701,8 @@ private:
   SDValue LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerDarwinGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerELFGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerELFTLSLocalExec(const GlobalValue *GV, SDValue ThreadBase,
+                               const SDLoc &DL, SelectionDAG &DAG) const;
   SDValue LowerELFTLSDescCallSeq(SDValue SymAddr, const SDLoc &DL,
                                  SelectionDAG &DAG) const;
   SDValue LowerWindowsGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const;
@@ -651,6 +732,7 @@ private:
   SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerVECTOR_SHUFFLE(SDValue Op, SelectionDAG &DAG) const;
+  SDValue LowerSPLAT_VECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerVectorSRA_SRL_SHL(SDValue Op, SelectionDAG &DAG) const;
   SDValue LowerShiftLeftParts(SDValue Op, SelectionDAG &DAG) const;
@@ -686,8 +768,8 @@ private:
   unsigned combineRepeatedFPDivisors() const override;
 
   ConstraintType getConstraintType(StringRef Constraint) const override;
-  unsigned getRegisterByName(const char* RegName, EVT VT,
-                             SelectionDAG &DAG) const override;
+  Register getRegisterByName(const char* RegName, LLT VT,
+                             const MachineFunction &MF) const override;
 
   /// Examine constraint string and operand type and determine a weight value.
   /// The operand object must already have been set up with the operand type.
@@ -714,6 +796,7 @@ private:
     return TargetLowering::getInlineAsmMemConstraint(ConstraintCode);
   }
 
+  bool isVectorLoadExtDesirable(SDValue ExtVal) const override;
   bool isUsedByReturnOnly(SDNode *N, SDValue &Chain) const override;
   bool mayBeEmittedAsTailCall(const CallInst *CI) const override;
   bool getIndexedAddressParts(SDNode *Op, SDValue &Base, SDValue &Offset,

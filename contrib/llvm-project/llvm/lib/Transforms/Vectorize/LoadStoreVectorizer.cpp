@@ -38,6 +38,7 @@
 // could use this pass (with some modifications), but currently it implements
 // its own pass to do something similar to what we do here.
 
+#include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/MapVector.h"
@@ -52,7 +53,6 @@
 #include "llvm/Analysis/OrderedBasicBlock.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/VectorUtils.h"
 #include "llvm/IR/Attributes.h"
@@ -71,14 +71,15 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/KnownBits.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Vectorize.h"
-#include "llvm/Transforms/Vectorize/LoadStoreVectorizer.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -147,7 +148,7 @@ private:
   static const unsigned MaxDepth = 3;
 
   bool isConsecutiveAccess(Value *A, Value *B);
-  bool areConsecutivePointers(Value *PtrA, Value *PtrB, const APInt &PtrDelta,
+  bool areConsecutivePointers(Value *PtrA, Value *PtrB, APInt PtrDelta,
                               unsigned Depth = 0) const;
   bool lookThroughComplexAddresses(Value *PtrA, Value *PtrB, APInt PtrDelta,
                                    unsigned Depth) const;
@@ -336,13 +337,28 @@ bool Vectorizer::isConsecutiveAccess(Value *A, Value *B) {
 }
 
 bool Vectorizer::areConsecutivePointers(Value *PtrA, Value *PtrB,
-                                        const APInt &PtrDelta,
-                                        unsigned Depth) const {
+                                        APInt PtrDelta, unsigned Depth) const {
   unsigned PtrBitWidth = DL.getPointerTypeSizeInBits(PtrA->getType());
   APInt OffsetA(PtrBitWidth, 0);
   APInt OffsetB(PtrBitWidth, 0);
   PtrA = PtrA->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetA);
   PtrB = PtrB->stripAndAccumulateInBoundsConstantOffsets(DL, OffsetB);
+
+  unsigned NewPtrBitWidth = DL.getTypeStoreSizeInBits(PtrA->getType());
+
+  if (NewPtrBitWidth != DL.getTypeStoreSizeInBits(PtrB->getType()))
+    return false;
+
+  // In case if we have to shrink the pointer
+  // stripAndAccumulateInBoundsConstantOffsets should properly handle a
+  // possible overflow and the value should fit into a smallest data type
+  // used in the cast/gep chain.
+  assert(OffsetA.getMinSignedBits() <= NewPtrBitWidth &&
+         OffsetB.getMinSignedBits() <= NewPtrBitWidth);
+
+  OffsetA = OffsetA.sextOrTrunc(NewPtrBitWidth);
+  OffsetB = OffsetB.sextOrTrunc(NewPtrBitWidth);
+  PtrDelta = PtrDelta.sextOrTrunc(NewPtrBitWidth);
 
   APInt OffsetDelta = OffsetB - OffsetA;
 
@@ -650,7 +666,7 @@ Vectorizer::getVectorizablePrefix(ArrayRef<Instruction *> Chain) {
       // We can ignore the alias if the we have a load store pair and the load
       // is known to be invariant. The load cannot be clobbered by the store.
       auto IsInvariantLoad = [](const LoadInst *LI) -> bool {
-        return LI->getMetadata(LLVMContext::MD_invariant_load);
+        return LI->hasMetadata(LLVMContext::MD_invariant_load);
       };
 
       // We can ignore the alias as long as the load comes before the store,
@@ -1077,7 +1093,7 @@ bool Vectorizer::vectorizeLoadChain(
   LoadInst *L0 = cast<LoadInst>(Chain[0]);
 
   // If the vector has an int element, default to int for the whole load.
-  Type *LoadTy;
+  Type *LoadTy = nullptr;
   for (const auto &V : Chain) {
     LoadTy = cast<LoadInst>(V)->getType();
     if (LoadTy->isIntOrIntVectorTy())
@@ -1089,6 +1105,7 @@ bool Vectorizer::vectorizeLoadChain(
       break;
     }
   }
+  assert(LoadTy && "Can't determine LoadInst type from chain");
 
   unsigned Sz = DL.getTypeSizeInBits(LoadTy);
   unsigned AS = L0->getPointerAddressSpace();

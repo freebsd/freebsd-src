@@ -51,13 +51,14 @@ static cl::list<unsigned>
                      "Can only be used with one input file."),
             cl::cat(ClangFormatCategory));
 static cl::list<std::string>
-LineRanges("lines", cl::desc("<start line>:<end line> - format a range of\n"
-                             "lines (both 1-based).\n"
-                             "Multiple ranges can be formatted by specifying\n"
-                             "several -lines arguments.\n"
-                             "Can't be used with -offset and -length.\n"
-                             "Can only be used with one input file."),
-           cl::cat(ClangFormatCategory));
+    LineRanges("lines",
+               cl::desc("<start line>:<end line> - format a range of\n"
+                        "lines (both 1-based).\n"
+                        "Multiple ranges can be formatted by specifying\n"
+                        "several -lines arguments.\n"
+                        "Can't be used with -offset and -length.\n"
+                        "Can only be used with one input file."),
+               cl::cat(ClangFormatCategory));
 static cl::opt<std::string>
     Style("style", cl::desc(clang::format::StyleOptionHelpDescription),
           cl::init(clang::format::DefaultFormatStyle),
@@ -72,12 +73,12 @@ static cl::opt<std::string>
                   cl::init(clang::format::DefaultFallbackStyle),
                   cl::cat(ClangFormatCategory));
 
-static cl::opt<std::string>
-AssumeFileName("assume-filename",
-               cl::desc("When reading from stdin, clang-format assumes this\n"
-                        "filename to look for a style config file (with\n"
-                        "-style=file) and to determine the language."),
-               cl::init("<stdin>"), cl::cat(ClangFormatCategory));
+static cl::opt<std::string> AssumeFileName(
+    "assume-filename",
+    cl::desc("Override filename used to determine the language.\n"
+             "When reading from stdin, clang-format assumes this\n"
+             "filename to determine the language."),
+    cl::init("<stdin>"), cl::cat(ClangFormatCategory));
 
 static cl::opt<bool> Inplace("i",
                              cl::desc("Inplace edit <file>s, if specified."),
@@ -107,6 +108,54 @@ static cl::opt<bool>
     Verbose("verbose", cl::desc("If set, shows the list of processed files"),
             cl::cat(ClangFormatCategory));
 
+// Use --dry-run to match other LLVM tools when you mean do it but don't
+// actually do it
+static cl::opt<bool>
+    DryRun("dry-run",
+           cl::desc("If set, do not actually make the formatting changes"),
+           cl::cat(ClangFormatCategory));
+
+// Use -n as a common command as an alias for --dry-run. (git and make use -n)
+static cl::alias DryRunShort("n", cl::desc("Alias for --dry-run"),
+                             cl::cat(ClangFormatCategory), cl::aliasopt(DryRun),
+                             cl::NotHidden);
+
+// Emulate being able to turn on/off the warning.
+static cl::opt<bool>
+    WarnFormat("Wclang-format-violations",
+               cl::desc("Warnings about individual formatting changes needed. "
+                        "Used only with --dry-run or -n"),
+               cl::init(true), cl::cat(ClangFormatCategory), cl::Hidden);
+
+static cl::opt<bool>
+    NoWarnFormat("Wno-clang-format-violations",
+                 cl::desc("Do not warn about individual formatting changes "
+                          "needed. Used only with --dry-run or -n"),
+                 cl::init(false), cl::cat(ClangFormatCategory), cl::Hidden);
+
+static cl::opt<unsigned> ErrorLimit(
+    "ferror-limit",
+    cl::desc("Set the maximum number of clang-format errors to emit before "
+             "stopping (0 = no limit). Used only with --dry-run or -n"),
+    cl::init(0), cl::cat(ClangFormatCategory));
+
+static cl::opt<bool>
+    WarningsAsErrors("Werror",
+                     cl::desc("If set, changes formatting warnings to errors"),
+                     cl::cat(ClangFormatCategory));
+
+static cl::opt<bool>
+    ShowColors("fcolor-diagnostics",
+               cl::desc("If set, and on a color-capable terminal controls "
+                        "whether or not to print diagnostics in color"),
+               cl::init(true), cl::cat(ClangFormatCategory), cl::Hidden);
+
+static cl::opt<bool>
+    NoShowColors("fno-color-diagnostics",
+                 cl::desc("If set, and on a color-capable terminal controls "
+                          "whether or not to print diagnostics in color"),
+                 cl::init(false), cl::cat(ClangFormatCategory), cl::Hidden);
+
 static cl::list<std::string> FileNames(cl::Positional, cl::desc("[<file> ...]"),
                                        cl::cat(ClangFormatCategory));
 
@@ -117,7 +166,8 @@ static FileID createInMemoryFile(StringRef FileName, MemoryBuffer *Source,
                                  SourceManager &Sources, FileManager &Files,
                                  llvm::vfs::InMemoryFileSystem *MemFS) {
   MemFS->addFileNoOwn(FileName, 0, Source);
-  return Sources.createFileID(Files.getFile(FileName), SourceLocation(),
+  auto File = Files.getFile(FileName);
+  return Sources.createFileID(File ? *File : nullptr, SourceLocation(),
                               SrcMgr::C_User);
 }
 
@@ -239,6 +289,53 @@ static void outputReplacementsXML(const Replacements &Replaces) {
   }
 }
 
+static bool
+emitReplacementWarnings(const Replacements &Replaces, StringRef AssumedFileName,
+                        const std::unique_ptr<llvm::MemoryBuffer> &Code) {
+  if (Replaces.empty())
+    return false;
+
+  unsigned Errors = 0;
+  if (WarnFormat && !NoWarnFormat) {
+    llvm::SourceMgr Mgr;
+    const char *StartBuf = Code->getBufferStart();
+
+    Mgr.AddNewSourceBuffer(
+        MemoryBuffer::getMemBuffer(StartBuf, AssumedFileName), SMLoc());
+    for (const auto &R : Replaces) {
+      SMDiagnostic Diag = Mgr.GetMessage(
+          SMLoc::getFromPointer(StartBuf + R.getOffset()),
+          WarningsAsErrors ? SourceMgr::DiagKind::DK_Error
+                           : SourceMgr::DiagKind::DK_Warning,
+          "code should be clang-formatted [-Wclang-format-violations]");
+
+      Diag.print(nullptr, llvm::errs(), (ShowColors && !NoShowColors));
+      if (ErrorLimit && ++Errors >= ErrorLimit)
+        break;
+    }
+  }
+  return WarningsAsErrors;
+}
+
+static void outputXML(const Replacements &Replaces,
+                      const Replacements &FormatChanges,
+                      const FormattingAttemptStatus &Status,
+                      const cl::opt<unsigned> &Cursor,
+                      unsigned CursorPosition) {
+  outs() << "<?xml version='1.0'?>\n<replacements "
+            "xml:space='preserve' incomplete_format='"
+         << (Status.FormatComplete ? "false" : "true") << "'";
+  if (!Status.FormatComplete)
+    outs() << " line='" << Status.Line << "'";
+  outs() << ">\n";
+  if (Cursor.getNumOccurrences() != 0)
+    outs() << "<cursor>" << FormatChanges.getShiftedCodePosition(CursorPosition)
+           << "</cursor>\n";
+
+  outputReplacementsXML(Replaces);
+  outs() << "</replacements>\n";
+}
+
 // Returns true on error.
 static bool format(StringRef FileName) {
   if (!OutputXML && Inplace && FileName == "-") {
@@ -248,8 +345,8 @@ static bool format(StringRef FileName) {
   // On Windows, overwriting a file with an open file mapping doesn't work,
   // so read the whole file into memory when formatting in-place.
   ErrorOr<std::unique_ptr<MemoryBuffer>> CodeOrErr =
-      !OutputXML && Inplace ? MemoryBuffer::getFileAsStream(FileName) :
-                              MemoryBuffer::getFileOrSTDIN(FileName);
+      !OutputXML && Inplace ? MemoryBuffer::getFileAsStream(FileName)
+                            : MemoryBuffer::getFileOrSTDIN(FileName);
   if (std::error_code EC = CodeOrErr.getError()) {
     errs() << EC.message() << "\n";
     return true;
@@ -258,25 +355,9 @@ static bool format(StringRef FileName) {
   if (Code->getBufferSize() == 0)
     return false; // Empty files are formatted correctly.
 
-  // Check to see if the buffer has a UTF Byte Order Mark (BOM).
-  // We only support UTF-8 with and without a BOM right now.  See
-  // https://en.wikipedia.org/wiki/Byte_order_mark#Byte_order_marks_by_encoding
-  // for more information.
   StringRef BufStr = Code->getBuffer();
-  const char *InvalidBOM = llvm::StringSwitch<const char *>(BufStr)
-    .StartsWith(llvm::StringLiteral::withInnerNUL("\x00\x00\xFE\xFF"),
-                                                  "UTF-32 (BE)")
-    .StartsWith(llvm::StringLiteral::withInnerNUL("\xFF\xFE\x00\x00"),
-                                                  "UTF-32 (LE)")
-    .StartsWith("\xFE\xFF", "UTF-16 (BE)")
-    .StartsWith("\xFF\xFE", "UTF-16 (LE)")
-    .StartsWith("\x2B\x2F\x76", "UTF-7")
-    .StartsWith("\xF7\x64\x4C", "UTF-1")
-    .StartsWith("\xDD\x73\x66\x73", "UTF-EBCDIC")
-    .StartsWith("\x0E\xFE\xFF", "SCSU")
-    .StartsWith("\xFB\xEE\x28", "BOCU-1")
-    .StartsWith("\x84\x31\x95\x33", "GB-18030")
-    .Default(nullptr);
+
+  const char *InvalidBOM = SrcMgr::ContentCache::getInvalidBOM(BufStr);
 
   if (InvalidBOM) {
     errs() << "error: encoding with unsupported byte order mark \""
@@ -291,6 +372,10 @@ static bool format(StringRef FileName) {
   if (fillRanges(Code.get(), Ranges))
     return true;
   StringRef AssumedFileName = (FileName == "-") ? AssumeFileName : FileName;
+  if (AssumedFileName.empty()) {
+    llvm::errs() << "error: empty filenames are not allowed\n";
+    return true;
+  }
 
   llvm::Expected<FormatStyle> FormatStyle =
       getStyle(Style, AssumedFileName, FallbackStyle, Code->getBuffer());
@@ -312,23 +397,15 @@ static bool format(StringRef FileName) {
   // Get new affected ranges after sorting `#includes`.
   Ranges = tooling::calculateRangesAfterReplacements(Replaces, Ranges);
   FormattingAttemptStatus Status;
-  Replacements FormatChanges = reformat(*FormatStyle, *ChangedCode, Ranges,
-                                        AssumedFileName, &Status);
+  Replacements FormatChanges =
+      reformat(*FormatStyle, *ChangedCode, Ranges, AssumedFileName, &Status);
   Replaces = Replaces.merge(FormatChanges);
-  if (OutputXML) {
-    outs() << "<?xml version='1.0'?>\n<replacements "
-              "xml:space='preserve' incomplete_format='"
-           << (Status.FormatComplete ? "false" : "true") << "'";
-    if (!Status.FormatComplete)
-      outs() << " line='" << Status.Line << "'";
-    outs() << ">\n";
-    if (Cursor.getNumOccurrences() != 0)
-      outs() << "<cursor>"
-             << FormatChanges.getShiftedCodePosition(CursorPosition)
-             << "</cursor>\n";
-
-    outputReplacementsXML(Replaces);
-    outs() << "</replacements>\n";
+  if (OutputXML || DryRun) {
+    if (DryRun) {
+      return emitReplacementWarnings(Replaces, AssumedFileName, Code);
+    } else {
+      outputXML(Replaces, FormatChanges, Status, Cursor, CursorPosition);
+    }
   } else {
     IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> InMemoryFileSystem(
         new llvm::vfs::InMemoryFileSystem);
@@ -360,11 +437,43 @@ static bool format(StringRef FileName) {
   return false;
 }
 
-}  // namespace format
-}  // namespace clang
+} // namespace format
+} // namespace clang
 
 static void PrintVersion(raw_ostream &OS) {
   OS << clang::getClangToolFullVersion("clang-format") << '\n';
+}
+
+// Dump the configuration.
+static int dumpConfig() {
+  StringRef FileName;
+  std::unique_ptr<llvm::MemoryBuffer> Code;
+  if (FileNames.empty()) {
+    // We can't read the code to detect the language if there's no
+    // file name, so leave Code empty here.
+    FileName = AssumeFileName;
+  } else {
+    // Read in the code in case the filename alone isn't enough to
+    // detect the language.
+    ErrorOr<std::unique_ptr<MemoryBuffer>> CodeOrErr =
+        MemoryBuffer::getFileOrSTDIN(FileNames[0]);
+    if (std::error_code EC = CodeOrErr.getError()) {
+      llvm::errs() << EC.message() << "\n";
+      return 1;
+    }
+    FileName = (FileNames[0] == "-") ? AssumeFileName : FileNames[0];
+    Code = std::move(CodeOrErr.get());
+  }
+  llvm::Expected<clang::format::FormatStyle> FormatStyle =
+      clang::format::getStyle(Style, FileName, FallbackStyle,
+                              Code ? Code->getBuffer() : "");
+  if (!FormatStyle) {
+    llvm::errs() << llvm::toString(FormatStyle.takeError()) << "\n";
+    return 1;
+  }
+  std::string Config = clang::format::configurationAsText(*FormatStyle);
+  outs() << Config << "\n";
+  return 0;
 }
 
 int main(int argc, const char **argv) {
@@ -388,34 +497,7 @@ int main(int argc, const char **argv) {
   }
 
   if (DumpConfig) {
-    StringRef FileName;
-    std::unique_ptr<llvm::MemoryBuffer> Code;
-    if (FileNames.empty()) {
-      // We can't read the code to detect the language if there's no
-      // file name, so leave Code empty here.
-      FileName = AssumeFileName;
-    } else {
-      // Read in the code in case the filename alone isn't enough to
-      // detect the language.
-      ErrorOr<std::unique_ptr<MemoryBuffer>> CodeOrErr =
-          MemoryBuffer::getFileOrSTDIN(FileNames[0]);
-      if (std::error_code EC = CodeOrErr.getError()) {
-        llvm::errs() << EC.message() << "\n";
-        return 1;
-      }
-      FileName = (FileNames[0] == "-") ? AssumeFileName : FileNames[0];
-      Code = std::move(CodeOrErr.get());
-    }
-    llvm::Expected<clang::format::FormatStyle> FormatStyle =
-        clang::format::getStyle(Style, FileName, FallbackStyle,
-                                Code ? Code->getBuffer() : "");
-    if (!FormatStyle) {
-      llvm::errs() << llvm::toString(FormatStyle.takeError()) << "\n";
-      return 1;
-    }
-    std::string Config = clang::format::configurationAsText(*FormatStyle);
-    outs() << Config << "\n";
-    return 0;
+    return dumpConfig();
   }
 
   bool Error = false;
@@ -423,7 +505,8 @@ int main(int argc, const char **argv) {
     Error = clang::format::format("-");
     return Error ? 1 : 0;
   }
-  if (FileNames.size() != 1 && (!Offsets.empty() || !Lengths.empty() || !LineRanges.empty())) {
+  if (FileNames.size() != 1 &&
+      (!Offsets.empty() || !Lengths.empty() || !LineRanges.empty())) {
     errs() << "error: -offset, -length and -lines can only be used for "
               "single file.\n";
     return 1;

@@ -18,6 +18,8 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ProfileSummary.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/CommandLine.h"
 using namespace llvm;
 
 // The following two parameters determine the threshold for a count to be
@@ -42,6 +44,13 @@ static cl::opt<unsigned> ProfileSummaryHugeWorkingSetSizeThreshold(
     "profile-summary-huge-working-set-size-threshold", cl::Hidden,
     cl::init(15000), cl::ZeroOrMore,
     cl::desc("The code working set size is considered huge if the number of"
+             " blocks required to reach the -profile-summary-cutoff-hot"
+             " percentile exceeds this count."));
+
+static cl::opt<unsigned> ProfileSummaryLargeWorkingSetSizeThreshold(
+    "profile-summary-large-working-set-size-threshold", cl::Hidden,
+    cl::init(12500), cl::ZeroOrMore,
+    cl::desc("The code working set size is considered large if the number of"
              " blocks required to reach the -profile-summary-cutoff-hot"
              " percentile exceeds this count."));
 
@@ -186,6 +195,31 @@ bool ProfileSummaryInfo::isFunctionColdInCallGraph(const Function *F,
   return true;
 }
 
+// Like isFunctionHotInCallGraph but for a given cutoff.
+bool ProfileSummaryInfo::isFunctionHotInCallGraphNthPercentile(
+    int PercentileCutoff, const Function *F, BlockFrequencyInfo &BFI) {
+  if (!F || !computeSummary())
+    return false;
+  if (auto FunctionCount = F->getEntryCount())
+    if (isHotCountNthPercentile(PercentileCutoff, FunctionCount.getCount()))
+      return true;
+
+  if (hasSampleProfile()) {
+    uint64_t TotalCallCount = 0;
+    for (const auto &BB : *F)
+      for (const auto &I : BB)
+        if (isa<CallInst>(I) || isa<InvokeInst>(I))
+          if (auto CallCount = getProfileCount(&I, nullptr))
+            TotalCallCount += CallCount.getValue();
+    if (isHotCountNthPercentile(PercentileCutoff, TotalCallCount))
+      return true;
+  }
+  for (const auto &BB : *F)
+    if (isHotBlockNthPercentile(PercentileCutoff, &BB, &BFI))
+      return true;
+  return false;
+}
+
 /// Returns true if the function's entry is a cold. If it returns false, it
 /// either means it is not cold or it is unknown whether it is cold or not (for
 /// example, no profile data is available).
@@ -222,12 +256,35 @@ void ProfileSummaryInfo::computeThresholds() {
          "Cold count threshold cannot exceed hot count threshold!");
   HasHugeWorkingSetSize =
       HotEntry.NumCounts > ProfileSummaryHugeWorkingSetSizeThreshold;
+  HasLargeWorkingSetSize =
+      HotEntry.NumCounts > ProfileSummaryLargeWorkingSetSizeThreshold;
+}
+
+Optional<uint64_t> ProfileSummaryInfo::computeThreshold(int PercentileCutoff) {
+  if (!computeSummary())
+    return None;
+  auto iter = ThresholdCache.find(PercentileCutoff);
+  if (iter != ThresholdCache.end()) {
+    return iter->second;
+  }
+  auto &DetailedSummary = Summary->getDetailedSummary();
+  auto &Entry =
+      getEntryForPercentile(DetailedSummary, PercentileCutoff);
+  uint64_t CountThreshold = Entry.MinCount;
+  ThresholdCache[PercentileCutoff] = CountThreshold;
+  return CountThreshold;
 }
 
 bool ProfileSummaryInfo::hasHugeWorkingSetSize() {
   if (!HasHugeWorkingSetSize)
     computeThresholds();
   return HasHugeWorkingSetSize && HasHugeWorkingSetSize.getValue();
+}
+
+bool ProfileSummaryInfo::hasLargeWorkingSetSize() {
+  if (!HasLargeWorkingSetSize)
+    computeThresholds();
+  return HasLargeWorkingSetSize && HasLargeWorkingSetSize.getValue();
 }
 
 bool ProfileSummaryInfo::isHotCount(uint64_t C) {
@@ -240,6 +297,11 @@ bool ProfileSummaryInfo::isColdCount(uint64_t C) {
   if (!ColdCountThreshold)
     computeThresholds();
   return ColdCountThreshold && C <= ColdCountThreshold.getValue();
+}
+
+bool ProfileSummaryInfo::isHotCountNthPercentile(int PercentileCutoff, uint64_t C) {
+  auto CountThreshold = computeThreshold(PercentileCutoff);
+  return CountThreshold && C >= CountThreshold.getValue();
 }
 
 uint64_t ProfileSummaryInfo::getOrCompHotCountThreshold() {
@@ -263,6 +325,13 @@ bool ProfileSummaryInfo::isColdBlock(const BasicBlock *BB,
                                   BlockFrequencyInfo *BFI) {
   auto Count = BFI->getBlockProfileCount(BB);
   return Count && isColdCount(*Count);
+}
+
+bool ProfileSummaryInfo::isHotBlockNthPercentile(int PercentileCutoff,
+                                                 const BasicBlock *BB,
+                                                 BlockFrequencyInfo *BFI) {
+  auto Count = BFI->getBlockProfileCount(BB);
+  return Count && isHotCountNthPercentile(PercentileCutoff, *Count);
 }
 
 bool ProfileSummaryInfo::isHotCallSite(const CallSite &CS,

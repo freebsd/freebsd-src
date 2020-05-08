@@ -17,6 +17,7 @@
 #include "llvm/IR/Function.h" // To access function attributes.
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsAArch64.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/KnownBits.h"
@@ -39,20 +40,16 @@ class AArch64DAGToDAGISel : public SelectionDAGISel {
   /// make the right decision when generating code for different targets.
   const AArch64Subtarget *Subtarget;
 
-  bool ForCodeSize;
-
 public:
   explicit AArch64DAGToDAGISel(AArch64TargetMachine &tm,
                                CodeGenOpt::Level OptLevel)
-      : SelectionDAGISel(tm, OptLevel), Subtarget(nullptr),
-        ForCodeSize(false) {}
+      : SelectionDAGISel(tm, OptLevel), Subtarget(nullptr) {}
 
   StringRef getPassName() const override {
     return "AArch64 Instruction Selection";
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override {
-    ForCodeSize = MF.getFunction().hasOptSize();
     Subtarget = &MF.getSubtarget<AArch64Subtarget>();
     return SelectionDAGISel::runOnMachineFunction(MF);
   }
@@ -140,6 +137,59 @@ public:
     return SelectAddrModeXRO(N, Width / 8, Base, Offset, SignExtend, DoShift);
   }
 
+  bool SelectDupZeroOrUndef(SDValue N) {
+    switch(N->getOpcode()) {
+    case ISD::UNDEF:
+      return true;
+    case AArch64ISD::DUP:
+    case ISD::SPLAT_VECTOR: {
+      auto Opnd0 = N->getOperand(0);
+      if (auto CN = dyn_cast<ConstantSDNode>(Opnd0))
+        if (CN->isNullValue())
+          return true;
+      if (auto CN = dyn_cast<ConstantFPSDNode>(Opnd0))
+        if (CN->isZero())
+          return true;
+      break;
+    }
+    default:
+      break;
+    }
+
+    return false;
+  }
+
+  template<MVT::SimpleValueType VT>
+  bool SelectSVEAddSubImm(SDValue N, SDValue &Imm, SDValue &Shift) {
+    return SelectSVEAddSubImm(N, VT, Imm, Shift);
+  }
+
+  template<MVT::SimpleValueType VT>
+  bool SelectSVELogicalImm(SDValue N, SDValue &Imm) {
+    return SelectSVELogicalImm(N, VT, Imm);
+  }
+
+  // Returns a suitable CNT/INC/DEC/RDVL multiplier to calculate VSCALE*N.
+  template<signed Min, signed Max, signed Scale, bool Shift>
+  bool SelectCntImm(SDValue N, SDValue &Imm) {
+    if (!isa<ConstantSDNode>(N))
+      return false;
+
+    int64_t MulImm = cast<ConstantSDNode>(N)->getSExtValue();
+    if (Shift)
+      MulImm = 1LL << MulImm;
+
+    if ((MulImm % std::abs(Scale)) != 0)
+      return false;
+
+    MulImm /= Scale;
+    if ((MulImm >= Min) && (MulImm <= Max)) {
+      Imm = CurDAG->getTargetConstant(MulImm, SDLoc(N), MVT::i32);
+      return true;
+    }
+
+    return false;
+  }
 
   /// Form sequences of consecutive 64/128-bit registers for use in NEON
   /// instructions making use of a vector-list (e.g. ldN, tbl). Vecs must have
@@ -177,6 +227,7 @@ public:
   bool tryBitfieldInsertOp(SDNode *N);
   bool tryBitfieldInsertInZeroOp(SDNode *N);
   bool tryShiftAmountMod(SDNode *N);
+  bool tryHighFPExt(SDNode *N);
 
   bool tryReadRegister(SDNode *N);
   bool tryWriteRegister(SDNode *N);
@@ -217,6 +268,13 @@ private:
 
   bool SelectCMP_SWAP(SDNode *N);
 
+  bool SelectSVEAddSubImm(SDValue N, MVT VT, SDValue &Imm, SDValue &Shift);
+
+  bool SelectSVELogicalImm(SDValue N, MVT VT, SDValue &Imm);
+
+  bool SelectSVESignedArithImm(SDValue N, SDValue &Imm);
+
+  bool SelectSVEArithImm(SDValue N, SDValue &Imm);
 };
 } // end anonymous namespace
 
@@ -250,7 +308,6 @@ bool AArch64DAGToDAGISel::SelectInlineAsmMemoryOperand(
   switch(ConstraintID) {
   default:
     llvm_unreachable("Unexpected asm memory constraint");
-  case InlineAsm::Constraint_i:
   case InlineAsm::Constraint_m:
   case InlineAsm::Constraint_Q:
     // We need to make sure that this one operand does not end up in XZR, thus
@@ -378,7 +435,7 @@ static bool isWorthFoldingSHL(SDValue V) {
 bool AArch64DAGToDAGISel::isWorthFolding(SDValue V) const {
   // Trivial if we are optimizing for code size or if there is only
   // one use of the value.
-  if (ForCodeSize || V.hasOneUse())
+  if (CurDAG->shouldOptForSize() || V.hasOneUse())
     return true;
   // If a subtarget has a fastpath LSL we can fold a logical shift into
   // the addressing mode and save a cycle.
@@ -1772,6 +1829,35 @@ bool AArch64DAGToDAGISel::tryBitfieldExtractOpFromSExt(SDNode *N) {
   return true;
 }
 
+/// Try to form fcvtl2 instructions from a floating-point extend of a high-half
+/// extract of a subvector.
+bool AArch64DAGToDAGISel::tryHighFPExt(SDNode *N) {
+  assert(N->getOpcode() == ISD::FP_EXTEND);
+
+  // There are 2 forms of fcvtl2 - extend to double or extend to float.
+  SDValue Extract = N->getOperand(0);
+  EVT VT = N->getValueType(0);
+  EVT NarrowVT = Extract.getValueType();
+  if ((VT != MVT::v2f64 || NarrowVT != MVT::v2f32) &&
+      (VT != MVT::v4f32 || NarrowVT != MVT::v4f16))
+    return false;
+
+  // Optionally look past a bitcast.
+  Extract = peekThroughBitcasts(Extract);
+  if (Extract.getOpcode() != ISD::EXTRACT_SUBVECTOR)
+    return false;
+
+  // Match extract from start of high half index.
+  // Example: v8i16 -> v4i16 means the extract must begin at index 4.
+  unsigned ExtractIndex = Extract.getConstantOperandVal(1);
+  if (ExtractIndex != Extract.getValueType().getVectorNumElements())
+    return false;
+
+  auto Opcode = VT == MVT::v2f64 ? AArch64::FCVTLv4i32 : AArch64::FCVTLv8i16;
+  CurDAG->SelectNodeTo(N, Opcode, VT, Extract.getOperand(0));
+  return true;
+}
+
 static bool isBitfieldExtractOp(SelectionDAG *CurDAG, SDNode *N, unsigned &Opc,
                                 SDValue &Opd0, unsigned &Immr, unsigned &Imms,
                                 unsigned NumberOfIgnoredLowBits = 0,
@@ -2053,7 +2139,7 @@ static void getUsefulBitsForUse(SDNode *UserNode, APInt &UsefulBits,
 }
 
 static void getUsefulBits(SDValue Op, APInt &UsefulBits, unsigned Depth) {
-  if (Depth >= 6)
+  if (Depth >= SelectionDAG::MaxRecursionDepth)
     return;
   // Initialize UsefulBits
   if (!Depth) {
@@ -2793,6 +2879,102 @@ bool AArch64DAGToDAGISel::SelectCMP_SWAP(SDNode *N) {
   return true;
 }
 
+bool AArch64DAGToDAGISel::SelectSVEAddSubImm(SDValue N, MVT VT, SDValue &Imm, SDValue &Shift) {
+  if (auto CNode = dyn_cast<ConstantSDNode>(N)) {
+    const int64_t ImmVal = CNode->getZExtValue();
+    SDLoc DL(N);
+
+    switch (VT.SimpleTy) {
+    case MVT::i8:
+      if ((ImmVal & 0xFF) == ImmVal) {
+        Shift = CurDAG->getTargetConstant(0, DL, MVT::i32);
+        Imm = CurDAG->getTargetConstant(ImmVal, DL, MVT::i32);
+        return true;
+      }
+      break;
+    case MVT::i16:
+    case MVT::i32:
+    case MVT::i64:
+      if ((ImmVal & 0xFF) == ImmVal) {
+        Shift = CurDAG->getTargetConstant(0, DL, MVT::i32);
+        Imm = CurDAG->getTargetConstant(ImmVal, DL, MVT::i32);
+        return true;
+      } else if ((ImmVal & 0xFF00) == ImmVal) {
+        Shift = CurDAG->getTargetConstant(8, DL, MVT::i32);
+        Imm = CurDAG->getTargetConstant(ImmVal >> 8, DL, MVT::i32);
+        return true;
+      }
+      break;
+    default:
+      break;
+    }
+  }
+
+  return false;
+}
+
+bool AArch64DAGToDAGISel::SelectSVESignedArithImm(SDValue N, SDValue &Imm) {
+  if (auto CNode = dyn_cast<ConstantSDNode>(N)) {
+    int64_t ImmVal = CNode->getSExtValue();
+    SDLoc DL(N);
+    if (ImmVal >= -127 && ImmVal < 127) {
+      Imm = CurDAG->getTargetConstant(ImmVal, DL, MVT::i32);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool AArch64DAGToDAGISel::SelectSVEArithImm(SDValue N, SDValue &Imm) {
+  if (auto CNode = dyn_cast<ConstantSDNode>(N)) {
+    uint64_t ImmVal = CNode->getSExtValue();
+    SDLoc DL(N);
+    ImmVal = ImmVal & 0xFF;
+    if (ImmVal < 256) {
+      Imm = CurDAG->getTargetConstant(ImmVal, DL, MVT::i32);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool AArch64DAGToDAGISel::SelectSVELogicalImm(SDValue N, MVT VT, SDValue &Imm) {
+  if (auto CNode = dyn_cast<ConstantSDNode>(N)) {
+    uint64_t ImmVal = CNode->getZExtValue();
+    SDLoc DL(N);
+
+    // Shift mask depending on type size.
+    switch (VT.SimpleTy) {
+      case MVT::i8:
+        ImmVal &= 0xFF;
+        ImmVal |= ImmVal << 8;
+        ImmVal |= ImmVal << 16;
+        ImmVal |= ImmVal << 32;
+        break;
+      case MVT::i16:
+        ImmVal &= 0xFFFF;
+        ImmVal |= ImmVal << 16;
+        ImmVal |= ImmVal << 32;
+        break;
+      case MVT::i32:
+        ImmVal &= 0xFFFFFFFF;
+        ImmVal |= ImmVal << 32;
+        break;
+      case MVT::i64:
+        break;
+      default:
+        llvm_unreachable("Unexpected type");
+    }
+
+    uint64_t encoding;
+    if (AArch64_AM::processLogicalImmediate(ImmVal, 64, encoding)) {
+      Imm = CurDAG->getTargetConstant(encoding, DL, MVT::i64);
+      return true;
+    }
+  }
+  return false;
+}
+
 bool AArch64DAGToDAGISel::trySelectStackSlotTagP(SDNode *N) {
   // tagp(FrameIndex, IRGstack, tag_offset):
   // since the offset between FrameIndex and IRGstack is a compile-time
@@ -2908,54 +3090,16 @@ void AArch64DAGToDAGISel::Select(SDNode *Node) {
       return;
     break;
 
+  case ISD::FP_EXTEND:
+    if (tryHighFPExt(Node))
+      return;
+    break;
+
   case ISD::OR:
     if (tryBitfieldInsertOp(Node))
       return;
     break;
 
-  case ISD::EXTRACT_VECTOR_ELT: {
-    // Extracting lane zero is a special case where we can just use a plain
-    // EXTRACT_SUBREG instruction, which will become FMOV. This is easier for
-    // the rest of the compiler, especially the register allocator and copyi
-    // propagation, to reason about, so is preferred when it's possible to
-    // use it.
-    ConstantSDNode *LaneNode = cast<ConstantSDNode>(Node->getOperand(1));
-    // Bail and use the default Select() for non-zero lanes.
-    if (LaneNode->getZExtValue() != 0)
-      break;
-    // If the element type is not the same as the result type, likewise
-    // bail and use the default Select(), as there's more to do than just
-    // a cross-class COPY. This catches extracts of i8 and i16 elements
-    // since they will need an explicit zext.
-    if (VT != Node->getOperand(0).getValueType().getVectorElementType())
-      break;
-    unsigned SubReg;
-    switch (Node->getOperand(0)
-                .getValueType()
-                .getVectorElementType()
-                .getSizeInBits()) {
-    default:
-      llvm_unreachable("Unexpected vector element type!");
-    case 64:
-      SubReg = AArch64::dsub;
-      break;
-    case 32:
-      SubReg = AArch64::ssub;
-      break;
-    case 16:
-      SubReg = AArch64::hsub;
-      break;
-    case 8:
-      llvm_unreachable("unexpected zext-requiring extract element!");
-    }
-    SDValue Extract = CurDAG->getTargetExtractSubreg(SubReg, SDLoc(Node), VT,
-                                                     Node->getOperand(0));
-    LLVM_DEBUG(dbgs() << "ISEL: Custom selection!\n=> ");
-    LLVM_DEBUG(Extract->dumpr(CurDAG));
-    LLVM_DEBUG(dbgs() << "\n");
-    ReplaceNode(Node, Extract.getNode());
-    return;
-  }
   case ISD::Constant: {
     // Materialize zero constants as copies from WZR/XZR.  This allows
     // the coalescer to propagate these into other instructions.

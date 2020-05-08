@@ -348,7 +348,7 @@ void SIScheduleBlock::initRegPressure(MachineBasicBlock::iterator BeginBlock,
 
   // Do not Track Physical Registers, because it messes up.
   for (const auto &RegMaskPair : RPTracker.getPressure().LiveInRegs) {
-    if (TargetRegisterInfo::isVirtualRegister(RegMaskPair.RegUnit))
+    if (Register::isVirtualRegister(RegMaskPair.RegUnit))
       LiveInRegs.insert(RegMaskPair.RegUnit);
   }
   LiveOutRegs.clear();
@@ -376,7 +376,7 @@ void SIScheduleBlock::initRegPressure(MachineBasicBlock::iterator BeginBlock,
   // The use of findDefBetween removes the case 4.
   for (const auto &RegMaskPair : RPTracker.getPressure().LiveOutRegs) {
     unsigned Reg = RegMaskPair.RegUnit;
-    if (TargetRegisterInfo::isVirtualRegister(Reg) &&
+    if (Register::isVirtualRegister(Reg) &&
         isDefBetween(Reg, LIS->getInstructionIndex(*BeginBlock).getRegSlot(),
                      LIS->getInstructionIndex(*EndBlock).getRegSlot(), MRI,
                      LIS)) {
@@ -609,13 +609,8 @@ void SIScheduleBlock::printDebug(bool full) {
   }
 
   dbgs() << "\nInstructions:\n";
-  if (!Scheduled) {
-    for (const SUnit* SU : SUnits)
+  for (const SUnit* SU : SUnits)
       DAG->dumpNode(*SU);
-  } else {
-    for (const SUnit* SU : SUnits)
-      DAG->dumpNode(*SU);
-  }
 
   dbgs() << "///////////////////////\n";
 }
@@ -623,11 +618,8 @@ void SIScheduleBlock::printDebug(bool full) {
 
 // SIScheduleBlockCreator //
 
-SIScheduleBlockCreator::SIScheduleBlockCreator(SIScheduleDAGMI *DAG) :
-DAG(DAG) {
-}
-
-SIScheduleBlockCreator::~SIScheduleBlockCreator() = default;
+SIScheduleBlockCreator::SIScheduleBlockCreator(SIScheduleDAGMI *DAG)
+    : DAG(DAG) {}
 
 SIScheduleBlocks
 SIScheduleBlockCreator::getBlocks(SISchedulerBlockCreatorVariant BlockVariant) {
@@ -1228,7 +1220,7 @@ void SIScheduleBlockCreator::createBlocksForVariant(SISchedulerBlockCreatorVaria
     unsigned Color = CurrentColoring[SU->NodeNum];
     if (RealID.find(Color) == RealID.end()) {
       int ID = CurrentBlocks.size();
-      BlockPtrs.push_back(llvm::make_unique<SIScheduleBlock>(DAG, this, ID));
+      BlockPtrs.push_back(std::make_unique<SIScheduleBlock>(DAG, this, ID));
       CurrentBlocks.push_back(BlockPtrs.rbegin()->get());
       RealID[Color] = ID;
     }
@@ -1690,7 +1682,7 @@ SIScheduleBlock *SIScheduleBlockScheduler::pickBlock() {
 void SIScheduleBlockScheduler::addLiveRegs(std::set<unsigned> &Regs) {
   for (unsigned Reg : Regs) {
     // For now only track virtual registers.
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    if (!Register::isVirtualRegister(Reg))
       continue;
     // If not already in the live set, then add it.
     (void) LiveRegs.insert(Reg);
@@ -1750,7 +1742,7 @@ SIScheduleBlockScheduler::checkRegUsageImpact(std::set<unsigned> &InRegs,
 
   for (unsigned Reg : InRegs) {
     // For now only track virtual registers.
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    if (!Register::isVirtualRegister(Reg))
       continue;
     if (LiveRegsConsumers[Reg] > 1)
       continue;
@@ -1762,7 +1754,7 @@ SIScheduleBlockScheduler::checkRegUsageImpact(std::set<unsigned> &InRegs,
 
   for (unsigned Reg : OutRegs) {
     // For now only track virtual registers.
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    if (!Register::isVirtualRegister(Reg))
       continue;
     PSetIterator PSetI = DAG->getMRI()->getPressureSets(Reg);
     for (; PSetI.isValid(); ++PSetI) {
@@ -1801,7 +1793,7 @@ SIScheduler::scheduleVariant(SISchedulerBlockCreatorVariant BlockVariant,
 // SIScheduleDAGMI //
 
 SIScheduleDAGMI::SIScheduleDAGMI(MachineSchedContext *C) :
-  ScheduleDAGMILive(C, llvm::make_unique<GenericScheduler>(C)) {
+  ScheduleDAGMILive(C, std::make_unique<GenericScheduler>(C)) {
   SITII = static_cast<const SIInstrInfo*>(TII);
   SITRI = static_cast<const SIRegisterInfo*>(TRI);
 
@@ -1913,7 +1905,7 @@ SIScheduleDAGMI::fillVgprSgprCost(_Iterator First, _Iterator End,
   for (_Iterator RegI = First; RegI != End; ++RegI) {
     unsigned Reg = *RegI;
     // For now only track virtual registers
-    if (!TargetRegisterInfo::isVirtualRegister(Reg))
+    if (!Register::isVirtualRegister(Reg))
       continue;
     PSetIterator PSetI = MRI.getPressureSets(Reg);
     for (; PSetI.isValid(); ++PSetI) {

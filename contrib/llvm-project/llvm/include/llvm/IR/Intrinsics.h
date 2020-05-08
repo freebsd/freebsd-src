@@ -33,14 +33,17 @@ class AttributeList;
 /// function known by LLVM. The enum values are returned by
 /// Function::getIntrinsicID().
 namespace Intrinsic {
-  enum ID : unsigned {
-    not_intrinsic = 0,   // Must be zero
+  // Intrinsic ID type. This is an opaque typedef to facilitate splitting up
+  // the enum into target-specific enums.
+  typedef unsigned ID;
 
-    // Get the intrinsic enums generated from Intrinsics.td
+  enum IndependentIntrinsics : unsigned {
+    not_intrinsic = 0, // Must be zero
+
+  // Get the intrinsic enums generated from Intrinsics.td
 #define GET_INTRINSIC_ENUM_VALUES
 #include "llvm/IR/IntrinsicEnums.inc"
 #undef GET_INTRINSIC_ENUM_VALUES
-    , num_intrinsics
   };
 
   /// Return the LLVM name for an intrinsic, such as "llvm.ppc.altivec.lvx".
@@ -100,7 +103,8 @@ namespace Intrinsic {
       Integer, Vector, Pointer, Struct,
       Argument, ExtendArgument, TruncArgument, HalfVecArgument,
       SameVecWidthArgument, PtrToArgument, PtrToElt, VecOfAnyPtrsToElt,
-      VecElementArgument
+      VecElementArgument, ScalableVecArgument, Subdivide2Argument,
+      Subdivide4Argument, VecOfBitcastsToInt
     } Kind;
 
     union {
@@ -125,14 +129,17 @@ namespace Intrinsic {
       assert(Kind == Argument || Kind == ExtendArgument ||
              Kind == TruncArgument || Kind == HalfVecArgument ||
              Kind == SameVecWidthArgument || Kind == PtrToArgument ||
-             Kind == PtrToElt || Kind == VecElementArgument);
+             Kind == PtrToElt || Kind == VecElementArgument ||
+             Kind == Subdivide2Argument || Kind == Subdivide4Argument ||
+             Kind == VecOfBitcastsToInt);
       return Argument_Info >> 3;
     }
     ArgKind getArgumentKind() const {
       assert(Kind == Argument || Kind == ExtendArgument ||
              Kind == TruncArgument || Kind == HalfVecArgument ||
              Kind == SameVecWidthArgument || Kind == PtrToArgument ||
-             Kind == VecElementArgument);
+             Kind == VecElementArgument || Kind == Subdivide2Argument ||
+             Kind == Subdivide4Argument || Kind == VecOfBitcastsToInt);
       return (ArgKind)(Argument_Info & 7);
     }
 

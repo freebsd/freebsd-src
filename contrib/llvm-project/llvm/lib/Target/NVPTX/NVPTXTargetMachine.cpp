@@ -72,7 +72,7 @@ void initializeNVPTXProxyRegErasurePass(PassRegistry &);
 
 } // end namespace llvm
 
-extern "C" void LLVMInitializeNVPTXTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeNVPTXTarget() {
   // Register the target.
   RegisterTargetMachine<NVPTXTargetMachine32> X(getTheNVPTXTarget32());
   RegisterTargetMachine<NVPTXTargetMachine64> Y(getTheNVPTXTarget64());
@@ -116,7 +116,7 @@ NVPTXTargetMachine::NVPTXTargetMachine(const Target &T, const Triple &TT,
                         CPU, FS, Options, Reloc::PIC_,
                         getEffectiveCodeModel(CM, CodeModel::Small), OL),
       is64bit(is64bit), UseShortPointers(UseShortPointersOpt),
-      TLOF(llvm::make_unique<NVPTXTargetObjectFile>()),
+      TLOF(std::make_unique<NVPTXTargetObjectFile>()),
       Subtarget(TT, CPU, FS, *this) {
   if (TT.getOS() == Triple::NVCL)
     drvInterface = NVPTX::NVCL;

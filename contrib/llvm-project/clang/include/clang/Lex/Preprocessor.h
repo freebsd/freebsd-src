@@ -14,7 +14,6 @@
 #ifndef LLVM_CLANG_LEX_PREPROCESSOR_H
 #define LLVM_CLANG_LEX_PREPROCESSOR_H
 
-#include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
@@ -28,6 +27,7 @@
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/ModuleMap.h"
 #include "clang/Lex/PPCallbacks.h"
+#include "clang/Lex/PreprocessorExcludedConditionalDirectiveSkipMapping.h"
 #include "clang/Lex/Token.h"
 #include "clang/Lex/TokenLexer.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -79,6 +79,10 @@ class PreprocessorLexer;
 class PreprocessorOptions;
 class ScratchBuffer;
 class TargetInfo;
+
+namespace Builtin {
+class Context;
+}
 
 /// Stores token information for comparing actual tokens with
 /// predefined values.  Only handles simple tokens and identifiers.
@@ -238,7 +242,7 @@ class Preprocessor {
   SelectorTable Selectors;
 
   /// Information about builtins.
-  Builtin::Context BuiltinInfo;
+  std::unique_ptr<Builtin::Context> BuiltinInfo;
 
   /// Tracks all of the pragmas that the client registered
   /// with this preprocessor.
@@ -370,9 +374,9 @@ class Preprocessor {
   /// it expects a '.' or ';'.
   bool ModuleImportExpectsIdentifier = false;
 
-  /// The source location of the currently-active
+  /// The identifier and source location of the currently-active
   /// \#pragma clang arc_cf_code_audited begin.
-  SourceLocation PragmaARCCFCodeAuditedLoc;
+  std::pair<IdentifierInfo *, SourceLocation> PragmaARCCFCodeAuditedInfo;
 
   /// The source location of the currently-active
   /// \#pragma clang assume_nonnull begin.
@@ -910,7 +914,7 @@ public:
   IdentifierTable &getIdentifierTable() { return Identifiers; }
   const IdentifierTable &getIdentifierTable() const { return Identifiers; }
   SelectorTable &getSelectorTable() { return Selectors; }
-  Builtin::Context &getBuiltinInfo() { return BuiltinInfo; }
+  Builtin::Context &getBuiltinInfo() { return *BuiltinInfo; }
   llvm::BumpPtrAllocator &getPreprocessorAllocator() { return BP; }
 
   void setExternalSource(ExternalPreprocessorSource *Source) {
@@ -926,6 +930,12 @@ public:
 
   bool hadModuleLoaderFatalFailure() const {
     return TheModuleLoader.HadFatalFailure;
+  }
+
+  /// Retrieve the number of Directives that have been processed by the
+  /// Preprocessor.
+  unsigned getNumDirectives() const {
+    return NumDirectives;
   }
 
   /// True if we are currently preprocessing a #if or #elif directive
@@ -994,7 +1004,7 @@ public:
   PPCallbacks *getPPCallbacks() const { return Callbacks.get(); }
   void addPPCallbacks(std::unique_ptr<PPCallbacks> C) {
     if (Callbacks)
-      C = llvm::make_unique<PPChainedCallbacks>(std::move(C),
+      C = std::make_unique<PPChainedCallbacks>(std::move(C),
                                                 std::move(Callbacks));
     Callbacks = std::move(C);
   }
@@ -1471,7 +1481,7 @@ public:
     if (LexLevel) {
       // It's not correct in general to enter caching lex mode while in the
       // middle of a nested lexing action.
-      auto TokCopy = llvm::make_unique<Token[]>(1);
+      auto TokCopy = std::make_unique<Token[]>(1);
       TokCopy[0] = Tok;
       EnterTokenStream(std::move(TokCopy), 1, true, IsReinject);
     } else {
@@ -1601,14 +1611,16 @@ public:
   /// arc_cf_code_audited begin.
   ///
   /// Returns an invalid location if there is no such pragma active.
-  SourceLocation getPragmaARCCFCodeAuditedLoc() const {
-    return PragmaARCCFCodeAuditedLoc;
+  std::pair<IdentifierInfo *, SourceLocation>
+  getPragmaARCCFCodeAuditedInfo() const {
+    return PragmaARCCFCodeAuditedInfo;
   }
 
   /// Set the location of the currently-active \#pragma clang
   /// arc_cf_code_audited begin.  An invalid location ends the pragma.
-  void setPragmaARCCFCodeAuditedLoc(SourceLocation Loc) {
-    PragmaARCCFCodeAuditedLoc = Loc;
+  void setPragmaARCCFCodeAuditedInfo(IdentifierInfo *Ident,
+                                     SourceLocation Loc) {
+    PragmaARCCFCodeAuditedInfo = {Ident, Loc};
   }
 
   /// The location of the currently-active \#pragma clang
@@ -1949,17 +1961,15 @@ public:
 
   /// Given a "foo" or \<foo> reference, look up the indicated file.
   ///
-  /// Returns null on failure.  \p isAngled indicates whether the file
+  /// Returns None on failure.  \p isAngled indicates whether the file
   /// reference is for system \#include's or not (i.e. using <> instead of "").
-  const FileEntry *LookupFile(SourceLocation FilenameLoc, StringRef Filename,
-                              bool isAngled, const DirectoryLookup *FromDir,
-                              const FileEntry *FromFile,
-                              const DirectoryLookup *&CurDir,
-                              SmallVectorImpl<char> *SearchPath,
-                              SmallVectorImpl<char> *RelativePath,
-                              ModuleMap::KnownHeader *SuggestedModule,
-                              bool *IsMapped, bool *IsFrameworkFound,
-                              bool SkipCache = false);
+  Optional<FileEntryRef>
+  LookupFile(SourceLocation FilenameLoc, StringRef Filename, bool isAngled,
+             const DirectoryLookup *FromDir, const FileEntry *FromFile,
+             const DirectoryLookup *&CurDir, SmallVectorImpl<char> *SearchPath,
+             SmallVectorImpl<char> *RelativePath,
+             ModuleMap::KnownHeader *SuggestedModule, bool *IsMapped,
+             bool *IsFrameworkFound, bool SkipCache = false);
 
   /// Get the DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.
@@ -2202,6 +2212,15 @@ private:
     }
   };
 
+  Optional<FileEntryRef> LookupHeaderIncludeOrImport(
+      const DirectoryLookup *&CurDir, StringRef Filename,
+      SourceLocation FilenameLoc, CharSourceRange FilenameRange,
+      const Token &FilenameTok, bool &IsFrameworkFound, bool IsImportDecl,
+      bool &IsMapped, const DirectoryLookup *LookupFrom,
+      const FileEntry *LookupFromFile, StringRef LookupFilename,
+      SmallVectorImpl<char> &RelativePath, SmallVectorImpl<char> &SearchPath,
+      ModuleMap::KnownHeader &SuggestedModule, bool isAngled);
+
   // File inclusion.
   void HandleIncludeDirective(SourceLocation HashLoc, Token &Tok,
                               const DirectoryLookup *LookupFrom = nullptr,
@@ -2313,6 +2332,15 @@ public:
   /// A macro is used, update information about macros that need unused
   /// warnings.
   void markMacroAsUsed(MacroInfo *MI);
+
+private:
+  Optional<unsigned>
+  getSkippedRangeForExcludedConditionalBlock(SourceLocation HashLoc);
+
+  /// Contains the currently active skipped range mappings for skipping excluded
+  /// conditional directives.
+  ExcludedPreprocessorDirectiveSkipMapping
+      *ExcludedConditionalDirectiveSkipMappings;
 };
 
 /// Abstract base class that describes a handler that will receive

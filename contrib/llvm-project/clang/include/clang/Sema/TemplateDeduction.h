@@ -14,6 +14,9 @@
 #ifndef LLVM_CLANG_SEMA_TEMPLATEDEDUCTION_H
 #define LLVM_CLANG_SEMA_TEMPLATEDEDUCTION_H
 
+#include "clang/Sema/Ownership.h"
+#include "clang/Sema/SemaConcept.h"
+#include "clang/AST/ASTConcept.h"
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/TemplateBase.h"
@@ -63,6 +66,13 @@ public:
       : Loc(Loc), DeducedDepth(DeducedDepth) {}
   TemplateDeductionInfo(const TemplateDeductionInfo &) = delete;
   TemplateDeductionInfo &operator=(const TemplateDeductionInfo &) = delete;
+
+  enum ForBaseTag { ForBase };
+  /// Create temporary template deduction info for speculatively deducing
+  /// against a base class of an argument's type.
+  TemplateDeductionInfo(ForBaseTag, const TemplateDeductionInfo &Info)
+      : Deduced(Info.Deduced), Loc(Info.Loc), DeducedDepth(Info.DeducedDepth),
+        ExplicitArgs(Info.ExplicitArgs) {}
 
   /// Returns the location at which template argument is
   /// occurring.
@@ -218,6 +228,10 @@ public:
   ///
   /// FIXME: This should be kept internal to SemaTemplateDeduction.
   SmallVector<DeducedPack *, 8> PendingDeducedPacks;
+
+  /// \brief The constraint satisfaction details resulting from the associated
+  /// constraints satisfaction tests.
+  ConstraintSatisfaction AssociatedConstraintsSatisfaction;
 };
 
 } // namespace sema

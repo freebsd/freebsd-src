@@ -9,6 +9,7 @@
 #include "clang/Frontend/FrontendActions.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/LangStandard.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -54,7 +55,7 @@ void EnsureSemaIsCreated(CompilerInstance &CI, FrontendAction &Action) {
 
 std::unique_ptr<ASTConsumer>
 InitOnlyAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  return llvm::make_unique<ASTConsumer>();
+  return std::make_unique<ASTConsumer>();
 }
 
 void InitOnlyAction::ExecuteAction() {
@@ -108,7 +109,7 @@ GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   const auto &FrontendOpts = CI.getFrontendOpts();
   auto Buffer = std::make_shared<PCHBuffer>();
   std::vector<std::unique_ptr<ASTConsumer>> Consumers;
-  Consumers.push_back(llvm::make_unique<PCHGenerator>(
+  Consumers.push_back(std::make_unique<PCHGenerator>(
       CI.getPreprocessor(), CI.getModuleCache(), OutputFile, Sysroot, Buffer,
       FrontendOpts.ModuleFileExtensions,
       CI.getPreprocessorOpts().AllowPCHWithCompilerErrors,
@@ -116,7 +117,7 @@ GeneratePCHAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
       CI, InFile, OutputFile, std::move(OS), Buffer));
 
-  return llvm::make_unique<MultiplexConsumer>(std::move(Consumers));
+  return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
 bool GeneratePCHAction::ComputeASTConsumerArguments(CompilerInstance &CI,
@@ -139,7 +140,7 @@ GeneratePCHAction::CreateOutputFile(CompilerInstance &CI, StringRef InFile,
   std::unique_ptr<raw_pwrite_stream> OS =
       CI.createOutputFile(CI.getFrontendOpts().OutputFile, /*Binary=*/true,
                           /*RemoveFileOnSignal=*/false, InFile,
-                          /*Extension=*/"", /*UseTemporary=*/true);
+                          /*Extension=*/"", CI.getFrontendOpts().UseTemporary);
   if (!OS)
     return nullptr;
 
@@ -171,7 +172,7 @@ GenerateModuleAction::CreateASTConsumer(CompilerInstance &CI,
   auto Buffer = std::make_shared<PCHBuffer>();
   std::vector<std::unique_ptr<ASTConsumer>> Consumers;
 
-  Consumers.push_back(llvm::make_unique<PCHGenerator>(
+  Consumers.push_back(std::make_unique<PCHGenerator>(
       CI.getPreprocessor(), CI.getModuleCache(), OutputFile, Sysroot, Buffer,
       CI.getFrontendOpts().ModuleFileExtensions,
       /*AllowASTWithErrors=*/false,
@@ -181,7 +182,7 @@ GenerateModuleAction::CreateASTConsumer(CompilerInstance &CI,
       +CI.getFrontendOpts().BuildingImplicitModule));
   Consumers.push_back(CI.getPCHContainerWriter().CreatePCHContainerGenerator(
       CI, InFile, OutputFile, std::move(OS), Buffer));
-  return llvm::make_unique<MultiplexConsumer>(std::move(Consumers));
+  return std::make_unique<MultiplexConsumer>(std::move(Consumers));
 }
 
 bool GenerateModuleFromModuleMapAction::BeginSourceFileAction(
@@ -286,15 +287,15 @@ bool GenerateHeaderModuleAction::BeginSourceFileAction(
   SmallVector<Module::Header, 16> Headers;
   for (StringRef Name : ModuleHeaders) {
     const DirectoryLookup *CurDir = nullptr;
-    const FileEntry *FE = HS.LookupFile(
-        Name, SourceLocation(), /*Angled*/ false, nullptr, CurDir,
-        None, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
+    Optional<FileEntryRef> FE = HS.LookupFile(
+        Name, SourceLocation(), /*Angled*/ false, nullptr, CurDir, None,
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
     if (!FE) {
       CI.getDiagnostics().Report(diag::err_module_header_file_not_found)
         << Name;
       continue;
     }
-    Headers.push_back({Name, FE});
+    Headers.push_back({Name, &FE->getFileEntry()});
   }
   HS.getModuleMap().createHeaderModule(CI.getLangOpts().CurrentModule, Headers);
 
@@ -312,18 +313,18 @@ SyntaxOnlyAction::~SyntaxOnlyAction() {
 
 std::unique_ptr<ASTConsumer>
 SyntaxOnlyAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  return llvm::make_unique<ASTConsumer>();
+  return std::make_unique<ASTConsumer>();
 }
 
 std::unique_ptr<ASTConsumer>
 DumpModuleInfoAction::CreateASTConsumer(CompilerInstance &CI,
                                         StringRef InFile) {
-  return llvm::make_unique<ASTConsumer>();
+  return std::make_unique<ASTConsumer>();
 }
 
 std::unique_ptr<ASTConsumer>
 VerifyPCHAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  return llvm::make_unique<ASTConsumer>();
+  return std::make_unique<ASTConsumer>();
 }
 
 void VerifyPCHAction::ExecuteAction() {
@@ -412,10 +413,26 @@ private:
       return "ExceptionSpecInstantiation";
     case CodeSynthesisContext::DeclaringSpecialMember:
       return "DeclaringSpecialMember";
+    case CodeSynthesisContext::DeclaringImplicitEqualityComparison:
+      return "DeclaringImplicitEqualityComparison";
     case CodeSynthesisContext::DefiningSynthesizedFunction:
       return "DefiningSynthesizedFunction";
+    case CodeSynthesisContext::RewritingOperatorAsSpaceship:
+      return "RewritingOperatorAsSpaceship";
     case CodeSynthesisContext::Memoization:
       return "Memoization";
+    case CodeSynthesisContext::ConstraintsCheck:
+      return "ConstraintsCheck";
+    case CodeSynthesisContext::ConstraintSubstitution:
+      return "ConstraintSubstitution";
+    case CodeSynthesisContext::ConstraintNormalization:
+      return "ConstraintNormalization";
+    case CodeSynthesisContext::ParameterMappingSubstitution:
+      return "ParameterMappingSubstitution";
+    case CodeSynthesisContext::RequirementInstantiation:
+      return "RequirementInstantiation";
+    case CodeSynthesisContext::NestedRequirementConstraintsCheck:
+      return "NestedRequirementConstraintsCheck";
     }
     return "";
   }
@@ -465,7 +482,7 @@ private:
 
 std::unique_ptr<ASTConsumer>
 TemplightDumpAction::CreateASTConsumer(CompilerInstance &CI, StringRef InFile) {
-  return llvm::make_unique<ASTConsumer>();
+  return std::make_unique<ASTConsumer>();
 }
 
 void TemplightDumpAction::ExecuteAction() {
@@ -478,7 +495,7 @@ void TemplightDumpAction::ExecuteAction() {
   EnsureSemaIsCreated(CI, *this);
 
   CI.getSema().TemplateInstCallbacks.push_back(
-      llvm::make_unique<DefaultTemplateInstCallback>());
+      std::make_unique<DefaultTemplateInstCallback>());
   ASTFrontendAction::ExecuteAction();
 }
 
@@ -695,7 +712,7 @@ void DumpModuleInfoAction::ExecuteAction() {
   if (!OutputFileName.empty() && OutputFileName != "-") {
     std::error_code EC;
     OutFile.reset(new llvm::raw_fd_ostream(OutputFileName.str(), EC,
-                                           llvm::sys::fs::F_Text));
+                                           llvm::sys::fs::OF_Text));
   }
   llvm::raw_ostream &Out = OutFile.get()? *OutFile.get() : llvm::outs();
 
@@ -832,19 +849,19 @@ void PrintPreprocessedAction::ExecuteAction() {
 
 void PrintPreambleAction::ExecuteAction() {
   switch (getCurrentFileKind().getLanguage()) {
-  case InputKind::C:
-  case InputKind::CXX:
-  case InputKind::ObjC:
-  case InputKind::ObjCXX:
-  case InputKind::OpenCL:
-  case InputKind::CUDA:
-  case InputKind::HIP:
+  case Language::C:
+  case Language::CXX:
+  case Language::ObjC:
+  case Language::ObjCXX:
+  case Language::OpenCL:
+  case Language::CUDA:
+  case Language::HIP:
     break;
 
-  case InputKind::Unknown:
-  case InputKind::Asm:
-  case InputKind::LLVM_IR:
-  case InputKind::RenderScript:
+  case Language::Unknown:
+  case Language::Asm:
+  case Language::LLVM_IR:
+  case Language::RenderScript:
     // We can't do anything with these.
     return;
   }
@@ -927,7 +944,7 @@ void PrintDependencyDirectivesSourceMinimizerAction::ExecuteAction() {
     // 'expected' comments.
     if (CI.getDiagnosticOpts().VerifyDiagnostics) {
       // Make sure we don't emit new diagnostics!
-      CI.getDiagnostics().setSuppressAllDiagnostics();
+      CI.getDiagnostics().setSuppressAllDiagnostics(true);
       Preprocessor &PP = getCompilerInstance().getPreprocessor();
       PP.EnterMainSourceFile();
       Token Tok;

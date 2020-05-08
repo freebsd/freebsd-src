@@ -170,7 +170,8 @@ bool llvm::DeleteDeadPHIs(BasicBlock *BB, const TargetLibraryInfo *TLI) {
 
 bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
                                      LoopInfo *LI, MemorySSAUpdater *MSSAU,
-                                     MemoryDependenceResults *MemDep) {
+                                     MemoryDependenceResults *MemDep,
+                                     bool PredecessorWithTwoSuccessors) {
   if (BB->hasAddressTaken())
     return false;
 
@@ -185,8 +186,23 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
     return false;
 
   // Can't merge if there are multiple distinct successors.
-  if (PredBB->getUniqueSuccessor() != BB)
+  if (!PredecessorWithTwoSuccessors && PredBB->getUniqueSuccessor() != BB)
     return false;
+
+  // Currently only allow PredBB to have two predecessors, one being BB.
+  // Update BI to branch to BB's only successor instead of BB.
+  BranchInst *PredBB_BI;
+  BasicBlock *NewSucc = nullptr;
+  unsigned FallThruPath;
+  if (PredecessorWithTwoSuccessors) {
+    if (!(PredBB_BI = dyn_cast<BranchInst>(PredBB->getTerminator())))
+      return false;
+    BranchInst *BB_JmpI = dyn_cast<BranchInst>(BB->getTerminator());
+    if (!BB_JmpI || !BB_JmpI->isUnconditional())
+      return false;
+    NewSucc = BB_JmpI->getSuccessor(0);
+    FallThruPath = PredBB_BI->getSuccessor(0) == BB ? 0 : 1;
+  }
 
   // Can't merge if there is PHI loop.
   for (PHINode &PN : BB->phis())
@@ -227,34 +243,51 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
     Updates.push_back({DominatorTree::Delete, PredBB, BB});
   }
 
-  if (MSSAU)
-    MSSAU->moveAllAfterMergeBlocks(BB, PredBB, &*(BB->begin()));
+  Instruction *PTI = PredBB->getTerminator();
+  Instruction *STI = BB->getTerminator();
+  Instruction *Start = &*BB->begin();
+  // If there's nothing to move, mark the starting instruction as the last
+  // instruction in the block. Terminator instruction is handled separately.
+  if (Start == STI)
+    Start = PTI;
 
-  // Delete the unconditional branch from the predecessor...
-  PredBB->getInstList().pop_back();
+  // Move all definitions in the successor to the predecessor...
+  PredBB->getInstList().splice(PTI->getIterator(), BB->getInstList(),
+                               BB->begin(), STI->getIterator());
+
+  if (MSSAU)
+    MSSAU->moveAllAfterMergeBlocks(BB, PredBB, Start);
 
   // Make all PHI nodes that referred to BB now refer to Pred as their
   // source...
   BB->replaceAllUsesWith(PredBB);
 
-  // Move all definitions in the successor to the predecessor...
-  PredBB->getInstList().splice(PredBB->end(), BB->getInstList());
+  if (PredecessorWithTwoSuccessors) {
+    // Delete the unconditional branch from BB.
+    BB->getInstList().pop_back();
+
+    // Update branch in the predecessor.
+    PredBB_BI->setSuccessor(FallThruPath, NewSucc);
+  } else {
+    // Delete the unconditional branch from the predecessor.
+    PredBB->getInstList().pop_back();
+
+    // Move terminator instruction.
+    PredBB->getInstList().splice(PredBB->end(), BB->getInstList());
+
+    // Terminator may be a memory accessing instruction too.
+    if (MSSAU)
+      if (MemoryUseOrDef *MUD = cast_or_null<MemoryUseOrDef>(
+              MSSAU->getMemorySSA()->getMemoryAccess(PredBB->getTerminator())))
+        MSSAU->moveToPlace(MUD, PredBB, MemorySSA::End);
+  }
+  // Add unreachable to now empty BB.
   new UnreachableInst(BB->getContext(), BB);
 
-  // Eliminate duplicate dbg.values describing the entry PHI node post-splice.
-  for (auto Incoming : IncomingValues) {
-    if (isa<Instruction>(*Incoming)) {
-      SmallVector<DbgValueInst *, 2> DbgValues;
-      SmallDenseSet<std::pair<DILocalVariable *, DIExpression *>, 2>
-          DbgValueSet;
-      llvm::findDbgValues(DbgValues, Incoming);
-      for (auto &DVI : DbgValues) {
-        auto R = DbgValueSet.insert({DVI->getVariable(), DVI->getExpression()});
-        if (!R.second)
-          DVI->eraseFromParent();
-      }
-    }
-  }
+  // Eliminate duplicate/redundant dbg.values. This seems to be a good place to
+  // do that since we might end up with redundant dbg.values describing the
+  // entry PHI node post-splice.
+  RemoveRedundantDbgInstrs(PredBB);
 
   // Inherit predecessors name if it exists.
   if (!PredBB->hasName())
@@ -274,12 +307,129 @@ bool llvm::MergeBlockIntoPredecessor(BasicBlock *BB, DomTreeUpdater *DTU,
            "applying corresponding DTU updates.");
     DTU->applyUpdatesPermissive(Updates);
     DTU->deleteBB(BB);
-  }
-
-  else {
+  } else {
     BB->eraseFromParent(); // Nuke BB if DTU is nullptr.
   }
+
   return true;
+}
+
+/// Remove redundant instructions within sequences of consecutive dbg.value
+/// instructions. This is done using a backward scan to keep the last dbg.value
+/// describing a specific variable/fragment.
+///
+/// BackwardScan strategy:
+/// ----------------------
+/// Given a sequence of consecutive DbgValueInst like this
+///
+///   dbg.value ..., "x", FragmentX1  (*)
+///   dbg.value ..., "y", FragmentY1
+///   dbg.value ..., "x", FragmentX2
+///   dbg.value ..., "x", FragmentX1  (**)
+///
+/// then the instruction marked with (*) can be removed (it is guaranteed to be
+/// obsoleted by the instruction marked with (**) as the latter instruction is
+/// describing the same variable using the same fragment info).
+///
+/// Possible improvements:
+/// - Check fully overlapping fragments and not only identical fragments.
+/// - Support dbg.addr, dbg.declare. dbg.label, and possibly other meta
+///   instructions being part of the sequence of consecutive instructions.
+static bool removeRedundantDbgInstrsUsingBackwardScan(BasicBlock *BB) {
+  SmallVector<DbgValueInst *, 8> ToBeRemoved;
+  SmallDenseSet<DebugVariable> VariableSet;
+  for (auto &I : reverse(*BB)) {
+    if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(&I)) {
+      DebugVariable Key(DVI->getVariable(),
+                        DVI->getExpression(),
+                        DVI->getDebugLoc()->getInlinedAt());
+      auto R = VariableSet.insert(Key);
+      // If the same variable fragment is described more than once it is enough
+      // to keep the last one (i.e. the first found since we for reverse
+      // iteration).
+      if (!R.second)
+        ToBeRemoved.push_back(DVI);
+      continue;
+    }
+    // Sequence with consecutive dbg.value instrs ended. Clear the map to
+    // restart identifying redundant instructions if case we find another
+    // dbg.value sequence.
+    VariableSet.clear();
+  }
+
+  for (auto &Instr : ToBeRemoved)
+    Instr->eraseFromParent();
+
+  return !ToBeRemoved.empty();
+}
+
+/// Remove redundant dbg.value instructions using a forward scan. This can
+/// remove a dbg.value instruction that is redundant due to indicating that a
+/// variable has the same value as already being indicated by an earlier
+/// dbg.value.
+///
+/// ForwardScan strategy:
+/// ---------------------
+/// Given two identical dbg.value instructions, separated by a block of
+/// instructions that isn't describing the same variable, like this
+///
+///   dbg.value X1, "x", FragmentX1  (**)
+///   <block of instructions, none being "dbg.value ..., "x", ...">
+///   dbg.value X1, "x", FragmentX1  (*)
+///
+/// then the instruction marked with (*) can be removed. Variable "x" is already
+/// described as being mapped to the SSA value X1.
+///
+/// Possible improvements:
+/// - Keep track of non-overlapping fragments.
+static bool removeRedundantDbgInstrsUsingForwardScan(BasicBlock *BB) {
+  SmallVector<DbgValueInst *, 8> ToBeRemoved;
+  DenseMap<DebugVariable, std::pair<Value *, DIExpression *> > VariableMap;
+  for (auto &I : *BB) {
+    if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(&I)) {
+      DebugVariable Key(DVI->getVariable(),
+                        NoneType(),
+                        DVI->getDebugLoc()->getInlinedAt());
+      auto VMI = VariableMap.find(Key);
+      // Update the map if we found a new value/expression describing the
+      // variable, or if the variable wasn't mapped already.
+      if (VMI == VariableMap.end() ||
+          VMI->second.first != DVI->getValue() ||
+          VMI->second.second != DVI->getExpression()) {
+        VariableMap[Key] = { DVI->getValue(), DVI->getExpression() };
+        continue;
+      }
+      // Found an identical mapping. Remember the instruction for later removal.
+      ToBeRemoved.push_back(DVI);
+    }
+  }
+
+  for (auto &Instr : ToBeRemoved)
+    Instr->eraseFromParent();
+
+  return !ToBeRemoved.empty();
+}
+
+bool llvm::RemoveRedundantDbgInstrs(BasicBlock *BB) {
+  bool MadeChanges = false;
+  // By using the "backward scan" strategy before the "forward scan" strategy we
+  // can remove both dbg.value (2) and (3) in a situation like this:
+  //
+  //   (1) dbg.value V1, "x", DIExpression()
+  //       ...
+  //   (2) dbg.value V2, "x", DIExpression()
+  //   (3) dbg.value V1, "x", DIExpression()
+  //
+  // The backward scan will remove (2), it is made obsolete by (3). After
+  // getting (2) out of the way, the foward scan will remove (3) since "x"
+  // already is described as having the value V1 at (1).
+  MadeChanges |= removeRedundantDbgInstrsUsingBackwardScan(BB);
+  MadeChanges |= removeRedundantDbgInstrsUsingForwardScan(BB);
+
+  if (MadeChanges)
+    LLVM_DEBUG(dbgs() << "Removed redundant dbg instrs from: "
+                      << BB->getName() << "\n");
+  return MadeChanges;
 }
 
 void llvm::ReplaceInstWithValue(BasicBlock::InstListType &BIL,
@@ -355,7 +505,8 @@ llvm::SplitAllCriticalEdges(Function &F,
   unsigned NumBroken = 0;
   for (BasicBlock &BB : F) {
     Instruction *TI = BB.getTerminator();
-    if (TI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(TI))
+    if (TI->getNumSuccessors() > 1 && !isa<IndirectBrInst>(TI) &&
+        !isa<CallBrInst>(TI))
       for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i)
         if (SplitCriticalEdge(TI, i, Options))
           ++NumBroken;
@@ -365,11 +516,13 @@ llvm::SplitAllCriticalEdges(Function &F,
 
 BasicBlock *llvm::SplitBlock(BasicBlock *Old, Instruction *SplitPt,
                              DominatorTree *DT, LoopInfo *LI,
-                             MemorySSAUpdater *MSSAU) {
+                             MemorySSAUpdater *MSSAU, const Twine &BBName) {
   BasicBlock::iterator SplitIt = SplitPt->getIterator();
   while (isa<PHINode>(SplitIt) || SplitIt->isEHPad())
     ++SplitIt;
-  BasicBlock *New = Old->splitBasicBlock(SplitIt, Old->getName()+".split");
+  std::string Name = BBName.str();
+  BasicBlock *New = Old->splitBasicBlock(
+      SplitIt, Name.empty() ? Old->getName() + ".split" : Name);
 
   // The new block lives in whichever loop the old one did. This preserves
   // LCSSA as well, because we force the split point to be after any PHI nodes.

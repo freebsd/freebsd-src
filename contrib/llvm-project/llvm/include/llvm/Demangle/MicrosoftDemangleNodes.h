@@ -75,6 +75,9 @@ enum OutputFlags {
   OF_Default = 0,
   OF_NoCallingConvention = 1,
   OF_NoTagSpecifier = 2,
+  OF_NoAccessSpecifier = 4,
+  OF_NoMemberType = 8,
+  OF_NoReturnType = 16,
 };
 
 // Types
@@ -303,8 +306,6 @@ struct TypeNode : public Node {
     outputPost(OS, Flags);
   }
 
-  void outputQuals(bool SpaceBefore, bool SpaceAfter) const;
-
   Qualifiers Quals = Q_None;
 };
 
@@ -507,7 +508,7 @@ struct CustomTypeNode : public TypeNode {
   void outputPre(OutputStream &OS, OutputFlags Flags) const override;
   void outputPost(OutputStream &OS, OutputFlags Flags) const override;
 
-  IdentifierNode *Identifier;
+  IdentifierNode *Identifier = nullptr;
 };
 
 struct NodeArrayNode : public Node {
@@ -583,7 +584,7 @@ struct SpecialTableSymbolNode : public SymbolNode {
 
   void output(OutputStream &OS, OutputFlags Flags) const override;
   QualifiedNameNode *TargetName = nullptr;
-  Qualifiers Quals;
+  Qualifiers Quals = Qualifiers::Q_None;
 };
 
 struct LocalStaticGuardVariableNode : public SymbolNode {

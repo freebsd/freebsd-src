@@ -66,6 +66,7 @@ public:
 class OverflowingBinaryOperator : public Operator {
 public:
   enum {
+    AnyWrap        = 0,
     NoUnsignedWrap = (1 << 0),
     NoSignedWrap   = (1 << 1)
   };
@@ -379,16 +380,29 @@ public:
       return false;
 
     switch (Opcode) {
+    case Instruction::FNeg:
+    case Instruction::FAdd:
+    case Instruction::FSub:
+    case Instruction::FMul:
+    case Instruction::FDiv:
+    case Instruction::FRem:
+    // FIXME: To clean up and correct the semantics of fast-math-flags, FCmp
+    //        should not be treated as a math op, but the other opcodes should.
+    //        This would make things consistent with Select/PHI (FP value type
+    //        determines whether they are math ops and, therefore, capable of
+    //        having fast-math-flags).
     case Instruction::FCmp:
       return true;
-    // non math FP Operators (no FMF)
-    case Instruction::ExtractElement:
-    case Instruction::ShuffleVector:
-    case Instruction::InsertElement:
     case Instruction::PHI:
-      return false;
+    case Instruction::Select:
+    case Instruction::Call: {
+      Type *Ty = V->getType();
+      while (ArrayType *ArrTy = dyn_cast<ArrayType>(Ty))
+        Ty = ArrTy->getElementType();
+      return Ty->isFPOrFPVectorTy();
+    }
     default:
-      return V->getType()->isFPOrFPVectorTy();
+      return false;
     }
   }
 };

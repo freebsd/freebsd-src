@@ -21,6 +21,7 @@ class MCSymbolWasm : public MCSymbol {
   mutable bool IsUsedInGOT = false;
   Optional<std::string> ImportModule;
   Optional<std::string> ImportName;
+  Optional<std::string> ExportName;
   wasm::WasmSignature *Signature = nullptr;
   Optional<wasm::WasmGlobalType> GlobalType;
   Optional<wasm::WasmEventType> EventType;
@@ -54,6 +55,13 @@ public:
     modifyFlags(wasm::WASM_SYMBOL_EXPORTED, wasm::WASM_SYMBOL_EXPORTED);
   }
 
+  bool isNoStrip() const {
+    return getFlags() & wasm::WASM_SYMBOL_NO_STRIP;
+  }
+  void setNoStrip() const {
+    modifyFlags(wasm::WASM_SYMBOL_NO_STRIP, wasm::WASM_SYMBOL_NO_STRIP);
+  }
+
   bool isWeak() const { return IsWeak; }
   void setWeak(bool isWeak) { IsWeak = isWeak; }
 
@@ -71,6 +79,7 @@ public:
   }
   void setImportModule(StringRef Name) { ImportModule = Name; }
 
+  bool hasImportName() const { return ImportName.hasValue(); }
   const StringRef getImportName() const {
       if (ImportName.hasValue()) {
           return ImportName.getValue();
@@ -78,6 +87,10 @@ public:
       return getName();
   }
   void setImportName(StringRef Name) { ImportName = Name; }
+
+  bool hasExportName() const { return ExportName.hasValue(); }
+  const StringRef getExportName() const { return ExportName.getValue(); }
+  void setExportName(StringRef Name) { ExportName = Name; }
 
   void setUsedInGOT() const { IsUsedInGOT = true; }
   bool isUsedInGOT() const { return IsUsedInGOT; }

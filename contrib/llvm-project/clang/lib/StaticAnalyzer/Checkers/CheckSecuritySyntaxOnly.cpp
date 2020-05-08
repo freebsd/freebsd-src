@@ -49,20 +49,22 @@ struct ChecksFilter {
   DefaultBool check_vfork;
   DefaultBool check_FloatLoopCounter;
   DefaultBool check_UncheckedReturn;
+  DefaultBool check_decodeValueOfObjCType;
 
-  CheckName checkName_bcmp;
-  CheckName checkName_bcopy;
-  CheckName checkName_bzero;
-  CheckName checkName_gets;
-  CheckName checkName_getpw;
-  CheckName checkName_mktemp;
-  CheckName checkName_mkstemp;
-  CheckName checkName_strcpy;
-  CheckName checkName_DeprecatedOrUnsafeBufferHandling;
-  CheckName checkName_rand;
-  CheckName checkName_vfork;
-  CheckName checkName_FloatLoopCounter;
-  CheckName checkName_UncheckedReturn;
+  CheckerNameRef checkName_bcmp;
+  CheckerNameRef checkName_bcopy;
+  CheckerNameRef checkName_bzero;
+  CheckerNameRef checkName_gets;
+  CheckerNameRef checkName_getpw;
+  CheckerNameRef checkName_mktemp;
+  CheckerNameRef checkName_mkstemp;
+  CheckerNameRef checkName_strcpy;
+  CheckerNameRef checkName_DeprecatedOrUnsafeBufferHandling;
+  CheckerNameRef checkName_rand;
+  CheckerNameRef checkName_vfork;
+  CheckerNameRef checkName_FloatLoopCounter;
+  CheckerNameRef checkName_UncheckedReturn;
+  CheckerNameRef checkName_decodeValueOfObjCType;
 };
 
 class WalkAST : public StmtVisitor<WalkAST> {
@@ -83,6 +85,7 @@ public:
 
   // Statement visitor methods.
   void VisitCallExpr(CallExpr *CE);
+  void VisitObjCMessageExpr(ObjCMessageExpr *CE);
   void VisitForStmt(ForStmt *S);
   void VisitCompoundStmt (CompoundStmt *S);
   void VisitStmt(Stmt *S) { VisitChildren(S); }
@@ -93,6 +96,7 @@ public:
   bool checkCall_strCommon(const CallExpr *CE, const FunctionDecl *FD);
 
   typedef void (WalkAST::*FnCheck)(const CallExpr *, const FunctionDecl *);
+  typedef void (WalkAST::*MsgCheck)(const ObjCMessageExpr *);
 
   // Checker-specific methods.
   void checkLoopConditionForFloat(const ForStmt *FS);
@@ -110,6 +114,7 @@ public:
   void checkCall_rand(const CallExpr *CE, const FunctionDecl *FD);
   void checkCall_random(const CallExpr *CE, const FunctionDecl *FD);
   void checkCall_vfork(const CallExpr *CE, const FunctionDecl *FD);
+  void checkMsg_decodeValueOfObjCType(const ObjCMessageExpr *ME);
   void checkUncheckedReturnValue(CallExpr *CE);
 };
 } // end anonymous namespace
@@ -182,6 +187,20 @@ void WalkAST::VisitCallExpr(CallExpr *CE) {
   VisitChildren(CE);
 }
 
+void WalkAST::VisitObjCMessageExpr(ObjCMessageExpr *ME) {
+  MsgCheck evalFunction =
+      llvm::StringSwitch<MsgCheck>(ME->getSelector().getAsString())
+          .Case("decodeValueOfObjCType:at:",
+                &WalkAST::checkMsg_decodeValueOfObjCType)
+          .Default(nullptr);
+
+  if (evalFunction)
+    (this->*evalFunction)(ME);
+
+  // Recurse and check children.
+  VisitChildren(ME);
+}
+
 void WalkAST::VisitCompoundStmt(CompoundStmt *S) {
   for (Stmt *Child : S->children())
     if (Child) {
@@ -204,6 +223,8 @@ void WalkAST::VisitForStmt(ForStmt *FS) {
 // Implements: CERT security coding advisory FLP-30.
 //===----------------------------------------------------------------------===//
 
+// Returns either 'x' or 'y', depending on which one of them is incremented
+// in 'expr', or nullptr if none of them is incremented.
 static const DeclRefExpr*
 getIncrementedVar(const Expr *expr, const VarDecl *x, const VarDecl *y) {
   expr = expr->IgnoreParenCasts();
@@ -289,14 +310,15 @@ void WalkAST::checkLoopConditionForFloat(const ForStmt *FS) {
 
   // Does either variable appear in increment?
   const DeclRefExpr *drInc = getIncrementedVar(increment, vdLHS, vdRHS);
-
   if (!drInc)
     return;
 
+  const VarDecl *vdInc = cast<VarDecl>(drInc->getDecl());
+  assert(vdInc && (vdInc == vdLHS || vdInc == vdRHS));
+
   // Emit the error.  First figure out which DeclRefExpr in the condition
   // referenced the compared variable.
-  assert(drInc->getDecl());
-  const DeclRefExpr *drCond = vdLHS == drInc->getDecl() ? drLHS : drRHS;
+  const DeclRefExpr *drCond = vdLHS == vdInc ? drLHS : drRHS;
 
   SmallVector<SourceRange, 2> ranges;
   SmallString<256> sbuf;
@@ -921,6 +943,54 @@ void WalkAST::checkCall_vfork(const CallExpr *CE, const FunctionDecl *FD) {
 }
 
 //===----------------------------------------------------------------------===//
+// Check: '-decodeValueOfObjCType:at:' should not be used.
+// It is deprecated in favor of '-decodeValueOfObjCType:at:size:' due to
+// likelihood of buffer overflows.
+//===----------------------------------------------------------------------===//
+
+void WalkAST::checkMsg_decodeValueOfObjCType(const ObjCMessageExpr *ME) {
+  if (!filter.check_decodeValueOfObjCType)
+    return;
+
+  // Check availability of the secure alternative:
+  // iOS 11+, macOS 10.13+, tvOS 11+, and watchOS 4.0+
+  // FIXME: We probably shouldn't register the check if it's not available.
+  const TargetInfo &TI = AC->getASTContext().getTargetInfo();
+  const llvm::Triple &T = TI.getTriple();
+  const VersionTuple &VT = TI.getPlatformMinVersion();
+  switch (T.getOS()) {
+  case llvm::Triple::IOS:
+    if (VT < VersionTuple(11, 0))
+      return;
+    break;
+  case llvm::Triple::MacOSX:
+    if (VT < VersionTuple(10, 13))
+      return;
+    break;
+  case llvm::Triple::WatchOS:
+    if (VT < VersionTuple(4, 0))
+      return;
+    break;
+  case llvm::Triple::TvOS:
+    if (VT < VersionTuple(11, 0))
+      return;
+    break;
+  default:
+    return;
+  }
+
+  PathDiagnosticLocation MELoc =
+      PathDiagnosticLocation::createBegin(ME, BR.getSourceManager(), AC);
+  BR.EmitBasicReport(
+      AC->getDecl(), filter.checkName_decodeValueOfObjCType,
+      "Potential buffer overflow in '-decodeValueOfObjCType:at:'", "Security",
+      "Deprecated method '-decodeValueOfObjCType:at:' is insecure "
+      "as it can lead to potential buffer overflows. Use the safer "
+      "'-decodeValueOfObjCType:at:size:' method.",
+      MELoc, ME->getSourceRange());
+}
+
+//===----------------------------------------------------------------------===//
 // Check: Should check whether privileges are dropped successfully.
 // Originally: <rdar://problem/6337132>
 //===----------------------------------------------------------------------===//
@@ -1012,14 +1082,12 @@ bool ento::shouldRegisterSecuritySyntaxChecker(const LangOptions &LO) {
 
 #define REGISTER_CHECKER(name)                                                 \
   void ento::register##name(CheckerManager &mgr) {                             \
-    SecuritySyntaxChecker *checker =  mgr.getChecker<SecuritySyntaxChecker>(); \
+    SecuritySyntaxChecker *checker = mgr.getChecker<SecuritySyntaxChecker>();  \
     checker->filter.check_##name = true;                                       \
-    checker->filter.checkName_##name = mgr.getCurrentCheckName();              \
+    checker->filter.checkName_##name = mgr.getCurrentCheckerName();            \
   }                                                                            \
                                                                                \
-  bool ento::shouldRegister##name(const LangOptions &LO) {                     \
-    return true;                                                               \
-  }
+  bool ento::shouldRegister##name(const LangOptions &LO) { return true; }
 
 REGISTER_CHECKER(bcmp)
 REGISTER_CHECKER(bcopy)
@@ -1034,3 +1102,4 @@ REGISTER_CHECKER(vfork)
 REGISTER_CHECKER(FloatLoopCounter)
 REGISTER_CHECKER(UncheckedReturn)
 REGISTER_CHECKER(DeprecatedOrUnsafeBufferHandling)
+REGISTER_CHECKER(decodeValueOfObjCType)

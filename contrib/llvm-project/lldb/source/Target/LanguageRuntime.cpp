@@ -111,12 +111,11 @@ public:
   ~ExceptionBreakpointResolver() override = default;
 
   Searcher::CallbackReturn SearchCallback(SearchFilter &filter,
-                                          SymbolContext &context, Address *addr,
-                                          bool containing) override {
+                                          SymbolContext &context,
+                                          Address *addr) override {
 
     if (SetActualResolver())
-      return m_actual_resolver_sp->SearchCallback(filter, context, addr,
-                                                  containing);
+      return m_actual_resolver_sp->SearchCallback(filter, context, addr);
     else
       return eCallbackReturnStop;
   }
@@ -156,8 +155,10 @@ public:
 
 protected:
   BreakpointResolverSP CopyForBreakpoint(Breakpoint &breakpoint) override {
-    return BreakpointResolverSP(
+    BreakpointResolverSP ret_sp(
         new ExceptionBreakpointResolver(m_language, m_catch_bp, m_throw_bp));
+    ret_sp->SetBreakpoint(&breakpoint);
+    return ret_sp;
   }
 
   bool SetActualResolver() {

@@ -17,9 +17,11 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/IntrinsicsHexagon.h"
 #include "llvm/IR/PatternMatch.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include <algorithm>
@@ -184,7 +186,7 @@ bool HexagonGenExtract::convert(Instruction *In) {
   // The width of the extracted field is the minimum of the original bits
   // that remain after the shifts and the number of contiguous 1s in the mask.
   uint32_t W = std::min(U, T);
-  if (W == 0)
+  if (W == 0 || W == 1)
     return false;
 
   // Check if the extracted bits are contained within the mask that it is

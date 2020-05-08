@@ -33,6 +33,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -220,7 +221,7 @@ bool SSACCmpConv::trivialTailPHIs() {
     // PHI operands come in (VReg, MBB) pairs.
     for (unsigned oi = 1, oe = I.getNumOperands(); oi != oe; oi += 2) {
       MachineBasicBlock *MBB = I.getOperand(oi + 1).getMBB();
-      unsigned Reg = I.getOperand(oi).getReg();
+      Register Reg = I.getOperand(oi).getReg();
       if (MBB == Head) {
         assert((!HeadReg || HeadReg == Reg) && "Inconsistent PHI operands");
         HeadReg = Reg;
@@ -259,7 +260,7 @@ bool SSACCmpConv::isDeadDef(unsigned DstReg) {
   // Writes to the zero register are dead.
   if (DstReg == AArch64::WZR || DstReg == AArch64::XZR)
     return true;
-  if (!TargetRegisterInfo::isVirtualRegister(DstReg))
+  if (!Register::isVirtualRegister(DstReg))
     return false;
   // A virtual register def without any uses will be marked dead later, and
   // eventually replaced by the zero register.
@@ -351,8 +352,7 @@ MachineInstr *SSACCmpConv::findConvertibleCompare(MachineBasicBlock *MBB) {
     }
 
     // Check for flag reads and clobbers.
-    MIOperands::PhysRegInfo PRI =
-        MIOperands(*I).analyzePhysReg(AArch64::NZCV, TRI);
+    PhysRegInfo PRI = AnalyzePhysRegInBundle(*I, AArch64::NZCV, TRI);
 
     if (PRI.Read) {
       // The ccmp doesn't produce exactly the same flags as the original
@@ -631,7 +631,7 @@ void SSACCmpConv::convert(SmallVectorImpl<MachineBasicBlock *> &RemovedBlocks) {
     }
     const MCInstrDesc &MCID = TII->get(Opc);
     // Create a dummy virtual register for the SUBS def.
-    unsigned DestReg =
+    Register DestReg =
         MRI->createVirtualRegister(TII->getRegClass(MCID, 0, TRI, *MF));
     // Insert a SUBS Rn, #0 instruction instead of the cbz / cbnz.
     BuildMI(*Head, Head->end(), TermDL, MCID)

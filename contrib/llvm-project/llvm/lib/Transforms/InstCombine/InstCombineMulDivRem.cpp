@@ -124,6 +124,50 @@ static Constant *getLogBase2(Type *Ty, Constant *C) {
   return ConstantVector::get(Elts);
 }
 
+// TODO: This is a specific form of a much more general pattern.
+//       We could detect a select with any binop identity constant, or we
+//       could use SimplifyBinOp to see if either arm of the select reduces.
+//       But that needs to be done carefully and/or while removing potential
+//       reverse canonicalizations as in InstCombiner::foldSelectIntoOp().
+static Value *foldMulSelectToNegate(BinaryOperator &I,
+                                    InstCombiner::BuilderTy &Builder) {
+  Value *Cond, *OtherOp;
+
+  // mul (select Cond, 1, -1), OtherOp --> select Cond, OtherOp, -OtherOp
+  // mul OtherOp, (select Cond, 1, -1) --> select Cond, OtherOp, -OtherOp
+  if (match(&I, m_c_Mul(m_OneUse(m_Select(m_Value(Cond), m_One(), m_AllOnes())),
+                        m_Value(OtherOp))))
+    return Builder.CreateSelect(Cond, OtherOp, Builder.CreateNeg(OtherOp));
+
+  // mul (select Cond, -1, 1), OtherOp --> select Cond, -OtherOp, OtherOp
+  // mul OtherOp, (select Cond, -1, 1) --> select Cond, -OtherOp, OtherOp
+  if (match(&I, m_c_Mul(m_OneUse(m_Select(m_Value(Cond), m_AllOnes(), m_One())),
+                        m_Value(OtherOp))))
+    return Builder.CreateSelect(Cond, Builder.CreateNeg(OtherOp), OtherOp);
+
+  // fmul (select Cond, 1.0, -1.0), OtherOp --> select Cond, OtherOp, -OtherOp
+  // fmul OtherOp, (select Cond, 1.0, -1.0) --> select Cond, OtherOp, -OtherOp
+  if (match(&I, m_c_FMul(m_OneUse(m_Select(m_Value(Cond), m_SpecificFP(1.0),
+                                           m_SpecificFP(-1.0))),
+                         m_Value(OtherOp)))) {
+    IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
+    Builder.setFastMathFlags(I.getFastMathFlags());
+    return Builder.CreateSelect(Cond, OtherOp, Builder.CreateFNeg(OtherOp));
+  }
+
+  // fmul (select Cond, -1.0, 1.0), OtherOp --> select Cond, -OtherOp, OtherOp
+  // fmul OtherOp, (select Cond, -1.0, 1.0) --> select Cond, -OtherOp, OtherOp
+  if (match(&I, m_c_FMul(m_OneUse(m_Select(m_Value(Cond), m_SpecificFP(-1.0),
+                                           m_SpecificFP(1.0))),
+                         m_Value(OtherOp)))) {
+    IRBuilder<>::FastMathFlagGuard FMFGuard(Builder);
+    Builder.setFastMathFlags(I.getFastMathFlags());
+    return Builder.CreateSelect(Cond, Builder.CreateFNeg(OtherOp), OtherOp);
+  }
+
+  return nullptr;
+}
+
 Instruction *InstCombiner::visitMul(BinaryOperator &I) {
   if (Value *V = SimplifyMulInst(I.getOperand(0), I.getOperand(1),
                                  SQ.getWithInstruction(&I)))
@@ -212,6 +256,9 @@ Instruction *InstCombiner::visitMul(BinaryOperator &I) {
 
   if (Instruction *FoldedMul = foldBinOpIntoSelectOrPhi(I))
     return FoldedMul;
+
+  if (Value *FoldedMul = foldMulSelectToNegate(I, Builder))
+    return replaceInstUsesWith(I, FoldedMul);
 
   // Simplify mul instructions with a constant RHS.
   if (isa<Constant>(Op1)) {
@@ -358,6 +405,9 @@ Instruction *InstCombiner::visitFMul(BinaryOperator &I) {
   if (Instruction *FoldedMul = foldBinOpIntoSelectOrPhi(I))
     return FoldedMul;
 
+  if (Value *FoldedMul = foldMulSelectToNegate(I, Builder))
+    return replaceInstUsesWith(I, FoldedMul);
+
   // X * -1.0 --> -X
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
   if (match(Op1, m_SpecificFP(-1.0)))
@@ -372,16 +422,6 @@ Instruction *InstCombiner::visitFMul(BinaryOperator &I) {
   Constant *C;
   if (match(Op0, m_FNeg(m_Value(X))) && match(Op1, m_Constant(C)))
     return BinaryOperator::CreateFMulFMF(X, ConstantExpr::getFNeg(C), &I);
-
-  // Sink negation: -X * Y --> -(X * Y)
-  // But don't transform constant expressions because there's an inverse fold.
-  if (match(Op0, m_OneUse(m_FNeg(m_Value(X)))) && !isa<ConstantExpr>(Op0))
-    return BinaryOperator::CreateFNegFMF(Builder.CreateFMulFMF(X, Op1, &I), &I);
-
-  // Sink negation: Y * -X --> -(X * Y)
-  // But don't transform constant expressions because there's an inverse fold.
-  if (match(Op1, m_OneUse(m_FNeg(m_Value(X)))) && !isa<ConstantExpr>(Op1))
-    return BinaryOperator::CreateFNegFMF(Builder.CreateFMulFMF(X, Op0, &I), &I);
 
   // fabs(X) * fabs(X) -> X * X
   if (Op0 == Op1 && match(Op0, m_Intrinsic<Intrinsic::fabs>(m_Value(X))))
@@ -1199,6 +1239,14 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
       Value *YZ = Builder.CreateFMulFMF(Y, Op0, &I);
       return BinaryOperator::CreateFDivFMF(YZ, X, &I);
     }
+    // Z / (1.0 / Y) => (Y * Z)
+    //
+    // This is a special case of Z / (X / Y) => (Y * Z) / X, with X = 1.0. The
+    // m_OneUse check is avoided because even in the case of the multiple uses
+    // for 1.0/Y, the number of instructions remain the same and a division is
+    // replaced by a multiplication.
+    if (match(Op1, m_FDiv(m_SpecificFP(1.0), m_Value(Y))))
+      return BinaryOperator::CreateFMulFMF(Y, Op0, &I);
   }
 
   if (I.hasAllowReassoc() && Op0->hasOneUse() && Op1->hasOneUse()) {
@@ -1211,8 +1259,8 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
         !IsTan && match(Op0, m_Intrinsic<Intrinsic::cos>(m_Value(X))) &&
                   match(Op1, m_Intrinsic<Intrinsic::sin>(m_Specific(X)));
 
-    if ((IsTan || IsCot) && hasUnaryFloatFn(&TLI, I.getType(), LibFunc_tan,
-                                            LibFunc_tanf, LibFunc_tanl)) {
+    if ((IsTan || IsCot) &&
+        hasFloatFn(&TLI, I.getType(), LibFunc_tan, LibFunc_tanf, LibFunc_tanl)) {
       IRBuilder<> B(&I);
       IRBuilder<>::FastMathFlagGuard FMFGuard(B);
       B.setFastMathFlags(I.getFastMathFlags());
@@ -1244,6 +1292,17 @@ Instruction *InstCombiner::visitFDiv(BinaryOperator &I) {
     return &I;
   }
 
+  // X / fabs(X) -> copysign(1.0, X)
+  // fabs(X) / X -> copysign(1.0, X)
+  if (I.hasNoNaNs() && I.hasNoInfs() &&
+      (match(&I,
+             m_FDiv(m_Value(X), m_Intrinsic<Intrinsic::fabs>(m_Deferred(X)))) ||
+       match(&I, m_FDiv(m_Intrinsic<Intrinsic::fabs>(m_Value(X)),
+                        m_Deferred(X))))) {
+    Value *V = Builder.CreateBinaryIntrinsic(
+        Intrinsic::copysign, ConstantFP::get(I.getType(), 1.0), X, &I);
+    return replaceInstUsesWith(I, V);
+  }
   return nullptr;
 }
 
@@ -1309,14 +1368,18 @@ Instruction *InstCombiner::visitURem(BinaryOperator &I) {
   Value *Op0 = I.getOperand(0), *Op1 = I.getOperand(1);
   Type *Ty = I.getType();
   if (isKnownToBeAPowerOfTwo(Op1, /*OrZero*/ true, 0, &I)) {
+    // This may increase instruction count, we don't enforce that Y is a
+    // constant.
     Constant *N1 = Constant::getAllOnesValue(Ty);
     Value *Add = Builder.CreateAdd(Op1, N1);
     return BinaryOperator::CreateAnd(Op0, Add);
   }
 
   // 1 urem X -> zext(X != 1)
-  if (match(Op0, m_One()))
-    return CastInst::CreateZExtOrBitCast(Builder.CreateICmpNE(Op1, Op0), Ty);
+  if (match(Op0, m_One())) {
+    Value *Cmp = Builder.CreateICmpNE(Op1, ConstantInt::get(Ty, 1));
+    return CastInst::CreateZExtOrBitCast(Cmp, Ty);
+  }
 
   // X urem C -> X < C ? X : X - C, where C >= signbit.
   if (match(Op1, m_Negative())) {

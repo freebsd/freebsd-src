@@ -34,11 +34,9 @@ void LineTable::InsertLineEntry(lldb::addr_t file_addr, uint32_t line,
               is_start_of_basic_block, is_prologue_end, is_epilogue_begin,
               is_terminal_entry);
 
-  entry_collection::iterator begin_pos = m_entries.begin();
-  entry_collection::iterator end_pos = m_entries.end();
   LineTable::Entry::LessThanBinaryPredicate less_than_bp(this);
   entry_collection::iterator pos =
-      upper_bound(begin_pos, end_pos, entry, less_than_bp);
+      llvm::upper_bound(m_entries, entry, less_than_bp);
 
   //  Stream s(stdout);
   //  s << "\n\nBefore:\n";
@@ -241,33 +239,47 @@ bool LineTable::FindLineEntryByAddress(const Address &so_addr,
 
 bool LineTable::ConvertEntryAtIndexToLineEntry(uint32_t idx,
                                                LineEntry &line_entry) {
-  if (idx < m_entries.size()) {
-    const Entry &entry = m_entries[idx];
-    ModuleSP module_sp(m_comp_unit->GetModule());
-    if (module_sp &&
-        module_sp->ResolveFileAddress(entry.file_addr,
-                                      line_entry.range.GetBaseAddress())) {
-      if (!entry.is_terminal_entry && idx + 1 < m_entries.size())
-        line_entry.range.SetByteSize(m_entries[idx + 1].file_addr -
-                                     entry.file_addr);
-      else
-        line_entry.range.SetByteSize(0);
+  if (idx >= m_entries.size())
+    return false;
 
-      line_entry.file =
-          m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
-      line_entry.original_file =
-          m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
-      line_entry.line = entry.line;
-      line_entry.column = entry.column;
-      line_entry.is_start_of_statement = entry.is_start_of_statement;
-      line_entry.is_start_of_basic_block = entry.is_start_of_basic_block;
-      line_entry.is_prologue_end = entry.is_prologue_end;
-      line_entry.is_epilogue_begin = entry.is_epilogue_begin;
-      line_entry.is_terminal_entry = entry.is_terminal_entry;
-      return true;
-    }
-  }
-  return false;
+  const Entry &entry = m_entries[idx];
+  ModuleSP module_sp(m_comp_unit->GetModule());
+  if (!module_sp)
+    return false;
+
+  addr_t file_addr = entry.file_addr;
+
+  // A terminal entry can point outside of a module or a section. Decrement the
+  // address to ensure it resolves correctly.
+  if (entry.is_terminal_entry)
+    --file_addr;
+
+  if (!module_sp->ResolveFileAddress(file_addr,
+                                     line_entry.range.GetBaseAddress()))
+    return false;
+
+  // Now undo the decrement above.
+  if (entry.is_terminal_entry)
+    line_entry.range.GetBaseAddress().Slide(1);
+
+  if (!entry.is_terminal_entry && idx + 1 < m_entries.size())
+    line_entry.range.SetByteSize(m_entries[idx + 1].file_addr -
+                                 entry.file_addr);
+  else
+    line_entry.range.SetByteSize(0);
+
+  line_entry.file =
+      m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
+  line_entry.original_file =
+      m_comp_unit->GetSupportFiles().GetFileSpecAtIndex(entry.file_idx);
+  line_entry.line = entry.line;
+  line_entry.column = entry.column;
+  line_entry.is_start_of_statement = entry.is_start_of_statement;
+  line_entry.is_start_of_basic_block = entry.is_start_of_basic_block;
+  line_entry.is_prologue_end = entry.is_prologue_end;
+  line_entry.is_epilogue_begin = entry.is_epilogue_begin;
+  line_entry.is_terminal_entry = entry.is_terminal_entry;
+  return true;
 }
 
 uint32_t LineTable::FindLineEntryIndexByFileIndex(
@@ -275,8 +287,6 @@ uint32_t LineTable::FindLineEntryIndexByFileIndex(
     uint32_t line, bool exact, LineEntry *line_entry_ptr) {
 
   const size_t count = m_entries.size();
-  std::vector<uint32_t>::const_iterator begin_pos = file_indexes.begin();
-  std::vector<uint32_t>::const_iterator end_pos = file_indexes.end();
   size_t best_match = UINT32_MAX;
 
   for (size_t idx = start_idx; idx < count; ++idx) {
@@ -285,7 +295,7 @@ uint32_t LineTable::FindLineEntryIndexByFileIndex(
     if (m_entries[idx].is_terminal_entry)
       continue;
 
-    if (find(begin_pos, end_pos, m_entries[idx].file_idx) == end_pos)
+    if (llvm::find(file_indexes, m_entries[idx].file_idx) == file_indexes.end())
       continue;
 
     // Exact match always wins.  Otherwise try to find the closest line > the

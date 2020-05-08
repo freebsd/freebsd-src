@@ -189,7 +189,7 @@ void tools::gcc::Common::ConstructJob(Compilation &C, const JobAction &JA,
     GCCName = "gcc";
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath(GCCName));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void tools::gcc::Preprocessor::RenderExtraToolArgs(
@@ -499,7 +499,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
         P = ToolChain.GetFilePath(crtbegin);
       }
       CmdArgs.push_back(Args.MakeArgString(P));
-	  }
+    }
 
     // Add crtfastmath.o if available and fast math is enabled.
     ToolChain.AddFastMathRuntimeIfAvailable(Args, CmdArgs);
@@ -555,9 +555,13 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
       bool WantPthread = Args.hasArg(options::OPT_pthread) ||
                          Args.hasArg(options::OPT_pthreads);
 
+      // Use the static OpenMP runtime with -static-openmp
+      bool StaticOpenMP = Args.hasArg(options::OPT_static_openmp) &&
+                          !Args.hasArg(options::OPT_static);
+
       // FIXME: Only pass GompNeedsRT = true for platforms with libgomp that
       // require librt. Most modern Linux platforms do, but some may not.
-      if (addOpenMPRuntime(CmdArgs, ToolChain, Args,
+      if (addOpenMPRuntime(CmdArgs, ToolChain, Args, StaticOpenMP,
                            JA.isHostOffloading(Action::OFK_OpenMP),
                            /* GompNeedsRT= */ true))
         // OpenMP runtimes implies pthreads when using the GNU toolchain.
@@ -619,15 +623,12 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
     }
   }
 
-  // Add OpenMP offloading linker script args if required.
-  AddOpenMPLinkerScript(getToolChain(), C, Output, Inputs, Args, CmdArgs, JA);
-
   // Add HIP offloading linker script args if required.
   AddHIPLinkerScript(getToolChain(), C, Output, Inputs, Args, CmdArgs, JA,
                      *this);
 
   const char *Exec = Args.MakeArgString(ToolChain.GetLinkerPath());
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 }
 
 void tools::gnutools::Assembler::ConstructJob(Compilation &C,
@@ -708,11 +709,9 @@ void tools::gnutools::Assembler::ConstructJob(Compilation &C,
     StringRef ABIName = riscv::getRISCVABI(Args, getToolChain().getTriple());
     CmdArgs.push_back("-mabi");
     CmdArgs.push_back(ABIName.data());
-    if (const Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
-      StringRef MArch = A->getValue();
-      CmdArgs.push_back("-march");
-      CmdArgs.push_back(MArch.data());
-    }
+    StringRef MArchName = riscv::getRISCVArch(Args, getToolChain().getTriple());
+    CmdArgs.push_back("-march");
+    CmdArgs.push_back(MArchName.data());
     break;
   }
   case llvm::Triple::sparc:
@@ -863,10 +862,23 @@ void tools::gnutools::Assembler::ConstructJob(Compilation &C,
   case llvm::Triple::systemz: {
     // Always pass an -march option, since our default of z10 is later
     // than the GNU assembler's default.
-    StringRef CPUName = systemz::getSystemZTargetCPU(Args);
+    std::string CPUName = systemz::getSystemZTargetCPU(Args);
     CmdArgs.push_back(Args.MakeArgString("-march=" + CPUName));
     break;
   }
+  }
+
+  for (const Arg *A : Args.filtered(options::OPT_ffile_prefix_map_EQ,
+                                    options::OPT_fdebug_prefix_map_EQ)) {
+    StringRef Map = A->getValue();
+    if (Map.find('=') == StringRef::npos)
+      D.Diag(diag::err_drv_invalid_argument_to_option)
+          << Map << A->getOption().getName();
+    else {
+      CmdArgs.push_back(Args.MakeArgString("--debug-prefix-map"));
+      CmdArgs.push_back(Args.MakeArgString(Map));
+    }
+    A->claim();
   }
 
   Args.AddAllArgs(CmdArgs, options::OPT_I);
@@ -879,7 +891,7 @@ void tools::gnutools::Assembler::ConstructJob(Compilation &C,
     CmdArgs.push_back(II.getFilename());
 
   const char *Exec = Args.MakeArgString(getToolChain().GetProgramPath("as"));
-  C.addCommand(llvm::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
+  C.addCommand(std::make_unique<Command>(JA, *this, Exec, CmdArgs, Inputs));
 
   // Handle the debug info splitting at object creation time if we're
   // creating an object.
@@ -1504,9 +1516,65 @@ static bool findMSP430Multilibs(const Driver &D,
   return false;
 }
 
+static void findRISCVBareMetalMultilibs(const Driver &D,
+                                        const llvm::Triple &TargetTriple,
+                                        StringRef Path, const ArgList &Args,
+                                        DetectedMultilibs &Result) {
+  FilterNonExistent NonExistent(Path, "/crtbegin.o", D.getVFS());
+  struct RiscvMultilib {
+    StringRef march;
+    StringRef mabi;
+  };
+  // currently only support the set of multilibs like riscv-gnu-toolchain does.
+  // TODO: support MULTILIB_REUSE
+  SmallVector<RiscvMultilib, 8> RISCVMultilibSet = {
+      {"rv32i", "ilp32"},     {"rv32im", "ilp32"},     {"rv32iac", "ilp32"},
+      {"rv32imac", "ilp32"},  {"rv32imafc", "ilp32f"}, {"rv64imac", "lp64"},
+      {"rv64imafdc", "lp64d"}};
+
+  std::vector<Multilib> Ms;
+  for (auto Element : RISCVMultilibSet) {
+    // multilib path rule is ${march}/${mabi}
+    Ms.emplace_back(
+        makeMultilib((Twine(Element.march) + "/" + Twine(Element.mabi)).str())
+            .flag(Twine("+march=", Element.march).str())
+            .flag(Twine("+mabi=", Element.mabi).str()));
+  }
+  MultilibSet RISCVMultilibs =
+      MultilibSet()
+          .Either(ArrayRef<Multilib>(Ms))
+          .FilterOut(NonExistent)
+          .setFilePathsCallback([](const Multilib &M) {
+            return std::vector<std::string>(
+                {M.gccSuffix(),
+                 "/../../../../riscv64-unknown-elf/lib" + M.gccSuffix(),
+                 "/../../../../riscv32-unknown-elf/lib" + M.gccSuffix()});
+          });
+
+
+  Multilib::flags_list Flags;
+  llvm::StringSet<> Added_ABIs;
+  StringRef ABIName = tools::riscv::getRISCVABI(Args, TargetTriple);
+  StringRef MArch = tools::riscv::getRISCVArch(Args, TargetTriple);
+  for (auto Element : RISCVMultilibSet) {
+    addMultilibFlag(MArch == Element.march,
+                    Twine("march=", Element.march).str().c_str(), Flags);
+    if (!Added_ABIs.count(Element.mabi)) {
+      Added_ABIs.insert(Element.mabi);
+      addMultilibFlag(ABIName == Element.mabi,
+                      Twine("mabi=", Element.mabi).str().c_str(), Flags);
+    }
+  }
+
+  if (RISCVMultilibs.select(Flags, Result.SelectedMultilib))
+    Result.Multilibs = RISCVMultilibs;
+}
+
 static void findRISCVMultilibs(const Driver &D,
                                const llvm::Triple &TargetTriple, StringRef Path,
                                const ArgList &Args, DetectedMultilibs &Result) {
+  if (TargetTriple.getOS() == llvm::Triple::UnknownOS)
+    return findRISCVBareMetalMultilibs(D, TargetTriple, Path, Args, Result);
 
   FilterNonExistent NonExistent(Path, "/crtbegin.o", D.getVFS());
   Multilib Ilp32 = makeMultilib("lib32/ilp32").flag("+m32").flag("+mabi=ilp32");
@@ -2002,7 +2070,9 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
   static const char *const PPCLibDirs[] = {"/lib32", "/lib"};
   static const char *const PPCTriples[] = {
       "powerpc-linux-gnu", "powerpc-unknown-linux-gnu", "powerpc-linux-gnuspe",
-      "powerpc-suse-linux", "powerpc-montavista-linuxspe"};
+      // On 32-bit PowerPC systems running SUSE Linux, gcc is configured as a
+      // 64-bit compiler which defaults to "-m32", hence "powerpc64-suse-linux".
+      "powerpc64-suse-linux", "powerpc-montavista-linuxspe"};
   static const char *const PPC64LibDirs[] = {"/lib64", "/lib"};
   static const char *const PPC64Triples[] = {
       "powerpc64-linux-gnu", "powerpc64-unknown-linux-gnu",
@@ -2019,7 +2089,8 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
   static const char *const RISCV64LibDirs[] = {"/lib64", "/lib"};
   static const char *const RISCV64Triples[] = {"riscv64-unknown-linux-gnu",
                                                "riscv64-linux-gnu",
-                                               "riscv64-unknown-elf"};
+                                               "riscv64-unknown-elf",
+                                               "riscv64-suse-linux"};
 
   static const char *const SPARCv8LibDirs[] = {"/lib32", "/lib"};
   static const char *const SPARCv8Triples[] = {"sparc-linux-gnu",
@@ -2544,9 +2615,6 @@ bool Generic_GCC::isPICDefault() const {
   switch (getArch()) {
   case llvm::Triple::x86_64:
     return getTriple().isOSWindows();
-  case llvm::Triple::ppc64:
-    // Big endian PPC is PIC by default
-    return !getTriple().isOSBinFormatMachO() && !getTriple().isMacOSX();
   case llvm::Triple::mips64:
   case llvm::Triple::mips64el:
     return true;
@@ -2615,19 +2683,49 @@ void Generic_GCC::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
   }
 }
 
-void
-Generic_GCC::addLibCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
-                                   llvm::opt::ArgStringList &CC1Args) const {
-  // FIXME: The Linux behavior would probaby be a better approach here.
-  addSystemInclude(DriverArgs, CC1Args,
-                   getDriver().SysRoot + "/usr/include/c++/v1");
+static std::string DetectLibcxxIncludePath(llvm::vfs::FileSystem &vfs,
+                                           StringRef base) {
+  std::error_code EC;
+  int MaxVersion = 0;
+  std::string MaxVersionString;
+  for (llvm::vfs::directory_iterator LI = vfs.dir_begin(base, EC), LE;
+       !EC && LI != LE; LI = LI.increment(EC)) {
+    StringRef VersionText = llvm::sys::path::filename(LI->path());
+    int Version;
+    if (VersionText[0] == 'v' &&
+        !VersionText.slice(1, StringRef::npos).getAsInteger(10, Version)) {
+      if (Version > MaxVersion) {
+        MaxVersion = Version;
+        MaxVersionString = VersionText;
+      }
+    }
+  }
+  return MaxVersion ? (base + "/" + MaxVersionString).str() : "";
 }
 
 void
-Generic_GCC::addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
-                                      llvm::opt::ArgStringList &CC1Args) const {
-  // By default, we don't assume we know where libstdc++ might be installed.
-  // FIXME: If we have a valid GCCInstallation, use it.
+Generic_GCC::addLibCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
+                                   llvm::opt::ArgStringList &CC1Args) const {
+  const std::string& SysRoot = getDriver().SysRoot;
+  auto AddIncludePath = [&](std::string Path) {
+    std::string IncludePath = DetectLibcxxIncludePath(getVFS(), Path);
+    if (IncludePath.empty() || !getVFS().exists(IncludePath))
+      return false;
+    addSystemInclude(DriverArgs, CC1Args, IncludePath);
+    return true;
+  };
+  // Android never uses the libc++ headers installed alongside the toolchain,
+  // which are generally incompatible with the NDK libraries anyway.
+  if (!getTriple().isAndroid())
+    if (AddIncludePath(getDriver().Dir + "/../include/c++"))
+      return;
+  // If this is a development, non-installed, clang, libcxx will
+  // not be found at ../include/c++ but it likely to be found at
+  // one of the following two locations:
+  if (AddIncludePath(SysRoot + "/usr/local/include/c++"))
+    return;
+  if (AddIncludePath(SysRoot + "/usr/include/c++"))
+    return;
 }
 
 /// Helper to add the variant paths of a libstdc++ installation.
@@ -2661,6 +2759,60 @@ bool Generic_GCC::addLibStdCXXIncludePaths(
 
   addSystemInclude(DriverArgs, CC1Args, Base + Suffix + "/backward");
   return true;
+}
+
+bool
+Generic_GCC::addGCCLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
+                                         llvm::opt::ArgStringList &CC1Args) const {
+  // Use GCCInstallation to know where libstdc++ headers are installed.
+  if (!GCCInstallation.isValid())
+    return false;
+
+  // By default, look for the C++ headers in an include directory adjacent to
+  // the lib directory of the GCC installation. Note that this is expect to be
+  // equivalent to '/usr/include/c++/X.Y' in almost all cases.
+  StringRef LibDir = GCCInstallation.getParentLibPath();
+  StringRef InstallDir = GCCInstallation.getInstallPath();
+  StringRef TripleStr = GCCInstallation.getTriple().str();
+  const Multilib &Multilib = GCCInstallation.getMultilib();
+  const std::string GCCMultiarchTriple = getMultiarchTriple(
+      getDriver(), GCCInstallation.getTriple(), getDriver().SysRoot);
+  const std::string TargetMultiarchTriple =
+      getMultiarchTriple(getDriver(), getTriple(), getDriver().SysRoot);
+  const GCCVersion &Version = GCCInstallation.getVersion();
+
+  // The primary search for libstdc++ supports multiarch variants.
+  if (addLibStdCXXIncludePaths(LibDir.str() + "/../include",
+                               "/c++/" + Version.Text, TripleStr,
+                               GCCMultiarchTriple, TargetMultiarchTriple,
+                               Multilib.includeSuffix(), DriverArgs, CC1Args))
+    return true;
+
+  // Otherwise, fall back on a bunch of options which don't use multiarch
+  // layouts for simplicity.
+  const std::string LibStdCXXIncludePathCandidates[] = {
+      // Gentoo is weird and places its headers inside the GCC install,
+      // so if the first attempt to find the headers fails, try these patterns.
+      InstallDir.str() + "/include/g++-v" + Version.Text,
+      InstallDir.str() + "/include/g++-v" + Version.MajorStr + "." +
+          Version.MinorStr,
+      InstallDir.str() + "/include/g++-v" + Version.MajorStr,
+  };
+
+  for (const auto &IncludePath : LibStdCXXIncludePathCandidates) {
+    if (addLibStdCXXIncludePaths(IncludePath, /*Suffix*/ "", TripleStr,
+                                 /*GCCMultiarchTriple*/ "",
+                                 /*TargetMultiarchTriple*/ "",
+                                 Multilib.includeSuffix(), DriverArgs, CC1Args))
+      return true;
+  }
+  return false;
+}
+
+void
+Generic_GCC::addLibStdCxxIncludePaths(const llvm::opt::ArgList &DriverArgs,
+                                      llvm::opt::ArgStringList &CC1Args) const {
+  addGCCLibStdCxxIncludePaths(DriverArgs, CC1Args);
 }
 
 llvm::opt::DerivedArgList *
@@ -2711,23 +2863,7 @@ void Generic_ELF::anchor() {}
 void Generic_ELF::addClangTargetOptions(const ArgList &DriverArgs,
                                         ArgStringList &CC1Args,
                                         Action::OffloadKind) const {
-  const Generic_GCC::GCCVersion &V = GCCInstallation.getVersion();
-  bool UseInitArrayDefault =
-      getTriple().getArch() == llvm::Triple::aarch64 ||
-      getTriple().getArch() == llvm::Triple::aarch64_be ||
-      (getTriple().isOSFreeBSD() &&
-       getTriple().getOSMajorVersion() >= 12) ||
-      (getTriple().getOS() == llvm::Triple::Linux &&
-       ((!GCCInstallation.isValid() || !V.isOlderThan(4, 7, 0)) ||
-        getTriple().isAndroid())) ||
-      getTriple().getOS() == llvm::Triple::NaCl ||
-      (getTriple().getVendor() == llvm::Triple::MipsTechnologies &&
-       !getTriple().hasEnvironment()) ||
-      getTriple().getOS() == llvm::Triple::Solaris ||
-      getTriple().getArch() == llvm::Triple::riscv32 ||
-      getTriple().getArch() == llvm::Triple::riscv64;
-
-  if (DriverArgs.hasFlag(options::OPT_fuse_init_array,
-                         options::OPT_fno_use_init_array, UseInitArrayDefault))
-    CC1Args.push_back("-fuse-init-array");
+  if (!DriverArgs.hasFlag(options::OPT_fuse_init_array,
+                          options::OPT_fno_use_init_array, true))
+    CC1Args.push_back("-fno-use-init-array");
 }

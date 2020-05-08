@@ -626,17 +626,19 @@ llvm::Error MachOFileLayout::writeSingleSegmentLoadCommand(uint8_t *&lc) {
                           + _file.sections.size() * sizeof(typename T::section);
   uint8_t *next = lc + seg->cmdsize;
   memset(seg->segname, 0, 16);
+  seg->flags = 0;
   seg->vmaddr = 0;
-  seg->vmsize = _file.sections.back().address
-              + _file.sections.back().content.size();
   seg->fileoff = _endOfLoadCommands;
-  seg->filesize = _sectInfo[&_file.sections.back()].fileOffset +
-                  _file.sections.back().content.size() -
-                  _sectInfo[&_file.sections.front()].fileOffset;
   seg->maxprot = VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE;
   seg->initprot = VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE;
   seg->nsects = _file.sections.size();
-  seg->flags = 0;
+  if (seg->nsects) {
+    seg->vmsize = _file.sections.back().address
+                + _file.sections.back().content.size();
+    seg->filesize = _sectInfo[&_file.sections.back()].fileOffset +
+                    _file.sections.back().content.size() -
+                    _sectInfo[&_file.sections.front()].fileOffset;
+  }
   if (_swap)
     swapStruct(*seg);
   typename T::section *sout = reinterpret_cast<typename T::section*>
@@ -1265,7 +1267,7 @@ void TrieNode::addSymbol(const Export& entry,
       edge._child->addSymbol(entry, allocator, allNodes);
       return;
     }
-    // See if string has commmon prefix with existing edge.
+    // See if string has common prefix with existing edge.
     for (int n=edgeStr.size()-1; n > 0; --n) {
       if (partialStr.substr(0, n).equals(edgeStr.substr(0, n))) {
         // Splice in new node:  was A -> C,  now A -> B -> C
@@ -1349,7 +1351,7 @@ bool TrieNode::updateOffset(uint32_t& offset) {
     nodeSize += llvm::getULEB128Size(nodeSize);
   }
   // Compute size of all child edges.
-  ++nodeSize; // Byte for number of chidren.
+  ++nodeSize; // Byte for number of children.
   for (TrieEdge &edge : _children) {
     nodeSize += edge._subString.size() + 1 // String length.
               + llvm::getULEB128Size(edge._child->_trieOffset); // Offset len.

@@ -46,7 +46,7 @@ Stream *ThreadPlanTracer::GetLogStream() {
   else {
     TargetSP target_sp(m_thread.CalculateTarget());
     if (target_sp)
-      return target_sp->GetDebugger().GetOutputFile().get();
+      return &(target_sp->GetDebugger().GetOutputStream());
   }
   return nullptr;
 }
@@ -93,15 +93,20 @@ Disassembler *ThreadPlanAssemblyTracer::GetDisassembler() {
 
 TypeFromUser ThreadPlanAssemblyTracer::GetIntPointerType() {
   if (!m_intptr_type.IsValid()) {
-    TargetSP target_sp(m_thread.CalculateTarget());
-    if (target_sp) {
-      TypeSystem *type_system =
-          target_sp->GetScratchTypeSystemForLanguage(nullptr, eLanguageTypeC);
-      if (type_system)
-        m_intptr_type =
-            TypeFromUser(type_system->GetBuiltinTypeForEncodingAndBitSize(
+    if (auto target_sp = m_thread.CalculateTarget()) {
+      auto type_system_or_err =
+          target_sp->GetScratchTypeSystemForLanguage(eLanguageTypeC);
+      if (auto err = type_system_or_err.takeError()) {
+        LLDB_LOG_ERROR(
+            lldb_private::GetLogIfAnyCategoriesSet(LIBLLDB_LOG_TYPES),
+            std::move(err),
+            "Unable to get integer pointer type from TypeSystem");
+      } else {
+        m_intptr_type = TypeFromUser(
+            type_system_or_err->GetBuiltinTypeForEncodingAndBitSize(
                 eEncodingUint,
                 target_sp->GetArchitecture().GetAddressByteSize() * 8));
+      }
     }
   }
   return m_intptr_type;
@@ -110,10 +115,6 @@ TypeFromUser ThreadPlanAssemblyTracer::GetIntPointerType() {
 ThreadPlanAssemblyTracer::~ThreadPlanAssemblyTracer() = default;
 
 void ThreadPlanAssemblyTracer::TracingStarted() {
-  RegisterContext *reg_ctx = m_thread.GetRegisterContext().get();
-
-  if (m_register_values.empty())
-    m_register_values.resize(reg_ctx->GetRegisterCount());
 }
 
 void ThreadPlanAssemblyTracer::TracingEnded() { m_register_values.clear(); }
@@ -201,6 +202,11 @@ void ThreadPlanAssemblyTracer::Log() {
           stream->PutCString(", ");
       }
     }
+  }
+
+  if (m_register_values.empty()) {
+    RegisterContext *reg_ctx = m_thread.GetRegisterContext().get();
+    m_register_values.resize(reg_ctx->GetRegisterCount());
   }
 
   RegisterValue reg_value;

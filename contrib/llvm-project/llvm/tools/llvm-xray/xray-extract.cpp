@@ -38,15 +38,13 @@ static cl::opt<std::string>
                   cl::desc("output file; use '-' for stdout"),
                   cl::sub(Extract));
 static cl::alias ExtractOutput2("o", cl::aliasopt(ExtractOutput),
-                                cl::desc("Alias for -output"),
-                                cl::sub(Extract));
+                                cl::desc("Alias for -output"));
 static cl::opt<bool> ExtractSymbolize("symbolize", cl::value_desc("symbolize"),
                                       cl::init(false),
                                       cl::desc("symbolize functions"),
                                       cl::sub(Extract));
 static cl::alias ExtractSymbolize2("s", cl::aliasopt(ExtractSymbolize),
-                                   cl::desc("alias for -symbolize"),
-                                   cl::sub(Extract));
+                                   cl::desc("alias for -symbolize"));
 
 namespace {
 
@@ -80,7 +78,7 @@ static CommandRegistration Unused(&Extract, []() -> Error {
                       InstrumentationMapOrError.takeError());
 
   std::error_code EC;
-  raw_fd_ostream OS(ExtractOutput, EC, sys::fs::OpenFlags::F_Text);
+  raw_fd_ostream OS(ExtractOutput, EC, sys::fs::OpenFlags::OF_Text);
   if (EC)
     return make_error<StringError>(
         Twine("Cannot open file '") + ExtractOutput + "' for writing.", EC);

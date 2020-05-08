@@ -61,45 +61,55 @@ public:
   /// Dump styles allow the Address::Dump(Stream *,DumpStyle) const function
   /// to display Address contents in a variety of ways.
   enum DumpStyle {
-    DumpStyleInvalid,           ///< Invalid dump style
-    DumpStyleSectionNameOffset, ///< Display as the section name + offset.
-                                ///< \code
+    /// Invalid dump style.
+    DumpStyleInvalid,
+    /// Display as the section name + offset.
+    /// \code
     /// // address for printf in libSystem.B.dylib as a section name + offset
-    /// libSystem.B.dylib.__TEXT.__text + 0x0005cfdf \endcode
-    DumpStyleSectionPointerOffset, ///< Display as the section pointer + offset
-                                   ///(debug output).
-                                   ///< \code
+    /// libSystem.B.dylib.__TEXT.__text + 0x0005cfdf
+    /// \endcode
+    DumpStyleSectionNameOffset,
+    /// Display as the section pointer + offset (debug output).
+    /// \code
     /// // address for printf in libSystem.B.dylib as a section pointer +
-    /// offset (lldb::Section *)0x35cc50 + 0x000000000005cfdf \endcode
-    DumpStyleFileAddress, ///< Display as the file address (if any).
-                          ///< \code
+    /// offset (lldb::Section *)0x35cc50 + 0x000000000005cfdf
+    /// \endcode
+    DumpStyleSectionPointerOffset,
+    /// Display as the file address (if any).
+    /// \code
     /// // address for printf in libSystem.B.dylib as a file address
-    /// 0x000000000005dcff \endcode
-    DumpStyleModuleWithFileAddress, ///< Display as the file address with the
-                                    /// module name prepended (if any).
-                                    ///< \code
+    /// 0x000000000005dcff
+    /// \endcode
+    ///
+    DumpStyleFileAddress,
+    /// Display as the file address with the module name prepended (if any).
+    /// \code
     /// // address for printf in libSystem.B.dylib as a file address
-    /// libSystem.B.dylib[0x000000000005dcff] \endcode
-    DumpStyleLoadAddress, ///< Display as the load address (if resolved).
-                          ///< \code
+    /// libSystem.B.dylib[0x000000000005dcff]
+    /// \endcode
+    DumpStyleModuleWithFileAddress,
+    /// Display as the load address (if resolved).
+    /// \code
     /// // address for printf in libSystem.B.dylib as a load address
-    /// 0x00007fff8306bcff \endcode
-    DumpStyleResolvedDescription, ///< Display the details about what an address
-                                  /// resolves to. This can
-    ///< be anything from a symbol context summary (module, function/symbol,
-    ///< and file and line), to information about what the pointer points to
-    ///< if the address is in a section (section of pointers, c strings, etc).
+    /// 0x00007fff8306bcff
+    /// \endcode
+    DumpStyleLoadAddress,
+    /// Display the details about what an address resolves to. This can be
+    /// anything from a symbol context summary (module, function/symbol, and
+    /// file and line), to information about what the pointer points to if the
+    /// address is in a section (section of pointers, c strings, etc).
+    DumpStyleResolvedDescription,
     DumpStyleResolvedDescriptionNoModule,
     DumpStyleResolvedDescriptionNoFunctionArguments,
-    DumpStyleNoFunctionName, ///< Elide the function name; display an offset
-                             /// into the current function.
-                             ///< Used primarily in disassembly symbolication
-    DumpStyleDetailedSymbolContext, ///< Detailed symbol context information for
-                                    /// an address for all symbol
-                                    ///< context members.
-    DumpStyleResolvedPointerDescription ///< Dereference a pointer at the
-                                        /// current address and then lookup the
-    ///< dereferenced address using DumpStyleResolvedDescription
+    /// Elide the function name; display an offset into the current function.
+    /// Used primarily in disassembly symbolication
+    DumpStyleNoFunctionName,
+    /// Detailed symbol context information for an address for all symbol
+    /// context members.
+    DumpStyleDetailedSymbolContext,
+    /// Dereference a pointer at the current address and then lookup the
+    /// dereferenced address using DumpStyleResolvedDescription
+    DumpStyleResolvedPointerDescription
   };
 
   /// Default constructor.
@@ -121,7 +131,7 @@ public:
   ///
   /// Initialize the address with the supplied \a section and \a offset.
   ///
-  /// \param[in] section
+  /// \param[in] section_sp
   ///     A section pointer to a valid lldb::Section, or NULL if the
   ///     address doesn't have a section or will get resolved later.
   ///
@@ -179,9 +189,9 @@ public:
   ///     The Right Hand Side const Address object reference.
   ///
   /// \return
-  ///     \li -1 if lhs < rhs
-  ///     \li 0 if lhs == rhs
-  ///     \li 1 if lhs > rhs
+  ///     -1 if lhs < rhs
+  ///     0 if lhs == rhs
+  ///     1 if lhs > rhs
   static int CompareFileAddress(const Address &lhs, const Address &rhs);
 
   static int CompareLoadAddress(const Address &lhs, const Address &rhs,
@@ -338,6 +348,23 @@ public:
   bool ResolveAddressUsingFileSections(lldb::addr_t addr,
                                        const SectionList *sections);
 
+  /// Resolve this address to its containing function and optionally get
+  /// that function's address range.
+  ///
+  /// \param[out] sym_ctx
+  ///     The symbol context describing the function in which this address lies
+  ///
+  /// \parm[out] addr_range_ptr
+  ///     Pointer to the AddressRange to fill in with the function's address
+  ///     range.  Caller may pass null if they don't need the address range.
+  ///
+  /// \return
+  ///     Returns \b false if the function/symbol could not be resolved
+  ///     or if the address range was requested and could not be resolved;
+  ///     returns \b true otherwise.
+  bool ResolveFunctionScope(lldb_private::SymbolContext &sym_ctx,
+                            lldb_private::AddressRange *addr_range_ptr = nullptr);
+
   /// Set the address to represent \a load_addr.
   ///
   /// The address will attempt to find a loaded section within \a target that
@@ -416,7 +443,7 @@ public:
 
   /// Set accessor for the section.
   ///
-  /// \param[in] section
+  /// \param[in] section_sp
   ///     A new lldb::Section pointer to use as the section base. Can
   ///     be NULL for absolute addresses that are not relative to
   ///     any section.

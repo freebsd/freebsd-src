@@ -33,10 +33,8 @@
 #include "llvm/Analysis/CodeMetrics.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopIterator.h"
-#include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/IR/Constants.h"
@@ -47,6 +45,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/PassSupport.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -54,6 +53,7 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 
 #ifndef NDEBUG

@@ -40,7 +40,7 @@ bool GCOVFile::readGCNO(GCOVBuffer &Buffer) {
   while (true) {
     if (!Buffer.readFunctionTag())
       break;
-    auto GFun = make_unique<GCOVFunction>(*this);
+    auto GFun = std::make_unique<GCOVFunction>(*this);
     if (!GFun->readGCNO(Buffer, Version))
       return false;
     Functions.push_back(std::move(GFun));
@@ -164,7 +164,7 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
   for (uint32_t i = 0, e = BlockCount; i != e; ++i) {
     if (!Buff.readInt(Dummy))
       return false; // Block flags;
-    Blocks.push_back(make_unique<GCOVBlock>(*this, i));
+    Blocks.push_back(std::make_unique<GCOVBlock>(*this, i));
   }
 
   // read edges.
@@ -185,7 +185,7 @@ bool GCOVFunction::readGCNO(GCOVBuffer &Buff, GCOV::GCOVVersion Version) {
       uint32_t Dst;
       if (!Buff.readInt(Dst))
         return false;
-      Edges.push_back(make_unique<GCOVEdge>(*Blocks[BlockNo], *Blocks[Dst]));
+      Edges.push_back(std::make_unique<GCOVEdge>(*Blocks[BlockNo], *Blocks[Dst]));
       GCOVEdge *Edge = Edges.back().get();
       Blocks[BlockNo]->addDstEdge(Edge);
       Blocks[Dst]->addSrcEdge(Edge);
@@ -439,7 +439,7 @@ LLVM_DUMP_METHOD void GCOVBlock::dump() const { print(dbgs()); }
 //===----------------------------------------------------------------------===//
 // Cycles detection
 //
-// The algorithm in GCC is based on the algorihtm by Hawick & James:
+// The algorithm in GCC is based on the algorithm by Hawick & James:
 //   "Enumerating Circuits and Loops in Graphs with Self-Arcs and Multiple-Arcs"
 //   http://complexity.massey.ac.nz/cstn/013/cstn-013.pdf.
 
@@ -702,14 +702,14 @@ std::string FileInfo::getCoveragePath(StringRef Filename,
 std::unique_ptr<raw_ostream>
 FileInfo::openCoveragePath(StringRef CoveragePath) {
   if (Options.NoOutput)
-    return llvm::make_unique<raw_null_ostream>();
+    return std::make_unique<raw_null_ostream>();
 
   std::error_code EC;
   auto OS =
-      llvm::make_unique<raw_fd_ostream>(CoveragePath, EC, sys::fs::F_Text);
+      std::make_unique<raw_fd_ostream>(CoveragePath, EC, sys::fs::OF_Text);
   if (EC) {
     errs() << EC.message() << "\n";
-    return llvm::make_unique<raw_null_ostream>();
+    return std::make_unique<raw_null_ostream>();
   }
   return std::move(OS);
 }

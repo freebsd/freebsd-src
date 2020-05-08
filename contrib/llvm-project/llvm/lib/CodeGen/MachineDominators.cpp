@@ -14,16 +14,20 @@
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/ADT/SmallBitVector.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 
 using namespace llvm;
 
+namespace llvm {
 // Always verify dominfo if expensive checking is enabled.
 #ifdef EXPENSIVE_CHECKS
-static bool VerifyMachineDomInfo = true;
+bool VerifyMachineDomInfo = true;
 #else
-static bool VerifyMachineDomInfo = false;
+bool VerifyMachineDomInfo = false;
 #endif
+} // namespace llvm
+
 static cl::opt<bool, true> VerifyMachineDomInfoX(
     "verify-machine-dom-info", cl::location(VerifyMachineDomInfo), cl::Hidden,
     cl::desc("Verify machine dominator info (time consuming)"));
@@ -46,11 +50,15 @@ void MachineDominatorTree::getAnalysisUsage(AnalysisUsage &AU) const {
 }
 
 bool MachineDominatorTree::runOnMachineFunction(MachineFunction &F) {
+  calculate(F);
+  return false;
+}
+
+void MachineDominatorTree::calculate(MachineFunction &F) {
   CriticalEdgesToSplit.clear();
   NewBBs.clear();
   DT.reset(new DomTreeBase<MachineBasicBlock>());
   DT->recalculate(F);
-  return false;
 }
 
 MachineDominatorTree::MachineDominatorTree()
@@ -64,21 +72,11 @@ void MachineDominatorTree::releaseMemory() {
 }
 
 void MachineDominatorTree::verifyAnalysis() const {
-  if (DT && VerifyMachineDomInfo) {
-    MachineFunction &F = *getRoot()->getParent();
-
-    DomTreeBase<MachineBasicBlock> OtherDT;
-    OtherDT.recalculate(F);
-    if (getRootNode()->getBlock() != OtherDT.getRootNode()->getBlock() ||
-        DT->compare(OtherDT)) {
-      errs() << "MachineDominatorTree for function " << F.getName()
-            << " is not up to date!\nComputed:\n";
-      DT->print(errs());
-      errs() << "\nActual:\n";
-      OtherDT.print(errs());
+  if (DT && VerifyMachineDomInfo)
+    if (!DT->verify(DomTreeT::VerificationLevel::Basic)) {
+      errs() << "MachineDominatorTree verification failed\n";
       abort();
     }
-  }
 }
 
 void MachineDominatorTree::print(raw_ostream &OS, const Module*) const {

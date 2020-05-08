@@ -40,13 +40,16 @@ X86RegisterBankInfo::X86RegisterBankInfo(const TargetRegisterInfo &TRI)
   assert(RBGPR.getSize() == 64 && "GPRs should hold up to 64-bit");
 }
 
-const RegisterBank &X86RegisterBankInfo::getRegBankFromRegClass(
-    const TargetRegisterClass &RC) const {
+const RegisterBank &
+X86RegisterBankInfo::getRegBankFromRegClass(const TargetRegisterClass &RC,
+                                            LLT) const {
 
   if (X86::GR8RegClass.hasSubClassEq(&RC) ||
       X86::GR16RegClass.hasSubClassEq(&RC) ||
       X86::GR32RegClass.hasSubClassEq(&RC) ||
-      X86::GR64RegClass.hasSubClassEq(&RC))
+      X86::GR64RegClass.hasSubClassEq(&RC) ||
+      X86::LOW32_ADDR_ACCESSRegClass.hasSubClassEq(&RC) ||
+      X86::LOW32_ADDR_ACCESS_RBPRegClass.hasSubClassEq(&RC))
     return getRegBank(X86::GPRRegBankID);
 
   if (X86::FR32XRegClass.hasSubClassEq(&RC) ||

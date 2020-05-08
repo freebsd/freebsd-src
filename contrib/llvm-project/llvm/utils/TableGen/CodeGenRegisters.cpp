@@ -639,7 +639,8 @@ struct TupleExpander : SetTheory::Expander {
     // Precompute some types.
     Record *RegisterCl = Def->getRecords().getClass("Register");
     RecTy *RegisterRecTy = RecordRecTy::get(RegisterCl);
-    StringInit *BlankName = StringInit::get("");
+    std::vector<StringRef> RegNames =
+      Def->getValueAsListOfStrings("RegAsmNames");
 
     // Zip them up.
     for (unsigned n = 0; n != Length; ++n) {
@@ -656,11 +657,20 @@ struct TupleExpander : SetTheory::Expander {
                               unsigned(Reg->getValueAsInt("CostPerUse")));
       }
 
+      StringInit *AsmName = StringInit::get("");
+      if (!RegNames.empty()) {
+        if (RegNames.size() <= n)
+          PrintFatalError(Def->getLoc(),
+                          "Register tuple definition missing name for '" +
+                            Name + "'.");
+        AsmName = StringInit::get(RegNames[n]);
+      }
+
       // Create a new Record representing the synthesized register. This record
       // is only for consumption by CodeGenRegister, it is not added to the
       // RecordKeeper.
       SynthDefs.emplace_back(
-          llvm::make_unique<Record>(Name, Def->getLoc(), Def->getRecords()));
+          std::make_unique<Record>(Name, Def->getLoc(), Def->getRecords()));
       Record *NewReg = SynthDefs.back().get();
       Elts.insert(NewReg);
 
@@ -683,9 +693,8 @@ struct TupleExpander : SetTheory::Expander {
         if (Field == "SubRegs")
           RV.setValue(ListInit::get(Tuple, RegisterRecTy));
 
-        // Provide a blank AsmName. MC hacks are required anyway.
         if (Field == "AsmName")
-          RV.setValue(BlankName);
+          RV.setValue(AsmName);
 
         // CostPerUse is aggregated from all Tuple members.
         if (Field == "CostPerUse")
@@ -725,8 +734,8 @@ struct TupleExpander : SetTheory::Expander {
 //===----------------------------------------------------------------------===//
 
 static void sortAndUniqueRegisters(CodeGenRegister::Vec &M) {
-  llvm::sort(M, deref<llvm::less>());
-  M.erase(std::unique(M.begin(), M.end(), deref<llvm::equal>()), M.end());
+  llvm::sort(M, deref<std::less<>>());
+  M.erase(std::unique(M.begin(), M.end(), deref<std::equal_to<>>()), M.end());
 }
 
 CodeGenRegisterClass::CodeGenRegisterClass(CodeGenRegBank &RegBank, Record *R)
@@ -851,7 +860,7 @@ void CodeGenRegisterClass::inheritProperties(CodeGenRegBank &RegBank) {
 
 bool CodeGenRegisterClass::contains(const CodeGenRegister *Reg) const {
   return std::binary_search(Members.begin(), Members.end(), Reg,
-                            deref<llvm::less>());
+                            deref<std::less<>>());
 }
 
 namespace llvm {
@@ -887,7 +896,7 @@ static bool testSubClass(const CodeGenRegisterClass *A,
   return A->RSI.isSubClassOf(B->RSI) &&
          std::includes(A->getMembers().begin(), A->getMembers().end(),
                        B->getMembers().begin(), B->getMembers().end(),
-                       deref<llvm::less>());
+                       deref<std::less<>>());
 }
 
 /// Sorting predicate for register classes.  This provides a topological
@@ -1089,7 +1098,7 @@ CodeGenRegBank::CodeGenRegBank(RecordKeeper &Records,
   Sets.addFieldExpander("RegisterClass", "MemberList");
   Sets.addFieldExpander("CalleeSavedRegs", "SaveList");
   Sets.addExpander("RegisterTuples",
-                   llvm::make_unique<TupleExpander>(SynthDefs));
+                   std::make_unique<TupleExpander>(SynthDefs));
 
   // Read in the user-defined (named) sub-register indices.
   // More indices will be synthesized later.
@@ -2131,9 +2140,10 @@ void CodeGenRegBank::inferCommonSubClass(CodeGenRegisterClass *RC) {
     const CodeGenRegister::Vec &Memb1 = RC1->getMembers();
     const CodeGenRegister::Vec &Memb2 = RC2->getMembers();
     CodeGenRegister::Vec Intersection;
-    std::set_intersection(
-        Memb1.begin(), Memb1.end(), Memb2.begin(), Memb2.end(),
-        std::inserter(Intersection, Intersection.begin()), deref<llvm::less>());
+    std::set_intersection(Memb1.begin(), Memb1.end(), Memb2.begin(),
+                          Memb2.end(),
+                          std::inserter(Intersection, Intersection.begin()),
+                          deref<std::less<>>());
 
     // Skip disjoint class pairs.
     if (Intersection.empty())
@@ -2158,7 +2168,8 @@ void CodeGenRegBank::inferCommonSubClass(CodeGenRegisterClass *RC) {
 void CodeGenRegBank::inferSubClassWithSubReg(CodeGenRegisterClass *RC) {
   // Map SubRegIndex to set of registers in RC supporting that SubRegIndex.
   typedef std::map<const CodeGenSubRegIndex *, CodeGenRegister::Vec,
-                   deref<llvm::less>> SubReg2SetMap;
+                   deref<std::less<>>>
+      SubReg2SetMap;
 
   // Compute the set of registers supporting each SubRegIndex.
   SubReg2SetMap SRSets;
@@ -2355,6 +2366,21 @@ CodeGenRegBank::getRegClassForRegister(Record *R) {
     return nullptr;
   }
   return FoundRC;
+}
+
+const CodeGenRegisterClass *
+CodeGenRegBank::getMinimalPhysRegClass(Record *RegRecord,
+                                       ValueTypeByHwMode *VT) {
+  const CodeGenRegister *Reg = getReg(RegRecord);
+  const CodeGenRegisterClass *BestRC = nullptr;
+  for (const auto &RC : getRegClasses()) {
+    if ((!VT || RC.hasType(*VT)) &&
+        RC.contains(Reg) && (!BestRC || BestRC->hasSubClass(&RC)))
+      BestRC = &RC;
+  }
+
+  assert(BestRC && "Couldn't find the register class");
+  return BestRC;
 }
 
 BitVector CodeGenRegBank::computeCoveredRegisters(ArrayRef<Record*> Regs) {

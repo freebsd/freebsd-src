@@ -122,6 +122,11 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
   case llvm::Triple::lanai:
     return new LanaiTargetInfo(Triple, Opts);
 
+  case llvm::Triple::aarch64_32:
+    if (Triple.isOSDarwin())
+      return new DarwinAArch64TargetInfo(Triple, Opts);
+
+    return nullptr;
   case llvm::Triple::aarch64:
     if (Triple.isOSDarwin())
       return new DarwinAArch64TargetInfo(Triple, Opts);
@@ -378,6 +383,8 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     switch (os) {
     case llvm::Triple::FreeBSD:
       return new FreeBSDTargetInfo<RISCV64TargetInfo>(Triple, Opts);
+    case llvm::Triple::Fuchsia:
+      return new FuchsiaTargetInfo<RISCV64TargetInfo>(Triple, Opts);
     case llvm::Triple::Linux:
       return new LinuxTargetInfo<RISCV64TargetInfo>(Triple, Opts);
     default:

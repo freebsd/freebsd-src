@@ -37,7 +37,6 @@ static void (*upstream_segv_handler)(int, siginfo_t *, void *);
 
 static void SegvHandler(int sig, siginfo_t *si, void *ucontext) {
   assert(si->si_signo == SIGSEGV);
-  if (TPC.UnprotectLazyCounters(si->si_addr)) return;
   if (upstream_segv_handler)
     return upstream_segv_handler(sig, si, ucontext);
   Fuzzer::StaticCrashSignalCallback();
@@ -98,13 +97,9 @@ void SetTimer(int Seconds) {
   SetSigaction(SIGALRM, AlarmHandler);
 }
 
-bool Mprotect(void *Ptr, size_t Size, bool AllowReadWrite) {
-  return 0 == mprotect(Ptr, Size,
-                       AllowReadWrite ? (PROT_READ | PROT_WRITE) : PROT_NONE);
-}
-
 void SetSignalHandler(const FuzzingOptions& Options) {
-  if (Options.UnitTimeoutSec > 0)
+  // setitimer is not implemented in emscripten.
+  if (Options.UnitTimeoutSec > 0 && !LIBFUZZER_EMSCRIPTEN)
     SetTimer(Options.UnitTimeoutSec / 2 + 1);
   if (Options.HandleInt)
     SetSigaction(SIGINT, InterruptHandler);
@@ -139,7 +134,7 @@ size_t GetPeakRSSMb() {
   if (getrusage(RUSAGE_SELF, &usage))
     return 0;
   if (LIBFUZZER_LINUX || LIBFUZZER_FREEBSD || LIBFUZZER_NETBSD ||
-      LIBFUZZER_OPENBSD) {
+      LIBFUZZER_OPENBSD || LIBFUZZER_EMSCRIPTEN) {
     // ru_maxrss is in KiB
     return usage.ru_maxrss >> 10;
   } else if (LIBFUZZER_APPLE) {

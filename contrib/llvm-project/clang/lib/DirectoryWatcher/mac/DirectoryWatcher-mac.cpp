@@ -11,20 +11,35 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/Path.h"
 #include <CoreServices/CoreServices.h>
 
 using namespace llvm;
 using namespace clang;
 
-static FSEventStreamRef createFSEventStream(
-    StringRef Path,
-    std::function<void(llvm::ArrayRef<DirectoryWatcher::Event>, bool)>,
-    dispatch_queue_t);
 static void stopFSEventStream(FSEventStreamRef);
 
 namespace {
 
+/// This implementation is based on FSEvents API which implementation is
+/// aggressively coallescing events. This can manifest as duplicate events.
+///
+/// For example this scenario has been observed:
+///
+/// create foo/bar
+/// sleep 5 s
+/// create DirectoryWatcherMac for dir foo
+/// receive notification: bar EventKind::Modified
+/// sleep 5 s
+/// modify foo/bar
+/// receive notification: bar EventKind::Modified
+/// receive notification: bar EventKind::Modified
+/// sleep 5 s
+/// delete foo/bar
+/// receive notification: bar EventKind::Modified
+/// receive notification: bar EventKind::Modified
+/// receive notification: bar EventKind::Removed
 class DirectoryWatcherMac : public clang::DirectoryWatcher {
 public:
   DirectoryWatcherMac(
@@ -187,7 +202,7 @@ void stopFSEventStream(FSEventStreamRef EventStream) {
   FSEventStreamRelease(EventStream);
 }
 
-std::unique_ptr<DirectoryWatcher> clang::DirectoryWatcher::create(
+llvm::Expected<std::unique_ptr<DirectoryWatcher>> clang::DirectoryWatcher::create(
     StringRef Path,
     std::function<void(llvm::ArrayRef<DirectoryWatcher::Event>, bool)> Receiver,
     bool WaitForInitialSync) {
@@ -195,15 +210,14 @@ std::unique_ptr<DirectoryWatcher> clang::DirectoryWatcher::create(
       dispatch_queue_create("DirectoryWatcher", DISPATCH_QUEUE_SERIAL);
 
   if (Path.empty())
-    return nullptr;
+    llvm::report_fatal_error(
+        "DirectoryWatcher::create can not accept an empty Path.");
 
   auto EventStream = createFSEventStream(Path, Receiver, Queue);
-  if (!EventStream) {
-    return nullptr;
-  }
+  assert(EventStream && "EventStream expected to be non-null");
 
   std::unique_ptr<DirectoryWatcher> Result =
-      llvm::make_unique<DirectoryWatcherMac>(EventStream, Receiver, Path);
+      std::make_unique<DirectoryWatcherMac>(EventStream, Receiver, Path);
 
   // We need to copy the data so the lifetime is ok after a const copy is made
   // for the block.

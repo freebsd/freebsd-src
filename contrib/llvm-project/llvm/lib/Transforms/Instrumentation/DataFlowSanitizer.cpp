@@ -55,7 +55,6 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
@@ -83,13 +82,16 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/SpecialCaseList.h"
+#include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
@@ -479,7 +481,9 @@ DataFlowSanitizer::DataFlowSanitizer(
   std::vector<std::string> AllABIListFiles(std::move(ABIListFiles));
   AllABIListFiles.insert(AllABIListFiles.end(), ClABIListFiles.begin(),
                          ClABIListFiles.end());
-  ABIList.set(SpecialCaseList::createOrDie(AllABIListFiles));
+  // FIXME: should we propagate vfs::FileSystem to this constructor?
+  ABIList.set(
+      SpecialCaseList::createOrDie(AllABIListFiles, *vfs::getRealFileSystem()));
 }
 
 FunctionType *DataFlowSanitizer::getArgsFunctionType(FunctionType *T) {
@@ -1212,7 +1216,7 @@ Value *DFSanFunction::loadShadow(Value *Addr, uint64_t Size, uint64_t Align,
     return DFS.ZeroShadow;
   case 1: {
     LoadInst *LI = new LoadInst(DFS.ShadowTy, ShadowAddr, "", Pos);
-    LI->setAlignment(ShadowAlign);
+    LI->setAlignment(MaybeAlign(ShadowAlign));
     return LI;
   }
   case 2: {

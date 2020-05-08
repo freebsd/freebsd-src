@@ -4,7 +4,7 @@
 
 LIB=		clang_rt.xray-fdr-${CRTARCH}
 
-SRCS+=		xray/xray_fdr_flags.cc
-SRCS+=		xray/xray_fdr_logging.cc
+SRCS+=		xray/xray_fdr_flags.cpp
+SRCS+=		xray/xray_fdr_logging.cpp
 
 .include <bsd.lib.mk>

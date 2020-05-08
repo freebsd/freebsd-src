@@ -18,13 +18,6 @@ using namespace llvm;
 using namespace llvm::pdb;
 using namespace llvm::support;
 
-DbiModuleDescriptor::DbiModuleDescriptor() = default;
-
-DbiModuleDescriptor::DbiModuleDescriptor(const DbiModuleDescriptor &Info) =
-    default;
-
-DbiModuleDescriptor::~DbiModuleDescriptor() = default;
-
 Error DbiModuleDescriptor::initialize(BinaryStreamRef Stream,
                                       DbiModuleDescriptor &Info) {
   BinaryStreamReader Reader(Stream);

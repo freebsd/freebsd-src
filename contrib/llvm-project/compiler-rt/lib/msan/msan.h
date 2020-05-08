@@ -267,7 +267,7 @@ inline bool addr_is_type(uptr addr, MappingDesc::Type mapping_type) {
 #define MEM_IS_SHADOW(mem) addr_is_type((uptr)(mem), MappingDesc::SHADOW)
 #define MEM_IS_ORIGIN(mem) addr_is_type((uptr)(mem), MappingDesc::ORIGIN)
 
-// These constants must be kept in sync with the ones in MemorySanitizer.cc.
+// These constants must be kept in sync with the ones in MemorySanitizer.cpp.
 const int kMsanParamTlsSize = 800;
 const int kMsanRetvalTlsSize = 800;
 
@@ -346,10 +346,11 @@ const int STACK_TRACE_TAG_POISON = StackTrace::TAG_CUSTOM + 1;
 #define GET_STORE_STACK_TRACE \
   GET_STORE_STACK_TRACE_PC_BP(StackTrace::GetCurrentPc(), GET_CURRENT_FRAME())
 
-#define GET_FATAL_STACK_TRACE_PC_BP(pc, bp)              \
-  BufferedStackTrace stack;                              \
-  if (msan_inited)                                       \
-    stack.Unwind(pc, bp, nullptr, common_flags()->fast_unwind_on_fatal)
+#define GET_FATAL_STACK_TRACE_PC_BP(pc, bp)                              \
+  BufferedStackTrace stack;                                              \
+  if (msan_inited) {                                                     \
+    stack.Unwind(pc, bp, nullptr, common_flags()->fast_unwind_on_fatal); \
+  }
 
 #define GET_FATAL_STACK_TRACE_HERE \
   GET_FATAL_STACK_TRACE_PC_BP(StackTrace::GetCurrentPc(), GET_CURRENT_FRAME())

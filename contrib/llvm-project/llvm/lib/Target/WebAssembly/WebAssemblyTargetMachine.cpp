@@ -45,7 +45,7 @@ static cl::opt<bool> EnableEmSjLj(
     cl::desc("WebAssembly Emscripten-style setjmp/longjmp handling"),
     cl::init(false));
 
-extern "C" void LLVMInitializeWebAssemblyTarget() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeWebAssemblyTarget() {
   // Register the target.
   RegisterTargetMachine<WebAssemblyTargetMachine> X(
       getTheWebAssemblyTarget32());
@@ -140,7 +140,7 @@ WebAssemblyTargetMachine::getSubtargetImpl(std::string CPU,
                                            std::string FS) const {
   auto &I = SubtargetMap[CPU + FS];
   if (!I) {
-    I = llvm::make_unique<WebAssemblySubtarget>(TargetTriple, CPU, FS, *this);
+    I = std::make_unique<WebAssemblySubtarget>(TargetTriple, CPU, FS, *this);
   }
   return I.get();
 }

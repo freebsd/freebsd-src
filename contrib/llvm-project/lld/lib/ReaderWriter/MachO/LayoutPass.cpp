@@ -241,8 +241,8 @@ static bool compareAtomsSub(const LayoutPass::SortKey &lc,
     return leftOrdinal < rightOrdinal;
   }
 
-  llvm::errs() << "Unordered: <" << left->name() << "> <"
-               << right->name() << ">\n";
+  llvm::errs() << "Unordered: <" << left->name() << "> <" << right->name()
+               << ">\n";
   llvm_unreachable("Atoms with Same Ordinal!");
 }
 
@@ -478,7 +478,7 @@ llvm::Error LayoutPass::perform(SimpleFile &mergedFile) {
 }
 
 void addLayoutPass(PassManager &pm, const MachOLinkingContext &ctx) {
-  pm.add(llvm::make_unique<LayoutPass>(
+  pm.add(std::make_unique<LayoutPass>(
       ctx.registry(), [&](const DefinedAtom * left, const DefinedAtom * right,
                           bool & leftBeforeRight) ->bool {
     return ctx.customAtomOrderer(left, right, leftBeforeRight);

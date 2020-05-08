@@ -31,9 +31,11 @@ using namespace lldb_private::process_gdb_remote;
 // GDBRemoteRegisterContext constructor
 GDBRemoteRegisterContext::GDBRemoteRegisterContext(
     ThreadGDBRemote &thread, uint32_t concrete_frame_idx,
-    GDBRemoteDynamicRegisterInfo &reg_info, bool read_all_at_once)
+    GDBRemoteDynamicRegisterInfo &reg_info, bool read_all_at_once,
+    bool write_all_at_once)
     : RegisterContext(thread, concrete_frame_idx), m_reg_info(reg_info),
-      m_reg_valid(), m_reg_data(), m_read_all_at_once(read_all_at_once) {
+      m_reg_valid(), m_reg_data(), m_read_all_at_once(read_all_at_once),
+      m_write_all_at_once(write_all_at_once) {
   // Resize our vector of bools to contain one bool for every register. We will
   // use these boolean values to know when a register value is valid in
   // m_reg_data.
@@ -87,6 +89,9 @@ bool GDBRemoteRegisterContext::ReadRegister(const RegisterInfo *reg_info,
                                             RegisterValue &value) {
   // Read the register
   if (ReadRegisterBytes(reg_info, m_reg_data)) {
+    const uint32_t reg = reg_info->kinds[eRegisterKindLLDB];
+    if (m_reg_valid[reg] == false)
+      return false;
     const bool partial_data_ok = false;
     Status error(value.SetValueFromData(
         reg_info, m_reg_data, reg_info->byte_offset, partial_data_ok));
@@ -203,14 +208,29 @@ bool GDBRemoteRegisterContext::ReadRegisterBytes(const RegisterInfo *reg_info,
         if (buffer_sp->GetByteSize() >= m_reg_data.GetByteSize()) {
           SetAllRegisterValid(true);
           return true;
+        } else if (buffer_sp->GetByteSize() > 0) {
+          const int regcount = m_reg_info.GetNumRegisters();
+          for (int i = 0; i < regcount; i++) {
+            struct RegisterInfo *reginfo = m_reg_info.GetRegisterInfoAtIndex(i);
+            if (reginfo->byte_offset + reginfo->byte_size 
+                   <= buffer_sp->GetByteSize()) {
+              m_reg_valid[i] = true;
+            } else {
+              m_reg_valid[i] = false;
+            }
+          }
+          return true;
         } else {
           Log *log(ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet(GDBR_LOG_THREAD |
                                                                 GDBR_LOG_PACKETS));
-          if (log)
-            log->Printf ("error: GDBRemoteRegisterContext::ReadRegisterBytes tried to read the "
-                        "entire register context at once, expected at least %" PRId64 " bytes "
-                        "but only got %" PRId64 " bytes.", m_reg_data.GetByteSize(),
-                        buffer_sp->GetByteSize());
+          LLDB_LOGF(
+              log,
+              "error: GDBRemoteRegisterContext::ReadRegisterBytes tried "
+              "to read the "
+              "entire register context at once, expected at least %" PRId64
+              " bytes "
+              "but only got %" PRId64 " bytes.",
+              m_reg_data.GetByteSize(), buffer_sp->GetByteSize());
         }
       }
       return false;
@@ -330,7 +350,7 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
   {
     GDBRemoteClientBase::Lock lock(gdb_comm, false);
     if (lock) {
-      if (m_read_all_at_once) {
+      if (m_write_all_at_once) {
         // Invalidate all register values
         InvalidateIfNeeded(true);
 
@@ -390,13 +410,15 @@ bool GDBRemoteRegisterContext::WriteRegisterBytes(const RegisterInfo *reg_info,
         if (log->GetVerbose()) {
           StreamString strm;
           gdb_comm.DumpHistory(strm);
-          log->Printf("error: failed to get packet sequence mutex, not sending "
-                      "write register for \"%s\":\n%s",
-                      reg_info->name, strm.GetData());
+          LLDB_LOGF(log,
+                    "error: failed to get packet sequence mutex, not sending "
+                    "write register for \"%s\":\n%s",
+                    reg_info->name, strm.GetData());
         } else
-          log->Printf("error: failed to get packet sequence mutex, not sending "
-                      "write register for \"%s\"",
-                      reg_info->name);
+          LLDB_LOGF(log,
+                    "error: failed to get packet sequence mutex, not sending "
+                    "write register for \"%s\"",
+                    reg_info->name);
       }
     }
   }
@@ -494,12 +516,14 @@ bool GDBRemoteRegisterContext::ReadAllRegisterValues(
       if (log->GetVerbose()) {
         StreamString strm;
         gdb_comm.DumpHistory(strm);
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "read all registers:\n%s",
-                    strm.GetData());
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "read all registers:\n%s",
+                  strm.GetData());
       } else
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "read all registers");
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "read all registers");
     }
   }
 
@@ -630,7 +654,9 @@ bool GDBRemoteRegisterContext::WriteAllRegisterValues(
       if (m_thread.GetProcess().get()) {
         const ArchSpec &arch =
             m_thread.GetProcess()->GetTarget().GetArchitecture();
-        if (arch.IsValid() && arch.GetMachine() == llvm::Triple::aarch64 &&
+        if (arch.IsValid() && 
+            (arch.GetMachine() == llvm::Triple::aarch64 ||
+             arch.GetMachine() == llvm::Triple::aarch64_32) &&
             arch.GetTriple().getVendor() == llvm::Triple::Apple &&
             arch.GetTriple().getOS() == llvm::Triple::IOS) {
           arm64_debugserver = true;
@@ -667,12 +693,14 @@ bool GDBRemoteRegisterContext::WriteAllRegisterValues(
       if (log->GetVerbose()) {
         StreamString strm;
         gdb_comm.DumpHistory(strm);
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "write all registers:\n%s",
-                    strm.GetData());
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "write all registers:\n%s",
+                  strm.GetData());
       } else
-        log->Printf("error: failed to get packet sequence mutex, not sending "
-                    "write all registers");
+        LLDB_LOGF(log,
+                  "error: failed to get packet sequence mutex, not sending "
+                  "write all registers");
     }
   }
   return false;

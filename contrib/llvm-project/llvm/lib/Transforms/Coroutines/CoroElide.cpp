@@ -15,6 +15,7 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -23,7 +24,7 @@ using namespace llvm;
 #define DEBUG_TYPE "coro-elide"
 
 namespace {
-// Created on demand if CoroElide pass has work to do.
+// Created on demand if the coro-elide pass has work to do.
 struct Lowerer : coro::LowererBase {
   SmallVector<CoroIdInst *, 4> CoroIds;
   SmallVector<CoroBeginInst *, 1> CoroBegins;
@@ -276,17 +277,17 @@ static bool replaceDevirtTrigger(Function &F) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-struct CoroElide : FunctionPass {
+struct CoroElideLegacy : FunctionPass {
   static char ID;
-  CoroElide() : FunctionPass(ID) {
-    initializeCoroElidePass(*PassRegistry::getPassRegistry());
+  CoroElideLegacy() : FunctionPass(ID) {
+    initializeCoroElideLegacyPass(*PassRegistry::getPassRegistry());
   }
 
   std::unique_ptr<Lowerer> L;
 
   bool doInitialization(Module &M) override {
     if (coro::declaresIntrinsics(M, {"llvm.coro.id"}))
-      L = llvm::make_unique<Lowerer>(M);
+      L = std::make_unique<Lowerer>(M);
     return false;
   }
 
@@ -329,15 +330,15 @@ struct CoroElide : FunctionPass {
 };
 }
 
-char CoroElide::ID = 0;
+char CoroElideLegacy::ID = 0;
 INITIALIZE_PASS_BEGIN(
-    CoroElide, "coro-elide",
+    CoroElideLegacy, "coro-elide",
     "Coroutine frame allocation elision and indirect calls replacement", false,
     false)
 INITIALIZE_PASS_DEPENDENCY(AAResultsWrapperPass)
 INITIALIZE_PASS_END(
-    CoroElide, "coro-elide",
+    CoroElideLegacy, "coro-elide",
     "Coroutine frame allocation elision and indirect calls replacement", false,
     false)
 
-Pass *llvm::createCoroElidePass() { return new CoroElide(); }
+Pass *llvm::createCoroElideLegacyPass() { return new CoroElideLegacy(); }

@@ -78,10 +78,11 @@ using namespace llvm;
 
 #define DEBUG_TYPE "codegen"
 
-static cl::opt<unsigned>
-AlignAllFunctions("align-all-functions",
-                  cl::desc("Force the alignment of all functions."),
-                  cl::init(0), cl::Hidden);
+static cl::opt<unsigned> AlignAllFunctions(
+    "align-all-functions",
+    cl::desc("Force the alignment of all functions in log2 format (e.g. 4 "
+             "means align on 16B boundaries)."),
+    cl::init(0), cl::Hidden);
 
 static const char *getPropertyName(MachineFunctionProperties::Property Prop) {
   using P = MachineFunctionProperties::Property;
@@ -181,7 +182,7 @@ void MachineFunction::init() {
                          STI->getTargetLowering()->getPrefFunctionAlignment());
 
   if (AlignAllFunctions)
-    Alignment = AlignAllFunctions;
+    Alignment = Align(1ULL << AlignAllFunctions);
 
   JumpTableInfo = nullptr;
 
@@ -200,7 +201,7 @@ void MachineFunction::init() {
          "Target-incompatible DataLayout attached\n");
 
   PSVManager =
-    llvm::make_unique<PseudoSourceValueManager>(*(getSubtarget().
+    std::make_unique<PseudoSourceValueManager>(*(getSubtarget().
                                                   getInstrInfo()));
 }
 
@@ -267,6 +268,21 @@ getOrCreateJumpTableInfo(unsigned EntryKind) {
   JumpTableInfo = new (Allocator)
     MachineJumpTableInfo((MachineJumpTableInfo::JTEntryKind)EntryKind);
   return JumpTableInfo;
+}
+
+DenormalMode MachineFunction::getDenormalMode(const fltSemantics &FPType) const {
+  // TODO: Should probably avoid the connection to the IR and store directly
+  // in the MachineFunction.
+  Attribute Attr = F.getFnAttribute("denormal-fp-math");
+
+  // FIXME: This should assume IEEE behavior on an unspecified
+  // attribute. However, the one current user incorrectly assumes a non-IEEE
+  // target by default.
+  StringRef Val = Attr.getValueAsString();
+  if (Val.empty())
+    return DenormalMode::Invalid;
+
+  return parseDenormalFPAttribute(Val);
 }
 
 /// Should we be emitting segmented stack stuff for the function
@@ -446,15 +462,7 @@ MachineFunction::getMachineMemOperand(const MachineMemOperand *MMO,
       MMO->getOrdering(), MMO->getFailureOrdering());
 }
 
-MachineInstr::ExtraInfo *
-MachineFunction::createMIExtraInfo(ArrayRef<MachineMemOperand *> MMOs,
-                                   MCSymbol *PreInstrSymbol,
-                                   MCSymbol *PostInstrSymbol) {
-  return MachineInstr::ExtraInfo::create(Allocator, MMOs, PreInstrSymbol,
-                                         PostInstrSymbol, nullptr);
-}
-
-MachineInstr::ExtraInfo *MachineFunction::createMIExtraInfoWithMarker(
+MachineInstr::ExtraInfo *MachineFunction::createMIExtraInfo(
     ArrayRef<MachineMemOperand *> MMOs, MCSymbol *PreInstrSymbol,
     MCSymbol *PostInstrSymbol, MDNode *HeapAllocMarker) {
   return MachineInstr::ExtraInfo::create(Allocator, MMOs, PreInstrSymbol,
@@ -474,6 +482,12 @@ uint32_t *MachineFunction::allocateRegMask() {
   uint32_t *Mask = Allocator.Allocate<uint32_t>(Size);
   memset(Mask, 0, Size * sizeof(Mask[0]));
   return Mask;
+}
+
+ArrayRef<int> MachineFunction::allocateShuffleMask(ArrayRef<int> Mask) {
+  int* AllocMask = Allocator.Allocate<int>(Mask.size());
+  copy(Mask, AllocMask);
+  return {AllocMask, Mask.size()};
 }
 
 #if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
@@ -525,6 +539,13 @@ void MachineFunction::print(raw_ostream &OS, const SlotIndexes *Indexes) const {
   }
 
   OS << "\n# End machine code for function " << getName() << ".\n\n";
+}
+
+/// True if this function needs frame moves for debug or exceptions.
+bool MachineFunction::needsFrameMoves() const {
+  return getMMI().hasDebugInfo() ||
+         getTarget().Options.ForceDwarfFrameSection ||
+         F.needsUnwindTableEntry();
 }
 
 namespace llvm {
@@ -830,30 +851,45 @@ try_next:;
   return FilterID;
 }
 
-void MachineFunction::addCodeViewHeapAllocSite(MachineInstr *I, MDNode *MD) {
-  MCSymbol *BeginLabel = Ctx.createTempSymbol("heapallocsite", true);
-  MCSymbol *EndLabel = Ctx.createTempSymbol("heapallocsite", true);
-  I->setPreInstrSymbol(*this, BeginLabel);
-  I->setPostInstrSymbol(*this, EndLabel);
+MachineFunction::CallSiteInfoMap::iterator
+MachineFunction::getCallSiteInfo(const MachineInstr *MI) {
+  assert(MI->isCall() && "Call site info refers only to call instructions!");
 
-  DIType *DI = dyn_cast<DIType>(MD);
-  CodeViewHeapAllocSites.push_back(std::make_tuple(BeginLabel, EndLabel, DI));
+  if (!Target.Options.EnableDebugEntryValues)
+    return CallSitesInfo.end();
+  return CallSitesInfo.find(MI);
 }
 
-void MachineFunction::updateCallSiteInfo(const MachineInstr *Old,
-                                         const MachineInstr *New) {
-  if (!Target.Options.EnableDebugEntryValues || Old == New)
-    return;
+void MachineFunction::moveCallSiteInfo(const MachineInstr *Old,
+                                       const MachineInstr *New) {
+  assert(New->isCall() && "Call site info refers only to call instructions!");
 
-  assert(Old->isCall() && (!New || New->isCall()) &&
-         "Call site info referes only to call instructions!");
-  CallSiteInfoMap::iterator CSIt = CallSitesInfo.find(Old);
+  CallSiteInfoMap::iterator CSIt = getCallSiteInfo(Old);
   if (CSIt == CallSitesInfo.end())
     return;
+
   CallSiteInfo CSInfo = std::move(CSIt->second);
   CallSitesInfo.erase(CSIt);
-  if (New)
-    CallSitesInfo[New] = CSInfo;
+  CallSitesInfo[New] = CSInfo;
+}
+
+void MachineFunction::eraseCallSiteInfo(const MachineInstr *MI) {
+  CallSiteInfoMap::iterator CSIt = getCallSiteInfo(MI);
+  if (CSIt == CallSitesInfo.end())
+    return;
+  CallSitesInfo.erase(CSIt);
+}
+
+void MachineFunction::copyCallSiteInfo(const MachineInstr *Old,
+                                       const MachineInstr *New) {
+  assert(New->isCall() && "Call site info refers only to call instructions!");
+
+  CallSiteInfoMap::iterator CSIt = getCallSiteInfo(Old);
+  if (CSIt == CallSitesInfo.end())
+    return;
+
+  CallSiteInfo CSInfo = CSIt->second;
+  CallSitesInfo[New] = CSInfo;
 }
 
 /// \}
@@ -888,13 +924,13 @@ unsigned MachineJumpTableInfo::getEntryAlignment(const DataLayout &TD) const {
   // alignment.
   switch (getEntryKind()) {
   case MachineJumpTableInfo::EK_BlockAddress:
-    return TD.getPointerABIAlignment(0);
+    return TD.getPointerABIAlignment(0).value();
   case MachineJumpTableInfo::EK_GPRel64BlockAddress:
-    return TD.getABIIntegerTypeAlignment(64);
+    return TD.getABIIntegerTypeAlignment(64).value();
   case MachineJumpTableInfo::EK_GPRel32BlockAddress:
   case MachineJumpTableInfo::EK_LabelDifference32:
   case MachineJumpTableInfo::EK_Custom32:
-    return TD.getABIIntegerTypeAlignment(32);
+    return TD.getABIIntegerTypeAlignment(32).value();
   case MachineJumpTableInfo::EK_Inline:
     return 1;
   }

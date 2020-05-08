@@ -14,9 +14,10 @@
 
 #include "InstrProfiling.h"
 #include "InstrProfilingInternal.h"
+#include "InstrProfilingPort.h"
 
 #define INSTR_PROF_VALUE_PROF_DATA
-#include "InstrProfData.inc"
+#include "profile/InstrProfData.inc"
 
 COMPILER_RT_VISIBILITY void (*FreeHook)(void *) = NULL;
 static ProfBufferIO TheBufferIO;
@@ -40,6 +41,9 @@ COMPILER_RT_VISIBILITY uint32_t lprofBufferWriter(ProfDataWriter *This,
     size_t Length = IOVecs[I].ElmSize * IOVecs[I].NumElm;
     if (IOVecs[I].Data)
       memcpy(*Buffer, IOVecs[I].Data, Length);
+    else if (IOVecs[I].UseZeroPadding) {
+      /* Allocating the buffer should zero fill. */
+    }
     *Buffer += Length;
   }
   return 0;
@@ -84,7 +88,7 @@ lprofBufferIOWrite(ProfBufferIO *BufferIO, const uint8_t *Data, uint32_t Size) {
       return -1;
   }
   /* Special case, bypass the buffer completely. */
-  ProfDataIOVec IO[] = {{Data, sizeof(uint8_t), Size}};
+  ProfDataIOVec IO[] = {{Data, sizeof(uint8_t), Size, 0}};
   if (Size > BufferIO->BufferSz) {
     if (BufferIO->FileWriter->Write(BufferIO->FileWriter, IO, 1))
       return -1;
@@ -103,7 +107,7 @@ lprofBufferIOWrite(ProfBufferIO *BufferIO, const uint8_t *Data, uint32_t Size) {
 COMPILER_RT_VISIBILITY int lprofBufferIOFlush(ProfBufferIO *BufferIO) {
   if (BufferIO->CurOffset) {
     ProfDataIOVec IO[] = {
-        {BufferIO->BufferStart, sizeof(uint8_t), BufferIO->CurOffset}};
+        {BufferIO->BufferStart, sizeof(uint8_t), BufferIO->CurOffset, 0}};
     if (BufferIO->FileWriter->Write(BufferIO->FileWriter, IO, 1))
       return -1;
     BufferIO->CurOffset = 0;
@@ -257,10 +261,6 @@ lprofWriteDataImpl(ProfDataWriter *Writer, const __llvm_profile_data *DataBegin,
   const uint64_t DataSize = __llvm_profile_get_data_size(DataBegin, DataEnd);
   const uint64_t CountersSize = CountersEnd - CountersBegin;
   const uint64_t NamesSize = NamesEnd - NamesBegin;
-  const uint64_t Padding = __llvm_profile_get_num_padding_bytes(NamesSize);
-
-  /* Enough zeroes for padding. */
-  const char Zeroes[sizeof(uint64_t)] = {0};
 
   /* Create the header. */
   __llvm_profile_header Header;
@@ -268,19 +268,33 @@ lprofWriteDataImpl(ProfDataWriter *Writer, const __llvm_profile_data *DataBegin,
   if (!DataSize)
     return 0;
 
+  /* Determine how much padding is needed before/after the counters and after
+   * the names. */
+  uint64_t PaddingBytesBeforeCounters, PaddingBytesAfterCounters,
+      PaddingBytesAfterNames;
+  __llvm_profile_get_padding_sizes_for_counters(
+      DataSize, CountersSize, NamesSize, &PaddingBytesBeforeCounters,
+      &PaddingBytesAfterCounters, &PaddingBytesAfterNames);
+
 /* Initialize header structure.  */
 #define INSTR_PROF_RAW_HEADER(Type, Name, Init) Header.Name = Init;
-#include "InstrProfData.inc"
+#include "profile/InstrProfData.inc"
 
   /* Write the data. */
   ProfDataIOVec IOVec[] = {
-      {&Header, sizeof(__llvm_profile_header), 1},
-      {DataBegin, sizeof(__llvm_profile_data), DataSize},
-      {CountersBegin, sizeof(uint64_t), CountersSize},
-      {SkipNameDataWrite ? NULL : NamesBegin, sizeof(uint8_t), NamesSize},
-      {Zeroes, sizeof(uint8_t), Padding}};
+      {&Header, sizeof(__llvm_profile_header), 1, 0},
+      {DataBegin, sizeof(__llvm_profile_data), DataSize, 0},
+      {NULL, sizeof(uint8_t), PaddingBytesBeforeCounters, 1},
+      {CountersBegin, sizeof(uint64_t), CountersSize, 0},
+      {NULL, sizeof(uint8_t), PaddingBytesAfterCounters, 1},
+      {SkipNameDataWrite ? NULL : NamesBegin, sizeof(uint8_t), NamesSize, 0},
+      {NULL, sizeof(uint8_t), PaddingBytesAfterNames, 1}};
   if (Writer->Write(Writer, IOVec, sizeof(IOVec) / sizeof(*IOVec)))
     return -1;
+
+  /* Value profiling is not yet supported in continuous mode. */
+  if (__llvm_profile_is_continuous_mode_enabled())
+    return 0;
 
   return writeValueProfData(Writer, VPDataReader, DataBegin, DataEnd);
 }

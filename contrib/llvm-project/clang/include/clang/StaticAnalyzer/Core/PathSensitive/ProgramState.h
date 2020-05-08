@@ -507,6 +507,10 @@ public:
     return *svalBuilder;
   }
 
+  const SValBuilder &getSValBuilder() const {
+    return *svalBuilder;
+  }
+
   SymbolManager &getSymbolManager() {
     return svalBuilder->getSymbolManager();
   }
@@ -529,9 +533,10 @@ public:
   ConstraintManager &getConstraintManager() { return *ConstraintMgr; }
   SubEngine &getOwningEngine() { return *Eng; }
 
-  ProgramStateRef removeDeadBindings(ProgramStateRef St,
-                                    const StackFrameContext *LCtx,
-                                    SymbolReaper& SymReaper);
+  ProgramStateRef
+  removeDeadBindingsFromEnvironmentAndStore(ProgramStateRef St,
+                                            const StackFrameContext *LCtx,
+                                            SymbolReaper &SymReaper);
 
 public:
 

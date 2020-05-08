@@ -23,6 +23,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -130,7 +131,10 @@ void AssumptionCache::unregisterAssumption(CallInst *CI) {
     if (AVI != AffectedValues.end())
       AffectedValues.erase(AVI);
   }
-  remove_if(AssumeHandles, [CI](WeakTrackingVH &VH) { return CI == VH; });
+
+  AssumeHandles.erase(
+      remove_if(AssumeHandles, [CI](WeakTrackingVH &VH) { return CI == VH; }),
+      AssumeHandles.end());
 }
 
 void AssumptionCache::AffectedValueCallbackVH::deleted() {
@@ -140,7 +144,7 @@ void AssumptionCache::AffectedValueCallbackVH::deleted() {
   // 'this' now dangles!
 }
 
-void AssumptionCache::copyAffectedValuesInCache(Value *OV, Value *NV) {
+void AssumptionCache::transferAffectedValuesInCache(Value *OV, Value *NV) {
   auto &NAVV = getOrInsertAffectedValues(NV);
   auto AVI = AffectedValues.find(OV);
   if (AVI == AffectedValues.end())
@@ -149,6 +153,7 @@ void AssumptionCache::copyAffectedValuesInCache(Value *OV, Value *NV) {
   for (auto &A : AVI->second)
     if (std::find(NAVV.begin(), NAVV.end(), A) == NAVV.end())
       NAVV.push_back(A);
+  AffectedValues.erase(OV);
 }
 
 void AssumptionCache::AffectedValueCallbackVH::allUsesReplacedWith(Value *NV) {
@@ -157,7 +162,7 @@ void AssumptionCache::AffectedValueCallbackVH::allUsesReplacedWith(Value *NV) {
 
   // Any assumptions that affected this value now affect the new value.
 
-  AC->copyAffectedValuesInCache(getValPtr(), NV);
+  AC->transferAffectedValuesInCache(getValPtr(), NV);
   // 'this' now might dangle! If the AffectedValues map was resized to add an
   // entry for NV then this object might have been destroyed in favor of some
   // copy in the grown map.
@@ -252,7 +257,7 @@ AssumptionCache &AssumptionCacheTracker::getAssumptionCache(Function &F) {
   // Ok, build a new cache by scanning the function, insert it and the value
   // handle into our map, and return the newly populated cache.
   auto IP = AssumptionCaches.insert(std::make_pair(
-      FunctionCallbackVH(&F, this), llvm::make_unique<AssumptionCache>(F)));
+      FunctionCallbackVH(&F, this), std::make_unique<AssumptionCache>(F)));
   assert(IP.second && "Scanning function already in the map?");
   return *IP.first->second;
 }

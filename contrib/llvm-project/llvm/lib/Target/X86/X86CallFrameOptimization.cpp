@@ -115,12 +115,12 @@ private:
 
   StringRef getPassName() const override { return "X86 Optimize Call Frame"; }
 
-  const X86InstrInfo *TII;
-  const X86FrameLowering *TFL;
-  const X86Subtarget *STI;
-  MachineRegisterInfo *MRI;
-  unsigned SlotSize;
-  unsigned Log2SlotSize;
+  const X86InstrInfo *TII = nullptr;
+  const X86FrameLowering *TFL = nullptr;
+  const X86Subtarget *STI = nullptr;
+  MachineRegisterInfo *MRI = nullptr;
+  unsigned SlotSize = 0;
+  unsigned Log2SlotSize = 0;
 };
 
 } // end anonymous namespace
@@ -155,12 +155,22 @@ bool X86CallFrameOptimization::isLegal(MachineFunction &MF) {
   // This is bad, and breaks SP adjustment.
   // So, check that all of the frames in the function are closed inside
   // the same block, and, for good measure, that there are no nested frames.
+  //
+  // If any call allocates more argument stack memory than the stack
+  // probe size, don't do this optimization. Otherwise, this pass
+  // would need to synthesize additional stack probe calls to allocate
+  // memory for arguments.
   unsigned FrameSetupOpcode = TII->getCallFrameSetupOpcode();
   unsigned FrameDestroyOpcode = TII->getCallFrameDestroyOpcode();
+  bool UseStackProbe =
+      !STI->getTargetLowering()->getStackProbeSymbolName(MF).empty();
+  unsigned StackProbeSize = STI->getTargetLowering()->getStackProbeSize(MF);
   for (MachineBasicBlock &BB : MF) {
     bool InsideFrameSequence = false;
     for (MachineInstr &MI : BB) {
       if (MI.getOpcode() == FrameSetupOpcode) {
+        if (TII->getFrameSize(MI) >= StackProbeSize && UseStackProbe)
+          return false;
         if (InsideFrameSequence)
           return false;
         InsideFrameSequence = true;
@@ -325,8 +335,8 @@ X86CallFrameOptimization::classifyInstruction(
   for (const MachineOperand &MO : MI->operands()) {
     if (!MO.isReg())
       continue;
-    unsigned int Reg = MO.getReg();
-    if (!RegInfo.isPhysicalRegister(Reg))
+    Register Reg = MO.getReg();
+    if (!Register::isPhysicalRegister(Reg))
       continue;
     if (RegInfo.regsOverlap(Reg, RegInfo.getStackRegister()))
       return Exit;
@@ -370,7 +380,7 @@ void X86CallFrameOptimization::collectCallInfo(MachineFunction &MF,
   while (I->getOpcode() == X86::LEA32r || I->isDebugInstr())
     ++I;
 
-  unsigned StackPtr = RegInfo.getStackRegister();
+  Register StackPtr = RegInfo.getStackRegister();
   auto StackPtrCopyInst = MBB.end();
   // SelectionDAG (but not FastISel) inserts a copy of ESP into a virtual
   // register.  If it's there, use that virtual register as stack pointer
@@ -443,8 +453,8 @@ void X86CallFrameOptimization::collectCallInfo(MachineFunction &MF,
     for (const MachineOperand &MO : I->uses()) {
       if (!MO.isReg())
         continue;
-      unsigned int Reg = MO.getReg();
-      if (RegInfo.isPhysicalRegister(Reg))
+      Register Reg = MO.getReg();
+      if (Register::isPhysicalRegister(Reg))
         UsedRegs.insert(Reg);
     }
   }
@@ -524,12 +534,12 @@ void X86CallFrameOptimization::adjustCallSequence(MachineFunction &MF,
       break;
     case X86::MOV32mr:
     case X86::MOV64mr: {
-      unsigned int Reg = PushOp.getReg();
+      Register Reg = PushOp.getReg();
 
       // If storing a 32-bit vreg on 64-bit targets, extend to a 64-bit vreg
       // in preparation for the PUSH64. The upper 32 bits can be undef.
       if (Is64Bit && Store->getOpcode() == X86::MOV32mr) {
-        unsigned UndefReg = MRI->createVirtualRegister(&X86::GR64RegClass);
+        Register UndefReg = MRI->createVirtualRegister(&X86::GR64RegClass);
         Reg = MRI->createVirtualRegister(&X86::GR64RegClass);
         BuildMI(MBB, Context.Call, DL, TII->get(X86::IMPLICIT_DEF), UndefReg);
         BuildMI(MBB, Context.Call, DL, TII->get(X86::INSERT_SUBREG), Reg)
@@ -598,7 +608,7 @@ MachineInstr *X86CallFrameOptimization::canFoldIntoRegPush(
   // movl    %eax, (%esp)
   // call
   // Get rid of those with prejudice.
-  if (!TargetRegisterInfo::isVirtualRegister(Reg))
+  if (!Register::isVirtualRegister(Reg))
     return nullptr;
 
   // Make sure this is the only use of Reg.

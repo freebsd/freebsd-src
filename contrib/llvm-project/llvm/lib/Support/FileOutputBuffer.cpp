@@ -121,7 +121,7 @@ createInMemoryBuffer(StringRef Path, size_t Size, unsigned Mode) {
       Size, nullptr, sys::Memory::MF_READ | sys::Memory::MF_WRITE, EC);
   if (EC)
     return errorCodeToError(EC);
-  return llvm::make_unique<InMemoryBuffer>(Path, MB, Size, Mode);
+  return std::make_unique<InMemoryBuffer>(Path, MB, Size, Mode);
 }
 
 static Expected<std::unique_ptr<FileOutputBuffer>>
@@ -146,7 +146,7 @@ createOnDiskBuffer(StringRef Path, size_t Size, unsigned Mode) {
 
   // Mmap it.
   std::error_code EC;
-  auto MappedFile = llvm::make_unique<fs::mapped_file_region>(
+  auto MappedFile = std::make_unique<fs::mapped_file_region>(
       fs::convertFDToNativeFile(File.FD), fs::mapped_file_region::readwrite,
       Size, 0, EC);
 
@@ -157,7 +157,7 @@ createOnDiskBuffer(StringRef Path, size_t Size, unsigned Mode) {
     return createInMemoryBuffer(Path, Size, Mode);
   }
 
-  return llvm::make_unique<OnDiskBuffer>(Path, std::move(File),
+  return std::make_unique<OnDiskBuffer>(Path, std::move(File),
                                          std::move(MappedFile));
 }
 
@@ -189,7 +189,10 @@ FileOutputBuffer::create(StringRef Path, size_t Size, unsigned Flags) {
   case fs::file_type::regular_file:
   case fs::file_type::file_not_found:
   case fs::file_type::status_error:
-    return createOnDiskBuffer(Path, Size, Mode);
+    if (Flags & F_no_mmap)
+      return createInMemoryBuffer(Path, Size, Mode);
+    else
+      return createOnDiskBuffer(Path, Size, Mode);
   default:
     return createInMemoryBuffer(Path, Size, Mode);
   }

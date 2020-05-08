@@ -14,8 +14,9 @@
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/LineEntry.h"
 #include "lldb/Symbol/LineTable.h"
-#include "lldb/Symbol/SymbolVendor.h"
+#include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/Type.h"
+#include "lldb/Symbol/TypeList.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -49,7 +50,7 @@ SBFileSpec SBCompileUnit::GetFileSpec() const {
 
   SBFileSpec file_spec;
   if (m_opaque_ptr)
-    file_spec.SetFileSpec(*m_opaque_ptr);
+    file_spec.SetFileSpec(m_opaque_ptr->GetPrimaryFile());
   return LLDB_RECORD_RESULT(file_spec);
 }
 
@@ -105,7 +106,7 @@ uint32_t SBCompileUnit::FindLineEntryIndex(uint32_t start_idx, uint32_t line,
     if (inline_file_spec && inline_file_spec->IsValid())
       file_spec = inline_file_spec->ref();
     else
-      file_spec = *m_opaque_ptr;
+      file_spec = m_opaque_ptr->GetPrimaryFile();
 
     index = m_opaque_ptr->FindLineEntry(
         start_idx, line, inline_file_spec ? inline_file_spec->get() : nullptr,
@@ -137,13 +138,13 @@ lldb::SBTypeList SBCompileUnit::GetTypes(uint32_t type_mask) {
   if (!module_sp)
     return LLDB_RECORD_RESULT(sb_type_list);
 
-  SymbolVendor *vendor = module_sp->GetSymbolVendor();
-  if (!vendor)
+  SymbolFile *symfile = module_sp->GetSymbolFile();
+  if (!symfile)
     return LLDB_RECORD_RESULT(sb_type_list);
 
   TypeClass type_class = static_cast<TypeClass>(type_mask);
   TypeList type_list;
-  vendor->GetTypes(m_opaque_ptr, type_class, type_list);
+  symfile->GetTypes(m_opaque_ptr, type_class, type_list);
   sb_type_list.m_opaque_up->Append(type_list);
   return LLDB_RECORD_RESULT(sb_type_list);
 }

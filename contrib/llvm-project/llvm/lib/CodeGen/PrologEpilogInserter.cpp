@@ -51,6 +51,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CodeGen.h"
@@ -898,7 +899,7 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &MF) {
   // frame index registers. Functions which don't want/need this optimization
   // will continue to use the existing code path.
   if (MFI.getUseLocalStackAllocationBlock()) {
-    unsigned Align = MFI.getLocalFrameMaxAlign();
+    unsigned Align = MFI.getLocalFrameMaxAlign().value();
 
     // Adjust to alignment boundary.
     Offset = alignTo(Offset, Align, Skew);

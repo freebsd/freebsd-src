@@ -8,6 +8,7 @@
 
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/ProfileData/InstrProf.h"
+#include "llvm/Support/Alignment.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/raw_ostream.h"
@@ -50,8 +51,13 @@ int convertForTestingMain(int argc, const char *argv[]) {
   auto ObjFormat = OF->getTripleObjectFormat();
   for (const auto &Section : OF->sections()) {
     StringRef Name;
-    if (Section.getName(Name))
+    if (Expected<StringRef> NameOrErr = Section.getName()) {
+      Name = *NameOrErr;
+    } else {
+      consumeError(NameOrErr.takeError());
       return 1;
+    }
+
     if (Name == llvm::getInstrProfSectionName(IPSK_name, ObjFormat,
                                               /*AddSegmentInfo=*/false)) {
       ProfileNames = Section;
@@ -94,7 +100,7 @@ int convertForTestingMain(int argc, const char *argv[]) {
   encodeULEB128(ProfileNamesAddress, OS);
   OS << ProfileNamesData;
   // Coverage mapping data is expected to have an alignment of 8.
-  for (unsigned Pad = OffsetToAlignment(OS.tell(), 8); Pad; --Pad)
+  for (unsigned Pad = offsetToAlignment(OS.tell(), Align(8)); Pad; --Pad)
     OS.write(uint8_t(0));
   OS << CoverageMappingData;
 

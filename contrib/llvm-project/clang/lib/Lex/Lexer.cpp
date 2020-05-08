@@ -218,6 +218,15 @@ Lexer *Lexer::Create_PragmaLexer(SourceLocation SpellingLoc,
   return L;
 }
 
+bool Lexer::skipOver(unsigned NumBytes) {
+  IsAtPhysicalStartOfLine = true;
+  IsAtStartOfLine = true;
+  if ((BufferPtr + NumBytes) > BufferEnd)
+    return true;
+  BufferPtr += NumBytes;
+  return false;
+}
+
 template <typename T> static void StringifyImpl(T &Str, char Quote) {
   typename T::size_type i = 0, e = Str.size();
   while (i < e) {
@@ -1422,6 +1431,8 @@ void Lexer::SetByteOffset(unsigned Offset, bool StartOfLine) {
 static bool isAllowedIDChar(uint32_t C, const LangOptions &LangOpts) {
   if (LangOpts.AsmPreprocessor) {
     return false;
+  } else if (LangOpts.DollarIdents && '$' == C) {
+    return true;
   } else if (LangOpts.CPlusPlus11 || LangOpts.C11) {
     static const llvm::sys::UnicodeCharSet C11AllowedIDChars(
         C11AllowedIDCharRanges);
@@ -2541,8 +2552,8 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
         '/', '/', '/', '/',  '/', '/', '/', '/',
         '/', '/', '/', '/',  '/', '/', '/', '/'
       };
-      while (CurPtr+16 <= BufferEnd &&
-             !vec_any_eq(*(const vector unsigned char*)CurPtr, Slashes))
+      while (CurPtr + 16 <= BufferEnd &&
+             !vec_any_eq(*(const __vector unsigned char *)CurPtr, Slashes))
         CurPtr += 16;
 #else
       // Scan for '/' quickly.  Many block comments are very large.
@@ -2647,6 +2658,7 @@ void Lexer::ReadToEndOfLine(SmallVectorImpl<char> *Result) {
   assert(ParsingPreprocessorDirective && ParsingFilename == false &&
          "Must be in a preprocessing directive!");
   Token Tmp;
+  Tmp.startToken();
 
   // CurPtr - Cache BufferPtr in an automatic variable.
   const char *CurPtr = BufferPtr;

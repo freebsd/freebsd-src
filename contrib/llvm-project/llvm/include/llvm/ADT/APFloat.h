@@ -38,6 +38,7 @@ class StringRef;
 class APFloat;
 class raw_ostream;
 
+template <typename T> class Expected;
 template <typename T> class SmallVectorImpl;
 
 /// Enum that represents what fraction of the LSB truncated bits of an fp number
@@ -143,7 +144,7 @@ struct APFloatBase {
   static const unsigned integerPartWidth = APInt::APINT_BITS_PER_WORD;
 
   /// A signed type to represent a floating point numbers unbiased exponent.
-  typedef signed short ExponentType;
+  typedef int32_t ExponentType;
 
   /// \name Floating Point Semantics.
   /// @{
@@ -192,6 +193,11 @@ struct APFloatBase {
   /// IEEE-754R 7: Default exception handling.
   ///
   /// opUnderflow or opOverflow are always returned or-ed with opInexact.
+  ///
+  /// APFloat models this behavior specified by IEEE-754:
+  ///   "For operations producing results in floating-point format, the default
+  ///    result of an operation that signals the invalid operation exception
+  ///    shall be a quiet NaN."
   enum opStatus {
     opOK = 0x00,
     opInvalidOp = 0x01,
@@ -294,7 +300,7 @@ public:
                                           bool, roundingMode);
   opStatus convertFromZeroExtendedInteger(const integerPart *, unsigned int,
                                           bool, roundingMode);
-  opStatus convertFromString(StringRef, roundingMode);
+  Expected<opStatus> convertFromString(StringRef, roundingMode);
   APInt bitcastToAPInt() const;
   double convertToDouble() const;
   float convertToFloat() const;
@@ -481,7 +487,8 @@ private:
   integerPart addSignificand(const IEEEFloat &);
   integerPart subtractSignificand(const IEEEFloat &, integerPart);
   lostFraction addOrSubtractSignificand(const IEEEFloat &, bool subtract);
-  lostFraction multiplySignificand(const IEEEFloat &, const IEEEFloat *);
+  lostFraction multiplySignificand(const IEEEFloat &, IEEEFloat);
+  lostFraction multiplySignificand(const IEEEFloat&);
   lostFraction divideSignificand(const IEEEFloat &);
   void incrementSignificand();
   void initialize(const fltSemantics *);
@@ -520,8 +527,8 @@ private:
                                         bool *) const;
   opStatus convertFromUnsignedParts(const integerPart *, unsigned int,
                                     roundingMode);
-  opStatus convertFromHexadecimalString(StringRef, roundingMode);
-  opStatus convertFromDecimalString(StringRef, roundingMode);
+  Expected<opStatus> convertFromHexadecimalString(StringRef, roundingMode);
+  Expected<opStatus> convertFromDecimalString(StringRef, roundingMode);
   char *convertNormalToHexString(char *, unsigned int, bool,
                                  roundingMode) const;
   opStatus roundSignificandWithExponent(const integerPart *, unsigned int, int,
@@ -643,7 +650,7 @@ public:
   cmpResult compare(const DoubleAPFloat &RHS) const;
   bool bitwiseIsEqual(const DoubleAPFloat &RHS) const;
   APInt bitcastToAPInt() const;
-  opStatus convertFromString(StringRef, roundingMode);
+  Expected<opStatus> convertFromString(StringRef, roundingMode);
   opStatus next(bool nextDown);
 
   opStatus convertToInteger(MutableArrayRef<integerPart> Input,
@@ -846,6 +853,9 @@ public:
   APFloat(const fltSemantics &Semantics) : U(Semantics) {}
   APFloat(const fltSemantics &Semantics, StringRef S);
   APFloat(const fltSemantics &Semantics, integerPart I) : U(Semantics, I) {}
+  template <typename T, typename = typename std::enable_if<
+                            std::is_floating_point<T>::value>::type>
+  APFloat(const fltSemantics &Semantics, T V) = delete;
   // TODO: Remove this constructor. This isn't faster than the first one.
   APFloat(const fltSemantics &Semantics, uninitializedTag)
       : U(Semantics, uninitialized) {}
@@ -1100,7 +1110,7 @@ public:
     APFLOAT_DISPATCH_ON_SEMANTICS(
         convertFromZeroExtendedInteger(Input, InputSize, IsSigned, RM));
   }
-  opStatus convertFromString(StringRef, roundingMode);
+  Expected<opStatus> convertFromString(StringRef, roundingMode);
   APInt bitcastToAPInt() const {
     APFLOAT_DISPATCH_ON_SEMANTICS(bitcastToAPInt());
   }

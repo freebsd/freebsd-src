@@ -51,6 +51,11 @@ class CCIfSwiftSelf<CCAction A> : CCIf<"ArgFlags.isSwiftSelf()", A> {
 class CCIfSwiftError<CCAction A> : CCIf<"ArgFlags.isSwiftError()", A> {
 }
 
+/// CCIfCFGuardTarget - If the current argument has cfguardtarget parameter
+/// attribute, apply Action A.
+class CCIfCFGuardTarget<CCAction A> : CCIf<"ArgFlags.isCFGuardTarget()", A> {
+}
+
 /// CCIfConsecutiveRegs - If the current argument has InConsecutiveRegs
 /// parameter attribute, apply Action A.
 class CCIfConsecutiveRegs<CCAction A> : CCIf<"ArgFlags.isInConsecutiveRegs()", A> {
@@ -149,6 +154,12 @@ class CCPromoteToUpperBitsInType<ValueType destTy> : CCAction {
 /// CCBitConvertToType - If applied, this bitconverts the specified current
 /// value to the specified type.
 class CCBitConvertToType<ValueType destTy> : CCAction {
+  ValueType DestTy = destTy;
+}
+
+/// CCTruncToType - If applied, this truncates the specified current value to
+/// the specified type.
+class CCTruncToType<ValueType destTy> : CCAction {
   ValueType DestTy = destTy;
 }
 

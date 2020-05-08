@@ -43,7 +43,6 @@
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/SaveAndRestore.h"
-#include "llvm/Support/UniqueLock.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 #include <string>
@@ -88,6 +87,9 @@ using SignalHandlerFunctionType = void (*)();
 static std::atomic<SignalHandlerFunctionType> InterruptFunction =
     ATOMIC_VAR_INIT(nullptr);
 static std::atomic<SignalHandlerFunctionType> InfoSignalFunction =
+    ATOMIC_VAR_INIT(nullptr);
+/// The function to call on SIGPIPE (one-time use only).
+static std::atomic<SignalHandlerFunctionType> OneShotPipeSignalFunction =
     ATOMIC_VAR_INIT(nullptr);
 
 namespace {
@@ -207,7 +209,7 @@ static StringRef Argv0;
 /// if there is, it's not our direct responsibility. For whatever reason, our
 /// continued execution is no longer desirable.
 static const int IntSigs[] = {
-  SIGHUP, SIGINT, SIGPIPE, SIGTERM, SIGUSR2
+  SIGHUP, SIGINT, SIGTERM, SIGUSR2
 };
 
 /// Signals that represent that we have a bug, and our prompt termination has
@@ -238,7 +240,7 @@ static const int InfoSigs[] = {
 
 static const size_t NumSigs =
     array_lengthof(IntSigs) + array_lengthof(KillSigs) +
-    array_lengthof(InfoSigs);
+    array_lengthof(InfoSigs) + 1 /* SIGPIPE */;
 
 
 static std::atomic<unsigned> NumRegisteredSignals = ATOMIC_VAR_INIT(0);
@@ -323,6 +325,8 @@ static void RegisterHandlers() { // Not signal-safe.
     registerHandler(S, SignalKind::IsKill);
   for (auto S : KillSigs)
     registerHandler(S, SignalKind::IsKill);
+  if (OneShotPipeSignalFunction)
+    registerHandler(SIGPIPE, SignalKind::IsKill);
   for (auto S : InfoSigs)
     registerHandler(S, SignalKind::IsInfo);
 }
@@ -341,6 +345,22 @@ static void RemoveFilesToRemove() {
   FileToRemoveList::removeAllFiles(FilesToRemove);
 }
 
+void sys::CleanupOnSignal(uintptr_t Context) {
+  int Sig = (int)Context;
+
+  if (llvm::is_contained(InfoSigs, Sig)) {
+    InfoSignalHandler(Sig);
+    return;
+  }
+
+  RemoveFilesToRemove();
+
+  if (llvm::is_contained(IntSigs, Sig) || Sig == SIGPIPE)
+    return;
+
+  llvm::sys::RunSignalHandlers();
+}
+
 // The signal handler that runs.
 static RETSIGTYPE SignalHandler(int Sig) {
   // Restore the signal behavior to default, so that the program actually
@@ -357,14 +377,15 @@ static RETSIGTYPE SignalHandler(int Sig) {
   {
     RemoveFilesToRemove();
 
+    if (Sig == SIGPIPE)
+      if (auto OldOneShotPipeFunction =
+              OneShotPipeSignalFunction.exchange(nullptr))
+        return OldOneShotPipeFunction();
+
     if (std::find(std::begin(IntSigs), std::end(IntSigs), Sig)
         != std::end(IntSigs)) {
       if (auto OldInterruptFunction = InterruptFunction.exchange(nullptr))
         return OldInterruptFunction();
-
-      // Send a special return code that drivers can check for, from sysexits.h.
-      if (Sig == SIGPIPE)
-        exit(EX_IOERR);
 
       raise(Sig);   // Execute the default handler.
       return;
@@ -402,6 +423,16 @@ void llvm::sys::SetInterruptFunction(void (*IF)()) {
 void llvm::sys::SetInfoSignalFunction(void (*Handler)()) {
   InfoSignalFunction.exchange(Handler);
   RegisterHandlers();
+}
+
+void llvm::sys::SetOneShotPipeSignalFunction(void (*Handler)()) {
+  OneShotPipeSignalFunction.exchange(Handler);
+  RegisterHandlers();
+}
+
+void llvm::sys::DefaultOneShotPipeSignalHandler() {
+  // Send a special return code that drivers can check for, from sysexits.h.
+  exit(EX_IOERR);
 }
 
 // The public API

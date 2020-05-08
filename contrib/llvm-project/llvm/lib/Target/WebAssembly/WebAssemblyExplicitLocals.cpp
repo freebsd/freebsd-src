@@ -17,6 +17,7 @@
 
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "WebAssembly.h"
+#include "WebAssemblyDebugValueManager.h"
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
 #include "WebAssemblyUtilities.h"
@@ -168,7 +169,7 @@ static MVT typeForRegClass(const TargetRegisterClass *RC) {
 static MachineInstr *findStartOfTree(MachineOperand &MO,
                                      MachineRegisterInfo &MRI,
                                      WebAssemblyFunctionInfo &MFI) {
-  unsigned Reg = MO.getReg();
+  Register Reg = MO.getReg();
   assert(MFI.isVRegStackified(Reg));
   MachineInstr *Def = MRI.getVRegDef(Reg);
 
@@ -207,7 +208,7 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
     MachineInstr &MI = *I++;
     if (!WebAssembly::isArgument(MI.getOpcode()))
       break;
-    unsigned Reg = MI.getOperand(0).getReg();
+    Register Reg = MI.getOperand(0).getReg();
     assert(!MFI.isVRegStackified(Reg));
     Reg2Local[Reg] = static_cast<unsigned>(MI.getOperand(1).getImm());
     MI.eraseFromParent();
@@ -221,7 +222,7 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
   // drops to their defs.
   BitVector UseEmpty(MRI.getNumVirtRegs());
   for (unsigned I = 0, E = MRI.getNumVirtRegs(); I < E; ++I)
-    UseEmpty[I] = MRI.use_empty(TargetRegisterInfo::index2VirtReg(I));
+    UseEmpty[I] = MRI.use_empty(Register::index2VirtReg(I));
 
   // Visit each instruction in the function.
   for (MachineBasicBlock &MBB : MF) {
@@ -238,13 +239,13 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
       if (WebAssembly::isTee(MI.getOpcode())) {
         assert(MFI.isVRegStackified(MI.getOperand(0).getReg()));
         assert(!MFI.isVRegStackified(MI.getOperand(1).getReg()));
-        unsigned OldReg = MI.getOperand(2).getReg();
+        Register OldReg = MI.getOperand(2).getReg();
         const TargetRegisterClass *RC = MRI.getRegClass(OldReg);
 
         // Stackify the input if it isn't stackified yet.
         if (!MFI.isVRegStackified(OldReg)) {
           unsigned LocalId = getLocalId(Reg2Local, CurLocal, OldReg);
-          unsigned NewReg = MRI.createVirtualRegister(RC);
+          Register NewReg = MRI.createVirtualRegister(RC);
           unsigned Opc = getLocalGetOpcode(RC);
           BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(Opc), NewReg)
               .addImm(LocalId);
@@ -261,6 +262,8 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
             .addImm(LocalId)
             .addReg(MI.getOperand(2).getReg());
 
+        WebAssemblyDebugValueManager(&MI).replaceWithLocal(LocalId);
+
         MI.eraseFromParent();
         Changed = true;
         continue;
@@ -270,17 +273,17 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
       // we handle at most one def.
       assert(MI.getDesc().getNumDefs() <= 1);
       if (MI.getDesc().getNumDefs() == 1) {
-        unsigned OldReg = MI.getOperand(0).getReg();
+        Register OldReg = MI.getOperand(0).getReg();
         if (!MFI.isVRegStackified(OldReg)) {
           const TargetRegisterClass *RC = MRI.getRegClass(OldReg);
-          unsigned NewReg = MRI.createVirtualRegister(RC);
+          Register NewReg = MRI.createVirtualRegister(RC);
           auto InsertPt = std::next(MI.getIterator());
           if (MI.getOpcode() == WebAssembly::IMPLICIT_DEF) {
             MI.eraseFromParent();
             Changed = true;
             continue;
           }
-          if (UseEmpty[TargetRegisterInfo::virtReg2Index(OldReg)]) {
+          if (UseEmpty[Register::virtReg2Index(OldReg)]) {
             unsigned Opc = getDropOpcode(RC);
             MachineInstr *Drop =
                 BuildMI(MBB, InsertPt, MI.getDebugLoc(), TII->get(Opc))
@@ -290,6 +293,9 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
           } else {
             unsigned LocalId = getLocalId(Reg2Local, CurLocal, OldReg);
             unsigned Opc = getLocalSetOpcode(RC);
+
+            WebAssemblyDebugValueManager(&MI).replaceWithLocal(LocalId);
+
             BuildMI(MBB, InsertPt, MI.getDebugLoc(), TII->get(Opc))
                 .addImm(LocalId)
                 .addReg(NewReg);
@@ -310,7 +316,7 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
         if (!MO.isReg())
           continue;
 
-        unsigned OldReg = MO.getReg();
+        Register OldReg = MO.getReg();
 
         // Inline asm may have a def in the middle of the operands. Our contract
         // with inline asm register operands is to provide local indices as
@@ -345,7 +351,7 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
         // Insert a local.get.
         unsigned LocalId = getLocalId(Reg2Local, CurLocal, OldReg);
         const TargetRegisterClass *RC = MRI.getRegClass(OldReg);
-        unsigned NewReg = MRI.createVirtualRegister(RC);
+        Register NewReg = MRI.createVirtualRegister(RC);
         unsigned Opc = getLocalGetOpcode(RC);
         InsertPt =
             BuildMI(MBB, InsertPt, MI.getDebugLoc(), TII->get(Opc), NewReg)
@@ -369,7 +375,7 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
   // TODO: Sort the locals for better compression.
   MFI.setNumLocals(CurLocal - MFI.getParams().size());
   for (unsigned I = 0, E = MRI.getNumVirtRegs(); I < E; ++I) {
-    unsigned Reg = TargetRegisterInfo::index2VirtReg(I);
+    unsigned Reg = Register::index2VirtReg(I);
     auto RL = Reg2Local.find(Reg);
     if (RL == Reg2Local.end() || RL->second < MFI.getParams().size())
       continue;

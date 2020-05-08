@@ -85,6 +85,11 @@ class SOP1_32 <string opName, list<dag> pattern=[], bit tied_in = 0> : SOP1_Pseu
   let Constraints = !if(tied_in, "$sdst = $sdst_in", "");
 }
 
+// Only register input allowed.
+class SOP1_32R <string opName, list<dag> pattern=[]> : SOP1_Pseudo <
+  opName, (outs SReg_32:$sdst), (ins SReg_32:$src0),
+  "$sdst, $src0", pattern>;
+
 // 32-bit input, no output.
 class SOP1_0_32 <string opName, list<dag> pattern = []> : SOP1_Pseudo <
   opName, (outs), (ins SSrc_b32:$src0),
@@ -100,6 +105,12 @@ class SOP1_0_32R <string opName, list<dag> pattern = []> : SOP1_Pseudo <
 
 class SOP1_64 <string opName, list<dag> pattern=[]> : SOP1_Pseudo <
   opName, (outs SReg_64:$sdst), (ins SSrc_b64:$src0),
+  "$sdst, $src0", pattern
+>;
+
+// Only register input allowed.
+class SOP1_64R <string opName, list<dag> pattern=[]> : SOP1_Pseudo <
+  opName, (outs SReg_64:$sdst), (ins SReg_64:$src0),
   "$sdst, $src0", pattern
 >;
 
@@ -159,14 +170,14 @@ let Defs = [SCC] in {
 let WaveSizePredicate = isWave32 in {
 def : GCNPat <
   (int_amdgcn_wqm_vote i1:$src0),
-  (S_WQM_B32 $src0)
+  (S_WQM_B32 SSrc_b32:$src0)
 >;
 }
 
 let WaveSizePredicate = isWave64 in {
 def : GCNPat <
   (int_amdgcn_wqm_vote i1:$src0),
-  (S_WQM_B64 $src0)
+  (S_WQM_B64 SSrc_b64:$src0)
 >;
 }
 
@@ -181,7 +192,9 @@ def S_BCNT0_I32_B64 : SOP1_32_64 <"s_bcnt0_i32_b64">;
 def S_BCNT1_I32_B32 : SOP1_32 <"s_bcnt1_i32_b32",
   [(set i32:$sdst, (ctpop i32:$src0))]
 >;
-def S_BCNT1_I32_B64 : SOP1_32_64 <"s_bcnt1_i32_b64">;
+def S_BCNT1_I32_B64 : SOP1_32_64 <"s_bcnt1_i32_b64",
+  [(set i32:$sdst, (ctpop i64:$src0))]
+>;
 } // End Defs = [SCC]
 
 def S_FF0_I32_B32 : SOP1_32 <"s_ff0_i32_b32">;
@@ -252,8 +265,8 @@ def S_QUADMASK_B32 : SOP1_32 <"s_quadmask_b32">;
 def S_QUADMASK_B64 : SOP1_64 <"s_quadmask_b64">;
 
 let Uses = [M0] in {
-def S_MOVRELS_B32 : SOP1_32 <"s_movrels_b32">;
-def S_MOVRELS_B64 : SOP1_64 <"s_movrels_b64">;
+def S_MOVRELS_B32 : SOP1_32R <"s_movrels_b32">;
+def S_MOVRELS_B64 : SOP1_64R <"s_movrels_b64">;
 def S_MOVRELD_B32 : SOP1_32 <"s_movreld_b32">;
 def S_MOVRELD_B64 : SOP1_64 <"s_movreld_b64">;
 } // End Uses = [M0]
@@ -417,16 +430,16 @@ def S_SUBB_U32 : SOP2_32 <"s_subb_u32",
 
 let isCommutable = 1 in {
 def S_MIN_I32 : SOP2_32 <"s_min_i32",
-  [(set i32:$sdst, (UniformBinFrag<smin> i32:$src0, i32:$src1))]
+  [(set i32:$sdst, (smin i32:$src0, i32:$src1))]
 >;
 def S_MIN_U32 : SOP2_32 <"s_min_u32",
-  [(set i32:$sdst, (UniformBinFrag<umin> i32:$src0, i32:$src1))]
+  [(set i32:$sdst, (umin i32:$src0, i32:$src1))]
 >;
 def S_MAX_I32 : SOP2_32 <"s_max_i32",
-  [(set i32:$sdst, (UniformBinFrag<smax> i32:$src0, i32:$src1))]
+  [(set i32:$sdst, (smax i32:$src0, i32:$src1))]
 >;
 def S_MAX_U32 : SOP2_32 <"s_max_u32",
-  [(set i32:$sdst, (UniformBinFrag<umax> i32:$src0, i32:$src1))]
+  [(set i32:$sdst, (umax i32:$src0, i32:$src1))]
 >;
 } // End isCommutable = 1
 } // End Defs = [SCC]
@@ -853,13 +866,13 @@ class SOPC_Base <bits<7> op, RegisterOperand rc0, RegisterOperand rc1,
   let Defs = [SCC];
 }
 class SOPC_Helper <bits<7> op, RegisterOperand rc, ValueType vt,
-                    string opName, PatLeaf cond> : SOPC_Base <
+                    string opName, SDPatternOperator cond> : SOPC_Base <
   op, rc, rc, opName,
   [(set SCC, (si_setcc_uniform vt:$src0, vt:$src1, cond))] > {
 }
 
 class SOPC_CMP_32<bits<7> op, string opName,
-                  PatLeaf cond = COND_NULL, string revOp = opName>
+                  SDPatternOperator cond = COND_NULL, string revOp = opName>
   : SOPC_Helper<op, SSrc_b32, i32, opName, cond>,
     Commutable_REV<revOp, !eq(revOp, opName)>,
     SOPKInstTable<0, opName> {
@@ -868,7 +881,7 @@ class SOPC_CMP_32<bits<7> op, string opName,
 }
 
 class SOPC_CMP_64<bits<7> op, string opName,
-                  PatLeaf cond = COND_NULL, string revOp = opName>
+                  SDPatternOperator cond = COND_NULL, string revOp = opName>
   : SOPC_Helper<op, SSrc_b64, i64, opName, cond>,
     Commutable_REV<revOp, !eq(revOp, opName)> {
   let isCompare = 1;
@@ -1076,8 +1089,6 @@ def S_BARRIER : SOPP <0x0000000a, (ins), "s_barrier",
   [(int_amdgcn_s_barrier)]> {
   let SchedRW = [WriteBarrier];
   let simm16 = 0;
-  let mayLoad = 1;
-  let mayStore = 1;
   let isConvergent = 1;
 }
 
@@ -1090,7 +1101,7 @@ def S_WAKEUP : SOPP <0x00000003, (ins), "s_wakeup"> {
 
 let mayLoad = 1, mayStore = 1, hasSideEffects = 1 in
 def S_WAITCNT : SOPP <0x0000000c, (ins WAIT_FLAG:$simm16), "s_waitcnt $simm16",
-    [(int_amdgcn_s_waitcnt UIMM16bit:$simm16)]>;
+    [(int_amdgcn_s_waitcnt timm:$simm16)]>;
 def S_SETHALT : SOPP <0x0000000d, (ins i16imm:$simm16), "s_sethalt $simm16">;
 def S_SETKILL : SOPP <0x0000000b, (ins i16imm:$simm16), "s_setkill $simm16">;
 
@@ -1099,7 +1110,7 @@ def S_SETKILL : SOPP <0x0000000b, (ins i16imm:$simm16), "s_setkill $simm16">;
 // maximum reported is 960 cycles, so 960 / 64 = 15 max, so is the
 // maximum really 15 on VI?
 def S_SLEEP : SOPP <0x0000000e, (ins i32imm:$simm16),
-  "s_sleep $simm16", [(int_amdgcn_s_sleep SIMM16bit:$simm16)]> {
+  "s_sleep $simm16", [(int_amdgcn_s_sleep timm:$simm16)]> {
   let hasSideEffects = 1;
   let mayLoad = 1;
   let mayStore = 1;
@@ -1110,12 +1121,11 @@ def S_SETPRIO : SOPP <0x0000000f, (ins i16imm:$simm16), "s_setprio $simm16">;
 let Uses = [EXEC, M0] in {
 // FIXME: Should this be mayLoad+mayStore?
 def S_SENDMSG : SOPP <0x00000010, (ins SendMsgImm:$simm16), "s_sendmsg $simm16",
-  [(AMDGPUsendmsg (i32 imm:$simm16))]
->;
+  [(int_amdgcn_s_sendmsg (i32 timm:$simm16), M0)]>;
 
 def S_SENDMSGHALT : SOPP <0x00000011, (ins SendMsgImm:$simm16), "s_sendmsghalt $simm16",
-  [(AMDGPUsendmsghalt (i32 imm:$simm16))]
->;
+  [(int_amdgcn_s_sendmsghalt (i32 timm:$simm16), M0)]>;
+
 } // End Uses = [EXEC, M0]
 
 def S_TRAP : SOPP <0x00000012, (ins i16imm:$simm16), "s_trap $simm16"> {
@@ -1126,13 +1136,13 @@ def S_ICACHE_INV : SOPP <0x00000013, (ins), "s_icache_inv"> {
   let simm16 = 0;
 }
 def S_INCPERFLEVEL : SOPP <0x00000014, (ins i32imm:$simm16), "s_incperflevel $simm16",
-  [(int_amdgcn_s_incperflevel SIMM16bit:$simm16)]> {
+  [(int_amdgcn_s_incperflevel timm:$simm16)]> {
   let hasSideEffects = 1;
   let mayLoad = 1;
   let mayStore = 1;
 }
 def S_DECPERFLEVEL : SOPP <0x00000015, (ins i32imm:$simm16), "s_decperflevel $simm16",
-  [(int_amdgcn_s_decperflevel SIMM16bit:$simm16)]> {
+  [(int_amdgcn_s_decperflevel timm:$simm16)]> {
   let hasSideEffects = 1;
   let mayLoad = 1;
   let mayStore = 1;
@@ -1169,7 +1179,10 @@ let SubtargetPredicate = isGFX10Plus in {
   def S_ROUND_MODE :
     SOPP<0x024, (ins s16imm:$simm16), "s_round_mode $simm16">;
   def S_DENORM_MODE :
-    SOPP<0x025, (ins s16imm:$simm16), "s_denorm_mode $simm16">;
+    SOPP<0x025, (ins i32imm:$simm16), "s_denorm_mode $simm16",
+    [(SIdenorm_mode (i32 timm:$simm16))]> {
+      let hasSideEffects = 1;
+    }
   def S_TTRACEDATA_IMM :
     SOPP<0x028, (ins s16imm:$simm16), "s_ttracedata_imm $simm16">;
 } // End SubtargetPredicate = isGFX10Plus
@@ -1178,7 +1191,7 @@ let SubtargetPredicate = isGFX10Plus in {
 // S_GETREG_B32 Intrinsic Pattern.
 //===----------------------------------------------------------------------===//
 def : GCNPat <
-  (int_amdgcn_s_getreg imm:$simm16),
+  (int_amdgcn_s_getreg timm:$simm16),
   (S_GETREG_B32 (as_i16imm $simm16))
 >;
 
@@ -1200,7 +1213,7 @@ def : GCNPat <
 
 def : GCNPat <
   (i32 (smax i32:$x, (i32 (ineg i32:$x)))),
-  (S_ABS_I32 $x)
+  (S_ABS_I32 SReg_32:$x)
 >;
 
 def : GCNPat <
@@ -1501,7 +1514,7 @@ defm S_SETREG_IMM32_B32 : SOPK_Real64_gfx6_gfx7_gfx10<0x015>;
 
 class Select_vi<string opName> :
   SIMCInstr<opName, SIEncodingFamily.VI> {
-  list<Predicate> AssemblerPredicates = [isGFX8GFX9];
+  Predicate AssemblerPredicate = isGFX8GFX9;
   string DecoderNamespace = "GFX8";
 }
 

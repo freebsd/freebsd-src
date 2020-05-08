@@ -28,12 +28,13 @@ namespace llvm {
   class AsmPrinter;
   class MCInst;
   class MCOperand;
-
+  class ModulePass;
+  
   FunctionPass *createPPCCTRLoops();
 #ifndef NDEBUG
   FunctionPass *createPPCCTRLoopsVerify();
 #endif
-  FunctionPass *createPPCLoopPreIncPrepPass(PPCTargetMachine &TM);
+  FunctionPass *createPPCLoopInstrFormPrepPass(PPCTargetMachine &TM);
   FunctionPass *createPPCTOCRegDepsPass();
   FunctionPass *createPPCEarlyReturnPass();
   FunctionPass *createPPCVSXCopyPass();
@@ -50,16 +51,16 @@ namespace llvm {
   FunctionPass *createPPCExpandISELPass();
   FunctionPass *createPPCPreEmitPeepholePass();
   void LowerPPCMachineInstrToMCInst(const MachineInstr *MI, MCInst &OutMI,
-                                    AsmPrinter &AP, bool isDarwin);
+                                    AsmPrinter &AP, bool IsDarwin);
   bool LowerPPCMachineOperandToMCOperand(const MachineOperand &MO,
                                          MCOperand &OutMO, AsmPrinter &AP,
-                                         bool isDarwin);
+                                         bool IsDarwin);
 
   void initializePPCCTRLoopsPass(PassRegistry&);
 #ifndef NDEBUG
   void initializePPCCTRLoopsVerifyPass(PassRegistry&);
 #endif
-  void initializePPCLoopPreIncPrepPass(PassRegistry&);
+  void initializePPCLoopInstrFormPrepPass(PassRegistry&);
   void initializePPCTOCRegDepsPass(PassRegistry&);
   void initializePPCEarlyReturnPass(PassRegistry&);
   void initializePPCVSXCopyPass(PassRegistry&);
@@ -77,6 +78,10 @@ namespace llvm {
 
   extern char &PPCVSXFMAMutateID;
 
+  ModulePass *createPPCLowerMASSVEntriesPass();
+  void initializePPCLowerMASSVEntriesPass(PassRegistry &);
+  extern char &PPCLowerMASSVEntriesID;
+  
   namespace PPCII {
 
   /// Target Operand Flag enum.
@@ -86,8 +91,8 @@ namespace llvm {
     MO_NO_FLAG,
 
     /// On a symbol operand "FOO", this indicates that the reference is actually
-    /// to "FOO@plt".  This is used for calls and jumps to external functions on
-    /// for PIC calls on Linux and ELF systems.
+    /// to "FOO@plt".  This is used for calls and jumps to external functions
+    /// and for PIC calls on 32-bit ELF systems.
     MO_PLT = 1,
 
     /// MO_PIC_FLAG - If this bit is set, the symbol reference is relative to

@@ -17,6 +17,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ScopedPrinter.h"
@@ -24,6 +25,7 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/FunctionAttrs.h"
 #include "llvm/Transforms/IPO/FunctionImport.h"
+#include "llvm/Transforms/IPO/LowerTypeTests.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 using namespace llvm;
@@ -218,10 +220,18 @@ void splitAndWriteThinLTOBitcode(
 
   promoteTypeIds(M, ModuleId);
 
-  // Returns whether a global has attached type metadata. Such globals may
-  // participate in CFI or whole-program devirtualization, so they need to
-  // appear in the merged module instead of the thin LTO module.
+  // Returns whether a global or its associated global has attached type
+  // metadata. The former may participate in CFI or whole-program
+  // devirtualization, so they need to appear in the merged module instead of
+  // the thin LTO module. Similarly, globals that are associated with globals
+  // with type metadata need to appear in the merged module because they will
+  // reference the global's section directly.
   auto HasTypeMetadata = [](const GlobalObject *GO) {
+    if (MDNode *MD = GO->getMetadata(LLVMContext::MD_associated))
+      if (auto *AssocVM = dyn_cast_or_null<ValueAsMetadata>(MD->getOperand(0)))
+        if (auto *AssocGO = dyn_cast<GlobalObject>(AssocVM->getValue()))
+          if (AssocGO->hasMetadata(LLVMContext::MD_type))
+            return true;
     return GO->hasMetadata(LLVMContext::MD_type);
   };
 
@@ -315,9 +325,9 @@ void splitAndWriteThinLTOBitcode(
     SmallVector<Metadata *, 4> Elts;
     Elts.push_back(MDString::get(Ctx, F.getName()));
     CfiFunctionLinkage Linkage;
-    if (!F.isDeclarationForLinker())
+    if (lowertypetests::isJumpTableCanonical(&F))
       Linkage = CFL_Definition;
-    else if (F.isWeakForLinker())
+    else if (F.hasExternalWeakLinkage())
       Linkage = CFL_WeakDeclaration;
     else
       Linkage = CFL_Declaration;
@@ -457,7 +467,7 @@ void writeThinLTOBitcode(raw_ostream &OS, raw_ostream *ThinLinkOS,
       // splitAndWriteThinLTOBitcode). Just always build it once via the
       // buildModuleSummaryIndex when Module(s) are ready.
       ProfileSummaryInfo PSI(M);
-      NewIndex = llvm::make_unique<ModuleSummaryIndex>(
+      NewIndex = std::make_unique<ModuleSummaryIndex>(
           buildModuleSummaryIndex(M, nullptr, &PSI));
       Index = NewIndex.get();
     }

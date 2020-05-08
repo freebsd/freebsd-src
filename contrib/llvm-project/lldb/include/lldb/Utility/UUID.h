@@ -9,14 +9,11 @@
 #ifndef LLDB_UTILITY_UUID_H
 #define LLDB_UTILITY_UUID_H
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <string>
-#include "llvm/ADT/ArrayRef.h"
-
-namespace llvm {
-  class StringRef;
-}
 
 namespace lldb_private {
 
@@ -67,10 +64,10 @@ public:
   std::string GetAsString(llvm::StringRef separator = "-") const;
 
   size_t SetFromStringRef(llvm::StringRef str, uint32_t num_uuid_bytes = 16);
-  
-  // Same as SetFromStringRef, but if the resultant UUID is all 0 bytes, set the 
+
+  // Same as SetFromStringRef, but if the resultant UUID is all 0 bytes, set the
   // UUID to invalid.
-  size_t SetFromOptionalStringRef(llvm::StringRef str, 
+  size_t SetFromOptionalStringRef(llvm::StringRef str,
                                   uint32_t num_uuid_bytes = 16);
 
   // Decode as many UUID bytes (up to 16) as possible from the C string "cstr"
@@ -79,14 +76,13 @@ public:
   /// Decode as many UUID bytes (up to 16) as possible from the C
   /// string \a cstr.
   ///
-  /// \param[in] cstr
-  ///     A NULL terminate C string that points at a UUID string value
-  ///     (no leading spaces). The string must contain only hex
-  ///     characters and optionally can contain the '-' sepearators.
+  /// \param[in] str
+  ///     An llvm::StringRef that points at a UUID string value (no leading
+  ///     spaces). The string must contain only hex characters and optionally
+  ///     can contain the '-' sepearators.
   ///
   /// \param[in] uuid_bytes
-  ///     A buffer of bytes that will contain a full or patially
-  ///     decoded UUID.
+  ///     A buffer of bytes that will contain a full or partially decoded UUID.
   ///
   /// \return
   ///     The original string, with all decoded bytes removed.

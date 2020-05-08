@@ -43,10 +43,9 @@ unsigned llvm::constrainOperandRegClass(
     const RegisterBankInfo &RBI, MachineInstr &InsertPt,
     const TargetRegisterClass &RegClass, const MachineOperand &RegMO,
     unsigned OpIdx) {
-  unsigned Reg = RegMO.getReg();
+  Register Reg = RegMO.getReg();
   // Assume physical registers are properly constrained.
-  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
-         "PhysReg not implemented");
+  assert(Register::isVirtualRegister(Reg) && "PhysReg not implemented");
 
   unsigned ConstrainedReg = constrainRegToClass(MRI, TII, RBI, Reg, RegClass);
   // If we created a new virtual register because the class is not compatible
@@ -73,10 +72,9 @@ unsigned llvm::constrainOperandRegClass(
     MachineRegisterInfo &MRI, const TargetInstrInfo &TII,
     const RegisterBankInfo &RBI, MachineInstr &InsertPt, const MCInstrDesc &II,
     const MachineOperand &RegMO, unsigned OpIdx) {
-  unsigned Reg = RegMO.getReg();
+  Register Reg = RegMO.getReg();
   // Assume physical registers are properly constrained.
-  assert(TargetRegisterInfo::isVirtualRegister(Reg) &&
-         "PhysReg not implemented");
+  assert(Register::isVirtualRegister(Reg) && "PhysReg not implemented");
 
   const TargetRegisterClass *RegClass = TII.getRegClass(II, OpIdx, &TRI, MF);
   // Some of the target independent instructions, like COPY, may not impose any
@@ -130,9 +128,9 @@ bool llvm::constrainSelectedInstRegOperands(MachineInstr &I,
     LLVM_DEBUG(dbgs() << "Converting operand: " << MO << '\n');
     assert(MO.isReg() && "Unsupported non-reg operand");
 
-    unsigned Reg = MO.getReg();
+    Register Reg = MO.getReg();
     // Physical registers don't need to be constrained.
-    if (TRI.isPhysicalRegister(Reg))
+    if (Register::isPhysicalRegister(Reg))
       continue;
 
     // Register operands with a value of 0 (e.g. predicate operands) don't need
@@ -170,9 +168,8 @@ bool llvm::isTriviallyDead(const MachineInstr &MI,
     if (!MO.isReg() || !MO.isDef())
       continue;
 
-    unsigned Reg = MO.getReg();
-    if (TargetRegisterInfo::isPhysicalRegister(Reg) ||
-        !MRI.use_nodbg_empty(Reg))
+    Register Reg = MO.getReg();
+    if (Register::isPhysicalRegister(Reg) || !MRI.use_nodbg_empty(Reg))
       return false;
   }
   return true;
@@ -219,11 +216,33 @@ Optional<int64_t> llvm::getConstantVRegVal(unsigned VReg,
 }
 
 Optional<ValueAndVReg> llvm::getConstantVRegValWithLookThrough(
-    unsigned VReg, const MachineRegisterInfo &MRI, bool LookThroughInstrs) {
+    unsigned VReg, const MachineRegisterInfo &MRI, bool LookThroughInstrs,
+    bool HandleFConstant) {
   SmallVector<std::pair<unsigned, unsigned>, 4> SeenOpcodes;
   MachineInstr *MI;
-  while ((MI = MRI.getVRegDef(VReg)) &&
-         MI->getOpcode() != TargetOpcode::G_CONSTANT && LookThroughInstrs) {
+  auto IsConstantOpcode = [HandleFConstant](unsigned Opcode) {
+    return Opcode == TargetOpcode::G_CONSTANT ||
+           (HandleFConstant && Opcode == TargetOpcode::G_FCONSTANT);
+  };
+  auto GetImmediateValue = [HandleFConstant,
+                            &MRI](const MachineInstr &MI) -> Optional<APInt> {
+    const MachineOperand &CstVal = MI.getOperand(1);
+    if (!CstVal.isImm() && !CstVal.isCImm() &&
+        (!HandleFConstant || !CstVal.isFPImm()))
+      return None;
+    if (!CstVal.isFPImm()) {
+      unsigned BitWidth =
+          MRI.getType(MI.getOperand(0).getReg()).getSizeInBits();
+      APInt Val = CstVal.isImm() ? APInt(BitWidth, CstVal.getImm())
+                                 : CstVal.getCImm()->getValue();
+      assert(Val.getBitWidth() == BitWidth &&
+             "Value bitwidth doesn't match definition type");
+      return Val;
+    }
+    return CstVal.getFPImm()->getValueAPF().bitcastToAPInt();
+  };
+  while ((MI = MRI.getVRegDef(VReg)) && !IsConstantOpcode(MI->getOpcode()) &&
+         LookThroughInstrs) {
     switch (MI->getOpcode()) {
     case TargetOpcode::G_TRUNC:
     case TargetOpcode::G_SEXT:
@@ -235,7 +254,7 @@ Optional<ValueAndVReg> llvm::getConstantVRegValWithLookThrough(
       break;
     case TargetOpcode::COPY:
       VReg = MI->getOperand(1).getReg();
-      if (TargetRegisterInfo::isPhysicalRegister(VReg))
+      if (Register::isPhysicalRegister(VReg))
         return None;
       break;
     case TargetOpcode::G_INTTOPTR:
@@ -245,16 +264,13 @@ Optional<ValueAndVReg> llvm::getConstantVRegValWithLookThrough(
       return None;
     }
   }
-  if (!MI || MI->getOpcode() != TargetOpcode::G_CONSTANT ||
-      (!MI->getOperand(1).isImm() && !MI->getOperand(1).isCImm()))
+  if (!MI || !IsConstantOpcode(MI->getOpcode()))
     return None;
 
-  const MachineOperand &CstVal = MI->getOperand(1);
-  unsigned BitWidth = MRI.getType(MI->getOperand(0).getReg()).getSizeInBits();
-  APInt Val = CstVal.isImm() ? APInt(BitWidth, CstVal.getImm())
-                             : CstVal.getCImm()->getValue();
-  assert(Val.getBitWidth() == BitWidth &&
-         "Value bitwidth doesn't match definition type");
+  Optional<APInt> MaybeVal = GetImmediateValue(*MI);
+  if (!MaybeVal)
+    return None;
+  APInt &Val = *MaybeVal;
   while (!SeenOpcodes.empty()) {
     std::pair<unsigned, unsigned> OpcodeAndSize = SeenOpcodes.pop_back_val();
     switch (OpcodeAndSize.first) {
@@ -291,7 +307,7 @@ llvm::MachineInstr *llvm::getDefIgnoringCopies(Register Reg,
   if (!DstTy.isValid())
     return nullptr;
   while (DefMI->getOpcode() == TargetOpcode::COPY) {
-    unsigned SrcReg = DefMI->getOperand(1).getReg();
+    Register SrcReg = DefMI->getOperand(1).getReg();
     auto SrcTy = MRI.getType(SrcReg);
     if (!SrcTy.isValid() || SrcTy != DstTy)
       break;
@@ -393,6 +409,23 @@ bool llvm::isKnownNeverNaN(Register Val, const MachineRegisterInfo &MRI,
   }
 
   return false;
+}
+
+Optional<APInt> llvm::ConstantFoldExtOp(unsigned Opcode, const unsigned Op1,
+                                        uint64_t Imm,
+                                        const MachineRegisterInfo &MRI) {
+  auto MaybeOp1Cst = getConstantVRegVal(Op1, MRI);
+  if (MaybeOp1Cst) {
+    LLT Ty = MRI.getType(Op1);
+    APInt C1(Ty.getSizeInBits(), *MaybeOp1Cst, true);
+    switch (Opcode) {
+    default:
+      break;
+    case TargetOpcode::G_SEXT_INREG:
+      return C1.trunc(Imm).sext(C1.getBitWidth());
+    }
+  }
+  return None;
 }
 
 void llvm::getSelectionDAGFallbackAnalysisUsage(AnalysisUsage &AU) {

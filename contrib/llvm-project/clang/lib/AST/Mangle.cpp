@@ -63,9 +63,7 @@ static CCMangling getCallingConvMangling(const ASTContext &Context,
                                          const NamedDecl *ND) {
   const TargetInfo &TI = Context.getTargetInfo();
   const llvm::Triple &Triple = TI.getTriple();
-  if (!Triple.isOSWindows() ||
-      !(Triple.getArch() == llvm::Triple::x86 ||
-        Triple.getArch() == llvm::Triple::x86_64))
+  if (!Triple.isOSWindows() || !Triple.isX86())
     return CCM_Other;
 
   if (Context.getLangOpts().CPlusPlus && !isExternC(ND) &&
@@ -122,15 +120,21 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
   if (const AsmLabelAttr *ALA = D->getAttr<AsmLabelAttr>()) {
     // If we have an asm name, then we use it as the mangling.
 
+    // If the label isn't literal, or if this is an alias for an LLVM intrinsic,
+    // do not add a "\01" prefix.
+    if (!ALA->getIsLiteralLabel() || ALA->getLabel().startswith("llvm.")) {
+      Out << ALA->getLabel();
+      return;
+    }
+
     // Adding the prefix can cause problems when one file has a "foo" and
     // another has a "\01foo". That is known to happen on ELF with the
     // tricks normally used for producing aliases (PR9177). Fortunately the
     // llvm mangler on ELF is a nop, so we can just avoid adding the \01
-    // marker.  We also avoid adding the marker if this is an alias for an
-    // LLVM intrinsic.
+    // marker.
     char GlobalPrefix =
         getASTContext().getTargetInfo().getDataLayout().getGlobalPrefix();
-    if (GlobalPrefix && !ALA->getLabel().startswith("llvm."))
+    if (GlobalPrefix)
       Out << '\01'; // LLVM IR Marker for __asm("foo")
 
     Out << ALA->getLabel();
@@ -380,7 +384,7 @@ public:
     auto hasDefaultCXXMethodCC = [](ASTContext &C, const CXXMethodDecl *MD) {
       auto DefaultCC = C.getDefaultCallingConvention(/*IsVariadic=*/false,
                                                      /*IsCXXMethod=*/true);
-      auto CC = MD->getType()->getAs<FunctionProtoType>()->getCallConv();
+      auto CC = MD->getType()->castAs<FunctionProtoType>()->getCallConv();
       return CC == DefaultCC;
     };
 
@@ -470,7 +474,7 @@ private:
 };
 
 ASTNameGenerator::ASTNameGenerator(ASTContext &Ctx)
-    : Impl(llvm::make_unique<Implementation>(Ctx)) {}
+    : Impl(std::make_unique<Implementation>(Ctx)) {}
 
 ASTNameGenerator::~ASTNameGenerator() {}
 

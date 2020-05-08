@@ -26,6 +26,7 @@
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -84,13 +85,9 @@ void CrossDSOCFI::buildCFICheck(Module &M) {
   for (GlobalObject &GO : M.global_objects()) {
     Types.clear();
     GO.getMetadata(LLVMContext::MD_type, Types);
-    for (MDNode *Type : Types) {
-      // Sanity check. GO must not be a function declaration.
-      assert(!isa<Function>(&GO) || !cast<Function>(&GO)->isDeclaration());
-
+    for (MDNode *Type : Types)
       if (ConstantInt *TypeId = extractNumericTypeId(Type))
         TypeIds.insert(TypeId->getZExtValue());
-    }
   }
 
   NamedMDNode *CfiFunctionsMD = M.getNamedMetadata("cfi.functions");
@@ -108,11 +105,11 @@ void CrossDSOCFI::buildCFICheck(Module &M) {
   FunctionCallee C = M.getOrInsertFunction(
       "__cfi_check", Type::getVoidTy(Ctx), Type::getInt64Ty(Ctx),
       Type::getInt8PtrTy(Ctx), Type::getInt8PtrTy(Ctx));
-  Function *F = dyn_cast<Function>(C.getCallee());
+  Function *F = cast<Function>(C.getCallee());
   // Take over the existing function. The frontend emits a weak stub so that the
   // linker knows about the symbol; this pass replaces the function body.
   F->deleteBody();
-  F->setAlignment(4096);
+  F->setAlignment(Align(4096));
 
   Triple T(M.getTargetTriple());
   if (T.isARM() || T.isThumb())

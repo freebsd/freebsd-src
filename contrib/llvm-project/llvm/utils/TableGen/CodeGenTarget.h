@@ -86,12 +86,12 @@ public:
   ///
   Record *getAsmParser() const;
 
-  /// getAsmParserVariant - Return the AssmblyParserVariant definition for
+  /// getAsmParserVariant - Return the AssemblyParserVariant definition for
   /// this target.
   ///
   Record *getAsmParserVariant(unsigned i) const;
 
-  /// getAsmParserVariantCount - Return the AssmblyParserVariant definition
+  /// getAsmParserVariantCount - Return the AssemblyParserVariant definition
   /// available for this target.
   ///
   unsigned getAsmParserVariantCount() const;
@@ -102,6 +102,12 @@ public:
 
   /// getRegBank - Return the register bank description.
   CodeGenRegBank &getRegBank() const;
+
+  /// Return the largest register class on \p RegBank which supports \p Ty and
+  /// covers \p SubIdx if it exists.
+  Optional<CodeGenRegisterClass *>
+  getSuperRegForSubReg(const ValueTypeByHwMode &Ty, CodeGenRegBank &RegBank,
+                       const CodeGenSubRegIndex *SubIdx) const;
 
   /// getRegisterByName - If there is a register with the specific AsmName,
   /// return it.

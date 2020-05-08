@@ -46,6 +46,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/CFGuard.h"
 #include <memory>
 #include <string>
 
@@ -60,7 +61,7 @@ static cl::opt<bool> EnableCondBrFoldingPass("x86-condbr-folding",
                                         "folding pass"),
                                cl::init(false), cl::Hidden);
 
-extern "C" void LLVMInitializeX86Target() {
+extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeX86Target() {
   // Register the target.
   RegisterTargetMachine<X86TargetMachine> X(getTheX86_32Target());
   RegisterTargetMachine<X86TargetMachine> Y(getTheX86_64Target());
@@ -81,27 +82,28 @@ extern "C" void LLVMInitializeX86Target() {
   initializeX86SpeculativeLoadHardeningPassPass(PR);
   initializeX86FlagsCopyLoweringPassPass(PR);
   initializeX86CondBrFoldingPassPass(PR);
+  initializeX86OptimizeLEAPassPass(PR);
 }
 
 static std::unique_ptr<TargetLoweringObjectFile> createTLOF(const Triple &TT) {
   if (TT.isOSBinFormatMachO()) {
     if (TT.getArch() == Triple::x86_64)
-      return llvm::make_unique<X86_64MachoTargetObjectFile>();
-    return llvm::make_unique<TargetLoweringObjectFileMachO>();
+      return std::make_unique<X86_64MachoTargetObjectFile>();
+    return std::make_unique<TargetLoweringObjectFileMachO>();
   }
 
   if (TT.isOSFreeBSD())
-    return llvm::make_unique<X86FreeBSDTargetObjectFile>();
+    return std::make_unique<X86FreeBSDTargetObjectFile>();
   if (TT.isOSLinux() || TT.isOSNaCl() || TT.isOSIAMCU())
-    return llvm::make_unique<X86LinuxNaClTargetObjectFile>();
+    return std::make_unique<X86LinuxNaClTargetObjectFile>();
   if (TT.isOSSolaris())
-    return llvm::make_unique<X86SolarisTargetObjectFile>();
+    return std::make_unique<X86SolarisTargetObjectFile>();
   if (TT.isOSFuchsia())
-    return llvm::make_unique<X86FuchsiaTargetObjectFile>();
+    return std::make_unique<X86FuchsiaTargetObjectFile>();
   if (TT.isOSBinFormatELF())
-    return llvm::make_unique<X86ELFTargetObjectFile>();
+    return std::make_unique<X86ELFTargetObjectFile>();
   if (TT.isOSBinFormatCOFF())
-    return llvm::make_unique<TargetLoweringObjectFileCOFF>();
+    return std::make_unique<TargetLoweringObjectFileCOFF>();
   llvm_unreachable("unknown subtarget type");
 }
 
@@ -115,6 +117,9 @@ static std::string computeDataLayout(const Triple &TT) {
        (TT.getEnvironment() == Triple::GNUX32 || TT.isOSNaCl())) ||
       !TT.isArch64Bit())
     Ret += "-p:32:32";
+
+  // Address spaces for 32 bit signed, 32 bit unsigned, and 64 bit pointers.
+  Ret += "-p270:32:32-p271:32:32-p272:64:64";
 
   // Some ABIs align 64 bit integers and doubles to 64 bits, others to 32.
   if (TT.isArch64Bit() || TT.isOSWindows() || TT.isOSNaCl())
@@ -218,24 +223,14 @@ X86TargetMachine::X86TargetMachine(const Target &T, const Triple &TT,
           getEffectiveX86CodeModel(CM, JIT, TT.getArch() == Triple::x86_64),
           OL),
       TLOF(createTLOF(getTargetTriple())) {
-  // Windows stack unwinder gets confused when execution flow "falls through"
-  // after a call to 'noreturn' function.
-  // To prevent that, we emit a trap for 'unreachable' IR instructions.
-  // (which on X86, happens to be the 'ud2' instruction)
   // On PS4, the "return address" of a 'noreturn' call must still be within
   // the calling function, and TrapUnreachable is an easy way to get that.
-  // The check here for 64-bit windows is a bit icky, but as we're unlikely
-  // to ever want to mix 32 and 64-bit windows code in a single module
-  // this should be fine.
-  if ((TT.isOSWindows() && TT.getArch() == Triple::x86_64) || TT.isPS4() ||
-      TT.isOSBinFormatMachO()) {
+  if (TT.isPS4() || TT.isOSBinFormatMachO()) {
     this->Options.TrapUnreachable = true;
     this->Options.NoTrapAfterNoreturn = TT.isOSBinFormatMachO();
   }
 
-  // Outlining is available for x86-64.
-  if (TT.getArch() == Triple::x86_64)
-    setMachineOutliner(true);
+  setMachineOutliner(true);
 
   initAsmInfo();
 }
@@ -311,10 +306,10 @@ X86TargetMachine::getSubtargetImpl(const Function &F) const {
     // creation will depend on the TM and the code generation flags on the
     // function that reside in TargetOptions.
     resetTargetOptions(F);
-    I = llvm::make_unique<X86Subtarget>(TargetTriple, CPU, FS, *this,
-                                        Options.StackAlignmentOverride,
-                                        PreferVectorWidthOverride,
-                                        RequiredVectorWidth);
+    I = std::make_unique<X86Subtarget>(
+        TargetTriple, CPU, FS, *this,
+        MaybeAlign(Options.StackAlignmentOverride), PreferVectorWidthOverride,
+        RequiredVectorWidth);
   }
   return I.get();
 }
@@ -418,6 +413,16 @@ void X86PassConfig::addIRPasses() {
   // thunk. These will be a no-op unless a function subtarget has the retpoline
   // feature enabled.
   addPass(createIndirectBrExpandPass());
+
+  // Add Control Flow Guard checks.
+  const Triple &TT = TM->getTargetTriple();
+  if (TT.isOSWindows()) {
+    if (TT.getArch() == Triple::x86_64) {
+      addPass(createCFGuardDispatchPass());
+    } else {
+      addPass(createCFGuardCheckPass());
+    }
+  }
 }
 
 bool X86PassConfig::addInstSelector() {
@@ -517,16 +522,26 @@ void X86PassConfig::addPreEmitPass() {
 }
 
 void X86PassConfig::addPreEmitPass2() {
+  const Triple &TT = TM->getTargetTriple();
+  const MCAsmInfo *MAI = TM->getMCAsmInfo();
+
   addPass(createX86RetpolineThunksPass());
+
+  // Insert extra int3 instructions after trailing call instructions to avoid
+  // issues in the unwinder.
+  if (TT.isOSWindows() && TT.getArch() == Triple::x86_64)
+    addPass(createX86AvoidTrailingCallPass());
+
   // Verify basic block incoming and outgoing cfa offset and register values and
   // correct CFA calculation rule where needed by inserting appropriate CFI
   // instructions.
-  const Triple &TT = TM->getTargetTriple();
-  const MCAsmInfo *MAI = TM->getMCAsmInfo();
   if (!TT.isOSDarwin() &&
       (!TT.isOSWindows() ||
        MAI->getExceptionHandlingType() == ExceptionHandling::DwarfCFI))
     addPass(createCFIInstrInserter());
+  // Identify valid longjmp targets for Windows Control Flow Guard.
+  if (TT.isOSWindows())
+    addPass(createCFGuardLongjmpPass());
 }
 
 std::unique_ptr<CSEConfigBase> X86PassConfig::getCSEConfig() const {

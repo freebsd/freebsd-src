@@ -13,6 +13,8 @@
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/InitializePasses.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -333,8 +335,8 @@ bool StackSafetyLocalAnalysis::analyzeAllUses(const Value *Ptr, UseInfo &US) {
         // FIXME: consult devirt?
         // Do not follow aliases, otherwise we could inadvertently follow
         // dso_preemptable aliases or aliases with interposable linkage.
-        const GlobalValue *Callee = dyn_cast<GlobalValue>(
-            CS.getCalledValue()->stripPointerCastsNoFollowAliases());
+        const GlobalValue *Callee =
+            dyn_cast<GlobalValue>(CS.getCalledValue()->stripPointerCasts());
         if (!Callee) {
           US.updateRange(UnknownRange);
           return false;

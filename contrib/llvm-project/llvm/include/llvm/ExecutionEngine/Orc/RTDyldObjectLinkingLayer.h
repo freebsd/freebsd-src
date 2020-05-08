@@ -54,6 +54,8 @@ public:
   RTDyldObjectLinkingLayer(ExecutionSession &ES,
                            GetMemoryManagerFunction GetMemoryManager);
 
+  ~RTDyldObjectLinkingLayer();
+
   /// Emit the object.
   void emit(MaterializationResponsibility R,
             std::unique_ptr<MemoryBuffer> O) override;
@@ -216,7 +218,7 @@ private:
         : K(std::move(K)),
           Parent(Parent),
           MemMgr(std::move(MemMgr)),
-          PFC(llvm::make_unique<PreFinalizeContents>(
+          PFC(std::make_unique<PreFinalizeContents>(
               std::move(Obj), std::move(Resolver),
               ProcessAllSections)) {
       buildInitialSymbolTable(PFC->Obj);
@@ -234,7 +236,7 @@ private:
 
       JITSymbolResolverAdapter ResolverAdapter(Parent.ES, *PFC->Resolver,
 					       nullptr);
-      PFC->RTDyld = llvm::make_unique<RuntimeDyld>(*MemMgr, ResolverAdapter);
+      PFC->RTDyld = std::make_unique<RuntimeDyld>(*MemMgr, ResolverAdapter);
       PFC->RTDyld->setProcessAllSections(PFC->ProcessAllSections);
 
       Finalized = true;
@@ -338,7 +340,7 @@ private:
                      std::shared_ptr<SymbolResolver> Resolver,
                      bool ProcessAllSections) {
     using LOS = ConcreteLinkedObject<MemoryManagerPtrT>;
-    return llvm::make_unique<LOS>(Parent, std::move(K), std::move(Obj),
+    return std::make_unique<LOS>(Parent, std::move(K), std::move(Obj),
                                   std::move(MemMgr), std::move(Resolver),
                                   ProcessAllSections);
   }

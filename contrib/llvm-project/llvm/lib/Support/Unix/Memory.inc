@@ -42,9 +42,7 @@ extern "C" void sys_icache_invalidate(const void *Addr, size_t len);
 extern "C" void __clear_cache(void *, void*);
 #endif
 
-namespace {
-
-int getPosixProtectionFlags(unsigned Flags) {
+static int getPosixProtectionFlags(unsigned Flags) {
   switch (Flags & llvm::sys::Memory::MF_RWE_MASK) {
   case llvm::sys::Memory::MF_READ:
     return PROT_READ;
@@ -75,8 +73,6 @@ int getPosixProtectionFlags(unsigned Flags) {
   // Provide a default return value as required by some compilers.
   return PROT_NONE;
 }
-
-} // anonymous namespace
 
 namespace llvm {
 namespace sys {
@@ -176,7 +172,7 @@ Memory::releaseMappedMemory(MemoryBlock &M) {
 
 std::error_code
 Memory::protectMappedMemory(const MemoryBlock &M, unsigned Flags) {
-  static const size_t PageSize = Process::getPageSizeEstimate();
+  static const Align PageSize = Align(Process::getPageSizeEstimate());
   if (M.Address == nullptr || M.AllocatedSize == 0)
     return std::error_code();
 
@@ -184,8 +180,8 @@ Memory::protectMappedMemory(const MemoryBlock &M, unsigned Flags) {
     return std::error_code(EINVAL, std::generic_category());
 
   int Protect = getPosixProtectionFlags(Flags);
-  uintptr_t Start = alignAddr((uint8_t *)M.Address - PageSize + 1, PageSize);
-  uintptr_t End = alignAddr((uint8_t *)M.Address + M.AllocatedSize, PageSize);
+  uintptr_t Start = alignAddr((const uint8_t *)M.Address - PageSize.value() + 1, PageSize);
+  uintptr_t End = alignAddr((const uint8_t *)M.Address + M.AllocatedSize, PageSize);
 
   bool InvalidateCache = (Flags & MF_EXEC);
 
