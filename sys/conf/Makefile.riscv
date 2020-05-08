@@ -28,8 +28,17 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt
 
+# Set the ELF LMA to the address that OpenSBI's fw_jump jumps to. This allows
+# us to load the kernel with the -kernel flag in QEMU without having to embed
+# it inside BBL or OpenSBI's fw_payload first.
+# Note: For rv32 the start address is different (0x80400000).
+# We set this value using --defsym rather than hardcoding it in ldscript.riscv
+# so that different kernel configs can override the load address.
+KERNEL_LMA?=	0x80200000
+
 SYSTEM_LD= @${LD} -N -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
 	--no-warn-mismatch --warn-common --export-dynamic \
+	--defsym='kernel_lma=${KERNEL_LMA}' \
 	--dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 
