@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
  * arguments are all at the end, after the NFSPROC_T *p one.
  */
 
-#ifndef APPLEKEXT
 #include "opt_inet6.h"
 
 #include <fs/nfs/nfsport.h>
@@ -82,7 +81,6 @@ int nfscl_assumeposixlocks = 1;
 int nfscl_enablecallb = 0;
 short nfsv4_cbport = NFSV4_CBPORT;
 int nfstest_openallsetattr = 0;
-#endif	/* !APPLEKEXT */
 
 #define	DIRHDSIZ	offsetof(struct dirent, d_name)
 

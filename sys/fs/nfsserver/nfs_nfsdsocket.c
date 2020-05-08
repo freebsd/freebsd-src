@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by the nfs server.
  */
 
-#ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstatsv1 nfsstatsv1;
@@ -374,7 +373,6 @@ int (*nfsrv4_ops2[NFSV42_NOPS])(struct nfsrv_descript *,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
 	(int (*)(struct nfsrv_descript *, int, vnode_t , vnode_t , struct nfsexstuff *, struct nfsexstuff *))0,
 };
-#endif	/* !APPLEKEXT */
 
 /*
  * Static array that defines which nfs rpc's are nonidempotent

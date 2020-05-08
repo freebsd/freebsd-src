@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
  * For nfsv4, these functions are called for each Op within the Compound RPC.
  */
 
-#ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 #include <sys/extattr.h>
 #include <sys/filio.h>
@@ -68,7 +67,6 @@ extern u_long sb_max_adj;
 extern int nfsrv_pnfsatime;
 extern int nfsrv_maxpnfsmirror;
 extern int nfs_maxcopyrange;
-#endif	/* !APPLEKEXT */
 
 static int	nfs_async = 0;
 SYSCTL_DECL(_vfs_nfsd);
