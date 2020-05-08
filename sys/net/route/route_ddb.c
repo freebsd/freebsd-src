@@ -48,11 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
-#include <net/vnet.h>
 #include <net/route.h>
-#include <net/route/route_var.h>
 #include <net/route/nhop.h>
-#include <netinet/in.h>
+#include <net/route/route_var.h>
 
 /*
  * Unfortunately, RTF_ values are expressed as raw masks rather than powers of
