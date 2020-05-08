@@ -30,11 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
 extern int nfsrv_useacl;
-#endif
 
 static int nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
     enum vtype type, acl_perm_t *permp);

@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
  * the nfs op functions. They do things like create the rpc header and
  * copy data between mbuf chains and uio lists.
  */
-#ifndef APPLEKEXT
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -192,7 +191,6 @@ struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS] = {
 	{ 0, 1, 0, 0, LK_SHARED, 1, 1 },		/* Listxattrs */
 	{ 0, 1, 1, 1, LK_EXCLUSIVE, 1, 1 },		/* Removexattr */
 };
-#endif	/* !APPLEKEXT */
 
 static int ncl_mbuf_mhlen = MHLEN;
 static int nfsrv_usercnt = 0;
