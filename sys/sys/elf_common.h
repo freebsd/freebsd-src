@@ -1342,6 +1342,8 @@ typedef struct {
 #define	R_RISCV_SET8		54
 #define	R_RISCV_SET16		55
 #define	R_RISCV_SET32		56
+#define	R_RISCV_32_PCREL	57
+#define	R_RISCV_IRELATIVE	58
 
 #define	R_SPARC_NONE		0
 #define	R_SPARC_8		1
