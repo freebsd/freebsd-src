@@ -91,7 +91,7 @@ struct net_backend {
 	 * and should not be called by the frontend.
 	 */
 	int (*init)(struct net_backend *be, const char *devname,
-	    net_be_rxeof_t cb, void *param);
+	    const char *opts, net_be_rxeof_t cb, void *param);
 	void (*cleanup)(struct net_backend *be);
 
 	/*
@@ -199,7 +199,7 @@ tap_cleanup(struct net_backend *be)
 
 static int
 tap_init(struct net_backend *be, const char *devname,
-	 net_be_rxeof_t cb, void *param)
+	 const char *opts, net_be_rxeof_t cb, void *param)
 {
 	struct tap_priv *priv = (struct tap_priv *)be->opaque;
 	char tbuf[80];
@@ -473,7 +473,7 @@ netmap_set_cap(struct net_backend *be, uint64_t features,
 
 static int
 netmap_init(struct net_backend *be, const char *devname,
-	    net_be_rxeof_t cb, void *param)
+	    const char *opts, net_be_rxeof_t cb, void *param)
 {
 	struct netmap_priv *priv = (struct netmap_priv *)be->opaque;
 
@@ -746,11 +746,21 @@ DATA_SET(net_backend_set, vale_backend);
  *	the argument for the callback.
  */
 int
-netbe_init(struct net_backend **ret, const char *devname, net_be_rxeof_t cb,
+netbe_init(struct net_backend **ret, const char *opts, net_be_rxeof_t cb,
     void *param)
 {
 	struct net_backend **pbe, *nbe, *tbe = NULL;
+	char *devname;
+	char *options;
 	int err;
+
+	devname = options = strdup(opts);
+
+	if (devname == NULL) {
+		return (-1);
+	}
+
+	devname = strsep(&options, ",");
 
 	/*
 	 * Find the network backend that matches the user-provided
@@ -771,8 +781,11 @@ netbe_init(struct net_backend **ret, const char *devname, net_be_rxeof_t cb,
 	}
 
 	*ret = NULL;
-	if (tbe == NULL)
+	if (tbe == NULL) {
+		free(devname);
 		return (EINVAL);
+	}
+
 	nbe = calloc(1, sizeof(*nbe) + tbe->priv_size);
 	*nbe = *tbe;	/* copy the template */
 	nbe->fd = -1;
@@ -781,13 +794,15 @@ netbe_init(struct net_backend **ret, const char *devname, net_be_rxeof_t cb,
 	nbe->fe_vnet_hdr_len = 0;
 
 	/* Initialize the backend. */
-	err = nbe->init(nbe, devname, cb, param);
+	err = nbe->init(nbe, devname, options, cb, param);
 	if (err) {
+		free(devname);
 		free(nbe);
 		return (err);
 	}
 
 	*ret = nbe;
+	free(devname);
 
 	return (0);
 }

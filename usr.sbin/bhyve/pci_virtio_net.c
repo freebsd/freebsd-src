@@ -577,12 +577,12 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	mac_provided = 0;
 	mtu_provided = 0;
 	if (opts != NULL) {
-		char *devname;
+		char *optscopy;
 		char *vtopts;
 		int err = 0;
 
 		/* Get the device name. */
-		devname = vtopts = strdup(opts);
+		optscopy = vtopts = strdup(opts);
 		(void) strsep(&vtopts, ",");
 
 		/*
@@ -618,15 +618,16 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 			}
 		}
 
+		free(optscopy);
+
 		if (err) {
-			free(devname);
 			free(sc);
 			return (err);
 		}
 
-		err = netbe_init(&sc->vsc_be, devname, pci_vtnet_rx_callback,
+		err = netbe_init(&sc->vsc_be, opts, pci_vtnet_rx_callback,
 		          sc);
-		free(devname);
+
 		if (err) {
 			free(sc);
 			return (err);
