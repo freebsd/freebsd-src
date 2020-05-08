@@ -377,8 +377,8 @@ fuse_internal_fsync(struct vnode *vp,
 }
 
 /* Asynchronous invalidation */
-SDT_PROBE_DEFINE2(fusefs, , internal, invalidate_cache_hit,
-	"struct vnode*", "struct vnode*");
+SDT_PROBE_DEFINE3(fusefs, , internal, invalidate_entry,
+	"struct vnode*", "struct fuse_notify_inval_entry_out*", "char*");
 int
 fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 {
@@ -407,6 +407,7 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	else
 		err = fuse_internal_get_cached_vnode( mp, fnieo.parent,
 			LK_SHARED, &dvp);
+	SDT_PROBE3(fusefs, , internal, invalidate_entry, dvp, &fnieo, name);
 	/* 
 	 * If dvp is not in the cache, then it must've been reclaimed.  And
 	 * since fuse_vnop_reclaim does a cache_purge, name's entry must've
@@ -435,6 +436,8 @@ fuse_internal_invalidate_entry(struct mount *mp, struct uio *uio)
 	return (0);
 }
 
+SDT_PROBE_DEFINE2(fusefs, , internal, invalidate_inode,
+	"struct vnode*", "struct fuse_notify_inval_inode_out *");
 int
 fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio)
 {
@@ -450,6 +453,7 @@ fuse_internal_invalidate_inode(struct mount *mp, struct uio *uio)
 	else
 		err = fuse_internal_get_cached_vnode(mp, fniio.ino, LK_SHARED,
 			&vp);
+	SDT_PROBE2(fusefs, , internal, invalidate_inode, vp, &fniio);
 	if (err != 0 || vp == NULL)
 		return (err);
 	/*
