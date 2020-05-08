@@ -1857,7 +1857,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(IDT_IO_INTS + 15, IDTVEC(spuriousint), SDT_SYSIGT, SEL_KPL, 0);
 #endif
 #else
-#error "have you forgotten the isa device?";
+#error "have you forgotten the isa device?"
 #endif
 
 	if (late_console)
@@ -1867,12 +1867,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	fpuinit();
 
 	/*
-	 * Set up thread0 pcb save area after fpuinit calculated fpu save
-	 * area size.  Zero out the extended state header in fpu save
-	 * area.
+	 * Reinitialize thread0's stack base now that the xsave area size is
+	 * known.  Set up thread0's pcb save area after fpuinit calculated fpu
+	 * save area size.  Zero out the extended state header in fpu save area.
 	 */
+	set_top_of_stack_td(&thread0);
 	thread0.td_pcb->pcb_save = get_pcb_user_save_td(&thread0);
-	bzero(get_pcb_user_save_td(&thread0), cpu_max_ext_state_size);
+	bzero(thread0.td_pcb->pcb_save, cpu_max_ext_state_size);
 	if (use_xsave) {
 		xhdr = (struct xstate_hdr *)(get_pcb_user_save_td(&thread0) +
 		    1);
@@ -1882,7 +1883,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	rsp0 = thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 &= ~0xFul;
-	__pcpu[0].pc_common_tss.tss_rsp0 = rsp0;
+	PCPU_PTR(common_tss)->tss_rsp0 = rsp0;
 	amd64_bsp_pcpu_init2(rsp0);
 
 	/* transfer to user mode */
