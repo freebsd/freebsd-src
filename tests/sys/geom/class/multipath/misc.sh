@@ -186,7 +186,7 @@ fail_on_error_body()
 	atf_check -s exit:0 gmultipath create "$name" ${md0}.nop ${md1}.nop
 	# The first I/O to the first path should fail, causing gmultipath to
 	# fail over to the second path.
-	atf_check gnop configure -q 100 -r 100 -w 100 -x 100 ${md0}.nop
+	atf_check gnop configure -r 100 -w 100 ${md0}.nop
 	atf_check -s exit:0 -o ignore -e ignore dd if=/dev/zero of=/dev/multipath/"$name" bs=4096 count=1
 	check_multipath_state ${md1}.nop "DEGRADED" "FAIL" "ACTIVE" 
 }
