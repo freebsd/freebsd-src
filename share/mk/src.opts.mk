@@ -277,7 +277,7 @@ __LLVM_TARGET_FILT=	C/(amd64|i386)/x86/:S/sparc64/sparc/:S/arm64/aarch64/
 __DEFAULT_YES_OPTIONS+=	LLVM_TARGET_${__llt:${__LLVM_TARGET_FILT}:tu}
 # Disable other targets for arm and armv6, to work around "relocation truncated
 # to fit" errors with BFD ld, since libllvm.a will get too large to link.
-.elif ${__T} == "arm" || ${__T} == "armv6"
+.elif ${__T} == "arm"
 __DEFAULT_NO_OPTIONS+=LLVM_TARGET_${__llt:tu}
 # aarch64 needs arm for -m32 support.
 .elif ${__TT} == "arm64" && ${__llt} == "arm"
@@ -325,8 +325,8 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 .else
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
-.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "armv7" || \
-    ${__T} == "i386" || ${__TT} == "riscv"
+.if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "armv6" || \
+    ${__T} == "armv7" || ${__T} == "i386" || ${__TT} == "riscv"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .else
 __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
