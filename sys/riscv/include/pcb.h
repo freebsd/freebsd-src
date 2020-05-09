@@ -46,15 +46,12 @@ struct pcb {
 	uint64_t	pcb_sp;		/* Stack pointer */
 	uint64_t	pcb_gp;		/* Global pointer */
 	uint64_t	pcb_tp;		/* Thread pointer */
-	uint64_t	pcb_t[7];	/* Temporary registers */
 	uint64_t	pcb_s[12];	/* Saved registers */
-	uint64_t	pcb_a[8];	/* Argument registers */
 	uint64_t	pcb_x[32][2];	/* Floating point registers */
 	uint64_t	pcb_fcsr;	/* Floating point control reg */
 	uint64_t	pcb_fpflags;	/* Floating point flags */
 #define	PCB_FP_STARTED	0x1
 #define	PCB_FP_USERMASK	0x1
-	uint64_t	pcb_sepc;	/* Supervisor exception pc */
 	vm_offset_t	pcb_onfault;	/* Copyinout fault handler */
 };
 

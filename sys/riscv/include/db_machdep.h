@@ -47,7 +47,7 @@
 typedef vm_offset_t	db_addr_t;
 typedef long		db_expr_t;
 
-#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_sepc)
+#define	PC_REGS()	((db_addr_t)kdb_frame->tf_sepc)
 
 #define	BKPT_INST	(0x00100073)
 #define	BKPT_SIZE	(INSN_SIZE)
