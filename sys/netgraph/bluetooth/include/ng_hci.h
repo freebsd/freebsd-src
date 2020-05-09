@@ -1980,7 +1980,8 @@ typedef struct {
 	u_int8_t addr_type;
 	bdaddr_t bdaddr;
 	u_int8_t length_data;
-	u_int8_t data[NG_HCI_SCAN_RESPONSE_DATA_MAX];
+	/* The last octet is for RSSI */
+	u_int8_t data[NG_HCI_SCAN_RESPONSE_DATA_MAX+1];
 }__attribute__((packed)) ng_hci_le_advreport;
 
 #define NG_HCI_LEEV_CON_UPDATE_COMPL 0x03
