@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2018
+.Dd May 9, 2020
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -69,6 +69,7 @@ If not set, an architecture-specific default is used.
 .Bl -column -offset indent "Architecture" "Default Path"
 .It Sy Architecture Ta Sy Default Path
 .It amd64 Ta Pa /EFI/BOOT/BOOTX64.EFI
+.It arm Ta Pa /EFI/BOOT/BOOTARM.EFI
 .It arm64 Ta Pa /EFI/BOOT/BOOTAA64.EFI
 .El
 .Pp
