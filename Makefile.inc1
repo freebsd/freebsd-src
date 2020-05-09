@@ -1403,6 +1403,16 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
 .endif
+.elif make(installworld) && ${MK_CAROOT} != "no"
+	# We could make certctl a bootstrap tool, but it requires OpenSSL and
+	# friends, which we likely don't want.  We'll rehash on a best-effort
+	# basis, otherwise we'll just mention that we're not doing it to raise
+	# awareness.
+	@if which certctl>/dev/null; then \
+		certctl rehash \
+	else \
+		echo "No certctl on the host, not rehashing target -- /etc/ssl may not be populated."; \
+	fi
 .endif
 
 packageworld: .PHONY
