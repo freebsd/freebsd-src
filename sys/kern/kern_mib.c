@@ -231,6 +231,7 @@ static int
 sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
 {
 	int error;
+	size_t len;
 #ifdef SCTL_MASK32
 	int i;
 	uint32_t pagesizes32[MAXPAGESIZES];
@@ -243,10 +244,18 @@ sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
 		for (i = 0; i < MAXPAGESIZES; i++)
 			pagesizes32[i] = (uint32_t)pagesizes[i];
 
-		error = SYSCTL_OUT(req, pagesizes32, sizeof(pagesizes32));
+		len = sizeof(pagesizes32);
+		if (len > req->oldlen)
+			len = req->oldlen;
+		error = SYSCTL_OUT(req, pagesizes32, len);
 	} else
 #endif
-		error = SYSCTL_OUT(req, pagesizes, sizeof(pagesizes));
+	{
+		len = sizeof(pagesizes);
+		if (len > req->oldlen)
+			len = req->oldlen;
+		error = SYSCTL_OUT(req, pagesizes, len);
+	}
 	return (error);
 }
 SYSCTL_PROC(_hw, OID_AUTO, pagesizes,
