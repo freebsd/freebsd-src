@@ -255,6 +255,17 @@ bitmap_complement(unsigned long *dst, const unsigned long *src,
 }
 
 static inline void
+bitmap_copy(unsigned long *dst, const unsigned long *src,
+    const unsigned int size)
+{
+	const unsigned int end = BITS_TO_LONGS(size);
+	unsigned int i;
+
+	for (i = 0; i != end; i++)
+		dst[i] = src[i];
+}
+
+static inline void
 bitmap_or(unsigned long *dst, const unsigned long *src1,
     const unsigned long *src2, const unsigned int size)
 {
@@ -274,6 +285,17 @@ bitmap_and(unsigned long *dst, const unsigned long *src1,
 
 	for (i = 0; i != end; i++)
 		dst[i] = src1[i] & src2[i];
+}
+
+static inline void
+bitmap_andnot(unsigned long *dst, const unsigned long *src1,
+    const unsigned long *src2, const unsigned int size)
+{
+	const unsigned int end = BITS_TO_LONGS(size);
+	unsigned int i;
+
+	for (i = 0; i != end; i++)
+		dst[i] = src1[i] & ~src2[i];
 }
 
 static inline void
