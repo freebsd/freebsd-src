@@ -487,29 +487,9 @@ TARGET_ARCHES_arm?=	arm armv6 armv7
 TARGET_ARCHES_arm64?=	aarch64
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32 mipselhf mipshf mips64elhf mips64hf
 TARGET_ARCHES_powerpc?=	powerpc powerpc64 powerpcspe
-# riscv64sf excluded due to PR 232085
-TARGET_ARCHES_riscv?=	riscv64
+TARGET_ARCHES_riscv?=	riscv64 riscv64sf
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
-.endfor
-
-MAKE_PARAMS_riscv?=	CROSS_TOOLCHAIN=riscv64-gcc
-
-# XXX Remove architectures only supported by external toolchain from universe
-# if required toolchain packages are missing.
-TOOLCHAINS_riscv=	riscv64
-.for target in riscv
-.if ${_UNIVERSE_TARGETS:M${target}}
-.for toolchain in ${TOOLCHAINS_${target}}
-.if !exists(/usr/local/share/toolchains/${toolchain}-gcc.mk)
-_UNIVERSE_TARGETS:= ${_UNIVERSE_TARGETS:N${target}}
-universe: universe_${toolchain}_skip .PHONY
-universe_epilogue: universe_${toolchain}_skip .PHONY
-universe_${toolchain}_skip: universe_prologue .PHONY
-	@echo ">> ${target} skipped - install ${toolchain}-xtoolchain-gcc port or package to build"
-.endif
-.endfor
-.endif
 .endfor
 
 .if defined(UNIVERSE_TARGET)

@@ -296,7 +296,8 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 # build Clang without using an external compiler.
 
 .if ${COMPILER_FEATURES:Mc++11} && (${__T} == "aarch64" || \
-    ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386")
+    ${__T} == "amd64" || ${__TT} == "arm" || ${__T} == "i386" || \
+    ${__TT} == "riscv")
 # Clang is enabled, and will be installed as the default /usr/bin/cc.
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC LLD
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX GPL_DTC
@@ -325,7 +326,7 @@ __DEFAULT_YES_OPTIONS+=LLVM_LIBUNWIND
 __DEFAULT_NO_OPTIONS+=LLVM_LIBUNWIND
 .endif
 .if ${__T} == "aarch64" || ${__T} == "amd64" || ${__T} == "armv7" || \
-    ${__T} == "i386"
+    ${__T} == "i386" || ${__TT} == "riscv"
 __DEFAULT_YES_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
 .else
 __DEFAULT_NO_OPTIONS+=LLD_BOOTSTRAP LLD_IS_LD
