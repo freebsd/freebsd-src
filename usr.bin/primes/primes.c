@@ -55,8 +55,8 @@ static const char rcsid[] =
  *	primes [-h] [start [stop]]
  *
  *	Print primes >= start and < stop.  If stop is omitted,
- *	the value 4294967295 (2^32-1) is assumed.  If start is
- *	omitted, start is read from standard input.
+ *	the value 18446744073709551615 (2^64-1) is assumed.  If
+ *	start is omitted, start is read from standard input.
  *
  * validation check: there are 664579 primes between 0 and 10^7
  */
