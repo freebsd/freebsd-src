@@ -208,7 +208,6 @@ ENTRY(cpu_exception_handler)
 	csrrw	sp, sscratch, sp
 	beqz	sp, 1f
 	/* User mode detected */
-	csrrw	sp, sscratch, sp
 	j	cpu_exception_handler_user
 1:
 	/* Supervisor mode detected */
@@ -225,7 +224,6 @@ ENTRY(cpu_exception_handler_supervisor)
 END(cpu_exception_handler_supervisor)
 
 ENTRY(cpu_exception_handler_user)
-	csrrw	sp, sscratch, sp
 	save_registers 0
 	mv	a0, sp
 	call	_C_LABEL(do_trap_user)
