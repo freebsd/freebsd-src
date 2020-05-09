@@ -206,20 +206,6 @@ riscv_cngetc(struct consdev *cp)
 {
 	int ch;
 
-#if defined(KDB)
-	/*
-	 * RISCVTODO: BBL polls for console data on timer interrupt,
-	 * but interrupts are turned off in KDB.
-	 * So we currently do not have console in KDB.
-	 */
-	if (kdb_active) {
-		ch = sbi_console_getchar();
-		while (ch) {
-			ch = sbi_console_getchar();
-		}
-	}
-#endif
-
 	ch = sbi_console_getchar();
 	if (ch > 0 && ch < 0xff) {
 #if defined(KDB)
