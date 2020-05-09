@@ -418,7 +418,7 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 		full_sec_size -= secsz;
 
 	/* Return of partial sector data requires a bounce buffer. */
-	if ((head > 0) || do_tail_read) {
+	if ((head > 0) || do_tail_read || bytes < secsz) {
 		bouncebuf = malloc(secsz);
 		if (bouncebuf == NULL) {
 			printf("vdev_read: out of memory\n");
@@ -442,14 +442,28 @@ vdev_read(vdev_t *vdev, void *priv, off_t offset, void *buf, size_t bytes)
 		outbuf += min(secsz - head, bytes);
 	}
 
-	/* Full data return from read sectors */
+	/*
+	 * Full data return from read sectors.
+	 * Note, there is still corner case where we read
+	 * from sector boundary, but less than sector size, e.g. reading 512B
+	 * from 4k sector.
+	 */
 	if (full_sec_size > 0) {
-		res = read(fd, outbuf, full_sec_size);
-		if (res != full_sec_size) {
-			ret = EIO;
-			goto error;
+		if (bytes < full_sec_size) {
+			res = read(fd, bouncebuf, secsz);
+			if (res != secsz) {
+				ret = EIO;
+				goto error;
+			}
+			memcpy(outbuf, bouncebuf, bytes);
+		} else {
+			res = read(fd, outbuf, full_sec_size);
+			if (res != full_sec_size) {
+				ret = EIO;
+				goto error;
+			}
+			outbuf += full_sec_size;
 		}
-		outbuf += full_sec_size;
 	}
 
 	/* Partial data return from last sector */
