@@ -153,7 +153,6 @@ set_verbose(void)
 
 	if (!isatty(STDIN_FILENO) || ioctl(STDIN_FILENO, TIOCGWINSZ, &wsz))
 		return;
-	printf("\x1b[2J");
 	verbose = 1;
 	t0 = time(NULL);
 }
@@ -538,6 +537,8 @@ main(int argc, char * const argv[])
 	sz = 0;
 	if (!verbose)
 		report_header(0);
+	else
+		printf("\x1b[2J");
 	n = 0;
 	for (;;) {
 		lp = TAILQ_FIRST(&lumps);
