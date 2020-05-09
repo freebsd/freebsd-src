@@ -775,20 +775,24 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 				lflag = 1;
 			goto reswitch;
 		case 'n':
+			/*
+			 * We do not support %n in kernel, but consume the
+			 * argument.
+			 */
 			if (jflag)
-				*(va_arg(ap, intmax_t *)) = retval;
+				(void)va_arg(ap, intmax_t *);
 			else if (qflag)
-				*(va_arg(ap, quad_t *)) = retval;
+				(void)va_arg(ap, quad_t *);
 			else if (lflag)
-				*(va_arg(ap, long *)) = retval;
+				(void)va_arg(ap, long *);
 			else if (zflag)
-				*(va_arg(ap, size_t *)) = retval;
+				(void)va_arg(ap, size_t *);
 			else if (hflag)
-				*(va_arg(ap, short *)) = retval;
+				(void)va_arg(ap, short *);
 			else if (cflag)
-				*(va_arg(ap, char *)) = retval;
+				(void)va_arg(ap, char *);
 			else
-				*(va_arg(ap, int *)) = retval;
+				(void)va_arg(ap, int *);
 			break;
 		case 'o':
 			base = 8;
