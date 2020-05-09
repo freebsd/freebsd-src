@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 04, 2020
+.Dd May 5, 2020
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -293,8 +293,8 @@ considered unconnected.
 .Pp
 Network devices:
 .Bl -tag -width 10n
-.It Ar tapN Ns Op , Ns Ar mac=xx:xx:xx:xx:xx:xx
-.It Ar vmnetN Ns Op , Ns Ar mac=xx:xx:xx:xx:xx:xx
+.It Ar tapN Ns Oo , Ns Ar mac=xx:xx:xx:xx:xx:xx Oc Ns Oo , Ns Ar mtu=N Oc
+.It Ar vmnetN Ns Oo , Ns Ar mac=xx:xx:xx:xx:xx:xx Oc Ns Oo , Ns Ar mtu=N Oc
 .Pp
 If
 .Ar mac
@@ -305,6 +305,11 @@ the device name.
 The MAC address is an ASCII string in
 .Xr ethers 5
 format.
+.Pp
+With virtio-net devices, the
+.Ar mtu
+parameter can be specified to inform the guest about the largest MTU
+that should be allowed, expressed in bytes.
 .El
 .Pp
 Block storage devices:
