@@ -1582,8 +1582,10 @@ cfiscsi_ioctl_handoff(struct ctl_iscsi *ci)
 	mtx_lock(&softc->lock);
 	if (ct->ct_online == 0) {
 		mtx_unlock(&softc->lock);
+		CFISCSI_SESSION_LOCK(cs);
 		cs->cs_handoff_in_progress = false;
 		cfiscsi_session_terminate(cs);
+		CFISCSI_SESSION_UNLOCK(cs);
 		cfiscsi_target_release(ct);
 		ci->status = CTL_ISCSI_ERROR;
 		snprintf(ci->error_str, sizeof(ci->error_str),
@@ -1629,8 +1631,10 @@ restart:
 #endif
 		error = icl_conn_handoff(cs->cs_conn, cihp->socket);
 		if (error != 0) {
+			CFISCSI_SESSION_LOCK(cs);
 			cs->cs_handoff_in_progress = false;
 			cfiscsi_session_terminate(cs);
+			CFISCSI_SESSION_UNLOCK(cs);
 			ci->status = CTL_ISCSI_ERROR;
 			snprintf(ci->error_str, sizeof(ci->error_str),
 			    "%s: icl_conn_handoff failed with error %d",
@@ -1692,10 +1696,8 @@ cfiscsi_ioctl_list(struct ctl_iscsi *ci)
 	sbuf_printf(sb, "<ctlislist>\n");
 	mtx_lock(&softc->lock);
 	TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
-#ifdef ICL_KERNEL_PROXY
 		if (cs->cs_target == NULL)
 			continue;
-#endif
 		error = sbuf_printf(sb, "<connection id=\"%d\">"
 		    "<initiator>%s</initiator>"
 		    "<initiator_addr>%s</initiator_addr>"
