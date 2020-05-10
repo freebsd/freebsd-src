@@ -108,6 +108,15 @@
 #define	  DSISR_DABR		  0x00400000 /* DABR match */
 #define	  DSISR_SEGMENT		  0x00200000 /* XXX; not in 6xx PEM */
 #define	  DSISR_EAR		  0x00100000 /* eciwx/ecowx && EAR[E] == 0 */
+#define	  DSISR_MC_UE_DEFERRED	  0x00008000 /* UE deferred error */
+#define	  DSISR_MC_UE_TABLEWALK	  0x00004000 /* UE deferred error during tablewalk */
+#define	  DSISR_MC_DERAT_MULTIHIT	  0x00000800 /* D-ERAT multi-hit */
+#define	  DSISR_MC_TLB_MULTIHIT	  0x00000400 /* TLB multi-hit */
+#define	  DSISR_MC_TLBIE_ERR	  0x00000200 /* TLBIE or TLBIEL programming error */
+#define	  DSISR_MC_SLB_PARITY	  0x00000100 /* SLB parity error */
+#define	  DSISR_MC_SLB_MULTIHIT	  0x00000080 /* SLB Multi-hit detected (D-side) */
+#define	  DSISR_MC_BAD_REAL_LD	  0x00000040 /* Bad real address for load. */
+#define	  DSISR_MC_BAD_ADDR	  0x00000020 /* Bad address for load or store tablewalk */
 #define	SPR_DAR			0x013	/* .68 Data Address Register */
 #define	SPR_RTCU_W		0x014	/* .6. 601 RTC Upper - Write */
 #define	SPR_RTCL_W		0x015	/* .6. 601 RTC Lower - Write */
@@ -115,9 +124,12 @@
 #define	SPR_SDR1		0x019	/* .68 Page table base address register */
 #define	SPR_SRR0		0x01a	/* 468 Save/Restore Register 0 */
 #define	SPR_SRR1		0x01b	/* 468 Save/Restore Register 1 */
-#define	  SRR1_ISI_PFAULT	0x40000000 /* ISI page not found */
-#define	  SRR1_ISI_NOEXECUTE	0x10000000 /* Memory marked no-execute */
-#define	  SRR1_ISI_PP		0x08000000 /* PP bits forbid access */
+#define	  SRR1_ISI_PFAULT	  0x40000000 /* ISI page not found */
+#define	  SRR1_ISI_NOEXECUTE	  0x10000000 /* Memory marked no-execute */
+#define	  SRR1_ISI_PP		  0x08000000 /* PP bits forbid access */
+#define	  SRR1_MCHK_DATA	  0x00200000 /* Machine check data in DSISR */
+#define	  SRR1_MCHK_IFETCH_M	  0x081c0000 /* Machine check instr fetch mask */
+#define	  SRR1_MCHK_IFETCH_SLBMH  0x000c0000 /* SLB multihit */
 #define	SPR_DECAR		0x036	/* ..8 Decrementer auto reload */
 #define	SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
 #define	SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
@@ -725,6 +737,16 @@
 
 #define	SPR_MCARU		0x239	/* ..8 Machine Check Address register upper bits */
 #define	SPR_MCSR		0x23c	/* ..8 Machine Check Syndrome register */
+#define	  MCSR_MCP		  0x80000000 /* Machine check input signal to core */
+#define	  MCSR_L2MMU_MHIT	  0x08000000 /* L2 MMU simultaneous hit */
+#define	  MCSR_NMI		  0x00100000 /* Non-maskable interrupt */
+#define	  MCSR_MAV		  0x00080000 /* MCAR address valid */
+#define	  MCSR_MEA		  0x00040000 /* MCAR effective address */
+#define	  MCSR_IF		  0x00010000 /* Instruction fetch error report */
+#define	  MCSR_LD		  0x00008000 /* Load instruction error report */
+#define	  MCSR_ST		  0x00004000 /* Store instruction error report */
+#define	  MCSR_LDG		  0x00002000 /* Guarded load instruction error report */
+#define	  MCSR_TLBSYNC		  0x00000002 /* Simultaneous TLBSYNC detected */
 #define	SPR_MCAR		0x23d	/* ..8 Machine Check Address register */
 
 #define	SPR_ESR			0x003e	/* ..8 Exception Syndrome Register */
