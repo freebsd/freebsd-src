@@ -1032,9 +1032,14 @@ sctp_assoc_immediate_retrans(struct sctp_tcb *stcb, struct sctp_nets *dstnet)
 		    (stcb->asoc.sent_queue_cnt > 0)) {
 			struct sctp_tmit_chunk *chk;
 
-			chk = TAILQ_FIRST(&stcb->asoc.sent_queue);
-			sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-			    stcb, chk->whoTo);
+			TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
+				if (chk->whoTo != NULL) {
+					break;
+				}
+			}
+			if (chk != NULL) {
+				sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, chk->whoTo);
+			}
 		}
 	}
 	return;
