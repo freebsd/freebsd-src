@@ -974,7 +974,12 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		/* C3. See if we need to send a Fwd-TSN */
 		if (SCTP_TSN_GT(stcb->asoc.advanced_peer_ack_point, stcb->asoc.last_acked_seq)) {
 			send_forward_tsn(stcb, &stcb->asoc);
-			if (lchk) {
+			for (; lchk != NULL; lchk = TAILQ_NEXT(lchk, sctp_next)) {
+				if (lchk->whoTo != NULL) {
+					break;
+				}
+			}
+			if (lchk != NULL) {
 				/* Assure a timer is up */
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, lchk->whoTo);
 			}
