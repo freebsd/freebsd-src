@@ -1373,7 +1373,7 @@ tcp_usr_close(struct socket *so)
 	NET_EPOCH_EXIT(et);
 }
 
-static int 
+static int
 tcp_pru_options_support(struct tcpcb *tp, int flags)
 {
 	/*
