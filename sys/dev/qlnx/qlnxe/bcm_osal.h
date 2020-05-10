@@ -34,6 +34,8 @@
 #include "ecore_status.h"
 #include <sys/bitstring.h>
 
+#include <linux/types.h>
+
 #if __FreeBSD_version >= 1200032
 #include <linux/bitmap.h>
 #else
@@ -112,11 +114,6 @@ extern void qlnx_vf_flr_update(void *p_hwfn);
 #define s32 uint32_t
 
 #ifndef QLNX_RDMA
-
-typedef uint16_t __le16;
-typedef uint32_t __le32;
-typedef uint16_t __be16;
-typedef uint32_t __be32;
 
 static __inline unsigned long
 roundup_pow_of_two(unsigned long x)
