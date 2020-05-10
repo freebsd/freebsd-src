@@ -392,8 +392,6 @@ struct sockaddr *rtsock_fix_netmask(const struct sockaddr *dst,
 /*
  * Note the following locking behavior:
  *
- *    rtalloc1() returns a locked rtentry
- *
  *    rtfree() and RTFREE_LOCKED() require a locked rtentry
  *
  *    RTFREE() uses an unlocked entry.
@@ -414,14 +412,12 @@ void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
-struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
  * but this will change.. 
  */
-struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
