@@ -402,13 +402,8 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_MCHK:
-			/*
-			 * Note that this may not be recoverable for the user
-			 * process, depending on the type of machine check,
-			 * but it at least prevents the kernel from dying.
-			 */
-			sig = SIGBUS;
-			ucode = BUS_OBJERR;
+			sig = cpu_machine_check(td, frame, &ucode);
+			printtrap(frame->exc, frame, 0, (frame->srr1 & PSL_PR));
 			break;
 
 #if defined(__powerpc64__) && defined(AIM)
@@ -513,17 +508,16 @@ cpu_printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	uint16_t ver;
 
 	switch (vector) {
-	case EXC_DSE:
-	case EXC_DSI:
-	case EXC_DTMISS:
-		printf("   dsisr           = 0x%lx\n",
-		    (u_long)frame->cpu.aim.dsisr);
-		break;
 	case EXC_MCHK:
 		ver = mfpvr() >> 16;
 		if (MPC745X_P(ver))
 			printf("    msssr0         = 0x%b\n",
 			    (int)mfspr(SPR_MSSSR0), MSSSR_BITMASK);
+	case EXC_DSE:
+	case EXC_DSI:
+	case EXC_DTMISS:
+		printf("   dsisr           = 0x%lx\n",
+		    (u_long)frame->cpu.aim.dsisr);
 		break;
 	}
 #elif defined(BOOKE)
@@ -556,14 +550,13 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	case EXC_DSI:
 	case EXC_DTMISS:
 	case EXC_ALI:
+	case EXC_MCHK:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
 		break;
 	case EXC_ISE:
 	case EXC_ISI:
 	case EXC_ITMISS:
 		printf("   virtual address = 0x%" PRIxPTR "\n", frame->srr0);
-		break;
-	case EXC_MCHK:
 		break;
 	}
 	cpu_printtrap(vector, frame, isfatal, user);
