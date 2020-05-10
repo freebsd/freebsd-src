@@ -30,6 +30,7 @@
 #define	_LINUX_BITMAP_H_
 
 #include <linux/bitops.h>
+#include <linux/slab.h>
 
 static inline void
 bitmap_zero(unsigned long *addr, const unsigned int size)
@@ -307,6 +308,12 @@ bitmap_xor(unsigned long *dst, const unsigned long *src1,
 
 	for (i = 0; i != end; i++)
 		dst[i] = src1[i] ^ src2[i];
+}
+
+static inline void
+bitmap_free(const unsigned long *bitmap)
+{
+	kfree(bitmap);
 }
 
 #endif					/* _LINUX_BITMAP_H_ */
