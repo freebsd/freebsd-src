@@ -206,6 +206,7 @@ struct arge_softc {
 		uint32_t	tx_pkts_unaligned;
 		uint32_t	tx_pkts_unaligned_start;
 		uint32_t	tx_pkts_unaligned_len;
+		uint32_t	tx_pkts_unaligned_tooshort;
 		uint32_t	tx_pkts_nosegs;
 		uint32_t	tx_pkts_aligned;
 		uint32_t	rx_overflow;
