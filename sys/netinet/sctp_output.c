@@ -6199,11 +6199,11 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 				 * This one is PR-SCTP AND buffer space
 				 * limited type
 				 */
-				if (chk->rec.data.timetodrop.tv_sec >= (long)srcv->sinfo_timetolive) {
+				if (chk->rec.data.timetodrop.tv_sec > (long)srcv->sinfo_timetolive) {
 					/*
 					 * Lower numbers equates to higher
 					 * priority so if the one we are
-					 * looking at has a larger or equal
+					 * looking at has a larger
 					 * priority we want to drop the data
 					 * and NOT retransmit it.
 					 */
@@ -6234,7 +6234,7 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 		TAILQ_FOREACH_SAFE(chk, &asoc->send_queue, sctp_next, nchk) {
 			/* Here we must move to the sent queue and mark */
 			if (PR_SCTP_BUF_ENABLED(chk->flags)) {
-				if (chk->rec.data.timetodrop.tv_sec >= (long)srcv->sinfo_timetolive) {
+				if (chk->rec.data.timetodrop.tv_sec > (long)srcv->sinfo_timetolive) {
 					if (chk->data) {
 						/*
 						 * We release the book_size
@@ -12617,7 +12617,7 @@ sctp_lower_sosend(struct socket *so,
 		top = SCTP_HEADER_TO_CHAIN(i_pak);
 		sndlen = SCTP_HEADER_LEN(i_pak);
 	}
-	SCTPDBG(SCTP_DEBUG_OUTPUT1, "Send called addr:%p send length %zu\n",
+	SCTPDBG(SCTP_DEBUG_OUTPUT1, "Send called addr:%p send length %zd\n",
 	    (void *)addr,
 	    sndlen);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
