@@ -134,6 +134,8 @@ get_cyclecount(void)
 extern char btext[];
 extern char etext[];
 
+struct thread;
+
 #ifdef __powerpc64__
 extern void enter_idle_powerx(void);
 extern uint64_t can_wakeup;
@@ -146,5 +148,6 @@ void	cpu_sleep(void);
 void	flush_disable_caches(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
+int	cpu_machine_check(struct thread *, struct trapframe *, int *);
 
 #endif	/* _MACHINE_CPU_H_ */
