@@ -1409,7 +1409,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	# basis, otherwise we'll just mention that we're not doing it to raise
 	# awareness.
 	@if which certctl>/dev/null; then \
-		certctl rehash \
+		certctl rehash; \
 	else \
 		echo "No certctl on the host, not rehashing target -- /etc/ssl may not be populated."; \
 	fi
