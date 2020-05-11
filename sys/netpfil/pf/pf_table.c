@@ -144,9 +144,9 @@ static void		 pfr_mark_addrs(struct pfr_ktable *);
 static struct pfr_kentry
 			*pfr_lookup_addr(struct pfr_ktable *,
 			    struct pfr_addr *, int);
-static bool		 pfr_create_kentry_counter(struct pfr_kcounters *,
-			    int, int);
-static struct pfr_kentry *pfr_create_kentry(struct pfr_addr *);
+static bool		 pfr_create_kentry_counter(struct pfr_kentry *, int,
+			    int);
+static struct pfr_kentry *pfr_create_kentry(struct pfr_addr *, bool);
 static void		 pfr_destroy_kentries(struct pfr_kentryworkq *);
 static void		 pfr_destroy_kentry_counter(struct pfr_kcounters *,
 			    int, int);
@@ -155,8 +155,8 @@ static void		 pfr_insert_kentries(struct pfr_ktable *,
 			    struct pfr_kentryworkq *, long);
 static void		 pfr_remove_kentries(struct pfr_ktable *,
 			    struct pfr_kentryworkq *);
-static void		 pfr_clstats_kentries(struct pfr_kentryworkq *, long,
-			    int);
+static void		 pfr_clstats_kentries(struct pfr_ktable *,
+			    struct pfr_kentryworkq *, long, int);
 static void		 pfr_reset_feedback(struct pfr_addr *, int);
 static void		 pfr_prepare_network(union sockaddr_union *, int, int);
 static int		 pfr_route_kentry(struct pfr_ktable *,
@@ -285,7 +285,8 @@ pfr_add_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 				ad->pfra_fback = PFR_FB_NONE;
 		}
 		if (p == NULL && q == NULL) {
-			p = pfr_create_kentry(ad);
+			p = pfr_create_kentry(ad,
+			    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
 			if (p == NULL)
 				senderr(ENOMEM);
 			if (pfr_route_kentry(tmpkt, p)) {
@@ -451,7 +452,8 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 				ad.pfra_fback = PFR_FB_DUPLICATE;
 				goto _skip;
 			}
-			p = pfr_create_kentry(&ad);
+			p = pfr_create_kentry(&ad,
+			    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
 			if (p == NULL)
 				senderr(ENOMEM);
 			if (pfr_route_kentry(tmpkt, p)) {
@@ -485,7 +487,7 @@ _skip:
 	if (!(flags & PFR_FLAG_DUMMY)) {
 		pfr_insert_kentries(kt, &addq, tzero);
 		pfr_remove_kentries(kt, &delq);
-		pfr_clstats_kentries(&changeq, tzero, INVERT_NEG_FLAG);
+		pfr_clstats_kentries(kt, &changeq, tzero, INVERT_NEG_FLAG);
 	} else
 		pfr_destroy_kentries(&addq);
 	if (nadd != NULL)
@@ -623,7 +625,7 @@ pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
 		    pfr_walktree, &w);
 	if (!rv && (flags & PFR_FLAG_CLSTATS)) {
 		pfr_enqueue_addrs(kt, &workq, NULL, 0);
-		pfr_clstats_kentries(&workq, tzero, 0);
+		pfr_clstats_kentries(kt, &workq, tzero, 0);
 	}
 	if (rv)
 		return (rv);
@@ -671,7 +673,7 @@ pfr_clr_astats(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 	}
 
 	if (!(flags & PFR_FLAG_DUMMY))
-		pfr_clstats_kentries(&workq, 0, 0);
+		pfr_clstats_kentries(kt, &workq, 0, 0);
 	if (nzero != NULL)
 		*nzero = xzero;
 	return (0);
@@ -784,31 +786,28 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 }
 
 static bool
-pfr_create_kentry_counter(struct pfr_kcounters *kc, int pfr_dir, int pfr_op)
+pfr_create_kentry_counter(struct pfr_kentry *ke, int pfr_dir, int pfr_op)
 {
-	kc->pfrkc_packets[pfr_dir][pfr_op] = counter_u64_alloc(M_NOWAIT);
-	if (! kc->pfrkc_packets[pfr_dir][pfr_op])
+	counter_u64_t c;
+
+	c = counter_u64_alloc(M_NOWAIT);
+	if (c == NULL)
 		return (false);
-
-	kc->pfrkc_bytes[pfr_dir][pfr_op] = counter_u64_alloc(M_NOWAIT);
-	if (! kc->pfrkc_bytes[pfr_dir][pfr_op]) {
-		/* Previous allocation will be freed through
-		 * pfr_destroy_kentry() */
+	ke->pfrke_counters.pfrkc_packets[pfr_dir][pfr_op] = c;
+	c = counter_u64_alloc(M_NOWAIT);
+	if (c == NULL)
 		return (false);
-	}
-
-	kc->pfrkc_tzero = 0;
-
+	ke->pfrke_counters.pfrkc_bytes[pfr_dir][pfr_op] = c;
 	return (true);
 }
 
 static struct pfr_kentry *
-pfr_create_kentry(struct pfr_addr *ad)
+pfr_create_kentry(struct pfr_addr *ad, bool counters)
 {
 	struct pfr_kentry	*ke;
 	int pfr_dir, pfr_op;
 
-	ke =  uma_zalloc(V_pfr_kentry_z, M_NOWAIT | M_ZERO);
+	ke = uma_zalloc(V_pfr_kentry_z, M_NOWAIT | M_ZERO);
 	if (ke == NULL)
 		return (NULL);
 
@@ -819,14 +818,16 @@ pfr_create_kentry(struct pfr_addr *ad)
 	ke->pfrke_af = ad->pfra_af;
 	ke->pfrke_net = ad->pfra_net;
 	ke->pfrke_not = ad->pfra_not;
-	for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++)
-		for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX; pfr_op ++) {
-			if (! pfr_create_kentry_counter(&ke->pfrke_counters,
-			    pfr_dir, pfr_op)) {
-				pfr_destroy_kentry(ke);
-				return (NULL);
+	ke->pfrke_counters.pfrkc_tzero = 0;
+	if (counters)
+		for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir++)
+			for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX; pfr_op++) {
+				if (!pfr_create_kentry_counter(ke, pfr_dir,
+				    pfr_op)) {
+					pfr_destroy_kentry(ke);
+					return (NULL);
+				}
 			}
-		}
 	return (ke);
 }
 
@@ -844,8 +845,12 @@ pfr_destroy_kentries(struct pfr_kentryworkq *workq)
 static void
 pfr_destroy_kentry_counter(struct pfr_kcounters *kc, int pfr_dir, int pfr_op)
 {
-	counter_u64_free(kc->pfrkc_packets[pfr_dir][pfr_op]);
-	counter_u64_free(kc->pfrkc_bytes[pfr_dir][pfr_op]);
+	counter_u64_t c;
+
+	if ((c = kc->pfrkc_packets[pfr_dir][pfr_op]) != NULL)
+		counter_u64_free(c);
+	if ((c = kc->pfrkc_bytes[pfr_dir][pfr_op]) != NULL)
+		counter_u64_free(c);
 }
 
 static void
@@ -890,7 +895,7 @@ pfr_insert_kentry(struct pfr_ktable *kt, struct pfr_addr *ad, long tzero)
 	p = pfr_lookup_addr(kt, ad, 1);
 	if (p != NULL)
 		return (0);
-	p = pfr_create_kentry(ad);
+	p = pfr_create_kentry(ad, (kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
 	if (p == NULL)
 		return (ENOMEM);
 
@@ -930,22 +935,28 @@ pfr_clean_node_mask(struct pfr_ktable *kt,
 }
 
 static void
-pfr_clstats_kentries(struct pfr_kentryworkq *workq, long tzero, int negchange)
+pfr_clear_kentry_counters(struct pfr_kentry *p, int pfr_dir, int pfr_op)
+{
+	counter_u64_zero(p->pfrke_counters.pfrkc_packets[pfr_dir][pfr_op]);
+	counter_u64_zero(p->pfrke_counters.pfrkc_bytes[pfr_dir][pfr_op]);
+}
+
+static void
+pfr_clstats_kentries(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
+    long tzero, int negchange)
 {
 	struct pfr_kentry	*p;
-	int			 pfr_dir, pfr_op;
+	int			pfr_dir, pfr_op;
 
 	SLIST_FOREACH(p, workq, pfrke_workq) {
 		if (negchange)
 			p->pfrke_not = !p->pfrke_not;
-		for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++) {
-			for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX; pfr_op ++) {
-				counter_u64_zero(p->pfrke_counters.
-					pfrkc_packets[pfr_dir][pfr_op]);
-				counter_u64_zero(p->pfrke_counters.
-					pfrkc_bytes[pfr_dir][pfr_op]);
-			}
-		}
+		if ((kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0)
+			for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir++)
+				for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX;
+				    pfr_op++)
+					pfr_clear_kentry_counters(p, pfr_dir,
+					    pfr_op);
 		p->pfrke_counters.pfrkc_tzero = tzero;
 	}
 }
@@ -1551,7 +1562,8 @@ _skip:
 			senderr(EINVAL);
 		if (pfr_lookup_addr(shadow, ad, 1) != NULL)
 			continue;
-		p = pfr_create_kentry(ad);
+		p = pfr_create_kentry(ad,
+		    (shadow->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
 		if (p == NULL)
 			senderr(ENOMEM);
 		if (pfr_route_kentry(shadow, p)) {
@@ -1707,7 +1719,7 @@ pfr_commit_ktable(struct pfr_ktable *kt, long tzero)
 		pfr_enqueue_addrs(kt, &delq, NULL, ENQUEUE_UNMARKED_ONLY);
 		pfr_insert_kentries(kt, &addq, tzero);
 		pfr_remove_kentries(kt, &delq);
-		pfr_clstats_kentries(&changeq, tzero, INVERT_NEG_FLAG);
+		pfr_clstats_kentries(kt, &changeq, tzero, INVERT_NEG_FLAG);
 		pfr_destroy_kentries(&garbageq);
 	} else {
 		/* kt cannot contain addresses */
@@ -1888,7 +1900,7 @@ pfr_clstats_ktable(struct pfr_ktable *kt, long tzero, int recurse)
 
 	if (recurse) {
 		pfr_enqueue_addrs(kt, &addrq, NULL, 0);
-		pfr_clstats_kentries(&addrq, tzero, 0);
+		pfr_clstats_kentries(kt, &addrq, tzero, 0);
 	}
 	for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++) {
 		for (pfr_op = 0; pfr_op < PFR_OP_TABLE_MAX; pfr_op ++) {
