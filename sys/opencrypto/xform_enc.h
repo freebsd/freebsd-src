@@ -37,7 +37,6 @@
 #include <crypto/des/des.h>
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/camellia/camellia.h>
-#include <opencrypto/skipjack.h>
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform_userland.h>
 
@@ -73,7 +72,6 @@ extern struct enc_xform enc_xform_null;
 extern struct enc_xform enc_xform_des;
 extern struct enc_xform enc_xform_3des;
 extern struct enc_xform enc_xform_blf;
-extern struct enc_xform enc_xform_skipjack;
 extern struct enc_xform enc_xform_rijndael128;
 extern struct enc_xform enc_xform_aes_icm;
 extern struct enc_xform enc_xform_aes_nist_gcm;
