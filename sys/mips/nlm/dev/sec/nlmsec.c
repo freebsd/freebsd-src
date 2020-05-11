@@ -377,7 +377,6 @@ xlp_sec_auth_supported(const struct crypto_session_params *csp)
 
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1:
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 		break;
 	default:

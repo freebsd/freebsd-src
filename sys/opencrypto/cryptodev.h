@@ -74,7 +74,6 @@
 
 /* Hash values */
 #define	NULL_HASH_LEN		16
-#define	MD5_HASH_LEN		16
 #define	SHA1_HASH_LEN		20
 #define	RIPEMD160_HASH_LEN	20
 #define	SHA2_224_HASH_LEN	28
@@ -87,7 +86,6 @@
 /* Maximum hash algorithm result length */
 #define	HASH_MAX_LEN		SHA2_512_HASH_LEN /* Keep this updated */
 
-#define	MD5_BLOCK_LEN		64
 #define	SHA1_BLOCK_LEN		64
 #define	RIPEMD160_BLOCK_LEN	64
 #define	SHA2_224_BLOCK_LEN	64
@@ -210,7 +208,7 @@
 /* NB: deprecated */
 struct session_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
-	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
+	u_int32_t	mac;		/* ie. CRYPTO_SHA2_256_HMAC */
 
 	u_int32_t	keylen;		/* cipher key */
 	c_caddr_t	key;
@@ -227,7 +225,7 @@ struct session_op {
  */
 struct session2_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
-	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
+	u_int32_t	mac;		/* ie. CRYPTO_SHA2_256_HMAC */
 
 	u_int32_t	keylen;		/* cipher key */
 	c_caddr_t	key;

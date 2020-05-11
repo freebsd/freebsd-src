@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <sys/md5.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2/sha256.h>
 #include <crypto/rijndael/rijndael.h>
@@ -434,14 +433,6 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 	hout = (uint32_t *)cs->cs_hiv_out;
 
 	switch (alg) {
-	case CRYPTO_MD5_HMAC:
-		hmac_init_ipad(&auth_hash_hmac_md5, mkey, mklen, &auth_ctx);
-		memcpy(hin, auth_ctx.md5ctx.state,
-		    sizeof(auth_ctx.md5ctx.state));
-		hmac_init_opad(&auth_hash_hmac_md5, mkey, mklen, &auth_ctx);
-		memcpy(hout, auth_ctx.md5ctx.state,
-		    sizeof(auth_ctx.md5ctx.state));
-		break;
 	case CRYPTO_SHA1_HMAC:
 		hmac_init_ipad(&auth_hash_hmac_sha1, mkey, mklen, &auth_ctx);
 		memcpy(hin, auth_ctx.sha1ctx.h.b32,
@@ -1599,7 +1590,6 @@ cesa_auth_supported(struct cesa_softc *sc,
 		    sc->sc_soc_id == MV_DEV_88F6810))
 			return (false);
 		/* FALLTHROUGH */
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA1_HMAC:
 		break;
@@ -1668,14 +1658,6 @@ cesa_newsession(device_t dev, crypto_session_t cses,
 	}
 
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
-		cs->cs_mblen = MD5_BLOCK_LEN;
-		cs->cs_hlen = (csp->csp_auth_mlen == 0) ? MD5_HASH_LEN :
-		    csp->csp_auth_mlen;
-		cs->cs_config |= CESA_CSHD_MD5_HMAC;
-		if (cs->cs_hlen == CESA_HMAC_TRUNC_LEN)
-			cs->cs_config |= CESA_CSHD_96_BIT_HMAC;
-		break;
 	case CRYPTO_SHA1:
 		cs->cs_mblen = 1;
 		cs->cs_hlen = (csp->csp_auth_mlen == 0) ? SHA1_HASH_LEN :
