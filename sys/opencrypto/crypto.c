@@ -687,7 +687,6 @@ static enum alg_type {
 	[CRYPTO_SHA1_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_RIPEMD160_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_AES_CBC] = ALG_CIPHER,
-	[CRYPTO_ARC4] = ALG_CIPHER,
 	[CRYPTO_SHA1] = ALG_DIGEST,
 	[CRYPTO_NULL_HMAC] = ALG_DIGEST,
 	[CRYPTO_NULL_CBC] = ALG_CIPHER,
@@ -793,10 +792,8 @@ check_csp(const struct crypto_session_params *csp)
 		if (csp->csp_cipher_alg != CRYPTO_NULL_CBC) {
 			if (csp->csp_cipher_klen == 0)
 				return (false);
-			if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-				if (csp->csp_ivlen == 0)
-					return (false);
-			}
+			if (csp->csp_ivlen == 0)
+				return (false);
 		}
 		if (csp->csp_ivlen >= EALG_MAX_BLOCK_LEN)
 			return (false);
@@ -860,10 +857,8 @@ check_csp(const struct crypto_session_params *csp)
 		if (csp->csp_cipher_alg != CRYPTO_NULL_CBC) {
 			if (csp->csp_cipher_klen == 0)
 				return (false);
-			if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-				if (csp->csp_ivlen == 0)
-					return (false);
-			}
+			if (csp->csp_ivlen == 0)
+				return (false);
 		}
 		if (csp->csp_ivlen >= EALG_MAX_BLOCK_LEN)
 			return (false);

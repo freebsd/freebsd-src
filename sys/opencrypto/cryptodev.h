@@ -119,14 +119,12 @@
 #define	RIJNDAEL128_BLOCK_LEN	16
 #define	AES_BLOCK_LEN		16
 #define	AES_ICM_BLOCK_LEN	1
-#define	ARC4_BLOCK_LEN		1
 #define	CAMELLIA_BLOCK_LEN	16
 #define	CHACHA20_NATIVE_BLOCK_LEN	64
 #define	EALG_MAX_BLOCK_LEN	CHACHA20_NATIVE_BLOCK_LEN /* Keep this updated */
 
 /* IV Lengths */
 
-#define	ARC4_IV_LEN		1
 #define	AES_GCM_IV_LEN		12
 #define	AES_CCM_IV_LEN		12
 #define	AES_XTS_IV_LEN		8
@@ -147,8 +145,6 @@
 #define	AES_MAX_KEY		RIJNDAEL_MAX_KEY
 #define	AES_XTS_MIN_KEY		(2 * AES_MIN_KEY)
 #define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
-#define	ARC4_MIN_KEY		1
-#define	ARC4_MAX_KEY		32
 #define	CAMELLIA_MIN_KEY	8
 #define	CAMELLIA_MAX_KEY	32
 

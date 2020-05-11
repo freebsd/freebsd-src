@@ -311,11 +311,6 @@ nlm_get_cipher_param(struct xlp_sec_command *cmd,
 		cmd->ciphermode = NLM_CIPHER_MODE_CBC;
 		cmd->ivlen	= XLP_SEC_AES_IV_LENGTH;
 		break;
-	case CRYPTO_ARC4:
-		cmd->cipheralg  = NLM_CIPHER_ARC4;
-		cmd->ciphermode = NLM_CIPHER_MODE_ECB;
-		cmd->ivlen	= XLP_SEC_ARC4_IV_LENGTH;
-		break;
 	default:
 		/* Not supported */
 		return (-1);

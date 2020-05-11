@@ -1546,7 +1546,7 @@ hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 	hifn_base_command_t *base_cmd;
 	hifn_mac_command_t *mac_cmd;
 	hifn_crypt_command_t *cry_cmd;
-	int using_mac, using_crypt, len, ivlen;
+	int using_mac, using_crypt, ivlen;
 	u_int32_t dlen, slen;
 
 	crp = cmd->crp;
@@ -1611,19 +1611,6 @@ hifn_write_command(struct hifn_command *cmd, u_int8_t *buf)
 		case HIFN_CRYPT_CMD_ALG_DES:
 			bcopy(cmd->ck, buf_pos, HIFN_DES_KEY_LENGTH);
 			buf_pos += HIFN_DES_KEY_LENGTH;
-			break;
-		case HIFN_CRYPT_CMD_ALG_RC4:
-			len = 256;
-			do {
-				int clen;
-
-				clen = MIN(cmd->cklen, len);
-				bcopy(cmd->ck, buf_pos, clen);
-				len -= clen;
-				buf_pos += clen;
-			} while (len > 0);
-			bzero(buf_pos, 4);
-			buf_pos += 4;
 			break;
 		case HIFN_CRYPT_CMD_ALG_AES:
 			/*
@@ -2342,7 +2329,6 @@ hifn_cipher_supported(struct hifn_softc *sc,
 	case HIFN_PUSTAT_ENA_2:
 		switch (csp->csp_cipher_alg) {
 		case CRYPTO_3DES_CBC:
-		case CRYPTO_ARC4:
 			break;
 		case CRYPTO_AES_CBC:
 			if ((sc->sc_flags & HIFN_HAS_AES) == 0)
@@ -2462,9 +2448,6 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 			cmd->base_masks |= HIFN_BASE_CMD_DECODE;
 		cmd->base_masks |= HIFN_BASE_CMD_CRYPT;
 		switch (csp->csp_cipher_alg) {
-		case CRYPTO_ARC4:
-			cmd->cry_masks |= HIFN_CRYPT_CMD_ALG_RC4;
-			break;
 		case CRYPTO_DES_CBC:
 			cmd->cry_masks |= HIFN_CRYPT_CMD_ALG_DES |
 			    HIFN_CRYPT_CMD_MODE_CBC |
@@ -2484,8 +2467,7 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 			err = EINVAL;
 			goto errout;
 		}
-		if (csp->csp_cipher_alg != CRYPTO_ARC4)
-			crypto_read_iv(crp, cmd->iv);
+		crypto_read_iv(crp, cmd->iv);
 
 		if (crp->crp_cipher_key != NULL)
 			cmd->ck = crp->crp_cipher_key;
