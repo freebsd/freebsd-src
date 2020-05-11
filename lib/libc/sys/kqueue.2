@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 21, 2020
+.Dd April 27, 2020
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -323,8 +323,7 @@ When the last writer disconnects, the filter will set
 .Dv EV_EOF
 in
 .Va flags .
-This may be cleared by passing in
-.Dv EV_CLEAR ,
+This will be cleared by the filter when a new writer connects,
 at which point the
 filter will resume waiting for data to become available before
 returning.
@@ -343,9 +342,10 @@ For sockets, pipes
 and fifos,
 .Va data
 will contain the amount of space remaining in the write buffer.
-The filter will set EV_EOF when the reader disconnects, and for
-the fifo case, this may be cleared by use of
-.Dv EV_CLEAR .
+The filter will set
+.Dv EV_EOF
+when the reader disconnects, and for the fifo case, this will be cleared
+when a new reader connects.
 Note that this filter is not supported for vnodes or BPF devices.
 .Pp
 For sockets, the low water mark and socket error handling is
