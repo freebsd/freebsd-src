@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <crypto/sha1.h>
 #include <opencrypto/rmd160.h>
-#include <sys/md5.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
@@ -336,7 +335,6 @@ swcr_authprepare(struct auth_hash *axf, struct swcr_auth *sw,
 {
 
 	switch (axf->type) {
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_224_HMAC:
 	case CRYPTO_SHA2_256_HMAC:
@@ -403,7 +401,6 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 		axf->Final(aalg, &ctx);
 		break;
 
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_224_HMAC:
 	case CRYPTO_SHA2_256_HMAC:
@@ -899,7 +896,6 @@ swcr_setup_auth(struct swcr_session *ses,
 		return (ENOBUFS);
 	
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_224_HMAC:
 	case CRYPTO_SHA2_256_HMAC:
@@ -1085,7 +1081,6 @@ swcr_auth_supported(const struct crypto_session_params *csp)
 	if (axf == NULL)
 		return (false);
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_224_HMAC:
 	case CRYPTO_SHA2_256_HMAC:

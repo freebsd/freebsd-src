@@ -638,27 +638,16 @@ static void
 safe_setup_mackey(struct safe_session *ses, int algo, const uint8_t *key,
     int klen)
 {
-	MD5_CTX md5ctx;
 	SHA1_CTX sha1ctx;
 	int i;
 
-	if (algo == CRYPTO_MD5_HMAC) {
-		hmac_init_ipad(&auth_hash_hmac_md5, key, klen, &md5ctx);
-		bcopy(md5ctx.state, ses->ses_hminner, sizeof(md5ctx.state));
+	hmac_init_ipad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
+	bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
 
-		hmac_init_opad(&auth_hash_hmac_md5, key, klen, &md5ctx);
-		bcopy(md5ctx.state, ses->ses_hmouter, sizeof(md5ctx.state));
+	hmac_init_opad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
+	bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
 
-		explicit_bzero(&md5ctx, sizeof(md5ctx));
-	} else {
-		hmac_init_ipad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
-		bcopy(sha1ctx.h.b32, ses->ses_hminner, sizeof(sha1ctx.h.b32));
-
-		hmac_init_opad(&auth_hash_hmac_sha1, key, klen, &sha1ctx);
-		bcopy(sha1ctx.h.b32, ses->ses_hmouter, sizeof(sha1ctx.h.b32));
-
-		explicit_bzero(&sha1ctx, sizeof(sha1ctx));
-	}
+	explicit_bzero(&sha1ctx, sizeof(sha1ctx));
 
 	/* PE is little-endian, insure proper byte order */
 	for (i = 0; i < N(ses->ses_hminner); i++) {
@@ -674,10 +663,6 @@ safe_auth_supported(struct safe_softc *sc,
 {
 
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
-		if ((sc->sc_devinfo & SAFE_DEVINFO_MD5) == 0)
-			return (false);
-		break;
 	case CRYPTO_SHA1_HMAC:
 		if ((sc->sc_devinfo & SAFE_DEVINFO_SHA1) == 0)
 			return (false);
@@ -755,10 +740,7 @@ safe_newsession(device_t dev, crypto_session_t cses,
 	if (csp->csp_auth_alg != 0) {
 		ses->ses_mlen = csp->csp_auth_mlen;
 		if (ses->ses_mlen == 0) {
-			if (csp->csp_auth_alg == CRYPTO_MD5_HMAC)
-				ses->ses_mlen = MD5_HASH_LEN;
-			else
-				ses->ses_mlen = SHA1_HASH_LEN;
+			ses->ses_mlen = SHA1_HASH_LEN;
 		}
 
 		if (csp->csp_auth_key != NULL) {
@@ -907,10 +889,6 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		}
 
 		switch (csp->csp_auth_alg) {
-		case CRYPTO_MD5_HMAC:
-			cmd0 |= SAFE_SA_CMD0_MD5;
-			cmd1 |= SAFE_SA_CMD1_HMAC;	/* NB: enable HMAC */
-			break;
 		case CRYPTO_SHA1_HMAC:
 			cmd0 |= SAFE_SA_CMD0_SHA1;
 			cmd1 |= SAFE_SA_CMD1_HMAC;	/* NB: enable HMAC */

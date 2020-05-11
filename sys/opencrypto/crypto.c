@@ -530,8 +530,6 @@ crypto_auth_hash(const struct crypto_session_params *csp)
 {
 
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
-		return (&auth_hash_hmac_md5);
 	case CRYPTO_SHA1_HMAC:
 		return (&auth_hash_hmac_sha1);
 	case CRYPTO_SHA2_224_HMAC:
@@ -674,7 +672,6 @@ static enum alg_type {
 	ALG_COMPRESSION,
 	ALG_AEAD
 } alg_types[] = {
-	[CRYPTO_MD5_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_SHA1_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_RIPEMD160_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_AES_CBC] = ALG_CIPHER,

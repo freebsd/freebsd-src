@@ -321,9 +321,6 @@ padlock_hash_lookup(int alg)
 	case CRYPTO_NULL_HMAC:
 		axf = &auth_hash_null;
 		break;
-	case CRYPTO_MD5_HMAC:
-		axf = &auth_hash_hmac_md5;
-		break;
 	case CRYPTO_SHA1_HMAC:
 		if ((via_feature_xcrypt & VIA_HAS_SHA) != 0)
 			axf = &padlock_hmac_sha1;
