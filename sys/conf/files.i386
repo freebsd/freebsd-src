@@ -76,7 +76,7 @@ compat/linux/linux_vdso.c	optional compat_linux
 compat/linux/linux.c		optional compat_linux
 compat/ndis/winx32_wrap.S	optional ndisapi pci
 crypto/aesni/aeskeys_i386.S	optional aesni
-crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | ipsec_support | netsmb
+crypto/des/arch/i386/des_enc.S	optional netsmb
 dev/agp/agp_ali.c		optional agp
 dev/agp/agp_amd.c		optional agp
 dev/agp/agp_amd64.c		optional agp
