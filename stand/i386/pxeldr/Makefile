@@ -31,7 +31,7 @@ CLEANFILES+= ${BOOT}.tmp
 
 ${BOOT}: ${LDR} ${LOADER}
 	cat ${LDR} ${LOADER} > ${.TARGET}.tmp
-	${DD} if=${.TARGET}.tmp of=${.TARGET} obs=2k conv=osync
+	${DD} if=${.TARGET}.tmp of=${.TARGET} bs=2048 conv=sync
 	rm ${.TARGET}.tmp
 
 LDFLAGS+=${LDFLAGS_BIN}
