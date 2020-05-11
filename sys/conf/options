@@ -734,11 +734,6 @@ BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 SOCKBUF_DEBUG		opt_global.h
 
 
-# options for ubsec driver
-UBSEC_DEBUG		opt_ubsec.h
-UBSEC_RNDTEST		opt_ubsec.h
-UBSEC_NO_RNG		opt_ubsec.h
-
 # options for hifn driver
 HIFN_DEBUG		opt_hifn.h
 HIFN_RNDTEST		opt_hifn.h

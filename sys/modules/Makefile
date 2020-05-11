@@ -354,7 +354,6 @@ SUBDIR=	\
 	twe \
 	tws \
 	uart \
-	ubsec \
 	udf \
 	udf_iconv \
 	ufs \

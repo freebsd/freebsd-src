@@ -3182,7 +3182,6 @@ dev/uart/uart_dev_z8530.c	optional uart uart_z8530 | uart scc
 dev/uart/uart_if.m		optional uart
 dev/uart/uart_subr.c		optional uart
 dev/uart/uart_tty.c		optional uart
-dev/ubsec/ubsec.c		optional ubsec
 #
 # USB controller drivers
 #
