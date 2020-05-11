@@ -2315,7 +2315,6 @@ hifn_auth_supported(struct hifn_softc *sc,
 	}
 		
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5:
 	case CRYPTO_SHA1:
 		break;
 	case CRYPTO_MD5_HMAC:
@@ -2524,11 +2523,6 @@ hifn_process(device_t dev, struct cryptop *crp, int hint)
 		cmd->base_masks |= HIFN_BASE_CMD_MAC;
 
 		switch (csp->csp_auth_alg) {
-		case CRYPTO_MD5:
-			cmd->mac_masks |= HIFN_MAC_CMD_ALG_MD5 |
-			    HIFN_MAC_CMD_RESULT | HIFN_MAC_CMD_MODE_HASH |
-			    HIFN_MAC_CMD_POS_IPSEC;
-                       break;
 		case CRYPTO_MD5_HMAC:
 			cmd->mac_masks |= HIFN_MAC_CMD_ALG_MD5 |
 			    HIFN_MAC_CMD_RESULT | HIFN_MAC_CMD_MODE_HMAC |
