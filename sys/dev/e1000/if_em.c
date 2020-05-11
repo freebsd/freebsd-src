@@ -251,6 +251,7 @@ static void	em_if_timer(if_ctx_t ctx, uint16_t qid);
 static void	em_if_vlan_register(if_ctx_t ctx, u16 vtag);
 static void	em_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
 static void	em_if_watchdog_reset(if_ctx_t ctx);
+static bool	em_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
 
 static void	em_identify_hardware(if_ctx_t ctx);
 static int	em_allocate_pci_resources(if_ctx_t ctx);
@@ -400,6 +401,7 @@ static device_method_t em_if_methods[] = {
 	DEVMETHOD(ifdi_rx_queue_intr_enable, em_if_rx_queue_intr_enable),
 	DEVMETHOD(ifdi_tx_queue_intr_enable, em_if_tx_queue_intr_enable),
 	DEVMETHOD(ifdi_debug, em_if_debug),
+	DEVMETHOD(ifdi_needs_restart, em_if_needs_restart),
 	DEVMETHOD_END
 };
 
@@ -437,6 +439,7 @@ static device_method_t igb_if_methods[] = {
 	DEVMETHOD(ifdi_rx_queue_intr_enable, igb_if_rx_queue_intr_enable),
 	DEVMETHOD(ifdi_tx_queue_intr_enable, igb_if_tx_queue_intr_enable),
 	DEVMETHOD(ifdi_debug, em_if_debug),
+	DEVMETHOD(ifdi_needs_restart, em_if_needs_restart),
 	DEVMETHOD_END
 };
 
@@ -4035,6 +4038,25 @@ em_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		    adapter->watchdog_events);
 	default:
 		return (if_get_counter_default(ifp, cnt));
+	}
+}
+
+/* em_if_needs_restart - Tell iflib when the driver needs to be reinitialized
+ * @ctx: iflib context
+ * @event: event code to check
+ *
+ * Defaults to returning true for unknown events.
+ *
+ * @returns true if iflib needs to reinit the interface
+ */
+static bool
+em_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
+{
+	switch (event) {
+	case IFLIB_RESTART_VLAN_CONFIG:
+		return (false);
+	default:
+		return (true);
 	}
 }
 
