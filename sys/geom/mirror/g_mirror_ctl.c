@@ -44,6 +44,10 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_int.h>
 #include <geom/mirror/g_mirror.h>
 
+/*
+ * Configure, Rebuild, Remove, Deactivate, Forget, and Stop operations do not
+ * seem to depend on any particular g_mirror initialization state.
+ */
 static struct g_mirror_softc *
 g_mirror_find_device(struct g_class *mp, const char *name)
 {
@@ -61,11 +65,64 @@ g_mirror_find_device(struct g_class *mp, const char *name)
 		    strcmp(sc->sc_name, name) == 0) {
 			g_topology_unlock();
 			sx_xlock(&sc->sc_lock);
+			if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
+				sx_xunlock(&sc->sc_lock);
+				return (NULL);
+			}
 			return (sc);
 		}
 	}
 	g_topology_unlock();
 	return (NULL);
+}
+
+/* Insert and Resize operations depend on a launched GEOM (sc_provider). */
+#define	GMFL_VALID_FLAGS	(M_WAITOK | M_NOWAIT)
+static struct g_mirror_softc *
+g_mirror_find_launched_device(struct g_class *mp, const char *name, int flags)
+{
+	struct g_mirror_softc *sc;
+	int error;
+
+	KASSERT((flags & ~GMFL_VALID_FLAGS) == 0 &&
+	    flags != GMFL_VALID_FLAGS && flags != 0,
+	    ("%s: Invalid flags %x\n", __func__, (unsigned)flags));
+#undef	GMFL_VALID_FLAGS
+
+	while (true) {
+		sc = g_mirror_find_device(mp, name);
+		if (sc == NULL)
+			return (NULL);
+		if (sc->sc_provider != NULL)
+			return (sc);
+		if (flags & M_NOWAIT) {
+			sx_xunlock(&sc->sc_lock);
+			return (NULL);
+		}
+
+		/*
+		 * This is a dumb hack.  G_mirror does not expose any real
+		 * wakeup API for observing state changes, and even if it did,
+		 * its "RUNNING" state does not actually reflect all softc
+		 * elements being initialized.
+		 *
+		 * Revamping g_mirror to have a 3rd, ACTUALLY_RUNNING state and
+		 * updating all assertions and sc_state checks is a large work
+		 * and would be easy to introduce regressions.
+		 *
+		 * Revamping g_mirror to have a wakeup for state changes would
+		 * be difficult if one wanted to capture more than just
+		 * sc_state and sc_provider.
+		 *
+		 * For now, just dummy sleep-poll until sc_provider shows up,
+		 * the user cancels, or the g_mirror is destroyed.
+		 */
+		error = sx_sleep(&sc, &sc->sc_lock, PRIBIO | PCATCH | PDROP,
+		    "GM:launched", 1);
+		if (error != 0 && error != EWOULDBLOCK)
+			return (NULL);
+	}
+	__unreachable();
 }
 
 static struct g_mirror_disk *
@@ -605,7 +662,7 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 0);
 		return;
 	}
-	sc = g_mirror_find_device(mp, name);
+	sc = g_mirror_find_launched_device(mp, name, M_WAITOK);
 	if (sc == NULL) {
 		gctl_error(req, "No such device: %s.", name);
 		return;
@@ -847,7 +904,7 @@ g_mirror_ctl_resize(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Invalid '%s' argument.", "size");
 		return;
 	}
-	sc = g_mirror_find_device(mp, name);
+	sc = g_mirror_find_launched_device(mp, name, M_WAITOK);
 	if (sc == NULL) {
 		gctl_error(req, "No such device: %s.", name);
 		return;
