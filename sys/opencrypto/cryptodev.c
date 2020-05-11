@@ -465,6 +465,8 @@ cryptof_ioctl(
 			/* Should always be paired with GCM. */
 			if (sop->cipher != CRYPTO_AES_NIST_GCM_16) {
 				CRYPTDEB("GMAC without GCM");
+				SDT_PROBE1(opencrypto, dev, ioctl, error,
+				    __LINE__);
 				return (EINVAL);
 			}
 			break;
@@ -539,8 +541,10 @@ cryptof_ioctl(
 			return (EINVAL);
 		}
 
-		if (txform == NULL && thash == NULL)
+		if (txform == NULL && thash == NULL) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
+		}
 
 		memset(&csp, 0, sizeof(csp));
 
@@ -550,13 +554,18 @@ cryptof_ioctl(
 			case CRYPTO_AES_128_NIST_GMAC:
 			case CRYPTO_AES_192_NIST_GMAC:
 			case CRYPTO_AES_256_NIST_GMAC:
-				if (sop->keylen != sop->mackeylen)
+				if (sop->keylen != sop->mackeylen) {
+					SDT_PROBE1(opencrypto, dev, ioctl,
+					    error, __LINE__);
 					return (EINVAL);
+				}
 				break;
 #endif
 			case 0:
 				break;
 			default:
+				SDT_PROBE1(opencrypto, dev, ioctl, error,
+				    __LINE__);
 				return (EINVAL);
 			}
 			csp.csp_mode = CSP_MODE_AEAD;
@@ -564,14 +573,19 @@ cryptof_ioctl(
 			switch (sop->mac) {
 #ifdef COMPAT_FREEBSD12
 			case CRYPTO_AES_CCM_CBC_MAC:
-				if (sop->keylen != sop->mackeylen)
+				if (sop->keylen != sop->mackeylen) {
+					SDT_PROBE1(opencrypto, dev, ioctl,
+					    error, __LINE__);
 					return (EINVAL);
+				}
 				thash = NULL;
 				break;
 #endif
 			case 0:
 				break;
 			default:
+				SDT_PROBE1(opencrypto, dev, ioctl, error,
+				    __LINE__);
 				return (EINVAL);
 			}
 			csp.csp_mode = CSP_MODE_AEAD;
