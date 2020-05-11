@@ -75,18 +75,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
 
-/* Encryption instances */
-struct enc_xform enc_xform_arc4 = {
-	CRYPTO_ARC4, "ARC4",
-	ARC4_BLOCK_LEN, ARC4_IV_LEN, ARC4_MIN_KEY, ARC4_MAX_KEY,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-};
-
-
 /* Include the encryption algorithms */
 #include "xform_null.c"
 #include "xform_des1.c"
