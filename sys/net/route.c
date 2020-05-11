@@ -426,11 +426,8 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
 void
 rtfree(struct rtentry *rt)
 {
-	struct rib_head *rnh;
 
 	KASSERT(rt != NULL,("%s: NULL rt", __func__));
-	rnh = rt_tables_get_rnh(rt->rt_fibnum, rt_key(rt)->sa_family);
-	KASSERT(rnh != NULL,("%s: NULL rnh", __func__));
 
 	RT_LOCK_ASSERT(rt);
 
@@ -443,18 +440,6 @@ rtfree(struct rtentry *rt)
 		log(LOG_DEBUG, "%s: %p has %d refs\n", __func__, rt, rt->rt_refcnt);
 		goto done;
 	}
-
-	/*
-	 * On last reference give the "close method" a chance
-	 * to cleanup private state.  This also permits (for
-	 * IPv4 and IPv6) a chance to decide if the routing table
-	 * entry should be purged immediately or at a later time.
-	 * When an immediate purge is to happen the close routine
-	 * typically calls rtexpunge which clears the RTF_UP flag
-	 * on the entry so that the code below reclaims the storage.
-	 */
-	if (rt->rt_refcnt == 0 && rnh->rnh_close)
-		rnh->rnh_close((struct radix_node *)rt, &rnh->head);
 
 	/*
 	 * If we are no longer "up" (and ref == 0)
@@ -1501,7 +1486,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		return (ENOBUFS);
 	}
 	rt->rt_flags = RTF_UP | flags;
-	rt->rt_fibnum = rnh->rib_fibnum;
 	rt->rt_nhop = nh;
 
 	/* Fill in dst */
