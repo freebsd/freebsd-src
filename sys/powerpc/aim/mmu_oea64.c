@@ -120,8 +120,7 @@ uintptr_t moea64_get_unique_vsid(void);
  *
  */
 
-#define PV_LOCK_PER_DOM	(PA_LOCK_COUNT * 3)
-#define PV_LOCK_COUNT	(PV_LOCK_PER_DOM * MAXMEMDOM)
+#define PV_LOCK_COUNT	PA_LOCK_COUNT
 static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
  
 /*
@@ -130,8 +129,7 @@ static struct mtx_padalign pv_lock[PV_LOCK_COUNT];
  * index at (N << 45).
  */
 #ifdef __powerpc64__
-#define PV_LOCK_IDX(pa)	(pa_index(pa) % PV_LOCK_PER_DOM + \
-			(((pa) >> 45) % MAXMEMDOM) * PV_LOCK_PER_DOM)
+#define PV_LOCK_IDX(pa)	((pa_index(pa) * (((pa) >> 45) + 1)) % PV_LOCK_COUNT)
 #else
 #define PV_LOCK_IDX(pa)	(pa_index(pa) % PV_LOCK_COUNT)
 #endif
@@ -305,6 +303,7 @@ void moea64_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz,
 void moea64_scan_init(mmu_t mmu);
 vm_offset_t moea64_quick_enter_page(mmu_t mmu, vm_page_t m);
 void moea64_quick_remove_page(mmu_t mmu, vm_offset_t addr);
+boolean_t moea64_page_is_mapped(mmu_t mmu, vm_page_t m);
 static int moea64_map_user_ptr(mmu_t mmu, pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int moea64_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
@@ -353,6 +352,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_page_set_memattr,	moea64_page_set_memattr),
 	MMUMETHOD(mmu_quick_enter_page, moea64_quick_enter_page),
 	MMUMETHOD(mmu_quick_remove_page, moea64_quick_remove_page),
+	MMUMETHOD(mmu_page_is_mapped,	moea64_page_is_mapped),
 #ifdef __powerpc64__
 	MMUMETHOD(mmu_page_array_startup,	moea64_page_array_startup),
 #endif
@@ -1423,6 +1423,12 @@ moea64_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 	    ("moea64_quick_remove_page: invalid address"));
 	mtx_unlock(PCPU_PTR(aim.qmap_lock));
 	sched_unpin();	
+}
+
+boolean_t
+moea64_page_is_mapped(mmu_t mmu, vm_page_t m)
+{
+	return (!LIST_EMPTY(&(m)->md.mdpg_pvoh));
 }
 
 /*

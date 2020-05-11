@@ -322,6 +322,7 @@ void moea_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz, void **va);
 void moea_scan_init(mmu_t mmu);
 vm_offset_t moea_quick_enter_page(mmu_t mmu, vm_page_t m);
 void moea_quick_remove_page(mmu_t mmu, vm_offset_t addr);
+boolean_t moea_page_is_mapped(mmu_t mmu, vm_page_t m);
 static int moea_map_user_ptr(mmu_t mmu, pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int moea_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
@@ -364,6 +365,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_page_set_memattr,	moea_page_set_memattr),
 	MMUMETHOD(mmu_quick_enter_page, moea_quick_enter_page),
 	MMUMETHOD(mmu_quick_remove_page, moea_quick_remove_page),
+	MMUMETHOD(mmu_page_is_mapped,	moea_page_is_mapped),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,       	moea_bootstrap),
@@ -1102,6 +1104,12 @@ moea_quick_enter_page(mmu_t mmu, vm_page_t m)
 void
 moea_quick_remove_page(mmu_t mmu, vm_offset_t addr)
 {
+}
+
+boolean_t
+moea_page_is_mapped(mmu_t mmu, vm_page_t m)
+{
+	return (!LIST_EMPTY(&(m)->md.mdpg_pvoh));
 }
 
 /*

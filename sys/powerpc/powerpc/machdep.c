@@ -145,7 +145,7 @@ extern vm_paddr_t kernload;
 
 extern void *ap_pcpu;
 
-struct pcpu __pcpu[MAXCPU];
+struct pcpu __pcpu[MAXCPU] __aligned(PAGE_SIZE);
 static char init_kenv[2048];
 
 static struct trapframe frame0;

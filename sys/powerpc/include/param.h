@@ -106,14 +106,27 @@
 #define	PAGE_SIZE	(1 << PAGE_SHIFT)	/* Page size */
 #define	PAGE_MASK	(PAGE_SIZE - 1)
 #define	NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define	NPDEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+#define L1_PAGE_SIZE_SHIFT 39
+#define L1_PAGE_SIZE (1UL<<L1_PAGE_SIZE_SHIFT)
+#define L1_PAGE_MASK (L1_PAGE_SIZE-1)
+
+#define L2_PAGE_SIZE_SHIFT 30
+#define L2_PAGE_SIZE (1UL<<L2_PAGE_SIZE_SHIFT)
+#define L2_PAGE_MASK (L2_PAGE_SIZE-1)
+
+#define L3_PAGE_SIZE_SHIFT 21
+#define L3_PAGE_SIZE (1UL<<L3_PAGE_SIZE_SHIFT)
+#define L3_PAGE_MASK (L3_PAGE_SIZE-1)
+
+#define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
 
 #define	RELOCATABLE_KERNEL	1		/* kernel may relocate during startup */
 
 #ifndef KSTACK_PAGES
 #ifdef __powerpc64__
-#define	KSTACK_PAGES		8		/* includes pcb */
+#define	KSTACK_PAGES		12		/* includes pcb */
 #else
 #define	KSTACK_PAGES		4		/* includes pcb */
 #endif
@@ -126,6 +139,9 @@
  */
 #define	trunc_page(x)		((x) & ~(PAGE_MASK))
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
+#define	trunc_2mpage(x)		((unsigned long)(x) & ~L3_PAGE_MASK)
+#define	round_2mpage(x)		((((unsigned long)(x)) + L3_PAGE_MASK) & ~L3_PAGE_MASK)
+#define	trunc_1gpage(x)		((unsigned long)(x) & ~L2_PAGE_MASK)
 
 #define	atop(x)			((x) >> PAGE_SHIFT)
 #define	ptoa(x)			((x) << PAGE_SHIFT)
