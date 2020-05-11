@@ -980,9 +980,6 @@ swcr_setup_auth(struct swcr_session *ses,
 		if (csp->csp_mode == CSP_MODE_DIGEST)
 			ses->swcr_process = swcr_authcompute;
 		break;
-#ifdef notdef
-	case CRYPTO_MD5:
-#endif
 	case CRYPTO_SHA1:
 	case CRYPTO_SHA2_224:
 	case CRYPTO_SHA2_256:
