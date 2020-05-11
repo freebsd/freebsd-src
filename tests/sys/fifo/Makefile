@@ -4,6 +4,7 @@ TESTSDIR=	${TESTSBASE}/sys/fifo
 
 PLAIN_TESTS_C+=	fifo_create
 PLAIN_TESTS_C+=	fifo_io
+ATF_TESTS_C+=	fifo_kqueue
 PLAIN_TESTS_C+=	fifo_misc
 PLAIN_TESTS_C+=	fifo_open
 
