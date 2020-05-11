@@ -3281,3 +3281,17 @@ hci_bdaddr2str(bdaddr_t const *ba)
 	return (buffer);
 } /* hci_bdaddr2str */
 
+
+char const *
+hci_addrtype2str(int type)
+{
+	static char const * const	t[] = {
+		/* 0x00 */ "Public Device Address",
+		/* 0x01 */ "Random Device Address",
+		/* 0x02 */ "Public Identity Address",
+		/* 0x03 */ "Random (static) Identity Address"
+	};
+
+	return (type >= SIZE(t)? "?" : t[type]);
+} /* hci_addrtype2str */
+
