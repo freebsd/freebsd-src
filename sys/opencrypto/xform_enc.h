@@ -33,7 +33,6 @@
 
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <crypto/blowfish/blowfish.h>
 #include <crypto/des/des.h>
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/camellia/camellia.h>

@@ -598,8 +598,6 @@ crypto_cipher(const struct crypto_session_params *csp)
 		return (&enc_xform_des);
 	case CRYPTO_3DES_CBC:
 		return (&enc_xform_3des);
-	case CRYPTO_BLF_CBC:
-		return (&enc_xform_blf);
 	case CRYPTO_RIJNDAEL128_CBC:
 		return (&enc_xform_rijndael128);
 	case CRYPTO_AES_XTS:
@@ -682,7 +680,6 @@ static enum alg_type {
 } alg_types[] = {
 	[CRYPTO_DES_CBC] = ALG_CIPHER,
 	[CRYPTO_3DES_CBC] = ALG_CIPHER,
-	[CRYPTO_BLF_CBC] = ALG_CIPHER,
 	[CRYPTO_MD5_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_SHA1_HMAC] = ALG_KEYED_DIGEST,
 	[CRYPTO_RIPEMD160_HMAC] = ALG_KEYED_DIGEST,

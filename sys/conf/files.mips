@@ -82,8 +82,6 @@ mips/mips/sc_machdep.c			optional	sc
 dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic
-crypto/blowfish/bf_enc.c		optional	crypto | ipsec | \
-	ipsec_support
 crypto/des/des_enc.c			optional	crypto | ipsec | \
 	ipsec_support | netsmb
 

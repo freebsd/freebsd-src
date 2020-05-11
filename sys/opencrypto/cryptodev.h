@@ -115,7 +115,6 @@
 #define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
 #define	DES_BLOCK_LEN		8
 #define	DES3_BLOCK_LEN		8
-#define	BLOWFISH_BLOCK_LEN	8
 #define	RIJNDAEL128_BLOCK_LEN	16
 #define	AES_BLOCK_LEN		16
 #define	AES_ICM_BLOCK_LEN	1
@@ -137,8 +136,6 @@
 #define	DES_MAX_KEY		DES_MIN_KEY
 #define	TRIPLE_DES_MIN_KEY	24
 #define	TRIPLE_DES_MAX_KEY	TRIPLE_DES_MIN_KEY
-#define	BLOWFISH_MIN_KEY	5
-#define	BLOWFISH_MAX_KEY	56 /* 448 bits, max key */
 #define	RIJNDAEL_MIN_KEY	16
 #define	RIJNDAEL_MAX_KEY	32
 #define	AES_MIN_KEY		RIJNDAEL_MIN_KEY
