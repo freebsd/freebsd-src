@@ -136,7 +136,6 @@ amd64/pci/pci_cfgreg.c		optional	pci
 cddl/dev/dtrace/amd64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/amd64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec | ipsec_support
 crypto/des/des_enc.c		optional	crypto | ipsec | \
 	ipsec_support | netsmb
 dev/acpi_support/acpi_wmi_if.m	standard
