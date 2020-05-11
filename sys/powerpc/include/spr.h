@@ -130,7 +130,14 @@
 #define	  SRR1_MCHK_DATA	  0x00200000 /* Machine check data in DSISR */
 #define	  SRR1_MCHK_IFETCH_M	  0x081c0000 /* Machine check instr fetch mask */
 #define	  SRR1_MCHK_IFETCH_SLBMH  0x000c0000 /* SLB multihit */
+#define	SPR_CFAR		0x01c	/* Come From Address Register */
+#define	SPR_AMR			0x01d	/* Authority Mask Register */
+
+#define	SPR_PID			0x030	/* 4.. Process ID */
+
 #define	SPR_DECAR		0x036	/* ..8 Decrementer auto reload */
+#define	SPR_IAMR		0x03d	/* Instr. Authority Mask Reg */
+
 #define	SPR_EIE			0x050	/* ..8 Exception Interrupt ??? */
 #define	SPR_EID			0x051	/* ..8 Exception Interrupt ??? */
 #define	SPR_NRI			0x052	/* ..8 Exception Interrupt ??? */
@@ -155,6 +162,7 @@
 #define	  FSCR_TAR		  0x0000000000000100 /* TAR register available */
 #define	  FSCR_EBB		  0x0000000000000080 /* Event-based branch available */
 #define	  FSCR_DSCR		  0x0000000000000004 /* DSCR available in PR state */
+#define	SPR_UAMOR		0x09d	/* User Authority Mask Override Register */
 #define	SPR_DPDES		0x0b0	/* .6. Directed Privileged Doorbell Exception State Register */
 #define	SPR_USPRG0		0x100	/* 4.8 User SPR General 0 */
 #define	SPR_VRSAVE		0x100	/* .6. AltiVec VRSAVE */
@@ -285,6 +293,8 @@
 #define	SPR_LPCR		0x13e	/* .6. Logical Partitioning Control */
 #define	  LPCR_LPES		  0x008	/* Bit 60 */
 #define	  LPCR_HVICE		  0x002	/* Hypervisor Virtualization Interrupt (Arch 3.0) */
+#define	  LPCR_UPRT		  (1ULL << 22) /* Use Process Table (ISA 3) */
+#define	  LPCR_HR		  (1ULL << 20) /* Host Radix mode */
 #define	  LPCR_PECE_DRBL          (1ULL << 16) /* Directed Privileged Doorbell */
 #define	  LPCR_PECE_HDRBL         (1ULL << 15) /* Directed Hypervisor Doorbell */
 #define	  LPCR_PECE_EXT           (1ULL << 14) /* External exceptions */
@@ -294,6 +304,7 @@
 #define	SPR_LPID		0x13f	/* .6. Logical Partitioning Control */
 #define	SPR_HMER		0x150	/* Hypervisor Maintenance Exception Register */
 #define	SPR_HMEER		0x151	/* Hypervisor Maintenance Exception Enable Register */
+#define	SPR_AMOR		0x15d	/* Authority Mask Override Register */
 
 #define	SPR_TIR			0x1be	/* .6. Thread Identification Register */
 #define	SPR_PTCR		0x1d0	/* Partition Table Control Register */

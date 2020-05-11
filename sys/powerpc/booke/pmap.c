@@ -356,6 +356,7 @@ static int		mmu_booke_map_user_ptr(mmu_t mmu, pmap_t pm,
 static int		mmu_booke_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
 static void		mmu_booke_page_array_startup(mmu_t , long);
+static boolean_t mmu_booke_page_is_mapped(mmu_t mmu, vm_page_t m);
 
 
 static mmu_method_t mmu_booke_methods[] = {
@@ -398,6 +399,7 @@ static mmu_method_t mmu_booke_methods[] = {
 	MMUMETHOD(mmu_quick_enter_page, mmu_booke_quick_enter_page),
 	MMUMETHOD(mmu_quick_remove_page, mmu_booke_quick_remove_page),
 	MMUMETHOD(mmu_page_array_startup,	mmu_booke_page_array_startup),
+	MMUMETHOD(mmu_page_is_mapped,	mmu_booke_page_is_mapped),
 
 	/* Internal interfaces */
 	MMUMETHOD(mmu_bootstrap,	mmu_booke_bootstrap),
@@ -1247,6 +1249,13 @@ mmu_booke_decode_kernel_ptr(mmu_t mmu, vm_offset_t addr, int *is_user,
 
 	*decoded_addr = addr;
 	return (0);
+}
+
+static boolean_t
+mmu_booke_page_is_mapped(mmu_t mmu, vm_page_t m)
+{
+
+	return (!TAILQ_EMPTY(&(m)->md.pv_list));
 }
 
 /*
