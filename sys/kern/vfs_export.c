@@ -112,6 +112,11 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 #endif
 	int error;
 
+	KASSERT(argp->ex_numsecflavors > 0,
+	    ("%s: numsecflavors <= 0", __func__));
+	KASSERT(argp->ex_numsecflavors < MAXSECFLAVORS,
+	    ("%s: numsecflavors >= MAXSECFLAVORS", __func__));
+
 	/*
 	 * XXX: This routine converts from a `struct xucred'
 	 * (argp->ex_anon) to a `struct ucred' (np->netc_anon).  This
@@ -300,8 +305,12 @@ vfs_export(struct mount *mp, struct export_args *argp)
 	struct netexport *nep;
 	int error;
 
-	if (argp->ex_numsecflavors < 0
-	    || argp->ex_numsecflavors >= MAXSECFLAVORS)
+	if ((argp->ex_flags & (MNT_DELEXPORT | MNT_EXPORTED)) == 0)
+		return (EINVAL);
+
+	if ((argp->ex_flags & MNT_EXPORTED) != 0 &&
+	    (argp->ex_numsecflavors <= 0
+	    || argp->ex_numsecflavors >= MAXSECFLAVORS))
 		return (EINVAL);
 
 	error = 0;
@@ -518,8 +527,13 @@ vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
 	*extflagsp = np->netc_exflags;
 	if ((*credanonp = np->netc_anon) != NULL)
 		crhold(*credanonp);
-	if (numsecflavors)
+	if (numsecflavors) {
 		*numsecflavors = np->netc_numsecflavors;
+		KASSERT(*numsecflavors > 0,
+		    ("%s: numsecflavors <= 0", __func__));
+		KASSERT(*numsecflavors < MAXSECFLAVORS,
+		    ("%s: numsecflavors >= MAXSECFLAVORS", __func__));
+	}
 	if (secflavors)
 		*secflavors = np->netc_secflavors;
 	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
