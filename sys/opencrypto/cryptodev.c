@@ -506,11 +506,6 @@ cryptof_ioctl(
 				return (EINVAL);
 			}
 			break;
-#ifdef notdef
-		case CRYPTO_MD5:
-			thash = &auth_hash_md5;
-			break;
-#endif
 		case CRYPTO_SHA1:
 			thash = &auth_hash_sha1;
 			break;

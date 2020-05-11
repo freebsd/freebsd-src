@@ -273,10 +273,6 @@ nlm_get_digest_param(struct xlp_sec_command *cmd,
     const struct crypto_session_params *csp)
 {
 	switch(csp->csp_auth_alg) {
-	case CRYPTO_MD5:
-		cmd->hashalg  = NLM_HASH_MD5;
-		cmd->hashmode = NLM_HASH_MODE_SHA1;
-		break;
 	case CRYPTO_SHA1:
 		cmd->hashalg  = NLM_HASH_SHA;
 		cmd->hashmode = NLM_HASH_MODE_SHA1;
