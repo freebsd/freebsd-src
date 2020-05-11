@@ -79,6 +79,10 @@ char const *	hci_cc2str          (int);
 char const *	hci_con_state2str   (int);
 char const *	hci_status2str      (int);
 char const *	hci_bdaddr2str      (bdaddr_t const *);
+char const * 	hci_addrtype2str    (int type);
+
+void dump_adv_data(int len, uint8_t* advdata);
+void print_adv_data(int len, uint8_t* advdata);
 
 #endif /* _HCCONTROL_H_ */
 
