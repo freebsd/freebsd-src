@@ -497,7 +497,6 @@ glxsb_crypto_probesession(device_t dev, const struct crypto_session_params *csp)
 	case CSP_MODE_ETA:
 		switch (csp->csp_auth_alg) {
 		case CRYPTO_NULL_HMAC:
-		case CRYPTO_MD5_HMAC:
 		case CRYPTO_SHA1_HMAC:
 		case CRYPTO_RIPEMD160_HMAC:
 		case CRYPTO_SHA2_256_HMAC:

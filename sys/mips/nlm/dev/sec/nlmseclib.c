@@ -253,10 +253,6 @@ nlm_get_digest_param(struct xlp_sec_command *cmd,
 		cmd->hashalg  = NLM_HASH_SHA;
 		cmd->hashmode = NLM_HASH_MODE_SHA1;
 		break;
-	case CRYPTO_MD5_HMAC:
-		cmd->hashalg  = NLM_HASH_MD5;
-		cmd->hashmode = NLM_HASH_MODE_SHA1;
-		break;
 	case CRYPTO_SHA1_HMAC:
 		cmd->hashalg  = NLM_HASH_SHA;
 		cmd->hashmode = NLM_HASH_MODE_SHA1;

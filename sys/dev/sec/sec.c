@@ -1158,7 +1158,6 @@ sec_auth_supported(struct sec_softc *sc,
 		if (sc->sc_version < 3)
 			return (false);
 		/* FALLTHROUGH */
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_256_HMAC:
 		if (csp->csp_auth_klen > SEC_MAX_KEY_LEN)
@@ -1465,7 +1464,6 @@ sec_mdeu_can_handle(u_int alg)
 {
 	switch (alg) {
 	case CRYPTO_SHA1:
-	case CRYPTO_MD5_HMAC:
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_256_HMAC:
 	case CRYPTO_SHA2_384_HMAC:
@@ -1485,12 +1483,6 @@ sec_mdeu_config(const struct crypto_session_params *csp, u_int *eu, u_int *mode,
 	*eu = SEC_EU_NONE;
 
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
-		*mode |= SEC_MDEU_MODE_HMAC;
-		*eu = SEC_EU_MDEU_A;
-		*mode |= SEC_MDEU_MODE_MD5;
-		*hashlen = MD5_HASH_LEN;
-		break;
 	case CRYPTO_SHA1_HMAC:
 		*mode |= SEC_MDEU_MODE_HMAC;
 		/* FALLTHROUGH */

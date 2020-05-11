@@ -66,8 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/deflate.h>
 #include <opencrypto/rmd160.h>
 
-#include <sys/md5.h>
-
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
@@ -82,7 +80,6 @@ MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
 
 /* Include the authentication and hashing algorithms */
 #include "xform_gmac.c"
-#include "xform_md5.c"
 #include "xform_rmd160.c"
 #include "xform_sha1.c"
 #include "xform_sha2.c"
