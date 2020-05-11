@@ -50,7 +50,6 @@ struct rib_head {
 	rn_lookup_f_t		*rnh_lookup;	/* exact match for sockaddr */
 	rn_walktree_t		*rnh_walktree;	/* traverse tree */
 	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
-	rn_close_t		*rnh_close;	/*do something when the last ref drops*/
 	rnh_preadd_entry_f_t	*rnh_preadd;	/* hook to alter record prior to insertion */
 	rt_gen_t		rnh_gen;	/* generation counter */
 	int			rnh_multipath;	/* multipath capable ? */
@@ -144,7 +143,6 @@ struct rtentry {
 
 	int		rt_flags;	/* up/down?, host/net */
 	int		rt_refcnt;	/* # held references */
-	u_int		rt_fibnum;	/* which FIB */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
 #define	rt_endzero	rt_mtx
