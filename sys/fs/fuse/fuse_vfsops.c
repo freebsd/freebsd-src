@@ -303,8 +303,6 @@ fuse_vfsop_mount(struct mount *mp)
 	int daemon_timeout;
 	int fd;
 
-	size_t len;
-
 	struct cdev *fdev;
 	struct fuse_data *data = NULL;
 	struct thread *td;
@@ -432,8 +430,8 @@ fuse_vfsop_mount(struct mount *mp)
 		strlcat(mp->mnt_stat.f_fstypename, ".", MFSNAMELEN);
 		strlcat(mp->mnt_stat.f_fstypename, subtype, MFSNAMELEN);
 	}
-	copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &len);
-	bzero(mp->mnt_stat.f_mntfromname + len, MNAMELEN - len);
+	memset(mp->mnt_stat.f_mntfromname, 0, MNAMELEN);
+	strlcpy(mp->mnt_stat.f_mntfromname, fspec, MNAMELEN);
 	mp->mnt_iosize_max = MAXPHYS;
 
 	/* Now handshaking with daemon */
