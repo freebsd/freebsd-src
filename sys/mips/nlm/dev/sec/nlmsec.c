@@ -400,10 +400,6 @@ xlp_sec_cipher_supported(const struct crypto_session_params *csp)
 		if (csp->csp_ivlen != XLP_SEC_AES_IV_LENGTH)
 			return (false);
 		break;
-	case CRYPTO_ARC4:
-		if (csp->csp_ivlen != XLP_SEC_ARC4_IV_LENGTH)
-			return (false);
-		break;
 	default:
 		return (false);
 	}
@@ -468,10 +464,8 @@ xlp_copyiv(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
 
 	crp = cmd->crp;
 
-	if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-		if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
-			memcpy(cmd->iv, crp->crp_iv, csp->csp_ivlen);
-	}
+	if (crp->crp_flags & CRYPTO_F_IV_SEPARATE)
+		memcpy(cmd->iv, crp->crp_iv, csp->csp_ivlen);
 }
 
 static int
