@@ -82,8 +82,7 @@ mips/mips/sc_machdep.c			optional	sc
 dev/uart/uart_cpu_fdt.c			optional	uart fdt
 
 # crypto support -- use generic
-crypto/des/des_enc.c			optional	crypto | ipsec | \
-	ipsec_support | netsmb
+crypto/des/des_enc.c			optional	netsmb
 
 # AP common nvram interface MIPS specific, but maybe should be more generic
 dev/nvram2env/nvram2env_mips.c		optional	nvram2env

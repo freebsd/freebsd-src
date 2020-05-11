@@ -68,8 +68,6 @@ struct enc_xform {
 
 
 extern struct enc_xform enc_xform_null;
-extern struct enc_xform enc_xform_des;
-extern struct enc_xform enc_xform_3des;
 extern struct enc_xform enc_xform_blf;
 extern struct enc_xform enc_xform_rijndael128;
 extern struct enc_xform enc_xform_aes_icm;

@@ -67,14 +67,6 @@ void octo_calc_hash(uint8_t, unsigned char *, uint64_t *, uint64_t *);
 octo_encrypt_t octo_null_md5_encrypt;
 octo_encrypt_t octo_null_sha1_encrypt;
 
-octo_encrypt_t octo_des_cbc_encrypt;
-octo_encrypt_t octo_des_cbc_md5_encrypt;
-octo_encrypt_t octo_des_cbc_sha1_encrypt;
-
-octo_decrypt_t octo_des_cbc_decrypt;
-octo_decrypt_t octo_des_cbc_md5_decrypt;
-octo_decrypt_t octo_des_cbc_sha1_decrypt;
-
 octo_encrypt_t octo_aes_cbc_encrypt;
 octo_encrypt_t octo_aes_cbc_md5_encrypt;
 octo_encrypt_t octo_aes_cbc_sha1_encrypt;

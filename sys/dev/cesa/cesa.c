@@ -1577,14 +1577,6 @@ cesa_cipher_supported(const struct crypto_session_params *csp)
 		if (csp->csp_ivlen != AES_BLOCK_LEN)
 			return (false);
 		break;
-	case CRYPTO_DES_CBC:
-		if (csp->csp_ivlen != DES_BLOCK_LEN)
-			return (false);
-		break;
-	case CRYPTO_3DES_CBC:
-		if (csp->csp_ivlen != DES3_BLOCK_LEN)
-			return (false);
-		break;
 	default:
 		return (false);
 	}
@@ -1672,15 +1664,6 @@ cesa_newsession(device_t dev, crypto_session_t cses,
 	case CRYPTO_AES_CBC:
 		cs->cs_config |= CESA_CSHD_AES | CESA_CSHD_CBC;
 		cs->cs_ivlen = AES_BLOCK_LEN;
-		break;
-	case CRYPTO_DES_CBC:
-		cs->cs_config |= CESA_CSHD_DES | CESA_CSHD_CBC;
-		cs->cs_ivlen = DES_BLOCK_LEN;
-		break;
-	case CRYPTO_3DES_CBC:
-		cs->cs_config |= CESA_CSHD_3DES | CESA_CSHD_3DES_EDE |
-		    CESA_CSHD_CBC;
-		cs->cs_ivlen = DES3_BLOCK_LEN;
 		break;
 	}
 

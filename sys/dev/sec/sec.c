@@ -106,12 +106,6 @@ static int	sec_aesu_make_desc(struct sec_softc *sc,
     const struct crypto_session_params *csp, struct sec_desc *desc,
     struct cryptop *crp);
 
-/* DEU */
-static bool	sec_deu_newsession(const struct crypto_session_params *csp);
-static int	sec_deu_make_desc(struct sec_softc *sc,
-    const struct crypto_session_params *csp, struct sec_desc *desc,
-    struct cryptop *crp);
-
 /* MDEU */
 static bool	sec_mdeu_can_handle(u_int alg);
 static int	sec_mdeu_config(const struct crypto_session_params *csp,
@@ -152,10 +146,6 @@ static struct sec_eu_methods sec_eus[] = {
 	{
 		sec_aesu_newsession,
 		sec_aesu_make_desc,
-	},
-	{
-		sec_deu_newsession,
-		sec_deu_make_desc,
 	},
 	{
 		sec_mdeu_newsession,
@@ -1147,12 +1137,6 @@ sec_cipher_supported(const struct crypto_session_params *csp)
 		if (csp->csp_ivlen != AES_BLOCK_LEN)
 			return (false);
 		break;
-	case CRYPTO_DES_CBC:
-	case CRYPTO_3DES_CBC:
-		/* DEU */
-		if (csp->csp_ivlen != DES_BLOCK_LEN)
-			return (false);
-		break;
 	default:
 		return (false);
 	}
@@ -1462,55 +1446,6 @@ sec_aesu_make_desc(struct sec_softc *sc,
 
 	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
 		hd->shd_mode0 |= SEC_AESU_MODE_ED;
-		hd->shd_dir = 0;
-	} else
-		hd->shd_dir = 1;
-
-	if (csp->csp_mode == CSP_MODE_ETA)
-		error = sec_build_common_s_desc(sc, desc, csp, crp);
-	else
-		error = sec_build_common_ns_desc(sc, desc, csp, crp);
-
-	return (error);
-}
-
-/* DEU */
-
-static bool
-sec_deu_newsession(const struct crypto_session_params *csp)
-{
-
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_DES_CBC:
-	case CRYPTO_3DES_CBC:
-		return (true);
-	default:
-		return (false);
-	}
-}
-
-static int
-sec_deu_make_desc(struct sec_softc *sc, const struct crypto_session_params *csp,
-    struct sec_desc *desc, struct cryptop *crp)
-{
-	struct sec_hw_desc *hd = desc->sd_desc;
-	int error;
-
-	hd->shd_eu_sel0 = SEC_EU_DEU;
-	hd->shd_mode0 = SEC_DEU_MODE_CBC;
-
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_3DES_CBC:
-		hd->shd_mode0 |= SEC_DEU_MODE_TS;
-		break;
-	case CRYPTO_DES_CBC:
-		break;
-	default:
-		return (EINVAL);
-	}
-
-	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-		hd->shd_mode0 |= SEC_DEU_MODE_ED;
 		hd->shd_dir = 0;
 	} else
 		hd->shd_dir = 1;

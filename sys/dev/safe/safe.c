@@ -694,20 +694,6 @@ safe_cipher_supported(struct safe_softc *sc,
 {
 
 	switch (csp->csp_cipher_alg) {
-	case CRYPTO_DES_CBC:
-	case CRYPTO_3DES_CBC:
-		if ((sc->sc_devinfo & SAFE_DEVINFO_DES) == 0)
-			return (false);
-		if (csp->csp_ivlen != 8)
-			return (false);
-		if (csp->csp_cipher_alg == CRYPTO_DES_CBC) {
-			if (csp->csp_cipher_klen != 8)
-				return (false);
-		} else {
-			if (csp->csp_cipher_klen != 24)
-				return (false);
-		}
-		break;
 	case CRYPTO_AES_CBC:
 		if ((sc->sc_devinfo & SAFE_DEVINFO_AES) == 0)
 			return (false);
@@ -866,14 +852,6 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 			safe_setup_enckey(ses, crp->crp_cipher_key);
 
 		switch (csp->csp_cipher_alg) {
-		case CRYPTO_DES_CBC:
-			cmd0 |= SAFE_SA_CMD0_DES;
-			cmd1 |= SAFE_SA_CMD1_CBC;
-			break;
-		case CRYPTO_3DES_CBC:
-			cmd0 |= SAFE_SA_CMD0_3DES;
-			cmd1 |= SAFE_SA_CMD1_CBC;
-			break;
 		case CRYPTO_AES_CBC:
 			cmd0 |= SAFE_SA_CMD0_AES;
 			cmd1 |= SAFE_SA_CMD1_CBC;
