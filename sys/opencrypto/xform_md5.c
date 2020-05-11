@@ -68,18 +68,6 @@ struct auth_hash auth_hash_hmac_md5 = {
 	.Final = (void (*) (u_int8_t *, void *)) MD5Final,
 };
 
-struct auth_hash auth_hash_key_md5 = {
-	.type = CRYPTO_MD5_KPDK,
-	.name = "Keyed MD5",
-	.keysize = 0,
-	.hashsize = MD5_KPDK_HASH_LEN,
-	.ctxsize = sizeof(MD5_CTX),
-	.blocksize = 0,
-	.Init = (void (*)(void *)) MD5Init,
-	.Update = MD5Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) MD5Final,
-};
-
 /*
  * And now for auth.
  */
