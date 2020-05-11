@@ -5225,7 +5225,7 @@ process_control_chunks:
 					auth_skipped = 0;
 				}
 				/* Restart the timer if we have pending data */
-				TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
+				TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
 					if (chk->whoTo != NULL) {
 						break;
 					}
