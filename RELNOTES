@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r360920,r360923,r360924,r360927,r360928,r360931,r360933,r360936:
+	Remove support for ARC4, Blowfish, Cast, DES, Triple DES, MD5,
+	MD5-KPDK, MD5-HMAC, SHA1-KPDK, and Skipjack algorithms from
+	the kernel open cryptographic framework (OCF).
+
 r360562:
 	Remove support for ARC4, Blowfish, Cast, DES, Triple DES,
 	MD5-HMAC, and Skipjack algorithms from /dev/crypto.
