@@ -548,8 +548,7 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				ret = NULL;
 				goto err;
 			}
-			strncpy(linebuf, p, linelen);
-			linebuf[linelen - 1] = '\0';
+			strlcpy(linebuf, p, linelen);
 			errno = 0;
 			ul = strtoul(linebuf, &p, 10);
 			if (errno == 0) {
@@ -604,14 +603,13 @@ swap_on_off_md(const char *name, char *mntops, int doingall)
 				goto err;
 			}
 			p = fgetln(sfd, &linelen);
-			if (p == NULL &&
-			    (linelen < 2 || linelen > sizeof(linebuf) - 1)) {
+			if (p == NULL ||
+			    (linelen < 2 || linelen > sizeof(linebuf))) {
 				warn("mdconfig (list) unexpected output");
 				ret = NULL;
 				goto err;
 			}
-			strncpy(linebuf, p, linelen);
-			linebuf[linelen - 1] = '\0';
+			strlcpy(linebuf, p, linelen);
 			p = strchr(linebuf, ' ');
 			if (p != NULL)
 				*p = '\0';
