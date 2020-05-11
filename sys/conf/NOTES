@@ -2630,10 +2630,6 @@ device		hifn		# Hifn 7951, 7781, etc.
 options 	HIFN_DEBUG	# enable debugging support: hw.hifn.debug
 options 	HIFN_RNDTEST	# enable rndtest support
 
-device		ubsec		# Broadcom 5501, 5601, 58xx
-options 	UBSEC_DEBUG	# enable debugging support: hw.ubsec.debug
-options 	UBSEC_RNDTEST	# enable rndtest support
-
 #####################################################################
 
 
