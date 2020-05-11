@@ -402,10 +402,7 @@ typedef struct route sctp_route_t;
 #define SCTP_RTALLOC(ro, vrf_id, fibnum) \
 { \
 	if ((ro)->ro_nh == NULL) { \
-	if ((ro)->ro_dst.sa_family == AF_INET) \
-		(ro)->ro_nh = fib4_lookup(fibnum, ((struct sockaddr_in *)&(ro)->ro_dst)->sin_addr, 0, NHR_REF, 0); \
-	if ((ro)->ro_dst.sa_family == AF_INET6) \
-		(ro)->ro_nh = fib6_lookup(fibnum, &((struct sockaddr_in6 *)&(ro)->ro_dst)->sin6_addr, 0, NHR_REF, 0); \
+		(ro)->ro_nh = rib_lookup(fibnum, &(ro)->ro_dst, NHR_REF, 0); \
 	} \
 }
 
