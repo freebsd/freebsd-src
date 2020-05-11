@@ -441,8 +441,14 @@ uhub_explore_handle_re_enumerate(struct usb_device *child)
 		} else {
 			err = usbd_req_re_enumerate(child, NULL);
 		}
-		if (err == 0)
+		if (err == 0) {
+			/* refresh device strings */
+			usb_get_langid(child);
+			usb_set_device_strings(child);
+
+			/* set default configuration */
 			err = usbd_set_config_index(child, 0);
+		}
 		if (err == 0) {
 			err = usb_probe_and_attach(child,
 			    USB_IFACE_INDEX_ANY);
@@ -1689,6 +1695,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 	struct usb_hub *hub;
 	struct usb_interface *iface;
 	struct hub_result res;
+	uint8_t do_unlock;
 
 	if (!device_is_attached(parent)) {
 		if (buflen)
@@ -1710,6 +1717,9 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 	}
 	iface = usbd_get_iface(res.udev, res.iface_index);
 	if (iface && iface->idesc) {
+		/* Make sure device information is not changed during the print. */
+		do_unlock = usbd_ctrl_lock(res.udev);
+
 		snprintf(buf, buflen, "vendor=0x%04x product=0x%04x "
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "devproto=0x%02x "
@@ -1731,6 +1741,9 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    iface->idesc->bInterfaceProtocol,
 		    iface->pnpinfo ? " " : "",
 		    iface->pnpinfo ? iface->pnpinfo : "");
+
+		if (do_unlock)
+			usbd_ctrl_unlock(res.udev);
 	} else {
 		if (buflen) {
 			buf[0] = '\0';
