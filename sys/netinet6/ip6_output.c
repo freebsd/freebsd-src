@@ -353,10 +353,6 @@ ip6_output_send(struct inpcb *inp, struct ifnet *ifp, struct ifnet *origifp,
 			error = EAGAIN;
 			goto done;
 		}
-		/*
-		 * Always stamp tags that include NIC ktls.
-		 */
-		stamp_tag = true;
 	}
 #endif
 #ifdef RATELIMIT
