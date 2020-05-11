@@ -103,7 +103,6 @@ static void	usb_suspend_resume_sub(struct usb_device *, device_t,
 		    uint8_t);
 static usb_proc_callback_t usbd_clear_stall_proc;
 static usb_error_t usb_config_parse(struct usb_device *, uint8_t, uint8_t);
-static void	usbd_set_device_strings(struct usb_device *);
 #if USB_HAVE_DEVCTL
 static void	usb_notify_addq(const char *type, struct usb_device *);
 #endif
@@ -1652,6 +1651,85 @@ usbd_clear_stall_proc(struct usb_proc_msg *_pm)
 }
 
 /*------------------------------------------------------------------------*
+ *      usb_get_langid
+ *
+ * This function tries to figure out the USB string language to use.
+ *------------------------------------------------------------------------*/
+void
+usb_get_langid(struct usb_device *udev)
+{
+	uint8_t *scratch_ptr;
+	uint8_t do_unlock;
+	int err;
+
+	/*
+	 * Workaround for buggy USB devices.
+	 *
+	 * It appears that some string-less USB chips will crash and
+	 * disappear if any attempts are made to read any string
+	 * descriptors.
+	 *
+	 * Try to detect such chips by checking the strings in the USB
+	 * device descriptor. If no strings are present there we
+	 * simply disable all USB strings.
+	 */
+
+	/* Protect scratch area */
+	do_unlock = usbd_ctrl_lock(udev);
+
+	scratch_ptr = udev->scratch.data;
+
+	if (udev->flags.no_strings) {
+		err = USB_ERR_INVAL;
+	} else if (udev->ddesc.iManufacturer ||
+	    udev->ddesc.iProduct ||
+	    udev->ddesc.iSerialNumber) {
+		/* read out the language ID string */
+		err = usbd_req_get_string_desc(udev, NULL,
+		    (char *)scratch_ptr, 4, 0, USB_LANGUAGE_TABLE);
+	} else {
+		err = USB_ERR_INVAL;
+	}
+
+	if (err || (scratch_ptr[0] < 4)) {
+		udev->flags.no_strings = 1;
+	} else {
+		uint16_t langid;
+		uint16_t pref;
+		uint16_t mask;
+		uint8_t x;
+
+		/* load preferred value and mask */
+		pref = usb_lang_id;
+		mask = usb_lang_mask;
+
+		/* align length correctly */
+		scratch_ptr[0] &= ~1U;
+
+		/* fix compiler warning */
+		langid = 0;
+
+		/* search for preferred language */
+		for (x = 2; x < scratch_ptr[0]; x += 2) {
+			langid = UGETW(scratch_ptr + x);
+			if ((langid & mask) == pref)
+				break;
+		}
+		if (x >= scratch_ptr[0]) {
+			/* pick the first language as the default */
+			DPRINTFN(1, "Using first language\n");
+			langid = UGETW(scratch_ptr + 2);
+		}
+
+		DPRINTFN(1, "Language selected: 0x%04x\n", langid);
+		udev->langid = langid;
+	}
+
+	if (do_unlock)
+		usbd_ctrl_unlock(udev);
+}
+
+/*------------------------------------------------------------------------*
  *	usb_alloc_device
  *
  * This function allocates a new USB device. This function is called
@@ -1672,13 +1750,11 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	struct usb_device *udev;
 	struct usb_device *adev;
 	struct usb_device *hub;
-	uint8_t *scratch_ptr;
 	usb_error_t err;
 	uint8_t device_index;
 	uint8_t config_index;
 	uint8_t config_quirk;
 	uint8_t set_config_failed;
-	uint8_t do_unlock;
 
 	DPRINTF("parent_dev=%p, bus=%p, parent_hub=%p, depth=%u, "
 	    "port_index=%u, port_no=%u, speed=%u, usb_mode=%u\n",
@@ -1888,76 +1964,13 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	if (usb_test_quirk(&uaa, UQ_NO_STRINGS)) {
 		udev->flags.no_strings = 1;
 	}
-	/*
-	 * Workaround for buggy USB devices.
-	 *
-	 * It appears that some string-less USB chips will crash and
-	 * disappear if any attempts are made to read any string
-	 * descriptors.
-	 *
-	 * Try to detect such chips by checking the strings in the USB
-	 * device descriptor. If no strings are present there we
-	 * simply disable all USB strings.
-	 */
 
-	/* Protect scratch area */
-	do_unlock = usbd_ctrl_lock(udev);
-
-	scratch_ptr = udev->scratch.data;
-
-	if (udev->flags.no_strings) {
-		err = USB_ERR_INVAL;
-	} else if (udev->ddesc.iManufacturer ||
-	    udev->ddesc.iProduct ||
-	    udev->ddesc.iSerialNumber) {
-		/* read out the language ID string */
-		err = usbd_req_get_string_desc(udev, NULL,
-		    (char *)scratch_ptr, 4, 0, USB_LANGUAGE_TABLE);
-	} else {
-		err = USB_ERR_INVAL;
-	}
-
-	if (err || (scratch_ptr[0] < 4)) {
-		udev->flags.no_strings = 1;
-	} else {
-		uint16_t langid;
-		uint16_t pref;
-		uint16_t mask;
-		uint8_t x;
-
-		/* load preferred value and mask */
-		pref = usb_lang_id;
-		mask = usb_lang_mask;
-
-		/* align length correctly */
-		scratch_ptr[0] &= ~1U;
-
-		/* fix compiler warning */
-		langid = 0;
-
-		/* search for preferred language */
-		for (x = 2; (x < scratch_ptr[0]); x += 2) {
-			langid = UGETW(scratch_ptr + x);
-			if ((langid & mask) == pref)
-				break;
-		}
-		if (x >= scratch_ptr[0]) {
-			/* pick the first language as the default */
-			DPRINTFN(1, "Using first language\n");
-			langid = UGETW(scratch_ptr + 2);
-		}
-
-		DPRINTFN(1, "Language selected: 0x%04x\n", langid);
-		udev->langid = langid;
-	}
-
-	if (do_unlock)
-		usbd_ctrl_unlock(udev);
+	usb_get_langid(udev);
 
 	/* assume 100mA bus powered for now. Changed when configured. */
 	udev->power = USB_MIN_POWER;
 	/* fetch the vendor and product strings from the device */
-	usbd_set_device_strings(udev);
+	usb_set_device_strings(udev);
 
 	if (udev->flags.usb_mode == USB_MODE_DEVICE) {
 		/* USB device mode setup is complete */
@@ -2477,8 +2490,8 @@ struct usb_knowndev {
 #include "usbdevs_data.h"
 #endif					/* USB_VERBOSE */
 
-static void
-usbd_set_device_strings(struct usb_device *udev)
+void
+usb_set_device_strings(struct usb_device *udev)
 {
 	struct usb_device_descriptor *udd = &udev->ddesc;
 #ifdef USB_VERBOSE
@@ -2498,6 +2511,16 @@ usbd_set_device_strings(struct usb_device *udev)
 
 	vendor_id = UGETW(udd->idVendor);
 	product_id = UGETW(udd->idProduct);
+
+	/* cleanup old strings, if any */
+	free(udev->serial, M_USB);
+	free(udev->manufacturer, M_USB);
+	free(udev->product, M_USB);
+
+	/* zero the string pointers */
+	udev->serial = NULL;
+	udev->manufacturer = NULL;
+	udev->product = NULL;
 
 	/* get serial number string */
 	usbd_req_get_string_any(udev, NULL, temp_ptr, temp_size,
