@@ -105,12 +105,22 @@
 	.text
 
 /*
- * int copystr(void *kfaddr, void *kdaddr, size_t maxlen, size_t *lencopied)
- * Copy a NIL-terminated string, at most maxlen characters long.  Return the
- * number of characters copied (including the NIL) in *lencopied.  If the
- * string is too long, return ENAMETOOLONG; else return 0.
+ * Copy a null terminated string from the user address space into
+ * the kernel address space.
+ *
+ *	copyinstr(fromaddr, toaddr, maxlength, &lencopied)
+ *		caddr_t fromaddr;
+ *		caddr_t toaddr;
+ *		u_int maxlength;
+ *		u_int *lencopied;
  */
-LEAF(copystr)
+LEAF(copyinstr)
+	PTR_LA		v0, __copyinstr_err
+	blt		a0, zero, __copyinstr_err  # make sure address is in user space
+	GET_CPU_PCPU(v1)
+	PTR_L		v1, PC_CURPCB(v1)
+	PTR_S		v0, U_PCB_ONFAULT(v1)
+
 	move		t0, a2
 	beq		a2, zero, 4f
 1:
@@ -128,37 +138,14 @@ LEAF(copystr)
 	PTR_SUBU	a2, t0, a2		# if the 4th arg was non-NULL
 	PTR_S		a2, 0(a3)
 3:
-	j		ra			# v0 is 0 or ENAMETOOLONG
+
+	PTR_S		zero, U_PCB_ONFAULT(v1)
+	j		ra
 	nop
-END(copystr)
 
-
-/*
- * Copy a null terminated string from the user address space into
- * the kernel address space.
- *
- *	copyinstr(fromaddr, toaddr, maxlength, &lencopied)
- *		caddr_t fromaddr;
- *		caddr_t toaddr;
- *		u_int maxlength;
- *		u_int *lencopied;
- */
-NESTED(copyinstr, CALLFRAME_SIZ, ra)
-	PTR_SUBU	sp, sp, CALLFRAME_SIZ
-	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
-	PTR_LA	v0, copyerr
-	blt	a0, zero, _C_LABEL(copyerr)  # make sure address is in user space
-	REG_S	ra, CALLFRAME_RA(sp)
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	jal	_C_LABEL(copystr)
-	PTR_S	v0, U_PCB_ONFAULT(v1)
-	REG_L	ra, CALLFRAME_RA(sp)
-	GET_CPU_PCPU(v1)
-	PTR_L	v1, PC_CURPCB(v1)
-	PTR_S	zero, U_PCB_ONFAULT(v1)
-	j	ra
-	PTR_ADDU	sp, sp, CALLFRAME_SIZ
+__copyinstr_err:
+	j		ra
+	li		v0, EFAULT
 END(copyinstr)
 
 /*

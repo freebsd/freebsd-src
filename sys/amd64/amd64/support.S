@@ -1417,43 +1417,6 @@ copyinstr_toolong:
 	jmp	cpystrflt_x
 
 /*
- * copystr(from, to, maxlen, int *lencopied)
- *         %rdi, %rsi, %rdx, %rcx
- */
-ENTRY(copystr)
-	PUSH_FRAME_POINTER
-	movq	%rdx,%r8			/* %r8 = maxlen */
-
-	incq    %rdx
-1:
-	decq	%rdx
-	jz	4f
-	movb	(%rdi),%al
-	movb	%al,(%rsi)
-	incq	%rsi
-	incq	%rdi
-	testb	%al,%al
-	jnz	1b
-
-	/* Success -- 0 byte reached */
-	decq	%rdx
-	xorl	%eax,%eax
-2:
-	testq	%rcx,%rcx
-	jz      3f
-	/* set *lencopied and return %rax */
-	subq	%rdx,%r8
-	movq	%r8,(%rcx)
-3:
-	POP_FRAME_POINTER
-	ret
-4:
-	/* rdx is zero -- return ENAMETOOLONG */
-	movl    $ENAMETOOLONG,%eax
-	jmp	2b
-END(copystr)
-
-/*
  * Handling of special amd64 registers and descriptor tables etc
  */
 /* void lgdt(struct region_descriptor *rdp); */
