@@ -113,8 +113,6 @@
 
 /* Encryption algorithm block sizes */
 #define	NULL_BLOCK_LEN		4	/* IPsec to maintain alignment */
-#define	DES_BLOCK_LEN		8
-#define	DES3_BLOCK_LEN		8
 #define	RIJNDAEL128_BLOCK_LEN	16
 #define	AES_BLOCK_LEN		16
 #define	AES_ICM_BLOCK_LEN	1
@@ -132,10 +130,6 @@
 /* Min and Max Encryption Key Sizes */
 #define	NULL_MIN_KEY		0
 #define	NULL_MAX_KEY		256 /* 2048 bits, max key */
-#define	DES_MIN_KEY		8
-#define	DES_MAX_KEY		DES_MIN_KEY
-#define	TRIPLE_DES_MIN_KEY	24
-#define	TRIPLE_DES_MAX_KEY	TRIPLE_DES_MIN_KEY
 #define	RIJNDAEL_MIN_KEY	16
 #define	RIJNDAEL_MAX_KEY	32
 #define	AES_MIN_KEY		RIJNDAEL_MIN_KEY
@@ -215,7 +209,7 @@
 
 /* NB: deprecated */
 struct session_op {
-	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
+	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
 
 	u_int32_t	keylen;		/* cipher key */
@@ -232,7 +226,7 @@ struct session_op {
  * "cryptop" (no underscore).
  */
 struct session2_op {
-	u_int32_t	cipher;		/* ie. CRYPTO_DES_CBC */
+	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
 	u_int32_t	mac;		/* ie. CRYPTO_MD5_HMAC */
 
 	u_int32_t	keylen;		/* cipher key */

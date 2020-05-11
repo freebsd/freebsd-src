@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <machine/cpu.h>
 
-#include <crypto/des/des.h>
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/camellia/camellia.h>
 #include <crypto/sha1.h>
@@ -76,8 +75,6 @@ MALLOC_DEFINE(M_XDATA, "xform", "xform data buffers");
 
 /* Include the encryption algorithms */
 #include "xform_null.c"
-#include "xform_des1.c"
-#include "xform_des3.c"
 #include "xform_rijndael.c"
 #include "xform_aes_icm.c"
 #include "xform_aes_xts.c"

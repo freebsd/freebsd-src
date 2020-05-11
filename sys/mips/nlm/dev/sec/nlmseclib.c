@@ -172,18 +172,6 @@ nlm_crypto_do_cipher(struct xlp_sec_softc *sc, struct xlp_sec_command *cmd,
 		cipkey = cmd->crp->crp_cipher_key;
 	else
 		cipkey = csp->csp_cipher_key;
-	if (cmd->cipheralg == NLM_CIPHER_3DES) {
-		if (!CRYPTO_OP_IS_ENCRYPT(cmd->crp->crp_op)) {
-                        const uint64_t *k;
-                        uint64_t *tkey;
-			k = (const uint64_t *)cipkey;
-			tkey = (uint64_t *)cmd->des3key;
-			tkey[2] = k[0];
-			tkey[1] = k[1];
-			tkey[0] = k[2];
-			cipkey = (const unsigned char *)tkey;
-		}
-	}
 	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, 0, NLM_HASH_BYPASS, 0,
 	    cmd->cipheralg, cmd->ciphermode, cipkey,
 	    csp->csp_cipher_klen, NULL, 0);
@@ -239,18 +227,6 @@ nlm_crypto_do_cipher_digest(struct xlp_sec_softc *sc,
 		authkey = cmd->crp->crp_auth_key;
 	else
 		authkey = csp->csp_auth_key;
-	if (cmd->cipheralg == NLM_CIPHER_3DES) {
-		if (!CRYPTO_OP_IS_ENCRYPT(cmd->crp->crp_op)) {
-			const uint64_t *k;
-			uint64_t *tkey;
-			k = (const uint64_t *)cipkey;
-			tkey = (uint64_t *)cmd->des3key;
-			tkey[2] = k[0];
-			tkey[1] = k[1];
-			tkey[0] = k[2];
-			cipkey = (const unsigned char *)tkey;
-		}
-	}
 	nlm_crypto_fill_pkt_ctrl(cmd->ctrlp, csp->csp_auth_klen ? 1 : 0,
 	    cmd->hashalg, cmd->hashmode, cmd->cipheralg, cmd->ciphermode,
 	    cipkey, csp->csp_cipher_klen,
@@ -296,16 +272,6 @@ nlm_get_cipher_param(struct xlp_sec_command *cmd,
     const struct crypto_session_params *csp)
 {
 	switch(csp->csp_cipher_alg) {
-	case CRYPTO_DES_CBC:
-		cmd->cipheralg  = NLM_CIPHER_DES;
-		cmd->ciphermode = NLM_CIPHER_MODE_CBC;
-		cmd->ivlen	= XLP_SEC_DES_IV_LENGTH;
-		break;
-	case CRYPTO_3DES_CBC:
-		cmd->cipheralg  = NLM_CIPHER_3DES;
-		cmd->ciphermode = NLM_CIPHER_MODE_CBC;
-		cmd->ivlen	= XLP_SEC_DES_IV_LENGTH;
-		break;
 	case CRYPTO_AES_CBC:
 		cmd->cipheralg  = NLM_CIPHER_AES128;
 		cmd->ciphermode = NLM_CIPHER_MODE_CBC;

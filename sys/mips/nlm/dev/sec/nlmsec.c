@@ -391,11 +391,6 @@ xlp_sec_cipher_supported(const struct crypto_session_params *csp)
 {
 
 	switch (csp->csp_cipher_alg) {
-	case CRYPTO_DES_CBC:
-	case CRYPTO_3DES_CBC:
-		if (csp->csp_ivlen != XLP_SEC_DES_IV_LENGTH)
-			return (false);
-		break;
 	case CRYPTO_AES_CBC:
 		if (csp->csp_ivlen != XLP_SEC_AES_IV_LENGTH)
 			return (false);

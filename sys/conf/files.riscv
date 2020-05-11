@@ -2,7 +2,7 @@
 cddl/dev/dtrace/riscv/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/riscv/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/riscv/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
-crypto/des/des_enc.c		optional	crypto | ipsec | ipsec_support | netsmb
+crypto/des/des_enc.c		optional	netsmb
 dev/ofw/ofw_cpu.c		optional	fdt
 dev/ofw/ofwpci.c		optional 	pci fdt
 dev/pci/pci_host_generic.c	optional	pci
