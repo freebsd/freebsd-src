@@ -16,6 +16,7 @@ ATF_TESTS_SH+=	anchor \
 		route_to \
 		synproxy \
 		set_skip \
+		table \
 		pfsync	\
 		icmp
 
