@@ -617,6 +617,20 @@ pmap_page_array_startup(long pages)
 	MMU_PAGE_ARRAY_STARTUP(mmu_obj, pages);
 }
 
+boolean_t
+pmap_page_is_mapped(vm_page_t m)
+{
+	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
+	return (MMU_PAGE_IS_MAPPED(mmu_obj, m));
+}
+
+bool
+pmap_ps_enabled(pmap_t pmap)
+{
+	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
+	return (MMU_PS_ENABLED(mmu_obj, pmap));
+}
+
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.

@@ -76,6 +76,28 @@
 #include <machine/slb.h>
 #include <machine/tlb.h>
 #include <machine/vmparam.h>
+#ifdef __powerpc64__
+#include <vm/vm_radix.h>
+#endif
+
+
+/*
+ * The radix page table structure is described by levels 1-4.
+ * See Fig 33. on p. 1002 of Power ISA v3.0B
+ *
+ * Page directories and tables must be size aligned.
+ */
+
+/* Root page directory - 64k   -- each entry covers 512GB */
+typedef uint64_t pml1_entry_t;
+/* l2 page directory - 4k      -- each entry covers 1GB */
+typedef uint64_t pml2_entry_t;
+/* l3 page directory - 4k      -- each entry covers 2MB */
+typedef uint64_t pml3_entry_t;
+/* l4 page directory - 256B/4k -- each entry covers 64k/4k */
+typedef uint64_t pml4_entry_t;
+
+typedef uint64_t pt_entry_t;
 
 struct pmap;
 typedef struct pmap *pmap_t;
@@ -144,7 +166,6 @@ struct	pmap {
 	cpuset_t	pm_active;
 	union {
 		struct {
-			
 		    #ifdef __powerpc64__
 			struct slbtnode	*pm_slb_tree_root;
 			struct slb	**pm_slb;
@@ -156,9 +177,19 @@ struct	pmap {
 			struct pmap	*pmap_phys;
 			struct pvo_tree pmap_pvo;
 		};
+#ifdef __powerpc64__
+		/* Radix support */
+		struct {
+			pml1_entry_t	*pm_pml1;	/* KVA of root page directory */
+			struct vm_radix	 pm_radix;	/* spare page table pages */
+			TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
+			uint64_t	pm_pid; /* PIDR value */
+			int pm_flags;
+		};
+#endif
 		struct {
 			/* TID to identify this pmap entries in TLB */
-			tlbtid_t	pm_tid[MAXCPU];	
+			tlbtid_t	pm_tid[MAXCPU];
 
 #ifdef __powerpc64__
 			/*
@@ -177,8 +208,20 @@ struct	pmap {
 			TAILQ_HEAD(, ptbl_buf)	pm_ptbl_list;
 #endif
 		};
-	};
+	} __aligned(CACHE_LINE_SIZE);
 };
+
+/*
+ * pv_entries are allocated in chunks per-process.  This avoids the
+ * need to track per-pmap assignments.
+ */
+#define	_NPCM	2
+#define	_NPCPV	126
+#define	PV_CHUNK_HEADER							\
+	pmap_t			pc_pmap;				\
+	TAILQ_ENTRY(pv_chunk)	pc_list;				\
+	uint64_t		pc_map[_NPCM];	/* bitmap; 1 = free */	\
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
 
 struct pv_entry {
 	pmap_t pv_pmap;
@@ -187,27 +230,35 @@ struct pv_entry {
 };
 typedef struct pv_entry *pv_entry_t;
 
+struct pv_chunk_header {
+	PV_CHUNK_HEADER
+};
+struct pv_chunk {
+	PV_CHUNK_HEADER
+	uint64_t	reserved;
+	struct pv_entry		pc_pventry[_NPCPV];
+};
+
 struct	md_page {
 	union {
 		struct {
 			volatile int32_t mdpg_attrs;
 			vm_memattr_t	 mdpg_cache_attrs;
 			struct	pvo_head mdpg_pvoh;
+			int		pv_gen;   /* (p) */
 		};
 		struct {
-			TAILQ_HEAD(, pv_entry)	pv_list;
 			int			pv_tracked;
 		};
 	};
+	TAILQ_HEAD(, pv_entry)	pv_list;  /* (p) */
 };
 
 #ifdef AIM
 #define	pmap_page_get_memattr(m)	((m)->md.mdpg_cache_attrs)
-#define	pmap_page_is_mapped(m)	(!LIST_EMPTY(&(m)->md.mdpg_pvoh))
 #else
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.pv_list))
-#endif
+#endif /* AIM */
 
 /*
  * Return the VSID corresponding to a given virtual address.
@@ -243,7 +294,7 @@ extern	struct pmap kernel_pmap_store;
 #define	PMAP_LOCK_DESTROY(pmap)	mtx_destroy(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_INIT(pmap)	mtx_init(&(pmap)->pm_mtx, \
 				    (pmap == kernel_pmap) ? "kernelpmap" : \
-				    "pmap", NULL, MTX_DEF)
+				    "pmap", NULL, MTX_DEF | MTX_DUPOK)
 #define	PMAP_LOCKED(pmap)	mtx_owned(&(pmap)->pm_mtx)
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
@@ -269,6 +320,9 @@ vm_paddr_t	pmap_kextract(vm_offset_t);
 int		pmap_dev_direct_mapped(vm_paddr_t, vm_size_t);
 boolean_t	pmap_mmu_install(char *name, int prio);
 const char	*pmap_mmu_name(void);
+bool		pmap_ps_enabled(pmap_t pmap);
+int		pmap_nofault(pmap_t pmap, vm_offset_t va, vm_prot_t flags);
+boolean_t	pmap_page_is_mapped(vm_page_t m);
 
 void		pmap_page_array_startup(long count);
 
@@ -281,10 +335,12 @@ extern	caddr_t crashdumpmap;
 extern	vm_offset_t msgbuf_phys;
 
 extern	int pmap_bootstrapped;
+extern	int radix_mmu;
 
 vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 void pmap_early_io_unmap(vm_offset_t va, vm_size_t size);
 void pmap_track_page(pmap_t pmap, vm_offset_t va);
+void pmap_page_print_mappings(vm_page_t m);
 
 static inline int
 pmap_vmspace_copy(pmap_t dst_pmap __unused, pmap_t src_pmap __unused)

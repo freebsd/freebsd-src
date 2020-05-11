@@ -147,6 +147,11 @@ CODE {
 	{
 		return (NULL);
 	}
+
+	static boolean_t mmu_null_ps_enabled(mmu_t mmu)
+	{
+		return (FALSE);
+	}
 };
 
 
@@ -1085,3 +1090,13 @@ METHOD void page_array_startup {
 	mmu_t		_mmu;
 	long		_pages;
 };
+
+METHOD boolean_t page_is_mapped {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+} DEFAULT;
+
+METHOD boolean_t ps_enabled {
+	mmu_t		_mmu;
+	pmap_t		_pmap;
+} DEFAULT mmu_null_ps_enabled;

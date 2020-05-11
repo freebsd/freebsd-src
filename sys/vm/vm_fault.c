@@ -299,7 +299,7 @@ static int
 vm_fault_soft_fast(struct faultstate *fs)
 {
 	vm_page_t m, m_map;
-#if (defined(__aarch64__) || defined(__amd64__) || (defined(__arm__) && \
+#if (defined(__aarch64__) || defined(__amd64__) || defined(__powerpc64__) || (defined(__arm__) && \
     __ARM_ARCH >= 6) || defined(__i386__) || defined(__riscv)) && \
     VM_NRESERVLEVEL > 0
 	vm_page_t m_super;
@@ -320,7 +320,7 @@ vm_fault_soft_fast(struct faultstate *fs)
 	}
 	m_map = m;
 	psind = 0;
-#if (defined(__aarch64__) || defined(__amd64__) || (defined(__arm__) && \
+#if (defined(__aarch64__) || defined(__amd64__) || defined(__powerpc64__) || (defined(__arm__) && \
     __ARM_ARCH >= 6) || defined(__i386__) || defined(__riscv)) && \
     VM_NRESERVLEVEL > 0
 	if ((m->flags & PG_FICTITIOUS) == 0 &&

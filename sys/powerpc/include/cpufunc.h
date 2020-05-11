@@ -185,6 +185,34 @@ powerpc_sync(void)
 	__asm __volatile ("sync" : : : "memory");
 }
 
+static __inline int
+cntlzd(uint64_t word)
+{
+	uint64_t result;
+	/* cntlzd %0, %1 */
+	__asm __volatile(".long 0x7c000074 |  (%1 << 21) | (%0 << 16)" :
+	    "=r"(result) : "r"(word));
+
+	return (int)result;
+}
+
+static __inline int
+cnttzd(uint64_t word)
+{
+	uint64_t result;
+	/* cnttzd %0, %1 */
+	__asm __volatile(".long 0x7c000474 |  (%1 << 21) | (%0 << 16)" :
+	    "=r"(result) : "r"(word));
+
+	return (int)result;
+}
+
+static __inline void
+ptesync(void)
+{
+	__asm __volatile("ptesync");
+}
+
 static __inline register_t
 intr_disable(void)
 {

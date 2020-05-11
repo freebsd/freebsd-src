@@ -260,7 +260,9 @@ trap(struct trapframe *frame)
 #if defined(__powerpc64__) && defined(AIM)
 		case EXC_ISE:
 		case EXC_DSE:
-			if (handle_user_slb_spill(&p->p_vmspace->vm_pmap,
+			/* DSE/ISE are automatically fatal with radix pmap. */
+			if (radix_mmu ||
+			    handle_user_slb_spill(&p->p_vmspace->vm_pmap,
 			    (type == EXC_ISE) ? frame->srr0 : frame->dar) != 0){
 				sig = SIGSEGV;
 				ucode = SEGV_MAPERR;
@@ -444,6 +446,9 @@ trap(struct trapframe *frame)
 			break;
 #if defined(__powerpc64__) && defined(AIM)
 		case EXC_DSE:
+			/* DSE on radix mmu is automatically fatal. */
+			if (radix_mmu)
+				break;
 			if (td->td_pcb->pcb_cpu.aim.usr_vsid != 0 &&
 			    (frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
@@ -738,7 +743,33 @@ trap_pfault(struct trapframe *frame, bool user, int *signo, int *ucode)
 		else
 			ftype = VM_PROT_READ;
 	}
+#if defined(__powerpc64__) && defined(AIM)
+	if (radix_mmu && pmap_nofault(&p->p_vmspace->vm_pmap, eva, ftype) == 0)
+		return (true);
+#endif
 
+	if (__predict_false((td->td_pflags & TDP_NOFAULTING) == 0)) {
+		/*
+		 * If we get a page fault while in a critical section, then
+		 * it is most likely a fatal kernel page fault.  The kernel
+		 * is already going to panic trying to get a sleep lock to
+		 * do the VM lookup, so just consider it a fatal trap so the
+		 * kernel can print out a useful trap message and even get
+		 * to the debugger.
+		 *
+		 * If we get a page fault while holding a non-sleepable
+		 * lock, then it is most likely a fatal kernel page fault.
+		 * If WITNESS is enabled, then it's going to whine about
+		 * bogus LORs with various VM locks, so just skip to the
+		 * fatal trap handling directly.
+		 */
+		if (td->td_critnest != 0 ||
+			WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
+				"Kernel page fault") != 0) {
+			trap_fatal(frame);
+			return (false);
+		}
+	}
 	if (user) {
 		KASSERT(p->p_vmspace != NULL, ("trap_pfault: vmspace  NULL"));
 		map = &p->p_vmspace->vm_map;
