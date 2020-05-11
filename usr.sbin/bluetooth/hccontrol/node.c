@@ -211,83 +211,6 @@ hci_flush_neighbor_cache(int s, int argc, char **argv)
 	return (OK);
 } /* hci_flush_neighbor_cache */
 
-#define MIN(a,b) (((a)>(b)) ? (b) :(a) )
-
-static int  hci_dump_adv(uint8_t *data, int length)
-{
-	int elemlen;
-	int type;
-	int i;
-
-	while(length>0){
-		elemlen = *data;
-		data++;
-		length --;
-		if(length<=0)
-			break;
-		type = *data;
-		data++;
-		length --;
-		elemlen--;
-		if(length <= 0)
-			break;
-		switch(type){
-		case 0x1:
-			printf("NDflag:%x\n", *data);
-			break;
-		case 0x8:
-		case 0x9:
-			printf("LocalName:");
-			for(i = 0; i < MIN(length,elemlen); i++){
-				putchar(data[i]);
-			}
-			printf("\n");
-			break;
-		case 0x6:
-		case 0x7:
-		{
-			uuid_t uuid;
-			char *uuidstr;
-			uint32_t ustatus;
-			if (elemlen < 16)
-				break;
-			uuid.time_low = le32dec(data+12);
-			uuid.time_mid = le16dec(data+10);
-			uuid.time_hi_and_version = le16dec(data+8);
-			uuid.clock_seq_hi_and_reserved = data[7];
-			uuid.clock_seq_low = data[6];
-			for(i = 0; i < _UUID_NODE_LEN; i++){
-				uuid.node[i] = data[5 - i];
-			}
-			uuid_to_string(&uuid, &uuidstr, &ustatus);
-			
-			printf("ServiceUUID: %s\n", uuidstr);
-			break;
-		}	
-		case 0xff:
-			if (elemlen < 2)
-				break;
-			printf("Vendor:%s:",
-			       hci_manufacturer2str(data[0]|data[1]<<8));
-			for (i = 2; i < MIN(length,elemlen); i++) {
-				printf("%02x ",data[i]);
-			}
-			printf("\n");
-			break;
-		default:
-			printf("Type%d:", type);
-			for(i=0; i < MIN(length,elemlen); i++){
-				printf("%02x ",data[i]);
-			}
-			printf("\n");
-			break;
-		}
-		data += elemlen;
-		length -= elemlen;
-	}
-	return 0;
-}
-#undef MIN
 /* Send Read_Neighbor_Cache command to the node */
 static int
 hci_read_neighbor_cache(int s, int argc, char **argv)
@@ -337,8 +260,8 @@ hci_read_neighbor_cache(int s, int argc, char **argv)
 			r.entries[n].features[6], r.entries[n].features[7],
 			r.entries[n].clock_offset, r.entries[n].page_scan_mode,
 			r.entries[n].page_scan_rep_mode);
-		hci_dump_adv(r.entries[n].extinq_data,
-			     r.entries[n].extinq_size);
+		print_adv_data(r.entries[n].extinq_size,
+			r.entries[n].extinq_data);
 		fprintf(stdout,"\n");
 	}
 out:

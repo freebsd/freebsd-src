@@ -39,6 +39,7 @@
 #include <errno.h>
 #include <netgraph/ng_message.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,6 +61,8 @@ static int le_enable(int s, int argc, char *argv[]);
 static int le_set_advertising_enable(int s, int argc, char *argv[]);
 static int le_set_advertising_param(int s, int argc, char *argv[]);
 static int le_read_advertising_channel_tx_power(int s, int argc, char *argv[]);
+static int le_scan(int s, int argc, char *argv[]);
+static void handle_le_event(ng_hci_event_pkt_t* e, bool verbose);
 
 static int
 le_set_scan_param(int s, int argc, char *argv[])
@@ -613,6 +616,152 @@ le_read_buffer_size(int s, int argc, char *argv[])
 	return (OK);
 }
 
+static int
+le_scan(int s, int argc, char *argv[])
+{
+	int n, bufsize, scancount, numscans;
+	bool verbose;
+	uint8_t active = 0;
+	char ch;
+
+	char			 b[512];
+	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) b;
+
+	ng_hci_le_set_scan_parameters_cp scan_param_cp;
+	ng_hci_le_set_scan_parameters_rp scan_param_rp;
+
+	ng_hci_le_set_scan_enable_cp scan_enable_cp;
+	ng_hci_le_set_scan_enable_rp scan_enable_rp;
+
+	optreset = 1;
+	optind = 0;
+	verbose = false;
+	numscans = 1;
+
+	while ((ch = getopt(argc, argv , "an:v")) != -1) {
+		switch(ch) {
+		case 'a':
+			active = 1;
+			break;
+		case 'n':
+			numscans = (uint8_t)strtol(optarg, NULL, 10);
+			break;
+		case 'v':
+			verbose = true;
+			break;
+		}
+	}
+
+	scan_param_cp.le_scan_type = active;
+	scan_param_cp.le_scan_interval = (uint16_t)(100/0.625);
+	scan_param_cp.le_scan_window = (uint16_t)(50/0.625);
+	/* Address type public */
+	scan_param_cp.own_address_type = 0;
+	/* 'All' filter policy */
+	scan_param_cp.scanning_filter_policy = 0;
+	n = sizeof(scan_param_rp);
+
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_SCAN_PARAMETERS), 
+		(void *)&scan_param_cp, sizeof(scan_param_cp),
+		(void *)&scan_param_rp, &n) == ERROR)
+		return (ERROR);
+
+	if (scan_param_rp.status != 0x00) {
+		fprintf(stdout, "LE_Set_Scan_Parameters failed. Status: %s [%#02x]\n", 
+			hci_status2str(scan_param_rp.status),
+			scan_param_rp.status);
+		return (FAILED);
+	}
+
+	/* Enable scanning */
+	n = sizeof(scan_enable_rp);
+	scan_enable_cp.le_scan_enable = 1;
+	scan_enable_cp.filter_duplicates = 1;
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_SCAN_ENABLE), 
+		(void *)&scan_enable_cp, sizeof(scan_enable_cp),
+		(void *)&scan_enable_rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (scan_enable_rp.status != 0x00) {
+		fprintf(stdout, "LE_Scan_Enable enable failed. Status: %s [%#02x]\n", 
+			hci_status2str(scan_enable_rp.status),
+			scan_enable_rp.status);
+		return (FAILED);
+	}
+
+	scancount = 0;
+	while (scancount < numscans) {
+		/* wait for scan events */
+		bufsize = sizeof(b);
+		if (hci_recv(s, b, &bufsize) == ERROR) {
+			return (ERROR);
+		}
+
+		if (bufsize < sizeof(*e)) {
+			errno = EIO;
+			return (ERROR);
+		}
+		scancount++;
+		if (e->event == NG_HCI_EVENT_LE) {
+		 	fprintf(stdout, "Scan %d\n", scancount);	
+			handle_le_event(e, verbose);
+		}
+	}
+
+	fprintf(stdout, "Scan complete\n");
+
+	/* Disable scanning */
+	n = sizeof(scan_enable_rp);
+	scan_enable_cp.le_scan_enable = 0;
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_SET_SCAN_ENABLE), 
+		(void *)&scan_enable_cp, sizeof(scan_enable_cp),
+		(void *)&scan_enable_rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (scan_enable_rp.status != 0x00) {
+		fprintf(stdout, "LE_Scan_Enable disable failed. Status: %s [%#02x]\n", 
+			hci_status2str(scan_enable_rp.status),
+			scan_enable_rp.status);
+		return (FAILED);
+	}
+
+	return (OK);
+}
+
+static void handle_le_event(ng_hci_event_pkt_t* e, bool verbose) 
+{
+	int rc;
+	ng_hci_le_ep	*leer = 
+			(ng_hci_le_ep *)(e + 1);
+	ng_hci_le_advertising_report_ep *advrep = 
+		(ng_hci_le_advertising_report_ep *)(leer + 1); 
+	ng_hci_le_advreport	*reports =
+		(ng_hci_le_advreport *)(advrep + 1);
+
+	if (leer->subevent_code == NG_HCI_LEEV_ADVREP) {
+		fprintf(stdout, "Scan result, num_reports: %d\n",
+			advrep->num_reports);
+		for(rc = 0; rc < advrep->num_reports; rc++) {
+			uint8_t length = (uint8_t)reports[rc].length_data;	
+			fprintf(stdout, "\tBD_ADDR %s \n",
+				hci_bdaddr2str(&reports[rc].bdaddr));
+			fprintf(stdout, "\tAddress type: %s\n",
+				hci_addrtype2str(reports[rc].addr_type));
+			if (length > 0 && verbose) {
+				dump_adv_data(length, reports[rc].data);
+				print_adv_data(length, reports[rc].data);
+				fprintf(stdout,
+					"\tRSSI: %d dBm\n",
+					(int8_t)reports[rc].data[length]);
+				fprintf(stdout, "\n");
+			}
+		}
+	}
+}
+
 struct hci_command le_commands[] = {
 {
 	"le_enable",
@@ -684,5 +833,11 @@ struct hci_command le_commands[] = {
 	  "le_read_buffer_size [-v 1|2]\n"
 	  "Read the maximum size of ACL and ISO data packets",
 	  &le_read_buffer_size
+  },
+  {
+	  "le_scan",
+	  "le_scan [-a] [-v] [-n number_of_scans]\n"
+	  "Do an LE scan",
+	  &le_scan
   },
 };
