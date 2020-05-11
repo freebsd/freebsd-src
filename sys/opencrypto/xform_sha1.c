@@ -82,18 +82,6 @@ struct auth_hash auth_hash_hmac_sha1 = {
 	.Final = SHA1Final_int,
 };
 
-struct auth_hash auth_hash_key_sha1 = {
-	.type = CRYPTO_SHA1_KPDK,
-	.name = "Keyed SHA1",
-	.keysize = 0,
-	.hashsize = SHA1_KPDK_HASH_LEN,
-	.ctxsize = sizeof(SHA1_CTX),
-	.blocksize = 0,
-	.Init = SHA1Init_int,
-	.Update = SHA1Update_int,
-	.Final = SHA1Final_int,
-};
-
 /*
  * And now for auth.
  */
