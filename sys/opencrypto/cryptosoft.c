@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/mutex.h>
 
-#include <crypto/blowfish/blowfish.h>
 #include <crypto/sha1.h>
 #include <opencrypto/rmd160.h>
 #include <sys/md5.h>
