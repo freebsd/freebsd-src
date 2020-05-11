@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <crypto/camellia/camellia.h>
 #include <crypto/sha1.h>
 
-#include <opencrypto/cast.h>
 #include <opencrypto/deflate.h>
 #include <opencrypto/rmd160.h>
 #include <opencrypto/skipjack.h>
@@ -94,7 +93,6 @@ struct enc_xform enc_xform_arc4 = {
 #include "xform_des1.c"
 #include "xform_des3.c"
 #include "xform_blf.c"
-#include "xform_cast5.c"
 #include "xform_skipjack.c"
 #include "xform_rijndael.c"
 #include "xform_aes_icm.c"
