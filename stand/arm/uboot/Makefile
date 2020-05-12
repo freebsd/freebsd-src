@@ -24,7 +24,7 @@ UBLDR_LOADADDR?=	0x1000000
 # Architecture-specific loader code
 SRCS=		start.S conf.c self_reloc.c vers.c
 
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
+.if ${COMPILER_TYPE} == "gcc"
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
 
