@@ -165,7 +165,56 @@
     <sect2 xml:id="userland-programs">
       <title>Userland Application Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="350801" contrib="sponsor" sponsor="&ix;">The
+	&man.camcontrol.8; utility has been updated to include support
+	for Accessible Max Address Configuration
+	(<acronym>AMA</acronym>).</para>
+
+      <para revision="351582">The &man.camcontrol.8; utility has been
+	updated to support block descriptors with the
+	<literal>modepage</literal> subcommand.</para>
+
+      <para revision="351843">The &man.usbconfig.8; utility has been
+	updated to include the <literal>detach_kernel_driver</literal>
+	command.</para>
+
+      <para revision="351873">The &man.jot.1; utility has been updated
+	to allow an endless stream of random data within the specified
+	bounds.</para>
+
+      <para revision="352758">The &man.freebsd-update.8; utility has
+	been updated to include two new commands,
+	<literal>updatesready</literal> and
+	<literal>showconfig</literal>.</para>
+
+      <para revision="353134">The &man.cron.8; utility has been
+	updated to support two new flags in &man.crontab.5;,
+	<literal>-n</literal> and <literal>-q</literal>, which
+	suppress mail on successful runs and suppress logging of
+	command execution, respectively.</para>
+
+      <para revision="353759">The &man.zfs.8; utility has been updated
+	to support renaming bookmarks.</para>
+
+      <para revision="356401">The &man.usbconfig.8; utility has been
+	updated to include the <literal>dump_stats</literal>
+	command.</para>
+
+      <para revision="356905">The &man.fsck.ffs.8; and &man.newfs.8;
+	utilities has been updated to fix recovery information with
+	sector sizes up to 64k.</para>
+
+      <para revision="357082">The &man.certctl.8; utility has been
+	added.</para>
+
+      <para revision="357791">The &man.env.1; utility has been updated
+	to include the <literal>-L</literal> and <literal>-U</literal>
+	options, which are used to set the environment of the
+	specified user from <filename>login.conf</filename> and
+	<filename>~/.login_conf</filename>, respectively.</para>
+
+      <para revision="359740">The &man.syslogd.8; utility has been
+	updated to add property-based filters.</para>
     </sect2>
 
     <sect2 xml:id="userland-contrib">
@@ -185,6 +234,9 @@
 
       <para revision="355604">The &man.libbsdxml.3; library has
 	been updated to version 2.2.9.</para>
+
+      <para revision="356290"><application>OpenSSL</application> has
+	been update to version 1.0.2u.</para>
 
       <para revision="356341">The &man.pcap.3; library has been
 	updated to version 1.9.1.</para>
@@ -374,7 +426,9 @@
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
-      <para>&nbsp;</para>
+      <para revision="359554">The <acronym>ZFS</acronym>
+	<acronym>ZIL</acronym> (<acronym>ZFS</acronym> intent log)
+	maximum block size is now tunable.</para>
     </sect2>
 
     <sect2 xml:id="storage-geom">
@@ -418,7 +472,10 @@
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
 
-      <para>&nbsp;</para>
+      <para revision="359695">The &man.libalias.3; library and
+	&man.ipfw.4; packet filter have been updated to add support
+	for <acronym>RFC</acronym> 6598/Carrier Grade
+	<acronym>NAT</acronym> subnets.</para>
     </sect2>
   </sect1>
 
