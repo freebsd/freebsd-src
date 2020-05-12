@@ -93,11 +93,7 @@ CFLAGS.gcc+= -fms-extensions
 .if defined(CFLAGS_ARCH_PARAMS)
 CFLAGS.gcc+=${CFLAGS_ARCH_PARAMS}
 .endif
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 50000
-WERROR?=	-Wno-error
-.else
 WERROR?=	-Werror
-.endif
 # The following should be removed no earlier than LLVM11 being imported into the
 # tree, to ensure we don't regress the build.  LLVM11 and GCC10 will switch the
 # default over to -fno-common, making this redundant.

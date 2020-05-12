@@ -51,7 +51,7 @@ DPAAWARNFLAGS += \
         -Wno-error=incompatible-pointer-types-discards-qualifiers \
         -Wno-error=non-literal-null-conversion \
         -Wno-error=enum-conversion
-.elif "${COMPILER_TYPE}" == "gcc" && ${COMPILER_VERSION} >= 50200
+.elif "${COMPILER_TYPE}" == "gcc"
 DPAAWARNFLAGS += \
 	-Wno-error=redundant-decls \
 	-Wno-error=int-in-bool-context
