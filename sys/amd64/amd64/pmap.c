@@ -323,12 +323,12 @@ pmap_pku_mask_bit(pmap_t pmap)
 #endif
 
 #undef pa_index
+#ifdef NUMA
 #define	pa_index(pa)	({					\
 	KASSERT((pa) <= vm_phys_segs[vm_phys_nsegs - 1].end,	\
 	    ("address %lx beyond the last segment", (pa)));	\
 	(pa) >> PDRSHIFT;					\
 })
-#ifdef NUMA
 #define	pa_to_pmdp(pa)	(&pv_table[pa_index(pa)])
 #define	pa_to_pvh(pa)	(&(pa_to_pmdp(pa)->pv_page))
 #define	PHYS_TO_PV_LIST_LOCK(pa)	({			\
@@ -340,6 +340,7 @@ pmap_pku_mask_bit(pmap_t pmap)
 	_lock;							\
 })
 #else
+#define	pa_index(pa)	((pa) >> PDRSHIFT)
 #define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
 
 #define	NPV_LIST_LOCKS	MAXCPU
