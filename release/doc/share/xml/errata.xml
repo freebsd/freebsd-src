@@ -91,6 +91,21 @@
 	<entry><para>Regression with certain <acronym>NFS</acronym>
 	  servers</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:08.tzdata.asc">FreeBSD-EN-20:08.tzdata</link></entry>
+	<entry>12&nbsp;May&nbsp;2020</entry>
+	<entry><para>Timezone database update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:10.build.asc">FreeBSD-EN-20:10.build</link></entry>
+	<entry>12&nbsp;May&nbsp;2020</entry>
+	<entry><para>Incorrect build host clang version
+	  detection</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
