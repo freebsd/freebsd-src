@@ -754,7 +754,8 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 		{
 			u_short new_len;
 
-			new_len = htons(hlen + slen);
+			new_len = htons(hlen +
+			    MIN(slen, maxpacketsize - hlen));
 			DifferentialChecksum(&pip->ip_sum,
 			    &new_len,
 			    &pip->ip_len,
