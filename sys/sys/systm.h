@@ -362,17 +362,9 @@ void	*memcpy_early(void * _Nonnull to, const void * _Nonnull from, size_t len);
 void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 #define bcopy_early(from, to, len) memmove_early((to), (from), (len))
 
-#define	copystr(src, dst, len, outlen)	({			\
-	size_t __r, __len, *__outlen;				\
-								\
-	__len = (len);						\
-	__outlen = (outlen);					\
-	__r = strlcpy((dst), (src), __len);			\
-	if (__outlen != NULL)					\
-		*__outlen = ((__r >= __len) ? __len : __r);	\
-	((__r >= __len) ? ENAMETOOLONG : 0);			\
-})
-
+int	copystr(const void * _Nonnull __restrict kfaddr,
+	    void * _Nonnull __restrict kdaddr, size_t len,
+	    size_t * __restrict lencopied);
 int	copyinstr(const void * __restrict udaddr,
 	    void * _Nonnull __restrict kaddr, size_t len,
 	    size_t * __restrict lencopied);
@@ -386,9 +378,11 @@ int	copyout_nofault(const void * _Nonnull __restrict kaddr,
 	    void * __restrict udaddr, size_t len);
 
 #ifdef KCSAN
+int	kcsan_copystr(const void *, void *, size_t, size_t *);
 int	kcsan_copyin(const void *, void *, size_t);
 int	kcsan_copyinstr(const void *, void *, size_t, size_t *);
 int	kcsan_copyout(const void *, void *, size_t);
+#define	copystr(kf, k, l, lc) kcsan_copystr((kf), (k), (l), (lc))
 #define	copyin(u, k, l) kcsan_copyin((u), (k), (l))
 #define	copyinstr(u, k, l, lc) kcsan_copyinstr((u), (k), (l), (lc))
 #define	copyout(k, u, l) kcsan_copyout((k), (u), (l))
