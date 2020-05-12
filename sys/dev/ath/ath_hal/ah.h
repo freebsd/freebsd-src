@@ -33,6 +33,18 @@
 #include "ah_osdep.h"
 
 /*
+ * Endianness macros; used by various structures and code.
+ */
+#define AH_BIG_ENDIAN           4321
+#define AH_LITTLE_ENDIAN        1234
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define AH_BYTE_ORDER   AH_BIG_ENDIAN
+#else
+#define AH_BYTE_ORDER   AH_LITTLE_ENDIAN
+#endif
+
+/*
  * The maximum number of TX/RX chains supported.
  * This is intended to be used by various statistics gathering operations
  * (NF, RSSI, EVM).
