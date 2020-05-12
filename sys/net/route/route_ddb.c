@@ -268,4 +268,3 @@ usage:
 	    "  Currently accepts only IPv4 and IPv6 addresses\n");
 	db_skip_to_eol();
 }
-
