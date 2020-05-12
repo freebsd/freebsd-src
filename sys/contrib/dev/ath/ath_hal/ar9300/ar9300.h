@@ -19,17 +19,13 @@
 
 #include "ar9300_freebsd_inc.h"
 
-#define	AH_BIG_ENDIAN		4321
-#define	AH_LITTLE_ENDIAN	1234
-
-#if _BYTE_ORDER == _BIG_ENDIAN
-#define	AH_BYTE_ORDER	AH_BIG_ENDIAN
-#else
-#define	AH_BYTE_ORDER	AH_LITTLE_ENDIAN
-#endif
-
 /* XXX doesn't belong here */
 #define	AR_EEPROM_MODAL_SPURS	5
+
+/* Ensure that AH_BYTE_ORDER is defined */
+#ifndef AH_BYTE_ORDER
+#error AH_BYTE_ORDER needs to be defined!
+#endif
 
 /*
  * (a) this should be N(a),
@@ -43,9 +39,7 @@
 #include "ah_devid.h"
 #include "ar9300eep.h"  /* For Eeprom definitions */
 
-
 #define AR9300_MAGIC    0x19741014
-
 
 /* MAC register values */
 
