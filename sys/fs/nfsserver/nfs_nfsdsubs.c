@@ -1271,7 +1271,7 @@ static short *nfsrv_v4errmap[] = {
  * A fiddled version of m_adj() that ensures null fill to a long
  * boundary and only trims off the back end
  */
-APPLESTATIC void
+void
 nfsrv_adj(struct mbuf *mp, int len, int nul)
 {
 	struct mbuf *m;
@@ -1330,7 +1330,7 @@ nfsrv_adj(struct mbuf *mp, int len, int nul)
  * Make these functions instead of macros, so that the kernel text size
  * doesn't get too big...
  */
-APPLESTATIC void
+void
 nfsrv_wcc(struct nfsrv_descript *nd, int before_ret,
     struct nfsvattr *before_nvap, int after_ret, struct nfsvattr *after_nvap)
 {
@@ -1351,7 +1351,7 @@ nfsrv_wcc(struct nfsrv_descript *nd, int before_ret,
 	nfsrv_postopattr(nd, after_ret, after_nvap);
 }
 
-APPLESTATIC void
+void
 nfsrv_postopattr(struct nfsrv_descript *nd, int after_ret,
     struct nfsvattr *after_nvap)
 {
@@ -1370,7 +1370,7 @@ nfsrv_postopattr(struct nfsrv_descript *nd, int after_ret,
  * Fill in file attributes for V2 and 3. For V4, call a separate
  * routine that sifts through all the attribute bits.
  */
-APPLESTATIC void
+void
 nfsrv_fillattr(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 {
 	struct nfs_fattr *fp;
@@ -1429,7 +1429,7 @@ nfsrv_fillattr(struct nfsrv_descript *nd, struct nfsvattr *nvap)
  * the public file handle.
  * For NFSv4, if the length is incorrect, set nd_repstat == NFSERR_BADHANDLE
  */
-APPLESTATIC int
+int
 nfsrv_mtofh(struct nfsrv_descript *nd, struct nfsrvfh *fhp)
 {
 	u_int32_t *tl;
@@ -1498,7 +1498,7 @@ nfsmout:
  * RPC procedure is not involved.
  * Returns the error number in XDR.
  */
-APPLESTATIC int
+int
 nfsd_errmap(struct nfsrv_descript *nd)
 {
 	short *defaulterrp, *errp;
@@ -1554,7 +1554,7 @@ nfsrv_isannfserr(u_int32_t errval)
  * file object. (Called when uid and/or gid is specified in the
  * settable attributes for V4.
  */
-APPLESTATIC int
+int
 nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 {
 	int error = 0;
@@ -1587,7 +1587,7 @@ out:
  * and this routine fixes up the settable attributes for V4 if allowed
  * by nfsrv_checkuidgid().
  */
-APPLESTATIC void
+void
 nfsrv_fixattr(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsvattr *nvap, NFSACL_T *aclp, NFSPROC_T *p, nfsattrbit_t *attrbitp,
     struct nfsexstuff *exp)
@@ -1695,7 +1695,7 @@ nfsrv_hexdigit(char c, int *err)
  * Check to see if NFSERR_MOVED can be returned for this op. Return 1 iff
  * it can be.
  */
-APPLESTATIC int
+int
 nfsrv_errmoved(int op)
 {
 	short *errp;
@@ -1713,7 +1713,7 @@ nfsrv_errmoved(int op)
  * Fill in attributes for a Referral.
  * (Return the number of bytes of XDR created.)
  */
-APPLESTATIC int
+int
 nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
     struct nfsreferral *refp, int getattr, int *reterrp)
 {
@@ -1831,7 +1831,7 @@ nfsrv_putreferralattr(struct nfsrv_descript *nd, nfsattrbit_t *retbitp,
 /*
  * Parse a file name out of a request.
  */
-APPLESTATIC int
+int
 nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
     NFSPATHLEN_T *outlenp)
 {

@@ -40,7 +40,7 @@ static int nfsrv_acemasktoperm(u_int32_t acetype, u_int32_t mask, int owner,
 /*
  * Handle xdr for an ace.
  */
-APPLESTATIC int
+int
 nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
     int *aceerrp, int *acesizep, NFSPROC_T *p)
 {
@@ -388,7 +388,7 @@ nfsrv_buildace(struct nfsrv_descript *nd, u_char *name, int namelen,
 /*
  * Build an NFSv4 ACL.
  */
-APPLESTATIC int
+int
 nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
     NFSPROC_T *p)
 {
@@ -451,7 +451,7 @@ nfsrv_buildacl(struct nfsrv_descript *nd, NFSACL_T *aclp, enum vtype type,
  * Compare two NFSv4 acls.
  * Return 0 if they are the same, 1 if not the same.
  */
-APPLESTATIC int
+int
 nfsrv_compareacl(NFSACL_T *aclp1, NFSACL_T *aclp2)
 {
 	int i;
