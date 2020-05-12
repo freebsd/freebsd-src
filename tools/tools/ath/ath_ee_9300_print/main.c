@@ -61,9 +61,9 @@ eeprom_9300_ctl_idx_to_regdomain(uint8_t idx)
 	case 0x10: return "FCC";
 	case 0x30: return "ETSI";
 	case 0x40: return "JP";
+	default: return "";
 	}
 }
-
 
 static void
 eeprom_9300_hdr_print(const uint16_t *buf)
@@ -219,7 +219,7 @@ eeprom_9300_print_2g_target_ht20(const ar9300_eeprom_t *ee)
 	int i;
 
 	for (i = 0; i < OSPREY_NUM_2G_20_TARGET_POWERS; i++) {
-		printf("| Freq %u HT20  MCS0-7 pow2x %u %u %u %u %u %u %u %u %u\n",
+		printf("| Freq %u HT20  MCS0-7 pow2x %u %u %u %u %u %u %u %u\n",
 		    FBIN2FREQ(ee->cal_target_freqbin_2g_ht20[i], 1),
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_0_8_16],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_1_3_9_11_17_19],
@@ -229,7 +229,7 @@ eeprom_9300_print_2g_target_ht20(const ar9300_eeprom_t *ee)
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_5],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_6],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_7]);
-		printf("| Freq %u HT20  MCS8-15 pow2x %u %u %u %u %u %u %u %u %u\n",
+		printf("| Freq %u HT20  MCS8-15 pow2x %u %u %u %u %u %u %u %u\n",
 		    FBIN2FREQ(ee->cal_target_freqbin_2g_ht20[i], 1),
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_0_8_16],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_1_3_9_11_17_19],
@@ -239,7 +239,7 @@ eeprom_9300_print_2g_target_ht20(const ar9300_eeprom_t *ee)
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_13],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_14],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_15]);
-		printf("| Freq %u HT20  MCS16-23 pow2x %u %u %u %u %u %u %u %u %u\n",
+		printf("| Freq %u HT20  MCS16-23 pow2x %u %u %u %u %u %u %u %u\n",
 		    FBIN2FREQ(ee->cal_target_freqbin_2g_ht20[i], 1),
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_0_8_16],
 		    ee->cal_target_power_2g_ht20[i].t_pow2x[HT_TARGET_RATE_1_3_9_11_17_19],
@@ -258,7 +258,7 @@ eeprom_9300_print_2g_target_ht40(const ar9300_eeprom_t *ee)
 	int i;
 
 	for (i = 0; i < OSPREY_NUM_2G_40_TARGET_POWERS; i++) {
-		printf("| Freq %u HT40  MCS0-7 pow2x %u %u %u %u %u %u %u %u %u\n",
+		printf("| Freq %u HT40  MCS0-7 pow2x %u %u %u %u %u %u %u %u\n",
 		    FBIN2FREQ(ee->cal_target_freqbin_2g_ht40[i], 1),
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_0_8_16],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_1_3_9_11_17_19],
@@ -268,7 +268,7 @@ eeprom_9300_print_2g_target_ht40(const ar9300_eeprom_t *ee)
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_5],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_6],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_7]);
-		printf("| Freq %u HT40  MCS8-15 pow2x %u %u %u %u %u %u %u %u %u\n",
+		printf("| Freq %u HT40  MCS8-15 pow2x %u %u %u %u %u %u %u %u\n",
 		    FBIN2FREQ(ee->cal_target_freqbin_2g_ht40[i], 1),
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_0_8_16],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_1_3_9_11_17_19],
@@ -278,7 +278,7 @@ eeprom_9300_print_2g_target_ht40(const ar9300_eeprom_t *ee)
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_13],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_14],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_15]);
-		printf("| Freq %u HT40  MCS16-23 pow2x %u %u %u %u %u %u %u %u %u\n",
+		printf("| Freq %u HT40  MCS16-23 pow2x %u %u %u %u %u %u %u %u\n",
 		    FBIN2FREQ(ee->cal_target_freqbin_2g_ht40[i], 1),
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_0_8_16],
 		    ee->cal_target_power_2g_ht40[i].t_pow2x[HT_TARGET_RATE_1_3_9_11_17_19],
