@@ -1108,7 +1108,7 @@ nfscl_checksattr(struct vattr *vap, struct nfsvattr *nvap)
  * error should only be returned for the Open, Create and Setattr Ops.
  * As such, most calls can just pass in 0 for those arguments.
  */
-APPLESTATIC int
+int
 nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 {
 	struct proc *p;
