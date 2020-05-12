@@ -90,6 +90,10 @@ CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6
 .endif
+.if ${MK_NETGRAPH_SUPPORT} != "no"
+CFLAGS+=-DNETGRAPH
+LIBADD+=    netgraph
+.endif
 .if ${MK_OPENSSL} == "no"
 CFLAGS+=-DNO_OPENSSL
 .else
