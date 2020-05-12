@@ -601,7 +601,7 @@ static struct mrs_field_value id_aa64mmfr2_nv[] = {
 
 static struct mrs_field_value id_aa64mmfr2_ccidx[] = {
 	MRS_FIELD_VALUE(ID_AA64MMFR2_CCIDX_32, "32bit CCIDX"),
-	MRS_FIELD_VALUE(ID_AA64MMFR2_CCIDX_64, "32bit CCIDX"),
+	MRS_FIELD_VALUE(ID_AA64MMFR2_CCIDX_64, "64bit CCIDX"),
 	MRS_FIELD_VALUE_END,
 };
 
