@@ -529,7 +529,7 @@ nfsrvd_statend(int op, uint64_t bytes, struct bintime *now,
  * handle plus name or ...
  * The NFS V4 Compound RPC is performed separately by nfsrvd_compound().
  */
-APPLESTATIC void
+void
 nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
     u_int32_t minorvers)
 {
