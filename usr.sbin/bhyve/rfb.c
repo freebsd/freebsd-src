@@ -72,6 +72,7 @@ static int rfb_debug = 0;
 #define	DPRINTF(params) if (rfb_debug) printf params
 #define	WPRINTF(params) printf params
 
+#define VERSION_LENGTH	12
 #define AUTH_LENGTH	16
 #define PASSWD_LENGTH	8
 
@@ -765,7 +766,7 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	stream_write(cfd, vbuf, strlen(vbuf));
 
 	/* 1b. Read client version */
-	len = read(cfd, buf, sizeof(buf));
+	len = stream_read(cfd, buf, VERSION_LENGTH);
 
 	/* 2a. Send security type */
 	buf[0] = 1;
