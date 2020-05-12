@@ -33,6 +33,35 @@
 # assumes rules from other files.  In the tz distribution, use
 # 'make PACKRATDATA=backzone zones' to compile and install this file.
 
+
+# From Paul Eggert (2020-04-15):
+# The following remarks should be incorporated into this table sometime.
+# Patches in 'git format-patch' format would be welcome.
+#
+# From Phake Nick (2020-04-15):
+# ... the historical timezone data for those China zones seems to be
+# incorrect.  The transition to GMT+8 date given there for these zones
+# were 1980 which also contradict the file description that they do
+# not disagree with normal zone after 1970.  According to sources that
+# have also been cited in the asia file, except Xinjiang and Tibet,
+# they should have adopted the Beijing Time from around 1949/1950
+# depends on exactly when each of those cities were taken over by the
+# communist army.  And they should also follow the DST setting of
+# Asia/Shanghai after that point of time.  In addition,
+# http://gaz.ncl.edu.tw/detail.jsp?sysid=E1091792 the document from
+# Chongqing Nationalist government say in year 1945 all of China
+# should adopt summer time due to the war (not sure whether it
+# continued after WWII ends)(Probably only enforced in area under
+# their rule at the time?)  The Asia/Harbin's 1932 and 1940 entry
+# should also be incorrect.  As per sources recorded at
+# https://wiki.suikawiki.org/n/%E6%BA%80%E5%B7%9E%E5%9B%BD%E3%81%AE%E6%A8%99%E6%BA%96%E6%99%82
+# , in 1932 Harbin should have adopted UTC+8:00 instead of data
+# currently listed in the tz database according to official
+# announcement from Manchuko.  And they should have adopted GMT+9 in
+# 1937 January 1st according to official announcement at the time
+# being cited on the webpage.
+
+
 # Zones are sorted by zone name.  Each zone is preceded by the
 # name of the country that the zone is in, along with any other
 # commentary and rules associated with the entry.
