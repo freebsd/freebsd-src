@@ -171,7 +171,57 @@
     <sect2 xml:id="userland-contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="351007">The &man.bzip2.1; utility has been
+	updated to version 1.0.8.</para>
+
+      <para revision="351611">The <application>WPA</application>
+	utilities have been updated to version 2.9.</para>
+
+      <para revision="354195">The &man.tcsh.1; utility has been
+	updated to version 6.21.0.</para>
+
+      <para revision="355504">The &man.less.1; utility has been
+	updated to version 551.</para>
+
+      <para revision="355604">The &man.libbsdxml.3; library has
+	been updated to version 2.2.9.</para>
+
+      <para revision="356341">The &man.pcap.3; library has been
+	updated to version 1.9.1.</para>
+
+      <para revision="356341">The &man.tcpdump.1; utility has been
+	updated to version 4.9.3.</para>
+
+      <para revision="356345">The &man.unbound.8; utility has been
+	updated to version 1.9.6.</para>
+
+      <para revision="356533">The &man.mtree.8; utility has been
+	updated to include several bug fixes.</para>
+
+      <para revision="358088">The &man.archive.3; library has been
+	updated to version 3.4.2.</para>
+
+      <para revision="358659">The &man.ntpd.8; utilities have been
+	updated to version 4.2.8p14.</para>
+
+      <para revision="360362">The timezone database files have been
+	updated to version 2020a.</para>
+
+      <para revision="360521">The &man.file.1; utility has been
+	updated to version 5.38.</para>
+
+      <para revision="360523">The &man.xz.1; utility has been updated
+	to version 5.2.5.</para>
+
+      <para revision="360822">The <application>clang</application>,
+	<application>llvm</application>,
+	<application>lld</application>,
+	<application>lldb</application>,
+	<application>libunwind</application>,
+	<application>openmp</application>,
+	<application>compiler-rt</application> utilities and
+	<application>libc++</application> have been updated to version
+	10.0.0.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
