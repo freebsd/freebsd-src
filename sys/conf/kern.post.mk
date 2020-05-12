@@ -345,10 +345,7 @@ ${__obj}: ${OBJS_DEPEND_GUESS.${__obj}}
 
 .depend: .PRECIOUS ${SRCS}
 
-.if ${COMPILER_TYPE} == "clang" || \
-    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60000)
 _MAP_DEBUG_PREFIX= yes
-.endif
 
 _ILINKS= machine
 .if ${MACHINE} != ${MACHINE_CPUARCH} && ${MACHINE} != "arm64"

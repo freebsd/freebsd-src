@@ -205,20 +205,12 @@ ${X_}COMPILER_FREEBSD_VERSION=	unknown
 ${X_}COMPILER_RESOURCE_DIR!=	${${cc}:N${CCACHE_BIN}} -print-resource-dir 2>/dev/null || echo unknown
 .endif
 
-${X_}COMPILER_FEATURES=
-.if (${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 30300) || \
-	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 40800)
-${X_}COMPILER_FEATURES+=	c++11
-.endif
-.if (${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 30400) || \
-	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 50000)
-${X_}COMPILER_FEATURES+=	c++14
-.endif
-.if (${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 50000) || \
+${X_}COMPILER_FEATURES=		c++11 c++14
+.if ${${X_}COMPILER_TYPE} == "clang" || \
 	(${${X_}COMPILER_TYPE} == "gcc" && ${${X_}COMPILER_VERSION} >= 70000)
 ${X_}COMPILER_FEATURES+=	c++17
 .endif
-.if ${${X_}COMPILER_TYPE} == "clang" && ${${X_}COMPILER_VERSION} >= 60000
+.if ${${X_}COMPILER_TYPE} == "clang"
 ${X_}COMPILER_FEATURES+=	retpoline
 .endif
 
