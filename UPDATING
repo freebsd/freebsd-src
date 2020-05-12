@@ -16,6 +16,28 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200512	p5	FreeBSD-EN-20:08.tzdata
+			FreeBSD-EN-20:09.igb
+			FreeBSD-EN-20:10.build
+			FreeBSD-SA-20:12.libalias
+			FreeBSD-SA-20:13.libalias
+			FreeBSD-SA-20:15.cryptodev
+			FreeBSD-SA-20:16.cryptodev
+
+        Import tzdata 2020a. [EN-20:08.tzdata]
+
+        Fix igb interfaces failing to switch to inactive state [EN-20:09.igb]
+
+        Fix incorrect build host Clang version detection [EN-20:10.build]
+
+	Fix insufficient packet length validation in libalias [SA-20:12.libalias]
+
+	Fix memory disclosure vulnerability in libalias [SA-20:13.libalias]
+
+	Fix use after free in cryptodev module [SA-20:15.cryptodev]
+
+	Fix insufficient cryptodev MAC key length check [SA-20:16.cryptodev]
+
 20200421	p4	FreeBSD-EN-20:07.quotad
 			FreeBSD-SA-20:10.ipfw
 			FreeBSD-SA-20:11.openssl
