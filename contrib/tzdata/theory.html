@@ -298,6 +298,10 @@ in decreasing order of importance:
     If a name is changed, put its old spelling in the
     '<code>backward</code>' file.
     This means old spellings will continue to work.
+    Ordinarily a name change should occur only in the rare case when
+    a location's consensus English-language spelling changes; for example,
+    in 2008 <code>Asia/Calcutta</code> was renamed to <code>Asia/Kolkata</code>
+    due to long-time widespread use of the new city name instead of the old.
   </li>
 </ul>
 
@@ -1054,23 +1058,6 @@ an older <code>zic</code>.
     The functions were inspired by <a href="https://netbsd.org/">NetBSD</a>.
   </li>
   <li>
-    A function <code>tzsetwall</code> has been added to arrange for the
-    system's best approximation to local (wall clock) time to be delivered
-    by subsequent calls to <code>localtime</code>.
-    Source code for portable applications that "must" run on local
-    time should call <code>tzsetwall</code>;
-    if such code is moved to "old" systems that do not
-    provide <code>tzsetwall</code>, you will not be able to generate an
-    executable program.
-    (These functions also arrange for local time to
-    be used if <code>tzset</code> is called &ndash; directly or
-    indirectly &ndash; and there is no <code>TZ</code> environment
-    variable; portable applications should not, however, rely on this
-    behavior since it is not the way <a
-    href="https://en.wikipedia.org/wiki/UNIX_System_V#SVR2"><abbr>SVR2</abbr></a>
-    systems behave.)
-  </li>
-  <li>
     Negative <code>time_t</code> values are supported, on systems
     where <code>time_t</code> is signed.
   </li>
@@ -1137,7 +1124,7 @@ The vestigial <abbr>API</abbr>s are:
     may now examine <code>localtime(&amp;clock)-&gt;tm_zone</code>
     (if <code>TM_ZONE</code> is defined) or
     <code>tzname[localtime(&amp;clock)-&gt;tm_isdst]</code>
-    (if <code>HAVE_TZNAME</code> is defined) to learn the correct time
+    (if <code>HAVE_TZNAME</code> is nonzero) to learn the correct time
     zone abbreviation to use.
   </li>
   <li>
