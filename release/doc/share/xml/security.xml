@@ -185,6 +185,21 @@
 	<entry>21&nbsp;April&nbsp;2020</entry>
 	<entry><para>Invalid &man.mbuf.9; handling</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:12.libalias.asc">FreeBSD-SA-20:12.libalias</link></entry>
+	<entry>12&nbsp;May&nbsp;2020</entry>
+	<entry><para>Insufficient packet length
+	  validation</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:13.libalias.asc">FreeBSD-SA-20:13.libalias</link></entry>
+	<entry>12&nbsp;May&nbsp;2020</entry>
+	<entry><para>Memory disclosure vulnerability</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
