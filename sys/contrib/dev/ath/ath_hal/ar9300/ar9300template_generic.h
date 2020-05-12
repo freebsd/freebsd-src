@@ -25,6 +25,11 @@
 #ifndef __ar9300templateGeneric_h__
 #define __ar9300templateGeneric_h__
 
+/* Ensure that AH_BYTE_ORDER is defined */
+#ifndef AH_BYTE_ORDER
+#error AH_BYTE_ORDER needs to be defined!
+#endif
+
 static ar9300_eeprom_t ar9300_template_generic=
 {
 
