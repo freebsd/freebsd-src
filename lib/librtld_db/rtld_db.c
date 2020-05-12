@@ -160,9 +160,12 @@ rd_err_e
 rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 {
 	struct kinfo_vmentry *kves, *kve;
+	const char *path;
+	uint64_t fileid;
 	rd_loadobj_t rdl;
 	rd_err_e ret;
-	int cnt, i, lastvn;
+	uintptr_t base;
+	int cnt, i;
 
 	DPRINTF("%s\n", __func__);
 
@@ -171,27 +174,38 @@ rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 		return (RD_ERR);
 	}
 
+	base = 0;
+	fileid = 0;
+	path = NULL;
 	ret = RD_OK;
-	lastvn = 0;
 	for (i = 0; i < cnt; i++) {
-		kve = kves + i;
-		if (kve->kve_type == KVME_TYPE_VNODE)
-			lastvn = i;
+		kve = &kves[i];
+		/*
+		 * Cache the base offset of the file mapping.  The kve_offset
+		 * field gives the file offset of a particular mapping into the
+		 * file, but we want the mapping offset relative to the base
+		 * mapping.
+		 */
+		if (kve->kve_type == KVME_TYPE_VNODE &&
+		    kve->kve_vn_fileid != fileid) {
+			base = kve->kve_start;
+			fileid = kve->kve_vn_fileid;
+			path = kve->kve_path;
+		}
 		memset(&rdl, 0, sizeof(rdl));
 		/*
 		 * Map the kinfo_vmentry struct to the rd_loadobj structure.
 		 */
 		rdl.rdl_saddr = kve->kve_start;
 		rdl.rdl_eaddr = kve->kve_end;
-		rdl.rdl_offset = kve->kve_offset;
+		rdl.rdl_offset = kve->kve_start - base;
 		if (kve->kve_protection & KVME_PROT_READ)
 			rdl.rdl_prot |= RD_RDL_R;
 		if (kve->kve_protection & KVME_PROT_WRITE)
 			rdl.rdl_prot |= RD_RDL_W;
 		if (kve->kve_protection & KVME_PROT_EXEC)
 			rdl.rdl_prot |= RD_RDL_X;
-		strlcpy(rdl.rdl_path, kves[lastvn].kve_path,
-		    sizeof(rdl.rdl_path));
+		strlcpy(rdl.rdl_path, path, sizeof(rdl.rdl_path));
 		if ((*cb)(&rdl, clnt_data) != 0) {
 			ret = RD_ERR;
 			break;
