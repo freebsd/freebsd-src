@@ -33,29 +33,33 @@
 
 #ifndef _MALLOC_NP_H_
 #define	_MALLOC_NP_H_
-#include <sys/cdefs.h>
+
 #include <sys/types.h>
-#include <stdbool.h>
-#include <strings.h>
+
+#ifdef __cplusplus
+#define	__MyBool	bool
+#else
+#define	__MyBool	_Bool
+#endif
 
 __BEGIN_DECLS
 typedef struct extent_hooks_s extent_hooks_t;
-typedef void *(extent_alloc_t)(extent_hooks_t *, void *, size_t, size_t, bool *,
-    bool *, unsigned);
-typedef bool (extent_dalloc_t)(extent_hooks_t *, void *, size_t, bool,
+typedef void *(extent_alloc_t)(extent_hooks_t *, void *, size_t, size_t,
+    __MyBool *, __MyBool *, unsigned);
+typedef __MyBool (extent_dalloc_t)(extent_hooks_t *, void *, size_t, __MyBool,
     unsigned);
-typedef void (extent_destroy_t)(extent_hooks_t *, void *, size_t, bool,
+typedef void (extent_destroy_t)(extent_hooks_t *, void *, size_t, __MyBool,
     unsigned);
-typedef bool (extent_commit_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
-    unsigned);
-typedef bool (extent_decommit_t)(extent_hooks_t *, void *, size_t, size_t,
+typedef __MyBool (extent_commit_t)(extent_hooks_t *, void *, size_t, size_t,
     size_t, unsigned);
-typedef bool (extent_purge_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
+typedef __MyBool (extent_decommit_t)(extent_hooks_t *, void *, size_t, size_t,
+    size_t, unsigned);
+typedef __MyBool (extent_purge_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
     unsigned);
-typedef bool (extent_split_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
-    bool, unsigned);
-typedef bool (extent_merge_t)(extent_hooks_t *, void *, size_t, void *, size_t,
-    bool, unsigned);
+typedef __MyBool (extent_split_t)(extent_hooks_t *, void *, size_t, size_t, size_t,
+    __MyBool, unsigned);
+typedef __MyBool (extent_merge_t)(extent_hooks_t *, void *, size_t, void *, size_t,
+    __MyBool, unsigned);
 struct extent_hooks_s {
 	extent_alloc_t		*alloc;
 	extent_dalloc_t		*dalloc;
@@ -119,5 +123,7 @@ void	__dallocx(void *ptr, int flags);
 void	__sdallocx(void *ptr, size_t size, int flags);
 size_t	__nallocx(size_t size, int flags);
 __END_DECLS
+
+#undef __MyBool
 
 #endif /* _MALLOC_NP_H_ */
