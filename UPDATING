@@ -16,6 +16,13 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200512: 11.4-BETA1-p1	FreeBSD-SA-20:12.libalias
+			FreeBSD-SA-20:13.libalias
+
+	Fix insufficient packet length validation in libalias [SA-20:12.libalias]
+
+	Fix memory disclosure vulnerability in libalias [SA-20:13.libalias]
+
 20200507:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 10.0.0.  Please see the 20141231 entry below for
