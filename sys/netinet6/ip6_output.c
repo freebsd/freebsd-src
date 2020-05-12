@@ -322,7 +322,8 @@ ip6_fragment(struct ifnet *ifp, struct mbuf *m0, int hlen, u_char nextproto,
 
 static int
 ip6_output_send(struct inpcb *inp, struct ifnet *ifp, struct ifnet *origifp,
-    struct mbuf *m, struct sockaddr_in6 *dst, struct route_in6 *ro)
+    struct mbuf *m, struct sockaddr_in6 *dst, struct route_in6 *ro,
+    bool stamp_tag)
 {
 #ifdef KERN_TLS
 	struct ktls_session *tls = NULL;
@@ -353,6 +354,10 @@ ip6_output_send(struct inpcb *inp, struct ifnet *ifp, struct ifnet *origifp,
 			error = EAGAIN;
 			goto done;
 		}
+		/*
+		 * Always stamp tags that include NIC ktls.
+		 */
+		stamp_tag = true;
 	}
 #endif
 #ifdef RATELIMIT
@@ -366,7 +371,7 @@ ip6_output_send(struct inpcb *inp, struct ifnet *ifp, struct ifnet *origifp,
 			mst = inp->inp_snd_tag;
 	}
 #endif
-	if (mst != NULL) {
+	if (stamp_tag && mst != NULL) {
 		KASSERT(m->m_pkthdr.rcvif == NULL,
 		    ("trying to add a send tag to a forwarded packet"));
 		if (mst->ifp != ifp) {
@@ -1165,7 +1170,8 @@ passout:
 			    m->m_pkthdr.len);
 			ifa_free(&ia6->ia_ifa);
 		}
-		error = ip6_output_send(inp, ifp, origifp, m, dst, ro);
+		error = ip6_output_send(inp, ifp, origifp, m, dst, ro,
+		    (flags & IP_NO_SND_TAG_RL) ? false : true);
 		goto done;
 	}
 
@@ -1256,7 +1262,8 @@ sendorfree:
 				counter_u64_add(ia->ia_ifa.ifa_obytes,
 				    m->m_pkthdr.len);
 			}
-			error = ip6_output_send(inp, ifp, origifp, m, dst, ro);
+			error = ip6_output_send(inp, ifp, origifp, m, dst, ro,
+			    true);
 		} else
 			m_freem(m);
 	}
