@@ -442,10 +442,15 @@ fragment contained in ICMP data section */
 static int
 IcmpAliasIn(struct libalias *la, struct ip *pip)
 {
-	int iresult;
 	struct icmp *ic;
+	int dlen, iresult;
 
 	LIBALIAS_LOCK_ASSERT(la);
+
+	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	if (dlen < ICMP_MINLEN)
+		return (PKT_ALIAS_IGNORED);
+
 /* Return if proxy-only mode is enabled */
 	if (la->packetAliasMode & PKT_ALIAS_PROXY_ONLY)
 		return (PKT_ALIAS_OK);
@@ -464,6 +469,9 @@ IcmpAliasIn(struct libalias *la, struct ip *pip)
 	case ICMP_SOURCEQUENCH:
 	case ICMP_TIMXCEED:
 	case ICMP_PARAMPROB:
+		if (dlen < ICMP_ADVLENMIN ||
+		    dlen < ICMP_ADVLEN(ic))
+			return (PKT_ALIAS_IGNORED);
 		iresult = IcmpAliasIn2(la, pip);
 		break;
 	case ICMP_ECHO:
@@ -732,10 +740,17 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 {
 	struct udphdr *ud;
 	struct alias_link *lnk;
+	int dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
+	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	if (dlen < sizeof(struct udphdr))
+		return (PKT_ALIAS_IGNORED);
+
 	ud = (struct udphdr *)ip_next(pip);
+	if (dlen < ntohs(ud->uh_ulen))
+		return (PKT_ALIAS_IGNORED);
 
 	lnk = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
 	    ud->uh_sport, ud->uh_dport,
@@ -824,12 +839,19 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	u_short dest_port;
 	u_short proxy_server_port;
 	int proxy_type;
-	int error;
+	int dlen, error;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
 /* Return if proxy-only mode is enabled and not proxyrule found.*/
+	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	if (dlen < sizeof(struct udphdr))
+		return (PKT_ALIAS_IGNORED);
+
 	ud = (struct udphdr *)ip_next(pip);
+	if (dlen < ntohs(ud->uh_ulen))
+		return (PKT_ALIAS_IGNORED);
+
 	proxy_type = ProxyCheck(la, &proxy_server_address, 
 		&proxy_server_port, pip->ip_src, pip->ip_dst, 
 		ud->uh_dport, pip->ip_p);
@@ -922,8 +944,13 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 {
 	struct tcphdr *tc;
 	struct alias_link *lnk;
+	int dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
+
+	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	if (dlen < sizeof(struct tcphdr))
+		return (PKT_ALIAS_IGNORED);
 	tc = (struct tcphdr *)ip_next(pip);
 
 	lnk = FindUdpTcpIn(la, pip->ip_src, pip->ip_dst,
@@ -1042,7 +1069,7 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 static int
 TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 {
-	int proxy_type, error;
+	int dlen, proxy_type, error;
 	u_short dest_port;
 	u_short proxy_server_port;
 	struct in_addr dest_address;
@@ -1051,6 +1078,10 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	struct alias_link *lnk;
 
 	LIBALIAS_LOCK_ASSERT(la);
+
+	dlen = ntohs(pip->ip_len) - (pip->ip_hl << 2);
+	if (dlen < sizeof(struct tcphdr))
+		return (PKT_ALIAS_IGNORED);
 	tc = (struct tcphdr *)ip_next(pip);
 
 	if (create)
