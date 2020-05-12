@@ -38,14 +38,14 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
  *      the driver uses the default from below.
  */
 
-#define INTERRUPT_LIMIT             10000   /* Max interrupts per second per core */
+#define INTERRUPT_LIMIT             1000   /* Max interrupts per second per core */
 /*#define INTERRUPT_LIMIT             0     *//* Don't limit the number of interrupts */
 #define USE_RED                     1	/* Enable Random Early Dropping under load */
 #define USE_10MBPS_PREAMBLE_WORKAROUND 1    /* Allow SW based preamble removal at 10Mbps to workaround PHYs giving us bad preambles */
 #define DONT_WRITEBACK(x)           (x) /* Use this to have all FPA frees also tell the L2 not to write data to memory */
 /*#define DONT_WRITEBACK(x)         0   *//* Use this to not have FPA frees control L2 */
 
-#define MAX_RX_PACKETS 120 /* Maximum number of packets to process per interrupt. */
+#define MAX_RX_PACKETS 1024 /* Maximum number of packets to process per interrupt. */
 #define MAX_OUT_QUEUE_DEPTH 1000
 
 #define FAU_NUM_PACKET_BUFFERS_TO_FREE (CVMX_FAU_REG_END - sizeof(uint32_t))

@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #if defined(CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS) && CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS
 int num_packet_buffers = CONFIG_CAVIUM_OCTEON_NUM_PACKET_BUFFERS;
 #else
-int num_packet_buffers = 1024;
+int num_packet_buffers = 2048;
 #endif
 TUNABLE_INT("hw.octe.num_packet_buffers", &num_packet_buffers);
 /*
@@ -448,7 +448,7 @@ int cvm_oct_init_module(device_t bus)
 
 	if (INTERRUPT_LIMIT) {
 		/* Set the POW timer rate to give an interrupt at most INTERRUPT_LIMIT times per second */
-		cvmx_write_csr(CVMX_POW_WQ_INT_PC, cvmx_clock_get_rate(CVMX_CLOCK_CORE)/(INTERRUPT_LIMIT*16*256)<<8);
+		cvmx_write_csr(CVMX_POW_WQ_INT_PC, cvmx_clock_get_rate(CVMX_CLOCK_CORE)/((INTERRUPT_LIMIT+1)*16*256)<<8);
 
 		/* Enable POW timer interrupt. It will count when there are packets available */
 		cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0x1ful<<24);
