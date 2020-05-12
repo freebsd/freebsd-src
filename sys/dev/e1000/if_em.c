@@ -1395,10 +1395,8 @@ em_intr(void *arg)
 	IFDI_INTR_DISABLE(ctx);
 
 	/* Link status change */
-	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
-		adapter->hw.mac.get_link_status = 1;
-		iflib_admin_intr_deferred(ctx);
-	}
+	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
+		em_handle_link(ctx);
 
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
@@ -1481,22 +1479,24 @@ em_msix_link(void *arg)
 
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC)) {
 		em_handle_link(adapter->ctx);
-	} else {
-		E1000_WRITE_REG(&adapter->hw, E1000_IMS,
-				EM_MSIX_LINK | E1000_IMS_LSC);
-		if (adapter->hw.mac.type >= igb_mac_min)
-			E1000_WRITE_REG(&adapter->hw, E1000_EIMS, adapter->link_mask);
+	} else if (adapter->hw.mac.type == e1000_82574) {
+		/* Only re-arm 82574 if em_if_update_admin_status() won't. */
+		E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK |
+		    E1000_IMS_LSC);
 	}
 
-	/*
-	 * Because we must read the ICR for this interrupt
-	 * it may clear other causes using autoclear, for
-	 * this reason we simply create a soft interrupt
-	 * for all these vectors.
-	 */
-	if (reg_icr && adapter->hw.mac.type < igb_mac_min) {
-		E1000_WRITE_REG(&adapter->hw,
-			E1000_ICS, adapter->ims);
+	if (adapter->hw.mac.type == e1000_82574) {
+		/*
+		 * Because we must read the ICR for this interrupt it may
+		 * clear other causes using autoclear, for this reason we
+		 * simply create a soft interrupt for all these vectors.
+		 */
+		if (reg_icr)
+			E1000_WRITE_REG(&adapter->hw, E1000_ICS, adapter->ims);
+	} else {
+		/* Re-arm unconditionally */
+		E1000_WRITE_REG(&adapter->hw, E1000_IMS, E1000_IMS_LSC);
+		E1000_WRITE_REG(&adapter->hw, E1000_EIMS, adapter->link_mask);
 	}
 
 	return (FILTER_HANDLED);
@@ -1511,7 +1511,6 @@ em_handle_link(void *context)
 	adapter->hw.mac.get_link_status = 1;
 	iflib_admin_intr_deferred(ctx);
 }
-
 
 /*********************************************************************
  *
@@ -1829,14 +1828,15 @@ em_if_update_admin_status(if_ctx_t ctx)
 	em_update_stats_counters(adapter);
 
 	/* Reset LAA into RAR[0] on 82571 */
-	if ((adapter->hw.mac.type == e1000_82571) &&
-	    e1000_get_laa_state_82571(&adapter->hw))
-		e1000_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	if (hw->mac.type == e1000_82571 && e1000_get_laa_state_82571(hw))
+		e1000_rar_set(hw, hw->mac.addr, 0);
 
-	if (adapter->hw.mac.type < em_mac_min)
+	if (hw->mac.type < em_mac_min)
 		lem_smartspeed(adapter);
-
-	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
+	else if (hw->mac.type == e1000_82574 &&
+	    adapter->intr_type == IFLIB_INTR_MSIX)
+		E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK |
+		    E1000_IMS_LSC);
 }
 
 static void
