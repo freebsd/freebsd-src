@@ -1,6 +1,6 @@
-/* $FreeBSD$ */
-#if __STDC__
-#error "<malloc.h> has been replaced by <stdlib.h>"
-#else
+/*-
+ * This file is in the public domain.
+ * $FreeBSD$
+ */
 #include <stdlib.h>
-#endif
+#include <malloc_np.h>
