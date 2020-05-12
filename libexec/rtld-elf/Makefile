@@ -90,8 +90,4 @@ ${PROG_FULL}:	${VERSION_MAP}
 # GCC warns about redeclarations even though they have __exported
 # and are therefore not identical to the ones from the system headers.
 CFLAGS+=	-Wno-redundant-decls
-.if ${COMPILER_VERSION} < 40300
-# Silence -Wshadow false positives in ancient GCC
-CFLAGS+=	-Wno-shadow
-.endif
 .endif

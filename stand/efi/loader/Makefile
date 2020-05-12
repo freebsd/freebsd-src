@@ -31,10 +31,6 @@ CFLAGS+=	-DEFI_ZFS_BOOT
 HAVE_ZFS=	yes
 .endif
 
-.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} > 40201
-CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
-.endif
-
 # We implement a slightly non-standard %S in that it always takes a
 # CHAR16 that's common in UEFI-land instead of a wchar_t. This only
 # seems to matter on arm64 where wchar_t defaults to an int instead
