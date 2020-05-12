@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2018
+.Dd May 8, 2020
 .Dt SIGINFO 3
 .Os
 .Sh NAME
@@ -150,6 +150,8 @@ invalid address alignment
 nonexistent physical address
 .It Ta Dv BUS_OBJERR Ta
 object-specific hardware error
+.It Ta Dv BUS_OOMERR Ta
+cannot alloc a page to map at fault
 .It Dv SIGTRAP Ta Dv TRAP_BRKPT Ta
 process breakpoint
 .It Ta Dv TRAP_TRACE Ta
