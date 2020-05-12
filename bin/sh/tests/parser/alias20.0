@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+alias begin={ end=}
+: <<EOF &&
+$(echo bad1)
+EOF
+begin
+echo ok
+end
