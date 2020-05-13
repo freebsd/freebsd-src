@@ -4312,6 +4312,11 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 	an = ATH_NODE(ni);
 	ATH_NODE_UNLOCK_ASSERT(an);
 
+	/*
+	 * XXX TODO: teach the rate control about TXERR_FILT and
+	 * see about handling it (eg see how many attempts were
+	 * made before it got filtered and account for that.)
+	 */
 	if ((ts->ts_status & HAL_TXERR_FILT) == 0) {
 		ATH_NODE_LOCK(an);
 		ath_rate_tx_complete(sc, an, rc, ts, frmlen, nframes, nbad);
@@ -4355,6 +4360,9 @@ ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
 			/*
 			 * XXX assume this isn't an aggregate
 			 * frame.
+			 *
+			 * XXX TODO: also do this for filtered frames?
+			 * Once rate control knows about them?
 			 */
 			ath_tx_update_ratectrl(sc, ni,
 			     bf->bf_state.bfs_rc, ts,
