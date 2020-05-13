@@ -666,7 +666,7 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 			temp |= AMDTEMP_TTSR_SELCORE;
 		break;
 	default:
-		__unreachable();
+		__assert_unreachable();
 	}
 	pci_write_config(dev, AMDTEMP_THERMTP_STAT, temp, 1);
 
@@ -766,7 +766,7 @@ amdtemp_gettemp17h(device_t dev, amdsensor_t sensor)
 		    ("sensor %d: not valid", (int)sensor));
 		return (amdtemp_decode_fam10h_to_17h(sc->sc_offset, val, true));
 	default:
-		__unreachable();
+		__assert_unreachable();
 	}
 }
 

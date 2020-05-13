@@ -117,6 +117,9 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 	VNASSERT(exp, vp, ("condition %s not met at %s:%d (%s)",	\
 	    _exp, __FILE__, __LINE__, __func__));			\
 } while (0)
+#define	__assert_unreachable() \
+	panic("executing segment marked as unreachable at %s:%d (%s)\n", \
+	    __FILE__, __LINE__, __func__)
 #else
 #define	KASSERT(exp,msg) do { \
 } while (0)
@@ -125,6 +128,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 } while (0)
 #define	VNPASS(exp, vp) do { \
 } while (0)
+#define	__assert_unreachable()	__unreachable()
 #endif
 
 #ifndef CTASSERT	/* Allow lint to override */
