@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/bitstring.h>
 #include <sys/bus.h>
@@ -236,7 +237,7 @@ read_label(struct nvdimm_dev *nv, int num)
 			return (0);
 		}
 	}
-	__unreachable();
+	__assert_unreachable();
 }
 
 static int

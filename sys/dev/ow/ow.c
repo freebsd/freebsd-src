@@ -507,7 +507,7 @@ again:
 					return (EIO);
 				goto again;
 			default: /* NOTREACHED */
-				__unreachable();
+				__assert_unreachable();
 			}
 			if (dir) {
 				OWLL_WRITE_ONE(lldev, &timing_regular);
