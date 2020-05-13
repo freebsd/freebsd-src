@@ -33,7 +33,6 @@
 
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <crypto/des/des.h>
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/cryptodev.h>
@@ -68,7 +67,6 @@ struct enc_xform {
 
 
 extern struct enc_xform enc_xform_null;
-extern struct enc_xform enc_xform_blf;
 extern struct enc_xform enc_xform_rijndael128;
 extern struct enc_xform enc_xform_aes_icm;
 extern struct enc_xform enc_xform_aes_nist_gcm;
