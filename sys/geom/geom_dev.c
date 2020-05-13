@@ -383,7 +383,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	/*
 	 * Now add all the aliases for this drive
 	 */
-	LIST_FOREACH(gap, &pp->geom->aliases, ga_next) {
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
 		error = make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &adev, dev,
 		    "%s", gap->ga_alias);
 		if (error) {

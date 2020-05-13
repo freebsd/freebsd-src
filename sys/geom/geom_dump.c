@@ -211,6 +211,7 @@ g_conf_consumer(struct sbuf *sb, struct g_consumer *cp)
 static void
 g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 {
+	struct g_geom_alias *gap;
 
 	sbuf_printf(sb, "\t<provider id=\"%p\">\n", pp);
 	sbuf_printf(sb, "\t  <geom ref=\"%p\"/>\n", pp->geom);
@@ -219,6 +220,11 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_cat(sb, "\t  <name>");
 	g_conf_cat_escaped(sb, pp->name);
 	sbuf_cat(sb, "</name>\n");
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
+		sbuf_cat(sb, "\t  <alias>");
+		g_conf_cat_escaped(sb, gap->ga_alias);
+		sbuf_cat(sb, "</alias>\n");
+	}
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
 	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
@@ -242,7 +248,6 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 {
 	struct g_consumer *cp2;
 	struct g_provider *pp2;
-	struct g_geom_alias *gap;
 
 	sbuf_printf(sb, "    <geom id=\"%p\">\n", gp);
 	sbuf_printf(sb, "      <class ref=\"%p\"/>\n", gp->class);
@@ -267,11 +272,6 @@ g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_
 		if (pp != NULL && pp != pp2)
 			continue;
 		g_conf_provider(sb, pp2);
-	}
-	LIST_FOREACH(gap, &gp->aliases, ga_next) {
-		sbuf_cat(sb, "      <alias>\n");
-		g_conf_cat_escaped(sb, gap->ga_alias);
-		sbuf_cat(sb, "      </alias>\n");
 	}
 	sbuf_cat(sb, "    </geom>\n");
 }

@@ -718,11 +718,9 @@ g_disk_create(void *arg, int flag)
 	sc->d_devstat = dp->d_devstat;
 	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->softc = sc;
-	LIST_FOREACH(dap, &dp->d_aliases, da_next) {
-		snprintf(tmpstr, sizeof(tmpstr), "%s%d", dap->da_alias, dp->d_unit);
-		g_geom_add_alias(gp, tmpstr);
-	}
 	pp = g_new_providerf(gp, "%s", gp->name);
+	LIST_FOREACH(dap, &dp->d_aliases, da_next)
+		g_provider_add_alias(pp, "%s%d", dap->da_alias, dp->d_unit);
 	devstat_remove_entry(pp->stat);
 	pp->stat = NULL;
 	dp->d_devstat->id = pp;
