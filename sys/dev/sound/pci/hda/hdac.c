@@ -65,7 +65,7 @@ static const struct {
 	const char *key;
 	uint32_t value;
 } hdac_quirks_tab[] = {
-	{ "64bit", HDAC_QUIRK_DMAPOS },
+	{ "64bit", HDAC_QUIRK_64BIT },
 	{ "dmapos", HDAC_QUIRK_DMAPOS },
 	{ "msi", HDAC_QUIRK_MSI },
 };
@@ -279,10 +279,10 @@ hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
 			);
 			if (inv == 0) {
 				*on |= hdac_quirks_tab[k].value;
-				*on &= ~hdac_quirks_tab[k].value;
+				*off &= ~hdac_quirks_tab[k].value;
 			} else if (inv != 0) {
 				*off |= hdac_quirks_tab[k].value;
-				*off &= ~hdac_quirks_tab[k].value;
+				*on &= ~hdac_quirks_tab[k].value;
 			}
 			break;
 		}
