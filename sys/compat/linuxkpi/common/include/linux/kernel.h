@@ -107,6 +107,7 @@
       if (__ret) {						\
 		printf("WARNING %s failed at %s:%d\n",		\
 		    __stringify(cond), __FILE__, __LINE__);	\
+		linux_dump_stack();				\
       }								\
       unlikely(__ret);						\
 })
@@ -120,6 +121,7 @@
 		__warn_on_once = 1;				\
 		printf("WARNING %s failed at %s:%d\n",		\
 		    __stringify(cond), __FILE__, __LINE__);	\
+		linux_dump_stack();				\
       }								\
       unlikely(__ret);						\
 })
