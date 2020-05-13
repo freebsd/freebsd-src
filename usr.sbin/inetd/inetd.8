@@ -28,7 +28,7 @@
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
 .\" $FreeBSD$
 .\"
-.Dd January 12, 2008
+.Dd May 12, 2020
 .Dt INETD 8
 .Os
 .Sh NAME
@@ -800,6 +800,8 @@ shell        stream  tcp46  nowait root  /usr/libexec/rshd rshd
 tcpmux/+date stream  tcp   nowait guest /bin/date                date
 tcpmux/phonebook stream tcp nowait guest /usr/local/bin/phonebook phonebook
 rstatd/1-3   dgram   rpc/udp wait root  /usr/libexec/rpc.rstatd  rpc.rstatd
+# Use netcat as a one-shot HTTP proxy with nc (from freebsd-tips fortune)
+http         stream  tcp   nowait nobody /usr/bin/nc nc -N dest-ip 80
 /var/run/echo stream unix  nowait root	internal
 #@ ipsec ah/require
 chargen      stream  tcp   nowait root  internal
@@ -914,6 +916,7 @@ in the
 database.
 .El
 .Sh SEE ALSO
+.Xr nc 1 ,
 .Xr ipsec_set_policy 3 ,
 .Xr hosts_access 5 ,
 .Xr hosts_options 5 ,
