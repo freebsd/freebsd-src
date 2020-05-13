@@ -482,8 +482,9 @@ ath_rate_pick_seed_rate_ht(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
-		  int shortPreamble, size_t frameLen,
-		  u_int8_t *rix0, int *try0, u_int8_t *txrate)
+		  int shortPreamble, size_t frameLen, int tid,
+		  bool is_aggr, u_int8_t *rix0, int *try0,
+		  u_int8_t *txrate, int *maxdur)
 {
 #define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
 #define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
@@ -497,6 +498,10 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	unsigned average_tx_time;
 
 	ath_rate_update_static_rix(sc, &an->an_node);
+
+	/* For now don't take TID, is_aggr into account */
+	/* Also for now don't calculate a max duration; that'll come later */
+	*maxdur = -1;
 
 	if (sn->currates != sc->sc_currates) {
 		device_printf(sc->sc_dev, "%s: currates != sc_currates!\n",

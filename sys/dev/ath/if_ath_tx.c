@@ -1376,10 +1376,12 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
  * as they may depend upon the rate chosen.
  */
 static void
-ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf, int tid,
+    bool is_aggr)
 {
 	uint8_t rate, rix;
 	int try0;
+	int maxdur; // Note: Unused for now
 
 	if (! bf->bf_state.bfs_doratelookup)
 		return;
@@ -1389,7 +1391,7 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_NODE_LOCK(ATH_NODE(bf->bf_node));
 	ath_rate_findrate(sc, ATH_NODE(bf->bf_node), bf->bf_state.bfs_shpream,
-	    bf->bf_state.bfs_pktlen, &rix, &try0, &rate);
+	    bf->bf_state.bfs_pktlen, tid, is_aggr, &rix, &try0, &rate, &maxdur);
 
 	/* In case MRR is disabled, make sure rc[0] is setup correctly */
 	bf->bf_state.bfs_rc[0].rix = rix;
@@ -1519,7 +1521,7 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 
 	/* Setup the descriptor before handoff */
-	ath_tx_do_ratelookup(sc, bf);
+	ath_tx_do_ratelookup(sc, bf, tid->tid, false);
 	ath_tx_calc_duration(sc, bf);
 	ath_tx_calc_protection(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
@@ -3094,7 +3096,7 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	ath_tx_update_clrdmask(sc, tid, bf);
 
 	/* Direct dispatch to hardware */
-	ath_tx_do_ratelookup(sc, bf);
+	ath_tx_do_ratelookup(sc, bf, tid->tid, false);
 	ath_tx_calc_duration(sc, bf);
 	ath_tx_calc_protection(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
@@ -4689,6 +4691,8 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 	 *
 	 * XXX use the length in the first frame in the series;
 	 * XXX just so things are consistent for now.
+	 *
+	 * XXX TODO: need to signal this is a large frame no matter what...
 	 */
 	ath_tx_update_ratectrl(sc, ni, bf_first->bf_state.bfs_rc,
 	    &bf_first->bf_status.ds_txstat,
@@ -5088,9 +5092,11 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * Now we know how many frames were bad, call the rate
 	 * control code.
 	 */
-	if (fail == 0)
+	if (fail == 0) {
+		/* XXX TODO: what's pktlen here? */
 		ath_tx_update_ratectrl(sc, ni, rc, &ts, pktlen, nframes,
 		    nbad);
+	}
 
 	/*
 	 * send bar if we dropped any frames
@@ -5429,7 +5435,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			/* Update CLRDMASK just before this frame is queued */
 			ath_tx_update_clrdmask(sc, tid, bf);
 
-			ath_tx_do_ratelookup(sc, bf);
+			ath_tx_do_ratelookup(sc, bf, tid->tid, false);
 			ath_tx_calc_duration(sc, bf);
 			ath_tx_calc_protection(sc, bf);
 			ath_tx_set_rtscts(sc, bf);
@@ -5453,7 +5459,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * really "do" aggregate lookups, so it only considers
 		 * the size of the first frame.
 		 */
-		ath_tx_do_ratelookup(sc, bf);
+		ath_tx_do_ratelookup(sc, bf, tid->tid, true);
 		bf->bf_state.bfs_rc[3].rix = 0;
 		bf->bf_state.bfs_rc[3].tries = 0;
 
@@ -5644,7 +5650,7 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_update_clrdmask(sc, tid, bf);
 
 		/* Program descriptors + rate control */
-		ath_tx_do_ratelookup(sc, bf);
+		ath_tx_do_ratelookup(sc, bf, tid->tid, false);
 		ath_tx_calc_duration(sc, bf);
 		ath_tx_calc_protection(sc, bf);
 		ath_tx_set_rtscts(sc, bf);
