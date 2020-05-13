@@ -98,7 +98,6 @@
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <machine/in_cksum.h>
-#include <crypto/des/des.h>
 #include <sys/md5.h>
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
