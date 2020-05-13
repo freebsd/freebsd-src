@@ -33,6 +33,8 @@
 
 #include <sys/errno.h>
 
+#define	EBADRQC		56	/* Bad request code */
+
 #define	ECHRNG		EDOM
 #define	ETIME		ETIMEDOUT
 #define	ECOMM		ESTALE
