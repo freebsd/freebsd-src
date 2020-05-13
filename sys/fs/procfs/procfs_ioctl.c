@@ -69,10 +69,53 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 #ifdef COMPAT_FREEBSD6
 	int ival;
 #endif
+	static struct timeval lasttime;
+	static struct timeval interval = { .tv_sec = 1, .tv_usec = 0 };
 
 	KASSERT(p != NULL,
 	    ("%s() called without a process", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	switch (cmd) {
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 1, 0):
+#endif
+#ifdef COMPAT_FREEBSD6
+	case _IO('p', 1):
+#endif
+	case PIOCBIS:
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 2, 0):
+#endif
+#ifdef COMPAT_FREEBSD6
+	case _IO('p', 2):
+#endif
+	case PIOCBIC:
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 3, 0):
+#endif
+#ifdef COMPAT_FREEBSD6
+	case _IO('p', 3):
+#endif
+	case PIOCSFL:
+	case PIOCGFL:
+	case PIOCWAIT:
+	case PIOCSTATUS:
+#ifdef COMPAT_FREEBSD32
+	case PIOCWAIT32:
+	case PIOCSTATUS32:
+#endif
+#if defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
+	case _IOC(IOC_IN, 'p', 5, 0):
+#endif
+#ifdef COMPAT_FREEBSD6
+	case _IO('p', 5):
+#endif
+	case PIOCCONT:
+		if (ratecheck(&lasttime, &interval) != 0)
+			gone_in(13, "procfs-based process debugging");
+		break;
+	}
 
 	error = 0;
 	switch (cmd) {
