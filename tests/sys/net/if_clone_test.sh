@@ -47,7 +47,9 @@ epair_stress_head()
 }
 epair_stress_body()
 {
-	atf_skip "https://bugs.freebsd.org/246443"
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/246443"
+	fi
 	do_stress "epair"
 }
 epair_stress_cleanup()
