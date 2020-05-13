@@ -677,6 +677,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_geom *gp;
 	struct g_provider *pp2;
 	struct g_uzip_softc *sc;
+	struct g_geom_alias *gap;
 	enum {
 		G_UZIP = 1,
 		G_ULZMA,
@@ -910,6 +911,8 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	pp2->mediasize = (off_t)sc->nblocks * sc->blksz;
 	pp2->stripesize = pp->stripesize;
 	pp2->stripeoffset = pp->stripeoffset;
+	LIST_FOREACH(gap, &pp->aliases, ga_next)
+		g_provider_add_alias(pp2, GUZ_DEV_NAME("%s"), gap->ga_alias);
 	g_error_provider(pp2, 0);
 	g_access(cp, -1, 0, 0);
 
