@@ -71,16 +71,16 @@ struct ata_quirk_entry {
 	u_int maxtags;
 };
 
-static periph_init_t probe_periph_init;
+static periph_init_t aprobe_periph_init;
 
-static struct periph_driver probe_driver =
+static struct periph_driver aprobe_driver =
 {
-	probe_periph_init, "aprobe",
-	TAILQ_HEAD_INITIALIZER(probe_driver.units), /* generation */ 0,
+	aprobe_periph_init, "aprobe",
+	TAILQ_HEAD_INITIALIZER(aprobe_driver.units), /* generation */ 0,
 	CAM_PERIPH_DRV_EARLY
 };
 
-PERIPHDRIVER_DECLARE(aprobe, probe_driver);
+PERIPHDRIVER_DECLARE(aprobe, aprobe_driver);
 
 typedef enum {
 	PROBE_RESET,
@@ -100,7 +100,7 @@ typedef enum {
 	PROBE_IDENTIFY_SAFTE,
 	PROBE_DONE,
 	PROBE_INVALID
-} probe_action;
+} aprobe_action;
 
 static char *probe_action_text[] = {
 	"PROBE_RESET",
@@ -134,13 +134,13 @@ do {									\
 
 typedef enum {
 	PROBE_NO_ANNOUNCE	= 0x04
-} probe_flags;
+} aprobe_flags;
 
 typedef struct {
 	TAILQ_HEAD(, ccb_hdr) request_ccbs;
 	struct ata_params	ident_data;
-	probe_action	action;
-	probe_flags	flags;
+	aprobe_action	action;
+	aprobe_flags	flags;
 	uint32_t	pm_pid;
 	uint32_t	pm_prv;
 	int		restart;
@@ -162,19 +162,18 @@ static struct ata_quirk_entry ata_quirk_table[] =
 	},
 };
 
-static cam_status	proberegister(struct cam_periph *periph,
-				      void *arg);
-static void	 probeschedule(struct cam_periph *probe_periph);
-static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
-static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
-static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
-static void	 probecleanup(struct cam_periph *periph);
+static cam_status	aproberegister(struct cam_periph *periph, void *arg);
+static void	 aprobeschedule(struct cam_periph *probe_periph);
+static void	 aprobestart(struct cam_periph *periph, union ccb *start_ccb);
+static void	 aproberequestdefaultnegotiation(struct cam_periph *periph);
+static void	 aprobedone(struct cam_periph *periph, union ccb *done_ccb);
+static void	 aprobecleanup(struct cam_periph *periph);
 static void	 ata_find_quirk(struct cam_ed *device);
 static void	 ata_scan_bus(struct cam_periph *periph, union ccb *ccb);
 static void	 ata_scan_lun(struct cam_periph *periph,
 			       struct cam_path *path, cam_flags flags,
 			       union ccb *ccb);
-static void	 xptscandone(struct cam_periph *periph, union ccb *done_ccb);
+static void	 axptscandone(struct cam_periph *periph, union ccb *done_ccb);
 static struct cam_ed *
 		 ata_alloc_device(struct cam_eb *bus, struct cam_et *target,
 				   lun_id_t lun_id);
@@ -271,12 +270,12 @@ CAM_XPT_PROTO(ata_proto_satapm);
 CAM_XPT_PROTO(ata_proto_semb);
 
 static void
-probe_periph_init()
+aprobe_periph_init()
 {
 }
 
 static cam_status
-proberegister(struct cam_periph *periph, void *arg)
+aproberegister(struct cam_periph *periph, void *arg)
 {
 	union ccb *request_ccb;	/* CCB representing the probe request */
 	probe_softc *softc;
@@ -307,12 +306,12 @@ proberegister(struct cam_periph *periph, void *arg)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe started\n"));
 	ata_device_transport(periph->path);
-	probeschedule(periph);
+	aprobeschedule(periph);
 	return(CAM_REQ_CMP);
 }
 
 static void
-probeschedule(struct cam_periph *periph)
+aprobeschedule(struct cam_periph *periph)
 {
 	union ccb *ccb;
 	probe_softc *softc;
@@ -336,7 +335,7 @@ probeschedule(struct cam_periph *periph)
 }
 
 static void
-probestart(struct cam_periph *periph, union ccb *start_ccb)
+aprobestart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ccb_trans_settings cts;
 	struct ccb_ataio *ataio;
@@ -346,7 +345,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	struct ata_params *ident_buf;
 	u_int oif;
 
-	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probestart\n"));
+	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("aprobestart\n"));
 
 	softc = (probe_softc *)periph->softc;
 	path = start_ccb->ccb_h.path;
@@ -367,7 +366,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	case PROBE_RESET:
 		cam_fill_ataio(ataio,
 		      0,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_NONE,
 		      0,
 		      /*data_ptr*/NULL,
@@ -378,7 +377,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	case PROBE_IDENTIFY:
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
 		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
@@ -394,7 +393,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			xpt_print(path, "Spinning up device\n");
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_NONE | CAM_HIGH_POWER,
 		      0,
 		      /*data_ptr*/NULL,
@@ -469,7 +468,7 @@ negotiate:
 			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_NONE,
 		      0,
 		      /*data_ptr*/NULL,
@@ -481,7 +480,7 @@ negotiate:
 	case PROBE_SETPM:
 		cam_fill_ataio(ataio,
 		    1,
-		    probedone,
+		    aprobedone,
 		    CAM_DIR_NONE,
 		    0,
 		    NULL,
@@ -494,7 +493,7 @@ negotiate:
 	case PROBE_SETAPST:
 		cam_fill_ataio(ataio,
 		    1,
-		    probedone,
+		    aprobedone,
 		    CAM_DIR_NONE,
 		    0,
 		    NULL,
@@ -507,7 +506,7 @@ negotiate:
 	case PROBE_SETDMAAA:
 		cam_fill_ataio(ataio,
 		    1,
-		    probedone,
+		    aprobedone,
 		    CAM_DIR_NONE,
 		    0,
 		    NULL,
@@ -528,7 +527,7 @@ negotiate:
 			xpt_async(AC_GETDEV_CHANGED, path, NULL);
 		cam_fill_ataio(ataio,
 		    1,
-		    probedone,
+		    aprobedone,
 		    CAM_DIR_NONE,
 		    0,
 		    NULL,
@@ -591,7 +590,7 @@ negotiate:
 
 		cam_fill_ataio(ataio,
 		    1,
-		    probedone,
+		    aprobedone,
 		    CAM_DIR_NONE,
 		    0,
 		    NULL,
@@ -659,7 +658,7 @@ negotiate:
 		inquiry_len = roundup2(inquiry_len, 2);
 		scsi_inquiry(csio,
 			     /*retries*/1,
-			     probedone,
+			     aprobedone,
 			     MSG_SIMPLE_Q_TAG,
 			     (u_int8_t *)inq_buf,
 			     inquiry_len,
@@ -672,7 +671,7 @@ negotiate:
 	case PROBE_PM_PID:
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_NONE,
 		      0,
 		      /*data_ptr*/NULL,
@@ -683,7 +682,7 @@ negotiate:
 	case PROBE_PM_PRV:
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_NONE,
 		      0,
 		      /*data_ptr*/NULL,
@@ -694,7 +693,7 @@ negotiate:
 	case PROBE_IDENTIFY_SES:
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
 		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
@@ -706,7 +705,7 @@ negotiate:
 	case PROBE_IDENTIFY_SAFTE:
 		cam_fill_ataio(ataio,
 		      1,
-		      probedone,
+		      aprobedone,
 		      /*flags*/CAM_DIR_IN,
 		      0,
 		      /*data_ptr*/(u_int8_t *)&softc->ident_data,
@@ -716,14 +715,14 @@ negotiate:
 		    sizeof(softc->ident_data) / 4);
 		break;
 	default:
-		panic("probestart: invalid action state 0x%x\n", softc->action);
+		panic("aprobestart: invalid action state 0x%x\n", softc->action);
 	}
 	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 	xpt_action(start_ccb);
 }
 
 static void
-proberequestdefaultnegotiation(struct cam_periph *periph)
+aproberequestdefaultnegotiation(struct cam_periph *periph)
 {
 	struct ccb_trans_settings cts;
 
@@ -740,7 +739,7 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 }
 
 static void
-probedone(struct cam_periph *periph, union ccb *done_ccb)
+aprobedone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct ccb_trans_settings cts;
 	struct ata_params *ident_buf;
@@ -755,7 +754,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 	    {0, SVPD_DEVICE_ID, 0, 12,
 	     SVPD_ID_CODESET_BINARY, SVPD_ID_TYPE_NAA, 0, 8};
 
-	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("probedone\n"));
+	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("aprobedone\n"));
 
 	softc = (probe_softc *)periph->softc;
 	path = done_ccb->ccb_h.path;
@@ -1017,7 +1016,7 @@ noerror:
 		}
 		ata_device_transport(path);
 		if (changed == 2)
-			proberequestdefaultnegotiation(periph);
+			aproberequestdefaultnegotiation(periph);
 		PROBE_SET_ACTION(softc, PROBE_SETMODE);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
@@ -1228,7 +1227,7 @@ notsata:
 		path->device->flags |= CAM_DEV_IDENTIFY_DATA_VALID;
 		ata_device_transport(path);
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED)
-			proberequestdefaultnegotiation(periph);
+			aproberequestdefaultnegotiation(periph);
 		/* Set supported bits. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1317,7 +1316,7 @@ notsata:
 		}
 		ata_device_transport(path);
 		if (changed)
-			proberequestdefaultnegotiation(periph);
+			aproberequestdefaultnegotiation(periph);
 
 		if (periph->path->device->flags & CAM_DEV_UNCONFIGURED) {
 			path->device->flags &= ~CAM_DEV_UNCONFIGURED;
@@ -1329,13 +1328,13 @@ notsata:
 		PROBE_SET_ACTION(softc, PROBE_DONE);
 		break;
 	default:
-		panic("probedone: invalid action state 0x%x\n", softc->action);
+		panic("aprobedone: invalid action state 0x%x\n", softc->action);
 	}
 done:
 	if (softc->restart) {
 		softc->restart = 0;
 		xpt_release_ccb(done_ccb);
-		probeschedule(periph);
+		aprobeschedule(periph);
 		goto out;
 	}
 	xpt_release_ccb(done_ccb);
@@ -1353,7 +1352,7 @@ done:
 }
 
 static void
-probecleanup(struct cam_periph *periph)
+aprobecleanup(struct cam_periph *periph)
 {
 	free(periph->softc, M_CAMXPT);
 }
@@ -1594,7 +1593,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			return;
 		}
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
-		request_ccb->ccb_h.cbfcnp = xptscandone;
+		request_ccb->ccb_h.cbfcnp = axptscandone;
 		request_ccb->ccb_h.flags |= CAM_UNLOCKED;
 		request_ccb->ccb_h.func_code = XPT_SCAN_LUN;
 		request_ccb->crcn.flags = flags;
@@ -1616,8 +1615,8 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_done(request_ccb);
 		}
 	} else {
-		status = cam_periph_alloc(proberegister, NULL, probecleanup,
-					  probestart, "aprobe",
+		status = cam_periph_alloc(aproberegister, NULL, aprobecleanup,
+					  aprobestart, "aprobe",
 					  CAM_PERIPH_BIO,
 					  request_ccb->ccb_h.path, NULL, 0,
 					  request_ccb);
@@ -1634,7 +1633,7 @@ ata_scan_lun(struct cam_periph *periph, struct cam_path *path,
 }
 
 static void
-xptscandone(struct cam_periph *periph, union ccb *done_ccb)
+axptscandone(struct cam_periph *periph, union ccb *done_ccb)
 {
 
 	xpt_free_path(done_ccb->ccb_h.path);
