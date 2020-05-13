@@ -47,6 +47,7 @@ epair_stress_head()
 }
 epair_stress_body()
 {
+	atf_skip "https://bugs.freebsd.org/246443"
 	do_stress "epair"
 }
 epair_stress_cleanup()
