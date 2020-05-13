@@ -132,10 +132,15 @@ void	ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
  * is to be setup then try0 should contain a value other than ATH_TXMATRY
  * and ath_rate_setupxtxdesc will be called after deciding if the frame
  * can be transmitted with multi-rate retry.
+ *
+ * maxdur is an optional return value (or -1 if not set) that defines
+ * the maximum frame duration in microseconds.  This allows the rate
+ * control selection to override the maximum duration (normally 4ms)
+ * that the packet aggregation logic makes.
  */
 void	ath_rate_findrate(struct ath_softc *, struct ath_node *,
-		int shortPreamble, size_t frameLen,
-		u_int8_t *rix, int *try0, u_int8_t *txrate);
+		int shortPreamble, size_t frameLen, int tid, bool is_aggr,
+		u_int8_t *rix, int *try0, u_int8_t *txrate, int *maxdur);
 /*
  * Setup any extended (multi-rate) descriptor state for a data packet.
  * The rate index returned by ath_rate_findrate is passed back in.

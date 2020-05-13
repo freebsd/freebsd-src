@@ -104,8 +104,8 @@ ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
-	int shortPreamble, size_t frameLen,
-	u_int8_t *rix, int *try0, u_int8_t *txrate)
+	int shortPreamble, size_t frameLen, int tid, bool is_aggr,
+	u_int8_t *rix, int *try0, u_int8_t *txrate, int *maxdur)
 {
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
 
@@ -115,6 +115,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		*txrate = amn->amn_tx_rate0sp;
 	else
 		*txrate = amn->amn_tx_rate0;
+	maxdur = -1;
 }
 
 /*
