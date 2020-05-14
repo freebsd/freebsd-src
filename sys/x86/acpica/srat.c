@@ -56,13 +56,4 @@ parse_acpi_tables(void *dummy)
 SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
     NULL);
 
-static void
-srat_set_cpus(void *dummy)
-{
-
-	acpi_pxm_set_cpu_locality();
-	acpi_pxm_free();
-}
-SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
-
 #endif /* MAXMEMDOM > 1 */
