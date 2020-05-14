@@ -75,9 +75,6 @@ long_name_body() {
 		atf_skip "Filesystem not reporting NAME_MAX; skipping testcase"
 	fi
 
-	# https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=208965
-	atf_expect_fail "BUG 208965 extattr(2) doesn't allow maxlen attr names"
-
 	ATTRNAME=`jot -b X -s "" $NAME_MAX 0`
 	touch foo
 	atf_check -s exit:0 -o empty setextattr user $ATTRNAME myvalue foo
