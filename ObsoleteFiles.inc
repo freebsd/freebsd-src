@@ -36,7 +36,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 2020xxxx: Remove ubsec(4)
+# 20200511: Remove ubsec(4)
 OLD_FILES+=usr/share/man/man4/ubsec.4.gz
 
 # 20200506: GNU objdump 2.17.50 retired
