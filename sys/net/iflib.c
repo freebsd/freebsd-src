@@ -731,7 +731,6 @@ static int iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter
 static void iflib_txq_check_drain(iflib_txq_t txq, int budget);
 static uint32_t iflib_txq_can_drain(struct ifmp_ring *);
 static int iflib_register(if_ctx_t);
-static void iflib_deregister(if_ctx_t);
 static void iflib_unregister_vlan_handlers(if_ctx_t ctx);
 static void iflib_init_locked(if_ctx_t ctx);
 static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
@@ -1596,10 +1595,8 @@ iflib_txsd_destroy(if_ctx_t ctx, iflib_txq_t txq, int i)
 {
 	bus_dmamap_t map;
 
-	map = NULL;
-	if (txq->ift_sds.ifsd_map != NULL)
+	if (txq->ift_sds.ifsd_map != NULL) {
 		map = txq->ift_sds.ifsd_map[i];
-	if (map != NULL) {
 		bus_dmamap_unload(txq->ift_desc_tag, map);
 		bus_dmamap_destroy(txq->ift_desc_tag, map);
 		txq->ift_sds.ifsd_map[i] = NULL;
@@ -2008,9 +2005,6 @@ iflib_fl_bufs_free(iflib_fl_t fl)
 			if (fl->ifl_sds.ifsd_map != NULL) {
 				bus_dmamap_t sd_map = fl->ifl_sds.ifsd_map[i];
 				bus_dmamap_unload(fl->ifl_desc_tag, sd_map);
-				// XXX: Should this get moved out?
-				if (iflib_in_detach(fl->ifl_rxq->ifr_ctx))
-					bus_dmamap_destroy(fl->ifl_desc_tag, sd_map);
 			}
 			if (*sd_m != NULL) {
 				m_init(*sd_m, M_NOWAIT, MT_DATA, 0);
@@ -4856,29 +4850,6 @@ iflib_unregister_vlan_handlers(if_ctx_t ctx)
 
 }
 
-static void
-iflib_deregister(if_ctx_t ctx)
-{
-	if_t ifp = ctx->ifc_ifp;
-
-	/* Remove all media */
-	ifmedia_removeall(&ctx->ifc_media);
-
-	/* Ensure that VLAN event handlers are unregistered */
-	iflib_unregister_vlan_handlers(ctx);
-
-	/* Release kobject reference */
-	kobj_delete((kobj_t) ctx, NULL);
-
-	/* Free the ifnet structure */
-	if_free(ifp);
-
-	STATE_LOCK_DESTROY(ctx);
-
-	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
-	CTX_LOCK_DESTROY(ctx);
-}
-
 static int
 iflib_queues_alloc(if_ctx_t ctx)
 {
@@ -5173,8 +5144,12 @@ static void
 iflib_rx_structures_free(if_ctx_t ctx)
 {
 	iflib_rxq_t rxq = ctx->ifc_rxqs;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
+	int i, j;
 
-	for (int i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
+	for (i = 0; i < ctx->ifc_softc_ctx.isc_nrxqsets; i++, rxq++) {
+		for (j = 0; j < sctx->isc_nrxqs; j++)
+			iflib_dma_free(&rxq->ifr_ifdi[j]);
 		iflib_rx_sds_free(rxq);
 	}
 	free(ctx->ifc_rxqs, M_IFLIB);
