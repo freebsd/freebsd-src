@@ -143,9 +143,16 @@ cmd_rehash()
 {
 
 	if [ $NOOP -eq 0 ]; then
-		[ -e "$CERTDESTDIR" ] && find "$CERTDESTDIR" -type link -delete
-		mkdir -p "$CERTDESTDIR"
-		mkdir -p "$BLACKLISTDESTDIR"
+		if [ -e "$CERTDESTDIR" ]; then
+			find "$CERTDESTDIR" -type link -delete
+		else
+			mkdir -p "$CERTDESTDIR"
+		fi
+		if [ -e "$BLACKLISTDESTDIR" ]; then
+			find "$BLACKLISTDESTDIR" -type link -delete
+		else
+			mkdir -p "$BLACKLISTDESTDIR"
+		fi
 	fi
 
 	do_scan create_blacklisted "$BLACKLISTPATH"
