@@ -122,6 +122,9 @@ size_t	__sallocx(const void *ptr, int flags);
 void	__dallocx(void *ptr, int flags);
 void	__sdallocx(void *ptr, size_t size, int flags);
 size_t	__nallocx(size_t size, int flags);
+
+void	*memalign(size_t, size_t) __malloc_like __alloc_align(1)
+	    __alloc_size(2);
 __END_DECLS
 
 #undef __MyBool
