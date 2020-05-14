@@ -1317,6 +1317,8 @@ pmap_pdpe_to_pde(pdp_entry_t *pdpe, vm_offset_t va)
 {
 	pd_entry_t *pde;
 
+	KASSERT((*pdpe & PG_PS) == 0,
+	    ("%s: pdpe %#lx is a leaf", __func__, *pdpe));
 	pde = (pd_entry_t *)PHYS_TO_DMAP(*pdpe & PG_FRAME);
 	return (&pde[pmap_pde_index(va)]);
 }
@@ -1341,6 +1343,8 @@ pmap_pde_to_pte(pd_entry_t *pde, vm_offset_t va)
 {
 	pt_entry_t *pte;
 
+	KASSERT((*pde & PG_PS) == 0,
+	    ("%s: pde %#lx is a leaf", __func__, *pde));
 	pte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
 	return (&pte[pmap_pte_index(va)]);
 }
