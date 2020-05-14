@@ -264,8 +264,9 @@ cpu_mp_start(void)
 	init_ops.start_all_aps();
 
 	set_interrupt_apic_ids();
-}
 
+	acpi_pxm_set_cpu_locality();
+}
 
 /*
  * AP CPU's call this to initialize themselves.

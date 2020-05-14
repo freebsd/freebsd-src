@@ -535,9 +535,7 @@ cpu_init_acpi(void)
 	acpi_unmap_table(madt);
 
 #if MAXMEMDOM > 1
-	/* set proximity info */
 	acpi_pxm_set_cpu_locality();
-	acpi_pxm_free();
 #endif
 }
 #endif
