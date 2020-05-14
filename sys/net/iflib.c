@@ -731,6 +731,8 @@ static int iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter
 static void iflib_txq_check_drain(iflib_txq_t txq, int budget);
 static uint32_t iflib_txq_can_drain(struct ifmp_ring *);
 static int iflib_register(if_ctx_t);
+static void iflib_deregister(if_ctx_t);
+static void iflib_unregister_vlan_handlers(if_ctx_t ctx);
 static void iflib_init_locked(if_ctx_t ctx);
 static void iflib_add_device_sysctl_pre(if_ctx_t ctx);
 static void iflib_add_device_sysctl_post(if_ctx_t ctx);
@@ -4546,18 +4548,16 @@ iflib_device_deregister(if_ctx_t ctx)
 	ctx->ifc_flags |= IFC_IN_DETACH;
 	STATE_UNLOCK(ctx);
 
+	/* Unregister VLAN handlers before calling iflib_stop() */
+	iflib_unregister_vlan_handlers(ctx);
+
+	iflib_netmap_detach(ifp);
+	ether_ifdetach(ifp);
+
 	CTX_LOCK(ctx);
 	iflib_stop(ctx);
 	CTX_UNLOCK(ctx);
 
-	/* Unregister VLAN events */
-	if (ctx->ifc_vlan_attach_event != NULL)
-		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
-	if (ctx->ifc_vlan_detach_event != NULL)
-		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
-
-	iflib_netmap_detach(ifp);
-	ether_ifdetach(ifp);
 	if (ctx->ifc_led_dev != NULL)
 		led_destroy(ctx->ifc_led_dev);
 	/* XXX drain any dependent tasks */
@@ -4825,6 +4825,43 @@ iflib_register(if_ctx_t ctx)
 	return (0);
 }
 
+static void
+iflib_unregister_vlan_handlers(if_ctx_t ctx)
+{
+	/* Unregister VLAN events */
+	if (ctx->ifc_vlan_attach_event != NULL) {
+		EVENTHANDLER_DEREGISTER(vlan_config, ctx->ifc_vlan_attach_event);
+		ctx->ifc_vlan_attach_event = NULL;
+	}
+	if (ctx->ifc_vlan_detach_event != NULL) {
+		EVENTHANDLER_DEREGISTER(vlan_unconfig, ctx->ifc_vlan_detach_event);
+		ctx->ifc_vlan_detach_event = NULL;
+	}
+
+}
+
+static void
+iflib_deregister(if_ctx_t ctx)
+{
+	if_t ifp = ctx->ifc_ifp;
+
+	/* Remove all media */
+	ifmedia_removeall(&ctx->ifc_media);
+
+	/* Ensure that VLAN event handlers are unregistered */
+	iflib_unregister_vlan_handlers(ctx);
+
+	/* Release kobject reference */
+	kobj_delete((kobj_t) ctx, NULL);
+
+	/* Free the ifnet structure */
+	if_free(ifp);
+
+	STATE_LOCK_DESTROY(ctx);
+
+	/* ether_ifdetach calls if_qflush - lock must be destroy afterwards*/
+	CTX_LOCK_DESTROY(ctx);
+}
 
 static int
 iflib_queues_alloc(if_ctx_t ctx)
