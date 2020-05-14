@@ -560,6 +560,18 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			}
 			break;
 
+		case CPUID_0000_0015:
+			/*
+			 * Don't report CPU TSC/Crystal ratio and clock
+			 * values since guests may use these to derive the
+			 * local APIC frequency..
+			 */
+			regs[0] = 0;
+			regs[1] = 0;
+			regs[2] = 0;
+			regs[3] = 0;
+			break;
+
 		case 0x40000000:
 			regs[0] = CPUID_VM_HIGH;
 			bcopy(bhyve_id, &regs[1], 4);
