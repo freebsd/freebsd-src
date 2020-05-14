@@ -192,6 +192,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, uma_kmem_total, CTLFLAG_RD, &uma_kmem_total, 0,
 static enum {
 	BOOT_COLD,
 	BOOT_KVA,
+	BOOT_PCPU,
 	BOOT_RUNNING,
 	BOOT_SHUTDOWN,
 } booted = BOOT_COLD;
@@ -304,7 +305,6 @@ static int hash_alloc(struct uma_hash *, u_int);
 static int hash_expand(struct uma_hash *, struct uma_hash *);
 static void hash_free(struct uma_hash *hash);
 static void uma_timeout(void *);
-static void uma_startup3(void);
 static void uma_shutdown(void);
 static void *zone_alloc_item(uma_zone_t, void *, int, int);
 static void zone_free_item(uma_zone_t, void *, void *, enum zfreeskip);
@@ -359,8 +359,6 @@ SYSCTL_COUNTER_U64(_vm_debug, OID_AUTO, trashed, CTLFLAG_RD,
 SYSCTL_COUNTER_U64(_vm_debug, OID_AUTO, skipped, CTLFLAG_RD,
     &uma_skip_cnt, "memory items skipped, not debugged");
 #endif
-
-SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
 SYSCTL_NODE(_vm, OID_AUTO, uma, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Universal Memory Allocator");
@@ -2658,9 +2656,10 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	    (UMA_ZONE_INHERIT | UMA_ZFLAG_INHERIT));
 
 out:
-	if (__predict_true(booted >= BOOT_RUNNING)) {
+	if (booted >= BOOT_PCPU) {
 		zone_alloc_counters(zone, NULL);
-		zone_alloc_sysctl(zone, NULL);
+		if (booted >= BOOT_RUNNING)
+			zone_alloc_sysctl(zone, NULL);
 	} else {
 		zone->uz_allocs = EARLY_COUNTER;
 		zone->uz_frees = EARLY_COUNTER;
@@ -2904,10 +2903,23 @@ uma_startup2(void)
 }
 
 /*
+ * Allocate counters as early as possible so that boot-time allocations are
+ * accounted more precisely.
+ */
+static void
+uma_startup_pcpu(void *arg __unused)
+{
+
+	zone_foreach_unlocked(zone_alloc_counters, NULL);
+	booted = BOOT_PCPU;
+}
+SYSINIT(uma_startup_pcpu, SI_SUB_COUNTER, SI_ORDER_ANY, uma_startup_pcpu, NULL);
+
+/*
  * Finish our initialization steps.
  */
 static void
-uma_startup3(void)
+uma_startup3(void *arg __unused)
 {
 
 #ifdef INVARIANTS
@@ -2915,7 +2927,6 @@ uma_startup3(void)
 	uma_dbg_cnt = counter_u64_alloc(M_WAITOK);
 	uma_skip_cnt = counter_u64_alloc(M_WAITOK);
 #endif
-	zone_foreach_unlocked(zone_alloc_counters, NULL);
 	zone_foreach_unlocked(zone_alloc_sysctl, NULL);
 	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
@@ -2924,6 +2935,7 @@ uma_startup3(void)
 	EVENTHANDLER_REGISTER(shutdown_post_sync, uma_shutdown, NULL,
 	    EVENTHANDLER_PRI_FIRST);
 }
+SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 
 static void
 uma_shutdown(void)
