@@ -198,6 +198,8 @@ cpu_mp_start(void)
 	start_all_aps();
 
 	set_interrupt_apic_ids();
+
+	acpi_pxm_set_cpu_locality();
 }
 
 /*
