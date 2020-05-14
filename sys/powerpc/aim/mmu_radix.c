@@ -193,7 +193,19 @@ radix_tlbie(uint8_t ric, uint8_t prs, uint16_t is, uint32_t pid, uint32_t lpid,
 	rs = ((uint64_t)pid << 32) | lpid;
 	rb = va | is | ap;
 	__asm __volatile(PPC_TLBIE_5(%0, %1, %2, %3, 1) : :
-		"r" (rb), "r" (rs), "i" (ric), "i" (prs));
+		"r" (rb), "r" (rs), "i" (ric), "i" (prs) : "memory");
+}
+
+static __inline void
+radix_tlbie_fixup(uint32_t pid, vm_offset_t va, int ap)
+{
+
+	__asm __volatile("ptesync" ::: "memory");
+	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
+	    TLBIEL_INVAL_PAGE, 0, 0, va, ap);
+	__asm __volatile("ptesync" ::: "memory");
+	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
+	    TLBIEL_INVAL_PAGE, pid, 0, va, ap);
 }
 
 static __inline void
@@ -202,6 +214,7 @@ radix_tlbie_invlpg_user_4k(uint32_t pid, vm_offset_t va)
 
 	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
 		TLBIEL_INVAL_PAGE, pid, 0, va, TLBIE_ACTUAL_PAGE_4K);
+	radix_tlbie_fixup(pid, va, TLBIE_ACTUAL_PAGE_4K);
 }
 
 static __inline void
@@ -210,6 +223,7 @@ radix_tlbie_invlpg_user_2m(uint32_t pid, vm_offset_t va)
 
 	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
 		TLBIEL_INVAL_PAGE, pid, 0, va, TLBIE_ACTUAL_PAGE_2M);
+	radix_tlbie_fixup(pid, va, TLBIE_ACTUAL_PAGE_2M);
 }
 
 static __inline void
@@ -234,6 +248,7 @@ radix_tlbie_invlpg_kernel_4k(vm_offset_t va)
 
 	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
 	    TLBIEL_INVAL_PAGE, 0, 0, va, TLBIE_ACTUAL_PAGE_4K);
+	radix_tlbie_fixup(0, va, TLBIE_ACTUAL_PAGE_4K);
 }
 
 static __inline void
@@ -242,6 +257,7 @@ radix_tlbie_invlpg_kernel_2m(vm_offset_t va)
 
 	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
 	    TLBIEL_INVAL_PAGE, 0, 0, va, TLBIE_ACTUAL_PAGE_2M);
+	radix_tlbie_fixup(0, va, TLBIE_ACTUAL_PAGE_2M);
 }
 
 /* 1GB pages aren't currently supported. */
@@ -251,6 +267,7 @@ radix_tlbie_invlpg_kernel_1g(vm_offset_t va)
 
 	radix_tlbie(TLBIE_RIC_INVALIDATE_TLB, TLBIE_PRS_PROCESS_SCOPE,
 	    TLBIEL_INVAL_PAGE, 0, 0, va, TLBIE_ACTUAL_PAGE_1G);
+	radix_tlbie_fixup(0, va, TLBIE_ACTUAL_PAGE_1G);
 }
 
 static __inline void
@@ -2757,6 +2774,7 @@ setpte:
 		pmap_pv_promote_l3e(pmap, va, newpde & PG_PS_FRAME, lockp);
 
 	pte_store(pde, PG_PROMOTED | newpde);
+	ptesync();
 	atomic_add_long(&pmap_l3e_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l3e: success for va %#lx"
 	    " in pmap %p", va, pmap);
