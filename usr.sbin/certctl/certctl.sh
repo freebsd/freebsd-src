@@ -142,9 +142,11 @@ do_list()
 cmd_rehash()
 {
 
-	[ $NOOP -eq 0 ] && rm -rf "$CERTDESTDIR"
-	[ $NOOP -eq 0 ] && mkdir -p "$CERTDESTDIR"
-	[ $NOOP -eq 0 ] && mkdir -p "$BLACKLISTDESTDIR"
+	if [ $NOOP -eq 0 ]; then
+		[ -e "$CERTDESTDIR" ] && find "$CERTDESTDIR" -type link -delete
+		mkdir -p "$CERTDESTDIR"
+		mkdir -p "$BLACKLISTDESTDIR"
+	fi
 
 	do_scan create_blacklisted "$BLACKLISTPATH"
 	do_scan create_trusted_link "$TRUSTPATH"
