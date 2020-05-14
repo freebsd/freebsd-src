@@ -1299,6 +1299,7 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		struct nvme_get_nsid *gnsid = (struct nvme_get_nsid *)arg;
 		strncpy(gnsid->cdev, device_get_nameunit(ctrlr->dev),
 		    sizeof(gnsid->cdev));
+		gnsid->cdev[sizeof(gnsid->cdev) - 1] = '\0';
 		gnsid->nsid = 0;
 		break;
 	}
@@ -1583,12 +1584,12 @@ nvme_ctrlr_resume(struct nvme_controller *ctrlr)
 		goto fail;
 
 	/*
-	 * Now that we're reset the hardware, we can restart the controller. Any
+	 * Now that we've reset the hardware, we can restart the controller. Any
 	 * I/O that was pending is requeued. Any admin commands are aborted with
 	 * an error. Once we've restarted, take the controller out of reset.
 	 */
 	nvme_ctrlr_start(ctrlr, true);
-	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
+	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 
 	return (0);
 fail:
@@ -1599,6 +1600,6 @@ fail:
 	 */
 	nvme_printf(ctrlr, "Failed to reset on resume, failing.\n");
 	nvme_ctrlr_fail(ctrlr);
-	atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
+	(void)atomic_cmpset_32(&ctrlr->is_resetting, 1, 0);
 	return (0);
 }
