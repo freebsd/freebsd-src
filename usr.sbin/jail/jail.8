@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2020
+.Dd May 14, 2020
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -726,6 +726,11 @@ not be created or removed, as appropriate.
 .Pp
 The pseudo-parameters are:
 .Bl -tag -width indent
+.It Va exec.prepare
+Command(s) to run in the system environment to prepare a jail for creation.
+These commands are executed before assigning IP addresses and mounting
+filesystems, so they may be used to create a new jail filesystem if it does
+not already exist.
 .It Va exec.prestart
 Command(s) to run in the system environment before a jail is created.
 .It Va exec.created
@@ -760,6 +765,11 @@ A typical command to run is
 .Dq sh /etc/rc.shutdown jail .
 .It Va exec.poststop
 Command(s) to run in the system environment after a jail is removed.
+.It Va exec.release
+Command(s) to run in the system environment after all other actions are done.
+These commands are executed after unmounting filesystems and removing IP
+addresses, so they may be used to remove a jail filesystem if it is no longer
+needed.
 .It Va exec.clean
 Run commands in a clean environment.
 The environment is discarded except for
