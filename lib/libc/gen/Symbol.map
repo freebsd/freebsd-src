@@ -423,6 +423,7 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
+	memalign;
 	sigandset;
 	sigisemptyset;
 	sigorset;
