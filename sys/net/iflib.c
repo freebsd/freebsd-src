@@ -1613,6 +1613,14 @@ iflib_txq_destroy(iflib_txq_t txq)
 
 	for (int i = 0; i < txq->ift_size; i++)
 		iflib_txsd_destroy(ctx, txq, i);
+
+	if (txq->ift_br != NULL) {
+		ifmp_ring_free(txq->ift_br);
+		txq->ift_br = NULL;
+	}
+
+	mtx_destroy(&txq->ift_mtx);
+
 	if (txq->ift_sds.ifsd_map != NULL) {
 		free(txq->ift_sds.ifsd_map, M_IFLIB);
 		txq->ift_sds.ifsd_map = NULL;
@@ -1632,6 +1640,9 @@ iflib_txq_destroy(iflib_txq_t txq)
 	if (txq->ift_tso_desc_tag != NULL) {
 		bus_dma_tag_destroy(txq->ift_tso_desc_tag);
 		txq->ift_tso_desc_tag = NULL;
+	}
+	if (txq->ift_ifdi != NULL) {
+		free(txq->ift_ifdi, M_IFLIB);
 	}
 }
 
@@ -2104,6 +2115,8 @@ iflib_rx_sds_free(iflib_rxq_t rxq)
 		free(rxq->ifr_fl, M_IFLIB);
 		rxq->ifr_fl = NULL;
 		rxq->ifr_cq_gen = rxq->ifr_cq_cidx = rxq->ifr_cq_pidx = 0;
+		free(rxq->ifr_ifdi, M_IFLIB);
+		rxq->ifr_ifdi = NULL;
 	}
 }
 
@@ -5095,9 +5108,9 @@ iflib_tx_structures_free(if_ctx_t ctx)
 	int i, j;
 
 	for (i = 0; i < NTXQSETS(ctx); i++, txq++) {
-		iflib_txq_destroy(txq);
 		for (j = 0; j < ctx->ifc_nhwtxqs; j++)
 			iflib_dma_free(&txq->ift_ifdi[j]);
+		iflib_txq_destroy(txq);
 	}
 	free(ctx->ifc_txqs, M_IFLIB);
 	ctx->ifc_txqs = NULL;
