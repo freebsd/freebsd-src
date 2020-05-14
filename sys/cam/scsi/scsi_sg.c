@@ -506,6 +506,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	struct cam_periph *periph;
 	struct sg_softc *softc;
 	struct sg_io_hdr *req;
+	void *data_ptr;
 	int dir, error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -550,12 +551,20 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			break;
 		}
 
+		if (req->dxfer_len > MAXPHYS) {
+			error = EINVAL;
+			break;
+		}
+
+		data_ptr = malloc(req->dxfer_len, M_DEVBUF, M_WAITOK);
+
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		csio = &ccb->csio;
 
 		error = copyin(req->cmdp, &csio->cdb_io.cdb_bytes,
 		    req->cmd_len);
 		if (error) {
+			free(data_ptr, M_DEVBUF);
 			xpt_release_ccb(ccb);
 			break;
 		}
@@ -568,7 +577,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			dir = CAM_DIR_IN;
 			break;
 		case SG_DXFER_TO_FROM_DEV:
-			dir = CAM_DIR_IN | CAM_DIR_OUT;
+			dir = CAM_DIR_BOTH;
 			break;
 		case SG_DXFER_NONE:
 		default:
@@ -576,12 +585,21 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			break;
 		}
 
+		if (dir == CAM_DIR_IN || dir == CAM_DIR_BOTH) {
+			error = copyin(req->dxferp, data_ptr, req->dxfer_len);
+			if (error) {
+				free(data_ptr, M_DEVBUF);
+				xpt_release_ccb(ccb);
+				break;
+			}
+		}
+
 		cam_fill_csio(csio,
 			      /*retries*/1,
 			      sgdone,
 			      dir|CAM_DEV_QFRZDIS,
 			      MSG_SIMPLE_Q_TAG,
-			      req->dxferp,
+			      data_ptr,
 			      req->dxfer_len,
 			      req->mx_sb_len,
 			      req->cmd_len,
@@ -591,6 +609,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		if (error) {
 			req->host_status = DID_ERROR;
 			req->driver_status = DRIVER_INVALID;
+			free(data_ptr, M_DEVBUF);
 			xpt_release_ccb(ccb);
 			break;
 		}
@@ -609,6 +628,10 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 					req->sb_len_wr);
 		}
 
+		if ((dir == CAM_DIR_OUT || dir == CAM_DIR_BOTH) && error == 0)
+			error = copyout(data_ptr, req->dxferp, req->dxfer_len);
+
+		free(data_ptr, M_DEVBUF);
 		xpt_release_ccb(ccb);
 		break;
 		
