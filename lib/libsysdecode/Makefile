@@ -123,6 +123,13 @@ CFLAGS.gcc.ioctl.c+= -Wno-redundant-decls
 # Workaround warning for unused ssi_cables[] in <dev/lmc/if_lmc.h>
 CFLAGS.gcc.ioctl.c+= -Wno-unused
 
+# Ignore deprecation warning in <sys/pioctl.h>
+CFLAGS.clang.ioctl.c+= -Wno-\#warnings
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40700
+CFLAGS.gcc.ioctl.c+= -Wno-cpp
+.endif
+
+CFLAGS.clang+=	${CFLAGS.clang.${.IMPSRC}}
 CFLAGS.gcc+=	${CFLAGS.gcc.${.IMPSRC}}
 
 DEPENDOBJS+=	tables.h
