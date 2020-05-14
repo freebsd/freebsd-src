@@ -13,6 +13,9 @@ NO_WMISSING_VARIABLE_DECLARATIONS=
 OBJS+=	crtbegin.o crtbeginS.o crtbeginT.o
 OBJS+=	crtend.o crtendS.o
 
+CFLAGS+=	-fno-asynchronous-unwind-tables
+CFLAGS+=	-fno-omit-frame-pointer
+
 CFLAGS_CRTS=	-DSHARED ${PICFLAG}
 
 crtbegin.o: crtbegin.c
