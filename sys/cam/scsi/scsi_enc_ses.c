@@ -2958,7 +2958,7 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 	ret = enc_runcmd(enc, cdb, 6, buf, &amt);
 	if (ret == 0 && ioc == ENCIOC_GETSTRING)
 		ret = copyout(buf, sstr->buf, sstr->bufsiz);
-	if (ioc == ENCIOC_SETSTRING)
+	if (ioc == ENCIOC_SETSTRING || ioc == ENCIOC_GETSTRING)
 		ENC_FREE(buf);
 	return (ret);
 }
