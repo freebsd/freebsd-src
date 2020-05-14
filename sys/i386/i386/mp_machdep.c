@@ -83,6 +83,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <x86/ucode.h>
 
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(PMAP_MAP_LOW + 0x0467)
 #define WARMBOOT_SEG		(PMAP_MAP_LOW + 0x0469)
@@ -199,7 +202,9 @@ cpu_mp_start(void)
 
 	set_interrupt_apic_ids();
 
+#if MAXMEMDOM > 1
 	acpi_pxm_set_cpu_locality();
+#endif
 }
 
 /*
