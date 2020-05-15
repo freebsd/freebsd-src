@@ -235,6 +235,15 @@ struct vm_cpu_topology {
 	uint16_t	maxcpus;
 };
 
+struct vm_readwrite_kernemu_device {
+	int		vcpuid;
+	unsigned	access_width : 3;
+	unsigned	_unused : 29;
+	uint64_t	gpa;
+	uint64_t	value;
+};
+_Static_assert(sizeof(struct vm_readwrite_kernemu_device) == 24, "ABI");
+
 enum {
 	/* general routines */
 	IOCNUM_ABIVERS = 0,
@@ -262,6 +271,8 @@ enum {
 	IOCNUM_GET_SEGMENT_DESCRIPTOR = 23,
 	IOCNUM_SET_REGISTER_SET = 24,
 	IOCNUM_GET_REGISTER_SET = 25,
+	IOCNUM_GET_KERNEMU_DEV = 26,
+	IOCNUM_SET_KERNEMU_DEV = 27,
 
 	/* interrupt injection */
 	IOCNUM_GET_INTINFO = 28,
@@ -347,6 +358,12 @@ enum {
 	_IOW('v', IOCNUM_SET_REGISTER_SET, struct vm_register_set)
 #define	VM_GET_REGISTER_SET \
 	_IOWR('v', IOCNUM_GET_REGISTER_SET, struct vm_register_set)
+#define	VM_SET_KERNEMU_DEV \
+	_IOW('v', IOCNUM_SET_KERNEMU_DEV, \
+	    struct vm_readwrite_kernemu_device)
+#define	VM_GET_KERNEMU_DEV \
+	_IOWR('v', IOCNUM_GET_KERNEMU_DEV, \
+	    struct vm_readwrite_kernemu_device)
 #define	VM_INJECT_EXCEPTION	\
 	_IOW('v', IOCNUM_INJECT_EXCEPTION, struct vm_exception)
 #define	VM_LAPIC_IRQ 		\
