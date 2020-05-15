@@ -3174,6 +3174,8 @@ OLD_DIRS+=usr/lib/clang/4.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/4.0.0/lib
 OLD_DIRS+=usr/lib/clang/4.0.0
 OLD_FILES+=usr/bin/llvm-pdbdump
+# 20170717: Remove documentation of vaporware
+OLD_FILES+=usr/share/man/man2/pdwait4.2.gz
 # 20170610: chown-f_test replaced by chown_test
 OLD_FILES+=usr/tests/usr.sbin/chown/chown-f_test
 # 20170609: drop obsolete manpage link (if_rtwn.ko -> rtwn.ko)
