@@ -139,8 +139,9 @@ void	ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
  * that the packet aggregation logic makes.
  */
 void	ath_rate_findrate(struct ath_softc *, struct ath_node *,
-		int shortPreamble, size_t frameLen, int tid, bool is_aggr,
-		u_int8_t *rix, int *try0, u_int8_t *txrate, int *maxdur);
+		int shortPreamble, size_t frameLen, int tid, int is_aggr,
+		u_int8_t *rix, int *try0, u_int8_t *txrate, int *maxdur,
+		int *maxpktlen);
 /*
  * Setup any extended (multi-rate) descriptor state for a data packet.
  * The rate index returned by ath_rate_findrate is passed back in.
@@ -159,7 +160,7 @@ void	ath_rate_setupxtxdesc(struct ath_softc *, struct ath_node *,
 struct ath_buf;
 void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
 		const struct ath_rc_series *, const struct ath_tx_status *,
-		int pktlen, int nframes, int nbad);
+		int pktlen, int rc_framelen, int nframes, int nbad);
 
 /*
  * Update rate control with a per-packet receive RSSI value.

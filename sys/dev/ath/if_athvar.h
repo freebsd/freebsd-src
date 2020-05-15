@@ -308,6 +308,7 @@ struct ath_buf {
 
 		/* 16 bit? */
 		uint32_t bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
+		int32_t bfs_rc_maxpktlen;	/* max packet length/bucket from ratectrl or -1 */
 		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
 	} bf_state;
 };
