@@ -31,6 +31,7 @@ SRCS=	\
 	hda_codec.c		\
 	inout.c			\
 	ioapic.c		\
+	kernemu_dev.c		\
 	mem.c			\
 	mevent.c		\
 	mptbl.c			\
@@ -75,6 +76,8 @@ SRCS=	\
 .if ${MK_BHYVE_SNAPSHOT} != "no"
 SRCS+=	snapshot.c
 .endif
+
+CFLAGS.kernemu_dev.c+=	-I${SRCTOP}/sys/amd64
 
 .PATH:  ${BHYVE_SYSDIR}/sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
