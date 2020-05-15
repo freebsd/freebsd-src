@@ -419,6 +419,7 @@ ar2133GetChannelMaxMinPower(struct ath_hal *ah,
             return(AH_FALSE);
     }
 #else
+    // XXX TODO: actually go implement for 11n chips!
     *maxPow = *minPow = 0;
 	return AH_FALSE;
 #endif
