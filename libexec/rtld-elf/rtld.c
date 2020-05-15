@@ -3366,6 +3366,8 @@ rtld_dlopen(const char *name, int fd, int mode)
 	    lo_flags |= RTLD_LO_NODELETE;
     if (mode & RTLD_NOLOAD)
 	    lo_flags |= RTLD_LO_NOLOAD;
+    if (mode & RTLD_DEEPBIND)
+	    lo_flags |= RTLD_LO_DEEPBIND;
     if (ld_tracing != NULL)
 	    lo_flags |= RTLD_LO_TRACE | RTLD_LO_IGNSTLS;
 
@@ -3417,6 +3419,8 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	if (globallist_next(old_obj_tail) != NULL) {
 	    /* We loaded something new. */
 	    assert(globallist_next(old_obj_tail) == obj);
+	    if ((lo_flags & RTLD_LO_DEEPBIND) != 0)
+		obj->symbolic = true;
 	    result = 0;
 	    if ((lo_flags & (RTLD_LO_EARLY | RTLD_LO_IGNSTLS)) == 0 &&
 	      obj->static_tls && !allocate_tls_offset(obj)) {
