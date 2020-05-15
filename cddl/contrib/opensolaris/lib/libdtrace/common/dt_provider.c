@@ -545,9 +545,7 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 
 	for (pip = prp->pr_inst; pip != NULL; pip = pip->pi_next) {
 		if (strcmp(pip->pi_fname, fname) == 0 &&
-		    ((rname == NULL && pip->pi_rname == NULL) ||
-		    (rname != NULL && pip->pi_rname != NULL &&
-		    strcmp(pip->pi_rname, rname) == 0)))
+		    strcmp(pip->pi_rname, rname) == 0)
 			break;
 	}
 
@@ -565,7 +563,7 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 		if ((pip->pi_fname = strdup(fname)) == NULL)
 			goto nomem;
 
-		if (rname != NULL && (pip->pi_rname = strdup(rname)) == NULL)
+		if ((pip->pi_rname = strdup(rname)) == NULL)
 			goto nomem;
 
 		pip->pi_noffs = 0;
@@ -605,7 +603,7 @@ dt_probe_define(dt_provider_t *pvp, dt_probe_t *prp,
 	dt_dprintf("defined probe %s %s:%s %s() +0x%x (%s)\n",
 	    isenabled ? "(is-enabled)" : "",
 	    pvp->pv_desc.dtvd_name, prp->pr_ident->di_name, fname, offset,
-	    rname != NULL ? rname : fname);
+	    rname);
 
 	assert(*noffs < *maxoffs);
 	(*offs)[(*noffs)++] = offset;
