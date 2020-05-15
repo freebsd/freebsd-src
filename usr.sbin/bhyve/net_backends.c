@@ -438,8 +438,6 @@ ng_init(struct net_backend *be, const char *devname,
 	path_provided = 0;
 	peerhook_provided = 0;
 
-	(void)strsep(&ngopts, ",");
-
 	while (ngopts != NULL) {
 		char *value = ngopts;
 		char *key;
