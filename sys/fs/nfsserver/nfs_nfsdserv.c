@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
  * For nfsv4, these functions are called for each Op within the Compound RPC.
  */
 
-#ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
 /* Global vars */
@@ -56,7 +55,6 @@ extern struct timeval nfsboottime;
 extern int nfs_rootfhset;
 extern int nfsrv_enable_crossmntpt;
 extern int nfsrv_statehashsize;
-#endif	/* !APPLEKEXT */
 
 static int	nfs_async = 0;
 SYSCTL_DECL(_vfs_nfsd);
