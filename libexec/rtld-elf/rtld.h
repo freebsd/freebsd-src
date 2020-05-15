@@ -309,6 +309,7 @@ TAILQ_HEAD(obj_entry_q, Struct_Obj_Entry);
 #define	RTLD_LO_EARLY	0x20	/* Do not call ctors, postpone it to the
 				   initialization during the image start. */
 #define	RTLD_LO_IGNSTLS 0x40	/* Do not allocate static TLS */
+#define	RTLD_LO_DEEPBIND 0x80	/* Force symbolic for this object */
 
 /*
  * Symbol cache entry used during relocation to avoid multiple lookups

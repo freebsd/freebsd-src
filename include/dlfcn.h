@@ -47,6 +47,8 @@
 #define	RTLD_TRACE	0x200	/* Trace loaded objects and exit. */
 #define	RTLD_NODELETE	0x01000	/* Do not remove members. */
 #define	RTLD_NOLOAD	0x02000	/* Do not load if not already loaded. */
+#define	RTLD_DEEPBIND	0x04000	/* Put symbols from the dso ahead of
+				   the global list */
 
 /*
  * Request arguments for dlinfo().
