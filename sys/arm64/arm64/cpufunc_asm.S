@@ -133,14 +133,6 @@ ENTRY(arm64_dcache_inv_range)
 END(arm64_dcache_inv_range)
 
 /*
- * void arm64_idcache_wbinv_range(vm_offset_t, vm_size_t)
- */
-ENTRY(arm64_idcache_wbinv_range)
-	cache_handle_range	dcop = civac, ic = 1, icop = ivau
-	ret
-END(arm64_idcache_wbinv_range)
-
-/*
  * void arm64_icache_sync_range(vm_offset_t, vm_size_t)
  */
 ENTRY(arm64_icache_sync_range)
