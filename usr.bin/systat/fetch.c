@@ -60,9 +60,11 @@ kvm_ckread(void *a, void *b, int l)
 		return (1);
 }
 
-void getsysctl(const char *name, void *ptr, size_t len)
+void
+getsysctl(const char *name, void *ptr, size_t len)
 {
 	size_t nlen = len;
+
 	if (sysctlbyname(name, ptr, &nlen, NULL, 0) != 0) {
 		error("sysctl(%s...) failed: %s", name,
 		    strerror(errno));
