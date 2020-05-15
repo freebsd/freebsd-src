@@ -3873,6 +3873,7 @@ skip_measurement:
 	 * the next send will trigger us picking up the missing data.
 	 */
 	if (rack->r_ctl.rc_first_appl &&
+	    TCPS_HAVEESTABLISHED(tp->t_state) &&
 	    rack->r_ctl.rc_app_limited_cnt &&
 	    (SEQ_GT(rack->r_ctl.rc_first_appl->r_start, th_ack)) &&
 	    ((rack->r_ctl.rc_first_appl->r_start - th_ack) >
@@ -11741,6 +11742,13 @@ rack_start_gp_measurement(struct tcpcb *tp, struct tcp_rack *rack,
 	struct rack_sendmap *my_rsm = NULL;
 	struct rack_sendmap fe;
 
+	if (tp->t_state < TCPS_ESTABLISHED) {
+		/*
+		 * We don't start any measurements if we are
+		 * not at least established.
+		 */
+		return;
+	}
 	tp->t_flags |= TF_GPUTINPROG;
 	rack->r_ctl.rc_gp_lowrtt = 0xffffffff;
 	rack->r_ctl.rc_gp_high_rwnd = rack->rc_tp->snd_wnd;
@@ -12109,8 +12117,10 @@ rack_output(struct tcpcb *tp)
 	    ((tp->t_state == TCPS_SYN_RECEIVED) ||
 	     (tp->t_state == TCPS_SYN_SENT)) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) && /* initial SYN or SYN|ACK sent */
-	    (tp->t_rxtshift == 0))              /* not a retransmit */
-		return (0);
+	    (tp->t_rxtshift == 0)) {              /* not a retransmit */
+		cwnd_to_use = rack->r_ctl.cwnd_to_use = tp->snd_cwnd;
+		goto just_return_nolock;
+	}
 	/*
 	 * Determine length of data that should be transmitted, and flags
 	 * that will be used. If there is some data or critical controls

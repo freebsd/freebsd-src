@@ -466,7 +466,14 @@ ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt)
 uint32_t
 ctf_outstanding(struct tcpcb *tp)
 {
-	return(tp->snd_max - tp->snd_una);
+	uint32_t bytes_out;
+
+	bytes_out = tp->snd_max - tp->snd_una;
+	if (tp->t_state < TCPS_ESTABLISHED)
+		bytes_out++;
+	if (tp->t_flags & TF_SENTFIN)
+		bytes_out++;
+	return (bytes_out);
 }
 
 uint32_t
