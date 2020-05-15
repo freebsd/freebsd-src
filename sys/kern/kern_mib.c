@@ -238,8 +238,9 @@ sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
 
 	if (req->flags & SCTL_MASK32) {
 		/*
-		 * Recreate the "pagesizes" array with 32-bit elements.  Truncate
-		 * any page size greater than UINT32_MAX to zero.
+		 * Recreate the "pagesizes" array with 32-bit elements.
+		 * Truncate any page size greater than UINT32_MAX to zero,
+		 * which assumes that page sizes are powers of two.
 		 */
 		for (i = 0; i < MAXPAGESIZES; i++)
 			pagesizes32[i] = (uint32_t)pagesizes[i];
