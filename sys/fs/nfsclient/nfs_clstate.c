@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
  *     (Since we are done with them, they do not need to be recovered.)
  */
 
-#ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
 /*
@@ -98,7 +97,6 @@ int nfscl_inited = 0;
 struct nfsclhead nfsclhead;	/* Head of clientid list */
 int nfscl_deleghighwater = NFSCLDELEGHIGHWATER;
 int nfscl_layouthighwater = NFSCLLAYOUTHIGHWATER;
-#endif	/* !APPLEKEXT */
 
 static int nfscl_delegcnt = 0;
 static int nfscl_layoutcnt = 0;

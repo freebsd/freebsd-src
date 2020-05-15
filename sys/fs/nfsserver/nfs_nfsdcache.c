@@ -158,7 +158,6 @@ __FBSDID("$FreeBSD$");
  *	that case. This level should be set high enough that this almost
  *	never happens.
  */
-#ifndef APPLEKEXT
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstatsv1 nfsstatsv1;
@@ -166,7 +165,6 @@ extern struct mtx nfsrc_udpmtx;
 extern struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
 extern struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
 int nfsrc_floodlevel = NFSRVCACHE_FLOODLEVEL, nfsrc_tcpsavedreplies = 0;
-#endif	/* !APPLEKEXT */
 
 SYSCTL_DECL(_vfs_nfsd);
 
