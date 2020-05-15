@@ -41,7 +41,15 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 void
-sysputstrs(WINDOW *wnd, int row, int col, int width)
+sysputspaces(WINDOW *wd, int row, int col, int width)
+{
+	static char str40[] = "                                        ";
+
+	mvwaddstr(wd, row, col, str40 + sizeof(str40) - width - 1);
+}
+
+void
+sysputstrs(WINDOW *wd, int row, int col, int width)
 {
 	static char str40[] = "****************************************";
 
@@ -49,7 +57,7 @@ sysputstrs(WINDOW *wnd, int row, int col, int width)
 }
 
 void
-sysputuint64(WINDOW *wnd, int row, int col, int width, uint64_t val, int flags)
+sysputuint64(WINDOW *wd, int row, int col, int width, uint64_t val, int flags)
 {
 	char unit, *ptr, *start, wrtbuf[width + width + 1];
 	int len;
@@ -69,9 +77,42 @@ sysputuint64(WINDOW *wnd, int row, int col, int width, uint64_t val, int flags)
 		memset(wrtbuf + len, ' ', width - len);
 	start += len;
 
-	mvwaddstr(wnd, row, col, start);
+	mvwaddstr(wd, row, col, start);
 	return;
 
 error:
-	sysputstrs(wnd, row, col, width);
+	sysputstrs(wd, row, col, width);
+}
+
+void
+sysputwuint64(WINDOW *wd, int row, int col, int width, uint64_t val, int flags)
+{
+	if(val == 0)
+		sysputspaces(wd, row, col, width);
+	else
+		sysputuint64(wd, row, col, width, val, flags);
+}
+
+static int
+calc_page_shift()
+{
+	u_int page_size;
+	int shifts;
+
+	shifts = 0;
+	GETSYSCTL("vm.stats.vm.v_page_size", page_size);
+	for(; page_size > 1; page_size >>= 1)
+		shifts++;
+	return shifts;
+}
+
+void
+sysputpage(WINDOW *wd, int row, int col, int width, uint64_t pages, int flags)
+{
+	static int shifts = 0;
+
+	if (shifts == 0)
+		shifts = calc_page_shift();
+	pages <<= shifts;
+	sysputuint64(wd, row, col, width, pages, flags);
 }
