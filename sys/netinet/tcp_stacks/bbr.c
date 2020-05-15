@@ -4975,6 +4975,15 @@ bbr_remxt_tmr(struct tcpcb *tp)
 			rsm->r_flags &= ~(BBR_ACKED | BBR_SACK_PASSED | BBR_WAS_SACKPASS);
 			bbr_log_type_rsmclear(bbr, cts, rsm, old_flags, __LINE__);
 		} else {
+			if ((tp->t_state < TCPS_ESTABLISHED) &&
+			    (rsm->r_start == tp->snd_una)) {
+				/*
+				 * Special case for TCP FO. Where
+				 * we sent more data beyond the snd_max.
+				 * We don't mark that as lost and stop here.
+				 */
+				break;
+			}
 			if ((rsm->r_flags & BBR_MARKED_LOST) == 0) {
 				bbr->r_ctl.rc_lost += rsm->r_end - rsm->r_start;
 				bbr->r_ctl.rc_lost_bytes += rsm->r_end - rsm->r_start;
@@ -12315,7 +12324,8 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	     (tp->t_state == TCPS_SYN_SENT)) &&
 	    SEQ_GT(tp->snd_max, tp->snd_una) &&	/* initial SYN or SYN|ACK sent */
 	    (tp->t_rxtshift == 0)) {	/* not a retransmit */
-		return (0);
+		len = 0;
+		goto just_return_nolock;
 	}
 	/*
 	 * Before sending anything check for a state update. For hpts
@@ -14286,6 +14296,7 @@ nomore:
 	    (hw_tls == 0) &&
 	    (len > 0) &&
 	    ((flags & TH_RST) == 0) &&
+	    ((flags & TH_SYN) == 0) &&
 	    (IN_RECOVERY(tp->t_flags) == 0) &&
 	    (bbr->rc_in_persist == 0) &&
 	    (tot_len < bbr->r_ctl.rc_pace_max_segs)) {
