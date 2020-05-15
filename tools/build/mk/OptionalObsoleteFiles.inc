@@ -9648,7 +9648,6 @@ OLD_FILES+=usr/share/man/man4/uark.4.gz
 OLD_FILES+=usr/share/man/man4/uart.4.gz
 OLD_FILES+=usr/share/man/man4/uath.4.gz
 OLD_FILES+=usr/share/man/man4/ubsa.4.gz
-OLD_FILES+=usr/share/man/man4/ubsec.4.gz
 OLD_FILES+=usr/share/man/man4/ubser.4.gz
 OLD_FILES+=usr/share/man/man4/ubtbcmfw.4.gz
 OLD_FILES+=usr/share/man/man4/uchcom.4.gz
