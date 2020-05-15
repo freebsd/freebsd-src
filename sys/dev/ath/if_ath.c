@@ -4301,7 +4301,7 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 void
 ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_rc_series *rc, struct ath_tx_status *ts, int frmlen,
-    int nframes, int nbad)
+    int rc_framelen, int nframes, int nbad)
 {
 	struct ath_node *an;
 
@@ -4317,9 +4317,11 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * see about handling it (eg see how many attempts were
 	 * made before it got filtered and account for that.)
 	 */
+
 	if ((ts->ts_status & HAL_TXERR_FILT) == 0) {
 		ATH_NODE_LOCK(an);
-		ath_rate_tx_complete(sc, an, rc, ts, frmlen, nframes, nbad);
+		ath_rate_tx_complete(sc, an, rc, ts, frmlen, rc_framelen,
+		    nframes, nbad);
 		ATH_NODE_UNLOCK(an);
 	}
 }
@@ -4366,7 +4368,9 @@ ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
 			 */
 			ath_tx_update_ratectrl(sc, ni,
 			     bf->bf_state.bfs_rc, ts,
-			    bf->bf_state.bfs_pktlen, 1,
+			    bf->bf_state.bfs_pktlen,
+			    bf->bf_state.bfs_pktlen,
+			    1,
 			    (ts->ts_status == 0 ? 0 : 1));
 		}
 		ath_tx_default_comp(sc, bf, 0);

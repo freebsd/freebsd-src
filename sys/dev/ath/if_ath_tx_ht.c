@@ -840,16 +840,25 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		goto finish;
 	}
 
+	/*
+	 * Limit the maximum number of frames in this A-MPDU
+	 * to half of the window size.  This is done to prevent
+	 * sending a LOT of frames that may fail in one batch
+	 * when operating in higher MCS rates.  If there are more
+	 * frames available to send then up to two A-MPDUs will
+	 * be queued per hardware queue, so we'll "just" get
+	 * a second A-MPDU.
+	 */
 	h_baw = tap->txa_wnd / 2;
 
 	for (;;) {
 		bf = ATH_TID_FIRST(tid);
-		if (bf_first == NULL)
-			bf_first = bf;
 		if (bf == NULL) {
 			status = ATH_AGGR_DONE;
 			break;
-		} else {
+		}
+		if (bf_first == NULL) {
+			bf_first = bf;
 			/*
 			 * It's the first frame;
 			 * set the aggregation limit based on the
@@ -857,6 +866,10 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 			 */
 			aggr_limit = ath_get_aggr_limit(sc, &an->an_node,
 			    bf_first);
+			if (bf_first->bf_state.bfs_rc_maxpktlen > 0) {
+				aggr_limit = MIN(aggr_limit,
+				    bf_first->bf_state.bfs_rc_maxpktlen);
+			}
 		}
 
 		/* Set this early just so things don't get confused */
@@ -1022,6 +1035,10 @@ finish:
 	 * dequeue a packet ..
 	 */
 	if (bf_first) {
+		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
+		"%s: al=%d bytes; requested %d bytes\n",
+		__func__, al, bf_first->bf_state.bfs_rc_maxpktlen);
+
 		bf_first->bf_state.bfs_al = al;
 		bf_first->bf_state.bfs_nframes = nframes;
 	}
