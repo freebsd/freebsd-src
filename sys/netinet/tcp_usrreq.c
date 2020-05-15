@@ -1037,6 +1037,12 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				error = EINVAL;
 				goto out;
 			}
+			if ((inp->inp_vflag & INP_IPV6PROTO) == 0) {
+				if (m != NULL)
+					m_freem(m);
+				error = EAFNOSUPPORT;
+				goto out;
+			}
 			if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 				if (m)
 					m_freem(m);
