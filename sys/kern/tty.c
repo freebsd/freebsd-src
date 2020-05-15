@@ -1818,7 +1818,6 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		tp->t_session = p->p_session;
 		tp->t_session->s_ttyp = tp;
 		tp->t_sessioncnt++;
-		sx_xunlock(&proctree_lock);
 
 		/* Assign foreground process group. */
 		tp->t_pgrp = p->p_pgrp;
@@ -1826,6 +1825,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		p->p_flag |= P_CONTROLT;
 		PROC_UNLOCK(p);
 
+		sx_xunlock(&proctree_lock);
 		return (0);
 	}
 	case TIOCSPGRP: {
