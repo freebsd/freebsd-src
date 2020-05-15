@@ -358,7 +358,6 @@ pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
 			if (best_rate_pct > (pct + 50))
 				continue;
 		}
-#if 1
 		/*
 		 * For non-MCS rates, use the current average txtime for
 		 * comparison.
