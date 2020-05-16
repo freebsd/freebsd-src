@@ -737,7 +737,7 @@ targbherror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 #endif
 
 static struct targbh_cmd_desc*
-targbhallocdescr()
+targbhallocdescr(void)
 {
 	struct targbh_cmd_desc* descr;
 

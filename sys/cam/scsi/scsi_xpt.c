@@ -649,7 +649,7 @@ static struct xpt_proto scsi_proto = {
 CAM_XPT_PROTO(scsi_proto);
 
 static void
-probe_periph_init()
+probe_periph_init(void)
 {
 }
 

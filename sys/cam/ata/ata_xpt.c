@@ -270,7 +270,7 @@ CAM_XPT_PROTO(ata_proto_satapm);
 CAM_XPT_PROTO(ata_proto_semb);
 
 static void
-aprobe_periph_init()
+aprobe_periph_init(void)
 {
 }
 
