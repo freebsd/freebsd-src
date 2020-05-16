@@ -68,6 +68,9 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 		(_ctl)->data = dm; \
 		(_ctl)->stcb = (in_it); \
 		(_ctl)->port_from = (in_it)->rport; \
+		if ((in_it)->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) { \
+			(_ctl)->do_not_ref_stcb = 1; \
+		}\
 	} \
 } while (0)
 
