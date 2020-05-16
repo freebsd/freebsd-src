@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2020
+.Dd May 16, 2020
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -128,7 +128,7 @@ Enables implicit PROT_MAX application,
 even if it is disabled system-wide by the sysctl
 .Va vm.imply_prot_max .
 The image flag might still prevent the enablement.
-.It Dv PROC_ASLR_FORCE_DISABLE
+.It Dv PROC_PROTMAX_FORCE_DISABLE
 Request that implicit application of PROT_MAX be disabled.
 Same notes as for
 .Dv PROC_PROTMAX_FORCE_ENABLE
