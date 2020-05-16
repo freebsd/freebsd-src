@@ -354,7 +354,7 @@ device_is_queued(struct cam_ed *device)
 }
 
 static void
-xpt_periph_init()
+xpt_periph_init(void)
 {
 	make_dev(&xpt_cdevsw, 0, UID_ROOT, GID_OPERATOR, 0600, "xpt0");
 }
@@ -4669,7 +4669,7 @@ xpt_done_direct(union ccb *done_ccb)
 }
 
 union ccb *
-xpt_alloc_ccb()
+xpt_alloc_ccb(void)
 {
 	union ccb *new_ccb;
 
@@ -4678,7 +4678,7 @@ xpt_alloc_ccb()
 }
 
 union ccb *
-xpt_alloc_ccb_nowait()
+xpt_alloc_ccb_nowait(void)
 {
 	union ccb *new_ccb;
 
