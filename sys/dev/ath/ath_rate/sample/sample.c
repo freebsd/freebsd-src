@@ -168,7 +168,7 @@ static int ath_rate_sample_max_4ms_framelen[4][32] = {
  */
 static int
 ath_rate_sample_find_min_pktlength(struct ath_softc *sc,
-    struct ath_node *an, uint8_t rix0)
+    struct ath_node *an, uint8_t rix0, int is_aggr)
 {
 #define	MCS_IDX(ix)		(rt->info[ix].dot11Rate)
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
@@ -196,6 +196,24 @@ ath_rate_sample_find_min_pktlength(struct ath_softc *sc,
 	 * is not zero.
 	 *
 	 * Note: assuming all four PHYs are HT!
+	 *
+	 * XXX TODO: right now I hardcode here and in getxtxrates() that
+	 * rates 2 and 3 in the tx schedule are ignored.  This is important
+	 * for forming larger aggregates because right now (a) the tx schedule
+	 * per rate is fixed, and (b) reliable packet transmission at those
+	 * higher rates kinda needs a lower MCS rate in there somewhere.
+	 * However, this means we can only form shorter aggregates.
+	 * If we've negotiated aggregation then we can actually just
+	 * rely on software retransmit rather than having things fall
+	 * back to like MCS0/1 in hardware, and rate control will hopefully
+	 * do the right thing.
+	 *
+	 * Once the whole rate schedule is passed into ath_rate_findrate(),
+	 * the ath_rc_series is populated ,the fixed tx schedule stuff
+	 * is removed AND getxtxrates() is removed then we can remove this
+	 * check as it can just NOT populate t2/t3.  It also means
+	 * probing can actually use rix0 for probeing and rix1 for the
+	 * current best rate..
 	 */
 	if (sched->t0 != 0) {
 		max_pkt_length = MIN(max_pkt_length,
@@ -205,11 +223,11 @@ ath_rate_sample_find_min_pktlength(struct ath_softc *sc,
 		max_pkt_length = MIN(max_pkt_length,
 		    ath_rate_sample_max_4ms_framelen[idx][MCS_IDX(sched->r1)]);
 	}
-	if (sched->t2 != 0) {
+	if (sched->t2 != 0 && (! is_aggr)) {
 		max_pkt_length = MIN(max_pkt_length,
 		    ath_rate_sample_max_4ms_framelen[idx][MCS_IDX(sched->r2)]);
 	}
-	if (sched->t3 != 0) {
+	if (sched->t3 != 0 && (! is_aggr)) {
 		max_pkt_length = MIN(max_pkt_length,
 		    ath_rate_sample_max_4ms_framelen[idx][MCS_IDX(sched->r3)]);
 	}
@@ -691,7 +709,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	 * need to potentially update our maximum packet length
 	 * and size_bin if we're doing 11n rates.
 	 */
-	max_pkt_len = ath_rate_sample_find_min_pktlength(sc, an, best_rix);
+	max_pkt_len = ath_rate_sample_find_min_pktlength(sc, an, best_rix,
+	    is_aggr);
 	if (max_pkt_len > 0) {
 #if 0
 		device_printf(sc->sc_dev,
@@ -769,9 +788,9 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			int cur_rix = sn->current_rix[size_bin];
 			int cur_att = sn->stats[size_bin][cur_rix].average_tx_time;
 			/*
-			 * If the node is HT, upgrade it if the MCS rate without
-			 * the stream is higher and the average tx time is
-			 * within 10% of the current rate. It can fail a little.
+			 * If the node is HT, it if the rate isn't the
+			 * same and the average tx time is within 10%
+			 * of the current rate. It can fail a little.
 			 *
 			 * This is likely not optimal!
 			 */
@@ -780,7 +799,6 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			    MCS(cur_rix), cur_att, MCS(best_rix), average_tx_time);
 #endif
 			if ((best_rix != cur_rix) &&
-			    ((MCS(best_rix) & 0x7) >= (MCS(cur_rix) & 0x7)) &&
 			    (average_tx_time * 9) <= (cur_att * 10)) {
 				IEEE80211_NOTE(an->an_node.ni_vap,
 				    IEEE80211_MSG_RATECTL, &an->an_node,
@@ -864,7 +882,7 @@ done:
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, struct ath_rc_series *rc)
+    uint8_t rix0, int is_aggr, struct ath_rc_series *rc)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const struct txschedule *sched = &sn->sched[rix0];
@@ -881,8 +899,13 @@ ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
 
 	rc[0].tries = sched->t0;
 	rc[1].tries = sched->t1;
-	rc[2].tries = sched->t2;
-	rc[3].tries = sched->t3;
+
+	if (is_aggr) {
+		rc[2].tries = rc[3].tries = 0;
+	} else {
+		rc[2].tries = sched->t2;
+		rc[3].tries = sched->t3;
+	}
 }
 
 void
@@ -940,8 +963,14 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	if (status != 0)
 		nbad = nframes;
 
-	tt = calc_usecs_unicast_packet(sc, size, rix0, short_tries,
-		MIN(tries0, tries) - 1, is_ht40);
+	/*
+	 * Ignore short tries count as contributing to failure.
+	 * Right now there's no way to know if it's part of any
+	 * given rate attempt, and outside of the RTS/CTS management
+	 * rate, it doesn't /really/ help.
+	 */
+	tt = calc_usecs_unicast_packet(sc, size, rix0,
+	    0 /* short_tries */, MIN(tries0, tries) - 1, is_ht40);
 	tries_so_far = tries0;
 
 	if (sn->stats[size_bin][rix0].total_packets < ssc->smoothing_minpackets) {

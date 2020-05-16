@@ -1401,7 +1401,7 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf, int tid,
 
 	if (bf->bf_state.bfs_ismrr && try0 != ATH_TXMAXTRY)
 		ath_rate_getxtxrates(sc, ATH_NODE(bf->bf_node), rix,
-		    bf->bf_state.bfs_rc);
+		    is_aggr, bf->bf_state.bfs_rc);
 	ATH_NODE_UNLOCK(ATH_NODE(bf->bf_node));
 
 	sc->sc_txrix = rix;	/* for LED blinking */
