@@ -127,6 +127,8 @@ struct pfr_walktree {
 static MALLOC_DEFINE(M_PFTABLE, "pf_table", "pf(4) tables structures");
 VNET_DEFINE_STATIC(uma_zone_t, pfr_kentry_z);
 #define	V_pfr_kentry_z		VNET(pfr_kentry_z)
+VNET_DEFINE_STATIC(uma_zone_t, pfr_kentry_counter_z);
+#define	V_pfr_kentry_counter_z	VNET(pfr_kentry_counter_z)
 
 static struct pf_addr	 pfr_ffaddr = {
 	.addr32 = { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff }
@@ -144,12 +146,8 @@ static void		 pfr_mark_addrs(struct pfr_ktable *);
 static struct pfr_kentry
 			*pfr_lookup_addr(struct pfr_ktable *,
 			    struct pfr_addr *, int);
-static bool		 pfr_create_kentry_counter(struct pfr_kentry *, int,
-			    int);
 static struct pfr_kentry *pfr_create_kentry(struct pfr_addr *, bool);
 static void		 pfr_destroy_kentries(struct pfr_kentryworkq *);
-static void		 pfr_destroy_kentry_counter(struct pfr_kcounters *,
-			    int, int);
 static void		 pfr_destroy_kentry(struct pfr_kentry *);
 static void		 pfr_insert_kentries(struct pfr_ktable *,
 			    struct pfr_kentryworkq *, long);
@@ -205,6 +203,9 @@ void
 pfr_initialize(void)
 {
 
+	V_pfr_kentry_counter_z = uma_zcreate("pf table entry counters",
+	    PFR_NUM_COUNTERS * sizeof(uint64_t), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 	V_pfr_kentry_z = uma_zcreate("pf table entries",
 	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
@@ -217,6 +218,7 @@ pfr_cleanup(void)
 {
 
 	uma_zdestroy(V_pfr_kentry_z);
+	uma_zdestroy(V_pfr_kentry_counter_z);
 }
 
 int
@@ -785,27 +787,11 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	return (ke);
 }
 
-static bool
-pfr_create_kentry_counter(struct pfr_kentry *ke, int pfr_dir, int pfr_op)
-{
-	counter_u64_t c;
-
-	c = counter_u64_alloc(M_NOWAIT);
-	if (c == NULL)
-		return (false);
-	ke->pfrke_counters.pfrkc_packets[pfr_dir][pfr_op] = c;
-	c = counter_u64_alloc(M_NOWAIT);
-	if (c == NULL)
-		return (false);
-	ke->pfrke_counters.pfrkc_bytes[pfr_dir][pfr_op] = c;
-	return (true);
-}
-
 static struct pfr_kentry *
 pfr_create_kentry(struct pfr_addr *ad, bool counters)
 {
 	struct pfr_kentry	*ke;
-	int pfr_dir, pfr_op;
+	counter_u64_t		 c;
 
 	ke = uma_zalloc(V_pfr_kentry_z, M_NOWAIT | M_ZERO);
 	if (ke == NULL)
@@ -819,15 +805,14 @@ pfr_create_kentry(struct pfr_addr *ad, bool counters)
 	ke->pfrke_net = ad->pfra_net;
 	ke->pfrke_not = ad->pfra_not;
 	ke->pfrke_counters.pfrkc_tzero = 0;
-	if (counters)
-		for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir++)
-			for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX; pfr_op++) {
-				if (!pfr_create_kentry_counter(ke, pfr_dir,
-				    pfr_op)) {
-					pfr_destroy_kentry(ke);
-					return (NULL);
-				}
-			}
+	if (counters) {
+		c = uma_zalloc_pcpu(V_pfr_kentry_counter_z, M_NOWAIT | M_ZERO);
+		if (c == NULL) {
+			pfr_destroy_kentry(ke);
+			return (NULL);
+		}
+		ke->pfrke_counters.pfrkc_counters = c;
+	}
 	return (ke);
 }
 
@@ -843,26 +828,12 @@ pfr_destroy_kentries(struct pfr_kentryworkq *workq)
 }
 
 static void
-pfr_destroy_kentry_counter(struct pfr_kcounters *kc, int pfr_dir, int pfr_op)
+pfr_destroy_kentry(struct pfr_kentry *ke)
 {
 	counter_u64_t c;
 
-	if ((c = kc->pfrkc_packets[pfr_dir][pfr_op]) != NULL)
-		counter_u64_free(c);
-	if ((c = kc->pfrkc_bytes[pfr_dir][pfr_op]) != NULL)
-		counter_u64_free(c);
-}
-
-static void
-pfr_destroy_kentry(struct pfr_kentry *ke)
-{
-	int pfr_dir, pfr_op;
-
-	for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir ++)
-		for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX; pfr_op ++)
-			pfr_destroy_kentry_counter(&ke->pfrke_counters,
-			    pfr_dir, pfr_op);
-
+	if ((c = ke->pfrke_counters.pfrkc_counters) != NULL)
+		uma_zfree_pcpu(V_pfr_kentry_counter_z, c);
 	uma_zfree(V_pfr_kentry_z, ke);
 }
 
@@ -935,28 +906,19 @@ pfr_clean_node_mask(struct pfr_ktable *kt,
 }
 
 static void
-pfr_clear_kentry_counters(struct pfr_kentry *p, int pfr_dir, int pfr_op)
-{
-	counter_u64_zero(p->pfrke_counters.pfrkc_packets[pfr_dir][pfr_op]);
-	counter_u64_zero(p->pfrke_counters.pfrkc_bytes[pfr_dir][pfr_op]);
-}
-
-static void
 pfr_clstats_kentries(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
     long tzero, int negchange)
 {
 	struct pfr_kentry	*p;
-	int			pfr_dir, pfr_op;
+	int			 i;
 
 	SLIST_FOREACH(p, workq, pfrke_workq) {
 		if (negchange)
 			p->pfrke_not = !p->pfrke_not;
 		if ((kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0)
-			for (pfr_dir = 0; pfr_dir < PFR_DIR_MAX; pfr_dir++)
-				for (pfr_op = 0; pfr_op < PFR_OP_ADDR_MAX;
-				    pfr_op++)
-					pfr_clear_kentry_counters(p, pfr_dir,
-					    pfr_op);
+			for (i = 0; i < PFR_NUM_COUNTERS; i++)
+				counter_u64_zero(
+				    p->pfrke_counters.pfrkc_counters + i);
 		p->pfrke_counters.pfrkc_tzero = tzero;
 	}
 }
@@ -1077,12 +1039,12 @@ pfr_copyout_astats(struct pfr_astats *as, const struct pfr_kentry *ke,
 		return;
 	}
 
-	for (dir = 0; dir < PFR_DIR_MAX; dir ++) {
+	for (dir = 0; dir < PFR_DIR_MAX; dir++) {
 		for (op = 0; op < PFR_OP_ADDR_MAX; op ++) {
-			as->pfras_packets[dir][op] =
-			    counter_u64_fetch(kc->pfrkc_packets[dir][op]);
-			as->pfras_bytes[dir][op] =
-			    counter_u64_fetch(kc->pfrkc_bytes[dir][op]);
+			as->pfras_packets[dir][op] = counter_u64_fetch(
+			    pfr_kentry_counter(kc, dir, op, PFR_TYPE_PACKETS));
+			as->pfras_bytes[dir][op] = counter_u64_fetch(
+			    pfr_kentry_counter(kc, dir, op, PFR_TYPE_BYTES));
 		}
 	}
 }
@@ -2147,10 +2109,10 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	counter_u64_add(kt->pfrkt_bytes[dir_out][op_pass], len);
 	if (ke != NULL && op_pass != PFR_OP_XPASS &&
 	    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS)) {
-		counter_u64_add(ke->pfrke_counters.
-		    pfrkc_packets[dir_out][op_pass], 1);
-		counter_u64_add(ke->pfrke_counters.
-		    pfrkc_bytes[dir_out][op_pass], len);
+		counter_u64_add(pfr_kentry_counter(&ke->pfrke_counters,
+		    dir_out, op_pass, PFR_TYPE_PACKETS), 1);
+		counter_u64_add(pfr_kentry_counter(&ke->pfrke_counters,
+		    dir_out, op_pass, PFR_TYPE_BYTES), len);
 	}
 }
 
