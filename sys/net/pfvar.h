@@ -1000,6 +1000,8 @@ struct pfr_addr {
 
 enum { PFR_DIR_IN, PFR_DIR_OUT, PFR_DIR_MAX };
 enum { PFR_OP_BLOCK, PFR_OP_PASS, PFR_OP_ADDR_MAX, PFR_OP_TABLE_MAX };
+enum { PFR_TYPE_PACKETS, PFR_TYPE_BYTES, PFR_TYPE_MAX };
+#define	PFR_NUM_COUNTERS	(PFR_DIR_MAX * PFR_OP_ADDR_MAX * PFR_TYPE_MAX)
 #define PFR_OP_XPASS	PFR_OP_ADDR_MAX
 
 struct pfr_astats {
@@ -1045,10 +1047,12 @@ union sockaddr_union {
 #endif /* _SOCKADDR_UNION_DEFINED */
 
 struct pfr_kcounters {
-	counter_u64_t		 pfrkc_packets[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
-	counter_u64_t		 pfrkc_bytes[PFR_DIR_MAX][PFR_OP_ADDR_MAX];
+	counter_u64_t		 pfrkc_counters;
 	long			 pfrkc_tzero;
 };
+#define	pfr_kentry_counter(kc, dir, op, t)		\
+	((kc)->pfrkc_counters +				\
+	    (dir) * PFR_OP_ADDR_MAX * PFR_TYPE_MAX + (op) * PFR_TYPE_MAX + (t))
 
 SLIST_HEAD(pfr_kentryworkq, pfr_kentry);
 struct pfr_kentry {
