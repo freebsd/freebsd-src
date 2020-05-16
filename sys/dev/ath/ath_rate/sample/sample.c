@@ -933,6 +933,18 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 	    s3code, sched->t3);		/* series 3 */
 }
 
+/*
+ * Update the current statistics.
+ *
+ * Note that status is for the FINAL transmit status, not this
+ * particular attempt.  So, check if tries > tries0 and if so
+ * assume this status failed.
+ *
+ * This is important because some failures are due to both
+ * short AND long retries; if the final issue was a short
+ * retry failure then we still want to account for the
+ * bad long retry attempts.
+ */
 static void
 update_stats(struct ath_softc *sc, struct ath_node *an, 
 		  int frame_size,
@@ -947,12 +959,21 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 #endif
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
-	int tt, tries_so_far;
+	int tt;
 	int is_ht40 = (an->an_node.ni_chw == 40);
 	int pct;
 
 	if (!IS_RATE_DEFINED(sn, rix0))
 		return;
+
+	/*
+	 * Treat long retries as us exceeding retries, even
+	 * if the eventual attempt at some other MRR schedule
+	 * succeeded.
+	 */
+	if (tries > tries0) {
+		status = HAL_TXERR_XRETRY;
+	}
 
 	/*
 	 * If status is FAIL then we treat all frames as bad.
@@ -971,7 +992,6 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 	 */
 	tt = calc_usecs_unicast_packet(sc, size, rix0,
 	    0 /* short_tries */, MIN(tries0, tries) - 1, is_ht40);
-	tries_so_far = tries0;
 
 	if (sn->stats[size_bin][rix0].total_packets < ssc->smoothing_minpackets) {
 		/* just average the first few packets */
@@ -1194,7 +1214,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			update_stats(sc, an, frame_size,
 				     rc[0].rix, rc[0].tries,
 				     short_tries, long_tries,
-				     long_tries > rc[0].tries,
+				     status,
 				     nframes, nbad);
 			long_tries -= rc[0].tries;
 		}
@@ -1203,7 +1223,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			update_stats(sc, an, frame_size,
 				     rc[1].rix, rc[1].tries,
 				     short_tries, long_tries,
-				     long_tries > rc[1].tries,
+				     status,
 				     nframes, nbad);
 			long_tries -= rc[1].tries;
 		}
@@ -1212,7 +1232,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			update_stats(sc, an, frame_size,
 				     rc[2].rix, rc[2].tries,
 				     short_tries, long_tries,
-				     long_tries > rc[2].tries,
+				     status,
 				     nframes, nbad);
 			long_tries -= rc[2].tries;
 		}
@@ -1221,7 +1241,7 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			update_stats(sc, an, frame_size,
 				     rc[3].rix, rc[3].tries,
 				     short_tries, long_tries,
-				     long_tries > rc[3].tries,
+				     status,
 				     nframes, nbad);
 		}
 	}
