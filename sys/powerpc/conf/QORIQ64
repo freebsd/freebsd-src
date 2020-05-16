@@ -113,3 +113,10 @@ device		ehci
 device		umass
 device		usb
 device		vlan
+
+# Desktop related
+device  	vt
+device  	fbd
+options 	KBD_INSTALL_CDEV
+device  	ukbd
+device  	ums
