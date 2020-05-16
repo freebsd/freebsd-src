@@ -91,6 +91,12 @@
 #endif
 #define	LIBELF_CLASS		ELFCLASS32
 
+#elif	defined(__powerpc64__)
+
+#define	LIBELF_ARCH		EM_PPC64
+#define	LIBELF_BYTEORDER	ELFDATA2MSB
+#define	LIBELF_CLASS		ELFCLASS64
+
 #elif	defined(__powerpc__)
 
 #define	LIBELF_ARCH		EM_PPC
