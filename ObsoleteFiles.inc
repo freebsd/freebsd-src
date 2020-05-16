@@ -36,6 +36,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200515: libalias cuseeme protocol support retired
+OLD_LIBS+=lib/libalias_cuseeme.so
+OLD_FILES+=usr/lib/libalias_cuseeme.a
+OLD_FILES+=usr/lib/libalias_cuseeme_p.a
+
 # 20200511: Remove ubsec(4)
 OLD_FILES+=usr/share/man/man4/ubsec.4.gz
 
