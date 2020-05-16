@@ -114,6 +114,9 @@ acpi_lid_status_update(struct acpi_lid_softc *sc)
 	/* range check value */
 	sc->lid_status = lid_status ? 1 : 0;
 
+	/* Send notification via devd */
+	acpi_UserNotify("Lid", sc->lid_handle, sc->lid_status);
+
 #ifdef EVDEV_SUPPORT
 	/* Notify evdev about lid status */
 	evdev_push_sw(sc->lid_evdev, SW_LID, lid_status ? 0 : 1);
