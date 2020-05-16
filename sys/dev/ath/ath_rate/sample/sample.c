@@ -712,10 +712,13 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	 * Limit the time measuring the performance of other tx
 	 * rates to sample_rate% of the total transmission time.
 	 */
-	if (sn->sample_tt[size_bin] < average_tx_time * (sn->packets_since_sample[size_bin]*ssc->sample_rate/100)) {
+	if (sn->sample_tt[size_bin] <
+	    average_tx_time *
+	    (sn->packets_since_sample[size_bin]*ssc->sample_rate/100)) {
 		rix = pick_sample_rate(ssc, an, rt, size_bin);
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "att %d sample_tt %d size %u sample rate %d %s current rate %d %s",
+		     &an->an_node, "att %d sample_tt %d size %u "
+		     "sample rate %d %s current rate %d %s",
 		     average_tx_time,
 		     sn->sample_tt[size_bin],
 		     bin_to_size(size_bin),
@@ -776,12 +779,9 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			printf("cur rix/att %x/%d, best rix/att %x/%d\n",
 			    MCS(cur_rix), cur_att, MCS(best_rix), average_tx_time);
 #endif
-#if 0
-			if (((MCS(best_rix) & 0x7) > (MCS(cur_rix) & 0x7)) &&
-			    (average_tx_time * 10) <= (cur_att * 10)) {
-#else
-			if ((average_tx_time * 10) <= (cur_att * 10)) {
-#endif
+			if ((best_rix != cur_rix) &&
+			    ((MCS(best_rix) & 0x7) >= (MCS(cur_rix) & 0x7)) &&
+			    (average_tx_time * 9) <= (cur_att * 10)) {
 				IEEE80211_NOTE(an->an_node.ni_vap,
 				    IEEE80211_MSG_RATECTL, &an->an_node,
 				    "%s: HT: size %d best_rix 0x%x > "
@@ -823,7 +823,9 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			/* 
 			 * Set the visible txrate for this node.
 			 */
-			an->an_node.ni_txrate = (rt->info[best_rix].phy == IEEE80211_T_HT) ?  MCS(best_rix) : DOT11RATE(best_rix);
+			an->an_node.ni_txrate =
+			    (rt->info[best_rix].phy == IEEE80211_T_HT) ?
+			     MCS(best_rix) : DOT11RATE(best_rix);
 		}
 		rix = sn->current_rix[size_bin];
 		sn->packets_since_switch[size_bin]++;
