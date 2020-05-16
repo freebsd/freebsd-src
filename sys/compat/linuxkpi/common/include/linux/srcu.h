@@ -49,4 +49,8 @@ extern void srcu_barrier(struct srcu_struct *);
 extern int init_srcu_struct(struct srcu_struct *);
 extern void cleanup_srcu_struct(struct srcu_struct *);
 
+#define	synchronize_srcu_expedited(srcu) do {	\
+	synchronize_srcu(srcu);			\
+} while (0)
+
 #endif					/* _LINUX_SRCU_H_ */
