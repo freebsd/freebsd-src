@@ -26,7 +26,6 @@ DIRDEPS = \
 	lib/geom/virstor \
 	lib/lib80211 \
 	lib/libalias/libalias \
-	lib/libalias/modules/cuseeme \
 	lib/libalias/modules/dummy \
 	lib/libalias/modules/ftp \
 	lib/libalias/modules/irc \

@@ -7531,7 +7531,6 @@ OLD_FILES+=usr/share/man/man8/pppctl.8.gz
 .if ${MK_PROFILE} == no
 OLD_FILES+=usr/lib/lib80211_p.a
 OLD_FILES+=usr/lib/libBlocksRuntime_p.a
-OLD_FILES+=usr/lib/libalias_cuseeme_p.a
 OLD_FILES+=usr/lib/libalias_dummy_p.a
 OLD_FILES+=usr/lib/libalias_ftp_p.a
 OLD_FILES+=usr/lib/libalias_irc_p.a
