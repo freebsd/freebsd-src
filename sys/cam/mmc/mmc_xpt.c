@@ -467,7 +467,7 @@ PERIPHDRIVER_DECLARE(mmcprobe, probe_driver);
 #define	CARD_ID_FREQUENCY 400000 /* Spec requires 400kHz max during ID phase. */
 
 static void
-probe_periph_init()
+probe_periph_init(void)
 {
 }
 

@@ -192,9 +192,8 @@ static struct xpt_proto nvme_proto = {
 CAM_XPT_PROTO(nvme_proto);
 
 static void
-nvme_probe_periph_init()
+nvme_probe_periph_init(void)
 {
-
 }
 
 static cam_status
