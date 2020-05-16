@@ -64,6 +64,7 @@ ${PACKAGE}FILES+=		subshell2.0
 ${PACKAGE}FILES+=		subshell3.0
 ${PACKAGE}FILES+=		subshell4.0
 ${PACKAGE}FILES+=		unknown1.0
+${PACKAGE}FILES+=		unknown2.0
 ${PACKAGE}FILES+=		var-assign1.0
 
 .include <bsd.test.mk>
