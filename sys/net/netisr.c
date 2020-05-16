@@ -345,19 +345,34 @@ static int
 sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS)
 {
 	char tmp[NETISR_DISPATCH_POLICY_MAXSTR];
+	size_t len;
 	u_int dispatch_policy;
 	int error;
 
 	netisr_dispatch_policy_to_str(netisr_dispatch_policy, tmp,
 	    sizeof(tmp));
-	error = sysctl_handle_string(oidp, tmp, sizeof(tmp), req);
-	if (error == 0 && req->newptr != NULL) {
-		error = netisr_dispatch_policy_from_str(tmp,
-		    &dispatch_policy);
-		if (error == 0 && dispatch_policy == NETISR_DISPATCH_DEFAULT)
-			error = EINVAL;
-		if (error == 0)
-			netisr_dispatch_policy = dispatch_policy;
+	/*
+	 * netisr is initialised very early during the boot when malloc isn't
+	 * available yet so we can't use sysctl_handle_string() to process
+	 * any non-default value that was potentially set via loader.
+	 */
+	if (req->newptr != NULL) {
+		len = req->newlen - req->newidx;
+		if (len >= NETISR_DISPATCH_POLICY_MAXSTR)
+			return (EINVAL);
+		error = SYSCTL_IN(req, tmp, len);
+		if (error == 0) {
+			tmp[len] = '\0';
+			error = netisr_dispatch_policy_from_str(tmp,
+			    &dispatch_policy);
+			if (error == 0 &&
+			    dispatch_policy == NETISR_DISPATCH_DEFAULT)
+				error = EINVAL;
+			if (error == 0)
+				netisr_dispatch_policy = dispatch_policy;
+		}
+	} else {
+		error = sysctl_handle_string(oidp, tmp, sizeof(tmp), req);
 	}
 	return (error);
 }
