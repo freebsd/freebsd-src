@@ -136,7 +136,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, struct ath_rc_series *rc)
+    uint8_t rix0, int is_aggr, struct ath_rc_series *rc)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
