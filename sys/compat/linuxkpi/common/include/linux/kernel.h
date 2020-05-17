@@ -462,6 +462,9 @@ kstrtobool_from_user(const char __user *s, size_t count, bool *res)
 	type __max2 = (y);			\
 	__max1 > __max2 ? __max1 : __max2; })
 
+#define offsetofend(t, m)	\
+        (offsetof(t, m) + sizeof((((t *)0)->m)))
+
 #define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
 #define clamp(x, lo, hi)		min( max(x,lo), hi)
 #define	clamp_val(val, lo, hi) clamp_t(typeof(val), val, lo, hi)
