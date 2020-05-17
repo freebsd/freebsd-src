@@ -5451,8 +5451,6 @@ sctp_del_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa)
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 				if (net->ro._s_addr == laddr->ifa) {
 					/* Yep, purge src address selected */
-
-					/* delete this address if cached */
 					RO_NHFREE(&net->ro);
 					sctp_free_ifa(net->ro._s_addr);
 					net->ro._s_addr = NULL;
