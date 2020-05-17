@@ -6202,10 +6202,10 @@ sctp_prune_prsctp(struct sctp_tcb *stcb,
 				if (chk->rec.data.timetodrop.tv_sec > (long)srcv->sinfo_timetolive) {
 					/*
 					 * Lower numbers equates to higher
-					 * priority so if the one we are
-					 * looking at has a larger
-					 * priority we want to drop the data
-					 * and NOT retransmit it.
+					 * priority. So if the one we are
+					 * looking at has a larger priority,
+					 * we want to drop the data and NOT
+					 * retransmit it.
 					 */
 					if (chk->data) {
 						/*
