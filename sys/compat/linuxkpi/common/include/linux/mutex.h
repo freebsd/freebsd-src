@@ -37,6 +37,7 @@
 #include <sys/sx.h>
 
 #include <linux/spinlock.h>
+#include <asm/atomic.h>
 
 typedef struct mutex {
 	struct sx sx;
@@ -123,6 +124,16 @@ static inline bool
 mutex_is_owned(mutex_t *m)
 {
 	return (sx_xlocked(&m->sx));
+}
+
+static inline int atomic_dec_and_mutex_lock(atomic_t *cnt, struct mutex *m)
+{
+	if (atomic_dec_and_test(cnt)) {
+		mutex_lock(m);
+		return (1);
+	}
+
+	return (0);
 }
 
 #ifdef WITNESS_ALL
