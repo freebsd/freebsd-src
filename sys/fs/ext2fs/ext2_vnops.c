@@ -1018,10 +1018,11 @@ abortit:
 		 */
 		ext2_dec_nlink(xp);
 		if (doingdirectory) {
-			if (--xp->i_nlink != 0)
+			if (xp->i_nlink > 2)
 				panic("ext2_rename: linked directory");
 			error = ext2_truncate(tvp, (off_t)0, IO_SYNC,
 			    tcnp->cn_cred, tcnp->cn_thread);
+			xp->i_nlink = 0;
 		}
 		xp->i_flag |= IN_CHANGE;
 		vput(tvp);
