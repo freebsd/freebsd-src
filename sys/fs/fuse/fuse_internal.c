@@ -959,6 +959,8 @@ fuse_internal_vnode_disappear(struct vnode *vp)
 
 /* fuse start/stop */
 
+SDT_PROBE_DEFINE2(fusefs, , internal, init_done,
+	"struct fuse_data*", "struct fuse_init_out*");
 int
 fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 {
@@ -1043,6 +1045,7 @@ out:
 	}
 	FUSE_LOCK();
 	data->dataflags |= FSESS_INITED;
+	SDT_PROBE2(fusefs, , internal, init_done, data, fiio);
 	wakeup(&data->ticketer);
 	FUSE_UNLOCK();
 
