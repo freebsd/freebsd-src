@@ -209,12 +209,12 @@ VFS_VOP_VECTOR_REGISTER(ext2_fifoops);
  * endianness problems.
  */
 static struct dirtemplate mastertemplate = {
-	0, 12, 1, EXT2_FT_DIR, ".",
-	0, DIRBLKSIZ - 12, 2, EXT2_FT_DIR, ".."
+	0, htole16(12), 1, EXT2_FT_DIR, ".",
+	0, htole16(DIRBLKSIZ - 12), 2, EXT2_FT_DIR, ".."
 };
 static struct dirtemplate omastertemplate = {
-	0, 12, 1, EXT2_FT_UNKNOWN, ".",
-	0, DIRBLKSIZ - 12, 2, EXT2_FT_UNKNOWN, ".."
+	0, htole16(12), 1, EXT2_FT_UNKNOWN, ".",
+	0, htole16(DIRBLKSIZ - 12), 2, EXT2_FT_UNKNOWN, ".."
 };
 
 static void
@@ -1094,7 +1094,7 @@ abortit:
 					ext2_dirbad(xp, (doff_t)12,
 					    "rename: mangled dir");
 				} else {
-					dirbuf->dotdot_ino = newparent;
+					dirbuf->dotdot_ino = htole32(newparent);
 					/*
 					 * dirblock 0 could be htree root,
 					 * try both csum update functions.
@@ -1380,15 +1380,15 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 	else
 		dtp = &omastertemplate;
 	dirtemplate = *dtp;
-	dirtemplate.dot_ino = ip->i_number;
-	dirtemplate.dotdot_ino = dp->i_number;
+	dirtemplate.dot_ino = htole32(ip->i_number);
+	dirtemplate.dotdot_ino = htole32(dp->i_number);
 	/*
 	 * note that in ext2 DIRBLKSIZ == blocksize, not DEV_BSIZE so let's
 	 * just redefine it - for this function only
 	 */
 #undef  DIRBLKSIZ
 #define DIRBLKSIZ  VTOI(dvp)->i_e2fs->e2fs_bsize
-	dirtemplate.dotdot_reclen = DIRBLKSIZ - 12;
+	dirtemplate.dotdot_reclen = htole16(DIRBLKSIZ - 12);
 	buf = malloc(DIRBLKSIZ, M_TEMP, M_WAITOK | M_ZERO);
 	if (!buf) {
 		error = ENOMEM;
@@ -1397,7 +1397,9 @@ ext2_mkdir(struct vop_mkdir_args *ap)
 		goto bad;
 	}
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
-		dirtemplate.dotdot_reclen -= sizeof(struct ext2fs_direct_tail);
+		dirtemplate.dotdot_reclen =
+		    htole16(le16toh(dirtemplate.dotdot_reclen) -
+		    sizeof(struct ext2fs_direct_tail));
 		ext2_init_dirent_tail(EXT2_DIRENT_TAIL(buf, DIRBLKSIZ));
 	}
 	memcpy(buf, &dirtemplate, sizeof(dirtemplate));
