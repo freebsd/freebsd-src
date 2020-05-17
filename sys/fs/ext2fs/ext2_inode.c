@@ -43,6 +43,7 @@
 #include <sys/mount.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/endian.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/rwlock.h>
@@ -188,7 +189,7 @@ ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
 	 */
 	for (i = NINDIR(fs) - 1, nlbn = lbn + 1 - i * factor; i > last;
 	    i--, nlbn += factor) {
-		nb = bap[i];
+		nb = le32toh(bap[i]);
 		if (nb == 0)
 			continue;
 		if (level > SINGLE) {
@@ -206,7 +207,7 @@ ext2_indirtrunc(struct inode *ip, daddr_t lbn, daddr_t dbn,
 	 */
 	if (level > SINGLE && lastbn >= 0) {
 		last = lastbn % factor;
-		nb = bap[i];
+		nb = le32toh(bap[i]);
 		if (nb != 0) {
 			if ((error = ext2_indirtrunc(ip, nlbn, fsbtodb(fs, nb),
 			    last, level - 1, &blkcount)) != 0)
