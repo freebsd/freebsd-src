@@ -407,8 +407,7 @@ again:
 	 * Also check whether routing cache needs invalidation.
 	 */
 	if (ro != NULL && ro->ro_nh != NULL &&
-	    ((!NH_IS_VALID(ro->ro_nh)) || !RT_LINK_IS_UP(ro->ro_nh->nh_ifp) ||
-	    dst->sin_family != AF_INET ||
+	    ((!NH_IS_VALID(ro->ro_nh)) || dst->sin_family != AF_INET ||
 	    dst->sin_addr.s_addr != ip->ip_dst.s_addr))
 		RO_INVALIDATE_CACHE(ro);
 	ia = NULL;
@@ -480,8 +479,7 @@ again:
 			ro->ro_nh = fib4_lookup(fibnum, dst->sin_addr, 0,
 			    NHR_REF, flowid);
 
-			if (ro->ro_nh == NULL || (!NH_IS_VALID(ro->ro_nh)) ||
-			    !RT_LINK_IS_UP(ro->ro_nh->nh_ifp)) {
+			if (ro->ro_nh == NULL || (!NH_IS_VALID(ro->ro_nh))) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 				/*
 				 * There is no route for this packet, but it is
