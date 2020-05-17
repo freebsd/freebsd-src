@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/limits.h>
@@ -220,7 +221,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 			return (error);
 		}
 		bap = (e2fs_daddr_t *)bp->b_data;
-		nb = bap[indirs[i].in_off];
+		nb = le32toh(bap[indirs[i].in_off]);
 		if (i == num)
 			break;
 		i += 1;
@@ -252,7 +253,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 			brelse(bp);
 			return (error);
 		}
-		bap[indirs[i - 1].in_off] = nb;
+		bap[indirs[i - 1].in_off] = htole32(nb);
 		/*
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
@@ -284,7 +285,7 @@ ext2_balloc(struct inode *ip, e2fs_lbn_t lbn, int size, struct ucred *cred,
 		nbp->b_blkno = fsbtodb(fs, nb);
 		if (flags & BA_CLRBUF)
 			vfs_bio_clrbuf(nbp);
-		bap[indirs[i].in_off] = nb;
+		bap[indirs[i].in_off] = htole32(nb);
 		/*
 		 * If required, write synchronously, otherwise use
 		 * delayed write.
