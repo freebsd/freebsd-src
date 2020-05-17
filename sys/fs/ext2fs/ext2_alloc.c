@@ -1287,6 +1287,16 @@ ext2_zero_inode_table(struct inode *ip, int cg)
 	return (0);
 }
 
+static void
+ext2_fix_bitmap_tail(unsigned char *bitmap, int first, int last)
+{
+	int i;
+
+	for (i = first; i <= last; i++)
+		bitmap[i] = 0xff;
+}
+
+
 /*
  * Determine whether an inode can be allocated.
  *
@@ -1299,7 +1309,7 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	struct ext2mount *ump;
-	int error, start, len, ifree;
+	int error, start, len, ifree, ibytes;
 	char *ibp, *loc;
 
 	ipref--;	/* to avoid a lot of (ipref -1) */
@@ -1320,7 +1330,10 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_GDT_CSUM) ||
 	    EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_METADATA_CKSUM)) {
 		if (fs->e2fs_gd[cg].ext4bgd_flags & EXT2_BG_INODE_UNINIT) {
-			memset(bp->b_data, 0, fs->e2fs_bsize);
+			ibytes = fs->e2fs_ipg / 8;
+			memset(bp->b_data, 0, ibytes - 1);
+			ext2_fix_bitmap_tail(bp->b_data, ibytes,
+			    fs->e2fs_bsize - 1);
 			fs->e2fs_gd[cg].ext4bgd_flags &= ~EXT2_BG_INODE_UNINIT;
 		}
 		ext2_gd_i_bitmap_csum_set(fs, cg, bp);
