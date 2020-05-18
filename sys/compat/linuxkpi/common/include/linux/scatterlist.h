@@ -416,6 +416,8 @@ sg_page_count(struct scatterlist *sg)
 static inline bool
 __sg_page_iter_next(struct sg_page_iter *piter)
 {
+	unsigned int pgcount;
+
 	if (piter->internal.nents == 0)
 		return (0);
 	if (piter->sg == NULL)
@@ -424,8 +426,11 @@ __sg_page_iter_next(struct sg_page_iter *piter)
 	piter->sg_pgoffset += piter->internal.pg_advance;
 	piter->internal.pg_advance = 1;
 
-	while (piter->sg_pgoffset >= sg_page_count(piter->sg)) {
-		piter->sg_pgoffset -= sg_page_count(piter->sg);
+	while (1) {
+		pgcount = sg_page_count(piter->sg);
+		if (likely(piter->sg_pgoffset < pgcount))
+			break;
+		piter->sg_pgoffset -= pgcount;
 		piter->sg = sg_next(piter->sg);
 		if (--piter->internal.nents == 0)
 			return (0);
