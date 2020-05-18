@@ -72,6 +72,38 @@ hci_read_local_version_information(int s, int argc, char **argv)
 	return (OK);
 } /* hci_read_local_version_information */
 
+/* Send Read_Local_Supported_Commands command to the unit */
+static int
+hci_read_local_supported_commands(int s, int argc, char **argv)
+{
+	ng_hci_read_local_commands_rp	rp;
+	int				n;
+	char				buffer[16384];
+
+	n = sizeof(rp);
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_INFO,
+			NG_HCI_OCF_READ_LOCAL_COMMANDS),
+			(char *) &rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout, "Supported commands:");
+	for (n = 0; n < sizeof(rp.features); n++) {
+		if (n % 8 == 0)
+			fprintf(stdout, "\n");
+		fprintf(stdout, "%#02x ", rp.features[n]);
+	}
+	fprintf(stdout, "\n%s\n", hci_commands2str(rp.features, 
+		buffer, sizeof(buffer)));
+
+	return (OK);
+} /* hci_read_local_supported_commands */
+
 /* Send Read_Local_Supported_Features command to the unit */
 static int
 hci_read_local_supported_features(int s, int argc, char **argv)
@@ -186,6 +218,11 @@ struct hci_command	info_commands[] = {
 "\nThis command will read the values for the version information for the\n" \
 "local Bluetooth unit.",
 &hci_read_local_version_information	
+},
+{
+"read_local_supported_commands",
+"\nThis command will read the commands the local Bluetooth unit supports.\n",
+&hci_read_local_supported_commands	
 },
 {
 "read_local_supported_features",
