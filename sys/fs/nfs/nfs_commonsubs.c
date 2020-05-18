@@ -4778,3 +4778,14 @@ nfsv4_findmirror(struct nfsmount *nmp)
 	return (ds);
 }
 
+/*
+ * Fill in the fields of "struct nfsrv_descript".
+ */
+void
+nfsm_set(struct nfsrv_descript *nd, u_int offs)
+{
+	struct mbuf *m;
+
+	m = nd->nd_mb;
+	nd->nd_bpos = mtod(m, char *) + offs;
+}

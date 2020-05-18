@@ -5080,7 +5080,7 @@ nfsrv_writedsdorpc(struct nfsmount *nmp, fhandle_t *fhp, off_t off, int len,
 	while (m->m_next != NULL)
 		m = m->m_next;
 	nd->nd_mb = m;
-	nd->nd_bpos = mtod(m, char *) + m->m_len;
+	nfsm_set(nd, m->m_len);
 	NFSD_DEBUG(4, "nfsrv_writedsdorpc: lastmb len=%d\n", m->m_len);
 
 	/* Do a Getattr for the attributes that change upon writing. */
