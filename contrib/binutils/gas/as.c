@@ -1089,7 +1089,6 @@ main (int argc, char ** argv)
   expandargv (&argc, &argv);
 
   START_PROGRESS (myname, 0);
-  fprintf (stderr, _("warning: as 2.17.50 is deprecated in FreeBSD and will be removed\n"));
 
 #ifndef OBJ_DEFAULT_OUTPUT_FILE_NAME
 #define OBJ_DEFAULT_OUTPUT_FILE_NAME "a.out"
@@ -1109,6 +1108,7 @@ main (int argc, char ** argv)
   /* Call parse_args before any of the init/begin functions
      so that switches like --hash-size can be honored.  */
   parse_args (&argc, &argv);
+  fprintf (stderr, _("warning: GNU as %s is deprecated and will be removed\n"), BFD_VERSION_STRING);
   symbol_begin ();
   frag_init ();
   subsegs_begin ();
