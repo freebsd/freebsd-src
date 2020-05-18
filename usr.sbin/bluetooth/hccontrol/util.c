@@ -289,7 +289,57 @@ hci_features2str(uint8_t *features, char *buffer, int size)
 		/* 4 */ "<Flow control lag (bit0)> ",
 		/* 5 */ "<Flow control lag (bit1)> ",
 		/* 6 */ "<Flow control lag (bit2)> ",
-		/* 7 */ "<Unknown2.7> "
+		/* 7 */ "<Broadcast Encryption> "
+	},
+	{ /* byte 3 */
+		/* 0 */ "<Unknown 3.0> ",
+		/* 1 */ "<EDR ACL 2 Mb/s> ",
+		/* 2 */ "<EDR ACL 3 Mb/s> ",
+		/* 3 */ "<Enhanced inquiry scan> ",
+		/* 4 */ "<Interlaced inquiry scan> ",
+		/* 5 */ "<Interlaced page scan> ",
+		/* 6 */ "<RSSI with inquiry results> ",
+		/* 7 */ "<Extended SCO link (EV3 packets)> "
+	},
+	{ /* byte 4 */
+		/* 0 */ "<EV4 packets> ",
+		/* 1 */ "<EV5 packets> ",
+		/* 2 */ "<Unknown 4.2> ",
+		/* 3 */ "<AFH capable slave> ",
+		/* 4 */ "<AFH classification slave> ",
+		/* 5 */ "<BR/EDR Not Supported> ",
+		/* 6 */ "<LE Supported (Controller)> ",
+		/* 7 */ "<3-Slot EDR ACL packets> "
+	},
+	{ /* byte 5 */
+		/* 0 */ "<5-Slot EDR ACL packets> ",
+		/* 1 */ "<Sniff subrating> ",
+		/* 2 */ "<Pause encryption> ",
+		/* 3 */ "<AFH capable master> ",
+		/* 4 */ "<AFH classification master> ",
+		/* 5 */ "<EDR eSCO 2 Mb/s mode> ",
+		/* 6 */ "<EDR eSCO 3 Mb/s mode> ",
+		/* 7 */ "<3-Slot EDR eSCO packets> "
+	},
+	{ /* byte 6 */
+		/* 0 */ "<Enhanced Inquiry Response> ",
+		/* 1 */ "<Simultaneous LE and BR/EDR (Controller)> ",
+		/* 2 */ "<Unknown 6.2> ",
+		/* 3 */ "<Secure Simple Pairing (Controller Support)> ",
+		/* 4 */ "<Encapsulated PDU> ",
+		/* 5 */ "<Erroneous Data Reporting> ",
+		/* 6 */ "<Non-flushable Packed Boundary Flag> ",
+		/* 7 */ "<Unknown 6.7> "
+	},
+	{ /* byte 7 */
+		/* 0 */ "<HCI_Link_Supervision_Timeout_Changed event> ",
+		/* 1 */ "<Variable Inquiry TX Power Level> ",
+		/* 2 */ "<Enhanced Power Control> ",
+		/* 3 */ "<Unknown 7.3> ",
+		/* 4 */ "<Unknown 7.4> ",
+		/* 5 */ "<Unknown 7.5> ",
+		/* 6 */ "<Unknown 7.6> ",
+		/* 7 */ "<Extended features> "
 	}};
 
 	if (buffer != NULL && size > 0) {
