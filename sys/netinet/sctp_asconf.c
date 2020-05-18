@@ -3026,10 +3026,6 @@ sctp_check_address_list_ep(struct sctp_tcb *stcb, struct mbuf *m, int offset,
 			    "check_addr_list_ep: laddr->ifa is NULL");
 			continue;
 		}
-		if (laddr->ifa == NULL) {
-			SCTPDBG(SCTP_DEBUG_ASCONF1, "check_addr_list_ep: laddr->ifa->ifa_addr is NULL");
-			continue;
-		}
 		/* do i have it implicitly? */
 		if (sctp_cmpaddr(&laddr->ifa->address.sa, init_addr)) {
 			continue;
