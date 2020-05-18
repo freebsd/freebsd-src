@@ -119,6 +119,20 @@ atomic_add_unless(atomic_t *v, int a, int u)
 	return (c != u);
 }
 
+static inline int
+atomic_fetch_add_unless(atomic_t *v, int a, int u)
+{
+	int c = atomic_read(v);
+
+	for (;;) {
+		if (unlikely(c == u))
+			break;
+		if (likely(atomic_fcmpset_int(&v->counter, &c, c + a)))
+			break;
+	}
+	return (c);
+}
+
 static inline void
 atomic_clear_mask(unsigned int mask, atomic_t *v)
 {
