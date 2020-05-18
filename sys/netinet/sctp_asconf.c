@@ -1797,9 +1797,9 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 		}		/* switch */
 
 		/* update remaining ASCONF-ACK message length to process */
-		ack_length -= SCTP_SIZE32(param_length);
-		if (ack_length <= 0) {
-			/* no more data in the mbuf chain */
+		if (ack_length > SCTP_SIZE32(param_length)) {
+			ack_length -= SCTP_SIZE32(param_length);
+		} else {
 			break;
 		}
 		offset += SCTP_SIZE32(param_length);
