@@ -1560,8 +1560,8 @@ select_a_new_ep:
 			iteration_count = 0;
 		}
 		KASSERT(it->inp == it->stcb->sctp_ep,
-		        ("%s: stcb %p does not belong to inp %p, but inp %p",
-		         __func__, it->stcb, it->inp, it->stcb->sctp_ep));
+		    ("%s: stcb %p does not belong to inp %p, but inp %p",
+		    __func__, it->stcb, it->inp, it->stcb->sctp_ep));
 
 		/* run function on this one */
 		(*it->function_assoc) (it->inp, it->stcb, it->pointer, it->val);
