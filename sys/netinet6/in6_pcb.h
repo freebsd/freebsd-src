@@ -92,6 +92,10 @@ struct	inpcb *
 	in6_pcblookup_local(struct inpcbinfo *,
 				 struct in6_addr *, u_short, int,
 				 struct ucred *);
+struct inpcb *
+	in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo,
+	    struct in6_addr *faddr, u_int fport_arg, struct in6_addr *laddr,
+	    u_int lport_arg, int lookupflags, struct ifnet *ifp);
 struct	inpcb *
 	in6_pcblookup(struct inpcbinfo *, struct in6_addr *,
 			   u_int, struct in6_addr *, u_int, int,

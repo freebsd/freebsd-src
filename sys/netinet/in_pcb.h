@@ -824,6 +824,9 @@ void	in_pcbgroup_update_mbuf(struct inpcb *, struct mbuf *);
 void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 int	in_pcballoc(struct socket *, struct inpcbinfo *);
 int	in_pcbbind(struct inpcb *, struct sockaddr *, struct ucred *);
+int	in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa,
+	    u_short *lportp, struct sockaddr *fsa, u_short fport,
+	    struct ucred *cred, int lookupflags);
 int	in_pcb_lport(struct inpcb *, struct in_addr *, u_short *,
 	    struct ucred *, int);
 int	in_pcbbind_setup(struct inpcb *, struct sockaddr *, in_addr_t *,
