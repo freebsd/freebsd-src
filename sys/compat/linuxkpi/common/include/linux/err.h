@@ -31,6 +31,8 @@
 #ifndef	_LINUX_ERR_H_
 #define	_LINUX_ERR_H_
 
+#include <sys/types.h>
+
 #include <linux/compiler.h>
 
 #define MAX_ERRNO	4095
@@ -62,9 +64,9 @@ IS_ERR_OR_NULL(const void *ptr)
 }
 
 static inline void *
-ERR_CAST(void *ptr)
+ERR_CAST(const void *ptr)
 {
-	return (void *)ptr;
+	return __DECONST(void *, ptr);
 }
 
 static inline int
