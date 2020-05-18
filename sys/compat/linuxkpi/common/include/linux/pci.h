@@ -954,6 +954,47 @@ pcie_get_width_cap(struct pci_dev *dev)
 	return (PCIE_LNK_WIDTH_UNKNOWN);
 }
 
+static inline int
+pcie_get_mps(struct pci_dev *dev)
+{
+	return (pci_get_max_payload(dev->dev.bsddev));
+}
+
+static inline uint32_t
+PCIE_SPEED2MBS_ENC(enum pci_bus_speed spd)
+{
+
+	switch(spd) {
+	case PCIE_SPEED_16_0GT:
+		return (16000 * 128 / 130);
+	case PCIE_SPEED_8_0GT:
+		return (8000 * 128 / 130);
+	case PCIE_SPEED_5_0GT:
+		return (5000 * 8 / 10);
+	case PCIE_SPEED_2_5GT:
+		return (2500 * 8 / 10);
+	default:
+		return (0);
+	}
+}
+
+static inline uint32_t
+pcie_bandwidth_available(struct pci_dev *pdev,
+    struct pci_dev **limiting,
+    enum pci_bus_speed *speed,
+    enum pcie_link_width *width)
+{
+	enum pci_bus_speed nspeed = pcie_get_speed_cap(pdev);
+	enum pcie_link_width nwidth = pcie_get_width_cap(pdev);
+
+	if (speed)
+		*speed = nspeed;
+	if (width)
+		*width = nwidth;
+
+	return (nwidth * PCIE_SPEED2MBS_ENC(nspeed));
+}
+
 /*
  * The following functions can be used to attach/detach the LinuxKPI's
  * PCI device runtime. The pci_driver and pci_device_id pointer is
