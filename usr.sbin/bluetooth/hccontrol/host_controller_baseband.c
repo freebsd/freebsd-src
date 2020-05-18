@@ -1491,7 +1491,7 @@ hci_write_page_scan_mode(int s, int argc, char **argv)
 } /* hci_write_page_scan_mode */
 
 static int
-hci_read_le_host_supported_command(int s, int argc, char **argv) 
+hci_read_le_host_support(int s, int argc, char **argv) 
 {
 	ng_hci_read_le_host_supported_rp rp;
 	int n;
@@ -1508,13 +1508,13 @@ hci_read_le_host_supported_command(int s, int argc, char **argv)
 	}
 
 	fprintf(stdout, "LE Host support: %#02x\n", rp.le_supported_host);
-	fprintf(stdout, "Simulateneouse LE Host : %#02x\n", rp.simultaneous_le_host);
+	fprintf(stdout, "Simultaneous LE Host : %#02x\n", rp.simultaneous_le_host);
 
 	return (OK);
 	
 }
 static int
-hci_write_le_host_supported_command(int s, int argc, char **argv) 
+hci_write_le_host_support(int s, int argc, char **argv) 
 {
 	ng_hci_write_le_host_supported_cp cp;
 	ng_hci_write_le_host_supported_rp rp;
@@ -1948,14 +1948,14 @@ struct hci_command	host_controller_baseband_commands[] = {
 &hci_write_page_scan_mode
 },
 {
-"read_le_host_supported_command",	\
-"Read if this host is in le supported mode and stimulatenouse le supported mode",
-&hci_read_le_host_supported_command,
+"read_le_host_support",	\
+"Read if this host is in LE supported mode and simultaneous LE supported mode",
+&hci_read_le_host_support,
 },  
 {
-"write_le_host_supported_command",	\
-"write_le_host_supported_command le_host[0|1] stimultajeous_le[0|1]",
-&hci_write_le_host_supported_command,
+"write_le_host_support",	\
+"write_le_host_support le_host[0|1] simultaneous_le[0|1]",
+&hci_write_le_host_support,
 },  
 
 { NULL, }
