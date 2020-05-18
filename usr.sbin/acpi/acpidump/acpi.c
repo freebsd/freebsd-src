@@ -245,6 +245,7 @@ acpi_handle_fadt(ACPI_TABLE_HEADER *sdp)
 	ACPI_TABLE_HEADER *dsdp;
 	ACPI_TABLE_FACS	*facs;
 	ACPI_TABLE_FADT *fadt;
+	vm_offset_t	addr;
 	int		fadt_revision;
 
 	fadt = (ACPI_TABLE_FADT *)sdp;
@@ -252,12 +253,17 @@ acpi_handle_fadt(ACPI_TABLE_HEADER *sdp)
 
 	fadt_revision = acpi_get_fadt_revision(fadt);
 	if (fadt_revision == 1)
-		facs = (ACPI_TABLE_FACS *)acpi_map_sdt(fadt->Facs);
+		addr = fadt->Facs;
 	else
-		facs = (ACPI_TABLE_FACS *)acpi_map_sdt(fadt->XFacs);
-	if (memcmp(facs->Signature, ACPI_SIG_FACS, 4) != 0 || facs->Length < 64)
-		errx(1, "FACS is corrupt");
-	acpi_print_facs(facs);
+		addr = fadt->XFacs;
+	if (addr != 0) {
+		facs = (ACPI_TABLE_FACS *)acpi_map_sdt(addr);
+
+		if (memcmp(facs->Signature, ACPI_SIG_FACS, 4) != 0 ||
+		    facs->Length < 64)
+			errx(1, "FACS is corrupt");
+		acpi_print_facs(facs);
+	}
 
 	if (fadt_revision == 1)
 		dsdp = (ACPI_TABLE_HEADER *)acpi_map_sdt(fadt->Dsdt);
