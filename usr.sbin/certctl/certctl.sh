@@ -34,7 +34,7 @@
 : ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}/usr/local/etc/ssl/blacklisted}
 : ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
 : ${BLACKLISTDESTDIR:=${DESTDIR}/etc/ssl/blacklisted}
-: ${EXTENSIONS:="*.pem *.crt *.cer *.crl *.0"}
+: ${FILEPAT:="\.pem$|\.crt$|\.cer$|\.crl$|\.0$"}
 : ${VERBOSE:=0}
 
 ############################################################ GLOBALS
@@ -104,13 +104,11 @@ do_scan()
 	for CPATH in "$@"; do
 		[ -d "$CPATH" ] || continue
 		echo "Scanning $CPATH for certificates..."
-		cd "$CPATH"
-		for CFILE in $EXTENSIONS; do
-			[ -e "$CFILE" ] || continue
+		for CFILE in $(ls -1 "${CPATH}" | grep -Ee "${FILEPAT}"); do
+			[ -e "$CPATH/$CFILE" ] || continue
 			[ $VERBOSE -gt 0 ] && echo "Reading $CFILE"
 			"$CFUNC" "$CPATH/$CFILE"
 		done
-		cd -
 	done
 }
 
