@@ -13,6 +13,12 @@ Changes to this file should not be MFCed.
 r361238:
 	ZFS will now reject read(2) of a dirfd with EISDIR.
 
+r361066:
+	Add exec.prepare and exec.release hooks for jail(8) and jail.conf(5).
+	exec.prepare runs before mounts, so can be used to populate new jails.
+	exec.release runs after unmounts, so can be used to remove ephemeral
+	jails.
+
 r360920,r360923,r360924,r360927,r360928,r360931,r360933,r360936:
 	Remove support for ARC4, Blowfish, Cast, DES, Triple DES, MD5,
 	MD5-KPDK, MD5-HMAC, SHA1-KPDK, and Skipjack algorithms from
