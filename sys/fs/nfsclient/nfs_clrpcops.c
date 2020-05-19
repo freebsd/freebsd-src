@@ -204,7 +204,7 @@ int nfs_pnfsio(task_fn_t *, void *);
 /*
  * nfs null call from vfs.
  */
-APPLESTATIC int
+int
 nfsrpc_null(vnode_t vp, struct ucred *cred, NFSPROC_T *p)
 {
 	int error;
@@ -223,7 +223,7 @@ nfsrpc_null(vnode_t vp, struct ucred *cred, NFSPROC_T *p)
  * For nfs version 3 and 4, use the access rpc to check accessibility. If file
  * modes are changed on the server, accesses might still fail later.
  */
-APPLESTATIC int
+int
 nfsrpc_access(vnode_t vp, int acmode, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp)
 {
@@ -266,7 +266,7 @@ nfsrpc_access(vnode_t vp, int acmode, struct ucred *cred,
 /*
  * The actual rpc, separated out for Darwin.
  */
-APPLESTATIC int
+int
 nfsrpc_accessrpc(vnode_t vp, u_int32_t mode, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, u_int32_t *rmodep,
     void *stuff)
@@ -327,7 +327,7 @@ nfsmout:
 /*
  * nfs open rpc
  */
-APPLESTATIC int
+int
 nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsclopen *op;
@@ -459,7 +459,7 @@ else printf(" fhl=0\n");
 /*
  * the actual open rpc
  */
-APPLESTATIC int
+int
 nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
     u_int8_t *newfhp, int newfhlen, u_int32_t mode, struct nfsclopen *op,
     u_int8_t *name, int namelen, struct nfscldeleg **dpp,
@@ -662,7 +662,7 @@ nfsmout:
 /*
  * open downgrade rpc
  */
-APPLESTATIC int
+int
 nfsrpc_opendowngrade(vnode_t vp, u_int32_t mode, struct nfsclopen *op,
     struct ucred *cred, NFSPROC_T *p)
 {
@@ -705,7 +705,7 @@ nfsmout:
 /*
  * V4 Close operation.
  */
-APPLESTATIC int
+int
 nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
@@ -727,7 +727,7 @@ nfsrpc_close(vnode_t vp, int doclose, NFSPROC_T *p)
 /*
  * Close the open.
  */
-APPLESTATIC void
+void
 nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -824,7 +824,7 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 /*
  * The actual Close RPC.
  */
-APPLESTATIC int
+int
 nfsrpc_closerpc(struct nfsrv_descript *nd, struct nfsmount *nmp,
     struct nfsclopen *op, struct ucred *cred, NFSPROC_T *p,
     int syscred)
@@ -863,7 +863,7 @@ nfsmout:
 /*
  * V4 Open Confirm RPC.
  */
-APPLESTATIC int
+int
 nfsrpc_openconfirm(vnode_t vp, u_int8_t *nfhp, int fhlen,
     struct nfsclopen *op, struct ucred *cred, NFSPROC_T *p)
 {
@@ -906,7 +906,7 @@ nfsmout:
  * Do the setclientid and setclientid confirm RPCs. Called from nfs_statfs()
  * when a mount has just occurred and when the server replies NFSERR_EXPIRED.
  */
-APPLESTATIC int
+int
 nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
     struct ucred *cred, NFSPROC_T *p)
 {
@@ -1106,7 +1106,7 @@ nfsmout:
 /*
  * nfs getattr call.
  */
-APPLESTATIC int
+int
 nfsrpc_getattr(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
     struct nfsvattr *nap, void *stuff)
 {
@@ -1133,7 +1133,7 @@ nfsrpc_getattr(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 /*
  * nfs getattr call with non-vnode arguemnts.
  */
-APPLESTATIC int
+int
 nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, u_int64_t *xidp,
     uint32_t *leasep)
@@ -1173,7 +1173,7 @@ nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
 /*
  * Do an nfs setattr operation.
  */
-APPLESTATIC int
+int
 nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *rnap, int *attrflagp,
     void *stuff)
@@ -1300,7 +1300,7 @@ nfsrpc_setattrrpc(vnode_t vp, struct vattr *vap,
 /*
  * nfs lookup rpc
  */
-APPLESTATIC int
+int
 nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *dnap, struct nfsvattr *nap,
     struct nfsfh **nfhpp, int *attrflagp, int *dattrflagp, void *stuff)
@@ -1403,7 +1403,7 @@ nfsmout:
 /*
  * Do a readlink rpc.
  */
-APPLESTATIC int
+int
 nfsrpc_readlink(vnode_t vp, struct uio *uiop, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
@@ -1459,7 +1459,7 @@ nfsmout:
 /*
  * Read operation.
  */
-APPLESTATIC int
+int
 nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
@@ -1617,7 +1617,7 @@ nfsmout:
  * the recovery thread could get stuck waiting for the buffer and recovery
  * will then deadlock.
  */
-APPLESTATIC int
+int
 nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     void *stuff, int called_from_strategy)
@@ -1879,7 +1879,7 @@ nfsmout:
  * For NFS v2 this is a kludge. Use a create rpc but with the IFMT bits of the
  * mode set to specify the file type and the size field for rdev.
  */
-APPLESTATIC int
+int
 nfsrpc_mknod(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     u_int32_t rdev, enum vtype vtyp, struct ucred *cred, NFSPROC_T *p,
     struct nfsvattr *dnap, struct nfsvattr *nnap, struct nfsfh **nfhpp,
@@ -1959,7 +1959,7 @@ nfsmout:
  * Mostly just call the approriate routine. (I separated out v4, so that
  * error recovery wouldn't be as difficult.)
  */
-APPLESTATIC int
+int
 nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     nfsquad_t cverf, int fmode, struct ucred *cred, NFSPROC_T *p,
     struct nfsvattr *dnap, struct nfsvattr *nnap, struct nfsfh **nfhpp,
@@ -2326,7 +2326,7 @@ nfsmout:
 /*
  * Nfs remove rpc
  */
-APPLESTATIC int
+int
 nfsrpc_remove(vnode_t dvp, char *name, int namelen, vnode_t vp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap, int *dattrflagp,
     void *dstuff)
@@ -2403,7 +2403,7 @@ nfsmout:
 /*
  * Do an nfs rename rpc.
  */
-APPLESTATIC int
+int
 nfsrpc_rename(vnode_t fdvp, vnode_t fvp, char *fnameptr, int fnamelen,
     vnode_t tdvp, vnode_t tvp, char *tnameptr, int tnamelen, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *fnap, struct nfsvattr *tnap,
@@ -2561,7 +2561,7 @@ nfsmout:
 /*
  * nfs hard link create rpc
  */
-APPLESTATIC int
+int
 nfsrpc_link(vnode_t dvp, vnode_t vp, char *name, int namelen,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nap, int *attrflagp, int *dattrflagp, void *dstuff)
@@ -2624,7 +2624,7 @@ nfsmout:
 /*
  * nfs symbolic link create rpc
  */
-APPLESTATIC int
+int
 nfsrpc_symlink(vnode_t dvp, char *name, int namelen, char *target,
     struct vattr *vap, struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
@@ -2685,7 +2685,7 @@ nfsrpc_symlink(vnode_t dvp, char *name, int namelen, char *target,
 /*
  * nfs make dir rpc
  */
-APPLESTATIC int
+int
 nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *dnap,
     struct nfsvattr *nnap, struct nfsfh **nfhpp, int *attrflagp,
@@ -2767,7 +2767,7 @@ nfsmout:
 /*
  * nfs remove directory call
  */
-APPLESTATIC int
+int
 nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *dnap, int *dattrflagp, void *dstuff)
 {
@@ -2823,7 +2823,7 @@ nfsrpc_rmdir(vnode_t dvp, char *name, int namelen, struct ucred *cred,
  * and returns the one for the next entry after this directory block in
  * there, as well.
  */
-APPLESTATIC int
+int
 nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     int *eofp, void *stuff)
@@ -3262,7 +3262,7 @@ nfsmout:
  * (Also used for NFS V4 when mount flag set.)
  * (ditto above w.r.t. multiple of DIRBLKSIZ, etc.)
  */
-APPLESTATIC int
+int
 nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     int *eofp, void *stuff)
@@ -3763,7 +3763,7 @@ nfsmout:
 /*
  * Nfs commit rpc
  */
-APPLESTATIC int
+int
 nfsrpc_commit(vnode_t vp, u_quad_t offset, int cnt, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
@@ -3814,7 +3814,7 @@ nfsmout:
  * NFS byte range lock rpc.
  * (Mostly just calls one of the three lower level RPC routines.)
  */
-APPLESTATIC int
+int
 nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
     int reclaim, struct ucred *cred, NFSPROC_T *p, void *id, int flags)
 {
@@ -3981,7 +3981,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 /*
  * The lower level routine for the LockT case.
  */
-APPLESTATIC int
+int
 nfsrpc_lockt(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsclclient *clp, u_int64_t off, u_int64_t len, struct flock *fl,
     struct ucred *cred, NFSPROC_T *p, void *id, int flags)
@@ -4106,7 +4106,7 @@ nfsmout:
 /*
  * The actual Lock RPC.
  */
-APPLESTATIC int
+int
 nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
     u_int8_t *nfhp, int fhlen, struct nfscllockowner *lp, int newone,
     int reclaim, u_int64_t off, u_int64_t len, short type, struct ucred *cred,
@@ -4195,7 +4195,7 @@ nfsmout:
  * nfs statfs rpc
  * (always called with the vp for the mount point)
  */
-APPLESTATIC int
+int
 nfsrpc_statfs(vnode_t vp, struct nfsstatfs *sbp, struct nfsfsinfo *fsp,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     void *stuff)
@@ -4274,7 +4274,7 @@ nfsmout:
 /*
  * nfs pathconf rpc
  */
-APPLESTATIC int
+int
 nfsrpc_pathconf(vnode_t vp, struct nfsv3_pathconf *pc,
     struct ucred *cred, NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp,
     void *stuff)
@@ -4335,7 +4335,7 @@ nfsmout:
 /*
  * nfs version 3 fsinfo rpc call
  */
-APPLESTATIC int
+int
 nfsrpc_fsinfo(vnode_t vp, struct nfsfsinfo *fsp, struct ucred *cred,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
@@ -4374,7 +4374,7 @@ nfsmout:
 /*
  * This function performs the Renew RPC.
  */
-APPLESTATIC int
+int
 nfsrpc_renew(struct nfsclclient *clp, struct nfsclds *dsp, struct ucred *cred,
     NFSPROC_T *p)
 {
@@ -4428,7 +4428,7 @@ nfsrpc_renew(struct nfsclclient *clp, struct nfsclds *dsp, struct ucred *cred,
 /*
  * This function performs the Releaselockowner RPC.
  */
-APPLESTATIC int
+int
 nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
     uint8_t *fh, int fhlen, struct ucred *cred, NFSPROC_T *p)
 {
@@ -4467,7 +4467,7 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 /*
  * This function performs the Compound to get the mount pt FH.
  */
-APPLESTATIC int
+int
 nfsrpc_getdirpath(struct nfsmount *nmp, u_char *dirpath, struct ucred *cred,
     NFSPROC_T *p)
 {
@@ -4536,7 +4536,7 @@ nfsmout:
 /*
  * This function performs the Delegreturn RPC.
  */
-APPLESTATIC int
+int
 nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
     struct nfsmount *nmp, NFSPROC_T *p, int syscred)
 {
@@ -4569,7 +4569,7 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
 /*
  * nfs getacl call.
  */
-APPLESTATIC int
+int
 nfsrpc_getacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
     struct acl *aclp, void *stuff)
 {
@@ -4599,7 +4599,7 @@ nfsrpc_getacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 /*
  * nfs setacl call.
  */
-APPLESTATIC int
+int
 nfsrpc_setacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
     struct acl *aclp, void *stuff)
 {
