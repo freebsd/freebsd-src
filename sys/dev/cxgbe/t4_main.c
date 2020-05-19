@@ -758,6 +758,7 @@ static int read_i2c(struct adapter *, struct t4_i2c_data *);
 static int clear_stats(struct adapter *, u_int);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct vi_info *, int);
+static void t4_async_event(void *, int);
 #endif
 static int mod_event(module_t, int, void *);
 static int notify_siblings(device_t, int);
@@ -1062,6 +1063,10 @@ t4_attach(device_t dev)
 	rw_init(&sc->policy_lock, "connection offload policy");
 
 	callout_init(&sc->ktls_tick, 1);
+
+#ifdef TCP_OFFLOAD
+	TASK_INIT(&sc->async_event_task, 0, t4_async_event, sc);
+#endif
 
 	rc = t4_map_bars_0_and_4(sc);
 	if (rc != 0)
@@ -1566,6 +1571,10 @@ t4_detach_common(device_t dev)
 			return (rc);
 		}
 	}
+
+#ifdef TCP_OFFLOAD
+	taskqueue_drain(taskqueue_thread, &sc->async_event_task);
+#endif
 
 	for (i = 0; i < sc->intr_count; i++)
 		t4_free_irq(sc, &sc->irq[i]);
@@ -2788,6 +2797,9 @@ t4_fatal_err(struct adapter *sc, bool fw_error)
 		sc->flags |= ADAP_ERR;
 		ADAPTER_UNLOCK(sc);
 	}
+#ifdef TCP_OFFLOAD
+	taskqueue_enqueue(taskqueue_thread, &sc->async_event_task);
+#endif
 
 	if (t4_panic_on_fatal_err) {
 		log(LOG_ALERT, "%s: panic on fatal error after 30s",
@@ -10857,6 +10869,25 @@ t4_deactivate_uld(struct adapter *sc, int id)
 	sx_sunlock(&t4_uld_list_lock);
 
 	return (rc);
+}
+
+static void
+t4_async_event(void *arg, int n)
+{
+	struct uld_info *ui;
+	struct adapter *sc = (struct adapter *)arg;
+
+	if (begin_synchronized_op(sc, NULL, SLEEP_OK | INTR_OK, "t4async") != 0)
+		return;
+	sx_slock(&t4_uld_list_lock);
+	SLIST_FOREACH(ui, &t4_uld_list, link) {
+		if (ui->uld_id == ULD_IWARP) {
+			ui->async_event(sc);
+			break;
+		}
+	}
+	sx_sunlock(&t4_uld_list_lock);
+	end_synchronized_op(sc, 0);
 }
 
 int

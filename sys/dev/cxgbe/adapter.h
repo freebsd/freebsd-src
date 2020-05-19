@@ -830,6 +830,7 @@ struct adapter {
 	int sc_do_rxcopy;
 
 	struct taskqueue *tq[MAX_NCHAN];	/* General purpose taskqueues */
+	struct task async_event_task;
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[MAX_NCHAN];		/* channel -> port */
 
