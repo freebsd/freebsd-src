@@ -72,6 +72,7 @@ Elftc_Bfd_Target_Flavor	 elftc_bfd_target_flavor(Elftc_Bfd_Target *_tgt);
 unsigned int	elftc_bfd_target_byteorder(Elftc_Bfd_Target *_tgt);
 unsigned int	elftc_bfd_target_class(Elftc_Bfd_Target *_tgt);
 unsigned int	elftc_bfd_target_machine(Elftc_Bfd_Target *_tgt);
+unsigned int	elftc_bfd_target_osabi(Elftc_Bfd_Target *_tgt);
 int		elftc_copyfile(int _srcfd,  int _dstfd);
 int		elftc_demangle(const char *_mangledname, char *_buffer,
     size_t _bufsize, unsigned int _flags);

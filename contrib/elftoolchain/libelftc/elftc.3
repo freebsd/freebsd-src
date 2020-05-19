@@ -23,7 +23,7 @@
 .\"
 .\" $Id: elftc.3 3645 2018-10-15 20:17:14Z jkoshy $
 .\"
-.Dd December 24, 2012
+.Dd February 12, 2020
 .Dt ELFTC 3
 .Os
 .Sh NAME
@@ -57,6 +57,8 @@ Query the byte order for a binary object descriptor.
 Query the object format for a binary object descriptor.
 .It Fn elftc_bfd_target_machine
 Query the target machine for a binary object descriptor.
+.It Fn elftc_bfd_target_osabi
+Query the target osabi for a binary object descriptor.
 .El
 .It "C++ support"
 .Bl -tag -compact -width indent
