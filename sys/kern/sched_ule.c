@@ -1524,9 +1524,9 @@ sched_initticks(void *dummy)
  * When a thread's run time is greater than its sleep time the
  * calculation is:
  *
- *                           scaling factor 
- * interactivity score =  ---------------------    + scaling factor
- *                        run time / sleep time
+ *                                                 scaling factor 
+ * interactivity score = 2 * scaling factor  -  ---------------------
+ *                                              run time / sleep time
  */
 static int
 sched_interact_score(struct thread *td)
