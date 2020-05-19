@@ -133,9 +133,20 @@ ENTRY(arm64_dcache_inv_range)
 END(arm64_dcache_inv_range)
 
 /*
- * void arm64_icache_sync_range(vm_offset_t, vm_size_t)
+ * void arm64_dic_idc_icache_sync_range(vm_offset_t, vm_size_t)
+ * When the CTR_EL0.IDC bit is set cleaning to PoU becomes a dsb.
+ * When the CTR_EL0.DIC bit is set icache invalidation becomes an isb.
  */
-ENTRY(arm64_icache_sync_range)
+ENTRY(arm64_dic_idc_icache_sync_range)
+	dsb	ishst
+	isb
+	ret
+END(arm64_dic_idc_icache_sync_range)
+
+/*
+ * void arm64_aliasing_icache_sync_range(vm_offset_t, vm_size_t)
+ */
+ENTRY(arm64_aliasing_icache_sync_range)
 	/*
 	 * XXX Temporary solution - I-cache flush should be range based for
 	 * PIPT cache or IALLUIS for VIVT or VIPT caches
@@ -146,7 +157,7 @@ ENTRY(arm64_icache_sync_range)
 	dsb	ish
 	isb
 	ret
-END(arm64_icache_sync_range)
+END(arm64_aliasing_icache_sync_range)
 
 /*
  * int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t)

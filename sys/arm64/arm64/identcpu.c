@@ -56,6 +56,24 @@ char machine[] = "arm64";
 extern int adaptive_machine_arch;
 #endif
 
+static SYSCTL_NODE(_machdep, OID_AUTO, cache, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Cache management tuning");
+
+static int allow_dic = 1;
+SYSCTL_INT(_machdep_cache, OID_AUTO, allow_dic, CTLFLAG_RDTUN, &allow_dic, 0,
+    "Allow optimizations based on the DIC cache bit");
+
+static int allow_idc = 1;
+SYSCTL_INT(_machdep_cache, OID_AUTO, allow_idc, CTLFLAG_RDTUN, &allow_idc, 0,
+    "Allow optimizations based on the IDC cache bit");
+
+/*
+ * The default implementation of I-cache sync assumes we have an
+ * aliasing cache until we know otherwise.
+ */
+void (*arm64_icache_sync_range)(vm_offset_t, vm_size_t) =
+    &arm64_aliasing_icache_sync_range;
+
 static int
 sysctl_hw_machine(SYSCTL_HANDLER_ARGS)
 {
@@ -977,6 +995,7 @@ identify_cpu_sysinit(void *dummy __unused)
 {
 	int cpu;
 	u_long hwcap;
+	bool dic, idc;
 
 	/* Create a user visible cpu description with safe values */
 	memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
@@ -985,6 +1004,8 @@ identify_cpu_sysinit(void *dummy __unused)
 	    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64;
 	user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
 
+	dic = (allow_dic != 0);
+	idc = (allow_idc != 0);
 	CPU_FOREACH(cpu) {
 		print_cpu_features(cpu);
 		hwcap = parse_cpu_features_hwcap(cpu);
@@ -993,6 +1014,17 @@ identify_cpu_sysinit(void *dummy __unused)
 		else
 			elf_hwcap &= hwcap;
 		update_user_regs(cpu);
+
+		if (CTR_DIC_VAL(cpu_desc[cpu].ctr) == 0)
+			dic = false;
+		if (CTR_IDC_VAL(cpu_desc[cpu].ctr) == 0)
+			idc = false;
+	}
+
+	if (dic && idc) {
+		arm64_icache_sync_range = &arm64_dic_idc_icache_sync_range;
+		if (bootverbose)
+			printf("Enabling DIC & IDC ICache sync\n");
 	}
 
 	if ((elf_hwcap & HWCAP_ATOMICS) != 0) {
