@@ -615,6 +615,7 @@ in_pcbbind(struct inpcb *inp, struct sockaddr *nam, struct ucred *cred)
  * Assign a local port like in_pcb_lport(), but also used with connect()
  * and a foreign address and port.  If fsa is non-NULL, choose a local port
  * that is unused with those, otherwise one that is completely unused.
+ * lsa can be NULL for IPv6.
  */
 int
 in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
@@ -692,14 +693,17 @@ in_pcb_lport_dest(struct inpcb *inp, struct sockaddr *lsa, u_short *lportp,
 #ifdef INET
 	laddr.s_addr = INADDR_ANY;
 	if ((inp->inp_vflag & (INP_IPV4|INP_IPV6)) == INP_IPV4) {
-		laddr = ((struct sockaddr_in *)lsa)->sin_addr;
+		if (lsa != NULL)
+			laddr = ((struct sockaddr_in *)lsa)->sin_addr;
 		if (fsa != NULL)
 			faddr = ((struct sockaddr_in *)fsa)->sin_addr;
 	}
 #endif
 #ifdef INET6
-	if (lsa->sa_family == AF_INET6) {
-		laddr6 = &((struct sockaddr_in6 *)lsa)->sin6_addr;
+	laddr6 = NULL;
+	if ((inp->inp_vflag & INP_IPV6) != 0) {
+		if (lsa != NULL)
+			laddr6 = &((struct sockaddr_in6 *)lsa)->sin6_addr;
 		if (fsa != NULL)
 			faddr6 = &((struct sockaddr_in6 *)fsa)->sin6_addr;
 	}
