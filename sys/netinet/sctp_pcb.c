@@ -544,13 +544,9 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		atomic_add_int(&vrf->refcount, 1);
 		sctp_ifnp->ifn_mtu = SCTP_GATHER_MTU_FROM_IFN_INFO(ifn, ifn_index, addr->sa_family);
 		if (if_name != NULL) {
-			if (snprintf(sctp_ifnp->ifn_name, SCTP_IFNAMSIZ, "%s", if_name) < 0) {
-				sctp_ifnp->ifn_name[0] = '\0';
-			}
+			snprintf(sctp_ifnp->ifn_name, SCTP_IFNAMSIZ, "%s", if_name);
 		} else {
-			if (snprintf(sctp_ifnp->ifn_name, SCTP_IFNAMSIZ, "%s", "unknown") < 0) {
-				sctp_ifnp->ifn_name[0] = '\0';
-			}
+			snprintf(sctp_ifnp->ifn_name, SCTP_IFNAMSIZ, "%s", "unknown");
 		}
 		hash_ifn_head = &SCTP_BASE_INFO(vrf_ifn_hash)[(ifn_index & SCTP_BASE_INFO(vrf_ifn_hashmark))];
 		LIST_INIT(&sctp_ifnp->ifalist);
@@ -6221,10 +6217,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							 * in setup state we
 							 * abort this guy
 							 */
-							if (snprintf(msg, sizeof(msg),
-							    "%s:%d at %s", __FILE__, __LINE__, __func__) < 0) {
-								msg[0] = '\0';
-							}
+							snprintf(msg, sizeof(msg),
+							    "%s:%d at %s", __FILE__, __LINE__, __func__);
 							op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 							    msg);
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
@@ -6323,10 +6317,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 							 * in setup state we
 							 * abort this guy
 							 */
-							if (snprintf(msg, sizeof(msg),
-							    "%s:%d at %s", __FILE__, __LINE__, __func__) < 0) {
-								msg[0] = '\0';
-							}
+							snprintf(msg, sizeof(msg),
+							    "%s:%d at %s", __FILE__, __LINE__, __func__);
 							op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 							    msg);
 							sctp_abort_an_association(stcb_tmp->sctp_ep,
