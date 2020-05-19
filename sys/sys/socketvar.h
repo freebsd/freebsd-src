@@ -335,6 +335,22 @@ struct accept_filter {
 	SLIST_ENTRY(accept_filter) accf_next;
 };
 
+#define	ACCEPT_FILTER_DEFINE(modname, filtname, cb, create, destroy, ver) \
+	static struct accept_filter modname##_filter = {		\
+		.accf_name = filtname,					\
+		.accf_callback = cb,					\
+		.accf_create = create,					\
+		.accf_destroy = destroy,				\
+	};								\
+	static moduledata_t modname##_mod = {				\
+		.name = __XSTRING(modname),				\
+		.evhand = accept_filt_generic_mod_event,		\
+		.priv = &modname##_filter,				\
+	};								\
+	DECLARE_MODULE(modname, modname##_mod, SI_SUB_DRIVERS,		\
+	    SI_ORDER_MIDDLE);						\
+	MODULE_VERSION(modname, 1)
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ACCF);
 MALLOC_DECLARE(M_PCB);
