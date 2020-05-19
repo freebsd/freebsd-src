@@ -228,6 +228,7 @@ struct gicv3_its_irqsrc {
 	u_int			gi_id;
 	u_int			gi_lpi;
 	struct its_dev		*gi_its_dev;
+	TAILQ_ENTRY(gicv3_its_irqsrc) gi_link;
 };
 
 struct gicv3_its_softc {
@@ -254,12 +255,14 @@ struct gicv3_its_softc {
 	size_t sc_its_cmd_next_idx;
 
 	vmem_t *sc_irq_alloc;
-	struct gicv3_its_irqsrc	*sc_irqs;
+	struct gicv3_its_irqsrc	**sc_irqs;
 	u_int	sc_irq_base;
 	u_int	sc_irq_length;
+	u_int	sc_irq_count;
 
 	struct mtx sc_its_dev_lock;
 	TAILQ_HEAD(its_dev_list, its_dev) sc_its_dev_list;
+	TAILQ_HEAD(free_irqs, gicv3_its_irqsrc) sc_free_irqs;
 
 #define	ITS_FLAGS_CMDQ_FLUSH		0x00000001
 #define	ITS_FLAGS_LPI_CONF_FLUSH	0x00000002
@@ -800,7 +803,6 @@ static int
 gicv3_its_attach(device_t dev)
 {
 	struct gicv3_its_softc *sc;
-	const char *name;
 	uint32_t iidr;
 	int domain, err, i, rid;
 
@@ -875,6 +877,7 @@ gicv3_its_attach(device_t dev)
 	its_init_cpu(dev, sc);
 
 	TAILQ_INIT(&sc->sc_its_dev_list);
+	TAILQ_INIT(&sc->sc_free_irqs);
 
 	/*
 	 * Create the vmem object to allocate INTRNG IRQs from. We try to
@@ -887,13 +890,6 @@ gicv3_its_attach(device_t dev)
 
 	sc->sc_irqs = malloc(sizeof(*sc->sc_irqs) * sc->sc_irq_length,
 	    M_GICV3_ITS, M_WAITOK | M_ZERO);
-	name = device_get_nameunit(dev);
-	for (i = 0; i < sc->sc_irq_length; i++) {
-		sc->sc_irqs[i].gi_id = -1;
-		sc->sc_irqs[i].gi_lpi = i + sc->sc_irq_base - GIC_FIRST_LPI;
-		err = intr_isrc_register(&sc->sc_irqs[i].gi_isrc, dev, 0,
-		    "%s,%u", name, i);
-	}
 
 	/* For GIC-500 install tracking sysctls. */
 	if ((iidr & (GITS_IIDR_PRODUCT_MASK | GITS_IIDR_IMPLEMENTOR_MASK)) ==
@@ -975,7 +971,7 @@ gicv3_its_intr(void *arg, uintptr_t irq)
 	struct trapframe *tf;
 
 	irq -= sc->sc_irq_base;
-	girq = &sc->sc_irqs[irq];
+	girq = sc->sc_irqs[irq];
 	if (girq == NULL)
 		panic("gicv3_its_intr: Invalid interrupt %ld",
 		    irq + sc->sc_irq_base);
@@ -1201,6 +1197,53 @@ its_device_release(device_t dev, struct its_dev *its_dev)
 	free(its_dev, M_GICV3_ITS);
 }
 
+static struct gicv3_its_irqsrc *
+gicv3_its_alloc_irqsrc(device_t dev, struct gicv3_its_softc *sc, u_int irq)
+{
+	struct gicv3_its_irqsrc *girq = NULL;
+
+	KASSERT(sc->sc_irqs[irq] == NULL,
+	    ("%s: Interrupt %u already allocated", __func__, irq));
+	mtx_lock_spin(&sc->sc_its_dev_lock);
+	if (!TAILQ_EMPTY(&sc->sc_free_irqs)) {
+		girq = TAILQ_FIRST(&sc->sc_free_irqs);
+		TAILQ_REMOVE(&sc->sc_free_irqs, girq, gi_link);
+	}
+	mtx_unlock_spin(&sc->sc_its_dev_lock);
+	if (girq == NULL) {
+		girq = malloc(sizeof(*girq), M_GICV3_ITS,
+		    M_NOWAIT | M_ZERO);
+		if (girq == NULL)
+			return (NULL);
+		girq->gi_id = -1;
+		if (intr_isrc_register(&girq->gi_isrc, dev, 0,
+		    "%s,%u", device_get_nameunit(dev), irq) != 0) {
+			free(girq, M_GICV3_ITS);
+			return (NULL);
+		}
+	}
+	girq->gi_lpi = irq + sc->sc_irq_base - GIC_FIRST_LPI;
+	sc->sc_irqs[irq] = girq;
+
+	return (girq);
+}
+
+static void
+gicv3_its_release_irqsrc(struct gicv3_its_softc *sc,
+    struct gicv3_its_irqsrc *girq)
+{
+	u_int irq;
+
+	mtx_assert(&sc->sc_its_dev_lock, MA_OWNED);
+
+	irq = girq->gi_lpi + GIC_FIRST_LPI - sc->sc_irq_base;
+	sc->sc_irqs[irq] = NULL;
+
+	girq->gi_id = -1;
+	girq->gi_its_dev = NULL;
+	TAILQ_INSERT_TAIL(&sc->sc_free_irqs, girq, gi_link);
+}
+
 static int
 gicv3_its_alloc_msi(device_t dev, device_t child, int count, int maxcount,
     device_t *pic, struct intr_irqsrc **srcs)
@@ -1220,12 +1263,35 @@ gicv3_its_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	sc = device_get_softc(dev);
 	irq = its_dev->lpis.lpi_base + its_dev->lpis.lpi_num -
 	    its_dev->lpis.lpi_free;
+
+	/* Allocate the irqsrc for each MSI */
 	for (i = 0; i < count; i++, irq++) {
 		its_dev->lpis.lpi_free--;
-		girq = &sc->sc_irqs[irq];
+		srcs[i] = (struct intr_irqsrc *)gicv3_its_alloc_irqsrc(dev,
+		    sc, irq);
+		if (srcs[i] == NULL)
+			break;
+	}
+
+	/* The allocation failed, release them */
+	if (i != count) {
+		mtx_lock_spin(&sc->sc_its_dev_lock);
+		for (i = 0; i < count; i++) {
+			girq = (struct gicv3_its_irqsrc *)srcs[i];
+			if (girq == NULL)
+				break;
+			gicv3_its_release_irqsrc(sc, girq);
+			srcs[i] = NULL;
+		}
+		mtx_unlock_spin(&sc->sc_its_dev_lock);
+		return (ENXIO);
+	}
+
+	/* Finish the allocation now we have all MSI irqsrcs */
+	for (i = 0; i < count; i++) {
+		girq = (struct gicv3_its_irqsrc *)srcs[i];
 		girq->gi_id = i;
 		girq->gi_its_dev = its_dev;
-		srcs[i] = (struct intr_irqsrc *)girq;
 
 		/* Map the message to the given IRQ */
 		gicv3_its_select_cpu(dev, (struct intr_irqsrc *)girq);
@@ -1241,6 +1307,7 @@ static int
 gicv3_its_release_msi(device_t dev, device_t child, int count,
     struct intr_irqsrc **isrc)
 {
+	struct gicv3_its_softc *sc;
 	struct gicv3_its_irqsrc *girq;
 	struct its_dev *its_dev;
 	int i;
@@ -1254,11 +1321,14 @@ gicv3_its_release_msi(device_t dev, device_t child, int count,
 	    ("gicv3_its_release_msi: Releasing more interrupts than "
 	     "were allocated: releasing %d, allocated %d", count,
 	     its_dev->lpis.lpi_busy));
+
+	sc = device_get_softc(dev);
+	mtx_lock_spin(&sc->sc_its_dev_lock);
 	for (i = 0; i < count; i++) {
 		girq = (struct gicv3_its_irqsrc *)isrc[i];
-		girq->gi_id = -1;
-		girq->gi_its_dev = NULL;
+		gicv3_its_release_irqsrc(sc, girq);
 	}
+	mtx_unlock_spin(&sc->sc_its_dev_lock);
 	its_dev->lpis.lpi_busy -= count;
 
 	if (its_dev->lpis.lpi_busy == 0)
@@ -1286,7 +1356,10 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 	sc = device_get_softc(dev);
 	irq = its_dev->lpis.lpi_base + its_dev->lpis.lpi_num -
 	    its_dev->lpis.lpi_free;
-	girq = &sc->sc_irqs[irq];
+
+	girq = gicv3_its_alloc_irqsrc(dev, sc, irq);
+	if (girq == NULL)
+		return (ENXIO);
 	girq->gi_id = its_dev->lpis.lpi_busy;
 	girq->gi_its_dev = its_dev;
 
@@ -1306,6 +1379,7 @@ gicv3_its_alloc_msix(device_t dev, device_t child, device_t *pic,
 static int
 gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 {
+	struct gicv3_its_softc *sc;
 	struct gicv3_its_irqsrc *girq;
 	struct its_dev *its_dev;
 
@@ -1317,9 +1391,10 @@ gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 	KASSERT(its_dev->lpis.lpi_busy > 0,
 	    ("gicv3_its_release_msix: Releasing more interrupts than "
 	     "were allocated: allocated %d", its_dev->lpis.lpi_busy));
+
+	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
-	girq->gi_its_dev = NULL;
-	girq->gi_id = -1;
+	gicv3_its_release_irqsrc(sc, girq);
 	its_dev->lpis.lpi_busy--;
 
 	if (its_dev->lpis.lpi_busy == 0)
