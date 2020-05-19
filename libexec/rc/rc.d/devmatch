@@ -27,6 +27,7 @@
 #
 # PROVIDE: devmatch
 # REQUIRE: kldxref
+# BEFORE: netif
 # KEYWORD: nojail
 
 . /etc/rc.subr
