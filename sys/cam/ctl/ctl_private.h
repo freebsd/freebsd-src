@@ -147,7 +147,6 @@ typedef enum {
 	CTL_LUN_RESERVED	= 0x002,
 	CTL_LUN_INVALID		= 0x004,
 	CTL_LUN_DISABLED	= 0x008,
-	CTL_LUN_MALLOCED	= 0x010,
 	CTL_LUN_STOPPED		= 0x020,
 	CTL_LUN_NO_MEDIA	= 0x040,
 	CTL_LUN_EJECTED		= 0x080,
@@ -458,7 +457,6 @@ struct ctl_softc {
 	struct ctl_lun		**ctl_luns;
 	uint32_t		*ctl_port_mask;
 	STAILQ_HEAD(, ctl_lun)	lun_list;
-	STAILQ_HEAD(, ctl_be_lun)	pending_lun_queue;
 	uint32_t		num_frontends;
 	STAILQ_HEAD(, ctl_frontend)	fe_list;
 	uint32_t		num_ports;
@@ -470,7 +468,6 @@ struct ctl_softc {
 	uint32_t		cur_pool_id;
 	int			shutdown;
 	struct ctl_thread	threads[CTL_MAX_THREADS];
-	struct thread		*lun_thread;
 	struct thread		*thresh_thread;
 	TAILQ_HEAD(tpc_tokens, tpc_token)	tpc_tokens;
 	struct callout		tpc_timeout;
