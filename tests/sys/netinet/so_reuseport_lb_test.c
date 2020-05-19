@@ -188,9 +188,6 @@ ATF_TC_BODY(basic_ipv6, tc)
 	int error, sds[16];
 	uint16_t port;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/246560");
-
 	sds[0] = lb_listen_socket(PF_INET6, SOCK_NONBLOCK);
 
 	memset(&addr, 0, sizeof(addr));
