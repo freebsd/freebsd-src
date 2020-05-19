@@ -1964,7 +1964,7 @@ typedef struct {
 	u_int16_t 	interval;
 	u_int8_t	latency;
 	u_int16_t	supervision_timeout;
-	u_int8_t	master_clock_accracy;
+	u_int8_t	master_clock_accuracy;
 	
 } __attribute__ ((packed)) ng_hci_le_connection_complete_ep;
 
