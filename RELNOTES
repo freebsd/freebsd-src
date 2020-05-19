@@ -174,4 +174,10 @@ r347908-r347923:
 	ed(4), ep(4), ex(4), fe(4), pcn(4), sf(4), sn(4), tl(4), tx(4), txp(4),
 	vx(4), wb(4), xe(4).
 
+r347532:
+	Wired page accounting has been split into kernel wirings and user
+	wirings (e.g., by mlock(2)).  Kernel wirings no long count towards
+	the global limit, which is renamed to vm.max_user_wired.  bhyve -S
+	allocates user-wired memory and is now subject to that limit.
+
 $FreeBSD$
