@@ -909,10 +909,8 @@ static void
 pagezero(vm_offset_t va)
 {
 	va = trunc_page(va);
-	int off;
 
-	for (off = 0; off < PAGE_SIZE; off += cacheline_size)
-		__asm __volatile("dcbz 0,%0" :: "r"(va + off));
+	bzero((void *)va, PAGE_SIZE);
 }
 
 static uint64_t
