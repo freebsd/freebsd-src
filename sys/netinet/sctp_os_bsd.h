@@ -295,6 +295,8 @@ typedef struct callout sctp_os_timer_t;
 
 #define SCTP_ALIGN_TO_END(m, len) M_ALIGN(m, len)
 
+#define SCTP_SNPRINTF(...) snprintf(__VA_ARGS__)
+
 /* We make it so if you have up to 4 threads
  * writing based on the default size of
  * the packet log 65 k, that would be
