@@ -63,6 +63,10 @@ static int le_set_advertising_param(int s, int argc, char *argv[]);
 static int le_read_advertising_channel_tx_power(int s, int argc, char *argv[]);
 static int le_scan(int s, int argc, char *argv[]);
 static void handle_le_event(ng_hci_event_pkt_t* e, bool verbose);
+static int le_read_white_list_size(int s, int argc, char *argv[]);
+static int le_clear_white_list(int s, int argc, char *argv[]);
+static int le_add_device_to_white_list(int s, int argc, char *argv[]);
+static int le_remove_device_from_white_list(int s, int argc, char *argv[]);
 
 static int
 le_set_scan_param(int s, int argc, char *argv[])
@@ -762,6 +766,173 @@ static void handle_le_event(ng_hci_event_pkt_t* e, bool verbose)
 	}
 }
 
+static int
+le_read_white_list_size(int s, int argc, char *argv[])
+{
+	ng_hci_le_read_white_list_size_rp rp;
+	int n;
+
+	n = sizeof(rp);
+
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_READ_WHITE_LIST_SIZE), 
+		(void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+        fprintf(stdout, "White list size: %d\n",
+		(uint8_t)rp.white_list_size);
+
+	return (OK);
+}
+
+static int
+le_clear_white_list(int s, int argc, char *argv[])
+{
+	ng_hci_le_clear_white_list_rp rp;
+	int n;
+
+	n = sizeof(rp);
+
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_CLEAR_WHITE_LIST), 
+		(void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+        fprintf(stdout, "White list cleared\n");
+
+	return (OK);
+}
+
+static int
+le_add_device_to_white_list(int s, int argc, char *argv[])
+{
+	ng_hci_le_add_device_to_white_list_cp cp;
+	ng_hci_le_add_device_to_white_list_rp rp;
+	int n;
+	char ch;
+	optreset = 1;
+	optind = 0;
+	bool addr_set = false;
+
+	n = sizeof(rp);
+
+	cp.address_type = 0x00;
+
+	while ((ch = getopt(argc, argv , "t:a:")) != -1) {
+		switch(ch) {
+		case 't':
+			if (strcmp(optarg, "public") == 0)
+				cp.address_type = 0x00;
+			else if (strcmp(optarg, "random") == 0)
+				cp.address_type = 0x01;
+			else 
+				return (USAGE);
+			break;
+		case 'a':
+			addr_set = true;
+			if (!bt_aton(optarg, &cp.address)) {
+				struct hostent	*he = NULL;
+
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					return (USAGE);
+
+				memcpy(&cp.address, he->h_addr,
+					sizeof(cp.address));
+			}
+			break;
+		}
+	}
+
+	if (addr_set == false) 
+		return (USAGE);
+
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_ADD_DEVICE_TO_WHITE_LIST), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+        fprintf(stdout, "Address added to white list\n");
+
+	return (OK);
+}
+
+static int
+le_remove_device_from_white_list(int s, int argc, char *argv[])
+{
+	ng_hci_le_remove_device_from_white_list_cp cp;
+	ng_hci_le_remove_device_from_white_list_rp rp;
+	int n;
+	char ch;
+	optreset = 1;
+	optind = 0;
+	bool addr_set = false;
+
+	n = sizeof(rp);
+
+	cp.address_type = 0x00;
+
+	while ((ch = getopt(argc, argv , "t:a:")) != -1) {
+		switch(ch) {
+		case 't':
+			if (strcmp(optarg, "public") == 0)
+				cp.address_type = 0x00;
+			else if (strcmp(optarg, "random") == 0)
+				cp.address_type = 0x01;
+			else 
+				return (USAGE);
+			break;
+		case 'a':
+			addr_set = true;
+			if (!bt_aton(optarg, &cp.address)) {
+				struct hostent	*he = NULL;
+
+				if ((he = bt_gethostbyname(optarg)) == NULL)
+					return (USAGE);
+
+				memcpy(&cp.address, he->h_addr,
+					sizeof(cp.address));
+			}
+			break;
+		}
+	}
+
+	if (addr_set == false) 
+		return (USAGE);
+
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_ADD_DEVICE_TO_WHITE_LIST), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+        fprintf(stdout, "Address removed from white list\n");
+
+	return (OK);
+}
+
 struct hci_command le_commands[] = {
 {
 	"le_enable",
@@ -839,5 +1010,31 @@ struct hci_command le_commands[] = {
 	  "le_scan [-a] [-v] [-n number_of_scans]\n"
 	  "Do an LE scan",
 	  &le_scan
+  },
+  {
+	  "le_read_white_list_size",
+	  "le_read_white_list_size\n"
+	  "Read total number of white list entries that can be stored",
+	  &le_read_white_list_size
+  },
+  {
+	  "le_clear_white_list",
+	  "le_clear_white_list\n"
+	  "Clear the white list in the controller",
+	  &le_clear_white_list
+  },
+  {
+	  "le_add_device_to_white_list",
+	  "le_add_device_to_white_list\n"
+	  "[-t public|random] -a address\n"
+	  "Add device to the white list",
+	  &le_add_device_to_white_list
+  },
+  {
+	  "le_remove_device_from_white_list",
+	  "le_remove_device_from_white_list\n"
+	  "[-t public|random] -a address\n"
+	  "Remove device from the white list",
+	  &le_remove_device_from_white_list
   },
 };
