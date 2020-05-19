@@ -127,7 +127,7 @@ static int nfs_bigrequest[NFSV41_NPROCS] = {
  * Start building a request. Mostly just put the first file handle in
  * place.
  */
-APPLESTATIC void
+void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
     u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep)
 {
@@ -253,7 +253,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
  * copies a uio scatter/gather list to an mbuf chain.
  * NOTE: can ony handle iovcnt == 1
  */
-APPLESTATIC void
+void
 nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 {
 	char *uiocp;
@@ -336,7 +336,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
  * Load vnode attributes from the xdr file attributes.
  * Returns EBADRPC if they can't be parsed, 0 otherwise.
  */
-APPLESTATIC int
+int
 nfsm_loadattr(struct nfsrv_descript *nd, struct nfsvattr *nap)
 {
 	struct nfs_fattr *fp;
@@ -402,7 +402,7 @@ nfsmout:
  * This function finds the directory cookie that corresponds to the
  * logical byte offset given.
  */
-APPLESTATIC nfsuint64 *
+nfsuint64 *
 nfscl_getcookie(struct nfsnode *np, off_t off, int add)
 {
 	struct nfsdmap *dp, *dp2;
@@ -454,7 +454,7 @@ nfscl_getcookie(struct nfsnode *np, off_t off, int add)
  * the file handle and the file's attributes.
  * For V4, it assumes that Getfh and Getattr Op's results are here.
  */
-APPLESTATIC int
+int
 nfscl_mtofh(struct nfsrv_descript *nd, struct nfsfh **nfhpp,
     struct nfsvattr *nap, int *attrflagp)
 {
@@ -515,7 +515,7 @@ nfsmout:
 /*
  * Put a state Id in the mbuf list.
  */
-APPLESTATIC void
+void
 nfsm_stateidtom(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp, int flag)
 {
 	nfsv4stateid_t *st;
@@ -547,7 +547,7 @@ nfsm_stateidtom(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp, int flag)
 /*
  * Initialize the owner/delegation sleep lock.
  */
-APPLESTATIC void
+void
 nfscl_lockinit(struct nfsv4lock *lckp)
 {
 
@@ -559,7 +559,7 @@ nfscl_lockinit(struct nfsv4lock *lckp)
  * Get an exclusive lock. (Not needed for OpenBSD4, since there is only one
  * thread for each posix process in the kernel.)
  */
-APPLESTATIC void
+void
 nfscl_lockexcl(struct nfsv4lock *lckp, void *mutex)
 {
 	int igotlock;
@@ -572,7 +572,7 @@ nfscl_lockexcl(struct nfsv4lock *lckp, void *mutex)
 /*
  * Release an exclusive lock.
  */
-APPLESTATIC void
+void
 nfscl_lockunlock(struct nfsv4lock *lckp)
 {
 
@@ -582,7 +582,7 @@ nfscl_lockunlock(struct nfsv4lock *lckp)
 /*
  * Called to derefernce a lock on a stateid (delegation or open owner).
  */
-APPLESTATIC void
+void
 nfscl_lockderef(struct nfsv4lock *lckp)
 {
 

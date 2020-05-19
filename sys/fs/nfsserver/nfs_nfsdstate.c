@@ -175,7 +175,7 @@ static int nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp);
  * If returning a non-error, the clp structure must either be linked into
  * the client list or free'd.
  */
-APPLESTATIC int
+int
 nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
     nfsquad_t *clientidp, nfsquad_t *confirmp, NFSPROC_T *p)
 {
@@ -516,7 +516,7 @@ out:
 /*
  * Check to see if the client id exists and optionally confirm it.
  */
-APPLESTATIC int
+int
 nfsrv_getclient(nfsquad_t clientid, int opflags, struct nfsclient **clpp,
     struct nfsdsession *nsep, nfsquad_t confirm, uint32_t cbprogram,
     struct nfsrv_descript *nd, NFSPROC_T *p)
@@ -793,7 +793,7 @@ out:
  * Called from the new nfssvc syscall to admin revoke a clientid.
  * Returns 0 for success, error otherwise.
  */
-APPLESTATIC int
+int
 nfsrv_adminrevoke(struct nfsd_clid *revokep, NFSPROC_T *p)
 {
 	struct nfsclient *clp = NULL;
@@ -861,7 +861,7 @@ out:
  * Dump out stats for all clients. Called from nfssvc(2), that is used
  * nfsstatsv1.
  */
-APPLESTATIC void
+void
 nfsrv_dumpclients(struct nfsd_dumpclients *dumpp, int maxcnt)
 {
 	struct nfsclient *clp;
@@ -964,7 +964,7 @@ nfsrv_dumpaclient(struct nfsclient *clp, struct nfsd_dumpclients *dumpp)
 /*
  * Dump out lock stats for a file.
  */
-APPLESTATIC void
+void
 nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
     NFSPROC_T *p)
 {
@@ -1137,7 +1137,7 @@ nfsrv_dumplocks(vnode_t vp, struct nfsd_dumplocks *ldumpp, int maxcnt,
  *  Darwin, I'm not sure what will work correctly yet.)
  * Should be called once per second.
  */
-APPLESTATIC void
+void
 nfsrv_servertimer(void)
 {
 	struct nfsclient *clp, *nclp;
@@ -1262,7 +1262,7 @@ nfsrv_servertimer(void)
  * Caller must hold an exclusive lock on nfsv4rootfs_lock, so that
  * there are no other active nfsd threads.
  */
-APPLESTATIC void
+void
 nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p)
 {
 	struct nfsstate *stp, *nstp;
@@ -1281,7 +1281,7 @@ nfsrv_cleanclient(struct nfsclient *clp, NFSPROC_T *p)
  * (Just to be safe w.r.t. newnfs_disconnect(), call this function when
  *  softclock interrupts are enabled.)
  */
-APPLESTATIC void
+void
 nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
 {
 
@@ -1313,7 +1313,7 @@ nfsrv_zapclient(struct nfsclient *clp, NFSPROC_T *p)
  * (This function will also free all nfslockfile structures that no
  *  longer have associated state.)
  */
-APPLESTATIC void
+void
 nfsrv_freedeleglist(struct nfsstatehead *sthp)
 {
 	struct nfsstate *stp, *nstp;
@@ -1597,7 +1597,7 @@ nfsrv_getowner(struct nfsstatehead *hp, struct nfsstate *new_stp,
  * cases, *new_stpp and *new_lopp should be malloc'd before the call,
  * in case they are used.
  */
-APPLESTATIC int
+int
 nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
     struct nfslock **new_lopp, struct nfslockconflict *cfp,
     nfsquad_t clientid, nfsv4stateid_t *stateidp,
@@ -2320,7 +2320,7 @@ out:
  * repstat is passed back out as an error if more critical errors
  * are not detected.
  */
-APPLESTATIC int
+int
 nfsrv_opencheck(nfsquad_t clientid, nfsv4stateid_t *stateidp,
     struct nfsstate *new_stp, vnode_t vp, struct nfsrv_descript *nd,
     NFSPROC_T *p, int repstat)
@@ -2571,7 +2571,7 @@ out:
 /*
  * Open control function to create/update open state for an open.
  */
-APPLESTATIC int
+int
 nfsrv_openctrl(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsstate **new_stpp, nfsquad_t clientid, nfsv4stateid_t *stateidp,
     nfsv4stateid_t *delegstateidp, u_int32_t *rflagsp, struct nfsexstuff *exp,
@@ -3337,7 +3337,7 @@ out:
 /*
  * Open update. Does the confirm, downgrade and close.
  */
-APPLESTATIC int
+int
 nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
     nfsv4stateid_t *stateidp, struct nfsrv_descript *nd, NFSPROC_T *p)
 {
@@ -3495,7 +3495,7 @@ out:
 /*
  * Delegation update. Does the purge and return.
  */
-APPLESTATIC int
+int
 nfsrv_delegupdate(struct nfsrv_descript *nd, nfsquad_t clientid,
     nfsv4stateid_t *stateidp, vnode_t vp, int op, struct ucred *cred,
     NFSPROC_T *p)
@@ -3578,7 +3578,7 @@ out:
 /*
  * Release lock owner.
  */
-APPLESTATIC int
+int
 nfsrv_releaselckown(struct nfsstate *new_stp, nfsquad_t clientid,
     NFSPROC_T *p)
 {
@@ -3964,7 +3964,7 @@ out:
  *  for callbacks, but can be printed out by nfsstats for info.)
  * Return error if the xdr can't be parsed, 0 otherwise.
  */
-APPLESTATIC int
+int
 nfsrv_getclientipaddr(struct nfsrv_descript *nd, struct nfsclient *clp)
 {
 	u_int32_t *tl;
@@ -4677,7 +4677,7 @@ tryagain:
  * Read in the stable storage file. Called by nfssvc() before the nfsd
  * processes start servicing requests.
  */
-APPLESTATIC void
+void
 nfsrv_setupstable(NFSPROC_T *p)
 {
 	struct nfsrv_stablefirst *sf = &nfsrv_stablefirst;
@@ -4812,7 +4812,7 @@ nfsrv_setupstable(NFSPROC_T *p)
 /*
  * Update the stable storage file, now that the grace period is over.
  */
-APPLESTATIC void
+void
 nfsrv_updatestable(NFSPROC_T *p)
 {
 	struct nfsrv_stablefirst *sf = &nfsrv_stablefirst;
@@ -4895,7 +4895,7 @@ nfsrv_updatestable(NFSPROC_T *p)
 /*
  * Append a record to the stable storage file.
  */
-APPLESTATIC void
+void
 nfsrv_writestable(u_char *client, int len, int flag, NFSPROC_T *p)
 {
 	struct nfsrv_stablefirst *sf = &nfsrv_stablefirst;
@@ -5263,7 +5263,7 @@ out:
  * Check for a remove allowed, if remove is set to 1 and get rid of
  * delegations.
  */
-APPLESTATIC int
+int
 nfsrv_checkremove(vnode_t vp, int remove, NFSPROC_T *p)
 {
 	struct nfsstate *stp;
@@ -5402,7 +5402,7 @@ out:
  *	and all delegations for the vnode recalled. This is done via the
  *	second function, using the VV_DISABLEDELEG vflag on the vnode.
  */
-APPLESTATIC void
+void
 nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 {
 	time_t starttime;
@@ -5448,7 +5448,7 @@ nfsd_recalldelegation(vnode_t vp, NFSPROC_T *p)
 	NFSUNLOCKV4ROOTMUTEX();
 }
 
-APPLESTATIC void
+void
 nfsd_disabledelegation(vnode_t vp, NFSPROC_T *p)
 {
 
@@ -5478,7 +5478,7 @@ nfsd_disabledelegation(vnode_t vp, NFSPROC_T *p)
  * as Write backs, even if there is no delegation, so it really isn't any
  * different?)
  */
-APPLESTATIC int
+int
 nfsrv_checksetattr(vnode_t vp, struct nfsrv_descript *nd,
     nfsv4stateid_t *stateidp, struct nfsvattr *nvap, nfsattrbit_t *attrbitp,
     struct nfsexstuff *exp, NFSPROC_T *p)
@@ -5525,7 +5525,7 @@ out:
  * Should I return an error if I can't get the attributes? (For now, I'll
  * just return ok.
  */
-APPLESTATIC int
+int
 nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
     struct nfsvattr *nvap, nfsattrbit_t *attrbitp, struct ucred *cred,
     NFSPROC_T *p)
@@ -5632,7 +5632,7 @@ out:
  * a while and throws them away. Called by an nfsd when NFSNSF_NOOPENS
  * is set.
  */
-APPLESTATIC void
+void
 nfsrv_throwawayopens(NFSPROC_T *p)
 {
 	struct nfsclient *clp, *nclp;
@@ -6516,7 +6516,7 @@ nfsv4_getcbsession(struct nfsclient *clp, struct nfsdsession **sepp)
  * This is only called after all the nfsd threads are done performing RPCs,
  * so locking shouldn't be an issue.
  */
-APPLESTATIC void
+void
 nfsrv_freeallbackchannel_xprts(void)
 {
 	struct nfsdsession *sep;
