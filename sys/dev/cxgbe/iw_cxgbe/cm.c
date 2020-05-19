@@ -1085,7 +1085,7 @@ c4iw_so_upcall(struct socket *so, void *arg, int waitflag)
 	 * Wake up any threads waiting in rdma_init()/rdma_fini(),
 	 * with locks held.
 	 */
-	if (so->so_error)
+	if (so->so_error || (ep->com.dev->rdev.flags & T4_FATAL_ERROR))
 		c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
 	add_ep_to_req_list(ep, C4IW_EVENT_SOCKET);
 
@@ -2700,6 +2700,11 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 
 	CTR3(KTR_IW_CXGBE, "%s: cm_id %p, backlog %s", __func__, cm_id,
 			backlog);
+	if (c4iw_fatal_error(&dev->rdev)) {
+		CTR2(KTR_IW_CXGBE, "%s: cm_id %p, fatal error", __func__,
+			       cm_id);
+		return -EIO;
+	}
 	lep = alloc_ep(sizeof(*lep), GFP_KERNEL);
 	lep->com.cm_id = cm_id;
 	ref_cm_id(&lep->com);
@@ -2800,7 +2805,6 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 {
 	int ret = 0;
 	int close = 0;
-	int fatal = 0;
 	struct c4iw_rdev *rdev;
 
 
@@ -2809,12 +2813,14 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 	rdev = &ep->com.dev->rdev;
 
 	if (c4iw_fatal_error(rdev)) {
-
-		CTR2(KTR_IW_CXGBE, "%s:ced1 %p", __func__, ep);
-		fatal = 1;
+		CTR3(KTR_IW_CXGBE, "%s:ced1 fatal error %p %s", __func__, ep,
+					states[ep->com.state]);
+		if (ep->com.state != DEAD) {
+			send_abort(ep);
+			ep->com.state = DEAD;
+		}
 		close_complete_upcall(ep, -ECONNRESET);
-		send_abort(ep);
-		ep->com.state = DEAD;
+		return ECONNRESET;
 	}
 	CTR3(KTR_IW_CXGBE, "%s:ced2 %p %s", __func__, ep,
 	    states[ep->com.state]);
@@ -2877,9 +2883,7 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 			CTR2(KTR_IW_CXGBE, "%s:ced4 %p", __func__, ep);
 			set_bit(EP_DISC_ABORT, &ep->com.history);
 			close_complete_upcall(ep, -ECONNRESET);
-			ret = send_abort(ep);
-			if (ret)
-				fatal = 1;
+			send_abort(ep);
 		} else {
 
 			CTR2(KTR_IW_CXGBE, "%s:ced5 %p", __func__, ep);
@@ -2889,33 +2893,28 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 				ep->com.state = MORIBUND;
 
 			CURVNET_SET(ep->com.so->so_vnet);
-			sodisconnect(ep->com.so);
+			ret = sodisconnect(ep->com.so);
 			CURVNET_RESTORE();
-		}
-
-	}
-
-	if (fatal) {
-		set_bit(EP_DISC_FAIL, &ep->com.history);
-		if (!abrupt) {
-			STOP_EP_TIMER(ep);
-			close_complete_upcall(ep, -EIO);
-		}
-		if (ep->com.qp) {
-			struct c4iw_qp_attributes attrs = {0};
-
-			attrs.next_state = C4IW_QP_STATE_ERROR;
-			ret = c4iw_modify_qp(ep->com.dev, ep->com.qp,
-						C4IW_QP_ATTR_NEXT_STATE,
-						&attrs, 1);
 			if (ret) {
-				CTR2(KTR_IW_CXGBE, "%s:ced7 %p", __func__, ep);
-				printf("%s - qp <- error failed!\n", __func__);
+				CTR2(KTR_IW_CXGBE, "%s:ced6 %p", __func__, ep);
+				STOP_EP_TIMER(ep);
+				send_abort(ep);
+				ep->com.state = DEAD;
+				close_complete_upcall(ep, -ECONNRESET);
+				set_bit(EP_DISC_FAIL, &ep->com.history);
+				if (ep->com.qp) {
+					struct c4iw_qp_attributes attrs = {0};
+
+					attrs.next_state = C4IW_QP_STATE_ERROR;
+					ret = c4iw_modify_qp(
+							ep->com.dev, ep->com.qp,
+							C4IW_QP_ATTR_NEXT_STATE,
+							&attrs, 1);
+					CTR3(KTR_IW_CXGBE, "%s:ced7 %p ret %d",
+						__func__, ep, ret);
+				}
 			}
 		}
-		release_ep_resources(ep);
-		ep->com.state = DEAD;
-		CTR2(KTR_IW_CXGBE, "%s:ced6 %p", __func__, ep);
 	}
 	c4iw_put_ep(&ep->com);
 	CTR2(KTR_IW_CXGBE, "%s:cedE %p", __func__, ep);

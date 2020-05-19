@@ -228,6 +228,7 @@ struct uld_info {
 	int uld_id;
 	int (*activate)(struct adapter *);
 	int (*deactivate)(struct adapter *);
+	void (*async_event)(struct adapter *);
 };
 
 struct tom_tunables {
