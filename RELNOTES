@@ -87,6 +87,10 @@ r352304:
 	ntpd is no longer by default locked in memory. rlimit memlock 32
 	or rlimit memlock 0 can be used to restore this behaviour.
 
+r351770,r352920,r352922,r352923:
+	dd(1) now supports conv=fsync, conv=fdatasync, oflag=fsync, oflag=sync,
+	and iflag=fullblock flags, compatible with illumos and GNU.
+
 r351522:
 	Add kernel-side support for in-kernel Transport Layer Security
 	(KTLS).  KTLS permits using sendfile(2) over sockets using
