@@ -369,8 +369,7 @@ linker_file_register_modules(linker_file_t lf)
 
 	sx_assert(&kld_sx, SA_XLOCKED);
 
-	if (linker_file_lookup_set(lf, "modmetadata_set", &start,
-	    &stop, NULL) != 0) {
+	if (linker_file_lookup_set(lf, MDT_SETNAME, &start, &stop, NULL) != 0) {
 		/*
 		 * This fallback should be unnecessary, but if we get booted
 		 * from boot2 instead of loader and we are missing our
