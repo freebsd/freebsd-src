@@ -127,16 +127,33 @@ vmbus_chan_msgprocs[VMBUS_CHANMSG_TYPE_MAX] = {
 };
 
 /*
- * Notify host that there are data pending on our TX bufring.
+ * Notify host that there are data pending on our TX bufring or
+ * we have put some data on the TX bufring.
  */
 static __inline void
-vmbus_chan_signal_tx(const struct vmbus_channel *chan)
+vmbus_chan_signal(const struct vmbus_channel *chan)
 {
 	atomic_set_long(chan->ch_evtflag, chan->ch_evtflag_mask);
 	if (chan->ch_txflags & VMBUS_CHAN_TXF_HASMNF)
 		atomic_set_int(chan->ch_montrig, chan->ch_montrig_mask);
 	else
 		hypercall_signal_event(chan->ch_monprm_dma.hv_paddr);
+}
+
+static __inline void
+vmbus_chan_signal_tx(struct vmbus_channel *chan)
+{
+	chan->ch_txbr.txbr_intrcnt ++;
+
+	vmbus_chan_signal(chan);
+}
+
+static __inline void
+vmbus_chan_signal_rx(struct vmbus_channel *chan)
+{
+	chan->ch_rxbr.rxbr_intrcnt ++;
+
+	vmbus_chan_signal(chan);
 }
 
 static void
@@ -1012,6 +1029,59 @@ vmbus_chan_intr_drain(struct vmbus_channel *chan)
 	taskqueue_drain(chan->ch_tq, &chan->ch_task);
 }
 
+uint32_t
+vmbus_chan_write_available(struct vmbus_channel *chan)
+{
+	return (vmbus_txbr_available(&chan->ch_txbr));
+}
+
+bool
+vmbus_chan_write_signal(struct vmbus_channel *chan,
+    int32_t min_signal_size)
+{
+	if (min_signal_size >= 0 &&
+	    vmbus_chan_write_available(chan) > min_signal_size) {
+		return false;
+	}
+
+	if (!vmbus_txbr_get_imask(&chan->ch_txbr)) {
+		/* txbr imask is not set, signal the reader */
+		vmbus_chan_signal_tx(chan);
+		return true;
+	}
+
+	return false;
+}
+
+void
+vmbus_chan_set_pending_send_size(struct vmbus_channel *chan,
+    uint32_t size)
+{
+	if (chan)
+		vmbus_txbr_set_pending_snd_sz(&chan->ch_txbr, size);
+}
+
+int
+vmbus_chan_iov_send(struct vmbus_channel *chan,
+    const struct iovec iov[], int iovlen,
+    vmbus_br_copy_callback_t cb, void *cbarg)
+{
+	int error;
+	boolean_t send_evt;
+
+	if (iovlen == 0)
+		return (0);
+
+	error = vmbus_txbr_write_call(&chan->ch_txbr, iov, iovlen,
+	    cb, cbarg, &send_evt);
+
+	if (!error && send_evt) {
+		vmbus_chan_signal_tx(chan);
+	}
+
+	return error;
+}
+
 int
 vmbus_chan_send(struct vmbus_channel *chan, uint16_t type, uint16_t flags,
     void *data, int dlen, uint64_t xactid)
@@ -1209,6 +1279,78 @@ vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 	KASSERT(!error, ("vmbus_rxbr_read failed"));
 
 	return (0);
+}
+
+uint32_t
+vmbus_chan_read_available(struct vmbus_channel *chan)
+{
+	return (vmbus_rxbr_available(&chan->ch_rxbr));
+}
+
+/*
+ * This routine does:
+ *     - Advance the channel read index for 'advance' bytes
+ *     - Copy data_len bytes in to the buffer pointed by 'data'
+ * Return 0 if operation succeed. EAGAIN if operations if failed.
+ * If failed, the buffer pointed by 'data' is intact, and the
+ * channel read index is not advanced at all.
+ */
+int
+vmbus_chan_recv_peek(struct vmbus_channel *chan,
+    void *data, int data_len, uint32_t advance)
+{
+	int error;
+	boolean_t sig_event;
+
+	if (data == NULL || data_len <= 0)
+		return (EINVAL);
+
+	error = vmbus_rxbr_idxadv_peek(&chan->ch_rxbr,
+	    data, data_len, advance, &sig_event);
+
+	if (!error && sig_event) {
+		vmbus_chan_signal_rx(chan);
+	}
+
+	return (error);
+}
+
+/*
+ * This routine does:
+ *     - Advance the channel read index for 'advance' bytes
+ */
+int
+vmbus_chan_recv_idxadv(struct vmbus_channel *chan, uint32_t advance)
+{
+	int error;
+	boolean_t sig_event;
+
+	if (advance == 0)
+		return (EINVAL);
+
+	error = vmbus_rxbr_idxadv(&chan->ch_rxbr, advance, &sig_event);
+
+	if (!error && sig_event) {
+		vmbus_chan_signal_rx(chan);
+	}
+
+	return (error);
+}
+
+
+/*
+ * Caller should hold its own lock to serialize the ring buffer
+ * copy.
+ */
+int
+vmbus_chan_recv_peek_call(struct vmbus_channel *chan, int data_len,
+    uint32_t skip, vmbus_br_copy_callback_t cb, void *cbarg)
+{
+	if (!chan || data_len <= 0 || cb == NULL)
+		return (EINVAL);
+
+	return (vmbus_rxbr_peek_call(&chan->ch_rxbr, data_len, skip,
+	    cb, cbarg));
 }
 
 static void
@@ -1732,6 +1874,25 @@ vmbus_chan_msgproc_choffer(struct vmbus_softc *sc,
 		    1 << (offer->chm_montrig % VMBUS_MONTRIG_LEN);
 	}
 
+	if (offer->chm_chflags & VMBUS_CHAN_TLNPI_PROVIDER_OFFER) {
+		/* This is HyperV socket channel */
+		chan->ch_is_hvs = true;
+		/* The first byte != 0 means the host initiated connection. */
+		chan->ch_hvs_conn_from_host =
+		    offer->chm_udata.pipe.user_def[0];
+
+		if (bootverbose) {
+			device_printf(sc->vmbus_dev,
+			    "chan%u is hyperv socket channel "
+			    "connected %s host\n",
+			    chan->ch_id,
+			    (chan->ch_hvs_conn_from_host != 0) ?
+			    "from" : "to");
+		}
+	} else {
+		chan->ch_is_hvs = false;
+	}
+
 	/*
 	 * Setup event flag.
 	 */
@@ -2047,8 +2208,31 @@ vmbus_chan_is_primary(const struct vmbus_channel *chan)
 		return false;
 }
 
-const struct hyperv_guid *
-vmbus_chan_guid_inst(const struct vmbus_channel *chan)
+bool
+vmbus_chan_is_hvs(const struct vmbus_channel *chan)
+{
+	return chan->ch_is_hvs;
+}
+
+bool
+vmbus_chan_is_hvs_conn_from_host(const struct vmbus_channel *chan)
+{
+	KASSERT(vmbus_chan_is_hvs(chan) == true,
+	    ("Not a HyperV Socket channel %u", chan->ch_id));
+	if (chan->ch_hvs_conn_from_host != 0)
+		return true;
+	else
+		return false;
+}
+
+struct hyperv_guid *
+vmbus_chan_guid_type(struct vmbus_channel *chan)
+{
+	return &chan->ch_guid_type;
+}
+
+struct hyperv_guid *
+vmbus_chan_guid_inst(struct vmbus_channel *chan)
 {
 	return &chan->ch_guid_inst;
 }

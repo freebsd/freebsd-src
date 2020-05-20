@@ -365,10 +365,46 @@ vmbus_gpadl_alloc(struct vmbus_softc *sc)
 	uint32_t gpadl;
 
 again:
-	gpadl = atomic_fetchadd_int(&sc->vmbus_gpadl, 1); 
+	gpadl = atomic_fetchadd_int(&sc->vmbus_gpadl, 1);
 	if (gpadl == 0)
 		goto again;
 	return (gpadl);
+}
+
+/* Used for Hyper-V socket when guest client connects to host */
+int
+vmbus_req_tl_connect(struct hyperv_guid *guest_srv_id,
+    struct hyperv_guid *host_srv_id)
+{
+	struct vmbus_softc *sc = vmbus_get_softc();
+	struct vmbus_chanmsg_tl_connect *req;
+	struct vmbus_msghc *mh;
+	int error;
+
+	if (!sc)
+		return ENXIO;
+
+	mh = vmbus_msghc_get(sc, sizeof(*req));
+	if (mh == NULL) {
+		device_printf(sc->vmbus_dev,
+		    "can not get msg hypercall for tl connect\n");
+		return ENXIO;
+	}
+
+	req = vmbus_msghc_dataptr(mh);
+	req->chm_hdr.chm_type = VMBUS_CHANMSG_TYPE_TL_CONN;
+	req->guest_endpoint_id = *guest_srv_id;
+	req->host_service_id = *host_srv_id;
+
+	error = vmbus_msghc_exec_noresult(mh);
+	vmbus_msghc_put(sc, mh);
+
+	if (error) {
+		device_printf(sc->vmbus_dev,
+		    "tl connect msg hypercall failed\n");
+	}
+
+	return error;
 }
 
 static int

@@ -133,6 +133,7 @@ dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
+dev/hyperv/hvsock/hv_sock.c				optional	hyperv
 dev/hyperv/input/hv_kbd.c				optional	hyperv
 dev/hyperv/input/hv_kbdc.c				optional	hyperv
 dev/hyperv/pcib/vmbus_pcib.c				optional	hyperv pci

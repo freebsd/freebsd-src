@@ -31,6 +31,7 @@
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/_iovec.h>
 
 /*
  * VMBUS version is 32 bit, upper 16 bit for major_number and lower
@@ -130,6 +131,7 @@ struct task;
 struct taskqueue;
 
 typedef void	(*vmbus_chan_callback_t)(struct vmbus_channel *, void *);
+typedef int	(*vmbus_br_copy_callback_t)(void *, int, void *);
 
 static __inline struct vmbus_channel *
 vmbus_get_channel(device_t dev)
@@ -205,6 +207,14 @@ int		vmbus_chan_recv(struct vmbus_channel *chan, void *data, int *dlen,
 int		vmbus_chan_recv_pkt(struct vmbus_channel *chan,
 		    struct vmbus_chanpkt_hdr *pkt, int *pktlen);
 
+int		vmbus_chan_recv_idxadv(struct vmbus_channel *chan,
+		    uint32_t advance);
+int		vmbus_chan_recv_peek(struct vmbus_channel *chan,
+		    void *data, int data_len, uint32_t advance);
+int		vmbus_chan_recv_peek_call(struct vmbus_channel *chan,
+		    int data_len, uint32_t skip,
+		    vmbus_br_copy_callback_t cb, void *cbarg);
+
 int		vmbus_chan_send(struct vmbus_channel *chan, uint16_t type,
 		    uint16_t flags, void *data, int dlen, uint64_t xactid);
 int		vmbus_chan_send_sglist(struct vmbus_channel *chan,
@@ -213,13 +223,30 @@ int		vmbus_chan_send_sglist(struct vmbus_channel *chan,
 int		vmbus_chan_send_prplist(struct vmbus_channel *chan,
 		    struct vmbus_gpa_range *prp, int prp_cnt, void *data,
 		    int dlen, uint64_t xactid);
+int		vmbus_chan_iov_send(struct vmbus_channel *chan,
+		    const struct iovec iov[], int iovlen,
+		    vmbus_br_copy_callback_t cb, void *cbarg);
+uint32_t	vmbus_chan_write_available(struct vmbus_channel *chan);
+uint32_t	vmbus_chan_read_available(struct vmbus_channel *chan);
+bool		vmbus_chan_write_signal(struct vmbus_channel *chan,
+		    int32_t min_signal_size);
+void		vmbus_chan_set_pending_send_size(struct vmbus_channel *chan,
+		    uint32_t size);
 
 uint32_t	vmbus_chan_id(const struct vmbus_channel *chan);
 uint32_t	vmbus_chan_subidx(const struct vmbus_channel *chan);
 bool		vmbus_chan_is_primary(const struct vmbus_channel *chan);
 bool		vmbus_chan_is_revoked(const struct vmbus_channel *chan);
-const struct hyperv_guid *
-		vmbus_chan_guid_inst(const struct vmbus_channel *chan);
+bool		vmbus_chan_is_hvs(const struct vmbus_channel *chan);
+bool		vmbus_chan_is_hvs_conn_from_host(
+		    const struct vmbus_channel *chan);
+int		vmbus_req_tl_connect(struct hyperv_guid *,
+		    struct hyperv_guid *);
+
+struct hyperv_guid *
+		vmbus_chan_guid_type(struct vmbus_channel *chan);
+struct hyperv_guid *
+		vmbus_chan_guid_inst(struct vmbus_channel *chan);
 int		vmbus_chan_prplist_nelem(int br_size, int prpcnt_max,
 		    int dlen_max);
 bool		vmbus_chan_rx_empty(const struct vmbus_channel *chan);
