@@ -18,7 +18,7 @@ endif()
 #   RelWithDebInfo : Release build with Debug Info
 #   MinSizeRel     : Release Min Size build
 IF(NOT CMAKE_BUILD_TYPE)
-  SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build Type" FORCE)
+  SET(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build Type" FORCE)
 ENDIF(NOT CMAKE_BUILD_TYPE)
 # Set a value type to properly display CMAKE_BUILD_TYPE on GUI if the
 # value type is "UNINITIALIZED".
@@ -157,32 +157,32 @@ IF (MSVC)
   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
   # Enable level 4 C4062: The enumerate has no associated handler in a switch
   #                       statement and there is no default that can catch it.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4062")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14062")
   # Enable level 4 C4254: A larger bit field was assigned to a smaller bit
   #                       field.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4254")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14254")
   # Enable level 4 C4295: An array was initialized but the last character in
   #                       the array is not a null; accessing the array may
   #                       produce unexpected results.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4295")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14295")
   # Enable level 4 C4296: An unsigned variable was used in a comparison
   #                       operation with zero.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4296")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14296")
   # Enable level 4 C4389: An operation involved signed and unsigned variables.
   #                       This could result in a loss of data.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4389")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14389")
   # Enable level 4 C4505: The given function is local and not referenced in
   #                       the body of the module; therefore, the function is
   #                       dead code.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4505")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14505")
   # Enable level 4 C4514: The optimizer removed an inline function that is not
   #                       called.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4514")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14514")
   # Enable level 4 C4702: Unreachable code.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4702")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14702")
   # Enable level 4 C4706: The test value in a conditional expression was the
   #                       result of an assignment.
-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
+  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w14706")
   # /Oi option enables built-in functions.
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Oi")
   #################################################################
@@ -1449,9 +1449,13 @@ CHECK_C_SOURCE_COMPILES(
   "#include <sys/sysmacros.h>\nint main() { return major(256); }"
   MAJOR_IN_SYSMACROS)
 
+IF(ENABLE_LZMA)
 CHECK_C_SOURCE_COMPILES(
   "#include <lzma.h>\n#if LZMA_VERSION < 50020000\n#error unsupported\n#endif\nint main(void){lzma_stream_encoder_mt(0, 0); return 0;}"
   HAVE_LZMA_STREAM_ENCODER_MT)
+ELSE()
+  SET(HAVE_LZMA_STREAM_ENCODER_MT 0)
+ENDIF(ENABLE_LZMA)
 
 IF(HAVE_STRERROR_R)
   SET(HAVE_DECL_STRERROR_R 1)
@@ -2035,6 +2039,11 @@ INCLUDE_DIRECTORIES(BEFORE ${CMAKE_CURRENT_SOURCE_DIR}/libarchive)
 IF(MSVC)
   ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
 ENDIF(MSVC)
+
+IF(APPLE)
+  # CC_MD5_Init() functions are deprecated on macOS 10.15, but we want to use them
+  ADD_DEFINITIONS(-Wno-deprecated-declarations)
+ENDIF(APPLE)
 
 IF(ENABLE_TEST)
   ADD_CUSTOM_TARGET(run_all_tests)

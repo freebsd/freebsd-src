@@ -364,8 +364,8 @@ DEFINE_TEST(test_acl_platform_posix1e_read)
 	struct archive *a;
 	struct archive_entry *ae;
 	int n, fd, flags, dflags;
-	char *func, *acl_text;
-	const char *acl1_text, *acl2_text, *acl3_text;
+	char *acl_text;
+	const char *func, *acl1_text, *acl2_text, *acl3_text;
 #if ARCHIVE_ACL_SUNOS
 	void *aclp;
 	int aclcnt;

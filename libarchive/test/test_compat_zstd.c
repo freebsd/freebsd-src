@@ -79,4 +79,7 @@ DEFINE_TEST(test_compat_zstd)
 	/* This sample was compressed as 3 separate streams with a zstd skippable
 	* frame placed in the middle */
 	compat_zstd("test_compat_zstd_1.tar.zst");
+
+	/* The same sample compressed with pzstd */
+	compat_zstd("test_compat_zstd_2.tar.zst");
 }
