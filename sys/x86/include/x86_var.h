@@ -94,6 +94,7 @@ extern	int	hw_ibrs_ibpb_active;
 extern	int	hw_mds_disable;
 extern	int	hw_ssb_active;
 extern	int	x86_taa_enable;
+extern	int	cpu_flush_rsb_ctxsw;
 
 struct	pcb;
 struct	thread;

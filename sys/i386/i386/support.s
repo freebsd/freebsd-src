@@ -445,6 +445,28 @@ msr_onfault:
 	movl	$EFAULT,%eax
 	ret
 
+	.altmacro
+	.macro	rsb_seq_label l
+rsb_seq_\l:
+	.endm
+	.macro	rsb_call_label l
+	call	rsb_seq_\l
+	.endm
+	.macro	rsb_seq count
+	ll=1
+	.rept	\count
+	rsb_call_label	%(ll)
+	nop
+	rsb_seq_label %(ll)
+	addl	$4,%esp
+	ll=ll+1
+	.endr
+	.endm
+
+ENTRY(rsb_flush)
+	rsb_seq	32
+	ret
+
 ENTRY(handle_ibrs_entry)
 	cmpb	$0,hw_ibrs_ibpb_active
 	je	1f
@@ -455,10 +477,9 @@ ENTRY(handle_ibrs_entry)
 	wrmsr
 	movb	$1,PCPU(IBPB_SET)
 	/*
-	 * i386 does not implement SMEP, but the 4/4 split makes this not
-	 * that important.
+	 * i386 does not implement SMEP.
 	 */
-1:	ret
+1:	jmp	rsb_flush
 END(handle_ibrs_entry)
 
 ENTRY(handle_ibrs_exit)
