@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.26 2018/02/12 21:54:26 sjg Exp $
+# $Id: dpadd.mk,v 1.27 2019/05/17 13:58:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -13,6 +13,69 @@
 #	sjg@crufty.net
 #
 
+##
+# DESCRIPTION:
+#	This makefile manages a number of variables that simplify
+#	dealing with libs in a build.
+#
+#	Primary inputs are DPLIBS, DPADD and SRC_LIBS:
+#
+#	DPLIBS
+#		List of LIB* that we will actually link with
+#		should be in correct link order.
+#		DPLIBS is a short-cut to ensure that DPADD and LDADD are
+#		kept in sync.
+#
+#	DPADD	List of LIB* that should already be built.
+#
+#	SRC_LIBS
+#		List of LIB* that we want headers from, we do *not*
+#		require that such libs have been built.
+#
+#	The above all get added to DPMAGIC_LIBS which is what we
+#	process.
+#
+#	We expect LIB* to be set to absolute path of a library -
+#	suitable for putting in DPADD.
+#	eg.
+#
+#		LIBC ?= ${OBJTOP}/lib/libc/libc.a
+#
+#	From such a path we can derrive a number of other variables
+#	for which we can supply sensible default values.
+#	We name all these variables for the basename of the library
+#	(libc in our example above -- ${__lib:T:R} in below):
+#
+#	LDADD_${__lib:T:R}:
+#		What should be added to LDADD (eg -lc)
+#
+#	OBJ_${__lib:T:R}:
+#		This is trivial - just the dirname of the built library.
+#
+#	SRC_${__lib:T:R}:
+#		Where the src for ${__lib} is, if LIB* is set as above
+#		we can simply substitute ${SRCTOP} for ${OBJTOP} in
+#		the dirname.
+#
+#	INCLUDES_${__lib:T:R}:
+#		What should be added to CFLAGS
+#
+#		If the directory ${SRC_${__lib:T:R}}/h exists we will
+#		only add -I${SRC_${__lib:T:R}}/h on the basis that
+#		this is where the public api is kept.
+#
+#		Otherwise default will be -I${OBJ_${__lib:T:R}}
+#		-I${SRC_${__lib:T:R}}
+#
+#	Note much of the above is skipped for staged libs
+#	eg.
+#		LIBC ?= ${STAGE_OBJTOP}/usr/lib/libc.a
+#
+#	Since we can safely assume that -I${STAGE_OBJTOP}/usr/include
+#	and -L${STAGE_OBJTOP}/usr/lib are sufficient, and we should
+#	have no need of anything else.
+#
+	
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
 
@@ -50,7 +113,7 @@ CXXFLAGS_LAST += ${CXXFLAGS_DEBUG_XTRA}
 DPLIBS+= ${DPLIBS_LAST}
 DPADD+= ${DPLIBS:N-*}
 .for __lib in ${DPLIBS}
-.if "${_lib:M-*}" != ""
+.if "${__lib:M-*}" != ""
 LDADD += ${__lib}
 .else
 LDADD += ${LDADD_${__lib:T:R}:U${__lib:T:R:S/lib/-l/:C/\.so.*//}}

@@ -14,7 +14,8 @@ CFLAGS+= ${CPPFLAGS} @DEFS@
 LDFLAGS+= @LDFLAGS@
 LIBOBJS+= @LIBOBJS@
 LDADD+= @LIBS@
-USE_META= @use_meta@
+USE_META?= @use_meta@
+USE_FILEMON?= @use_filemon@
 FILEMON_H?= @filemon_h@
 BMAKE_PATH_MAX?= @bmake_path_max@
 # used if MAXPATHLEN not defined

@@ -1,4 +1,4 @@
-#	$Id: UnixWare.mk,v 1.3 2017/05/05 18:02:17 sjg Exp $
+#	$Id: UnixWare.mk,v 1.4 2020/04/17 21:08:17 sjg Exp $
 #	based on "Id: SunOS.5.sys.mk,v 1.6 2003/09/30 16:42:23 sjg Exp "
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
@@ -120,8 +120,6 @@ PC?=		pc # XXX: UDK probably does not have pc
 PFLAGS?=
 COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
-
-SHELL?=		sh
 
 SIZE?=		size
 

@@ -72,8 +72,6 @@ PFLAGS=
 COMPILE.p=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p=		${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-SHELL=		sh
-
 YACC=		yacc
 YFLAGS=		-d
 YACC.y=		${YACC} ${YFLAGS}

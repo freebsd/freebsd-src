@@ -89,6 +89,10 @@
 #		disable use of filemon(9) which is currently only
 #		available for NetBSD and FreeBSD.
 #
+#	--with-filemon=ktrace
+#		on NetBSD or others with fktrace(2), use ktrace
+#		version of filemon.
+#
 #	--with-filemon="path/to/filemon.h"
 #		enables use of filemon(9) by meta mode.
 #		
@@ -111,7 +115,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.49 2016/05/29 00:09:14 sjg Exp $
+#	$Id: boot-strap,v 1.51 2020/02/19 16:46:23 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -161,6 +165,8 @@ cmd_args="$@"
 
 # clear some things from the environment that we care about
 unset MAKEOBJDIR MAKEOBJDIRPREFIX
+# or that might be incompatible
+unset MAKE MAKEFLAGS
 
 # --install[-host-target] will set this
 INSTALL_PREFIX=

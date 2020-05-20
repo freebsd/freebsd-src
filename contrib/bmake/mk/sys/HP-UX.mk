@@ -1,4 +1,4 @@
-#	$Id: HP-UX.mk,v 1.11 2017/05/05 18:02:16 sjg Exp $
+#	$Id: HP-UX.mk,v 1.12 2020/04/17 21:08:17 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -108,7 +108,7 @@ LINK.p=		${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
 # HP's sh sucks
 ENV=
-SHELL=		/bin/ksh
+MAKE_SHELL=		/bin/ksh
 
 .if exists(/usr/local/bin/bison)
 YACC=		bison -y
