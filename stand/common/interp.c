@@ -45,8 +45,17 @@ __FBSDID("$FreeBSD$");
 void
 interact(void)
 {
-	static char	input[256];			/* big enough? */
+	static char		input[256];		/* big enough? */
+	const char * volatile	interp_identifier;
 
+	/*
+	 * Because interp_identifier is volatile, it cannot be optimized out by
+	 * the compiler as it's considered an externally observable event.  This
+	 * prevents the compiler from optimizing out our carefully placed
+	 * $Interpreter:4th string that userboot may use to determine that
+	 * we need to switch interpreters.
+	 */
+	interp_identifier = bootprog_interp;
 	interp_init();
 
 	printf("\n");
