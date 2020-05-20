@@ -68,8 +68,6 @@
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-static void freebsd32_exec_setregs(struct thread *, struct image_params *,
-    uintptr_t);
 static int get_mcontext32(struct thread *, mcontext32_t *, int);
 static int set_mcontext32(struct thread *, mcontext32_t *);
 static void freebsd32_sendsig(sig_t, ksiginfo_t *, sigset_t *);
@@ -97,7 +95,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_auxargs = __elfN(freebsd_copyout_auxargs),
 	.sv_copyout_strings = freebsd32_copyout_strings,
-	.sv_setregs	= freebsd32_exec_setregs,
+	.sv_setregs	= exec_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32,
@@ -125,26 +123,6 @@ static Elf32_Brandinfo freebsd_brand_info = {
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
     (sysinit_cfunc_t) elf32_insert_brand_entry,
     &freebsd_brand_info);
-
-static void
-freebsd32_exec_setregs(struct thread *td, struct image_params *imgp,
-    uintptr_t stack)
-{
-	exec_setregs(td, imgp, stack);
-
-	/*
-	 * See comment in exec_setregs about running 32-bit binaries with 64-bit
-	 * registers.
-	 */
-	td->td_frame->sp -= 65536;
-
-	/*
-	 * Clear extended address space bit for userland.
-	 */
-	td->td_frame->sr &= ~MIPS_SR_UX;
-
-	td->td_md.md_tls_tcb_offset = TLS_TP_OFFSET + TLS_TCB_SIZE32;
-}
 
 int
 set_regs32(struct thread *td, struct reg32 *regs)
