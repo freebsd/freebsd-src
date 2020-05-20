@@ -77,8 +77,6 @@ PFLAGS?=
 COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-SHELL?=		sh
-
 SIZE?=		size
 
 TSORT?= 	tsort -q

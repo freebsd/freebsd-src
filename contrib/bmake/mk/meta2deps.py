@@ -37,9 +37,10 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.27 2017/05/24 00:04:04 sjg Exp $
+	$Id: meta2deps.py,v 1.28 2020/05/16 23:21:48 sjg Exp $
 
-	Copyright (c) 2011-2013, Juniper Networks, Inc.
+	Copyright (c) 2011-2019, Simon J. Gerraty
+	Copyright (c) 2011-2017, Juniper Networks, Inc.
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without

@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.15 2017/05/07 20:27:54 sjg Exp $
+# $Id: init.mk,v 1.16 2019/09/28 16:54:02 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -25,6 +25,7 @@ _this_mk_dir := ${.PARSEDIR}
 .-include <local.init.mk>
 .-include <${.CURDIR:H}/Makefile.inc>
 .include <own.mk>
+.include <compiler.mk>
 
 .MAIN:		all
 
@@ -35,9 +36,9 @@ CXX_SUFFIXES?= .cc .cpp .cxx .C
 .include <warnings.mk>
 .endif
 
-COPTS += ${COPTS.${.IMPSRC:T}}
-CPPFLAGS += ${CPPFLAGS.${.IMPSRC:T}}
-CPUFLAGS += ${CPUFLAGS.${.IMPSRC:T}}
+.for x in COPTS CPPFLAGS CPUFLAGS LDFLAGS
+$x += ${$x.${COMPILER_TYPE}:U} ${$x.${.IMPSRC:T}:U}
+.endfor
 
 CC_PG?= -pg
 CXX_PG?= ${CC_PG}

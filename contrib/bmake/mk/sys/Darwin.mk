@@ -4,7 +4,7 @@
 OS=		Darwin
 unix?=		We run ${OS}.
 
-.SUFFIXES: .out .a .ln .o .s .S .c ${CXX_SUFFIXES} .F .f .r .y .l .cl .p .h
+.SUFFIXES: .out .a .ln .o .s .S .c .m ${CXX_SUFFIXES} .F .f .r .y .l .cl .p .h
 .SUFFIXES: .sh .m4 .dylib
 
 .LIBS:		.a .dylib
@@ -24,10 +24,15 @@ LINK.s?=	${CC} ${AFLAGS} ${LDFLAGS}
 COMPILE.S?=	${CC} ${AFLAGS} ${CPPFLAGS} -c
 LINK.S?=	${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-.if exists(/usr/bin/gcc)
-CC?=		gcc -pipe
+PIPE?=		-pipe
+
+.if exists(/usr/bin/clang)
+CC?=		cc ${PIPE}
+CXX?=		c++
+.elif exists(/usr/bin/gcc)
+CC?=		gcc ${PIPE}
 .else
-CC?=		cc -pipe
+CC?=		cc ${PIPE}
 .endif
 DBG?=		-O2
 CFLAGS?=	${DBG}
@@ -52,7 +57,7 @@ CPP?=		cpp
 NOLINT=		1
 CPPFLAGS?=
 
-MK_DEP?=	mkdeps.sh -N
+MK_DEP?=	mkdep
 
 FC?=		f77
 FFLAGS?=	-O
@@ -91,8 +96,6 @@ PFLAGS?=
 COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-SHELL?=		sh
-
 SIZE?=		size
 
 TSORT?=		tsort -q
@@ -118,6 +121,16 @@ ${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
 ${CXX_SUFFIXES:%=%.a}:
 	${COMPILE.cc} ${.IMPSRC}
+	${AR} ${ARFLAGS} $@ $*.o
+	rm -f $*.o
+
+# Objective-C
+.m:
+	${LINK.m} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
+.m.o:
+	${COMPILE.m} ${.IMPSRC}
+.m.a:
+	${COMPILE.m} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
 	rm -f $*.o
 

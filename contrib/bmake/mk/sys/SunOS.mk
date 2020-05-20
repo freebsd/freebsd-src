@@ -1,4 +1,4 @@
-#	$Id: SunOS.mk,v 1.8 2017/05/05 18:02:17 sjg Exp $
+#	$Id: SunOS.mk,v 1.9 2020/04/17 21:08:17 sjg Exp $
 
 .if ${.PARSEFILE} == "sys.mk"
 .include <host-target.mk>
@@ -102,8 +102,6 @@ PC=		pc
 PFLAGS=
 COMPILE.p=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p=		${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
-
-SHELL=		sh
 
 .if exists(/usr/local/bin/bison) || exists(/opt/gnu/bin/bison)
 YACC=		bison -y
