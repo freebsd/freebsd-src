@@ -1304,7 +1304,13 @@ m(+1, u64, enforce_part_number, "enforce_part_number", "Module Enforce part numb
 m(+1, u64, unknown_id, "unknown_id", "Module Unknown identifier") \
 m(+1, u64, high_temp, "high_temp", "Module High Temperature") \
 m(+1, u64, cable_shorted, "cable_shorted", "Module Cable is shorted") \
-m(+1, u64, pmd_type_not_enabled, "pmd_type_not_enabled", "PMD type is not enabled")
+m(+1, u64, pmd_type_not_enabled, "pmd_type_not_enabled", "PMD type is not enabled") \
+m(+1, u64, laster_tec_failure, "laster_tec_failure", "Laster TEC failure") \
+m(+1, u64, high_current, "high_current", "High current") \
+m(+1, u64, high_voltage, "high_voltage", "High voltage") \
+m(+1, u64, pcie_sys_power_slot_exceeded, "pcie_sys_power_slot_exceeded", "PCIe system power slot Exceeded") \
+m(+1, u64, high_power, "high_power", "High power")			\
+m(+1, u64, module_state_machine_fault, "module_state_machine_fault", "Module State Machine fault")
 
 static const char *mlx5_pme_err_desc[] = {
 	MLX5_PORT_MODULE_ERROR_STATS(MLX5_STATS_DESC)
