@@ -1,3 +1,86 @@
+2020-05-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200515
+
+	* dirdeps.mk: set _debug_* earlier and allow passing -d*
+	flags to submake when building DIRDEPS_CACHE
+
+2020-05-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* whats.mk: more easily extensible
+
+2020-05-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* whats.mk: greatly simplify by adding what.c to SRCS
+
+2020-05-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* whats.mk: for libs take care how we add to *OBJS
+
+	* lib.mk: : works better with whats.mk
+
+2020-04-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200420
+
+	* meta.stage.mk: it is not a STAGE_CONFLICT if some-target.dirdep
+	contains the same ${RELDIR} and a prefix match for our ${TARGET_SPEC}
+
+2020-04-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200416
+
+	* sys/*.mk: set MAKE_SHELL rather than SHELL so as not to
+	  interfere with user env.
+
+	* sys.mk: default MAKE_SHELL to sh and SHELL to MAKE_SHELL
+
+	* autodep.mk: use MAKE_SHELL.
+
+2019-11-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* gendirdeps.mk: clear .SUFFIXES to avoid a lot of
+	  wasted effort, and unexport _meta_files when no longer needed as
+	  it consumes space we need for command line.
+
+2019-11-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk _DIRDEP_USE: use DIRDEP_DIR and add
+	  DIRDEP_USE_PRELUDE at start - facilitates job distribution
+
+2019-10-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: Use TARGET_SPEC_LAST_LIST
+	defaults to ${${TARGET_SPEC_VARS:[-1]}_LIST} to match valid
+	TARGET_SPEC qualified depend files.
+
+2019-10-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: encapsulate logic for finding top-level
+	  targets to set initial DIRDEPS for DIRDEPS_BUILD
+
+2019-09-27  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20190911
+
+	* compiler.mk: set COMPILER_TYPE
+
+2019-07-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20190704
+
+	* sys/Darwin.mk: support for Objective-C and clang
+
+2019-05-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: avoid insanely long command line when generating cache
+
+2019-05-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20190505
+
+	* whats.mk: handle corner case SHLIB defined but not LIB
+
 2018-09-19  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20180919

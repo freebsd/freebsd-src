@@ -7,12 +7,13 @@ x=-I"This or that"
 x=-Ithat
 x="-DTHIS=\"this and that\""
 cfl=-I/this -I"This or that" -Ithat "-DTHIS=\"this and that\""
+newline-item=(a)
 a=one b="two and three"
 a=four b="five"
 a=ONE b="TWO AND THREE"
 a=FOUR b="FIVE"
 We expect an error next:
-make: "forloop.mk" line 38: Wrong number of words (9) in .for substitution list with 2 vars
+make: "forloop.mk" line 46: Wrong number of words (9) in .for substitution list with 2 vars
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 OK

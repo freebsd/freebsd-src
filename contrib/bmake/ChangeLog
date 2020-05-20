@@ -1,3 +1,138 @@
+2020-05-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200517
+	Merge with NetBSD make, pick up
+	o modified dollar tests to avoid shell dependencies
+	o new tests for .INCLUDEFROM
+
+2020-05-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/dollar.mk: tweak  '1 dollar literal' test
+	to not depend so much on shell behavior
+
+2020-05-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200510
+	Merge with NetBSD make, pick up
+	o unit test for dollar handling
+
+2020-05-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200506
+	Merge with NetBSD make, pick up
+	o str.c: empty string does not match % pattern
+	  plus unit-test changes
+
+2020-05-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200504
+	May the 4th be with you
+	Merge with NetBSD make, pick up
+	o var.c: import handling of old sysV style modifier using '%'
+	o str.c: refactor brk_string
+	o unit-tests: add test case for lazy conditions
+
+2020-04-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200418
+
+	* configure.in: use_makefile=no for cygwin et al.
+	case insensitive filesystems just don't work if both
+	makefile and Makefile exist.
+	NOTE: bmake does not support cygwin and likely never will,
+	but if brave souls want to try it - help them out.
+
+2020-04-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200402
+	Merge with NetBSD make, pick up
+	o meta.c: meta_oodate, CHECK_VALID_META is too aggressive for CMD
+	  a blank command is perfectly valid.
+
+2020-03-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200330
+	Merge with NetBSD make, pick up
+	o make.h: extern debug_file
+
+2020-03-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200318
+	Merge with NetBSD make, pick up
+	o meta.c: meta_oodate, check for corrupted meta file
+	  earlier and more often.
+
+2020-02-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200220
+
+2020-02-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* boot-strap: unset MAKEFLAGS
+
+2020-02-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200212
+	* meta.c: meta_compat_parent check for USE_FILEMON
+	  patch from Soeren Tempel
+
+2020-02-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20200205
+	Merge with NetBSD make, pick up
+	o meta.c: fix compat mode, need to call meta_job_output()
+	o job.c: extra fds for meta mode not needed if using filemon_dev
+
+2020-01-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20200122
+	Merge with NetBSD make, pick up
+	o meta.c: avoid passing NULL to filemon_*() when meta_needed()
+	  returns FALSE.
+
+2020-01-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20200121
+	Merge with NetBSD make, pick up
+	o filemon/filemon_{dev,ktrace}.c: allow selection of
+	  filemon implementation.  filemon_dev.c uses the kernel module
+	  while filemon_ktrace.c leverages the fktrace api available in
+	  NetBSD.  filemon_ktrace.c can hopefully form the basis for
+	  adding support for other tracing mechanisms such as strace on
+	  Linux.
+	o meta.c: when target is out-of-date per normal make rules
+	  record value of .OODATE in meta file.
+
+2019-09-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20190926
+	  Merge with NetBSD make, pick up
+	  o parse.c: don't pass NULL to realpath(3)
+	    some versions cannot handle it.
+
+2019-04-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20190409
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseDoDependency: free paths rather than assert
+
+2018-12-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181222
+
+	* configure.in: add --without-makefile to avoid generating
+	  makefile and make-bootstrap.sh
+
+	* include Makefile.inc if it exists
+
+	* Use Makefile and Makefile.config.in in unit-tests
+	  so we can use just: make obj && make && make test
+	  when bmake is already available.
+	  We add --without-makefile to CONFIGURE_ARGS in this case.
+
+	* tweak bsd.after-import.mk (captures Makefile.config etc
+	  after import to FreeBSD for example) to cope with all the above. 
+
 2018-12-21  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION: 20181221

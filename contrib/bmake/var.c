@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.221 2018/12/21 05:50:19 sjg Exp $	*/
+/*	$NetBSD: var.c,v 1.223 2020/04/25 18:20:57 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.221 2018/12/21 05:50:19 sjg Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.223 2020/04/25 18:20:57 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.221 2018/12/21 05:50:19 sjg Exp $");
+__RCSID("$NetBSD: var.c,v 1.223 2020/04/25 18:20:57 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1401,8 +1401,9 @@ VarSYSVMatch(GNode *ctx, Var_Parse_State *vpstate,
 	     char *word, Boolean addSpace, Buffer *buf,
 	     void *patp)
 {
-    int len;
+    size_t len;
     char *ptr;
+    Boolean hasPercent;
     VarPattern 	  *pat = (VarPattern *)patp;
     char *varexp;
 
@@ -1411,9 +1412,9 @@ VarSYSVMatch(GNode *ctx, Var_Parse_State *vpstate,
 
     addSpace = TRUE;
 
-    if ((ptr = Str_SYSVMatch(word, pat->lhs, &len)) != NULL) {
+    if ((ptr = Str_SYSVMatch(word, pat->lhs, &len, &hasPercent)) != NULL) {
         varexp = Var_Subst(NULL, pat->rhs, ctx, VARF_WANTRES);
-	Str_SYSVSubst(buf, varexp, ptr, len);
+	Str_SYSVSubst(buf, varexp, ptr, len, hasPercent);
 	free(varexp);
     } else {
 	Buf_AddBytes(buf, strlen(word), word);
@@ -2399,8 +2400,10 @@ VarHash(char *str)
 	    break;
 	case 3:
 	    k |= (ustr[2] << 16);
+	    /* FALLTHROUGH */
 	case 2:
 	    k |= (ustr[1] << 8);
+	    /* FALLTHROUGH */
 	case 1:
 	    k |= ustr[0];
 	    len = 0;

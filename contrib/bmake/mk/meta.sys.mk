@@ -1,7 +1,7 @@
-# $Id: meta.sys.mk,v 1.32 2017/06/11 03:24:04 sjg Exp $
+# $Id: meta.sys.mk,v 1.36 2020/05/16 23:21:48 sjg Exp $
 
 #
-#	@(#) Copyright (c) 2010, Simon J. Gerraty
+#	@(#) Copyright (c) 2010-2020, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
@@ -22,7 +22,7 @@
 
 .-include <local.meta.sys.mk>
 
-# absoulte path to what we are reading.
+# absolute path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:tA}
 
 .if !defined(SYS_MK_DIR)
@@ -61,13 +61,15 @@ META_MODE += silent=yes
 MACHINE = host
 .endif
 
-.if ${.MAKE.LEVEL} == 0
+.if !defined(MACHINE0)
 # it can be handy to know which MACHINE kicked off the build
 # for example, if using Makefild.depend for multiple machines,
 # allowing only MACHINE0 to update can keep things simple.
 MACHINE0 := ${MACHINE}
 .export MACHINE0
+.endif
 
+.if !defined(META2DEPS)
 .if defined(PYTHON) && exists(${PYTHON})
 # we prefer the python version of this - it is much faster
 META2DEPS ?= ${.PARSEDIR}/meta2deps.py
@@ -126,9 +128,11 @@ META_NOECHO= :
 # ignore mtime of shell
 # and mtime of makefiles does not matter in meta mode
 .MAKE.META.IGNORE_PATHS += \
-        ${MAKEFILE} \
-        ${SHELL} \
-        ${SYS_MK_DIR}
+	${MAKEFILE} \
+	${MAKE_SHELL} \
+	${SHELL} \
+	${SYS_MK_DIR} \
+
 
 .if ${UPDATE_DEPENDFILE:Uyes:tl} != "no"
 .if ${.MAKEFLAGS:Uno:M-k} != ""

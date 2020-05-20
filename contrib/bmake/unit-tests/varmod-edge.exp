@@ -1,0 +1,17 @@
+make: Unclosed variable specification (expecting '}') for "" (value "*)") modifier U
+make: Unclosed substitution for INP.eq-esc (= missing)
+ok M-paren
+ok M-mixed
+ok M-unescape
+ok M-nest-mix
+ok M-nest-brk
+ok M-pat-err
+ok M-bsbs
+ok M-bs1-par
+ok M-bs2-par
+ok M-128
+ok eq-ext
+ok eq-q
+ok eq-bs
+ok eq-esc
+exit status 0

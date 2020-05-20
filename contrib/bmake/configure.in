@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.59 2017/11/26 22:39:20 sjg Exp $
+dnl	$Id: configure.in,v 1.63 2020/04/19 05:17:57 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20171126], [sjg@NetBSD.org])
+AC_INIT([bmake], [20200418], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -16,6 +16,7 @@ esac
 
 dnl get _MAKE_VERSION
 . $srcdir/VERSION
+OS=`uname -s`
 
 dnl
 AC_ARG_WITH(defshell,
@@ -32,6 +33,17 @@ no)    ;;
        ;;
        esac])
 dnl
+case "$OS" in
+CYGWIN*|MINGW*) use_makefile=no;;
+*) use_makefile=yes;;
+esac
+AC_ARG_WITH(makefile,
+[ --without-makefile dissable use of generated makefile],
+[case "${withval}" in
+yes|no) use_makefile=${withval};;
+*) AC_MSG_ERROR(bad value ${withval} given for makefile) ;;
+esac])
+dnl
 use_meta=yes
 AC_ARG_WITH(meta,
 [ --without-meta dissable use of meta-mode],
@@ -41,30 +53,41 @@ yes|no) use_meta=${withval};;
 esac])
 dnl
 AC_ARG_WITH(filemon,
-[ --with-filemon=path/filemon.h indicate path to filemon.h for meta-mode],
+[ --with-filemon={no,dev,ktrace,path/filemon.h} indicate filemon method for meta-mode. Path to filemon.h implies dev],
 [ case "/${withval}" in
-/no|*/filemon.h) filemon_h="${withval}";;
+/no) use_filemon=no;;
+/*trace) filemon_h=no use_filemon="${withval}";;
+*/filemon.h) filemon_h="${withval}";;
 */filemon*) filemon_h="${withval}/filemon.h";;
 *) AC_MSG_ERROR(bad value ${withval} given for filemon) ;;
 esac],
 [
-OS=`uname -s`
-for d in "/usr/include/dev/filemon" "$prefix/include/dev/filemon" "$srcdir/filemon" "$srcdir/../filemon" "$srcdir/../../sys/dev/filemon"
-do
-	for x in "/$OS" ""
-	do
-		filemon_h="$d$x/filemon.h"
-		test -s "$filemon_h" && break
-	done
-	test -s "$filemon_h" && break
-done
-test -s "${filemon_h:-/dev/null}" || filemon_h=no
+case "$OS" in
+NetBSD) filemon_h=no use_filemon=ktrace;;
+*)
+    for d in "/usr/include/dev/filemon" "$prefix/include/dev/filemon" "$srcdir/../../sys/dev/filemon"
+    do  
+        for x in "/$OS" ""
+        do
+            filemon_h="$d$x/filemon.h"
+            test -s "$filemon_h" && break
+        done
+        test -s "$filemon_h" && { use_filemon=dev; break; }
+    done
+    ;;
+esac
+use_filemon=${use_filemon:-no}
+case "$use_filemon" in
+dev) ;;
+*) filemon_h=no;;
+esac
 ])
-dnl echo "Note: use_meta=$use_meta filemon_h=$filemon_h" >&6
+dnl echo "Note: use_meta=$use_meta use_filemon=$use_filemon filemon_h=$filemon_h" >&6
 case "$use_meta" in
 yes)
-	case "$filemon_h" in
-	*.h) echo "Using: filemon=$filemon_h" >&6;;
+	case "$use_filemon" in
+	no) ;;
+	*) echo "Using: filemon_${use_filemon}.c" >&6;;
 	esac
 	;;
 esac
@@ -388,10 +411,14 @@ AC_SUBST(INSTALL)
 AC_SUBST(GCC)
 AC_SUBST(diff_u)
 AC_SUBST(use_meta)
+AC_SUBST(use_filemon)
 AC_SUBST(filemon_h)
 AC_SUBST(_MAKE_VERSION)
-AC_OUTPUT(makefile Makefile.config make-bootstrap.sh unit-tests/Makefile)
-
+bm_outfiles="Makefile.config unit-tests/Makefile.config make-bootstrap.sh"
+if test $use_makefile = yes; then
+   bm_outfiles="makefile $bm_outfiles"
+fi
+AC_OUTPUT($bm_outfiles)
 cat <<EOF
 
 You can now run
