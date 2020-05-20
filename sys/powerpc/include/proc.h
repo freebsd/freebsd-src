@@ -37,18 +37,12 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
-struct pmap_invl_gen {
-	u_long gen;			/* (k) */
-	LIST_ENTRY(pmap_invl_gen) link;	/* (pp) */
-};
-
 /*
  * Machine-dependent part of the proc structure
  */
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_msr;	/* (k) */
-	struct pmap_invl_gen md_invl_gen;
 };
 
 struct mdproc {
