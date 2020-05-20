@@ -539,7 +539,8 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_read_format_zip_zip64.c \
 	libarchive/test/test_read_format_zip_with_invalid_traditional_eocd.c \
 	libarchive/test/test_read_large.c \
-	libarchive/test/test_read_pax_schily_xattr.c \
+	libarchive/test/test_read_pax_xattr_rht_security_selinux.c \
+	libarchive/test/test_read_pax_xattr_schily.c \
 	libarchive/test/test_read_pax_truncated.c \
 	libarchive/test/test_read_position.c \
 	libarchive/test/test_read_set_format.c \
@@ -701,6 +702,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_zip_7.xps.uu \
 	libarchive/test/test_compat_zip_8.zip.uu \
 	libarchive/test/test_compat_zstd_1.tar.zst.uu \
+	libarchive/test/test_compat_zstd_2.tar.zst.uu \
 	libarchive/test/test_fuzz.cab.uu \
 	libarchive/test/test_fuzz.lzh.uu \
 	libarchive/test/test_fuzz_1.iso.Z.uu \
@@ -946,7 +948,8 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_large_splitted_rar_ac.uu \
 	libarchive/test/test_read_large_splitted_rar_ad.uu \
 	libarchive/test/test_read_large_splitted_rar_ae.uu \
-	libarchive/test/test_read_pax_schily_xattr.tar.uu \
+	libarchive/test/test_read_pax_xattr_rht_security_selinux.tar.uu \
+	libarchive/test/test_read_pax_xattr_schily.tar.uu \
 	libarchive/test/test_read_splitted_rar_aa.uu \
 	libarchive/test/test_read_splitted_rar_ab.uu \
 	libarchive/test/test_read_splitted_rar_ac.uu \

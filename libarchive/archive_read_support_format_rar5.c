@@ -3084,12 +3084,6 @@ static int do_uncompress_block(struct archive_read* a, const uint8_t* p) {
 
 			continue;
 		}
-
-		/* The program counter shouldn't reach here. */
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Unsupported block code: 0x%x", num);
-
-		return ARCHIVE_FATAL;
 	}
 
 	return ARCHIVE_OK;
