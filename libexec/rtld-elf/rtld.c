@@ -4032,12 +4032,8 @@ linkmap_add(Obj_Entry *obj)
     struct link_map *prev;
 
     obj->linkmap.l_name = obj->path;
-    obj->linkmap.l_addr = obj->mapbase;
+    obj->linkmap.l_addr = obj->relocbase;
     obj->linkmap.l_ld = obj->dynamic;
-#ifdef __mips__
-    /* GDB needs load offset on MIPS to use the symbols */
-    obj->linkmap.l_offs = obj->relocbase;
-#endif
 
     if (r_debug.r_map == NULL) {
 	r_debug.r_map = l;
