@@ -61,13 +61,13 @@ main() {
 			pkgdeps="runtime"
 			_descr="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESCR)"
 			;;
-		*_lib32_development)
-			outname="${outname%%_lib32_development}"
+		*_lib32_dev)
+			outname="${outname%%_lib32_dev}"
 			_descr="32-bit Libraries, Development Files"
 			pkgdeps="${outname}"
 			;;
-		*_lib32_debug)
-			outname="${outname%%_lib32_debug}"
+		*_lib32_dbg)
+			outname="${outname%%_lib32_dbg}"
 			_descr="32-bit Libraries, Debugging Symbols"
 			pkgdeps="${outname}"
 			;;
@@ -76,13 +76,13 @@ main() {
 			_descr="32-bit Libraries"
 			pkgdeps="${outname}"
 			;;
-		*_development)
-			outname="${outname%%_development}"
+		*_dev)
+			outname="${outname%%_dev}"
 			_descr="Development Files"
 			pkgdeps="${outname}"
 			;;
-		*_debug)
-			outname="${outname%%_debug}"
+		*_dbg)
+			outname="${outname%%_dbg}"
 			_descr="Debugging Symbols"
 			pkgdeps="${outname}"
 			;;

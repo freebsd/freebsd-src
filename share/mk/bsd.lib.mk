@@ -316,7 +316,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld) && ${MK_DEBUG_FILES} == "no"
-	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
@@ -332,7 +332,7 @@ ${SHLIB_NAME}: ${SHLIB_NAME_FULL} ${SHLIB_NAME}.debug
 	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.debug \
 	    ${SHLIB_NAME_FULL} ${.TARGET}
 .if defined(SHLIB_LINK) && !commands(${SHLIB_LINK:R}.ld)
-	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${SHLIB_LINK}
+	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 
 ${SHLIB_NAME}.debug: ${SHLIB_NAME_FULL}
@@ -428,11 +428,11 @@ realinstall: _libinstall
 .ORDER: beforeinstall _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB_PRIVATE}${LIB}_p.a ${DESTDIR}${_LIBDIR}/
 .endif
 .if defined(SHLIB_NAME)
@@ -441,15 +441,15 @@ _libinstall:
 	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}/
 .if ${MK_DEBUG_FILES} != "no"
 .if defined(DEBUGMKDIR)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -d ${DESTDIR}${DEBUGFILEDIR}/
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -d ${DESTDIR}${DEBUGFILEDIR}/
 .endif
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},debug} -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dbg} -o ${LIBOWN} -g ${LIBGRP} -m ${DEBUGMODE} \
 	    ${_INSTALLFLAGS} \
 	    ${SHLIB_NAME}.debug ${DESTDIR}${DEBUGFILEDIR}/
 .endif
 .if defined(SHLIB_LINK)
 .if commands(${SHLIB_LINK:R}.ld)
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${SHLIB_LINK:R}.ld \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .for _SHLIB_LINK_LINK in ${SHLIB_LDSCRIPT_LINKS}
@@ -458,14 +458,14 @@ _libinstall:
 .else
 .if ${_SHLIBDIR} == ${_LIBDIR}
 .if ${SHLIB_LINK:Mlib*}
-	${INSTALL_RSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+	${INSTALL_RSYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
 	${INSTALL_RSYMLINK} ${TAG_ARGS} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .endif
 .else
 .if ${SHLIB_LINK:Mlib*}
-	${INSTALL_RSYMLINK} ${TAG_ARGS:D${TAG_ARGS},development} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
+	${INSTALL_RSYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
 	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
 	${INSTALL_RSYMLINK} ${TAG_ARGS} ${DESTDIR}${_SHLIBDIR}/${SHLIB_NAME} \
@@ -480,7 +480,7 @@ _libinstall:
 .endif # SHLIB_LINK
 .endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
-	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},development} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	${INSTALL} ${TAG_ARGS:D${TAG_ARGS},dev} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}/
 .endif
 .endif # !defined(INTERNALLIB)
