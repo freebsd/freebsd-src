@@ -78,6 +78,8 @@ void rangelock_fini(rangelock_t *);
 
 locked_range_t *rangelock_enter(rangelock_t *,
     uint64_t, uint64_t, rangelock_type_t);
+locked_range_t *rangelock_tryenter(rangelock_t *,
+    uint64_t, uint64_t, rangelock_type_t);
 void rangelock_exit(locked_range_t *);
 void rangelock_reduce(locked_range_t *, uint64_t, uint64_t);
 
