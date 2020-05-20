@@ -1397,6 +1397,11 @@ SYSCTL_PROC(_machdep_mitigations_taa, OID_AUTO, state,
     sysctl_taa_state_handler, "A",
     "TAA Mitigation state");
 
+int __read_frequently cpu_flush_rsb_ctxsw;
+SYSCTL_INT(_machdep_mitigations, OID_AUTO, flush_rsb_ctxsw,
+    CTLFLAG_RW | CTLFLAG_NOFETCH, &cpu_flush_rsb_ctxsw, 0,
+    "Flush Return Stack Buffer on context switch");
+
 /*
  * Enable and restore kernel text write permissions.
  * Callers must ensure that disable_wp()/restore_wp() are executed
