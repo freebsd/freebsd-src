@@ -66,9 +66,10 @@ vmbus_br_sysctl_state(SYSCTL_HANDLER_ARGS)
 	ravail = br->vbr_dsize - wavail;
 
 	snprintf(state, sizeof(state),
-	    "intrcnt:%lu rindex:%u windex:%u imask:%u psndsz:%u fvalue:%u "
+	    "intrcnt:%ju rindex:%u windex:%u imask:%u psndsz:%u fvalue:%u "
 	    "ravail:%u wavail:%u",
-	    intrcnt, rindex, windex, imask, psndsz, fvalue, ravail, wavail);
+	    (uintmax_t)intrcnt, rindex, windex, imask, psndsz, fvalue,
+	    ravail, wavail);
 	return sysctl_handle_string(oidp, state, sizeof(state), req);
 }
 

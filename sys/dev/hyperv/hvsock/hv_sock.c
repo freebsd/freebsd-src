@@ -792,7 +792,7 @@ hvs_trans_sosend(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	int error = 0;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
-	    "%s: HyperV Socket hvs_trans_sosend called, uio_resid = %lu\n",
+	    "%s: HyperV Socket hvs_trans_sosend called, uio_resid = %zd\n",
 	    __func__, uio->uio_resid);
 
 	if (so->so_type != SOCK_STREAM)
@@ -1154,7 +1154,7 @@ hvsock_br_callback(void *datap, int cplen, void *cbarg)
 		return (EINVAL);
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
-	    "%s: called, uio_rw = %s, uio_resid = %lu, cplen = %u, "
+	    "%s: called, uio_rw = %s, uio_resid = %zd, cplen = %u, "
 	    "datap = %p\n",
 	    __func__, (uio->uio_rw == UIO_READ) ? "read from br":"write to br",
 	    uio->uio_resid, cplen, datap);
@@ -1168,7 +1168,7 @@ hvsock_br_callback(void *datap, int cplen, void *cbarg)
 		SOCKBUF_LOCK(sb);
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
-	    "%s: after uiomove, uio_resid = %lu, error = %d\n",
+	    "%s: after uiomove, uio_resid = %zd, error = %d\n",
 	    __func__, uio->uio_resid, error);
 
 	return (error);
@@ -1372,8 +1372,9 @@ hvsock_canwrite_check(struct hvs_pcb *pcb)
 	 * We must always reserve a 0-length-payload packet for the FIN.
 	 */
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
-	    "%s: writeable is %u, should be greater than %lu\n",
-	    __func__, writeable, HVSOCK_PKT_LEN(1) + HVSOCK_PKT_LEN(0));
+	    "%s: writeable is %u, should be greater than %ju\n",
+	    __func__, writeable,
+	    (uintmax_t)(HVSOCK_PKT_LEN(1) + HVSOCK_PKT_LEN(0)));
 
 	if (writeable < HVSOCK_PKT_LEN(1) + HVSOCK_PKT_LEN(0)) {
 		/*
