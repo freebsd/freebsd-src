@@ -353,7 +353,7 @@ archive_entry_devminor(struct archive_entry *entry)
 		return minor(entry->ae_stat.aest_dev);
 }
 
-mode_t
+__LA_MODE_T
 archive_entry_filetype(struct archive_entry *entry)
 {
 	return (AE_IFMT & entry->acl.mode);
@@ -525,7 +525,7 @@ archive_entry_ino64(struct archive_entry *entry)
 	return (entry->ae_stat.aest_ino);
 }
 
-mode_t
+__LA_MODE_T
 archive_entry_mode(struct archive_entry *entry)
 {
 	return (entry->acl.mode);
@@ -598,7 +598,7 @@ _archive_entry_pathname_l(struct archive_entry *entry,
 	return (archive_mstring_get_mbs_l(&entry->ae_pathname, p, len, sc));
 }
 
-mode_t
+__LA_MODE_T
 archive_entry_perm(struct archive_entry *entry)
 {
 	return (~AE_IFMT & entry->acl.mode);
