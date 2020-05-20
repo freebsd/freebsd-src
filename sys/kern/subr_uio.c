@@ -346,44 +346,6 @@ again:
 }
 
 int
-copyinfrom(const void * __restrict src, void * __restrict dst, size_t len,
-    int seg)
-{
-	int error = 0;
-
-	switch (seg) {
-	case UIO_USERSPACE:
-		error = copyin(src, dst, len);
-		break;
-	case UIO_SYSSPACE:
-		bcopy(src, dst, len);
-		break;
-	default:
-		panic("copyinfrom: bad seg %d\n", seg);
-	}
-	return (error);
-}
-
-int
-copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
-    size_t * __restrict copied, int seg)
-{
-	int error = 0;
-
-	switch (seg) {
-	case UIO_USERSPACE:
-		error = copyinstr(src, dst, len, copied);
-		break;
-	case UIO_SYSSPACE:
-		error = copystr(src, dst, len, copied);
-		break;
-	default:
-		panic("copyinstrfrom: bad seg %d\n", seg);
-	}
-	return (error);
-}
-
-int
 copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 {
 	u_int iovlen;
