@@ -396,8 +396,6 @@ mtk_soc_try_early_detect(void)
 	bus_space_unmap(bst, bsh, MTK_DEFAULT_SIZE);
 }
 
-extern char cpu_model[];
-
 void
 mtk_soc_set_cpu_model(void)
 {

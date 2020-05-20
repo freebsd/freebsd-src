@@ -275,8 +275,6 @@ ar71xx_platform_check_mac_hints(void)
 	return (0);
 }
 
-extern char cpu_model[];
-
 void
 platform_start(__register_t a0 __unused, __register_t a1 __unused, 
     __register_t a2 __unused, __register_t a3 __unused)

@@ -61,8 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/octeon-sdk/octeon-model.h>
 #endif
 
-static void cpu_identify(void);
-
 struct mips_cpuinfo cpuinfo;
 
 #define _ENCODE_INSN(a,b,c,d,e) \
@@ -294,18 +292,16 @@ mips_cpu_init(void)
 
 	mips_icache_sync_all();
 	mips_dcache_wbinv_all();
-	/* Print some info about CPU */
-	cpu_identify();
 }
 
-static void
+void
 cpu_identify(void)
 {
 	uint32_t cfg0, cfg1, cfg2, cfg3;
 #if defined(CPU_MIPS1004K) || defined (CPU_MIPS74K) || defined (CPU_MIPS24K)
 	uint32_t cfg7;
 #endif
-	printf("cpu%d: ", 0);   /* XXX per-cpu */
+	printf("CPU: ");
 	switch (cpuinfo.cpu_vendor) {
 	case MIPS_PRID_CID_MTI:
 		printf("MIPS Technologies");
@@ -347,6 +343,8 @@ cpu_identify(void)
 		printf("Unknown cid %#x", cpuinfo.cpu_vendor);
 		break;
 	}
+	if (cpu_model[0] != '\0')
+		printf(" (%s)", cpu_model);
 	printf(" processor v%d.%d\n", cpuinfo.cpu_rev, cpuinfo.cpu_impl);
 
 	printf("  MMU: ");
