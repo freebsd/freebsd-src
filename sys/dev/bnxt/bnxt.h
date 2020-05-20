@@ -87,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #define NETXTREME_E_VF2	0x16d3
 #define NETXTREME_E_VF3	0x16dc
 
+/* Maximum numbers of RX and TX descriptors. iflib requires this to be a power
+ * of two. The hardware has no particular limitation. */
+#define BNXT_MAX_RXD	((INT32_MAX >> 1) + 1)
+#define BNXT_MAX_TXD	((INT32_MAX >> 1) + 1)
+
 #define CSUM_OFFLOAD		(CSUM_IP_TSO|CSUM_IP6_TSO|CSUM_IP| \
 				 CSUM_IP_UDP|CSUM_IP_TCP|CSUM_IP_SCTP| \
 				 CSUM_IP6_UDP|CSUM_IP6_TCP|CSUM_IP6_SCTP)
