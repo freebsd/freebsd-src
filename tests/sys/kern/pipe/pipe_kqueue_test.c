@@ -243,28 +243,30 @@ ATF_TC_BODY(pipe_kqueue__closed_read_end_register_before_close, tc)
 ATF_TC_WITHOUT_HEAD(pipe_kqueue__closed_write_end);
 ATF_TC_BODY(pipe_kqueue__closed_write_end, tc)
 {
-	int p[2] = { -1, -1 };
+	struct kevent kev[32];
+	ssize_t bytes, n;
+	int kq, p[2];
+	char c;
 
 	ATF_REQUIRE(pipe2(p, O_CLOEXEC | O_NONBLOCK) == 0);
 	ATF_REQUIRE(p[0] >= 0);
 	ATF_REQUIRE(p[1] >= 0);
 
-	char c = 0;
-	ssize_t r;
-	while ((r = write(p[1], &c, 1)) == 1) {
-	}
-	ATF_REQUIRE(r < 0);
+	bytes = 0;
+	c = 0;
+	while ((n = write(p[1], &c, 1)) == 1)
+		bytes++;
+	ATF_REQUIRE(n < 0);
 	ATF_REQUIRE(errno == EAGAIN || errno == EWOULDBLOCK);
 
 	ATF_REQUIRE(close(p[1]) == 0);
 
-	int kq = kqueue();
+	kq = kqueue();
 	ATF_REQUIRE(kq >= 0);
 
-	struct kevent kev[32];
-	EV_SET(&kev[0], p[0], EVFILT_READ, EV_ADD | EV_CLEAR | EV_RECEIPT, /**/
+	EV_SET(&kev[0], p[0], EVFILT_READ, EV_ADD | EV_CLEAR | EV_RECEIPT,
 	    0, 0, 0);
-	EV_SET(&kev[1], p[0], EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_RECEIPT, /**/
+	EV_SET(&kev[1], p[0], EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_RECEIPT,
 	    0, 0, 0);
 
 	/*
@@ -284,7 +286,7 @@ ATF_TC_BODY(pipe_kqueue__closed_write_end, tc)
 	ATF_REQUIRE(kev[0].filter == EVFILT_READ);
 	ATF_REQUIRE(kev[0].flags == (EV_EOF | EV_CLEAR | EV_RECEIPT));
 	ATF_REQUIRE(kev[0].fflags == 0);
-	ATF_REQUIRE(kev[0].data == 65536);
+	ATF_REQUIRE(kev[0].data == bytes);
 	ATF_REQUIRE(kev[0].udata == 0);
 
 	ATF_REQUIRE(close(kq) == 0);
@@ -294,19 +296,21 @@ ATF_TC_BODY(pipe_kqueue__closed_write_end, tc)
 ATF_TC_WITHOUT_HEAD(pipe_kqueue__closed_write_end_register_before_close);
 ATF_TC_BODY(pipe_kqueue__closed_write_end_register_before_close, tc)
 {
-	int p[2] = { -1, -1 };
+	struct kevent kev[32];
+	ssize_t bytes, n;
+	int kq, p[2];
+	char c;
 
 	ATF_REQUIRE(pipe2(p, O_CLOEXEC | O_NONBLOCK) == 0);
 	ATF_REQUIRE(p[0] >= 0);
 	ATF_REQUIRE(p[1] >= 0);
 
-	int kq = kqueue();
+	kq = kqueue();
 	ATF_REQUIRE(kq >= 0);
 
-	struct kevent kev[32];
-	EV_SET(&kev[0], p[0], EVFILT_READ, EV_ADD | EV_CLEAR | EV_RECEIPT, /**/
+	EV_SET(&kev[0], p[0], EVFILT_READ, EV_ADD | EV_CLEAR | EV_RECEIPT,
 	    0, 0, 0);
-	EV_SET(&kev[1], p[0], EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_RECEIPT, /**/
+	EV_SET(&kev[1], p[0], EVFILT_WRITE, EV_ADD | EV_CLEAR | EV_RECEIPT,
 	    0, 0, 0);
 
 	/*
@@ -320,35 +324,32 @@ ATF_TC_BODY(pipe_kqueue__closed_write_end_register_before_close, tc)
 	ATF_REQUIRE((kev[1].flags & EV_ERROR) != 0);
 	ATF_REQUIRE(kev[1].data == 0);
 
-	char c = 0;
-	ssize_t r;
-	while ((r = write(p[1], &c, 1)) == 1) {
-	}
-	ATF_REQUIRE(r < 0);
+	bytes = 0;
+	c = 0;
+	while ((n = write(p[1], &c, 1)) == 1)
+		bytes++;
+	ATF_REQUIRE(n < 0);
 	ATF_REQUIRE(errno == EAGAIN || errno == EWOULDBLOCK);
 
 	ATF_REQUIRE(close(p[1]) == 0);
 
 	ATF_REQUIRE(kevent(kq, NULL, 0, kev, nitems(kev),
-	    &(struct timespec) { 0, 0 }) == 2);
-	{
-		ATF_REQUIRE(kev[0].ident == (uintptr_t)p[0]);
-		ATF_REQUIRE(kev[0].filter == EVFILT_WRITE);
-		ATF_REQUIRE(kev[0].flags ==
-		    (EV_EOF | EV_CLEAR | EV_ONESHOT | EV_RECEIPT));
-		ATF_REQUIRE(kev[0].fflags == 0);
-		ATF_REQUIRE(kev[0].data == 4096 ||
-		    kev[0].data == 512 /* on FreeBSD 11.3 */);
-		ATF_REQUIRE(kev[0].udata == 0);
-	}
-	{
-		ATF_REQUIRE(kev[1].ident == (uintptr_t)p[0]);
-		ATF_REQUIRE(kev[1].filter == EVFILT_READ);
-		ATF_REQUIRE(kev[1].flags == (EV_EOF | EV_CLEAR | EV_RECEIPT));
-		ATF_REQUIRE(kev[1].fflags == 0);
-		ATF_REQUIRE(kev[1].data == 65536);
-		ATF_REQUIRE(kev[1].udata == 0);
-	}
+	    &(struct timespec){ 0, 0 }) == 2);
+
+	ATF_REQUIRE(kev[0].ident == (uintptr_t)p[0]);
+	ATF_REQUIRE(kev[0].filter == EVFILT_WRITE);
+	ATF_REQUIRE(kev[0].flags ==
+	    (EV_EOF | EV_CLEAR | EV_ONESHOT | EV_RECEIPT));
+	ATF_REQUIRE(kev[0].fflags == 0);
+	ATF_REQUIRE(kev[0].data > 0);
+	ATF_REQUIRE(kev[0].udata == 0);
+
+	ATF_REQUIRE(kev[1].ident == (uintptr_t)p[0]);
+	ATF_REQUIRE(kev[1].filter == EVFILT_READ);
+	ATF_REQUIRE(kev[1].flags == (EV_EOF | EV_CLEAR | EV_RECEIPT));
+	ATF_REQUIRE(kev[1].fflags == 0);
+	ATF_REQUIRE(kev[1].data == bytes);
+	ATF_REQUIRE(kev[1].udata == 0);
 
 	ATF_REQUIRE(close(kq) == 0);
 	ATF_REQUIRE(close(p[0]) == 0);
