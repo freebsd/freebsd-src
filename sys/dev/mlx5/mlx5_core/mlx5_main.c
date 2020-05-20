@@ -1303,7 +1303,8 @@ m(+1, u64, no_eeprom, "no_eeprom", "No EEPROM/retry timeout") \
 m(+1, u64, enforce_part_number, "enforce_part_number", "Module Enforce part number list") \
 m(+1, u64, unknown_id, "unknown_id", "Module Unknown identifier") \
 m(+1, u64, high_temp, "high_temp", "Module High Temperature") \
-m(+1, u64, cable_shorted, "cable_shorted", "Module Cable is shorted")
+m(+1, u64, cable_shorted, "cable_shorted", "Module Cable is shorted") \
+m(+1, u64, pmd_type_not_enabled, "pmd_type_not_enabled", "PMD type is not enabled")
 
 static const char *mlx5_pme_err_desc[] = {
 	MLX5_PORT_MODULE_ERROR_STATS(MLX5_STATS_DESC)
