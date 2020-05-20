@@ -400,7 +400,7 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	static const size_t out_buf_len = 65536;
 	char *out_buf;
 	const char *prefix = "Program: ";
-	pid_t child;
+	int ret;
 	size_t l;
 
 	l = strlen(prefix) + strlen(cmd) + 1;
@@ -426,9 +426,9 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 	state->out_buf = out_buf;
 	state->out_buf_len = out_buf_len;
 
-	child = __archive_create_child(cmd, &state->child_stdin,
-	    &state->child_stdout);
-	if (child == -1) {
+	ret = __archive_create_child(cmd, &state->child_stdin,
+	    &state->child_stdout, &state->child);
+	if (ret != ARCHIVE_OK) {
 		free(state->out_buf);
 		archive_string_free(&state->description);
 		free(state);
@@ -437,21 +437,6 @@ __archive_read_program(struct archive_read_filter *self, const char *cmd)
 		    cmd);
 		return (ARCHIVE_FATAL);
 	}
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	state->child = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, child);
-	if (state->child == NULL) {
-		child_stop(self, state);
-		free(state->out_buf);
-		archive_string_free(&state->description);
-		free(state);
-		archive_set_error(&self->archive->archive, EINVAL,
-		    "Can't initialize filter; unable to run program \"%s\"",
-		    cmd);
-		return (ARCHIVE_FATAL);
-	}
-#else
-	state->child = child;
-#endif
 
 	self->data = state;
 	self->read = program_filter_read;

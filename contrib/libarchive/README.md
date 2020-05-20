@@ -70,7 +70,7 @@ know about any errors or omissions you find.
 
 ## Supported Formats
 
-Currently, the library automatically detects and reads the following fomats:
+Currently, the library automatically detects and reads the following formats:
   * Old V7 tar archives
   * POSIX ustar
   * GNU tar format (including GNU long filenames, long link names, and sparse files)

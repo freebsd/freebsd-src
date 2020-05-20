@@ -634,9 +634,11 @@ acl_match(acl_entry_t aclent, struct myacl_t *myacl)
 	case ACL_ENTRY_TYPE_AUDIT:
 		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_AUDIT)
 			return (0);
+		break;
 	case ACL_ENTRY_TYPE_ALARM:
 		if (myacl->type != ARCHIVE_ENTRY_ACL_TYPE_ALARM)
 			return (0);
+		break;
 	default:
 		return (0);
 	}

@@ -1,3 +1,9 @@
+May 20, 2020: libarchive 3.4.3 released
+
+Apr 30, 2020: Support for pzstd compressed files
+
+Apr 16, 2020: Support for RHT.security.selinux tar extended attribute
+
 Feb 11, 2020: libarchive 3.4.2 released
 
 Jan 23, 2020: Important fixes for writing XAR archives

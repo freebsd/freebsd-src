@@ -28,15 +28,15 @@
  */
 #include "test.h"
 
-DEFINE_TEST(test_schily_xattr_pax)
+DEFINE_TEST(test_read_pax_xattr_rht_security_selinux)
 {
 	struct archive *a;
 	struct archive_entry *ae;
-	const char *refname = "test_read_pax_schily_xattr.tar";
+	const char *refname = "test_read_pax_xattr_rht_security_selinux.tar";
 	const char *xname; /* For xattr tests. */
 	const void *xval; /* For xattr tests. */
 	size_t xsize; /* For xattr tests. */
-	const char *string, *array;
+	const char *string;
 
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
@@ -47,22 +47,14 @@ DEFINE_TEST(test_schily_xattr_pax)
 	    archive_read_open_filename(a, refname, 10240));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualInt(2, archive_entry_xattr_count(ae));
-	assertEqualInt(2, archive_entry_xattr_reset(ae));
+	assertEqualInt(1, archive_entry_xattr_count(ae));
+	assertEqualInt(1, archive_entry_xattr_reset(ae));
 
 	assertEqualInt(0, archive_entry_xattr_next(ae, &xname, &xval, &xsize));
 	assertEqualString(xname, "security.selinux");
-	string = "system_u:object_r:unlabeled_t:s0";
-	assertEqualString(xval, string);
-	/* the xattr's value also contains the terminating \0 */
-	assertEqualInt((int)xsize, strlen(string) + 1);
-
-	assertEqualInt(0, archive_entry_xattr_next(ae, &xname, &xval, &xsize));
-	assertEqualString(xname, "security.ima");
-	assertEqualInt((int)xsize, 265);
-	/* we only compare the first 12 bytes */
-	array = "\x03\x02\x04\xb0\xe9\xd6\x79\x01\x00\x2b\xad\x1e";
-	assertEqualMem(xval, array, 12);
+	string = "system_u:object_r:admin_home_t:s0";
+	assertEqualMem(xval, string, xsize);
+	assertEqualInt((int)xsize, strlen(string));
 
 	/* Close the archive. */
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
