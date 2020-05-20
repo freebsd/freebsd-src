@@ -149,6 +149,12 @@ struct vmbus_channel {
 
 	int				ch_refs;
 
+	/*
+	 * These are for HyperV socket channel only
+	 */
+	bool				ch_is_hvs;
+	uint8_t				ch_hvs_conn_from_host;
+
 	struct sysctl_ctx_list		ch_sysctl_ctx;
 } __aligned(CACHE_LINE_SIZE);
 

@@ -127,7 +127,54 @@ struct vmbus_bufring {
 	 */
 	volatile uint32_t	br_imask;
 
-	uint8_t			br_rsvd[4084];
+	/*
+	 * WS2012/Win8 and later versions of Hyper-V implement interrupt
+	 * driven flow management. The feature bit feat_pending_snd_sz
+	 * is set by the host on the host->guest buffer ring, and by the
+	 * guest on the guest->host buffer ring.
+	 *
+	 * The meaning of the feature bit is a bit complex in that it has
+	 * semantics that apply to both buffer rings.  If the guest sets
+	 * the feature bit in the guest->host buffer ring, the guest is
+	 * telling the host that:
+	 * 1) It will set the br_pending_snd_sz field in the guest->host buffer
+	 *    ring when it is waiting for space to become available, and
+	 * 2) It will read the pending_send_sz field in the host->guest
+	 *    ring buffer and interrupt the host when it frees enough space
+	 *
+	 * Similarly, if the host sets the feature bit in the host->guest
+	 * ring buffer, the host is telling the guest that:
+	 * 1) It will set the pending_send_sz field in the host->guest ring
+	 *    buffer when it is waiting for space to become available, and
+	 * 2) It will read the pending_send_sz field in the guest->host
+	 *    ring buffer and interrupt the guest when it frees enough space
+	 *
+	 * If either the guest or host does not set the feature bit that it
+	 * owns, that guest or host must do polling if it encounters a full
+	 * ring buffer, and not signal the other end with an interrupt.
+	 */
+	volatile uint32_t	br_pending_snd_sz;
+	uint32_t		br_rsvd1[12];
+	union	{
+		struct {
+			uint32_t feat_pending_snd_sz:1;
+		};
+		uint32_t value;
+	} br_feature_bits;
+
+	/* Padding to PAGE_SIZE */
+	uint8_t			br_rsvd2[4020];
+
+	/*
+	 * Total guest to host interrupt count
+	 * - For rx ring, this counts the guest signaling host when this rx
+	 * ring changing from full to not full.
+	 *
+	 * - For tx ring, this counts the guest signaling host when this tx
+	 * ring changing from empty to non empty.
+	 */
+	uint64_t		br_g2h_intr_cnt;
+
 	uint8_t			br_data[];
 } __packed;
 CTASSERT(sizeof(struct vmbus_bufring) == PAGE_SIZE);
@@ -196,7 +243,14 @@ struct vmbus_chanpkt_prplist {
 #define VMBUS_CHANMSG_TYPE_CONNECT		14	/* REQ */
 #define VMBUS_CHANMSG_TYPE_CONNECT_RESP		15	/* RESP */
 #define VMBUS_CHANMSG_TYPE_DISCONNECT		16	/* REQ */
-#define VMBUS_CHANMSG_TYPE_MAX			22
+#define VMBUS_CHANMSG_TYPE_17			17
+#define VMBUS_CHANMSG_TYPE_18			18
+#define VMBUS_CHANMSG_TYPE_19			19
+#define VMBUS_CHANMSG_TYPE_20			20
+#define VMBUS_CHANMSG_TYPE_TL_CONN		21	/* REQ */
+#define VMBUS_CHANMSG_TYPE_22			22
+#define VMBUS_CHANMSG_TYPE_TL_RESULT		23	/* RESP */
+#define VMBUS_CHANMSG_TYPE_MAX			24
 
 struct vmbus_chanmsg_hdr {
 	uint32_t	chm_type;	/* VMBUS_CHANMSG_TYPE_ */
@@ -228,6 +282,15 @@ struct vmbus_chanmsg_chrequest {
 struct vmbus_chanmsg_disconnect {
 	struct vmbus_chanmsg_hdr chm_hdr;
 } __packed;
+
+/* VMBUS_CHANMSG_TYPE_TL_CONN */
+/* Hyper-V socket guest connect request */
+struct vmbus_chanmsg_tl_connect {
+	struct vmbus_chanmsg_hdr chm_hdr;
+	struct hyperv_guid guest_endpoint_id;
+	struct hyperv_guid host_service_id;
+} __packed;
+
 
 /* VMBUS_CHANMSG_TYPE_CHOPEN */
 struct vmbus_chanmsg_chopen {
@@ -310,6 +373,12 @@ struct vmbus_chanmsg_chrescind {
 	uint32_t	chm_chanid;
 } __packed;
 
+/* Size of the user defined data buffer for non-pipe offers */
+#define VMBUS_CHANMSG_CHOFFER_UDATA_SIZE		120
+
+/* Size of the user defined data buffer for pipe offers. */
+#define VMBUS_CHANMSG_CHOFFER_UDATA_PIPE_SIZE		116
+
 /* VMBUS_CHANMSG_TYPE_CHOFFER */
 struct vmbus_chanmsg_choffer {
 	struct vmbus_chanmsg_hdr chm_hdr;
@@ -320,7 +389,26 @@ struct vmbus_chanmsg_choffer {
 	uint32_t	chm_svrctx_sz;
 	uint16_t	chm_chflags;
 	uint16_t	chm_mmio_sz;	/* unit: MB */
-	uint8_t		chm_udata[120];
+
+	union {
+		/* Non-pipes */
+		struct {
+			uint8_t	user_def[VMBUS_CHANMSG_CHOFFER_UDATA_SIZE];
+		} std;
+		/*
+		 * Pipes:
+		 * For integrated pipe protocol, which is implemented on
+		 * top of standard user-defined data. Pipe clients have
+		 * VMBUS_CHANMSG_CHOFFER_UDATA_PIPE_SIZE bytes left for
+		 * their own user.
+		 */
+		struct {
+			uint32_t pipe_mode;
+			uint8_t
+			    user_def[VMBUS_CHANMSG_CHOFFER_UDATA_PIPE_SIZE];
+		} pipe;
+	} chm_udata;
+
 	uint16_t	chm_subidx;
 	uint16_t	chm_rsvd;
 	uint32_t	chm_chanid;
@@ -330,6 +418,9 @@ struct vmbus_chanmsg_choffer {
 	uint32_t	chm_connid;
 } __packed;
 CTASSERT(sizeof(struct vmbus_chanmsg_choffer) <= VMBUS_MSG_DSIZE_MAX);
+
+/* Server Flag */
+#define VMBUS_CHAN_TLNPI_PROVIDER_OFFER			0x2000
 
 #define VMBUS_CHOFFER_FLAG1_HASMNF	0x01
 
