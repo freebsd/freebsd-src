@@ -4498,13 +4498,27 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	end = IDX_TO_OFF(ma[count - 1]->pindex + 1);
 
 	/*
-	 * Lock a range covering all required and optional pages.
-	 * Note that we need to handle the case of the block size growing.
+	 * Try to lock a range covering all required and optional pages, to
+	 * handle the case of the block size growing.  It is not safe to block
+	 * on the range lock since the owner may be waiting for the fault page
+	 * to be unbusied.
 	 */
 	for (;;) {
 		blksz = zp->z_blksz;
-		lr = rangelock_enter(&zp->z_rangelock, rounddown(start, blksz),
+		lr = rangelock_tryenter(&zp->z_rangelock,
+		    rounddown(start, blksz),
 		    roundup(end, blksz) - rounddown(start, blksz), RL_READER);
+		if (lr == NULL) {
+			if (rahead != NULL) {
+				*rahead = 0;
+				rahead = NULL;
+			}
+			if (rbehind != NULL) {
+				*rbehind = 0;
+				rbehind = NULL;
+			}
+			break;
+		}
 		if (blksz == zp->z_blksz)
 			break;
 		rangelock_exit(lr);
@@ -4515,7 +4529,8 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	obj_size = object->un_pager.vnp.vnp_size;
 	zfs_vmobject_wunlock(object);
 	if (IDX_TO_OFF(ma[count - 1]->pindex) >= obj_size) {
-		rangelock_exit(lr);
+		if (lr != NULL)
+			rangelock_exit(lr);
 		ZFS_EXIT(zfsvfs);
 		return (zfs_vm_pagerret_bad);
 	}
@@ -4543,7 +4558,8 @@ zfs_getpages(struct vnode *vp, vm_page_t *ma, int count, int *rbehind,
 	error = dmu_read_pages(os, zp->z_id, ma, count, &pgsin_b, &pgsin_a,
 	    MIN(end, obj_size) - (end - PAGE_SIZE));
 
-	rangelock_exit(lr);
+	if (lr != NULL)
+		rangelock_exit(lr);
 	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
 	ZFS_EXIT(zfsvfs);
 
