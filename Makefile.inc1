@@ -1889,7 +1889,7 @@ create-world-package-${pkgname}: .PHONY
 _default_flavor=	-default
 .if make(*package*) && exists(${KSTAGEDIR}/kernel.meta)
 . if ${MK_DEBUG_FILES} != "no"
-_debug=-debug
+_debug=-dbg
 . endif
 create-kernel-packages:	.PHONY
 . for flavor in "" ${_debug}
@@ -1923,7 +1923,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 . for _kernel in ${BUILDKERNELS:[2..-1]}
 .  if exists(${KSTAGEDIR}/kernel.${_kernel}.meta)
 .   if ${MK_DEBUG_FILES} != "no"
-_debug=-debug
+_debug=-dbg
 .   endif
 .   for flavor in "" ${_debug}
 create-kernel-packages: create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kernel}

@@ -70,7 +70,7 @@
 			output=output"."_kernconf
 		}
 		if ($1 ~ /^\/usr\/lib\/debug\/boot/) {
-			output=output"-debug.plist"
+			output=output"-dbg.plist"
 		} else {
 			output=output".plist"
 		}
