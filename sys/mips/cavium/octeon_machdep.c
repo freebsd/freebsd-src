@@ -97,8 +97,6 @@ struct octeon_feature_description {
 };
 
 extern int	*end;
-extern char cpu_model[];
-extern char cpu_board[];
 static char octeon_kenv[0x2000];
 
 static const struct octeon_feature_description octeon_feature_descriptions[] = {

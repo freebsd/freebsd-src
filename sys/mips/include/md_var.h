@@ -42,6 +42,8 @@
  * Miscellaneous machine-dependent declarations.
  */
 extern	long	Maxmem;
+extern	char	cpu_board[];
+extern	char	cpu_model[];
 extern	char	sigcode[];
 extern	int	szsigcode;
 #if defined(__mips_n32) || defined(__mips_n64)
@@ -75,6 +77,7 @@ void	mips_cpu_init(void);
 void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 void	mips_postboot_fixup(void);
+void	cpu_identify(void);
 void	cpu_switch_set_userlocal(void) __asm(__STRING(cpu_switch_set_userlocal));
 
 extern int busdma_swi_pending;
