@@ -36,6 +36,9 @@
 #include <crypto/rijndael/rijndael.h>
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/cryptodev.h>
+#ifdef _STANDALONE
+#include <stand.h>
+#endif
 
 #define AESICM_BLOCKSIZE	AES_BLOCK_LEN
 #define	AES_XTS_BLOCKSIZE	16

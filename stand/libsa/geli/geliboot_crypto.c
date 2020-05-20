@@ -78,20 +78,20 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 		xts_len = keysize << 1;
 		ctxp = &xtsctx;
 
-		rijndael_set_key(&ctxp->key1, key, xts_len / 2);
-		rijndael_set_key(&ctxp->key2, key + (xts_len / 16), xts_len / 2);
-
-		enc_xform_aes_xts.reinit((caddr_t)ctxp, iv);
+		enc_xform_aes_xts.setkey(ctxp, key, xts_len / 8);
+		enc_xform_aes_xts.reinit(ctxp, iv);
 
 		switch (enc) {
 		case 0: /* decrypt */
 			for (i = 0; i < datasize; i += AES_XTS_BLOCKSIZE) {
-				enc_xform_aes_xts.decrypt((caddr_t)ctxp, data + i);
+				enc_xform_aes_xts.decrypt(ctxp, data + i,
+				    data + i);
 			}
 			break;
 		case 1: /* encrypt */
 			for (i = 0; i < datasize; i += AES_XTS_BLOCKSIZE) {
-				enc_xform_aes_xts.encrypt((caddr_t)ctxp, data + i);
+				enc_xform_aes_xts.encrypt(ctxp, data + i,
+				    data + 1);
 			}
 			break;
 		}
