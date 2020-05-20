@@ -1,4 +1,4 @@
-#	$Id: Generic.mk,v 1.13 2017/05/05 18:02:16 sjg Exp $
+#	$Id: Generic.mk,v 1.14 2020/04/17 21:08:17 sjg Exp $
 #
 
 # some reasonable defaults
@@ -86,8 +86,6 @@ PC?=		pc
 PFLAGS?=
 COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
-
-SHELL?=		sh
 
 SIZE?=		size
 

@@ -1,0 +1,6 @@
+main-before-ok
+sub-before-ok
+subsub-ok
+sub-after-fail(include-sub.mk)
+main-after-fail(include-sub.mk)
+exit status 0

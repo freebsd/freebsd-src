@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.56 2018/07/08 17:12:54 sjg Exp $
+# $Id: meta.stage.mk,v 1.59 2020/04/25 18:18:27 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -18,9 +18,11 @@
 .if !target(__${.PARSEFILE}__)
 # the guard target is defined later
 
+.-include <local.meta.stage.mk>
+
 .if ${.MAKE.DEPENDFILE_PREFERENCE:U${.MAKE.DEPENDFILE}:M*.${MACHINE}} != ""
 # this is generally safer anyway
-_dirdep ?= ${RELDIR}.${MACHINE}
+_dirdep ?= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
 .else
 _dirdep ?= ${RELDIR}
 .endif
@@ -67,7 +69,7 @@ LN_CP_SCRIPT = LnCp() { \
 # a warning is handy when bootstapping different options.
 STAGE_CONFLICT?= ERROR
 .if ${STAGE_CONFLICT:tl} == "error"
-STAGE_CONFLICT_ACTION= exit 1;
+STAGE_CONFLICT_ACTION= exit 1
 .else
 STAGE_CONFLICT_ACTION=
 .endif
@@ -78,8 +80,10 @@ STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   t=$$1; \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
-	echo "${STAGE_CONFLICT}: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
-	${STAGE_CONFLICT_ACTION} \
+	x=`cat $$t.dirdep`; \
+	case "${RELDIR}:${_dirdep}" in $${x%.*}:$${x}*) ;; \
+	*) echo "${STAGE_CONFLICT}: $$t installed by $$x not ${_dirdep}" >&2; \
+	${STAGE_CONFLICT_ACTION} ;; esac; \
   fi; \
   LnCp .dirdep $$t.dirdep || exit 1; }
 
@@ -205,7 +209,7 @@ stage_files.$s:	.dirdep
 STAGE_FILES ?= ${.ALLSRC:N.dirdep:Nstage_*}
 stage_files:	.dirdep
 .endif
-	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s}
+	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s:O}
 	@touch $@
 .endif
 .endif
@@ -271,7 +275,7 @@ STAGE_AS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 .stage_as.$s:
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:O:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
 	@touch $@
 .endif
 .endif
@@ -286,8 +290,8 @@ STAGE_AS_AND_SYMLINK.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 .stage_as_and_symlink.$s:
 stage_as_and_symlink:	stage_as_and_symlink.$s
 stage_as_and_symlink.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
-	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
+	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
 	@touch $@
 .endif
 .endif

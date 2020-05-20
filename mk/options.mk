@@ -1,4 +1,4 @@
-# $Id: options.mk,v 1.10 2014/02/11 18:34:48 sjg Exp $
+# $Id: options.mk,v 1.11 2020/05/02 21:23:52 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
@@ -77,3 +77,4 @@ ${OPTION_PREFIX}${o:H} ?= no
 ${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
 .endif
 .endfor
+.undef OPTIONS_DEFAULT_VALUES OPTIONS_DEFAULT_NO OPTIONS_DEFAULT_YES

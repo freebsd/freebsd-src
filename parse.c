@@ -1,4 +1,4 @@
-/*	$NetBSD: parse.c,v 1.231 2018/12/22 00:36:32 sjg Exp $	*/
+/*	$NetBSD: parse.c,v 1.233 2019/09/26 21:09:55 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: parse.c,v 1.231 2018/12/22 00:36:32 sjg Exp $";
+static char rcsid[] = "$NetBSD: parse.c,v 1.233 2019/09/26 21:09:55 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)parse.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: parse.c,v 1.231 2018/12/22 00:36:32 sjg Exp $");
+__RCSID("$NetBSD: parse.c,v 1.233 2019/09/26 21:09:55 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -685,6 +685,7 @@ ParseVErrorInternal(FILE *f, const char *cfname, size_t clineno, int type,
     const char *fmt, va_list ap)
 {
 	static Boolean fatal_warning_error_printed = FALSE;
+	char dirbuf[MAXPATHLEN+1];
 
 	(void)fprintf(f, "%s: ", progname);
 
@@ -703,9 +704,7 @@ ParseVErrorInternal(FILE *f, const char *cfname, size_t clineno, int type,
 			if (dir == NULL)
 				dir = ".";
 			if (*dir != '/') {
-				dir = cp2 = realpath(dir, NULL);
-				free(cp);
-				cp = cp2; /* cp2 set to NULL by Var_Value */
+				dir = realpath(dir, dirbuf);
 			}
 			fname = Var_Value(".PARSEFILE", VAR_GLOBAL, &cp2);
 			if (fname == NULL) {
@@ -1768,7 +1767,8 @@ ParseDoDependency(char *line)
     }
 
 out:
-    assert(paths == NULL);
+    if (paths)
+	Lst_Destroy(paths, NULL);
     if (curTargs)
 	    Lst_Destroy(curTargs, NULL);
 }

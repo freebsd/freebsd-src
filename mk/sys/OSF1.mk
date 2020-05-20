@@ -1,4 +1,4 @@
-#	$Id: OSF1.mk,v 1.8 2017/05/05 18:02:16 sjg Exp $
+#	$Id: OSF1.mk,v 1.9 2020/04/17 21:08:17 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -81,8 +81,6 @@ PC=		pc
 PFLAGS=
 COMPILE.p=	${PC} ${PFLAGS} ${CPPFLAGS} -c
 LINK.p=		${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
-
-SHELL=		sh
 
 .if exists(/usr/local/bin/bison) || exists(/opt/gnu/bin/bison)
 YACC=		bison -y
