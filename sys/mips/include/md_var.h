@@ -75,6 +75,7 @@ void	mips_cpu_init(void);
 void	mips_pcpu0_init(void);
 void	mips_proc0_init(void);
 void	mips_postboot_fixup(void);
+void	cpu_switch_set_userlocal(void) __asm(__STRING(cpu_switch_set_userlocal));
 
 extern int busdma_swi_pending;
 void	busdma_swi(void);
