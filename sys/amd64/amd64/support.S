@@ -1613,22 +1613,26 @@ ENTRY(pmap_pti_pcid_invlrng)
 	retq
 
 	.altmacro
-	.macro	ibrs_seq_label l
-handle_ibrs_\l:
+	.macro	rsb_seq_label l
+rsb_seq_\l:
 	.endm
-	.macro	ibrs_call_label l
-	call	handle_ibrs_\l
+	.macro	rsb_call_label l
+	call	rsb_seq_\l
 	.endm
-	.macro	ibrs_seq count
+	.macro	rsb_seq count
 	ll=1
 	.rept	\count
-	ibrs_call_label	%(ll)
+	rsb_call_label	%(ll)
 	nop
-	ibrs_seq_label %(ll)
+	rsb_seq_label %(ll)
 	addq	$8,%rsp
 	ll=ll+1
 	.endr
 	.endm
+
+ENTRY(rsb_flush)
+	rsb_seq	32
+	ret
 
 /* all callers already saved %rax, %rdx, and %rcx */
 ENTRY(handle_ibrs_entry)
@@ -1641,8 +1645,7 @@ ENTRY(handle_ibrs_entry)
 	wrmsr
 	movb	$1,PCPU(IBPB_SET)
 	testl	$CPUID_STDEXT_SMEP,cpu_stdext_feature(%rip)
-	jne	1f
-	ibrs_seq 32
+	je	rsb_flush
 1:	ret
 END(handle_ibrs_entry)
 

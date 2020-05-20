@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2020
+.Dd May 16, 2020
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -992,6 +992,13 @@ See also
 .Xr proccontrol 1
 mode
 .Dv kpti .
+.It Dv machdep.mitigations.flush_rsb_ctxsw
+amd64.
+Controls Return Stack Buffer flush on context switch, to prevent
+cross-process ret2spec attacks.
+Only needed, and only enabled by default, if the machine
+supports SMEP, otherwise IBRS would do necessary flushing on kernel
+entry anyway.
 .It Dv hw.mds_disable
 amd64 and i386.
 Controls Microarchitectural Data Sampling hardware information leak

@@ -221,6 +221,8 @@ done_load_dr:
 	movq	%rax,(%rsp)
 	movq	PCPU(CURTHREAD),%rdi
 	call	fpu_activate_sw
+	cmpb	$0,cpu_flush_rsb_ctxsw(%rip)
+	jne	rsb_flush
 	ret
 
 	/*
