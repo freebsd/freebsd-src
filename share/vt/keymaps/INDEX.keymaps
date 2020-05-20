@@ -309,10 +309,10 @@ kz.kst.kbd:da:Kasakhisk
 kz.kst.kbd:de:Kasachisch
 kz.kst.kbd:fr:Kazakh
 
-kz.io.kbd:en:Kazakh
-kz.io.kbd:da:Kasakhisk
-kz.io.kbd:de:Kasachisch
-kz.io.kbd:fr:Kazakh
+kz.io.kbd:en:Kazakh (with IO)
+kz.io.kbd:da:Kasakhisk (IO)
+kz.io.kbd:de:Kasachisch (mit IO)
+kz.io.kbd:fr:Kazakh (avec IO)
 
 latinamerican.kbd:en:Latin American
 latinamerican.kbd:da:Latinamerikansk
@@ -412,19 +412,19 @@ es.dvorak.kbd:fr:Espagnol Dvorak
 es.dvorak.kbd:pt:Espanhol Dvorak
 es.dvorak.kbd:es:Español Dvorak
 
+es.kbd:en:Spanish
+es.kbd:da:Spansk
+es.kbd:de:Spanisch
+es.kbd:fr:Espagnol
+es.kbd:pt:Espanhol
+es.kbd:es:Español
+
 es.acc.kbd:en:Spanish (accent keys)
 es.acc.kbd:da:Spansk (accenttaster)
 es.acc.kbd:de:Spanisch (accent keys)
 es.acc.kbd:fr:Espagnol (avec accents)
 es.acc.kbd:pt:Espanhol (com acentos)
 es.acc.kbd:es:Español (con acentos)
-
-es.kbd:en:Spanish (accent keys)
-es.kbd:da:Spansk (accenttaster)
-es.kbd:de:Spanisch (accent keys)
-es.kbd:fr:Espagnol (avec accents)
-es.kbd:pt:Espanhol (com acentos)
-es.kbd:es:Español (con acentos)
 
 si.kbd:en:Slovenian
 si.kbd:da:Slovensk
