@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2003
+.Dd May 19, 2020
 .Dt DLINFO 3
 .Os
 .Sh NAME
@@ -105,7 +105,7 @@ structure is defined in
 .In link.h
 and has the following members:
 .Bd -literal -offset indent
-caddr_t         l_addr;    /* Base Address of library */
+caddr_t         l_addr;    /* Load Offset of library */
 const char      *l_name;   /* Absolute Path to Library */
 const void      *l_ld;     /* Pointer to .dynamic in memory */
 struct link_map *l_next,   /* linked list of mapped libs */
@@ -113,7 +113,9 @@ struct link_map *l_next,   /* linked list of mapped libs */
 .Ed
 .Bl -tag -width ".Va l_addr"
 .It Va l_addr
-The base address of the object loaded into memory.
+The load offset of the object, that is, the difference between
+the actual load address and the base virtual address the object
+was linked at.
 .It Va l_name
 The full name of the loaded shared object.
 .It Va l_ld
