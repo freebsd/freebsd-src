@@ -53,10 +53,8 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/xform_auth.h>
 #include <opencrypto/xform_enc.h>
 
-static	int null_setkey(u_int8_t **, const u_int8_t *, int);
-static	void null_encrypt(caddr_t, u_int8_t *);
-static	void null_decrypt(caddr_t, u_int8_t *);
-static	void null_zerokey(u_int8_t **);
+static	int null_setkey(void *, const u_int8_t *, int);
+static	void null_crypt(void *, const uint8_t *, uint8_t *);
 
 static	void null_init(void *);
 static	void null_reinit(void *ctx, const u_int8_t *buf, u_int16_t len);
@@ -65,14 +63,16 @@ static	void null_final(u_int8_t *, void *);
 
 /* Encryption instances */
 struct enc_xform enc_xform_null = {
-	CRYPTO_NULL_CBC, "NULL",
+	.type = CRYPTO_NULL_CBC,
+	.name = "NULL",
 	/* NB: blocksize of 4 is to generate a properly aligned ESP header */
-	NULL_BLOCK_LEN, 0, NULL_MIN_KEY, NULL_MAX_KEY, 
-	null_encrypt,
-	null_decrypt,
-	null_setkey,
-	null_zerokey,
-	NULL,
+	.blocksize = NULL_BLOCK_LEN,
+	.ivsize = 0,
+	.minkey = NULL_MIN_KEY,
+	.maxkey = NULL_MAX_KEY,
+	.encrypt = null_crypt,
+	.decrypt = null_crypt,
+	.setkey = null_setkey,
 };
 
 /* Authentication instances */
@@ -94,26 +94,14 @@ struct auth_hash auth_hash_null = {
  * Encryption wrapper routines.
  */
 static void
-null_encrypt(caddr_t key, u_int8_t *blk)
-{
-}
-
-static void
-null_decrypt(caddr_t key, u_int8_t *blk)
+null_crypt(void *key, const uint8_t *in, uint8_t *out)
 {
 }
 
 static int
-null_setkey(u_int8_t **sched, const u_int8_t *key, int len)
+null_setkey(void *sched, const uint8_t *key, int len)
 {
-	*sched = NULL;
-	return 0;
-}
-
-static void
-null_zerokey(u_int8_t **sched)
-{
-	*sched = NULL;
+	return (0);
 }
 
 /*
