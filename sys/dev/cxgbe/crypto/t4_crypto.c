@@ -1354,8 +1354,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 {
 	struct auth_hash *axf;
 	struct enc_xform *exf;
-	void *auth_ctx;
-	uint8_t *kschedule;
+	void *auth_ctx, *kschedule;
 	char block[GMAC_BLOCK_LEN];
 	char digest[GMAC_DIGEST_LEN];
 	char iv[AES_BLOCK_LEN];
@@ -1389,7 +1388,12 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 
 	/* Initialize the cipher. */
 	exf = &enc_xform_aes_nist_gcm;
-	error = exf->setkey(&kschedule, s->blkcipher.enckey,
+	kschedule = malloc(exf->ctxsize, M_CCR, M_NOWAIT);
+	if (kschedule == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	error = exf->setkey(kschedule, s->blkcipher.enckey,
 	    s->blkcipher.key_len);
 	if (error)
 		goto out;
@@ -1423,7 +1427,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 		crypto_copydata(crp, crp->crp_payload_start + i, len, block);
 		bzero(block + len, sizeof(block) - len);
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
-			exf->encrypt(kschedule, block);
+			exf->encrypt(kschedule, block, block);
 			axf->Update(auth_ctx, block, len);
 			crypto_copyback(crp, crp->crp_payload_start + i, len,
 			    block);
@@ -1462,7 +1466,7 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 				crypto_copydata(crp, crp->crp_payload_start + i,
 				    len, block);
 				bzero(block + len, sizeof(block) - len);
-				exf->decrypt(kschedule, block);
+				exf->decrypt(kschedule, block, block);
 				crypto_copyback(crp, crp->crp_payload_start + i,
 				    len, block);
 			}
@@ -1470,12 +1474,9 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 			error = EBADMSG;
 	}
 
-	exf->zerokey(&kschedule);
 out:
-	if (auth_ctx != NULL) {
-		memset(auth_ctx, 0, axf->ctxsize);
-		free(auth_ctx, M_CCR);
-	}
+	zfree(kschedule, M_CCR);
+	zfree(auth_ctx, M_CCR);
 	crp->crp_etype = error;
 	crypto_done(crp);
 }
@@ -1810,7 +1811,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	struct auth_hash *axf;
 	struct enc_xform *exf;
 	union authctx *auth_ctx;
-	uint8_t *kschedule;
+	void *kschedule;
 	char block[CCM_CBC_BLOCK_LEN];
 	char digest[AES_CBC_MAC_HASH_LEN];
 	char iv[AES_CCM_IV_LEN];
@@ -1844,7 +1845,12 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 
 	/* Initialize the cipher. */
 	exf = &enc_xform_ccm;
-	error = exf->setkey(&kschedule, s->blkcipher.enckey,
+	kschedule = malloc(exf->ctxsize, M_CCR, M_NOWAIT);
+	if (kschedule == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+	error = exf->setkey(kschedule, s->blkcipher.enckey,
 	    s->blkcipher.key_len);
 	if (error)
 		goto out;
@@ -1876,11 +1882,11 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 		bzero(block + len, sizeof(block) - len);
 		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
 			axf->Update(auth_ctx, block, len);
-			exf->encrypt(kschedule, block);
+			exf->encrypt(kschedule, block, block);
 			crypto_copyback(crp, crp->crp_payload_start + i, len,
 			    block);
 		} else {
-			exf->decrypt(kschedule, block);
+			exf->decrypt(kschedule, block, block);
 			axf->Update(auth_ctx, block, len);
 		}
 	}
@@ -1910,7 +1916,7 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 				crypto_copydata(crp, crp->crp_payload_start + i,
 				    len, block);
 				bzero(block + len, sizeof(block) - len);
-				exf->decrypt(kschedule, block);
+				exf->decrypt(kschedule, block, block);
 				crypto_copyback(crp, crp->crp_payload_start + i,
 				    len, block);
 			}
@@ -1918,12 +1924,9 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			error = EBADMSG;
 	}
 
-	exf->zerokey(&kschedule);
 out:
-	if (auth_ctx != NULL) {
-		memset(auth_ctx, 0, axf->ctxsize);
-		free(auth_ctx, M_CCR);
-	}
+	zfree(kschedule, M_CCR);
+	zfree(auth_ctx, M_CCR);
 	crp->crp_etype = error;
 	crypto_done(crp);
 }

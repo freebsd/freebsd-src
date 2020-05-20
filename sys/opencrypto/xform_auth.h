@@ -44,7 +44,6 @@
 #include <opencrypto/cbc_mac.h>
 
 #include <opencrypto/cryptodev.h>
-#include <opencrypto/xform_userland.h>
 
 /* XXX use a define common with other hash stuff ! */
 #define	AH_ALEN_MAX	64	/* max authenticator hash length */
