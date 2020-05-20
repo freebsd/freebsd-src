@@ -316,11 +316,11 @@ static struct if_shared_ctx bnxt_sctx_init = {
 	.isc_nrxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 8,
 	    PAGE_SIZE / sizeof(struct rx_prod_pkt_bd),
 	    PAGE_SIZE / sizeof(struct rx_prod_pkt_bd)},
-	.isc_nrxd_max = {INT32_MAX, INT32_MAX, INT32_MAX},
+	.isc_nrxd_max = {BNXT_MAX_RXD, BNXT_MAX_RXD, BNXT_MAX_RXD},
 	.isc_ntxd_min = {16, 16, 16},
 	.isc_ntxd_default = {PAGE_SIZE / sizeof(struct cmpl_base) * 2,
 	    PAGE_SIZE / sizeof(struct tx_bd_short)},
-	.isc_ntxd_max = {INT32_MAX, INT32_MAX, INT32_MAX},
+	.isc_ntxd_max = {BNXT_MAX_TXD, BNXT_MAX_TXD, BNXT_MAX_TXD},
 
 	.isc_admin_intrcnt = 1,
 	.isc_vendor_info = bnxt_vendor_info_array,
