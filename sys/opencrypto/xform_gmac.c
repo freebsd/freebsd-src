@@ -55,13 +55,12 @@ __FBSDID("$FreeBSD$");
 
 /* Encryption instances */
 struct enc_xform enc_xform_aes_nist_gmac = {
-	CRYPTO_AES_NIST_GMAC, "AES-GMAC",
-	AES_ICM_BLOCK_LEN, AES_GCM_IV_LEN, AES_MIN_KEY, AES_MAX_KEY,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	.type = CRYPTO_AES_NIST_GMAC,
+	.name = "AES-GMAC",
+	.blocksize = AES_ICM_BLOCK_LEN,
+	.ivsize = AES_GCM_IV_LEN,
+	.minkey = AES_MIN_KEY,
+	.maxkey = AES_MAX_KEY,
 };
 
 /* Authentication instances */

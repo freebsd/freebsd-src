@@ -53,61 +53,46 @@ __FBSDID("$FreeBSD$");
 #include <crypto/camellia/camellia.h>
 #include <opencrypto/xform_enc.h>
 
-static	int cml_setkey(u_int8_t **, const u_int8_t *, int);
-static	void cml_encrypt(caddr_t, u_int8_t *);
-static	void cml_decrypt(caddr_t, u_int8_t *);
-static	void cml_zerokey(u_int8_t **);
+static	int cml_setkey(void *, const uint8_t *, int);
+static	void cml_encrypt(void *, const uint8_t *, uint8_t *);
+static	void cml_decrypt(void *, const uint8_t *, uint8_t *);
 
 /* Encryption instances */
 struct enc_xform enc_xform_camellia = {
-	CRYPTO_CAMELLIA_CBC, "Camellia",
-	CAMELLIA_BLOCK_LEN, CAMELLIA_BLOCK_LEN, CAMELLIA_MIN_KEY,
-	CAMELLIA_MAX_KEY,
-	cml_encrypt,
-	cml_decrypt,
-	cml_setkey,
-	cml_zerokey,
-	NULL,
+	.type = CRYPTO_CAMELLIA_CBC,
+	.name = "Camellia-CBC",
+	.ctxsize = sizeof(camellia_ctx),
+	.blocksize = CAMELLIA_BLOCK_LEN,
+	.ivsize = CAMELLIA_BLOCK_LEN,
+	.minkey = CAMELLIA_MIN_KEY,
+	.maxkey = CAMELLIA_MAX_KEY,
+	.encrypt = cml_encrypt,
+	.decrypt = cml_decrypt,
+	.setkey = cml_setkey,
 };
 
 /*
  * Encryption wrapper routines.
  */
 static void
-cml_encrypt(caddr_t key, u_int8_t *blk)
+cml_encrypt(void *ctx, const uint8_t *in, uint8_t *out)
 {
-	camellia_encrypt((camellia_ctx *) key, (u_char *) blk, (u_char *) blk);
+	camellia_encrypt(ctx, in, out);
 }
 
 static void
-cml_decrypt(caddr_t key, u_int8_t *blk)
+cml_decrypt(void *ctx, const uint8_t *in, uint8_t *out)
 {
-	camellia_decrypt(((camellia_ctx *) key), (u_char *) blk,
-	    (u_char *) blk);
+	camellia_decrypt(ctx, in, out);
 }
 
 static int
-cml_setkey(u_int8_t **sched, const u_int8_t *key, int len)
+cml_setkey(void *ctx, const uint8_t *key, int len)
 {
-	int err;
 
 	if (len != 16 && len != 24 && len != 32)
 		return (EINVAL);
-	*sched = KMALLOC(sizeof(camellia_ctx), M_CRYPTO_DATA,
-	    M_NOWAIT|M_ZERO);
-	if (*sched != NULL) {
-		camellia_set_key((camellia_ctx *) *sched, key,
-		    len * 8);
-		err = 0;
-	} else
-		err = ENOMEM;
-	return err;
-}
 
-static void
-cml_zerokey(u_int8_t **sched)
-{
-	bzero(*sched, sizeof(camellia_ctx));
-	KFREE(*sched, M_CRYPTO_DATA);
-	*sched = NULL;
+	camellia_set_key(ctx, key, len * 8);
+	return (0);
 }

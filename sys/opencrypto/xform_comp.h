@@ -36,7 +36,6 @@
 
 #include <opencrypto/deflate.h>
 #include <opencrypto/cryptodev.h>
-#include <opencrypto/xform_userland.h>
 
 /* Declarations */
 struct comp_algo {
