@@ -4032,8 +4032,9 @@ linkmap_add(Obj_Entry *obj)
     struct link_map *prev;
 
     obj->linkmap.l_name = obj->path;
-    obj->linkmap.l_addr = obj->relocbase;
+    obj->linkmap.l_base = obj->mapbase;
     obj->linkmap.l_ld = obj->dynamic;
+    obj->linkmap.l_addr = obj->relocbase;
 
     if (r_debug.r_map == NULL) {
 	r_debug.r_map = l;
