@@ -51,7 +51,7 @@ static int dev;
 #define COMMON_CLEANUP() \
 	close(dev);
 
-void
+static void
 common_init_tbl(struct pfr_table *tbl)
 {
 	bzero(tbl, sizeof(struct pfr_table));
@@ -795,6 +795,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, addtables);
 	ATF_TP_ADD_TC(tp, deltables);
 	ATF_TP_ADD_TC(tp, gettables);
+	ATF_TP_ADD_TC(tp, getastats);
 	ATF_TP_ADD_TC(tp, gettstats);
 	ATF_TP_ADD_TC(tp, clrtstats);
 	ATF_TP_ADD_TC(tp, settflags);
