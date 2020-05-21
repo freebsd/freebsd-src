@@ -1801,6 +1801,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
 		ath_stoprecv(sc, 1);		/* stop recv side */
+		ath_rx_flush(sc);
 		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 	}
 

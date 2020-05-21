@@ -162,6 +162,9 @@ ath_edma_stoprecv(struct ath_softc *sc, int dodelay)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called, dodelay=%d\n",
+	    __func__, dodelay);
+
 	ATH_RX_LOCK(sc);
 
 	ath_hal_stoppcurecv(ah);
@@ -191,6 +194,8 @@ ath_edma_stoprecv(struct ath_softc *sc, int dodelay)
 		sc->sc_rxedma[HAL_RX_QUEUE_LP].m_rxpending = NULL;
 	}
 	ATH_RX_UNLOCK(sc);
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: done\n", __func__);
 }
 
 /*
@@ -204,6 +209,8 @@ ath_edma_reinit_fifo(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 	struct ath_rx_edma *re = &sc->sc_rxedma[qtype];
 	struct ath_buf *bf;
 	int i, j;
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called\n", __func__);
 
 	ATH_RX_LOCK_ASSERT(sc);
 
@@ -227,6 +234,7 @@ ath_edma_reinit_fifo(struct ath_softc *sc, HAL_RX_QUEUE qtype)
 		    i,
 		    re->m_fifo_tail);
 	}
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: done\n", __func__);
 }
 
 /*
@@ -236,6 +244,10 @@ static int
 ath_edma_startrecv(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX,
+	    "%s: called; resetted=%d, stopped=%d\n", __func__,
+	    sc->sc_rx_resetted, sc->sc_rx_stopped);
 
 	ATH_RX_LOCK(sc);
 
@@ -252,7 +264,7 @@ ath_edma_startrecv(struct ath_softc *sc)
 	/*
 	 * In theory the hardware has been initialised, right?
 	 */
-	if (sc->sc_rx_resetted == 1) {
+	if (sc->sc_rx_resetted == 1 || sc->sc_rx_stopped == 1) {
 		DPRINTF(sc, ATH_DEBUG_EDMA_RX,
 		    "%s: Re-initing HP FIFO\n", __func__);
 		ath_edma_reinit_fifo(sc, HAL_RX_QUEUE_HP);
@@ -262,8 +274,11 @@ ath_edma_startrecv(struct ath_softc *sc)
 		sc->sc_rx_resetted = 0;
 	} else {
 		device_printf(sc->sc_dev,
-		    "%s: called without resetting chip?\n",
-		    __func__);
+		    "%s: called without resetting chip? "
+		    "resetted=%d, stopped=%d\n",
+		    __func__,
+		    sc->sc_rx_resetted,
+		    sc->sc_rx_stopped);
 	}
 
 	/* Add up to m_fifolen entries in each queue */
@@ -290,6 +305,7 @@ ath_edma_startrecv(struct ath_softc *sc)
 	sc->sc_rx_stopped = 0;
 
 	ATH_RX_UNLOCK(sc);
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: ready\n", __func__);
 
 	return (0);
 }
@@ -298,6 +314,8 @@ static void
 ath_edma_recv_sched_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
     int dosched)
 {
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; qtype=%d, dosched=%d\n",
+	    __func__, qtype, dosched);
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -309,12 +327,18 @@ ath_edma_recv_sched_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	ath_power_restore_power_state(sc);
 	ATH_UNLOCK(sc);
 
+	/* XXX TODO: methodize */
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: done\n", __func__);
 }
 
 static void
 ath_edma_recv_sched(struct ath_softc *sc, int dosched)
 {
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; dosched=%d\n",
+	    __func__, dosched);
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -327,18 +351,26 @@ ath_edma_recv_sched(struct ath_softc *sc, int dosched)
 	ath_power_restore_power_state(sc);
 	ATH_UNLOCK(sc);
 
+	/* XXX TODO: methodize */
 	taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: done\n", __func__);
 }
 
 static void
 ath_edma_recv_flush(struct ath_softc *sc)
 {
 
-	DPRINTF(sc, ATH_DEBUG_RECV, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_RECV | ATH_DEBUG_EDMA_RX, "%s: called\n", __func__);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
 	ATH_PCU_UNLOCK(sc);
+
+	// XXX TODO: methodize; make it an RX stop/block
+	while (taskqueue_cancel(sc->sc_tq, &sc->sc_rxtask, NULL) != 0) {
+		taskqueue_drain(sc->sc_tq, &sc->sc_rxtask);
+	}
 
 	ATH_LOCK(sc);
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -368,6 +400,8 @@ ath_edma_recv_flush(struct ath_softc *sc)
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
+
+	DPRINTF(sc, ATH_DEBUG_RECV | ATH_DEBUG_EDMA_RX, "%s: done\n", __func__);
 }
 
 /*
@@ -390,6 +424,8 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	tsf = ath_hal_gettsf64(ah);
 	nf = ath_hal_getchannoise(ah, sc->sc_curchan);
 	sc->sc_stats.ast_rx_noise = nf;
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; qtype=%d, dosched=%d\n", __func__, qtype, dosched);
 
 	ATH_RX_LOCK(sc);
 
@@ -608,9 +644,6 @@ ath_edma_recv_tasklet(void *arg, int npending)
 	ath_power_set_power_state(sc, HAL_PM_AWAKE);
 	ATH_UNLOCK(sc);
 
-	ath_edma_recv_proc_queue(sc, HAL_RX_QUEUE_HP, 1);
-	ath_edma_recv_proc_queue(sc, HAL_RX_QUEUE_LP, 1);
-
 	ath_edma_recv_proc_deferred_queue(sc, HAL_RX_QUEUE_HP, 1);
 	ath_edma_recv_proc_deferred_queue(sc, HAL_RX_QUEUE_LP, 1);
 
@@ -632,6 +665,8 @@ ath_edma_recv_tasklet(void *arg, int npending)
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
+
+	DPRINTF(sc, ATH_DEBUG_EDMA_RX, "%s: called; done!\n", __func__);
 }
 
 /*
