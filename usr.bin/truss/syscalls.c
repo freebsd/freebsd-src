@@ -157,6 +157,8 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Timespec | OUT, 1 } } },
 	{ .name = "close", .ret_type = 1, .nargs = 1,
 	  .args = { { Int, 0 } } },
+	{ .name = "closefrom", .ret_type = 1, .nargs = 1,
+	  .args = { { Int, 0 } } },
 	{ .name = "compat11.fstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Stat11 | OUT, 1 } } },
 	{ .name = "compat11.fstatat", .ret_type = 1, .nargs = 4,
