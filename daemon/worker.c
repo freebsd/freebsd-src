@@ -61,6 +61,7 @@
 #include "services/authzone.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
+#include "services/rpz.h"
 #include "util/data/msgparse.h"
 #include "util/data/msgencode.h"
 #include "util/data/dname.h"
@@ -572,9 +573,10 @@ static int
 apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	struct respip_client_info* cinfo, struct reply_info* rep,
 	struct comm_reply* repinfo, struct ub_packed_rrset_key** alias_rrset,
-	struct reply_info** encode_repp)
+	struct reply_info** encode_repp, struct auth_zones* az)
 {
-	struct respip_action_info actinfo = {respip_none, NULL};
+	struct respip_action_info actinfo = {0};
+	actinfo.action = respip_none;
 
 	if(qinfo->qtype != LDNS_RR_TYPE_A &&
 		qinfo->qtype != LDNS_RR_TYPE_AAAA &&
@@ -582,7 +584,7 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 		return 1;
 
 	if(!respip_rewrite_reply(qinfo, cinfo, rep, encode_repp, &actinfo,
-		alias_rrset, 0, worker->scratchpad))
+		alias_rrset, 0, worker->scratchpad, az))
 		return 0;
 
 	/* xxx_deny actions mean dropping the reply, unless the original reply
@@ -595,9 +597,19 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	/* If address info is returned, it means the action should be an
 	 * 'inform' variant and the information should be logged. */
 	if(actinfo.addrinfo) {
-		respip_inform_print(actinfo.addrinfo, qinfo->qname,
+		respip_inform_print(&actinfo, qinfo->qname,
 			qinfo->qtype, qinfo->qclass, qinfo->local_alias,
 			repinfo);
+
+		if(worker->stats.extended && actinfo.rpz_used) {
+			if(actinfo.rpz_disabled)
+				worker->stats.rpz_action[RPZ_DISABLED_ACTION]++;
+			if(actinfo.rpz_cname_override)
+				worker->stats.rpz_action[RPZ_CNAME_OVERRIDE_ACTION]++;
+			else
+				worker->stats.rpz_action[
+					respip_action_to_rpz_action(actinfo.action)]++;
+		}
 	}
 
 	return 1;
@@ -613,10 +625,10 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
  * be completely dropped, '*need_drop' will be set to 1. */
 static int
 answer_from_cache(struct worker* worker, struct query_info* qinfo,
-	struct respip_client_info* cinfo, int* need_drop,
-	struct ub_packed_rrset_key** alias_rrset,
+	struct respip_client_info* cinfo, int* need_drop, int* is_expired_answer,
+	int* is_secure_answer, struct ub_packed_rrset_key** alias_rrset,
 	struct reply_info** partial_repp,
-	struct reply_info* rep, uint16_t id, uint16_t flags, 
+	struct reply_info* rep, uint16_t id, uint16_t flags,
 	struct comm_reply* repinfo, struct edns_data* edns)
 {
 	struct edns_data edns_bak;
@@ -624,38 +636,37 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	uint16_t udpsize = edns->udp_size;
 	struct reply_info* encode_rep = rep;
 	struct reply_info* partial_rep = *partial_repp;
-	int secure;
 	int must_validate = (!(flags&BIT_CD) || worker->env.cfg->ignore_cd)
 		&& worker->env.need_to_validate;
-	*partial_repp = NULL;	/* avoid accidental further pass */
-	if(worker->env.cfg->serve_expired) {
-		if(worker->env.cfg->serve_expired_ttl &&
-			rep->serve_expired_ttl < timenow)
-			return 0;
-		if(!rrset_array_lock(rep->ref, rep->rrset_count, 0))
-			return 0;
-		/* below, rrsets with ttl before timenow become TTL 0 in
-		 * the response */
-		/* This response was served with zero TTL */
-		if (timenow >= rep->ttl) {
-			worker->stats.zero_ttl_responses++;
-		}
-	} else {
-		/* see if it is possible */
-		if(rep->ttl < timenow) {
+	*partial_repp = NULL;  /* avoid accidental further pass */
+
+	/* Check TTL */
+	if(rep->ttl < timenow) {
+		/* Check if we need to serve expired now */
+		if(worker->env.cfg->serve_expired &&
+			!worker->env.cfg->serve_expired_client_timeout) {
+				if(worker->env.cfg->serve_expired_ttl &&
+					rep->serve_expired_ttl < timenow)
+					return 0;
+				if(!rrset_array_lock(rep->ref, rep->rrset_count, 0))
+					return 0;
+				*is_expired_answer = 1;
+		} else {
 			/* the rrsets may have been updated in the meantime.
 			 * we will refetch the message format from the
-			 * authoritative server 
+			 * authoritative server
 			 */
 			return 0;
 		}
+	} else {
 		if(!rrset_array_lock(rep->ref, rep->rrset_count, timenow))
 			return 0;
-		/* locked and ids and ttls are OK. */
 	}
+	/* locked and ids and ttls are OK. */
+
 	/* check CNAME chain (if any) */
-	if(rep->an_numrrsets > 0 && (rep->rrsets[0]->rk.type == 
-		htons(LDNS_RR_TYPE_CNAME) || rep->rrsets[0]->rk.type == 
+	if(rep->an_numrrsets > 0 && (rep->rrsets[0]->rk.type ==
+		htons(LDNS_RR_TYPE_CNAME) || rep->rrsets[0]->rk.type ==
 		htons(LDNS_RR_TYPE_DNAME))) {
 		if(!reply_check_cname_chain(qinfo, rep)) {
 			/* cname chain invalid, redo iterator steps */
@@ -674,31 +685,31 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, rep,
 			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad))
 			goto bail_out;
-		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL, 
+		error_encode(repinfo->c->buffer, LDNS_RCODE_SERVFAIL,
 			qinfo, id, flags, edns);
-		rrset_array_unlock_touch(worker->env.rrset_cache, 
+		rrset_array_unlock_touch(worker->env.rrset_cache,
 			worker->scratchpad, rep->ref, rep->rrset_count);
 		if(worker->stats.extended) {
 			worker->stats.ans_bogus ++;
 			worker->stats.ans_rcode[LDNS_RCODE_SERVFAIL] ++;
 		}
 		return 1;
-	} else if( rep->security == sec_status_unchecked && must_validate) {
+	} else if(rep->security == sec_status_unchecked && must_validate) {
 		verbose(VERB_ALGO, "Cache reply: unchecked entry needs "
 			"validation");
 		goto bail_out; /* need to validate cache entry first */
 	} else if(rep->security == sec_status_secure) {
-		if(reply_all_rrsets_secure(rep))
-			secure = 1;
-		else	{
+		if(reply_all_rrsets_secure(rep)) {
+			*is_secure_answer = 1;
+		} else {
 			if(must_validate) {
 				verbose(VERB_ALGO, "Cache reply: secure entry"
 					" changed status");
 				goto bail_out; /* rrset changed, re-verify */
 			}
-			secure = 0;
+			*is_secure_answer = 0;
 		}
-	} else	secure = 0;
+	} else *is_secure_answer = 0;
 
 	edns_bak = *edns;
 	edns->edns_version = EDNS_ADVERTISED_VERSION;
@@ -709,17 +720,21 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		(int)(flags&LDNS_RCODE_MASK), edns, repinfo, worker->scratchpad))
 		goto bail_out;
 	*alias_rrset = NULL; /* avoid confusion if caller set it to non-NULL */
-	if(worker->daemon->use_response_ip && !partial_rep &&
-	   !apply_respip_action(worker, qinfo, cinfo, rep, repinfo, alias_rrset,
-			&encode_rep)) {
+	if((worker->daemon->use_response_ip || worker->daemon->use_rpz) &&
+		!partial_rep && !apply_respip_action(worker, qinfo, cinfo, rep,
+		repinfo, alias_rrset,
+		&encode_rep, worker->env.auth_zones)) {
 		goto bail_out;
 	} else if(partial_rep &&
 		!respip_merge_cname(partial_rep, qinfo, rep, cinfo,
-		must_validate, &encode_rep, worker->scratchpad)) {
+		must_validate, &encode_rep, worker->scratchpad,
+		worker->env.auth_zones)) {
 		goto bail_out;
 	}
-	if(encode_rep != rep)
-		secure = 0; /* if rewritten, it can't be considered "secure" */
+	if(encode_rep != rep) {
+		/* if rewritten, it can't be considered "secure" */
+		*is_secure_answer = 0;
+	}
 	if(!encode_rep || *alias_rrset) {
 		if(!encode_rep)
 			*need_drop = 1;
@@ -736,7 +751,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 		repinfo->c, worker->scratchpad) ||
 		!reply_info_answer_encode(qinfo, encode_rep, id, flags,
 		repinfo->c->buffer, timenow, 1, worker->scratchpad,
-		udpsize, edns, (int)(edns->bits & EDNS_DO), secure)) {
+		udpsize, edns, (int)(edns->bits & EDNS_DO), *is_secure_answer)) {
 		if(!inplace_cb_reply_servfail_call(&worker->env, qinfo, NULL, NULL,
 			LDNS_RCODE_SERVFAIL, edns, repinfo, worker->scratchpad))
 				edns->opt_list = NULL;
@@ -747,10 +762,6 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	 * is bad while holding locks. */
 	rrset_array_unlock_touch(worker->env.rrset_cache, worker->scratchpad,
 		rep->ref, rep->rrset_count);
-	if(worker->stats.extended) {
-		if(secure) worker->stats.ans_secure++;
-		server_stats_insrcode(&worker->stats, repinfo->c->buffer);
-	}
 	/* go and return this buffer to the client */
 	return 1;
 
@@ -1085,6 +1096,8 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct acl_addr* acladdr;
 	int rc = 0;
 	int need_drop = 0;
+	int is_expired_answer = 0;
+	int is_secure_answer = 0;
 	/* We might have to chase a CNAME chain internally, in which case
 	 * we'll have up to two replies and combine them to build a complete
 	 * answer.  These variables control this case. */
@@ -1365,6 +1378,18 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		goto send_reply;
 	}
 	if(worker->env.auth_zones &&
+		rpz_apply_qname_trigger(worker->env.auth_zones,
+		&worker->env, &qinfo, &edns, c->buffer, worker->scratchpad,
+		repinfo, acladdr->taglist, acladdr->taglen, &worker->stats)) {
+		regional_free_all(worker->scratchpad);
+		if(sldns_buffer_limit(c->buffer) == 0) {
+			comm_point_drop_reply(repinfo);
+			return 0;
+		}
+		server_stats_insrcode(&worker->stats, c->buffer);
+		goto send_reply;
+	}
+	if(worker->env.auth_zones &&
 		auth_zones_answer(worker->env.auth_zones, &worker->env,
 		&qinfo, &edns, repinfo, c->buffer, worker->scratchpad)) {
 		regional_free_all(worker->scratchpad);
@@ -1434,7 +1459,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	/* If we may apply IP-based actions to the answer, build the client
 	 * information.  As this can be expensive, skip it if there is
 	 * absolutely no possibility of it. */
-	if(worker->daemon->use_response_ip &&
+	if((worker->daemon->use_response_ip || worker->daemon->use_rpz) &&
 		(qinfo.qtype == LDNS_RR_TYPE_A ||
 		qinfo.qtype == LDNS_RR_TYPE_AAAA ||
 		qinfo.qtype == LDNS_RR_TYPE_ANY)) {
@@ -1455,12 +1480,14 @@ lookup_cache:
 	 * each pass.  We should still pass the original qinfo to
 	 * answer_from_cache(), however, since it's used to build the reply. */
 	if(!edns_bypass_cache_stage(edns.opt_list, &worker->env)) {
+		is_expired_answer = 0;
+		is_secure_answer = 0;
 		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
 		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
 			/* answer from cache - we have acquired a readlock on it */
 			if(answer_from_cache(worker, &qinfo,
-				cinfo, &need_drop, &alias_rrset, &partial_rep,
-				(struct reply_info*)e->data,
+				cinfo, &need_drop, &is_expired_answer, &is_secure_answer,
+				&alias_rrset, &partial_rep, (struct reply_info*)e->data,
 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 				sldns_buffer_read_u16_at(c->buffer, 2), repinfo,
 				&edns)) {
@@ -1468,9 +1495,11 @@ lookup_cache:
 				 * Note that if there is more than one pass
 				 * its qname must be that used for cache
 				 * lookup. */
-				if((worker->env.cfg->prefetch || worker->env.cfg->serve_expired)
-					&& *worker->env.now >=
-					((struct reply_info*)e->data)->prefetch_ttl) {
+				if((worker->env.cfg->prefetch && *worker->env.now >=
+							((struct reply_info*)e->data)->prefetch_ttl) ||
+						(worker->env.cfg->serve_expired &&
+						*worker->env.now >= ((struct reply_info*)e->data)->ttl)) {
+
 					time_t leeway = ((struct reply_info*)e->
 						data)->ttl - *worker->env.now;
 					if(((struct reply_info*)e->data)->ttl
@@ -1554,6 +1583,13 @@ send_reply_rc:
 	if(need_drop) {
 		comm_point_drop_reply(repinfo);
 		return 0;
+	}
+	if(is_expired_answer) {
+		worker->stats.ans_expired++;
+	}
+	if(worker->stats.extended) {
+		if(is_secure_answer) worker->stats.ans_secure++;
+		server_stats_insrcode(&worker->stats, repinfo->c->buffer);
 	}
 #ifdef USE_DNSTAP
 	if(worker->dtenv.log_client_response_messages)
@@ -1830,6 +1866,10 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		return 0;
 	}
 	worker->env.mesh = mesh_create(&worker->daemon->mods, &worker->env);
+	/* Pass on daemon variables that we would need in the mesh area */
+	worker->env.mesh->use_response_ip = worker->daemon->use_response_ip;
+	worker->env.mesh->use_rpz = worker->daemon->use_rpz;
+
 	worker->env.detach_subs = &mesh_detach_subs;
 	worker->env.attach_sub = &mesh_attach_sub;
 	worker->env.add_sub = &mesh_add_sub;

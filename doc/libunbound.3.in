@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "dec 12, 2019" "NLnet Labs" "unbound 1.9.6"
+.TH "libunbound" "3" "May 19, 2020" "NLnet Labs" "unbound 1.10.1"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -44,7 +44,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.9.6 functions.
+\- Unbound DNS validating resolver 1.10.1 functions.
 .SH "SYNOPSIS"
 .B #include <unbound.h>
 .LP
@@ -396,12 +396,13 @@ The result of the DNS resolution and validation is returned as
 		char* canonname; /* canonical name of result */
 		int rcode;   /* additional error code in case of no data */
 		void* answer_packet; /* full network format answer packet */
-		int answer_len; /* length of packet in octets */
+		int answer_len;  /* length of packet in octets */
 		int havedata; /* true if there is data */
 		int nxdomain; /* true if nodata because name does not exist */
-		int secure;  /* true if result is secure */
-		int bogus;   /* true if a security failure happened */
+		int secure;   /* true if result is secure */
+		int bogus;    /* true if a security failure happened */
 		char* why_bogus; /* string with error if bogus */
+		int was_ratelimited; /* true if the query was ratelimited (SERVFAIL) by unbound */
 		int ttl;     /* number of seconds the result is valid */
 	};
 .fi

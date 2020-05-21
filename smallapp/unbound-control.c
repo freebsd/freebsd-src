@@ -62,6 +62,7 @@
 #include "daemon/stats.h"
 #include "sldns/wire2str.h"
 #include "sldns/pkthdr.h"
+#include "services/rpz.h"
 
 #ifdef HAVE_SYS_IPC_H
 #include "sys/ipc.h"
@@ -157,6 +158,8 @@ usage(void)
 	printf("  view_local_datas view 		add list of local-data to view\n");
 	printf("  					one entry per line read from stdin\n");
 	printf("  view_local_data_remove view name  	remove local-data in view\n");
+	printf("  view_local_datas_remove view 		remove list of local-data from view\n");
+	printf("  					one entry per line read from stdin\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
@@ -208,7 +211,7 @@ static void pr_stats(const char* nm, struct ub_stats_info* s)
 		s->svr.num_queries - s->svr.num_queries_missed_cache);
 	PR_UL_NM("num.cachemiss", s->svr.num_queries_missed_cache);
 	PR_UL_NM("num.prefetch", s->svr.num_queries_prefetch);
-	PR_UL_NM("num.zero_ttl", s->svr.zero_ttl_responses);
+	PR_UL_NM("num.expired", s->svr.ans_expired);
 	PR_UL_NM("num.recursivereplies", s->mesh_replies_sent);
 #ifdef USE_DNSCRYPT
     PR_UL_NM("num.dnscrypt.crypted", s->svr.num_query_dnscrypt_crypted);
@@ -372,6 +375,14 @@ static void print_extended(struct ub_stats_info* s)
 	PR_UL("rrset.cache.count", s->svr.rrset_cache_count);
 	PR_UL("infra.cache.count", s->svr.infra_cache_count);
 	PR_UL("key.cache.count", s->svr.key_cache_count);
+	/* applied RPZ actions */
+	for(i=0; i<UB_STATS_RPZ_ACTION_NUM; i++) {
+		if(i == RPZ_NO_OVERRIDE_ACTION)
+			continue;
+		if(inhibit_zero && s->svr.rpz_action[i] == 0)
+			continue;
+		PR_UL_SUB("num.rpz.action", rpz_action_to_string(i), s->svr.rpz_action[i]);
+	}
 #ifdef USE_DNSCRYPT
 	PR_UL("dnscrypt_shared_secret.cache.count",
 			 s->svr.shared_secret_cache_count);
@@ -493,9 +504,11 @@ setup_ctx(struct config_file* cfg)
 	ctx = SSL_CTX_new(SSLv23_client_method());
 	if(!ctx)
 		ssl_err("could not allocate SSL_CTX pointer");
+#if SSL_OP_NO_SSLv2 != 0
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
 		!= SSL_OP_NO_SSLv2)
 		ssl_err("could not set SSL_OP_NO_SSLv2");
+#endif
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
 		!= SSL_OP_NO_SSLv3)
 		ssl_err("could not set SSL_OP_NO_SSLv3");
@@ -704,7 +717,8 @@ check_args_for_listcmd(int argc, char* argv[])
 		fatal_exit("too many arguments for command '%s', "
 			"content is piped in from stdin", argv[0]);
 	}
-	if(argc >= 1 && strcmp(argv[0], "view_local_datas") == 0 &&
+	if(argc >= 1 && (strcmp(argv[0], "view_local_datas") == 0 ||
+		strcmp(argv[0], "view_local_datas_remove") == 0) &&
 		argc >= 3) {
 		fatal_exit("too many arguments for command '%s', "
 			"content is piped in from stdin", argv[0]);
@@ -753,7 +767,8 @@ go_cmd(SSL* ssl, int fd, int quiet, int argc, char* argv[])
 		strcmp(argv[0], "local_zones_remove") == 0 ||
 		strcmp(argv[0], "local_datas") == 0 ||
 		strcmp(argv[0], "view_local_datas") == 0 ||
-		strcmp(argv[0], "local_datas_remove") == 0)) {
+		strcmp(argv[0], "local_datas_remove") == 0 ||
+		strcmp(argv[0], "view_local_datas_remove") == 0)) {
 		send_file(ssl, fd, stdin, buf, sizeof(buf));
 		send_eof(ssl, fd);
 	}

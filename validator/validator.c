@@ -121,6 +121,8 @@ val_apply_cfg(struct module_env* env, struct val_env* val_env,
 		log_err("out of memory");
 		return 0;
 	}
+	if (env->key_cache)
+		val_env->kcache = env->key_cache;
 	if(!val_env->kcache)
 		val_env->kcache = key_cache_create(cfg);
 	if(!val_env->kcache) {
@@ -146,6 +148,8 @@ val_apply_cfg(struct module_env* env, struct val_env* val_env,
 		log_err("validator: cannot apply nsec3 key iterations");
 		return 0;
 	}
+	if (env->neg_cache)
+		val_env->neg_cache = env->neg_cache;
 	if(!val_env->neg_cache)
 		val_env->neg_cache = val_neg_create(cfg,
 			val_env->nsec3_maxiter[val_env->nsec3_keyiter_count-1]);
@@ -196,7 +200,9 @@ val_deinit(struct module_env* env, int id)
 	anchors_delete(env->anchors);
 	env->anchors = NULL;
 	key_cache_delete(val_env->kcache);
+	env->key_cache = NULL;
 	neg_cache_delete(val_env->neg_cache);
+	env->neg_cache = NULL;
 	free(val_env->nsec3_keysize);
 	free(val_env->nsec3_maxiter);
 	free(val_env);

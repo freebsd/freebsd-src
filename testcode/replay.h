@@ -74,18 +74,18 @@
  *	o CHECK_ANSWER - followed by entry
  *	o CHECK_OUT_QUERY - followed by entry (if copy-id it is also reply).
  *	o REPLY - followed by entry
- *      o TIMEOUT
- *      o TIME_PASSES ELAPSE [seconds] - increase 'now' time counter, can be 
- *      			a floating point number.
- *        TIME_PASSES EVAL [macro] - expanded for seconds to move time.
- *      o TRAFFIC - like CHECK_ANSWER, causes traffic to flow.
+ *	o TIMEOUT
+ *	o TIME_PASSES ELAPSE [seconds] - increase 'now' time counter, can be
+ *		a floating point number.
+ *	  TIME_PASSES EVAL [macro] - expanded for seconds to move time.
+ *	o TRAFFIC - like CHECK_ANSWER, causes traffic to flow.
  *		actually the traffic flows before this step is taken.
  *		the step waits for traffic to stop.
- *      o CHECK_AUTOTRUST [id] - followed by FILE_BEGIN [to match] FILE_END.
- *      	The file contents is macro expanded before match.
- *      o CHECK_TEMPFILE [fname] - followed by FILE_BEGIN [to match] FILE_END
- *      o INFRA_RTT [ip] [dp] [rtt] - update infra cache entry with rtt.
- *      o ERROR
+ *	o CHECK_AUTOTRUST [id] - followed by FILE_BEGIN [to match] FILE_END.
+ *		The file contents is macro expanded before match.
+ *	o CHECK_TEMPFILE [fname] - followed by FILE_BEGIN [to match] FILE_END
+ *	o INFRA_RTT [ip] [dp] [rtt] - update infra cache entry with rtt.
+ *	o ERROR
  * ; following entry starts on the next line, ENTRY_BEGIN.
  * ; more STEP items
  * SCENARIO_END

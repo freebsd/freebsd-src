@@ -1,6 +1,175 @@
+20 February 2020: Wouter
+	- Updated contrib/unbound_smf23.tar.gz with Solaris SMF service for
+	  Unbound from Yuri Voinov.
+
+17 February 2020: Ralph
+	- Add respip to supported module-config options in unbound-checkconf.
+
+17 February 2020: George
+	- Remove unused variable.
+
+17 February 2020: Wouter
+	- contrib/drop2rpz: perl script that converts the Spamhaus DROP-List
+	  in RPZ-Format, contributed by Andreas Schulze.
+
+14 February 2020: Wouter
+	- Fix spelling in unbound.conf.5.in.
+	- Stop unbound-checkconf from insisting that auth-zone and rpz
+	  zonefiles have to exist.  They can not exist, and download later.
+
+13 February 2020: Wouter
+	- tag for 1.10.0rc1 release.
+
+12 February 2020: Wouter
+	- Fix with libnettle make test with dsa disabled.
+	- Fix contrib/fastrpz.patch to apply cleanly.  Fix for serve-stale
+	  fixes, but it does not compile, conflicts with new rpz code.
+	- Fix to clean memory leak of respip_addr.lock when ip_tree deleted.
+	- Fix compile warning when threads disabled.
+	- updated version number to 1.10.0.
+
+10 February 2020: George
+	- Document 'ub_result.was_ratelimited' in libunbound.
+	- Fix use after free on log-identity after a reload; Fixes #163.
+
+6 February 2020: George
+	- Fix num_reply_states and num_detached_states counting with
+	  serve_expired_callback.
+	- Cleaner code in mesh_serve_expired_lookup.
+	- Document in unbound.conf manpage that configuration clauses can be
+	  repeated in the configuration file.
+
+6 February 2020: Wouter
+	- Fix num_reply_addr counting in mesh and tcp drop due to size
+	  after serve_stale commit.
+	- Fix to create and destroy rpz_lock in auth_zones structure.
+	- Fix to lock zone before adding rpz qname trigger.
+	- Fix to lock and release once in mesh_serve_expired_lookup.
+	- Fix to put braces around empty if body when threading is disabled.
+
+5 February 2020: George
+	- Added serve-stale functionality as described in
+	  draft-ietf-dnsop-serve-stale-10. `serve-expired-*` options can be used
+	  to configure the behavior.
+	- Updated cachedb to honor `serve-expired-ttl`; Fixes #107.
+	- Renamed statistic `num.zero_ttl` to `num.expired` as expired replies
+	  come with a configurable TTL value (`serve-expired-reply-ttl`).
+	- Fixed stats when replying with cached, cname-aliased records.
+	- Added missing default values for redis cachedb backend.
+
+3 February 2020: Ralph
+	- Add assertion to please static analyzer
+
+31 January 2020: Wouter
+	- Fix fclose on error in TLS session ticket code.
+
+30 January 2020: Ralph
+	- Fix memory leak in error condition remote.c
+	- Fix double free in error condition view.c
+	- Fix memory leak in do_auth_zone_transfer on success
+	- Merge RPZ support into master. Only QNAME and Response IP triggers are
+	  supported.
+	- Stop working on socket when socket() call returns an error.
+	- Check malloc return values in TLS session ticket code
+
+30 January 2020: Wouter
+	- Fix subnet tests for disabled DSA algorithm by default.
+	- Update contrib/fastrpz.patch for clean diff with current code.
+	- Merge PR#151: Fixes for systemd units, by Maryse47, Edmonds
+	  and Frzk.  Updates the unbound.service systemd file and adds
+	  a portable systemd service file.
+	- updated .gitignore for added contrib file.
+	- Add build rule for ipset to Makefile
+	- Add getentropy_freebsd.o to Makefile dependencies.
+
+29 January 2020: Ralph
+	- Merge PR#156 from Alexander Berkes; Added unbound-control
+	  view_local_datas_remove command.
+
+29 January 2020: Wouter
+	- Fix #157: undefined reference to `htobe64'.
+
+28 January 2020: Ralph
+	- Merge PR#147; change rfc reference for reserved top level dns names.
+
+28 January 2020: Wouter
+	- iana portlist updated.
+	- Fix to silence the tls handshake errors for broken pipe and reset
+	  by peer, unless verbosity is set to 2 or higher.
+
+27 January 2020: Ralph
+	- Merge PR#154; Allow use of libbsd functions with configure option
+	  --with-libbsd. By Robert Edmonds and Steven Chamberlain.
+	- Merge PR#148; Add some TLS stats to unbound_munin_. By Fredrik Pettai.
+
+27 January 2020: Wouter
+	- Merge PR#155 from Robert Edmonds: contrib/libunbound.pc.in: Fixes
+	  to Libs/Requires for crypto library dependencies.
+	- Fix #153: Disable validation for DSA algorithms.  RFC 8624
+	  compliance.
+
+23 January 2020: Wouter
+	- Merge PR#150 from Frzk: Systemd unit without chroot.  It add
+	  contrib/unbound_nochroot.service.in, a systemd file for use with
+	  chroot: "", see comments in the file, it uses systemd protections
+	  instead.
+
+14 January 2020: Wouter
+	- Removed the dnscrypt_queries and dnscrypt_queries_chacha tests,
+	  because dnscrypt-proxy (2.0.36) does not support the test setup
+	  any more, and also the config file format does not seem to have
+	  the appropriate keys to recreate that setup.
+	- Fix crash after reload where a stats lookup could reference old key
+	  cache and neg cache structures.
+	- Fix for memory leak when edns subnet config options are read when
+	  compiled without edns subnet support.
+	- Fix auth zone support for NSEC3 records without salt.
+
+10 January 2020: Wouter
+	- Fix the relationship between serve-expired and prefetch options,
+	  patch from Saksham Manchanda from Secure64.
+	- Fix unreachable code in ssl set options code.
+
+8 January 2020: Ralph
+	- Fix #138: stop binding pidfile inside chroot dir in systemd service
+	  file.
+
+8 January 2020: Wouter
+	- Fix 'make test' to work for --disable-sha1 configure option.
+	- Fix out-of-bounds null-byte write in sldns_bget_token_par while
+	  parsing type WKS, reported by Luis Merino from X41 D-Sec.
+	- Updated sldns_bget_token_par fix for also space for the zero
+	  delimiter after the character.  And update for more spare space.
+
+6 January 2020: George
+	- Downgrade compat/getentropy_solaris.c to version 1.4 from OpenBSD.
+	  The dl_iterate_phdr() function introduced in newer versions raises
+	  compilation errors on solaris 10.
+	- Changes to compat/getentropy_solaris.c for,
+	  ifdef stdint.h inclusion for older systems.
+	  ifdef sha2.h inclusion for older systems.
+
+6 January 2020: Wouter
+	- Merge #135 from Florian Obser: Use passed in neg and key cache
+	  if non-NULL.
+	- Fix #140: Document slave not downloading new zonefile upon update.
+
+16 December 2019: George
+	- Update mailing list URL.
+
+12 December 2019: Ralph
+	- Master is 1.9.7 in development.
+	- Fix typo to let serve-expired-ttl work with ub_ctx_set_option(), by
+	  Florian Obser
+
+10 December 2019: Wouter
+	- Fix to make auth zone IXFR to fallback to AXFR if a single
+	  response RR is received over TCP with the SOA in it.
+
 6 December 2019: Wouter
 	- Fix ipsecmod compile.
 	- Fix Makefile.in for ipset module compile, from Adi Prasaja.
+	- release-1.9.6 tag, which became the 1.9.6 release
 
 5 December 2019: Wouter
 	- unbound-fuzzers.tar.bz2: three programs for fuzzing, that are 1:1
