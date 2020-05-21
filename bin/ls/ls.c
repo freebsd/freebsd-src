@@ -152,7 +152,7 @@ static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
 #ifdef COLORLS
-       int colorflag = COLORFLAG_AUTO;		/* passed in colorflag */
+       int colorflag = COLORFLAG_NEVER;		/* passed in colorflag */
        int f_color;		/* add type in color for non-regular files */
        bool explicitansi;	/* Explicit ANSI sequences, no termcap(5) */
 char *ansi_bgcol;		/* ANSI sequence to set background colour */
