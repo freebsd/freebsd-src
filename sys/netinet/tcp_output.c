@@ -1154,6 +1154,12 @@ send:
 		} else
 			flags |= TH_ECE|TH_CWR;
 	}
+	/* Handle parallel SYN for ECN */
+	if ((tp->t_state == TCPS_SYN_RECEIVED) &&
+	    (tp->t_flags2 & TF2_ECN_SND_ECE)) {
+			flags |= TH_ECE;
+			tp->t_flags2 &= ~TF2_ECN_SND_ECE;
+	}
 
 	if (tp->t_state == TCPS_ESTABLISHED &&
 	    (tp->t_flags2 & TF2_ECN_PERMIT)) {
