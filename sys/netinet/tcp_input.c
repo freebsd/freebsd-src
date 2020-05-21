@@ -1611,6 +1611,14 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * XXX this is traditional behavior, may need to be cleaned up.
 	 */
 	if (tp->t_state == TCPS_SYN_SENT && (thflags & TH_SYN)) {
+		/* Handle parallel SYN for ECN */
+		if (!(thflags & TH_ACK) &&
+		    ((thflags & (TH_CWR | TH_ECE)) == (TH_CWR | TH_ECE)) &&
+		    ((V_tcp_do_ecn == 1) || (V_tcp_do_ecn == 2))) {
+			tp->t_flags2 |= TF2_ECN_PERMIT;
+			tp->t_flags2 |= TF2_ECN_SND_ECE;
+			TCPSTAT_INC(tcps_ecn_shs);
+		}
 		if ((to.to_flags & TOF_SCALE) &&
 		    (tp->t_flags & TF_REQ_SCALE)) {
 			tp->t_flags |= TF_RCVD_SCALE;
