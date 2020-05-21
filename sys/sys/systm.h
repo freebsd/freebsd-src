@@ -108,12 +108,16 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 		kassert_panic msg;					\
 	}								\
 } while (0)
+#define	__assert_unreachable() \
+	panic("executing segment marked as unreachable at %s:%d (%s)\n", \
+	    __FILE__, __LINE__, __func__)
 #else
 #define	KASSERT(exp,msg) do { \
 } while (0)
 
 #define	VNASSERT(exp, vp, msg) do { \
 } while (0)
+#define	__assert_unreachable()	__unreachable()
 #endif
 
 #ifndef CTASSERT	/* Allow lint to override */
