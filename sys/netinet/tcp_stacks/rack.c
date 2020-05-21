@@ -4095,9 +4095,15 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		}
 		break;
 	case CC_ECN:
-		if (!IN_CONGRECOVERY(tp->t_flags)) {
+		if (!IN_CONGRECOVERY(tp->t_flags) ||
+		    /*
+		     * Allow ECN reaction on ACK to CWR, if
+		     * that data segment was also CE marked.
+		     */
+		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
+			EXIT_CONGRECOVERY(tp->t_flags);
 			KMOD_TCPSTAT_INC(tcps_ecn_rcwnd);
-			tp->snd_recover = tp->snd_max;
+			tp->snd_recover = tp->snd_max + 1;
 			if (tp->t_flags2 & TF2_ECN_PERMIT)
 				tp->t_flags2 |= TF2_ECN_SND_CWR;
 		}
@@ -13556,13 +13562,14 @@ send:
 #endif
 				ip->ip_tos |= IPTOS_ECN_ECT0;
 			KMOD_TCPSTAT_INC(tcps_ecn_ect0);
-		}
-		/*
-		 * Reply with proper ECN notifications.
-		 */
-		if (tp->t_flags2 & TF2_ECN_SND_CWR) {
-			flags |= TH_CWR;
-			tp->t_flags2 &= ~TF2_ECN_SND_CWR;
+			/*
+			 * Reply with proper ECN notifications.
+			 * Only set CWR on new data segments.
+			 */
+			if (tp->t_flags2 & TF2_ECN_SND_CWR) {
+				flags |= TH_CWR;
+				tp->t_flags2 &= ~TF2_ECN_SND_CWR;
+			}
 		}
 		if (tp->t_flags2 & TF2_ECN_SND_ECE)
 			flags |= TH_ECE;

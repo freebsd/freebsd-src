@@ -447,9 +447,15 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		}
 		break;
 	case CC_ECN:
-		if (!IN_CONGRECOVERY(tp->t_flags)) {
+		if (!IN_CONGRECOVERY(tp->t_flags) ||
+		    /*
+		     * Allow ECN reaction on ACK to CWR, if
+		     * that data segment was also CE marked.
+		     */
+		    SEQ_GEQ(th->th_ack, tp->snd_recover)) {
+			EXIT_CONGRECOVERY(tp->t_flags);
 			TCPSTAT_INC(tcps_ecn_rcwnd);
-			tp->snd_recover = tp->snd_max;
+			tp->snd_recover = tp->snd_max + 1;
 			if (tp->t_flags2 & TF2_ECN_PERMIT)
 				tp->t_flags2 |= TF2_ECN_SND_CWR;
 		}
