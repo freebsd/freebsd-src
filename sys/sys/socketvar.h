@@ -349,7 +349,7 @@ struct accept_filter {
 	};								\
 	DECLARE_MODULE(modname, modname##_mod, SI_SUB_DRIVERS,		\
 	    SI_ORDER_MIDDLE);						\
-	MODULE_VERSION(modname, 1)
+	MODULE_VERSION(modname, ver)
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_ACCF);
