@@ -165,6 +165,11 @@ static int ath_rate_sample_max_4ms_framelen[4][32] = {
  * MCS rate in the transmit schedule.
  *
  * Returns -1 if it's a legacy rate or no MRR.
+ *
+ * XXX TODO: this needs to be limited by the RTS/CTS AR5416 8KB bug limit!
+ * (by checking rts/cts flags and applying sc_rts_aggr_limit)
+ *
+ * XXX TODO: apply per-node max-ampdu size and driver ampdu size limits too.
  */
 static int
 ath_rate_sample_find_min_pktlength(struct ath_softc *sc,
@@ -693,6 +698,17 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	if (sn->static_rix != -1) {
 		rix = sn->static_rix;
 		*try0 = ATH_TXMAXTRY;
+
+		/*
+		 * Ensure we limit max packet length here too!
+		 */
+		max_pkt_len = ath_rate_sample_find_min_pktlength(sc, an,
+		    sn->static_rix,
+		    is_aggr);
+		if (max_pkt_len > 0) {
+			*maxpktlen = frameLen = MIN(frameLen, max_pkt_len);
+			size_bin = size_to_bin(frameLen);
+		}
 		goto done;
 	}
 
