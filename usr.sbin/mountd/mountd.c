@@ -1568,10 +1568,8 @@ get_exportlist_one(int passno)
 				    ep = get_exp();
 				} else {
 				    if (ep) {
-					if (ep->ex_fs.val[0] !=
-					    fsb.f_fsid.val[0] ||
-					    ep->ex_fs.val[1] !=
-					    fsb.f_fsid.val[1]) {
+					if (fsidcmp(&ep->ex_fs, &fsb.f_fsid)
+					    != 0) {
 						getexp_err(ep, tgrp,
 						    "fsid mismatch");
 						goto nextline;
@@ -2088,8 +2086,7 @@ compare_nmount_exportlist(struct iovec *iov, int iovlen, char *errmsg)
 			if ((oep->ex_flag & EX_DONE) == 0) {
 				LOGDEBUG("not done delete=%s", oep->ex_fsdir);
 				if (statfs(oep->ex_fsdir, &ofs) >= 0 &&
-				    oep->ex_fs.val[0] == ofs.f_fsid.val[0] &&
-				    oep->ex_fs.val[1] == ofs.f_fsid.val[1]) {
+				    fsidcmp(&oep->ex_fs, &ofs.f_fsid) == 0) {
 					LOGDEBUG("do delete");
 					/*
 					 * Clear has_publicfh if if was set
@@ -2353,8 +2350,7 @@ ex_search(fsid_t *fsid, struct exportlisthead *exhp)
 
 	i = EXPHASH(fsid);
 	SLIST_FOREACH(ep, &exhp[i], entries) {
-		if (ep->ex_fs.val[0] == fsid->val[0] &&
-		    ep->ex_fs.val[1] == fsid->val[1])
+		if (fsidcmp(&ep->ex_fs, fsid) == 0)
 			return (ep);
 	}
 
@@ -3122,8 +3118,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				 * filesystem.
 				 */
 				if (statfs(dirp, &fsb1) != 0 ||
-				    bcmp(&fsb1.f_fsid, &fsb->f_fsid,
-				    sizeof (fsb1.f_fsid)) != 0) {
+				    fsidcmp(&fsb1.f_fsid, &fsb->f_fsid) != 0) {
 					*cp = savedc;
 					syslog(LOG_ERR,
 					    "can't export %s %s", dirp,

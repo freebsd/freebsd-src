@@ -4019,11 +4019,8 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 		if (tds->nfsdev_nmp != NULL) {
 			if (tds->nfsdev_mdsisset == 0 && ds == NULL)
 				ds = tds;
-			else if (tds->nfsdev_mdsisset != 0 &&
-			    mp->mnt_stat.f_fsid.val[0] ==
-			    tds->nfsdev_mdsfsid.val[0] &&
-			    mp->mnt_stat.f_fsid.val[1] ==
-			    tds->nfsdev_mdsfsid.val[1]) {
+			else if (tds->nfsdev_mdsisset != 0 && fsidcmp(
+			    &mp->mnt_stat.f_fsid, &tds->nfsdev_mdsfsid) == 0) {
 				ds = fds = tds;
 				break;
 			}
@@ -4043,10 +4040,8 @@ nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
 			if (tds->nfsdev_nmp != NULL &&
 			    ((tds->nfsdev_mdsisset == 0 && fds == NULL) ||
 			     (tds->nfsdev_mdsisset != 0 && fds != NULL &&
-			      mp->mnt_stat.f_fsid.val[0] ==
-			      tds->nfsdev_mdsfsid.val[0] &&
-			      mp->mnt_stat.f_fsid.val[1] ==
-			      tds->nfsdev_mdsfsid.val[1]))) {
+			      fsidcmp(&mp->mnt_stat.f_fsid,
+			      &tds->nfsdev_mdsfsid) == 0))) {
 				dsdir[mirrorcnt] = i;
 				dvp[mirrorcnt] = tds->nfsdev_dsdir[i];
 				mirrorcnt++;
@@ -4778,10 +4773,8 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
 					      fndds->nfsdev_mdsisset == 0) ||
 					     (tds->nfsdev_mdsisset != 0 &&
 					      fndds->nfsdev_mdsisset != 0 &&
-					      tds->nfsdev_mdsfsid.val[0] ==
-					      mp->mnt_stat.f_fsid.val[0] &&
-					      tds->nfsdev_mdsfsid.val[1] ==
-					      mp->mnt_stat.f_fsid.val[1]))) {
+					      fsidcmp(&tds->nfsdev_mdsfsid,
+					      &mp->mnt_stat.f_fsid) == 0))) {
 						*newnmpp = tds->nfsdev_nmp;
 						break;
 					}
@@ -5968,8 +5961,7 @@ nfsrv_pnfsstatfs(struct statfs *sf, struct mount *mp)
 	/* First, search for matches for same file system. */
 	TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 		if (ds->nfsdev_nmp != NULL && ds->nfsdev_mdsisset != 0 &&
-		    ds->nfsdev_mdsfsid.val[0] == mp->mnt_stat.f_fsid.val[0] &&
-		    ds->nfsdev_mdsfsid.val[1] == mp->mnt_stat.f_fsid.val[1]) {
+		    fsidcmp(&ds->nfsdev_mdsfsid, &mp->mnt_stat.f_fsid) == 0) {
 			if (++i > nfsrv_devidcnt)
 				break;
 			*tdvpp++ = ds->nfsdev_dvp;
