@@ -482,6 +482,7 @@ static void mmu_radix_dumpsys_map(mmu_t mmu, vm_paddr_t pa, size_t sz,
     void **va);
 static void mmu_radix_scan_init(mmu_t mmu);
 static void	mmu_radix_cpu_bootstrap(mmu_t, int ap);
+static void	mmu_radix_tlbie_all(mmu_t);
 
 static mmu_method_t mmu_radix_methods[] = {
 	MMUMETHOD(mmu_bootstrap,	mmu_radix_bootstrap),
@@ -543,6 +544,8 @@ static mmu_method_t mmu_radix_methods[] = {
 	MMUMETHOD(mmu_change_attr,	mmu_radix_change_attr),
 	MMUMETHOD(mmu_map_user_ptr,	mmu_radix_map_user_ptr),
 	MMUMETHOD(mmu_decode_kernel_ptr, mmu_radix_decode_kernel_ptr),
+
+	MMUMETHOD(mmu_tlbie_all,	mmu_radix_tlbie_all),
 	{ 0, 0 }
 };
 
@@ -772,6 +775,13 @@ mmu_radix_tlbiel_flush(int scope)
 
 	tlbiel_flush_isa3(POWER9_TLB_SETS_RADIX, is);
 	__asm __volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
+}
+
+static void
+mmu_radix_tlbie_all(mmu_t __unused mmu)
+{
+	/* TODO: LPID invalidate */
+	mmu_radix_tlbiel_flush(TLB_INVAL_SCOPE_GLOBAL);
 }
 
 static void
