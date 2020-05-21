@@ -7535,8 +7535,7 @@ nfsrv_freelayouts(nfsquad_t *clid, fsid_t *fs, int laytype, int iomode)
 		TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
 			if (clid->qval != lyp->lay_clientid.qval)
 				continue;
-			if (fs != NULL && (fs->val[0] != lyp->lay_fsid.val[0] ||
-			    fs->val[1] != lyp->lay_fsid.val[1]))
+			if (fs != NULL && fsidcmp(fs, &lyp->lay_fsid) != 0)
 				continue;
 			if (laytype != lyp->lay_type)
 				continue;
@@ -7830,10 +7829,8 @@ nfsrv_delds(char *devid, NFSPROC_T *p)
 		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 			if (ds != fndds && ds->nfsdev_nmp != NULL &&
 			    ds->nfsdev_mdsisset != 0 &&
-			    ds->nfsdev_mdsfsid.val[0] ==
-			    fndds->nfsdev_mdsfsid.val[0] &&
-			    ds->nfsdev_mdsfsid.val[1] ==
-			    fndds->nfsdev_mdsfsid.val[1]) {
+			    fsidcmp(&ds->nfsdev_mdsfsid,
+			    &fndds->nfsdev_mdsfsid) == 0) {
 				fndmirror = 1;
 				break;
 			}
@@ -8737,10 +8734,8 @@ nfsrv_findmirroredds(struct nfsmount *nmp)
 		TAILQ_FOREACH(ds, &nfsrv_devidhead, nfsdev_list) {
 			if (ds != fndds && ds->nfsdev_nmp != NULL &&
 			    ds->nfsdev_mdsisset != 0 &&
-			    ds->nfsdev_mdsfsid.val[0] ==
-			    fndds->nfsdev_mdsfsid.val[0] &&
-			    ds->nfsdev_mdsfsid.val[1] ==
-			    fndds->nfsdev_mdsfsid.val[1]) {
+			    fsidcmp(&ds->nfsdev_mdsfsid,
+			    &fndds->nfsdev_mdsfsid) == 0) {
 				fndmirror = 1;
 				break;
 			}

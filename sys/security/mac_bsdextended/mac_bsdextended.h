@@ -101,7 +101,7 @@ struct mac_bsdextended_object {
 	uid_t	mbo_uid_max;
 	gid_t	mbo_gid_min;
 	gid_t	mbo_gid_max;
-	struct fsid mbo_fsid;
+	fsid_t	mbo_fsid;
 	int	mbo_type;
 };
 

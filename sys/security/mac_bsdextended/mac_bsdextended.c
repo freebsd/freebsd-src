@@ -302,9 +302,8 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	}
 
 	if (rule->mbr_object.mbo_flags & MBO_FSID_DEFINED) {
-		match = (bcmp(&(vp->v_mount->mnt_stat.f_fsid),
-		    &(rule->mbr_object.mbo_fsid),
-		    sizeof(rule->mbr_object.mbo_fsid)) == 0);
+		match = (fsidcmp(&vp->v_mount->mnt_stat.f_fsid,
+		    &rule->mbr_object.mbo_fsid) == 0);
 		if (rule->mbr_object.mbo_neg & MBO_FSID_DEFINED)
 			match = !match;
 		if (!match)
