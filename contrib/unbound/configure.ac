@@ -10,15 +10,15 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[9])
-m4_define([VERSION_MICRO],[6])
+m4_define([VERSION_MINOR],[10])
+m4_define([VERSION_MICRO],[1])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=6
+LIBUNBOUND_REVISION=8
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -92,6 +92,8 @@ LIBUNBOUND_AGE=1
 # 1.9.4 had 9:4:1
 # 1.9.5 had 9:5:1
 # 1.9.6 had 9:6:1
+# 1.10.0 had 9:7:1
+# 1.10.1 had 9:8:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -760,6 +762,8 @@ AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
 	fi
         LIBS="$LIBS -lnss3 -lnspr4"
 	SSLLIB=""
+	PC_CRYPTO_DEPENDENCY="nss nspr"
+	AC_SUBST(PC_CRYPTO_DEPENDENCY)
 	]
 )
 
@@ -780,6 +784,8 @@ AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
 	fi
         LIBS="$LIBS -lhogweed -lnettle -lgmp"
 	SSLLIB=""
+	PC_CRYPTO_DEPENDENCY="hogweed nettle"
+	AC_SUBST(PC_CRYPTO_DEPENDENCY)
 	]
 )
 
@@ -788,6 +794,9 @@ if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 ACX_WITH_SSL
 ACX_LIB_SSL
 SSLLIB="-lssl"
+
+PC_CRYPTO_DEPENDENCY="libcrypto libssl"
+AC_SUBST(PC_CRYPTO_DEPENDENCY)
 
 # check if -lcrypt32 is needed because CAPIENG needs that. (on windows)
 BAKLIBS="$LIBS"
@@ -880,6 +889,19 @@ fi
 fi
 AC_SUBST(SSLLIB)
 
+# libbsd
+AC_ARG_WITH([libbsd], AC_HELP_STRING([--with-libbsd], [Use portable libbsd functions]), [
+	AC_CHECK_HEADERS([bsd/string.h bsd/stdlib.h],,, [AC_INCLUDES_DEFAULT])
+	if test "x$ac_cv_header_bsd_string_h" = xyes -a "x$ac_cv_header_bsd_stdlib_h" = xyes; then
+		for func in strlcpy strlcat arc4random arc4random_uniform reallocarray; do
+			AC_SEARCH_LIBS([$func], [bsd], [
+				AC_DEFINE(HAVE_LIBBSD, 1, [Use portable libbsd functions])
+				PC_LIBBSD_DEPENDENCY=libbsd
+				AC_SUBST(PC_LIBBSD_DEPENDENCY)
+			])
+		done
+	fi
+])
 
 AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
 case "$enable_sha1" in
@@ -1064,9 +1086,7 @@ esac
 AC_ARG_ENABLE(dsa, AC_HELP_STRING([--disable-dsa], [Disable DSA support]))
 use_dsa="no"
 case "$enable_dsa" in
-    no)
-      ;;
-    *)
+    yes)
       # detect if DSA is supported, and turn it off if not.
       if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
       AC_CHECK_FUNC(DSA_SIG_new, [
@@ -1096,6 +1116,10 @@ AC_INCLUDES_DEFAULT
       else
       AC_DEFINE_UNQUOTED([USE_DSA], [1], [Define this to enable DSA support.])
       fi
+      ;;
+    *)
+      # disable dsa by default, RFC 8624 section 3.1, validators MUST NOT
+      # support DSA for DNSSEC Validation.
       ;;
 esac
 
@@ -1467,6 +1491,35 @@ AC_INCLUDES_DEFAULT
 #include <ws2tcpip.h>
 #endif
 ])
+
+AC_MSG_CHECKING([for htobe64])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#include <stdio.h>
+#ifdef HAVE_ENDIAN_H
+#  include <endian.h>
+#endif
+#ifdef HAVE_SYS_ENDIAN_H
+#  include <sys/endian.h>
+#endif
+], [unsigned long long x = htobe64(0); printf("%u", (unsigned)x);])],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_HTOBE64, 1, [If we have htobe64]),
+  AC_MSG_RESULT(no))
+
+AC_MSG_CHECKING([for be64toh])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([
+#include <stdio.h>
+#ifdef HAVE_ENDIAN_H
+#  include <endian.h>
+#endif
+#ifdef HAVE_SYS_ENDIAN_H
+#  include <sys/endian.h>
+#endif
+], [unsigned long long x = be64toh(0); printf("%u", (unsigned)x);])],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_BE64TOH, 1, [If we have be64toh]),
+  AC_MSG_RESULT(no))
+
 AC_SEARCH_LIBS([setusercontext], [util])
 AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam endpwent getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync shmget accept4])
 AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
@@ -1945,6 +1998,11 @@ char *strptime(const char *s, const char *format, struct tm *tm);
 void *reallocarray(void *ptr, size_t nmemb, size_t size);
 #endif
 
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#include <bsd/stdlib.h>
+#endif
+
 #ifdef HAVE_LIBRESSL
 #  if !HAVE_DECL_STRLCPY
 size_t strlcpy(char *dst, const char *src, size_t siz);
@@ -2046,6 +2104,6 @@ dnl if this is a distro tarball, that was already done by makedist.sh
 AC_SUBST(version, [VERSION_MAJOR.VERSION_MINOR.VERSION_MICRO])
 AC_SUBST(date, [`date +'%b %e, %Y'`])
 
-AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h dnscrypt/dnscrypt_config.h contrib/libunbound.pc contrib/unbound.socket contrib/unbound.service])
+AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h dnscrypt/dnscrypt_config.h contrib/libunbound.pc contrib/unbound.socket contrib/unbound.service contrib/unbound_portable.service])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

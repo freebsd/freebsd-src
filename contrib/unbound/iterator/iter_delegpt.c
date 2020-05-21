@@ -84,7 +84,7 @@ struct delegpt* delegpt_copy(struct delegpt* dp, struct regional* region)
 	}
 	for(a = dp->target_list; a; a = a->next_target) {
 		if(!delegpt_add_addr(copy, region, &a->addr, a->addrlen, 
-			a->bogus, a->lame, a->tls_auth_name))
+			a->bogus, a->lame, a->tls_auth_name, NULL))
 			return NULL;
 	}
 	return copy;
@@ -161,7 +161,7 @@ delegpt_find_addr(struct delegpt* dp, struct sockaddr_storage* addr,
 int 
 delegpt_add_target(struct delegpt* dp, struct regional* region, 
 	uint8_t* name, size_t namelen, struct sockaddr_storage* addr, 
-	socklen_t addrlen, uint8_t bogus, uint8_t lame)
+	socklen_t addrlen, uint8_t bogus, uint8_t lame, int* additions)
 {
 	struct delegpt_ns* ns = delegpt_find_ns(dp, name, namelen);
 	log_assert(!dp->dp_type_mlc);
@@ -176,13 +176,14 @@ delegpt_add_target(struct delegpt* dp, struct regional* region,
 		if(ns->got4 && ns->got6)
 			ns->resolved = 1;
 	}
-	return delegpt_add_addr(dp, region, addr, addrlen, bogus, lame, NULL);
+	return delegpt_add_addr(dp, region, addr, addrlen, bogus, lame, NULL,
+		additions);
 }
 
 int 
 delegpt_add_addr(struct delegpt* dp, struct regional* region, 
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t bogus, 
-	uint8_t lame, char* tls_auth_name)
+	uint8_t lame, char* tls_auth_name, int* additions)
 {
 	struct delegpt_addr* a;
 	log_assert(!dp->dp_type_mlc);
@@ -194,6 +195,8 @@ delegpt_add_addr(struct delegpt* dp, struct regional* region,
 			a->lame = 0;
 		return 1;
 	}
+	if(additions)
+		*additions = 1;
 
 	a = (struct delegpt_addr*)regional_alloc(region,
 		sizeof(struct delegpt_addr));
@@ -382,10 +385,10 @@ delegpt_from_message(struct dns_msg* msg, struct regional* region)
 			continue;
 
 		if(ntohs(s->rk.type) == LDNS_RR_TYPE_A) {
-			if(!delegpt_add_rrset_A(dp, region, s, 0))
+			if(!delegpt_add_rrset_A(dp, region, s, 0, NULL))
 				return NULL;
 		} else if(ntohs(s->rk.type) == LDNS_RR_TYPE_AAAA) {
-			if(!delegpt_add_rrset_AAAA(dp, region, s, 0))
+			if(!delegpt_add_rrset_AAAA(dp, region, s, 0, NULL))
 				return NULL;
 		}
 	}
@@ -416,7 +419,7 @@ delegpt_rrset_add_ns(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_rrset_A(struct delegpt* dp, struct regional* region,
-	struct ub_packed_rrset_key* ak, uint8_t lame)
+	struct ub_packed_rrset_key* ak, uint8_t lame, int* additions)
 {
         struct packed_rrset_data* d=(struct packed_rrset_data*)ak->entry.data;
         size_t i;
@@ -432,7 +435,7 @@ delegpt_add_rrset_A(struct delegpt* dp, struct regional* region,
                 memmove(&sa.sin_addr, d->rr_data[i]+2, INET_SIZE);
                 if(!delegpt_add_target(dp, region, ak->rk.dname,
                         ak->rk.dname_len, (struct sockaddr_storage*)&sa,
-                        len, (d->security==sec_status_bogus), lame))
+                        len, (d->security==sec_status_bogus), lame, additions))
                         return 0;
         }
         return 1;
@@ -440,7 +443,7 @@ delegpt_add_rrset_A(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* region,
-	struct ub_packed_rrset_key* ak, uint8_t lame)
+	struct ub_packed_rrset_key* ak, uint8_t lame, int* additions)
 {
         struct packed_rrset_data* d=(struct packed_rrset_data*)ak->entry.data;
         size_t i;
@@ -456,7 +459,7 @@ delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* region,
                 memmove(&sa.sin6_addr, d->rr_data[i]+2, INET6_SIZE);
                 if(!delegpt_add_target(dp, region, ak->rk.dname,
                         ak->rk.dname_len, (struct sockaddr_storage*)&sa,
-                        len, (d->security==sec_status_bogus), lame))
+                        len, (d->security==sec_status_bogus), lame, additions))
                         return 0;
         }
         return 1;
@@ -464,18 +467,31 @@ delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* region,
 
 int 
 delegpt_add_rrset(struct delegpt* dp, struct regional* region,
-        struct ub_packed_rrset_key* rrset, uint8_t lame)
+        struct ub_packed_rrset_key* rrset, uint8_t lame, int* additions)
 {
 	if(!rrset)
 		return 1;
 	if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_NS)
 		return delegpt_rrset_add_ns(dp, region, rrset, lame);
 	else if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_A)
-		return delegpt_add_rrset_A(dp, region, rrset, lame);
+		return delegpt_add_rrset_A(dp, region, rrset, lame, additions);
 	else if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_AAAA)
-		return delegpt_add_rrset_AAAA(dp, region, rrset, lame);
+		return delegpt_add_rrset_AAAA(dp, region, rrset, lame,
+			additions);
 	log_warn("Unknown rrset type added to delegpt");
 	return 1;
+}
+
+void delegpt_mark_neg(struct delegpt_ns* ns, uint16_t qtype)
+{
+	if(ns) {
+		if(qtype == LDNS_RR_TYPE_A)
+			ns->got4 = 2;
+		else if(qtype == LDNS_RR_TYPE_AAAA)
+			ns->got6 = 2;
+		if(ns->got4 && ns->got6)
+			ns->resolved = 1;
+	}
 }
 
 void delegpt_add_neg_msg(struct delegpt* dp, struct msgreply_entry* msg)
@@ -487,14 +503,7 @@ void delegpt_add_neg_msg(struct delegpt* dp, struct msgreply_entry* msg)
 	if(FLAGS_GET_RCODE(rep->flags) != 0 || rep->an_numrrsets == 0) {
 		struct delegpt_ns* ns = delegpt_find_ns(dp, msg->key.qname, 
 			msg->key.qname_len);
-		if(ns) {
-			if(msg->key.qtype == LDNS_RR_TYPE_A)
-				ns->got4 = 1;
-			else if(msg->key.qtype == LDNS_RR_TYPE_AAAA)
-				ns->got6 = 1;
-			if(ns->got4 && ns->got6)
-				ns->resolved = 1;
-		}
+		delegpt_mark_neg(ns, msg->key.qtype);
 	}
 }
 

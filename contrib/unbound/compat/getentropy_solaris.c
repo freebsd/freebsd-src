@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_solaris.c,v 1.13 2018/11/20 08:04:28 deraadt Exp $	*/
+/*	$OpenBSD: getentropy_solaris.c,v 1.4 2014/07/12 20:41:47 wouter Exp $	*/
 
 /*
  * Copyright (c) 2014 Theo de Raadt <deraadt@openbsd.org>
@@ -15,12 +15,9 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
- *
- * Emulation of getentropy(2) as documented at:
- * http://man.openbsd.org/getentropy.2
  */
-
 #include "config.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
@@ -37,7 +34,6 @@
 #include <stdint.h>
 #endif
 #include <stdio.h>
-#include <link.h>
 #include <termios.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -71,14 +67,17 @@
 
 #define HR(x, l) (SHA512_Update(&ctx, (char *)(x), (l)))
 #define HD(x)	 (SHA512_Update(&ctx, (char *)&(x), sizeof (x)))
-#define HF(x)    (SHA512_Update(&ctx, (char *)&(x), sizeof (void*)))
+#define HF(x)	 (SHA512_Update(&ctx, (char *)&(x), sizeof (void*)))
 
 int	getentropy(void *buf, size_t len);
 
+#ifdef CAN_REFERENCE_MAIN
+extern int main(int, char *argv[]);
+#endif
+static int gotdata(char *buf, size_t len);
 static int getentropy_urandom(void *buf, size_t len, const char *path,
     int devfscheck);
 static int getentropy_fallback(void *buf, size_t len);
-static int getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data);
 
 int
 getentropy(void *buf, size_t len)
@@ -87,7 +86,7 @@ getentropy(void *buf, size_t len)
 
 	if (len > 256) {
 		errno = EIO;
-		return (-1);
+		return -1;
 	}
 
 	/*
@@ -154,6 +153,22 @@ getentropy(void *buf, size_t len)
 	return (ret);
 }
 
+/*
+ * Basic sanity checking; wish we could do better.
+ */
+static int
+gotdata(char *buf, size_t len)
+{
+	char	any_set = 0;
+	size_t	i;
+
+	for (i = 0; i < len; ++i)
+		any_set |= buf[i];
+	if (any_set == 0)
+		return -1;
+	return 0;
+}
+
 static int
 getentropy_urandom(void *buf, size_t len, const char *path, int devfscheck)
 {
@@ -200,11 +215,13 @@ start:
 		i += ret;
 	}
 	close(fd);
-	errno = save_errno;
-	return (0);		/* satisfied */
+	if (gotdata(buf, len) == 0) {
+		errno = save_errno;
+		return 0;		/* satisfied */
+	}
 nodevrandom:
 	errno = EIO;
-	return (-1);
+	return -1;
 }
 
 static const int cl[] = {
@@ -231,15 +248,6 @@ static const int cl[] = {
 	CLOCK_THREAD_CPUTIME_ID,
 #endif
 };
-
-static int
-getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data)
-{
-	SHA512_CTX *ctx = data;
-
-	SHA512_Update(ctx, &info->dlpi_addr, sizeof (info->dlpi_addr));
-	return (0);
-}
 
 static int
 getentropy_fallback(void *buf, size_t len)
@@ -278,8 +286,6 @@ getentropy_fallback(void *buf, size_t len)
 				cnt += (int)tv.tv_usec;
 			}
 
-			dl_iterate_phdr(getentropy_phdr, &ctx);
-
 			for (ii = 0; ii < sizeof(cl)/sizeof(cl[0]); ii++)
 				HX(clock_gettime(cl[ii], &ts) == -1, ts);
 
@@ -300,6 +306,9 @@ getentropy_fallback(void *buf, size_t len)
 			HX(sigprocmask(SIG_BLOCK, NULL, &sigset) == -1,
 			    sigset);
 
+#ifdef CAN_REFERENCE_MAIN
+			HF(main);		/* an addr in program */
+#endif
 			HF(getentropy);	/* an addr in this library */
 			HF(printf);		/* an addr in libc */
 			p = (char *)&p;
@@ -422,8 +431,11 @@ getentropy_fallback(void *buf, size_t len)
 		memcpy((char *)buf + i, results, min(sizeof(results), len - i));
 		i += min(sizeof(results), len - i);
 	}
-	explicit_bzero(&ctx, sizeof ctx);
-	explicit_bzero(results, sizeof results);
-	errno = save_errno;
-	return (0);		/* satisfied */
+	memset(results, 0, sizeof results);
+	if (gotdata(buf, len) == 0) {
+		errno = save_errno;
+		return 0;		/* satisfied */
+	}
+	errno = EIO;
+	return -1;
 }
