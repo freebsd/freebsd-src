@@ -265,6 +265,13 @@ main(int argc, char *argv[])
 	fts_options = FTS_PHYSICAL;
 	if (getenv("LS_SAMESORT"))
 		f_samesort = 1;
+
+	/*
+	 * For historical compatibility, we'll use our autodetection if CLICOLOR
+	 * is set.
+	 */
+	if (getenv("CLICOLOR"))
+		colorflag = COLORFLAG_AUTO;
 	while ((ch = getopt_long(argc, argv,
 	    "+1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,", long_opts,
 	    NULL)) != -1) {
@@ -342,7 +349,13 @@ main(int argc, char *argv[])
 			f_slash = 0;
 			break;
 		case 'G':
+			/*
+			 * We both set CLICOLOR here and set colorflag to
+			 * COLORFLAG_AUTO, because -G should not force color if
+			 * stdout isn't a tty.
+			 */
 			setenv("CLICOLOR", "", 1);
+			colorflag = COLORFLAG_AUTO;
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;

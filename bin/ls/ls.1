@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2020
+.Dd May 21, 2020
 .Dt LS 1
 .Os
 .Sh NAME
@@ -135,7 +135,8 @@ This option is equivalent to defining
 .Ev CLICOLOR
 or
 .Ev COLORTERM
-in the environment.
+in the environment and setting
+.Fl -color Ns = Ns Ar auto .
 (See below.)
 This functionality can be compiled out by removing the definition of
 .Ev COLORLS .
