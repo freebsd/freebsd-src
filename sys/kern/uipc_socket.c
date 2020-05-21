@@ -1792,8 +1792,9 @@ restart:
 				m = so->so_rcv.sb_mb;
 				goto dontblock;
 			}
-		if ((so->so_state & (SS_ISCONNECTED|SS_ISCONNECTING)) == 0 &&
-		    (so->so_proto->pr_flags & PR_CONNREQUIRED)) {
+		if ((so->so_state & (SS_ISCONNECTING | SS_ISCONNECTED |
+		    SS_ISDISCONNECTING | SS_ISDISCONNECTED)) == 0 &&
+		    (so->so_proto->pr_flags & PR_CONNREQUIRED) != 0) {
 			SOCKBUF_UNLOCK(&so->so_rcv);
 			error = ENOTCONN;
 			goto release;
@@ -3814,8 +3815,17 @@ soisdisconnected(struct socket *so)
 {
 
 	SOCK_LOCK(so);
-	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
+
+	/*
+	 * There is at least one reader of so_state that does not
+	 * acquire socket lock, namely soreceive_generic().  Ensure
+	 * that it never sees all flags that track connection status
+	 * cleared, by ordering the update with a barrier semantic of
+	 * our release thread fence.
+	 */
 	so->so_state |= SS_ISDISCONNECTED;
+	atomic_thread_fence_rel();
+	so->so_state &= ~(SS_ISCONNECTING|SS_ISCONNECTED|SS_ISDISCONNECTING);
 
 	if (!SOLISTENING(so)) {
 		SOCK_UNLOCK(so);
