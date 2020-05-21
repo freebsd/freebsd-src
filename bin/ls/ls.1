@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2018
+.Dd May 20, 2020
 .Dt LS 1
 .Os
 .Sh NAME
@@ -216,8 +216,8 @@ Output colored escape sequences based on
 .Ar when ,
 which may be set to either
 .Cm always ,
-.Cm auto
-(default), or
+.Cm auto ,
+or
 .Cm never .
 .Pp
 .Cm always
@@ -252,6 +252,12 @@ environment variable is set and not empty.
 .Pp
 .Cm never
 will disable color regardless of environment variables.
+.Cm never
+is the default when neither
+.Fl -color
+nor
+.Fl G
+is specified.
 .Pp
 For compatibility with GNU coreutils,
 .Nm
