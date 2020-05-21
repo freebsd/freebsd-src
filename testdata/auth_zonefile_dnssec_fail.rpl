@@ -47,7 +47,9 @@ ns.example.com. 3600    IN      RRSIG   A 3 3 3600 20070926135752 20070829135752
 ; this RR is edited to create the failure
 ;www.example.com. IN A   10.20.30.40
 www.example.com. IN A   127.0.0.1
-www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
+; also edits the signature to fail, without needing crypto checks.
+;www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 2854 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
+www.example.com.        3600    IN      RRSIG   A 3 3 3600 20070926134150 20070829134150 28540 example.com. MC0CFC99iE9K5y2WNgI0gFvBWaTi9wm6AhUAoUqOpDtG5Zct+Qr9F3mSdnbc6V4= ;{id = 2854}
 
 TEMPFILE_END
 

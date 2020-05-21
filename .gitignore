@@ -42,6 +42,7 @@
 /contrib/libunbound.pc
 /contrib/unbound.service
 /contrib/unbound.socket
+/contrib/unbound_portable.service
 /dnstap/dnstap.pb-c.c
 /dnstap/dnstap.pb-c.h
 /libunbound/python/libunbound_wrap.c

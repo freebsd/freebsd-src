@@ -1,0 +1,265 @@
+; config options
+server:
+	module-config: "respip validator iterator"
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+
+rpz:
+	name: "rpz.example.com."
+	rpz-action-override: disabled
+	zonefile:
+TEMPFILE_NAME rpz.example.com
+TEMPFILE_CONTENTS rpz.example.com
+$ORIGIN rpz.example.com.
+32.1.113.0.203.rpz-ip A 192.0.2.1
+TEMPFILE_END
+
+rpz:
+	name: "rpz2.example.com."
+	zonefile:
+TEMPFILE_NAME rpz2.example.com
+TEMPFILE_CONTENTS rpz2.example.com
+$ORIGIN rpz2.example.com.
+32.1.113.0.203.rpz-ip A 192.0.2.2
+TEMPFILE_END
+
+rpz:
+	name: "rpz3.example.com."
+	rpz-action-override: nodata
+	zonefile:
+TEMPFILE_NAME rpz3.example.com
+TEMPFILE_CONTENTS rpz3.example.com
+$ORIGIN rpz3.example.com.
+32.3.113.0.203.rpz-ip CNAME .
+TEMPFILE_END
+
+rpz:
+	name: "rpz4.example.com."
+	rpz-action-override: nxdomain
+	zonefile:
+TEMPFILE_NAME rpz4.example.com
+TEMPFILE_CONTENTS rpz4.example.com
+$ORIGIN rpz4.example.com.
+32.4.113.0.203.rpz-ip CNAME *.
+TEMPFILE_END
+
+rpz:
+	name: "rpz5.example.com."
+	rpz-action-override: passthru
+	zonefile:
+TEMPFILE_NAME rpz5.example.com
+TEMPFILE_CONTENTS rpz5.example.com
+$ORIGIN rpz5.example.com.
+32.5.113.0.203.rpz-ip A 192.0.2.5
+TEMPFILE_END
+
+rpz:
+	name: "rpz6.example.com."
+	rpz-action-override: cname
+	rpz-cname-override: ns.
+	zonefile:
+TEMPFILE_NAME rpz6.example.com
+TEMPFILE_CONTENTS rpz6.example.com
+$ORIGIN rpz6.example.com.
+32.6.113.0.203.rpz-ip A 192.0.2.6
+TEMPFILE_END
+
+rpz:
+	name: "rpz7.example.com."
+	rpz-action-override: drop
+	zonefile:
+TEMPFILE_NAME rpz7.example.com
+TEMPFILE_CONTENTS rpz7.example.com
+$ORIGIN rpz7.example.com.
+32.7.113.0.203.rpz-ip A 192.0.2.7
+TEMPFILE_END
+
+stub-zone:
+	name: "."
+	stub-addr: 10.20.30.40
+CONFIG_END
+
+SCENARIO_BEGIN Test all supported RPZ action for response IP address trigger
+
+; c.
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.40
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS ns.
+SECTION ADDITIONAL
+ns. IN A 10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns. IN A
+SECTION ANSWER
+ns. IN A 10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a. IN A
+SECTION ANSWER
+a. IN A 203.0.113.1
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+b. IN A
+SECTION ANSWER
+b. IN A 203.0.113.3
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+c. IN A
+SECTION ANSWER
+c. IN A 203.0.113.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+d. IN A
+SECTION ANSWER
+d. IN A 203.0.113.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+e. IN A
+SECTION ANSWER
+e. IN A 203.0.113.6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+f. IN A
+SECTION ANSWER
+f. IN A 203.0.113.7
+ENTRY_END
+
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.	IN	A
+ENTRY_END
+
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+a.	IN	A
+SECTION ANSWER
+a.	IN	A 192.0.2.2
+ENTRY_END
+
+STEP 3 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+b.	IN	A
+ENTRY_END
+
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+b.	IN	A
+SECTION ANSWER
+ENTRY_END
+
+STEP 5 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+c.	IN	A
+ENTRY_END
+
+STEP 6 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+c.	IN	A
+SECTION ANSWER
+ENTRY_END
+
+STEP 7 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+d.	IN	A
+ENTRY_END
+
+STEP 8 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+d.	IN	A
+SECTION ANSWER
+d.	IN	A 203.0.113.5
+ENTRY_END
+
+STEP 9 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+e.	IN	A
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+e.	IN	A
+SECTION ANSWER
+e.	IN	CNAME ns.
+ns.	IN	A 10.20.30.40
+ENTRY_END
+
+STEP 11 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+f.	IN	A
+ENTRY_END
+; no answer is checked at exit of testbound.
+
+STEP 12 TIME_PASSES ELAPSE 10
+
+SCENARIO_END

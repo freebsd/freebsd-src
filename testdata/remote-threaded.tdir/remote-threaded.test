@@ -25,7 +25,7 @@ if grep "10.20.30.40" outfile; then
 	echo "OK"
 else
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "Not OK"
 	exit 1
@@ -37,7 +37,7 @@ $PRE/unbound-control -c ub.conf blablargh
 if test $? -ne 1; then
 	echo "wrong exit value on error."
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	exit 1
 else
@@ -61,7 +61,7 @@ if grep "5.6.7.8" outfile; then
 	echo "OK"
 else
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "Not OK"
 	exit 1
@@ -72,6 +72,8 @@ echo "$PRE/unbound-control -c ub.conf stats"
 $PRE/unbound-control -c ub.conf stats > tmp.$$
 if test $? -ne 0; then
 	echo "wrong exit value after success"
+	cat fwd.log
+	cat unbound.log
 	exit 1
 fi
 if grep "^total.num.queries=[1-9][0-9]*$" tmp.$$; then
@@ -90,7 +92,7 @@ if test $? -ne 0; then
 	exit 1
 fi
 
-# check syntax error in parse 
+# check syntax error in parse
 echo "$PRE/unbound-control -c ub.conf verbosity jkdf"
 $PRE/unbound-control -c ub.conf verbosity jkdf
 if test $? -ne 1; then
@@ -135,7 +137,7 @@ if grep "192.0.2.1" outfile; then
 	echo "OK"
 else
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "Not OK"
 	exit 1
@@ -149,7 +151,7 @@ if grep "NXDOMAIN" outfile; then
 	echo "OK"
 else
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "Not OK"
 	exit 1
@@ -169,7 +171,7 @@ if grep "NXDOMAIN" outfile; then
 	echo "OK"
 else
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "Not OK"
 	exit 1
@@ -189,7 +191,7 @@ if grep "SERVFAIL" outfile; then
 	echo "OK"
 else
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "Not OK"
 	exit 1
@@ -216,7 +218,7 @@ else
 	exit 1
 fi
 
-# test lookup 
+# test lookup
 echo "$PRE/unbound-control -c ub.conf lookup www.example.com"
 $PRE/unbound-control -c ub.conf lookup www.example.com
 if test $? -ne 0; then
@@ -282,7 +284,7 @@ done
 if kill -0 $UNBOUND_PID; then
 	echo "still up!"
 	echo "> cat logfiles"
-	cat fwd.log 
+	cat fwd.log
 	cat unbound.log
 	echo "not stopped, failure"
 	exit 1
@@ -294,7 +296,7 @@ else
 			echo "lock-verify test worked."
 		else
 			echo "lock-verify test failed."
-			cat fwd.log 
+			cat fwd.log
 			cat unbound.log
 			exit 1
 		fi
@@ -302,7 +304,7 @@ else
 fi
 
 echo "> cat logfiles"
-cat fwd.log 
+cat fwd.log
 cat unbound.log
 echo "> OK"
 exit 0

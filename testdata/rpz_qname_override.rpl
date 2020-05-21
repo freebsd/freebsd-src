@@ -1,0 +1,197 @@
+; config options
+server:
+	module-config: "respip validator iterator"
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+
+rpz:
+	name: "rpz.example.com."
+	rpz-action-override: disabled
+	zonefile:
+TEMPFILE_NAME rpz.example.com
+TEMPFILE_CONTENTS rpz.example.com
+$ORIGIN rpz.example.com.
+a	TXT	"record zone rpz.example.com"
+TEMPFILE_END
+
+rpz:
+	name: "rpz2.example.com."
+	zonefile:
+TEMPFILE_NAME rpz2.example.com
+TEMPFILE_CONTENTS rpz2.example.com
+$ORIGIN rpz2.example.com.
+a	TXT	"record zone rpz2.example.com"
+TEMPFILE_END
+
+rpz:
+	name: "rpz3.example.com."
+	rpz-action-override: nodata
+	zonefile:
+TEMPFILE_NAME rpz3.example.com
+TEMPFILE_CONTENTS rpz3.example.com
+$ORIGIN rpz3.example.com.
+b	CNAME .
+TEMPFILE_END
+
+rpz:
+	name: "rpz4.example.com."
+	rpz-action-override: nxdomain
+	zonefile:
+TEMPFILE_NAME rpz4.example.com
+TEMPFILE_CONTENTS rpz4.example.com
+$ORIGIN rpz4.example.com.
+c	CNAME *.
+TEMPFILE_END
+
+rpz:
+	name: "rpz5.example.com."
+	rpz-action-override: passthru
+	zonefile:
+TEMPFILE_NAME rpz5.example.com
+TEMPFILE_CONTENTS rpz5.example.com
+$ORIGIN rpz5.example.com.
+d	TXT "should be override by passthru"
+TEMPFILE_END
+
+rpz:
+	name: "rpz6.example.com."
+	rpz-action-override: cname
+	rpz-cname-override: "d."
+	zonefile:
+TEMPFILE_NAME rpz6.example.com
+TEMPFILE_CONTENTS rpz6.example.com
+$ORIGIN rpz6.example.com.
+e	TXT "should be override by cname"
+TEMPFILE_END
+
+rpz:
+	name: "rpz7.example.com."
+	rpz-action-override: drop
+	zonefile:
+TEMPFILE_NAME rpz7.example.com
+TEMPFILE_CONTENTS rpz7.example.com
+$ORIGIN rpz7.example.com.
+f	TXT "should be override by drop policy"
+TEMPFILE_END
+
+stub-zone:
+	name: "d."
+	stub-addr: 10.20.30.40
+CONFIG_END
+
+SCENARIO_BEGIN Test RPZ action overrides for QNAME trigger
+
+; d.
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.40
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+d. IN TXT
+SECTION ANSWER
+d. IN TXT "answer from upstream ns"
+ENTRY_END
+
+RANGE_END
+
+; check disabled override, should be answered using next policy zone
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.	IN	TXT
+ENTRY_END
+
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+a.	IN	TXT
+SECTION ANSWER
+a	TXT	"record zone rpz2.example.com"
+ENTRY_END
+
+; check nodata override, would be NXDOMAIN without override 
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+b.	IN	TXT
+ENTRY_END
+
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+b.	IN	TXT
+SECTION ANSWER
+ENTRY_END
+
+; check nxdomain override, would be NODATA without override 
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+c.	IN	TXT
+ENTRY_END
+
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+c.	IN	TXT
+SECTION ANSWER
+ENTRY_END
+
+; check passthru override, would be localdata without override 
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+d.	IN	TXT
+ENTRY_END
+
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+d.	IN	TXT
+SECTION ANSWER
+d. IN TXT "answer from upstream ns"
+ENTRY_END
+
+; check cname override, would be localdata without override 
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+e.	IN	TXT
+ENTRY_END
+
+STEP 51 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+e.	IN	TXT
+SECTION ANSWER
+e. IN CNAME d.
+d. IN TXT "answer from upstream ns"
+ENTRY_END
+
+; check drop override, would be localdata without override
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+f.	IN	TXT
+ENTRY_END
+; no answer is checked at exit of testbound.
+
+SCENARIO_END

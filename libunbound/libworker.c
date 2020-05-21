@@ -561,7 +561,6 @@ setup_qinfo_edns(struct libworker* w, struct ctx_query* q,
 	if(!qinfo->qname) {
 		return 0;
 	}
-	qinfo->local_alias = NULL;
 	edns->edns_present = 1;
 	edns->ext_rcode = 0;
 	edns->edns_version = 0;

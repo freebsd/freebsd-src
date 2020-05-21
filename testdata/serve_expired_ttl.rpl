@@ -1,0 +1,100 @@
+; config options
+server:
+	module-config: "validator iterator"
+	qname-minimisation: "no"
+	minimal-responses: no
+	serve-expired: yes
+	serve-expired-ttl: 10
+
+stub-zone:
+	name: "example.com"
+	stub-addr: 1.2.3.4
+CONFIG_END
+
+SCENARIO_BEGIN Test serve-expired
+; Scenario overview:
+; - query for example.com. IN A
+; - check that we get an answer for example.com. IN A with the correct TTL
+; - query again right after the TTL expired + serve-expired-ttl
+; - check that we get an updated answer and not the cached one
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN NS
+		SECTION ANSWER
+			example.com. IN NS ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com. IN A 1.2.3.4
+	ENTRY_END
+
+	ENTRY_BEGIN
+		MATCH opcode qtype qname
+		ADJUST copy_id
+		REPLY QR NOERROR
+		SECTION QUESTION
+			example.com. IN A
+		SECTION ANSWER
+			example.com. IN A 5.6.7.8
+		SECTION AUTHORITY
+			example.com. IN NS ns.example.com.
+		SECTION ADDITIONAL
+			ns.example.com. IN A 1.2.3.4
+	ENTRY_END
+RANGE_END
+
+; Query with RD flag
+STEP 1 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+; Check that we got the correct answer (should be cached)
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com. IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com. IN A 1.2.3.4
+ENTRY_END
+
+; Wait for the TTL to expire + serve-expired-ttl
+STEP 11 TIME_PASSES ELAPSE 3611
+
+; Query again
+STEP 30 QUERY
+ENTRY_BEGIN
+	REPLY RD
+	SECTION QUESTION
+		example.com. IN A
+ENTRY_END
+
+; Check that we got an updated answer
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ttl
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		example.com. IN A
+	SECTION ANSWER
+		example.com.  IN A 5.6.7.8
+	SECTION AUTHORITY
+		example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+		ns.example.com. IN A 1.2.3.4
+ENTRY_END
+
+SCENARIO_END

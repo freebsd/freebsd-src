@@ -1,0 +1,304 @@
+; config options
+server:
+	module-config: "respip validator iterator"
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+
+rpz:
+	name: "rpz.example.com."
+	zonefile:
+TEMPFILE_NAME rpz.example.com
+TEMPFILE_CONTENTS rpz.example.com
+$ORIGIN example.com.
+rpz	3600	IN	SOA	ns1.rpz.example.com. hostmaster.rpz.example.com. (
+		1379078166 28800 7200 604800 7200 )
+	3600	IN	NS	ns1.rpz.example.com.
+	3600	IN	NS	ns2.rpz.example.com.
+$ORIGIN rpz.example.com.
+a	CNAME 	.
+a	CNAME 	*. ; duplicate CNAME here on purpose
+*.a	TXT	"wildcard local data"
+b.a	CNAME 	*.
+c.a	CNAME	rpz-passthru.
+TEMPFILE_END
+
+rpz:
+	name: "rpz2.example.com."
+	zonefile:
+TEMPFILE_NAME rpz2.example.com
+TEMPFILE_CONTENTS rpz2.example.com
+$ORIGIN example.com.
+rpz2	3600	IN	SOA	ns1.rpz.example.com. hostmaster.rpz.example.com. (
+		1379078166 28800 7200 604800 7200 )
+	3600	IN	NS	ns1.rpz.example.com.
+	3600	IN	NS	ns2.rpz.example.com.
+$ORIGIN rpz2.example.com.
+a	TXT	"local data 2nd zone"
+d	TXT	"local data 2nd zone"
+e	CNAME	*.a.example.
+*.e	CNAME	*.b.example.
+drop	CNAME	rpz-drop.
+TEMPFILE_END
+
+stub-zone:
+	name: "a."
+	stub-addr: 10.20.30.40
+stub-zone:
+	name: "example."
+	stub-addr: 10.20.30.50
+CONFIG_END
+
+SCENARIO_BEGIN Test all support RPZ action for QNAME trigger
+
+; a.
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.40
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+a. IN NS
+SECTION ANSWER
+a. IN NS ns.a.
+SECTION ADDITIONAL
+ns.a IN A 10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+c.a. IN TXT
+SECTION ANSWER
+c.a. IN TXT "answer from upstream ns"
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+x.b.a. IN TXT
+SECTION ANSWER
+x.b.a. IN TXT "answer from upstream ns"
+ENTRY_END
+
+RANGE_END
+
+; example.
+RANGE_BEGIN 0 100
+	ADDRESS 10.20.30.50
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example. IN NS
+SECTION ANSWER
+example. IN NS ns.example.
+SECTION ADDITIONAL
+ns.example IN A 10.20.30.50
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+e.a.example. IN TXT
+SECTION ANSWER
+e.a.example. IN TXT "e.a.example. answer from upstream ns"
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+something.e.b.example. IN TXT
+SECTION ANSWER
+something.e.b.example. IN TXT "*.b.example. answer from upstream ns"
+ENTRY_END
+
+RANGE_END
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.	IN	TXT
+ENTRY_END
+
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+a.	IN	TXT
+SECTION ANSWER
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+a.a.	IN	TXT
+ENTRY_END
+
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+a.a.	IN	TXT
+SECTION ANSWER
+a.a.	IN	TXT	"wildcard local data"
+ENTRY_END
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+b.a.	IN	TXT
+ENTRY_END
+
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+b.a.	IN	TXT
+SECTION ANSWER
+ENTRY_END
+
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+x.a.	IN	TXT
+ENTRY_END
+
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+x.a.	IN	TXT
+SECTION ANSWER
+x.a.	IN	TXT	"wildcard local data"
+ENTRY_END
+
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+x.a.a.	IN	TXT
+ENTRY_END
+
+STEP 51 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+x.a.a.	IN	TXT
+SECTION ANSWER
+x.a.a.	IN	TXT	"wildcard local data"
+ENTRY_END
+
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+c.a.	IN	TXT
+ENTRY_END
+
+STEP 61 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+c.a.	IN	TXT
+SECTION ANSWER
+c.a.	IN	TXT	"answer from upstream ns"
+ENTRY_END
+
+STEP 70 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+x.b.a.	IN	TXT
+ENTRY_END
+
+STEP 71 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+x.b.a.	IN	TXT
+SECTION ANSWER
+x.b.a.	IN	TXT	"answer from upstream ns"
+ENTRY_END
+
+STEP 80 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+d.	IN	TXT
+ENTRY_END
+
+STEP 81 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+d.	IN	TXT
+SECTION ANSWER
+d.	IN	TXT	"local data 2nd zone"
+ENTRY_END
+
+STEP 82 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+e.	IN	TXT
+ENTRY_END
+
+STEP 83 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+e.	IN	TXT
+SECTION ANSWER
+e.	IN	CNAME	e.a.example.
+e.a.example.	IN	TXT	"e.a.example. answer from upstream ns"
+ENTRY_END
+
+STEP 84 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+something.e.	IN	TXT
+ENTRY_END
+
+STEP 85 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+something.e.	IN	TXT
+SECTION ANSWER
+something.e.	IN	CNAME	something.e.b.example.
+something.e.b.example.	IN	TXT	"*.b.example. answer from upstream ns"
+ENTRY_END
+
+; deny zone
+STEP 90 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+drop. IN TXT
+ENTRY_END
+; no answer is checked at exit of testbound.
+SCENARIO_END

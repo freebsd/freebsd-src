@@ -95,6 +95,33 @@ else
 	echo "result contents not OK"
 	exit 1
 fi
+echo "OK"
+
+# check that the server is still up
+echo ""
+echo "> query www1.example.net. (again check if server up)"
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
 
 echo "OK"
 exit 0

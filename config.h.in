@@ -63,6 +63,15 @@
 /* Whether the C compiler accepts the "weak" attribute */
 #undef HAVE_ATTR_WEAK
 
+/* If we have be64toh */
+#undef HAVE_BE64TOH
+
+/* Define to 1 if you have the <bsd/stdlib.h> header file. */
+#undef HAVE_BSD_STDLIB_H
+
+/* Define to 1 if you have the <bsd/string.h> header file. */
+#undef HAVE_BSD_STRING_H
+
 /* Define to 1 if you have the `chown' function. */
 #undef HAVE_CHOWN
 
@@ -284,6 +293,9 @@
 /* If you have HMAC_Update */
 #undef HAVE_HMAC_UPDATE
 
+/* If we have htobe64 */
+#undef HAVE_HTOBE64
+
 /* Define to 1 if you have the `inet_aton' function. */
 #undef HAVE_INET_ATON
 
@@ -310,6 +322,9 @@
 
 /* Define to 1 if you have the `kill' function. */
 #undef HAVE_KILL
+
+/* Use portable libbsd functions */
+#undef HAVE_LIBBSD
 
 /* Define to 1 if you have the <libkern/OSByteOrder.h> header file. */
 #undef HAVE_LIBKERN_OSBYTEORDER_H
@@ -1229,6 +1244,11 @@ char *strptime(const char *s, const char *format, struct tm *tm);
 
 #if !HAVE_DECL_REALLOCARRAY
 void *reallocarray(void *ptr, size_t nmemb, size_t size);
+#endif
+
+#ifdef HAVE_LIBBSD
+#include <bsd/string.h>
+#include <bsd/stdlib.h>
 #endif
 
 #ifdef HAVE_LIBRESSL

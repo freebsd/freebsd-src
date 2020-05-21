@@ -794,6 +794,34 @@ dname_test_valid(void)
 		, 4096) == 0);
 }
 
+/** Test dname_has_label */
+static void
+dname_test_has_label(void)
+{
+	unit_show_func("util/data/dname.c", "dname_has_label");
+	/* label past root label */
+	unit_assert(dname_has_label((uint8_t*)"\01a\0\01c", 5, (uint8_t*)"\01c") == 0);
+	/* label not found */
+	unit_assert(dname_has_label((uint8_t*)"\02ab\01c\0", 6, (uint8_t*)"\01e") == 0);
+	/* buffer too short */
+	unit_assert(dname_has_label((uint8_t*)"\02ab\01c\0", 5, (uint8_t*)"\0") == 0);
+	unit_assert(dname_has_label((uint8_t*)"\1a\0", 2, (uint8_t*)"\0") == 0);
+	unit_assert(dname_has_label((uint8_t*)"\0", 0, (uint8_t*)"\0") == 0);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\01c", 4, (uint8_t*)"\01c") == 0);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\03qwe\06oqieur\03def\01c\0", 19, (uint8_t*)"\01c") == 0);
+
+	/* positive cases  */
+	unit_assert(dname_has_label((uint8_t*)"\0", 1, (uint8_t*)"\0") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\1a\0", 3, (uint8_t*)"\0") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\01a\0\01c", 5, (uint8_t*)"\0") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\01c", 5, (uint8_t*)"\01c") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\01c\0", 10, (uint8_t*)"\0") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\01c\0", 7, (uint8_t*)"\0") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\03qwe\06oqieur\03def\01c\0", 22, (uint8_t*)"\03def") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\03qwe\06oqieur\03def\01c\0", 22, (uint8_t*)"\02ab") == 1);
+	unit_assert(dname_has_label((uint8_t*)"\02ab\03qwe\06oqieur\03def\01c\0", 22, (uint8_t*)"\01c") == 1);
+}
+
 /** test pkt_dname_tolower */
 static void
 dname_test_pdtl(sldns_buffer* loopbuf, sldns_buffer* boundbuf)
@@ -855,6 +883,7 @@ void dname_test(void)
 	dname_test_canoncmp();
 	dname_test_topdomain();
 	dname_test_valid();
+	dname_test_has_label();
 	sldns_buffer_free(buff);
 	sldns_buffer_free(loopbuf);
 	sldns_buffer_free(boundbuf);

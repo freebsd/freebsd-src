@@ -10,6 +10,8 @@ server:
 	max-client-subnet-ipv4: 17
 	module-config: "subnetcache validator iterator"
 	verbosity: 3
+	fake-sha1: yes
+	fake-dsa: yes
 	qname-minimisation: "no"
 	minimal-responses: no
 
