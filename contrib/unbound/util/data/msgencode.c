@@ -480,7 +480,8 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 			sldns_buffer_write(pkt, &key->rk.type, 2);
 			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
 			if(data->rr_ttl[j] < timenow)
-				sldns_buffer_write_u32(pkt, 0);
+				sldns_buffer_write_u32(pkt,
+					SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0);
 			else 	sldns_buffer_write_u32(pkt, 
 					data->rr_ttl[j]-timenow);
 			if(c) {
@@ -517,7 +518,8 @@ packed_rrset_encode(struct ub_packed_rrset_key* key, sldns_buffer* pkt,
 			sldns_buffer_write_u16(pkt, LDNS_RR_TYPE_RRSIG);
 			sldns_buffer_write(pkt, &key->rk.rrset_class, 2);
 			if(data->rr_ttl[i] < timenow)
-				sldns_buffer_write_u32(pkt, 0);
+				sldns_buffer_write_u32(pkt,
+					SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0);
 			else 	sldns_buffer_write_u32(pkt, 
 					data->rr_ttl[i]-timenow);
 			/* rrsig rdata cannot be compressed, perform 100+ byte

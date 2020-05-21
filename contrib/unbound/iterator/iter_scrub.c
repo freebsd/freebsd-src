@@ -185,8 +185,9 @@ mark_additional_rrset(sldns_buffer* pkt, struct msg_parse* msg,
 /** Get target name of a CNAME */
 static int
 parse_get_cname_target(struct rrset_parse* rrset, uint8_t** sname, 
-	size_t* snamelen)
+	size_t* snamelen, sldns_buffer* pkt)
 {
+	size_t oldpos, dlen;
 	if(rrset->rr_count != 1) {
 		struct rr_parse* sig;
 		verbose(VERB_ALGO, "Found CNAME rrset with "
@@ -204,6 +205,19 @@ parse_get_cname_target(struct rrset_parse* rrset, uint8_t** sname,
 	*sname = rrset->rr_first->ttl_data + sizeof(uint32_t)
 		+ sizeof(uint16_t); /* skip ttl, rdatalen */
 	*snamelen = rrset->rr_first->size - sizeof(uint16_t);
+
+	if(rrset->rr_first->outside_packet) {
+		if(!dname_valid(*sname, *snamelen))
+			return 0;
+		return 1;
+	}
+	oldpos = sldns_buffer_position(pkt);
+	sldns_buffer_set_position(pkt, (size_t)(*sname - sldns_buffer_begin(pkt)));
+	dlen = pkt_dname_len(pkt);
+	sldns_buffer_set_position(pkt, oldpos);
+	if(dlen == 0)
+		return 0; /* parse fail on the rdata name */
+	*snamelen = dlen;
 	return 1;
 }
 
@@ -215,7 +229,7 @@ synth_cname(uint8_t* qname, size_t qnamelen, struct rrset_parse* dname_rrset,
 	/* we already know that sname is a strict subdomain of DNAME owner */
 	uint8_t* dtarg = NULL;
 	size_t dtarglen;
-	if(!parse_get_cname_target(dname_rrset, &dtarg, &dtarglen))
+	if(!parse_get_cname_target(dname_rrset, &dtarg, &dtarglen, pkt))
 		return 0; 
 	if(qnamelen <= dname_rrset->dname_len)
 		return 0;
@@ -388,7 +402,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				/* check next cname */
 				uint8_t* t = NULL;
 				size_t tlen = 0;
-				if(!parse_get_cname_target(nx, &t, &tlen))
+				if(!parse_get_cname_target(nx, &t, &tlen, pkt))
 					return 0;
 				if(dname_pkt_compare(pkt, alias, t) == 0) {
 					/* it's OK and better capitalized */
@@ -439,7 +453,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				size_t tlen = 0;
 				if(synth_cname(sname, snamelen, nx, alias,
 					&aliaslen, pkt) &&
-					parse_get_cname_target(rrset, &t, &tlen) &&
+					parse_get_cname_target(rrset, &t, &tlen, pkt) &&
 			   		dname_pkt_compare(pkt, alias, t) == 0) {
 					/* the synthesized CNAME equals the
 					 * current CNAME.  This CNAME is the
@@ -460,7 +474,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 			}
 
 			/* move to next name in CNAME chain */
-			if(!parse_get_cname_target(rrset, &sname, &snamelen))
+			if(!parse_get_cname_target(rrset, &sname, &snamelen, pkt))
 				return 0;
 			prev = rrset;
 			rrset = rrset->rrset_all_next;

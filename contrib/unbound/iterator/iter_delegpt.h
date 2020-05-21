@@ -106,9 +106,10 @@ struct delegpt_ns {
 	 * and marked true if got4 and got6 are both true.
 	 */
 	int resolved;
-	/** if the ipv4 address is in the delegpt */
+	/** if the ipv4 address is in the delegpt, 0=not, 1=yes 2=negative,
+	 * negative means it was done, but no content. */
 	uint8_t got4;
-	/** if the ipv6 address is in the delegpt */
+	/** if the ipv6 address is in the delegpt, 0=not, 1=yes 2=negative */
 	uint8_t got6;
 	/**
 	 * If the name is parent-side only and thus dispreferred.
@@ -215,11 +216,12 @@ int delegpt_rrset_add_ns(struct delegpt* dp, struct regional* regional,
  * @param addrlen: the length of addr.
  * @param bogus: security status for the address, pass true if bogus.
  * @param lame: address is lame.
+ * @param additions: will be set to 1 if a new address is added
  * @return false on error.
  */
 int delegpt_add_target(struct delegpt* dp, struct regional* regional, 
 	uint8_t* name, size_t namelen, struct sockaddr_storage* addr, 
-	socklen_t addrlen, uint8_t bogus, uint8_t lame);
+	socklen_t addrlen, uint8_t bogus, uint8_t lame, int* additions);
 
 /**
  * Add A RRset to delegpt.
@@ -227,10 +229,11 @@ int delegpt_add_target(struct delegpt* dp, struct regional* regional,
  * @param regional: where to allocate the info.
  * @param rrset: RRset A to add.
  * @param lame: rrset is lame, disprefer it.
+ * @param additions: will be set to 1 if a new address is added
  * @return 0 on alloc error.
  */
 int delegpt_add_rrset_A(struct delegpt* dp, struct regional* regional, 
-	struct ub_packed_rrset_key* rrset, uint8_t lame);
+	struct ub_packed_rrset_key* rrset, uint8_t lame, int* additions);
 
 /**
  * Add AAAA RRset to delegpt.
@@ -238,10 +241,11 @@ int delegpt_add_rrset_A(struct delegpt* dp, struct regional* regional,
  * @param regional: where to allocate the info.
  * @param rrset: RRset AAAA to add.
  * @param lame: rrset is lame, disprefer it.
+ * @param additions: will be set to 1 if a new address is added
  * @return 0 on alloc error.
  */
 int delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* regional, 
-	struct ub_packed_rrset_key* rrset, uint8_t lame);
+	struct ub_packed_rrset_key* rrset, uint8_t lame, int* additions);
 
 /**
  * Add any RRset to delegpt.
@@ -250,10 +254,11 @@ int delegpt_add_rrset_AAAA(struct delegpt* dp, struct regional* regional,
  * @param regional: where to allocate the info.
  * @param rrset: RRset to add, NS, A, AAAA.
  * @param lame: rrset is lame, disprefer it.
+ * @param additions: will be set to 1 if a new address is added
  * @return 0 on alloc error.
  */
 int delegpt_add_rrset(struct delegpt* dp, struct regional* regional, 
-	struct ub_packed_rrset_key* rrset, uint8_t lame);
+	struct ub_packed_rrset_key* rrset, uint8_t lame, int* additions);
 
 /**
  * Add address to the delegation point. No servername is associated or checked.
@@ -264,11 +269,12 @@ int delegpt_add_rrset(struct delegpt* dp, struct regional* regional,
  * @param bogus: if address is bogus.
  * @param lame: if address is lame.
  * @param tls_auth_name: TLS authentication name (or NULL).
+ * @param additions: will be set to 1 if a new address is added
  * @return false on error.
  */
 int delegpt_add_addr(struct delegpt* dp, struct regional* regional, 
 	struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t bogus, uint8_t lame, char* tls_auth_name);
+	uint8_t bogus, uint8_t lame, char* tls_auth_name, int* additions);
 
 /** 
  * Find NS record in name list of delegation point.
@@ -340,6 +346,14 @@ size_t delegpt_count_targets(struct delegpt* dp);
  */
 struct delegpt* delegpt_from_message(struct dns_msg* msg, 
 	struct regional* regional);
+
+/**
+ * Mark negative return in delegation point for specific nameserver.
+ * sets the got4 or got6 to negative, updates the ns->resolved.
+ * @param ns: the nameserver in the delegpt.
+ * @param qtype: A or AAAA (host order).
+ */
+void delegpt_mark_neg(struct delegpt_ns* ns, uint16_t qtype);
 
 /**
  * Add negative message to delegation point.
