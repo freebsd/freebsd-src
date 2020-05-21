@@ -143,10 +143,11 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_LOCAL_ZONE_OVERRIDE VAR_ACCESS_CONTROL_TAG_ACTION
 %token VAR_ACCESS_CONTROL_TAG_DATA VAR_VIEW VAR_ACCESS_CONTROL_VIEW
 %token VAR_VIEW_FIRST VAR_SERVE_EXPIRED VAR_SERVE_EXPIRED_TTL
-%token VAR_SERVE_EXPIRED_TTL_RESET VAR_FAKE_DSA VAR_FAKE_SHA1
-%token VAR_LOG_IDENTITY VAR_HIDE_TRUSTANCHOR VAR_TRUST_ANCHOR_SIGNALING
-%token VAR_AGGRESSIVE_NSEC VAR_USE_SYSTEMD VAR_SHM_ENABLE VAR_SHM_KEY
-%token VAR_ROOT_KEY_SENTINEL
+%token VAR_SERVE_EXPIRED_TTL_RESET VAR_SERVE_EXPIRED_REPLY_TTL
+%token VAR_SERVE_EXPIRED_CLIENT_TIMEOUT VAR_FAKE_DSA
+%token VAR_FAKE_SHA1 VAR_LOG_IDENTITY VAR_HIDE_TRUSTANCHOR
+%token VAR_TRUST_ANCHOR_SIGNALING VAR_AGGRESSIVE_NSEC VAR_USE_SYSTEMD
+%token VAR_SHM_ENABLE VAR_SHM_KEY VAR_ROOT_KEY_SENTINEL
 %token VAR_DNSCRYPT VAR_DNSCRYPT_ENABLE VAR_DNSCRYPT_PORT VAR_DNSCRYPT_PROVIDER
 %token VAR_DNSCRYPT_SECRET_KEY VAR_DNSCRYPT_PROVIDER_CERT
 %token VAR_DNSCRYPT_PROVIDER_CERT_ROTATED
@@ -166,8 +167,9 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_FORWARD_NO_CACHE VAR_STUB_NO_CACHE VAR_LOG_SERVFAIL VAR_DENY_ANY
 %token VAR_UNKNOWN_SERVER_TIME_LIMIT VAR_LOG_TAG_QUERYREPLY
 %token VAR_STREAM_WAIT_SIZE VAR_TLS_CIPHERS VAR_TLS_CIPHERSUITES
-%token VAR_TLS_SESSION_TICKET_KEYS
 %token VAR_IPSET VAR_IPSET_NAME_V4 VAR_IPSET_NAME_V6
+%token VAR_TLS_SESSION_TICKET_KEYS VAR_RPZ VAR_TAGS VAR_RPZ_ACTION_OVERRIDE
+%token VAR_RPZ_CNAME_OVERRIDE VAR_RPZ_LOG VAR_RPZ_LOG_NAME
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -175,7 +177,8 @@ toplevelvar: serverstart contents_server | stubstart contents_stub |
 	forwardstart contents_forward | pythonstart contents_py | 
 	rcstart contents_rc | dtstart contents_dt | viewstart contents_view |
 	dnscstart contents_dnsc | cachedbstart contents_cachedb |
-	ipsetstart contents_ipset | authstart contents_auth
+	ipsetstart contents_ipset | authstart contents_auth |
+	rpzstart contents_rpz
 	;
 
 /* server: declaration */
@@ -254,6 +257,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_access_control_tag_data | server_access_control_view |
 	server_qname_minimisation_strict | server_serve_expired |
 	server_serve_expired_ttl | server_serve_expired_ttl_reset |
+	server_serve_expired_reply_ttl | server_serve_expired_client_timeout |
 	server_fake_dsa | server_log_identity | server_use_systemd |
 	server_response_ip_tag | server_response_ip | server_response_ip_data |
 	server_shm_enable | server_shm_key | server_fake_sha1 |
@@ -335,6 +339,7 @@ authstart: VAR_AUTH_ZONE
 			s->for_downstream = 1;
 			s->for_upstream = 1;
 			s->fallback_enabled = 0;
+			s->isrpz = 0;
 		} else 
 			yyerror("out of memory");
 	}
@@ -344,6 +349,92 @@ contents_auth: contents_auth content_auth
 content_auth: auth_name | auth_zonefile | auth_master | auth_url |
 	auth_for_downstream | auth_for_upstream | auth_fallback_enabled |
 	auth_allow_notify
+	;
+
+rpz_tag: VAR_TAGS STRING_ARG
+	{
+		uint8_t* bitlist;
+		size_t len = 0;
+		OUTYY(("P(server_local_zone_tag:%s)\n", $2));
+		bitlist = config_parse_taglist(cfg_parser->cfg, $2,
+			&len);
+		free($2);
+		if(!bitlist) {
+			yyerror("could not parse tags, (define-tag them first)");
+		}
+		if(bitlist) {
+			cfg_parser->cfg->auths->rpz_taglist = bitlist;
+			cfg_parser->cfg->auths->rpz_taglistlen = len;
+
+		}
+	}
+	;
+
+rpz_action_override: VAR_RPZ_ACTION_OVERRIDE STRING_ARG
+	{
+		OUTYY(("P(rpz_action_override:%s)\n", $2));
+		if(strcmp($2, "nxdomain")!=0 && strcmp($2, "nodata")!=0 &&
+		   strcmp($2, "passthru")!=0 && strcmp($2, "drop")!=0 &&
+		   strcmp($2, "cname")!=0 && strcmp($2, "disabled")!=0) {
+			yyerror("rpz-action-override action: expected nxdomain, "
+				"nodata, passthru, drop, cname or disabled");
+			free($2);
+			cfg_parser->cfg->auths->rpz_action_override = NULL;
+		}
+		else {
+			cfg_parser->cfg->auths->rpz_action_override = $2;
+		}
+	}
+	;
+
+rpz_cname_override: VAR_RPZ_CNAME_OVERRIDE STRING_ARG
+	{
+		OUTYY(("P(rpz_cname_override:%s)\n", $2));
+		free(cfg_parser->cfg->auths->rpz_cname);
+		cfg_parser->cfg->auths->rpz_cname = $2;
+	}
+	;
+
+rpz_log: VAR_RPZ_LOG STRING_ARG
+	{
+		OUTYY(("P(rpz_log:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->auths->rpz_log = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+
+rpz_log_name: VAR_RPZ_LOG_NAME STRING_ARG
+	{
+		OUTYY(("P(rpz_log_name:%s)\n", $2));
+		free(cfg_parser->cfg->auths->rpz_log_name);
+		cfg_parser->cfg->auths->rpz_log_name = $2;
+	}
+	;
+
+rpzstart: VAR_RPZ
+	{
+		struct config_auth* s;
+		OUTYY(("\nP(rpz:)\n")); 
+		s = (struct config_auth*)calloc(1, sizeof(struct config_auth));
+		if(s) {
+			s->next = cfg_parser->cfg->auths;
+			cfg_parser->cfg->auths = s;
+			/* defaults for RPZ auth zone */
+			s->for_downstream = 0;
+			s->for_upstream = 0;
+			s->fallback_enabled = 0;
+			s->isrpz = 1;
+		} else 
+			yyerror("out of memory");
+	}
+	;
+contents_rpz: contents_rpz content_rpz 
+	| ;
+content_rpz: auth_name | auth_zonefile | rpz_tag | auth_master | auth_url |
+	   auth_allow_notify | rpz_action_override | rpz_cname_override |
+	   rpz_log | rpz_log_name
 	;
 server_num_threads: VAR_NUM_THREADS STRING_ARG 
 	{ 
@@ -429,6 +520,7 @@ server_send_client_subnet: VAR_SEND_CLIENT_SUBNET STRING_ARG
 			fatal_exit("out of memory adding client-subnet");
 	#else
 		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
+		free($2);
 	#endif
 	}
 	;
@@ -441,6 +533,7 @@ server_client_subnet_zone: VAR_CLIENT_SUBNET_ZONE STRING_ARG
 			fatal_exit("out of memory adding client-subnet-zone");
 	#else
 		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
+		free($2);
 	#endif
 	}
 	;
@@ -1666,12 +1759,30 @@ server_serve_expired_ttl_reset: VAR_SERVE_EXPIRED_TTL_RESET STRING_ARG
 		free($2);
 	}
 	;
+server_serve_expired_reply_ttl: VAR_SERVE_EXPIRED_REPLY_TTL STRING_ARG
+	{
+		OUTYY(("P(server_serve_expired_reply_ttl:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->serve_expired_reply_ttl = atoi($2);
+		free($2);
+	}
+	;
+server_serve_expired_client_timeout: VAR_SERVE_EXPIRED_CLIENT_TIMEOUT STRING_ARG
+	{
+		OUTYY(("P(server_serve_expired_client_timeout:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->serve_expired_client_timeout = atoi($2);
+		free($2);
+	}
+	;
 server_fake_dsa: VAR_FAKE_DSA STRING_ARG
 	{
 		OUTYY(("P(server_fake_dsa:%s)\n", $2));
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
-#ifdef HAVE_SSL
+#if defined(HAVE_SSL) || defined(HAVE_NETTLE)
 		else fake_dsa = (strcmp($2, "yes")==0);
 		if(fake_dsa)
 			log_warn("test option fake_dsa is enabled");
@@ -1684,7 +1795,7 @@ server_fake_sha1: VAR_FAKE_SHA1 STRING_ARG
 		OUTYY(("P(server_fake_sha1:%s)\n", $2));
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
-#ifdef HAVE_SSL
+#if defined(HAVE_SSL) || defined(HAVE_NETTLE)
 		else fake_sha1 = (strcmp($2, "yes")==0);
 		if(fake_sha1)
 			log_warn("test option fake_sha1 is enabled");
@@ -2898,9 +3009,6 @@ cachedb_backend_name: VAR_CACHEDB_BACKEND STRING_ARG
 	{
 	#ifdef USE_CACHEDB
 		OUTYY(("P(backend:%s)\n", $2));
-		if(cfg_parser->cfg->cachedb_backend)
-			yyerror("cachedb backend override, there must be one "
-				"backend");
 		free(cfg_parser->cfg->cachedb_backend);
 		cfg_parser->cfg->cachedb_backend = $2;
 	#else
@@ -2913,9 +3021,6 @@ cachedb_secret_seed: VAR_CACHEDB_SECRETSEED STRING_ARG
 	{
 	#ifdef USE_CACHEDB
 		OUTYY(("P(secret-seed:%s)\n", $2));
-		if(cfg_parser->cfg->cachedb_secret)
-			yyerror("cachedb secret-seed override, there must be "
-				"only one secret");
 		free(cfg_parser->cfg->cachedb_secret);
 		cfg_parser->cfg->cachedb_secret = $2;
 	#else

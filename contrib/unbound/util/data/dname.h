@@ -197,6 +197,15 @@ int dname_lab_cmp(uint8_t* d1, int labs1, uint8_t* d2, int labs2, int* mlabs);
 int dname_lab_startswith(uint8_t* label, char* prefix, char** endptr);
 
 /**
+ * Check if dname contains label
+ * @param dname: dname
+ * @param dnamelen: length of dname
+ * @param label: label to be checked for presence in dname
+ * @return: 1 if dname has this label, 0 otherwise
+ */
+int dname_has_label(uint8_t* dname, size_t dnamelen, uint8_t* label);
+
+/**
  * See if domain name d1 is a strict subdomain of d2.
  * That is a subdomain, but not equal. 
  * @param d1: domain name, uncompressed wireformat

@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.9.6.
+# See unbound.conf(5) man page, version 1.10.1.
 #
 # this is a comment.
 
@@ -558,8 +558,8 @@ server:
 	# that set CD but cannot validate themselves.
 	# ignore-cd-flag: no
 
-	# Serve expired responses from cache, with TTL 0 in the response,
-	# and then attempt to fetch the data afresh.
+	# Serve expired responses from cache, with serve-expired-reply-ttl in
+	# the response, and then attempt to fetch the data afresh.
 	# serve-expired: no
 	#
 	# Limit serving of expired responses to configured seconds after
@@ -571,6 +571,16 @@ server:
 	# that the expired records will be served as long as there are queries
 	# for it.
 	# serve-expired-ttl-reset: no
+	#
+	# TTL value to use when replying with expired data.
+	# serve-expired-reply-ttl: 30
+	#
+	# Time in milliseconds before replying to the client with expired data.
+	# This essentially enables the serve-stale behavior as specified in
+	# draft-ietf-dnsop-serve-stale-10 that first tries to resolve before
+	# immediately responding with expired data.  0 disables this behavior.
+	# A recommended value is 1800.
+	# serve-expired-client-timeout: 0
 
 	# Have the validator log failed validations for your diagnosis.
 	# 0: off. 1: A line per failed user query. 2: With reason and bad IP.
@@ -1006,3 +1016,20 @@ remote-control:
 #     name-v6: "list-v6"
 #
 
+# Response Policy Zones
+# RPZ policies. Applied in order of configuration. QNAME and Response IP
+# Address trigger are the only supported triggers. Supported actions are:
+# NXDOMAIN, NODATA, PASSTHRU, DROP and Local Data. Policies can be loaded from
+# file, using zone transfer, or using HTTP. The respip module needs to be added
+# to the module-config, e.g.: module-config: "respip validator iterator".
+# rpz:
+#     name: "rpz.example.com"
+#     zonefile: "rpz.example.com"
+#     master: 192.0.2.0
+#     allow-notify: 192.0.2.0/32
+#     url: http://www.example.com/rpz.example.org.zone
+#     rpz-action-override: cname
+#     rpz-cname-override: www.example.org
+#     rpz-log: yes
+#     rpz-log-name: "example policy"
+#     tags: "example"
