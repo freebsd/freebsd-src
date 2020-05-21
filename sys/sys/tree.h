@@ -562,48 +562,44 @@ name##_RB_REMOVE_COLOR(struct name *head, struct type *parent, struct type *elm)
 attr struct type *							\
 name##_RB_REMOVE(struct name *head, struct type *elm)			\
 {									\
-	struct type *child, *parent, *old = elm;			\
+	struct type *child, *parent, *parent_old, *old = elm;		\
 	int color;							\
-	if (RB_LEFT(elm, field) == NULL)				\
-		child = RB_RIGHT(elm, field);				\
-	else if (RB_RIGHT(elm, field) == NULL)				\
-		child = RB_LEFT(elm, field);				\
-	else {								\
+	parent_old = parent = RB_PARENT(elm, field);			\
+	color = RB_COLOR(elm, field);					\
+	if (RB_LEFT(elm, field) == NULL) {				\
+		elm = child = RB_RIGHT(elm, field);			\
+		if (elm != NULL)					\
+			RB_PARENT(elm, field) = parent;			\
+	} else if (RB_RIGHT(elm, field) == NULL) {			\
+		elm = child = RB_LEFT(elm, field);			\
+		RB_PARENT(elm, field) = parent;				\
+	} else {							\
 		elm = RB_RIGHT(old, field);				\
 		if ((child = RB_LEFT(elm, field)) == NULL) {		\
 			child = RB_RIGHT(elm, field);			\
 			RB_RIGHT(old, field) = child;			\
-			RB_PARENT(elm, field) = elm;			\
+			parent = elm;					\
 		} else {						\
 			do						\
 				elm = child;				\
 			while ((child = RB_LEFT(elm, field)) != NULL);	\
 			child = RB_RIGHT(elm, field);			\
+			parent = RB_PARENT(elm, field);			\
+			RB_LEFT(parent, field) = child;			\
+			if (child != NULL)				\
+				RB_PARENT(child, field) = parent;	\
 			RB_PARENT(RB_RIGHT(old, field), field) = elm;	\
 		}							\
 		RB_PARENT(RB_LEFT(old, field), field) = elm;		\
-		parent = RB_PARENT(old, field);				\
-		if (parent != NULL) {					\
-			if (RB_LEFT(parent, field) == old)		\
-				RB_LEFT(parent, field) = elm;		\
-			else						\
-				RB_RIGHT(parent, field) = elm;		\
-		} else							\
-			RB_ROOT(head) = elm;				\
+		color = RB_COLOR(elm, field);				\
+		elm->field = old->field;				\
 	}								\
-	parent = RB_PARENT(elm, field);					\
-	color = RB_COLOR(elm, field);					\
-	if (child != NULL)						\
-		RB_PARENT(child, field) = parent;			\
-	if (parent != NULL) {						\
-		if (RB_LEFT(parent, field) == elm)			\
-			RB_LEFT(parent, field) = child;			\
-		else							\
-			RB_RIGHT(parent, field) = child;		\
-	} else								\
-		RB_ROOT(head) = child;					\
-	if (elm != old)							\
-		(elm)->field = (old)->field;				\
+	if (parent_old == NULL)						\
+		RB_ROOT(head) = elm;					\
+	else if (RB_LEFT(parent_old, field) == old)			\
+		RB_LEFT(parent_old, field) = elm;			\
+	else								\
+		RB_RIGHT(parent_old, field) = elm;			\
 	if (color == RB_BLACK)						\
 		name##_RB_REMOVE_COLOR(head, parent, child);		\
 	while (parent != NULL) {					\
