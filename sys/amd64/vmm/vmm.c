@@ -754,7 +754,8 @@ vm_mmap_memseg(struct vm *vm, vm_paddr_t gpa, int segid, vm_ooffset_t first,
 		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 		if (error != KERN_SUCCESS) {
 			vm_map_remove(&vm->vmspace->vm_map, gpa, gpa + len);
-			return (EFAULT);
+			return (error == KERN_RESOURCE_SHORTAGE ? ENOMEM :
+			    EFAULT);
 		}
 	}
 

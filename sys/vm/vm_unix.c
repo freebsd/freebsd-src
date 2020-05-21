@@ -92,13 +92,11 @@ kern_break(struct thread *td, uintptr_t *addr)
 	rlim_t datalim, lmemlim, vmemlim;
 	int prot, rv;
 	int error = 0;
-	boolean_t do_map_wirefuture;
 
 	datalim = lim_cur(td, RLIMIT_DATA);
 	lmemlim = lim_cur(td, RLIMIT_MEMLOCK);
 	vmemlim = lim_cur(td, RLIMIT_VMEM);
 
-	do_map_wirefuture = FALSE;
 	new = round_page(*addr);
 	vm_map_lock(map);
 
@@ -183,7 +181,14 @@ kern_break(struct thread *td, uintptr_t *addr)
 			prot |= VM_PROT_EXECUTE;
 #endif
 #endif
-		rv = vm_map_insert(map, NULL, 0, old, new, prot, VM_PROT_ALL, 0);
+		rv = vm_map_insert(map, NULL, 0, old, new, prot, VM_PROT_ALL,
+		    0);
+		if (rv == KERN_SUCCESS && (map->flags & MAP_WIREFUTURE) != 0) {
+			rv = vm_map_wire_locked(map, old, new,
+			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+			if (rv != KERN_SUCCESS)
+				vm_map_delete(map, old, new);
+		}
 		if (rv != KERN_SUCCESS) {
 #ifdef RACCT
 			if (racct_enable) {
@@ -204,17 +209,6 @@ kern_break(struct thread *td, uintptr_t *addr)
 			goto done;
 		}
 		vm->vm_dsize += btoc(new - old);
-		/*
-		 * Handle the MAP_WIREFUTURE case for legacy applications,
-		 * by marking the newly mapped range of pages as wired.
-		 * We are not required to perform a corresponding
-		 * vm_map_unwire() before vm_map_delete() below, as
-		 * it will forcibly unwire the pages in the range.
-		 *
-		 * XXX If the pages cannot be wired, no error is returned.
-		 */
-		if ((map->flags & MAP_WIREFUTURE) == MAP_WIREFUTURE)
-			do_map_wirefuture = TRUE;
 	} else if (new < old) {
 		rv = vm_map_delete(map, new, old);
 		if (rv != KERN_SUCCESS) {
@@ -237,10 +231,6 @@ kern_break(struct thread *td, uintptr_t *addr)
 	}
 done:
 	vm_map_unlock(map);
-
-	if (do_map_wirefuture)
-		(void) vm_map_wire(map, old, new,
-		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 
 	if (error == 0)
 		*addr = new;

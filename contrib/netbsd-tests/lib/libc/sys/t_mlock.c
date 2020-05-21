@@ -51,7 +51,7 @@ __RCSID("$NetBSD: t_mlock.c,v 1.6 2016/08/09 12:02:44 kre Exp $");
 #define _KMEMUSER
 #include <machine/vmparam.h>
 
-void set_vm_max_wired(int);
+void set_vm_max_wired(u_long);
 void restore_vm_max_wired(void);
 #endif
 

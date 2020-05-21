@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2012
+.Dd May 13, 2019
 .Dt MLOCKALL 2
 .Os
 .Sh NAME
@@ -69,7 +69,7 @@ limited in how much they can lock down.
 A single process can lock the minimum of a system-wide
 .Dq wired pages
 limit
-.Va vm.max_wired
+.Va vm.max_user_wired
 and the per-process
 .Dv RLIMIT_MEMLOCK
 resource limit.
@@ -138,9 +138,9 @@ and
 functions first appeared in
 .Fx 5.1 .
 .Sh BUGS
-The per-process resource limit is a limit on the amount of virtual
-memory locked, while the system-wide limit is for the number of locked
-physical pages.
-Hence a process with two distinct locked mappings of the same physical page
-counts as 2 pages against the per-process limit and as only a single page
-in the system limit.
+The per-process and system-wide resource limits of locked memory apply
+to the amount of virtual memory locked, not the amount of locked physical
+pages.
+Hence two distinct locked mappings of the same physical page counts as
+2 pages aginst the system limit, and also against the per-process limit
+if both mappings belong to the same physical map.
