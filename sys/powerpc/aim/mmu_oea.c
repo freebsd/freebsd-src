@@ -1703,7 +1703,6 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 	int	i, mask;
 	u_int	entropy;
 
-	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	RB_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
