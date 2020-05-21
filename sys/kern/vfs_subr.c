@@ -841,8 +841,7 @@ vfs_getvfs(fsid_t *fsid)
 	CTR2(KTR_VFS, "%s: fsid %p", __func__, fsid);
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
-		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
+		if (fsidcmp(&mp->mnt_stat.f_fsid, fsid) == 0) {
 			vfs_ref(mp);
 			mtx_unlock(&mountlist_mtx);
 			return (mp);
@@ -877,16 +876,13 @@ vfs_busyfs(fsid_t *fsid)
 	hash = fsid->val[0] ^ fsid->val[1];
 	hash = (hash >> 16 ^ hash) & (FSID_CACHE_SIZE - 1);
 	mp = cache[hash];
-	if (mp == NULL ||
-	    mp->mnt_stat.f_fsid.val[0] != fsid->val[0] ||
-	    mp->mnt_stat.f_fsid.val[1] != fsid->val[1])
+	if (mp == NULL || fsidcmp(&mp->mnt_stat.f_fsid, fsid) != 0)
 		goto slow;
 	if (vfs_busy(mp, 0) != 0) {
 		cache[hash] = NULL;
 		goto slow;
 	}
-	if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
-	    mp->mnt_stat.f_fsid.val[1] == fsid->val[1])
+	if (fsidcmp(&mp->mnt_stat.f_fsid, fsid) == 0)
 		return (mp);
 	else
 	    vfs_unbusy(mp);
@@ -894,8 +890,7 @@ vfs_busyfs(fsid_t *fsid)
 slow:
 	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
-		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
-		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
+		if (fsidcmp(&mp->mnt_stat.f_fsid, fsid) == 0) {
 			error = vfs_busy(mp, MBF_MNTLSTLOCK);
 			if (error) {
 				cache[hash] = NULL;

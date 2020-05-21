@@ -505,8 +505,7 @@ getmntentry(const char *fromname, const char *onname, fsid_t *fsid, dowhat what)
 			continue;
 		if (onname != NULL && strcmp(sfs->f_mntonname, onname) != 0)
 			continue;
-		if (fsid != NULL && bcmp(&sfs->f_fsid, fsid,
-		    sizeof(*fsid)) != 0)
+		if (fsid != NULL && fsidcmp(&sfs->f_fsid, fsid) != 0)
 			continue;
 
 		switch (what) {
