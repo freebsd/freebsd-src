@@ -72,6 +72,13 @@ struct work_struct {
 	atomic_t state;
 };
 
+struct rcu_work {
+	struct work_struct work;
+	struct rcu_head rcu;
+
+	struct workqueue_struct *wq;
+};
+
 #define	DECLARE_WORK(name, fn)						\
 	struct work_struct name;					\
 	static void name##_init(void *arg)				\
@@ -111,6 +118,9 @@ do {									\
 	atomic_set(&(work)->state, 0);					\
 	TASK_INIT(&(work)->work_task, 0, linux_work_fn, (work));	\
 } while (0)
+
+#define INIT_RCU_WORK(_work, _fn) \
+	INIT_WORK(&(_work)->work, (_fn))
 
 #define	INIT_WORK_ONSTACK(work, fn) \
 	INIT_WORK(work, fn)
@@ -192,6 +202,12 @@ do {									\
 #define	flush_work(work) \
 	linux_flush_work(work)
 
+#define	queue_rcu_work(wq, rwork) \
+	linux_queue_rcu_work(wq, rwork)
+
+#define	flush_rcu_work(rwork) \
+	linux_flush_rcu_work(rwork)
+
 #define	flush_delayed_work(dwork) \
 	linux_flush_delayed_work(dwork)
 
@@ -237,5 +253,7 @@ extern bool linux_flush_delayed_work(struct delayed_work *);
 extern bool linux_work_pending(struct work_struct *);
 extern bool linux_work_busy(struct work_struct *);
 extern struct work_struct *linux_current_work(void);
+extern bool linux_queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork);
+extern bool linux_flush_rcu_work(struct rcu_work *rwork);
 
 #endif					/* _LINUX_WORKQUEUE_H_ */
