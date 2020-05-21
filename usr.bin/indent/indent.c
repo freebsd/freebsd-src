@@ -967,6 +967,7 @@ check_type:
 	case structure:
 	    if (ps.p_l_follow > 0)
 		goto copy_id;
+	    /* FALLTHROUGH */
 	case decl:		/* we have a declaration type (int, etc.) */
 	    parse(decl);	/* let parser worry about indentation */
 	    if (ps.last_token == rparen && ps.tos <= 1) {
