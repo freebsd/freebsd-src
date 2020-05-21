@@ -270,8 +270,10 @@ main(int argc, char *argv[])
 	 * For historical compatibility, we'll use our autodetection if CLICOLOR
 	 * is set.
 	 */
+#ifdef COLORLS
 	if (getenv("CLICOLOR"))
 		colorflag = COLORFLAG_AUTO;
+#endif
 	while ((ch = getopt_long(argc, argv,
 	    "+1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,", long_opts,
 	    NULL)) != -1) {
@@ -355,7 +357,9 @@ main(int argc, char *argv[])
 			 * stdout isn't a tty.
 			 */
 			setenv("CLICOLOR", "", 1);
+#ifdef COLORLS
 			colorflag = COLORFLAG_AUTO;
+#endif
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;
