@@ -467,7 +467,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	vm_map_entry_t entryp;
 	vm_object_t objp;
 	struct vnode *vp;
-	struct file **ofiles;
+	struct filedescent *ofiles;
 	struct filestat *entry;
 	struct filestat_list *head;
 	kvm_t *kd;
@@ -554,25 +554,25 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	}
 
 	nfiles = filed.fd_lastfile + 1;
-	ofiles = malloc(nfiles * sizeof(struct file *));
+	ofiles = malloc(nfiles * sizeof(struct filedescent));
 	if (ofiles == NULL) {
-		warn("malloc(%zu)", nfiles * sizeof(struct file *));
+		warn("malloc(%zu)", nfiles * sizeof(struct filedescent));
 		goto do_mmapped;
 	}
 	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
-	    nfiles * sizeof(struct file *))) {
+	    nfiles * sizeof(struct filedescent))) {
 		warnx("cannot read file structures at %p",
 		    (void *)filed.fd_ofiles);
 		free(ofiles);
 		goto do_mmapped;
 	}
 	for (i = 0; i <= filed.fd_lastfile; i++) {
-		if (ofiles[i] == NULL)
+		if (ofiles[i].fde_file == NULL)
 			continue;
-		if (!kvm_read_all(kd, (unsigned long)ofiles[i], &file,
+		if (!kvm_read_all(kd, (unsigned long)ofiles[i].fde_file, &file,
 		    sizeof(struct file))) {
 			warnx("can't read file %d at %p", i,
-			    (void *)ofiles[i]);
+			    (void *)ofiles[i].fde_file);
 			continue;
 		}
 		switch (file.f_type) {
