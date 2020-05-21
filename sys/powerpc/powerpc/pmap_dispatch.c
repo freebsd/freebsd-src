@@ -631,6 +631,13 @@ pmap_ps_enabled(pmap_t pmap)
 	return (MMU_PS_ENABLED(mmu_obj, pmap));
 }
 
+void
+pmap_tlbie_all(void)
+{
+	CTR1(KTR_PMAP, "%s()", __func__);
+	return (MMU_TLBIE_ALL(mmu_obj));
+}
+
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.

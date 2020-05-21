@@ -1100,3 +1100,11 @@ METHOD boolean_t ps_enabled {
 	mmu_t		_mmu;
 	pmap_t		_pmap;
 } DEFAULT mmu_null_ps_enabled;
+
+
+/**
+ * @brief Flush the TLB (used by machine check handler).
+ */
+METHOD void tlbie_all {
+	mmu_t		_mmu;
+};
