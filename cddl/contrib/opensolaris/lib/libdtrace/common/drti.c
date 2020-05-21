@@ -143,12 +143,18 @@ dtrace_dof_init(void)
 		return;
 	}
 
+#ifdef __FreeBSD__
+	elf = (void *)lmp->l_base;
+#else
 	elf = (void *)lmp->l_addr;
+#endif
 
 	dh.dofhp_dof = (uintptr_t)dof;
-	dh.dofhp_addr = elf->e_type == ET_DYN ? (uintptr_t) lmp->l_addr : 0;
 #ifdef __FreeBSD__
+	dh.dofhp_addr = elf->e_type == ET_DYN ? (uintptr_t) lmp->l_base : 0;
 	dh.dofhp_pid = getpid();
+#else
+	dh.dofhp_addr = elf->e_type == ET_DYN ? (uintptr_t) lmp->l_addr : 0;
 #endif
 
 	if (lmid == 0) {

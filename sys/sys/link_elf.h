@@ -57,13 +57,14 @@
 #define	LA_SER_SECURE	0x80	/* default (secure) path prepended */
 
 typedef struct link_map {
-	caddr_t		l_addr;			/* Load Offset of library */
+	caddr_t		l_base;			/* Base Address of library */
 #ifdef __mips__
 	caddr_t		l_xxx;			/* unused */
 #endif
 	const char	*l_name;		/* Absolute Path to Library */
 	const void	*l_ld;			/* Pointer to .dynamic in memory */
 	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
+	caddr_t		l_addr;			/* Load Offset of library */
 } Link_map;
 
 struct r_debug {
