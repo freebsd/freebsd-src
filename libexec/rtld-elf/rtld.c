@@ -1207,6 +1207,9 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 		*needed_filtees_tail = nep;
 		needed_filtees_tail = &nep->next;
+
+		if (obj->linkmap.l_refname == NULL)
+		    obj->linkmap.l_refname = (char *)dynp->d_un.d_val;
 	    }
 	    break;
 
@@ -1402,6 +1405,10 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	}
 	obj->dynsymcount += obj->symndx_gnu;
     }
+
+    if (obj->linkmap.l_refname != NULL)
+	obj->linkmap.l_refname = obj->strtab + (unsigned long)obj->
+	  linkmap.l_refname;
 }
 
 static bool

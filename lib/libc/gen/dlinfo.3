@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2020
+.Dd May 21, 2020
 .Dt DLINFO 3
 .Os
 .Sh NAME
@@ -111,6 +111,7 @@ const void      *l_ld;     /* Pointer to .dynamic in memory */
 struct link_map *l_next,   /* linked list of mapped libs */
                 *l_prev;
 caddr_t         l_addr;     /* Load Offset of library */
+const char      *l_refname; /* Object this one filters for */
 .Ed
 .Bl -tag -width ".Va l_addr"
 .It Va l_base
@@ -133,6 +134,11 @@ structure on the link-map list.
 The load offset of the object, that is, the difference between
 the actual load address and the base virtual address the object
 was linked at.
+.It Va l_refname
+A name of the object this object filters for, if any.
+If there are more then one filtee, a name from the first
+.Dv DT_FILTER
+dynamic entry is supplied.
 .El
 .It Dv RTLD_DI_SERINFO
 Retrieve the library search paths associated with the given
