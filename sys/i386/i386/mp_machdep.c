@@ -28,6 +28,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_apic.h"
 #include "opt_cpu.h"
 #include "opt_kstack_pages.h"
@@ -83,8 +84,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <x86/ucode.h>
 
+#ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
+#endif
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(PMAP_MAP_LOW + 0x0467)
@@ -202,7 +205,7 @@ cpu_mp_start(void)
 
 	set_interrupt_apic_ids();
 
-#if MAXMEMDOM > 1
+#if defined(DEV_ACPI) && MAXMEMDOM > 1
 	acpi_pxm_set_cpu_locality();
 #endif
 }
