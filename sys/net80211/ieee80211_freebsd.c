@@ -963,6 +963,19 @@ ieee80211_notify_radio(struct ieee80211com *ic, int state)
 }
 
 void
+ieee80211_notify_ifnet_change(struct ieee80211vap *vap)
+{
+	struct ifnet *ifp = vap->iv_ifp;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_DEBUG, "%s\n",
+	    "interface state change");
+
+	CURVNET_SET(ifp->if_vnet);
+	rt_ifmsg(ifp);
+	CURVNET_RESTORE();
+}
+
+void
 ieee80211_load_module(const char *modname)
 {
 
