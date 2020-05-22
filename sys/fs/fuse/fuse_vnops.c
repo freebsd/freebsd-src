@@ -235,6 +235,7 @@ fuse_extattr_check_cred(struct vnode *vp, int ns, struct ucred *cred,
 {
 	struct mount *mp = vnode_mount(vp);
 	struct fuse_data *data = fuse_get_mpdata(mp);
+	int default_permissions = data->dataflags & FSESS_DEFAULT_PERMISSIONS;
 
 	/*
 	 * Kernel-invoked always succeeds.
@@ -248,12 +249,15 @@ fuse_extattr_check_cred(struct vnode *vp, int ns, struct ucred *cred,
 	 */
 	switch (ns) {
 	case EXTATTR_NAMESPACE_SYSTEM:
-		if (data->dataflags & FSESS_DEFAULT_PERMISSIONS) {
+		if (default_permissions) {
 			return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM));
 		}
-		/* FALLTHROUGH */
+		return (0);
 	case EXTATTR_NAMESPACE_USER:
-		return (fuse_internal_access(vp, accmode, td, cred));
+		if (default_permissions) {
+			return (fuse_internal_access(vp, accmode, td, cred));
+		}
+		return (0);
 	default:
 		return (EPERM);
 	}
@@ -985,6 +989,8 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	int wantparent = flags & (LOCKPARENT | WANTPARENT);
 	int islastcn = flags & ISLASTCN;
 	struct mount *mp = vnode_mount(dvp);
+	struct fuse_data *data = fuse_get_mpdata(mp);
+	int default_permissions = data->dataflags & FSESS_DEFAULT_PERMISSIONS;
 
 	int err = 0;
 	int lookup_err = 0;
@@ -1108,7 +1114,11 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 	if (lookup_err) {
 		/* Entry not found */
 		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
-			err = fuse_internal_access(dvp, VWRITE, td, cred);
+			if (default_permissions)
+				err = fuse_internal_access(dvp, VWRITE, td,
+				    cred);
+			else
+				err = 0;
 			if (!err) {
 				/*
 				 * Set the SAVENAME flag to hold onto the
@@ -1191,7 +1201,7 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				&fvdat->entry_cache_timeout);
 
 			if ((nameiop == DELETE || nameiop == RENAME) &&
-				islastcn)
+				islastcn && default_permissions)
 			{
 				struct vattr dvattr;
 
@@ -1828,7 +1838,11 @@ fuse_vnop_setattr(struct vop_setattr_args *ap)
 	if (vfs_isrdonly(mp))
 		return EROFS;
 
-	err = fuse_internal_access(vp, accmode, td, cred);
+	if (checkperm) {
+		err = fuse_internal_access(vp, accmode, td, cred);
+	} else {
+		err = 0;
+	}
 	if (err)
 		return err;
 	else
