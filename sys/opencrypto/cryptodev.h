@@ -134,7 +134,7 @@
 #define	AES_MAX_KEY		RIJNDAEL_MAX_KEY
 #define	AES_XTS_MIN_KEY		(2 * AES_MIN_KEY)
 #define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
-#define	CAMELLIA_MIN_KEY	8
+#define	CAMELLIA_MIN_KEY	16
 #define	CAMELLIA_MAX_KEY	32
 
 /* Maximum hash algorithm result length */
