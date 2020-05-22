@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2018
+.Dd October 17, 2019
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -69,8 +69,13 @@ struct timeout_task;
 .Ft int
 .Fn taskqueue_start_threads "struct taskqueue **tqp" "int count" "int pri" "const char *name" "..."
 .Ft int
-.Fo taskqueue_start_threads_pinned
-.Fa "struct taskqueue **tqp" "int count" "int pri" "int cpu_id"
+.Fo taskqueue_start_threads_cpuset
+.Fa "struct taskqueue **tqp" "int count" "int pri" "cpuset_t *mask"
+.Fa "const char *name" "..."
+.Fc
+.Ft int
+.Fo taskqueue_start_threads_in_proc
+.Fa "struct taskqueue **tqp" "int count" "int pri" "struct proc *proc"
 .Fa "const char *name" "..."
 .Fc
 .Ft void
@@ -152,14 +157,20 @@ Any tasks that are on the queue will be executed at this time after
 which the thread servicing the queue will be signaled that it should exit.
 .Pp
 Once a taskqueue has been created, its threads should be started using
-.Fn taskqueue_start_threads
+.Fn taskqueue_start_threads ,
+.Fn taskqueue_start_threads_cpuset
 or
-.Fn taskqueue_start_threads_pinned .
-.Fn taskqueue_start_threads_pinned
+.Fn taskqueue_start_threads_in_proc .
+.Fn taskqueue_start_threads_cpuset
 takes a
-.Va cpu_id
+.Va cpuset
 argument which will cause the threads which are started for the taskqueue
-to be pinned to run on the given CPU.
+to be restricted to run on the given CPUs.
+.Fn taskqueue_start_threads_in_proc
+takes a
+.Va proc
+argument which will cause the threads which are started for the taskqueue
+to be assigned to the given kernel process.
 Callbacks may optionally be registered using
 .Fn taskqueue_set_callback .
 Currently, callbacks may be registered for the following purposes:
