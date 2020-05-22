@@ -124,7 +124,7 @@ fdctx_destroy(struct fdctx *fdc)
 	 * Reposition the file offset.  Here is the layout of buf:
 	 *
 	 *     | off
-	 *     v 
+	 *     v
 	 * |*****************|-------|
 	 * buf               ep   buf+buflen
 	 *     |<- residue ->|
@@ -142,8 +142,6 @@ fdctx_destroy(struct fdctx *fdc)
 /*
  * The read builtin.  The -r option causes backslashes to be treated like
  * ordinary characters.
- *
- * This uses unbuffered input, which may be avoidable in some cases.
  *
  * Note that if IFS=' :' then read x y should work so that:
  * 'a b'	x='a', y='b'
