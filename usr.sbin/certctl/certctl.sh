@@ -30,10 +30,6 @@
 ############################################################ CONFIGURATION
 
 : ${DESTDIR:=}
-: ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}/usr/local/share/certs:${DESTDIR}/usr/local/etc/ssl/certs}
-: ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}/usr/local/etc/ssl/blacklisted}
-: ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
-: ${BLACKLISTDESTDIR:=${DESTDIR}/etc/ssl/blacklisted}
 : ${FILEPAT:="\.pem$|\.crt$|\.cer$|\.crl$|\.0$"}
 : ${VERBOSE:=0}
 
@@ -42,6 +38,7 @@
 SCRIPTNAME="${0##*/}"
 ERRORS=0
 NOOP=0
+UNPRIV=0
 
 ############################################################ FUNCTIONS
 
@@ -69,7 +66,7 @@ create_trusted_link()
 		return 1
 	fi
 	[ $VERBOSE -gt 0 ] && echo "Adding $hash.0 to trust store"
-	[ $NOOP -eq 0 ] && install -lrs $(realpath "$1") "$CERTDESTDIR/$hash.0"
+	[ $NOOP -eq 0 ] && install ${INSTALLFLAGS} -lrs $(realpath "$1") "$CERTDESTDIR/$hash.0"
 }
 
 create_blacklisted()
@@ -88,7 +85,7 @@ create_blacklisted()
 		return
 	fi
 	[ $VERBOSE -gt 0 ] && echo "Adding $filename to blacklist"
-	[ $NOOP -eq 0 ] && install -lrs "$srcfile" "$BLACKLISTDESTDIR/$filename"
+	[ $NOOP -eq 0 ] && install ${INSTALLFLAGS} -lrs "$srcfile" "$BLACKLISTDESTDIR/$filename"
 }
 
 do_scan()
@@ -105,7 +102,7 @@ do_scan()
 		[ -d "$CPATH" ] || continue
 		echo "Scanning $CPATH for certificates..."
 		for CFILE in $(ls -1 "${CPATH}" | grep -Ee "${FILEPAT}"); do
-			[ -e "$CPATH/$CFILE" ] || continue
+			[ -e "$CPATH/$CFILE" && $UNPRIV -eq 0 ] || continue
 			[ $VERBOSE -gt 0 ] && echo "Reading $CFILE"
 			"$CFUNC" "$CPATH/$CFILE"
 		done
@@ -209,7 +206,7 @@ usage()
 	echo "		List trusted certificates"
 	echo "	$SCRIPTNAME [-v] blacklisted"
 	echo "		List blacklisted certificates"
-	echo "	$SCRIPTNAME [-nv] rehash"
+	echo "	$SCRIPTNAME [-nUv] [-D <destdir>] [-M <metalog>] rehash"
 	echo "		Generate hash links for all certificates"
 	echo "	$SCRIPTNAME [-nv] blacklist <file>"
 	echo "		Add <file> to the list of blacklisted certificates"
@@ -220,13 +217,24 @@ usage()
 
 ############################################################ MAIN
 
-while getopts nv flag; do
+while getopts D:M:nUv flag; do
 	case "$flag" in
+	D) DESTDIR=${OPTARG} ;;
+	M) METALOG=${OPTARG} ;;
 	n) NOOP=1 ;;
+	U) UNPRIV=1 ;;
 	v) VERBOSE=$(( $VERBOSE + 1 )) ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
+
+: ${METALOG:=${DESTDIR}/METALOG}
+INSTALLFLAGS=
+[ $UNPRIV -eq 1 ] && INSTALLFLAGS=-U -M ${METALOG} -D ${DESTDIR}
+: ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}/usr/local/share/certs:${DESTDIR}/usr/local/etc/ssl/certs}
+: ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}/usr/local/etc/ssl/blacklisted}
+: ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
+: ${BLACKLISTDESTDIR:=${DESTDIR}/etc/ssl/blacklisted}
 
 [ $# -gt 0 ] || usage
 case "$1" in
