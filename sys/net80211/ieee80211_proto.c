@@ -1511,6 +1511,8 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * back in here and complete the work.
 		 */
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
+		ieee80211_notify_ifnet_change(vap);
+
 		/*
 		 * We are not running; if this we are the first vap
 		 * to be brought up auto-up the parent if necessary.
@@ -1624,6 +1626,7 @@ ieee80211_stop_locked(struct ieee80211vap *vap)
 	ieee80211_new_state_locked(vap, IEEE80211_S_INIT, -1);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;	/* mark us stopped */
+		ieee80211_notify_ifnet_change(vap);
 		if (--ic->ic_nrunning == 0) {
 			IEEE80211_DPRINTF(vap,
 			    IEEE80211_MSG_STATE | IEEE80211_MSG_DEBUG,

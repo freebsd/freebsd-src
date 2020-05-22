@@ -455,4 +455,5 @@ void	ieee80211_notify_node_auth(struct ieee80211_node *);
 void	ieee80211_notify_country(struct ieee80211vap *, const uint8_t [],
 		const uint8_t cc[2]);
 void	ieee80211_notify_radio(struct ieee80211com *, int);
+void	ieee80211_notify_ifnet_change(struct ieee80211vap *);
 #endif /* _NET80211_IEEE80211_PROTO_H_ */
