@@ -125,7 +125,7 @@ void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 		out.body.attr.attr.mode = mode;
 		out.body.attr.attr.size = 0;
 		out.body.attr.attr.uid = uid;
-		out.body.attr.attr.uid = gid;
+		out.body.attr.attr.gid = gid;
 		out.body.attr.attr_valid = attr_valid;
 	})));
 }
