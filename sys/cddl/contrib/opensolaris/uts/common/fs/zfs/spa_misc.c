@@ -1935,6 +1935,12 @@ spa_deadman_synctime(spa_t *spa)
 	return (spa->spa_deadman_synctime);
 }
 
+struct proc *
+spa_proc(spa_t *spa)
+{
+	return (spa->spa_proc);
+}
+
 uint64_t
 dva_get_dsize_sync(spa_t *spa, const dva_t *dva)
 {

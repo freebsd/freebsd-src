@@ -2685,7 +2685,7 @@ zvol_geom_run(zvol_state_t *zv)
 	pp = zv->zv_provider;
 	g_error_provider(pp, 0);
 
-	kproc_kthread_add(zvol_geom_worker, zv, &zfsproc, NULL, 0, 0,
+	kproc_kthread_add(zvol_geom_worker, zv, &system_proc, NULL, 0, 0,
 	    "zfskern", "zvol %s", pp->name + sizeof(ZVOL_DRIVER));
 }
 
