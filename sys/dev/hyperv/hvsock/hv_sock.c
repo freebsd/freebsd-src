@@ -354,6 +354,9 @@ hvs_trans_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct hvs_pcb *pcb = so2hvspcb(so);
 
+	if (vm_guest != VM_GUEST_HV)
+		return (ESOCKTNOSUPPORT);
+
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_attach called\n", __func__);
 
@@ -379,6 +382,9 @@ void
 hvs_trans_detach(struct socket *so)
 {
 	struct hvs_pcb *pcb;
+
+	if (vm_guest != VM_GUEST_HV)
+		return;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_detach called\n", __func__);
@@ -588,6 +594,9 @@ int
 hvs_trans_disconnect(struct socket *so)
 {
 	struct hvs_pcb *pcb;
+
+	if (vm_guest != VM_GUEST_HV)
+		return (ESOCKTNOSUPPORT);
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_disconnect called\n", __func__);
@@ -916,6 +925,9 @@ hvs_trans_close(struct socket *so)
 {
 	struct hvs_pcb *pcb;
 
+	if (vm_guest != VM_GUEST_HV)
+		return;
+
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_close called\n", __func__);
 
@@ -956,6 +968,9 @@ void
 hvs_trans_abort(struct socket *so)
 {
 	struct hvs_pcb *pcb = so2hvspcb(so);
+
+	if (vm_guest != VM_GUEST_HV)
+		return;
 
 	HVSOCK_DBG(HVSOCK_DBG_VERBOSE,
 	    "%s: HyperV Socket hvs_trans_abort called\n", __func__);
