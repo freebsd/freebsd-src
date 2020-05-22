@@ -57,16 +57,17 @@ MLINKS+=libprocstat.3 procstat_close.3 \
 # XXX This is a hack.
 .if ${MK_CDDL} != "no"
 CFLAGS+=	-DLIBPROCSTAT_ZFS
-OBJS+=	zfs/zfs.o
-SOBJS+=	zfs/zfs.pico
-POBJS+=	zfs/zfs.po
+SRCS+=	zfs.c
+OBJS+=	zfs/zfs_defs.o
+SOBJS+=	zfs/zfs_defs.pico
+POBJS+=	zfs/zfs_defs.po
 SUBDIR=	zfs
-zfs/zfs.o: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs.o
-zfs/zfs.pico: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs.pico
-zfs/zfs.po: .PHONY
-	@cd ${.CURDIR}/zfs && ${MAKE} zfs.po
+zfs/zfs_defs.o: .PHONY
+	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.o
+zfs/zfs_defs.pico: .PHONY
+	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.pico
+zfs/zfs_defs.po: .PHONY
+	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.po
 .endif
 
 .include <bsd.lib.mk>
