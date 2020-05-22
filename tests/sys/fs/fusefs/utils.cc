@@ -273,6 +273,20 @@ void FuseTest::expect_getattr(uint64_t ino, uint64_t size)
 	})));
 }
 
+void FuseTest::expect_getxattr(uint64_t ino, const char *attr, ProcessMockerT r)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			const char *a = (const char*)in.body.bytes +
+				sizeof(fuse_getxattr_in);
+			return (in.header.opcode == FUSE_GETXATTR &&
+				in.header.nodeid == ino &&
+				0 == strcmp(attr, a));
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(r));
+}
+
 void FuseTest::expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 	uint64_t size, int times, uint64_t attr_valid, uid_t uid, gid_t gid)
 {

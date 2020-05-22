@@ -41,22 +41,6 @@ using namespace testing;
 
 class Unlink: public FuseTest {
 public:
-void expect_getattr(uint64_t ino, mode_t mode)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out.body.attr.attr.ino = ino;	// Must match nodeid
-		out.body.attr.attr.mode = mode;
-		out.body.attr.attr_valid = UINT64_MAX;
-	})));
-}
-
 void expect_lookup(const char *relpath, uint64_t ino, int times, int nlink=1)
 {
 	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
@@ -89,7 +73,6 @@ TEST_F(Unlink, attr_cache)
 	struct stat sb_old, sb_new;
 	int fd1;
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH0, ino, 1, 2);
 	expect_lookup(RELPATH1, ino, 1, 2);
 	expect_open(ino, 0, 1);
@@ -117,23 +100,32 @@ TEST_F(Unlink, parent_attr_cache)
 	const char RELPATH[] = "some_file.txt";
 	struct stat sb;
 	uint64_t ino = 42;
+	Sequence seq;
 
+	/* Use nlink=2 so we don't get a FUSE_FORGET */
+	expect_lookup(RELPATH, ino, 1, 2);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_UNLINK &&
+				0 == strcmp(RELPATH, in.body.unlink) &&
+				in.header.nodeid == FUSE_ROOT_ID);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(0)));
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
 				in.header.nodeid == FUSE_ROOT_ID);
 		}, Eq(true)),
 		_)
-	).Times(2)
+	).InSequence(seq)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.ino = FUSE_ROOT_ID;
 		out.body.attr.attr.mode = S_IFDIR | 0755;
 		out.body.attr.attr_valid = UINT64_MAX;
 	})));
-	/* Use nlink=2 so we don't get a FUSE_FORGET */
-	expect_lookup(RELPATH, ino, 1, 2);
-	expect_unlink(1, RELPATH, 0);
 
 	ASSERT_EQ(0, unlink(FULLPATH)) << strerror(errno);
 	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
@@ -145,7 +137,6 @@ TEST_F(Unlink, eperm)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 1);
 	expect_unlink(1, RELPATH, EPERM);
 
@@ -162,7 +153,6 @@ TEST_F(Unlink, entry_cache)
 	const char RELPATH[] = "some_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 2, 2);
 	expect_unlink(1, RELPATH, 0);
 
@@ -182,7 +172,6 @@ TEST_F(Unlink, multiply_linked)
 	const char RELPATH1[] = "other_file.txt";
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH0, ino, 1, 2);
 	expect_unlink(1, RELPATH0, 0);
 	EXPECT_CALL(*m_mock, process(
@@ -213,7 +202,6 @@ TEST_F(Unlink, ok)
 
 	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 1);
 	expect_unlink(1, RELPATH, 0);
 	expect_forget(ino, 1, &sem);
@@ -233,7 +221,6 @@ TEST_F(Unlink, open_but_deleted)
 	uint64_t ino = 42;
 	int fd;
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH0, ino, 2);
 	expect_open(ino, 0, 1);
 	expect_unlink(1, RELPATH0, 0);

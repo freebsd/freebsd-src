@@ -62,20 +62,6 @@ void* killer(void* target) {
 
 class Xattr: public FuseTest {
 public:
-void expect_getxattr(uint64_t ino, const char *attr, ProcessMockerT r)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			const char *a = (const char*)in.body.bytes +
-				sizeof(fuse_getxattr_in);
-			return (in.header.opcode == FUSE_GETXATTR &&
-				in.header.nodeid == ino &&
-				0 == strcmp(attr, a));
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(r));
-}
-
 void expect_listxattr(uint64_t ino, uint32_t size, ProcessMockerT r,
     Sequence *seq = NULL)
 {
