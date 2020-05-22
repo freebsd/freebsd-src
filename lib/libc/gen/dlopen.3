@@ -32,7 +32,7 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2019
+.Dd May 14, 2020
 .Dt DLOPEN 3
 .Os
 .Sh NAME
@@ -162,6 +162,9 @@ the process address space, otherwise
 is returned.
 Other mode flags may be specified, which will be applied for promotion
 for the found object.
+.It Dv RTLD_DEEPBIND
+Symbols from the loaded library are put before global symbols when
+resolving symbolic references originated from the library.
 .El
 .Pp
 If
