@@ -35,12 +35,7 @@ INCLUDES+= -I$S/contrib/libfdt
 # We set this value using --defsym rather than hardcoding it in ldscript.riscv
 # so that different kernel configs can override the load address.
 KERNEL_LMA?=	0x80200000
-
-SYSTEM_LD= @${LD} -N -m ${LD_EMULATION} -Bdynamic -T ${LDSCRIPT} ${_LDFLAGS} \
-	--no-warn-mismatch --warn-common --export-dynamic \
-	--defsym='kernel_lma=${KERNEL_LMA}' \
-	--dynamic-linker /red/herring \
-	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
+LDFLAGS+= --defsym='kernel_lma=${KERNEL_LMA}'
 
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -fno-optimize-sibling-calls
