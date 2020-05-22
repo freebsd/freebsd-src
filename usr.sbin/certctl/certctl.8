@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2019
+.Dd May 22, 2020
 .Dt CERTCTL 8
 .Os
 .Sh NAME
@@ -40,7 +40,9 @@
 .Op Fl v
 .Ic blacklisted
 .Nm
-.Op Fl nv
+.Op Fl nUv
+.Op Fl D Ar destdir
+.Op Fl M Ar metalog
 .Ic rehash
 .Nm
 .Op Fl nv
@@ -56,10 +58,17 @@ applications that use OpenSSL.
 .Pp
 Flags:
 .Bl -tag -width 4n
+.It Fl D Ar destdir
+Specify the DESTDIR (overriding values from the environment).
+.It Fl M Ar metalog
+Specify the path of the METALOG file (default: $DESTDIR/METALOG).
 .It Fl n
 No-Op mode, do not actually perform any actions.
 .It Fl v
 be verbose, print details about actions before performing them.
+.It Fl U
+Unprivileged mode, do not change the ownership of created links.
+Do record the ownership in the METALOG file.
 .El
 .Pp
 Primary command functions:
