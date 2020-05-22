@@ -4028,49 +4028,50 @@ rtld_dirname_abs(const char *path, char *base)
 static void
 linkmap_add(Obj_Entry *obj)
 {
-    struct link_map *l = &obj->linkmap;
-    struct link_map *prev;
+	struct link_map *l, *prev;
 
-    obj->linkmap.l_name = obj->path;
-    obj->linkmap.l_base = obj->mapbase;
-    obj->linkmap.l_ld = obj->dynamic;
-    obj->linkmap.l_addr = obj->relocbase;
+	l = &obj->linkmap;
+	l->l_name = obj->path;
+	l->l_base = obj->mapbase;
+	l->l_ld = obj->dynamic;
+	l->l_addr = obj->relocbase;
 
-    if (r_debug.r_map == NULL) {
-	r_debug.r_map = l;
-	return;
-    }
+	if (r_debug.r_map == NULL) {
+		r_debug.r_map = l;
+		return;
+	}
 
-    /*
-     * Scan to the end of the list, but not past the entry for the
-     * dynamic linker, which we want to keep at the very end.
-     */
-    for (prev = r_debug.r_map;
-      prev->l_next != NULL && prev->l_next != &obj_rtld.linkmap;
-      prev = prev->l_next)
-	;
+	/*
+	 * Scan to the end of the list, but not past the entry for the
+	 * dynamic linker, which we want to keep at the very end.
+	 */
+	for (prev = r_debug.r_map;
+	    prev->l_next != NULL && prev->l_next != &obj_rtld.linkmap;
+	     prev = prev->l_next)
+		;
 
-    /* Link in the new entry. */
-    l->l_prev = prev;
-    l->l_next = prev->l_next;
-    if (l->l_next != NULL)
-	l->l_next->l_prev = l;
-    prev->l_next = l;
+	/* Link in the new entry. */
+	l->l_prev = prev;
+	l->l_next = prev->l_next;
+	if (l->l_next != NULL)
+		l->l_next->l_prev = l;
+	prev->l_next = l;
 }
 
 static void
 linkmap_delete(Obj_Entry *obj)
 {
-    struct link_map *l = &obj->linkmap;
+	struct link_map *l;
 
-    if (l->l_prev == NULL) {
-	if ((r_debug.r_map = l->l_next) != NULL)
-	    l->l_next->l_prev = NULL;
-	return;
-    }
+	l = &obj->linkmap;
+	if (l->l_prev == NULL) {
+		if ((r_debug.r_map = l->l_next) != NULL)
+			l->l_next->l_prev = NULL;
+		return;
+	}
 
-    if ((l->l_prev->l_next = l->l_next) != NULL)
-	l->l_next->l_prev = l->l_prev;
+	if ((l->l_prev->l_next = l->l_next) != NULL)
+		l->l_next->l_prev = l->l_prev;
 }
 
 /*
