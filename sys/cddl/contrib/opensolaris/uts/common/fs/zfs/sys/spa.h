@@ -865,6 +865,8 @@ extern boolean_t spa_writeable(spa_t *spa);
 extern boolean_t spa_has_pending_synctask(spa_t *spa);
 extern int spa_maxblocksize(spa_t *spa);
 extern int spa_maxdnodesize(spa_t *spa);
+extern boolean_t spa_multihost(spa_t *spa);
+extern unsigned long spa_get_hostid(void);
 extern boolean_t spa_has_checkpoint(spa_t *spa);
 extern boolean_t spa_importing_readonly_checkpoint(spa_t *spa);
 extern boolean_t spa_suspend_async_destroy(spa_t *spa);

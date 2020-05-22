@@ -436,8 +436,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 		    spa->spa_comment);
 	}
 
-	hostid = zone_get_hostid(NULL);
-
+	hostid = spa_get_hostid();
 	if (hostid != 0) {
 		fnvlist_add_uint64(config, ZPOOL_CONFIG_HOSTID, hostid);
 	}

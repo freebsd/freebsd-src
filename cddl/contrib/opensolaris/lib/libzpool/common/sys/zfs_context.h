@@ -332,8 +332,11 @@ extern void cv_destroy(kcondvar_t *cv);
 extern void cv_wait(kcondvar_t *cv, kmutex_t *mp);
 extern int cv_wait_sig(kcondvar_t *cv, kmutex_t *mp);
 extern clock_t cv_timedwait(kcondvar_t *cv, kmutex_t *mp, clock_t abstime);
+#define	cv_timedwait_sig(cvp, mp, t)	cv_timedwait(cvp, mp, t)
 extern clock_t cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim,
     hrtime_t res, int flag);
+#define	cv_timedwait_sig_hires(cvp, mp, t, r, f) \
+    cv_timedwait_hires(cvp, mp, t, r, f)
 extern void cv_signal(kcondvar_t *cv);
 extern void cv_broadcast(kcondvar_t *cv);
 

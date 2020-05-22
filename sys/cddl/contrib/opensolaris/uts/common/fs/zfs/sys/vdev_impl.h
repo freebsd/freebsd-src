@@ -264,7 +264,7 @@ struct vdev {
 
 	/* pool checkpoint related */
 	space_map_t	*vdev_checkpoint_sm;	/* contains reserved blocks */
-	
+
 	boolean_t	vdev_initialize_exit_wanted;
 	vdev_initializing_state_t	vdev_initialize_state;
 	kthread_t	*vdev_initialize_thread;
@@ -374,6 +374,9 @@ struct vdev {
 	vdev_aux_t	vdev_label_aux;	/* on-disk aux state		*/
 	struct trim_map	*vdev_trimmap;	/* map on outstanding trims	*/ 
 	uint64_t	vdev_leaf_zap;
+	hrtime_t	vdev_mmp_pending; /* 0 if write finished	*/
+	uint64_t	vdev_mmp_kstat_id;	/* to find kstat entry */
+	list_node_t	vdev_leaf_node;		/* leaf vdev list */
 
 	/*
 	 * For DTrace to work in userland (libzpool) context, these fields must
@@ -394,6 +397,12 @@ struct vdev {
 #define	VDEV_SKIP_SIZE		VDEV_PAD_SIZE * 2
 #define	VDEV_PHYS_SIZE		(112 << 10)
 #define	VDEV_UBERBLOCK_RING	(128 << 10)
+
+/*
+ * MMP blocks occupy the last MMP_BLOCKS_PER_LABEL slots in the uberblock
+ * ring when MMP is enabled.
+ */
+#define	MMP_BLOCKS_PER_LABEL	1
 
 /* The largest uberblock we support is 8k. */
 #define	MAX_UBERBLOCK_SHIFT (13)

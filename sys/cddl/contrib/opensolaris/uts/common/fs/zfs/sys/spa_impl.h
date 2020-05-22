@@ -330,7 +330,7 @@ struct spa {
 	zio_t		*spa_txg_zio[TXG_SIZE]; /* spa_sync() waits for this */
 	kmutex_t	spa_suspend_lock;	/* protects suspend_zio_root */
 	kcondvar_t	spa_suspend_cv;		/* notification of resume */
-	uint8_t		spa_suspended;		/* pool is suspended */
+	zio_suspend_reason_t	spa_suspended;	/* pool is suspended */
 	uint8_t		spa_claiming;		/* pool is doing zil_claim() */
 	boolean_t	spa_is_root;		/* pool is root */
 	int		spa_minref;		/* num refs when first opened */
@@ -395,6 +395,11 @@ struct spa {
 	uint64_t	spa_lowmem_last_txg;	/* txg window start */
 
 	hrtime_t	spa_ccw_fail_time;	/* Conf cache write fail time */
+
+	uint64_t	spa_multihost;		/* multihost aware (mmp) */
+	mmp_thread_t	spa_mmp;		/* multihost mmp thread */
+	list_t		spa_leaf_list;		/* list of leaf vdevs */
+	uint64_t	spa_leaf_list_gen;	/* track leaf_list changes */
 
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements

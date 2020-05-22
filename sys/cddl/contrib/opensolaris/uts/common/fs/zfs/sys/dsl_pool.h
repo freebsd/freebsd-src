@@ -39,6 +39,7 @@
 #include <sys/bptree.h>
 #include <sys/rrwlock.h>
 #include <sys/dsl_synctask.h>
+#include <sys/mmp.h>
 
 #ifdef	__cplusplus
 extern "C" {

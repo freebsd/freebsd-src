@@ -50,6 +50,7 @@
 #include <sys/zfeature.h>
 #include <sys/zil_impl.h>
 #include <sys/dsl_userhold.h>
+#include <sys/mmp.h>
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
 #include <sys/types.h>
@@ -292,6 +293,7 @@ dsl_pool_open_impl(spa_t *spa, uint64_t txg)
 	dp->dp_meta_rootbp = *bp;
 	rrw_init(&dp->dp_config_rwlock, B_TRUE);
 	txg_init(dp, txg);
+	mmp_init(spa);
 
 	txg_list_create(&dp->dp_dirty_datasets, spa,
 	    offsetof(dsl_dataset_t, ds_dirty_link));
@@ -493,6 +495,7 @@ dsl_pool_close(dsl_pool_t *dp)
 	 */
 	arc_flush(dp->dp_spa, FALSE);
 
+	mmp_fini(dp->dp_spa);
 	txg_fini(dp);
 	dsl_scan_fini(dp);
 	dmu_buf_user_evict_wait();

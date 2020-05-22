@@ -26,6 +26,7 @@
 #include <sys/zfs_context.h>
 #include <sys/uberblock_impl.h>
 #include <sys/vdev_impl.h>
+#include <sys/mmp.h>
 
 int
 uberblock_verify(uberblock_t *ub)
@@ -44,7 +45,7 @@ uberblock_verify(uberblock_t *ub)
  * transaction group.
  */
 boolean_t
-uberblock_update(uberblock_t *ub, vdev_t *rvd, uint64_t txg)
+uberblock_update(uberblock_t *ub, vdev_t *rvd, uint64_t txg, uint64_t mmp_delay)
 {
 	ASSERT(ub->ub_txg < txg);
 
@@ -57,6 +58,16 @@ uberblock_update(uberblock_t *ub, vdev_t *rvd, uint64_t txg)
 	ub->ub_guid_sum = rvd->vdev_guid_sum;
 	ub->ub_timestamp = gethrestime_sec();
 	ub->ub_software_version = SPA_VERSION;
+	ub->ub_mmp_magic = MMP_MAGIC;
+	if (spa_multihost(rvd->vdev_spa)) {
+		ub->ub_mmp_delay = mmp_delay;
+		ub->ub_mmp_config = MMP_SEQ_SET(0) |
+		    MMP_INTERVAL_SET(zfs_multihost_interval) |
+		    MMP_FAIL_INT_SET(zfs_multihost_fail_intervals);
+	} else {
+		ub->ub_mmp_delay = 0;
+		ub->ub_mmp_config = 0;
+	}
 	ub->ub_checkpoint_txg = 0;
 
 	return (ub->ub_rootbp.blk_birth == txg);

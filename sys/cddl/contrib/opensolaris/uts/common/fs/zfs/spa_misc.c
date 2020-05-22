@@ -837,6 +837,9 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 		spa->spa_feat_refcount_cache[i] = SPA_FEATURE_DISABLED;
 	}
 
+	list_create(&spa->spa_leaf_list, sizeof (vdev_t),
+	    offsetof(vdev_t, vdev_leaf_node));
+
 	return (spa);
 }
 
@@ -881,6 +884,7 @@ spa_remove(spa_t *spa)
 	    sizeof (avl_tree_t));
 
 	list_destroy(&spa->spa_config_list);
+	list_destroy(&spa->spa_leaf_list);
 
 	nvlist_free(spa->spa_label_features);
 	nvlist_free(spa->spa_load_info);
@@ -1526,6 +1530,9 @@ spa_get_random(uint64_t range)
 
 	ASSERT(range != 0);
 
+	if (range == 1)
+		return (0);
+
 	(void) random_get_pseudo_bytes((void *)&r, sizeof (uint64_t));
 
 	return (r % range);
@@ -1855,7 +1862,7 @@ spa_get_failmode(spa_t *spa)
 boolean_t
 spa_suspended(spa_t *spa)
 {
-	return (spa->spa_suspended);
+	return (spa->spa_suspended != ZIO_SUSPEND_NONE);
 }
 
 uint64_t
@@ -2261,6 +2268,30 @@ spa_maxdnodesize(spa_t *spa)
 		return (DNODE_MAX_SIZE);
 	else
 		return (DNODE_MIN_SIZE);
+}
+
+boolean_t
+spa_multihost(spa_t *spa)
+{
+	return (spa->spa_multihost ? B_TRUE : B_FALSE);
+}
+
+unsigned long
+spa_get_hostid(void)
+{
+	unsigned long myhostid;
+
+#ifdef	_KERNEL
+	myhostid = zone_get_hostid(NULL);
+#else	/* _KERNEL */
+	/*
+	 * We're emulating the system's hostid in userland, so
+	 * we can't use zone_get_hostid().
+	 */
+	(void) ddi_strtoul(hw_serial, NULL, 10, &myhostid);
+#endif	/* _KERNEL */
+
+	return (myhostid);
 }
 
 /*
