@@ -3065,7 +3065,7 @@ ffs_fserr(fs, inum, cp)
  *	the count to zero will cause the inode to be freed.
  * adjblkcnt(inode, amt) - adjust the number of blocks used by the
  *	inode by the specified amount.
- * adjsize(inode, size) - set the size of the inode to the
+ * setsize(inode, size) - set the size of the inode to the
  *	specified size.
  * adjndir, adjbfree, adjifree, adjffree, adjnumclusters(amt) -
  *	adjust the superblock summary.
