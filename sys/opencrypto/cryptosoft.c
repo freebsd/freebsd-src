@@ -117,12 +117,16 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 
 	sw = &ses->swcr_encdec;
 	exf = sw->sw_exf;
-	blks = exf->blocksize;
 	ivlen = exf->ivsize;
 
-	/* Check for non-padded data */
-	if ((crp->crp_payload_length % blks) != 0)
-		return EINVAL;
+	if (exf->native_blocksize == 0) {
+		/* Check for non-padded data */
+		if ((crp->crp_payload_length % exf->blocksize) != 0)
+			return (EINVAL);
+
+		blks = exf->blocksize;
+	} else
+		blks = exf->native_blocksize;
 
 	if (exf == &enc_xform_aes_icm &&
 	    (crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
@@ -182,7 +186,7 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	i = crp->crp_payload_length;
 	encrypting = CRYPTO_OP_IS_ENCRYPT(crp->crp_op);
 
-	while (i > 0) {
+	while (i >= blks) {
 		/*
 		 * If there's insufficient data at the end of
 		 * an iovec, we have to do some copying.
@@ -249,31 +253,18 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 				break;
 		}
 
-		while (uio->uio_iov[ind].iov_len >= k + blks && i > 0) {
+		while (uio->uio_iov[ind].iov_len >= k + blks && i >= blks) {
 			uint8_t *idat;
-			size_t nb, rem;
 
-			nb = blks;
-			rem = MIN((size_t)i,
-			    uio->uio_iov[ind].iov_len - (size_t)k);
 			idat = (uint8_t *)uio->uio_iov[ind].iov_base + k;
 
 			if (exf->reinit) {
-				if (encrypting && exf->encrypt_multi == NULL)
+				if (encrypting)
 					exf->encrypt(sw->sw_kschedule,
 					    idat, idat);
-				else if (encrypting) {
-					nb = rounddown(rem, blks);
-					exf->encrypt_multi(sw->sw_kschedule,
-					    idat, idat, nb);
-				} else if (exf->decrypt_multi == NULL)
+				else
 					exf->decrypt(sw->sw_kschedule,
 					    idat, idat);
-				else {
-					nb = rounddown(rem, blks);
-					exf->decrypt_multi(sw->sw_kschedule,
-					    idat, idat, nb);
-				}
 			} else if (encrypting) {
 				/* XOR with previous block/IV */
 				for (j = 0; j < blks; j++)
@@ -298,9 +289,9 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 				ivp = nivp;
 			}
 
-			count += nb;
-			k += nb;
-			i -= nb;
+			count += blks;
+			k += blks;
+			i -= blks;
 		}
 
 		/*
@@ -317,6 +308,25 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 				goto out;
 			}
 		}
+	}
+
+	/* Handle trailing partial block for stream ciphers. */
+	if (i > 0) {
+		KASSERT(exf->native_blocksize != 0,
+		    ("%s: partial block of %d bytes for cipher %s",
+		    __func__, i, exf->name));
+		KASSERT(exf->reinit != NULL,
+		    ("%s: partial block cipher %s without reinit hook",
+		    __func__, exf->name));
+		KASSERT(i < blks, ("%s: partial block too big", __func__));
+
+		cuio_copydata(uio, count, i, blk);
+		if (encrypting) {
+			exf->encrypt_last(sw->sw_kschedule, blk, blk, i);
+		} else {
+			exf->decrypt_last(sw->sw_kschedule, blk, blk, i);
+		}
+		cuio_copyback(uio, count, i, blk);
 	}
 
 out:
@@ -512,6 +522,8 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	
 	swe = &ses->swcr_encdec;
 	exf = swe->sw_exf;
+	KASSERT(axf->blocksize == exf->native_blocksize,
+	    ("%s: blocksize mismatch", __func__));
 
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
@@ -665,6 +677,8 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	
 	swe = &ses->swcr_encdec;
 	exf = swe->sw_exf;
+	KASSERT(axf->blocksize == exf->native_blocksize,
+	    ("%s: blocksize mismatch", __func__));
 
 	if ((crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
