@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2012
+.Dd May 21, 2020
 .Dt IPFW 4
 .Os
 .Sh NAME
@@ -20,8 +20,14 @@ Other related kernel options
 which may also be useful are:
 .Bd -ragged -offset indent
 .Cd "options IPFIREWALL_DEFAULT_TO_ACCEPT"
+.Cd "options IPDIVERT"
+.Cd "options IPFIREWALL_NAT"
+.Cd "options IPFIREWALL_NAT64"
+.Cd "options IPFIREWALL_NPTV6"
+.Cd "options IPFIREWALL_PMOD"
 .Cd "options IPFIREWALL_VERBOSE"
 .Cd "options IPFIREWALL_VERBOSE_LIMIT=100"
+.Cd "options LIBALIAS"
 .Ed
 .Pp
 To load
@@ -57,6 +63,54 @@ If the default
 behavior is to allow everything, it is easier to cope with
 firewall-tuning mistakes which may accidentally block all traffic.
 .Pp
+When using
+.Xr natd 8
+in conjunction with
+.Nm
+as
+.Tn NAT
+facility, the kernel option
+.Dv IPDIVERT
+enables diverting packets to
+.Xr natd 8
+for translation.
+.Pp
+When using the in-kernel
+.Tn NAT
+facility of
+.Nm ,
+the kernel option
+.Dv IPFIREWALL_NAT
+enables basic
+.Xr libalias 3
+functionality in the kernel.
+.Pp
+When using any of the
+.Tn IPv4
+to
+.Tn IPv6
+transition mechanisms in
+.Nm ,
+the kernel option
+.Dv IPFIREWALL_NAT64
+enables all of these
+.Tn NAT64
+methods in the kernel.
+.Pp
+When using the
+.Tn IPv6
+network prefix translation facility of
+.Nm ,
+the kernel option
+.Dv IPFIREWALL_NPTV6
+enables this functionality in the kernel.
+.Pp
+When using the packet modification facility of
+.Nm ,
+the kernel option
+.Dv IPFIREWALL_PMOD
+enables this functionality in the kernel.
+.Pp
 To enable logging of packets passing through
 .Nm ,
 enable the
@@ -70,20 +124,39 @@ from flooding system logs or causing local Denial of Service.
 This option may be set to the number of packets which will be logged on
 a per-entry basis before the entry is rate-limited.
 .Pp
+When using the in-kernel
+.Tn NAT
+facility of
+.Nm ,
+the kernel option
+.Dv LIBALIAS
+enables full
+.Xr libalias 3
+functionality in the kernel.
+Full functionality refers to included support for cuseeme, ftp, bbt,
+skinny, irc, pptp and smedia packets, which are missing in the basic
+.Xr libalias 3
+functionality accomplished with the
+.Dv IPFIREWALL_NAT
+kernel option.
+.Pp
 The user interface for
 .Nm
 is implemented by the
 .Xr ipfw 8
 utility, so please refer to the
 .Xr ipfw 8
-manpage for a complete description of the
+man page for a complete description of the
 .Nm
 capabilities and how to use it.
 .Sh SEE ALSO
 .Xr setsockopt 2 ,
 .Xr divert 4 ,
 .Xr ip 4 ,
+.Xr ip6 4 ,
 .Xr ipfw 8 ,
+.Xr libalias 3 ,
+.Xr natd 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr pfil 9
