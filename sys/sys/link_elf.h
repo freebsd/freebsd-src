@@ -65,6 +65,7 @@ typedef struct link_map {
 	const void	*l_ld;			/* Pointer to .dynamic in memory */
 	struct link_map	*l_next, *l_prev;	/* linked list of of mapped libs */
 	caddr_t		l_addr;			/* Load Offset of library */
+	const char	*l_refname;		/* object we are filtering for */
 } Link_map;
 
 struct r_debug {
