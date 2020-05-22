@@ -573,6 +573,7 @@ acpi_iicbus_probe(device_t dev)
 	if (handle == NULL)
 		return (ENXIO);
 
+	device_set_desc(dev, "Philips I2C bus (ACPI-hinted)");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -581,8 +582,6 @@ acpi_iicbus_attach(device_t dev)
 {
 	struct acpi_iicbus_softc *sc = device_get_softc(dev);
 	int error;
-
-	device_set_desc(dev, "Philips I2C bus (ACPI-hinted)");
 
 	if (ACPI_FAILURE(acpi_iicbus_enumerate_children(dev)))
 		device_printf(dev, "children enumeration failed\n");
