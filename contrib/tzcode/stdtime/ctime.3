@@ -30,7 +30,7 @@
 .\"     From: @(#)ctime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 2, 1999
+.Dd May 22, 2020
 .Dt CTIME 3
 .Os
 .Sh NAME
@@ -266,17 +266,17 @@ External declarations as well as the tm structure definition are in the
 include file.
 The tm structure includes at least the following fields:
 .Bd -literal -offset indent
-int tm_sec;	/\(** seconds (0 - 60) \(**/
-int tm_min;	/\(** minutes (0 - 59) \(**/
-int tm_hour;	/\(** hours (0 - 23) \(**/
-int tm_mday;	/\(** day of month (1 - 31) \(**/
-int tm_mon;	/\(** month of year (0 - 11) \(**/
-int tm_year;	/\(** year \- 1900 \(**/
-int tm_wday;	/\(** day of week (Sunday = 0) \(**/
-int tm_yday;	/\(** day of year (0 - 365) \(**/
-int tm_isdst;	/\(** is summer time in effect? \(**/
-char \(**tm_zone;	/\(** abbreviation of timezone name \(**/
-long tm_gmtoff;	/\(** offset from UTC in seconds \(**/
+int tm_sec;	/* seconds (0 - 60) */
+int tm_min;	/* minutes (0 - 59) */
+int tm_hour;	/* hours (0 - 23) */
+int tm_mday;	/* day of month (1 - 31) */
+int tm_mon;	/* month of year (0 - 11) */
+int tm_year;	/* year \- 1900 */
+int tm_wday;	/* day of week (Sunday = 0) */
+int tm_yday;	/* day of year (0 - 365) */
+int tm_isdst;	/* is summer time in effect? */
+char *tm_zone;	/* abbreviation of timezone name */
+long tm_gmtoff;	/* offset from UTC in seconds */
 .Ed
 .Pp
 The
