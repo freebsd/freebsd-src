@@ -158,6 +158,7 @@ fuse_internal_get_cached_vnode(struct mount* mp, ino_t ino, int flags,
 	return 0;
 }
 
+SDT_PROBE_DEFINE0(fusefs, , internal, access_vadmin);
 /* Synchronously send a FUSE_ACCESS operation */
 int
 fuse_internal_access(struct vnode *vp,
@@ -210,10 +211,18 @@ fuse_internal_access(struct vnode *vp,
 		    va.va_gid, mode, cred, NULL);
 	}
 
+	if (mode & VADMIN) {
+		/*
+		 * The FUSE protocol doesn't have an equivalent of VADMIN, so
+		 * it's a bug if we ever reach this point with that bit set.
+		 */
+		SDT_PROBE0(fusefs, , internal, access_vadmin);
+	}
+
 	if (!fsess_isimpl(mp, FUSE_ACCESS))
 		return 0;
 
-	if ((mode & (VWRITE | VAPPEND | VADMIN)) != 0)
+	if ((mode & (VWRITE | VAPPEND)) != 0)
 		mask |= W_OK;
 	if ((mode & VREAD) != 0)
 		mask |= R_OK;

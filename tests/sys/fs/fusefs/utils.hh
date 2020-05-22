@@ -133,6 +133,12 @@ class FuseTest : public ::testing::Test {
 	void expect_getattr(uint64_t ino, uint64_t size);
 
 	/*
+	 * Create an expectation that FUSE_GETXATTR will be called once for the
+	 * given inode.
+	 */
+	void expect_getxattr(uint64_t ino, const char *attr, ProcessMockerT r);
+
+	/*
 	 * Create an expectation that FUSE_LOOKUP will be called for the given
 	 * path exactly times times and cache validity period.  It will respond
 	 * with inode ino, mode mode, filesize size.
