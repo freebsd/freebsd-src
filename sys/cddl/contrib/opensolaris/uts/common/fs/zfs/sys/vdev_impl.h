@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 #ifndef _SYS_VDEV_IMPL_H
@@ -149,6 +150,14 @@ struct vdev_queue {
 	uint64_t	vq_lastoffset;
 };
 
+typedef enum vdev_alloc_bias {
+	VDEV_BIAS_NONE,
+	VDEV_BIAS_LOG,		/* dedicated to ZIL data (SLOG) */
+	VDEV_BIAS_SPECIAL,	/* dedicated to ddt, metadata, and small blks */
+	VDEV_BIAS_DEDUP		/* dedicated to dedup metadata */
+} vdev_alloc_bias_t;
+
+
 /*
  * On-disk indirect vdev state.
  *
@@ -259,8 +268,8 @@ struct vdev {
 	uint64_t	vdev_islog;	/* is an intent log device	*/
 	uint64_t	vdev_removing;	/* device is being removed?	*/
 	boolean_t	vdev_ishole;	/* is a hole in the namespace	*/
-	kmutex_t	vdev_queue_lock; /* protects vdev_queue_depth	*/
 	uint64_t	vdev_top_zap;
+	vdev_alloc_bias_t vdev_alloc_bias; /* metaslab allocation bias	*/
 
 	/* pool checkpoint related */
 	space_map_t	*vdev_checkpoint_sm;	/* contains reserved blocks */
@@ -316,16 +325,6 @@ struct vdev {
 	kmutex_t	vdev_obsolete_lock;
 	range_tree_t	*vdev_obsolete_segments;
 	space_map_t	*vdev_obsolete_sm;
-
-	/*
-	 * The queue depth parameters determine how many async writes are
-	 * still pending (i.e. allocated but not yet issued to disk) per
-	 * top-level (vdev_async_write_queue_depth) and the maximum allowed
-	 * (vdev_max_async_write_queue_depth). These values only apply to
-	 * top-level vdevs.
-	 */
-	uint64_t	vdev_async_write_queue_depth;
-	uint64_t	vdev_max_async_write_queue_depth;
 
 	/*
 	 * Protects the vdev_scan_io_queue field itself as well as the

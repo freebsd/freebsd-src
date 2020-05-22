@@ -24,6 +24,8 @@
 .\" Copyright (c) 2012, 2017 by Delphix. All Rights Reserved.
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Datto Inc.
+.\" Copyright (c) 2017 George Melikov. All Rights Reserved.
+.\" Copyright 2019 Joyent, Inc.
 .\"
 .\" $FreeBSD$
 .\"
@@ -38,7 +40,7 @@
 .Op Fl \&?
 .Nm
 .Cm add
-.Op Fl fn
+.Op Fl fgLnP
 .Ar pool vdev ...
 .Nm
 .Cm attach
@@ -127,17 +129,19 @@
 .Op Ar device Ns ...
 .Nm
 .Cm iostat
-.Op Fl T Cm d Ns | Ns Cm u
 .Op Fl v
+.Op Fl T Cm d Ns | Ns Cm u
+.Op Fl gLP
 .Op Ar pool
 .Ar ...
+.Op Ar inverval Op Ar count
 .Nm
 .Cm labelclear
 .Op Fl f
 .Ar device
 .Nm
 .Cm list
-.Op Fl Hpv
+.Op Fl HgLpPv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
@@ -179,7 +183,7 @@
 .Ar property Ns = Ns Ar value pool
 .Nm
 .Cm split
-.Op Fl n
+.Op Fl gLnP
 .Op Fl R Ar altroot
 .Op Fl o Ar mntopts
 .Op Fl o Ar property Ns = Ns Ar value
@@ -187,7 +191,7 @@
 .Op Ar device ...
 .Nm
 .Cm status
-.Op Fl Dvx
+.Op Fl DgLPvx
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
 .Ar ...
@@ -320,11 +324,27 @@ types are not supported for the intent log. For more information,
 see the
 .Qq Sx Intent Log
 section.
+.It Sy dedup
+A device dedicated solely for allocating dedup data.
+The redundancy of this device should match the redundancy of the other normal
+devices in the pool.
+If more than one dedup device is specified, then allocations are load-balanced
+between devices.
+.It Sy special
+A device dedicated solely for allocating various kinds of internal metadata,
+and optionally small file data.
+The redundancy of this device should match the redundancy of the other normal
+devices in the pool.
+If more than one special device is specified, then allocations are
+load-balanced between devices.
+.Pp
+For more information on special allocations, see the
+.Sx Special Allocation Class
+section.
 .It Sy cache
-A device used to cache storage pool data. A cache device cannot be configured
-as a mirror or
-.No raidz
-group. For more information, see the
+A device used to cache storage pool data.
+A cache device cannot be configured as a mirror or raidz group.
+For more information, see the
 .Qq Sx Cache Devices
 section.
 .El
@@ -602,6 +622,31 @@ zfs properties) may be unenforceable while a checkpoint exists, because the
 checkpoint is allowed to consume the dataset's reservation.
 Finally, data that is part of the checkpoint but has been freed in the
 current state of the pool won't be scanned during a scrub.
+.Ss Special Allocation Class
+The allocations in the special class are dedicated to specific block types.
+By default this includes all metadata, the indirect blocks of user data, and
+any dedup data.
+The class can also be provisioned to accept a limited percentage of small file
+data blocks.
+.Pp
+A pool must always have at least one general (non-specified) vdev before
+other devices can be assigned to the special class.
+If the special class becomes full, then allocations intended for it will spill
+back into the normal class.
+.Pp
+Dedup data can be excluded from the special class by setting the
+.Sy vfs.zfs.ddt_data_is_special
+sysctl to false (0).
+.Pp
+Inclusion of small file blocks in the special class is opt-in.
+Each dataset can control the size of small file blocks allowed in the special
+class by setting the
+.Sy special_small_blocks
+dataset property.
+It defaults to zero so you must opt-in by setting it to a non-zero value.
+See
+.Xr zfs 1M
+for more info on setting this property.
 .Ss Properties
 Each pool has several properties associated with it. Some properties are
 read-only statistics while others are configurable and change the behavior of
@@ -872,7 +917,7 @@ Displays a help message.
 .It Xo
 .Nm
 .Cm add
-.Op Fl fn
+.Op Fl fgLnP
 .Ar pool vdev ...
 .Xc
 .Pp
@@ -891,11 +936,30 @@ Forces use of
 .Ar vdev ,
 even if they appear in use or specify a conflicting replication level.
 Not all devices can be overridden in this manner.
+.It Fl g
+Display
+.Ar vdev ,
+GUIDs instead of the normal device names.
+These GUIDs can be used in place of
+device names for the zpool detach/offline/remove/replace commands.
+.It Fl L
+Display real paths for
+.Ar vdev Ns s
+resolving all symbolic links.
+This can be used to look up the current block
+device name regardless of the /dev/disk/ path used to open it.
 .It Fl n
 Displays the configuration that would be used without actually adding the
 .Ar vdev Ns s.
-The actual pool creation can still fail due to insufficient privileges or device
-sharing.
+The actual pool creation can still fail due to insufficient privileges or
+device sharing.
+.It Fl P
+Display real paths for
+.Ar vdev Ns s
+instead of only the last component of the path.
+This can be used in conjunction with the
+.Fl L
+flag.
 .El
 .It Xo
 .Nm
@@ -1512,7 +1576,7 @@ with no flags on the relevant target devices.
 .Nm
 .Cm iostat
 .Op Fl T Cm d Ns | Ns Cm u
-.Op Fl v
+.Op Fl gLPv
 .Op Ar pool
 .Ar ...
 .Op Ar interval Op Ar count
@@ -1544,10 +1608,25 @@ Use modifier
 .Cm u
 for unixtime
 .Pq equals Qq Ic date +%s .
+.It Fl g
+Display vdev GUIDs instead of the normal device names.
+These GUIDs can be used in place of device names for the zpool
+detach/offline/remove/replace commands.
+.It Fl L
+Display real paths for vdevs resolving all symbolic links.
+This can be used to look up the current block device name regardless of the
+.Pa /dev/disk/
+path used to open it.
+.It Fl P
+Display full paths for vdevs instead of only the last component of
+the path.
+This can be used in conjunction with the
+.Fl L
+flag.
 .It Fl v
-Verbose statistics. Reports usage statistics for individual
-.No vdev Ns s
-within the pool, in addition to the pool-wide statistics.
+Verbose statistics.
+Reports usage statistics for individual vdevs within the
+pool, in addition to the pool-wide statistics.
 .El
 .It Xo
 .Nm
@@ -1570,7 +1649,7 @@ Treat exported or foreign devices as inactive.
 .It Xo
 .Nm
 .Cm list
-.Op Fl Hpv
+.Op Fl HgLpPv
 .Op Fl o Ar property Ns Op , Ns Ar ...
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
@@ -1603,11 +1682,27 @@ Use modifier
 .Cm u
 for unixtime
 .Pq equals Qq Ic date +%s .
+.It Fl g
+Display vdev GUIDs instead of the normal device names.
+These GUIDs can be used in place of device names for the zpool
+detach/offline/remove/replace commands.
 .It Fl H
 Scripted mode. Do not display headers, and separate fields by a single tab
 instead of arbitrary space.
+.It Fl L
+Display real paths for vdevs resolving all symbolic links.
+This can be used to look up the current block device name regardless of the
+/dev/disk/ path used to open it.
 .It Fl p
-Display numbers in parsable (exact) values.
+Display numbers in parsable
+.Pq exact
+values.
+.It Fl P
+Display full paths for vdevs instead of only the last component of
+the path.
+This can be used in conjunction with the
+.Fl L
+flag.
 .It Fl v
 Verbose statistics. Reports usage statistics for individual
 .Em vdevs
@@ -1702,7 +1797,7 @@ the background.
 The removal progress can be monitored with
 .Nm zpool Cm status.
 This feature must be enabled to be used, see
-.Xr zpool-features 5
+.Xr zpool-features 7
 .Pp
 A mirrored top-level device (log or data) can be removed by specifying the
 top-level mirror for the same.
@@ -1844,7 +1939,7 @@ values.
 .It Xo
 .Nm
 .Cm split
-.Op Fl n
+.Op Fl gLnP
 .Op Fl R Ar altroot
 .Op Fl o Ar mntopts
 .Op Fl o Ar property Ns = Ns Ar value
@@ -1884,6 +1979,15 @@ parameter for the new pool's alternate root. See the
 description in the
 .Qq Sx Properties
 section, above.
+.It Fl g
+Display vdev GUIDs instead of the normal device names.
+These GUIDs can be used in place of device names for the zpool
+detach/offline/remove/replace commands.
+.It Fl L
+Display real paths for vdevs resolving all symbolic links.
+This can be used to look up the current block device name regardless of the
+.Pa /dev/disk/
+path used to open it.
 .It Fl n
 Displays the configuration that would be created without actually splitting the
 pool. The actual pool split could still fail due to insufficient privileges or
@@ -1900,11 +2004,17 @@ option.
 Sets the specified property on the new pool. See the
 .Qq Sx Properties
 section, above, for more information on the available pool properties.
+.It Fl P
+Display full paths for vdevs instead of only the last component of
+the path.
+This can be used in conjunction with the
+.Fl L
+flag.
 .El
 .It Xo
 .Nm
 .Cm status
-.Op Fl Dvx
+.Op Fl DgLPvx
 .Op Fl T Cm d Ns | Ns Cm u
 .Op Ar pool
 .Ar ...
@@ -1939,6 +2049,21 @@ Display a histogram of deduplication statistics, showing the allocated
 and referenced
 .Pq logically referenced in the pool
 block counts and sizes by reference count.
+.It Fl g
+Display vdev GUIDs instead of the normal device names.
+These GUIDs can be used in place of device names for the zpool
+detach/offline/remove/replace commands.
+.It Fl L
+Display real paths for vdevs resolving all symbolic links.
+This can be used to look up the current block device name regardless of the
+.Pa /dev/disk/
+path used to open it.
+.It Fl P
+Display full paths for vdevs instead of only the last component of
+the path.
+This can be used in conjunction with the
+.Fl L
+flag.
 .It Fl T Cm d Ns | Ns Cm u
 Print a timestamp.
 .Pp
@@ -2029,6 +2154,30 @@ Successful completion.
 An error occurred.
 .It 2
 Invalid command line options were specified.
+.El
+.Sh ENVIRONMENT VARIABLES
+.Bl -tag -width "ZPOOL_VDEV_NAME_FOLLOW_LINKS"
+.It Ev ZPOOL_VDEV_NAME_GUID
+Cause
+.Nm zpool
+subcommands to output vdev guids by default.
+This behavior is identical to the
+.Nm zpool status -g
+command line option.
+.It Ev ZPOOL_VDEV_NAME_FOLLOW_LINKS
+Cause
+.Nm zpool
+subcommands to follow links for vdev names by default.
+This behavior is identical to the
+.Nm zpool status -L
+command line option.
+.It Ev ZPOOL_VDEV_NAME_PATH
+Cause
+.Nm zpool
+subcommands to output full vdev path names by default.
+This behavior is identical to the
+.Nm zpool status -P
+command line option.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n

@@ -283,15 +283,8 @@ vdev_remove_initiate_sync(void *arg, dmu_tx_t *tx)
 		if (ms->ms_sm == NULL)
 			continue;
 
-		/*
-		 * Sync tasks happen before metaslab_sync(), therefore
-		 * smp_alloc and sm_alloc must be the same.
-		 */
-		ASSERT3U(space_map_allocated(ms->ms_sm), ==,
-		    ms->ms_sm->sm_phys->smp_alloc);
-
 		spa->spa_removing_phys.sr_to_copy +=
-		    space_map_allocated(ms->ms_sm);
+		    metaslab_allocated_space(ms);
 
 		/*
 		 * Space which we are freeing this txg does not need to
@@ -950,14 +943,17 @@ spa_vdev_copy_segment(vdev_t *vd, range_tree_t *segs,
 	ASSERT3U(size, <=, maxalloc);
 
 	/*
-	 * We use allocator 0 for this I/O because we don't expect device remap
-	 * to be the steady state of the system, so parallelizing is not as
-	 * critical as it is for other allocation types. We also want to ensure
-	 * that the IOs are allocated together as much as possible, to reduce
-	 * mapping sizes.
+	 * An allocation class might not have any remaining vdevs or space
 	 */
-	int error = metaslab_alloc_dva(spa, mg->mg_class, size,
-	    &dst, 0, NULL, txg, 0, zal, 0);
+	metaslab_class_t *mc = mg->mg_class;
+	if (mc != spa_normal_class(spa) && mc->mc_groups <= 1)
+		mc = spa_normal_class(spa);
+	int error = metaslab_alloc_dva(spa, mc, size, &dst, 0, NULL, txg, 0,
+	    zal, 0);
+	if (error == ENOSPC && mc != spa_normal_class(spa)) {
+		error = metaslab_alloc_dva(spa, spa_normal_class(spa), size,
+		    &dst, 0, NULL, txg, 0, zal, 0);
+	}
 	if (error != 0)
 		return (error);
 
@@ -1398,22 +1394,8 @@ spa_vdev_remove_thread(void *arg)
 		 * appropriate action (see free_from_removing_vdev()).
 		 */
 		if (msp->ms_sm != NULL) {
-			space_map_t *sm = NULL;
-
-			/*
-			 * We have to open a new space map here, because
-			 * ms_sm's sm_length and sm_alloc may not reflect
-			 * what's in the object contents, if we are in between
-			 * metaslab_sync() and metaslab_sync_done().
-			 */
-			VERIFY0(space_map_open(&sm,
-			    spa->spa_dsl_pool->dp_meta_objset,
-			    msp->ms_sm->sm_object, msp->ms_sm->sm_start,
-			    msp->ms_sm->sm_size, msp->ms_sm->sm_shift));
-			space_map_update(sm);
-			VERIFY0(space_map_load(sm, svr->svr_allocd_segs,
-			    SM_ALLOC));
-			space_map_close(sm);
+			VERIFY0(space_map_load(msp->ms_sm,
+			    svr->svr_allocd_segs, SM_ALLOC));
 
 			range_tree_walk(msp->ms_freeing,
 			    range_tree_remove, svr->svr_allocd_segs);
@@ -1609,16 +1591,6 @@ spa_vdev_remove_cancel_sync(void *arg, dmu_tx_t *tx)
 		ASSERT0(range_tree_space(msp->ms_freed));
 
 		if (msp->ms_sm != NULL) {
-			/*
-			 * Assert that the in-core spacemap has the same
-			 * length as the on-disk one, so we can use the
-			 * existing in-core spacemap to load it from disk.
-			 */
-			ASSERT3U(msp->ms_sm->sm_alloc, ==,
-			    msp->ms_sm->sm_phys->smp_alloc);
-			ASSERT3U(msp->ms_sm->sm_length, ==,
-			    msp->ms_sm->sm_phys->smp_objsize);
-
 			mutex_enter(&svr->svr_lock);
 			VERIFY0(space_map_load(msp->ms_sm,
 			    svr->svr_allocd_segs, SM_ALLOC));
@@ -1711,9 +1683,6 @@ spa_vdev_remove_cancel(spa_t *spa)
 	return (error);
 }
 
-/*
- * Called every sync pass of every txg if there's a svr.
- */
 void
 svr_sync(spa_t *spa, dmu_tx_t *tx)
 {
@@ -1777,6 +1746,7 @@ spa_vdev_remove_log(vdev_t *vd, uint64_t *txg)
 
 	ASSERT(vd->vdev_islog);
 	ASSERT(vd == vd->vdev_top);
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
 
 	/*
 	 * Stop allocating from this vdev.
@@ -1791,15 +1761,14 @@ spa_vdev_remove_log(vdev_t *vd, uint64_t *txg)
 	    *txg + TXG_CONCURRENT_STATES + TXG_DEFER_SIZE, 0, FTAG);
 
 	/*
-	 * Evacuate the device.  We don't hold the config lock as writer
-	 * since we need to do I/O but we do keep the
+	 * Evacuate the device.  We don't hold the config lock as
+	 * writer since we need to do I/O but we do keep the
 	 * spa_namespace_lock held.  Once this completes the device
 	 * should no longer have any blocks allocated on it.
 	 */
-	if (vd->vdev_islog) {
-		if (vd->vdev_stat.vs_alloc != 0)
-			error = spa_reset_logs(spa);
-	}
+	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	if (vd->vdev_stat.vs_alloc != 0)
+		error = spa_reset_logs(spa);
 
 	*txg = spa_vdev_config_enter(spa);
 
@@ -1817,6 +1786,8 @@ spa_vdev_remove_log(vdev_t *vd, uint64_t *txg)
 
 	vdev_dirty_leaves(vd, VDD_DTL, *txg);
 	vdev_config_dirty(vd);
+
+	vdev_metaslab_fini(vd);
 
 	spa_history_log_internal(spa, "vdev remove", NULL,
 	    "%s vdev %llu (log) %s", spa_name(spa), vd->vdev_id,
@@ -1847,6 +1818,8 @@ spa_vdev_remove_log(vdev_t *vd, uint64_t *txg)
 	if (list_link_active(&vd->vdev_config_dirty_node))
 		vdev_config_clean(vd);
 
+	ASSERT0(vd->vdev_stat.vs_alloc);
+
 	/*
 	 * Clean up the vdev namespace.
 	 */
@@ -1869,15 +1842,31 @@ spa_vdev_remove_top_check(vdev_t *vd)
 	if (!spa_feature_is_enabled(spa, SPA_FEATURE_DEVICE_REMOVAL))
 		return (SET_ERROR(ENOTSUP));
 
+	/* available space in the pool's normal class */
+	uint64_t available = dsl_dir_space_available(
+	    spa->spa_dsl_pool->dp_root_dir, NULL, 0, B_TRUE);
+
+	metaslab_class_t *mc = vd->vdev_mg->mg_class;
+
+	/*
+	 * When removing a vdev from an allocation class that has
+	 * remaining vdevs, include available space from the class.
+	 */
+	if (mc != spa_normal_class(spa) && mc->mc_groups > 1) {
+		uint64_t class_avail = metaslab_class_get_space(mc) -
+		    metaslab_class_get_alloc(mc);
+
+		/* add class space, adjusted for overhead */
+		available += (class_avail * 94) / 100;
+	}
+
 	/*
 	 * There has to be enough free space to remove the
 	 * device and leave double the "slop" space (i.e. we
 	 * must leave at least 3% of the pool free, in addition to
 	 * the normal slop space).
 	 */
-	if (dsl_dir_space_available(spa->spa_dsl_pool->dp_root_dir,
-	    NULL, 0, B_TRUE) <
-	    vd->vdev_stat.vs_dspace + spa_get_slop_space(spa)) {
+	if (available < vd->vdev_stat.vs_dspace + spa_get_slop_space(spa)) {
 		return (SET_ERROR(ENOSPC));
 	}
 

@@ -26,6 +26,7 @@
  * Copyright 2016 Nexenta Systems, Inc.
  * Copyright 2016 Igor Kozhukhov <ikozhukhov@gmail.com>
  * Copyright (c) 2017 Datto Inc.
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 #include <sys/types.h>
@@ -1126,6 +1127,30 @@ zpool_get_state(zpool_handle_t *zhp)
 }
 
 /*
+ * Check if vdev list contains a special vdev
+ */
+static boolean_t
+zpool_has_special_vdev(nvlist_t *nvroot)
+{
+	nvlist_t **child;
+	uint_t children;
+
+	if (nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN, &child,
+	    &children) == 0) {
+		for (uint_t c = 0; c < children; c++) {
+			char *bias;
+
+			if (nvlist_lookup_string(child[c],
+			    ZPOOL_CONFIG_ALLOCATION_BIAS, &bias) == 0 &&
+			    strcmp(bias, VDEV_ALLOC_BIAS_SPECIAL) == 0) {
+				return (B_TRUE);
+			}
+		}
+	}
+	return (B_FALSE);
+}
+
+/*
  * Create the named pool, using the provided vdev list.  It is assumed
  * that the consumer has already validated the contents of the nvlist, so we
  * don't have to worry about error semantics.
@@ -1170,6 +1195,17 @@ zpool_create(libzfs_handle_t *hdl, const char *pool, nvlist_t *nvroot,
 		    fsprops, zoned, NULL, NULL, msg)) == NULL) {
 			goto create_failed;
 		}
+
+		if (nvlist_exists(zc_fsprops,
+		    zfs_prop_to_name(ZFS_PROP_SPECIAL_SMALL_BLOCKS)) &&
+		    !zpool_has_special_vdev(nvroot)) {
+			zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
+			    "%s property requires a special vdev"),
+			    zfs_prop_to_name(ZFS_PROP_SPECIAL_SMALL_BLOCKS));
+			(void) zfs_error(hdl, EZFS_BADPROP, msg);
+			goto create_failed;
+		}
+
 		if (!zc_props &&
 		    (nvlist_alloc(&zc_props, NV_UNIQUE_NAME, 0) != 0)) {
 			goto create_failed;
@@ -1694,7 +1730,7 @@ print_vdev_tree(libzfs_handle_t *hdl, const char *name, nvlist_t *nv,
 		return;
 
 	for (c = 0; c < children; c++) {
-		vname = zpool_vdev_name(hdl, NULL, child[c], B_TRUE);
+		vname = zpool_vdev_name(hdl, NULL, child[c], VDEV_NAME_TYPE_ID);
 		print_vdev_tree(hdl, vname, child[c], indent + 2);
 		free(vname);
 	}
@@ -2892,7 +2928,7 @@ zpool_vdev_attach(zpool_handle_t *zhp,
 	verify(nvlist_lookup_nvlist(zpool_get_config(zhp, NULL),
 	    ZPOOL_CONFIG_VDEV_TREE, &config_root) == 0);
 
-	if ((newname = zpool_vdev_name(NULL, NULL, child[0], B_FALSE)) == NULL)
+	if ((newname = zpool_vdev_name(NULL, NULL, child[0], 0)) == NULL)
 		return (-1);
 
 	/*
@@ -3093,11 +3129,11 @@ find_vdev_entry(zpool_handle_t *zhp, nvlist_t **mchild, uint_t mchildren,
 	for (mc = 0; mc < mchildren; mc++) {
 		uint_t sc;
 		char *mpath = zpool_vdev_name(zhp->zpool_hdl, zhp,
-		    mchild[mc], B_FALSE);
+		    mchild[mc], 0);
 
 		for (sc = 0; sc < schildren; sc++) {
 			char *spath = zpool_vdev_name(zhp->zpool_hdl, zhp,
-			    schild[sc], B_FALSE);
+			    schild[sc], 0);
 			boolean_t result = (strcmp(mpath, spath) == 0);
 
 			free(spath);
@@ -3685,15 +3721,30 @@ set_path(zpool_handle_t *zhp, nvlist_t *nv, const char *path)
  */
 char *
 zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
-    boolean_t verbose)
+    int name_flags)
 {
-	char *path, *devid;
+	char *path, *devid, *env;
 	uint64_t value;
 	char buf[64];
 	vdev_stat_t *vs;
 	uint_t vsc;
 	int have_stats;
 	int have_path;
+
+	env = getenv("ZPOOL_VDEV_NAME_PATH");
+	if (env && (strtoul(env, NULL, 0) > 0 ||
+	    !strncasecmp(env, "YES", 3) || !strncasecmp(env, "ON", 2)))
+		name_flags |= VDEV_NAME_PATH;
+
+	env = getenv("ZPOOL_VDEV_NAME_GUID");
+	if (env && (strtoul(env, NULL, 0) > 0 ||
+	    !strncasecmp(env, "YES", 3) || !strncasecmp(env, "ON", 2)))
+		name_flags |= VDEV_NAME_GUID;
+
+	env = getenv("ZPOOL_VDEV_NAME_FOLLOW_LINKS");
+	if (env && (strtoul(env, NULL, 0) > 0 ||
+	    !strncasecmp(env, "YES", 3) || !strncasecmp(env, "ON", 2)))
+		name_flags |= VDEV_NAME_FOLLOW_LINKS;
 
 	have_stats = nvlist_lookup_uint64_array(nv, ZPOOL_CONFIG_VDEV_STATS,
 	    (uint64_t **)&vs, &vsc) == 0;
@@ -3704,11 +3755,10 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 	 * come back at the same device path.  Display the device by GUID.
 	 */
 	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT, &value) == 0 ||
+	    (name_flags & VDEV_NAME_GUID) != 0 ||
 	    have_path && have_stats && vs->vs_state <= VDEV_STATE_CANT_OPEN) {
-		verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID,
-		    &value) == 0);
-		(void) snprintf(buf, sizeof (buf), "%llu",
-		    (u_longlong_t)value);
+		nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &value);
+		(void) snprintf(buf, sizeof (buf), "%llu", (u_longlong_t)value);
 		path = buf;
 	} else if (have_path) {
 
@@ -3750,11 +3800,23 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		}
 
 #ifdef illumos
+		if (name_flags & VDEV_NAME_FOLLOW_LINKS) {
+			char *rp = realpath(path, NULL);
+			if (rp) {
+				strlcpy(buf, rp, sizeof (buf));
+				path = buf;
+				free(rp);
+			}
+		}
+
 		if (strncmp(path, ZFS_DISK_ROOTD, strlen(ZFS_DISK_ROOTD)) == 0)
 			path += strlen(ZFS_DISK_ROOTD);
 
-		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_WHOLE_DISK,
-		    &value) == 0 && value) {
+		/*
+		 * Remove the partition from the path it this is a whole disk.
+		 */
+		if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_WHOLE_DISK, &value)
+		    == 0 && value && !(name_flags & VDEV_NAME_PATH)) {
 			int pathlen = strlen(path);
 			char *tmp = zfs_strdup(hdl, path);
 
@@ -3798,7 +3860,7 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		 * We identify each top-level vdev by using a <type-id>
 		 * naming convention.
 		 */
-		if (verbose) {
+		if (name_flags & VDEV_NAME_TYPE_ID) {
 			uint64_t id;
 
 			verify(nvlist_lookup_uint64(nv, ZPOOL_CONFIG_ID,

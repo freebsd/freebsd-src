@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2017, Intel Corporation.
  */
 
 #ifndef _SYS_METASLAB_H
@@ -51,17 +52,24 @@ void metaslab_fini(metaslab_t *);
 int metaslab_load(metaslab_t *);
 void metaslab_unload(metaslab_t *);
 
+uint64_t metaslab_allocated_space(metaslab_t *);
+
 void metaslab_sync(metaslab_t *, uint64_t);
 void metaslab_sync_done(metaslab_t *, uint64_t);
 void metaslab_sync_reassess(metaslab_group_t *);
 uint64_t metaslab_block_maxsize(metaslab_t *);
 
+/*
+ * metaslab alloc flags
+ */
 #define	METASLAB_HINTBP_FAVOR		0x0
 #define	METASLAB_HINTBP_AVOID		0x1
 #define	METASLAB_GANG_HEADER		0x2
 #define	METASLAB_GANG_CHILD		0x4
 #define	METASLAB_ASYNC_ALLOC		0x8
 #define	METASLAB_DONT_THROTTLE		0x10
+#define	METASLAB_MUST_RESERVE		0x20
+#define	METASLAB_FASTWRITE		0x40
 
 int metaslab_alloc(spa_t *, metaslab_class_t *, uint64_t,
     blkptr_t *, int, uint64_t, blkptr_t *, int, zio_alloc_list_t *, zio_t *,
@@ -92,8 +100,6 @@ boolean_t metaslab_class_throttle_reserve(metaslab_class_t *, int, int,
     zio_t *, int);
 void metaslab_class_throttle_unreserve(metaslab_class_t *, int, int, zio_t *);
 
-void metaslab_class_space_update(metaslab_class_t *, int64_t, int64_t,
-    int64_t, int64_t);
 uint64_t metaslab_class_get_alloc(metaslab_class_t *);
 uint64_t metaslab_class_get_space(metaslab_class_t *);
 uint64_t metaslab_class_get_dspace(metaslab_class_t *);
@@ -112,6 +118,7 @@ void metaslab_group_histogram_remove(metaslab_group_t *, metaslab_t *);
 void metaslab_group_alloc_decrement(spa_t *, uint64_t, void *, int, int,
     boolean_t);
 void metaslab_group_alloc_verify(spa_t *, const blkptr_t *, void *, int);
+void metaslab_recalculate_weight_and_sort(metaslab_t *);
 
 #ifdef	__cplusplus
 }

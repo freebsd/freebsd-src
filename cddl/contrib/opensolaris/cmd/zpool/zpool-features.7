@@ -632,6 +632,25 @@ and will return to being
 once all filesystems that have ever had their checksum set to
 .Sy skein
 are destroyed.
+.It Sy allocation_classes
+.Bl -column "READ\-ONLY COMPATIBLE" "com.intel:allocation_classes"
+.It GUID Ta com.intel:allocation_classes
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature enables support for separate allocation classes.
+.Pp
+This feature becomes
+.Sy active
+when a dedicated allocation class vdev
+(dedup or special) is created with
+.Dq zpool create
+or
+.Dq zpool add .
+With device removal, it can be returned to the
+.Sy enabled
+state if all the top-level vdevs from an allocation class are removed.
 .El
 .Sh SEE ALSO
 .Xr zpool 8
