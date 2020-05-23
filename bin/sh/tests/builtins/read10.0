@@ -1,0 +1,8 @@
+
+set -e
+
+v=original_value
+r=0
+read v < /dev/null || r=$?
+[ "$r" -eq 1 ]
+[ -z "$v" ]

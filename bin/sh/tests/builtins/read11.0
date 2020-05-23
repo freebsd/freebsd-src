@@ -1,0 +1,17 @@
+
+set -e
+
+T=$(mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXX)
+trap 'rm -rf "$T"' 0
+cd $T
+mkfifo fifo1
+# Open fifo1 for writing and then read block on a dummy fifo
+{ mkfifo fifo2; read dummy <fifo2; } >fifo1 &
+# Wait for the child to open fifo1 for writing
+exec 3<fifo1
+v=original_value
+r=0
+read -t 0 v <&3 || r=$?
+kill -TERM "$!" || :
+{ [ "$r" -gt 128 ] && [ "$(kill -l "$r")" = ALRM ]; } || exit
+[ -z "$v" ]
