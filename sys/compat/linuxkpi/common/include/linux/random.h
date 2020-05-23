@@ -62,4 +62,10 @@ get_random_long(void)
 	return (val);
 }
 
+static inline u32
+prandom_u32_max(u32 max)
+{
+	return (arc4random_uniform(max));
+}
+
 #endif /* _LINUX_RANDOM_H_ */
