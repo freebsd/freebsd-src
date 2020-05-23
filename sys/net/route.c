@@ -120,9 +120,6 @@ VNET_PCPUSTAT_SYSUNINIT(rtstat);
 VNET_DEFINE(struct rib_head *, rt_tables);
 #define	V_rt_tables	VNET(rt_tables)
 
-VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
-#define	V_rttrash	VNET(rttrash)
-
 
 /*
  * Convert a 'struct radix_node *' to a 'struct rtentry *'.
@@ -148,6 +145,7 @@ static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,
 static struct rtentry *rt_unlinkrte(struct rib_head *rnh,
     struct rt_addrinfo *info, int *perror);
 static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
+static void destroy_rtentry_epoch(epoch_context_t ctx);
 #ifdef RADIX_MPATH
 static struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
     struct rt_addrinfo *info, struct rtentry *rto, int *perror);
@@ -332,6 +330,16 @@ vnet_route_uninit(const void *unused __unused)
 		}
 	}
 
+	/*
+	 * dom_rtdetach calls rt_table_destroy(), which
+	 *  schedules deletion for all rtentries, nexthops and control
+	 *  structures. Wait for the destruction callbacks to fire.
+	 * Note that this should result in freeing all rtentries, but
+	 *  nexthops deletions will be scheduled for the next epoch run
+	 *  and will be completed after vnet teardown.
+	 */
+	epoch_drain_callbacks(net_epoch_preempt);
+
 	free(V_rt_tables, M_RTABLE);
 	uma_zdestroy(V_rtzone);
 }
@@ -449,41 +457,54 @@ rtfree(struct rtentry *rt)
 	if ((rt->rt_flags & RTF_UP) == 0) {
 		if (rt->rt_nodes->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic("rtfree 2");
-		/*
-		 * the rtentry must have been removed from the routing table
-		 * so it is represented in rttrash.. remove that now.
-		 */
-		V_rttrash--;
 #ifdef	DIAGNOSTIC
 		if (rt->rt_refcnt < 0) {
 			printf("rtfree: %p not freed (neg refs)\n", rt);
 			goto done;
 		}
 #endif
-
-		/* Unreference nexthop */
-		nhop_free(rt->rt_nhop);
+		epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
+		    &rt->rt_epoch_ctx);
 
 		/*
-		 * and the rtentry itself of course
+		 * FALLTHROUGH to RT_UNLOCK() so the reporting functions
+		 * have consistent behaviour of operating on unlocked entry.
 		 */
-		uma_zfree(V_rtzone, rt);
-		return;
 	}
 done:
 	RT_UNLOCK(rt);
 }
 
-/*
- * Temporary RTFREE() function wrapper.
- *  Intended to use in control plane code to
- *  avoid exposing internal layout of 'struct rtentry'.
- */
-void
-rtfree_func(struct rtentry *rt)
+static void
+destroy_rtentry(struct rtentry *rt)
 {
 
-	RTFREE(rt);
+	/*
+	 * At this moment rnh, nh_control may be already freed.
+	 * nhop interface may have been migrated to a different vnet.
+	 * Use vnet stored in the nexthop to delete the entry.
+	 */
+	CURVNET_SET(nhop_get_vnet(rt->rt_nhop));
+
+	/* Unreference nexthop */
+	nhop_free(rt->rt_nhop);
+
+	uma_zfree(V_rtzone, rt);
+
+	CURVNET_RESTORE();
+}
+
+/*
+ * Epoch callback indicating rtentry is safe to destroy
+ */
+static void
+destroy_rtentry_epoch(epoch_context_t ctx)
+{
+	struct rtentry *rt;
+
+	rt = __containerof(ctx, struct rtentry, rt_epoch_ctx);
+
+	destroy_rtentry(rt);
 }
 
 /*
@@ -546,7 +567,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 
 	RT_LOCK(rt);
 	flags = rt->rt_flags;
-	RTFREE_LOCKED(rt);
+	RT_UNLOCK(rt);
 
 	RTSTAT_INC(rts_dynamic);
 
@@ -1112,13 +1133,6 @@ rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 	ifa = rt->rt_nhop->nh_ifa;
 	if (ifa != NULL && ifa->ifa_rtrequest != NULL)
 		ifa->ifa_rtrequest(RTM_DELETE, rt, rt->rt_nhop, info);
-
-	/*
-	 * One more rtentry floating around that is not
-	 * linked to the routing table. rttrash will be decremented
-	 * when RTFREE(rt) is eventually called.
-	 */
-	V_rttrash++;
 }
 
 
@@ -1386,6 +1400,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 
 	KASSERT((fibnum < rt_numfibs), ("rtrequest1_fib: bad fibnum"));
 	KASSERT((info->rti_flags & RTF_RNH_LOCKED) == 0, ("rtrequest1_fib: locked"));
+	NET_EPOCH_ASSERT();
 	
 	dst = info->rti_info[RTAX_DST];
 
@@ -1580,13 +1595,10 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		ifa->ifa_rtrequest(RTM_ADD, rt, rt->rt_nhop, info);
 
 	/*
-	 * actually return a resultant rtentry and
-	 * give the caller a single reference.
+	 * actually return a resultant rtentry
 	 */
-	if (ret_nrt) {
+	if (ret_nrt)
 		*ret_nrt = rt;
-		RT_ADDREF(rt);
-	}
 	rnh->rnh_gen++;		/* Routing table updated */
 	RT_UNLOCK(rt);
 
@@ -1622,15 +1634,13 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	/*
 	 * If the caller wants it, then it can have it,
-	 * but it's up to it to free the rtentry as we won't be
-	 * doing it.
+	 * the entry will be deleted after the end of the current epoch.
 	 */
-	if (ret_nrt) {
+	if (ret_nrt)
 		*ret_nrt = rt;
-		RT_UNLOCK(rt);
-	} else
-		RTFREE_LOCKED(rt);
-	
+
+	RTFREE_LOCKED(rt);
+
 	return (0);
 }
 
@@ -1736,10 +1746,8 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 	if ((nh_orig->nh_ifa != nh->nh_ifa) && nh_orig->nh_ifa->ifa_rtrequest)
 		nh_orig->nh_ifa->ifa_rtrequest(RTM_DELETE, rt, nh_orig, info);
 
-	if (ret_nrt != NULL) {
+	if (ret_nrt != NULL)
 		*ret_nrt = rt;
-		RT_ADDREF(rt);
-	}
 
 	RT_UNLOCK(rt);
 
@@ -1757,15 +1765,12 @@ static int
 change_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rtentry **ret_nrt)
 {
-	struct epoch_tracker et;
 	int error;
 
 	/* Check if updated gateway exists */
 	if ((info->rti_flags & RTF_GATEWAY) &&
 	    (info->rti_info[RTAX_GATEWAY] == NULL))
 		return (EINVAL);
-
-	NET_EPOCH_ENTER(et);
 
 	/*
 	 * route change is done in multiple steps, with dropping and
@@ -1779,7 +1784,6 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		if (error != EAGAIN)
 			break;
 	}
-	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
@@ -1825,6 +1829,7 @@ static inline  int
 rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 {
 	RIB_RLOCK_TRACKER;
+	struct epoch_tracker et;
 	struct sockaddr *dst;
 	struct sockaddr *netmask;
 	struct rtentry *rt = NULL;
@@ -1957,38 +1962,18 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		else
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
+		NET_EPOCH_ENTER(et);
 		error = rtrequest1_fib(cmd, &info, &rt, fibnum);
 		if (error == 0 && rt != NULL) {
 			/*
 			 * notify any listening routing agents of the change
 			 */
-			RT_LOCK(rt);
 
 			/* TODO: interface routes/aliases */
-			RT_ADDREF(rt);
-			RT_UNLOCK(rt);
 			rt_newaddrmsg_fib(cmd, ifa, rt, fibnum);
-			RT_LOCK(rt);
-			RT_REMREF(rt);
-			if (cmd == RTM_DELETE) {
-				/*
-				 * If we are deleting, and we found an entry,
-				 * then it's been removed from the tree..
-				 * now throw it away.
-				 */
-				RTFREE_LOCKED(rt);
-			} else {
-				if (cmd == RTM_ADD) {
-					/*
-					 * We just wanted to add it..
-					 * we don't actually need a reference.
-					 */
-					RT_REMREF(rt);
-				}
-				RT_UNLOCK(rt);
-			}
 			didwork = 1;
 		}
+		NET_EPOCH_EXIT(et);
 		if (error)
 			a_failure = error;
 	}

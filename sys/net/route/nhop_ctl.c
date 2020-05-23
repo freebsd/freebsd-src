@@ -500,6 +500,9 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 		return (ENOMEM);
 	}
 
+	/* Save vnet to ease destruction */
+	nh_priv->nh_vnet = curvnet;
+
 	/* Reference external objects and calculate (referenced) ifa */
 	if_ref(nh->nh_ifp);
 	ifa_ref(nh->nh_ifa);
@@ -696,6 +699,13 @@ nhop_set_rtflags(struct nhop_object *nh, int rt_flags)
 {
 
 	nh->nh_priv->rt_flags = rt_flags;
+}
+
+struct vnet *
+nhop_get_vnet(const struct nhop_object *nh)
+{
+
+	return (nh->nh_priv->nh_vnet);
 }
 
 void
