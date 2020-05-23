@@ -659,6 +659,8 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
 		return "Bad or shorted cable/module";
+	case MLX5_MODULE_EVENT_ERROR_PMD_TYPE_NOT_ENABLED:
+		return "PMD type is not enabled";
 	default:
 		return "Unknown error type";
 	}
