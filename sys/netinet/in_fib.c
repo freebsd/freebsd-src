@@ -71,7 +71,6 @@ static void fib4_rte_to_nh_basic(struct nhop_object *nh, struct in_addr dst,
 static void fib4_rte_to_nh_extended(struct nhop_object *nh, struct in_addr dst,
     uint32_t flags, struct nhop4_extended *pnh4);
 
-#define RNTORT(p)	((struct rtentry *)(p))
 
 static void
 fib4_rte_to_nh_basic(struct nhop_object *nh, struct in_addr dst,

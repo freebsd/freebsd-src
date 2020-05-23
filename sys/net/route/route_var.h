@@ -104,11 +104,36 @@ _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new)
 
 struct rib_head *rt_tables_get_rnh(int fib, int family);
 void rt_mpath_init_rnh(struct rib_head *rnh);
+int rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum);
+void rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt);
+#ifdef RADIX_MPATH
+struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
+    struct rt_addrinfo *info, struct rtentry *rto, int *perror);
+#endif
+int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rtentry **ret_nrt);
+int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rtentry **ret_nrt);
+int change_route(struct rib_head *, struct rt_addrinfo *,
+    struct rtentry **);
 
 VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
 #define	RTSTAT_ADD(name, val)	\
 	VNET_PCPUSTAT_ADD(struct rtstat, rtstat, name, (val))
 #define	RTSTAT_INC(name)	RTSTAT_ADD(name, 1)
+
+
+/*
+ * Convert a 'struct radix_node *' to a 'struct rtentry *'.
+ * The operation can be done safely (in this code) because a
+ * 'struct rtentry' starts with two 'struct radix_node''s, the first
+ * one representing leaf nodes in the routing tree, which is
+ * what the code in radix.c passes us as a 'struct radix_node'.
+ *
+ * But because there are a lot of assumptions in this conversion,
+ * do not cast explicitly, but always use the macro below.
+ */
+#define RNTORT(p)	((struct rtentry *)(p))
 
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
