@@ -74,7 +74,6 @@ static void fib6_rte_to_nh_extended(const struct nhop_object *nh,
     const struct in6_addr *dst, uint32_t flags, struct nhop6_extended *pnh6);
 static void fib6_rte_to_nh_basic(const struct nhop_object *nh, const struct in6_addr *dst,
     uint32_t flags, struct nhop6_basic *pnh6);
-#define RNTORT(p)	((struct rtentry *)(p))
 
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
 
