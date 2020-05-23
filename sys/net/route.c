@@ -439,39 +439,8 @@ rtfree(struct rtentry *rt)
 
 	RT_LOCK_ASSERT(rt);
 
-	/*
-	 * The callers should use RTFREE_LOCKED() or RTFREE(), so
-	 * we should come here exactly with the last reference.
-	 */
-	RT_REMREF(rt);
-	if (rt->rt_refcnt > 0) {
-		log(LOG_DEBUG, "%s: %p has %d refs\n", __func__, rt, rt->rt_refcnt);
-		goto done;
-	}
-
-	/*
-	 * If we are no longer "up" (and ref == 0)
-	 * then we can free the resources associated
-	 * with the route.
-	 */
-	if ((rt->rt_flags & RTF_UP) == 0) {
-		if (rt->rt_nodes->rn_flags & (RNF_ACTIVE | RNF_ROOT))
-			panic("rtfree 2");
-#ifdef	DIAGNOSTIC
-		if (rt->rt_refcnt < 0) {
-			printf("rtfree: %p not freed (neg refs)\n", rt);
-			goto done;
-		}
-#endif
-		epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
-		    &rt->rt_epoch_ctx);
-
-		/*
-		 * FALLTHROUGH to RT_UNLOCK() so the reporting functions
-		 * have consistent behaviour of operating on unlocked entry.
-		 */
-	}
-done:
+	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
+	    &rt->rt_epoch_ctx);
 	RT_UNLOCK(rt);
 }
 
@@ -958,7 +927,7 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 		if (report)
 			rt_routemsg(RTM_DELETE, rt, rt->rt_nhop->nh_ifp, 0,
 			    fibnum);
-		RTFREE_LOCKED(rt);
+		rtfree(rt);
 	}
 }
 
@@ -1114,7 +1083,6 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 
 	rt = RNTORT(rn);
 	RT_LOCK(rt);
-	RT_ADDREF(rt);
 	rt->rt_flags &= ~RTF_UP;
 
 	*perror = 0;
@@ -1569,8 +1537,10 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 	RIB_WUNLOCK(rnh);
 
-	if (rt_old != NULL)
-		RT_UNLOCK(rt_old);
+	if (rt_old != NULL) {
+		rt_notifydelete(rt_old, info);
+		rtfree(rt_old);
+	}
 
 	/*
 	 * If it still failed to go into the tree,
@@ -1581,11 +1551,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		uma_zfree(V_rtzone, rt);
 		return (EEXIST);
 	} 
-
-	if (rt_old != NULL) {
-		rt_notifydelete(rt_old, info);
-		RTFREE(rt_old);
-	}
 
 	/*
 	 * If this protocol has something to add to this then
@@ -1639,7 +1604,7 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (ret_nrt)
 		*ret_nrt = rt;
 
-	RTFREE_LOCKED(rt);
+	rtfree(rt);
 
 	return (0);
 }
