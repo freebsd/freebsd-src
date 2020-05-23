@@ -332,8 +332,6 @@ struct rt_addrinfo {
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \
 				 || (ifp)->if_link_state == LINK_STATE_UP)
 
-#define	RTFREE_FUNC(_rt)	rtfree_func(_rt)
-
 #define	RO_NHFREE(_ro) do {					\
 	if ((_ro)->ro_nh) {					\
 		NH_FREE((_ro)->ro_nh);				\

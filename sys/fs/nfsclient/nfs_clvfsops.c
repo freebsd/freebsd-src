@@ -465,18 +465,21 @@ nfs_mountroot(struct mount *mp)
 	if (nd->mygateway.sin_len != 0 &&
 	    nd->mygateway.sin_addr.s_addr != 0) {
 		struct sockaddr_in mask, sin;
+		struct epoch_tracker et;
 
 		bzero((caddr_t)&mask, sizeof(mask));
 		sin = mask;
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
                 /* XXX MRT use table 0 for this sort of thing */
+		NET_EPOCH_ENTER(et);
 		CURVNET_SET(TD_TO_VNET(td));
 		error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
 		    RTF_UP | RTF_GATEWAY, NULL, RT_DEFAULT_FIB);
 		CURVNET_RESTORE();
+		NET_EPOCH_EXIT(et);
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
