@@ -35,6 +35,7 @@
 #ifndef RNF_NORMAL
 #include <net/radix.h>
 #endif
+#include <sys/epoch.h>
 #include <netinet/in.h>		/* struct sockaddr_in */
 #include <sys/counter.h>
 
@@ -148,6 +149,7 @@ struct rtentry {
 #define	rt_endzero	rt_mtx
 	struct mtx	rt_mtx;		/* mutex for routing entry */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
+	struct epoch_context	rt_epoch_ctx;	/* net epoch tracker */
 };
 
 #define	RT_LOCK_INIT(_rt) \
