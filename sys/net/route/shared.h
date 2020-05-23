@@ -37,6 +37,8 @@
 #ifndef	_NET_ROUTE_SHARED_H_
 #define	_NET_ROUTE_SHARED_H_
 
+#include <vm/uma.h>
+
 #ifdef	RTDEBUG
 #define	DPRINTF(_fmt, ...)	printf("%s: " _fmt "\n", __func__ , ## __VA_ARGS__)
 #else
@@ -63,6 +65,13 @@ int nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_ori
 
 void nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu);
 int nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
+
+/* route */
+VNET_DECLARE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+#define	V_rtzone	VNET(rtzone)
+
+struct rtentry *rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info,
+    int *perror);
 
 #endif
 

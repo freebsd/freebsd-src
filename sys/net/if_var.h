@@ -686,8 +686,8 @@ int		ifa_ifwithaddr_check(const struct sockaddr *);
 struct	ifaddr *ifa_ifwithbroadaddr(const struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithdstaddr(const struct sockaddr *, int);
 struct	ifaddr *ifa_ifwithnet(const struct sockaddr *, int, int);
-struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *, struct sockaddr *,
-    u_int);
+struct	ifaddr *ifa_ifwithroute(int, const struct sockaddr *,
+    const struct sockaddr *, u_int);
 struct	ifaddr *ifaof_ifpforaddr(const struct sockaddr *, struct ifnet *);
 int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
