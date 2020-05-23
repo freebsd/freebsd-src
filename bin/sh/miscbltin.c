@@ -231,6 +231,8 @@ readcmd(int argc __unused, char **argv __unused)
 		 * If there's nothing ready, return an error.
 		 */
 		if (status <= 0) {
+			while (*ap != NULL)
+				setvar(*ap++, "", 0);
 			sig = pendingsig;
 			return (128 + (sig != 0 ? sig : SIGALRM));
 		}
