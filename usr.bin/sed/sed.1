@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2017
+.Dd May 19, 2020
 .Dt SED 1
 .Os
 .Sh NAME
@@ -41,9 +41,11 @@
 .Nm
 .Op Fl Ealnru
 .Ar command
+.Op Fl I Ar extension
+.Op Fl i Ar extension
 .Op Ar
 .Nm
-.Op Fl Ealnr
+.Op Fl Ealnru
 .Op Fl e Ar command
 .Op Fl f Ar command_file
 .Op Fl I Ar extension
@@ -197,7 +199,8 @@ option was specified);
 .It
 a context address
 that consists of a regular expression preceded and followed by a
-delimiter. The closing delimiter can also optionally be followed by the
+delimiter.
+The closing delimiter can also optionally be followed by the
 .Dq I
 character, to indicate that the regular expression is to be matched
 in a case-insensitive way.
