@@ -1161,7 +1161,8 @@ send:
 		 * Ignore pure ack packets, retransmissions and window probes.
 		 */
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
-		    !((tp->t_flags & TF_FORCEDATA) && len == 1)) {
+		    !((tp->t_flags & TF_FORCEDATA) && len == 1 &&
+		    SEQ_LT(tp->snd_una, tp->snd_max))) {
 #ifdef INET6
 			if (isipv6)
 				ip6->ip6_flow |= htonl(IPTOS_ECN_ECT0 << 20);
@@ -1169,15 +1170,15 @@ send:
 #endif
 				ip->ip_tos |= IPTOS_ECN_ECT0;
 			TCPSTAT_INC(tcps_ecn_ect0);
+			/*
+			 * Reply with proper ECN notifications.
+			 * Only set CWR on new data segments.
+			 */
+			if (tp->t_flags & TF_ECN_SND_CWR) {
+				flags |= TH_CWR;
+				tp->t_flags &= ~TF_ECN_SND_CWR;
+			}
 		}
-		
-		/*
-		 * Reply with proper ECN notifications.
-		 */
-		if (tp->t_flags & TF_ECN_SND_CWR) {
-			flags |= TH_CWR;
-			tp->t_flags &= ~TF_ECN_SND_CWR;
-		} 
 		if (tp->t_flags & TF_ECN_SND_ECE)
 			flags |= TH_ECE;
 	}
