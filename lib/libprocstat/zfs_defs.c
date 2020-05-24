@@ -57,3 +57,7 @@ size_t sizeof_znode_t = sizeof(znode_t);
 size_t offsetof_z_id = offsetof(znode_t, z_id);
 size_t offsetof_z_size = offsetof(znode_t, z_size);
 size_t offsetof_z_mode = offsetof(znode_t, z_mode);
+
+/* Keep pcpu.h satisfied. */
+uintptr_t *__start_set_pcpu;
+uintptr_t *__stop_set_pcpu;
