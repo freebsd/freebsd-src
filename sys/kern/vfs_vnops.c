@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sx.h>
+#include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
@@ -674,8 +675,9 @@ vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base, size_t len,
 off_t
 foffset_lock(struct file *fp, int flags)
 {
-	struct mtx *mtxp;
+	volatile short *flagsp;
 	off_t res;
+	short state;
 
 	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
 
@@ -692,52 +694,66 @@ foffset_lock(struct file *fp, int flags)
 	 * According to McKusick the vn lock was protecting f_offset here.
 	 * It is now protected by the FOFFSET_LOCKED flag.
 	 */
-	mtxp = mtx_pool_find(mtxpool_sleep, fp);
-	mtx_lock(mtxp);
-	if ((flags & FOF_NOLOCK) == 0) {
-		while (fp->f_vnread_flags & FOFFSET_LOCKED) {
-			fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
-			msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
-			    "vofflock", 0);
+	flagsp = &fp->f_vnread_flags;
+	if (atomic_cmpset_acq_16(flagsp, 0, FOFFSET_LOCKED))
+		return (fp->f_offset);
+
+	sleepq_lock(&fp->f_vnread_flags);
+	state = atomic_load_16(flagsp);
+	for (;;) {
+		if ((state & FOFFSET_LOCKED) == 0) {
+			if (!atomic_fcmpset_acq_16(flagsp, &state,
+			    FOFFSET_LOCKED))
+				continue;
+			break;
 		}
-		fp->f_vnread_flags |= FOFFSET_LOCKED;
+		if ((state & FOFFSET_LOCK_WAITING) == 0) {
+			if (!atomic_fcmpset_acq_16(flagsp, &state,
+			    state | FOFFSET_LOCK_WAITING))
+				continue;
+		}
+		DROP_GIANT();
+		sleepq_add(&fp->f_vnread_flags, NULL, "vofflock", 0, 0);
+		sleepq_wait(&fp->f_vnread_flags, PUSER -1);
+		PICKUP_GIANT();
+		sleepq_lock(&fp->f_vnread_flags);
+		state = atomic_load_16(flagsp);
 	}
 	res = fp->f_offset;
-	mtx_unlock(mtxp);
+	sleepq_release(&fp->f_vnread_flags);
 	return (res);
 }
 
 void
 foffset_unlock(struct file *fp, off_t val, int flags)
 {
-	struct mtx *mtxp;
+	volatile short *flagsp;
+	short state;
 
 	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
 
-#if OFF_MAX <= LONG_MAX
-	if ((flags & FOF_NOLOCK) != 0) {
-		if ((flags & FOF_NOUPDATE) == 0)
-			fp->f_offset = val;
-		if ((flags & FOF_NEXTOFF) != 0)
-			fp->f_nextoff = val;
-		return;
-	}
-#endif
-
-	mtxp = mtx_pool_find(mtxpool_sleep, fp);
-	mtx_lock(mtxp);
 	if ((flags & FOF_NOUPDATE) == 0)
 		fp->f_offset = val;
 	if ((flags & FOF_NEXTOFF) != 0)
 		fp->f_nextoff = val;
-	if ((flags & FOF_NOLOCK) == 0) {
-		KASSERT((fp->f_vnread_flags & FOFFSET_LOCKED) != 0,
-		    ("Lost FOFFSET_LOCKED"));
-		if (fp->f_vnread_flags & FOFFSET_LOCK_WAITING)
-			wakeup(&fp->f_vnread_flags);
-		fp->f_vnread_flags = 0;
-	}
-	mtx_unlock(mtxp);
+
+#if OFF_MAX <= LONG_MAX
+	if ((flags & FOF_NOLOCK) != 0)
+		return;
+#endif
+
+	flagsp = &fp->f_vnread_flags;
+	state = atomic_load_16(flagsp);
+	if ((state & FOFFSET_LOCK_WAITING) == 0 &&
+	    atomic_cmpset_rel_16(flagsp, state, 0))
+		return;
+
+	sleepq_lock(&fp->f_vnread_flags);
+	MPASS((fp->f_vnread_flags & FOFFSET_LOCKED) != 0);
+	MPASS((fp->f_vnread_flags & FOFFSET_LOCK_WAITING) != 0);
+	fp->f_vnread_flags = 0;
+	sleepq_broadcast(&fp->f_vnread_flags, SLEEPQ_SLEEP, 0, 0);
+	sleepq_release(&fp->f_vnread_flags);
 }
 
 void

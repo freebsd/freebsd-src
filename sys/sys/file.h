@@ -163,7 +163,7 @@ struct fileops {
  * Below is the list of locks that protects members in struct file.
  *
  * (a) f_vnode lock required (shared allows both reads and writes)
- * (f) protected with mtx_lock(mtx_pool_find(fp))
+ * (f) updated with atomics and blocking on sleepq
  * (d) cdevpriv_mtx
  * none	not locked
  */
