@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "dec 12, 2019" "NLnet Labs" "unbound 1.9.6"
+.TH "unbound.conf" "5" "May 19, 2020" "NLnet Labs" "unbound 1.10.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -63,8 +63,10 @@ server:
 	access\-control: 2001:DB8::/64 allow
 .fi
 .SH "FILE FORMAT"
-There must be whitespace between keywords. Attribute keywords end with a colon ':'.
-An attribute is followed by its containing attributes, or a value.
+There must be whitespace between keywords.  Attribute keywords end with a
+colon ':'.  An attribute is followed by a value, or its containing attributes
+in which case it is referred to as a clause.  Clauses can be repeated throughout
+the file (or included files) to group attributes under the same clause.
 .P
 Files can be included using the
 .B include:
@@ -1070,19 +1072,34 @@ The default value is "no".
 .TP
 .B serve\-expired: \fI<yes or no>
 If enabled, unbound attempts to serve old responses from cache with a
-TTL of 0 in the response without waiting for the actual resolution to finish.
-The actual resolution answer ends up in the cache later on.  Default is "no".
+TTL of \fBserve\-expired\-reply\-ttl\fR in the response without waiting for the
+actual resolution to finish.  The actual resolution answer ends up in the cache
+later on.  Default is "no".
 .TP
 .B serve\-expired\-ttl: \fI<seconds>
 Limit serving of expired responses to configured seconds after expiration. 0
-disables the limit. This option only applies when \fBserve\-expired\fR is
-enabled. The default is 0.
+disables the limit.  This option only applies when \fBserve\-expired\fR is
+enabled.  A suggested value per draft-ietf-dnsop-serve-stale-10 is between
+86400 (1 day) and 259200 (3 days).  The default is 0.
 .TP
 .B serve\-expired\-ttl\-reset: \fI<yes or no>
 Set the TTL of expired records to the \fBserve\-expired\-ttl\fR value after a
-failed attempt to retrieve the record from upstream. This makes sure that the
-expired records will be served as long as there are queries for it. Default is
+failed attempt to retrieve the record from upstream.  This makes sure that the
+expired records will be served as long as there are queries for it.  Default is
 "no".
+.TP
+.B serve\-expired\-reply\-ttl: \fI<seconds>
+TTL value to use when replying with expired data.  If
+\fBserve\-expired\-client\-timeout\fR is also used then it is RECOMMENDED to
+use 30 as the value (draft-ietf-dnsop-serve-stale-10).  The default is 30.
+.TP
+.B serve\-expired\-client\-timeout: \fI<msec>
+Time in milliseconds before replying to the client with expired data.  This
+essentially enables the serve-stale behavior as specified in
+draft-ietf-dnsop-serve-stale-10 that first tries to resolve before immediately
+responding with expired data.  A recommended value per
+draft-ietf-dnsop-serve-stale-10 is 1800.  Setting this to 0 will disable this
+behavior.  Default is 0.
 .TP
 .B val\-nsec3\-keysize\-iterations: \fI<"list of values">
 List of keysize and iteration count values, separated by spaces, surrounded
@@ -1296,7 +1313,7 @@ local\-data: "onion. 10800 IN
     SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
-\h'5'\fItest (RFC 2606)\fR
+\h'5'\fItest (RFC 6761)\fR
 Default content:
 .nf
 local\-zone: "test." static
@@ -1305,7 +1322,7 @@ local\-data: "test. 10800 IN
     SOA localhost. nobody.invalid. 1 3600 1200 604800 10800"
 .fi
 .TP 10
-\h'5'\fIinvalid (RFC 2606)\fR
+\h'5'\fIinvalid (RFC 6761)\fR
 Default content:
 .nf
 local\-zone: "invalid." static
@@ -1680,6 +1697,12 @@ Name of the authority zone.
 Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
 masters can be specified.  They are all tried if one fails.
 With the "ip#name" notation a AXFR over TLS can be used.
+If you point it at another Unbound instance, it would not work because
+that does not support AXFR/IXFR for the zone, but if you used \fBurl:\fR to download
+the zonefile as a text file from a webserver that would work.
+If you specify the hostname, you cannot use the domain from the zonefile,
+because it may not have that when retrieving that data, instead use a plain
+IP address to avoid a circular dependency on retrieving that IP address.
 .TP
 .B url: \fI<url to zonefile>
 Where to download a zonefile for the zone.  With http or https.  An example
@@ -1691,6 +1714,10 @@ see if the SOA serial number has changed, reducing the number of downloads.
 If none of the urls work, the masters are tried with IXFR and AXFR.
 For https, the \fBtls\-cert\-bundle\fR and the hostname from the url are used
 to authenticate the connection.
+If you specify a hostname in the URL, you cannot use the domain from the
+zonefile, because it may not have that when retrieving that data, instead
+use a plain IP address to avoid a circular dependency on retrieving that IP
+address.  Avoid dependencies on name lookups by using a notation like "http://192.0.2.1/unbound-master/example.com.zone", with an explicit IP address.
 .TP
 .B allow\-notify: \fI<IP address or host name or netblockIP/prefix>
 With allow\-notify you can specify additional sources of notifies.
@@ -2014,6 +2041,13 @@ to the query without performing iterative DNS resolution.
 If Unbound cannot even find an answer in the backend, it resolves the
 query as usual, and stores the answer in the backend.
 .P
+This module interacts with the \fBserve\-expired\-*\fR options and will reply
+with expired data if unbound is configured for that.  Currently the use
+of \fBserve\-expired\-client\-timeout:\fR and
+\fBserve\-expired\-reply\-ttl:\fR is not consistent for data originating from
+the external cache as these will result in a reply with 0 TTL without trying to
+update the data first, ignoring the configured values.
+.P
 If Unbound was built with
 \fB\-\-with\-libhiredis\fR
 on a system that has installed the hiredis C client library of Redis,
@@ -2080,6 +2114,70 @@ If this timeout expires Unbound closes the connection, treats it as
 if the Redis server does not have the requested data, and will try to
 re-establish a new connection later.
 This option defaults to 100 milliseconds.
+.SS Response Policy Zone Options
+.LP
+Response Policy Zones are configured with \fBrpz:\fR, and each one must have a
+\fBname:\fR. There can be multiple ones, by listing multiple rpz clauses, each
+with a different name. RPZ clauses are applied in order of configuration. The
+\fBrespip\fR module needs to be added to the \fBmodule-config\fR, e.g.:
+\fBmodule-config: "respip validator iterator"\fR.
+.P
+Only the QNAME and Response IP Address triggers are supported. The supported RPZ
+actions are: NXDOMAIN, NODATA, PASSTHRU, DROP and Local Data. RPZ QNAME triggers
+are applied after
+\fBlocal-zones\fR and before \fBauth-zones\fR.
+.TP
+.B name: \fI<zone name>
+Name of the authority zone.
+.TP
+.B master: \fI<IP address or host name>
+Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
+masters can be specified.  They are all tried if one fails.
+.TP
+.B url: \fI<url to zonefile>
+Where to download a zonefile for the zone.  With http or https.  An example
+for the url is "http://www.example.com/example.org.zone".  Multiple url
+statements can be given, they are tried in turn.  If only urls are given
+the SOA refresh timer is used to wait for making new downloads.  If also
+masters are listed, the masters are first probed with UDP SOA queries to
+see if the SOA serial number has changed, reducing the number of downloads.
+If none of the urls work, the masters are tried with IXFR and AXFR.
+For https, the \fBtls\-cert\-bundle\fR and the hostname from the url are used
+to authenticate the connection.
+.TP
+.B allow\-notify: \fI<IP address or host name or netblockIP/prefix>
+With allow\-notify you can specify additional sources of notifies.
+When notified, the server attempts to first probe and then zone transfer.
+If the notify is from a master, it first attempts that master.  Otherwise
+other masters are attempted.  If there are no masters, but only urls, the
+file is downloaded when notified.  The masters from master: statements are
+allowed notify by default.
+.TP
+.B zonefile: \fI<filename>
+The filename where the zone is stored.  If not given then no zonefile is used.
+If the file does not exist or is empty, unbound will attempt to fetch zone
+data (eg. from the master servers).
+.TP
+.B rpz\-action\-override: \fI<action>
+Always use this RPZ action for matching triggers from this zone. Possible action
+are: nxdomain, nodata, passthru, drop, disabled and cname.
+.TP
+.B rpz\-cname\-override: \fI<domain>
+The CNAME target domain to use if the cname action is configured for
+\fBrpz\-action\-override\fR.
+.TP
+.B rpz\-log: \fI<yes or no>
+Log all applied RPZ actions for this RPZ zone. Default is no.
+.TP
+.B rpz\-log\-name: \fI<name>
+Specify a string to be part of the log line, for easy referencing.
+.TP
+.B tags: \fI<list of tags>
+Limit the policies from this RPZ clause to clients with a matching tag. Tags
+need to be defined in \fBdefine\-tag\fR and can be assigned to client addresses
+using \fBaccess\-control\-tag\fR. Enclose list of tags in quotes ("") and put
+spaces between tags. If no tags are specified the policies from this clause will
+be applied for all clients.
 .SH "MEMORY CONTROL EXAMPLE"
 In the example config settings below memory usage is reduced. Some service
 levels are lower, notable very large data and a high TCP load are no longer

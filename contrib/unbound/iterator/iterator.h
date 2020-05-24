@@ -55,6 +55,11 @@ struct rbtree_type;
 
 /** max number of targets spawned for a query and its subqueries */
 #define MAX_TARGET_COUNT	64
+/** max number of target lookups per qstate, per delegation point */
+#define MAX_DP_TARGET_COUNT	16
+/** max number of nxdomains allowed for target lookups for a query and
+ * its subqueries */
+#define MAX_TARGET_NX		5
 /** max number of query restarts. Determines max number of CNAME chain. */
 #define MAX_RESTART_COUNT       8
 /** max number of referrals. Makes sure resolver does not run away */
@@ -305,8 +310,13 @@ struct iter_qstate {
 	int sent_count;
 	
 	/** number of target queries spawned in [1], for this query and its
-	 * subqueries, the malloced-array is shared, [0] refcount. */
+	 * subqueries, the malloced-array is shared, [0] refcount.
+	 * in [2] the number of nxdomains is counted. */
 	int* target_count;
+
+	/** number of target lookups per delegation point. Reset to 0 after
+	 * receiving referral answer. Not shared with subqueries. */
+	int dp_target_count;
 
 	/** if true, already tested for ratelimiting and passed the test */
 	int ratelimit_ok;
