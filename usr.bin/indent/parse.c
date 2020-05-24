@@ -107,6 +107,7 @@ parse(int tk) /* tk: the code for the construct scanned */
 		 */
 		ps.i_l_follow = ps.il[ps.tos--];
 	/* the rest is the same as for dolit and forstmt */
+	/* FALLTHROUGH */
     case dolit:		/* 'do' */
     case forstmt:		/* for (...) */
 	ps.p_stack[++ps.tos] = tk;
