@@ -69,6 +69,7 @@
 #include "services/mesh.h"
 #include "services/localzone.h"
 #include "services/authzone.h"
+#include "services/rpz.h"
 #include "util/storage/slabhash.h"
 #include "util/fptr_wlist.h"
 #include "util/data/dname.h"
@@ -719,8 +720,8 @@ print_stats(RES* ssl, const char* nm, struct ub_stats_info* s)
 		(unsigned long)s->svr.num_queries_missed_cache)) return 0;
 	if(!ssl_printf(ssl, "%s.num.prefetch"SQ"%lu\n", nm, 
 		(unsigned long)s->svr.num_queries_prefetch)) return 0;
-	if(!ssl_printf(ssl, "%s.num.zero_ttl"SQ"%lu\n", nm,
-		(unsigned long)s->svr.zero_ttl_responses)) return 0;
+	if(!ssl_printf(ssl, "%s.num.expired"SQ"%lu\n", nm,
+		(unsigned long)s->svr.ans_expired)) return 0;
 	if(!ssl_printf(ssl, "%s.num.recursivereplies"SQ"%lu\n", nm, 
 		(unsigned long)s->mesh_replies_sent)) return 0;
 #ifdef USE_DNSCRYPT
@@ -1045,6 +1046,16 @@ print_ext(RES* ssl, struct ub_stats_info* s)
 		(unsigned)s->svr.infra_cache_count)) return 0;
 	if(!ssl_printf(ssl, "key.cache.count"SQ"%u\n",
 		(unsigned)s->svr.key_cache_count)) return 0;
+	/* applied RPZ actions */
+	for(i=0; i<UB_STATS_RPZ_ACTION_NUM; i++) {
+		if(i == RPZ_NO_OVERRIDE_ACTION)
+			continue;
+		if(inhibit_zero && s->svr.rpz_action[i] == 0)
+			continue;
+		if(!ssl_printf(ssl, "num.rpz.action.%s"SQ"%lu\n",
+			rpz_action_to_string(i),
+			(unsigned long)s->svr.rpz_action[i])) return 0;
+	}
 #ifdef USE_DNSCRYPT
 	if(!ssl_printf(ssl, "dnscrypt_shared_secret.cache.count"SQ"%u\n",
 		(unsigned)s->svr.shared_secret_cache_count)) return 0;
@@ -1476,6 +1487,27 @@ do_view_data_remove(RES* ssl, struct worker* worker, char* arg)
 		return;
 	}
 	do_data_remove(ssl, v->local_zones, arg2);
+	lock_rw_unlock(&v->lock);
+}
+
+/** Remove RR data from stdin from view */
+static void
+do_view_datas_remove(RES* ssl, struct worker* worker, char* arg)
+{
+	struct view* v;
+	v = views_find_view(worker->daemon->views,
+		arg, 1 /* get write lock*/);
+	if(!v) {
+		ssl_printf(ssl,"no view with name: %s\n", arg);
+		return;
+	}
+	if(!v->local_zones){
+		lock_rw_unlock(&v->lock);
+		ssl_printf(ssl, "removed 0 datas\n");
+		return;
+	}
+
+	do_datas_remove(ssl, v->local_zones);
 	lock_rw_unlock(&v->lock);
 }
 
@@ -2506,8 +2538,10 @@ do_auth_zone_transfer(RES* ssl, struct worker* worker, char* arg)
 	if(!az || !auth_zones_startprobesequence(az, &worker->env, nm, nmlen,
 		LDNS_RR_CLASS_IN)) {
 		(void)ssl_printf(ssl, "error zone xfr task not found %s\n", arg);
+		free(nm);
 		return;
 	}
+	free(nm);
 	send_ok(ssl);
 }
 	
@@ -2989,6 +3023,8 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		do_view_zone_add(ssl, worker, skipwhite(p+15));
 	} else if(cmdcmp(p, "view_local_data_remove", 22)) {
 		do_view_data_remove(ssl, worker, skipwhite(p+22));
+	} else if(cmdcmp(p, "view_local_datas_remove", 23)){
+		do_view_datas_remove(ssl, worker, skipwhite(p+23));
 	} else if(cmdcmp(p, "view_local_data", 15)) {
 		do_view_data_add(ssl, worker, skipwhite(p+15));
 	} else if(cmdcmp(p, "view_local_datas", 16)) {

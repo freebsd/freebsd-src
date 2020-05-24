@@ -377,6 +377,13 @@ int fptr_whitelist_inplace_cb_edns_back_parsed(
 int fptr_whitelist_inplace_cb_query_response(
 	inplace_cb_query_response_func_type* fptr);
 
+/**
+ * Check function pointer whitelist for serve_expired_lookup func values.
+ * @param fptr: function pointer to check.
+ * @return false if not in whitelist.
+ */
+int fptr_whitelist_serve_expired_lookup(serve_expired_lookup_func_type* fptr);
+
 /** Due to module breakage by fptr wlist, these test app declarations
  * are presented here */
 /** 

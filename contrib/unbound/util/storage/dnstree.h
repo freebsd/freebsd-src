@@ -174,6 +174,13 @@ int addr_tree_insert(rbtree_type* tree, struct addr_tree_node* node,
 void addr_tree_init_parents(rbtree_type* tree);
 
 /**
+ * Initialize parent pointers in partial addr tree.
+ * Reinitialize pointer for part of tree, used after node deletion
+ * @param node: node to start parent pointer initialization for.
+ */
+void addr_tree_init_parents_node(struct addr_tree_node* node);
+
+/**
  * Lookup closest encloser in addr tree.
  * @param tree: addr tree
  * @param addr: to lookup.
