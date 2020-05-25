@@ -247,26 +247,26 @@ struct ccr_softc {
  * requests.
  *
  * These scatter/gather lists can describe different subsets of the
- * buffer described by the crypto operation.  ccr_populate_sglist()
- * generates a scatter/gather list that covers the entire crypto
+ * buffers described by the crypto operation.  ccr_populate_sglist()
+ * generates a scatter/gather list that covers an entire crypto
  * operation buffer that is then used to construct the other
  * scatter/gather lists.
  */
 static int
-ccr_populate_sglist(struct sglist *sg, struct cryptop *crp)
+ccr_populate_sglist(struct sglist *sg, struct crypto_buffer *cb)
 {
 	int error;
 
 	sglist_reset(sg);
-	switch (crp->crp_buf_type) {
+	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
-		error = sglist_append_mbuf(sg, crp->crp_mbuf);
+		error = sglist_append_mbuf(sg, cb->cb_mbuf);
 		break;
 	case CRYPTO_BUF_UIO:
-		error = sglist_append_uio(sg, crp->crp_uio);
+		error = sglist_append_uio(sg, cb->cb_uio);
 		break;
 	case CRYPTO_BUF_CONTIG:
-		error = sglist_append(sg, crp->crp_buf, crp->crp_ilen);
+		error = sglist_append(sg, cb->cb_buf, cb->cb_buf_len);
 		break;
 	default:
 		error = EINVAL;
@@ -2576,7 +2576,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->lock);
-	error = ccr_populate_sglist(sc->sg_crp, crp);
+	error = ccr_populate_sglist(sc->sg_crp, &crp->crp_buf);
 	if (error) {
 		sc->stats_sglist_error++;
 		goto out;
