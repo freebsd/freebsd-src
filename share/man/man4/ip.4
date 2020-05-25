@@ -28,7 +28,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 22, 2019
+.Dd May 24, 2020
 .Dt IP 4
 .Os
 .Sh NAME
@@ -144,7 +144,7 @@ the
 .Xr recvmsg 2
 call will return the destination
 .Tn IP
-address and destination port or a
+address and destination port for a
 .Tn UDP
 datagram.
 The
@@ -155,13 +155,13 @@ structure points to a buffer
 that contains a
 .Vt cmsghdr
 structure followed by the
-.Tn in_sockkaddr
-structre.
+.Tn sockaddr_in
+structure.
 The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = CMSG_LEN(sizeof(struct in_sockaddr))
+cmsg_len = CMSG_LEN(sizeof(struct sockaddr_in))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_ORIGDSTADDR
 .Ed
