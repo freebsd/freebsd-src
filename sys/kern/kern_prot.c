@@ -2000,14 +2000,20 @@ proc_set_cred(struct proc *p, struct ucred *newcred)
 {
 
 	MPASS(p->p_ucred != NULL);
-	if (newcred == NULL)
-		MPASS(p->p_state == PRS_ZOMBIE);
-	else
-		PROC_LOCK_ASSERT(p, MA_OWNED);
-
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_ucred = newcred;
-	if (newcred != NULL)
-		PROC_UPDATE_COW(p);
+	PROC_UPDATE_COW(p);
+}
+
+void
+proc_unset_cred(struct proc *p)
+{
+	struct ucred *cr;
+
+	MPASS(p->p_state == PRS_ZOMBIE);
+	cr = p->p_ucred;
+	p->p_ucred = NULL;
+	crfree(cr);
 }
 
 struct ucred *
