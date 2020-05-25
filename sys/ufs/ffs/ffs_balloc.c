@@ -324,7 +324,8 @@ retry:
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&ump->um_last_fullmsg,
+			if (!ffs_fsfail_cleanup_locked(ump, error) &&
+			    ppsratecheck(&ump->um_last_fullmsg,
 			    &ump->um_secs_fullmsg, 1)) {
 				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
@@ -407,7 +408,8 @@ retry:
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&ump->um_last_fullmsg,
+			if (!ffs_fsfail_cleanup_locked(ump, error) &&
+			    ppsratecheck(&ump->um_last_fullmsg,
 			    &ump->um_secs_fullmsg, 1)) {
 				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
@@ -919,7 +921,8 @@ retry:
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&ump->um_last_fullmsg,
+			if (!ffs_fsfail_cleanup_locked(ump, error) &&
+			    ppsratecheck(&ump->um_last_fullmsg,
 			    &ump->um_secs_fullmsg, 1)) {
 				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");
@@ -1003,7 +1006,8 @@ retry:
 				UFS_UNLOCK(ump);
 				goto retry;
 			}
-			if (ppsratecheck(&ump->um_last_fullmsg,
+			if (!ffs_fsfail_cleanup_locked(ump, error) &&
+			    ppsratecheck(&ump->um_last_fullmsg,
 			    &ump->um_secs_fullmsg, 1)) {
 				UFS_UNLOCK(ump);
 				ffs_fserr(fs, ip->i_number, "filesystem full");

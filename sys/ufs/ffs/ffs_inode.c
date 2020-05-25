@@ -86,6 +86,7 @@ ffs_update(vp, waitfor)
 	struct fs *fs;
 	struct buf *bp;
 	struct inode *ip;
+	daddr_t bn;
 	int flags, error;
 
 	ASSERT_VOP_ELOCKED(vp, "ffs_update");
@@ -112,9 +113,9 @@ ffs_update(vp, waitfor)
 	if (IS_SNAPSHOT(ip))
 		flags = GB_LOCK_NOWAIT;
 loop:
-	error = bread_gb(ITODEVVP(ip),
-	     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-	     (int) fs->fs_bsize, NOCRED, flags, &bp);
+	bn = fsbtodb(fs, ino_to_fsba(fs, ip->i_number));
+	error = ffs_breadz(VFSTOUFS(vp->v_mount), ITODEVVP(ip), bn, bn,
+	     (int) fs->fs_bsize, NULL, NULL, 0, NOCRED, flags, NULL, &bp);
 	if (error != 0) {
 		if (error != EBUSY)
 			return (error);
@@ -163,9 +164,11 @@ loop:
 		 */
 		random_harvest_queue(&(ip->i_din2), sizeof(ip->i_din2), RANDOM_FS_ATIME);
 	}
-	if (waitfor)
+	if (waitfor) {
 		error = bwrite(bp);
-	else if (vm_page_count_severe() || buf_dirty_count_severe()) {
+		if (ffs_fsfail_cleanup(VFSTOUFS(vp->v_mount), error))
+			error = 0;
+	} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
 		bawrite(bp);
 		error = 0;
 	} else {
@@ -684,7 +687,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * of having bread() attempt to calculate it using VOP_BMAP().
 	 */
 	vp = ITOV(ip);
-	error = breadn_flags(vp, lbn, dbn, (int)fs->fs_bsize, NULL, NULL, 0,
+	error = ffs_breadz(ump, vp, lbn, dbn, (int)fs->fs_bsize, NULL, NULL, 0,
 	    NOCRED, 0, NULL, &bp);
 	if (error) {
 		*countp = 0;

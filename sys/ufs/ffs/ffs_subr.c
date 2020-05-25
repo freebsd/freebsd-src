@@ -67,6 +67,7 @@ struct malloc_type;
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
+#include <sys/taskqueue.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -136,7 +137,8 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		return (0);
 	}
 	dip2 = ((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
-	if ((error = ffs_verify_dinode_ckhash(fs, dip2)) != 0) {
+	if ((error = ffs_verify_dinode_ckhash(fs, dip2)) != 0 &&
+	    !ffs_fsfail_cleanup(ITOUMP(ip), error)) {
 		printf("%s: inode %jd: check-hash failed\n", fs->fs_fsmnt,
 		    (intmax_t)ino);
 		return (error);
@@ -201,6 +203,93 @@ ffs_check_blkno(struct mount *mp, ino_t inum, ufs2_daddr_t daddr, int blksize)
 	} else if (!havemtx)
 		UFS_UNLOCK(ump);
 	return (EINTEGRITY);
+}
+
+/*
+ * Initiate a forcible unmount.
+ * Used to unmount filesystems whose underlying media has gone away.
+ */
+static void
+ffs_fsfail_unmount(void *v, int pending)
+{
+	struct fsfail_task *etp;
+	struct mount *mp;
+
+	etp = v;
+
+	/*
+	 * Find our mount and get a ref on it, then try to unmount.
+	 */
+	mp = vfs_getvfs(&etp->fsid);
+	if (mp != NULL)
+		dounmount(mp, MNT_FORCE, curthread);
+	free(etp, M_UFSMNT);
+}
+
+/*
+ * On first ENXIO error, start a task that forcibly unmounts the filesystem.
+ *
+ * Return true if a cleanup is in progress.
+ */
+int
+ffs_fsfail_cleanup(struct ufsmount *ump, int error)
+{
+	int retval;
+
+	UFS_LOCK(ump);
+	retval = ffs_fsfail_cleanup_locked(ump, error);
+	UFS_UNLOCK(ump);
+	return (retval);
+}
+
+int
+ffs_fsfail_cleanup_locked(struct ufsmount *ump, int error)
+{
+	struct fsfail_task *etp;
+	struct task *tp;
+
+	mtx_assert(UFS_MTX(ump), MA_OWNED);
+	if (error == ENXIO && (ump->um_flags & UM_FSFAIL_CLEANUP) == 0) {
+		ump->um_flags |= UM_FSFAIL_CLEANUP;
+		/*
+		 * Queue an async forced unmount.
+		 */
+		etp = ump->um_fsfail_task;
+		ump->um_fsfail_task = NULL;
+		if (etp != NULL) {
+			tp = &etp->task;
+			TASK_INIT(tp, 0, ffs_fsfail_unmount, etp);
+			taskqueue_enqueue(taskqueue_thread, tp);
+			printf("UFS: forcibly unmounting %s from %s\n",
+			    ump->um_mountp->mnt_stat.f_mntfromname,
+			    ump->um_mountp->mnt_stat.f_mntonname);
+		}
+	}
+	return ((ump->um_flags & UM_FSFAIL_CLEANUP) != 0);
+}
+
+/*
+ * Wrapper used during ENXIO cleanup to allocate empty buffers when
+ * the kernel is unable to read the real one. They are needed so that
+ * the soft updates code can use them to unwind its dependencies.
+ */
+int
+ffs_breadz(struct ufsmount *ump, struct vnode *vp, daddr_t lblkno,
+    daddr_t dblkno, int size, daddr_t *rablkno, int *rabsize, int cnt,
+    struct ucred *cred, int flags, void (*ckhashfunc)(struct buf *),
+    struct buf **bpp)
+{
+	int error;
+
+	flags |= GB_CVTENXIO;
+	error = breadn_flags(vp, lblkno, dblkno, size, rablkno, rabsize, cnt,
+	    cred, flags, ckhashfunc, bpp);
+	if (error != 0 && ffs_fsfail_cleanup(ump, error)) {
+		error = getblkx(vp, lblkno, dblkno, size, 0, 0, flags, bpp);
+		KASSERT(error == 0, ("getblkx failed"));
+		vfs_bio_bzero_buf(*bpp, 0, size);
+	}
+	return (error);
 }
 #endif /* _KERNEL */
 

@@ -261,12 +261,14 @@ struct buf {
  */
 #define	BX_VNDIRTY	0x00000001	/* On vnode dirty list */
 #define	BX_VNCLEAN	0x00000002	/* On vnode clean list */
+#define	BX_CVTENXIO	0x00000004	/* Convert errors to ENXIO */
 #define	BX_BKGRDWRITE	0x00000010	/* Do writes in background */
 #define	BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
 #define	BX_ALTDATA	0x00000040	/* Holds extended data */
 #define	BX_FSPRIV	0x00FF0000	/* Filesystem-specific flags mask */
 
-#define	PRINT_BUF_XFLAGS "\20\7altdata\6bkgrdmarker\5bkgrdwrite\2clean\1dirty"
+#define	PRINT_BUF_XFLAGS "\20\7altdata\6bkgrdmarker\5bkgrdwrite\3cvtenxio" \
+	"\2clean\1dirty"
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
@@ -487,6 +489,7 @@ buf_track(struct buf *bp __unused, const char *location __unused)
 #define	GB_KVAALLOC	0x0010		/* But allocate KVA. */
 #define	GB_CKHASH	0x0020		/* If reading, calc checksum hash */
 #define	GB_NOSPARSE	0x0040		/* Do not instantiate holes */
+#define	GB_CVTENXIO	0x0080		/* Convert errors to ENXIO */
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */

@@ -2271,6 +2271,7 @@ inodedep_lookup(mp, inum, flags, inodedeppp)
 	inodedep->id_ino = inum;
 	inodedep->id_state = ALLCOMPLETE;
 	inodedep->id_nlinkdelta = 0;
+	inodedep->id_nlinkwrote = -1;
 	inodedep->id_savedino1 = NULL;
 	inodedep->id_savedsize = -1;
 	inodedep->id_savedextsize = -1;
@@ -3606,6 +3607,7 @@ softdep_process_journal(mp, needwk, flags)
 		jblocks->jb_needseg = 0;
 		WORKLIST_INSERT(&bp->b_dep, &jseg->js_list);
 		FREE_LOCK(ump);
+		bp->b_xflags |= BX_CVTENXIO;
 		pbgetvp(ump->um_devvp, bp);
 		/*
 		 * We only do the blocking wait once we find the journal
@@ -6334,7 +6336,7 @@ setup_trunc_indir(freeblks, ip, lbn, lastlbn, blkno)
 	 * the on-disk address, so we just pass it to bread() instead of
 	 * having bread() attempt to calculate it using VOP_BMAP().
 	 */
-	error = breadn_flags(ITOV(ip), lbn, blkptrtodb(ump, blkno),
+	error = ffs_breadz(ump, ITOV(ip), lbn, blkptrtodb(ump, blkno),
 	    (int)mp->mnt_stat.f_iosize, NULL, NULL, 0, NOCRED, 0, NULL, &bp);
 	if (error)
 		return (error);
@@ -6485,6 +6487,15 @@ complete_trunc_indir(freework)
 		else
 			WORKLIST_INSERT(&indirdep->ir_freeblks->fb_freeworkhd,
 			   &freework->fw_list);
+		if (fwn == NULL) {
+			freework->fw_indir = (void *)0x0000deadbeef0000;
+			bp = indirdep->ir_savebp;
+			indirdep->ir_savebp = NULL;
+			free_indirdep(indirdep);
+			FREE_LOCK(ump);
+			brelse(bp);
+			ACQUIRE_LOCK(ump);
+		}
 	} else {
 		/* Complete when the real copy is written. */
 		WORKLIST_INSERT(&bp->b_dep, &freework->fw_list);
@@ -6589,6 +6600,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	struct buf *bp;
 	struct vnode *vp;
 	struct mount *mp;
+	daddr_t dbn;
 	ufs2_daddr_t extblocks, datablocks;
 	ufs_lbn_t tmpval, lbn, lastlbn;
 	int frags, lastoff, iboff, allocblock, needj, error, i;
@@ -6726,8 +6738,9 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	 */
 	ufs_itimes(vp);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
-	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-	    (int)fs->fs_bsize, cred, &bp);
+	dbn = fsbtodb(fs, ino_to_fsba(fs, ip->i_number));
+	error = ffs_breadz(ump, ump->um_devvp, dbn, dbn, (int)fs->fs_bsize,
+	    NULL, NULL, 0, cred, 0, NULL, &bp);
 	if (error) {
 		softdep_error("softdep_journal_freeblocks", error);
 		return;
@@ -6828,13 +6841,13 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		 */
 		size = sblksize(fs, length, lastlbn);
 		error = bread(vp, lastlbn, size, cred, &bp);
-		if (error) {
+		if (error == 0) {
+			bzero((char *)bp->b_data + lastoff, size - lastoff);
+			bawrite(bp);
+		} else if (!ffs_fsfail_cleanup(ump, error)) {
 			softdep_error("softdep_journal_freeblks", error);
 			return;
 		}
-		bzero((char *)bp->b_data + lastoff, size - lastoff);
-		bawrite(bp);
-
 	}
 	ACQUIRE_LOCK(ump);
 	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
@@ -6945,8 +6958,8 @@ softdep_setup_freeblocks(ip, length, flags)
 	if ((error = bread(ump->um_devvp,
 	    fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 	    (int)fs->fs_bsize, NOCRED, &bp)) != 0) {
-		brelse(bp);
-		softdep_error("softdep_setup_freeblocks", error);
+		if (!ffs_fsfail_cleanup(ump, error))
+			softdep_error("softdep_setup_freeblocks", error);
 		return;
 	}
 	freeblks = newfreeblks(mp, ip);
@@ -8161,7 +8174,7 @@ indir_trunc(freework, dbn, lbn)
 	ufs_lbn_t lbnadd, nlbn;
 	u_long key;
 	int nblocks, ufs1fmt, freedblocks;
-	int goingaway, freedeps, needj, level, cnt, i;
+	int goingaway, freedeps, needj, level, cnt, i, error;
 
 	freeblks = freework->fw_freeblks;
 	mp = freeblks->fb_list.wk_mp;
@@ -8199,10 +8212,11 @@ indir_trunc(freework, dbn, lbn)
 		if (indirdep == NULL || (indirdep->ir_state & GOINGAWAY) == 0)
 			panic("indir_trunc: Bad indirdep %p from buf %p",
 			    indirdep, bp);
-	} else if (bread(freeblks->fb_devvp, dbn, (int)fs->fs_bsize,
-	    NOCRED, &bp) != 0) {
-		brelse(bp);
-		return;
+	} else {
+		error = ffs_breadz(ump, freeblks->fb_devvp, dbn, dbn,
+		    (int)fs->fs_bsize, NULL, NULL, 0, NOCRED, 0, NULL, &bp);
+		if (error)
+			return;
 	}
 	ACQUIRE_LOCK(ump);
 	/* Protects against a race with complete_trunc_indir(). */
@@ -9700,6 +9714,7 @@ clear_unlinked_inodedep(inodedep)
 	struct inodedep *idn;
 	struct fs *fs, *bpfs;
 	struct buf *bp;
+	daddr_t dbn;
 	ino_t ino;
 	ino_t nino;
 	ino_t pino;
@@ -9753,11 +9768,10 @@ clear_unlinked_inodedep(inodedep)
 			bp = getblk(ump->um_devvp, btodb(fs->fs_sblockloc),
 			    (int)fs->fs_sbsize, 0, 0, 0);
 		} else {
-			error = bread(ump->um_devvp,
-			    fsbtodb(fs, ino_to_fsba(fs, pino)),
-			    (int)fs->fs_bsize, NOCRED, &bp);
-			if (error)
-				brelse(bp);
+			dbn = fsbtodb(fs, ino_to_fsba(fs, pino));
+			error = ffs_breadz(ump, ump->um_devvp, dbn, dbn,
+			    (int)fs->fs_bsize, NULL, NULL, 0, NOCRED, 0, NULL,
+			    &bp);
 		}
 		ACQUIRE_LOCK(ump);
 		if (error)
@@ -10578,14 +10592,16 @@ initiate_write_inodeblock_ufs2(inodedep, bp)
 		if ((adp->ad_state & ATTACHED) == 0)
 			panic("inodedep %p and adp %p not attached", inodedep, adp);
 		prevlbn = adp->ad_offset;
-		if (adp->ad_offset < UFS_NDADDR &&
+		if (!ffs_fsfail_cleanup(ump, 0) &&
+		    adp->ad_offset < UFS_NDADDR &&
 		    dp->di_db[adp->ad_offset] != adp->ad_newblkno)
 			panic("initiate_write_inodeblock_ufs2: "
 			    "direct pointer #%jd mismatch %jd != %jd",
 			    (intmax_t)adp->ad_offset,
 			    (intmax_t)dp->di_db[adp->ad_offset],
 			    (intmax_t)adp->ad_newblkno);
-		if (adp->ad_offset >= UFS_NDADDR &&
+		if (!ffs_fsfail_cleanup(ump, 0) &&
+		    adp->ad_offset >= UFS_NDADDR &&
 		    dp->di_ib[adp->ad_offset - UFS_NDADDR] != adp->ad_newblkno)
 			panic("initiate_write_inodeblock_ufs2: "
 			    "indirect pointer #%jd mismatch %jd != %jd",
@@ -10817,12 +10833,14 @@ softdep_setup_inofree(mp, bp, ino, wkhd)
 	    ("softdep_setup_inofree called on non-softdep filesystem"));
 	ump = VFSTOUFS(mp);
 	ACQUIRE_LOCK(ump);
-	fs = ump->um_fs;
-	cgp = (struct cg *)bp->b_data;
-	inosused = cg_inosused(cgp);
-	if (isset(inosused, ino % fs->fs_ipg))
-		panic("softdep_setup_inofree: inode %ju not freed.",
-		    (uintmax_t)ino);
+	if (!ffs_fsfail_cleanup(ump, 0)) {
+		fs = ump->um_fs;
+		cgp = (struct cg *)bp->b_data;
+		inosused = cg_inosused(cgp);
+		if (isset(inosused, ino % fs->fs_ipg))
+			panic("softdep_setup_inofree: inode %ju not freed.",
+			    (uintmax_t)ino);
+	}
 	if (inodedep_lookup(mp, ino, 0, &inodedep))
 		panic("softdep_setup_inofree: ino %ju has existing inodedep %p",
 		    (uintmax_t)ino, inodedep);
@@ -11091,6 +11109,26 @@ initiate_write_bmsafemap(bmsafemap, bp)
 	    wk_list);
 }
 
+void
+softdep_handle_error(struct buf *bp)
+{
+	struct ufsmount *ump;
+
+	ump = softdep_bp_to_mp(bp);
+	if (ump == NULL)
+		return;
+
+	if (ffs_fsfail_cleanup(ump, bp->b_error)) {
+		/*
+		 * No future writes will succeed, so the on-disk image is safe.
+		 * Pretend that this write succeeded so that the softdep state
+		 * will be cleaned up naturally.
+		 */
+		bp->b_ioflags &= ~BIO_ERROR;
+		bp->b_error = 0;
+	}
+}
+
 /*
  * This routine is called during the completion interrupt
  * service routine for a disk write (from the procedure called
@@ -11117,6 +11155,8 @@ softdep_disk_write_complete(bp)
 	     "with outstanding dependencies for buffer %p", bp));
 	if (ump == NULL)
 		return;
+	if ((bp->b_ioflags & BIO_ERROR) != 0)
+		softdep_handle_error(bp);
 	/*
 	 * If an error occurred while doing the write, then the data
 	 * has not hit the disk and the dependencies cannot be processed.
@@ -12305,6 +12345,13 @@ softdep_load_inodeblock(ip)
 		FREE_LOCK(ump);
 		return;
 	}
+	if (ip->i_nlink != inodedep->id_nlinkwrote &&
+	    inodedep->id_nlinkwrote != -1) {
+		KASSERT(ip->i_nlink == 0 &&
+		    (ump->um_flags & UM_FSFAIL_CLEANUP) != 0,
+		    ("read bad i_nlink value"));
+		ip->i_effnlink = ip->i_nlink = inodedep->id_nlinkwrote;
+	}
 	ip->i_effnlink -= inodedep->id_nlinkdelta;
 	KASSERT(ip->i_effnlink >= 0,
 	    ("softdep_load_inodeblock: negative i_effnlink"));
@@ -12367,6 +12414,11 @@ again:
 			panic("softdep_update_inodeblock: bad link count");
 		return;
 	}
+	KASSERT(ip->i_nlink >= inodedep->id_nlinkdelta,
+	    ("softdep_update_inodeblock inconsistent ip %p i_nlink %d "
+	    "inodedep %p id_nlinkdelta %jd",
+	    ip, ip->i_nlink, inodedep, (intmax_t)inodedep->id_nlinkdelta));
+	inodedep->id_nlinkwrote = ip->i_nlink;
 	if (inodedep->id_nlinkdelta != ip->i_nlink - ip->i_effnlink)
 		panic("softdep_update_inodeblock: bad delta");
 	/*
@@ -12642,7 +12694,7 @@ restart:
 		else
 			brelse(bp);
 		vput(pvp);
-		if (error != 0)
+		if (!ffs_fsfail_cleanup(ump, error))
 			return (error);
 		ACQUIRE_LOCK(ump);
 		if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) == 0)

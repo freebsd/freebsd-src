@@ -2176,6 +2176,8 @@ breadn_flags(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size,
 			bp->b_flags |= B_CKHASH;
 			bp->b_ckhashcalc = ckhashfunc;
 		}
+		if ((flags & GB_CVTENXIO) != 0)
+			bp->b_xflags |= BX_CVTENXIO;
 		bp->b_ioflags &= ~BIO_ERROR;
 		if (bp->b_rcred == NOCRED && cred != NOCRED)
 			bp->b_rcred = crhold(cred);
@@ -2773,6 +2775,7 @@ brelse(struct buf *bp)
 		panic("brelse: not dirty");
 
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_RELBUF | B_DIRECT);
+	bp->b_xflags &= ~(BX_CVTENXIO);
 	/* binsfree unlocks bp. */
 	binsfree(bp, qindex);
 }
@@ -2804,6 +2807,7 @@ bqrelse(struct buf *bp)
 		return;
 	}
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	bp->b_xflags &= ~(BX_CVTENXIO);
 
 	if (bp->b_flags & B_MANAGED) {
 		if (bp->b_flags & B_REMFREE)
