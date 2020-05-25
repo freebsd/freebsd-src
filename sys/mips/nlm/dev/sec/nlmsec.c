@@ -466,12 +466,12 @@ static int
 xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 {
 
-	switch (crp->crp_buf_type) {
+	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
 	{
 		struct mbuf *m = NULL;
 
-		m = crp->crp_mbuf;
+		m = crp->crp_buf.cb_mbuf;
 		while (m != NULL) {
 			*nsegs += NLM_CRYPTO_NUM_SEGS_REQD(m->m_len);
 			m = m->m_next;
@@ -484,8 +484,8 @@ xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 		struct iovec *iov = NULL;
 		int iol = 0;
 
-		uio = (struct uio *)crp->crp_buf;
-		iov = (struct iovec *)uio->uio_iov;
+		uio = crp->crp_buf.cb_uio;
+		iov = uio->uio_iov;
 		iol = uio->uio_iovcnt;
 		while (iol > 0) {
 			*nsegs += NLM_CRYPTO_NUM_SEGS_REQD(iov->iov_len);
@@ -495,7 +495,7 @@ xlp_get_nsegs(struct cryptop *crp, unsigned int *nsegs)
 		break;
 	}
 	case CRYPTO_BUF_CONTIG:
-		*nsegs = NLM_CRYPTO_NUM_SEGS_REQD(crp->crp_ilen);
+		*nsegs = NLM_CRYPTO_NUM_SEGS_REQD(crp->crp_buf.cb_buf_len);
 		break;
 	default:
 		return (EINVAL);
