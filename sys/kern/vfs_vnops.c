@@ -682,12 +682,8 @@ foffset_lock(struct file *fp, int flags)
 
 	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
 
-	/*
-	 * Caller only wants the current f_offset value.  Assume that
-	 * the long and shorter integer types reads are atomic.
-	 */
 	if ((flags & FOF_NOLOCK) != 0)
-		return (fp->f_offset);
+		return (atomic_load_long(&fp->f_offset));
 
 	/*
 	 * According to McKusick the vn lock was protecting f_offset here.
@@ -695,7 +691,7 @@ foffset_lock(struct file *fp, int flags)
 	 */
 	flagsp = &fp->f_vnread_flags;
 	if (atomic_cmpset_acq_16(flagsp, 0, FOFFSET_LOCKED))
-		return (fp->f_offset);
+		return (atomic_load_long(&fp->f_offset));
 
 	sleepq_lock(&fp->f_vnread_flags);
 	state = atomic_load_16(flagsp);
@@ -718,7 +714,7 @@ foffset_lock(struct file *fp, int flags)
 		sleepq_lock(&fp->f_vnread_flags);
 		state = atomic_load_16(flagsp);
 	}
-	res = fp->f_offset;
+	res = atomic_load_long(&fp->f_offset);
 	sleepq_release(&fp->f_vnread_flags);
 	return (res);
 }
@@ -732,7 +728,7 @@ foffset_unlock(struct file *fp, off_t val, int flags)
 	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
 
 	if ((flags & FOF_NOUPDATE) == 0)
-		fp->f_offset = val;
+		atomic_store_long(&fp->f_offset, val);
 	if ((flags & FOF_NEXTOFF) != 0)
 		fp->f_nextoff = val;
 
