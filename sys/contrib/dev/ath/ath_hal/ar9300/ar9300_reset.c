@@ -2064,7 +2064,7 @@ ar9300_set_rf_mode(struct ath_hal *ah, struct ieee80211_channel *chan)
  * Places the hardware into reset and then pulls it out of reset
  */
 HAL_BOOL
-ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *chan)
+ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *chan, HAL_RESET_TYPE reset_type)
 {
     struct ath_hal_9300     *ahp = AH9300(ah);
     int type = HAL_RESET_WARM;
@@ -2080,8 +2080,13 @@ ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *chan)
      */
     if (ahp->ah_chip_full_sleep ||
         (ah->ah_config.ah_force_full_reset == 1) ||
+        (reset_type == HAL_RESET_FORCE_COLD) ||
+        (reset_type == HAL_RESET_BBPANIC) ||
         OS_REG_READ(ah, AR_Q_TXE) ||
         (OS_REG_READ(ah, AR_CR) & AR_CR_RXE)) {
+            HALDEBUG(ah, HAL_DEBUG_RESET,
+              "%s: full reset; reset_type=%d, full_sleep=%d\n",
+              __func__, reset_type, ahp->ah_chip_full_sleep);
             type = HAL_RESET_COLD;
     }
 
@@ -4510,7 +4515,7 @@ HAL_BOOL
 ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *chan,
     HAL_HT_MACMODE macmode, u_int8_t txchainmask, u_int8_t rxchainmask,
     HAL_HT_EXTPROTSPACING extprotspacing, HAL_BOOL b_channel_change,
-    HAL_STATUS *status, int is_scan)
+    HAL_STATUS *status, HAL_RESET_TYPE reset_type, int is_scan)
 {
 #define FAIL(_code)     do { ecode = _code; goto bad; } while (0)
     u_int32_t               save_led_state;
@@ -4864,7 +4869,7 @@ ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *ch
     /* Mark PHY inactive prior to reset, to be undone in ar9300_init_bb () */
     ar9300_mark_phy_inactive(ah);
 
-    if (!ar9300_chip_reset(ah, chan)) {
+    if (!ar9300_chip_reset(ah, chan, reset_type)) {
         HALDEBUG(ah, HAL_DEBUG_RESET, "%s: chip reset failed\n", __func__);
         FAIL(HAL_EIO);
     }

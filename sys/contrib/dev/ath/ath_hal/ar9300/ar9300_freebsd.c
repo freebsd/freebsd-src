@@ -543,6 +543,7 @@ ar9300_reset_freebsd(struct ath_hal *ah, HAL_OPMODE opmode,
 	    HAL_HT_EXTPROTSPACING_20, /* always 20Mhz channel spacing */
 	    bChannelChange,
 	    status,
+	    resetType,
 	    AH_FALSE);       /* XXX should really extend ath_hal_reset() */
 
 	return (r);

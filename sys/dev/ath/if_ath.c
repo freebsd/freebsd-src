@@ -2380,7 +2380,7 @@ ath_fatal_proc(void *arg, int pending)
 		    "0x%08x 0x%08x 0x%08x, 0x%08x 0x%08x 0x%08x\n", state[0],
 		    state[1] , state[2], state[3], state[4], state[5]);
 	}
-	ath_reset(sc, ATH_RESET_NOLOSS);
+	ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_FORCE_COLD);
 }
 
 static void
@@ -2491,11 +2491,11 @@ ath_bmiss_proc(void *arg, int pending)
 	 * to clear.
 	 */
 	if (ath_hal_gethangstate(sc->sc_ah, 0xff, &hangs) && hangs != 0) {
-		ath_reset(sc, ATH_RESET_NOLOSS);
+		ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_BBPANIC);
 		device_printf(sc->sc_dev,
 		    "bb hang detected (0x%x), resetting\n", hangs);
 	} else {
-		ath_reset(sc, ATH_RESET_NOLOSS);
+		ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_FORCE_COLD);
 		ieee80211_beacon_miss(&sc->sc_ic);
 	}
 
@@ -2894,7 +2894,8 @@ ath_reset_grablock(struct ath_softc *sc, int dowait)
  * to reset or reload hardware state.
  */
 int
-ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
+ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type,
+    HAL_RESET_TYPE ah_reset_type)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
@@ -2962,7 +2963,7 @@ ath_reset(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	ath_hal_setchainmasks(sc->sc_ah, sc->sc_cur_txchainmask,
 	    sc->sc_cur_rxchainmask);
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE,
-	    HAL_RESET_NORMAL, &status))
+	    ah_reset_type, &status))
 		device_printf(sc->sc_dev,
 		    "%s: unable to reset hardware; hal status %u\n",
 		    __func__, status);
@@ -3098,7 +3099,7 @@ ath_reset_vap(struct ieee80211vap *vap, u_long cmd)
 		return 0;
 	}
 	/* XXX? Full or NOLOSS? */
-	return ath_reset(sc, ATH_RESET_FULL);
+	return ath_reset(sc, ATH_RESET_FULL, HAL_RESET_NORMAL);
 }
 
 struct ath_buf *
@@ -3778,7 +3779,7 @@ ath_reset_proc(void *arg, int pending)
 #if 0
 	device_printf(sc->sc_dev, "%s: resetting\n", __func__);
 #endif
-	ath_reset(sc, ATH_RESET_NOLOSS);
+	ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_FORCE_COLD);
 }
 
 /*
@@ -3805,7 +3806,7 @@ ath_bstuck_proc(void *arg, int pending)
 	 * This assumes that there's no simultaneous channel mode change
 	 * occurring.
 	 */
-	ath_reset(sc, ATH_RESET_NOLOSS);
+	ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_FORCE_COLD);
 }
 
 static int
@@ -5460,6 +5461,10 @@ ath_calibrate(void *arg)
 		 * infinite NIC restart.  Ideally we'd not restart if we
 		 * failed the first NF cal - that /can/ fail sometimes in
 		 * a noisy environment.
+		 *
+		 * Instead, we should likely temporarily shorten the longCal
+		 * period to happen pretty quickly and if a subsequent one
+		 * fails, do a full reset.
 		 */
 		if (shortCal)
 			sc->sc_lastshortcal = ticks;
