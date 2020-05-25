@@ -119,7 +119,7 @@ mlx5e_tls_init(struct mlx5e_priv *priv)
 	struct sysctl_oid *node;
 	uint32_t x;
 
-	if (MLX5_CAP_GEN(priv->mdev, tls) == 0)
+	if (MLX5_CAP_GEN(priv->mdev, tls_tx) == 0)
 		return (0);
 
 	ptls->wq = create_singlethread_workqueue("mlx5-tls-wq");
@@ -161,7 +161,7 @@ mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 	struct mlx5e_tls *ptls = &priv->tls;
 	uint32_t x;
 
-	if (MLX5_CAP_GEN(priv->mdev, tls) == 0)
+	if (MLX5_CAP_GEN(priv->mdev, tls_tx) == 0)
 		return;
 
 	ptls->init = 0;
