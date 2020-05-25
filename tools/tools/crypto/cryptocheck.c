@@ -216,7 +216,8 @@ const struct alg {
 
 static bool verbose;
 static int crid;
-static size_t aad_len;
+static size_t aad_sizes[48], sizes[128];
+static u_int naad_sizes, nsizes;
 
 static void
 usage(void)
@@ -754,6 +755,20 @@ run_cipher_test(const struct alg *alg, size_t size)
 		return;
 	}
 
+	/*
+	 * XTS requires at least one full block so that any partial
+	 * block at the end has cipher text to steal.  Hardcoding the
+	 * AES block size isn't ideal, but OpenSSL doesn't have a
+	 * notion of a "native" block size.
+	 */
+	if (EVP_CIPHER_mode(cipher) == EVP_CIPH_XTS_MODE &&
+	    size < AES_BLOCK_LEN) {
+		if (verbose)
+			printf("%s (%zu): invalid buffer size\n", alg->name,
+			    size);
+		return;
+	}
+
 	key_len = EVP_CIPHER_key_length(cipher);
 	iv_len = EVP_CIPHER_iv_length(cipher);
 
@@ -766,7 +781,7 @@ run_cipher_test(const struct alg *alg, size_t size)
 	/* OpenSSL cipher. */
 	openssl_cipher(alg, cipher, key, iv, cleartext, ciphertext, size, 1);
 	if (size > 0 && memcmp(cleartext, ciphertext, size) == 0)
-		errx(1, "OpenSSL %s (%zu): cipher text unchanged", alg->name,
+		warnx("OpenSSL %s (%zu): cipher text unchanged", alg->name,
 		    size);
 	openssl_cipher(alg, cipher, key, iv, ciphertext, buffer, size, 0);
 	if (memcmp(cleartext, buffer, size) != 0) {
@@ -877,7 +892,7 @@ ocf_eta(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 }
 
 static void
-run_eta_test(const struct alg *alg, size_t size)
+run_eta_test(const struct alg *alg, size_t aad_len, size_t size)
 {
 	struct ocf_session ses;
 	const EVP_CIPHER *cipher;
@@ -892,8 +907,18 @@ run_eta_test(const struct alg *alg, size_t size)
 	if (size % EVP_CIPHER_block_size(cipher) != 0) {
 		if (verbose)
 			printf(
-			    "%s (%zu): invalid buffer size (block size %d)\n",
-			    alg->name, size, EVP_CIPHER_block_size(cipher));
+		    "%s (%zu, %zu): invalid buffer size (block size %d)\n",
+			    alg->name, aad_len, size,
+			    EVP_CIPHER_block_size(cipher));
+		return;
+	}
+
+	/* See comment in run_cipher_test. */
+	if (EVP_CIPHER_mode(cipher) == EVP_CIPH_XTS_MODE &&
+	    size < AES_BLOCK_LEN) {
+		if (verbose)
+			printf("%s (%zu): invalid buffer size\n", alg->name,
+			    size);
 		return;
 	}
 
@@ -920,13 +945,13 @@ run_eta_test(const struct alg *alg, size_t size)
 	    ciphertext + aad_len, size, 1);
 	if (size > 0 && memcmp(cleartext + aad_len, ciphertext + aad_len,
 	    size) == 0)
-		errx(1, "OpenSSL %s (%zu): cipher text unchanged", alg->name,
-		    size);
+		warnx("OpenSSL %s (%zu, %zu): cipher text unchanged",
+		    alg->name, aad_len, size);
 	digest_len = sizeof(control_digest);
 	if (HMAC(md, auth_key, auth_key_len, (u_char *)ciphertext,
 	    aad_len + size, (u_char *)control_digest, &digest_len) == NULL)
-		errx(1, "OpenSSL %s (%zu) HMAC failed: %s", alg->name,
-		    size, ERR_error_string(ERR_get_error(), NULL));
+		errx(1, "OpenSSL %s (%zu, %zu) HMAC failed: %s", alg->name,
+		    aad_len, size, ERR_error_string(ERR_get_error(), NULL));
 
 	if (!ocf_init_eta_session(alg, cipher_key, cipher_key_len, auth_key,
 	    auth_key_len, &ses))
@@ -937,12 +962,13 @@ run_eta_test(const struct alg *alg, size_t size)
 	    aad_len != 0 ? cleartext : NULL, aad_len, cleartext + aad_len,
 	    buffer + aad_len, size, test_digest, COP_ENCRYPT);
 	if (error != 0) {
-		warnc(error, "cryptodev %s (%zu) ETA failed for device %s",
-		    alg->name, size, crfind(ses.crid));
+		warnc(error, "cryptodev %s (%zu, %zu) ETA failed for device %s",
+		    alg->name, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 	if (memcmp(ciphertext + aad_len, buffer + aad_len, size) != 0) {
-		printf("%s (%zu) encryption mismatch:\n", alg->name, size);
+		printf("%s (%zu, %zu) encryption mismatch:\n", alg->name,
+		    aad_len, size);
 		printf("control:\n");
 		hexdump(ciphertext + aad_len, size, NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(ses.crid));
@@ -951,11 +977,11 @@ run_eta_test(const struct alg *alg, size_t size)
 	}
 	if (memcmp(control_digest, test_digest, sizeof(control_digest)) != 0) {
 		if (memcmp(control_digest, test_digest, EVP_MD_size(md)) == 0)
-			printf("%s (%zu) enc hash mismatch in trailer:\n",
-			    alg->name, size);
+			printf("%s (%zu, %zu) enc hash mismatch in trailer:\n",
+			    alg->name, aad_len, size);
 		else
-			printf("%s (%zu) enc hash mismatch:\n", alg->name,
-			    size);
+			printf("%s (%zu, %zu) enc hash mismatch:\n", alg->name,
+			    aad_len, size);
 		printf("control:\n");
 		hexdump(control_digest, sizeof(control_digest), NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(ses.crid));
@@ -968,12 +994,13 @@ run_eta_test(const struct alg *alg, size_t size)
 	    aad_len != 0 ? ciphertext : NULL, aad_len, ciphertext + aad_len,
 	    buffer + aad_len, size, test_digest, COP_DECRYPT);
 	if (error != 0) {
-		warnc(error, "cryptodev %s (%zu) ETA failed for device %s",
-		    alg->name, size, crfind(ses.crid));
+		warnc(error, "cryptodev %s (%zu, %zu) ETA failed for device %s",
+		    alg->name, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 	if (memcmp(cleartext + aad_len, buffer + aad_len, size) != 0) {
-		printf("%s (%zu) decryption mismatch:\n", alg->name, size);
+		printf("%s (%zu, %zu) decryption mismatch:\n", alg->name,
+		    aad_len, size);
 		printf("control:\n");
 		hexdump(cleartext, size, NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(ses.crid));
@@ -989,18 +1016,18 @@ run_eta_test(const struct alg *alg, size_t size)
 	if (error != EBADMSG) {
 		if (error != 0)
 			warnc(error,
-		    "cryptodev %s (%zu) corrupt tag failed for device %s",
-			    alg->name, size, crfind(ses.crid));
+		    "cryptodev %s (%zu, %zu) corrupt tag failed for device %s",
+			    alg->name, aad_len, size, crfind(ses.crid));
 		else
 			warnx(
-		    "cryptodev %s (%zu) corrupt tag didn't fail for device %s",
-			    alg->name, size, crfind(ses.crid));
+	    "cryptodev %s (%zu, %zu) corrupt tag didn't fail for device %s",
+			    alg->name, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 
 	if (verbose)
-		printf("%s (%zu) matched (cryptodev device %s)\n",
-		    alg->name, size, crfind(ses.crid));
+		printf("%s (%zu, %zu) matched (cryptodev device %s)\n",
+		    alg->name, aad_len, size, crfind(ses.crid));
 
 out:
 	ocf_destroy_session(&ses);
@@ -1303,7 +1330,7 @@ ocf_aead(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 #define	AEAD_MAX_TAG_LEN	MAX(AES_GMAC_HASH_LEN, AES_CBC_MAC_HASH_LEN)
 
 static void
-run_aead_test(const struct alg *alg, size_t size)
+run_aead_test(const struct alg *alg, size_t aad_len, size_t size)
 {
 	struct ocf_session ses;
 	const EVP_CIPHER *cipher;
@@ -1317,8 +1344,9 @@ run_aead_test(const struct alg *alg, size_t size)
 	if (size % EVP_CIPHER_block_size(cipher) != 0) {
 		if (verbose)
 			printf(
-			    "%s (%zu): invalid buffer size (block size %d)\n",
-			    alg->name, size, EVP_CIPHER_block_size(cipher));
+		    "%s (%zu, %zu): invalid buffer size (block size %d)\n",
+			    alg->name, aad_len, size,
+			    EVP_CIPHER_block_size(cipher));
 		return;
 	}
 
@@ -1366,12 +1394,13 @@ run_aead_test(const struct alg *alg, size_t size)
 	error = ocf_aead(&ses, alg, iv, iv_len, aad, aad_len, cleartext, buffer,
 	    size, test_tag, COP_ENCRYPT);
 	if (error != 0) {
-		warnc(error, "cryptodev %s (%zu) failed for device %s",
-		    alg->name, size, crfind(ses.crid));
+		warnc(error, "cryptodev %s (%zu, %zu) failed for device %s",
+		    alg->name, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 	if (memcmp(ciphertext, buffer, size) != 0) {
-		printf("%s (%zu) encryption mismatch:\n", alg->name, size);
+		printf("%s (%zu, %zu) encryption mismatch:\n", alg->name,
+		    aad_len, size);
 		printf("control:\n");
 		hexdump(ciphertext, size, NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(crid));
@@ -1379,7 +1408,8 @@ run_aead_test(const struct alg *alg, size_t size)
 		goto out;
 	}
 	if (memcmp(control_tag, test_tag, sizeof(control_tag)) != 0) {
-		printf("%s (%zu) enc tag mismatch:\n", alg->name, size);
+		printf("%s (%zu, %zu) enc tag mismatch:\n", alg->name, aad_len,
+		    size);
 		printf("control:\n");
 		hexdump(control_tag, sizeof(control_tag), NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(crid));
@@ -1391,12 +1421,13 @@ run_aead_test(const struct alg *alg, size_t size)
 	error = ocf_aead(&ses, alg, iv, iv_len, aad, aad_len, ciphertext,
 	    buffer, size, control_tag, COP_DECRYPT);
 	if (error != 0) {
-		warnc(error, "cryptodev %s (%zu) failed for device %s",
-		    alg->name, size, crfind(ses.crid));
+		warnc(error, "cryptodev %s (%zu, %zu) failed for device %s",
+		    alg->name, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 	if (memcmp(cleartext, buffer, size) != 0) {
-		printf("%s (%zu) decryption mismatch:\n", alg->name, size);
+		printf("%s (%zu, %zu) decryption mismatch:\n", alg->name,
+		    aad_len, size);
 		printf("control:\n");
 		hexdump(cleartext, size, NULL, 0);
 		printf("test (cryptodev device %s):\n", crfind(crid));
@@ -1411,18 +1442,18 @@ run_aead_test(const struct alg *alg, size_t size)
 	if (error != EBADMSG) {
 		if (error != 0)
 			warnc(error,
-		    "cryptodev %s (%zu) corrupt tag failed for device %s",
-			    alg->name, size, crfind(ses.crid));
+		    "cryptodev %s (%zu, %zu) corrupt tag failed for device %s",
+			    alg->name, aad_len, size, crfind(ses.crid));
 		else
 			warnx(
-		    "cryptodev %s (%zu) corrupt tag didn't fail for device %s",
-			    alg->name, size, crfind(ses.crid));
+	    "cryptodev %s (%zu, %zu) corrupt tag didn't fail for device %s",
+			    alg->name, aad_len, size, crfind(ses.crid));
 		goto out;
 	}
 
 	if (verbose)
-		printf("%s (%zu) matched (cryptodev device %s)\n",
-		    alg->name, size, crfind(ses.crid));
+		printf("%s (%zu, %zu) matched (cryptodev device %s)\n",
+		    alg->name, aad_len, size, crfind(ses.crid));
 
 out:
 	ocf_destroy_session(&ses);
@@ -1435,7 +1466,7 @@ out:
 }
 
 static void
-run_test(const struct alg *alg, size_t size)
+run_test(const struct alg *alg, size_t aad_len, size_t size)
 {
 
 	switch (alg->type) {
@@ -1452,55 +1483,65 @@ run_test(const struct alg *alg, size_t size)
 		run_cipher_test(alg, size);
 		break;
 	case T_ETA:
-		run_eta_test(alg, size);
+		run_eta_test(alg, aad_len, size);
 		break;
 	case T_AEAD:
-		run_aead_test(alg, size);
+		run_aead_test(alg, aad_len, size);
 		break;
 	}
 }
 
 static void
-run_test_sizes(const struct alg *alg, size_t *sizes, u_int nsizes)
+run_test_sizes(const struct alg *alg)
 {
-	u_int i;
+	u_int i, j;
 
-	for (i = 0; i < nsizes; i++)
-		run_test(alg, sizes[i]);
+	switch (alg->type) {
+	default:
+		for (i = 0; i < nsizes; i++)
+			run_test(alg, 0, sizes[i]);
+		break;
+	case T_ETA:
+	case T_AEAD:
+		for (i = 0; i < naad_sizes; i++)
+			for (j = 0; j < nsizes; j++)
+				run_test(alg, aad_sizes[i], sizes[j]);
+		break;
+	}
 }
 
 static void
-run_hash_tests(size_t *sizes, u_int nsizes)
+run_hash_tests(void)
 {
 	u_int i;
 
 	for (i = 0; i < nitems(algs); i++)
 		if (algs[i].type == T_HASH)
-			run_test_sizes(&algs[i], sizes, nsizes);
+			run_test_sizes(&algs[i]);
 }
 
 static void
-run_mac_tests(size_t *sizes, u_int nsizes)
+run_mac_tests(void)
 {
 	u_int i;
 
 	for (i = 0; i < nitems(algs); i++)
 		if (algs[i].type == T_HMAC || algs[i].type == T_GMAC)
-			run_test_sizes(&algs[i], sizes, nsizes);
+			run_test_sizes(&algs[i]);
 }
 
 static void
-run_cipher_tests(size_t *sizes, u_int nsizes)
+run_cipher_tests(void)
 {
 	u_int i;
 
 	for (i = 0; i < nitems(algs); i++)
 		if (algs[i].type == T_CIPHER)
-			run_test_sizes(&algs[i], sizes, nsizes);
+			run_test_sizes(&algs[i]);
 }
 
 static void
-run_eta_tests(size_t *sizes, u_int nsizes)
+run_eta_tests(void)
 {
 	const struct alg *cipher, *mac;
 	struct alg *eta;
@@ -1515,20 +1556,20 @@ run_eta_tests(size_t *sizes, u_int nsizes)
 			if (mac->type != T_HMAC)
 				continue;
 			eta = build_eta(cipher, mac);
-			run_test_sizes(eta, sizes, nsizes);
+			run_test_sizes(eta);
 			free_eta(eta);
 		}
 	}
 }
 
 static void
-run_aead_tests(size_t *sizes, u_int nsizes)
+run_aead_tests(void)
 {
 	u_int i;
 
 	for (i = 0; i < nitems(algs); i++)
 		if (algs[i].type == T_AEAD)
-			run_test_sizes(&algs[i], sizes, nsizes);
+			run_test_sizes(&algs[i]);
 }
 
 int
@@ -1537,8 +1578,9 @@ main(int ac, char **av)
 	const char *algname;
 	const struct alg *alg;
 	struct alg *eta;
-	size_t sizes[128];
-	u_int i, nsizes;
+	char *cp;
+	size_t base_size;
+	u_int i;
 	bool testall;
 	int ch;
 
@@ -1549,7 +1591,14 @@ main(int ac, char **av)
 	while ((ch = getopt(ac, av, "A:a:d:vz")) != -1)
 		switch (ch) {
 		case 'A':
-			aad_len = atoi(optarg);
+			if (naad_sizes >= nitems(aad_sizes)) {
+				warnx("Too many AAD sizes, ignoring extras");
+				break;
+			}
+			aad_sizes[naad_sizes] = strtol(optarg, &cp, 0);
+			if (*cp != '\0')
+				errx(1, "Bad AAD size %s", optarg);
+			naad_sizes++;
 			break;
 		case 'a':
 			algname = optarg;
@@ -1570,8 +1619,6 @@ main(int ac, char **av)
 	av += optind;
 	nsizes = 0;
 	while (ac > 0) {
-		char *cp;
-
 		if (nsizes >= nitems(sizes)) {
 			warnx("Too many sizes, ignoring extras");
 			break;
@@ -1586,48 +1633,78 @@ main(int ac, char **av)
 
 	if (algname == NULL)
 		errx(1, "Algorithm required");
-	if (nsizes == 0) {
-		sizes[0] = 16;
-		nsizes++;
+
+	if (naad_sizes == 0) {
 		if (testall) {
-			while (sizes[nsizes - 1] * 2 < 240 * 1024) {
-				assert(nsizes < nitems(sizes));
-				sizes[nsizes] = sizes[nsizes - 1] * 2;
+			for (i = 0; i <= 32; i++) {
+				aad_sizes[naad_sizes] = i;
+				naad_sizes++;
+			}
+
+			base_size = 32;
+			while (base_size * 2 < 512) {
+				base_size *= 2;
+				assert(naad_sizes < nitems(aad_sizes));
+				aad_sizes[naad_sizes] = base_size;
+				naad_sizes++;
+			}
+		} else {
+			aad_sizes[0] = 0;
+			naad_sizes = 1;
+		}
+	}
+
+	if (nsizes == 0) {
+		if (testall) {
+			for (i = 1; i <= 32; i++) {
+				sizes[nsizes] = i;
 				nsizes++;
 			}
+
+			base_size = 32;
+			while (base_size * 2 < 240 * 1024) {
+				base_size *= 2;
+				assert(nsizes < nitems(sizes));
+				sizes[nsizes] = base_size;
+				nsizes++;
+			}
+
 			if (sizes[nsizes - 1] < 240 * 1024) {
 				assert(nsizes < nitems(sizes));
 				sizes[nsizes] = 240 * 1024;
 				nsizes++;
 			}
+		} else {
+			sizes[0] = 16;
+			nsizes = 1;
 		}
 	}
 
 	if (strcasecmp(algname, "hash") == 0)
-		run_hash_tests(sizes, nsizes);
+		run_hash_tests();
 	else if (strcasecmp(algname, "mac") == 0)
-		run_mac_tests(sizes, nsizes);
+		run_mac_tests();
 	else if (strcasecmp(algname, "cipher") == 0)
-		run_cipher_tests(sizes, nsizes);
+		run_cipher_tests();
 	else if (strcasecmp(algname, "eta") == 0)
-		run_eta_tests(sizes, nsizes);
+		run_eta_tests();
 	else if (strcasecmp(algname, "aead") == 0)
-		run_aead_tests(sizes, nsizes);
+		run_aead_tests();
 	else if (strcasecmp(algname, "all") == 0) {
-		run_hash_tests(sizes, nsizes);
-		run_mac_tests(sizes, nsizes);
-		run_cipher_tests(sizes, nsizes);
-		run_eta_tests(sizes, nsizes);
-		run_aead_tests(sizes, nsizes);
+		run_hash_tests();
+		run_mac_tests();
+		run_cipher_tests();
+		run_eta_tests();
+		run_aead_tests();
 	} else if (strchr(algname, '+') != NULL) {
 		eta = build_eta_name(algname);
-		run_test_sizes(eta, sizes, nsizes);
+		run_test_sizes(eta);
 		free_eta(eta);
 	} else {
 		alg = find_alg(algname);
 		if (alg == NULL)
 			errx(1, "Invalid algorithm %s", algname);
-		run_test_sizes(alg, sizes, nsizes);
+		run_test_sizes(alg);
 	}
 
 	return (0);
