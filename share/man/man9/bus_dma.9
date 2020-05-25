@@ -53,7 +53,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd April 14, 2020
+.Dd May 25, 2020
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -69,6 +69,7 @@
 .Nm bus_dmamap_load_bio ,
 .Nm bus_dmamap_load_ccb ,
 .Nm bus_dmamap_load_crp ,
+.Nm bus_dmamap_load_crp_buffer ,
 .Nm bus_dmamap_load_mbuf ,
 .Nm bus_dmamap_load_mbuf_sg ,
 .Nm bus_dmamap_load_uio ,
@@ -122,6 +123,10 @@
 .Fn bus_dmamap_load_crp "bus_dma_tag_t dmat" "bus_dmamap_t map" \
 "struct crypto *crp" "bus_dmamap_callback_t *callback" "void *callback_arg" \
 "int flags"
+.Ft int
+.Fn bus_dmamap_load_crp_buffer "bus_dma_tag_t dmat" "bus_dmamap_t map" \
+"struct crypto_buffer *cb" "bus_dmamap_callback_t *callback" \
+"void *callback_arg" "int flags"
 .Ft int
 .Fn bus_dmamap_load_mbuf "bus_dma_tag_t dmat" "bus_dmamap_t map" \
 "struct mbuf *mbuf" "bus_dmamap_callback2_t *callback" "void *callback_arg" \
@@ -394,8 +399,9 @@ via
 .Fn bus_dmamap_load ,
 .Fn bus_dmamap_load_bio ,
 .Fn bus_dmamap_load_ccb ,
+.Fn bus_dmamap_load_crp ,
 or
-.Fn bus_dmamap_load_crp .
+.Fn bus_dmamap_load_crp_buffer .
 Callbacks are of the format:
 .Bl -tag -width indent
 .It Ft void
@@ -885,8 +891,18 @@ XPT_SCSI_IO
 .It Fn bus_dmamap_load_crp "dmat" "map" "crp" "callback" "callback_arg" "flags"
 This is a variation of
 .Fn bus_dmamap_load
-which maps buffers pointed to by
+which maps the input buffer pointed to by
 .Fa crp
+for DMA transfers.
+The
+.Dv BUS_DMA_NOWAIT
+flag is implied, thus no callback deferral will happen.
+.It Fn bus_dmamap_load_crp_buffer "dmat" "map" "cb" "callback" "callback_arg" \
+"flags"
+This is a variation of
+.Fn bus_dmamap_load
+which maps the crypto data buffer pointed to by
+.Fa cb
 for DMA transfers.
 The
 .Dv BUS_DMA_NOWAIT

@@ -92,9 +92,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 
 	crp->crp_opaque = NULL;
 	crp->crp_callback = g_eli_crypto_done;
-	crp->crp_buf_type = CRYPTO_BUF_CONTIG;
-	crp->crp_ilen = datasize;
-	crp->crp_buf = (void *)data;
+	crypto_use_buf(crp, data, datasize);
 
 	error = crypto_dispatch(crp);
 	if (error == 0) {

@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 	}								\
 } while (0)
 
-void
+static void
 cuio_copydata(struct uio* uio, int off, int len, caddr_t cp)
 {
 	struct iovec *iov = uio->uio_iov;
@@ -80,7 +80,7 @@ cuio_copydata(struct uio* uio, int off, int len, caddr_t cp)
 	}
 }
 
-void
+static void
 cuio_copyback(struct uio* uio, int off, int len, c_caddr_t cp)
 {
 	struct iovec *iov = uio->uio_iov;
@@ -103,7 +103,7 @@ cuio_copyback(struct uio* uio, int off, int len, c_caddr_t cp)
 /*
  * Return the index and offset of location in iovec list.
  */
-int
+static int
 cuio_getptr(struct uio *uio, int loc, int *off)
 {
 	int ind, len;
@@ -128,11 +128,263 @@ cuio_getptr(struct uio *uio, int loc, int *off)
 	return (-1);
 }
 
+void
+crypto_cursor_init(struct crypto_buffer_cursor *cc,
+    const struct crypto_buffer *cb)
+{
+	memset(cc, 0, sizeof(*cc));
+	cc->cc_type = cb->cb_type;
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		cc->cc_buf = cb->cb_buf;
+		cc->cc_buf_len = cb->cb_buf_len;
+		break;
+	case CRYPTO_BUF_MBUF:
+		cc->cc_mbuf = cb->cb_mbuf;
+		break;
+	case CRYPTO_BUF_UIO:
+		cc->cc_iov = cb->cb_uio->uio_iov;
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cb->cb_type);
+#endif
+		break;
+	}
+}
+
+void
+crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
+{
+	size_t remain;
+
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		MPASS(cc->cc_buf_len >= amount);
+		cc->cc_buf += amount;
+		cc->cc_buf_len -= amount;
+		break;
+	case CRYPTO_BUF_MBUF:
+		for (;;) {
+			remain = cc->cc_mbuf->m_len - cc->cc_offset;
+			if (amount < remain) {
+				cc->cc_offset += amount;
+				break;
+			}
+			amount -= remain;
+			cc->cc_mbuf = cc->cc_mbuf->m_next;
+			cc->cc_offset = 0;
+			if (amount == 0)
+				break;
+		}
+		break;
+	case CRYPTO_BUF_UIO:
+		for (;;) {
+			remain = cc->cc_iov->iov_len - cc->cc_offset;
+			if (amount < remain) {
+				cc->cc_offset += amount;
+				break;
+			}
+			amount -= remain;
+			cc->cc_iov++;
+			cc->cc_offset = 0;
+			if (amount == 0)
+				break;
+		}
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
+#endif
+		break;
+	}
+}
+
+void *
+crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
+{
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		return (cc->cc_buf);
+	case CRYPTO_BUF_MBUF:
+		if (cc->cc_mbuf == NULL)
+			return (NULL);
+		KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
+		    ("%s: not supported for unmapped mbufs", __func__));
+		return (mtod(cc->cc_mbuf, char *) + cc->cc_offset);
+	case CRYPTO_BUF_UIO:
+		return ((char *)cc->cc_iov->iov_base + cc->cc_offset);
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
+#endif
+		return (NULL);
+	}
+}
+
+size_t
+crypto_cursor_seglen(struct crypto_buffer_cursor *cc)
+{
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		return (cc->cc_buf_len);
+	case CRYPTO_BUF_MBUF:
+		if (cc->cc_mbuf == NULL)
+			return (0);
+		return (cc->cc_mbuf->m_len - cc->cc_offset);
+	case CRYPTO_BUF_UIO:
+		return (cc->cc_iov->iov_len - cc->cc_offset);
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
+#endif
+		return (0);
+	}
+}
+
+void
+crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
+    const void *vsrc)
+{
+	size_t remain, todo;
+	const char *src;
+	char *dst;
+
+	src = vsrc;
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		MPASS(cc->cc_buf_len >= size);
+		memcpy(cc->cc_buf, src, size);
+		cc->cc_buf += size;
+		cc->cc_buf_len -= size;
+		break;
+	case CRYPTO_BUF_MBUF:
+		for (;;) {
+			KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
+			    ("%s: not supported for unmapped mbufs", __func__));
+			dst = mtod(cc->cc_mbuf, char *) + cc->cc_offset;
+			remain = cc->cc_mbuf->m_len - cc->cc_offset;
+			todo = MIN(remain, size);
+			memcpy(dst, src, todo);
+			dst += todo;
+			if (todo < remain) {
+				cc->cc_offset += todo;
+				break;
+			}
+			size -= todo;	
+			cc->cc_mbuf = cc->cc_mbuf->m_next;
+			cc->cc_offset = 0;
+			if (size == 0)
+				break;
+		}
+		break;
+	case CRYPTO_BUF_UIO:
+		for (;;) {
+			dst = (char *)cc->cc_iov->iov_base + cc->cc_offset;
+			remain = cc->cc_iov->iov_len - cc->cc_offset;
+			todo = MIN(remain, size);
+			memcpy(dst, src, todo);
+			dst += todo;
+			if (todo < remain) {
+				cc->cc_offset += todo;
+				break;
+			}
+			size -= todo;	
+			cc->cc_iov++;
+			cc->cc_offset = 0;
+			if (size == 0)
+				break;
+		}
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
+#endif
+		break;
+	}
+}
+
+void
+crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
+{
+	size_t remain, todo;
+	const char *src;
+	char *dst;
+
+	dst = vdst;
+	switch (cc->cc_type) {
+	case CRYPTO_BUF_CONTIG:
+		MPASS(cc->cc_buf_len >= size);
+		memcpy(dst, cc->cc_buf, size);
+		cc->cc_buf += size;
+		cc->cc_buf_len -= size;
+		break;
+	case CRYPTO_BUF_MBUF:
+		for (;;) {
+			KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
+			    ("%s: not supported for unmapped mbufs", __func__));
+			src = mtod(cc->cc_mbuf, const char *) + cc->cc_offset;
+			remain = cc->cc_mbuf->m_len - cc->cc_offset;
+			todo = MIN(remain, size);
+			memcpy(dst, src, todo);
+			dst += todo;
+			if (todo < remain) {
+				cc->cc_offset += todo;
+				break;
+			}
+			size -= todo;
+			cc->cc_mbuf = cc->cc_mbuf->m_next;
+			cc->cc_offset = 0;
+			if (size == 0)
+				break;
+		}
+		break;
+	case CRYPTO_BUF_UIO:
+		for (;;) {
+			src = (const char *)cc->cc_iov->iov_base +
+			    cc->cc_offset;
+			remain = cc->cc_iov->iov_len - cc->cc_offset;
+			todo = MIN(remain, size);
+			memcpy(dst, src, todo);
+			dst += todo;
+			if (todo < remain) {
+				cc->cc_offset += todo;
+				break;
+			}
+			size -= todo;
+			cc->cc_iov++;
+			cc->cc_offset = 0;
+			if (size == 0)
+				break;
+		}
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("%s: invalid buffer type %d", __func__, cc->cc_type);
+#endif
+		break;
+	}
+}
+
+/*
+ * To avoid advancing 'cursor', make a local copy that gets advanced
+ * instead.
+ */
+void
+crypto_cursor_copydata_noadv(struct crypto_buffer_cursor *cc, int size,
+    void *vdst)
+{
+	struct crypto_buffer_cursor copy;
+
+	copy = *cc;
+	crypto_cursor_copydata(&copy, size, vdst);
+}
+
 /*
  * Apply function f to the data in an iovec list starting "off" bytes from
  * the beginning, continuing for "len" bytes.
  */
-int
+static int
 cuio_apply(struct uio *uio, int off, int len, int (*f)(void *, void *, u_int),
     void *arg)
 {
@@ -159,19 +411,28 @@ cuio_apply(struct uio *uio, int off, int len, int (*f)(void *, void *, u_int),
 void
 crypto_copyback(struct cryptop *crp, int off, int size, const void *src)
 {
+	struct crypto_buffer *cb;
 
-	switch (crp->crp_buf_type) {
+	if (crp->crp_obuf.cb_type != CRYPTO_BUF_NONE)
+		cb = &crp->crp_obuf;
+	else
+		cb = &crp->crp_buf;
+	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
-		m_copyback(crp->crp_mbuf, off, size, src);
+		m_copyback(cb->cb_mbuf, off, size, src);
 		break;
 	case CRYPTO_BUF_UIO:
-		cuio_copyback(crp->crp_uio, off, size, src);
+		cuio_copyback(cb->cb_uio, off, size, src);
 		break;
 	case CRYPTO_BUF_CONTIG:
-		bcopy(src, crp->crp_buf + off, size);
+		MPASS(off + size <= cb->cb_buf_len);
+		bcopy(src, cb->cb_buf + off, size);
 		break;
 	default:
-		panic("invalid crp buf type %d", crp->crp_buf_type);
+#ifdef INVARIANTS
+		panic("invalid crp buf type %d", cb->cb_type);
+#endif
+		break;
 	}
 }
 
@@ -179,88 +440,57 @@ void
 crypto_copydata(struct cryptop *crp, int off, int size, void *dst)
 {
 
-	switch (crp->crp_buf_type) {
+	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
-		m_copydata(crp->crp_mbuf, off, size, dst);
+		m_copydata(crp->crp_buf.cb_mbuf, off, size, dst);
 		break;
 	case CRYPTO_BUF_UIO:
-		cuio_copydata(crp->crp_uio, off, size, dst);
+		cuio_copydata(crp->crp_buf.cb_uio, off, size, dst);
 		break;
 	case CRYPTO_BUF_CONTIG:
-		bcopy(crp->crp_buf + off, dst, size);
+		MPASS(off + size <= crp->crp_buf.cb_buf_len);
+		bcopy(crp->crp_buf.cb_buf + off, dst, size);
 		break;
 	default:
-		panic("invalid crp buf type %d", crp->crp_buf_type);
+#ifdef INVARIANTS
+		panic("invalid crp buf type %d", crp->crp_buf.cb_type);
+#endif
+		break;
 	}
+}
+
+int
+crypto_apply_buf(struct crypto_buffer *cb, int off, int len,
+    int (*f)(void *, void *, u_int), void *arg)
+{
+	int error;
+
+	switch (cb->cb_type) {
+	case CRYPTO_BUF_MBUF:
+		error = m_apply(cb->cb_mbuf, off, len, f, arg);
+		break;
+	case CRYPTO_BUF_UIO:
+		error = cuio_apply(cb->cb_uio, off, len, f, arg);
+		break;
+	case CRYPTO_BUF_CONTIG:
+		MPASS(off + len <= cb->cb_buf_len);
+		error = (*f)(arg, cb->cb_buf + off, len);
+		break;
+	default:
+#ifdef INVARIANTS
+		panic("invalid crypto buf type %d", cb->cb_type);
+#endif
+		error = 0;
+		break;
+	}
+	return (error);
 }
 
 int
 crypto_apply(struct cryptop *crp, int off, int len,
     int (*f)(void *, void *, u_int), void *arg)
 {
-	int error;
-
-	switch (crp->crp_buf_type) {
-	case CRYPTO_BUF_MBUF:
-		error = m_apply(crp->crp_mbuf, off, len, f, arg);
-		break;
-	case CRYPTO_BUF_UIO:
-		error = cuio_apply(crp->crp_uio, off, len, f, arg);
-		break;
-	case CRYPTO_BUF_CONTIG:
-		error = (*f)(arg, crp->crp_buf + off, len);
-		break;
-	default:
-		panic("invalid crp buf type %d", crp->crp_buf_type);
-	}
-	return (error);
-}
-
-int
-crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr, int *cnt,
-    int *allocated)
-{
-	struct iovec *iov;
-	struct mbuf *m, *mtmp;
-	int i, j;
-
-	*allocated = 0;
-	iov = *iovptr;
-	if (iov == NULL)
-		*cnt = 0;
-
-	m = mbuf;
-	i = 0;
-	while (m != NULL) {
-		if (i == *cnt) {
-			/* we need to allocate a larger array */
-			j = 1;
-			mtmp = m;
-			while ((mtmp = mtmp->m_next) != NULL)
-				j++;
-			iov = malloc(sizeof *iov * (i + j), M_CRYPTO_DATA,
-			    M_NOWAIT);
-			if (iov == NULL)
-				return ENOMEM;
-			*allocated = 1;
-			*cnt = i + j;
-			memcpy(iov, *iovptr, sizeof *iov * i);
-		}
-
-		iov[i].iov_base = m->m_data;
-		iov[i].iov_len = m->m_len;
-
-		i++;
-		m = m->m_next;
-	}
-
-	if (*allocated)
-		KASSERT(*cnt == i, ("did not allocate correct amount: %d != %d",
-		    *cnt, i));
-
-	*iovptr = iov;
-	*cnt = i;
-	return 0;
+	return (crypto_apply_buf(&crp->crp_buf, off, len, f, arg));
 }
 
 static inline void *
@@ -300,17 +530,28 @@ cuio_contiguous_segment(struct uio *uio, size_t skip, size_t len)
 }
 
 void *
-crypto_contiguous_subsegment(struct cryptop *crp, size_t skip, size_t len)
+crypto_buffer_contiguous_subsegment(struct crypto_buffer *cb, size_t skip,
+    size_t len)
 {
 
-	switch (crp->crp_buf_type) {
+	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
-		return (m_contiguous_subsegment(crp->crp_mbuf, skip, len));
+		return (m_contiguous_subsegment(cb->cb_mbuf, skip, len));
 	case CRYPTO_BUF_UIO:
-		return (cuio_contiguous_segment(crp->crp_uio, skip, len));
+		return (cuio_contiguous_segment(cb->cb_uio, skip, len));
 	case CRYPTO_BUF_CONTIG:
-		return (crp->crp_buf + skip);
+		MPASS(skip + len <= cb->cb_buf_len);
+		return (cb->cb_buf + skip);
 	default:
-		panic("invalid crp buf type %d", crp->crp_buf_type);
+#ifdef INVARIANTS
+		panic("invalid crp buf type %d", cb->cb_type);
+#endif
+		return (NULL);
 	}
+}
+
+void *
+crypto_contiguous_subsegment(struct cryptop *crp, size_t skip, size_t len)
+{
+	return (crypto_buffer_contiguous_subsegment(&crp->crp_buf, skip, len));
 }

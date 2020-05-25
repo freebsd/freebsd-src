@@ -92,20 +92,20 @@ static struct random_source random_ccp = {
  * crypto operation buffer.
  */
 static int
-ccp_populate_sglist(struct sglist *sg, struct cryptop *crp)
+ccp_populate_sglist(struct sglist *sg, struct crypto_buffer *cb)
 {
 	int error;
 
 	sglist_reset(sg);
-	switch (crp->crp_buf_type) {
+	switch (cb->cb_type) {
 	case CRYPTO_BUF_MBUF:
-		error = sglist_append_mbuf(sg, crp->crp_mbuf);
+		error = sglist_append_mbuf(sg, cb->cb_mbuf);
 		break;
 	case CRYPTO_BUF_UIO:
-		error = sglist_append_uio(sg, crp->crp_uio);
+		error = sglist_append_uio(sg, cb->cb_uio);
 		break;
 	case CRYPTO_BUF_CONTIG:
-		error = sglist_append(sg, crp->crp_buf, crp->crp_ilen);
+		error = sglist_append(sg, cb->cb_buf, cb->cb_buf_len);
 		break;
 	default:
 		error = EINVAL;
@@ -547,7 +547,7 @@ ccp_process(device_t dev, struct cryptop *crp, int hint)
 		goto out;
 	qpheld = true;
 
-	error = ccp_populate_sglist(qp->cq_sg_crp, crp);
+	error = ccp_populate_sglist(qp->cq_sg_crp, &crp->crp_buf);
 	if (error != 0)
 		goto out;
 

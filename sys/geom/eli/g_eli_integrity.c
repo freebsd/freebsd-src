@@ -159,7 +159,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 		/* Number of sectors from encrypted provider, eg. 18. */
 		nsec = (nsec * sc->sc_bytes_per_sector) / encr_secsize;
 		/* Which relative sector this request decrypted. */
-		rel_sec = ((crp->crp_buf + crp->crp_payload_start) -
+		rel_sec = ((crp->crp_buf.cb_buf + crp->crp_payload_start) -
 		    (char *)bp->bio_driver2) / encr_secsize;
 
 		errorp = (int *)((char *)bp->bio_driver2 + encr_secsize * nsec +
@@ -517,10 +517,8 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 			plaindata += data_secsize;
 		}
 
-		crp->crp_ilen = sc->sc_alen + data_secsize;
+		crypto_use_buf(crp, data, sc->sc_alen + data_secsize);
 		crp->crp_opaque = (void *)bp;
-		crp->crp_buf_type = CRYPTO_BUF_CONTIG;
-		crp->crp_buf = (void *)data;
 		data += encr_secsize;
 		crp->crp_flags = CRYPTO_F_CBIFSYNC;
 		if (g_eli_batch)

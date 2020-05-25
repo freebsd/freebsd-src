@@ -948,10 +948,8 @@ cryptodev_op(
 		goto bail;
 	}
 
-	crp->crp_ilen = cop->len + cse->hashsize;
 	crp->crp_flags = CRYPTO_F_CBIMM | (cop->flags & COP_F_BATCH);
-	crp->crp_buf = cod->buf;
-	crp->crp_buf_type = CRYPTO_BUF_CONTIG;
+	crypto_use_buf(crp, cod->buf, cop->len + cse->hashsize);
 	crp->crp_callback = cryptodev_cb;
 	crp->crp_opaque = cod;
 
@@ -1129,10 +1127,9 @@ cryptodev_aead(
 		goto bail;
 	}
 
-	crp->crp_ilen = caead->aadlen + caead->len + cse->hashsize;
 	crp->crp_flags = CRYPTO_F_CBIMM | (caead->flags & COP_F_BATCH);
-	crp->crp_buf = cod->buf;
-	crp->crp_buf_type = CRYPTO_BUF_CONTIG;
+	crypto_use_buf(crp, cod->buf, caead->aadlen + caead->len +
+	    cse->hashsize);
 	crp->crp_callback = cryptodev_cb;
 	crp->crp_opaque = cod;
 

@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2020
+.Dd May 25, 2020
 .Dt CRYPTO_SESSION 9
 .Os
 .Sh NAME
@@ -183,8 +183,18 @@ and the authentication algorithm is specified in
 .Fa csp_auth_alg .
 .El
 .It Fa csp_flags
-Currently, no additional flags are defined and this field should be set to
-zero.
+A mask of optional driver features.
+Drivers will only attach to a session if they support all of the
+requested features.
+.Bl -tag -width CSP_F_SEPARATE_OUTPUT
+.It Dv CSP_F_SEPARATE_OUTPUT
+Support requests that use separate input and output buffers.
+Sessions with this flag set permit requests with either a single buffer
+that is modified in-place, or requests with separate input and output
+buffers.
+Sessions without this flag only permit requests with a single buffer that
+is modified in-place.
+.El
 .It Fa csp_ivlen
 If either the cipher or authentication algorithms require an explicit
 initialization vector (IV) or nonce,

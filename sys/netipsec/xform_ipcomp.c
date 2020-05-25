@@ -249,10 +249,8 @@ ipcomp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crp->crp_payload_length = m->m_pkthdr.len - (skip + hlen);
 
 	/* Crypto operation descriptor */
-	crp->crp_ilen = m->m_pkthdr.len - (skip + hlen);
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	crp->crp_mbuf = m;
-	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ipcomp_input_cb;
 	crp->crp_opaque = xd;
 
@@ -291,7 +289,7 @@ ipcomp_input_cb(struct cryptop *crp)
 	int skip, protoff;
 	uint8_t nproto;
 
-	m = crp->crp_mbuf;
+	m = crp->crp_buf.cb_mbuf;
 	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
 	sav = xd->sav;
@@ -506,10 +504,8 @@ ipcomp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	xd->cryptoid = cryptoid;
 
 	/* Crypto operation descriptor */
-	crp->crp_ilen = m->m_pkthdr.len;	/* Total input length */
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	crp->crp_mbuf = m;
-	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ipcomp_output_cb;
 	crp->crp_opaque = xd;
 
@@ -537,7 +533,7 @@ ipcomp_output_cb(struct cryptop *crp)
 	u_int idx;
 	int error, skip, protoff;
 
-	m = crp->crp_mbuf;
+	m = crp->crp_buf.cb_mbuf;
 	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
 	idx = xd->idx;

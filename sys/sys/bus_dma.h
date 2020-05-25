@@ -111,6 +111,7 @@
 /* Forwards needed by prototypes below. */
 union ccb;
 struct bio;
+struct crypto_buffer;
 struct cryptop;
 struct mbuf;
 struct memdesc;
@@ -270,6 +271,10 @@ int bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
 int bus_dmamap_load_crp(bus_dma_tag_t dmat, bus_dmamap_t map,
 			struct cryptop *crp, bus_dmamap_callback_t *callback,
 			void *callback_arg, int flags);
+int bus_dmamap_load_crp_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
+			       struct crypto_buffer *cb,
+			       bus_dmamap_callback_t *callback,
+			       void *callback_arg, int flags);
 
 /*
  * Loads any memory descriptor.
