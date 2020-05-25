@@ -83,7 +83,6 @@ unionfs_domount(struct mount *mp)
 	char           *tmp;
 	char           *ep;
 	int		len;
-	size_t		done;
 	int		below;
 	uid_t		uid;
 	gid_t		gid;
@@ -304,12 +303,8 @@ unionfs_domount(struct mount *mp)
 	 */
 	vfs_getnewfsid(mp);
 
-	len = MNAMELEN - 1;
-	tmp = mp->mnt_stat.f_mntfromname;
-	copystr((below ? "<below>:" : "<above>:"), tmp, len, &done);
-	len -= done - 1;
-	tmp += done - 1;
-	copystr(target, tmp, len, NULL);
+	snprintf(mp->mnt_stat.f_mntfromname, MNAMELEN, "<%s>:%s",
+	    below ? "below" : "above", target);
 
 	UNIONFSDEBUG("unionfs_mount: from %s, on %s\n",
 	    mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
