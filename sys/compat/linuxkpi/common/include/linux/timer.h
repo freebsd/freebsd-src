@@ -78,12 +78,12 @@ extern unsigned long linux_timer_hz_mask;
 	callout_init(&(timer)->callout, 1);			\
 } while (0)
 
-extern void mod_timer(struct timer_list *, int);
+extern int mod_timer(struct timer_list *, int);
 extern void add_timer(struct timer_list *);
 extern void add_timer_on(struct timer_list *, int cpu);
 extern int del_timer(struct timer_list *);
+extern int del_timer_sync(struct timer_list *);
 
-#define	del_timer_sync(timer)	(void)callout_drain(&(timer)->callout)
 #define	timer_pending(timer)	callout_pending(&(timer)->callout)
 #define	round_jiffies(j)	\
 	((int)(((j) + linux_timer_hz_mask) & ~linux_timer_hz_mask))
