@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -71,6 +71,7 @@ struct ena_com_rx_ctx {
 	enum ena_eth_io_l4_proto_index l4_proto;
 	bool l3_csum_err;
 	bool l4_csum_err;
+	u8 l4_csum_checked;
 	/* fragmented packet */
 	bool frag;
 	u32 hash;
@@ -90,7 +91,7 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 			       struct ena_com_buf *ena_buf,
 			       u16 req_id);
 
-int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id);
+bool ena_com_cq_empty(struct ena_com_io_cq *io_cq);
 
 static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
 				       struct ena_eth_io_intr_reg *intr_reg)
@@ -128,16 +129,67 @@ static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
 	return ena_com_free_desc(io_sq) > temp;
 }
 
+static inline bool ena_com_meta_desc_changed(struct ena_com_io_sq *io_sq,
+					     struct ena_com_tx_ctx *ena_tx_ctx)
+{
+	if (!ena_tx_ctx->meta_valid)
+		return false;
+
+	return !!memcmp(&io_sq->cached_tx_meta,
+			&ena_tx_ctx->ena_meta,
+			sizeof(struct ena_com_tx_meta));
+}
+
+static inline bool is_llq_max_tx_burst_exists(struct ena_com_io_sq *io_sq)
+{
+	return (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) &&
+	       io_sq->llq_info.max_entries_in_tx_burst > 0;
+}
+
+static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
+					      struct ena_com_tx_ctx *ena_tx_ctx)
+{
+	struct ena_com_llq_info *llq_info;
+	int descs_after_first_entry;
+	int num_entries_needed = 1;
+	u16 num_descs;
+
+	if (!is_llq_max_tx_burst_exists(io_sq))
+		return false;
+
+	llq_info = &io_sq->llq_info;
+	num_descs = ena_tx_ctx->num_bufs;
+
+	if (unlikely(ena_com_meta_desc_changed(io_sq, ena_tx_ctx)))
+		++num_descs;
+
+	if (num_descs > llq_info->descs_num_before_header) {
+		descs_after_first_entry = num_descs - llq_info->descs_num_before_header;
+		num_entries_needed += DIV_ROUND_UP(descs_after_first_entry,
+						   llq_info->descs_per_entry);
+	}
+
+	ena_trc_dbg("queue: %d num_descs: %d num_entries_needed: %d\n",
+		    io_sq->qid, num_descs, num_entries_needed);
+
+	return num_entries_needed > io_sq->entries_in_tx_burst_left;
+}
+
 static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 {
-	u16 tail;
-
-	tail = io_sq->tail;
+	u16 tail = io_sq->tail;
+	u16 max_entries_in_tx_burst = io_sq->llq_info.max_entries_in_tx_burst;
 
 	ena_trc_dbg("write submission queue doorbell for queue: %d tail: %d\n",
 		    io_sq->qid, tail);
 
 	ENA_REG_WRITE32(io_sq->bus, tail, io_sq->db_addr);
+
+	if (is_llq_max_tx_burst_exists(io_sq)) {
+		ena_trc_dbg("reset available entries in tx burst for queue %d to %d\n",
+			     io_sq->qid, max_entries_in_tx_burst);
+		io_sq->entries_in_tx_burst_left = max_entries_in_tx_burst;
+	}
 
 	return 0;
 }
@@ -178,6 +230,50 @@ static inline void ena_com_update_numa_node(struct ena_com_io_cq *io_cq,
 static inline void ena_com_comp_ack(struct ena_com_io_sq *io_sq, u16 elem)
 {
 	io_sq->next_to_comp += elem;
+}
+
+static inline void ena_com_cq_inc_head(struct ena_com_io_cq *io_cq)
+{
+	io_cq->head++;
+
+	/* Switch phase bit in case of wrap around */
+	if (unlikely((io_cq->head & (io_cq->q_depth - 1)) == 0))
+		io_cq->phase ^= 1;
+}
+
+static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
+					     u16 *req_id)
+{
+	u8 expected_phase, cdesc_phase;
+	struct ena_eth_io_tx_cdesc *cdesc;
+	u16 masked_head;
+
+	masked_head = io_cq->head & (io_cq->q_depth - 1);
+	expected_phase = io_cq->phase;
+
+	cdesc = (struct ena_eth_io_tx_cdesc *)
+		((uintptr_t)io_cq->cdesc_addr.virt_addr +
+		(masked_head * io_cq->cdesc_entry_size_in_bytes));
+
+	/* When the current completion descriptor phase isn't the same as the
+	 * expected, it mean that the device still didn't update
+	 * this completion.
+	 */
+	cdesc_phase = READ_ONCE16(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
+	if (cdesc_phase != expected_phase)
+		return ENA_COM_TRY_AGAIN;
+
+	dma_rmb();
+
+	*req_id = READ_ONCE16(cdesc->req_id);
+	if (unlikely(*req_id >= io_cq->q_depth)) {
+		ena_trc_err("Invalid req id %d\n", cdesc->req_id);
+		return ENA_COM_INVAL;
+	}
+
+	ena_com_cq_inc_head(io_cq);
+
+	return 0;
 }
 
 #if defined(__cplusplus)

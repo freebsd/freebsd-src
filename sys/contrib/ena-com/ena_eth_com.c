@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,22 +46,18 @@ static inline struct ena_eth_io_rx_cdesc_base *ena_com_get_next_rx_cdesc(
 	cdesc = (struct ena_eth_io_rx_cdesc_base *)(io_cq->cdesc_addr.virt_addr
 			+ (head_masked * io_cq->cdesc_entry_size_in_bytes));
 
-	desc_phase = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
+	desc_phase = (READ_ONCE32(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_PHASE_MASK) >>
 			ENA_ETH_IO_RX_CDESC_BASE_PHASE_SHIFT;
 
 	if (desc_phase != expected_phase)
 		return NULL;
 
+	/* Make sure we read the rest of the descriptor after the phase bit
+	 * has been read
+	 */
+	dma_rmb();
+
 	return cdesc;
-}
-
-static inline void ena_com_cq_inc_head(struct ena_com_io_cq *io_cq)
-{
-	io_cq->head++;
-
-	/* Switch phase bit in case of wrap around */
-	if (unlikely((io_cq->head & (io_cq->q_depth - 1)) == 0))
-		io_cq->phase ^= 1;
 }
 
 static inline void *get_sq_desc_regular_queue(struct ena_com_io_sq *io_sq)
@@ -76,8 +72,8 @@ static inline void *get_sq_desc_regular_queue(struct ena_com_io_sq *io_sq)
 	return (void *)((uintptr_t)io_sq->desc_addr.virt_addr + offset);
 }
 
-static inline void ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
-						      u8 *bounce_buffer)
+static inline int ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_sq,
+						     u8 *bounce_buffer)
 {
 	struct ena_com_llq_info *llq_info = &io_sq->llq_info;
 
@@ -86,6 +82,17 @@ static inline void ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_s
 
 	dst_tail_mask = io_sq->tail & (io_sq->q_depth - 1);
 	dst_offset = dst_tail_mask * llq_info->desc_list_entry_size;
+
+	if (is_llq_max_tx_burst_exists(io_sq)) {
+		if (unlikely(!io_sq->entries_in_tx_burst_left)) {
+			ena_trc_err("Error: trying to send more packets than tx burst allows\n");
+			return ENA_COM_NO_SPACE;
+		}
+
+		io_sq->entries_in_tx_burst_left--;
+		ena_trc_dbg("decreasing entries_in_tx_burst_left of queue %d to %d\n",
+			    io_sq->qid, io_sq->entries_in_tx_burst_left);
+	}
 
 	/* Make sure everything was written into the bounce buffer before
 	 * writing the bounce buffer to the device
@@ -102,6 +109,8 @@ static inline void ena_com_write_bounce_buffer_to_dev(struct ena_com_io_sq *io_s
 	/* Switch phase bit in case of wrap around */
 	if (unlikely((io_sq->tail & (io_sq->q_depth - 1)) == 0))
 		io_sq->phase ^= 1;
+
+	return ENA_COM_OK;
 }
 
 static inline int ena_com_write_header_to_bounce(struct ena_com_io_sq *io_sq,
@@ -113,7 +122,7 @@ static inline int ena_com_write_header_to_bounce(struct ena_com_io_sq *io_sq,
 	u8 *bounce_buffer = pkt_ctrl->curr_bounce_buf;
 	u16 header_offset;
 
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
+	if (unlikely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST))
 		return 0;
 
 	header_offset =
@@ -154,26 +163,31 @@ static inline void *get_sq_desc_llq(struct ena_com_io_sq *io_sq)
 	return sq_desc;
 }
 
-static inline void ena_com_close_bounce_buffer(struct ena_com_io_sq *io_sq)
+static inline int ena_com_close_bounce_buffer(struct ena_com_io_sq *io_sq)
 {
 	struct ena_com_llq_pkt_ctrl *pkt_ctrl = &io_sq->llq_buf_ctrl;
 	struct ena_com_llq_info *llq_info = &io_sq->llq_info;
+	int rc;
 
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
-		return;
+	if (unlikely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST))
+		return ENA_COM_OK;
 
 	/* bounce buffer was used, so write it and get a new one */
 	if (pkt_ctrl->idx) {
-		ena_com_write_bounce_buffer_to_dev(io_sq,
-						   pkt_ctrl->curr_bounce_buf);
+		rc = ena_com_write_bounce_buffer_to_dev(io_sq,
+							pkt_ctrl->curr_bounce_buf);
+		if (unlikely(rc))
+			return rc;
+
 		pkt_ctrl->curr_bounce_buf =
 			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
-			memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
-			       0x0, llq_info->desc_list_entry_size);
+		memset(io_sq->llq_buf_ctrl.curr_bounce_buf,
+		       0x0, llq_info->desc_list_entry_size);
 	}
 
 	pkt_ctrl->idx = 0;
 	pkt_ctrl->descs_left_in_line = llq_info->descs_num_before_header;
+	return ENA_COM_OK;
 }
 
 static inline void *get_sq_desc(struct ena_com_io_sq *io_sq)
@@ -184,14 +198,17 @@ static inline void *get_sq_desc(struct ena_com_io_sq *io_sq)
 	return get_sq_desc_regular_queue(io_sq);
 }
 
-static inline void ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
+static inline int ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
 {
 	struct ena_com_llq_pkt_ctrl *pkt_ctrl = &io_sq->llq_buf_ctrl;
 	struct ena_com_llq_info *llq_info = &io_sq->llq_info;
+	int rc;
 
 	if (!pkt_ctrl->descs_left_in_line) {
-		ena_com_write_bounce_buffer_to_dev(io_sq,
-						   pkt_ctrl->curr_bounce_buf);
+		rc = ena_com_write_bounce_buffer_to_dev(io_sq,
+							pkt_ctrl->curr_bounce_buf);
+		if (unlikely(rc))
+			return rc;
 
 		pkt_ctrl->curr_bounce_buf =
 			ena_com_get_next_bounce_buffer(&io_sq->bounce_buf_ctrl);
@@ -199,27 +216,28 @@ static inline void ena_com_sq_update_llq_tail(struct ena_com_io_sq *io_sq)
 			       0x0, llq_info->desc_list_entry_size);
 
 		pkt_ctrl->idx = 0;
-		if (llq_info->desc_stride_ctrl == ENA_ADMIN_SINGLE_DESC_PER_ENTRY)
+		if (unlikely(llq_info->desc_stride_ctrl == ENA_ADMIN_SINGLE_DESC_PER_ENTRY))
 			pkt_ctrl->descs_left_in_line = 1;
 		else
 			pkt_ctrl->descs_left_in_line =
 			llq_info->desc_list_entry_size / io_sq->desc_entry_size;
 	}
+
+	return ENA_COM_OK;
 }
 
-static inline void ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
+static inline int ena_com_sq_update_tail(struct ena_com_io_sq *io_sq)
 {
-
-	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		ena_com_sq_update_llq_tail(io_sq);
-		return;
-	}
+	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		return ena_com_sq_update_llq_tail(io_sq);
 
 	io_sq->tail++;
 
 	/* Switch phase bit in case of wrap around */
 	if (unlikely((io_sq->tail & (io_sq->q_depth - 1)) == 0))
 		io_sq->phase ^= 1;
+
+	return ENA_COM_OK;
 }
 
 static inline struct ena_eth_io_rx_cdesc_base *
@@ -245,7 +263,7 @@ static inline u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 
 		ena_com_cq_inc_head(io_cq);
 		count++;
-		last = (READ_ONCE(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
+		last = (READ_ONCE32(cdesc->status) & ENA_ETH_IO_RX_CDESC_BASE_LAST_MASK) >>
 			ENA_ETH_IO_RX_CDESC_BASE_LAST_SHIFT;
 	} while (!last);
 
@@ -268,25 +286,8 @@ static inline u16 ena_com_cdesc_rx_pkt_get(struct ena_com_io_cq *io_cq,
 	return count;
 }
 
-static inline bool ena_com_meta_desc_changed(struct ena_com_io_sq *io_sq,
-					     struct ena_com_tx_ctx *ena_tx_ctx)
-{
-	int rc;
-
-	if (ena_tx_ctx->meta_valid) {
-		rc = memcmp(&io_sq->cached_tx_meta,
-			    &ena_tx_ctx->ena_meta,
-			    sizeof(struct ena_com_tx_meta));
-
-		if (unlikely(rc != 0))
-			return true;
-	}
-
-	return false;
-}
-
-static inline void ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
-							 struct ena_com_tx_ctx *ena_tx_ctx)
+static inline int ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *io_sq,
+							struct ena_com_tx_ctx *ena_tx_ctx)
 {
 	struct ena_eth_io_tx_meta_desc *meta_desc = NULL;
 	struct ena_com_tx_meta *ena_meta = &ena_tx_ctx->ena_meta;
@@ -331,7 +332,7 @@ static inline void ena_com_create_and_store_tx_meta_desc(struct ena_com_io_sq *i
 	memcpy(&io_sq->cached_tx_meta, ena_meta,
 	       sizeof(struct ena_com_tx_meta));
 
-	ena_com_sq_update_tail(io_sq);
+	return ena_com_sq_update_tail(io_sq);
 }
 
 static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
@@ -343,11 +344,14 @@ static inline void ena_com_rx_set_flags(struct ena_com_rx_ctx *ena_rx_ctx,
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_MASK) >>
 		ENA_ETH_IO_RX_CDESC_BASE_L4_PROTO_IDX_SHIFT;
 	ena_rx_ctx->l3_csum_err =
-		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT;
+		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_MASK) >>
+		ENA_ETH_IO_RX_CDESC_BASE_L3_CSUM_ERR_SHIFT);
 	ena_rx_ctx->l4_csum_err =
-		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
-		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT;
+		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_MASK) >>
+		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_ERR_SHIFT);
+	ena_rx_ctx->l4_csum_checked =
+		!!((cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_MASK) >>
+		ENA_ETH_IO_RX_CDESC_BASE_L4_CSUM_CHECKED_SHIFT);
 	ena_rx_ctx->hash = cdesc->hash;
 	ena_rx_ctx->frag =
 		(cdesc->status & ENA_ETH_IO_RX_CDESC_BASE_IPV4_FRAG_MASK) >>
@@ -385,7 +389,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		 "wrong Q type");
 
 	/* num_bufs +1 for potential meta desc */
-	if (!ena_com_sq_have_enough_space(io_sq, num_bufs + 1)) {
+	if (unlikely(!ena_com_sq_have_enough_space(io_sq, num_bufs + 1))) {
 		ena_trc_dbg("Not enough space in the tx queue\n");
 		return ENA_COM_NO_MEM;
 	}
@@ -396,7 +400,8 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 		return ENA_COM_INVAL;
 	}
 
-	if (unlikely((io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) && !buffer_to_push))
+	if (unlikely(io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV
+		     && !buffer_to_push))
 		return ENA_COM_INVAL;
 
 	rc = ena_com_write_header_to_bounce(io_sq, buffer_to_push, header_len);
@@ -405,14 +410,17 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 	have_meta = ena_tx_ctx->meta_valid && ena_com_meta_desc_changed(io_sq,
 			ena_tx_ctx);
-	if (have_meta)
-		ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
+	if (have_meta) {
+		rc = ena_com_create_and_store_tx_meta_desc(io_sq, ena_tx_ctx);
+		if (unlikely(rc))
+			return rc;
+	}
 
-	/* If the caller doesn't want send packets */
+	/* If the caller doesn't want to send packets */
 	if (unlikely(!num_bufs && !header_len)) {
-		ena_com_close_bounce_buffer(io_sq);
+		rc = ena_com_close_bounce_buffer(io_sq);
 		*nb_hw_desc = io_sq->tail - start_tail;
-		return 0;
+		return rc;
 	}
 
 	desc = get_sq_desc(io_sq);
@@ -469,7 +477,9 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	for (i = 0; i < num_bufs; i++) {
 		/* The first desc share the same desc as the header */
 		if (likely(i != 0)) {
-			ena_com_sq_update_tail(io_sq);
+			rc = ena_com_sq_update_tail(io_sq);
+			if (unlikely(rc))
+				return rc;
 
 			desc = get_sq_desc(io_sq);
 			if (unlikely(!desc))
@@ -497,12 +507,14 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 	/* set the last desc indicator */
 	desc->len_ctrl |= ENA_ETH_IO_TX_DESC_LAST_MASK;
 
-	ena_com_sq_update_tail(io_sq);
+	rc = ena_com_sq_update_tail(io_sq);
+	if (unlikely(rc))
+		return rc;
 
-	ena_com_close_bounce_buffer(io_sq);
+	rc = ena_com_close_bounce_buffer(io_sq);
 
 	*nb_hw_desc = io_sq->tail - start_tail;
-	return 0;
+	return rc;
 }
 
 int ena_com_rx_pkt(struct ena_com_io_cq *io_cq,
@@ -574,10 +586,10 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 
 	desc->length = ena_buf->len;
 
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_FIRST_MASK;
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_LAST_MASK;
-	desc->ctrl |= io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK;
-	desc->ctrl |= ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
+	desc->ctrl = ENA_ETH_IO_RX_DESC_FIRST_MASK |
+		ENA_ETH_IO_RX_DESC_LAST_MASK |
+		(io_sq->phase & ENA_ETH_IO_RX_DESC_PHASE_MASK) |
+		ENA_ETH_IO_RX_DESC_COMP_REQ_MASK;
 
 	desc->req_id = req_id;
 
@@ -585,40 +597,16 @@ int ena_com_add_single_rx_desc(struct ena_com_io_sq *io_sq,
 	desc->buff_addr_hi =
 		((ena_buf->paddr & GENMASK_ULL(io_sq->dma_addr_bits - 1, 32)) >> 32);
 
-	ena_com_sq_update_tail(io_sq);
-
-	return 0;
+	return ena_com_sq_update_tail(io_sq);
 }
 
-int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
+bool ena_com_cq_empty(struct ena_com_io_cq *io_cq)
 {
-	u8 expected_phase, cdesc_phase;
-	struct ena_eth_io_tx_cdesc *cdesc;
-	u16 masked_head;
+	struct ena_eth_io_rx_cdesc_base *cdesc;
 
-	masked_head = io_cq->head & (io_cq->q_depth - 1);
-	expected_phase = io_cq->phase;
-
-	cdesc = (struct ena_eth_io_tx_cdesc *)
-		((uintptr_t)io_cq->cdesc_addr.virt_addr +
-		(masked_head * io_cq->cdesc_entry_size_in_bytes));
-
-	/* When the current completion descriptor phase isn't the same as the
-	 * expected, it mean that the device still didn't update
-	 * this completion.
-	 */
-	cdesc_phase = READ_ONCE(cdesc->flags) & ENA_ETH_IO_TX_CDESC_PHASE_MASK;
-	if (cdesc_phase != expected_phase)
-		return ENA_COM_TRY_AGAIN;
-
-	if (unlikely(cdesc->req_id >= io_cq->q_depth)) {
-		ena_trc_err("Invalid req id %d\n", cdesc->req_id);
-		return ENA_COM_INVAL;
-	}
-
-	ena_com_cq_inc_head(io_cq);
-
-	*req_id = READ_ONCE(cdesc->req_id);
-
-	return 0;
+	cdesc = ena_com_get_next_rx_cdesc(io_cq);
+	if (cdesc)
+		return false;
+	else
+		return true;
 }
