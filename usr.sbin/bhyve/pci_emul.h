@@ -218,10 +218,6 @@ typedef void (*pci_lintr_cb)(int b, int s, int pin, int pirq_pin,
     int ioapic_irq, void *arg);
 
 int	init_pci(struct vmctx *ctx);
-void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
-	    int bytes, uint32_t val);
-void	msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
-	    int bytes, uint32_t val);
 void	pci_callback(void);
 int	pci_emul_alloc_bar(struct pci_devinst *pdi, int idx,
 	    enum pcibar_type type, uint64_t size);
@@ -229,6 +225,8 @@ int	pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx,
 	    uint64_t hostbase, enum pcibar_type type, uint64_t size);
 int	pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
 int	pci_emul_add_pciecap(struct pci_devinst *pi, int pcie_device_type);
+void	pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes,
+	    uint32_t val, uint8_t capoff, int capid);
 void	pci_emul_cmd_changed(struct pci_devinst *pi, uint16_t old);
 void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
