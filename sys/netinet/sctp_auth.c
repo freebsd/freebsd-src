@@ -656,7 +656,6 @@ sctp_free_hmaclist(sctp_hmaclist_t *list)
 {
 	if (list != NULL) {
 		SCTP_FREE(list, SCTP_M_AUTH_HL);
-		list = NULL;
 	}
 }
 
