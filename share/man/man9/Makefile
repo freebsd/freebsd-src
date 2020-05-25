@@ -935,7 +935,7 @@ MLINKS+=crypto_request.9 crypto_dispatch.9 \
 	crypto_request.9 crypto_use_output_buf.9 \
 	crypto_request.9 crypto_use_output_mbuf.9 \
 	crypto_request.9 crypto_use_output_uio.9 \
-	crypto_request.9 crypto_use_uio.9 \
+	crypto_request.9 crypto_use_uio.9
 MLINKS+=crypto_session.9 crypto_auth_hash.9 \
 	crypto_session.9 crypto_cipher.9 \
 	crypto_session.9 crypto_get_params.9 \
