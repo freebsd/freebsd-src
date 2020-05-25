@@ -110,12 +110,12 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
 		}
 	}
 
-	switch (crp->crp_buf_type) {
+	switch (crp->crp_buf.cb_type) {
 	case CRYPTO_BUF_MBUF:
 	{
 		struct mbuf *m = NULL;
 
-		m = crp->crp_mbuf;
+		m = crp->crp_buf.cb_mbuf;
 		while (m != NULL) {
 			srcseg = nlm_crypto_fill_src_seg(cmd->paramp, srcseg,
 			    mtod(m,caddr_t), m->m_len);
@@ -133,7 +133,7 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
 		struct iovec *iov = NULL;
 	        int iol = 0;
 
-		uio = crp->crp_uio;
+		uio = crp->crp_buf.cb_uio;
 		iov = uio->uio_iov;
 		iol = uio->uio_iovcnt;
 
@@ -151,10 +151,10 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
 	}
 	case CRYPTO_BUF_CONTIG:
 		srcseg = nlm_crypto_fill_src_seg(cmd->paramp, srcseg,
-		    ((caddr_t)crp->crp_buf), crp->crp_ilen);
+		    crp->crp_buf.cb_buf, crp->crp_buf.cb_buf_len);
 		if (csp->csp_mode != CSP_MODE_DIGEST) {
 			dstseg = nlm_crypto_fill_dst_seg(cmd->paramp, dstseg,
-			    ((caddr_t)crp->crp_buf), crp->crp_ilen);
+			    crp->crp_buf.cb_buf, crp->crp_buf.cb_buf_len);
 		}
 		break;
 	}
