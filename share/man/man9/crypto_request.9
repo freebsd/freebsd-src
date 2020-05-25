@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2020
+.Dd May 25, 2020
 .Dt CRYPTO_REQUEST 9
 .Os
 .Sh NAME
@@ -44,6 +44,18 @@
 .Fn crypto_freereq "struct cryptop *crp"
 .Ft "struct cryptop *"
 .Fn crypto_getreq "crypto_session_t cses" "int how"
+.Ft void
+.Fn crypto_use_buf "struct cryptop *crp" "void *buf" "int len"
+.Ft void
+.Fn crypto_use_mbuf "struct cryptop *crp" "struct mbuf *m"
+.Ft void
+.Fn crypto_use_uio "struct cryptop *crp" "struct uio *uio"
+.Ft void
+.Fn crypto_use_output_buf "struct cryptop *crp" "void *buf" "int len"
+.Ft void
+.Fn crypto_use_output_mbuf "struct cryptop *crp" "struct mbuf *m"
+.Ft void
+.Fn crypto_use_output_uio "struct cryptop *crp" "struct uio *uio"
 .Sh DESCRIPTION
 Each symmetric cryptographic operation in the kernel is described by
 an instance of
@@ -84,57 +96,65 @@ it should be feed via
 .Fn crypto_freereq .
 .Pp
 Cryptographic operations include several fields to describe the request.
-.Ss Buffer Types
-Requests are associated with a single data buffer that is modified in place.
-The type of the data buffer and the buffer itself are described by the
-following fields:
-.Bl -tag -width crp_buf_type
-.It Fa crp_buf_type
-The type of the data buffer.
-The following types are supported:
-.Bl -tag -width CRYPTO_BUF_CONTIG
-.It Dv CRYPTO_BUF_CONTIG
-An array of bytes mapped into the kernel's address space.
-.It Dv CRYPTO_BUF_UIO
-A scatter/gather list of kernel buffers as described in
-.Xr uio 9 .
-.It Dv CRYPTO_BUF_MBUF
-A network memory buffer as described in
-.Xr mbuf 9 .
-.El
-.It Fa crp_buf
-A pointer to the start of a
-.Dv CRYPTO_BUF_CONTIG
-data buffer.
-.It Fa crp_ilen
-The length of a
-.Dv CRYPTO_BUF_CONTIG
-data buffer
-.It Fa crp_mbuf
-A pointer to a
-.Vt struct mbuf
-for
-.Dv CRYPTO_BUF_MBUF .
-.It Fa crp_uio
-A pointer to a
-.Vt struct uio
-for
-.Dv CRYPTO_BUF_UIO .
-.It Fa crp_olen
-Used with compression and decompression requests to describe the updated
-length of the payload region in the data buffer.
+.Ss Request Buffers
+Requests can either specify a single data buffer that is modified in place
+.Po
+.Fa crp_buf
+.Pc
+or separate input
+.Po
+.Fa crp_buf
+.Pc
+and output
+.Po
+.Fa crp_obuf
+.Pc
+buffers.
+Note that separate input and output buffers are not supported for compression
+mode requests.
 .Pp
-If a compression request increases the size of the payload,
-then the data buffer is unmodified, the request completes successfully,
-and
-.Fa crp_olen
-is set to the size the compressed data would have used.
-Callers can compare this to the payload region length to determine if
-the compressed data was discarded.
+All requests must have a valid
+.Fa crp_buf
+initialized by one of the following functions:
+.Bl -tag -width "Fn crypto_use_mbuf"
+.It Fn crypto_use_buf
+Uses an array of
+.Fa len
+bytes pointed to by
+.Fa buf
+as the data buffer.
+.It Fn crypto_use_mbuf
+Uses the network memory buffer
+.Fa m
+as the data buffer.
+.It Fn crypto_use_uio
+Uses the scatter/gather list
+.Fa uio
+as the data buffer.
+.El
+.Pp
+One of the following functions should be used to initialize
+.Fa crp_obuf
+for requests that use separate input and output buffers:
+.Bl -tag -width "Fn crypto_use_output_mbuf"
+.It Fn crypto_use_output_buf
+Uses an array of
+.Fa len
+bytes pointed to by
+.Fa buf
+as the output buffer.
+.It Fn crypto_use_output_mbuf
+Uses the network memory buffer
+.Fa m
+as the output buffer.
+.It Fn crypto_use_output_uio
+Uses the scatter/gather list
+.Fa uio
+as the output buffer.
 .El
 .Ss Request Regions
-Each request describes one or more regions in the data buffer using.
-Each region is described by an offset relative to the start of the
+Each request describes one or more regions in the data buffers.
+Each region is described by an offset relative to the start of a
 data buffer and a length.
 The length of some regions is the same for all requests belonging to
 a session.
@@ -142,17 +162,42 @@ Those lengths are set in the session parameters of the associated
 session.
 All requests must define a payload region.
 Other regions are only required for specific session modes.
+.Pp
+For requests with separate input and output data buffers,
+the AAD, IV, and payload regions are always defined as regions in the
+input buffer,
+and a separate payload output region is defined to hold the output of
+encryption or decryption in the output buffer.
+The digest region describes a region in the input data buffer for
+requests that verify an existing digest.
+For requests that compute a digest,
+the digest region describes a region in the output data buffer.
+Note that the only data written to the output buffer is the encryption
+or decryption result and any computed digest.
+AAD and IV regions are not copied from the input buffer into the output
+buffer but are only used as inputs.
+.Pp
 The following regions are defined:
-.Bl -column "Payload" "crp_payload_start" "crp_payload_length"
-.It Sy Region Ta Sy Start Ta Sy Length Ta Sy Description
-.It AAD Ta Fa crp_aad_start Ta Fa crp_aad_length Ta
+.Bl -column "Payload Output" "Input/Output"
+.It Sy Region Ta Sy Buffer Ta Sy Description
+.It AAD Ta Input Ta
 Additional Authenticated Data
-.It IV Ta Fa crp_iv_start Ta Fa csp_ivlen Ta
+.It IV Ta Input Ta
 Embedded IV or nonce
-.It Payload Ta Fa crp_payload_start Ta Fa crp_payload_length Ta
+.It Payload Ta Input Ta
 Data to encrypt, decrypt, compress, or decompress
-.It Digest Ta Fa crp_digest_start Ta Fa csp_auth_mlen Ta
+.It Payload Output Ta Output Ta
+Encrypted or decrypted data
+.It Digest Ta Input/Output Ta
 Authentication digest, hash, or tag
+.El
+.Bl -column "Payload Output" ".Fa crp_payload_output_start"
+.It Sy Region Ta Sy Start Ta Sy Length
+.It AAD Ta Fa crp_aad_start Ta Fa crp_aad_length
+.It IV Ta Fa crp_iv_start Ta Fa csp_ivlen
+.It Payload Ta Fa crp_payload_start Ta Fa crp_payload_length
+.It Payload Output Ta Fa crp_payload_output_start Ta Fa crp_payload_length
+.It Digest Ta Fa crp_digest_start Ta Fa csp_auth_mlen
 .El
 .Pp
 Requests are permitted to operate on only a subset of the data buffer.
@@ -223,7 +268,7 @@ If the IV is stored in
 should be set in
 .Fa crp_flags
 and
-.Fa crp_digest_start
+.Fa crp_iv_start
 should be left as zero.
 .Pp
 Requests that store part, but not all, of the IV in the data buffer should
@@ -380,6 +425,17 @@ The callback function should inspect
 to determine the status of the completed operation.
 It should also arrange for the request to be freed via
 .Fn crypto_freereq .
+.It Fa crp_olen
+Used with compression and decompression requests to describe the updated
+length of the payload region in the data buffer.
+.Pp
+If a compression request increases the size of the payload,
+then the data buffer is unmodified, the request completes successfully,
+and
+.Fa crp_olen
+is set to the size the compressed data would have used.
+Callers can compare this to the payload region length to determine if
+the compressed data was discarded.
 .El
 .Sh RETURN VALUES
 .Fn crypto_dispatch

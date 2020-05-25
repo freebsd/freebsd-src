@@ -155,18 +155,16 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 
 	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
-	crp->crp_buf_type = CRYPTO_BUF_UIO;
-	crp->crp_uio = &uio;
-	crp->crp_ilen = uio.uio_resid;
+	crypto_use_uio(crp, &uio);
 	crp->crp_opaque = oo;
 	crp->crp_callback = ktls_ocf_callback;
 
 	crp->crp_aad_start = 0;
 	crp->crp_aad_length = sizeof(ad);
 	crp->crp_payload_start = sizeof(ad);
-	crp->crp_payload_length = crp->crp_ilen -
+	crp->crp_payload_length = uio.uio_resid -
 	    (sizeof(ad) + AES_GMAC_HASH_LEN);
-	crp->crp_digest_start = crp->crp_ilen - AES_GMAC_HASH_LEN;
+	crp->crp_digest_start = uio.uio_resid - AES_GMAC_HASH_LEN;
 
 	counter_u64_add(ocf_tls12_gcm_crypts, 1);
 	for (;;) {
@@ -256,18 +254,16 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 
 	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
-	crp->crp_buf_type = CRYPTO_BUF_UIO;
-	crp->crp_uio = &uio;
-	crp->crp_ilen = uio.uio_resid;
+	crypto_use_uio(crp, &uio);
 	crp->crp_opaque = oo;
 	crp->crp_callback = ktls_ocf_callback;
 
 	crp->crp_aad_start = 0;
 	crp->crp_aad_length = sizeof(ad);
 	crp->crp_payload_start = sizeof(ad);
-	crp->crp_payload_length = crp->crp_ilen -
+	crp->crp_payload_length = uio.uio_resid -
 	    (sizeof(ad) + AES_GMAC_HASH_LEN);
-	crp->crp_digest_start = crp->crp_ilen - AES_GMAC_HASH_LEN;
+	crp->crp_digest_start = uio.uio_resid - AES_GMAC_HASH_LEN;
 	memcpy(crp->crp_iv, nonce, sizeof(nonce));
 
 	counter_u64_add(ocf_tls13_gcm_crypts, 1);

@@ -752,22 +752,6 @@ safe_newsession(device_t dev, crypto_session_t cses,
 	return (0);
 }
 
-static bus_size_t
-safe_crp_length(struct cryptop *crp)
-{
-
-	switch (crp->crp_buf_type) {
-	case CRYPTO_BUF_MBUF:
-		return (crp->crp_mbuf->m_pkthdr.len);
-	case CRYPTO_BUF_UIO:
-		return (crp->crp_uio->uio_resid);
-	case CRYPTO_BUF_CONTIG:
-		return (crp->crp_ilen);
-	default:
-		panic("bad crp buffer type");
-	}
-}
-
 static void
 safe_op_cb(void *arg, bus_dma_segment_t *seg, int nsegs, int error)
 {
@@ -996,7 +980,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 		err = ENOMEM;
 		goto errout;
 	}
-	re->re_src_mapsize = safe_crp_length(crp);
+	re->re_src_mapsize = crypto_buffer_len(&crp->crp_buf);
 	nicealign = safe_dmamap_aligned(&re->re_src);
 	uniform = safe_dmamap_uniform(&re->re_src);
 
@@ -1063,7 +1047,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 				err = ENOMEM;
 				goto errout;
 			}
-		} else if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+		} else if (crp->crp_buf.cb_type == CRYPTO_BUF_MBUF) {
 			int totlen, len;
 			struct mbuf *m, *top, **mp;
 
@@ -1080,10 +1064,10 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 			if (!uniform)
 				safestats.st_notuniform++;
 			totlen = re->re_src_mapsize;
-			if (crp->crp_mbuf->m_flags & M_PKTHDR) {
+			if (crp->crp_buf.cb_mbuf->m_flags & M_PKTHDR) {
 				len = MHLEN;
 				MGETHDR(m, M_NOWAIT, MT_DATA);
-				if (m && !m_dup_pkthdr(m, crp->crp_mbuf,
+				if (m && !m_dup_pkthdr(m, crp->crp_buf.cb_mbuf,
 				    M_NOWAIT)) {
 					m_free(m);
 					m = NULL;
@@ -1168,8 +1152,8 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 				if (!(csp->csp_mode == CSP_MODE_ETA &&
 				    (re->re_src.mapsize-oplen) == ses->ses_mlen &&
 				    crp->crp_digest_start == oplen))
-					safe_mcopy(crp->crp_mbuf, re->re_dst_m,
-					    oplen);
+					safe_mcopy(crp->crp_buf.cb_mbuf,
+					    re->re_dst_m, oplen);
 				else
 					safestats.st_noicvcopy++;
 			}
@@ -1305,7 +1289,10 @@ safe_callback(struct safe_softc *sc, struct safe_ringentry *re)
 		crp->crp_etype = EIO;		/* something more meaningful? */
 	}
 
-	/* XXX: Should crp_mbuf be updated to re->re_dst_m if it is non-NULL? */
+	/*
+	 * XXX: Should crp_buf.cb_mbuf be updated to re->re_dst_m if
+	 * it is non-NULL?
+	 */
 
 	if (re->re_dst_map != NULL && re->re_dst_map != re->re_src_map) {
 		bus_dmamap_sync(sc->sc_dstdmat, re->re_dst_map,

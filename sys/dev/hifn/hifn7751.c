@@ -1760,22 +1760,6 @@ hifn_dmamap_load_src(struct hifn_softc *sc, struct hifn_command *cmd)
 	return (idx);
 } 
 
-static bus_size_t
-hifn_crp_length(struct cryptop *crp)
-{
-
-	switch (crp->crp_buf_type) {
-	case CRYPTO_BUF_MBUF:
-		return (crp->crp_mbuf->m_pkthdr.len);
-	case CRYPTO_BUF_UIO:
-		return (crp->crp_uio->uio_resid);
-	case CRYPTO_BUF_CONTIG:
-		return (crp->crp_ilen);
-	default:
-		panic("bad crp buffer type");
-	}
-}
-
 static void
 hifn_op_cb(void* arg, bus_dma_segment_t *seg, int nsegs, int error)
 {
@@ -1831,12 +1815,12 @@ hifn_crypto(
 		err = ENOMEM;
 		goto err_srcmap1;
 	}
-	cmd->src_mapsize = hifn_crp_length(crp);
+	cmd->src_mapsize = crypto_buffer_len(&crp->crp_buf);
 
 	if (hifn_dmamap_aligned(&cmd->src)) {
 		cmd->sloplen = cmd->src_mapsize & 3;
 		cmd->dst = cmd->src;
-	} else if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+	} else if (crp->crp_buf.cb_type == CRYPTO_BUF_MBUF) {
 		int totlen, len;
 		struct mbuf *m, *m0, *mlast;
 
@@ -1854,10 +1838,11 @@ hifn_crypto(
 		 * have no guarantee that we'll be re-entered.
 		 */
 		totlen = cmd->src_mapsize;
-		if (crp->crp_mbuf->m_flags & M_PKTHDR) {
+		if (crp->crp_buf.cb_mbuf->m_flags & M_PKTHDR) {
 			len = MHLEN;
 			MGETHDR(m0, M_NOWAIT, MT_DATA);
-			if (m0 && !m_dup_pkthdr(m0, crp->crp_mbuf, M_NOWAIT)) {
+			if (m0 && !m_dup_pkthdr(m0, crp->crp_buf.cb_mbuf,
+			    M_NOWAIT)) {
 				m_free(m0);
 				m0 = NULL;
 			}
@@ -2084,7 +2069,7 @@ err_dstmap1:
 	if (cmd->src_map != cmd->dst_map)
 		bus_dmamap_destroy(sc->sc_dmat, cmd->dst_map);
 err_srcmap:
-	if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+	if (crp->crp_buf.cb_type == CRYPTO_BUF_MBUF) {
 		if (cmd->dst_m != NULL)
 			m_freem(cmd->dst_m);
 	}
@@ -2626,7 +2611,7 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 		    BUS_DMASYNC_POSTREAD);
 	}
 
-	if (crp->crp_buf_type == CRYPTO_BUF_MBUF) {
+	if (crp->crp_buf.cb_type == CRYPTO_BUF_MBUF) {
 		if (cmd->dst_m != NULL) {
 			totlen = cmd->src_mapsize;
 			for (m = cmd->dst_m; m != NULL; m = m->m_next) {
@@ -2636,9 +2621,10 @@ hifn_callback(struct hifn_softc *sc, struct hifn_command *cmd, u_int8_t *macbuf)
 				} else
 					totlen -= m->m_len;
 			}
-			cmd->dst_m->m_pkthdr.len = crp->crp_mbuf->m_pkthdr.len;
-			m_freem(crp->crp_mbuf);
-			crp->crp_mbuf = cmd->dst_m;
+			cmd->dst_m->m_pkthdr.len =
+			    crp->crp_buf.cb_mbuf->m_pkthdr.len;
+			m_freem(crp->crp_buf.cb_mbuf);
+			crp->crp_buf.cb_mbuf = cmd->dst_m;
 		}
 	}
 

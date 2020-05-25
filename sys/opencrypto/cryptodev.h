@@ -383,7 +383,9 @@ struct crypto_session_params {
 
 	int		csp_flags;
 
-	int		csp_ivlen;	 /* IV length in bytes. */
+#define	CSP_F_SEPARATE_OUTPUT	0x0001	/* Requests can use separate output */
+
+	int		csp_ivlen;	/* IV length in bytes. */
 
 	int		csp_cipher_alg;
 	int		csp_cipher_klen; /* Key length in bytes. */
@@ -396,6 +398,47 @@ struct crypto_session_params {
 					   0 means all. */
 };
 
+enum crypto_buffer_type {
+	CRYPTO_BUF_NONE = 0,
+	CRYPTO_BUF_CONTIG,
+	CRYPTO_BUF_UIO,
+	CRYPTO_BUF_MBUF,
+	CRYPTO_BUF_LAST = CRYPTO_BUF_MBUF
+};
+
+/*
+ * Description of a data buffer for a request.  Requests can either
+ * have a single buffer that is modified in place or separate input
+ * and output buffers.
+ */
+struct crypto_buffer {
+	union {
+		struct {
+			char	*cb_buf;
+			int	cb_buf_len;
+		};
+		struct mbuf *cb_mbuf;
+		struct uio *cb_uio;
+	};
+	enum crypto_buffer_type cb_type;
+};
+
+/*
+ * A cursor is used to iterate through a crypto request data buffer.
+ */
+struct crypto_buffer_cursor {
+	union {
+		char *cc_buf;
+		struct mbuf *cc_mbuf;
+		struct iovec *cc_iov;
+	};
+	union {
+		int cc_buf_len;
+		size_t cc_offset;
+	};
+	enum crypto_buffer_type cc_type;
+};
+
 /* Structure describing complete operation */
 struct cryptop {
 	TAILQ_ENTRY(cryptop) crp_next;
@@ -403,7 +446,6 @@ struct cryptop {
 	struct task	crp_task;
 
 	crypto_session_t crp_session;	/* Session */
-	int		crp_ilen;	/* Input data total length */
 	int		crp_olen;	/* Result total length */
 
 	int		crp_etype;	/*
@@ -434,12 +476,8 @@ struct cryptop {
 
 	int		crp_op;
 
-	union {
-		caddr_t		crp_buf;	/* Data to be processed */
-		struct mbuf	*crp_mbuf;
-		struct uio	*crp_uio;
-	};
-	int		crp_buf_type;	/* Which union member describes data. */
+	struct crypto_buffer crp_buf;
+	struct crypto_buffer crp_obuf;
 
 	int		crp_aad_start;	/* Location of AAD. */
 	int		crp_aad_length;	/* 0 => no AAD. */
@@ -447,6 +485,7 @@ struct cryptop {
 					 * the session.
 					 */
 	int		crp_payload_start; /* Location of ciphertext. */
+	int		crp_payload_output_start;
 	int		crp_payload_length;
 	int		crp_digest_start; /* Location of MAC/tag.  Length is
 					   * from the session.
@@ -469,16 +508,72 @@ struct cryptop {
 					 */
 };
 
-#define	CRYPTOP_ASYNC(crp) \
+static __inline void
+_crypto_use_buf(struct crypto_buffer *cb, void *buf, int len)
+{
+	cb->cb_buf = buf;
+	cb->cb_buf_len = len;
+	cb->cb_type = CRYPTO_BUF_CONTIG;
+}
+
+static __inline void
+_crypto_use_mbuf(struct crypto_buffer *cb, struct mbuf *m)
+{
+	cb->cb_mbuf = m;
+	cb->cb_type = CRYPTO_BUF_MBUF;
+}
+
+static __inline void
+_crypto_use_uio(struct crypto_buffer *cb, struct uio *uio)
+{
+	cb->cb_uio = uio;
+	cb->cb_type = CRYPTO_BUF_UIO;
+}
+
+static __inline void
+crypto_use_buf(struct cryptop *crp, void *buf, int len)
+{
+	_crypto_use_buf(&crp->crp_buf, buf, len);
+}
+
+static __inline void
+crypto_use_mbuf(struct cryptop *crp, struct mbuf *m)
+{
+	_crypto_use_mbuf(&crp->crp_buf, m);
+}
+
+static __inline void
+crypto_use_uio(struct cryptop *crp, struct uio *uio)
+{
+	_crypto_use_uio(&crp->crp_buf, uio);
+}
+
+static __inline void
+crypto_use_output_buf(struct cryptop *crp, void *buf, int len)
+{
+	_crypto_use_buf(&crp->crp_obuf, buf, len);
+}
+
+static __inline void
+crypto_use_output_mbuf(struct cryptop *crp, struct mbuf *m)
+{
+	_crypto_use_mbuf(&crp->crp_obuf, m);
+}
+
+static __inline void
+crypto_use_output_uio(struct cryptop *crp, struct uio *uio)
+{
+	_crypto_use_uio(&crp->crp_obuf, uio);
+}
+
+#define	CRYPTOP_ASYNC(crp)			\
 	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
 	crypto_ses2caps((crp)->crp_session) & CRYPTOCAP_F_SYNC)
 #define	CRYPTOP_ASYNC_KEEPORDER(crp) \
 	(CRYPTOP_ASYNC(crp) && \
 	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
-
-#define	CRYPTO_BUF_CONTIG	0x0
-#define	CRYPTO_BUF_UIO		0x1
-#define	CRYPTO_BUF_MBUF		0x2
+#define	CRYPTO_HAS_OUTPUT_BUFFER(crp)					\
+	((crp)->crp_obuf.cb_type != CRYPTO_BUF_NONE)
 
 /* Flags in crp_op. */
 #define	CRYPTO_OP_DECRYPT		0x0
@@ -559,26 +654,11 @@ void	hmac_init_opad(struct auth_hash *axf, const char *key, int klen,
 /*
  * Crypto-related utility routines used mainly by drivers.
  *
- * XXX these don't really belong here; but for now they're
- *     kept apart from the rest of the system.
- *
  * Similar to m_copyback/data, *_copyback copy data from the 'src'
  * buffer into the crypto request's data buffer while *_copydata copy
  * data from the crypto request's data buffer into the the 'dst'
  * buffer.
  */
-struct uio;
-extern	void cuio_copydata(struct uio* uio, int off, int len, caddr_t cp);
-extern	void cuio_copyback(struct uio* uio, int off, int len, c_caddr_t cp);
-extern	int cuio_getptr(struct uio *uio, int loc, int *off);
-extern	int cuio_apply(struct uio *uio, int off, int len,
-	    int (*f)(void *, void *, u_int), void *arg);
-
-struct mbuf;
-struct iovec;
-extern	int crypto_mbuftoiov(struct mbuf *mbuf, struct iovec **iovptr,
-	    int *cnt, int *allocated);
-
 void	crypto_copyback(struct cryptop *crp, int off, int size,
 	    const void *src);
 void	crypto_copydata(struct cryptop *crp, int off, int size, void *dst);
@@ -586,6 +666,23 @@ int	crypto_apply(struct cryptop *crp, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
 void	*crypto_contiguous_subsegment(struct cryptop *crp, size_t skip,
 	    size_t len);
+
+int	crypto_apply_buf(struct crypto_buffer *cb, int off, int len,
+	    int (*f)(void *, void *, u_int), void *arg);
+void	*crypto_buffer_contiguous_subsegment(struct crypto_buffer *cb,
+	    size_t skip, size_t len);
+size_t	crypto_buffer_len(struct crypto_buffer *cb);
+void	crypto_cursor_init(struct crypto_buffer_cursor *cc,
+	    const struct crypto_buffer *cb);
+void	crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount);
+void	*crypto_cursor_segbase(struct crypto_buffer_cursor *cc);
+size_t	crypto_cursor_seglen(struct crypto_buffer_cursor *cc);
+void	crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
+	    const void *vsrc);
+void	crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size,
+	    void *vdst);
+void	crypto_cursor_copydata_noadv(struct crypto_buffer_cursor *cc, int size,
+	    void *vdst);
 
 static __inline void
 crypto_read_iv(struct cryptop *crp, void *iv)

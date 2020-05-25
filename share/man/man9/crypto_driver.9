@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2020
+.Dd May 25, 2020
 .Dt CRYPTO_DRIVER 9
 .Os
 .Sh NAME
@@ -38,20 +38,6 @@
 .Nd interface for symmetric cryptographic drivers
 .Sh SYNOPSIS
 .In opencrypto/cryptodev.h
-.Ft int
-.Fo crypto_apply
-.Fa "struct cryptop *crp"
-.Fa "int off"
-.Fa "int len"
-.Fa "int (*f)(void *, void *, u_int)"
-.Fa "void *arg"
-.Fc
-.Ft void *
-.Fo crypto_contiguous_subsegment
-.Fa "struct cryptop *crp"
-.Fa "size_t skip"
-.Fa "size_t len"
-.Fc
 .Ft void
 .Fn crypto_copyback "struct cryptop *crp" "int off" "int size" "const void *src"
 .Ft void
@@ -244,29 +230,29 @@ callbacks.
 .Fn crypto_copydata
 copies
 .Fa size
-bytes out of the data buffer for
+bytes out of the input buffer for
 .Fa crp
 into a local buffer pointed to by
 .Fa dst .
 The bytes are read starting at an offset of
 .Fa off
-bytes in the request's data buffer.
+bytes in the request's input buffer.
 .Pp
 .Fn crypto_copyback
 copies
 .Fa size
 bytes from the local buffer pointed to by
 .Fa src
-into the data buffer for
+into the output buffer for
 .Fa crp .
 The bytes are written starting at an offset of
 .Fa off
-bytes in the request's data buffer.
+bytes in the request's output buffer.
 .Pp
 .Fn crypto_read_iv
 copies the IV or nonce for
 .Fa crp
-into the the local buffer pointed to by
+into the local buffer pointed to by
 .Fa iv .
 .Pp
 A driver calls
@@ -306,52 +292,6 @@ indicates that the driver is able to handle asymmetric requests passed to
 .Fn CRYPTODEV_KPROCESS .
 .El
 .Pp
-.Fn crypto_apply
-is a helper routine that can be used to invoke a caller-supplied function
-to a region of the data buffer for
-.Fa crp .
-The function
-.Fa f
-is called one or more times.
-For each invocation,
-the first argument to
-.Fa f
-is the value of
-.Fa arg passed to
-.Fn crypto_apply .
-The second and third arguments to
-.Fa f
-are a pointer and length to a segment of the buffer mapped into the kernel.
-The function is called enough times to cover the
-.Fa len
-bytes of the data buffer which starts at an offset
-.Fa off .
-If any invocation of
-.Fa f
-returns a non-zero value,
-.Fn crypto_apply
-immediately returns that value without invoking
-.Fa f
-on any remaining segments of the region,
-otherwise
-.Fn crypto_apply
-returns the value from the final call to
-.Fa f .
-.Pp
-.Fn crypto_contiguous_subsegment
-attempts to locate a single, virtually-contiguous segment of the data buffer
-for
-.Fa crp .
-The segment must be
-.Fa len
-bytes long and start at an offset of
-.Fa skip
-bytes.
-If a segment is found,
-a pointer to the start of the segment is returned.
-Otherwise,
-.Dv NULL
-is returned.
 .Pp
 .Fn hmac_init_ipad
 prepares an authentication context to generate the inner hash of an HMAC.
@@ -396,5 +336,6 @@ returns a negative value on success or an error on failure.
 .Sh SEE ALSO
 .Xr crypto 7 ,
 .Xr crypto 9 ,
+.Xr crypto_buffer 9 ,
 .Xr crypto_request 9 ,
 .Xr crypto_session 9
