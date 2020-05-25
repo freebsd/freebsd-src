@@ -1804,6 +1804,7 @@ dev/iicbus/mux/ltc430x.c	optional ltc430x
 dev/iicbus/nxprtc.c		optional nxprtc | pcf8563
 dev/iicbus/ofw_iicbus.c		optional fdt iicbus
 dev/iicbus/rtc8583.c		optional rtc8583
+dev/iicbus/rtc/rx8803.c		optional rx8803 iicbus fdt
 dev/iicbus/s35390a.c		optional s35390a
 dev/iicbus/sy8106a.c		optional sy8106a ext_resources fdt
 dev/iicbus/gpio/tca6416.c	optional tca6416 fdt

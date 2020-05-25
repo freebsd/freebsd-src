@@ -25,7 +25,8 @@ SUBDIR = \
 	smbus \
 
 .if !empty(OPT_FDT)
-SUBDIR += tca6416
+SUBDIR += tca6416 \
+	  rx8803
 .endif
 
 .include <bsd.subdir.mk>
