@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
 #include <security/mac/mac_framework.h>
@@ -147,6 +148,12 @@ static const char *ffs_opts[] = { "acls", "async", "noatime", "noclusterr",
     "noclusterw", "noexec", "export", "force", "from", "groupquota",
     "multilabel", "nfsv4acls", "fsckpid", "snapshot", "nosuid", "suiddir",
     "nosymfollow", "sync", "union", "userquota", "untrusted", NULL };
+
+static int ffs_enxio_enable = 1;
+SYSCTL_DECL(_vfs_ffs);
+SYSCTL_INT(_vfs_ffs, OID_AUTO, enxio_enable, CTLFLAG_RWTUN,
+    &ffs_enxio_enable, 0,
+    "enable mapping of other disk I/O errors to ENXIO");
 
 static int
 ffs_mount(struct mount *mp)
@@ -795,6 +802,7 @@ ffs_mountfs(odevvp, mp, td)
 	struct g_consumer *cp;
 	struct mount *nmp;
 	struct vnode *devvp;
+	struct fsfail_task *etp;
 	int candelete, canspeedup;
 	off_t loc;
 
@@ -1085,6 +1093,9 @@ ffs_mountfs(odevvp, mp, td)
 	(void) ufs_extattr_autostart(mp, td);
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
+	etp = malloc(sizeof *ump->um_fsfail_task, M_UFSMNT, M_WAITOK | M_ZERO);
+	etp->fsid = mp->mnt_stat.f_fsid;
+	ump->um_fsfail_task = etp;
 	return (0);
 out:
 	if (fs != NULL) {
@@ -1134,7 +1145,6 @@ ffs_use_bread(void *devfd, off_t loc, void **bufp, int size)
 	return (0);
 }
 
-#include <sys/sysctl.h>
 static int bigcgs = 0;
 SYSCTL_INT(_debug, OID_AUTO, bigcgs, CTLFLAG_RW, &bigcgs, 0, "");
 
@@ -1271,7 +1281,7 @@ ffs_unmount(mp, mntflags)
 		error = softdep_flushfiles(mp, flags, td);
 	else
 		error = ffs_flushfiles(mp, flags, td);
-	if (error != 0 && error != ENXIO)
+	if (error != 0 && !ffs_fsfail_cleanup(ump, error))
 		goto fail;
 
 	UFS_LOCK(ump);
@@ -1288,7 +1298,9 @@ ffs_unmount(mp, mntflags)
 	if (fs->fs_ronly == 0 || ump->um_fsckpid > 0) {
 		fs->fs_clean = fs->fs_flags & (FS_UNCLEAN|FS_NEEDSFSCK) ? 0 : 1;
 		error = ffs_sbupdate(ump, MNT_WAIT, 0);
-		if (error && error != ENXIO) {
+		if (ffs_fsfail_cleanup(ump, error))
+			error = 0;
+		if (error != 0 && !ffs_fsfail_cleanup(ump, error)) {
 			fs->fs_clean = 0;
 			goto fail;
 		}
@@ -1326,6 +1338,8 @@ ffs_unmount(mp, mntflags)
 	}
 	free(fs->fs_csp, M_UFSMNT);
 	free(fs, M_UFSMNT);
+	if (ump->um_fsfail_task != NULL)
+		free(ump->um_fsfail_task, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = NULL;
 	MNT_ILOCK(mp);
@@ -1640,6 +1654,8 @@ loop:
 	if (waitfor == MNT_WAIT || rebooting) {
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
+		if (ffs_fsfail_cleanup(ump, allerror))
+			allerror = 0;
 		/* Flushed work items may create new vnodes to clean */
 		if (allerror == 0 && count)
 			goto loop;
@@ -1657,6 +1673,8 @@ loop:
 			error = ffs_sbupdate(ump, waitfor, 0);
 		if (error != 0)
 			allerror = error;
+		if (ffs_fsfail_cleanup(ump, allerror))
+			allerror = 0;
 		if (allerror == 0 && waitfor == MNT_WAIT)
 			goto loop;
 	} else if (suspend != 0) {
@@ -1681,6 +1699,8 @@ loop:
 	if (fs->fs_fmod != 0 &&
 	    (error = ffs_sbupdate(ump, waitfor, suspended)) != 0)
 		allerror = error;
+	if (ffs_fsfail_cleanup(ump, allerror))
+		allerror = 0;
 	return (allerror);
 }
 
@@ -1707,6 +1727,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	struct ufsmount *ump;
 	struct buf *bp;
 	struct vnode *vp;
+	daddr_t dbn;
 	int error;
 
 	MPASS((ffs_flags & FFSV_REPLACE) == 0 || (flags & LK_EXCLUSIVE) != 0);
@@ -1796,9 +1817,10 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	}
 
 	/* Read in the disk contents for the inode, copy into the inode. */
-	error = bread(ump->um_devvp, fsbtodb(fs, ino_to_fsba(fs, ino)),
-	    (int)fs->fs_bsize, NOCRED, &bp);
-	if (error) {
+	dbn = fsbtodb(fs, ino_to_fsba(fs, ino));
+	error = ffs_breadz(ump, ump->um_devvp, dbn, dbn, (int)fs->fs_bsize,
+	    NULL, NULL, 0, NOCRED, 0, NULL, &bp);
+	if (error != 0) {
 		/*
 		 * The inode does not contain anything useful, so it would
 		 * be misleading to leave it on its hash chain. With mode
@@ -1957,6 +1979,7 @@ ffs_uninit(vfsp)
 	ret = ufs_uninit(vfsp);
 	softdep_uninitialize();
 	ffs_susp_uninitialize();
+	taskqueue_drain_all(taskqueue_thread);
 	return (ret);
 }
 
@@ -2039,6 +2062,8 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	 * Writing the superblock itself. We need to do special checks for it.
 	 */
 	bp = devfdp->sbbp;
+	if (ffs_fsfail_cleanup(ump, devfdp->error))
+		devfdp->error = 0;
 	if (devfdp->error != 0) {
 		brelse(bp);
 		return (devfdp->error);
@@ -2112,6 +2137,11 @@ ffs_backgroundwritedone(struct buf *bp)
 	struct bufobj *bufobj;
 	struct buf *origbp;
 
+#ifdef SOFTUPDATES
+	if (!LIST_EMPTY(&bp->b_dep) && (bp->b_ioflags & BIO_ERROR) != 0)
+		softdep_handle_error(bp);
+#endif
+
 	/*
 	 * Find the original buffer that we are writing.
 	 */
@@ -2122,7 +2152,7 @@ ffs_backgroundwritedone(struct buf *bp)
 
 	/*
 	 * We should mark the cylinder group buffer origbp as
-	 * dirty, to not loose the failed write.
+	 * dirty, to not lose the failed write.
 	 */
 	if ((bp->b_ioflags & BIO_ERROR) != 0)
 		origbp->b_vflags |= BV_BKGRDERR;
@@ -2393,6 +2423,8 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 			break;
 		}
 	}
+	if (bp->b_iocmd != BIO_READ && ffs_enxio_enable)
+		bp->b_xflags |= BX_CVTENXIO;
 	g_vfs_strategy(bo, bp);
 }
 

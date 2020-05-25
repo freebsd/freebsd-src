@@ -358,6 +358,7 @@ struct inodedep {
 	struct	fs *id_fs;		/* associated filesystem */
 	ino_t	id_ino;			/* dependent inode */
 	nlink_t	id_nlinkdelta;		/* saved effective link count */
+	nlink_t	id_nlinkwrote;		/* i_nlink that we wrote to disk */
 	nlink_t	id_savednlink;		/* Link saved during rollback */
 	LIST_ENTRY(inodedep) id_deps;	/* bmsafemap's list of inodedep's */
 	struct	bmsafemap *id_bmsafemap; /* related bmsafemap (if pending) */
