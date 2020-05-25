@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2017
+.Dd May 23, 2020
 .Dt FDFORMAT 8
 .Os
 .Sh NAME
@@ -46,12 +46,12 @@ where
 .Ar device
 may either be given as a full path
 name of a device node for a floppy disk drive
-(e.g.\&
+(e.g.,\&
 .Pa /dev/fd0 ) ,
 or using an abbreviated name that will be looked up
 under
 .Pa /dev
-(e.g.\&
+(e.g.,\&
 .Dq Li fd0 ) .
 .Pp
 The options are as follows:
@@ -133,6 +133,30 @@ Exit status
 1 is returned on any errors during floppy formatting, and an exit status
 of 2 reflects invalid arguments given to the program (along with an
 appropriate information written to diagnostic output).
+.Sh EXAMPLES
+To format a new double-sided, high-density (HD) 1.44 MB disk
+inserted in the first floppy disk drive, issue:
+.Pp
+.Dl "/usr/sbin/fdformat -f 1440 /dev/fd0"
+.Pp
+After low-level formatting the disk with
+.Nm ,
+create a disk label so that the system can determine the size and
+geometry of the disk.
+The supported geometry values are listed in
+.Pa /etc/disktab ,
+and we will use
+.Va fd1440
+for this example.
+To write the disk label, use
+.Xr bsdlabel 8 :
+.Pp
+.Dl "/sbin/bsdlabel -B -w /dev/fd0 fd1440"
+.Pp
+The floppy is now ready to be high-level formatted with a file system.
+To format the floppy disk with FAT, issue:
+.Pp
+.Dl "/sbin/newfs_msdos /dev/fd0"
 .Sh DIAGNOSTICS
 Unless
 .Fl q
@@ -150,6 +174,7 @@ exact cause of the error) will be printed for up to 10 errors after the
 entire formatting process has completed.
 .Sh SEE ALSO
 .Xr fdc 4 ,
+.Xr bsdlabel 8 ,
 .Xr fdcontrol 8 ,
 .Xr newfs 8 ,
 .Xr newfs_msdos 8
