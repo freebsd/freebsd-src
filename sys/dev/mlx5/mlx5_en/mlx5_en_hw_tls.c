@@ -251,18 +251,14 @@ mlx5e_tls_set_params(void *ctx, const struct tls_session_params *en)
 	MLX5_SET(sw_tls_cntx, ctx, param.encryption_standard, 1); /* TLS */
 
 	/* copy the initial vector in place */
-	if (en->iv_len == MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.gcm_iv)) {
+	switch (en->iv_len) {
+	case MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.gcm_iv):
+	case MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.gcm_iv) +
+	     MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.implicit_iv):
 		memcpy(MLX5_ADDR_OF(sw_tls_cntx, ctx, param.gcm_iv),
-		    en->iv, MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.gcm_iv));
-	} else if (en->iv_len == (MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.gcm_iv) +
-				  MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.implicit_iv))) {
-		memcpy(MLX5_ADDR_OF(sw_tls_cntx, ctx, param.gcm_iv),
-		    (char *)en->iv + MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.implicit_iv),
-		    MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.gcm_iv));
-		memcpy(MLX5_ADDR_OF(sw_tls_cntx, ctx, param.implicit_iv),
-		    en->iv,
-		    MLX5_FLD_SZ_BYTES(sw_tls_cntx, param.implicit_iv));
-	} else {
+		    en->iv, en->iv_len);
+		break;
+	default:
 		return (EINVAL);
 	}
 
