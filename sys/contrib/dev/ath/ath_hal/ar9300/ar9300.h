@@ -1390,7 +1390,7 @@ extern  void ar9300_wowoffload_download_ns_info(struct ath_hal *ah, u_int32_t id
 extern  HAL_BOOL ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode,
         struct ieee80211_channel *chan, HAL_HT_MACMODE macmode, u_int8_t txchainmask,
         u_int8_t rxchainmask, HAL_HT_EXTPROTSPACING extprotspacing,
-        HAL_BOOL b_channel_change, HAL_STATUS *status, int is_scan);
+        HAL_BOOL b_channel_change, HAL_STATUS *status, HAL_RESET_TYPE reset_type, int is_scan);
 extern HAL_BOOL ar9300_lean_channel_change(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *chan,
         HAL_HT_MACMODE macmode, u_int8_t txchainmask, u_int8_t rxchainmask);
 extern  HAL_BOOL ar9300_set_reset_reg(struct ath_hal *ah, u_int32_t type);
@@ -1400,7 +1400,7 @@ extern  u_int16_t ar9300_is_single_ant_power_save_possible(struct ath_hal *ah);
 extern  void ar9300_set_operating_mode(struct ath_hal *ah, int opmode);
 extern  HAL_BOOL ar9300_phy_disable(struct ath_hal *ah);
 extern  HAL_BOOL ar9300_disable(struct ath_hal *ah);
-extern  HAL_BOOL ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *);
+extern  HAL_BOOL ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *, HAL_RESET_TYPE type);
 extern  HAL_BOOL ar9300_calibration(struct ath_hal *ah,  struct ieee80211_channel *chan,
         u_int8_t rxchainmask, HAL_BOOL longcal, HAL_BOOL *isIQdone, int is_scan, u_int32_t *sched_cals);
 extern  void ar9300_reset_cal_valid(struct ath_hal *ah,
