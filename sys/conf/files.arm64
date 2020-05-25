@@ -232,6 +232,7 @@ dev/acpica/acpi_if.m		optional	acpi
 dev/acpica/acpi_pci_link.c	optional	acpi pci
 dev/acpica/acpi_pcib.c		optional	acpi pci
 dev/acpica/acpi_pxm.c		optional	acpi
+dev/ahci/ahci_fsl_fdt.c		optional	SOC_NXP_LS ahci fdt
 dev/ahci/ahci_generic.c		optional	ahci
 dev/altera/dwc/if_dwc_socfpga.c	optional	fdt dwc_socfpga
 dev/axgbe/if_axgbe.c		optional	axgbe
