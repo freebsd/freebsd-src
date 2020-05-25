@@ -111,4 +111,7 @@
 
 #define	_AT(T,X)	((T)(X))
 
+#define	__same_type(a, b)	__builtin_types_compatible_p(typeof(a), typeof(b))
+#define	__must_be_array(a)	__same_type(a, &(a)[0])
+
 #endif	/* _LINUX_COMPILER_H_ */
