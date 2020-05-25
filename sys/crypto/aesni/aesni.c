@@ -253,7 +253,7 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 	struct aesni_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (csp->csp_flags != 0)
+	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT)) != 0)
 		return (EINVAL);
 	switch (csp->csp_mode) {
 	case CSP_MODE_DIGEST:
@@ -677,15 +677,17 @@ static int
 aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
     const struct crypto_session_params *csp)
 {
-	uint8_t iv[AES_BLOCK_LEN], tag[GMAC_DIGEST_LEN], *buf, *authbuf;
+	uint8_t iv[AES_BLOCK_LEN], tag[GMAC_DIGEST_LEN];
+	uint8_t *authbuf, *buf, *outbuf;
 	int error;
-	bool encflag, allocated, authallocated;
+	bool encflag, allocated, authallocated, outallocated, outcopy;
 
 	buf = aesni_cipher_alloc(crp, crp->crp_payload_start,
 	    crp->crp_payload_length, &allocated);
 	if (buf == NULL)
 		return (ENOMEM);
 
+	outallocated = false;
 	authallocated = false;
 	authbuf = NULL;
 	if (csp->csp_cipher_alg == CRYPTO_AES_NIST_GCM_16 ||
@@ -696,6 +698,29 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 			error = ENOMEM;
 			goto out;
 		}
+	}
+
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+		outbuf = crypto_buffer_contiguous_subsegment(&crp->crp_obuf,
+		    crp->crp_payload_output_start, crp->crp_payload_length);
+		if (outbuf == NULL) {
+			outcopy = true;
+			if (allocated)
+				outbuf = buf;
+			else {
+				outbuf = malloc(crp->crp_payload_length,
+				    M_AESNI, M_NOWAIT);
+				if (outbuf == NULL) {
+					error = ENOMEM;
+					goto out;
+				}
+				outallocated = true;
+			}
+		} else
+			outcopy = false;
+	} else {
+		outbuf = buf;
+		outcopy = allocated;
 	}
 
 	error = 0;
@@ -710,30 +735,33 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 	case CRYPTO_AES_CBC:
 		if (encflag)
 			aesni_encrypt_cbc(ses->rounds, ses->enc_schedule,
-			    crp->crp_payload_length, buf, buf, iv);
-		else
+			    crp->crp_payload_length, buf, outbuf, iv);
+		else {
+			if (buf != outbuf)
+				memcpy(outbuf, buf, crp->crp_payload_length);
 			aesni_decrypt_cbc(ses->rounds, ses->dec_schedule,
-			    crp->crp_payload_length, buf, iv);
+			    crp->crp_payload_length, outbuf, iv);
+		}
 		break;
 	case CRYPTO_AES_ICM:
 		/* encryption & decryption are the same */
 		aesni_encrypt_icm(ses->rounds, ses->enc_schedule,
-		    crp->crp_payload_length, buf, buf, iv);
+		    crp->crp_payload_length, buf, outbuf, iv);
 		break;
 	case CRYPTO_AES_XTS:
 		if (encflag)
 			aesni_encrypt_xts(ses->rounds, ses->enc_schedule,
 			    ses->xts_schedule, crp->crp_payload_length, buf,
-			    buf, iv);
+			    outbuf, iv);
 		else
 			aesni_decrypt_xts(ses->rounds, ses->dec_schedule,
 			    ses->xts_schedule, crp->crp_payload_length, buf,
-			    buf, iv);
+			    outbuf, iv);
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 		if (encflag) {
 			memset(tag, 0, sizeof(tag));
-			AES_GCM_encrypt(buf, buf, authbuf, iv, tag,
+			AES_GCM_encrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
 			    csp->csp_ivlen, ses->enc_schedule, ses->rounds);
 			crypto_copyback(crp, crp->crp_digest_start, sizeof(tag),
@@ -741,7 +769,7 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		} else {
 			crypto_copydata(crp, crp->crp_digest_start, sizeof(tag),
 			    tag);
-			if (!AES_GCM_decrypt(buf, buf, authbuf, iv, tag,
+			if (!AES_GCM_decrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
 			    csp->csp_ivlen, ses->enc_schedule, ses->rounds))
 				error = EBADMSG;
@@ -750,7 +778,7 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 	case CRYPTO_AES_CCM_16:
 		if (encflag) {
 			memset(tag, 0, sizeof(tag));			
-			AES_CCM_encrypt(buf, buf, authbuf, iv, tag,
+			AES_CCM_encrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
 			    csp->csp_ivlen, ses->enc_schedule, ses->rounds);
 			crypto_copyback(crp, crp->crp_digest_start, sizeof(tag),
@@ -758,16 +786,17 @@ aesni_cipher_crypt(struct aesni_session *ses, struct cryptop *crp,
 		} else {
 			crypto_copydata(crp, crp->crp_digest_start, sizeof(tag),
 			    tag);
-			if (!AES_CCM_decrypt(buf, buf, authbuf, iv, tag,
+			if (!AES_CCM_decrypt(buf, outbuf, authbuf, iv, tag,
 			    crp->crp_payload_length, crp->crp_aad_length,
 			    csp->csp_ivlen, ses->enc_schedule, ses->rounds))
 				error = EBADMSG;
 		}
 		break;
 	}
-	if (allocated && error == 0)
-		crypto_copyback(crp, crp->crp_payload_start,
-		    crp->crp_payload_length, buf);
+	if (outcopy && error == 0)
+		crypto_copyback(crp, CRYPTO_HAS_OUTPUT_BUFFER(crp) ?
+		    crp->crp_payload_output_start : crp->crp_payload_start,
+		    crp->crp_payload_length, outbuf);
 
 out:
 	if (allocated) {
@@ -777,6 +806,10 @@ out:
 	if (authallocated) {
 		explicit_bzero(authbuf, crp->crp_aad_length);
 		free(authbuf, M_AESNI);
+	}
+	if (outallocated) {
+		explicit_bzero(outbuf, crp->crp_payload_length);
+		free(outbuf, M_AESNI);
 	}
 	return (error);
 }
@@ -813,10 +846,18 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 		crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
 		    __DECONST(int (*)(void *, void *, u_int), ses->hash_update),
 		    &sctx);
-		crypto_apply(crp, crp->crp_payload_start,
-		    crp->crp_payload_length,
-		    __DECONST(int (*)(void *, void *, u_int), ses->hash_update),
-		    &sctx);
+		if (CRYPTO_HAS_OUTPUT_BUFFER(crp) &&
+		    CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+			crypto_apply_buf(&crp->crp_obuf,
+			    crp->crp_payload_output_start,
+			    crp->crp_payload_length,
+			    __DECONST(int (*)(void *, void *, u_int),
+			    ses->hash_update), &sctx);
+		else
+			crypto_apply(crp, crp->crp_payload_start,
+			    crp->crp_payload_length,
+			    __DECONST(int (*)(void *, void *, u_int),
+			    ses->hash_update), &sctx);
 		ses->hash_finalize(res, &sctx);
 
 		/* Outer hash: (K ^ OPAD) || inner hash */
@@ -834,10 +875,18 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 		crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
 		    __DECONST(int (*)(void *, void *, u_int), ses->hash_update),
 		    &sctx);
-		crypto_apply(crp, crp->crp_payload_start,
-		    crp->crp_payload_length,
-		    __DECONST(int (*)(void *, void *, u_int), ses->hash_update),
-		    &sctx);
+		if (CRYPTO_HAS_OUTPUT_BUFFER(crp) &&
+		    CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
+			crypto_apply_buf(&crp->crp_obuf,
+			    crp->crp_payload_output_start,
+			    crp->crp_payload_length,
+			    __DECONST(int (*)(void *, void *, u_int),
+			    ses->hash_update), &sctx);
+		else
+			crypto_apply(crp, crp->crp_payload_start,
+			    crp->crp_payload_length,
+			    __DECONST(int (*)(void *, void *, u_int),
+			    ses->hash_update), &sctx);
 
 		ses->hash_finalize(res, &sctx);
 	}
