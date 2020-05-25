@@ -672,6 +672,7 @@ vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base, size_t len,
 	return (error);
 }
 
+#if OFF_MAX <= LONG_MAX
 off_t
 foffset_lock(struct file *fp, int flags)
 {
@@ -681,14 +682,12 @@ foffset_lock(struct file *fp, int flags)
 
 	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
 
-#if OFF_MAX <= LONG_MAX
 	/*
 	 * Caller only wants the current f_offset value.  Assume that
 	 * the long and shorter integer types reads are atomic.
 	 */
 	if ((flags & FOF_NOLOCK) != 0)
 		return (fp->f_offset);
-#endif
 
 	/*
 	 * According to McKusick the vn lock was protecting f_offset here.
@@ -737,10 +736,8 @@ foffset_unlock(struct file *fp, off_t val, int flags)
 	if ((flags & FOF_NEXTOFF) != 0)
 		fp->f_nextoff = val;
 
-#if OFF_MAX <= LONG_MAX
 	if ((flags & FOF_NOLOCK) != 0)
 		return;
-#endif
 
 	flagsp = &fp->f_vnread_flags;
 	state = atomic_load_16(flagsp);
@@ -755,6 +752,53 @@ foffset_unlock(struct file *fp, off_t val, int flags)
 	sleepq_broadcast(&fp->f_vnread_flags, SLEEPQ_SLEEP, 0, 0);
 	sleepq_release(&fp->f_vnread_flags);
 }
+#else
+off_t
+foffset_lock(struct file *fp, int flags)
+{
+	struct mtx *mtxp;
+	off_t res;
+
+	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
+
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	if ((flags & FOF_NOLOCK) == 0) {
+		while (fp->f_vnread_flags & FOFFSET_LOCKED) {
+			fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
+			msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
+			    "vofflock", 0);
+		}
+		fp->f_vnread_flags |= FOFFSET_LOCKED;
+	}
+	res = fp->f_offset;
+	mtx_unlock(mtxp);
+	return (res);
+}
+
+void
+foffset_unlock(struct file *fp, off_t val, int flags)
+{
+	struct mtx *mtxp;
+
+	KASSERT((flags & FOF_OFFSET) == 0, ("FOF_OFFSET passed"));
+
+	mtxp = mtx_pool_find(mtxpool_sleep, fp);
+	mtx_lock(mtxp);
+	if ((flags & FOF_NOUPDATE) == 0)
+		fp->f_offset = val;
+	if ((flags & FOF_NEXTOFF) != 0)
+		fp->f_nextoff = val;
+	if ((flags & FOF_NOLOCK) == 0) {
+		KASSERT((fp->f_vnread_flags & FOFFSET_LOCKED) != 0,
+		    ("Lost FOFFSET_LOCKED"));
+		if (fp->f_vnread_flags & FOFFSET_LOCK_WAITING)
+			wakeup(&fp->f_vnread_flags);
+		fp->f_vnread_flags = 0;
+	}
+	mtx_unlock(mtxp);
+}
+#endif
 
 void
 foffset_lock_uio(struct file *fp, struct uio *uio, int flags)
