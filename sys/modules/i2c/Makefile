@@ -24,4 +24,8 @@ SUBDIR = \
 	smb \
 	smbus \
 
+.if !empty(OPT_FDT)
+SUBDIR += tca6416
+.endif
+
 .include <bsd.subdir.mk>
