@@ -1712,7 +1712,7 @@ cesa_process(device_t dev, struct cryptop *crp, int hint)
 	csp = crypto_get_params(crp->crp_session);
 
 	/* Check and parse input */
-	if (crp->crp_ilen > CESA_MAX_REQUEST_SIZE) {
+	if (crypto_buffer_len(&crp->crp_buf) > CESA_MAX_REQUEST_SIZE) {
 		crp->crp_etype = E2BIG;
 		crypto_done(crp);
 		return (0);
