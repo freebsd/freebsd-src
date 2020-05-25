@@ -37,7 +37,6 @@ riscv/riscv/busdma_bounce.c	standard
 riscv/riscv/busdma_machdep.c	standard
 riscv/riscv/clock.c		standard
 riscv/riscv/copyinout.S		standard
-riscv/riscv/copystr.c		standard
 riscv/riscv/cpufunc_asm.S	standard
 riscv/riscv/db_disasm.c		optional	ddb
 riscv/riscv/db_interface.c	optional	ddb
