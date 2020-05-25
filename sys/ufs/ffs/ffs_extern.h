@@ -116,6 +116,11 @@ int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
 int	ffs_vgetf(struct mount *, ino_t, int, struct vnode **, int);
 void	process_deferred_inactive(struct mount *mp);
+int	ffs_fsfail_cleanup(struct ufsmount *, int);
+int	ffs_fsfail_cleanup_locked(struct ufsmount *, int);
+int	ffs_breadz(struct ufsmount *, struct vnode *, daddr_t, daddr_t, int,
+	    daddr_t *, int *, int, struct ucred *, int, void (*)(struct buf *),
+	    struct buf **);
 
 /*
  * Flags to ffs_vgetf
@@ -162,6 +167,7 @@ void	softdep_uninitialize(void);
 int	softdep_mount(struct vnode *, struct mount *, struct fs *,
 	    struct ucred *);
 void	softdep_unmount(struct mount *);
+void	softdep_handle_error(struct buf *);
 int	softdep_move_dependencies(struct buf *, struct buf *);
 int	softdep_flushworklist(struct mount *, int *, struct thread *);
 int	softdep_flushfiles(struct mount *, int, struct thread *);

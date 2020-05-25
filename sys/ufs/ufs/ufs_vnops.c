@@ -1426,6 +1426,7 @@ relock:
 				if (DOINGSOFTDEP(tvp))
 					softdep_change_linkcnt(tip);
 			}
+			goto bad;
 		}
 		if (doingdirectory && !DOINGSOFTDEP(tvp)) {
 			/*
@@ -1523,11 +1524,13 @@ unlockout:
 	if (error == 0 && endoff != 0) {
 		error = UFS_TRUNCATE(tdvp, endoff, IO_NORMAL |
 		    (DOINGASYNC(tdvp) ? 0 : IO_SYNC), tcnp->cn_cred);
-		if (error != 0)
+		if (error != 0 && !ffs_fsfail_cleanup(VFSTOUFS(mp), error))
 			vn_printf(tdvp,
 			    "ufs_rename: failed to truncate, error %d\n",
 			    error);
 #ifdef UFS_DIRHASH
+		if (error != 0)
+			ufsdirhash_free(tdp);
 		else if (tdp->i_dirhash != NULL)
 			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
