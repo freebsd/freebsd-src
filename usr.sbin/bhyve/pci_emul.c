@@ -875,7 +875,7 @@ pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
 					sizeof(msixcap)));
 }
 
-void
+static void
 msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		 int bytes, uint32_t val)
 {
@@ -899,7 +899,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	CFGWRITE(pi, offset, val, bytes);
 }
 
-void
+static void
 msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		int bytes, uint32_t val)
 {
@@ -978,30 +978,34 @@ pci_emul_add_pciecap(struct pci_devinst *pi, int type)
 
 /*
  * This function assumes that 'coff' is in the capabilities region of the
- * config space.
+ * config space. A capoff parameter of zero will force a search for the
+ * offset and type.
  */
-static void
-pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
+void
+pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val,
+    uint8_t capoff, int capid)
 {
-	int capid;
-	uint8_t capoff, nextoff;
+	uint8_t nextoff;
 
 	/* Do not allow un-aligned writes */
 	if ((offset & (bytes - 1)) != 0)
 		return;
 
-	/* Find the capability that we want to update */
-	capoff = CAP_START_OFFSET;
-	while (1) {
-		nextoff = pci_get_cfgdata8(pi, capoff + 1);
-		if (nextoff == 0)
-			break;
-		if (offset >= capoff && offset < nextoff)
-			break;
+	if (capoff == 0) {
+		/* Find the capability that we want to update */
+		capoff = CAP_START_OFFSET;
+		while (1) {
+			nextoff = pci_get_cfgdata8(pi, capoff + 1);
+			if (nextoff == 0)
+				break;
+			if (offset >= capoff && offset < nextoff)
+				break;
 
-		capoff = nextoff;
+			capoff = nextoff;
+		}
+		assert(offset >= capoff);
+		capid = pci_get_cfgdata8(pi, capoff);
 	}
-	assert(offset >= capoff);
 
 	/*
 	 * Capability ID and Next Capability Pointer are readonly.
@@ -1018,7 +1022,6 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 			return;
 	}
 
-	capid = pci_get_cfgdata8(pi, capoff);
 	switch (capid) {
 	case PCIY_MSI:
 		msicap_cfgwrite(pi, capoff, offset, bytes, val);
@@ -1897,7 +1900,7 @@ pci_cfgrw(struct vmctx *ctx, int vcpu, int in, int bus, int slot, int func,
 			pci_set_cfgdata32(pi, coff, bar);
 
 		} else if (pci_emul_iscap(pi, coff)) {
-			pci_emul_capwrite(pi, coff, bytes, *eax);
+			pci_emul_capwrite(pi, coff, bytes, *eax, 0, 0);
 		} else if (coff >= PCIR_COMMAND && coff < PCIR_REVID) {
 			pci_emul_cmdsts_write(pi, coff, *eax, bytes);
 		} else {
