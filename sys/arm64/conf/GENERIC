@@ -264,6 +264,7 @@ device		twsi		# Allwinner I2C controller
 device		rk_i2c		# RockChip I2C controller
 device		syr827		# Silergy SYR827 PMIC
 device		sy8106a		# SY8106A Buck Regulator
+device		vf_i2c		# Freescale Vybrid I2C controller
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
