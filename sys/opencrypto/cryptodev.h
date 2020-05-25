@@ -643,6 +643,10 @@ extern	int crypto_usercrypto;		/* userland may do crypto requests */
 extern	int crypto_userasymcrypto;	/* userland may do asym crypto reqs */
 extern	int crypto_devallowsoft;	/* only use hardware crypto */
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_kern_crypto);
+#endif
+
 /* Helper routines for drivers to initialize auth contexts for HMAC. */
 struct auth_hash;
 
