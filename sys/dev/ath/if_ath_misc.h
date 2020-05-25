@@ -58,7 +58,8 @@ extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf);
 
-extern int ath_reset(struct ath_softc *, ATH_RESET_TYPE);
+extern int ath_reset(struct ath_softc *, ATH_RESET_TYPE,
+	    HAL_RESET_TYPE ah_reset_type);
 extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
 	    int fail);
 extern void ath_tx_update_ratectrl(struct ath_softc *sc,

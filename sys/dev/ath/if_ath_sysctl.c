@@ -382,7 +382,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 		goto finish;
 
 	error = !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (sc->sc_running) ? ath_reset(sc, ATH_RESET_NOLOSS) : 0;
+	    (sc->sc_running) ? ath_reset(sc, ATH_RESET_NOLOSS,
+	    HAL_RESET_NORMAL) : 0;
 
 finish:
 	ATH_LOCK(sc);
@@ -443,7 +444,8 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		error = EINVAL;
 		goto finish;
 	}
-	error = sc->sc_running ? ath_reset(sc, ATH_RESET_FULL) : 0;
+	error = sc->sc_running ? ath_reset(sc, ATH_RESET_FULL,
+	    HAL_RESET_NORMAL) : 0;
 
 finish:
 	ATH_LOCK(sc);
@@ -670,7 +672,7 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	 * things in an inconsistent state.
 	 */
 	if (sc->sc_running)
-		ath_reset(sc, ATH_RESET_NOLOSS);
+		ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_NORMAL);
 
 	error = 0;
 

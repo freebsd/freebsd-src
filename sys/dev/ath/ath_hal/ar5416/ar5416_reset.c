@@ -170,13 +170,15 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	if (AR_SREV_HOWL(ah) ||
 	    (AR_SREV_MERLIN(ah) &&
 	     ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) ||
+	    (resetType == HAL_RESET_FORCE_COLD) ||
+	    (resetType == HAL_RESET_BBPANIC) ||
 	    (ah->ah_config.ah_force_full_reset))
 		tsf = ar5416GetTsf64(ah);
 
 	/* Mark PHY as inactive; marked active in ar5416InitBB() */
 	ar5416MarkPhyInactive(ah);
 
-	if (!ar5416ChipReset(ah, chan)) {
+	if (!ar5416ChipReset(ah, chan, resetType)) {
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		FAIL(HAL_EIO);
 	}
@@ -775,7 +777,8 @@ ar5416SetRfMode(struct ath_hal *ah, const struct ieee80211_channel *chan)
  * Places the hardware into reset and then pulls it out of reset
  */
 HAL_BOOL
-ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
+ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan,
+    HAL_RESET_TYPE resetType)
 {
 	OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 	/*
@@ -786,6 +789,13 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 			return AH_FALSE;
 	} else if (ah->ah_config.ah_force_full_reset) {
+		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
+			return AH_FALSE;
+	} else if ((resetType == HAL_RESET_FORCE_COLD) ||
+	    (resetType == HAL_RESET_BBPANIC)) {
+		HALDEBUG(ah, HAL_DEBUG_RESET,
+		    "%s: full reset; resetType=%d\n",
+		    __func__, resetType);
 		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 			return AH_FALSE;
 	} else {

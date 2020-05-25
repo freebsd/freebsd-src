@@ -306,7 +306,8 @@ extern	HAL_BOOL ar5416PhyDisable(struct ath_hal *ah);
 extern	HAL_RFGAIN ar5416GetRfgain(struct ath_hal *ah);
 extern	HAL_BOOL ar5416Disable(struct ath_hal *ah);
 extern	HAL_BOOL ar5416ChipReset(struct ath_hal *ah,
-		const struct ieee80211_channel *);
+		const struct ieee80211_channel *,
+		HAL_RESET_TYPE);
 extern	int ar5416GetRegChainOffset(struct ath_hal *ah, int i);
 extern	HAL_BOOL ar5416SetBoardValues(struct ath_hal *,
 		const struct ieee80211_channel *);
