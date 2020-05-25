@@ -248,6 +248,7 @@ device		gpio
 device		gpioled
 device		fdt_pinctrl
 device		gpioregulator
+device		ls1046_gpio	# LS1046A GPIO controller
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
 device		rk_gpio		# RockChip GPIO Controller
