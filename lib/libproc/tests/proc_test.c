@@ -270,9 +270,6 @@ ATF_TC_BODY(symbol_lookup, tc)
 	u_long saved;
 	int error;
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/244732");
-
 	phdl = start_prog(tc, false);
 
 	error = proc_name2sym(phdl, target_prog_file, "main", &main_sym, NULL);
