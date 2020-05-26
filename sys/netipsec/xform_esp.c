@@ -80,6 +80,8 @@
 #include <opencrypto/xform.h>
 
 VNET_DEFINE(int, esp_enable) = 1;
+VNET_DEFINE_STATIC(int, esp_ctr_compatibility) = 1;
+#define V_esp_ctr_compatibility VNET(esp_ctr_compatibility)
 VNET_PCPUSTAT_DEFINE(struct espstat, espstat);
 VNET_PCPUSTAT_SYSINIT(espstat);
 
@@ -90,6 +92,9 @@ VNET_PCPUSTAT_SYSUNINIT(espstat);
 SYSCTL_DECL(_net_inet_esp);
 SYSCTL_INT(_net_inet_esp, OID_AUTO, esp_enable,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(esp_enable), 0, "");
+SYSCTL_INT(_net_inet_esp, OID_AUTO, ctr_compatibility,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(esp_ctr_compatibility), 0,
+    "Align AES-CTR encrypted transmitted frames to blocksize");
 SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
     struct espstat, espstat,
     "ESP statistics (struct espstat, netipsec/esp_var.h");
@@ -652,8 +657,14 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	rlen = m->m_pkthdr.len - skip;	/* Raw payload length. */
 	/*
 	 * RFC4303 2.4 Requires 4 byte alignment.
+	 * Old versions of FreeBSD can't decrypt partial blocks encrypted
+	 * with AES-CTR. Align payload to native_blocksize (16 bytes)
+	 * in order to preserve compatibility.
 	 */
-	blks = MAX(4, espx->blocksize);		/* Cipher blocksize */
+	if (SAV_ISCTR(sav) && V_esp_ctr_compatibility)
+		blks = MAX(4, espx->native_blocksize);	/* Cipher blocksize */
+	else
+		blks = MAX(4, espx->blocksize);
 
 	/* XXX clamp padding length a la KAME??? */
 	padding = ((blks - ((rlen + 2) % blks)) % blks) + 2;
