@@ -245,6 +245,7 @@ device		ix			# Intel PRO/10GbE PCIE PF Ethernet
 device		ixv			# Intel PRO/10GbE PCIE VF Ethernet
 device		ixl			# Intel 700 Series Physical Function
 device		iavf			# Intel Adaptive Virtual Function
+device		ice			# Intel 800 Series Physical Function
 device		vmx			# VMware VMXNET3 Ethernet
 
 # PCI Ethernet NICs.
