@@ -1788,70 +1788,71 @@ ena_up(struct ena_adapter *adapter)
 		return (ENXIO);
 	}
 
-	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter)) {
-		device_printf(adapter->pdev, "device is going UP\n");
+	if (ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter))
+		return (0);
 
-		/* setup interrupts for IO queues */
-		rc = ena_setup_io_intr(adapter);
-		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT, "error setting up IO interrupt\n");
-			goto error;
-		}
-		rc = ena_request_io_irq(adapter);
-		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT, "err_req_irq\n");
-			goto error;
-		}
+	device_printf(adapter->pdev, "device is going UP\n");
 
-		/* allocate transmit descriptors */
-		rc = ena_setup_all_tx_resources(adapter);
-		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT, "err_setup_tx\n");
-			goto err_setup_tx;
-		}
-
-		/* allocate receive descriptors */
-		rc = ena_setup_all_rx_resources(adapter);
-		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT, "err_setup_rx\n");
-			goto err_setup_rx;
-		}
-
-		/* create IO queues for Rx & Tx */
-		rc = ena_create_io_queues(adapter);
-		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT,
-			    "create IO queues failed\n");
-			goto err_io_que;
-		}
-
-		if (ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter))
-			if_link_state_change(adapter->ifp, LINK_STATE_UP);
-
-		rc = ena_up_complete(adapter);
-		if (unlikely(rc != 0))
-			goto err_up_complete;
-
-		counter_u64_add(adapter->dev_stats.interface_up, 1);
-
-		ena_update_hwassist(adapter);
-
-		if_setdrvflagbits(adapter->ifp, IFF_DRV_RUNNING,
-		    IFF_DRV_OACTIVE);
-
-		/* Activate timer service only if the device is running.
-		 * If this flag is not set, it means that the driver is being
-		 * reset and timer service will be activated afterwards.
-		 */
-		if (ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter)) {
-			callout_reset_sbt(&adapter->timer_service, SBT_1S,
-			    SBT_1S, ena_timer_service, (void *)adapter, 0);
-		}
-
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP, adapter);
-
-		ena_unmask_all_io_irqs(adapter);
+	/* setup interrupts for IO queues */
+	rc = ena_setup_io_intr(adapter);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT, "error setting up IO interrupt\n");
+		goto error;
 	}
+	rc = ena_request_io_irq(adapter);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT, "err_req_irq\n");
+		goto error;
+	}
+
+	/* allocate transmit descriptors */
+	rc = ena_setup_all_tx_resources(adapter);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT, "err_setup_tx\n");
+		goto err_setup_tx;
+	}
+
+	/* allocate receive descriptors */
+	rc = ena_setup_all_rx_resources(adapter);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT, "err_setup_rx\n");
+		goto err_setup_rx;
+	}
+
+	/* create IO queues for Rx & Tx */
+	rc = ena_create_io_queues(adapter);
+	if (unlikely(rc != 0)) {
+		ena_trace(ENA_ALERT,
+			"create IO queues failed\n");
+		goto err_io_que;
+	}
+
+	if (ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter))
+		if_link_state_change(adapter->ifp, LINK_STATE_UP);
+
+	rc = ena_up_complete(adapter);
+	if (unlikely(rc != 0))
+		goto err_up_complete;
+
+	counter_u64_add(adapter->dev_stats.interface_up, 1);
+
+	ena_update_hwassist(adapter);
+
+	if_setdrvflagbits(adapter->ifp, IFF_DRV_RUNNING,
+		IFF_DRV_OACTIVE);
+
+	/* Activate timer service only if the device is running.
+		* If this flag is not set, it means that the driver is being
+		* reset and timer service will be activated afterwards.
+		*/
+	if (ENA_FLAG_ISSET(ENA_FLAG_DEVICE_RUNNING, adapter)) {
+		callout_reset_sbt(&adapter->timer_service, SBT_1S,
+			SBT_1S, ena_timer_service, (void *)adapter, 0);
+	}
+
+	ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP, adapter);
+
+	ena_unmask_all_io_irqs(adapter);
 
 	return (0);
 
@@ -2162,34 +2163,35 @@ ena_down(struct ena_adapter *adapter)
 {
 	int rc;
 
-	if (ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter)) {
-		device_printf(adapter->pdev, "device is going DOWN\n");
+	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter))
+		return;
 
-		callout_drain(&adapter->timer_service);
+	device_printf(adapter->pdev, "device is going DOWN\n");
 
-		ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEV_UP, adapter);
-		if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE,
-		    IFF_DRV_RUNNING);
+	callout_drain(&adapter->timer_service);
 
-		ena_free_io_irq(adapter);
+	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_DEV_UP, adapter);
+	if_setdrvflagbits(adapter->ifp, IFF_DRV_OACTIVE,
+		IFF_DRV_RUNNING);
 
-		if (ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter)) {
-			rc = ena_com_dev_reset(adapter->ena_dev,
-			    adapter->reset_reason);
-			if (unlikely(rc != 0))
-				device_printf(adapter->pdev,
-				    "Device reset failed\n");
-		}
+	ena_free_io_irq(adapter);
 
-		ena_destroy_all_io_queues(adapter);
-
-		ena_free_all_tx_bufs(adapter);
-		ena_free_all_rx_bufs(adapter);
-		ena_free_all_tx_resources(adapter);
-		ena_free_all_rx_resources(adapter);
-
-		counter_u64_add(adapter->dev_stats.interface_down, 1);
+	if (ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter)) {
+		rc = ena_com_dev_reset(adapter->ena_dev,
+			adapter->reset_reason);
+		if (unlikely(rc != 0))
+			device_printf(adapter->pdev,
+				"Device reset failed\n");
 	}
+
+	ena_destroy_all_io_queues(adapter);
+
+	ena_free_all_tx_bufs(adapter);
+	ena_free_all_rx_bufs(adapter);
+	ena_free_all_tx_resources(adapter);
+	ena_free_all_rx_resources(adapter);
+
+	counter_u64_add(adapter->dev_stats.interface_down, 1);
 }
 
 static int
