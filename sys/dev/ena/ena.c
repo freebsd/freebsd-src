@@ -1562,7 +1562,6 @@ ena_enable_msix(struct ena_adapter *adapter)
 		}
 		device_printf(dev, "Enable only %d MSI-x (out of %d), reduce "
 		    "the number of queues\n", msix_vecs, msix_req);
-		adapter->num_io_queues = msix_vecs - ENA_ADMIN_MSIX_VEC;
 	}
 
 	adapter->msix_vecs = msix_vecs;
@@ -3116,6 +3115,15 @@ ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	ena_disable_msix(adapter);
 
+	/*
+	 * IO rings resources should be freed because `ena_restore_device()`
+	 * calls (not directly) `ena_enable_msix()`, which re-allocates MSIX
+	 * vectors. The amount of MSIX vectors after destroy-restore may be
+	 * different than before. Therefore, IO rings resources should be
+	 * established from scratch each time.
+	 */
+	ena_free_all_io_rings_resources(adapter);
+
 	ena_com_abort_admin_commands(ena_dev);
 
 	ena_com_wait_for_abort_completion(ena_dev);
@@ -3191,6 +3199,18 @@ ena_restore_device(struct ena_adapter *adapter)
 		device_printf(dev, "Enable MSI-X failed\n");
 		goto err_device_destroy;
 	}
+
+	/*
+	 * Effective value of used MSIX vectors should be the same as before
+	 * `ena_destroy_device()`, if possible, or closest to it if less vectors
+	 * are available.
+	 */
+	if ((adapter->msix_vecs - ENA_ADMIN_MSIX_VEC) < adapter->num_io_queues)
+		adapter->num_io_queues =
+		    adapter->msix_vecs - ENA_ADMIN_MSIX_VEC;
+
+	/* Re-initialize rings basic information */
+	ena_init_io_rings(adapter);
 
 	/* If the interface was up before the reset bring it up */
 	if (ENA_FLAG_ISSET(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter)) {
@@ -3379,7 +3399,6 @@ ena_attach(device_t pdev)
 	adapter->max_rx_sgl_size = calc_queue_ctx.max_rx_sgl_size;
 
 	adapter->max_num_io_queues = max_num_io_queues;
-	adapter->num_io_queues = max_num_io_queues;
 
 	adapter->buf_ring_size = ENA_DEFAULT_BUF_RING_SIZE;
 
@@ -3400,15 +3419,26 @@ ena_attach(device_t pdev)
 		goto err_tx_tag_free;
 	}
 
-	/* initialize rings basic information */
-	ena_init_io_rings(adapter);
-
+	/*
+	 * The amount of requested MSIX vectors is equal to
+	 * adapter::max_num_io_queues (see `ena_enable_msix()`), plus a constant
+	 * number of admin queue interrupts. The former is initially determined
+	 * by HW capabilities (see `ena_calc_max_io_queue_num())` but may not be
+	 * achieved if there are not enough system resources. By default, the
+	 * number of effectively used IO queues is the same but later on it can
+	 * be limited by the user using sysctl interface.
+	 */
 	rc = ena_enable_msix_and_set_admin_interrupts(adapter);
 	if (unlikely(rc != 0)) {
 		device_printf(pdev,
 		    "Failed to enable and set the admin interrupts\n");
 		goto err_io_free;
 	}
+	/* By default all of allocated MSIX vectors are actively used */
+	adapter->num_io_queues = adapter->msix_vecs - ENA_ADMIN_MSIX_VEC;
+
+	/* initialize rings basic information */
+	ena_init_io_rings(adapter);
 
 	/* setup network interface */
 	rc = ena_setup_ifnet(pdev, adapter, &get_feat_ctx);
