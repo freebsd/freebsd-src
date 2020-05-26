@@ -80,6 +80,8 @@ char const *	hci_con_state2str   (int);
 char const *	hci_status2str      (int);
 char const *	hci_bdaddr2str      (bdaddr_t const *);
 char const * 	hci_addrtype2str    (int type);
+char const *    hci_role2str        (int role);
+char const *    hci_mc_accuracy2str (int accuracy);
 
 void dump_adv_data(int len, uint8_t* advdata);
 void print_adv_data(int len, uint8_t* advdata);
