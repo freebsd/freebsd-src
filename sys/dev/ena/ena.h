@@ -396,8 +396,7 @@ struct ena_adapter {
 	struct resource *memory;
 	struct resource *registers;
 
-	struct mtx global_mtx;
-	struct sx ioctl_sx;
+	struct sx global_lock;
 
 	/* MSI-X */
 	struct msix_entry *msix_entries;
@@ -467,6 +466,12 @@ struct ena_adapter {
 #define	ENA_RING_MTX_LOCK(_ring)		mtx_lock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_TRYLOCK(_ring)		mtx_trylock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_UNLOCK(_ring)		mtx_unlock(&(_ring)->ring_mtx)
+
+#define ENA_LOCK_INIT(adapter)			\
+	sx_init(&(adapter)->global_lock, "ENA global lock")
+#define ENA_LOCK_DESTROY(adapter)	sx_destroy(&(adapter)->global_lock)
+#define ENA_LOCK_LOCK(adapter)		sx_xlock(&(adapter)->global_lock)
+#define ENA_LOCK_UNLOCK(adapter)	sx_unlock(&(adapter)->global_lock)
 
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {

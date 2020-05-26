@@ -1907,13 +1907,13 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	struct ena_adapter *adapter = if_getsoftc(ifp);
 	ena_trace(ENA_DBG, "enter\n");
 
-	mtx_lock(&adapter->global_mtx);
+	ENA_LOCK_LOCK(adapter);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter)) {
-		mtx_unlock(&adapter->global_mtx);
+		ENA_LOCK_UNLOCK(adapter);
 		ena_trace(ENA_INFO, "Link is down\n");
 		return;
 	}
@@ -1921,7 +1921,7 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 	ifmr->ifm_active |= IFM_UNKNOWN | IFM_FDX;
 
-	mtx_unlock(&adapter->global_mtx);
+	ENA_LOCK_UNLOCK(adapter);
 }
 
 static void
@@ -1930,9 +1930,9 @@ ena_init(void *arg)
 	struct ena_adapter *adapter = (struct ena_adapter *)arg;
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter)) {
-		sx_xlock(&adapter->ioctl_sx);
+		ENA_LOCK_LOCK(adapter);
 		ena_up(adapter);
-		sx_unlock(&adapter->ioctl_sx);
+		ENA_LOCK_UNLOCK(adapter);
 	}
 }
 
@@ -1954,13 +1954,13 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCSIFMTU:
 		if (ifp->if_mtu == ifr->ifr_mtu)
 			break;
-		sx_xlock(&adapter->ioctl_sx);
+		ENA_LOCK_LOCK(adapter);
 		ena_down(adapter);
 
 		ena_change_mtu(ifp, ifr->ifr_mtu);
 
 		rc = ena_up(adapter);
-		sx_unlock(&adapter->ioctl_sx);
+		ENA_LOCK_UNLOCK(adapter);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -1972,15 +1972,15 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 					    "ioctl promisc/allmulti\n");
 				}
 			} else {
-				sx_xlock(&adapter->ioctl_sx);
+				ENA_LOCK_LOCK(adapter);
 				rc = ena_up(adapter);
-				sx_unlock(&adapter->ioctl_sx);
+				ENA_LOCK_UNLOCK(adapter);
 			}
 		} else {
 			if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
-				sx_xlock(&adapter->ioctl_sx);
+				ENA_LOCK_LOCK(adapter);
 				ena_down(adapter);
-				sx_unlock(&adapter->ioctl_sx);
+				ENA_LOCK_UNLOCK(adapter);
 			}
 		}
 		break;
@@ -2005,10 +2005,10 @@ ena_ioctl(if_t ifp, u_long command, caddr_t data)
 
 			if ((reinit != 0) &&
 			    ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)) {
-				sx_xlock(&adapter->ioctl_sx);
+				ENA_LOCK_LOCK(adapter);
 				ena_down(adapter);
 				rc = ena_up(adapter);
-				sx_unlock(&adapter->ioctl_sx);
+				ENA_LOCK_UNLOCK(adapter);
 			}
 		}
 
@@ -3180,10 +3180,10 @@ ena_reset_task(void *arg, int pending)
 		return;
 	}
 
-	sx_xlock(&adapter->ioctl_sx);
+	ENA_LOCK_LOCK(adapter);
 	ena_destroy_device(adapter, false);
 	ena_restore_device(adapter);
-	sx_unlock(&adapter->ioctl_sx);
+	ENA_LOCK_UNLOCK(adapter);
 }
 
 /**
@@ -3212,11 +3212,13 @@ ena_attach(device_t pdev)
 	adapter = device_get_softc(pdev);
 	adapter->pdev = pdev;
 
-	mtx_init(&adapter->global_mtx, "ENA global mtx", NULL, MTX_DEF);
-	sx_init(&adapter->ioctl_sx, "ENA ioctl sx");
+	ENA_LOCK_INIT(adapter);
 
-	/* Set up the timer service */
-	callout_init_mtx(&adapter->timer_service, &adapter->global_mtx, 0);
+	/*
+	 * Set up the timer service - driver is responsible for avoiding
+	 * concurrency, as the callout won't be using any locking inside.
+	 */
+	callout_init(&adapter->timer_service, true);
 	adapter->keep_alive_timeout = DEFAULT_KEEP_ALIVE_TO;
 	adapter->missing_tx_timeout = DEFAULT_TX_CMP_TO;
 	adapter->missing_tx_max_queues = DEFAULT_TX_MONITORED_QUEUES;
@@ -3435,16 +3437,20 @@ ena_detach(device_t pdev)
 
 	ether_ifdetach(adapter->ifp);
 
-	/* Free reset task and callout */
+	/* Stop timer service */
+	ENA_LOCK_LOCK(adapter);
 	callout_drain(&adapter->timer_service);
+	ENA_LOCK_UNLOCK(adapter);
+
+	/* Release reset task */
 	while (taskqueue_cancel(adapter->reset_tq, &adapter->reset_task, NULL))
 		taskqueue_drain(adapter->reset_tq, &adapter->reset_task);
 	taskqueue_free(adapter->reset_tq);
 
-	sx_xlock(&adapter->ioctl_sx);
+	ENA_LOCK_LOCK(adapter);
 	ena_down(adapter);
 	ena_destroy_device(adapter, true);
-	sx_unlock(&adapter->ioctl_sx);
+	ENA_LOCK_UNLOCK(adapter);
 
 #ifdef DEV_NETMAP
 	netmap_detach(adapter->ifp);
@@ -3476,8 +3482,7 @@ ena_detach(device_t pdev)
 
 	ena_com_delete_host_info(ena_dev);
 
-	mtx_destroy(&adapter->global_mtx);
-	sx_destroy(&adapter->ioctl_sx);
+	ENA_LOCK_DESTROY(adapter);
 
 	if_free(adapter->ifp);
 
