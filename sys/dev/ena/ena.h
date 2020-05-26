@@ -415,8 +415,8 @@ struct ena_adapter {
 	uint32_t num_io_queues;
 	uint32_t max_num_io_queues;
 
-	uint32_t tx_ring_size;
-	uint32_t rx_ring_size;
+	uint32_t requested_tx_ring_size;
+	uint32_t requested_rx_ring_size;
 
 	uint32_t max_tx_ring_size;
 	uint32_t max_rx_ring_size;

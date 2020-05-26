@@ -93,8 +93,8 @@ ena_netmap_attach(struct ena_adapter *adapter)
 	bzero(&na, sizeof(na));
 	na.na_flags = NAF_MOREFRAG;
 	na.ifp = adapter->ifp;
-	na.num_tx_desc = adapter->tx_ring_size;
-	na.num_rx_desc = adapter->rx_ring_size;
+	na.num_tx_desc = adapter->requested_tx_ring_size;
+	na.num_rx_desc = adapter->requested_rx_ring_size;
 	na.num_tx_rings = adapter->num_io_queues;
 	na.num_rx_rings = adapter->num_io_queues;
 	na.rx_buf_maxsize = adapter->buf_ring_size;
