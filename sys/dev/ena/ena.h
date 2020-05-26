@@ -461,6 +461,7 @@ struct ena_adapter {
 	sbintime_t missing_tx_timeout;
 	uint32_t missing_tx_max_queues;
 	uint32_t missing_tx_threshold;
+	bool disable_meta_caching;
 
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
