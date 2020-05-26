@@ -885,8 +885,7 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 	ena_trace(ENA_WARNING, "Invalid req_id: %hu\n", req_id);
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
 
-	adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
 	return (EFAULT);
 }
@@ -962,8 +961,8 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 	if (unlikely(rc != 0)) {
 		ena_trace(ENA_ALERT, "Too many desc from the device.\n");
 		counter_u64_add(ctx->ring->rx_stats.bad_desc_num, 1);
-		ctx->adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, ctx->adapter);
+		ena_trigger_reset(ctx->adapter,
+		    ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 		return (rc);
 	}
 	if (unlikely(ena_rx_ctx.descs == 0))

@@ -2742,10 +2742,7 @@ static void check_for_missing_keep_alive(struct ena_adapter *adapter)
 		device_printf(adapter->pdev,
 		    "Keep alive watchdog timeout.\n");
 		counter_u64_add(adapter->dev_stats.wd_expired, 1);
-		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-			adapter->reset_reason = ENA_REGS_RESET_KEEP_ALIVE_TO;
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
-		}
+		ena_trigger_reset(adapter, ENA_REGS_RESET_KEEP_ALIVE_TO);
 	}
 }
 
@@ -2757,10 +2754,7 @@ static void check_for_admin_com_state(struct ena_adapter *adapter)
 		device_printf(adapter->pdev,
 		    "ENA admin queue is not in running state!\n");
 		counter_u64_add(adapter->dev_stats.admin_q_pause, 1);
-		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-			adapter->reset_reason = ENA_REGS_RESET_ADMIN_TO;
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
-		}
+		ena_trigger_reset(adapter, ENA_REGS_RESET_ADMIN_TO);
 	}
 }
 
@@ -2779,10 +2773,7 @@ check_for_rx_interrupt_queue(struct ena_adapter *adapter,
 	if (rx_ring->no_interrupt_event_cnt == ENA_MAX_NO_INTERRUPT_ITERATIONS) {
 		device_printf(adapter->pdev, "Potential MSIX issue on Rx side "
 		    "Queue = %d. Reset the device\n", rx_ring->qid);
-		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-			adapter->reset_reason = ENA_REGS_RESET_MISS_INTERRUPT;
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
-		}
+		ena_trigger_reset(adapter, ENA_REGS_RESET_MISS_INTERRUPT);
 		return (EIO);
 	}
 
@@ -2820,13 +2811,8 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			device_printf(adapter->pdev,
 			    "Potential MSIX issue on Tx side Queue = %d. "
 			    "Reset the device\n", tx_ring->qid);
-			if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET,
-			    adapter))) {
-				adapter->reset_reason =
-				    ENA_REGS_RESET_MISS_INTERRUPT;
-				ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET,
-				    adapter);
-			}
+			ena_trigger_reset(adapter,
+			    ENA_REGS_RESET_MISS_INTERRUPT);
 			return (EIO);
 		}
 
@@ -2848,10 +2834,7 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		    "The number of lost tx completion is above the threshold "
 		    "(%d > %d). Reset the device\n",
 		    missed_tx, adapter->missing_tx_threshold);
-		if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-			adapter->reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
-			ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
-		}
+		ena_trigger_reset(adapter, ENA_REGS_RESET_MISS_TX_CMPL);
 		rc = EIO;
 	}
 

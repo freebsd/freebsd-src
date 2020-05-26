@@ -484,6 +484,16 @@ int	ena_restore_device(struct ena_adapter *);
 void	ena_destroy_device(struct ena_adapter *, bool);
 int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
 
+static inline void
+ena_trigger_reset(struct ena_adapter *adapter,
+    enum ena_regs_reset_reason_types reset_reason)
+{
+	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		adapter->reset_reason = reset_reason;
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	}
+}
+
 static inline int
 validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
 {
@@ -495,10 +505,7 @@ validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
 	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
 
 	/* Trigger device reset */
-	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter))) {
-		rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
-	}
+	ena_trigger_reset(rx_ring->adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 
 	return (EFAULT);
 }
