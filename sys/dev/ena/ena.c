@@ -164,8 +164,7 @@ static int	ena_attach(device_t);
 static int	ena_detach(device_t);
 static int	ena_device_init(struct ena_adapter *, device_t,
     struct ena_com_dev_get_features_ctx *, int *);
-static int	ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *,
-    int);
+static int	ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *);
 static void ena_update_on_link_change(void *, struct ena_admin_aenq_entry *);
 static void	unimplemented_aenq_handler(void *,
     struct ena_admin_aenq_entry *);
@@ -2672,8 +2671,7 @@ err_mmio_read_less:
 	return (rc);
 }
 
-static int ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *adapter,
-    int io_vectors)
+static int ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *adapter)
 {
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int rc;
@@ -3136,8 +3134,7 @@ ena_restore_device(struct ena_adapter *adapter)
 	if (ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter))
 		if_link_state_change(ifp, LINK_STATE_UP);
 
-	rc = ena_enable_msix_and_set_admin_interrupts(adapter,
-	    adapter->num_queues);
+	rc = ena_enable_msix_and_set_admin_interrupts(adapter);
 	if (rc != 0) {
 		device_printf(dev, "Enable MSI-X failed\n");
 		goto err_device_destroy;
@@ -3365,7 +3362,7 @@ ena_attach(device_t pdev)
 	    calc_queue_ctx.tx_queue_size);
 	ena_init_io_rings(adapter);
 
-	rc = ena_enable_msix_and_set_admin_interrupts(adapter, io_queue_num);
+	rc = ena_enable_msix_and_set_admin_interrupts(adapter);
 	if (unlikely(rc != 0)) {
 		device_printf(pdev,
 		    "Failed to enable and set the admin interrupts\n");
