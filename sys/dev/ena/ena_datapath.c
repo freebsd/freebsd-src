@@ -652,7 +652,7 @@ ena_rx_cleanup(struct ena_ring *rx_ring)
 
 	rx_ring->next_to_clean = next_to_clean;
 
-	refill_required = ena_com_free_desc(io_sq);
+	refill_required = ena_com_free_q_entries(io_sq);
 	refill_threshold = min_t(int,
 	    rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER,
 	    ENA_RX_REFILL_THRESH_PACKET);
@@ -1000,7 +1000,6 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 		ena_trace(ENA_DBG | ENA_TXPTH,
 		    "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
 		    tx_ring->que->id);
-		wmb();
 		ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
 		tx_ring->acum_pkts = 0;
@@ -1130,7 +1129,6 @@ ena_start_xmit(struct ena_ring *tx_ring)
 	}
 
 	if (likely(tx_ring->acum_pkts != 0)) {
-		wmb();
 		/* Trigger the dma engine */
 		ena_com_write_sq_doorbell(io_sq);
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
