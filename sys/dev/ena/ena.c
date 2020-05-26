@@ -2116,7 +2116,8 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 	if_setdev(ifp, pdev);
 	if_setsoftc(ifp, adapter);
 
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
+	    IFF_KNOWSEPOCH);
 	if_setinitfn(ifp, ena_init);
 	if_settransmitfn(ifp, ena_mq_start);
 	if_setqflushfn(ifp, ena_qflush);
