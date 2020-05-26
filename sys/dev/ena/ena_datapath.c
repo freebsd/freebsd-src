@@ -201,8 +201,7 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
 
 	/* Trigger device reset */
-	adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
 	return (EFAULT);
 }
@@ -670,10 +669,7 @@ error:
 	counter_u64_add(rx_ring->rx_stats.bad_desc_num, 1);
 
 	/* Too many desc from the device. Trigger reset */
-	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
-		adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
-	}
+	ena_trigger_reset(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 
 	return (0);
 }
