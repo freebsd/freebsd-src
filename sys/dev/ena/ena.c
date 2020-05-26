@@ -3695,8 +3695,6 @@ ena_detach(device_t pdev)
 	netmap_detach(adapter->ifp);
 #endif /* DEV_NETMAP */
 
-	ena_free_all_io_rings_resources(adapter);
-
 	ena_free_counters((counter_u64_t *)&adapter->hw_stats,
 	    sizeof(struct ena_hw_stats));
 	ena_free_counters((counter_u64_t *)&adapter->dev_stats,
