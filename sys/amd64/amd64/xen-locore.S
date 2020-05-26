@@ -207,7 +207,7 @@ PT2:
 
 /* 64bit GDT */
 gdtdesc:
-	.word	gdtend - gdt
+	.word	gdtend - gdt - 1
 	.long	VTOP(gdt)		# low
 	.long	0			# high
 gdt:
@@ -221,7 +221,7 @@ gdtend:
 
 /* 32bit GDT */
 gdtdesc32:
-	.word	gdt32end - gdt32
+	.word	gdt32end - gdt32 - 1
 	.long	VTOP(gdt32)
 	.long	0
 gdt32:
