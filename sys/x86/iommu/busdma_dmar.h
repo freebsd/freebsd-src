@@ -62,6 +62,6 @@ struct bus_dmamap_dmar {
 
 extern struct bus_dma_impl bus_dma_dmar_impl;
 
-bus_dma_tag_t dmar_get_dma_tag(device_t dev, device_t child);
+bus_dma_tag_t acpi_iommu_get_dma_tag(device_t dev, device_t child);
 
 #endif
