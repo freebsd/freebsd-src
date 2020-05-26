@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +34,9 @@
 #ifndef ENA_TXRX_H
 #define ENA_TXRX_H
 
-void	ena_cleanup(void *, int);
-void	ena_qflush(if_t);
-int	ena_mq_start(if_t, struct mbuf *);
-void	ena_deferred_mq_start(void *, int);
+void	ena_cleanup(void *arg, int pending);
+void	ena_qflush(if_t ifp);
+int	ena_mq_start(if_t ifp, struct mbuf *m);
+void	ena_deferred_mq_start(void *arg, int pending);
 
 #endif /* ENA_TXRX_H */

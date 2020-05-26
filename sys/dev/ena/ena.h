@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,8 @@
 #include "ena-com/ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	2
-#define DRV_MODULE_VER_MINOR	1
-#define DRV_MODULE_VER_SUBMINOR 2
+#define DRV_MODULE_VER_MINOR	2
+#define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
 
@@ -69,6 +69,7 @@
 #define	ENA_DEFAULT_BUF_RING_SIZE	4096
 
 #define	ENA_DEFAULT_RING_SIZE		1024
+#define	ENA_MIN_RING_SIZE		256
 
 /*
  * Refill Rx queue when number of required descriptors is above
@@ -220,8 +221,10 @@ struct ena_calc_queue_size_ctx {
 	struct ena_com_dev_get_features_ctx *get_feat_ctx;
 	struct ena_com_dev *ena_dev;
 	device_t pdev;
-	uint16_t rx_queue_size;
-	uint16_t tx_queue_size;
+	uint32_t tx_queue_size;
+	uint32_t rx_queue_size;
+	uint32_t max_tx_queue_size;
+	uint32_t max_rx_queue_size;
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
 };
@@ -320,13 +323,6 @@ struct ena_ring {
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 
-	/*
-	 * Fields used for Adaptive Interrupt Modulation - to be implemented in
-	 * the future releases
-	 */
-	uint32_t  smoothed_interval;
-	enum ena_intr_moder_level moder_tbl_idx;
-
 	struct ena_que *que;
 	struct lro_ctrl lro;
 
@@ -387,6 +383,7 @@ struct ena_hw_stats {
 	counter_u64_t tx_bytes;
 
 	counter_u64_t rx_drops;
+	counter_u64_t tx_drops;
 };
 
 /* Board specific private data structure */
@@ -402,8 +399,7 @@ struct ena_adapter {
 	struct resource *memory;
 	struct resource *registers;
 
-	struct mtx global_mtx;
-	struct sx ioctl_sx;
+	struct sx global_lock;
 
 	/* MSI-X */
 	struct msix_entry *msix_entries;
@@ -416,18 +412,21 @@ struct ena_adapter {
 
 	uint32_t max_mtu;
 
+	uint32_t num_io_queues;
+	uint32_t max_num_io_queues;
+
+	uint32_t requested_tx_ring_size;
+	uint32_t requested_rx_ring_size;
+
+	uint32_t max_tx_ring_size;
+	uint32_t max_rx_ring_size;
+
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
 
 	uint32_t tx_offload_cap;
 
-	/* Tx fast path data */
-	int num_queues;
-
-	unsigned int tx_ring_size;
-	unsigned int rx_ring_size;
-
-	uint16_t buf_ring_size;
+	uint32_t buf_ring_size;
 
 	/* RSS*/
 	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
@@ -462,6 +461,7 @@ struct ena_adapter {
 	sbintime_t missing_tx_timeout;
 	uint32_t missing_tx_max_queues;
 	uint32_t missing_tx_threshold;
+	bool disable_meta_caching;
 
 	/* Statistics */
 	struct ena_stats_dev dev_stats;
@@ -474,6 +474,15 @@ struct ena_adapter {
 #define	ENA_RING_MTX_TRYLOCK(_ring)		mtx_trylock(&(_ring)->ring_mtx)
 #define	ENA_RING_MTX_UNLOCK(_ring)		mtx_unlock(&(_ring)->ring_mtx)
 
+#define ENA_LOCK_INIT(adapter)			\
+	sx_init(&(adapter)->global_lock, "ENA global lock")
+#define ENA_LOCK_DESTROY(adapter)	sx_destroy(&(adapter)->global_lock)
+#define ENA_LOCK_LOCK(adapter)		sx_xlock(&(adapter)->global_lock)
+#define ENA_LOCK_UNLOCK(adapter)	sx_unlock(&(adapter)->global_lock)
+
+#define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
+#define clamp_val(val, lo, hi)		clamp_t(__typeof(val), val, lo, hi)
+
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {
 	int count = 1;
@@ -484,11 +493,26 @@ static inline int ena_mbuf_count(struct mbuf *mbuf)
 	return count;
 }
 
-int	ena_up(struct ena_adapter *);
-void	ena_down(struct ena_adapter *);
-int	ena_restore_device(struct ena_adapter *);
-void	ena_destroy_device(struct ena_adapter *, bool);
-int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
+int	ena_up(struct ena_adapter *adapter);
+void	ena_down(struct ena_adapter *adapter);
+int	ena_restore_device(struct ena_adapter *adapter);
+void	ena_destroy_device(struct ena_adapter *adapter, bool graceful);
+int	ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num);
+int	ena_update_buf_ring_size(struct ena_adapter *adapter,
+    uint32_t new_buf_ring_size);
+int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
+    uint32_t new_rx_size);
+int	ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num);
+
+static inline void
+ena_trigger_reset(struct ena_adapter *adapter,
+    enum ena_regs_reset_reason_types reset_reason)
+{
+	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))) {
+		adapter->reset_reason = reset_reason;
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	}
+}
 
 static inline int
 validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
@@ -501,10 +525,7 @@ validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
 	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
 
 	/* Trigger device reset */
-	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter))) {
-		rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
-	}
+	ena_trigger_reset(rx_ring->adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
 
 	return (EFAULT);
 }

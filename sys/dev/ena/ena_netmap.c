@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,10 +93,10 @@ ena_netmap_attach(struct ena_adapter *adapter)
 	bzero(&na, sizeof(na));
 	na.na_flags = NAF_MOREFRAG;
 	na.ifp = adapter->ifp;
-	na.num_tx_desc = adapter->tx_ring_size;
-	na.num_rx_desc = adapter->rx_ring_size;
-	na.num_tx_rings = adapter->num_queues;
-	na.num_rx_rings = adapter->num_queues;
+	na.num_tx_desc = adapter->requested_tx_ring_size;
+	na.num_rx_desc = adapter->requested_rx_ring_size;
+	na.num_tx_rings = adapter->num_io_queues;
+	na.num_rx_rings = adapter->num_io_queues;
 	na.rx_buf_maxsize = adapter->buf_ring_size;
 	na.nm_txsync = ena_netmap_txsync;
 	na.nm_rxsync = ena_netmap_rxsync;
@@ -277,7 +277,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 	enum txrx t;
 	int rc, i;
 
-	sx_xlock(&adapter->ioctl_sx);
+	ENA_LOCK_LOCK(adapter);
 	ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	ena_down(adapter);
 
@@ -314,7 +314,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 		ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
 		rc = ena_restore_device(adapter);
 	}
-	sx_unlock(&adapter->ioctl_sx);
+	ENA_LOCK_UNLOCK(adapter);
 
 	return (rc);
 }
@@ -373,7 +373,6 @@ ena_netmap_tx_frames(struct ena_netmap_ctx *ctx)
 
 	/* If any packet was sent... */
 	if (likely(ctx->nm_i != ctx->kring->nr_hwcur)) {
-		wmb();
 		/* ...send the doorbell to the device. */
 		ena_com_write_sq_doorbell(ctx->io_sq);
 		counter_u64_add(ctx->ring->tx_stats.doorbells, 1);
@@ -431,7 +430,6 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 
 	if (tx_ring->acum_pkts == DB_THRESHOLD ||
 	    ena_com_is_doorbell_needed(ctx->io_sq, &ena_tx_ctx)) {
-		wmb();
 		ena_com_write_sq_doorbell(ctx->io_sq);
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
 		tx_ring->acum_pkts = 0;
@@ -887,8 +885,7 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 	ena_trace(ENA_WARNING, "Invalid req_id: %hu\n", req_id);
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
 
-	adapter->reset_reason = ENA_REGS_RESET_INV_TX_REQ_ID;
-	ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
+	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
 
 	return (EFAULT);
 }
@@ -964,8 +961,8 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 	if (unlikely(rc != 0)) {
 		ena_trace(ENA_ALERT, "Too many desc from the device.\n");
 		counter_u64_add(ctx->ring->rx_stats.bad_desc_num, 1);
-		ctx->adapter->reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, ctx->adapter);
+		ena_trigger_reset(ctx->adapter,
+		    ENA_REGS_RESET_TOO_MANY_RX_DESCS);
 		return (rc);
 	}
 	if (unlikely(ena_rx_ctx.descs == 0))
