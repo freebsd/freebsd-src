@@ -1135,6 +1135,55 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 }
 
 int
+ena_update_buf_ring_size(struct ena_adapter *adapter,
+    uint32_t new_buf_ring_size)
+{
+	uint32_t old_buf_ring_size;
+	int rc = 0;
+	bool dev_was_up;
+
+	ENA_LOCK_LOCK(adapter);
+
+	old_buf_ring_size = adapter->buf_ring_size;
+	adapter->buf_ring_size = new_buf_ring_size;
+
+	dev_was_up = ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter);
+	ena_down(adapter);
+
+	/* Reconfigure buf ring for all Tx rings. */
+	ena_free_all_io_rings_resources(adapter);
+	ena_init_io_rings_advanced(adapter);
+	if (dev_was_up) {
+		/*
+		 * If ena_up() fails, it's not because of recent buf_ring size
+		 * changes. Because of that, we just want to revert old drbr
+		 * value and trigger the reset because something else had to
+		 * go wrong.
+		 */
+		rc = ena_up(adapter);
+		if (unlikely(rc != 0)) {
+			device_printf(adapter->pdev,
+			    "Failed to configure device after setting new drbr size: %u. Reverting old value: %u and triggering the reset\n",
+			    new_buf_ring_size, old_buf_ring_size);
+
+			/* Revert old size and trigger the reset */
+			adapter->buf_ring_size = old_buf_ring_size;
+			ena_free_all_io_rings_resources(adapter);
+			ena_init_io_rings_advanced(adapter);
+
+			ENA_FLAG_SET_ATOMIC(ENA_FLAG_DEV_UP_BEFORE_RESET,
+			    adapter);
+			ena_trigger_reset(adapter, ENA_REGS_RESET_OS_TRIGGER);
+
+		}
+	}
+
+	ENA_LOCK_UNLOCK(adapter);
+
+	return (rc);
+}
+
+int
 ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
     uint32_t new_rx_size)
 {

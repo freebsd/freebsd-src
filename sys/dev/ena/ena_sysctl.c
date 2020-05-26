@@ -307,8 +307,9 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 
 	/* Tuneable number of buffers in the buf-ring (drbr) */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "buf_ring_size",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
-	    ena_sysctl_buf_ring_size, "I", "Size of the bufring");
+	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_buf_ring_size, "I",
+	    "Size of the Tx buffer ring (drbr).");
 
 	/* Tuneable number of the Rx ring size */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size",
@@ -322,31 +323,38 @@ static int
 ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
-	int val;
+	uint32_t val;
 	int error;
 
 	val = 0;
-	error = sysctl_wire_old_buffer(req, sizeof(int));
+	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
 		val = adapter->buf_ring_size;
 		error = sysctl_handle_int(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (val < 0)
+
+	if (!powerof2(val) || val == 0) {
+		device_printf(adapter->pdev,
+		    "Requested new Tx buffer ring size (%u) is not a power of 2\n",
+		    val);
 		return (EINVAL);
-
-	device_printf(adapter->pdev,
-	    "Requested new buf ring size: %d. Old size: %d\n",
-	    val, adapter->buf_ring_size);
-
-	if (val != adapter->buf_ring_size) {
-		adapter->buf_ring_size = val;
-		adapter->reset_reason = ENA_REGS_RESET_OS_TRIGGER;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	}
 
-	return (0);
+	if (val != adapter->buf_ring_size) {
+		device_printf(adapter->pdev,
+		    "Requested new Tx buffer ring size: %d. Old size: %d\n",
+		    val, adapter->buf_ring_size);
+
+		error = ena_update_buf_ring_size(adapter, val);
+	} else {
+		device_printf(adapter->pdev,
+		    "New Tx buffer ring size is the same as already used: %u\n",
+		    adapter->buf_ring_size);
+	}
+
+	return (error);
 }
 
 static int
