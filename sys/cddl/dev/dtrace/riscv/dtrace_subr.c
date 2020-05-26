@@ -255,6 +255,8 @@ dtrace_invop_start(struct trapframe *frame)
 	int invop;
 
 	invop = dtrace_invop(frame->tf_sepc, frame, frame->tf_sepc);
+	if (invop == 0)
+		return (-1);
 
 	if (match_opcode(invop, (MATCH_SD | RS2_RA | RS1_SP),
 	    (MASK_SD | RS2_MASK | RS1_MASK))) {
@@ -291,6 +293,10 @@ dtrace_invop_start(struct trapframe *frame)
 		frame->tf_sepc = frame->tf_ra;
 		return (0);
 	}
+
+#ifdef INVARIANTS
+	panic("Instruction %x doesn't match any opcode.", invop);
+#endif
 
 	return (-1);
 }
