@@ -138,9 +138,9 @@ ena_mq_start(if_t ifp, struct mbuf *m)
 	 * It should improve performance.
 	 */
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
-		i = m->m_pkthdr.flowid % adapter->num_queues;
+		i = m->m_pkthdr.flowid % adapter->num_io_queues;
 	} else {
-		i = curcpu % adapter->num_queues;
+		i = curcpu % adapter->num_io_queues;
 	}
 	tx_ring = &adapter->tx_ring[i];
 
@@ -169,7 +169,7 @@ ena_qflush(if_t ifp)
 	struct ena_ring *tx_ring = adapter->tx_ring;
 	int i;
 
-	for(i = 0; i < adapter->num_queues; ++i, ++tx_ring)
+	for(i = 0; i < adapter->num_io_queues; ++i, ++tx_ring)
 		if (!drbr_empty(ifp, tx_ring->br)) {
 			ENA_RING_MTX_LOCK(tx_ring);
 			drbr_flush(ifp, tx_ring->br);
