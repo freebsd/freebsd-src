@@ -3295,3 +3295,30 @@ hci_addrtype2str(int type)
 	return (type >= SIZE(t)? "?" : t[type]);
 } /* hci_addrtype2str */
 
+char const *
+hci_role2str(int role)
+{
+	static char const * const	roles[] = {
+		/* 0x00 */ "Master",
+		/* 0x01 */ "Slave",
+	};
+
+	return (role >= SIZE(roles)? "Unknown role" : roles[role]);
+} /* hci_role2str */
+
+char const *
+hci_mc_accuracy2str(int accuracy)
+{
+	static char const * const	acc[] = {
+		/* 0x00 */ "500 ppm",
+		/* 0x01 */ "250 ppm",
+		/* 0x02 */ "150 ppm",
+		/* 0x03 */ "100 ppm",
+		/* 0x04 */ "75 ppm",
+		/* 0x05 */ "50 ppm",
+		/* 0x06 */ "30 ppm",
+		/* 0x07 */ "20 ppm",
+	};
+
+	return (accuracy >= SIZE(acc)? "Unknown accuracy" : acc[accuracy]);
+} /* hci_mc_accuracy2str */
