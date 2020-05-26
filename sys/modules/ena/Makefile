@@ -1,7 +1,7 @@
 #
 # BSD LICENSE
 #
-# Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+# Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,8 @@
 	${SRCTOP}/sys/contrib/ena-com
 
 KMOD	= if_ena
-SRCS	= ena.c ena_com.c ena_eth_com.c ena_sysctl.c
+SRCS	= ena_com.c ena_eth_com.c
+SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c
 SRCS	+= device_if.h bus_if.h pci_if.h
 CFLAGS  += -I${SRCTOP}/sys/contrib
 

@@ -31,17 +31,12 @@
  *
  */
 
-#ifndef ENA_SYSCTL_H
-#define ENA_SYSCTL_H
+#ifndef ENA_TXRX_H
+#define ENA_TXRX_H
 
-#include <sys/types.h>
-#include <sys/sysctl.h>
+void	ena_cleanup(void *arg, int pending);
+void	ena_qflush(if_t ifp);
+int	ena_mq_start(if_t ifp, struct mbuf *m);
+void	ena_deferred_mq_start(void *arg, int pending);
 
-#include "ena.h"
-
-void	ena_sysctl_add_nodes(struct ena_adapter *adapter);
-
-extern int ena_enable_9k_mbufs;
-#define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)
-
-#endif /* !(ENA_SYSCTL_H) */
+#endif /* ENA_TXRX_H */
