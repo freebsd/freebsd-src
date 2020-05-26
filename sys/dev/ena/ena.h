@@ -501,6 +501,7 @@ int	ena_update_buf_ring_size(struct ena_adapter *adapter,
     uint32_t new_buf_ring_size);
 int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
     uint32_t new_rx_size);
+int	ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num);
 
 static inline void
 ena_trigger_reset(struct ena_adapter *adapter,

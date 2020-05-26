@@ -1239,6 +1239,61 @@ ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
 }
 
 static void
+ena_update_io_rings(struct ena_adapter *adapter, uint32_t num)
+{
+	ena_free_all_io_rings_resources(adapter);
+	/* Force indirection table to be reinitialized */
+	ena_com_rss_destroy(adapter->ena_dev);
+
+	adapter->num_io_queues = num;
+	ena_init_io_rings(adapter);
+}
+
+/* Caller should sanitize new_num */
+int
+ena_update_io_queue_nb(struct ena_adapter *adapter, uint32_t new_num)
+{
+	uint32_t old_num;
+	int rc = 0;
+	bool dev_was_up;
+
+	ENA_LOCK_LOCK(adapter);
+
+	dev_was_up = ENA_FLAG_ISSET(ENA_FLAG_DEV_UP, adapter);
+	old_num = adapter->num_io_queues;
+	ena_down(adapter);
+
+	ena_update_io_rings(adapter, new_num);
+
+	if (dev_was_up) {
+		rc = ena_up(adapter);
+		if (unlikely(rc != 0)) {
+			device_printf(adapter->pdev,
+			    "Failed to configure device with %u IO queues. "
+			    "Reverting to previous value: %u\n",
+			    new_num, old_num);
+
+			ena_update_io_rings(adapter, old_num);
+
+			rc = ena_up(adapter);
+			if (unlikely(rc != 0)) {
+				device_printf(adapter->pdev,
+				    "Failed to revert to previous setup IO "
+				    "queues. Triggering device reset.\n");
+				ENA_FLAG_SET_ATOMIC(
+				    ENA_FLAG_DEV_UP_BEFORE_RESET, adapter);
+				ena_trigger_reset(adapter,
+				    ENA_REGS_RESET_OS_TRIGGER);
+			}
+		}
+	}
+
+	ENA_LOCK_UNLOCK(adapter);
+
+	return (rc);
+}
+
+static void
 ena_free_rx_bufs(struct ena_adapter *adapter, unsigned int qid)
 {
 	struct ena_ring *rx_ring = &adapter->rx_ring[qid];
@@ -1865,6 +1920,18 @@ ena_rss_configure(struct ena_adapter *adapter)
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	int rc;
 
+	/* In case the RSS table was destroyed */
+	if (!ena_dev->rss.tbl_log_size) {
+		rc = ena_rss_init_default(adapter);
+		if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
+			device_printf(adapter->pdev,
+			    "WARNING: RSS was not properly re-initialized,"
+			    " it will affect bandwidth\n");
+			ENA_FLAG_CLEAR_ATOMIC(ENA_FLAG_RSS_ACTIVE, adapter);
+			return (rc);
+		}
+	}
+
 	/* Set indirect table */
 	rc = ena_com_indirect_table_set(ena_dev);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP)))
@@ -1890,8 +1957,11 @@ ena_up_complete(struct ena_adapter *adapter)
 
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
 		rc = ena_rss_configure(adapter);
-		if (rc != 0)
+		if (rc != 0) {
+			device_printf(adapter->pdev,
+			    "Failed to configure RSS\n");
 			return (rc);
+		}
 	}
 
 	rc = ena_change_mtu(adapter->ifp, adapter->ifp->if_mtu);
