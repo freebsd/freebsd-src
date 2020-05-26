@@ -483,11 +483,11 @@ static inline int ena_mbuf_count(struct mbuf *mbuf)
 	return count;
 }
 
-int	ena_up(struct ena_adapter *);
-void	ena_down(struct ena_adapter *);
-int	ena_restore_device(struct ena_adapter *);
-void	ena_destroy_device(struct ena_adapter *, bool);
-int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
+int	ena_up(struct ena_adapter *adapter);
+void	ena_down(struct ena_adapter *adapter);
+int	ena_restore_device(struct ena_adapter *adapter);
+void	ena_destroy_device(struct ena_adapter *adapter, bool graceful);
+int	ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num);
 
 static inline void
 ena_trigger_reset(struct ena_adapter *adapter,
