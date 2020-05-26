@@ -812,9 +812,8 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 	struct ena_com_buf *ena_buf;
 	bus_dma_segment_t segs[ENA_BUS_DMA_SEGS];
 	size_t iseg = 0;
-	uint32_t mbuf_head_len, frag_len;
-	uint16_t push_len = 0;
-	uint16_t delta = 0;
+	uint32_t mbuf_head_len;
+	uint16_t offset;
 	int rc, nsegs;
 
 	mbuf_head_len = mbuf->m_len;
@@ -833,7 +832,6 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 		goto dma_error;
 	}
 
-
 	if (tx_ring->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
 		/*
 		 * When the device is LLQ mode, the driver will copy
@@ -845,44 +843,48 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 		 * First check if header fits in the mbuf. If not, copy it to
 		 * separate buffer that will be holding linearized data.
 		 */
-		push_len = min_t(uint32_t, mbuf->m_pkthdr.len,
-		    tx_ring->tx_max_header_size);
-		*header_len = push_len;
+		*header_len = min_t(uint32_t, mbuf->m_pkthdr.len, tx_ring->tx_max_header_size);
+
 		/* If header is in linear space, just point into mbuf's data. */
-		if (likely(push_len <= mbuf_head_len)) {
+		if (likely(*header_len <= mbuf_head_len)) {
 			*push_hdr = mbuf->m_data;
 		/*
 		 * Otherwise, copy whole portion of header from multiple mbufs
 		 * to intermediate buffer.
 		 */
 		} else {
-			m_copydata(mbuf, 0, push_len,
-			    tx_ring->push_buf_intermediate_buf);
+			m_copydata(mbuf, 0, *header_len, tx_ring->push_buf_intermediate_buf);
 			*push_hdr = tx_ring->push_buf_intermediate_buf;
 
 			counter_u64_add(tx_ring->tx_stats.llq_buffer_copy, 1);
-			delta = push_len - mbuf_head_len;
 		}
 
 		ena_trace(ENA_DBG | ENA_TXPTH,
 		    "mbuf: %p header_buf->vaddr: %p push_len: %d\n",
-		    mbuf, *push_hdr, push_len);
+		    mbuf, *push_hdr, *header_len);
 
-		/*
-		* If header was in linear memory space, map for the dma rest of the data
-		* in the first mbuf of the mbuf chain.
-		*/
-		if (mbuf_head_len > push_len) {
-			ena_buf->paddr = segs[iseg].ds_addr + push_len;
-			ena_buf->len = segs[iseg].ds_len - push_len;
-			ena_buf++;
-			tx_info->num_of_bufs++;
+		/* If packet is fitted in LLQ header, no need for DMA segments. */
+		if (mbuf->m_pkthdr.len <= tx_ring->tx_max_header_size) {
+			return (0);
+		} else {
+			offset = tx_ring->tx_max_header_size;
+			/*
+			 * As Header part is mapped to LLQ header, we can skip it and just
+			 * map the residuum of the mbuf to DMA Segments.
+			 */
+			while (offset > 0) {
+				if (offset >= segs[iseg].ds_len) {
+					offset -= segs[iseg].ds_len;
+				} else {
+					ena_buf->paddr = segs[iseg].ds_addr + offset;
+					ena_buf->len = segs[iseg].ds_len - offset;
+					ena_buf++;
+					tx_info->num_of_bufs++;
+					offset = 0;
+				}
+				iseg++;
+			}
 		}
-		/*
-		 * Advance the seg index as either the 1st mbuf was mapped or is
-		 * a part of push_hdr.
-		 */
-		iseg++;
 	} else {
 		*push_hdr = NULL;
 		/*
@@ -893,41 +895,6 @@ ena_tx_map_mbuf(struct ena_ring *tx_ring, struct ena_tx_buffer *tx_info,
 		* header on it's own.
 		*/
 		*header_len = 0;
-	}
-
-	/*
-	 * If header is in non linear space (delta > 0), then skip mbufs
-	 * containing header and map the last one containing both header and the
-	 * packet data.
-	 * The first segment is already counted in.
-	 * If LLQ is not supported, the loop will be skipped.
-	 */
-	while (delta > 0) {
-		frag_len = segs[iseg].ds_len;
-
-		/*
-		 * If whole segment contains header just move to the
-		 * next one and reduce delta.
-		 */
-		if (unlikely(delta >= frag_len)) {
-			delta -= frag_len;
-		} else {
-			/*
-			 * Map rest of the packet data that was contained in
-			 * the mbuf.
-			 */
-			ena_buf->paddr = segs[iseg].ds_addr + delta;
-			ena_buf->len = frag_len - delta;
-			ena_buf++;
-			tx_info->num_of_bufs++;
-
-			delta = 0;
-		}
-		iseg++;
-	}
-
-	if (mbuf == NULL) {
-		return (0);
 	}
 
 	/* Map rest of the mbuf */
