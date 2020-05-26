@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -265,7 +265,9 @@ struct ena_eth_io_rx_cdesc_base {
 
 	uint16_t sub_qid;
 
-	uint16_t reserved;
+	uint8_t offset;
+
+	uint8_t reserved;
 };
 
 /* 8-word format */
@@ -965,4 +967,4 @@ static inline void set_ena_eth_io_numa_node_cfg_reg_enabled(struct ena_eth_io_nu
 }
 
 #endif /* !defined(DEFS_LINUX_MAINLINE) */
-#endif /*_ENA_ETH_IO_H_ */
+#endif /* _ENA_ETH_IO_H_ */
