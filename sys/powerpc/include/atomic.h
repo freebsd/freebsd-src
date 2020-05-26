@@ -621,7 +621,7 @@ atomic_cmpset_masked(uint32_t *p, uint32_t cmpval, uint32_t newval,
 	uint32_t	tmp;
 
 	__asm __volatile (
-		"1:\tlwarx %2, 0, %2\n\t"	/* load old value */
+		"1:\tlwarx %2, 0, %3\n\t"	/* load old value */
 		"and %0, %2, %7\n\t"
 		"cmplw %4, %0\n\t"		/* compare */
 		"bne- 2f\n\t"			/* exit if not equal */
