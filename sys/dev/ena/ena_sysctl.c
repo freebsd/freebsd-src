@@ -373,7 +373,7 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 	val = 0;
 	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
-		val = adapter->rx_ring_size;
+		val = adapter->requested_rx_ring_size;
 		error = sysctl_handle_32(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
@@ -394,17 +394,17 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	}
 
-	if (val != adapter->rx_ring_size) {
+	if (val != adapter->requested_rx_ring_size) {
 		device_printf(adapter->pdev,
 		    "Requested new Rx queue size: %u. Old size: %u\n",
-		    val, adapter->rx_ring_size);
+		    val, adapter->requested_rx_ring_size);
 
-		error = ena_update_queue_size(adapter, adapter->tx_ring_size,
-		    val);
+		error = ena_update_queue_size(adapter,
+		    adapter->requested_tx_ring_size, val);
 	} else {
 		device_printf(adapter->pdev,
 		    "New Rx queue size is the same as already used: %u\n",
-		    adapter->rx_ring_size);
+		    adapter->requested_rx_ring_size);
 	}
 
 	return (error);
