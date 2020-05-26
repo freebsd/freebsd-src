@@ -5785,3 +5785,9 @@ realloc(void *cp, size_t nbytes)
 
 	return (__crt_realloc(cp, nbytes));
 }
+
+extern int _rtld_version__FreeBSD_version __exported;
+int _rtld_version__FreeBSD_version = __FreeBSD_version;
+
+extern char _rtld_version_laddr_offset __exported;
+char _rtld_version_laddr_offset;

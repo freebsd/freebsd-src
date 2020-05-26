@@ -32,4 +32,6 @@ FBSDprivate_1.0 {
     _rtld_get_stack_prot;
     _rtld_is_dlopened;
     _r_debug_postinit;
+    _rtld_version__FreeBSD_version;
+    _rtld_version_laddr_offset;
 };

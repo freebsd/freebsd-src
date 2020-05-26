@@ -355,6 +355,54 @@ ignores
 and is naturally prone to race conditions.
 Environments which rely on such restrictions are weak
 and breakable on their own.
+.Sh VERSIONING
+Newer
+.Nm
+might provide some features or changes in runtime behavior that cannot be
+easily detected at runtime by checking of the normal exported symbols.
+Note that it is almost always wrong to verify
+.Dv __FreeBSD_version
+in userspace to detect features, either at compile or at run time,
+because either kernel, or libc, or environment variables could not
+match the running
+.Nm .
+.Pp
+To solve the problem,
+.Nm
+exports some feature indicators in the
+.Fx
+private symbols namespace
+.Dv FBSDprivate_1.0 .
+Symbols start with the
+.Dv _rtld_version
+prefix.
+Current list of defined symbols and corresponding features is:
+.Bl -tag -width indent
+.It Dv _rtld_version__FreeBSD_version
+Symbol exports the value of the
+.Dv __FreeBSD_version
+definition as it was provided during the
+.Nm
+build.
+The symbol is always present since the
+.Dv _rtld_version
+facility was introduced.
+.It Dv _rtld_version_laddr_offset
+The
+.Va l_addr
+member of the
+.Vt link_map
+structure contains the load offset of the shared object.
+Before that,
+.Va l_addr
+contained the base address of the library.
+See
+.Xr dlinfo 3 .
+.Pp
+Also it indicates the presence of
+.Va l_refname
+member of the structure.
+.El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
 .It Pa /var/run/ld-elf.so.hints
@@ -369,6 +417,7 @@ The libmap configuration file for 32-bit binaries on 64-bit system.
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr ldd 1 ,
+.Xr dlinfo 3 ,
 .Xr capsicum 4 ,
 .Xr elf 5 ,
 .Xr libmap.conf 5 ,
