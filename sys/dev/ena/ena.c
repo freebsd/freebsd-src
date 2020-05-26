@@ -3519,6 +3519,11 @@ ena_attach(device_t pdev)
 		goto err_com_free;
 	}
 
+	if (ena_dev->tx_mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV)
+		adapter->disable_meta_caching =
+		    !!(get_feat_ctx.llq.accel_mode.u.get.supported_flags &
+		    BIT(ENA_ADMIN_DISABLE_META_CACHING));
+
 	adapter->keep_alive_timestamp = getsbinuptime();
 
 	adapter->tx_offload_cap = get_feat_ctx.offload.tx;
