@@ -197,7 +197,8 @@ ctl_ha_lclose(struct ha_softc *softc)
 
 	if (softc->ha_lso) {
 		SOCKBUF_LOCK(&softc->ha_lso->so_rcv);
-		soupcall_clear(softc->ha_lso, SO_RCV);
+		if (softc->ha_lso->so_rcv.sb_upcall != NULL)
+			soupcall_clear(softc->ha_lso, SO_RCV);
 		SOCKBUF_UNLOCK(&softc->ha_lso->so_rcv);
 		soclose(softc->ha_lso);
 		softc->ha_lso = NULL;
