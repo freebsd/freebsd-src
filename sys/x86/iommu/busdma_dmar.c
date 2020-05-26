@@ -269,7 +269,7 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 }
 
 bus_dma_tag_t
-dmar_get_dma_tag(device_t dev, device_t child)
+acpi_iommu_get_dma_tag(device_t dev, device_t child)
 {
 	struct dmar_unit *dmar;
 	struct dmar_ctx *ctx;

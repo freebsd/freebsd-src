@@ -456,15 +456,15 @@ acpi_pci_detach(device_t dev)
 }
 
 #ifdef ACPI_DMAR
-bus_dma_tag_t dmar_get_dma_tag(device_t dev, device_t child);
+bus_dma_tag_t acpi_iommu_get_dma_tag(device_t dev, device_t child);
 static bus_dma_tag_t
 acpi_pci_get_dma_tag(device_t bus, device_t child)
 {
 	bus_dma_tag_t tag;
 
 	if (device_get_parent(child) == bus) {
-		/* try dmar and return if it works */
-		tag = dmar_get_dma_tag(bus, child);
+		/* try iommu and return if it works */
+		tag = acpi_iommu_get_dma_tag(bus, child);
 	} else
 		tag = NULL;
 	if (tag == NULL)
