@@ -380,6 +380,7 @@ struct ena_hw_stats {
 	counter_u64_t tx_bytes;
 
 	counter_u64_t rx_drops;
+	counter_u64_t tx_drops;
 };
 
 /* Board specific private data structure */

@@ -1888,6 +1888,8 @@ ena_get_counter(if_t ifp, ift_counter cnt)
 		return (counter_u64_fetch(stats->tx_bytes));
 	case IFCOUNTER_IQDROPS:
 		return (counter_u64_fetch(stats->rx_drops));
+	case IFCOUNTER_OQDROPS:
+		return (counter_u64_fetch(stats->tx_drops));
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -2710,12 +2712,16 @@ static void ena_keep_alive_wd(void *adapter_data,
 	struct ena_admin_aenq_keep_alive_desc *desc;
 	sbintime_t stime;
 	uint64_t rx_drops;
+	uint64_t tx_drops;
 
 	desc = (struct ena_admin_aenq_keep_alive_desc *)aenq_e;
 
 	rx_drops = ((uint64_t)desc->rx_drops_high << 32) | desc->rx_drops_low;
+	tx_drops = ((uint64_t)desc->tx_drops_high << 32) | desc->tx_drops_low;
 	counter_u64_zero(adapter->hw_stats.rx_drops);
 	counter_u64_add(adapter->hw_stats.rx_drops, rx_drops);
+	counter_u64_zero(adapter->hw_stats.tx_drops);
+	counter_u64_add(adapter->hw_stats.tx_drops, tx_drops);
 
 	stime = getsbinuptime();
 	atomic_store_rel_64(&adapter->keep_alive_timestamp, stime);
