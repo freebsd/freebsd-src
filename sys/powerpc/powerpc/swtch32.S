@@ -92,6 +92,11 @@ ENTRY(cpu_switch)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r6)
 	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
+	bl	1f
+1:
+	mflr	%r30			/* Prepare for secure-PLT calls */
+	addis	%r30, %r30, (_GLOBAL_OFFSET_TABLE_-1b)@ha
+	addi	%r30, %r30, (_GLOBAL_OFFSET_TABLE_-1b)@l
 
 	mr	%r14,%r3		/* Copy the old thread ptr... */
 	mr	%r2,%r4			/* and the new thread ptr in curthread */
@@ -129,6 +134,7 @@ cpu_switchin:
 	mflr	%r6
 	addis	%r6,%r6,(_GLOBAL_OFFSET_TABLE_-1b)@ha
 	addi	%r6,%r6,(_GLOBAL_OFFSET_TABLE_-1b)@l
+	mr	%r30, %r6		/* Prepare for secure-PLT calls */
 	lwz	%r6,blocked_lock@got(%r6)
 blocked_loop:
 	lwz	%r7,TD_LOCK(%r2)
