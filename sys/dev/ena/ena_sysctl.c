@@ -267,6 +267,8 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &hw_stats->tx_bytes, "Bytes transmitted");
 	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
 	    &hw_stats->rx_drops, "Receive packet drops");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "tx_drops", CTLFLAG_RD,
+	    &hw_stats->tx_drops, "Transmit packet drops");
 
 	/* ENA Admin queue stats */
 	admin_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "admin_stats",
