@@ -37,6 +37,7 @@ static void	ena_sysctl_add_stats(struct ena_adapter *);
 static void	ena_sysctl_add_tuneables(struct ena_adapter *);
 static int	ena_sysctl_buf_ring_size(SYSCTL_HANDLER_ARGS);
 static int	ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS);
+static int	ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS);
 
 static SYSCTL_NODE(_hw, OID_AUTO, ena, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "ENA driver parameters");
@@ -316,6 +317,11 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
 	    ena_sysctl_rx_queue_size, "I",
 	    "Size of the Rx ring. The size should be a power of 2.");
+
+	/* Tuneable number of IO queues */
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "io_queues_nb",
+	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_io_queues_nb, "I", "Number of IO queues.");
 }
 
 
@@ -399,6 +405,58 @@ ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 		device_printf(adapter->pdev,
 		    "New Rx queue size is the same as already used: %u\n",
 		    adapter->rx_ring_size);
+	}
+
+	return (error);
+}
+
+/*
+ * Change number of effectively used IO queues adapter->num_io_queues
+ */
+static int
+ena_sysctl_io_queues_nb(SYSCTL_HANDLER_ARGS)
+{
+	struct ena_adapter *adapter = arg1;
+	uint32_t tmp = 0;
+	int error;
+
+	error = sysctl_wire_old_buffer(req, sizeof(tmp));
+	if (error == 0) {
+		tmp = adapter->num_io_queues;
+		error = sysctl_handle_int(oidp, &tmp, 0, req);
+	}
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (tmp == 0) {
+		device_printf(adapter->pdev,
+		    "Requested number of IO queues is zero\n");
+		return (EINVAL);
+	}
+
+	/*
+	 * The adapter::max_num_io_queues is the HW capability. The system
+	 * resources availability may potentially be a tighter limit. Therefore
+	 * the relation `adapter::max_num_io_queues >= adapter::msix_vecs`
+	 * always holds true, while the `adapter::msix_vecs` is variable across
+	 * device reset (`ena_destroy_device()` + `ena_restore_device()`).
+	 */
+	if (tmp > (adapter->msix_vecs - ENA_ADMIN_MSIX_VEC)) {
+		device_printf(adapter->pdev,
+		    "Requested number of IO queues is higher than maximum "
+		    "allowed (%u)\n", adapter->msix_vecs - ENA_ADMIN_MSIX_VEC);
+		return (EINVAL);
+	}
+	if (tmp == adapter->num_io_queues) {
+		device_printf(adapter->pdev,
+		    "Requested number of IO queues is equal to current value "
+		    "(%u)\n", adapter->num_io_queues);
+	} else {
+		device_printf(adapter->pdev,
+		    "Requested new number of IO queues: %u, current value: "
+		    "%u\n", tmp, adapter->num_io_queues);
+
+		error = ena_update_io_queue_nb(adapter, tmp);
 	}
 
 	return (error);
