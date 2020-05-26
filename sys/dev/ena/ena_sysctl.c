@@ -161,7 +161,7 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    CTLFLAG_RD, &dev_stats->admin_q_pause,
 	    "Admin queue pauses");
 
-	for (i = 0; i < adapter->num_queues; ++i, ++tx_ring, ++rx_ring) {
+	for (i = 0; i < adapter->num_io_queues; ++i, ++tx_ring, ++rx_ring) {
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
@@ -310,11 +310,11 @@ ena_sysctl_add_tuneables(struct ena_adapter *adapter)
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
 	    ena_sysctl_buf_ring_size, "I", "Size of the bufring");
 
-	/* Tuneable number of Rx ring size */
+	/* Tuneable number of the Rx ring size */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "rx_queue_size",
-	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, adapter, 0,
-	    ena_sysctl_rx_queue_size, "I", "Size of the Rx ring. "
-	    "The size should be a power of 2. Max value is 8K");
+	    CTLTYPE_U32 | CTLFLAG_RW | CTLFLAG_MPSAFE, adapter, 0,
+	    ena_sysctl_rx_queue_size, "I",
+	    "Size of the Rx ring. The size should be a power of 2.");
 }
 
 
@@ -353,29 +353,45 @@ static int
 ena_sysctl_rx_queue_size(SYSCTL_HANDLER_ARGS)
 {
 	struct ena_adapter *adapter = arg1;
-	int val;
+	uint32_t val;
 	int error;
 
 	val = 0;
-	error = sysctl_wire_old_buffer(req, sizeof(int));
+	error = sysctl_wire_old_buffer(req, sizeof(val));
 	if (error == 0) {
 		val = adapter->rx_ring_size;
-		error = sysctl_handle_int(oidp, &val, 0, req);
+		error = sysctl_handle_32(oidp, &val, 0, req);
 	}
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if  (val < 16)
+
+	if  (val < ENA_MIN_RING_SIZE || val > adapter->max_rx_ring_size) {
+		device_printf(adapter->pdev,
+		    "Requested new Rx queue size (%u) is out of range: [%u, %u]\n",
+		    val, ENA_MIN_RING_SIZE, adapter->max_rx_ring_size);
 		return (EINVAL);
-
-	device_printf(adapter->pdev,
-	    "Requested new rx queue size: %d. Old size: %d\n",
-	    val, adapter->rx_ring_size);
-
-	if (val != adapter->rx_ring_size) {
-		adapter->rx_ring_size = val;
-		adapter->reset_reason = ENA_REGS_RESET_OS_TRIGGER;
-		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, adapter);
 	}
 
-	return (0);
+	/* Check if the parameter is power of 2 */
+	if (!powerof2(val)) {
+		device_printf(adapter->pdev,
+		    "Requested new Rx queue size (%u) is not a power of 2\n",
+		    val);
+		return (EINVAL);
+	}
+
+	if (val != adapter->rx_ring_size) {
+		device_printf(adapter->pdev,
+		    "Requested new Rx queue size: %u. Old size: %u\n",
+		    val, adapter->rx_ring_size);
+
+		error = ena_update_queue_size(adapter, adapter->tx_ring_size,
+		    val);
+	} else {
+		device_printf(adapter->pdev,
+		    "New Rx queue size is the same as already used: %u\n",
+		    adapter->rx_ring_size);
+	}
+
+	return (error);
 }

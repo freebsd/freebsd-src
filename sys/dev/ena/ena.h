@@ -69,6 +69,7 @@
 #define	ENA_DEFAULT_BUF_RING_SIZE	4096
 
 #define	ENA_DEFAULT_RING_SIZE		1024
+#define	ENA_MIN_RING_SIZE		256
 
 /*
  * Refill Rx queue when number of required descriptors is above
@@ -220,8 +221,10 @@ struct ena_calc_queue_size_ctx {
 	struct ena_com_dev_get_features_ctx *get_feat_ctx;
 	struct ena_com_dev *ena_dev;
 	device_t pdev;
-	uint16_t rx_queue_size;
-	uint16_t tx_queue_size;
+	uint32_t tx_queue_size;
+	uint32_t rx_queue_size;
+	uint32_t max_tx_queue_size;
+	uint32_t max_rx_queue_size;
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
 };
@@ -409,16 +412,19 @@ struct ena_adapter {
 
 	uint32_t max_mtu;
 
+	uint32_t num_io_queues;
+	uint32_t max_num_io_queues;
+
+	uint32_t tx_ring_size;
+	uint32_t rx_ring_size;
+
+	uint32_t max_tx_ring_size;
+	uint32_t max_rx_ring_size;
+
 	uint16_t max_tx_sgl_size;
 	uint16_t max_rx_sgl_size;
 
 	uint32_t tx_offload_cap;
-
-	/* Tx fast path data */
-	int num_queues;
-
-	unsigned int tx_ring_size;
-	unsigned int rx_ring_size;
 
 	uint16_t buf_ring_size;
 
@@ -473,6 +479,9 @@ struct ena_adapter {
 #define ENA_LOCK_LOCK(adapter)		sx_xlock(&(adapter)->global_lock)
 #define ENA_LOCK_UNLOCK(adapter)	sx_unlock(&(adapter)->global_lock)
 
+#define clamp_t(type, _x, min, max)	min_t(type, max_t(type, _x, min), max)
+#define clamp_val(val, lo, hi)		clamp_t(__typeof(val), val, lo, hi)
+
 static inline int ena_mbuf_count(struct mbuf *mbuf)
 {
 	int count = 1;
@@ -488,6 +497,8 @@ void	ena_down(struct ena_adapter *adapter);
 int	ena_restore_device(struct ena_adapter *adapter);
 void	ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int	ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num);
+int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
+    uint32_t new_rx_size);
 
 static inline void
 ena_trigger_reset(struct ena_adapter *adapter,
