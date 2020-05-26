@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,4 +46,4 @@ struct ena_common_mem_addr {
 	uint16_t reserved16;
 };
 
-#endif /*_ENA_COMMON_H_ */
+#endif /* _ENA_COMMON_H_ */

@@ -320,13 +320,6 @@ struct ena_ring {
 
 	struct ena_com_rx_buf_info ena_bufs[ENA_PKT_MAX_BUFS];
 
-	/*
-	 * Fields used for Adaptive Interrupt Modulation - to be implemented in
-	 * the future releases
-	 */
-	uint32_t  smoothed_interval;
-	enum ena_intr_moder_level moder_tbl_idx;
-
 	struct ena_que *que;
 	struct lro_ctrl lro;
 

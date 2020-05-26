@@ -373,7 +373,6 @@ ena_netmap_tx_frames(struct ena_netmap_ctx *ctx)
 
 	/* If any packet was sent... */
 	if (likely(ctx->nm_i != ctx->kring->nr_hwcur)) {
-		wmb();
 		/* ...send the doorbell to the device. */
 		ena_com_write_sq_doorbell(ctx->io_sq);
 		counter_u64_add(ctx->ring->tx_stats.doorbells, 1);
@@ -431,7 +430,6 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 
 	if (tx_ring->acum_pkts == DB_THRESHOLD ||
 	    ena_com_is_doorbell_needed(ctx->io_sq, &ena_tx_ctx)) {
-		wmb();
 		ena_com_write_sq_doorbell(ctx->io_sq);
 		counter_u64_add(tx_ring->tx_stats.doorbells, 1);
 		tx_ring->acum_pkts = 0;
