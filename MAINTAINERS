@@ -99,10 +99,12 @@ sys/compat/linuxkpi	hselasky		If in doubt, ask.
 						#x11 phabricator group.
 						(to avoid drm graphics drivers
 						impact)
+sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/contrib/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
+sys/dev/ice	erj	Pre-commit phabricator review requested.
 sys/dev/sound/usb	hselasky	If in doubt, ask.
 sys/dev/usb	hselasky	If in doubt, ask.
 sys/dev/xen	royger		Pre-commit review recommended.
