@@ -426,7 +426,7 @@ struct ena_adapter {
 
 	uint32_t tx_offload_cap;
 
-	uint16_t buf_ring_size;
+	uint32_t buf_ring_size;
 
 	/* RSS*/
 	uint8_t	rss_ind_tbl[ENA_RX_RSS_TABLE_SIZE];
@@ -497,6 +497,8 @@ void	ena_down(struct ena_adapter *adapter);
 int	ena_restore_device(struct ena_adapter *adapter);
 void	ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 int	ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num);
+int	ena_update_buf_ring_size(struct ena_adapter *adapter,
+    uint32_t new_buf_ring_size);
 int	ena_update_queue_size(struct ena_adapter *adapter, uint32_t new_tx_size,
     uint32_t new_rx_size);
 
