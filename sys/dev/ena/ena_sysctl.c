@@ -48,6 +48,9 @@ int ena_log_level = ENA_ALERT | ENA_WARNING;
 SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
     &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
+SYSCTL_CONST_STRING(_hw_ena, OID_AUTO, driver_version, CTLFLAG_RD,
+    DRV_MODULE_VERSION, "ENA driver version");
+
 /*
  * Use 9k mbufs for the Rx buffers. Default to 0 (use page size mbufs instead).
  * Using 9k mbufs in low memory conditions might cause allocation to take a lot
