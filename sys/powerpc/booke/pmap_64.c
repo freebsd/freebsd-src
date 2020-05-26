@@ -553,7 +553,8 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 	}
 
 	va = VM_MIN_KERNEL_ADDRESS;
-	for (i = 0; i < pdir_l1s; i++, l1_va += PAGE_SIZE) {
+	for (i = PG_ROOT_IDX(va); i < PG_ROOT_IDX(va) + pdir_l1s;
+	    i++, l1_va += PAGE_SIZE) {
 		kernel_pmap->pm_root[i] = (pte_t ***)l1_va;
 		for (j = 0;
 		    j < PDIR_L1_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
