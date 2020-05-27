@@ -1216,6 +1216,7 @@ retry:
 		}
 		PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 		PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
+		dump_add_page(m->phys_addr);
 		pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 		pc->pc_pmap = pmap;
 		pc->pc_map[0] = PC_FREE0;
@@ -1490,6 +1491,7 @@ reclaim_pv_chunk(pmap_t locked_pmap, struct rwlock **lockp)
 			PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 			/* Entire chunk is free; return it. */
 			m_pc = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+			dump_drop_page(m_pc->phys_addr);
 			mtx_lock(&pv_chunks_mutex);
 			TAILQ_REMOVE(&pv_chunks, pc, pc_lru);
 			break;
@@ -1579,6 +1581,7 @@ free_pv_chunk(struct pv_chunk *pc)
 	PV_STAT(atomic_add_int(&pc_chunk_frees, 1));
 	/* entire chunk is free, return it */
 	m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pc));
+	dump_drop_page(m->phys_addr);
 	vm_page_unwire_noq(m);
 	vm_page_free(m);
 }
@@ -1639,6 +1642,7 @@ retry:
 	}
 	PV_STAT(atomic_add_int(&pc_chunk_count, 1));
 	PV_STAT(atomic_add_int(&pc_chunk_allocs, 1));
+	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
@@ -2095,6 +2099,10 @@ mmu_radix_late_bootstrap(vm_offset_t start, vm_offset_t end)
 	pa = allocpages(DPCPU_SIZE >> PAGE_SHIFT);
 	dpcpu = (void *)PHYS_TO_DMAP(pa);
 	dpcpu_init(dpcpu, curcpu);
+
+	crashdumpmap = (caddr_t)virtual_avail;
+	virtual_avail += MAXDUMPPGS * PAGE_SIZE;
+
 	/*
 	 * Reserve some special page table entries/VA space for temporary
 	 * mapping of pages.
