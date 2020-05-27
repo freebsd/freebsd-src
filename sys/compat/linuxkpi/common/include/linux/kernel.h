@@ -374,6 +374,24 @@ kstrtouint(const char *cp, unsigned int base, unsigned int *res)
 }
 
 static inline int
+kstrtou16(const char *cp, unsigned int base, u16 *res)
+{
+	char *end;
+	unsigned long temp;
+
+	*res = temp = strtoul(cp, &end, base);
+
+	/* skip newline character, if any */
+	if (*end == '\n')
+		end++;
+	if (*cp == 0 || *end != 0)
+		return (-EINVAL);
+	if (temp != (u16)temp)
+		return (-ERANGE);
+	return (0);
+}
+
+static inline int
 kstrtou32(const char *cp, unsigned int base, u32 *res)
 {
 	char *end;
