@@ -466,9 +466,10 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 	/*
 	 * Bring up MMU
 	 */
+	pmap_mmu_init();
+	link_elf_ireloc(kmdp);
 	pmap_bootstrap(startkernel, endkernel);
 	mtmsr(psl_kernset & ~PSL_EE);
-	link_elf_ireloc(kmdp);
 
 	/*
 	 * Initialize params/tunables that are derived from memsize
