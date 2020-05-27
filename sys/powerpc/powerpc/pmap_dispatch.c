@@ -53,19 +53,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 
 #include <machine/dump.h>
+#include <machine/ifunc.h>
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
 #include <machine/smp.h>
 
-#include "mmu_if.h"
-
-static mmu_def_t	*mmu_def_impl;
 static mmu_t		mmu_obj;
-static struct mmu_kobj	mmu_kernel_obj;
-static struct kobj_ops	mmu_kernel_kops;
 
 /*
  * pmap globals
@@ -93,562 +90,122 @@ pvo_vaddr_compare(struct pvo_entry *a, struct pvo_entry *b)
 }
 RB_GENERATE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
 #endif
-	
 
-void
-pmap_advise(pmap_t pmap, vm_offset_t start, vm_offset_t end, int advice)
-{
-
-	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %d)", __func__, pmap, start, end,
-	    advice);
-	MMU_ADVISE(mmu_obj, pmap, start, end, advice);
-}
-
-void
-pmap_clear_modify(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_CLEAR_MODIFY(mmu_obj, m);
-}
-
-void
-pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
-    vm_size_t len, vm_offset_t src_addr)
-{
-
-	CTR6(KTR_PMAP, "%s(%p, %p, %#x, %#x, %#x)", __func__, dst_pmap,
-	    src_pmap, dst_addr, len, src_addr);
-	MMU_COPY(mmu_obj, dst_pmap, src_pmap, dst_addr, len, src_addr);
-}
-
-void
-pmap_copy_page(vm_page_t src, vm_page_t dst)
-{
-
-	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, src, dst);
-	MMU_COPY_PAGE(mmu_obj, src, dst);
-}
-
-void
-pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
-    vm_offset_t b_offset, int xfersize)
-{
-
-	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %#x, %#x)", __func__, ma,
-	    a_offset, mb, b_offset, xfersize);
-	MMU_COPY_PAGES(mmu_obj, ma, a_offset, mb, b_offset, xfersize);
-}
-
-int
-pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t p, vm_prot_t prot,
-    u_int flags, int8_t psind)
-{
-
-	CTR6(KTR_PMAP, "pmap_enter(%p, %#x, %p, %#x, %#x, %d)", pmap, va,
-	    p, prot, flags, psind);
-	return (MMU_ENTER(mmu_obj, pmap, va, p, prot, flags, psind));
-}
-
-void
-pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
-    vm_page_t m_start, vm_prot_t prot)
-{
-
-	CTR6(KTR_PMAP, "%s(%p, %#x, %#x, %p, %#x)", __func__, pmap, start,
-	    end, m_start, prot);
-	MMU_ENTER_OBJECT(mmu_obj, pmap, start, end, m_start, prot);
-}
-
-void
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
-{
-
-	CTR5(KTR_PMAP, "%s(%p, %#x, %p, %#x)", __func__, pmap, va, m, prot);
-	MMU_ENTER_QUICK(mmu_obj, pmap, va, m, prot);
-}
-
-vm_paddr_t
-pmap_extract(pmap_t pmap, vm_offset_t va)
-{
-
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, va);
-	return (MMU_EXTRACT(mmu_obj, pmap, va));
-}
-
-vm_page_t
-pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
-{
-
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, va, prot);
-	return (MMU_EXTRACT_AND_HOLD(mmu_obj, pmap, va, prot));
-}
-
-void
-pmap_growkernel(vm_offset_t va)
-{
-
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
-	MMU_GROWKERNEL(mmu_obj, va);
-}
-
-void
-pmap_init(void)
-{
-
-	CTR1(KTR_PMAP, "%s()", __func__);
-	MMU_INIT(mmu_obj);
-}
-
-boolean_t
-pmap_is_modified(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	return (MMU_IS_MODIFIED(mmu_obj, m));
-}
-
-boolean_t
-pmap_is_prefaultable(pmap_t pmap, vm_offset_t va)
-{
-
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, va);
-	return (MMU_IS_PREFAULTABLE(mmu_obj, pmap, va));
-}
-
-boolean_t
-pmap_is_referenced(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	return (MMU_IS_REFERENCED(mmu_obj, m));
-}
-
-boolean_t
-pmap_ts_referenced(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	return (MMU_TS_REFERENCED(mmu_obj, m));
-}
-
-vm_offset_t
-pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
-{
-
-	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, virt, start, end,
-	    prot);
-	return (MMU_MAP(mmu_obj, virt, start, end, prot));
-}
-
-void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
-    vm_pindex_t pindex, vm_size_t size)
-{
-
-	CTR6(KTR_PMAP, "%s(%p, %#x, %p, %u, %#x)", __func__, pmap, addr,
-	    object, pindex, size);
-	MMU_OBJECT_INIT_PT(mmu_obj, pmap, addr, object, pindex, size);
-}
-
-boolean_t
-pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
-{
-
-	CTR3(KTR_PMAP, "%s(%p, %p)", __func__, pmap, m);
-	return (MMU_PAGE_EXISTS_QUICK(mmu_obj, pmap, m));
-}
-
-void
-pmap_page_init(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_PAGE_INIT(mmu_obj, m);
-}
-
-int
-pmap_page_wired_mappings(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	return (MMU_PAGE_WIRED_MAPPINGS(mmu_obj, m));
-}
-
-int
-pmap_pinit(pmap_t pmap)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
-	MMU_PINIT(mmu_obj, pmap);
-	return (1);
-}
-
-void
-pmap_pinit0(pmap_t pmap)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
-	MMU_PINIT0(mmu_obj, pmap);
-}
-
-void
-pmap_protect(pmap_t pmap, vm_offset_t start, vm_offset_t end, vm_prot_t prot)
-{
-
-	CTR5(KTR_PMAP, "%s(%p, %#x, %#x, %#x)", __func__, pmap, start, end,
-	    prot);
-	MMU_PROTECT(mmu_obj, pmap, start, end, prot);
-}
-
-void
-pmap_qenter(vm_offset_t start, vm_page_t *m, int count)
-{
-
-	CTR4(KTR_PMAP, "%s(%#x, %p, %d)", __func__, start, m, count);
-	MMU_QENTER(mmu_obj, start, m, count);
-}
-
-void
-pmap_qremove(vm_offset_t start, int count)
-{
-
-	CTR3(KTR_PMAP, "%s(%#x, %d)", __func__, start, count);
-	MMU_QREMOVE(mmu_obj, start, count);
-}
-
-void
-pmap_release(pmap_t pmap)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
-	MMU_RELEASE(mmu_obj, pmap);
-}
-
-void
-pmap_remove(pmap_t pmap, vm_offset_t start, vm_offset_t end)
-{
-
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, start, end);
-	MMU_REMOVE(mmu_obj, pmap, start, end);
-}
-
-void
-pmap_remove_all(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_REMOVE_ALL(mmu_obj, m);
-}
-
-void
-pmap_remove_pages(pmap_t pmap)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
-	MMU_REMOVE_PAGES(mmu_obj, pmap);
-}
-
-void
-pmap_remove_write(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_REMOVE_WRITE(mmu_obj, m);
-}
-
-void
-pmap_unwire(pmap_t pmap, vm_offset_t start, vm_offset_t end)
-{
-
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pmap, start, end);
-	MMU_UNWIRE(mmu_obj, pmap, start, end);
-}
-
-void
-pmap_zero_page(vm_page_t m)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	MMU_ZERO_PAGE(mmu_obj, m);
-}
-
-void
-pmap_zero_page_area(vm_page_t m, int off, int size)
-{
-
-	CTR4(KTR_PMAP, "%s(%p, %d, %d)", __func__, m, off, size);
-	MMU_ZERO_PAGE_AREA(mmu_obj, m, off, size);
-}
-
-int
-pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
-{
-
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, pmap, addr);
-	return (MMU_MINCORE(mmu_obj, pmap, addr, pap));
-}
-
-void
-pmap_activate(struct thread *td)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, td);
-	MMU_ACTIVATE(mmu_obj, td);
-}
-
-void
-pmap_deactivate(struct thread *td)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, td);
-	MMU_DEACTIVATE(mmu_obj, td);
-}
-
-/*
- *	Increase the starting virtual address of the given mapping if a
- *	different alignment might result in more superpage mappings.
- */
-void
-pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
-    vm_offset_t *addr, vm_size_t size)
-{
-
-	CTR5(KTR_PMAP, "%s(%p, %#x, %p, %#x)", __func__, object, offset, addr,
-	    size);
-	MMU_ALIGN_SUPERPAGE(mmu_obj, object, offset, addr, size);
-}
-
-/*
- * Routines used in machine-dependent code
- */
-void
-pmap_bootstrap(vm_offset_t start, vm_offset_t end)
-{
-	mmu_obj = &mmu_kernel_obj;
-
-	/*
-	 * Take care of compiling the selected class, and
-	 * then statically initialise the MMU object
-	 */
-	kobj_class_compile_static(mmu_def_impl, &mmu_kernel_kops);
-	kobj_init_static((kobj_t)mmu_obj, mmu_def_impl);
-
-	MMU_BOOTSTRAP(mmu_obj, start, end);
-}
-
-void
-pmap_cpu_bootstrap(int ap)
-{
-	/*
-	 * No KTR here because our console probably doesn't work yet
-	 */
-
-	return (MMU_CPU_BOOTSTRAP(mmu_obj, ap));
-}
-
-void *
-pmap_mapdev(vm_paddr_t pa, vm_size_t size)
-{
-
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, pa, size);
-	return (MMU_MAPDEV(mmu_obj, pa, size));
-}
-
-void *
-pmap_mapdev_attr(vm_paddr_t pa, vm_size_t size, vm_memattr_t attr)
-{
-
-	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, pa, size, attr);
-	return (MMU_MAPDEV_ATTR(mmu_obj, pa, size, attr));
-}
-
-void
-pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
-{
-
-	CTR3(KTR_PMAP, "%s(%p, %#x)", __func__, m, ma);
-	return (MMU_PAGE_SET_MEMATTR(mmu_obj, m, ma));
-}
-
-void
-pmap_unmapdev(vm_offset_t va, vm_size_t size)
-{
-
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, size);
-	MMU_UNMAPDEV(mmu_obj, va, size);
-}
-
-vm_paddr_t
-pmap_kextract(vm_offset_t va)
-{
-
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
-	return (MMU_KEXTRACT(mmu_obj, va));
-}
-
-void
-pmap_kenter(vm_offset_t va, vm_paddr_t pa)
-{
-
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, pa);
-	MMU_KENTER(mmu_obj, va, pa);
-}
-
-void
-pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
-{
-
-	CTR4(KTR_PMAP, "%s(%#x, %#x, %#x)", __func__, va, pa, ma);
-	MMU_KENTER_ATTR(mmu_obj, va, pa, ma);
-}
-
-void
-pmap_kremove(vm_offset_t va)
-{
-
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, va);
-	return (MMU_KREMOVE(mmu_obj, va));
-}
-
-int
-pmap_map_user_ptr(pmap_t pm, volatile const void *uaddr, void **kaddr,
-    size_t ulen, size_t *klen)
-{
-
-	CTR2(KTR_PMAP, "%s(%p)", __func__, uaddr);
-	return (MMU_MAP_USER_PTR(mmu_obj, pm, uaddr, kaddr, ulen, klen));
-}
-
-int
-pmap_decode_kernel_ptr(vm_offset_t addr, int *is_user, vm_offset_t *decoded)
-{
-
-	CTR2(KTR_PMAP, "%s(%#jx)", __func__, (uintmax_t)addr);
-	return (MMU_DECODE_KERNEL_PTR(mmu_obj, addr, is_user, decoded));
-}
-
-boolean_t
-pmap_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
-{
-
-	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, pa, size);
-	return (MMU_DEV_DIRECT_MAPPED(mmu_obj, pa, size));
-}
-
-void
-pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
-{
- 
-	CTR4(KTR_PMAP, "%s(%p, %#x, %#x)", __func__, pm, va, sz);
-	return (MMU_SYNC_ICACHE(mmu_obj, pm, va, sz));
-}
-
-void
-dumpsys_map_chunk(vm_paddr_t pa, size_t sz, void **va)
-{
-
-	CTR4(KTR_PMAP, "%s(%#jx, %#zx, %p)", __func__, (uintmax_t)pa, sz, va);
-	return (MMU_DUMPSYS_MAP(mmu_obj, pa, sz, va));
-}
-
-void
-dumpsys_unmap_chunk(vm_paddr_t pa, size_t sz, void *va)
-{
-
-	CTR4(KTR_PMAP, "%s(%#jx, %#zx, %p)", __func__, (uintmax_t)pa, sz, va);
-	return (MMU_DUMPSYS_UNMAP(mmu_obj, pa, sz, va));
-}
-
-void
-dumpsys_pa_init(void)
-{
-
-	CTR1(KTR_PMAP, "%s()", __func__);
-	return (MMU_SCAN_INIT(mmu_obj));
-}
-
-size_t
-dumpsys_scan_pmap(void)
-{
-	CTR1(KTR_PMAP, "%s()", __func__);
-	return (MMU_SCAN_PMAP(mmu_obj));
-}
-
-void *
-dumpsys_dump_pmap_init(unsigned blkpgs)
-{
-	CTR1(KTR_PMAP, "%s()", __func__);
-	return (MMU_DUMP_PMAP_INIT(mmu_obj, blkpgs));
-}
-
-void *
-dumpsys_dump_pmap(void *ctx, void *buf, u_long *nbytes)
-{
-	CTR1(KTR_PMAP, "%s()", __func__);
-	return (MMU_DUMP_PMAP(mmu_obj, ctx, buf, nbytes));
-}
-
-vm_offset_t
-pmap_quick_enter_page(vm_page_t m)
-{
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	return (MMU_QUICK_ENTER_PAGE(mmu_obj, m));
-}
-
-void
-pmap_quick_remove_page(vm_offset_t addr)
-{
-	CTR2(KTR_PMAP, "%s(%#x)", __func__, addr);
-	MMU_QUICK_REMOVE_PAGE(mmu_obj, addr);
-}
-
-int
-pmap_change_attr(vm_offset_t addr, vm_size_t size, vm_memattr_t mode)
-{
-	CTR4(KTR_PMAP, "%s(%#x, %#zx, %d)", __func__, addr, size, mode);
-	return (MMU_CHANGE_ATTR(mmu_obj, addr, size, mode));
-}
-
-void
-pmap_page_array_startup(long pages)
-{
-	CTR2(KTR_PMAP, "%s(%ld)", __func__, pages);
-	MMU_PAGE_ARRAY_STARTUP(mmu_obj, pages);
-}
-
-boolean_t
-pmap_page_is_mapped(vm_page_t m)
-{
-	CTR2(KTR_PMAP, "%s(%p)", __func__, m);
-	return (MMU_PAGE_IS_MAPPED(mmu_obj, m));
-}
-
-bool
-pmap_ps_enabled(pmap_t pmap)
-{
-	CTR2(KTR_PMAP, "%s(%p)", __func__, pmap);
-	return (MMU_PS_ENABLED(mmu_obj, pmap));
-}
-
-void
-pmap_tlbie_all(void)
-{
-	CTR1(KTR_PMAP, "%s()", __func__);
-	return (MMU_TLBIE_ALL(mmu_obj));
-}
+static int
+pmap_nomethod(void)
+{
+	return (0);
+}
+
+#define DEFINE_PMAP_IFUNC(ret, func, args) 				\
+	DEFINE_IFUNC(, ret, pmap_##func, args) {			\
+		const struct mmu_kobj *mmu = mmu_obj;			\
+		pmap_##func##_t f;					\
+		do {							\
+			f = mmu->funcs->func;				\
+			if (f != NULL) break;				\
+			mmu = mmu->base;				\
+		} while (mmu != NULL);					\
+		return (f != NULL ? f : (pmap_##func##_t)pmap_nomethod);\
+	}
+#define DEFINE_DUMPSYS_IFUNC(ret, func, args) 				\
+	DEFINE_IFUNC(, ret, dumpsys_##func, args) {			\
+		const struct mmu_kobj *mmu = mmu_obj;			\
+		pmap_dumpsys_##func##_t f;				\
+		do {							\
+			f = mmu->funcs->dumpsys_##func;			\
+			if (f != NULL) break;				\
+			mmu = mmu->base;				\
+		} while (mmu != NULL);					\
+		return (f != NULL ? f : (pmap_dumpsys_##func##_t)pmap_nomethod);\
+	}
+
+DEFINE_PMAP_IFUNC(void, activate, (struct thread *));
+DEFINE_PMAP_IFUNC(void, advise, (pmap_t, vm_offset_t, vm_offset_t, int));
+DEFINE_PMAP_IFUNC(void, align_superpage, (vm_object_t, vm_ooffset_t,
+	vm_offset_t *, vm_size_t));
+DEFINE_PMAP_IFUNC(void, clear_modify, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, copy, (pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(int, enter, (pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int, int8_t));
+DEFINE_PMAP_IFUNC(void, enter_quick, (pmap_t, vm_offset_t, vm_page_t, vm_prot_t));
+DEFINE_PMAP_IFUNC(void, enter_object, (pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
+	vm_prot_t));
+DEFINE_PMAP_IFUNC(vm_paddr_t, extract, (pmap_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(vm_page_t, extract_and_hold, (pmap_t, vm_offset_t, vm_prot_t));
+DEFINE_PMAP_IFUNC(void, kenter, (vm_offset_t, vm_paddr_t));
+DEFINE_PMAP_IFUNC(void, kenter_attr, (vm_offset_t, vm_paddr_t, vm_memattr_t));
+DEFINE_PMAP_IFUNC(vm_paddr_t, kextract, (vm_offset_t));
+DEFINE_PMAP_IFUNC(void, kremove, (vm_offset_t));
+DEFINE_PMAP_IFUNC(void, object_init_pt, (pmap_t, vm_offset_t, vm_object_t, vm_pindex_t,
+	vm_size_t));
+DEFINE_PMAP_IFUNC(boolean_t, is_modified, (vm_page_t));
+DEFINE_PMAP_IFUNC(boolean_t, is_prefaultable, (pmap_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(boolean_t, is_referenced, (vm_page_t));
+DEFINE_PMAP_IFUNC(boolean_t, page_exists_quick, (pmap_t, vm_page_t));
+DEFINE_PMAP_IFUNC(void, page_init, (vm_page_t));
+DEFINE_PMAP_IFUNC(boolean_t, page_is_mapped, (vm_page_t));
+DEFINE_PMAP_IFUNC(int, page_wired_mappings, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, protect, (pmap_t, vm_offset_t, vm_offset_t, vm_prot_t));
+DEFINE_PMAP_IFUNC(bool, ps_enabled, (pmap_t));
+DEFINE_PMAP_IFUNC(void, qenter, (vm_offset_t, vm_page_t *, int));
+DEFINE_PMAP_IFUNC(void, qremove, (vm_offset_t, int));
+DEFINE_PMAP_IFUNC(vm_offset_t, quick_enter_page, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, quick_remove_page, (vm_offset_t));
+DEFINE_PMAP_IFUNC(boolean_t, ts_referenced, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, release, (pmap_t));
+DEFINE_PMAP_IFUNC(void, remove, (pmap_t, vm_offset_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(void, remove_all, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, remove_pages, (pmap_t));
+DEFINE_PMAP_IFUNC(void, remove_write, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, unwire, (pmap_t, vm_offset_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(void, zero_page, (vm_page_t));
+DEFINE_PMAP_IFUNC(void, zero_page_area, (vm_page_t, int, int));
+DEFINE_PMAP_IFUNC(void, copy_page, (vm_page_t, vm_page_t));
+DEFINE_PMAP_IFUNC(void, copy_pages,
+    (vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
+    vm_offset_t b_offset, int xfersize));
+DEFINE_PMAP_IFUNC(void, growkernel, (vm_offset_t));
+DEFINE_PMAP_IFUNC(void, init, (void));
+DEFINE_PMAP_IFUNC(vm_offset_t, map, (vm_offset_t *, vm_paddr_t, vm_paddr_t, int));
+DEFINE_PMAP_IFUNC(int, pinit, (pmap_t));
+DEFINE_PMAP_IFUNC(void, pinit0, (pmap_t));
+DEFINE_PMAP_IFUNC(int, mincore, (pmap_t, vm_offset_t, vm_paddr_t *));
+DEFINE_PMAP_IFUNC(void, deactivate, (struct thread *));
+DEFINE_PMAP_IFUNC(void, bootstrap, (vm_offset_t, vm_offset_t));
+DEFINE_PMAP_IFUNC(void, cpu_bootstrap, (int));
+DEFINE_PMAP_IFUNC(void *, mapdev, (vm_paddr_t, vm_size_t));
+DEFINE_PMAP_IFUNC(void *, mapdev_attr, (vm_paddr_t, vm_size_t, vm_memattr_t));
+DEFINE_PMAP_IFUNC(void, page_set_memattr, (vm_page_t, vm_memattr_t));
+DEFINE_PMAP_IFUNC(void, unmapdev, (vm_offset_t, vm_size_t));
+DEFINE_PMAP_IFUNC(int, map_user_ptr,
+    (pmap_t, volatile const void *, void **, size_t, size_t *));
+DEFINE_PMAP_IFUNC(int, decode_kernel_ptr, (vm_offset_t, int *, vm_offset_t *));
+DEFINE_PMAP_IFUNC(boolean_t, dev_direct_mapped, (vm_paddr_t, vm_size_t));
+DEFINE_PMAP_IFUNC(void, sync_icache, (pmap_t, vm_offset_t, vm_size_t));
+DEFINE_PMAP_IFUNC(int, change_attr, (vm_offset_t, vm_size_t, vm_memattr_t));
+DEFINE_PMAP_IFUNC(void, page_array_startup, (long));
+DEFINE_PMAP_IFUNC(void, tlbie_all, (void));
+
+DEFINE_DUMPSYS_IFUNC(void, map_chunk, (vm_paddr_t, size_t, void **));
+DEFINE_DUMPSYS_IFUNC(void, unmap_chunk, (vm_paddr_t, size_t, void *));
+DEFINE_DUMPSYS_IFUNC(void, pa_init, (void));
+DEFINE_DUMPSYS_IFUNC(size_t, scan_pmap, (void));
+DEFINE_DUMPSYS_IFUNC(void *, dump_pmap_init, (unsigned));
+DEFINE_DUMPSYS_IFUNC(void *, dump_pmap, (void *, void *, u_long *));
 
 /*
  * MMU install routines. Highest priority wins, equal priority also
  * overrides allowing last-set to win.
  */
-SET_DECLARE(mmu_set, mmu_def_t);
+SET_DECLARE(mmu_set, struct mmu_kobj);
 
 boolean_t
 pmap_mmu_install(char *name, int prio)
 {
-	mmu_def_t	**mmupp, *mmup;
+	mmu_t	*mmupp, mmup;
 	static int	curr_prio = 0;
+
+	printf("Trying to install pmap %s\n", name);
 
 	/*
 	 * Try and locate the MMU kobj corresponding to the name
@@ -656,11 +213,13 @@ pmap_mmu_install(char *name, int prio)
 	SET_FOREACH(mmupp, mmu_set) {
 		mmup = *mmupp;
 
+		printf("Checking %s(%p)\n", mmup->name, mmup->name);
 		if (mmup->name &&
 		    !strcmp(mmup->name, name) &&
-		    (prio >= curr_prio || mmu_def_impl == NULL)) {
+		    (prio >= curr_prio || mmu_obj == NULL)) {
+		    	printf("match found: %p\n", mmup);
 			curr_prio = prio;
-			mmu_def_impl = mmup;
+			mmu_obj = mmup;
 			return (TRUE);
 		}
 	}
@@ -668,10 +227,18 @@ pmap_mmu_install(char *name, int prio)
 	return (FALSE);
 }
 
+/* MMU "pre-bootstrap" init, used to install extra resolvers, etc. */
+void
+pmap_mmu_init()
+{
+	if (mmu_obj->funcs->install != NULL)
+		(mmu_obj->funcs->install)();
+}
+
 const char *
 pmap_mmu_name(void)
 {
-	return (mmu_obj->ops->cls->name);
+	return (mmu_obj->name);
 }
 
 int unmapped_buf_allowed;

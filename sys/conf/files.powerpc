@@ -135,7 +135,6 @@ powerpc/aim/aim_machdep.c	optional	aim
 powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/mmu_radix.c		optional	aim powerpc64
-powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
@@ -260,7 +259,6 @@ powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/machdep.c	standard
 powerpc/powerpc/mem.c		optional	mem
 powerpc/powerpc/minidump_machdep.c	optional	powerpc64
-powerpc/powerpc/mmu_if.m	standard
 powerpc/powerpc/mp_machdep.c	optional	smp
 powerpc/powerpc/nexus.c		standard
 powerpc/powerpc/openpic.c	standard
