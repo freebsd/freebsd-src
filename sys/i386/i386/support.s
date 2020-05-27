@@ -819,8 +819,30 @@ msr_onfault:
 	movl	$EFAULT,%eax
 	ret
 
-ENTRY(handle_ibrs_entry)
+	.altmacro
+	.macro	rsb_seq_label l
+rsb_seq_\l:
+	.endm
+	.macro	rsb_call_label l
+	call	rsb_seq_\l
+	.endm
+	.macro	rsb_seq count
+	ll=1
+	.rept	\count
+	rsb_call_label	%(ll)
+	nop
+	rsb_seq_label %(ll)
+	addl	$4,%esp
+	ll=ll+1
+	.endr
+	.endm
+
+ENTRY(rsb_flush)
+	rsb_seq	32
 	ret
+
+ENTRY(handle_ibrs_entry)
+	jmp	rsb_flush
 END(handle_ibrs_entry)
 
 ENTRY(handle_ibrs_exit)
