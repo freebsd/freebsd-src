@@ -238,12 +238,24 @@ initializecpu(void)
 		cr4 |= CR4_PKE;
 
 	/*
+	 * If SMEP is present, we only need to flush RSB (by default)
+	 * on context switches, to prevent cross-process ret2spec
+	 * attacks.  Do it automatically if ibrs_disable is set, to
+	 * complete the mitigation.
+	 *
 	 * Postpone enabling the SMEP on the boot CPU until the page
 	 * tables are switched from the boot loader identity mapping
 	 * to the kernel tables.  The boot loader enables the U bit in
 	 * its tables.
 	 */
-	if (!IS_BSP()) {
+	if (IS_BSP()) {
+		if (cpu_stdext_feature & CPUID_STDEXT_SMEP &&
+		    !TUNABLE_INT_FETCH(
+		    "machdep.mitigations.cpu_flush_rsb_ctxsw",
+		    &cpu_flush_rsb_ctxsw) &&
+		    hw_ibrs_disable)
+			cpu_flush_rsb_ctxsw = 1;
+	} else {
 		if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
 			cr4 |= CR4_SMEP;
 		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
