@@ -53,11 +53,11 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_S1_XN		(ATTR_S1_PXN | ATTR_S1_UXN)
 
 #define	ATTR_S2_XN(x)		((x) << 53)
-#define	 ATTR_S2_XN_MASK	ATTR_S2_XN(3)
-#define	 ATTR_S2_XN_NONE	0	/* Allow execution at EL0 & EL1 */
-#define	 ATTR_S2_XN_EL1		1	/* Allow execution at EL0 */
-#define	 ATTR_S2_XN_ALL		2	/* No execution */
-#define	 ATTR_S2_XN_EL0		3	/* Allow execution at EL1 */
+#define	 ATTR_S2_XN_MASK	ATTR_S2_XN(3UL)
+#define	 ATTR_S2_XN_NONE	0UL	/* Allow execution at EL0 & EL1 */
+#define	 ATTR_S2_XN_EL1		1UL	/* Allow execution at EL0 */
+#define	 ATTR_S2_XN_ALL		2UL	/* No execution */
+#define	 ATTR_S2_XN_EL0		3UL	/* Allow execution at EL1 */
 
 #define	ATTR_CONTIGUOUS		(1UL << 52)
 #define	ATTR_DBM		(1UL << 51)
@@ -80,9 +80,16 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	ATTR_S1_IDX_MASK	(7 << 2)
 
 #define	ATTR_S2_S2AP(x)		((x) << 6)
-#define	 ATTR_S1_S2AP_MASK	ATTR_S2_S2AP(3)
-#define	ATTR_S2_MEMATTR(x)	((x) << 2)
-#define	 ATTR_S2_MEMATTR_MASK	ATTR_S2_MEMATTR(0xf)
+#define	 ATTR_S2_S2AP_MASK	3
+#define	 ATTR_S2_S2AP_READ	1
+#define	 ATTR_S2_S2AP_WRITE	2
+
+#define	ATTR_S2_MEMATTR(x)		((x) << 2)
+#define	 ATTR_S2_MEMATTR_MASK		ATTR_S2_MEMATTR(0xf)
+#define	 ATTR_S2_MEMATTR_DEVICE_nGnRnE	0x0
+#define	 ATTR_S2_MEMATTR_NC		0xf
+#define	 ATTR_S2_MEMATTR_WT		0xa
+#define	 ATTR_S2_MEMATTR_WB		0xf
 
 #define	ATTR_DEFAULT	(ATTR_AF | ATTR_SH(ATTR_SH_IS))
 
