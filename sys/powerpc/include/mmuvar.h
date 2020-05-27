@@ -31,84 +31,170 @@
 #ifndef _MACHINE_MMUVAR_H_
 #define _MACHINE_MMUVAR_H_
 
-/*
- * A PowerPC MMU implementation is declared with a kernel object and
- * an associated method table. The MMU_DEF macro is used to declare
- * the class, and also links it to the global MMU class list.
- *
- * e.g.
- *
- * static mmu_method_t ppc8xx_methods[] = {
- *	MMUMETHOD(mmu_change_wiring,		ppc8xx_mmu_change_wiring),
- *	MMUMETHOD(mmu_clear_modify,		ppc8xx_mmu_clear_modify),
- *	MMUMETHOD(mmu_clear_reference,		ppc8xx_mmu_clear_reference),
- *  ...
- *	MMUMETHOD(mmu_dev_direct_mapped,	ppc8xx_mmu_dev_direct_mapped),
- *	{ 0, 0 }
- * };
- *
- * MMU_DEF(ppc8xx, MMU_TYPE_8xx, ppc8xx_methods, sizeof(ppc8xx_mmu_softc));
- *
- * A single level of inheritance is supported in a similar fashion to
- * kobj inheritance e.g.
- *
- * MMU_DEF_1(ppc860c, MMU_TYPE_860c, ppc860c_methods, 0, ppc8xx);
- */
+typedef	void	(*pmap_bootstrap_t)(vm_offset_t, vm_offset_t);
+typedef	void	(*pmap_cpu_bootstrap_t)(int);
+typedef	void	(*pmap_kenter_t)(vm_offset_t, vm_paddr_t pa);
+typedef	void	(*pmap_kenter_attr_t)(vm_offset_t, vm_paddr_t, vm_memattr_t);
+typedef	void	(*pmap_kremove_t)(vm_offset_t);
+typedef	void	*(*pmap_mapdev_t)(vm_paddr_t, vm_size_t);
+typedef	void	*(*pmap_mapdev_attr_t)(vm_paddr_t, vm_size_t, vm_memattr_t);
+typedef	void	(*pmap_unmapdev_t)(vm_offset_t, vm_size_t);
+typedef	void	(*pmap_page_set_memattr_t)(vm_page_t, vm_memattr_t);
+typedef	int	(*pmap_change_attr_t)(vm_offset_t, vm_size_t, vm_memattr_t);
+typedef	int	(*pmap_map_user_ptr_t)(pmap_t, volatile const void *,
+ 		    void **, size_t, size_t *);
+typedef	int	(*pmap_decode_kernel_ptr_t)(vm_offset_t, int *, vm_offset_t *);
+typedef	vm_paddr_t	(*pmap_kextract_t)(vm_offset_t);
+typedef	int	(*pmap_dev_direct_mapped_t)(vm_paddr_t, vm_size_t);
 
-#include <sys/kobj.h>
+typedef	void	(*pmap_page_array_startup_t)(long);
+typedef	void	(*pmap_advise_t)(pmap_t, vm_offset_t, vm_offset_t, int);
+typedef	void	(*pmap_clear_modify_t)(vm_page_t);
+typedef	void	(*pmap_remove_write_t)(vm_page_t);
+typedef	void	(*pmap_copy_t)(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
+typedef	void	(*pmap_copy_page_t)(vm_page_t, vm_page_t);
+typedef	void	(*pmap_copy_pages_t)(vm_page_t *, vm_offset_t,
+		    vm_page_t *, vm_offset_t, int);
+typedef	int	(*pmap_enter_t)(pmap_t, vm_offset_t, vm_page_t, vm_prot_t,
+		    u_int, int8_t);
+typedef	void	(*pmap_enter_object_t)(pmap_t, vm_offset_t, vm_offset_t,
+		    vm_page_t, vm_prot_t);
+typedef	void	(*pmap_enter_quick_t)(pmap_t, vm_offset_t, vm_page_t, vm_prot_t);
+typedef	vm_paddr_t	(*pmap_extract_t)(pmap_t, vm_offset_t);
+typedef	vm_page_t	(*pmap_extract_and_hold_t)(pmap_t, vm_offset_t, vm_prot_t);
+typedef	void	(*pmap_growkernel_t)(vm_offset_t);
+typedef	void	(*pmap_init_t)(void);
+typedef	boolean_t	(*pmap_is_modified_t)(vm_page_t);
+typedef	boolean_t	(*pmap_is_prefaultable_t)(pmap_t, vm_offset_t);
+typedef	boolean_t	(*pmap_is_referenced_t)(vm_page_t);
+typedef	int	(*pmap_ts_referenced_t)(vm_page_t);
+typedef	vm_offset_t	(*pmap_map_t)(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+typedef	void	(*pmap_object_init_pt_t)(pmap_t, vm_offset_t, vm_object_t,
+		    vm_pindex_t, vm_size_t);
+typedef	boolean_t	(*pmap_page_exists_quick_t)(pmap_t, vm_page_t);
+typedef	boolean_t	(*pmap_page_is_mapped_t)(vm_page_t);
+typedef	void	(*pmap_page_init_t)(vm_page_t);
+typedef	int	(*pmap_page_wired_mappings_t)(vm_page_t);
+typedef	void	(*pmap_pinit0_t)(pmap_t);
+typedef	void	(*pmap_protect_t)(pmap_t, vm_offset_t, vm_offset_t, vm_prot_t);
+typedef	void	(*pmap_qenter_t)(vm_offset_t, vm_page_t *, int);
+typedef	void	(*pmap_qremove_t)(vm_offset_t, int);
+typedef	void	(*pmap_release_t)(pmap_t);
+typedef	void	(*pmap_remove_t)(pmap_t, vm_offset_t, vm_offset_t);
+typedef	void	(*pmap_remove_all_t)(vm_page_t);
+typedef	void	(*pmap_remove_pages_t)(pmap_t);
+typedef	void	(*pmap_unwire_t)(pmap_t, vm_offset_t, vm_offset_t);
+typedef	void	(*pmap_zero_page_t)(vm_page_t);
+typedef	void	(*pmap_zero_page_area_t)(vm_page_t, int, int);
+typedef	int	(*pmap_mincore_t)(pmap_t, vm_offset_t, vm_paddr_t *);
+typedef	void	(*pmap_activate_t)(struct thread	*);
+typedef void	(*pmap_deactivate_t)(struct thread	*);
+typedef	void	(*pmap_align_superpage_t)(vm_object_t, vm_ooffset_t,
+		    vm_offset_t *, vm_size_t);
 
+typedef	void	(*pmap_sync_icache_t)(pmap_t, vm_offset_t, vm_size_t);
+typedef	void	(*pmap_dumpsys_map_chunk_t)(vm_paddr_t, size_t, void **);
+typedef	void	(*pmap_dumpsys_unmap_chunk_t)(vm_paddr_t, size_t, void *);
+typedef	void	(*pmap_dumpsys_pa_init_t)(void);
+typedef	size_t	(*pmap_dumpsys_scan_pmap_t)(void);
+typedef	void	*(*pmap_dumpsys_dump_pmap_init_t)(unsigned);
+typedef	void	*(*pmap_dumpsys_dump_pmap_t)(void *, void *, u_long *);
+typedef	vm_offset_t	(*pmap_quick_enter_page_t)(vm_page_t);
+typedef	void	(*pmap_quick_remove_page_t)(vm_offset_t);
+typedef	bool	(*pmap_ps_enabled_t)(pmap_t);
+typedef	void	(*pmap_tlbie_all_t)(void);
+typedef void	(*pmap_installer_t)(void);
+
+struct pmap_funcs {
+	pmap_installer_t	install;
+	pmap_bootstrap_t	bootstrap;
+	pmap_cpu_bootstrap_t	cpu_bootstrap;
+	pmap_kenter_t		kenter;
+	pmap_kenter_attr_t	kenter_attr;
+	pmap_kremove_t		kremove;
+	pmap_mapdev_t		mapdev;
+	pmap_mapdev_attr_t	mapdev_attr;
+	pmap_unmapdev_t		unmapdev;
+	pmap_page_set_memattr_t	page_set_memattr;
+	pmap_change_attr_t	change_attr;
+	pmap_map_user_ptr_t	map_user_ptr;
+	pmap_decode_kernel_ptr_t	decode_kernel_ptr;
+	pmap_kextract_t		kextract;
+	pmap_dev_direct_mapped_t	dev_direct_mapped;
+	pmap_advise_t		advise;
+	pmap_clear_modify_t	clear_modify;
+	pmap_remove_write_t	remove_write;
+	pmap_copy_t	copy;
+	pmap_copy_page_t	copy_page;
+	pmap_copy_pages_t	copy_pages;
+	pmap_enter_t	enter;
+	pmap_enter_object_t	enter_object;
+	pmap_enter_quick_t	enter_quick;
+	pmap_extract_t	extract;
+	pmap_extract_and_hold_t	extract_and_hold;
+	pmap_growkernel_t	growkernel;
+	pmap_init_t	init;
+	pmap_is_modified_t	is_modified;
+	pmap_is_prefaultable_t	is_prefaultable;
+	pmap_is_referenced_t	is_referenced;
+	pmap_ts_referenced_t	ts_referenced;
+	pmap_page_is_mapped_t	page_is_mapped;
+	pmap_ps_enabled_t	ps_enabled;
+	pmap_map_t	map;
+	pmap_object_init_pt_t	object_init_pt;
+	pmap_page_exists_quick_t	page_exists_quick;
+	pmap_page_init_t	page_init;
+	pmap_page_wired_mappings_t	page_wired_mappings;
+	pmap_pinit_t	pinit;
+	pmap_pinit0_t	pinit0;
+	pmap_protect_t	protect;
+	pmap_qenter_t	qenter;
+	pmap_qremove_t	qremove;
+	pmap_release_t	release;
+	pmap_remove_t	remove;
+	pmap_remove_all_t	remove_all;
+	pmap_remove_pages_t	remove_pages;
+	pmap_unwire_t	unwire;
+	pmap_zero_page_t	zero_page;
+	pmap_zero_page_area_t	zero_page_area;
+	pmap_mincore_t	mincore;
+	pmap_activate_t	activate;
+	pmap_deactivate_t	deactivate;
+	pmap_align_superpage_t	align_superpage;
+	pmap_sync_icache_t	sync_icache;
+	pmap_quick_enter_page_t	quick_enter_page;
+	pmap_quick_remove_page_t	quick_remove_page;
+	pmap_page_array_startup_t	page_array_startup;
+	pmap_dumpsys_map_chunk_t	dumpsys_map_chunk;
+	pmap_dumpsys_unmap_chunk_t	dumpsys_unmap_chunk;
+	pmap_dumpsys_pa_init_t	dumpsys_pa_init;
+	pmap_dumpsys_scan_pmap_t	dumpsys_scan_pmap;
+	pmap_dumpsys_dump_pmap_init_t	dumpsys_dump_pmap_init;
+	pmap_dumpsys_dump_pmap_t	dumpsys_dump_pmap;
+	pmap_tlbie_all_t	tlbie_all;
+
+};
 struct mmu_kobj {
-	/*
-	 * An MMU instance is a kernel object
-	 */
-	KOBJ_FIELDS;
-
-	/*
-	 * Utility elements that an instance may use
-	 */
-	struct mtx	mmu_mtx;	/* available for instance use */
-	void		*mmu_iptr;	/* instance data pointer */
-
-	/*
-	 * Opaque data that can be overlaid with an instance-private
-	 * structure. MMU code can test that this is large enough at
-	 * compile time with a sizeof() test againt it's softc. There
-	 * is also a run-time test when the MMU kernel object is
-	 * registered.
-	 */
-#define MMU_OPAQUESZ	64
-	u_int		mmu_opaque[MMU_OPAQUESZ];
+	const char *name;
+	const struct mmu_kobj *base;
+	const struct pmap_funcs *funcs;
 };
 
 typedef struct mmu_kobj		*mmu_t;
-typedef struct kobj_class	mmu_def_t;
-#define mmu_method_t		kobj_method_t
 
-#define MMUMETHOD	KOBJMETHOD
-
-#define MMU_DEF(name, ident, methods, size)	\
+#define MMU_DEF(name, ident, methods)		\
 						\
-mmu_def_t name = {				\
-	ident, methods, size, NULL		\
+const struct mmu_kobj name = {		\
+	ident, NULL, &methods			\
 };						\
 DATA_SET(mmu_set, name)
 
-#define MMU_DEF_INHERIT(name, ident, methods, size, base1)	\
+#define MMU_DEF_INHERIT(name, ident, methods, base1)	\
 						\
-static kobj_class_t name ## _baseclasses[] =	\
-       	{ &base1, NULL };			\
-mmu_def_t name = {                              \
-	ident, methods, size, name ## _baseclasses	\
-};                                              \
+const struct mmu_kobj name = {			\
+	ident, &base1, &methods,		\
+};						\
 DATA_SET(mmu_set, name)
-
-
-#if 0
-mmu_def_t name = {				\
-	ident, methods, size, name ## _baseclasses	\
-};						
-DATA_SET(mmu_set, name)
-#endif
 
 /*
  * Known MMU names

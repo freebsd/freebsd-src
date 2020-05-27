@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <powerpc/aim/mmu_oea64.h>
 
-#include "mmu_if.h"
-#include "moea64_if.h"
-
 #include "phyp-hvcall.h"
 
 #define MMU_PHYP_DEBUG 0
@@ -75,32 +72,32 @@ static struct rmlock mphyp_eviction_lock;
  * Kernel MMU interface
  */
 
-static void	mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart,
+static void	mphyp_install(void);
+static void	mphyp_bootstrap(vm_offset_t kernelstart,
 		    vm_offset_t kernelend);
-static void	mphyp_cpu_bootstrap(mmu_t mmup, int ap);
-static void	*mphyp_dump_pmap(mmu_t mmu, void *ctx, void *buf,
+static void	mphyp_cpu_bootstrap(int ap);
+static void	*mphyp_dump_pmap(void *ctx, void *buf,
 		    u_long *nbytes);
-static int64_t	mphyp_pte_synch(mmu_t, struct pvo_entry *pvo);
-static int64_t	mphyp_pte_clear(mmu_t, struct pvo_entry *pvo, uint64_t ptebit);
-static int64_t	mphyp_pte_unset(mmu_t, struct pvo_entry *pvo);
-static int	mphyp_pte_insert(mmu_t, struct pvo_entry *pvo);
+static int64_t	mphyp_pte_synch(struct pvo_entry *pvo);
+static int64_t	mphyp_pte_clear(struct pvo_entry *pvo, uint64_t ptebit);
+static int64_t	mphyp_pte_unset(struct pvo_entry *pvo);
+static int64_t	mphyp_pte_insert(struct pvo_entry *pvo);
 
-static mmu_method_t mphyp_methods[] = {
-        MMUMETHOD(mmu_bootstrap,        mphyp_bootstrap),
-        MMUMETHOD(mmu_cpu_bootstrap,    mphyp_cpu_bootstrap),
-        MMUMETHOD(mmu_dump_pmap,        mphyp_dump_pmap),
-
-	MMUMETHOD(moea64_pte_synch,     mphyp_pte_synch),
-        MMUMETHOD(moea64_pte_clear,     mphyp_pte_clear),
-        MMUMETHOD(moea64_pte_unset,     mphyp_pte_unset),
-        MMUMETHOD(moea64_pte_insert,    mphyp_pte_insert),
-
-	/* XXX: pmap_copy_page, pmap_init_page with H_PAGE_INIT */
-
-        { 0, 0 }
+static struct pmap_funcs mphyp_methods = {
+	.install =           mphyp_install,
+        .bootstrap =         mphyp_bootstrap,
+        .cpu_bootstrap =     mphyp_cpu_bootstrap,
+        .dumpsys_dump_pmap = mphyp_dump_pmap,
 };
 
-MMU_DEF_INHERIT(pseries_mmu, "mmu_phyp", mphyp_methods, 0, oea64_mmu);
+static struct moea64_funcs mmu_phyp_funcs = {
+	.pte_synch =      mphyp_pte_synch,
+        .pte_clear =      mphyp_pte_clear,
+        .pte_unset =      mphyp_pte_unset,
+        .pte_insert =     mphyp_pte_insert,
+};
+
+MMU_DEF_INHERIT(pseries_mmu, "mmu_phyp", mphyp_methods, oea64_mmu);
 
 static int brokenkvm = 0;
 
@@ -120,7 +117,14 @@ SYSINIT(kvmbugwarn2, SI_SUB_LAST, SI_ORDER_THIRD + 1, print_kvm_bug_warning,
     NULL);
 
 static void
-mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
+mphyp_install()
+{
+
+	moea64_ops = &mmu_phyp_funcs;
+}
+
+static void
+mphyp_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 {
 	uint64_t final_pteg_count = 0;
 	char buf[8];
@@ -134,7 +138,7 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	rm_init(&mphyp_eviction_lock, "pte eviction");
 
-	moea64_early_bootstrap(mmup, kernelstart, kernelend);
+	moea64_early_bootstrap(kernelstart, kernelend);
 
 	root = OF_peer(0);
 
@@ -246,8 +250,8 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		}
 	}
 
-	moea64_mid_bootstrap(mmup, kernelstart, kernelend);
-	moea64_late_bootstrap(mmup, kernelstart, kernelend);
+	moea64_mid_bootstrap(kernelstart, kernelend);
+	moea64_late_bootstrap(kernelstart, kernelend);
 
 	/* Test for broken versions of KVM that don't conform to the spec */
 	if (phyp_hcall(H_CLEAR_MOD, 0, 0) == H_FUNCTION)
@@ -255,7 +259,7 @@ mphyp_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 }
 
 static void
-mphyp_cpu_bootstrap(mmu_t mmup, int ap)
+mphyp_cpu_bootstrap(int ap)
 {
 	struct slb *slb = PCPU_GET(aim.slb);
 	register_t seg0;
@@ -277,7 +281,7 @@ mphyp_cpu_bootstrap(mmu_t mmup, int ap)
 }
 
 static int64_t
-mphyp_pte_synch(mmu_t mmu, struct pvo_entry *pvo)
+mphyp_pte_synch(struct pvo_entry *pvo)
 {
 	struct lpte pte;
 	uint64_t junk;
@@ -296,7 +300,7 @@ mphyp_pte_synch(mmu_t mmu, struct pvo_entry *pvo)
 }
 
 static int64_t
-mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
+mphyp_pte_clear(struct pvo_entry *pvo, uint64_t ptebit)
 {
 	struct rm_priotracker track;
 	int64_t refchg;
@@ -313,7 +317,7 @@ mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 	PMAP_LOCK_ASSERT(pvo->pvo_pmap, MA_OWNED);
 	rm_rlock(&mphyp_eviction_lock, &track);
 
-	refchg = mphyp_pte_synch(mmu, pvo);
+	refchg = mphyp_pte_synch(pvo);
 	if (refchg < 0) {
 		rm_runlock(&mphyp_eviction_lock, &track);
 		return (refchg);
@@ -350,7 +354,7 @@ mphyp_pte_clear(mmu_t mmu, struct pvo_entry *pvo, uint64_t ptebit)
 }
 
 static int64_t
-mphyp_pte_unset(mmu_t mmu, struct pvo_entry *pvo)
+mphyp_pte_unset(struct pvo_entry *pvo)
 {
 	struct lpte pte;
 	uint64_t junk;
@@ -410,8 +414,8 @@ mphyp_pte_spillable_ident(uintptr_t ptegbase, struct lpte *to_evict)
 	return (k);
 }
 
-static int
-mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
+static int64_t
+mphyp_pte_insert(struct pvo_entry *pvo)
 {
 	struct rm_priotracker track;
 	int64_t result;
@@ -509,7 +513,7 @@ mphyp_pte_insert(mmu_t mmu, struct pvo_entry *pvo)
 }
 
 static void *
-mphyp_dump_pmap(mmu_t mmu, void *ctx, void *buf, u_long *nbytes)
+mphyp_dump_pmap(void *ctx, void *buf, u_long *nbytes)
 {
 	struct dump_context *dctx;
 	struct lpte p, *pbuf;
