@@ -426,7 +426,7 @@ instr_sec_hash:
 	bne do_isi			/* if so, go to ISI interrupt */
 	mfspr %r2, SPR_HASH2		/* get the second pointer */
 	ori %r3, %r3, 0x0040		/* change the compare value */
-	addi %r1, %r0, 8		/* load 8 for counter */
+	addi %r1, 0, 8			/* load 8 for counter */
 	addi %r2, %r2, -8		/* pre dec for update on load */
 	b im0				/* try second hash */
 
