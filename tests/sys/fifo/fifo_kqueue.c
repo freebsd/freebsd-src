@@ -219,10 +219,14 @@ ATF_TC_BODY(fifo_kqueue__connecting_reader, tc)
 	ATF_REQUIRE(close(p[1]) == 0);
 }
 
+/* Check that EVFILT_READ behaves sensibly on a FIFO reader. */
 ATF_TC_WITHOUT_HEAD(fifo_kqueue__reads);
 ATF_TC_BODY(fifo_kqueue__reads, tc)
 {
-	int p[2] = { -1, -1 };
+	struct kevent kev[32];
+	ssize_t bytes, i, n;
+	int kq, p[2];
+	char c;
 
 	ATF_REQUIRE(mkfifo("testfifo", 0600) == 0);
 
@@ -231,39 +235,38 @@ ATF_TC_BODY(fifo_kqueue__reads, tc)
 	ATF_REQUIRE((p[1] = open("testfifo",
 	    O_WRONLY | O_CLOEXEC | O_NONBLOCK)) >= 0);
 
-	/* Check that EVFILT_READ behaves sensibly on a FIFO reader. */
-
-	char c = 0;
-	ssize_t r;
-	while ((r = write(p[1], &c, 1)) == 1) {
-	}
-	ATF_REQUIRE(r < 0);
+	bytes = 0;
+	c = 0;
+	while ((n = write(p[1], &c, 1)) == 1)
+		bytes++;
+	ATF_REQUIRE(n < 0);
 	ATF_REQUIRE(errno == EAGAIN || errno == EWOULDBLOCK);
+	ATF_REQUIRE(bytes > 1);
 
-	for (int i = 0; i < PIPE_BUF + 1; ++i) {
+	for (i = 0; i < bytes / 2; i++)
 		ATF_REQUIRE(read(p[0], &c, 1) == 1);
-	}
+	bytes -= i;
 
-	int kq = kqueue();
+	kq = kqueue();
 	ATF_REQUIRE(kq >= 0);
 
-	struct kevent kev[32];
 	EV_SET(&kev[0], p[0], EVFILT_READ, EV_ADD | EV_CLEAR, 0, 0, 0);
 
 	ATF_REQUIRE(kevent(kq, kev, 1, NULL, 0, NULL) == 0);
 
 	ATF_REQUIRE(kevent(kq, NULL, 0, kev, nitems(kev),
-	    &(struct timespec) { 0, 0 }) == 1);
+	    &(struct timespec){ 0, 0 }) == 1);
 	ATF_REQUIRE(kev[0].ident == (uintptr_t)p[0]);
 	ATF_REQUIRE(kev[0].filter == EVFILT_READ);
 	ATF_REQUIRE(kev[0].flags == EV_CLEAR);
 	ATF_REQUIRE(kev[0].fflags == 0);
-	ATF_REQUIRE(kev[0].data == 65023);
+	ATF_REQUIRE(kev[0].data == bytes);
 	ATF_REQUIRE(kev[0].udata == 0);
 
-	while ((r = read(p[0], &c, 1)) == 1) {
-	}
-	ATF_REQUIRE(r < 0);
+	while (bytes-- > 0)
+		ATF_REQUIRE(read(p[0], &c, 1) == 1);
+	n = read(p[0], &c, 1);
+	ATF_REQUIRE(n < 0);
 	ATF_REQUIRE(errno == EAGAIN || errno == EWOULDBLOCK);
 
 	ATF_REQUIRE(kevent(kq, NULL, 0, kev, nitems(kev),
