@@ -31,7 +31,7 @@
 . $(atf_get_srcdir)/../common/vnet.subr
 
 load_divert_module() {
-	kldstat -q -n ipdivert
+	kldstat -q -m ipdivert
 	if [ $? -ne  0 ]; then
 		atf_skip "ipdivert module is not loaded"
 	fi
