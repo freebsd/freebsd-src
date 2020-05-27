@@ -836,7 +836,6 @@ static	void		adaasync(void *callback_arg, u_int32_t code,
 static	int		adabitsysctl(SYSCTL_HANDLER_ARGS);
 static	int		adaflagssysctl(SYSCTL_HANDLER_ARGS);
 static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
-static	int		adazonesupsysctl(SYSCTL_HANDLER_ARGS);
 static	void		adasysctlinit(void *context, int pending);
 static	int		adagetattr(struct bio *bp);
 static	void		adasetflags(struct ada_softc *softc,
