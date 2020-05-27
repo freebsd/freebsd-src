@@ -1416,11 +1416,13 @@ g_eli_shutdown_pre_sync(void *arg, int howto)
 			continue;
 		pp = LIST_FIRST(&gp->provider);
 		KASSERT(pp != NULL, ("No provider? gp=%p (%s)", gp, gp->name));
-		if (pp->acr + pp->acw + pp->ace == 0)
-			error = g_eli_destroy(sc, TRUE);
-		else {
+		if (pp->acr != 0 || pp->acw != 0 || pp->ace != 0 ||
+		    SCHEDULER_STOPPED())
+		{
 			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
 			gp->access = g_eli_access;
+		} else {
+			error = g_eli_destroy(sc, TRUE);
 		}
 	}
 	g_topology_unlock();
