@@ -105,7 +105,7 @@ struct sample_node {
 
 	int current_rix[NUM_PACKET_SIZE_BINS];
 	int packets_since_switch[NUM_PACKET_SIZE_BINS];
-	unsigned ticks_since_switch[NUM_PACKET_SIZE_BINS];
+	int ticks_since_switch[NUM_PACKET_SIZE_BINS];
 
 	int packets_since_sample[NUM_PACKET_SIZE_BINS];
 	unsigned sample_tt[NUM_PACKET_SIZE_BINS];
