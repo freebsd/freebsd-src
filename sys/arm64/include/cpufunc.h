@@ -190,6 +190,16 @@ set_ttbr0(uint64_t ttbr0)
 }
 
 static __inline void
+invalidate_icache(void)
+{
+
+	__asm __volatile(
+	    "ic ialluis        \n"
+	    "dsb ish           \n"
+	    "isb               \n");
+}
+
+static __inline void
 invalidate_local_icache(void)
 {
 

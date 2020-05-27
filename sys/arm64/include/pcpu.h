@@ -46,8 +46,9 @@ struct debug_monitor_state;
 	pcpu_bp_harden pc_bp_harden;					\
 	pcpu_ssbd pc_ssbd;						\
 	struct pmap *pc_curpmap;					\
+	struct pmap *pc_curvmpmap;					\
 	u_int	pc_bcast_tlbi_workaround;				\
-	char __pad[213]
+	char __pad[205]
 
 #ifdef _KERNEL
 
