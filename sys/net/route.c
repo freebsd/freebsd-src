@@ -411,9 +411,9 @@ rtfree(struct rtentry *rt)
 
 	RT_LOCK_ASSERT(rt);
 
+	RT_UNLOCK(rt);
 	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
 	    &rt->rt_epoch_ctx);
-	RT_UNLOCK(rt);
 }
 
 static void
