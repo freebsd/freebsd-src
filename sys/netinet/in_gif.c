@@ -379,13 +379,8 @@ done:
 		return (0);
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0) {
-		struct nhop4_basic nh4;
-		struct in_addr dst;
-
-		dst = ip->ip_src;
-		if (fib4_lookup_nh_basic(sc->gif_fibnum, dst, 0, 0, &nh4) != 0)
-			return (0);
-		if (nh4.nh_ifp != m->m_pkthdr.rcvif)
+		if (fib4_check_urpf(sc->gif_fibnum, ip->ip_src, 0, NHR_NONE,
+					m->m_pkthdr.rcvif) == 0)
 			return (0);
 	}
 	*arg = sc;
