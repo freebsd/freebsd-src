@@ -2920,7 +2920,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
 uint32_t
 tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct nhop4_extended nh4;
+	struct nhop_object *nh;
 	struct ifnet *ifp;
 	uint32_t maxmtu = 0;
 
@@ -2928,12 +2928,12 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 	if (inc->inc_faddr.s_addr != INADDR_ANY) {
 
-		if (fib4_lookup_nh_ext(inc->inc_fibnum, inc->inc_faddr,
-		    NHR_REF, 0, &nh4) != 0)
+		nh = fib4_lookup(inc->inc_fibnum, inc->inc_faddr, 0, NHR_NONE, 0);
+		if (nh == NULL)
 			return (0);
 
-		ifp = nh4.nh_ifp;
-		maxmtu = nh4.nh_mtu;
+		ifp = nh->nh_ifp;
+		maxmtu = nh->nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -2945,7 +2945,6 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		fib4_free_nh_ext(inc->inc_fibnum, &nh4);
 	}
 	return (maxmtu);
 }
@@ -2955,7 +2954,7 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 uint32_t
 tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
-	struct nhop6_extended nh6;
+	struct nhop_object *nh;
 	struct in6_addr dst6;
 	uint32_t scopeid;
 	struct ifnet *ifp;
@@ -2968,12 +2967,12 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 	if (!IN6_IS_ADDR_UNSPECIFIED(&inc->inc6_faddr)) {
 		in6_splitscope(&inc->inc6_faddr, &dst6, &scopeid);
-		if (fib6_lookup_nh_ext(inc->inc_fibnum, &dst6, scopeid, 0,
-		    0, &nh6) != 0)
+		nh = fib6_lookup(inc->inc_fibnum, &dst6, scopeid, NHR_NONE, 0);
+		if (nh == NULL)
 			return (0);
 
-		ifp = nh6.nh_ifp;
-		maxmtu = nh6.nh_mtu;
+		ifp = nh->nh_ifp;
+		maxmtu = nh->nh_mtu;
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
@@ -2985,7 +2984,6 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
 			}
 		}
-		fib6_free_nh_ext(inc->inc_fibnum, &nh6);
 	}
 
 	return (maxmtu);
