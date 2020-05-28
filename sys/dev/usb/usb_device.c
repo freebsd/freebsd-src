@@ -1402,7 +1402,7 @@ usbd_set_parent_iface(struct usb_device *udev, uint8_t iface_index,
 {
 	struct usb_interface *iface;
 
-	if (udev == NULL) {
+	if (udev == NULL || iface_index == parent_index) {
 		/* nothing to do */
 		return;
 	}
