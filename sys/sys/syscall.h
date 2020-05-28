@@ -511,4 +511,5 @@
 #define	SYS_sigfastblock	573
 #define	SYS___realpathat	574
 #define	SYS_close_range	575
-#define	SYS_MAXSYSCALL	576
+#define	SYS_rpctls_syscall	576
+#define	SYS_MAXSYSCALL	577
