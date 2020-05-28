@@ -63,7 +63,7 @@ struct aesni_session {
 	int mlen;
 	int hash_len;
 	void (*hash_init)(void *);
-	void (*hash_update)(void *, const void *, unsigned);
+	int (*hash_update)(void *, void *, unsigned);
 	void (*hash_finalize)(void *, void *);
 	bool hmac;
 };
