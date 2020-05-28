@@ -18,7 +18,7 @@ _PRIVATELIBS=	\
 		auditd \
 		bsdstat \
 		devdctl \
-		event \
+		event1 \
 		gmock \
 		gtest \
 		gmock_main \
