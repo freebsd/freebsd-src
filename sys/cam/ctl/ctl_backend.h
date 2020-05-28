@@ -80,7 +80,8 @@ typedef enum {
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
 
-typedef void (*be_callback_t)(void *be_lun);
+struct ctl_be_lun;
+typedef void (*be_callback_t)(struct ctl_be_lun *be_lun);
 
 /*
  * The lun_type field is the SCSI device type of this particular LUN.  In
@@ -147,7 +148,6 @@ struct ctl_be_lun {
 	uint8_t			lun_type;	/* passed to CTL */
 	ctl_backend_lun_flags	flags;		/* passed to CTL */
 	ctl_lun_serseq		serseq;		/* passed to CTL */
-	void			*be_lun;	/* passed to CTL */
 	uint64_t		maxlba;		/* passed to CTL */
 	uint32_t		blocksize;	/* passed to CTL */
 	uint16_t		pblockexp;	/* passed to CTL */
@@ -178,8 +178,8 @@ typedef int (*be_func_t)(union ctl_io *io);
 typedef void (*be_vfunc_t)(union ctl_io *io);
 typedef int (*be_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			  struct thread *td);
-typedef int (*be_luninfo_t)(void *be_lun, struct sbuf *sb);
-typedef uint64_t (*be_lunattr_t)(void *be_lun, const char *attrname);
+typedef int (*be_luninfo_t)(struct ctl_be_lun *be_lun, struct sbuf *sb);
+typedef uint64_t (*be_lunattr_t)(struct ctl_be_lun *be_lun, const char *attrname);
 
 struct ctl_backend_driver {
 	char		  name[CTL_BE_NAME_LEN]; /* passed to CTL */
