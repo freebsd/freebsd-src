@@ -152,6 +152,7 @@ typedef uint64_t (*cbb_getattr_t)(struct ctl_be_block_lun *be_lun,
  * and a backend block LUN, and between a backend block LUN and a CTL LUN.
  */
 struct ctl_be_block_lun {
+	struct ctl_be_lun cbe_lun;		/* Must be first element. */
 	struct ctl_lun_create_params params;
 	char *dev_path;
 	ctl_be_block_type dev_type;
@@ -168,7 +169,6 @@ struct ctl_be_block_lun {
 	struct devstat *disk_stats;
 	ctl_be_block_lun_flags flags;
 	SLIST_ENTRY(ctl_be_block_lun) links;
-	struct ctl_be_lun cbe_lun;
 	struct taskqueue *io_taskqueue;
 	struct task io_task;
 	int num_threads;
@@ -272,11 +272,11 @@ static int ctl_be_block_rm(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
 static int ctl_be_block_modify(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
-static void ctl_be_block_lun_shutdown(void *be_lun);
+static void ctl_be_block_lun_shutdown(struct ctl_be_lun *cbe_lun);
 static int ctl_be_block_config_write(union ctl_io *io);
 static int ctl_be_block_config_read(union ctl_io *io);
-static int ctl_be_block_lun_info(void *be_lun, struct sbuf *sb);
-static uint64_t ctl_be_block_lun_attr(void *be_lun, const char *attrname);
+static int ctl_be_block_lun_info(struct ctl_be_lun *cbe_lun, struct sbuf *sb);
+static uint64_t ctl_be_block_lun_attr(struct ctl_be_lun *cbe_lun, const char *attrname);
 static int ctl_be_block_init(void);
 static int ctl_be_block_shutdown(void);
 
@@ -1724,12 +1724,10 @@ static int
 ctl_be_block_submit(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_lun *cbe_lun;
 
 	DPRINTF("entered\n");
 
-	cbe_lun = CTL_BACKEND_LUN(io);
-	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
+	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
 
 	/*
 	 * Make sure we only get SCSI I/O.
@@ -2210,7 +2208,6 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 	be_lun = malloc(sizeof(*be_lun), M_CTLBLK, M_ZERO | M_WAITOK);
 	cbe_lun = &be_lun->cbe_lun;
-	cbe_lun->be_lun = be_lun;
 	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
 	STAILQ_INIT(&be_lun->input_queue);
@@ -2574,9 +2571,9 @@ bailout_error:
 }
 
 static void
-ctl_be_block_lun_shutdown(void *lun)
+ctl_be_block_lun_shutdown(struct ctl_be_lun *cbe_lun)
 {
-	struct ctl_be_block_lun *be_lun = lun;
+	struct ctl_be_block_lun *be_lun = (struct ctl_be_block_lun *)cbe_lun;
 	struct ctl_be_block_softc *softc = be_lun->softc;
 
 	taskqueue_drain_all(be_lun->io_taskqueue);
@@ -2607,7 +2604,7 @@ ctl_be_block_config_write(union ctl_io *io)
 	DPRINTF("entered\n");
 
 	cbe_lun = CTL_BACKEND_LUN(io);
-	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
+	be_lun = (struct ctl_be_block_lun *)cbe_lun;
 
 	retval = 0;
 	switch (io->scsiio.cdb[0]) {
@@ -2686,13 +2683,11 @@ static int
 ctl_be_block_config_read(union ctl_io *io)
 {
 	struct ctl_be_block_lun *be_lun;
-	struct ctl_be_lun *cbe_lun;
 	int retval = 0;
 
 	DPRINTF("entered\n");
 
-	cbe_lun = CTL_BACKEND_LUN(io);
-	be_lun = (struct ctl_be_block_lun *)cbe_lun->be_lun;
+	be_lun = (struct ctl_be_block_lun *)CTL_BACKEND_LUN(io);
 
 	switch (io->scsiio.cdb[0]) {
 	case SERVICE_ACTION_IN:
@@ -2726,12 +2721,10 @@ ctl_be_block_config_read(union ctl_io *io)
 }
 
 static int
-ctl_be_block_lun_info(void *be_lun, struct sbuf *sb)
+ctl_be_block_lun_info(struct ctl_be_lun *cbe_lun, struct sbuf *sb)
 {
-	struct ctl_be_block_lun *lun;
+	struct ctl_be_block_lun *lun = (struct ctl_be_block_lun *)cbe_lun;
 	int retval;
-
-	lun = (struct ctl_be_block_lun *)be_lun;
 
 	retval = sbuf_printf(sb, "\t<num_threads>");
 	if (retval != 0)
@@ -2746,9 +2739,9 @@ bailout:
 }
 
 static uint64_t
-ctl_be_block_lun_attr(void *be_lun, const char *attrname)
+ctl_be_block_lun_attr(struct ctl_be_lun *cbe_lun, const char *attrname)
 {
-	struct ctl_be_block_lun *lun = (struct ctl_be_block_lun *)be_lun;
+	struct ctl_be_block_lun *lun = (struct ctl_be_block_lun *)cbe_lun;
 
 	if (lun->getattr == NULL)
 		return (UINT64_MAX);

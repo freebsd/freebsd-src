@@ -106,6 +106,7 @@ typedef enum {
 } ctl_be_ramdisk_lun_flags;
 
 struct ctl_be_ramdisk_lun {
+	struct ctl_be_lun	cbe_lun;	/* Must be first element. */
 	struct ctl_lun_create_params params;
 	int			indir;
 	uint8_t			**pages;
@@ -120,7 +121,6 @@ struct ctl_be_ramdisk_lun {
 	struct ctl_be_ramdisk_softc *softc;
 	ctl_be_ramdisk_lun_flags flags;
 	SLIST_ENTRY(ctl_be_ramdisk_lun) links;
-	struct ctl_be_lun	cbe_lun;
 	struct taskqueue	*io_taskqueue;
 	struct task		io_task;
 	STAILQ_HEAD(, ctl_io_hdr) cont_queue;
@@ -146,7 +146,7 @@ static int ctl_backend_ramdisk_submit(union ctl_io *io);
 static void ctl_backend_ramdisk_worker(void *context, int pending);
 static int ctl_backend_ramdisk_config_read(union ctl_io *io);
 static int ctl_backend_ramdisk_config_write(union ctl_io *io);
-static uint64_t ctl_backend_ramdisk_lun_attr(void *be_lun, const char *attrname);
+static uint64_t ctl_backend_ramdisk_lun_attr(struct ctl_be_lun *cbe_lun, const char *attrname);
 static int ctl_backend_ramdisk_ioctl(struct cdev *dev, u_long cmd,
 				     caddr_t addr, int flag, struct thread *td);
 static int ctl_backend_ramdisk_rm(struct ctl_be_ramdisk_softc *softc,
@@ -155,7 +155,7 @@ static int ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 				      struct ctl_lun_req *req);
 static int ctl_backend_ramdisk_modify(struct ctl_be_ramdisk_softc *softc,
 				  struct ctl_lun_req *req);
-static void ctl_backend_ramdisk_lun_shutdown(void *be_lun);
+static void ctl_backend_ramdisk_lun_shutdown(struct ctl_be_lun *cbe_lun);
 
 static struct ctl_backend_driver ctl_be_ramdisk_driver = 
 {
@@ -367,7 +367,7 @@ static int
 ctl_backend_ramdisk_cmp(union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
-	struct ctl_be_ramdisk_lun *be_lun = cbe_lun->be_lun;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	uint8_t *page;
 	uint8_t info[8];
 	uint64_t lba;
@@ -404,8 +404,8 @@ ctl_backend_ramdisk_cmp(union ctl_io *io)
 static int
 ctl_backend_ramdisk_move_done(union ctl_io *io)
 {
-	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
-	struct ctl_be_ramdisk_lun *be_lun = cbe_lun->be_lun;
+	struct ctl_be_ramdisk_lun *be_lun =
+	    (struct ctl_be_ramdisk_lun *)CTL_BACKEND_LUN(io);
 #ifdef CTL_TIME_IO
 	struct bintime cur_bt;
 #endif
@@ -481,7 +481,7 @@ static void
 ctl_backend_ramdisk_rw(union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
-	struct ctl_be_ramdisk_lun *be_lun = cbe_lun->be_lun;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	struct ctl_sg_entry *sg_entries;
 	uint8_t *page;
 	uint64_t lba;
@@ -593,7 +593,7 @@ static int
 ctl_backend_ramdisk_gls(union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
-	struct ctl_be_ramdisk_lun *be_lun = cbe_lun->be_lun;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	struct scsi_get_lba_status_data *data;
 	uint8_t *page;
 	u_int lbaoff;
@@ -647,7 +647,7 @@ static void
 ctl_backend_ramdisk_delete(struct ctl_be_lun *cbe_lun, off_t lba, off_t len,
     int anchor)
 {
-	struct ctl_be_ramdisk_lun *be_lun = cbe_lun->be_lun;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	uint8_t *page;
 	uint64_t p, lp;
 	u_int lbaoff;
@@ -689,7 +689,7 @@ static void
 ctl_backend_ramdisk_ws(union ctl_io *io)
 {
 	struct ctl_be_lun *cbe_lun = CTL_BACKEND_LUN(io);
-	struct ctl_be_ramdisk_lun *be_lun = cbe_lun->be_lun;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	struct ctl_lba_len_flags *lbalen = ARGS(io);
 	uint8_t *page;
 	uint64_t lba;
@@ -823,9 +823,9 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 }
 
 static uint64_t
-ctl_backend_ramdisk_lun_attr(void *arg, const char *attrname)
+ctl_backend_ramdisk_lun_attr(struct ctl_be_lun *cbe_lun, const char *attrname)
 {
-	struct ctl_be_ramdisk_lun *be_lun = arg;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	uint64_t		val;
 
 	val = UINT64_MAX;
@@ -971,7 +971,6 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 
 	be_lun = malloc(sizeof(*be_lun), M_RAMDISK, M_ZERO | M_WAITOK);
 	cbe_lun = &be_lun->cbe_lun;
-	cbe_lun->be_lun = be_lun;
 	cbe_lun->options = nvlist_clone(req->args_nvl);
 	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
@@ -1246,9 +1245,9 @@ bailout_error:
 }
 
 static void
-ctl_backend_ramdisk_lun_shutdown(void *lun)
+ctl_backend_ramdisk_lun_shutdown(struct ctl_be_lun *cbe_lun)
 {
-	struct ctl_be_ramdisk_lun *be_lun = lun;
+	struct ctl_be_ramdisk_lun *be_lun = (struct ctl_be_ramdisk_lun *)cbe_lun;
 	struct ctl_be_ramdisk_softc *softc = be_lun->softc;
 
 	taskqueue_drain_all(be_lun->io_taskqueue);
