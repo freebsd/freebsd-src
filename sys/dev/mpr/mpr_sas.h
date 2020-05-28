@@ -64,6 +64,7 @@ struct mprsas_target {
 	SLIST_HEAD(, mprsas_lun) luns;
 	TAILQ_HEAD(, mpr_command) commands;
 	struct mpr_command *tm;
+	struct mpr_command *pending_remove_tm;
 	TAILQ_HEAD(, mpr_command) timedout_commands;
 	uint16_t        exp_dev_handle;
 	uint16_t        phy_num;
