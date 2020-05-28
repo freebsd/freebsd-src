@@ -402,6 +402,8 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 	int code, error, icmp6len, ip6len, noff, off, sum;
 
+	NET_EPOCH_ASSERT();
+
 	m = *mp;
 	off = *offp;
 
