@@ -2810,6 +2810,7 @@ uma_startup1(vm_offset_t virtual_avail)
 	size_t ksize, zsize, size;
 	uma_keg_t masterkeg;
 	uintptr_t m;
+	int domain;
 	uint8_t pflag;
 
 	bootstart = bootmem = virtual_avail;
@@ -2827,7 +2828,12 @@ uma_startup1(vm_offset_t virtual_avail)
 
 	/* Allocate the zone of zones, zone of kegs, and zone of zones keg. */
 	size = (zsize * 2) + ksize;
-	m = (uintptr_t)startup_alloc(NULL, size, 0, &pflag, M_NOWAIT | M_ZERO);
+	for (domain = 0; domain < vm_ndomains; domain++) {
+		m = (uintptr_t)startup_alloc(NULL, size, domain, &pflag,
+		    M_NOWAIT | M_ZERO);
+		if (m != 0)
+			break;
+	}
 	zones = (uma_zone_t)m;
 	m += zsize;
 	kegs = (uma_zone_t)m;
@@ -3189,6 +3195,17 @@ item_dtor(uma_zone_t zone, void *item, int size, void *udata,
 			trash_dtor(item, size, udata);
 #endif
 	}
+}
+
+static int
+item_domain(void *item)
+{
+	int domain;
+
+	domain = _vm_phys_domain(vtophys(item));
+	KASSERT(domain >= 0 && domain < vm_ndomains,
+	    ("%s: unknown domain for item %p", __func__, item));
+	return (domain);
 }
 
 #if defined(INVARIANTS) || defined(DEBUG_MEMGUARD) || defined(WITNESS)
@@ -4001,7 +4018,7 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 	itemdomain = 0;
 #ifdef NUMA
 	if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
-		itemdomain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
+		itemdomain = item_domain(item);
 #endif
 	critical_enter();
 	do {
@@ -4085,7 +4102,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	itemdomain = 0;
 #ifdef NUMA
 	if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
-		itemdomain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
+		itemdomain = item_domain(item);
 #endif
 	critical_enter();
 	do {
@@ -4159,7 +4176,7 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	ZONE_CROSS_LOCK(zone);
 	while (bucket->ub_cnt > 0) {
 		item = bucket->ub_bucket[bucket->ub_cnt - 1];
-		domain = _vm_phys_domain(pmap_kextract((vm_offset_t)item));
+		domain = item_domain(item);
 		zdom = ZDOM_GET(zone, domain);
 		if (zdom->uzd_cross == NULL) {
 			zdom->uzd_cross = bucket_alloc(zone, udata, M_NOWAIT);
@@ -4182,8 +4199,7 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 
 	while ((b = STAILQ_FIRST(&fullbuckets)) != NULL) {
 		STAILQ_REMOVE_HEAD(&fullbuckets, ub_link);
-		domain = _vm_phys_domain(pmap_kextract(
-		    (vm_offset_t)b->ub_bucket[0]));
+		domain = item_domain(b->ub_bucket[0]);
 		zone_put_bucket(zone, domain, b, udata, true);
 	}
 }

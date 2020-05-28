@@ -1223,7 +1223,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * Tell the physical memory allocator about pages used to store
 	 * the kernel and preloaded data.  See kmem_bootstrap_free().
 	 */
-	vm_phys_add_seg((vm_paddr_t)kernphys, trunc_page(first));
+	vm_phys_early_add_seg((vm_paddr_t)kernphys, trunc_page(first));
 
 	bzero(physmap, sizeof(physmap));
 	physmap_idx = 0;
