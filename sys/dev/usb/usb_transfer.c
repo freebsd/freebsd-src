@@ -374,6 +374,81 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 #endif
 
 /*------------------------------------------------------------------------*
+ *	usbd_get_max_frame_length
+ *
+ * This function returns the maximum single frame length as computed by
+ * usbd_transfer_setup(). It is useful when computing buffer sizes for
+ * devices having multiple alternate settings. The SuperSpeed endpoint
+ * companion pointer is allowed to be NULL.
+ *------------------------------------------------------------------------*/
+uint32_t
+usbd_get_max_frame_length(const struct usb_endpoint_descriptor *edesc,
+    const struct usb_endpoint_ss_comp_descriptor *ecomp,
+    enum usb_dev_speed speed)
+{
+	uint32_t max_packet_size;
+	uint32_t max_packet_count;
+	uint8_t type;
+
+	max_packet_size = UGETW(edesc->wMaxPacketSize);
+	max_packet_count = 1;
+	type = (edesc->bmAttributes & UE_XFERTYPE);
+
+	switch (speed) {
+	case USB_SPEED_HIGH:
+		switch (type) {
+		case UE_ISOCHRONOUS:
+		case UE_INTERRUPT:
+			max_packet_count +=
+			    (max_packet_size >> 11) & 3;
+
+			/* check for invalid max packet count */
+			if (max_packet_count > 3)
+				max_packet_count = 3;
+			break;
+		default:
+			break;
+		}
+		max_packet_size &= 0x7FF;
+		break;
+	case USB_SPEED_SUPER:
+		max_packet_count += (max_packet_size >> 11) & 3;
+
+		if (ecomp != NULL)
+			max_packet_count += ecomp->bMaxBurst;
+
+		if ((max_packet_count == 0) || 
+		    (max_packet_count > 16))
+			max_packet_count = 16;
+
+		switch (type) {
+		case UE_CONTROL:
+			max_packet_count = 1;
+			break;
+		case UE_ISOCHRONOUS:
+			if (ecomp != NULL) {
+				uint8_t mult;
+
+				mult = UE_GET_SS_ISO_MULT(
+				    ecomp->bmAttributes) + 1;
+				if (mult > 3)
+					mult = 3;
+
+				max_packet_count *= mult;
+			}
+			break;
+		default:
+			break;
+		}
+		max_packet_size &= 0x7FF;
+		break;
+	default:
+		break;
+	}
+	return (max_packet_size * max_packet_count);
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_transfer_setup_sub - transfer setup subroutine
  *
  * This function must be called from the "xfer_setup" callback of the
