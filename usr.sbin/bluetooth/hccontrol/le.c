@@ -1078,7 +1078,7 @@ static void handle_le_connection_event(ng_hci_event_pkt_t* e, bool verbose)
 				"Supervision timeout: %dms\n",
 				 10 * le16toh(conn_event->supervision_timeout));
 			fprintf(stdout,
-				"Master clock accuracy: %sn",
+				"Master clock accuracy: %s\n",
 				hci_mc_accuracy2str(
 					conn_event->master_clock_accuracy));
 		}
