@@ -733,29 +733,36 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	vm_offset_t zstart = 0, zend = 0;
 #endif
 	vm_offset_t lastaddr;
-	size_t dtb_size;
-	int i;
+	size_t fake_size, dtb_size;
 
-	i = 0;
+#define PRELOAD_PUSH_VALUE(type, value) do {			\
+	*(type *)((char *)fake_preload + fake_size) = (value);	\
+	fake_size += sizeof(type);				\
+} while (0)
 
-	fake_preload[i++] = MODINFO_NAME;
-	fake_preload[i++] = strlen("kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "kernel");
-	i += 1;
-	fake_preload[i++] = MODINFO_TYPE;
-	fake_preload[i++] = strlen("elf64 kernel") + 1;
-	strcpy((char*)&fake_preload[i++], "elf64 kernel");
-	i += 3;
-	fake_preload[i++] = MODINFO_ADDR;
-	fake_preload[i++] = sizeof(vm_offset_t);
-	*(vm_offset_t *)&fake_preload[i++] =
-	    (vm_offset_t)(KERNBASE + KERNENTRY);
-	i += 1;
-	fake_preload[i++] = MODINFO_SIZE;
-	fake_preload[i++] = sizeof(vm_offset_t);
-	fake_preload[i++] = (vm_offset_t)&end -
-	    (vm_offset_t)(KERNBASE + KERNENTRY);
-	i += 1;
+#define PRELOAD_PUSH_STRING(str) do {				\
+	uint32_t ssize;						\
+	ssize = strlen(str) + 1;				\
+	PRELOAD_PUSH_VALUE(uint32_t, ssize);			\
+	strcpy(((char *)fake_preload + fake_size), str);	\
+	fake_size += ssize;					\
+	fake_size = roundup(fake_size, sizeof(u_long));		\
+} while (0)
+
+	fake_size = 0;
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_NAME);
+	PRELOAD_PUSH_STRING("kernel");
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_TYPE);
+	PRELOAD_PUSH_STRING("elf kernel");
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_ADDR);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
+	PRELOAD_PUSH_VALUE(uint64_t, KERNBASE);
+
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_SIZE);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
+	PRELOAD_PUSH_VALUE(uint64_t, (size_t)((vm_offset_t)&end - KERNBASE));
 #ifdef DDB
 #if 0
 	/* RISCVTODO */
@@ -777,19 +784,20 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 
 	/* Copy the DTB to KVA space. */
 	lastaddr = roundup(lastaddr, sizeof(int));
-	fake_preload[i++] = MODINFO_METADATA | MODINFOMD_DTBP;
-	fake_preload[i++] = sizeof(vm_offset_t);
-	*(vm_offset_t *)&fake_preload[i] = (vm_offset_t)lastaddr;
-	i += sizeof(vm_offset_t) / sizeof(uint32_t);
+	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_DTBP);
+	PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
+	PRELOAD_PUSH_VALUE(vm_offset_t, lastaddr);
 	dtb_size = fdt_totalsize(rvbp->dtbp_virt);
 	memmove((void *)lastaddr, (const void *)rvbp->dtbp_virt, dtb_size);
 	lastaddr = roundup(lastaddr + dtb_size, sizeof(int));
 
-	fake_preload[i++] = 0;
-	fake_preload[i] = 0;
-	preload_metadata = (void *)fake_preload;
+	/* End marker */
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+	PRELOAD_PUSH_VALUE(uint32_t, 0);
+	preload_metadata = (caddr_t)fake_preload;
 
-	KASSERT(i < nitems(fake_preload), ("Too many fake_preload items"));
+	KASSERT(fake_size < sizeof(fake_preload),
+	    ("Too many fake_preload items"));
 
 	return (lastaddr);
 }
