@@ -205,19 +205,15 @@ pmap_mmu_install(char *name, int prio)
 	mmu_t	*mmupp, mmup;
 	static int	curr_prio = 0;
 
-	printf("Trying to install pmap %s\n", name);
-
 	/*
 	 * Try and locate the MMU kobj corresponding to the name
 	 */
 	SET_FOREACH(mmupp, mmu_set) {
 		mmup = *mmupp;
 
-		printf("Checking %s(%p)\n", mmup->name, mmup->name);
 		if (mmup->name &&
 		    !strcmp(mmup->name, name) &&
 		    (prio >= curr_prio || mmu_obj == NULL)) {
-		    	printf("match found: %p\n", mmup);
 			curr_prio = prio;
 			mmu_obj = mmup;
 			return (TRUE);
