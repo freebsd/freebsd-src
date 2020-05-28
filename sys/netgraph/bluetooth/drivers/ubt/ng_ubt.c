@@ -623,7 +623,7 @@ ubt_attach(device_t dev)
 	struct usb_endpoint_descriptor	*ed;
 	struct usb_interface_descriptor *id;
 	struct usb_interface		*iface;
-	uint16_t			wMaxPacketSize;
+	uint32_t			wMaxPacketSize;
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
 
@@ -713,9 +713,10 @@ ubt_attach(device_t dev)
 		if ((ed->bDescriptorType == UDESC_ENDPOINT) &&
 		    (ed->bLength >= sizeof(*ed)) &&
 		    (i == 1)) {
-			uint16_t temp;
+			uint32_t temp;
 
-			temp = UGETW(ed->wMaxPacketSize);
+			temp = usbd_get_max_frame_length(
+			    ed, NULL, usbd_get_speed(uaa->device));
 			if (temp > wMaxPacketSize) {
 				wMaxPacketSize = temp;
 				alt_index = j;
