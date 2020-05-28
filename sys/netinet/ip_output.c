@@ -512,11 +512,10 @@ again:
 			mtu = ifp->if_mtu;
 		src = IA_SIN(ia)->sin_addr;
 	} else {
-		struct nhop4_extended nh;
+		struct nhop_object *nh;
 
-		bzero(&nh, sizeof(nh));
-		if (fib4_lookup_nh_ext(M_GETFIB(m), ip->ip_dst, 0, 0, &nh) !=
-		    0) {
+		nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_NONE, 0);
+		if (nh == NULL) {
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
 			/*
 			 * There is no route for this packet, but it is
@@ -530,8 +529,8 @@ again:
 			error = EHOSTUNREACH;
 			goto bad;
 		}
-		ifp = nh.nh_ifp;
-		mtu = nh.nh_mtu;
+		ifp = nh->nh_ifp;
+		mtu = nh->nh_mtu;
 		/*
 		 * We are rewriting here dst to be gw actually, contradicting
 		 * comment at the beginning of the function. However, in this
@@ -540,10 +539,11 @@ again:
 		 * function, the dst would be rewritten by ip_output_pfil().
 		 */
 		MPASS(dst == &sin);
-		dst->sin_addr = nh.nh_addr;
-		ia = nh.nh_ia;
-		src = nh.nh_src;
-		isbroadcast = (((nh.nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
+		if (nh->nh_flags & NHF_GATEWAY)
+			dst->sin_addr = nh->gw4_sa.sin_addr;
+		ia = ifatoia(nh->nh_ifa);
+		src = IA_SIN(ia)->sin_addr;
+		isbroadcast = (((nh->nh_flags & (NHF_HOST | NHF_BROADCAST)) ==
 		    (NHF_HOST | NHF_BROADCAST)) ||
 		    ((ifp->if_flags & IFF_BROADCAST) &&
 		    in_ifaddr_broadcast(dst->sin_addr, ia)));
