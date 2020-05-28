@@ -693,6 +693,7 @@ NamePathTail                [.]{NameSeg}
 "GeneralPurposeIo"          { count (0); return (PARSEOP_REGIONSPACE_GPIO); }       /* ACPI 5.0 */
 "GenericSerialBus"          { count (0); return (PARSEOP_REGIONSPACE_GSBUS); }      /* ACPI 5.0 */
 "PCC"                       { count (0); return (PARSEOP_REGIONSPACE_PCC); }        /* ACPI 5.0 */
+"PlatformRtMechanism"       { count (0); return (PARSEOP_REGIONSPACE_PRM); }
 "FFixedHW"                  { count (0); return (PARSEOP_REGIONSPACE_FFIXEDHW); }
 
     /* ResourceTypeKeyword: Resource Usage - Resource Descriptors */

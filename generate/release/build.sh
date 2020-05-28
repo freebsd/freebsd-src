@@ -217,7 +217,6 @@ generate_source_package ()
 	mkdir $TEMP_DIR/generate/unix/acpiexamples
 	mkdir $TEMP_DIR/generate/unix/acpiexec
 	mkdir $TEMP_DIR/generate/unix/acpihelp
-	mkdir $TEMP_DIR/generate/unix/acpinames
 	mkdir $TEMP_DIR/generate/unix/acpisrc
 	mkdir $TEMP_DIR/generate/unix/acpixtract
 	mkdir $TEMP_DIR/generate/unix/iasl
@@ -264,7 +263,6 @@ generate_source_package ()
 	cp generate/unix/acpiexamples/Makefile  $TEMP_DIR/generate/unix/acpiexamples
 	cp generate/unix/acpiexec/Makefile      $TEMP_DIR/generate/unix/acpiexec
 	cp generate/unix/acpihelp/Makefile      $TEMP_DIR/generate/unix/acpihelp
-	cp generate/unix/acpinames/Makefile     $TEMP_DIR/generate/unix/acpinames
 	cp generate/unix/acpisrc/Makefile       $TEMP_DIR/generate/unix/acpisrc
 	cp generate/unix/acpixtract/Makefile    $TEMP_DIR/generate/unix/acpixtract
 	cp generate/unix/iasl/Makefile          $TEMP_DIR/generate/unix/iasl
@@ -295,11 +293,13 @@ generate_source_package ()
 		# Windows-specific activities
 		#
 
-		# Copy project files for MS Visual Studio 2008 (VC++ 9.0)
+		# Copy project files for MS Visual Studio 2017
 
-		mkdir $TEMP_DIR/generate/msvc9
-		cp -r generate/msvc9/*.sln $TEMP_DIR/generate/msvc9/
-		cp -r generate/msvc9/*.vcproj $TEMP_DIR/generate/msvc9/
+		mkdir $TEMP_DIR/generate/msvc2017
+		cp -r generate/msvc2017/*.sln $TEMP_DIR/generate/msvc2017/
+		cp -r generate/msvc2017/*.dsp $TEMP_DIR/generate/msvc2017/
+		cp -r generate/msvc2017/*.dsw $TEMP_DIR/generate/msvc2017/
+		cp -r generate/msvc2017/*.vcxproj $TEMP_DIR/generate/msvc2017/
 
 		build_windows_package
 	fi
@@ -412,7 +412,6 @@ generate_binary_package()
 	cp libraries/acpidump.exe       $TEMP_DIR
 	cp libraries/acpiexec.exe       $TEMP_DIR
 	cp libraries/acpihelp.exe       $TEMP_DIR
-	cp libraries/acpinames.exe      $TEMP_DIR
 	cp libraries/acpisrc.exe        $TEMP_DIR
 	cp libraries/acpixtract.exe     $TEMP_DIR
 	cp libraries/iasl.exe           $TEMP_DIR

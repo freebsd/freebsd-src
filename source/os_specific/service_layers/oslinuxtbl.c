@@ -192,7 +192,6 @@ static ACPI_STATUS
 OslReadTableFromFile (
     char                    *Filename,
     ACPI_SIZE               FileOffset,
-    char                    *Signature,
     ACPI_TABLE_HEADER       **Table);
 
 static ACPI_STATUS
@@ -1490,8 +1489,6 @@ OslTableNameFromFile (
  *
  * PARAMETERS:  Filename            - File that contains the desired table
  *              FileOffset          - Offset of the table in file
- *              Signature           - Optional ACPI Signature for desired table.
- *                                    A null terminated 4-character string.
  *              Table               - Where a pointer to the table is returned
  *
  * RETURN:      Status; Table buffer is returned if AE_OK.
@@ -1504,7 +1501,6 @@ static ACPI_STATUS
 OslReadTableFromFile (
     char                    *Filename,
     ACPI_SIZE               FileOffset,
-    char                    *Signature,
     ACPI_TABLE_HEADER       **Table)
 {
     FILE                    *TableFile;
@@ -1536,6 +1532,8 @@ OslReadTableFromFile (
         goto Exit;
     }
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+
     /* If signature is specified, it must match the table */
 
     if (Signature)
@@ -1557,6 +1555,7 @@ OslReadTableFromFile (
             goto Exit;
         }
     }
+#endif
 
     TableLength = ApGetTableLength (&Header);
     if (TableLength == 0)
@@ -1688,7 +1687,7 @@ OslGetCustomizedTable (
     /* There is no physical address saved for customized tables, use zero */
 
     *Address = 0;
-    Status = OslReadTableFromFile (TableFilename, 0, NULL, Table);
+    Status = OslReadTableFromFile (TableFilename, 0, Table);
 
     return (Status);
 }

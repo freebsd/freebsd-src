@@ -821,9 +821,24 @@ XfNamespaceLocateBegin (
         Node->Flags |= ANOBJ_IS_REFERENCED;
     }
 
-    /* Attempt to optimize the NamePath */
-
-    OptOptimizeNamePath (Op, OpInfo->Flags, WalkState, Path, Node);
+    /*
+     * Attempt to optimize the NamePath
+     *
+     * One special case: CondRefOf operator - not all AML interpreter
+     * implementations expect optimized namepaths as a parameter to this
+     * operator. They require relative name paths with prefix operators or
+     * namepaths starting with the root scope.
+     *
+     * Other AML interpreter implementations do not perform the namespace
+     * search that starts at the current scope and recursively searching the
+     * parent scope until the root scope. The lack of search is only known to
+     * occur for the namestring parameter for the CondRefOf operator.
+     */
+    if ((Op->Asl.Parent) &&
+        (Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_CONDREFOF))
+    {
+        OptOptimizeNamePath (Op, OpInfo->Flags, WalkState, Path, Node);
+    }
 
     /*
      * 1) Dereference an alias (A name reference that is an alias)
