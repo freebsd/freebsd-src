@@ -1225,7 +1225,8 @@ static void
 xbd_connect(struct xbd_softc *sc)
 {
 	device_t dev = sc->xbd_dev;
-	unsigned long sectors, sector_size, phys_sector_size;
+	blkif_sector_t sectors;
+	unsigned long sector_size, phys_sector_size;
 	unsigned int binfo;
 	int err, feature_barrier, feature_flush;
 	int i, j;
@@ -1244,7 +1245,7 @@ xbd_connect(struct xbd_softc *sc)
 			return;
 		}
 		err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-		    "sectors", "%lu", &sectors, NULL);
+		    "sectors", "%"PRIu64, &sectors, NULL);
 		if (err != 0) {
 			xenbus_dev_error(dev, err,
 			    "reading sectors at %s",
@@ -1266,7 +1267,7 @@ xbd_connect(struct xbd_softc *sc)
 	}
 
 	err = xs_gather(XST_NIL, xenbus_get_otherend_path(dev),
-	    "sectors", "%lu", &sectors,
+	    "sectors", "%"PRIu64, &sectors,
 	    "info", "%u", &binfo,
 	    "sector-size", "%lu", &sector_size,
 	    NULL);
@@ -1279,7 +1280,7 @@ xbd_connect(struct xbd_softc *sc)
 	if ((sectors == 0) || (sector_size == 0)) {
 		xenbus_dev_fatal(dev, 0,
 		    "invalid parameters from %s:"
-		    " sectors = %lu, sector_size = %lu",
+		    " sectors = %"PRIu64", sector_size = %lu",
 		    xenbus_get_otherend_path(dev),
 		    sectors, sector_size);
 		return;
