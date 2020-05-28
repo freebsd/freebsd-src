@@ -2329,7 +2329,10 @@ skip_thunk:
 		if (*(int *)data != vd->vd_curwindow->vw_buf.vb_history_size)
 			vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf,
 			    *(int *)data);
-		return 0;
+		return (0);
+	case CONS_CLRHIST:
+		vtbuf_clearhistory(&vd->vd_curwindow->vw_buf);
+		return (0);
 	case CONS_GET:
 		/* XXX */
 		*(int *)data = M_CG640x480;
