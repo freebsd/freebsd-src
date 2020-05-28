@@ -633,7 +633,7 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 	 * are required for promotion of the corresponding kernel virtual
 	 * addresses to superpage mappings.
 	 */
-	vm_phys_add_seg(KPTphys, KPTphys + ptoa(nkpt));
+	vm_phys_early_add_seg(KPTphys, KPTphys + ptoa(nkpt));
 
 	/*
 	 * Initialize the first available kernel virtual address.

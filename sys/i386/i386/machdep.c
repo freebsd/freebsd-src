@@ -1828,7 +1828,7 @@ getmemsize(int first)
 	 * Tell the physical memory allocator about pages used to store
 	 * the kernel and preloaded data.  See kmem_bootstrap_free().
 	 */
-	vm_phys_add_seg((vm_paddr_t)KERNLOAD, trunc_page(first));
+	vm_phys_early_add_seg((vm_paddr_t)KERNLOAD, trunc_page(first));
 
 	TUNABLE_INT_FETCH("hw.above4g_allow", &above4g_allow);
 	TUNABLE_INT_FETCH("hw.above24g_allow", &above24g_allow);
