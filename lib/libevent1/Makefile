@@ -5,7 +5,7 @@ PACKAGE=lib${LIB}
 
 .include <src.opts.mk>
 
-LIB=		event
+LIB=		event1
 SHLIB_MAJOR=	1
 PRIVATELIB=
 

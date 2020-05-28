@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200528: libevent renamed libevent1
+OLD_FILES+=usr/include/private/event/event.h
+OLD_DIRS+=usr/include/private/event
+
 # 20200523: new clang import which bumps version from 10.0.0 to 10.0.1.s
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/complex
