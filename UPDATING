@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	information about prerequisites and upgrading, if you are not already
 	using clang 3.5.0 or higher.
 
+20200512:
+	Support for obsolete compilers has been removed from the build system.
+	Clang 6 and GCC 6.4 are the minimum supported versions.
+
 20200424:
 	closefrom(2) has been moved under COMPAT12, and replaced in libc with a
 	stub that calls close_range(2).  If using a custom kernel configuration,
