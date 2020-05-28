@@ -1049,11 +1049,11 @@ hw_mds_recalculate(void)
 	 * reported.  For instance, hypervisor might unknowingly
 	 * filter the cap out.
 	 * For the similar reasons, and for testing, allow to enable
-	 * mitigation even for RDCL_NO or MDS_NO caps.
+	 * mitigation even when MDS_NO cap is set.
 	 */
 	if (cpu_vendor_id != CPU_VENDOR_INTEL || hw_mds_disable == 0 ||
-	    ((cpu_ia32_arch_caps & (IA32_ARCH_CAP_RDCL_NO |
-	    IA32_ARCH_CAP_MDS_NO)) != 0 && hw_mds_disable == 3)) {
+	    ((cpu_ia32_arch_caps & IA32_ARCH_CAP_MDS_NO) != 0 &&
+	    hw_mds_disable == 3)) {
 		mds_handler = mds_handler_void;
 	} else if (((cpu_stdext_feature3 & CPUID_STDEXT3_MD_CLEAR) != 0 &&
 	    hw_mds_disable == 3) || hw_mds_disable == 1) {
@@ -1360,3 +1360,7 @@ SYSCTL_PROC(_machdep_mitigations_taa, OID_AUTO, state,
     sysctl_taa_state_handler, "A",
     "TAA Mitigation state");
 
+int __read_frequently cpu_flush_rsb_ctxsw;
+SYSCTL_INT(_machdep_mitigations, OID_AUTO, flush_rsb_ctxsw,
+    CTLFLAG_RW | CTLFLAG_NOFETCH, &cpu_flush_rsb_ctxsw, 0,
+    "Flush Return Stack Buffer on context switch");
