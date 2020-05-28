@@ -81,8 +81,7 @@ issamefs(const char *path, struct statfs *stfsp)
 		return (-1);
 	if (statfs(path, &stfsbuf) < 0)
 		return (-1);
-	if ((stfsbuf.f_fsid.val[0] != stfsp->f_fsid.val[0]) ||
-	    (stfsbuf.f_fsid.val[1] != stfsp->f_fsid.val[1]))
+	if (fsidcmp(&stfsbuf.f_fsid, &stfsp->f_fsid) != 0)
 		return (0);
 	return (1);
 }
