@@ -360,7 +360,7 @@ xctrl_on_watch_event(struct xs_watch *watch, const char **vec, unsigned int len)
 	
 	error = xs_read(XST_NIL, "control", "shutdown",
 			&result_len, (void **)&result);
-	if (error != 0)
+	if (error != 0 || result_len == 0)
 		return;
 
 	/* Acknowledge the request by writing back an empty string. */
