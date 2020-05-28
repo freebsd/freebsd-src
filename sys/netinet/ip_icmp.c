@@ -764,7 +764,7 @@ icmp_reflect(struct mbuf *m)
 	struct ifnet *ifp;
 	struct in_ifaddr *ia;
 	struct in_addr t;
-	struct nhop4_extended nh_ext;
+	struct nhop_object *nh;
 	struct mbuf *opts = NULL;
 	int optlen = (ip->ip_hl << 2) - sizeof(struct ip);
 
@@ -851,12 +851,13 @@ icmp_reflect(struct mbuf *m)
 	 * When we don't have a route back to the packet source, stop here
 	 * and drop the packet.
 	 */
-	if (fib4_lookup_nh_ext(M_GETFIB(m), ip->ip_dst, 0, 0, &nh_ext) != 0) {
+	nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_NONE, 0);
+	if (nh == NULL) {
 		m_freem(m);
 		ICMPSTAT_INC(icps_noroute);
 		goto done;
 	}
-	t = nh_ext.nh_src;
+	t = IA_SIN(ifatoia(nh->nh_ifa))->sin_addr;
 match:
 #ifdef MAC
 	mac_netinet_icmp_replyinplace(m);
