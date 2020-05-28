@@ -124,7 +124,12 @@ CWARNFLAGS+=	-Wno-format
 # GCC
 # We should clean up warnings produced with these flags.
 # They were originally added as a quick hack to enable gcc5/6.
+# The base system requires at least GCC 6.4, but some ports
+# use this file with older compilers.  Request an exprun
+# before changing these.
 .if ${COMPILER_TYPE} == "gcc"
+# GCC 5.2.0
+.if ${COMPILER_VERSION} >= 50200
 CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=array-bounds			\
 		-Wno-error=attributes			\
@@ -136,15 +141,20 @@ CWARNFLAGS+=	-Wno-error=address			\
 		-Wno-error=extra			\
 		-Wno-error=inline			\
 		-Wno-error=logical-not-parentheses	\
-		-Wno-error=nonnull-compare		\
-		-Wno-error=shift-negative-value		\
 		-Wno-error=strict-aliasing		\
-		-Wno-error=tautological-compare		\
 		-Wno-error=uninitialized		\
 		-Wno-error=unused-but-set-variable	\
-		-Wno-error=unused-const-variable	\
 		-Wno-error=unused-function		\
 		-Wno-error=unused-value
+.endif
+
+# GCC 6.1.0
+.if ${COMPILER_VERSION} >= 60100
+CWARNFLAGS+=	-Wno-error=nonnull-compare		\
+		-Wno-error=shift-negative-value		\
+		-Wno-error=tautological-compare		\
+		-Wno-error=unused-const-variable
+.endif
 
 # GCC 7.1.0
 .if ${COMPILER_VERSION} >= 70100
