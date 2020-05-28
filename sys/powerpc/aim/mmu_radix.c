@@ -6000,7 +6000,8 @@ mmu_radix_kremove(vm_offset_t va)
 int mmu_radix_map_user_ptr(pmap_t pm,
     volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen)
 {
-	if ((uintptr_t)uaddr + ulen >= VM_MAXUSER_ADDRESS)
+	if ((uintptr_t)uaddr + ulen >= VM_MAXUSER_ADDRESS ||
+	    (uintptr_t)uaddr + ulen < (uintptr_t)uaddr)
 		return (EFAULT);
 
 	*kaddr = (void *)(uintptr_t)uaddr;
