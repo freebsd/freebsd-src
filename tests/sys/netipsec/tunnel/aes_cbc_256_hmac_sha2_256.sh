@@ -11,10 +11,6 @@ v4_head()
 
 v4_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/246737"
-	fi
-
 	# load AESNI module if not already
 	kldstat -q -n aesni || kldload aesni
 
