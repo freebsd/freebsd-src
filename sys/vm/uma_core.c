@@ -3197,6 +3197,7 @@ item_dtor(uma_zone_t zone, void *item, int size, void *udata,
 	}
 }
 
+#ifdef NUMA
 static int
 item_domain(void *item)
 {
@@ -3207,6 +3208,7 @@ item_domain(void *item)
 	    ("%s: unknown domain for item %p", __func__, item));
 	return (domain);
 }
+#endif
 
 #if defined(INVARIANTS) || defined(DEBUG_MEMGUARD) || defined(WITNESS)
 #define	UMA_ZALLOC_DEBUG
