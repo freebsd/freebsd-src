@@ -3231,6 +3231,8 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 		case SO_TIMESTAMP:
 		case SO_BINTIME:
 		case SO_NOSIGPIPE:
+		case SO_NO_DDP:
+		case SO_NO_OFFLOAD:
 			optval = so->so_options & sopt->sopt_name;
 integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
