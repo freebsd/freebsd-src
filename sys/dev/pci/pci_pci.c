@@ -1792,6 +1792,12 @@ pcib_resume(device_t dev)
 {
 
 	pcib_cfg_restore(device_get_softc(dev));
+
+	/*
+	 * Restore the Command register only after restoring the windows.
+	 * The bridge should not be claiming random windows.
+	 */
+	pci_write_config(dev, PCIR_COMMAND, pci_get_cmdreg(dev), 2);
 	return (bus_generic_resume(dev));
 }
 
