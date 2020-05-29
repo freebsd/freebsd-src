@@ -39,11 +39,6 @@
 #ifndef _NETIPSEC_IPSEC_H_
 #define _NETIPSEC_IPSEC_H_
 
-#if defined(_KERNEL) && !defined(_LKM) && !defined(KLD_MODULE)
-#include "opt_inet.h"
-#include "opt_ipsec.h"
-#endif
-
 #include <net/pfkeyv2.h>
 #include <netipsec/keydb.h>
 
