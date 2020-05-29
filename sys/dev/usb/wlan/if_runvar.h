@@ -97,8 +97,6 @@ STAILQ_HEAD(run_tx_data_head, run_tx_data);
 
 struct run_node {
 	struct ieee80211_node	ni;
-	uint8_t			ridx[IEEE80211_RATE_MAXSIZE];
-	uint8_t			ctl_ridx[IEEE80211_RATE_MAXSIZE];
 	uint8_t			amrr_ridx;
 	uint8_t			mgt_ridx;
 	uint8_t			fix_ridx;
