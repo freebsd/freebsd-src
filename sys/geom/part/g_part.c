@@ -469,7 +469,6 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	struct sbuf *sb;
 	struct g_geom_alias *gap;
 	off_t offset;
 
@@ -481,11 +480,7 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 		entry->gpe_offset = offset;
 
 	if (entry->gpe_pp == NULL) {
-		sb = sbuf_new_auto();
-		G_PART_FULLNAME(table, entry, sb, gp->name);
-		sbuf_finish(sb);
-		entry->gpe_pp = g_new_providerf(gp, "%s", sbuf_data(sb));
-		sbuf_delete(sb);
+		entry->gpe_pp = G_PART_NEW_PROVIDER(table, gp, entry, gp->name);
 		/*
 		 * If our parent provider had any aliases, then copy them to our
 		 * provider so when geom DEV tastes things later, they will be
@@ -493,13 +488,8 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 		 * place of the geom's name we use to create the provider. The
 		 * kobj interface that generates names makes this awkward.
 		 */
-		LIST_FOREACH(gap, &pp->aliases, ga_next) {
-			sb = sbuf_new_auto();
-			G_PART_FULLNAME(table, entry, sb, gap->ga_alias);
-			sbuf_finish(sb);
-			g_provider_add_alias(entry->gpe_pp, "%s", sbuf_data(sb));
-			sbuf_delete(sb);
-		}
+		LIST_FOREACH(gap, &pp->aliases, ga_next)
+			G_PART_ADD_ALIAS(table, entry->gpe_pp, entry, gap->ga_alias);
 		entry->gpe_pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 		entry->gpe_pp->private = entry;		/* Close the circle. */
 	}
