@@ -336,17 +336,20 @@ retry:
 		if (ts.tv_nsec > 0)
 			cmd_latency += ts.tv_nsec / 1000000;
 
-		fprintf(stdout, "LUN %jd tag 0x%04x%s%s%s%s%s: %s. CDB: %s "
+		fprintf(stdout, "LUN %jd tag 0x%04x%s%s%s%s%s%s%s: %s. CDB: %s "
 			"(%0.0Lf ms)\n",
 			(intmax_t)entry->lun_num, entry->tag_num,
 			(entry->cmd_flags & CTL_OOACMD_FLAG_BLOCKED) ?
 			 " BLOCKED" : "",
-			(entry->cmd_flags & CTL_OOACMD_FLAG_DMA) ? " DMA" : "",
+			(entry->cmd_flags & CTL_OOACMD_FLAG_RTR) ? " RTR" :"",
 			(entry->cmd_flags & CTL_OOACMD_FLAG_DMA_QUEUED) ?
 			 " DMAQUEUED" : "",
+			(entry->cmd_flags & CTL_OOACMD_FLAG_DMA) ? " DMA" : "",
+			(entry->cmd_flags & CTL_OOACMD_FLAG_STATUS_QUEUED) ?
+			 " STATUSQUEUED" : "",
+			(entry->cmd_flags & CTL_OOACMD_FLAG_STATUS_SENT) ? " STATUS" : "",
 			(entry->cmd_flags & CTL_OOACMD_FLAG_ABORT) ?
 			 " ABORT" : "",
-			(entry->cmd_flags & CTL_OOACMD_FLAG_RTR) ? " RTR" :"",
 			scsi_op_desc(entry->cdb[0], NULL),
 			scsi_cdb_string(entry->cdb, cdb_str, sizeof(cdb_str)),
 			cmd_latency);

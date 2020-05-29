@@ -2433,6 +2433,12 @@ ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 
 		if (io->io_hdr.flags & CTL_FLAG_DMA_QUEUED)
 			entry->cmd_flags |= CTL_OOACMD_FLAG_DMA_QUEUED;
+
+		if (io->io_hdr.flags & CTL_FLAG_STATUS_QUEUED)
+			entry->cmd_flags |= CTL_OOACMD_FLAG_STATUS_QUEUED;
+
+		if (io->io_hdr.flags & CTL_FLAG_STATUS_SENT)
+			entry->cmd_flags |= CTL_OOACMD_FLAG_STATUS_SENT;
 	}
 	mtx_unlock(&lun->lun_lock);
 }
