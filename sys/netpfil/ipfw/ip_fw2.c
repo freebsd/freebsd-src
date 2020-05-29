@@ -2106,6 +2106,8 @@ do {								\
 					uint32_t v = 0;
 					match = ipfw_lookup_table(chain,
 					    cmd->arg1, 0, &args->f_id, &v);
+					if (!match)
+						break;
 					if (cmdlen == F_INSN_SIZE(ipfw_insn_u32))
 						match = ((ipfw_insn_u32 *)cmd)->d[0] ==
 						    TARG_VAL(chain, v, tag);
