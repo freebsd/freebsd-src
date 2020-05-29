@@ -563,7 +563,8 @@ cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
 		/* SLB multi-hit is recoverable. */
 		if ((frame->cpu.aim.dsisr & DSISR_MC_SLB_MULTIHIT) != 0)
 			return (0);
-		if ((frame->cpu.aim.dsisr & DSISR_MC_DERAT_MULTIHIT) != 0) {
+		if ((frame->cpu.aim.dsisr &
+		    (DSISR_MC_DERAT_MULTIHIT | DSISR_MC_TLB_MULTIHIT)) != 0) {
 			pmap_tlbie_all();
 			return (0);
 		}
