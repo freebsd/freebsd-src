@@ -266,7 +266,7 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 			remain = cc->cc_mbuf->m_len - cc->cc_offset;
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);
-			dst += todo;
+			src += todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
 				break;
@@ -284,7 +284,7 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 			remain = cc->cc_iov->iov_len - cc->cc_offset;
 			todo = MIN(remain, size);
 			memcpy(dst, src, todo);
-			dst += todo;
+			src += todo;
 			if (todo < remain) {
 				cc->cc_offset += todo;
 				break;
