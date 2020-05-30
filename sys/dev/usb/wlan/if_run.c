@@ -847,19 +847,25 @@ run_attach(device_t self)
 	    IEEE80211_C_WME |		/* WME */
 	    IEEE80211_C_WPA;		/* WPA1|WPA2(RSN) */
 
-	ic->ic_htcaps =
-		    IEEE80211_HTC_HT |
-		    IEEE80211_HTC_AMPDU |
-		    IEEE80211_HTC_AMSDU |
-		    IEEE80211_HTCAP_MAXAMSDU_3839 |
-		    IEEE80211_HTCAP_SMPS_OFF;
-
 	/*
-	 * For now, just do 1 stream.  Later on we'll figure out
-	 * how many tx/rx streams a particular NIC supports.
+	 * RF2020 is not an 11n device.
 	 */
-	ic->ic_rxstream = 1;
-	ic->ic_txstream = 1;
+	if (sc->rf_rev != RT3070_RF_2020) {
+		device_printf(sc->sc_dev, "[HT] Enabling 802.11n\n");
+		ic->ic_htcaps =
+			    IEEE80211_HTC_HT |
+			    IEEE80211_HTC_AMPDU |
+			    IEEE80211_HTC_AMSDU |
+			    IEEE80211_HTCAP_MAXAMSDU_3839 |
+			    IEEE80211_HTCAP_SMPS_OFF;
+
+		/*
+		 * For now, just do 1 stream.  Later on we'll figure out
+		 * how many tx/rx streams a particular NIC supports.
+		 */
+		ic->ic_rxstream = 1;
+		ic->ic_txstream = 1;
+	}
 
 	ic->ic_cryptocaps =
 	    IEEE80211_CRYPTO_WEP |
@@ -1028,8 +1034,15 @@ run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	vap->iv_update_beacon = run_update_beacon;
 	vap->iv_max_aid = RT2870_WCID_MAX;
 
-	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
-	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_2;
+	/*
+	 * The linux rt2800 driver limits 1 stream devices to a 32KB
+	 * RX AMPDU.
+	 */
+	if (ic->ic_rxstream > 1)
+		vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+	else
+		vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_32K;
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_2; /* 2uS */
 
 	/*
 	 * To delete the right key from h/w, we need wcid.
