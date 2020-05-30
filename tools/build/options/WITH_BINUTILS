@@ -2,3 +2,5 @@
 Build and install GNU
 .Xr as 1
 as part of the normal system build.
+This option is not available as of
+.Fx 13.0 .
