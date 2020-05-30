@@ -427,7 +427,7 @@ _if_enc=	if_enc
 _if_gif=	if_gif
 _if_gre=	if_gre
 _ipfw_pmod=	ipfw_pmod
-.if ${MK_IPSEC_SUPPORT} != "no"
+.if ${KERN_OPTS:MIPSEC_SUPPORT}
 _ipsec=		ipsec
 .endif
 .endif

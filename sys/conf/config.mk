@@ -30,8 +30,10 @@ opt_inet.h:
 opt_inet6.h:
 	@echo "#define INET6 1" > ${.TARGET}
 .endif
+.if ${MK_IPSEC_SUPPORT} != "no"
 opt_ipsec.h:
 	@echo "#define IPSEC_SUPPORT 1" > ${.TARGET}
+.endif
 .if ${MK_RATELIMIT} != "no"
 opt_ratelimit.h:
 	@echo "#define RATELIMIT 1" > ${.TARGET}
@@ -59,6 +61,9 @@ KERN_OPTS+= INET TCP_OFFLOAD
 .endif
 .if ${MK_INET6_SUPPORT} != "no"
 KERN_OPTS+= INET6
+.endif
+.if ${MK_IPSEC_SUPPORT} != "no"
+KERN_OPTS+= IPSEC_SUPPORT
 .endif
 .elif !defined(KERN_OPTS)
 # Add all the options that are mentioned in any opt_*.h file when we
