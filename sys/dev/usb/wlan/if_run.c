@@ -4933,7 +4933,8 @@ run_getradiocaps(struct ieee80211com *ic,
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
-	setbit(bands, IEEE80211_MODE_11NG);
+	if (sc->rf_rev != RT3070_RF_2020)
+		setbit(bands, IEEE80211_MODE_11NG);
 
 	/* Note: for now, only support HT20 channels */
 	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans, bands, 0);
@@ -4942,7 +4943,6 @@ run_getradiocaps(struct ieee80211com *ic,
 	    sc->rf_rev == RT3070_RF_3052 || sc->rf_rev == RT3593_RF_3053 ||
 	    sc->rf_rev == RT5592_RF_5592) {
 		setbit(bands, IEEE80211_MODE_11A);
-		setbit(bands, IEEE80211_MODE_11NA);
 		/* Note: for now, only support HT20 channels */
 		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
 		    run_chan_5ghz, nitems(run_chan_5ghz), bands, 0);
