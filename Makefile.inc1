@@ -250,9 +250,6 @@ USING_SYSTEM_COMPILER=	yes
 # Which linker is expected to be used?
 .if ${MK_LLD_BOOTSTRAP} == "yes"
 WANT_LINKER_TYPE=		lld
-.elif ${MK_BINUTILS_BOOTSTRAP} == "yes"
-# Note that there's no support for bfd in WITH_SYSTEM_LINKER.
-WANT_LINKER_TYPE=	bfd
 .else
 WANT_LINKER_TYPE=
 .endif
