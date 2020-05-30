@@ -1007,9 +1007,11 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 	pid_t pid;
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
+	int inton;
 
 	TRACE(("vforkexecshell(%%%td, %s, %p) called\n", jp - jobtab, argv[0],
 	    (void *)pip));
+	inton = is_int_on();
 	INTOFF;
 	flushall();
 	savehandler = handler;
@@ -1044,7 +1046,7 @@ vforkexecshell(struct job *jp, char **argv, char **envp, const char *path, int i
 		setcurjob(jp);
 #endif
 	}
-	INTON;
+	SETINTON(inton);
 	TRACE(("In parent shell:  child = %d\n", (int)pid));
 	return pid;
 }
