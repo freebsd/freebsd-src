@@ -764,6 +764,7 @@ typedef struct {
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
 #define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
 #define	DF_1_NODEFLIB	0x00000800	/* Do not search default paths */
+#define	DF_1_PIE	0x08000000	/* Is position-independent executable */
 
 /* Values for l_flags. */
 #define	LL_NONE			0x0	/* no flags */
