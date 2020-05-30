@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <errno.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 /*
@@ -140,6 +141,37 @@ shellexec(char **argv, char **envp, const char *path, int idx)
 }
 
 
+static bool
+isbinary(const char *data, size_t len)
+{
+	const char *nul, *p;
+	bool hasletter;
+
+	nul = memchr(data, '\0', len);
+	if (nul == NULL)
+		return false;
+	/*
+	 * POSIX says we shall allow execution if the initial part intended
+	 * to be parsed by the shell consists of characters and does not
+	 * contain the NUL character. This allows concatenating a shell
+	 * script (ending with exec or exit) and a binary payload.
+	 *
+	 * In order to reject common binary files such as PNG images, check
+	 * that there is a lowercase letter or expansion before the last
+	 * newline before the NUL character, in addition to the check for
+	 * the newline character suggested by POSIX.
+	 */
+	hasletter = false;
+	for (p = data; *p != '\0'; p++) {
+		if ((*p >= 'a' && *p <= 'z') || *p == '$' || *p == '`')
+			hasletter = true;
+		if (hasletter && *p == '\n')
+			return false;
+	}
+	return true;
+}
+
+
 static void
 tryexec(char *cmd, char **argv, char **envp)
 {
@@ -155,7 +187,7 @@ tryexec(char *cmd, char **argv, char **envp)
 		if (in != -1) {
 			n = pread(in, buf, sizeof buf, 0);
 			close(in);
-			if (n > 0 && memchr(buf, '\0', n) != NULL) {
+			if (n > 0 && isbinary(buf, n)) {
 				errno = ENOEXEC;
 				return;
 			}
