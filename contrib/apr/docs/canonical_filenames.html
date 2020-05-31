@@ -8,10 +8,10 @@
 <p>APR porters need to address the underlying discrepancies between
 file systems.  To achieve a reasonable degree of security, the
 program depending upon APR needs to know that two paths may be
-compared, and that a mismatch is guarenteed to reflect that the
+compared, and that a mismatch is guaranteed to reflect that the
 two paths do not return the same resource</p>.
 
-<p>The first discrepancy is in volume roots.  Unix and pure deriviates
+<p>The first discrepancy is in volume roots.  Unix and pure derivatives
 have only one root path, "/".  Win32 and OS2 share root paths of
 the form "D:/", D: is the volume designation.  However, this can
 be specified as "//./D:/" as well, indicating D: volume of the 
@@ -21,7 +21,7 @@ specified network server.  Finally, NetWare root paths are of the
 form "server/volume:/", or the simpler "volume:/" syntax for 'this'
 machine.  All these non-Unix file systems accept volume:path,
 without a slash following the colon, as a path relative to the
-current working directory, which APR will treat as ambigious, that
+current working directory, which APR will treat as ambiguous, that
 is, neither an absolute nor a relative path per se.</p>
 
 <p>The second discrepancy is in the meaning of the 'this' directory.
@@ -39,35 +39,35 @@ It's also critical to simply truncate leading "/../" paths to "/",
 since the parent of the root is root.  This gets tricky on the
 Win32 and OS2 platforms, since the ".." element is invalid before
 the "//server/share/" is complete, and the "//server/share/../"
-seqence is the complete UNC root "//server/share/".  In relative
+sequence is the complete UNC root "//server/share/".  In relative
 paths, leading ".." elements are significant, until they are merged
 with an absolute path.  The relative form must only retain the ".."
 segments as leading segments, to be resolved once merged to another
 relative or an absolute path.</p>
 
 <p>The fourth discrepancy occurs with acceptance of alternate character
-codes for the same element.  Path seperators are not retained within
+codes for the same element.  Path separators are not retained within
 the APR canonical forms.  The OS filesystem and APR (slashed) forms
 can both be returned as strings, to be used in the proper context.
 Unix, Win32 and Netware all accept slashes and backslashes as the
-same path seperator symbol, although unix strictly accepts slashes.
+same path separator symbol, although unix strictly accepts slashes.
 While the APR form of the name strictly uses slashes, always consider
 that there could be a platform that actually accepts slashes as a
 character within a segment name.</p>
 
-<p>The fifth and worst discrepancy plauges Win32, OS2, Netware, and some
+<p>The fifth and worst discrepancy plagues Win32, OS2, Netware, and some
 filesystems mounted in Unix.  Case insensitivity can permit the same
 file to slip through in both it's proper case and alternate cases.
 Simply changing the case is insufficient for any character set beyond
-ASCII, since various dilectic forms of characters suffer from one to
+ASCII, since various dialectic forms of characters suffer from one to
 many or many to one translations.  An example would be u-umlaut, which
 might be accepted as a single character u-umlaut, a two character
 sequence u and the zero-width umlaut, the upper case form of the same,
-or perhaps even a captial U alone.  This can be handled in different
+or perhaps even a capital U alone.  This can be handled in different
 ways depending on the purposes of the APR based program, but the one
 requirement is that the path must be absolute in order to resolve these
 ambiguities.  Methods employed include comparison of device and inode
-file uniqifiers, which is a fairly fast operation, or quering the OS
+file uniqifiers, which is a fairly fast operation, or querying the OS
 for the true form of the name, which can be much slower.  Only the
 acknowledgement of the file names by the OS can validate the equality
 of two different cases of the same filename.</p>
@@ -76,7 +76,7 @@ of two different cases of the same filename.</p>
 significant in non-unix file systems.  Trailing periods are accepted
 but never stored, therefore trailing periods must be ignored for any
 form of comparison.  And all OS's have certain expectations of what
-characters are illegal (or undesireable due to confusion.)</p>
+characters are illegal (or undesirable due to confusion.)</p>
 
 <p>A final warning, canonical functions don't transform or resolve case
 or character ambiguity issues until they are resolved into an absolute
@@ -111,10 +111,10 @@ system to return the proper form of the name.</p>
 
 <p>In any case, returning the char* path, with a flag to request the proper
 case, forces the OS calls to resolve the true names of each segment.  Where
-there is a penality for this operation and the stat device and inode test
+there is a penalty for this operation and the stat device and inode test
 is faster, case correction is postponed until the char* result is requested.
 On platforms that identify the inode, device, or proper name interchangably
-with no penalities, this may occur when the name is initially processed.</p>
+with no penalties, this may occur when the name is initially processed.</p>
 
 <hr>
 

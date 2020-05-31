@@ -235,6 +235,8 @@ char *strdup(const char *str)
     size_t len = strlen(str) + 1;
 
     sdup = (char *) malloc(len);
+    if (sdup == NULL)
+        return NULL;
     memcpy(sdup, str, len);
 
     return sdup;

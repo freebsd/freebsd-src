@@ -19,6 +19,7 @@
 #include "apr_thread_proc.h"
 #include "apr_file_io.h"
 #include "apr_arch_file_io.h"
+#include "apr_perms_set.h"
 
 /* System headers required for thread/process library */
 #if APR_HAVE_PTHREAD_H
@@ -76,6 +77,14 @@ struct apr_thread_once_t {
 
 #endif
 
+typedef struct apr_procattr_pscb_t apr_procattr_pscb_t;
+struct apr_procattr_pscb_t {
+    struct apr_procattr_pscb_t *next;
+    apr_perms_setfn_t *perms_set_fn;
+    apr_fileperms_t perms;
+    const void *data;
+};
+
 struct apr_procattr_t {
     apr_pool_t *pool;
     apr_file_t *parent_in;
@@ -103,6 +112,7 @@ struct apr_procattr_t {
     apr_int32_t errchk;
     apr_uid_t   uid;
     apr_gid_t   gid;
+    apr_procattr_pscb_t *perms_set_callbacks;
 };
 
 #endif  /* ! THREAD_PROC_H */

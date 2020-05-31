@@ -307,13 +307,7 @@ static void remove_sync_sigs(sigset_t *sig_mask)
 /* the rest of the signals removed from the mask in this function
  * absolutely must be removed; you cannot block synchronous signals
  * (requirement of pthreads API)
- *
- * SIGUSR2 is being removed from the mask for the convenience of
- * Purify users (Solaris, HP-UX, SGI) since Purify uses SIGUSR2
  */
-#ifdef SIGUSR2
-    sigdelset(sig_mask, SIGUSR2);
-#endif
 }
 
 APR_DECLARE(apr_status_t) apr_signal_thread(int(*signal_handler)(int signum))

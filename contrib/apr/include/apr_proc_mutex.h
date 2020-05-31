@@ -25,6 +25,8 @@
 #include "apr.h"
 #include "apr_pools.h"
 #include "apr_errno.h"
+#include "apr_perms_set.h"
+#include "apr_time.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +49,8 @@ typedef enum {
     APR_LOCK_SYSVSEM,       /**< System V Semaphores */
     APR_LOCK_PROC_PTHREAD,  /**< POSIX pthread process-based locking */
     APR_LOCK_POSIXSEM,      /**< POSIX semaphore process-based locking */
-    APR_LOCK_DEFAULT        /**< Use the default process lock */
+    APR_LOCK_DEFAULT,       /**< Use the default process lock */
+    APR_LOCK_DEFAULT_TIMED  /**< Use the default process timed lock */
 } apr_lockmech_e;
 
 /** Opaque structure representing a process mutex. */
@@ -113,6 +116,17 @@ APR_DECLARE(apr_status_t) apr_proc_mutex_lock(apr_proc_mutex_t *mutex);
 APR_DECLARE(apr_status_t) apr_proc_mutex_trylock(apr_proc_mutex_t *mutex);
 
 /**
+ * Attempt to acquire the lock for the given mutex until timeout expires.
+ * If the acquisition time outs, the call returns with APR_TIMEUP.
+ * @param mutex the mutex on which to attempt the lock acquiring.
+ * @param timeout the relative timeout (microseconds).
+ * @note A negative or nul timeout means immediate attempt, returning
+ *       APR_TIMEUP without blocking if it the lock is already acquired.
+ */
+APR_DECLARE(apr_status_t) apr_proc_mutex_timedlock(apr_proc_mutex_t *mutex,
+                                               apr_interval_time_t timeout);
+
+/**
  * Release the lock for the given mutex.
  * @param mutex the mutex from which to release the lock.
  */
@@ -140,9 +154,16 @@ APR_DECLARE(apr_status_t) apr_proc_mutex_cleanup(void *mutex);
 APR_DECLARE(const char *) apr_proc_mutex_lockfile(apr_proc_mutex_t *mutex);
 
 /**
- * Display the name of the mutex, as it relates to the actual method used.
- * This matches the valid options for Apache's AcceptMutex directive
- * @param mutex the name of the mutex
+ * Get the mechanism of the mutex, as it relates to the actual method
+ * used for the underlying apr_proc_mutex_t.
+ * @param mutex the mutex to get the mechanism from.
+ */
+APR_DECLARE(apr_lockmech_e) apr_proc_mutex_mech(apr_proc_mutex_t *mutex);
+
+/**
+ * Get the mechanism's name of the mutex, as it relates to the actual method
+ * used for the underlying apr_proc_mutex_t.
+ * @param mutex the mutex to get the mechanism's name from.
  */
 APR_DECLARE(const char *) apr_proc_mutex_name(apr_proc_mutex_t *mutex);
 
@@ -150,6 +171,11 @@ APR_DECLARE(const char *) apr_proc_mutex_name(apr_proc_mutex_t *mutex);
  * Display the name of the default mutex: APR_LOCK_DEFAULT
  */
 APR_DECLARE(const char *) apr_proc_mutex_defname(void);
+
+/**
+ * Set mutex permissions.
+ */
+APR_PERMS_SET_IMPLEMENT(proc_mutex);
 
 /**
  * Get the pool used by this proc_mutex.
