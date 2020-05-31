@@ -2901,6 +2901,9 @@ static struct flag_desc dt_flags_1[] = {
 	{ 0x400000,		"NORELOC" },
 	{ 0x800000,		"SYMINTPOSE" },
 	{ 0x1000000,		"GLOBAUDIT" },
+	{ 0x02000000,		"SINGLETON" },
+	{ 0x04000000,		"STUB" },
+	{ DF_1_PIE,		"PIE" },
 	{ 0, NULL }
 };
 
