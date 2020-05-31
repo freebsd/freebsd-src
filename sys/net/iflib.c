@@ -4902,6 +4902,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		if_setgetcounterfn(ctx->ifc_ifp, iflib_if_get_counter);
 		iflib_add_device_sysctl_post(ctx);
 		ctx->ifc_flags |= IFC_INIT_DONE;
+		CTX_UNLOCK(ctx);
 		return (0);
 	}
 	_iflib_pre_assert(scctx);
@@ -5354,7 +5355,8 @@ iflib_register(if_ctx_t ctx)
 	device_t dev = ctx->ifc_dev;
 	if_t ifp;
 
-	_iflib_assert(sctx);
+	if ((sctx->isc_flags & IFLIB_PSEUDO) == 0)
+		_iflib_assert(sctx);
 
 	CTX_LOCK_INIT(ctx);
 	STATE_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
