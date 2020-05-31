@@ -37,6 +37,7 @@
 #include "cached_data.h"
 #include "id.h"
 #include "index.h"
+#include "low_level.h"
 #include "rep-cache.h"
 #include "revprops.h"
 #include "transaction.h"
@@ -2341,5 +2342,174 @@ svn_fs_fs__info_config_files(apr_array_header_t **files,
   *files = apr_array_make(result_pool, 1, sizeof(const char *));
   APR_ARRAY_PUSH(*files, const char *) = svn_dirent_join(fs->path, PATH_CONFIG,
                                                          result_pool);
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+ensure_representation_sha1(svn_fs_t *fs,
+                           representation_t *rep,
+                           apr_pool_t *pool)
+{
+  if (!rep->has_sha1)
+    {
+      svn_stream_t *contents;
+      svn_checksum_t *checksum;
+
+      SVN_ERR(svn_fs_fs__get_contents(&contents, fs, rep, FALSE, pool));
+      SVN_ERR(svn_stream_contents_checksum(&checksum, contents,
+                                           svn_checksum_sha1, pool, pool));
+
+      memcpy(rep->sha1_digest, checksum->digest, APR_SHA1_DIGESTSIZE);
+      rep->has_sha1 = TRUE;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+reindex_node(svn_fs_t *fs,
+             const svn_fs_id_t *id,
+             svn_revnum_t rev,
+             svn_fs_fs__revision_file_t *rev_file,
+             svn_cancel_func_t cancel_func,
+             void *cancel_baton,
+             apr_pool_t *pool)
+{
+  node_revision_t *noderev;
+  apr_off_t offset;
+
+  if (svn_fs_fs__id_rev(id) != rev)
+    {
+      return SVN_NO_ERROR;
+    }
+
+  if (cancel_func)
+    SVN_ERR(cancel_func(cancel_baton));
+
+  SVN_ERR(svn_fs_fs__item_offset(&offset, fs, rev_file, rev, NULL,
+                                 svn_fs_fs__id_item(id), pool));
+
+  SVN_ERR(svn_io_file_seek(rev_file->file, APR_SET, &offset, pool));
+  SVN_ERR(svn_fs_fs__read_noderev(&noderev, rev_file->stream,
+                                  pool, pool));
+
+  /* Make sure EXPANDED_SIZE has the correct value for every rep. */
+  SVN_ERR(svn_fs_fs__fixup_expanded_size(fs, noderev->data_rep, pool));
+  SVN_ERR(svn_fs_fs__fixup_expanded_size(fs, noderev->prop_rep, pool));
+
+  /* First reindex sub-directory to match write_final_rev() behavior. */
+  if (noderev->kind == svn_node_dir)
+    {
+      apr_array_header_t *entries;
+
+      SVN_ERR(svn_fs_fs__rep_contents_dir(&entries, fs, noderev, pool, pool));
+
+      if (entries->nelts > 0)
+        {
+          int i;
+          apr_pool_t *iterpool;
+
+          iterpool = svn_pool_create(pool);
+          for (i = 0; i < entries->nelts; i++)
+            {
+              const svn_fs_dirent_t *dirent;
+
+              svn_pool_clear(iterpool);
+
+              dirent = APR_ARRAY_IDX(entries, i, svn_fs_dirent_t *);
+
+              SVN_ERR(reindex_node(fs, dirent->id, rev, rev_file,
+                                   cancel_func, cancel_baton, iterpool));
+            }
+          svn_pool_destroy(iterpool);
+        }
+    }
+
+  if (noderev->data_rep && noderev->data_rep->revision == rev &&
+      noderev->kind == svn_node_file)
+    {
+      SVN_ERR(ensure_representation_sha1(fs, noderev->data_rep, pool));
+      SVN_ERR(svn_fs_fs__set_rep_reference(fs, noderev->data_rep, pool));
+    }
+
+  if (noderev->prop_rep && noderev->prop_rep->revision == rev)
+    {
+      SVN_ERR(ensure_representation_sha1(fs, noderev->prop_rep, pool));
+      SVN_ERR(svn_fs_fs__set_rep_reference(fs, noderev->prop_rep, pool));
+    }
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_fs_fs__build_rep_cache(svn_fs_t *fs,
+                           svn_revnum_t start_rev,
+                           svn_revnum_t end_rev,
+                           svn_fs_progress_notify_func_t progress_func,
+                           void *progress_baton,
+                           svn_cancel_func_t cancel_func,
+                           void *cancel_baton,
+                           apr_pool_t *pool)
+{
+  fs_fs_data_t *ffd = fs->fsap_data;
+  apr_pool_t *iterpool;
+  svn_revnum_t rev;
+
+  if (ffd->format < SVN_FS_FS__MIN_REP_SHARING_FORMAT)
+    {
+      return svn_error_createf(SVN_ERR_FS_REP_SHARING_NOT_SUPPORTED, NULL,
+                               _("FSFS format (%d) too old for rep-sharing; "
+                                 "please upgrade the filesystem."),
+                               ffd->format);
+    }
+
+  if (!ffd->rep_sharing_allowed)
+    {
+      return svn_error_create(SVN_ERR_FS_REP_SHARING_NOT_ALLOWED, NULL,
+                              _("Filesystem does not allow rep-sharing."));
+    }
+
+  /* Do not build rep-cache for revision zero to match
+   * svn_fs_fs__create() behavior. */
+  if (start_rev == SVN_INVALID_REVNUM)
+    start_rev = 1;
+
+  if (end_rev == SVN_INVALID_REVNUM)
+    SVN_ERR(svn_fs_fs__youngest_rev(&end_rev, fs, pool));
+
+  /* Do nothing for empty FS. */
+  if (start_rev > end_rev)
+    {
+      return SVN_NO_ERROR;
+    }
+
+  if (!ffd->rep_cache_db)
+    SVN_ERR(svn_fs_fs__open_rep_cache(fs, pool));
+
+  iterpool = svn_pool_create(pool);
+  for (rev = start_rev; rev <= end_rev; rev++)
+    {
+      svn_fs_id_t *root_id;
+      svn_fs_fs__revision_file_t *file;
+      svn_error_t *err;
+
+      svn_pool_clear(iterpool);
+
+      if (progress_func)
+        progress_func(rev, progress_baton, iterpool);
+
+      SVN_ERR(svn_fs_fs__open_pack_or_rev_file(&file, fs, rev,
+                                               iterpool, iterpool));
+      SVN_ERR(svn_fs_fs__rev_get_root(&root_id, fs, rev, iterpool, iterpool));
+
+      SVN_ERR(svn_sqlite__begin_transaction(ffd->rep_cache_db));
+      err = reindex_node(fs, root_id, rev, file, cancel_func, cancel_baton, iterpool);
+      SVN_ERR(svn_sqlite__finish_transaction(ffd->rep_cache_db, err));
+
+      SVN_ERR(svn_fs_fs__close_revision_file(file));
+    }
+
+  svn_pool_destroy(iterpool);
+
   return SVN_NO_ERROR;
 }

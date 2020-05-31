@@ -215,7 +215,7 @@ svn_repos_dir_delta2(svn_fs_root_t *src_root,
 {
   void *root_baton = NULL;
   struct context c;
-  const char *src_fullpath;
+  const char *src_fullpath, *canonicalized_path;
   svn_node_kind_t src_kind, tgt_kind;
   svn_revnum_t rootrev;
   svn_fs_node_relation_t relation;
@@ -223,14 +223,22 @@ svn_repos_dir_delta2(svn_fs_root_t *src_root,
 
   /* SRC_PARENT_DIR must be valid. */
   if (src_parent_dir)
-    src_parent_dir = svn_relpath_canonicalize(src_parent_dir, pool);
+    {
+      SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                            src_parent_dir, pool, pool));
+      src_parent_dir = canonicalized_path;
+    }
   else
     return svn_error_create(SVN_ERR_FS_NOT_DIRECTORY, 0,
                             "Invalid source parent directory '(null)'");
 
   /* TGT_FULLPATH must be valid. */
   if (tgt_fullpath)
-    tgt_fullpath = svn_relpath_canonicalize(tgt_fullpath, pool);
+    {
+      SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                            tgt_fullpath, pool, pool));
+      tgt_fullpath = canonicalized_path;
+    }
   else
     return svn_error_create(SVN_ERR_FS_PATH_SYNTAX, 0,
                             _("Invalid target path"));

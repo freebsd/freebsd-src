@@ -261,7 +261,7 @@ cache_revprops(svn_boolean_t *is_cached,
 }
 
 /* Read the non-packed revprops for revision REV in FS, put them into the
- * revprop cache if PROPULATE_CACHE is set and return them in *PROPERTIES. 
+ * revprop cache if PROPULATE_CACHE is set and return them in *PROPERTIES.
  *
  * If the data could not be read due to an otherwise recoverable error,
  * leave *PROPERTIES unchanged. No error will be returned in that case.
@@ -668,6 +668,64 @@ read_pack_revprop(packed_revprops_t **revprops,
                   _("Revprop pack file for r%ld is corrupt"), rev);
 
   *revprops = result;
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_fs_fs__get_revision_props_size(apr_off_t *props_size_p,
+                                   svn_fs_t *fs,
+                                   svn_revnum_t rev,
+                                   apr_pool_t *scratch_pool)
+{
+  fs_fs_data_t *ffd = fs->fsap_data;
+
+  /* should they be available at all? */
+  SVN_ERR(svn_fs_fs__ensure_revision_exists(rev, fs, scratch_pool));
+
+  /* if REV had not been packed when we began, try reading it from the
+   * non-packed shard.  If that fails, we will fall through to packed
+   * shard reads. */
+  if (!svn_fs_fs__is_packed_revprop(fs, rev))
+    {
+      const char *path = svn_fs_fs__path_revprops(fs, rev, scratch_pool);
+      svn_error_t *err;
+      apr_file_t *file;
+      svn_filesize_t file_size;
+
+      err = svn_io_file_open(&file, path, APR_FOPEN_READ, APR_OS_DEFAULT,
+                             scratch_pool);
+      if (!err)
+        err = svn_io_file_size_get(&file_size, file, scratch_pool);
+      if (!err)
+        {
+          *props_size_p = (apr_off_t)file_size;
+          return SVN_NO_ERROR;
+        }
+      else if (!APR_STATUS_IS_ENOENT(err->apr_err)
+               || ffd->format < SVN_FS_FS__MIN_PACKED_REVPROP_FORMAT)
+        {
+          return svn_error_trace(err);
+        }
+
+      /* fall through: maybe the revision got packed while we were looking */
+      svn_error_clear(err);
+    }
+
+  /* Try reading packed revprops.  If that fails, REV is most
+   * likely invalid (or its revprops highly contested). */
+  {
+    packed_revprops_t *revprops;
+
+    /* ### This is inefficient -- reading all the revprops in a pack. We
+       should just read the index. */
+    SVN_ERR(read_pack_revprop(&revprops, fs, rev,
+                              TRUE /*read_all*/, FALSE /*populate_cache*/,
+                              scratch_pool));
+    *props_size_p = (apr_off_t)APR_ARRAY_IDX(revprops->sizes,
+                                             rev - revprops->start_revision,
+                                             apr_size_t);
+  }
 
   return SVN_NO_ERROR;
 }

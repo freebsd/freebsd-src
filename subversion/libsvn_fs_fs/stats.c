@@ -28,7 +28,6 @@
 #include "private/svn_cache.h"
 #include "private/svn_sorts_private.h"
 #include "private/svn_string_private.h"
-#include "private/svn_fs_fs_private.h"
 
 #include "index.h"
 #include "pack.h"
@@ -37,6 +36,7 @@
 #include "fs_fs.h"
 #include "cached_data.h"
 #include "low_level.h"
+#include "revprops.h"
 
 #include "../libsvn_fs/fs-loader.h"
 
@@ -488,7 +488,7 @@ parse_representation(rep_stats_t **representation,
             }
         }
 
-      svn_sort__array_insert(revision_info->representations, &result, idx);
+      SVN_ERR(svn_sort__array_insert2(revision_info->representations, &result, idx));
     }
 
   *representation = result;
@@ -1394,6 +1394,99 @@ svn_fs_fs__get_stats(svn_fs_fs__stats_t **stats,
                        scratch_pool));
   SVN_ERR(read_revisions(query, scratch_pool, scratch_pool));
   aggregate_stats(query->revisions, *stats);
+
+  return SVN_NO_ERROR;
+}
+
+/* Baton for rev_size_index_entry_cb. */
+struct rev_size_baton_t {
+  svn_revnum_t revision;
+  apr_off_t rev_size;
+};
+
+/* Implements svn_fs_fs__dump_index_func_t, summing object sizes for
+ * revision BATON->revision into BATON->rev_size.
+ */
+static svn_error_t *
+rev_size_index_entry_cb(const svn_fs_fs__p2l_entry_t *entry,
+                        void *baton,
+                        apr_pool_t *scratch_pool)
+{
+  struct rev_size_baton_t *b = baton;
+
+  if (entry->item.revision == b->revision)
+    b->rev_size += entry->size;
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_fs_fs__revision_size(apr_off_t *rev_size,
+                         svn_fs_t *fs,
+                         svn_revnum_t revision,
+                         apr_pool_t *scratch_pool)
+{
+  /* Get the size of the revision (excluding rev-props) */
+  if (svn_fs_fs__use_log_addressing(fs))
+    {
+      /* This works for a packed or a non-packed revision.
+         We could provide an optimized case for a non-packed revision
+         using svn_fs_fs__p2l_get_max_offset(). */
+      struct rev_size_baton_t b = { 0, 0 };
+
+      b.revision = revision;
+      SVN_ERR(svn_fs_fs__dump_index(fs, revision,
+                                    rev_size_index_entry_cb, &b,
+                                    NULL, NULL, scratch_pool));
+      *rev_size = b.rev_size;
+    }
+  else
+    {
+      svn_fs_fs__revision_file_t *rev_file;
+      svn_revnum_t min_unpacked_rev;
+
+      SVN_ERR(svn_fs_fs__open_pack_or_rev_file(&rev_file, fs, revision,
+                                               scratch_pool, scratch_pool));
+      SVN_ERR(svn_fs_fs__min_unpacked_rev(&min_unpacked_rev, fs,
+                                          scratch_pool));
+      if (revision < min_unpacked_rev)
+        {
+          int shard_size = svn_fs_fs__shard_size(fs);
+          apr_off_t start_offset, end_offset;
+
+          SVN_ERR(svn_fs_fs__get_packed_offset(&start_offset, fs, revision,
+                                               scratch_pool));
+          if (((revision + 1) % shard_size) == 0)
+            {
+              svn_filesize_t file_size;
+
+              SVN_ERR(svn_io_file_size_get(&file_size, rev_file->file, scratch_pool));
+              end_offset = (apr_off_t)file_size;
+            }
+          else
+            {
+              SVN_ERR(svn_fs_fs__get_packed_offset(&end_offset, fs,
+                                                   revision + 1, scratch_pool));
+            }
+          *rev_size = (end_offset - start_offset);
+        }
+      else
+        {
+          svn_filesize_t file_size;
+
+          SVN_ERR(svn_io_file_size_get(&file_size, rev_file->file, scratch_pool));
+          *rev_size = (apr_off_t)file_size;
+        }
+
+      SVN_ERR(svn_fs_fs__close_revision_file(rev_file));
+    }
+
+  /* Add the size of the rev-props */
+  {
+    apr_off_t size;
+
+    SVN_ERR(svn_fs_fs__get_revision_props_size(&size, fs, revision, scratch_pool));
+    *rev_size += size;
+  }
 
   return SVN_NO_ERROR;
 }

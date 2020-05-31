@@ -56,6 +56,8 @@ SVN_XML_LIBS = @SVN_XML_LIBS@
 SVN_ZLIB_LIBS = @SVN_ZLIB_LIBS@
 SVN_LZ4_LIBS = @SVN_LZ4_LIBS@
 SVN_UTF8PROC_LIBS = @SVN_UTF8PROC_LIBS@
+SVN_MACOS_PLIST_LIBS = @SVN_MACOS_PLIST_LIBS@
+SVN_MACOS_KEYCHAIN_LIBS = @SVN_MACOS_KEYCHAIN_LIBS@
 
 LIBS = @LIBS@
 
@@ -77,6 +79,9 @@ canonicalized_srcdir = @canonicalized_srcdir@
 datadir = @datadir@
 datarootdir = @datarootdir@
 localedir = @localedir@
+
+# where to install SVN++
+svnxx_libdir = @libdir@
 
 # where to install libsvn_swig_*
 swig_py_libdir = @libdir@
@@ -139,16 +144,17 @@ APACHE_INCLUDES = @APACHE_INCLUDES@
 APACHE_LIBEXECDIR = $(DESTDIR)@APACHE_LIBEXECDIR@
 APACHE_LDFLAGS = @APACHE_LDFLAGS@
 
-SVN_USE_GOOGLEMOCK = @SVN_USE_GOOGLEMOCK@
-GOOGLEMOCK_INCLUDES = -I@GOOGLEMOCK_SRCDIR@/googlemock/include -I@GOOGLEMOCK_SRCDIR@/googletest/include
-GOOGLEMOCK_LIB_INCLUDES = -I@GOOGLEMOCK_SRCDIR@/googlemock -I@GOOGLEMOCK_SRCDIR@/googletest $(GOOGLEMOCK_INCLUDES)
+BOOST_TEST_CPPFLAGS = @BOOST_CPPFLAGS@ -DBOOST_TEST_DYN_LINK -DBOOST_TEST_NO_MAIN
+BOOST_TEST_LDFLAGS = @BOOST_LDFLAGS@ @BOOST_UNIT_TEST_FRAMEWORK_LIB@
 
 SWIG = @SWIG@
-SWIG_PY_INCLUDES = @SWIG_PY_INCLUDES@ -I$(SWIG_SRC_DIR)/python/libsvn_swig_py
+SWIG_PY_INCLUDES = @SWIG_PY_INCLUDES@ @SVN_PY3C_INCLUDES@ -I$(SWIG_SRC_DIR)/python/libsvn_swig_py
 SWIG_PY_COMPILE = @SWIG_PY_COMPILE@
 SWIG_PY_LINK = @SWIG_PY_LINK@
 SWIG_PY_LIBS = @SWIG_PY_LIBS@
+SWIG_PY_ERRMSG = @SWIG_PY_ERRMSG@
 SWIG_PL_INCLUDES = @SWIG_PL_INCLUDES@
+SWIG_PL_ERRMSG = @SWIG_PL_ERRMSG@
 SWIG_RB_INCLUDES = @SWIG_RB_INCLUDES@ -I$(SWIG_SRC_DIR)/ruby/libsvn_swig_ruby
 SWIG_RB_COMPILE = @SWIG_RB_COMPILE@
 SWIG_RB_LINK = @SWIG_RB_LINK@
@@ -157,6 +163,7 @@ SWIG_RB_SITE_LIB_DIR = @SWIG_RB_SITE_LIB_DIR@
 SWIG_RB_SITE_ARCH_DIR = @SWIG_RB_SITE_ARCH_DIR@
 SWIG_RB_TEST_VERBOSE = @SWIG_RB_TEST_VERBOSE@
 SWIG_RB_RI_DATADIR = $(DESTDIR)$(datadir)/ri/$(RUBY_MAJOR).$(RUBY_MINOR)/site
+SWIG_RB_ERRMSG = @SWIG_RB_ERRMSG@
 
 CTYPESGEN = @CTYPESGEN@
 CTYPES_PYTHON_SRC_DIR = $(abs_srcdir)/subversion/bindings/ctypes-python
@@ -164,7 +171,9 @@ CTYPES_PYTHON_SRC_DIR = $(abs_srcdir)/subversion/bindings/ctypes-python
 JAVAHL_JAR=subversion/bindings/javahl/svn-javahl.jar
 JAVAHL_INCLUDES= @JNI_INCLUDES@ -I$(abs_builddir)/subversion/bindings/javahl/include
 
-CXXHL_INCLUDES = -I$(abs_srcdir)/subversion/bindings/cxxhl/include
+SVN_BUILD_SVNXX = @SVN_BUILD_SVNXX@
+SVN_BUILD_SVNXX_TESTS = @SVN_BUILD_SVNXX_TESTS@
+SVNXX_INCLUDES = -I$(abs_srcdir)/subversion/bindings/cxx/include
 
 SVN_APR_CONFIG = @SVN_APR_CONFIG@
 SVN_APR_INCLUDES = @SVN_APR_INCLUDES@
@@ -194,6 +203,7 @@ SWIG_FEATURES = @SWIG_FEATURES@
 SWIG_PY_FEATURES = @SWIG_PY_FEATURES@
 SWIG_PL_FEATURES = @SWIG_PL_FEATURES@
 SWIG_RB_FEATURES = @SWIG_RB_FEATURES@
+SWIG_PY_OPTS = @SWIG_PY_OPTS@
 
 COMPILE = $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CMAINTAINERFLAGS) $(CFLAGS) $(INCLUDES)
 COMPILE_NOWARN = $(CC) $(CMODEFLAGS) $(CPPFLAGS) $(CNOWARNFLAGS) $(CFLAGS) $(INCLUDES)
@@ -218,7 +228,6 @@ COMPILE_SWIG_RB = $(LIBTOOL) $(LTFLAGS) --mode=compile $(SWIG_RB_COMPILE) $(CPPF
 # special compilation for files destined for javahl (i.e. C++)
 COMPILE_JAVAHL_CXX = $(LIBTOOL) $(LTCXXFLAGS) --mode=compile $(COMPILE_CXX) $(LT_CFLAGS) $(JAVAHL_INCLUDES) -o $@ -c
 COMPILE_JAVAHL_JAVAC = $(JAVAC) $(JAVAC_FLAGS)
-COMPILE_JAVAHL_JAVAH = $(JAVAH)
 COMPILE_JAVAHL_COMPAT_JAVAC = $(JAVAC) $(JAVAC_COMPAT_FLAGS)
 
 # On Mac OS X, export an env variable so that the tests can run without
@@ -259,15 +268,15 @@ TEST_SHLIB_VAR_SWIG_RB=\
     export @SVN_APR_SHLIB_PATH_VAR@; \
   fi;
 
-# special compilation for files destined for cxxhl
-COMPILE_CXXHL_CXX = $(LT_COMPILE_CXX) $(CXXHL_INCLUDES) -o $@ -c
-COMPILE_GOOGLEMOCK_CXX = $(LT_COMPILE_CXX_NOWARN) $(GOOGLEMOCK_LIB_INCLUDES) -o $@ -c
-COMPILE_CXXHL_GOOGLEMOCK_CXX = $(LT_COMPILE_CXX) $(CXXHL_INCLUDES) $(GOOGLEMOCK_INCLUDES) -o $@ -c
+# special compilation for files destined for SVN++
+COMPILE_SVNXX = $(LT_COMPILE_CXX) $(SVNXX_INCLUDES) -o $@ -c
+COMPILE_SVNXX_TEST = $(LT_COMPILE_CXX) $(SVNXX_INCLUDES) $(BOOST_TEST_CPPFLAGS) -o $@ -c
 
 LINK = $(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LT_LDFLAGS) $(CFLAGS) $(LDFLAGS) -rpath $(libdir)
 LINK_LIB = $(LINK) $(LT_SO_VERSION)
 LINK_CXX = $(LIBTOOL) $(LTCXXFLAGS) --mode=link $(CXX) $(LT_LDFLAGS) $(CXXFLAGS) $(LDFLAGS) -rpath $(libdir)
 LINK_CXX_LIB = $(LINK_CXX) $(LT_SO_VERSION)
+LINK_SVNXX_TEST = $(LINK_CXX) $(BOOST_TEST_LDFLAGS)
 
 # special link rule for mod_dav_svn
 LINK_APACHE_MOD = $(LIBTOOL) $(LTFLAGS) --mode=link $(CC) $(LT_LDFLAGS) $(CFLAGS) $(LDFLAGS) -rpath $(APACHE_LIBEXECDIR) -avoid-version -module $(APACHE_LDFLAGS) -shared
@@ -320,6 +329,8 @@ INSTALL_MOD_SHARED = @APXS@ -i -S LIBEXECDIR="$(APACHE_LIBEXECDIR)" @MOD_ACTIVAT
 INSTALL_DATA = $(INSTALL) -m 644
 INSTALL_LOCALE = $(INSTALL_DATA)
 INSTALL_APACHE_MODS = @INSTALL_APACHE_MODS@
+
+INSTALL_SVNXX_LIB = $(INSTALL_LIB)
 
 ### this isn't correct yet
 INSTALL_SWIG_PY = $(INSTALL_LIB)
@@ -393,7 +404,6 @@ JAVAC = @JAVAC@
 JAVADOC = @JAVADOC@
 JAVAC_FLAGS = @JAVAC_FLAGS@
 JAVAC_COMPAT_FLAGS = @JAVAC_COMPAT_FLAGS@
-JAVAH = @JAVAH@
 JAR = @JAR@
 
 JAVA_CLASSPATH=$(abs_srcdir)/subversion/bindings/javahl/src:@JAVA_CLASSPATH@
@@ -494,8 +504,8 @@ revision-install:
 install-static: @INSTALL_STATIC_RULES@
 
 # JavaHL target aliases
-javahl: mkdir-init javahl-java javahl-javah javahl-callback-javah javahl-remote-javah javahl-types-javah javahl-util-javah javahl-lib @JAVAHL_TESTS_TARGET@ javahl-compat
-install-javahl: javahl install-javahl-java install-javahl-javah install-javahl-lib
+javahl: mkdir-init javahl-java javahl-callback-java javahl-remote-java javahl-types-java javahl-util-java javahl-lib @JAVAHL_TESTS_TARGET@ javahl-compat
+install-javahl: javahl install-javahl-java install-javahl-lib
 javahl-compat: javahl-compat-java @JAVAHL_COMPAT_TESTS_TARGET@
 
 clean-javahl:
@@ -525,6 +535,9 @@ check-deprecated-authn-javahl: javahl
 check-javahl: check-apache-javahl
 
 check-all-javahl: check-apache-javahl check-tigris-javahl check-deprecated-authn-javahl
+
+check-svnxx: svnxx-tests
+	$(abs_builddir)/$(svnxx_tests_PATH)/svnxx-tests$(EXEEXT)
 
 # "make check CLEANUP=true" will clean up directories for successful tests.
 # "make check TESTS=subversion/tests/cmdline/basic_tests.py"
@@ -601,6 +614,9 @@ check: bin @TRANSFORM_LIBTOOL_SCRIPTS@ $(TEST_DEPS) @BDB_TEST_DEPS@
 	  if test "$(FSFS_DIR_DELTIFICATION)" != ""; then                    \
 	    flags="--fsfs-dir-deltification $(FSFS_DIR_DELTIFICATION) $$flags";\
 	  fi;                                                                \
+	  if test "$(ALLOW_REMOTE_HTTP_CONNECTION)" != ""; then              \
+	    flags="--allow-remote-http-connection $$flags";                  \
+	  fi;                                                                \
 	  if test "$(SVN_BIN_DIR)" != ""; then                               \
 	    flags="--bin $(SVN_BIN_DIR) $$flags";                            \
 	  fi;                                                                \
@@ -674,7 +690,7 @@ gcov-reset:
 gcov-clean:
 	rm -f gcov-lcov.dat gcov-lcov.log gcov-genhtml.log
 	rm -rf gcov-report
-	find . -name "*.gcda" -o -name "*.gcno" -exec rm -f -- {} \;
+	find . \( -name "*.gcda" -o -name "*.gcno" \) -exec rm -f -- {} \;
 
 check-clean: gcov-clean
 	if [ -d subversion/tests/cmdline/svn-test-work ]; then \
@@ -694,7 +710,8 @@ check-clean: gcov-clean
 	       subversion/tests/libsvn_diff/T1                 \
 	       subversion/tests/libsvn_diff/T2                 \
 	       subversion/tests/libsvn_diff/T3                 \
-	       subversion/tests/svnserveautocheck.pid          \
+	       subversion/tests/cmdline/httpd-*                \
+	       subversion/tests/cmdline/svnserve-*             \
 	       tests.log fails.log
 
 mkdir-init:
@@ -895,6 +912,7 @@ EXTRACLEAN_SWIG_PL=rm -f $(SWIG_PL_SRC_DIR)/native/svn_*.c \
 # Makefile does not exist, DO NOT try to make it. But, if it doesn't exist,
 # then the directory is probably clean anyway.
 clean-swig-pl:
+	rm -f .swig_pl_checked
 	if test -z "$(RELEASE_MODE)"; then \
 	  $(EXTRACLEAN_SWIG_PL); \
 	fi
@@ -917,6 +935,7 @@ copy-swig-py: autogen-swig-py $(SWIG_PY_DIR)/libsvn
 	@for f in $(SWIG_PY_SRC_DIR)/*.py $(SWIG_PY_DIR)/*.py; do \
 	  ! [ -f "$$f" ] || cp -pf $$f $(SWIG_PY_DIR)/libsvn; \
 	done
+	@cd $(SWIG_PY_DIR)/libsvn;ln -sf ../.libs/*.so .
 	@touch $(SWIG_PY_DIR)/libsvn/__init__.py
 
 swig-py: autogen-swig-py copy-swig-py
@@ -926,9 +945,10 @@ check-swig-py: swig-py
 	cd $(SWIG_PY_DIR); \
 	  $(PYTHON) $(SWIG_PY_SRC_DIR)/tests/run_all.py
 
-EXTRACLEAN_SWIG_PY=rm -rf $(SWIG_PY_SRC_DIR)/svn_*.c $(SWIG_PY_SRC_DIR)/core.c \
-                          $(SWIG_PY_SRC_DIR)/[a-z]*.py
+EXTRACLEAN_SWIG_PY=rm -rf $(SWIG_PY_DIR)/svn_*.c $(SWIG_PY_DIR)/core.c \
+                          $(SWIG_PY_DIR)/[a-z]*.py
 clean-swig-py:
+	rm -f .swig_py_checked
 	rm -rf $(SWIG_PY_DIR)/libsvn
 	if test -z "$(RELEASE_MODE)"; then \
 	  $(EXTRACLEAN_SWIG_PY); \
@@ -961,6 +981,7 @@ check-swig-rb: swig-rb svnserve
 EXTRACLEAN_SWIG_RB=rm -f $(SWIG_RB_SRC_DIR)/svn_*.c $(SWIG_RB_SRC_DIR)/core.c
 
 clean-swig-rb:
+	rm -f .swig_rb_checked
 	rm -rf $(SWIG_RB_DIR)/test/repos $(SWIG_RB_DIR)/test/wc
 	if test -z "$(RELEASE_MODE)"; then \
 	  $(EXTRACLEAN_SWIG_RB); \

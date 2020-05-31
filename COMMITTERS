@@ -61,6 +61,9 @@ Blanket commit access:
       astieger   Andreas Stieger <andreas.stieger@gmx.de>
       jamessan   James McCoy <jamessan@jamessan.com>
       luke1410   Stefan Hett <luke1410@posteo.de>
+  troycurtisjr   Troy Curtis, Jr <troycurtisjr@gmail.com>
+ hartmannathan   Nathan Hartman <hartman.nathan@gmail.com>
+      futatuki   Yasuhito Futatsuki <futatuki@yf.bsdclub.org>
 
 [[END ACTIVE FULL COMMITTERS.  LEAVE THIS LINE HERE; SCRIPTS LOOK FOR IT.]]
 
@@ -104,7 +107,6 @@ Commit access for specific areas:
        rschupp   Roderich Schupp <roderich.schupp@gmail.com> (Swig bindings)
         stilor   Alexey Neyman <stilor@att.net>              (Python bindings,
                                                              svn-vendor.py)
-  troycurtisjr   Troy Curtis, Jr <troycurtisjr@gmail.com>    (Swig bindings)
 
   Packages:
 

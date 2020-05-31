@@ -475,7 +475,7 @@ internal_conflicted_p(svn_boolean_t *text_conflicted_p,
           svn_wc_conflict_action_t action;
 
           SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason, &action, NULL,
-                                                      db, local_abspath,
+                                                      NULL, db, local_abspath,
                                                       conflicts,
                                                       scratch_pool,
                                                       scratch_pool));

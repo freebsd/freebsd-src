@@ -342,7 +342,7 @@ display_version(apr_pool_t *pool)
   version_footer = svn_stringbuf_create(ra_desc_start, pool);
   SVN_ERR(svn_ra_print_modules(version_footer, pool));
 
-  SVN_ERR(svn_opt_print_help4(NULL, "svnmucc", TRUE, FALSE, FALSE,
+  SVN_ERR(svn_opt_print_help5(NULL, "svnmucc", TRUE, FALSE, FALSE,
                               version_footer->data,
                               NULL, NULL, NULL, NULL, NULL, pool));
 
@@ -632,7 +632,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         case config_inline_opt:
           SVN_ERR(svn_utf_cstring_to_utf8(&opt_arg, arg, pool));
           SVN_ERR(svn_cmdline__parse_config_option(config_options, opt_arg,
-                                                   "svnmucc: ", 
+                                                   "svnmucc: ",
                                                    pool));
           break;
         case no_auth_cache_opt:

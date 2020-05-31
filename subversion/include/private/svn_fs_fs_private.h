@@ -255,22 +255,6 @@ typedef struct svn_fs_fs__stats_t
   apr_hash_t *by_extension;
 } svn_fs_fs__stats_t;
 
-
-/* Scan all contents of the repository FS and return statistics in *STATS,
- * allocated in RESULT_POOL.  Report progress through PROGRESS_FUNC with
- * PROGRESS_BATON, if PROGRESS_FUNC is not NULL.
- * Use SCRATCH_POOL for temporary allocations.
- */
-svn_error_t *
-svn_fs_fs__get_stats(svn_fs_fs__stats_t **stats,
-                     svn_fs_t *fs,
-                     svn_fs_progress_notify_func_t progress_func,
-                     void *progress_baton,
-                     svn_cancel_func_t cancel_func,
-                     void *cancel_baton,
-                     apr_pool_t *result_pool,
-                     apr_pool_t *scratch_pool);
-
 /* A node-revision ID in FSFS consists of 3 sub-IDs ("parts") that consist
  * of a creation REVISION number and some revision- / transaction-local
  * counter value (NUMBER).  Old-style ID parts use global counter values.
@@ -325,33 +309,60 @@ typedef svn_error_t *
                                 void *baton,
                                 apr_pool_t *scratch_pool);
 
-/* Read the P2L index for the rev / pack file containing REVISION in FS.
- * For each index entry, invoke CALLBACK_FUNC with CALLBACK_BATON.
- * If not NULL, call CANCEL_FUNC with CANCEL_BATON from time to time.
- * Use SCRATCH_POOL for temporary allocations.
- */
-svn_error_t *
-svn_fs_fs__dump_index(svn_fs_t *fs,
-                      svn_revnum_t revision,
-                      svn_fs_fs__dump_index_func_t callback_func,
-                      void *callback_baton,
-                      svn_cancel_func_t cancel_func,
-                      void *cancel_baton,
-                      apr_pool_t *scratch_pool);
+typedef struct svn_fs_fs__ioctl_get_stats_input_t
+{
+  svn_fs_progress_notify_func_t progress_func;
+  void *progress_baton;
+} svn_fs_fs__ioctl_get_stats_input_t;
 
+typedef struct svn_fs_fs__ioctl_get_stats_output_t
+{
+  svn_fs_fs__stats_t *stats;
+} svn_fs_fs__ioctl_get_stats_output_t;
 
-/* Rewrite the respective index information of the rev / pack file in FS
- * containing REVISION and use the svn_fs_fs__p2l_entry_t * array ENTRIES
- * as the new index contents.  Allocate temporaries from SCRATCH_POOL.
- *
- * Note that this becomes a no-op if ENTRIES is empty.  You may use a zero-
- * sized empty entry instead.
- */
-svn_error_t *
-svn_fs_fs__load_index(svn_fs_t *fs,
-                      svn_revnum_t revision,
-                      apr_array_header_t *entries,
-                      apr_pool_t *scratch_pool);
+SVN_FS_DECLARE_IOCTL_CODE(SVN_FS_FS__IOCTL_GET_STATS, SVN_FS_TYPE_FSFS, 1000);
+
+typedef struct svn_fs_fs__ioctl_dump_index_input_t
+{
+  svn_revnum_t revision;
+  svn_fs_fs__dump_index_func_t callback_func;
+  void *callback_baton;
+} svn_fs_fs__ioctl_dump_index_input_t;
+
+SVN_FS_DECLARE_IOCTL_CODE(SVN_FS_FS__IOCTL_DUMP_INDEX, SVN_FS_TYPE_FSFS, 1001);
+
+typedef struct svn_fs_fs__ioctl_load_index_input_t
+{
+  svn_revnum_t revision;
+  /* Array of svn_fs_fs__p2l_entry_t * entries. */
+  apr_array_header_t *entries;
+} svn_fs_fs__ioctl_load_index_input_t;
+
+SVN_FS_DECLARE_IOCTL_CODE(SVN_FS_FS__IOCTL_LOAD_INDEX, SVN_FS_TYPE_FSFS, 1002);
+
+typedef struct svn_fs_fs__ioctl_revision_size_input_t
+{
+  svn_revnum_t revision;
+} svn_fs_fs__ioctl_revision_size_input_t;
+
+typedef struct svn_fs_fs__ioctl_revision_size_output_t
+{
+  apr_off_t rev_size;
+} svn_fs_fs__ioctl_revision_size_output_t;
+
+/* See svn_fs_fs__revision_size(). */
+SVN_FS_DECLARE_IOCTL_CODE(SVN_FS_FS__IOCTL_REVISION_SIZE, SVN_FS_TYPE_FSFS, 1003);
+
+typedef struct svn_fs_fs__ioctl_build_rep_cache_input_t
+{
+  svn_revnum_t start_rev;
+  svn_revnum_t end_rev;
+  svn_fs_progress_notify_func_t progress_func;
+  void *progress_baton;
+} svn_fs_fs__ioctl_build_rep_cache_input_t;
+
+/* See svn_fs_fs__build_rep_cache(). */
+SVN_FS_DECLARE_IOCTL_CODE(SVN_FS_FS__IOCTL_BUILD_REP_CACHE, SVN_FS_TYPE_FSFS, 1004);
 
 #ifdef __cplusplus
 }

@@ -65,7 +65,7 @@ svn_ra_version(void);
  * @a close_baton as appropriate.
  *
  * @a path is relative to the "root" of the session, defined by the
- * @a repos_URL passed to svn_ra_open4() vtable call.
+ * @a repos_URL passed to svn_ra_open5() vtable call.
  *
  * @a name is the name of the property to fetch. If the property is present,
  * then it is returned in @a value. Otherwise, @a *value is set to @c NULL.
@@ -229,7 +229,7 @@ typedef void (*svn_ra_progress_notify_func_t)(apr_off_t progress,
  *
  * @a revision is the target revision number of the received replay report.
  *
- * @a editor and @a edit_baton should provided by the callback implementation.
+ * @a *editor and @a *edit_baton should provided by the callback implementation.
  *
  * @a replay_baton is the baton as originally passed to replay_range.
  *
@@ -253,7 +253,7 @@ typedef svn_error_t *(*svn_ra_replay_revstart_callback_t)(
  *
  * @a revision is the target revision number of the received replay report.
  *
- * @a editor and @a edit_baton should provided by the callback implementation.
+ * @a editor and @a edit_baton are the values provided by the REVSTART callback.
  *
  * @a replay_baton is the baton as originally passed to replay_range.
  *
@@ -369,7 +369,7 @@ typedef struct svn_ra_reporter3_t
    * implementor should assume the directory has no entries or props.
    *
    * This will *override* any previous set_path() calls made on parent
-   * paths.  @a path is relative to the URL specified in svn_ra_open4().
+   * paths.  @a path is relative to the URL specified in svn_ra_open5().
    *
    * If @a lock_token is non-NULL, it is the lock token for @a path in the WC.
    *
@@ -520,7 +520,7 @@ typedef struct svn_ra_reporter_t
 /** A collection of callbacks implemented by libsvn_client which allows
  * an RA layer to "pull" information from the client application, or
  * possibly store information.  libsvn_client passes this vtable to
- * svn_ra_open4().
+ * svn_ra_open5().
  *
  * Each routine takes a @a callback_baton originally provided with the
  * vtable.
@@ -555,9 +555,9 @@ typedef struct svn_ra_callbacks2_t
 
   /** Fetch working copy properties.
    *
-   *<pre> ### we might have a problem if the RA layer ever wants a property
-   * ### that corresponds to a different revision of the file than
-   * ### what is in the WC. we'll cross that bridge one day...</pre>
+   * @note we might have a problem if the RA layer ever wants a property
+   *       that corresponds to a different revision of the file than
+   *       what is in the WC. we'll cross that bridge one day...
    */
   svn_ra_get_wc_prop_func_t get_wc_prop;
 
@@ -710,6 +710,14 @@ typedef struct svn_ra_session_t svn_ra_session_t;
  * within the new repository root URL that @a repos_URL pointed to within
  * the old repository root URL.
  *
+ * If @a redirect_url is not NULL and a @corrected_url is returned, then
+ * @a redirect_url contains a non-canonicalized version of @a corrected_url,
+ * as communicated in the network protocol used by the RA provider.
+ * THe @a redirect_url should be used for to detect redirection loops.
+ * Canonicalization may change the protocol-level URL in a way that
+ * makes detection of redirect loops impossible in some cases since URLs which
+ * are different at the protocol layer could map to the same canonicalized URL.
+ *
  * Return @c SVN_ERR_RA_UUID_MISMATCH if @a uuid is non-NULL and not equal
  * to the UUID of the repository at @c repos_URL.
  *
@@ -728,8 +736,26 @@ typedef struct svn_ra_session_t svn_ra_session_t;
  *
  * @see svn_client_open_ra_session().
  *
- * @since New in 1.7.
+ * @since New in 1.14.
  */
+svn_error_t *
+svn_ra_open5(svn_ra_session_t **session_p,
+             const char **corrected_url,
+             const char **redirect_url,
+             const char *repos_URL,
+             const char *uuid,
+             const svn_ra_callbacks2_t *callbacks,
+             void *callback_baton,
+             apr_hash_t *config,
+             apr_pool_t *pool);
+
+/** Similar to svn_ra_open5(), but with @a redirect_url always passed
+ * as @c NULL.
+ *
+ * @since New in 1.7.
+ * @deprecated Provided for backward compatibility with the 1.13 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_ra_open4(svn_ra_session_t **session_p,
              const char **corrected_url,
@@ -1857,7 +1883,7 @@ svn_ra_get_location_segments(svn_ra_session_t *session,
  * @note Prior to Subversion 1.9, this function may request delta handlers
  * from @a handler even for empty text deltas.  Starting with 1.9, the
  * delta handler / baton return arguments passed to @a handler will be
- * #NULL unless there is an actual difference in the file contents between
+ * NULL unless there is an actual difference in the file contents between
  * the current and the previous call.
  *
  * @since New in 1.5.

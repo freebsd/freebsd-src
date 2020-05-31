@@ -146,7 +146,14 @@ svn_client__get_revision_number(svn_revnum_t *revnum,
                                                           scratch_pool));
 
         if (revision->kind == svn_opt_revision_previous)
-          (*revnum)--;
+          {
+            if (*revnum == 0)
+              return svn_error_createf(
+                  SVN_ERR_CLIENT_BAD_REVISION, NULL,
+                  _("Path '%s' has no previous revision"),
+                  svn_dirent_local_style(local_abspath, scratch_pool));
+            --(*revnum);
+          }
       }
       break;
 

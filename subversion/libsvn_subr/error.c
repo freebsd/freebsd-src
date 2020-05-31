@@ -146,6 +146,7 @@ svn_error__locate(const char *file, long line)
 
 /* Cleanup function for errors.  svn_error_clear () removes this so
    errors that are properly handled *don't* hit this code. */
+#ifdef SVN_DEBUG
 static apr_status_t err_abort(void *data)
 {
   svn_error_t *err = data;  /* For easy viewing in a debugger */
@@ -155,6 +156,7 @@ static apr_status_t err_abort(void *data)
     abort();
   return APR_SUCCESS;
 }
+#endif
 
 
 static svn_error_t *

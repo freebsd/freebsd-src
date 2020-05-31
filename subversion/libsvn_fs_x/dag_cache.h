@@ -103,7 +103,7 @@ typedef struct svn_fs_x__dag_path_t
    IS_TXN_PATH must be set.  If IS_TXN_PATH is FALSE, no copy ID
    inheritance information will be calculated for the *PARENT_PATH_P chain.
 
-   If FLAGS & open_path_last_optional is zero, return the error
+   If FLAGS & svn_fs_x__dag_path_last_optional is zero, return the error
    SVN_ERR_FS_NOT_FOUND if the node PATH refers to does not exist.  If
    non-zero, require all the parent directories to exist as normal,
    but if the final path component doesn't exist, simply return a path

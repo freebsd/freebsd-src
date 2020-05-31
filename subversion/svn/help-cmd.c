@@ -179,7 +179,7 @@ svn_cl__help(apr_getopt_t *os,
   svn_stringbuf_appendcstr(version_footer, "* KWallet (KDE)\n");
 #endif
 
-  return svn_opt_print_help4(os,
+  return svn_opt_print_help5(os,
                              "svn",   /* ### erm, derive somehow? */
                              opt_state ? opt_state->version : FALSE,
                              opt_state ? opt_state->quiet : FALSE,

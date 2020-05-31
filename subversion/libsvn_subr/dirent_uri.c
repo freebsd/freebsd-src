@@ -37,6 +37,7 @@
 #include "svn_ctype.h"
 
 #include "dirent_uri.h"
+#include "private/svn_dirent_uri_private.h"
 #include "private/svn_fspath.h"
 #include "private/svn_cert.h"
 
@@ -292,8 +293,9 @@ uri_previous_segment(const char *uri,
 /* Return the canonicalized version of PATH, of type TYPE, allocated in
  * POOL.
  */
-static const char *
-canonicalize(path_type_t type, const char *path, apr_pool_t *pool)
+static svn_error_t *
+canonicalize(const char **canonical_path,
+             path_type_t type, const char *path, apr_pool_t *pool)
 {
   char *canon, *dst;
   const char *src;
@@ -307,8 +309,12 @@ canonicalize(path_type_t type, const char *path, apr_pool_t *pool)
      depends on path not being zero-length.  */
   if (SVN_PATH_IS_EMPTY(path))
     {
-      assert(type != type_uri);
-      return "";
+      *canonical_path = "";
+      if (type == type_uri)
+        return svn_error_create(SVN_ERR_CANONICALIZATION_FAILED, NULL,
+                                _("An empty URI can not be canonicalized"));
+      else
+        return SVN_NO_ERROR;
     }
 
   dst = canon = apr_pcalloc(pool, strlen(path) + 1);
@@ -319,7 +325,12 @@ canonicalize(path_type_t type, const char *path, apr_pool_t *pool)
   src = path;
   if (type == type_uri)
     {
-      assert(*src != '/');
+      if (*src == '/')
+        {
+          *canonical_path = src;
+          return svn_error_create(SVN_ERR_CANONICALIZATION_FAILED, NULL,
+                                  _("A URI can not start with '/'"));
+        }
 
       while (*src && (*src != '/') && (*src != ':'))
         src++;
@@ -546,7 +557,10 @@ canonicalize(path_type_t type, const char *path, apr_pool_t *pool)
   if ((type == type_dirent) && canon[0] == '/' && canon[1] == '/')
     {
       if (canon_segments < 2)
-        return canon + 1;
+        {
+          *canonical_path = canon + 1;
+          return SVN_NO_ERROR;
+        }
       else
         {
           /* Now we're sure this is a valid UNC path, convert the server name
@@ -654,7 +668,8 @@ canonicalize(path_type_t type, const char *path, apr_pool_t *pool)
       *dst = '\0';
     }
 
-  return canon;
+  *canonical_path = canon;
+  return SVN_NO_ERROR;
 }
 
 /* Return the string length of the longest common ancestor of PATH1 and PATH2.
@@ -883,6 +898,20 @@ svn_dirent_internal_style(const char *dirent, apr_pool_t *pool)
   return svn_dirent_canonicalize(internal_style(dirent, pool), pool);
 }
 
+svn_error_t *
+svn_dirent_internal_style_safe(const char **internal_style_dirent,
+                               const char **non_canonical_result,
+                               const char *dirent,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(
+      svn_dirent_canonicalize_safe(internal_style_dirent,
+                                   non_canonical_result,
+                                   internal_style(dirent, scratch_pool),
+                                   result_pool, scratch_pool));
+}
+
 const char *
 svn_dirent_local_style(const char *dirent, apr_pool_t *pool)
 {
@@ -906,13 +935,17 @@ svn_dirent_local_style(const char *dirent, apr_pool_t *pool)
   return dirent;
 }
 
-const char *
-svn_relpath__internal_style(const char *relpath,
-                            apr_pool_t *pool)
+svn_error_t *
+svn_relpath__make_internal(const char **internal_style_relpath,
+                           const char *relpath,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool)
 {
-  return svn_relpath_canonicalize(internal_style(relpath, pool), pool);
+  return svn_error_trace(
+      svn_relpath_canonicalize_safe(internal_style_relpath, NULL,
+                                    internal_style(relpath, scratch_pool),
+                                    result_pool, scratch_pool));
 }
-
 
 /* We decided against using apr_filepath_root here because of the negative
    performance impact (creating a pool and converting strings ). */
@@ -1643,19 +1676,84 @@ svn_dirent_get_absolute(const char **pabsolute,
 const char *
 svn_uri_canonicalize(const char *uri, apr_pool_t *pool)
 {
-  return canonicalize(type_uri, uri, pool);
+  const char *result;
+  svn_error_t *const err = canonicalize(&result, type_uri, uri, pool);
+  if (err)
+    {
+      svn_error_clear(err);
+      SVN_ERR_ASSERT_NO_RETURN(!"URI canonicalization failed");
+    }
+  return result;
+}
+
+svn_error_t *
+svn_uri_canonicalize_safe(const char **canonical_uri,
+                          const char **non_canonical_result,
+                          const char *uri,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool)
+{
+  const char *result = NULL;
+  SVN_ERR(canonicalize(&result, type_uri, uri, result_pool));
+  if (!svn_uri_is_canonical(result, scratch_pool))
+    {
+      if (non_canonical_result)
+        *non_canonical_result = result;
+
+      return svn_error_createf(
+          SVN_ERR_CANONICALIZATION_FAILED, NULL,
+          _("Could not canonicalize URI '%s'"
+            " (the result '%s' is not canonical)"),
+          uri, result);
+    }
+  *canonical_uri = result;
+  return SVN_NO_ERROR;
 }
 
 const char *
 svn_relpath_canonicalize(const char *relpath, apr_pool_t *pool)
 {
-  return canonicalize(type_relpath, relpath, pool);
+  const char *result;
+  svn_error_t *const err = canonicalize(&result, type_relpath, relpath, pool);
+  if (err)
+    {
+      svn_error_clear(err);
+      SVN_ERR_ASSERT_NO_RETURN(!"relpath canonicalization failed");
+    }
+  return result;
 }
 
-const char *
-svn_dirent_canonicalize(const char *dirent, apr_pool_t *pool)
+svn_error_t *
+svn_relpath_canonicalize_safe(const char **canonical_relpath,
+                              const char **non_canonical_result,
+                              const char *relpath,
+                              apr_pool_t *result_pool,
+                              apr_pool_t *scratch_pool)
 {
-  const char *dst = canonicalize(type_dirent, dirent, pool);
+  const char *result = NULL;
+  SVN_ERR(canonicalize(&result, type_relpath, relpath, result_pool));
+  if (!svn_relpath_is_canonical(result))
+    {
+      if (non_canonical_result)
+        *non_canonical_result = result;
+
+      return svn_error_createf(
+          SVN_ERR_CANONICALIZATION_FAILED, NULL,
+          _("Could not canonicalize relpath '%s'"
+            " (the result '%s' is not canonical)"),
+          relpath, result);
+    }
+
+  SVN_UNUSED(scratch_pool);
+  *canonical_relpath = result;
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+canonicalize_dirent(const char **result, const char *dirent, apr_pool_t *pool)
+{
+  const char *dst;
+  SVN_ERR(canonicalize(&dst, type_dirent, dirent, pool));
 
 #ifdef SVN_USE_DOS_PATHS
   /* Handle a specific case on Windows where path == "X:/". Here we have to
@@ -1671,11 +1769,50 @@ svn_dirent_canonicalize(const char *dirent, apr_pool_t *pool)
       dst_slash[2] = '/';
       dst_slash[3] = '\0';
 
-      return dst_slash;
+      *result = dst_slash;
+      return SVN_NO_ERROR;
     }
 #endif /* SVN_USE_DOS_PATHS */
 
-  return dst;
+  *result = dst;
+  return SVN_NO_ERROR;
+}
+
+const char *
+svn_dirent_canonicalize(const char *dirent, apr_pool_t *pool)
+{
+  const char *result;
+  svn_error_t *const err = canonicalize_dirent(&result, dirent, pool);
+  if (err)
+    {
+      svn_error_clear(err);
+      SVN_ERR_ASSERT_NO_RETURN(!"dirent canonicalization failed");
+    }
+  return result;
+}
+
+svn_error_t *
+svn_dirent_canonicalize_safe(const char **canonical_dirent,
+                             const char **non_canonical_result,
+                             const char *dirent,
+                             apr_pool_t *result_pool,
+                             apr_pool_t *scratch_pool)
+{
+  const char *result = NULL;
+  SVN_ERR(canonicalize_dirent(&result, dirent, result_pool));
+  if (!svn_dirent_is_canonical(result, scratch_pool))
+    {
+      if (non_canonical_result)
+        *non_canonical_result = result;
+
+      return svn_error_createf(
+          SVN_ERR_CANONICALIZATION_FAILED, NULL,
+          _("Could not canonicalize dirent '%s'"
+            " (the result '%s' is not canonical)"),
+          dirent, result);
+    }
+  *canonical_dirent = result;
+  return SVN_NO_ERROR;
 }
 
 svn_boolean_t

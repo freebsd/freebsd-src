@@ -27,7 +27,7 @@
 
 #include "svn_private_config.h"
 
-#if SVN_INTERNAL_LZ4
+#ifdef SVN_INTERNAL_LZ4
 #include "lz4/lz4internal.h"
 #else
 #include <lz4.h>

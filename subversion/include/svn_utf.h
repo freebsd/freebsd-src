@@ -212,7 +212,7 @@ svn_utf_cstring_from_utf8_ex(const char **dest,
  * so when we can detect that at configure time, things will change.
  * Also, this should (?) be moved to apr/apu eventually.
  *
- * See http://subversion.tigris.org/issues/show_bug.cgi?id=807 for
+ * See https://issues.apache.org/jira/browse/SVN-807 for
  * details.
  */
 const char *

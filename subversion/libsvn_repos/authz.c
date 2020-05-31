@@ -81,11 +81,11 @@ typedef struct limited_rights_t
    */
   path_access_t access;
 
-  /* Minimal access rights that the user has on this or any other node in 
+  /* Minimal access rights that the user has on this or any other node in
    * the sub-tree.  This does not take inherited rights into account. */
   authz_access_t min_rights;
 
-  /* Maximal access rights that the user has on this or any other node in 
+  /* Maximal access rights that the user has on this or any other node in
    * the sub-tree.  This does not take inherited rights into account. */
   authz_access_t max_rights;
 
@@ -369,7 +369,7 @@ ensure_node_in_array(apr_array_header_t **array,
    * Create one and insert it into the sorted array. */
   entry.node = create_node(segment, result_pool);
   entry.next = NULL;
-  svn_sort__array_insert(*array, &entry, idx);
+  svn_error_clear(svn_sort__array_insert2(*array, &entry, idx));
 
   return entry.node;
 }
@@ -889,7 +889,7 @@ create_user_authz(authz_full_t *authz,
   /* Use a separate sub-pool to keep memory usage tight. */
   apr_pool_t *subpool = svn_pool_create(scratch_pool);
 
-  /* Find all ACLs for REPOSITORY. 
+  /* Find all ACLs for REPOSITORY.
    * Note that repo-specific rules replace global rules,
    * even if they don't apply to the current user. */
   apr_array_header_t *acls = apr_array_make(subpool, authz->acls->nelts,
@@ -947,7 +947,7 @@ create_user_authz(authz_full_t *authz,
   svn_pool_clear(subpool);
   trim_tree(root, NO_SEQUENCE_NUMBER, subpool);
 
-  /* Calculate recursive rights. 
+  /* Calculate recursive rights.
    *
    * This is a bottom-up calculation of the range of access rights
    * specified anywhere in  the respective sub-tree, including the base
@@ -999,7 +999,7 @@ static lookup_state_t *
 create_lookup_state(apr_pool_t *result_pool)
 {
   lookup_state_t *state = apr_pcalloc(result_pool, sizeof(*state));
- 
+
   state->next = apr_array_make(result_pool, 4, sizeof(node_t *));
   state->current = apr_array_make(result_pool, 4, sizeof(node_t *));
 
@@ -1548,6 +1548,8 @@ authz_read(authz_full_t **authz_p,
            const char *groups_path,
            svn_boolean_t must_exist,
            svn_repos_t *repos_hint,
+           svn_repos_authz_warning_func_t warning_func,
+           void *warning_baton,
            apr_pool_t *result_pool,
            apr_pool_t *scratch_pool)
 {
@@ -1587,7 +1589,8 @@ authz_read(authz_full_t **authz_p,
           /* Parse the configuration(s) and construct the full authz model
            * from it. */
           err = svn_authz__parse(authz_p, rules_stream, groups_stream,
-                                item_pool, scratch_pool);
+                                 warning_func, warning_baton,
+                                 item_pool, scratch_pool);
           if (err != SVN_NO_ERROR)
             {
               /* That pool would otherwise never get destroyed. */
@@ -1611,11 +1614,11 @@ authz_read(authz_full_t **authz_p,
     {
       /* Parse the configuration(s) and construct the full authz model from
        * it. */
-      err = svn_error_quick_wrapf(svn_authz__parse(authz_p, rules_stream,
-                                                   groups_stream,
-                                                   result_pool, scratch_pool),
-                                  "Error while parsing authz file: '%s':",
-                                  path);
+      err = svn_error_quick_wrapf(
+          svn_authz__parse(authz_p, rules_stream, groups_stream,
+                           warning_func, warning_baton,
+                           result_pool, scratch_pool),
+          "Error while parsing authz file: '%s':", path);
     }
 
   svn_repos__destroy_config_access(config_access);
@@ -1628,11 +1631,13 @@ authz_read(authz_full_t **authz_p,
 /*** Public functions. ***/
 
 svn_error_t *
-svn_repos_authz_read3(svn_authz_t **authz_p,
+svn_repos_authz_read4(svn_authz_t **authz_p,
                       const char *path,
                       const char *groups_path,
                       svn_boolean_t must_exist,
                       svn_repos_t *repos_hint,
+                      svn_repos_authz_warning_func_t warning_func,
+                      void *warning_baton,
                       apr_pool_t *result_pool,
                       apr_pool_t *scratch_pool)
 {
@@ -1640,7 +1645,8 @@ svn_repos_authz_read3(svn_authz_t **authz_p,
   authz->pool = result_pool;
 
   SVN_ERR(authz_read(&authz->full, &authz->authz_id, path, groups_path,
-                     must_exist, repos_hint, result_pool, scratch_pool));
+                     must_exist, repos_hint, warning_func, warning_baton,
+                     result_pool, scratch_pool));
 
   *authz_p = authz;
   return SVN_NO_ERROR;
@@ -1648,18 +1654,21 @@ svn_repos_authz_read3(svn_authz_t **authz_p,
 
 
 svn_error_t *
-svn_repos_authz_parse(svn_authz_t **authz_p, svn_stream_t *stream,
-                      svn_stream_t *groups_stream, apr_pool_t *pool)
+svn_repos_authz_parse2(svn_authz_t **authz_p,
+                       svn_stream_t *stream,
+                       svn_stream_t *groups_stream,
+                       svn_repos_authz_warning_func_t warning_func,
+                       void *warning_baton,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool)
 {
-  apr_pool_t *scratch_pool = svn_pool_create(pool);
-  svn_authz_t *authz = apr_pcalloc(pool, sizeof(*authz));
-  authz->pool = pool;
+  svn_authz_t *authz = apr_pcalloc(result_pool, sizeof(*authz));
+  authz->pool = result_pool;
 
   /* Parse the configuration and construct the full authz model from it. */
-  SVN_ERR(svn_authz__parse(&authz->full, stream, groups_stream, pool,
-                           scratch_pool));
-
-  svn_pool_destroy(scratch_pool);
+  SVN_ERR(svn_authz__parse(&authz->full, stream, groups_stream,
+                           warning_func, warning_baton,
+                           result_pool, scratch_pool));
 
   *authz_p = authz;
   return SVN_NO_ERROR;

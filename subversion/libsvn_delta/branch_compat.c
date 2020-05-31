@@ -875,6 +875,8 @@ drive_ev1_props(const char *repos_relpath,
  */
 static svn_error_t *
 apply_change(void **dir_baton,
+             const svn_delta_editor_t *editor,
+             void *edit_baton,
              void *parent_baton,
              void *callback_baton,
              const char *ev1_relpath,
@@ -905,7 +907,7 @@ apply_change(void **dir_baton,
       /* Only property edits are allowed on the root.  */
       SVN_ERR_ASSERT(change->action == RESTRUCTURE_NONE);
       SVN_ERR(drive_ev1_props(ev1_relpath, change, base_props,
-                              eb->deditor, *dir_baton, scratch_pool));
+                              editor, *dir_baton, scratch_pool));
 
       /* No further action possible for the root.  */
       return SVN_NO_ERROR;
@@ -913,8 +915,8 @@ apply_change(void **dir_baton,
 
   if (change->action == RESTRUCTURE_DELETE)
     {
-      SVN_ERR(eb->deditor->delete_entry(ev1_relpath, change->deleting_rev,
-                                        parent_baton, scratch_pool));
+      SVN_ERR(editor->delete_entry(ev1_relpath, change->deleting_rev,
+                                   parent_baton, scratch_pool));
 
       /* No futher action possible for this node.  */
       return SVN_NO_ERROR;
@@ -927,11 +929,11 @@ apply_change(void **dir_baton,
   if (change->action == RESTRUCTURE_ADD_ABSENT)
     {
       if (change->kind == svn_node_dir)
-        SVN_ERR(eb->deditor->absent_directory(ev1_relpath, parent_baton,
-                                              scratch_pool));
-      else if (change->kind == svn_node_file)
-        SVN_ERR(eb->deditor->absent_file(ev1_relpath, parent_baton,
+        SVN_ERR(editor->absent_directory(ev1_relpath, parent_baton,
                                          scratch_pool));
+      else if (change->kind == svn_node_file)
+        SVN_ERR(editor->absent_file(ev1_relpath, parent_baton,
+                                    scratch_pool));
       else
         SVN_ERR_MALFUNCTION();
 
@@ -948,8 +950,8 @@ apply_change(void **dir_baton,
 
       /* Do we have an old node to delete first? If so, delete it. */
       if (change->deleting)
-        SVN_ERR(eb->deditor->delete_entry(ev1_relpath, change->deleting_rev,
-                                          parent_baton, scratch_pool));
+        SVN_ERR(editor->delete_entry(ev1_relpath, change->deleting_rev,
+                                     parent_baton, scratch_pool));
 
       /* If it's a copy, determine the copy source location. */
       if (change->copyfrom_path)
@@ -974,13 +976,13 @@ apply_change(void **dir_baton,
         }
 
       if (change->kind == svn_node_dir)
-        SVN_ERR(eb->deditor->add_directory(ev1_relpath, parent_baton,
-                                           copyfrom_url, copyfrom_rev,
-                                           result_pool, dir_baton));
-      else if (change->kind == svn_node_file)
-        SVN_ERR(eb->deditor->add_file(ev1_relpath, parent_baton,
+        SVN_ERR(editor->add_directory(ev1_relpath, parent_baton,
                                       copyfrom_url, copyfrom_rev,
-                                      result_pool, &file_baton));
+                                      result_pool, dir_baton));
+      else if (change->kind == svn_node_file)
+        SVN_ERR(editor->add_file(ev1_relpath, parent_baton,
+                                 copyfrom_url, copyfrom_rev,
+                                 result_pool, &file_baton));
       else
         SVN_ERR_MALFUNCTION();
     }
@@ -993,13 +995,13 @@ apply_change(void **dir_baton,
          when we fetch the base properties.) */
 
       if (change->kind == svn_node_dir)
-        SVN_ERR(eb->deditor->open_directory(ev1_relpath, parent_baton,
-                                            change->changing_rev,
-                                            result_pool, dir_baton));
-      else if (change->kind == svn_node_file)
-        SVN_ERR(eb->deditor->open_file(ev1_relpath, parent_baton,
+        SVN_ERR(editor->open_directory(ev1_relpath, parent_baton,
                                        change->changing_rev,
-                                       result_pool, &file_baton));
+                                       result_pool, dir_baton));
+      else if (change->kind == svn_node_file)
+        SVN_ERR(editor->open_file(ev1_relpath, parent_baton,
+                                  change->changing_rev,
+                                  result_pool, &file_baton));
       else
         SVN_ERR_MALFUNCTION();
     }
@@ -1007,10 +1009,10 @@ apply_change(void **dir_baton,
   /* Apply any properties in CHANGE to the node.  */
   if (change->kind == svn_node_dir)
     SVN_ERR(drive_ev1_props(ev1_relpath, change, base_props,
-                            eb->deditor, *dir_baton, scratch_pool));
+                            editor, *dir_baton, scratch_pool));
   else
     SVN_ERR(drive_ev1_props(ev1_relpath, change, base_props,
-                            eb->deditor, file_baton, scratch_pool));
+                            editor, file_baton, scratch_pool));
 
   /* Send the text content delta, if new text content is provided. */
   if (change->contents_text)
@@ -1023,7 +1025,7 @@ apply_change(void **dir_baton,
                                               scratch_pool);
       /* ### would be nice to have a BASE_CHECKSUM, but hey: this is the
          ### shim code...  */
-      SVN_ERR(eb->deditor->apply_textdelta(file_baton, NULL, scratch_pool,
+      SVN_ERR(editor->apply_textdelta(file_baton, NULL, scratch_pool,
                                            &handler, &handler_baton));
       /* ### it would be nice to send a true txdelta here, but whatever.  */
       SVN_ERR(svn_txdelta_send_stream(read_stream, handler, handler_baton,
@@ -1033,7 +1035,7 @@ apply_change(void **dir_baton,
 
   if (file_baton)
     {
-      SVN_ERR(eb->deditor->close_file(file_baton, NULL, scratch_pool));
+      SVN_ERR(editor->close_file(file_baton, NULL, scratch_pool));
     }
 
   return SVN_NO_ERROR;
@@ -1740,7 +1742,7 @@ drive_changes(svn_branch__txn_priv_t *eb,
 
   /* Apply the appropriate Ev1 change to each Ev1-relative path. */
   paths = get_unsorted_paths(eb->changes, scratch_pool);
-  SVN_ERR(svn_delta_path_driver2(eb->deditor, eb->dedit_baton,
+  SVN_ERR(svn_delta_path_driver3(eb->deditor, eb->dedit_baton,
                                  paths, TRUE /*sort*/,
                                  apply_change, (void *)eb,
                                  scratch_pool));

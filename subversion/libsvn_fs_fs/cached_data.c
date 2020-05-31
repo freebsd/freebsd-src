@@ -2337,7 +2337,7 @@ svn_fs_fs__get_contents_from_file(svn_stream_t **contents_p,
                              rb->filehandle_pool));
 
       /* Insert the access to REP as the first element of the delta chain. */
-      svn_sort__array_insert(rb->rs_list, &rs, 0);
+      SVN_ERR(svn_sort__array_insert2(rb->rs_list, &rs, 0));
     }
 
   /* Now, the baton is complete and we can assemble the stream around it. */
