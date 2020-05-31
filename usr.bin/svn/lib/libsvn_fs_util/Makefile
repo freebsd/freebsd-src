@@ -9,7 +9,9 @@ LIB=		svn_fs_util
 
 SRCS=		fs-util.c
 
-CFLAGS+=	-I${SVNDIR}/include -I${SVNDIR} -I${.CURDIR}/../.. \
+CFLAGS+=	-I${SVNDIR}/include \
+		-I${SVNDIR} \
+		-I${.CURDIR}/../.. \
 		-I${.CURDIR}/../libapr \
 		-I${APR}/include/arch/unix \
 		-I${APR}/include \
