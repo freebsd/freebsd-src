@@ -461,7 +461,19 @@ APR_DECLARE(apr_status_t) apr_proc_create(apr_proc_t *new,
                 _exit(-1);   /* We have big problems, the child should exit. */
             }
         }
+        if (!geteuid()) {
+            apr_procattr_pscb_t *c = attr->perms_set_callbacks;
 
+            while (c) {
+                apr_status_t r;
+                r = (*c->perms_set_fn)((void *)c->data, c->perms,
+                                       attr->uid, attr->gid);
+                if (r != APR_SUCCESS && r != APR_ENOTIMPL) {
+                    _exit(-1);
+                }
+                c = c->next;
+            }
+        }
         /* Only try to switch if we are running as root */
         if (attr->gid != -1 && !geteuid()) {
             if (setgid(attr->gid)) {
@@ -709,3 +721,19 @@ APR_DECLARE(apr_status_t) apr_procattr_limit_set(apr_procattr_t *attr,
 }
 #endif /* APR_HAVE_STRUCT_RLIMIT */
 
+APR_DECLARE(apr_status_t) apr_procattr_perms_set_register(apr_procattr_t *attr,
+                                                 apr_perms_setfn_t *perms_set_fn,
+                                                 void *data,
+                                                 apr_fileperms_t perms)
+{
+    apr_procattr_pscb_t *c;
+
+    c = apr_palloc(attr->pool, sizeof(apr_procattr_pscb_t));
+    c->data = data;
+    c->perms = perms;
+    c->perms_set_fn = perms_set_fn;
+    c->next = attr->perms_set_callbacks;
+    attr->perms_set_callbacks = c;
+
+    return APR_SUCCESS;
+}

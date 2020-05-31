@@ -117,6 +117,13 @@ apr_status_t apr_file_trunc(apr_file_t *fp, apr_off_t offset)
             /* Reset buffer positions for write mode */
             fp->bufpos = fp->direction = fp->dataRead = 0;
         }
+        else if (fp->direction == 0) {
+            /* Discard the read buffer, as we are about to reposition
+             * ourselves to the end of file.
+             */
+            fp->bufpos = 0;
+            fp->dataRead = 0;
+        }
         file_unlock(fp);
         if (rc) {
             return rc;

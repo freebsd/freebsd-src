@@ -18,8 +18,6 @@
 #
 #     ARCH="Win32 Release"
 #     ARCH="Win32 Debug"
-#     ARCH="Win32 Release9x"
-#     ARCH="Win32 Debug9x"
 #     ARCH="x64 Release"
 #     ARCH="x64 Debug"
 #
@@ -66,14 +64,6 @@ LIBSOSPATH=LibR
 SLNARCH=Debug|Win32
 ARCHOSPATH=Debug
 LIBSOSPATH=LibD
-!ELSEIF "$(ARCH)" == "Win32 Release9x"
-SLNARCH=Release9x|Win32
-ARCHOSPATH=9x\Release
-LIBSOSPATH=9x\LibR
-!ELSEIF "$(ARCH)" == "Win32 Debug9x"
-SLNARCH=Debug9x|Win32
-ARCHOSPATH=9x\Debug
-LIBSOSPATH=9x\LibD
 !ELSEIF "$(ARCH)" == "x64 Release"
 SLNARCH=Release|x64
 ARCHOSPATH=x64\Release

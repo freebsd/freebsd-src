@@ -30,101 +30,6 @@
 
 static apr_pollset_method_e pollset_default_method = POLLSET_DEFAULT_METHOD;
 
-#if !APR_FILES_AS_SOCKETS
-#if defined (WIN32)
-
-/* Create a dummy wakeup socket pipe for interrupting the poller
- */
-static apr_status_t create_wakeup_pipe(apr_pollset_t *pollset)
-{
-    apr_status_t rv;
-
-    if ((rv = apr_file_socket_pipe_create(&pollset->wakeup_pipe[0],
-                                          &pollset->wakeup_pipe[1],
-                                          pollset->pool)) != APR_SUCCESS)
-        return rv;
-
-    pollset->wakeup_pfd.p = pollset->pool;
-    pollset->wakeup_pfd.reqevents = APR_POLLIN;
-    pollset->wakeup_pfd.desc_type = APR_POLL_FILE;
-    pollset->wakeup_pfd.desc.f = pollset->wakeup_pipe[0];
-
-    return apr_pollset_add(pollset, &pollset->wakeup_pfd);
-}
-
-#else  /* !WIN32 */
-static apr_status_t create_wakeup_pipe(apr_pollset_t *pollset)
-{
-    return APR_ENOTIMPL;
-}
-
-static apr_status_t apr_file_socket_pipe_close(apr_file_t *file)
-{
-    return APR_ENOTIMPL;
-}
-
-#endif /* WIN32 */
-#else  /* APR_FILES_AS_SOCKETS */
-
-/* Create a dummy wakeup pipe for interrupting the poller
- */
-static apr_status_t create_wakeup_pipe(apr_pollset_t *pollset)
-{
-    apr_status_t rv;
-
-    if ((rv = apr_file_pipe_create(&pollset->wakeup_pipe[0],
-                                   &pollset->wakeup_pipe[1],
-                                   pollset->pool)) != APR_SUCCESS)
-        return rv;
-
-    pollset->wakeup_pfd.p = pollset->pool;
-    pollset->wakeup_pfd.reqevents = APR_POLLIN;
-    pollset->wakeup_pfd.desc_type = APR_POLL_FILE;
-    pollset->wakeup_pfd.desc.f = pollset->wakeup_pipe[0];
-
-    {
-        int flags;
-
-        if ((flags = fcntl(pollset->wakeup_pipe[0]->filedes, F_GETFD)) == -1)
-            return errno;
-
-        flags |= FD_CLOEXEC;
-        if (fcntl(pollset->wakeup_pipe[0]->filedes, F_SETFD, flags) == -1)
-            return errno;
-    }
-    {
-        int flags;
-
-        if ((flags = fcntl(pollset->wakeup_pipe[1]->filedes, F_GETFD)) == -1)
-            return errno;
-
-        flags |= FD_CLOEXEC;
-        if (fcntl(pollset->wakeup_pipe[1]->filedes, F_SETFD, flags) == -1)
-            return errno;
-    }
-
-    return apr_pollset_add(pollset, &pollset->wakeup_pfd);
-}
-#endif /* !APR_FILES_AS_SOCKETS */
-
-/* Read and discard what's ever in the wakeup pipe.
- */
-void apr_pollset_drain_wakeup_pipe(apr_pollset_t *pollset)
-{
-    char rb[512];
-    apr_size_t nr = sizeof(rb);
-
-    while (apr_file_read(pollset->wakeup_pipe[0], rb, &nr) == APR_SUCCESS) {
-        /* Although we write just one byte to the other end of the pipe
-         * during wakeup, multiple threads could call the wakeup.
-         * So simply drain out from the input side of the pipe all
-         * the data.
-         */
-        if (nr != sizeof(rb))
-            break;
-    }
-}
-
 static apr_status_t pollset_cleanup(void *p)
 {
     apr_pollset_t *pollset = (apr_pollset_t *) p;
@@ -132,48 +37,32 @@ static apr_status_t pollset_cleanup(void *p)
         (*pollset->provider->cleanup)(pollset);
     }
     if (pollset->flags & APR_POLLSET_WAKEABLE) {
-        /* Close both sides of the wakeup pipe */
-        if (pollset->wakeup_pipe[0]) {
-#if APR_FILES_AS_SOCKETS
-            apr_file_close(pollset->wakeup_pipe[0]);
-#else
-            apr_file_socket_pipe_close(pollset->wakeup_pipe[0]);
-#endif
-            pollset->wakeup_pipe[0] = NULL;
-        }
-        if (pollset->wakeup_pipe[1]) {
-#if APR_FILES_AS_SOCKETS
-            apr_file_close(pollset->wakeup_pipe[1]);
-#else
-            apr_file_socket_pipe_close(pollset->wakeup_pipe[1]);
-#endif
-            pollset->wakeup_pipe[1] = NULL;
-        }
+        apr_poll_close_wakeup_pipe(pollset->wakeup_pipe);
     }
 
     return APR_SUCCESS;
 }
 
 #if defined(HAVE_KQUEUE)
-extern apr_pollset_provider_t *apr_pollset_provider_kqueue;
+extern const apr_pollset_provider_t *apr_pollset_provider_kqueue;
 #endif
 #if defined(HAVE_PORT_CREATE)
-extern apr_pollset_provider_t *apr_pollset_provider_port;
+extern const apr_pollset_provider_t *apr_pollset_provider_port;
 #endif
 #if defined(HAVE_EPOLL)
-extern apr_pollset_provider_t *apr_pollset_provider_epoll;
+extern const apr_pollset_provider_t *apr_pollset_provider_epoll;
 #endif
 #if defined(HAVE_AIO_MSGQ)
-extern apr_pollset_provider_t *apr_pollset_provider_aio_msgq;
+extern const apr_pollset_provider_t *apr_pollset_provider_aio_msgq;
 #endif
 #if defined(HAVE_POLL)
-extern apr_pollset_provider_t *apr_pollset_provider_poll;
+extern const apr_pollset_provider_t *apr_pollset_provider_poll;
 #endif
-extern apr_pollset_provider_t *apr_pollset_provider_select;
+extern const apr_pollset_provider_t *apr_pollset_provider_select;
 
-static apr_pollset_provider_t *pollset_provider(apr_pollset_method_e method)
+static const apr_pollset_provider_t *pollset_provider(apr_pollset_method_e method)
 {
-    apr_pollset_provider_t *provider = NULL;
+    const apr_pollset_provider_t *provider = NULL;
     switch (method) {
         case APR_POLLSET_KQUEUE:
 #if defined(HAVE_KQUEUE)
@@ -217,7 +106,7 @@ APR_DECLARE(apr_status_t) apr_pollset_create_ex(apr_pollset_t **ret_pollset,
 {
     apr_status_t rv;
     apr_pollset_t *pollset;
-    apr_pollset_provider_t *provider = NULL;
+    const apr_pollset_provider_t *provider = NULL;
 
     *ret_pollset = NULL;
 
@@ -276,7 +165,13 @@ APR_DECLARE(apr_status_t) apr_pollset_create_ex(apr_pollset_t **ret_pollset,
     }
     if (flags & APR_POLLSET_WAKEABLE) {
         /* Create wakeup pipe */
-        if ((rv = create_wakeup_pipe(pollset)) != APR_SUCCESS) {
+        if ((rv = apr_poll_create_wakeup_pipe(pollset->pool, &pollset->wakeup_pfd,
+                                              pollset->wakeup_pipe))
+                != APR_SUCCESS) {
+            return rv;
+        }
+
+        if ((rv = apr_pollset_add(pollset, &pollset->wakeup_pfd)) != APR_SUCCESS) {
             return rv;
         }
     }
@@ -295,7 +190,7 @@ APR_DECLARE(const char *) apr_pollset_method_name(apr_pollset_t *pollset)
 
 APR_DECLARE(const char *) apr_poll_method_defname()
 {
-    apr_pollset_provider_t *provider = NULL;
+    const apr_pollset_provider_t *provider = NULL;
 
     provider = pollset_provider(pollset_default_method);
     if (provider)

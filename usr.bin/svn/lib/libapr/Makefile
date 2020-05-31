@@ -5,6 +5,7 @@
 INTERNALLIB=	yes
 LIB=		apr
 SRCS=		apr_cpystrn.c \
+		apr_escape.c \
 		apr_fnmatch.c \
 		apr_getpass.c \
 		apr_hash.c \
@@ -82,10 +83,12 @@ SRCS=		apr_cpystrn.c \
 		userinfo.c \
 		version.c \
 		waitio.c \
+		wakeup.c \
 		z_asio.c
 
 .PATH:		${APR}/atomic/unix \
 		${APR}/dso/unix \
+		${APR}/encoding \
 		${APR}/file_io/unix \
 		${APR}/locks/unix \
 		${APR}/memory/unix \
@@ -107,6 +110,7 @@ SRCS=		apr_cpystrn.c \
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR} \
 		-I${APR}/include/arch/unix \
+		-I${APR}/include/private \
 		-I${APR}/include
 
 .include <bsd.lib.mk>
