@@ -1,4 +1,4 @@
-# $Id: dirdeps-options.mk,v 1.5 2018/04/18 15:53:57 sjg Exp $
+# $Id: dirdeps-options.mk,v 1.9 2018/09/20 00:07:19 sjg Exp $
 #
 #	@(#) Copyright (c) 2018, Simon J. Gerraty
 #
@@ -25,7 +25,7 @@
 # If a Makefile.depend.options file exists, it will be included by
 # dirdeps.mk and meta.autodep.mk
 #
-# We include local.dirdeps-option.mk which may also define DIRDEPS.*
+# We include local.dirdeps-options.mk which may also define DIRDEPS.*
 # for options.
 #
 # Thus a directory, that is affected by an option FOO would have
@@ -35,7 +35,7 @@
 # DIRDEPS.FOO.yes
 # DIRDEPS.FOO.no
 # to whatever applies for that dir, or it can rely on globals
-# set in local.dirdeps-option.mk
+# set in local.dirdeps-options.mk
 # Either way, we will .undef DIRDEPS.* when done.
 
 # This should have been set by Makefile.depend.options
@@ -43,7 +43,7 @@
 DIRDEPS_OPTIONS ?=
 
 # pickup any DIRDEPS.* we need
-.-include <local.dirdeps-option.mk>
+.-include <local.dirdeps-options.mk>
 
 .if ${.MAKE.LEVEL} == 0
 # :U below avoids potential errors when we :=
@@ -52,7 +52,10 @@ DIRDEPS += ${DIRDEPS.$o.${MK_$o:U}:U}
 .endfor
 DIRDEPS := ${DIRDEPS:O:u}
 # avoid cross contamination
-.undef ${DIRDEPS_OPTIONS:tu:@o@DIRDEPS.$o.yes DIRDEPS.$o.no@}
+.for o in ${DIRDEPS_OPTIONS:tu}
+.undef DIRDEPS.$o.yes
+.undef DIRDEPS.$o.no
+.endfor
 .else
 # whether options are enabled or not,
 # we want to filter out the relevant DIRDEPS.*

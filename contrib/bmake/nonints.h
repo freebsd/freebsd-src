@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.74 2016/09/05 00:40:29 sevan Exp $	*/
+/*	$NetBSD: nonints.h,v 1.75 2020/04/25 18:20:57 christos Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -140,8 +140,8 @@ char *str_concat(const char *, const char *, int);
 char **brk_string(const char *, int *, Boolean, char **);
 char *Str_FindSubstring(const char *, const char *);
 int Str_Match(const char *, const char *);
-char *Str_SYSVMatch(const char *, const char *, int *len);
-void Str_SYSVSubst(Buffer *, char *, char *, int);
+char *Str_SYSVMatch(const char *, const char *, size_t *, Boolean *);
+void Str_SYSVSubst(Buffer *, char *, char *, size_t, Boolean);
 
 #ifndef HAVE_STRLCPY
 /* strlcpy.c */

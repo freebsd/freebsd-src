@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.195 2018/05/13 22:13:28 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.197 2020/02/06 01:13:19 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.195 2018/05/13 22:13:28 sjg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.197 2020/02/06 01:13:19 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.195 2018/05/13 22:13:28 sjg Exp $");
+__RCSID("$NetBSD: job.c,v 1.197 2020/02/06 01:13:19 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -358,6 +358,8 @@ static Job childExitJob;	/* child exit pseudo-job */
 #define	CHILD_EXIT	"."
 #define	DO_JOB_RESUME	"R"
 
+static const int npseudojobs = 2; /* number of pseudo-jobs */
+
 #define TARG_FMT  "%s %s ---\n" /* Default format */
 #define MESSAGE(fp, gn) \
 	if (maxJobs != 1 && targPrefix && *targPrefix) \
@@ -388,6 +390,16 @@ static void JobSigReset(void);
 # define MALLOC_OPTIONS "A"
 #endif
 const char *malloc_options= MALLOC_OPTIONS;
+
+static unsigned
+nfds_per_job(void)
+{
+#if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
+    if (useMeta)
+	return 2;
+#endif
+    return 1;
+}
 
 static void
 job_table_dump(const char *where)
@@ -1475,6 +1487,12 @@ JobExec(Job *job, char **argv)
 
     Trace_Log(JOBSTART, job);
 
+#ifdef USE_META
+    if (useMeta) {
+	meta_job_parent(job, cpid);
+    }
+#endif
+
     /*
      * Set the current position in the buffer to the beginning
      * and mark another stream to watch in the outputs mask
@@ -2157,12 +2175,24 @@ Job_CatchOutput(void)
     if (nready == 0)
 	    return;
 
-    for (i = 2; i < nfds; i++) {
+    for (i = npseudojobs*nfds_per_job(); i < nfds; i++) {
 	if (!fds[i].revents)
 	    continue;
 	job = jobfds[i];
 	if (job->job_state == JOB_ST_RUNNING)
 	    JobDoOutput(job, FALSE);
+#if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
+	/*
+	 * With meta mode, we may have activity on the job's filemon
+	 * descriptor too, which at the moment is any pollfd other than
+	 * job->inPollfd.
+	 */
+	if (useMeta && job->inPollfd != &fds[i]) {
+	    if (meta_job_event(job) <= 0) {
+		fds[i].events = 0; /* never mind */
+	    }
+	}
+#endif
 	if (--nready == 0)
 		return;
     }
@@ -2313,9 +2343,11 @@ Job_Init(void)
 
     JobCreatePipe(&childExitJob, 3);
 
-    /* We can only need to wait for tokens, children and output from each job */
-    fds = bmake_malloc(sizeof (*fds) * (2 + maxJobs));
-    jobfds = bmake_malloc(sizeof (*jobfds) * (2 + maxJobs));
+    /* Preallocate enough for the maximum number of jobs.  */
+    fds = bmake_malloc(sizeof(*fds) *
+	(npseudojobs + maxJobs) * nfds_per_job());
+    jobfds = bmake_malloc(sizeof(*jobfds) *
+	(npseudojobs + maxJobs) * nfds_per_job());
 
     /* These are permanent entries and take slots 0 and 1 */
     watchfd(&tokenWaitJob);
@@ -2834,6 +2866,14 @@ watchfd(Job *job)
     jobfds[nfds] = job;
     job->inPollfd = &fds[nfds];
     nfds++;
+#if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
+    if (useMeta) {
+	fds[nfds].fd = meta_job_fd(job);
+	fds[nfds].events = fds[nfds].fd == -1 ? 0 : POLLIN;
+	jobfds[nfds] = job;
+	nfds++;
+    }
+#endif
 }
 
 static void
@@ -2844,6 +2884,18 @@ clearfd(Job *job)
 	Punt("Unwatching unwatched job");
     i = job->inPollfd - fds;
     nfds--;
+#if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
+    if (useMeta) {
+	/*
+	 * Sanity check: there should be two fds per job, so the job's
+	 * pollfd number should be even.
+	 */
+	assert(nfds_per_job() == 2);
+	if (i % 2)
+	    Punt("odd-numbered fd with meta");
+	nfds--;
+    }
+#endif
     /*
      * Move last job in table into hole made by dead job.
      */
@@ -2851,6 +2903,12 @@ clearfd(Job *job)
 	fds[i] = fds[nfds];
 	jobfds[i] = jobfds[nfds];
 	jobfds[i]->inPollfd = &fds[i];
+#if defined(USE_FILEMON) && !defined(USE_FILEMON_DEV)
+	if (useMeta) {
+	    fds[i + 1] = fds[nfds + 1];
+	    jobfds[i + 1] = jobfds[nfds + 1];
+	}
+#endif
     }
     job->inPollfd = NULL;
 }

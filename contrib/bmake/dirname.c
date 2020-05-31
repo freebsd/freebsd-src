@@ -1,4 +1,4 @@
-/*	$NetBSD: dirname.c,v 1.13 2014/07/16 10:52:26 christos Exp $	*/
+/*	$NetBSD: dirname.c,v 1.14 2018/09/27 00:45:34 kre Exp $	*/
 
 /*-
  * Copyright (c) 1997, 2002 The NetBSD Foundation, Inc.
@@ -35,6 +35,11 @@
 #ifndef HAVE_DIRNAME
 
 #include <sys/cdefs.h>
+#if defined(LIBC_SCCS) && !defined(lint)
+__RCSID("$NetBSD: dirname.c,v 1.14 2018/09/27 00:45:34 kre Exp $");
+#endif /* !LIBC_SCCS && !lint */
+
+#include "namespace.h"
 #include <sys/param.h>
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
@@ -92,7 +97,8 @@ xdirname_r(const char *path, char *buf, size_t buflen)
 out:
 	if (buf != NULL && buflen != 0) {
 		buflen = MIN(len, buflen - 1);
-		memcpy(buf, path, buflen);
+		if (buf != path)
+			memcpy(buf, path, buflen);
 		buf[buflen] = '\0';
 	}
 	return len;

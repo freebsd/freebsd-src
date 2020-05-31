@@ -1,4 +1,4 @@
-# $Id: sys.vars.mk,v 1.3 2018/02/06 00:51:53 sjg Exp $
+# $Id: sys.vars.mk,v 1.4 2019/05/27 20:22:52 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
@@ -78,3 +78,8 @@ M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0
 
 # absoulte path to what we are reading.
 _PARSEDIR = ${.PARSEDIR:${M_tA}}
+
+# many projects use MAJOR MINOR PATCH versioning
+# ${OPENSSL:${M_M.M.P_VERSION}} is equivalent to
+# ${OPENSSL_MAJOR_VERSION}.${OPENSSL_MINOR_VERSION}.${OPENSSL_PATCH_VERSION}
+M_M.M.P_VERSION = L:@v@$${MAJOR MINOR PATCH:L:@t@$${$$v_$$t_VERSION:U0}@}@:ts.

@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.48 2018/04/15 06:30:04 sjg Exp $
+# $Id: meta.autodep.mk,v 1.50 2018/06/08 01:25:31 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -20,9 +20,11 @@ __${_this}__: .NOTMAIN
 
 .-include <local.autodep.mk>
 
+PICO?= .pico
+
 .if defined(SRCS)
 # it would be nice to be able to query .SUFFIXES
-OBJ_EXTENSIONS+= .o .po .lo .So
+OBJ_EXTENSIONS+= .o .po .lo ${PICO}
 
 # explicit dependencies help short-circuit .SUFFIX searches
 SRCS_DEP_FILTER+= N*.[hly]
@@ -178,7 +180,7 @@ DEPEND_SUFFIXES += .c .h .cpp .hpp .cxx .hxx .cc .hh
 	@case "${.MAKE.META.FILES:T:M*.po.*}" in \
 	*.po.*) mv $@.${.MAKE.PID} $@;; \
 	*) { cat $@.${.MAKE.PID}; \
-	sed 's,\.So:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
+	sed 's,\${PICO}:,.o:,;s,\.o:,.po:,' $@.${.MAKE.PID}; } | sort -u > $@; \
 	rm -f $@.${.MAKE.PID};; \
 	esac
 .else
@@ -243,7 +245,7 @@ META_FILES = *.meta
 .elif ${OPTIMIZE_OBJECT_META_FILES:Uno:tl} == "no"
 META_FILES = ${.MAKE.META.FILES:T:N.depend*:O:u}
 .else
-# if we have 1000's of .o.meta, .So.meta etc we need only look at one set
+# if we have 1000's of .o.meta, ${PICO}.meta etc we need only look at one set
 # it is left as an exercise for the reader to work out what this does
 META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 	${.MAKE.META.FILES:T:M*.${.MAKE.META.FILES:M*o.meta:R:E:O:u:[1]}.meta:O:u}
@@ -260,6 +262,9 @@ META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 .if !empty(GENDIRDEPS_FILTER)
 .export GENDIRDEPS_FILTER
 .endif
+# export to avoid blowing command line limit
+META_FILES := ${META_XTRAS:U:O:u} ${META_FILES:U:T:O:u:${META_FILE_FILTER:ts:}}
+.export META_FILES
 .endif
 
 # we might have .../ in MAKESYSPATH
@@ -270,8 +275,7 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 	SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS:O:u}' \
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
 	MAKESYSPATH=${_makesyspath} \
-	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE} \
-	META_FILES='${META_XTRAS:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
+	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE})
 	@test -s $@ && touch $@; :
 .endif
 

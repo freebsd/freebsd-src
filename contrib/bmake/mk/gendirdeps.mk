@@ -1,6 +1,7 @@
-# $Id: gendirdeps.mk,v 1.38 2018/03/10 00:53:52 sjg Exp $
+# $Id: gendirdeps.mk,v 1.42 2020/05/16 23:21:48 sjg Exp $
 
-# Copyright (c) 2010-2013, Juniper Networks, Inc.
+# Copyright (c) 2011-2020, Simon J. Gerraty
+# Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -79,7 +80,6 @@ _DIRDEPS := ${DIRDEPS:U:O:u}
 .endif
 
 META_FILES := ${META_FILES:T:O:u}
-.export META_FILES
 
 # pickup customizations
 .-include <local.gendirdeps.mk>
@@ -171,11 +171,32 @@ GENDIRDEPS_SEDCMDS += \
 # we canonicalize them to keep things simple
 # if we are using a split-fs sandbox, it gets a little messier.
 _objtop := ${_OBJTOP:tA}
+
+# some people put *.meta in META_XTRAS to make sure we get here
+_meta_files := ${META_FILES:N\*.meta:O:u}
+# assume a big list
+_meta_files_arg= @meta.list
+.if empty(_meta_files) && ${META_FILES:M\*.meta} != ""
+# XXX this should be considered a bad idea, 
+# since we cannot ignore stale .meta
+x != cd ${_OBJDIR} && find . -name '*.meta' -print -o \( -type d ! -name . -prune \) | sed 's,^./,,' > meta.list; echo
+.elif ${_meta_files:[#]} > 500
+.export _meta_files
+x != echo; for m in $$_meta_files; do echo $$m; done > meta.list
+# _meta_files is consuming a lot of env space
+# that can impact command line length,
+# and we do not need it any more
+.undef _meta_files
+.unexport _meta_files
+.else
+_meta_files_arg:= ${_meta_files}
+.endif
+
 dir_list != cd ${_OBJDIR} && \
 	${META2DEPS_CMD} MACHINE=${MACHINE} \
 	SRCTOP=${SRCTOP} RELDIR=${RELDIR} CURDIR=${_CURDIR} \
 	${META2DEPS_ARGS} \
-	${META_FILES:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
+	${_meta_files_arg} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
 	sed ${GENDIRDEPS_SEDCMDS}
 
 .if ${dir_list:M*ERROR\:*} != ""
@@ -357,3 +378,6 @@ all ${_DEPENDFILE}:
 
 .endif
 ${_DEPENDFILE}: .PRECIOUS
+
+# don't waste time looking for ways to make .meta files
+.SUFFIXES:

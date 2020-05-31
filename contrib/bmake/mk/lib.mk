@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.68 2018/01/26 20:08:16 sjg Exp $
+# $Id: lib.mk,v 1.70 2020/05/02 02:10:20 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -170,13 +170,15 @@ LD_solib= lib${LIB}_pic.a
 .elif ${TARGET_OSNAME} == "Linux"
 SHLIB_LD = ${CC}
 # this is ambiguous of course
-LD_shared=-shared -Wl,"-h lib${LIB}.so.${SHLIB_MAJOR}"
+LD_shared=-shared -Wl,"-soname lib${LIB}.so.${SHLIB_MAJOR}"
 LD_solib= -Wl,--whole-archive lib${LIB}_pic.a -Wl,--no-whole-archive
+.if ${COMPILER_TYPE} == "gcc"
 # Linux uses GNU ld, which is a multi-pass linker
 # so we don't need to use lorder or tsort
 LD_objs = ${OBJS}
 LD_pobjs = ${POBJS}
 LD_sobjs = ${SOBJS}
+.endif
 .elif ${TARGET_OSNAME} == "Darwin"
 SHLIB_LD = ${CC}
 SHLIB_INSTALL_VERSION ?= ${SHLIB_MAJOR}
@@ -406,18 +408,18 @@ SHLIB_AGE?=0
 
 # can't really do profiled libs with libtool - its too fascist about
 # naming the output...
-lib${LIB}.a:: ${OBJS}
+lib${LIB}.a: ${OBJS}
 	@rm -f ${.TARGET}
 	${LIBTOOL} --mode=link ${CC} ${LT_STATIC} -o ${.TARGET:.a=.la} ${OBJS:.o=.lo} -rpath ${SHLIBDIR}:/usr/lib -version-info ${SHLIB_MAJOR}:${SHLIB_MINOR}:${SHLIB_AGE}
 	@ln .libs/${.TARGET} .
 
-lib${LIB}.${LD_so}:: lib${LIB}.a
+lib${LIB}.${LD_so}: lib${LIB}.a
 	@[ -s ${.TARGET}.${SHLIB_AGE} ] || { ln -s .libs/lib${LIB}.${LD_so}* . 2>/dev/null; : }
 	@[ -s ${.TARGET} ] || ln -s ${.TARGET}.${SHLIB_AGE} ${.TARGET}
 
 .else  # MK_LIBTOOL=yes
 
-lib${LIB}.a:: ${OBJS}
+lib${LIB}.a: ${OBJS}
 	@${META_NOECHO} building standard ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_objs}
@@ -425,7 +427,7 @@ lib${LIB}.a:: ${OBJS}
 
 POBJS+=	${OBJS:.o=.po}
 .NOPATH:	${POBJS}
-lib${LIB}_p.a:: ${POBJS}
+lib${LIB}_p.a: ${POBJS}
 	@${META_NOECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_pobjs}
@@ -433,7 +435,7 @@ lib${LIB}_p.a:: ${POBJS}
 
 SOBJS+=	${OBJS:.o=${PICO}}
 .NOPATH:	${SOBJS}
-lib${LIB}_pic.a:: ${SOBJS}
+lib${LIB}_pic.a: ${SOBJS}
 	@${META_NOECHO} building shared object ${LIB} library
 	@rm -f ${.TARGET}
 	@${AR} ${AR_cq} ${.TARGET} ${LD_sobjs}
