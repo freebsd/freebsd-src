@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2017
+.Dd June 1, 2020
 .Dt RTLD 1
 .Os
 .Sh NAME
@@ -302,6 +302,7 @@ Execution options may be specified.
 The syntax of the direct invocation is
 .Bd -ragged -offset indent
 .Pa /libexec/ld-elf.so.1
+.Op Fl b Ar exe
 .Op Fl f Ar fd
 .Op Fl p
 .Op Fl -
@@ -311,6 +312,17 @@ The syntax of the direct invocation is
 .Pp
 The options are:
 .Bl -tag -width indent
+.It Fl b Ar exe
+Use the executable
+.Fa exe
+instead of
+.Fa image_path
+for activation.
+If this option is specified,
+.Ar image_path
+is only used to provide the
+.Va argv[0]
+value to the program.
 .It Fl f Ar fd
 File descriptor
 .Ar fd
