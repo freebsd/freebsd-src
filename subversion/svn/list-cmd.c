@@ -40,8 +40,13 @@
 
 /* Baton used when printing directory entries. */
 struct print_baton {
-  svn_boolean_t verbose;
   svn_client_ctx_t *ctx;
+  svn_boolean_t verbose;
+  svn_cl__size_unit_t file_size_unit;
+
+  /* Keep track of the width of the author field. */
+  int author_width;
+  int max_author_width;
 
   /* To keep track of last seen external information. */
   const char *last_external_parent_url;
@@ -49,11 +54,22 @@ struct print_baton {
   svn_boolean_t in_external;
 };
 
+/* Starting and maximum width of the author field */
+static const int initial_author_width = 8;
+static const int initial_human_readable_author_width = 14;
+static const int maximum_author_width = 16;
+static const int maximum_human_readable_author_width = 22;
+
+/* Width of the size field */
+static const int normal_size_width = 10;
+static const int human_readable_size_width = 4;
+
 /* Field flags required for this function */
 static const apr_uint32_t print_dirent_fields = SVN_DIRENT_KIND;
 static const apr_uint32_t print_dirent_fields_verbose = (
     SVN_DIRENT_KIND  | SVN_DIRENT_SIZE | SVN_DIRENT_TIME |
     SVN_DIRENT_CREATED_REV | SVN_DIRENT_LAST_AUTHOR);
+
 
 /* This implements the svn_client_list_func2_t API, printing a single
    directory entry in text format. */
@@ -121,7 +137,11 @@ print_dirent(void *baton,
       apr_status_t apr_err;
       apr_size_t size;
       char timestr[20];
-      const char *sizestr, *utf8_timestr;
+      const int sizewidth = (pb->file_size_unit == SVN_CL__SIZE_UNIT_NONE
+                             ? normal_size_width
+                             : human_readable_size_width);
+      const char *sizestr = "";
+      const char *utf8_timestr;
 
       /* svn_time_to_human_cstring gives us something *way* too long
          to use for this, so we have to roll our own.  We include
@@ -146,15 +166,33 @@ print_dirent(void *baton,
       /* we need it in UTF-8. */
       SVN_ERR(svn_utf_cstring_to_utf8(&utf8_timestr, timestr, scratch_pool));
 
-      sizestr = apr_psprintf(scratch_pool, "%" SVN_FILESIZE_T_FMT,
-                             dirent->size);
+      /* We may have to adjust the width of th 'author' field. */
+      if (dirent->last_author)
+        {
+          const int author_width = (int)strlen(dirent->last_author);
+          if (author_width > pb->author_width)
+            {
+              if (author_width < pb->max_author_width)
+                pb->author_width = author_width;
+              else
+                pb->author_width = pb->max_author_width;
+            }
+        }
+
+      if (dirent->kind == svn_node_file)
+        {
+          SVN_ERR(svn_cl__format_file_size(&sizestr, dirent->size,
+                                           pb->file_size_unit,
+                                           FALSE, scratch_pool));
+        }
 
       return svn_cmdline_printf
-              (scratch_pool, "%7ld %-8.8s %c %10s %12s %s%s\n",
+              (scratch_pool, "%7ld %-*.*s %c %*s %12s %s%s\n",
                dirent->created_rev,
+               pb->author_width, pb->author_width,
                dirent->last_author ? dirent->last_author : " ? ",
                lock ? 'O' : ' ',
-               (dirent->kind == svn_node_file) ? sizestr : "",
+               sizewidth, sizestr,
                utf8_timestr,
                entryname,
                (dirent->kind == svn_node_dir) ? "/" : "");
@@ -238,9 +276,11 @@ print_dirent_xml(void *baton,
 
   if (dirent->kind == svn_node_file)
     {
-      svn_cl__xml_tagged_cdata
-        (&sb, scratch_pool, "size",
-         apr_psprintf(scratch_pool, "%" SVN_FILESIZE_T_FMT, dirent->size));
+      const char *sizestr;
+      SVN_ERR(svn_cl__format_file_size(&sizestr, dirent->size,
+                                       SVN_CL__SIZE_UNIT_XML,
+                                       FALSE, scratch_pool));
+      svn_cl__xml_tagged_cdata(&sb, scratch_pool, "size", sizestr);
     }
 
   svn_xml_make_open_tag(&sb, scratch_pool, svn_xml_normal, "commit",
@@ -303,11 +343,17 @@ svn_cl__list(apr_getopt_t *os,
 
   if (opt_state->xml)
     {
-      /* The XML output contains all the information, so "--verbose"
-         does not apply. */
+      /* The XML output contains all the information, so "--verbose" does
+         not apply, and using "--human-readable" with machine-readable
+         output does not make sense. */
       if (opt_state->verbose)
-        return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                                _("'verbose' option invalid in XML mode"));
+        return svn_error_create(
+            SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+            _("--verbose is not valid in --xml mode"));
+      if (opt_state->file_size_unit != SVN_CL__SIZE_UNIT_NONE)
+        return svn_error_create(
+            SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+            _("--human-readable is not valid in --xml mode"));
 
       /* If output is not incremental, output the XML header and wrap
          everything in a top-level element. This makes the output in
@@ -318,9 +364,9 @@ svn_cl__list(apr_getopt_t *os,
   else
     {
       if (opt_state->incremental)
-        return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                                _("'incremental' option only valid in XML "
-                                  "mode"));
+        return svn_error_create(
+            SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+            _("--incremental is only valid in --xml mode"));
     }
 
   if (opt_state->xml)
@@ -332,6 +378,17 @@ svn_cl__list(apr_getopt_t *os,
 
   pb.ctx = ctx;
   pb.verbose = opt_state->verbose;
+  pb.file_size_unit = opt_state->file_size_unit;
+  if (pb.file_size_unit == SVN_CL__SIZE_UNIT_NONE)
+    {
+      pb.author_width = initial_author_width;
+      pb.max_author_width = maximum_author_width;
+    }
+  else
+    {
+      pb.author_width = initial_human_readable_author_width;
+      pb.max_author_width = maximum_human_readable_author_width;
+    }
 
   if (opt_state->depth == svn_depth_unknown)
     opt_state->depth = svn_depth_immediates;

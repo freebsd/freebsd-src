@@ -756,6 +756,9 @@ handle_client_cert_pw(void *data,
 
     if (creds)
       {
+        /* At this stage we are unable to check whether the password
+           is correct; if it is incorrect serf will fail to establish
+           an SSL connection and will return a generic SSL error. */
         svn_auth_cred_ssl_client_cert_pw_t *pw_creds;
         pw_creds = creds;
         *password = pw_creds->password;
@@ -1113,19 +1116,17 @@ response_get_location(serf_bucket_t *response,
         return NULL;
 
       /* Replace the path path with what we got */
-      uri.path = (char*)svn_urlpath__canonicalize(location, scratch_pool);
+      uri.path = apr_pstrdup(scratch_pool, location);
 
       /* And make APR produce a proper full url for us */
-      location = apr_uri_unparse(scratch_pool, &uri, 0);
-
-      /* Fall through to ensure our canonicalization rules */
+      return apr_uri_unparse(result_pool, &uri, 0);
     }
   else if (!svn_path_is_url(location))
     {
       return NULL; /* Any other formats we should support? */
     }
 
-  return svn_uri_canonicalize(location, result_pool);
+  return apr_pstrdup(result_pool, location);
 }
 
 
@@ -1444,6 +1445,23 @@ handle_response(serf_request_t *request,
   handler->reading_body = TRUE;
 
  process_body:
+
+  /* A client cert file password was obtained and worked (any HTTP
+     response means that the SSL connection was established.) */
+  if (handler->conn->ssl_client_pw_auth_state)
+    {
+      SVN_ERR(svn_auth_save_credentials(handler->conn->ssl_client_pw_auth_state,
+                                        handler->session->pool));
+      handler->conn->ssl_client_pw_auth_state = NULL;
+    }
+  if (handler->conn->ssl_client_auth_state)
+    {
+      /* The cert file provider doesn't have any code to save creds so
+         this is currently a no-op. */
+      SVN_ERR(svn_auth_save_credentials(handler->conn->ssl_client_auth_state,
+                                        handler->session->pool));
+      handler->conn->ssl_client_auth_state = NULL;
+    }
 
   /* We've been instructed to ignore the body. Drain whatever is present.  */
   if (handler->discard_body)

@@ -1166,7 +1166,7 @@ svn_fs_fs__dag_serialize(void **data,
                                 (const void * const *)&node->node_pool);
 
   /* serialize other sub-structures */
-  svn_fs_fs__id_serialize(context, (const svn_fs_id_t **)&node->id);
+  svn_fs_fs__id_serialize(context, (const svn_fs_id_t *const *)&node->id);
   svn_fs_fs__id_serialize(context, &node->fresh_root_predecessor_id);
   svn_temp_serializer__add_string(context, &node->created_path);
 

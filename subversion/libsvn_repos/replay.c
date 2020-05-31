@@ -126,9 +126,6 @@ struct copy_info
 
 struct path_driver_cb_baton
 {
-  const svn_delta_editor_t *editor;
-  void *edit_baton;
-
   /* The root of the revision we're replaying. */
   svn_fs_root_t *root;
 
@@ -454,14 +451,14 @@ fill_copyfrom(svn_fs_root_t **copyfrom_root,
 
 static svn_error_t *
 path_driver_cb_func(void **dir_baton,
+                    const svn_delta_editor_t *editor,
+                    void *edit_baton,
                     void *parent_baton,
                     void *callback_baton,
                     const char *edit_path,
                     apr_pool_t *pool)
 {
   struct path_driver_cb_baton *cb = callback_baton;
-  const svn_delta_editor_t *editor = cb->editor;
-  void *edit_baton = cb->edit_baton;
   svn_fs_root_t *root = cb->root;
   svn_fs_path_change3_t *change;
   svn_boolean_t do_add = FALSE, do_delete = FALSE;
@@ -894,7 +891,7 @@ get_relevant_changes(apr_hash_t **changed_paths,
             }
 
           /* If the base_path doesn't match the top directory of this path
-             we don't want anything to do with it... 
+             we don't want anything to do with it...
              ...unless this was a change to one of the parent directories of
              base_path. */
           if (   svn_relpath_skip_ancestor(base_relpath, path)
@@ -957,8 +954,6 @@ svn_repos_replay2(svn_fs_root_t *root,
     low_water_mark = 0;
 
   /* Initialize our callback baton. */
-  cb_baton.editor = editor;
-  cb_baton.edit_baton = edit_baton;
   cb_baton.root = root;
   cb_baton.changed_paths = changed_paths;
   cb_baton.authz_read_func = authz_read_func;
@@ -989,7 +984,7 @@ svn_repos_replay2(svn_fs_root_t *root,
     }
 
   /* Call the path-based editor driver. */
-  return svn_delta_path_driver2(editor, edit_baton,
+  return svn_delta_path_driver3(editor, edit_baton,
                                 paths, TRUE,
                                 path_driver_cb_func, &cb_baton, pool);
 #else

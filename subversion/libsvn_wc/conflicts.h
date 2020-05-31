@@ -219,6 +219,11 @@ svn_wc__conflict_skel_add_prop_conflict(svn_skel_t *conflict_skel,
    MOVE_SRC_OP_ROOT_ABSPATH should be A for a conflict associated
    with (1), MOVE_SRC_OP_ROOT_ABSPATH should be A/B for a conflict
    associated with (2).
+   MOVE_DST_OP_ROOT_ABSPATH is the op-root of the move target (i.e. the
+   op-root of the corresponding copy). This needs to be stored because
+   moves in the NODE table do not always persist after an update, while
+   the conflict resolver may need information about the pre-update state
+   of the move.
 
    It is an error to add another tree conflict to a conflict skel that
    already contains a tree conflict.  (It is not an error, at this level,
@@ -233,6 +238,7 @@ svn_wc__conflict_skel_add_tree_conflict(svn_skel_t *conflict_skel,
                                         svn_wc_conflict_reason_t local_change,
                                         svn_wc_conflict_action_t incoming_change,
                                         const char *move_src_op_root_abspath,
+                                        const char *move_dst_op_root_abspath,
                                         apr_pool_t *result_pool,
                                         apr_pool_t *scratch_pool);
 
@@ -364,6 +370,7 @@ svn_error_t *
 svn_wc__conflict_read_tree_conflict(svn_wc_conflict_reason_t *local_change,
                                     svn_wc_conflict_action_t *incoming_change,
                                     const char **move_src_op_root_abspath,
+                                    const char **move_dst_op_root_abspath,
                                     svn_wc__db_t *db,
                                     const char *wri_abspath,
                                     const svn_skel_t *conflict_skel,

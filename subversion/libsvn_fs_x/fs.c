@@ -310,7 +310,8 @@ static fs_vtable_t fs_vtable = {
   x_info,
   svn_fs_x__verify_root,
   x_freeze,
-  x_set_errcall
+  x_set_errcall,
+  NULL /* ioctl */
 };
 
 
@@ -641,7 +642,8 @@ static fs_library_vtable_t library_vtable = {
   x_logfiles,
   NULL /* parse_id */,
   x_set_svn_fs_open,
-  x_info_dup
+  x_info_dup,
+  NULL /* ioctl */
 };
 
 svn_error_t *

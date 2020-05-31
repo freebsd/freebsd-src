@@ -27,6 +27,8 @@
 #ifndef SVN_OPT_H
 #define SVN_OPT_H
 
+#include "svn_opt_impl.h"
+
 #include <apr.h>
 #include <apr_pools.h>
 #include <apr_getopt.h>
@@ -69,6 +71,10 @@ typedef svn_error_t *(svn_opt_subcommand_t)(
 /** The maximum number of options that can be accepted by a subcommand. */
 #define SVN_OPT_MAX_OPTIONS 50
 
+/** The maximum number of paragraphs of help text a subcommand can have.
+ * @since New in 1.11. */
+#define SVN_OPT_MAX_PARAGRAPHS 100
+
 /** Options that have no short option char should use an identifying
  * integer equal to or greater than this.
  */
@@ -77,7 +83,39 @@ typedef svn_error_t *(svn_opt_subcommand_t)(
 
 /** One element of a subcommand dispatch table.
  *
+ * @since New in 1.11.
+ */
+typedef struct svn_opt_subcommand_desc3_t
+{
+  /** The full name of this command. */
+  const char *name;
+
+  /** The function this command invokes. */
+  svn_opt_subcommand_t *cmd_func;
+
+  /** A list of alias names for this command (e.g., 'up' for 'update'). */
+  const char *aliases[SVN_OPT_MAX_ALIASES];
+
+  /** A multi-paragraph string describing this command. */
+  const char *help[SVN_OPT_MAX_PARAGRAPHS];
+
+  /** A list of options accepted by this command.  Each value in the
+   * array is a unique enum (the 2nd field in apr_getopt_option_t)
+   */
+  int valid_options[SVN_OPT_MAX_OPTIONS];
+
+  /** A list of option help descriptions, keyed by the option unique enum
+   * (the 2nd field in apr_getopt_option_t), which override the generic
+   * descriptions given in an apr_getopt_option_t on a per-subcommand basis.
+   */
+  struct { int optch; const char *desc; } desc_overrides[SVN_OPT_MAX_OPTIONS];
+} svn_opt_subcommand_desc3_t;
+
+
+/** One element of a subcommand dispatch table.
+ *
  * @since New in 1.4.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
  */
 typedef struct svn_opt_subcommand_desc2_t
 {
@@ -139,8 +177,21 @@ typedef struct svn_opt_subcommand_desc_t
  * Return the entry in @a table whose name matches @a cmd_name, or @c NULL if
  * none.  @a cmd_name may be an alias.
  *
- * @since New in 1.4.
+ * @since New in 1.11.
  */
+const svn_opt_subcommand_desc3_t *
+svn_opt_get_canonical_subcommand3(const svn_opt_subcommand_desc3_t *table,
+                                  const char *cmd_name);
+
+
+/**
+ * Same as svn_opt_get_canonical_subcommand3(), but with a different
+ * version of the subcommand description table.
+ *
+ * @since New in 1.4.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 const svn_opt_subcommand_desc2_t *
 svn_opt_get_canonical_subcommand2(const svn_opt_subcommand_desc2_t *table,
                                   const char *cmd_name);
@@ -170,8 +221,22 @@ svn_opt_get_canonical_subcommand(const svn_opt_subcommand_desc_t *table,
  *
  * The returned value may be statically allocated, or allocated in @a pool.
  *
- * @since New in 1.4.
+ * @since New in 1.11.
  */
+const apr_getopt_option_t *
+svn_opt_get_option_from_code3(int code,
+                              const apr_getopt_option_t *option_table,
+                              const svn_opt_subcommand_desc3_t *command,
+                              apr_pool_t *pool);
+
+/**
+ * Same as svn_opt_get_option_from_code3(), but with a different
+ * version of the subcommand description table.
+ *
+ * @since New in 1.4.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 const apr_getopt_option_t *
 svn_opt_get_option_from_code2(int code,
                               const apr_getopt_option_t *option_table,
@@ -198,8 +263,21 @@ svn_opt_get_option_from_code(int code,
  * non-NULL, it is a zero-terminated array, and all subcommands take
  * the options listed in it.
  *
- * @since New in 1.5.
+ * @since New in 1.11.
  */
+svn_boolean_t
+svn_opt_subcommand_takes_option4(const svn_opt_subcommand_desc3_t *command,
+                                 int option_code,
+                                 const int *global_options);
+
+/**
+ * Same as svn_opt_subcommand_takes_option4(), but with a different
+ * version of the subcommand description table.
+ *
+ * @since New in 1.5.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 svn_boolean_t
 svn_opt_subcommand_takes_option3(const svn_opt_subcommand_desc2_t *command,
                                  int option_code,
@@ -235,7 +313,7 @@ svn_opt_subcommand_takes_option(const svn_opt_subcommand_desc_t *command,
 /**
  * Print a generic (not command-specific) usage message to @a stream.
  *
- * ### @todo Why is @a stream a stdio file instead of an svn stream?
+ * @todo Why is @a stream a stdio file instead of an svn stream?
  *
  * If @a header is non-NULL, print @a header followed by a newline.  Then
  * loop over @a cmd_table printing the usage for each command (getting
@@ -244,8 +322,24 @@ svn_opt_subcommand_takes_option(const svn_opt_subcommand_desc_t *command,
  *
  * Use @a pool for temporary allocation.
  *
- * @since New in 1.4.
+ * @since New in 1.11.
  */
+void
+svn_opt_print_generic_help3(const char *header,
+                            const svn_opt_subcommand_desc3_t *cmd_table,
+                            const apr_getopt_option_t *opt_table,
+                            const char *footer,
+                            apr_pool_t *pool,
+                            FILE *stream);
+
+/**
+ * Same as svn_opt_print_generic_help3(), but with a different
+ * version of the subcommand description table.
+ *
+ * @since New in 1.4.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 void
 svn_opt_print_generic_help2(const char *header,
                             const svn_opt_subcommand_desc2_t *cmd_table,
@@ -297,8 +391,23 @@ svn_opt_format_option(const char **string,
  * use that second name as an alias for the first name.  This additional
  * behaviour is new in 1.7.
  *
- * @since New in 1.5.
+ * @since New in 1.11.
  */
+void
+svn_opt_subcommand_help4(const char *subcommand,
+                         const svn_opt_subcommand_desc3_t *table,
+                         const apr_getopt_option_t *options_table,
+                         const int *global_options,
+                         apr_pool_t *pool);
+
+/**
+ * Same as svn_opt_subcommand_help4(), but with a different
+ * version of the subcommand description table.
+ *
+ * @since New in 1.5.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 void
 svn_opt_subcommand_help3(const char *subcommand,
                          const svn_opt_subcommand_desc2_t *table,
@@ -336,43 +445,7 @@ svn_opt_subcommand_help(const char *subcommand,
 
 
 /* Parsing revision and date options. */
-
-/**
- * Various ways of specifying revisions.
- *
- * @note
- * In contexts where local mods are relevant, the `working' kind
- * refers to the uncommitted "working" revision, which may be modified
- * with respect to its base revision.  In other contexts, `working'
- * should behave the same as `committed' or `current'.
- */
-enum svn_opt_revision_kind {
-  /** No revision information given. */
-  svn_opt_revision_unspecified,
-
-  /** revision given as number */
-  svn_opt_revision_number,
-
-  /** revision given as date */
-  svn_opt_revision_date,
-
-  /** rev of most recent change */
-  svn_opt_revision_committed,
-
-  /** (rev of most recent change) - 1 */
-  svn_opt_revision_previous,
-
-  /** .svn/entries current revision */
-  svn_opt_revision_base,
-
-  /** current, plus local mods */
-  svn_opt_revision_working,
-
-  /** repository youngest */
-  svn_opt_revision_head
-
-  /* please update svn_opt__revision_to_string() when extending this enum */
-};
+/* NOTE: svn_opt_revision_kind is defined in svn_opt_impl.h */
 
 /**
  * A revision value, which can be specified as a number or a date.
@@ -700,9 +773,30 @@ svn_opt_parse_path(svn_opt_revision_t *rev,
  * --version flag *and* subcommand arguments on a help command line.
  * The logic for handling such a situation should be in one place.
  *
- * @since New in 1.8.
+ * @since New in 1.11.
  */
+svn_error_t *
+svn_opt_print_help5(apr_getopt_t *os,
+                    const char *pgm_name,
+                    svn_boolean_t print_version,
+                    svn_boolean_t quiet,
+                    svn_boolean_t verbose,
+                    const char *version_footer,
+                    const char *header,
+                    const svn_opt_subcommand_desc3_t *cmd_table,
+                    const apr_getopt_option_t *option_table,
+                    const int *global_options,
+                    const char *footer,
+                    apr_pool_t *pool);
 
+/**
+ * Same as svn_opt_print_help5(), but with a different
+ * version of the subcommand description table.
+ *
+ * @since New in 1.8.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_opt_print_help4(apr_getopt_t *os,
                     const char *pgm_name,

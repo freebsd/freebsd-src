@@ -528,6 +528,7 @@ svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
   const char *adm_relpath;
   /* Non-NULL if WCROOT is found through a symlink: */
   const char *symlink_wcroot_abspath = NULL;
+  apr_pool_t *iterpool;
 
   /* ### we need more logic for finding the database (if it is located
      ### outside of the wcroot) and then managing all of that within DB.
@@ -613,16 +614,20 @@ svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
      database in the right place. If we find it... great! If not, then
      peel off some components, and try again. */
 
+  iterpool = svn_pool_create(scratch_pool);
   adm_relpath = svn_wc_get_adm_dir(scratch_pool);
   while (TRUE)
     {
       svn_error_t *err;
       svn_node_kind_t adm_subdir_kind;
 
-      const char *adm_subdir = svn_dirent_join(local_abspath, adm_relpath,
-                                               scratch_pool);
+      const char *adm_subdir;
 
-      SVN_ERR(svn_io_check_path(adm_subdir, &adm_subdir_kind, scratch_pool));
+      svn_pool_clear(iterpool);
+
+      adm_subdir = svn_dirent_join(local_abspath, adm_relpath, iterpool);
+
+      SVN_ERR(svn_io_check_path(adm_subdir, &adm_subdir_kind, iterpool));
 
       if (adm_subdir_kind == svn_node_dir)
         {
@@ -673,7 +678,7 @@ svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
           if (!moved_upwards || always_check)
             {
               SVN_ERR(get_old_version(&wc_format, local_abspath,
-                                      scratch_pool));
+                                      iterpool));
               if (wc_format != 0)
                 break;
             }
@@ -697,7 +702,7 @@ svn_wc__db_wcroot_parse_local_abspath(svn_wc__db_wcroot_t **wcroot,
 
               SVN_ERR(svn_io_check_resolved_path(local_abspath,
                                                  &resolved_kind,
-                                                 scratch_pool));
+                                                 iterpool));
               if (resolved_kind == svn_node_dir)
                 {
                   /* Is this directory recorded in our hash?  */
@@ -973,6 +978,7 @@ try_symlink_as_dir:
     }
   while (strcmp(scan_abspath, local_abspath) != 0);
 
+  svn_pool_destroy(iterpool);
   return SVN_NO_ERROR;
 }
 

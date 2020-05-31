@@ -881,7 +881,7 @@ unparse_dir_entry(svn_fs_x__dirent_t *dirent,
   apr_size_t to_write;
   apr_size_t name_len = strlen(dirent->name);
 
-  /* A buffer with sufficient space for 
+  /* A buffer with sufficient space for
    * - entry name + 1 terminating NUL
    * - 1 byte for the node kind
    * - 2 numbers in 7b/8b encoding for the noderev-id
@@ -1259,7 +1259,7 @@ get_and_increment_txn_key_body(void *baton,
       SVN_ERR(svn_io_check_path(txn_dir, &kind, iterpool));
       if (kind == svn_node_none)
         {
-          svn_io_dir_make(txn_dir, APR_OS_DEFAULT, iterpool);
+          SVN_ERR(svn_io_dir_make(txn_dir, APR_OS_DEFAULT, iterpool));
           break;
         }
 

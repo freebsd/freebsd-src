@@ -423,3 +423,24 @@ For the (modified) LZ4 library files in subversion/libsvn_subr/lz4
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
   THE POSSIBILITY OF SUCH DAMAGE.
+
+For the Autoconf Archive macros for Boost:
+
+ * in build/ac-macros/ax_boost_base.m4:
+
+   Copyright (c) 2008 Thomas Porschberg <thomas@randspringer.de>
+   Copyright (c) 2009 Peter Adolphs
+
+   Copying and distribution of this file, with or without modification, are
+   permitted in any medium without royalty provided the copyright notice
+   and this notice are preserved. This file is offered as-is, without any
+   warranty.
+
+ * in build/ac-macros/ax_boost_unit_test_framework.m4:
+
+   Copyright (c) 2008 Thomas Porschberg <thomas@randspringer.de>
+
+   Copying and distribution of this file, with or without modification, are
+   permitted in any medium without royalty provided the copyright notice
+   and this notice are preserved. This file is offered as-is, without any
+   warranty.

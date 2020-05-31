@@ -179,7 +179,7 @@ verify_index_checksum(svn_fs_x__revision_file_t *file,
 
       SVN_ERR(svn_fs_x__rev_file_name(&file_name, file, scratch_pool));
       SVN_ERR(svn_checksum_mismatch_err(index_info->checksum, actual,
-                                        scratch_pool, 
+                                        scratch_pool,
                                         _("%s checksum mismatch in file %s"),
                                         name, file_name));
     }

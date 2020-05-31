@@ -94,6 +94,10 @@ copies.
   .svn/wc.db                    /* SQLite database containing node metadata. */
        pristine/                /* Sharded directory containing base files. */
        tmp/                     /* Local tmp area. */
+       experimental/            /* Data for experimental features. */
+       shelves/                 /* Used by 1.10.x shelves implementation */
+       entries                  /* Stub file. */
+       format                   /* Stub file. */
 
 `wc.db':
    A self-contained SQLite database containing all the metadata Subversion
@@ -108,6 +112,17 @@ copies.
    multiple identical files can share the same pristine representation.
 
    Pristines are used for sending diffs back to the server, etc.
+
+`experimental':
+   Experimental (unstable) features store their data here.
+
+`shelves':
+   Subversion 1.10's "svn shelve" command stores shelved changes here.
+   This directory is not used by any other minor release line.
+
+`entries', `format':
+   These stub files exist only to enable a pre-1.7 client to yield a clearer
+   error message.
 
 
 How the client applies an update delta

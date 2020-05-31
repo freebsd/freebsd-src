@@ -587,7 +587,7 @@ unparse_dir_entry(svn_fs_dirent_t *dirent,
                       : sizeof(SVN_FS_FS__KIND_DIR);
   apr_size_t value_len = type_len + id_str->len;
 
-  /* A buffer with sufficient space for 
+  /* A buffer with sufficient space for
    * - both string lines
    * - 4 newlines
    * - 2 lines K/V lines containing a number each

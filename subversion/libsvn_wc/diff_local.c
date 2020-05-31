@@ -433,8 +433,7 @@ diff_status_callback(void *baton,
 
 /* Public Interface */
 svn_error_t *
-svn_wc__diff7(const char **root_relpath,
-              svn_boolean_t *root_is_dir,
+svn_wc__diff7(svn_boolean_t anchor_at_given_paths,
               svn_wc_context_t *wc_ctx,
               const char *local_abspath,
               svn_depth_t depth,
@@ -459,25 +458,29 @@ svn_wc__diff7(const char **root_relpath,
 
   eb.anchor_abspath = local_abspath;
 
-  if (root_relpath)
+  if (anchor_at_given_paths)
     {
+      /* Anchor the underlying diff processor at the parent of
+         LOCAL_ABSPATH (if possible), and adjust so the outgoing
+         DIFF_PROCESSOR is always anchored at LOCAL_ABSPATH. */
+      /* ### Why anchor the underlying diff processor at the parent? */
       svn_boolean_t is_wcroot;
 
       SVN_ERR(svn_wc__db_is_wcroot(&is_wcroot,
                                    wc_ctx->db, local_abspath, scratch_pool));
 
       if (!is_wcroot)
-        eb.anchor_abspath = svn_dirent_dirname(local_abspath, scratch_pool);
+        {
+          const char *relpath;
+
+          eb.anchor_abspath = svn_dirent_dirname(local_abspath, scratch_pool);
+          relpath = svn_dirent_basename(local_abspath, NULL);
+          diff_processor = svn_diff__tree_processor_filter_create(
+                             diff_processor, relpath, scratch_pool);
+        }
     }
   else if (kind != svn_node_dir)
     eb.anchor_abspath = svn_dirent_dirname(local_abspath, scratch_pool);
-
-  if (root_relpath)
-    *root_relpath = apr_pstrdup(result_pool,
-                                svn_dirent_skip_ancestor(eb.anchor_abspath,
-                                                         local_abspath));
-  if (root_is_dir)
-    *root_is_dir = (kind == svn_node_dir);
 
   /* Apply changelist filtering to the output */
   if (changelist_filter && changelist_filter->nelts)
@@ -487,7 +490,7 @@ svn_wc__diff7(const char **root_relpath,
       SVN_ERR(svn_hash_from_cstring_keys(&changelist_hash, changelist_filter,
                                          result_pool));
       diff_processor = svn_wc__changelist_filter_tree_processor_create(
-                         diff_processor, wc_ctx, local_abspath,
+                         diff_processor, wc_ctx, eb.anchor_abspath,
                          changelist_hash, result_pool);
     }
 
@@ -572,7 +575,7 @@ svn_wc_diff6(svn_wc_context_t *wc_ctx,
     processor = svn_diff__tree_processor_copy_as_changed_create(processor,
                                                                 scratch_pool);
 
-  return svn_error_trace(svn_wc__diff7(NULL, NULL,
+  return svn_error_trace(svn_wc__diff7(FALSE,
                                        wc_ctx, local_abspath,
                                        depth,
                                        ignore_ancestry,

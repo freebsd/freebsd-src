@@ -118,7 +118,7 @@ make_token(char type,
   char buffer[1 + SVN_INT64_BUFFER_SIZE];
   buffer[0] = type;
   len = 1 + svn__ui64toa(&buffer[1], eb->next_token++);
-  
+
   return svn_string_ncreate(buffer, len, pool);
 }
 

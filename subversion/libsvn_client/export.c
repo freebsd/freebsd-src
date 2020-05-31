@@ -453,12 +453,12 @@ export_node(void *baton,
  * If PATH exists but is a file, then error with SVN_ERR_WC_NOT_WORKING_COPY.
  *
  * If PATH is a already a directory, then error with
- * SVN_ERR_WC_OBSTRUCTED_UPDATE, unless FORCE, in which case just
+ * SVN_ERR_WC_OBSTRUCTED_UPDATE, unless OVERWRITE, in which case just
  * export into PATH with no error.
  */
 static svn_error_t *
 open_root_internal(const char *path,
-                   svn_boolean_t force,
+                   svn_boolean_t overwrite,
                    svn_wc_notify_func2_t notify_func,
                    void *notify_baton,
                    apr_pool_t *pool)
@@ -472,7 +472,7 @@ open_root_internal(const char *path,
     return svn_error_createf(SVN_ERR_WC_NOT_WORKING_COPY, NULL,
                              _("'%s' exists and is not a directory"),
                              svn_dirent_local_style(path, pool));
-  else if ((kind != svn_node_dir) || (! force))
+  else if ((kind != svn_node_dir) || (! overwrite))
     return svn_error_createf(SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                              _("'%s' already exists"),
                              svn_dirent_local_style(path, pool));
@@ -501,7 +501,7 @@ struct edit_baton
   const char *repos_root_url;
   const char *root_path;
   const char *root_url;
-  svn_boolean_t force;
+  svn_boolean_t overwrite;
   svn_revnum_t *target_revision;
   apr_hash_t *externals;
   const char *native_eol;
@@ -587,7 +587,7 @@ open_root(void *edit_baton,
   struct edit_baton *eb = edit_baton;
   struct dir_baton *db = apr_pcalloc(pool, sizeof(*db));
 
-  SVN_ERR(open_root_internal(eb->root_path, eb->force,
+  SVN_ERR(open_root_internal(eb->root_path, eb->overwrite,
                              eb->notify_func, eb->notify_baton, pool));
 
   /* Build our dir baton. */
@@ -621,7 +621,7 @@ add_directory(const char *path,
     return svn_error_createf(SVN_ERR_WC_NOT_WORKING_COPY, NULL,
                              _("'%s' exists and is not a directory"),
                              svn_dirent_local_style(full_path, pool));
-  else if (! (kind == svn_node_dir && eb->force))
+  else if (! (kind == svn_node_dir && eb->overwrite))
     return svn_error_createf(SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                              _("'%s' already exists"),
                              svn_dirent_local_style(full_path, pool));
@@ -1077,7 +1077,7 @@ add_directory_ev2(void *baton,
     return svn_error_createf(SVN_ERR_WC_NOT_WORKING_COPY, NULL,
                              _("'%s' exists and is not a directory"),
                              svn_dirent_local_style(full_path, scratch_pool));
-  else if (! (kind == svn_node_dir && eb->force))
+  else if (! (kind == svn_node_dir && eb->overwrite))
     return svn_error_createf(SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                              _("'%s' already exists"),
                              svn_dirent_local_style(full_path, scratch_pool));
@@ -1141,7 +1141,7 @@ get_editor_ev2(const svn_delta_editor_t **export_editor,
                                        exb, result_pool));
 
   /* Create the root of the export. */
-  SVN_ERR(open_root_internal(eb->root_path, eb->force, eb->notify_func,
+  SVN_ERR(open_root_internal(eb->root_path, eb->overwrite, eb->notify_func,
                              eb->notify_baton, scratch_pool));
 
   return SVN_NO_ERROR;
@@ -1153,7 +1153,6 @@ export_file_ev2(const char *from_url,
                 struct edit_baton *eb,
                 svn_client__pathrev_t *loc,
                 svn_ra_session_t *ra_session,
-                svn_boolean_t overwrite,
                 apr_pool_t *scratch_pool)
 {
   apr_hash_t *props;
@@ -1177,7 +1176,7 @@ export_file_ev2(const char *from_url,
   SVN_ERR(svn_io_check_path(to_path, &to_kind, scratch_pool));
 
   if ((to_kind == svn_node_file || to_kind == svn_node_unknown) &&
-      ! overwrite)
+      ! eb->overwrite)
     return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
                              _("Destination file '%s' exists, and "
                                "will not be overwritten unless forced"),
@@ -1207,7 +1206,6 @@ export_file(const char *from_url,
             struct edit_baton *eb,
             svn_client__pathrev_t *loc,
             svn_ra_session_t *ra_session,
-            svn_boolean_t overwrite,
             apr_pool_t *scratch_pool)
 {
   apr_hash_t *props;
@@ -1232,7 +1230,7 @@ export_file(const char *from_url,
   SVN_ERR(svn_io_check_path(to_path, &to_kind, scratch_pool));
 
   if ((to_kind == svn_node_file || to_kind == svn_node_unknown) &&
-      ! overwrite)
+      ! eb->overwrite)
     return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
                              _("Destination file '%s' exists, and "
                                "will not be overwritten unless forced"),
@@ -1289,7 +1287,6 @@ export_directory(const char *from_url,
                  struct edit_baton *eb,
                  svn_client__pathrev_t *loc,
                  svn_ra_session_t *ra_session,
-                 svn_boolean_t overwrite,
                  svn_boolean_t ignore_externals,
                  svn_boolean_t ignore_keywords,
                  svn_depth_t depth,
@@ -1344,7 +1341,7 @@ export_directory(const char *from_url,
   SVN_ERR(svn_io_check_path(to_path, &kind, scratch_pool));
   if (kind == svn_node_none)
     SVN_ERR(open_root_internal
-            (to_path, overwrite, ctx->notify_func2,
+            (to_path, eb->overwrite, ctx->notify_func2,
              ctx->notify_baton2, scratch_pool));
 
   if (! ignore_externals && depth == svn_depth_infinity)
@@ -1415,7 +1412,7 @@ svn_client_export5(svn_revnum_t *result_rev,
       SVN_ERR(svn_ra_get_repos_root2(ra_session, &eb->repos_root_url, pool));
       eb->root_path = to_path;
       eb->root_url = loc->url;
-      eb->force = overwrite;
+      eb->overwrite = overwrite;
       eb->target_revision = &edit_revision;
       eb->externals = apr_hash_make(pool);
       eb->native_eol = native_eol;
@@ -1431,15 +1428,15 @@ svn_client_export5(svn_revnum_t *result_rev,
         {
           if (!ENABLE_EV2_IMPL)
             SVN_ERR(export_file(from_url, to_path, eb, loc, ra_session,
-                                overwrite, pool));
+                                pool));
           else
             SVN_ERR(export_file_ev2(from_url, to_path, eb, loc,
-                                    ra_session, overwrite, pool));
+                                    ra_session, pool));
         }
       else if (kind == svn_node_dir)
         {
           SVN_ERR(export_directory(from_url, to_path,
-                                   eb, loc, ra_session, overwrite,
+                                   eb, loc, ra_session,
                                    ignore_externals, ignore_keywords, depth,
                                    native_eol, ctx, pool));
         }

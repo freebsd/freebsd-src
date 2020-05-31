@@ -328,7 +328,6 @@ svn_fs_fs__set_rep_reference(svn_fs_t *fs,
 {
   fs_fs_data_t *ffd = fs->fsap_data;
   svn_sqlite__stmt_t *stmt;
-  svn_error_t *err;
   svn_checksum_t checksum;
   checksum.kind = svn_checksum_sha1;
   checksum.digest = rep->sha1_digest;
@@ -351,28 +350,7 @@ svn_fs_fs__set_rep_reference(svn_fs_t *fs,
                             (apr_int64_t) rep->size,
                             (apr_int64_t) rep->expanded_size));
 
-  err = svn_sqlite__insert(NULL, stmt);
-  if (err)
-    {
-      representation_t *old_rep;
-
-      if (err->apr_err != SVN_ERR_SQLITE_CONSTRAINT)
-        return svn_error_trace(err);
-
-      svn_error_clear(err);
-
-      /* Constraint failed so the mapping for SHA1_CHECKSUM->REP
-         should exist.  If so that's cool -- just do nothing.  If not,
-         that's a red flag!  */
-      SVN_ERR(svn_fs_fs__get_rep_reference(&old_rep, fs, &checksum, pool));
-
-      if (!old_rep)
-        {
-          /* Something really odd at this point, we failed to insert the
-             checksum AND failed to read an existing checksum.  Do we need
-             to flag this? */
-        }
-    }
+  SVN_ERR(svn_sqlite__insert(NULL, stmt));
 
   return SVN_NO_ERROR;
 }

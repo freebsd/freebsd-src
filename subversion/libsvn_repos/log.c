@@ -655,7 +655,7 @@ fs_mergeinfo_changed(svn_mergeinfo_catalog_t *deleted_mergeinfo_catalog,
      because that greatly influences the costs for log processing.
      So, it is faster to iterate over the changes twice - in the worst
      case b/c most times there is no m/i at all and we exit out early
-     without any overhead. 
+     without any overhead.
    */
   while (change && (!any_mergeinfo || !any_copy))
     {
@@ -1227,7 +1227,7 @@ typedef struct interesting_merge_baton_t
   void *inner_baton;
 } interesting_merge_baton_t;
 
-/* Implements svn_repos_path_change_receiver_t. 
+/* Implements svn_repos_path_change_receiver_t.
  * *BATON is a interesting_merge_baton_t.
  *
  * If BATON->REV a merged revision that is not already part of
@@ -2447,7 +2447,7 @@ svn_repos_get_logs5(svn_repos_t *repos,
      represents all of PATHS' history between START and END.  We will use
      this later to squelch duplicate log revisions that might exist in
      both natural history and merged-in history.  See
-     http://subversion.tigris.org/issues/show_bug.cgi?id=3650#desc5 */
+     https://issues.apache.org/jira/browse/SVN-3650#desc5 */
   if (include_merged_revisions)
     {
       apr_pool_t *subpool = svn_pool_create(scratch_pool);

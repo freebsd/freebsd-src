@@ -342,7 +342,7 @@ svn_repos__create_config_access(svn_repos_t *repos_hint,
   return result;
 }
 
-void 
+void
 svn_repos__destroy_config_access(config_access_t *access)
 {
   svn_pool_destroy(access->pool);

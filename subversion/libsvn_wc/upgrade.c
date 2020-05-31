@@ -1237,7 +1237,7 @@ svn_wc__upgrade_conflict_skel_from_raw(svn_skel_t **conflicts,
                                                       db, wri_abspath,
                                                       tc->reason,
                                                       tc->action,
-                                                      NULL,
+                                                      NULL, NULL,
                                                       scratch_pool,
                                                       scratch_pool));
 
@@ -1667,7 +1667,7 @@ svn_wc__upgrade_sdb(int *result_format,
                                "use the current client"),
                              svn_dirent_local_style(wcroot_abspath,
                                                     scratch_pool),
-                             start_format);                             
+                             start_format);
 
   /* ### need lock-out. only one upgrade at a time. note that other code
      ### cannot use this un-upgraded database until we finish the upgrade.  */

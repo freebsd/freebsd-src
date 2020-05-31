@@ -171,7 +171,7 @@ svn_fs_fs__get_proplist(apr_hash_t **proplist,
                         apr_pool_t *pool);
 
 /* Create a changes retrieval context object in *RESULT_POOL and return it
- * in *CONTEXT.  It will allow svn_fs_x__get_changes to fetch consecutive
+ * in *CONTEXT.  It will allow svn_fs_fs__get_changes to fetch consecutive
  * blocks (one per invocation) from REV's changed paths list in FS. */
 svn_error_t *
 svn_fs_fs__create_changes_context(svn_fs_fs__changes_context_t **context,

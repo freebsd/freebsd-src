@@ -27,6 +27,8 @@
 #ifndef SVN_TYPES_H
 #define SVN_TYPES_H
 
+#include "svn_types_impl.h"
+
 /* ### this should go away, but it causes too much breakage right now */
 #include <stdlib.h>
 #include <limits.h> /* for ULONG_MAX */
@@ -247,35 +249,6 @@ typedef struct svn_version_t svn_version_t;
 
 
 
-/** @defgroup apr_hash_utilities APR Hash Table Helpers
- * These functions enable the caller to dereference an APR hash table index
- * without type casts or temporary variables.
- *
- * These functions are provided by APR itself from version 1.5.
- * Definitions are provided here for when using older versions of APR.
- * @{
- */
-
-#if !APR_VERSION_AT_LEAST(1, 5, 0)
-
-/** Return the key of the hash table entry indexed by @a hi. */
-const void *
-apr_hash_this_key(apr_hash_index_t *hi);
-
-/** Return the key length of the hash table entry indexed by @a hi. */
-apr_ssize_t
-apr_hash_this_key_len(apr_hash_index_t *hi);
-
-/** Return the value of the hash table entry indexed by @a hi. */
-void *
-apr_hash_this_val(apr_hash_index_t *hi);
-
-#endif
-
-/** @} */
-
-
-
 /** On Windows, APR_STATUS_IS_ENOTDIR includes several kinds of
  * invalid-pathname error but not ERROR_INVALID_NAME, so we include it.
  * We also include ERROR_DIRECTORY as that was not included in apr versions
@@ -303,28 +276,7 @@ apr_hash_this_val(apr_hash_index_t *hi);
 
 
 
-/** The various types of nodes in the Subversion filesystem. */
-typedef enum svn_node_kind_t
-{
-  /** absent */
-  svn_node_none,
-
-  /** regular file */
-  svn_node_file,
-
-  /** directory */
-  svn_node_dir,
-
-  /** something's here, but we don't know what */
-  svn_node_unknown,
-
-  /**
-   * symbolic link
-   * @note This value is not currently used by the public API.
-   * @since New in 1.8.
-   */
-  svn_node_symlink
-} svn_node_kind_t;
+/* NOTE: svn_node_kind_t is defined in svn_types_impl.h */
 
 /** Return a constant string expressing @a kind as an English word, e.g.,
  * "file", "dir", etc.  The string is not localized, as it may be used for
@@ -346,23 +298,7 @@ svn_node_kind_t
 svn_node_kind_from_word(const char *word);
 
 
-/** Generic three-state property to represent an unknown value for values
- * that are just like booleans.  The values have been set deliberately to
- * make tristates disjoint from #svn_boolean_t.
- *
- * @note It is unsafe to use apr_pcalloc() to allocate these, since '0' is
- * not a valid value.
- *
- * @since New in 1.7. */
-typedef enum svn_tristate_t
-{
-  /** state known to be false (the constant does not evaulate to false) */
-  svn_tristate_false = 2,
-  /** state known to be true */
-  svn_tristate_true,
-  /** state could be true or false */
-  svn_tristate_unknown
-} svn_tristate_t;
+/* NOTE: svn_tristate_t is defined in svn_types_impl.h */
 
 /** Return a constant string "true", "false" or NULL representing the value of
  * @a tristate.
@@ -422,14 +358,10 @@ svn_tristate__from_word(const char * word);
 
 
 
-/** A revision number. */
-typedef long int svn_revnum_t;
+/* NOTE: svn_revnum_t and SVN_INVALID_REVNUM are defined in svn_types_impl.h */
 
 /** Valid revision numbers begin at 0 */
 #define SVN_IS_VALID_REVNUM(n) ((n) >= 0)
-
-/** The 'official' invalid revision num */
-#define SVN_INVALID_REVNUM ((svn_revnum_t) -1)
 
 /** Not really invalid...just unimportant -- one day, this can be its
  * own unique value, for now, just make it the same as
@@ -494,55 +426,7 @@ enum svn_recurse_kind
   svn_recursive
 };
 
-/** The concept of depth for directories.
- *
- * @note This is similar to, but not exactly the same as, the WebDAV
- * and LDAP concepts of depth.
- *
- * @since New in 1.5.
- */
-typedef enum svn_depth_t
-{
-  /* The order of these depths is important: the higher the number,
-     the deeper it descends.  This allows us to compare two depths
-     numerically to decide which should govern. */
-
-  /** Depth undetermined or ignored.  In some contexts, this means the
-      client should choose an appropriate default depth.  The server
-      will generally treat it as #svn_depth_infinity. */
-  svn_depth_unknown    = -2,
-
-  /** Exclude (i.e., don't descend into) directory D.
-      @note In Subversion 1.5, svn_depth_exclude is *not* supported
-      anywhere in the client-side (libsvn_wc/libsvn_client/etc) code;
-      it is only supported as an argument to set_path functions in the
-      ra and repos reporters.  (This will enable future versions of
-      Subversion to run updates, etc, against 1.5 servers with proper
-      svn_depth_exclude behavior, once we get a chance to implement
-      client-side support for svn_depth_exclude.)
-  */
-  svn_depth_exclude    = -1,
-
-  /** Just the named directory D, no entries.  Updates will not pull in
-      any files or subdirectories not already present. */
-  svn_depth_empty      =  0,
-
-  /** D + its file children, but not subdirs.  Updates will pull in any
-      files not already present, but not subdirectories. */
-  svn_depth_files      =  1,
-
-  /** D + immediate children (D and its entries).  Updates will pull in
-      any files or subdirectories not already present; those
-      subdirectories' this_dir entries will have depth-empty. */
-  svn_depth_immediates =  2,
-
-  /** D + all descendants (full recursion from D).  Updates will pull
-      in any files or subdirectories not already present; those
-      subdirectories' this_dir entries will have depth-infinity.
-      Equivalent to the pre-1.5 default update behavior. */
-  svn_depth_infinity   =  3
-
-} svn_depth_t;
+/* NOTE: svn_depth_t is defined in svn_types_impl.h */
 
 /** Return a constant string expressing @a depth as an English word,
  * e.g., "infinity", "immediates", etc.  The string is not localized,
