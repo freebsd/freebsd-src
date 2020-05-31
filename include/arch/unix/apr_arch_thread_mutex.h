@@ -21,6 +21,7 @@
 #include "apr_private.h"
 #include "apr_general.h"
 #include "apr_thread_mutex.h"
+#include "apr_thread_cond.h"
 #include "apr_portable.h"
 #include "apr_atomic.h"
 
@@ -32,6 +33,8 @@
 struct apr_thread_mutex_t {
     apr_pool_t *pool;
     pthread_mutex_t mutex;
+    apr_thread_cond_t *cond;
+    int locked, num_waiters;
 };
 #endif
 

@@ -356,7 +356,7 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
     apr_os_sock_t fd;
     int ret;
     unsigned int nget, i;
-    apr_int32_t nres = 0;
+    apr_int32_t j;
     pfd_elem_t *ep;
     apr_status_t rv = APR_SUCCESS;
 
@@ -406,7 +406,7 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
 
     pollset_lock_rings();
 
-    for (i = 0; i < nget; i++) {
+    for (i = 0, j = 0; i < nget; i++) {
         ep = (pfd_elem_t *)pollset->p->port_set[i].portev_user;
         if ((pollset->flags & APR_POLLSET_WAKEABLE) &&
             ep->pfd.desc_type == APR_POLL_FILE &&
@@ -415,10 +415,10 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
             rv = APR_EINTR;
         }
         else {
-            pollset->p->result_set[nres] = ep->pfd;
-            pollset->p->result_set[nres].rtnevents =
+            pollset->p->result_set[j] = ep->pfd;
+            pollset->p->result_set[j].rtnevents =
                 get_revent(pollset->p->port_set[i].portev_events);
-            ++nres;
+            j++;
         }
         /* If the ring element is still on the query ring, move it
          * to the add ring for re-association with the event port
@@ -432,8 +432,7 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
                                  pfd_elem_t, link);
         }
     }
-    if (nres > 0) { /* any event besides wakeup pipe? */
-        *num = nres;
+    if ((*num = j)) { /* any event besides wakeup pipe? */
         rv = APR_SUCCESS;
         if (descriptors) {
             *descriptors = pollset->p->result_set;

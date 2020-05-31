@@ -17,7 +17,7 @@
 #include "apr_arch_atomic.h"
 #include "apr_thread_mutex.h"
 
-#ifdef USE_ATOMICS_GENERIC
+#if defined(USE_ATOMICS_GENERIC) || defined (NEED_ATOMICS_GENERIC64)
 
 #include <stdlib.h>
 
@@ -51,7 +51,7 @@ static apr_status_t atomic_cleanup(void *data)
     return APR_SUCCESS;
 }
 
-APR_DECLARE(apr_status_t) apr_atomic_init(apr_pool_t *p)
+apr_status_t apr__atomic_generic64_init(apr_pool_t *p)
 {
     int i;
     apr_status_t rv;
@@ -71,10 +71,10 @@ APR_DECLARE(apr_status_t) apr_atomic_init(apr_pool_t *p)
         }
     }
 
-    return apr__atomic_generic64_init(p);
+    return APR_SUCCESS;
 }
 
-static APR_INLINE apr_thread_mutex_t *mutex_hash(volatile apr_uint32_t *mem)
+static APR_INLINE apr_thread_mutex_t *mutex_hash(volatile apr_uint64_t *mem)
 {
     apr_thread_mutex_t *mutex = hash_mutex[ATOMIC_HASH(mem)];
 
@@ -87,19 +87,19 @@ static APR_INLINE apr_thread_mutex_t *mutex_hash(volatile apr_uint32_t *mem)
 
 #else
 
-APR_DECLARE(apr_status_t) apr_atomic_init(apr_pool_t *p)
+apr_status_t apr__atomic_generic64_init(apr_pool_t *p)
 {
-    return apr__atomic_generic64_init(p);
+    return APR_SUCCESS;
 }
 
 #endif /* APR_HAS_THREADS */
 
-APR_DECLARE(apr_uint32_t) apr_atomic_read32(volatile apr_uint32_t *mem)
+APR_DECLARE(apr_uint64_t) apr_atomic_read64(volatile apr_uint64_t *mem)
 {
     return *mem;
 }
 
-APR_DECLARE(void) apr_atomic_set32(volatile apr_uint32_t *mem, apr_uint32_t val)
+APR_DECLARE(void) apr_atomic_set64(volatile apr_uint64_t *mem, apr_uint64_t val)
 {
     DECLARE_MUTEX_LOCKED(mutex, mem);
 
@@ -108,9 +108,9 @@ APR_DECLARE(void) apr_atomic_set32(volatile apr_uint32_t *mem, apr_uint32_t val)
     MUTEX_UNLOCK(mutex);
 }
 
-APR_DECLARE(apr_uint32_t) apr_atomic_add32(volatile apr_uint32_t *mem, apr_uint32_t val)
+APR_DECLARE(apr_uint64_t) apr_atomic_add64(volatile apr_uint64_t *mem, apr_uint64_t val)
 {
-    apr_uint32_t old_value;
+    apr_uint64_t old_value;
     DECLARE_MUTEX_LOCKED(mutex, mem);
 
     old_value = *mem;
@@ -121,21 +121,21 @@ APR_DECLARE(apr_uint32_t) apr_atomic_add32(volatile apr_uint32_t *mem, apr_uint3
     return old_value;
 }
 
-APR_DECLARE(void) apr_atomic_sub32(volatile apr_uint32_t *mem, apr_uint32_t val)
+APR_DECLARE(void) apr_atomic_sub64(volatile apr_uint64_t *mem, apr_uint64_t val)
 {
     DECLARE_MUTEX_LOCKED(mutex, mem);
     *mem -= val;
     MUTEX_UNLOCK(mutex);
 }
 
-APR_DECLARE(apr_uint32_t) apr_atomic_inc32(volatile apr_uint32_t *mem)
+APR_DECLARE(apr_uint64_t) apr_atomic_inc64(volatile apr_uint64_t *mem)
 {
-    return apr_atomic_add32(mem, 1);
+    return apr_atomic_add64(mem, 1);
 }
 
-APR_DECLARE(int) apr_atomic_dec32(volatile apr_uint32_t *mem)
+APR_DECLARE(int) apr_atomic_dec64(volatile apr_uint64_t *mem)
 {
-    apr_uint32_t new;
+    apr_uint64_t new;
     DECLARE_MUTEX_LOCKED(mutex, mem);
 
     (*mem)--;
@@ -146,10 +146,10 @@ APR_DECLARE(int) apr_atomic_dec32(volatile apr_uint32_t *mem)
     return new;
 }
 
-APR_DECLARE(apr_uint32_t) apr_atomic_cas32(volatile apr_uint32_t *mem, apr_uint32_t with,
-                              apr_uint32_t cmp)
+APR_DECLARE(apr_uint64_t) apr_atomic_cas64(volatile apr_uint64_t *mem, apr_uint64_t with,
+                              apr_uint64_t cmp)
 {
-    apr_uint32_t prev;
+    apr_uint64_t prev;
     DECLARE_MUTEX_LOCKED(mutex, mem);
 
     prev = *mem;
@@ -162,9 +162,9 @@ APR_DECLARE(apr_uint32_t) apr_atomic_cas32(volatile apr_uint32_t *mem, apr_uint3
     return prev;
 }
 
-APR_DECLARE(apr_uint32_t) apr_atomic_xchg32(volatile apr_uint32_t *mem, apr_uint32_t val)
+APR_DECLARE(apr_uint64_t) apr_atomic_xchg64(volatile apr_uint64_t *mem, apr_uint64_t val)
 {
-    apr_uint32_t prev;
+    apr_uint64_t prev;
     DECLARE_MUTEX_LOCKED(mutex, mem);
 
     prev = *mem;
@@ -175,32 +175,4 @@ APR_DECLARE(apr_uint32_t) apr_atomic_xchg32(volatile apr_uint32_t *mem, apr_uint
     return prev;
 }
 
-APR_DECLARE(void*) apr_atomic_casptr(volatile void **mem, void *with, const void *cmp)
-{
-    void *prev;
-    DECLARE_MUTEX_LOCKED(mutex, *mem);
-
-    prev = *(void **)mem;
-    if (prev == cmp) {
-        *mem = with;
-    }
-
-    MUTEX_UNLOCK(mutex);
-
-    return prev;
-}
-
-APR_DECLARE(void*) apr_atomic_xchgptr(volatile void **mem, void *with)
-{
-    void *prev;
-    DECLARE_MUTEX_LOCKED(mutex, *mem);
-
-    prev = *(void **)mem;
-    *mem = with;
-
-    MUTEX_UNLOCK(mutex);
-
-    return prev;
-}
-
-#endif /* USE_ATOMICS_GENERIC */
+#endif /* USE_ATOMICS_GENERIC64 */

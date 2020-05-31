@@ -816,6 +816,13 @@ APR_DECLARE(apr_status_t) apr_setup_signal_thread(void);
  * functions should return 1 if the signal has been handled, 0 otherwise.
  * @param signal_handler The function to call when a signal is received
  * apr_status_t apr_signal_thread((int)(*signal_handler)(int signum))
+ * @note Synchronous signals like SIGABRT/SIGSEGV/SIGBUS/... are ignored by
+ * apr_signal_thread() and thus can't be waited by this function (they remain
+ * handled by the operating system or its native signals interface).
+ * @remark In APR version 1.6 and ealier, SIGUSR2 was part of these ignored
+ * signals and thus was never passed in to the signal_handler. From APR 1.7
+ * this is no more the case so SIGUSR2 can be handled in signal_handler and
+ * acted upon like the other asynchronous signals.
  */
 APR_DECLARE(apr_status_t) apr_signal_thread(int(*signal_handler)(int signum));
 

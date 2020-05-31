@@ -112,8 +112,10 @@ ${AUTOCONF:-autoconf} $verbose
 # Remove autoconf 2.5x's cache directory
 rm -rf autom4te*.cache
 
+PYTHON=${PYTHON-`build/PrintPath python3 python2 python`}
+
 echo "buildconf: generating 'make' outputs ..."
-build/gen-build.py $verbose make
+${PYTHON} build/gen-build.py $verbose make
 
 # Create RPM Spec file
 if [ -f `which cut` ]; then

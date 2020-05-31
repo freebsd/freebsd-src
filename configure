@@ -655,6 +655,7 @@ apr_thread_func
 apr_procattr_user_set_requires_password
 apr_has_xthread_files
 have_unicode_fs
+apr_has_timedlocks
 have_ipv6
 have_sockaddr_un
 have_sa_storage
@@ -678,6 +679,8 @@ hasfcntlser
 hasposixser
 hassysvser
 hasflockser
+have_pthread_condattr_setpshared
+have_pthread_mutex_timedlock
 have_union_semun
 struct_rlimit
 have_proc_invoked
@@ -708,8 +711,8 @@ socklen_t_value
 ssize_t_value
 size_t_value
 off_t_value
+uint64_value
 int64_value
-long_value
 int_value
 short_value
 voidp_size
@@ -744,6 +747,7 @@ sys_syslimitsh
 netdbh
 limitsh
 ioh
+inttypesh
 fcntlh
 direnth
 errnoh
@@ -934,6 +938,7 @@ enable_other_child
 with_egd
 with_devrandom
 enable_ipv6
+enable_timedlocks
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1580,6 +1585,7 @@ Optional Features:
   --disable-dso           Disable DSO support
   --enable-other-child    Enable reliable child processes
   --disable-ipv6          Disable IPv6 support in APR.
+  --disable-timedlocks	  Disable timed locks
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -2761,6 +2767,8 @@ fi
 ac_config_guess="$SHELL $ac_aux_dir/config.guess"  # Please don't use this var.
 ac_config_sub="$SHELL $ac_aux_dir/config.sub"  # Please don't use this var.
 ac_configure="$SHELL $ac_aux_dir/configure"  # Please don't use this var.
+
+
 
 
 
@@ -7285,6 +7293,16 @@ if test "x$apr_preload_done" != "xyes" ; then
     done
   fi
 
+        if test $PLATOSVERS -eq 10; then
+            # pthread_mutex_timedlock is broken on Solaris 10.
+            # It can block without timeout in case of EDEADLK.
+
+  if test -z "$ac_cv_func_pthread_mutex_timedlock"; then
+    test "x$silent" != "xyes" && echo "  setting ac_cv_func_pthread_mutex_timedlock to \"no\""
+    ac_cv_func_pthread_mutex_timedlock="no"
+  fi
+
+        fi
         if test $PLATOSVERS -ge 10; then
 
   if test -z "$apr_lock_method"; then
@@ -18285,8 +18303,12 @@ CC=$lt_save_CC
 
 
         # get libtool's setting of shlibpath_var
-        eval `grep "^shlibpath_var=[A-Z_]*$" $apr_builddir/libtool`
         if test "x$shlibpath_var" = "x"; then
+            eval `grep "^shlibpath_var=[A-Z_]*$" $apr_builddir/libtool`
+        fi
+        if test "x$shlibpath_var" = "x"; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: SHLIBPATH variable could not be determined" >&5
+$as_echo "$as_me: SHLIBPATH variable could not be determined" >&6;}
             shlibpath_var=REPLACE_WITH_YOUR_SHLIBPATH_VAR
         fi
     fi
@@ -20545,53 +20567,14 @@ done
     fi
 fi
 
-ac_cv_define_READDIR_IS_THREAD_SAFE=no
+ac_cv_define_READDIR_IS_THREAD_SAFE=yes
 ac_cv_define_GETHOSTBYNAME_IS_THREAD_SAFE=no
 ac_cv_define_GETHOSTBYADDR_IS_THREAD_SAFE=no
 ac_cv_define_GETSERVBYNAME_IS_THREAD_SAFE=no
 if test "$threads" = "1"; then
     echo "APR will use threads"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for readdir in -lc_r" >&5
-$as_echo_n "checking for readdir in -lc_r... " >&6; }
-if ${ac_cv_lib_c_r_readdir+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lc_r  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char readdir ();
-int
-main ()
-{
-return readdir ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_c_r_readdir=yes
-else
-  ac_cv_lib_c_r_readdir=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_c_r_readdir" >&5
-$as_echo "$ac_cv_lib_c_r_readdir" >&6; }
-if test "x$ac_cv_lib_c_r_readdir" = xyes; then :
 
 $as_echo "#define READDIR_IS_THREAD_SAFE 1" >>confdefs.h
-
-fi
 
     if test "x$apr_gethostbyname_is_thread_safe" = "x"; then
         { $as_echo "$as_me:${as_lineno-$LINENO}: checking for gethostbyname in -lc_r" >&5
@@ -23211,6 +23194,7 @@ for ac_header in ByteOrder.h		\
     errno.h		\
     fcntl.h		\
     grp.h		\
+    inttypes.h		\
     io.h		\
     limits.h		\
     mach-o/dyld.h	\
@@ -23288,6 +23272,7 @@ for aprt_i in ByteOrder.h		\
     errno.h		\
     fcntl.h		\
     grp.h		\
+    inttypes.h		\
     io.h		\
     limits.h		\
     mach-o/dyld.h	\
@@ -23386,6 +23371,7 @@ $as_echo "#define HAVE_NETINET_TCP_H 1" >>confdefs.h
 else
    netinet_tcph=0
 fi
+
 
 
 
@@ -24004,6 +23990,39 @@ _ACEOF
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of short" >&5
+$as_echo_n "checking size of short... " >&6; }
+if ${ac_cv_sizeof_short+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (short))" "ac_cv_sizeof_short"        "$ac_includes_default"; then :
+
+else
+  if test "$ac_cv_type_short" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (short)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_short=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_short" >&5
+$as_echo "$ac_cv_sizeof_short" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_SHORT $ac_cv_sizeof_short
+_ACEOF
+
+
+# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of int" >&5
 $as_echo_n "checking size of int... " >&6; }
 if ${ac_cv_sizeof_int+:} false; then :
@@ -24070,39 +24089,6 @@ _ACEOF
 # version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
 # declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
 # This bug is HP SR number 8606223364.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of short" >&5
-$as_echo_n "checking size of short... " >&6; }
-if ${ac_cv_sizeof_short+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (short))" "ac_cv_sizeof_short"        "$ac_includes_default"; then :
-
-else
-  if test "$ac_cv_type_short" = yes; then
-     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
-$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
-as_fn_error 77 "cannot compute sizeof (short)
-See \`config.log' for more details" "$LINENO" 5; }
-   else
-     ac_cv_sizeof_short=0
-   fi
-fi
-
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_short" >&5
-$as_echo "$ac_cv_sizeof_short" >&6; }
-
-
-
-cat >>confdefs.h <<_ACEOF
-#define SIZEOF_SHORT $ac_cv_sizeof_short
-_ACEOF
-
-
-# The cast to long int works around a bug in the HP C Compiler
-# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
-# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
-# This bug is HP SR number 8606223364.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of long long" >&5
 $as_echo_n "checking size of long long... " >&6; }
 if ${ac_cv_sizeof_long_long+:} false; then :
@@ -24139,16 +24125,227 @@ fi
 if test "$ac_cv_sizeof_int" = "4"; then
     int_value=int
 fi
+
 # Now we need to find what apr_int64_t (sizeof == 8) will be.
-# The first match is our preference.
-if test "$ac_cv_sizeof_int" = "8"; then
+# The first match is our preference (use inttypes if available).
+ac_rc=yes
+for ac_spec in header:stdint.h header:inttypes.h; do
+    ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
+    ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
+    case $ac_type in
+        header )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_header_$ac_item"
+            ;;
+        file )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_file_$ac_item"
+            ;;
+        func )   ac_var="ac_cv_func_$ac_item"   ;;
+        struct ) ac_var="ac_cv_struct_$ac_item" ;;
+        define ) ac_var="ac_cv_define_$ac_item" ;;
+        custom ) ac_var="$ac_item" ;;
+    esac
+    eval "ac_val=\$$ac_var"
+    if test ".$ac_val" != .yes; then
+        ac_rc=no
+        break
+    fi
+done
+if test ".$ac_rc" = .yes; then
+    :
+    hasinttypes="1"
+else
+    :
+    hasinttypes="0"
+fi
+
+if test "$hasinttypes" = "1"; then
+    int64_literal='#define APR_INT64_C(val) INT64_C(val)'
+    uint64_literal='#define APR_UINT64_C(val) UINT64_C(val)'
+    int64_t_fmt='#define APR_INT64_T_FMT PRId64'
+    uint64_t_fmt='#define APR_UINT64_T_FMT PRIu64'
+    uint64_t_hex_fmt='#define APR_UINT64_T_HEX_FMT PRIx64'
+    int64_value="int64_t"
+    uint64_value="uint64_t"
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether int64_t and int use fmt %d" >&5
+$as_echo_n "checking whether int64_t and int use fmt %d... " >&6; }
+if ${apr_cv_typematch_int64_t_int_d+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    int64_t chk1, *ptr1;
+    int chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%d %d", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_int64_t_int_d=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_int64_t_int_d=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_int64_t_int_d" >&5
+$as_echo "$apr_cv_typematch_int64_t_int_d" >&6; }
+if test "$apr_cv_typematch_int64_t_int_d" = "yes"; then
+    :
+
+        int64_strfn="strtoi"
+
+else
+    :
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether int64_t and long use fmt %ld" >&5
+$as_echo_n "checking whether int64_t and long use fmt %ld... " >&6; }
+if ${apr_cv_typematch_int64_t_long_ld+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    int64_t chk1, *ptr1;
+    long chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%ld %ld", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_int64_t_long_ld=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_int64_t_long_ld=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_int64_t_long_ld" >&5
+$as_echo "$apr_cv_typematch_int64_t_long_ld" >&6; }
+if test "$apr_cv_typematch_int64_t_long_ld" = "yes"; then
+    :
+
+        int64_strfn="strtol"
+
+else
+    :
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether int64_t and long long use fmt %lld" >&5
+$as_echo_n "checking whether int64_t and long long use fmt %lld... " >&6; }
+if ${apr_cv_typematch_int64_t_long_long_lld+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    int64_t chk1, *ptr1;
+    long long chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%lld %lld", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_int64_t_long_long_lld=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_int64_t_long_long_lld=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_int64_t_long_long_lld" >&5
+$as_echo "$apr_cv_typematch_int64_t_long_long_lld" >&6; }
+if test "$apr_cv_typematch_int64_t_long_long_lld" = "yes"; then
+    :
+
+        int64_strfn="strtoll"
+
+else
+    :
+
+        as_fn_error $? "could not determine the string function for int64_t" "$LINENO" 5
+
+fi
+
+fi
+
+fi
+
+elif test "$ac_cv_sizeof_int" = "8"; then
     int64_literal='#define APR_INT64_C(val) (val)'
     uint64_literal='#define APR_UINT64_C(val) (val##U)'
     int64_t_fmt='#define APR_INT64_T_FMT "d"'
     uint64_t_fmt='#define APR_UINT64_T_FMT "u"'
     uint64_t_hex_fmt='#define APR_UINT64_T_HEX_FMT "x"'
     int64_value="int"
-    long_value=int
+    uint64_value="unsigned int"
     int64_strfn="strtoi"
 elif test "$ac_cv_sizeof_long" = "8"; then
     int64_literal='#define APR_INT64_C(val) (val##L)'
@@ -24157,7 +24354,7 @@ elif test "$ac_cv_sizeof_long" = "8"; then
     uint64_t_fmt='#define APR_UINT64_T_FMT "lu"'
     uint64_t_hex_fmt='#define APR_UINT64_T_HEX_FMT "lx"'
     int64_value="long"
-    long_value=long
+    uint64_value="unsigned long"
     int64_strfn="strtol"
 elif test "$ac_cv_sizeof_long_long" = "8"; then
     int64_literal='#define APR_INT64_C(val) (val##LL)'
@@ -24170,7 +24367,7 @@ elif test "$ac_cv_sizeof_long_long" = "8"; then
     uint64_t_fmt='#define APR_UINT64_T_FMT "llu"'
     uint64_t_hex_fmt='#define APR_UINT64_T_HEX_FMT "llx"'
     int64_value="long long"
-    long_value="long long"
+    uint64_value="unsigned long long"
     int64_strfn="strtoll"
 elif test "$ac_cv_sizeof_longlong" = "8"; then
     int64_literal='#define APR_INT64_C(val) (val##LL)'
@@ -24179,7 +24376,7 @@ elif test "$ac_cv_sizeof_longlong" = "8"; then
     uint64_t_fmt='#define APR_UINT64_T_FMT "qu"'
     uint64_t_hex_fmt='#define APR_UINT64_T_HEX_FMT "qx"'
     int64_value="__int64"
-    long_value="__int64"
+    uint64_value="unsigned __int64"
     int64_strfn="strtoll"
 else
     # int64_literal may be overriden if your compiler thinks you have
@@ -24368,138 +24565,228 @@ case $host in
         uint64_t_fmt='#define APR_UINT64_T_FMT "I64u"'
         uint64_t_hex_fmt='#define APR_UINT64_T_HEX_FMT "I64x"'
         int64_value="__int64"
-        long_value="__int64"
+        uint64_value="unsigned __int64"
         int64_strfn="_strtoi64"
         ;;
 esac
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ssize_t and int are the same" >&5
-$as_echo_n "checking whether ssize_t and int are the same... " >&6; }
-if ${apr_cv_typematch_ssize_t_int+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ssize_t and long use fmt %ld" >&5
+$as_echo_n "checking whether ssize_t and long use fmt %ld... " >&6; }
+if ${apr_cv_typematch_ssize_t_long_ld+:} false; then :
   $as_echo_n "(cached) " >&6
 else
 
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-$ac_includes_default
-int
-main ()
-{
+#include "confdefs.h"
 
-    int foo[0 - !__builtin_types_compatible_p(ssize_t, int)];
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 
-  ;
-  return 0;
-}
+   int main(int argc, const char *const *argv) {
+
+    ssize_t chk1, *ptr1;
+    long chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%ld %ld", chk1, chk2);
+
+      return 0; }
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  apr_cv_typematch_ssize_t_int=yes
-ssize_t_fmt="d"
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_ssize_t_long_ld=yes
 else
-  apr_cv_typematch_ssize_t_int=no
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_ssize_t_long_ld=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_ssize_t_int" >&5
-$as_echo "$apr_cv_typematch_ssize_t_int" >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_ssize_t_long_ld" >&5
+$as_echo "$apr_cv_typematch_ssize_t_long_ld" >&6; }
+if test "$apr_cv_typematch_ssize_t_long_ld" = "yes"; then
+    :
+    ssize_t_fmt="ld"
+else
+    :
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ssize_t and long are the same" >&5
-$as_echo_n "checking whether ssize_t and long are the same... " >&6; }
-if ${apr_cv_typematch_ssize_t_long+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether ssize_t and int use fmt %d" >&5
+$as_echo_n "checking whether ssize_t and int use fmt %d... " >&6; }
+if ${apr_cv_typematch_ssize_t_int_d+:} false; then :
   $as_echo_n "(cached) " >&6
 else
 
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-$ac_includes_default
-int
-main ()
-{
+#include "confdefs.h"
 
-    int foo[0 - !__builtin_types_compatible_p(ssize_t, long)];
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 
-  ;
-  return 0;
-}
+   int main(int argc, const char *const *argv) {
+
+    ssize_t chk1, *ptr1;
+    int chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%d %d", chk1, chk2);
+
+      return 0; }
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  apr_cv_typematch_ssize_t_long=yes
-ssize_t_fmt="ld"
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_ssize_t_int_d=yes
 else
-  apr_cv_typematch_ssize_t_long=no
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_ssize_t_int_d=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_ssize_t_long" >&5
-$as_echo "$apr_cv_typematch_ssize_t_long" >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_ssize_t_int_d" >&5
+$as_echo "$apr_cv_typematch_ssize_t_int_d" >&6; }
+if test "$apr_cv_typematch_ssize_t_int_d" = "yes"; then
+    :
+    ssize_t_fmt="d"
+else
+    :
+
+fi
+
+
+fi
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether size_t and unsigned int are the same" >&5
-$as_echo_n "checking whether size_t and unsigned int are the same... " >&6; }
-if ${apr_cv_typematch_size_t_unsigned_int+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether size_t and unsigned long use fmt %lu" >&5
+$as_echo_n "checking whether size_t and unsigned long use fmt %lu... " >&6; }
+if ${apr_cv_typematch_size_t_unsigned_long_lu+:} false; then :
   $as_echo_n "(cached) " >&6
 else
 
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-$ac_includes_default
-int
-main ()
-{
+#include "confdefs.h"
 
-    int foo[0 - !__builtin_types_compatible_p(size_t, unsigned int)];
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 
-  ;
-  return 0;
-}
+   int main(int argc, const char *const *argv) {
+
+    size_t chk1, *ptr1;
+    unsigned long chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%lu %lu", chk1, chk2);
+
+      return 0; }
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  apr_cv_typematch_size_t_unsigned_int=yes
-size_t_fmt="u"
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_size_t_unsigned_long_lu=yes
 else
-  apr_cv_typematch_size_t_unsigned_int=no
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_size_t_unsigned_long_lu=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_size_t_unsigned_int" >&5
-$as_echo "$apr_cv_typematch_size_t_unsigned_int" >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_size_t_unsigned_long_lu" >&5
+$as_echo "$apr_cv_typematch_size_t_unsigned_long_lu" >&6; }
+if test "$apr_cv_typematch_size_t_unsigned_long_lu" = "yes"; then
+    :
+    size_t_fmt="lu"
+else
+    :
 
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether size_t and unsigned long are the same" >&5
-$as_echo_n "checking whether size_t and unsigned long are the same... " >&6; }
-if ${apr_cv_typematch_size_t_unsigned_long+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether size_t and unsigned int use fmt %u" >&5
+$as_echo_n "checking whether size_t and unsigned int use fmt %u... " >&6; }
+if ${apr_cv_typematch_size_t_unsigned_int_u+:} false; then :
   $as_echo_n "(cached) " >&6
 else
 
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-$ac_includes_default
-int
-main ()
-{
+#include "confdefs.h"
 
-    int foo[0 - !__builtin_types_compatible_p(size_t, unsigned long)];
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
 
-  ;
-  return 0;
-}
+   int main(int argc, const char *const *argv) {
+
+    size_t chk1, *ptr1;
+    unsigned int chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%u %u", chk1, chk2);
+
+      return 0; }
+
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  apr_cv_typematch_size_t_unsigned_long=yes
-size_t_fmt="lu"
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_size_t_unsigned_int_u=yes
 else
-  apr_cv_typematch_size_t_unsigned_long=no
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_size_t_unsigned_int_u=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_size_t_unsigned_long" >&5
-$as_echo "$apr_cv_typematch_size_t_unsigned_long" >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_size_t_unsigned_int_u" >&5
+$as_echo "$apr_cv_typematch_size_t_unsigned_int_u" >&6; }
+if test "$apr_cv_typematch_size_t_unsigned_int_u" = "yes"; then
+    :
+    size_t_fmt="u"
+else
+    :
+
+fi
+
+
+fi
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking size of ssize_t" >&5
@@ -24609,6 +24896,7 @@ _ACEOF
 
 
 
+# else cases below should no longer occur;
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking which format to use for apr_size_t" >&5
 $as_echo_n "checking which format to use for apr_size_t... " >&6; }
 if test -n "$size_t_fmt"; then
@@ -24728,21 +25016,229 @@ elif test "${ac_cv_sizeof_off_t}x${ac_cv_sizeof_long}" = "4x4"; then
     off_t_fmt='#define APR_OFF_T_FMT "ld"'
     off_t_strfn='strtol'
 elif test "$ac_cv_type_off_t" = "yes"; then
-    off_t_value=off_t
     # off_t is more commonly a long than an int; prefer that case
-    # where int and long are the same size.
-    if test "$ac_cv_sizeof_off_t" = "$ac_cv_sizeof_long"; then
-        off_t_fmt='#define APR_OFF_T_FMT "ld"'
+    # where int and long are the same size and interchangable.
+    off_t_value=off_t
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether off_t and long use fmt %ld" >&5
+$as_echo_n "checking whether off_t and long use fmt %ld... " >&6; }
+if ${apr_cv_typematch_off_t_long_ld+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    off_t chk1, *ptr1;
+    long chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%ld %ld", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_long_ld=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_long_ld=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_off_t_long_ld" >&5
+$as_echo "$apr_cv_typematch_off_t_long_ld" >&6; }
+if test "$apr_cv_typematch_off_t_long_ld" = "yes"; then
+    :
+
+        off_t_fmt="#define APR_OFF_T_FMT \"ld\""
         off_t_strfn='strtol'
-    elif test "$ac_cv_sizeof_off_t" = "$ac_cv_sizeof_int"; then
-        off_t_fmt='#define APR_OFF_T_FMT "d"'
+
+else
+    :
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether off_t and int use fmt %d" >&5
+$as_echo_n "checking whether off_t and int use fmt %d... " >&6; }
+if ${apr_cv_typematch_off_t_int_d+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    off_t chk1, *ptr1;
+    int chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%d %d", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_int_d=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_int_d=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_off_t_int_d" >&5
+$as_echo "$apr_cv_typematch_off_t_int_d" >&6; }
+if test "$apr_cv_typematch_off_t_int_d" = "yes"; then
+    :
+
+        off_t_fmt="#define APR_OFF_T_FMT \"d\""
         off_t_strfn='strtoi'
-    elif test "$ac_cv_sizeof_off_t" = "$ac_cv_sizeof_long_long"; then
-        off_t_fmt='#define APR_OFF_T_FMT APR_INT64_T_FMT'
+
+else
+    :
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether off_t and long long use fmt %lld" >&5
+$as_echo_n "checking whether off_t and long long use fmt %lld... " >&6; }
+if ${apr_cv_typematch_off_t_long_long_lld+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    off_t chk1, *ptr1;
+    long long chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%lld %lld", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_long_long_lld=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_long_long_lld=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_cv_typematch_off_t_long_long_lld" >&5
+$as_echo "$apr_cv_typematch_off_t_long_long_lld" >&6; }
+if test "$apr_cv_typematch_off_t_long_long_lld" = "yes"; then
+    :
+
+        off_t_fmt="#define APR_OFF_T_FMT \"lld\""
+        off_t_strfn='strtoll'
+
+else
+    :
+
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether off_t and $int64_value use fmt %I64d" >&5
+$as_echo_n "checking whether off_t and $int64_value use fmt %I64d... " >&6; }
+if eval \${apr_cv_typematch_off_t_$int64_value_I64d+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+apr_save_CFLAGS=$CFLAGS
+ CFLAGS="$CFLAGS $CFLAGS_WARN"
+ if test "$ac_cv_c_compiler_gnu" = "yes"; then
+   CFLAGS="$CFLAGS -Werror"
+ fi
+ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include "confdefs.h"
+
+   #include <sys/types.h>
+#include <stdio.h>
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+   int main(int argc, const char *const *argv) {
+
+    off_t chk1, *ptr1;
+    $int64_value chk2, *ptr2 = &chk1;
+    ptr1 = &chk2;
+    *ptr1 = *ptr2 = 0;
+    printf("%I64d %I64d", chk1, chk2);
+
+      return 0; }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_$int64_value_I64d=yes
+else
+  CFLAGS=$apr_save_CFLAGS
+apr_cv_typematch_off_t_$int64_value_I64d=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+fi
+eval ac_res=\$apr_cv_typematch_off_t_$int64_value_I64d
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if test "$apr_cv_typematch_off_t_$int64_value_I64d" = "yes"; then
+    :
+
+        off_t_fmt="#define APR_OFF_T_FMT APR_INT64_T_FMT"
         off_t_strfn='apr_strtoi64'
-    else
-        as_fn_error $? "could not determine the size of off_t" "$LINENO" 5
-    fi
+else
+    :
+
     # Per OS tuning...
     case $host in
     *-mingw*)
@@ -24750,7 +25246,19 @@ elif test "$ac_cv_type_off_t" = "yes"; then
         off_t_fmt='#define APR_OFF_T_FMT "I64d"'
         off_t_strfn='_strtoi64'
         ;;
+    *)
+        as_fn_error $? "could not determine the size of off_t" "$LINENO" 5
+        ;;
     esac
+
+fi
+
+fi
+
+fi
+
+fi
+
 else
    # Fallback on int
    off_t_value=apr_int32_t
@@ -25671,12 +26179,13 @@ apr_save_CFLAGS=$CFLAGS
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  vla_msg=yes
+  CFLAGS=$apr_save_CFLAGS
+vla_msg=yes
 else
-  vla_msg=no
+  CFLAGS=$apr_save_CFLAGS
+vla_msg=no
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
- CFLAGS=$apr_save_CFLAGS
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $vla_msg" >&5
 $as_echo "$vla_msg" >&6; }
@@ -25730,7 +26239,7 @@ test "x$ac_cv_struct_rlimit" = xyes && struct_rlimit=1
 
 echo "${nl}Checking for Locking..."
 
-for ac_func in semget semctl flock
+for ac_func in semget semctl semop semtimedop flock
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -25742,13 +26251,45 @@ _ACEOF
 fi
 done
 
-for ac_header in semaphore.h OS.h
+ac_rc=yes
+for ac_spec in func:semtimedop; do
+    ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
+    ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
+    case $ac_type in
+        header )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_header_$ac_item"
+            ;;
+        file )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_file_$ac_item"
+            ;;
+        func )   ac_var="ac_cv_func_$ac_item"   ;;
+        struct ) ac_var="ac_cv_struct_$ac_item" ;;
+        define ) ac_var="ac_cv_define_$ac_item" ;;
+        custom ) ac_var="$ac_item" ;;
+    esac
+    eval "ac_val=\$$ac_var"
+    if test ".$ac_val" != .yes; then
+        ac_rc=no
+        break
+    fi
+done
+if test ".$ac_rc" = .yes; then
+    :
+    have_semtimedop="1"
+else
+    :
+    have_semtimedop="0"
+fi
+
+
+for ac_header in semaphore.h
 do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  ac_fn_c_check_header_mongrel "$LINENO" "semaphore.h" "ac_cv_header_semaphore_h" "$ac_includes_default"
+if test "x$ac_cv_header_semaphore_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+#define HAVE_SEMAPHORE_H 1
 _ACEOF
 
 fi
@@ -25811,7 +26352,7 @@ if test "$ac_res" != no; then :
 
 fi
 
-for ac_func in sem_close sem_unlink sem_post sem_wait create_sem
+for ac_func in sem_close sem_unlink sem_post sem_wait sem_timedwait
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -25822,6 +26363,95 @@ _ACEOF
 
 fi
 done
+
+ac_rc=yes
+for ac_spec in func:sem_timedwait; do
+    ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
+    ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
+    case $ac_type in
+        header )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_header_$ac_item"
+            ;;
+        file )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_file_$ac_item"
+            ;;
+        func )   ac_var="ac_cv_func_$ac_item"   ;;
+        struct ) ac_var="ac_cv_struct_$ac_item" ;;
+        define ) ac_var="ac_cv_define_$ac_item" ;;
+        custom ) ac_var="$ac_item" ;;
+    esac
+    eval "ac_val=\$$ac_var"
+    if test ".$ac_val" != .yes; then
+        ac_rc=no
+        break
+    fi
+done
+if test ".$ac_rc" = .yes; then
+    :
+    have_sem_timedwait="1"
+else
+    :
+    have_sem_timedwait="0"
+fi
+
+
+for ac_header in OS.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "OS.h" "ac_cv_header_OS_h" "$ac_includes_default"
+if test "x$ac_cv_header_OS_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OS_H 1
+_ACEOF
+
+fi
+
+done
+
+for ac_func in create_sem acquire_sem acquire_sem_etc
+do :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
+_ACEOF
+
+fi
+done
+
+ac_rc=yes
+for ac_spec in header:OS.h func:acquire_sem_etc; do
+    ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
+    ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
+    case $ac_type in
+        header )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_header_$ac_item"
+            ;;
+        file )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_file_$ac_item"
+            ;;
+        func )   ac_var="ac_cv_func_$ac_item"   ;;
+        struct ) ac_var="ac_cv_struct_$ac_item" ;;
+        define ) ac_var="ac_cv_define_$ac_item" ;;
+        custom ) ac_var="$ac_item" ;;
+    esac
+    eval "ac_val=\$$ac_var"
+    if test ".$ac_val" != .yes; then
+        ac_rc=no
+        break
+    fi
+done
+if test ".$ac_rc" = .yes; then
+    :
+    have_acquire_sem_etc="1"
+else
+    :
+    have_acquire_sem_etc="0"
+fi
 
 
 # Some systems return ENOSYS from sem_open.
@@ -26087,16 +26717,50 @@ $as_echo "#define HAVE_PTHREAD_PROCESS_SHARED 1" >>confdefs.h
 
   fi
 
-    for ac_func in pthread_mutexattr_setpshared
+    for ac_func in pthread_mutex_timedlock pthread_mutexattr_setpshared
 do :
-  ac_fn_c_check_func "$LINENO" "pthread_mutexattr_setpshared" "ac_cv_func_pthread_mutexattr_setpshared"
-if test "x$ac_cv_func_pthread_mutexattr_setpshared" = xyes; then :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_PTHREAD_MUTEXATTR_SETPSHARED 1
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
 _ACEOF
 
 fi
 done
+
+    ac_rc=yes
+for ac_spec in header:pthread.h func:pthread_mutex_timedlock; do
+    ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
+    ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
+    case $ac_type in
+        header )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_header_$ac_item"
+            ;;
+        file )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_file_$ac_item"
+            ;;
+        func )   ac_var="ac_cv_func_$ac_item"   ;;
+        struct ) ac_var="ac_cv_struct_$ac_item" ;;
+        define ) ac_var="ac_cv_define_$ac_item" ;;
+        custom ) ac_var="$ac_item" ;;
+    esac
+    eval "ac_val=\$$ac_var"
+    if test ".$ac_val" != .yes; then
+        ac_rc=no
+        break
+    fi
+done
+if test ".$ac_rc" = .yes; then
+    :
+    have_pthread_mutex_timedlock="1"
+else
+    :
+    have_pthread_mutex_timedlock="0"
+fi
+
 
     # Some systems have setpshared and define PROCESS_SHARED, but don't
     # really support PROCESS_SHARED locks.  So, we must validate that we
@@ -26212,7 +26876,7 @@ int main(int argc, char **argv)
         exit(1);
     if (pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))
         exit(2);
-    if (pthread_mutexattr_setrobust_np(&attr, PTHREAD_MUTEX_ROBUST_NP))
+    if (pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST))
         exit(3);
     if (pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT))
         exit(4);
@@ -26229,7 +26893,53 @@ _ACEOF
 if ac_fn_c_try_run "$LINENO"; then :
   apr_cv_mutex_robust_shared=yes
 else
+
+if test "$cross_compiling" = yes; then :
+  { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error $? "cannot run test program while cross compiling
+See \`config.log' for more details" "$LINENO" 5; }
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <sys/types.h>
+#include <pthread.h>
+#include <stdlib.h>
+
+int main(int argc, char **argv)
+{
+    pthread_mutex_t mutex;
+    pthread_mutexattr_t attr;
+
+    if (pthread_mutexattr_init(&attr))
+        exit(1);
+    if (pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))
+        exit(2);
+    if (pthread_mutexattr_setrobust_np(&attr, PTHREAD_MUTEX_ROBUST_NP))
+        exit(3);
+    if (pthread_mutexattr_setprotocol(&attr, PTHREAD_PRIO_INHERIT))
+        exit(4);
+    if (pthread_mutex_init(&mutex, &attr))
+        exit(5);
+    if (pthread_mutexattr_destroy(&attr))
+        exit(6);
+    if (pthread_mutex_destroy(&mutex))
+        exit(7);
+
+    exit(0);
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  apr_cv_mutex_robust_shared=np
+else
   apr_cv_mutex_robust_shared=no
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+
 fi
 rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext
@@ -26242,6 +26952,10 @@ $as_echo "$apr_cv_mutex_robust_shared" >&6; }
 if test "$apr_cv_mutex_robust_shared" = "yes"; then
 
 $as_echo "#define HAVE_PTHREAD_MUTEX_ROBUST 1" >>confdefs.h
+
+elif test "$apr_cv_mutex_robust_shared" = "np"; then
+
+$as_echo "#define HAVE_PTHREAD_MUTEX_ROBUST_NP 1" >>confdefs.h
 
 fi
 
@@ -26282,7 +26996,7 @@ else
 fi
 
 ac_rc=yes
-for ac_spec in func:semget func:semctl define:SEM_UNDO; do
+for ac_spec in func:semget func:semctl func:semop define:SEM_UNDO; do
     ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
     ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
     case $ac_type in
@@ -26443,6 +27157,51 @@ else
 fi
 
 
+for ac_func in pthread_condattr_setpshared
+do :
+  ac_fn_c_check_func "$LINENO" "pthread_condattr_setpshared" "ac_cv_func_pthread_condattr_setpshared"
+if test "x$ac_cv_func_pthread_condattr_setpshared" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PTHREAD_CONDATTR_SETPSHARED 1
+_ACEOF
+
+fi
+done
+
+ac_rc=yes
+for ac_spec in header:pthread.h func:pthread_condattr_setpshared; do
+    ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
+    ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
+    case $ac_type in
+        header )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_header_$ac_item"
+            ;;
+        file )
+            ac_item=`echo "$ac_item" | sed 'y%./+-%__p_%'`
+            ac_var="ac_cv_file_$ac_item"
+            ;;
+        func )   ac_var="ac_cv_func_$ac_item"   ;;
+        struct ) ac_var="ac_cv_struct_$ac_item" ;;
+        define ) ac_var="ac_cv_define_$ac_item" ;;
+        custom ) ac_var="$ac_item" ;;
+    esac
+    eval "ac_val=\$$ac_var"
+    if test ".$ac_val" != .yes; then
+        ac_rc=no
+        break
+    fi
+done
+if test ".$ac_rc" = .yes; then
+    :
+    have_pthread_condattr_setpshared="1"
+else
+    :
+    have_pthread_condattr_setpshared="0"
+fi
+
+
+
 # See which lock mechanism we'll select by default on this system.
 # The last APR_DECIDE to execute sets the default.
 # At this stage, we match the ordering in Apache 1.3
@@ -26532,7 +27291,7 @@ else
 fi
 
 ac_rc=yes
-for ac_spec in func:semget func:semctl define:SEM_UNDO; do
+for ac_spec in func:semget func:semctl func:semop define:SEM_UNDO; do
     ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
     ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
     case $ac_type in
@@ -26569,7 +27328,7 @@ else
 fi
 
 ac_rc=yes
-for ac_spec in header:OS.h func:create_sem; do
+for ac_spec in header:OS.h func:create_sem func:acquire_sem func:acquire_sem_etc; do
     ac_type=`echo "$ac_spec" | sed -e 's/:.*$//'`
     ac_item=`echo "$ac_spec" | sed -e 's/^.*://'`
     case $ac_type in
@@ -26605,6 +27364,19 @@ else
 
 fi
 
+# pthread mutex both pshared and robust[_np] is the best default
+case "$apr_cv_mutex_robust_shared" in
+"yes"|"np")
+
+ac_decision='USE_PROC_PTHREAD_SERIALIZE'
+ac_decision_msg='pthread pshared mutex'
+ac_decision_USE_PROC_PTHREAD_SERIALIZE=yes
+ac_decision_USE_PROC_PTHREAD_SERIALIZE_msg='pthread pshared mutex'
+
+    ;;
+*)
+    ;;
+esac
 if test "x$apr_lock_method" != "x"; then
     ac_decision="$apr_lock_method"
 eval "ac_decision_msg=\"\$ac_decision_${ac_decision}_msg\""
@@ -26821,6 +27593,79 @@ else
 $as_echo "no" >&6; }
 fi
 
+for ac_header in sys/random.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "sys/random.h" "ac_cv_header_sys_random_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_random_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SYS_RANDOM_H 1
+_ACEOF
+
+fi
+
+done
+
+for ac_func in getrandom
+do :
+  ac_fn_c_check_func "$LINENO" "getrandom" "ac_cv_func_getrandom"
+if test "x$ac_cv_func_getrandom" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_GETRANDOM 1
+_ACEOF
+
+fi
+done
+
+
+for ac_header in sys/syscall.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "sys/syscall.h" "ac_cv_header_sys_syscall_h" "$ac_includes_default"
+if test "x$ac_cv_header_sys_syscall_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SYS_SYSCALL_H 1
+_ACEOF
+
+fi
+
+done
+
+for ac_header in linux/random.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "linux/random.h" "ac_cv_header_linux_random_h" "$ac_includes_default"
+if test "x$ac_cv_header_linux_random_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LINUX_RANDOM_H 1
+_ACEOF
+
+fi
+
+done
+
+ac_fn_c_check_decl "$LINENO" "SYS_getrandom" "ac_cv_have_decl_SYS_getrandom" "#include <sys/syscall.h>
+"
+if test "x$ac_cv_have_decl_SYS_getrandom" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_SYS_GETRANDOM $ac_have_decl
+_ACEOF
+
+
+for ac_func in arc4random_buf
+do :
+  ac_fn_c_check_func "$LINENO" "arc4random_buf" "ac_cv_func_arc4random_buf"
+if test "x$ac_cv_func_arc4random_buf" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_ARC4RANDOM_BUF 1
+_ACEOF
+
+fi
+done
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for entropy source" >&5
 $as_echo_n "checking for entropy source... " >&6; }
 
@@ -26852,14 +27697,31 @@ fi
 
 
 if test "$rand" != "1"; then
+  if test "$ac_cv_func_getrandom" = yes; then
+    rand="getrandom"
+  elif test "$ac_cv_have_decl_SYS_getrandom" = yes; then
+    rand="SYS_getrandom"
+  elif test "$ac_cv_func_arc4random_buf" = yes; then
+    rand="arc4random"
+  fi
+fi
+
+if test "$rand" != "1"; then
 
 # Check whether --with-devrandom was given.
 if test "${with_devrandom+set}" = set; then :
   withval=$with_devrandom;  apr_devrandom="$withval"
 else
-   apr_devrandom="yes"
+   apr_devrandom="no"
 fi
 
+  if test "$apr_devrandom" = "no"; then
+    if test -z "$rand"; then
+      apr_devrandom="yes"
+    else
+      apr_devrandom="no"
+    fi
+  fi
 
   if test "$apr_devrandom" = "yes"; then
     # /dev/random on OpenBSD doesn't provide random data, so
@@ -26867,7 +27729,7 @@ fi
     for f in /dev/arandom /dev/urandom /dev/random; do
       if test -r $f; then
         apr_devrandom=$f
-        rand=1
+        rand="1"
         break
       fi
     done
@@ -26898,6 +27760,15 @@ _ACEOF
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: $apr_devrandom" >&5
 $as_echo "$apr_devrandom" >&6; }
+  elif test -n "$rand"; then
+
+cat >>confdefs.h <<_ACEOF
+#define SYS_RANDOM "$rand"
+_ACEOF
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $rand" >&5
+$as_echo "$rand" >&6; }
+    rand="1"
   fi
 fi
 
@@ -27608,12 +28479,13 @@ tmp=0;
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_gethostbyname_r_style=glibc2
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_gethostbyname_r_style=glibc2
 else
-  ac_cv_gethostbyname_r_style=none
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_gethostbyname_r_style=none
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
- CFLAGS=$apr_save_CFLAGS
 
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_gethostbyname_r_style" >&5
@@ -27667,12 +28539,13 @@ tmp=0;
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_gethostbyname_r_arg=hostent_data
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_gethostbyname_r_arg=hostent_data
 else
-  ac_cv_gethostbyname_r_arg=char
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_gethostbyname_r_arg=char
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
- CFLAGS=$apr_save_CFLAGS
 
 fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_gethostbyname_r_arg" >&5
@@ -27734,12 +28607,13 @@ tmp=0;
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_getservbyname_r_style=glibc2
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_getservbyname_r_style=glibc2
 else
-  ac_cv_getservbyname_r_style=none
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_getservbyname_r_style=none
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
- CFLAGS=$apr_save_CFLAGS
 
 
 if test "$ac_cv_getservbyname_r_style" = "none"; then
@@ -27780,12 +28654,13 @@ if test "$ac_cv_getservbyname_r_style" = "none"; then
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_getservbyname_r_style=solaris
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_getservbyname_r_style=solaris
 else
-  ac_cv_getservbyname_r_style=none
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_getservbyname_r_style=none
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
- CFLAGS=$apr_save_CFLAGS
 
 fi
 
@@ -27827,12 +28702,13 @@ if test "$ac_cv_getservbyname_r_style" = "none"; then
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_getservbyname_r_style=osf1
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_getservbyname_r_style=osf1
 else
-  ac_cv_getservbyname_r_style=none
+  CFLAGS=$apr_save_CFLAGS
+ac_cv_getservbyname_r_style=none
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
- CFLAGS=$apr_save_CFLAGS
 
 fi
 
@@ -28683,12 +29559,13 @@ if test "$ac_res" != no; then :
 
 fi
 
-for ac_func in gai_strerror
+for ac_func in gai_strerror if_nametoindex if_indextoname
 do :
-  ac_fn_c_check_func "$LINENO" "gai_strerror" "ac_cv_func_gai_strerror"
-if test "x$ac_cv_func_gai_strerror" = xyes; then :
+  as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
+ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
+if eval test \"x\$"$as_ac_var"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
-#define HAVE_GAI_STRERROR 1
+#define `$as_echo "HAVE_$ac_func" | $as_tr_cpp` 1
 _ACEOF
 
 fi
@@ -29117,6 +29994,16 @@ fi
 $as_echo_n "checking if APR supports IPv6... " >&6; }
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ipv6_result" >&5
 $as_echo "$ipv6_result" >&6; }
+
+
+
+# Check whether --enable-timedlocks was given.
+if test "${enable_timedlocks+set}" = set; then :
+  enableval=$enable_timedlocks; apr_has_timedlocks="0"
+else
+  apr_has_timedlocks="1"
+
+fi
 
 
 
