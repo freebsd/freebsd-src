@@ -5613,7 +5613,9 @@ static int
 parse_args(char* argv[], int argc, bool *use_pathp, int *fdp)
 {
 	const char *arg;
-	int fd, i, j, arglen;
+	char machine[64];
+	size_t sz;
+	int arglen, fd, i, j, mib[2];
 	char opt;
 
 	dbg("Parsing command-line arguments");
@@ -5672,6 +5674,24 @@ parse_args(char* argv[], int argc, bool *use_pathp, int *fdp)
 				break;
 			} else if (opt == 'p') {
 				*use_pathp = true;
+			} else if (opt == 'v') {
+				machine[0] = '\0';
+				mib[0] = CTL_HW;
+				mib[1] = HW_MACHINE;
+				sz = sizeof(machine);
+				sysctl(mib, nitems(mib), machine, &sz, NULL, 0);
+				rtld_printf(
+				    "FreeBSD ld-elf.so.1 %s\n"
+				    "FreeBSD_version %d\n"
+				    "Default lib path %s\n"
+				    "Env prefix %s\n"
+				    "Hint file %s\n"
+				    "libmap file %s\n",
+				    machine,
+				    __FreeBSD_version, ld_standard_library_path,
+				    ld_env_prefix, ld_elf_hints_default,
+				    ld_path_libmap_conf);
+				_exit(0);
 			} else {
 				_rtld_error("Invalid argument: '%s'", arg);
 				print_usage(argv[0]);
@@ -5720,6 +5740,7 @@ print_usage(const char *argv0)
 		"  -h        Display this help message\n"
 		"  -f <FD>   Execute <FD> instead of searching for <binary>\n"
 		"  -p        Search in PATH for named binary\n"
+		"  -v        Display identification information\n"
 		"  --        End of RTLD options\n"
 		"  <binary>  Name of process to execute\n"
 		"  <args>    Arguments to the executed process\n", argv0);
