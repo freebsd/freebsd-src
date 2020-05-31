@@ -84,14 +84,12 @@ static char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
 static vm_offset_t
 fake_preload_metadata(void *dtb_ptr, size_t dtb_size)
 {
-#ifdef DDB
-	vm_offset_t zstart = 0, zend = 0;
-#endif
 	vm_offset_t lastaddr;
 	static char fake_preload[256];
 	caddr_t preload_ptr;
 	size_t size;
 
+	lastaddr = (vm_offset_t)&end;
 	preload_ptr = (caddr_t)&fake_preload[0];
 	size = 0;
 
@@ -108,25 +106,7 @@ fake_preload_metadata(void *dtb_ptr, size_t dtb_size)
 	PRELOAD_PUSH_VALUE(uint32_t, MODINFO_SIZE);
 	PRELOAD_PUSH_VALUE(uint32_t, sizeof(size_t));
 	PRELOAD_PUSH_VALUE(uint64_t, (size_t)(&end - VM_MIN_KERNEL_ADDRESS));
-#ifdef DDB
-	if (*(uint64_t *)VM_MIN_KERNEL_ADDRESS == MAGIC_TRAMP_NUMBER) {
-		PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA|MODINFOMD_SSYM);
-		PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
-		PRELOAD_PUSH_VALUE(uint64_t,
-		    *(uint64_t *)(VM_MIN_KERNEL_ADDRESS + 4));
 
-		PRELOAD_PUSH_VALUE(uint32_t, MODINFO_METADATA | MODINFOMD_ESYM);
-		PRELOAD_PUSH_VALUE(uint32_t, sizeof(vm_offset_t));
-		PRELOAD_PUSH_VALUE(uint64_t,
-		    *(uint64_t *)(VM_MIN_KERNEL_ADDRESS + 8));
-
-		lastaddr = *(uint64_t *)(VM_MIN_KERNEL_ADDRESS + 8);
-		zend = lastaddr;
-		zstart = *(uint64_t *)(VM_MIN_KERNEL_ADDRESS + 4);
-		db_fetch_ksymtab(zstart, zend);
-	} else
-#endif
-		lastaddr = (vm_offset_t)&end;
 	if (dtb_ptr != NULL) {
 		/* Copy DTB to KVA space and insert it into module chain. */
 		lastaddr = roundup(lastaddr, sizeof(int));
