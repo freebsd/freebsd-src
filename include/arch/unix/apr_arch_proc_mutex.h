@@ -26,6 +26,7 @@
 #include "apr_portable.h"
 #include "apr_file_io.h"
 #include "apr_arch_file_io.h"
+#include "apr_time.h"
 
 /* System headers required by Locks library */
 #if APR_HAVE_SYS_TYPES_H
@@ -69,6 +70,7 @@ struct apr_proc_mutex_unix_lock_methods_t {
     apr_status_t (*create)(apr_proc_mutex_t *, const char *);
     apr_status_t (*acquire)(apr_proc_mutex_t *);
     apr_status_t (*tryacquire)(apr_proc_mutex_t *);
+    apr_status_t (*timedacquire)(apr_proc_mutex_t *, apr_interval_time_t);
     apr_status_t (*release)(apr_proc_mutex_t *);
     apr_status_t (*cleanup)(void *);
     apr_status_t (*child_init)(apr_proc_mutex_t **, apr_pool_t *, const char *);

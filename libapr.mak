@@ -36,13 +36,15 @@ DS_POSTBUILD_DEP=$(INTDIR)\postbld.dep
 OutDir=.\Release
 # End Custom Macros
 
-ALL : ".\Release\gen_test_char.exe" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
+ALL : ".\include\apr.hw" ".\include\apr_escape.h" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
 
 
 CLEAN :
 	-@erase "$(INTDIR)\apr_atomic.obj"
+	-@erase "$(INTDIR)\apr_atomic64.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
 	-@erase "$(INTDIR)\apr_cpstr.obj"
+	-@erase "$(INTDIR)\apr_encode.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -130,7 +132,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /I "./include/private" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -171,10 +173,12 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 /opt:ref 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib"  /opt:ref 
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
+	"$(INTDIR)\apr_atomic64.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_encode.obj" \
 	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
@@ -276,13 +280,15 @@ DS_POSTBUILD_DEP=$(INTDIR)\postbld.dep
 OutDir=.\Debug
 # End Custom Macros
 
-ALL : ".\include\apr_escape_test_char.h" ".\Debug\gen_test_char.exe" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
+ALL : ".\include\apr.hw" ".\include\apr_escape.h" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
 
 
 CLEAN :
 	-@erase "$(INTDIR)\apr_atomic.obj"
+	-@erase "$(INTDIR)\apr_atomic64.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
 	-@erase "$(INTDIR)\apr_cpstr.obj"
+	-@erase "$(INTDIR)\apr_encode.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -370,7 +376,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
+CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /I "./include/private" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -411,10 +417,12 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X86 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib"  
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
+	"$(INTDIR)\apr_atomic64.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_encode.obj" \
 	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
@@ -516,13 +524,15 @@ DS_POSTBUILD_DEP=$(INTDIR)\postbld.dep
 OutDir=.\x64\Release
 # End Custom Macros
 
-ALL : ".\x64\Release\gen_test_char.exe" ".\include\apr_escape_test_char.h" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
+ALL : ".\include\apr.hw" ".\include\apr_escape.h" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
 
 
 CLEAN :
 	-@erase "$(INTDIR)\apr_atomic.obj"
+	-@erase "$(INTDIR)\apr_atomic64.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
 	-@erase "$(INTDIR)\apr_cpstr.obj"
+	-@erase "$(INTDIR)\apr_encode.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -610,7 +620,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
+CPP_PROJ=/nologo /MD /W3 /Zi /O2 /Oy- /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /I "./include/private" /D "NDEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -651,10 +661,12 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X64 /opt:ref 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib"  /opt:ref 
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
+	"$(INTDIR)\apr_atomic64.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_encode.obj" \
 	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
@@ -756,13 +768,15 @@ DS_POSTBUILD_DEP=$(INTDIR)\postbld.dep
 OutDir=.\x64\Debug
 # End Custom Macros
 
-ALL : ".\x64\Debug\gen_test_char.exe" ".\include\apr_escape_test_char.h" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
+ALL : ".\include\apr.hw" ".\include\apr_escape.h" "$(OUTDIR)\libapr-1.dll" "$(DS_POSTBUILD_DEP)"
 
 
 CLEAN :
 	-@erase "$(INTDIR)\apr_atomic.obj"
+	-@erase "$(INTDIR)\apr_atomic64.obj"
 	-@erase "$(INTDIR)\apr_cpystrn.obj"
 	-@erase "$(INTDIR)\apr_cpstr.obj"
+	-@erase "$(INTDIR)\apr_encode.obj"
 	-@erase "$(INTDIR)\apr_escape.obj"
 	-@erase "$(INTDIR)\apr_fnmatch.obj"
 	-@erase "$(INTDIR)\apr_getpass.obj"
@@ -850,7 +864,7 @@ CLEAN :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
 CPP=cl.exe
-CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
+CPP_PROJ=/nologo /MDd /W3 /Zi /Od /I "./include" /I "./include/arch" /I "./include/arch/win32" /I "./include/arch/unix" /I "./include/private" /D "_DEBUG" /D "APR_DECLARE_EXPORT" /D "WIN32" /D "WINNT" /D "_WINDOWS" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\libapr_src" /FD /EHsc /c 
 
 .c{$(INTDIR)}.obj::
    $(CPP) @<<
@@ -891,10 +905,12 @@ BSC32_FLAGS=/nologo /o"$(OUTDIR)\libapr.bsc"
 BSC32_SBRS= \
 	
 LINK32=link.exe
-LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib" /MACHINE:X64 
+LINK32_FLAGS=kernel32.lib advapi32.lib ws2_32.lib mswsock.lib ole32.lib shell32.lib rpcrt4.lib /nologo /base:"0x6EEC0000" /subsystem:windows /dll /incremental:no /pdb:"$(OUTDIR)\libapr-1.pdb" /debug /out:"$(OUTDIR)\libapr-1.dll" /implib:"$(OUTDIR)\libapr-1.lib"  
 LINK32_OBJS= \
 	"$(INTDIR)\apr_atomic.obj" \
+	"$(INTDIR)\apr_atomic64.obj" \
 	"$(INTDIR)\dso.obj" \
+	"$(INTDIR)\apr_encode.obj" \
 	"$(INTDIR)\apr_escape.obj" \
 	"$(INTDIR)\buffer.obj" \
 	"$(INTDIR)\copy.obj" \
@@ -1006,9 +1022,21 @@ SOURCE=.\atomic\win32\apr_atomic.c
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
+SOURCE=.\atomic\win32\apr_atomic64.c
+
+"$(INTDIR)\apr_atomic64.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
 SOURCE=.\dso\win32\dso.c
 
 "$(INTDIR)\dso.obj" : $(SOURCE) "$(INTDIR)" ".\include\apr.h"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+SOURCE=.\encoding\apr_encode.c
+
+"$(INTDIR)\apr_encode.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -1569,75 +1597,6 @@ InputPath=.\include\apr_escape.h
 
 !ENDIF 
 
-SOURCE=.\include\apr_want.h
-
-!IF  "$(CFG)" == "libapr - Win32 Release"
-
-InputPath=.\include\apr_want.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Debug"
-
-InputPath=.\include\apr_want.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Release9x"
-
-InputPath=.\include\apr_want.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "libapr - Win32 Debug9x"
-
-InputPath=.\include\apr_want.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "libapr - x64 Release"
-
-InputPath=.\include\apr_want.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ELSEIF  "$(CFG)" == "libapr - x64 Debug"
-
-InputPath=.\include\apr_want.h
-
-".\include\apr_escape_test_char.h" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	<<tempfile.bat 
-	@echo off 
-	type .\include\apr.hw > .\include\apr.h
-<< 
-	
-
-!ENDIF 
 
 SOURCE=.\libapr.rc
 

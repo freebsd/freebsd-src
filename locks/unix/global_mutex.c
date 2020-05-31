@@ -142,6 +142,47 @@ APR_DECLARE(apr_status_t) apr_global_mutex_trylock(apr_global_mutex_t *mutex)
     return rv;
 }
 
+APR_DECLARE(apr_status_t) apr_global_mutex_timedlock(apr_global_mutex_t *mutex,
+                                                 apr_interval_time_t timeout)
+{
+#if APR_HAS_TIMEDLOCKS
+    apr_status_t rv;
+
+#if APR_HAS_THREADS
+    if (mutex->thread_mutex) {
+        apr_time_t expiry = 0;
+        if (timeout > 0) {
+            expiry = apr_time_now() + timeout;
+        }
+        rv = apr_thread_mutex_timedlock(mutex->thread_mutex, timeout);
+        if (rv != APR_SUCCESS) {
+            return rv;
+        }
+        if (expiry) {
+            timeout = expiry - apr_time_now();
+            if (timeout < 0) {
+                timeout = 0;
+            }
+        }
+    }
+#endif /* APR_HAS_THREADS */
+
+    rv = apr_proc_mutex_timedlock(mutex->proc_mutex, timeout);
+
+#if APR_HAS_THREADS
+    if (rv != APR_SUCCESS) {
+        if (mutex->thread_mutex) {
+            (void)apr_thread_mutex_unlock(mutex->thread_mutex);
+        }
+    }
+#endif /* APR_HAS_THREADS */
+
+    return rv;
+#else  /* APR_HAS_TIMEDLOCKS */
+    return APR_ENOTIMPL;
+#endif
+}
+
 APR_DECLARE(apr_status_t) apr_global_mutex_unlock(apr_global_mutex_t *mutex)
 {
     apr_status_t rv;

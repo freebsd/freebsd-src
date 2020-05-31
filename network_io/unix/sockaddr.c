@@ -25,6 +25,14 @@
 #include <stdlib.h>
 #endif
 
+#ifdef HAVE_NET_IF_H
+#include <net/if.h>
+#endif
+
+#if defined(HAVE_IF_INDEXTONAME) && defined(_MSC_VER)
+#include "arch/win32/apr_arch_misc.h"
+#endif
+
 #define APR_WANT_STRFUNC
 #include "apr_want.h"
 
@@ -125,9 +133,31 @@ APR_DECLARE(apr_status_t) apr_sockaddr_ip_getbuf(char *buf, apr_size_t buflen,
         memmove(buf, buf + strlen("::ffff:"),
                 strlen(buf + strlen("::ffff:"))+1);
     }
-#endif
+
     /* ensure NUL termination if the buffer is too short */
     buf[buflen-1] = '\0';
+
+#ifdef HAVE_IF_INDEXTONAME
+    /* Append scope name for link-local addresses. */
+    if (sockaddr->family == AF_INET6
+        && IN6_IS_ADDR_LINKLOCAL((struct in6_addr *)sockaddr->ipaddr_ptr)) {
+        char scbuf[IF_NAMESIZE], *p = buf + strlen(buf);
+
+        if (if_indextoname(sockaddr->sa.sin6.sin6_scope_id, scbuf) == scbuf) {
+            /* Space check, need room for buf + '%' + scope + '\0'.
+             * Assert: buflen >= strlen(buf) + strlen(scbuf) + 2
+             * Equiv:  buflen >= (p-buf) + strlen(buf) + 2
+             * Thus, fail in inverse condition: */
+            if (buflen < strlen(scbuf) + (p - buf) + 2) {
+                return APR_ENOSPC;
+            }
+            *p++ = '%';
+            memcpy(p, scbuf, strlen(scbuf) + 1);
+        }
+    }    
+#endif /* HAVE_IF_INDEXTONAME */
+#endif /* APR_HAVE_IPV6 */
+
     return APR_SUCCESS;
 }
 
@@ -900,11 +930,19 @@ APR_DECLARE(apr_status_t) apr_getservbyname(apr_sockaddr_t *sockaddr,
          &((struct in6_addr *)(b)->ipaddr_ptr)->s6_addr[12],  \
          (a)->ipaddr_len))
 
+#if APR_HAVE_IPV6
+#define SCOPE_OR_ZERO(sa_) ((sa_)->family != AF_INET6 ? 0 :   \
+                            ((sa_)->sa.sin6.sin6_scope_id))
+#else
+#define SCOPE_OR_ZERO(sa_) (0)
+#endif
+
 APR_DECLARE(int) apr_sockaddr_equal(const apr_sockaddr_t *addr1,
                                     const apr_sockaddr_t *addr2)
 {
-    if (addr1->ipaddr_len == addr2->ipaddr_len &&
-        !memcmp(addr1->ipaddr_ptr, addr2->ipaddr_ptr, addr1->ipaddr_len)) {
+    if (addr1->ipaddr_len == addr2->ipaddr_len
+        && !memcmp(addr1->ipaddr_ptr, addr2->ipaddr_ptr, addr1->ipaddr_len)
+        && SCOPE_OR_ZERO(addr1) == SCOPE_OR_ZERO(addr2)) {
         return 1;
     }
 #if APR_HAVE_IPV6
@@ -1182,4 +1220,65 @@ APR_DECLARE(int) apr_ipsubnet_test(apr_ipsubnet_t *ipsub, apr_sockaddr_t *sa)
     }
 #endif /* APR_HAVE_IPV6 */
     return 0; /* no match */
+}
+
+APR_DECLARE(apr_status_t) apr_sockaddr_zone_set(apr_sockaddr_t *sa,
+                                                const char *zone_id)
+{
+#if !APR_HAVE_IPV6 || !defined(HAVE_IF_NAMETOINDEX)
+    return APR_ENOTIMPL;
+#else
+    unsigned int idx;
+    
+    if (sa->family != APR_INET6
+        || !IN6_IS_ADDR_LINKLOCAL((struct in6_addr *)sa->ipaddr_ptr)) {
+        return APR_EBADIP;
+    }
+
+    idx = if_nametoindex(zone_id);
+    if (idx) {
+        sa->sa.sin6.sin6_scope_id = idx;
+        return APR_SUCCESS;
+    }
+
+    if (errno != ENODEV) {
+        return errno;
+    }
+    else {
+        char *endptr;
+        apr_int64_t i = apr_strtoi64(zone_id, &endptr, 10);
+
+        if (*endptr != '\0' || errno || i < 1 || i > APR_INT16_MAX) {
+            return APR_EGENERAL;
+        }
+
+        sa->sa.sin6.sin6_scope_id = (unsigned int) i;
+        return APR_SUCCESS;
+    }
+#endif
+}
+
+APR_DECLARE(apr_status_t) apr_sockaddr_zone_get(const apr_sockaddr_t *sa,
+                                                const char **name,
+                                                apr_uint32_t *id,
+                                                apr_pool_t *p)
+{
+#if !APR_HAVE_IPV6 || !defined(HAVE_IF_INDEXTONAME)
+    return APR_ENOTIMPL;
+#else
+    if (sa->family != APR_INET6 || !sa->sa.sin6.sin6_scope_id) {
+        return APR_EBADIP;
+    }        
+
+    if (name) {
+        char *buf = apr_palloc(p, IF_NAMESIZE);
+        if (if_indextoname(sa->sa.sin6.sin6_scope_id, buf) == NULL)
+            return errno;
+        *name = buf;
+    }
+
+    if (id) *id = sa->sa.sin6.sin6_scope_id;
+    
+    return APR_SUCCESS;
+#endif
 }
