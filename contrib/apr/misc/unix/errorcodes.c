@@ -369,7 +369,7 @@ static char *native_strerror(apr_status_t statcode, char *buf,
 /* glibc style */
 
 /* BeOS has the function available, but it doesn't provide
- * the prototype publically (doh!), so to avoid a build warning
+ * the prototype publicly (doh!), so to avoid a build warning
  * we add a suitable prototype here.
  */
 #if defined(BEOS)

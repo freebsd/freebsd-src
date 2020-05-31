@@ -18,28 +18,36 @@
 #define ATOMIC_H
 
 #include "apr.h"
+#include "apr_pools.h"
 #include "apr_private.h"
 #include "apr_atomic.h"
-#include "apr_thread_mutex.h"
 
 #if defined(USE_ATOMICS_GENERIC)
 /* noop */
-#elif defined(__GNUC__) && defined(__STRICT_ANSI__)
-/* force use of generic atomics if building e.g. with -std=c89, which
- * doesn't allow inline asm */
-#   define USE_ATOMICS_GENERIC
 #elif HAVE_ATOMIC_BUILTINS
 #   define USE_ATOMICS_BUILTINS
 #elif defined(SOLARIS2) && SOLARIS2 >= 10
 #   define USE_ATOMICS_SOLARIS
+#   define NEED_ATOMICS_GENERIC64
+#elif defined(__GNUC__) && defined(__STRICT_ANSI__)
+/* force use of generic atomics if building e.g. with -std=c89, which
+ * doesn't allow inline asm */
+#   define USE_ATOMICS_GENERIC
 #elif defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))
 #   define USE_ATOMICS_IA32
+#   define NEED_ATOMICS_GENERIC64
 #elif defined(__GNUC__) && (defined(__PPC__) || defined(__ppc__))
 #   define USE_ATOMICS_PPC
+#   define NEED_ATOMICS_GENERIC64
 #elif defined(__GNUC__) && (defined(__s390__) || defined(__s390x__))
 #   define USE_ATOMICS_S390
+#   define NEED_ATOMICS_GENERIC64
 #else
 #   define USE_ATOMICS_GENERIC
+#endif
+
+#if defined(USE_ATOMICS_GENERIC) || defined (NEED_ATOMICS_GENERIC64)
+apr_status_t apr__atomic_generic64_init(apr_pool_t *p);
 #endif
 
 #endif /* ATOMIC_H */

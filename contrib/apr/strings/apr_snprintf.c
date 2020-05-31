@@ -100,7 +100,6 @@ static char *apr_cvt(double arg, int ndigits, int *decpt, int *sign,
         arg = -arg;
     }
     arg = modf(arg, &fi);
-    p1 = &buf[NDIG];
     /*
      * Do integer part
      */
@@ -1328,7 +1327,7 @@ APR_DECLARE(int) apr_vformatter(int (*flush_func)(apr_vformatter_buff_t *),
              */
             if (print_something == YES) {
                 for (i = s_len; i != 0; i--) {
-                      INS_CHAR(*s, sp, bep, cc);
+                    INS_CHAR(*s, sp, bep, cc);
                     s++;
                 }
             }

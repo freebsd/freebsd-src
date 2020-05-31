@@ -27,6 +27,7 @@
 #include "apr_thread_mutex.h"
 #include "apr_hash.h"
 #include "apr_time.h"
+#include "apr_support.h"
 #define APR_WANT_MEMFUNC
 #include "apr_want.h"
 #include "apr_env.h"
@@ -39,8 +40,37 @@
 #include <unistd.h>     /* for getpid and sysconf */
 #endif
 
+#if APR_ALLOCATOR_GUARD_PAGES && !APR_ALLOCATOR_USES_MMAP
+#define APR_ALLOCATOR_USES_MMAP   1
+#endif
+
 #if APR_ALLOCATOR_USES_MMAP
 #include <sys/mman.h>
+#endif
+
+#if HAVE_VALGRIND
+#include <valgrind.h>
+#include <memcheck.h>
+
+#define REDZONE APR_ALIGN_DEFAULT(8)
+int apr_running_on_valgrind = 0;
+#define APR_IF_VALGRIND(x)                                      \
+    do { if (apr_running_on_valgrind) { x; } } while (0)
+
+#else
+
+#define APR_IF_VALGRIND(x)
+
+#endif /* HAVE_VALGRIND */
+
+#define APR_VALGRIND_NOACCESS(addr_, size_)                     \
+    APR_IF_VALGRIND(VALGRIND_MAKE_MEM_NOACCESS(addr_, size_))
+#define APR_VALGRIND_UNDEFINED(addr_, size_)                    \
+    APR_IF_VALGRIND(VALGRIND_MAKE_MEM_UNDEFINED(addr_, size_))
+
+
+#if APR_POOL_CONCURRENCY_CHECK && !APR_HAS_THREADS
+#error pool-concurrency-check does not make sense without threads
 #endif
 
 /*
@@ -65,6 +95,16 @@ static unsigned int boundary_size;
 #define BOUNDARY_SIZE (1 << BOUNDARY_INDEX)
 #endif
 
+#if APR_ALLOCATOR_GUARD_PAGES
+#if defined(_SC_PAGESIZE)
+#define GUARDPAGE_SIZE boundary_size
+#else
+#error Cannot determine page size
+#endif /* _SC_PAGESIZE */
+#else
+#define GUARDPAGE_SIZE 0
+#endif /* APR_ALLOCATOR_GUARD_PAGES */
+
 /* 
  * Timing constants for killing subprocesses
  * There is a total 3-second delay between sending a SIGINT 
@@ -84,18 +124,18 @@ static unsigned int boundary_size;
 
 struct apr_allocator_t {
     /** largest used index into free[], always < MAX_INDEX */
-    apr_uint32_t        max_index;
+    apr_size_t        max_index;
     /** Total size (in BOUNDARY_SIZE multiples) of unused memory before
      * blocks are given back. @see apr_allocator_max_free_set().
      * @note Initialized to APR_ALLOCATOR_MAX_FREE_UNLIMITED,
      * which means to never give back blocks.
      */
-    apr_uint32_t        max_free_index;
+    apr_size_t        max_free_index;
     /**
      * Memory size (in BOUNDARY_SIZE multiples) that currently must be freed
      * before blocks are given back. Range: 0..max_free_index
      */
-    apr_uint32_t        current_free_index;
+    apr_size_t        current_free_index;
 #if APR_HAS_THREADS
     apr_thread_mutex_t *mutex;
 #endif /* APR_HAS_THREADS */
@@ -139,7 +179,7 @@ APR_DECLARE(apr_status_t) apr_allocator_create(apr_allocator_t **allocator)
 
 APR_DECLARE(void) apr_allocator_destroy(apr_allocator_t *allocator)
 {
-    apr_uint32_t index;
+    apr_size_t index;
     apr_memnode_t *node, **ref;
 
     for (index = 0; index < MAX_INDEX; index++) {
@@ -147,7 +187,8 @@ APR_DECLARE(void) apr_allocator_destroy(apr_allocator_t *allocator)
         while ((node = *ref) != NULL) {
             *ref = node->next;
 #if APR_ALLOCATOR_USES_MMAP
-            munmap(node, (node->index+1) << BOUNDARY_INDEX);
+            munmap((char *)node - GUARDPAGE_SIZE,
+                   2 * GUARDPAGE_SIZE + ((node->index+1) << BOUNDARY_INDEX));
 #else
             free(node);
 #endif
@@ -185,8 +226,8 @@ APR_DECLARE(apr_pool_t *) apr_allocator_owner_get(apr_allocator_t *allocator)
 APR_DECLARE(void) apr_allocator_max_free_set(apr_allocator_t *allocator,
                                              apr_size_t in_size)
 {
-    apr_uint32_t max_free_index;
-    apr_uint32_t size = (APR_UINT32_TRUNC_CAST)in_size;
+    apr_size_t max_free_index;
+    apr_size_t size = in_size;
 
 #if APR_HAS_THREADS
     apr_thread_mutex_t *mutex;
@@ -210,21 +251,45 @@ APR_DECLARE(void) apr_allocator_max_free_set(apr_allocator_t *allocator,
 }
 
 static APR_INLINE
+apr_size_t allocator_align(apr_size_t in_size)
+{
+    apr_size_t size = in_size;
+
+    /* Round up the block size to the next boundary, but always
+     * allocate at least a certain size (MIN_ALLOC).
+     */
+    size = APR_ALIGN(size + APR_MEMNODE_T_SIZE, BOUNDARY_SIZE);
+    if (size < in_size) {
+        return 0;
+    }
+    if (size < MIN_ALLOC) {
+        size = MIN_ALLOC;
+    }
+
+    return size;
+}
+
+APR_DECLARE(apr_size_t) apr_allocator_align(apr_allocator_t *allocator,
+                                            apr_size_t size)
+{
+    (void)allocator;
+    return allocator_align(size);
+}
+
+static APR_INLINE
 apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
 {
     apr_memnode_t *node, **ref;
-    apr_uint32_t max_index;
+    apr_size_t max_index;
     apr_size_t size, i, index;
 
     /* Round up the block size to the next boundary, but always
      * allocate at least a certain size (MIN_ALLOC).
      */
-    size = APR_ALIGN(in_size + APR_MEMNODE_T_SIZE, BOUNDARY_SIZE);
-    if (size < in_size) {
+    size = allocator_align(in_size);
+    if (!size) {
         return NULL;
     }
-    if (size < MIN_ALLOC)
-        size = MIN_ALLOC;
 
     /* Find the index for this node size by
      * dividing its size by the boundary size
@@ -273,7 +338,7 @@ apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
                     ref--;
                     max_index--;
                 }
-                while (*ref == NULL && max_index > 0);
+                while (*ref == NULL && max_index);
 
                 allocator->max_index = max_index;
             }
@@ -287,10 +352,7 @@ apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
                 apr_thread_mutex_unlock(allocator->mutex);
 #endif /* APR_HAS_THREADS */
 
-            node->next = NULL;
-            node->first_avail = (char *)node + APR_MEMNODE_T_SIZE;
-
-            return node;
+            goto have_node;
         }
 
 #if APR_HAS_THREADS
@@ -327,10 +389,7 @@ apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
                 apr_thread_mutex_unlock(allocator->mutex);
 #endif /* APR_HAS_THREADS */
 
-            node->next = NULL;
-            node->first_avail = (char *)node + APR_MEMNODE_T_SIZE;
-
-            return node;
+            goto have_node;
         }
 
 #if APR_HAS_THREADS
@@ -342,7 +401,10 @@ apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
     /* If we haven't got a suitable node, malloc a new one
      * and initialize it.
      */
-#if APR_ALLOCATOR_USES_MMAP
+#if APR_ALLOCATOR_GUARD_PAGES
+    if ((node = mmap(NULL, size + 2 * GUARDPAGE_SIZE, PROT_NONE,
+                     MAP_PRIVATE|MAP_ANON, -1, 0)) == MAP_FAILED)
+#elif APR_ALLOCATOR_USES_MMAP
     if ((node = mmap(NULL, size, PROT_READ|PROT_WRITE,
                      MAP_PRIVATE|MAP_ANON, -1, 0)) == MAP_FAILED)
 #else
@@ -350,10 +412,21 @@ apr_memnode_t *allocator_alloc(apr_allocator_t *allocator, apr_size_t in_size)
 #endif
         return NULL;
 
-    node->next = NULL;
-    node->index = (APR_UINT32_TRUNC_CAST)index;
-    node->first_avail = (char *)node + APR_MEMNODE_T_SIZE;
+#if APR_ALLOCATOR_GUARD_PAGES
+    node = (apr_memnode_t *)((char *)node + GUARDPAGE_SIZE);
+    if (mprotect(node, size, PROT_READ|PROT_WRITE) != 0) {
+        munmap((char *)node - GUARDPAGE_SIZE, size + 2 * GUARDPAGE_SIZE);
+        return NULL;
+    }
+#endif
+    node->index = index;
     node->endp = (char *)node + size;
+
+have_node:
+    node->next = NULL;
+    node->first_avail = (char *)node + APR_MEMNODE_T_SIZE;
+
+    APR_VALGRIND_UNDEFINED(node->first_avail, size - APR_MEMNODE_T_SIZE);
 
     return node;
 }
@@ -362,8 +435,8 @@ static APR_INLINE
 void allocator_free(apr_allocator_t *allocator, apr_memnode_t *node)
 {
     apr_memnode_t *next, *freelist = NULL;
-    apr_uint32_t index, max_index;
-    apr_uint32_t max_free_index, current_free_index;
+    apr_size_t index, max_index;
+    apr_size_t max_free_index, current_free_index;
 
 #if APR_HAS_THREADS
     if (allocator->mutex)
@@ -381,14 +454,17 @@ void allocator_free(apr_allocator_t *allocator, apr_memnode_t *node)
         next = node->next;
         index = node->index;
 
+        APR_VALGRIND_NOACCESS((char *)node + APR_MEMNODE_T_SIZE,
+                              (node->index+1) << BOUNDARY_INDEX);
+
         if (max_free_index != APR_ALLOCATOR_MAX_FREE_UNLIMITED
             && index + 1 > current_free_index) {
             node->next = freelist;
             freelist = node;
         }
         else if (index < MAX_INDEX) {
-            /* Add the node to the appropiate 'size' bucket.  Adjust
-             * the max_index when appropiate.
+            /* Add the node to the appropriate 'size' bucket.  Adjust
+             * the max_index when appropriate.
              */
             if ((node->next = allocator->free[index]) == NULL
                 && index > max_index) {
@@ -425,7 +501,8 @@ void allocator_free(apr_allocator_t *allocator, apr_memnode_t *node)
         node = freelist;
         freelist = node->next;
 #if APR_ALLOCATOR_USES_MMAP
-        munmap(node, (node->index+1) << BOUNDARY_INDEX);
+        munmap((char *)node - GUARDPAGE_SIZE,
+               2 * GUARDPAGE_SIZE + ((node->index+1) << BOUNDARY_INDEX));
 #else
         free(node);
 #endif
@@ -482,7 +559,7 @@ typedef struct debug_node_t debug_node_t;
 
 struct debug_node_t {
     debug_node_t *next;
-    apr_uint32_t  index;
+    apr_size_t    index;
     void         *beginp[64];
     void         *endp[64];
 };
@@ -533,6 +610,14 @@ struct apr_pool_t {
     apr_os_proc_t         owner_proc;
 #endif /* defined(NETWARE) */
     cleanup_t            *pre_cleanups;
+#if APR_POOL_CONCURRENCY_CHECK
+
+#define                   IDLE        0
+#define                   IN_USE      1
+#define                   DESTROYED   2
+    volatile apr_uint32_t in_use;
+    apr_os_thread_t       in_use_by;
+#endif /* APR_POOL_CONCURRENCY_CHECK */
 };
 
 #define SIZEOF_POOL_T       APR_ALIGN_DEFAULT(sizeof(apr_pool_t))
@@ -575,6 +660,10 @@ APR_DECLARE(apr_status_t) apr_pool_initialize(void)
 
     if (apr_pools_initialized++)
         return APR_SUCCESS;
+
+#if HAVE_VALGRIND
+    apr_running_on_valgrind = RUNNING_ON_VALGRIND;
+#endif
 
 #if APR_ALLOCATOR_USES_MMAP && defined(_SC_PAGESIZE)
     boundary_size = sysconf(_SC_PAGESIZE);
@@ -662,6 +751,68 @@ APR_DECLARE(void) apr_pool_terminate(void)
 #define node_free_space(node_) ((apr_size_t)(node_->endp - node_->first_avail))
 
 /*
+ * Helpers to mark pool as in-use/free. Used for finding thread-unsafe
+ * concurrent accesses from different threads.
+ */
+#if APR_POOL_CONCURRENCY_CHECK
+
+static const char * const in_use_string[] = { "idle", "in use", "destroyed" };
+
+static void pool_concurrency_abort(apr_pool_t *pool, apr_uint32_t new, apr_uint32_t old)
+{
+    fprintf(stderr, "pool concurrency check: pool %p(%s), thread cur %lx "
+                    "in use by %lx, state %s -> %s \n",
+                    pool, pool->tag, (unsigned long)apr_os_thread_current(),
+                    (unsigned long)pool->in_use_by,
+                    in_use_string[old], in_use_string[new]);
+    abort();
+}
+
+static APR_INLINE void pool_concurrency_set_used(apr_pool_t *pool)
+{
+    apr_uint32_t old;
+
+    old = apr_atomic_cas32(&pool->in_use, IN_USE, IDLE);
+
+    if (old != IDLE)
+        pool_concurrency_abort(pool, IN_USE, old);
+
+    pool->in_use_by = apr_os_thread_current();
+}
+
+static APR_INLINE void pool_concurrency_set_idle(apr_pool_t *pool)
+{
+    apr_uint32_t old;
+
+    old = apr_atomic_cas32(&pool->in_use, IDLE, IN_USE);
+
+    if (old != IN_USE)
+        pool_concurrency_abort(pool, IDLE, old);
+}
+
+static APR_INLINE void pool_concurrency_init(apr_pool_t *pool)
+{
+    pool->in_use = IDLE;
+}
+
+static APR_INLINE void pool_concurrency_set_destroyed(apr_pool_t *pool)
+{
+    apr_uint32_t old;
+
+    old = apr_atomic_cas32(&pool->in_use, DESTROYED, IDLE);
+
+    if (old != IDLE)
+        pool_concurrency_abort(pool, DESTROYED, old);
+    pool->in_use_by = apr_os_thread_current();
+}
+#else
+static APR_INLINE void pool_concurrency_init(apr_pool_t *pool)          { }
+static APR_INLINE void pool_concurrency_set_used(apr_pool_t *pool)      { }
+static APR_INLINE void pool_concurrency_set_idle(apr_pool_t *pool)      { }
+static APR_INLINE void pool_concurrency_set_destroyed(apr_pool_t *pool) { }
+#endif /* APR_POOL_CONCURRENCY_CHECK */
+
+/*
  * Memory allocation
  */
 
@@ -671,8 +822,14 @@ APR_DECLARE(void *) apr_palloc(apr_pool_t *pool, apr_size_t in_size)
     void *mem;
     apr_size_t size, free_index;
 
+    pool_concurrency_set_used(pool);
     size = APR_ALIGN_DEFAULT(in_size);
+#if HAVE_VALGRIND
+    if (apr_running_on_valgrind)
+        size += 2 * REDZONE;
+#endif
     if (size < in_size) {
+        pool_concurrency_set_idle(pool);
         if (pool->abort_fn)
             pool->abort_fn(APR_ENOMEM);
 
@@ -684,8 +841,7 @@ APR_DECLARE(void *) apr_palloc(apr_pool_t *pool, apr_size_t in_size)
     if (size <= node_free_space(active)) {
         mem = active->first_avail;
         active->first_avail += size;
-
-        return mem;
+        goto have_mem;
     }
 
     node = active->next;
@@ -694,6 +850,7 @@ APR_DECLARE(void *) apr_palloc(apr_pool_t *pool, apr_size_t in_size)
     }
     else {
         if ((node = allocator_alloc(pool->allocator, size)) == NULL) {
+            pool_concurrency_set_idle(pool);
             if (pool->abort_fn)
                 pool->abort_fn(APR_ENOMEM);
 
@@ -713,10 +870,10 @@ APR_DECLARE(void *) apr_palloc(apr_pool_t *pool, apr_size_t in_size)
     free_index = (APR_ALIGN(active->endp - active->first_avail + 1,
                             BOUNDARY_SIZE) - BOUNDARY_SIZE) >> BOUNDARY_INDEX;
 
-    active->free_index = (APR_UINT32_TRUNC_CAST)free_index;
+    active->free_index = free_index;
     node = active->next;
     if (free_index >= node->free_index)
-        return mem;
+        goto have_mem;
 
     do {
         node = node->next;
@@ -726,7 +883,22 @@ APR_DECLARE(void *) apr_palloc(apr_pool_t *pool, apr_size_t in_size)
     list_remove(active);
     list_insert(active, node);
 
+have_mem:
+#if HAVE_VALGRIND
+    if (!apr_running_on_valgrind) {
+        pool_concurrency_set_idle(pool);
+        return mem;
+    }
+    else {
+        mem = (char *)mem + REDZONE;
+        VALGRIND_MEMPOOL_ALLOC(pool, mem, in_size);
+        pool_concurrency_set_idle(pool);
+        return mem;
+    }
+#else
+    pool_concurrency_set_idle(pool);
     return mem;
+#endif
 }
 
 /* Provide an implementation of apr_pcalloc for backward compatibility
@@ -760,7 +932,10 @@ APR_DECLARE(void) apr_pool_clear(apr_pool_t *pool)
 
     /* Run pre destroy cleanups */
     run_cleanups(&pool->pre_cleanups);
+
+    pool_concurrency_set_used(pool);
     pool->pre_cleanups = NULL;
+    pool_concurrency_set_idle(pool);
 
     /* Destroy the subpools.  The subpools will detach themselves from
      * this pool thus this loop is safe and easy.
@@ -770,6 +945,8 @@ APR_DECLARE(void) apr_pool_clear(apr_pool_t *pool)
 
     /* Run cleanups */
     run_cleanups(&pool->cleanups);
+
+    pool_concurrency_set_used(pool);
     pool->cleanups = NULL;
     pool->free_cleanups = NULL;
 
@@ -786,13 +963,19 @@ APR_DECLARE(void) apr_pool_clear(apr_pool_t *pool)
     active = pool->active = pool->self;
     active->first_avail = pool->self_first_avail;
 
-    if (active->next == active)
+    APR_IF_VALGRIND(VALGRIND_MEMPOOL_TRIM(pool, pool, 1));
+
+    if (active->next == active) {
+        pool_concurrency_set_idle(pool);
         return;
+    }
 
     *active->ref = NULL;
     allocator_free(pool->allocator, active->next);
     active->next = active;
     active->ref = &active->next;
+
+    pool_concurrency_set_idle(pool);
 }
 
 APR_DECLARE(void) apr_pool_destroy(apr_pool_t *pool)
@@ -802,7 +985,10 @@ APR_DECLARE(void) apr_pool_destroy(apr_pool_t *pool)
 
     /* Run pre destroy cleanups */
     run_cleanups(&pool->pre_cleanups);
+
+    pool_concurrency_set_used(pool);
     pool->pre_cleanups = NULL;
+    pool_concurrency_set_idle(pool);
 
     /* Destroy the subpools.  The subpools will detach themselve from
      * this pool thus this loop is safe and easy.
@@ -812,6 +998,7 @@ APR_DECLARE(void) apr_pool_destroy(apr_pool_t *pool)
 
     /* Run cleanups */
     run_cleanups(&pool->cleanups);
+    pool_concurrency_set_destroyed(pool);
 
     /* Free subprocesses */
     free_proc_chain(pool->subprocesses);
@@ -863,6 +1050,7 @@ APR_DECLARE(void) apr_pool_destroy(apr_pool_t *pool)
     if (apr_allocator_owner_get(allocator) == pool) {
         apr_allocator_destroy(allocator);
     }
+    APR_IF_VALGRIND(VALGRIND_DESTROY_MEMPOOL(pool));
 }
 
 APR_DECLARE(apr_status_t) apr_pool_create_ex(apr_pool_t **newpool,
@@ -899,8 +1087,23 @@ APR_DECLARE(apr_status_t) apr_pool_create_ex(apr_pool_t **newpool,
     node->next = node;
     node->ref = &node->next;
 
+#if HAVE_VALGRIND
+    if (!apr_running_on_valgrind) {
+        pool = (apr_pool_t *)node->first_avail;
+        pool->self_first_avail = (char *)pool + SIZEOF_POOL_T;
+    }
+    else {
+        pool = (apr_pool_t *)(node->first_avail + REDZONE);
+        pool->self_first_avail = (char *)pool + SIZEOF_POOL_T + 2 * REDZONE;
+        VALGRIND_MAKE_MEM_NOACCESS(pool->self_first_avail,
+                                   node->endp - pool->self_first_avail);
+        VALGRIND_CREATE_MEMPOOL(pool, REDZONE, 0);
+    }
+#else
     pool = (apr_pool_t *)node->first_avail;
-    node->first_avail = pool->self_first_avail = (char *)pool + SIZEOF_POOL_T;
+    pool->self_first_avail = (char *)pool + SIZEOF_POOL_T;
+#endif
+    node->first_avail = pool->self_first_avail;
 
     pool->allocator = allocator;
     pool->active = pool->self = node;
@@ -940,6 +1143,8 @@ APR_DECLARE(apr_status_t) apr_pool_create_ex(apr_pool_t **newpool,
         pool->sibling = NULL;
         pool->ref = NULL;
     }
+
+    pool_concurrency_init(pool);
 
     *newpool = pool;
 
@@ -1010,6 +1215,8 @@ APR_DECLARE(apr_status_t) apr_pool_create_unmanaged_ex(apr_pool_t **newpool,
 #endif /* defined(NETWARE) */
     if (!allocator)
         pool_allocator->owner = pool;
+
+    pool_concurrency_init(pool);
     *newpool = pool;
 
     return APR_SUCCESS;
@@ -1079,7 +1286,7 @@ static int psprintf_flush(apr_vformatter_buff_t *vbuff)
         free_index = (APR_ALIGN(active->endp - active->first_avail + 1,
                                 BOUNDARY_SIZE) - BOUNDARY_SIZE) >> BOUNDARY_INDEX;
 
-        active->free_index = (APR_UINT32_TRUNC_CAST)free_index;
+        active->free_index = free_index;
         node = active->next;
         if (free_index < node->free_index) {
             do {
@@ -1105,7 +1312,11 @@ static int psprintf_flush(apr_vformatter_buff_t *vbuff)
         ps->got_a_new_node = 1;
     }
 
+    APR_VALGRIND_UNDEFINED(node->first_avail,
+                           node->endp - node->first_avail);
     memcpy(node->first_avail, active->first_avail, cur_len);
+    APR_VALGRIND_NOACCESS(active->first_avail,
+                          active->endp - active->first_avail);
 
     ps->node = node;
     ps->vbuff.curpos = node->first_avail + cur_len;
@@ -1113,6 +1324,35 @@ static int psprintf_flush(apr_vformatter_buff_t *vbuff)
 
     return 0;
 }
+
+#if HAVE_VALGRIND
+static int add_redzone(int (*flush_func)(apr_vformatter_buff_t *b),
+                       struct psprintf_data *ps)
+{
+    apr_size_t len = ps->vbuff.curpos - ps->node->first_avail + REDZONE;
+
+    while (ps->vbuff.curpos - ps->node->first_avail < len) {
+        if (ps->vbuff.endpos - ps->node->first_avail >= len)
+            ps->vbuff.curpos = ps->node->first_avail + len;
+        else
+            ps->vbuff.curpos = ps->vbuff.endpos;
+
+        /*
+         * Prevent valgrind from complaining when psprintf_flush()
+         * does a memcpy(). The VALGRIND_MEMPOOL_ALLOC() will reset
+         * the redzone to NOACCESS.
+         */
+        if (ps->vbuff.curpos != ps->node->first_avail)
+            VALGRIND_MAKE_MEM_DEFINED(ps->node->first_avail,
+                                      ps->vbuff.curpos - ps->node->first_avail);
+        if (ps->vbuff.curpos == ps->vbuff.endpos) {
+            if (psprintf_flush(&ps->vbuff) == -1)
+                return -1;
+        }
+    }
+    return 0;
+}
+#endif
 
 APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
 {
@@ -1122,6 +1362,7 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
     apr_memnode_t *active, *node;
     apr_size_t free_index;
 
+    pool_concurrency_set_used(pool);
     ps.node = active = pool->active;
     ps.pool = pool;
     ps.vbuff.curpos  = ps.node->first_avail;
@@ -1136,18 +1377,46 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
      */
     if (ps.node->first_avail == ps.node->endp) {
         if (psprintf_flush(&ps.vbuff) == -1)
-           goto error;
+            goto error;
     }
+#if HAVE_VALGRIND
+    if (apr_running_on_valgrind) {
+        if (add_redzone(psprintf_flush, &ps) == -1)
+            goto error;
+        if (!ps.got_a_new_node) {
+            /* psprintf_flush() has not been called, allow access to our node */
+            VALGRIND_MAKE_MEM_UNDEFINED(ps.vbuff.curpos,
+                                        ps.node->endp - ps.vbuff.curpos);
+        }
+    }
+#endif /* HAVE_VALGRIND */
 
     if (apr_vformatter(psprintf_flush, &ps.vbuff, fmt, ap) == -1)
         goto error;
 
-    strp = ps.vbuff.curpos;
-    *strp++ = '\0';
+    *ps.vbuff.curpos++ = '\0';
 
-    size = strp - ps.node->first_avail;
-    size = APR_ALIGN_DEFAULT(size);
+#if HAVE_VALGRIND
+    if (!apr_running_on_valgrind) {
+        strp = ps.node->first_avail;
+    }
+    else {
+        if (add_redzone(psprintf_flush, &ps) == -1)
+            goto error;
+        if (ps.node->endp != ps.vbuff.curpos)
+            APR_VALGRIND_NOACCESS(ps.vbuff.curpos,
+                                  ps.node->endp - ps.vbuff.curpos);
+        strp = ps.node->first_avail + REDZONE;
+        size = ps.vbuff.curpos - strp;
+        VALGRIND_MEMPOOL_ALLOC(pool, strp, size);
+        VALGRIND_MAKE_MEM_DEFINED(strp, size);
+    }
+#else
     strp = ps.node->first_avail;
+#endif
+
+    size = ps.vbuff.curpos - ps.node->first_avail;
+    size = APR_ALIGN_DEFAULT(size);
     ps.node->first_avail += size;
 
     if (ps.free)
@@ -1156,8 +1425,10 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
     /*
      * Link the node in if it's a new one
      */
-    if (!ps.got_a_new_node)
+    if (!ps.got_a_new_node) {
+        pool_concurrency_set_idle(pool);
         return strp;
+    }
 
     active = pool->active;
     node = ps.node;
@@ -1171,11 +1442,13 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
     free_index = (APR_ALIGN(active->endp - active->first_avail + 1,
                             BOUNDARY_SIZE) - BOUNDARY_SIZE) >> BOUNDARY_INDEX;
 
-    active->free_index = (APR_UINT32_TRUNC_CAST)free_index;
+    active->free_index = free_index;
     node = active->next;
 
-    if (free_index >= node->free_index)
+    if (free_index >= node->free_index) {
+        pool_concurrency_set_idle(pool);
         return strp;
+    }
 
     do {
         node = node->next;
@@ -1185,15 +1458,19 @@ APR_DECLARE(char *) apr_pvsprintf(apr_pool_t *pool, const char *fmt, va_list ap)
     list_remove(active);
     list_insert(active, node);
 
+    pool_concurrency_set_idle(pool);
     return strp;
 
 error:
+    pool_concurrency_set_idle(pool);
     if (pool->abort_fn)
         pool->abort_fn(APR_ENOMEM);
     if (ps.got_a_new_node) {
         ps.node->next = ps.free;
         allocator_free(pool->allocator, ps.node);
     }
+    APR_VALGRIND_NOACCESS(pool->active->first_avail,
+                          pool->active->endp - pool->active->first_avail);
     return NULL;
 }
 
@@ -1336,7 +1613,7 @@ static void apr_pool_check_integrity(apr_pool_t *pool)
     if (!apr_pool_is_child_of(pool, global_pool)) {
 #if (APR_POOL_DEBUG & APR_POOL_DEBUG_VERBOSE_ALL)
         apr_pool_log_event(pool, "LIFE",
-                           __FILE__ ":apr_pool_integrity check", 0);
+                           __FILE__ ":apr_pool_integrity check [lifetime]", 0);
 #endif /* (APR_POOL_DEBUG & APR_POOL_DEBUG_VERBOSE_ALL) */
         abort();
     }
@@ -1347,7 +1624,7 @@ static void apr_pool_check_integrity(apr_pool_t *pool)
     if (!apr_os_thread_equal(pool->owner, apr_os_thread_current())) {
 #if (APR_POOL_DEBUG & APR_POOL_DEBUG_VERBOSE_ALL)
         apr_pool_log_event(pool, "THREAD",
-                           __FILE__ ":apr_pool_integrity check", 0);
+                           __FILE__ ":apr_pool_integrity check [owner]", 0);
 #endif /* (APR_POOL_DEBUG & APR_POOL_DEBUG_VERBOSE_ALL) */
         abort();
     }
@@ -1537,7 +1814,7 @@ APR_DECLARE(void *) apr_pcalloc_debug(apr_pool_t *pool, apr_size_t size,
 static void pool_clear_debug(apr_pool_t *pool, const char *file_line)
 {
     debug_node_t *node;
-    apr_uint32_t index;
+    apr_size_t index;
 
     /* Run pre destroy cleanups */
     run_cleanups(&pool->pre_cleanups);
@@ -1854,7 +2131,7 @@ APR_DECLARE(apr_status_t) apr_pool_create_unmanaged_ex_debug(apr_pool_t **newpoo
     *newpool = pool;
 
 #if (APR_POOL_DEBUG & APR_POOL_DEBUG_VERBOSE)
-    apr_pool_log_event(pool, "CREATE", file_line, 1);
+    apr_pool_log_event(pool, "CREATEU", file_line, 1);
 #endif /* (APR_POOL_DEBUG & APR_POOL_DEBUG_VERBOSE) */
 
     return APR_SUCCESS;
@@ -1953,7 +2230,7 @@ static int pool_find(apr_pool_t *pool, void *data)
 {
     void **pmem = (void **)data;
     debug_node_t *node;
-    apr_uint32_t index;
+    apr_size_t index;
 
     node = pool->nodes;
 
@@ -1986,7 +2263,7 @@ static int pool_num_bytes(apr_pool_t *pool, void *data)
 {
     apr_size_t *psize = (apr_size_t *)data;
     debug_node_t *node;
-    apr_uint32_t index;
+    apr_size_t index;
 
     node = pool->nodes;
 

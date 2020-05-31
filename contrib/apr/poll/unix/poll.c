@@ -241,10 +241,11 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
     int ret;
     apr_status_t rv = APR_SUCCESS;
 
+    *num = 0;
+
 #ifdef WIN32
     /* WSAPoll() requires at least one socket. */
     if (pollset->nelts == 0) {
-        *num = 0;
         if (timeout > 0) {
             apr_sleep(timeout);
             return APR_TIMEUP;
@@ -261,7 +262,6 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
     }
     ret = poll(pollset->p->pollset, pollset->nelts, timeout);
 #endif
-    (*num) = ret;
     if (ret < 0) {
         return apr_get_netos_error();
     }
@@ -279,8 +279,8 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
                 if ((pollset->flags & APR_POLLSET_WAKEABLE) &&
                     pollset->p->query_set[i].desc_type == APR_POLL_FILE &&
                     pollset->p->query_set[i].desc.f == pollset->wakeup_pipe[0]) {
-                        apr_pollset_drain_wakeup_pipe(pollset);
-                        rv = APR_EINTR;
+                    apr_poll_drain_wakeup_pipe(pollset->wakeup_pipe);
+                    rv = APR_EINTR;
                 }
                 else {
                     pollset->p->result_set[j] = pollset->p->query_set[i];
@@ -290,15 +290,16 @@ static apr_status_t impl_pollset_poll(apr_pollset_t *pollset,
                 }
             }
         }
-        if (((*num) = j) > 0)
+        if ((*num = j)) { /* any event besides wakeup pipe? */
             rv = APR_SUCCESS;
+        }
     }
     if (descriptors && (*num))
         *descriptors = pollset->p->result_set;
     return rv;
 }
 
-static apr_pollset_provider_t impl = {
+static const apr_pollset_provider_t impl = {
     impl_pollset_create,
     impl_pollset_add,
     impl_pollset_remove,
@@ -307,7 +308,7 @@ static apr_pollset_provider_t impl = {
     "poll"
 };
 
-apr_pollset_provider_t *apr_pollset_provider_poll = &impl;
+const apr_pollset_provider_t *apr_pollset_provider_poll = &impl;
 
 /* Poll method pollcb.
  * This is probably usable only for WIN32 having WSAPoll
@@ -426,6 +427,14 @@ static apr_status_t impl_pollcb_poll(apr_pollcb_t *pollcb,
         for (i = 0; i < pollcb->nelts; i++) {
             if (pollcb->pollset.ps[i].revents != 0) {
                 apr_pollfd_t *pollfd = pollcb->copyset[i];
+
+                if ((pollcb->flags & APR_POLLSET_WAKEABLE) &&
+                    pollfd->desc_type == APR_POLL_FILE &&
+                    pollfd->desc.f == pollcb->wakeup_pipe[0]) {
+                    apr_poll_drain_wakeup_pipe(pollcb->wakeup_pipe);
+                    return APR_EINTR;
+                }
+
                 pollfd->rtnevents = get_revent(pollcb->pollset.ps[i].revents);                    
                 rv = func(baton, pollfd);
                 if (rv) {
@@ -437,14 +446,15 @@ static apr_status_t impl_pollcb_poll(apr_pollcb_t *pollcb,
     return rv;
 }
 
-static apr_pollcb_provider_t impl_cb = {
+static const apr_pollcb_provider_t impl_cb = {
     impl_pollcb_create,
     impl_pollcb_add,
     impl_pollcb_remove,
     impl_pollcb_poll,
+    NULL,
     "poll"
 };
 
-apr_pollcb_provider_t *apr_pollcb_provider_poll = &impl_cb;
+const apr_pollcb_provider_t *apr_pollcb_provider_poll = &impl_cb;
 
 #endif /* HAVE_POLL */

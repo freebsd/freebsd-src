@@ -8,6 +8,9 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
+/* Define if apr_allocator should use guard pages */
+#undef APR_ALLOCATOR_GUARD_PAGES
+
 /* Define if apr_allocator should use mmap */
 #undef APR_ALLOCATOR_USES_MMAP
 
@@ -17,6 +20,9 @@
 
 /* Define as function used for conversion of strings to apr_off_t */
 #undef APR_OFF_T_STRFN
+
+/* Define if pool functions should abort if concurrent usage is detected */
+#undef APR_POOL_CONCURRENCY_CHECK
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
@@ -83,6 +89,12 @@
 /* Define if accept4 function is supported */
 #undef HAVE_ACCEPT4
 
+/* Define to 1 if you have the `acquire_sem' function. */
+#undef HAVE_ACQUIRE_SEM
+
+/* Define to 1 if you have the `acquire_sem_etc' function. */
+#undef HAVE_ACQUIRE_SEM_ETC
+
 /* Define if async i/o supports message q's */
 #undef HAVE_AIO_MSGQ
 
@@ -92,6 +104,9 @@
 /* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
    */
 #undef HAVE_ALLOCA_H
+
+/* Define to 1 if you have the `arc4random_buf' function. */
+#undef HAVE_ARC4RANDOM_BUF
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
@@ -122,6 +137,10 @@
 
 /* Define to 1 if you have the <ctype.h> header file. */
 #undef HAVE_CTYPE_H
+
+/* Define to 1 if you have the declaration of `SYS_getrandom', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SYS_GETRANDOM
 
 /* Define to 1 if you have the declaration of `sys_siglist', and to 0 if you
    don't. */
@@ -211,6 +230,9 @@
 /* Define to 1 if you have the `getpwuid_r' function. */
 #undef HAVE_GETPWUID_R
 
+/* Define to 1 if you have the `getrandom' function. */
+#undef HAVE_GETRANDOM
+
 /* Define to 1 if you have the `getrlimit' function. */
 #undef HAVE_GETRLIMIT
 
@@ -225,6 +247,12 @@
 
 /* Define if hstrerror is present */
 #undef HAVE_HSTRERROR
+
+/* Define to 1 if you have the `if_indextoname' function. */
+#undef HAVE_IF_INDEXTONAME
+
+/* Define to 1 if you have the `if_nametoindex' function. */
+#undef HAVE_IF_NAMETOINDEX
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
@@ -259,6 +287,9 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
 
+/* Define to 1 if you have the <linux/random.h> header file. */
+#undef HAVE_LINUX_RANDOM_H
+
 /* Define to 1 if you have the `localtime_r' function. */
 #undef HAVE_LOCALTIME_R
 
@@ -273,6 +304,9 @@
 
 /* Define if MAP_ANON is defined in sys/mman.h */
 #undef HAVE_MAP_ANON
+
+/* Define to 1 if you have the <memcheck.h> header file. */
+#undef HAVE_MEMCHECK_H
 
 /* Define to 1 if you have the `memchr' function. */
 #undef HAVE_MEMCHR
@@ -295,6 +329,9 @@
 /* Define to 1 if you have the `mmap64' function. */
 #undef HAVE_MMAP64
 
+/* Define to 1 if you have the `mprotect' function. */
+#undef HAVE_MPROTECT
+
 /* Define to 1 if you have the `munmap' function. */
 #undef HAVE_MUNMAP
 
@@ -315,6 +352,9 @@
 
 /* Define to 1 if you have the <net/errno.h> header file. */
 #undef HAVE_NET_ERRNO_H
+
+/* Define to 1 if you have the <net/if.h> header file. */
+#undef HAVE_NET_IF_H
 
 /* Define to 1 if you have the `nl_langinfo' function. */
 #undef HAVE_NL_LANGINFO
@@ -346,6 +386,9 @@
 /* Define to 1 if you have the `pthread_attr_setguardsize' function. */
 #undef HAVE_PTHREAD_ATTR_SETGUARDSIZE
 
+/* Define to 1 if you have the `pthread_condattr_setpshared' function. */
+#undef HAVE_PTHREAD_CONDATTR_SETPSHARED
+
 /* Define to 1 if you have the <pthread.h> header file. */
 #undef HAVE_PTHREAD_H
 
@@ -360,6 +403,12 @@
 
 /* Define if cross-process robust mutexes are available */
 #undef HAVE_PTHREAD_MUTEX_ROBUST
+
+/* Define if non-posix/portable cross-process robust mutexes are available */
+#undef HAVE_PTHREAD_MUTEX_ROBUST_NP
+
+/* Define to 1 if you have the `pthread_mutex_timedlock' function. */
+#undef HAVE_PTHREAD_MUTEX_TIMEDLOCK
 
 /* Define if PTHREAD_PROCESS_SHARED is defined in pthread.h */
 #undef HAVE_PTHREAD_PROCESS_SHARED
@@ -397,11 +446,20 @@
 /* Define to 1 if you have the `semget' function. */
 #undef HAVE_SEMGET
 
+/* Define to 1 if you have the `semop' function. */
+#undef HAVE_SEMOP
+
+/* Define to 1 if you have the `semtimedop' function. */
+#undef HAVE_SEMTIMEDOP
+
 /* Define to 1 if you have the `sem_close' function. */
 #undef HAVE_SEM_CLOSE
 
 /* Define to 1 if you have the `sem_post' function. */
 #undef HAVE_SEM_POST
+
+/* Define to 1 if you have the `sem_timedwait' function. */
+#undef HAVE_SEM_TIMEDWAIT
 
 /* Define if SEM_UNDO is defined in sys/sem.h */
 #undef HAVE_SEM_UNDO
@@ -586,6 +644,9 @@
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #undef HAVE_SYS_POLL_H
 
+/* Define to 1 if you have the <sys/random.h> header file. */
+#undef HAVE_SYS_RANDOM_H
+
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #undef HAVE_SYS_RESOURCE_H
 
@@ -612,6 +673,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/syscall.h> header file. */
+#undef HAVE_SYS_SYSCALL_H
 
 /* Define to 1 if you have the <sys/sysctl.h> header file. */
 #undef HAVE_SYS_SYSCTL_H
@@ -688,6 +752,12 @@
 /* Define to 1 if you have the <uuid/uuid.h> header file. */
 #undef HAVE_UUID_UUID_H
 
+/* Compile in valgrind support */
+#undef HAVE_VALGRIND
+
+/* Define to 1 if you have the <valgrind.h> header file. */
+#undef HAVE_VALGRIND_H
+
 /* Define if C compiler supports VLA */
 #undef HAVE_VLA
 
@@ -706,8 +776,7 @@
 /* Define for z/OS pthread API nuances */
 #undef HAVE_ZOS_PTHREADS
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
 /* Define if EAI_ error codes from getaddrinfo are negative */
@@ -743,7 +812,7 @@
 /* Define if pthread_getspecific() has two args */
 #undef PTHREAD_GETSPECIFIC_TAKES_TWO_ARGS
 
-/* Define if readdir is thread safe */
+/* Modern readdir is thread safe */
 #undef READDIR_IS_THREAD_SAFE
 
 /* Define to 1 if the `setpgrp' function takes no argument. */
@@ -805,6 +874,9 @@
 /* Define if SysV semaphores affect threads within the process */
 #undef SYSVSEM_IS_GLOBAL
 
+/* Define system call of random */
+#undef SYS_RANDOM
+
 /* Define if use of generic atomics is requested */
 #undef USE_ATOMICS_GENERIC
 
@@ -816,6 +888,9 @@
 
 /* Define if 4.2BSD-style flock() will be used */
 #undef USE_FLOCK_SERIALIZE
+
+/* Define if pthread pshared mutex will be used */
+#undef USE_PROC_PTHREAD_SERIALIZE
 
 /* Define if BeOS areas will be used */
 #undef USE_SHMEM_BEOS
