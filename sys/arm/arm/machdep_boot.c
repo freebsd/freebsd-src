@@ -352,12 +352,11 @@ vm_offset_t
 fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
     size_t dtb_size)
 {
-#ifdef DDB
-	vm_offset_t zstart = 0, zend = 0;
-#endif
 	vm_offset_t lastaddr;
 	int i = 0;
 	static uint32_t fake_preload[35];
+
+	lastaddr = (vm_offset_t)&end;
 
 	fake_preload[i++] = MODINFO_NAME;
 	fake_preload[i++] = strlen("kernel") + 1;
@@ -373,21 +372,6 @@ fake_preload_metadata(struct arm_boot_params *abp __unused, void *dtb_ptr,
 	fake_preload[i++] = MODINFO_SIZE;
 	fake_preload[i++] = sizeof(uint32_t);
 	fake_preload[i++] = (uint32_t)&end - KERNVIRTADDR;
-#ifdef DDB
-	if (*(uint32_t *)KERNVIRTADDR == MAGIC_TRAMP_NUMBER) {
-		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_SSYM;
-		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 4);
-		fake_preload[i++] = MODINFO_METADATA|MODINFOMD_ESYM;
-		fake_preload[i++] = sizeof(vm_offset_t);
-		fake_preload[i++] = *(uint32_t *)(KERNVIRTADDR + 8);
-		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
-		zend = lastaddr;
-		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
-		db_fetch_ksymtab(zstart, zend);
-	} else
-#endif
-		lastaddr = (vm_offset_t)&end;
 	if (dtb_ptr != NULL) {
 		/* Copy DTB to KVA space and insert it into module chain. */
 		lastaddr = roundup(lastaddr, sizeof(int));
