@@ -5735,15 +5735,15 @@ print_usage(const char *argv0)
 {
 
 	rtld_printf("Usage: %s [-h] [-f <FD>] [-p] [--] <binary> [<args>]\n"
-		"\n"
-		"Options:\n"
-		"  -h        Display this help message\n"
-		"  -f <FD>   Execute <FD> instead of searching for <binary>\n"
-		"  -p        Search in PATH for named binary\n"
-		"  -v        Display identification information\n"
-		"  --        End of RTLD options\n"
-		"  <binary>  Name of process to execute\n"
-		"  <args>    Arguments to the executed process\n", argv0);
+	    "\n"
+	    "Options:\n"
+	    "  -h        Display this help message\n"
+	    "  -f <FD>   Execute <FD> instead of searching for <binary>\n"
+	    "  -p        Search in PATH for named binary\n"
+	    "  -v        Display identification information\n"
+	    "  --        End of RTLD options\n"
+	    "  <binary>  Name of process to execute\n"
+	    "  <args>    Arguments to the executed process\n", argv0);
 }
 
 /*
