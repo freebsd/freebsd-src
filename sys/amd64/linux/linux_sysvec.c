@@ -683,7 +683,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 const unsigned long linux_vsyscall_vector[] = {
 	LINUX_SYS_gettimeofday,
 	LINUX_SYS_linux_time,
-				/* getcpu not implemented */
+	LINUX_SYS_linux_getcpu,
 };
 
 static int
