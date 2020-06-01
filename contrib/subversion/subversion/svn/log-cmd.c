@@ -88,7 +88,7 @@ display_diff(const svn_log_entry_t *log_entry,
   end_revision.value.number = log_entry->revision;
 
   SVN_ERR(svn_stream_puts(outstream, "\n"));
-  SVN_ERR(svn_client_diff_peg6(diff_options,
+  SVN_ERR(svn_client_diff_peg7(diff_options,
                                target_path_or_url,
                                target_peg_revision,
                                &start_revision, &end_revision,
@@ -102,6 +102,7 @@ display_diff(const svn_log_entry_t *log_entry,
                                FALSE /* ignore prop diff */,
                                FALSE /* properties only */,
                                FALSE /* use git diff format */,
+                               TRUE  /* pretty_print_mergeinfo */,
                                svn_cmdline_output_encoding(pool),
                                outstream,
                                errstream,
@@ -333,7 +334,7 @@ svn_cl__log_entry_receiver(void *baton,
       return SVN_NO_ERROR;
     }
 
-  /* ### See http://subversion.tigris.org/issues/show_bug.cgi?id=807
+  /* ### See https://issues.apache.org/jira/browse/SVN-807
      for more on the fallback fuzzy conversions below. */
 
   if (author == NULL)
@@ -732,10 +733,6 @@ svn_cl__log(apr_getopt_t *os,
                                   "XML mode"));
     }
 
-  if (opt_state->quiet && opt_state->show_diff)
-    return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                            _("'quiet' and 'diff' options are "
-                              "mutually exclusive"));
   if (opt_state->diff.diff_cmd && (! opt_state->show_diff))
     return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
                             _("'diff-cmd' option requires 'diff' "

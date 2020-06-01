@@ -108,12 +108,6 @@ extern "C" {
 #define APR_OPENINFO  0x00100000
 #endif
 
-#if !APR_VERSION_AT_LEAST(1,4,0)
-#ifndef apr_time_from_msec
-#define apr_time_from_msec(msec) ((apr_time_t)(msec) * 1000)
-#endif
-#endif
-
 /**
  * APR 1 has volatile qualifier bugs in some atomic prototypes that
  * are fixed in APR 2:

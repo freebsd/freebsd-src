@@ -3,7 +3,7 @@
                           A Quick Guide
                ======================================
 
-$LastChangedDate: 2017-12-25 04:00:08 +0000 (Mon, 25 Dec 2017) $
+$LastChangedDate: 2020-02-17 03:49:42 +0000 (Mon, 17 Feb 2020) $
 
 
 Contents:
@@ -23,8 +23,8 @@ Contents:
 
    III. BUILDING A SUBVERSION SERVER
        A. Setting Up Apache Httpd
-       B. Making and Installing the Subversion Server
-       C. Configuring Apache for Subversion
+       B. Making and Installing the Subversion Apache Server Module
+       C. Configuring Apache Httpd for Subversion
        D. Running and Testing
        E. Alternative:  'svnserve' and ra_svn
 
@@ -96,6 +96,11 @@ I.    INTRODUCTION
          These diff streams are used everywhere -- over the network,
          in the repository, and in the client's working copy.
 
+      * utf8proc  (REQUIRED for client and server)
+      
+         Subversion uses utf8proc for UTF-8 support, including Unicode
+         normalization.
+
       * Apache Serf  (OPTIONAL for client)
 
          The Apache Serf library allows the Subversion client to send HTTP
@@ -116,21 +121,21 @@ I.    INTRODUCTION
 
       * Netwide Assembler (OPTIONAL for client and server)
 
-        The Netwide Assembler (NASM) is used to build the (optionally)
+        The Netwide Assembler (NASM) is used to build the (optional)
         assembler modules of OpenSSL.  As of OpenSSL 1.1.0 NASM is the
         only supported assembler.
 
-      * Berkeley DB (OPTIONAL for client and server)
+      * Berkeley DB (DEPRECATED and OPTIONAL for client and server)
 
-         There are two different repository 'back-end'
-         implementations.  One implementation stores data in a flat
-         filesystem (known as FSFS); the other implementation stores
-         data in a Berkeley DB database (known as BDB).  When you
-         create a repository, you have the option of specifying a
-         storage back-end.  The Berkeley DB back-end will only be
-         available if the BDB libraries are discovered at compile
-         time.  The Berkeley DB back-end has been deprecated and
-         is not recommend.
+         When you create a repository, you have the option of
+         specifying a storage 'back-end' implementation.  Currently,
+         there are two options.  The newer and recommended one, known
+         as FSFS, does not require Berkeley DB.  FSFS stores data in a
+         flat filesystem.  The older implementation, known as BDB, has
+         been deprecated and is not recommended for new repositories,
+         but is still available.  BDB stores data in a Berkeley DB
+         database.  This back-end will only be available if the BDB
+         libraries are discovered at compile time.
 
       * libsasl (OPTIONAL for client and server)
 
@@ -147,10 +152,16 @@ I.    INTRODUCTION
          for other languages, you need to have those languages
          available at build time.
 
-      * KDELibs, GNOME Keyring  (OPTIONAL for client)
+      * py3c (OPTIONAL, but REQUIRED for Python bindings)
+
+        The Python 3 Compatibility Layer for C Extensions is required
+        to build the Python language bindings.
+
+      * KDE Framework 5, libsecret, GNOME Keyring (OPTIONAL for client)
 
          Subversion contains optional support for storing passwords in
-         KWallet (KDE 4) or GNOME Keyring.
+         KWallet via KDE Framework 5 libraries (preferred) or kdelibs4,
+         and GNOME Keyring via libsecret (preferred) or GNOME APIs.
 
       * libmagic (OPTIONAL)
 
@@ -160,10 +171,6 @@ I.    INTRODUCTION
          configured via auto-props or the mime-types-file option
          take precedence.
 
-      * Googlemock aka Gmock (OPTIONAL)
-
-         This optional package is used by the tests for Subversions'
-         C++ bindings.
 
 
   C. Dependencies in Detail
@@ -199,7 +206,7 @@ I.    INTRODUCTION
       commands described in section II.B before installing the following.
 
 
-      1.  Apache Portable Runtime 1.3 or newer  (REQUIRED)
+      1.  Apache Portable Runtime 1.5 or newer  (REQUIRED)
 
       Whenever you want to build any part of Subversion, you need the
       Apache Portable Runtime (APR) and the APR Utility (APR-util)
@@ -253,22 +260,55 @@ I.    INTRODUCTION
       configure script.
 
 
-      2. Zlib  (REQUIRED)
+      2.  SQLite  (REQUIRED)
 
-         Subversion's binary-differencing engine depends on zlib for
-         compression.   Most Unix systems have libz pre-installed, but
-         if you need it, you can get it from
+      Subversion requires SQLite version 3.8.2 or above.  You can meet this
+      dependency several ways:
+        * Use an SQLite amalgamation file.
+        * Specify an SQLite installation to use.
+        * Let Subversion find an installed SQLite.
 
-            http://www.zlib.net/
+      To use an SQLite-provided amalgamation, just drop sqlite3.c into
+      Subversion's sqlite-amalgamation/ directory, or point to it with the
+      --with-sqlite configure option.  This file also ships with the Subversion
+      dependencies distribution, or you can download it from SQLite:
+
+          https://www.sqlite.org/download.html
 
 
-      3.  autoconf 2.59 or newer (Unix only)
+      3.  Zlib  (REQUIRED)
+
+      Subversion's binary-differencing engine depends on zlib for
+      compression.  Most Unix systems have libz pre-installed, but if
+      you need it, you can get it from
+
+          http://www.zlib.net/
+
+
+      4.  utf8proc  (REQUIRED)
+
+      Subversion uses utf8proc for UTF-8 support.  Configure will
+      attempt to locate utf8proc by default using pkg-config and known
+      paths.
+
+      If it is installed in a non-standard location, then use:
+
+        --with-utf8proc=/path/to/libutf8proc
+
+      Alternatively, a copy of utf8proc comes bundled with the
+      Subversion sources.  If configure should use the bundled copy,
+      use:
+
+        --with-utf8proc=internal
+
+
+      5.  autoconf 2.59 or newer (Unix only)
 
       This is required only if you plan to build from the latest source
       (see section II.B). Generally only developers would be doing this.
 
 
-      4.  libtool 1.4 or newer (Unix only)
+      6.  libtool 1.4 or newer (Unix only)
 
       This is required only if you plan to build from the latest source
       (see section II.B).
@@ -277,7 +317,7 @@ I.    INTRODUCTION
       newer. The autogen.sh script knows about that.
 
 
-      5.  Apache Serf library 1.3.4 or newer (OPTIONAL)
+      7.  Apache Serf library 1.3.4 or newer (OPTIONAL)
 
       If you want your client to be able to speak to an Apache
       server (via a http:// or https:// URL), you must link against
@@ -292,12 +332,13 @@ I.    INTRODUCTION
       instead.
 
       Apache Serf can be obtained via your system's package distribution
-      system or directly from http://code.google.com/p/serf/.
+      system or directly from https://serf.apache.org/.
 
       For more information on Apache Serf and Subversion's ra_serf, see the
       file subversion/libsvn_ra_serf/README.
 
-      6. OpenSSL  (OPTIONAL)
+
+      8.  OpenSSL  (OPTIONAL)
 
       ### needs some updates. I think Apache Serf automagically handles
       ### finding OpenSSL, but we may need more docco here. and w.r.t
@@ -343,17 +384,25 @@ I.    INTRODUCTION
           https://www.openssl.org/
 
 
-      7.  Berkeley DB 4.X  (OPTIONAL)
+      9.  Berkeley DB 4.X  (DEPRECATED and OPTIONAL)
 
-      Berkeley DB is needed to build a Subversion server that supports
-      the BDB repository filesystem, or to access a BDB repository on
-      local disk.  If you will only use the FSFS repository filesystem,
-      or if you are building a Subversion client that will only speak
-      to remote (networked) repositories, you don't need it.
+      You need the Berkeley DB libraries only if you are building a
+      Subversion server that supports the older BDB repository storage
+      back-end, or a Subversion client that can access local BDB
+      repositories via the file:// URI scheme.
 
-      The current recommended version is 4.4.20 or newer, which brings
-      auto-recovery functionality to the Berkeley DB database
-      environment.
+      The BDB back-end has been deprecated and is not recommended for
+      new repositories.  BDB may be removed in Subversion 2.0.  We
+      recommend the newer FSFS back-end for all new repositories.
+      FSFS does not require the Berkeley DB libraries.
+
+      If in doubt, the 'svnadmin info' command, added in Subversion
+      1.9, can identify whether an existing repository uses BDB or
+      FSFS.
+
+      The current recommended version of Berkeley DB is 4.4.20 or
+      newer, which brings auto-recovery functionality to the Berkeley
+      DB database environment.
 
       If you must use an older version of Berkeley DB, we *strongly*
       recommend using 4.3 or 4.2 over the 4.1 or 4.0 versions.  Not
@@ -386,7 +435,7 @@ I.    INTRODUCTION
       Look in the "Releases > Windows > Windows BDB" section.
 
 
-      8.  Cyrus SASL library (OPTIONAL)
+      10. Cyrus SASL library (OPTIONAL)
 
       If the Simple Authentication and Security Layer (SASL) library
       is detected on your system, then the Subversion client and
@@ -397,7 +446,7 @@ I.    INTRODUCTION
          http://freshmeat.net/projects/cyrussasl/
 
 
-      9.  Apache Web Server 2.2.X or newer  (OPTIONAL)
+      11. Apache Web Server 2.2.X or newer  (OPTIONAL)
 
           (https://httpd.apache.org/download.cgi)
 
@@ -410,78 +459,103 @@ I.    INTRODUCTION
       is done: See section III for details.
 
 
-      10.  Python 2.7 or newer (https://www.python.org/)  (OPTIONAL)
+      12. Python 3.x or newer (https://www.python.org/)  (OPTIONAL)
 
-      If you want to run "make check" or build from the latest source
-      under Unix/Windows as described in section II.B, II.E and III.D,
-      install Python 2.7 or higher on your system. The majority of the
-      test suite is written in Python, as is part of Subversion's build
-      system.
+      Subversion does not require Python for its basic operation.
+      However, Python is required for building and testing Subversion
+      and for using Subversion's SWIG Python bindings or hook scripts
+      coded in Python.
 
-      Note that Python 3.x is not supported and most likely won't work.
+      The majority of Subversion's test suite is written in Python, as
+      is part of Subversion's build system.
+
+      In more detail, Python is required to do any of the following:
+
+      * Use the SWIG Python bindings.
+      * Use the ctypes Python bindings.
+      * Use hook scripts coded in Python.
+      * Build Subversion from a tarball on Unix-like systems and run
+        Subversion's test suite as described in section II.B.
+      * Build Subversion on Windows as described in section II.E.
+      * Build Subversion from a working copy checked out from
+        Subversion's own repository (whether or not running the test
+        suite).
+      * Build the SWIG Python bindings.
+      * Build the ctypes Python bindings.
+      * Testing as described in section III.D.
+
+      The Python bindings are used by:
+
+      * Third-party programs (e.g., ViewVC)
+      * Scripts distributed with Subversion itself in the tools/
+        subdirectory.
+      * Any in-house scripts you may have.
+
+      Python is NOT required to do any of the following:
+
+      * Use the core command-line binaries (svn, svnadmin, svnsync,
+        etc.)
+      * Use Subversion's C libraries.
+      * Use any of Subversion's other language bindings.
+      * Build Subversion from a tarball on Unix-like systems without
+        running Subversion's test suite
+
+      Although this section calls for Python 3.x, Subversion still
+      technically works with Python 2.7.  However, Support for Python
+      2.7 is being phased out.  As of 1 January 2020, Python 2.7 has
+      reached end of life.  All users are strongly encouraged to move
+      to Python 3.
 
 
-      11. Perl 5.8 or newer (Windows only)  (OPTIONAL)
+      13. Perl 5.8 or newer (Windows only)  (OPTIONAL)
 
       To build Subversion under any of the MS Windows platforms, you
       will also need Perl 5.8 or newer to run apr-util's w32locatedb.pl
       script.
 
 
-      12. SQLite  (REQUIRED)
-
-      Subversion requires SQLite version 3.8.2 or above.  You can meet this
-      dependency several ways:
-        * Use an SQLite amalgamation file.
-        * Specify an SQLite installation to use.
-        * Let Subversion find an installed SQLite.
-
-      To use an SQLite-provided amalgamation, just drop sqlite3.c into
-      Subversion's sqlite-amalgamation/ directory, or point to it with the
-      --with-sqlite configure option.  This file also ships with the Subversion
-      dependencies distribution, or you can download it from SQLite:
-
-          https://www.sqlite.org/download.html
-
-
-      13. pkg-config  (Unix only, OPTIONAL)
+      14. pkg-config  (Unix only, OPTIONAL)
 
       Subversion uses pkg-config to find appropriate options used
       at build time.
 
 
-      14. D-Bus  (Unix only, OPTIONAL)
+      15. D-Bus  (Unix only, OPTIONAL)
 
       D-Bus is a message bus system. D-Bus is required for support for KWallet
       and GNOME Keyring. pkg-config is needed to find D-Bus headers and library.
 
 
-      15. Qt 4  (Unix only, OPTIONAL)
+      16. Qt 5 or Qt 4  (Unix only, OPTIONAL)
 
       Qt is a cross-platform application framework. QtCore, QtDBus and QtGui
       modules are required for support for KWallet. pkg-config is needed
       to find Qt headers and libraries.
 
 
-      16. KDELibs 4  (Unix only, OPTIONAL)
+      17. KDE 5 Framework libraries or KDELibs 4  (Unix only, OPTIONAL)
 
       Subversion contains optional support for storing passwords in KWallet.
+      Subversion will look for KF5Wallet, KF5CoreAddons, KF5I18n APIs by default,
+      and needs kf5-config to find them. The KDELibs 4 api is also supported.
       KDELibs contains core KDE libraries. Subversion uses libkdecore and libkdeui
       libraries when support for KWallet is enabled. kde4-config is used to get
       some necessary options. pkg-config, D-Bus and Qt 4 are also required.
+
       If you want to build support for KWallet, then pass the '--with-kwallet'
       option to `configure`. If KDE is installed in a non-standard prefix, then
       use:
 
           --with-kwallet=/path/to/KDE/prefix
 
-      17. GLib 2  (Unix only, OPTIONAL)
+
+      18. GLib 2  (Unix only, OPTIONAL)
 
       GLib is a general-purpose utility library. GLib is required for support
       for GNOME Keyring. pkg-config is needed to find GLib headers and library.
 
 
-      18. GNOME Keyring  (Unix only, OPTIONAL)
+      19. GNOME Keyring  (Unix only, OPTIONAL)
 
       Subversion contains optional support for storing passwords in GNOME Keyring.
       pkg-config is needed to find GNOME Keyring headers and library. D-Bus and
@@ -489,7 +563,7 @@ I.    INTRODUCTION
       then pass the '--with-gnome-keyring' option to `configure`.
 
 
-      19. Ctypesgen  (OPTIONAL)
+      20. Ctypesgen  (OPTIONAL)
 
       Ctypesgen is Python wrapper generator for ctypes. It is used to generate
       a part of Subversion Ctypes Python bindings (CSVN). If you want to build
@@ -500,7 +574,8 @@ I.    INTRODUCTION
 
       For more information on CSVN, see subversion/bindings/ctypes-python/README.
 
-      20. libmagic (OPTIONAL)
+
+      21. libmagic (OPTIONAL)
 
       Subversion's configure script attempts to find libmagic automatically.
       If it is installed in a non-standard location, then use:
@@ -521,11 +596,6 @@ I.    INTRODUCTION
 
         --with-libmagic
 
-      21. Googlemock (OPTIONAL)
-
-      Googlemock can be installed and built in-tree by invoking
-
-      $ ./get-dep.sh gmock
 
       22. LZ4 (OPTIONAL)
 
@@ -539,6 +609,32 @@ I.    INTRODUCTION
 
       If configure should use the version bundled with the sources, use:
         --with-lz4=internal
+
+
+      23. py3c (OPTIONAL)
+
+      Subversion uses the Python 3 Compatibility Layer for C
+      Extensions (py3c) library when building the Python language
+      bindings.
+      
+      As py3c is a header-only library, it is needed only to build the
+      bindings, not to use them.
+
+      Configure will attempt to locate py3c by default using
+      pkg-config and known paths.
+
+      If it is installed in a non-standard location, then use:
+
+          --with-py3c=/path/to/py3c/prefix
+
+      The library can be downloaded from GitHub:
+
+          https://github.com/encukou/py3c
+      
+      On Unix systems, you can also use the provided get-deps.sh
+      script to download py3c and several other dependencies; see the
+      top of section I.C for more about get-deps.sh.
+
 
   D. Documentation
 
@@ -731,13 +827,12 @@ II.   INSTALLATION
         Edition). Make sure you enable C++ support during setup.
       * Python 2.7 or higher, downloaded from https://www.python.org/ which is
         used to generate the project files.
-        Note that Python 3.x is not supported (yet).
       * Perl 5.8 or higher from https://www.perl.org/get.html
       * Awk (from https://www.cs.princeton.edu/~bwk/btl.mirror/awk95.exe) is
         needed to compile Apache.  Note that this is the actual awk program,
         not an installer - just rename it to awk.exe and it is ready to use.
       * Apache apr, apr-util, and optionally apr-iconv libraries, version
-        1.3 or later (1.2 for apr-iconv). If you are building from a Subversion
+        1.5 or later (1.2 for apr-iconv). If you are building from a Subversion
         checkout and have not downloaded Apache 2, then get these 3 libraries
         from https://www.apache.org/dist/apr/.
       * SQLite 3.8.2 or higher from https://www.sqlite.org/download.html
@@ -856,11 +951,7 @@ II.   INSTALLATION
 
   E.4 Building the Binaries
 
-      To build the binaries either follow the instructions here or use
-      build\win32\vc6-build.bat.in after editing its default paths to match
-      yours and saving it as vc6-build.bat.  The vc6-build.bat does a full build
-      using all options so it requires Apache 2 source and the other optional
-      components.
+      To build the binaries either follow these instructions.
 
       Start in the SVN directory you created.
 
@@ -922,7 +1013,7 @@ II.   INSTALLATION
       C:>nmake -f Makefile.win
       C:>nmake -f Makefile.win install
 
-      Please refere to the build instructions provided by the library source
+      Please refer to the build instructions provided by the library source
       for actual build instructions.
 
       ZLib
@@ -931,7 +1022,7 @@ II.   INSTALLATION
       Building ZLib using Visual Studio should be quite simple. Just open the
       appropriate solution and build the project zlibstat using the IDE.
 
-      Please refere to the build instructions provided by the library source
+      Please refer to the build instructions provided by the library source
       for actual build instructions.
 
       Note that you'd make sure to define ZLIB_WINAPI in the ZLib config

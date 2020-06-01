@@ -176,7 +176,7 @@ if test -n "$RELEASE_MODE"; then
   "$PYTHON" ./gen-make.py build.conf || gen_failed=1
 
   # Build the SWIG-related files
-  make -f autogen-standalone.mk autogen-swig
+  make -f autogen-standalone.mk autogen-swig || gen_failed=1
 
   # Remove the .swig_checked file
   rm -f .swig_checked

@@ -108,7 +108,7 @@ escape_blanks(char *str)
 
 #define is_hex(c) (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && (c) <= 'F'))
 #define hex_to_int(c) ((c) < '9' ? (c) - '0' : (c) - 'A' + 10)
- 
+
 /* Modify STR in-place.  '%', CR and LF are always percent escaped,
    other characters may be percent escaped, always using uppercase
    hex, see https://www.gnupg.org/documentation/manuals/assuan.pdf */

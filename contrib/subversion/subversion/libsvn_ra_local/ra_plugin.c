@@ -554,6 +554,7 @@ ignore_warnings(void *baton,
 static svn_error_t *
 svn_ra_local__open(svn_ra_session_t *session,
                    const char **corrected_url,
+                   const char **redirect_url,
                    const char *repos_URL,
                    const svn_ra_callbacks2_t *callbacks,
                    void *callback_baton,
@@ -576,6 +577,8 @@ svn_ra_local__open(svn_ra_session_t *session,
   /* We don't support redirections in ra-local. */
   if (corrected_url)
     *corrected_url = NULL;
+  if (redirect_url)
+    *redirect_url = NULL;
 
   /* Allocate and stash the session_sess args we have already. */
   sess = apr_pcalloc(pool, sizeof(*sess));

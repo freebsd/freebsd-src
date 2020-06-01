@@ -118,10 +118,12 @@ password_get_gnome_keyring(svn_boolean_t *done,
 {
   GError *gerror = NULL;
   gchar *gpassword;
-  
+
+  *done = FALSE;
+
   if (!available_collection(non_interactive, pool))
     return SVN_NO_ERROR;
-  
+
   gpassword = secret_password_lookup_sync(SECRET_SCHEMA_COMPAT_NETWORK, NULL,
                                           &gerror,
                                           "domain", realmstring,
@@ -129,6 +131,7 @@ password_get_gnome_keyring(svn_boolean_t *done,
                                           NULL);
   if (gerror)
     {
+      /* ### TODO: return or log the error? */
       g_error_free(gerror);
     }
   else if (gpassword)
@@ -137,7 +140,7 @@ password_get_gnome_keyring(svn_boolean_t *done,
       g_free(gpassword);
       *done = TRUE;
     }
-  
+
   return SVN_NO_ERROR;
 }
 
@@ -155,7 +158,9 @@ password_set_gnome_keyring(svn_boolean_t *done,
 {
   GError *gerror = NULL;
   gboolean gstatus;
-  
+
+  *done = FALSE;
+
   if (!available_collection(non_interactive, pool))
     return SVN_NO_ERROR;
 
@@ -170,13 +175,14 @@ password_set_gnome_keyring(svn_boolean_t *done,
                                        NULL);
   if (gerror)
     {
+      /* ### TODO: return or log the error? */
       g_error_free(gerror);
     }
   else if (gstatus)
     {
       *done = TRUE;
     }
-  
+
   return SVN_NO_ERROR;
 }
 

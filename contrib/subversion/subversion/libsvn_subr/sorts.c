@@ -34,6 +34,8 @@
 #include "svn_error.h"
 #include "private/svn_sorts_private.h"
 
+#include "svn_private_config.h"
+
 
 
 /*** svn_sort__hash() ***/
@@ -299,15 +301,20 @@ svn_sort__array_lookup(const apr_array_header_t *array,
   return compare_func(result, key) ? NULL : result;
 }
 
-void
-svn_sort__array_insert(apr_array_header_t *array,
-                       const void *new_element,
-                       int insert_index)
+svn_error_t *
+svn_sort__array_insert2(apr_array_header_t *array,
+                        const void *new_element,
+                        int insert_index)
 {
   int elements_to_move;
   char *new_position;
 
-  assert(0 <= insert_index && insert_index <= array->nelts);
+  if (insert_index < 0 || insert_index > array->nelts)
+    return svn_error_createf(SVN_ERR_INCORRECT_PARAMS, NULL,
+                             _("svn_sort__array_insert2: Attempted insert "
+                               "at index %d in array length %d"),
+                             insert_index, array->nelts);
+
   elements_to_move = array->nelts - insert_index;  /* before bumping nelts */
 
   /* Grow the array, allocating a new space at the end. Note: this can
@@ -322,31 +329,35 @@ svn_sort__array_insert(apr_array_header_t *array,
 
   /* Copy in the new element */
   memcpy(new_position, new_element, array->elt_size);
+  return SVN_NO_ERROR;
 }
 
-void
-svn_sort__array_delete(apr_array_header_t *arr,
-                       int delete_index,
-                       int elements_to_delete)
+svn_error_t *
+svn_sort__array_delete2(apr_array_header_t *arr,
+                        int delete_index,
+                        int elements_to_delete)
 {
-  /* Do we have a valid index and are there enough elements? */
-  if (delete_index >= 0
-      && delete_index < arr->nelts
-      && elements_to_delete > 0
-      && (arr->nelts - delete_index) >= elements_to_delete)
-    {
-      /* If we are not deleting a block of elements that extends to the end
-         of the array, then we need to move the remaining elements to keep
-         the array contiguous. */
-      if ((elements_to_delete + delete_index) < arr->nelts)
-        memmove(
-          arr->elts + arr->elt_size * delete_index,
-          arr->elts + (arr->elt_size * (delete_index + elements_to_delete)),
-          arr->elt_size * (arr->nelts - elements_to_delete - delete_index));
+  if (!(delete_index >= 0
+        && delete_index < arr->nelts
+        && elements_to_delete > 0
+        && (arr->nelts - delete_index) >= elements_to_delete))
+    return svn_error_createf(SVN_ERR_INCORRECT_PARAMS, NULL,
+                             _("svn_sort__array_delete2: Attempted delete "
+                               "at index %d, %d elements, in array length %d"),
+                             delete_index, elements_to_delete, arr->nelts);
 
-      /* Delete the last ELEMENTS_TO_DELETE elements. */
-      arr->nelts -= elements_to_delete;
-    }
+  /* If we are deleting a block of elements that does not extend to the end
+     of the array, then we need to move the remaining elements to keep
+     the array contiguous. */
+  if ((elements_to_delete + delete_index) < arr->nelts)
+    memmove(
+      arr->elts + arr->elt_size * delete_index,
+      arr->elts + (arr->elt_size * (delete_index + elements_to_delete)),
+      arr->elt_size * (arr->nelts - elements_to_delete - delete_index));
+
+  /* Delete the last ELEMENTS_TO_DELETE elements. */
+  arr->nelts -= elements_to_delete;
+  return SVN_NO_ERROR;
 }
 
 void

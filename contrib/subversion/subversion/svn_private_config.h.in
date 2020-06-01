@@ -16,11 +16,20 @@
 /* Define to 1 if you have the `bind_textdomain_codeset' function. */
 #undef HAVE_BIND_TEXTDOMAIN_CODESET
 
+/* define if the Boost library is available */
+#undef HAVE_BOOST
+
+/* define if the Boost::Unit_Test_Framework library is available */
+#undef HAVE_BOOST_UNIT_TEST_FRAMEWORK
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 #undef HAVE_DOPRNT
+
+/* Define to 1 if you have the <elf.h> header file. */
+#undef HAVE_ELF_H
 
 /* Define to 1 if you have the `getpid' function. */
 #undef HAVE_GETPID
@@ -39,6 +48,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the <py3c.h> header file. */
+#undef HAVE_PY3C_H
 
 /* Define to 1 if you have the `rb_errinfo' function. */
 #undef HAVE_RB_ERRINFO
@@ -123,9 +135,6 @@
 
 /* Defined to build against httpd 2.4 with broken auth */
 #undef SVN_ALLOW_BROKEN_HTTPD_AUTH
-
-/* Define to the Python/C API format character suitable for apr_int64_t */
-#undef SVN_APR_INT64_T_PYCFMT
 
 /* Defined to be the path to the installed binaries */
 #undef SVN_BINDIR

@@ -375,14 +375,12 @@ svn_element__tree_get(const svn_element__tree_t *tree,
   return svn_eid__hash_get(tree->e_map, eid);
 }
 
-svn_error_t *
+void
 svn_element__tree_set(svn_element__tree_t *tree,
                       int eid,
                       const svn_element__content_t *element)
 {
   svn_eid__hash_set(tree->e_map, eid, element);
-
-  return SVN_NO_ERROR;
 }
 
 void

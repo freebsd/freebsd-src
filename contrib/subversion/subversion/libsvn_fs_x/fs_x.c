@@ -951,7 +951,7 @@ write_revision_zero(svn_fs_t *fs,
 
   SVN_ERR(svn_io_file_open(&apr_file,
                            svn_fs_x__path_revprops(fs, 0, scratch_pool),
-                           APR_WRITE | APR_CREATE, APR_OS_DEFAULT, 
+                           APR_WRITE | APR_CREATE, APR_OS_DEFAULT,
                            scratch_pool));
   SVN_ERR(svn_fs_x__write_non_packed_revprops(apr_file, proplist,
                                               scratch_pool));

@@ -39,6 +39,7 @@
 
 #include <apr.h>                /* for STDIN_FILENO */
 #include <apr_errno.h>          /* for apr_strerror */
+#include <apr_escape.h>
 #include <apr_general.h>        /* for apr_initialize/apr_terminate */
 #include <apr_strings.h>        /* for apr_snprintf */
 #include <apr_pools.h>
@@ -1233,7 +1234,7 @@ svn_cmdline__be_interactive(svn_boolean_t non_interactive,
 }
 
 
-/* Helper for the next two functions.  Set *EDITOR to some path to an
+/* Helper for the edit_externally functions.  Set *EDITOR to some path to an
    editor binary.  Sources to search include: the EDITOR_CMD argument
    (if not NULL), $SVN_EDITOR, the runtime CONFIG variable (if CONFIG
    is not NULL), $VISUAL, $EDITOR.  Return
@@ -1299,6 +1300,98 @@ find_editor_binary(const char **editor,
   return SVN_NO_ERROR;
 }
 
+/* Wrapper around apr_pescape_shell() which also escapes whitespace. */
+static const char *
+escape_path(apr_pool_t *pool, const char *orig_path)
+{
+  apr_size_t len, esc_len;
+  apr_status_t status;
+
+  len = strlen(orig_path);
+  esc_len = 0;
+
+  status = apr_escape_shell(NULL, orig_path, len, &esc_len);
+
+  if (status == APR_NOTFOUND)
+    {
+      /* No special characters found by APR, so just surround it in double
+         quotes in case there is whitespace, which APR (as of 1.6.5) doesn't
+         consider special. */
+      return apr_psprintf(pool, "\"%s\"", orig_path);
+    }
+  else
+    {
+#ifdef WIN32
+      const char *p;
+      /* Following the advice from
+         https://docs.microsoft.com/en-us/archive/blogs/twistylittlepassagesallalike/everyone-quotes-command-line-arguments-the-wrong-way
+         1. Surround argument with double-quotes
+         2. Escape backslashes, if they're followed by a double-quote, and double-quotes
+         3. Escape any metacharacter, including double-quotes, with ^ */
+
+      /* Use APR's buffer size as an approximation for how large the escaped
+         string should be, plus 4 bytes for the leading/trailing ^" */
+      svn_stringbuf_t *buf = svn_stringbuf_create_ensure(esc_len + 4, pool);
+      svn_stringbuf_appendcstr(buf, "^\"");
+      for (p = orig_path; *p; p++)
+        {
+          int nr_backslash = 0;
+          while (*p && *p == '\\')
+            {
+              nr_backslash++;
+              p++;
+            }
+
+          if (!*p)
+            /* We've reached the end of the argument, so we need 2n backslash
+               characters.  That will be interpreted as n backslashes and the
+               final double-quote character will be interpreted as the final
+               string delimiter. */
+            svn_stringbuf_appendfill(buf, '\\', nr_backslash * 2);
+          else if (*p == '"')
+            {
+              /* Double-quote as part of the argument means we need to double
+                 any preceeding backslashes and then add one to escape the
+                 double-quote. */
+              svn_stringbuf_appendfill(buf, '\\', nr_backslash * 2 + 1);
+              svn_stringbuf_appendbyte(buf, '^');
+              svn_stringbuf_appendbyte(buf, *p);
+            }
+          else
+            {
+              /* Since there's no double-quote, we just insert any backslashes
+                 literally.  No escaping needed. */
+              svn_stringbuf_appendfill(buf, '\\', nr_backslash);
+              if (strchr("()%!^<>&|", *p))
+                svn_stringbuf_appendbyte(buf, '^');
+              svn_stringbuf_appendbyte(buf, *p);
+            }
+        }
+      svn_stringbuf_appendcstr(buf, "^\"");
+      return buf->data;
+#else
+      char *path, *p, *esc_path;
+
+      /* Account for whitespace, since APR doesn't */
+      for (p = (char *)orig_path; *p; p++)
+        if (strchr(" \t\n\r", *p))
+          esc_len++;
+
+      path = apr_pcalloc(pool, esc_len);
+      apr_escape_shell(path, orig_path, len, NULL);
+
+      p = esc_path = apr_pcalloc(pool, len + esc_len + 1);
+      while (*path)
+        {
+          if (strchr(" \t\n\r", *path))
+            *p++ = '\\';
+          *p++ = *path++;
+        }
+
+      return esc_path;
+#endif
+    }
+}
 
 svn_error_t *
 svn_cmdline__edit_file_externally(const char *path,
@@ -1330,7 +1423,9 @@ svn_cmdline__edit_file_externally(const char *path,
     return svn_error_wrap_apr
       (apr_err, _("Can't change working directory to '%s'"), base_dir);
 
-  cmd = apr_psprintf(pool, "%s %s", editor, file_name);
+  /* editor is explicitly documented as being interpreted by the user's shell,
+     and as such should already be quoted/escaped as needed. */
+  cmd = apr_psprintf(pool, "%s %s", editor, escape_path(pool, file_name));
   sys_err = system(cmd);
 
   apr_err = apr_filepath_set(old_cwd, pool);
@@ -1489,7 +1584,10 @@ svn_cmdline__edit_string_externally(svn_string_t **edited_contents /* UTF-8! */,
   err = svn_utf_cstring_from_utf8(&tmpfile_native, tmpfile_name, pool);
   if (err)
     goto cleanup;
-  cmd = apr_psprintf(pool, "%s %s", editor, tmpfile_native);
+
+  /* editor is explicitly documented as being interpreted by the user's shell,
+     and as such should already be quoted/escaped as needed. */
+  cmd = apr_psprintf(pool, "%s %s", editor, escape_path(pool, tmpfile_native));
 
   /* If the caller wants us to leave the file around, return the path
      of the file we'll use, and make a note not to destroy it.  */

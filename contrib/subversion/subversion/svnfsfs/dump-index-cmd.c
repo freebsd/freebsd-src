@@ -79,6 +79,7 @@ dump_index(const char *path,
            apr_pool_t *pool)
 {
   svn_fs_t *fs;
+  svn_fs_fs__ioctl_dump_index_input_t input = {0};
 
   /* Check repository type and open it. */
   SVN_ERR(open_fs(&fs, path, pool));
@@ -87,8 +88,10 @@ dump_index(const char *path,
   printf("       Start       Length Type   Revision     Item Checksum\n");
 
   /* Dump the whole index contents */
-  SVN_ERR(svn_fs_fs__dump_index(fs, revision, dump_index_entry, NULL,
-                                check_cancel, NULL, pool));
+  input.revision = revision;
+  input.callback_func = dump_index_entry;
+  SVN_ERR(svn_fs_ioctl(fs, SVN_FS_FS__IOCTL_DUMP_INDEX, &input, NULL,
+                       check_cancel, NULL, pool, pool));
 
   return SVN_NO_ERROR;
 }

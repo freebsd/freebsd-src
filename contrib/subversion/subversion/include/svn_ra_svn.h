@@ -201,7 +201,7 @@ typedef svn_error_t *(*svn_ra_svn_edit_callback)(void *baton);
  * If @a max_out is not 0, error out and close the connection whenever more
  * than @a max_out bytes have been send as response to some command.
  *
- * @note The limits enforced may vary slightly by +/- the I/O buffer size. 
+ * @note The limits enforced may vary slightly by +/- the I/O buffer size.
  *
  * @note If @a out_stream is an wrapped apr_file_t* the backing file will be
  * used for some operations.

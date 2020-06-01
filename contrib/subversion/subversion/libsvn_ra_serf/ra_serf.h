@@ -1472,6 +1472,7 @@ svn_ra_serf__get_mergeinfo(svn_ra_session_t *ra_session,
 svn_error_t *
 svn_ra_serf__exchange_capabilities(svn_ra_serf__session_t *serf_sess,
                                    const char **corrected_url,
+                                   const char **redirect_url,
                                    apr_pool_t *result_pool,
                                    apr_pool_t *scratch_pool);
 

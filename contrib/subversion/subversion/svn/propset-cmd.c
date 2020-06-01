@@ -151,7 +151,7 @@ svn_cl__propset(apr_getopt_t *os,
        * must always be explicitly provided when setting a versioned
        * property.  See
        *
-       *    http://subversion.tigris.org/issues/show_bug.cgi?id=924
+       *    https://issues.apache.org/jira/browse/SVN-924
        *
        * for more details.
        */

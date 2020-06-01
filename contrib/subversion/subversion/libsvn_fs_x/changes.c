@@ -184,7 +184,7 @@ svn_fs_x__changes_append_list(apr_size_t *list_index,
 
   /* simply append the list and all changes */
   for (i = 0; i < list->nelts; ++i)
-    append_change(changes, APR_ARRAY_IDX(list, i, svn_fs_x__change_t *));
+    SVN_ERR(append_change(changes, APR_ARRAY_IDX(list, i, svn_fs_x__change_t *)));
 
   /* terminate the list by storing the next changes offset */
   APR_ARRAY_PUSH(changes->offsets, int) = changes->changes->nelts;

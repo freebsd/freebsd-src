@@ -415,19 +415,26 @@ svn_prop_name_is_valid(const char *prop_name);
 /** Describes external items to check out into this directory.
  *
  * The format is a series of lines, each in the following format:
- *   [-r REV] URL[@PEG] LOCALPATH
+ *
+ *     [-r REV] URL[@PEG] LOCALPATH
+ *
  * LOCALPATH is relative to the directory having this property.
  * REV pins the external to revision REV.
  * URL may be a full URL or a relative URL starting with one of:
- *   ../  to the parent directory of the extracted external
- *   ^/   to the repository root
- *   /    to the server root
- *   //   to the URL scheme
+ *
+ *     ../  to the parent directory of the extracted external
+ *     ^/   to the repository root
+ *     /    to the server root
+ *     //   to the URL scheme
+ *
  * The following format is supported for interoperability with
  * Subversion 1.4 and earlier clients:
- *   LOCALPATH [-r PEG] URL
+ *
+ *     LOCALPATH [-r PEG] URL
+ *
  * The ambiguous format 'relative_path relative_path' is taken as
  * 'relative_url relative_path' with peg revision support.
+ *
  * Lines starting with a '#' character are ignored.
  */
 #define SVN_PROP_EXTERNALS  SVN_PROP_PREFIX "externals"

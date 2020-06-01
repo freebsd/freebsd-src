@@ -46,8 +46,8 @@ svn_rdump__normalize_props(apr_hash_t **normal_props,
       svn_pool_clear(iterpool);
 
       SVN_ERR(svn_repos__normalize_prop(&value, NULL, key, value,
-                                        result_pool, iterpool));
-      svn_hash_sets(*normal_props, key, value);
+                                        iterpool, iterpool));
+      svn_hash_sets(*normal_props, key, svn_string_dup(value, result_pool));
     }
   svn_pool_destroy(iterpool);
 

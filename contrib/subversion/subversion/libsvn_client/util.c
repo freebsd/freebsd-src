@@ -93,6 +93,7 @@ svn_client__pathrev_create_with_session(svn_client__pathrev_t **pathrev_p,
   pathrev->rev = rev;
   pathrev->url = apr_pstrdup(result_pool, url);
   *pathrev_p = pathrev;
+  SVN_ERR_ASSERT(svn_uri__is_ancestor(pathrev->repos_root_url, url));
   return SVN_NO_ERROR;
 }
 

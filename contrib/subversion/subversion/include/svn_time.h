@@ -38,14 +38,21 @@ extern "C" {
 
 
 /** Convert @a when to a <tt>const char *</tt> representation allocated
- * in @a pool.  Use svn_time_from_cstring() for the reverse
- * conversion.
+ * in @a pool.
+ *
+ * @see svn_time_from_cstring() for the reverse conversion.
  */
 const char *
 svn_time_to_cstring(apr_time_t when,
                     apr_pool_t *pool);
 
 /** Convert @a data to an @c apr_time_t @a when.
+ *
+ * @see svn_time_to_cstring() for the reverse conversion.
+ *
+ * @deprecated Also accepts a format that was used before Subversion 0.14.
+ * See implementation for details. Use of this format is deprecated.
+ *
  * Use @a pool for temporary memory allocation.
  */
 svn_error_t *

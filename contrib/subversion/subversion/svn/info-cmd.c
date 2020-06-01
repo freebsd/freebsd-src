@@ -21,6 +21,10 @@
  * ====================================================================
  */
 
+/* We define this here to remove any further warnings about the usage of
+   experimental functions in this file. */
+#define SVN_EXPERIMENTAL
+
 /* ==================================================================== */
 
 
@@ -44,6 +48,254 @@
 
 
 /*** Code. ***/
+
+struct layout_list_baton_t
+{
+  svn_boolean_t checkout;
+  const char *target;
+  const char *target_abspath;
+  svn_boolean_t with_revs;
+  int vs_py_format;
+};
+
+/* Output as 'svn' command-line commands.
+ *
+ * Implements svn_client__layout_func_t
+ */
+static svn_error_t *
+output_svn_command_line(void *layout_baton,
+                        const char *local_abspath,
+                        const char *repos_root_url,
+                        svn_boolean_t not_present,
+                        svn_boolean_t url_changed,
+                        const char *url,
+                        svn_boolean_t revision_changed,
+                        svn_revnum_t revision,
+                        svn_boolean_t depth_changed,
+                        svn_depth_t depth,
+                        apr_pool_t *scratch_pool)
+{
+  struct layout_list_baton_t *llb = layout_baton;
+  const char *relpath = svn_dirent_skip_ancestor(llb->target_abspath,
+                                                 local_abspath);
+  const char *cmd;
+  const char *depth_str;
+  const char *url_rev_str;
+
+  depth_str = (depth_changed
+               ? apr_psprintf(scratch_pool, " --set-depth=%s",
+                              svn_depth_to_word(depth))
+               : "");
+
+  if (llb->checkout)
+    {
+      cmd = "svn checkout";
+      if (depth != svn_depth_infinity)
+        depth_str = apr_psprintf(scratch_pool,
+                                 " --depth=%s", svn_depth_to_word(depth));
+      url_rev_str = apr_psprintf(scratch_pool, " %s", url);
+      if (llb->with_revs)
+        url_rev_str = apr_psprintf(scratch_pool, "%s@%ld",
+                                   url_rev_str, revision);
+      llb->checkout = FALSE;
+    }
+  else if (not_present)
+    {
+      /* Easiest way to create a not present node: update to r0 */
+      cmd = "svn update";
+      url_rev_str = " -r0";
+    }
+  else if (url_changed)
+    {
+      cmd = "svn switch";
+      url_rev_str = apr_psprintf(scratch_pool, " ^/%s",
+                                 svn_uri_skip_ancestor(repos_root_url,
+                                                       url, scratch_pool));
+      if (llb->with_revs)
+        url_rev_str = apr_psprintf(scratch_pool, "%s@%ld",
+                                   url_rev_str, revision);
+    }
+  else if (llb->with_revs && revision_changed)
+    {
+      cmd = "svn update";
+      url_rev_str = apr_psprintf(scratch_pool, " -r%ld", revision);
+    }
+  else if (depth_changed)
+    {
+      cmd = "svn update";
+      url_rev_str = "";
+    }
+  else
+    return SVN_NO_ERROR;
+
+  SVN_ERR(svn_cmdline_printf(scratch_pool,
+                             "%s%-23s%-10s %s\n",
+                             cmd, depth_str, url_rev_str,
+                             svn_dirent_local_style(
+                               svn_dirent_join(llb->target, relpath,
+                                               scratch_pool), scratch_pool)));
+
+  return SVN_NO_ERROR;
+}
+
+/*  */
+static const char *
+depth_to_viewspec_py(svn_depth_t depth,
+                     apr_pool_t *result_pool)
+{
+  switch (depth)
+    {
+    case svn_depth_infinity:
+      return "/**";
+    case svn_depth_immediates:
+      return "/*";
+    case svn_depth_files:
+      return "/~";
+    case svn_depth_empty:
+      return "";
+    case svn_depth_exclude:
+      return "!";
+    default:
+      break;
+    }
+  return NULL;
+}
+
+/* Output in the format used by 'tools/client-side/viewspec.py'
+ *
+ * Implements svn_client__layout_func_t
+ */
+static svn_error_t *
+output_svn_viewspec_py(void *layout_baton,
+                       const char *local_abspath,
+                       const char *repos_root_url,
+                       svn_boolean_t not_present,
+                       svn_boolean_t url_changed,
+                       const char *url,
+                       svn_boolean_t revision_changed,
+                       svn_revnum_t revision,
+                       svn_boolean_t depth_changed,
+                       svn_depth_t depth,
+                       apr_pool_t *scratch_pool)
+{
+  struct layout_list_baton_t *llb = layout_baton;
+  const char *relpath = svn_dirent_skip_ancestor(llb->target_abspath,
+                                                 local_abspath);
+  const char *depth_str;
+  const char *rev_str = "";
+  const char *repos_rel_url = "";
+
+  depth_str = ((depth_changed || llb->checkout)
+               ? depth_to_viewspec_py(depth, scratch_pool)
+               : "");
+  if (! llb->with_revs)
+    revision_changed = FALSE;
+  if (revision_changed)
+    rev_str = apr_psprintf(scratch_pool, "@%ld", revision);
+
+  if (llb->checkout)
+    {
+      SVN_ERR(svn_cmdline_printf(scratch_pool,
+                                 "Format: %d\n"
+                                 "Url: %s\n",
+                                 llb->vs_py_format, url));
+      if (llb->with_revs)
+        SVN_ERR(svn_cmdline_printf(scratch_pool,
+                                   "Revision: %ld\n",
+                                   revision));
+      SVN_ERR(svn_cmdline_printf(scratch_pool, "\n"));
+      llb->checkout = FALSE;
+
+      if (depth == svn_depth_empty)
+        return SVN_NO_ERROR;
+      if (depth_str[0] == '/')
+        depth_str++;
+    }
+  else if (not_present)
+    {
+      /* Easiest way to create a not present node: update to r0 */
+      if (llb->vs_py_format < 2)
+        return svn_error_createf(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+                                 _("svn-viewspec.py format 1 does not support "
+                                   "the 'not-present' state found at '%s'"),
+                                 relpath);
+      rev_str = "@0";
+    }
+  else if (url_changed)
+    {
+      if (llb->vs_py_format < 2)
+        return svn_error_createf(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+                                 _("svn-viewspec.py format 1 does not support "
+                                   "the 'switched' state found at '%s'"),
+                                 relpath);
+      repos_rel_url = svn_uri_skip_ancestor(repos_root_url, url,
+                                            scratch_pool);
+      repos_rel_url = apr_psprintf(scratch_pool, "^/%s", repos_rel_url);
+    }
+  else if (!(revision_changed || depth_changed))
+    return SVN_NO_ERROR;
+
+  SVN_ERR(svn_cmdline_printf(scratch_pool,
+                             "%s%s %s%s\n",
+                             relpath, depth_str, repos_rel_url, rev_str));
+
+  return SVN_NO_ERROR;
+}
+
+/*
+ * Call svn_client__layout_list(), using a receiver function decided
+ * by VIEWSPEC.
+ */
+static svn_error_t *
+cl_layout_list(apr_array_header_t *targets,
+               enum svn_cl__viewspec_t viewspec,
+               void *baton,
+               svn_client_ctx_t *ctx,
+               apr_pool_t *scratch_pool)
+{
+  const char *list_path, *list_abspath;
+  struct layout_list_baton_t llb;
+
+  /* Add "." if user passed 0 arguments */
+  svn_opt_push_implicit_dot_target(targets, scratch_pool);
+
+  if (targets->nelts > 1)
+    return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, 0, NULL);
+
+  list_path = APR_ARRAY_IDX(targets, 0, const char *);
+
+  SVN_ERR(svn_cl__check_target_is_local_path(list_path));
+
+  SVN_ERR(svn_dirent_get_absolute(&list_abspath, list_path,
+                                  scratch_pool));
+
+  llb.checkout = TRUE;
+  llb.target = list_path;
+  llb.target_abspath = list_abspath;
+  llb.with_revs = TRUE;
+
+  switch (viewspec)
+    {
+    case svn_cl__viewspec_classic:
+      /* svn-viewspec.py format */
+      llb.vs_py_format = 2;
+
+      SVN_ERR(svn_client__layout_list(list_abspath,
+                                      output_svn_viewspec_py, &llb,
+                                      ctx, scratch_pool));
+      break;
+    case svn_cl__viewspec_svn11:
+      /* svn command-line format */
+      SVN_ERR(svn_client__layout_list(list_abspath,
+                                      output_svn_command_line, &llb,
+                                      ctx, scratch_pool));
+      break;
+    default:
+      SVN_ERR_MALFUNCTION();
+    }
+
+  return SVN_NO_ERROR;
+}
 
 static svn_error_t *
 svn_cl__info_print_time(apr_time_t atime,
@@ -100,6 +352,7 @@ typedef enum
   info_item_relative_url,
   info_item_repos_root_url,
   info_item_repos_uuid,
+  info_item_repos_size,
 
   /* Working copy revision or repository HEAD revision */
   info_item_revision,
@@ -110,7 +363,10 @@ typedef enum
   info_item_last_changed_author,
 
   /* Working copy information */
-  info_item_wc_root
+  info_item_wc_root,
+  info_item_schedule,
+  info_item_depth,
+  info_item_changelist
 } info_item_t;
 
 /* Mapping between option keywords and info_item_t. */
@@ -128,12 +384,16 @@ static const info_item_map_t info_item_map[] =
     { MAKE_STRING("relative-url"),        info_item_relative_url },
     { MAKE_STRING("repos-root-url"),      info_item_repos_root_url },
     { MAKE_STRING("repos-uuid"),          info_item_repos_uuid },
+    { MAKE_STRING("repos-size"),          info_item_repos_size },
     { MAKE_STRING("revision"),            info_item_revision },
     { MAKE_STRING("last-changed-revision"),
                                           info_item_last_changed_rev },
     { MAKE_STRING("last-changed-date"),   info_item_last_changed_date },
     { MAKE_STRING("last-changed-author"), info_item_last_changed_author },
-    { MAKE_STRING("wc-root"),             info_item_wc_root }
+    { MAKE_STRING("wc-root"),             info_item_wc_root },
+    { MAKE_STRING("schedule"),            info_item_schedule },
+    { MAKE_STRING("depth"),               info_item_depth },
+    { MAKE_STRING("changelist"),          info_item_changelist },
   };
 #undef MAKE_STRING
 
@@ -162,6 +422,9 @@ typedef struct print_info_baton_t
 
   /* Did we already print a line of output? */
   svn_boolean_t start_new_line;
+
+  /* Format for file sizes */
+  svn_cl__size_unit_t file_size_unit;
 
   /* The client context. */
   svn_client_ctx_t *ctx;
@@ -251,21 +514,40 @@ print_info_xml(void *baton,
                apr_pool_t *pool)
 {
   svn_stringbuf_t *sb = svn_stringbuf_create_empty(pool);
-  const char *rev_str;
   print_info_baton_t *const receiver_baton = baton;
 
-  if (SVN_IS_VALID_REVNUM(info->rev))
-    rev_str = apr_psprintf(pool, "%ld", info->rev);
-  else
-    rev_str = apr_pstrdup(pool, _("Resource is not under version control."));
+  const char *const path_str =
+    svn_cl__local_style_skip_ancestor(
+        receiver_baton->path_prefix, target, pool);
+  const char *const kind_str = svn_cl__node_kind_str_xml(info->kind);
+  const char *const rev_str =
+    (SVN_IS_VALID_REVNUM(info->rev)
+     ? apr_psprintf(pool, "%ld", info->rev)
+     : apr_pstrdup(pool, _("Resource is not under version control.")));
 
   /* "<entry ...>" */
-  svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "entry",
-                        "path", svn_cl__local_style_skip_ancestor(
-                                  receiver_baton->path_prefix, target, pool),
-                        "kind", svn_cl__node_kind_str_xml(info->kind),
-                        "revision", rev_str,
-                        SVN_VA_NULL);
+  if (info->kind == svn_node_file && info->size != SVN_INVALID_FILESIZE)
+    {
+      const char *size_str;
+      SVN_ERR(svn_cl__format_file_size(&size_str, info->size,
+                                       SVN_CL__SIZE_UNIT_XML,
+                                       FALSE, pool));
+
+      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "entry",
+                            "path", path_str,
+                            "kind", kind_str,
+                            "revision", rev_str,
+                            "size", size_str,
+                            SVN_VA_NULL);
+    }
+  else
+    {
+      svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "entry",
+                            "path", path_str,
+                            "kind", kind_str,
+                            "revision", rev_str,
+                            SVN_VA_NULL);
+    }
 
   /* "<url> xx </url>" */
   svn_cl__xml_tagged_cdata(&sb, pool, "url", info->URL);
@@ -485,6 +767,16 @@ print_info(void *baton,
     default:
       SVN_ERR(svn_cmdline_printf(pool, _("Node Kind: unknown\n")));
       break;
+    }
+
+  if (info->kind == svn_node_file && info->size != SVN_INVALID_FILESIZE)
+    {
+      const char *sizestr;
+      SVN_ERR(svn_cl__format_file_size(&sizestr, info->size,
+                                       receiver_baton->file_size_unit,
+                                       TRUE, pool));
+      SVN_ERR(svn_cmdline_printf(pool, _("Size in Repository: %s\n"),
+                                 sizestr));
     }
 
   if (info->wc_info)
@@ -827,11 +1119,12 @@ print_info_item(void *baton,
                   apr_pool_t *pool)
 {
   print_info_baton_t *const receiver_baton = baton;
+  const char *const actual_target_path =
+    (!receiver_baton->target_is_path ? info->URL
+     : svn_cl__local_style_skip_ancestor(
+         receiver_baton->path_prefix, target, pool));
   const char *const target_path =
-    (!receiver_baton->multiple_targets ? NULL
-     : (!receiver_baton->target_is_path ? info->URL
-        : svn_cl__local_style_skip_ancestor(
-            receiver_baton->path_prefix, target, pool)));
+    (receiver_baton->multiple_targets ? actual_target_path : NULL);
 
   if (receiver_baton->start_new_line)
     SVN_ERR(svn_cmdline_fputs("\n", stdout, pool));
@@ -860,6 +1153,36 @@ print_info_item(void *baton,
       SVN_ERR(print_info_item_string(info->repos_UUID, target_path, pool));
       break;
 
+    case info_item_repos_size:
+      if (info->kind != svn_node_file)
+        {
+          receiver_baton->start_new_line = FALSE;
+          return SVN_NO_ERROR;
+        }
+
+      if (info->size == SVN_INVALID_FILESIZE)
+        {
+          if (receiver_baton->multiple_targets)
+            {
+              receiver_baton->start_new_line = FALSE;
+              return SVN_NO_ERROR;
+            }
+
+          return svn_error_createf(
+              SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+              _("can't show in-repository size of working copy file '%s'"),
+              actual_target_path);
+        }
+
+      {
+        const char *sizestr;
+        SVN_ERR(svn_cl__format_file_size(&sizestr, info->size,
+                                         receiver_baton->file_size_unit,
+                                         TRUE, pool));
+        SVN_ERR(print_info_item_string(sizestr, target_path, pool));
+      }
+      break;
+
     case info_item_revision:
       SVN_ERR(print_info_item_revision(info->rev, target_path, pool));
       break;
@@ -885,6 +1208,27 @@ print_info_item(void *baton,
       SVN_ERR(print_info_item_string(
                   (info->wc_info && info->wc_info->wcroot_abspath
                    ? info->wc_info->wcroot_abspath : NULL),
+                  target_path, pool));
+      break;
+
+    case info_item_schedule:
+      SVN_ERR(print_info_item_string(
+                  (info->wc_info
+                   ? schedule_str(info->wc_info->schedule) : NULL),
+                  target_path, pool));
+      break;
+
+    case info_item_depth:
+      SVN_ERR(print_info_item_string(
+                  ((info->wc_info && info->kind == svn_node_dir)
+                   ? svn_depth_to_word(info->wc_info->depth) : NULL),
+                  target_path, pool));
+      break;
+
+    case info_item_changelist:
+      SVN_ERR(print_info_item_string(
+                  ((info->wc_info && info->wc_info->changelist)
+                   ? info->wc_info->changelist : NULL),
                   target_path, pool));
       break;
 
@@ -918,10 +1262,17 @@ svn_cl__info(apr_getopt_t *os,
                                                       opt_state->targets,
                                                       ctx, FALSE, pool));
 
+  if (opt_state->viewspec)
+    {
+      SVN_ERR(cl_layout_list(targets, opt_state->viewspec, baton, ctx, pool));
+      return SVN_NO_ERROR;
+    }
+
   /* Add "." if user passed 0 arguments. */
   svn_opt_push_implicit_dot_target(targets, pool);
 
   receiver_baton.ctx = ctx;
+  receiver_baton.file_size_unit = opt_state->file_size_unit;
 
   if (opt_state->xml)
     {
@@ -935,6 +1286,10 @@ svn_cl__info(apr_getopt_t *os,
         return svn_error_create(
             SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
             _("--no-newline is not valid in --xml mode"));
+      if (opt_state->file_size_unit != SVN_CL__SIZE_UNIT_NONE)
+        return svn_error_create(
+            SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+            _("--human-readable is not valid in --xml mode"));
 
       /* If output is not incremental, output the XML header and wrap
          everything in a top-level element. This makes the output in

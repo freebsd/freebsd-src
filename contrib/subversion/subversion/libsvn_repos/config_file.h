@@ -48,7 +48,7 @@ svn_repos__create_config_access(svn_repos_t *repos_hint,
                                 apr_pool_t *result_pool);
 
 /* Release all resources allocated while using ACCESS. */
-void 
+void
 svn_repos__destroy_config_access(config_access_t *access);
 
 /* Using ACCESS as a helper object, access the textual configuration at PATH,

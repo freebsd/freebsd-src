@@ -6,7 +6,7 @@ includedir=@includedir@
 Name: libsvn_ra_local
 Description: Subversion Local Repository Access Library
 Version: @PACKAGE_VERSION@
-Requires:  apr-@SVN_APR_MAJOR_VERSION@
-Requires.private:  libsvn_repos libsvn_fs libsvn_delta libsvn_subr
-Libs: -L${libdir}  -lsvn_ra_local
-Cflags: -I${includedir}
+Requires: apr-@SVN_APR_MAJOR_VERSION@
+Requires.private: libsvn_repos, libsvn_fs, libsvn_delta, libsvn_subr
+Libs: -L${libdir}  -lsvn_ra_local-1
+Cflags: -I${includedir}/subversion-1

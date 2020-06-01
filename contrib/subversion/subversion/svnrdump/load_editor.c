@@ -45,15 +45,58 @@
 
 
 /**
+ * A vtable that is driven by get_dumpstream_loader().
+ */
+typedef struct loader_fns_t
+{
+  /* Callback on starting a revision, to obtain an editor for the revision.
+   *
+   * This callback returns in *EDITOR and *EDIT_BATON an editor through which
+   * its caller will drive the changes for revision REVISION.
+   *
+   * This callback should call the editor's SET_TARGET_REVISION method if
+   * required.
+   *
+   * REV_PROPS holds the revision properties.
+   *
+   * POOL (and REV_PROPS) will persist until after the REVFINISH callback
+   * returns.
+   *
+   * Modelled on svn_ra_replay_revstart_callback_t.
+   */
+  svn_error_t *(*revstart)(
+    svn_revnum_t revision,
+    void *baton,
+    const svn_delta_editor_t **editor,
+    void **edit_baton,
+    apr_hash_t *rev_props,
+    apr_pool_t *pool);
+
+  /* Fetch the node props for ORIG_PATH @ ORIG_REV, a node of kind KIND.
+   *
+   * This callback is required if a non-deltas-format dump is parsed;
+   * otherwise it will not be called and may be null. If required and not
+   * provided, the loader will return SVN_ERR_UNSUPPORTED_FEATURE.
+   *
+   * Only regular props are needed. Any special kinds of property such as
+   * entry-props and DAV/WC-props will be ignored.
+   */
+  svn_error_t *(*fetch_props)(
+    apr_hash_t **props,
+    void *baton,
+    const char *orig_path,
+    svn_revnum_t orig_rev,
+    svn_node_kind_t kind,
+    apr_pool_t *result_pool,
+    apr_pool_t *scratch_pool);
+
+} loader_fns_t;
+
+/**
  * General baton used by the parser functions.
  */
 struct parse_baton
 {
-  /* Commit editor and baton used to transfer loaded revisions to
-     the target repository. */
-  const svn_delta_editor_t *commit_editor;
-  void *commit_edit_baton;
-
   /* RA session(s) for committing to the target repository. */
   svn_ra_session_t *session;
   svn_ra_session_t *aux_session;
@@ -72,7 +115,7 @@ struct parse_baton
 
   /* A mapping of svn_revnum_t * dump stream revisions to their
      corresponding svn_revnum_t * target repository revisions. */
-  /* ### See http://subversion.tigris.org/issues/show_bug.cgi?id=3903
+  /* ### See https://issues.apache.org/jira/browse/SVN-3903
      ### for discussion about improving the memory costs of this mapping. */
   apr_hash_t *rev_map;
 
@@ -87,6 +130,9 @@ struct parse_baton
   /* An hash containing specific revision properties to skip while
      loading. */
   apr_hash_t *skip_revprops;
+
+  const loader_fns_t *callbacks;
+  void *cb_baton;
 };
 
 /**
@@ -144,7 +190,13 @@ struct revision_baton
 {
   svn_revnum_t rev;
   apr_hash_t *revprop_table;
+  svn_revnum_t head_rev_before_commit;
   apr_int32_t rev_offset;
+
+  /* Commit editor and baton used to transfer loaded revisions to
+     the target repository. */
+  const svn_delta_editor_t *commit_editor;
+  void *commit_edit_baton;
 
   const svn_string_t *datestamp;
   const svn_string_t *author;
@@ -181,250 +233,6 @@ get_revision_mapping(apr_hash_t *rev_map,
   return to_rev ? *to_rev : SVN_INVALID_REVNUM;
 }
 
-
-static svn_error_t *
-commit_callback(const svn_commit_info_t *commit_info,
-                void *baton,
-                apr_pool_t *pool)
-{
-  struct revision_baton *rb = baton;
-  struct parse_baton *pb = rb->pb;
-
-  /* ### Don't print directly; generate a notification. */
-  if (! pb->quiet)
-    SVN_ERR(svn_cmdline_printf(pool, "* Loaded revision %ld.\n",
-                               commit_info->revision));
-
-  /* Add the mapping of the dumpstream revision to the committed revision. */
-  set_revision_mapping(pb->rev_map, rb->rev, commit_info->revision);
-
-  /* If the incoming dump stream has non-contiguous revisions (e.g. from
-     using svndumpfilter --drop-empty-revs without --renumber-revs) then
-     we must account for the missing gaps in PB->REV_MAP.  Otherwise we
-     might not be able to map all mergeinfo source revisions to the correct
-     revisions in the target repos. */
-  if ((pb->last_rev_mapped != SVN_INVALID_REVNUM)
-      && (rb->rev != pb->last_rev_mapped + 1))
-    {
-      svn_revnum_t i;
-
-      for (i = pb->last_rev_mapped + 1; i < rb->rev; i++)
-        {
-          set_revision_mapping(pb->rev_map, i, pb->last_rev_mapped);
-        }
-    }
-
-  /* Update our "last revision mapped". */
-  pb->last_rev_mapped = rb->rev;
-
-  return SVN_NO_ERROR;
-}
-
-/* Implements `svn_ra__lock_retry_func_t'. */
-static svn_error_t *
-lock_retry_func(void *baton,
-                const svn_string_t *reposlocktoken,
-                apr_pool_t *pool)
-{
-  return svn_cmdline_printf(pool,
-                            _("Failed to get lock on destination "
-                              "repos, currently held by '%s'\n"),
-                            reposlocktoken->data);
-}
-
-
-static svn_error_t *
-fetch_base_func(const char **filename,
-                void *baton,
-                const char *path,
-                svn_revnum_t base_revision,
-                apr_pool_t *result_pool,
-                apr_pool_t *scratch_pool)
-{
-  struct revision_baton *rb = baton;
-  svn_stream_t *fstream;
-  svn_error_t *err;
-
-  if (! SVN_IS_VALID_REVNUM(base_revision))
-    base_revision = rb->rev - 1;
-
-  SVN_ERR(svn_stream_open_unique(&fstream, filename, NULL,
-                                 svn_io_file_del_on_pool_cleanup,
-                                 result_pool, scratch_pool));
-
-  err = svn_ra_get_file(rb->pb->aux_session, path, base_revision,
-                        fstream, NULL, NULL, scratch_pool);
-  if (err && err->apr_err == SVN_ERR_FS_NOT_FOUND)
-    {
-      svn_error_clear(err);
-      SVN_ERR(svn_stream_close(fstream));
-
-      *filename = NULL;
-      return SVN_NO_ERROR;
-    }
-  else if (err)
-    return svn_error_trace(err);
-
-  SVN_ERR(svn_stream_close(fstream));
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-fetch_props_func(apr_hash_t **props,
-                 void *baton,
-                 const char *path,
-                 svn_revnum_t base_revision,
-                 apr_pool_t *result_pool,
-                 apr_pool_t *scratch_pool)
-{
-  struct revision_baton *rb = baton;
-  svn_node_kind_t node_kind;
-
-  if (! SVN_IS_VALID_REVNUM(base_revision))
-    base_revision = rb->rev - 1;
-
-  SVN_ERR(svn_ra_check_path(rb->pb->aux_session, path, base_revision,
-                            &node_kind, scratch_pool));
-
-  if (node_kind == svn_node_file)
-    {
-      SVN_ERR(svn_ra_get_file(rb->pb->aux_session, path, base_revision,
-                              NULL, NULL, props, result_pool));
-    }
-  else if (node_kind == svn_node_dir)
-    {
-      apr_array_header_t *tmp_props;
-
-      SVN_ERR(svn_ra_get_dir2(rb->pb->aux_session, NULL, NULL, props, path,
-                              base_revision, 0 /* Dirent fields */,
-                              result_pool));
-      tmp_props = svn_prop_hash_to_array(*props, result_pool);
-      SVN_ERR(svn_categorize_props(tmp_props, NULL, NULL, &tmp_props,
-                                   result_pool));
-      *props = svn_prop_array_to_hash(tmp_props, result_pool);
-    }
-  else
-    {
-      *props = apr_hash_make(result_pool);
-    }
-
-  return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-fetch_kind_func(svn_node_kind_t *kind,
-                void *baton,
-                const char *path,
-                svn_revnum_t base_revision,
-                apr_pool_t *scratch_pool)
-{
-  struct revision_baton *rb = baton;
-
-  if (! SVN_IS_VALID_REVNUM(base_revision))
-    base_revision = rb->rev - 1;
-
-  SVN_ERR(svn_ra_check_path(rb->pb->aux_session, path, base_revision,
-                            kind, scratch_pool));
-
-  return SVN_NO_ERROR;
-}
-
-static svn_delta_shim_callbacks_t *
-get_shim_callbacks(struct revision_baton *rb,
-                   apr_pool_t *pool)
-{
-  svn_delta_shim_callbacks_t *callbacks =
-                        svn_delta_shim_callbacks_default(pool);
-
-  callbacks->fetch_props_func = fetch_props_func;
-  callbacks->fetch_kind_func = fetch_kind_func;
-  callbacks->fetch_base_func = fetch_base_func;
-  callbacks->fetch_baton = rb;
-
-  return callbacks;
-}
-
-/* Acquire a lock (of sorts) on the repository associated with the
- * given RA SESSION. This lock is just a revprop change attempt in a
- * time-delay loop. This function is duplicated by svnsync in
- * svnsync/svnsync.c
- *
- * ### TODO: Make this function more generic and
- * expose it through a header for use by other Subversion
- * applications to avoid duplication.
- */
-static svn_error_t *
-get_lock(const svn_string_t **lock_string_p,
-         svn_ra_session_t *session,
-         svn_cancel_func_t cancel_func,
-         void *cancel_baton,
-         apr_pool_t *pool)
-{
-  svn_boolean_t be_atomic;
-
-  SVN_ERR(svn_ra_has_capability(session, &be_atomic,
-                                SVN_RA_CAPABILITY_ATOMIC_REVPROPS,
-                                pool));
-  if (! be_atomic)
-    {
-      /* Pre-1.7 servers can't lock without a race condition.  (Issue #3546) */
-      svn_error_t *err =
-        svn_error_create(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
-                         _("Target server does not support atomic revision "
-                           "property edits; consider upgrading it to 1.7."));
-      svn_handle_warning2(stderr, err, "svnrdump: ");
-      svn_error_clear(err);
-    }
-
-  return svn_ra__get_operational_lock(lock_string_p, NULL, session,
-                                      SVNRDUMP_PROP_LOCK, FALSE,
-                                      10 /* retries */, lock_retry_func, NULL,
-                                      cancel_func, cancel_baton, pool);
-}
-
-static svn_error_t *
-new_revision_record(void **revision_baton,
-                    apr_hash_t *headers,
-                    void *parse_baton,
-                    apr_pool_t *pool)
-{
-  struct revision_baton *rb;
-  struct parse_baton *pb;
-  const char *rev_str;
-  svn_revnum_t head_rev;
-
-  rb = apr_pcalloc(pool, sizeof(*rb));
-  pb = parse_baton;
-  rb->pool = svn_pool_create(pool);
-  rb->pb = pb;
-  rb->db = NULL;
-
-  rev_str = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER);
-  if (rev_str)
-    rb->rev = SVN_STR_TO_REV(rev_str);
-
-  SVN_ERR(svn_ra_get_latest_revnum(pb->session, &head_rev, pool));
-
-  /* FIXME: This is a lame fallback loading multiple segments of dump in
-     several separate operations. It is highly susceptible to race conditions.
-     Calculate the revision 'offset' for finding copyfrom sources.
-     It might be positive or negative. */
-  rb->rev_offset = (apr_int32_t) ((rb->rev) - (head_rev + 1));
-
-  /* Stash the oldest (non-zero) dumpstream revision seen. */
-  if ((rb->rev > 0) && (!SVN_IS_VALID_REVNUM(pb->oldest_dumpstream_rev)))
-    pb->oldest_dumpstream_rev = rb->rev;
-
-  /* Set the commit_editor/ commit_edit_baton to NULL and wait for
-     them to be created in new_node_record */
-  rb->pb->commit_editor = NULL;
-  rb->pb->commit_edit_baton = NULL;
-  rb->revprop_table = apr_hash_make(rb->pool);
-
-  *revision_baton = rb;
-  return SVN_NO_ERROR;
-}
 
 static svn_error_t *
 magic_header_record(int version,
@@ -483,6 +291,71 @@ push_directory(struct revision_baton *rb,
   rb->db = child_db;
 }
 
+/* Called to obtain an editor for the revision described by RB.
+ */
+static svn_error_t *
+revision_start_edit(struct revision_baton *rb,
+                    apr_pool_t *scratch_pool)
+{
+  struct parse_baton *pb = rb->pb;
+  void *child_baton;
+
+  SVN_ERR(pb->callbacks->revstart(rb->rev,
+                                  pb->cb_baton,
+                                  &rb->commit_editor, &rb->commit_edit_baton,
+                                  rb->revprop_table,
+                                  rb->pool));
+  SVN_ERR(rb->commit_editor->open_root(rb->commit_edit_baton,
+                                       rb->head_rev_before_commit,
+                                       rb->pool, &child_baton));
+  /* child_baton corresponds to the root directory baton here */
+  push_directory(rb, child_baton, "", TRUE /*is_added*/,
+                 NULL, SVN_INVALID_REVNUM);
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+new_revision_record(void **revision_baton,
+                    apr_hash_t *headers,
+                    void *parse_baton,
+                    apr_pool_t *pool)
+{
+  struct parse_baton *pb = parse_baton;
+  struct revision_baton *rb;
+  const char *rev_str;
+
+  rb = apr_pcalloc(pool, sizeof(*rb));
+  rb->pool = svn_pool_create(pool);
+  rb->pb = pb;
+  rb->db = NULL;
+
+  rev_str = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER);
+  if (rev_str)
+    rb->rev = SVN_STR_TO_REV(rev_str);
+
+  SVN_ERR(svn_ra_get_latest_revnum(pb->session, &rb->head_rev_before_commit,
+                                   pool));
+
+  /* FIXME: This is a lame fallback loading multiple segments of dump in
+     several separate operations. It is highly susceptible to race conditions.
+     Calculate the revision 'offset' for finding copyfrom sources.
+     It might be positive or negative. */
+  rb->rev_offset = (apr_int32_t) ((rb->rev) - (rb->head_rev_before_commit + 1));
+
+  /* Stash the oldest (non-zero) dumpstream revision seen. */
+  if ((rb->rev > 0) && (!SVN_IS_VALID_REVNUM(pb->oldest_dumpstream_rev)))
+    pb->oldest_dumpstream_rev = rb->rev;
+
+  /* Set the commit_editor/ commit_edit_baton to NULL and wait for
+     them to be created in new_node_record */
+  rb->commit_editor = NULL;
+  rb->commit_edit_baton = NULL;
+  rb->revprop_table = apr_hash_make(rb->pool);
+
+  *revision_baton = rb;
+  return SVN_NO_ERROR;
+}
+
 static svn_error_t *
 new_node_record(void **node_baton,
                 apr_hash_t *headers,
@@ -490,10 +363,8 @@ new_node_record(void **node_baton,
                 apr_pool_t *pool)
 {
   struct revision_baton *rb = revision_baton;
-  const struct svn_delta_editor_t *commit_editor = rb->pb->commit_editor;
-  void *commit_edit_baton = rb->pb->commit_edit_baton;
+  const struct svn_delta_editor_t *commit_editor = rb->commit_editor;
   struct node_baton *nb;
-  svn_revnum_t head_rev_before_commit = rb->rev - rb->rev_offset - 1;
   apr_hash_index_t *hi;
   void *child_baton;
   const char *nb_dirname;
@@ -508,7 +379,6 @@ new_node_record(void **node_baton,
 
   /* If the creation of commit_editor is pending, create it now and
      open_root on it; also create a top-level directory baton. */
-
   if (!commit_editor)
     {
       /* The revprop_table should have been filled in with important
@@ -521,23 +391,8 @@ new_node_record(void **node_baton,
       svn_hash_sets(rb->revprop_table, SVN_PROP_REVISION_AUTHOR, NULL);
       svn_hash_sets(rb->revprop_table, SVN_PROP_REVISION_DATE, NULL);
 
-      SVN_ERR(svn_ra__register_editor_shim_callbacks(rb->pb->session,
-                                    get_shim_callbacks(rb, rb->pool)));
-      SVN_ERR(svn_ra_get_commit_editor3(rb->pb->session, &commit_editor,
-                                        &commit_edit_baton, rb->revprop_table,
-                                        commit_callback, revision_baton,
-                                        NULL, FALSE, rb->pool));
-
-      rb->pb->commit_editor = commit_editor;
-      rb->pb->commit_edit_baton = commit_edit_baton;
-
-      SVN_ERR(commit_editor->open_root(commit_edit_baton,
-                                       head_rev_before_commit,
-                                       rb->pool, &child_baton));
-
-      /* child_baton corresponds to the root directory baton here */
-      push_directory(rb, child_baton, "", TRUE /*is_added*/,
-                     NULL, SVN_INVALID_REVNUM);
+      SVN_ERR(revision_start_edit(rb, pool));
+      commit_editor = rb->commit_editor;
     }
 
   for (hi = apr_hash_first(rb->pool, headers); hi; hi = apr_hash_next(hi))
@@ -612,7 +467,7 @@ new_node_record(void **node_baton,
                              rb->pool);
           SVN_ERR(commit_editor->open_directory(relpath_compose,
                                                 rb->db->baton,
-                                                head_rev_before_commit,
+                                                rb->head_rev_before_commit,
                                                 rb->pool, &child_baton));
           push_directory(rb, child_baton, relpath_compose, TRUE /*is_added*/,
                          NULL, SVN_INVALID_REVNUM);
@@ -655,7 +510,7 @@ new_node_record(void **node_baton,
     case svn_node_action_delete:
     case svn_node_action_replace:
       SVN_ERR(commit_editor->delete_entry(nb->path,
-                                          head_rev_before_commit,
+                                          rb->head_rev_before_commit,
                                           rb->db->baton, rb->pool));
       if (nb->action == svn_node_action_delete)
         break;
@@ -693,7 +548,7 @@ new_node_record(void **node_baton,
           break;
         default:
           SVN_ERR(commit_editor->open_directory(nb->path, rb->db->baton,
-                                                head_rev_before_commit,
+                                                rb->head_rev_before_commit,
                                                 rb->pool, &child_baton));
           push_directory(rb, child_baton, nb->path, FALSE /*is_added*/,
                          NULL, SVN_INVALID_REVNUM);
@@ -721,9 +576,10 @@ set_revision_property(void *baton,
     {
       if (! svn_hash_gets(rb->pb->skip_revprops, name))
         svn_hash_sets(rb->revprop_table,
-                      apr_pstrdup(rb->pool, name), value);
+                      apr_pstrdup(rb->pool, name),
+                      svn_string_dup(value, rb->pool));
     }
-  else if (rb->rev_offset == -1
+  else if (rb->head_rev_before_commit == 0
            && ! svn_hash_gets(rb->pb->skip_revprops, name))
     {
       /* Special case: set revision 0 properties directly (which is
@@ -736,9 +592,9 @@ set_revision_property(void *baton,
   /* Remember any datestamp/ author that passes through (see comment
      in close_revision). */
   if (!strcmp(name, SVN_PROP_REVISION_DATE))
-    rb->datestamp = value;
+    rb->datestamp = svn_string_dup(value, rb->pool);
   if (!strcmp(name, SVN_PROP_REVISION_AUTHOR))
-    rb->author = value;
+    rb->author = svn_string_dup(value, rb->pool);
 
   return SVN_NO_ERROR;
 }
@@ -781,7 +637,7 @@ set_node_property(void *baton,
 
   prop = apr_palloc(nb->rb->pool, sizeof (*prop));
   prop->name = apr_pstrdup(pool, name);
-  prop->value = value;
+  prop->value = svn_string_dup(value, pool);
   svn_hash_sets(nb->prop_changes, prop->name, prop);
 
   return SVN_NO_ERROR;
@@ -856,16 +712,14 @@ remove_node_props(void *baton)
     /* Add-without-history; no "old" properties to worry about. */
     return SVN_NO_ERROR;
 
-  if (nb->kind == svn_node_file)
-    {
-      SVN_ERR(svn_ra_get_file(nb->rb->pb->aux_session,
-                              orig_path, orig_rev, NULL, NULL, &props, pool));
-    }
-  else  /* nb->kind == svn_node_dir */
-    {
-      SVN_ERR(svn_ra_get_dir2(nb->rb->pb->aux_session, NULL, NULL, &props,
-                              orig_path, orig_rev, 0, pool));
-    }
+  if (! rb->pb->callbacks->fetch_props)
+    return svn_error_create(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+                            _("This dumpstream reader requires a delta "
+                              "format dumpstream"));
+  SVN_ERR(rb->pb->callbacks->fetch_props(&props,
+                                         rb->pb->cb_baton,
+                                         orig_path, orig_rev, nb->kind,
+                                         pool, pool));
 
   for (hi = apr_hash_first(pool, props); hi; hi = apr_hash_next(hi))
     {
@@ -884,7 +738,7 @@ set_fulltext(svn_stream_t **stream,
              void *node_baton)
 {
   struct node_baton *nb = node_baton;
-  const struct svn_delta_editor_t *commit_editor = nb->rb->pb->commit_editor;
+  const struct svn_delta_editor_t *commit_editor = nb->rb->commit_editor;
   svn_txdelta_window_handler_t handler;
   void *handler_baton;
   apr_pool_t *pool = nb->rb->pool;
@@ -902,7 +756,7 @@ apply_textdelta(svn_txdelta_window_handler_t *handler,
                 void *node_baton)
 {
   struct node_baton *nb = node_baton;
-  const struct svn_delta_editor_t *commit_editor = nb->rb->pb->commit_editor;
+  const struct svn_delta_editor_t *commit_editor = nb->rb->commit_editor;
   apr_pool_t *pool = nb->rb->pool;
 
   SVN_ERR(commit_editor->apply_textdelta(nb->file_baton, nb->base_checksum,
@@ -915,7 +769,7 @@ static svn_error_t *
 close_node(void *baton)
 {
   struct node_baton *nb = baton;
-  const struct svn_delta_editor_t *commit_editor = nb->rb->pb->commit_editor;
+  const struct svn_delta_editor_t *commit_editor = nb->rb->commit_editor;
   apr_pool_t *pool = nb->rb->pool;
   apr_hash_index_t *hi;
 
@@ -956,8 +810,8 @@ static svn_error_t *
 close_revision(void *baton)
 {
   struct revision_baton *rb = baton;
-  const svn_delta_editor_t *commit_editor = rb->pb->commit_editor;
-  void *commit_edit_baton = rb->pb->commit_edit_baton;
+  const svn_delta_editor_t *commit_editor = rb->commit_editor;
+  void *commit_edit_baton = rb->commit_edit_baton;
   svn_revnum_t committed_rev = SVN_INVALID_REVNUM;
 
   /* Fake revision 0 */
@@ -982,20 +836,12 @@ close_revision(void *baton)
     }
   else
     {
-      svn_revnum_t head_rev_before_commit = rb->rev - rb->rev_offset - 1;
-      void *child_baton;
-
       /* Legitimate revision with no node information */
-      SVN_ERR(svn_ra_get_commit_editor3(rb->pb->session, &commit_editor,
-                                        &commit_edit_baton, rb->revprop_table,
-                                        commit_callback, baton,
-                                        NULL, FALSE, rb->pool));
+      SVN_ERR(revision_start_edit(rb, rb->pool));
+      commit_editor = rb->commit_editor;
+      commit_edit_baton = rb->commit_edit_baton;
 
-      SVN_ERR(commit_editor->open_root(commit_edit_baton,
-                                       head_rev_before_commit,
-                                       rb->pool, &child_baton));
-
-      SVN_ERR(commit_editor->close_directory(child_baton, rb->pool));
+      SVN_ERR(commit_editor->close_directory(rb->db->baton, rb->pool));
       SVN_ERR(commit_editor->close_edit(commit_edit_baton, rb->pool));
     }
 
@@ -1007,7 +853,7 @@ close_revision(void *baton)
     {
       committed_rev = get_revision_mapping(rb->pb->rev_map, rb->rev);
     }
-  else if (rb->rev_offset == -1)
+  else if (rb->head_rev_before_commit == 0)
     {
       committed_rev = 0;
     }
@@ -1016,16 +862,12 @@ close_revision(void *baton)
     {
       if (!svn_hash_gets(rb->pb->skip_revprops, SVN_PROP_REVISION_DATE))
         {
-          SVN_ERR(svn_repos__validate_prop(SVN_PROP_REVISION_DATE,
-                                           rb->datestamp, rb->pool));
           SVN_ERR(svn_ra_change_rev_prop2(rb->pb->session, committed_rev,
                                           SVN_PROP_REVISION_DATE,
                                           NULL, rb->datestamp, rb->pool));
         }
       if (!svn_hash_gets(rb->pb->skip_revprops, SVN_PROP_REVISION_AUTHOR))
         {
-          SVN_ERR(svn_repos__validate_prop(SVN_PROP_REVISION_AUTHOR,
-                                           rb->author, rb->pool));
           SVN_ERR(svn_ra_change_rev_prop2(rb->pb->session, committed_rev,
                                           SVN_PROP_REVISION_AUTHOR,
                                           NULL, rb->author, rb->pool));
@@ -1037,27 +879,238 @@ close_revision(void *baton)
   return SVN_NO_ERROR;
 }
 
-svn_error_t *
-svn_rdump__load_dumpstream(svn_stream_t *stream,
-                           svn_ra_session_t *session,
-                           svn_ra_session_t *aux_session,
-                           svn_boolean_t quiet,
-                           apr_hash_t *skip_revprops,
-                           svn_cancel_func_t cancel_func,
-                           void *cancel_baton,
-                           apr_pool_t *pool)
+/*----------------------------------------------------------------------*/
+
+/**
+ * Baton used for commit callback (and Ev2 shims).
+ */
+struct commit_baton_t
+{
+  svn_revnum_t rev;
+  struct parse_baton *pb;
+};
+
+/*
+ * - Notification of the commit.
+ * - Update the revision number mapping to take account of the actual
+ *   committed revision number.
+ */
+static svn_error_t *
+commit_callback(const svn_commit_info_t *commit_info,
+                void *baton,
+                apr_pool_t *pool)
+{
+  struct commit_baton_t *cb = baton;
+  struct parse_baton *pb = cb->pb;
+
+  /* ### Don't print directly; generate a notification. */
+  if (! pb->quiet)
+    SVN_ERR(svn_cmdline_printf(pool, "* Loaded revision %ld.\n",
+                               commit_info->revision));
+
+  /* Add the mapping of the dumpstream revision to the committed revision. */
+  set_revision_mapping(pb->rev_map, cb->rev, commit_info->revision);
+
+  /* If the incoming dump stream has non-contiguous revisions (e.g. from
+     using svndumpfilter --drop-empty-revs without --renumber-revs) then
+     we must account for the missing gaps in PB->REV_MAP.  Otherwise we
+     might not be able to map all mergeinfo source revisions to the correct
+     revisions in the target repos. */
+  if ((pb->last_rev_mapped != SVN_INVALID_REVNUM)
+      && (cb->rev != pb->last_rev_mapped + 1))
+    {
+      svn_revnum_t i;
+
+      for (i = pb->last_rev_mapped + 1; i < cb->rev; i++)
+        {
+          set_revision_mapping(pb->rev_map, i, pb->last_rev_mapped);
+        }
+    }
+
+  /* Update our "last revision mapped". */
+  pb->last_rev_mapped = cb->rev;
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+fetch_base_func(const char **filename,
+                void *baton,
+                const char *path,
+                svn_revnum_t base_revision,
+                apr_pool_t *result_pool,
+                apr_pool_t *scratch_pool)
+{
+  struct commit_baton_t *cb = baton;
+  svn_stream_t *fstream;
+  svn_error_t *err;
+
+  if (! SVN_IS_VALID_REVNUM(base_revision))
+    base_revision = cb->rev - 1;
+
+  SVN_ERR(svn_stream_open_unique(&fstream, filename, NULL,
+                                 svn_io_file_del_on_pool_cleanup,
+                                 result_pool, scratch_pool));
+
+  err = svn_ra_get_file(cb->pb->aux_session, path, base_revision,
+                        fstream, NULL, NULL, scratch_pool);
+  if (err && err->apr_err == SVN_ERR_FS_NOT_FOUND)
+    {
+      svn_error_clear(err);
+      SVN_ERR(svn_stream_close(fstream));
+
+      *filename = NULL;
+      return SVN_NO_ERROR;
+    }
+  else if (err)
+    return svn_error_trace(err);
+
+  SVN_ERR(svn_stream_close(fstream));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+fetch_props(apr_hash_t **props,
+            void *baton,
+            const char *path,
+            svn_revnum_t base_revision,
+            svn_node_kind_t node_kind,
+            apr_pool_t *result_pool,
+            apr_pool_t *scratch_pool)
+{
+  struct parse_baton *pb = baton;
+
+  if (node_kind == svn_node_file)
+    {
+      SVN_ERR(svn_ra_get_file(pb->aux_session, path, base_revision,
+                              NULL, NULL, props, result_pool));
+    }
+  else if (node_kind == svn_node_dir)
+    {
+      apr_array_header_t *tmp_props;
+
+      SVN_ERR(svn_ra_get_dir2(pb->aux_session, NULL, NULL, props, path,
+                              base_revision, 0 /* Dirent fields */,
+                              result_pool));
+      tmp_props = svn_prop_hash_to_array(*props, result_pool);
+      SVN_ERR(svn_categorize_props(tmp_props, NULL, NULL, &tmp_props,
+                                   result_pool));
+      *props = svn_prop_array_to_hash(tmp_props, result_pool);
+    }
+  else
+    {
+      *props = apr_hash_make(result_pool);
+    }
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+fetch_props_func(apr_hash_t **props,
+                 void *baton,
+                 const char *path,
+                 svn_revnum_t base_revision,
+                 apr_pool_t *result_pool,
+                 apr_pool_t *scratch_pool)
+{
+  struct commit_baton_t *cb = baton;
+  svn_node_kind_t node_kind;
+
+  if (! SVN_IS_VALID_REVNUM(base_revision))
+    base_revision = cb->rev - 1;
+
+  SVN_ERR(svn_ra_check_path(cb->pb->aux_session, path, base_revision,
+                            &node_kind, scratch_pool));
+  SVN_ERR(fetch_props(props, cb->pb, path, base_revision, node_kind,
+                      result_pool, scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+fetch_kind_func(svn_node_kind_t *kind,
+                void *baton,
+                const char *path,
+                svn_revnum_t base_revision,
+                apr_pool_t *scratch_pool)
+{
+  struct commit_baton_t *cb = baton;
+
+  if (! SVN_IS_VALID_REVNUM(base_revision))
+    base_revision = cb->rev - 1;
+
+  SVN_ERR(svn_ra_check_path(cb->pb->aux_session, path, base_revision,
+                            kind, scratch_pool));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_delta_shim_callbacks_t *
+get_shim_callbacks(struct commit_baton_t *cb,
+                   apr_pool_t *pool)
+{
+  svn_delta_shim_callbacks_t *callbacks =
+                        svn_delta_shim_callbacks_default(pool);
+
+  callbacks->fetch_props_func = fetch_props_func;
+  callbacks->fetch_kind_func = fetch_kind_func;
+  callbacks->fetch_base_func = fetch_base_func;
+  callbacks->fetch_baton = cb;
+
+  return callbacks;
+}
+
+/*  */
+static svn_error_t *
+revstart(svn_revnum_t revision,
+         void *baton,
+         const svn_delta_editor_t **editor_p,
+         void **edit_baton_p,
+         apr_hash_t *rev_props,
+         apr_pool_t *result_pool)
+{
+  struct parse_baton *pb = baton;
+  struct commit_baton_t *cb = apr_palloc(result_pool, sizeof(*cb));
+
+  cb->rev = revision;
+  cb->pb = pb;
+  SVN_ERR(svn_ra__register_editor_shim_callbacks(pb->session,
+                                                 get_shim_callbacks(cb, result_pool)));
+  SVN_ERR(svn_ra_get_commit_editor3(pb->session,
+                                    editor_p, edit_baton_p,
+                                    rev_props,
+                                    commit_callback, cb,
+                                    NULL, FALSE, result_pool));
+  return SVN_NO_ERROR;
+}
+
+/* Return an implementation of the dumpstream parser API that will drive
+ * commits over the RA layer to the location described by SESSION.
+ *
+ * Use AUX_SESSION (which is opened to the same URL as SESSION)
+ * for any secondary, out-of-band RA communications required. This is
+ * needed when loading a non-deltas dump, and for Ev2.
+ *
+ * Print feedback to the console for each revision, unless QUIET is true.
+ *
+ * Ignore (don't set) any revision property whose name is a key in
+ * SKIP_REVPROPS. The values in the hash are unimportant.
+ */
+static svn_error_t *
+get_dumpstream_loader(svn_repos_parse_fns3_t **parser_p,
+                      void **parse_baton_p,
+                      svn_ra_session_t *session,
+                      svn_ra_session_t *aux_session,
+                      svn_boolean_t quiet,
+                      apr_hash_t *skip_revprops,
+                      apr_pool_t *pool)
 {
   svn_repos_parse_fns3_t *parser;
   struct parse_baton *parse_baton;
-  const svn_string_t *lock_string;
-  svn_boolean_t be_atomic;
-  svn_error_t *err;
   const char *session_url, *root_url, *parent_dir;
+  static const loader_fns_t callbacks = { revstart, fetch_props };
 
-  SVN_ERR(svn_ra_has_capability(session, &be_atomic,
-                                SVN_RA_CAPABILITY_ATOMIC_REVPROPS,
-                                pool));
-  SVN_ERR(get_lock(&lock_string, session, cancel_func, cancel_baton, pool));
   SVN_ERR(svn_ra_get_repos_root2(session, &root_url, pool));
   SVN_ERR(svn_ra_get_session_url(session, &session_url, pool));
   SVN_ERR(svn_ra_get_path_relative_to_root(session, &parent_dir,
@@ -1087,6 +1140,300 @@ svn_rdump__load_dumpstream(svn_stream_t *stream,
   parse_baton->last_rev_mapped = SVN_INVALID_REVNUM;
   parse_baton->oldest_dumpstream_rev = SVN_INVALID_REVNUM;
   parse_baton->skip_revprops = skip_revprops;
+  parse_baton->callbacks = &callbacks;
+  parse_baton->cb_baton = parse_baton;
+
+  *parser_p = parser;
+  *parse_baton_p = parse_baton;
+  return SVN_NO_ERROR;
+}
+
+/*----------------------------------------------------------------------*/
+
+/* Dump-stream parser wrapper */
+
+struct filter_parse_baton_t
+{
+  const svn_repos_parse_fns3_t *wrapped_parser;
+  struct parse_baton *wrapped_pb;
+};
+
+struct filter_revision_baton_t
+{
+  struct filter_parse_baton_t *pb;
+  void *wrapped_rb;
+};
+
+struct filter_node_baton_t
+{
+  struct filter_revision_baton_t *rb;
+  void *wrapped_nb;
+};
+
+static svn_error_t *
+filter_magic_header_record(int version,
+                           void *parse_baton,
+                           apr_pool_t *pool)
+{
+  struct filter_parse_baton_t *pb = parse_baton;
+
+  SVN_ERR(pb->wrapped_parser->magic_header_record(version, pb->wrapped_pb,
+                                                  pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_uuid_record(const char *uuid,
+                   void *parse_baton,
+                   apr_pool_t *pool)
+{
+  struct filter_parse_baton_t *pb = parse_baton;
+
+  SVN_ERR(pb->wrapped_parser->uuid_record(uuid, pb->wrapped_pb, pool));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_new_revision_record(void **revision_baton,
+                           apr_hash_t *headers,
+                           void *parse_baton,
+                           apr_pool_t *pool)
+{
+  struct filter_parse_baton_t *pb = parse_baton;
+  struct filter_revision_baton_t *rb = apr_pcalloc(pool, sizeof (*rb));
+
+  rb->pb = pb;
+  SVN_ERR(pb->wrapped_parser->new_revision_record(&rb->wrapped_rb, headers,
+                                                  pb->wrapped_pb, pool));
+  *revision_baton = rb;
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_new_node_record(void **node_baton,
+                       apr_hash_t *headers,
+                       void *revision_baton,
+                       apr_pool_t *pool)
+{
+  struct filter_revision_baton_t *rb = revision_baton;
+  struct filter_parse_baton_t *pb = rb->pb;
+  struct filter_node_baton_t *nb = apr_pcalloc(pool, sizeof (*nb));
+
+  nb->rb = rb;
+  SVN_ERR(pb->wrapped_parser->new_node_record(&nb->wrapped_nb, headers,
+                                              rb->wrapped_rb, pool));
+  *node_baton = nb;
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_set_revision_property(void *revision_baton,
+                             const char *name,
+                             const svn_string_t *value)
+{
+  struct filter_revision_baton_t *rb = revision_baton;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->set_revision_property(rb->wrapped_rb,
+                                                    name, value));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_set_node_property(void *node_baton,
+                         const char *name,
+                         const svn_string_t *value)
+{
+  struct filter_node_baton_t *nb = node_baton;
+  struct filter_revision_baton_t *rb = nb->rb;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->set_node_property(nb->wrapped_nb,
+                                                name, value));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_delete_node_property(void *node_baton,
+                            const char *name)
+{
+  struct filter_node_baton_t *nb = node_baton;
+  struct filter_revision_baton_t *rb = nb->rb;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->delete_node_property(nb->wrapped_nb, name));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_remove_node_props(void *node_baton)
+{
+  struct filter_node_baton_t *nb = node_baton;
+  struct filter_revision_baton_t *rb = nb->rb;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->remove_node_props(nb->wrapped_nb));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_set_fulltext(svn_stream_t **stream,
+                    void *node_baton)
+{
+  struct filter_node_baton_t *nb = node_baton;
+  struct filter_revision_baton_t *rb = nb->rb;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->set_fulltext(stream, nb->wrapped_nb));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_apply_textdelta(svn_txdelta_window_handler_t *handler,
+                       void **handler_baton,
+                       void *node_baton)
+{
+  struct filter_node_baton_t *nb = node_baton;
+  struct filter_revision_baton_t *rb = nb->rb;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->apply_textdelta(handler, handler_baton,
+                                              nb->wrapped_nb));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_close_node(void *node_baton)
+{
+  struct filter_node_baton_t *nb = node_baton;
+  struct filter_revision_baton_t *rb = nb->rb;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->close_node(nb->wrapped_nb));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+filter_close_revision(void *revision_baton)
+{
+  struct filter_revision_baton_t *rb = revision_baton;
+  struct filter_parse_baton_t *pb = rb->pb;
+
+  SVN_ERR(pb->wrapped_parser->close_revision(rb->wrapped_rb));
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+get_dumpstream_filter(svn_repos_parse_fns3_t **parser_p,
+                      void **parse_baton_p,
+                      const svn_repos_parse_fns3_t *wrapped_parser,
+                      void *wrapped_baton,
+                      apr_pool_t *pool)
+{
+  svn_repos_parse_fns3_t *parser;
+  struct filter_parse_baton_t *b;
+
+  parser = apr_pcalloc(pool, sizeof(*parser));
+  parser->magic_header_record = filter_magic_header_record;
+  parser->uuid_record = filter_uuid_record;
+  parser->new_revision_record = filter_new_revision_record;
+  parser->new_node_record = filter_new_node_record;
+  parser->set_revision_property = filter_set_revision_property;
+  parser->set_node_property = filter_set_node_property;
+  parser->delete_node_property = filter_delete_node_property;
+  parser->remove_node_props = filter_remove_node_props;
+  parser->set_fulltext = filter_set_fulltext;
+  parser->apply_textdelta = filter_apply_textdelta;
+  parser->close_node = filter_close_node;
+  parser->close_revision = filter_close_revision;
+
+  b = apr_pcalloc(pool, sizeof(*b));
+  b->wrapped_parser = wrapped_parser;
+  b->wrapped_pb = wrapped_baton;
+
+  *parser_p = parser;
+  *parse_baton_p = b;
+  return SVN_NO_ERROR;
+}
+
+/*----------------------------------------------------------------------*/
+
+/* Implements `svn_ra__lock_retry_func_t'. */
+static svn_error_t *
+lock_retry_func(void *baton,
+                const svn_string_t *reposlocktoken,
+                apr_pool_t *pool)
+{
+  return svn_cmdline_printf(pool,
+                            _("Failed to get lock on destination "
+                              "repos, currently held by '%s'\n"),
+                            reposlocktoken->data);
+}
+
+/* Acquire a lock (of sorts) on the repository associated with the
+ * given RA SESSION. This lock is just a revprop change attempt in a
+ * time-delay loop. This function is duplicated by svnsync in
+ * svnsync/svnsync.c
+ *
+ * ### TODO: Make this function more generic and
+ * expose it through a header for use by other Subversion
+ * applications to avoid duplication.
+ */
+static svn_error_t *
+get_lock(const svn_string_t **lock_string_p,
+         svn_ra_session_t *session,
+         svn_cancel_func_t cancel_func,
+         void *cancel_baton,
+         apr_pool_t *pool)
+{
+  svn_boolean_t be_atomic;
+
+  SVN_ERR(svn_ra_has_capability(session, &be_atomic,
+                                SVN_RA_CAPABILITY_ATOMIC_REVPROPS,
+                                pool));
+  if (! be_atomic)
+    {
+      /* Pre-1.7 servers can't lock without a race condition.  (Issue #3546) */
+      svn_error_t *err =
+        svn_error_create(SVN_ERR_UNSUPPORTED_FEATURE, NULL,
+                         _("Target server does not support atomic revision "
+                           "property edits; consider upgrading it to 1.7."));
+      svn_handle_warning2(stderr, err, "svnrdump: ");
+      svn_error_clear(err);
+    }
+
+  return svn_ra__get_operational_lock(lock_string_p, NULL, session,
+                                      SVNRDUMP_PROP_LOCK, FALSE,
+                                      10 /* retries */, lock_retry_func, NULL,
+                                      cancel_func, cancel_baton, pool);
+}
+
+svn_error_t *
+svn_rdump__load_dumpstream(svn_stream_t *stream,
+                           svn_ra_session_t *session,
+                           svn_ra_session_t *aux_session,
+                           svn_boolean_t quiet,
+                           apr_hash_t *skip_revprops,
+                           svn_cancel_func_t cancel_func,
+                           void *cancel_baton,
+                           apr_pool_t *pool)
+{
+  svn_repos_parse_fns3_t *parser;
+  void *parse_baton;
+  const svn_string_t *lock_string;
+  svn_error_t *err;
+
+  SVN_ERR(get_lock(&lock_string, session, cancel_func, cancel_baton, pool));
+
+  SVN_ERR(get_dumpstream_loader(&parser, &parse_baton,
+                                session, aux_session,
+                                quiet, skip_revprops,
+                                pool));
+
+  /* Interpose a filtering layer: currently doing nothing */
+  SVN_ERR(get_dumpstream_filter(&parser, &parse_baton,
+                                parser, parse_baton,
+                                pool));
 
   err = svn_repos_parse_dumpstream3(stream, parser, parse_baton, FALSE,
                                     cancel_func, cancel_baton, pool);

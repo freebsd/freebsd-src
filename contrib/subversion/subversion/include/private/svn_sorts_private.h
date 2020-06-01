@@ -120,26 +120,29 @@ svn_sort__array_lookup(const apr_array_header_t *array,
  * @a insert_index, growing the array and shuffling existing elements along to
  * make room.
  *
- * @note Private. For use by Subversion's own code only.
- */
-void
-svn_sort__array_insert(apr_array_header_t *array,
-                       const void *new_element,
-                       int insert_index);
-
-
-/* Remove @a elements_to_delete elements starting at @a delete_index from the
- * array @a arr. If @a delete_index is not a valid element of @a arr,
- * @a elements_to_delete is not greater than zero, or
- * @a delete_index + @a elements_to_delete is greater than @a arr->nelts,
- * then do nothing.
+ * Raise an error if @a insert_index is less than 0 or greater than the length
+ * of the array.
  *
  * @note Private. For use by Subversion's own code only.
  */
-void
-svn_sort__array_delete(apr_array_header_t *arr,
-                       int delete_index,
-                       int elements_to_delete);
+svn_error_t *
+svn_sort__array_insert2(apr_array_header_t *array,
+                        const void *new_element,
+                        int insert_index);
+
+
+/* Remove @a elements_to_delete elements starting at @a delete_index from the
+ * array @a arr.
+ *
+ * Raise an error if the indexes to delete extends outside the array bounds
+ * or if @a elements_to_delete is not greater than zero.
+ *
+ * @note Private. For use by Subversion's own code only.
+ */
+svn_error_t *
+svn_sort__array_delete2(apr_array_header_t *arr,
+                        int delete_index,
+                        int elements_to_delete);
 
 /* Reverse the order of elements in @a array, in place.
  *
@@ -190,7 +193,7 @@ svn_priority_queue__size(svn_priority_queue__t *queue);
 
 /**
  * Returns a reference to the first element in the @a queue.  The queue
- * contents remains unchanged.  If the @a queue is empty, #NULL will be
+ * contents remains unchanged.  If the @a queue is empty, NULL will be
  * returned.
  */
 void *
@@ -212,7 +215,7 @@ svn_priority_queue__pop(svn_priority_queue__t *queue);
 
 /**
  * Append the new @a element to the @a queue.  @a element must neither be
- * #NULL nor the first element as returned by #svn_priority_queue__peek.
+ * NULL nor the first element as returned by #svn_priority_queue__peek.
  */
 void
 svn_priority_queue__push(svn_priority_queue__t *queue, const void *element);

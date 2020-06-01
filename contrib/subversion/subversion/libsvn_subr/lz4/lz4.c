@@ -1,5 +1,5 @@
 #include "svn_private_config.h"
-#if SVN_INTERNAL_LZ4
+#ifdef SVN_INTERNAL_LZ4
 /*
    LZ4 - Fast LZ compression algorithm
    Copyright (C) 2011-2016, Yann Collet.

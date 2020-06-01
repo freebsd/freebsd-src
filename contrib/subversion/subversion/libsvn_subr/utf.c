@@ -960,7 +960,7 @@ svn_utf__cstring_from_utf8_fuzzy(const char *src,
 
   /* ### Check the client locale, maybe we can avoid that second
    * conversion!  See Ulrich Drepper's patch at
-   * http://subversion.tigris.org/issues/show_bug.cgi?id=807.
+   * https://issues.apache.org/jira/browse/SVN-807.
    */
 }
 

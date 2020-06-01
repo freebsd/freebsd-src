@@ -303,7 +303,7 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
 {
   apr_hash_index_t *hi;
   apr_pool_t *iterpool;
-  apr_pool_t *iterpool2;
+  apr_pool_t *inner_iterpool;
   apr_hash_t *externals;
   svn_opt_revision_t rev = {svn_opt_revision_unspecified, {0}};
 
@@ -317,7 +317,7 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
                               scratch_pool, scratch_pool));
 
   iterpool = svn_pool_create(scratch_pool);
-  iterpool2 = svn_pool_create(scratch_pool);
+  inner_iterpool = svn_pool_create(scratch_pool);
 
   for (hi = apr_hash_first(scratch_pool, externals); hi;
        hi = apr_hash_next(hi))
@@ -351,14 +351,12 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
                                         iterpool, iterpool);
 
       if (!err)
-        externals_parent_url = svn_path_url_add_component2(
-                                    externals_parent_repos_root_url,
-                                    externals_parent_repos_relpath,
-                                    iterpool);
-      if (!err)
-        err = svn_wc_parse_externals_description3(
-                  &externals_p, svn_dirent_dirname(local_abspath, iterpool),
-                  external_desc->data, FALSE, iterpool);
+        {
+          err = svn_wc_parse_externals_description3(
+              &externals_p, svn_dirent_dirname(local_abspath, iterpool),
+              external_desc->data, FALSE, iterpool);
+        }
+
       if (err)
         {
           svn_wc_notify_t *notify =
@@ -376,24 +374,29 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
           continue;
         }
 
+      externals_parent_url = svn_path_url_add_component2(
+          externals_parent_repos_root_url,
+          externals_parent_repos_relpath,
+          iterpool);
+
       for (i = 0; i < externals_p->nelts; i++)
         {
           svn_wc_external_item2_t *item;
 
           item = APR_ARRAY_IDX(externals_p, i, svn_wc_external_item2_t*);
 
-          svn_pool_clear(iterpool2);
+          svn_pool_clear(inner_iterpool);
           err = upgrade_external_item(ctx, externals_parent_abspath,
                                       externals_parent_url,
                                       externals_parent_repos_root_url,
-                                      item, info_baton, iterpool2);
+                                      item, info_baton, inner_iterpool);
 
           if (err)
             {
               svn_wc_notify_t *notify =
                   svn_wc_create_notify(svn_dirent_join(externals_parent_abspath,
                                                        item->target_dir,
-                                                       iterpool2),
+                                                       inner_iterpool),
                                        svn_wc_notify_failed_external,
                                        scratch_pool);
               notify->err = err;
@@ -405,8 +408,8 @@ upgrade_externals_from_properties(svn_client_ctx_t *ctx,
         }
     }
 
+  svn_pool_destroy(inner_iterpool);
   svn_pool_destroy(iterpool);
-  svn_pool_destroy(iterpool2);
 
   return SVN_NO_ERROR;
 }

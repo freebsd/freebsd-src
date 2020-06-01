@@ -166,6 +166,8 @@ svn_cl__merge_file_externally(const char *base_path,
     arguments[5] = wc_path;
     arguments[6] = NULL;
 
+    /* Presumably apr_filepath_get() returns a valid path, so we don't have
+       to use the safe version of svn_dirent_internal_style() here. */
     SVN_ERR(svn_io_run_cmd(svn_dirent_internal_style(cwd, pool), merge_tool,
                            arguments, &exitcode, NULL, TRUE, NULL, NULL, NULL,
                            pool));

@@ -395,16 +395,29 @@ windows_validate_certificate(svn_boolean_t *ok_p,
       memset(&chain_para, 0, sizeof(chain_para));
       chain_para.cbSize = sizeof(chain_para);
 
+      /* Don't hit the wire for URL based objects and revocation checks, as
+         that may cause stalls, network timeouts or spurious errors in cases
+         such as with the remote OCSP and CRL endpoints being inaccessible or
+         unreliable.
+
+         For this particular case of the SVN_AUTH_SSL_UNKNOWNCA cert failure
+         override we should be okay with just the data that we have immediately
+         available on the local machine.
+       */
       if (CertGetCertificateChain(NULL, cert_context, NULL, NULL, &chain_para,
                                   CERT_CHAIN_CACHE_END_CERT |
-                                  CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT,
+                                  CERT_CHAIN_CACHE_ONLY_URL_RETRIEVAL |
+                                  CERT_CHAIN_REVOCATION_CHECK_CHAIN_EXCLUDE_ROOT |
+                                  CERT_CHAIN_REVOCATION_CHECK_CACHE_ONLY,
                                   NULL, &chain_context))
         {
           CERT_CHAIN_POLICY_PARA policy_para;
           CERT_CHAIN_POLICY_STATUS policy_status;
 
           policy_para.cbSize = sizeof(policy_para);
-          policy_para.dwFlags = 0;
+          /* We only use the local data for revocation checks, so they may
+             fail with errors like CRYPT_E_REVOCATION_OFFLINE; ignore those. */
+          policy_para.dwFlags = CERT_CHAIN_POLICY_IGNORE_ALL_REV_UNKNOWN_FLAGS;
           policy_para.pvExtraPolicyPara = NULL;
 
           policy_status.cbSize = sizeof(policy_status);

@@ -51,42 +51,32 @@ struct revert_with_write_lock_baton {
   const apr_array_header_t *changelists;
   svn_boolean_t clear_changelists;
   svn_boolean_t metadata_only;
+  svn_boolean_t added_keep_local;
   svn_client_ctx_t *ctx;
 };
 
 /* (Note: All arguments are in the baton above.)
 
-   Attempt to revert LOCAL_ABSPATH.
+   Attempt to revert LOCAL_ABSPATH by calling svn_wc_revert6(), which
+   see for further details.
 
-   If DEPTH is svn_depth_empty, revert just the properties on the
-   directory; else if svn_depth_files, revert the properties and any
-   files immediately under the directory; else if
-   svn_depth_immediates, revert all of the preceding plus properties
-   on immediate subdirectories; else if svn_depth_infinity, revert
-   path and everything under it fully recursively.
-
-   CHANGELISTS is an array of const char * changelist names, used as a
-   restrictive filter on items reverted; that is, don't revert any
-   item unless it's a member of one of those changelists.  If
-   CHANGELISTS is empty (or altogether NULL), no changelist filtering occurs.
-
-   Consult CTX to determine whether or not to revert timestamp to the
-   time of last commit ('use-commit-times = yes').
-
-   If PATH is unversioned, return SVN_ERR_UNVERSIONED_RESOURCE. */
+   If the target isn't versioned, send a 'skip' notification and return
+   no error.
+ */
 static svn_error_t *
 revert(void *baton, apr_pool_t *result_pool, apr_pool_t *scratch_pool)
 {
   struct revert_with_write_lock_baton *b = baton;
   svn_error_t *err;
 
-  err = svn_wc_revert5(b->ctx->wc_ctx,
+  err = svn_wc_revert6(b->ctx->wc_ctx,
                        b->local_abspath,
                        b->depth,
                        b->use_commit_times,
                        b->changelists,
                        b->clear_changelists,
                        b->metadata_only,
+                       b->added_keep_local,
                        b->ctx->cancel_func, b->ctx->cancel_baton,
                        b->ctx->notify_func2, b->ctx->notify_baton2,
                        scratch_pool);
@@ -123,11 +113,12 @@ revert(void *baton, apr_pool_t *result_pool, apr_pool_t *scratch_pool)
 
 
 svn_error_t *
-svn_client_revert3(const apr_array_header_t *paths,
+svn_client_revert4(const apr_array_header_t *paths,
                    svn_depth_t depth,
                    const apr_array_header_t *changelists,
                    svn_boolean_t clear_changelists,
                    svn_boolean_t metadata_only,
+                   svn_boolean_t added_keep_local,
                    svn_client_ctx_t *ctx,
                    apr_pool_t *pool)
 {
@@ -183,6 +174,7 @@ svn_client_revert3(const apr_array_header_t *paths,
       baton.changelists = changelists;
       baton.clear_changelists = clear_changelists;
       baton.metadata_only = metadata_only;
+      baton.added_keep_local = added_keep_local;
       baton.ctx = ctx;
 
       err = svn_wc__is_wcroot(&wc_root, ctx->wc_ctx, local_abspath, iterpool);

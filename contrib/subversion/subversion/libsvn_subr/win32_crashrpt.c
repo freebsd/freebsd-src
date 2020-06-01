@@ -45,9 +45,6 @@ typedef int win32_crashrpt__dummy;
 /*** Global variables ***/
 static HANDLE dbghelp_dll = INVALID_HANDLE_VALUE;
 
-/* Email address where the crash reports should be sent too. */
-#define CRASHREPORT_EMAIL "users@subversion.apache.org"
-
 #define DBGHELP_DLL "dbghelp.dll"
 
 #define LOGFILE_PREFIX "svn-crash-log"
@@ -774,7 +771,7 @@ svn__unhandled_exception_filter(PEXCEPTION_POINTERS ptrs)
                   "usernames and passwords etc.)\n",
                   log_filename,
                   dmp_filename,
-                  CRASHREPORT_EMAIL);
+                  SVN_WIN32_CRASHREPORT_EMAIL);
 
   if (getenv("SVN_DBG_STACKTRACES_TO_STDERR") != NULL)
     {

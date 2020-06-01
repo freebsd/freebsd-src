@@ -133,7 +133,7 @@ svn_pool_create_allocator(svn_boolean_t thread_safe)
 #endif
 
   /* By default, allocators are *not* thread-safe. We must provide a mutex
-   * if we want thread-safety for that mutex. */
+   * if we want thread-safety for that pool. */
 
 #if APR_HAS_THREADS
   if (thread_safe)
@@ -151,16 +151,6 @@ svn_pool_create_allocator(svn_boolean_t thread_safe)
 }
 
 
-/*
- * apr_pool_create_core_ex was introduced in APR 1.3.0, then
- * deprecated and renamed to apr_pool_create_unmanaged_ex in 1.3.3.
- * Since our minimum requirement is APR 1.3.0, one or the other of
- * these functions will always be available.
- */
-#if !APR_VERSION_AT_LEAST(1,3,3)
-#define apr_pool_create_unmanaged_ex apr_pool_create_core_ex
-#endif
-
 /* Private function that creates an unmanaged pool. */
 apr_pool_t *
 svn_pool__create_unmanaged(svn_boolean_t thread_safe)

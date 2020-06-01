@@ -402,8 +402,7 @@ svn_client__open_ra_session_internal(svn_ra_session_t **ra_session,
         }
     }
 
-  /* If the caller allows for auto-following redirections, and the
-     RA->open() call above reveals a CORRECTED_URL, try the new URL.
+  /* If the caller allows for auto-following redirections, try the new URL.
      We'll do this in a loop up to some maximum number follow-and-retry
      attempts.  */
   if (corrected_url)
@@ -414,12 +413,14 @@ svn_client__open_ra_session_internal(svn_ra_session_t **ra_session,
       *corrected_url = NULL;
       while (attempts_left--)
         {
-          const char *corrected = NULL;
+          const char *corrected = NULL; /* canonicalized version */
+          const char *redirect_url = NULL; /* non-canonicalized version */
 
           /* Try to open the RA session.  If this is our last attempt,
              don't accept corrected URLs from the RA provider. */
-          SVN_ERR(svn_ra_open4(ra_session,
+          SVN_ERR(svn_ra_open5(ra_session,
                                attempts_left == 0 ? NULL : &corrected,
+                               attempts_left == 0 ? NULL : &redirect_url,
                                base_url, uuid, cbtable, cb, ctx->config,
                                result_pool));
 
@@ -441,19 +442,28 @@ svn_client__open_ra_session_internal(svn_ra_session_t **ra_session,
           *corrected_url = corrected;
 
           /* Make sure we've not attempted this URL before. */
-          if (svn_hash_gets(attempted, corrected))
+          if (svn_hash_gets(attempted, redirect_url))
             return svn_error_createf(SVN_ERR_CLIENT_CYCLE_DETECTED, NULL,
                                      _("Redirect cycle detected for URL '%s'"),
-                                     corrected);
+                                     redirect_url);
 
-          /* Remember this CORRECTED_URL so we don't wind up in a loop. */
-          svn_hash_sets(attempted, corrected, (void *)1);
+          /*
+           * Remember this redirect URL so we don't wind up in a loop.
+           *
+           * Store the non-canonicalized version of the URL. The canonicalized
+           * version is insufficient for loop detection because we might not get
+           * an exact match against URLs used by the RA protocol-layer (the URL
+           * used by the protocol may contain trailing slashes, for example,
+           * which are stripped during canonicalization).
+           */
+          svn_hash_sets(attempted, redirect_url, (void *)1);
+
           base_url = corrected;
         }
     }
   else
     {
-      SVN_ERR(svn_ra_open4(ra_session, NULL, base_url,
+      SVN_ERR(svn_ra_open5(ra_session, NULL, NULL, base_url,
                            uuid, cbtable, cb, ctx->config, result_pool));
     }
 

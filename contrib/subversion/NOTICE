@@ -1,5 +1,5 @@
 Apache Subversion
-Copyright 2018 The Apache Software Foundation
+Copyright 2020 The Apache Software Foundation
 
 This product includes software developed by many people, and distributed
 under Contributor License Agreements to The Apache Software Foundation
@@ -29,3 +29,6 @@ license, see LICENSE.
 
 This product includes code derived from the software developed by Yann Collet
 under a BSD 2-Clause license, see LICENSE.
+
+This product includes code derived from the software developed by Thomas
+Porschberg and Peter Adolphs under a permissive license, see LICENSE.
