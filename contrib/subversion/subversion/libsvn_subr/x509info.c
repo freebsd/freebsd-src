@@ -128,7 +128,7 @@ typedef struct asn1_oid {
   const char *long_label;
 } asn1_oid;
 
-#define CONSTANT_PAIR(c) (unsigned char *)(c), sizeof((c)) - 1
+#define CONSTANT_PAIR(c) (const unsigned char *)(c), sizeof((c)) - 1
 
 static const asn1_oid asn1_oids[] = {
   { CONSTANT_PAIR(SVN_X509_OID_COMMON_NAME),  "CN", "commonName" },

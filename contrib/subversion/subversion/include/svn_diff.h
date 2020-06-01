@@ -711,7 +711,7 @@ svn_diff_file_output_unified(svn_stream_t *output_stream,
  * @a conflict_latest to be displayed as conflict markers in the output.
  * If @a conflict_original, @a conflict_modified, @a conflict_latest and/or
  * @a conflict_separator is @c NULL, a default marker will be displayed.
- * @a conflict_style dictates how conflicts are displayed. 
+ * @a conflict_style dictates how conflicts are displayed.
  * Uses @a scratch_pool for temporary allocations.
  *
  * If not @c NULL, call @a cancel_func with @a cancel_baton once or multiple

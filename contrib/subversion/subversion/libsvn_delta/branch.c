@@ -157,7 +157,7 @@ branch_txn_delete_branch(svn_branch__txn_t *txn,
 
       if (strcmp(b->bid, bid) == 0)
         {
-          svn_sort__array_delete(txn->priv->branches, i, 1);
+          SVN_ERR(svn_sort__array_delete2(txn->priv->branches, i, 1));
           break;
         }
     }

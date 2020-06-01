@@ -348,7 +348,7 @@ svn_element__content_t *
 svn_element__tree_get(const svn_element__tree_t *tree,
                       int eid);
 
-svn_error_t *
+void
 svn_element__tree_set(svn_element__tree_t *tree,
                       int eid,
                       const svn_element__content_t *element);

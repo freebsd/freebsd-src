@@ -60,12 +60,14 @@
  * form, except:
  *
  *    - @c svn_dirent_canonicalize()
+ *    - @c svn_dirent_canonicalize_safe()
  *    - @c svn_dirent_is_canonical()
  *    - @c svn_dirent_internal_style()
  *    - @c svn_relpath_canonicalize()
+ *    - @c svn_relpath_canonicalize_safe()
  *    - @c svn_relpath_is_canonical()
- *    - @c svn_relpath__internal_style()
  *    - @c svn_uri_canonicalize()
+ *    - @c svn_uri_canonicalize_safe()
  *    - @c svn_uri_is_canonical()
  *
  * The Subversion codebase also recognizes some other classes of path:
@@ -144,16 +146,46 @@ extern "C" {
 #endif /* __cplusplus */
 
 
-/** Convert @a dirent from the local style to the canonical internal style.
+/**
+ * Convert @a dirent from the local style to the canonical internal style.
  * "Local style" means native path separators and "." for the empty path.
  *
  * Allocate the result in @a result_pool.
+ *
+ * @warning This function may call @c abort() if the @a dirent parameter
+ *          is not a valid local-style path.
+ *          Use svn_dirent_internal_style_safe() for tainted input.
  *
  * @since New in 1.6.
  */
 const char *
 svn_dirent_internal_style(const char *dirent,
                           apr_pool_t *result_pool);
+
+/**
+ * Convert @a dirent from the local style to the canonical internal style
+ * and return it in @a *internal_style_dirent. "Local style" means native
+ * path separators and "." for the empty path.
+ *
+ * Similar to svn_dirent_internal_style() (which see), but returns an error
+ * if the @a dirent can not be canonicalized or of the result does not pass
+ * the svn_dirent_is_canonical() test.
+ *
+ * If the function fails and @a non_canonical_result is not @c NULL, the
+ * result of the failed canonicalization attempt (which may be @c NULL)
+ * will be returned in @a *non_canonical_result.
+ *
+ * Allocates the results in @a result_pool. Uses @a scratch_pool for
+ * temporary allocations.
+ *
+ * @since New in 1.12.
+ */
+svn_error_t *
+svn_dirent_internal_style_safe(const char **internal_style_dirent,
+                               const char **non_canonical_result,
+                               const char *dirent,
+                               apr_pool_t *result_pool,
+                               apr_pool_t *scratch_pool);
 
 /** Convert @a dirent from the internal style to the local style.
  * "Local style" means native path separators and "." for the empty path.
@@ -166,18 +198,6 @@ svn_dirent_internal_style(const char *dirent,
 const char *
 svn_dirent_local_style(const char *dirent,
                        apr_pool_t *result_pool);
-
-/** Convert @a relpath from the local style to the canonical internal style.
- * "Local style" means native path separators and "." for the empty path.
- *
- * Allocate the result in @a result_pool.
- *
- * @since New in 1.7.
- */
-const char *
-svn_relpath__internal_style(const char *relpath,
-                            apr_pool_t *result_pool);
-
 
 /** Join a base dirent (@a base) with a component (@a component).
  *
@@ -453,7 +473,8 @@ svn_boolean_t
 svn_uri_is_root(const char *uri,
                 apr_size_t len);
 
-/** Return a new dirent like @a dirent, but transformed such that some types
+/**
+ * Return a new dirent like @a dirent, but transformed such that some types
  * of dirent specification redundancies are removed.
  *
  * This involves:
@@ -467,14 +488,43 @@ svn_uri_is_root(const char *uri,
  *
  * Allocate the result in @a result_pool.
  *
+ * @warning This function may call @c abort() if @a dirent can not be
+ *          canonicalized.
+ *          Use svn_dirent_canonicalize_safe() for tainted input.
+ *
  * @since New in 1.6.
  */
 const char *
 svn_dirent_canonicalize(const char *dirent,
                         apr_pool_t *result_pool);
 
+/**
+ * Return a new @a *canonical_dirent like @a dirent, but transformed such
+ * that some types of dirent specification redundancies are removed.
+ *
+ * Similar to svn_dirent_canonicalize() (which see), but returns an error
+ * if the @a dirent can not be canonicalized or of the result does not pass
+ * the svn_dirent_is_canonical() test.
+ *
+ * If the function fails and @a non_canonical_result is not @c NULL, the
+ * result of the failed canonicalization attempt (which may be @c NULL)
+ * will be returned in @a *non_canonical_result.
+ *
+ * Allocates the results in @a result_pool. Uses @a scratch_pool for
+ * temporary allocations.
+ *
+ * @since New in 1.12.
+ */
+svn_error_t *
+svn_dirent_canonicalize_safe(const char **canonical_dirent,
+                             const char **non_canonical_result,
+                             const char *dirent,
+                             apr_pool_t *result_pool,
+                             apr_pool_t *scratch_pool);
 
-/** Return a new relpath like @a relpath, but transformed such that some types
+
+/**
+ * Return a new relpath like @a relpath, but transformed such that some types
  * of relpath specification redundancies are removed.
  *
  * This involves:
@@ -486,14 +536,44 @@ svn_dirent_canonicalize(const char *dirent,
  *
  * Allocate the result in @a result_pool.
  *
+ * @warning This function may call @c abort() if @a relpath can not be
+ *          canonicalized.
+ *          Use svn_relpath_canonicalize_safe() for tainted input.
+ *
  * @since New in 1.7.
  */
 const char *
 svn_relpath_canonicalize(const char *relpath,
                          apr_pool_t *result_pool);
 
+/**
+ * Return a new @a *canonical_relpath like @a relpath, but transformed such
+ * that some types of relpath specification redundancies are removed.
+ *
+ * Similar to svn_relpath_canonicalize() (which see), but returns an error
+ * if the @a relpath can not be canonicalized or of the result does not
+ * pass the svn_relpath_is_canonical() test.
+ *
+ * If the function fails and @a non_canonical_result is not @c NULL, the
+ * result of the failed canonicalization attempt (which may be @c NULL)
+ * will be returned in @a *non_canonical_result.
+ *
+ * Allocates the results in @a result_pool. Uses @a scratch_pool for
+ * temporary allocations.
+ *
+ * @since New in 1.12.
+ */
 
-/** Return a new uri like @a uri, but transformed such that some types
+svn_error_t *
+svn_relpath_canonicalize_safe(const char **canonical_relpath,
+                              const char **non_canonical_result,
+                              const char *relpath,
+                              apr_pool_t *result_pool,
+                              apr_pool_t *scratch_pool);
+
+
+/**
+ * Return a new uri like @a uri, but transformed such that some types
  * of uri specification redundancies are removed.
  *
  * This involves:
@@ -510,11 +590,40 @@ svn_relpath_canonicalize(const char *relpath,
  *
  * Allocate the result in @a result_pool.
  *
- * @since New in 1.7.
+ * @warning This function may call @c abort() if @a uri can not be
+ *          canonicalized.
+ *          Use svn_uri_canonicalize_safe() for tainted input.
+ *
+  * @since New in 1.7.
  */
 const char *
 svn_uri_canonicalize(const char *uri,
                      apr_pool_t *result_pool);
+
+/**
+ *  Return a new @a *canonical_uri like @a uri, but transformed such that
+ * some types of uri specification redundancies are removed.
+ *
+ * Similar to svn_uri_canonicalize() (which see), but returns an error if
+ * the @a uri can not be canonicalized or of the result does not pass the
+ * svn_uri_is_canonical() test.
+ *
+ * If the function fails and @a non_canonical_result is not @c NULL, the
+ * result of the failed canonicalization attempt (which may be @c NULL)
+ * will be returned in @a *non_canonical_result.
+ *
+ * Allocates the results in @a result_pool. Uses @a scratch_pool for
+ * temporary allocations.
+ *
+ * @since New in 1.12.
+ */
+svn_error_t *
+svn_uri_canonicalize_safe(const char **canonical_uri,
+                          const char **non_canonical_result,
+                          const char *uri,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool);
+
 
 /** Return @c TRUE iff @a dirent is canonical.
  *

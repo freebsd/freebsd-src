@@ -2204,9 +2204,9 @@ pack_body(void *baton,
   if (fully_packed)
     {
       if (pb->notify_func)
-        (*pb->notify_func)(pb->notify_baton,
-                           ffd->min_unpacked_rev / ffd->max_files_per_dir,
-                           svn_fs_pack_notify_noop, scratch_pool);
+        SVN_ERR(pb->notify_func(pb->notify_baton,
+                                ffd->min_unpacked_rev / ffd->max_files_per_dir,
+                                svn_fs_pack_notify_noop, scratch_pool));
 
       return SVN_NO_ERROR;
     }
@@ -2258,9 +2258,9 @@ svn_fs_x__pack(svn_fs_t *fs,
       svn_fs_x__data_t *ffd = fs->fsap_data;
 
       if (notify_func)
-        (*notify_func)(notify_baton,
-                       ffd->min_unpacked_rev / ffd->max_files_per_dir,
-                       svn_fs_pack_notify_noop, scratch_pool);
+        SVN_ERR(notify_func(notify_baton,
+                            ffd->min_unpacked_rev / ffd->max_files_per_dir,
+                            svn_fs_pack_notify_noop, scratch_pool));
 
       return SVN_NO_ERROR;
     }

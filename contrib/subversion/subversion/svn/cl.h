@@ -32,6 +32,7 @@
 #include <apr_tables.h>
 #include <apr_getopt.h>
 
+#include "svn_types.h"
 #include "svn_wc.h"
 #include "svn_client.h"
 #include "svn_string.h"
@@ -125,6 +126,16 @@ typedef enum svn_cl__show_revs_t {
 /* Return svn_cl__show_revs_t value corresponding to word. */
 svn_cl__show_revs_t
 svn_cl__show_revs_from_word(const char *word);
+
+
+/* Unit types for file size conversion. */
+typedef enum svn_cl__size_unit_t
+  {
+    SVN_CL__SIZE_UNIT_NONE = 0,       /* Default, no conversion. */
+    SVN_CL__SIZE_UNIT_XML = -1,       /* Conversion for XML output. */
+    SVN_CL__SIZE_UNIT_BASE_10 = 1000, /* Use base-10 SI units. */
+    SVN_CL__SIZE_UNIT_BASE_2 = 1024   /* Use base-2 SI units. */
+  } svn_cl__size_unit_t;
 
 
 /*** Command dispatch. ***/
@@ -250,13 +261,20 @@ typedef struct svn_cl__opt_state_t
   svn_boolean_t mergeinfo_log;     /* show log message in mergeinfo command */
   svn_boolean_t remove_unversioned;/* remove unversioned items */
   svn_boolean_t remove_ignored;    /* remove ignored items */
+  svn_boolean_t remove_added;      /* reverting added item also removes it */
   svn_boolean_t no_newline;        /* do not output the trailing newline */
   svn_boolean_t show_passwords;    /* show cached passwords */
   svn_boolean_t pin_externals;     /* pin externals to last-changed revisions */
   const char *show_item;           /* print only the given item */
   svn_boolean_t adds_as_modification; /* update 'add vs add' no tree conflict */
   svn_boolean_t vacuum_pristines; /* remove unreferenced pristines */
-  svn_boolean_t list;
+  svn_boolean_t drop;             /* drop shelf after successful unshelve */
+  svn_cl__size_unit_t file_size_unit; /* file size format */
+  enum svn_cl__viewspec_t {
+      svn_cl__viewspec_unspecified = 0 /* default */,
+      svn_cl__viewspec_classic,
+      svn_cl__viewspec_svn11
+  } viewspec;                     /* value of --x-viewspec */
 } svn_cl__opt_state_t;
 
 /* Conflict stats for operations such as update and merge. */
@@ -268,6 +286,103 @@ typedef struct svn_cl__cmd_baton_t
   svn_cl__conflict_stats_t *conflict_stats;
   svn_client_ctx_t *ctx;
 } svn_cl__cmd_baton_t;
+
+
+/* Add an identifier here for long options that don't have a short
+   option. Options that have both long and short options should just
+   use the short option letter as identifier.  */
+typedef enum svn_cl__longopt_t {
+  opt_auth_password = SVN_OPT_FIRST_LONGOPT_ID,
+  opt_auth_password_from_stdin,
+  opt_auth_username,
+  opt_autoprops,
+  opt_changelist,
+  opt_config_dir,
+  opt_config_options,
+  /* diff options */
+  opt_diff_cmd,
+  opt_internal_diff,
+  opt_no_diff_added,
+  opt_no_diff_deleted,
+  opt_show_copies_as_adds,
+  opt_notice_ancestry,
+  opt_summarize,
+  opt_use_git_diff_format,
+  opt_ignore_properties,
+  opt_properties_only,
+  opt_patch_compatible,
+  /* end of diff options */
+  opt_dry_run,
+  opt_editor_cmd,
+  opt_encoding,
+  opt_force_log,
+  opt_force,
+  opt_keep_changelists,
+  opt_ignore_ancestry,
+  opt_ignore_externals,
+  opt_incremental,
+  opt_merge_cmd,
+  opt_native_eol,
+  opt_new_cmd,
+  opt_no_auth_cache,
+  opt_no_autoprops,
+  opt_no_ignore,
+  opt_no_unlock,
+  opt_non_interactive,
+  opt_force_interactive,
+  opt_old_cmd,
+  opt_record_only,
+  opt_relocate,
+  opt_remove,
+  opt_revprop,
+  opt_stop_on_copy,
+  opt_strict,                   /* ### DEPRECATED */
+  opt_targets,
+  opt_depth,
+  opt_set_depth,
+  opt_version,
+  opt_xml,
+  opt_keep_local,
+  opt_with_revprop,
+  opt_with_all_revprops,
+  opt_with_no_revprops,
+  opt_parents,
+  opt_accept,
+  opt_show_revs,
+  opt_reintegrate,
+  opt_trust_server_cert,
+  opt_trust_server_cert_failures,
+  opt_strip,
+  opt_ignore_keywords,
+  opt_reverse_diff,
+  opt_ignore_whitespace,
+  opt_diff,
+  opt_allow_mixed_revisions,
+  opt_include_externals,
+  opt_show_inherited_props,
+  opt_search,
+  opt_search_and,
+  opt_mergeinfo_log,
+  opt_remove_unversioned,
+  opt_remove_ignored,
+  opt_remove_added,
+  opt_no_newline,
+  opt_show_passwords,
+  opt_pin_externals,
+  opt_show_item,
+  opt_adds_as_modification,
+  opt_vacuum_pristines,
+  opt_drop,
+  opt_viewspec,
+} svn_cl__longopt_t;
+
+/* Options for giving a log message.  (Some of these also have other uses.)
+ */
+#define SVN_CL__LOG_MSG_OPTIONS 'm', 'F', \
+                                opt_force_log, \
+                                opt_editor_cmd, \
+                                opt_encoding, \
+                                opt_with_revprop
 
 
 /* Declare all the command procedures */
@@ -304,9 +419,6 @@ svn_opt_subcommand_t
   svn_cl__revert,
   svn_cl__resolve,
   svn_cl__resolved,
-  svn_cl__shelve,
-  svn_cl__unshelve,
-  svn_cl__shelves,
   svn_cl__status,
   svn_cl__switch,
   svn_cl__unlock,
@@ -315,7 +427,7 @@ svn_opt_subcommand_t
 
 
 /* See definition in svn.c for documentation. */
-extern const svn_opt_subcommand_desc2_t svn_cl__cmd_table[];
+extern const svn_opt_subcommand_desc3_t *svn_cl__cmd_table;
 
 /* See definition in svn.c for documentation. */
 extern const int svn_cl__global_options[];
@@ -389,7 +501,7 @@ svn_error_t *
 svn_cl__print_conflict_stats(svn_cl__conflict_stats_t *conflict_stats,
                              apr_pool_t *scratch_pool);
 
-/* 
+/*
  * Interactively resolve the conflict a @a CONFLICT.
  * TODO: more docs
  */
@@ -406,7 +518,7 @@ svn_cl__resolve_conflict(svn_boolean_t *quit,
                          svn_client_ctx_t *ctx,
                          apr_pool_t *scratch_pool);
 
-/* 
+/*
  * Interactively resolve conflicts for all TARGETS.
  * TODO: more docs
  */
@@ -711,6 +823,24 @@ svn_cl__node_kind_str_xml(svn_node_kind_t kind);
 const char *
 svn_cl__node_kind_str_human_readable(svn_node_kind_t kind);
 
+/* Set *RESULT to the size of a file, formatted according to BASE.
+   For base-10 and base-2 units, the size is constrained to at most
+   three significant digits.
+
+   If LONG_UNITS is TRUE, any unit suffixes will be the whole SI symbol,
+   e.g., KiB, MiB, etc; otherwise only the first letters will be used.
+
+   File sizes are never negative, so we don't handle that case other than
+   making sure that the scale adjustment will work.
+
+   The result will be allocated from RESULT_POOL. */
+svn_error_t *
+svn_cl__format_file_size(const char **result,
+                         svn_filesize_t size,
+                         svn_cl__size_unit_t base,
+                         svn_boolean_t long_units,
+                         apr_pool_t *result_pool);
+
 
 /** Provides an XML name for a given OPERATION.
  * Note: POOL is currently not used.
@@ -914,6 +1044,20 @@ svn_cl__similarity_check(const char *key,
                          svn_cl__simcheck_t **tokens,
                          apr_size_t token_count,
                          apr_pool_t *scratch_pool);
+
+/* Return in FUNC_P and BATON_P a callback that prints a summary diff,
+ * according to the options XML and IGNORE_PROPERTIES.
+ *
+ * ANCHOR is a URL or local path to be prefixed to the printed paths.
+ */
+svn_error_t *
+svn_cl__get_diff_summary_writer(svn_client_diff_summarize_func_t *func_p,
+                                void **baton_p,
+                                svn_boolean_t xml,
+                                svn_boolean_t ignore_properties,
+                                const char *anchor,
+                                apr_pool_t *result_pool,
+                                apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

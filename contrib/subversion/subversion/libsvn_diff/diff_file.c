@@ -1253,7 +1253,7 @@ svn_diff_file_options_parse(svn_diff_file_options_t *options,
   apr_array_cat(argv, args);
   APR_ARRAY_PUSH(argv, const char *) = NULL;
 
-  apr_getopt_init(&os, pool, 
+  apr_getopt_init(&os, pool,
                   argv->nelts - 1 /* Exclude trailing NULL */,
                   (const char *const *) argv->elts);
 

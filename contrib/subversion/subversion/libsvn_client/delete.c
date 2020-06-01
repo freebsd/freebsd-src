@@ -181,12 +181,13 @@ can_delete_node(svn_boolean_t *target_missing,
 
 static svn_error_t *
 path_driver_cb_func(void **dir_baton,
+                    const svn_delta_editor_t *editor,
+                    void *edit_baton,
                     void *parent_baton,
                     void *callback_baton,
                     const char *path,
                     apr_pool_t *pool)
 {
-  const svn_delta_editor_t *editor = callback_baton;
   *dir_baton = NULL;
   return editor->delete_entry(path, SVN_INVALID_REVNUM, parent_baton, pool);
 }
@@ -248,8 +249,8 @@ single_repos_delete(svn_ra_session_t *ra_session,
                                     pool));
 
   /* Call the path-based editor driver. */
-  err = svn_delta_path_driver2(editor, edit_baton, relpaths, TRUE,
-                               path_driver_cb_func, (void *)editor, pool);
+  err = svn_delta_path_driver3(editor, edit_baton, relpaths, TRUE,
+                               path_driver_cb_func, NULL, pool);
 
   if (err)
     {

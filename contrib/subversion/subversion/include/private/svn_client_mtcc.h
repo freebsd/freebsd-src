@@ -207,6 +207,17 @@ svn_client__mtcc_check_path(svn_node_kind_t *kind,
 /** Commits all operations stored in @a mtcc as a new revision and destroys
  * @a mtcc.
  *
+ * A log message is obtained from the log message callback in the client
+ * context in @a mtcc.
+ *
+ * @a revprop_table (if non-NULL) supplies additional revision properties;
+ * it may not supply any "svn:*" revision properties.
+ *
+ * As with svn_ra_get_commit_editor3(), after the commit has succeeded,
+ * it will invoke @a commit_callback (if non-NULL) with filled-in
+ * #svn_commit_info_t *, @a commit_baton, and @a scratch_pool or some subpool
+ * thereof as arguments.
+ *
  * @since New in 1.9.
  */
 svn_error_t *

@@ -471,9 +471,15 @@ recover_body(void *baton, apr_pool_t *pool)
     }
 
   /* Prune younger-than-(newfound-youngest) revisions from the rep
-     cache if sharing is enabled taking care not to create the cache
-     if it does not exist. */
-  if (ffd->rep_sharing_allowed)
+     cache, taking care not to create the cache if it does not exist.
+
+     We do this whenever rep-cache.db exists, whether it's currently enabled
+     or not, to prevent a data loss that could result from having revisions
+     created after this 'recover' operation referring to rep-cache.db rows
+     that were created before the recover and that point to revisions younger-
+     than-(newfound-youngest).
+   */
+  if (ffd->format >= SVN_FS_FS__MIN_REP_SHARING_FORMAT)
     {
       svn_boolean_t rep_cache_exists;
 

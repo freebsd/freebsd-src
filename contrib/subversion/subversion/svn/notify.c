@@ -210,7 +210,7 @@ svn_cl__conflict_stats_get_paths(apr_array_header_t **conflicted_paths,
         }
     }
 
-  svn_hash_keys(conflicted_paths, all_conflicts, result_pool);
+  SVN_ERR(svn_hash_keys(conflicted_paths, all_conflicts, result_pool));
   svn_sort__array(*conflicted_paths, svn_sort_compare_paths);
 
   return SVN_NO_ERROR;

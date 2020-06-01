@@ -69,6 +69,11 @@ struct svn_diff_hunk_t {
   /* APR file handle to the patch file this hunk came from. */
   apr_file_t *apr_file;
 
+  /* Whether the hunk was interpreted as pretty-print mergeinfo. If so,
+     the hunk content is in PATCH and the rest of this hunk object is
+     mostly uninitialized. */
+  svn_boolean_t is_pretty_print_mergeinfo;
+
   /* Ranges used to keep track of this hunk's texts positions within
    * the patch file. */
   struct svn_diff__hunk_range diff_text_range;
@@ -210,7 +215,7 @@ svn_diff_hunk__create_adds_single_line(svn_diff_hunk_t **hunk_out,
                                        apr_pool_t *result_pool,
                                        apr_pool_t *scratch_pool)
 {
-  SVN_ERR(add_or_delete_single_line(hunk_out, line, patch, 
+  SVN_ERR(add_or_delete_single_line(hunk_out, line, patch,
                                     (!patch->reverse),
                                     result_pool, scratch_pool));
   return SVN_NO_ERROR;
@@ -899,10 +904,6 @@ parse_prop_name(const char **prop_name, const char *header,
  * The hunk header has the following format:
  * ## -0,NUMBER_OF_REVERSE_MERGES +0,NUMBER_OF_FORWARD_MERGES ##
  *
- * At this point, the number of reverse merges has already been
- * parsed into HUNK->ORIGINAL_LENGTH, and the number of forward
- * merges has been parsed into HUNK->MODIFIED_LENGTH.
- *
  * The header is followed by a list of mergeinfo, one path per line.
  * This function parses such lines. Lines describing reverse merges
  * appear first, and then all lines describing forward merges appear.
@@ -914,18 +915,27 @@ parse_prop_name(const char **prop_name, const char *header,
  * ":r", which in turn is followed by a mergeinfo revision range,
  *  which is terminated by whitespace or end-of-string.
  *
- * If the current line meets the above criteria and we're able
- * to parse valid mergeinfo from it, the resulting mergeinfo
- * is added to patch->mergeinfo or patch->reverse_mergeinfo,
- * and we proceed to the next line.
+ * *NUMBER_OF_REVERSE_MERGES and *NUMBER_OF_FORWARD_MERGES are the
+ * numbers of reverse and forward merges remaining to be read. This
+ * function decrements *NUMBER_OF_REVERSE_MERGES for each LINE
+ * parsed until that is zero, then *NUMBER_OF_FORWARD_MERGES for
+ * each LINE parsed until that is zero. If both are zero, it parses
+ * and discards LINE.
+ *
+ * If LINE is successfully parsed, *FOUND_MERGEINFO is set to TRUE,
+ * otherwise to FALSE.
+ *
+ * If LINE is successfully parsed and counted, the resulting mergeinfo
+ * is added to PATCH->mergeinfo or PATCH->reverse_mergeinfo.
  */
 static svn_error_t *
-parse_mergeinfo(svn_boolean_t *found_mergeinfo,
-                svn_stringbuf_t *line,
-                svn_diff_hunk_t *hunk,
-                svn_patch_t *patch,
-                apr_pool_t *result_pool,
-                apr_pool_t *scratch_pool)
+parse_pretty_mergeinfo_line(svn_boolean_t *found_mergeinfo,
+                            svn_linenum_t *number_of_reverse_merges,
+                            svn_linenum_t *number_of_forward_merges,
+                            svn_stringbuf_t *line,
+                            svn_patch_t *patch,
+                            apr_pool_t *result_pool,
+                            apr_pool_t *scratch_pool)
 {
   char *slash = strchr(line->data, '/');
   char *colon = strrchr(line->data, ':');
@@ -972,7 +982,7 @@ parse_mergeinfo(svn_boolean_t *found_mergeinfo,
 
       if (mergeinfo)
         {
-          if (hunk->original_length > 0) /* reverse merges */
+          if (*number_of_reverse_merges > 0) /* reverse merges */
             {
               if (patch->reverse)
                 {
@@ -994,9 +1004,9 @@ parse_mergeinfo(svn_boolean_t *found_mergeinfo,
                                                  result_pool,
                                                  scratch_pool));
                 }
-              hunk->original_length--;
+              (*number_of_reverse_merges)--;
             }
-          else if (hunk->modified_length > 0) /* forward merges */
+          else if (number_of_forward_merges > 0) /* forward merges */
             {
               if (patch->reverse)
                 {
@@ -1018,7 +1028,7 @@ parse_mergeinfo(svn_boolean_t *found_mergeinfo,
                                                  result_pool,
                                                  scratch_pool));
                 }
-              hunk->modified_length--;
+              (*number_of_forward_merges)--;
             }
 
           *found_mergeinfo = TRUE;
@@ -1165,18 +1175,48 @@ parse_next_hunk(svn_diff_hunk_t **hunk,
       if (in_hunk && *is_property && *prop_name &&
           strcmp(*prop_name, SVN_PROP_MERGEINFO) == 0)
         {
-          svn_boolean_t found_mergeinfo;
+          svn_boolean_t found_pretty_mergeinfo_line;
 
-          SVN_ERR(parse_mergeinfo(&found_mergeinfo, line, *hunk, patch,
-                                  result_pool, iterpool));
-          if (found_mergeinfo)
-            continue; /* Proceed to the next line in the svn:mergeinfo hunk. */
-          else
+          if (! hunk_seen)
             {
-              /* Perhaps we can also use original_lines/modified_lines here */
-
-              in_hunk = FALSE; /* On to next property */
+              /* We're reading the first line of the hunk, so the start
+               * of the line just read is the hunk text's byte offset. */
+              start = last_line;
             }
+
+          SVN_ERR(parse_pretty_mergeinfo_line(&found_pretty_mergeinfo_line,
+                                              &original_lines, &modified_lines,
+                                              line, patch,
+                                              result_pool, iterpool));
+          if (found_pretty_mergeinfo_line)
+            {
+              hunk_seen = TRUE;
+              (*hunk)->is_pretty_print_mergeinfo = TRUE;
+              continue; /* Proceed to the next line in the svn:mergeinfo hunk. */
+            }
+
+          if ((*hunk)->is_pretty_print_mergeinfo)
+            {
+              /* We have reached the end of the pretty-print-mergeinfo hunk.
+                 (This format uses only one hunk.) */
+              if (eof)
+                {
+                  /* The hunk ends at EOF. */
+                  end = pos;
+                }
+              else
+                {
+                  /* The start of the current line marks the first byte
+                   * after the hunk text. */
+                  end = last_line;
+                }
+              original_end = end;
+              modified_end = end;
+              break;
+            }
+
+          /* Otherwise, this is a property diff in the
+             regular format so fall through to normal processing. */
         }
 
       if (in_hunk)
@@ -1195,7 +1235,7 @@ parse_next_hunk(svn_diff_hunk_t **hunk,
           c = line->data[0];
           if (c == ' '
               || ((original_lines > 0 && modified_lines > 0)
-                  && ( 
+                  && (
                /* Tolerate chopped leading spaces on empty lines. */
                       (! eof && line->len == 0)
                /* Maybe tolerate chopped leading spaces on non-empty lines. */
@@ -1971,10 +2011,10 @@ parse_hunks(svn_patch_t *patch, apr_file_t *apr_file,
           else
             last_prop_name = prop_name;
 
-          /* Skip svn:mergeinfo properties.
-           * Mergeinfo data cannot be represented as a hunk and
+          /* Skip pretty-printed svn:mergeinfo property hunks.
+           * Pretty-printed mergeinfo data cannot be represented as a hunk and
            * is therefore stored in PATCH itself. */
-          if (strcmp(prop_name, SVN_PROP_MERGEINFO) == 0)
+          if (hunk->is_pretty_print_mergeinfo)
             continue;
 
           SVN_ERR(add_property_hunk(patch, prop_name, hunk, prop_operation,
@@ -2045,7 +2085,7 @@ parse_binary_patch(svn_patch_t *patch, apr_file_t *apr_file,
           else if (in_src)
             {
               patch->binary_patch = bpatch; /* SUCCESS! */
-              break; 
+              break;
             }
           else
             {

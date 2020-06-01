@@ -31,28 +31,24 @@
 # features already used in the file.  Reviewing the history of changes
 # may be useful as well.
 
-APR_VERSION=${APR_VERSION:-"1.4.6"}
+APR_VERSION=${APR_VERSION:-"1.5.0"}
 APU_VERSION=${APU_VERSION:-"1.5.1"}
+PY3C_VERSION=${PY3C_VERSION:='1.1'}
 SERF_VERSION=${SERF_VERSION:-"1.3.8"}
 ZLIB_VERSION=${ZLIB_VERSION:-"1.2.8"}
 SQLITE_VERSION=${SQLITE_VERSION:-"3.8.11.1"}
 # Used to construct the SQLite download URL.
 SQLITE_VERSION_REL_YEAR=2015
-GTEST_VERSION=${GMOCK_VERSION:-"1.7.0"}
-GMOCK_VERSION=${GMOCK_VERSION:-"1.7.0"}
 HTTPD_VERSION=${HTTPD_VERSION:-"2.4.10"}
 APR_ICONV_VERSION=${APR_ICONV_VERSION:-"1.2.1"}
 
 APR=apr-${APR_VERSION}
 APR_UTIL=apr-util-${APU_VERSION}
+PY3C=py3c-${PY3C_VERSION}
 SERF=serf-${SERF_VERSION}
 ZLIB=zlib-${ZLIB_VERSION}
 SQLITE_VERSION_LIST=`echo $SQLITE_VERSION | sed -e 's/\./ /g'`
 SQLITE=sqlite-amalgamation-`printf %d%02d%02d%02d $SQLITE_VERSION_LIST`
-GTEST=release-${GTEST_VERSION}
-GTEST_URL=https://github.com/google/googletest/archive
-GMOCK=release-${GMOCK_VERSION}
-GMOCK_URL=https://github.com/google/googlemock/archive
 
 HTTPD=httpd-${HTTPD_VERSION}
 APR_ICONV=apr-iconv-${APR_ICONV_VERSION}
@@ -67,12 +63,12 @@ HTTP_FETCH=
 
 # Need this uncommented if any of the specific versions of the ASF tarballs to
 # be downloaded are no longer available on the general mirrors.
-APACHE_MIRROR=http://archive.apache.org/dist
+APACHE_MIRROR=https://archive.apache.org/dist
 
 # helpers
 usage() {
     echo "Usage: $0"
-    echo "Usage: $0 [ apr | serf | zlib | sqlite | googlemock ] ..."
+    echo "Usage: $0 [ apr | py3c | serf | zlib | sqlite ] ..."
     exit $1
 }
 
@@ -88,6 +84,19 @@ get_apr() {
 
     test -d $BASEDIR/apr      || mv $APR apr
     test -d $BASEDIR/apr-util || mv $APR_UTIL apr-util
+}
+
+get_py3c() {
+    test -d $BASEDIR/py3c && return
+    py3cdist=v${PY3C_VERSION}.tar.gz
+
+    cd $TEMPDIR
+    $HTTP_FETCH https://github.com/encukou/py3c/archive/${py3cdist}
+    cd $BASEDIR
+
+    gzip -dc $TEMPDIR/${py3cdist} | tar -xf -
+
+    mv $PY3C py3c
 }
 
 get_serf() {
@@ -106,7 +115,7 @@ get_zlib() {
     test -d $BASEDIR/zlib && return
 
     cd $TEMPDIR
-    $HTTP_FETCH http://sourceforge.net/projects/libpng/files/zlib/$ZLIB_VERSION/$ZLIB.tar.gz
+    $HTTP_FETCH https://sourceforge.net/projects/libpng/files/zlib/$ZLIB_VERSION/$ZLIB.tar.gz
     cd $BASEDIR
 
     gzip -dc $TEMPDIR/$ZLIB.tar.gz | tar -xf -
@@ -127,29 +136,11 @@ get_sqlite() {
 
 }
 
-get_googlemock() {
-    test -d $BASEDIR/googlemock && return
-
-    cd $TEMPDIR
-    $HTTP_FETCH ${GTEST_URL}/${GTEST}.zip
-    unzip -q ${GTEST}.zip
-    rm -f ${GTEST}.zip
-
-    $HTTP_FETCH ${GMOCK_URL}/${GMOCK}.zip
-    unzip -q ${GMOCK}.zip
-    rm -f ${GMOCK}.zip
-
-    cd $BASEDIR
-    mkdir googlemock
-    mv $TEMPDIR/googletest-release-${GTEST_VERSION} googlemock/googletest
-    mv $TEMPDIR/googlemock-release-${GMOCK_VERSION} googlemock/googlemock
-}
-
 # main()
 get_deps() {
     mkdir -p $TEMPDIR
 
-    for i in zlib serf sqlite-amalgamation apr apr-util gmock-fused; do
+    for i in zlib serf sqlite-amalgamation py3c apr apr-util; do
       if [ -d $i ]; then
         echo "Local directory '$i' already exists; the downloaded copy won't be used" >&2
       fi
@@ -165,6 +156,7 @@ get_deps() {
       done
     else
       get_apr
+      get_py3c
       get_serf
       get_zlib
       get_sqlite

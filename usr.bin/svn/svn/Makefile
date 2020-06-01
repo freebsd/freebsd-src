@@ -22,6 +22,7 @@ SRCS=		add-cmd.c \
 		diff-cmd.c \
 		export-cmd.c \
 		file-merge.c \
+		filesize.c \
 		help-cmd.c \
 		import-cmd.c \
 		info-cmd.c \
@@ -44,9 +45,10 @@ SRCS=		add-cmd.c \
 		resolve-cmd.c \
 		resolved-cmd.c \
 		revert-cmd.c \
-		shelve-cmd.c \
-		status-cmd.c \
+		shelf-cmd.c \
+		shelf2-cmd.c \
 		similarity.c \
+		status-cmd.c \
 		status.c \
 		svn.c \
 		switch-cmd.c \

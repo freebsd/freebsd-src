@@ -44,6 +44,7 @@
 #include "private/svn_sorts_private.h"
 #include "private/svn_utf_private.h"
 #include "private/svn_cache.h"
+#include "private/svn_fspath.h"
 
 #define ARE_VALID_COPY_ARGS(p,r) ((p) && SVN_IS_VALID_REVNUM(r))
 
@@ -512,6 +513,30 @@ svn_repos__dump_headers(svn_stream_t *stream,
 }
 
 svn_error_t *
+svn_repos__dump_magic_header_record(svn_stream_t *dump_stream,
+                                    int version,
+                                    apr_pool_t *pool)
+{
+  SVN_ERR(svn_stream_printf(dump_stream, pool,
+                            SVN_REPOS_DUMPFILE_MAGIC_HEADER ": %d\n\n",
+                            version));
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_repos__dump_uuid_header_record(svn_stream_t *dump_stream,
+                                   const char *uuid,
+                                   apr_pool_t *pool)
+{
+  if (uuid)
+    {
+      SVN_ERR(svn_stream_printf(dump_stream, pool, SVN_REPOS_DUMPFILE_UUID
+                                ": %s\n\n", uuid));
+    }
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
 svn_repos__dump_revision_record(svn_stream_t *dump_stream,
                                 svn_revnum_t revision,
                                 apr_hash_t *extra_headers,
@@ -713,8 +738,9 @@ struct dir_baton
    or NULL if this is the top-level directory of the edit.
 
    Perform all allocations in POOL.  */
-static struct dir_baton *
-make_dir_baton(const char *path,
+static struct svn_error_t *
+make_dir_baton(struct dir_baton **dbp,
+               const char *path,
                const char *cmp_path,
                svn_revnum_t cmp_rev,
                void *edit_baton,
@@ -723,10 +749,10 @@ make_dir_baton(const char *path,
 {
   struct edit_baton *eb = edit_baton;
   struct dir_baton *new_db = apr_pcalloc(pool, sizeof(*new_db));
-  const char *full_path;
+  const char *full_path, *canonicalized_path;
 
   /* A path relative to nothing?  I don't think so. */
-  SVN_ERR_ASSERT_NO_RETURN(!path || pb);
+  SVN_ERR_ASSERT(!path || pb);
 
   /* Construct the full path of this node. */
   if (pb)
@@ -736,7 +762,11 @@ make_dir_baton(const char *path,
 
   /* Remove leading slashes from copyfrom paths. */
   if (cmp_path)
-    cmp_path = svn_relpath_canonicalize(cmp_path, pool);
+    {
+      SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                            cmp_path, pool, pool));
+      cmp_path = canonicalized_path;
+    }
 
   new_db->edit_baton = eb;
   new_db->path = full_path;
@@ -747,7 +777,8 @@ make_dir_baton(const char *path,
   new_db->check_name_collision = FALSE;
   new_db->pool = pool;
 
-  return new_db;
+  *dbp = new_db;
+  return SVN_NO_ERROR;
 }
 
 static svn_error_t *
@@ -1143,7 +1174,12 @@ dump_node(struct edit_baton *eb,
 
   /* Remove leading slashes from copyfrom paths. */
   if (cmp_path)
-    cmp_path = svn_relpath_canonicalize(cmp_path, pool);
+    {
+      const char *canonicalized_path;
+      SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                            cmp_path, pool, pool));
+      cmp_path = canonicalized_path;
+    }
 
   /* Validate the comparison path/rev. */
   if (ARE_VALID_COPY_ARGS(cmp_path, cmp_rev))
@@ -1513,9 +1549,9 @@ open_root(void *edit_baton,
           apr_pool_t *pool,
           void **root_baton)
 {
-  *root_baton = make_dir_baton(NULL, NULL, SVN_INVALID_REVNUM,
-                               edit_baton, NULL, pool);
-  return SVN_NO_ERROR;
+  return svn_error_trace(make_dir_baton((struct dir_baton **)root_baton,
+                                        NULL, NULL, SVN_INVALID_REVNUM,
+                                        edit_baton, NULL, pool));
 }
 
 
@@ -1547,8 +1583,10 @@ add_directory(const char *path,
   struct edit_baton *eb = pb->edit_baton;
   void *was_deleted;
   svn_boolean_t is_copy = FALSE;
-  struct dir_baton *new_db
-    = make_dir_baton(path, copyfrom_path, copyfrom_rev, eb, pb, pool);
+  struct dir_baton *new_db;
+
+  SVN_ERR(make_dir_baton(&new_db, path, copyfrom_path, copyfrom_rev, eb,
+                         pb, pool));
 
   /* This might be a replacement -- is the path already deleted? */
   was_deleted = svn_hash_gets(pb->deleted_entries, path);
@@ -1605,7 +1643,7 @@ open_directory(const char *path,
       cmp_rev = pb->cmp_rev;
     }
 
-  new_db = make_dir_baton(path, cmp_path, cmp_rev, eb, pb, pool);
+  SVN_ERR(make_dir_baton(&new_db, path, cmp_path, cmp_rev, eb, pb, pool));
   *child_baton = new_db;
   return SVN_NO_ERROR;
 }
@@ -1936,25 +1974,11 @@ write_revision_record(svn_stream_t *stream,
                       apr_pool_t *pool)
 {
   apr_hash_t *props;
-  apr_time_t timetemp;
-  svn_string_t *datevalue;
 
   if (include_revprops)
     {
       SVN_ERR(svn_repos_fs_revision_proplist(&props, repos, rev,
                                              authz_func, authz_baton, pool));
-
-      /* Run revision date properties through the time conversion to
-        canonicalize them. */
-      /* ### Remove this when it is no longer needed for sure. */
-      datevalue = svn_hash_gets(props, SVN_PROP_REVISION_DATE);
-      if (datevalue)
-        {
-          SVN_ERR(svn_time_from_cstring(&timetemp, datevalue->data, pool));
-          datevalue = svn_string_create(svn_time_to_cstring(timetemp, pool),
-                                        pool);
-          svn_hash_sets(props, SVN_PROP_REVISION_DATE, datevalue);
-        }
     }
    else
     {
@@ -1985,6 +2009,11 @@ dump_filter_authz_func(svn_boolean_t *allowed,
                        apr_pool_t *pool)
 {
   dump_filter_baton_t *b = baton;
+
+  /* For some nodes (e.g. files under copied directory) PATH may be
+   * non-canonical (missing leading '/').  Canonicalize PATH before
+   * passing it to FILTER_FUNC. */
+  path = svn_fspath__canonicalize(path, pool);
 
   return svn_error_trace(b->filter_func(allowed, root, path, b->filter_baton,
                                         pool));
@@ -2076,11 +2105,8 @@ svn_repos_dump_fs4(svn_repos_t *repos,
 
   /* Write out "general" metadata for the dumpfile.  In this case, a
      magic header followed by a dumpfile format version. */
-  SVN_ERR(svn_stream_printf(stream, pool,
-                            SVN_REPOS_DUMPFILE_MAGIC_HEADER ": %d\n\n",
-                            version));
-  SVN_ERR(svn_stream_printf(stream, pool, SVN_REPOS_DUMPFILE_UUID
-                            ": %s\n\n", uuid));
+  SVN_ERR(svn_repos__dump_magic_header_record(stream, version, pool));
+  SVN_ERR(svn_repos__dump_uuid_header_record(stream, uuid, pool));
 
   /* Create a notify object that we can reuse in the loop. */
   if (notify_func)

@@ -95,7 +95,7 @@
  * to avoid tree conflicts where the "incoming" and "local" change both
  * originated in the working copy, because the resolver code cannot handle
  * such tree conflicts at present.
- * 
+ *
  * The whole drive occurs as one single wc.db transaction.  At the end
  * of the transaction the destination NODES table should have a WORKING
  * layer that is equivalent to the WORKING layer found in the copied victim
@@ -411,6 +411,11 @@ create_tree_conflict(svn_skel_t **conflict_p,
     ? svn_dirent_join(wcroot->abspath,
                       move_src_op_root_relpath, scratch_pool)
     : NULL;
+  const char *move_dst_op_root_abspath
+    = dst_op_root_relpath
+    ? svn_dirent_join(wcroot->abspath,
+                      dst_op_root_relpath, scratch_pool)
+    : NULL;
   const char *old_repos_relpath_part
     = old_repos_relpath && old_version
     ? svn_relpath_skip_ancestor(old_version->path_in_repos,
@@ -468,7 +473,7 @@ create_tree_conflict(svn_skel_t **conflict_p,
 
           SVN_ERR(svn_wc__conflict_read_tree_conflict(&existing_reason,
                                                       &existing_action,
-                                                      &existing_abspath,
+                                                      &existing_abspath, NULL,
                                                       db, wcroot->abspath,
                                                       conflict,
                                                       scratch_pool,
@@ -500,6 +505,7 @@ create_tree_conflict(svn_skel_t **conflict_p,
                      reason,
                      action,
                      move_src_op_root_abspath,
+                     move_dst_op_root_abspath,
                      result_pool,
                      scratch_pool));
 
@@ -1050,7 +1056,7 @@ tc_editor_incoming_add_file(node_move_baton_t *nmb,
       SVN_ERR(svn_wc__wq_build_file_remove(&work_item, b->db,
                                            b->wcroot->abspath, src_abspath,
                                            scratch_pool, scratch_pool));
-    
+
       work_items = svn_wc__wq_merge(work_items, work_item, scratch_pool);
     }
 
@@ -2169,11 +2175,12 @@ suitable_for_move(svn_wc__db_wcroot_t *wcroot,
   while (have_row)
     {
       svn_revnum_t node_revision = svn_sqlite__column_revnum(stmt, 2);
-      const char *child_relpath = svn_sqlite__column_text(stmt, 0, NULL);
+      const char *child_relpath;
       const char *relpath;
 
       svn_pool_clear(iterpool);
 
+      child_relpath = svn_sqlite__column_text(stmt, 0, iterpool);
       relpath = svn_relpath_skip_ancestor(local_relpath, child_relpath);
       relpath = svn_relpath_join(repos_relpath, relpath, iterpool);
 
@@ -2520,7 +2527,7 @@ update_incoming_moved_node(node_move_baton_t *nmb,
           SVN_ERR(svn_stream_open_unique(&temp_stream, &temp_abspath,
                                          wctemp_abspath, svn_io_file_del_none,
                                          scratch_pool, scratch_pool));
-          err = svn_stream_copy3(working_stream, temp_stream, 
+          err = svn_stream_copy3(working_stream, temp_stream,
                                  b->cancel_func, b->cancel_baton,
                                  scratch_pool);
           if (err && err->apr_err == SVN_ERR_CANCELLED)
@@ -2685,7 +2692,7 @@ update_incoming_move(svn_revnum_t *old_rev,
    * recorded for any tree conflicts created during the editor drive.
    * We assume this path contains no local changes, and create local changes
    * in DST_RELPATH corresponding to changes contained in the conflict victim.
-   * 
+   *
    * DST_OP_DEPTH is used to infer the "op-root" of the incoming move. This
    * "op-root" is virtual because all nodes belonging to the incoming move
    * live in the BASE tree. It is used for constructing repository paths
@@ -2981,7 +2988,7 @@ tc_editor_update_add_new_file(added_node_baton_t *nb,
       nb->skip = TRUE;
       return SVN_NO_ERROR;
     }
-  
+
   /* Check for obstructions. */
   local_abspath = svn_dirent_join(nb->b->wcroot->abspath, nb->local_relpath,
                                   scratch_pool);
@@ -3582,7 +3589,7 @@ svn_wc__db_update_local_add(svn_wc__db_t *db,
   VERIFY_USABLE_WCROOT(wcroot);
 
   SVN_WC__DB_WITH_TXN(update_local_add(&new_rev, db, wcroot,
-                                       local_relpath, 
+                                       local_relpath,
                                        cancel_func, cancel_baton,
                                        scratch_pool),
                       wcroot);
@@ -4099,7 +4106,7 @@ fetch_conflict_details(int *src_op_depth,
 
   SVN_ERR(svn_wc__conflict_read_tree_conflict(&reason,
                                               action,
-                                              &move_src_op_root_abspath,
+                                              &move_src_op_root_abspath, NULL,
                                               db, local_abspath,
                                               conflict_skel, result_pool,
                                               scratch_pool));
@@ -4251,7 +4258,7 @@ svn_wc__db_op_raise_moved_away(svn_wc__db_t *db,
                                             scratch_pool),
     wcroot);
 
-  /* These version numbers are valid for update/switch notifications 
+  /* These version numbers are valid for update/switch notifications
      only! */
   SVN_ERR(svn_wc__db_update_move_list_notify(wcroot,
                                              (left_version

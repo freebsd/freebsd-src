@@ -22,9 +22,9 @@
 
 #include "svn_pools.h"
 
-#include "private/svn_fs_fs_private.h"
 #include "private/svn_sorts_private.h"
 
+#include "fs_fs.h"
 #include "index.h"
 #include "util.h"
 #include "transaction.h"
@@ -83,9 +83,9 @@ compare_p2l_entry_revision(const void *lhs,
                            const void *rhs)
 {
   const svn_fs_fs__p2l_entry_t *lhs_entry
-    =*(const svn_fs_fs__p2l_entry_t **)lhs;
+    =*(const svn_fs_fs__p2l_entry_t *const *)lhs;
   const svn_fs_fs__p2l_entry_t *rhs_entry
-    =*(const svn_fs_fs__p2l_entry_t **)rhs;
+    =*(const svn_fs_fs__p2l_entry_t *const *)rhs;
 
   if (lhs_entry->offset < rhs_entry->offset)
     return -1;

@@ -681,10 +681,10 @@ compare_p2l_to_rev(svn_fs_t *fs,
                                      NULL,
                                      _("p2l index entry for revision r%ld"
                                        " at offset %s contains invalid item"
-                                       " type %d"),
+                                       " type %u"),
                                      start,
                                      apr_off_t_toa(pool, offset),
-                                     entry->type);
+                                     (unsigned int)entry->type);
 
           /* There can be only one changes entry and that has a fixed type
            * and item number.  Its presence and parse-ability will be checked
@@ -694,11 +694,12 @@ compare_p2l_to_rev(svn_fs_t *fs,
             return svn_error_createf(SVN_ERR_FS_INDEX_CORRUPTION,
                                      NULL,
                                      _("p2l index entry for changes in"
-                                       " revision r%ld is item %ld of type"
-                                       " %d at offset %s"),
+                                       " revision r%ld is item"
+                                       " %"APR_UINT64_T_FMT
+                                       " of type %u at offset %s"),
                                      entry->item.revision,
                                      entry->item.number,
-                                     entry->type,
+                                     (unsigned int)entry->type,
                                      apr_off_t_toa(pool, offset));
 
           /* Check contents. */

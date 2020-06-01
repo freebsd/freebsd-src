@@ -1183,7 +1183,7 @@ svn_repos_create(svn_repos_t **repos_p,
   if ((err = svn_fs_create2(&repos->fs, repos->db_path, fs_config,
                             result_pool, scratch_pool)))
     {
-      /* If there was an error making the filesytem, e.g. unknown/supported
+      /* If there was an error making the filesystem, e.g. unknown/supported
        * filesystem type.  Clean up after ourselves.  Yes this is safe because
        * create_repos_structure will fail if the path existed before we started
        * so we can't accidentally remove a directory that previously existed.
@@ -1721,7 +1721,7 @@ svn_repos_recover4(const char *path,
 }
 
 struct freeze_baton_t {
-  apr_array_header_t *paths;
+  const apr_array_header_t *paths;
   int counter;
   svn_repos_freeze_func_t freeze_func;
   void *freeze_baton;
@@ -1788,7 +1788,7 @@ multi_freeze(void *baton,
    and an SQLite reserved lock which means the repository is readable
    while frozen. */
 svn_error_t *
-svn_repos_freeze(apr_array_header_t *paths,
+svn_repos_freeze(const apr_array_header_t *paths,
                  svn_repos_freeze_func_t freeze_func,
                  void *freeze_baton,
                  apr_pool_t *pool)

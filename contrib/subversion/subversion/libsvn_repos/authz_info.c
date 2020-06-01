@@ -148,37 +148,50 @@ svn_authz__get_global_rights(authz_rights_t *rights_p,
     {
       /* Check if we have explicit rights for anonymous access. */
       if (authz->has_anon_rights)
-        return resolve_global_rights(rights_p, &authz->anon_rights, repos);
+        {
+          return resolve_global_rights(rights_p, &authz->anon_rights, repos);
+        }
+      else
+        {
+          /* Return the implicit rights, i.e., none. */
+          rights_p->min_access = authz_access_none;
+          rights_p->max_access = authz_access_none;
+          return FALSE;
+        }
     }
   else
     {
+      svn_boolean_t combine_user_rights = FALSE;
+      svn_boolean_t access = FALSE;
+
       /* Check if we have explicit rights for this user. */
       const authz_global_rights_t *const user_rights =
         svn_hash_gets(authz->user_rights, user);
 
       if (user_rights)
         {
-          svn_boolean_t explicit
-            = resolve_global_rights(rights_p, user_rights, repos);
-
-          /* Rights given to _any_ authenticated user may apply, too. */
-          if (authz->has_authn_rights)
-            {
-              authz_rights_t authn;
-              explicit |= resolve_global_rights(&authn, &authz->authn_rights,
-                                                repos);
-              combine_rights(rights_p, rights_p, &authn);
-            }
-          return explicit;
+          access = resolve_global_rights(rights_p, user_rights, repos);
+          combine_user_rights = TRUE;
+        }
+      else if (authz->has_neg_rights)
+        {
+          /* Check if inverted-rule rights apply */
+          access = resolve_global_rights(rights_p, &authz->neg_rights, repos);
+          combine_user_rights = TRUE;
         }
 
-      /* Check if we have explicit rights for authenticated access. */
+      /* Rights given to _any_ authenticated user may apply, too. */
       if (authz->has_authn_rights)
-        return resolve_global_rights(rights_p, &authz->authn_rights, repos);
-    }
+        {
+          authz_rights_t authn;
+          access |= resolve_global_rights(&authn, &authz->authn_rights, repos);
 
-  /* Fall-through: return the implicit rights, i.e., none. */
-  rights_p->min_access = authz_access_none;
-  rights_p->max_access = authz_access_none;
-  return FALSE;
+          if (combine_user_rights)
+            combine_rights(rights_p, rights_p, &authn);
+          else
+            *rights_p = authn;
+        }
+
+      return access;
+    }
 }

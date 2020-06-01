@@ -17,6 +17,7 @@ SRCS=		authz.c \
 		delta.c \
 		deprecated.c \
 		dump.c \
+		dump_editor.c \
 		fs-wrap.c \
 		hooks.c \
 		list.c \

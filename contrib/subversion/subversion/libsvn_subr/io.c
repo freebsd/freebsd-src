@@ -155,8 +155,14 @@ typedef struct _FILE_DISPOSITION_INFO {
   BOOL DeleteFile;
 } FILE_DISPOSITION_INFO, *PFILE_DISPOSITION_INFO;
 
+typedef struct _FILE_ATTRIBUTE_TAG_INFO {
+  DWORD FileAttributes;
+  DWORD ReparseTag;
+} FILE_ATTRIBUTE_TAG_INFO, *PFILE_ATTRIBUTE_TAG_INFO;
+
 #define FileRenameInfo 3
 #define FileDispositionInfo 4
+#define FileAttributeTagInfo 9
 #endif /* WIN32 < Vista */
 
 /* One-time initialization of the late bound Windows API functions. */
@@ -169,18 +175,29 @@ typedef DWORD (WINAPI *GETFINALPATHNAMEBYHANDLE)(
                DWORD cchFilePath,
                DWORD dwFlags);
 
+typedef BOOL (WINAPI *GetFileInformationByHandleEx_t)(HANDLE hFile,
+                                                      int FileInformationClass,
+                                                      LPVOID lpFileInformation,
+                                                      DWORD dwBufferSize);
+
 typedef BOOL (WINAPI *SetFileInformationByHandle_t)(HANDLE hFile,
                                                     int FileInformationClass,
                                                     LPVOID lpFileInformation,
                                                     DWORD dwBufferSize);
 
 static GETFINALPATHNAMEBYHANDLE get_final_path_name_by_handle_proc = NULL;
+static GetFileInformationByHandleEx_t get_file_information_by_handle_ex_proc = NULL;
 static SetFileInformationByHandle_t set_file_information_by_handle_proc = NULL;
 
-/* Forward declaration. */
+/* Forward declarations. */
 static svn_error_t * io_win_read_link(svn_string_t **dest,
                                       const char *path,
                                       apr_pool_t *pool);
+
+static svn_error_t * io_win_check_path(svn_node_kind_t *kind_p,
+                                       svn_boolean_t *is_symlink_p,
+                                       const char *path,
+                                       apr_pool_t *pool);
 
 #endif
 
@@ -342,7 +359,6 @@ io_check_path(const char *path,
   /* Not using svn_io_stat() here because we want to check the
      apr_err return explicitly. */
   SVN_ERR(cstring_from_utf8(&path_apr, path, pool));
-
   flags = resolve_symlinks ? APR_FINFO_MIN : (APR_FINFO_MIN | APR_FINFO_LINK);
   apr_err = apr_stat(&finfo, path_apr, flags, pool);
 
@@ -405,8 +421,12 @@ svn_io_check_resolved_path(const char *path,
                            svn_node_kind_t *kind,
                            apr_pool_t *pool)
 {
+#if WIN32
+  return io_win_check_path(kind, NULL, path, pool);
+#else
   svn_boolean_t ignored;
   return io_check_path(path, TRUE, &ignored, kind, pool);
+#endif
 }
 
 svn_error_t *
@@ -414,8 +434,19 @@ svn_io_check_path(const char *path,
                   svn_node_kind_t *kind,
                   apr_pool_t *pool)
 {
+#if WIN32
+  svn_boolean_t is_symlink;
+
+  SVN_ERR(io_win_check_path(kind, &is_symlink, path, pool));
+
+  if (is_symlink)
+    *kind = svn_node_file;
+
+  return SVN_NO_ERROR;
+#else
   svn_boolean_t ignored;
   return io_check_path(path, FALSE, &ignored, kind, pool);
+#endif
 }
 
 svn_error_t *
@@ -424,7 +455,23 @@ svn_io_check_special_path(const char *path,
                           svn_boolean_t *is_special,
                           apr_pool_t *pool)
 {
+#ifdef WIN32
+  svn_boolean_t is_symlink;
+
+  SVN_ERR(io_win_check_path(kind, &is_symlink, path, pool));
+
+  if (is_symlink)
+    {
+      *is_special = TRUE;
+      *kind = svn_node_file;
+    }
+  else
+    *is_special = FALSE;
+
+  return SVN_NO_ERROR;
+#else
   return io_check_path(path, FALSE, is_special, kind, pool);
+#endif
 }
 
 struct temp_file_cleanup_s
@@ -1527,7 +1574,7 @@ reown_file(const char *path,
 }
 
 /* Determine what the PERMS for a new file should be by looking at the
-   permissions of a temporary file that we create in DIRECTORY.  
+   permissions of a temporary file that we create in DIRECTORY.
    DIRECTORY can be NULL in which case the system temporary dir is used.
    Unfortunately, umask() as defined in POSIX provides no thread-safe way
    to get at the current value of the umask, so what we're doing here is
@@ -1617,13 +1664,14 @@ merge_default_file_perms(apr_file_t *fd,
    that attempts to honor the users umask when dealing with
    permission changes.  It is a no-op when invoked on a symlink. */
 static svn_error_t *
-io_set_file_perms(const char *path,
-                  svn_boolean_t change_readwrite,
-                  svn_boolean_t enable_write,
-                  svn_boolean_t change_executable,
-                  svn_boolean_t executable,
-                  svn_boolean_t ignore_enoent,
-                  apr_pool_t *pool)
+io_set_perms(const char *path,
+             svn_boolean_t is_file,
+             svn_boolean_t change_readwrite,
+             svn_boolean_t enable_write,
+             svn_boolean_t change_executable,
+             svn_boolean_t executable,
+             svn_boolean_t ignore_enoent,
+             apr_pool_t *pool)
 {
   apr_status_t status;
   const char *path_apr;
@@ -1643,9 +1691,16 @@ io_set_file_perms(const char *path,
                             || SVN__APR_STATUS_IS_ENOTDIR(status)))
         return SVN_NO_ERROR;
       else if (status != APR_ENOTIMPL)
-        return svn_error_wrap_apr(status,
-                                  _("Can't change perms of file '%s'"),
-                                  svn_dirent_local_style(path, pool));
+        {
+          if (is_file)
+            return svn_error_wrap_apr(status,
+                                      _("Can't change perms of file '%s'"),
+                                      svn_dirent_local_style(path, pool));
+          else
+            return svn_error_wrap_apr(status,
+                                      _("Can't change perms of directory '%s'"),
+                                      svn_dirent_local_style(path, pool));
+        }
       return SVN_NO_ERROR;
     }
 
@@ -1745,10 +1800,50 @@ io_set_file_perms(const char *path,
       status = apr_file_attrs_set(path_apr, attrs, attrs_values, pool);
     }
 
-  return svn_error_wrap_apr(status,
-                            _("Can't change perms of file '%s'"),
-                            svn_dirent_local_style(path, pool));
+  if (is_file)
+    {
+      return svn_error_wrap_apr(status,
+                                _("Can't change perms of file '%s'"),
+                                svn_dirent_local_style(path, pool));
+    }
+  else
+    {
+      return svn_error_wrap_apr(status,
+                                _("Can't change perms of directory '%s'"),
+                                svn_dirent_local_style(path, pool));
+    }
 }
+
+static svn_error_t *
+io_set_file_perms(const char *path,
+                  svn_boolean_t change_readwrite,
+                  svn_boolean_t enable_write,
+                  svn_boolean_t change_executable,
+                  svn_boolean_t executable,
+                  svn_boolean_t ignore_enoent,
+                  apr_pool_t *pool)
+{
+  return svn_error_trace(io_set_perms(path, TRUE,
+                                      change_readwrite, enable_write,
+                                      change_executable, executable,
+                                      ignore_enoent, pool));
+}
+
+static svn_error_t *
+io_set_dir_perms(const char *path,
+                 svn_boolean_t change_readwrite,
+                 svn_boolean_t enable_write,
+                 svn_boolean_t change_executable,
+                 svn_boolean_t executable,
+                 svn_boolean_t ignore_enoent,
+                 apr_pool_t *pool)
+{
+  return svn_error_trace(io_set_perms(path, FALSE,
+                                      change_readwrite, enable_write,
+                                      change_executable, executable,
+                                      ignore_enoent, pool));
+}
+
 #endif /* !WIN32 && !__OS2__ */
 
 #ifdef WIN32
@@ -1897,6 +1992,9 @@ static svn_error_t *win_init_dynamic_imports(void *baton, apr_pool_t *pool)
       get_final_path_name_by_handle_proc = (GETFINALPATHNAMEBYHANDLE)
         GetProcAddress(kernel32, "GetFinalPathNameByHandleW");
 
+      get_file_information_by_handle_ex_proc = (GetFileInformationByHandleEx_t)
+        GetProcAddress(kernel32, "GetFileInformationByHandleEx");
+
       set_file_information_by_handle_proc = (SetFileInformationByHandle_t)
         GetProcAddress(kernel32, "SetFileInformationByHandle");
     }
@@ -1973,6 +2071,33 @@ static svn_error_t * io_win_read_link(svn_string_t **dest,
       }
 }
 
+/* Wrapper around Windows API function GetFileInformationByHandleEx() that
+ * returns APR status instead of boolean flag. */
+static apr_status_t
+win32_get_file_information_by_handle(HANDLE hFile,
+                                     int FileInformationClass,
+                                     LPVOID lpFileInformation,
+                                     DWORD dwBufferSize)
+{
+  svn_error_clear(svn_atomic__init_once(&win_dynamic_imports_state,
+                                        win_init_dynamic_imports,
+                                        NULL, NULL));
+
+  if (!get_file_information_by_handle_ex_proc)
+    {
+      return SVN_ERR_UNSUPPORTED_FEATURE;
+    }
+
+  if (!get_file_information_by_handle_ex_proc(hFile, FileInformationClass,
+                                              lpFileInformation,
+                                              dwBufferSize))
+    {
+      return apr_get_os_error();
+    }
+
+  return APR_SUCCESS;
+}
+
 /* Wrapper around Windows API function SetFileInformationByHandle() that
  * returns APR status instead of boolean flag. */
 static apr_status_t
@@ -1998,6 +2123,105 @@ win32_set_file_information_by_handle(HANDLE hFile,
     }
 
   return APR_SUCCESS;
+}
+
+/* Fast Win32-specific helper for svn_io_check_path() and related functions
+ * that only requires a single GetFileAttributes() call in most cases.
+ */
+static svn_error_t * io_win_check_path(svn_node_kind_t *kind_p,
+                                       svn_boolean_t *is_symlink_p,
+                                       const char *path,
+                                       apr_pool_t *pool)
+{
+  DWORD attrs;
+  const WCHAR *wpath;
+  apr_status_t status;
+
+  if (path[0] == '\0')
+    path = ".";
+
+  SVN_ERR(svn_io__utf8_to_unicode_longpath(&wpath, path, pool));
+
+  attrs = GetFileAttributesW(wpath);
+  if (attrs == INVALID_FILE_ATTRIBUTES)
+    {
+      status = apr_get_os_error();
+      if (APR_STATUS_IS_ENOENT(status) || SVN__APR_STATUS_IS_ENOTDIR(status))
+        {
+          *kind_p = svn_node_none;
+          if (is_symlink_p)
+            *is_symlink_p = FALSE;
+          return SVN_NO_ERROR;
+        }
+      else
+        {
+          return svn_error_wrap_apr(status, _("Can't stat '%s'"),
+                                    svn_dirent_local_style(path, pool));
+        }
+    }
+
+  if (attrs & FILE_ATTRIBUTE_DIRECTORY)
+    *kind_p = svn_node_dir;
+  else
+    *kind_p = svn_node_file;
+
+  /* If this is a reparse point, and if we've been asked to check whether
+     we are dealing with a symlink, then open the file and check that.
+
+     Otherwise, it's either definitely not a symlink or the caller
+     doesn't care about this distinction.
+   */
+  if (is_symlink_p && (attrs & FILE_ATTRIBUTE_REPARSE_POINT))
+    {
+      const WCHAR *wfname;
+      HANDLE hFile;
+      FILE_ATTRIBUTE_TAG_INFO taginfo = { 0 };
+
+      SVN_ERR(svn_io__utf8_to_unicode_longpath(&wfname, path, pool));
+
+      hFile = CreateFileW(wfname, FILE_READ_ATTRIBUTES,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          NULL, OPEN_EXISTING,
+                          FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+                          NULL);
+      if (hFile == INVALID_HANDLE_VALUE)
+        {
+          status = apr_get_os_error();
+          if (APR_STATUS_IS_ENOENT(status) || SVN__APR_STATUS_IS_ENOTDIR(status))
+            {
+              *kind_p = svn_node_none;
+              *is_symlink_p = FALSE;
+              return SVN_NO_ERROR;
+            }
+          else
+            {
+              return svn_error_wrap_apr(status, _("Can't stat '%s'"),
+                                        svn_dirent_local_style(path, pool));
+            }
+        }
+
+      status = win32_get_file_information_by_handle(hFile, FileAttributeTagInfo,
+                                                    &taginfo, sizeof(taginfo));
+      CloseHandle(hFile);
+
+      if (status)
+        return svn_error_wrap_apr(status, _("Can't stat '%s'"),
+                                  svn_dirent_local_style(path, pool));
+
+      /* The surrogate bit in the reparse tag specifies if "the file or directory
+         represents another named entity in the system" which is used to determine
+         if this reparse point behaves like a symlink.
+
+         https://docs.microsoft.com/en-us/windows/desktop/fileio/reparse-point-tags
+       */
+      *is_symlink_p = IsReparseTagNameSurrogate(taginfo.ReparseTag);
+    }
+  else if (is_symlink_p)
+    {
+      *is_symlink_p = FALSE;
+    }
+
+  return SVN_NO_ERROR;
 }
 
 svn_error_t *
@@ -2110,6 +2334,55 @@ svn_io_set_file_read_write_carefully(const char *path,
   return svn_io_set_file_read_only(path, ignore_enoent, pool);
 }
 
+#if defined(WIN32) || defined(__OS2__)
+/* Helper for svn_io_set_file_read_* */
+static svn_error_t *
+io_set_readonly_flag(const char *path_apr, /* file-system path */
+                     const char *path,     /* UTF-8 path */
+                     svn_boolean_t set_flag,
+                     svn_boolean_t is_file,
+                     svn_boolean_t ignore_enoent,
+                     apr_pool_t *pool)
+{
+  apr_status_t status;
+
+  status = apr_file_attrs_set(path_apr,
+                              (set_flag ? APR_FILE_ATTR_READONLY : 0),
+                              APR_FILE_ATTR_READONLY,
+                              pool);
+
+  if (status && status != APR_ENOTIMPL)
+    if (!(ignore_enoent && (APR_STATUS_IS_ENOENT(status)
+                            || SVN__APR_STATUS_IS_ENOTDIR(status))))
+      {
+        if (is_file)
+          {
+            if (set_flag)
+              return svn_error_wrap_apr(status,
+                                        _("Can't set file '%s' read-only"),
+                                        svn_dirent_local_style(path, pool));
+            else
+              return svn_error_wrap_apr(status,
+                                        _("Can't set file '%s' read-write"),
+                                        svn_dirent_local_style(path, pool));
+          }
+        else
+          {
+            if (set_flag)
+              return svn_error_wrap_apr(status,
+                                        _("Can't set directory '%s' read-only"),
+                                        svn_dirent_local_style(path, pool));
+            else
+              return svn_error_wrap_apr(status,
+                                        _("Can't set directory '%s' read-write"),
+                                        svn_dirent_local_style(path, pool));
+          }
+      }
+  return SVN_NO_ERROR;
+}
+#endif
+
+
 svn_error_t *
 svn_io_set_file_read_only(const char *path,
                           svn_boolean_t ignore_enoent,
@@ -2121,24 +2394,11 @@ svn_io_set_file_read_only(const char *path,
   return io_set_file_perms(path, TRUE, FALSE, FALSE, FALSE,
                            ignore_enoent, pool);
 #else
-  apr_status_t status;
   const char *path_apr;
 
   SVN_ERR(cstring_from_utf8(&path_apr, path, pool));
-
-  status = apr_file_attrs_set(path_apr,
-                              APR_FILE_ATTR_READONLY,
-                              APR_FILE_ATTR_READONLY,
-                              pool);
-
-  if (status && status != APR_ENOTIMPL)
-    if (!(ignore_enoent && (APR_STATUS_IS_ENOENT(status)
-                            || SVN__APR_STATUS_IS_ENOTDIR(status))))
-      return svn_error_wrap_apr(status,
-                                _("Can't set file '%s' read-only"),
-                                svn_dirent_local_style(path, pool));
-
-  return SVN_NO_ERROR;
+  return io_set_readonly_flag(path_apr, path,
+                              TRUE, TRUE, ignore_enoent, pool);
 #endif
 }
 
@@ -2154,23 +2414,11 @@ svn_io_set_file_read_write(const char *path,
   return io_set_file_perms(path, TRUE, TRUE, FALSE, FALSE,
                            ignore_enoent, pool);
 #else
-  apr_status_t status;
   const char *path_apr;
 
   SVN_ERR(cstring_from_utf8(&path_apr, path, pool));
-
-  status = apr_file_attrs_set(path_apr,
-                              0,
-                              APR_FILE_ATTR_READONLY,
-                              pool);
-
-  if (status && status != APR_ENOTIMPL)
-    if (!ignore_enoent || !APR_STATUS_IS_ENOENT(status))
-      return svn_error_wrap_apr(status,
-                                _("Can't set file '%s' read-write"),
-                                svn_dirent_local_style(path, pool));
-
-  return SVN_NO_ERROR;
+  return io_set_readonly_flag(path_apr, path,
+                              FALSE, TRUE, ignore_enoent, pool);
 #endif
 }
 
@@ -2541,27 +2789,37 @@ stringbuf_from_aprfile(svn_stringbuf_t **result,
     {
       apr_finfo_t finfo = { 0 };
 
-      /* In some cases we get size 0 and no error for non files,
-          so we also check for the name. (= cached in apr_file_t) */
+      /* In some cases we get size 0 and no error for non files, so we
+         also check for the name. (= cached in apr_file_t) */
       if (! apr_file_info_get(&finfo, APR_FINFO_SIZE, file) && finfo.fname)
         {
-          /* we've got the file length. Now, read it in one go. */
+          /* In general, there is no guarantee that the given file size is
+             correct, for instance, because the underlying handle could be
+             pointing to a pipe.  We don't know that in advance, so attempt
+             to read *one more* byte than necessary.  If we get an EOF, then
+             we're done and we have succesfully avoided reading the file chunk-
+             by-chunk.  If we don't, we fall through and do so to read the
+             remaining part of the file. */
           svn_boolean_t eof;
-          res_initial_len = (apr_size_t)finfo.size;
+          res_initial_len = (apr_size_t)finfo.size + 1;
           res = svn_stringbuf_create_ensure(res_initial_len, pool);
           SVN_ERR(svn_io_file_read_full2(file, res->data,
                                          res_initial_len, &res->len,
                                          &eof, pool));
           res->data[res->len] = 0;
 
-          *result = res;
-          return SVN_NO_ERROR;
+          if (eof)
+            {
+              *result = res;
+              return SVN_NO_ERROR;
+            }
         }
     }
 
   /* XXX: We should check the incoming data for being of type binary. */
   buf = apr_palloc(pool, SVN__STREAM_CHUNK_SIZE);
-  res = svn_stringbuf_create_ensure(res_initial_len, pool);
+  if (!res)
+    res = svn_stringbuf_create_ensure(res_initial_len, pool);
 
   /* apr_file_read will not return data and eof in the same call. So this loop
    * is safe from missing read data.  */
@@ -2707,8 +2965,8 @@ svn_io_remove_dir(const char *path, apr_pool_t *pool)
  directory scan.  A previous workaround involving rewinddir is
  problematic on Win32 and some NFS clients, notably NetBSD.
 
- See http://subversion.tigris.org/issues/show_bug.cgi?id=1896 and
- http://subversion.tigris.org/issues/show_bug.cgi?id=3501.
+ See https://issues.apache.org/jira/browse/SVN-1896 and
+ https://issues.apache.org/jira/browse/SVN-3501.
 */
 
 /* Neither windows nor unix allows us to delete a non-empty
@@ -2745,6 +3003,12 @@ svn_io_remove_dir2(const char *path, svn_boolean_t ignore_enoent,
         }
       return svn_error_trace(err);
     }
+
+  /* On Unix, nothing can be removed from a non-writable directory. */
+#if !defined(WIN32) && !defined(__OS2__)
+  SVN_ERR(io_set_dir_perms(path, TRUE, TRUE, FALSE, FALSE,
+                           ignore_enoent, pool));
+#endif
 
   for (hi = apr_hash_first(subpool, dirents); hi; hi = apr_hash_next(hi))
     {
@@ -4227,7 +4491,45 @@ win32_file_rename(const WCHAR *from_path_w,
     }
 
   if (!MoveFileExW(from_path_w, to_path_w, flags))
-      return apr_get_os_error();
+    {
+      apr_status_t err = apr_get_os_error();
+      /* If the target file is read only NTFS reports EACCESS and
+         FAT/FAT32 reports EEXIST */
+      if (APR_STATUS_IS_EACCES(err) || APR_STATUS_IS_EEXIST(err))
+        {
+          DWORD attrs = GetFileAttributesW(to_path_w);
+          if (attrs == INVALID_FILE_ATTRIBUTES)
+            {
+              apr_status_t stat_err = apr_get_os_error();
+              if (!(APR_STATUS_IS_ENOENT(stat_err) || SVN__APR_STATUS_IS_ENOTDIR(stat_err)))
+                /* We failed to stat the file, propagate the original error */
+                return err;
+            }
+          else if (attrs & FILE_ATTRIBUTE_READONLY)
+            {
+              /* Try to set the destination file writable because Windows will
+                 not allow us to rename when to_path is read-only, but will
+                 allow renaming when from_path is read only. */
+              attrs &= ~FILE_ATTRIBUTE_READONLY;
+              if (!SetFileAttributesW(to_path_w, attrs))
+                {
+                  err = apr_get_os_error();
+                  if (!(APR_STATUS_IS_ENOENT(err) || SVN__APR_STATUS_IS_ENOTDIR(err)))
+                    /* We failed to set file attributes, propagate this new error */
+                    return err;
+                }
+            }
+
+          /* NOTE: If the file is not read-only, we don't know if the file did
+             not have the read-only attribute in the first place or if this
+             attribute disappeared due to a race, so try to rename it anyway.
+           */
+          if (!MoveFileExW(from_path_w, to_path_w, flags))
+            return apr_get_os_error();
+        }
+      else
+        return err;
+    }
 
   return APR_SUCCESS;
 }
@@ -4251,18 +4553,6 @@ svn_io_file_rename2(const char *from_path, const char *to_path,
   SVN_ERR(svn_io__utf8_to_unicode_longpath(&from_path_w, from_path_apr, pool));
   SVN_ERR(svn_io__utf8_to_unicode_longpath(&to_path_w, to_path_apr, pool));
   status = win32_file_rename(from_path_w, to_path_w, flush_to_disk);
-
-  /* If the target file is read only NTFS reports EACCESS and
-     FAT/FAT32 reports EEXIST */
-  if (APR_STATUS_IS_EACCES(status) || APR_STATUS_IS_EEXIST(status))
-    {
-      /* Set the destination file writable because Windows will not
-         allow us to rename when to_path is read-only, but will
-         allow renaming when from_path is read only. */
-      SVN_ERR(svn_io_set_file_read_write(to_path, TRUE, pool));
-
-      status = win32_file_rename(from_path_w, to_path_w, flush_to_disk);
-    }
   WIN32_RETRY_LOOP(status, win32_file_rename(from_path_w, to_path_w,
                                              flush_to_disk));
 #elif defined(__OS2__)
@@ -4484,8 +4774,17 @@ svn_io_dir_remove_nonrecursive(const char *dirname, apr_pool_t *pool)
   {
     svn_boolean_t retry = TRUE;
 
+    if (APR_STATUS_IS_EACCES(status) || APR_STATUS_IS_EEXIST(status))
+      {
+        /* Make the destination directory writable because Windows
+           forbids deleting read-only items. */
+        SVN_ERR(io_set_readonly_flag(dirname_apr, dirname,
+                                     FALSE, FALSE, TRUE, pool));
+        status = apr_dir_remove(dirname_apr, pool);
+      }
+
     if (status == APR_FROM_OS_ERROR(ERROR_DIR_NOT_EMPTY))
-    {
+      {
         apr_status_t empty_status = dir_is_empty(dirname_apr, pool);
 
         if (APR_STATUS_IS_ENOTEMPTY(empty_status))
@@ -4631,7 +4930,7 @@ svn_io_dir_walk2(const char *dirname,
         }
       else if (finfo.filetype == APR_REG || finfo.filetype == APR_LNK)
         {
-          /* some other directory. pass it to the callback. */
+          /* a regular file or a symlink. pass it to the callback. */
           SVN_ERR(entry_name_to_utf8(&name_utf8, finfo.name, dirname,
                                      subpool));
           full_path = svn_dirent_join(dirname, name_utf8, subpool);

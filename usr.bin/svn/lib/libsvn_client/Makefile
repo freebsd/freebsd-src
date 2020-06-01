@@ -19,7 +19,6 @@ SRCS=		add.c \
 		compat_providers.c \
 		conflicts.c \
 		copy.c \
-		copy_foreign.c \
 		ctx.c \
 		delete.c \
 		deprecated.c \
@@ -31,6 +30,7 @@ SRCS=		add.c \
 		import.c \
 		info.c \
 		iprops.c \
+		layout.c \
 		list.c \
 		locking_commands.c \
 		log.c \
@@ -46,14 +46,16 @@ SRCS=		add.c \
 		resolved.c \
 		revert.c \
 		revisions.c \
-		shelve.c \
+		shelf.c \
+		shelf2.c \
 		status.c \
 		switch.c \
 		update.c \
 		upgrade.c \
 		url.c \
 		util.c \
-		version.c
+		version.c \
+		wc_editor.c
 
 CFLAGS+=	-I${SVNDIR}/include \
 		-I${SVNDIR} \

@@ -363,7 +363,7 @@ load_config(svn_ra_serf__session_t *session,
     {
       apr_int64_t timeout;
       svn_error_t *err;
-      
+
       err = svn_cstring_strtoi64(&timeout, timeout_str, 0, APR_INT64_MAX, 10);
       if (err)
         return svn_error_createf(SVN_ERR_BAD_CONFIG_VALUE, err,
@@ -476,6 +476,7 @@ get_user_agent_string(apr_pool_t *pool)
 static svn_error_t *
 svn_ra_serf__open(svn_ra_session_t *session,
                   const char **corrected_url,
+                  const char **redirect_url,
                   const char *session_URL,
                   const svn_ra_callbacks2_t *callbacks,
                   void *callback_baton,
@@ -492,6 +493,8 @@ svn_ra_serf__open(svn_ra_session_t *session,
 
   if (corrected_url)
     *corrected_url = NULL;
+  if (redirect_url)
+    *redirect_url = NULL;
 
   serf_sess = apr_pcalloc(result_pool, sizeof(*serf_sess));
   serf_sess->pool = result_pool;
@@ -588,7 +591,7 @@ svn_ra_serf__open(svn_ra_session_t *session,
      Luckily our caller now passes us two pools which handle this case.
    */
 #if defined(SVN_DEBUG) && !SERF_VERSION_AT_LEAST(1,4,0)
-  /* Currently ensured by svn_ra_open4().
+  /* Currently ensured by svn_ra_open5().
      If failing causes segfault in basic_tests.py 48, "basic auth test" */
   SVN_ERR_ASSERT((serf_sess->pool != scratch_pool)
                  && apr_pool_is_ancestor(serf_sess->pool, scratch_pool));
@@ -599,6 +602,7 @@ svn_ra_serf__open(svn_ra_session_t *session,
   serf_sess->conn_latency = -1;
 
   err = svn_ra_serf__exchange_capabilities(serf_sess, corrected_url,
+                                           redirect_url,
                                            result_pool, scratch_pool);
 
   /* serf should produce a usable error code instead of APR_EGENERAL */

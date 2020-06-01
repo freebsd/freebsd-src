@@ -37,7 +37,6 @@ static svn_error_t internal_break_error =
     __LINE__ /* line number */
   };
 
-#if APR_VERSION_AT_LEAST(1, 4, 0)
 struct hash_do_baton
 {
   void *baton;
@@ -59,7 +58,6 @@ int hash_do_callback(void *baton,
 
   return hdb->err == SVN_NO_ERROR;
 }
-#endif
 
 svn_error_t *
 svn_iter_apr_hash(svn_boolean_t *completed,
@@ -68,7 +66,6 @@ svn_iter_apr_hash(svn_boolean_t *completed,
                   void *baton,
                   apr_pool_t *pool)
 {
-#if APR_VERSION_AT_LEAST(1, 4, 0)
   struct hash_do_baton hdb;
   svn_boolean_t error_received;
 
@@ -97,43 +94,6 @@ svn_iter_apr_hash(svn_boolean_t *completed,
     }
 
   return hdb.err;
-#else
-  svn_error_t *err = SVN_NO_ERROR;
-  apr_pool_t *iterpool = svn_pool_create(pool);
-  apr_hash_index_t *hi;
-
-  for (hi = apr_hash_first(pool, hash);
-       ! err && hi; hi = apr_hash_next(hi))
-    {
-      const void *key;
-      void *val;
-      apr_ssize_t len;
-
-      svn_pool_clear(iterpool);
-
-      apr_hash_this(hi, &key, &len, &val);
-      err = (*func)(baton, key, len, val, iterpool);
-    }
-
-  if (completed)
-    *completed = ! err;
-
-  if (err && err->apr_err == SVN_ERR_ITER_BREAK)
-    {
-      if (err != &internal_break_error)
-        /* Errors - except those created by svn_iter_break() -
-           need to be cleared when not further propagated. */
-        svn_error_clear(err);
-
-      err = SVN_NO_ERROR;
-    }
-
-  /* Clear iterpool, because callers may clear the error but have no way
-     to clear the iterpool with potentially lots of allocated memory */
-  svn_pool_destroy(iterpool);
-
-  return err;
-#endif
 }
 
 svn_error_t *
@@ -183,29 +143,3 @@ svn_iter__break(void)
 {
   return &internal_break_error;
 }
-
-#if !APR_VERSION_AT_LEAST(1, 5, 0)
-const void *apr_hash_this_key(apr_hash_index_t *hi)
-{
-  const void *key;
-
-  apr_hash_this((apr_hash_index_t *)hi, &key, NULL, NULL);
-  return key;
-}
-
-apr_ssize_t apr_hash_this_key_len(apr_hash_index_t *hi)
-{
-  apr_ssize_t klen;
-
-  apr_hash_this((apr_hash_index_t *)hi, NULL, &klen, NULL);
-  return klen;
-}
-
-void *apr_hash_this_val(apr_hash_index_t *hi)
-{
-  void *val;
-
-  apr_hash_this((apr_hash_index_t *)hi, NULL, NULL, &val);
-  return val;
-}
-#endif

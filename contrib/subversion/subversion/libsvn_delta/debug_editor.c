@@ -71,9 +71,11 @@ set_target_revision(void *edit_baton,
   SVN_ERR(svn_stream_printf(eb->out, pool, "set_target_revision : %ld\n",
                             target_revision));
 
-  return eb->wrapped_editor->set_target_revision(eb->wrapped_edit_baton,
-                                                 target_revision,
-                                                 pool);
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->set_target_revision(eb->wrapped_edit_baton,
+                                                    target_revision,
+                                                    pool));
+  return SVN_NO_ERROR;
 }
 
 static svn_error_t *
@@ -90,10 +92,11 @@ open_root(void *edit_baton,
                             base_revision));
   eb->indent_level++;
 
-  SVN_ERR(eb->wrapped_editor->open_root(eb->wrapped_edit_baton,
-                                        base_revision,
-                                        pool,
-                                        &dir_baton->wrapped_dir_baton));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->open_root(eb->wrapped_edit_baton,
+                                          base_revision,
+                                          pool,
+                                          &dir_baton->wrapped_dir_baton));
 
   dir_baton->edit_baton = edit_baton;
 
@@ -115,10 +118,12 @@ delete_entry(const char *path,
   SVN_ERR(svn_stream_printf(eb->out, pool, "delete_entry : %s:%ld\n",
                             path, base_revision));
 
-  return eb->wrapped_editor->delete_entry(path,
-                                          base_revision,
-                                          pb->wrapped_dir_baton,
-                                          pool);
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->delete_entry(path,
+                                             base_revision,
+                                             pb->wrapped_dir_baton,
+                                             pool));
+  return SVN_NO_ERROR;
 }
 
 static svn_error_t *
@@ -139,12 +144,13 @@ add_directory(const char *path,
                             path, copyfrom_path, copyfrom_revision));
   eb->indent_level++;
 
-  SVN_ERR(eb->wrapped_editor->add_directory(path,
-                                            pb->wrapped_dir_baton,
-                                            copyfrom_path,
-                                            copyfrom_revision,
-                                            pool,
-                                            &b->wrapped_dir_baton));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->add_directory(path,
+                                              pb->wrapped_dir_baton,
+                                              copyfrom_path,
+                                              copyfrom_revision,
+                                              pool,
+                                              &b->wrapped_dir_baton));
 
   b->edit_baton = eb;
   *child_baton = b;
@@ -168,11 +174,12 @@ open_directory(const char *path,
                             path, base_revision));
   eb->indent_level++;
 
-  SVN_ERR(eb->wrapped_editor->open_directory(path,
-                                             pb->wrapped_dir_baton,
-                                             base_revision,
-                                             pool,
-                                             &db->wrapped_dir_baton));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->open_directory(path,
+                                               pb->wrapped_dir_baton,
+                                               base_revision,
+                                               pool,
+                                               &db->wrapped_dir_baton));
 
   db->edit_baton = eb;
   *child_baton = db;
@@ -199,12 +206,13 @@ add_file(const char *path,
 
   eb->indent_level++;
 
-  SVN_ERR(eb->wrapped_editor->add_file(path,
-                                       pb->wrapped_dir_baton,
-                                       copyfrom_path,
-                                       copyfrom_revision,
-                                       pool,
-                                       &fb->wrapped_file_baton));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->add_file(path,
+                                         pb->wrapped_dir_baton,
+                                         copyfrom_path,
+                                         copyfrom_revision,
+                                         pool,
+                                         &fb->wrapped_file_baton));
 
   fb->edit_baton = eb;
   *file_baton = fb;
@@ -229,11 +237,12 @@ open_file(const char *path,
 
   eb->indent_level++;
 
-  SVN_ERR(eb->wrapped_editor->open_file(path,
-                                        pb->wrapped_dir_baton,
-                                        base_revision,
-                                        pool,
-                                        &fb->wrapped_file_baton));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->open_file(path,
+                                          pb->wrapped_dir_baton,
+                                          base_revision,
+                                          pool,
+                                          &fb->wrapped_file_baton));
 
   fb->edit_baton = eb;
   *file_baton = fb;
@@ -255,11 +264,38 @@ apply_textdelta(void *file_baton,
   SVN_ERR(svn_stream_printf(eb->out, pool, "apply_textdelta : %s\n",
                             base_checksum));
 
-  SVN_ERR(eb->wrapped_editor->apply_textdelta(fb->wrapped_file_baton,
-                                              base_checksum,
-                                              pool,
-                                              handler,
-                                              handler_baton));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->apply_textdelta(fb->wrapped_file_baton,
+                                                base_checksum,
+                                                pool,
+                                                handler,
+                                                handler_baton));
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+apply_textdelta_stream(const struct svn_delta_editor_t *editor,
+                       void *file_baton,
+                       const char *base_checksum,
+                       svn_txdelta_stream_open_func_t open_func,
+                       void *open_baton,
+                       apr_pool_t *scratch_pool)
+{
+  struct file_baton *fb = file_baton;
+  struct edit_baton *eb = fb->edit_baton;
+
+  SVN_ERR(write_indent(eb, scratch_pool));
+  SVN_ERR(svn_stream_printf(eb->out, scratch_pool,
+                            "apply_textdelta_stream : %s\n",
+                            base_checksum));
+
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->apply_textdelta_stream(eb->wrapped_editor,
+                                                       fb->wrapped_file_baton,
+                                                       base_checksum,
+                                                       open_func, open_baton,
+                                                       scratch_pool));
 
   return SVN_NO_ERROR;
 }
@@ -278,8 +314,9 @@ close_file(void *file_baton,
   SVN_ERR(svn_stream_printf(eb->out, pool, "close_file : %s\n",
                             text_checksum));
 
-  SVN_ERR(eb->wrapped_editor->close_file(fb->wrapped_file_baton,
-                                         text_checksum, pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->close_file(fb->wrapped_file_baton,
+                                           text_checksum, pool));
 
   return SVN_NO_ERROR;
 }
@@ -295,8 +332,9 @@ absent_file(const char *path,
   SVN_ERR(write_indent(eb, pool));
   SVN_ERR(svn_stream_printf(eb->out, pool, "absent_file : %s\n", path));
 
-  SVN_ERR(eb->wrapped_editor->absent_file(path, fb->wrapped_file_baton,
-                                          pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->absent_file(path, fb->wrapped_file_baton,
+                                            pool));
 
   return SVN_NO_ERROR;
 }
@@ -312,8 +350,9 @@ close_directory(void *dir_baton,
   SVN_ERR(write_indent(eb, pool));
   SVN_ERR(svn_stream_printf(eb->out, pool, "close_directory\n"));
 
-  SVN_ERR(eb->wrapped_editor->close_directory(db->wrapped_dir_baton,
-                                              pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->close_directory(db->wrapped_dir_baton,
+                                                pool));
 
   return SVN_NO_ERROR;
 }
@@ -330,8 +369,9 @@ absent_directory(const char *path,
   SVN_ERR(svn_stream_printf(eb->out, pool, "absent_directory : %s\n",
                             path));
 
-  SVN_ERR(eb->wrapped_editor->absent_directory(path, db->wrapped_dir_baton,
-                                               pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->absent_directory(path, db->wrapped_dir_baton,
+                                                 pool));
 
   return SVN_NO_ERROR;
 }
@@ -349,10 +389,11 @@ change_file_prop(void *file_baton,
   SVN_ERR(svn_stream_printf(eb->out, pool, "change_file_prop : %s -> %s\n",
                             name, value ? value->data : "<deleted>"));
 
-  SVN_ERR(eb->wrapped_editor->change_file_prop(fb->wrapped_file_baton,
-                                               name,
-                                               value,
-                                               pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->change_file_prop(fb->wrapped_file_baton,
+                                                 name,
+                                                 value,
+                                                 pool));
 
   return SVN_NO_ERROR;
 }
@@ -370,10 +411,11 @@ change_dir_prop(void *dir_baton,
   SVN_ERR(svn_stream_printf(eb->out, pool, "change_dir_prop : %s -> %s\n",
                             name, value ? value->data : "<deleted>"));
 
-  SVN_ERR(eb->wrapped_editor->change_dir_prop(db->wrapped_dir_baton,
-                                              name,
-                                              value,
-                                              pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->change_dir_prop(db->wrapped_dir_baton,
+                                                name,
+                                                value,
+                                                pool));
 
   return SVN_NO_ERROR;
 }
@@ -387,7 +429,8 @@ close_edit(void *edit_baton,
   SVN_ERR(write_indent(eb, pool));
   SVN_ERR(svn_stream_printf(eb->out, pool, "close_edit\n"));
 
-  SVN_ERR(eb->wrapped_editor->close_edit(eb->wrapped_edit_baton, pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->close_edit(eb->wrapped_edit_baton, pool));
 
   return SVN_NO_ERROR;
 }
@@ -401,7 +444,8 @@ abort_edit(void *edit_baton,
   SVN_ERR(write_indent(eb, pool));
   SVN_ERR(svn_stream_printf(eb->out, pool, "abort_edit\n"));
 
-  SVN_ERR(eb->wrapped_editor->abort_edit(eb->wrapped_edit_baton, pool));
+  if (eb->wrapped_editor)
+    SVN_ERR(eb->wrapped_editor->abort_edit(eb->wrapped_edit_baton, pool));
 
   return SVN_NO_ERROR;
 }
@@ -414,7 +458,7 @@ svn_delta__get_debug_editor(const svn_delta_editor_t **editor,
                             const char *prefix,
                             apr_pool_t *pool)
 {
-  svn_delta_editor_t *tree_editor = apr_palloc(pool, sizeof(*tree_editor));
+  svn_delta_editor_t *tree_editor = svn_delta_default_editor(pool);
   struct edit_baton *eb = apr_palloc(pool, sizeof(*eb));
   apr_file_t *errfp;
   svn_stream_t *out;
@@ -436,6 +480,7 @@ svn_delta__get_debug_editor(const svn_delta_editor_t **editor,
   tree_editor->add_file = add_file;
   tree_editor->open_file = open_file;
   tree_editor->apply_textdelta = apply_textdelta;
+  tree_editor->apply_textdelta_stream = apply_textdelta_stream;
   tree_editor->change_file_prop = change_file_prop;
   tree_editor->close_file = close_file;
   tree_editor->absent_file = absent_file;

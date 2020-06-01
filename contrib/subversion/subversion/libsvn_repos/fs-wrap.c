@@ -282,7 +282,7 @@ svn_repos__normalize_prop(const svn_string_t **result_p,
     }
   else
     {
-      *result_p = svn_string_dup(value, result_pool);
+      *result_p = value;
       if (normalized_p)
         *normalized_p = FALSE;
     }
@@ -1106,7 +1106,7 @@ svn_repos_fs_get_inherited_props(apr_array_header_t **inherited_props_p,
                 apr_pstrdup(result_pool, parent_path + 1);
               i_props->prop_hash = parent_properties;
               /* Build the output array in depth-first order. */
-              svn_sort__array_insert(inherited_props, &i_props, 0);
+              SVN_ERR(svn_sort__array_insert2(inherited_props, &i_props, 0));
             }
         }
     }

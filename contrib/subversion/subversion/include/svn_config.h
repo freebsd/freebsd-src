@@ -44,8 +44,8 @@ extern "C" {
 /**************************************************************************
  ***                                                                    ***
  ***  For a description of the SVN configuration file syntax, see       ***
- ***  your ~/.subversion/README, which is written out automatically by  ***
- ***  svn_config_ensure().                                              ***
+ ***  your ~/.subversion/README.txt, which is written out automatically ***
+ ***  by svn_config_ensure().                                           ***
  ***                                                                    ***
  **************************************************************************/
 

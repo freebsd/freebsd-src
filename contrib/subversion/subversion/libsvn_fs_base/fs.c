@@ -574,6 +574,7 @@ static fs_vtable_t fs_vtable = {
   base_bdb_verify_root,
   base_bdb_freeze,
   base_bdb_set_errcall,
+  NULL /* ioctl */
 };
 
 /* Where the format number is stored. */
@@ -1515,7 +1516,8 @@ static fs_library_vtable_t library_vtable = {
   base_bdb_logfiles,
   svn_fs_base__id_parse,
   base_set_svn_fs_open,
-  NULL /* info_fsap_dup */
+  NULL /* info_fsap_dup */,
+  NULL /* ioctl */
 };
 
 svn_error_t *

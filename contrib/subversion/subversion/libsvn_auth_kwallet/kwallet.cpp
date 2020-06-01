@@ -227,10 +227,10 @@ kwallet_password_get(svn_boolean_t *done,
   KLocalizedString::setApplicationDomain("subversion"); /* translation domain */
 
   /* componentName appears in KDE GUI prompts */
-  KAboutData aboutData(QStringLiteral("subversion"),     /* componentName */
+  KAboutData aboutData(QString("subversion"),            /* componentName */
                        i18n(get_application_name(parameters,
                                                  pool)), /* displayName */
-                       QStringLiteral(SVN_VER_NUMBER));
+                       QString(SVN_VER_NUMBER));
   KAboutData::setApplicationData(aboutData);
 #else
   KCmdLineArgs::init(q_argc, q_argv,
@@ -309,10 +309,10 @@ kwallet_password_set(svn_boolean_t *done,
   KLocalizedString::setApplicationDomain("subversion"); /* translation domain */
 
   /* componentName appears in KDE GUI prompts */
-  KAboutData aboutData(QStringLiteral("subversion"),     /* componentName */
+  KAboutData aboutData(QString("subversion"),            /* componentName */
                        i18n(get_application_name(parameters,
                                                  pool)), /* displayName */
-                       QStringLiteral(SVN_VER_NUMBER));
+                       QString(SVN_VER_NUMBER));
   KAboutData::setApplicationData(aboutData);
 #else
   KCmdLineArgs::init(q_argc, q_argv,

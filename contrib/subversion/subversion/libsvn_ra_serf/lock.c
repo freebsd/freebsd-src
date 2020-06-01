@@ -354,7 +354,7 @@ run_locks(svn_ra_serf__session_t *sess,
               SVN_ERR(cb_err);
 
               waittime_left = sess->timeout;
-              svn_sort__array_delete(lock_ctxs, i, 1);
+              SVN_ERR(svn_sort__array_delete2(lock_ctxs, i, 1));
               i--;
 
               svn_pool_destroy(ctx->pool);
