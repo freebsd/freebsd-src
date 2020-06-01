@@ -27,6 +27,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -351,13 +352,33 @@ main(int argc, char **argv)
 	if (strcmp(argv[0], "-") == 0) {
 		fstat(STDIN_FILENO, &stb1);
 		gotstdin = 1;
-	} else if (stat(argv[0], &stb1) != 0)
-		err(2, "%s", argv[0]);
+	} else if (stat(argv[0], &stb1) != 0) {
+		if (!Nflag || errno != ENOENT)
+			err(2, "%s", argv[0]);
+		dflags |= D_EMPTY1;
+		memset(&stb1, 0, sizeof(struct stat));
+	}
+
 	if (strcmp(argv[1], "-") == 0) {
 		fstat(STDIN_FILENO, &stb2);
 		gotstdin = 1;
-	} else if (stat(argv[1], &stb2) != 0)
-		err(2, "%s", argv[1]);
+	} else if (stat(argv[1], &stb2) != 0) {
+		if (!Nflag || errno != ENOENT)
+			err(2, "%s", argv[1]);
+		dflags |= D_EMPTY2;
+		memset(&stb2, 0, sizeof(stb2));
+		stb2.st_mode = stb1.st_mode;
+	}
+
+	if (dflags & D_EMPTY1 && dflags & D_EMPTY2){
+		warn("%s", argv[0]);	
+		warn("%s", argv[1]);
+		exit(2);	
+	}
+
+	if (stb1.st_mode == 0)
+		stb1.st_mode = stb2.st_mode;
+
 	if (gotstdin && (S_ISDIR(stb1.st_mode) || S_ISDIR(stb2.st_mode)))
 		errx(2, "can't compare - to a directory");
 	set_argstr(oargv, argv);
