@@ -64,5 +64,20 @@ void rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f,
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
+
+enum rib_subscription_type {
+	RIB_NOTIFY_IMMEDIATE,
+	RIB_NOTIFY_DELAYED
+};
+
+struct rib_subscription;
+typedef void rib_subscription_cb_t(struct rib_head *rnh, struct rib_cmd_info *rc,
+    void *arg);
+
+struct rib_subscription *rib_subscribe(uint32_t fibnum, int family,
+    rib_subscription_cb_t *f, void *arg, enum rib_subscription_type type,
+    int waitok);
+int rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs);
+
 #endif
 

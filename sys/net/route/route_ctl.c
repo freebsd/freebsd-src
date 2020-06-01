@@ -68,10 +68,19 @@ __FBSDID("$FreeBSD$");
  * All functions assumes they are called in net epoch.
  */
 
+struct rib_subscription {
+	CK_STAILQ_ENTRY(rib_subscription)	next;
+	rib_subscription_cb_t			*func;
+	void					*arg;
+	enum rib_subscription_type		type;
+	struct epoch_context			epoch_ctx;
+};
+
 static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
 
 static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
+static void destroy_subscription_epoch(epoch_context_t ctx);
 
 static struct rib_head *
 get_rnh(uint32_t fibnum, const struct rt_addrinfo *info)
@@ -263,6 +272,9 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 	RIB_WUNLOCK(rnh);
 
+	if ((rn != NULL) || (rt_old != NULL))
+		rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
+
 	if (rt_old != NULL) {
 		rt_notifydelete(rt_old, info);
 		rtfree(rt_old);
@@ -419,6 +431,7 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (error != 0)
 		return (error);
 
+	rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
 	rt_notifydelete(rt, info);
 
 	/*
@@ -559,10 +572,11 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	/* Update generation id to reflect rtable change */
 	rnh->rnh_gen++;
-
 	rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
 
 	RIB_WUNLOCK(rnh);
+
+	rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
 
 	nhop_free(nh_orig);
 
@@ -614,6 +628,7 @@ struct rt_delinfo
 	struct rt_addrinfo info;
 	struct rib_head *rnh;
 	struct rtentry *head;
+	struct rib_cmd_info rc;
 };
 
 /*
@@ -643,7 +658,13 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
 		return (0);
 	}
 
-	/* Entry was unlinked. Add to the list and return */
+	/* Entry was unlinked. Notify subscribers */
+	di->rnh->rnh_gen++;
+	di->rc.rc_rt = rt;
+	di->rc.rc_nh_old = rt->rt_nhop;
+	rib_notify(di->rnh, RIB_NOTIFY_IMMEDIATE, &di->rc);
+
+	/* Add to the list and return */
 	rt->rt_chain = di->head;
 	di->head = rt;
 
@@ -665,6 +686,7 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 	struct rib_head *rnh;
 	struct rt_delinfo di;
 	struct rtentry *rt;
+	struct epoch_tracker et;
 
 	rnh = rt_tables_get_rnh(fibnum, family);
 	if (rnh == NULL)
@@ -674,19 +696,23 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 	di.info.rti_filter = filter_f;
 	di.info.rti_filterdata = arg;
 	di.rnh = rnh;
+	di.rc.rc_cmd = RTM_DELETE;
+
+	NET_EPOCH_ENTER(et);
 
 	RIB_WLOCK(rnh);
 	rnh->rnh_walktree(&rnh->head, rt_checkdelroute, &di);
 	RIB_WUNLOCK(rnh);
-
-	if (di.head == NULL)
-		return;
 
 	/* We might have something to reclaim. */
 	while (di.head != NULL) {
 		rt = di.head;
 		di.head = rt->rt_chain;
 		rt->rt_chain = NULL;
+
+		di.rc.rc_rt = rt;
+		di.rc.rc_nh_old = rt->rt_nhop;
+		rib_notify(rnh, RIB_NOTIFY_DELAYED, &di.rc);
 
 		/* TODO std rt -> rt_addrinfo export */
 		di.info.rti_info[RTAX_DST] = rt_key(rt);
@@ -699,6 +725,8 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 			    fibnum);
 		rtfree(rt);
 	}
+
+	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -713,6 +741,13 @@ rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
 	}
 }
 
+/*
+ * Subscribe for the changes in the routing table specified by @fibnum and
+ *  @family.
+ * Needs to be run in network epoch.
+ *
+ * Returns pointer to the subscription structure on success.
+ */
 struct rib_subscription *
 rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
     enum rib_subscription_type type, int waitok)
@@ -740,6 +775,13 @@ rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
 	return (rs);
 }
 
+/*
+ * Remove rtable subscription @rs from the table specified by @fibnum
+ *  and @family.
+ * Needs to be run in network epoch.
+ *
+ * Returns 0 on success.
+ */
 int
 rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
 {
@@ -756,7 +798,21 @@ rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 	RIB_WUNLOCK(rnh);
 
-	free(rs, M_RTABLE);
+	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
+	    &rs->epoch_ctx);
+
 	return (0);
 }
 
+/*
+ * Epoch callback indicating subscription is safe to destroy
+ */
+static void
+destroy_subscription_epoch(epoch_context_t ctx)
+{
+	struct rib_subscription *rs;
+
+	rs = __containerof(ctx, struct rib_subscription, epoch_ctx);
+
+	free(rs, M_RTABLE);
+}
