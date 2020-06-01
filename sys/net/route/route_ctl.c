@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/vnet.h>
 #include <net/route.h>
-#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/route/nhop_utils.h>
 #include <net/route/nhop.h>
@@ -68,61 +67,11 @@ __FBSDID("$FreeBSD$");
  * All functions assumes they are called in net epoch.
  */
 
-static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
-    struct rib_cmd_info *rc);
-
 static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
-
-static struct rib_head *
-get_rnh(uint32_t fibnum, const struct rt_addrinfo *info)
-{
-	struct rib_head *rnh;
-	struct sockaddr *dst;
-
-	KASSERT((fibnum < rt_numfibs), ("rib_add_route: bad fibnum"));
-
-	dst = info->rti_info[RTAX_DST];
-	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
-
-	return (rnh);
-}
-
-/*
- * Adds route defined by @info into the kernel table specified by @fibnum and
- * sa_family in @info->rti_info[RTAX_DST].
- *
- * Returns 0 on success and fills in operation metadata into @rc.
- */
-int
-rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
-{
-	struct rib_head *rnh;
-
-	NET_EPOCH_ASSERT();
-
-	rnh = get_rnh(fibnum, info);
-	if (rnh == NULL)
-		return (EAFNOSUPPORT);
-
-	/*
-	 * Check consistency between RTF_HOST flag and netmask
-	 * existence.
-	 */
-	if (info->rti_flags & RTF_HOST)
-		info->rti_info[RTAX_NETMASK] = NULL;
-	else if (info->rti_info[RTAX_NETMASK] == NULL)
-		return (EINVAL);
-
-	bzero(rc, sizeof(struct rib_cmd_info));
-	rc->rc_cmd = RTM_ADD;
-
-	return (add_route(rnh, info, rc));
-}
 
 int
 add_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+    struct rtentry **ret_nrt)
 {
 	struct sockaddr *dst, *ndst, *gateway, *netmask;
 	struct rtentry *rt, *rt_old;
@@ -197,7 +146,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	rt->rt_weight = 1;
 
 	rt_setmetrics(info, rt);
-	rt_old = NULL;
 
 	RIB_WLOCK(rnh);
 	RT_LOCK(rt);
@@ -215,19 +163,11 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	rn = rnh->rnh_addaddr(ndst, netmask, &rnh->head, rt->rt_nodes);
 
-	if (rn != NULL) {
-		/* Most common usecase */
-		if (rt->rt_expire > 0)
-			tmproutes_update(rnh, rt);
+	if (rn != NULL && rt->rt_expire > 0)
+		tmproutes_update(rnh, rt);
 
-		/* Finalize notification */
-		rnh->rnh_gen++;
-
-		rc->rc_rt = RNTORT(rn);
-		rc->rc_nh_new = nh;
-
-		rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
-	} else if ((info->rti_flags & RTF_PINNED) != 0) {
+	rt_old = NULL;
+	if (rn == NULL && (info->rti_flags & RTF_PINNED) != 0) {
 
 		/*
 		 * Force removal and re-try addition
@@ -240,26 +180,9 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		rt_old = rt_unlinkrte(rnh, info, &error);
 		info->rti_flags |= RTF_PINNED;
 		info->rti_info[RTAX_DST] = info_dst;
-		if (rt_old != NULL) {
+		if (rt_old != NULL)
 			rn = rnh->rnh_addaddr(ndst, netmask, &rnh->head,
 			    rt->rt_nodes);
-
-			/* Finalize notification */
-			rnh->rnh_gen++;
-
-			if (rn != NULL) {
-				rc->rc_cmd = RTM_CHANGE;
-				rc->rc_rt = RNTORT(rn);
-				rc->rc_nh_old = rt_old->rt_nhop;
-				rc->rc_nh_new = nh;
-			} else {
-				rc->rc_cmd = RTM_DELETE;
-				rc->rc_rt = RNTORT(rn);
-				rc->rc_nh_old = rt_old->rt_nhop;
-				rc->rc_nh_new = nh;
-			}
-			rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
-		}
 	}
 	RIB_WUNLOCK(rnh);
 
@@ -285,34 +208,17 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if (ifa->ifa_rtrequest)
 		ifa->ifa_rtrequest(RTM_ADD, rt, rt->rt_nhop, info);
 
+	/*
+	 * actually return a resultant rtentry
+	 */
+	if (ret_nrt)
+		*ret_nrt = rt;
+	rnh->rnh_gen++;		/* Routing table updated */
 	RT_UNLOCK(rt);
 
 	return (0);
 }
 
-
-/*
- * Removes route defined by @info from the kernel table specified by @fibnum and
- * sa_family in @info->rti_info[RTAX_DST].
- *
- * Returns 0 on success and fills in operation metadata into @rc.
- */
-int
-rib_del_route(uint32_t fibnum, struct rt_addrinfo *info, struct rib_cmd_info *rc)
-{
-	struct rib_head *rnh;
-
-	NET_EPOCH_ASSERT();
-
-	rnh = get_rnh(fibnum, info);
-	if (rnh == NULL)
-		return (EAFNOSUPPORT);
-
-	bzero(rc, sizeof(struct rib_cmd_info));
-	rc->rc_cmd = RTM_DELETE;
-
-	return (del_route(rnh, info, rc));
-}
 
 /*
  * Conditionally unlinks rtentry matching data inside @info from @rnh.
@@ -389,7 +295,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 
 int
 del_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+    struct rtentry **ret_nrt)
 {
 	struct sockaddr *dst, *netmask;
 	struct sockaddr_storage mdst;
@@ -408,13 +314,6 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	RIB_WLOCK(rnh);
 	rt = rt_unlinkrte(rnh, info, &error);
-	if (rt != NULL) {
-		/* Finalize notification */
-		rnh->rnh_gen++;
-		rc->rc_rt = rt;
-		rc->rc_nh_old = rt->rt_nhop;
-		rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
-	}
 	RIB_WUNLOCK(rnh);
 	if (error != 0)
 		return (error);
@@ -425,32 +324,17 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * If the caller wants it, then it can have it,
 	 * the entry will be deleted after the end of the current epoch.
 	 */
+	if (ret_nrt)
+		*ret_nrt = rt;
+
 	rtfree(rt);
 
 	return (0);
 }
 
-int
-rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
-{
-	struct rib_head *rnh;
-
-	NET_EPOCH_ASSERT();
-
-	rnh = get_rnh(fibnum, info);
-	if (rnh == NULL)
-		return (EAFNOSUPPORT);
-
-	bzero(rc, sizeof(struct rib_cmd_info));
-	rc->rc_cmd = RTM_CHANGE;
-
-	return (change_route(rnh, info, rc));
-}
-
 static int
 change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+    struct rtentry **ret_nrt)
 {
 	RIB_RLOCK_TRACKER;
 	struct rtentry *rt = NULL;
@@ -550,17 +434,13 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 	if ((nh_orig->nh_ifa != nh->nh_ifa) && nh_orig->nh_ifa->ifa_rtrequest)
 		nh_orig->nh_ifa->ifa_rtrequest(RTM_DELETE, rt, nh_orig, info);
 
-	/* Finalize notification */
-	rc->rc_rt = rt;
-	rc->rc_nh_old = nh_orig;
-	rc->rc_nh_new = rt->rt_nhop;
+	if (ret_nrt != NULL)
+		*ret_nrt = rt;
 
 	RT_UNLOCK(rt);
 
 	/* Update generation id to reflect rtable change */
 	rnh->rnh_gen++;
-
-	rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
 
 	RIB_WUNLOCK(rnh);
 
@@ -571,7 +451,7 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 
 int
 change_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc)
+    struct rtentry **ret_nrt)
 {
 	int error;
 
@@ -588,7 +468,7 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * multiple times before failing.
 	 */
 	for (int i = 0; i < RIB_MAX_RETRIES; i++) {
-		error = change_route_one(rnh, info, rc);
+		error = change_route_one(rnh, info, ret_nrt);
 		if (error != EAGAIN)
 			break;
 	}
@@ -701,62 +581,4 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 	}
 }
 
-static void
-rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
-    struct rib_cmd_info *rc)
-{
-	struct rib_subscription *rs;
-
-	CK_STAILQ_FOREACH(rs, &rnh->rnh_subscribers, next) {
-		if (rs->type == type)
-			rs->func(rnh, rc, rs->arg);
-	}
-}
-
-struct rib_subscription *
-rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
-    enum rib_subscription_type type, int waitok)
-{
-	struct rib_head *rnh;
-	struct rib_subscription *rs;
-	int flags = M_ZERO | (waitok ? M_WAITOK : 0);
-
-	NET_EPOCH_ASSERT();
-	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
-	rnh = rt_tables_get_rnh(fibnum, family);
-
-	rs = malloc(sizeof(struct rib_subscription), M_RTABLE, flags);
-	if (rs == NULL)
-		return (NULL);
-
-	rs->func = f;
-	rs->arg = arg;
-	rs->type = type;
-
-	RIB_WLOCK(rnh);
-	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
-	RIB_WUNLOCK(rnh);
-
-	return (rs);
-}
-
-int
-rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
-{
-	struct rib_head *rnh;
-
-	NET_EPOCH_ASSERT();
-	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
-	rnh = rt_tables_get_rnh(fibnum, family);
-
-	if (rnh == NULL)
-		return (ENOENT);
-
-	RIB_WLOCK(rnh);
-	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
-	RIB_WUNLOCK(rnh);
-
-	free(rs, M_RTABLE);
-	return (0);
-}
 
