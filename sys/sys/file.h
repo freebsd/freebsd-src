@@ -200,10 +200,6 @@ struct file {
 	 *  DFLAG_SEEKABLE specific fields
 	 */
 	off_t		f_offset;
-	/*
-	 * Mandatory Access control information.
-	 */
-	void		*f_label;	/* Place-holder for MAC label. */
 };
 
 #define	f_cdevpriv	f_vnun.fvn_cdevpriv
