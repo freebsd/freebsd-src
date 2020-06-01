@@ -95,6 +95,7 @@
 #define APR_HAVE_STDLIB_H        1
 #define APR_HAVE_STRING_H        1
 #define APR_HAVE_STRINGS_H       1
+#define APR_HAVE_INTTYPES_H      1
 #define APR_HAVE_SYS_IOCTL_H     1
 #define APR_HAVE_SYS_SENDFILE_H  0
 #define APR_HAVE_SYS_SIGNAL_H    1
@@ -170,14 +171,23 @@
 #include <sys/socket.h>
 #endif
 
-#if defined(__cplusplus) && !defined(__STDC_CONSTANT_MACROS)
+#if APR_HAVE_STDINT_H
+#ifdef __cplusplus
 /* C99 7.18.4 requires that stdint.h only exposes INT64_C 
  * and UINT64_C for C++ implementations if this is defined: */
+#ifndef __STDC_CONSTANT_MACROS
 #define __STDC_CONSTANT_MACROS
 #endif
-
-#if APR_HAVE_STDINT_H
+/* C++ needs this too for PRI*NN formats: */
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#endif /* __cplusplus */
 #include <stdint.h>
+#endif
+
+#if APR_HAVE_INTTYPES_H
+#include <inttypes.h>
 #endif
 
 #if APR_HAVE_SYS_WAIT_H
@@ -199,6 +209,13 @@
 #endif
 #endif
 
+/* __APPLE__ is now the official pre-defined macro for macOS */
+#ifdef __APPLE__
+#undef DARWIN
+#undef DARWIN_10
+#define DARWIN
+#define DARWIN_10
+#endif /* __APPLE__ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -219,10 +236,10 @@ extern "C" {
 #define APR_HAVE_SHMEM_BEOS         0
 
 #define APR_USE_SHMEM_MMAP_TMP     0
-#define APR_USE_SHMEM_MMAP_SHM     1
+#define APR_USE_SHMEM_MMAP_SHM     0
 #define APR_USE_SHMEM_MMAP_ZERO    0
 #define APR_USE_SHMEM_SHMGET_ANON  0
-#define APR_USE_SHMEM_SHMGET       0
+#define APR_USE_SHMEM_SHMGET       1
 #define APR_USE_SHMEM_MMAP_ANON    1
 #define APR_USE_SHMEM_BEOS         0
 
@@ -237,7 +254,7 @@ extern "C" {
 #define APR_HAS_SYSVSEM_SERIALIZE         1
 #define APR_HAS_POSIXSEM_SERIALIZE        1
 #define APR_HAS_FCNTL_SERIALIZE           1
-#define APR_HAS_PROC_PTHREAD_SERIALIZE    0
+#define APR_HAS_PROC_PTHREAD_SERIALIZE    1
 
 #define APR_PROCESS_LOCK_IS_GLOBAL        0
 
@@ -247,6 +264,7 @@ extern "C" {
 #define APR_HAVE_INET_ADDR      1
 #define APR_HAVE_INET_NETWORK   1
 #define APR_HAVE_IPV6           1
+#define APR_HAVE_SOCKADDR_UN    1
 #define APR_HAVE_MEMMOVE        1
 #define APR_HAVE_SETRLIMIT      1
 #define APR_HAVE_SIGACTION      1
@@ -273,7 +291,7 @@ extern "C" {
 #define APR_HAS_FORK              1
 #define APR_HAS_RANDOM            1
 #define APR_HAS_OTHER_CHILD       1
-#define APR_HAS_DSO               0
+#define APR_HAS_DSO               1
 #define APR_HAS_SO_ACCEPTFILTER   1
 #define APR_HAS_UNICODE_FS        0
 #define APR_HAS_PROC_INVOKED      0
@@ -281,6 +299,7 @@ extern "C" {
 #define APR_HAS_LARGE_FILES       0
 #define APR_HAS_XTHREAD_FILES     0
 #define APR_HAS_OS_UUID           1
+#define APR_HAS_TIMEDLOCKS        1
 
 #define APR_PROCATTR_USER_SET_REQUIRES_PASSWORD 0
 
@@ -340,31 +359,35 @@ typedef  unsigned int    apr_uint32_t;
  */
 #ifdef DARWIN_10
 #undef APR_SIZEOF_VOIDP
-#undef INT64_C
-#undef UINT64_C
+#undef APR_INT64_C
+#undef APR_UINT64_C
 #ifdef __LP64__
  typedef  long            apr_int64_t;
  typedef  unsigned long   apr_uint64_t;
  #define APR_SIZEOF_VOIDP     8
- #define INT64_C(v)   (v ## L)
- #define UINT64_C(v)  (v ## UL)
+ #define APR_INT64_C(v)   (v ## L)
+ #define APR_UINT64_C(v)  (v ## UL)
 #else
  typedef  long long            apr_int64_t;
  typedef  unsigned long long   apr_uint64_t;
  #define APR_SIZEOF_VOIDP     4
- #define INT64_C(v)   (v ## LL)
- #define UINT64_C(v)  (v ## ULL)
+ #define APR_INT64_C(v)   (v ## LL)
+ #define APR_UINT64_C(v)  (v ## ULL)
 #endif
 #else
  typedef  __int64_t            apr_int64_t;
  typedef  __uint64_t           apr_uint64_t;
+
+ /* Mechanisms to properly type numeric literals */
+ #define APR_INT64_C(val) INT64_C(val)
+ #define APR_UINT64_C(val) UINT64_C(val)
 #endif
 
 typedef  size_t          apr_size_t;
 typedef  ssize_t         apr_ssize_t;
 typedef  off_t           apr_off_t;
 typedef  socklen_t       apr_socklen_t;
-typedef  unsigned int           apr_ino_t;
+typedef  __ino_t         apr_ino_t;
 
 #if APR_SIZEOF_VOIDP == 8
 typedef  apr_uint64_t            apr_uintptr_t;
@@ -380,10 +403,6 @@ typedef  apr_uint32_t            apr_uintptr_t;
 #else
 #error Unknown byte order.
 #endif
-
-/* Mechanisms to properly type numeric literals */
-#define APR_INT64_C(val) INT64_C(val)
-#define APR_UINT64_C(val) UINT64_C(val)
 
 #ifdef INT16_MIN
 #define APR_INT16_MIN   INT16_MIN
