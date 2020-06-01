@@ -275,8 +275,8 @@ vtnet_netmap_rxq_populate(struct vtnet_rxq *rxq)
 	/* Expose all the RX netmap buffers we can. In case of no indirect
 	 * buffers, the number of netmap slots in the RX ring matches the
 	 * maximum number of 2-elements sglist that the RX virtqueue can
-	 * accommodate. */
-	error = vtnet_netmap_kring_refill(kring, na->num_rx_desc);
+	 * accommodate (minus 1 to avoid netmap ring wraparound). */
+	error = vtnet_netmap_kring_refill(kring, na->num_rx_desc - 1);
 	virtqueue_notify(rxq->vtnrx_vq);
 
 	return error < 0 ? ENXIO : 0;
