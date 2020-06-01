@@ -37,9 +37,6 @@ SECTIONS
   /* Do not emit PT_INTERP section, which confuses some loaders (kexec-lite) */
   /DISCARD/   : { *(.interp)	} 
 
-  /* Also delete notes */
-  /DISCARD/   : { *(.note.*)	} 
-
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
   .dynstr        : { *(.dynstr)		}
@@ -51,6 +48,10 @@ SECTIONS
     *(.note.gnu.build-id)
     PROVIDE (__build_id_end = .);
   }
+
+  /* Do not emit any additional notes. */
+  /DISCARD/   : { *(.note.*)	} 
+
   .rela.text     :
     { *(.rela.text) *(.rela.gnu.linkonce.t*) }
   .rela.data     :
