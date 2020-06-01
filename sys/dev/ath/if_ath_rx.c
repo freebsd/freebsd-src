@@ -447,9 +447,17 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 			    (unsigned int) (nexttbtt >> 10),
 			    (int32_t) tsf_beacon - (int32_t) nexttbtt + tsf_intval);
 
-			/* We only do syncbeacon on STA VAPs; not on IBSS */
+			/*
+			 * We only do syncbeacon on STA VAPs; not on IBSS;
+			 * but don't do it with swbmiss enabled or we
+			 * may end up overwriting AP mode beacon config.
+			 *
+			 * The driver (and net80211) should be smarter about
+			 * this..
+			 */
 			if (vap->iv_opmode == IEEE80211_M_STA &&
 			    sc->sc_syncbeacon &&
+			    (!sc->sc_swbmiss) &&
 			    ni == vap->iv_bss &&
 			    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
 				DPRINTF(sc, ATH_DEBUG_BEACON,
