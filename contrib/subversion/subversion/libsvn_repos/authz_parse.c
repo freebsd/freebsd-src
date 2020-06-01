@@ -127,6 +127,10 @@ typedef struct ctor_baton_t
   svn_membuf_t rule_path_buffer;
   svn_stringbuf_t *rule_string_buffer;
 
+  /* The warning callback and its baton. */
+  svn_repos_authz_warning_func_t warning_func;
+  void *warning_baton;
+
   /* The parser's scratch pool. This may not be the same pool as
      passed to the constructor callbacks, that is supposed to be an
      iteration pool maintained by the generic parser.
@@ -154,6 +158,8 @@ static const char anon_access_token[] = "$anonymous";
 /* The authenticated access token. */
 static const char authn_access_token[] = "$authenticated";
 
+/* Fake token for inverted rights. */
+static const char neg_access_token[] = "~~$inverted";
 
 /* Initialize a rights structure.
    The minimum rights start with all available access and are later
@@ -191,6 +197,8 @@ insert_default_acl(ctor_baton_t *cb)
   acl->acl.has_anon_access = TRUE;
   acl->acl.authn_access = authz_access_none;
   acl->acl.has_authn_access = TRUE;
+  acl->acl.neg_access = authz_access_none;
+  acl->acl.has_neg_access = TRUE;
   acl->acl.user_access = NULL;
   acl->aces = svn_hash__make(cb->parser_pool);
   acl->alias_aces = svn_hash__make(cb->parser_pool);
@@ -199,7 +207,9 @@ insert_default_acl(ctor_baton_t *cb)
 
 /* Initialize a constuctor baton. */
 static ctor_baton_t *
-create_ctor_baton(apr_pool_t *result_pool,
+create_ctor_baton(svn_repos_authz_warning_func_t warning_func,
+                  void *warning_baton,
+                  apr_pool_t *result_pool,
                   apr_pool_t *scratch_pool)
 {
   apr_pool_t *const parser_pool = svn_pool_create(scratch_pool);
@@ -208,6 +218,7 @@ create_ctor_baton(apr_pool_t *result_pool,
   authz_full_t *const authz = apr_pcalloc(result_pool, sizeof(*authz));
   init_global_rights(&authz->anon_rights, anon_access_token, result_pool);
   init_global_rights(&authz->authn_rights, authn_access_token, result_pool);
+  init_global_rights(&authz->neg_rights, neg_access_token, result_pool);
   authz->user_rights = svn_hash__make(result_pool);
   authz->pool = result_pool;
 
@@ -229,12 +240,34 @@ create_ctor_baton(apr_pool_t *result_pool,
   svn_membuf__create(&cb->rule_path_buffer, 0, parser_pool);
   cb->rule_string_buffer = svn_stringbuf_create_empty(parser_pool);
 
+  cb->warning_func = warning_func;
+  cb->warning_baton = warning_baton;
+
   cb->parser_pool = parser_pool;
 
   insert_default_acl(cb);
 
   return cb;
 }
+
+
+/* Emit a warning. Clears ERROR */
+static void
+emit_parser_warning(const ctor_baton_t *cb,
+                    svn_error_t *error,
+                    apr_pool_t *scratch_pool)
+{
+  if (cb->warning_func)
+    cb->warning_func(cb->warning_baton, error, scratch_pool);
+  svn_error_clear(error);
+}
+
+/* Avoid creating an error struct if there is no warning function. */
+#define SVN_AUTHZ_PARSE_WARN(cb, err, pool)     \
+  do {                                          \
+    if ((cb) && (cb)->warning_func)             \
+      emit_parser_warning((cb), (err), (pool)); \
+  } while(0)
 
 
 /* Create and store per-user global rights.
@@ -536,7 +569,7 @@ parse_rule_path(authz_rule_t *rule,
               || (pattern->len == 2 && pattern->data[1] == '*'))
             {
               /* Process * and **, applying normalization as per
-                 https://wiki.apache.org/subversion/AuthzImprovements. */
+                 https://cwiki.apache.org/confluence/display/SVN/Authz+Improvements. */
 
               authz_rule_segment_t *const prev =
                 (nseg > 1 ? segment - 1 : NULL);
@@ -758,6 +791,8 @@ rules_open_section(void *baton, svn_stringbuf_t *section)
   acl.acl.has_anon_access = FALSE;
   acl.acl.authn_access = authz_access_none;
   acl.acl.has_authn_access = FALSE;
+  acl.acl.neg_access = authz_access_none;
+  acl.acl.has_neg_access = FALSE;
   acl.acl.user_access = NULL;
 
   acl.aces = svn_hash__make(cb->parser_pool);
@@ -958,6 +993,14 @@ add_access_entry(ctor_baton_t *cb, svn_stringbuf_t *section,
           if (!aliased && *ace->name != '@')
             prepare_global_rights(cb, ace->name);
         }
+
+      /* Propagate rights for inverted selectors to the global rights, otherwise
+         an access check can bail out early. See: SVN-4793 */
+      if (inverted)
+        {
+          acl->acl.has_neg_access = TRUE;
+          acl->acl.neg_access |= access;
+        }
     }
 
   return SVN_NO_ERROR;
@@ -996,7 +1039,8 @@ close_section(void *baton, svn_stringbuf_t *section)
 
 
 /* Add a user to GROUP.
-   GROUP is never internalized, but USER always is. */
+   GROUP is never internalized, but USER always is.
+   Adding a NULL user will create an empty group, if it doesn't exist. */
 static void
 add_to_group(ctor_baton_t *cb, const char *group, const char *user)
 {
@@ -1007,7 +1051,8 @@ add_to_group(ctor_baton_t *cb, const char *group, const char *user)
       members = svn_hash__make(cb->authz->pool);
       svn_hash_sets(cb->expanded_groups, group, members);
     }
-  svn_hash_sets(members, user, interned_empty_string);
+  if (user)
+    svn_hash_sets(members, user, interned_empty_string);
 }
 
 
@@ -1023,8 +1068,15 @@ expand_group_callback(void *baton,
   ctor_baton_t *const cb = baton;
   const char *const group = key;
   apr_array_header_t *members = value;
-
   int i;
+
+  if (0 == members->nelts)
+    {
+      /* Create the group with no members. */
+      add_to_group(cb, group, NULL);
+      return SVN_NO_ERROR;
+    }
+
   for (i = 0; i < members->nelts; ++i)
     {
       const char *member = APR_ARRAY_IDX(members, i, const char*);
@@ -1058,14 +1110,15 @@ expand_group_callback(void *baton,
       else
         {
           /* Recursively expand the group membership */
-          members = svn_hash_gets(cb->parsed_groups, member);
-          if (!members)
+          apr_array_header_t *member_members
+            = svn_hash_gets(cb->parsed_groups, member);
+          if (!member_members)
             return svn_error_createf(
                 SVN_ERR_AUTHZ_INVALID_CONFIG, NULL,
                 _("Undefined group '%s'"),
                 member);
           SVN_ERR(expand_group_callback(cb, key, klen,
-                                        members, scratch_pool));
+                                        member_members, scratch_pool));
         }
     }
   return SVN_NO_ERROR;
@@ -1153,10 +1206,24 @@ array_insert_ace(void *baton,
       SVN_ERR_ASSERT(ace->members == NULL);
       ace->members = svn_hash_gets(iab->cb->expanded_groups, ace->name);
       if (!ace->members)
-        return svn_error_createf(
-            SVN_ERR_AUTHZ_INVALID_CONFIG, NULL,
-            _("Access entry refers to undefined group '%s'"),
-            ace->name);
+        {
+          return svn_error_createf(
+              SVN_ERR_AUTHZ_INVALID_CONFIG, NULL,
+              _("Access entry refers to undefined group '%s'"),
+              ace->name);
+        }
+      else if (0 == apr_hash_count(ace->members))
+        {
+          /* An ACE for an empty group has no effect, so ignore it. */
+          SVN_AUTHZ_PARSE_WARN(
+              iab->cb,
+              svn_error_createf(
+                  SVN_ERR_AUTHZ_INVALID_CONFIG, NULL,
+                  _("Ignoring access entry for empty group '%s'"),
+                  ace->name),
+              scratch_pool);
+          return SVN_NO_ERROR;
+        }
     }
 
   APR_ARRAY_PUSH(iab->ace_array, authz_ace_t) = *ace;
@@ -1270,6 +1337,12 @@ expand_acl_callback(void *baton,
       update_global_rights(&cb->authz->authn_rights,
                            acl->rule.repos, acl->authn_access);
     }
+  if (acl->has_neg_access)
+    {
+      cb->authz->has_neg_rights = TRUE;
+      update_global_rights(&cb->authz->neg_rights,
+                           acl->rule.repos, acl->neg_access);
+    }
   SVN_ERR(svn_iter_apr_hash(NULL, cb->authz->user_rights,
                             update_user_rights, acl, scratch_pool));
   return SVN_NO_ERROR;
@@ -1296,10 +1369,13 @@ svn_error_t *
 svn_authz__parse(authz_full_t **authz,
                  svn_stream_t *rules,
                  svn_stream_t *groups,
+                 svn_repos_authz_warning_func_t warning_func,
+                 void *warning_baton,
                  apr_pool_t *result_pool,
                  apr_pool_t *scratch_pool)
 {
-  ctor_baton_t *const cb = create_ctor_baton(result_pool, scratch_pool);
+  ctor_baton_t *const cb = create_ctor_baton(warning_func, warning_baton,
+                                             result_pool, scratch_pool);
 
   /*
    * Pass 1: Parse the authz file.

@@ -64,13 +64,20 @@ logger__write(logger_t *logger,
 /* Write a description of ERR with additional information from REPOSITORY
  * and CLIENT_INFO to the log file managed by LOGGER.  REPOSITORY as well
  * as CLIENT_INFO may be NULL.  If either ERR or LOGGER are NULL, this
- * becomes a no-op.
+ * becomes a no-op. Does not clear ERR.
  */
 void
 logger__log_error(logger_t *logger,
-                  svn_error_t *err,
+                  const svn_error_t *err,
                   repository_t *repository,
                   client_info_t *client_info);
+
+/* Like logger__log_error() but for warnings. */
+void
+logger__log_warning(logger_t *logger,
+                    const svn_error_t *err,
+                    repository_t *repository,
+                    client_info_t *client_info);
 
 #ifdef __cplusplus
 }

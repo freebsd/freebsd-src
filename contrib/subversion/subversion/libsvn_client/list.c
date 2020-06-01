@@ -394,7 +394,7 @@ list_internal(const char *path_or_url,
   svn_membuf__create(&scratch_buffer, 256, pool);
 
   /* Report the dirent for the target. */
-  if (match_patterns(svn_dirent_dirname(fs_path, pool), patterns,
+  if (match_patterns(svn_dirent_basename(fs_path, pool), patterns,
                      &scratch_buffer))
     SVN_ERR(list_func(baton, "", dirent, locks
                       ? (svn_hash_gets(locks, fs_path))

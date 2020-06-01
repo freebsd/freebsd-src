@@ -500,15 +500,17 @@ svn_error_t *
 subcommand__stats(apr_getopt_t *os, void *baton, apr_pool_t *pool)
 {
   svnfsfs__opt_state *opt_state = baton;
-  svn_fs_fs__stats_t *stats;
   svn_fs_t *fs;
+  svn_fs_fs__ioctl_get_stats_input_t input = {0};
+  svn_fs_fs__ioctl_get_stats_output_t *output;
 
   printf("Reading revisions\n");
   SVN_ERR(open_fs(&fs, opt_state->repository_path, pool));
-  SVN_ERR(svn_fs_fs__get_stats(&stats, fs, print_progress, NULL,
-                               check_cancel, NULL, pool, pool));
 
-  print_stats(stats, pool);
+  input.progress_func = print_progress;
+  SVN_ERR(svn_fs_ioctl(fs, SVN_FS_FS__IOCTL_GET_STATS, &input, (void **)&output,
+                       check_cancel, NULL, pool, pool));
+  print_stats(output->stats, pool);
 
   return SVN_NO_ERROR;
 }

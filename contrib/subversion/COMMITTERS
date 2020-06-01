@@ -27,7 +27,7 @@ Blanket commit access:
            dlr   Daniel Rall <dlr@finemaltcoding.com>
            mbk   Mark Benedetto King <mbk@lowlatency.com>
            jaa   Jani Averbach <jaa@iki.fi>
-    julianfoad   Julian Foad <julian@foad.me.uk>
+    julianfoad   Julian Foad <julianfoad@apache.org>
   jszakmeister   John Szakmeister <john@szakmeister.net>
            ehu   Erik Hülsmann <ehuels@gmail.com>
         breser   Ben Reser <ben@reser.org>
@@ -61,6 +61,9 @@ Blanket commit access:
       astieger   Andreas Stieger <andreas.stieger@gmx.de>
       jamessan   James McCoy <jamessan@jamessan.com>
       luke1410   Stefan Hett <luke1410@posteo.de>
+  troycurtisjr   Troy Curtis, Jr <troycurtisjr@gmail.com>
+ hartmannathan   Nathan Hartman <hartman.nathan@gmail.com>
+      futatuki   Yasuhito Futatsuki <futatuki@yf.bsdclub.org>
 
 [[END ACTIVE FULL COMMITTERS.  LEAVE THIS LINE HERE; SCRIPTS LOOK FOR IT.]]
 
@@ -87,6 +90,7 @@ Partial committers who have asked to be listed as dormant:
       rassilon   Bill Tutt <bill@tutts.org> (Win32, COM, issue-1003-dev br.)
            pll   Paul lussier <p.lussier@comcast.net>        (releases)
         rdonch   Роман Донченко <dpb@corrigendum.ru>         (Swig-Python b.)
+      karolszk   Karol Szkudlarek <karol@mikronika.com.pl>   (po: pl)
 
 
 Commit access for specific areas:
@@ -103,7 +107,6 @@ Commit access for specific areas:
        rschupp   Roderich Schupp <roderich.schupp@gmail.com> (Swig bindings)
         stilor   Alexey Neyman <stilor@att.net>              (Python bindings,
                                                              svn-vendor.py)
-  troycurtisjr   Troy Curtis, Jr <troycurtisjr@gmail.com>    (Swig bindings)
 
   Packages:
 
@@ -179,7 +182,6 @@ Commit access for specific areas:
       oyvindmo   Øyvind Møll <svn@moll.no>                   (po: nb)
       sunny256   Øyvind A. Holm <sunny@sunbase.org>          (po: nb)
         jzgoda   Jaroslaw Zgoda <jzgoda@o2.pl>               (po: pl)
-      karolszk   Karol Szkudlarek <karol@mikronika.com.pl>   (po: pl)
         plasma   Wei-Hon Chen <plasma@ms9.hinet.net>         (po: zh_TW)
        jihuang   June-Yen Huang <jihuang@iis.sinica.edu.tw>  (po: zh_TW) [EMAIL
                                                              IS BOUNCING]

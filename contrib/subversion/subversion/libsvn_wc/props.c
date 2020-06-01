@@ -2236,7 +2236,9 @@ svn_wc_canonicalize_svn_prop(const svn_string_t **propval_p,
               if (duplicate_targets->nelts > 1)
                 {
                   more_str = apr_psprintf(/*scratch_*/pool,
-                               _(" (%d more duplicate targets found)"),
+                               Q_(" (%d more duplicate target found)",
+                                  " (%d more duplicate targets found)",
+                                  duplicate_targets->nelts - 1),
                                duplicate_targets->nelts - 1);
                 }
               return svn_error_createf(

@@ -67,10 +67,11 @@ svn_cl__revert(apr_getopt_t *os,
 
   SVN_ERR(svn_cl__check_targets_are_local_paths(targets));
 
-  err = svn_client_revert3(targets, opt_state->depth,
+  err = svn_client_revert4(targets, opt_state->depth,
                            opt_state->changelists,
                            FALSE /* clear_changelists */,
                            FALSE /* metadata_only */,
+                           !opt_state->remove_added /*added_keep_local*/,
                            ctx, scratch_pool);
   if (err
       && (err->apr_err == SVN_ERR_WC_INVALID_OPERATION_DEPTH)

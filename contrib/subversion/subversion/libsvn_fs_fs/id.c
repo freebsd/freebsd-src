@@ -591,7 +591,8 @@ svn_fs_fs__id_parse(const svn_fs_id_t **id_p,
   svn_fs_id_t *id = id_parse(data, pool);
   if (id == NULL)
     return svn_error_createf(SVN_ERR_FS_MALFORMED_NODEREV_ID, NULL,
-                             "Malformed node revision ID string");
+                             "Malformed node revision ID string '%s'",
+                             data);
 
   *id_p = id;
 

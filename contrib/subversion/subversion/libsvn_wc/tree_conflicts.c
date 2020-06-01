@@ -442,7 +442,7 @@ svn_wc__add_tree_conflict(svn_wc_context_t *wc_ctx,
                                                   conflict->local_abspath,
                                                   conflict->reason,
                                                   conflict->action,
-                                                  NULL,
+                                                  NULL, NULL,
                                                   scratch_pool, scratch_pool));
 
   switch (conflict->operation)

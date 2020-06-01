@@ -111,22 +111,27 @@ static const apr_getopt_option_t options_table[] =
 /* Array of available subcommands.
  * The entire list must be terminated with an entry of nulls.
  */
-static const svn_opt_subcommand_desc2_t cmd_table[] =
+static const svn_opt_subcommand_desc3_t cmd_table[] =
 {
-  {"help", subcommand__help, {"?", "h"}, N_
-   ("usage: svnfsfs help [SUBCOMMAND...]\n\n"
-    "Describe the usage of this program or its subcommands.\n"),
+  {"help", subcommand__help, {"?", "h"}, {N_(
+    "usage: svnfsfs help [SUBCOMMAND...]\n"
+    "\n"), N_(
+    "Describe the usage of this program or its subcommands.\n"
+   )},
    {0} },
 
-  {"dump-index", subcommand__dump_index, {0}, N_
-   ("usage: svnfsfs dump-index REPOS_PATH -r REV\n\n"
+  {"dump-index", subcommand__dump_index, {0}, {N_(
+    "usage: svnfsfs dump-index REPOS_PATH -r REV\n"
+    "\n"), N_(
     "Dump the index contents for the revision / pack file containing revision REV\n"
     "to console.  This is only available for FSFS format 7 (SVN 1.9+) repositories.\n"
     "The table produced contains a header in the first line followed by one line\n"
-    "per index entry, ordered by location in the revision / pack file.  Columns:\n\n"
+    "per index entry, ordered by location in the revision / pack file.  Columns:\n"
+    "\n"), N_(
     "   * Byte offset (hex) at which the item starts\n"
     "   * Length (hex) of the item in bytes\n"
-    "   * Item type (string) is one of the following:\n\n"
+    "   * Item type (string) is one of the following:\n"
+    "\n"), N_(
     "        none ... Unused section.  File contents shall be NULs.\n"
     "        frep ... File representation.\n"
     "        drep ... Directory representation.\n"
@@ -135,29 +140,36 @@ static const svn_opt_subcommand_desc2_t cmd_table[] =
     "        node ... Node revision.\n"
     "        chgs ... Changed paths list.\n"
     "        rep .... Representation of unknown type.  Should not be used.\n"
-    "        ??? .... Invalid.  Index data is corrupt.\n\n"
+    "        ??? .... Invalid.  Index data is corrupt.\n"
+    "\n"), N_(
     "        The distinction between frep, drep, fprop and dprop is a mere internal\n"
     "        classification used for various optimizations and does not affect the\n"
-    "        operational correctness.\n\n"
+    "        operational correctness.\n"
+    "\n"), N_(
     "   * Revision that the item belongs to (decimal)\n"
     "   * Item number (decimal) within that revision\n"
-    "   * Modified FNV1a checksum (8 hex digits)\n"),
+    "   * Modified FNV1a checksum (8 hex digits)\n"
+   )},
    {'r', 'M'} },
 
-  {"load-index", subcommand__load_index, {0}, N_
-   ("usage: svnfsfs load-index REPOS_PATH\n\n"
+  {"load-index", subcommand__load_index, {0}, {N_(
+    "usage: svnfsfs load-index REPOS_PATH\n"
+    "\n"), N_(
     "Read index contents from console.  The format is the same as produced by the\n"
     "dump-index command, except that checksum as well as header are optional and will\n"
     "be ignored.  The data must cover the full revision / pack file;  the revision\n"
-    "number is automatically extracted from input stream.  No ordering is required.\n"),
+    "number is automatically extracted from input stream.  No ordering is required.\n"
+   )},
    {'M'} },
 
-  {"stats", subcommand__stats, {0}, N_
-   ("usage: svnfsfs stats REPOS_PATH\n\n"
-    "Write object size statistics to console.\n"),
+  {"stats", subcommand__stats, {0}, {N_(
+    "usage: svnfsfs stats REPOS_PATH\n"
+    "\n"), N_(
+    "Write object size statistics to console.\n"
+   )},
    {'M'} },
 
-  { NULL, NULL, {0}, NULL, {0} }
+  { NULL, NULL, {0}, {NULL}, {0} }
 };
 
 
@@ -196,7 +208,7 @@ subcommand__help(apr_getopt_t *os, void *baton, apr_pool_t *pool)
       "\n"
       "Available subcommands:\n");
 
-  SVN_ERR(svn_opt_print_help4(os, "svnfsfs",
+  SVN_ERR(svn_opt_print_help5(os, "svnfsfs",
                               opt_state ? opt_state->version : FALSE,
                               opt_state ? opt_state->quiet : FALSE,
                               /*###opt_state ? opt_state->verbose :*/ FALSE,
@@ -221,7 +233,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   svn_error_t *err;
   apr_status_t apr_err;
 
-  const svn_opt_subcommand_desc2_t *subcommand = NULL;
+  const svn_opt_subcommand_desc3_t *subcommand = NULL;
   svnfsfs__opt_state opt_state = { 0 };
   apr_getopt_t *os;
   int opt_id;
@@ -325,7 +337,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
      just typos/mistakes.  Whatever the case, the subcommand to
      actually run is subcommand_help(). */
   if (opt_state.help)
-    subcommand = svn_opt_get_canonical_subcommand2(cmd_table, "help");
+    subcommand = svn_opt_get_canonical_subcommand3(cmd_table, "help");
 
   /* If we're not running the `help' subcommand, then look for a
      subcommand in the first argument. */
@@ -336,8 +348,8 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           if (opt_state.version)
             {
               /* Use the "help" subcommand to handle the "--version" option. */
-              static const svn_opt_subcommand_desc2_t pseudo_cmd =
-                { "--version", subcommand__help, {0}, "",
+              static const svn_opt_subcommand_desc3_t pseudo_cmd =
+                { "--version", subcommand__help, {0}, {""},
                   {svnfsfs__version,  /* must accept its own option */
                    'q',  /* --quiet */
                   } };
@@ -359,7 +371,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
           SVN_ERR(svn_utf_cstring_to_utf8(&first_arg, os->argv[os->ind++],
                                           pool));
-          subcommand = svn_opt_get_canonical_subcommand2(cmd_table, first_arg);
+          subcommand = svn_opt_get_canonical_subcommand3(cmd_table, first_arg);
           if (subcommand == NULL)
             {
               svn_error_clear(
@@ -409,11 +421,11 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
       if (opt_id == 'h' || opt_id == '?')
         continue;
 
-      if (! svn_opt_subcommand_takes_option3(subcommand, opt_id, NULL))
+      if (! svn_opt_subcommand_takes_option4(subcommand, opt_id, NULL))
         {
           const char *optstr;
           const apr_getopt_option_t *badopt =
-            svn_opt_get_option_from_code2(opt_id, options_table, subcommand,
+            svn_opt_get_option_from_code3(opt_id, options_table, subcommand,
                                           pool);
           svn_opt_format_option(&optstr, badopt, FALSE, pool);
           if (subcommand->name[0] == '-')

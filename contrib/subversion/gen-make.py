@@ -48,7 +48,6 @@ sys.path.insert(1, 'build')
 
 gen_modules = {
   'make' : ('gen_make', 'Makefiles for POSIX systems'),
-  'dsp' : ('gen_msvc_dsp', 'MSVC 6.x project files'),
   'vcproj' : ('gen_vcnet_vcproj', 'VC.Net project files'),
   }
 
@@ -176,6 +175,8 @@ def _usage_exit(err=None):
   print("")
   print("  --with-swig=DIR")
   print("           look for the swig program in DIR")
+  print("  --with-py3c=DIR")
+  print("           look for the py3c library in DIR")
   print("")
   print("  --with-sqlite=DIR")
   print("           look for sqlite in DIR")
@@ -215,8 +216,6 @@ def _usage_exit(err=None):
   print("")
   print("  --with-apr_memcache=DIR")
   print("           the apr_memcache sources are in DIR")
-  print("  --disable-gmock")
-  print("           do not use Googlemock")
   sys.exit(1)
 
 
@@ -252,6 +251,7 @@ if __name__ == '__main__':
                             'with-jdk=',
                             'with-junit=',
                             'with-swig=',
+                            'with-py3c=',
                             'with-sqlite=',
                             'with-sasl=',
                             'with-apr_memcache=',
@@ -264,7 +264,6 @@ if __name__ == '__main__':
                             'disable-shared',
                             'installed-libs=',
                             'vsnet-version=',
-                            'disable-gmock',
                             ])
     if len(args) > 1:
       _usage_exit("Too many arguments")

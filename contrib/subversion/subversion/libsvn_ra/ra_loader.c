@@ -256,8 +256,9 @@ svn_ra_create_callbacks(svn_ra_callbacks2_t **callbacks,
   return SVN_NO_ERROR;
 }
 
-svn_error_t *svn_ra_open4(svn_ra_session_t **session_p,
+svn_error_t *svn_ra_open5(svn_ra_session_t **session_p,
                           const char **corrected_url_p,
+                          const char **redirect_url_p,
                           const char *repos_URL,
                           const char *uuid,
                           const svn_ra_callbacks2_t *callbacks,
@@ -381,7 +382,7 @@ svn_error_t *svn_ra_open4(svn_ra_session_t **session_p,
   session->pool = sesspool;
 
   /* Ask the library to open the session. */
-  err = vtable->open_session(session, corrected_url_p,
+  err = vtable->open_session(session, corrected_url_p, redirect_url_p,
                              repos_URL,
                              callbacks, callback_baton, auth_baton,
                              config, sesspool, scratch_pool);
@@ -406,12 +407,14 @@ svn_error_t *svn_ra_open4(svn_ra_session_t **session_p,
     {
       /* *session_p = NULL; */
       *corrected_url_p = apr_pstrdup(pool, *corrected_url_p);
+      if (redirect_url_p && *redirect_url_p)
+        *redirect_url_p = apr_pstrdup(pool, *redirect_url_p);
       svn_pool_destroy(sesspool); /* Includes scratch_pool */
       return SVN_NO_ERROR;
     }
 
   if (vtable->set_svn_ra_open)
-    SVN_ERR(vtable->set_svn_ra_open(session, svn_ra_open4));
+    SVN_ERR(vtable->set_svn_ra_open(session, svn_ra_open5));
 
   /* Check the UUID. */
   if (uuid)
@@ -472,7 +475,7 @@ svn_ra__dup_session(svn_ra_session_t **new_session,
                                            scratch_pool));
 
   if (session->vtable->set_svn_ra_open)
-    SVN_ERR(session->vtable->set_svn_ra_open(session, svn_ra_open4));
+    SVN_ERR(session->vtable->set_svn_ra_open(session, svn_ra_open5));
 
   *new_session = session;
   return SVN_NO_ERROR;

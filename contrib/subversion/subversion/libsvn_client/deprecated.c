@@ -166,6 +166,61 @@ svn_client_mkdir(svn_client_commit_info_t **commit_info_p,
 }
 
 /*** From blame.c ***/
+struct blame_receiver_wrapper_baton3 {
+  void *baton;
+  svn_client_blame_receiver3_t receiver;
+  svn_revnum_t start_revnum;
+  svn_revnum_t end_revnum;
+};
+
+static svn_error_t *
+blame_wrapper_receiver3(void *baton,
+   apr_int64_t line_no,
+   svn_revnum_t revision,
+   apr_hash_t *rev_props,
+   svn_revnum_t merged_revision,
+   apr_hash_t *merged_rev_props,
+   const char *merged_path,
+   const svn_string_t *line,
+   svn_boolean_t local_change,
+   apr_pool_t *pool)
+{
+  struct blame_receiver_wrapper_baton3 *brwb = baton;
+
+  if (brwb->receiver)
+    return brwb->receiver(brwb->baton, brwb->start_revnum, brwb->end_revnum,
+                          line_no,
+                          revision, rev_props, merged_revision,
+                          merged_rev_props, merged_path, line->data,
+                          local_change, pool);
+
+  return SVN_NO_ERROR;
+}
+
+svn_error_t *
+svn_client_blame5(const char *target,
+                  const svn_opt_revision_t *peg_revision,
+                  const svn_opt_revision_t *start,
+                  const svn_opt_revision_t *end,
+                  const svn_diff_file_options_t *diff_options,
+                  svn_boolean_t ignore_mime_type,
+                  svn_boolean_t include_merged_revisions,
+                  svn_client_blame_receiver3_t receiver,
+                  void *receiver_baton,
+                  svn_client_ctx_t *ctx,
+                  apr_pool_t *pool)
+{
+  struct blame_receiver_wrapper_baton3 baton;
+
+  baton.receiver = receiver;
+  baton.baton = receiver_baton;
+
+  return svn_client_blame6(&baton.start_revnum, &baton.end_revnum,
+                           target, peg_revision, start, end,
+                           diff_options,
+                           ignore_mime_type, include_merged_revisions,
+                           blame_wrapper_receiver3, &baton, ctx, pool);
+}
 
 struct blame_receiver_wrapper_baton2 {
   void *baton;
@@ -936,6 +991,42 @@ svn_client_delete(svn_client_commit_info_t **commit_info_p,
 /*** From diff.c ***/
 
 svn_error_t *
+svn_client_diff6(const apr_array_header_t *diff_options,
+                 const char *path_or_url1,
+                 const svn_opt_revision_t *revision1,
+                 const char *path_or_url2,
+                 const svn_opt_revision_t *revision2,
+                 const char *relative_to_dir,
+                 svn_depth_t depth,
+                 svn_boolean_t ignore_ancestry,
+                 svn_boolean_t no_diff_added,
+                 svn_boolean_t no_diff_deleted,
+                 svn_boolean_t show_copies_as_adds,
+                 svn_boolean_t ignore_content_type,
+                 svn_boolean_t ignore_properties,
+                 svn_boolean_t properties_only,
+                 svn_boolean_t use_git_diff_format,
+                 const char *header_encoding,
+                 svn_stream_t *outstream,
+                 svn_stream_t *errstream,
+                 const apr_array_header_t *changelists,
+                 svn_client_ctx_t *ctx,
+                 apr_pool_t *pool)
+{
+  return svn_client_diff7(diff_options,
+                          path_or_url1, revision1,
+                          path_or_url2, revision2,
+                          relative_to_dir, depth,
+                          ignore_ancestry, no_diff_added,
+                          no_diff_deleted, show_copies_as_adds,
+                          ignore_content_type, ignore_properties,
+                          properties_only, use_git_diff_format,
+                          TRUE /*pretty_print_mergeinfo*/,
+                          header_encoding,
+                          outstream, errstream, changelists, ctx, pool);
+}
+
+svn_error_t *
 svn_client_diff5(const apr_array_header_t *diff_options,
                  const char *path1,
                  const svn_opt_revision_t *revision1,
@@ -1055,6 +1146,53 @@ svn_client_diff(const apr_array_header_t *options,
   return svn_client_diff2(options, path1, revision1, path2, revision2,
                           recurse, ignore_ancestry, no_diff_deleted, FALSE,
                           outfile, errfile, ctx, pool);
+}
+
+svn_error_t *
+svn_client_diff_peg6(const apr_array_header_t *options,
+                     const char *path_or_url,
+                     const svn_opt_revision_t *peg_revision,
+                     const svn_opt_revision_t *start_revision,
+                     const svn_opt_revision_t *end_revision,
+                     const char *relative_to_dir,
+                     svn_depth_t depth,
+                     svn_boolean_t ignore_ancestry,
+                     svn_boolean_t no_diff_added,
+                     svn_boolean_t no_diff_deleted,
+                     svn_boolean_t show_copies_as_adds,
+                     svn_boolean_t ignore_content_type,
+                     svn_boolean_t ignore_properties,
+                     svn_boolean_t properties_only,
+                     svn_boolean_t use_git_diff_format,
+                     const char *header_encoding,
+                     svn_stream_t *outstream,
+                     svn_stream_t *errstream,
+                     const apr_array_header_t *changelists,
+                     svn_client_ctx_t *ctx,
+                     apr_pool_t *pool)
+{
+  return svn_client_diff_peg7(options,
+                              path_or_url,
+                              peg_revision,
+                              start_revision,
+                              end_revision,
+                              relative_to_dir,
+                              depth,
+                              ignore_ancestry,
+                              no_diff_added,
+                              no_diff_deleted,
+                              show_copies_as_adds,
+                              ignore_content_type,
+                              ignore_properties,
+                              properties_only,
+                              use_git_diff_format,
+                              TRUE /*pretty_print_mergeinfo*/,
+                              header_encoding,
+                              outstream,
+                              errstream,
+                              changelists,
+                              ctx,
+                              pool);
 }
 
 svn_error_t *
@@ -1643,7 +1781,7 @@ svn_client_log(const apr_array_header_t *targets,
    * we just invoke the receiver manually on a hand-constructed log
    * message for revision 0.
    *
-   * See also http://subversion.tigris.org/issues/show_bug.cgi?id=692.
+   * See also https://issues.apache.org/jira/browse/SVN-692.
    */
   if (err && (err->apr_err == SVN_ERR_FS_NO_SUCH_REVISION)
       && (start->kind == svn_opt_revision_head)
@@ -2852,6 +2990,22 @@ svn_client_resolved(const char *path,
                             svn_wc_conflict_choose_merged, ctx, pool);
 }
 /*** From revert.c ***/
+svn_error_t *
+svn_client_revert3(const apr_array_header_t *paths,
+                   svn_depth_t depth,
+                   const apr_array_header_t *changelists,
+                   svn_boolean_t clear_changelists,
+                   svn_boolean_t metadata_only,
+                   svn_client_ctx_t *ctx,
+                   apr_pool_t *pool)
+{
+  SVN_ERR(svn_client_revert4(paths, depth, changelists,
+                             clear_changelists, metadata_only,
+                             TRUE /*added_keep_local*/,
+                             ctx, pool));
+  return SVN_NO_ERROR;
+}
+
 svn_error_t *
 svn_client_revert2(const apr_array_header_t *paths,
                    svn_depth_t depth,

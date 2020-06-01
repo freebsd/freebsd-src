@@ -151,6 +151,19 @@ static svn_ra_reporter2_t reporter_3in2_wrapper = {
   abort_report
 };
 
+svn_error_t *svn_ra_open4(svn_ra_session_t **session_p,
+                          const char **corrected_url_p,
+                          const char *repos_URL,
+                          const char *uuid,
+                          const svn_ra_callbacks2_t *callbacks,
+                          void *callback_baton,
+                          apr_hash_t *config,
+                          apr_pool_t *pool)
+{
+  return svn_ra_open5(session_p, corrected_url_p, NULL, repos_URL, uuid,
+                      callbacks, callback_baton, config, pool);
+}
+
 svn_error_t *svn_ra_open3(svn_ra_session_t **session_p,
                           const char *repos_URL,
                           const char *uuid,

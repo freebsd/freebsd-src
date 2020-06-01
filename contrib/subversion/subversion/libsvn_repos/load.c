@@ -355,24 +355,62 @@ parse_text_block(svn_stream_t *stream,
 
 
 
-/* Parse VERSIONSTRING and verify that we support the dumpfile format
-   version number, setting *VERSION appropriately. */
+/* Parse VERSIONSTRING from STREAM and verify that we support the dumpfile
+   format version number, setting *VERSION appropriately. */
 static svn_error_t *
 parse_format_version(int *version,
-                     const char *versionstring)
+                     svn_stream_t *stream,
+                     apr_pool_t *scratch_pool)
 {
   static const int magic_len = sizeof(SVN_REPOS_DUMPFILE_MAGIC_HEADER) - 1;
-  const char *p = strchr(versionstring, ':');
+  svn_stringbuf_t *linebuf;
+  const char *p;
   int value;
 
+  /* No svn_stream_readline() here, because malformed streams may not have
+     the EOL at all, and currently svn_stream_readline() keeps loading the
+     whole thing into memory until it encounters an EOL or the stream ends.
+     This is particularly troublesome, because users may incorrectly attempt
+     to load arbitrary large files instread of proper dump files.
+
+     As a workaround, parse the first line with a length limit.  While this
+     is not a complete solution, doing so handles the common case described
+     above.  For a complete solution, svn_stream_readline() may need to grow
+     a `limit` argument that would allow us to safely use it everywhere within
+     this parser.
+   */
+  linebuf = svn_stringbuf_create_empty(scratch_pool);
+  while (1)
+    {
+      apr_size_t len;
+      char c;
+
+      len = 1;
+      SVN_ERR(svn_stream_read_full(stream, &c, &len));
+      if (len != 1)
+        return stream_ran_dry();
+
+      if (c == '\n')
+        break;
+
+      if (linebuf->len + 1 > 80)
+        return svn_error_createf(SVN_ERR_STREAM_MALFORMED_DATA, NULL,
+                                 _("Malformed dumpfile header '%s'"),
+                                 linebuf->data);
+
+      svn_stringbuf_appendbyte(linebuf, c);
+    }
+
+  p = strchr(linebuf->data, ':');
+
   if (p == NULL
-      || p != (versionstring + magic_len)
-      || strncmp(versionstring,
+      || p != (linebuf->data + magic_len)
+      || strncmp(linebuf->data,
                  SVN_REPOS_DUMPFILE_MAGIC_HEADER,
                  magic_len))
     return svn_error_createf(SVN_ERR_STREAM_MALFORMED_DATA, NULL,
                              _("Malformed dumpfile header '%s'"),
-                             versionstring);
+                             linebuf->data);
 
   SVN_ERR(svn_cstring_atoi(&value, p + 1));
 
@@ -542,14 +580,10 @@ svn_repos_parse_dumpstream3(svn_stream_t *stream,
   parse_fns = complete_vtable(parse_fns, pool);
 
   /* Start parsing process. */
-  SVN_ERR(svn_stream_readline(stream, &linebuf, "\n", &eof, linepool));
-  if (eof)
-    return stream_ran_dry();
-
   /* The first two lines of the stream are the dumpfile-format version
      number, and a blank line.  To preserve backward compatibility,
      don't assume the existence of newer parser-vtable functions. */
-  SVN_ERR(parse_format_version(&version, linebuf->data));
+  SVN_ERR(parse_format_version(&version, stream, linepool));
   if (parse_fns->magic_header_record != NULL)
     SVN_ERR(parse_fns->magic_header_record(version, parse_baton, pool));
 

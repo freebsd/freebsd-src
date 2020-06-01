@@ -6,7 +6,7 @@ includedir=@includedir@
 Name: libsvn_auth_kwallet
 Description: Subversion KWallet Library
 Version: @PACKAGE_VERSION@
-Requires:  apr-@SVN_APR_MAJOR_VERSION@
-Requires.private:  libsvn_subr
-Libs: -L${libdir}  -lsvn_auth_kwallet @SVN_KWALLET_LIBS@
-Cflags: -I${includedir}
+Requires: apr-@SVN_APR_MAJOR_VERSION@
+Requires.private: libsvn_subr
+Libs: -L${libdir}  -lsvn_auth_kwallet-1 @SVN_KWALLET_LIBS@
+Cflags: -I${includedir}/subversion-1
