@@ -187,7 +187,7 @@ get_env_net_params()
 			rootip.s_addr = 0;
 			return;
 		}
-		if ((gateip.s_addr = inet_addr(envstr) == INADDR_NONE)) {
+		if ((gateip.s_addr = inet_addr(envstr)) == INADDR_NONE) {
 			printf("Could not parse gatewayip '%s'\n", envstr);
 			rootip.s_addr = 0;
 			return;
