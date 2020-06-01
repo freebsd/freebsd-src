@@ -232,14 +232,20 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 	return 0;
 }
 
+/*
+ * Publish (up to) num netmap receive buffers to the host,
+ * starting from the first one that the user made available
+ * (kring->nr_hwcur).
+ */
 static int
-vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int nm_i, u_int head)
+vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
 {
 	struct netmap_adapter *na = kring->na;
 	struct ifnet *ifp = na->ifp;
 	struct netmap_ring *ring = kring->ring;
 	u_int ring_nr = kring->ring_id;
 	u_int const lim = kring->nkr_num_slots - 1;
+	u_int nm_i = kring->nr_hwcur;
 
 	/* device-specific */
 	struct vtnet_softc *sc = ifp->if_softc;
@@ -250,7 +256,7 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int nm_i, u_int head)
 	struct sglist_seg ss[2];
 	struct sglist sg = { ss, 0, 0, 2 };
 
-	for (; nm_i != head; nm_i = nm_next(nm_i, lim)) {
+	for (; num > 0; nm_i = nm_next(nm_i, lim), num--) {
 		struct netmap_slot *slot = &ring->slot[nm_i];
 		uint64_t paddr;
 		void *addr = PNMB(na, slot, &paddr);
@@ -302,10 +308,11 @@ vtnet_netmap_rxq_populate(struct vtnet_rxq *rxq)
 			kring->nr_pending_mode == NKR_NETMAP_ON))
 		return -1;
 
-	/* Expose all the RX netmap buffers. Note that the number of
-	 * netmap slots in the RX ring matches the maximum number of
-	 * 2-elements sglist that the RX virtqueue can accommodate. */
-	error = vtnet_netmap_kring_refill(kring, 0, na->num_rx_desc);
+	/* Expose all the RX netmap buffers we can. In case of no indirect
+	 * buffers, the number of netmap slots in the RX ring matches the
+	 * maximum number of 2-elements sglist that the RX virtqueue can
+	 * accommodate. */
+	error = vtnet_netmap_kring_refill(kring, na->num_rx_desc);
 	virtqueue_notify(rxq->vtnrx_vq);
 
 	return error < 0 ? ENXIO : 0;
@@ -381,7 +388,12 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 */
 	nm_i = kring->nr_hwcur; /* netmap ring index */
 	if (nm_i != head) {
-		int nm_j = vtnet_netmap_kring_refill(kring, nm_i, head);
+		int howmany = head - nm_i;
+		int nm_j;
+
+		if (howmany < 0)
+			howmany += kring->nkr_num_slots;
+		nm_j = vtnet_netmap_kring_refill(kring, howmany);
 		if (nm_j < 0)
 			return nm_j;
 		kring->nr_hwcur = nm_j;
