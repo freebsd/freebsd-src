@@ -75,7 +75,7 @@ CFLAGS+=	-DPOLY1305_ASM
 
 .if defined(LIB)
 CFLAGS+=	-DOPENSSLDIR="\"/etc/ssl\""
-CFLAGS+=	-DENGINESDIR="\"/usr/lib/engines\""
+CFLAGS+=	-DENGINESDIR="\"${LIBDIR}/engines\""
 .endif
 
 CFLAGS+=	-DNDEBUG
