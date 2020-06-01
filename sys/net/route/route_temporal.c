@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/ck.h>
 #include <sys/rmlock.h>
 #include <sys/callout.h>
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/vnet.h>
 
