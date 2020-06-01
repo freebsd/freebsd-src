@@ -465,6 +465,9 @@ print_only(const char *path, size_t dirlen, const char *entry)
 void
 print_status(int val, char *path1, char *path2, const char *entry)
 {
+	if (label[0] != NULL) path1 = label[0];
+	if (label[1] != NULL) path2 = label[1];
+
 	switch (val) {
 	case D_BINARY:
 		printf("Binary files %s%s and %s%s differ\n",
