@@ -19,6 +19,7 @@ SRCS=		apr_cpystrn.c \
 		apr_tables.c \
 		buffer.c \
 		builtins.c \
+		builtins64.c \
 		charset.c \
 		common.c \
 		copy.c \
@@ -45,6 +46,7 @@ SRCS=		apr_cpystrn.c \
 		mmap.c \
 		multicast.c \
 		mutex.c \
+		mutex64.c \
 		open.c \
 		otherchild.c \
 		pipe.c \
