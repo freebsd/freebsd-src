@@ -8,6 +8,8 @@
     lib32
         dtrace
         ..
+        engines
+        ..
         geom
         ..
         i18n
