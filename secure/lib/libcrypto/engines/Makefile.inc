@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SHLIBDIR?= /usr/lib/engines
+SHLIBDIR=	${LIBDIR}/engines
 
 LCRYPTO_SRC=	${SRCTOP}/crypto/openssl
 
