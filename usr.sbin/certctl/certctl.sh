@@ -102,7 +102,7 @@ do_scan()
 		[ -d "$CPATH" ] || continue
 		echo "Scanning $CPATH for certificates..."
 		for CFILE in $(ls -1 "${CPATH}" | grep -Ee "${FILEPAT}"); do
-			[ -e "$CPATH/$CFILE" && $UNPRIV -eq 0 ] || continue
+			[ -e "$CPATH/$CFILE" -a $UNPRIV -eq 0 ] || continue
 			[ $VERBOSE -gt 0 ] && echo "Reading $CFILE"
 			"$CFUNC" "$CPATH/$CFILE"
 		done
