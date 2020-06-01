@@ -35,7 +35,6 @@
 #ifndef RNF_NORMAL
 #include <net/radix.h>
 #endif
-#include <sys/ck.h>
 #include <sys/epoch.h>
 #include <netinet/in.h>		/* struct sockaddr_in */
 #include <sys/counter.h>
@@ -64,7 +63,6 @@ struct rib_head {
 	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
 	time_t			next_expire;	/* Next expire run ts */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
-	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
 };
 
 #define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
@@ -112,13 +110,12 @@ void rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt);
 struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
     struct rt_addrinfo *info, struct rtentry *rto, int *perror);
 #endif
-struct rib_cmd_info;
 int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
+    struct rtentry **ret_nrt);
 int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
+    struct rtentry **ret_nrt);
 int change_route(struct rib_head *, struct rt_addrinfo *,
-    struct rib_cmd_info *rc);
+    struct rtentry **);
 
 VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
 #define	RTSTAT_ADD(name, val)	\

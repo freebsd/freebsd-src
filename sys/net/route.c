@@ -61,7 +61,6 @@
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
-#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/route/nhop.h>
 #include <net/route/shared.h>
@@ -346,9 +345,6 @@ rt_table_init(int offset, int family, u_int fibnum)
 	RIB_LOCK_INIT(rh);
 
 	nhops_init_rib(rh);
-
-	/* Init subscription system */
-	CK_STAILQ_INIT(&rh->rnh_subscribers);
 
 	/* Finally, set base callbacks */
 	rh->rnh_addaddr = rn_addroute;
@@ -1152,7 +1148,6 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 {
 	const struct sockaddr *dst;
 	struct rib_head *rnh;
-	struct rib_cmd_info rc;
 	int error;
 
 	KASSERT((fibnum < rt_numfibs), ("rtrequest1_fib: bad fibnum"));
@@ -1185,11 +1180,10 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	if (info->rti_flags & RTF_HOST)
 		info->rti_info[RTAX_NETMASK] = NULL;
 
-	bzero(&rc, sizeof(struct rib_cmd_info));
 	error = 0;
 	switch (req) {
 	case RTM_DELETE:
-		error = del_route(rnh, info, &rc);
+		error = del_route(rnh, info, ret_nrt);
 		break;
 	case RTM_RESOLVE:
 		/*
@@ -1198,17 +1192,14 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 */
 		break;
 	case RTM_ADD:
-		error = add_route(rnh, info, &rc);
+		error = add_route(rnh, info, ret_nrt);
 		break;
 	case RTM_CHANGE:
-		error = change_route(rnh, info, &rc);
+		error = change_route(rnh, info, ret_nrt);
 		break;
 	default:
 		error = EOPNOTSUPP;
 	}
-
-	if (ret_nrt != NULL)
-		*ret_nrt = rc.rc_rt;
 
 	return (error);
 }
