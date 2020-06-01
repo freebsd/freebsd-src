@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200601: OpenSSL 32-bit compat engines moved to /usr/lib32/engines
+OLD_LIBS+=usr/lib32/capi.so
+OLD_LIBS+=usr/lib32/padlock.so
+
 # 20200528: libevent renamed libevent1
 OLD_FILES+=usr/include/private/event/event.h
 OLD_DIRS+=usr/include/private/event
