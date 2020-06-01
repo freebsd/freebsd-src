@@ -165,7 +165,6 @@ APU_CHECK_DBD_MYSQL
 APU_CHECK_DBD_SQLITE3
 APU_CHECK_DBD_SQLITE2
 APU_CHECK_DBD_ORACLE
-APU_CHECK_DBD_FREETDS
 APU_CHECK_DBD_ODBC
 APU_FIND_EXPAT
 APU_FIND_ICONV
@@ -186,6 +185,59 @@ AC_MSG_RESULT([$msg])
 AC_CHECK_FUNCS(crypt_r, [ crypt_r="1" ], [ crypt_r="0" ])
 if test "$crypt_r" = "1"; then
   APU_CHECK_CRYPT_R_STYLE
+fi
+
+AC_CACHE_CHECK([whether the compiler handles weak symbols], [apu_cv_weak_symbols],
+[AC_TRY_RUN([
+__attribute__ ((weak))
+int weak_noop(void)
+{
+    return 0;
+}
+int main()
+{
+    return weak_noop();
+}], [apu_cv_weak_symbols=yes], [apu_cv_weak_symbols=no], [apu_cv_weak_symbols=no])])
+
+if test "$apu_cv_weak_symbols" = "yes"; then
+    AC_DEFINE(HAVE_WEAK_SYMBOLS, 1, [Define if compiler handles weak symbols])
+fi
+
+AC_CACHE_CHECK([for memset_s support], [apu_cv_memset_s],
+[AC_TRY_RUN([
+#ifdef HAVE_STRING_H
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h>
+#endif
+
+int main(int argc, const char **argv)
+{
+    char buf[1] = {1};
+    return memset_s(buf, sizeof buf, 0, sizeof buf) != 0 || *buf != '\0';
+}], [apu_cv_memset_s=yes], [apu_cv_memset_s=no], [apu_cv_memset_s=no])])
+
+if test "$apu_cv_memset_s" = "yes"; then
+   AC_DEFINE([HAVE_MEMSET_S], 1, [Define if memset_s function is supported])
+fi
+
+AC_CACHE_CHECK([for explicit_bzero support], [apu_cv_explicit_bzero],
+[AC_TRY_RUN([
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
+#endif
+
+int main(int argc, const char **argv)
+{
+    char buf[1] = {1};
+    explicit_bzero(buf, sizeof buf);
+    return *buf != '\0';
+}], [apu_cv_explicit_bzero=yes], [apu_cv_explicit_bzero=no], [apu_cv_explicit_bzero=no])])
+
+if test "$apu_cv_explicit_bzero" = "yes"; then
+   AC_DEFINE([HAVE_EXPLICIT_BZERO], 1, [Define if explicit_bzero function is supported])
 fi
 
 so_ext=$APR_SO_EXT

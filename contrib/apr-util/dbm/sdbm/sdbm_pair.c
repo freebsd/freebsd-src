@@ -308,7 +308,8 @@ char *pag;
 	if (n > 0) {
 		off = PBLKSIZ;
 		for (ino++; n > 0; ino += 2) {
-			if (ino[0] > off || ino[1] > off ||
+			if (ino[0] < 0 || ino[0] > off ||
+			    ino[1] < 0 || ino[1] > off ||
 			    ino[1] > ino[0])
 				return 0;
 			off = ino[1];

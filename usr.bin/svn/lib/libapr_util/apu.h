@@ -114,12 +114,12 @@
 #define APU_HAVE_SQLITE3       0
 #define APU_HAVE_SQLITE2       0
 #define APU_HAVE_ORACLE        0
-#define APU_HAVE_FREETDS       0
 #define APU_HAVE_ODBC          0
 
 #define APU_HAVE_CRYPTO        1
 #define APU_HAVE_OPENSSL       1
 #define APU_HAVE_NSS           0
+#define APU_HAVE_COMMONCRYPTO  0
 
 #define APU_HAVE_APR_ICONV     0
 #ifndef APU_HAVE_ICONV

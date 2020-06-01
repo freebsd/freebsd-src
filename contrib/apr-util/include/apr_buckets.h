@@ -622,6 +622,8 @@ struct apr_bucket_file {
      *  a caller tries to read from it */
     int can_mmap;
 #endif /* APR_HAS_MMAP */
+    /** File read block size */
+    apr_size_t read_size;
 };
 
 /** @see apr_bucket_structs */
@@ -960,6 +962,18 @@ APU_DECLARE_NONSTD(apr_bucket_alloc_t *) apr_bucket_alloc_create_ex(apr_allocato
  * @param list The allocator to be destroyed
  */
 APU_DECLARE_NONSTD(void) apr_bucket_alloc_destroy(apr_bucket_alloc_t *list);
+
+/**
+ * Get the aligned size corresponding to the requested size, but minus the
+ * allocator(s) overhead such that the allocation would remain in the
+ * same boundary.
+ * @param list The allocator from which to the memory would be allocated.
+ * @param size The requested size.
+ * @return The corresponding aligned/floored size.
+ */
+APU_DECLARE_NONSTD(apr_size_t) apr_bucket_alloc_aligned_floor(apr_bucket_alloc_t *list,
+                                                              apr_size_t size)
+                         __attribute__((nonnull(1)));
 
 /**
  * Allocate memory for use by the buckets.
@@ -1562,6 +1576,19 @@ APU_DECLARE(apr_bucket *) apr_bucket_file_make(apr_bucket *b, apr_file_t *fd,
  */
 APU_DECLARE(apr_status_t) apr_bucket_file_enable_mmap(apr_bucket *b,
                                                       int enabled);
+
+/**
+ * Set the size of the read buffer allocated by a FILE bucket (default
+ * is @a APR_BUCKET_BUFF_SIZE)
+ * memory-mapping is disabled only)
+ * @param b The bucket
+ * @param size Size of the allocated buffers
+ * @return APR_SUCCESS normally, or an error code if the operation fails
+ * @remark Relevant/used only when memory-mapping is disabled (@see
+ * apr_bucket_file_enable_mmap)
+ */
+APU_DECLARE(apr_status_t) apr_bucket_file_set_buf_size(apr_bucket *e,
+                                                       apr_size_t size);
 
 /** @} */
 #ifdef __cplusplus
