@@ -168,9 +168,6 @@ endif
 ifeq "$(APU_HAVE_SQLITE3)" "1"
 TARGET_nlm += $(OBJDIR)/dbdsqli3.nlm $(OBJDIR)/dbdsqli3.nlm $(EOLIST)
 endif
-ifeq "$(APU_HAVE_FREETDS)" "1"
-TARGET_nlm += $(OBJDIR)/dbdfreetds.nlm $(OBJDIR)/dbdfreetds.nlm $(EOLIST)
-endif
 
 #
 # If there is an LIB target, put it here

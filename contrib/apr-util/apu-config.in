@@ -85,10 +85,6 @@ fi
 
 if test "$location" = "installed"; then
     LA_FILE="$libdir/lib${APRUTIL_LIBNAME}.la"
-
-    LIBS=`echo "$LIBS" | sed -e "s $APU_BUILD_DIR/xml/expat $prefix g" -e "s $prefix/libexpat.la -lexpat g"`
-    LDFLAGS=`echo "$LDFLAGS" | sed -e "s $APU_BUILD_DIR/xml/expat $prefix g"`
-    INCLUDES=`echo "$INCLUDES" | sed -e "s $APU_BUILD_DIR/xml/expat $prefix g" -e "s -I$prefix/lib  g"`
 else
     LA_FILE="$APU_BUILD_DIR/lib${APRUTIL_LIBNAME}.la"
 fi
