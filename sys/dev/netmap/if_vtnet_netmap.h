@@ -52,37 +52,6 @@ vtnet_netmap_queue_on(struct vtnet_softc *sc, enum txrx t, int idx)
 		na->tx_rings[idx]->nr_mode == NKR_NETMAP_ON);
 }
 
-static void
-vtnet_free_used(struct virtqueue *vq, int netmap_bufs, enum txrx t, int idx)
-{
-	void *cookie;
-	int deq = 0;
-
-	while ((cookie = virtqueue_dequeue(vq, NULL)) != NULL) {
-		if (netmap_bufs) {
-			/* These are netmap buffers: there is nothing to do. */
-		} else {
-			/* These are mbufs that we need to free. */
-			struct mbuf *m;
-
-			if (t == NR_TX) {
-				struct vtnet_tx_header *txhdr = cookie;
-				m = txhdr->vth_mbuf;
-				m_freem(m);
-				uma_zfree(vtnet_tx_header_zone, txhdr);
-			} else {
-				m = cookie;
-				m_freem(m);
-			}
-		}
-		deq++;
-	}
-
-	if (deq)
-		nm_prinf("%d sgs dequeued from %s-%d (netmap=%d)",
-			 deq, nm_txrx2str(t), idx, netmap_bufs);
-}
-
 /* Register and unregister. */
 static int
 vtnet_netmap_reg(struct netmap_adapter *na, int state)
@@ -113,18 +82,13 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		struct vtnet_txq *txq = &sc->vtnet_txqs[i];
 		struct vtnet_rxq *rxq = &sc->vtnet_rxqs[i];
-		struct netmap_kring *kring;
 
 		VTNET_TXQ_LOCK(txq);
-		kring = NMR(na, NR_TX)[i];
-		vtnet_free_used(txq->vtntx_vq,
-				kring->nr_mode == NKR_NETMAP_ON, NR_TX, i);
+		vtnet_txq_free_mbufs(txq);
 		VTNET_TXQ_UNLOCK(txq);
 
 		VTNET_RXQ_LOCK(rxq);
-		kring = NMR(na, NR_RX)[i];
-		vtnet_free_used(rxq->vtnrx_vq,
-				kring->nr_mode == NKR_NETMAP_ON, NR_RX, i);
+		vtnet_rxq_free_mbufs(rxq);
 		VTNET_RXQ_UNLOCK(rxq);
 	}
 	vtnet_init_locked(sc);
