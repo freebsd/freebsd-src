@@ -11,6 +11,9 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
+/* Define if apr_allocator should use guard pages */
+/* #undef APR_ALLOCATOR_GUARD_PAGES */
+
 /* Define if apr_allocator should use mmap */
 /* #undef APR_ALLOCATOR_USES_MMAP */
 
@@ -21,6 +24,9 @@
 /* Define as function used for conversion of strings to apr_off_t */
 #define APR_OFF_T_STRFN strtol
 
+/* Define if pool functions should abort if concurrent usage is detected */
+/* #undef APR_POOL_CONCURRENCY_CHECK */
+
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
    */
@@ -30,7 +36,7 @@
 /* #undef C_ALLOCA */
 
 /* Define to path of random device */
-#define DEV_RANDOM "/dev/urandom"
+/* #undef DEV_RANDOM */
 
 /* Define if struct dirent has an inode member */
 #define DIRENT_INODE d_fileno
@@ -39,7 +45,7 @@
 #define DIRENT_TYPE d_type
 
 /* Define if DSO support uses dlfcn.h */
-/* #undef DSO_USE_DLFCN */
+#define DSO_USE_DLFCN 1
 
 /* Define if DSO support uses dyld.h */
 /* #undef DSO_USE_DYLD */
@@ -86,6 +92,12 @@
 /* Define if accept4 function is supported */
 #define HAVE_ACCEPT4 1
 
+/* Define to 1 if you have the `acquire_sem' function. */
+/* #undef HAVE_ACQUIRE_SEM */
+
+/* Define to 1 if you have the `acquire_sem_etc' function. */
+/* #undef HAVE_ACQUIRE_SEM_ETC */
+
 /* Define if async i/o supports message q's */
 /* #undef HAVE_AIO_MSGQ */
 
@@ -95,6 +107,9 @@
 /* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
    */
 /* #undef HAVE_ALLOCA_H */
+
+/* Define to 1 if you have the `arc4random_buf' function. */
+#define HAVE_ARC4RANDOM_BUF 1
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #define HAVE_ARPA_INET_H 1
@@ -127,6 +142,10 @@
 
 /* Define to 1 if you have the <ctype.h> header file. */
 #define HAVE_CTYPE_H 1
+
+/* Define to 1 if you have the declaration of `SYS_getrandom', and to 0 if you
+   don't. */
+#define HAVE_DECL_SYS_GETRANDOM 1
 
 /* Define to 1 if you have the declaration of `sys_siglist', and to 0 if you
    don't. */
@@ -163,7 +182,7 @@
 #define HAVE_FCNTL_H 1
 
 /* Define to 1 if you have the `fdatasync' function. */
-/* #undef HAVE_FDATASYNC */
+#define HAVE_FDATASYNC 1
 
 /* Define to 1 if you have the `flock' function. */
 #define HAVE_FLOCK 1
@@ -216,6 +235,9 @@
 /* Define to 1 if you have the `getpwuid_r' function. */
 #define HAVE_GETPWUID_R 1
 
+/* Define to 1 if you have the `getrandom' function. */
+#define HAVE_GETRANDOM 1
+
 /* Define to 1 if you have the `getrlimit' function. */
 #define HAVE_GETRLIMIT 1
 
@@ -230,6 +252,12 @@
 
 /* Define if hstrerror is present */
 /* #undef HAVE_HSTRERROR */
+
+/* Define to 1 if you have the `if_indextoname' function. */
+#define HAVE_IF_INDEXTONAME 1
+
+/* Define to 1 if you have the `if_nametoindex' function. */
+#define HAVE_IF_NAMETOINDEX 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -264,6 +292,9 @@
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
+/* Define to 1 if you have the <linux/random.h> header file. */
+/* #undef HAVE_LINUX_RANDOM_H */
+
 /* Define to 1 if you have the `localtime_r' function. */
 #define HAVE_LOCALTIME_R 1
 
@@ -278,6 +309,9 @@
 
 /* Define if MAP_ANON is defined in sys/mman.h */
 #define HAVE_MAP_ANON 1
+
+/* Define to 1 if you have the <memcheck.h> header file. */
+/* #undef HAVE_MEMCHECK_H */
 
 /* Define to 1 if you have the `memchr' function. */
 #define HAVE_MEMCHR 1
@@ -300,6 +334,9 @@
 /* Define to 1 if you have the `mmap64' function. */
 /* #undef HAVE_MMAP64 */
 
+/* Define to 1 if you have the `mprotect' function. */
+#define HAVE_MPROTECT 1
+
 /* Define to 1 if you have the `munmap' function. */
 #define HAVE_MUNMAP 1
 
@@ -320,6 +357,9 @@
 
 /* Define to 1 if you have the <net/errno.h> header file. */
 /* #undef HAVE_NET_ERRNO_H */
+
+/* Define to 1 if you have the <net/if.h> header file. */
+#define HAVE_NET_IF_H 1
 
 /* Define to 1 if you have the `nl_langinfo' function. */
 #define HAVE_NL_LANGINFO 1
@@ -351,6 +391,9 @@
 /* Define to 1 if you have the `pthread_attr_setguardsize' function. */
 #define HAVE_PTHREAD_ATTR_SETGUARDSIZE 1
 
+/* Define to 1 if you have the `pthread_condattr_setpshared' function. */
+#define HAVE_PTHREAD_CONDATTR_SETPSHARED 1
+
 /* Define to 1 if you have the <pthread.h> header file. */
 #define HAVE_PTHREAD_H 1
 
@@ -364,7 +407,13 @@
 #define HAVE_PTHREAD_MUTEX_RECURSIVE 1
 
 /* Define if cross-process robust mutexes are available */
-/* #undef HAVE_PTHREAD_MUTEX_ROBUST */
+#define HAVE_PTHREAD_MUTEX_ROBUST 1
+
+/* Define if non-posix/portable cross-process robust mutexes are available */
+/* #undef HAVE_PTHREAD_MUTEX_ROBUST_NP */
+
+/* Define to 1 if you have the `pthread_mutex_timedlock' function. */
+#define HAVE_PTHREAD_MUTEX_TIMEDLOCK 1
 
 /* Define if PTHREAD_PROCESS_SHARED is defined in pthread.h */
 #define HAVE_PTHREAD_PROCESS_SHARED 1
@@ -402,11 +451,20 @@
 /* Define to 1 if you have the `semget' function. */
 #define HAVE_SEMGET 1
 
+/* Define to 1 if you have the `semop' function. */
+#define HAVE_SEMOP 1
+
+/* Define to 1 if you have the `semtimedop' function. */
+/* #undef HAVE_SEMTIMEDOP */
+
 /* Define to 1 if you have the `sem_close' function. */
 #define HAVE_SEM_CLOSE 1
 
 /* Define to 1 if you have the `sem_post' function. */
 #define HAVE_SEM_POST 1
+
+/* Define to 1 if you have the `sem_timedwait' function. */
+#define HAVE_SEM_TIMEDWAIT 1
 
 /* Define if SEM_UNDO is defined in sys/sem.h */
 #define HAVE_SEM_UNDO 1
@@ -591,6 +649,9 @@
 /* Define to 1 if you have the <sys/poll.h> header file. */
 #define HAVE_SYS_POLL_H 1
 
+/* Define to 1 if you have the <sys/random.h> header file. */
+#define HAVE_SYS_RANDOM_H 1
+
 /* Define to 1 if you have the <sys/resource.h> header file. */
 #define HAVE_SYS_RESOURCE_H 1
 
@@ -617,6 +678,9 @@
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/syscall.h> header file. */
+#define HAVE_SYS_SYSCALL_H 1
 
 /* Define to 1 if you have the <sys/sysctl.h> header file. */
 #define HAVE_SYS_SYSCTL_H 1
@@ -693,6 +757,12 @@
 /* Define to 1 if you have the <uuid/uuid.h> header file. */
 /* #undef HAVE_UUID_UUID_H */
 
+/* Compile in valgrind support */
+/* #undef HAVE_VALGRIND */
+
+/* Define to 1 if you have the <valgrind.h> header file. */
+/* #undef HAVE_VALGRIND_H */
+
 /* Define if C compiler supports VLA */
 #define HAVE_VLA 1
 
@@ -711,8 +781,7 @@
 /* Define for z/OS pthread API nuances */
 /* #undef HAVE_ZOS_PTHREADS */
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Define if EAI_ error codes from getaddrinfo are negative */
@@ -748,8 +817,8 @@
 /* Define if pthread_getspecific() has two args */
 /* #undef PTHREAD_GETSPECIFIC_TAKES_TWO_ARGS */
 
-/* Define if readdir is thread safe */
-/* #undef READDIR_IS_THREAD_SAFE */
+/* Modern readdir is thread safe */
+#define READDIR_IS_THREAD_SAFE 1
 
 /* Define to 1 if the `setpgrp' function takes no argument. */
 /* #undef SETPGRP_VOID */
@@ -761,7 +830,11 @@
 #define SIZEOF_CHAR 1
 
 /* The size of ino_t */
+#if __FreeBSD__ >= 12
+#define SIZEOF_INO_T 8
+#else
 #define SIZEOF_INO_T 4
+#endif
 
 /* The size of `int', as computed by sizeof. */
 #define SIZEOF_INT 4
@@ -810,6 +883,9 @@
 /* Define if SysV semaphores affect threads within the process */
 /* #undef SYSVSEM_IS_GLOBAL */
 
+/* Define system call of random */
+#define SYS_RANDOM "getrandom"
+
 /* Define if use of generic atomics is requested */
 /* #undef USE_ATOMICS_GENERIC */
 
@@ -822,6 +898,9 @@
 /* Define if 4.2BSD-style flock() will be used */
 #define USE_FLOCK_SERIALIZE 1
 
+/* Define if pthread pshared mutex will be used */
+/* #undef USE_PROC_PTHREAD_SERIALIZE */
+
 /* Define if BeOS areas will be used */
 /* #undef USE_SHMEM_BEOS */
 
@@ -832,7 +911,7 @@
 #define USE_SHMEM_MMAP_ANON 1
 
 /* Define if mmap() via POSIX.1 shm_open() on temporary file will be used */
-#define USE_SHMEM_MMAP_SHM 1
+/* #undef USE_SHMEM_MMAP_SHM */
 
 /* Define if Classical mmap() on temporary file will be used */
 /* #undef USE_SHMEM_MMAP_TMP */
@@ -847,7 +926,7 @@
 /* #undef USE_SHMEM_OS2_ANON */
 
 /* Define if SysV IPC shmget() will be used */
-/* #undef USE_SHMEM_SHMGET */
+#define USE_SHMEM_SHMGET 1
 
 /* Define if SysV IPC shmget() will be used */
 /* #undef USE_SHMEM_SHMGET_ANON */
