@@ -15,8 +15,8 @@ APRUTIL_LDFLAGS = @APRUTIL_LDFLAGS@
 APRUTIL_LIBS = @APRUTIL_LIBS@
 
 TARGET_LIB = lib@APRUTIL_LIBNAME@.la
-INSTALL_SUBDIRS = @APR_ICONV_DIR@ @APR_XML_DIR@
-EXTRA_SOURCE_DIRS = @APR_ICONV_DIR@ @APR_XML_DIR@
+INSTALL_SUBDIRS = @APR_ICONV_DIR@
+EXTRA_SOURCE_DIRS = @APR_ICONV_DIR@
 APRUTIL_PCFILE = apr-util-$(APRUTIL_MAJOR_VERSION).pc
 APU_CONFIG = apu-$(APRUTIL_MAJOR_VERSION)-config
 INSTALL = @INSTALL@
@@ -35,7 +35,6 @@ LDADD_dbd_oracle = @LDADD_dbd_oracle@
 LDADD_dbd_sqlite2 = @LDADD_dbd_sqlite2@
 LDADD_dbd_sqlite3 = @LDADD_dbd_sqlite3@
 LDADD_dbd_mysql = @LDADD_dbd_mysql@
-LDADD_dbd_freetds = @LDADD_dbd_freetds@
 LDADD_dbd_odbc = @LDADD_dbd_odbc@
 LDADD_dbm_db = @LDADD_dbm_db@
 LDADD_dbm_gdbm = @LDADD_dbm_gdbm@
@@ -43,6 +42,7 @@ LDADD_dbm_ndbm = @LDADD_dbm_ndbm@
 LDADD_ldap = @LDADD_ldap@
 LDADD_crypto_openssl = @LDADD_crypto_openssl@
 LDADD_crypto_nss = @LDADD_crypto_nss@
+LDADD_crypto_commoncrypto = @LDADD_crypto_commoncrypto@
 
 TARGETS = $(TARGET_LIB) aprutil.exp apu-config.out $(APU_MODULES)
 
@@ -50,7 +50,7 @@ TARGETS = $(TARGET_LIB) aprutil.exp apu-config.out $(APU_MODULES)
 @INCLUDE_RULES@
 @INCLUDE_OUTPUTS@
 
-CLEAN_SUBDIRS = test @APR_ICONV_DIR@ @APR_XML_DIR@
+CLEAN_SUBDIRS = test @APR_ICONV_DIR@
 
 CLEAN_TARGETS = exports.c export_vars.c aprutil.exp .make.dirs apu-config.out
 DISTCLEAN_TARGETS = config.cache config.log config.status libtool \

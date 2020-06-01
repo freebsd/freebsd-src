@@ -120,7 +120,7 @@ static apr_status_t crypto_clear(void *ptr)
 {
     apr_crypto_clear_t *clear = (apr_crypto_clear_t *)ptr;
 
-    memset(clear->buffer, 0, clear->size);
+    apr_crypto_memzero(clear->buffer, clear->size);
     clear->buffer = NULL;
     clear->size = 0;
 
@@ -139,6 +139,53 @@ APU_DECLARE(apr_status_t) apr_crypto_clear(apr_pool_t *pool,
             apr_pool_cleanup_null);
 
     return APR_SUCCESS;
+}
+
+#if defined(HAVE_WEAK_SYMBOLS)
+void apr__memzero_explicit(void *buffer, apr_size_t size);
+
+__attribute__ ((weak))
+void apr__memzero_explicit(void *buffer, apr_size_t size)
+{
+    memset(buffer, 0, size);
+}
+#endif
+
+APU_DECLARE(apr_status_t) apr_crypto_memzero(void *buffer, apr_size_t size)
+{
+#if defined(WIN32)
+    SecureZeroMemory(buffer, size);
+#elif defined(HAVE_MEMSET_S)
+    if (size) {
+        return memset_s(buffer, (rsize_t)size, 0, (rsize_t)size);
+    }
+#elif defined(HAVE_EXPLICIT_BZERO)
+    explicit_bzero(buffer, size);
+#elif defined(HAVE_WEAK_SYMBOLS)
+    apr__memzero_explicit(buffer, size);
+#else
+    apr_size_t i;
+    volatile unsigned char *volatile ptr = buffer;
+    for (i = 0; i < size; ++i) {
+        ptr[i] = 0;
+    }
+#endif
+    return APR_SUCCESS;
+}
+
+APU_DECLARE(int) apr_crypto_equals(const void *buf1, const void *buf2,
+                                   apr_size_t size)
+{
+    const unsigned char *p1 = buf1;
+    const unsigned char *p2 = buf2;
+    unsigned char diff = 0;
+    apr_size_t i;
+
+    for (i = 0; i < size; ++i) {
+        diff |= p1[i] ^ p2[i];
+    }
+
+    return 1 & ((diff - 1) >> 8);
 }
 
 APU_DECLARE(apr_status_t) apr_crypto_get_driver(
@@ -188,12 +235,15 @@ APU_DECLARE(apr_status_t) apr_crypto_get_driver(
     apr_snprintf(symname, sizeof(symname), "apr_crypto_%s_driver", name);
     rv = apu_dso_load(&dso, &symbol, modname, symname, pool);
     if (rv == APR_SUCCESS || rv == APR_EINIT) { /* previously loaded?!? */
-        *driver = symbol;
-        name = apr_pstrdup(pool, name);
-        apr_hash_set(drivers, name, APR_HASH_KEY_STRING, *driver);
+        apr_crypto_driver_t *d = symbol;
         rv = APR_SUCCESS;
-        if ((*driver)->init) {
-            rv = (*driver)->init(pool, params, result);
+        if (d->init) {
+            rv = d->init(pool, params, result);
+        }
+        if (APR_SUCCESS == rv) {
+            *driver = symbol;
+            name = apr_pstrdup(pool, name);
+            apr_hash_set(drivers, name, APR_HASH_KEY_STRING, *driver);
         }
     }
     apu_dso_mutex_unlock();
@@ -221,6 +271,11 @@ APU_DECLARE(apr_status_t) apr_crypto_get_driver(
 #if APU_HAVE_NSS
     if (name[0] == 'n' && !strcmp(name, "nss")) {
         DRIVER_LOAD("nss", apr_crypto_nss_driver, pool, params, rv, result);
+    }
+#endif
+#if APU_HAVE_COMMONCRYPTO
+    if (name[0] == 'c' && !strcmp(name, "commoncrypto")) {
+        DRIVER_LOAD("commoncrypto", apr_crypto_commoncrypto_driver, pool, params, rv, result);
     }
 #endif
 #if APU_HAVE_MSCAPI
@@ -287,7 +342,8 @@ APU_DECLARE(apr_status_t) apr_crypto_make(apr_crypto_t **f,
 
 /**
  * @brief Get a hash table of key types, keyed by the name of the type against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_type_t, which in turn begins with an
+ * integer.
  *
  * @param types - hashtable of key types keyed to constants.
  * @param f - encryption context
@@ -301,7 +357,8 @@ APU_DECLARE(apr_status_t) apr_crypto_get_block_key_types(apr_hash_t **types,
 
 /**
  * @brief Get a hash table of key modes, keyed by the name of the mode against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_mode_t, which in turn begins with an
+ * integer.
  *
  * @param modes - hashtable of key modes keyed to constants.
  * @param f - encryption context
@@ -311,6 +368,28 @@ APU_DECLARE(apr_status_t) apr_crypto_get_block_key_modes(apr_hash_t **modes,
         const apr_crypto_t *f)
 {
     return f->provider->get_block_key_modes(modes, f);
+}
+
+/**
+ * @brief Create a key from the provided secret or passphrase. The key is cleaned
+ *        up when the context is cleaned, and may be reused with multiple encryption
+ *        or decryption operations.
+ * @note If *key is NULL, a apr_crypto_key_t will be created from a pool. If
+ *       *key is not NULL, *key must point at a previously created structure.
+ * @param key The key returned, see note.
+ * @param rec The key record, from which the key will be derived.
+ * @param f The context to use.
+ * @param p The pool to use.
+ * @return Returns APR_ENOKEY if the pass phrase is missing or empty, or if a backend
+ *         error occurred while generating the key. APR_ENOCIPHER if the type or mode
+ *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
+ *         not known. APR_EPADDING if padding was requested but is not supported.
+ *         APR_ENOTIMPL if not implemented.
+ */
+APU_DECLARE(apr_status_t) apr_crypto_key(apr_crypto_key_t **key,
+        const apr_crypto_key_rec_t *rec, const apr_crypto_t *f, apr_pool_t *p)
+{
+    return f->provider->key(key, rec, f, p);
 }
 
 /**

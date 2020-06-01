@@ -261,9 +261,11 @@ FILES_lib_objs = \
 	$(OBJDIR)/apr_memcache.o \
 	$(OBJDIR)/apr_passwd.o \
 	$(OBJDIR)/apr_queue.o \
+	$(OBJDIR)/apr_redis.o \
 	$(OBJDIR)/apr_reslist.o \
 	$(OBJDIR)/apr_rmm.o \
 	$(OBJDIR)/apr_sha1.o \
+	$(OBJDIR)/apr_siphash.o \
 	$(OBJDIR)/apu_version.o \
 	$(OBJDIR)/getuuid.o \
 	$(OBJDIR)/uuid.o \
@@ -296,7 +298,7 @@ install :: nlms FORCE
 # Any specialized rules here
 #
 
-vpath %.c buckets:crypto:dbd:dbm:dbm/sdbm:encoding:hooks:ldap:memcache:misc:strmatch:uri:xlate:xml
+vpath %.c buckets:crypto:dbd:dbm:dbm/sdbm:encoding:hooks:ldap:memcache:redis:misc:strmatch:uri:xlate:xml
 
 #
 # Include the 'tail' makefile that has targets that depend on variables defined

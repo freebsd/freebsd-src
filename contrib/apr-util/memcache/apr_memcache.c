@@ -356,7 +356,7 @@ mc_conn_construct(void **conn_, void *params, apr_pool_t *pool)
         return rv;
     }
 
-    conn->buffer = apr_palloc(conn->p, BUFFER_SIZE);
+    conn->buffer = apr_palloc(conn->p, BUFFER_SIZE + 1);
     conn->blen = 0;
     conn->ms = ms;
 
@@ -728,6 +728,26 @@ apr_memcache_replace(apr_memcache_t *mc,
 
 }
 
+/*
+ * Parses a decimal size from size_str, returning the value in *size.
+ * Returns 1 if parsing was successful, 0 if parsing failed.
+ */
+static int parse_size(const char *size_str, apr_size_t *size)
+{
+    char *endptr;
+    long size_as_long;
+
+    errno = 0;
+    size_as_long = strtol(size_str, &endptr, 10);
+    if ((size_as_long < 0) || (errno != 0) || (endptr == size_str) ||
+        (endptr[0] != ' ' && (endptr[0] != '\r' || endptr[1] != '\n'))) {
+        return 0;
+    }
+
+    *size = (unsigned long)size_as_long;
+    return 1;
+}
+
 APU_DECLARE(apr_status_t)
 apr_memcache_getp(apr_memcache_t *mc,
                   apr_pool_t *p,
@@ -796,13 +816,10 @@ apr_memcache_getp(apr_memcache_t *mc,
         }
 
         length = apr_strtok(NULL, " ", &last);
-        if (length) {
-            len = strtol(length, (char **)NULL, 10);
-        }
-
-        if (len == 0 )  {
-            *new_length = 0;
-            *baton = NULL;
+        if (!length || !parse_size(length, &len)) {
+            ms_bad_conn(ms, conn);
+            apr_memcache_disable_server(mc, ms);
+            return APR_EGENERAL;
         }
         else {
             apr_bucket_brigade *bbb;
@@ -810,7 +827,6 @@ apr_memcache_getp(apr_memcache_t *mc,
 
             /* eat the trailing \r\n */
             rv = apr_brigade_partition(conn->bb, len+2, &e);
-
             if (rv != APR_SUCCESS) {
                 ms_bad_conn(ms, conn);
                 apr_memcache_disable_server(mc, ms);
@@ -820,17 +836,14 @@ apr_memcache_getp(apr_memcache_t *mc,
             bbb = apr_brigade_split(conn->bb, e);
 
             rv = apr_brigade_pflatten(conn->bb, baton, &len, p);
-
             if (rv != APR_SUCCESS) {
                 ms_bad_conn(ms, conn);
-                apr_memcache_disable_server(mc, ms);
                 return rv;
             }
 
             rv = apr_brigade_destroy(conn->bb);
             if (rv != APR_SUCCESS) {
                 ms_bad_conn(ms, conn);
-                apr_memcache_disable_server(mc, ms);
                 return rv;
             }
 
@@ -848,14 +861,18 @@ apr_memcache_getp(apr_memcache_t *mc,
         }
 
         if (strncmp(MS_END, conn->buffer, MS_END_LEN) != 0) {
-            rv = APR_EGENERAL;
+            ms_bad_conn(ms, conn);
+            apr_memcache_disable_server(mc, ms);
+            return APR_EGENERAL;
         }
     }
     else if (strncmp(MS_END, conn->buffer, MS_END_LEN) == 0) {
         rv = APR_NOTFOUND;
     }
     else {
-        rv = APR_EGENERAL;
+        ms_bad_conn(ms, conn);
+        apr_memcache_disable_server(mc, ms);
+        return APR_EGENERAL;
     }
 
     ms_release_conn(ms, conn);
@@ -1358,74 +1375,68 @@ apr_memcache_multgetp(apr_memcache_t *mc,
                char *last;
                char *data;
                apr_size_t len = 0;
+               apr_bucket *e = NULL;
 
                key = apr_strtok(conn->buffer, " ", &last); /* just the VALUE, ignore */
                key = apr_strtok(NULL, " ", &last);
                flags = apr_strtok(NULL, " ", &last);
-
-
                length = apr_strtok(NULL, " ", &last);
-               if (length) {
-                   len = strtol(length, (char **) NULL, 10);
+
+               if (!length || !parse_size(length, &len)) {
+                   rv = APR_EGENERAL;
+               }
+               else {
+                   /* eat the trailing \r\n */
+                   rv = apr_brigade_partition(conn->bb, len+2, &e);
+               }
+               if (rv != APR_SUCCESS) {
+                   apr_pollset_remove (pollset, &activefds[i]);
+                   mget_conn_result(TRUE, FALSE, rv, mc, ms, conn,
+                                    server_query, values, server_queries);
+                   queries_sent--;
+                   continue;
                }
 
                value = apr_hash_get(values, key, strlen(key));
-
-               
                if (value) {
-                   if (len != 0)  {
-                       apr_bucket_brigade *bbb;
-                       apr_bucket *e;
-                       
-                       /* eat the trailing \r\n */
-                       rv = apr_brigade_partition(conn->bb, len+2, &e);
-                       
-                       if (rv != APR_SUCCESS) {
-                           apr_pollset_remove (pollset, &activefds[i]);
-                           mget_conn_result(FALSE, FALSE, rv, mc, ms, conn,
-                                            server_query, values, server_queries);
-                           queries_sent--;
-                           continue;
-                       }
-                       
-                       bbb = apr_brigade_split(conn->bb, e);
-                       
-                       rv = apr_brigade_pflatten(conn->bb, &data, &len, data_pool);
-                       
-                       if (rv != APR_SUCCESS) {
-                           apr_pollset_remove (pollset, &activefds[i]);
-                           mget_conn_result(FALSE, FALSE, rv, mc, ms, conn,
-                                            server_query, values, server_queries);
-                           queries_sent--;
-                           continue;
-                       }
-                       
-                       rv = apr_brigade_destroy(conn->bb);
-                       if (rv != APR_SUCCESS) {
-                           apr_pollset_remove (pollset, &activefds[i]);
-                           mget_conn_result(FALSE, FALSE, rv, mc, ms, conn,
-                                            server_query, values, server_queries);
-                           queries_sent--;
-                           continue;
-                       }
-                       
-                       conn->bb = bbb;
-                       
-                       value->len = len - 2;
-                       data[value->len] = '\0';
-                       value->data = data;
+                   apr_bucket_brigade *bbb;
+
+                   bbb = apr_brigade_split(conn->bb, e);
+
+                   rv = apr_brigade_pflatten(conn->bb, &data, &len, data_pool);
+                   if (rv != APR_SUCCESS) {
+                       apr_pollset_remove (pollset, &activefds[i]);
+                       mget_conn_result(TRUE, FALSE, rv, mc, ms, conn,
+                                        server_query, values, server_queries);
+                       queries_sent--;
+                       continue;
                    }
-                   
+
+                   rv = apr_brigade_destroy(conn->bb);
+                   if (rv != APR_SUCCESS) {
+                       apr_pollset_remove (pollset, &activefds[i]);
+                       mget_conn_result(TRUE, FALSE, rv, mc, ms, conn,
+                                        server_query, values, server_queries);
+                       queries_sent--;
+                       continue;
+                   }
+
+                   conn->bb = bbb;
+
+                   value->len = len - 2;
+                   data[value->len] = '\0';
+                   value->data = data;
+
                    value->status = rv;
                    value->flags = atoi(flags);
-                   
+
                    /* stay on the server */
                    i--;
-                   
                }
                else {
-                   /* TODO: Server Sent back a key I didn't ask for or my
-                    *       hash is corrupt */
+                   /* Server Sent back a key I didn't ask for or my
+                    * hash is corrupt */
+                   rv = APR_EGENERAL;
                }
            }
            else if (strncmp(MS_END, conn->buffer, MS_END_LEN) == 0) {
@@ -1433,14 +1444,18 @@ apr_memcache_multgetp(apr_memcache_t *mc,
                apr_pollset_remove (pollset, &activefds[i]);
                ms_release_conn(ms, conn);
                apr_hash_set(server_queries, &ms, sizeof(ms), NULL);
-               
                queries_sent--;
            }
            else {
                /* unknown reply? */
                rv = APR_EGENERAL;
            }
-           
+           if (rv != APR_SUCCESS) {
+               apr_pollset_remove (pollset, &activefds[i]);
+               mget_conn_result(TRUE, FALSE, rv, mc, ms, conn,
+                                server_query, values, server_queries);
+               queries_sent--;
+           }
         } /* /for */
     } /* /while */
     
