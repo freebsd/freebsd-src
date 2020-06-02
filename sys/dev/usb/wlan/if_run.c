@@ -3397,7 +3397,7 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 		mcs |= RT2860_PHY_OFDM;
 	} else if (rt2860_rates[ridx].phy == IEEE80211_T_HT) {
 		/* XXX TODO: [adrian] set short preamble for MCS? */
-		mcs |= RT2860_PHY_HT; /* Mixed, not greenfield */
+		mcs |= RT2860_PHY_HT_MIX; /* Mixed, not greenfield */
 	}
 	txwi->phy = htole16(mcs);
 
