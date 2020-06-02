@@ -480,6 +480,16 @@ termtty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	tty_unlock(tp);
 	error = tm->tm_class->tc_ioctl(tm, cmd, data, td);
 	tty_lock(tp);
+	if ((error == 0) && (cmd == CONS_CLRHIST)) {
+		/*
+		 * Scrollback history has been successfully cleared,
+		 * so reset the cursor position to the top left of the screen.
+		 */
+		teken_pos_t p;
+		p.tp_row = 0;
+		p.tp_col = 0;
+		teken_set_cursor(&tm->tm_emulator, &p);
+	}
 	return (error);
 }
 

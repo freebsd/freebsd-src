@@ -2332,6 +2332,16 @@ skip_thunk:
 		return (0);
 	case CONS_CLRHIST:
 		vtbuf_clearhistory(&vd->vd_curwindow->vw_buf);
+		/*
+		 * Invalidate the entire visible window; it is not guaranteed
+		 * that this operation will be immediately followed by a scroll
+		 * event, so it would otherwise be possible for prior artifacts
+		 * to remain visible.
+		 */
+		VT_LOCK(vd);
+		vd->vd_flags |= VDF_INVALID;
+		VT_UNLOCK(vd);
+		vt_resume_flush_timer(vd->vd_curwindow, 0);
 		return (0);
 	case CONS_GET:
 		/* XXX */
