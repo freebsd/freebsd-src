@@ -4441,7 +4441,7 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	*x = *y = *z = 0;
 	ms->button = ms->obutton;
 
-	if (sc->syninfo.touchpad_off)
+	if (sc->syninfo.touchpad_off && pkt != ELANTECH_PKT_TRACKPOINT)
 		return (0);
 
 	/* Common legend
