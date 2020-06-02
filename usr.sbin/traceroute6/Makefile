@@ -26,8 +26,13 @@ BINMODE= 4555
 CFLAGS+= -DIPSEC -DHAVE_POLL
 CFLAGS+= -I${.CURDIR} -I${TRACEROUTE_DISTDIR} -I.
 
+LIBADD+=	casper
+LIBADD+=	cap_dns
+
 WARNS?=	3
 
-LIBADD=	ipsec
+CFLAGS+=-DWITH_CASPER -DHAVE_LIBCASPER
+
+LIBADD+=	ipsec
 
 .include <bsd.prog.mk>
