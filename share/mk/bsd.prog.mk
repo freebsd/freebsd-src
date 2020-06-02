@@ -39,10 +39,13 @@ MK_DEBUG_FILES=	no
 .if ${MK_BIND_NOW} != "no"
 LDFLAGS+= -Wl,-znow
 .endif
-.if ${MK_PIE} != "no" && (!defined(NO_SHARED) || ${NO_SHARED:tl} == "no")
+.if ${MK_PIE} != "no"
+# Static PIE is not yet supported/tested.
+.if !defined(NO_SHARED) || ${NO_SHARED:tl} == "no"
 CFLAGS+= -fPIE
 CXXFLAGS+= -fPIE
 LDFLAGS+= -pie
+.endif
 .endif
 .if ${MK_RETPOLINE} != "no"
 .if ${COMPILER_FEATURES:Mretpoline} && ${LINKER_FEATURES:Mretpoline}
