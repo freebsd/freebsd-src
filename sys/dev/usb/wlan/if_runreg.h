@@ -781,7 +781,7 @@ struct rt2860_txwi {
 #define	RT2860_PHY_MODE		0xc000
 #define	RT2860_PHY_CCK		(0 << 14)
 #define	RT2860_PHY_OFDM		(1 << 14)
-#define	RT2860_PHY_HT		(2 << 14)
+#define	RT2860_PHY_HT_MIX	(2 << 14)
 #define	RT2860_PHY_HT_GF	(3 << 14)
 #define	RT2860_PHY_SGI		(1 << 8)
 #define	RT2860_PHY_BW40		(1 << 7)
