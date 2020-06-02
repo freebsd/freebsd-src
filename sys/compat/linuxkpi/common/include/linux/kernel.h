@@ -555,4 +555,10 @@ linux_ratelimited(linux_ratelimit_t *rl)
 	return (ppsratecheck(&rl->lasttime, &rl->counter, 1));
 }
 
+#define	struct_size(ptr, field, num) ({ \
+	const size_t __size = offsetof(__typeof(*(ptr)), field); \
+	const size_t __max = (SIZE_MAX - __size) / sizeof((ptr)->field[0]); \
+	((num) > __max) ? SIZE_MAX : (__size + sizeof((ptr)->field[0]) * (num)); \
+})
+
 #endif	/* _LINUX_KERNEL_H_ */
