@@ -17,11 +17,10 @@ SUBDIR+=sendmail
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_SENDMAIL} == "no"
-ETCMAIL=mailer.conf aliases
-.else
-ETCMAIL=Makefile README mailer.conf access.sample virtusertable.sample \
-	mailertable.sample aliases
+ETCMAIL=aliases
+.if ${MK_SENDMAIL} != "no"
+ETCMAIL+=Makefile README access.sample virtusertable.sample \
+	mailertable.sample
 .endif
 
 # Special top level files for FreeBSD
