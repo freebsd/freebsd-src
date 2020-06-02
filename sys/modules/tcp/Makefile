@@ -16,7 +16,7 @@ _tcp_rack= 	rack
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
-.if ${KERN_OPTS:MIPSEC_SUPPORT}
+.if ${KERN_OPTS:MIPSEC_SUPPORT} && !${KERN_OPTS:MIPSEC}
 _tcpmd5=	tcpmd5
 .endif
 .endif
