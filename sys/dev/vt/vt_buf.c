@@ -433,17 +433,22 @@ vtbuf_do_clearhistory(struct vt_buf *vb)
 	vtbuf_do_fill(vb, &rect, VTBUF_SPACE_CHAR(ch));
 }
 
-void
-vtbuf_init_early(struct vt_buf *vb)
+static void
+vtbuf_reset_scrollback(struct vt_buf *vb)
 {
-	vb->vb_flags |= VBF_CURSOR;
 	vb->vb_roffset = 0;
 	vb->vb_curroffset = 0;
 	vb->vb_mark_start.tp_row = 0;
 	vb->vb_mark_start.tp_col = 0;
 	vb->vb_mark_end.tp_row = 0;
 	vb->vb_mark_end.tp_col = 0;
+}
 
+void
+vtbuf_init_early(struct vt_buf *vb)
+{
+	vb->vb_flags |= VBF_CURSOR;
+	vtbuf_reset_scrollback(vb);
 	vtbuf_init_rows(vb);
 	vtbuf_do_clearhistory(vb);
 	vtbuf_make_undirty(vb);
@@ -477,6 +482,8 @@ vtbuf_clearhistory(struct vt_buf *vb)
 {
 	VTBUF_LOCK(vb);
 	vtbuf_do_clearhistory(vb);
+	vtbuf_reset_scrollback(vb);
+	vb->vb_flags &= ~VBF_HISTORY_FULL;
 	VTBUF_UNLOCK(vb);
 }
 
