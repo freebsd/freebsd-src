@@ -561,4 +561,7 @@ linux_ratelimited(linux_ratelimit_t *rl)
 	((num) > __max) ? SIZE_MAX : (__size + sizeof((ptr)->field[0]) * (num)); \
 })
 
+#define	__is_constexpr(x) \
+	__builtin_constant_p(x)
+
 #endif	/* _LINUX_KERNEL_H_ */
