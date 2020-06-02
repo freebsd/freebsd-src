@@ -70,6 +70,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#include <rpc/types.h>
+#include <rpc/auth.h>
+
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
