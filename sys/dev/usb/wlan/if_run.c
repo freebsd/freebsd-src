@@ -537,6 +537,7 @@ static const struct rt2860_rate {
 	{  0x85, 5, IEEE80211_T_HT, 4, 60, 60 },
 	{  0x86, 6, IEEE80211_T_HT, 4, 60, 60 },
 	{  0x87, 7, IEEE80211_T_HT, 4, 60, 60 },
+
 	/* MCS - 2 streams */
 	{  0x88, 8, IEEE80211_T_HT, 4, 60, 60 },
 	{  0x89, 9, IEEE80211_T_HT, 4, 60, 60 },
@@ -546,6 +547,16 @@ static const struct rt2860_rate {
 	{  0x8d, 13, IEEE80211_T_HT, 4, 60, 60 },
 	{  0x8e, 14, IEEE80211_T_HT, 4, 60, 60 },
 	{  0x8f, 15, IEEE80211_T_HT, 4, 60, 60 },
+
+	/* MCS - 3 streams */
+	{  0x90, 16, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x91, 17, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x92, 18, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x93, 19, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x94, 20, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x95, 21, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x96, 22, IEEE80211_T_HT, 4, 60, 60 },
+	{  0x97, 23, IEEE80211_T_HT, 4, 60, 60 },
 };
 
 /* These are indexes into the above rt2860_rates[] array */
@@ -553,7 +564,7 @@ static const struct rt2860_rate {
 #define	RT2860_RIDX_CCK11		3
 #define	RT2860_RIDX_OFDM6		4
 #define	RT2860_RIDX_MCS0		12
-#define	RT2860_RIDX_MAX			28
+#define	RT2860_RIDX_MAX			36
 
 static const struct {
 	uint16_t	reg;
@@ -859,12 +870,8 @@ run_attach(device_t self)
 			    IEEE80211_HTCAP_MAXAMSDU_3839 |
 			    IEEE80211_HTCAP_SMPS_OFF;
 
-		/*
-		 * For now, just do 1 stream.  Later on we'll figure out
-		 * how many tx/rx streams a particular NIC supports.
-		 */
-		ic->ic_rxstream = 1;
-		ic->ic_txstream = 1;
+		ic->ic_rxstream = sc->nrxchains;
+		ic->ic_txstream = sc->ntxchains;
 	}
 
 	ic->ic_cryptocaps =
