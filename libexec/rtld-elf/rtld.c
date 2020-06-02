@@ -2583,7 +2583,7 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     if (!digest_dynamic(obj, 0))
 	goto errp;
     if (obj->z_pie) {
-	_rtld_error("Cannot load PIE binary %s as dso", obj->path);
+	_rtld_error("Cannot load PIE binary %s as DSO", obj->path);
 	goto errp;
     }
     dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d", obj->path,
