@@ -41,6 +41,8 @@
 /* check for full DNS request */
 static int sohasdns(struct socket *so, void *arg, int waitflag);
 
+ACCEPT_FILTER_DEFINE(accf_dns, "dnsready", sohasdns, NULL, NULL, 1);
+
 struct packet {
 	struct mbuf *m;		/* Current mbuf. */
 	struct mbuf *n;		/* nextpkt mbuf. */
@@ -55,21 +57,6 @@ struct packet {
 
 /* check we can skip over various parts of DNS request */
 static int skippacket(struct sockbuf *sb);
-
-static struct accept_filter accf_dns_filter = {
-	"dnsready",
-	sohasdns,
-	NULL,
-	NULL
-};
-
-static moduledata_t accf_dns_mod = {
-	"accf_dns",
-	accept_filt_generic_mod_event,
-	&accf_dns_filter
-};
-
-DECLARE_MODULE(accf_dns, accf_dns_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 
 static int
 sohasdns(struct socket *so, void *arg, int waitflag)
