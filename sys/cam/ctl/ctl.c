@@ -3081,7 +3081,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 				break;
 
 			if (lun->backend->lun_info != NULL) {
-				retval = lun->backend->lun_info(lun->be_lun->be_lun, sb);
+				retval = lun->backend->lun_info(lun->be_lun, sb);
 				if (retval != 0)
 					break;
 			}
@@ -4749,7 +4749,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	/*
 	 * Tell the backend to free resources, if this LUN has a backend.
 	 */
-	lun->be_lun->lun_shutdown(lun->be_lun->be_lun);
+	lun->be_lun->lun_shutdown(lun->be_lun);
 
 	lun->ie_reportcnt = UINT32_MAX;
 	callout_drain(&lun->ie_callout);
@@ -6706,7 +6706,7 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 	data = page_index->page_data;
 
 	if (lun->backend->lun_attr != NULL &&
-	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "blocksavail"))
+	    (val = lun->backend->lun_attr(lun->be_lun, "blocksavail"))
 	     != UINT64_MAX) {
 		phdr = (struct scsi_log_param_header *)data;
 		scsi_ulto2b(0x0001, phdr->param_code);
@@ -6719,7 +6719,7 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 	}
 
 	if (lun->backend->lun_attr != NULL &&
-	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "blocksused"))
+	    (val = lun->backend->lun_attr(lun->be_lun, "blocksused"))
 	     != UINT64_MAX) {
 		phdr = (struct scsi_log_param_header *)data;
 		scsi_ulto2b(0x0002, phdr->param_code);
@@ -6732,7 +6732,7 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 	}
 
 	if (lun->backend->lun_attr != NULL &&
-	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "poolblocksavail"))
+	    (val = lun->backend->lun_attr(lun->be_lun, "poolblocksavail"))
 	     != UINT64_MAX) {
 		phdr = (struct scsi_log_param_header *)data;
 		scsi_ulto2b(0x00f1, phdr->param_code);
@@ -6745,7 +6745,7 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 	}
 
 	if (lun->backend->lun_attr != NULL &&
-	    (val = lun->backend->lun_attr(lun->be_lun->be_lun, "poolblocksused"))
+	    (val = lun->backend->lun_attr(lun->be_lun, "poolblocksused"))
 	     != UINT64_MAX) {
 		phdr = (struct scsi_log_param_header *)data;
 		scsi_ulto2b(0x00f2, phdr->param_code);
@@ -13384,8 +13384,7 @@ ctl_thresh_thread(void *arg)
 					continue;
 				}
 				mtx_unlock(&softc->ctl_lock); // XXX
-				val = lun->backend->lun_attr(
-				    lun->be_lun->be_lun, attr);
+				val = lun->backend->lun_attr(lun->be_lun, attr);
 				mtx_lock(&softc->ctl_lock);
 				if (val == UINT64_MAX)
 					continue;
