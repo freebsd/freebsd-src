@@ -129,7 +129,6 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 	/*
 	 * First part: process new packets to send.
 	 */
-	rmb();
 
 	nm_i = kring->nr_hwcur;
 	if (nm_i != head) {	/* we have new packets to send */
@@ -302,7 +301,6 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 	struct vtnet_rxq *rxq = &sc->vtnet_rxqs[ring_nr];
 	struct virtqueue *vq = rxq->vtnrx_vq;
 
-	rmb();
 	/*
 	 * First part: import newly received packets.
 	 * Only accept our own buffers (matching the token). We should only get
