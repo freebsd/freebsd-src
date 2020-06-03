@@ -1,15 +1,9 @@
 /** @file
-  This library retrieve the EFI_BOOT_SERVICES pointer from EFI system table in 
+  This library retrieve the EFI_BOOT_SERVICES pointer from EFI system table in
   library's constructor.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -25,7 +19,7 @@ EFI_BOOT_SERVICES  *gBS         = NULL;
 
 /**
   The constructor function caches the pointer of Boot Services Table.
-    
+
   The constructor function caches the pointer of Boot Services Table through System Table.
   It will ASSERT() if the pointer of System Table is NULL.
   It will ASSERT() if the pointer of Boot Services Table is NULL.

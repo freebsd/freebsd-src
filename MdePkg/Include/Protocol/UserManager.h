@@ -3,14 +3,8 @@
 
   This protocol manages user profiles.
 
-  Copyright (c) 2009 - 2011, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -53,7 +47,7 @@ typedef UINT16 EFI_USER_INFO_ATTRIBS;
 ///
 typedef struct {
   ///
-  /// The user credential identifier associated with this user information or else Nil if the 
+  /// The user credential identifier associated with this user information or else Nil if the
   /// information is not associated with any specific credential.
   ///
   EFI_GUID               Credential;
@@ -95,7 +89,7 @@ typedef UINT64   EFI_CREDENTIAL_CAPABILITIES;
 #define EFI_CREDENTIAL_CAPABILITIES_ENROLL  0x0000000000000001
 
 ///
-/// Credential logon flags 
+/// Credential logon flags
 ///
 typedef UINT32 EFI_CREDENTIAL_LOGON_FLAGS;
 #define EFI_CREDENTIAL_LOGON_FLAG_AUTO                0x00000001
@@ -159,7 +153,7 @@ typedef CHAR16 *EFI_USER_INFO_CREDENTIAL_PROVIDER_NAME;
 ///
 #define EFI_USER_INFO_PKCS11_RECORD                   0x0A
 ///
-/// Provides standard biometric information in the format specified by the ISO 19785 (Common 
+/// Provides standard biometric information in the format specified by the ISO 19785 (Common
 /// Biometric Exchange Formats Framework) specification.
 ///
 #define EFI_USER_INFO_CBEFF_RECORD                    0x0B
@@ -170,7 +164,7 @@ typedef VOID *EFI_USER_INFO_CBEFF;
 #define EFI_USER_INFO_FAR_RECORD                      0x0C
 typedef UINT8 EFI_USER_INFO_FAR;
 ///
-/// Indicates how many attempts the user has to with a particular credential before the system prevents 
+/// Indicates how many attempts the user has to with a particular credential before the system prevents
 /// further attempts.
 ///
 #define EFI_USER_INFO_RETRY_RECORD                    0x0D
@@ -192,12 +186,12 @@ typedef EFI_USER_INFO_ACCESS_CONTROL EFI_USER_INFO_ACCESS_POLICY;
 ///
 
 ///
-/// Forbids the user from booting or loading executables from the specified device path or any child 
+/// Forbids the user from booting or loading executables from the specified device path or any child
 /// device paths.
 ///
 #define EFI_USER_INFO_ACCESS_FORBID_LOAD              0x00000001
 ///
-/// Permits the user from booting or loading executables from the specified device path or any child 
+/// Permits the user from booting or loading executables from the specified device path or any child
 /// device paths.
 /// Note: in-consistency between code and the UEFI 2.3 specification here.
 /// The definition EFI_USER_INFO_ACCESS_PERMIT_BOOT in the specification should be typo and wait for
@@ -258,7 +252,7 @@ typedef UINT32 EFI_USER_INFO_ACCESS_BOOT_ORDER_HDR;
 ///
 #define EFI_USER_INFO_ACCESS_BOOT_ORDER_REPLACE       0x00000002
 ///
-/// The Boot Manager will not attempt find a default boot device 
+/// The Boot Manager will not attempt find a default boot device
 /// when the default boot order is does not lead to a bootable device.
 ///
 #define EFI_USER_INFO_ACCESS_BOOT_ORDER_NODEFAULT     0x00000010
@@ -269,7 +263,7 @@ typedef UINT32 EFI_USER_INFO_ACCESS_BOOT_ORDER_HDR;
 #define EFI_USER_INFO_IDENTITY_POLICY_RECORD          0x0F
 
 typedef struct {
-  UINT32  Type;    ///< Specifies either an operator or a data item. 
+  UINT32  Type;    ///< Specifies either an operator or a data item.
   UINT32  Length;  ///< The length of this block, in bytes, including this header.
 } EFI_USER_INFO_IDENTITY_POLICY;
 
@@ -303,13 +297,13 @@ typedef struct _EFI_USER_MANAGER_PROTOCOL  EFI_USER_MANAGER_PROTOCOL;
 /**
   Create a new user profile.
 
-  This function creates a new user profile with only a new user identifier attached and returns its 
+  This function creates a new user profile with only a new user identifier attached and returns its
   handle. The user profile is non-volatile, but the handle User can change across reboots.
 
   @param[in]  This               Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
-  @param[out] User               On return, points to the new user profile handle. 
+  @param[out] User               On return, points to the new user profile handle.
                                  The user profile handle is unique only during this boot.
- 
+
   @retval EFI_SUCCESS            User profile was successfully created.
   @retval EFI_ACCESS_DENIED      Current user does not have sufficient permissions to create a user profile.
   @retval EFI_UNSUPPORTED        Creation of new user profiles is not supported.
@@ -326,7 +320,7 @@ EFI_STATUS
   Delete an existing user profile.
 
   @param[in] This                Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
-  @param[in] User                User profile handle. 
+  @param[in] User                User profile handle.
 
   @retval EFI_SUCCESS            User profile was successfully deleted.
   @retval EFI_ACCESS_DENIED      Current user does not have sufficient permissions to delete a user
@@ -344,16 +338,16 @@ EFI_STATUS
 /**
   Enumerate all of the enrolled users on the platform.
 
-  This function returns the next enrolled user profile. To retrieve the first user profile handle, point 
-  User at a NULL. Each subsequent call will retrieve another user profile handle until there are no 
-  more, at which point User will point to NULL. 
+  This function returns the next enrolled user profile. To retrieve the first user profile handle, point
+  User at a NULL. Each subsequent call will retrieve another user profile handle until there are no
+  more, at which point User will point to NULL.
 
   @param[in]     This            Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
-  @param[in,out] User            On entry, points to the previous user profile handle or NULL to 
+  @param[in,out] User            On entry, points to the previous user profile handle or NULL to
                                  start enumeration. On exit, points to the next user profile handle
                                  or NULL if there are no more user profiles.
 
-  @retval EFI_SUCCESS            Next enrolled user profile successfully returned. 
+  @retval EFI_SUCCESS            Next enrolled user profile successfully returned.
   @retval EFI_ACCESS_DENIED      Next enrolled user profile was not successfully returned.
   @retval EFI_INVALID_PARAMETER  The User parameter is NULL.
 **/
@@ -370,7 +364,7 @@ EFI_STATUS
   @param[in]  This               Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
   @param[out] CurrentUser        On return, points to the current user profile handle.
 
-  @retval EFI_SUCCESS            Current user profile handle returned successfully. 
+  @retval EFI_SUCCESS            Current user profile handle returned successfully.
   @retval EFI_INVALID_PARAMETER  The CurrentUser parameter is NULL.
 **/
 typedef
@@ -384,9 +378,9 @@ EFI_STATUS
   Identify a user.
 
   Identify the user and, if authenticated, returns the user handle and changes the current user profile.
-  All user information marked as private in a previously selected profile is no longer available for 
-  inspection. 
-  Whenever the current user profile is changed then the an event with the GUID 
+  All user information marked as private in a previously selected profile is no longer available for
+  inspection.
+  Whenever the current user profile is changed then the an event with the GUID
   EFI_EVENT_GROUP_USER_PROFILE_CHANGED is signaled.
 
   @param[in]  This               Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
@@ -406,26 +400,26 @@ EFI_STATUS
 /**
   Find a user using a user information record.
 
-  This function searches all user profiles for the specified user information record. The search starts 
-  with the user information record handle following UserInfo and continues until either the 
+  This function searches all user profiles for the specified user information record. The search starts
+  with the user information record handle following UserInfo and continues until either the
   information is found or there are no more user profiles.
-  A match occurs when the Info.InfoType field matches the user information record type and the 
+  A match occurs when the Info.InfoType field matches the user information record type and the
   user information record data matches the portion of Info.
 
   @param[in]     This      Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
-  @param[in,out] User      On entry, points to the previously returned user profile handle or NULL to start 
-                           searching with the first user profile. On return, points to the user profile handle or 
+  @param[in,out] User      On entry, points to the previously returned user profile handle or NULL to start
+                           searching with the first user profile. On return, points to the user profile handle or
                            NULL if not found.
-  @param[in,out] UserInfo  On entry, points to the previously returned user information handle or NULL to start 
-                           searching with the first. On return, points to the user information handle of the user 
-                           information record or NULL if not found. Can be NULL, in which case only one user 
-                           information record per user can be returned. 
-  @param[in]     Info      Points to the buffer containing the user information to be compared to the user 
-                           information record. If the user information record data is empty, then only the user 
-                           information record type is compared. 
+  @param[in,out] UserInfo  On entry, points to the previously returned user information handle or NULL to start
+                           searching with the first. On return, points to the user information handle of the user
+                           information record or NULL if not found. Can be NULL, in which case only one user
+                           information record per user can be returned.
+  @param[in]     Info      Points to the buffer containing the user information to be compared to the user
+                           information record. If the user information record data is empty, then only the user
+                           information record type is compared.
                            If InfoSize is 0, then the user information record must be empty.
 
-  @param[in]     InfoSize  The size of Info, in bytes. 
+  @param[in]     InfoSize  The size of Info, in bytes.
 
   @retval EFI_SUCCESS           User information was found. User points to the user profile handle and UserInfo
                                 points to the user information handle.
@@ -445,15 +439,15 @@ EFI_STATUS
 /**
   Called by credential provider to notify of information change.
 
-  This function allows the credential provider to notify the User Identity Manager when user status  
+  This function allows the credential provider to notify the User Identity Manager when user status
   has changed.
-  If the User Identity Manager doesn't support asynchronous changes in credentials, then this function 
-  should return EFI_UNSUPPORTED. 
-  If current user does not exist, and the credential provider can identify a user, then make the user 
+  If the User Identity Manager doesn't support asynchronous changes in credentials, then this function
+  should return EFI_UNSUPPORTED.
+  If current user does not exist, and the credential provider can identify a user, then make the user
   to be current user and signal the EFI_EVENT_GROUP_USER_PROFILE_CHANGED event.
-  If current user already exists, and the credential provider can identify another user, then switch 
+  If current user already exists, and the credential provider can identify another user, then switch
   current user to the newly identified user, and signal the EFI_EVENT_GROUP_USER_PROFILE_CHANGED event.
-  If current user was identified by this credential provider and now the credential provider cannot identify 
+  If current user was identified by this credential provider and now the credential provider cannot identify
   current user, then logout current user and signal the EFI_EVENT_GROUP_USER_PROFILE_CHANGED event.
 
   @param[in] This          Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
@@ -474,30 +468,30 @@ EFI_STATUS
 /**
   Return information attached to the user.
 
-  This function returns user information. The format of the information is described in User 
-  Information. The function may return EFI_ACCESS_DENIED if the information is marked private 
-  and the handle specified by User is not the current user profile. The function may return 
-  EFI_ACCESS_DENIED if the information is marked protected and the information is associated 
+  This function returns user information. The format of the information is described in User
+  Information. The function may return EFI_ACCESS_DENIED if the information is marked private
+  and the handle specified by User is not the current user profile. The function may return
+  EFI_ACCESS_DENIED if the information is marked protected and the information is associated
   with a credential provider for which the user has not been authenticated.
 
   @param[in]     This           Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
-  @param[in]     User           Handle of the user whose profile will be retrieved. 
-  @param[in]     UserInfo       Handle of the user information data record.   
-  @param[out]    Info           On entry, points to a buffer of at least *InfoSize bytes. On exit, holds the user 
-                                information. If the buffer is too small to hold the information, then 
-                                EFI_BUFFER_TOO_SMALL is returned and InfoSize is updated to contain the 
-                                number of bytes actually required. 
-  @param[in,out] InfoSize       On entry, points to the size of Info. On return, points to the size of the user 
-                                information. 
+  @param[in]     User           Handle of the user whose profile will be retrieved.
+  @param[in]     UserInfo       Handle of the user information data record.
+  @param[out]    Info           On entry, points to a buffer of at least *InfoSize bytes. On exit, holds the user
+                                information. If the buffer is too small to hold the information, then
+                                EFI_BUFFER_TOO_SMALL is returned and InfoSize is updated to contain the
+                                number of bytes actually required.
+  @param[in,out] InfoSize       On entry, points to the size of Info. On return, points to the size of the user
+                                information.
 
   @retval EFI_SUCCESS           Information returned successfully.
   @retval EFI_ACCESS_DENIED     The information about the specified user cannot be accessed by the current user.
-  @retval EFI_BUFFER_TOO_SMALL  The number of bytes specified by *InfoSize is too small to hold 
+  @retval EFI_BUFFER_TOO_SMALL  The number of bytes specified by *InfoSize is too small to hold
                                 the returned data. The actual size required is returned in *InfoSize.
   @retval EFI_NOT_FOUND         User does not refer to a valid user profile or UserInfo does not refer to a valid
                                 user info handle.
   @retval EFI_INVALID_PARAMETER Info is NULL or InfoSize is NULL.
-**/  
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_USER_PROFILE_GET_INFO)(
@@ -511,33 +505,33 @@ EFI_STATUS
 /**
   Add or update user information.
 
-  This function changes user information.  If NULL is pointed to by UserInfo, then a new user 
-  information record is created and its handle is returned in UserInfo. Otherwise, the existing one is 
+  This function changes user information.  If NULL is pointed to by UserInfo, then a new user
+  information record is created and its handle is returned in UserInfo. Otherwise, the existing one is
   replaced.
-  If EFI_USER_INFO_IDENTITY_POLICY_RECORD is changed, it is the caller's responsibility to keep it to 
+  If EFI_USER_INFO_IDENTITY_POLICY_RECORD is changed, it is the caller's responsibility to keep it to
   be synced with the information on credential providers.
-  If EFI_USER_INFO_EXCLUSIVE is specified in Info and a user information record of the same 
-  type already exists in the user profile, then EFI_ACCESS_DENIED will be returned and 
+  If EFI_USER_INFO_EXCLUSIVE is specified in Info and a user information record of the same
+  type already exists in the user profile, then EFI_ACCESS_DENIED will be returned and
   UserInfo will point to the handle of the existing record.
 
   @param[in]     This             Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
-  @param[in]     User             Handle of the user whose profile will be retrieved. 
-  @param[in,out] UserInfo         Handle of the user information data record.   
-  @param[in]     Info             On entry, points to a buffer of at least *InfoSize bytes. On exit, holds the user 
-                                  information. If the buffer is too small to hold the information, then 
-                                  EFI_BUFFER_TOO_SMALL is returned and InfoSize is updated to contain the 
-                                  number of bytes actually required. 
-  @param[in]     InfoSize         On entry, points to the size of Info. On return, points to the size of the user 
-                                  information. 
+  @param[in]     User             Handle of the user whose profile will be retrieved.
+  @param[in,out] UserInfo         Handle of the user information data record.
+  @param[in]     Info             On entry, points to a buffer of at least *InfoSize bytes. On exit, holds the user
+                                  information. If the buffer is too small to hold the information, then
+                                  EFI_BUFFER_TOO_SMALL is returned and InfoSize is updated to contain the
+                                  number of bytes actually required.
+  @param[in]     InfoSize         On entry, points to the size of Info. On return, points to the size of the user
+                                  information.
 
   @retval EFI_SUCCESS             Information returned successfully.
   @retval EFI_ACCESS_DENIED       The record is exclusive.
-  @retval EFI_SECURITY_VIOLATION  The current user does not have permission to change the specified 
+  @retval EFI_SECURITY_VIOLATION  The current user does not have permission to change the specified
                                   user profile or user information record.
   @retval EFI_NOT_FOUND           User does not refer to a valid user profile or UserInfo does not refer to a valid
                                   user info handle.
-  @retval EFI_INVALID_PARAMETER   UserInfo is NULL or Info is NULL. 
-**/  
+  @retval EFI_INVALID_PARAMETER   UserInfo is NULL or Info is NULL.
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_USER_PROFILE_SET_INFO)(
@@ -559,8 +553,8 @@ EFI_STATUS
 
   @retval EFI_SUCCESS        User information deleted successfully.
   @retval EFI_NOT_FOUND      User information record UserInfo does not exist in the user profile.
-  @retval EFI_ACCESS_DENIED  The current user does not have permission to delete this user information. 
-**/ 
+  @retval EFI_ACCESS_DENIED  The current user does not have permission to delete this user information.
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_USER_PROFILE_DELETE_INFO)(
@@ -572,9 +566,9 @@ EFI_STATUS
 /**
   Enumerate user information of all the enrolled users on the platform.
 
-  This function returns the next user information record. To retrieve the first user information record 
-  handle, point UserInfo at a NULL. Each subsequent call will retrieve another user information 
-  record handle until there are no more, at which point UserInfo will point to NULL. 
+  This function returns the next user information record. To retrieve the first user information record
+  handle, point UserInfo at a NULL. Each subsequent call will retrieve another user information
+  record handle until there are no more, at which point UserInfo will point to NULL.
 
   @param[in]     This           Points to this instance of the EFI_USER_MANAGER_PROTOCOL.
   @param[in]     User           Handle of the user whose information will be deleted.
@@ -583,7 +577,7 @@ EFI_STATUS
   @retval EFI_SUCCESS           User information returned.
   @retval EFI_NOT_FOUND         No more user information found.
   @retval EFI_INVALID_PARAMETER UserInfo is NULL.
-**/ 
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_USER_PROFILE_GET_NEXT_INFO)(

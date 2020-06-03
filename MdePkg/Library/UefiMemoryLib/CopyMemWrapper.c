@@ -2,7 +2,7 @@
   CopyMem() implementation.
 
   The following BaseMemoryLib instances contain the same copy of this file:
-  
+
     BaseMemoryLib
     BaseMemoryLibMmx
     BaseMemoryLibSse2
@@ -12,14 +12,8 @@
     PeiMemoryLib
     UefiMemoryLib
 
-  Copyright (c) 2006 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -31,7 +25,7 @@
   This function copies Length bytes from SourceBuffer to DestinationBuffer, and returns
   DestinationBuffer.  The implementation must be reentrant, and it must handle the case
   where SourceBuffer overlaps DestinationBuffer.
-  
+
   If Length is greater than (MAX_ADDRESS - DestinationBuffer + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS - SourceBuffer + 1), then ASSERT().
 

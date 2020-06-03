@@ -5,14 +5,9 @@
 #  EVT_SIGNAL_EXIT_BOOT_SERVICES event, to provide runtime services.
 # This instance also supports SAL drivers for better performance.
 #
-# Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution. The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php.
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 #
 ##
@@ -24,13 +19,13 @@
   FILE_GUID                      = b1ee6c28-54aa-4d17-b705-3e28ccb27b2e
   MODULE_TYPE                    = DXE_RUNTIME_DRIVER
   VERSION_STRING                 = 1.0
-  LIBRARY_CLASS                  = UefiRuntimeLib|DXE_RUNTIME_DRIVER DXE_SAL_DRIVER
+  LIBRARY_CLASS                  = UefiRuntimeLib|DXE_RUNTIME_DRIVER
 
   CONSTRUCTOR                    = RuntimeDriverLibConstruct
   DESTRUCTOR                     = RuntimeDriverLibDeconstruct
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
 #
 
 
@@ -44,8 +39,3 @@
   UefiBootServicesTableLib
   UefiRuntimeServicesTableLib
   DebugLib
- 
-[Guids]
-  gEfiEventExitBootServicesGuid             ## CONSUMES ## Event
-  gEfiEventVirtualAddressChangeGuid         ## CONSUMES ## Event
-

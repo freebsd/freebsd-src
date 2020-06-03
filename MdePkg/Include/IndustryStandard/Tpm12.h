@@ -1,15 +1,9 @@
-/** @file   
+/** @file
   TPM Specification data structures (TCG TPM Specification Version 1.2 Revision 103)
   See http://trustedcomputinggroup.org for latest specification updates
 
-  Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 
@@ -155,8 +149,8 @@ typedef UINT32                      TPM_KEY_CONTROL;
 ///
 typedef UINT32                      TPM_NV_INDEX;
 ///
-/// The family ID. Family IDs are automatically assigned a sequence number by the TPM. 
-/// A trusted process can set the FamilyID value in an individual row to NULL, which 
+/// The family ID. Family IDs are automatically assigned a sequence number by the TPM.
+/// A trusted process can set the FamilyID value in an individual row to NULL, which
 /// invalidates that row. The family ID resets to NULL on each change of TPM Owner.
 ///
 typedef UINT32                      TPM_FAMILY_ID;
@@ -603,7 +597,7 @@ typedef struct tdTPM_CHANGEAUTH_VALIDATE {
 
 ///
 /// Part 2, section 5.12: TPM_MIGRATIONKEYAUTH
-///   decalared after section 10 to catch declaration of TPM_PUBKEY
+///   declared after section 10 to catch declaration of TPM_PUBKEY
 ///
 /// Part 2 section 10.1: TPM_KEY_PARMS
 ///   [size_is(parmSize)] BYTE* parms;
@@ -826,7 +820,7 @@ typedef struct tdTPM_STANY_FLAGS{
 #define TPM_AF_TOSPRESENT           ((TPM_CAPABILITY_AREA) 4)
 
 //
-// All those structures defined in section 7.4, 7.5, 7.6 are not normative and 
+// All those structures defined in section 7.4, 7.5, 7.6 are not normative and
 // thus no definitions here
 //
 // Part 2, section 7.4: TPM_PERMANENT_DATA
@@ -901,7 +895,7 @@ typedef struct tdTPM_STANY_FLAGS{
 
 //
 // Part 2, section 8: PCR Structures
-// 
+//
 
 ///
 /// Part 2, section 8.1: TPM_PCR_SELECTION
@@ -1039,7 +1033,7 @@ typedef struct tdTPM_BOUND_DATA {
 
 //
 // Part 2 section 10: TPM_KEY complex
-// 
+//
 
 //
 // Section 10.1, 10.4, and 10.5 have been defined previously

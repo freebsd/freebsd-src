@@ -1,0 +1,14 @@
+// /** @file
+// Null Instance of RNG (Random Number Generator) Library.
+//
+// Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Null Instance of RNG Library"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "This library instance should be used with modules that inherit an (indirect) dependency on the RngLib class, but never actually call RngLib APIs for consuming randomness."
+

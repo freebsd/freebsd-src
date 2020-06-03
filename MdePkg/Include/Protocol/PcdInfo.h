@@ -4,18 +4,15 @@
   The protocol that provides additional information about items that reside in the PCD database.
 
   Different with the EFI_GET_PCD_INFO_PROTOCOL defined in PI 1.2.1 specification,
-  the native PCD INFO PROTOCOL provide interfaces for dynamic and dynamic-ex type PCD. 
+  the native PCD INFO PROTOCOL provide interfaces for dynamic and dynamic-ex type PCD.
   The interfaces for dynamic type PCD do not require the token space guid as parameter,
   but interfaces for dynamic-ex type PCD require token space guid as parameter.
 
-  Copyright (c) 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  @par Revision Reference:
+  This Protocol was introduced in PI Specification 1.2.
 
 **/
 

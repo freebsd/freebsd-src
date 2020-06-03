@@ -4,14 +4,8 @@
   The Block IO protocol is used to abstract block devices like hard drives,
   DVD-ROMs and floppy drives.
 
-  Copyright (c) 2006 - 2011, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -27,12 +21,12 @@ typedef struct _EFI_BLOCK_IO_PROTOCOL  EFI_BLOCK_IO_PROTOCOL;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
-/// 
+///
 #define BLOCK_IO_PROTOCOL       EFI_BLOCK_IO_PROTOCOL_GUID
 
 ///
 /// Protocol defined in EFI1.1.
-/// 
+///
 typedef EFI_BLOCK_IO_PROTOCOL   EFI_BLOCK_IO;
 
 /**
@@ -68,7 +62,7 @@ EFI_STATUS
   @retval EFI_NO_MEDIA          There is no media in the device.
   @retval EFI_MEDIA_CHANGED     The MediaId does not matched the current device.
   @retval EFI_BAD_BUFFER_SIZE   The Buffer was not a multiple of the block size of the device.
-  @retval EFI_INVALID_PARAMETER The read request contains LBAs that are not valid, 
+  @retval EFI_INVALID_PARAMETER The read request contains LBAs that are not valid,
                                 or the buffer is not on proper alignment.
 
 **/
@@ -98,7 +92,7 @@ EFI_STATUS
   @retval EFI_NO_MEDIA          There is no media in the device.
   @retval EFI_MEDIA_CHNAGED     The MediaId does not matched the current device.
   @retval EFI_BAD_BUFFER_SIZE   The Buffer was not a multiple of the block size of the device.
-  @retval EFI_INVALID_PARAMETER The write request contains LBAs that are not valid, 
+  @retval EFI_INVALID_PARAMETER The write request contains LBAs that are not valid,
                                 or the buffer is not on proper alignment.
 
 **/
@@ -135,17 +129,17 @@ typedef struct {
   ///
   /// The curent media Id. If the media changes, this value is changed.
   ///
-  UINT32  MediaId;         
-   
+  UINT32  MediaId;
+
   ///
   /// TRUE if the media is removable; otherwise, FALSE.
-  ///    
+  ///
   BOOLEAN RemovableMedia;
-  
+
   ///
   /// TRUE if there is a media currently present in the device;
   /// othersise, FALSE. THis field shows the media present status
-  /// as of the most recent ReadBlocks() or WriteBlocks() call.  
+  /// as of the most recent ReadBlocks() or WriteBlocks() call.
   ///
   BOOLEAN MediaPresent;
 
@@ -154,45 +148,45 @@ typedef struct {
   /// FALSE. For media with only one partition this would be TRUE.
   ///
   BOOLEAN LogicalPartition;
-  
+
   ///
   /// TRUE if the media is marked read-only otherwise, FALSE.
   /// This field shows the read-only status as of the most recent WriteBlocks () call.
   ///
   BOOLEAN ReadOnly;
-  
+
   ///
   /// TRUE if the WriteBlock () function caches write data.
   ///
-  BOOLEAN WriteCaching; 
-  
+  BOOLEAN WriteCaching;
+
   ///
   /// The intrinsic block size of the device. If the media changes, then
-  /// this field is updated.  
+  /// this field is updated.
   ///
-  UINT32  BlockSize; 
-  
+  UINT32  BlockSize;
+
   ///
   /// Supplies the alignment requirement for any buffer to read or write block(s).
   ///
-  UINT32  IoAlign; 
-  
+  UINT32  IoAlign;
+
   ///
   /// The last logical block address on the device.
-  /// If the media changes, then this field is updated. 
+  /// If the media changes, then this field is updated.
   ///
-  EFI_LBA LastBlock; 
+  EFI_LBA LastBlock;
 
   ///
   /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
-  /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the first LBA is aligned to 
-  /// a physical block boundary. 
+  /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the first LBA is aligned to
+  /// a physical block boundary.
   ///
   EFI_LBA LowestAlignedLba;
 
   ///
   /// Only present if EFI_BLOCK_IO_PROTOCOL.Revision is greater than or equal to
-  /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the number of logical blocks 
+  /// EFI_BLOCK_IO_PROTOCOL_REVISION2. Returns the number of logical blocks
   /// per physical block.
   ///
   UINT32 LogicalBlocksPerPhysicalBlock;
@@ -211,7 +205,7 @@ typedef struct {
 
 ///
 /// Revision defined in EFI1.1.
-/// 
+///
 #define EFI_BLOCK_IO_INTERFACE_REVISION   EFI_BLOCK_IO_PROTOCOL_REVISION
 
 ///

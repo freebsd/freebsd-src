@@ -1,14 +1,22 @@
 /** @file
   Opal Specification defined values and structures.
 
-Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
+  (TCG Storage Architecture Core Specification, Version 2.01, Revision 1.00,
+  https://trustedcomputinggroup.org/tcg-storage-architecture-core-specification/
 
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Storage Work Group Storage Security Subsystem Class: Pyrite, Version 1.00 Final, Revision 1.00,
+  https://trustedcomputinggroup.org/tcg-storage-security-subsystem-class-pyrite/
+
+  Storage Work Group Storage Security Subsystem Class: Opal, Version 2.01 Final, Revision 1.00,
+  https://trustedcomputinggroup.org/storage-work-group-storage-security-subsystem-class-opal/
+
+  TCG Storage Security Subsystem Class: Opalite Version 1.00 Revision 1.00,
+  https://trustedcomputinggroup.org/tcg-storage-security-subsystem-class-opalite/)
+
+  Check http://trustedcomputinggroup.org for latest specification updates.
+
+Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -34,6 +42,9 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OPAL_ADMIN_SP_ACTIVATE_METHOD       TCG_TO_UID(0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x02, 0x03)
 #define OPAL_ADMIN_SP_REVERT_METHOD         TCG_TO_UID(0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x02, 0x02)
 
+// ADMIN_SP
+// Data Removal mechanism
+#define OPAL_UID_ADMIN_SP_DATA_REMOVAL_MECHANISM  TCG_TO_UID(0x00, 0x00, 0x11, 0x01, 0x00, 0x00, 0x00, 0x01)
 
 // LOCKING SP
 // Authorities
@@ -92,6 +103,23 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define OPAL_ADMIN_SP_PIN_COL  3
 #define OPAL_LOCKING_SP_C_PIN_TRYLIMIT_COL 5
 #define OPAL_RANDOM_METHOD_MAX_COUNT_SIZE 32
+
+// Data Removal Mechanism column.
+#define OPAL_ADMIN_SP_ACTIVE_DATA_REMOVAL_MECHANISM_COL  1
+
+//
+// Supported Data Removal Mechanism.
+// Detail see Pyrite SSC v2 spec.
+//
+typedef enum {
+  OverwriteDataErase = 0,
+  BlockErase,
+  CryptoErase,
+  Unmap,
+  ResetWritePointers,
+  VendorSpecificErase,
+  ResearvedMechanism
+} SUPPORTED_DATA_REMOVAL_MECHANISM;
 
 #pragma pack(1)
 
@@ -162,6 +190,38 @@ typedef struct _PYRITE_SSC_FEATURE_DESCRIPTOR {
   UINT8                                Future[5];
 } PYRITE_SSC_FEATURE_DESCRIPTOR;
 
+typedef struct _PYRITE_SSCV2_FEATURE_DESCRIPTOR {
+  TCG_LEVEL0_FEATURE_DESCRIPTOR_HEADER Header;
+  UINT16                               BaseComdIdBE;
+  UINT16                               NumComIdsBE;
+  UINT8                                Reserved[5];
+  UINT8                                InitialCPINSIDPIN;
+  UINT8                                CPINSIDPINRevertBehavior;
+  UINT8                                Future[5];
+} PYRITE_SSCV2_FEATURE_DESCRIPTOR;
+
+typedef struct _DATA_REMOVAL_FEATURE_DESCRIPTOR {
+  TCG_LEVEL0_FEATURE_DESCRIPTOR_HEADER Header;
+  UINT8                                Reserved;
+  UINT8                                OperationProcessing : 1;
+  UINT8                                Reserved2 : 7;
+  UINT8                                RemovalMechanism;
+  UINT8                                FormatBit0 : 1;   // Data Removal Time Format for Bit 0
+  UINT8                                FormatBit1 : 1;   // Data Removal Time Format for Bit 1
+  UINT8                                FormatBit2 : 1;   // Data Removal Time Format for Bit 2
+  UINT8                                FormatBit3 : 1;   // Data Removal Time Format for Bit 3
+  UINT8                                FormatBit4 : 1;   // Data Removal Time Format for Bit 4
+  UINT8                                FormatBit5 : 1;   // Data Removal Time Format for Bit 5
+  UINT8                                Reserved3 : 2;
+  UINT16                               TimeBit0;         // Data Removal Time for Supported Data Removal Mechanism Bit 0
+  UINT16                               TimeBit1;         // Data Removal Time for Supported Data Removal Mechanism Bit 1
+  UINT16                               TimeBit2;         // Data Removal Time for Supported Data Removal Mechanism Bit 2
+  UINT16                               TimeBit3;         // Data Removal Time for Supported Data Removal Mechanism Bit 3
+  UINT16                               TimeBit4;         // Data Removal Time for Supported Data Removal Mechanism Bit 4
+  UINT16                               TimeBit5;         // Data Removal Time for Supported Data Removal Mechanism Bit 5
+  UINT8                                Future[16];
+} DATA_REMOVAL_FEATURE_DESCRIPTOR;
+
 typedef union {
   TCG_LEVEL0_FEATURE_DESCRIPTOR_HEADER     CommonHeader;
   TCG_TPER_FEATURE_DESCRIPTOR              Tper;
@@ -173,7 +233,9 @@ typedef union {
   OPAL_SSCV2_FEATURE_DESCRIPTOR            OpalSscV2;
   OPAL_SSCLITE_FEATURE_DESCRIPTOR          OpalSscLite;
   PYRITE_SSC_FEATURE_DESCRIPTOR            PyriteSsc;
+  PYRITE_SSCV2_FEATURE_DESCRIPTOR          PyriteSscV2;
   TCG_BLOCK_SID_FEATURE_DESCRIPTOR         BlockSid;
+  DATA_REMOVAL_FEATURE_DESCRIPTOR          DataRemoval;
 } OPAL_LEVEL0_FEATURE_DESCRIPTOR;
 
 #pragma pack()

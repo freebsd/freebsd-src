@@ -1,14 +1,8 @@
 /** @file
   Switch Stack functions.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -36,9 +30,9 @@
                       function.
   @param  NewStack    A pointer to the new stack to use for the EntryPoint
                       function.
-  @param  ...         This variable argument list is ignored for IA32, x64, and EBC.  
-                      For IPF, this variable argument list is expected to contain 
-                      a single parameter of type VOID * that specifies the new backing 
+  @param  ...         This variable argument list is ignored for IA32, x64, and EBC.
+                      For IPF, this variable argument list is expected to contain
+                      a single parameter of type VOID * that specifies the new backing
                       store pointer.
 
 

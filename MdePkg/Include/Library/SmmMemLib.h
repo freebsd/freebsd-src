@@ -4,15 +4,9 @@
   The SMM Mem Library provides function for checking if buffer is outside SMRAM and valid.
   It also provides functions for copy data from SMRAM to non-SMRAM, from non-SMRAM to SMRAM,
   from non-SMRAM to non-SMRAM, or set data in non-SMRAM.
-  
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -68,12 +62,12 @@ SmmCopyMemToSmram (
   If the check passes, it copies memory and returns EFI_SUCCESS.
   If the check fails, it returns EFI_SECURITY_VIOLATION.
   The implementation must be reentrant.
-  
+
   @param  DestinationBuffer   The pointer to the destination buffer of the memory copy.
   @param  SourceBuffer        The pointer to the source buffer of the memory copy.
   @param  Length              The number of bytes to copy from SourceBuffer to DestinationBuffer.
 
-  @retval EFI_SECURITY_VIOLATION The DesinationBuffer is invalid per processor architecture or overlap with SMRAM.
+  @retval EFI_SECURITY_VIOLATION The DestinationBuffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SUCCESS            Memory is copied.
 
 **/
@@ -93,12 +87,12 @@ SmmCopyMemFromSmram (
   If the check passes, it copies memory and returns EFI_SUCCESS.
   If the check fails, it returns EFI_SECURITY_VIOLATION.
   The implementation must be reentrant, and it must handle the case where source buffer overlaps destination buffer.
-  
+
   @param  DestinationBuffer   The pointer to the destination buffer of the memory copy.
   @param  SourceBuffer        The pointer to the source buffer of the memory copy.
   @param  Length              The number of bytes to copy from SourceBuffer to DestinationBuffer.
 
-  @retval EFI_SECURITY_VIOLATION The DesinationBuffer is invalid per processor architecture or overlap with SMRAM.
+  @retval EFI_SECURITY_VIOLATION The DestinationBuffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SECURITY_VIOLATION The SourceBuffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SUCCESS            Memory is copied.
 
@@ -118,11 +112,11 @@ SmmCopyMem (
   It checks if target buffer is valid per processor architecture and not overlap with SMRAM.
   If the check passes, it fills memory and returns EFI_SUCCESS.
   If the check fails, it returns EFI_SECURITY_VIOLATION.
-  
+
   @param  Buffer    The memory to set.
   @param  Length    The number of bytes to set.
   @param  Value     The value with which to fill Length bytes of Buffer.
-  
+
   @retval EFI_SECURITY_VIOLATION The Buffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SUCCESS            Memory is set.
 

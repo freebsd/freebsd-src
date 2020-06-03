@@ -6,14 +6,8 @@
   all SMRAM range via SMM_ACCESS2_PROTOCOL, including the range for firmware (like SMM Core
   and SMM driver) and/or specific dedicated hardware.
 
-  Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -25,14 +19,21 @@
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/DxeServicesTableLib.h>
 #include <Library/SmmServicesTableLib.h>
+#include <Library/UefiLib.h>
 #include <Library/HobLib.h>
 #include <Protocol/SmmAccess2.h>
 #include <Protocol/SmmReadyToLock.h>
 #include <Protocol/SmmEndOfDxe.h>
+#include <Guid/MemoryAttributesTable.h>
 
-#define NEXT_MEMORY_DESCRIPTOR(MemoryDescriptor, Size) \
-  ((EFI_MEMORY_DESCRIPTOR *)((UINT8 *)(MemoryDescriptor) + (Size)))
+//
+// attributes for reserved memory before it is promoted to system memory
+//
+#define EFI_MEMORY_PRESENT      0x0100000000000000ULL
+#define EFI_MEMORY_INITIALIZED  0x0200000000000000ULL
+#define EFI_MEMORY_TESTED       0x0400000000000000ULL
 
 EFI_SMRAM_DESCRIPTOR *mSmmMemLibInternalSmramRanges;
 UINTN                mSmmMemLibInternalSmramCount;
@@ -46,10 +47,15 @@ UINTN                 mMemoryMapEntryCount;
 EFI_MEMORY_DESCRIPTOR *mMemoryMap;
 UINTN                 mDescriptorSize;
 
+EFI_GCD_MEMORY_SPACE_DESCRIPTOR   *mSmmMemLibGcdMemSpace       = NULL;
+UINTN                             mSmmMemLibGcdMemNumberOfDesc = 0;
+
+EFI_MEMORY_ATTRIBUTES_TABLE  *mSmmMemLibMemoryAttributesTable = NULL;
+
 VOID                  *mRegistrationEndOfDxe;
 VOID                  *mRegistrationReadyToLock;
 
-BOOLEAN               mSmmReadyToLock = FALSE;
+BOOLEAN               mSmmMemLibSmmReadyToLock = FALSE;
 
 /**
   Calculate and save the maximum support address.
@@ -86,9 +92,9 @@ SmmMemLibInternalCalculateMaximumSupportAddress (
   if (PhysicalAddressBits > 48) {
     PhysicalAddressBits = 48;
   }
-  
+
   //
-  // Save the maximum support address in one global variable  
+  // Save the maximum support address in one global variable
   //
   mSmmMemLibInternalMaximumSupportAddress = (EFI_PHYSICAL_ADDRESS)(UINTN)(LShiftU64 (1, PhysicalAddressBits) - 1);
   DEBUG ((EFI_D_INFO, "mSmmMemLibInternalMaximumSupportAddress = 0x%lx\n", mSmmMemLibInternalMaximumSupportAddress));
@@ -111,7 +117,7 @@ SmmIsBufferOutsideSmmValid (
   )
 {
   UINTN  Index;
-  
+
   //
   // Check override.
   // NOTE: (B:0->L:4G) is invalid for IA32, but (B:1->L:4G-1)/(B:4G-1->L:1) is valid.
@@ -131,7 +137,7 @@ SmmIsBufferOutsideSmmValid (
       ));
     return FALSE;
   }
-  
+
   for (Index = 0; Index < mSmmMemLibInternalSmramCount; Index ++) {
     if (((Buffer >= mSmmMemLibInternalSmramRanges[Index].CpuStart) && (Buffer < mSmmMemLibInternalSmramRanges[Index].CpuStart + mSmmMemLibInternalSmramRanges[Index].PhysicalSize)) ||
         ((mSmmMemLibInternalSmramRanges[Index].CpuStart >= Buffer) && (mSmmMemLibInternalSmramRanges[Index].CpuStart < Buffer + Length))) {
@@ -154,10 +160,10 @@ SmmIsBufferOutsideSmmValid (
   //
   // Check override for Valid Communication Region
   //
-  if (mSmmReadyToLock) {
+  if (mSmmMemLibSmmReadyToLock) {
     EFI_MEMORY_DESCRIPTOR          *MemoryMap;
     BOOLEAN                        InValidCommunicationRegion;
-    
+
     InValidCommunicationRegion = FALSE;
     MemoryMap = mMemoryMap;
     for (Index = 0; Index < mMemoryMapEntryCount; Index++) {
@@ -171,12 +177,53 @@ SmmIsBufferOutsideSmmValid (
     if (!InValidCommunicationRegion) {
       DEBUG ((
         EFI_D_ERROR,
-        "SmmIsBufferOutsideSmmValid: Not in ValidCommunicationRegion: Buffer (0x%lx) - Length (0x%lx), ",
+        "SmmIsBufferOutsideSmmValid: Not in ValidCommunicationRegion: Buffer (0x%lx) - Length (0x%lx)\n",
         Buffer,
         Length
         ));
-      ASSERT (FALSE);
       return FALSE;
+    }
+
+    //
+    // Check untested memory as invalid communication buffer.
+    //
+    for (Index = 0; Index < mSmmMemLibGcdMemNumberOfDesc; Index++) {
+      if (((Buffer >= mSmmMemLibGcdMemSpace[Index].BaseAddress) && (Buffer < mSmmMemLibGcdMemSpace[Index].BaseAddress + mSmmMemLibGcdMemSpace[Index].Length)) ||
+          ((mSmmMemLibGcdMemSpace[Index].BaseAddress >= Buffer) && (mSmmMemLibGcdMemSpace[Index].BaseAddress < Buffer + Length))) {
+        DEBUG ((
+          EFI_D_ERROR,
+          "SmmIsBufferOutsideSmmValid: In Untested Memory Region: Buffer (0x%lx) - Length (0x%lx)\n",
+          Buffer,
+          Length
+          ));
+        return FALSE;
+      }
+    }
+
+    //
+    // Check UEFI runtime memory with EFI_MEMORY_RO as invalid communication buffer.
+    //
+    if (mSmmMemLibMemoryAttributesTable != NULL) {
+      EFI_MEMORY_DESCRIPTOR *Entry;
+
+      Entry = (EFI_MEMORY_DESCRIPTOR *)(mSmmMemLibMemoryAttributesTable + 1);
+      for (Index = 0; Index < mSmmMemLibMemoryAttributesTable->NumberOfEntries; Index++) {
+        if (Entry->Type == EfiRuntimeServicesCode || Entry->Type == EfiRuntimeServicesData) {
+          if ((Entry->Attribute & EFI_MEMORY_RO) != 0) {
+            if (((Buffer >= Entry->PhysicalStart) && (Buffer < Entry->PhysicalStart + LShiftU64 (Entry->NumberOfPages, EFI_PAGE_SHIFT))) ||
+                ((Entry->PhysicalStart >= Buffer) && (Entry->PhysicalStart < Buffer + Length))) {
+              DEBUG ((
+                EFI_D_ERROR,
+                "SmmIsBufferOutsideSmmValid: In RuntimeCode Region: Buffer (0x%lx) - Length (0x%lx)\n",
+                Buffer,
+                Length
+                ));
+              return FALSE;
+            }
+          }
+        }
+        Entry = NEXT_MEMORY_DESCRIPTOR (Entry, mSmmMemLibMemoryAttributesTable->DescriptorSize);
+      }
     }
   }
   return TRUE;
@@ -223,12 +270,12 @@ SmmCopyMemToSmram (
   If the check passes, it copies memory and returns EFI_SUCCESS.
   If the check fails, it returns EFI_SECURITY_VIOLATION.
   The implementation must be reentrant.
-  
+
   @param  DestinationBuffer   The pointer to the destination buffer of the memory copy.
   @param  SourceBuffer        The pointer to the source buffer of the memory copy.
   @param  Length              The number of bytes to copy from SourceBuffer to DestinationBuffer.
 
-  @retval EFI_SECURITY_VIOLATION The DesinationBuffer is invalid per processor architecture or overlap with SMRAM.
+  @retval EFI_SECURITY_VIOLATION The DestinationBuffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SUCCESS            Memory is copied.
 
 **/
@@ -256,12 +303,12 @@ SmmCopyMemFromSmram (
   If the check passes, it copies memory and returns EFI_SUCCESS.
   If the check fails, it returns EFI_SECURITY_VIOLATION.
   The implementation must be reentrant, and it must handle the case where source buffer overlaps destination buffer.
-  
+
   @param  DestinationBuffer   The pointer to the destination buffer of the memory copy.
   @param  SourceBuffer        The pointer to the source buffer of the memory copy.
   @param  Length              The number of bytes to copy from SourceBuffer to DestinationBuffer.
 
-  @retval EFI_SECURITY_VIOLATION The DesinationBuffer is invalid per processor architecture or overlap with SMRAM.
+  @retval EFI_SECURITY_VIOLATION The DestinationBuffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SECURITY_VIOLATION The SourceBuffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SUCCESS            Memory is copied.
 
@@ -293,11 +340,11 @@ SmmCopyMem (
   It checks if target buffer is valid per processor architecture and not overlap with SMRAM.
   If the check passes, it fills memory and returns EFI_SUCCESS.
   If the check fails, it returns EFI_SECURITY_VIOLATION.
-  
+
   @param  Buffer    The memory to set.
   @param  Length    The number of bytes to set.
   @param  Value     The value with which to fill Length bytes of Buffer.
-  
+
   @retval EFI_SECURITY_VIOLATION The Buffer is invalid per processor architecture or overlap with SMRAM.
   @retval EFI_SUCCESS            Memory is set.
 
@@ -316,6 +363,81 @@ SmmSetMem (
   }
   SetMem (Buffer, Length, Value);
   return EFI_SUCCESS;
+}
+
+/**
+  Get GCD memory map.
+  Only record untested memory as invalid communication buffer.
+**/
+VOID
+SmmMemLibInternalGetGcdMemoryMap (
+  VOID
+  )
+{
+  UINTN                            NumberOfDescriptors;
+  EFI_GCD_MEMORY_SPACE_DESCRIPTOR  *MemSpaceMap;
+  EFI_STATUS                       Status;
+  UINTN                            Index;
+
+  Status = gDS->GetMemorySpaceMap (&NumberOfDescriptors, &MemSpaceMap);
+  if (EFI_ERROR (Status)) {
+    return ;
+  }
+
+  mSmmMemLibGcdMemNumberOfDesc = 0;
+  for (Index = 0; Index < NumberOfDescriptors; Index++) {
+    if (MemSpaceMap[Index].GcdMemoryType == EfiGcdMemoryTypeReserved &&
+        (MemSpaceMap[Index].Capabilities & (EFI_MEMORY_PRESENT | EFI_MEMORY_INITIALIZED | EFI_MEMORY_TESTED)) ==
+          (EFI_MEMORY_PRESENT | EFI_MEMORY_INITIALIZED)
+          ) {
+      mSmmMemLibGcdMemNumberOfDesc++;
+    }
+  }
+
+  mSmmMemLibGcdMemSpace = AllocateZeroPool (mSmmMemLibGcdMemNumberOfDesc * sizeof (EFI_GCD_MEMORY_SPACE_DESCRIPTOR));
+  ASSERT (mSmmMemLibGcdMemSpace != NULL);
+  if (mSmmMemLibGcdMemSpace == NULL) {
+    mSmmMemLibGcdMemNumberOfDesc = 0;
+    gBS->FreePool (MemSpaceMap);
+    return ;
+  }
+
+  mSmmMemLibGcdMemNumberOfDesc = 0;
+  for (Index = 0; Index < NumberOfDescriptors; Index++) {
+    if (MemSpaceMap[Index].GcdMemoryType == EfiGcdMemoryTypeReserved &&
+        (MemSpaceMap[Index].Capabilities & (EFI_MEMORY_PRESENT | EFI_MEMORY_INITIALIZED | EFI_MEMORY_TESTED)) ==
+          (EFI_MEMORY_PRESENT | EFI_MEMORY_INITIALIZED)
+          ) {
+      CopyMem (
+        &mSmmMemLibGcdMemSpace[mSmmMemLibGcdMemNumberOfDesc],
+        &MemSpaceMap[Index],
+        sizeof(EFI_GCD_MEMORY_SPACE_DESCRIPTOR)
+        );
+      mSmmMemLibGcdMemNumberOfDesc++;
+    }
+  }
+
+  gBS->FreePool (MemSpaceMap);
+}
+
+/**
+  Get UEFI MemoryAttributesTable.
+**/
+VOID
+SmmMemLibInternalGetUefiMemoryAttributesTable (
+  VOID
+  )
+{
+  EFI_STATUS                   Status;
+  EFI_MEMORY_ATTRIBUTES_TABLE  *MemoryAttributesTable;
+  UINTN                        MemoryAttributesTableSize;
+
+  Status = EfiGetSystemConfigurationTable (&gEfiMemoryAttributesTableGuid, (VOID **)&MemoryAttributesTable);
+  if (!EFI_ERROR (Status) && (MemoryAttributesTable != NULL)) {
+    MemoryAttributesTableSize = sizeof(EFI_MEMORY_ATTRIBUTES_TABLE) + MemoryAttributesTable->DescriptorSize * MemoryAttributesTable->NumberOfEntries;
+    mSmmMemLibMemoryAttributesTable = AllocateCopyPool (MemoryAttributesTableSize, MemoryAttributesTable);
+    ASSERT (mSmmMemLibMemoryAttributesTable != NULL);
+  }
 }
 
 /**
@@ -360,7 +482,7 @@ SmmLibInternalEndOfDxeNotify (
   do {
     Status = gBS->AllocatePool (EfiBootServicesData, MemoryMapSize, (VOID **)&MemoryMap);
     ASSERT (MemoryMap != NULL);
-  
+
     Status = gBS->GetMemoryMap (
                &MemoryMapSize,
                MemoryMap,
@@ -392,7 +514,7 @@ SmmLibInternalEndOfDxeNotify (
     MemoryMap = NEXT_MEMORY_DESCRIPTOR(MemoryMap, DescriptorSize);
   }
   MemoryMap = MemoryMapStart;
-  
+
   //
   // Get Data
   //
@@ -413,12 +535,21 @@ SmmLibInternalEndOfDxeNotify (
   }
   mMemoryMap = SmmMemoryMapStart;
   MemoryMap = MemoryMapStart;
-  
+
   gBS->FreePool (MemoryMap);
+
+  //
+  // Get additional information from GCD memory map.
+  //
+  SmmMemLibInternalGetGcdMemoryMap ();
+
+  //
+  // Get UEFI memory attributes table.
+  //
+  SmmMemLibInternalGetUefiMemoryAttributesTable ();
 
   return EFI_SUCCESS;
 }
-
 
 /**
   Notification for SMM ReadyToLock protocol.
@@ -437,7 +568,7 @@ SmmLibInternalReadyToLockNotify (
   IN EFI_HANDLE      Handle
   )
 {
-  mSmmReadyToLock = TRUE;
+  mSmmMemLibSmmReadyToLock = TRUE;
   return EFI_SUCCESS;
 }
 /**
@@ -459,7 +590,7 @@ SmmMemLibConstructor (
   EFI_STATUS                    Status;
   EFI_SMM_ACCESS2_PROTOCOL      *SmmAccess;
   UINTN                         Size;
-  
+
   //
   // Get SMRAM information
   //

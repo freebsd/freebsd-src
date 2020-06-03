@@ -1,14 +1,8 @@
 /** @file
   Base Print Library instance Internal Functions definition.
 
-  Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -55,21 +49,21 @@ typedef struct {
 } TIME;
 
 /**
-  Worker function that produces a Null-terminated string in an output buffer 
+  Worker function that produces a Null-terminated string in an output buffer
   based on a Null-terminated format string and a VA_LIST argument list.
 
-  VSPrint function to process format and place the results in Buffer. Since a 
-  VA_LIST is used this routine allows the nesting of Vararg routines. Thus 
+  VSPrint function to process format and place the results in Buffer. Since a
+  VA_LIST is used this routine allows the nesting of Vararg routines. Thus
   this is the main print working routine.
 
   If COUNT_ONLY_NO_PRINT is set in Flags, Buffer will not be modified at all.
 
-  @param[out] Buffer          The character buffer to print the results of the 
+  @param[out] Buffer          The character buffer to print the results of the
                               parsing of Format into.
-  @param[in]  BufferSize      The maximum number of characters to put into 
+  @param[in]  BufferSize      The maximum number of characters to put into
                               buffer.
   @param[in]  Flags           Initial flags value.
-                              Can only have FORMAT_UNICODE, OUTPUT_UNICODE, 
+                              Can only have FORMAT_UNICODE, OUTPUT_UNICODE,
                               and COUNT_ONLY_NO_PRINT set.
   @param[in]  Format          A Null-terminated format string.
   @param[in]  VaListMarker    VA_LIST style variable argument list consumed by
@@ -93,11 +87,11 @@ BasePrintLibSPrintMarker (
   );
 
 /**
-  Worker function that produces a Null-terminated string in an output buffer 
+  Worker function that produces a Null-terminated string in an output buffer
   based on a Null-terminated format string and variable argument list.
 
-  VSPrint function to process format and place the results in Buffer. Since a 
-  VA_LIST is used this routine allows the nesting of Vararg routines. Thus 
+  VSPrint function to process format and place the results in Buffer. Since a
+  VA_LIST is used this routine allows the nesting of Vararg routines. Thus
   this is the main print working routine
 
   @param  StartOfBuffer The character buffer to print the results of the parsing
@@ -129,7 +123,7 @@ BasePrintLibSPrint (
 
   @param  Buffer      Buffer to place the Unicode or ASCII string.
   @param  EndBuffer   The end of the input Buffer. No characters will be
-                      placed after that. 
+                      placed after that.
   @param  Length      The count of character to be placed into Buffer.
                       (Negative value indicates no buffer fill.)
   @param  Character   The character to be placed into Buffer.
@@ -161,30 +155,30 @@ BasePrintLibFillBuffer (
 **/
 CHAR8 *
 BasePrintLibValueToString (
-  IN OUT CHAR8  *Buffer, 
-  IN INT64      Value, 
+  IN OUT CHAR8  *Buffer,
+  IN INT64      Value,
   IN UINTN      Radix
   );
 
 /**
   Internal function that converts a decimal value to a Null-terminated string.
-  
-  Converts the decimal number specified by Value to a Null-terminated  
+
+  Converts the decimal number specified by Value to a Null-terminated
   string specified by Buffer containing at most Width characters.
   If Width is 0 then a width of  MAXIMUM_VALUE_CHARACTERS is assumed.
   The total number of characters placed in Buffer is returned.
   If the conversion contains more than Width characters, then only the first
-  Width characters are returned, and the total number of characters 
+  Width characters are returned, and the total number of characters
   required to perform the conversion is returned.
-  Additional conversion parameters are specified in Flags.  
+  Additional conversion parameters are specified in Flags.
   The Flags bit LEFT_JUSTIFY is always ignored.
   All conversions are left justified in Buffer.
   If Width is 0, PREFIX_ZERO is ignored in Flags.
   If COMMA_TYPE is set in Flags, then PREFIX_ZERO is ignored in Flags, and commas
   are inserted every 3rd digit starting from the right.
   If Value is < 0, then the fist character in Buffer is a '-'.
-  If PREFIX_ZERO is set in Flags and PREFIX_ZERO is not being ignored, 
-  then Buffer is padded with '0' characters so the combination of the optional '-' 
+  If PREFIX_ZERO is set in Flags and PREFIX_ZERO is not being ignored,
+  then Buffer is padded with '0' characters so the combination of the optional '-'
   sign character, '0' characters, digit characters for Value, and the Null-terminator
   add up to Width characters.
 
@@ -200,7 +194,7 @@ BasePrintLibValueToString (
   @param  Width     The maximum number of characters to place in Buffer, not including
                     the Null-terminator.
   @param  Increment Character increment in Buffer.
-  
+
   @return Total number of characters required to perform the conversion.
 
 **/

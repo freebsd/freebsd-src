@@ -1,14 +1,9 @@
 /** @file
   Defines file-path manipulation functions.
 
-  Copyright (c) 2011 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2011 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2018, Dell Technologies. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 #include  <Library/BaseMemoryLib.h>
 #include  <Library/BaseLib.h>
@@ -86,12 +81,19 @@ PathCleanUpDirectories(
   }
 
   //
+  // Replace the "\\" with "\"
+  //
+  while ((TempString = StrStr (Path, L"\\\\")) != NULL) {
+    CopyMem (TempString, TempString + 1, StrSize (TempString + 1));
+  }
+
+  //
   // Remove all the "\.". E.g.: fs0:\abc\.\def\.
   //
   while ((TempString = StrStr (Path, L"\\.\\")) != NULL) {
     CopyMem (TempString, TempString + 2, StrSize (TempString + 2));
   }
-  if (StrCmp (Path + StrLen (Path) - 2, L"\\.") == 0) {
+  if ((StrLen (Path) >= 2) && (StrCmp (Path + StrLen (Path) - 2, L"\\.") == 0)) {
     Path[StrLen (Path) - 1] = CHAR_NULL;
   }
 
@@ -103,14 +105,9 @@ PathCleanUpDirectories(
         ) {
     *(TempString + 1) = CHAR_NULL;
     PathRemoveLastItem(Path);
-    CopyMem (Path + StrLen (Path), TempString + 3, StrSize (TempString + 3));
-  }
-
-  //
-  // Replace the "\\" with "\"
-  //
-  while ((TempString = StrStr (Path, L"\\\\")) != NULL) {
-    CopyMem (TempString, TempString + 1, StrSize (TempString + 1));
+    if (*(TempString + 3) != CHAR_NULL) {
+      CopyMem (Path + StrLen (Path), TempString + 4, StrSize (TempString + 4));
+    }
   }
 
   return Path;

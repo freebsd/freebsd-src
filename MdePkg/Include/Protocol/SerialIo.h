@@ -4,14 +4,8 @@
   Abstraction of a basic serial device. Targeted at 16550 UART, but
   could be much more generic.
 
-  Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -25,7 +19,7 @@
 
 ///
 /// Protocol GUID defined in EFI1.1.
-/// 
+///
 #define SERIAL_IO_PROTOCOL  EFI_SERIAL_IO_PROTOCOL_GUID
 
 typedef struct _EFI_SERIAL_IO_PROTOCOL EFI_SERIAL_IO_PROTOCOL;
@@ -33,7 +27,7 @@ typedef struct _EFI_SERIAL_IO_PROTOCOL EFI_SERIAL_IO_PROTOCOL;
 
 ///
 /// Backward-compatible with EFI1.1.
-/// 
+///
 typedef EFI_SERIAL_IO_PROTOCOL  SERIAL_IO_INTERFACE;
 
 ///
@@ -92,7 +86,7 @@ typedef enum {
   Reset the serial device.
 
   @param  This              Protocol instance pointer.
-                            
+
   @retval EFI_SUCCESS       The device was reset.
   @retval EFI_DEVICE_ERROR  The serial device could not be reset.
 
@@ -104,7 +98,7 @@ EFI_STATUS
   );
 
 /**
-  Sets the baud rate, receive FIFO depth, transmit/receice time out, parity, 
+  Sets the baud rate, receive FIFO depth, transmit/receice time out, parity,
   data bits, and stop bits on a serial device.
 
   @param  This             Protocol instance pointer.
@@ -125,8 +119,9 @@ EFI_STATUS
                            value of DefaultStopBits will use the device's default number of
                            stop bits.
 
-  @retval EFI_SUCCESS      The device was reset.
-  @retval EFI_DEVICE_ERROR The serial device could not be reset.
+  @retval EFI_SUCCESS           The device was reset.
+  @retval EFI_INVALID_PARAMETER One or more attributes has an unsupported value.
+  @retval EFI_DEVICE_ERROR      The serial device is not functioning correctly.
 
 **/
 typedef
@@ -164,7 +159,7 @@ EFI_STATUS
 
   @param  This              Protocol instance pointer.
   @param  Control           A pointer to return the current Control signals from the serial device.
-                            
+
   @retval EFI_SUCCESS       The control bits were read from the serial device.
   @retval EFI_DEVICE_ERROR  The serial device is not functioning correctly.
 
@@ -220,33 +215,33 @@ EFI_STATUS
 
 /**
   @par Data Structure Description:
-  The data values in SERIAL_IO_MODE are read-only and are updated by the code 
+  The data values in SERIAL_IO_MODE are read-only and are updated by the code
   that produces the SERIAL_IO_PROTOCOL member functions.
 
   @param ControlMask
   A mask for the Control bits that the device supports. The device
   must always support the Input Buffer Empty control bit.
-  
+
   @param TimeOut
   If applicable, the number of microseconds to wait before timing out
   a Read or Write operation.
-  
+
   @param BaudRate
   If applicable, the current baud rate setting of the device; otherwise,
   baud rate has the value of zero to indicate that device runs at the
   device's designed speed.
-  
+
   @param ReceiveFifoDepth
   The number of characters the device will buffer on input
-  
+
   @param DataBits
   The number of characters the device will buffer on input
-  
+
   @param Parity
-  If applicable, this is the EFI_PARITY_TYPE that is computed or 
+  If applicable, this is the EFI_PARITY_TYPE that is computed or
   checked as each character is transmitted or reveived. If the device
   does not support parity the value is the default parity value.
-  
+
   @param StopBits
   If applicable, the EFI_STOP_BITS_TYPE number of stop bits per
   character. If the device does not support stop bits the value is
@@ -268,17 +263,18 @@ typedef struct {
 } EFI_SERIAL_IO_MODE;
 
 #define EFI_SERIAL_IO_PROTOCOL_REVISION    0x00010000
+#define EFI_SERIAL_IO_PROTOCOL_REVISION1p1 0x00010001
 #define SERIAL_IO_INTERFACE_REVISION  EFI_SERIAL_IO_PROTOCOL_REVISION
 
 ///
-/// The Serial I/O protocol is used to communicate with UART-style serial devices. 
-/// These can be standard UART serial ports in PC-AT systems, serial ports attached 
+/// The Serial I/O protocol is used to communicate with UART-style serial devices.
+/// These can be standard UART serial ports in PC-AT systems, serial ports attached
 /// to a USB interface, or potentially any character-based I/O device.
 ///
 struct _EFI_SERIAL_IO_PROTOCOL {
   ///
-  /// The revision to which the EFI_SERIAL_IO_PROTOCOL adheres. All future revisions 
-  /// must be backwards compatible. If a future version is not backwards compatible, 
+  /// The revision to which the EFI_SERIAL_IO_PROTOCOL adheres. All future revisions
+  /// must be backwards compatible. If a future version is not backwards compatible,
   /// it is not the same GUID.
   ///
   UINT32                      Revision;
@@ -292,6 +288,14 @@ struct _EFI_SERIAL_IO_PROTOCOL {
   /// Pointer to SERIAL_IO_MODE data.
   ///
   EFI_SERIAL_IO_MODE          *Mode;
+  ///
+  /// Pointer to a GUID identifying the device connected to the serial port.
+  /// This field is NULL when the protocol is installed by the serial port
+  /// driver and may be populated by a platform driver for a serial port
+  /// with a known device attached. The field will remain NULL if there is
+  /// no platform serial device identification information available.
+  ///
+  CONST EFI_GUID              *DeviceTypeGuid; // Revision 1.1
 };
 
 extern EFI_GUID gEfiSerialIoProtocolGuid;

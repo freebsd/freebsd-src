@@ -1,14 +1,8 @@
 /** @file
   Image signature database are defined for the signed image validation.
 
-  Copyright (c) 2009 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   GUIDs defined in UEFI 2.5 spec.
@@ -319,7 +313,7 @@ typedef struct {
   /// Zero or more image signatures. If the image contained no signatures,
   /// then this field is empty.
   /// EFI_SIGNATURE_LIST            Signature;
-  /// 
+  ///
 } EFI_IMAGE_EXECUTION_INFO;
 
 

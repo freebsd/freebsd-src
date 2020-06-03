@@ -1,17 +1,11 @@
 /** @file
   I2C I/O Protocol as defined in the PI 1.3 specification.
 
-  The EFI I2C I/O protocol enables the user to manipulate a single 
+  The EFI I2C I/O protocol enables the user to manipulate a single
   I2C device independent of the host controller and I2C design.
 
-  Copyright (c) 2013 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This protocol is from PI Version 1.3.
@@ -66,7 +60,7 @@ typedef struct _EFI_I2C_IO_PROTOCOL  EFI_I2C_IO_PROTOCOL;
 
   The upper layer driver writer provides the following to the platform
   vendor:
-  
+
   1.  Vendor specific GUID for the I2C part
   2.  Guidance on proper construction of the slave address array when the
       I2C device uses more than one slave address.  The I2C bus protocol

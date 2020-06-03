@@ -1,0 +1,17 @@
+// /** @file
+//
+// Module entry point library for standalone MM driver
+//
+// Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2016 - 2018, ARM Limited. All rights reserved.<BR>
+// Copyright (c) 2018, Linaro, Limited. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Module entry point library for standalone MM driver"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Module entry point library for standalone MM driver."
+

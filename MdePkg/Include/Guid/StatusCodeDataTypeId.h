@@ -1,17 +1,11 @@
 /** @file
   GUID used to identify id for the caller who is initiating the Status Code.
 
-  Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  These GUIDs and structures are defined in UEFI Platform Initialization Specification 1.2 
+  These GUIDs and structures are defined in UEFI Platform Initialization Specification 1.2
   Volume 3: Shared Architectural Elements
 
 **/
@@ -38,12 +32,12 @@ typedef enum {
   ///
   EfiStringUnicode,
   ///
-  /// An EFI_STATUS_CODE_STRING_TOKEN representing the string.  The actual 
+  /// An EFI_STATUS_CODE_STRING_TOKEN representing the string.  The actual
   /// string can be obtained by querying the HII Database
   ///
   EfiStringToken
 } EFI_STRING_TYPE;
- 
+
 ///
 /// Specifies the format of the data in EFI_STATUS_CODE_STRING_DATA.String.
 ///
@@ -60,7 +54,7 @@ typedef struct {
   ///
   EFI_STRING_ID   Token;
 } EFI_STATUS_CODE_STRING_TOKEN;
- 
+
 typedef union {
   ///
   /// ASCII formatted string.
@@ -75,11 +69,11 @@ typedef union {
   ///
   EFI_STATUS_CODE_STRING_TOKEN  Hii;
 } EFI_STATUS_CODE_STRING;
- 
+
 ///
-/// This data type defines a string type of extended data. A string can accompany 
-/// any status code. The string can provide additional information about the 
-/// status code. The string can be ASCII, Unicode, or a Human Interface Infrastructure 
+/// This data type defines a string type of extended data. A string can accompany
+/// any status code. The string can provide additional information about the
+/// status code. The string can be ASCII, Unicode, or a Human Interface Infrastructure
 /// (HII) token/GUID pair.
 ///
 typedef struct {
@@ -89,14 +83,14 @@ typedef struct {
   /// sizeof (EFI_STATUS_CODE_STRING_DATA) - HeaderSize, and
   /// DataHeader.Type should be
   /// EFI_STATUS_CODE_DATA_TYPE_STRING_GUID.
-  /// 
-  EFI_STATUS_CODE_DATA           DataHeader; 
+  ///
+  EFI_STATUS_CODE_DATA           DataHeader;
   ///
   /// Specifies the format of the data in String.
   ///
   EFI_STRING_TYPE                StringType;
   ///
-  /// A pointer to the extended data. The data follows the format specified by 
+  /// A pointer to the extended data. The data follows the format specified by
   /// StringType.
   ///
   EFI_STATUS_CODE_STRING         String;
@@ -118,12 +112,13 @@ extern EFI_GUID gEfiStatusCodeDataTypeStringGuid;
 ///   - EFI_STATUS_CODE_EXCEP_EXTENDED_DATA
 ///   - EFI_STATUS_CODE_START_EXTENDED_DATA
 ///   - EFI_LEGACY_OPROM_EXTENDED_DATA
+///   - EFI_RETURN_STATUS_EXTENDED_DATA
 ///
 #define EFI_STATUS_CODE_SPECIFIC_DATA_GUID \
   { 0x335984bd, 0xe805, 0x409a, { 0xb8, 0xf8, 0xd2, 0x7e, 0xce, 0x5f, 0xf7, 0xa6 } }
 
 ///
-/// Extended data about the device path, which is used for many errors and 
+/// Extended data about the device path, which is used for many errors and
 /// progress codes to point to the device.
 ///
 /// The device path is used to point to the physical device in case there is more than one device
@@ -148,7 +143,7 @@ typedef struct {
   ///
   EFI_STATUS_CODE_DATA                 DataHeader;
   ///
-  /// The device path to the controller or the hardware device. Note that this parameter is a 
+  /// The device path to the controller or the hardware device. Note that this parameter is a
   /// variable-length device path structure and not a pointer to such a structure. This structure is
   /// populated only if it is a physical device. For virtual devices, the Size field in DataHeader
   /// is set to zero and this field is not populated.
@@ -183,7 +178,7 @@ typedef struct {
 ///
 /// This structure defines extended data describing a PCI resource allocation error.
 ///
-/// @par Note: 
+/// @par Note:
 ///   The following structure contains variable-length fields and cannot be defined as a C-style
 ///   structure.
 ///
@@ -209,7 +204,7 @@ typedef struct {
   ///
   /// DevicePathSize should be zero if it is a virtual device that is not associated with
   /// a device path. Otherwise, this parameter is the length of the variable-length
-  /// DevicePath. 
+  /// DevicePath.
   ///
   UINT16                             DevicePathSize;
   ///
@@ -223,9 +218,9 @@ typedef struct {
   ///
   UINT16                             AllocResSize;
   ///
-  /// The device path to the controller or the hardware device that did not get the requested 
-  /// resources. Note that this parameter is the variable-length device path structure and not 
-  /// a pointer to this structure. 
+  /// The device path to the controller or the hardware device that did not get the requested
+  /// resources. Note that this parameter is the variable-length device path structure and not
+  /// a pointer to this structure.
   ///
   //  EFI_DEVICE_PATH_PROTOCOL       DevicePath;
   ///
@@ -234,7 +229,7 @@ typedef struct {
   ///
   //  UINT8                          ReqRes[];
   ///
-  /// The allocated resources in the format of an ACPI 2.0 resource descriptor. This 
+  /// The allocated resources in the format of an ACPI 2.0 resource descriptor. This
   /// parameter is not a pointer; it is the complete resource descriptor.
   ///
   //  UINT8                          AllocRes[];
@@ -244,7 +239,7 @@ typedef struct {
 /// This structure provides a calculation for base-10 representations.
 ///
 /// Not consistent with PI 1.2 Specification.
-/// This data type is not defined in the PI 1.2 Specification, but is 
+/// This data type is not defined in the PI 1.2 Specification, but is
 /// required by several of the other data structures in this file.
 ///
 typedef struct {
@@ -253,16 +248,16 @@ typedef struct {
   ///
   INT16                            Value;
   ///
-  /// The INT16 number by which to raise the base-2 calculation. 
+  /// The INT16 number by which to raise the base-2 calculation.
   ///
   INT16                            Exponent;
 } EFI_EXP_BASE10_DATA;
 
 ///
-/// This structure provides the voltage at the time of error. It also provides 
-/// the threshold value indicating the minimum or maximum voltage that is considered 
-/// an error. If the voltage is less then the threshold, the error indicates that the 
-/// voltage fell below the minimum acceptable value. If the voltage is greater then the threshold, 
+/// This structure provides the voltage at the time of error. It also provides
+/// the threshold value indicating the minimum or maximum voltage that is considered
+/// an error. If the voltage is less then the threshold, the error indicates that the
+/// voltage fell below the minimum acceptable value. If the voltage is greater then the threshold,
 /// the error indicates that the voltage rose above the maximum acceptable value.
 ///
 typedef struct {
@@ -312,7 +307,7 @@ typedef struct {
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_COMPUTING_UNIT_TIMER_EXPIRED_ERROR_DATA) -
   /// HeaderSize, and DataHeader.Type should be
-  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA  DataHeader;
   ///
@@ -341,11 +336,11 @@ typedef struct {
 ///
 /// This structure defines extended data for processor mismatch errors.
 ///
-/// This provides information to indicate which processors mismatch, and how they mismatch. The 
-/// status code contains the instance number of the processor that is in error. This structure's 
-/// Instance indicates the second processor that does not match. This differentiation allows the 
-/// consumer to determine which two processors do not match. The Attributes indicate what 
-/// mismatch is being reported. Because Attributes is a bit field, more than one mismatch can be 
+/// This provides information to indicate which processors mismatch, and how they mismatch. The
+/// status code contains the instance number of the processor that is in error. This structure's
+/// Instance indicates the second processor that does not match. This differentiation allows the
+/// consumer to determine which two processors do not match. The Attributes indicate what
+/// mismatch is being reported. Because Attributes is a bit field, more than one mismatch can be
 /// reported with one error code.
 ///
 typedef struct {
@@ -354,23 +349,23 @@ typedef struct {
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_ HOST_PROCESSOR_MISMATCH_ERROR_DATA) -
   /// HeaderSize , and DataHeader.Type should be
-  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA  DataHeader;
   ///
   /// The unit number of the computing unit that does not match.
-  ///  
+  ///
   UINT32                Instance;
-  /// 
-  /// The attributes describing the failure. 
-  ///  
+  ///
+  /// The attributes describing the failure.
+  ///
   UINT16                Attributes;
 } EFI_HOST_PROCESSOR_MISMATCH_ERROR_DATA;
 
 ///
 /// This structure provides details about the computing unit thermal failure.
 ///
-/// This structure provides the temperature at the time of error. It also provides the threshold value 
+/// This structure provides the temperature at the time of error. It also provides the threshold value
 /// indicating the minimum temperature that is considered an error.
 ///
 typedef struct {
@@ -379,7 +374,7 @@ typedef struct {
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_COMPUTING_UNIT_THERMAL_ERROR_DATA) -
   /// HeaderSize , and DataHeader.Type should be
-  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA  DataHeader;
   ///
@@ -429,7 +424,7 @@ typedef struct {
 typedef UINT32  EFI_CPU_STATE_CHANGE_CAUSE;
 
 ///
-/// The reasons that the processor is disabled.  
+/// The reasons that the processor is disabled.
 /// Used to fill in EFI_COMPUTING_UNIT_CPU_DISABLED_ERROR_DATA.Cause.
 ///
 ///@{
@@ -447,8 +442,8 @@ typedef UINT32  EFI_CPU_STATE_CHANGE_CAUSE;
 ///
 /// This structure provides information about the disabled computing unit.
 ///
-/// This structure provides details as to why and how the computing unit was disabled. The causes 
-/// should cover the typical reasons a processor would be disabled. How the processor was disabled is 
+/// This structure provides details as to why and how the computing unit was disabled. The causes
+/// should cover the typical reasons a processor would be disabled. How the processor was disabled is
 /// important because there are distinct differences between hardware and software disabling.
 ///
 typedef struct {
@@ -461,12 +456,12 @@ typedef struct {
   ///
   EFI_STATUS_CODE_DATA  DataHeader;
   ///
-  /// The reason for disabling the processor. 
-  /// 
+  /// The reason for disabling the processor.
+  ///
   UINT32                Cause;
   ///
-  /// TRUE if the processor is disabled via software means such as not listing it in the ACPI tables. 
-  /// Such a processor will respond to Interprocessor Interrupts (IPIs). FALSE if the processor is hardware 
+  /// TRUE if the processor is disabled via software means such as not listing it in the ACPI tables.
+  /// Such a processor will respond to Interprocessor Interrupts (IPIs). FALSE if the processor is hardware
   /// disabled, which means it is invisible to software and will not respond to IPIs.
   ///
   BOOLEAN               SoftwareDisabled;
@@ -504,8 +499,8 @@ typedef UINT8 EFI_MEMORY_ERROR_OPERATION;
 ///@}
 
 ///
-/// This structure provides specific details about the memory error that was detected. It provides 
-/// enough information so that consumers can identify the exact failure and provides enough 
+/// This structure provides specific details about the memory error that was detected. It provides
+/// enough information so that consumers can identify the exact failure and provides enough
 /// information to enable corrective action if necessary.
 ///
 typedef struct {
@@ -513,7 +508,7 @@ typedef struct {
   /// The data header identifying the data. DataHeader.HeaderSize should be
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_MEMORY_EXTENDED_ERROR_DATA) - HeaderSize, and
-  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA          DataHeader;
   ///
@@ -521,18 +516,18 @@ typedef struct {
   ///
   EFI_MEMORY_ERROR_GRANULARITY  Granularity;
   ///
-  /// The operation that resulted in the error being detected. 
+  /// The operation that resulted in the error being detected.
   ///
   EFI_MEMORY_ERROR_OPERATION    Operation;
   ///
-  /// The error syndrome, vendor-specific ECC syndrome, or CRC data associated with 
+  /// The error syndrome, vendor-specific ECC syndrome, or CRC data associated with
   /// the error.  If unknown, should be initialized to 0.
-  /// Inconsistent with specification here:  
+  /// Inconsistent with specification here:
   /// This field in StatusCodes spec0.9 is defined as UINT32, keep code unchanged.
   ///
   UINTN                         Syndrome;
   ///
-  /// The physical address of the error. 
+  /// The physical address of the error.
   ///
   EFI_PHYSICAL_ADDRESS          Address;
   ///
@@ -543,31 +538,31 @@ typedef struct {
 
 ///
 /// A definition to describe that the operation is performed on multiple devices within the array.
-/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device. 
+/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device.
 ///
 #define EFI_MULTIPLE_MEMORY_DEVICE_OPERATION 0xfffe
 
 ///
 /// A definition to describe that the operation is performed on all devices within the array.
-/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device. 
+/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device.
 ///
 #define EFI_ALL_MEMORY_DEVICE_OPERATION 0xffff
 
 ///
 /// A definition to describe that the operation is performed on multiple arrays.
-/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device. 
+/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device.
 ///
 #define EFI_MULTIPLE_MEMORY_ARRAY_OPERATION 0xfffe
 
 ///
 /// A definition to describe that the operation is performed on all the arrays.
-/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device. 
+/// May be used for EFI_STATUS_CODE_DIMM_NUMBER.Array and EFI_STATUS_CODE_DIMM_NUMBER.Device.
 ///
 #define EFI_ALL_MEMORY_ARRAY_OPERATION 0xffff
 
 ///
-/// This extended data provides some context that consumers can use to locate a DIMM within the 
-/// overall memory scheme.  
+/// This extended data provides some context that consumers can use to locate a DIMM within the
+/// overall memory scheme.
 ///
 /// This extended data provides some context that consumers can use to locate a DIMM within the
 /// overall memory scheme. The Array and Device numbers may indicate a specific DIMM, or they
@@ -595,7 +590,7 @@ typedef struct {
 /// This structure defines extended data describing memory modules that do not match.
 ///
 /// This extended data may be used to convey the specifics of memory modules that do not match.
-/// 
+///
 typedef struct {
   ///
   /// The data header identifying the data. DataHeader.HeaderSize should be
@@ -606,7 +601,7 @@ typedef struct {
   ///
   EFI_STATUS_CODE_DATA         DataHeader;
   ///
-  /// The instance number of the memory module that does not match. 
+  /// The instance number of the memory module that does not match.
   ///
   EFI_STATUS_CODE_DIMM_NUMBER  Instance;
 } EFI_MEMORY_MODULE_MISMATCH_ERROR_DATA;
@@ -614,7 +609,7 @@ typedef struct {
 ///
 /// This structure defines extended data describing a memory range.
 ///
-/// This extended data may be used to convey the specifics of a memory range.  Ranges are specified 
+/// This extended data may be used to convey the specifics of a memory range.  Ranges are specified
 /// with a start address and a length.
 ///
 typedef struct {
@@ -622,11 +617,11 @@ typedef struct {
   /// The data header identifying the data. DataHeader.HeaderSize should be
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_MEMORY_RANGE_EXTENDED_DATA) - HeaderSize, and
-  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA  DataHeader;
   ///
-  /// The starting address of the memory range. 
+  /// The starting address of the memory range.
   ///
   EFI_PHYSICAL_ADDRESS  Start;
   ///
@@ -647,7 +642,7 @@ typedef struct {
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_DEBUG_ASSERT_DATA) - HeaderSize , and
   /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
-  /// 
+  ///
   EFI_STATUS_CODE_DATA         DataHeader;
   ///
   /// The line number of the source file where the fault was generated.
@@ -658,7 +653,7 @@ typedef struct {
   ///
   UINT32                       FileNameSize;
   ///
-  /// A pointer to a NULL-terminated ASCII or Unicode string that represents 
+  /// A pointer to a NULL-terminated ASCII or Unicode string that represents
   /// the file name of the source file where the fault was generated.
   ///
   EFI_STATUS_CODE_STRING_DATA  *FileName;
@@ -691,7 +686,7 @@ typedef union {
   /// EFI_SYSTEM_CONTEXT_X64 is defined in the
   /// EFI_DEBUG_SUPPORT_PROTOCOL in the UEFI Specification.
   ///
-  EFI_SYSTEM_CONTEXT_X64  SystemContextX64; 
+  EFI_SYSTEM_CONTEXT_X64  SystemContextX64;
   ///
   /// The context of the ARM processor when the exception was generated. Type
   /// EFI_SYSTEM_CONTEXT_ARM is defined in the
@@ -713,11 +708,11 @@ typedef struct {
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_STATUS_CODE_EXCEP_EXTENDED_DATA) - HeaderSize,
   /// and DataHeader.Type should be
-  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA                  DataHeader;
   ///
-  /// The system context. 
+  /// The system context.
   ///
   EFI_STATUS_CODE_EXCEP_SYSTEM_CONTEXT  Context;
 } EFI_STATUS_CODE_EXCEP_EXTENDED_DATA;
@@ -729,33 +724,33 @@ typedef struct {
 /// the UEFI Driver Binding Protocol.
 ///
 typedef struct {
-  /// 
+  ///
   /// The data header identifying the data. DataHeader.HeaderSize should be
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_STATUS_CODE_START_EXTENDED_DATA) - HeaderSize,
   /// and DataHeader.Type should be
-  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA           DataHeader;
   ///
-  /// The controller handle. 
+  /// The controller handle.
   ///
   EFI_HANDLE                     ControllerHandle;
   ///
   /// The driver binding handle.
   ///
   EFI_HANDLE                     DriverBindingHandle;
-  /// 
-  /// The size of the RemainingDevicePath. It is zero if the Start() function is 
+  ///
+  /// The size of the RemainingDevicePath. It is zero if the Start() function is
   /// called with RemainingDevicePath = NULL.  The UEFI Specification allows
   /// that the Start() function of bus drivers can be called in this way.
   ///
   UINT16                         DevicePathSize;
   ///
-  /// Matches the RemainingDevicePath parameter being passed to the Start() function. 
-  /// Note that this parameter is the variable-length device path and not a pointer 
+  /// Matches the RemainingDevicePath parameter being passed to the Start() function.
+  /// Note that this parameter is the variable-length device path and not a pointer
   /// to the device path.
-  ///  
+  ///
   //  EFI_DEVICE_PATH_PROTOCOL   RemainingDevicePath;
 } EFI_STATUS_CODE_START_EXTENDED_DATA;
 
@@ -771,7 +766,7 @@ typedef struct {
   /// The data header identifying the data. DataHeader.HeaderSize should be
   /// sizeof (EFI_STATUS_CODE_DATA), DataHeader.Size should be
   /// sizeof (EFI_LEGACY_OPROM_EXTENDED_DATA) - HeaderSize, and
-  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.  
+  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
   ///
   EFI_STATUS_CODE_DATA  DataHeader;
   ///
@@ -779,10 +774,29 @@ typedef struct {
   ///
   EFI_HANDLE            DeviceHandle;
   ///
-  /// The base address of the shadowed legacy ROM image.  May or may not point to the shadow RAM area. 
+  /// The base address of the shadowed legacy ROM image.  May or may not point to the shadow RAM area.
   ///
   EFI_PHYSICAL_ADDRESS  RomImageBase;
 } EFI_LEGACY_OPROM_EXTENDED_DATA;
+
+///
+/// This structure defines extended data describing an EFI_STATUS return value that stands for a
+/// failed function call (such as a UEFI boot service).
+///
+typedef struct {
+  ///
+  /// The data header identifying the data:
+  /// DataHeader.HeaderSize should be sizeof(EFI_STATUS_CODE_DATA),
+  /// DataHeader.Size should be sizeof(EFI_RETURN_STATUS_EXTENDED_DATA) - HeaderSize,
+  /// DataHeader.Type should be EFI_STATUS_CODE_SPECIFIC_DATA_GUID.
+  ///
+  EFI_STATUS_CODE_DATA DataHeader;
+  ///
+  /// The EFI_STATUS return value of the service or function whose failure triggered the
+  /// reporting of the status code (generally an error code or a debug code).
+  ///
+  EFI_STATUS           ReturnStatus;
+} EFI_RETURN_STATUS_EXTENDED_DATA;
 
 extern EFI_GUID gEfiStatusCodeSpecificDataGuid;
 

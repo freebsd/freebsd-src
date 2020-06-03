@@ -1,16 +1,9 @@
 /** @file
-  Null function implementation for EFI S3 boot script. 
+  Null function implementation for EFI S3 boot script.
 
-  Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions
-  of the BSD License which accompanies this distribution.  The
-  full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -19,7 +12,7 @@
 #include <Library/S3BootScriptLib.h>
 
 /**
-  Save I/O write to boot script 
+  Save I/O write to boot script
 
   @param Width  the width of the I/O operations.Enumerated in S3_BOOT_SCRIPT_LIB_WIDTH.
   @param Address The base address of the I/O operations.
@@ -38,7 +31,7 @@ S3BootScriptSaveIoWrite (
   IN  VOID                              *Buffer
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 
 /**
@@ -61,7 +54,7 @@ S3BootScriptSaveIoReadWrite (
   IN  VOID                            *DataMask
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 
 /**
@@ -84,7 +77,7 @@ S3BootScriptSaveMemWrite (
   IN  VOID                              *Buffer
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for a memory modify operation into a specified boot script table.
@@ -106,7 +99,7 @@ S3BootScriptSaveMemReadWrite (
   IN  VOID                              *DataMask
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for a PCI configuration space write operation into a specified boot script table.
@@ -128,7 +121,7 @@ S3BootScriptSavePciCfgWrite (
   IN  VOID                            *Buffer
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 
 /**
@@ -151,7 +144,7 @@ S3BootScriptSavePciCfgReadWrite (
   IN  VOID                              *DataMask
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for a PCI configuration space modify operation into a specified boot script table.
@@ -175,7 +168,7 @@ S3BootScriptSavePciCfg2Write (
   IN VOID                           *Buffer
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for a PCI configuration space modify operation into a specified boot script table.
@@ -198,8 +191,8 @@ S3BootScriptSavePciCfg2ReadWrite (
   IN VOID                           *Data,
   IN VOID                           *DataMask
   )
-{ 
-	return RETURN_SUCCESS;
+{
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for an SMBus command execution into a specified boot script table.
@@ -209,26 +202,26 @@ S3BootScriptSavePciCfg2ReadWrite (
                         transactions.
   @param Length         A pointer to signify the number of bytes that this operation will do.
   @param Buffer         Contains the value of data to execute to the SMBUS slave device.
-  
+
   @retval RETURN_OUT_OF_RESOURCES  Not enough memory for the table do operation.
   @retval RETURN_SUCCESS           Opcode is added.
 **/
 RETURN_STATUS
 EFIAPI
 S3BootScriptSaveSmbusExecute (
-  IN  UINTN                             SmBusAddress, 
+  IN  UINTN                             SmBusAddress,
   IN  EFI_SMBUS_OPERATION               Operation,
   IN  UINTN                             *Length,
   IN  VOID                              *Buffer
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for an execution stall on the processor into a specified boot script table.
 
   @param Duration   Duration in microseconds of the stall
-  
+
   @retval RETURN_OUT_OF_RESOURCES  Not enough memory for the table do operation.
   @retval RETURN_SUCCESS           Opcode is added.
 **/
@@ -238,13 +231,13 @@ S3BootScriptSaveStall (
   IN  UINTN                             Duration
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for dispatching specified arbitrary code into a specified boot script table.
 
   @param EntryPoint   Entry point of the code to be dispatched.
-  
+
   @retval RETURN_OUT_OF_RESOURCES   Not enough memory for the table do operation.
   @retval RETURN_SUCCESS            Opcode is added.
 **/
@@ -261,7 +254,7 @@ S3BootScriptSaveDispatch (
 
   @param EntryPoint   Entry point of the code to be dispatched.
   @param Context      Argument to be passed into the EntryPoint of the code to be dispatched.
-  
+
   @retval RETURN_OUT_OF_RESOURCES  Not enough memory for the table do operation.
   @retval RETURN_SUCCESS           Opcode is added.
 **/
@@ -272,13 +265,13 @@ S3BootScriptSaveDispatch2 (
   IN  VOID                              *Context
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 
 /**
   Adds a record for memory reads of the memory location and continues when the exit criteria is
   satisfied or after a defined duration.
- 
+
   Please aware, below interface is different with PI specification, Vol 5:
   EFI_S3_SAVE_STATE_PROTOCOL.Write() for EFI_BOOT_SCRIPT_MEM_POLL_OPCODE.
   "Duration" below is microseconds, while "Delay" in PI specification means
@@ -306,16 +299,16 @@ S3BootScriptSaveMemPoll (
   IN  UINT64                            LoopTimes
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 
 /**
   Store arbitrary information in the boot script table. This opcode is a no-op on dispatch and is only
   used for debugging script issues.
-  
+
   @param InformationLength   Length of the data in bytes
   @param Information       Information to be logged in the boot scrpit
- 
+
   @retval RETURN_UNSUPPORTED   If  entering runtime, this method will not support.
   @retval RETURN_OUT_OF_RESOURCES  Not enough memory for the table do operation.
   @retval RETURN_SUCCESS           Opcode is added.
@@ -324,17 +317,17 @@ S3BootScriptSaveMemPoll (
 RETURN_STATUS
 EFIAPI
 S3BootScriptSaveInformation (
-  IN  UINT32                   InformationLength, 
+  IN  UINT32                   InformationLength,
   IN  VOID                    *Information
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for I/O reads the I/O location and continues when the exit criteria is satisfied or after a
   defined duration.
-  
-  @param  Width                 The width of the I/O operations. 
+
+  @param  Width                 The width of the I/O operations.
   @param  Address               The base address of the I/O operations.
   @param  Data                  The comparison value used for the polling exit criteria.
   @param  DataMask              Mask used for the polling criteria. The bits in the bytes below Width which are zero
@@ -352,18 +345,18 @@ S3BootScriptSaveIoPoll (
   IN S3_BOOT_SCRIPT_LIB_WIDTH       Width,
   IN UINT64                     Address,
   IN VOID                      *Data,
-  IN VOID                      *DataMask, 
-  IN UINT64                     Delay   
+  IN VOID                      *DataMask,
+  IN UINT64                     Delay
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 
 /**
   Adds a record for PCI configuration space reads and continues when the exit criteria is satisfied or
   after a defined duration.
 
-  @param  Width                 The width of the I/O operations. 
+  @param  Width                 The width of the I/O operations.
   @param  Address               The address within the PCI configuration space.
   @param  Data                  The comparison value used for the polling exit criteria.
   @param  DataMask              Mask used for the polling criteria. The bits in the bytes below Width which are zero
@@ -385,13 +378,13 @@ S3BootScriptSavePciPoll (
    IN UINT64                     Delay
  )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Adds a record for PCI configuration space reads and continues when the exit criteria is satisfied or
   after a defined duration.
 
-  @param  Width                 The width of the I/O operations. 
+  @param  Width                 The width of the I/O operations.
   @param  Segment               The PCI segment number for Address.
   @param  Address               The address within the PCI configuration space.
   @param  Data                  The comparison value used for the polling exit criteria.
@@ -403,7 +396,7 @@ S3BootScriptSavePciPoll (
  @retval RETURN_OUT_OF_RESOURCES  Not enough memory for the table do operation.
  @retval RETURN_SUCCESS           Opcode is added.
  @note   A known Limitations in the implementation: When interpreting the opcode  EFI_BOOT_SCRIPT_PCI_CONFIG2_WRITE_OPCODE
-         EFI_BOOT_SCRIPT_PCI_CONFIG2_READ_WRITE_OPCODE and EFI_BOOT_SCRIPT_PCI_CONFIG2_POLL_OPCODE, the 'Segment' parameter is assumed as 
+         EFI_BOOT_SCRIPT_PCI_CONFIG2_READ_WRITE_OPCODE and EFI_BOOT_SCRIPT_PCI_CONFIG2_POLL_OPCODE, the 'Segment' parameter is assumed as
          Zero, or else, assert.
 
 **/
@@ -418,7 +411,7 @@ S3BootScriptSavePci2Poll (
    IN UINT64                        Delay
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Save ASCII string information specified by Buffer to
@@ -436,31 +429,31 @@ S3BootScriptSaveInformationAsciiString (
   IN  CONST CHAR8               *String
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
-  This is an function to close the S3 boot script table. The function could only be called in 
-  BOOT time phase. To comply with the Framework spec definition on 
+  This is an function to close the S3 boot script table. The function could only be called in
+  BOOT time phase. To comply with the Framework spec definition on
   EFI_BOOT_SCRIPT_SAVE_PROTOCOL.CloseTable(), this function will fulfill following things:
   1. Closes the specified boot script table
-  2. It allocates a new memory pool to duplicate all the boot scripts in the specified table. 
-     Once this function is called, the table maintained by the library will be destroyed 
+  2. It allocates a new memory pool to duplicate all the boot scripts in the specified table.
+     Once this function is called, the table maintained by the library will be destroyed
      after it is copied into the allocated pool.
-  3. Any attempts to add a script record after calling this function will cause a new table 
+  3. Any attempts to add a script record after calling this function will cause a new table
      to be created by the library.
-  4. The base address of the allocated pool will be returned in Address. Note that after 
+  4. The base address of the allocated pool will be returned in Address. Note that after
      using the boot script table, the CALLER is responsible for freeing the pool that is allocated
-     by this function. 
+     by this function.
 
   In Spec PI1.1, this EFI_BOOT_SCRIPT_SAVE_PROTOCOL.CloseTable() is retired. By then it is not
   necessary to provide this API in BootScriptLib. To provides this API for now is only to meet
   the requirement from Framework Spec.
-  
-  If anyone does call CloseTable() on a real platform, then the caller is responsible for figuring out 
-  how to get the script to run on an S3 resume because the boot script maintained by the lib will be 
+
+  If anyone does call CloseTable() on a real platform, then the caller is responsible for figuring out
+  how to get the script to run on an S3 resume because the boot script maintained by the lib will be
   destroyed.
- 
-  @return the base address of the new copy of the boot script table.   
+
+  @return the base address of the new copy of the boot script table.
 
 **/
 UINT8*
@@ -469,13 +462,13 @@ S3BootScriptCloseTable (
   VOID
   )
 {
-	return 0;
+  return 0;
 }
 /**
   Executes the S3 boot script table.
 
   @param RETURN_SUCCESS           The boot script table was executed successfully.
-  @param RETURN_UNSUPPORTED       Invalid script table or opcode.  
+  @param RETURN_UNSUPPORTED       Invalid script table or opcode.
 **/
 RETURN_STATUS
 EFIAPI
@@ -483,10 +476,10 @@ S3BootScriptExecute (
    VOID
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
-  Move the last boot script entry to the position 
+  Move the last boot script entry to the position
 
   @param  BeforeOrAfter         Specifies whether the opcode is stored before (TRUE) or after (FALSE) the position
                                 in the boot script table specified by Position. If Position is NULL or points to
@@ -507,15 +500,15 @@ S3BootScriptMoveLastOpcode (
   IN OUT VOID                         **Position OPTIONAL
 )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Find a label within the boot script table and, if not present, optionally create it.
 
   @param  BeforeOrAfter         Specifies whether the opcode is stored before (TRUE)
-                                or after (FALSE) the position in the boot script table 
+                                or after (FALSE) the position in the boot script table
                                 specified by Position.
-  @param  CreateIfNotFound      Specifies whether the label will be created if the label 
+  @param  CreateIfNotFound      Specifies whether the label will be created if the label
                                 does not exists (TRUE) or not (FALSE).
   @param  Position              On entry, specifies the position in the boot script table
                                 where the opcode will be inserted, either before or after,
@@ -526,13 +519,13 @@ S3BootScriptMoveLastOpcode (
   @retval EFI_SUCCESS           The operation succeeded. A record was added into the
                                 specified script table.
   @retval EFI_INVALID_PARAMETER The parameter is illegal or the given boot script is not supported.
-                                If the opcode is unknow or not supported because of the PCD 
+                                If the opcode is unknow or not supported because of the PCD
                                 Feature Flags.
   @retval EFI_OUT_OF_RESOURCES  There is insufficient memory to store the boot script.
 
 **/
 RETURN_STATUS
-EFIAPI 
+EFIAPI
 S3BootScriptLabel (
   IN       BOOLEAN                      BeforeOrAfter,
   IN       BOOLEAN                      CreateIfNotFound,
@@ -540,7 +533,7 @@ S3BootScriptLabel (
   IN CONST CHAR8                       *Label
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }
 /**
   Compare two positions in the boot script table and return their relative position.
@@ -551,18 +544,18 @@ S3BootScriptLabel (
   @retval EFI_SUCCESS           The operation succeeded. A record was added into the
                                 specified script table.
   @retval EFI_INVALID_PARAMETER The parameter is illegal or the given boot script is not supported.
-                                If the opcode is unknow or not supported because of the PCD 
+                                If the opcode is unknow or not supported because of the PCD
                                 Feature Flags.
   @retval EFI_OUT_OF_RESOURCES  There is insufficient memory to store the boot script.
 
 **/
 RETURN_STATUS
-EFIAPI 
+EFIAPI
 S3BootScriptCompare (
   IN  UINT8                       *Position1,
   IN  UINT8                       *Position2,
   OUT UINTN                       *RelativePosition
   )
 {
-	return RETURN_SUCCESS;
+  return RETURN_SUCCESS;
 }

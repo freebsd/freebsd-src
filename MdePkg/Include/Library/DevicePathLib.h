@@ -1,17 +1,11 @@
 /** @file
   Provides library functions to construct and parse UEFI Device Paths.
 
-  This library provides defines, macros, and functions to help create and parse 
+  This library provides defines, macros, and functions to help create and parse
   EFI_DEVICE_PATH_PROTOCOL structures.
 
-Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -22,12 +16,13 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 /**
   Determine whether a given device path is valid.
-  If DevicePath is NULL, then ASSERT().
 
   @param  DevicePath  A pointer to a device path data structure.
   @param  MaxSize     The maximum size of the device path data structure.
 
   @retval TRUE        DevicePath is valid.
+  @retval FALSE       DevicePath is NULL.
+  @retval FALSE       Maxsize is less than sizeof(EFI_DEVICE_PATH_PROTOCOL).
   @retval FALSE       The length of any node node in the DevicePath is less
                       than sizeof (EFI_DEVICE_PATH_PROTOCOL).
   @retval FALSE       If MaxSize is not zero, the size of the DevicePath
@@ -81,9 +76,9 @@ DevicePathSubType (
 /**
   Returns the 16-bit Length field of a device path node.
 
-  Returns the 16-bit Length field of the device path node specified by Node.  
+  Returns the 16-bit Length field of the device path node specified by Node.
   Node is not required to be aligned on a 16-bit boundary, so it is recommended
-  that a function such as ReadUnaligned16() be used to extract the contents of 
+  that a function such as ReadUnaligned16() be used to extract the contents of
   the Length field.
 
   If Node is NULL, then ASSERT().
@@ -119,12 +114,12 @@ NextDevicePathNode (
 
 /**
   Determines if a device path node is an end node of a device path.
-  This includes nodes that are the end of a device path instance and nodes that 
+  This includes nodes that are the end of a device path instance and nodes that
   are the end of an entire device path.
 
-  Determines if the device path node specified by Node is an end node of a device path.  
-  This includes nodes that are the end of a device path instance and nodes that are the 
-  end of an entire device path.  If Node represents an end node of a device path, 
+  Determines if the device path node specified by Node is an end node of a device path.
+  This includes nodes that are the end of a device path instance and nodes that are the
+  end of an entire device path.  If Node represents an end node of a device path,
   then TRUE is returned.  Otherwise, FALSE is returned.
 
   If Node is NULL, then ASSERT().
@@ -133,7 +128,7 @@ NextDevicePathNode (
 
   @retval TRUE      The device path node specified by Node is an end node of a device path.
   @retval FALSE     The device path node specified by Node is not an end node of a device path.
-  
+
 **/
 BOOLEAN
 EFIAPI
@@ -186,8 +181,8 @@ IsDevicePathEndInstance (
 /**
   Sets the length, in bytes, of a device path node.
 
-  Sets the length of the device path node specified by Node to the value specified 
-  by NodeLength.  NodeLength is returned.  Node is not required to be aligned on 
+  Sets the length of the device path node specified by Node to the value specified
+  by NodeLength.  NodeLength is returned.  Node is not required to be aligned on
   a 16-bit boundary, so it is recommended that a function such as WriteUnaligned16()
   be used to set the contents of the Length field.
 
@@ -211,15 +206,15 @@ SetDevicePathNodeLength (
 /**
   Fills in all the fields of a device path node that is the end of an entire device path.
 
-  Fills in all the fields of a device path node specified by Node so Node represents 
-  the end of an entire device path.  The Type field of Node is set to 
-  END_DEVICE_PATH_TYPE, the SubType field of Node is set to 
-  END_ENTIRE_DEVICE_PATH_SUBTYPE, and the Length field of Node is set to 
-  END_DEVICE_PATH_LENGTH.  Node is not required to be aligned on a 16-bit boundary, 
-  so it is recommended that a function such as WriteUnaligned16() be used to set 
-  the contents of the Length field. 
+  Fills in all the fields of a device path node specified by Node so Node represents
+  the end of an entire device path.  The Type field of Node is set to
+  END_DEVICE_PATH_TYPE, the SubType field of Node is set to
+  END_ENTIRE_DEVICE_PATH_SUBTYPE, and the Length field of Node is set to
+  END_DEVICE_PATH_LENGTH.  Node is not required to be aligned on a 16-bit boundary,
+  so it is recommended that a function such as WriteUnaligned16() be used to set
+  the contents of the Length field.
 
-  If Node is NULL, then ASSERT(). 
+  If Node is NULL, then ASSERT().
 
   @param  Node      A pointer to a device path node data structure.
 
@@ -233,7 +228,7 @@ SetDevicePathEndNode (
 /**
   Returns the size of a device path in bytes.
 
-  This function returns the size, in bytes, of the device path data structure 
+  This function returns the size, in bytes, of the device path data structure
   specified by DevicePath including the end of device path node.
   If DevicePath is NULL or invalid, then 0 is returned.
 
@@ -255,15 +250,15 @@ GetDevicePathSize (
   This function allocates space for a new copy of the device path specified by DevicePath.  If
   DevicePath is NULL, then NULL is returned.  If the memory is successfully allocated, then the
   contents of DevicePath are copied to the newly allocated buffer, and a pointer to that buffer
-  is returned.  Otherwise, NULL is returned.  
-  The memory for the new device path is allocated from EFI boot services memory. 
-  It is the responsibility of the caller to free the memory allocated. 
-  
+  is returned.  Otherwise, NULL is returned.
+  The memory for the new device path is allocated from EFI boot services memory.
+  It is the responsibility of the caller to free the memory allocated.
+
   @param  DevicePath                 A pointer to a device path data structure.
 
   @retval NULL    DevicePath is NULL or invalid.
   @retval Others  A pointer to the duplicated device path.
-  
+
 **/
 EFI_DEVICE_PATH_PROTOCOL *
 EFIAPI
@@ -276,18 +271,18 @@ DuplicateDevicePath (
 
   This function creates a new device path by appending a copy of SecondDevicePath to a copy of
   FirstDevicePath in a newly allocated buffer.  Only the end-of-device-path device node from
-  SecondDevicePath is retained. The newly created device path is returned.  
-  If FirstDevicePath is NULL, then it is ignored, and a duplicate of SecondDevicePath is returned.  
-  If SecondDevicePath is NULL, then it is ignored, and a duplicate of FirstDevicePath is returned.  
+  SecondDevicePath is retained. The newly created device path is returned.
+  If FirstDevicePath is NULL, then it is ignored, and a duplicate of SecondDevicePath is returned.
+  If SecondDevicePath is NULL, then it is ignored, and a duplicate of FirstDevicePath is returned.
   If both FirstDevicePath and SecondDevicePath are NULL, then a copy of an end-of-device-path is
-  returned.  
+  returned.
   If there is not enough memory for the newly allocated buffer, then NULL is returned.
   The memory for the new device path is allocated from EFI boot services memory. It is the
   responsibility of the caller to free the memory allocated.
 
   @param  FirstDevicePath            A pointer to a device path data structure.
   @param  SecondDevicePath           A pointer to a device path data structure.
-  
+
   @retval NULL      If there is not enough memory for the newly allocated buffer.
   @retval NULL      If FirstDevicePath or SecondDevicePath is invalid.
   @retval Others    A pointer to the new device path if success.
@@ -312,7 +307,7 @@ AppendDevicePath (
   node is returned.
   If both DevicePathNode and DevicePath are NULL then a copy of an end-of-device-path device node
   is returned.
-  If there is not enough memory to allocate space for the new device path, then NULL is returned.  
+  If there is not enough memory to allocate space for the new device path, then NULL is returned.
   The memory is allocated from EFI boot services memory. It is the responsibility of the caller to
   free the memory allocated.
 
@@ -321,7 +316,7 @@ AppendDevicePath (
 
   @retval NULL      There is not enough memory for the new device path.
   @retval Others    A pointer to the new device path if success.
-                    A copy of DevicePathNode followed by an end-of-device-path node 
+                    A copy of DevicePathNode followed by an end-of-device-path node
                     if both FirstDevicePath and SecondDevicePath are NULL.
                     A copy of an end-of-device-path node if both FirstDevicePath and SecondDevicePath are NULL.
 
@@ -336,18 +331,18 @@ AppendDevicePathNode (
 /**
   Creates a new device path by appending the specified device path instance to the specified device
   path.
- 
+
   This function creates a new device path by appending a copy of the device path instance specified
   by DevicePathInstance to a copy of the device path secified by DevicePath in a allocated buffer.
   The end-of-device-path device node is moved after the end of the appended device path instance
-  and a new end-of-device-path-instance node is inserted between. 
+  and a new end-of-device-path-instance node is inserted between.
   If DevicePath is NULL, then a copy if DevicePathInstance is returned.
   If DevicePathInstance is NULL, then NULL is returned.
   If DevicePath or DevicePathInstance is invalid, then NULL is returned.
-  If there is not enough memory to allocate space for the new device path, then NULL is returned.  
+  If there is not enough memory to allocate space for the new device path, then NULL is returned.
   The memory is allocated from EFI boot services memory. It is the responsibility of the caller to
   free the memory allocated.
-  
+
   @param  DevicePath                 A pointer to a device path data structure.
   @param  DevicePathInstance         A pointer to a device path instance.
 
@@ -370,11 +365,11 @@ AppendDevicePathInstance (
   to hold the size of the device path instance copy.
   If DevicePath is NULL, then NULL is returned.
   If DevicePath points to a invalid device path, then NULL is returned.
-  If there is not enough memory to allocate space for the new device path, then NULL is returned.  
+  If there is not enough memory to allocate space for the new device path, then NULL is returned.
   The memory is allocated from EFI boot services memory. It is the responsibility of the caller to
   free the memory allocated.
   If Size is NULL, then ASSERT().
- 
+
   @param  DevicePath                 On input, this holds the pointer to the current device path
                                      instance. On output, this holds the pointer to the next device
                                      path instance or NULL if there are no more device path
@@ -399,8 +394,8 @@ GetNextDevicePathInstance (
   This function creates a new device node in a newly allocated buffer of size NodeLength and
   initializes the device path node header with NodeType and NodeSubType.  The new device path node
   is returned.
-  If NodeLength is smaller than a device path header, then NULL is returned.  
-  If there is not enough memory to allocate space for the new device path, then NULL is returned.  
+  If NodeLength is smaller than a device path header, then NULL is returned.
+  If there is not enough memory to allocate space for the new device path, then NULL is returned.
   The memory is allocated from EFI boot services memory. It is the responsibility of the caller to
   free the memory allocated.
 
@@ -443,7 +438,7 @@ IsDevicePathMultiInstance (
 
   This function returns the device path protocol from the handle specified by Handle.  If Handle is
   NULL or Handle does not contain a device path protocol, then NULL is returned.
- 
+
   @param  Handle                     The handle from which to retrieve the device path protocol.
 
   @return The device path protocol from the handle specified by Handle.
@@ -465,7 +460,7 @@ DevicePathFromHandle (
   path node for the file specified by FileName is allocated and returned.
   The memory for the new device path is allocated from EFI boot services memory. It is the responsibility
   of the caller to free the memory allocated.
-  
+
   If FileName is NULL, then ASSERT().
   If FileName is not aligned on a 16-bit boundary, then ASSERT().
 

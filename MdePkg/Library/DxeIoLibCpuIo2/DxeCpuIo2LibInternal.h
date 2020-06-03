@@ -1,16 +1,10 @@
 /** @file
   Internal include file of DXE CPU IO2 Library.
-  
-  Copyright (c) 2010, Intel Corporation. All rights reserved.<BR>
+
+  Copyright (c) 2010 - 2018, Intel Corporation. All rights reserved.<BR>
   Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
 
-  This program and the accompanying materials are licensed and made available
-  under the terms and conditions of the BSD License which accompanies this
-  distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -157,7 +151,7 @@ MmioReadWorker (
                         The caller is responsible for aligning the Address if required.
   @param  Width         The width of the I/O operation.
   @param  Data          The value to write to the I/O port.
-  
+
   @return Data read from registers in the EFI system memory space.
 
 **/

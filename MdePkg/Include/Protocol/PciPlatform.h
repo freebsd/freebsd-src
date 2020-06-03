@@ -1,20 +1,14 @@
 /** @file
-  This file declares PlatfromOpRom protocols that provide the interface between 
-  the PCI bus driver/PCI Host Bridge Resource Allocation driver and a platform-specific 
-  driver to describe the unique features of a platform. 
+  This file declares PlatfromOpRom protocols that provide the interface between
+  the PCI bus driver/PCI Host Bridge Resource Allocation driver and a platform-specific
+  driver to describe the unique features of a platform.
   This protocol is optional.
-  
-Copyright (c) 2007 - 2010, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+
+Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  This Protocol is defined in UEFI Platform Initialization Specification 1.2 
+  This Protocol is defined in UEFI Platform Initialization Specification 1.2
   Volume 5: Standards
 
 **/
@@ -320,16 +314,16 @@ EFI_STATUS
 ///
 struct _EFI_PCI_PLATFORM_PROTOCOL {
   ///
-  /// The notification from the PCI bus enumerator to the platform that it is about to 
+  /// The notification from the PCI bus enumerator to the platform that it is about to
   /// enter a certain phase during the enumeration process.
   ///
   EFI_PCI_PLATFORM_PHASE_NOTIFY          PlatformNotify;
   ///
-  /// The notification from the PCI bus enumerator to the platform for each PCI 
+  /// The notification from the PCI bus enumerator to the platform for each PCI
   /// controller at several predefined points during PCI controller initialization.
-  /// 
+  ///
   EFI_PCI_PLATFORM_PREPROCESS_CONTROLLER PlatformPrepController;
-  /// 
+  ///
   /// Retrieves the platform policy regarding enumeration.
   ///
   EFI_PCI_PLATFORM_GET_PLATFORM_POLICY   GetPlatformPolicy;

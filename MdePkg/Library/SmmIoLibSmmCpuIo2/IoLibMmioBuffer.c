@@ -1,14 +1,8 @@
 /** @file
   I/O Library MMIO Buffer Functions.
 
-  Copyright (c) 2009 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -67,7 +61,7 @@ MmioReadBuffer8 (
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 16-bit boundary, then ASSERT().
-  
+
   If Buffer is not aligned on a 16-bit boundary, then ASSERT().
 
   @param  StartAddress    The starting address for the MMIO region to be copied from.
@@ -170,7 +164,7 @@ MmioReadBuffer32 (
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 64-bit boundary, then ASSERT().
- 
+
   If Buffer is not aligned on a 64-bit boundary, then ASSERT().
 
   @param  StartAddress    The starting address for the MMIO region to be copied from.
@@ -223,7 +217,7 @@ MmioReadBuffer64 (
 
   @param  StartAddress    The starting address for the MMIO region to be copied to.
   @param  Length          The size in bytes of the copy.
-  @param  Buffer          The pointer to a system memory buffer containing the 
+  @param  Buffer          The pointer to a system memory buffer containing the
                           data to write.
 
   @return Buffer
@@ -270,7 +264,7 @@ MmioWriteBuffer8 (
 
   @param  StartAddress    The starting address for the MMIO region to be copied to.
   @param  Length          The size in bytes of the copy.
-  @param  Buffer          The pointer to a system memory buffer containing the 
+  @param  Buffer          The pointer to a system memory buffer containing the
                           data to write.
 
   @return Buffer
@@ -325,7 +319,7 @@ MmioWriteBuffer16 (
 
   @param  StartAddress    The starting address for the MMIO region to be copied to.
   @param  Length          The size in bytes of the copy.
-  @param  Buffer          The pointer to a system memory buffer containing the 
+  @param  Buffer          The pointer to a system memory buffer containing the
                           data to write.
 
   @return Buffer
@@ -379,7 +373,7 @@ MmioWriteBuffer32 (
 
   @param  StartAddress    The starting address for the MMIO region to be copied to.
   @param  Length          The size in bytes of the copy.
-  @param  Buffer          The pointer to a system memory buffer containing the 
+  @param  Buffer          The pointer to a system memory buffer containing the
                           data to write.
 
   @return Buffer

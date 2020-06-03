@@ -1,16 +1,10 @@
 /** @file
-  Transport Layer Security  -- TLS 1.0/1.1/1.2 Standard definitions, from RFC 2246/4346/5246    
+  Transport Layer Security  -- TLS 1.0/1.1/1.2 Standard definitions, from RFC 2246/4346/5246
 
-  This file contains common TLS 1.0/1.1/1.2 definitions from RFC 2246/4346/5246 
+  This file contains common TLS 1.0/1.1/1.2 definitions from RFC 2246/4346/5246
 
-  Copyright (c) 2016 - 2017, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef __TLS_1_H__
@@ -81,11 +75,25 @@ typedef enum {
 ///
 /// TLS Record Header, refers to A.1 of rfc-2246, rfc-4346 and rfc-5246.
 ///
-typedef struct {   
+typedef struct {
   UINT8                   ContentType;
   EFI_TLS_VERSION         Version;
   UINT16                  Length;
 } TLS_RECORD_HEADER;
+
+#define TLS_RECORD_HEADER_LENGTH   5
+
+//
+// The length (in bytes) of the TLSPlaintext records payload MUST NOT exceed 2^14.
+// Refers to section 6.2 of RFC5246.
+//
+#define TLS_PLAINTEXT_RECORD_MAX_PAYLOAD_LENGTH   16384
+
+//
+// The length (in bytes) of the TLSCiphertext records payload MUST NOT exceed 2^14 + 2048.
+// Refers to section 6.2 of RFC5246.
+//
+#define TLS_CIPHERTEXT_RECORD_MAX_PAYLOAD_LENGTH   18432
 
 #pragma pack()
 

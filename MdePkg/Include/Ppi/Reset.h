@@ -1,17 +1,11 @@
 /** @file
   This file declares Reset PPI used to reset the platform.
-  
-  This PPI is installed by some platform- or chipset-specific PEIM that 
+
+  This PPI is installed by some platform- or chipset-specific PEIM that
   abstracts the Reset Service to other agents.
 
-  Copyright (c) 2006 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -29,11 +23,11 @@
 //
 // EFI_PEI_RESET_PPI.ResetSystem() is equivalent to the
 // PEI Service ResetSystem().
-// It is introduced in PIPeiCis.h. 
+// It is introduced in PIPeiCis.h.
 //
 
 ///
-/// This PPI provides provide a simple reset service. 
+/// This PPI provides provide a simple reset service.
 ///
 typedef struct {
   EFI_PEI_RESET_SYSTEM  ResetSystem;

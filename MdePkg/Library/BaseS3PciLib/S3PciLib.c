@@ -1,18 +1,11 @@
 /** @file
   PCI configuration Library Services that do PCI configuration and also enable
   the PCI operations to be replayed during an S3 resume. This library class
-  maps directly on top of the PciLib class. 
+  maps directly on top of the PciLib class.
 
-  Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions
-  of the BSD License which accompanies this distribution.  The
-  full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -31,7 +24,7 @@
   Saves a PCI configuration value to the boot script.
 
   This internal worker function saves a PCI configuration value in
-  the S3 script to be replayed on S3 resume. 
+  the S3 script to be replayed on S3 resume.
 
   If the saving process fails, then ASSERT().
 
@@ -63,7 +56,7 @@ InternalSavePciWriteValueToBootScript (
   Saves an 8-bit PCI configuration value to the boot script.
 
   This internal worker function saves an 8-bit PCI configuration value in
-  the S3 script to be replayed on S3 resume. 
+  the S3 script to be replayed on S3 resume.
 
   If the saving process fails, then ASSERT().
 
@@ -429,7 +422,7 @@ S3PciBitFieldAndThenOr8 (
   Saves a 16-bit PCI configuration value to the boot script.
 
   This internal worker function saves a 16-bit PCI configuration value in
-  the S3 script to be replayed on S3 resume. 
+  the S3 script to be replayed on S3 resume.
 
   If the saving process fails, then ASSERT().
 
@@ -805,7 +798,7 @@ S3PciBitFieldAndThenOr16 (
   Saves a 32-bit PCI configuration value to the boot script.
 
   This internal worker function saves a 32-bit PCI configuration value in the S3 script
-  to be replayed on S3 resume. 
+  to be replayed on S3 resume.
 
   If the saving process fails, then ASSERT().
 
@@ -1264,6 +1257,6 @@ S3PciWriteBuffer (
              Buffer
              );
   ASSERT (Status == RETURN_SUCCESS);
-  
+
   return Size;
 }

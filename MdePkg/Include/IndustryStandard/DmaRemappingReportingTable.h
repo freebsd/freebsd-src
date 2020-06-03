@@ -2,18 +2,12 @@
   DMA Remapping Reporting (DMAR) ACPI table definition from Intel(R)
   Virtualization Technology for Directed I/O (VT-D) Architecture Specification.
 
-  Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
     - Intel(R) Virtualization Technology for Directed I/O (VT-D) Architecture
-      Specification v2.4, Dated June 2016.
+      Specification v2.5, Dated November 2017.
       http://www.intel.com/content/dam/www/public/us/en/documents/product-specifications/vt-directed-io-spec.pdf
 
   @par Glossary:
@@ -23,15 +17,18 @@
 #ifndef _DMA_REMAPPING_REPORTING_TABLE_H_
 #define _DMA_REMAPPING_REPORTING_TABLE_H_
 
+#include <IndustryStandard/Acpi.h>
+
 #pragma pack(1)
 
 ///
 /// DMA-Remapping Reporting Structure definitions from section 8.1
 ///@{
-#define EFI_ACPI_DMAR_REVISION                    0x01
+#define EFI_ACPI_DMAR_REVISION                             0x01
 
-#define EFI_ACPI_DMAR_FLAGS_INTR_REMAP            BIT0
-#define EFI_ACPI_DMAR_FLAGS_X2APIC_OPT_OUT        BIT1
+#define EFI_ACPI_DMAR_FLAGS_INTR_REMAP                     BIT0
+#define EFI_ACPI_DMAR_FLAGS_X2APIC_OPT_OUT                 BIT1
+#define EFI_ACPI_DMAR_FLAGS_DMA_CTRL_PLATFORM_OPT_IN_FLAG  BIT2
 ///@}
 
 ///
@@ -250,7 +247,12 @@ typedef struct {
                 firmware may Set this field to request system software to opt
                 out of enabling Extended xAPIC (X2APIC) mode. This field is
                 valid only when the INTR_REMAP field (bit 0) is Set.
-    - Bits[7:2] Reserved.
+    - Bit[2]:   DMA_CTRL_PLATFORM_OPT_IN_FLAG - Platform firmware is
+                recommended to Set this field to report any platform initiated
+                DMA is restricted to only reserved memory regions (reported in
+                RMRR structures) when transferring control to system software
+                such as on ExitBootServices().
+    - Bits[7:3] Reserved.
   **/
   UINT8                           Flags;
   UINT8                           Reserved[10];

@@ -1,0 +1,102 @@
+## @file
+# CI configuration for MdePkg
+#
+# Copyright (c) Microsoft Corporation
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+{
+    ## options defined ci/Plugin/CompilerPlugin
+    "CompilerPlugin": {
+        "DscPath": "MdePkg.dsc"
+    },
+
+    ## options defined ci/Plugin/HostUnitTestCompilerPlugin
+    "HostUnitTestCompilerPlugin": {
+        "DscPath": "Test/MdePkgHostTest.dsc"
+    },
+
+    ## options defined ci/Plugin/CharEncodingCheck
+    "CharEncodingCheck": {
+        "IgnoreFiles": []
+    },
+
+    ## options defined ci/Plugin/DependencyCheck
+    "DependencyCheck": {
+        "AcceptableDependencies": [
+            "MdePkg/MdePkg.dec"
+        ],
+        # For host based unit tests
+        "AcceptableDependencies-HOST_APPLICATION":[
+            "UnitTestFrameworkPkg/UnitTestFrameworkPkg.dec"
+        ],
+        # For UEFI shell based apps
+        "AcceptableDependencies-UEFI_APPLICATION":[],
+        "IgnoreInf": []
+    },
+
+    ## options defined ci/Plugin/DscCompleteCheck
+    "DscCompleteCheck": {
+        "IgnoreInf": [""],
+        "DscPath": "MdePkg.dsc"
+    },
+
+    ## options defined ci/Plugin/HostUnitTestDscCompleteCheck
+    "HostUnitTestDscCompleteCheck": {
+        "IgnoreInf": [""],
+        "DscPath": "Test/MdePkgHostTest.dsc"
+    },
+
+    ## options defined ci/Plugin/GuidCheck
+    "GuidCheck": {
+        "IgnoreGuidName": [
+            "gEfiFirmwareVolumeTopFileGuid" # sec modules must be set to this guid
+        ],
+        "IgnoreGuidValue": ["00000000-0000-0000-0000-000000000000"],
+        "IgnoreFoldersAndFiles": [],
+        "IgnoreDuplicates": [
+            "gEfiFirmwareVolumeBlockProtocolGuid=gEfiFirmwareVolumeBlock2ProtocolGuid",
+            "gEfiMmAccessProtocolGuid=gEfiSmmAccess2ProtocolGuid",
+            "gEfiSmmCommunicationProtocolGuid=gEfiMmCommunicationProtocolGuid",
+            "gEfiMmPciRootBridgeIoProtocolGuid=gEfiSmmPciRootBridgeIoProtocolGuid",
+            "gEfiTrEEProtocolGuid=gEfiTcg2ProtocolGuid",
+            "gEfiSmmPowerButtonDispatch2ProtocolGuid=gEfiMmPowerButtonDispatchProtocolGuid",
+            "gEfiSmmBase2ProtocolGuid=gEfiMmBaseProtocolGuid",
+            "gEfiSmmUsbDispatch2ProtocolGuid=gEfiMmUsbDispatchProtocolGuid",
+            "gEfiSmmCpuProtocolGuid=gEfiMmCpuProtocolGuid",
+            "gEfiAcpiTableGuid=gEfiAcpi20TableGuid",
+            "gEfiSmmControl2ProtocolGuid=gEfiMmControlProtocolGuid",
+            "gEfiSmmStandbyButtonDispatch2ProtocolGuid=gEfiMmStandbyButtonDispatchProtocolGuid",
+            "gEfiSmmStatusCodeProtocolGuid=gEfiMmStatusCodeProtocolGuid",
+            "gEfiDxeSmmReadyToLockProtocolGuid=gEfiDxeMmReadyToLockProtocolGuid",
+            "gEfiSmmIoTrapDispatch2ProtocolGuid=gEfiMmIoTrapDispatchProtocolGuid",
+            "gEfiSmmReadyToLockProtocolGuid=gEfiMmReadyToLockProtocolGuid",
+            "gEfiSmmSxDispatch2ProtocolGuid=gEfiMmSxDispatchProtocolGuid",
+            "gEfiPeiCapsulePpiGuid=gPeiCapsulePpiGuid",
+            "gEfiSmmCpuIo2ProtocolGuid=gEfiMmCpuIoProtocolGuid",
+            "gEfiSmmRscHandlerProtocolGuid=gEfiMmRscHandlerProtocolGuid",
+            "gEfiSmmConfigurationProtocolGuid=gEfiMmConfigurationProtocolGuid",
+            "gEfiSmmGpiDispatch2ProtocolGuid=gEfiMmGpiDispatchProtocolGuid",
+            "gEfiSmmEndOfDxeProtocolGuid=gEfiMmEndOfDxeProtocolGuid",
+            "gEfiSmmSwDispatch2ProtocolGuid=gEfiMmSwDispatchProtocolGuid",
+            "gEfiDebugPortProtocolGuid=gEfiDebugPortVariableGuid=gEfiDebugPortDevicePathGuid", ## is this a bug
+            "gEfiProcessorSpecificErrorSectionGuid=gEfiIa32X64ProcessorErrorSectionGuid",  ## is this a bug
+            "gEfiSmmPeriodicTimerDispatch2ProtocolGuid=gEfiMmPeriodicTimerDispatchProtocolGuid",
+            "gEfiPeiMmAccessPpiGuid=gPeiSmmAccessPpiGuid",
+            "gPeiSmmControlPpiGuid=gEfiPeiMmControlPpiGuid"
+            ]
+    },
+
+    ## options defined ci/Plugin/LibraryClassCheck
+    "LibraryClassCheck": {
+        "IgnoreHeaderFile": []
+    },
+
+    ## options defined ci/Plugin/SpellCheck
+    "SpellCheck": {
+        "AuditOnly": True,           # Fails test but run in AuditOnly mode to collect log
+        "IgnoreFiles": [],           # use gitignore syntax to ignore errors in matching files
+        "ExtendWords": [],           # words to extend to the dictionary for this package
+        "IgnoreStandardPaths": [],   # Standard Plugin defined paths that should be ignore
+        "AdditionalIncludePaths": [] # Additional paths to spell check (wildcards supported)
+    }
+}

@@ -1,15 +1,9 @@
 /** @file
-  This PPI manipulates the I2C host controller to perform transactions as a master 
+  This PPI manipulates the I2C host controller to perform transactions as a master
   on the I2C bus using the current state of any switches or multiplexers in the I2C bus.
 
-  Copyright (c) 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.3.
@@ -28,16 +22,16 @@ typedef struct _EFI_PEI_I2C_MASTER_PPI EFI_PEI_I2C_MASTER_PPI;
 
 /**
   Set the frequency for the I2C clock line.
-  
+
   @param This                   Pointer to an EFI_PEI_I2C_MASTER_PPI structure.
   @param BusClockHertz          Pointer to the requested I2C bus clock frequency in Hertz.
-                                Upon return this value contains the actual frequency 
+                                Upon return this value contains the actual frequency
                                 in use by the I2C controller.
 
   @retval EFI_SUCCESS           The bus frequency was set successfully.
   @retval EFI_INVALID_PARAMETER BusClockHertz is NULL
   @retval EFI_UNSUPPORTED       The controller does not support this frequency.
-   
+
 **/
 typedef
 EFI_STATUS
@@ -48,12 +42,12 @@ EFI_STATUS
 
 /**
   Reset the I2C controller and configure it for use.
-  
+
   @param  This                  Pointer to an EFI_PEI_I2C_MASTER_PPI structure.
 
   @retval EFI_SUCCESS           The reset completed successfully.
   @retval EFI_DEVICE_ERROR      The reset operation failed.
-   
+
 **/
 typedef
 EFI_STATUS
@@ -63,25 +57,25 @@ EFI_STATUS
 
 /**
   Start an I2C transaction on the host controller.
-  
+
   @param  This                   Pointer to an EFI_PEI_I2C_MASTER_PPI structure.
   @param  SlaveAddress           Address of the device on the I2C bus.
-                                 Set the I2C_ADDRESSING_10_BIT when using 10-bit addresses, 
+                                 Set the I2C_ADDRESSING_10_BIT when using 10-bit addresses,
                                  clear this bit for 7-bit addressing.
-                                 Bits 0-6 are used for 7-bit I2C slave addresses and 
+                                 Bits 0-6 are used for 7-bit I2C slave addresses and
                                  bits 0-9 are used for 10-bit I2C slave addresses.
   @param  RequestPacket          Pointer to an EFI_I2C_REQUEST_PACKET structure describing the I2C transaction.
 
-  @retval EFI_SUCCESS	           The transaction completed successfully.
-  @retval EFI_BAD_BUFFER_SIZE	   The RequestPacket->LengthInBytes value is too large.
-  @retval EFI_DEVICE_ERROR	     There was an I2C error (NACK) during the transaction.
-  @retval EFI_INVALID_PARAMETER	 RequestPacket is NULL
-  @retval EFI_NO_RESPONSE	       The I2C device is not responding to the slave address.
+  @retval EFI_SUCCESS             The transaction completed successfully.
+  @retval EFI_BAD_BUFFER_SIZE     The RequestPacket->LengthInBytes value is too large.
+  @retval EFI_DEVICE_ERROR       There was an I2C error (NACK) during the transaction.
+  @retval EFI_INVALID_PARAMETER   RequestPacket is NULL
+  @retval EFI_NO_RESPONSE         The I2C device is not responding to the slave address.
                                  EFI_DEVICE_ERROR will be returned if the controller cannot distinguish when the NACK occurred.
-  @retval EFI_NOT_FOUND	         Reserved bit set in the SlaveAddress parameter
-  @retval EFI_OUT_OF_RESOURCES	 Insufficient memory for I2C transaction
-  @retval EFI_UNSUPPORTED	       The controller does not support the requested transaction.
-   
+  @retval EFI_NOT_FOUND           Reserved bit set in the SlaveAddress parameter
+  @retval EFI_OUT_OF_RESOURCES   Insufficient memory for I2C transaction
+  @retval EFI_UNSUPPORTED         The controller does not support the requested transaction.
+
 **/
 typedef
 EFI_STATUS

@@ -2,14 +2,8 @@
   EFI_TAPE_IO_PROTOCOL as defined in the UEFI 2.0.
   Provide services to control and access a tape device.
 
-Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -70,13 +64,13 @@ typedef struct _EFI_TAPE_HEADER {
                                 from the media.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_TAPE_READ)(
   IN EFI_TAPE_IO_PROTOCOL *This,
   IN OUT UINTN            *BufferSize,
   OUT VOID                *Buffer
-  );    
+  );
 
 /**
   Writes to the tape.
@@ -106,14 +100,14 @@ EFI_STATUS
                                 from the media.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_TAPE_WRITE)(
   IN EFI_TAPE_IO_PROTOCOL *This,
   IN UINTN                *BufferSize,
   IN VOID                 *Buffer
-  ); 
-  
+  );
+
 
 /**
   Rewinds the tape.
@@ -129,11 +123,11 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR A device error occurred while attempting to reposition the media.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_TAPE_REWIND)(
   IN EFI_TAPE_IO_PROTOCOL *This
-  );   
+  );
 
 
 /**
@@ -143,7 +137,7 @@ EFI_STATUS
   @param  Direction Direction and number of data blocks or filemarks to space over on media.
   @param  Type      Type of mark to space over on media.
                     The following Type marks are mandatory:
-                    BLOCK type    : 0 
+                    BLOCK type    : 0
                     FILEMARK type : 1
 
   @retval EFI_SUCCESS       The media was successfully repositioned.
@@ -166,7 +160,7 @@ EFI_STATUS
   IN EFI_TAPE_IO_PROTOCOL *This,
   IN INTN                 Direction,
   IN UINTN                Type
-  );   
+  );
 
 
 /**
@@ -187,12 +181,12 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR  A device error occurred while attempting to transfer data from the media.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_TAPE_WRITEFM)(
   IN EFI_TAPE_IO_PROTOCOL *This,
   IN UINTN                Count
-  );   
+  );
 
 
 /**
@@ -210,17 +204,17 @@ EFI_STATUS
   @retval  EFI_DEVICE_ERROR A device error occurred while attempting to reset the bus and/or device.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_TAPE_RESET)(
   IN EFI_TAPE_IO_PROTOCOL *This,
   IN BOOLEAN              ExtendedVerification
-  );    
+  );
 
 ///
-/// The EFI_TAPE_IO_PROTOCOL provides basic sequential operations for tape devices. 
-/// These include read, write, rewind, space, write filemarks and reset functions. 
-/// Per this specification, a boot application uses the services of this protocol 
+/// The EFI_TAPE_IO_PROTOCOL provides basic sequential operations for tape devices.
+/// These include read, write, rewind, space, write filemarks and reset functions.
+/// Per this specification, a boot application uses the services of this protocol
 /// to load the bootloader image from tape.
 ///
 struct _EFI_TAPE_IO_PROTOCOL {

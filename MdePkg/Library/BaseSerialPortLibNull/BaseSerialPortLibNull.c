@@ -1,14 +1,8 @@
 /** @file
   Null Serial Port library instance with empty functions.
 
-  Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -18,11 +12,11 @@
 
 /**
   Initialize the serial device hardware.
-  
+
   If no initialization is required, then return RETURN_SUCCESS.
   If the serial device was successfully initialized, then return RETURN_SUCCESS.
   If the serial device could not be initialized, then return RETURN_DEVICE_ERROR.
-  
+
   @retval RETURN_SUCCESS        The serial device was initialized.
   @retval RETURN_DEVICE_ERROR   The serial device could not be initialized.
 
@@ -37,19 +31,19 @@ SerialPortInitialize (
 }
 
 /**
-  Write data from buffer to serial device. 
- 
-  Writes NumberOfBytes data bytes from Buffer to the serial device.  
+  Write data from buffer to serial device.
+
+  Writes NumberOfBytes data bytes from Buffer to the serial device.
   The number of bytes actually written to the serial device is returned.
   If the return value is less than NumberOfBytes, then the write operation failed.
-  If Buffer is NULL, then ASSERT(). 
+  If Buffer is NULL, then ASSERT().
   If NumberOfBytes is zero, then return 0.
 
   @param  Buffer           The pointer to the data buffer to be written.
   @param  NumberOfBytes    The number of bytes to written to the serial device.
 
   @retval 0                NumberOfBytes is 0.
-  @retval >0               The number of bytes written to the serial device.  
+  @retval >0               The number of bytes written to the serial device.
                            If this value is less than NumberOfBytes, then the write operation failed.
 
 **/
@@ -66,11 +60,11 @@ SerialPortWrite (
 
 /**
   Read data from serial device and save the datas in buffer.
- 
+
   Reads NumberOfBytes data bytes from a serial device into the buffer
-  specified by Buffer. The number of bytes actually read is returned. 
+  specified by Buffer. The number of bytes actually read is returned.
   If the return value is less than NumberOfBytes, then the rest operation failed.
-  If Buffer is NULL, then ASSERT(). 
+  If Buffer is NULL, then ASSERT().
   If NumberOfBytes is zero, then return 0.
 
   @param  Buffer           The pointer to the data buffer to store the data read from the serial device.

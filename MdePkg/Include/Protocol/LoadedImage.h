@@ -4,14 +4,8 @@
   Every EFI driver and application is passed an image handle when it is loaded.
   This image handle will contain a Loaded Image Protocol.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -30,7 +24,7 @@
 
 ///
 /// Protocol GUID defined in EFI1.1.
-/// 
+///
 #define LOADED_IMAGE_PROTOCOL   EFI_LOADED_IMAGE_PROTOCOL_GUID
 
 ///
@@ -40,25 +34,25 @@
 
 ///
 /// Revision defined in EFI1.1.
-/// 
+///
 #define EFI_LOADED_IMAGE_INFORMATION_REVISION    EFI_LOADED_IMAGE_PROTOCOL_REVISION
 
 ///
 /// Can be used on any image handle to obtain information about the loaded image.
 ///
 typedef struct {
-  UINT32            Revision;       ///< Defines the revision of the EFI_LOADED_IMAGE_PROTOCOL structure. 
+  UINT32            Revision;       ///< Defines the revision of the EFI_LOADED_IMAGE_PROTOCOL structure.
                                     ///< All future revisions will be backward compatible to the current revision.
-  EFI_HANDLE        ParentHandle;   ///< Parent image's image handle. NULL if the image is loaded directly from 
-                                    ///< the firmware's boot manager. 
+  EFI_HANDLE        ParentHandle;   ///< Parent image's image handle. NULL if the image is loaded directly from
+                                    ///< the firmware's boot manager.
   EFI_SYSTEM_TABLE  *SystemTable;   ///< the image's EFI system table pointer.
 
   //
   // Source location of image
   //
-  EFI_HANDLE        DeviceHandle;   ///< The device handle that the EFI Image was loaded from. 
-  EFI_DEVICE_PATH_PROTOCOL  *FilePath;  ///< A pointer to the file path portion specific to DeviceHandle 
-                                        ///< that the EFI Image was loaded from. 
+  EFI_HANDLE        DeviceHandle;   ///< The device handle that the EFI Image was loaded from.
+  EFI_DEVICE_PATH_PROTOCOL  *FilePath;  ///< A pointer to the file path portion specific to DeviceHandle
+                                        ///< that the EFI Image was loaded from.
   VOID              *Reserved;      ///< Reserved. DO NOT USE.
 
   //
@@ -79,7 +73,7 @@ typedef struct {
 
 //
 // For backward-compatible with EFI1.1.
-// 
+//
 typedef EFI_LOADED_IMAGE_PROTOCOL EFI_LOADED_IMAGE;
 
 extern EFI_GUID gEfiLoadedImageProtocolGuid;

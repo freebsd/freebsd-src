@@ -2,14 +2,8 @@
   Provides library functions for each of the UEFI Runtime Services.
   Only available to DXE and UEFI module types.
 
-Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef __UEFI_RUNTIME_LIB__
@@ -34,7 +28,7 @@ EfiAtRuntime (
   );
 
 /**
-  This function allows the caller to determine if UEFI SetVirtualAddressMap() has been called. 
+  This function allows the caller to determine if UEFI SetVirtualAddressMap() has been called.
 
   This function returns TRUE after all the EVT_SIGNAL_VIRTUAL_ADDRESS_CHANGE functions have
   executed as a result of the OS calling SetVirtualAddressMap(). Prior to this time FALSE
@@ -329,9 +323,8 @@ EfiGetNextHighMonotonicCount (
                       Null-terminated Unicode string, optionally followed by additional binary data. The string is a
                       description that the caller may use to further indicate the reason for the system reset. ResetData
                       is only valid if ResetStatus is something other then EFI_SUCCESS. This pointer must be a physical
-                      address. For a ResetType of EfiRestUpdate the data buffer also starts with a Null-terminated string
-                      that is followed by a physical VOID * to an EFI_CAPSULE_HEADER.
-
+                      address. For a ResetType of EfiResetPlatformSpecific the data buffer also starts with a Null-terminated
+                      string that is followed by an EFI_GUID that describes the specific type of reset to perform.
 **/
 VOID
 EFIAPI
@@ -343,7 +336,7 @@ EfiResetSystem (
   );
 
 /**
-  This service is a wrapper for the UEFI Runtime Service ConvertPointer().  
+  This service is a wrapper for the UEFI Runtime Service ConvertPointer().
 
   The ConvertPointer() function is used by an EFI component during the SetVirtualAddressMap() operation.
   ConvertPointer()must be called using physical address pointers during the execution of SetVirtualAddressMap().
@@ -371,7 +364,7 @@ EfiConvertPointer (
   Determines the new virtual address that is to be used on subsequent memory accesses.
 
   For IA32, x64, and EBC, this service is a wrapper for the UEFI Runtime Service
-  ConvertPointer().  See the UEFI Specification for details. 
+  ConvertPointer().  See the UEFI Specification for details.
   For IPF, this function interprets Address as a pointer to an EFI_PLABEL structure
   and both the EntryPoint and GP fields of an EFI_PLABEL are converted from physical
   to virtiual addressing.  Since IPF allows the GP to point to an address outside

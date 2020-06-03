@@ -3,16 +3,10 @@
   the EFI IPv6 Protocol and provides simple packet-oriented services to transmit and receive
   UDP packets.
 
-  Copyright (c) 2008 - 2014, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-                                                                                            
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED. 
+  Copyright (c) 2008 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  @par Revision Reference:          
+  @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.2
 
 **/
@@ -57,7 +51,7 @@ typedef struct {
   ///
   EFI_IPv6_ADDRESS    RemoteAddress;
   ///
-  /// The port number in host byte order on which the remote host is 
+  /// The port number in host byte order on which the remote host is
   /// listening. Maybe zero if it is not connected to any remote host.
   ///
   UINT16              RemotePort;
@@ -115,7 +109,7 @@ typedef struct {
   ///
   EFI_IPv6_ADDRESS   DestinationAddress;
   ///
-  /// Port to which this packet is sent. When sending packet, it'll be 
+  /// Port to which this packet is sent. When sending packet, it'll be
   /// ignored if it is zero.
   ///
   UINT16             DestinationPort;
@@ -168,7 +162,7 @@ typedef struct {
   ///
   /// The port number to which this EFI UDPv6 Protocol instance is bound. If a client
   /// of the EFI UDPv6 Protocol does not care about the port number, set StationPort
-  /// to zero. The EFI UDPv6 Protocol driver will assign a random port number to transmitted 
+  /// to zero. The EFI UDPv6 Protocol driver will assign a random port number to transmitted
   /// UDP packets. Ignored it if AcceptAnyPort is TRUE.
   ///
   UINT16            StationPort;
@@ -219,8 +213,8 @@ typedef struct {
 /// packets, the CompletionToken.Packet.RxData field is updated to this incoming packet and
 /// the CompletionToken.Event is signaled. The EFI UDPv6 Protocol client must signal the
 /// RecycleSignal after processing the packet.
-/// FragmentTable could contain multiple buffers that are not in the continuous memory locations. 
-/// The EFI UDPv6 Protocol client might need to combine two or more buffers in FragmentTable to 
+/// FragmentTable could contain multiple buffers that are not in the continuous memory locations.
+/// The EFI UDPv6 Protocol client might need to combine two or more buffers in FragmentTable to
 /// form their own protocol header.
 ///
 typedef struct {
@@ -271,15 +265,15 @@ typedef struct {
   ///   - EFI_SUCCESS: The receive or transmit operation completed successfully.
   ///   - EFI_ABORTED: The receive or transmit was aborted.
   ///   - EFI_TIMEOUT: The transmit timeout expired.
-  ///   - EFI_NETWORK_UNREACHABLE: The destination network is unreachable. RxData is set to 
+  ///   - EFI_NETWORK_UNREACHABLE: The destination network is unreachable. RxData is set to
   ///     NULL in this situation.
-  ///   - EFI_HOST_UNREACHABLE: The destination host is unreachable. RxData is set to NULL in 
+  ///   - EFI_HOST_UNREACHABLE: The destination host is unreachable. RxData is set to NULL in
   ///     this situation.
-  ///   - EFI_PROTOCOL_UNREACHABLE: The UDP protocol is unsupported in the remote system. 
+  ///   - EFI_PROTOCOL_UNREACHABLE: The UDP protocol is unsupported in the remote system.
   ///     RxData is set to NULL in this situation.
-  ///   - EFI_PORT_UNREACHABLE: No service is listening on the remote port. RxData is set to 
+  ///   - EFI_PORT_UNREACHABLE: No service is listening on the remote port. RxData is set to
   ///     NULL in this situation.
-  ///   - EFI_ICMP_ERROR: Some other Internet Control Message Protocol (ICMP) error report was 
+  ///   - EFI_ICMP_ERROR: Some other Internet Control Message Protocol (ICMP) error report was
   ///     received. For example, packets are being sent too fast for the destination to receive them
   ///     and the destination sent an ICMP source quench report. RxData is set to NULL in this situation.
   ///   - EFI_DEVICE_ERROR: An unexpected system or network error occurred.
@@ -304,7 +298,7 @@ typedef struct {
 
   The GetModeData() function copies the current operational settings of this EFI UDPv6 Protocol
   instance into user-supplied buffers. This function is used optionally to retrieve the operational
-  mode data of underlying networks or drivers. 
+  mode data of underlying networks or drivers.
 
   @param[in]   This             Pointer to the EFI_UDP6_PROTOCOL instance.
   @param[out]  Udp6ConfigData   The buffer in which the current UDP configuration data is returned.
@@ -330,13 +324,13 @@ EFI_STATUS
 );
 
 /**
-  Initializes, changes, or resets the operational parameters for this instance of the EFI UDPv6 
+  Initializes, changes, or resets the operational parameters for this instance of the EFI UDPv6
   Protocol.
 
   The Configure() function is used to do the following:
   - Initialize and start this instance of the EFI UDPv6 Protocol.
   - Change the filtering rules and operational parameters.
-  - Reset this instance of the EFI UDPv6 Protocol. 
+  - Reset this instance of the EFI UDPv6 Protocol.
 
   Until these parameters are initialized, no network traffic can be sent or received by this instance.
   This instance can be also reset by calling Configure() with UdpConfigData set to NULL.
@@ -350,7 +344,7 @@ EFI_STATUS
   @param[in]   UdpConfigData    Pointer to the buffer contained the configuration data.
 
   @retval EFI_SUCCESS           The configuration settings were set, changed, or reset successfully.
-  @retval EFI_NO_MAPPING        The underlying IPv6 driver was responsible for choosing a source 
+  @retval EFI_NO_MAPPING        The underlying IPv6 driver was responsible for choosing a source
                                 address for this instance, but no source address was available for use.
   @retval EFI_INVALID_PARAMETER One or more following conditions are TRUE:
                                 - This is NULL.
@@ -363,7 +357,7 @@ EFI_STATUS
                                 ReceiveTimeout, and TransmitTimeout can be reconfigured without stopping
                                 the current instance of the EFI UDPv6 Protocol.
   @retval EFI_ACCESS_DENIED     UdpConfigData.AllowDuplicatePort is FALSE and UdpConfigData.StationPort
-                                is already used by other instance. 
+                                is already used by other instance.
   @retval EFI_OUT_OF_RESOURCES  The EFI UDPv6 Protocol driver cannot allocate memory for this EFI UDPv6
                                 Protocol instance.
   @retval EFI_DEVICE_ERROR      An unexpected network or system error occurred and this instance was not
@@ -418,7 +412,7 @@ EFI_STATUS
   receive the notification and transmitting status.
 
   @param[in]   This             Pointer to the EFI_UDP6_PROTOCOL instance.
-  @param[in]   Token            Pointer to the completion token that will be placed into the 
+  @param[in]   Token            Pointer to the completion token that will be placed into the
                                 transmit queue.
 
   @retval EFI_SUCCESS           The data has been queued for transmission.
@@ -440,12 +434,12 @@ EFI_STATUS
                                   fields is NULL.
                                 - Token.Packet.TxData.UdpSessionData.DestinationAddress is not zero
                                   and is not valid unicast Ipv6 address if UdpSessionData is not NULL.
-                                - Token.Packet.TxData.UdpSessionData is NULL and this instance's 
+                                - Token.Packet.TxData.UdpSessionData is NULL and this instance's
                                   UdpConfigData.RemoteAddress is unspecified.
                                 - Token.Packet.TxData.UdpSessionData.DestinationAddress is non-zero
                                   when DestinationAddress is configured as non-zero when doing Configure()
                                   for this EFI Udp6 protocol instance.
-                                - Token.Packet.TxData.UdpSesionData.DestinationAddress is zero when 
+                                - Token.Packet.TxData.UdpSesionData.DestinationAddress is zero when
                                   DestinationAddress is unspecified when doing Configure() for this
                                   EFI Udp6 protocol instance.
   @retval EFI_ACCESS_DENIED     The transmit completion token with the same Token.Event was already
@@ -469,7 +463,7 @@ EFI_STATUS
 
   The Receive() function places a completion token into the receive packet queue. This function is
   always asynchronous.
-  The caller must fill in the Token.Event field in the completion token, and this field cannot be 
+  The caller must fill in the Token.Event field in the completion token, and this field cannot be
   NULL. When the receive operation completes, the EFI UDPv6 Protocol driver updates the Token.Status
   and Token.Packet.RxData fields and the Token.Event is signaled.
   Providing a proper notification function and context for the event will enable the user to receive
@@ -487,11 +481,11 @@ EFI_STATUS
                                 - This is NULL.
                                 - Token is NULL.
                                 - Token.Event is NULL.
-  @retval EFI_OUT_OF_RESOURCES  The receive completion token could not be queued due to a lack of system 
+  @retval EFI_OUT_OF_RESOURCES  The receive completion token could not be queued due to a lack of system
                                 resources (usually memory).
   @retval EFI_DEVICE_ERROR      An unexpected system or network error occurred. The EFI UDPv6 Protocol
                                 instance has been reset to startup defaults.
-  @retval EFI_ACCESS_DENIED     A receive completion token with the same Token.Event was already in 
+  @retval EFI_ACCESS_DENIED     A receive completion token with the same Token.Event was already in
                                 the receive queue.
   @retval EFI_NOT_READY         The receive request could not be queued because the receive queue is full.
 
@@ -547,7 +541,7 @@ EFI_STATUS
 
   @retval EFI_SUCCESS           Incoming or outgoing data was processed.
   @retval EFI_INVALID_PARAMETER This is NULL.
-  @retval EFI_DEVICE_ERROR      An unexpected system or network error occurred. 
+  @retval EFI_DEVICE_ERROR      An unexpected system or network error occurred.
   @retval EFI_TIMEOUT           Data was dropped out of the transmit and/or receive queue.
                                 Consider increasing the polling rate.
 
@@ -563,7 +557,7 @@ EFI_STATUS
 /// applications, or daemons to transmit or receive UDP packets. This protocol instance can either be
 /// bound to a specified port as a service or connected to some remote peer as an active client.
 /// Each instance has its own settings, such as group table, that are independent from each other.
-/// 
+///
 struct _EFI_UDP6_PROTOCOL {
   EFI_UDP6_GET_MODE_DATA  GetModeData;
   EFI_UDP6_CONFIGURE      Configure;

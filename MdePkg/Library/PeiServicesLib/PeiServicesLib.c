@@ -1,14 +1,8 @@
 /** @file
   Implementation for PEI Services Library.
 
-  Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -95,7 +89,7 @@ EFIAPI
 PeiServicesLocatePpi (
   IN CONST EFI_GUID                   *Guid,
   IN UINTN                      Instance,
-  IN OUT EFI_PEI_PPI_DESCRIPTOR **PpiDescriptor,
+  IN OUT EFI_PEI_PPI_DESCRIPTOR **PpiDescriptor, OPTIONAL
   IN OUT VOID                   **Ppi
   )
 {
@@ -109,7 +103,7 @@ PeiServicesLocatePpi (
   This service enables PEIMs to register a given service to be invoked when another service is
   installed or reinstalled.
 
-  @param  NotifyList            A pointer to the list of notification interfaces 
+  @param  NotifyList            A pointer to the list of notification interfaces
                                 that the caller shall install.
 
   @retval EFI_SUCCESS           The interface was successfully installed.
@@ -176,9 +170,9 @@ PeiServicesSetBootMode (
 /**
   This service enables a PEIM to ascertain the address of the list of HOBs in memory.
 
-  @param  HobList               A pointer to the list of HOBs that the PEI Foundation 
+  @param  HobList               A pointer to the list of HOBs that the PEI Foundation
                                 will initialize.
-  
+
   @retval EFI_SUCCESS           The list was successfully returned.
   @retval EFI_NOT_AVAILABLE_YET The HOB list is not yet published.
 
@@ -200,7 +194,7 @@ PeiServicesGetHobList (
 
   @param  Type                  The type of HOB to be installed.
   @param  Length                The length of the HOB to be added.
-  @param  Hob                   The address of a pointer that will contain the 
+  @param  Hob                   The address of a pointer that will contain the
                                 HOB header.
 
   @retval EFI_SUCCESS           The HOB was successfully created.
@@ -224,7 +218,7 @@ PeiServicesCreateHob (
 /**
   This service enables PEIMs to discover additional firmware volumes.
 
-  @param  Instance              This instance of the firmware volume to find.  The 
+  @param  Instance              This instance of the firmware volume to find.  The
                                 value 0 is the Boot Firmware Volume (BFV).
   @param  VolumeHandle          Handle of the firmware volume header of the volume
                                 to return.
@@ -251,9 +245,9 @@ PeiServicesFfsFindNextVolume (
   This service enables PEIMs to discover additional firmware files.
 
   @param  SearchType            A filter to find files only of this type.
-  @param  VolumeHandle          The pointer to the firmware volume header of the 
-                                volume to search. This parameter must point to a 
-                                valid FFS volume. 
+  @param  VolumeHandle          The pointer to the firmware volume header of the
+                                volume to search. This parameter must point to a
+                                valid FFS volume.
   @param  FileHandle            Handle of the current file from which to begin searching.
 
   @retval EFI_SUCCESS           The file was found.
@@ -279,7 +273,7 @@ PeiServicesFfsFindNextFile (
   This service enables PEIMs to discover sections of a given type within a valid FFS file.
 
   @param  SectionType           The value of the section type to find.
-  @param  FileHandle            A pointer to the file header that contains the set 
+  @param  FileHandle            A pointer to the file header that contains the set
                                 of sections to be searched.
   @param  SectionData           A pointer to the discovered section, if successful.
 
@@ -306,7 +300,7 @@ PeiServicesFfsFindSectionData (
 
   @param  SectionType           The value of the section type to find.
   @param  SectionInstance       Section instance to find.
-  @param  FileHandle            A pointer to the file header that contains the set 
+  @param  FileHandle            A pointer to the file header that contains the set
                                 of sections to be searched.
   @param  SectionData           A pointer to the discovered section, if successful.
   @param  AuthenticationStatus  A pointer to the authentication status for this section.
@@ -357,16 +351,16 @@ PeiServicesInstallPeiMemory (
 }
 
 /**
-  This service enables PEIMs to allocate memory after the permanent memory has been
-   installed by a PEIM.
+  This service enables PEIMs to allocate memory.
 
   @param  MemoryType            Type of memory to allocate.
   @param  Pages                 The number of pages to allocate.
   @param  Memory                Pointer of memory allocated.
 
   @retval EFI_SUCCESS           The memory range was successfully allocated.
-  @retval EFI_INVALID_PARAMETER Type is not equal to AllocateAnyPages.
-  @retval EFI_NOT_AVAILABLE_YET Called with permanent memory not available.
+  @retval EFI_INVALID_PARAMETER Type is not equal to EfiLoaderCode, EfiLoaderData, EfiRuntimeServicesCode,
+                                EfiRuntimeServicesData, EfiBootServicesCode, EfiBootServicesData,
+                                EfiACPIReclaimMemory, EfiReservedMemoryType, or EfiACPIMemoryNVS.
   @retval EFI_OUT_OF_RESOURCES  The pages could not be allocated.
 
 **/
@@ -385,10 +379,35 @@ PeiServicesAllocatePages (
 }
 
 /**
+  This service enables PEIMs to free memory.
+
+  @param Memory                 Memory to be freed.
+  @param Pages                  The number of pages to free.
+
+  @retval EFI_SUCCESS           The requested pages were freed.
+  @retval EFI_INVALID_PARAMETER Memory is not a page-aligned address or Pages is invalid.
+  @retval EFI_NOT_FOUND         The requested memory pages were not allocated with
+                                AllocatePages().
+
+**/
+EFI_STATUS
+EFIAPI
+PeiServicesFreePages (
+  IN EFI_PHYSICAL_ADDRESS       Memory,
+  IN UINTN                      Pages
+  )
+{
+  CONST EFI_PEI_SERVICES **PeiServices;
+
+  PeiServices = GetPeiServicesTablePointer ();
+  return (*PeiServices)->FreePages (PeiServices, Memory, Pages);
+}
+
+/**
   This service allocates memory from the Hand-Off Block (HOB) heap.
 
   @param  Size                  The number of bytes to allocate from the pool.
-  @param  Buffer                If the call succeeds, a pointer to a pointer to 
+  @param  Buffer                If the call succeeds, a pointer to a pointer to
                                 the allocate buffer; otherwise, undefined.
 
   @retval EFI_SUCCESS           The allocation was successful
@@ -428,13 +447,13 @@ PeiServicesResetSystem (
 }
 
 /**
-  This service is a wrapper for the PEI Service RegisterForShadow(), except the 
-  pointer to the PEI Services Table has been removed.  See the Platform 
-  Initialization Pre-EFI Initialization Core Interface Specification for details. 
+  This service is a wrapper for the PEI Service RegisterForShadow(), except the
+  pointer to the PEI Services Table has been removed.  See the Platform
+  Initialization Pre-EFI Initialization Core Interface Specification for details.
 
   @param FileHandle             PEIM's file handle. Must be the currently
                                 executing PEIM.
-  
+
   @retval EFI_SUCCESS           The PEIM was successfully registered for
                                 shadowing.
 
@@ -454,9 +473,9 @@ PeiServicesRegisterForShadow (
 }
 
 /**
-  This service is a wrapper for the PEI Service FfsGetFileInfo(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service FfsGetFileInfo(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param FileHandle              The handle of the file.
 
@@ -464,15 +483,15 @@ PeiServicesRegisterForShadow (
                                   information.
 
   @retval EFI_SUCCESS             File information returned.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileHandle does not
                                   represent a valid file.
-  
+
   @retval EFI_INVALID_PARAMETER   FileInfo is NULL.
-  
+
 **/
 EFI_STATUS
-EFIAPI 
+EFIAPI
 PeiServicesFfsGetFileInfo (
   IN CONST  EFI_PEI_FILE_HANDLE   FileHandle,
   OUT EFI_FV_FILE_INFO            *FileInfo
@@ -507,9 +526,9 @@ PeiServicesFfsGetFileInfo2 (
 }
 
 /**
-  This service is a wrapper for the PEI Service FfsFindByName(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service FfsFindByName(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param FileName                 A pointer to the name of the file to
                                   find within the firmware volume.
@@ -517,7 +536,7 @@ PeiServicesFfsGetFileInfo2 (
   @param VolumeHandle             The firmware volume to search FileHandle
                                   Upon exit, points to the found file's
                                   handle or NULL if it could not be found.
-  @param FileHandle               The pointer to found file handle 
+  @param FileHandle               The pointer to found file handle
 
   @retval EFI_SUCCESS             File was found.
 
@@ -540,9 +559,9 @@ PeiServicesFfsFindFileByName (
 
 
 /**
-  This service is a wrapper for the PEI Service FfsGetVolumeInfo(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service FfsGetVolumeInfo(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param VolumeHandle             Handle of the volume.
 
@@ -550,10 +569,10 @@ PeiServicesFfsFindFileByName (
                                   information.
 
   @retval EFI_SUCCESS             File information returned.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileHandle does not
                                   represent a valid file.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileInfo is NULL.
 
 **/
@@ -611,7 +630,7 @@ InternalPeiServicesInstallFvInfoPpi (
   IN       UINT32                  AuthenticationStatus
   )
 {
-  EFI_STATUS                       Status;   
+  EFI_STATUS                       Status;
   EFI_PEI_FIRMWARE_VOLUME_INFO_PPI *FvInfoPpi;
   EFI_PEI_PPI_DESCRIPTOR           *FvInfoPpiDescriptor;
   EFI_GUID                         *ParentFvNameValue;
@@ -764,3 +783,27 @@ PeiServicesInstallFvInfo2Ppi (
   InternalPeiServicesInstallFvInfoPpi (FALSE, FvFormat, FvInfo, FvInfoSize, ParentFvName, ParentFileName, AuthenticationStatus);
 }
 
+/**
+  Resets the entire platform.
+
+  @param[in] ResetType      The type of reset to perform.
+  @param[in] ResetStatus    The status code for the reset.
+  @param[in] DataSize       The size, in bytes, of ResetData.
+  @param[in] ResetData      For a ResetType of EfiResetCold, EfiResetWarm, or EfiResetShutdown
+                            the data buffer starts with a Null-terminated string, optionally
+                            followed by additional binary data. The string is a description
+                            that the caller may use to further indicate the reason for the
+                            system reset.
+
+**/
+VOID
+EFIAPI
+PeiServicesResetSystem2 (
+  IN EFI_RESET_TYPE     ResetType,
+  IN EFI_STATUS         ResetStatus,
+  IN UINTN              DataSize,
+  IN VOID               *ResetData OPTIONAL
+  )
+{
+  (*GetPeiServicesTablePointer())->ResetSystem2 (ResetType, ResetStatus, DataSize, ResetData);
+}

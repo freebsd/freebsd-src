@@ -1,20 +1,19 @@
 /** @file
   Internal data structure defintions for Base UEFI Decompress Library.
 
-  Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
 #ifndef __BASE_UEFI_DECOMPRESS_LIB_INTERNALS_H__
 #define __BASE_UEFI_DECOMPRESS_LIB_INTERNALS_H__
 
+#include <Base.h>
+#include <Library/BaseLib.h>
+#include <Library/DebugLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Library/UefiDecompressLib.h>
 //
 // Decompression algorithm begins here
 //
@@ -64,6 +63,7 @@ typedef struct {
   ///
   /// The length of the field 'Position Set Code Length Array Size' in Block Header.
   /// For UEFI 2.0 de/compression algorithm, mPBit = 4.
+  /// For Tiano de/compression algorithm, mPBit = 5.
   ///
   UINT8   mPBit;
 } SCRATCH_DATA;
@@ -208,4 +208,41 @@ Decode (
   SCRATCH_DATA  *Sd
   );
 
+/**
+  Decompresses a compressed source buffer.
+
+  Extracts decompressed data to its original form.
+  This function is designed so that the decompression algorithm can be implemented
+  without using any memory services.  As a result, this function is not allowed to
+  call any memory allocation services in its implementation.  It is the caller's
+  responsibility to allocate and free the Destination and Scratch buffers.
+  If the compressed source data specified by Source is successfully decompressed
+  into Destination, then RETURN_SUCCESS is returned.  If the compressed source data
+  specified by Source is not in a valid compressed data format,
+  then RETURN_INVALID_PARAMETER is returned.
+
+  If Source is NULL, then ASSERT().
+  If Destination is NULL, then ASSERT().
+  If the required scratch buffer size > 0 and Scratch is NULL, then ASSERT().
+
+  @param  Source      The source buffer containing the compressed data.
+  @param  Destination The destination buffer to store the decompressed data.
+  @param  Scratch     A temporary scratch buffer that is used to perform the decompression.
+                      This is an optional parameter that may be NULL if the
+                      required scratch buffer size is 0.
+  @param  Version     1 for UEFI Decompress algoruthm, 2 for Tiano Decompess algorithm.
+
+  @retval  RETURN_SUCCESS Decompression completed successfully, and
+                          the uncompressed buffer is returned in Destination.
+  @retval  RETURN_INVALID_PARAMETER
+                          The source buffer specified by Source is corrupted
+                          (not in a valid compressed format).
+**/
+RETURN_STATUS
+UefiTianoDecompress (
+  IN CONST VOID  *Source,
+  IN OUT VOID    *Destination,
+  IN OUT VOID    *Scratch,
+  IN UINT32      Version
+  );
 #endif

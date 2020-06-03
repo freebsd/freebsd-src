@@ -1,18 +1,12 @@
 /** @file
   EFI_HASH_SERVICE_BINDING_PROTOCOL as defined in UEFI 2.0.
   EFI_HASH_PROTOCOL as defined in UEFI 2.0.
-  The EFI Hash Service Binding Protocol is used to locate hashing services support 
-  provided by a driver and to create and destroy instances of the EFI Hash Protocol 
+  The EFI Hash Service Binding Protocol is used to locate hashing services support
+  provided by a driver and to create and destroy instances of the EFI Hash Protocol
   so that a multiple drivers can use the underlying hashing services.
 
-Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -23,7 +17,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   { \
     0x42881c98, 0xa4f3, 0x44b0, {0xa3, 0x9d, 0xdf, 0xa1, 0x86, 0x67, 0xd8, 0xcd } \
   }
-  
+
 #define EFI_HASH_PROTOCOL_GUID \
   { \
     0xc5184932, 0xdba5, 0x46db, {0xa5, 0xba, 0xcc, 0x0b, 0xda, 0x9c, 0x14, 0x35 } \
@@ -37,17 +31,17 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define EFI_HASH_ALGORITHM_SHA224_GUID \
   { \
     0x8df01a06, 0x9bd5, 0x4bf7, {0xb0, 0x21, 0xdb, 0x4f, 0xd9, 0xcc, 0xf4, 0x5b } \
-  } 
+  }
 
 #define EFI_HASH_ALGORITHM_SHA256_GUID \
   { \
     0x51aa59de, 0xfdf2, 0x4ea3, {0xbc, 0x63, 0x87, 0x5f, 0xb7, 0x84, 0x2e, 0xe9 } \
-  } 
+  }
 
 #define EFI_HASH_ALGORITHM_SHA384_GUID \
   { \
     0xefa96432, 0xde33, 0x4dd2, {0xae, 0xe6, 0x32, 0x8c, 0x33, 0xdf, 0x77, 0x7a } \
-  } 
+  }
 
 #define EFI_HASH_ALGORITHM_SHA512_GUID \
   { \
@@ -106,7 +100,7 @@ typedef union {
 
   @retval EFI_SUCCESS           Hash size returned successfully.
   @retval EFI_INVALID_PARAMETER HashSize is NULL or HashAlgorithm is NULL.
-  @retval EFI_UNSUPPORTED       The algorithm specified by HashAlgorithm is not supported 
+  @retval EFI_UNSUPPORTED       The algorithm specified by HashAlgorithm is not supported
                                 by this driver.
 
 **/
@@ -116,7 +110,7 @@ EFI_STATUS
   IN  CONST EFI_HASH_PROTOCOL     *This,
   IN  CONST EFI_GUID              *HashAlgorithm,
   OUT UINTN                       *HashSize
-  );      
+  );
 
 /**
   Creates a hash for the specified message text.
@@ -127,13 +121,13 @@ EFI_STATUS
                             existing hash (TRUE).
   @param[in]  Message       Points to the start of the message.
   @param[in]  MessageSize   The size of Message, in bytes.
-  @param[in,out]  Hash      On input, if Extend is TRUE, then this parameter holds a pointer 
-                            to a pointer to an array containing the hash to extend. If Extend 
-                            is FALSE, then this parameter holds a pointer to a pointer to a 
-                            caller-allocated array that will receive the result of the hash 
-                            computation. On output (regardless of the value of Extend), the 
+  @param[in,out]  Hash      On input, if Extend is TRUE, then this parameter holds a pointer
+                            to a pointer to an array containing the hash to extend. If Extend
+                            is FALSE, then this parameter holds a pointer to a pointer to a
+                            caller-allocated array that will receive the result of the hash
+                            computation. On output (regardless of the value of Extend), the
                             array will contain the result of the hash computation.
-  
+
   @retval EFI_SUCCESS           Hash returned successfully.
   @retval EFI_INVALID_PARAMETER Message or Hash, HashAlgorithm is NULL or MessageSize is 0.
                                 MessageSize is not an integer multiple of block size.
@@ -150,10 +144,10 @@ EFI_STATUS
   IN CONST UINT8                  *Message,
   IN UINT64                       MessageSize,
   IN OUT EFI_HASH_OUTPUT          *Hash
-  );    
+  );
 
 ///
-/// This protocol allows creating a hash of an arbitrary message digest 
+/// This protocol allows creating a hash of an arbitrary message digest
 /// using one or more hash algorithms.
 ///
 struct _EFI_HASH_PROTOCOL {

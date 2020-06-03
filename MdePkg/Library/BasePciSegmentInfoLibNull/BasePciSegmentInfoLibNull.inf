@@ -1,0 +1,36 @@
+## @file
+# Instance of PCI SegmentInfo Library.
+#
+# Default PCI Segment Information Library that shouldn't be used by real platform.
+#
+# Copyright (c) 2017 - 2018, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePciSegmentInfoLibNull
+  MODULE_UNI_FILE                = BasePciSegmentInfoLibNull.uni
+  FILE_GUID                      = 36B28584-C6AE-4B1B-A473-A51618EE525A
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciSegmentInfoLib
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
+#
+
+[Sources]
+  PciSegmentInfoLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  PcdLib
+  DebugLib

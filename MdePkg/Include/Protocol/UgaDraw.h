@@ -3,14 +3,8 @@
 
   Abstraction of a very simple graphics device.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -92,26 +86,26 @@ typedef enum {
                             ///< directly to every pixel of the video display rectangle
                             ///< (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height).
                             ///< Only one pixel will be used from the BltBuffer. Delta is NOT used.
-                            
+
   EfiUgaVideoToBltBuffer,   ///< Read data from the video display rectangle
                             ///< (SourceX, SourceY) (SourceX + Width, SourceY + Height) and place it in
                             ///< the BltBuffer rectangle (DestinationX, DestinationY )
                             ///< (DestinationX + Width, DestinationY + Height). If DestinationX or
                             ///< DestinationY is not zero then Delta must be set to the length in bytes
                             ///< of a row in the BltBuffer.
-                            
+
   EfiUgaBltBufferToVideo,   ///< Write data from the  BltBuffer rectangle
                             ///< (SourceX, SourceY) (SourceX + Width, SourceY + Height) directly to the
                             ///< video display rectangle (DestinationX, DestinationY)
                             ///< (DestinationX + Width, DestinationY + Height). If SourceX or SourceY is
                             ///< not zero then Delta must be set to the length in bytes of a row in the
                             ///< BltBuffer.
-  
+
   EfiUgaVideoToVideo,       ///< Copy from the video display rectangle (SourceX, SourceY)
                             ///< (SourceX + Width, SourceY + Height) .to the video display rectangle
                             ///< (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height).
                             ///< The BltBuffer and Delta  are not used in this mode.
-                            
+
   EfiUgaBltMax              ///< Maxmimum value for enumration value of Blt operation. If a Blt operation
                             ///< larger or equal to this enumration value, it is invalid.
 } EFI_UGA_BLT_OPERATION;
@@ -152,8 +146,8 @@ EFI_STATUS
   );
 
 ///
-/// This protocol provides a basic abstraction to set video modes and 
-/// copy pixels to and from the graphics controller's frame buffer. 
+/// This protocol provides a basic abstraction to set video modes and
+/// copy pixels to and from the graphics controller's frame buffer.
 ///
 struct _EFI_UGA_DRAW_PROTOCOL {
   EFI_UGA_DRAW_PROTOCOL_GET_MODE  GetMode;

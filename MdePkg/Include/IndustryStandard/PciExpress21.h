@@ -1,15 +1,9 @@
 /** @file
   Support for the latest PCI standard.
 
-  Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-  (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>  
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -17,6 +11,23 @@
 #define _PCIEXPRESS21_H_
 
 #include <IndustryStandard/Pci30.h>
+
+/**
+  Macro that converts PCI Bus, PCI Device, PCI Function and PCI Register to an
+  ECAM (Enhanced Configuration Access Mechanism) address. The unused upper bits
+  of Bus, Device, Function and Register are stripped prior to the generation of
+  the address.
+
+  @param  Bus       PCI Bus number. Range 0..255.
+  @param  Device    PCI Device number. Range 0..31.
+  @param  Function  PCI Function number. Range 0..7.
+  @param  Register  PCI Register number. Range 0..4095.
+
+  @return The encode ECAM address.
+
+**/
+#define PCI_ECAM_ADDRESS(Bus,Device,Function,Offset) \
+  (((Offset) & 0xfff) | (((Function) & 0x07) << 12) | (((Device) & 0x1f) << 15) | (((Bus) & 0xff) << 20))
 
 #pragma pack(1)
 ///
@@ -79,6 +90,24 @@ typedef union {
   } Bits;
   UINT16   Uint16;
 } PCI_REG_PCIE_DEVICE_CONTROL;
+
+#define PCIE_MAX_PAYLOAD_SIZE_128B   0
+#define PCIE_MAX_PAYLOAD_SIZE_256B   1
+#define PCIE_MAX_PAYLOAD_SIZE_512B   2
+#define PCIE_MAX_PAYLOAD_SIZE_1024B  3
+#define PCIE_MAX_PAYLOAD_SIZE_2048B  4
+#define PCIE_MAX_PAYLOAD_SIZE_4096B  5
+#define PCIE_MAX_PAYLOAD_SIZE_RVSD1  6
+#define PCIE_MAX_PAYLOAD_SIZE_RVSD2  7
+
+#define PCIE_MAX_READ_REQ_SIZE_128B    0
+#define PCIE_MAX_READ_REQ_SIZE_256B    1
+#define PCIE_MAX_READ_REQ_SIZE_512B    2
+#define PCIE_MAX_READ_REQ_SIZE_1024B   3
+#define PCIE_MAX_READ_REQ_SIZE_2048B   4
+#define PCIE_MAX_READ_REQ_SIZE_4096B   5
+#define PCIE_MAX_READ_REQ_SIZE_RVSD1   6
+#define PCIE_MAX_READ_REQ_SIZE_RVSD2   7
 
 typedef union {
   struct {
@@ -165,18 +194,18 @@ typedef union {
 
 typedef union {
   struct {
-    UINT32 AttentionButtonPressed : 1;
-    UINT32 PowerFaultDetected : 1;
-    UINT32 MrlSensorChanged : 1;
-    UINT32 PresenceDetectChanged : 1;
-    UINT32 CommandCompletedInterrupt : 1;
-    UINT32 HotPlugInterrupt : 1;
-    UINT32 AttentionIndicator : 2;
-    UINT32 PowerIndicator : 2;
-    UINT32 PowerController : 1;
-    UINT32 ElectromechanicalInterlock : 1;
-    UINT32 DataLinkLayerStateChanged : 1;
-    UINT32 Reserved : 3;
+    UINT16 AttentionButtonPressed : 1;
+    UINT16 PowerFaultDetected : 1;
+    UINT16 MrlSensorChanged : 1;
+    UINT16 PresenceDetectChanged : 1;
+    UINT16 CommandCompletedInterrupt : 1;
+    UINT16 HotPlugInterrupt : 1;
+    UINT16 AttentionIndicator : 2;
+    UINT16 PowerIndicator : 2;
+    UINT16 PowerController : 1;
+    UINT16 ElectromechanicalInterlock : 1;
+    UINT16 DataLinkLayerStateChanged : 1;
+    UINT16 Reserved : 3;
   } Bits;
   UINT16   Uint16;
 } PCI_REG_PCIE_SLOT_CONTROL;
@@ -239,15 +268,29 @@ typedef union {
     UINT32 NoRoEnabledPrPrPassing : 1;
     UINT32 LtrMechanism : 1;
     UINT32 TphCompleter : 2;
-    UINT32 Reserved : 4;
+    UINT32 LnSystemCLS : 2;
+    UINT32 TenBitTagCompleterSupported : 1;
+    UINT32 TenBitTagRequesterSupported : 1;
     UINT32 Obff : 2;
     UINT32 ExtendedFmtField : 1;
     UINT32 EndEndTlpPrefix : 1;
     UINT32 MaxEndEndTlpPrefixes : 2;
-    UINT32 Reserved2 : 8;
+    UINT32 EmergencyPowerReductionSupported : 2;
+    UINT32 EmergencyPowerReductionInitializationRequired : 1;
+    UINT32 Reserved3 : 4;
+    UINT32 FrsSupported : 1;
   } Bits;
   UINT32   Uint32;
 } PCI_REG_PCIE_DEVICE_CAPABILITY2;
+
+#define PCIE_COMPLETION_TIMEOUT_NOT_SUPPORTED           0
+#define PCIE_COMPLETION_TIMEOUT_RANGE_A_SUPPORTED       1
+#define PCIE_COMPLETION_TIMEOUT_RANGE_B_SUPPORTED       2
+#define PCIE_COMPLETION_TIMEOUT_RANGE_A_B_SUPPORTED     3
+#define PCIE_COMPLETION_TIMEOUT_RANGE_B_C_SUPPORTED     6
+#define PCIE_COMPLETION_TIMEOUT_RANGE_A_B_C_SUPPORTED   7
+#define PCIE_COMPLETION_TIMEOUT_RANGE_B_C_D_SUPPORTED   14
+#define PCIE_COMPLETION_TIMEOUT_RANGE_A_B_C_D_SUPPORTED 15
 
 #define PCIE_DEVICE_CAPABILITY_OBFF_MESSAGE BIT0
 #define PCIE_DEVICE_CAPABILITY_OBFF_WAKE    BIT1
@@ -261,8 +304,9 @@ typedef union {
     UINT16 AtomicOpEgressBlocking : 1;
     UINT16 IdoRequest : 1;
     UINT16 IdoCompletion : 1;
-    UINT16 LtrMechanism : 2;
-    UINT16 Reserved : 2;
+    UINT16 LtrMechanism : 1;
+    UINT16 EmergencyPowerReductionRequest : 1;
+    UINT16 TenBitTagRequesterEnable : 1;
     UINT16 Obff : 2;
     UINT16 EndEndTlpPrefixBlocking : 1;
   } Bits;

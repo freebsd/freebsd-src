@@ -3,13 +3,7 @@
   Management Protocol
 
   Copyright (c) 2013 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   GUIDs defined in UEFI 2.4 spec.
@@ -85,13 +79,22 @@ typedef struct {
   /// therefore can be modified without changing the Auth data.
   ///
   UINT64   UpdateHardwareInstance;
+
+  ///
+  /// A 64-bit bitmask that determines what sections are added to the payload.
+  /// #define CAPSULE_SUPPORT_AUTHENTICATION 0x0000000000000001
+  /// #define CAPSULE_SUPPORT_DEPENDENCY 0x0000000000000002
+  ///
+  UINT64   ImageCapsuleSupport;
 } EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER;
 
 #pragma pack()
 
 
 #define EFI_FIRMWARE_MANAGEMENT_CAPSULE_HEADER_INIT_VERSION       0x00000001
-#define EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER_INIT_VERSION 0x00000002
+#define EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER_INIT_VERSION 0x00000003
+#define CAPSULE_SUPPORT_AUTHENTICATION    0x0000000000000001
+#define CAPSULE_SUPPORT_DEPENDENCY        0x0000000000000002
 
 extern EFI_GUID gEfiFmpCapsuleGuid;
 

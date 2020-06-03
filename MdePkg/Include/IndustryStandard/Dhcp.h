@@ -3,13 +3,8 @@
   They are used to carry additional information and parameters in DHCP messages.
 
   Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef _DHCP_H_
@@ -272,11 +267,17 @@ typedef enum {
 #define PXE_CLIENT_ARCH_EBC              0x0009    /// EBC for PXE
 #define PXE_CLIENT_ARCH_ARM              0x000A    /// Arm uefi 32 for PXE
 #define PXE_CLIENT_ARCH_AARCH64          0x000B    /// Arm uefi 64 for PXE
+#define PXE_CLIENT_ARCH_RISCV32          0x0019    /// RISC-V uefi 32 for PXE
+#define PXE_CLIENT_ARCH_RISCV64          0x001B    /// RISC-V uefi 64 for PXE
+#define PXE_CLIENT_ARCH_RISCV128         0x001D    /// RISC-V uefi 128 for PXE
 
 #define HTTP_CLIENT_ARCH_IA32            0x000F    /// x86 uefi boot from http
 #define HTTP_CLIENT_ARCH_X64             0x0010    /// x64 uefi boot from http
 #define HTTP_CLIENT_ARCH_EBC             0x0011    /// EBC boot from http
 #define HTTP_CLIENT_ARCH_ARM             0x0012    /// Arm uefi 32 boot from http
 #define HTTP_CLIENT_ARCH_AARCH64         0x0013    /// Arm uefi 64 boot from http
+#define HTTP_CLIENT_ARCH_RISCV32         0x001A    /// RISC-V uefi 32 boot from http
+#define HTTP_CLIENT_ARCH_RISCV64         0x001C    /// RISC-V uefi 64 boot from http
+#define HTTP_CLIENT_ARCH_RISCV128        0x001E    /// RISC-V uefi 128 boot from http
 
 #endif

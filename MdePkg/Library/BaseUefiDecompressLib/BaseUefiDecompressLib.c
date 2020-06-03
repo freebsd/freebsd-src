@@ -1,24 +1,11 @@
 /** @file
   UEFI Decompress Library implementation refer to UEFI specification.
 
-  Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
   Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
-
-
-#include <Base.h>
-#include <Library/BaseLib.h>
-#include <Library/DebugLib.h>
-#include <Library/BaseMemoryLib.h>
-#include <Library/UefiDecompressLib.h>
 
 #include "BaseUefiDecompressLibInternals.h"
 
@@ -40,14 +27,14 @@ FillBuf (
   //
   // Left shift NumOfBits of bits in advance
   //
-  Sd->mBitBuf = (UINT32) (Sd->mBitBuf << NumOfBits);
+  Sd->mBitBuf = (UINT32) LShiftU64 (((UINT64)Sd->mBitBuf), NumOfBits);
 
   //
   // Copy data needed in bytes into mSbuBitBuf
   //
   while (NumOfBits > Sd->mBitCount) {
-
-    Sd->mBitBuf |= (UINT32) (Sd->mSubBitBuf << (NumOfBits = (UINT16) (NumOfBits - Sd->mBitCount)));
+    NumOfBits = (UINT16) (NumOfBits - Sd->mBitCount);
+    Sd->mBitBuf |= (UINT32) LShiftU64 (((UINT64)Sd->mSubBitBuf), NumOfBits);
 
     if (Sd->mCompSize > 0) {
       //
@@ -71,7 +58,7 @@ FillBuf (
   // Calculate additional bit count read to update mBitCount
   //
   Sd->mBitCount = (UINT16) (Sd->mBitCount - NumOfBits);
-  
+
   //
   // Copy NumOfBits of bits from mSubBitBuf into mBitBuf
   //
@@ -101,7 +88,7 @@ GetBits (
 
   //
   // Pop NumOfBits of Bits from Left
-  //  
+  //
   OutBits = (UINT32) (Sd->mBitBuf >> (BITBUFSIZ - NumOfBits));
 
   //
@@ -152,6 +139,7 @@ MakeTable (
   UINT16  Mask;
   UINT16  WordOfStart;
   UINT16  WordOfCount;
+  UINT16  MaxTableLength;
 
   //
   // The maximum mapping table width supported by this internal
@@ -164,9 +152,12 @@ MakeTable (
   }
 
   for (Index = 0; Index < NumOfChar; Index++) {
+    if (BitLen[Index] > 16) {
+      return (UINT16) BAD_TABLE;
+    }
     Count[BitLen[Index]]++;
   }
-  
+
   Start[0] = 0;
   Start[1] = 0;
 
@@ -182,7 +173,7 @@ MakeTable (
   }
 
   JuBits = (UINT16) (16 - TableBits);
-  
+
   Weight[0] = 0;
   for (Index = 1; Index <= TableBits; Index++) {
     Start[Index] >>= JuBits;
@@ -191,7 +182,7 @@ MakeTable (
 
   while (Index <= 16) {
     Weight[Index] = (UINT16) (1U << (16 - Index));
-    Index++;    
+    Index++;
   }
 
   Index = (UINT16) (Start[TableBits + 1] >> JuBits);
@@ -205,6 +196,7 @@ MakeTable (
 
   Avail = NumOfChar;
   Mask  = (UINT16) (1U << (15 - TableBits));
+  MaxTableLength = (UINT16) (1U << TableBits);
 
   for (Char = 0; Char < NumOfChar; Char++) {
 
@@ -216,6 +208,10 @@ MakeTable (
     NextCode = (UINT16) (Start[Len] + Weight[Len]);
 
     if (Len <= TableBits) {
+
+      if (Start[Len] >= NextCode || NextCode > MaxTableLength){
+        return (UINT16) BAD_TABLE;
+      }
 
       for (Index = Start[Len]; Index < NextCode; Index++) {
         Table[Index] = Char;
@@ -232,7 +228,7 @@ MakeTable (
           Sd->mRight[Avail] = Sd->mLeft[Avail] = 0;
           *Pointer = Avail++;
         }
-        
+
         if (*Pointer < (2 * NC - 1)) {
           if ((Index3 & Mask) != 0) {
             Pointer = &Sd->mRight[*Pointer];
@@ -335,7 +331,7 @@ ReadPTLen (
 
   ASSERT (nn <= NPT);
   //
-  // Read Extra Set Code Length Array size 
+  // Read Extra Set Code Length Array size
   //
   Number = (UINT16) GetBits (Sd, nbit);
 
@@ -360,7 +356,7 @@ ReadPTLen (
 
     //
     // If a code length is less than 7, then it is encoded as a 3-bit
-    // value. Or it is encoded as a series of "1"s followed by a 
+    // value. Or it is encoded as a series of "1"s followed by a
     // terminating "0". The number of "1"s = Code length - 4.
     //
     if (CharC == 7) {
@@ -370,15 +366,15 @@ ReadPTLen (
         CharC += 1;
       }
     }
-    
+
     FillBuf (Sd, (UINT16) ((CharC < 7) ? 3 : CharC - 3));
 
     Sd->mPTLen[Index++] = (UINT8) CharC;
- 
+
     //
-    // For Code&Len Set, 
+    // For Code&Len Set,
     // After the third length of the code length concatenation,
-    // a 2-bit value is used to indicated the number of consecutive 
+    // a 2-bit value is used to indicated the number of consecutive
     // zero lengths after the third length.
     //
     if (Index == Special) {
@@ -392,7 +388,7 @@ ReadPTLen (
   while (Index < nn && Index < NPT) {
     Sd->mPTLen[Index++] = 0;
   }
-  
+
   return MakeTable (Sd, nn, Sd->mPTLen, 8, Sd->mPTTable);
 }
 
@@ -504,7 +500,7 @@ DecodeC (
     //
     // Starting a new block
     // Read BlockSize from block header
-    // 
+    //
     Sd->mBlockSize    = (UINT16) GetBits (Sd, 16);
 
     //
@@ -581,7 +577,7 @@ Decode (
   for (;;) {
     //
     // Get one code from mBitBuf
-    // 
+    //
     CharC = DecodeC (Sd);
     if (Sd->mBadTableFlag != 0) {
       goto Done;
@@ -605,7 +601,7 @@ Decode (
       // Process a Pointer
       //
       CharC       = (UINT16) (CharC - (BIT8 - THRESHOLD));
- 
+
       //
       // Get string length
       //
@@ -620,13 +616,24 @@ Decode (
       // Write BytesRemain of bytes into mDstBase
       //
       BytesRemain--;
+
       while ((INT16) (BytesRemain) >= 0) {
-        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
         if (Sd->mOutBuf >= Sd->mOrigSize) {
           goto Done;
         }
+        if (DataIdx >= Sd->mOrigSize) {
+          Sd->mBadTableFlag = (UINT16) BAD_TABLE;
+          goto Done;
+        }
+        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
 
         BytesRemain--;
+      }
+      //
+      // Once mOutBuf is fully filled, directly return
+      //
+      if (Sd->mOutBuf >= Sd->mOrigSize) {
+        goto Done;
       }
     }
   }
@@ -636,18 +643,18 @@ Done:
 }
 
 /**
-  Given a compressed source buffer, this function retrieves the size of 
-  the uncompressed buffer and the size of the scratch buffer required 
+  Given a compressed source buffer, this function retrieves the size of
+  the uncompressed buffer and the size of the scratch buffer required
   to decompress the compressed source buffer.
 
-  Retrieves the size of the uncompressed buffer and the temporary scratch buffer 
+  Retrieves the size of the uncompressed buffer and the temporary scratch buffer
   required to decompress the buffer specified by Source and SourceSize.
   If the size of the uncompressed buffer or the size of the scratch buffer cannot
-  be determined from the compressed data specified by Source and SourceData, 
+  be determined from the compressed data specified by Source and SourceData,
   then RETURN_INVALID_PARAMETER is returned.  Otherwise, the size of the uncompressed
   buffer is returned in DestinationSize, the size of the scratch buffer is returned
   in ScratchSize, and RETURN_SUCCESS is returned.
-  This function does not have scratch buffer available to perform a thorough 
+  This function does not have scratch buffer available to perform a thorough
   checking of the validity of the source data.  It just retrieves the "Original Size"
   field from the beginning bytes of the source data and output it as DestinationSize.
   And ScratchSize is specific to the decompression implementation.
@@ -662,16 +669,16 @@ Done:
                           that will be generated when the compressed buffer specified
                           by Source and SourceSize is decompressed.
   @param  ScratchSize     A pointer to the size, in bytes, of the scratch buffer that
-                          is required to decompress the compressed buffer specified 
+                          is required to decompress the compressed buffer specified
                           by Source and SourceSize.
 
-  @retval  RETURN_SUCCESS The size of the uncompressed data was returned 
-                          in DestinationSize, and the size of the scratch 
+  @retval  RETURN_SUCCESS The size of the uncompressed data was returned
+                          in DestinationSize, and the size of the scratch
                           buffer was returned in ScratchSize.
-  @retval  RETURN_INVALID_PARAMETER 
-                          The size of the uncompressed data or the size of 
-                          the scratch buffer cannot be determined from 
-                          the compressed data specified by Source 
+  @retval  RETURN_INVALID_PARAMETER
+                          The size of the uncompressed data or the size of
+                          the scratch buffer cannot be determined from
+                          the compressed data specified by Source
                           and SourceSize.
 **/
 RETURN_STATUS
@@ -694,7 +701,7 @@ UefiDecompressGetInfo (
   }
 
   CompressedSize   = ReadUnaligned32 ((UINT32 *)Source);
-  if (SourceSize < (CompressedSize + 8)) {
+  if (SourceSize < (CompressedSize + 8) || (CompressedSize + 8) < 8) {
     return RETURN_INVALID_PARAMETER;
   }
 
@@ -710,35 +717,37 @@ UefiDecompressGetInfo (
   Extracts decompressed data to its original form.
   This function is designed so that the decompression algorithm can be implemented
   without using any memory services.  As a result, this function is not allowed to
-  call any memory allocation services in its implementation.  It is the caller's 
+  call any memory allocation services in its implementation.  It is the caller's
   responsibility to allocate and free the Destination and Scratch buffers.
-  If the compressed source data specified by Source is successfully decompressed 
-  into Destination, then RETURN_SUCCESS is returned.  If the compressed source data 
+  If the compressed source data specified by Source is successfully decompressed
+  into Destination, then RETURN_SUCCESS is returned.  If the compressed source data
   specified by Source is not in a valid compressed data format,
   then RETURN_INVALID_PARAMETER is returned.
 
   If Source is NULL, then ASSERT().
   If Destination is NULL, then ASSERT().
   If the required scratch buffer size > 0 and Scratch is NULL, then ASSERT().
+  If the Version is not 1 or 2, then ASSERT().
 
   @param  Source      The source buffer containing the compressed data.
   @param  Destination The destination buffer to store the decompressed data.
   @param  Scratch     A temporary scratch buffer that is used to perform the decompression.
-                      This is an optional parameter that may be NULL if the 
+                      This is an optional parameter that may be NULL if the
                       required scratch buffer size is 0.
-                     
-  @retval  RETURN_SUCCESS Decompression completed successfully, and 
+  @param  Version     1 for UEFI Decompress algoruthm, 2 for Tiano Decompess algorithm.
+
+  @retval  RETURN_SUCCESS Decompression completed successfully, and
                           the uncompressed buffer is returned in Destination.
-  @retval  RETURN_INVALID_PARAMETER 
-                          The source buffer specified by Source is corrupted 
+  @retval  RETURN_INVALID_PARAMETER
+                          The source buffer specified by Source is corrupted
                           (not in a valid compressed format).
 **/
 RETURN_STATUS
-EFIAPI
-UefiDecompress (
+UefiTianoDecompress (
   IN CONST VOID  *Source,
   IN OUT VOID    *Destination,
-  IN OUT VOID    *Scratch  OPTIONAL
+  IN OUT VOID    *Scratch,
+  IN UINT32      Version
   )
 {
   UINT32           CompSize;
@@ -750,6 +759,7 @@ UefiDecompress (
   ASSERT (Source != NULL);
   ASSERT (Destination != NULL);
   ASSERT (Scratch != NULL);
+  ASSERT (Version == 1 || Version == 2);
 
   Src     = Source;
   Dst     = Destination;
@@ -772,8 +782,18 @@ UefiDecompress (
   //
   // The length of the field 'Position Set Code Length Array Size' in Block Header.
   // For UEFI 2.0 de/compression algorithm(Version 1), mPBit = 4
+  // For Tiano de/compression algorithm(Version 2), mPBit = 5
   //
-  Sd->mPBit     = 4;
+  switch (Version) {
+    case 1 :
+      Sd->mPBit = 4;
+      break;
+    case 2 :
+      Sd->mPBit = 5;
+      break;
+    default:
+      ASSERT (FALSE);
+  }
   Sd->mSrcBase  = (UINT8 *)Src;
   Sd->mDstBase  = Dst;
   //
@@ -800,4 +820,44 @@ UefiDecompress (
   }
 
   return RETURN_SUCCESS;
+}
+
+/**
+  Decompresses a UEFI compressed source buffer.
+
+  Extracts decompressed data to its original form.
+  This function is designed so that the decompression algorithm can be implemented
+  without using any memory services.  As a result, this function is not allowed to
+  call any memory allocation services in its implementation.  It is the caller's
+  responsibility to allocate and free the Destination and Scratch buffers.
+  If the compressed source data specified by Source is successfully decompressed
+  into Destination, then RETURN_SUCCESS is returned.  If the compressed source data
+  specified by Source is not in a valid compressed data format,
+  then RETURN_INVALID_PARAMETER is returned.
+
+  If Source is NULL, then ASSERT().
+  If Destination is NULL, then ASSERT().
+  If the required scratch buffer size > 0 and Scratch is NULL, then ASSERT().
+
+  @param  Source      The source buffer containing the compressed data.
+  @param  Destination The destination buffer to store the decompressed data
+  @param  Scratch     A temporary scratch buffer that is used to perform the decompression.
+                      This is an optional parameter that may be NULL if the
+                      required scratch buffer size is 0.
+
+  @retval  RETURN_SUCCESS Decompression completed successfully, and
+                          the uncompressed buffer is returned in Destination.
+  @retval  RETURN_INVALID_PARAMETER
+                          The source buffer specified by Source is corrupted
+                          (not in a valid compressed format).
+**/
+RETURN_STATUS
+EFIAPI
+UefiDecompress (
+  IN CONST VOID  *Source,
+  IN OUT VOID    *Destination,
+  IN OUT VOID    *Scratch  OPTIONAL
+  )
+{
+  return UefiTianoDecompress (Source, Destination, Scratch, 1);
 }

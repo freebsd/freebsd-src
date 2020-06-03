@@ -3,14 +3,8 @@
 
   This ppi abstracts the blocking stall service to other agents.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -26,7 +20,7 @@
 typedef struct _EFI_PEI_STALL_PPI EFI_PEI_STALL_PPI;
 
 /**
-  The Stall() function provides a blocking stall for at least the number 
+  The Stall() function provides a blocking stall for at least the number
   of microseconds stipulated in the final argument of the API.
 
   @param  PeiServices    An indirect pointer to the PEI Services Table
@@ -46,7 +40,7 @@ EFI_STATUS
   );
 
 ///
-/// This service provides a simple, blocking stall with platform-specific resolution. 
+/// This service provides a simple, blocking stall with platform-specific resolution.
 ///
 struct _EFI_PEI_STALL_PPI {
   ///

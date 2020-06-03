@@ -1,17 +1,11 @@
 /** @file
-  If a GUID-defined section is encountered when doing section extraction, 
-  the PEI Foundation or the EFI_PEI_FILE_LOADER_PPI instance 
-  calls the appropriate instance of the GUIDed Section Extraction PPI 
-  to extract the section stream contained therein. 
+  If a GUID-defined section is encountered when doing section extraction,
+  the PEI Foundation or the EFI_PEI_FILE_LOADER_PPI instance
+  calls the appropriate instance of the GUIDed Section Extraction PPI
+  to extract the section stream contained therein.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -22,15 +16,15 @@
 #define __EFI_GUIDED_SECTION_EXTRACTION_PPI_H__
 
 //
-// Typically, protocol interface structures are identified 
-// by associating them with a GUID. Each instance of 
-// a protocol with a given GUID must have 
-// the same interface structure. While all instances of 
-// the GUIDed Section Extraction PPI must have 
-// the same interface structure, they do not all have 
-// te same GUID. The GUID that is associated with 
-// an instance of the GUIDed Section Extraction Protocol 
-// is used to correlate it with the GUIDed section type 
+// Typically, protocol interface structures are identified
+// by associating them with a GUID. Each instance of
+// a protocol with a given GUID must have
+// the same interface structure. While all instances of
+// the GUIDed Section Extraction PPI must have
+// the same interface structure, they do not all have
+// te same GUID. The GUID that is associated with
+// an instance of the GUIDed Section Extraction Protocol
+// is used to correlate it with the GUIDed section type
 // that it is intended to process.
 //
 
@@ -39,7 +33,7 @@ typedef struct _EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI   EFI_PEI_GUIDED_SECTION_E
 
 
 /**
-  Processes the input section and returns the data contained therein 
+  Processes the input section and returns the data contained therein
   along with the authentication status.
 
   The ExtractSection() function processes the input section and
@@ -70,7 +64,7 @@ typedef struct _EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI   EFI_PEI_GUIDED_SECTION_E
                                 reflect the status of the extraction operation.
                                 If the function returns anything other than EFI_SUCCESS,
                                 the value of *AuthenticationStatus is undefined.
-  
+
   @retval EFI_SUCCESS           The InputSection was successfully processed and the
                                 section contents were returned.
   @retval EFI_OUT_OF_RESOURCES  The system has insufficient resources to process the request.
@@ -93,7 +87,7 @@ EFI_STATUS
 /// calls the appropriate instance of the GUIDed Section
 /// Extraction PPI to extract the section stream contained
 /// therein.
-///  
+///
 struct _EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI {
   EFI_PEI_EXTRACT_GUIDED_SECTION ExtractSection;
 };

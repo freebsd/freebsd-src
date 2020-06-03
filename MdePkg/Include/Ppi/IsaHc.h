@@ -1,14 +1,8 @@
 /** @file
   This PPI opens or closes an I/O aperture in a ISA HOST controller.
 
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is from PI Version 1.2.1.
@@ -33,10 +27,10 @@ typedef struct _EFI_ISA_HC_PPI *PEFI_ISA_HC_PPI;
   addresses specified by IoAddress to IoAddress + IoLength - 1. It is possible
   that more than one caller may be assigned to the same aperture.
   It may be possible that a single hardware aperture may be used for more than
-  one device. This function tracks the number of times that each aperture is 
-  referenced, and doesa not close the hardware aperture (via CloseIoAperture())
+  one device. This function tracks the number of times that each aperture is
+  referenced, and does not close the hardware aperture (via CloseIoAperture())
   until there are no more references to it.
- 
+
   @param This             A pointer to this instance of the EFI_ISA_HC_PPI.
   @param IoAddress        An unsigned integer that specifies the first byte of
                           the I/O space required.
@@ -74,7 +68,7 @@ EFI_STATUS
                           call to OpenIoAperture().
 
   @retval EFI_SUCCESS   The I/O aperture was closed successfully.
-**/ 
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_PEI_ISA_HC_CLOSE_IO) (
@@ -116,4 +110,4 @@ struct _EFI_ISA_HC_PPI {
 
 extern EFI_GUID gEfiIsaHcPpiGuid;
 
-#endif 
+#endif

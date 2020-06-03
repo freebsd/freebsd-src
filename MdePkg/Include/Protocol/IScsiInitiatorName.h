@@ -1,15 +1,9 @@
 /** @file
   EFI_ISCSI_INITIATOR_NAME_PROTOCOL as defined in UEFI 2.0.
-  It provides the ability to get and set the iSCSI Initiator Name.                                                  
+  It provides the ability to get and set the iSCSI Initiator Name.
 
-  Copyright (c) 2006 - 2011, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -39,7 +33,7 @@ typedef struct _EFI_ISCSI_INITIATOR_NAME_PROTOCOL EFI_ISCSI_INITIATOR_NAME_PROTO
   @retval EFI_DEVICE_ERROR      The iSCSI initiator name could not be retrieved due to a hardware error.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_ISCSI_INITIATOR_NAME_GET)(
   IN EFI_ISCSI_INITIATOR_NAME_PROTOCOL *This,
@@ -47,7 +41,7 @@ EFI_STATUS
   OUT VOID                             *Buffer
   );
 
-  
+
 
 /**
   Sets the iSCSI Initiator Name.
@@ -71,10 +65,10 @@ typedef EFI_STATUS
   IN EFI_ISCSI_INITIATOR_NAME_PROTOCOL *This,
   IN OUT UINTN                         *BufferSize,
   IN VOID                              *Buffer
-  );  
+  );
 
 ///
-/// iSCSI Initiator Name Protocol for setting and obtaining the iSCSI Initiator Name. 
+/// iSCSI Initiator Name Protocol for setting and obtaining the iSCSI Initiator Name.
 ///
 struct _EFI_ISCSI_INITIATOR_NAME_PROTOCOL {
   EFI_ISCSI_INITIATOR_NAME_GET         Get;

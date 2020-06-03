@@ -2,13 +2,8 @@
   Declaration of internal functions in PE/COFF Lib.
 
   Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Portions Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -22,6 +17,14 @@
 #include <Library/PeCoffExtraActionLib.h>
 #include <IndustryStandard/PeImage.h>
 
+//
+// Macro definitions for RISC-V architecture.
+//
+#define RV_X(x, s, n) (((x) >> (s)) & ((1<<(n))-1))
+#define RISCV_IMM_BITS 12
+#define RISCV_IMM_REACH (1LL<<RISCV_IMM_BITS)
+#define RISCV_CONST_HIGH_PART(VALUE) \
+  (((VALUE) + (RISCV_IMM_REACH/2)) & ~(RISCV_IMM_REACH-1))
 
 
 /**

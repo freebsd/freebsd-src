@@ -4,27 +4,21 @@
   Abstracts security-specific functions from the DXE Foundation of UEFI Image Verification,
   Trusted Computing Group (TCG) measured boot, and User Identity policy for image loading and
   consoles. This protocol must be produced by a boot service or runtime DXE driver.
-  
+
   This protocol is optional and must be published prior to the EFI_SECURITY_ARCH_PROTOCOL.
   As a result, the same driver must publish both of these interfaces.
-  
+
   When both Security and Security2 Architectural Protocols are published, LoadImage must use
   them in accordance with the following rules:
     The Security2 protocol must be used on every image being loaded.
-    The Security protocol must be used after the Securiy2 protocol and only on images that 
+    The Security protocol must be used after the Securiy2 protocol and only on images that
     have been read using Firmware Volume protocol.
 
   When only Security architectural protocol is published, LoadImage must use it on every image
   being loaded.
 
-  Copyright (c) 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2012 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -36,7 +30,7 @@
 ///
 #define EFI_SECURITY2_ARCH_PROTOCOL_GUID \
   { 0x94ab2f58, 0x1438, 0x4ef1, {0x91, 0x52, 0x18, 0x94, 0x1a, 0x3a, 0x0e, 0x68 } }
-  
+
 typedef struct _EFI_SECURITY2_ARCH_PROTOCOL    EFI_SECURITY2_ARCH_PROTOCOL;
 
 /**
@@ -51,7 +45,7 @@ typedef struct _EFI_SECURITY2_ARCH_PROTOCOL    EFI_SECURITY2_ARCH_PROTOCOL;
   these cases.
   If the FileBuffer is NULL, the interface will determine if the DevicePath can be connected
   in order to support the User Identification policy.
-  
+
   @param  This             The EFI_SECURITY2_ARCH_PROTOCOL instance.
   @param  File             A pointer to the device path of the file that is
                            being dispatched. This will optionally be used for logging.
@@ -60,7 +54,7 @@ typedef struct _EFI_SECURITY2_ARCH_PROTOCOL    EFI_SECURITY2_ARCH_PROTOCOL;
   @param  BootPolicy       A boot policy that was used to call LoadImage() UEFI service. If
                            FileAuthentication() is invoked not from the LoadImage(),
                            BootPolicy must be set to FALSE.
-  
+
   @retval EFI_SUCCESS             The file specified by DevicePath and non-NULL
                                   FileBuffer did authenticate, and the platform policy dictates
                                   that the DXE Foundation may use the file.
@@ -84,9 +78,9 @@ typedef struct _EFI_SECURITY2_ARCH_PROTOCOL    EFI_SECURITY2_ARCH_PROTOCOL;
                                   drivers from the device path specified by DevicePath. The
                                   image has been added into the list of the deferred images.
 **/
-typedef EFI_STATUS (EFIAPI *EFI_SECURITY2_FILE_AUTHENTICATION) (  
+typedef EFI_STATUS (EFIAPI *EFI_SECURITY2_FILE_AUTHENTICATION) (
   IN CONST EFI_SECURITY2_ARCH_PROTOCOL *This,
-  IN CONST EFI_DEVICE_PATH_PROTOCOL    *DevicePath,
+  IN CONST EFI_DEVICE_PATH_PROTOCOL    *File, OPTIONAL
   IN VOID                              *FileBuffer,
   IN UINTN                             FileSize,
   IN BOOLEAN                           BootPolicy

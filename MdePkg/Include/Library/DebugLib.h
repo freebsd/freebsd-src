@@ -1,6 +1,6 @@
 /** @file
   Provides services to print debug and assert messages to a debug output device.
-  
+
   The Debug library supports debug print and asserts based on a combination of macros and code.
   The debug library can be turned on and off so that the debug code does not increase the size of an image.
 
@@ -8,14 +8,8 @@
   of size reduction when compiler optimization is disabled. If MDEPKG_NDEBUG is
   defined, then debug and assert related macros wrapped by it are the NULL implementations.
 
-Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2020, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -80,15 +74,15 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 /**
   Prints a debug message to the debug output device if the specified error level is enabled.
 
-  If any bit in ErrorLevel is also set in DebugPrintErrorLevelLib function 
-  GetDebugPrintErrorLevel (), then print the message specified by Format and the 
+  If any bit in ErrorLevel is also set in DebugPrintErrorLevelLib function
+  GetDebugPrintErrorLevel (), then print the message specified by Format and the
   associated variable argument list to the debug output device.
 
   If Format is NULL, then ASSERT().
 
   @param  ErrorLevel  The error level of the debug message.
   @param  Format      The format string for the debug message to print.
-  @param  ...         The variable argument list whose contents are accessed 
+  @param  ...         The variable argument list whose contents are accessed
                       based on the format string specified by Format.
 
 **/
@@ -102,14 +96,64 @@ DebugPrint (
 
 
 /**
-  Prints an assert message containing a filename, line number, and description.  
+  Prints a debug message to the debug output device if the specified
+  error level is enabled.
+
+  If any bit in ErrorLevel is also set in DebugPrintErrorLevelLib function
+  GetDebugPrintErrorLevel (), then print the message specified by Format and
+  the associated variable argument list to the debug output device.
+
+  If Format is NULL, then ASSERT().
+
+  @param  ErrorLevel    The error level of the debug message.
+  @param  Format        Format string for the debug message to print.
+  @param  VaListMarker  VA_LIST marker for the variable argument list.
+
+**/
+VOID
+EFIAPI
+DebugVPrint (
+  IN  UINTN         ErrorLevel,
+  IN  CONST CHAR8   *Format,
+  IN  VA_LIST       VaListMarker
+  );
+
+
+/**
+  Prints a debug message to the debug output device if the specified
+  error level is enabled.
+  This function use BASE_LIST which would provide a more compatible
+  service than VA_LIST.
+
+  If any bit in ErrorLevel is also set in DebugPrintErrorLevelLib function
+  GetDebugPrintErrorLevel (), then print the message specified by Format and
+  the associated variable argument list to the debug output device.
+
+  If Format is NULL, then ASSERT().
+
+  @param  ErrorLevel      The error level of the debug message.
+  @param  Format          Format string for the debug message to print.
+  @param  BaseListMarker  BASE_LIST marker for the variable argument list.
+
+**/
+VOID
+EFIAPI
+DebugBPrint (
+  IN  UINTN         ErrorLevel,
+  IN  CONST CHAR8   *Format,
+  IN  BASE_LIST     BaseListMarker
+  );
+
+
+/**
+  Prints an assert message containing a filename, line number, and description.
   This may be followed by a breakpoint or a dead loop.
 
   Print a message of the form "ASSERT <FileName>(<LineNumber>): <Description>\n"
-  to the debug output device.  If DEBUG_PROPERTY_ASSERT_BREAKPOINT_ENABLED bit of 
-  PcdDebugProperyMask is set then CpuBreakpoint() is called. Otherwise, if 
-  DEBUG_PROPERTY_ASSERT_DEADLOOP_ENABLED bit of PcdDebugProperyMask is set then 
-  CpuDeadLoop() is called.  If neither of these bits are set, then this function 
+  to the debug output device.  If DEBUG_PROPERTY_ASSERT_BREAKPOINT_ENABLED bit of
+  PcdDebugProperyMask is set then CpuBreakpoint() is called. Otherwise, if
+  DEBUG_PROPERTY_ASSERT_DEADLOOP_ENABLED bit of PcdDebugProperyMask is set then
+  CpuDeadLoop() is called.  If neither of these bits are set, then this function
   returns immediately after the message is printed to the debug output device.
   DebugAssert() must actively prevent recursion.  If DebugAssert() is called while
   processing another DebugAssert(), then DebugAssert() must return immediately.
@@ -134,14 +178,14 @@ DebugAssert (
 /**
   Fills a target buffer with PcdDebugClearMemoryValue, and returns the target buffer.
 
-  This function fills Length bytes of Buffer with the value specified by 
+  This function fills Length bytes of Buffer with the value specified by
   PcdDebugClearMemoryValue, and returns Buffer.
 
   If Buffer is NULL, then ASSERT().
-  If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   @param   Buffer  The pointer to the target buffer to be filled with PcdDebugClearMemoryValue.
-  @param   Length  The number of bytes in Buffer to fill with zeros PcdDebugClearMemoryValue. 
+  @param   Length  The number of bytes in Buffer to fill with zeros PcdDebugClearMemoryValue.
 
   @return  Buffer  The pointer to the target buffer filled with PcdDebugClearMemoryValue.
 
@@ -157,7 +201,7 @@ DebugClearMemory (
 /**
   Returns TRUE if ASSERT() macros are enabled.
 
-  This function returns TRUE if the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit of 
+  This function returns TRUE if the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit of
   PcdDebugProperyMask is set.  Otherwise, FALSE is returned.
 
   @retval  TRUE    The DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit of PcdDebugProperyMask is set.
@@ -171,10 +215,10 @@ DebugAssertEnabled (
   );
 
 
-/**  
+/**
   Returns TRUE if DEBUG() macros are enabled.
 
-  This function returns TRUE if the DEBUG_PROPERTY_DEBUG_PRINT_ENABLED bit of 
+  This function returns TRUE if the DEBUG_PROPERTY_DEBUG_PRINT_ENABLED bit of
   PcdDebugProperyMask is set.  Otherwise, FALSE is returned.
 
   @retval  TRUE    The DEBUG_PROPERTY_DEBUG_PRINT_ENABLED bit of PcdDebugProperyMask is set.
@@ -188,10 +232,10 @@ DebugPrintEnabled (
   );
 
 
-/**  
+/**
   Returns TRUE if DEBUG_CODE() macros are enabled.
 
-  This function returns TRUE if the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of 
+  This function returns TRUE if the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of
   PcdDebugProperyMask is set.  Otherwise, FALSE is returned.
 
   @retval  TRUE    The DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set.
@@ -205,10 +249,10 @@ DebugCodeEnabled (
   );
 
 
-/**  
+/**
   Returns TRUE if DEBUG_CLEAR_MEMORY() macro is enabled.
 
-  This function returns TRUE if the DEBUG_PROPERTY_CLEAR_MEMORY_ENABLED bit of 
+  This function returns TRUE if the DEBUG_PROPERTY_CLEAR_MEMORY_ENABLED bit of
   PcdDebugProperyMask is set.  Otherwise, FALSE is returned.
 
   @retval  TRUE    The DEBUG_PROPERTY_CLEAR_MEMORY_ENABLED bit of PcdDebugProperyMask is set.
@@ -236,7 +280,7 @@ DebugPrintLevelEnabled (
   IN  CONST UINTN        ErrorLevel
   );
 
-/**  
+/**
   Internal worker macro that calls DebugAssert().
 
   This macro calls DebugAssert(), passing in the filename, line number, and an
@@ -245,18 +289,22 @@ DebugPrintLevelEnabled (
   @param  Expression  Boolean expression that evaluated to FALSE
 
 **/
+#if defined(__clang__) && defined(__FILE_NAME__)
+#define _ASSERT(Expression)  DebugAssert (__FILE_NAME__, __LINE__, #Expression)
+#else
 #define _ASSERT(Expression)  DebugAssert (__FILE__, __LINE__, #Expression)
+#endif
 
 
-/**  
+/**
   Internal worker macro that calls DebugPrint().
 
-  This macro calls DebugPrint() passing in the debug error level, a format 
+  This macro calls DebugPrint() passing in the debug error level, a format
   string, and a variable argument list.
   __VA_ARGS__ is not supported by EBC compiler, Microsoft Visual Studio .NET 2003
   and Microsoft Windows Server 2003 Driver Development Kit (Microsoft WINDDK) version 3790.1830.
 
-  @param  Expression  Expression containing an error level, a format string, 
+  @param  Expression  Expression containing an error level, a format string,
                       and a variable argument list based on the format string.
 
 **/
@@ -273,19 +321,19 @@ DebugPrintLevelEnabled (
 #define _DEBUG(Expression)   DebugPrint Expression
 #endif
 
-/**  
+/**
   Macro that calls DebugAssert() if an expression evaluates to FALSE.
 
-  If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED 
-  bit of PcdDebugProperyMask is set, then this macro evaluates the Boolean 
-  expression specified by Expression.  If Expression evaluates to FALSE, then 
-  DebugAssert() is called passing in the source filename, source line number, 
+  If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED
+  bit of PcdDebugProperyMask is set, then this macro evaluates the Boolean
+  expression specified by Expression.  If Expression evaluates to FALSE, then
+  DebugAssert() is called passing in the source filename, source line number,
   and Expression.
 
   @param  Expression  Boolean expression.
 
 **/
-#if !defined(MDEPKG_NDEBUG)       
+#if !defined(MDEPKG_NDEBUG)
   #define ASSERT(Expression)        \
     do {                            \
       if (DebugAssertEnabled ()) {  \
@@ -299,19 +347,19 @@ DebugPrintLevelEnabled (
   #define ASSERT(Expression)
 #endif
 
-/**  
+/**
   Macro that calls DebugPrint().
 
-  If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_PRINT_ENABLED 
-  bit of PcdDebugProperyMask is set, then this macro passes Expression to 
+  If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_PRINT_ENABLED
+  bit of PcdDebugProperyMask is set, then this macro passes Expression to
   DebugPrint().
 
-  @param  Expression  Expression containing an error level, a format string, 
+  @param  Expression  Expression containing an error level, a format string,
                       and a variable argument list based on the format string.
-  
+
 
 **/
-#if !defined(MDEPKG_NDEBUG)      
+#if !defined(MDEPKG_NDEBUG)
   #define DEBUG(Expression)        \
     do {                           \
       if (DebugPrintEnabled ()) {  \
@@ -322,13 +370,13 @@ DebugPrintLevelEnabled (
   #define DEBUG(Expression)
 #endif
 
-/**  
+/**
   Macro that calls DebugAssert() if an EFI_STATUS evaluates to an error code.
 
-  If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED 
-  bit of PcdDebugProperyMask is set, then this macro evaluates the EFI_STATUS 
-  value specified by StatusParameter.  If StatusParameter is an error code, 
-  then DebugAssert() is called passing in the source filename, source line 
+  If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED
+  bit of PcdDebugProperyMask is set, then this macro evaluates the EFI_STATUS
+  value specified by StatusParameter.  If StatusParameter is an error code,
+  then DebugAssert() is called passing in the source filename, source line
   number, and StatusParameter.
 
   @param  StatusParameter  EFI_STATUS value to evaluate.
@@ -375,23 +423,23 @@ DebugPrintLevelEnabled (
   #define ASSERT_RETURN_ERROR(StatusParameter)
 #endif
 
-/**  
-  Macro that calls DebugAssert() if a protocol is already installed in the 
+/**
+  Macro that calls DebugAssert() if a protocol is already installed in the
   handle database.
 
-  If MDEPKG_NDEBUG is defined or the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit 
+  If MDEPKG_NDEBUG is defined or the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit
   of PcdDebugProperyMask is clear, then return.
 
-  If Handle is NULL, then a check is made to see if the protocol specified by Guid 
-  is present on any handle in the handle database.  If Handle is not NULL, then 
-  a check is made to see if the protocol specified by Guid is present on the 
-  handle specified by Handle.  If the check finds the protocol, then DebugAssert() 
+  If Handle is NULL, then a check is made to see if the protocol specified by Guid
+  is present on any handle in the handle database.  If Handle is not NULL, then
+  a check is made to see if the protocol specified by Guid is present on the
+  handle specified by Handle.  If the check finds the protocol, then DebugAssert()
   is called passing in the source filename, source line number, and Guid.
 
   If Guid is NULL, then ASSERT().
 
-  @param  Handle  The handle to check for the protocol.  This is an optional 
-                  parameter that may be NULL.  If it is NULL, then the entire 
+  @param  Handle  The handle to check for the protocol.  This is an optional
+                  parameter that may be NULL.  If it is NULL, then the entire
                   handle database is searched.
 
   @param  Guid    The pointer to a protocol GUID.
@@ -421,32 +469,32 @@ DebugPrintLevelEnabled (
 /**
   Macro that marks the beginning of debug source code.
 
-  If the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set, 
+  If the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set,
   then this macro marks the beginning of source code that is included in a module.
-  Otherwise, the source lines between DEBUG_CODE_BEGIN() and DEBUG_CODE_END() 
+  Otherwise, the source lines between DEBUG_CODE_BEGIN() and DEBUG_CODE_END()
   are not included in a module.
 
 **/
 #define DEBUG_CODE_BEGIN()  do { if (DebugCodeEnabled ()) { UINT8  __DebugCodeLocal
 
 
-/**  
+/**
   The macro that marks the end of debug source code.
 
-  If the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set, 
-  then this macro marks the end of source code that is included in a module.  
-  Otherwise, the source lines between DEBUG_CODE_BEGIN() and DEBUG_CODE_END() 
+  If the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set,
+  then this macro marks the end of source code that is included in a module.
+  Otherwise, the source lines between DEBUG_CODE_BEGIN() and DEBUG_CODE_END()
   are not included in a module.
 
 **/
 #define DEBUG_CODE_END()    __DebugCodeLocal = 0; __DebugCodeLocal++; } } while (FALSE)
 
 
-/**  
+/**
   The macro that declares a section of debug source code.
 
-  If the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set, 
-  then the source code specified by Expression is included in a module.  
+  If the DEBUG_PROPERTY_DEBUG_CODE_ENABLED bit of PcdDebugProperyMask is set,
+  then the source code specified by Expression is included in a module.
   Otherwise, the source specified by Expression is not included in a module.
 
 **/
@@ -456,10 +504,10 @@ DebugPrintLevelEnabled (
   DEBUG_CODE_END ()
 
 
-/**  
+/**
   The macro that calls DebugClearMemory() to clear a buffer to a default value.
 
-  If the DEBUG_PROPERTY_CLEAR_MEMORY_ENABLED bit of PcdDebugProperyMask is set, 
+  If the DEBUG_PROPERTY_CLEAR_MEMORY_ENABLED bit of PcdDebugProperyMask is set,
   then this macro calls DebugClearMemory() passing in Address and Length.
 
   @param  Address  The pointer to a buffer.
@@ -475,42 +523,42 @@ DebugPrintLevelEnabled (
 
 
 /**
-  Macro that calls DebugAssert() if the containing record does not have a 
-  matching signature.  If the signatures matches, then a pointer to the data 
-  structure that contains a specified field of that data structure is returned.  
-  This is a lightweight method hide information by placing a public data 
-  structure inside a larger private data structure and using a pointer to the 
+  Macro that calls DebugAssert() if the containing record does not have a
+  matching signature.  If the signatures matches, then a pointer to the data
+  structure that contains a specified field of that data structure is returned.
+  This is a lightweight method hide information by placing a public data
+  structure inside a larger private data structure and using a pointer to the
   public data structure to retrieve a pointer to the private data structure.
 
-  If MDEPKG_NDEBUG is defined or the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit 
+  If MDEPKG_NDEBUG is defined or the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit
   of PcdDebugProperyMask is clear, then this macro computes the offset, in bytes,
-  of the field specified by Field from the beginning of the data structure specified 
-  by TYPE.  This offset is subtracted from Record, and is used to return a pointer 
+  of the field specified by Field from the beginning of the data structure specified
+  by TYPE.  This offset is subtracted from Record, and is used to return a pointer
   to a data structure of the type specified by TYPE.
 
   If MDEPKG_NDEBUG is not defined and the DEBUG_PROPERTY_DEBUG_ASSERT_ENABLED bit
-  of PcdDebugProperyMask is set, then this macro computes the offset, in bytes, 
-  of field specified by Field from the beginning of the data structure specified 
+  of PcdDebugProperyMask is set, then this macro computes the offset, in bytes,
+  of field specified by Field from the beginning of the data structure specified
   by TYPE.  This offset is subtracted from Record, and is used to compute a pointer
-  to a data structure of the type specified by TYPE.  The Signature field of the 
-  data structure specified by TYPE is compared to TestSignature.  If the signatures 
-  match, then a pointer to the pointer to a data structure of the type specified by 
-  TYPE is returned.  If the signatures do not match, then DebugAssert() is called 
-  with a description of "CR has a bad signature" and Record is returned.  
+  to a data structure of the type specified by TYPE.  The Signature field of the
+  data structure specified by TYPE is compared to TestSignature.  If the signatures
+  match, then a pointer to the pointer to a data structure of the type specified by
+  TYPE is returned.  If the signatures do not match, then DebugAssert() is called
+  with a description of "CR has a bad signature" and Record is returned.
 
-  If the data type specified by TYPE does not contain the field specified by Field, 
+  If the data type specified by TYPE does not contain the field specified by Field,
   then the module will not compile.
 
-  If TYPE does not contain a field called Signature, then the module will not 
+  If TYPE does not contain a field called Signature, then the module will not
   compile.
 
-  @param  Record         The pointer to the field specified by Field within a data 
+  @param  Record         The pointer to the field specified by Field within a data
                          structure of type TYPE.
 
-  @param  TYPE           The name of the data structure type to return  This 
-                         data structure must contain the field specified by Field. 
+  @param  TYPE           The name of the data structure type to return  This
+                         data structure must contain the field specified by Field.
 
-  @param  Field          The name of the field in the data structure specified 
+  @param  Field          The name of the field in the data structure specified
                          by TYPE to which Record points.
 
   @param  TestSignature  The 32-bit signature value to match.
@@ -525,5 +573,5 @@ DebugPrintLevelEnabled (
   #define CR(Record, TYPE, Field, TestSignature)                                              \
     BASE_CR (Record, TYPE, Field)
 #endif
-    
+
 #endif

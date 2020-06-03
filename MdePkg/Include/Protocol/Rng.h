@@ -1,16 +1,10 @@
 /** @file
   EFI_RNG_PROTOCOL as defined in UEFI 2.4.
-  The UEFI Random Number Generator Protocol is used to provide random bits for use 
+  The UEFI Random Number Generator Protocol is used to provide random bits for use
   in applications, or entropy for seeding other random number generators.
 
-Copyright (c) 2013, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under
-the terms and conditions of the BSD License that accompanies this distribution.
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -29,7 +23,7 @@ typedef struct _EFI_RNG_PROTOCOL EFI_RNG_PROTOCOL;
 
 ///
 /// A selection of EFI_RNG_PROTOCOL algorithms.
-/// The algorithms listed are optional, not meant to be exhaustive and be argmented by 
+/// The algorithms listed are optional, not meant to be exhaustive and be argmented by
 /// vendors or other industry standards.
 ///
 
@@ -78,7 +72,7 @@ typedef EFI_GUID EFI_RNG_ALGORITHM;
   Returns information about the random number generation implementation.
 
   @param[in]     This                 A pointer to the EFI_RNG_PROTOCOL instance.
-  @param[in,out] RNGAlgorithmListSize On input, the size in bytes of RNGAlgorithmList. 
+  @param[in,out] RNGAlgorithmListSize On input, the size in bytes of RNGAlgorithmList.
                                       On output with a return code of EFI_SUCCESS, the size
                                       in bytes of the data returned in RNGAlgorithmList. On output
                                       with a return code of EFI_BUFFER_TOO_SMALL,
@@ -137,7 +131,7 @@ EFI_STATUS
   );
 
 ///
-/// The Random Number Generator (RNG) protocol provides random bits for use in 
+/// The Random Number Generator (RNG) protocol provides random bits for use in
 /// applications, or entropy for seeding other random number generators.
 ///
 struct _EFI_RNG_PROTOCOL {

@@ -13,13 +13,7 @@
   be responsible to call the services to register information to SMM Core.
 
 Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -66,6 +60,10 @@ SmiHandlerProfileRegisterHandler (
                          For the SmmChildDispatch protocol, the HandlerGuid
                          must be the GUID of SmmChildDispatch protocol.
   @param Handler         The SMI handler.
+  @param Context         The context of the SMI handler.
+                         If it is NOT NULL, it will be used to check what is registered.
+  @param ContextSize     The size of the context in bytes.
+                         If Context is NOT NULL, it will be used to check what is registered.
 
   @retval EFI_SUCCESS           The original record is removed.
   @retval EFI_UNSUPPORTED       The feature is unsupported.
@@ -75,7 +73,9 @@ EFI_STATUS
 EFIAPI
 SmiHandlerProfileUnregisterHandler (
   IN EFI_GUID                       *HandlerGuid,
-  IN EFI_SMM_HANDLER_ENTRY_POINT2   Handler
+  IN EFI_SMM_HANDLER_ENTRY_POINT2   Handler,
+  IN VOID                           *Context, OPTIONAL
+  IN UINTN                          ContextSize OPTIONAL
   );
 
 #endif

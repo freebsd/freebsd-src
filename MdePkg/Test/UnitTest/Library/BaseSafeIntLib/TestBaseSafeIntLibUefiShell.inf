@@ -1,0 +1,42 @@
+## @file
+# UEFI Shell based Application that Unit Tests the SafeIntLib
+#
+# Copyright (c) Microsoft Corporation.<BR>
+# Copyright (c) 2019 - 2020, Intel Corporation. All rights reserved.<BR>
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION     = 0x00010005
+  BASE_NAME       = TestBaseSafeIntLibUefiShell
+  MODULE_UNI_FILE = TestBaseSafeIntLib.uni
+  FILE_GUID       = 1F91B73E-5B6A-4317-80E8-E7C36A3C7AF4
+  MODULE_TYPE     = UEFI_APPLICATION
+  VERSION_STRING  = 1.0
+  ENTRY_POINT     = DxeEntryPoint
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  TestBaseSafeIntLib.c
+  TestBaseSafeIntLib.h
+
+[Sources.Ia32, Sources.ARM]
+  SafeIntLibUintnIntnUnitTests32.c
+
+[Sources.X64, Sources.AARCH64]
+  SafeIntLibUintnIntnUnitTests64.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  BaseLib
+  DebugLib
+  SafeIntLib
+  UnitTestLib

@@ -1,0 +1,16 @@
+// /** @file
+// Instance of Base PCI Segment Library that support multi-segment PCI configuration access.
+
+// PCI Segment Library that consumes segment information provided by PciSegmentInfoLib to
+//  support multi-segment PCI configuration access through enhanced configuration access mechanism.
+//
+// Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Instance of Base PCI Segment Library that support multi-segment PCI configuration access."
+
+#string STR_MODULE_DESCRIPTION          #language en-US "PCI Segment Library that consumes segment information provided by PciSegmentInfoLib to support multi-segment PCI configuration access through enhanced configuration access mechanism."

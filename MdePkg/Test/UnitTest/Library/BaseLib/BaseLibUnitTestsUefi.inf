@@ -1,0 +1,33 @@
+## @file
+# Unit tests of Base64 conversion APIs in BaseLib that are run from UEFI Shell.
+#
+# Copyright (C) Microsoft Corporation.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010006
+  BASE_NAME                      = BaseLibUnitTestsUefi
+  FILE_GUID                      = df5a6fed-8786-4a9d-9d02-eab39497b4a1
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = BaseLibUnitTestAppEntry
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  Base64UnitTest.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  UefiApplicationEntryPoint
+  DebugLib
+  UnitTestLib

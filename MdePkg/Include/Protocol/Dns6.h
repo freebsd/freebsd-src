@@ -4,14 +4,8 @@
   DNSv6 Service Binding Protocol (DNSv6SB)
   DNSv6 Protocol (DNSv6)
 
-  Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.5
@@ -49,8 +43,8 @@ typedef struct {
   ///
   UINT8                         Protocol;
   ///
-  /// The local IP address to use. Set to zero to let the underlying IPv6 
-  /// driver choose a source address. If not zero it must be one of the 
+  /// The local IP address to use. Set to zero to let the underlying IPv6
+  /// driver choose a source address. If not zero it must be one of the
   /// configured IP addresses in the underlying IPv6 driver.
   ///
   EFI_IPv6_ADDRESS              StationIp;
@@ -59,23 +53,23 @@ typedef struct {
   ///
   UINT16                        LocalPort;
   ///
-  /// Count of the DNS servers. When used with GetModeData(), 
-  /// this field is the count of originally configured servers when 
-  /// Configure() was called for this instance. When used with 
-  /// Configure() this is the count of caller-supplied servers. If the 
-  /// DnsServerListCount is zero, the DNS server configuration 
+  /// Count of the DNS servers. When used with GetModeData(),
+  /// this field is the count of originally configured servers when
+  /// Configure() was called for this instance. When used with
+  /// Configure() this is the count of caller-supplied servers. If the
+  /// DnsServerListCount is zero, the DNS server configuration
   /// will be retrieved from DHCP server automatically.
   ///
   UINT32                        DnsServerCount;
   ///
   /// Pointer to DNS server list containing DnsServerListCount
-  /// entries or NULL if DnsServerListCount is 0. For Configure(), 
-  /// this will be NULL when there are no caller supplied server addresses 
-  /// and the DNS instance will retrieve DNS server from DHCP Server. 
-  /// The provided DNS server list is recommended to be filled up in the sequence 
-  /// of preference. When used with GetModeData(), the buffer containing the list 
-  /// will be allocated by the driver implementing this protocol and must be 
-  /// freed by the caller. When used with Configure(), the buffer 
+  /// entries or NULL if DnsServerListCount is 0. For Configure(),
+  /// this will be NULL when there are no caller supplied server addresses
+  /// and the DNS instance will retrieve DNS server from DHCP Server.
+  /// The provided DNS server list is recommended to be filled up in the sequence
+  /// of preference. When used with GetModeData(), the buffer containing the list
+  /// will be allocated by the driver implementing this protocol and must be
+  /// freed by the caller. When used with Configure(), the buffer
   /// containing the list will be allocated and released by the caller.
   ///
   EFI_IPv6_ADDRESS              *DnsServerList;
@@ -121,21 +115,21 @@ typedef struct {
   ///
   /// Number of configured DNS6 servers.
   ///
-  UINT32               	        DnsServerCount;
+  UINT32                         DnsServerCount;
   ///
-  /// Pointer to common list of addresses of all configured DNS server used by EFI_DNS6_PROTOCOL 
-  /// instances. List will include DNS servers configured by this or any other EFI_DNS6_PROTOCOL 
-  /// instance. The storage for this list is allocated by the driver publishing this protocol, 
+  /// Pointer to common list of addresses of all configured DNS server used by EFI_DNS6_PROTOCOL
+  /// instances. List will include DNS servers configured by this or any other EFI_DNS6_PROTOCOL
+  /// instance. The storage for this list is allocated by the driver publishing this protocol,
   /// and must be freed by the caller.
   ///
-  EFI_IPv6_ADDRESS     	        *DnsServerList;
+  EFI_IPv6_ADDRESS               *DnsServerList;
   ///
   /// Number of DNS Cache entries. The DNS Cache is shared among all DNS instances.
   ///
   UINT32                        DnsCacheCount;
   ///
-  /// Pointer to a buffer containing DnsCacheCount DNS Cache 
-  /// entry structures. The storage for thislist is allocated by the driver 
+  /// Pointer to a buffer containing DnsCacheCount DNS Cache
+  /// entry structures. The storage for thislist is allocated by the driver
   /// publishing this protocol and must be freed by caller.
   ///
   EFI_DNS6_CACHE_ENTRY          *DnsCacheList;
@@ -272,7 +266,7 @@ typedef struct {
   This function is used to retrieve DNS mode data for this DNS instance.
 
   @param[in]   This                Pointer to EFI_DNS6_PROTOCOL instance.
-  @param[out]  DnsModeData         Pointer to the caller-allocated storage for the 
+  @param[out]  DnsModeData         Pointer to the caller-allocated storage for the
                                    EFI_DNS6_MODE_DATA data.
 
   @retval EFI_SUCCESS             The operation completed successfully.
@@ -296,7 +290,7 @@ EFI_STATUS
   EFI DNSv6 Protocol driver instance. Reset the DNS instance if DnsConfigData is NULL.
 
   @param[in]  This                Pointer to EFI_DNS6_PROTOCOL instance.
-  @param[in]  DnsConfigData       Pointer to the configuration data structure. All associated 
+  @param[in]  DnsConfigData       Pointer to the configuration data structure. All associated
                                   storage to be allocated and released by caller.
 
   @retval EFI_SUCCESS             The operation completed successfully.
@@ -308,8 +302,8 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR        An unexpected system or network error occurred. The
                                   EFI DNSv6 Protocol instance is not configured.
   @retval EFI_UNSUPPORTED         The designated protocol is not supported.
-  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To 
-                                  reconfigure the instance the caller must call Configure() with 
+  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To
+                                  reconfigure the instance the caller must call Configure() with
                                   NULL first to return driver to unconfigured state.
 **/
 typedef

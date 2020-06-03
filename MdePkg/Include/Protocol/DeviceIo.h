@@ -4,14 +4,8 @@
   Device IO is used to abstract hardware access to devices. It includes
   memory mapped IO, IO, PCI Config space, and DMA.
 
-  Copyright (c) 2006 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -27,16 +21,16 @@ typedef struct _EFI_DEVICE_IO_PROTOCOL EFI_DEVICE_IO_PROTOCOL;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
-/// 
+///
 #define DEVICE_IO_PROTOCOL  EFI_DEVICE_IO_PROTOCOL_GUID
 
 ///
 /// Protocol defined in EFI1.1.
-/// 
+///
 typedef EFI_DEVICE_IO_PROTOCOL  EFI_DEVICE_IO_INTERFACE;
 
 ///
-/// Device IO Access Width 
+/// Device IO Access Width
 ///
 typedef enum {
   IO_UINT8  = 0,
@@ -44,7 +38,7 @@ typedef enum {
   IO_UINT32 = 2,
   IO_UINT64 = 3,
   //
-  // Below enumerations are added in "Extensible Firmware Interface Specification, 
+  // Below enumerations are added in "Extensible Firmware Interface Specification,
   // Version 1.10, Specification Update, Version 001".
   //
   MMIO_COPY_UINT8  = 4,
@@ -53,23 +47,23 @@ typedef enum {
   MMIO_COPY_UINT64 = 7
 } EFI_IO_WIDTH;
 
-/**                                                                 
+/**
   Enables a driver to access device registers in the appropriate memory or I/O space.
-    
+
   @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
-  @param  Width                 Signifies the width of the I/O operations.                                                                   
-  @param  Address               The base address of the I/O operations. 
+  @param  Width                 Signifies the width of the I/O operations.
+  @param  Address               The base address of the I/O operations.
   @param  Count                 The number of I/O operations to perform.
   @param  Buffer                For read operations, the destination buffer to store the results. For write
                                 operations, the source buffer to write data from. If
                                 Width is MMIO_COPY_UINT8, MMIO_COPY_UINT16,
                                 MMIO_COPY_UINT32, or MMIO_COPY_UINT64, then
-                                Buffer is interpreted as a base address of an I/O operation such as Address. 
+                                Buffer is interpreted as a base address of an I/O operation such as Address.
 
   @retval EFI_SUCCESS           The data was read from or written to the device.
-  @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.      
+  @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
   @retval EFI_INVALID_PARAMETER Width is invalid.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -86,19 +80,19 @@ typedef struct {
   EFI_DEVICE_IO Write;
 } EFI_IO_ACCESS;
 
-/**                                                                 
+/**
   Provides an EFI Device Path for a PCI device with the given PCI configuration space address.
-    
+
   @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
   @param  PciAddress            The PCI configuration space address of the device whose Device Path
-                                is going to be returned.  
+                                is going to be returned.
   @param  PciDevicePath         A pointer to the pointer for the EFI Device Path for PciAddress.
-                                Memory for the Device Path is allocated from the pool.          
+                                Memory for the Device Path is allocated from the pool.
 
   @retval EFI_SUCCESS           The PciDevicePath returns a pointer to a valid EFI Device Path.
-  @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.      
+  @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
   @retval EFI_UNSUPPORTED       The PciAddress does not map to a valid EFI Device Path.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -118,7 +112,7 @@ typedef enum {
   /// A write operation to system memory by a bus master.
   ///
   EfiBusMasterWrite,
-  
+
   ///
   /// Provides both read and write access to system memory
   /// by both the processor and a bus master. The buffer is
@@ -128,9 +122,9 @@ typedef enum {
   EfiBusMasterCommonBuffer
 } EFI_IO_OPERATION_TYPE;
 
-/**                                                                 
+/**
   Provides the device-specific addresses needed to access system memory.
-    
+
   @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
   @param  Operation             Indicates if the bus master is going to read or write to system memory.
   @param  HostAddress           The system memory address to map to the device.
@@ -141,11 +135,11 @@ typedef enum {
   @param  Mapping               A resulting value to pass to Unmap().
 
   @retval EFI_SUCCESS           The range was mapped for the returned NumberOfBytes.
-  @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.      
+  @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
   @retval EFI_UNSUPPORTED       The HostAddress cannot be mapped as a common buffer.
   @retval EFI_INVALID_PARAMETER The Operation or HostAddress is undefined.
   @retval EFI_DEVICE_ERROR      The system hardware could not map the requested address.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -158,15 +152,15 @@ EFI_STATUS
   OUT VOID                            **Mapping
   );
 
-/**                                                                 
+/**
   Completes the Map() operation and releases any corresponding resources.
-    
+
   @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
   @param  Mapping               A resulting value to pass to Unmap().
 
   @retval EFI_SUCCESS           The range was mapped for the returned NumberOfBytes.
   @retval EFI_DEVICE_ERROR      The system hardware could not map the requested address.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -175,22 +169,22 @@ EFI_STATUS
   IN VOID                             *Mapping
   );
 
-/**                                                                 
+/**
   Allocates pages that are suitable for an EFIBusMasterCommonBuffer mapping.
-    
+
   @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
   @param  Type                  The type allocation to perform.
   @param  MemoryType            The type of memory to allocate, EfiBootServicesData or
                                 EfiRuntimeServicesData.
   @param  Pages                 The number of pages to allocate.
-  @param  HostAddress           A pointer to store the base address of the allocated range.                                
+  @param  HostAddress           A pointer to store the base address of the allocated range.
 
   @retval EFI_SUCCESS           The requested memory pages were allocated.
   @retval EFI_OUT_OF_RESOURCES  The memory pages could not be allocated.
   @retval EFI_INVALID_PARAMETER The requested memory type is invalid.
   @retval EFI_UNSUPPORTED       The requested HostAddress is not supported on
-                                this platform.                               
-                                   
+                                this platform.
+
 **/
 typedef
 EFI_STATUS
@@ -202,14 +196,14 @@ EFI_STATUS
   IN OUT EFI_PHYSICAL_ADDRESS         *HostAddress
   );
 
-/**                                                                 
+/**
   Flushes any posted write data to the device.
-    
+
   @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
 
   @retval EFI_SUCCESS           The buffers were flushed.
-  @retval EFI_DEVICE_ERROR      The buffers were not flushed due to a hardware error.                                 
-  
+  @retval EFI_DEVICE_ERROR      The buffers were not flushed due to a hardware error.
+
 **/
 typedef
 EFI_STATUS
@@ -217,18 +211,18 @@ EFI_STATUS
   IN EFI_DEVICE_IO_PROTOCOL  *This
   );
 
-/**                                                                 
+/**
   Frees pages that were allocated with AllocateBuffer().
-    
-  @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.  
+
+  @param  This                  A pointer to the EFI_DEVICE_IO_INTERFACE instance.
   @param  Pages                 The number of pages to free.
   @param  HostAddress           The base address of the range to free.
 
   @retval EFI_SUCCESS           The requested memory pages were allocated.
   @retval EFI_NOT_FOUND         The requested memory pages were not allocated with
-                                AllocateBuffer().  
+                                AllocateBuffer().
   @retval EFI_INVALID_PARAMETER HostAddress is not page aligned or Pages is invalid.
-  
+
 **/
 typedef
 EFI_STATUS
@@ -239,7 +233,7 @@ EFI_STATUS
   );
 
 ///
-/// This protocol provides the basic Memory, I/O, and PCI interfaces that 
+/// This protocol provides the basic Memory, I/O, and PCI interfaces that
 /// are used to abstract accesses to devices.
 ///
 struct _EFI_DEVICE_IO_PROTOCOL {

@@ -2,14 +2,8 @@
   TCG Service Protocol as defined in TCG_EFI_Protocol_1_22_Final
   See http://trustedcomputinggroup.org for the latest specification
 
-Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -19,7 +13,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #include <IndustryStandard/UefiTcgPlatform.h>
 
 #define EFI_TCG_PROTOCOL_GUID  \
-  {0xf541796d, 0xa62e, 0x4954, { 0xa7, 0x75, 0x95, 0x84, 0xf6, 0x1b, 0x9c, 0xdd } } 
+  {0xf541796d, 0xa62e, 0x4954, { 0xa7, 0x75, 0x95, 0x84, 0xf6, 0x1b, 0x9c, 0xdd } }
 
 typedef struct _EFI_TCG_PROTOCOL EFI_TCG_PROTOCOL;
 
@@ -32,9 +26,9 @@ typedef struct {
 
 typedef struct _TCG_EFI_BOOT_SERVICE_CAPABILITY {
   UINT8          Size;                /// Size of this structure.
-  TCG_VERSION    StructureVersion;    
+  TCG_VERSION    StructureVersion;
   TCG_VERSION    ProtocolSpecVersion;
-  UINT8          HashAlgorithmBitmap; /// Hash algorithms . 
+  UINT8          HashAlgorithmBitmap; /// Hash algorithms .
                                       /// This protocol is capable of : 01=SHA-1.
   BOOLEAN        TPMPresentFlag;      /// 00h = TPM not present.
   BOOLEAN        TPMDeactivatedFlag;  /// 01h = TPM currently deactivated.
@@ -43,22 +37,22 @@ typedef struct _TCG_EFI_BOOT_SERVICE_CAPABILITY {
 typedef UINT32   TCG_ALGORITHM_ID;
 
 /**
-  This service provides EFI protocol capability information, state information 
+  This service provides EFI protocol capability information, state information
   about the TPM, and Event Log state information.
 
   @param  This                   Indicates the calling context
-  @param  ProtocolCapability     The callee allocates memory for a TCG_BOOT_SERVICE_CAPABILITY 
-                                 structure and fills in the fields with the EFI protocol 
+  @param  ProtocolCapability     The callee allocates memory for a TCG_BOOT_SERVICE_CAPABILITY
+                                 structure and fills in the fields with the EFI protocol
                                  capability information and the current TPM state information.
-  @param  TCGFeatureFlags        This is a pointer to the feature flags. No feature 
-                                 flags are currently defined so this parameter 
-                                 MUST be set to 0. However, in the future, 
-                                 feature flags may be defined that, for example, 
+  @param  TCGFeatureFlags        This is a pointer to the feature flags. No feature
+                                 flags are currently defined so this parameter
+                                 MUST be set to 0. However, in the future,
+                                 feature flags may be defined that, for example,
                                  enable hash algorithm agility.
   @param  EventLogLocation       This is a pointer to the address of the event log in memory.
-  @param  EventLogLastEntry      If the Event Log contains more than one entry, 
-                                 this is a pointer to the address of the start of 
-                                 the last entry in the event log in memory. 
+  @param  EventLogLastEntry      If the Event Log contains more than one entry,
+                                 this is a pointer to the address of the start of
+                                 the last entry in the event log in memory.
 
   @retval EFI_SUCCESS            The operation completed successfully.
   @retval EFI_INVALID_PARAMETER  ProtocolCapability does not match TCG capability.
@@ -76,14 +70,14 @@ EFI_STATUS
 
 /**
   This service abstracts the capability to do a hash operation on a data buffer.
-  
+
   @param  This                   Indicates the calling context.
   @param  HashData               The pointer to the data buffer to be hashed.
   @param  HashDataLen            The length of the data buffer to be hashed.
   @param  AlgorithmId            Identification of the Algorithm to use for the hashing operation.
   @param  HashedDataLen          Resultant length of the hashed data.
   @param  HashedDataResult       Resultant buffer of the hashed data.
-  
+
   @retval EFI_SUCCESS            The operation completed successfully.
   @retval EFI_INVALID_PARAMETER  HashDataLen is NULL.
   @retval EFI_INVALID_PARAMETER  HashDataLenResult is NULL.
@@ -106,15 +100,15 @@ EFI_STATUS
   This service abstracts the capability to add an entry to the Event Log.
 
   @param  This                   Indicates the calling context
-  @param  TCGLogData             The pointer to the start of the data buffer containing 
-                                 the TCG_PCR_EVENT data structure. All fields in 
+  @param  TCGLogData             The pointer to the start of the data buffer containing
+                                 the TCG_PCR_EVENT data structure. All fields in
                                  this structure are properly filled by the caller.
   @param  EventNumber            The event number of the event just logged.
-  @param  Flags                  Indicates additional flags. Only one flag has been 
-                                 defined at this time, which is 0x01 and means the 
-                                 extend operation should not be performed. All 
-                                 other bits are reserved. 
- 
+  @param  Flags                  Indicates additional flags. Only one flag has been
+                                 defined at this time, which is 0x01 and means the
+                                 extend operation should not be performed. All
+                                 other bits are reserved.
+
   @retval EFI_SUCCESS            The operation completed successfully.
   @retval EFI_OUT_OF_RESOURCES   Insufficient memory in the event log to complete this action.
 **/
@@ -155,17 +149,17 @@ EFI_STATUS
   This service abstracts the capability to do a hash operation on a data buffer, extend a specific TPM PCR with the hash result, and add an entry to the Event Log
 
   @param  This                   Indicates the calling context
-  @param  HashData               The physical address of the start of the data buffer 
+  @param  HashData               The physical address of the start of the data buffer
                                  to be hashed, extended, and logged.
   @param  HashDataLen            The length, in bytes, of the buffer referenced by HashData
   @param  AlgorithmId            Identification of the Algorithm to use for the hashing operation
-  @param  TCGLogData             The physical address of the start of the data 
+  @param  TCGLogData             The physical address of the start of the data
                                  buffer containing the TCG_PCR_EVENT data structure.
   @param  EventNumber            The event number of the event just logged.
-  @param  EventLogLastEntry      The physical address of the first byte of the entry 
-                                 just placed in the Event Log. If the Event Log was 
-                                 empty when this function was called then this physical 
-                                 address will be the same as the physical address of 
+  @param  EventLogLastEntry      The physical address of the first byte of the entry
+                                 just placed in the Event Log. If the Event Log was
+                                 empty when this function was called then this physical
+                                 address will be the same as the physical address of
                                  the start of the Event Log.
 
   @retval EFI_SUCCESS            The operation completed successfully.

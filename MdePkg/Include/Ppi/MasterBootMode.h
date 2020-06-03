@@ -1,18 +1,12 @@
 /** @file
   This file declares Boot Mode PPI.
 
-  The Master Boot Mode PPI is installed by a PEIM to signal that a final 
-  boot has been determined and set. This signal is useful in that PEIMs 
+  The Master Boot Mode PPI is installed by a PEIM to signal that a final
+  boot has been determined and set. This signal is useful in that PEIMs
   with boot-mode-specific behavior can put this PPI in their dependency expression.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.

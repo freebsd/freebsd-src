@@ -3,14 +3,8 @@
 
   Used to provide system watchdog timer services
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef __ARCH_PROTOCOL_WATCHDOG_TIMER_H__
@@ -28,7 +22,7 @@
 typedef struct _EFI_WATCHDOG_TIMER_ARCH_PROTOCOL  EFI_WATCHDOG_TIMER_ARCH_PROTOCOL;
 
 /**
-  A function of this type is called when the watchdog timer fires if a 
+  A function of this type is called when the watchdog timer fires if a
   handler has been registered.
 
   @param  Time             The time in 100 ns units that has passed since the watchdog
@@ -45,15 +39,15 @@ VOID
   );
 
 /**
-  This function registers a handler that is to be invoked when the watchdog 
-  timer fires.  By default, the EFI_WATCHDOG_TIMER protocol will call the 
-  Runtime Service ResetSystem() when the watchdog timer fires.  If a 
-  NotifyFunction is registered, then the NotifyFunction will be called before 
-  the Runtime Service ResetSystem() is called.  If NotifyFunction is NULL, then 
-  the watchdog handler is unregistered.  If a watchdog handler is registered, 
-  then EFI_SUCCESS is returned.  If an attempt is made to register a handler 
-  when a handler is already registered, then EFI_ALREADY_STARTED is returned.  
-  If an attempt is made to uninstall a handler when a handler is not installed, 
+  This function registers a handler that is to be invoked when the watchdog
+  timer fires.  By default, the EFI_WATCHDOG_TIMER protocol will call the
+  Runtime Service ResetSystem() when the watchdog timer fires.  If a
+  NotifyFunction is registered, then the NotifyFunction will be called before
+  the Runtime Service ResetSystem() is called.  If NotifyFunction is NULL, then
+  the watchdog handler is unregistered.  If a watchdog handler is registered,
+  then EFI_SUCCESS is returned.  If an attempt is made to register a handler
+  when a handler is already registered, then EFI_ALREADY_STARTED is returned.
+  If an attempt is made to uninstall a handler when a handler is not installed,
   then return EFI_INVALID_PARAMETER.
 
   @param  This             The EFI_WATCHDOG_TIMER_ARCH_PROTOCOL instance.
@@ -68,7 +62,7 @@ VOID
                                 previously registered.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_WATCHDOG_TIMER_REGISTER_HANDLER)(
   IN EFI_WATCHDOG_TIMER_ARCH_PROTOCOL  *This,
@@ -76,8 +70,8 @@ EFI_STATUS
   );
 
 /**
-  This function sets the amount of time to wait before firing the watchdog 
-  timer to TimerPeriod 100 nS units.  If TimerPeriod is 0, then the watchdog 
+  This function sets the amount of time to wait before firing the watchdog
+  timer to TimerPeriod 100 nS units.  If TimerPeriod is 0, then the watchdog
   timer is disabled.
 
   @param  This             The EFI_WATCHDOG_TIMER_ARCH_PROTOCOL instance.
@@ -91,7 +85,7 @@ EFI_STATUS
                                 error.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_WATCHDOG_TIMER_SET_TIMER_PERIOD)(
   IN EFI_WATCHDOG_TIMER_ARCH_PROTOCOL  *This,
@@ -99,8 +93,8 @@ EFI_STATUS
   );
 
 /**
-  This function retrieves the amount of time the system will wait before firing 
-  the watchdog timer.  This period is returned in TimerPeriod, and EFI_SUCCESS 
+  This function retrieves the amount of time the system will wait before firing
+  the watchdog timer.  This period is returned in TimerPeriod, and EFI_SUCCESS
   is returned.  If TimerPeriod is NULL, then EFI_INVALID_PARAMETER is returned.
 
   @param  This             The EFI_WATCHDOG_TIMER_ARCH_PROTOCOL instance.
@@ -113,7 +107,7 @@ EFI_STATUS
   @retval EFI_INVALID_PARAMETER TimerPeriod is NULL.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_WATCHDOG_TIMER_GET_TIMER_PERIOD)(
   IN  EFI_WATCHDOG_TIMER_ARCH_PROTOCOL  *This,
@@ -122,14 +116,14 @@ EFI_STATUS
 
 
 ///
-/// This protocol provides the services required to implement the Boot Service 
-/// SetWatchdogTimer().  It provides a service to set the amount of time to wait 
-/// before firing the watchdog timer, and it also provides a service to register 
-/// a handler that is invoked when the watchdog timer fires.  This protocol can 
-/// implement the watchdog timer by using the event and timer Boot Services, or 
-/// it can make use of custom hardware.  When the watchdog timer fires, control 
-/// will be passed to a handler if one has been registered.  If no handler has 
-/// been registered, or the registered handler returns, then the system will be 
+/// This protocol provides the services required to implement the Boot Service
+/// SetWatchdogTimer().  It provides a service to set the amount of time to wait
+/// before firing the watchdog timer, and it also provides a service to register
+/// a handler that is invoked when the watchdog timer fires.  This protocol can
+/// implement the watchdog timer by using the event and timer Boot Services, or
+/// it can make use of custom hardware.  When the watchdog timer fires, control
+/// will be passed to a handler if one has been registered.  If no handler has
+/// been registered, or the registered handler returns, then the system will be
 /// reset by calling the Runtime Service ResetSystem().
 ///
 struct _EFI_WATCHDOG_TIMER_ARCH_PROTOCOL {

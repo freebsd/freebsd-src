@@ -6,14 +6,8 @@
   (EDK/EFI 1.10) and new (EDK II/UEFI 2.0) way. This module is a DXE driver as
   it contains DXE enum extensions for EFI event services.
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -54,8 +48,8 @@ EfiCreateEventLegacyBoot (
 
 /**
   Create an EFI event in the Legacy Boot Event Group and allows
-  the caller to specify a notification function.  
-  
+  the caller to specify a notification function.
+
   This function abstracts the creation of the Legacy Boot Event.
   The Framework moved from a proprietary to UEFI 2.0 based mechanism.
   This library abstracts the caller from how this event is created to prevent
@@ -120,10 +114,10 @@ EfiCreateEventLegacyBootEx (
   Create an EFI event in the Ready To Boot Event Group.
 
   Prior to UEFI 2.0 this was done via a non-standard UEFI extension, and this library
-  abstracts the implementation mechanism of this event from the caller.   
-  This function abstracts the creation of the Ready to Boot Event.  The Framework 
-  moved from a proprietary to UEFI 2.0-based mechanism.  This library abstracts 
-  the caller from how this event is created to prevent the code form having to 
+  abstracts the implementation mechanism of this event from the caller.
+  This function abstracts the creation of the Ready to Boot Event.  The Framework
+  moved from a proprietary to UEFI 2.0-based mechanism.  This library abstracts
+  the caller from how this event is created to prevent the code form having to
   change with the version of the specification supported.
   If ReadyToBootEvent is NULL, then ASSERT().
 
@@ -149,8 +143,8 @@ EfiCreateEventReadyToBoot (
 
 /**
   Create an EFI event in the Ready To Boot Event Group and allows
-  the caller to specify a notification function.  
-  
+  the caller to specify a notification function.
+
   This function abstracts the creation of the Ready to Boot Event.
   The Framework moved from a proprietary to UEFI 2.0 based mechanism.
   This library abstracts the caller from how this event is created to prevent
@@ -214,7 +208,7 @@ EfiCreateEventReadyToBootEx (
 
 /**
   Create, Signal, and Close the Ready to Boot event using EfiSignalEventReadyToBoot().
-  
+
   This function abstracts the signaling of the Ready to Boot Event. The Framework moved
   from a proprietary to UEFI 2.0 based mechanism. This library abstracts the caller
   from how this event is created to prevent to code form having to change with the
@@ -264,14 +258,14 @@ EfiSignalEventLegacyBoot (
 
 
 /**
-  Check to see if the Firmware Volume (FV) Media Device Path is valid 
-  
-  The Framework FwVol Device Path changed to conform to the UEFI 2.0 specification.  
+  Check to see if the Firmware Volume (FV) Media Device Path is valid
+
+  The Framework FwVol Device Path changed to conform to the UEFI 2.0 specification.
   This library function abstracts validating a device path node.
-  Check the MEDIA_FW_VOL_FILEPATH_DEVICE_PATH data structure to see if it's valid.  
-  If it is valid, then return the GUID file name from the device path node.  Otherwise, 
-  return NULL.  This device path changed in the DXE CIS version 0.92 in a non back ward 
-  compatible way to not conflict with the UEFI 2.0 specification.  This function abstracts 
+  Check the MEDIA_FW_VOL_FILEPATH_DEVICE_PATH data structure to see if it's valid.
+  If it is valid, then return the GUID file name from the device path node.  Otherwise,
+  return NULL.  This device path changed in the DXE CIS version 0.92 in a non back ward
+  compatible way to not conflict with the UEFI 2.0 specification.  This function abstracts
   the differences from the caller.
   If FvDevicePathNode is NULL, then ASSERT().
 
@@ -300,16 +294,16 @@ EfiGetNameGuidFromFwVolDevicePathNode (
 
 /**
   Initialize a Firmware Volume (FV) Media Device Path node.
-  
-  The Framework FwVol Device Path changed to conform to the UEFI 2.0 specification.  
-  This library function abstracts initializing a device path node.  
-  Initialize the MEDIA_FW_VOL_FILEPATH_DEVICE_PATH data structure.  This device 
-  path changed in the DXE CIS version 0.92 in a non back ward compatible way to 
-  not conflict with the UEFI 2.0 specification.  This function abstracts the 
+
+  The Framework FwVol Device Path changed to conform to the UEFI 2.0 specification.
+  This library function abstracts initializing a device path node.
+  Initialize the MEDIA_FW_VOL_FILEPATH_DEVICE_PATH data structure.  This device
+  path changed in the DXE CIS version 0.92 in a non back ward compatible way to
+  not conflict with the UEFI 2.0 specification.  This function abstracts the
   differences from the caller.
   If FvDevicePathNode is NULL, then ASSERT().
   If NameGuid is NULL, then ASSERT().
-  
+
   @param  FvDevicePathNode  The pointer to a FV device path node to initialize
   @param  NameGuid          FV file name to use in FvDevicePathNode
 

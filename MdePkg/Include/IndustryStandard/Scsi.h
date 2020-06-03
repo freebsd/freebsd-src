@@ -1,14 +1,8 @@
 /** @file
   Support for SCSI-2 standard
 
-  Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2020, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -160,7 +154,7 @@
 #define EFI_SCSI_OP_SEND_VOL_TAG      0xb6
 
 //
-// Additional commands for Communition Devices
+// Additional commands for Communication Devices
 //
 #define EFI_SCSI_OP_GET_MESSAGE6    0x08
 #define EFI_SCSI_OP_GET_MESSAGE10   0x28
@@ -170,30 +164,50 @@
 #define EFI_SCSI_OP_SEND_MESSAGE12  0xaa
 
 //
+// Additional commands for Secure Transactions
+//
+#define EFI_SCSI_OP_SECURITY_PROTOCOL_IN  0xa2
+#define EFI_SCSI_OP_SECURITY_PROTOCOL_OUT 0xb5
+
+//
 // SCSI Data Transfer Direction
 //
 #define EFI_SCSI_DATA_IN  0
 #define EFI_SCSI_DATA_OUT 1
 
 //
+// SCSI Block Command Cache Control Parameters
+//
+#define EFI_SCSI_BLOCK_FUA  BIT3  ///< Force Unit Access
+#define EFI_SCSI_BLOCK_DPO  BIT4  ///< Disable Page Out
+
+//
 // Peripheral Device Type Definitions
 //
-#define EFI_SCSI_TYPE_DISK          0x00  ///< Direct-access device (e.g. magnetic disk)
-#define EFI_SCSI_TYPE_TAPE          0x01  ///< Sequential-access device (e.g. magnetic tape)
-#define EFI_SCSI_TYPE_PRINTER       0x02  ///< Printer device
-#define EFI_SCSI_TYPE_PROCESSOR     0x03  ///< Processor device
-#define EFI_SCSI_TYPE_WORM          0x04  ///< Write-once device (e.g. some optical disks)
-#define EFI_SCSI_TYPE_CDROM         0x05  ///< CD-ROM device
-#define EFI_SCSI_TYPE_SCANNER       0x06  ///< Scanner device
-#define EFI_SCSI_TYPE_OPTICAL       0x07  ///< Optical memory device (e.g. some optical disks)
-#define EFI_SCSI_TYPE_MEDIUMCHANGER 0x08  ///< Medium changer device (e.g. jukeboxes)
-#define EFI_SCSI_TYPE_COMMUNICATION 0x09  ///< Communications device
-#define EFI_SCSI_TYPE_ASCIT8_1      0x0A  ///< Defined by ASC IT8 (Graphic arts pre-press devices)
-#define EFI_SCSI_TYPE_ASCIT8_2      0x0B  ///< Defined by ASC IT8 (Graphic arts pre-press devices)
-//
-// 0Ch - 1Eh are reserved
-//
-#define EFI_SCSI_TYPE_UNKNOWN       0x1F  ///< Unknown or no device type
+#define EFI_SCSI_TYPE_DISK            0x00  ///< Direct-access device (e.g. magnetic disk)
+#define EFI_SCSI_TYPE_TAPE            0x01  ///< Sequential-access device (e.g. magnetic tape)
+#define EFI_SCSI_TYPE_PRINTER         0x02  ///< Printer device
+#define EFI_SCSI_TYPE_PROCESSOR       0x03  ///< Processor device
+#define EFI_SCSI_TYPE_WORM            0x04  ///< Write-once device (e.g. some optical disks)
+#define EFI_SCSI_TYPE_CDROM           0x05  ///< CD/DVD device
+#define EFI_SCSI_TYPE_SCANNER         0x06  ///< Scanner device (obsolete)
+#define EFI_SCSI_TYPE_OPTICAL         0x07  ///< Optical memory device (e.g. some optical disks)
+#define EFI_SCSI_TYPE_MEDIUMCHANGER   0x08  ///< Medium changer device (e.g. jukeboxes)
+#define EFI_SCSI_TYPE_COMMUNICATION   0x09  ///< Communications device (obsolete)
+#define EFI_SCSI_TYPE_ASCIT8_1        0x0A  ///< Defined by ASC IT8 (Graphic arts pre-press devices)
+#define EFI_SCSI_TYPE_ASCIT8_2        0x0B  ///< Defined by ASC IT8 (Graphic arts pre-press devices)
+#define EFI_SCSI_TYPE_RAID            0x0C  ///< Storage array controller device (e.g., RAID)
+#define EFI_SCSI_TYPE_SES             0x0D  ///< Enclosure services device
+#define EFI_SCSI_TYPE_RBC             0x0E  ///< Simplified direct-access device (e.g., magnetic disk)
+#define EFI_SCSI_TYPE_OCRW            0x0F  ///< Optical card reader/writer device
+#define EFI_SCSI_TYPE_BRIDGE          0x10  ///< Bridge Controller Commands
+#define EFI_SCSI_TYPE_OSD             0x11  ///< Object-based Storage Device
+#define EFI_SCSI_TYPE_AUTOMATION      0x12  ///< Automation/Drive Interface
+#define EFI_SCSI_TYPE_SECURITYMANAGER 0x13  ///< Security manager device
+#define EFI_SCSI_TYPE_RESERVED_LOW    0x14  ///< Reserved (low)
+#define EFI_SCSI_TYPE_RESERVED_HIGH   0x1D  ///< Reserved (high)
+#define EFI_SCSI_TYPE_WLUN            0x1E  ///< Well known logical unit
+#define EFI_SCSI_TYPE_UNKNOWN         0x1F  ///< Unknown or no device type
 
 //
 // Page Codes for INQUIRY command
@@ -346,9 +360,9 @@ typedef struct {
   UINT8 BlockSize0;
   UINT8 Protection;
   UINT8 LogicPerPhysical;
-  UINT8 LowestAlignLogic2;  
-  UINT8 LowestAlignLogic1;    
-  UINT8 Reserved[16];  
+  UINT8 LowestAlignLogic2;
+  UINT8 LowestAlignLogic1;
+  UINT8 Reserved[16];
 } EFI_SCSI_DISK_CAPACITY_DATA16;
 
 typedef struct {

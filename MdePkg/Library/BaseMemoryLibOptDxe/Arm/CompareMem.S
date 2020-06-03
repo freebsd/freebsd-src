@@ -46,6 +46,7 @@
     .thumb
     .syntax unified
     .align  5
+    .type   ASM_PFX(InternalMemCompareMem), %function
 ASM_GLOBAL ASM_PFX(InternalMemCompareMem)
 ASM_PFX(InternalMemCompareMem):
     push    {r4-r8, lr}

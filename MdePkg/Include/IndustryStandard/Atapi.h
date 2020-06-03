@@ -2,14 +2,8 @@
   This file contains just some basic definitions that are needed by drivers
   that dealing with ATA/ATAPI interface.
 
-Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -21,59 +15,59 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 ///
 /// ATA5_IDENTIFY_DATA is defined in ATA-5.
 /// (This structure is provided mainly for backward-compatibility support.
-/// Old drivers may reference fields that are marked "obsolete" in 
-/// ATA_IDENTIFY_DATA, which currently conforms to ATA-8.) 
+/// Old drivers may reference fields that are marked "obsolete" in
+/// ATA_IDENTIFY_DATA, which currently conforms to ATA-8.)
 ///
-typedef struct {    
+typedef struct {
   UINT16  config;             ///< General Configuration.
   UINT16  cylinders;          ///< Number of Cylinders.
-  UINT16  reserved_2; 
-  UINT16  heads;              ///< Number of logical heads. 
-  UINT16  vendor_data1; 
-  UINT16  vendor_data2; 
-  UINT16  sectors_per_track; 
-  UINT16  vendor_specific_7_9[3]; 
-  CHAR8   SerialNo[20];       ///< ASCII  
-  UINT16  vendor_specific_20_21[2];  
-  UINT16  ecc_bytes_available;    
-  CHAR8   FirmwareVer[8];     ///< ASCII  
-  CHAR8   ModelName[40];      ///< ASCII    
-  UINT16  multi_sector_cmd_max_sct_cnt; 
-  UINT16  reserved_48; 
-  UINT16  capabilities; 
-  UINT16  reserved_50;     
-  UINT16  pio_cycle_timing;    
-  UINT16  reserved_52;             
-  UINT16  field_validity;     
-  UINT16  current_cylinders; 
-  UINT16  current_heads; 
-  UINT16  current_sectors;    
-  UINT16  CurrentCapacityLsb; 
-  UINT16  CurrentCapacityMsb;     
-  UINT16  reserved_59;     
-  UINT16  user_addressable_sectors_lo; 
-  UINT16  user_addressable_sectors_hi; 
-  UINT16  reserved_62;     
-  UINT16  multi_word_dma_mode;    
-  UINT16  advanced_pio_modes; 
-  UINT16  min_multi_word_dma_cycle_time; 
-  UINT16  rec_multi_word_dma_cycle_time; 
-  UINT16  min_pio_cycle_time_without_flow_control; 
-  UINT16  min_pio_cycle_time_with_flow_control; 
-  UINT16  reserved_69_79[11];     
-  UINT16  major_version_no; 
-  UINT16  minor_version_no; 
-  UINT16  command_set_supported_82;    ///< word 82 
-  UINT16  command_set_supported_83;    ///< word 83 
-  UINT16  command_set_feature_extn;    ///< word 84 
-  UINT16  command_set_feature_enb_85;  ///< word 85 
-  UINT16  command_set_feature_enb_86;  ///< word 86 
-  UINT16  command_set_feature_default; ///< word 87 
-  UINT16  ultra_dma_mode;              ///< word 88 
-  UINT16  reserved_89_127[39]; 
-  UINT16  security_status; 
-  UINT16  vendor_data_129_159[31]; 
-  UINT16  reserved_160_255[96]; 
+  UINT16  reserved_2;
+  UINT16  heads;              ///< Number of logical heads.
+  UINT16  vendor_data1;
+  UINT16  vendor_data2;
+  UINT16  sectors_per_track;
+  UINT16  vendor_specific_7_9[3];
+  CHAR8   SerialNo[20];       ///< ASCII
+  UINT16  vendor_specific_20_21[2];
+  UINT16  ecc_bytes_available;
+  CHAR8   FirmwareVer[8];     ///< ASCII
+  CHAR8   ModelName[40];      ///< ASCII
+  UINT16  multi_sector_cmd_max_sct_cnt;
+  UINT16  reserved_48;
+  UINT16  capabilities;
+  UINT16  reserved_50;
+  UINT16  pio_cycle_timing;
+  UINT16  reserved_52;
+  UINT16  field_validity;
+  UINT16  current_cylinders;
+  UINT16  current_heads;
+  UINT16  current_sectors;
+  UINT16  CurrentCapacityLsb;
+  UINT16  CurrentCapacityMsb;
+  UINT16  reserved_59;
+  UINT16  user_addressable_sectors_lo;
+  UINT16  user_addressable_sectors_hi;
+  UINT16  reserved_62;
+  UINT16  multi_word_dma_mode;
+  UINT16  advanced_pio_modes;
+  UINT16  min_multi_word_dma_cycle_time;
+  UINT16  rec_multi_word_dma_cycle_time;
+  UINT16  min_pio_cycle_time_without_flow_control;
+  UINT16  min_pio_cycle_time_with_flow_control;
+  UINT16  reserved_69_79[11];
+  UINT16  major_version_no;
+  UINT16  minor_version_no;
+  UINT16  command_set_supported_82;    ///< word 82
+  UINT16  command_set_supported_83;    ///< word 83
+  UINT16  command_set_feature_extn;    ///< word 84
+  UINT16  command_set_feature_enb_85;  ///< word 85
+  UINT16  command_set_feature_enb_86;  ///< word 86
+  UINT16  command_set_feature_default; ///< word 87
+  UINT16  ultra_dma_mode;              ///< word 88
+  UINT16  reserved_89_127[39];
+  UINT16  security_status;
+  UINT16  vendor_data_129_159[31];
+  UINT16  reserved_160_255[96];
 } ATA5_IDENTIFY_DATA;
 
 ///
@@ -86,50 +80,50 @@ typedef struct {
   UINT16  obsolete_1;
   UINT16  specific_config;                         ///< Specific Configuration.
   UINT16  obsolete_3;
-  UINT16  retired_4_5[2]; 
+  UINT16  retired_4_5[2];
   UINT16  obsolete_6;
   UINT16  cfa_reserved_7_8[2];
-  UINT16  retired_9; 
+  UINT16  retired_9;
   CHAR8   SerialNo[20];                            ///< word 10~19
-  UINT16  retired_20_21[2];  
-  UINT16  obsolete_22;    
+  UINT16  retired_20_21[2];
+  UINT16  obsolete_22;
   CHAR8   FirmwareVer[8];                          ///< word 23~26
   CHAR8   ModelName[40];                           ///< word 27~46
   UINT16  multi_sector_cmd_max_sct_cnt;
-  UINT16  trusted_computing_support; 
+  UINT16  trusted_computing_support;
   UINT16  capabilities_49;
   UINT16  capabilities_50;
-  UINT16  obsolete_51_52[2];           
-  UINT16  field_validity;     
-  UINT16  obsolete_54_58[5];     
+  UINT16  obsolete_51_52[2];
+  UINT16  field_validity;
+  UINT16  obsolete_54_58[5];
   UINT16  multi_sector_setting;
-  UINT16  user_addressable_sectors_lo; 
-  UINT16  user_addressable_sectors_hi; 
-  UINT16  obsolete_62;     
-  UINT16  multi_word_dma_mode;    
-  UINT16  advanced_pio_modes; 
-  UINT16  min_multi_word_dma_cycle_time; 
-  UINT16  rec_multi_word_dma_cycle_time; 
-  UINT16  min_pio_cycle_time_without_flow_control; 
-  UINT16  min_pio_cycle_time_with_flow_control; 
+  UINT16  user_addressable_sectors_lo;
+  UINT16  user_addressable_sectors_hi;
+  UINT16  obsolete_62;
+  UINT16  multi_word_dma_mode;
+  UINT16  advanced_pio_modes;
+  UINT16  min_multi_word_dma_cycle_time;
+  UINT16  rec_multi_word_dma_cycle_time;
+  UINT16  min_pio_cycle_time_without_flow_control;
+  UINT16  min_pio_cycle_time_with_flow_control;
   UINT16  additional_supported;                    ///< word 69
   UINT16  reserved_70;
   UINT16  reserved_71_74[4];                       ///< Reserved for IDENTIFY PACKET DEVICE cmd.
-  UINT16  queue_depth;     
+  UINT16  queue_depth;
   UINT16  serial_ata_capabilities;
   UINT16  reserved_77;                             ///< Reserved for Serial ATA
   UINT16  serial_ata_features_supported;
   UINT16  serial_ata_features_enabled;
-  UINT16  major_version_no; 
-  UINT16  minor_version_no; 
+  UINT16  major_version_no;
+  UINT16  minor_version_no;
   UINT16  command_set_supported_82;                ///< word 82
   UINT16  command_set_supported_83;                ///< word 83
   UINT16  command_set_feature_extn;                ///< word 84
   UINT16  command_set_feature_enb_85;              ///< word 85
   UINT16  command_set_feature_enb_86;              ///< word 86
   UINT16  command_set_feature_default;             ///< word 87
-  UINT16  ultra_dma_mode;                          ///< word 88 
-  UINT16  time_for_security_erase_unit; 
+  UINT16  ultra_dma_mode;                          ///< word 88
+  UINT16  time_for_security_erase_unit;
   UINT16  time_for_enhanced_security_erase_unit;
   UINT16  advanced_power_management_level;
   UINT16  master_password_identifier;
@@ -154,7 +148,7 @@ typedef struct {
   UINT16  reserved_121_126[6];
   UINT16  obsolete_127;
   UINT16  security_status;                         ///< word 128
-  UINT16  vendor_specific_129_159[31]; 
+  UINT16  vendor_specific_129_159[31];
   UINT16  cfa_power_mode;                          ///< word 160
   UINT16  reserved_for_compactflash_161_167[7];
   UINT16  device_nominal_form_factor;
@@ -239,7 +233,7 @@ typedef struct {
   UINT16  reserved_95_107[13];
   UINT16  world_wide_name[4];                      ///< word 108~111
   UINT16  reserved_for_128bit_wwn_112_115[4];
-  UINT16  reserved_116_118[3];  
+  UINT16  reserved_116_118[3];
   UINT16  command_and_feature_sets_supported;      ///< word 119
   UINT16  command_and_feature_sets_supported_enabled;
   UINT16  reserved_121_124[4];
@@ -458,7 +452,7 @@ typedef struct {
 
 ///
 /// ATAPI_PACKET_COMMAND is not defined in the ATA specification.
-/// We add it here for the convenience of ATA/ATAPI module writers. 
+/// We add it here for the convenience of ATA/ATAPI module writers.
 ///
 typedef union {
   UINT16                    Data16[6];
@@ -477,7 +471,7 @@ typedef union {
 #define ATAPI_MAX_DMA_CMD_SECTORS                       0x100
 
 //  ATA/ATAPI Signature equates
-#define ATA_SIGNATURE                                   0x0101       ///< defined in ACS-3  
+#define ATA_SIGNATURE                                   0x0101       ///< defined in ACS-3
 #define ATAPI_SIGNATURE                                 0xeb14       ///< defined in ACS-3
 #define ATAPI_SIGNATURE_32                              0xeb140101   ///< defined in ACS-3
 
@@ -490,42 +484,42 @@ typedef union {
 //
 // ATA Packet Command Code
 //
-#define ATA_CMD_FORMAT_UNIT                             0x04   ///< defined in ATAPI Removable Rewritable Media Devcies
+#define ATA_CMD_FORMAT_UNIT                             0x04   ///< defined in ATAPI Removable Rewritable Media Devices
 #define ATA_CMD_SOFT_RESET                              0x08   ///< defined from ATA-3
 #define ATA_CMD_PACKET                                  0xA0   ///< defined from ATA-3
 #define ATA_CMD_IDENTIFY_DEVICE                         0xA1   ///< defined from ATA-3
 #define ATA_CMD_SERVICE                                 0xA2   ///< defined from ATA-3
 #define ATA_CMD_TEST_UNIT_READY                         0x00   ///< defined from ATA-1
 #define ATA_CMD_REQUEST_SENSE                           0x03   ///< defined from ATA-4
-#define ATA_CMD_INQUIRY                                 0x12   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_READ_FORMAT_CAPACITY                    0x23   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_READ_CAPACITY                           0x25   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_READ_10                                 0x28   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_WRITE_10                                0x2A   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_ATAPI_SEEK                              0x2B   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_WRITE_AND_VERIFY                        0x2E   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_VERIFY                                  0x2F   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_READ_12                                 0xA8   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_WRITE_12                                0xAA   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_START_STOP_UNIT                         0x1B   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_PREVENT_ALLOW_MEDIA_REMOVAL             0x1E   ///< defined in ATAPI Removable Rewritable Media Devcies
-#define ATA_CMD_MODE_SELECT                             0x55   ///< defined in ATAPI Removable Rewritable Media Devcies
+#define ATA_CMD_INQUIRY                                 0x12   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_READ_FORMAT_CAPACITY                    0x23   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_READ_CAPACITY                           0x25   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_READ_10                                 0x28   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_WRITE_10                                0x2A   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_ATAPI_SEEK                              0x2B   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_WRITE_AND_VERIFY                        0x2E   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_VERIFY                                  0x2F   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_READ_12                                 0xA8   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_WRITE_12                                0xAA   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_START_STOP_UNIT                         0x1B   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_PREVENT_ALLOW_MEDIA_REMOVAL             0x1E   ///< defined in ATAPI Removable Rewritable Media Devices
+#define ATA_CMD_MODE_SELECT                             0x55   ///< defined in ATAPI Removable Rewritable Media Devices
 
-#define ATA_CMD_MODE_SENSE                              0x5A   ///< defined in ATAPI Removable Rewritable Media Devcies
-    #define ATA_PAGE_CODE_READ_WRITE_ERROR                  0x01   ///< defined in ATAPI Removable Rewritable Media Devcies
-    #define ATA_PAGE_CODE_CACHING_PAGE                      0x08   ///< defined in ATAPI Removable Rewritable Media Devcies
-    #define ATA_PAGE_CODE_REMOVABLE_BLOCK_CAPABILITIES      0x1B   ///< defined in ATAPI Removable Rewritable Media Devcies
-    #define ATA_PAGE_CODE_TIMER_PROTECT_PAGE                0x1C   ///< defined in ATAPI Removable Rewritable Media Devcies
-    #define ATA_PAGE_CODE_RETURN_ALL_PAGES                  0x3F   ///< defined in ATAPI Removable Rewritable Media Devcies
+#define ATA_CMD_MODE_SENSE                              0x5A   ///< defined in ATAPI Removable Rewritable Media Devices
+    #define ATA_PAGE_CODE_READ_WRITE_ERROR                  0x01   ///< defined in ATAPI Removable Rewritable Media Devices
+    #define ATA_PAGE_CODE_CACHING_PAGE                      0x08   ///< defined in ATAPI Removable Rewritable Media Devices
+    #define ATA_PAGE_CODE_REMOVABLE_BLOCK_CAPABILITIES      0x1B   ///< defined in ATAPI Removable Rewritable Media Devices
+    #define ATA_PAGE_CODE_TIMER_PROTECT_PAGE                0x1C   ///< defined in ATAPI Removable Rewritable Media Devices
+    #define ATA_PAGE_CODE_RETURN_ALL_PAGES                  0x3F   ///< defined in ATAPI Removable Rewritable Media Devices
 
 #define ATA_CMD_GET_CONFIGURATION                       0x46   ///< defined in ATAPI Multimedia Devices
    #define ATA_GCCD_RT_FIELD_VALUE_ALL                      0x00   ///< defined in ATAPI Multimedia Devices
    #define ATA_GCCD_RT_FIELD_VALUE_CURRENT                  0x01   ///< defined in ATAPI Multimedia Devices
-   #define ATA_GCCD_RT_FIELD_VALUE_SINGLE                   0x02   ///< defined in ATAPI Multimedia Devices 
-   #define ATA_GCCD_RT_FIELD_VALUE_RESERVED                 0x03   ///< defined in ATAPI Multimedia Devices 
-   
+   #define ATA_GCCD_RT_FIELD_VALUE_SINGLE                   0x02   ///< defined in ATAPI Multimedia Devices
+   #define ATA_GCCD_RT_FIELD_VALUE_RESERVED                 0x03   ///< defined in ATAPI Multimedia Devices
+
    #define ATA_FEATURE_LIST_PROFILE_LIST                    0x0000   ///< defined in ATAPI Multimedia Devices
-   #define ATA_FEATURE_LIST_CORE                            0x0001   ///< defined in ATAPI Multimedia Devices   
+   #define ATA_FEATURE_LIST_CORE                            0x0001   ///< defined in ATAPI Multimedia Devices
    #define ATA_FEATURE_LIST_MORPHING                        0x0002   ///< defined in ATAPI Multimedia Devices
    #define ATA_FEATURE_LIST_REMOVEABLE_MEDIUM               0x0003   ///< defined in ATAPI Multimedia Devices
    #define ATA_FEATURE_LIST_WRITE_PROTECT                   0x0004   ///< defined in ATAPI Multimedia Devices
@@ -549,33 +543,33 @@ typedef union {
 //
 #define ATA_CMD_IDENTIFY_DRIVE                          0xec   ///< defined from ATA-3
 #define ATA_CMD_READ_BUFFER                             0xe4   ///< defined from ATA-1
-#define ATA_CMD_READ_SECTORS                            0x20   ///< defined from ATA-1     
+#define ATA_CMD_READ_SECTORS                            0x20   ///< defined from ATA-1
 #define ATA_CMD_READ_SECTORS_WITH_RETRY                 0x21   ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_READ_LONG                               0x22   ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_READ_LONG_WITH_RETRY                    0x23   ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_READ_SECTORS_EXT                        0x24   ///< defined from ATA-6
-#define ATA_CMD_READ_MULTIPLE                           0xc4   ///< defined in ACS-3  
-#define ATA_CMD_READ_MULTIPLE_EXT                       0x29   ///< defined in ACS-3  
-#define ATA_CMD_READ_LOG_EXT                            0x2f   ///< defined in ACS-3  
+#define ATA_CMD_READ_MULTIPLE                           0xc4   ///< defined in ACS-3
+#define ATA_CMD_READ_MULTIPLE_EXT                       0x29   ///< defined in ACS-3
+#define ATA_CMD_READ_LOG_EXT                            0x2f   ///< defined in ACS-3
 
 //
 // Class 2: PIO Data-Out Commands
 //
 #define ATA_CMD_FORMAT_TRACK                            0x50  ///< defined from ATA-1, obsoleted from ATA-4
-#define ATA_CMD_WRITE_BUFFER                            0xe8  ///< defined from ATA-1  
+#define ATA_CMD_WRITE_BUFFER                            0xe8  ///< defined from ATA-1
 #define ATA_CMD_WRITE_SECTORS                           0x30  ///< defined from ATA-1
 #define ATA_CMD_WRITE_SECTORS_WITH_RETRY                0x31  ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_WRITE_LONG                              0x32  ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_WRITE_LONG_WITH_RETRY                   0x33  ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_WRITE_VERIFY                            0x3c  ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_WRITE_SECTORS_EXT                       0x34  ///< defined from ATA-6
-#define ATA_CMD_WRITE_MULTIPLE                          0xc5  ///< defined in ACS-3  
-#define ATA_CMD_WRITE_MULTIPLE_EXT                      0x39  ///< defined in ACS-3  
+#define ATA_CMD_WRITE_MULTIPLE                          0xc5  ///< defined in ACS-3
+#define ATA_CMD_WRITE_MULTIPLE_EXT                      0x39  ///< defined in ACS-3
 
 //
 // Class 3 No Data Command
 //
-#define ATA_CMD_ACK_MEDIA_CHANGE                        0xdb  ///< defined from ATA-1, obsoleted from ATA-5 
+#define ATA_CMD_ACK_MEDIA_CHANGE                        0xdb  ///< defined from ATA-1, obsoleted from ATA-5
 #define ATA_CMD_BOOT_POST_BOOT                          0xdc  ///< defined from ATA-1, obsoleted from ATA-3
 #define ATA_CMD_BOOT_PRE_BOOT                           0xdd  ///< defined from ATA-1, obsoleted from ATA-3
 #define ATA_CMD_CHECK_POWER_MODE                        0x98  ///< defined from ATA-1, obsoleted from ATA-4
@@ -599,39 +593,39 @@ typedef union {
 #define ATA_CMD_STANDBY_ALIAS                           0xe2  ///< defined from ATA-1
 #define ATA_CMD_STANDBY_IMMEDIATE                       0x94  ///< defined from ATA-1, obsoleted from ATA-4
 #define ATA_CMD_STANDBY_IMMEDIATE_ALIAS                 0xe0  ///< defined from ATA-1
-#define ATA_CMD_SLEEP                                   0xe6  ///< defined in ACS-3  
-#define ATA_CMD_READ_NATIVE_MAX_ADDRESS                 0xf8  ///< defined in ATA-6  
-#define ATA_CMD_READ_NATIVE_MAX_ADDRESS_EXT             0x27  ///< defined in ATA-6  
+#define ATA_CMD_SLEEP                                   0xe6  ///< defined in ACS-3
+#define ATA_CMD_READ_NATIVE_MAX_ADDRESS                 0xf8  ///< defined in ATA-6
+#define ATA_CMD_READ_NATIVE_MAX_ADDRESS_EXT             0x27  ///< defined in ATA-6
 
 //
 // Set Features Sub Command
 //
-#define ATA_SUB_CMD_ENABLE_VOLATILE_WRITE_CACHE             0x02   ///< defined in ACS-3 
-#define ATA_SUB_CMD_SET_TRANSFER_MODE                       0x03   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_APM                              0x05   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_PUIS                             0x06   ///< defined in ACS-3 
-#define ATA_SUB_CMD_PUIS_SET_DEVICE_SPINUP                  0x07   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_WRITE_READ_VERIFY                0x0b   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_SATA_FEATURE                     0x10   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_MEDIA_STATUS_NOTIFICATION       0x31   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_FREE_FALL_CONTROL                0x41   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ACOUSTIC_MANAGEMENT_ENABLE              0x42   ///< defined in ACS-3 
-#define ATA_SUB_CMD_SET_MAX_HOST_INTERFACE_SECTOR_TIMES     0x43   ///< defined in ACS-3 
-#define ATA_SUB_CMD_EXTENDED_POWER_CONDITIONS               0x4a   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_READ_LOOK_AHEAD                 0x55   ///< defined in ACS-3 
-#define ATA_SUB_CMD_EN_DIS_DSN_FEATURE                      0x63   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_REVERT_TO_POWER_ON_DEFAULTS     0x66   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_VOLATILE_WRITE_CACHE            0x82   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_APM                             0x85   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_PUIS                            0x86   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_WRITE_READ_VERIFY               0x8b   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_SATA_FEATURE                    0x90   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_MEDIA_STATUS_NOTIFICATION        0x95   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_READ_LOOK_AHEAD                  0xaa   ///< defined in ACS-3 
-#define ATA_SUB_CMD_DISABLE_FREE_FALL_CONTROL               0xc1   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ACOUSTIC_MANAGEMENT_DISABLE             0xc2   ///< defined in ACS-3 
-#define ATA_SUB_CMD_EN_DIS_SENSE_DATA_REPORTING             0xc3   ///< defined in ACS-3 
-#define ATA_SUB_CMD_ENABLE_REVERT_TO_POWER_ON_DEFAULTS      0xcc   ///< defined in ACS-3 
+#define ATA_SUB_CMD_ENABLE_VOLATILE_WRITE_CACHE             0x02   ///< defined in ACS-3
+#define ATA_SUB_CMD_SET_TRANSFER_MODE                       0x03   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_APM                              0x05   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_PUIS                             0x06   ///< defined in ACS-3
+#define ATA_SUB_CMD_PUIS_SET_DEVICE_SPINUP                  0x07   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_WRITE_READ_VERIFY                0x0b   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_SATA_FEATURE                     0x10   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_MEDIA_STATUS_NOTIFICATION       0x31   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_FREE_FALL_CONTROL                0x41   ///< defined in ACS-3
+#define ATA_SUB_CMD_ACOUSTIC_MANAGEMENT_ENABLE              0x42   ///< defined in ACS-3
+#define ATA_SUB_CMD_SET_MAX_HOST_INTERFACE_SECTOR_TIMES     0x43   ///< defined in ACS-3
+#define ATA_SUB_CMD_EXTENDED_POWER_CONDITIONS               0x4a   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_READ_LOOK_AHEAD                 0x55   ///< defined in ACS-3
+#define ATA_SUB_CMD_EN_DIS_DSN_FEATURE                      0x63   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_REVERT_TO_POWER_ON_DEFAULTS     0x66   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_VOLATILE_WRITE_CACHE            0x82   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_APM                             0x85   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_PUIS                            0x86   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_WRITE_READ_VERIFY               0x8b   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_SATA_FEATURE                    0x90   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_MEDIA_STATUS_NOTIFICATION        0x95   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_READ_LOOK_AHEAD                  0xaa   ///< defined in ACS-3
+#define ATA_SUB_CMD_DISABLE_FREE_FALL_CONTROL               0xc1   ///< defined in ACS-3
+#define ATA_SUB_CMD_ACOUSTIC_MANAGEMENT_DISABLE             0xc2   ///< defined in ACS-3
+#define ATA_SUB_CMD_EN_DIS_SENSE_DATA_REPORTING             0xc3   ///< defined in ACS-3
+#define ATA_SUB_CMD_ENABLE_REVERT_TO_POWER_ON_DEFAULTS      0xcc   ///< defined in ACS-3
 
 //
 // S.M.A.R.T
@@ -640,13 +634,13 @@ typedef union {
 #define ATA_CONSTANT_C2                                 0xc2  ///< reserved
 #define ATA_CONSTANT_4F                                 0x4f  ///< reserved
 
-#define ATA_SMART_READ_DATA                             0xd0   ///< defined in ACS-3 
+#define ATA_SMART_READ_DATA                             0xd0   ///< defined in ACS-3
 
-#define ATA_SMART_AUTOSAVE                              0xd2  ///< defined in ACS-3 
+#define ATA_SMART_AUTOSAVE                              0xd2  ///< defined in ACS-3
     #define ATA_AUTOSAVE_DISABLE_ATTR                       0x00
     #define ATA_AUTOSAVE_ENABLE_ATTR                        0xf1
 
-#define ATA_SMART_EXECUTE_OFFLINE_IMMEDIATE             0xd4  ///< defined in ACS-3 
+#define ATA_SMART_EXECUTE_OFFLINE_IMMEDIATE             0xd4  ///< defined in ACS-3
     #define ATA_EXECUTE_SMART_OFFLINE_ROUTINE               0x00  ///< defined in ACS-3
     #define ATA_EXECUTE_SMART_OFFLINE_SHORT_SELFTEST        0x01  ///< defined in ACS-3
     #define ATA_EXECUTE_SMART_OFFLINE_EXTENDED_SELFTEST     0x02  ///< defined in ACS-3
@@ -658,25 +652,25 @@ typedef union {
     #define ATA_EXECUTE_SMART_CAPTIVE_CONVEYANCE_SELFTEST   0x83  ///< defined in ACS-3
     #define ATA_EXECUTE_SMART_CAPTIVE_SELECTIVE_SELFTEST    0x84  ///< defined in ACS-3
 
-#define ATA_SMART_READLOG                               0xd5  ///< defined in ACS-3 
-#define ATA_SMART_WRITELOG                              0xd6  ///< defined in ACS-3 
+#define ATA_SMART_READLOG                               0xd5  ///< defined in ACS-3
+#define ATA_SMART_WRITELOG                              0xd6  ///< defined in ACS-3
 #define ATA_SMART_ENABLE_OPERATION                      0xd8  ///< reserved
-#define ATA_SMART_DISABLE_OPERATION                     0xd9  ///< defined in ACS-3 
+#define ATA_SMART_DISABLE_OPERATION                     0xd9  ///< defined in ACS-3
 #define ATA_SMART_RETURN_STATUS                         0xda  ///< defined from ATA-3
 
-#define ATA_SMART_THRESHOLD_NOT_EXCEEDED_VALUE              0xc24f  ///< defined in ACS-3 
-#define ATA_SMART_THRESHOLD_EXCEEDED_VALUE                  0x2cf4  ///< defined in ACS-3 
+#define ATA_SMART_THRESHOLD_NOT_EXCEEDED_VALUE              0xc24f  ///< defined in ACS-3
+#define ATA_SMART_THRESHOLD_EXCEEDED_VALUE                  0x2cf4  ///< defined in ACS-3
 
 // SMART Log Definitions
-#define ATA_SMART_LOG_DIRECTORY                             0x00  ///< defined in ACS-3 
-#define ATA_SMART_SUM_SMART_ERROR_LOG                       0x01  ///< defined in ACS-3 
-#define ATA_SMART_COMP_SMART_ERROR_LOG                      0x02  ///< defined in ACS-3 
-#define ATA_SMART_EXT_COMP_SMART_ERROR_LOG                  0x03  ///< defined in ACS-3 
-#define ATA_SMART_SMART_SELFTEST_LOG                        0x06  ///< defined in ACS-3 
-#define ATA_SMART_EXT_SMART_SELFTEST_LOG                    0x07  ///< defined in ACS-3 
-#define ATA_SMART_SELECTIVE_SELFTEST_LOG                    0x09  ///< defined in ACS-3 
-#define ATA_SMART_HOST_VENDOR_SPECIFIC                      0x80  ///< defined in ACS-3 
-#define ATA_SMART_DEVICE_VENDOR_SPECIFIC                    0xa0  ///< defined in ACS-3 
+#define ATA_SMART_LOG_DIRECTORY                             0x00  ///< defined in ACS-3
+#define ATA_SMART_SUM_SMART_ERROR_LOG                       0x01  ///< defined in ACS-3
+#define ATA_SMART_COMP_SMART_ERROR_LOG                      0x02  ///< defined in ACS-3
+#define ATA_SMART_EXT_COMP_SMART_ERROR_LOG                  0x03  ///< defined in ACS-3
+#define ATA_SMART_SMART_SELFTEST_LOG                        0x06  ///< defined in ACS-3
+#define ATA_SMART_EXT_SMART_SELFTEST_LOG                    0x07  ///< defined in ACS-3
+#define ATA_SMART_SELECTIVE_SELFTEST_LOG                    0x09  ///< defined in ACS-3
+#define ATA_SMART_HOST_VENDOR_SPECIFIC                      0x80  ///< defined in ACS-3
+#define ATA_SMART_DEVICE_VENDOR_SPECIFIC                    0xa0  ///< defined in ACS-3
 
 //
 // Class 4: DMA Command
@@ -687,18 +681,18 @@ typedef union {
 #define ATA_CMD_WRITE_DMA                               0xca   ///< defined from ATA-1
 #define ATA_CMD_WRITE_DMA_WITH_RETRY                    0xcb   ///< defined from ATA-1, obsoleted from ATA-
 #define ATA_CMD_WRITE_DMA_EXT                           0x35   ///< defined from ATA-6
-  
+
 //
 //  ATA Security commands
 //
-#define ATA_CMD_SECURITY_SET_PASSWORD                   0xf1  ///< defined in ACS-3 
-#define ATA_CMD_SECURITY_UNLOCK                         0xf2  ///< defined in ACS-3 
-#define ATA_CMD_SECURITY_ERASE_PREPARE                  0xf3  ///< defined in ACS-3 
-#define ATA_CMD_SECURITY_ERASE_UNIT                     0xf4  ///< defined in ACS-3 
-#define ATA_CMD_SECURITY_FREEZE_LOCK                    0xf5  ///< defined in ACS-3 
-#define ATA_CMD_SECURITY_DISABLE_PASSWORD               0xf6  ///< defined in ACS-3 
+#define ATA_CMD_SECURITY_SET_PASSWORD                   0xf1  ///< defined in ACS-3
+#define ATA_CMD_SECURITY_UNLOCK                         0xf2  ///< defined in ACS-3
+#define ATA_CMD_SECURITY_ERASE_PREPARE                  0xf3  ///< defined in ACS-3
+#define ATA_CMD_SECURITY_ERASE_UNIT                     0xf4  ///< defined in ACS-3
+#define ATA_CMD_SECURITY_FREEZE_LOCK                    0xf5  ///< defined in ACS-3
+#define ATA_CMD_SECURITY_DISABLE_PASSWORD               0xf6  ///< defined in ACS-3
 
-#define ATA_SECURITY_BUFFER_LENGTH                          512  ///< defined in ACS-3 
+#define ATA_SECURITY_BUFFER_LENGTH                          512  ///< defined in ACS-3
 
 //
 //  ATA Device Config Overlay
@@ -712,19 +706,19 @@ typedef union {
 //
 //  ATA Trusted Computing Feature Set Commands
 //
-#define ATA_CMD_TRUSTED_NON_DATA                        0x5b  ///< defined in ACS-3 
-#define ATA_CMD_TRUSTED_RECEIVE                         0x5c  ///< defined in ACS-3 
-#define ATA_CMD_TRUSTED_RECEIVE_DMA                     0x5d  ///< defined in ACS-3 
-#define ATA_CMD_TRUSTED_SEND                            0x5e  ///< defined in ACS-3 
-#define ATA_CMD_TRUSTED_SEND_DMA                        0x5f  ///< defined in ACS-3 
+#define ATA_CMD_TRUSTED_NON_DATA                        0x5b  ///< defined in ACS-3
+#define ATA_CMD_TRUSTED_RECEIVE                         0x5c  ///< defined in ACS-3
+#define ATA_CMD_TRUSTED_RECEIVE_DMA                     0x5d  ///< defined in ACS-3
+#define ATA_CMD_TRUSTED_SEND                            0x5e  ///< defined in ACS-3
+#define ATA_CMD_TRUSTED_SEND_DMA                        0x5f  ///< defined in ACS-3
 
 //
 //  ATA Trusted Receive Fields
 //
-#define ATA_TR_RETURN_SECURITY_PROTOCOL_INFORMATION     0x00  ///< defined in ACS-3 
-#define ATA_TR_SECURITY_PROTOCOL_JEDEC_RESERVED         0xec  ///< defined in ACS-3 
-#define ATA_TR_SECURITY_PROTOCOL_SDCARD_RESERVED        0xed  ///< defined in ACS-3 
-#define ATA_TR_SECURITY_PROTOCOL_IEEE1667_RESERVED      0xee  ///< defined in ACS-3 
+#define ATA_TR_RETURN_SECURITY_PROTOCOL_INFORMATION     0x00  ///< defined in ACS-3
+#define ATA_TR_SECURITY_PROTOCOL_JEDEC_RESERVED         0xec  ///< defined in ACS-3
+#define ATA_TR_SECURITY_PROTOCOL_SDCARD_RESERVED        0xed  ///< defined in ACS-3
+#define ATA_TR_SECURITY_PROTOCOL_IEEE1667_RESERVED      0xee  ///< defined in ACS-3
 
 //
 //  Equates used for Acoustic Flags
@@ -732,18 +726,18 @@ typedef union {
 #define ATA_ACOUSTIC_LEVEL_BYPASS                       0xff   ///< defined from ATA-6
 #define ATA_ACOUSTIC_LEVEL_MAXIMUM_PERFORMANCE          0xfe   ///< defined from ATA-6
 #define ATA_ACOUSTIC_LEVEL_QUIET                        0x80   ///< defined from ATA-6
-    	
+
 //
 //  Equates used for DiPM Support
 //
-#define ATA_CMD_DIPM_SUB                                0x03   // defined in ACS-3 : Count value in SetFeature identification : 03h  Device-initiated interface power state transitions 
-    #define ATA_DIPM_ENABLE                                 0x10   // defined in ACS-3 
-    #define ATA_DIPM_DISABLE                                0x90   // defined in ACS-3 
+#define ATA_CMD_DIPM_SUB                                0x03   // defined in ACS-3 : Count value in SetFeature identification : 03h  Device-initiated interface power state transitions
+    #define ATA_DIPM_ENABLE                                 0x10   // defined in ACS-3
+    #define ATA_DIPM_DISABLE                                0x90   // defined in ACS-3
 
 //
 //  Equates used for DevSleep Support
 //
-#define ATA_CMD_DEVSLEEP_SUB                            0x09   // defined in SATA 3.2 Gold Spec :  Count value in SetFeature identification : 09h  Device Sleep 
+#define ATA_CMD_DEVSLEEP_SUB                            0x09   // defined in SATA 3.2 Gold Spec :  Count value in SetFeature identification : 09h  Device Sleep
     #define ATA_DEVSLEEP_ENABLE                             0x10   // defined in SATA 3.2 Gold Spec
     #define ATA_DEVSLEEP_DISABLE                            0x90   // defined in SATA 3.2 Gold Spec
 
@@ -765,7 +759,7 @@ typedef union {
 /// Default content of device control register, disable INT,
 /// Bit3 is set to 1 according ATA-1
 ///
-#define ATA_DEFAULT_CTL                                 (0x0a)  
+#define ATA_DEFAULT_CTL                                 (0x0a)
 ///
 /// Default context of Device/Head Register,
 /// Bit7 and Bit5 are set to 1 for back-compatibilities.
@@ -778,9 +772,9 @@ typedef union {
 
 //
 // Sense Key, Additional Sense Codes and Additional Sense Code Qualifier
-// defined in MultiMedia Commands (MMC, MMC-2) 
+// defined in MultiMedia Commands (MMC, MMC-2)
 //
-// Sense Key 
+// Sense Key
 //
 #define ATA_SK_NO_SENSE                                 (0x0)
 #define ATA_SK_RECOVERY_ERROR                           (0x1)
@@ -825,7 +819,7 @@ typedef union {
 
 //
 // Error Register
-//  
+//
 #define ATA_ERRREG_BBK                                  BIT7  ///< Bad block detected      defined from ATA-1, obsoleted from ATA-2
 #define ATA_ERRREG_UNC                                  BIT6  ///< Uncorrectable Data      defined from ATA-1, obsoleted from ATA-4
 #define ATA_ERRREG_MC                                   BIT5  ///< Media Change            defined from ATA-1, obsoleted from ATA-4

@@ -2,7 +2,7 @@
   Implementation of GUID functions.
 
   The following BaseMemoryLib instances contain the same copy of this file:
-  
+
     BaseMemoryLib
     BaseMemoryLibMmx
     BaseMemoryLibSse2
@@ -12,14 +12,8 @@
     PeiMemoryLib
     UefiMemoryLib
 
-  Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -30,7 +24,7 @@
 
   This function copies the contents of the 128-bit GUID specified by SourceGuid to
   DestinationGuid, and returns DestinationGuid.
-  
+
   If DestinationGuid is NULL, then ASSERT().
   If SourceGuid is NULL, then ASSERT().
 
@@ -63,7 +57,7 @@ CopyGuid (
 
   This function compares Guid1 to Guid2.  If the GUIDs are identical then TRUE is returned.
   If there are any bit differences in the two GUIDs, then FALSE is returned.
-  
+
   If Guid1 is NULL, then ASSERT().
   If Guid2 is NULL, then ASSERT().
 
@@ -103,7 +97,7 @@ CompareGuid (
   GUID value that matches Guid.  If a match is found, then a pointer to the matching
   GUID in the target buffer is returned.  If no match is found, then NULL is returned.
   If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Buffer is not aligned on a 32-bit boundary, then ASSERT().
   If Length is not aligned on a 128-bit boundary, then ASSERT().

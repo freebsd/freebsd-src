@@ -1,15 +1,10 @@
 /** @file
-  Industry Standard Definitions of SMBIOS Table Specification v3.1.0.
+  Industry Standard Definitions of SMBIOS Table Specification v3.3.0.
 
-Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
 (C) Copyright 2015-2017 Hewlett Packard Enterprise Development LP<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+(C) Copyright 2015 - 2019 Hewlett Packard Enterprise Development LP<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -52,7 +47,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define SMBIOS_3_0_TABLE_MAX_LENGTH 0xFFFFFFFF
 
 //
-// SMBIOS type macros which is according to SMBIOS 2.7 specification.
+// SMBIOS type macros which is according to SMBIOS 3.3.0 specification.
 //
 #define SMBIOS_TYPE_BIOS_INFORMATION                     0
 #define SMBIOS_TYPE_SYSTEM_INFORMATION                   1
@@ -98,13 +93,14 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define SMBIOS_TYPE_ONBOARD_DEVICES_EXTENDED_INFORMATION 41
 #define SMBIOS_TYPE_MANAGEMENT_CONTROLLER_HOST_INTERFACE 42
 #define SMBIOS_TYPE_TPM_DEVICE                           43
+#define SMBIOS_TYPE_PROCESSOR_ADDITIONAL_INFORMATION     44
 
 ///
 /// Inactive type is added from SMBIOS 2.2. Reference SMBIOS 2.6, chapter 3.3.43.
-/// Upper-level software that interprets the SMBIOS structure-table should bypass an 
+/// Upper-level software that interprets the SMBIOS structure-table should bypass an
 /// Inactive structure just like a structure type that the software does not recognize.
 ///
-#define SMBIOS_TYPE_INACTIVE         0x007E    
+#define SMBIOS_TYPE_INACTIVE         0x007E
 
 ///
 /// End-of-table type is added from SMBIOS 2.2. Reference SMBIOS 2.6, chapter 3.3.44.
@@ -117,7 +113,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 ///
 /// Types 0 through 127 (7Fh) are reserved for and defined by this
-/// specification. Types 128 through 256 (80h to FFh) are available for system- and OEM-specific information.  
+/// specification. Types 128 through 256 (80h to FFh) are available for system- and OEM-specific information.
 ///
 typedef UINT8  SMBIOS_TYPE;
 
@@ -225,8 +221,8 @@ typedef struct {
   UINT32  PrinterIsSupported                :1;
   UINT32  CgaMonoIsSupported                :1;
   UINT32  NecPc98                           :1;
-  UINT32  ReservedForVendor                 :32; ///< Bits 32-63. Bits 32-47 reserved for BIOS vendor 
-                                                 ///< and bits 48-63 reserved for System Vendor. 
+  UINT32  ReservedForVendor                 :32; ///< Bits 32-63. Bits 32-47 reserved for BIOS vendor
+                                                 ///< and bits 48-63 reserved for System Vendor.
 } MISC_BIOS_CHARACTERISTICS;
 
 ///
@@ -300,7 +296,7 @@ typedef struct {
 ///
 ///  System Wake-up Type.
 ///
-typedef enum {  
+typedef enum {
   SystemWakeupTypeReserved         = 0x00,
   SystemWakeupTypeOther            = 0x01,
   SystemWakeupTypeUnknown          = 0x02,
@@ -314,10 +310,10 @@ typedef enum {
 
 ///
 /// System Information (Type 1).
-/// 
-/// The information in this structure defines attributes of the overall system and is 
+///
+/// The information in this structure defines attributes of the overall system and is
 /// intended to be associated with the Component ID group of the system's MIF.
-/// An SMBIOS implementation is associated with a single system instance and contains 
+/// An SMBIOS implementation is associated with a single system instance and contains
 /// one and only one System Information (Type 1) structure.
 ///
 typedef struct {
@@ -333,7 +329,7 @@ typedef struct {
 } SMBIOS_TABLE_TYPE1;
 
 ///
-///  Base Board - Feature Flags. 
+///  Base Board - Feature Flags.
 ///
 typedef struct {
   UINT8  Motherboard           :1;
@@ -347,7 +343,7 @@ typedef struct {
 ///
 ///  Base Board - Board Type.
 ///
-typedef enum {  
+typedef enum {
   BaseBoardTypeUnknown                  = 0x1,
   BaseBoardTypeOther                    = 0x2,
   BaseBoardTypeServerBlade              = 0x3,
@@ -366,7 +362,7 @@ typedef enum {
 ///
 /// Base Board (or Module) Information (Type 2).
 ///
-/// The information in this structure defines attributes of a system baseboard - 
+/// The information in this structure defines attributes of a system baseboard -
 /// for example a motherboard, planar, or server blade or other standard system module.
 ///
 typedef struct {
@@ -387,7 +383,7 @@ typedef struct {
 ///
 /// System Enclosure or Chassis Types
 ///
-typedef enum {  
+typedef enum {
   MiscChassisTypeOther                = 0x01,
   MiscChassisTypeUnknown              = 0x02,
   MiscChassisTypeDeskTop              = 0x03,
@@ -429,7 +425,7 @@ typedef enum {
 ///
 /// System Enclosure or Chassis States .
 ///
-typedef enum {  
+typedef enum {
   ChassisStateOther           = 0x01,
   ChassisStateUnknown         = 0x02,
   ChassisStateSafe            = 0x03,
@@ -441,7 +437,7 @@ typedef enum {
 ///
 /// System Enclosure or Chassis Security Status.
 ///
-typedef enum {  
+typedef enum {
   ChassisSecurityStatusOther                          = 0x01,
   ChassisSecurityStatusUnknown                        = 0x02,
   ChassisSecurityStatusNone                           = 0x03,
@@ -462,11 +458,11 @@ typedef struct {
 ///
 /// System Enclosure or Chassis (Type 3).
 ///
-/// The information in this structure defines attributes of the system's mechanical enclosure(s).  
-/// For example, if a system included a separate enclosure for its peripheral devices, 
+/// The information in this structure defines attributes of the system's mechanical enclosure(s).
+/// For example, if a system included a separate enclosure for its peripheral devices,
 /// two structures would be returned: one for the main, system enclosure and the second for
 /// the peripheral device enclosure.  The additions to this structure in v2.1 of this specification
-/// support the population of the CIM_Chassis class. 
+/// support the population of the CIM_Chassis class.
 ///
 typedef struct {
   SMBIOS_STRUCTURE            Hdr;
@@ -514,29 +510,29 @@ typedef enum {
 /// Processor Information - Processor Family.
 ///
 typedef enum {
-  ProcessorFamilyOther                  = 0x01, 
+  ProcessorFamilyOther                  = 0x01,
   ProcessorFamilyUnknown                = 0x02,
-  ProcessorFamily8086                   = 0x03, 
+  ProcessorFamily8086                   = 0x03,
   ProcessorFamily80286                  = 0x04,
-  ProcessorFamilyIntel386               = 0x05, 
+  ProcessorFamilyIntel386               = 0x05,
   ProcessorFamilyIntel486               = 0x06,
   ProcessorFamily8087                   = 0x07,
   ProcessorFamily80287                  = 0x08,
-  ProcessorFamily80387                  = 0x09, 
+  ProcessorFamily80387                  = 0x09,
   ProcessorFamily80487                  = 0x0A,
-  ProcessorFamilyPentium                = 0x0B, 
+  ProcessorFamilyPentium                = 0x0B,
   ProcessorFamilyPentiumPro             = 0x0C,
   ProcessorFamilyPentiumII              = 0x0D,
   ProcessorFamilyPentiumMMX             = 0x0E,
   ProcessorFamilyCeleron                = 0x0F,
   ProcessorFamilyPentiumIIXeon          = 0x10,
-  ProcessorFamilyPentiumIII             = 0x11, 
+  ProcessorFamilyPentiumIII             = 0x11,
   ProcessorFamilyM1                     = 0x12,
   ProcessorFamilyM2                     = 0x13,
   ProcessorFamilyIntelCeleronM          = 0x14,
   ProcessorFamilyIntelPentium4Ht        = 0x15,
   ProcessorFamilyAmdDuron               = 0x18,
-  ProcessorFamilyK5                     = 0x19, 
+  ProcessorFamilyK5                     = 0x19,
   ProcessorFamilyK6                     = 0x1A,
   ProcessorFamilyK6_2                   = 0x1B,
   ProcessorFamilyK6_3                   = 0x1C,
@@ -630,7 +626,7 @@ typedef enum {
   ProcessorFamilyAmdPhenomFxQuadCore    = 0x8C,
   ProcessorFamilyAmdPhenomX4QuadCore    = 0x8D,
   ProcessorFamilyAmdPhenomX2DualCore    = 0x8E,
-  ProcessorFamilyAmdAthlonX2DualCore    = 0x8F,  
+  ProcessorFamilyAmdAthlonX2DualCore    = 0x8F,
   ProcessorFamilyPARISC                 = 0x90,
   ProcessorFamilyPaRisc8500             = 0x91,
   ProcessorFamilyPaRisc8000             = 0x92,
@@ -677,7 +673,7 @@ typedef enum {
   ProcessorFamilyIntelCore2DuoMobile    = 0xC4,
   ProcessorFamilyIntelCore2SoloMobile   = 0xC5,
   ProcessorFamilyIntelCoreI7            = 0xC6,
-  ProcessorFamilyDualCoreIntelCeleron   = 0xC7,  
+  ProcessorFamilyDualCoreIntelCeleron   = 0xC7,
   ProcessorFamilyIBM390                 = 0xC8,
   ProcessorFamilyG4                     = 0xC9,
   ProcessorFamilyG5                     = 0xCA,
@@ -685,6 +681,7 @@ typedef enum {
   ProcessorFamilyzArchitecture          = 0xCC,
   ProcessorFamilyIntelCoreI5            = 0xCD,
   ProcessorFamilyIntelCoreI3            = 0xCE,
+  ProcessorFamilyIntelCoreI9            = 0xCF,
   ProcessorFamilyViaC7M                 = 0xD2,
   ProcessorFamilyViaC7D                 = 0xD3,
   ProcessorFamilyViaC7                  = 0xD4,
@@ -732,16 +729,19 @@ typedef enum {
   ProcessorFamilyMII                   = 0x012E,
   ProcessorFamilyWinChip               = 0x0140,
   ProcessorFamilyDSP                   = 0x015E,
-  ProcessorFamilyVideoProcessor        = 0x01F4
+  ProcessorFamilyVideoProcessor        = 0x01F4,
+  ProcessorFamilyRiscvRV32             = 0x0200,
+  ProcessorFamilyRiscVRV64             = 0x0201,
+  ProcessorFamilyRiscVRV128            = 0x0202
 } PROCESSOR_FAMILY2_DATA;
 
 ///
-/// Processor Information - Voltage. 
+/// Processor Information - Voltage.
 ///
 typedef struct {
-  UINT8  ProcessorVoltageCapability5V        :1; 
-  UINT8  ProcessorVoltageCapability3_3V      :1;  
-  UINT8  ProcessorVoltageCapability2_9V      :1;  
+  UINT8  ProcessorVoltageCapability5V        :1;
+  UINT8  ProcessorVoltageCapability3_3V      :1;
+  UINT8  ProcessorVoltageCapability2_9V      :1;
   UINT8  ProcessorVoltageCapabilityReserved  :1; ///< Bit 3, must be zero.
   UINT8  ProcessorVoltageReserved            :3; ///< Bits 4-6, must be zero.
   UINT8  ProcessorVoltageIndicateLegacy      :1;
@@ -806,7 +806,11 @@ typedef enum {
   ProcessorUpgradeSocketBGA1515   = 0x35,
   ProcessorUpgradeSocketLGA3647_1 = 0x36,
   ProcessorUpgradeSocketSP3       = 0x37,
-  ProcessorUpgradeSocketSP3r2     = 0x38
+  ProcessorUpgradeSocketSP3r2     = 0x38,
+  ProcessorUpgradeSocketLGA2066   = 0x39,
+  ProcessorUpgradeSocketBGA1392   = 0x3A,
+  ProcessorUpgradeSocketBGA1510   = 0x3B,
+  ProcessorUpgradeSocketBGA1528   = 0x3C
 } PROCESSOR_UPGRADE;
 
 ///
@@ -858,6 +862,19 @@ typedef struct {
 } PROCESSOR_FEATURE_FLAGS;
 
 typedef struct {
+  UINT32  ProcessorReserved1             :1;
+  UINT32  ProcessorUnknown               :1;
+  UINT32  Processor64BitCapble           :1;
+  UINT32  ProcessorMultiCore             :1;
+  UINT32  ProcessorHardwareThread        :1;
+  UINT32  ProcessorExecuteProtection     :1;
+  UINT32  ProcessorEnhancedVirtulization :1;
+  UINT32  ProcessorPowerPerformanceCtrl  :1;
+  UINT32  Processor128bitCapble          :1;
+  UINT32  ProcessorReserved2             :7;
+} PROCESSOR_CHARACTERISTIC_FLAGS;
+
+typedef struct {
   PROCESSOR_SIGNATURE     Signature;
   PROCESSOR_FEATURE_FLAGS FeatureFlags;
 } PROCESSOR_ID_DATA;
@@ -865,13 +882,13 @@ typedef struct {
 ///
 /// Processor Information (Type 4).
 ///
-/// The information in this structure defines the attributes of a single processor; 
-/// a separate structure instance is provided for each system processor socket/slot. 
-/// For example, a system with an IntelDX2 processor would have a single 
+/// The information in this structure defines the attributes of a single processor;
+/// a separate structure instance is provided for each system processor socket/slot.
+/// For example, a system with an IntelDX2 processor would have a single
 /// structure instance, while a system with an IntelSX2 processor would have a structure
-/// to describe the main CPU, and a second structure to describe the 80487 co-processor. 
+/// to describe the main CPU, and a second structure to describe the 80487 co-processor.
 ///
-typedef struct { 
+typedef struct {
   SMBIOS_STRUCTURE      Hdr;
   SMBIOS_TABLE_STRING   Socket;
   UINT8                 ProcessorType;          ///< The enumeration value from PROCESSOR_TYPE_DATA.
@@ -913,7 +930,7 @@ typedef struct {
 ///
 /// Memory Controller Error Detecting Method.
 ///
-typedef enum {  
+typedef enum {
   ErrorDetectingMethodOther   = 0x01,
   ErrorDetectingMethodUnknown = 0x02,
   ErrorDetectingMethodNone    = 0x03,
@@ -940,7 +957,7 @@ typedef struct {
 ///
 /// Memory Controller Information - Interleave Support.
 ///
-typedef enum {  
+typedef enum {
   MemoryInterleaveOther      = 0x01,
   MemoryInterleaveUnknown    = 0x02,
   MemoryInterleaveOneWay     = 0x03,
@@ -965,10 +982,10 @@ typedef struct {
 ///
 /// Memory Controller Information (Type 5, Obsolete).
 ///
-/// The information in this structure defines the attributes of the system's memory controller(s) 
-/// and the supported attributes of any memory-modules present in the sockets controlled by 
-/// this controller. 
-/// Note: This structure, and its companion Memory Module Information (Type 6, Obsolete), 
+/// The information in this structure defines the attributes of the system's memory controller(s)
+/// and the supported attributes of any memory-modules present in the sockets controlled by
+/// this controller.
+/// Note: This structure, and its companion Memory Module Information (Type 6, Obsolete),
 /// are obsolete starting with version 2.1 of this specification. The Physical Memory Array (Type 16)
 /// and Memory Device (Type 17) structures should be used instead.  BIOS providers might
 /// choose to implement both memory description types to allow existing DMI browsers
@@ -979,7 +996,7 @@ typedef struct {
   UINT8                           ErrDetectMethod;            ///< The enumeration value from MEMORY_ERROR_DETECT_METHOD.
   MEMORY_ERROR_CORRECT_CAPABILITY ErrCorrectCapability;
   UINT8                           SupportInterleave;          ///< The enumeration value from MEMORY_SUPPORT_INTERLEAVE_TYPE.
-  UINT8                           CurrentInterleave;          ///< The enumeration value from MEMORY_SUPPORT_INTERLEAVE_TYPE .     
+  UINT8                           CurrentInterleave;          ///< The enumeration value from MEMORY_SUPPORT_INTERLEAVE_TYPE .
   UINT8                           MaxMemoryModuleSize;
   MEMORY_SPEED_TYPE               SupportSpeed;
   UINT16                          SupportMemoryType;
@@ -1017,11 +1034,11 @@ typedef struct {
 ///
 /// Memory Module Information (Type 6, Obsolete)
 ///
-/// One Memory Module Information structure is included for each memory-module socket 
+/// One Memory Module Information structure is included for each memory-module socket
 /// in the system.  The structure describes the speed, type, size, and error status
-/// of each system memory module.  The supported attributes of each module are described 
-/// by the "owning" Memory Controller Information structure.  
-/// Note:  This structure, and its companion Memory Controller Information (Type 5, Obsolete), 
+/// of each system memory module.  The supported attributes of each module are described
+/// by the "owning" Memory Controller Information structure.
+/// Note:  This structure, and its companion Memory Controller Information (Type 5, Obsolete),
 /// are obsolete starting with version 2.1 of this specification. The Physical Memory Array (Type 16)
 /// and Memory Device (Type 17) structures should be used instead.
 ///
@@ -1063,7 +1080,7 @@ typedef enum {
 } CACHE_ERROR_TYPE_DATA;
 
 ///
-/// Cache Information - System Cache Type. 
+/// Cache Information - System Cache Type.
 ///
 typedef enum {
   CacheTypeOther       = 0x01,
@@ -1074,7 +1091,7 @@ typedef enum {
 } CACHE_TYPE_DATA;
 
 ///
-/// Cache Information - Associativity. 
+/// Cache Information - Associativity.
 ///
 typedef enum {
   CacheAssociativityOther        = 0x01,
@@ -1096,7 +1113,7 @@ typedef enum {
 ///
 /// Cache Information (Type 7).
 ///
-/// The information in this structure defines the attributes of CPU cache device in the system. 
+/// The information in this structure defines the attributes of CPU cache device in the system.
 /// One structure is specified for each such device, whether the device is internal to
 /// or external to the CPU module.  Cache modules can be associated with a processor structure
 /// in one or two ways, depending on the SMBIOS version.
@@ -1121,7 +1138,7 @@ typedef struct {
 } SMBIOS_TABLE_TYPE7;
 
 ///
-/// Port Connector Information - Connector Types. 
+/// Port Connector Information - Connector Types.
 ///
 typedef enum {
   PortConnectorTypeNone                   = 0x00,
@@ -1159,6 +1176,7 @@ typedef enum {
   PortConnectorTypeBNC                    = 0x20,
   PortConnectorType1394                   = 0x21,
   PortConnectorTypeSasSata                = 0x22,
+  PortConnectorTypeUsbTypeC               = 0x23,
   PortConnectorTypePC98                   = 0xA0,
   PortConnectorTypePC98Hireso             = 0xA1,
   PortConnectorTypePCH98                  = 0xA2,
@@ -1168,7 +1186,7 @@ typedef enum {
 } MISC_PORT_CONNECTOR_TYPE;
 
 ///
-/// Port Connector Information - Port Types 
+/// Port Connector Information - Port Types
 ///
 typedef enum {
   PortTypeNone                      = 0x00,
@@ -1205,6 +1223,8 @@ typedef enum {
   PortTypeNetworkPort               = 0x1F,
   PortTypeSata                      = 0x20,
   PortTypeSas                       = 0x21,
+  PortTypeMfdp                      = 0x22, ///< Multi-Function Display Port
+  PortTypeThunderbolt               = 0x23,
   PortType8251Compatible            = 0xA0,
   PortType8251FifoCompatible        = 0xA1,
   PortTypeOther                     = 0xFF
@@ -1213,8 +1233,8 @@ typedef enum {
 ///
 /// Port Connector Information (Type 8).
 ///
-/// The information in this structure defines the attributes of a system port connector, 
-/// e.g. parallel, serial, keyboard, or mouse ports.  The port's type and connector information 
+/// The information in this structure defines the attributes of a system port connector,
+/// e.g. parallel, serial, keyboard, or mouse ports.  The port's type and connector information
 /// are provided. One structure is present for each port provided by the system.
 ///
 typedef struct {
@@ -1265,6 +1285,7 @@ typedef enum {
   SlotTypePciExpressMini52pinWithBSKO  = 0x21,      ///< PCI Express Mini 52-pin (CEM spec. 2.0) with bottom-side keep-outs.
   SlotTypePciExpressMini52pinWithoutBSKO = 0x22,    ///< PCI Express Mini 52-pin (CEM spec. 2.0) without bottom-side keep-outs.
   SlotTypePciExpressMini76pin          = 0x23,      ///< PCI Express Mini 76-pin (CEM spec. 2.0) Corresponds to Display-Mini card.
+  SlotTypeCXLFlexbus10                 = 0x30,
   SlotTypePC98C20                      = 0xA0,
   SlotTypePC98C24                      = 0xA1,
   SlotTypePC98E                        = 0xA2,
@@ -1287,7 +1308,13 @@ typedef enum {
   SlotTypePciExpressGen3X2             = 0xB3,
   SlotTypePciExpressGen3X4             = 0xB4,
   SlotTypePciExpressGen3X8             = 0xB5,
-  SlotTypePciExpressGen3X16            = 0xB6
+  SlotTypePciExpressGen3X16            = 0xB6,
+  SlotTypePciExpressGen4               = 0xB8,
+  SlotTypePciExpressGen4X1             = 0xB9,
+  SlotTypePciExpressGen4X2             = 0xBA,
+  SlotTypePciExpressGen4X4             = 0xBB,
+  SlotTypePciExpressGen4X8             = 0xBC,
+  SlotTypePciExpressGen4X16            = 0xBD
 } MISC_SLOT_TYPE;
 
 ///
@@ -1314,14 +1341,15 @@ typedef enum {
 /// System Slots - Current Usage.
 ///
 typedef enum {
-  SlotUsageOther     = 0x01,
-  SlotUsageUnknown   = 0x02,
-  SlotUsageAvailable = 0x03,
-  SlotUsageInUse     = 0x04
+  SlotUsageOther        = 0x01,
+  SlotUsageUnknown      = 0x02,
+  SlotUsageAvailable    = 0x03,
+  SlotUsageInUse        = 0x04,
+  SlotUsageUnavailable  = 0x05
 } MISC_SLOT_USAGE;
 
 ///
-/// System Slots - Slot Length. 
+/// System Slots - Slot Length.
 ///
 typedef enum {
   SlotLengthOther   = 0x01,
@@ -1331,7 +1359,7 @@ typedef enum {
 } MISC_SLOT_LENGTH;
 
 ///
-/// System Slots - Slot Characteristics 1. 
+/// System Slots - Slot Characteristics 1.
 ///
 typedef struct {
   UINT8  CharacteristicsUnknown  :1;
@@ -1344,19 +1372,30 @@ typedef struct {
   UINT8  ModemRingResumeSupported:1;
 } MISC_SLOT_CHARACTERISTICS1;
 ///
-/// System Slots - Slot Characteristics 2.  
+/// System Slots - Slot Characteristics 2.
 ///
 typedef struct {
   UINT8  PmeSignalSupported      :1;
   UINT8  HotPlugDevicesSupported :1;
   UINT8  SmbusSignalSupported    :1;
-  UINT8  Reserved                :5;  ///< Set to 0.
+  UINT8  BifurcationSupported    :1;
+  UINT8  Reserved                :4;  ///< Set to 0.
 } MISC_SLOT_CHARACTERISTICS2;
+
+///
+/// System Slots - Peer Segment/Bus/Device/Function/Width Groups
+///
+typedef struct {
+  UINT16                      SegmentGroupNum;
+  UINT8                       BusNum;
+  UINT8                       DevFuncNum;
+  UINT8                       DataBusWidth;
+} MISC_SLOT_PEER_GROUP;
 
 ///
 /// System Slots (Type 9)
 ///
-/// The information in this structure defines the attributes of a system slot. 
+/// The information in this structure defines the attributes of a system slot.
 /// One structure is provided for each slot in the system.
 ///
 ///
@@ -1376,10 +1415,16 @@ typedef struct {
   UINT16                      SegmentGroupNum;
   UINT8                       BusNum;
   UINT8                       DevFuncNum;
+  //
+  // Add for smbios 3.2
+  //
+  UINT8                       DataBusWidth;
+  UINT8                       PeerGroupingCount;
+  MISC_SLOT_PEER_GROUP        PeerGroups[1];
 } SMBIOS_TABLE_TYPE9;
 
 ///
-/// On Board Devices Information - Device Types. 
+/// On Board Devices Information - Device Types.
 ///
 typedef enum {
   OnBoardDeviceTypeOther          = 0x01,
@@ -1406,10 +1451,10 @@ typedef struct {
 ///
 /// On Board Devices Information (Type 10, obsolete).
 ///
-/// Note: This structure is obsolete starting with version 2.6 specification; the Onboard Devices Extended 
-/// Information (Type 41) structure should be used instead . BIOS providers can choose to implement both 
-/// types to allow existing SMBIOS browsers to properly display the system's onboard devices information.  
-/// The information in this structure defines the attributes of devices that are onboard (soldered onto) 
+/// Note: This structure is obsolete starting with version 2.6 specification; the Onboard Devices Extended
+/// Information (Type 41) structure should be used instead . BIOS providers can choose to implement both
+/// types to allow existing SMBIOS browsers to properly display the system's onboard devices information.
+/// The information in this structure defines the attributes of devices that are onboard (soldered onto)
 /// a system element, usually the baseboard.  In general, an entry in this table implies that the BIOS
 /// has some level of control over the enabling of the associated device for use by the system.
 ///
@@ -1420,8 +1465,8 @@ typedef struct {
 
 ///
 /// OEM Strings (Type 11).
-/// This structure contains free form strings defined by the OEM. Examples of this are: 
-/// Part Numbers for Reference Documents for the system, contact information for the manufacturer, etc. 
+/// This structure contains free form strings defined by the OEM. Examples of this are:
+/// Part Numbers for Reference Documents for the system, contact information for the manufacturer, etc.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1431,7 +1476,7 @@ typedef struct {
 ///
 /// System Configuration Options (Type 12).
 ///
-/// This structure contains information required to configure the base board's Jumpers and Switches. 
+/// This structure contains information required to configure the base board's Jumpers and Switches.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1442,8 +1487,8 @@ typedef struct {
 ///
 /// BIOS Language Information (Type 13).
 ///
-/// The information in this structure defines the installable language attributes of the BIOS.  
-/// 
+/// The information in this structure defines the installable language attributes of the BIOS.
+///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
   UINT8                 InstallableLanguages;
@@ -1463,9 +1508,9 @@ typedef struct {
 ///
 /// Group Associations (Type 14).
 ///
-/// The Group Associations structure is provided for OEMs who want to specify 
-/// the arrangement or hierarchy of certain components (including other Group Associations) 
-/// within the system. 
+/// The Group Associations structure is provided for OEMs who want to specify
+/// the arrangement or hierarchy of certain components (including other Group Associations)
+/// within the system.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1475,7 +1520,7 @@ typedef struct {
 
 ///
 /// System Event Log - Event Log Types.
-/// 
+///
 typedef enum {
   EventLogTypeReserved         = 0x00,
   EventLogTypeSingleBitECC     = 0x01,
@@ -1506,8 +1551,8 @@ typedef enum {
 } EVENT_LOG_TYPE_DATA;
 
 ///
-/// System Event Log - Variable Data Format Types. 
-/// 
+/// System Event Log - Variable Data Format Types.
+///
 typedef enum {
   EventLogVariableNone                        = 0x00,
   EventLogVariableHandle                      = 0x01,
@@ -1515,7 +1560,7 @@ typedef enum {
   EventLogVariableMutilEventHandle            = 0x03,
   EventLogVariablePOSTResultBitmap            = 0x04,
   EventLogVariableSysManagementType           = 0x05,
-  EventLogVariableMutliEventSysManagmentType  = 0x06,                               
+  EventLogVariableMutliEventSysManagmentType  = 0x06,
   EventLogVariableUnused                      = 0x07,
   EventLogVariableOEMAssigned                 = 0x80
 } EVENT_LOG_VARIABLE_DATA;
@@ -1531,10 +1576,10 @@ typedef struct {
 ///
 /// System Event Log (Type 15).
 ///
-/// The presence of this structure within the SMBIOS data returned for a system indicates 
-/// that the system supports an event log.  An event log is a fixed-length area within a 
-/// non-volatile storage element, starting with a fixed-length (and vendor-specific) header 
-/// record, followed by one or more variable-length log records. 
+/// The presence of this structure within the SMBIOS data returned for a system indicates
+/// that the system supports an event log.  An event log is a fixed-length area within a
+/// non-volatile storage element, starting with a fixed-length (and vendor-specific) header
+/// record, followed by one or more variable-length log records.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1568,7 +1613,8 @@ typedef enum {
   MemoryArrayLocationPc98C20AddonCard      = 0xA0,
   MemoryArrayLocationPc98C24AddonCard      = 0xA1,
   MemoryArrayLocationPc98EAddonCard        = 0xA2,
-  MemoryArrayLocationPc98LocalBusAddonCard = 0xA3
+  MemoryArrayLocationPc98LocalBusAddonCard = 0xA3,
+  MemoryArrayLocationCXLFlexbus10AddonCard = 0xA4
 } MEMORY_ARRAY_LOCATION;
 
 ///
@@ -1585,7 +1631,7 @@ typedef enum {
 } MEMORY_ARRAY_USE;
 
 ///
-/// Physical Memory Array - Error Correction Types. 
+/// Physical Memory Array - Error Correction Types.
 ///
 typedef enum {
   MemoryErrorCorrectionOther               = 0x01,
@@ -1600,8 +1646,8 @@ typedef enum {
 ///
 /// Physical Memory Array (Type 16).
 ///
-/// This structure describes a collection of memory devices that operate 
-/// together to form a memory address space. 
+/// This structure describes a collection of memory devices that operate
+/// together to form a memory address space.
 ///
 typedef struct {
   SMBIOS_STRUCTURE          Hdr;
@@ -1635,7 +1681,8 @@ typedef enum {
   MemoryFormFactorRimm                     = 0x0C,
   MemoryFormFactorSodimm                   = 0x0D,
   MemoryFormFactorSrimm                    = 0x0E,
-  MemoryFormFactorFbDimm                   = 0x0F
+  MemoryFormFactorFbDimm                   = 0x0F,
+  MemoryFormFactorDie                      = 0x10
 } MEMORY_FORM_FACTOR;
 
 ///
@@ -1668,9 +1715,15 @@ typedef enum {
   MemoryTypeLpddr                          = 0x1B,
   MemoryTypeLpddr2                         = 0x1C,
   MemoryTypeLpddr3                         = 0x1D,
-  MemoryTypeLpddr4                         = 0x1E
+  MemoryTypeLpddr4                         = 0x1E,
+  MemoryTypeLogicalNonVolatileDevice       = 0x1F,
+  MemoryTypeHBM                            = 0x20,
+  MemoryTypeHBM2                           = 0x21
 } MEMORY_DEVICE_TYPE;
 
+///
+/// Memory Device - Type Detail
+///
 typedef struct {
   UINT16    Reserved        :1;
   UINT16    Other           :1;
@@ -1691,53 +1744,116 @@ typedef struct {
 } MEMORY_DEVICE_TYPE_DETAIL;
 
 ///
+/// Memory Device - Memory Technology
+///
+typedef enum {
+  MemoryTechnologyOther                     = 0x01,
+  MemoryTechnologyUnknown                   = 0x02,
+  MemoryTechnologyDram                      = 0x03,
+  MemoryTechnologyNvdimmN                   = 0x04,
+  MemoryTechnologyNvdimmF                   = 0x05,
+  MemoryTechnologyNvdimmP                   = 0x06,
+  //
+  // This definition is updated to represent Intel
+  // Optane DC Presistent Memory in SMBIOS spec 3.3.0
+  //
+  MemoryTechnologyIntelPersistentMemory     = 0x07
+} MEMORY_DEVICE_TECHNOLOGY;
+
+///
+/// Memory Device - Memory Operating Mode Capability
+///
+typedef union {
+  ///
+  /// Individual bit fields
+  ///
+  struct {
+    UINT16 Reserved                         :1;   ///< Set to 0.
+    UINT16 Other                            :1;
+    UINT16 Unknown                          :1;
+    UINT16 VolatileMemory                   :1;
+    UINT16 ByteAccessiblePersistentMemory   :1;
+    UINT16 BlockAccessiblePersistentMemory  :1;
+    UINT16 Reserved2                        :10;  ///< Set to 0.
+  } Bits;
+  ///
+  /// All bit fields as a 16-bit value
+  ///
+  UINT16 Uint16;
+} MEMORY_DEVICE_OPERATING_MODE_CAPABILITY;
+
+///
 /// Memory Device (Type 17).
 ///
-/// This structure describes a single memory device that is part of 
+/// This structure describes a single memory device that is part of
 /// a larger Physical Memory Array (Type 16).
-/// Note:  If a system includes memory-device sockets, the SMBIOS implementation 
-/// includes a Memory Device structure instance for each slot, whether or not the 
+/// Note:  If a system includes memory-device sockets, the SMBIOS implementation
+/// includes a Memory Device structure instance for each slot, whether or not the
 /// socket is currently populated.
 ///
 typedef struct {
-  SMBIOS_STRUCTURE          Hdr;
-  UINT16                    MemoryArrayHandle;
-  UINT16                    MemoryErrorInformationHandle;
-  UINT16                    TotalWidth;
-  UINT16                    DataWidth;
-  UINT16                    Size;
-  UINT8                     FormFactor;                     ///< The enumeration value from MEMORY_FORM_FACTOR.
-  UINT8                     DeviceSet;
-  SMBIOS_TABLE_STRING       DeviceLocator;
-  SMBIOS_TABLE_STRING       BankLocator;
-  UINT8                     MemoryType;                     ///< The enumeration value from MEMORY_DEVICE_TYPE.
-  MEMORY_DEVICE_TYPE_DETAIL TypeDetail;
-  UINT16                    Speed;
-  SMBIOS_TABLE_STRING       Manufacturer;
-  SMBIOS_TABLE_STRING       SerialNumber;
-  SMBIOS_TABLE_STRING       AssetTag;
-  SMBIOS_TABLE_STRING       PartNumber;
+  SMBIOS_STRUCTURE                          Hdr;
+  UINT16                                    MemoryArrayHandle;
+  UINT16                                    MemoryErrorInformationHandle;
+  UINT16                                    TotalWidth;
+  UINT16                                    DataWidth;
+  UINT16                                    Size;
+  UINT8                                     FormFactor;         ///< The enumeration value from MEMORY_FORM_FACTOR.
+  UINT8                                     DeviceSet;
+  SMBIOS_TABLE_STRING                       DeviceLocator;
+  SMBIOS_TABLE_STRING                       BankLocator;
+  UINT8                                     MemoryType;         ///< The enumeration value from MEMORY_DEVICE_TYPE.
+  MEMORY_DEVICE_TYPE_DETAIL                 TypeDetail;
+  UINT16                                    Speed;
+  SMBIOS_TABLE_STRING                       Manufacturer;
+  SMBIOS_TABLE_STRING                       SerialNumber;
+  SMBIOS_TABLE_STRING                       AssetTag;
+  SMBIOS_TABLE_STRING                       PartNumber;
   //
   // Add for smbios 2.6
-  //  
-  UINT8                     Attributes;
+  //
+  UINT8                                     Attributes;
   //
   // Add for smbios 2.7
   //
-  UINT32                    ExtendedSize;
-  UINT16                    ConfiguredMemoryClockSpeed;
+  UINT32                                    ExtendedSize;
+  //
+  // Keep using name "ConfiguredMemoryClockSpeed" for compatibility
+  // although this field is renamed from "Configured Memory Clock Speed"
+  // to "Configured Memory Speed" in smbios 3.2.0.
+  //
+  UINT16                                    ConfiguredMemoryClockSpeed;
   //
   // Add for smbios 2.8.0
   //
-  UINT16                    MinimumVoltage;
-  UINT16                    MaximumVoltage;
-  UINT16                    ConfiguredVoltage;
+  UINT16                                    MinimumVoltage;
+  UINT16                                    MaximumVoltage;
+  UINT16                                    ConfiguredVoltage;
+  //
+  // Add for smbios 3.2.0
+  //
+  UINT8                                     MemoryTechnology;   ///< The enumeration value from MEMORY_DEVICE_TECHNOLOGY
+  MEMORY_DEVICE_OPERATING_MODE_CAPABILITY   MemoryOperatingModeCapability;
+  SMBIOS_TABLE_STRING                       FirwareVersion;
+  UINT16                                    ModuleManufacturerID;
+  UINT16                                    ModuleProductID;
+  UINT16                                    MemorySubsystemControllerManufacturerID;
+  UINT16                                    MemorySubsystemControllerProductID;
+  UINT64                                    NonVolatileSize;
+  UINT64                                    VolatileSize;
+  UINT64                                    CacheSize;
+  UINT64                                    LogicalSize;
+  //
+  // Add for smbios 3.3.0
+  //
+  UINT32                                    ExtendedSpeed;
+  UINT32                                    ExtendedConfiguredMemorySpeed;
 } SMBIOS_TABLE_TYPE17;
 
 ///
-/// 32-bit Memory Error Information - Error Type. 
+/// 32-bit Memory Error Information - Error Type.
 ///
-typedef enum {  
+typedef enum {
   MemoryErrorOther             = 0x01,
   MemoryErrorUnknown           = 0x02,
   MemoryErrorOk                = 0x03,
@@ -1755,9 +1871,9 @@ typedef enum {
 } MEMORY_ERROR_TYPE;
 
 ///
-/// 32-bit Memory Error Information - Error Granularity. 
+/// 32-bit Memory Error Information - Error Granularity.
 ///
-typedef enum {  
+typedef enum {
   MemoryGranularityOther               = 0x01,
   MemoryGranularityOtherUnknown        = 0x02,
   MemoryGranularityDeviceLevel         = 0x03,
@@ -1765,9 +1881,9 @@ typedef enum {
 } MEMORY_ERROR_GRANULARITY;
 
 ///
-/// 32-bit Memory Error Information - Error Operation. 
+/// 32-bit Memory Error Information - Error Operation.
 ///
-typedef enum {  
+typedef enum {
   MemoryErrorOperationOther            = 0x01,
   MemoryErrorOperationUnknown          = 0x02,
   MemoryErrorOperationRead             = 0x03,
@@ -1777,8 +1893,8 @@ typedef enum {
 
 ///
 /// 32-bit Memory Error Information (Type 18).
-/// 
-/// This structure identifies the specifics of an error that might be detected 
+///
+/// This structure identifies the specifics of an error that might be detected
 /// within a Physical Memory Array.
 ///
 typedef struct {
@@ -1795,7 +1911,7 @@ typedef struct {
 ///
 /// Memory Array Mapped Address (Type 19).
 ///
-/// This structure provides the address mapping for a Physical Memory Array.  
+/// This structure provides the address mapping for a Physical Memory Array.
 /// One structure is present for each contiguous address range described.
 ///
 typedef struct {
@@ -1814,8 +1930,8 @@ typedef struct {
 ///
 /// Memory Device Mapped Address (Type 20).
 ///
-/// This structure maps memory address space usually to a device-level granularity.  
-/// One structure is present for each contiguous address range described. 
+/// This structure maps memory address space usually to a device-level granularity.
+/// One structure is present for each contiguous address range described.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1868,9 +1984,9 @@ typedef enum {
 ///
 /// Built-in Pointing Device (Type 21).
 ///
-/// This structure describes the attributes of the built-in pointing device for the 
+/// This structure describes the attributes of the built-in pointing device for the
 /// system. The presence of this structure does not imply that the built-in
-/// pointing device is active for the system's use! 
+/// pointing device is active for the system's use!
 ///
 typedef struct {
   SMBIOS_STRUCTURE                  Hdr;
@@ -1882,7 +1998,7 @@ typedef struct {
 ///
 /// Portable Battery - Device Chemistry
 ///
-typedef enum {  
+typedef enum {
   PortableBatteryDeviceChemistryOther               = 0x01,
   PortableBatteryDeviceChemistryUnknown             = 0x02,
   PortableBatteryDeviceChemistryLeadAcid            = 0x03,
@@ -1896,8 +2012,8 @@ typedef enum {
 ///
 /// Portable Battery (Type 22).
 ///
-/// This structure describes the attributes of the portable battery(s) for the system.  
-/// The structure contains the static attributes for the group.  Each structure describes 
+/// This structure describes the attributes of the portable battery(s) for the system.
+/// The structure contains the static attributes for the group.  Each structure describes
 /// a single battery pack's attributes.
 ///
 typedef struct {
@@ -1922,11 +2038,11 @@ typedef struct {
 ///
 /// System Reset (Type 23)
 ///
-/// This structure describes whether Automatic System Reset functions enabled (Status).  
+/// This structure describes whether Automatic System Reset functions enabled (Status).
 /// If the system has a watchdog Timer and the timer is not reset (Timer Reset)
-/// before the Interval elapses, an automatic system reset will occur. The system will re-boot 
-/// according to the Boot Option. This function may repeat until the Limit is reached, at which time 
-/// the system will re-boot according to the Boot Option at Limit.  
+/// before the Interval elapses, an automatic system reset will occur. The system will re-boot
+/// according to the Boot Option. This function may repeat until the Limit is reached, at which time
+/// the system will re-boot according to the Boot Option at Limit.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1940,7 +2056,7 @@ typedef struct {
 ///
 /// Hardware Security (Type 24).
 ///
-/// This structure describes the system-wide hardware security settings. 
+/// This structure describes the system-wide hardware security settings.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1950,10 +2066,10 @@ typedef struct {
 ///
 /// System Power Controls (Type 25).
 ///
-/// This structure describes the attributes for controlling the main power supply to the system. 
-/// Software that interprets this structure uses the month, day, hour, minute, and second values 
-/// to determine the number of seconds until the next power-on of the system.  The presence of  
-/// this structure implies that a timed power-on facility is available for the system. 
+/// This structure describes the attributes for controlling the main power supply to the system.
+/// Software that interprets this structure uses the month, day, hour, minute, and second values
+/// to determine the number of seconds until the next power-on of the system.  The presence of
+/// this structure implies that a timed power-on facility is available for the system.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -1975,7 +2091,7 @@ typedef struct {
 ///
 /// Voltage Probe (Type 26)
 ///
-/// This describes the attributes for a voltage probe in the system.   
+/// This describes the attributes for a voltage probe in the system.
 /// Each structure describes a single voltage probe.
 ///
 typedef struct {
@@ -2002,9 +2118,9 @@ typedef struct {
 ///
 /// Cooling Device (Type 27)
 ///
-/// This structure describes the attributes for a cooling device in the system.  
-/// Each structure describes a single cooling device. 
-/// 
+/// This structure describes the attributes for a cooling device in the system.
+/// Each structure describes a single cooling device.
+///
 typedef struct {
   SMBIOS_STRUCTURE                  Hdr;
   UINT16                            TemperatureProbeHandle;
@@ -2029,8 +2145,8 @@ typedef struct {
 ///
 /// Temperature Probe (Type 28).
 ///
-/// This structure describes the attributes for a temperature probe in the system.  
-/// Each structure describes a single temperature probe. 
+/// This structure describes the attributes for a temperature probe in the system.
+/// Each structure describes a single temperature probe.
 ///
 typedef struct {
   SMBIOS_STRUCTURE                  Hdr;
@@ -2057,7 +2173,7 @@ typedef struct {
 /// Electrical Current Probe (Type 29).
 ///
 /// This structure describes the attributes for an electrical current probe in the system.
-/// Each structure describes a single electrical current probe. 
+/// Each structure describes a single electrical current probe.
 ///
 typedef struct {
   SMBIOS_STRUCTURE                        Hdr;
@@ -2075,9 +2191,9 @@ typedef struct {
 ///
 /// Out-of-Band Remote Access (Type 30).
 ///
-/// This structure describes the attributes and policy settings of a hardware facility 
-/// that may be used to gain remote access to a hardware system when the operating system 
-/// is not available due to power-down status, hardware failures, or boot failures. 
+/// This structure describes the attributes and policy settings of a hardware facility
+/// that may be used to gain remote access to a hardware system when the operating system
+/// is not available due to power-down status, hardware failures, or boot failures.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -2088,8 +2204,8 @@ typedef struct {
 ///
 /// Boot Integrity Services (BIS) Entry Point (Type 31).
 ///
-/// Structure type 31 (decimal) is reserved for use by the Boot Integrity Services (BIS). 
-/// 
+/// Structure type 31 (decimal) is reserved for use by the Boot Integrity Services (BIS).
+///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
   UINT8                 Checksum;
@@ -2122,12 +2238,12 @@ typedef enum {
 ///
 /// System Boot Information (Type 32).
 ///
-/// The client system firmware, e.g. BIOS, communicates the System Boot Status to the 
-/// client's Pre-boot Execution Environment (PXE) boot image or OS-present management 
-/// application via this structure. When used in the PXE environment, for example, 
-/// this code identifies the reason the PXE was initiated and can be used by boot-image 
-/// software to further automate an enterprise's PXE sessions.  For example, an enterprise  
-/// could choose to automatically download a hardware-diagnostic image to a client whose 
+/// The client system firmware, e.g. BIOS, communicates the System Boot Status to the
+/// client's Pre-boot Execution Environment (PXE) boot image or OS-present management
+/// application via this structure. When used in the PXE environment, for example,
+/// this code identifies the reason the PXE was initiated and can be used by boot-image
+/// software to further automate an enterprise's PXE sessions.  For example, an enterprise
+/// could choose to automatically download a hardware-diagnostic image to a client whose
 /// reason code indicated either a firmware- or operating system-detected hardware failure.
 ///
 typedef struct {
@@ -2139,9 +2255,9 @@ typedef struct {
 ///
 /// 64-bit Memory Error Information (Type 33).
 ///
-/// This structure describes an error within a Physical Memory Array, 
+/// This structure describes an error within a Physical Memory Array,
 /// when the error address is above 4G (0xFFFFFFFF).
-///    
+///
 typedef struct {
   SMBIOS_STRUCTURE          Hdr;
   UINT8                     ErrorType;                    ///< The enumeration value from MEMORY_ERROR_TYPE.
@@ -2154,7 +2270,7 @@ typedef struct {
 } SMBIOS_TABLE_TYPE33;
 
 ///
-/// Management Device -  Type. 
+/// Management Device -  Type.
 ///
 typedef enum {
   ManagementDeviceTypeOther      = 0x01,
@@ -2173,7 +2289,7 @@ typedef enum {
 } MISC_MANAGEMENT_DEVICE_TYPE;
 
 ///
-/// Management Device -  Address Type. 
+/// Management Device -  Address Type.
 ///
 typedef enum {
   ManagementDeviceAddressTypeOther   = 0x01,
@@ -2186,7 +2302,7 @@ typedef enum {
 ///
 /// Management Device (Type 34).
 ///
-/// The information in this structure defines the attributes of a Management Device.  
+/// The information in this structure defines the attributes of a Management Device.
 /// A Management Device might control one or more fans or voltage, current, or temperature
 /// probes as defined by one or more Management Device Component structures.
 ///
@@ -2201,8 +2317,8 @@ typedef struct {
 ///
 /// Management Device Component (Type 35)
 ///
-/// This structure associates a cooling device or environmental probe with structures 
-/// that define the controlling hardware device and (optionally) the component's thresholds. 
+/// This structure associates a cooling device or environmental probe with structures
+/// that define the controlling hardware device and (optionally) the component's thresholds.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -2215,8 +2331,8 @@ typedef struct {
 ///
 /// Management Device Threshold Data (Type 36).
 ///
-/// The information in this structure defines threshold information for 
-/// a component (probe or cooling-unit) contained within a Management Device.  
+/// The information in this structure defines threshold information for
+/// a component (probe or cooling-unit) contained within a Management Device.
 ///
 typedef struct {
   SMBIOS_STRUCTURE      Hdr;
@@ -2250,7 +2366,7 @@ typedef enum {
 /// Memory Channel (Type 37)
 ///
 /// The information in this structure provides the correlation between a Memory Channel
-/// and its associated Memory Devices.  Each device presents one or more loads to the channel. 
+/// and its associated Memory Devices.  Each device presents one or more loads to the channel.
 /// The sum of all device loads cannot exceed the channel's defined maximum.
 ///
 typedef struct {
@@ -2269,7 +2385,7 @@ typedef enum {
   IPMIDeviceInfoInterfaceTypeKCS           = 0x01, ///< The Keyboard Controller Style.
   IPMIDeviceInfoInterfaceTypeSMIC          = 0x02, ///< The Server Management Interface Chip.
   IPMIDeviceInfoInterfaceTypeBT            = 0x03, ///< The Block Transfer
-  IPMIDeviceInfoInterfaceTypeReserved      = 0x04
+  IPMIDeviceInfoInterfaceTypeSSIF          = 0x04  ///< SMBus System Interface
 } BMC_INTERFACE_TYPE;
 
 ///
@@ -2331,26 +2447,26 @@ typedef struct {
 } SMBIOS_TABLE_TYPE39;
 
 ///
-/// Additional Information Entry Format. 
+/// Additional Information Entry Format.
 ///
-typedef struct {                       
-  UINT8                   EntryLength; 
+typedef struct {
+  UINT8                   EntryLength;
   UINT16                  ReferencedHandle;
   UINT8                   ReferencedOffset;
   SMBIOS_TABLE_STRING     EntryString;
   UINT8                   Value[1];
-}ADDITIONAL_INFORMATION_ENTRY;
+} ADDITIONAL_INFORMATION_ENTRY;
 
 ///
 /// Additional Information (Type 40).
 ///
-/// This structure is intended to provide additional information for handling unspecified 
-/// enumerated values and interim field updates in another structure. 
+/// This structure is intended to provide additional information for handling unspecified
+/// enumerated values and interim field updates in another structure.
 ///
 typedef struct {
   SMBIOS_STRUCTURE                      Hdr;
   UINT8                                 NumberOfAdditionalInformationEntries;
-  ADDITIONAL_INFORMATION_ENTRY          AdditionalInfoEntries[1];  
+  ADDITIONAL_INFORMATION_ENTRY          AdditionalInfoEntries[1];
 } SMBIOS_TABLE_TYPE40;
 
 ///
@@ -2372,10 +2488,10 @@ typedef enum{
 ///
 /// Onboard Devices Extended Information (Type 41).
 ///
-/// The information in this structure defines the attributes of devices that 
-/// are onboard (soldered onto) a system element, usually the baseboard.  
-/// In general, an entry in this table implies that the BIOS has some level of 
-/// control over the enabling of the associated device for use by the system. 
+/// The information in this structure defines the attributes of devices that
+/// are onboard (soldered onto) a system element, usually the baseboard.
+/// In general, an entry in this table implies that the BIOS has some level of
+/// control over the enabling of the associated device for use by the system.
 ///
 typedef struct {
   SMBIOS_STRUCTURE                  Hdr;
@@ -2425,9 +2541,61 @@ typedef enum{
 ///
 typedef struct {
   SMBIOS_STRUCTURE                  Hdr;
-  UINT8                             InterfaceType;          ///< The enumeration value from MC_HOST_INTERFACE_TYPE
-  UINT8                             MCHostInterfaceData[1]; ///< This field has a minimum of four bytes
+  UINT8                             InterfaceType;                  ///< The enumeration value from MC_HOST_INTERFACE_TYPE
+  UINT8                             InterfaceTypeSpecificDataLength;
+  UINT8                             InterfaceTypeSpecificData[4];   ///< This field has a minimum of four bytes
 } SMBIOS_TABLE_TYPE42;
+
+
+///
+/// Processor Specific Block - Processor Architecture Type
+///
+typedef enum{
+  ProcessorSpecificBlockArchTypeReserved   = 0x00,
+  ProcessorSpecificBlockArchTypeIa32       = 0x01,
+  ProcessorSpecificBlockArchTypeX64        = 0x02,
+  ProcessorSpecificBlockArchTypeItanium    = 0x03,
+  ProcessorSpecificBlockArchTypeAarch32    = 0x04,
+  ProcessorSpecificBlockArchTypeAarch64    = 0x05,
+  ProcessorSpecificBlockArchTypeRiscVRV32  = 0x06,
+  ProcessorSpecificBlockArchTypeRiscVRV64  = 0x07,
+  ProcessorSpecificBlockArchTypeRiscVRV128 = 0x08
+} PROCESSOR_SPECIFIC_BLOCK_ARCH_TYPE;
+
+///
+/// Processor Specific Block is the standard container of processor-specific data.
+///
+typedef struct {
+  UINT8                              Length;
+  UINT8                              ProcessorArchType;
+  ///
+  /// Below followed by Processor-specific data
+  ///
+  ///
+} PROCESSOR_SPECIFIC_BLOCK;
+
+///
+/// Processor Additional Information(Type 44).
+///
+/// The information in this structure defines the processor additional information in case
+/// SMBIOS type 4 is not sufficient to describe processor characteristics.
+/// The SMBIOS type 44 structure has a reference handle field to link back to the related
+/// SMBIOS type 4 structure. There may be multiple SMBIOS type 44 structures linked to the
+/// same SMBIOS type 4 structure. For example, when cores are not identical in a processor,
+/// SMBIOS type 44 structures describe different core-specific information.
+///
+/// SMBIOS type 44 defines the standard header for the processor-specific block, while the
+/// contents of processor-specific data are maintained by processor
+/// architecture workgroups or vendors in separate documents.
+///
+typedef struct {
+  SMBIOS_STRUCTURE                  Hdr;
+  SMBIOS_HANDLE                     RefHandle;                 ///< This field refer to associated SMBIOS type 4
+  ///
+  /// Below followed by Processor-specific block
+  ///
+  PROCESSOR_SPECIFIC_BLOCK          ProcessorSpecificBlock;
+} SMBIOS_TABLE_TYPE44;
 
 ///
 /// TPM Device (Type 43).
@@ -2507,6 +2675,7 @@ typedef union {
   SMBIOS_TABLE_TYPE41   *Type41;
   SMBIOS_TABLE_TYPE42   *Type42;
   SMBIOS_TABLE_TYPE43   *Type43;
+  SMBIOS_TABLE_TYPE44   *Type44;
   SMBIOS_TABLE_TYPE126  *Type126;
   SMBIOS_TABLE_TYPE127  *Type127;
   UINT8                 *Raw;

@@ -1,14 +1,8 @@
 /** @file
   Provides interface to EFI_FILE_HANDLE functionality.
 
-  Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved. <BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved. <BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -74,19 +68,21 @@ FileHandleGetInfo (
     // error is expected.  getting size to allocate
     //
     FileInfo = AllocateZeroPool(FileInfoSize);
-    //
-    // now get the information
-    //
-    Status = FileHandle->GetInfo(FileHandle,
-                                 &gEfiFileInfoGuid,
-                                 &FileInfoSize,
-                                 FileInfo);
-    //
-    // if we got an error free the memory and return NULL
-    //
-    if (EFI_ERROR(Status) && (FileInfo != NULL)) {
-      FreePool(FileInfo);
-      FileInfo = NULL;
+    if (FileInfo != NULL) {
+      //
+      // now get the information
+      //
+      Status = FileHandle->GetInfo(FileHandle,
+                                   &gEfiFileInfoGuid,
+                                   &FileInfoSize,
+                                   FileInfo);
+      //
+      // if we got an error free the memory and return NULL
+      //
+      if (EFI_ERROR(Status)) {
+        FreePool(FileInfo);
+        FileInfo = NULL;
+      }
     }
   }
   return (FileInfo);
@@ -391,8 +387,8 @@ FileHandleFlush (
   @param[in] DirHandle          Handle to open file.
 
   @retval EFI_SUCCESS           DirHandle is a directory.
-  @retval EFI_INVALID_PARAMETER DirHandle is NULL. 
-                                The file information returns from FileHandleGetInfo is NULL. 
+  @retval EFI_INVALID_PARAMETER DirHandle is NULL.
+                                The file information returns from FileHandleGetInfo is NULL.
   @retval EFI_NOT_FOUND         DirHandle is not a directory.
 **/
 EFI_STATUS
@@ -769,8 +765,8 @@ StrnCatGrowLeft (
 
 /**
   Function to get a full filename given a EFI_FILE_HANDLE somewhere lower on the
-  directory 'stack'. If the file is a directory, then append the '\' char at the 
-  end of name string. If it's not a directory, then the last '\' should not be 
+  directory 'stack'. If the file is a directory, then append the '\' char at the
+  end of name string. If it's not a directory, then the last '\' should not be
   added.
 
   if Handle is NULL, return EFI_INVALID_PARAMETER
@@ -821,9 +817,24 @@ FileHandleGetFileName (
         break;
       } else {
         //
+        // Prepare to move to the parent directory.
+        // Also determine whether CurrentHandle refers to the Root directory.
+        //
+        Status = CurrentHandle->Open (CurrentHandle, &NextHigherHandle, L"..", EFI_FILE_MODE_READ, 0);
+        //
         // We got info... do we have a name? if yes precede the current path with it...
         //
-        if (StrLen (FileInfo->FileName) == 0) {
+        if ((StrLen (FileInfo->FileName) == 0) || EFI_ERROR (Status)) {
+          //
+          // Both FileInfo->FileName being '\0' and EFI_ERROR() suggest that
+          // CurrentHandle refers to the Root directory.  As this loop ensures
+          // FullFileName is starting with '\\' at all times, signal success
+          // and exit the loop.
+          // While FileInfo->FileName could theoretically be a value other than
+          // '\0' or '\\', '\\' is guaranteed to be supported by the
+          // specification and hence its value can safely be ignored.
+          //
+          Status = EFI_SUCCESS;
           if (*FullFileName == NULL) {
             ASSERT((*FullFileName == NULL && Size == 0) || (*FullFileName != NULL));
             *FullFileName = StrnCatGrowLeft(FullFileName, &Size, L"\\", 0);
@@ -841,15 +852,11 @@ FileHandleGetFileName (
           FreePool(FileInfo);
         }
       }
+
+      FileHandleClose(CurrentHandle);
       //
       // Move to the parent directory
       //
-      Status = CurrentHandle->Open (CurrentHandle, &NextHigherHandle, L"..", EFI_FILE_MODE_READ, 0);
-      if (EFI_ERROR (Status)) {
-        break;
-      }
-
-      FileHandleClose(CurrentHandle);
       CurrentHandle = NextHigherHandle;
     }
   } else if (Status == EFI_NOT_FOUND) {
@@ -858,8 +865,8 @@ FileHandleGetFileName (
     *FullFileName = StrnCatGrowLeft(FullFileName, &Size, L"\\", 0);
   }
 
-  if (*FullFileName != NULL && 
-      (*FullFileName)[StrLen(*FullFileName) - 1] == L'\\' && 
+  if (*FullFileName != NULL &&
+      (*FullFileName)[StrLen(*FullFileName) - 1] == L'\\' &&
       StrLen(*FullFileName) > 1 &&
       FileHandleIsDirectory(Handle) == EFI_NOT_FOUND
      ) {
@@ -969,20 +976,20 @@ FileHandleReadLine(
     ||(Buffer==NULL&&*Size!=0)
    ){
     return (EFI_INVALID_PARAMETER);
-  } 
-  
+  }
+
   if (Buffer != NULL && *Size != 0) {
     *Buffer = CHAR_NULL;
-  } 
-  
+  }
+
   Status = FileHandleGetSize (Handle, &FileSize);
   if (EFI_ERROR (Status)) {
     return Status;
   } else if (FileSize == 0) {
     *Ascii = TRUE;
     return EFI_SUCCESS;
-  }  
-  
+  }
+
   FileHandleGetPosition(Handle, &OriginalFilePosition);
   if (OriginalFilePosition == 0) {
     CharSize = sizeof(CHAR16);
@@ -1050,11 +1057,11 @@ FileHandleReadLine(
 
 /**
   Function to write a line of text to a file.
-  
-  If the file is a Unicode file (with UNICODE file tag) then write the unicode 
+
+  If the file is a Unicode file (with UNICODE file tag) then write the unicode
   text.
   If the file is an ASCII file then write the ASCII text.
-  If the size of file is zero (without file tag at the beginning) then write 
+  If the size of file is zero (without file tag at the beginning) then write
   ASCII text as default.
 
   @param[in]     Handle         FileHandle to write to.
@@ -1064,7 +1071,7 @@ FileHandleReadLine(
   @retval  EFI_SUCCESS            The data was written.
                                   Buffer is NULL.
   @retval  EFI_INVALID_PARAMETER  Handle is NULL.
-  @retval  EFI_OUT_OF_RESOURCES   Unable to allocate temporary space for ASCII 
+  @retval  EFI_OUT_OF_RESOURCES   Unable to allocate temporary space for ASCII
                                   string due to out of resources.
 
   @sa FileHandleWrite
@@ -1093,25 +1100,25 @@ FileHandleWriteLine(
   if (Handle == NULL) {
     return (EFI_INVALID_PARAMETER);
   }
-  
+
   Ascii = FALSE;
   AsciiBuffer = NULL;
-  
+
   Status = FileHandleGetPosition(Handle, &OriginalFilePosition);
   if (EFI_ERROR(Status)) {
     return Status;
   }
-  
+
   Status = FileHandleSetPosition(Handle, 0);
   if (EFI_ERROR(Status)) {
     return Status;
   }
-  
+
   Status = FileHandleGetSize(Handle, &FileSize);
   if (EFI_ERROR(Status)) {
     return Status;
   }
-  
+
   if (FileSize == 0) {
     Ascii = TRUE;
   } else {
@@ -1124,12 +1131,12 @@ FileHandleWriteLine(
       Ascii = TRUE;
     }
   }
-  
+
   Status = FileHandleSetPosition(Handle, OriginalFilePosition);
   if (EFI_ERROR(Status)) {
     return Status;
   }
-  
+
   if (Ascii) {
     Size = ( StrSize(Buffer) / sizeof(CHAR16) ) * sizeof(CHAR8);
     AsciiBuffer = (CHAR8 *)AllocateZeroPool(Size);
@@ -1143,7 +1150,7 @@ FileHandleWriteLine(
         return EFI_INVALID_PARAMETER;
       }
     }
-    
+
     Size = AsciiStrSize(AsciiBuffer) - sizeof(CHAR8);
     Status = FileHandleWrite(Handle, &Size, AsciiBuffer);
     if (EFI_ERROR(Status)) {
@@ -1167,7 +1174,7 @@ FileHandleWriteLine(
     Size = StrSize(L"\r\n") - sizeof(CHAR16);
     Status = FileHandleWrite(Handle, &Size, L"\r\n");
   }
-  
+
   if (AsciiBuffer != NULL) {
     FreePool (AsciiBuffer);
   }

@@ -1,14 +1,8 @@
 /** @file
   Bit field functions of BaseLib.
 
-  Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -69,13 +63,13 @@ InternalBaseLibBitFieldOrUint (
   )
 {
   //
-  // Higher bits in OrData those are not used must be zero. 
+  // Higher bits in OrData those are not used must be zero.
   //
   // EndBit - StartBit + 1 might be 32 while the result right shifting 32 on a 32bit integer is undefined,
   // So the logic is updated to right shift (EndBit - StartBit) bits and compare the last bit directly.
   //
   ASSERT ((OrData >> (EndBit - StartBit)) == ((OrData >> (EndBit - StartBit)) & 1));
-  
+
   //
   // ~((UINTN)-2 << EndBit) is a mask in which bit[0] thru bit[EndBit]
   // are 1's while bit[EndBit + 1] thru the most significant bit are 0's.
@@ -111,7 +105,7 @@ InternalBaseLibBitFieldAndUint (
   )
 {
   //
-  // Higher bits in AndData those are not used must be zero. 
+  // Higher bits in AndData those are not used must be zero.
   //
   // EndBit - StartBit + 1 might be 32 while the result right shifting 32 on a 32bit integer is undefined,
   // So the logic is updated to right shift (EndBit - StartBit) bits and compare the last bit directly.
@@ -275,7 +269,7 @@ BitFieldAnd8 (
   bitwise OR, and returns the result.
 
   Performs a bitwise AND between the bit field specified by StartBit and EndBit
-  in Operand and the value specified by AndData, followed by a bitwise 
+  in Operand and the value specified by AndData, followed by a bitwise
   OR with value specified by OrData. All other bits in Operand are
   preserved. The new 8-bit value is returned.
 
@@ -467,7 +461,7 @@ BitFieldAnd16 (
   bitwise OR, and returns the result.
 
   Performs a bitwise AND between the bit field specified by StartBit and EndBit
-  in Operand and the value specified by AndData, followed by a bitwise 
+  in Operand and the value specified by AndData, followed by a bitwise
   OR with value specified by OrData. All other bits in Operand are
   preserved. The new 16-bit value is returned.
 
@@ -659,7 +653,7 @@ BitFieldAnd32 (
   bitwise OR, and returns the result.
 
   Performs a bitwise AND between the bit field specified by StartBit and EndBit
-  in Operand and the value specified by AndData, followed by a bitwise 
+  in Operand and the value specified by AndData, followed by a bitwise
   OR with value specified by OrData. All other bits in Operand are
   preserved. The new 32-bit value is returned.
 
@@ -809,7 +803,7 @@ BitFieldOr64 (
   ASSERT (EndBit < 64);
   ASSERT (StartBit <= EndBit);
   //
-  // Higher bits in OrData those are not used must be zero. 
+  // Higher bits in OrData those are not used must be zero.
   //
   // EndBit - StartBit + 1 might be 64 while the result right shifting 64 on RShiftU64() API is invalid,
   // So the logic is updated to right shift (EndBit - StartBit) bits and compare the last bit directly.
@@ -857,11 +851,11 @@ BitFieldAnd64 (
 {
   UINT64  Value1;
   UINT64  Value2;
-  
+
   ASSERT (EndBit < 64);
   ASSERT (StartBit <= EndBit);
   //
-  // Higher bits in AndData those are not used must be zero. 
+  // Higher bits in AndData those are not used must be zero.
   //
   // EndBit - StartBit + 1 might be 64 while the right shifting 64 on RShiftU64() API is invalid,
   // So the logic is updated to right shift (EndBit - StartBit) bits and compare the last bit directly.
@@ -879,7 +873,7 @@ BitFieldAnd64 (
   bitwise OR, and returns the result.
 
   Performs a bitwise AND between the bit field specified by StartBit and EndBit
-  in Operand and the value specified by AndData, followed by a bitwise 
+  in Operand and the value specified by AndData, followed by a bitwise
   OR with value specified by OrData. All other bits in Operand are
   preserved. The new 64-bit value is returned.
 
@@ -920,3 +914,89 @@ BitFieldAndThenOr64 (
            OrData
            );
 }
+
+/**
+  Reads a bit field from a 32-bit value, counts and returns
+  the number of set bits.
+
+  Counts the number of set bits in the  bit field specified by
+  StartBit and EndBit in Operand. The count is returned.
+
+  If StartBit is greater than 31, then ASSERT().
+  If EndBit is greater than 31, then ASSERT().
+  If EndBit is less than StartBit, then ASSERT().
+
+  @param  Operand   Operand on which to perform the bitfield operation.
+  @param  StartBit  The ordinal of the least significant bit in the bit field.
+                    Range 0..31.
+  @param  EndBit    The ordinal of the most significant bit in the bit field.
+                    Range 0..31.
+
+  @return The number of bits set between StartBit and EndBit.
+
+**/
+UINT8
+EFIAPI
+BitFieldCountOnes32 (
+  IN       UINT32                   Operand,
+  IN       UINTN                    StartBit,
+  IN       UINTN                    EndBit
+  )
+{
+  UINT32 Count;
+
+  ASSERT (EndBit < 32);
+  ASSERT (StartBit <= EndBit);
+
+  Count = BitFieldRead32 (Operand, StartBit, EndBit);
+  Count -= ((Count >> 1) & 0x55555555);
+  Count = (Count & 0x33333333) + ((Count >> 2) & 0x33333333);
+  Count += Count >> 4;
+  Count &= 0x0F0F0F0F;
+  Count += Count >> 8;
+  Count += Count >> 16;
+
+  return (UINT8) Count & 0x3F;
+}
+
+/**
+   Reads a bit field from a 64-bit value, counts and returns
+   the number of set bits.
+
+   Counts the number of set bits in the  bit field specified by
+   StartBit and EndBit in Operand. The count is returned.
+
+   If StartBit is greater than 63, then ASSERT().
+   If EndBit is greater than 63, then ASSERT().
+   If EndBit is less than StartBit, then ASSERT().
+
+   @param  Operand   Operand on which to perform the bitfield operation.
+   @param  StartBit  The ordinal of the least significant bit in the bit field.
+   Range 0..63.
+   @param  EndBit    The ordinal of the most significant bit in the bit field.
+   Range 0..63.
+
+   @return The number of bits set between StartBit and EndBit.
+
+**/
+UINT8
+EFIAPI
+BitFieldCountOnes64 (
+  IN       UINT64                   Operand,
+  IN       UINTN                    StartBit,
+  IN       UINTN                    EndBit
+  )
+{
+  UINT64 BitField;
+  UINT8 Count;
+
+  ASSERT (EndBit < 64);
+  ASSERT (StartBit <= EndBit);
+
+  BitField = BitFieldRead64 (Operand, StartBit, EndBit);
+  Count = BitFieldCountOnes32 ((UINT32) BitField, 0, 31);
+  Count += BitFieldCountOnes32 ((UINT32) RShiftU64(BitField, 32), 0, 31);
+
+  return Count;
+}
+

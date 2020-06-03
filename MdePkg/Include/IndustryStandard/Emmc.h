@@ -4,13 +4,7 @@
   This header file contains some definitions defined in EMMC4.5/EMMC5.0 spec.
 
   Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -230,7 +224,7 @@ typedef struct {
   UINT8   MinPerfW8B52M;                          // Minimum Write Performance for 8bit at 52MHz [210]
   UINT8   Reserved17;                             // Reserved [211]
   UINT8   SecCount[4];                            // Sector Count [215:212]
-  UINT8   SleepNotificationTime;                  // Sleep Notification Timout [216]
+  UINT8   SleepNotificationTime;                  // Sleep Notification Timeout [216]
   UINT8   SATimeout;                              // Sleep/awake timeout [217]
   UINT8   ProductionStateAwarenessTimeout;        // Production state awareness timeout [218]
   UINT8   SCVccq;                                 // Sleep current (VCCQ) [219]

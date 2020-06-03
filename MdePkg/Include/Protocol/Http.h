@@ -4,15 +4,9 @@
   HTTP Service Binding Protocol (HTTPSB)
   HTTP Protocol (HTTP)
 
-  Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-  (C) Copyright 2015 Hewlett Packard Enterprise Development LP<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+  (C) Copyright 2015-2017 Hewlett Packard Enterprise Development LP<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.5
@@ -73,7 +67,7 @@ typedef enum {
   HTTP_STATUS_204_NO_CONTENT,
   HTTP_STATUS_205_RESET_CONTENT,
   HTTP_STATUS_206_PARTIAL_CONTENT,
-  HTTP_STATUS_300_MULTIPLE_CHIOCES,
+  HTTP_STATUS_300_MULTIPLE_CHOICES,
   HTTP_STATUS_301_MOVED_PERMANENTLY,
   HTTP_STATUS_302_FOUND,
   HTTP_STATUS_303_SEE_OTHER,
@@ -103,7 +97,8 @@ typedef enum {
   HTTP_STATUS_502_BAD_GATEWAY,
   HTTP_STATUS_503_SERVICE_UNAVAILABLE,
   HTTP_STATUS_504_GATEWAY_TIME_OUT,
-  HTTP_STATUS_505_HTTP_VERSION_NOT_SUPPORTED
+  HTTP_STATUS_505_HTTP_VERSION_NOT_SUPPORTED,
+  HTTP_STATUS_308_PERMANENT_REDIRECT
 } EFI_HTTP_STATUS_CODE;
 
 ///
@@ -304,20 +299,22 @@ typedef struct {
 
   @param[in]  This                Pointer to EFI_HTTP_PROTOCOL instance.
   @param[out] HttpConfigData      Point to buffer for operational parameters of this
-                                  HTTP instance.
+                                  HTTP instance. It is the responsibility of the caller
+                                  to allocate the memory for HttpConfigData and
+                                  HttpConfigData->AccessPoint.IPv6Node/IPv4Node. In fact,
+                                  it is recommended to allocate sufficient memory to record
+                                  IPv6Node since it is big enough for all possibilities.
 
   @retval EFI_SUCCESS             Operation succeeded.
   @retval EFI_INVALID_PARAMETER   This is NULL.
                                   HttpConfigData is NULL.
-                                  HttpInstance->LocalAddressIsIPv6 is FALSE and
-                                  HttpConfigData->IPv4Node is NULL.
-                                  HttpInstance->LocalAddressIsIPv6 is TRUE and
-                                  HttpConfigData->IPv6Node is NULL.
+                                  HttpConfigData->AccessPoint.IPv4Node or
+                                  HttpConfigData->AccessPoint.IPv6Node is NULL.
   @retval EFI_NOT_STARTED         This EFI HTTP Protocol instance has not been started.
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_HTTP_GET_MODE_DATA)(
+(EFIAPI *EFI_HTTP_GET_MODE_DATA)(
   IN  EFI_HTTP_PROTOCOL         *This,
   OUT EFI_HTTP_CONFIG_DATA      *HttpConfigData
   );
@@ -342,9 +339,9 @@ EFI_STATUS
   @retval EFI_INVALID_PARAMETER   One or more of the following conditions is TRUE:
                                   This is NULL.
                                   HttpConfigData->LocalAddressIsIPv6 is FALSE and
-                                  HttpConfigData->IPv4Node is NULL.
+                                  HttpConfigData->AccessPoint.IPv4Node is NULL.
                                   HttpConfigData->LocalAddressIsIPv6 is TRUE and
-                                  HttpConfigData->IPv6Node is NULL.
+                                  HttpConfigData->AccessPoint.IPv6Node is NULL.
   @retval EFI_ALREADY_STARTED     Reinitialize this HTTP instance without calling
                                   Configure() with NULL to reset it.
   @retval EFI_DEVICE_ERROR        An unexpected system or network error occurred.
@@ -355,13 +352,13 @@ EFI_STATUS
 **/
 typedef
 EFI_STATUS
-(EFIAPI * EFI_HTTP_CONFIGURE)(
+(EFIAPI *EFI_HTTP_CONFIGURE)(
   IN  EFI_HTTP_PROTOCOL         *This,
-  IN  EFI_HTTP_CONFIG_DATA      *HttpConfigData
+  IN  EFI_HTTP_CONFIG_DATA      *HttpConfigData OPTIONAL
   );
 
 /**
-  The Request() function queues an HTTP request to this HTTP instance, 
+  The Request() function queues an HTTP request to this HTTP instance,
   similar to Transmit() function in the EFI TCP driver. When the HTTP request is sent
   successfully, or if there is an error, Status in token will be updated and Event will
   be signaled.

@@ -1,14 +1,8 @@
 /** @file
   NULL instance of SMM Library.
 
-  Copyright (c) 2009 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php.                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -16,7 +10,7 @@
 #include <Library/SmmLib.h>
 
 /**
-  Triggers an SMI at boot time.  
+  Triggers an SMI at boot time.
 
   This function triggers a software SMM interrupt at boot time.
 
@@ -32,7 +26,7 @@ TriggerBootServiceSoftwareSmi (
 
 
 /**
-  Triggers an SMI at run time.  
+  Triggers an SMI at run time.
 
   This function triggers a software SMM interrupt at run time.
 
@@ -49,10 +43,10 @@ TriggerRuntimeSoftwareSmi (
 
 
 /**
-  Test if a boot time software SMI happened.  
+  Test if a boot time software SMI happened.
 
-  This function tests if a software SMM interrupt happened. If a software SMM 
-  interrupt happened and it was triggered at boot time, it returns TRUE. Otherwise, 
+  This function tests if a software SMM interrupt happened. If a software SMM
+  interrupt happened and it was triggered at boot time, it returns TRUE. Otherwise,
   it returns FALSE.
 
   @retval TRUE   A software SMI triggered at boot time happened.
@@ -70,10 +64,10 @@ IsBootServiceSoftwareSmi (
 
 
 /**
-  Test if a run time software SMI happened.  
+  Test if a run time software SMI happened.
 
-  This function tests if a software SMM interrupt happened. If a software SMM 
-  interrupt happened and it was triggered at run time, it returns TRUE. Otherwise, 
+  This function tests if a software SMM interrupt happened. If a software SMM
+  interrupt happened and it was triggered at run time, it returns TRUE. Otherwise,
   it returns FALSE.
 
   @retval TRUE   A software SMI triggered at run time happened.
@@ -90,8 +84,8 @@ IsRuntimeSoftwareSmi (
 }
 
 /**
-  Clear APM SMI Status Bit; Set the EOS bit. 
-  
+  Clear APM SMI Status Bit; Set the EOS bit.
+
 **/
 VOID
 EFIAPI

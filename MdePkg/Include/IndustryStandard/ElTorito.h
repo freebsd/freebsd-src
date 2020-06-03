@@ -1,18 +1,12 @@
 /** @file
-  ElTorito Partitions Format Definition. 
-  This file includes some defintions from 
+  ElTorito Partitions Format Definition.
+  This file includes some definitions from
   1. "El Torito" Bootable CD-ROM Format Specification, Version 1.0.
-  2. Volume and File Structure of CDROM for Information Interchange, 
+  2. Volume and File Structure of CDROM for Information Interchange,
      Standard ECMA-119. (IS0 9660)
 
-Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials                          
-are licensed and made available under the terms and conditions of the BSD License         
-which accompanies this distribution.  The full text of the license may be found at        
-http://opensource.org/licenses/bsd-license.php                                            
-                                                                                          
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -57,13 +51,13 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #pragma pack(1)
 
-/// 
+///
 /// CD-ROM Volume Descriptor
-/// 
-typedef union { 
+///
+typedef union {
   struct {
-    UINT8   Type;     
-    CHAR8   Id[5];           ///< "CD001"    
+    UINT8   Type;
+    CHAR8   Id[5];           ///< "CD001"
     CHAR8   Reserved[82];
   } Unknown;
 
@@ -72,29 +66,29 @@ typedef union {
   ///
   struct {
     UINT8   Type;            ///< Must be 0
-    CHAR8   Id[5];           ///< "CD001" 
-    UINT8   Version;         ///< Must be 1 
-    CHAR8   SystemId[32];    ///< "EL TORITO SPECIFICATION" 
-    CHAR8   Unused[32];      ///< Must be 0 
+    CHAR8   Id[5];           ///< "CD001"
+    UINT8   Version;         ///< Must be 1
+    CHAR8   SystemId[32];    ///< "EL TORITO SPECIFICATION"
+    CHAR8   Unused[32];      ///< Must be 0
     UINT8   EltCatalog[4];   ///< Absolute pointer to first sector of Boot Catalog
     CHAR8   Unused2[13];     ///< Must be 0
   } BootRecordVolume;
- 
+
   ///
-  /// Primary Volumn Descriptor, defined in ISO 9660.
+  /// Primary Volume Descriptor, defined in ISO 9660.
   ///
   struct {
-    UINT8   Type; 
+    UINT8   Type;
     CHAR8   Id[5];           ///< "CD001"
-    UINT8   Version; 
+    UINT8   Version;
     UINT8   Unused;          ///< Must be 0
-    CHAR8   SystemId[32];    
-    CHAR8   VolumeId[32];    
-    UINT8   Unused2[8];      ///< Must be 0 
+    CHAR8   SystemId[32];
+    CHAR8   VolumeId[32];
+    UINT8   Unused2[8];      ///< Must be 0
     UINT32  VolSpaceSize[2]; ///< the number of Logical Blocks
   } PrimaryVolume;
 
-} CDROM_VOLUME_DESCRIPTOR; 
+} CDROM_VOLUME_DESCRIPTOR;
 
 ///
 /// Catalog Entry

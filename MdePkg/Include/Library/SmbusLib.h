@@ -2,14 +2,8 @@
   Provides library functions to access SMBUS devices. Libraries of this class
   must be ported to a specific SMBUS controller.
 
-Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -23,7 +17,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   Computes an address that is compatible with the SMBUS Library functions.
   The unused upper bits of SlaveAddress, Command, and Length are stripped
   prior to the generation of the address.
-  
+
   @param  SlaveAddress    SMBUS Slave Address.  Range 0..127.
   @param  Command         SMBUS Command.  Range 0..255.
   @param  Length          SMBUS Data Length.  Range 0..32.
@@ -39,36 +33,36 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 /**
   Macro that returns the SMBUS Slave Address value from an SmBusAddress Parameter value.
-  
-  @param SmBusAddress   Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC 
+
+  @param SmBusAddress   Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC
 **/
 #define SMBUS_LIB_SLAVE_ADDRESS(SmBusAddress)      (((SmBusAddress) >> 1)  & 0x7f)
 
 /**
   Macro that returns the SMBUS Command value from an SmBusAddress Parameter value.
-  
+
   @param SmBusAddress   Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC
 **/
 #define SMBUS_LIB_COMMAND(SmBusAddress)            (((SmBusAddress) >> 8)  & 0xff)
 
 /**
   Macro that returns the SMBUS Data Length value from an SmBusAddress Parameter value.
-  
-  @param SmBusAddress Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC 
+
+  @param SmBusAddress Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC
 **/
 #define SMBUS_LIB_LENGTH(SmBusAddress)             (((SmBusAddress) >> 16) & 0x3f)
 
 /**
   Macro that returns the SMBUS PEC value from an SmBusAddress Parameter value.
-  
-  @param SmBusAddress Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC   
+
+  @param SmBusAddress Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC
 **/
 #define SMBUS_LIB_PEC(SmBusAddress)                ((BOOLEAN) (((SmBusAddress) & BIT22) != 0))
 
 /**
   Macro that returns the set of reserved bits from an SmBusAddress Parameter value.
-  
-  @param SmBusAddress Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC   
+
+  @param SmBusAddress Address that encodes the SMBUS Slave Address, SMBUS Command, SMBUS Data Length, and PEC
 **/
 #define SMBUS_LIB_RESERVED(SmBusAddress)           ((SmBusAddress) & ~(BIT23 - 2))
 
@@ -282,7 +276,7 @@ SmBusWriteDataByte (
   If Status is not NULL, then the status of the executed command is returned in Status.
   If Length in SmBusAddress is not zero, then ASSERT().
   If any reserved bits of SmBusAddress are set, then ASSERT().
-  
+
   @param  SmBusAddress  Address that encodes the SMBUS Slave Address,
                         SMBUS Command, SMBUS Data Length, and PEC.
   @param  Status        Return status for the executed command.
@@ -424,7 +418,7 @@ SmBusReadBlock (
   The SMBUS slave address, SMBUS command, and SMBUS length fields of SmBusAddress are required.
   Bytes are written to the SMBUS from Buffer.
   The number of bytes written is returned, and will never return a value larger than 32-bytes.
-  If Status is not NULL, then the status of the executed command is returned in Status.  
+  If Status is not NULL, then the status of the executed command is returned in Status.
   If Length in SmBusAddress is zero or greater than 32, then ASSERT().
   If Buffer is NULL, then ASSERT().
   If any reserved bits of SmBusAddress are set, then ASSERT().

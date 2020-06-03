@@ -8,14 +8,8 @@
   server over the network, or to a Hardware Security Module (HSM) attached to the system it
   runs on, or anything else that is capable of providing the key management service.
 
-  Copyright (c) 2011, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials are licensed and made available under
-  the terms and conditions of the BSD License that accompanies this distribution.
-  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -79,6 +73,10 @@ typedef struct _EFI_KMS_PROTOCOL EFI_KMS_PROTOCOL;
 #define EFI_KMS_FORMAT_GENERIC_3072_GUID \
   { \
     0xb9237513, 0x6c44, 0x4411, {0xa9, 0x90, 0x21, 0xe5, 0x56, 0xe0, 0x5a, 0xde } \
+  }
+#define EFI_KMS_FORMAT_GENERIC_DYNAMIC_GUID \
+  { \
+    0x2156e996, 0x66de, 0x4b27, {0x9c, 0xc9, 0xb0, 0x9f, 0xac, 0x4d, 0x2, 0xbe } \
   }
 ///@}
 
@@ -174,6 +172,17 @@ typedef struct _EFI_KMS_PROTOCOL EFI_KMS_PROTOCOL;
 #define EFI_KMS_ATTRIBUTE_TYPE_INTERVAL         0x09
 #define EFI_KMS_ATTRIBUTE_TYPE_STRUCTURE        0x0A
 #define EFI_KMS_ATTRIBUTE_TYPE_DYNAMIC          0x0B
+
+typedef struct {
+  ///
+  /// Length in bytes of the KeyData.
+  ///
+  UINT32        KeySize;
+  ///
+  /// The data of the key.
+  ///
+  UINT8         KeyData[1];
+} EFI_KMS_FORMAT_GENERIC_DYNAMIC;
 
 typedef struct {
   ///
@@ -358,7 +367,7 @@ EFI_STATUS
 
   @param[in]      This              Pointer to the EFI_KMS_PROTOCOL instance.
   @param[in]      Client            Pointer to a valid EFI_KMS_CLIENT_INFO structure.
-  @param[in, out] ClientDataSize    Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize    Pointer to the size, in bytes, of an arbitrary block of
                                     data specified by the ClientData parameter. This
                                     parameter may be NULL, in which case the ClientData
                                     parameter will be ignored and no data will be
@@ -373,11 +382,11 @@ EFI_STATUS
                                     which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData        Pointer to a pointer to an arbitrary block of data of
                                     *ClientDataSize that is to be passed directly to the
-                                    KMS if it supports the use of client data. This 
-                                    parameter may be NULL if and only if the 
+                                    KMS if it supports the use of client data. This
+                                    parameter may be NULL if and only if the
                                     ClientDataSize parameter is also NULL. Upon return to
-                                    the caller, *ClientData points to a block of data of 
-                                    *ClientDataSize that was returned from the KMS. 
+                                    the caller, *ClientData points to a block of data of
+                                    *ClientDataSize that was returned from the KMS.
                                     If the returned value for *ClientDataSize is zero,
                                     then the returned value for *ClientData must be NULL
                                     and should be ignored by the caller. The KMS protocol
@@ -403,7 +412,7 @@ EFI_STATUS
   IN EFI_KMS_CLIENT_INFO        *Client,
   IN OUT UINTN                  *ClientDataSize OPTIONAL,
   IN OUT VOID                   **ClientData OPTIONAL
-  ); 
+  );
 
 /**
   Request that the KMS generate one or more new keys and associate them with key identifiers.
@@ -439,7 +448,7 @@ EFI_STATUS
                                      type and must be freed by the caller when it is no longer
                                      needed. Also, the KeyStatus field must reflect the result
                                      of the request relative to that key.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -454,11 +463,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -520,12 +529,12 @@ EFI_STATUS
                                      On output, the KeyIdentifierSize and KeyIdentifier fields
                                      will be unchanged, while the KeyFormat and KeyValue
                                      fields will be updated values associated with this key
-                                     identifier. Memory for the KeyValue field will be 
+                                     identifier. Memory for the KeyValue field will be
                                      allocated with the BOOT_SERVICES_DATA type and
                                      must be freed by the caller when it is no longer needed.
                                      Also, the KeyStatus field will reflect the result of the
                                      request relative to the individual key descriptor.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -540,11 +549,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -611,7 +620,7 @@ EFI_STATUS
                                      consistent values to be associated with the given KeyId.
                                      On return, the KeyStatus field will reflect the result
                                      of the operation for each key request.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -626,11 +635,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -696,7 +705,7 @@ EFI_STATUS
                                      KeyValue fields are ignored, but should be 0.
                                      On return, the KeyStatus field will reflect the result
                                      of the operation for each key request.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -711,11 +720,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -774,7 +783,7 @@ EFI_STATUS
                                      On input, the fields in the structure should be NULL.
                                      On output, the attribute fields will have updated values
                                      for attributes associated with this key identifier.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -789,11 +798,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -861,7 +870,7 @@ EFI_STATUS
                                      are completely filled in.
                                      On return the KeyAttributeStatus field will reflect the
                                      result of the operation for each key attribute request.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -876,11 +885,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -952,7 +961,7 @@ EFI_STATUS
                                      are completely filled in.
                                      On return the KeyAttributeStatus field will reflect the
                                      result of the operation for each key attribute request.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -967,11 +976,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol
@@ -1049,7 +1058,7 @@ EFI_STATUS
                                      caller when it is no longer needed. Also, the KeyStatus
                                      field of each descriptor will reflect the result of the
                                      request relative to that key descriptor.
-  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of 
+  @param[in, out] ClientDataSize     Pointer to the size, in bytes, of an arbitrary block of
                                      data specified by the ClientData parameter. This
                                      parameter may be NULL, in which case the ClientData
                                      parameter will be ignored and no data will be
@@ -1064,11 +1073,11 @@ EFI_STATUS
                                      which will be zero if no data is returned from the KMS.
   @param[in, out] ClientData         Pointer to a pointer to an arbitrary block of data of
                                      *ClientDataSize that is to be passed directly to the
-                                     KMS if it supports the use of client data. This 
-                                     parameter may be NULL if and only if the 
+                                     KMS if it supports the use of client data. This
+                                     parameter may be NULL if and only if the
                                      ClientDataSize parameter is also NULL. Upon return to
-                                     the caller, *ClientData points to a block of data of 
-                                     *ClientDataSize that was returned from the KMS. 
+                                     the caller, *ClientData points to a block of data of
+                                     *ClientDataSize that was returned from the KMS.
                                      If the returned value for *ClientDataSize is zero,
                                      then the returned value for *ClientData must be NULL
                                      and should be ignored by the caller. The KMS protocol

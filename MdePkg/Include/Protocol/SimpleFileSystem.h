@@ -1,20 +1,14 @@
 /** @file
   SimpleFileSystem protocol as defined in the UEFI 2.0 specification.
 
-  The SimpleFileSystem protocol is the programmatic access to the FAT (12,16,32) 
-  file system specified in UEFI 2.0. It can also be used to abstract a file  
+  The SimpleFileSystem protocol is the programmatic access to the FAT (12,16,32)
+  file system specified in UEFI 2.0. It can also be used to abstract a file
   system other than FAT.
 
   UEFI 2.0 can boot from any valid EFI image contained in a SimpleFileSystem.
 
-Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -33,12 +27,12 @@ typedef struct _EFI_FILE_PROTOCOL         *EFI_FILE_HANDLE;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
-/// 
+///
 #define SIMPLE_FILE_SYSTEM_PROTOCOL       EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
 
 ///
 /// Protocol name defined in EFI1.1.
-/// 
+///
 typedef EFI_SIMPLE_FILE_SYSTEM_PROTOCOL   EFI_FILE_IO_INTERFACE;
 typedef EFI_FILE_PROTOCOL                 EFI_FILE;
 
@@ -73,7 +67,7 @@ EFI_STATUS
 
 ///
 /// Revision defined in EFI1.1
-/// 
+///
 #define EFI_FILE_IO_INTERFACE_REVISION  EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_REVISION
 
 struct _EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
@@ -99,7 +93,7 @@ struct _EFI_SIMPLE_FILE_SYSTEM_PROTOCOL {
                      and "..".
   @param  OpenMode   The mode to open the file. The only valid combinations that the
                      file may be opened with are: Read, Read/Write, or Create/Read/Write.
-  @param  Attributes Only valid for EFI_FILE_MODE_CREATE, in which case these are the 
+  @param  Attributes Only valid for EFI_FILE_MODE_CREATE, in which case these are the
                      attribute bits for the newly created file.
 
   @retval EFI_SUCCESS          The file was opened.
@@ -147,7 +141,7 @@ EFI_STATUS
 /**
   Closes a specified file handle.
 
-  @param  This          A pointer to the EFI_FILE_PROTOCOL instance that is the file 
+  @param  This          A pointer to the EFI_FILE_PROTOCOL instance that is the file
                         handle to close.
 
   @retval EFI_SUCCESS   The file was closed.
@@ -345,7 +339,7 @@ EFI_STATUS
 /**
   Flushes all modified data associated with a file to a device.
 
-  @param  This A pointer to the EFI_FILE_PROTOCOL instance that is the file 
+  @param  This A pointer to the EFI_FILE_PROTOCOL instance that is the file
                handle to flush.
 
   @retval EFI_SUCCESS          The data was flushed.
@@ -409,7 +403,7 @@ typedef struct {
                      and "..".
   @param  OpenMode   The mode to open the file. The only valid combinations that the
                      file may be opened with are: Read, Read/Write, or Create/Read/Write.
-  @param  Attributes Only valid for EFI_FILE_MODE_CREATE, in which case these are the 
+  @param  Attributes Only valid for EFI_FILE_MODE_CREATE, in which case these are the
                      attribute bits for the newly created file.
   @param  Token      A pointer to the token associated with the transaction.
 
@@ -488,13 +482,13 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_FILE_WRITE_EX) (
   IN EFI_FILE_PROTOCOL        *This,
-  IN OUT EFI_FILE_IO_TOKEN    *Token 
+  IN OUT EFI_FILE_IO_TOKEN    *Token
 );
 
 /**
   Flushes all modified data associated with a file to a device.
 
-  @param  This  A pointer to the EFI_FILE_PROTOCOL instance that is the file 
+  @param  This  A pointer to the EFI_FILE_PROTOCOL instance that is the file
                 handle to flush.
   @param  Token A pointer to the token associated with the transaction.
 
@@ -523,19 +517,19 @@ EFI_STATUS
 
 //
 // Revision defined in EFI1.1.
-// 
+//
 #define EFI_FILE_REVISION   EFI_FILE_PROTOCOL_REVISION
 
 ///
 /// The EFI_FILE_PROTOCOL provides file IO access to supported file systems.
-/// An EFI_FILE_PROTOCOL provides access to a file's or directory's contents, 
-/// and is also a reference to a location in the directory tree of the file system 
-/// in which the file resides. With any given file handle, other files may be opened 
+/// An EFI_FILE_PROTOCOL provides access to a file's or directory's contents,
+/// and is also a reference to a location in the directory tree of the file system
+/// in which the file resides. With any given file handle, other files may be opened
 /// relative to this file's location, yielding new file handles.
 ///
 struct _EFI_FILE_PROTOCOL {
   ///
-  /// The version of the EFI_FILE_PROTOCOL interface. The version specified 
+  /// The version of the EFI_FILE_PROTOCOL interface. The version specified
   /// by this specification is EFI_FILE_PROTOCOL_LATEST_REVISION.
   /// Future versions are required to be backward compatible to version 1.0.
   ///

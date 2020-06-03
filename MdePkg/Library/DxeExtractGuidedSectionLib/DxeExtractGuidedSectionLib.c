@@ -1,14 +1,8 @@
 /** @file
   Provide generic extract guided section functions for Dxe phase.
 
-  Copyright (c) 2007 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -38,14 +32,15 @@ EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER *mExtractGetInfoHandlerTable = NULL;
 RETURN_STATUS
 EFIAPI
 ReallocateExtractHandlerTable (
+  VOID
   )
-{ 
+{
   //
   // Reallocate memory for GuidTable
   //
   mExtractHandlerGuidTable = ReallocatePool (
-                               mMaxNumberOfExtractHandler * sizeof (GUID), 
-                               (mMaxNumberOfExtractHandler + EXTRACT_HANDLER_TABLE_SIZE) * sizeof (GUID), 
+                               mMaxNumberOfExtractHandler * sizeof (GUID),
+                               (mMaxNumberOfExtractHandler + EXTRACT_HANDLER_TABLE_SIZE) * sizeof (GUID),
                                mExtractHandlerGuidTable
                              );
 
@@ -57,8 +52,8 @@ ReallocateExtractHandlerTable (
   // Reallocate memory for Decode handler Table
   //
   mExtractDecodeHandlerTable = ReallocatePool (
-                               mMaxNumberOfExtractHandler * sizeof (EXTRACT_GUIDED_SECTION_DECODE_HANDLER), 
-                               (mMaxNumberOfExtractHandler + EXTRACT_HANDLER_TABLE_SIZE) * sizeof (EXTRACT_GUIDED_SECTION_DECODE_HANDLER), 
+                               mMaxNumberOfExtractHandler * sizeof (EXTRACT_GUIDED_SECTION_DECODE_HANDLER),
+                               (mMaxNumberOfExtractHandler + EXTRACT_HANDLER_TABLE_SIZE) * sizeof (EXTRACT_GUIDED_SECTION_DECODE_HANDLER),
                                mExtractDecodeHandlerTable
                              );
 
@@ -70,15 +65,15 @@ ReallocateExtractHandlerTable (
   // Reallocate memory for GetInfo handler Table
   //
   mExtractGetInfoHandlerTable = ReallocatePool (
-                               mMaxNumberOfExtractHandler * sizeof (EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER), 
-                               (mMaxNumberOfExtractHandler + EXTRACT_HANDLER_TABLE_SIZE) * sizeof (EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER), 
+                               mMaxNumberOfExtractHandler * sizeof (EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER),
+                               (mMaxNumberOfExtractHandler + EXTRACT_HANDLER_TABLE_SIZE) * sizeof (EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER),
                                mExtractGetInfoHandlerTable
                              );
 
   if (mExtractGetInfoHandlerTable == NULL) {
     goto Done;
   }
-  
+
   //
   // Increase max handler number
   //
@@ -95,7 +90,7 @@ Done:
   if (mExtractGetInfoHandlerTable != NULL) {
     FreePool (mExtractGetInfoHandlerTable);
   }
-  
+
   return RETURN_OUT_OF_RESOURCES;
 }
 /**
@@ -122,7 +117,7 @@ DxeExtractGuidedSectionLibConstructor (
 
   Sets ExtractHandlerGuidTable so it points at a callee allocated array of registered GUIDs.
   The total number of GUIDs in the array are returned. Since the array of GUIDs is callee allocated
-  and caller must treat this array of GUIDs as read-only data. 
+  and caller must treat this array of GUIDs as read-only data.
   If ExtractHandlerGuidTable is NULL, then ASSERT().
 
   @param[out]  ExtractHandlerGuidTable  A pointer to the array of GUIDs that have been registered through
@@ -150,18 +145,18 @@ ExtractGuidedSectionGetGuidList (
   Registers the handlers specified by GetInfoHandler and DecodeHandler with the GUID specified by SectionGuid.
   If the GUID value specified by SectionGuid has already been registered, then return RETURN_ALREADY_STARTED.
   If there are not enough resources available to register the handlers  then RETURN_OUT_OF_RESOURCES is returned.
-  
+
   If SectionGuid is NULL, then ASSERT().
   If GetInfoHandler is NULL, then ASSERT().
   If DecodeHandler is NULL, then ASSERT().
 
-  @param[in]  SectionGuid    A pointer to the GUID associated with the the handlers
+  @param[in]  SectionGuid    A pointer to the GUID associated with the handlers
                              of the GUIDed section type being registered.
   @param[in]  GetInfoHandler The pointer to a function that examines a GUIDed section and returns the
                              size of the decoded buffer and the size of an optional scratch buffer
                              required to actually decode the data in a GUIDed section.
   @param[in]  DecodeHandler  The pointer to a function that decodes a GUIDed section into a caller
-                             allocated output buffer. 
+                             allocated output buffer.
 
   @retval  RETURN_SUCCESS           The handlers were registered.
   @retval  RETURN_OUT_OF_RESOURCES  There are not enough resources available to register the handlers.
@@ -198,7 +193,7 @@ ExtractGuidedSectionRegisterHandlers (
       return RETURN_SUCCESS;
     }
   }
-  
+
   //
   // Check the global table is enough to contain new Handler.
   //
@@ -207,7 +202,7 @@ ExtractGuidedSectionRegisterHandlers (
       return RETURN_OUT_OF_RESOURCES;
     }
   }
-  
+
   //
   // Register new Handler and guid value.
   //
@@ -233,14 +228,14 @@ ExtractGuidedSectionRegisterHandlers (
   The selected handler is used to retrieve and return the size of the decoded buffer and the size of an
   optional scratch buffer required to actually decode the data in a GUIDed section.
 
-  Examines a GUIDed section specified by InputSection.  
+  Examines a GUIDed section specified by InputSection.
   If GUID for InputSection does not match any of the GUIDs registered through ExtractGuidedSectionRegisterHandlers(),
-  then RETURN_UNSUPPORTED is returned.  
-  If the GUID of InputSection does match the GUID that this handler supports, then the the associated handler 
+  then RETURN_UNSUPPORTED is returned.
+  If the GUID of InputSection does match the GUID that this handler supports, then the associated handler
   of type EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER that was registered with ExtractGuidedSectionRegisterHandlers()
-  is used to retrieve the OututBufferSize, ScratchSize, and Attributes values. The return status from the handler of
+  is used to retrieve the OutputBufferSize, ScratchSize, and Attributes values. The return status from the handler of
   type EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER is returned.
-  
+
   If InputSection is NULL, then ASSERT().
   If OutputBufferSize is NULL, then ASSERT().
   If ScratchBufferSize is NULL, then ASSERT().
@@ -267,13 +262,13 @@ ExtractGuidedSectionGetInfo (
   IN  CONST VOID    *InputSection,
   OUT       UINT32  *OutputBufferSize,
   OUT       UINT32  *ScratchBufferSize,
-  OUT       UINT16  *SectionAttribute   
+  OUT       UINT16  *SectionAttribute
   )
 {
   UINT32 Index;
   EFI_GUID *SectionDefinitionGuid;
 
-  ASSERT (InputSection != NULL);  
+  ASSERT (InputSection != NULL);
   ASSERT (OutputBufferSize != NULL);
   ASSERT (ScratchBufferSize != NULL);
   ASSERT (SectionAttribute != NULL);
@@ -283,7 +278,7 @@ ExtractGuidedSectionGetInfo (
   } else {
     SectionDefinitionGuid = &(((EFI_GUID_DEFINED_SECTION *) InputSection)->SectionDefinitionGuid);
   }
- 
+
   //
   // Search the match registered GetInfo handler for the input guided section.
   //
@@ -302,7 +297,7 @@ ExtractGuidedSectionGetInfo (
   }
 
   //
-  // Not found, the input guided section is not supported. 
+  // Not found, the input guided section is not supported.
   //
   return RETURN_UNSUPPORTED;
 }
@@ -313,26 +308,26 @@ ExtractGuidedSectionGetInfo (
   The selected handler is used to decode the data in a GUIDed section and return the result in a caller
   allocated output buffer.
 
-  Decodes the GUIDed section specified by InputSection.  
+  Decodes the GUIDed section specified by InputSection.
   If GUID for InputSection does not match any of the GUIDs registered through ExtractGuidedSectionRegisterHandlers(),
-  then RETURN_UNSUPPORTED is returned.  
-  If the GUID of InputSection does match the GUID that this handler supports, then the the associated handler
+  then RETURN_UNSUPPORTED is returned.
+  If the GUID of InputSection does match the GUID that this handler supports, then the associated handler
   of type EXTRACT_GUIDED_SECTION_DECODE_HANDLER that was registered with ExtractGuidedSectionRegisterHandlers()
   is used to decode InputSection into the buffer specified by OutputBuffer and the authentication status of this
   decode operation is returned in AuthenticationStatus.  If the decoded buffer is identical to the data in InputSection,
   then OutputBuffer is set to point at the data in InputSection.  Otherwise, the decoded data will be placed in caller
   allocated buffer specified by OutputBuffer.    This function is responsible for computing the  EFI_AUTH_STATUS_PLATFORM_OVERRIDE
-  bit of in AuthenticationStatus.  The return status from the handler of type EXTRACT_GUIDED_SECTION_DECODE_HANDLER is returned. 
-   
+  bit of in AuthenticationStatus.  The return status from the handler of type EXTRACT_GUIDED_SECTION_DECODE_HANDLER is returned.
+
   If InputSection is NULL, then ASSERT().
   If OutputBuffer is NULL, then ASSERT().
   If ScratchBuffer is NULL and this decode operation requires a scratch buffer, then ASSERT().
-  If AuthenticationStatus is NULL, then ASSERT().  
+  If AuthenticationStatus is NULL, then ASSERT().
 
   @param[in]  InputSection   A pointer to a GUIDed section of an FFS formatted file.
-  @param[out] OutputBuffer   A pointer to a buffer that contains the result of a decode operation. 
-  @param[in]  ScratchBuffer  A caller allocated buffer that may be required by this function as a scratch buffer to perform the decode operation. 
-  @param[out] AuthenticationStatus 
+  @param[out] OutputBuffer   A pointer to a buffer that contains the result of a decode operation.
+  @param[in]  ScratchBuffer  A caller allocated buffer that may be required by this function as a scratch buffer to perform the decode operation.
+  @param[out] AuthenticationStatus
                              A pointer to the authentication status of the decoded output buffer. See the definition
                              of authentication status in the EFI_PEI_GUIDED_SECTION_EXTRACTION_PPI section of the PI
                              Specification.
@@ -348,12 +343,12 @@ ExtractGuidedSectionDecode (
   IN  CONST VOID    *InputSection,
   OUT       VOID    **OutputBuffer,
   IN        VOID    *ScratchBuffer,        OPTIONAL
-  OUT       UINT32  *AuthenticationStatus  
+  OUT       UINT32  *AuthenticationStatus
   )
 {
   UINT32 Index;
   EFI_GUID *SectionDefinitionGuid;
-  
+
   //
   // Check the input parameters
   //
@@ -385,29 +380,29 @@ ExtractGuidedSectionDecode (
   }
 
   //
-  // Not found, the input guided section is not supported. 
+  // Not found, the input guided section is not supported.
   //
   return RETURN_UNSUPPORTED;
 }
 
 /**
-  Retrieves handlers of type EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER and 
+  Retrieves handlers of type EXTRACT_GUIDED_SECTION_GET_INFO_HANDLER and
   EXTRACT_GUIDED_SECTION_DECODE_HANDLER for a specific GUID section type.
-  
-  Retrieves the handlers associated with SectionGuid and returns them in 
+
+  Retrieves the handlers associated with SectionGuid and returns them in
   GetInfoHandler and DecodeHandler.
 
-  If the GUID value specified by SectionGuid has not been registered, then 
+  If the GUID value specified by SectionGuid has not been registered, then
   return RETURN_NOT_FOUND.
-  
+
   If SectionGuid is NULL, then ASSERT().
 
-  @param[in]  SectionGuid    A pointer to the GUID associated with the handlersof the GUIDed 
+  @param[in]  SectionGuid    A pointer to the GUID associated with the handlers of the GUIDed
                              section type being retrieved.
-  @param[out] GetInfoHandler Pointer to a function that examines a GUIDed section and returns 
-                             the size of the decoded buffer and the size of an optional scratch 
-                             buffer required to actually decode the data in a GUIDed section.  
-                             This is an optional parameter that may be NULL. If it is NULL, then 
+  @param[out] GetInfoHandler Pointer to a function that examines a GUIDed section and returns
+                             the size of the decoded buffer and the size of an optional scratch
+                             buffer required to actually decode the data in a GUIDed section.
+                             This is an optional parameter that may be NULL. If it is NULL, then
                              the previously registered handler is not returned.
   @param[out] DecodeHandler  Pointer to a function that decodes a GUIDed section into a caller
                              allocated output buffer. This is an optional parameter that may be NULL.
@@ -425,7 +420,7 @@ ExtractGuidedSectionGetHandlers (
   OUT        EXTRACT_GUIDED_SECTION_DECODE_HANDLER    *DecodeHandler    OPTIONAL
   )
 {
-  UINT32 Index; 
+  UINT32 Index;
 
   //
   // Check input parameter.
@@ -437,7 +432,7 @@ ExtractGuidedSectionGetHandlers (
   //
   for (Index = 0; Index < mNumberOfExtractHandler; Index ++) {
     if (CompareGuid (&mExtractHandlerGuidTable[Index], SectionGuid)) {
-      
+
       //
       // If the guided handler has been registered before, then return the registered handlers.
       //

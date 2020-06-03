@@ -1,0 +1,30 @@
+## @file
+#  Null instance of RNG (Random Number Generator) Library.
+#
+#  Copyright (c) 2019, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010029
+  BASE_NAME                      = BaseRngLibNull
+  MODULE_UNI_FILE                = BaseRngLibNull.uni
+  FILE_GUID                      = CD8991F8-2061-4084-8C9E-9C6F352DC58D
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = RngLib
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64 EBC
+#
+
+[Sources]
+  BaseRngLibNull.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib

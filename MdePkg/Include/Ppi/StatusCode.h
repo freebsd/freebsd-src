@@ -2,14 +2,8 @@
   This file declares Status Code PPI.
   This ppi provides a service that allows PEIMs to report status codes.
 
-  Copyright (c) 2006 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -25,7 +19,7 @@
 //
 // EFI_PEI_PROGRESS_CODE_PPI.ReportStatusCode() is equivalent to the
 // PEI Service ReportStatusCode().
-// It is introduced in PIPeiCis.h. 
+// It is introduced in PIPeiCis.h.
 //
 
 ///

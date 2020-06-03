@@ -3,14 +3,8 @@
 
   Abstraction of a very simple graphics device.
 
-  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -33,18 +27,18 @@ typedef struct {
 
 typedef enum {
   ///
-  /// A pixel is 32-bits and byte zero represents red, byte one represents green, 
-  /// byte two represents blue, and byte three is reserved. This is the definition 
-  /// for the physical frame buffer. The byte values for the red, green, and blue 
-  /// components represent the color intensity. This color intensity value range 
+  /// A pixel is 32-bits and byte zero represents red, byte one represents green,
+  /// byte two represents blue, and byte three is reserved. This is the definition
+  /// for the physical frame buffer. The byte values for the red, green, and blue
+  /// components represent the color intensity. This color intensity value range
   /// from a minimum intensity of 0 to maximum intensity of 255.
   ///
   PixelRedGreenBlueReserved8BitPerColor,
   ///
-  /// A pixel is 32-bits and byte zero represents blue, byte one represents green, 
-  /// byte two represents red, and byte three is reserved. This is the definition 
-  /// for the physical frame buffer. The byte values for the red, green, and blue 
-  /// components represent the color intensity. This color intensity value range 
+  /// A pixel is 32-bits and byte zero represents blue, byte one represents green,
+  /// byte two represents red, and byte three is reserved. This is the definition
+  /// for the physical frame buffer. The byte values for the red, green, and blue
+  /// components represent the color intensity. This color intensity value range
   /// from a minimum intensity of 0 to maximum intensity of 255.
   ///
   PixelBlueGreenRedReserved8BitPerColor,
@@ -64,7 +58,7 @@ typedef enum {
 
 typedef struct {
   ///
-  /// The version of this data structure. A value of zero represents the 
+  /// The version of this data structure. A value of zero represents the
   /// EFI_GRAPHICS_OUTPUT_MODE_INFORMATION structure as defined in this specification.
   ///
   UINT32                     Version;
@@ -77,18 +71,18 @@ typedef struct {
   ///
   UINT32                     VerticalResolution;
   ///
-  /// Enumeration that defines the physical format of the pixel. A value of PixelBltOnly 
+  /// Enumeration that defines the physical format of the pixel. A value of PixelBltOnly
   /// implies that a linear frame buffer is not available for this mode.
   ///
   EFI_GRAPHICS_PIXEL_FORMAT  PixelFormat;
   ///
-  /// This bit-mask is only valid if PixelFormat is set to PixelPixelBitMask. 
+  /// This bit-mask is only valid if PixelFormat is set to PixelPixelBitMask.
   /// A bit being set defines what bits are used for what purpose such as Red, Green, Blue, or Reserved.
   ///
   EFI_PIXEL_BITMASK          PixelInformation;
   ///
   /// Defines the number of pixel elements per video memory line.
-  /// 
+  ///
   UINT32                     PixelsPerScanLine;
 } EFI_GRAPHICS_OUTPUT_MODE_INFORMATION;
 
@@ -116,7 +110,7 @@ EFI_STATUS
   );
 
 /**
-  Set the video device into the specified mode and clears the visible portions of 
+  Set the video device into the specified mode and clears the visible portions of
   the output display to black.
 
   @param  This              The EFI_GRAPHICS_OUTPUT_PROTOCOL instance.
@@ -151,47 +145,47 @@ typedef union {
 ///
 typedef enum {
   ///
-  /// Write data from the BltBuffer pixel (0, 0) 
-  /// directly to every pixel of the video display rectangle 
-  /// (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height). 
-  /// Only one pixel will be used from the BltBuffer. Delta is NOT used.  
+  /// Write data from the BltBuffer pixel (0, 0)
+  /// directly to every pixel of the video display rectangle
+  /// (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height).
+  /// Only one pixel will be used from the BltBuffer. Delta is NOT used.
   ///
   EfiBltVideoFill,
-  
+
   ///
-  /// Read data from the video display rectangle 
-  /// (SourceX, SourceY) (SourceX + Width, SourceY + Height) and place it in 
-  /// the BltBuffer rectangle (DestinationX, DestinationY ) 
-  /// (DestinationX + Width, DestinationY + Height). If DestinationX or 
-  /// DestinationY is not zero then Delta must be set to the length in bytes 
-  /// of a row in the BltBuffer.  
+  /// Read data from the video display rectangle
+  /// (SourceX, SourceY) (SourceX + Width, SourceY + Height) and place it in
+  /// the BltBuffer rectangle (DestinationX, DestinationY )
+  /// (DestinationX + Width, DestinationY + Height). If DestinationX or
+  /// DestinationY is not zero then Delta must be set to the length in bytes
+  /// of a row in the BltBuffer.
   ///
   EfiBltVideoToBltBuffer,
-  
+
   ///
-  /// Write data from the BltBuffer rectangle 
-  /// (SourceX, SourceY) (SourceX + Width, SourceY + Height) directly to the 
-  /// video display rectangle (DestinationX, DestinationY) 
-  /// (DestinationX + Width, DestinationY + Height). If SourceX or SourceY is 
-  /// not zero then Delta must be set to the length in bytes of a row in the 
+  /// Write data from the BltBuffer rectangle
+  /// (SourceX, SourceY) (SourceX + Width, SourceY + Height) directly to the
+  /// video display rectangle (DestinationX, DestinationY)
+  /// (DestinationX + Width, DestinationY + Height). If SourceX or SourceY is
+  /// not zero then Delta must be set to the length in bytes of a row in the
   /// BltBuffer.
   ///
-  EfiBltBufferToVideo, 
-  
+  EfiBltBufferToVideo,
+
   ///
   /// Copy from the video display rectangle (SourceX, SourceY)
-  /// (SourceX + Width, SourceY + Height) to the video display rectangle 
-  /// (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height). 
+  /// (SourceX + Width, SourceY + Height) to the video display rectangle
+  /// (DestinationX, DestinationY) (DestinationX + Width, DestinationY + Height).
   /// The BltBuffer and Delta are not used in this mode.
   ///
   EfiBltVideoToVideo,
-  
+
   EfiGraphicsOutputBltOperationMax
 } EFI_GRAPHICS_OUTPUT_BLT_OPERATION;
 
 /**
   Blt a rectangle of pixels on the graphics screen. Blt stands for BLock Transfer.
-  
+
   @param  This         Protocol instance pointer.
   @param  BltBuffer    The data to transfer to the graphics screen.
                        Size is at least Width*Height*sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL).
@@ -250,15 +244,15 @@ typedef struct {
   ///
   EFI_PHYSICAL_ADDRESS                   FrameBufferBase;
   ///
-  /// Amount of frame buffer needed to support the active mode as defined by 
+  /// Amount of frame buffer needed to support the active mode as defined by
   /// PixelsPerScanLine xVerticalResolution x PixelElementSize.
   ///
   UINTN                                  FrameBufferSize;
 } EFI_GRAPHICS_OUTPUT_PROTOCOL_MODE;
 
 ///
-/// Provides a basic abstraction to set video modes and copy pixels to and from 
-/// the graphics controller's frame buffer. The linear address of the hardware 
+/// Provides a basic abstraction to set video modes and copy pixels to and from
+/// the graphics controller's frame buffer. The linear address of the hardware
 /// frame buffer is also exposed so software can write directly to the video hardware.
 ///
 struct _EFI_GRAPHICS_OUTPUT_PROTOCOL {

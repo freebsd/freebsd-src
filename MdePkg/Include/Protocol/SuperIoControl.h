@@ -3,14 +3,8 @@
   the low-level services for SIO devices that enable them to be used in the UEFI
   driver model.
 
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This protocol is from PI Version 1.2.1.
@@ -38,7 +32,7 @@ typedef struct _EFI_SIO_CONTROL_PROTOCOL *PEFI_SIO_CONTROL_PROTOCOL;
 
   @retval EFI_SUCCESS          The device is enabled successfully.
   @retval EFI_OUT_OF_RESOURCES The device could not be enabled because there
-                               were insufficient resources either for the device 
+                               were insufficient resources either for the device
                                itself or for the records needed to track the device.
   @retval EFI_ALREADY_STARTED  The device is already enabled.
   @retval EFI_UNSUPPORTED      The device cannot be enabled.
@@ -61,7 +55,7 @@ EFI_STATUS
 
   @retval EFI_SUCCESS          The device is disabled successfully.
   @retval EFI_OUT_OF_RESOURCES The device could not be disabled because there
-                               were insufficient resources either for the device 
+                               were insufficient resources either for the device
                                itself or for the records needed to track the device.
   @retval EFI_ALREADY_STARTED  The device is already disabled.
   @retval EFI_UNSUPPORTED      The device cannot be disabled.

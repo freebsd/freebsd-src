@@ -2,14 +2,8 @@
   TPM2 Protocol as defined in TCG PC Client Platform EFI Protocol Specification Family "2.0".
   See http://trustedcomputinggroup.org for the latest specification
 
-Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials 
-are licensed and made available under the terms and conditions of the BSD License 
-which accompanies this distribution.  The full text of the license may be found at 
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS, 
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -44,13 +38,13 @@ typedef struct tdEFI_TCG2_BOOT_SERVICE_CAPABILITY {
   //
   // Version of the EFI_TCG2_BOOT_SERVICE_CAPABILITY structure itself.
   // For this version of the protocol, the Major version shall be set to 1
-  // and the Minor version shall be set to 1. 
+  // and the Minor version shall be set to 1.
   //
   EFI_TCG2_VERSION                 StructureVersion;
   //
   // Version of the EFI TCG2 protocol.
   // For this version of the protocol, the Major version shall be set to 1
-  // and the Minor version shall be set to 1. 
+  // and the Minor version shall be set to 1.
   //
   EFI_TCG2_VERSION                 ProtocolVersion;
   //
@@ -116,7 +110,7 @@ typedef struct tdEFI_TCG2_BOOT_SERVICE_CAPABILITY {
 
 typedef struct {
   //
-  // Size of the event header itself (sizeof(EFI_TCG2_EVENT_HEADER)). 
+  // Size of the event header itself (sizeof(EFI_TCG2_EVENT_HEADER)).
   //
   UINT32            HeaderSize;
   //
@@ -124,18 +118,18 @@ typedef struct {
   //
   UINT16            HeaderVersion;
   //
-  // Index of the PCR that shall be extended (0 - 23). 
+  // Index of the PCR that shall be extended (0 - 23).
   //
   TCG_PCRINDEX      PCRIndex;
   //
-  // Type of the event that shall be extended (and optionally logged). 
+  // Type of the event that shall be extended (and optionally logged).
   //
   TCG_EVENTTYPE     EventType;
 } EFI_TCG2_EVENT_HEADER;
 
 typedef struct tdEFI_TCG2_EVENT {
   //
-  // Total size of the event including the Size component, the header and the Event data. 
+  // Total size of the event including the Size component, the header and the Event data.
   //
   UINT32                Size;
   EFI_TCG2_EVENT_HEADER Header;
@@ -157,11 +151,11 @@ typedef struct tdEFI_TCG2_EVENT {
 
   @retval EFI_SUCCESS            Operation completed successfully.
   @retval EFI_DEVICE_ERROR       The command was unsuccessful.
-                                 The ProtocolCapability variable will not be populated. 
+                                 The ProtocolCapability variable will not be populated.
   @retval EFI_INVALID_PARAMETER  One or more of the parameters are incorrect.
                                  The ProtocolCapability variable will not be populated.
   @retval EFI_BUFFER_TOO_SMALL   The ProtocolCapability variable is too small to hold the full response.
-                                 It will be partially populated (required Size field will be set). 
+                                 It will be partially populated (required Size field will be set).
 **/
 typedef
 EFI_STATUS
@@ -172,7 +166,7 @@ EFI_STATUS
 
 /**
   The EFI_TCG2_PROTOCOL Get Event Log function call allows a caller to
-  retrieve the address of a given event log and its last entry. 
+  retrieve the address of a given event log and its last entry.
 
   @param[in]  This               Indicates the calling context
   @param[in]  EventLogFormat     The type of the event log for which the information is requested.
@@ -200,13 +194,13 @@ EFI_STATUS
 /**
   The EFI_TCG2_PROTOCOL HashLogExtendEvent function call provides callers with
   an opportunity to extend and optionally log events without requiring
-  knowledge of actual TPM commands. 
+  knowledge of actual TPM commands.
   The extend operation will occur even if this function cannot create an event
-  log entry (e.g. due to the event log being full). 
+  log entry (e.g. due to the event log being full).
 
   @param[in]  This               Indicates the calling context
   @param[in]  Flags              Bitmap providing additional information.
-  @param[in]  DataToHash         Physical address of the start of the data buffer to be hashed. 
+  @param[in]  DataToHash         Physical address of the start of the data buffer to be hashed.
   @param[in]  DataToHashLen      The length in bytes of the buffer referenced by DataToHash.
   @param[in]  EfiTcgEvent        Pointer to data buffer containing information about the event.
 
@@ -238,7 +232,7 @@ EFI_STATUS
   @retval EFI_SUCCESS            The command byte stream was successfully sent to the device and a response was successfully received.
   @retval EFI_DEVICE_ERROR       The command was not successfully sent to the device or a response was not successfully received from the device.
   @retval EFI_INVALID_PARAMETER  One or more of the parameters are incorrect.
-  @retval EFI_BUFFER_TOO_SMALL   The output parameter block is too small. 
+  @retval EFI_BUFFER_TOO_SMALL   The output parameter block is too small.
 **/
 typedef
 EFI_STATUS
@@ -257,7 +251,7 @@ EFI_STATUS
   @param[out] ActivePcrBanks  Pointer to the variable receiving the bitmap of currently active PCR banks.
 
   @retval EFI_SUCCESS           The bitmap of active PCR banks was stored in the ActivePcrBanks parameter.
-  @retval EFI_INVALID_PARAMETER One or more of the parameters are incorrect. 
+  @retval EFI_INVALID_PARAMETER One or more of the parameters are incorrect.
 **/
 typedef
 EFI_STATUS

@@ -1,14 +1,8 @@
 /** @file
   This protocol is defined to abstract TPM2 hardware access in boot phase.
 
-Copyright (c) 2013 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials 
-are licensed and made available under the terms and conditions of the BSD License 
-which accompanies this distribution.  The full text of the license may be found at 
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS, 
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -35,19 +29,19 @@ typedef UINT32 TREE_EVENT_LOG_FORMAT;
 
 typedef struct _TREE_BOOT_SERVICE_CAPABILITY {
   //
-  // Allocated size of the structure passed in 
+  // Allocated size of the structure passed in
   //
   UINT8                 Size;
   //
   // Version of the TREE_BOOT_SERVICE_CAPABILITY structure itself.
   // For this version of the protocol, the Major version shall be set to 1
-  // and the Minor version shall be set to 0. 
+  // and the Minor version shall be set to 0.
   //
   TREE_VERSION          StructureVersion;
   //
   // Version of the TrEE protocol.
   // For this version of the protocol, the Major version shall be set to 1
-  // and the Minor version shall be set to 0. 
+  // and the Minor version shall be set to 0.
   //
   TREE_VERSION          ProtocolVersion;
   //
@@ -59,20 +53,20 @@ typedef struct _TREE_BOOT_SERVICE_CAPABILITY {
   //
   TREE_EVENT_LOG_BITMAP SupportedEventLogs;
   //
-  // False = TrEE not present 
+  // False = TrEE not present
   //
   BOOLEAN               TrEEPresentFlag;
   //
-  // Max size (in bytes) of a command that can be sent to the TrEE 
+  // Max size (in bytes) of a command that can be sent to the TrEE
   //
   UINT16                MaxCommandSize;
   //
-  // Max size (in bytes) of a response that can be provided by the TrEE 
+  // Max size (in bytes) of a response that can be provided by the TrEE
   //
   UINT16                MaxResponseSize;
   //
   // 4-byte Vendor ID (see Trusted Computing Group, "TCG Vendor ID Registry,"
-  // Version 1.0, Revision 0.1, August 31, 2007, "TPM Capabilities Vendor ID" section) 
+  // Version 1.0, Revision 0.1, August 31, 2007, "TPM Capabilities Vendor ID" section)
   //
   UINT32                ManufacturerID;
 } TREE_BOOT_SERVICE_CAPABILITY_1_0;
@@ -103,7 +97,7 @@ typedef UINT32 TrEE_EVENTTYPE;
 
 typedef struct {
   //
-  // Size of the event header itself (sizeof(TrEE_EVENT_HEADER)). 
+  // Size of the event header itself (sizeof(TrEE_EVENT_HEADER)).
   //
   UINT32            HeaderSize;
   //
@@ -111,18 +105,18 @@ typedef struct {
   //
   UINT16            HeaderVersion;
   //
-  // Index of the PCR that shall be extended (0 - 23). 
+  // Index of the PCR that shall be extended (0 - 23).
   //
   TrEE_PCRINDEX     PCRIndex;
   //
-  // Type of the event that shall be extended (and optionally logged). 
+  // Type of the event that shall be extended (and optionally logged).
   //
   TrEE_EVENTTYPE    EventType;
 } TrEE_EVENT_HEADER;
 
 typedef struct {
   //
-  // Total size of the event including the Size component, the header and the Event data. 
+  // Total size of the event including the Size component, the header and the Event data.
   //
   UINT32            Size;
   TrEE_EVENT_HEADER Header;
@@ -144,11 +138,11 @@ typedef struct {
 
   @retval EFI_SUCCESS            Operation completed successfully.
   @retval EFI_DEVICE_ERROR       The command was unsuccessful.
-                                 The ProtocolCapability variable will not be populated. 
+                                 The ProtocolCapability variable will not be populated.
   @retval EFI_INVALID_PARAMETER  One or more of the parameters are incorrect.
                                  The ProtocolCapability variable will not be populated.
   @retval EFI_BUFFER_TOO_SMALL   The ProtocolCapability variable is too small to hold the full response.
-                                 It will be partially populated (required Size field will be set). 
+                                 It will be partially populated (required Size field will be set).
 **/
 typedef
 EFI_STATUS
@@ -159,7 +153,7 @@ EFI_STATUS
 
 /**
   The EFI_TREE_PROTOCOL Get Event Log function call allows a caller to
-  retrieve the address of a given event log and its last entry. 
+  retrieve the address of a given event log and its last entry.
 
   @param[in]  This               Indicates the calling context
   @param[in]  EventLogFormat     The type of the event log for which the information is requested.
@@ -187,13 +181,13 @@ EFI_STATUS
 /**
   The EFI_TREE_PROTOCOL HashLogExtendEvent function call provides callers with
   an opportunity to extend and optionally log events without requiring
-  knowledge of actual TPM commands. 
+  knowledge of actual TPM commands.
   The extend operation will occur even if this function cannot create an event
-  log entry (e.g. due to the event log being full). 
+  log entry (e.g. due to the event log being full).
 
   @param[in]  This               Indicates the calling context
   @param[in]  Flags              Bitmap providing additional information.
-  @param[in]  DataToHash         Physical address of the start of the data buffer to be hashed. 
+  @param[in]  DataToHash         Physical address of the start of the data buffer to be hashed.
   @param[in]  DataToHashLen      The length in bytes of the buffer referenced by DataToHash.
   @param[in]  Event              Pointer to data buffer containing information about the event.
 
@@ -225,7 +219,7 @@ EFI_STATUS
   @retval EFI_SUCCESS            The command byte stream was successfully sent to the device and a response was successfully received.
   @retval EFI_DEVICE_ERROR       The command was not successfully sent to the device or a response was not successfully received from the device.
   @retval EFI_INVALID_PARAMETER  One or more of the parameters are incorrect.
-  @retval EFI_BUFFER_TOO_SMALL   The output parameter block is too small. 
+  @retval EFI_BUFFER_TOO_SMALL   The output parameter block is too small.
 **/
 typedef
 EFI_STATUS

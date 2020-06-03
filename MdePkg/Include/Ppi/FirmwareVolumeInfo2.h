@@ -1,14 +1,8 @@
 /** @file
   This file provides location, format and authentication status of a firmware volume.
 
-  Copyright (c) 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.3 errata.
@@ -26,9 +20,9 @@
 typedef struct _EFI_PEI_FIRMWARE_VOLUME_INFO2_PPI  EFI_PEI_FIRMWARE_VOLUME_INFO2_PPI;
 
 ///
-///  This PPI describes the location and format of a firmware volume. 
-///  The FvFormat can be EFI_FIRMWARE_FILE_SYSTEM2_GUID or the GUID for 
-///  a user-defined format. The  EFI_FIRMWARE_FILE_SYSTEM2_GUID is 
+///  This PPI describes the location and format of a firmware volume.
+///  The FvFormat can be EFI_FIRMWARE_FILE_SYSTEM2_GUID or the GUID for
+///  a user-defined format. The  EFI_FIRMWARE_FILE_SYSTEM2_GUID is
 ///  the PI Firmware Volume format.
 ///
 struct _EFI_PEI_FIRMWARE_VOLUME_INFO2_PPI {

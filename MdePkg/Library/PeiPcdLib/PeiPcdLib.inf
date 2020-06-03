@@ -2,10 +2,10 @@
 # Instance of PCD Library using PCD PPI.
 #
 # There are two PCD PPIs as follows:
-#   1) PCD_PPI 
+#   1) PCD_PPI
 #      It is EDKII implementation which support Dynamic/DynamicEx Pcds.
 #   2) EFI_PEI_PCD_PPI
-#      It is defined by PI specification 1.2, Vol 3 which only support dynamicEx 
+#      It is defined by PI specification 1.2, Vol 3 which only support dynamicEx
 #      type Pcd.
 # For dynamicEx type PCD, it is compatible between PCD_PPI and EFI_PEI_PCD_PPI.
 # This library instance uses the PCD_PPI to handle dynamic PCD request and use
@@ -15,14 +15,9 @@
 #
 # PCD Library that uses the PCD PPI to access Dynamic and DynamicEx PCD entries
 #
-# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution. The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php.
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 #
 ##
@@ -38,7 +33,7 @@
 
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC (EBC is for build only)
+#  VALID_ARCHITECTURES           = IA32 X64 EBC (EBC is for build only)
 #
 
 [Sources]

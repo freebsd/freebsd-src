@@ -1,14 +1,9 @@
 ## @file
 # SMM Periodic SMI Library.
 #
-# Copyright (c) 2011 - 2014, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2011 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution. The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php.
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 #
 ##
@@ -24,7 +19,7 @@
   PI_SPECIFICATION_VERSION       = 0x0001000A
   CONSTRUCTOR                    = SmmPeriodicSmiLibConstructor
   DESTRUCTOR                     = SmmPeriodicSmiLibDestructor
-  
+
 #
 #  VALID_ARCHITECTURES           = IA32 X64
 #
@@ -43,10 +38,10 @@
   TimerLib
   MemoryAllocationLib
   SmmServicesTableLib
-  
+
 [Protocols]
   gEfiSmmPeriodicTimerDispatch2ProtocolGuid  ## CONSUMES
-  
+
 [Depex]
   gEfiSmmPeriodicTimerDispatch2ProtocolGuid
 

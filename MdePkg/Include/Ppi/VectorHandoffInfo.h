@@ -4,16 +4,10 @@
 
   This is an optional PPI that may be produced by SEC. If present, it provides
   a description of the interrupt and/or exception vectors that were established
-  in the SEC Phase and need to persist into PEI and DXE. 
+  in the SEC Phase and need to persist into PEI and DXE.
 
-  Copyright (c) 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.2.1.
@@ -49,11 +43,11 @@ typedef struct {
   //
   UINT32    VectorNumber;
   //
-  // A bitmask that describes the attributes ofthe interrupt or exception vector.
+  // A bitmask that describes the attributes of the interrupt or exception vector.
   //
   UINT32    Attribute;
   //
-  // The GUID identifies the party who created the entry. For the 
+  // The GUID identifies the party who created the entry. For the
   // EFI_VECTOR_HANDOFF_DO_NOT_HOOK case, this establishes the single owner.
   //
   EFI_GUID  Owner;
@@ -61,7 +55,7 @@ typedef struct {
 
 ///
 /// Provides a description of the interrupt and/or exception vectors that
-/// were established in the SEC Phase and need to persist into PEI and DXE.  
+/// were established in the SEC Phase and need to persist into PEI and DXE.
 ///
 typedef struct _EFI_PEI_VECTOR_HANDOFF_INFO_PPI {
   //

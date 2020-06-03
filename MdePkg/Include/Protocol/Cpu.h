@@ -3,14 +3,8 @@
 
   This code abstracts the DXE core from processor implementation details.
 
-  Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -61,14 +55,14 @@ VOID
   );
 
 /**
-  This function flushes the range of addresses from Start to Start+Length 
-  from the processor's data cache. If Start is not aligned to a cache line 
-  boundary, then the bytes before Start to the preceding cache line boundary 
-  are also flushed. If Start+Length is not aligned to a cache line boundary, 
-  then the bytes past Start+Length to the end of the next cache line boundary 
-  are also flushed. The FlushType of EfiCpuFlushTypeWriteBackInvalidate must be 
-  supported. If the data cache is fully coherent with all DMA operations, then 
-  this function can just return EFI_SUCCESS. If the processor does not support 
+  This function flushes the range of addresses from Start to Start+Length
+  from the processor's data cache. If Start is not aligned to a cache line
+  boundary, then the bytes before Start to the preceding cache line boundary
+  are also flushed. If Start+Length is not aligned to a cache line boundary,
+  then the bytes past Start+Length to the end of the next cache line boundary
+  are also flushed. The FlushType of EfiCpuFlushTypeWriteBackInvalidate must be
+  supported. If the data cache is fully coherent with all DMA operations, then
+  this function can just return EFI_SUCCESS. If the processor does not support
   flushing a range of the data cache, then the entire data cache can be flushed.
 
   @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
@@ -98,7 +92,7 @@ EFI_STATUS
 
 
 /**
-  This function enables interrupt processing by the processor. 
+  This function enables interrupt processing by the processor.
 
   @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
 
@@ -130,8 +124,8 @@ EFI_STATUS
 
 
 /**
-  This function retrieves the processor's current interrupt state a returns it in 
-  State. If interrupts are currently enabled, then TRUE is returned. If interrupts 
+  This function retrieves the processor's current interrupt state a returns it in
+  State. If interrupts are currently enabled, then TRUE is returned. If interrupts
   are currently disabled, then FALSE is returned.
 
   @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
@@ -152,9 +146,9 @@ EFI_STATUS
 
 /**
   This function generates an INIT on the processor. If this function succeeds, then the
-  processor will be reset, and control will not be returned to the caller. If InitType is 
-  not supported by this processor, or the processor cannot programmatically generate an 
-  INIT without help from external hardware, then EFI_UNSUPPORTED is returned. If an error 
+  processor will be reset, and control will not be returned to the caller. If InitType is
+  not supported by this processor, or the processor cannot programmatically generate an
+  INIT without help from external hardware, then EFI_UNSUPPORTED is returned. If an error
   occurs attempting to generate an INIT, then EFI_DEVICE_ERROR is returned.
 
   @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
@@ -175,9 +169,9 @@ EFI_STATUS
 
 
 /**
-  This function registers and enables the handler specified by InterruptHandler for a processor 
-  interrupt or exception type specified by InterruptType. If InterruptHandler is NULL, then the 
-  handler for the processor interrupt or exception type specified by InterruptType is uninstalled. 
+  This function registers and enables the handler specified by InterruptHandler for a processor
+  interrupt or exception type specified by InterruptType. If InterruptHandler is NULL, then the
+  handler for the processor interrupt or exception type specified by InterruptType is uninstalled.
   The installed handler is called once for each processor interrupt or exception.
 
   @param  This             The EFI_CPU_ARCH_PROTOCOL instance.
@@ -280,17 +274,17 @@ struct _EFI_CPU_ARCH_PROTOCOL {
   EFI_CPU_GET_TIMER_VALUE             GetTimerValue;
   EFI_CPU_SET_MEMORY_ATTRIBUTES       SetMemoryAttributes;
   ///
-  /// The number of timers that are available in a processor. The value in this 
-  /// field is a constant that must not be modified after the CPU Architectural 
+  /// The number of timers that are available in a processor. The value in this
+  /// field is a constant that must not be modified after the CPU Architectural
   /// Protocol is installed. All consumers must treat this as a read-only field.
   ///
   UINT32                              NumberOfTimers;
   ///
-  /// The size, in bytes, of the alignment required for DMA buffer allocations. 
-  /// This is typically the size of the largest data cache line in the platform. 
-  /// The value in this field is a constant that must not be modified after the 
-  /// CPU Architectural Protocol is installed. All consumers must treat this as 
-  /// a read-only field.  
+  /// The size, in bytes, of the alignment required for DMA buffer allocations.
+  /// This is typically the size of the largest data cache line in the platform.
+  /// The value in this field is a constant that must not be modified after the
+  /// CPU Architectural Protocol is installed. All consumers must treat this as
+  /// a read-only field.
   ///
   UINT32                              DmaBufferAlignment;
 };

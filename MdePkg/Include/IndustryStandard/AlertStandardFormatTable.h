@@ -1,14 +1,8 @@
-/** @file   
+/** @file
   ACPI Alert Standard Format Description Table ASF! as described in the ASF2.0 Specification
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef _ALERT_STANDARD_FORMAT_TABLE_H_
@@ -31,7 +25,7 @@ typedef struct {
 } EFI_ACPI_ASF_RECORD_HEADER;
 
 ///
-/// This structure contains information that identifies the system's type 
+/// This structure contains information that identifies the system's type
 /// and configuration
 ///
 typedef struct {
@@ -84,7 +78,7 @@ typedef struct {
   UINT8                                DeviceAddress;
   UINT8                                Command;
   UINT8                                DataValue;
-} EFI_ACPI_ASF_CONTROLDATA;       
+} EFI_ACPI_ASF_CONTROLDATA;
 
 ///
 /// Alert Remote Control System Actions

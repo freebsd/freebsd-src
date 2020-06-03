@@ -1,15 +1,9 @@
 /** @file
-  EFI_DEVICE_PATH_UTILITIES_PROTOCOL as defined in UEFI 2.0.  
+  EFI_DEVICE_PATH_UTILITIES_PROTOCOL as defined in UEFI 2.0.
   Use to create and manipulate device paths and device nodes.
 
-  Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -30,15 +24,15 @@
   @param  DevicePath Points to the start of the EFI device path.
 
   @return Size  Size of the specified device path, in bytes, including the end-of-path tag.
-  @retval 0     DevicePath is NULL   
+  @retval 0     DevicePath is NULL
 
 **/
 typedef
 UINTN
 (EFIAPI *EFI_DEVICE_PATH_UTILS_GET_DEVICE_PATH_SIZE)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath
-  );    
-  
+  );
+
 
 /**
   Create a duplicate of the specified path.
@@ -53,11 +47,11 @@ typedef
 EFI_DEVICE_PATH_PROTOCOL*
 (EFIAPI *EFI_DEVICE_PATH_UTILS_DUP_DEVICE_PATH)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath
-  );      
+  );
 
 /**
   Create a new path by appending the second device path to the first.
-  If Src1 is NULL and Src2 is non-NULL, then a duplicate of Src2 is returned. 
+  If Src1 is NULL and Src2 is non-NULL, then a duplicate of Src2 is returned.
   If Src1 is non-NULL and Src2 is NULL, then a duplicate of Src1 is returned.
   If Src1 and Src2 are both NULL, then a copy of an end-of-device-path is returned.
 
@@ -73,11 +67,11 @@ EFI_DEVICE_PATH_PROTOCOL*
 (EFIAPI *EFI_DEVICE_PATH_UTILS_APPEND_PATH)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *Src1,
   IN CONST EFI_DEVICE_PATH_PROTOCOL *Src2
-  );     
-  
+  );
+
 /**
   Creates a new path by appending the device node to the device path.
-  If DeviceNode is NULL then a copy of DevicePath is returned. 
+  If DeviceNode is NULL then a copy of DevicePath is returned.
   If DevicePath is NULL then a copy of DeviceNode, followed by an end-of-device path device node is returned.
   If both DeviceNode and DevicePath are NULL then a copy of an end-of-device-path device node is returned.
 
@@ -110,7 +104,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 (EFIAPI *EFI_DEVICE_PATH_UTILS_APPEND_INSTANCE)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePath,
   IN CONST EFI_DEVICE_PATH_PROTOCOL *DevicePathInstance
-  );  
+  );
 
 /**
   Creates a copy of the current device path instance and returns a pointer to the next device path
@@ -119,7 +113,7 @@ EFI_DEVICE_PATH_PROTOCOL*
   @param  DevicePathInstance     On input, this holds the pointer to the current device path
                                  instance. On output, this holds the pointer to the next
                                  device path instance or NULL if there are no more device
-                                 path instances in the device path.  
+                                 path instances in the device path.
   @param  DevicePathInstanceSize On output, this holds the size of the device path instance,
                                  in bytes or zero, if DevicePathInstance is NULL.
                                  If NULL, then the instance size is not output.
@@ -133,7 +127,7 @@ EFI_DEVICE_PATH_PROTOCOL*
 (EFIAPI *EFI_DEVICE_PATH_UTILS_GET_NEXT_INSTANCE)(
   IN  OUT EFI_DEVICE_PATH_PROTOCOL  **DevicePathInstance,
   OUT UINTN                         *DevicePathInstanceSize
-  );  
+  );
 
 /**
   Creates a device node
@@ -156,7 +150,7 @@ EFI_DEVICE_PATH_PROTOCOL*
   IN UINT8                          NodeType,
   IN UINT8                          NodeSubType,
   IN UINT16                         NodeLength
-);   
+);
 
 /**
   Returns whether a device path is multi-instance.
@@ -171,11 +165,11 @@ typedef
 BOOLEAN
 (EFIAPI *EFI_DEVICE_PATH_UTILS_IS_MULTI_INSTANCE)(
   IN CONST EFI_DEVICE_PATH_PROTOCOL         *DevicePath
-  );                                                                                                       
-  
+  );
+
 ///
 /// This protocol is used to creates and manipulates device paths and device nodes.
-/// 
+///
 typedef struct {
   EFI_DEVICE_PATH_UTILS_GET_DEVICE_PATH_SIZE GetDevicePathSize;
   EFI_DEVICE_PATH_UTILS_DUP_DEVICE_PATH      DuplicateDevicePath;
@@ -187,6 +181,6 @@ typedef struct {
   EFI_DEVICE_PATH_UTILS_CREATE_NODE          CreateDeviceNode;
 } EFI_DEVICE_PATH_UTILITIES_PROTOCOL;
 
-extern EFI_GUID gEfiDevicePathUtilitiesProtocolGuid; 
+extern EFI_GUID gEfiDevicePathUtilitiesProtocolGuid;
 
 #endif

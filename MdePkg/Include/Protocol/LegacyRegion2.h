@@ -2,17 +2,11 @@
   The Legacy Region Protocol controls the read, write and boot-lock attributes for
   the region 0xC0000 to 0xFFFFF.
 
-  Copyright (c) 2009 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  This Protocol is defined in UEFI Platform Initialization Specification 1.2 
+  This Protocol is defined in UEFI Platform Initialization Specification 1.2
   Volume 5: Standards
 
 **/
@@ -31,9 +25,9 @@ typedef struct _EFI_LEGACY_REGION2_PROTOCOL EFI_LEGACY_REGION2_PROTOCOL;
 /**
   Modify the hardware to allow (decode) or disallow (not decode) memory reads in a region.
 
-  If the On parameter evaluates to TRUE, this function enables memory reads in the address range 
+  If the On parameter evaluates to TRUE, this function enables memory reads in the address range
   Start to (Start + Length - 1).
-  If the On parameter evaluates to FALSE, this function disables memory reads in the address range 
+  If the On parameter evaluates to FALSE, this function disables memory reads in the address range
   Start to (Start + Length - 1).
 
   @param  This[in]              Indicates the EFI_LEGACY_REGION2_PROTOCOL instance.
@@ -96,7 +90,7 @@ EFI_STATUS
 /**
   Modify the hardware to disallow memory attribute changes in a region.
 
-  This function makes the attributes of a region read only. Once a region is boot-locked with this 
+  This function makes the attributes of a region read only. Once a region is boot-locked with this
   function, the read and write attributes of that region cannot be changed until a power cycle has
   reset the boot-lock attribute. Calls to Decode(), Lock() and Unlock() will have no effect.
 
@@ -131,7 +125,7 @@ EFI_STATUS
 /**
   Modify the hardware to allow memory writes in a region.
 
-  This function changes the attributes of a memory range to allow writes.  
+  This function changes the attributes of a memory range to allow writes.
 
   @param  This[in]              Indicates the EFI_LEGACY_REGION2_PROTOCOL instance.
   @param  Start[in]             The beginning of the physical address of the region whose
@@ -195,9 +189,9 @@ typedef struct {
 /**
   Get region information for the attributes of the Legacy Region.
 
-  This function is used to discover the granularity of the attributes for the memory in the legacy 
+  This function is used to discover the granularity of the attributes for the memory in the legacy
   region. Each attribute may have a different granularity and the granularity may not be the same
-  for all memory ranges in the legacy region.  
+  for all memory ranges in the legacy region.
 
   @param  This[in]              Indicates the EFI_LEGACY_REGION2_PROTOCOL instance.
   @param  DescriptorCount[out]  The number of region descriptor entries returned in the Descriptor
@@ -220,8 +214,8 @@ EFI_STATUS
   );
 
 
-/// 
-/// The EFI_LEGACY_REGION2_PROTOCOL is used to abstract the hardware control of the memory 
+///
+/// The EFI_LEGACY_REGION2_PROTOCOL is used to abstract the hardware control of the memory
 /// attributes of the Option ROM shadowing region, 0xC0000 to 0xFFFFF.
 /// There are three memory attributes that can be modified through this protocol: read, write and
 /// boot-lock. These protocols may be set in any combination.

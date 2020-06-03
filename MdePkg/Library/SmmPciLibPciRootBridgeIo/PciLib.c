@@ -1,15 +1,8 @@
 /** @file
   PCI Library using SMM PCI Root Bridge I/O Protocol.
 
-  Copyright (c) 2009 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials are
-  licensed and made available under the terms and conditions of
-  the BSD License which accompanies this distribution.  The full
-  text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-  
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 #include <PiSmm.h>
@@ -42,19 +35,19 @@
   ((((A) << 4) & 0xff000000) | (((A) >> 4) & 0x00000700) | (((A) << 1) & 0x001f0000) | (LShiftU64((A) & 0xfff, 32)))
 
 //
-// Global varible to cache pointer to PCI Root Bridge I/O protocol.
+// Global variable to cache pointer to PCI Root Bridge I/O protocol.
 //
-EFI_SMM_PCI_ROOT_BRIDGE_IO_PROTOCOL      *mSmmPciRootBridgeIo = NULL; 
+EFI_SMM_PCI_ROOT_BRIDGE_IO_PROTOCOL      *mSmmPciRootBridgeIo = NULL;
 
 /**
   The constructor function caches the pointer to PCI Root Bridge I/O protocol.
-  
+
   The constructor function locates PCI Root Bridge I/O protocol from protocol database.
-  It will ASSERT() if that operation fails and it will always return EFI_SUCCESS. 
+  It will ASSERT() if that operation fails and it will always return EFI_SUCCESS.
 
   @param  ImageHandle   The firmware allocated handle for the EFI image.
   @param  SystemTable   A pointer to the EFI System Table.
-  
+
   @retval EFI_SUCCESS   The constructor always returns EFI_SUCCESS.
 
 **/
@@ -66,7 +59,7 @@ PciLibConstructor (
   )
 {
   EFI_STATUS  Status;
-  
+
   Status = gSmst->SmmLocateProtocol (&gEfiSmmPciRootBridgeIoProtocolGuid, NULL, (VOID**) &mSmmPciRootBridgeIo);
   ASSERT_EFI_ERROR (Status);
   ASSERT (mSmmPciRootBridgeIo != NULL);
@@ -141,19 +134,19 @@ SmmPciLibPciRootBridgeIoWriteWorker (
 }
 
 /**
-  Registers a PCI device so PCI configuration registers may be accessed after 
+  Registers a PCI device so PCI configuration registers may be accessed after
   SetVirtualAddressMap().
-  
-  Registers the PCI device specified by Address so all the PCI configuration registers 
+
+  Registers the PCI device specified by Address so all the PCI configuration registers
   associated with that PCI device may be accessed after SetVirtualAddressMap() is called.
-  
+
   If Address > 0x0FFFFFFF, then ASSERT().
 
   @param  Address The address that encodes the PCI Bus, Device, Function and
                   Register.
-  
+
   @retval RETURN_SUCCESS           The PCI device was registered for runtime access.
-  @retval RETURN_UNSUPPORTED       An attempt was made to call this function 
+  @retval RETURN_UNSUPPORTED       An attempt was made to call this function
                                    after ExitBootServices().
   @retval RETURN_UNSUPPORTED       The resources required to access the PCI device
                                    at runtime could not be mapped.
@@ -1245,7 +1238,7 @@ PciBitFieldAndThenOr32 (
   Size into the buffer specified by Buffer. This function only allows the PCI
   configuration registers from a single PCI function to be read. Size is
   returned. When possible 32-bit PCI configuration read cycles are used to read
-  from StartAdress to StartAddress + Size. Due to alignment restrictions, 8-bit
+  from StartAddress to StartAddress + Size. Due to alignment restrictions, 8-bit
   and 16-bit PCI configuration read cycles may be used at the beginning and the
   end of the range.
 
@@ -1343,7 +1336,7 @@ PciReadBuffer (
   Size from the buffer specified by Buffer. This function only allows the PCI
   configuration registers from a single PCI function to be written. Size is
   returned. When possible 32-bit PCI configuration write cycles are used to
-  write from StartAdress to StartAddress + Size. Due to alignment restrictions,
+  write from StartAddress to StartAddress + Size. Due to alignment restrictions,
   8-bit and 16-bit PCI configuration write cycles may be used at the beginning
   and the end of the range.
 

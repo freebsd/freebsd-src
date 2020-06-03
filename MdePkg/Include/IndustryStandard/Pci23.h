@@ -1,14 +1,8 @@
 /** @file
   Support for PCI 2.3 standard.
 
-  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php.                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -92,10 +86,11 @@
 /// PCI Capability List IDs and records.
 ///
 #define EFI_PCI_CAPABILITY_ID_PCIX    0x07
+#define EFI_PCI_CAPABILITY_ID_VENDOR  0x09
 
 #pragma pack(1)
 ///
-/// PCI-X Capabilities List, 
+/// PCI-X Capabilities List,
 /// Section 7.2, PCI-X Addendum to the PCI Local Bus Specification, Revision 1.0b.
 ///
 typedef struct {
@@ -105,7 +100,7 @@ typedef struct {
 } EFI_PCI_CAPABILITY_PCIX;
 
 ///
-/// PCI-X Bridge Capabilities List, 
+/// PCI-X Bridge Capabilities List,
 /// Section 8.6.2, PCI-X Addendum to the PCI Local Bus Specification, Revision 1.0b.
 ///
 typedef struct {
@@ -115,6 +110,15 @@ typedef struct {
   UINT32                  SplitTransCtrlRegUp;
   UINT32                  SplitTransCtrlRegDn;
 } EFI_PCI_CAPABILITY_PCIX_BRDG;
+
+///
+/// Vendor Specific Capability Header
+/// Table H-1: Capability IDs, PCI Local Bus Specification, 2.3
+///
+typedef struct {
+  EFI_PCI_CAPABILITY_HDR  Hdr;
+  UINT8                   Length;
+} EFI_PCI_CAPABILITY_VENDOR_HDR;
 
 #pragma pack()
 

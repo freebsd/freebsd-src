@@ -1,14 +1,8 @@
 /** @file
   Guid & data structure used for EFI System Resource Table (ESRT)
 
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2020, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   GUIDs defined in UEFI 2.5 spec.
@@ -40,14 +34,15 @@
 ///
 /// Last Attempt Status Values
 ///
-#define LAST_ATTEMPT_STATUS_SUCCESS                       0x00000000
-#define LAST_ATTEMPT_STATUS_ERROR_UNSUCCESSFUL            0x00000001
-#define LAST_ATTEMPT_STATUS_ERROR_INSUFFICIENT_RESOURCES  0x00000002
-#define LAST_ATTEMPT_STATUS_ERROR_INCORRECT_VERSION       0x00000003
-#define LAST_ATTEMPT_STATUS_ERROR_INVALID_FORMAT          0x00000004
-#define LAST_ATTEMPT_STATUS_ERROR_AUTH_ERROR              0x00000005
-#define LAST_ATTEMPT_STATUS_ERROR_PWR_EVT_AC              0x00000006
-#define LAST_ATTEMPT_STATUS_ERROR_PWR_EVT_BATT            0x00000007
+#define LAST_ATTEMPT_STATUS_SUCCESS                         0x00000000
+#define LAST_ATTEMPT_STATUS_ERROR_UNSUCCESSFUL              0x00000001
+#define LAST_ATTEMPT_STATUS_ERROR_INSUFFICIENT_RESOURCES    0x00000002
+#define LAST_ATTEMPT_STATUS_ERROR_INCORRECT_VERSION         0x00000003
+#define LAST_ATTEMPT_STATUS_ERROR_INVALID_FORMAT            0x00000004
+#define LAST_ATTEMPT_STATUS_ERROR_AUTH_ERROR                0x00000005
+#define LAST_ATTEMPT_STATUS_ERROR_PWR_EVT_AC                0x00000006
+#define LAST_ATTEMPT_STATUS_ERROR_PWR_EVT_BATT              0x00000007
+#define LAST_ATTEMPT_STATUS_ERROR_UNSATISFIED_DEPENDENCIES  0x00000008
 
 typedef struct {
   ///

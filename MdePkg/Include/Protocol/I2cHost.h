@@ -1,17 +1,11 @@
 /** @file
   I2C Host Protocol as defined in the PI 1.3 specification.
 
-  This protocol provides callers with the ability to do I/O transactions 
+  This protocol provides callers with the ability to do I/O transactions
   to all of the devices on the I2C bus.
 
-  Copyright (c) 2013 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This protocol is from PI Version 1.3.
@@ -50,7 +44,7 @@ typedef struct _EFI_I2C_HOST_PROTOCOL EFI_I2C_HOST_PROTOCOL;
   This routine must be called at or below TPL_NOTIFY.  For
   synchronous requests this routine must be called at or below
   TPL_CALLBACK.
-  
+
   The I2C host protocol uses the concept of I2C bus configurations
   to describe the I2C bus.  An I2C bus configuration is defined as
   a unique setting of the multiplexers and switches in the I2C bus

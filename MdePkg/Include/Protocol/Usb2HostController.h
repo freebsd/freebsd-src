@@ -1,17 +1,11 @@
 /** @file
   EFI_USB2_HC_PROTOCOL as defined in UEFI 2.0.
-  The USB Host Controller Protocol is used by code, typically USB bus drivers, 
-  running in the EFI boot services environment, to perform data transactions over 
+  The USB Host Controller Protocol is used by code, typically USB bus drivers,
+  running in the EFI boot services environment, to perform data transactions over
   a USB bus. In addition, it provides an abstraction for the root hub of the USB bus.
 
-  Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -37,7 +31,7 @@ typedef struct {
 } EFI_USB_PORT_STATUS;
 
 ///
-/// EFI_USB_PORT_STATUS.PortStatus bit definition 
+/// EFI_USB_PORT_STATUS.PortStatus bit definition
 ///
 #define USB_PORT_STAT_CONNECTION    0x0001
 #define USB_PORT_STAT_ENABLE        0x0002
@@ -51,7 +45,7 @@ typedef struct {
 #define USB_PORT_STAT_OWNER         0x2000
 
 ///
-/// EFI_USB_PORT_STATUS.PortChangeStatus bit definition 
+/// EFI_USB_PORT_STATUS.PortChangeStatus bit definition
 ///
 #define USB_PORT_STAT_C_CONNECTION  0x0001
 #define USB_PORT_STAT_C_ENABLE      0x0002
@@ -62,7 +56,7 @@ typedef struct {
 
 ///
 /// Usb port features value
-/// Each value indicates its bit index in the port status and status change bitmaps, 
+/// Each value indicates its bit index in the port status and status change bitmaps,
 /// if combines these two bitmaps into a 32-bit bitmap.
 ///
 typedef enum {
@@ -158,7 +152,7 @@ typedef enum {
                                     ///< Explicitly set by software. 3)
                                     ///< Triggered by a fatal error such as
                                     ///< consistency check failure.
-                                    
+
   EfiUsbHcStateOperational,         ///< The host controller is in an
                                     ///< operational state. When in
                                     ///< this state, the host
@@ -166,7 +160,7 @@ typedef enum {
                                     ///< traffic. This state must be
                                     ///< explicitly set to enable the
                                     ///< USB bus traffic.
-                                    
+
   EfiUsbHcStateSuspend,             ///< The host controller is in the
                                     ///< suspend state. No USB
                                     ///< transactions can occur while in
@@ -176,7 +170,7 @@ typedef enum {
                                     ///< set by software. 2) Triggered
                                     ///< when there is no bus traffic for
                                     ///< 3 microseconds.
-                                    
+
   EfiUsbHcStateMaximum              ///< Maximum value for enumration value of HC status.
 } EFI_USB_HC_STATE;
 
@@ -413,30 +407,30 @@ EFI_STATUS
 /**
   Submits isochronous transfer to an isochronous endpoint of a USB device.
 
-  This function is used to submit isochronous transfer to a target endpoint of a USB device. 
-  The target endpoint is specified by DeviceAddressand EndpointAddress. Isochronous transfers are 
-  used when working with isochronous date. It provides periodic, continuous communication between 
-  the host and a device. Isochronous transfers can beused only by full-speed, high-speed, and 
+  This function is used to submit isochronous transfer to a target endpoint of a USB device.
+  The target endpoint is specified by DeviceAddressand EndpointAddress. Isochronous transfers are
+  used when working with isochronous date. It provides periodic, continuous communication between
+  the host and a device. Isochronous transfers can beused only by full-speed, high-speed, and
   super-speed devices.
 
-  High-speed isochronous transfers can be performed using multiple data buffers. The number of 
+  High-speed isochronous transfers can be performed using multiple data buffers. The number of
   buffers that are actually prepared for the transfer is specified by DataBuffersNumber. For
   full-speed isochronous transfers this value is ignored.
 
   Data represents a list of pointers to the data buffers. For full-speed isochronous transfers
   only the data pointed by Data[0]shall be used. For high-speed isochronous transfers and for
   the split transactions depending on DataLengththere several data buffers canbe used. For the
-  high-speed isochronous transfers the total number of buffers must not exceed EFI_USB_MAX_ISO_BUFFER_NUM. 
+  high-speed isochronous transfers the total number of buffers must not exceed EFI_USB_MAX_ISO_BUFFER_NUM.
 
   For split transactions performed on full-speed device by high-speed host controller the total
   number of buffers is limited to EFI_USB_MAX_ISO_BUFFER_NUM1.
-  If the isochronous transfer is successful, then EFI_SUCCESSis returned. The isochronous transfer 
+  If the isochronous transfer is successful, then EFI_SUCCESSis returned. The isochronous transfer
   is designed to be completed within one USB frame time, if it cannot be completed, EFI_TIMEOUT
   is returned. If an error other than timeout occurs during the USB transfer, then EFI_DEVICE_ERROR
   is returned and the detailed status code will be returned in TransferResult.
 
   EFI_INVALID_PARAMETERis returned if one of the following conditionsis satisfied:
-    - Data is NULL. 
+    - Data is NULL.
     - DataLength is 0.
     - DeviceSpeed is not one of the supported values listed above.
     - MaximumPacketLength is invalid. MaximumPacketLength must be 1023 or less for full-speed devices,
@@ -447,7 +441,7 @@ EFI_STATUS
   @param  DeviceAddress         Represents the address of the target device on the USB.
   @param  EndPointAddress       The combination of an endpoint number and an endpoint direction of the
                                 target USB device.
-  @param  DeviceSpeed           Indicates device speed. The supported values are EFI_USB_SPEED_FULL, 
+  @param  DeviceSpeed           Indicates device speed. The supported values are EFI_USB_SPEED_FULL,
                                 EFI_USB_SPEED_HIGH, or EFI_USB_SPEED_SUPER.
   @param  MaximumPacketLength   Indicates the maximum packet size the target endpoint is capable of
                                 sending or receiving.
@@ -497,7 +491,7 @@ EFI_STATUS
   between the host and a device. Isochronous transfers can be used only by full-speed, high-speed,
   and super-speed devices.
 
-  High-speed isochronous transfers can be performed using multiple data buffers. The number of 
+  High-speed isochronous transfers can be performed using multiple data buffers. The number of
   buffers that are actually prepared for the transfer is specified by DataBuffersNumber. For
   full-speed isochronous transfers this value is ignored.
 
@@ -510,17 +504,17 @@ EFI_STATUS
   number of buffers is limited to EFI_USB_MAX_ISO_BUFFER_NUM1.
 
   EFI_INVALID_PARAMETER is returned if one of the following conditionsis satisfied:
-    - Data is NULL. 
+    - Data is NULL.
     - DataLength is 0.
     - DeviceSpeed is not one of the supported values listed above.
-    - MaximumPacketLength is invalid. MaximumPacketLength must be 1023 or less for full-speed 
+    - MaximumPacketLength is invalid. MaximumPacketLength must be 1023 or less for full-speed
       devices and 1024 or less for high-speed and super-speed devices.
 
   @param  This                  A pointer to the EFI_USB2_HC_PROTOCOL instance.
   @param  DeviceAddress         Represents the address of the target device on the USB.
   @param  EndPointAddress       The combination of an endpoint number and an endpoint direction of the
                                 target USB device.
-  @param  DeviceSpeed           Indicates device speed. The supported values are EFI_USB_SPEED_FULL, 
+  @param  DeviceSpeed           Indicates device speed. The supported values are EFI_USB_SPEED_FULL,
                                 EFI_USB_SPEED_HIGH, or EFI_USB_SPEED_SUPER.
   @param  MaximumPacketLength   Indicates the maximum packet size the target endpoint is capable of
                                 sending or receiving.
@@ -622,11 +616,11 @@ EFI_STATUS
   );
 
 ///
-/// The EFI_USB2_HC_PROTOCOL provides USB host controller management, basic 
-/// data transactions over a USB bus, and USB root hub access. A device driver 
-/// that wishes to manage a USB bus in a system retrieves the EFI_USB2_HC_PROTOCOL 
-/// instance that is associated with the USB bus to be managed. A device handle 
-/// for a USB host controller will minimally contain an EFI_DEVICE_PATH_PROTOCOL 
+/// The EFI_USB2_HC_PROTOCOL provides USB host controller management, basic
+/// data transactions over a USB bus, and USB root hub access. A device driver
+/// that wishes to manage a USB bus in a system retrieves the EFI_USB2_HC_PROTOCOL
+/// instance that is associated with the USB bus to be managed. A device handle
+/// for a USB host controller will minimally contain an EFI_DEVICE_PATH_PROTOCOL
 /// instance, and an EFI_USB2_HC_PROTOCOL instance.
 ///
 struct _EFI_USB2_HC_PROTOCOL {
@@ -643,18 +637,18 @@ struct _EFI_USB2_HC_PROTOCOL {
   EFI_USB2_HC_PROTOCOL_GET_ROOTHUB_PORT_STATUS     GetRootHubPortStatus;
   EFI_USB2_HC_PROTOCOL_SET_ROOTHUB_PORT_FEATURE    SetRootHubPortFeature;
   EFI_USB2_HC_PROTOCOL_CLEAR_ROOTHUB_PORT_FEATURE  ClearRootHubPortFeature;
-  
+
   ///
-  /// The major revision number of the USB host controller. The revision information 
-  /// indicates the release of the Universal Serial Bus Specification with which the 
+  /// The major revision number of the USB host controller. The revision information
+  /// indicates the release of the Universal Serial Bus Specification with which the
   /// host controller is compliant.
   ///
   UINT16                                           MajorRevision;
 
   ///
-  /// The minor revision number of the USB host controller. The revision information 
-  /// indicates the release of the Universal Serial Bus Specification with which the 
-  /// host controller is compliant.  
+  /// The minor revision number of the USB host controller. The revision information
+  /// indicates the release of the Universal Serial Bus Specification with which the
+  /// host controller is compliant.
   ///
   UINT16                                           MinorRevision;
 };

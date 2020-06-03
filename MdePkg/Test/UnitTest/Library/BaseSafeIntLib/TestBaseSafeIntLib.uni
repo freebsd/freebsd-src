@@ -1,0 +1,13 @@
+// /** @file
+// Application that Unit Tests the SafeIntLib
+//
+// Copyright (c) 2020, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+#string STR_MODULE_ABSTRACT             #language en-US "Application that Unit Tests the SafeIntLib"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Application that Unit Tests the SafeIntLib."
+

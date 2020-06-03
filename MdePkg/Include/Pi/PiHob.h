@@ -1,17 +1,11 @@
 /** @file
   HOB related definitions in PI.
 
-Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under
-the terms and conditions of the BSD License that accompanies this distribution.
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  PI Version 1.4a
+  PI Version 1.6
 
 **/
 
@@ -31,6 +25,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define EFI_HOB_TYPE_FV2                  0x0009
 #define EFI_HOB_TYPE_LOAD_PEIM_UNUSED     0x000A
 #define EFI_HOB_TYPE_UEFI_CAPSULE         0x000B
+#define EFI_HOB_TYPE_FV3                  0x000C
 #define EFI_HOB_TYPE_UNUSED               0xFFFE
 #define EFI_HOB_TYPE_END_OF_HOB_LIST      0xFFFF
 
@@ -399,6 +394,43 @@ typedef struct {
   EFI_GUID                FileName;
 } EFI_HOB_FIRMWARE_VOLUME2;
 
+///
+/// Details the location of a firmware volume that was extracted
+/// from a file within another firmware volume.
+///
+typedef struct {
+  ///
+  /// The HOB generic header. Header.HobType = EFI_HOB_TYPE_FV3.
+  ///
+  EFI_HOB_GENERIC_HEADER  Header;
+  ///
+  /// The physical memory-mapped base address of the firmware volume.
+  ///
+  EFI_PHYSICAL_ADDRESS    BaseAddress;
+  ///
+  /// The length in bytes of the firmware volume.
+  ///
+  UINT64                  Length;
+  ///
+  /// The authentication status.
+  ///
+  UINT32                  AuthenticationStatus;
+  ///
+  /// TRUE if the FV was extracted as a file within another firmware volume.
+  /// FALSE otherwise.
+  ///
+  BOOLEAN                 ExtractedFv;
+  ///
+  /// The name of the firmware volume.
+  /// Valid only if IsExtractedFv is TRUE.
+  ///
+  EFI_GUID                FvName;
+  ///
+  /// The name of the firmware file that contained this firmware volume.
+  /// Valid only if IsExtractedFv is TRUE.
+  ///
+  EFI_GUID                FileName;
+} EFI_HOB_FIRMWARE_VOLUME3;
 
 ///
 /// Describes processor information, such as address space and I/O space capabilities.
@@ -469,6 +501,7 @@ typedef union {
   EFI_HOB_GUID_TYPE                   *Guid;
   EFI_HOB_FIRMWARE_VOLUME             *FirmwareVolume;
   EFI_HOB_FIRMWARE_VOLUME2            *FirmwareVolume2;
+  EFI_HOB_FIRMWARE_VOLUME3            *FirmwareVolume3;
   EFI_HOB_CPU                         *Cpu;
   EFI_HOB_MEMORY_POOL                 *Pool;
   EFI_HOB_UEFI_CAPSULE                *Capsule;

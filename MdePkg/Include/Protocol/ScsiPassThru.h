@@ -1,21 +1,15 @@
 /** @file
   SCSI Pass Through protocol as defined in EFI 1.1.
-  This protocol allows information about a SCSI channel to be collected, 
+  This protocol allows information about a SCSI channel to be collected,
   and allows SCSI Request Packets to be sent to any SCSI devices on a SCSI
-  channel even if those devices are not boot devices. This protocol is attached 
-  to the device handle of each SCSI channel in a system that the protocol 
-  supports, and can be used for diagnostics. It may also be used to build 
+  channel even if those devices are not boot devices. This protocol is attached
+  to the device handle of each SCSI channel in a system that the protocol
+  supports, and can be used for diagnostics. It may also be used to build
   a Block I/O driver for SCSI hard drives and SCSI CD-ROM or DVD drives to
   allow those devices to become boot devices.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -149,9 +143,9 @@ typedef struct {
 } EFI_SCSI_PASS_THRU_MODE;
 
 /**
-  Sends a SCSI Request Packet to a SCSI device that is attached to 
-  the SCSI channel. This function supports both blocking I/O and 
-  non-blocking I/O.  The blocking I/O functionality is required, 
+  Sends a SCSI Request Packet to a SCSI device that is attached to
+  the SCSI channel. This function supports both blocking I/O and
+  non-blocking I/O.  The blocking I/O functionality is required,
   and the non-blocking I/O functionality is optional.
 
   @param  This   Protocol instance pointer.
@@ -198,7 +192,7 @@ typedef struct {
                                     Request Packet to execute. See HostAdapterStatus,
                                     TargetStatus, SenseDataLength, and SenseData in
                                     that order for additional status information.
-                                    
+
 **/
 typedef
 EFI_STATUS
@@ -211,7 +205,7 @@ EFI_STATUS
   );
 
 /**
-  Used to retrieve the list of legal Target IDs for SCSI devices 
+  Used to retrieve the list of legal Target IDs for SCSI devices
   on a SCSI channel.
 
   @param  This   Protocol instance pointer.
@@ -243,7 +237,7 @@ EFI_STATUS
   );
 
 /**
-  Used to allocate and build a device path node for a SCSI device 
+  Used to allocate and build a device path node for a SCSI device
   on a SCSI channel.
 
   @param  This       Protocol instance pointer.
@@ -311,7 +305,7 @@ EFI_STATUS
   );
 
 /**
-  Resets a SCSI channel.This operation resets all the 
+  Resets a SCSI channel.This operation resets all the
   SCSI devices connected to the SCSI channel.
 
   @param  This Protocol instance pointer.

@@ -1,14 +1,8 @@
 /** @file
   GUID and related data structures used with the Debug Image Info Table.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   GUID defined in UEFI 2.0 spec.
@@ -35,7 +29,7 @@
 
 typedef struct {
   UINT64                Signature;          ///< A constant UINT64 that has the value EFI_SYSTEM_TABLE_SIGNATURE
-  EFI_PHYSICAL_ADDRESS  EfiSystemTableBase; ///< The physical address of the EFI system table. 
+  EFI_PHYSICAL_ADDRESS  EfiSystemTableBase; ///< The physical address of the EFI system table.
   UINT32                Crc32;              ///< A 32-bit CRC value that is used to verify the EFI_SYSTEM_TABLE_POINTER structure is valid.
 } EFI_SYSTEM_TABLE_POINTER;
 

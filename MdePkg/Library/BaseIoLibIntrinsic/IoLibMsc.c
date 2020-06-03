@@ -8,14 +8,8 @@
   We don't advocate putting compiler specifics in libraries or drivers but there
   is no other way to make this work.
 
-  Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -146,7 +140,7 @@ IoRead16 (
 
   If 16-bit I/O port operations are not supported, then ASSERT().
   If Port is not aligned on a 16-bit boundary, then ASSERT().
-  
+
   @param  Port  The I/O port to write.
   @param  Value The value to write to the I/O port.
 
@@ -176,7 +170,7 @@ IoWrite16 (
 
   If 32-bit I/O port operations are not supported, then ASSERT().
   If Port is not aligned on a 32-bit boundary, then ASSERT().
-  
+
   @param  Port  The I/O port to read.
 
   @return The value read.
@@ -206,7 +200,7 @@ IoRead32 (
 
   If 32-bit I/O port operations are not supported, then ASSERT().
   If Port is not aligned on a 32-bit boundary, then ASSERT().
-  
+
   @param  Port  The I/O port to write.
   @param  Value The value to write to the I/O port.
 

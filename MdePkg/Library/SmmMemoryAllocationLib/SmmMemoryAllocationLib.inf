@@ -1,16 +1,11 @@
 ## @file
 # Instance of Memory Allocation Library using SMM Services Table.
 #
-# Memory Allocation Library that uses services from the SMM Services Table to 
+# Memory Allocation Library that uses services from the SMM Services Table to
 # allocate and free memory.
 #
-# Copyright (c) 2010 - 2014, Intel Corporation. All rights reserved.<BR>
-# This program and the accompanying materials
-# are licensed and made available under the terms and conditions of the BSD License
-# which accompanies this distribution. The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php.
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# Copyright (c) 2010 - 2018, Intel Corporation. All rights reserved.<BR>
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 ##
 
@@ -22,7 +17,7 @@
   MODULE_TYPE                    = DXE_SMM_DRIVER
   VERSION_STRING                 = 1.0
   PI_SPECIFICATION_VERSION       = 0x0001000A
-  LIBRARY_CLASS                  = MemoryAllocationLib|DXE_SMM_DRIVER 
+  LIBRARY_CLASS                  = MemoryAllocationLib|DXE_SMM_DRIVER
   CONSTRUCTOR                    = SmmMemoryAllocationLibConstructor
   DESTRUCTOR                     = SmmMemoryAllocationLibDestructor
 
@@ -43,7 +38,7 @@
   UefiBootServicesTableLib
 
 [Protocols]
-  gEfiSmmAccess2ProtocolGuid    ## CONSUMES  
+  gEfiSmmAccess2ProtocolGuid    ## CONSUMES
 
 [Depex]
   gEfiSmmAccess2ProtocolGuid

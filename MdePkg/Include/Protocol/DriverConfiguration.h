@@ -1,14 +1,8 @@
 /** @file
   EFI Driver Configuration Protocol
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -24,11 +18,11 @@
   { \
     0x107a772b, 0xd5e1, 0x11d4, {0x9a, 0x46, 0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d } \
   }
- 
+
 typedef struct _EFI_DRIVER_CONFIGURATION_PROTOCOL  EFI_DRIVER_CONFIGURATION_PROTOCOL;
 
 /**
-  Allows the user to set controller specific options for a controller that a 
+  Allows the user to set controller specific options for a controller that a
   driver is currently managing.
 
   @param  This             A pointer to the EFI_DRIVER_CONFIGURATION_PROTOCOL instance.
@@ -154,9 +148,9 @@ struct _EFI_DRIVER_CONFIGURATION_PROTOCOL {
   EFI_DRIVER_CONFIGURATION_OPTIONS_VALID  OptionsValid;
   EFI_DRIVER_CONFIGURATION_FORCE_DEFAULTS ForceDefaults;
   ///
-  /// A Null-terminated ASCII string that contains one or more 
-  /// ISO 639-2 language codes.  This is the list of language 
-  /// codes that this protocol supports.  
+  /// A Null-terminated ASCII string that contains one or more
+  /// ISO 639-2 language codes.  This is the list of language
+  /// codes that this protocol supports.
   ///
   CHAR8                                   *SupportedLanguages;
 };

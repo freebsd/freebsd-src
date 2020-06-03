@@ -1,6 +1,6 @@
 /** @file
   Base PE/COFF loader supports loading any PE32/PE32+ or TE image, but
-  only supports relocating IA32, x64, IPF, and EBC images.
+  only supports relocating IA32, x64, IPF, ARM, RISC-V and EBC images.
 
   Caution: This file requires additional review when modified.
   This library will have external input - PE/COFF image.
@@ -15,15 +15,10 @@
   PeCoffLoaderGetPeHeader() routine will do basic check for PE/COFF header.
   PeCoffLoaderGetImageInfo() routine will do basic check for whole PE/COFF image.
 
-  Copyright (c) 2006 - 2017, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
   Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Portions Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -47,42 +42,12 @@ PeCoffLoaderAdjustOffsetForTeImage (
 }
 
 /**
-  Retrieves the magic value from the PE/COFF header.
-
-  @param  Hdr             The buffer in which to return the PE32, PE32+, or TE header.
-
-  @return EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC - Image is PE32
-  @return EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC - Image is PE32+
-
-**/
-UINT16
-PeCoffLoaderGetPeHeaderMagicValue (
-  IN  EFI_IMAGE_OPTIONAL_HEADER_PTR_UNION  Hdr
-  )
-{
-  //
-  // NOTE: Some versions of Linux ELILO for Itanium have an incorrect magic value 
-  //       in the PE/COFF Header.  If the MachineType is Itanium(IA64) and the 
-  //       Magic value in the OptionalHeader is  EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC
-  //       then override the returned value to EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC
-  //
-  if (Hdr.Pe32->FileHeader.Machine == IMAGE_FILE_MACHINE_IA64 && Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
-    return EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC;
-  }
-  //
-  // Return the magic value from the PC/COFF Optional Header
-  //
-  return Hdr.Pe32->OptionalHeader.Magic;
-}
-
-
-/**
-  Retrieves the PE or TE Header from a PE/COFF or TE image. 
+  Retrieves the PE or TE Header from a PE/COFF or TE image.
 
   Caution: This function may receive untrusted input.
-  PE/COFF image is external input, so this routine will 
-  also done many checks in PE image to make sure PE image DosHeader, PeOptionHeader, 
-  SizeOfHeader, Section Data Region and Security Data Region be in PE image range. 
+  PE/COFF image is external input, so this routine will
+  also done many checks in PE image to make sure PE image DosHeader, PeOptionHeader,
+  SizeOfHeader, Section Data Region and Security Data Region be in PE image range.
 
   @param  ImageContext    The context of the image being loaded.
   @param  Hdr             The buffer in which to return the PE32, PE32+, or TE header.
@@ -101,7 +66,6 @@ PeCoffLoaderGetPeHeader (
   EFI_IMAGE_DOS_HEADER  DosHdr;
   UINTN                 Size;
   UINTN                 ReadSize;
-  UINT16                Magic;
   UINT32                SectionHeaderOffset;
   UINT32                Index;
   UINT32                HeaderWithoutDataDir;
@@ -211,7 +175,7 @@ PeCoffLoaderGetPeHeader (
 
     //
     // TE Image Data Directory Entry size is non-zero, but the Data Directory Virtual Address is zero.
-    // This case is not a valid TE image. 
+    // This case is not a valid TE image.
     //
     if ((Hdr.Te->DataDirectory[0].Size != 0 && Hdr.Te->DataDirectory[0].VirtualAddress == 0) ||
         (Hdr.Te->DataDirectory[1].Size != 0 && Hdr.Te->DataDirectory[1].VirtualAddress == 0)) {
@@ -222,9 +186,7 @@ PeCoffLoaderGetPeHeader (
     ImageContext->IsTeImage = FALSE;
     ImageContext->Machine = Hdr.Pe32->FileHeader.Machine;
 
-    Magic = PeCoffLoaderGetPeHeaderMagicValue (Hdr);
-
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // 1. Check OptionalHeader.NumberOfRvaAndSizes filed.
       //
@@ -235,7 +197,7 @@ PeCoffLoaderGetPeHeader (
 
       //
       // 2. Check the FileHeader.SizeOfOptionalHeader field.
-      // OptionalHeader.NumberOfRvaAndSizes is not bigger than 16, so 
+      // OptionalHeader.NumberOfRvaAndSizes is not bigger than 16, so
       // OptionalHeader.NumberOfRvaAndSizes * sizeof (EFI_IMAGE_DATA_DIRECTORY) will not overflow.
       //
       HeaderWithoutDataDir = sizeof (EFI_IMAGE_OPTIONAL_HEADER32) - sizeof (EFI_IMAGE_DATA_DIRECTORY) * EFI_IMAGE_NUMBER_OF_DIRECTORY_ENTRIES;
@@ -339,7 +301,7 @@ PeCoffLoaderGetPeHeader (
       ImageContext->SectionAlignment  = Hdr.Pe32->OptionalHeader.SectionAlignment;
       ImageContext->SizeOfHeaders     = Hdr.Pe32->OptionalHeader.SizeOfHeaders;
 
-    } else if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
+    } else if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR64_MAGIC) {
       //
       // 1. Check FileHeader.NumberOfRvaAndSizes filed.
       //
@@ -349,7 +311,7 @@ PeCoffLoaderGetPeHeader (
       }
       //
       // 2. Check the FileHeader.SizeOfOptionalHeader field.
-      // OptionalHeader.NumberOfRvaAndSizes is not bigger than 16, so 
+      // OptionalHeader.NumberOfRvaAndSizes is not bigger than 16, so
       // OptionalHeader.NumberOfRvaAndSizes * sizeof (EFI_IMAGE_DATA_DIRECTORY) will not overflow.
       //
       HeaderWithoutDataDir = sizeof (EFI_IMAGE_OPTIONAL_HEADER64) - sizeof (EFI_IMAGE_DATA_DIRECTORY) * EFI_IMAGE_NUMBER_OF_DIRECTORY_ENTRIES;
@@ -513,7 +475,7 @@ PeCoffLoaderGetPeHeader (
       //
       // Section data should bigger than the Pe header.
       //
-      if (SectionHeader.VirtualAddress < ImageContext->SizeOfHeaders || 
+      if (SectionHeader.VirtualAddress < ImageContext->SizeOfHeaders ||
           SectionHeader.PointerToRawData < ImageContext->SizeOfHeaders) {
         ImageContext->ImageError = IMAGE_ERROR_UNSUPPORTED;
         return RETURN_UNSUPPORTED;
@@ -561,22 +523,22 @@ PeCoffLoaderGetPeHeader (
 /**
   Retrieves information about a PE/COFF image.
 
-  Computes the PeCoffHeaderOffset, IsTeImage, ImageType, ImageAddress, ImageSize, 
-  DestinationAddress, RelocationsStripped, SectionAlignment, SizeOfHeaders, and 
-  DebugDirectoryEntryRva fields of the ImageContext structure.  
-  If ImageContext is NULL, then return RETURN_INVALID_PARAMETER.  
-  If the PE/COFF image accessed through the ImageRead service in the ImageContext 
-  structure is not a supported PE/COFF image type, then return RETURN_UNSUPPORTED.  
-  If any errors occur while computing the fields of ImageContext, 
-  then the error status is returned in the ImageError field of ImageContext.  
+  Computes the PeCoffHeaderOffset, IsTeImage, ImageType, ImageAddress, ImageSize,
+  DestinationAddress, RelocationsStripped, SectionAlignment, SizeOfHeaders, and
+  DebugDirectoryEntryRva fields of the ImageContext structure.
+  If ImageContext is NULL, then return RETURN_INVALID_PARAMETER.
+  If the PE/COFF image accessed through the ImageRead service in the ImageContext
+  structure is not a supported PE/COFF image type, then return RETURN_UNSUPPORTED.
+  If any errors occur while computing the fields of ImageContext,
+  then the error status is returned in the ImageError field of ImageContext.
   If the image is a TE image, then SectionAlignment is set to 0.
-  The ImageRead and Handle fields of ImageContext structure must be valid prior 
+  The ImageRead and Handle fields of ImageContext structure must be valid prior
   to invoking this service.
 
   Caution: This function may receive untrusted input.
-  PE/COFF image is external input, so this routine will 
-  also done many checks in PE image to make sure PE image DosHeader, PeOptionHeader, 
-  SizeOfHeader, Section Data Region and Security Data Region be in PE image range. 
+  PE/COFF image is external input, so this routine will
+  also done many checks in PE image to make sure PE image DosHeader, PeOptionHeader,
+  SizeOfHeader, Section Data Region and Security Data Region be in PE image range.
 
   @param  ImageContext              The pointer to the image context structure that describes the PE/COFF
                                     image that needs to be examined by this function.
@@ -605,7 +567,6 @@ PeCoffLoaderGetImageInfo (
   EFI_IMAGE_SECTION_HEADER              SectionHeader;
   EFI_IMAGE_DEBUG_DIRECTORY_ENTRY       DebugEntry;
   UINT32                                NumberOfRvaAndSizes;
-  UINT16                                Magic;
   UINT32                                TeStrippedOffset;
 
   if (ImageContext == NULL) {
@@ -622,14 +583,12 @@ PeCoffLoaderGetImageInfo (
     return Status;
   }
 
-  Magic = PeCoffLoaderGetPeHeaderMagicValue (Hdr);
-
   //
   // Retrieve the base address of the image
   //
   if (!(ImageContext->IsTeImage)) {
     TeStrippedOffset = 0;
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset
       //
@@ -678,7 +637,7 @@ PeCoffLoaderGetImageInfo (
   }
 
   if (!(ImageContext->IsTeImage)) {
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset
       //
@@ -829,7 +788,7 @@ PeCoffLoaderGetImageInfo (
       // section headers in the Section Table must appear in order of the RVA
       // values for the corresponding sections. So the ImageSize can be determined
       // by the RVA and the VirtualSize of the last section header in the
-      // Section Table.  
+      // Section Table.
       //
       if ((++Index) == (UINTN)Hdr.Te->NumberOfSections) {
         ImageContext->ImageSize = (SectionHeader.VirtualAddress + SectionHeader.Misc.VirtualSize) - TeStrippedOffset;
@@ -884,7 +843,7 @@ PeCoffLoaderGetImageInfo (
 VOID *
 PeCoffLoaderImageAddress (
   IN OUT PE_COFF_LOADER_IMAGE_CONTEXT          *ImageContext,
-  IN     UINTN                                 Address, 
+  IN     UINTN                                 Address,
   IN     UINTN                                 TeStrippedOffset
   )
 {
@@ -906,12 +865,12 @@ PeCoffLoaderImageAddress (
   ImageContext as the relocation base address.  Otherwise, use the DestinationAddress field
   of ImageContext as the relocation base address.  The caller must allocate the relocation
   fixup log buffer and fill in the FixupData field of ImageContext prior to calling this function.
-  
-  The ImageRead, Handle, PeCoffHeaderOffset,  IsTeImage, Machine, ImageType, ImageAddress, 
-  ImageSize, DestinationAddress, RelocationsStripped, SectionAlignment, SizeOfHeaders, 
-  DebugDirectoryEntryRva, EntryPoint, FixupDataSize, CodeView, PdbPointer, and FixupData of 
+
+  The ImageRead, Handle, PeCoffHeaderOffset,  IsTeImage, Machine, ImageType, ImageAddress,
+  ImageSize, DestinationAddress, RelocationsStripped, SectionAlignment, SizeOfHeaders,
+  DebugDirectoryEntryRva, EntryPoint, FixupDataSize, CodeView, PdbPointer, and FixupData of
   the ImageContext structure must be valid prior to invoking this service.
-    
+
   If ImageContext is NULL, then ASSERT().
 
   Note that if the platform does not maintain coherency between the instruction cache(s) and the data
@@ -952,7 +911,6 @@ PeCoffLoaderRelocateImage (
   CHAR8                                 *FixupData;
   PHYSICAL_ADDRESS                      BaseAddress;
   UINT32                                NumberOfRvaAndSizes;
-  UINT16                                Magic;
   UINT32                                TeStrippedOffset;
 
   ASSERT (ImageContext != NULL);
@@ -966,9 +924,9 @@ PeCoffLoaderRelocateImage (
   // If there are no relocation entries, then we are done
   //
   if (ImageContext->RelocationsStripped) {
-    // Applies additional environment specific actions to relocate fixups 
+    // Applies additional environment specific actions to relocate fixups
     // to a PE/COFF image if needed
-    PeCoffLoaderRelocateImageExtraAction (ImageContext);  
+    PeCoffLoaderRelocateImageExtraAction (ImageContext);
     return RETURN_SUCCESS;
   }
 
@@ -985,9 +943,8 @@ PeCoffLoaderRelocateImage (
   if (!(ImageContext->IsTeImage)) {
     Hdr.Pe32 = (EFI_IMAGE_NT_HEADERS32 *)((UINTN)ImageContext->ImageAddress + ImageContext->PeCoffHeaderOffset);
     TeStrippedOffset = 0;
-    Magic = PeCoffLoaderGetPeHeaderMagicValue (Hdr);
 
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset
       //
@@ -1040,7 +997,7 @@ PeCoffLoaderRelocateImage (
                                                                             RelocDir->VirtualAddress + RelocDir->Size - 1,
                                                                             TeStrippedOffset
                                                                             );
-    if (RelocBase == NULL || RelocBaseEnd == NULL || RelocBaseEnd < RelocBase) {
+    if (RelocBase == NULL || RelocBaseEnd == NULL || (UINTN) RelocBaseEnd < (UINTN) RelocBase) {
       ImageContext->ImageError = IMAGE_ERROR_FAILED_RELOCATION;
       return RETURN_LOAD_ERROR;
     }
@@ -1048,7 +1005,7 @@ PeCoffLoaderRelocateImage (
     //
     // Set base and end to bypass processing below.
     //
-    RelocBase = RelocBaseEnd = NULL;    
+    RelocBase = RelocBaseEnd = NULL;
   }
   RelocBaseOrg = RelocBase;
 
@@ -1060,7 +1017,7 @@ PeCoffLoaderRelocateImage (
     // Run the relocation information and apply the fixups
     //
     FixupData = ImageContext->FixupData;
-    while (RelocBase < RelocBaseEnd) {
+    while ((UINTN) RelocBase < (UINTN) RelocBaseEnd) {
 
       Reloc     = (UINT16 *) ((CHAR8 *) RelocBase + sizeof (EFI_IMAGE_BASE_RELOCATION));
       //
@@ -1084,12 +1041,12 @@ PeCoffLoaderRelocateImage (
       if (FixupBase == NULL) {
         ImageContext->ImageError = IMAGE_ERROR_FAILED_RELOCATION;
         return RETURN_LOAD_ERROR;
-      }  
+      }
 
       //
       // Run this relocation record
       //
-      while (Reloc < RelocEnd) {
+      while ((UINTN) Reloc < (UINTN) RelocEnd) {
         Fixup = PeCoffLoaderImageAddress (ImageContext, RelocBase->VirtualAddress + (*Reloc & 0xFFF), TeStrippedOffset);
         if (Fixup == NULL) {
           ImageContext->ImageError = IMAGE_ERROR_FAILED_RELOCATION;
@@ -1171,11 +1128,11 @@ PeCoffLoaderRelocateImage (
        ImageContext->EntryPoint += (UINT64) ImageContext->DestinationAddress;
     }
   }
-  
-  // Applies additional environment specific actions to relocate fixups 
+
+  // Applies additional environment specific actions to relocate fixups
   // to a PE/COFF image if needed
   PeCoffLoaderRelocateImageExtraAction (ImageContext);
-  
+
   return RETURN_SUCCESS;
 }
 
@@ -1186,10 +1143,10 @@ PeCoffLoaderRelocateImage (
   specified by the ImageAddress and ImageSize fields of ImageContext.  The caller must allocate
   the load buffer and fill in the ImageAddress and ImageSize fields prior to calling this function.
   The EntryPoint, FixupDataSize, CodeView, PdbPointer and HiiResourceData fields of ImageContext are computed.
-  The ImageRead, Handle, PeCoffHeaderOffset,  IsTeImage,  Machine, ImageType, ImageAddress, ImageSize, 
-  DestinationAddress, RelocationsStripped, SectionAlignment, SizeOfHeaders, and DebugDirectoryEntryRva 
+  The ImageRead, Handle, PeCoffHeaderOffset,  IsTeImage,  Machine, ImageType, ImageAddress, ImageSize,
+  DestinationAddress, RelocationsStripped, SectionAlignment, SizeOfHeaders, and DebugDirectoryEntryRva
   fields of the ImageContext structure must be valid prior to invoking this service.
-  
+
   If ImageContext is NULL, then ASSERT().
 
   Note that if the platform does not maintain coherency between the instruction cache(s) and the data
@@ -1230,7 +1187,6 @@ PeCoffLoaderLoadImage (
   UINTN                                 Size;
   UINT32                                TempDebugEntryRva;
   UINT32                                NumberOfRvaAndSizes;
-  UINT16                                Magic;
   EFI_IMAGE_RESOURCE_DIRECTORY          *ResourceDirectory;
   EFI_IMAGE_RESOURCE_DIRECTORY_ENTRY    *ResourceDirectoryEntry;
   EFI_IMAGE_RESOURCE_DIRECTORY_STRING   *ResourceDirectoryString;
@@ -1404,12 +1360,11 @@ PeCoffLoaderLoadImage (
   //
   // Get image's entry point
   //
-  Magic = PeCoffLoaderGetPeHeaderMagicValue (Hdr);
   if (!(ImageContext->IsTeImage)) {
     //
     // Sizes of AddressOfEntryPoint are different so we need to do this safely
     //
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset
       //
@@ -1444,7 +1399,7 @@ PeCoffLoaderLoadImage (
   // the optional header to verify a desired directory entry is there.
   //
   if (!(ImageContext->IsTeImage)) {
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset
       //
@@ -1501,7 +1456,7 @@ PeCoffLoaderLoadImage (
     }
 
     if (TempDebugEntryRva != 0) {
-      ImageContext->CodeView = PeCoffLoaderImageAddress (ImageContext, TempDebugEntryRva, TeStrippedOffset); 
+      ImageContext->CodeView = PeCoffLoaderImageAddress (ImageContext, TempDebugEntryRva, TeStrippedOffset);
       if (ImageContext->CodeView == NULL) {
         ImageContext->ImageError = IMAGE_ERROR_FAILED_RELOCATION;
         return RETURN_LOAD_ERROR;
@@ -1565,7 +1520,7 @@ PeCoffLoaderLoadImage (
   //
   ImageContext->HiiResourceData = 0;
   if (!(ImageContext->IsTeImage)) {
-    if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+    if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
       //
       // Use PE32 offset
       //
@@ -1583,7 +1538,7 @@ PeCoffLoaderLoadImage (
       Base = PeCoffLoaderImageAddress (ImageContext, DirectoryEntry->VirtualAddress, 0);
       if (Base != NULL) {
         ResourceDirectory = (EFI_IMAGE_RESOURCE_DIRECTORY *) Base;
-        Offset = sizeof (EFI_IMAGE_RESOURCE_DIRECTORY) + sizeof (EFI_IMAGE_RESOURCE_DIRECTORY_ENTRY) * 
+        Offset = sizeof (EFI_IMAGE_RESOURCE_DIRECTORY) + sizeof (EFI_IMAGE_RESOURCE_DIRECTORY_ENTRY) *
                (ResourceDirectory->NumberOfNamedEntries + ResourceDirectory->NumberOfIdEntries);
         if (Offset > DirectoryEntry->Size) {
           ImageContext->ImageError = IMAGE_ERROR_UNSUPPORTED;
@@ -1619,7 +1574,7 @@ PeCoffLoaderLoadImage (
                   return RETURN_UNSUPPORTED;
                 }
                 ResourceDirectory = (EFI_IMAGE_RESOURCE_DIRECTORY *) (Base + ResourceDirectoryEntry->u2.s.OffsetToDirectory);
-                Offset = ResourceDirectoryEntry->u2.s.OffsetToDirectory + sizeof (EFI_IMAGE_RESOURCE_DIRECTORY) + 
+                Offset = ResourceDirectoryEntry->u2.s.OffsetToDirectory + sizeof (EFI_IMAGE_RESOURCE_DIRECTORY) +
                          sizeof (EFI_IMAGE_RESOURCE_DIRECTORY_ENTRY) * (ResourceDirectory->NumberOfNamedEntries + ResourceDirectory->NumberOfIdEntries);
                 if (Offset > DirectoryEntry->Size) {
                   ImageContext->ImageError = IMAGE_ERROR_UNSUPPORTED;
@@ -1636,7 +1591,7 @@ PeCoffLoaderLoadImage (
                     return RETURN_UNSUPPORTED;
                   }
                   ResourceDirectory = (EFI_IMAGE_RESOURCE_DIRECTORY *) (Base + ResourceDirectoryEntry->u2.s.OffsetToDirectory);
-                  Offset = ResourceDirectoryEntry->u2.s.OffsetToDirectory + sizeof (EFI_IMAGE_RESOURCE_DIRECTORY) + 
+                  Offset = ResourceDirectoryEntry->u2.s.OffsetToDirectory + sizeof (EFI_IMAGE_RESOURCE_DIRECTORY) +
                            sizeof (EFI_IMAGE_RESOURCE_DIRECTORY_ENTRY) * (ResourceDirectory->NumberOfNamedEntries + ResourceDirectory->NumberOfIdEntries);
                   if (Offset > DirectoryEntry->Size) {
                     ImageContext->ImageError = IMAGE_ERROR_UNSUPPORTED;
@@ -1665,33 +1620,33 @@ PeCoffLoaderLoadImage (
       }
     }
   }
- 
+
   return Status;
 }
 
 
 /**
   Reapply fixups on a fixed up PE32/PE32+ image to allow virutal calling at EFI
-  runtime. 
-  
-  This function reapplies relocation fixups to the PE/COFF image specified by ImageBase 
-  and ImageSize so the image will execute correctly when the PE/COFF image is mapped 
-  to the address specified by VirtualImageBase.  RelocationData must be identical 
-  to the FiuxupData buffer from the PE_COFF_LOADER_IMAGE_CONTEXT structure 
+  runtime.
+
+  This function reapplies relocation fixups to the PE/COFF image specified by ImageBase
+  and ImageSize so the image will execute correctly when the PE/COFF image is mapped
+  to the address specified by VirtualImageBase.  RelocationData must be identical
+  to the FiuxupData buffer from the PE_COFF_LOADER_IMAGE_CONTEXT structure
   after this PE/COFF image was relocated with PeCoffLoaderRelocateImage().
 
   Note that if the platform does not maintain coherency between the instruction cache(s) and the data
   cache(s) in hardware, then the caller is responsible for performing cache maintenance operations
   prior to transferring control to a PE/COFF image that is loaded using this library.
 
-  @param  ImageBase          The base address of a PE/COFF image that has been loaded 
+  @param  ImageBase          The base address of a PE/COFF image that has been loaded
                              and relocated into system memory.
   @param  VirtImageBase      The request virtual address that the PE/COFF image is to
                              be fixed up for.
   @param  ImageSize          The size, in bytes, of the PE/COFF image.
-  @param  RelocationData     A pointer to the relocation data that was collected when the PE/COFF 
+  @param  RelocationData     A pointer to the relocation data that was collected when the PE/COFF
                              image was relocated using PeCoffLoaderRelocateImage().
-  
+
 **/
 VOID
 EFIAPI
@@ -1711,6 +1666,7 @@ PeCoffLoaderRelocateImageForRuntime (
   EFI_IMAGE_DATA_DIRECTORY            *RelocDir;
   EFI_IMAGE_BASE_RELOCATION           *RelocBase;
   EFI_IMAGE_BASE_RELOCATION           *RelocBaseEnd;
+  EFI_IMAGE_BASE_RELOCATION           *RelocBaseOrig;
   UINT16                              *Reloc;
   UINT16                              *RelocEnd;
   CHAR8                               *Fixup;
@@ -1721,11 +1677,18 @@ PeCoffLoaderRelocateImageForRuntime (
   CHAR8                               *FixupData;
   UINTN                               Adjust;
   RETURN_STATUS                       Status;
-  UINT16                              Magic;
+  PE_COFF_LOADER_IMAGE_CONTEXT        ImageContext;
+
+  if (RelocationData == NULL || ImageBase == 0x0 || VirtImageBase == 0x0) {
+    return;
+  }
 
   OldBase = (CHAR8 *)((UINTN)ImageBase);
   NewBase = (CHAR8 *)((UINTN)VirtImageBase);
   Adjust = (UINTN) NewBase - (UINTN) OldBase;
+
+  ImageContext.ImageAddress = ImageBase;
+  ImageContext.ImageSize = ImageSize;
 
   //
   // Find the image's relocate dir info
@@ -1750,9 +1713,7 @@ PeCoffLoaderRelocateImageForRuntime (
     return ;
   }
 
-  Magic = PeCoffLoaderGetPeHeaderMagicValue (Hdr);
-
-  if (Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
+  if (Hdr.Pe32->OptionalHeader.Magic == EFI_IMAGE_NT_OPTIONAL_HDR32_MAGIC) {
     //
     // Use PE32 offset
     //
@@ -1773,10 +1734,23 @@ PeCoffLoaderRelocateImageForRuntime (
   // is present in the image. You have to check the NumberOfRvaAndSizes in
   // the optional header to verify a desired directory entry is there.
   //
+  RelocBase = NULL;
+  RelocBaseEnd = NULL;
   if (NumberOfRvaAndSizes > EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC) {
     RelocDir      = DataDirectory + EFI_IMAGE_DIRECTORY_ENTRY_BASERELOC;
-    RelocBase     = (EFI_IMAGE_BASE_RELOCATION *)(UINTN)(ImageBase + RelocDir->VirtualAddress);
-    RelocBaseEnd  = (EFI_IMAGE_BASE_RELOCATION *)(UINTN)(ImageBase + RelocDir->VirtualAddress + RelocDir->Size);
+    if ((RelocDir != NULL) && (RelocDir->Size > 0)) {
+      RelocBase     = (EFI_IMAGE_BASE_RELOCATION *) PeCoffLoaderImageAddress (&ImageContext, RelocDir->VirtualAddress, 0);
+      RelocBaseEnd  = (EFI_IMAGE_BASE_RELOCATION *) PeCoffLoaderImageAddress (&ImageContext,
+                                                                              RelocDir->VirtualAddress + RelocDir->Size - 1,
+                                                                              0
+                                                                              );
+    }
+    if (RelocBase == NULL || RelocBaseEnd == NULL || (UINTN) RelocBaseEnd < (UINTN) RelocBase) {
+      //
+      // relocation block is not valid, just return
+      //
+      return;
+    }
   } else {
     //
     // Cannot find relocations, cannot continue to relocate the image, ASSERT for this invalid image.
@@ -1784,116 +1758,129 @@ PeCoffLoaderRelocateImageForRuntime (
     ASSERT (FALSE);
     return ;
   }
-  
+
   //
   // ASSERT for the invalid image when RelocBase and RelocBaseEnd are both NULL.
   //
   ASSERT (RelocBase != NULL && RelocBaseEnd != NULL);
 
-  //
-  // Run the whole relocation block. And re-fixup data that has not been
-  // modified. The FixupData is used to see if the image has been modified
-  // since it was relocated. This is so data sections that have been updated
-  // by code will not be fixed up, since that would set them back to
-  // defaults.
-  //
-  FixupData = RelocationData;
-  while (RelocBase < RelocBaseEnd) {
+  if (Adjust != 0) {
     //
-    // Add check for RelocBase->SizeOfBlock field.
+    // Run the whole relocation block. And re-fixup data that has not been
+    // modified. The FixupData is used to see if the image has been modified
+    // since it was relocated. This is so data sections that have been updated
+    // by code will not be fixed up, since that would set them back to
+    // defaults.
     //
-    if ((RelocBase->SizeOfBlock == 0) || (RelocBase->SizeOfBlock > RelocDir->Size)) {
+    FixupData = RelocationData;
+    RelocBaseOrig = RelocBase;
+    while ((UINTN) RelocBase < (UINTN) RelocBaseEnd) {
       //
-      // Data invalid, cannot continue to relocate the image, just return.
+      // Add check for RelocBase->SizeOfBlock field.
       //
-      return;
-    }
-
-    Reloc     = (UINT16 *) ((UINT8 *) RelocBase + sizeof (EFI_IMAGE_BASE_RELOCATION));
-    RelocEnd  = (UINT16 *) ((UINT8 *) RelocBase + RelocBase->SizeOfBlock);
-    FixupBase = (CHAR8 *) ((UINTN)ImageBase) + RelocBase->VirtualAddress;
-
-    //
-    // Run this relocation record
-    //
-    while (Reloc < RelocEnd) {
-
-      Fixup = FixupBase + (*Reloc & 0xFFF);
-      switch ((*Reloc) >> 12) {
-
-      case EFI_IMAGE_REL_BASED_ABSOLUTE:
-        break;
-
-      case EFI_IMAGE_REL_BASED_HIGH:
-        Fixup16 = (UINT16 *) Fixup;
-        if (*(UINT16 *) FixupData == *Fixup16) {
-          *Fixup16 = (UINT16) (*Fixup16 + ((UINT16) ((UINT32) Adjust >> 16)));
-        }
-
-        FixupData = FixupData + sizeof (UINT16);
-        break;
-
-      case EFI_IMAGE_REL_BASED_LOW:
-        Fixup16 = (UINT16 *) Fixup;
-        if (*(UINT16 *) FixupData == *Fixup16) {
-          *Fixup16 = (UINT16) (*Fixup16 + ((UINT16) Adjust & 0xffff));
-        }
-
-        FixupData = FixupData + sizeof (UINT16);
-        break;
-
-      case EFI_IMAGE_REL_BASED_HIGHLOW:
-        Fixup32       = (UINT32 *) Fixup;
-        FixupData = ALIGN_POINTER (FixupData, sizeof (UINT32));
-        if (*(UINT32 *) FixupData == *Fixup32) {
-          *Fixup32 = *Fixup32 + (UINT32) Adjust;
-        }
-
-        FixupData = FixupData + sizeof (UINT32);
-        break;
-
-      case EFI_IMAGE_REL_BASED_DIR64:
-        Fixup64       = (UINT64 *)Fixup;
-        FixupData = ALIGN_POINTER (FixupData, sizeof (UINT64));
-        if (*(UINT64 *) FixupData == *Fixup64) {
-          *Fixup64 = *Fixup64 + (UINT64)Adjust;
-        }
-
-        FixupData = FixupData + sizeof (UINT64);
-        break;
-
-      default:
+      if ((RelocBase->SizeOfBlock == 0) || (RelocBase->SizeOfBlock > RelocDir->Size)) {
         //
-        // Only Itanium requires ConvertPeImage_Ex
+        // Data invalid, cannot continue to relocate the image, just return.
         //
-        Status = PeHotRelocateImageEx (Reloc, Fixup, &FixupData, Adjust);
-        if (RETURN_ERROR (Status)) {
-          return ;
+        return;
+      }
+
+      Reloc     = (UINT16 *) ((UINT8 *) RelocBase + sizeof (EFI_IMAGE_BASE_RELOCATION));
+      RelocEnd  = (UINT16 *) ((UINT8 *) RelocBase + RelocBase->SizeOfBlock);
+      if ((UINTN)RelocEnd > (UINTN)RelocBaseOrig + RelocDir->Size) {
+        return;
+      }
+
+      FixupBase = PeCoffLoaderImageAddress (&ImageContext, RelocBase->VirtualAddress, 0);
+      if (FixupBase == NULL) {
+        return;
+      }
+
+      //
+      // Run this relocation record
+      //
+      while ((UINTN) Reloc < (UINTN) RelocEnd) {
+
+        Fixup = PeCoffLoaderImageAddress (&ImageContext, RelocBase->VirtualAddress + (*Reloc & 0xFFF), 0);
+        if (Fixup == NULL) {
+          return;
         }
+        switch ((*Reloc) >> 12) {
+
+        case EFI_IMAGE_REL_BASED_ABSOLUTE:
+          break;
+
+        case EFI_IMAGE_REL_BASED_HIGH:
+          Fixup16 = (UINT16 *) Fixup;
+          if (*(UINT16 *) FixupData == *Fixup16) {
+            *Fixup16 = (UINT16) (*Fixup16 + ((UINT16) ((UINT32) Adjust >> 16)));
+          }
+
+          FixupData = FixupData + sizeof (UINT16);
+          break;
+
+        case EFI_IMAGE_REL_BASED_LOW:
+          Fixup16 = (UINT16 *) Fixup;
+          if (*(UINT16 *) FixupData == *Fixup16) {
+            *Fixup16 = (UINT16) (*Fixup16 + ((UINT16) Adjust & 0xffff));
+          }
+
+          FixupData = FixupData + sizeof (UINT16);
+          break;
+
+        case EFI_IMAGE_REL_BASED_HIGHLOW:
+          Fixup32       = (UINT32 *) Fixup;
+          FixupData = ALIGN_POINTER (FixupData, sizeof (UINT32));
+          if (*(UINT32 *) FixupData == *Fixup32) {
+            *Fixup32 = *Fixup32 + (UINT32) Adjust;
+          }
+
+          FixupData = FixupData + sizeof (UINT32);
+          break;
+
+        case EFI_IMAGE_REL_BASED_DIR64:
+          Fixup64       = (UINT64 *)Fixup;
+          FixupData = ALIGN_POINTER (FixupData, sizeof (UINT64));
+          if (*(UINT64 *) FixupData == *Fixup64) {
+            *Fixup64 = *Fixup64 + (UINT64)Adjust;
+          }
+
+          FixupData = FixupData + sizeof (UINT64);
+          break;
+
+        default:
+          //
+          // Only Itanium requires ConvertPeImage_Ex
+          //
+          Status = PeHotRelocateImageEx (Reloc, Fixup, &FixupData, Adjust);
+          if (RETURN_ERROR (Status)) {
+            return ;
+          }
+        }
+        //
+        // Next relocation record
+        //
+        Reloc += 1;
       }
       //
-      // Next relocation record
+      // next reloc block
       //
-      Reloc += 1;
+      RelocBase = (EFI_IMAGE_BASE_RELOCATION *) RelocEnd;
     }
-    //
-    // next reloc block
-    //
-    RelocBase = (EFI_IMAGE_BASE_RELOCATION *) RelocEnd;
   }
 }
 
 
 /**
   Reads contents of a PE/COFF image from a buffer in system memory.
-   
-  This is the default implementation of a PE_COFF_LOADER_READ_FILE function 
-  that assumes FileHandle pointer to the beginning of a PE/COFF image.   
-  This function reads contents of the PE/COFF image that starts at the system memory 
-  address specified by FileHandle.  The read operation copies ReadSize bytes from the 
-  PE/COFF image starting at byte offset FileOffset into the buffer specified by Buffer.  
+
+  This is the default implementation of a PE_COFF_LOADER_READ_FILE function
+  that assumes FileHandle pointer to the beginning of a PE/COFF image.
+  This function reads contents of the PE/COFF image that starts at the system memory
+  address specified by FileHandle.  The read operation copies ReadSize bytes from the
+  PE/COFF image starting at byte offset FileOffset into the buffer specified by Buffer.
   The size of the buffer actually read is returned in ReadSize.
-  
+
   The caller must make sure the FileOffset and ReadSize within the file scope.
 
   If FileHandle is NULL, then ASSERT().
@@ -1902,11 +1889,11 @@ PeCoffLoaderRelocateImageForRuntime (
 
   @param  FileHandle        The pointer to base of the input stream
   @param  FileOffset        Offset into the PE/COFF image to begin the read operation.
-  @param  ReadSize          On input, the size in bytes of the requested read operation.  
+  @param  ReadSize          On input, the size in bytes of the requested read operation.
                             On output, the number of bytes actually read.
   @param  Buffer            Output buffer that contains the data read from the PE/COFF image.
 
-  @retval RETURN_SUCCESS    Data is read from FileOffset from the Handle into 
+  @retval RETURN_SUCCESS    Data is read from FileOffset from the Handle into
                             the buffer.
 **/
 RETURN_STATUS
@@ -1928,15 +1915,15 @@ PeCoffLoaderImageReadFromMemory (
 
 /**
   Unloads a loaded PE/COFF image from memory and releases its taken resource.
-  Releases any environment specific resources that were allocated when the image 
-  specified by ImageContext was loaded using PeCoffLoaderLoadImage(). 
- 
+  Releases any environment specific resources that were allocated when the image
+  specified by ImageContext was loaded using PeCoffLoaderLoadImage().
+
   For NT32 emulator, the PE/COFF image loaded by system needs to release.
-  For real platform, the PE/COFF image loaded by Core doesn't needs to be unloaded, 
+  For real platform, the PE/COFF image loaded by Core doesn't needs to be unloaded,
   this function can simply return RETURN_SUCCESS.
-  
+
   If ImageContext is NULL, then ASSERT().
-  
+
   @param  ImageContext              The pointer to the image context structure that describes the PE/COFF
                                     image to be unloaded.
 
@@ -1949,7 +1936,7 @@ PeCoffLoaderUnloadImage (
   )
 {
   //
-  // Applies additional environment specific actions to unload a 
+  // Applies additional environment specific actions to unload a
   // PE/COFF image if needed
   //
   PeCoffLoaderUnloadImageExtraAction (ImageContext);

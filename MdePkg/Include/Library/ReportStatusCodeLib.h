@@ -1,14 +1,8 @@
 /** @file
   Provides services to log status code records.
 
-Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -29,21 +23,21 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 /**
   Converts a status code to an 8-bit POST code value.
 
-  Converts the status code specified by CodeType and Value to an 8-bit POST code 
-  and returns the 8-bit POST code in PostCode.  If CodeType is an 
-  EFI_PROGRESS_CODE or CodeType is an EFI_ERROR_CODE, then bits 0..4 of PostCode 
-  are set to bits 16..20 of Value, and bits 5..7 of PostCode are set to bits 
-  24..26 of Value., and TRUE is returned.  Otherwise, FALSE is returned.  
+  Converts the status code specified by CodeType and Value to an 8-bit POST code
+  and returns the 8-bit POST code in PostCode.  If CodeType is an
+  EFI_PROGRESS_CODE or CodeType is an EFI_ERROR_CODE, then bits 0..4 of PostCode
+  are set to bits 16..20 of Value, and bits 5..7 of PostCode are set to bits
+  24..26 of Value., and TRUE is returned.  Otherwise, FALSE is returned.
 
   If PostCode is NULL, then ASSERT().
 
   @param  CodeType  The type of status code being converted.
   @param  Value     The status code value being converted.
-  @param  PostCode  A pointer to the 8-bit POST code value to return. 
+  @param  PostCode  A pointer to the 8-bit POST code value to return.
 
-  @retval  TRUE   The status code specified by CodeType and Value was converted 
+  @retval  TRUE   The status code specified by CodeType and Value was converted
                   to an 8-bit POST code and returned in PostCode.
-  @retval  FALSE  The status code specified by CodeType and Value could not be 
+  @retval  FALSE  The status code specified by CodeType and Value could not be
                   converted to an 8-bit POST code value.
 
 **/
@@ -60,15 +54,15 @@ CodeTypeToPostCode (
   Extracts ASSERT() information from a status code structure.
 
   Converts the status code specified by CodeType, Value, and Data to the ASSERT()
-  arguments specified by Filename, Description, and LineNumber.  If CodeType is 
-  an EFI_ERROR_CODE, and CodeType has a severity of EFI_ERROR_UNRECOVERED, and 
-  Value has an operation mask of EFI_SW_EC_ILLEGAL_SOFTWARE_STATE, extract 
-  Filename, Description, and LineNumber from the optional data area of the 
-  status code buffer specified by Data.  The optional data area of Data contains 
-  a Null-terminated ASCII string for the FileName, followed by a Null-terminated 
-  ASCII string for the Description, followed by a 32-bit LineNumber.  If the 
-  ASSERT() information could be extracted from Data, then return TRUE.  
-  Otherwise, FALSE is returned.  
+  arguments specified by Filename, Description, and LineNumber.  If CodeType is
+  an EFI_ERROR_CODE, and CodeType has a severity of EFI_ERROR_UNRECOVERED, and
+  Value has an operation mask of EFI_SW_EC_ILLEGAL_SOFTWARE_STATE, extract
+  Filename, Description, and LineNumber from the optional data area of the
+  status code buffer specified by Data.  The optional data area of Data contains
+  a Null-terminated ASCII string for the FileName, followed by a Null-terminated
+  ASCII string for the Description, followed by a 32-bit LineNumber.  If the
+  ASSERT() information could be extracted from Data, then return TRUE.
+  Otherwise, FALSE is returned.
 
   If Data is NULL, then ASSERT().
   If Filename is NULL, then ASSERT().
@@ -77,15 +71,15 @@ CodeTypeToPostCode (
 
   @param  CodeType     The type of status code being converted.
   @param  Value        The status code value being converted.
-  @param  Data         The pointer to status code data buffer. 
+  @param  Data         The pointer to status code data buffer.
   @param  Filename     The pointer to the source file name that generated the ASSERT().
   @param  Description  The pointer to the description of the ASSERT().
   @param  LineNumber   The pointer to source line number that generated the ASSERT().
 
-  @retval  TRUE   The status code specified by CodeType, Value, and Data was 
-                  converted ASSERT() arguments specified by Filename, Description, 
+  @retval  TRUE   The status code specified by CodeType, Value, and Data was
+                  converted ASSERT() arguments specified by Filename, Description,
                   and LineNumber.
-  @retval  FALSE  The status code specified by CodeType, Value, and Data could 
+  @retval  FALSE  The status code specified by CodeType, Value, and Data could
                   not be converted to ASSERT() arguments.
 
 **/
@@ -93,8 +87,8 @@ BOOLEAN
 EFIAPI
 ReportStatusCodeExtractAssertInfo (
   IN EFI_STATUS_CODE_TYPE        CodeType,
-  IN EFI_STATUS_CODE_VALUE       Value,  
-  IN CONST EFI_STATUS_CODE_DATA  *Data, 
+  IN EFI_STATUS_CODE_VALUE       Value,
+  IN CONST EFI_STATUS_CODE_DATA  *Data,
   OUT CHAR8                      **Filename,
   OUT CHAR8                      **Description,
   OUT UINT32                     *LineNumber
@@ -104,13 +98,13 @@ ReportStatusCodeExtractAssertInfo (
 /**
   Extracts DEBUG() information from a status code structure.
 
-  Converts the status code specified by Data to the DEBUG() arguments specified 
-  by ErrorLevel, Marker, and Format.  If type GUID in Data is 
-  EFI_STATUS_CODE_DATA_TYPE_DEBUG_GUID, then extract ErrorLevel, Marker, and 
-  Format from the optional data area of the status code buffer specified by Data.  
-  The optional data area of Data contains a 32-bit ErrorLevel followed by Marker 
-  which is 12 UINTN parameters, followed by a Null-terminated ASCII string for 
-  the Format.  If the DEBUG() information could be extracted from Data, then 
+  Converts the status code specified by Data to the DEBUG() arguments specified
+  by ErrorLevel, Marker, and Format.  If type GUID in Data is
+  EFI_STATUS_CODE_DATA_TYPE_DEBUG_GUID, then extract ErrorLevel, Marker, and
+  Format from the optional data area of the status code buffer specified by Data.
+  The optional data area of Data contains a 32-bit ErrorLevel followed by Marker
+  which is 12 UINTN parameters, followed by a Null-terminated ASCII string for
+  the Format.  If the DEBUG() information could be extracted from Data, then
   return TRUE.  Otherwise, FALSE is returned.
 
   If Data is NULL, then ASSERT().
@@ -118,22 +112,22 @@ ReportStatusCodeExtractAssertInfo (
   If Marker is NULL, then ASSERT().
   If Format is NULL, then ASSERT().
 
-  @param  Data        The pointer to status code data buffer. 
+  @param  Data        The pointer to status code data buffer.
   @param  ErrorLevel  The pointer to error level mask for a debug message.
   @param  Marker      The pointer to the variable argument list associated with Format.
-  @param  Format      The pointer to a Null-terminated ASCII format string of a 
+  @param  Format      The pointer to a Null-terminated ASCII format string of a
                       debug message.
 
-  @retval  TRUE   The status code specified by Data was converted DEBUG() arguments 
+  @retval  TRUE   The status code specified by Data was converted DEBUG() arguments
                   specified by ErrorLevel, Marker, and Format.
-  @retval  FALSE  The status code specified by Data could not be converted to 
+  @retval  FALSE  The status code specified by Data could not be converted to
                   DEBUG() arguments.
 
 **/
 BOOLEAN
 EFIAPI
 ReportStatusCodeExtractDebugInfo (
-  IN CONST EFI_STATUS_CODE_DATA  *Data, 
+  IN CONST EFI_STATUS_CODE_DATA  *Data,
   OUT UINT32                     *ErrorLevel,
   OUT BASE_LIST                  *Marker,
   OUT CHAR8                      **Format
@@ -143,20 +137,20 @@ ReportStatusCodeExtractDebugInfo (
 /**
   Reports a status code.
 
-  Reports the status code specified by the parameters Type and Value.  Status 
-  code also require an instance, caller ID, and extended data.  This function 
-  passed in a zero instance, NULL extended data, and a caller ID of 
-  gEfiCallerIdGuid, which is the GUID for the module.  
-  
-  ReportStatusCode()must actively prevent recursion.  If ReportStatusCode() 
+  Reports the status code specified by the parameters Type and Value.  Status
+  code also require an instance, caller ID, and extended data.  This function
+  passed in a zero instance, NULL extended data, and a caller ID of
+  gEfiCallerIdGuid, which is the GUID for the module.
+
+  ReportStatusCode()must actively prevent recursion.  If ReportStatusCode()
   is called while processing another any other Report Status Code Library function,
   then ReportStatusCode() must return immediately.
 
-  @param  Type   Status code type. 
+  @param  Type   Status code type.
   @param  Value  Status code value.
 
   @retval  EFI_SUCCESS       The status code was reported.
-  @retval  EFI_DEVICE_ERROR  There status code could not be reported due to a 
+  @retval  EFI_DEVICE_ERROR  There status code could not be reported due to a
                              device error.
   @retval  EFI_UNSUPPORTED   The report status code is not supported.
 
@@ -172,26 +166,26 @@ ReportStatusCode (
 /**
   Reports a status code with a Device Path Protocol as the extended data.
 
-  Allocates and fills in the extended data section of a status code with the 
-  Device Path Protocol specified by DevicePath.  This function is responsible 
-  for allocating a buffer large enough for the standard header and the device 
+  Allocates and fills in the extended data section of a status code with the
+  Device Path Protocol specified by DevicePath.  This function is responsible
+  for allocating a buffer large enough for the standard header and the device
   path.  The standard header is filled in with an implementation dependent GUID.
   The status code is reported with a zero instance and a caller ID of gEfiCallerIdGuid.
 
-  ReportStatusCodeWithDevicePath()must actively prevent recursion.  If 
-  ReportStatusCodeWithDevicePath() is called while processing another any other 
-  Report Status Code Library function, then ReportStatusCodeWithDevicePath() 
+  ReportStatusCodeWithDevicePath()must actively prevent recursion.  If
+  ReportStatusCodeWithDevicePath() is called while processing another any other
+  Report Status Code Library function, then ReportStatusCodeWithDevicePath()
   must return EFI_DEVICE_ERROR immediately.
 
   If DevicePath is NULL, then ASSERT().
 
-  @param  Type        The status code type. 
+  @param  Type        The status code type.
   @param  Value       The status code value.
   @param  DevicePath  The pointer to the Device Path Protocol to be reported.
 
-  @retval  EFI_SUCCESS           The status code was reported with the extended 
+  @retval  EFI_SUCCESS           The status code was reported with the extended
                                  data specified by DevicePath.
-  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the 
+  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the
                                  extended data section.
   @retval  EFI_UNSUPPORTED       The report status code is not supported.
   @retval  EFI_DEVICE_ERROR      A call to a Report Status Code Library function
@@ -210,32 +204,32 @@ ReportStatusCodeWithDevicePath (
 /**
   Reports a status code with an extended data buffer.
 
-  Allocates and fills in the extended data section of a status code with the 
-  extended data specified by ExtendedData and ExtendedDataSize.  ExtendedData 
-  is assumed to be one of the data structures specified in Related Definitions.  
-  These data structure do not have the standard header, so this function is 
-  responsible for allocating a buffer large enough for the standard header and 
-  the extended data passed into this function.  The standard header is filled 
-  in with an implementation dependent GUID.  The status code is reported 
+  Allocates and fills in the extended data section of a status code with the
+  extended data specified by ExtendedData and ExtendedDataSize.  ExtendedData
+  is assumed to be one of the data structures specified in Related Definitions.
+  These data structure do not have the standard header, so this function is
+  responsible for allocating a buffer large enough for the standard header and
+  the extended data passed into this function.  The standard header is filled
+  in with an implementation dependent GUID.  The status code is reported
   with a zero instance and a caller ID of gEfiCallerIdGuid.
 
-  ReportStatusCodeWithExtendedData()must actively prevent recursion.  If 
-  ReportStatusCodeWithExtendedData() is called while processing another any other 
-  Report Status Code Library function, then ReportStatusCodeWithExtendedData() 
+  ReportStatusCodeWithExtendedData()must actively prevent recursion.  If
+  ReportStatusCodeWithExtendedData() is called while processing another any other
+  Report Status Code Library function, then ReportStatusCodeWithExtendedData()
   must return EFI_DEVICE_ERROR immediately.
 
   If ExtendedData is NULL, then ASSERT().
   If ExtendedDataSize is 0, then ASSERT().
 
-  @param  Type              The status code type. 
+  @param  Type              The status code type.
   @param  Value             The status code value.
   @param  ExtendedData      The pointer to the extended data buffer to be reported.
-  @param  ExtendedDataSize  The size, in bytes, of the extended data buffer to 
+  @param  ExtendedDataSize  The size, in bytes, of the extended data buffer to
                             be reported.
 
-  @retval  EFI_SUCCESS           The status code was reported with the extended 
+  @retval  EFI_SUCCESS           The status code was reported with the extended
                                  data specified by ExtendedData and ExtendedDataSize.
-  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the 
+  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the
                                  extended data section.
   @retval  EFI_UNSUPPORTED       The report status code is not supported.
   @retval  EFI_DEVICE_ERROR      A call to a Report Status Code Library function
@@ -255,39 +249,39 @@ ReportStatusCodeWithExtendedData (
 /**
   Reports a status code with full parameters.
 
-  The function reports a status code.  If ExtendedData is NULL and ExtendedDataSize 
-  is 0, then an extended data buffer is not reported.  If ExtendedData is not 
-  NULL and ExtendedDataSize is not 0, then an extended data buffer is allocated.  
-  ExtendedData is assumed not have the standard status code header, so this function 
-  is responsible for allocating a buffer large enough for the standard header and 
-  the extended data passed into this function.  The standard header is filled in 
-  with a GUID specified by ExtendedDataGuid.  If ExtendedDataGuid is NULL, then a 
-  GUID of gEfiStatusCodeSpecificDataGuid is used.  The status code is reported with 
-  an instance specified by Instance and a caller ID specified by CallerId.  If 
+  The function reports a status code.  If ExtendedData is NULL and ExtendedDataSize
+  is 0, then an extended data buffer is not reported.  If ExtendedData is not
+  NULL and ExtendedDataSize is not 0, then an extended data buffer is allocated.
+  ExtendedData is assumed not have the standard status code header, so this function
+  is responsible for allocating a buffer large enough for the standard header and
+  the extended data passed into this function.  The standard header is filled in
+  with a GUID specified by ExtendedDataGuid.  If ExtendedDataGuid is NULL, then a
+  GUID of gEfiStatusCodeSpecificDataGuid is used.  The status code is reported with
+  an instance specified by Instance and a caller ID specified by CallerId.  If
   CallerId is NULL, then a caller ID of gEfiCallerIdGuid is used.
 
-  ReportStatusCodeEx()must actively prevent recursion.  If ReportStatusCodeEx() 
-  is called while processing another any other Report Status Code Library function, 
+  ReportStatusCodeEx()must actively prevent recursion.  If ReportStatusCodeEx()
+  is called while processing another any other Report Status Code Library function,
   then ReportStatusCodeEx() must return EFI_DEVICE_ERROR immediately.
 
   If ExtendedData is NULL and ExtendedDataSize is not zero, then ASSERT().
   If ExtendedData is not NULL and ExtendedDataSize is zero, then ASSERT().
 
-  @param  Type              The status code type. 
+  @param  Type              The status code type.
   @param  Value             The status code value.
   @param  Instance          The status code instance number.
-  @param  CallerId          The pointer to a GUID that identifies the caller of this 
-                            function.  If this parameter is NULL, then a caller 
+  @param  CallerId          The pointer to a GUID that identifies the caller of this
+                            function.  If this parameter is NULL, then a caller
                             ID of gEfiCallerIdGuid is used.
-  @param  ExtendedDataGuid  The pointer to the GUID for the extended data buffer.  
-                            If this parameter is NULL, then a the status code 
+  @param  ExtendedDataGuid  The pointer to the GUID for the extended data buffer.
+                            If this parameter is NULL, then a the status code
                             standard header is filled in with an implementation dependent GUID.
-  @param  ExtendedData      The pointer to the extended data buffer.  This is an 
+  @param  ExtendedData      The pointer to the extended data buffer.  This is an
                             optional parameter that may be NULL.
   @param  ExtendedDataSize  The size, in bytes, of the extended data buffer.
 
   @retval  EFI_SUCCESS           The status code was reported.
-  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate 
+  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate
                                  the extended data section if it was specified.
   @retval  EFI_UNSUPPORTED       The report status code is not supported.
   @retval  EFI_DEVICE_ERROR      A call to a Report Status Code Library function
@@ -310,12 +304,12 @@ ReportStatusCodeEx (
 /**
   Returns TRUE if status codes of type EFI_PROGRESS_CODE are enabled
 
-  This function returns TRUE if the REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED 
+  This function returns TRUE if the REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED
   bit of PcdReportStatusCodeProperyMask is set.  Otherwise FALSE is returned.
 
-  @retval  TRUE   The REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED bit of 
+  @retval  TRUE   The REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED bit of
                   PcdReportStatusCodeProperyMask is set.
-  @retval  FALSE  The REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED bit of 
+  @retval  FALSE  The REPORT_STATUS_CODE_PROPERTY_PROGRESS_CODE_ENABLED bit of
                   PcdReportStatusCodeProperyMask is clear.
 
 **/
@@ -329,12 +323,12 @@ ReportProgressCodeEnabled (
 /**
   Returns TRUE if status codes of type EFI_ERROR_CODE are enabled
 
-  This function returns TRUE if the REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED 
+  This function returns TRUE if the REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED
   bit of PcdReportStatusCodeProperyMask is set.  Otherwise, FALSE is returned.
 
-  @retval  TRUE   The REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED bit of 
+  @retval  TRUE   The REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED bit of
                   PcdReportStatusCodeProperyMask is set.
-  @retval  FALSE  The REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED bit of 
+  @retval  FALSE  The REPORT_STATUS_CODE_PROPERTY_ERROR_CODE_ENABLED bit of
                   PcdReportStatusCodeProperyMask is clear.
 
 **/
@@ -348,12 +342,12 @@ ReportErrorCodeEnabled (
 /**
   Returns TRUE if status codes of type EFI_DEBUG_CODE are enabled
 
-  This function returns TRUE if the REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED 
+  This function returns TRUE if the REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED
   bit of PcdReportStatusCodeProperyMask is set.  Otherwise FALSE is returned.
 
-  @retval  TRUE   The REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED bit of 
+  @retval  TRUE   The REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED bit of
                   PcdReportStatusCodeProperyMask is set.
-  @retval  FALSE  The REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED bit of 
+  @retval  FALSE  The REPORT_STATUS_CODE_PROPERTY_DEBUG_CODE_ENABLED bit of
                   PcdReportStatusCodeProperyMask is clear.
 
 **/
@@ -367,11 +361,11 @@ ReportDebugCodeEnabled (
 /**
   Reports a status code with minimal parameters if the status code type is enabled.
 
-  If the status code type specified by Type is enabled in 
-  PcdReportStatusCodeProperyMask, then call ReportStatusCode() passing in Type 
+  If the status code type specified by Type is enabled in
+  PcdReportStatusCodeProperyMask, then call ReportStatusCode() passing in Type
   and Value.
 
-  @param  Type   The status code type. 
+  @param  Type   The status code type.
   @param  Value  The status code value.
 
   @retval  EFI_SUCCESS       The status code was reported.
@@ -390,20 +384,20 @@ ReportDebugCodeEnabled (
 
 
 /**
-  Reports a status code with a Device Path Protocol as the extended data if the 
+  Reports a status code with a Device Path Protocol as the extended data if the
   status code type is enabled.
 
-  If the status code type specified by Type is enabled in 
-  PcdReportStatusCodeProperyMask, then call ReportStatusCodeWithDevicePath() 
+  If the status code type specified by Type is enabled in
+  PcdReportStatusCodeProperyMask, then call ReportStatusCodeWithDevicePath()
   passing in Type, Value, and DevicePath.
 
-  @param  Type        The status code type. 
+  @param  Type        The status code type.
   @param  Value       The status code value.
   @param  DevicePath  Pointer to the Device Path Protocol to be reported.
 
-  @retval  EFI_SUCCESS           The status code was reported with the extended 
+  @retval  EFI_SUCCESS           The status code was reported with the extended
                                  data specified by DevicePath.
-  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the 
+  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the
                                  extended data section.
   @retval  EFI_UNSUPPORTED       The report status code is not supported.
   @retval  EFI_DEVICE_ERROR      A call to a Report Status Code Library function
@@ -421,22 +415,22 @@ ReportDebugCodeEnabled (
 
 
 /**
-  Reports a status code with an extended data buffer if the status code type 
+  Reports a status code with an extended data buffer if the status code type
   is enabled.
 
-  If the status code type specified by Type is enabled in 
-  PcdReportStatusCodeProperyMask, then call ReportStatusCodeWithExtendedData() 
+  If the status code type specified by Type is enabled in
+  PcdReportStatusCodeProperyMask, then call ReportStatusCodeWithExtendedData()
   passing in Type, Value, ExtendedData, and ExtendedDataSize.
 
-  @param  Type              The status code type. 
+  @param  Type              The status code type.
   @param  Value             The status code value.
   @param  ExtendedData      The pointer to the extended data buffer to be reported.
   @param  ExtendedDataSize  The size, in bytes, of the extended data buffer to
                             be reported.
 
-  @retval  EFI_SUCCESS           The status code was reported with the extended 
+  @retval  EFI_SUCCESS           The status code was reported with the extended
                                  data specified by ExtendedData and ExtendedDataSize.
-  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the 
+  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the
                                  extended data section.
   @retval  EFI_UNSUPPORTED       The report status code is not supported.
   @retval  EFI_DEVICE_ERROR      A call to a Report Status Code Library function
@@ -455,25 +449,25 @@ ReportDebugCodeEnabled (
 /**
   Reports a status code specifying all parameters if the status code type is enabled.
 
-  If the status code type specified by Type is enabled in 
-  PcdReportStatusCodeProperyMask, then call ReportStatusCodeEx() passing in Type, 
+  If the status code type specified by Type is enabled in
+  PcdReportStatusCodeProperyMask, then call ReportStatusCodeEx() passing in Type,
   Value, Instance, CallerId, ExtendedDataGuid, ExtendedData, and ExtendedDataSize.
 
-  @param  Type              The status code type. 
+  @param  Type              The status code type.
   @param  Value             The status code value.
   @param  Instance          The status code instance number.
-  @param  CallerId          The pointer to a GUID that identifies the caller of this 
-                            function.  If this parameter is NULL, then a caller 
+  @param  CallerId          The pointer to a GUID that identifies the caller of this
+                            function.  If this parameter is NULL, then a caller
                             ID of gEfiCallerIdGuid is used.
-  @param  ExtendedDataGuid  Pointer to the GUID for the extended data buffer.  
-                            If this parameter is NULL, then a the status code 
+  @param  ExtendedDataGuid  Pointer to the GUID for the extended data buffer.
+                            If this parameter is NULL, then a the status code
                             standard header is filled in with an implementation dependent GUID.
-  @param  ExtendedData      Pointer to the extended data buffer.  This is an 
+  @param  ExtendedData      Pointer to the extended data buffer.  This is an
                             optional parameter that may be NULL.
   @param  ExtendedDataSize  The size, in bytes, of the extended data buffer.
 
   @retval  EFI_SUCCESS           The status code was reported.
-  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the 
+  @retval  EFI_OUT_OF_RESOURCES  There were not enough resources to allocate the
                                  extended data section if it was specified.
   @retval  EFI_UNSUPPORTED       The report status code is not supported.
   @retval  EFI_DEVICE_ERROR      A call to a Report Status Code Library function

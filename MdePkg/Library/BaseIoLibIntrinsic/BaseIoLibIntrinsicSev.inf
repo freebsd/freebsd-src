@@ -1,0 +1,52 @@
+## @file
+#  Instance of I/O Library using compiler intrinsics.
+#
+#  I/O Library that uses compiler intrinsics to perform IN and OUT instructions
+#  for IA-32 and x64.
+#
+#  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+#  Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+#  Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseIoLibIntrinsicSev
+  MODULE_UNI_FILE                = BaseIoLibIntrinsic.uni
+  FILE_GUID                      = 93742f95-6e71-4581-b600-8e1da443f95a
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = IoLib
+
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  IoLibMmioBuffer.c
+  BaseIoLibIntrinsicInternal.h
+  IoHighLevel.c
+
+[Sources.IA32]
+  IoLibGcc.c    | GCC
+  IoLibMsc.c    | MSFT
+  IoLib.c
+  Ia32/IoFifoSev.nasm
+
+[Sources.X64]
+  IoLibGcc.c    | GCC
+  IoLibMsc.c    | MSFT
+  IoLib.c
+  X64/IoFifoSev.nasm
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+  BaseLib
+

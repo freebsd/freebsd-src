@@ -1,0 +1,47 @@
+## @file
+#  DXE runtime Debug library instance based on Serial Port library.
+#  It takes care not to call into SerialPortLib after ExitBootServices() has
+#  been called, to prevent touching hardware that is no longer owned by the
+#  firmware.
+#
+#  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+#  Copyright (c) 2018, Linaro, Ltd. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001A
+  BASE_NAME                      = DxeRuntimeDebugLibSerialPort
+  MODULE_UNI_FILE                = DxeRuntimeDebugLibSerialPort.uni
+  FILE_GUID                      = 9D914E2F-7CCB-41DB-8E74-9AFF8F3BBFBF
+  MODULE_TYPE                    = DXE_RUNTIME_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = DebugLib|DXE_RUNTIME_DRIVER
+  CONSTRUCTOR                    = DxeRuntimeDebugLibSerialPortConstructor
+  DESTRUCTOR                     = DxeRuntimeDebugLibSerialPortDestructor
+
+#
+#  VALID_ARCHITECTURES           = AARCH64 ARM IA32 X64 EBC
+#
+
+[Sources]
+  DebugLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugPrintErrorLevelLib
+  PcdLib
+  PrintLib
+  SerialPortLib
+
+[Pcd]
+  gEfiMdePkgTokenSpaceGuid.PcdDebugClearMemoryValue     ## SOMETIMES_CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask         ## CONSUMES
+  gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel ## CONSUMES

@@ -1,14 +1,8 @@
 /** @file
-  Load image file from fv to memory. 
+  Load image file from fv to memory.
 
-  Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -29,7 +23,7 @@ typedef struct _EFI_PEI_LOAD_FILE_PPI EFI_PEI_LOAD_FILE_PPI;
 
   This service is the single member function of EFI_LOAD_FILE_PPI.
   This service separates image loading and relocating from the PEI Foundation.
-  
+
   @param This                   Interface pointer that implements
                                 the Load File PPI instance.
   @param FileHandle             File handle of the file to load.
@@ -47,7 +41,7 @@ typedef struct _EFI_PEI_LOAD_FILE_PPI EFI_PEI_LOAD_FILE_PPI;
   @retval EFI_INVALID_PARAMETER EntryPoint was NULL.
   @retval EFI_UNSUPPORTED       An image requires relocations or is not
                                 memory mapped.
-  @retval EFI_WARN_BUFFER_TOO_SMALL 
+  @retval EFI_WARN_BUFFER_TOO_SMALL
                                 There is not enough heap to allocate the requested size.
                                 This will not prevent the XIP image from being invoked.
 

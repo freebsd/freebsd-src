@@ -4,14 +4,8 @@
   DNSv4 Service Binding Protocol (DNSv4SB)
   DNSv4 Protocol (DNSv4)
 
-  Copyright (c) 2015 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.5
@@ -38,23 +32,23 @@ typedef struct _EFI_DNS4_PROTOCOL EFI_DNS4_PROTOCOL;
 ///
 typedef struct {
   ///
-  /// Count of the DNS servers. When used with GetModeData(), 
-  /// this field is the count of originally configured servers when 
-  /// Configure() was called for this instance. When used with 
-  /// Configure() this is the count of caller-supplied servers. If the 
-  /// DnsServerListCount is zero, the DNS server configuration 
+  /// Count of the DNS servers. When used with GetModeData(),
+  /// this field is the count of originally configured servers when
+  /// Configure() was called for this instance. When used with
+  /// Configure() this is the count of caller-supplied servers. If the
+  /// DnsServerListCount is zero, the DNS server configuration
   /// will be retrieved from DHCP server automatically.
   ///
   UINTN                         DnsServerListCount;
   ///
-  /// Pointer to DNS server list containing DnsServerListCount entries or NULL 
-  /// if DnsServerListCountis 0. For Configure(), this will be NULL when there are 
-  /// no caller supplied server addresses, and, the DNS instance will retrieve 
-  /// DNS server from DHCP Server. The provided DNS server list is 
-  /// recommended to be filled up in the sequence of preference. When 
-  /// used with GetModeData(), the buffer containing the list will 
-  /// be allocated by the driver implementing this protocol and must be 
-  /// freed by the caller. When used with Configure(), the buffer 
+  /// Pointer to DNS server list containing DnsServerListCount entries or NULL
+  /// if DnsServerListCountis 0. For Configure(), this will be NULL when there are
+  /// no caller supplied server addresses, and, the DNS instance will retrieve
+  /// DNS server from DHCP Server. The provided DNS server list is
+  /// recommended to be filled up in the sequence of preference. When
+  /// used with GetModeData(), the buffer containing the list will
+  /// be allocated by the driver implementing this protocol and must be
+  /// freed by the caller. When used with Configure(), the buffer
   /// containing the list will be allocated and released by the caller.
   ///
   EFI_IPv4_ADDRESS              *DnsServerList;
@@ -68,10 +62,10 @@ typedef struct {
   ///
   BOOLEAN                       EnableDnsCache;
   ///
-  /// Use the protocol number defined in "Links to UEFI-Related 
-  /// Documents"(http://uefi.org/uefi) under the heading "IANA 
-  /// Protocol Numbers". Only TCP or UDP are supported, and other 
-  /// protocol values are invalid. An implementation can choose to 
+  /// Use the protocol number defined in "Links to UEFI-Related
+  /// Documents"(http://uefi.org/uefi) under the heading "IANA
+  /// Protocol Numbers". Only TCP or UDP are supported, and other
+  /// protocol values are invalid. An implementation can choose to
   /// support only UDP, or both TCP and UDP.
   ///
   UINT8                         Protocol;
@@ -135,10 +129,10 @@ typedef struct {
   ///
   UINT32                        DnsServerCount;
   ///
-  /// Pointer to common list of addresses of all configured DNS server 
-  /// used by EFI_DNS4_PROTOCOL instances. List will include 
-  /// DNS servers configured by this or any other EFI_DNS4_PROTOCOL instance. 
-  /// The storage for this list is allocated by the driver publishing this 
+  /// Pointer to common list of addresses of all configured DNS server
+  /// used by EFI_DNS4_PROTOCOL instances. List will include
+  /// DNS servers configured by this or any other EFI_DNS4_PROTOCOL instance.
+  /// The storage for this list is allocated by the driver publishing this
   /// protocol, and must be freed by the caller.
   ///
   EFI_IPv4_ADDRESS              *DnsServerList;
@@ -147,8 +141,8 @@ typedef struct {
   ///
   UINT32                        DnsCacheCount;
   ///
-  /// Pointer to a buffer containing DnsCacheCount DNS Cache 
-  /// entry structures. The storage for this list is allocated by the driver 
+  /// Pointer to a buffer containing DnsCacheCount DNS Cache
+  /// entry structures. The storage for this list is allocated by the driver
   /// publishing this protocol and must be freed by caller.
   ///
   EFI_DNS4_CACHE_ENTRY          *DnsCacheList;
@@ -311,7 +305,7 @@ EFI_STATUS
   @retval EFI_SUCCESS             The operation completed successfully.
   @retval EFI_UNSUPPORTED         The designated protocol is not supported.
   @retval EFI_INVALID_PARAMETER   This is NULL.
-                                  The StationIp address provided in DnsConfigData is not a 
+                                  The StationIp address provided in DnsConfigData is not a
                                   valid unicast.
                                   DnsServerList is NULL while DnsServerListCount
                                   is not ZERO.
@@ -321,8 +315,8 @@ EFI_STATUS
                                   allocated.
   @retval EFI_DEVICE_ERROR        An unexpected system or network error occurred. The
                                   EFI DNSv4 Protocol instance is not configured.
-  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To 
-                                  reconfigure the instance the caller must call Configure() 
+  @retval EFI_ALREADY_STARTED     Second call to Configure() with DnsConfigData. To
+                                  reconfigure the instance the caller must call Configure()
                                   with NULL first to return driver to unconfigured state.
 **/
 typedef
@@ -363,7 +357,7 @@ EFI_STATUS
 /**
   IPv4 address to host name translation also known as Reverse DNS lookup.
 
-  The IpToHostName() function is used to translate the host address to host name. A type PTR 
+  The IpToHostName() function is used to translate the host address to host name. A type PTR
   query is used to get the primary name of the host. Support of this function is optional.
 
   @param[in]  This                Pointer to EFI_DNS4_PROTOCOL instance.
@@ -391,7 +385,7 @@ EFI_STATUS
   );
 
 /**
-  Retrieve arbitrary information from the DNS server. 
+  Retrieve arbitrary information from the DNS server.
 
   This GeneralLookup() function retrieves arbitrary information from the DNS. The caller
   supplies a QNAME, QTYPE, and QCLASS, and all of the matching RRs are returned. All

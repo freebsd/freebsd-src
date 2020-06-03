@@ -3,14 +3,11 @@
   NVM Express controller or to a specific namespace in a NVM Express controller.
   This protocol interface is optimized for storage.
 
-  Copyright (c) 2013 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  @par Revision Reference:
+  This Protocol was introduced in UEFI Specification 2.5.
 
 **/
 
@@ -132,7 +129,7 @@ typedef struct {
   @param[in]     Event               If non-blocking I/O is not supported then Event is ignored, and blocking I/O is performed.
                                      If Event is NULL, then blocking I/O is performed. If Event is not NULL and non-blocking I/O
                                      is supported, then non-blocking I/O is performed, and Event will be signaled when the NVM
-                                     Express Command Packet completes. 
+                                     Express Command Packet completes.
 
   @retval EFI_SUCCESS                The NVM Express Command Packet was sent by the host. TransferLength bytes were transferred
                                      to, or from DataBuffer.
@@ -162,7 +159,7 @@ EFI_STATUS
   Used to retrieve the next namespace ID for this NVM Express controller.
 
   The EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL.GetNextNamespace() function retrieves the next valid
-  namespace ID on this NVM Express controller. 
+  namespace ID on this NVM Express controller.
 
   If on input the value pointed to by NamespaceId is 0xFFFFFFFF, then the first valid namespace
   ID defined on the NVM Express controller is returned in the location pointed to by NamespaceId
@@ -206,7 +203,7 @@ EFI_STATUS
 
   If the NamespaceId is not valid, then EFI_NOT_FOUND is returned.
 
-  If DevicePath is NULL, then EFI_INVALID_PARAMETER is returned. 
+  If DevicePath is NULL, then EFI_INVALID_PARAMETER is returned.
 
   If there are not enough resources to allocate the device path node, then EFI_OUT_OF_RESOURCES is returned.
 
@@ -217,7 +214,7 @@ EFI_STATUS
   @param[in]     NamespaceId         The NVM Express namespace ID  for which a device path node is to be
                                      allocated and built. Caller must set the NamespaceId to zero if the
                                      device path node will contain a valid UUID.
-  @param[in,out] DevicePath          A pointer to a single device path node that describes the NVM Express
+  @param[out]    DevicePath          A pointer to a single device path node that describes the NVM Express
                                      namespace specified by NamespaceId. This function is responsible for
                                      allocating the buffer DevicePath with the boot service AllocatePool().
                                      It is the caller's responsibility to free DevicePath when the caller
@@ -234,7 +231,7 @@ EFI_STATUS
 (EFIAPI *EFI_NVM_EXPRESS_PASS_THRU_BUILD_DEVICE_PATH)(
   IN     EFI_NVM_EXPRESS_PASS_THRU_PROTOCOL          *This,
   IN     UINT32                                      NamespaceId,
-  IN OUT EFI_DEVICE_PATH_PROTOCOL                    **DevicePath
+  OUT    EFI_DEVICE_PATH_PROTOCOL                    **DevicePath
   );
 
 /**

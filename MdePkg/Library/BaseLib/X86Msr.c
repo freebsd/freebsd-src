@@ -1,14 +1,8 @@
 /** @file
   IA-32/x64 MSR functions.
 
-  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -196,8 +190,8 @@ AsmMsrBitFieldRead32 (
   Writes Value to a bit field in the lower 32-bits of a 64-bit MSR. The bit
   field is specified by the StartBit and the EndBit. All other bits in the
   destination MSR are preserved. The lower 32-bits of the MSR written is
-  returned. The caller must either guarantee that Index and the data written 
-  is valid, or the caller must set up exception handlers to catch the exceptions. 
+  returned. The caller must either guarantee that Index and the data written
+  is valid, or the caller must set up exception handlers to catch the exceptions.
   This function is only available on IA-32 and x64.
 
   If StartBit is greater than 31, then ASSERT().
@@ -420,7 +414,7 @@ AsmMsrAnd64 (
 }
 
 /**
-  Reads a 64-bit MSR, performs a bitwise AND followed by a bitwise 
+  Reads a 64-bit MSR, performs a bitwise AND followed by a bitwise
   OR, and writes the result back to the 64-bit MSR.
 
   Reads the 64-bit MSR specified by Index, performs a bitwise AND between read
@@ -489,8 +483,8 @@ AsmMsrBitFieldRead64 (
 
   Writes Value to a bit field in a 64-bit MSR. The bit field is specified by
   the StartBit and the EndBit. All other bits in the destination MSR are
-  preserved. The MSR written is returned. The caller must either guarantee 
-  that Index and the data written is valid, or the caller must set up exception 
+  preserved. The MSR written is returned. The caller must either guarantee
+  that Index and the data written is valid, or the caller must set up exception
   handlers to catch the exceptions. This function is only available on IA-32 and x64.
 
   If StartBit is greater than 63, then ASSERT().

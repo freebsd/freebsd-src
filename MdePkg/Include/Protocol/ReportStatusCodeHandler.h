@@ -1,15 +1,12 @@
 /** @file
-  This protocol provide registering and unregistering services to status code 
+  This protocol provide registering and unregistering services to status code
   consumers while in DXE.
-  
-  Copyright (c) 2007 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+  @par Revision Reference:
+  This Protocol was introduced in PI Specification 1.2.
 
 **/
 
@@ -33,7 +30,7 @@ EFI_STATUS
 
 /**
   Register the callback function for ReportStatusCode() notification.
-  
+
   When this function is called the function pointer is added to an internal list and any future calls to
   ReportStatusCode() will be forwarded to the Callback function. During the bootservices,
   this is the callback for which this service can be invoked. The report status code router
@@ -47,16 +44,16 @@ EFI_STATUS
   2. not unregister at exit boot services so that the router will still have its callback address
   3. the caller must be self-contained (eg. Not call out into any boot-service interfaces) and be
   runtime safe, in general.
-  
+
   @param[in] Callback   A pointer to a function of type EFI_RSC_HANDLER_CALLBACK that is called when
                         a call to ReportStatusCode() occurs.
-  @param[in] Tpl        TPL at which callback can be safely invoked.   
-  
+  @param[in] Tpl        TPL at which callback can be safely invoked.
+
   @retval  EFI_SUCCESS              Function was successfully registered.
   @retval  EFI_INVALID_PARAMETER    The callback function was NULL.
   @retval  EFI_OUT_OF_RESOURCES     The internal buffer ran out of space. No more functions can be
                                     registered.
-  @retval  EFI_ALREADY_STARTED      The function was already registered. It can't be registered again.                              
+  @retval  EFI_ALREADY_STARTED      The function was already registered. It can't be registered again.
 **/
 typedef
 EFI_STATUS
@@ -67,16 +64,16 @@ EFI_STATUS
 
 /**
   Remove a previously registered callback function from the notification list.
-  
+
   A callback function must be unregistered before it is deallocated. It is important that any registered
   callbacks that are not runtime complaint be unregistered when ExitBootServices() is called.
-  
+
   @param[in]  Callback  A pointer to a function of type EFI_RSC_HANDLER_CALLBACK that is to be
                         unregistered.
-                        
+
   @retval EFI_SUCCESS           The function was successfully unregistered.
   @retval EFI_INVALID_PARAMETER The callback function was NULL.
-  @retval EFI_NOT_FOUND         The callback function was not found to be unregistered.                        
+  @retval EFI_NOT_FOUND         The callback function was not found to be unregistered.
 **/
 typedef
 EFI_STATUS

@@ -1,16 +1,10 @@
 /** @file
   EFI_AUTHENTICATION_INFO_PROTOCOL as defined in UEFI 2.0.
-  This protocol is used on any device handle to obtain authentication information 
+  This protocol is used on any device handle to obtain authentication information
   associated with the physical or logical device.
 
-Copyright (c) 2006 - 2011, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED. 
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -21,7 +15,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   { \
     0x7671d9d0, 0x53db, 0x4173, {0xaa, 0x69, 0x23, 0x27, 0xf2, 0x1f, 0x0b, 0xc7 } \
   }
-  
+
 #define EFI_AUTHENTICATION_CHAP_RADIUS_GUID \
   { \
     0xd6062b50, 0x15ca, 0x11da, {0x92, 0x19, 0x00, 0x10, 0x83, 0xff, 0xca, 0x4d } \
@@ -75,7 +69,7 @@ typedef struct {
   ///
   UINT8            NasSecret[1];
 
-  /// 
+  ///
   /// CHAP Initiator Secret Length in bytes on offset NasSecret + NasSecretLength.
   ///
   /// UINT16           ChapSecretLength;
@@ -181,11 +175,11 @@ typedef struct {
                                     responsible for allocating the buffer and it is the caller's
                                     responsibility to free buffer when the caller is finished with buffer.
 
-  @retval EFI_SUCCESS           Successfully retrieved authentication information 
+  @retval EFI_SUCCESS           Successfully retrieved authentication information
                                 for the given ControllerHandle.
-  @retval EFI_INVALID_PARAMETER No matching authentication information found for 
+  @retval EFI_INVALID_PARAMETER No matching authentication information found for
                                 the given ControllerHandle.
-  @retval EFI_DEVICE_ERROR      The authentication information could not be retrieved 
+  @retval EFI_DEVICE_ERROR      The authentication information could not be retrieved
                                 due to a hardware error.
 
 **/
@@ -203,12 +197,12 @@ EFI_STATUS
   @param[in]  This                 The pointer to the EFI_AUTHENTICATION_INFO_PROTOCOL.
   @param[in]  ControllerHandle     The handle to the Controller.
   @param[in]  Buffer               The pointer to the authentication information.
-                                
-  @retval EFI_SUCCESS          Successfully set authentication information for the 
+
+  @retval EFI_SUCCESS          Successfully set authentication information for the
                                given ControllerHandle.
-  @retval EFI_UNSUPPORTED      If the platform policies do not allow setting of 
+  @retval EFI_UNSUPPORTED      If the platform policies do not allow setting of
                                the authentication information.
-  @retval EFI_DEVICE_ERROR     The authentication information could not be configured 
+  @retval EFI_DEVICE_ERROR     The authentication information could not be configured
                                due to a hardware error.
   @retval EFI_OUT_OF_RESOURCES Not enough storage is available to hold the data.
 
@@ -219,10 +213,10 @@ EFI_STATUS
   IN EFI_AUTHENTICATION_INFO_PROTOCOL  *This,
   IN EFI_HANDLE                        ControllerHandle,
   IN VOID                              *Buffer
-  );  
+  );
 
 ///
-/// This protocol is used on any device handle to obtain authentication 
+/// This protocol is used on any device handle to obtain authentication
 /// information associated with the physical or logical device.
 ///
 struct _EFI_AUTHENTICATION_INFO_PROTOCOL {

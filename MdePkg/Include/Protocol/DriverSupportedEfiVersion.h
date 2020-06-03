@@ -4,14 +4,8 @@
   required for EFI drivers that are on PCI and other plug-in
   cards.
 
-  Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -24,16 +18,16 @@
 
 ///
 /// The EFI_DRIVER_SUPPORTED_EFI_VERSION_PROTOCOL provides a
-/// mechanism for an EFI driver to publish the version of the EFI   
-/// specification it conforms to. This protocol must be placed on   
-/// the driver's image handle when the driver's entry point is   
+/// mechanism for an EFI driver to publish the version of the EFI
+/// specification it conforms to. This protocol must be placed on
+/// the driver's image handle when the driver's entry point is
 /// called.
 ///
 typedef struct _EFI_DRIVER_SUPPORTED_EFI_VERSION_PROTOCOL {
   ///
-  /// The size, in bytes, of the entire structure. Future versions of this 
+  /// The size, in bytes, of the entire structure. Future versions of this
   /// specification may grow the size of the structure.
-  /// 
+  ///
   UINT32 Length;
   ///
   /// The latest version of the UEFI specification that this driver conforms to.

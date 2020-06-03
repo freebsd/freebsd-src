@@ -1,17 +1,11 @@
 /** @file
   EFI_SCSI_IO_PROTOCOL as defined in UEFI 2.0.
-  This protocol is used by code, typically drivers, running in the EFI boot 
-  services environment to access SCSI devices. In particular, functions for 
+  This protocol is used by code, typically drivers, running in the EFI boot
+  services environment to access SCSI devices. In particular, functions for
   managing devices on SCSI buses are defined here.
 
-  Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -301,12 +295,12 @@ struct _EFI_SCSI_IO_PROTOCOL {
   EFI_SCSI_IO_PROTOCOL_GET_DEVICE_LOCATION  GetDeviceLocation;
   EFI_SCSI_IO_PROTOCOL_RESET_BUS            ResetBus;
   EFI_SCSI_IO_PROTOCOL_RESET_DEVICE         ResetDevice;
-  EFI_SCSI_IO_PROTOCOL_EXEC_SCSI_COMMAND    ExecuteScsiCommand;    
+  EFI_SCSI_IO_PROTOCOL_EXEC_SCSI_COMMAND    ExecuteScsiCommand;
 
   ///
-  /// Supplies the alignment requirement for any buffer used in a data transfer. 
-  /// IoAlign values of 0 and 1 mean that the buffer can be placed anywhere in memory. 
-  /// Otherwise, IoAlign must be a power of 2, and the requirement is that the 
+  /// Supplies the alignment requirement for any buffer used in a data transfer.
+  /// IoAlign values of 0 and 1 mean that the buffer can be placed anywhere in memory.
+  /// Otherwise, IoAlign must be a power of 2, and the requirement is that the
   /// start address of a buffer must be evenly divisible by IoAlign with no remainder.
   ///
   UINT32                                    IoAlign;

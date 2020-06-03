@@ -1,0 +1,40 @@
+## @file
+# MM Services Table Library.
+#
+# Copyright (c) 2009 - 2014, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2018, Linaro, Ltd. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = MmServicesTableLib
+  MODULE_UNI_FILE                = MmServicesTableLib.uni
+  FILE_GUID                      = 9508ECFD-66D1-4B4C-9415-F25F0FFF9E93
+  MODULE_TYPE                    = DXE_SMM_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = MmServicesTableLib|DXE_SMM_DRIVER
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  CONSTRUCTOR                    = MmServicesTableLibConstructor
+
+#
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64
+#
+
+[Sources]
+  MmServicesTableLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  DebugLib
+
+[Protocols]
+  gEfiMmBaseProtocolGuid                      ## CONSUMES
+
+[Depex]
+  gEfiMmBaseProtocolGuid

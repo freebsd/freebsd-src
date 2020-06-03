@@ -2,14 +2,8 @@
   TPM Interface Specification definition.
   It covers both TPM1.2 and TPM2.0.
 
-Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -142,6 +136,10 @@ typedef TIS_PC_REGISTERS  *TIS_PC_REGISTERS_PTR;
 ///
 #define TIS_PC_ACC_ESTABLISH        BIT0
 
+///
+/// Write a 1 to this bit to notify TPM to cancel currently executing command
+///
+#define TIS_PC_STS_CANCEL           BIT24
 ///
 /// This field indicates that STS_DATA and STS_EXPECT are valid
 ///

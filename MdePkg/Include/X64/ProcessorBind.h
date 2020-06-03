@@ -1,14 +1,8 @@
 /** @file
   Processor or Compiler specific defines and types x64 (Intel 64, AMD64).
 
-  Copyright (c) 2006 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -27,7 +21,7 @@
 #pragma pack()
 #endif
 
-#if defined(__GNUC__) && defined(__pic__) && !defined(USING_LTO)
+#if defined(__GNUC__) && defined(__pic__) && !defined(USING_LTO)  && !defined(__APPLE__)
 //
 // Mark all symbol declarations and references as hidden, meaning they will
 // not be subject to symbol preemption. This allows the compiler to refer to
@@ -107,24 +101,24 @@
 //
 #pragma warning ( disable : 4206 )
 
-#if _MSC_VER == 1800 || _MSC_VER == 1900
+#if defined(_MSC_VER) && _MSC_VER >= 1800
 
 //
 // Disable these warnings for VS2013.
 //
 
 //
-// This warning is for potentially uninitialized local variable, and it may cause false 
+// This warning is for potentially uninitialized local variable, and it may cause false
 // positive issues in VS2013 and VS2015 build
 //
 #pragma warning ( disable : 4701 )
-  
+
 //
-// This warning is for potentially uninitialized local pointer variable, and it may cause 
+// This warning is for potentially uninitialized local pointer variable, and it may cause
 // false positive issues in VS2013 and VS2015 build
 //
 #pragma warning ( disable : 4703 )
-  
+
 #endif
 
 #endif
@@ -261,10 +255,20 @@ typedef INT64   INTN;
 #define MAX_ADDRESS   0xFFFFFFFFFFFFFFFFULL
 
 ///
+/// Maximum usable address at boot time
+///
+#define MAX_ALLOC_ADDRESS   MAX_ADDRESS
+
+///
 /// Maximum legal x64 INTN and UINTN values.
 ///
 #define MAX_INTN   ((INTN)0x7FFFFFFFFFFFFFFFULL)
 #define MAX_UINTN  ((UINTN)0xFFFFFFFFFFFFFFFFULL)
+
+///
+/// Minimum legal x64 INTN value.
+///
+#define MIN_INTN   (((INTN)-9223372036854775807LL) - 1)
 
 ///
 /// The stack alignment required for x64
@@ -289,27 +293,27 @@ typedef INT64   INTN;
 #elif defined(_MSC_EXTENSIONS)
   ///
   /// Microsoft* compiler specific method for EFIAPI calling convention.
-  /// 
-  #define EFIAPI __cdecl  
+  ///
+  #define EFIAPI __cdecl
 #elif defined(__GNUC__)
   ///
   /// Define the standard calling convention regardless of optimization level.
   /// The GCC support assumes a GCC compiler that supports the EFI ABI. The EFI
-  /// ABI is much closer to the x64 Microsoft* ABI than standard x64 (x86-64) 
-  /// GCC ABI. Thus a standard x64 (x86-64) GCC compiler can not be used for 
-  /// x64. Warning the assembly code in the MDE x64 does not follow the correct 
+  /// ABI is much closer to the x64 Microsoft* ABI than standard x64 (x86-64)
+  /// GCC ABI. Thus a standard x64 (x86-64) GCC compiler can not be used for
+  /// x64. Warning the assembly code in the MDE x64 does not follow the correct
   /// ABI for the standard x64 (x86-64) GCC.
   ///
-  #define EFIAPI 
+  #define EFIAPI
 #else
   ///
   /// The default for a non Microsoft* or GCC compiler is to assume the EFI ABI
-  /// is the standard. 
+  /// is the standard.
   ///
-  #define EFIAPI       
+  #define EFIAPI
 #endif
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) || defined(__clang__)
   ///
   /// For GNU assembly code, .global or .globl can declare global symbols.
   /// Define this macro to unify the usage.
@@ -319,13 +323,13 @@ typedef INT64   INTN;
 
 /**
   Return the pointer to the first instruction of a function given a function pointer.
-  On x64 CPU architectures, these two pointer values are the same, 
+  On x64 CPU architectures, these two pointer values are the same,
   so the implementation of this macro is very simple.
-  
+
   @param  FunctionPointer   A pointer to a function.
 
   @return The pointer to the first instruction of a function given a function pointer.
-  
+
 **/
 #define FUNCTION_ENTRY_POINT(FunctionPointer) (VOID *)(UINTN)(FunctionPointer)
 

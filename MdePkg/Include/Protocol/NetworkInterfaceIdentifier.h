@@ -1,14 +1,8 @@
 /** @file
   EFI Network Interface Identifier Protocol.
 
-Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under
-the terms and conditions of the BSD License that accompanies this distribution.
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This Protocol is introduced in EFI Specification 1.10.
@@ -74,8 +68,8 @@ struct _EFI_NETWORK_INTERFACE_IDENTIFIER_PROTOCOL {
   UINT8     MajorVer;   ///< Major version number.
   UINT8     MinorVer;   ///< Minor version number.
   BOOLEAN   Ipv6Supported; ///< TRUE if the network interface supports IPv6; otherwise FALSE.
-  UINT16    IfNum;      ///< The network interface number that is being identified by this Network 
-                        ///< Interface Identifier Protocol. This field must be less than or 
+  UINT16    IfNum;      ///< The network interface number that is being identified by this Network
+                        ///< Interface Identifier Protocol. This field must be less than or
                         ///< equal to the (IFcnt | IFcntExt <<8 ) fields in the !PXE structure.
 
 };
@@ -109,7 +103,7 @@ struct undiconfig_table {
   struct {
     VOID             *NII_InterfacePointer; ///< Pointer to the NII interface structure.
     VOID             *DevicePathPointer;    ///< Pointer to the device path for this NIC.
-  } NII_entry[1]; 
+  } NII_entry[1];
 };
 
 extern EFI_GUID gEfiNetworkInterfaceIdentifierProtocolGuid;

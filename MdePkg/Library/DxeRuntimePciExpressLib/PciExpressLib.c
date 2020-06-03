@@ -5,14 +5,8 @@
   All assertions for I/O operations are handled in MMIO functions in the IoLib
   Library.
 
-  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -103,12 +97,12 @@ DxeRuntimePciExpressLibVirtualNotify (
 }
 
 /**
-  The constructor function caches the PCI Express Base Address and creates a 
+  The constructor function caches the PCI Express Base Address and creates a
   Set Virtual Address Map event to convert physical address to virtual addresses.
-  
+
   @param  ImageHandle   The firmware allocated handle for the EFI image.
   @param  SystemTable   A pointer to the EFI System Table.
-  
+
   @retval EFI_SUCCESS   The constructor completed successfully.
   @retval Other value   The constructor did not complete successfully.
 
@@ -130,12 +124,11 @@ DxeRuntimePciExpressLibConstructor (
   //
   // Register SetVirtualAddressMap () notify function
   //
-  Status = gBS->CreateEventEx (
-                  EVT_NOTIFY_SIGNAL,
+  Status = gBS->CreateEvent (
+                  EVT_SIGNAL_VIRTUAL_ADDRESS_CHANGE,
                   TPL_NOTIFY,
                   DxeRuntimePciExpressLibVirtualNotify,
                   NULL,
-                  &gEfiEventVirtualAddressChangeGuid,
                   &mDxeRuntimePciExpressLibVirtualNotifyEvent
                   );
   ASSERT_EFI_ERROR (Status);
@@ -144,12 +137,12 @@ DxeRuntimePciExpressLibConstructor (
 }
 
 /**
-  The destructor function frees any allocated buffers and closes the Set Virtual 
+  The destructor function frees any allocated buffers and closes the Set Virtual
   Address Map event.
-  
+
   @param  ImageHandle   The firmware allocated handle for the EFI image.
   @param  SystemTable   A pointer to the EFI System Table.
-  
+
   @retval EFI_SUCCESS   The destructor completed successfully.
   @retval Other value   The destructor did not complete successfully.
 
@@ -164,7 +157,7 @@ DxeRuntimePciExpressLibDestructor (
   EFI_STATUS  Status;
 
   //
-  // If one or more PCI devices have been registered for runtime access, then 
+  // If one or more PCI devices have been registered for runtime access, then
   // free the registration table.
   //
   if (mDxeRuntimePciExpressLibRegistrationTable != NULL) {
@@ -182,10 +175,10 @@ DxeRuntimePciExpressLibDestructor (
 
 /**
   Gets the base address of PCI Express.
-  
+
   This internal functions retrieves PCI Express Base Address via a PCD entry
   PcdPciExpressBaseAddress.
-  
+
   @param  Address  The address that encodes the PCI Bus, Device, Function and Register.
   @return          The base address of PCI Express.
 
@@ -247,26 +240,26 @@ GetPciExpressAddress (
   CpuBreakpoint();
 
   //
-  // Return the physical address 
+  // Return the physical address
   //
   return Address;
 }
 
 /**
-  Registers a PCI device so PCI configuration registers may be accessed after 
+  Registers a PCI device so PCI configuration registers may be accessed after
   SetVirtualAddressMap().
-  
-  Registers the PCI device specified by Address so all the PCI configuration 
-  registers associated with that PCI device may be accessed after SetVirtualAddressMap() 
+
+  Registers the PCI device specified by Address so all the PCI configuration
+  registers associated with that PCI device may be accessed after SetVirtualAddressMap()
   is called.
-  
+
   If Address > 0x0FFFFFFF, then ASSERT().
 
   @param  Address The address that encodes the PCI Bus, Device, Function and
                   Register.
-  
+
   @retval RETURN_SUCCESS           The PCI device was registered for runtime access.
-  @retval RETURN_UNSUPPORTED       An attempt was made to call this function 
+  @retval RETURN_UNSUPPORTED       An attempt was made to call this function
                                    after ExitBootServices().
   @retval RETURN_UNSUPPORTED       The resources required to access the PCI device
                                    at runtime could not be mapped.
@@ -305,7 +298,7 @@ PciExpressRegisterForRuntimeAccess (
   Address = GetPciExpressAddress (Address & 0x0ffff000);
 
   //
-  // See if Address has already been registerd for runtime access
+  // See if Address has already been registered for runtime access
   //
   for (Index = 0; Index < mDxeRuntimePciExpressLibNumberOfRuntimeRanges; Index++) {
     if (mDxeRuntimePciExpressLibRegistrationTable[Index].PhysicalAddress == Address) {
@@ -334,8 +327,8 @@ PciExpressRegisterForRuntimeAccess (
   // Grow the size of the registration table
   //
   NewTable = ReallocateRuntimePool (
-               (mDxeRuntimePciExpressLibNumberOfRuntimeRanges + 0) * sizeof (PCI_EXPRESS_RUNTIME_REGISTRATION_TABLE), 
-               (mDxeRuntimePciExpressLibNumberOfRuntimeRanges + 1) * sizeof (PCI_EXPRESS_RUNTIME_REGISTRATION_TABLE), 
+               (mDxeRuntimePciExpressLibNumberOfRuntimeRanges + 0) * sizeof (PCI_EXPRESS_RUNTIME_REGISTRATION_TABLE),
+               (mDxeRuntimePciExpressLibNumberOfRuntimeRanges + 1) * sizeof (PCI_EXPRESS_RUNTIME_REGISTRATION_TABLE),
                mDxeRuntimePciExpressLibRegistrationTable
                );
   if (NewTable == NULL) {
@@ -1463,7 +1456,7 @@ PciExpressBitFieldAndThenOr32 (
   Size into the buffer specified by Buffer. This function only allows the PCI
   configuration registers from a single PCI function to be read. Size is
   returned. When possible 32-bit PCI configuration read cycles are used to read
-  from StartAdress to StartAddress + Size. Due to alignment restrictions, 8-bit
+  from StartAddress to StartAddress + Size. Due to alignment restrictions, 8-bit
   and 16-bit PCI configuration read cycles may be used at the beginning and the
   end of the range.
 
@@ -1566,7 +1559,7 @@ PciExpressReadBuffer (
   Size from the buffer specified by Buffer. This function only allows the PCI
   configuration registers from a single PCI function to be written. Size is
   returned. When possible 32-bit PCI configuration write cycles are used to
-  write from StartAdress to StartAddress + Size. Due to alignment restrictions,
+  write from StartAddress to StartAddress + Size. Due to alignment restrictions,
   8-bit and 16-bit PCI configuration write cycles may be used at the beginning
   and the end of the range.
 

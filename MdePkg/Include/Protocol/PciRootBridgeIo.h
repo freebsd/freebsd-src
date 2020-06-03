@@ -1,18 +1,12 @@
 /** @file
   PCI Root Bridge I/O protocol as defined in the UEFI 2.0 specification.
 
-  PCI Root Bridge I/O protocol is used by PCI Bus Driver to perform PCI Memory, PCI I/O, 
-  and PCI Configuration cycles on a PCI Root Bridge. It also provides services to perform 
+  PCI Root Bridge I/O protocol is used by PCI Bus Driver to perform PCI Memory, PCI I/O,
+  and PCI Configuration cycles on a PCI Root Bridge. It also provides services to perform
   defferent types of bus mastering DMA.
 
-  Copyright (c) 2006 - 2011, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -122,23 +116,23 @@ typedef struct {
   UINT32  ExtendedRegister;
 } EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_PCI_ADDRESS;
 
-/**                                                                 
+/**
   Reads from the I/O space of a PCI Root Bridge. Returns when either the polling exit criteria is
   satisfied or after a defined duration.
-          
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Width                 Signifies the width of the memory or I/O operations.
-  @param  Address               The base address of the memory or I/O operations.  
+  @param  Address               The base address of the memory or I/O operations.
   @param  Mask                  Mask used for the polling criteria.
   @param  Value                 The comparison value used for the polling exit criteria.
   @param  Delay                 The number of 100 ns units to poll.
   @param  Result                Pointer to the last value read from the memory location.
-                                
+
   @retval EFI_SUCCESS           The last data returned from the access matched the poll exit criteria.
   @retval EFI_TIMEOUT           Delay expired before a match occurred.
   @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
   @retval EFI_INVALID_PARAMETER One or more parameters are invalid.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -152,20 +146,20 @@ EFI_STATUS
   OUT UINT64                                   *Result
   );
 
-/**                                                                 
+/**
   Enables a PCI driver to access PCI controller registers in the PCI root bridge memory space.
-          
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Width                 Signifies the width of the memory operations.
-  @param  Address               The base address of the memory operations.                                  
+  @param  Address               The base address of the memory operations.
   @param  Count                 The number of memory operations to perform.
   @param  Buffer                For read operations, the destination buffer to store the results. For write
-                                operations, the source buffer to write data from.                          
-  
-  @retval EFI_SUCCESS           The data was read from or written to the PCI root bridge.  
+                                operations, the source buffer to write data from.
+
+  @retval EFI_SUCCESS           The data was read from or written to the PCI root bridge.
   @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
   @retval EFI_INVALID_PARAMETER One or more parameters are invalid.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -188,20 +182,20 @@ typedef struct {
   EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_IO_MEM  Write;
 } EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_ACCESS;
 
-/**                                                                 
+/**
   Enables a PCI driver to copy one region of PCI root bridge memory space to another region of PCI
-  root bridge memory space.                                                                       
-            
+  root bridge memory space.
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL instance.
   @param  Width                 Signifies the width of the memory operations.
-  @param  DestAddress           The destination address of the memory operation.                                
-  @param  SrcAddress            The source address of the memory operation.                                
-  @param  Count                 The number of memory operations to perform.    
-                                
-  @retval EFI_SUCCESS           The data was copied from one memory region to another memory region.  
+  @param  DestAddress           The destination address of the memory operation.
+  @param  SrcAddress            The source address of the memory operation.
+  @param  Count                 The number of memory operations to perform.
+
+  @retval EFI_SUCCESS           The data was copied from one memory region to another memory region.
   @retval EFI_INVALID_PARAMETER Width is invalid for this PCI root bridge.
   @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -213,25 +207,25 @@ EFI_STATUS
   IN     UINTN                                    Count
   );
 
-/**                                                                 
+/**
   Provides the PCI controller-specific addresses required to access system memory from a
-  DMA bus master.                                                                        
-            
+  DMA bus master.
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Operation             Indicates if the bus master is going to read or write to system memory.
   @param  HostAddress           The system memory address to map to the PCI controller.
   @param  NumberOfBytes         On input the number of bytes to map. On output the number of bytes
-                                that were mapped.                                                 
+                                that were mapped.
   @param  DeviceAddress         The resulting map address for the bus master PCI controller to use to
-                                access the hosts HostAddress.                                        
+                                access the hosts HostAddress.
   @param  Mapping               A resulting value to pass to Unmap().
-                                  
+
   @retval EFI_SUCCESS           The range was mapped for the returned NumberOfBytes.
-  @retval EFI_UNSUPPORTED       The HostAddress cannot be mapped as a common buffer.                                
+  @retval EFI_UNSUPPORTED       The HostAddress cannot be mapped as a common buffer.
   @retval EFI_INVALID_PARAMETER One or more parameters are invalid.
   @retval EFI_OUT_OF_RESOURCES  The request could not be completed due to a lack of resources.
   @retval EFI_DEVICE_ERROR      The system hardware could not map the requested address.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -244,16 +238,16 @@ EFI_STATUS
   OUT    VOID                                       **Mapping
   );
 
-/**                                                                 
+/**
   Completes the Map() operation and releases any corresponding resources.
-            
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Mapping               The mapping value returned from Map().
-                                  
+
   @retval EFI_SUCCESS           The range was unmapped.
   @retval EFI_INVALID_PARAMETER Mapping is not a value that was returned by Map().
   @retval EFI_DEVICE_ERROR      The data was not committed to the target system memory.
-                                   
+
 **/
 typedef
 EFI_STATUS
@@ -262,25 +256,25 @@ EFI_STATUS
   IN  VOID                                     *Mapping
   );
 
-/**                                                                 
+/**
   Allocates pages that are suitable for an EfiPciOperationBusMasterCommonBuffer or
-  EfiPciOperationBusMasterCommonBuffer64 mapping.                                 
-            
+  EfiPciOperationBusMasterCommonBuffer64 mapping.
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Type                  This parameter is not used and must be ignored.
   @param  MemoryType            The type of memory to allocate, EfiBootServicesData or
-                                EfiRuntimeServicesData.                               
-  @param  Pages                 The number of pages to allocate.                                
+                                EfiRuntimeServicesData.
+  @param  Pages                 The number of pages to allocate.
   @param  HostAddress           A pointer to store the base system memory address of the
-                                allocated range.                                        
+                                allocated range.
   @param  Attributes            The requested bit mask of attributes for the allocated range.
-                                  
+
   @retval EFI_SUCCESS           The requested memory pages were allocated.
   @retval EFI_UNSUPPORTED       Attributes is unsupported. The only legal attribute bits are
-                                MEMORY_WRITE_COMBINE and MEMORY_CACHED.                     
+                                MEMORY_WRITE_COMBINE and MEMORY_CACHED.
   @retval EFI_INVALID_PARAMETER One or more parameters are invalid.
-  @retval EFI_OUT_OF_RESOURCES  The memory pages could not be allocated.  
-                                   
+  @retval EFI_OUT_OF_RESOURCES  The memory pages could not be allocated.
+
 **/
 typedef
 EFI_STATUS
@@ -293,17 +287,17 @@ EFI_STATUS
   IN     UINT64                                   Attributes
   );
 
-/**                                                                 
+/**
   Frees memory that was allocated with AllocateBuffer().
-            
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
-  @param  Pages                 The number of pages to free.                                
-  @param  HostAddress           The base system memory address of the allocated range.                                    
-                                  
+  @param  Pages                 The number of pages to free.
+  @param  HostAddress           The base system memory address of the allocated range.
+
   @retval EFI_SUCCESS           The requested memory pages were freed.
   @retval EFI_INVALID_PARAMETER The memory range specified by HostAddress and Pages
                                 was not allocated with AllocateBuffer().
-                                     
+
 **/
 typedef
 EFI_STATUS
@@ -313,16 +307,16 @@ EFI_STATUS
   IN  VOID                                     *HostAddress
   );
 
-/**                                                                 
+/**
   Flushes all PCI posted write transactions from a PCI host bridge to system memory.
-            
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
-                                  
+
   @retval EFI_SUCCESS           The PCI posted write transactions were flushed from the PCI host
-                                bridge to system memory.                                        
+                                bridge to system memory.
   @retval EFI_DEVICE_ERROR      The PCI posted write transactions were not flushed from the PCI
-                                host bridge due to a hardware error.                           
-                                     
+                                host bridge due to a hardware error.
+
 **/
 typedef
 EFI_STATUS
@@ -330,23 +324,23 @@ EFI_STATUS
   IN EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL  *This
   );
 
-/**                                                                 
+/**
   Gets the attributes that a PCI root bridge supports setting with SetAttributes(), and the
-  attributes that a PCI root bridge is currently using.                                    
-            
+  attributes that a PCI root bridge is currently using.
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Supports              A pointer to the mask of attributes that this PCI root bridge supports
-                                setting with SetAttributes().                                         
+                                setting with SetAttributes().
   @param  Attributes            A pointer to the mask of attributes that this PCI root bridge is currently
-                                using.                                                                      
-                                
-  @retval EFI_SUCCESS           If Supports is not NULL, then the attributes that the PCI root     
-                                bridge supports is returned in Supports. If Attributes is          
+                                using.
+
+  @retval EFI_SUCCESS           If Supports is not NULL, then the attributes that the PCI root
+                                bridge supports is returned in Supports. If Attributes is
                                 not NULL, then the attributes that the PCI root bridge is currently
-                                using is returned in Attributes.                                   
+                                using is returned in Attributes.
   @retval EFI_INVALID_PARAMETER Both Supports and Attributes are NULL.
-                                
-                                     
+
+
 **/
 typedef
 EFI_STATUS
@@ -356,26 +350,26 @@ EFI_STATUS
   OUT UINT64                                   *Attributes
   );
 
-/**                                                                 
+/**
   Sets attributes for a resource range on a PCI root bridge.
-            
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
   @param  Attributes            The mask of attributes to set.
   @param  ResourceBase          A pointer to the base address of the resource range to be modified by the
                                 attributes specified by Attributes.
   @param  ResourceLength        A pointer to the length of the resource range to be modified by the
-                                attributes specified by Attributes.                                                                                                              
-                                
-  @retval EFI_SUCCESS           The set of attributes specified by Attributes for the resource   
-                                range specified by ResourceBase and ResourceLength               
+                                attributes specified by Attributes.
+
+  @retval EFI_SUCCESS           The set of attributes specified by Attributes for the resource
+                                range specified by ResourceBase and ResourceLength
                                 were set on the PCI root bridge, and the actual resource range is
-                                returned in ResuourceBase and ResourceLength.                    
+                                returned in ResuourceBase and ResourceLength.
   @retval EFI_UNSUPPORTED       A bit is set in Attributes that is not supported by the PCI Root
-                                Bridge.                                                         
-  @retval EFI_OUT_OF_RESOURCES  There are not enough resources to set the attributes on the                              
-                                resource range specified by BaseAddress and Length.        
-  @retval EFI_INVALID_PARAMETER One or more parameters are invalid.                               
-                                     
+                                Bridge.
+  @retval EFI_OUT_OF_RESOURCES  There are not enough resources to set the attributes on the
+                                resource range specified by BaseAddress and Length.
+  @retval EFI_INVALID_PARAMETER One or more parameters are invalid.
+
 **/
 typedef
 EFI_STATUS
@@ -386,19 +380,19 @@ EFI_STATUS
   IN OUT UINT64                                   *ResourceLength
   );
 
-/**                                                                 
-  Retrieves the current resource settings of this PCI root bridge in the form of a set of ACPI 2.0
-  resource descriptors.                                                                           
-            
+/**
+  Retrieves the current resource settings of this PCI root bridge in the form of a set of ACPI
+  resource descriptors.
+
   @param  This                  A pointer to the EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL.
-  @param  Resources             A pointer to the ACPI 2.0 resource descriptors that describe the current
-                                configuration of this PCI root bridge.                                  
-                                
+  @param  Resources             A pointer to the resource descriptors that describe the current
+                                configuration of this PCI root bridge.
+
   @retval EFI_SUCCESS           The current configuration of this PCI root bridge was returned in
-                                Resources.                                                                                                                       
+                                Resources.
   @retval EFI_UNSUPPORTED       The current configuration of this PCI root bridge could not be
-                                retrieved.                                                                          
-                                       
+                                retrieved.
+
 **/
 typedef
 EFI_STATUS
@@ -408,8 +402,8 @@ EFI_STATUS
   );
 
 ///
-/// Provides the basic Memory, I/O, PCI configuration, and DMA interfaces that are 
-/// used to abstract accesses to PCI controllers behind a PCI Root Bridge Controller. 
+/// Provides the basic Memory, I/O, PCI configuration, and DMA interfaces that are
+/// used to abstract accesses to PCI controllers behind a PCI Root Bridge Controller.
 ///
 struct _EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL {
   ///
@@ -430,7 +424,7 @@ struct _EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL {
   EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_GET_ATTRIBUTES  GetAttributes;
   EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_SET_ATTRIBUTES  SetAttributes;
   EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_CONFIGURATION   Configuration;
-  
+
   ///
   /// The segment number that this PCI root bridge resides.
   ///

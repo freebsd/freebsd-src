@@ -2,15 +2,9 @@
   UGA IO protocol from the EFI 1.10 specification.
 
   Abstraction of a very simple graphics device.
-  
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -90,15 +84,15 @@ typedef struct {
 /**
   Dynamically allocate storage for a child UGA_DEVICE.
 
-  @param[in]     This            The EFI_UGA_IO_PROTOCOL instance. 
+  @param[in]     This            The EFI_UGA_IO_PROTOCOL instance.
   @param[in]     ParentDevice    ParentDevice specifies a pointer to the parent device of Device.
   @param[in]     DeviceData      A pointer to UGA_DEVICE_DATA returned from a call to DispatchService()
-                                 with a UGA_DEVICE of Parent and an IoRequest of type UgaIoGetChildDevice.      
-  @param[in]     RunTimeContext  Context to associate with Device.  
+                                 with a UGA_DEVICE of Parent and an IoRequest of type UgaIoGetChildDevice.
+  @param[in]     RunTimeContext  Context to associate with Device.
   @param[out]    Device          The Device returns a dynamically allocated child UGA_DEVICE object
                                  for ParentDevice. The caller is responsible for deleting Device.
 
-                                 
+
   @retval  EFI_SUCCESS           Device was returned.
   @retval  EFI_INVALID_PARAMETER One of the arguments was not valid.
   @retval  EFI_DEVICE_ERROR      The device had an error and could not complete the request.
@@ -118,12 +112,12 @@ EFI_STATUS
 /**
   Delete a dynamically allocated child UGA_DEVICE object that was allocated via CreateDevice().
 
-  @param[in]     This            The EFI_UGA_IO_PROTOCOL instance. Type EFI_UGA_IO_PROTOCOL is 
+  @param[in]     This            The EFI_UGA_IO_PROTOCOL instance. Type EFI_UGA_IO_PROTOCOL is
                                  defined in Section 10.7.
   @param[in]     Device          The Device points to a UGA_DEVICE object that was dynamically
                                  allocated via a CreateDevice() call.
 
-                                 
+
   @retval  EFI_SUCCESS           Device was returned.
   @retval  EFI_INVALID_PARAMETER The Device was not allocated via CreateDevice().
 
@@ -138,23 +132,23 @@ EFI_STATUS
 /**
   This is the main UGA service dispatch routine for all UGA_IO_REQUEST s.
 
-  @param pDevice pDevice specifies a pointer to a device object associated with a 
-                 device enumerated by a pIoRequest->ioRequestCode of type 
-                 UgaIoGetChildDevice. The root device for the EFI_UGA_IO_PROTOCOL 
+  @param pDevice pDevice specifies a pointer to a device object associated with a
+                 device enumerated by a pIoRequest->ioRequestCode of type
+                 UgaIoGetChildDevice. The root device for the EFI_UGA_IO_PROTOCOL
                  is represented by pDevice being set to NULL.
 
-  @param pIoRequest 
+  @param pIoRequest
                  pIoRequest points to a caller allocated buffer that contains data
                  defined by pIoRequest->ioRequestCode. See Related Definitions for
-                 a definition of UGA_IO_REQUEST_CODE s and their associated data 
+                 a definition of UGA_IO_REQUEST_CODE s and their associated data
                  structures.
 
   @return UGA_STATUS
 
 **/
-typedef UGA_STATUS 
+typedef UGA_STATUS
 (EFIAPI *PUGA_FW_SERVICE_DISPATCH)(
-  IN PUGA_DEVICE pDevice, 
+  IN PUGA_DEVICE pDevice,
   IN OUT PUGA_IO_REQUEST pIoRequest
   );
 

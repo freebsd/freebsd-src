@@ -4,7 +4,7 @@
 
   A module that produces this PPI has many roles and is responsible for the following:
     -# Calling the driver recovery PPI EFI_PEI_DEVICE_RECOVERY_MODULE_PPI.
-       GetNumberRecoveryCapsules() to determine if one or more DXE recovery 
+       GetNumberRecoveryCapsules() to determine if one or more DXE recovery
        entities exist.
     -# If no capsules exist, then performing appropriate error handling.
     -# Allocating a buffer of MaxRecoveryCapsuleSize as determined by
@@ -16,33 +16,27 @@
     -# If the load failed, performing appropriate error handling.
     -# Performing security checks for a loaded DXE recovery capsule.
     -# If the security checks failed, then logging the failure in a data HOB.
-    -# If the security checks failed, then determining the next 
-       EFI_PEI_DEVICE_RECOVERY_MODULE_PPI.LoadRecoveryCapsule()capsule number; 
+    -# If the security checks failed, then determining the next
+       EFI_PEI_DEVICE_RECOVERY_MODULE_PPI.LoadRecoveryCapsule()capsule number;
        otherwise, go to step 11.
-    -# If more DXE recovery capsules exist, then go to step 5; otherwise, perform 
+    -# If more DXE recovery capsules exist, then go to step 5; otherwise, perform
        error handling.
     -# Decomposing the capsule loaded by EFI_PEI_DEVICE_RECOVERY_MODULE_PPI.
-       LoadRecoveryCapsule() into its components. It is assumed that the path 
-       parameters are redundant for recovery and Setup parameters are either 
+       LoadRecoveryCapsule() into its components. It is assumed that the path
+       parameters are redundant for recovery and Setup parameters are either
        redundant or canned.
-    -# Invalidating all HOB entries for updateable firmware volume entries. 
+    -# Invalidating all HOB entries for updateable firmware volume entries.
        This invalidation prevents possible errant drivers from being executed.
-    -# Updating the HOB table with the recovery DXE firmware volume information 
+    -# Updating the HOB table with the recovery DXE firmware volume information
        generated from the capsule decomposition.
-    -# Returning to the PEI Dispatcher.  
-  
-  Copyright (c) 2007 - 2011, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
+    -# Returning to the PEI Dispatcher.
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  This PPI is defined in UEFI Platform Initialization Specification 1.2 Errata B Volume 1: 
-  Pre-EFI Initalization Core Interface
+  This PPI is defined in UEFI Platform Initialization Specification 1.2 Errata B Volume 1:
+  Pre-EFI Initialization Core Interface
 
 **/
 

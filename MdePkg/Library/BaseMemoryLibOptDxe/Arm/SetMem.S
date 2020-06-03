@@ -2,13 +2,7 @@
 #
 # Copyright (c) 2016, Linaro Ltd. All rights reserved.<BR>
 #
-# This program and the accompanying materials are licensed and made available
-# under the terms and conditions of the BSD License which accompanies this
-# distribution.  The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 #------------------------------------------------------------------------------
 
@@ -16,6 +10,7 @@
     .thumb
     .syntax unified
     .align  5
+    .type   ASM_PFX(InternalMemSetMem16), %function
 ASM_GLOBAL ASM_PFX(InternalMemSetMem16)
 ASM_PFX(InternalMemSetMem16):
     uxth    r2, r2
@@ -23,17 +18,20 @@ ASM_PFX(InternalMemSetMem16):
     orr     r2, r2, r2, lsl #16
     b       0f
 
+    .type   ASM_PFX(InternalMemSetMem32), %function
 ASM_GLOBAL ASM_PFX(InternalMemSetMem32)
 ASM_PFX(InternalMemSetMem32):
     lsl     r1, r1, #2
     b       0f
 
+    .type   ASM_PFX(InternalMemSetMem64), %function
 ASM_GLOBAL ASM_PFX(InternalMemSetMem64)
 ASM_PFX(InternalMemSetMem64):
     lsl     r1, r1, #3
     b       1f
 
     .align  5
+    .type   ASM_PFX(InternalMemSetMem), %function
 ASM_GLOBAL ASM_PFX(InternalMemSetMem)
 ASM_PFX(InternalMemSetMem):
     uxtb    r2, r2
@@ -41,6 +39,7 @@ ASM_PFX(InternalMemSetMem):
     orr     r2, r2, r2, lsl #16
     b       0f
 
+    .type   ASM_PFX(InternalMemZeroMem), %function
 ASM_GLOBAL ASM_PFX(InternalMemZeroMem)
 ASM_PFX(InternalMemZeroMem):
     movs    r2, #0

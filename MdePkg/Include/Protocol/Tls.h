@@ -7,13 +7,7 @@
   The EFI TLS Protocol provides the ability to manage TLS session.
 
   Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.5
@@ -47,10 +41,6 @@ typedef struct _EFI_TLS_PROTOCOL EFI_TLS_PROTOCOL;
 /// EFI_TLS_SESSION_DATA_TYPE
 ///
 typedef enum {
-  ///
-  /// Session Configuration
-  ///
-
   ///
   /// TLS session Version. The corresponding Data is of type EFI_TLS_VERSION.
   ///
@@ -92,11 +82,6 @@ typedef enum {
   /// The corresponding Data is of type EFI_TLS_SESSION_STATE.
   ///
   EfiTlsSessionState,
-
-  ///
-  /// Session information
-  ///
-
   ///
   /// TLS session data client random.
   /// The corresponding Data is of type EFI_TLS_RANDOM.
@@ -112,9 +97,15 @@ typedef enum {
   /// The corresponding Data is of type EFI_TLS_MASTER_SECRET.
   ///
   EfiTlsKeyMaterial,
+  ///
+  /// TLS session hostname for validation which is used to verify whether the name
+  /// within the peer certificate matches a given host name.
+  /// This parameter is invalid when EfiTlsVerifyMethod is EFI_TLS_VERIFY_NONE.
+  /// The corresponding Data is of type EFI_TLS_VERIFY_HOST.
+  ///
+  EfiTlsVerifyHost,
 
   EfiTlsSessionDataTypeMaximum
-
 } EFI_TLS_SESSION_DATA_TYPE;
 
 ///
@@ -141,10 +132,12 @@ typedef enum {
 ///       Hello Messages". The value of EFI_TLS_CIPHER is from TLS Cipher
 ///       Suite Registry of IANA.
 ///
+#pragma pack (1)
 typedef struct {
   UINT8                         Data1;
   UINT8                         Data2;
 } EFI_TLS_CIPHER;
+#pragma pack ()
 
 ///
 /// EFI_TLS_COMPRESSION
@@ -157,11 +150,13 @@ typedef UINT8 EFI_TLS_COMPRESSION;
 /// Note: The definition of EFI_TLS_EXTENSION if from "RFC 5246 A.4.1.
 ///       Hello Messages".
 ///
+#pragma pack (1)
 typedef struct {
   UINT16                        ExtensionType;
   UINT16                        Length;
   UINT8                         Data[1];
 } EFI_TLS_EXTENSION;
+#pragma pack ()
 
 ///
 /// EFI_TLS_VERIFY
@@ -180,7 +175,8 @@ typedef UINT32  EFI_TLS_VERIFY;
 ///
 #define EFI_TLS_VERIFY_PEER                  0x1
 ///
-/// TLS session will fail peer certificate is absent.
+/// EFI_TLS_VERIFY_FAIL_IF_NO_PEER_CERT is only meaningful in the server mode.
+/// TLS session will fail if client certificate is absent.
 ///
 #define EFI_TLS_VERIFY_FAIL_IF_NO_PEER_CERT  0x2
 ///
@@ -190,33 +186,87 @@ typedef UINT32  EFI_TLS_VERIFY;
 #define EFI_TLS_VERIFY_CLIENT_ONCE           0x4
 
 ///
+/// EFI_TLS_VERIFY_HOST_FLAG
+///
+typedef UINT32 EFI_TLS_VERIFY_HOST_FLAG;
+///
+/// There is no additional flags set for hostname validation.
+/// Wildcards are supported and they match only in the left-most label.
+///
+#define EFI_TLS_VERIFY_FLAG_NONE                    0x00
+///
+/// Always check the Subject Distinguished Name (DN) in the peer certificate even if the
+/// certificate contains Subject Alternative Name (SAN).
+///
+#define EFI_TLS_VERIFY_FLAG_ALWAYS_CHECK_SUBJECT    0x01
+///
+/// Disable the match of all wildcards.
+///
+#define EFI_TLS_VERIFY_FLAG_NO_WILDCARDS            0x02
+///
+/// Disable the "*" as wildcard in labels that have a prefix or suffix (e.g. "www*" or "*www").
+///
+#define EFI_TLS_VERIFY_FLAG_NO_PARTIAL_WILDCARDS    0x04
+///
+/// Allow the "*" to match more than one labels. Otherwise, only matches a single label.
+///
+#define EFI_TLS_VERIFY_FLAG_MULTI_LABEL_WILDCARDS   0x08
+///
+/// Restrict to only match direct child sub-domains which start with ".".
+/// For example, a name of ".example.com" would match "www.example.com" with this flag,
+/// but would not match "www.sub.example.com".
+///
+#define EFI_TLS_VERIFY_FLAG_SINGLE_LABEL_SUBDOMAINS 0x10
+///
+/// Never check the Subject Distinguished Name (DN) even there is no
+/// Subject Alternative Name (SAN) in the certificate.
+///
+#define EFI_TLS_VERIFY_FLAG_NEVER_CHECK_SUBJECT     0x20
+
+///
+/// EFI_TLS_VERIFY_HOST
+///
+#pragma pack (1)
+typedef struct {
+  EFI_TLS_VERIFY_HOST_FLAG Flags;
+  CHAR8                    *HostName;
+} EFI_TLS_VERIFY_HOST;
+#pragma pack ()
+
+///
 /// EFI_TLS_RANDOM
 /// Note: The definition of EFI_TLS_RANDOM is from "RFC 5246 A.4.1.
 ///       Hello Messages".
 ///
+#pragma pack (1)
 typedef struct {
   UINT32                        GmtUnixTime;
   UINT8                         RandomBytes[28];
 } EFI_TLS_RANDOM;
+#pragma pack ()
 
 ///
 /// EFI_TLS_MASTER_SECRET
 /// Note: The definition of EFI_TLS_MASTER_SECRET is from "RFC 5246 8.1.
 ///       Computing the Master Secret".
 ///
+#pragma pack (1)
 typedef struct {
   UINT8                         Data[48];
 } EFI_TLS_MASTER_SECRET;
+#pragma pack ()
 
 ///
 /// EFI_TLS_SESSION_ID
 /// Note: The definition of EFI_TLS_SESSION_ID is from "RFC 5246 A.4.1. Hello Messages".
 ///
 #define MAX_TLS_SESSION_ID_LENGTH  32
+#pragma pack (1)
 typedef struct {
   UINT16                        Length;
   UINT8                         Data[MAX_TLS_SESSION_ID_LENGTH];
 } EFI_TLS_SESSION_ID;
+#pragma pack ()
 
 ///
 /// EFI_TLS_SESSION_STATE
@@ -458,3 +508,4 @@ extern EFI_GUID gEfiTlsServiceBindingProtocolGuid;
 extern EFI_GUID gEfiTlsProtocolGuid;
 
 #endif  // __EFI_TLS_PROTOCOL_H__
+

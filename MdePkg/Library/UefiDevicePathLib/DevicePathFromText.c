@@ -1,14 +1,8 @@
 /** @file
   DevicePathFromText protocol as defined in the UEFI 2.0 specification.
 
-Copyright (c) 2013 - 2017, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -279,7 +273,7 @@ IsHexStr (
   while ((*Str != 0) && *Str == L'0') {
     Str ++;
   }
-  
+
   return (BOOLEAN) (*Str == L'x' || *Str == L'X');
 }
 
@@ -919,7 +913,16 @@ DevPathFromTextAcpiExp (
                                                   );
 
   AcpiEx->HID = EisaIdFromText (HIDStr);
-  AcpiEx->CID = EisaIdFromText (CIDStr);
+  //
+  // According to UEFI spec, the CID parametr is optional and has a default value of 0.
+  // So when the CID parametr is not specified or specified as 0 in the text device node.
+  // Set the CID to 0 in the ACPI extension device path structure.
+  //
+  if (*CIDStr == L'\0' || *CIDStr == L'0') {
+    AcpiEx->CID = 0;
+  } else {
+    AcpiEx->CID = EisaIdFromText (CIDStr);
+  }
   AcpiEx->UID = 0;
 
   AsciiStr = (CHAR8 *) ((UINT8 *)AcpiEx + sizeof (ACPI_EXTENDED_HID_DEVICE_PATH));
@@ -980,7 +983,7 @@ DevPathFromTextAcpiAdr (
       ASSERT (AcpiAdr != NULL);
       SetDevicePathNodeLength (AcpiAdr, Length + sizeof (UINT32));
     }
-    
+
     (&AcpiAdr->ADR)[Index] = (UINT32) Strtoi (DisplayDeviceStr);
   }
 
@@ -1758,12 +1761,12 @@ DevPathFromTextDebugPort (
   IN CHAR16 *TextDeviceNode
   )
 {
-  VENDOR_DEFINED_MESSAGING_DEVICE_PATH  *Vend;
+  VENDOR_DEVICE_PATH  *Vend;
 
-  Vend = (VENDOR_DEFINED_MESSAGING_DEVICE_PATH *) CreateDeviceNode (
+  Vend = (VENDOR_DEVICE_PATH *) CreateDeviceNode (
                                                     MESSAGING_DEVICE_PATH,
                                                     MSG_VENDOR_DP,
-                                                    (UINT16) sizeof (VENDOR_DEFINED_MESSAGING_DEVICE_PATH)
+                                                    (UINT16) sizeof (VENDOR_DEVICE_PATH)
                                                     );
 
   CopyGuid (&Vend->Guid, &gEfiDebugPortProtocolGuid);
@@ -1800,6 +1803,10 @@ DevPathFromTextMAC (
   MACDevPath->IfType   = (UINT8) Strtoi (IfTypeStr);
 
   Length = sizeof (EFI_MAC_ADDRESS);
+  if (MACDevPath->IfType == 0x01 || MACDevPath->IfType == 0x00) {
+    Length = 6;
+  }
+
   StrHexToBytes (AddressStr, Length * 2, MACDevPath->MacAddress.Addr, Length);
 
   return (EFI_DEVICE_PATH_PROTOCOL *) MACDevPath;
@@ -2057,22 +2064,42 @@ ConvertFromTextUsbClass (
   PIDStr      = GetNextParamStr (&TextDeviceNode);
   if (UsbClassText->ClassExist) {
     ClassStr = GetNextParamStr (&TextDeviceNode);
-    UsbClass->DeviceClass = (UINT8) Strtoi (ClassStr);
+    if (*ClassStr == L'\0') {
+      UsbClass->DeviceClass = 0xFF;
+    } else {
+      UsbClass->DeviceClass = (UINT8) Strtoi (ClassStr);
+    }
   } else {
     UsbClass->DeviceClass = UsbClassText->Class;
   }
   if (UsbClassText->SubClassExist) {
     SubClassStr = GetNextParamStr (&TextDeviceNode);
-    UsbClass->DeviceSubClass = (UINT8) Strtoi (SubClassStr);
+    if (*SubClassStr == L'\0') {
+      UsbClass->DeviceSubClass = 0xFF;
+    } else {
+      UsbClass->DeviceSubClass = (UINT8) Strtoi (SubClassStr);
+    }
   } else {
     UsbClass->DeviceSubClass = UsbClassText->SubClass;
   }
 
   ProtocolStr = GetNextParamStr (&TextDeviceNode);
 
-  UsbClass->VendorId        = (UINT16) Strtoi (VIDStr);
-  UsbClass->ProductId       = (UINT16) Strtoi (PIDStr);
-  UsbClass->DeviceProtocol  = (UINT8) Strtoi (ProtocolStr);
+  if (*VIDStr == L'\0') {
+    UsbClass->VendorId        = 0xFFFF;
+  } else {
+    UsbClass->VendorId        = (UINT16) Strtoi (VIDStr);
+  }
+  if (*PIDStr == L'\0') {
+    UsbClass->ProductId       = 0xFFFF;
+  } else {
+    UsbClass->ProductId       = (UINT16) Strtoi (PIDStr);
+  }
+  if (*ProtocolStr == L'\0') {
+    UsbClass->DeviceProtocol  = 0xFF;
+  } else {
+    UsbClass->DeviceProtocol  = (UINT8) Strtoi (ProtocolStr);
+  }
 
   return (EFI_DEVICE_PATH_PROTOCOL *) UsbClass;
 }
@@ -2538,6 +2565,7 @@ DevPathFromTextiSCSI (
   CHAR16                      *ProtocolStr;
   CHAR8                       *AsciiStr;
   ISCSI_DEVICE_PATH_WITH_NAME *ISCSIDevPath;
+  UINT64                      Lun;
 
   NameStr           = GetNextParamStr (&TextDeviceNode);
   PortalGroupStr    = GetNextParamStr (&TextDeviceNode);
@@ -2556,7 +2584,8 @@ DevPathFromTextiSCSI (
   StrToAscii (NameStr, &AsciiStr);
 
   ISCSIDevPath->TargetPortalGroupTag = (UINT16) Strtoi (PortalGroupStr);
-  Strtoi64 (LunStr, &ISCSIDevPath->Lun);
+  Strtoi64 (LunStr, &Lun);
+  WriteUnaligned64 ((UINT64 *) &ISCSIDevPath->Lun, SwapBytes64 (Lun));
 
   Options = 0x0000;
   if (StrCmp (HeaderDigestStr, L"CRC32C") == 0) {
@@ -2577,7 +2606,14 @@ DevPathFromTextiSCSI (
 
   ISCSIDevPath->LoginOption      = (UINT16) Options;
 
-  ISCSIDevPath->NetworkProtocol  = (UINT16) StrCmp (ProtocolStr, L"TCP");
+  if (IS_NULL (*ProtocolStr) || (StrCmp (ProtocolStr, L"TCP") == 0)) {
+    ISCSIDevPath->NetworkProtocol = 0;
+  } else {
+    //
+    // Undefined and reserved.
+    //
+    ISCSIDevPath->NetworkProtocol = 1;
+  }
 
   return (EFI_DEVICE_PATH_PROTOCOL *) ISCSIDevPath;
 }
@@ -2624,35 +2660,20 @@ DevPathFromTextBluetooth (
   )
 {
   CHAR16                  *BluetoothStr;
-  CHAR16                  *Walker;
-  CHAR16                  *TempNumBuffer;
-  UINTN                   TempBufferSize;
-  INT32                   Index;
   BLUETOOTH_DEVICE_PATH   *BluetoothDp;
 
   BluetoothStr = GetNextParamStr (&TextDeviceNode);
-  BluetoothDp = (BLUETOOTH_DEVICE_PATH *) CreateDeviceNode (
-                                   MESSAGING_DEVICE_PATH,
-                                   MSG_BLUETOOTH_DP,
-                                   (UINT16) sizeof (BLUETOOTH_DEVICE_PATH)
-                                   );
-
-  Index = sizeof (BLUETOOTH_ADDRESS) - 1;
-  Walker = BluetoothStr;
-  while (!IS_NULL(*Walker) && Index >= 0) {
-    TempBufferSize = 2 * sizeof(CHAR16) + StrSize(L"0x");
-    TempNumBuffer = AllocateZeroPool (TempBufferSize);
-    if (TempNumBuffer == NULL) {
-      break;
-    }
-    StrCpyS (TempNumBuffer, TempBufferSize / sizeof (CHAR16), L"0x");
-    StrnCatS (TempNumBuffer, TempBufferSize / sizeof (CHAR16), Walker, 2);
-    BluetoothDp->BD_ADDR.Address[Index] = (UINT8)Strtoi (TempNumBuffer);
-    FreePool (TempNumBuffer);
-    Walker += 2;
-    Index--;
-  }
-  
+  BluetoothDp  = (BLUETOOTH_DEVICE_PATH *) CreateDeviceNode (
+                                             MESSAGING_DEVICE_PATH,
+                                             MSG_BLUETOOTH_DP,
+                                             (UINT16) sizeof (BLUETOOTH_DEVICE_PATH)
+                                             );
+  StrHexToBytes (
+    BluetoothStr,
+    sizeof (BLUETOOTH_ADDRESS) * 2,
+    BluetoothDp->BD_ADDR.Address,
+    sizeof (BLUETOOTH_ADDRESS)
+    );
   return (EFI_DEVICE_PATH_PROTOCOL *) BluetoothDp;
 }
 
@@ -2693,6 +2714,131 @@ DevPathFromTextWiFi (
   }
 
   return (EFI_DEVICE_PATH_PROTOCOL *) WiFiDp;
+}
+
+/**
+  Converts a text device path node to Bluetooth LE device path structure.
+
+  @param TextDeviceNode  The input Text device path node.
+
+  @return A pointer to the newly-created Bluetooth LE device path structure.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+DevPathFromTextBluetoothLE (
+  IN CHAR16 *TextDeviceNode
+  )
+{
+  CHAR16                     *BluetoothLeAddrStr;
+  CHAR16                     *BluetoothLeAddrTypeStr;
+  BLUETOOTH_LE_DEVICE_PATH   *BluetoothLeDp;
+
+  BluetoothLeAddrStr     = GetNextParamStr (&TextDeviceNode);
+  BluetoothLeAddrTypeStr = GetNextParamStr (&TextDeviceNode);
+  BluetoothLeDp = (BLUETOOTH_LE_DEVICE_PATH *) CreateDeviceNode (
+                                                 MESSAGING_DEVICE_PATH,
+                                                 MSG_BLUETOOTH_LE_DP,
+                                                 (UINT16) sizeof (BLUETOOTH_LE_DEVICE_PATH)
+                                                 );
+
+  BluetoothLeDp->Address.Type = (UINT8) Strtoi (BluetoothLeAddrTypeStr);
+  StrHexToBytes (
+    BluetoothLeAddrStr, sizeof (BluetoothLeDp->Address.Address) * 2,
+    BluetoothLeDp->Address.Address, sizeof (BluetoothLeDp->Address.Address)
+    );
+  return (EFI_DEVICE_PATH_PROTOCOL *) BluetoothLeDp;
+}
+
+/**
+  Converts a text device path node to DNS device path structure.
+
+  @param TextDeviceNode  The input Text device path node.
+
+  @return A pointer to the newly-created DNS device path structure.
+
+**/
+EFI_DEVICE_PATH_PROTOCOL *
+DevPathFromTextDns (
+  IN CHAR16 *TextDeviceNode
+  )
+{
+  CHAR16            *DeviceNodeStr;
+  CHAR16            *DeviceNodeStrPtr;
+  UINT32            DnsServerIpCount;
+  UINT16            DnsDeviceNodeLength;
+  DNS_DEVICE_PATH   *DnsDeviceNode;
+  UINT32            DnsServerIpIndex;
+  CHAR16            *DnsServerIp;
+
+
+  //
+  // Count the DNS server address number.
+  //
+  DeviceNodeStr = UefiDevicePathLibStrDuplicate (TextDeviceNode);
+  if (DeviceNodeStr == NULL) {
+    return NULL;
+  }
+
+  DeviceNodeStrPtr = DeviceNodeStr;
+
+  DnsServerIpCount = 0;
+  while (DeviceNodeStrPtr != NULL && *DeviceNodeStrPtr != L'\0') {
+    GetNextParamStr (&DeviceNodeStrPtr);
+    DnsServerIpCount ++;
+  }
+
+  FreePool (DeviceNodeStr);
+  DeviceNodeStr = NULL;
+
+  //
+  // One or more instances of the DNS server address in EFI_IP_ADDRESS,
+  // otherwise, NULL will be returned.
+  //
+  if (DnsServerIpCount == 0) {
+    return NULL;
+  }
+
+  //
+  // Create the DNS DeviceNode.
+  //
+  DnsDeviceNodeLength = (UINT16) (sizeof (EFI_DEVICE_PATH_PROTOCOL) + sizeof (UINT8) + DnsServerIpCount * sizeof (EFI_IP_ADDRESS));
+  DnsDeviceNode       = (DNS_DEVICE_PATH *) CreateDeviceNode (
+                                              MESSAGING_DEVICE_PATH,
+                                              MSG_DNS_DP,
+                                              DnsDeviceNodeLength
+                                              );
+  if (DnsDeviceNode == NULL) {
+    return NULL;
+  }
+
+  //
+  // Confirm the DNS server address is IPv4 or IPv6 type.
+  //
+  DeviceNodeStrPtr = TextDeviceNode;
+  while (!IS_NULL (*DeviceNodeStrPtr)) {
+    if (*DeviceNodeStrPtr == L'.') {
+      DnsDeviceNode->IsIPv6 = 0x00;
+      break;
+    }
+
+    if (*DeviceNodeStrPtr == L':') {
+      DnsDeviceNode->IsIPv6 = 0x01;
+      break;
+    }
+
+    DeviceNodeStrPtr++;
+  }
+
+  for (DnsServerIpIndex = 0; DnsServerIpIndex < DnsServerIpCount; DnsServerIpIndex++) {
+    DnsServerIp = GetNextParamStr (&TextDeviceNode);
+    if (DnsDeviceNode->IsIPv6 == 0x00) {
+      StrToIpv4Address (DnsServerIp,  NULL, &(DnsDeviceNode->DnsServerIp[DnsServerIpIndex].v4), NULL);
+    } else {
+      StrToIpv6Address (DnsServerIp, NULL, &(DnsDeviceNode->DnsServerIp[DnsServerIpIndex].v6), NULL);
+    }
+  }
+
+  return (EFI_DEVICE_PATH_PROTOCOL *) DnsDeviceNode;
 }
 
 /**
@@ -3293,7 +3439,15 @@ DevPathFromTextSata (
                                 (UINT16) sizeof (SATA_DEVICE_PATH)
                                 );
   Sata->HBAPortNumber            = (UINT16) Strtoi (Param1);
-  Sata->PortMultiplierPortNumber = (UINT16) Strtoi (Param2);
+
+  //
+  // According to UEFI spec, if PMPN is not provided, the default is 0xFFFF
+  //
+  if (*Param2 == L'\0' ) {
+    Sata->PortMultiplierPortNumber = 0xFFFF;
+  } else {
+    Sata->PortMultiplierPortNumber = (UINT16) Strtoi (Param2);
+  }
   Sata->Lun                      = (UINT16) Strtoi (Param3);
 
   return (EFI_DEVICE_PATH_PROTOCOL *) Sata;
@@ -3368,9 +3522,11 @@ GLOBAL_REMOVE_IF_UNREFERENCED DEVICE_PATH_FROM_TEXT_TABLE mUefiDevicePathLibDevP
   {L"Unit",                    DevPathFromTextUnit                    },
   {L"iSCSI",                   DevPathFromTextiSCSI                   },
   {L"Vlan",                    DevPathFromTextVlan                    },
+  {L"Dns",                     DevPathFromTextDns                     },
   {L"Uri",                     DevPathFromTextUri                     },
   {L"Bluetooth",               DevPathFromTextBluetooth               },
   {L"Wi-Fi",                   DevPathFromTextWiFi                    },
+  {L"BluetoothLE",             DevPathFromTextBluetoothLE             },
   {L"MediaPath",               DevPathFromTextMediaPath               },
   {L"HD",                      DevPathFromTextHD                      },
   {L"CDROM",                   DevPathFromTextCDROM                   },
@@ -3496,6 +3652,7 @@ UefiDevicePathLibConvertTextToDevicePath (
       DeviceNode = (EFI_DEVICE_PATH_PROTOCOL *) AllocatePool (END_DEVICE_PATH_LENGTH);
       ASSERT (DeviceNode != NULL);
       SetDevicePathEndNode (DeviceNode);
+      DeviceNode->SubType = END_INSTANCE_DEVICE_PATH_SUBTYPE;
 
       NewDevicePath = AppendDevicePathNode (DevicePath, DeviceNode);
       FreePool (DevicePath);

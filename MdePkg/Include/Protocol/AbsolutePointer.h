@@ -1,15 +1,12 @@
 /** @file
   The file provides services that allow information about an
   absolute pointer device to be retrieved.
-  
-  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
+
+  @par Revision Reference:
+  This Protocol was introduced in UEFI Specification 2.3.
 
 **/
 
@@ -38,25 +35,25 @@ typedef struct {
   UINT64 AbsoluteMinX; ///< The Absolute Minimum of the device on the x-axis
   UINT64 AbsoluteMinY; ///< The Absolute Minimum of the device on the y axis.
   UINT64 AbsoluteMinZ; ///< The Absolute Minimum of the device on the z-axis
-  UINT64 AbsoluteMaxX; ///< The Absolute Maximum of the device on the x-axis. If 0, and the 
+  UINT64 AbsoluteMaxX; ///< The Absolute Maximum of the device on the x-axis. If 0, and the
                        ///< AbsoluteMinX is 0, then the pointer device does not support a xaxis
-  UINT64 AbsoluteMaxY; ///< The Absolute Maximum of the device on the y -axis. If 0, and the 
+  UINT64 AbsoluteMaxY; ///< The Absolute Maximum of the device on the y -axis. If 0, and the
                        ///< AbsoluteMinX is 0, then the pointer device does not support a yaxis.
-  UINT64 AbsoluteMaxZ; ///< The Absolute Maximum of the device on the z-axis. If 0 , and the 
+  UINT64 AbsoluteMaxZ; ///< The Absolute Maximum of the device on the z-axis. If 0 , and the
                        ///< AbsoluteMinX is 0, then the pointer device does not support a zaxis
-  UINT32 Attributes;   ///< The following bits are set as needed (or'd together) to indicate the 
-                       ///< capabilities of the device supported. The remaining bits are undefined 
+  UINT32 Attributes;   ///< The following bits are set as needed (or'd together) to indicate the
+                       ///< capabilities of the device supported. The remaining bits are undefined
                        ///< and should be 0
 } EFI_ABSOLUTE_POINTER_MODE;
 
 ///
-/// If set, indicates this device supports an alternate button input. 
-/// 
+/// If set, indicates this device supports an alternate button input.
+///
 #define EFI_ABSP_SupportsAltActive    0x00000001
 
 ///
 /// If set, indicates this device returns pressure data in parameter CurrentZ.
-/// 
+///
 #define EFI_ABSP_SupportsPressureAsZ  0x00000002
 
 
@@ -80,7 +77,7 @@ typedef struct {
                               device during reset.
 
   @retval EFI_SUCCESS       The device was reset.
-  
+
   @retval EFI_DEVICE_ERROR  The device is not functioning
                             correctly and could not be reset.
 
@@ -95,11 +92,11 @@ EFI_STATUS
 ///
 /// This bit is set if the touch sensor is active.
 ///
-#define EFI_ABSP_TouchActive  0x00000001 
+#define EFI_ABSP_TouchActive  0x00000001
 
 ///
 /// This bit is set if the alt sensor, such as pen-side button, is active
-/// 
+///
 #define EFI_ABS_AltActive     0x00000002
 
 
@@ -108,29 +105,29 @@ EFI_STATUS
 **/
 typedef struct {
   ///
-  /// The unsigned position of the activation on the x axis. If the AboluteMinX 
-  /// and the AboluteMaxX fields of the EFI_ABSOLUTE_POINTER_MODE structure are 
+  /// The unsigned position of the activation on the x axis. If the AboluteMinX
+  /// and the AboluteMaxX fields of the EFI_ABSOLUTE_POINTER_MODE structure are
   /// both 0, then this pointer device does not support an x-axis, and this field
   /// must be ignored.
   ///
   UINT64 CurrentX;
-  
+
   ///
-  /// The unsigned position of the activation on the y axis. If the AboluteMinY 
-  /// and the AboluteMaxY fields of the EFI_ABSOLUTE_POINTER_MODE structure are 
+  /// The unsigned position of the activation on the y axis. If the AboluteMinY
+  /// and the AboluteMaxY fields of the EFI_ABSOLUTE_POINTER_MODE structure are
   /// both 0, then this pointer device does not support an y-axis, and this field
-  /// must be ignored.  
+  /// must be ignored.
   ///
   UINT64 CurrentY;
-  
+
   ///
-  /// The unsigned position of the activation on the z axis, or the pressure 
-  /// measurement. If the AboluteMinZ and the AboluteMaxZ fields of the 
-  /// EFI_ABSOLUTE_POINTER_MODE structure are both 0, then this pointer device 
-  /// does not support an z-axis, and this field must be ignored.  
+  /// The unsigned position of the activation on the z axis, or the pressure
+  /// measurement. If the AboluteMinZ and the AboluteMaxZ fields of the
+  /// EFI_ABSOLUTE_POINTER_MODE structure are both 0, then this pointer device
+  /// does not support an z-axis, and this field must be ignored.
   ///
   UINT64 CurrentZ;
-  
+
   ///
   /// Bits are set to 1 in this structure item to indicate that device buttons are
   /// active.
@@ -172,7 +169,7 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_ABSOLUTE_POINTER_GET_STATE)(
   IN      EFI_ABSOLUTE_POINTER_PROTOCOL  *This,
-  IN OUT  EFI_ABSOLUTE_POINTER_STATE     *State
+  OUT  EFI_ABSOLUTE_POINTER_STATE        *State
 );
 
 
@@ -188,7 +185,7 @@ struct _EFI_ABSOLUTE_POINTER_PROTOCOL {
   EFI_ABSOLUTE_POINTER_RESET      Reset;
   EFI_ABSOLUTE_POINTER_GET_STATE  GetState;
   ///
-  /// Event to use with WaitForEvent() to wait for input from the pointer device.  
+  /// Event to use with WaitForEvent() to wait for input from the pointer device.
   ///
   EFI_EVENT                       WaitForInput;
   ///

@@ -4,16 +4,10 @@
   These protocols are used to collect configuration information for the EFI IPv4 Protocol
   drivers and to provide DHCPv4 server and PXE boot server discovery services.
 
-Copyright (c) 2006 - 2010, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  @par Revision Reference:          
+  @par Revision Reference:
   This Protocol was introduced in UEFI Specification 2.0.
 
 **/
@@ -82,7 +76,7 @@ typedef struct {
   ///
   UINT32              Size;
   ///
-  /// Length of the EFI_DHCP4_PACKET from the first byte of the Header field 
+  /// Length of the EFI_DHCP4_PACKET from the first byte of the Header field
   /// to the last byte of the Option[] field.
   ///
   UINT32              Length;
@@ -183,24 +177,24 @@ typedef enum{
   ///
   Dhcp4BoundCompleted = 0x08,
   ///
-  /// It is time to enter the Dhcp4Renewing state and to contact the server 
+  /// It is time to enter the Dhcp4Renewing state and to contact the server
   /// that originally issued the network address. No packet is associated with this event.
   ///
   Dhcp4EnterRenewing  = 0x09,
   ///
-  /// It is time to enter the Dhcp4Rebinding state and to contact any server. 
+  /// It is time to enter the Dhcp4Rebinding state and to contact any server.
   /// No packet is associated with this event.
   ///
   Dhcp4EnterRebinding = 0x0a,
   ///
-  /// The configured IP address was lost either because the lease has expired, 
-  /// the user released the configuration, or a DHCPNAK packet was received in 
+  /// The configured IP address was lost either because the lease has expired,
+  /// the user released the configuration, or a DHCPNAK packet was received in
   /// the Dhcp4Renewing or Dhcp4Rebinding state. No packet is associated with this event.
   ///
   Dhcp4AddressLost    = 0x0b,
   ///
-  /// The DHCP process failed because a DHCPNAK packet was received or the user 
-  /// aborted the DHCP process at a time when the configuration was not available yet. 
+  /// The DHCP process failed because a DHCPNAK packet was received or the user
+  /// aborted the DHCP process at a time when the configuration was not available yet.
   /// No packet is associated with this event.
   ///
   Dhcp4Fail           = 0x0c
@@ -208,7 +202,7 @@ typedef enum{
 
 /**
   Callback routine.
-  
+
   EFI_DHCP4_CALLBACK is provided by the consumer of the EFI DHCPv4 Protocol driver
   to intercept events that occurred in the configuration process. This structure
   provides advanced control of each state transition of the DHCP process. The
@@ -257,8 +251,8 @@ typedef struct {
   ///
   UINT32                      DiscoverTryCount;
   ///
-  /// The maximum amount of time (in seconds) to wait for returned packets in each 
-  /// of the retries. Timeout values of zero will default to a timeout value 
+  /// The maximum amount of time (in seconds) to wait for returned packets in each
+  /// of the retries. Timeout values of zero will default to a timeout value
   /// of one second. Set to NULL to use default timeout values.
   ///
   UINT32                      *DiscoverTimeout;
@@ -269,21 +263,21 @@ typedef struct {
   ///
   UINT32                      RequestTryCount;
   ///
-  /// The maximum amount of time (in seconds) to wait for return packets in each of the retries. 
-  /// Timeout values of zero will default to a timeout value of one second. 
+  /// The maximum amount of time (in seconds) to wait for return packets in each of the retries.
+  /// Timeout values of zero will default to a timeout value of one second.
   /// Set to NULL to use default timeout values.
   ///
   UINT32                      *RequestTimeout;
   ///
   /// For a DHCPDISCOVER, setting this parameter to the previously allocated IP
-  /// address will cause the EFI DHCPv4 Protocol driver to enter the Dhcp4InitReboot state. 
+  /// address will cause the EFI DHCPv4 Protocol driver to enter the Dhcp4InitReboot state.
   /// And set this field to 0.0.0.0 to enter the Dhcp4Init state.
   /// For a DHCPINFORM this parameter should be set to the client network address
   /// which was assigned to the client during a DHCPDISCOVER.
   ///
   EFI_IPv4_ADDRESS            ClientAddress;
   ///
-  /// The callback function to intercept various events that occurred in 
+  /// The callback function to intercept various events that occurred in
   /// the DHCP configuration process. Set to NULL to ignore all those events.
   ///
   EFI_DHCP4_CALLBACK          Dhcp4Callback;
@@ -308,7 +302,7 @@ typedef struct {
 
 typedef struct {
   ///
-  /// The EFI DHCPv4 Protocol driver operating state. 
+  /// The EFI DHCPv4 Protocol driver operating state.
   ///
   EFI_DHCP4_STATE             State;
   ///
@@ -329,7 +323,7 @@ typedef struct {
   ///
   EFI_IPv4_ADDRESS            ServerAddress;
   ///
-  /// The router IP address that was acquired from the DHCP server. 
+  /// The router IP address that was acquired from the DHCP server.
   /// May be zero if the server does not offer this address.
   ///
   EFI_IPv4_ADDRESS            RouterAddress;
@@ -338,8 +332,8 @@ typedef struct {
   ///
   EFI_IPv4_ADDRESS            SubnetMask;
   ///
-  /// The lease time (in 1-second units) of the configured IP address. 
-  /// The value 0xFFFFFFFF means that the lease time is infinite. 
+  /// The lease time (in 1-second units) of the configured IP address.
+  /// The value 0xFFFFFFFF means that the lease time is infinite.
   /// A default lease of 7 days is used if the DHCP server does not provide a value.
   ///
   UINT32                      LeaseTime;
@@ -356,12 +350,12 @@ typedef struct {
   ///
   EFI_IPv4_ADDRESS            ListenAddress;
   ///
-  /// The subnet mask of above listening unicast/broadcast IP address. 
+  /// The subnet mask of above listening unicast/broadcast IP address.
   /// Ignored if ListenAddress is a multicast address.
   ///
   EFI_IPv4_ADDRESS            SubnetMask;
   ///
-  /// Alternate station source (or listening) port number. 
+  /// Alternate station source (or listening) port number.
   /// If zero, then the default station port number (68) will be used.
   ///
   UINT16                      ListenPort;
@@ -374,7 +368,7 @@ typedef struct {
   ///
   EFI_STATUS              Status;
   ///
-  /// If not NULL, the event that will be signaled when the collection process 
+  /// If not NULL, the event that will be signaled when the collection process
   /// completes. If NULL, this function will busy-wait until the collection process competes.
   ///
   EFI_EVENT               CompletionEvent;
@@ -395,7 +389,7 @@ typedef struct {
   ///
   UINT32                  ListenPointCount;
   ///
-  /// An array of station address and port number pairs that are used as receiving filters. 
+  /// An array of station address and port number pairs that are used as receiving filters.
   /// The first entry is also used as the source address and source port of the outgoing packet.
   ///
   EFI_DHCP4_LISTEN_POINT  *ListenPoints;
@@ -420,7 +414,7 @@ typedef struct {
 
 /**
   Returns the current operating mode and cached data packet for the EFI DHCPv4 Protocol driver.
-  
+
   The GetModeData() function returns the current operating mode and cached data
   packet for the EFI DHCPv4 Protocol driver.
 
@@ -510,7 +504,7 @@ EFI_STATUS
   time when each event occurs in this process, the callback function that was set
   by EFI_DHCP4_PROTOCOL.Configure() will be called and the user can take this
   opportunity to control the process.
-  
+
   @param  This            The pointer to the EFI_DHCP4_PROTOCOL instance.
   @param  CompletionEvent If not NULL, it indicates the event that will be signaled when the
                           EFI DHCPv4 Protocol driver is transferred into the
@@ -544,7 +538,7 @@ EFI_STATUS
 
 /**
   Extends the lease time by sending a request packet.
-  
+
   The RenewRebind() function is used to manually extend the lease time when the
   EFI DHCPv4 Protocol driver is in the Dhcp4Bound state, and the lease time has
   not expired yet. This function will send a request packet to the previously
@@ -617,7 +611,7 @@ EFI_STATUS
 
 /**
   Stops the current address configuration.
-  
+
   The Stop() function is used to stop the DHCP configuration process. After this
   function is called successfully, the EFI DHCPv4 Protocol driver is transferred
   into the Dhcp4Stopped state. EFI_DHCP4_PROTOCOL.Configure() needs to be called
@@ -686,7 +680,7 @@ EFI_STATUS
 
 /**
   Transmits a DHCP formatted packet and optionally waits for responses.
-  
+
   The TransmitReceive() function is used to transmit a DHCP packet and optionally
   wait for the response from servers. This function does not change the state of
   the EFI DHCPv4 Protocol driver. It can be used at any time because of this.
@@ -719,7 +713,7 @@ EFI_STATUS
 
 /**
   Parses the packed DHCP option data.
-  
+
   The Parse() function is used to retrieve the option list from a DHCP packet.
   If *OptionCount isn't zero, and there is enough space for all the DHCP options
   in the Packet, each element of PacketOptionList is set to point to somewhere in

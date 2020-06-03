@@ -1,24 +1,18 @@
-//------------------------------------------------------------------------------ 
+//------------------------------------------------------------------------------
 //
-// Copyright (c) 2006 - 2009, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
 // Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
 // Portions copyright (c) 2011, ARM Limited. All rights reserved.<BR>
-// This program and the accompanying materials
-// are licensed and made available under the terms and conditions of the BSD License
-// which accompanies this distribution.  The full text of the license may be found at
-// http://opensource.org/licenses/bsd-license.php.
-//
-// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+// SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 //------------------------------------------------------------------------------
-  
+
 .text
 .align 5
 
 GCC_ASM_EXPORT(InternalSwitchStackAsm)
-GCC_ASM_EXPORT(CpuPause)            
-  
+GCC_ASM_EXPORT(CpuPause)
+
 /**
 //
 //  This allows the caller to switch the stack and goes to the new entry point

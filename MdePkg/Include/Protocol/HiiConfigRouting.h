@@ -4,15 +4,13 @@
   It then serves as the single point to receive configuration
   information from configuration applications, routing the
   results to the appropriate drivers.
-  
-Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
+
+  @par Revision Reference:
+  This Protocol was introduced in UEFI Specification 2.1.
+
 
 **/
 
@@ -26,7 +24,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 typedef struct _EFI_HII_CONFIG_ROUTING_PROTOCOL EFI_HII_CONFIG_ROUTING_PROTOCOL;
 
 /**
-   
+
   This function allows the caller to request the current
   configuration for one or more named elements from one or more
   drivers. The resulting string is in the standard HII
@@ -84,8 +82,8 @@ typedef struct _EFI_HII_CONFIG_ROUTING_PROTOCOL EFI_HII_CONFIG_ROUTING_PROTOCOL;
                                   for the Request parameter
                                   would result in this type of
                                   error. The Progress parameter
-                                  is set to NULL. 
-  
+                                  is set to NULL.
+
   @retval EFI_NOT_FOUND           Routing data doesn't match any
                                   known driver. Progress set to
                                   the "G" in "GUID" of the
@@ -100,8 +98,8 @@ typedef struct _EFI_HII_CONFIG_ROUTING_PROTOCOL EFI_HII_CONFIG_ROUTING_PROTOCOL;
                                   error, or the beginning of the
                                   string.
   @retval EFI_INVALID_PARAMETER   The ExtractConfig function of the
-                                  underlying HII Configuration 
-                                  Access Protocol returned 
+                                  underlying HII Configuration
+                                  Access Protocol returned
                                   EFI_INVALID_PARAMETER. Progress
                                   set to most recent & before the
                                   error or the beginning of the
@@ -118,32 +116,32 @@ EFI_STATUS
 );
 
 /**
-  This function allows the caller to request the current configuration 
+  This function allows the caller to request the current configuration
   for the entirety of the current HII database and returns the data in
   a null-terminated string.
 
   This function allows the caller to request the current
   configuration for all of the current HII database. The results
   include both the current and alternate configurations as
-  described in ExtractConfig() above. 
-  
+  described in ExtractConfig() above.
+
   @param This     Points to the EFI_HII_CONFIG_ROUTING_PROTOCOL instance.
-  
+
   @param  Results Null-terminated Unicode string in
                   <MultiConfigAltResp> format which has all values
-                  filled in for the entirety of the current HII 
-                  database. String to be allocated by the  called 
+                  filled in for the entirety of the current HII
+                  database. String to be allocated by the  called
                   function. De-allocation is up to the caller.
-  
+
   @retval EFI_SUCCESS             The Results string is filled with the
                                   values corresponding to all requested
                                   names.
-  
+
   @retval EFI_OUT_OF_RESOURCES    Not enough memory to store the
                                   parts of the results that must be
                                   stored awaiting possible future
                                   protocols.
-  
+
   @retval EFI_INVALID_PARAMETERS  For example, passing in a NULL
                                   for the Results parameter
                                   would result in this type of
@@ -158,7 +156,7 @@ EFI_STATUS
 );
 
 /**
-   
+
   This function routes the results of processing forms to the
   appropriate targets. It scans for <ConfigHdr> within the string
   and passes the header and subsequent body to the driver whose
@@ -182,16 +180,16 @@ EFI_STATUS
 
   @retval EFI_SUCCESS             The results have been distributed or are
                                   awaiting distribution.
-  
+
   @retval EFI_OUT_OF_RESOURCES    Not enough memory to store the
                                   parts of the results that must be
                                   stored awaiting possible future
                                   protocols.
-  
+
   @retval EFI_INVALID_PARAMETERS  Passing in a NULL for the
                                   Results parameter would result
                                   in this type of error.
-  
+
   @retval EFI_NOT_FOUND           The target for the specified routing data
                                   was not found.
 
@@ -206,7 +204,7 @@ EFI_STATUS
 
 
 /**
-   
+
   This function extracts the current configuration from a block of
   bytes. To do so, it requires that the ConfigRequest string
   consists of a list of <BlockName> formatted names. It uses the
@@ -228,7 +226,7 @@ EFI_STATUS
 
   @param Config     The filled-in configuration string. String
                     allocated by the function. Returned only if
-                    call is successful. The null-terminated string 
+                    call is successful. The null-terminated string
                     will be <ConfigResp> format.
 
   @param Progress   A pointer to a string filled in with the
@@ -256,7 +254,7 @@ EFI_STATUS
   @retval EFI_NOT_FOUND           The target for the specified routing data
                                   was not found. Progress points to the
                                   'G' in "GUID" of the errant routing
-                                  data. 
+                                  data.
   @retval EFI_DEVICE_ERROR        The block is not large enough. Progress undefined.
 
   @retval EFI_INVALID_PARAMETER   Encountered non <BlockName>
@@ -310,7 +308,7 @@ EFI_STATUS
 
   @param BlockSize      The length of the Block in units of UINT8.
                         On input, this is the size of the Block. On
-                        output, if successful, contains the largest 
+                        output, if successful, contains the largest
                         index of the modified byte in the Block, or
                         the required buffer size if the Block is not
                         large enough.
@@ -339,7 +337,7 @@ EFI_STATUS
   @retval EFI_NOT_FOUND          Target for the specified routing data was not found.
                                  Progress points to the "G" in "GUID" of the errant
                                  routing data.
-  @retval EFI_BUFFER_TOO_SMALL   Block not large enough. Progress undefined. 
+  @retval EFI_BUFFER_TOO_SMALL   Block not large enough. Progress undefined.
                                  BlockSize is updated with the required buffer size.
 
 **/
@@ -354,48 +352,48 @@ EFI_STATUS
 );
 
 /**
-  This helper function is to be called by drivers to extract portions of 
+  This helper function is to be called by drivers to extract portions of
   a larger configuration string.
-          
+
   @param This              A pointer to the EFI_HII_CONFIG_ROUTING_PROTOCOL instance.
   @param ConfigResp        A null-terminated string in <ConfigAltResp> format.
-  @param Guid              A pointer to the GUID value to search for in the 
-                           routing portion of the ConfigResp string when retrieving 
-                           the requested data. If Guid is NULL, then all GUID 
+  @param Guid              A pointer to the GUID value to search for in the
+                           routing portion of the ConfigResp string when retrieving
+                           the requested data. If Guid is NULL, then all GUID
                            values will be searched for.
-  @param Name              A pointer to the NAME value to search for in the 
-                           routing portion of the ConfigResp string when retrieving 
-                           the requested data. If Name is NULL, then all Name 
-                           values will be searched for.                         
-  @param DevicePath        A pointer to the PATH value to search for in the 
-                           routing portion of the ConfigResp string when retrieving 
-                           the requested data. If DevicePath is NULL, then all 
-                           DevicePath values will be searched for.             
-  @param AltCfgId          A pointer to the ALTCFG value to search for in the 
-                           routing portion of the ConfigResp string when retrieving 
-                           the requested data.  If this parameter is NULL, 
+  @param Name              A pointer to the NAME value to search for in the
+                           routing portion of the ConfigResp string when retrieving
+                           the requested data. If Name is NULL, then all Name
+                           values will be searched for.
+  @param DevicePath        A pointer to the PATH value to search for in the
+                           routing portion of the ConfigResp string when retrieving
+                           the requested data. If DevicePath is NULL, then all
+                           DevicePath values will be searched for.
+  @param AltCfgId          A pointer to the ALTCFG value to search for in the
+                           routing portion of the ConfigResp string when retrieving
+                           the requested data.  If this parameter is NULL,
                            then the current setting will be retrieved.
-  @param AltCfgResp        A pointer to a buffer which will be allocated by the 
-                           function which contains the retrieved string as requested.  
-                           This buffer is only allocated if the call was successful. 
+  @param AltCfgResp        A pointer to a buffer which will be allocated by the
+                           function which contains the retrieved string as requested.
+                           This buffer is only allocated if the call was successful.
                            The null-terminated string will be <ConfigResp> format.
-  
-  @retval EFI_SUCCESS             The request succeeded. The requested data was extracted 
+
+  @retval EFI_SUCCESS             The request succeeded. The requested data was extracted
                                   and placed in the newly allocated AltCfgResp buffer.
-  @retval EFI_OUT_OF_RESOURCES    Not enough memory to allocate AltCfgResp.    
+  @retval EFI_OUT_OF_RESOURCES    Not enough memory to allocate AltCfgResp.
   @retval EFI_INVALID_PARAMETER   Any parameter is invalid.
   @retval EFI_NOT_FOUND           The target for the specified routing data was not found.
 **/
 typedef
-EFI_STATUS 
+EFI_STATUS
 (EFIAPI * EFI_HII_GET_ALT_CFG)(
-  IN  CONST EFI_HII_CONFIG_ROUTING_PROTOCOL    *This, 
-  IN  CONST EFI_STRING                         ConfigResp, 
-  IN  CONST EFI_GUID                           *Guid, 
-  IN  CONST EFI_STRING                         Name, 
-  IN  CONST EFI_DEVICE_PATH_PROTOCOL           *DevicePath,  
+  IN  CONST EFI_HII_CONFIG_ROUTING_PROTOCOL    *This,
+  IN  CONST EFI_STRING                         ConfigResp,
+  IN  CONST EFI_GUID                           *Guid,
+  IN  CONST EFI_STRING                         Name,
+  IN  CONST EFI_DEVICE_PATH_PROTOCOL           *DevicePath,
   IN  CONST UINT16                             *AltCfgId,
-  OUT EFI_STRING                               *AltCfgResp 
+  OUT EFI_STRING                               *AltCfgResp
   );
 
 ///

@@ -1,18 +1,15 @@
 /** @file
 
-  The EFI HII results processing protocol invokes this type of protocol 
-  when it needs to forward results to a driver's configuration handler. 
-  This protocol is published by drivers providing and requesting 
+  The EFI HII results processing protocol invokes this type of protocol
+  when it needs to forward results to a driver's configuration handler.
+  This protocol is published by drivers providing and requesting
   configuration data from HII. It may only be invoked by HII.
-  
-Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
+
+  @par Revision Reference:
+  This Protocol was introduced in UEFI Specification 2.1.
 
 **/
 
@@ -43,7 +40,7 @@ typedef UINTN EFI_BROWSER_ACTION;
 #define EFI_BROWSER_ACTION_DEFAULT_FIRMWARE      0x4000
 
 /**
-   
+
   This function allows the caller to request the current
   configuration for one or more named elements. The resulting
   string is in <ConfigAltResp> format. Any and all alternative
@@ -64,12 +61,12 @@ typedef UINTN EFI_BROWSER_ACTION;
                     includes the routing information as well as
                     the configurable name / value pairs. It is
                     invalid for this string to be in
-                    <MultiConfigRequest> format. 
-                    If a NULL is passed in for the Request field, 
-                    all of the settings being abstracted by this function 
-                    will be returned in the Results field.  In addition, 
-                    if a ConfigHdr is passed in with no request elements, 
-                    all of the settings being abstracted for that particular 
+                    <MultiConfigRequest> format.
+                    If a NULL is passed in for the Request field,
+                    all of the settings being abstracted by this function
+                    will be returned in the Results field.  In addition,
+                    if a ConfigHdr is passed in with no request elements,
+                    all of the settings being abstracted for that particular
                     ConfigHdr reference will be returned in the Results Field.
 
   @param Progress   On return, points to a character in the
@@ -95,7 +92,7 @@ typedef UINTN EFI_BROWSER_ACTION;
                                   stored awaiting possible future
                                   protocols.
 
-  @retval EFI_NOT_FOUND           A configuration element matching 
+  @retval EFI_NOT_FOUND           A configuration element matching
                                   the routing data is not found.
                                   Progress set to the first character
                                   in the routing header.
@@ -121,7 +118,7 @@ EFI_STATUS
 
 
 /**
-   
+
   This function applies changes in a driver's configuration.
   Input is a Configuration, which has the routing data for this
   driver followed by name / value configuration pairs. The driver
@@ -134,8 +131,8 @@ EFI_STATUS
   @param This           Points to the EFI_HII_CONFIG_ACCESS_PROTOCOL.
 
   @param Configuration  A null-terminated Unicode string in
-                        <ConfigString> format. 
-  
+                        <ConfigString> format.
+
   @param Progress       A pointer to a string filled in with the
                         offset of the most recent '&' before the
                         first failing name / value pair (or the
@@ -146,16 +143,16 @@ EFI_STATUS
 
   @retval EFI_SUCCESS             The results have been distributed or are
                                   awaiting distribution.
-  
+
   @retval EFI_OUT_OF_RESOURCES    Not enough memory to store the
                                   parts of the results that must be
                                   stored awaiting possible future
                                   protocols.
-  
+
   @retval EFI_INVALID_PARAMETERS  Passing in a NULL for the
                                   Results parameter would result
                                   in this type of error.
-  
+
   @retval EFI_NOT_FOUND           Target for the specified routing data
                                   was not found
 
@@ -169,7 +166,7 @@ EFI_STATUS
 );
 
 /**
-   
+
   This function is called to provide results data to the driver.
   This data consists of a unique key that is used to identify
   which data is either being passed back or being asked for.
@@ -178,7 +175,7 @@ EFI_STATUS
   @param  Action                 Specifies the type of action taken by the browser.
   @param  QuestionId             A unique value which is sent to the original
                                  exporting driver so that it can identify the type
-                                 of data to expect. The format of the data tends to 
+                                 of data to expect. The format of the data tends to
                                  vary based on the opcode that generated the callback.
   @param  Type                   The type of value for the question.
   @param  Value                  A pointer to the data being sent to the original
@@ -204,7 +201,7 @@ EFI_STATUS
   OUT    EFI_BROWSER_ACTION_REQUEST             *ActionRequest
   )
   ;
-  
+
 ///
 /// This protocol provides a callable interface between the HII and
 /// drivers. Only drivers which provide IFR data to HII are required

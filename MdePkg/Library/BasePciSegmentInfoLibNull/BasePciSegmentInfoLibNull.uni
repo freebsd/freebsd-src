@@ -1,0 +1,15 @@
+// /** @file
+// Instance of PCI SegmentInfo Library.
+//
+// Default PCI Segment Information Library that shouldn't be used by real platform.
+//
+// Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Default instance of PCI SegmentInfo Library."
+
+#string STR_MODULE_DESCRIPTION          #language en-US "Default PCI Segment Information Library that shouldn't be used by real platform."

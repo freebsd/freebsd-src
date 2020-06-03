@@ -1,18 +1,12 @@
 /** @file
   This file declares Pei Security2 PPI.
 
-  This PPI is installed by some platform PEIM that abstracts the security 
-  policy to the PEI Foundation, namely the case of a PEIM's authentication 
+  This PPI is installed by some platform PEIM that abstracts the security
+  policy to the PEI Foundation, namely the case of a PEIM's authentication
   state being returned during the PEI section extraction process.
 
-  Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -29,7 +23,7 @@
 typedef struct _EFI_PEI_SECURITY2_PPI  EFI_PEI_SECURITY2_PPI;
 
 /**
-  Allows the platform builder to implement a security policy 
+  Allows the platform builder to implement a security policy
   in response to varying file authentication states.
 
   This service is published by some platform PEIM. The purpose of
@@ -48,13 +42,13 @@ typedef struct _EFI_PEI_SECURITY2_PPI  EFI_PEI_SECURITY2_PPI;
                                  particular EFI_PEI_SECURITY2_PPI instance.
   @param AuthenticationStatus    Authentication status of the file.
                                  xx00 Image was not signed.
-                                 xxx1 Platform security policy override. 
+                                 xxx1 Platform security policy override.
                                       Assumes same meaning as 0010 (the image was signed, the
                                       signature was tested, and the signature passed authentication test).
-                                 0010 Image was signed, the signature was tested, 
+                                 0010 Image was signed, the signature was tested,
                                       and the signature passed authentication test.
                                  0110 Image was signed and the signature was not tested.
-                                 1010 Image was signed, the signature was tested, 
+                                 1010 Image was signed, the signature was tested,
                                       and the signature failed the authentication test.
   @param FvHandle                Handle of the volume in which the file
                                  resides. This allows different policies

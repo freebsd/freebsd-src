@@ -5,7 +5,7 @@
 #   1) PCD_PROTOCOL
 #      It is EDKII implementation which support Dynamic/DynamicEx Pcds.
 #   2) EFI_PCD_PROTOCOL
-#      It is defined by PI specification 1.2, Vol 3 which only support dynamicEx 
+#      It is defined by PI specification 1.2, Vol 3 which only support dynamicEx
 #      type Pcd.
 #
 # For dynamicEx type PCD, it is compatible between PCD_PROTOCOL and EFI_PCD_PROTOCOL.
@@ -13,19 +13,14 @@
 # This library instance uses the PCD_PROTOCOL to handle dynamic PCD request and use
 # EFI_PCD_PROTOCOL to handle dynamicEx type PCD.
 #
-# Note: A driver of type DXE_RUNTIME_DRIVER and DXE_SMM_DRIVER can only use this DxePcdLib 
-#  in their initialization without any issues to access Dynamic and DynamicEx PCD. They can't 
+# Note: A driver of type DXE_RUNTIME_DRIVER and DXE_SMM_DRIVER can only use this DxePcdLib
+#  in their initialization without any issues to access Dynamic and DynamicEx PCD. They can't
 #  access Dynamic and DynamicEx PCD in the implementation of runtime services and SMI handlers.
-#  Because EFI_PCD_PROTOCOL is DXE protocol that is not aviable in OS runtime phase.  
+#  Because EFI_PCD_PROTOCOL is DXE protocol that is not available in OS runtime phase.
 #
-# Copyright (c) 2007 - 2014, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 #
-#  This program and the accompanying materials
-#  are licensed and made available under the terms and conditions of the BSD License
-#  which accompanies this distribution. The full text of the license may be found at
-#  http://opensource.org/licenses/bsd-license.php.
-#  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 #
 ##
@@ -37,10 +32,10 @@
   FILE_GUID                      = af97eb89-4cc6-45f8-a514-ca025b346480
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
-  LIBRARY_CLASS                  = PcdLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SAL_DRIVER DXE_SMM_DRIVER SMM_CORE UEFI_APPLICATION UEFI_DRIVER 
+  LIBRARY_CLASS                  = PcdLib|DXE_CORE DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER SMM_CORE UEFI_APPLICATION UEFI_DRIVER
 
 #
-#  VALID_ARCHITECTURES           = IA32 X64 IPF EBC
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
 #
 
 [Sources]

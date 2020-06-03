@@ -1,17 +1,11 @@
 /** @file
   ACPI Serial Port Console Redirection Table as defined by Microsoft in
   http://www.microsoft.com/whdc/system/platform/server/spcr.mspx
-    
-  Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2015 Hewlett Packard Enterprise Development LP<BR>
   Copyright (c) 2014 - 2016, ARM Limited. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef _SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_H_
@@ -95,6 +89,16 @@ typedef struct {
 /// ARM SBSA Generic UART
 ///
 #define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_ARM_SBSA_GENERIC_UART     0x0e
+
+///
+/// ARM DCC
+///
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_DCC                       0x0f
+
+///
+/// BCM2835 UART
+///
+#define EFI_ACPI_SERIAL_PORT_CONSOLE_REDIRECTION_TABLE_INTERFACE_TYPE_BCM2835_UART              0x10
 
 //
 // Interrupt Type

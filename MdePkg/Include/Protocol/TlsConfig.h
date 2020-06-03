@@ -3,13 +3,7 @@
   The EFI TLS Configuration Protocol provides a way to set and get TLS configuration.
 
   Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution. The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.5
@@ -34,7 +28,7 @@ typedef struct _EFI_TLS_CONFIGURATION_PROTOCOL EFI_TLS_CONFIGURATION_PROTOCOL;
 typedef enum {
   ///
   /// Local host configuration data: public certificate data.
-  /// This data should be DER-encoded binary X.509 certificate 
+  /// This data should be DER-encoded binary X.509 certificate
   /// or PEM-encoded X.509 certificate.
   ///
   EfiTlsConfigDataTypeHostPublicCert,
@@ -43,7 +37,7 @@ typedef enum {
   ///
   EfiTlsConfigDataTypeHostPrivateKey,
   ///
-  /// CA certificate to verify peer. This data should be PEM-encoded 
+  /// CA certificate to verify peer. This data should be PEM-encoded
   /// RSA or PKCS#8 private key.
   ///
   EfiTlsConfigDataTypeCACertificate,
@@ -130,3 +124,4 @@ struct _EFI_TLS_CONFIGURATION_PROTOCOL {
 extern EFI_GUID gEfiTlsConfigurationProtocolGuid;
 
 #endif  //__EFI_TLS_CONFIGURATION_PROTOCOL_H__
+

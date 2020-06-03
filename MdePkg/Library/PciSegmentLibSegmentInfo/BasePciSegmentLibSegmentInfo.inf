@@ -1,0 +1,41 @@
+## @file
+# Instance of Base PCI Segment Library that support multi-segment PCI configuration access.
+#
+# PCI Segment Library that consumes segment information provided by PciSegmentInfoLib to
+#  support multi-segment PCI configuration access through enhanced configuration access mechanism.
+#
+# Copyright (c) 2017 - 2018, Intel Corporation. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BasePciSegmentLibSegmentInfo
+  MODULE_UNI_FILE                = BasePciSegmentLibSegmentInfo.uni
+  FILE_GUID                      = 3427D883-E093-4CC9-BE85-6BD4058E96E2
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = PciSegmentLib
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
+#
+
+[Sources]
+  PciSegmentLibCommon.h
+  PciSegmentLibCommon.c
+  BasePciSegmentLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  IoLib
+  DebugLib
+  PciSegmentInfoLib

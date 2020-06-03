@@ -6,16 +6,10 @@
   defined in the PI Specification.
   A HOB is a Hand-Off Block, defined in the Framework architecture, that
   allows the PEI phase to pass information to the DXE phase. HOBs are position
-  independent and can be relocated easily to different memory memory locations.
+  independent and can be relocated easily to different memory locations.
 
-Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -190,7 +184,7 @@ BuildModuleHob (
   This function builds a HOB that describes a chunk of system memory.
   It can only be invoked during PEI phase;
   for DXE phase, it will ASSERT() since PEI HOB is read-only for DXE phase.
-  
+
   If there is no additional space for HOB creation, then ASSERT().
 
   @param  ResourceType        The type of resource described by this HOB.
@@ -340,6 +334,38 @@ BuildFv2Hob (
   IN          UINT64                      Length,
   IN CONST    EFI_GUID                    *FvName,
   IN CONST    EFI_GUID                    *FileName
+  );
+
+/**
+  Builds a EFI_HOB_TYPE_FV3 HOB.
+
+  This function builds a EFI_HOB_TYPE_FV3 HOB.
+  It can only be invoked during PEI phase;
+  for DXE phase, it will ASSERT() since PEI HOB is read-only for DXE phase.
+
+  If there is no additional space for HOB creation, then ASSERT().
+  If the FvImage buffer is not at its required alignment, then ASSERT().
+
+  @param BaseAddress            The base address of the Firmware Volume.
+  @param Length                 The size of the Firmware Volume in bytes.
+  @param AuthenticationStatus   The authentication status.
+  @param ExtractedFv            TRUE if the FV was extracted as a file within
+                                another firmware volume. FALSE otherwise.
+  @param FvName                 The name of the Firmware Volume.
+                                Valid only if IsExtractedFv is TRUE.
+  @param FileName               The name of the file.
+                                Valid only if IsExtractedFv is TRUE.
+
+**/
+VOID
+EFIAPI
+BuildFv3Hob (
+  IN          EFI_PHYSICAL_ADDRESS        BaseAddress,
+  IN          UINT64                      Length,
+  IN          UINT32                      AuthenticationStatus,
+  IN          BOOLEAN                     ExtractedFv,
+  IN CONST    EFI_GUID                    *FvName, OPTIONAL
+  IN CONST    EFI_GUID                    *FileName OPTIONAL
   );
 
 /**

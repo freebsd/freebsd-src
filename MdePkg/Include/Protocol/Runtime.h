@@ -1,23 +1,17 @@
 /** @file
   Runtime Architectural Protocol as defined in PI Specification VOLUME 2 DXE
 
-  Allows the runtime functionality of the DXE Foundation to be contained 
-  in a separate driver. It also provides hooks for the DXE Foundation to 
-  export information that is needed at runtime. As such, this protocol allows 
-  services to the DXE Foundation to manage runtime drivers and events. 
-  This protocol also implies that the runtime services required to transition 
-  to virtual mode, SetVirtualAddressMap() and ConvertPointer(), have been 
-  registered into the UEFI Runtime Table in the UEFI System Table. This protocol 
+  Allows the runtime functionality of the DXE Foundation to be contained
+  in a separate driver. It also provides hooks for the DXE Foundation to
+  export information that is needed at runtime. As such, this protocol allows
+  services to the DXE Foundation to manage runtime drivers and events.
+  This protocol also implies that the runtime services required to transition
+  to virtual mode, SetVirtualAddressMap() and ConvertPointer(), have been
+  registered into the UEFI Runtime Table in the UEFI System Table. This protocol
   must be produced by a runtime DXE driver and may only be consumed by the DXE Foundation.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -33,7 +27,7 @@
 typedef struct _EFI_RUNTIME_ARCH_PROTOCOL  EFI_RUNTIME_ARCH_PROTOCOL;
 
 ///
-/// LIST_ENTRY from BaseType 
+/// LIST_ENTRY from BaseType
 ///
 typedef LIST_ENTRY EFI_LIST_ENTRY;
 
@@ -44,7 +38,7 @@ typedef struct _EFI_RUNTIME_IMAGE_ENTRY  EFI_RUNTIME_IMAGE_ENTRY;
 ///
 struct _EFI_RUNTIME_IMAGE_ENTRY {
   ///
-  /// Start of image that has been loaded in memory. It is a pointer 
+  /// Start of image that has been loaded in memory. It is a pointer
   /// to either the DOS header or PE header of the image.
   ///
   VOID                    *ImageBase;
@@ -101,13 +95,13 @@ struct _EFI_RUNTIME_EVENT_ENTRY {
 };
 
 ///
-/// Allows the runtime functionality of the DXE Foundation to be contained in a 
-/// separate driver. It also provides hooks for the DXE Foundation to export 
-/// information that is needed at runtime. As such, this protocol allows the DXE 
-/// Foundation to manage runtime drivers and events. This protocol also implies 
-/// that the runtime services required to transition to virtual mode, 
-/// SetVirtualAddressMap() and ConvertPointer(), have been registered into the 
-/// EFI Runtime Table in the EFI System Partition.  This protocol must be produced 
+/// Allows the runtime functionality of the DXE Foundation to be contained in a
+/// separate driver. It also provides hooks for the DXE Foundation to export
+/// information that is needed at runtime. As such, this protocol allows the DXE
+/// Foundation to manage runtime drivers and events. This protocol also implies
+/// that the runtime services required to transition to virtual mode,
+/// SetVirtualAddressMap() and ConvertPointer(), have been registered into the
+/// EFI Runtime Table in the EFI System Partition.  This protocol must be produced
 /// by a runtime DXE driver and may only be consumed by the DXE Foundation.
 ///
 struct _EFI_RUNTIME_ARCH_PROTOCOL {
@@ -115,8 +109,8 @@ struct _EFI_RUNTIME_ARCH_PROTOCOL {
   EFI_LIST_ENTRY          EventHead;    ///< A list of type EFI_RUNTIME_EVENT_ENTRY.
   UINTN                   MemoryDescriptorSize;   ///< Size of a memory descriptor that is returned by GetMemoryMap().
   UINT32                  MemoryDesciptorVersion; ///< Version of a memory descriptor that is returned by GetMemoryMap().
-  UINTN                   MemoryMapSize;///< Size of the memory map in bytes contained in MemoryMapPhysical and MemoryMapVirtual. 
-  EFI_MEMORY_DESCRIPTOR   *MemoryMapPhysical;     ///< Pointer to a runtime buffer that contains a copy of 
+  UINTN                   MemoryMapSize;///< Size of the memory map in bytes contained in MemoryMapPhysical and MemoryMapVirtual.
+  EFI_MEMORY_DESCRIPTOR   *MemoryMapPhysical;     ///< Pointer to a runtime buffer that contains a copy of
                                                   ///< the memory map returned via GetMemoryMap().
   EFI_MEMORY_DESCRIPTOR   *MemoryMapVirtual;      ///< Pointer to MemoryMapPhysical that is updated to virtual mode after SetVirtualAddressMap().
   BOOLEAN                 VirtualMode;  ///< Boolean that is TRUE if SetVirtualAddressMap() has been called.

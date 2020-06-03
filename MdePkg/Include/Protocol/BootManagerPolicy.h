@@ -4,14 +4,8 @@
   This protocol is used by EFI Applications to request the UEFI Boot Manager
   to connect devices using platform policy.
 
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef __BOOT_MANAGER_POLICY_H__
@@ -53,7 +47,7 @@ typedef struct _EFI_BOOT_MANAGER_POLICY_PROTOCOL EFI_BOOT_MANAGER_POLICY_PROTOCO
                         system will be connected using the platforms EFI Boot
                         Manager policy.
   @param[in] Recursive  If TRUE, then ConnectController() is called recursively
-                        until the entire tree of controllers below the 
+                        until the entire tree of controllers below the
                         controller specified by DevicePath have been created.
                         If FALSE, then the tree of controllers is only expanded
                         one level. If DevicePath is NULL then Recursive is ignored.
@@ -61,7 +55,7 @@ typedef struct _EFI_BOOT_MANAGER_POLICY_PROTOCOL EFI_BOOT_MANAGER_POLICY_PROTOCO
   @retval EFI_SUCCESS            The DevicePath was connected.
   @retval EFI_NOT_FOUND          The DevicePath was not found.
   @retval EFI_NOT_FOUND          No driver was connected to DevicePath.
-  @retval EFI_SECURITY_VIOLATION The user has no permission to start UEFI device 
+  @retval EFI_SECURITY_VIOLATION The user has no permission to start UEFI device
                                  drivers on the DevicePath.
   @retval EFI_UNSUPPORTED        The current TPL is not TPL_APPLICATION.
 **/
@@ -80,7 +74,7 @@ EFI_STATUS
   Manager connect a class of devices.
 
   If Class is EFI_BOOT_MANAGER_POLICY_CONSOLE_GUID then the Boot Manager will
-  use platform policy to connect consoles. Some platforms may restrict the 
+  use platform policy to connect consoles. Some platforms may restrict the
   number of consoles connected as they attempt to fast boot, and calling
   ConnectDeviceClass() with a Class value of EFI_BOOT_MANAGER_POLICY_CONSOLE_GUID
   must connect the set of consoles that follow the Boot Manager platform policy,
@@ -98,7 +92,7 @@ EFI_STATUS
   application that called ConnectDeviceClass() may need to use the published
   protocols to establish the network connection. The Boot Manager can optionally
   have a policy to establish a network connection.
-  
+
   If Class is EFI_BOOT_MANAGER_POLICY_CONNECT_ALL_GUID then the Boot Manager
   will connect all UEFI drivers using the UEFI Boot Service
   EFI_BOOT_SERVICES.ConnectController(). If the Boot Manager has policy
@@ -115,7 +109,7 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR Devices were not connected due to an error.
   @retval EFI_NOT_FOUND    The Class is not supported by the platform.
   @retval EFI_UNSUPPORTED  The current TPL is not TPL_APPLICATION.
-**/        
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_BOOT_MANAGER_POLICY_CONNECT_DEVICE_CLASS)(

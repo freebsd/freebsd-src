@@ -1,0 +1,47 @@
+## @file
+#  Instance of SMM IO check library.
+#
+#  SMM IO check library library implementation. This library consumes GCD to collect all valid
+#  IO space defined by a platform.
+#  A platform may have its own SmmIoLib instance to exclude more IO space.
+#
+#  Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SmmIoLib
+  MODULE_UNI_FILE                = SmmIoLib.uni
+  FILE_GUID                      = F0F5A845-E3ED-4C6E-82D6-4ECE85DAC00F
+  MODULE_TYPE                    = DXE_SMM_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SmmIoLib|DXE_SMM_DRIVER SMM_CORE
+  CONSTRUCTOR                    = SmmIoLibConstructor
+  DESTRUCTOR                     = SmmIoLibDestructor
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64
+#
+
+[Sources]
+  SmmIoLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  SmmServicesTableLib
+  UefiBootServicesTableLib
+  DxeServicesTableLib
+  DebugLib
+  BaseMemoryLib
+  MemoryAllocationLib
+  HobLib
+
+[Protocols]
+  gEfiSmmReadyToLockProtocolGuid ## CONSUMES
+  gEfiSmmEndOfDxeProtocolGuid    ## CONSUMES

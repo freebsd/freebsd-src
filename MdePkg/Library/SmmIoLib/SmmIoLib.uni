@@ -1,0 +1,18 @@
+// /** @file
+// Instance of SMM IO check library.
+//
+//  SMM IO check library library implementation. This library consumes GCD to collect all valid
+//  IO space defined by a platform.
+//  A platform may have its own SmmIoLib instance to exclude more IO space.
+//
+// Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Instance of SMM IO check library."
+
+#string STR_MODULE_DESCRIPTION          #language en-US "SMM IO check library library implementation. This library consumes GCD to collect all valid IO space defined by a platform. A platform may have its own SmmIoLib instance to exclude more IO space."
+

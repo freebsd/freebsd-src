@@ -1,14 +1,8 @@
 /** @file
   UEFI Driver Configuration2 Protocol
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -22,7 +16,7 @@
   { \
     0xbfd7dc1d, 0x24f1, 0x40d9, {0x82, 0xe7, 0x2e, 0x09, 0xbb, 0x6b, 0x4e, 0xbe } \
   }
-  
+
 typedef struct _EFI_DRIVER_CONFIGURATION2_PROTOCOL  EFI_DRIVER_CONFIGURATION2_PROTOCOL;
 
 typedef enum {
@@ -55,7 +49,7 @@ typedef enum {
 #define EFI_DRIVER_CONFIGURATION_PERORMANCE_DEFAULTS    0x00000003
 
 /**
-  Allows the user to set controller specific options for a controller that a 
+  Allows the user to set controller specific options for a controller that a
   driver is currently managing.
 
   @param  This             A pointer to the EFI_DRIVER_CONFIGURATION2_PROTOCOL instance.
@@ -180,7 +174,7 @@ struct _EFI_DRIVER_CONFIGURATION2_PROTOCOL {
   EFI_DRIVER_CONFIGURATION2_FORCE_DEFAULTS  ForceDefaults;
   ///
   /// A Null-terminated ASCII string that contains one or more RFC 4646
-  /// language codes.  This is the list of language codes that this protocol supports.  
+  /// language codes.  This is the list of language codes that this protocol supports.
   ///
   CHAR8                                     *SupportedLanguages;
 };

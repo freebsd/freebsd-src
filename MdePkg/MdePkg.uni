@@ -4,16 +4,10 @@
 // It also provides the definitions(including PPIs/PROTOCOLs/GUIDs) of
 // EFI1.10/UEFI2.4/PI1.3 and some Industry Standards.
 //
-// Copyright (c) 2007 - 2016, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
 // Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
 //
-// This program and the accompanying materials are licensed and made available under
-// the terms and conditions of the BSD License which accompanies this distribution.
-// The full text of the license may be found at
-// http://opensource.org/licenses/bsd-license.php
-// 
-// THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-// WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+// SPDX-License-Identifier: BSD-2-Clause-Patent
 //
 // **/
 
@@ -148,6 +142,21 @@
                                                                                          "0  - No length check for unicode string.<BR>\n"
                                                                                          ">0 - Maximum length of unicode string.<BR>"
 
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdControlFlowEnforcementPropertyMask_PROMPT  #language en-US "Enable control flow enforcement."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdControlFlowEnforcementPropertyMask_HELP  #language en-US  "Indicates the control flow enforcement enabling state.\n"
+                                                                                                  "If enabled, it uses control flow enforcement technology to prevent ROP or JOP.<BR><BR>\n"
+                                                                                                  " BIT0 - SMM CET Shadow Stack is enabled.<BR>\n"
+                                                                                                  " Other - reserved"
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdSpeculationBarrierType_PROMPT  #language en-US "Speculation Barrier Type."
+
+#string STR_gEfiMdePkgTokenSpaceGuid_PcdSpeculationBarrierType_HELP  #language en-US  "Indicates the type of instruction sequence to use for a speculation.barrier.  The default instruction sequence is LFENCE.<BR><BR>\n"
+                                                                                      "0x00 - No operation.<BR>\n"
+                                                                                      "0x01 - LFENCE (IA32/X64).<BR>\n"
+                                                                                      "0x02 - CPUID  (IA32/X64).<BR>\n"
+                                                                                      "Other - reserved"
+
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumAsciiStringLength_PROMPT  #language en-US "Maximum Length of Ascii String"
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdMaximumAsciiStringLength_HELP  #language en-US "Sets the maximum number of ASCII characters used for string functions.  This affects the following BaseLib functions: AsciiStrLen(), AsciiStrSize(), AsciiStrCmp(), AsciiStrnCmp(), AsciiStrCpy(), AsciiStrnCpy(). <BR><BR>\n"
@@ -245,6 +254,12 @@
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdPerformanceLibraryPropertyMask_HELP  #language en-US "The mask is used to control PerformanceLib behavior.<BR><BR>\n"
                                                                                              "BIT0 - Enable Performance Measurement.<BR>"
+                                                                                             "BIT1 - Disable Start Image Logging.<BR>"
+                                                                                             "BIT2 - Disable Load Image logging.<BR>"
+                                                                                             "BIT3 - Disable Binding Support logging.<BR>"
+                                                                                             "BIT4 - Disable Binding Start logging.<BR>"
+                                                                                             "BIT5 - Disable Binding Stop logging.<BR>"
+                                                                                             "BIT6 - Disable all other general Perfs.<BR>"
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdPostCodePropertyMask_PROMPT  #language en-US "Post Code Property"
 
@@ -327,10 +342,6 @@
                                                                                   "1 - VT100<BR>\n"
                                                                                   "2 - VT100+<BR>\n"
                                                                                   "3 - UTF8<BR>"
-
-#string STR_gEfiMdePkgTokenSpaceGuid_PcdIoBlockBaseAddressForIpf_PROMPT  #language en-US "IA64 IO Port Space Base Address."
-
-#string STR_gEfiMdePkgTokenSpaceGuid_PcdIoBlockBaseAddressForIpf_HELP  #language en-US "The base address of IO port space for IA64 arch."
 
 #string STR_gEfiMdePkgTokenSpaceGuid_PcdComponentNameDisable_PROMPT  #language en-US "Disable Component Name Protocol"
 

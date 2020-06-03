@@ -1,0 +1,17 @@
+// /** @file
+// Instance of S3 PCI Segment Library based on PCI Segment and S3 BootScript Library.
+//
+// S3 PCI Segment Services that perform PCI Configuration cycles and
+// also enable the PCI operation to be replayed during an S3 resume.
+//
+// Copyright (c) 2017, Intel Corporation. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Instance of S3 PCI Segment Library based on PCI Segment and S3 BootScript Library."
+
+#string STR_MODULE_DESCRIPTION          #language en-US "S3 PCI Segment Services that perform PCI Configuration cycles and also enable the PCI operation to be replayed during an S3 resume."
+

@@ -1,0 +1,38 @@
+## @file
+# Module entry point library for Standalone MM driver.
+#
+# Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2016-2018, ARM Ltd. All rights reserved.<BR>
+# Copyright (c) 2018, Linaro, Limited. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x0001001B
+  BASE_NAME                      = StandaloneMmDriverEntryPoint
+  MODULE_UNI_FILE                = StandaloneMmDriverEntryPoint.uni
+  FILE_GUID                      = 5ca126c0-b598-4f4b-abb9-b6e7d077aea9
+  MODULE_TYPE                    = MM_STANDALONE
+  VERSION_STRING                 = 1.0
+  PI_SPECIFICATION_VERSION       = 0x00010032
+  LIBRARY_CLASS                  = StandaloneMmDriverEntryPoint|MM_STANDALONE
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 AARCH64
+#
+
+[Sources]
+  StandaloneMmDriverEntryPoint.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+  MmServicesTableLib

@@ -1,0 +1,47 @@
+## @file
+# Safe Integer Library
+#
+# This library provides helper functions to prevent integer overflow during
+# type conversion, addition, subtraction, and multiplication.
+#
+#  Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2017, Microsoft Corporation
+#  Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+
+#
+# All rights reserved.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = BaseSafeIntLib
+  FILE_GUID                      = 4EA91BFA-3482-4930-B136-70679C6CE489
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SafeIntLib
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 ARM AARCH64 RISCV64
+#
+
+[Sources]
+  SafeIntLib.c
+
+[Sources.Ia32, Sources.ARM]
+  SafeIntLib32.c
+
+[Sources.X64, Sources.AARCH64, Sources.RISCV64]
+  SafeIntLib64.c
+
+[Sources.EBC]
+  SafeIntLibEbc.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib

@@ -1,14 +1,8 @@
 /** @file
   This PPI provides the super I/O register access functionality.
 
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is from PI Version 1.2.1.
@@ -34,7 +28,7 @@ typedef UINT16 EFI_SIO_REGISTER;
 
 /**
   Read a Super I/O register.
- 
+
   The register is specified as an 8-bit logical device number and an 8-bit
   register value. The logical device numbers for specific SIO devices can be
   determined using the Info member of the PPI structure.
@@ -47,8 +41,8 @@ typedef UINT16 EFI_SIO_REGISTER;
                       track the current state of the configuration mode (if any)
                       and turn on configuration mode (if necessary) prior to
                       register access.
-  @param Register     A value specifying the logical device number (bits 15:8) 
-                      and the register to read (bits 7:0). The logical device 
+  @param Register     A value specifying the logical device number (bits 15:8)
+                      and the register to read (bits 7:0). The logical device
                       number of EFI_SIO_LDN_GLOBAL indicates that global
                       registers will be used.
   @param IoData       A pointer to the returned register value.
@@ -85,8 +79,8 @@ EFI_STATUS
                       track the current state of the configuration mode (if any)
                       and turn on configuration mode (if necessary) prior to
                       register access.
-  @param Register     A value specifying the logical device number (bits 15:8) 
-                      and the register to read (bits 7:0). The logical device 
+  @param Register     A value specifying the logical device number (bits 15:8)
+                      and the register to read (bits 7:0). The logical device
                       number of EFI_SIO_LDN_GLOBAL indicates that global
                       registers will be used.
   @param IoData       A pointer to the returned register value.
@@ -97,7 +91,7 @@ EFI_STATUS
   @retval EFI_INVALID_PARAMETERS Register was out of range for this device.
   @retval EFI_INVALID_PARAMETERS IoData was NULL
   @retval EFI_DEVICE_ERROR       There was a device fault or the device was not present.
-**/ 
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_PEI_SIO_REGISTER_WRITE)(
@@ -129,7 +123,7 @@ EFI_STATUS
 
   @retval EFI_SUCCESS             The operation completed successfully.
   @retval EFI_INVALID_PARAMETERS  Command is NULL.
-**/ 
+**/
 typedef
 EFI_STATUS
 (EFIAPI *EFI_PEI_SIO_REGISTER_MODIFY)(
@@ -186,4 +180,4 @@ struct _EFI_SIO_PPI {
 
 extern EFI_GUID gEfiSioPpiGuid;
 
-#endif 
+#endif

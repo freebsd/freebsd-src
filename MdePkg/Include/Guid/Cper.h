@@ -1,18 +1,12 @@
 /** @file
   GUIDs and definitions used for Common Platform Error Record.
 
-  Copyright (c) 2011 - 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2011 - 2017, Intel Corporation. All rights reserved.<BR>
   (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
-  GUIDs defined in UEFI 2.6 Specification.
+  GUIDs defined in UEFI 2.7 Specification.
 
 **/
 
@@ -100,6 +94,18 @@ typedef struct {
 #define EFI_EVENT_NOTIFICATION_TYEP_DMAR_GUID \
   { \
     0x667DD791, 0xC6B3, 0x4c27, { 0x8A, 0x6B, 0x0F, 0x8E, 0x72, 0x2D, 0xEB, 0x41 } \
+  }
+#define EFI_EVENT_NOTIFICATION_TYPE_DMAR_SEA \
+  { \
+    0x9A78788A, 0xBBE8, 0x11E4, { 0x80, 0x9E, 0x67, 0x61, 0x1E, 0x5D, 0x46, 0xB0 } \
+  }
+#define EFI_EVENT_NOTIFICATION_TYPE_DMAR_SEI \
+  { \
+    0x5C284C81, 0xB0AE, 0x4E87, { 0xA3, 0x22, 0xB0, 0x4C, 0x85, 0x62, 0x43, 0x23 } \
+  }
+#define EFI_EVENT_NOTIFICATION_TYPE_DMAR_PEI \
+  { \
+    0x09A9D5AC, 0x5204, 0x4214, { 0x96, 0xE5, 0x94, 0x99, 0x2E, 0x75, 0x2B, 0xCD } \
   }
 ///@}
 
@@ -256,6 +262,7 @@ typedef struct {
 ///@{
 #define EFI_GENERIC_ERROR_PROC_TYPE_IA32_X64         0x00
 #define EFI_GENERIC_ERROR_PROC_TYPE_IA64             0x01
+#define EFI_GENERIC_ERROR_PROC_TYPE_ARM              0x02
 ///@}
 
 ///
@@ -265,6 +272,8 @@ typedef struct {
 #define EFI_GENERIC_ERROR_PROC_ISA_IA32              0x00
 #define EFI_GENERIC_ERROR_PROC_ISA_IA64              0x01
 #define EFI_GENERIC_ERROR_PROC_ISA_X64               0x02
+#define EFI_GENERIC_ERROR_PROC_ISA_ARM_A32_T32       0x03
+#define EFI_GENERIC_ERROR_PROC_ISA_ARM_A64           0x04
 ///@}
 
 ///
@@ -1088,16 +1097,21 @@ typedef struct {
 
 ///
 /// Identifies the type of firmware error record
-///
+///@{
 #define EFI_FIRMWARE_ERROR_TYPE_IPF_SAL              0x00
+#define EFI_FIRMWARE_ERROR_TYPE_SOC_TYPE1            0x01
+#define EFI_FIRMWARE_ERROR_TYPE_SOC_TYPE2            0x02
+///@}
 
 ///
 /// Firmware Error Record Section
 ///
 typedef struct {
   UINT8       ErrorType;
-  UINT8       Resv1[7];
+  UINT8       Revision;
+  UINT8       Resv1[6];
   UINT64      RecordId;
+  EFI_GUID    RecordIdGuid;
 } EFI_FIRMWARE_ERROR_DATA;
 
 ///
@@ -1205,6 +1219,9 @@ extern EFI_GUID gEfiEventNotificationTypeInitGuid;
 extern EFI_GUID gEfiEventNotificationTypeNmiGuid;
 extern EFI_GUID gEfiEventNotificationTypeBootGuid;
 extern EFI_GUID gEfiEventNotificationTypeDmarGuid;
+extern EFI_GUID gEfiEventNotificationTypeSeaGuid;
+extern EFI_GUID gEfiEventNotificationTypeSeiGuid;
+extern EFI_GUID gEfiEventNotificationTypePeiGuid;
 
 extern EFI_GUID gEfiProcessorGenericErrorSectionGuid;
 extern EFI_GUID gEfiProcessorSpecificErrorSectionGuid;

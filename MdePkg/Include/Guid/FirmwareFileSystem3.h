@@ -1,14 +1,8 @@
 /** @file
   Guid used to define the Firmware File System 3.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   GUIDs introduced in PI Version 1.0.
@@ -18,7 +12,7 @@
 #ifndef __FIRMWARE_FILE_SYSTEM3_GUID_H__
 #define __FIRMWARE_FILE_SYSTEM3_GUID_H__
 
-/// 
+///
 /// The firmware volume header contains a data field for the file system GUID
 /// {5473C07A-3DCB-4dca-BD6F-1E9689E7349A}
 ///

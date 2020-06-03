@@ -3,14 +3,8 @@
 
 ;------------------------------------------------------------------------------
 ;
-; Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-; This program and the accompanying materials
-; are licensed and made available under the terms and conditions of the BSD License
-; which accompanies this distribution.  The full text of the license may be found at
-; http://opensource.org/licenses/bsd-license.php.
-;
-; THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-; WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+; Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+; SPDX-License-Identifier: BSD-2-Clause-Patent
 ;
 ; Module Name:
 ;
@@ -240,14 +234,14 @@ BITS    64
     push    rbx
     push    rsi
     push    rdi
-    
+
     mov     ebx, ds
     push    rbx          ; Save ds segment register on the stack
     mov     ebx, es
     push    rbx          ; Save es segment register on the stack
     mov     ebx, ss
     push    rbx          ; Save ss segment register on the stack
-    
+
     push    fs
     push    gs
     mov     rsi, rcx
@@ -266,15 +260,15 @@ BITS    64
     shl     eax, 12                     ; segment address in high order 16 bits
     lea     ax, [rdx + (_BackFromUserCode - ASM_PFX(m16Start))]  ; offset address
     stosd                               ; [edi] <- return address of user code
-  
+
     sgdt    [rsp + 60h]       ; save GDT stack in argument space
-    movzx   r10, word [rsp + 60h]   ; r10 <- GDT limit 
+    movzx   r10, word [rsp + 60h]   ; r10 <- GDT limit
     lea     r11, [rcx + (ASM_PFX(InternalAsmThunk16) - _BackFromUserCode.SavedCr4End) + 0xf]
     and     r11, ~0xf            ; r11 <- 16-byte aligned shadowed GDT table in real mode buffer
-    
+
     mov     [rcx + (SavedGdt - _BackFromUserCode.SavedCr4End)], r10w      ; save the limit of shadowed GDT table
     mov     [rcx + (SavedGdt - _BackFromUserCode.SavedCr4End) + 2], r11  ; save the base address of shadowed GDT table
-    
+
     mov     rsi, [rsp + 62h]  ; rsi <- the original GDT base address
     xchg    rcx, r10                    ; save rcx to r10 and initialize rcx to be the limit of GDT table
     inc     rcx                         ; rcx <- the size of memory to copy
@@ -282,7 +276,7 @@ BITS    64
     rep     movsb                       ; perform memory copy to shadow GDT table
     mov     rcx, r10                    ; restore the orignal rcx before memory copy
     mov     rdi, r11                    ; restore the original rdi before memory copy
-    
+
     sidt    [rsp + 50h]       ; save IDT stack in argument space
     mov     rax, cr0
     mov     [rcx + (_BackFromUserCode.SavedCr0End - 4 - _BackFromUserCode.SavedCr4End)], eax

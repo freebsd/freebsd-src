@@ -1,14 +1,13 @@
 /** @file
   TCG defined values and structures.
 
-Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
+  (TCG Storage Architecture Core Specification, Version 2.01, Revision 1.00,
+  https://trustedcomputinggroup.org/tcg-storage-architecture-core-specification/)
 
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Check http://trustedcomputinggroup.org for latest specification updates.
+
+Copyright (c) 2016 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -228,7 +227,9 @@ typedef enum {
 #define TCG_FEATURE_OPAL_SSC_V2_0_0     (UINT16)0x0203
 #define TCG_FEATURE_OPAL_SSC_LITE       (UINT16)0x0301
 #define TCG_FEATURE_PYRITE_SSC          (UINT16)0x0302
+#define TCG_FEATURE_PYRITE_SSC_V2_0_0   (UINT16)0x0303
 #define TCG_FEATURE_BLOCK_SID           (UINT16)0x0402
+#define TCG_FEATURE_DATA_REMOVAL        (UINT16)0x0404
 
 // ACE Expression values
 #define TCG_ACE_EXPRESSION_AND 0x0

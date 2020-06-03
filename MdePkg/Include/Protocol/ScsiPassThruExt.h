@@ -1,16 +1,10 @@
 /** @file
   EFI_EXT_SCSI_PASS_THRU_PROTOCOL as defined in UEFI 2.0.
-  This protocol provides services that allow SCSI Pass Thru commands 
+  This protocol provides services that allow SCSI Pass Thru commands
   to be sent to SCSI devices attached to a SCSI channel.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -148,9 +142,9 @@ typedef struct {
 } EFI_EXT_SCSI_PASS_THRU_SCSI_REQUEST_PACKET;
 
 /**
-  Sends a SCSI Request Packet to a SCSI device that is attached to the SCSI channel. This function   
+  Sends a SCSI Request Packet to a SCSI device that is attached to the SCSI channel. This function
   supports both blocking I/O and nonblocking I/O. The blocking I/O functionality is required, and the
-  nonblocking I/O functionality is optional.                                                             
+  nonblocking I/O functionality is optional.
 
   @param  This    A pointer to the EFI_EXT_SCSI_PASS_THRU_PROTOCOL instance.
   @param  Target  The Target is an array of size TARGET_MAX_BYTES and it represents
@@ -196,14 +190,14 @@ EFI_STATUS
   IN UINT64                                         Lun,
   IN OUT EFI_EXT_SCSI_PASS_THRU_SCSI_REQUEST_PACKET *Packet,
   IN EFI_EVENT                                      Event     OPTIONAL
-  );      
+  );
 
 /**
-  Used to retrieve the list of legal Target IDs and LUNs for SCSI devices on a SCSI channel. These       
+  Used to retrieve the list of legal Target IDs and LUNs for SCSI devices on a SCSI channel. These
   can either be the list SCSI devices that are actually present on the SCSI channel, or the list of legal
-  Target Ids and LUNs for the SCSI channel. Regardless, the caller of this function must probe the       
-  Target ID and LUN returned to see if a SCSI device is actually present at that location on the SCSI    
-  channel.                                                                                               
+  Target Ids and LUNs for the SCSI channel. Regardless, the caller of this function must probe the
+  Target ID and LUN returned to see if a SCSI device is actually present at that location on the SCSI
+  channel.
 
   @param  This   A pointer to the EFI_EXT_SCSI_PASS_THRU_PROTOCOL instance.
   @param  Target On input, a pointer to the Target ID (an array of size
@@ -230,7 +224,7 @@ EFI_STATUS
   IN EFI_EXT_SCSI_PASS_THRU_PROTOCOL                *This,
   IN OUT UINT8                                      **Target,
   IN OUT UINT64                                     *Lun
-  );   
+  );
 
 /**
   Used to allocate and build a device path node for a SCSI device on a SCSI channel.
@@ -265,7 +259,7 @@ EFI_STATUS
   IN EFI_EXT_SCSI_PASS_THRU_PROTOCOL               *This,
   IN UINT8                                         *Target,
   IN UINT64                                        Lun,
-  IN OUT EFI_DEVICE_PATH_PROTOCOL                  **DevicePath
+  OUT EFI_DEVICE_PATH_PROTOCOL                     **DevicePath
   );
 
 /**
@@ -294,7 +288,7 @@ EFI_STATUS
   IN EFI_DEVICE_PATH_PROTOCOL                      *DevicePath,
   OUT UINT8                                        **Target,
   OUT UINT64                                       *Lun
-  );       
+  );
 
 /**
   Resets a SCSI channel. This operation resets all the SCSI devices connected to the SCSI channel.
@@ -311,8 +305,8 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_EXT_SCSI_PASS_THRU_RESET_CHANNEL)(
   IN EFI_EXT_SCSI_PASS_THRU_PROTOCOL               *This
-  );    
-  
+  );
+
 /**
   Resets a SCSI logical unit that is connected to a SCSI channel.
 
@@ -338,13 +332,13 @@ EFI_STATUS
   IN EFI_EXT_SCSI_PASS_THRU_PROTOCOL               *This,
   IN UINT8                                         *Target,
   IN UINT64                                        Lun
-  );         
+  );
 
 /**
-  Used to retrieve the list of legal Target IDs for SCSI devices on a SCSI channel. These can either     
+  Used to retrieve the list of legal Target IDs for SCSI devices on a SCSI channel. These can either
   be the list SCSI devices that are actually present on the SCSI channel, or the list of legal Target IDs
-  for the SCSI channel. Regardless, the caller of this function must probe the Target ID returned to     
-  see if a SCSI device is actually present at that location on the SCSI channel.                         
+  for the SCSI channel. Regardless, the caller of this function must probe the Target ID returned to
+  see if a SCSI device is actually present at that location on the SCSI channel.
 
   @param  This   A pointer to the EFI_EXT_SCSI_PASS_THRU_PROTOCOL instance.
   @param  Target (TARGET_MAX_BYTES) of a SCSI device present on the SCSI channel.
@@ -367,12 +361,12 @@ EFI_STATUS
 (EFIAPI *EFI_EXT_SCSI_PASS_THRU_GET_NEXT_TARGET)(
   IN EFI_EXT_SCSI_PASS_THRU_PROTOCOL               *This,
   IN OUT UINT8                                     **Target
-  );          
+  );
 
 ///
-/// The EFI_EXT_SCSI_PASS_THRU_PROTOCOL provides information about a SCSI channel 
-/// and the ability to send SCI Request Packets to any SCSI device attached to 
-/// that SCSI channel. The information includes the Target ID of the host controller 
+/// The EFI_EXT_SCSI_PASS_THRU_PROTOCOL provides information about a SCSI channel
+/// and the ability to send SCI Request Packets to any SCSI device attached to
+/// that SCSI channel. The information includes the Target ID of the host controller
 /// on the SCSI channel and the attributes of the SCSI channel.
 ///
 struct _EFI_EXT_SCSI_PASS_THRU_PROTOCOL {

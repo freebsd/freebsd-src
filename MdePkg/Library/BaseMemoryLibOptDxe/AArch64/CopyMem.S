@@ -169,7 +169,7 @@ L(copy96):
 
     // Align DST to 16 byte alignment so that we don't cross cache line
     // boundaries on both loads and stores. There are at least 96 bytes
-    // to copy, so copy 16 bytes unaligned and then align.	The loop
+    // to copy, so copy 16 bytes unaligned and then align.  The loop
     // copies 64 bytes per iteration and prefetches one iteration ahead.
 
     .p2align 4
@@ -198,7 +198,7 @@ L(copy_long):
     subs    count, count, 64
     b.hi    1b
 
-    // Write the last full set of 64 bytes.	 The remainder is at most 64
+    // Write the last full set of 64 bytes.   The remainder is at most 64
     // bytes, so it is safe to always copy 64 bytes from the end even if
     // there is just 1 byte left.
 2:

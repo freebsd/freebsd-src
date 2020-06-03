@@ -1,20 +1,14 @@
 /** @file
   EFI EAP(Extended Authenticaton Protocol) Protocol Definition
   The EFI EAP Protocol is used to abstract the ability to configure and extend the
-  EAP framework. 
+  EAP framework.
   The definitions in this file are defined in UEFI Specification 2.3.1B, which have
   not been verified by one implementation yet.
 
-  Copyright (c) 2009 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
-
-  @par Revision Reference:          
+  @par Revision Reference:
   This Protocol is introduced in UEFI Specification 2.2
 
 **/
@@ -31,7 +25,7 @@
 typedef struct _EFI_EAP_PROTOCOL EFI_EAP_PROTOCOL;
 
 ///
-/// Type for the identification number assigned to the Port by the  
+/// Type for the identification number assigned to the Port by the
 /// System in which the Port resides.
 ///
 typedef VOID *  EFI_PORT_HANDLE;
@@ -61,7 +55,7 @@ typedef VOID *  EFI_PORT_HANDLE;
   @param[in]      RequestSize    Packet size in bytes for the most recently received
                                  EAP-Request packet.
   @param[in]      Buffer         Pointer to the buffer to hold the built packet.
-  @param[in, out] BufferSize     Pointer to the buffer size in bytes. 
+  @param[in, out] BufferSize     Pointer to the buffer size in bytes.
                                  On input, it is the buffer size provided by the caller.
                                  On output, it is the buffer size in fact needed to contain
                                  the packet.
@@ -74,32 +68,32 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_EAP_BUILD_RESPONSE_PACKET)(
   IN EFI_PORT_HANDLE        PortNumber,
-  IN UINT8                  *RequestBuffer, 
-  IN UINTN                  RequestSize, 
-  IN UINT8                  *Buffer, 
+  IN UINT8                  *RequestBuffer,
+  IN UINTN                  RequestSize,
+  IN UINT8                  *Buffer,
   IN OUT UINTN              *BufferSize
   );
 
 /**
   Set the desired EAP authentication method for the Port.
 
-  The SetDesiredAuthMethod() function sets the desired EAP authentication method indicated 
+  The SetDesiredAuthMethod() function sets the desired EAP authentication method indicated
   by EapAuthType for the Port.
-  
-  If EapAuthType is an invalid EAP authentication type, then EFI_INVALID_PARAMETER is 
+
+  If EapAuthType is an invalid EAP authentication type, then EFI_INVALID_PARAMETER is
   returned.
   If the EAP authentication method of EapAuthType is unsupported by the Ports, then it will
   return EFI_UNSUPPORTED.
-  The cryptographic strength of EFI_EAP_TYPE_TLS shall be at least of hash strength 
+  The cryptographic strength of EFI_EAP_TYPE_TLS shall be at least of hash strength
   SHA-256 and RSA key length of at least 2048 bits.
-  
-  @param[in] This                A pointer to the EFI_EAP_PROTOCOL instance that indicates 
+
+  @param[in] This                A pointer to the EFI_EAP_PROTOCOL instance that indicates
                                  the calling context.
-  @param[in] EapAuthType         The type of the EAP authentication method to register. It should 
+  @param[in] EapAuthType         The type of the EAP authentication method to register. It should
                                  be the type value defined by RFC. See RFC 2284 for details.
   @param[in] Handler             The handler of the EAP authentication method to register.
 
-  @retval EFI_SUCCESS            The EAP authentication method of EapAuthType is 
+  @retval EFI_SUCCESS            The EAP authentication method of EapAuthType is
                                  registered successfully.
   @retval EFI_INVALID_PARAMETER  EapAuthType is an invalid EAP authentication type.
   @retval EFI_UNSUPPORTED        The EAP authentication method of EapAuthType is
@@ -109,28 +103,28 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_EAP_SET_DESIRED_AUTHENTICATION_METHOD)(
-  IN EFI_EAP_PROTOCOL            *This, 
+  IN EFI_EAP_PROTOCOL            *This,
   IN UINT8                       EapAuthType
   );
 
 /**
-  Register an EAP authentication method. 
+  Register an EAP authentication method.
 
-  The RegisterAuthMethod() function registers the user provided EAP authentication method, 
-  the type of which is EapAuthType and the handler of which is Handler. 
-  
-  If EapAuthType is an invalid EAP authentication type, then EFI_INVALID_PARAMETER is 
+  The RegisterAuthMethod() function registers the user provided EAP authentication method,
+  the type of which is EapAuthType and the handler of which is Handler.
+
+  If EapAuthType is an invalid EAP authentication type, then EFI_INVALID_PARAMETER is
   returned.
-  If there is not enough system memory to perform the registration, then 
+  If there is not enough system memory to perform the registration, then
   EFI_OUT_OF_RESOURCES is returned.
 
-  @param[in] This                A pointer to the EFI_EAP_PROTOCOL instance that indicates 
+  @param[in] This                A pointer to the EFI_EAP_PROTOCOL instance that indicates
                                  the calling context.
-  @param[in] EapAuthType         The type of the EAP authentication method to register. It should 
+  @param[in] EapAuthType         The type of the EAP authentication method to register. It should
                                  be the type value defined by RFC. See RFC 2284 for details.
   @param[in] Handler             The handler of the EAP authentication method to register.
 
-  @retval EFI_SUCCESS            The EAP authentication method of EapAuthType is 
+  @retval EFI_SUCCESS            The EAP authentication method of EapAuthType is
                                  registered successfully.
   @retval EFI_INVALID_PARAMETER  EapAuthType is an invalid EAP authentication type.
   @retval EFI_OUT_OF_RESOURCES   There is not enough system memory to perform the registration.
@@ -139,17 +133,17 @@ EFI_STATUS
 typedef
 EFI_STATUS
 (EFIAPI *EFI_EAP_REGISTER_AUTHENTICATION_METHOD)(
-  IN EFI_EAP_PROTOCOL                     *This, 
-  IN UINT8                                EapAuthType, 
+  IN EFI_EAP_PROTOCOL                     *This,
+  IN UINT8                                EapAuthType,
   IN EFI_EAP_BUILD_RESPONSE_PACKET        Handler
   );
 
 ///
-/// EFI_EAP_PROTOCOL 
-/// is used to configure the desired EAP authentication method for the EAP 
+/// EFI_EAP_PROTOCOL
+/// is used to configure the desired EAP authentication method for the EAP
 /// framework and extend the EAP framework by registering new EAP authentication
 /// method on a Port. The EAP framework is built on a per-Port basis. Herein, a
-/// Port means a NIC. For the details of EAP protocol, please refer to RFC 2284. 
+/// Port means a NIC. For the details of EAP protocol, please refer to RFC 2284.
 ///
 struct _EFI_EAP_PROTOCOL {
   EFI_EAP_SET_DESIRED_AUTHENTICATION_METHOD   SetDesiredAuthMethod;

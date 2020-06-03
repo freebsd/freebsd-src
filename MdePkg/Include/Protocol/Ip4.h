@@ -6,21 +6,15 @@
   - EFI IPv4 Variable (deprecated in UEFI 2.4B)
   - EFI IPv4 Protocol.
   The EFI IPv4 Protocol provides basic network IPv4 packet I/O services,
-  which includes support foR a subset of the Internet Control Message 
+  which includes support foR a subset of the Internet Control Message
   Protocol (ICMP) and may include support for the Internet Group Management
   Protocol (IGMP).
-  
-Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.   
 
-  @par Revision Reference:          
-  This Protocol is introduced in UEFI Specification 2.0.        
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
+
+  @par Revision Reference:
+  This Protocol is introduced in UEFI Specification 2.0.
 
 **/
 
@@ -49,7 +43,7 @@ typedef struct {
   EFI_HANDLE              InstanceHandle;
   EFI_IPv4_ADDRESS        Ip4Address;
   EFI_IPv4_ADDRESS        SubnetMask;
-} EFI_IP4_ADDRESS_PAIR; 
+} EFI_IP4_ADDRESS_PAIR;
 
 ///
 /// EFI_IP4_VARIABLE_DATA is deprecated in the UEFI 2.4B and should not be used any more.
@@ -271,7 +265,7 @@ typedef struct {
 
 /**
   Gets the current operational settings for this instance of the EFI IPv4 Protocol driver.
-  
+
   The GetModeData() function returns the current operational mode data for this
   driver instance. The data fields in EFI_IP4_MODE_DATA are read only. This
   function is used optionally to retrieve the operational mode data of underlying
@@ -294,11 +288,11 @@ EFI_STATUS
   OUT       EFI_IP4_MODE_DATA               *Ip4ModeData     OPTIONAL,
   OUT       EFI_MANAGED_NETWORK_CONFIG_DATA *MnpConfigData   OPTIONAL,
   OUT       EFI_SIMPLE_NETWORK_MODE         *SnpModeData     OPTIONAL
-  );  
+  );
 
 /**
   Assigns an IPv4 address and subnet mask to this EFI IPv4 Protocol driver instance.
-  
+
   The Configure() function is used to set, change, or reset the operational
   parameters and filter settings for this EFI IPv4 Protocol instance. Until these
   parameters have been set, no network traffic can be sent or received by this
@@ -307,14 +301,14 @@ EFI_STATUS
   parameters have been set again. Each EFI IPv4 Protocol instance can be started
   and stopped independently of each other by enabling or disabling their receive
   filter settings with the Configure() function.
-  
+
   When IpConfigData.UseDefaultAddress is set to FALSE, the new station address will
   be appended as an alias address into the addresses list in the EFI IPv4 Protocol
   driver. While set to TRUE, Configure() will trigger the EFI_IP4_CONFIG_PROTOCOL
   to retrieve the default IPv4 address if it is not available yet. Clients could
   frequently call GetModeData() to check the status to ensure that the default IPv4
   address is ready.
-  
+
   If operational parameters are reset or changed, any pending transmit and receive
   requests will be cancelled. Their completion token status will be set to EFI_ABORTED
   and their events will be signaled.
@@ -328,7 +322,7 @@ EFI_STATUS
   @retval EFI_INVALID_PARAMETER One or more of the following conditions is TRUE:
                                 This is NULL.
                                 IpConfigData.StationAddress is not a unicast IPv4 address.
-                                IpConfigData.SubnetMask is not a valid IPv4 subnet 
+                                IpConfigData.SubnetMask is not a valid IPv4 subnet
   @retval EFI_UNSUPPORTED       One or more of the following conditions is TRUE:
                                 A configuration protocol (DHCP, BOOTP, RARP, etc.) could
                                 not be located when clients choose to use the default IPv4
@@ -342,20 +336,20 @@ EFI_STATUS
                                 Protocol driver instance is not opened.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IP4_CONFIGURE)(
   IN EFI_IP4_PROTOCOL    *This,
   IN EFI_IP4_CONFIG_DATA *IpConfigData     OPTIONAL
-  );  
+  );
 
 /**
   Joins and leaves multicast groups.
-  
+
   The Groups() function is used to join and leave multicast group sessions. Joining
   a group will enable reception of matching multicast packets. Leaving a group will
   disable the multicast packet reception.
-  
+
   If JoinFlag is FALSE and GroupAddress is NULL, all joined groups will be left.
 
   @param  This                  The pointer to the EFI_IP4_PROTOCOL instance.
@@ -379,32 +373,32 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR      An unexpected system or network error occurred.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IP4_GROUPS)(
   IN EFI_IP4_PROTOCOL    *This,
   IN BOOLEAN             JoinFlag,
   IN EFI_IPv4_ADDRESS    *GroupAddress  OPTIONAL
-  );    
+  );
 
 /**
   Adds and deletes routing table entries.
 
   The Routes() function adds a route to or deletes a route from the routing table.
-  
+
   Routes are determined by comparing the SubnetAddress with the destination IPv4
   address arithmetically AND-ed with the SubnetMask. The gateway address must be
   on the same subnet as the configured station address.
-  
+
   The default route is added with SubnetAddress and SubnetMask both set to 0.0.0.0.
   The default route matches all destination IPv4 addresses that do not match any
   other routes.
-  
+
   A GatewayAddress that is zero is a nonroute. Packets are sent to the destination
   IP address if it can be found in the ARP cache or on the local subnet. One automatic
   nonroute entry will be inserted into the routing table for outgoing packets that
   are addressed to a local subnet (gateway address of 0.0.0.0).
-  
+
   Each EFI IPv4 Protocol instance has its own independent routing table. Those EFI
   IPv4 Protocol instances that use the default IPv4 address will also have copies
   of the routing table that was provided by the EFI_IP4_CONFIG_PROTOCOL, and these
@@ -435,17 +429,17 @@ EFI_STATUS
   @retval EFI_NOT_FOUND          This route is not in the routing table (when DeleteRoute is TRUE).
   @retval EFI_ACCESS_DENIED      The route is already defined in the routing table (when
                                  DeleteRoute is FALSE).
-                                 
+
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IP4_ROUTES)(
   IN EFI_IP4_PROTOCOL    *This,
   IN BOOLEAN             DeleteRoute,
   IN EFI_IPv4_ADDRESS    *SubnetAddress,
   IN EFI_IPv4_ADDRESS    *SubnetMask,
-  IN EFI_IPv4_ADDRESS    *GatewayAddress  
-  );  
+  IN EFI_IPv4_ADDRESS    *GatewayAddress
+  );
 
 /**
   Places outgoing data packets into the transmit queue.
@@ -465,7 +459,7 @@ EFI_STATUS
   @retval  EFI_ACCESS_DENIED     The transmit completion token with the same Token.Event
                                  was already in the transmit queue.
   @retval  EFI_NOT_READY         The completion token could not be queued because the transmit
-                                 queue is full. 
+                                 queue is full.
   @retval  EFI_NOT_FOUND         Not route is found to destination address.
   @retval  EFI_OUT_OF_RESOURCES  Could not queue the transmit data.
   @retval  EFI_BUFFER_TOO_SMALL  Token.Packet.TxData.TotalDataLength is too
@@ -476,19 +470,19 @@ EFI_STATUS
                                  DoNotFragment is TRUE.)
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IP4_TRANSMIT)(
   IN EFI_IP4_PROTOCOL          *This,
   IN EFI_IP4_COMPLETION_TOKEN  *Token
-  );    
+  );
 
 /**
   Places a receiving request into the receiving queue.
-  
+
   The Receive() function places a completion token into the receive packet queue.
   This function is always asynchronous.
-  
+
   The Token.Event field in the completion token must be filled in by the caller
   and cannot be NULL. When the receive operation completes, the EFI IPv4 Protocol
   driver updates the Token.Status and Token.Packet.RxData fields and the Token.Event
@@ -515,16 +509,16 @@ EFI_STATUS
   @retval EFI_ICMP_ERROR        An ICMP error packet was received.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IP4_RECEIVE)(
   IN EFI_IP4_PROTOCOL          *This,
   IN EFI_IP4_COMPLETION_TOKEN  *Token
-  );      
+  );
 
 /**
   Abort an asynchronous transmit or receive request.
-  
+
   The Cancel() function is used to abort a pending transmit or receive request.
   If the token is in the transmit or receive request queues, after calling this
   function, Token->Status will be set to EFI_ABORTED and then Token->Event will
@@ -556,16 +550,16 @@ EFI_STATUS
 (EFIAPI *EFI_IP4_CANCEL)(
   IN EFI_IP4_PROTOCOL          *This,
   IN EFI_IP4_COMPLETION_TOKEN  *Token OPTIONAL
-  );      
-  
+  );
+
 /**
   Polls for incoming data packets and processes outgoing data packets.
-  
+
   The Poll() function polls for incoming data packets and processes outgoing data
   packets. Network drivers and applications can call the EFI_IP4_PROTOCOL.Poll()
   function to increase the rate that data packets are moved between the communications
   device and the transmit and receive queues.
-  
+
   In some systems the periodic timer event may not poll the underlying communications
   device fast enough to transmit and/or receive all data packets without missing
   incoming packets or dropping outgoing packets. Drivers and applications that are
@@ -585,14 +579,14 @@ EFI_STATUS
                                  Consider increasing the polling rate.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_IP4_POLL)(
   IN EFI_IP4_PROTOCOL          *This
-  );  
+  );
 
 ///
-/// The EFI IPv4 Protocol implements a simple packet-oriented interface that can be 
+/// The EFI IPv4 Protocol implements a simple packet-oriented interface that can be
 /// used by drivers, daemons, and applications to transmit and receive network packets.
 ///
 struct _EFI_IP4_PROTOCOL {

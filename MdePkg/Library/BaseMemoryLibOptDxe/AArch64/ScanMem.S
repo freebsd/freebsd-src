@@ -40,7 +40,7 @@
 #define result    x0
 
 #define src       x3
-#define	tmp       x4
+#define  tmp       x4
 #define wtmp2     w5
 #define synd      x6
 #define soff      x9
@@ -68,7 +68,7 @@
 ASM_GLOBAL ASM_PFX(InternalMemScanMem8)
 ASM_PFX(InternalMemScanMem8):
     // Do not dereference srcin if no bytes to compare.
-    cbz	cntin, .Lzero_length
+    cbz  cntin, .Lzero_length
     //
     // Magic constant 0x40100401 allows us to identify which lane matches
     // the requested byte.

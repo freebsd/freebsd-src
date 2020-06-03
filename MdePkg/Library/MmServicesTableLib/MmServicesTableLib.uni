@@ -1,0 +1,18 @@
+// /** @file
+//
+// MM Services Table Library.
+//
+// It implements MmServicesTableLib based on gEfiMmBaseProtocolGuid, which
+// is simply gEfiSmmBase2ProtocolGuid under the hood.
+//
+// Copyright (c) 2009 - 2014, Intel Corporation. All rights reserved.<BR>
+// Copyright (c) 2018, Linaro, Ltd. All rights reserved.<BR>
+//
+// SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "MM Services Table Library"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "MM Services Table Library."

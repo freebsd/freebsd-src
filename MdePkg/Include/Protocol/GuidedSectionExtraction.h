@@ -4,14 +4,8 @@
   instance of the GUIDed Section Extraction Protocol to extract
   the section stream contained therein.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference: PI
   Version 1.00.
@@ -22,14 +16,14 @@
 #define __GUID_SECTION_EXTRACTION_PROTOCOL_H__
 
 //
-// The protocol interface structures are identified by associating 
-// them with a GUID. Each instance of a protocol with a given 
-// GUID must have the same interface structure. While all instances 
-// of the GUIDed Section Extraction Protocol must have the same 
-// interface structure, they do not all have the same GUID. The 
-// GUID that is associated with an instance of the GUIDed Section 
-// Extraction Protocol is used to correlate it with the GUIDed 
-// section type that it is intended to process. 
+// The protocol interface structures are identified by associating
+// them with a GUID. Each instance of a protocol with a given
+// GUID must have the same interface structure. While all instances
+// of the GUIDed Section Extraction Protocol must have the same
+// interface structure, they do not all have the same GUID. The
+// GUID that is associated with an instance of the GUIDed Section
+// Extraction Protocol is used to correlate it with the GUIDed
+// section type that it is intended to process.
 //
 
 typedef struct _EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL;
@@ -61,9 +55,9 @@ typedef struct _EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL EFI_GUIDED_SECTION_EXTRAC
   EFI_TPL above TPL_NOTIFY is undefined. Type EFI_TPL is
   defined in RaiseTPL() in the UEFI 2.0 specification.
 
-  
+
   @param This         Indicates the EFI_GUIDED_SECTION_EXTRACTION_PROTOCOL instance.
-  
+
   @param InputSection Buffer containing the input GUIDed section
                       to be processed. OutputBuffer OutputBuffer
                       is allocated from boot services pool

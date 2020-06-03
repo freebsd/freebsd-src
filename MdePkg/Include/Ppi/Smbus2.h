@@ -1,16 +1,10 @@
 /** @file
   This file declares Smbus2 PPI.
-  This PPI provides the basic I/O interfaces that a PEIM uses to access its 
+  This PPI provides the basic I/O interfaces that a PEIM uses to access its
   SMBus controller and the slave devices attached to it.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -29,28 +23,28 @@
 typedef struct _EFI_PEI_SMBUS2_PPI EFI_PEI_SMBUS2_PPI;
 
 /**
-  Executes an SMBus operation to an SMBus controller. Returns when either 
+  Executes an SMBus operation to an SMBus controller. Returns when either
   the command has been executed or an error is encountered in doing the operation.
 
   @param  This            A pointer to the EFI_PEI_SMBUS2_PPI instance.
   @param  SlaveAddress    The SMBUS hardware address to which the SMBUS device is preassigned or
                           allocated.
-  @param  Command         This command is transmitted by the SMBus host controller to the SMBus slave 
-                          device and the interpretation is SMBus slave device specific. 
-                          It can mean the offset to a list of functions inside 
+  @param  Command         This command is transmitted by the SMBus host controller to the SMBus slave
+                          device and the interpretation is SMBus slave device specific.
+                          It can mean the offset to a list of functions inside
                           an SMBus slave device. Not all operations or slave devices support
                           this command's registers.
-  @param  Operation       Signifies which particular SMBus hardware protocol instance that it 
-                          will use to execute the SMBus transactions. 
-                          This SMBus hardware protocol is defined by the System Management Bus (SMBus) 
+  @param  Operation       Signifies which particular SMBus hardware protocol instance that it
+                          will use to execute the SMBus transactions.
+                          This SMBus hardware protocol is defined by the System Management Bus (SMBus)
                           Specification and is not related to UEFI.
   @param  PecCheck        Defines if Packet Error Code (PEC) checking is required for this operation.
-  @param  Length          Signifies the number of bytes that this operation will do. 
+  @param  Length          Signifies the number of bytes that this operation will do.
                           The maximum number of bytes can be revision specific and operation specific.
                           This parameter will contain the actual number of bytes that are executed
                           for this operation. Not all operations require this argument.
-  @param  Buffer          Contains the value of data to execute to the SMBus slave device. 
-                          Not all operations require this argument. 
+  @param  Buffer          Contains the value of data to execute to the SMBus slave device.
+                          Not all operations require this argument.
                           The length of this buffer is identified by Length.
 
 
@@ -83,8 +77,8 @@ EFI_STATUS
 );
 
 /**
-  The ArpDevice() function enumerates the entire bus or enumerates a specific 
-  device that is identified by SmbusUdid. 
+  The ArpDevice() function enumerates the entire bus or enumerates a specific
+  device that is identified by SmbusUdid.
 
   @param  This           A pointer to the EFI_PEI_SMBUS2_PPI instance.
   @param  ArpAll         A Boolean expression that indicates if the host drivers need
@@ -116,8 +110,8 @@ EFI_STATUS
 );
 
 /**
-  The GetArpMap() function returns the mapping of all the SMBus devices 
-  that are enumerated by the SMBus host driver. 
+  The GetArpMap() function returns the mapping of all the SMBus devices
+  that are enumerated by the SMBus host driver.
 
   @param  This           A pointer to the EFI_PEI_SMBUS2_PPI instance.
   @param  Length         Size of the buffer that contains the SMBus device map.
@@ -159,7 +153,7 @@ EFI_STATUS
 );
 
 /**
-  The Notify() function registers all the callback functions to allow the 
+  The Notify() function registers all the callback functions to allow the
   bus driver to call these functions when the SlaveAddress/Data pair happens.
 
   @param  This           A pointer to the EFI_PEI_SMBUS2_PPI instance.
@@ -184,7 +178,7 @@ EFI_STATUS
 );
 
 ///
-///  Provides the basic I/O interfaces that a PEIM uses to access 
+///  Provides the basic I/O interfaces that a PEIM uses to access
 ///  its SMBus controller and the slave devices attached to it.
 ///
 struct _EFI_PEI_SMBUS2_PPI {

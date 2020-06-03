@@ -1,18 +1,12 @@
 /** @file
-  EFI Bluetooth Configuration Protocol as defined in UEFI 2.5.
+  EFI Bluetooth Configuration Protocol as defined in UEFI 2.7.
   This protocol abstracts user interface configuration for Bluetooth device.
 
-  Copyright (c) 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials are licensed and made available under 
-  the terms and conditions of the BSD License that accompanies this distribution.  
-  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.                                          
-    
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2015 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  @par Revision Reference:          
-  This Protocol is introduced in UEFI Specification 2.5
+  @par Revision Reference:
+  This Protocol is introduced in UEFI Specification 2.7
 
 **/
 
@@ -25,7 +19,7 @@
   { \
     0x62960cf3, 0x40ff, 0x4263, { 0xa7, 0x7c, 0xdf, 0xde, 0xbd, 0x19, 0x1b, 0x4b } \
   }
-  
+
 typedef struct _EFI_BLUETOOTH_CONFIG_PROTOCOL EFI_BLUETOOTH_CONFIG_PROTOCOL;
 
 typedef UINT32      EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_TYPE;
@@ -41,7 +35,7 @@ typedef struct {
   ///
   BLUETOOTH_ADDRESS         BDAddr;
   ///
-  /// State of the remote deive 
+  /// State of the remote deive
   ///
   UINT8                     RemoteDeviceState;
   ///
@@ -69,7 +63,7 @@ typedef enum {
   ///
   /// Remote Bluetooth device state. Data structure is EFI_BLUETOOTH_CONFIG_REMOTE_DEVICE_STATE_TYPE.
   ///
-  EfiBluetoothConfigDataTypeRemoteDeviceState,
+  EfiBluetoothConfigDataTypeRemoteDeviceState, /* Relevant for LE*/
   ///
   /// Local/Remote Bluetooth device SDP information. Data structure is UINT8[].
   ///
@@ -77,11 +71,11 @@ typedef enum {
   ///
   /// Local Bluetooth device address. Data structure is BLUETOOTH_ADDRESS.
   ///
-  EfiBluetoothConfigDataTypeBDADDR,
+  EfiBluetoothConfigDataTypeBDADDR, /* Relevant for LE*/
   ///
   /// Local Bluetooth discoverable state. Data structure is UINT8. (Page scan and/or Inquiry scan)
   ///
-  EfiBluetoothConfigDataTypeDiscoverable,
+  EfiBluetoothConfigDataTypeDiscoverable, /* Relevant for LE*/
   ///
   /// Local Bluetooth controller stored paired device list. Data structure is BLUETOOTH_ADDRESS[].
   ///
@@ -90,6 +84,21 @@ typedef enum {
   /// Local available device list. Data structure is BLUETOOTH_ADDRESS[].
   ///
   EfiBluetoothConfigDataTypeAvailableDeviceList,
+  EfiBluetoothConfigDataTypeRandomAddress, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeRSSI, /* Relevant for LE*/
+  ///
+  /// Advertisement report. Data structure is UNIT8[].
+  ///
+  EfiBluetoothConfigDataTypeAdvertisementData, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeIoCapability, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeOOBDataFlag, /* Relevant for LE*/
+  ///
+  /// KeyType of Authentication Requirements flag of local
+  /// device as UINT8, indicating requested security properties.
+  /// See Bluetooth specification 3.H.3.5.1. BIT0: MITM, BIT1:SC.
+  ///
+  EfiBluetoothConfigDataTypeKeyType, /* Relevant for LE*/
+  EfiBluetoothConfigDataTypeEncKeySize, /* Relevant for LE*/
   EfiBluetoothConfigDataTypeMax,
 } EFI_BLUETOOTH_CONFIG_DATA_TYPE;
 
@@ -98,12 +107,12 @@ typedef enum {
 ///
 typedef enum {
   ///
-  /// For SSP - passkey entry. Input buffer is Passkey (4 bytes). No output buffer. 
+  /// For SSP - passkey entry. Input buffer is Passkey (4 bytes). No output buffer.
   /// See Bluetooth HCI command for detail.
   ///
   EfiBluetoothCallbackTypeUserPasskeyNotification,
   ///
-  /// For SSP - just work and numeric comparison. Input buffer is numeric value (4 bytes). 
+  /// For SSP - just work and numeric comparison. Input buffer is numeric value (4 bytes).
   /// Output buffer is BOOLEAN (1 byte). See Bluetooth HCI command for detail.
   ///
   EfiBluetoothCallbackTypeUserConfirmationRequest,
@@ -112,7 +121,7 @@ typedef enum {
   ///
   EfiBluetoothCallbackTypeOOBDataRequest,
   ///
-  /// For legacy paring. No input buffer. Output buffer is PIN code( <= 16 bytes). 
+  /// For legacy paring. No input buffer. Output buffer is PIN code( <= 16 bytes).
   /// See Bluetooth HCI command for detail.
   ///
   EfiBluetoothCallbackTypePinCodeRequest,
@@ -124,44 +133,44 @@ typedef enum {
 ///
 typedef enum {
   ///
-  /// This callback is called when Bluetooth receive Disconnection_Complete event. Input buffer is Event 
+  /// This callback is called when Bluetooth receive Disconnection_Complete event. Input buffer is Event
   /// Parameters of Disconnection_Complete Event defined in Bluetooth specification.
   ///
   EfiBluetoothConnCallbackTypeDisconnected,
   ///
-  /// This callback is called when Bluetooth receive Connection_Complete event. Input buffer is Event 
+  /// This callback is called when Bluetooth receive Connection_Complete event. Input buffer is Event
   /// Parameters of Connection_Complete Event defined in Bluetooth specification.
   ///
   EfiBluetoothConnCallbackTypeConnected,
   ///
-  /// This callback is called when Bluetooth receive Authentication_Complete event. Input buffer is Event 
+  /// This callback is called when Bluetooth receive Authentication_Complete event. Input buffer is Event
   /// Parameters of Authentication_Complete Event defined in Bluetooth specification.
   ///
   EfiBluetoothConnCallbackTypeAuthenticated,
   ///
-  /// This callback is called when Bluetooth receive Encryption_Change event. Input buffer is Event 
+  /// This callback is called when Bluetooth receive Encryption_Change event. Input buffer is Event
   /// Parameters of Encryption_Change Event defined in Bluetooth specification.
   ///
   EfiBluetoothConnCallbackTypeEncrypted
 } EFI_BLUETOOTH_CONNECT_COMPLETE_CALLBACK_TYPE;
 
-  
+
 /**
   Initialize Bluetooth host controller and local device.
 
   @param  This          Pointer to the EFI_BLUETOOTH_CONFIG_PROTOCOL instance.
 
   @retval EFI_SUCCESS           The Bluetooth host controller and local device is initialized successfully.
-  @retval EFI_DEVICE_ERROR      A hardware error occurred trying to initialize the Bluetooth host controller 
+  @retval EFI_DEVICE_ERROR      A hardware error occurred trying to initialize the Bluetooth host controller
                                 and local device.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_INIT)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL  *This
   );
-  
+
 /**
   Callback function, it is called if a Bluetooth device is found during scan process.
 
@@ -179,16 +188,16 @@ EFI_STATUS
   IN VOID                                     *Context,
   IN EFI_BLUETOOTH_SCAN_CALLBACK_INFORMATION  *CallbackInfo
   );
-  
+
 /**
   Scan Bluetooth device.
 
   @param  This          Pointer to the EFI_BLUETOOTH_CONFIG_PROTOCOL instance.
-  @param  ReScan        If TRUE, a new scan request is submitted no matter there is scan result before. 
-                        If FALSE and there is scan result, the previous scan result is returned and no scan request 
+  @param  ReScan        If TRUE, a new scan request is submitted no matter there is scan result before.
+                        If FALSE and there is scan result, the previous scan result is returned and no scan request
                         is submitted.
   @param  ScanType      Bluetooth scan type, Inquiry and/or Page. See Bluetooth specification for detail.
-  @param  Callback      The callback function. This function is called if a Bluetooth device is found during scan 
+  @param  Callback      The callback function. This function is called if a Bluetooth device is found during scan
                         process.
   @param  Context       Data passed into Callback function. This is optional parameter and may be NULL.
 
@@ -196,7 +205,7 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR      A hardware error occurred trying to scan the Bluetooth device.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_SCAN)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
@@ -205,7 +214,7 @@ EFI_STATUS
   IN EFI_BLUETOOTH_CONFIG_SCAN_CALLBACK_FUNCTION    Callback,
   IN VOID                                           *Context
   );
-  
+
 /**
   Connect a Bluetooth device.
 
@@ -218,7 +227,7 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR      A hardware error occurred trying to connect the Bluetooth device.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_CONNECT)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
@@ -238,14 +247,14 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR      A hardware error occurred trying to disconnect the Bluetooth device.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_DISCONNECT)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
   IN BLUETOOTH_ADDRESS                              *BD_ADDR,
   IN UINT8                                          Reason
   );
-  
+
 /**
   Get Bluetooth configuration data.
 
@@ -258,14 +267,14 @@ EFI_STATUS
   @retval EFI_SUCCESS           The Bluetooth configuration data is returned successfully.
   @retval EFI_INVALID_PARAMETER One or more of the following conditions is TRUE:
                                 - DataSize is NULL.
-                                - *DataSize is 0.
-                                - Data is NULL.
+                                - *DataSize is not 0 and Data is NULL.
   @retval EFI_UNSUPPORTED       The DataType is unsupported.
   @retval EFI_NOT_FOUND         The DataType is not found.
   @retval EFI_BUFFER_TOO_SMALL  The buffer is too small to hold the buffer.
+                                *DataSize has been updated with the size needed to complete the request.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_GET_DATA)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
@@ -273,7 +282,7 @@ EFI_STATUS
   IN OUT UINTN                                      *DataSize,
   IN OUT VOID                                       *Data
   );
-  
+
 /**
   Set Bluetooth configuration data.
 
@@ -290,7 +299,7 @@ EFI_STATUS
   @retval EFI_BUFFER_TOO_SMALL  Cannot set configuration data.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_SET_DATA)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
@@ -298,7 +307,7 @@ EFI_STATUS
   IN UINTN                                          DataSize,
   IN VOID                                           *Data
   );
-  
+
 /**
   Get remove Bluetooth device configuration data.
 
@@ -312,23 +321,23 @@ EFI_STATUS
   @retval EFI_SUCCESS           The remote Bluetooth device configuration data is returned successfully.
   @retval EFI_INVALID_PARAMETER One or more of the following conditions is TRUE:
                                 - DataSize is NULL.
-                                - *DataSize is 0.
-                                - Data is NULL.
+                                - *DataSize is not 0 and Data is NULL.
   @retval EFI_UNSUPPORTED       The DataType is unsupported.
   @retval EFI_NOT_FOUND         The DataType is not found.
   @retval EFI_BUFFER_TOO_SMALL  The buffer is too small to hold the buffer.
+                                *DataSize has been updated with the size needed to complete the request.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_GET_REMOTE_DATA)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
   IN EFI_BLUETOOTH_CONFIG_DATA_TYPE                 DataType,
-  IN BLUETOOTH_ADDRESS                              BDAddr,
+  IN BLUETOOTH_ADDRESS                              *BDAddr,
   IN OUT UINTN                                      *DataSize,
   IN OUT VOID                                       *Data
   );
-  
+
 /**
   The callback function for PIN code.
 
@@ -337,14 +346,14 @@ EFI_STATUS
   @param  CallbackType        Callback type in EFI_BLUETOOTH_PIN_CALLBACK_TYPE.
   @param  InputBuffer         A pointer to the buffer of data that is input from callback caller.
   @param  InputBufferSize     Indicates the size, in bytes, of the data buffer specified by InputBuffer.
-  @param  OutputBuffer        A pointer to the buffer of data that will be output from callback callee. 
+  @param  OutputBuffer        A pointer to the buffer of data that will be output from callback callee.
                               Callee allocates this buffer by using EFI Boot Service AllocatePool().
   @param  OutputBufferSize    Indicates the size, in bytes, of the data buffer specified by OutputBuffer.
 
   @retval EFI_SUCCESS   The callback function complete successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_PIN_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                        *This,
@@ -355,7 +364,7 @@ EFI_STATUS
   OUT VOID                                                **OutputBuffer,
   OUT UINTN                                               *OutputBufferSize
   );
-  
+
 /**
   Register PIN callback function.
 
@@ -366,7 +375,7 @@ EFI_STATUS
   @retval EFI_SUCCESS   The PIN callback function is registered successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_PIN_CALLBACK)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                        *This,
@@ -385,7 +394,7 @@ EFI_STATUS
   @retval EFI_SUCCESS   The callback function complete successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_GET_LINK_KEY_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL        *This,
@@ -393,7 +402,7 @@ EFI_STATUS
   IN BLUETOOTH_ADDRESS                    *BDAddr,
   OUT UINT8                               LinkKey[BLUETOOTH_HCI_LINK_KEY_SIZE]
   );
-  
+
 /**
   Register get link key callback function.
 
@@ -404,14 +413,14 @@ EFI_STATUS
   @retval EFI_SUCCESS   The link key callback function is registered successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_GET_LINK_KEY_CALLBACK)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                                  *This,
   IN EFI_BLUETOOTH_CONFIG_REGISTER_GET_LINK_KEY_CALLBACK_FUNCTION   Callback,
   IN VOID                                                           *Context
   );
-  
+
 /**
   The callback function to set link key.
 
@@ -423,7 +432,7 @@ EFI_STATUS
   @retval EFI_SUCCESS   The callback function complete successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_SET_LINK_KEY_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL        *This,
@@ -431,7 +440,7 @@ EFI_STATUS
   IN BLUETOOTH_ADDRESS                    *BDAddr,
   IN UINT8                                LinkKey[BLUETOOTH_HCI_LINK_KEY_SIZE]
   );
-  
+
 /**
   Register set link key callback function.
 
@@ -442,14 +451,14 @@ EFI_STATUS
   @retval EFI_SUCCESS   The link key callback function is registered successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_SET_LINK_KEY_CALLBACK)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                                  *This,
   IN EFI_BLUETOOTH_CONFIG_REGISTER_SET_LINK_KEY_CALLBACK_FUNCTION   Callback,
   IN VOID                                                           *Context
   );
-  
+
 /**
   The callback function. It is called after connect completed.
 
@@ -463,7 +472,7 @@ EFI_STATUS
   @retval EFI_SUCCESS   The callback function complete successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK_FUNCTION)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                  *This,
@@ -473,7 +482,7 @@ EFI_STATUS
   IN VOID                                           *InputBuffer,
   IN UINTN                                          InputBufferSize
   );
-  
+
 /**
   Register link connect complete callback function.
 
@@ -484,14 +493,14 @@ EFI_STATUS
   @retval EFI_SUCCESS   The link connect complete callback function is registered successfully.
 
 **/
-typedef 
+typedef
 EFI_STATUS
 (EFIAPI *EFI_BLUETOOTH_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK)(
   IN EFI_BLUETOOTH_CONFIG_PROTOCOL                                      *This,
   IN EFI_BLUETOOTH_CONFIG_REGISTER_CONNECT_COMPLETE_CALLBACK_FUNCTION   Callback,
   IN VOID                                                               *Context
   );
-  
+
 ///
 /// This protocol abstracts user interface configuration for Bluetooth device.
 ///

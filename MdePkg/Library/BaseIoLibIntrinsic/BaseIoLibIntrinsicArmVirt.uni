@@ -1,0 +1,17 @@
+// /** @file
+//   Instance of I/O Library using KVM/ARM safe assembler routines
+//
+//   Copyright (c) 2007 - 2015, Intel Corporation. All rights reserved.<BR>
+//   Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
+//   Copyright (c) 2017, AMD Incorporated. All rights reserved.<BR>
+//   Copyright (c) 2018, Linaro, Ltd. All rights reserved.<BR>
+//
+//   SPDX-License-Identifier: BSD-2-Clause-Patent
+//
+// **/
+
+
+#string STR_MODULE_ABSTRACT             #language en-US "Instance of I/O Library using KVM/ARM safe assembler routines"
+
+#string STR_MODULE_DESCRIPTION          #language en-US "I/O Library that uses assembler routines to perform MMIO accesses, to prevent link time code generation under LTO from emitting instructions that KVM on ARM cannot deal with."
+

@@ -1,14 +1,8 @@
 /** @file
   The Decompress Protocol Interface as defined in UEFI spec
 
-  Copyright (c) 2006 - 2014, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -23,16 +17,16 @@
 typedef struct _EFI_DECOMPRESS_PROTOCOL  EFI_DECOMPRESS_PROTOCOL;
 
 /**
-  The GetInfo() function retrieves the size of the uncompressed buffer 
-  and the temporary scratch buffer required to decompress the buffer 
+  The GetInfo() function retrieves the size of the uncompressed buffer
+  and the temporary scratch buffer required to decompress the buffer
   specified by Source and SourceSize.  If the size of the uncompressed
-  buffer or the size of the scratch buffer cannot be determined from 
-  the compressed data specified by Source and SourceData, then 
+  buffer or the size of the scratch buffer cannot be determined from
+  the compressed data specified by Source and SourceData, then
   EFI_INVALID_PARAMETER is returned.  Otherwise, the size of the uncompressed
-  buffer is returned in DestinationSize, the size of the scratch buffer is 
+  buffer is returned in DestinationSize, the size of the scratch buffer is
   returned in ScratchSize, and EFI_SUCCESS is returned.
 
-  The GetInfo() function does not have a scratch buffer available to perform 
+  The GetInfo() function does not have a scratch buffer available to perform
   a thorough checking of the validity of the source data. It just retrieves
   the 'Original Size' field from the beginning bytes of the source data and
   output it as DestinationSize.  And ScratchSize is specific to the decompression
@@ -68,15 +62,15 @@ EFI_STATUS
 /**
   The Decompress() function extracts decompressed data to its original form.
 
-  This protocol is designed so that the decompression algorithm can be 
-  implemented without using any memory services.  As a result, the 
-  Decompress() function is not allowed to call AllocatePool() or 
-  AllocatePages() in its implementation.  It is the caller's responsibility 
+  This protocol is designed so that the decompression algorithm can be
+  implemented without using any memory services.  As a result, the
+  Decompress() function is not allowed to call AllocatePool() or
+  AllocatePages() in its implementation.  It is the caller's responsibility
   to allocate and free the Destination and Scratch buffers.
 
-  If the compressed source data specified by Source and SourceSize is 
-  successfully decompressed into Destination, then EFI_SUCCESS is returned.  
-  If the compressed source data specified by Source and SourceSize is not in 
+  If the compressed source data specified by Source and SourceSize is
+  successfully decompressed into Destination, then EFI_SUCCESS is returned.
+  If the compressed source data specified by Source and SourceSize is not in
   a valid compressed data format, then EFI_INVALID_PARAMETER is returned.
 
   @param  This            A pointer to the EFI_DECOMPRESS_PROTOCOL instance.
@@ -87,7 +81,7 @@ EFI_STATUS
   @param  DestinationSize The size of destination buffer. The size of destination
                           buffer needed is obtained from GetInfo().
   @param  Scratch         A temporary scratch buffer that is used to perform the
-                          decompression.          
+                          decompression.
   @param  ScratchSize     The size of scratch buffer. The size of scratch buffer needed
                           is obtained from GetInfo().
 

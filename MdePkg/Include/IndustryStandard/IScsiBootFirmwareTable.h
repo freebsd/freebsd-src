@@ -1,15 +1,9 @@
 /** @file
   The definition for iSCSI Boot Firmware Table, it's defined in Microsoft's
-  iSCSI Boot Firmware Table(iBFT) as Defined in ACPI 3.0b Specification. 
-  
-  Copyright (c) 2006 - 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
+  iSCSI Boot Firmware Table(iBFT) as Defined in ACPI 3.0b Specification.
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -58,7 +52,7 @@ typedef struct {
 } EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_HEADER;
 
 ///
-/// Common Header of Boot Firmware Table Structure 
+/// Common Header of Boot Firmware Table Structure
 ///
 typedef struct {
   UINT8   StructureId;
@@ -78,7 +72,7 @@ typedef struct {
   UINT16                                               NIC0Offset;
   UINT16                                               Target0Offset;
   UINT16                                               NIC1Offset;
-  UINT16                                               Target1Offset;  
+  UINT16                                               Target1Offset;
 } EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_CONTROL_STRUCTURE;
 
 #define EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_CONTROL_STRUCTURE_VERSION              0x1
@@ -100,8 +94,8 @@ typedef struct {
 
 #define EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_INITIATOR_STRUCTURE_VERSION             0x1
 
-#define EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_INITIATOR_STRUCTURE_FLAG_BLOCK_VALID    BIT0 
-#define EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_INITIATOR_STRUCTURE_FLAG_BOOT_SELECTED  BIT1 
+#define EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_INITIATOR_STRUCTURE_FLAG_BLOCK_VALID    BIT0
+#define EFI_ACPI_ISCSI_BOOT_FIRMWARE_TABLE_INITIATOR_STRUCTURE_FLAG_BOOT_SELECTED  BIT1
 
 ///
 /// NIC Structure

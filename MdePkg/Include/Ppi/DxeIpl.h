@@ -2,14 +2,8 @@
   This file declares DXE Initial Program Load PPI.
   When the PEI core is done it calls the DXE IPL PPI to load the DXE Foundation.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This PPI is introduced in PI Version 1.0.
@@ -27,7 +21,7 @@
 typedef struct _EFI_DXE_IPL_PPI EFI_DXE_IPL_PPI;
 
 /**
-  The architectural PPI that the PEI Foundation invokes when 
+  The architectural PPI that the PEI Foundation invokes when
   there are no additional PEIMs to invoke.
 
   This function is invoked by the PEI Foundation.
@@ -46,7 +40,7 @@ typedef struct _EFI_DXE_IPL_PPI EFI_DXE_IPL_PPI;
   @param  HobList        Pointer to the list of Hand-Off Block (HOB) entries.
 
   @retval EFI_SUCCESS    Upon this return code, the PEI Foundation should enter
-                         some exception handling.Under normal circumstances, 
+                         some exception handling.Under normal circumstances,
                          the DXE IPL PPI should not return.
 
 **/

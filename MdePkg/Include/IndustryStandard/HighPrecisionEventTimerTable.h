@@ -1,15 +1,9 @@
 /** @file
   ACPI high precision event timer table definition, at www.intel.com
   Specification name is IA-PC HPET (High Precision Event Timers) Specification.
-    
-  Copyright (c) 2007 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef _HIGH_PRECISION_EVENT_TIMER_TABLE_H_
@@ -21,6 +15,22 @@
 // Ensure proper structure formats
 //
 #pragma pack(1)
+
+///
+/// HPET Event Timer Block ID described in IA-PC HPET Specification, 3.2.4.
+///
+typedef union {
+  struct {
+    UINT32 Revision       : 8;
+    UINT32 NumberOfTimers : 5;
+    UINT32 CounterSize    : 1;
+    UINT32 Reserved       : 1;
+    UINT32 LegacyRoute    : 1;
+    UINT32 VendorId       : 16;
+  }      Bits;
+  UINT32 Uint32;
+} EFI_ACPI_HIGH_PRECISION_EVENT_TIMER_BLOCK_ID;
+
 
 ///
 /// High Precision Event Timer Table header definition.

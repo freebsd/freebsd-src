@@ -1,14 +1,8 @@
 /** @file
   Provides library functions for all PEI Services.
 
-Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -73,7 +67,7 @@ EFIAPI
 PeiServicesLocatePpi (
   IN CONST EFI_GUID                   *Guid,
   IN UINTN                      Instance,
-  IN OUT EFI_PEI_PPI_DESCRIPTOR **PpiDescriptor,
+  IN OUT EFI_PEI_PPI_DESCRIPTOR **PpiDescriptor, OPTIONAL
   IN OUT VOID                   **Ppi
   );
 
@@ -225,7 +219,7 @@ PeiServicesFfsFindSectionData (
 
   @param  SectionType           The value of the section type to find.
   @param  SectionInstance       Section instance to find.
-  @param  FileHandle            A pointer to the file header that contains the set 
+  @param  FileHandle            A pointer to the file header that contains the set
                                 of sections to be searched.
   @param  SectionData           A pointer to the discovered section, if successful.
   @param  AuthenticationStatus  A pointer to the authentication status for this section.
@@ -264,16 +258,16 @@ PeiServicesInstallPeiMemory (
   );
 
 /**
-  This service enables PEIMs to allocate memory after the permanent memory has been installed by a
-  PEIM.
+  This service enables PEIMs to allocate memory.
 
   @param  MemoryType            Type of memory to allocate.
-  @param  Pages                 Number of pages to allocate.
+  @param  Pages                 The number of pages to allocate.
   @param  Memory                Pointer of memory allocated.
 
   @retval EFI_SUCCESS           The memory range was successfully allocated.
-  @retval EFI_INVALID_PARAMETER Type is not equal to AllocateAnyPages.
-  @retval EFI_NOT_AVAILABLE_YET Called with permanent memory not available.
+  @retval EFI_INVALID_PARAMETER Type is not equal to EfiLoaderCode, EfiLoaderData, EfiRuntimeServicesCode,
+                                EfiRuntimeServicesData, EfiBootServicesCode, EfiBootServicesData,
+                                EfiACPIReclaimMemory, EfiReservedMemoryType, or EfiACPIMemoryNVS.
   @retval EFI_OUT_OF_RESOURCES  The pages could not be allocated.
 
 **/
@@ -283,6 +277,25 @@ PeiServicesAllocatePages (
   IN EFI_MEMORY_TYPE            MemoryType,
   IN UINTN                      Pages,
   OUT EFI_PHYSICAL_ADDRESS      *Memory
+  );
+
+/**
+  This service enables PEIMs to free memory.
+
+  @param Memory                 Memory to be freed.
+  @param Pages                  The number of pages to free.
+
+  @retval EFI_SUCCESS           The requested pages were freed.
+  @retval EFI_INVALID_PARAMETER Memory is not a page-aligned address or Pages is invalid.
+  @retval EFI_NOT_FOUND         The requested memory pages were not allocated with
+                                AllocatePages().
+
+**/
+EFI_STATUS
+EFIAPI
+PeiServicesFreePages (
+  IN EFI_PHYSICAL_ADDRESS       Memory,
+  IN UINTN                      Pages
   );
 
 /**
@@ -318,9 +331,9 @@ PeiServicesResetSystem (
 
 
 /**
-  This service is a wrapper for the PEI Service FfsFindByName(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service FfsFindByName(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param FileName       A pointer to the name of the file to
                         find within the firmware volume.
@@ -328,7 +341,7 @@ PeiServicesResetSystem (
   @param VolumeHandle   The firmware volume to search FileHandle
                         Upon exit, points to the found file's
                         handle or NULL if it could not be found.
-  @param FileHandle     Pointer to found file handle 
+  @param FileHandle     Pointer to found file handle
 
   @retval EFI_SUCCESS             File was found.
 
@@ -348,9 +361,9 @@ PeiServicesFfsFindFileByName (
 
 
 /**
-  This service is a wrapper for the PEI Service FfsGetFileInfo(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service FfsGetFileInfo(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param FileHandle   Handle of the file.
 
@@ -358,15 +371,15 @@ PeiServicesFfsFindFileByName (
                       information.
 
   @retval EFI_SUCCESS             File information returned.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileHandle does not
                                   represent a valid file.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileInfo is NULL.
-  
+
 **/
 EFI_STATUS
-EFIAPI 
+EFIAPI
 PeiServicesFfsGetFileInfo (
   IN CONST  EFI_PEI_FILE_HANDLE   FileHandle,
   OUT EFI_FV_FILE_INFO            *FileInfo
@@ -383,12 +396,12 @@ PeiServicesFfsGetFileInfo (
                       information.
 
   @retval EFI_SUCCESS             File information returned.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileHandle does not
                                   represent a valid file.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileInfo is NULL.
-  
+
 **/
 EFI_STATUS
 EFIAPI
@@ -398,9 +411,9 @@ PeiServicesFfsGetFileInfo2 (
   );
 
 /**
-  This service is a wrapper for the PEI Service FfsGetVolumeInfo(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service FfsGetVolumeInfo(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param VolumeHandle   Handle of the volume.
 
@@ -408,10 +421,10 @@ PeiServicesFfsGetFileInfo2 (
                         information.
 
   @retval EFI_SUCCESS             File information returned.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileHandle does not
                                   represent a valid file.
-  
+
   @retval EFI_INVALID_PARAMETER   If FileInfo is NULL.
 
 **/
@@ -424,13 +437,13 @@ PeiServicesFfsGetVolumeInfo (
 
 
 /**
-  This service is a wrapper for the PEI Service RegisterForShadow(), except the pointer to the PEI Services 
-  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface 
-  Specification for details. 
+  This service is a wrapper for the PEI Service RegisterForShadow(), except the pointer to the PEI Services
+  Table has been removed.  See the Platform Initialization Pre-EFI Initialization Core Interface
+  Specification for details.
 
   @param FileHandle   PEIM's file handle. Must be the currently
                       executing PEIM.
-  
+
   @retval EFI_SUCCESS   The PEIM was successfully registered for
                         shadowing.
 
@@ -448,25 +461,25 @@ PeiServicesRegisterForShadow (
 
 /**
   Install a EFI_PEI_FIRMWARE_VOLUME_INFO_PPI instance so the PEI Core will be notified about a new firmware volume.
-  
-  This function allocates, initializes, and installs a new EFI_PEI_FIRMWARE_VOLUME_INFO_PPI using 
+
+  This function allocates, initializes, and installs a new EFI_PEI_FIRMWARE_VOLUME_INFO_PPI using
   the parameters passed in to initialize the fields of the EFI_PEI_FIRMWARE_VOLUME_INFO_PPI instance.
   If the resources can not be allocated for EFI_PEI_FIRMWARE_VOLUME_INFO_PPI, then ASSERT().
   If the EFI_PEI_FIRMWARE_VOLUME_INFO_PPI can not be installed, then ASSERT().
 
-  
+
   @param  FvFormat             Unique identifier of the format of the memory-mapped firmware volume.
-                               This parameter is optional and may be NULL.  
+                               This parameter is optional and may be NULL.
                                If NULL is specified, the EFI_FIRMWARE_FILE_SYSTEM2_GUID format is assumed.
-  @param  FvInfo               Points to a buffer which allows the EFI_PEI_FIRMWARE_VOLUME_PPI to process the volume. 
-                               The format of this buffer is specific to the FvFormat. For memory-mapped firmware volumes, 
+  @param  FvInfo               Points to a buffer which allows the EFI_PEI_FIRMWARE_VOLUME_PPI to process the volume.
+                               The format of this buffer is specific to the FvFormat. For memory-mapped firmware volumes,
                                this typically points to the first byte of the firmware volume.
-  @param  FvInfoSize           The size, in bytes, of FvInfo. For memory-mapped firmware volumes, 
+  @param  FvInfoSize           The size, in bytes, of FvInfo. For memory-mapped firmware volumes,
                                this is typically the size of the firmware volume.
-  @param  ParentFvName         If the new firmware volume originated from a file in a different firmware volume, 
+  @param  ParentFvName         If the new firmware volume originated from a file in a different firmware volume,
                                then this parameter specifies the GUID name of the originating firmware volume.
                                Otherwise, this parameter must be NULL.
-  @param  ParentFileName       If the new firmware volume originated from a file in a different firmware volume, 
+  @param  ParentFileName       If the new firmware volume originated from a file in a different firmware volume,
                                then this parameter specifies the GUID file name of the originating firmware file.
                                Otherwise, this parameter must be NULL.
 **/
@@ -519,6 +532,28 @@ PeiServicesInstallFvInfo2Ppi (
   IN CONST EFI_GUID                *ParentFvName, OPTIONAL
   IN CONST EFI_GUID                *ParentFileName, OPTIONAL
   IN       UINT32                  AuthenticationStatus
+  );
+
+/**
+  Resets the entire platform.
+
+  @param[in] ResetType      The type of reset to perform.
+  @param[in] ResetStatus    The status code for the reset.
+  @param[in] DataSize       The size, in bytes, of ResetData.
+  @param[in] ResetData      For a ResetType of EfiResetCold, EfiResetWarm, or EfiResetShutdown
+                            the data buffer starts with a Null-terminated string, optionally
+                            followed by additional binary data. The string is a description
+                            that the caller may use to further indicate the reason for the
+                            system reset.
+
+**/
+VOID
+EFIAPI
+PeiServicesResetSystem2 (
+  IN EFI_RESET_TYPE     ResetType,
+  IN EFI_STATUS         ResetStatus,
+  IN UINTN              DataSize,
+  IN VOID               *ResetData OPTIONAL
   );
 
 #endif

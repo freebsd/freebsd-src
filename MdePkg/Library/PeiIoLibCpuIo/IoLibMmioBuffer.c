@@ -2,14 +2,8 @@
   I/O Library MMIO Buffer Functions.
   The implementations are based on EFI_PEI_SERVICE->CpuIo interface.
 
-  Copyright (c) 2007 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php.
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2007 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -24,11 +18,11 @@
 /**
   Copy data from MMIO region to system memory by using 8-bit access.
 
-  Copy data from MMIO region specified by starting address StartAddress 
-  to system memory specified by Buffer by using 8-bit access. The total 
+  Copy data from MMIO region specified by starting address StartAddress
+  to system memory specified by Buffer by using 8-bit access. The total
   number of byte to be copied is specified by Length. Buffer is returned.
-  
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
 
@@ -51,9 +45,9 @@ MmioReadBuffer8 (
 
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
- 
+
   ReturnBuffer = Buffer;
-  
+
   while (Length-- != 0) {
     *(Buffer++) = MmioRead8 (StartAddress++);
   }
@@ -64,13 +58,13 @@ MmioReadBuffer8 (
 /**
   Copy data from MMIO region to system memory by using 16-bit access.
 
-  Copy data from MMIO region specified by starting address StartAddress 
-  to system memory specified by Buffer by using 16-bit access. The total 
+  Copy data from MMIO region specified by starting address StartAddress
+  to system memory specified by Buffer by using 16-bit access. The total
   number of byte to be copied is specified by Length. Buffer is returned.
-  
+
   If StartAddress is not aligned on a 16-bit boundary, then ASSERT().
 
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 16-bit boundary, then ASSERT().
@@ -94,15 +88,15 @@ MmioReadBuffer16 (
   UINT16    *ReturnBuffer;
 
   ASSERT ((StartAddress & (sizeof (UINT16) - 1)) == 0);
-  
+
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
 
   ASSERT ((Length & (sizeof (UINT16) - 1)) == 0);
   ASSERT (((UINTN) Buffer & (sizeof (UINT16) - 1)) == 0);
- 
+
   ReturnBuffer = Buffer;
-  
+
   while (Length != 0) {
     *(Buffer++) = MmioRead16 (StartAddress);
     StartAddress += sizeof (UINT16);
@@ -115,13 +109,13 @@ MmioReadBuffer16 (
 /**
   Copy data from MMIO region to system memory by using 32-bit access.
 
-  Copy data from MMIO region specified by starting address StartAddress 
-  to system memory specified by Buffer by using 32-bit access. The total 
+  Copy data from MMIO region specified by starting address StartAddress
+  to system memory specified by Buffer by using 32-bit access. The total
   number of byte to be copied is specified by Length. Buffer is returned.
-  
+
   If StartAddress is not aligned on a 32-bit boundary, then ASSERT().
 
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 32-bit boundary, then ASSERT().
@@ -145,15 +139,15 @@ MmioReadBuffer32 (
   UINT32    *ReturnBuffer;
 
   ASSERT ((StartAddress & (sizeof (UINT32) - 1)) == 0);
-  
+
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
 
   ASSERT ((Length & (sizeof (UINT32) - 1)) == 0);
   ASSERT (((UINTN) Buffer & (sizeof (UINT32) - 1)) == 0);
- 
+
   ReturnBuffer = Buffer;
-  
+
   while (Length != 0) {
     *(Buffer++) = MmioRead32 (StartAddress);
     StartAddress += sizeof (UINT32);
@@ -166,13 +160,13 @@ MmioReadBuffer32 (
 /**
   Copy data from MMIO region to system memory by using 64-bit access.
 
-  Copy data from MMIO region specified by starting address StartAddress 
-  to system memory specified by Buffer by using 64-bit access. The total 
+  Copy data from MMIO region specified by starting address StartAddress
+  to system memory specified by Buffer by using 64-bit access. The total
   number of byte to be copied is specified by Length. Buffer is returned.
-  
+
   If StartAddress is not aligned on a 64-bit boundary, then ASSERT().
 
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 64-bit boundary, then ASSERT().
@@ -196,15 +190,15 @@ MmioReadBuffer64 (
   UINT64    *ReturnBuffer;
 
   ASSERT ((StartAddress & (sizeof (UINT64) - 1)) == 0);
-  
+
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
 
   ASSERT ((Length & (sizeof (UINT64) - 1)) == 0);
   ASSERT (((UINTN) Buffer & (sizeof (UINT64) - 1)) == 0);
- 
+
   ReturnBuffer = Buffer;
-  
+
   while (Length != 0) {
     *(Buffer++) = MmioRead64 (StartAddress);
     StartAddress += sizeof (UINT64);
@@ -218,11 +212,11 @@ MmioReadBuffer64 (
 /**
   Copy data from system memory to MMIO region by using 8-bit access.
 
-  Copy data from system memory specified by Buffer to MMIO region specified 
-  by starting address StartAddress by using 8-bit access. The total number 
+  Copy data from system memory specified by Buffer to MMIO region specified
+  by starting address StartAddress by using 8-bit access. The total number
   of byte to be copied is specified by Length. Buffer is returned.
-  
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS -Buffer + 1), then ASSERT().
 
 
@@ -245,27 +239,27 @@ MmioWriteBuffer8 (
 
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
- 
+
   ReturnBuffer = (UINT8 *) Buffer;
-  
+
   while (Length-- != 0) {
      MmioWrite8 (StartAddress++, *(Buffer++));
   }
 
   return ReturnBuffer;
- 
+
 }
 
 /**
   Copy data from system memory to MMIO region by using 16-bit access.
 
-  Copy data from system memory specified by Buffer to MMIO region specified 
-  by starting address StartAddress by using 16-bit access. The total number 
+  Copy data from system memory specified by Buffer to MMIO region specified
+  by starting address StartAddress by using 16-bit access. The total number
   of byte to be copied is specified by Length. Buffer is returned.
-  
+
   If StartAddress is not aligned on a 16-bit boundary, then ASSERT().
 
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS -Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 16-bit boundary, then ASSERT().
@@ -290,7 +284,7 @@ MmioWriteBuffer16 (
   UINT16    *ReturnBuffer;
 
   ASSERT ((StartAddress & (sizeof (UINT16) - 1)) == 0);
-  
+
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
 
@@ -298,10 +292,10 @@ MmioWriteBuffer16 (
   ASSERT (((UINTN) Buffer & (sizeof (UINT16) - 1)) == 0);
 
   ReturnBuffer = (UINT16 *) Buffer;
-  
+
   while (Length != 0) {
     MmioWrite16 (StartAddress, *(Buffer++));
-    
+
     StartAddress += sizeof (UINT16);
     Length -= sizeof (UINT16);
   }
@@ -313,13 +307,13 @@ MmioWriteBuffer16 (
 /**
   Copy data from system memory to MMIO region by using 32-bit access.
 
-  Copy data from system memory specified by Buffer to MMIO region specified 
-  by starting address StartAddress by using 32-bit access. The total number 
+  Copy data from system memory specified by Buffer to MMIO region specified
+  by starting address StartAddress by using 32-bit access. The total number
   of byte to be copied is specified by Length. Buffer is returned.
-  
+
   If StartAddress is not aligned on a 32-bit boundary, then ASSERT().
 
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS -Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 32-bit boundary, then ASSERT().
@@ -344,7 +338,7 @@ MmioWriteBuffer32 (
   UINT32    *ReturnBuffer;
 
   ASSERT ((StartAddress & (sizeof (UINT32) - 1)) == 0);
-  
+
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
 
@@ -352,10 +346,10 @@ MmioWriteBuffer32 (
   ASSERT (((UINTN) Buffer & (sizeof (UINT32) - 1)) == 0);
 
   ReturnBuffer = (UINT32 *) Buffer;
-  
+
   while (Length != 0) {
     MmioWrite32 (StartAddress, *(Buffer++));
-    
+
     StartAddress += sizeof (UINT32);
     Length -= sizeof (UINT32);
   }
@@ -366,13 +360,13 @@ MmioWriteBuffer32 (
 /**
   Copy data from system memory to MMIO region by using 64-bit access.
 
-  Copy data from system memory specified by Buffer to MMIO region specified 
-  by starting address StartAddress by using 64-bit access. The total number 
+  Copy data from system memory specified by Buffer to MMIO region specified
+  by starting address StartAddress by using 64-bit access. The total number
   of byte to be copied is specified by Length. Buffer is returned.
-  
+
   If StartAddress is not aligned on a 64-bit boundary, then ASSERT().
 
-  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT(). 
+  If Length is greater than (MAX_ADDRESS - StartAddress + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS -Buffer + 1), then ASSERT().
 
   If Length is not aligned on a 64-bit boundary, then ASSERT().
@@ -397,7 +391,7 @@ MmioWriteBuffer64 (
   UINT64    *ReturnBuffer;
 
   ASSERT ((StartAddress & (sizeof (UINT64) - 1)) == 0);
-  
+
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - StartAddress));
   ASSERT ((Length - 1) <=  (MAX_ADDRESS - (UINTN) Buffer));
 
@@ -405,10 +399,10 @@ MmioWriteBuffer64 (
   ASSERT (((UINTN) Buffer & (sizeof (UINT64) - 1)) == 0);
 
   ReturnBuffer = (UINT64 *) Buffer;
-  
+
   while (Length != 0) {
     MmioWrite64 (StartAddress, *(Buffer++));
-    
+
     StartAddress += sizeof (UINT64);
     Length -= sizeof (UINT64);
   }

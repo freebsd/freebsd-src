@@ -2,15 +2,12 @@
   This protocol provides generic image decoder interfaces to various image formats.
 
 (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
-  Copyright (c) 2016, Intel Corporation. All rights reserved.<BR>
+  Copyright (c) 2016-2018, Intel Corporation. All rights reserved.<BR>
 
-This program and the accompanying materials are licensed and made available under
-the terms and conditions of the BSD License that accompanies this distribution.
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  @par Revision Reference:
+  This Protocol was introduced in UEFI Specification 2.6.
 
 **/
 #ifndef __HII_IMAGE_DECODER_H__
@@ -18,15 +15,6 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 
 #include <Protocol/HiiImage.h>
 
-
-//
-// In UEFI 2.6 spec,this guid value is duplicate with
-// EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_GUID. Now update this guid value to
-// avoid the duplicate guid issue. So its value is not consistent with
-// UEFI spec definition now. We have proposed to update UEFI spec to
-// use this new guid. After new spec released, we will remove this
-// comments.
-//
 #define EFI_HII_IMAGE_DECODER_PROTOCOL_GUID \
   {0x9e66f251, 0x727c, 0x418c, { 0xbf, 0xd6, 0xc2, 0xb4, 0x25, 0x28, 0x18, 0xea }}
 

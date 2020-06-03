@@ -3,14 +3,11 @@
   to send ATA Command Blocks to any ATA device attached to that ATA controller. The information
   includes the attributes of the ATA controller.
 
-  Copyright (c) 2009 - 2016, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
+  Copyright (c) 2009 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  @par Revision Reference:
+  This Protocol was introduced in UEFI Specification 2.3.
 
 **/
 
@@ -56,7 +53,7 @@ typedef struct _EFI_ATA_COMMAND_BLOCK {
   UINT8 AtaDeviceHead;
   UINT8 AtaSectorNumberExp;
   UINT8 AtaCylinderLowExp;
-  UINT8 AtaCylinderHighExp; 
+  UINT8 AtaCylinderHighExp;
   UINT8 AtaFeaturesExp;
   UINT8 AtaSectorCount;
   UINT8 AtaSectorCountExp;
@@ -73,7 +70,7 @@ typedef struct _EFI_ATA_STATUS_BLOCK {
   UINT8 AtaDeviceHead;
   UINT8 AtaSectorNumberExp;
   UINT8 AtaCylinderLowExp;
-  UINT8 AtaCylinderHighExp; 
+  UINT8 AtaCylinderHighExp;
   UINT8 Reserved2;
   UINT8 AtaSectorCount;
   UINT8 AtaSectorCountExp;
@@ -156,7 +153,7 @@ typedef struct {
   ///
   /// On Input, the size, in bytes of OutDataBuffer. On Output, the Number of bytes
   /// transferred between ATA Controller and the ATA device. If OutTransferLength is
-  /// larger than the ATA controller can handle, no data will be transferred, 
+  /// larger than the ATA controller can handle, no data will be transferred,
   /// OutTransferLength will be updated to contain the number of bytes that the ATA
   /// controller is able to transfer, and EFI_BAD_BUFFER_SIZE will be returned.
   ///
@@ -177,8 +174,8 @@ typedef struct {
   supports both blocking I/O and non-blocking I/O. The blocking I/O functionality is required,
   and the non-blocking I/O functionality is optional.
 
-  @param[in]     This                A pointer to the EFI_ATA_PASS_THRU_PROTOCOL instance. 
-  @param[in]     Port                The port number of the ATA device to send the command. 
+  @param[in]     This                A pointer to the EFI_ATA_PASS_THRU_PROTOCOL instance.
+  @param[in]     Port                The port number of the ATA device to send the command.
   @param[in]     PortMultiplierPort  The port multiplier port number of the ATA device to send the command.
                                      If there is no port multiplier, then specify 0xFFFF.
   @param[in,out] Packet              A pointer to the ATA command to send to the ATA device specified by Port
@@ -188,11 +185,11 @@ typedef struct {
                                      Event is not NULL and non blocking I/O is supported, then non-blocking
                                      I/O is performed, and Event will be signaled when the ATA command completes.
 
-  @retval EFI_SUCCESS                The ATA command was sent by the host. For bi-directional commands, 
+  @retval EFI_SUCCESS                The ATA command was sent by the host. For bi-directional commands,
                                      InTransferLength bytes were transferred from InDataBuffer. For write and
                                      bi-directional commands, OutTransferLength bytes were transferred by OutDataBuffer.
   @retval EFI_BAD_BUFFER_SIZE        The ATA command was not executed. The number of bytes that could be transferred
-                                     is returned in InTransferLength. For write and bi-directional commands, 
+                                     is returned in InTransferLength. For write and bi-directional commands,
                                      OutTransferLength bytes were transferred by OutDataBuffer.
   @retval EFI_NOT_READY              The ATA command could not be sent because there are too many ATA commands
                                      already queued. The caller may retry again later.
@@ -230,7 +227,7 @@ EFI_STATUS
   If Port is the port number of the last port on the ATA controller, then EFI_NOT_FOUND is
   returned.
 
-  @param[in]     This           A pointer to the EFI_ATA_PASS_THRU_PROTOCOL instance. 
+  @param[in]     This           A pointer to the EFI_ATA_PASS_THRU_PROTOCOL instance.
   @param[in,out] Port           On input, a pointer to the port number on the ATA controller.
                                 On output, a pointer to the next port number on the ATA
                                 controller. An input value of 0xFFFF retrieves the first port
@@ -250,36 +247,36 @@ EFI_STATUS
   );
 
 /**
-  Used to retrieve the list of legal port multiplier port numbers for ATA devices on a port of an ATA 
-  controller. These can either be the list of port multiplier ports where ATA devices are actually 
-  present on port or the list of legal port multiplier ports on that port. Regardless, the caller of this 
-  function must probe the port number and port multiplier port number returned to see if an ATA 
+  Used to retrieve the list of legal port multiplier port numbers for ATA devices on a port of an ATA
+  controller. These can either be the list of port multiplier ports where ATA devices are actually
+  present on port or the list of legal port multiplier ports on that port. Regardless, the caller of this
+  function must probe the port number and port multiplier port number returned to see if an ATA
   device is actually present.
 
-  The GetNextDevice() function retrieves the port multiplier port number of an ATA device 
+  The GetNextDevice() function retrieves the port multiplier port number of an ATA device
   present on a port of an ATA controller.
-  
-  If PortMultiplierPort points to a port multiplier port number value that was returned on a 
+
+  If PortMultiplierPort points to a port multiplier port number value that was returned on a
   previous call to GetNextDevice(), then the port multiplier port number of the next ATA device
   on the port of the ATA controller is returned in PortMultiplierPort, and EFI_SUCCESS is
   returned.
-  
-  If PortMultiplierPort points to 0xFFFF, then the port multiplier port number of the first 
-  ATA device on port of the ATA controller is returned in PortMultiplierPort and 
+
+  If PortMultiplierPort points to 0xFFFF, then the port multiplier port number of the first
+  ATA device on port of the ATA controller is returned in PortMultiplierPort and
   EFI_SUCCESS is returned.
-  
+
   If PortMultiplierPort is not 0xFFFF and the value pointed to by PortMultiplierPort
   was not returned on a previous call to GetNextDevice(), then EFI_INVALID_PARAMETER
   is returned.
-  
-  If PortMultiplierPort is the port multiplier port number of the last ATA device on the port of 
+
+  If PortMultiplierPort is the port multiplier port number of the last ATA device on the port of
   the ATA controller, then EFI_NOT_FOUND is returned.
 
   @param[in]     This                A pointer to the EFI_ATA_PASS_THRU_PROTOCOL instance.
   @param[in]     Port                The port number present on the ATA controller.
   @param[in,out] PortMultiplierPort  On input, a pointer to the port multiplier port number of an
-                                     ATA device present on the ATA controller. 
-                                     If on input a PortMultiplierPort of 0xFFFF is specified, 
+                                     ATA device present on the ATA controller.
+                                     If on input a PortMultiplierPort of 0xFFFF is specified,
                                      then the port multiplier port number of the first ATA device
                                      is returned. On output, a pointer to the port multiplier port
                                      number of the next ATA device present on an ATA controller.
@@ -318,7 +315,7 @@ EFI_STATUS
   @param[in]     PortMultiplierPort  The port multiplier port number of the ATA device for which a
                                      device path node is to be allocated and built. If there is no
                                      port multiplier, then specify 0xFFFF.
-  @param[in,out] DevicePath          A pointer to a single device path node that describes the ATA
+  @param[out]    DevicePath          A pointer to a single device path node that describes the ATA
                                      device specified by Port and PortMultiplierPort. This function
                                      is responsible for allocating the buffer DevicePath with the
                                      boot service AllocatePool(). It is the caller's responsibility
@@ -337,7 +334,7 @@ EFI_STATUS
   IN     EFI_ATA_PASS_THRU_PROTOCOL *This,
   IN     UINT16                     Port,
   IN     UINT16                     PortMultiplierPort,
-  IN OUT EFI_DEVICE_PATH_PROTOCOL   **DevicePath
+  OUT    EFI_DEVICE_PATH_PROTOCOL   **DevicePath
   );
 
 /**
@@ -345,7 +342,7 @@ EFI_STATUS
 
   The GetDevice() function determines the port and port multiplier port number associated with
   the ATA device described by DevicePath. If DevicePath is a device path node type that the
-  ATA Pass Thru driver supports, then the ATA Pass Thru driver will attempt to translate the contents 
+  ATA Pass Thru driver supports, then the ATA Pass Thru driver will attempt to translate the contents
   DevicePath into a port number and port multiplier port number.
 
   If this translation is successful, then that port number and port multiplier port number are returned
@@ -353,11 +350,11 @@ EFI_STATUS
 
   If DevicePath, Port, or PortMultiplierPort are NULL, then EFI_INVALID_PARAMETER is returned.
 
-  If DevicePath is not a device path node type that the ATA Pass Thru driver supports, then 
+  If DevicePath is not a device path node type that the ATA Pass Thru driver supports, then
   EFI_UNSUPPORTED is returned.
 
-  If DevicePath is a device path node type that the ATA Pass Thru driver supports, but there is not 
-  a valid translation from DevicePath to a port number and port multiplier port number, then 
+  If DevicePath is a device path node type that the ATA Pass Thru driver supports, but there is not
+  a valid translation from DevicePath to a port number and port multiplier port number, then
   EFI_NOT_FOUND is returned.
 
   @param[in]  This                A pointer to the EFI_ATA_PASS_THRU_PROTOCOL instance.
@@ -423,7 +420,7 @@ EFI_STATUS
   If this ATA controller does not support a device reset operation, then EFI_UNSUPPORTED is
   returned.
 
-  If Port or PortMultiplierPort are not in a valid range for this ATA controller, then 
+  If Port or PortMultiplierPort are not in a valid range for this ATA controller, then
   EFI_INVALID_PARAMETER is returned.
 
   If a device error occurs while executing that device reset operation, then EFI_DEVICE_ERROR

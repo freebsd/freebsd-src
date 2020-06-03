@@ -7,13 +7,7 @@
 
  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.
  Portions copyright (c) 2016, American Megatrends, Inc. All rights reserved.
- This program and the accompanying materials
- are licensed and made available under the terms and conditions of the BSD License
- which accompanies this distribution. The full text of the license may be found at
- http://opensource.org/licenses/bsd-license.php.
-
- THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
- WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+ SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -1232,7 +1226,7 @@ PciExpressBitFieldAndThenOr32 (
  Size into the buffer specified by Buffer. This function only allows the PCI
  configuration registers from a single PCI function to be read. Size is
  returned. When possible 32-bit PCI configuration read cycles are used to read
- from StartAdress to StartAddress + Size. Due to alignment restrictions, 8-bit
+ from StartAddress to StartAddress + Size. Due to alignment restrictions, 8-bit
  and 16-bit PCI configuration read cycles may be used at the beginning and the
  end of the range.
 
@@ -1335,7 +1329,7 @@ PciExpressReadBuffer (
  Size from the buffer specified by Buffer. This function only allows the PCI
  configuration registers from a single PCI function to be written. Size is
  returned. When possible 32-bit PCI configuration write cycles are used to
- write from StartAdress to StartAddress + Size. Due to alignment restrictions,
+ write from StartAddress to StartAddress + Size. Due to alignment restrictions,
  8-bit and 16-bit PCI configuration write cycles may be used at the beginning
  and the end of the range.
 

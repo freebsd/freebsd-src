@@ -7,13 +7,7 @@
   and Appendix H, Sub-function Assignments.
 
   Copyright (c) 1999 - 2015, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
 
 #ifndef _IPMI_NET_FN_BRIDGE_H_
@@ -133,12 +127,12 @@
 //
 
 //
-//  Definitions for Prepare for Discoveery command
+//  Definitions for Prepare for Discovery command
 //
 #define IPMI_BRIDGE_PREPARE_FOR_DISCOVERY  0x10
 
 //
-//  Constants and Structure definitions for "Prepare for Discoveery" command to follow here
+//  Constants and Structure definitions for "Prepare for Discovery" command to follow here
 //
 
 //

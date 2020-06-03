@@ -1,19 +1,13 @@
 /** @file
   I2C Bus Configuration Management Protocol as defined in the PI 1.3 specification.
 
-  The EFI I2C bus configuration management protocol provides platform specific 
-  services that allow the I2C host protocol to reconfigure the switches and multiplexers 
-  and set the clock frequency for the I2C bus. This protocol also enables the I2C host protocol 
+  The EFI I2C bus configuration management protocol provides platform specific
+  services that allow the I2C host protocol to reconfigure the switches and multiplexers
+  and set the clock frequency for the I2C bus. This protocol also enables the I2C host protocol
   to reset an I2C device which may be locking up the I2C bus by holding the clock or data line low.
 
-  Copyright (c) 2013, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2013 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   This protocol is from PI Version 1.3.

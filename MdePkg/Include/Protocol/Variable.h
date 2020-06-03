@@ -1,33 +1,27 @@
 /** @file
   Variable Architectural Protocol as defined in PI Specification VOLUME 2 DXE
 
-  This provides the services required to get and set environment variables. This 
-  protocol must be produced by a runtime DXE driver and may be consumed only by 
-  the DXE Foundation. The DXE driver that produces this protocol must be a runtime 
-  driver. This driver is responsible for initializing the GetVariable(), 
+  This provides the services required to get and set environment variables. This
+  protocol must be produced by a runtime DXE driver and may be consumed only by
+  the DXE Foundation. The DXE driver that produces this protocol must be a runtime
+  driver. This driver is responsible for initializing the GetVariable(),
   GetNextVariableName(), and SetVariable() fields of the UEFI Runtime Services Table.
 
-  After the three fields of the UEFI Runtime Services Table have been initialized, 
-  the driver must install the EFI_VARIABLE_ARCH_PROTOCOL_GUID on a new handle with 
-  a NULL interface pointer. The installation of this protocol informs the DXE Foundation 
-  that the read-only and the volatile environment variable related services are 
-  now available and that the DXE Foundation must update the 32-bit CRC of the UEFI 
-  Runtime Services Table. The full complement of environment variable services are 
-  not available until both this protocol and EFI_VARIABLE_WRITE_ARCH_PROTOCOL are 
-  installed. DXE drivers that require read-only access or read/write access to volatile 
-  environment variables must have this architectural protocol in their dependency 
-  expressions. DXE drivers that require write access to nonvolatile environment 
-  variables must have the EFI_VARIABLE_WRITE_ARCH_PROTOCOL in their dependency 
+  After the three fields of the UEFI Runtime Services Table have been initialized,
+  the driver must install the EFI_VARIABLE_ARCH_PROTOCOL_GUID on a new handle with
+  a NULL interface pointer. The installation of this protocol informs the DXE Foundation
+  that the read-only and the volatile environment variable related services are
+  now available and that the DXE Foundation must update the 32-bit CRC of the UEFI
+  Runtime Services Table. The full complement of environment variable services are
+  not available until both this protocol and EFI_VARIABLE_WRITE_ARCH_PROTOCOL are
+  installed. DXE drivers that require read-only access or read/write access to volatile
+  environment variables must have this architectural protocol in their dependency
+  expressions. DXE drivers that require write access to nonvolatile environment
+  variables must have the EFI_VARIABLE_WRITE_ARCH_PROTOCOL in their dependency
   expressions.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -42,4 +36,4 @@
 
 extern EFI_GUID gEfiVariableArchProtocolGuid;
 
-#endif 
+#endif

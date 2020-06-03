@@ -1,23 +1,19 @@
 /** @file
   Provides services to access PCI Configuration Space using the MMIO PCI Express window.
-  
-  This library is identical to the PCI Library, except the access method for performing PCI 
+
+  This library is identical to the PCI Library, except the access method for performing PCI
   configuration cycles must be through the 256 MB PCI Express MMIO window whose base address
   is defined by PcdPciExpressBaseAddress.
 
-Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials
-are licensed and made available under the terms and conditions of the BSD License
-which accompanies this distribution.  The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php
-
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
 #ifndef __PCI_EXPRESS_LIB_H__
 #define __PCI_EXPRESS_LIB_H__
+
+#include <IndustryStandard/PciExpress21.h>
 
 /**
   Macro that converts PCI Bus, PCI Device, PCI Function and PCI Register to an
@@ -35,24 +31,23 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   @return The encode PCI address.
 
 **/
-#define PCI_EXPRESS_LIB_ADDRESS(Bus,Device,Function,Offset) \
-  (((Offset) & 0xfff) | (((Function) & 0x07) << 12) | (((Device) & 0x1f) << 15) | (((Bus) & 0xff) << 20))
+#define PCI_EXPRESS_LIB_ADDRESS(Bus,Device,Function,Offset) PCI_ECAM_ADDRESS ((Bus), (Device), (Function), (Offset))
 
 /**
-  Registers a PCI device so PCI configuration registers may be accessed after 
+  Registers a PCI device so PCI configuration registers may be accessed after
   SetVirtualAddressMap().
-  
-  Registers the PCI device specified by Address so all the PCI configuration 
-  registers associated with that PCI device may be accessed after SetVirtualAddressMap() 
+
+  Registers the PCI device specified by Address so all the PCI configuration
+  registers associated with that PCI device may be accessed after SetVirtualAddressMap()
   is called.
-  
+
   If Address > 0x0FFFFFFF, then ASSERT().
 
   @param  Address Address that encodes the PCI Bus, Device, Function and
                   Register.
-  
+
   @retval RETURN_SUCCESS           The PCI device was registered for runtime access.
-  @retval RETURN_UNSUPPORTED       An attempt was made to call this function 
+  @retval RETURN_UNSUPPORTED       An attempt was made to call this function
                                    after ExitBootServices().
   @retval RETURN_UNSUPPORTED       The resources required to access the PCI device
                                    at runtime could not be mapped.
@@ -1002,7 +997,7 @@ PciExpressBitFieldAndThenOr32 (
   Size into the buffer specified by Buffer. This function only allows the PCI
   configuration registers from a single PCI function to be read. Size is
   returned. When possible 32-bit PCI configuration read cycles are used to read
-  from StartAdress to StartAddress + Size. Due to alignment restrictions, 8-bit
+  from StartAddress to StartAddress + Size. Due to alignment restrictions, 8-bit
   and 16-bit PCI configuration read cycles may be used at the beginning and the
   end of the range.
 
@@ -1034,7 +1029,7 @@ PciExpressReadBuffer (
   Size from the buffer specified by Buffer. This function only allows the PCI
   configuration registers from a single PCI function to be written. Size is
   returned. When possible 32-bit PCI configuration write cycles are used to
-  write from StartAdress to StartAddress + Size. Due to alignment restrictions,
+  write from StartAddress to StartAddress + Size. Due to alignment restrictions,
   8-bit and 16-bit PCI configuration write cycles may be used at the beginning
   and the end of the range.
 

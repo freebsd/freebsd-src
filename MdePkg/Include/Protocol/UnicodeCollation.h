@@ -1,16 +1,10 @@
 /** @file
   Unicode Collation protocol that follows the UEFI 2.0 specification.
-  This protocol is used to allow code running in the boot services environment 
+  This protocol is used to allow code running in the boot services environment
   to perform lexical comparison functions on Unicode strings for given languages.
 
-Copyright (c) 2006 - 2011, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -32,12 +26,12 @@ typedef struct _EFI_UNICODE_COLLATION_PROTOCOL  EFI_UNICODE_COLLATION_PROTOCOL;
 
 ///
 /// Protocol GUID name defined in EFI1.1.
-/// 
+///
 #define UNICODE_COLLATION_PROTOCOL              EFI_UNICODE_COLLATION_PROTOCOL_GUID
 
 ///
 /// Protocol defined in EFI1.1.
-/// 
+///
 typedef EFI_UNICODE_COLLATION_PROTOCOL          UNICODE_COLLATION_INTERFACE;
 
 ///
@@ -69,7 +63,7 @@ INTN
   );
 
 /**
-  Performs a case-insensitive comparison of a Null-terminated 
+  Performs a case-insensitive comparison of a Null-terminated
   pattern string and a Null-terminated string.
 
   @param  This    A pointer to the EFI_UNICODE_COLLATION_PROTOCOL instance.
@@ -89,7 +83,7 @@ BOOLEAN
   );
 
 /**
-  Converts all the characters in a Null-terminated string to 
+  Converts all the characters in a Null-terminated string to
   lower case characters.
 
   @param  This   A pointer to the EFI_UNICODE_COLLATION_PROTOCOL instance.
@@ -119,7 +113,7 @@ VOID
   );
 
 /**
-  Converts an 8.3 FAT file name in an OEM character set to a Null-terminated 
+  Converts an 8.3 FAT file name in an OEM character set to a Null-terminated
   string.
 
   @param  This    A pointer to the EFI_UNICODE_COLLATION_PROTOCOL instance.
@@ -140,13 +134,13 @@ VOID
   );
 
 /**
-  Converts a Null-terminated string to legal characters in a FAT 
-  filename using an OEM character set. 
+  Converts a Null-terminated string to legal characters in a FAT
+  filename using an OEM character set.
 
   @param  This    A pointer to the EFI_UNICODE_COLLATION_PROTOCOL instance.
   @param  String  A pointer to a Null-terminated string.
   @param  FatSize The size of the string Fat in bytes.
-  @param  Fat     A pointer to a string that contains the converted version of 
+  @param  Fat     A pointer to a string that contains the converted version of
                   String using legal FAT characters from an OEM character set.
 
   @retval TRUE    One or more conversions failed and were substituted with '_'
@@ -163,8 +157,8 @@ BOOLEAN
   );
 
 ///
-/// The EFI_UNICODE_COLLATION_PROTOCOL is used to perform case-insensitive 
-/// comparisons of strings. 
+/// The EFI_UNICODE_COLLATION_PROTOCOL is used to perform case-insensitive
+/// comparisons of strings.
 ///
 struct _EFI_UNICODE_COLLATION_PROTOCOL {
   EFI_UNICODE_COLLATION_STRICOLL    StriColl;
@@ -177,7 +171,7 @@ struct _EFI_UNICODE_COLLATION_PROTOCOL {
   //
   EFI_UNICODE_COLLATION_FATTOSTR    FatToStr;
   EFI_UNICODE_COLLATION_STRTOFAT    StrToFat;
-  
+
   ///
   /// A Null-terminated ASCII string array that contains one or more language codes.
   /// When this field is used for UnicodeCollation2, it is specified in RFC 4646 format.
