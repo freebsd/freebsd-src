@@ -91,6 +91,7 @@ SYSCTL_INT(_hw_usb_otus, OID_AUTO, debug, CTLFLAG_RWTUN, &otus_debug, 0,
 #define	OTUS_DEBUG_REGIO	0x00000200
 #define	OTUS_DEBUG_IRQ		0x00000400
 #define	OTUS_DEBUG_TXCOMP	0x00000800
+#define	OTUS_DEBUG_RX_BUFFER	0x00001000
 #define	OTUS_DEBUG_ANY		0xffffffff
 
 #define	OTUS_DPRINTF(sc, dm, ...) \
@@ -131,7 +132,6 @@ static device_attach_t otus_attach;
 static device_detach_t otus_detach;
 
 static int	otus_attachhook(struct otus_softc *);
-void		otus_get_chanlist(struct otus_softc *);
 static void	otus_getradiocaps(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel[]);
 int		otus_load_firmware(struct otus_softc *, const char *,
@@ -395,9 +395,8 @@ otus_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	uvp->newstate = vap->iv_newstate;
 	vap->iv_newstate = otus_newstate;
 
-	/* XXX TODO: double-check */
-	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_16;
-	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_32K;
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_8;
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
 
 	ieee80211_ratectl_init(vap);
 
@@ -699,6 +698,16 @@ otus_attachhook(struct otus_softc *sc)
 	IEEE80211_ADDR_COPY(ic->ic_macaddr, sc->eeprom.baseEepHeader.macAddr);
 	sc->sc_led_newstate = otus_led_newstate_type3;	/* XXX */
 
+	if (sc->txmask == 0x5)
+		ic->ic_txstream = 2;
+	else
+		ic->ic_txstream = 1;
+
+	if (sc->rxmask == 0x5)
+		ic->ic_rxstream = 2;
+	else
+		ic->ic_rxstream = 1;
+
 	device_printf(sc->sc_dev,
 	    "MAC/BBP AR9170, RF AR%X, MIMO %dT%dR, address %s\n",
 	    (sc->capflags & AR5416_OPFLAGS_11A) ?
@@ -721,33 +730,21 @@ otus_attachhook(struct otus_softc *sc)
 	    IEEE80211_C_WME |		/* WME/QoS */
 	    IEEE80211_C_SHSLOT |	/* Short slot time supported. */
 	    IEEE80211_C_FF |		/* Atheros fast-frames supported. */
-	    IEEE80211_C_MONITOR |
+	    IEEE80211_C_MONITOR |	/* Enable monitor mode */
+	    IEEE80211_C_SWAMSDUTX |	/* Do software A-MSDU TX */
 	    IEEE80211_C_WPA;		/* WPA/RSN. */
 
-	/* XXX TODO: 11n */
-
+	ic->ic_htcaps =
+	    IEEE80211_HTC_HT |
 #if 0
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
-		/* Set supported .11b and .11g rates. */
-		ic->ic_sup_rates[IEEE80211_MODE_11B] =
-		    ieee80211_std_rateset_11b;
-		ic->ic_sup_rates[IEEE80211_MODE_11G] =
-		    ieee80211_std_rateset_11g;
-	}
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
-		/* Set supported .11a rates. */
-		ic->ic_sup_rates[IEEE80211_MODE_11A] =
-		    ieee80211_std_rateset_11a;
-	}
+	    IEEE80211_HTC_AMPDU |
 #endif
+	    IEEE80211_HTC_AMSDU |
+	    IEEE80211_HTCAP_MAXAMSDU_3839 |
+	    IEEE80211_HTCAP_SMPS_OFF;
 
-#if 0
-	/* Build the list of supported channels. */
-	otus_get_chanlist(sc);
-#else
 	otus_getradiocaps(ic, IEEE80211_CHAN_MAX, &ic->ic_nchans,
 	    ic->ic_channels);
-#endif
 
 	ieee80211_ifattach(ic);
 	ic->ic_raw_xmit = otus_raw_xmit;
@@ -780,38 +777,6 @@ otus_attachhook(struct otus_softc *sc)
 	return (0);
 }
 
-void
-otus_get_chanlist(struct otus_softc *sc)
-{
-	struct ieee80211com *ic = &sc->sc_ic;
-	uint16_t domain;
-	uint8_t chan;
-	int i;
-
-	/* XXX regulatory domain. */
-	domain = le16toh(sc->eeprom.baseEepHeader.regDmn[0]);
-	OTUS_DPRINTF(sc, OTUS_DEBUG_RESET, "regdomain=0x%04x\n", domain);
-
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
-		for (i = 0; i < 14; i++) {
-			chan = ar_chans[i];
-			ic->ic_channels[chan].ic_freq =
-			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_2GHZ);
-			ic->ic_channels[chan].ic_flags =
-			    IEEE80211_CHAN_CCK | IEEE80211_CHAN_OFDM |
-			    IEEE80211_CHAN_DYN | IEEE80211_CHAN_2GHZ;
-		}
-	}
-	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
-		for (i = 14; i < nitems(ar_chans); i++) {
-			chan = ar_chans[i];
-			ic->ic_channels[chan].ic_freq =
-			    ieee80211_ieee2mhz(chan, IEEE80211_CHAN_5GHZ);
-			ic->ic_channels[chan].ic_flags = IEEE80211_CHAN_A;
-		}
-	}
-}
-
 static void
 otus_getradiocaps(struct ieee80211com *ic,
     int maxchans, int *nchans, struct ieee80211_channel chans[])
@@ -824,15 +789,13 @@ otus_getradiocaps(struct ieee80211com *ic,
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11G) {
 		setbit(bands, IEEE80211_MODE_11B);
 		setbit(bands, IEEE80211_MODE_11G);
-#if 0
-		if (sc->sc_ht)
-			setbit(bands, IEEE80211_MODE_11NG);
-#endif
+		setbit(bands, IEEE80211_MODE_11NG);
 		ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
 		    ar_chans, 14, bands, 0);
 	}
 	if (sc->eeprom.baseEepHeader.opCapFlags & AR5416_OPFLAGS_11A) {
 		setbit(bands, IEEE80211_MODE_11A);
+		setbit(bands, IEEE80211_MODE_11NA);
 		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
                     &ar_chans[14], nitems(ar_chans) - 14, bands, 0);
 	}
@@ -1588,6 +1551,12 @@ otus_cmd_rxeof(struct otus_softc *sc, uint8_t *buf, int len)
 	}
 }
 
+/*
+ * Handle a single MPDU.
+ *
+ * This may be a single MPDU, or it may be a sub-frame from an A-MPDU.
+ * In the latter case some of the header details need to be adjusted.
+ */
 void
 otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 {
@@ -1596,41 +1565,126 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 #if 0
 	struct ieee80211_node *ni;
 #endif
-	struct ar_rx_tail *tail;
+	struct ar_rx_macstatus *mac_status = NULL;
+	struct ar_rx_phystatus *phy_status = NULL;
 	struct ieee80211_frame *wh;
 	struct mbuf *m;
-	uint8_t *plcp;
 //	int s;
-	int mlen;
 
-	if (__predict_false(len < AR_PLCP_HDR_LEN)) {
-		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
-		    "sub-xfer too short %d\n", len);
-		return;
+
+	if (otus_debug & OTUS_DEBUG_RX_BUFFER) {
+		device_printf(sc->sc_dev, "%s: %*D\n",
+		    __func__, len, buf, "-");
 	}
-	plcp = buf;
 
-	/* All bits in the PLCP header are set to 1 for non-MPDU. */
-	if (memcmp(plcp, AR_PLCP_HDR_INTR, AR_PLCP_HDR_LEN) == 0) {
-		otus_cmd_rxeof(sc, plcp + AR_PLCP_HDR_LEN,
+	/*
+	 * Before any data path stuff - check to see if this is a command
+	 * response.
+	 *
+	 * All bits in the PLCP header are set to 1 for non-MPDU.
+	 */
+	if ((len >= AR_PLCP_HDR_LEN) &&
+	    memcmp(buf, AR_PLCP_HDR_INTR, AR_PLCP_HDR_LEN) == 0) {
+		otus_cmd_rxeof(sc, buf + AR_PLCP_HDR_LEN,
 		    len - AR_PLCP_HDR_LEN);
 		return;
 	}
 
-	/* Received MPDU. */
-	if (__predict_false(len < AR_PLCP_HDR_LEN + sizeof (*tail))) {
-		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "MPDU too short %d\n", len);
+	/*
+	 * First step - get the status for the given frame.
+	 * This will tell us whether it's a single MPDU or
+	 * an A-MPDU subframe.
+	 */
+	if (len < sizeof(*mac_status)) {
+		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+		    "%s: sub-xfer too short (no mac_status) (len %d)\n",
+		    __func__, len);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
-	tail = (struct ar_rx_tail *)(plcp + len - sizeof (*tail));
+	/*
+	 * Remove the mac_status from the payload length.
+	 *
+	 * Note: cheating, don't reallocate the buffer!
+	 */
+	mac_status = (struct ar_rx_macstatus *)(buf + len - sizeof(*mac_status));
+	len -= sizeof(*mac_status);
 
-	/* Discard error frames; don't discard BAD_RA (eg monitor mode); let net80211 do that */
-	if (__predict_false((tail->error & ~AR_RX_ERROR_BAD_RA) != 0)) {
-		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "error frame 0x%02x\n", tail->error);
-		if (tail->error & AR_RX_ERROR_FCS) {
+	OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "%s: mac status=0x%x\n",
+	    __func__, mac_status->status);
+
+	/*
+	 * Next - check the MAC status before doing anything else.
+	 * Extract out the PLCP header for single and first frames;
+	 * since there's a single RX path we can shove PLCP headers
+	 * from both into sc->ar_last_rx_plcp[] so it can be reused.
+	 */
+	if (((mac_status->status & AR_RX_STATUS_MPDU_MASK) == AR_RX_STATUS_MPDU_SINGLE) ||
+	    ((mac_status->status & AR_RX_STATUS_MPDU_MASK) == AR_RX_STATUS_MPDU_FIRST)) {
+		/*
+		 * Ok, we need to at least have a PLCP header at
+		 * this point.
+		 */
+		if (len < AR_PLCP_HDR_LEN) {
+			OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+			    "%s sub-xfer too short (no mac+plcp) (len %d\n)",
+			    __func__, len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			return;
+		}
+		memcpy(sc->ar_last_rx_plcp, buf, AR_PLCP_HDR_LEN);
+
+		/*
+		 * At this point we can just consume the PLCP header.
+		 * The beginning of the frame should thus be data.
+		 */
+		buf += AR_PLCP_HDR_LEN;
+		len -= AR_PLCP_HDR_LEN;
+	}
+
+	/*
+	 * Next - see if we have a PHY status.
+	 *
+	 * The PHY status is at the end of the final A-MPDU subframe
+	 * or a single MPDU frame.
+	 *
+	 * We'll use this to tag frames with noise floor / RSSI
+	 * if they have valid information.
+	 */
+	if (((mac_status->status & AR_RX_STATUS_MPDU_MASK) == AR_RX_STATUS_MPDU_SINGLE) ||
+	    ((mac_status->status & AR_RX_STATUS_MPDU_MASK) == AR_RX_STATUS_MPDU_LAST)) {
+		if (len < sizeof(*phy_status)) {
+			OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+			    "%s sub-xfer too short (no phy status) (len %d\n)",
+			    __func__, len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			return;
+		}
+		/*
+		 * Take a pointer to the phy status and remove the length
+		 * from the end of the buffer.
+		 *
+		 * Note: we're cheating here; don't reallocate the buffer!
+		 */
+		phy_status = (struct ar_rx_phystatus *)
+		    (buf + len - sizeof(*phy_status));
+		len -= sizeof(*phy_status);
+	}
+
+	/*
+	 * Middle frames just have a MAC status (stripped above.)
+	 * No PHY status, and PLCP is from ar_last_rx_plcp.
+	 */
+
+	/*
+	 * Discard error frames; don't discard BAD_RA (eg monitor mode);
+	 * let net80211 do that
+	 */
+	if (__predict_false((mac_status->error & ~AR_RX_ERROR_BAD_RA) != 0)) {
+		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "error frame 0x%02x\n", mac_status->error);
+		if (mac_status->error & AR_RX_ERROR_FCS) {
 			OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "bad FCS\n");
-		} else if (tail->error & AR_RX_ERROR_MMIC) {
+		} else if (mac_status->error & AR_RX_ERROR_MMIC) {
 			/* Report Michael MIC failures to net80211. */
 #if 0
 			ieee80211_notify_michael_failure(ni->ni_vap, wh, keyidx);
@@ -1640,77 +1694,75 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
-	/* Compute MPDU's length. */
-	mlen = len - AR_PLCP_HDR_LEN - sizeof (*tail);
-	/* Make sure there's room for an 802.11 header + FCS. */
-	if (__predict_false(mlen < IEEE80211_MIN_LEN)) {
+
+	/*
+	 * Make sure there's room for an 802.11 header + FCS.
+	 *
+	 * Note: a CTS/ACK is 14 bytes (FC, DUR, RA, FCS).
+	 * Making it IEEE80211_MIN_LEN misses CTS/ACKs.
+	 *
+	 * This won't be tossed at this point; eventually once
+	 * rx radiotap is implemented this will allow for
+	 * CTS/ACK frames.  Passing them up to net80211 will
+	 * currently make it angry (too short packets.)
+	 */
+	if (len < 2 + 2 + IEEE80211_ADDR_LEN + IEEE80211_CRC_LEN) {
+		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+		    "%s: too short for 802.11 (len %d)\n",
+		    __func__, len);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
-	mlen -= IEEE80211_CRC_LEN;	/* strip 802.11 FCS */
 
-	wh = (struct ieee80211_frame *)(plcp + AR_PLCP_HDR_LEN);
+	len -= IEEE80211_CRC_LEN;	/* strip 802.11 FCS */
+	wh = (struct ieee80211_frame *) buf;
 
 	/*
-	 * TODO: I see > 2KiB buffers in this path; is it A-MSDU or something?
+	 * The firmware does seem to spit out a bunch of frames
+	 * with invalid frame control values here.  Just toss them
+	 * rather than letting net80211 get angry and log.
 	 */
-	m = m_get2(mlen, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if ((wh->i_fc[0] & IEEE80211_FC0_VERSION_MASK) !=
+	    IEEE80211_FC0_VERSION_0) {
+		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+		    "%s: invalid 802.11 fc version (firmware bug?)\n",
+		        __func__);
+		counter_u64_add(ic->ic_ierrors, 1);
+		return;
+	}
+
+	m = m_get2(len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		device_printf(sc->sc_dev, "%s: failed m_get2() (mlen=%d)\n", __func__, mlen);
+		device_printf(sc->sc_dev, "%s: failed m_get2() (len=%d)\n",
+		    __func__, len);
 		counter_u64_add(ic->ic_ierrors, 1);
 		return;
 	}
 
 	/* Finalize mbuf. */
-	memcpy(mtod(m, uint8_t *), wh, mlen);
-	m->m_pkthdr.len = m->m_len = mlen;
+	memcpy(mtod(m, uint8_t *), wh, len);
+	m->m_pkthdr.len = m->m_len = len;
 
-#if 0
-	if (__predict_false(sc->sc_drvbpf != NULL)) {
-		struct otus_rx_radiotap_header *tap = &sc->sc_rxtap;
-		struct mbuf mb;
+	/* XXX TODO: add setting rx radiotap fields here */
 
-		tap->wr_flags = 0;
-		tap->wr_antsignal = tail->rssi;
-		tap->wr_rate = 2;	/* In case it can't be found below. */
-		switch (tail->status & AR_RX_STATUS_MT_MASK) {
-		case AR_RX_STATUS_MT_CCK:
-			switch (plcp[0]) {
-			case  10: tap->wr_rate =   2; break;
-			case  20: tap->wr_rate =   4; break;
-			case  55: tap->wr_rate =  11; break;
-			case 110: tap->wr_rate =  22; break;
-			}
-			if (tail->status & AR_RX_STATUS_SHPREAMBLE)
-				tap->wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-			break;
-		case AR_RX_STATUS_MT_OFDM:
-			switch (plcp[0] & 0xf) {
-			case 0xb: tap->wr_rate =  12; break;
-			case 0xf: tap->wr_rate =  18; break;
-			case 0xa: tap->wr_rate =  24; break;
-			case 0xe: tap->wr_rate =  36; break;
-			case 0x9: tap->wr_rate =  48; break;
-			case 0xd: tap->wr_rate =  72; break;
-			case 0x8: tap->wr_rate =  96; break;
-			case 0xc: tap->wr_rate = 108; break;
-			}
-			break;
-		}
-		mb.m_data = (caddr_t)tap;
-		mb.m_next = m;
-		mb.m_nextpkt = NULL;
-		mb.m_type = 0;
-		mb.m_flags = 0;
-		bpf_mtap(sc->sc_drvbpf, &mb, BPF_DIRECTION_IN);
+	/*
+	 * Ok, check the frame length and toss if it's too short
+	 * for net80211.  This will toss ACK/CTS.
+	 */
+	if (m->m_len < IEEE80211_MIN_LEN) {
+		/* XXX TODO: add radiotap receive here */
+		m_free(m); m = NULL;
+		return;
 	}
-#endif
 
-	/* Add RSSI/NF to this mbuf */
+	/* Add RSSI to this mbuf if we have a PHY header */
 	bzero(&rxs, sizeof(rxs));
-	rxs.r_flags = IEEE80211_R_NF | IEEE80211_R_RSSI;
+	rxs.r_flags = IEEE80211_R_NF;
 	rxs.c_nf = sc->sc_nf[0];	/* XXX chain 0 != combined rssi/nf */
-	rxs.c_rssi = tail->rssi;
+	if (phy_status != NULL) {
+		rxs.r_flags |= IEEE80211_R_RSSI;
+		rxs.c_rssi = phy_status->rssi;
+	}
 	/* XXX TODO: add MIMO RSSI/NF as well */
 	if (ieee80211_add_rx_params(m, &rxs) == 0) {
 		counter_u64_add(ic->ic_ierrors, 1);
@@ -1741,9 +1793,17 @@ otus_rxeof(struct usb_xfer *xfer, struct otus_data *data, struct mbufq *rxq)
 	caddr_t buf = data->buf;
 	struct ar_rx_head *head;
 	uint16_t hlen;
-	int len;
+	int len, offset = 0;
 
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
+
+	OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+	    "%s: transfer completed; len=%d\n",
+	    __func__, len);
+	if (otus_debug & OTUS_DEBUG_RX_BUFFER) {
+		device_printf(sc->sc_dev, "%s: %*D\n",
+		    __func__, len, buf, "-");
+	}
 
 	while (len >= sizeof (*head)) {
 		head = (struct ar_rx_head *)buf;
@@ -1753,19 +1813,26 @@ otus_rxeof(struct usb_xfer *xfer, struct otus_data *data, struct mbufq *rxq)
 			break;
 		}
 		hlen = le16toh(head->len);
+		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "%s: hlen=%d\n",
+		    __func__, hlen);
 		if (__predict_false(sizeof (*head) + hlen > len)) {
 			OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
 			    "xfer too short %d/%d\n", len, hlen);
 			break;
 		}
 		/* Process sub-xfer. */
-		otus_sub_rxeof(sc, (uint8_t *)&head[1], hlen, rxq);
+		otus_sub_rxeof(sc, (uint8_t *) (((uint8_t *) buf) + 4), hlen, rxq);
 
 		/* Next sub-xfer is aligned on a 32-bit boundary. */
 		hlen = (sizeof (*head) + hlen + 3) & ~3;
+		offset += hlen;
+		OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE,
+		    "%s: rounded size is %d, next packet starts at %d\n",
+		    __func__, hlen, offset);
 		buf += hlen;
 		len -= hlen;
 	}
+	OTUS_DPRINTF(sc, OTUS_DEBUG_RXDONE, "%s: done!\n", __func__);
 }
 
 static void
@@ -2094,6 +2161,11 @@ otus_rate_to_hw_rate(struct otus_softc *sc, uint8_t rate)
 
 	is_2ghz = !! (IEEE80211_IS_CHAN_2GHZ(sc->sc_ic.ic_curchan));
 
+	/* MCS check */
+	if (rate & 0x80) {
+		return rate;
+	}
+
 	switch (rate) {
 	/* CCK */
 	case 2:
@@ -2129,9 +2201,14 @@ otus_rate_to_hw_rate(struct otus_softc *sc, uint8_t rate)
 			return (0x0);	/* 1MB CCK */
 		else
 			return (0xb);	/* 6MB OFDM */
-
-	/* XXX TODO: HT */
 	}
+}
+
+static int
+otus_hw_rate_is_ht(struct otus_softc *sc, uint8_t hw_rate)
+{
+
+	return !! (hw_rate & 0x80);
 }
 
 static int
@@ -2262,7 +2339,10 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	if (!ismcast) {
 		if (m->m_pkthdr.len + IEEE80211_CRC_LEN >= vap->iv_rtsthreshold)
 			macctl |= AR_TX_MAC_RTS;
-		else if (ic->ic_flags & IEEE80211_F_USEPROT) {
+		else if (otus_hw_rate_is_ht(sc, rate)) {
+			if (ic->ic_htprotmode == IEEE80211_PROT_RTSCTS)
+				macctl |= AR_TX_MAC_RTS;
+		} else if (ic->ic_flags & IEEE80211_F_USEPROT) {
 			if (ic->ic_protmode == IEEE80211_PROT_CTSONLY)
 				macctl |= AR_TX_MAC_CTS;
 			else if (ic->ic_protmode == IEEE80211_PROT_RTSCTS)
@@ -2270,8 +2350,15 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 		}
 	}
 
-	phyctl |= AR_TX_PHY_MCS(rate);
-	if (otus_hw_rate_is_ofdm(sc, rate)) {
+	phyctl |= AR_TX_PHY_MCS(rate & 0x7f); /* Note: MCS rates are 0x80 and above */
+	if (otus_hw_rate_is_ht(sc, rate)) {
+		phyctl |= AR_TX_PHY_MT_HT;
+		/* Always use all tx antennas for now, just to be safe */
+		phyctl |= AR_TX_PHY_ANTMSK(sc->txmask);
+
+		/* Heavy clip */
+		phyctl |= (rate & 0x7) << AR_TX_PHY_TX_HEAVY_CLIP_SHIFT;
+	} else if (otus_hw_rate_is_ofdm(sc, rate)) {
 		phyctl |= AR_TX_PHY_MT_OFDM;
 		/* Always use all tx antennas for now, just to be safe */
 		phyctl |= AR_TX_PHY_ANTMSK(sc->txmask);
@@ -2286,7 +2373,6 @@ otus_tx(struct otus_softc *sc, struct ieee80211_node *ni, struct mbuf *m,
 	/* Update rate control stats for frames that are ACK'ed. */
 	if (!(macctl & AR_TX_MAC_NOACK))
 		OTUS_NODE(ni)->tx_done++;
-
 
 	/* Fill Tx descriptor. */
 	head = (struct ar_tx_head *)data->buf;
@@ -2462,6 +2548,22 @@ otus_updateslot(struct otus_softc *sc)
 	otus_write(sc, AR_MAC_REG_SLOT_TIME, slottime << 10);
 	(void)otus_write_barrier(sc);
 }
+
+/*
+ * Things to do based on 2GHz or 5GHz:
+ *
+ * + slottime
+ * + dyn_sifs_ack
+ * + rts_cts_rate
+ * + slot time
+ * + mac_rates
+ * + mac_tpc
+ *
+ * And in the transmit path
+ * + tpc: carl9170_tx_rate_tpc_chains
+ * + carl9170_tx_physet()
+ * + disable short premable tx
+ */
 
 int
 otus_init_mac(struct otus_softc *sc)
@@ -2641,10 +2743,17 @@ otus_program_phy(struct otus_softc *sc, struct ieee80211_channel *c)
 	int error, i;
 
 	/* Select PHY programming based on band and bandwidth. */
-	if (IEEE80211_IS_CHAN_2GHZ(c))
-		vals = ar5416_phy_vals_2ghz_20mhz;
-	else
-		vals = ar5416_phy_vals_5ghz_20mhz;
+	if (IEEE80211_IS_CHAN_2GHZ(c)) {
+		if (IEEE80211_IS_CHAN_HT40(c))
+			vals = ar5416_phy_vals_2ghz_40mhz;
+		else
+			vals = ar5416_phy_vals_2ghz_20mhz;
+	} else {
+		if (IEEE80211_IS_CHAN_HT40(c))
+			vals = ar5416_phy_vals_5ghz_40mhz;
+		else
+			vals = ar5416_phy_vals_5ghz_20mhz;
+	}
 	for (i = 0; i < nitems(ar5416_phy_regs); i++)
 		otus_write(sc, AR_PHY(ar5416_phy_regs[i]), vals[i]);
 	sc->phy_vals = vals;
