@@ -1936,17 +1936,26 @@ vtnet_rx_vq_intr(void *xrxq)
 		return;
 	}
 
+	VTNET_RXQ_LOCK(rxq);
+
 #ifdef DEV_NETMAP
+	/*
+	 * We call netmap_rx_irq() under lock to prevent concurrent calls.
+	 * This is not necessary to serialize the access to the RX vq, but
+	 * rather to avoid races that may happen if this interface is
+	 * attached to a VALE switch, which would cause received packets
+	 * to stall in the RX queue (nm_kr_tryget() could find the kring
+	 * busy when called from netmap_bwrap_intr_notify()).
+	 */
 	nmirq = netmap_rx_irq(ifp, rxq->vtnrx_id, &more);
 	if (nmirq != NM_IRQ_PASS) {
+		VTNET_RXQ_UNLOCK(rxq);
 		if (nmirq == NM_IRQ_RESCHED) {
 			taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
 		}
 		return;
 	}
 #endif /* DEV_NETMAP */
-
-	VTNET_RXQ_LOCK(rxq);
 
 again:
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
@@ -1987,17 +1996,18 @@ vtnet_rxq_tq_intr(void *xrxq, int pending)
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
 
+	VTNET_RXQ_LOCK(rxq);
+
 #ifdef DEV_NETMAP
 	nmirq = netmap_rx_irq(ifp, rxq->vtnrx_id, &more);
 	if (nmirq != NM_IRQ_PASS) {
+		VTNET_RXQ_UNLOCK(rxq);
 		if (nmirq == NM_IRQ_RESCHED) {
 			taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
 		}
 		return;
 	}
 #endif /* DEV_NETMAP */
-
-	VTNET_RXQ_LOCK(rxq);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
