@@ -223,8 +223,6 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	struct bus_dma_tag_common *tc;
 	int error;
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s", __func__);
-
 	if (parent == NULL) {
 		error = bus_dma_bounce_impl.tag_create(parent, alignment,
 		    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
