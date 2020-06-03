@@ -1916,6 +1916,9 @@ vtnet_rx_vq_intr(void *xrxq)
 	struct vtnet_rxq *rxq;
 	struct ifnet *ifp;
 	int tries, more;
+#ifdef DEV_NETMAP
+	int nmirq;
+#endif /* DEV_NETMAP */
 
 	rxq = xrxq;
 	sc = rxq->vtnrx_sc;
@@ -1934,8 +1937,13 @@ vtnet_rx_vq_intr(void *xrxq)
 	}
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, rxq->vtnrx_id, &more) != NM_IRQ_PASS)
+	nmirq = netmap_rx_irq(ifp, rxq->vtnrx_id, &more);
+	if (nmirq != NM_IRQ_PASS) {
+		if (nmirq == NM_IRQ_RESCHED) {
+			taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
+		}
 		return;
+	}
 #endif /* DEV_NETMAP */
 
 	VTNET_RXQ_LOCK(rxq);
@@ -1971,10 +1979,23 @@ vtnet_rxq_tq_intr(void *xrxq, int pending)
 	struct vtnet_rxq *rxq;
 	struct ifnet *ifp;
 	int more;
+#ifdef DEV_NETMAP
+	int nmirq;
+#endif /* DEV_NETMAP */
 
 	rxq = xrxq;
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
+
+#ifdef DEV_NETMAP
+	nmirq = netmap_rx_irq(ifp, rxq->vtnrx_id, &more);
+	if (nmirq != NM_IRQ_PASS) {
+		if (nmirq == NM_IRQ_RESCHED) {
+			taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
+		}
+		return;
+	}
+#endif /* DEV_NETMAP */
 
 	VTNET_RXQ_LOCK(rxq);
 
