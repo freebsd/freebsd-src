@@ -113,6 +113,9 @@ static void	me_clone_destroy(struct ifnet *);
 VNET_DEFINE_STATIC(struct if_clone *, me_cloner);
 #define	V_me_cloner	VNET(me_cloner)
 
+#ifdef VIMAGE
+static void	me_reassign(struct ifnet *, struct vnet *, char *);
+#endif
 static void	me_qflush(struct ifnet *);
 static int	me_transmit(struct ifnet *, struct mbuf *);
 static int	me_ioctl(struct ifnet *, u_long, caddr_t);
@@ -200,12 +203,30 @@ me_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ME2IFP(sc)->if_ioctl = me_ioctl;
 	ME2IFP(sc)->if_transmit = me_transmit;
 	ME2IFP(sc)->if_qflush = me_qflush;
+#ifdef VIMAGE
+	ME2IFP(sc)->if_reassign = me_reassign;
+#endif
 	ME2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
 	ME2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(ME2IFP(sc));
 	bpfattach(ME2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	return (0);
 }
+
+#ifdef VIMAGE
+static void
+me_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
+    char *unused __unused)
+{
+	struct me_softc *sc;
+
+	sx_xlock(&me_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc != NULL)
+		me_delete_tunnel(sc);
+	sx_xunlock(&me_ioctl_sx);
+}
+#endif /* VIMAGE */
 
 static void
 me_clone_destroy(struct ifnet *ifp)
