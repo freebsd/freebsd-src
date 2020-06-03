@@ -3050,10 +3050,11 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 tr_setup:
 		if (sc->rx_m == NULL) {
 			sc->rx_m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
-			    MJUMPAGESIZE /* xfer can be bigger than MCLBYTES */);
+			    RUN_MAX_RXSZ);
 		}
 		if (sc->rx_m == NULL) {
-			RUN_DPRINTF(sc, RUN_DEBUG_RECV | RUN_DEBUG_RECV_DESC,
+			RUN_DPRINTF(sc, RUN_DEBUG_RECV |
+			    RUN_DEBUG_RECV_DESC | RUN_DEBUG_USB,
 			    "could not allocate mbuf - idle with stall\n");
 			counter_u64_add(ic->ic_ierrors, 1);
 			usbd_xfer_set_stall(xfer);
