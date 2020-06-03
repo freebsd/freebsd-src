@@ -2239,6 +2239,11 @@ unlock_and_done:
 				return (error);
 
 			INP_WLOCK_RECHECK(inp);
+			if ((tp->t_state != TCPS_CLOSED) &&
+			    (tp->t_state != TCPS_LISTEN)) {
+				error = EINVAL;
+				goto unlock_and_done;
+			}
 			if (tfo_optval.enable) {
 				if (tp->t_state == TCPS_LISTEN) {
 					if (!V_tcp_fastopen_server_enable) {
@@ -2246,7 +2251,6 @@ unlock_and_done:
 						goto unlock_and_done;
 					}
 
-					tp->t_flags |= TF_FASTOPEN;
 					if (tp->t_tfo_pending == NULL)
 						tp->t_tfo_pending =
 						    tcp_fastopen_alloc_counter();
@@ -2265,8 +2269,8 @@ unlock_and_done:
 						tp->t_tfo_client_cookie_len =
 						    TCP_FASTOPEN_PSK_LEN;
 					}
-					tp->t_flags |= TF_FASTOPEN;
 				}
+				tp->t_flags |= TF_FASTOPEN;
 			} else
 				tp->t_flags &= ~TF_FASTOPEN;
 			goto unlock_and_done;
