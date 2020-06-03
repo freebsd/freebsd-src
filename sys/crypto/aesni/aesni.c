@@ -815,6 +815,8 @@ out:
 		explicit_bzero(outbuf, crp->crp_payload_length);
 		free(outbuf, M_AESNI);
 	}
+	explicit_bzero(iv, sizeof(iv));
+	explicit_bzero(tag, sizeof(tag));
 	return (error);
 }
 
@@ -826,9 +828,7 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 		struct SHA256Context sha2 __aligned(16);
 		struct sha1_ctxt sha1 __aligned(16);
 	} sctx;
-	uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
 	uint32_t res[SHA2_256_HASH_LEN / sizeof(uint32_t)];
-	uint32_t res2[SHA2_256_HASH_LEN / sizeof(uint32_t)];
 	const uint8_t *key;
 	int i, keylen;
 
@@ -839,6 +839,8 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 	keylen = csp->csp_auth_klen;
 
 	if (ses->hmac) {
+		uint8_t hmac_key[SHA1_BLOCK_LEN] __aligned(16);
+
 		/* Inner hash: (K ^ IPAD) || data */
 		ses->hash_init(&sctx);
 		for (i = 0; i < keylen; i++)
@@ -869,6 +871,7 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 		ses->hash_update(&sctx, hmac_key, sizeof(hmac_key));
 		ses->hash_update(&sctx, res, ses->hash_len);
 		ses->hash_finalize(res, &sctx);
+		explicit_bzero(hmac_key, sizeof(hmac_key));
 	} else {
 		ses->hash_init(&sctx);
 
@@ -889,10 +892,14 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 	}
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		uint32_t res2[SHA2_256_HASH_LEN / sizeof(uint32_t)];
+
 		crypto_copydata(crp, crp->crp_digest_start, ses->mlen, res2);
 		if (timingsafe_bcmp(res, res2, ses->mlen) != 0)
 			return (EBADMSG);
+		explicit_bzero(res2, sizeof(res2));
 	} else
 		crypto_copyback(crp, crp->crp_digest_start, ses->mlen, res);
+	explicit_bzero(res, sizeof(res));
 	return (0);
 }
