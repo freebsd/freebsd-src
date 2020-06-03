@@ -1495,11 +1495,15 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 			}
 		} else
 			error = EBADMSG;
+		explicit_bzero(digest2, sizeof(digest2));
 	}
 
 out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
+	explicit_bzero(block, sizeof(block));
+	explicit_bzero(iv, sizeof(iv));
+	explicit_bzero(digest, sizeof(digest));
 	crp->crp_etype = error;
 	crypto_done(crp);
 }
@@ -1953,11 +1957,15 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 			}
 		} else
 			error = EBADMSG;
+		explicit_bzero(digest2, sizeof(digest2));
 	}
 
 out:
 	zfree(kschedule, M_CCR);
 	zfree(auth_ctx, M_CCR);
+	explicit_bzero(block, sizeof(block));
+	explicit_bzero(iv, sizeof(iv));
+	explicit_bzero(digest, sizeof(digest));
 	crp->crp_etype = error;
 	crypto_done(crp);
 }

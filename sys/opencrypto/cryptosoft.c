@@ -131,8 +131,6 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 	    (crp->crp_flags & CRYPTO_F_IV_SEPARATE) == 0)
 		return (EINVAL);
 
-	crypto_read_iv(crp, iv);
-
 	if (crp->crp_cipher_key != NULL) {
 		csp = crypto_get_params(crp->crp_session);
 		error = exf->setkey(sw->sw_kschedule,
@@ -140,6 +138,8 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 		if (error)
 			return (error);
 	}
+
+	crypto_read_iv(crp, iv);
 
 	if (exf->reinit) {
 		/*
@@ -277,6 +277,9 @@ swcr_encdec(struct swcr_session *ses, struct cryptop *crp)
 			crypto_cursor_copyback(&cc_out, resid, blk);
 	}
 
+	explicit_bzero(blk, sizeof(blk));
+	explicit_bzero(iv, sizeof(iv));
+	explicit_bzero(iv2, sizeof(iv2));
 	return (0);
 }
 
@@ -314,7 +317,6 @@ static int
 swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 {
 	u_char aalg[HASH_MAX_LEN];
-	u_char uaalg[HASH_MAX_LEN];
 	const struct crypto_session_params *csp;
 	struct swcr_auth *sw;
 	struct auth_hash *axf;
@@ -383,14 +385,18 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 	}
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		u_char uaalg[HASH_MAX_LEN];
+
 		crypto_copydata(crp, crp->crp_digest_start, sw->sw_mlen, uaalg);
 		if (timingsafe_bcmp(aalg, uaalg, sw->sw_mlen) != 0)
-			return (EBADMSG);
+			err = EBADMSG;
+		explicit_bzero(uaalg, sizeof(uaalg));
 	} else {
 		/* Inject the authentication data */
 		crypto_copyback(crp, crp->crp_digest_start, sw->sw_mlen, aalg);
 	}
-	return (0);
+	explicit_bzero(aalg, sizeof(aalg));
+	return (err);
 }
 
 CTASSERT(INT_MAX <= (1ll<<39) - 256);	/* GCM: plain text < 2^39-256 */
@@ -402,14 +408,13 @@ swcr_gmac(struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(EALG_MAX_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char aalg[AALG_MAX_RESULT_LEN];
-	u_char uaalg[AALG_MAX_RESULT_LEN];
 	u_char iv[EALG_MAX_BLOCK_LEN];
 	struct crypto_buffer_cursor cc;
 	union authctx ctx;
 	struct swcr_auth *swa;
 	struct auth_hash *axf;
 	uint32_t *blkp;
-	int blksz, ivlen, len, resid;
+	int blksz, error, ivlen, len, resid;
 
 	swa = &ses->swcr_auth;
 	axf = swa->sw_axf;
@@ -440,16 +445,23 @@ swcr_gmac(struct swcr_session *ses, struct cryptop *crp)
 	/* Finalize MAC */
 	axf->Final(aalg, &ctx);
 
+	error = 0;
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		u_char uaalg[AALG_MAX_RESULT_LEN];
+
 		crypto_copydata(crp, crp->crp_digest_start, swa->sw_mlen,
 		    uaalg);
 		if (timingsafe_bcmp(aalg, uaalg, swa->sw_mlen) != 0)
-			return (EBADMSG);
+			error = EBADMSG;
+		explicit_bzero(uaalg, sizeof(uaalg));
 	} else {
 		/* Inject the authentication data */
 		crypto_copyback(crp, crp->crp_digest_start, swa->sw_mlen, aalg);
 	}
-	return (0);
+	explicit_bzero(blkbuf, sizeof(blkbuf));
+	explicit_bzero(aalg, sizeof(aalg));
+	explicit_bzero(iv, sizeof(iv));
+	return (error);
 }
 
 static int
@@ -458,7 +470,6 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(EALG_MAX_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char aalg[AALG_MAX_RESULT_LEN];
-	u_char uaalg[AALG_MAX_RESULT_LEN];
 	u_char iv[EALG_MAX_BLOCK_LEN];
 	struct crypto_buffer_cursor cc_in, cc_out;
 	union authctx ctx;
@@ -467,7 +478,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	struct auth_hash *axf;
 	struct enc_xform *exf;
 	uint32_t *blkp;
-	int blksz, ivlen, len, r, resid;
+	int blksz, error, ivlen, len, r, resid;
 
 	swa = &ses->swcr_auth;
 	axf = swa->sw_axf;
@@ -536,13 +547,19 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	axf->Final(aalg, &ctx);
 
 	/* Validate tag */
+	error = 0;
 	if (!CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		u_char uaalg[AALG_MAX_RESULT_LEN];
+
 		crypto_copydata(crp, crp->crp_digest_start, swa->sw_mlen,
 		    uaalg);
 
 		r = timingsafe_bcmp(aalg, uaalg, swa->sw_mlen);
-		if (r != 0)
-			return (EBADMSG);
+		explicit_bzero(uaalg, sizeof(uaalg));
+		if (r != 0) {
+			error = EBADMSG;
+			goto out;
+		}
 		
 		/* tag matches, decrypt data */
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
@@ -562,7 +579,12 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 		    aalg);
 	}
 
-	return (0);
+out:
+	explicit_bzero(blkbuf, sizeof(blkbuf));
+	explicit_bzero(aalg, sizeof(aalg));
+	explicit_bzero(iv, sizeof(iv));
+
+	return (error);
 }
 
 static int
@@ -571,13 +593,12 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(EALG_MAX_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char aalg[AALG_MAX_RESULT_LEN];
-	u_char uaalg[AALG_MAX_RESULT_LEN];
 	u_char iv[EALG_MAX_BLOCK_LEN];
 	struct crypto_buffer_cursor cc;
 	union authctx ctx;
 	struct swcr_auth *swa;
 	struct auth_hash *axf;
-	int blksz, ivlen, len, resid;
+	int blksz, error, ivlen, len, resid;
 
 	swa = &ses->swcr_auth;
 	axf = swa->sw_axf;
@@ -609,16 +630,23 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 	/* Finalize MAC */
 	axf->Final(aalg, &ctx);
 
+	error = 0;
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		u_char uaalg[AALG_MAX_RESULT_LEN];
+
 		crypto_copydata(crp, crp->crp_digest_start, swa->sw_mlen,
 		    uaalg);
 		if (timingsafe_bcmp(aalg, uaalg, swa->sw_mlen) != 0)
-			return (EBADMSG);
+			error = EBADMSG;
+		explicit_bzero(uaalg, sizeof(uaalg));
 	} else {
 		/* Inject the authentication data */
 		crypto_copyback(crp, crp->crp_digest_start, swa->sw_mlen, aalg);
 	}
-	return (0);
+	explicit_bzero(blkbuf, sizeof(blkbuf));
+	explicit_bzero(aalg, sizeof(aalg));
+	explicit_bzero(iv, sizeof(iv));
+	return (error);
 }
 
 static int
@@ -627,7 +655,6 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	uint32_t blkbuf[howmany(EALG_MAX_BLOCK_LEN, sizeof(uint32_t))];
 	u_char *blk = (u_char *)blkbuf;
 	u_char aalg[AALG_MAX_RESULT_LEN];
-	u_char uaalg[AALG_MAX_RESULT_LEN];
 	u_char iv[EALG_MAX_BLOCK_LEN];
 	struct crypto_buffer_cursor cc_in, cc_out;
 	union authctx ctx;
@@ -635,7 +662,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	struct swcr_encdec *swe;
 	struct auth_hash *axf;
 	struct enc_xform *exf;
-	int blksz, ivlen, len, r, resid;
+	int blksz, error, ivlen, len, r, resid;
 
 	swa = &ses->swcr_auth;
 	axf = swa->sw_axf;
@@ -712,13 +739,19 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	axf->Final(aalg, &ctx);
 
 	/* Validate tag */
+	error = 0;
 	if (!CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		u_char uaalg[AALG_MAX_RESULT_LEN];
+
 		crypto_copydata(crp, crp->crp_digest_start, swa->sw_mlen,
 		    uaalg);
 
 		r = timingsafe_bcmp(aalg, uaalg, swa->sw_mlen);
-		if (r != 0)
-			return (EBADMSG);
+		explicit_bzero(uaalg, sizeof(uaalg));
+		if (r != 0) {
+			error = EBADMSG;
+			goto out;
+		}
 		
 		/* tag matches, decrypt data */
 		exf->reinit(swe->sw_kschedule, iv);
@@ -739,7 +772,11 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 		    aalg);
 	}
 
-	return (0);
+out:
+	explicit_bzero(blkbuf, sizeof(blkbuf));
+	explicit_bzero(aalg, sizeof(aalg));
+	explicit_bzero(iv, sizeof(iv));
+	return (error);
 }
 
 /*
