@@ -363,8 +363,6 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 		kring->nr_hwtail = nm_i;
 		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
-	nm_prdis("[B] h %d c %d hwcur %d hwtail %d", ring->head, ring->cur,
-				kring->nr_hwcur, kring->nr_hwtail);
 
 	/*
 	 * Second part: skip past packets that userspace has released.
@@ -387,8 +385,8 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 		virtqueue_notify(vq);
 	}
 
-	nm_prdis("[C] h %d c %d t %d hwcur %d hwtail %d", ring->head, ring->cur,
-		ring->tail, kring->nr_hwcur, kring->nr_hwtail);
+	nm_prdis("h %d c %d t %d hwcur %d hwtail %d", kring->rhead,
+	    kring->rcur, kring->rtail, kring->nr_hwcur, kring->nr_hwtail);
 
 	return 0;
 }
