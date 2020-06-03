@@ -1435,16 +1435,28 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 
 static int
 tmpfs_vptofh(struct vop_vptofh_args *ap)
+/*
+vop_vptofh {
+	IN struct vnode *a_vp;
+	IN struct fid *a_fhp;
+};
+*/
 {
-	struct tmpfs_fid *tfhp;
+	struct tmpfs_fid_data tfd;
 	struct tmpfs_node *node;
+	struct fid *fhp;
 
-	tfhp = (struct tmpfs_fid *)ap->a_fhp;
 	node = VP_TO_TMPFS_NODE(ap->a_vp);
+	fhp = ap->a_fhp;
+	fhp->fid_len = sizeof(tfd);
 
-	tfhp->tf_len = sizeof(struct tmpfs_fid);
-	tfhp->tf_id = node->tn_id;
-	tfhp->tf_gen = node->tn_gen;
+	/*
+	 * Copy into fid_data from the stack to avoid unaligned pointer use.
+	 * See the comment in sys/mount.h on struct fid for details.
+	 */
+	tfd.tfd_id = node->tn_id;
+	tfd.tfd_gen = node->tn_gen;
+	memcpy(fhp->fid_data, &tfd, fhp->fid_len);
 
 	return (0);
 }
