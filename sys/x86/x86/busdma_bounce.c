@@ -407,8 +407,6 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	vm_memattr_t attr;
 	int mflags;
 
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s", __func__);
-
 	if (flags & BUS_DMA_NOWAIT)
 		mflags = M_NOWAIT;
 	else
@@ -492,7 +490,7 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 }
 
 /*
- * Free a piece of memory and it's allociated dmamap, that was allocated
+ * Free a piece of memory and its associated dmamap, that was allocated
  * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
  */
 static void
