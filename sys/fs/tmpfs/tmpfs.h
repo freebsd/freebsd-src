@@ -37,6 +37,7 @@
 #ifndef _FS_TMPFS_TMPFS_H_
 #define _FS_TMPFS_TMPFS_H_
 
+#include <sys/cdefs.h>
 #include <sys/queue.h>
 #include <sys/tree.h>
 
@@ -393,12 +394,12 @@ struct tmpfs_mount {
  * This structure maps a file identifier to a tmpfs node.  Used by the
  * NFS code.
  */
-struct tmpfs_fid {
-	uint16_t		tf_len;
-	uint16_t		tf_pad;
-	ino_t			tf_id;
-	unsigned long		tf_gen;
+struct tmpfs_fid_data {
+	ino_t			tfd_id;
+	unsigned long		tfd_gen;
 };
+_Static_assert(sizeof(struct tmpfs_fid_data) <= MAXFIDSZ,
+    "(struct tmpfs_fid_data) is larger than (struct fid).fid_data");
 
 struct tmpfs_dir_cursor {
 	struct tmpfs_dirent	*tdc_current;
