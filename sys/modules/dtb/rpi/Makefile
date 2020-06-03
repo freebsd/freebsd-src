@@ -6,7 +6,8 @@ DTSO=	\
 	spigen-rpi2.dtso
 .elif ${MACHINE_ARCH} == "aarch64"
 DTSO=	\
-	spigen-rpi3.dtso
+	spigen-rpi3.dtso \
+	spigen-rpi4.dtso
 .endif
 
 .include <bsd.dtb.mk>
