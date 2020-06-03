@@ -1039,7 +1039,7 @@ nm_vale_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		}
 
 		nm_prdis(5, "pass 2 dst %d is %x %s",
-			i, d_i, is_vp ? "virtual" : "nic/host");
+			i, d_i, nm_is_bwrap(&dst_na->up) ? "nic/host" : "virtual");
 		dst_nr = d_i & (NM_BDG_MAXRINGS-1);
 		nrings = dst_na->up.num_rx_rings;
 		if (dst_nr >= nrings)
@@ -1119,7 +1119,7 @@ retry:
 
 					nm_prdis("send [%d] %d(%d) bytes at %s:%d",
 							i, (int)copy_len, (int)dst_len,
-							NM_IFPNAME(dst_ifp), j);
+							dst_na->up.name, j);
 					/* round to a multiple of 64 */
 					copy_len = (copy_len + 63) & ~63;
 
