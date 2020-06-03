@@ -80,6 +80,7 @@ struct vtnet_rxq {
 	struct taskqueue	*vtnrx_tq;
 	struct task		 vtnrx_intrtask;
 #ifdef DEV_NETMAP
+	uint32_t		 vtnrx_nm_refill;
 	struct virtio_net_hdr_mrg_rxbuf vtnrx_shrhdr;
 #endif  /* DEV_NETMAP */
 	char			 vtnrx_name[16];
