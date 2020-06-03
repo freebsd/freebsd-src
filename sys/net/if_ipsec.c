@@ -170,6 +170,9 @@ static int	ipsec_set_addresses(struct ifnet *, struct sockaddr *,
 static int	ipsec_set_reqid(struct ipsec_softc *, uint32_t);
 static void	ipsec_set_running(struct ipsec_softc *);
 
+#ifdef VIMAGE
+static void	ipsec_reassign(struct ifnet *, struct vnet *, char *);
+#endif
 static void	ipsec_srcaddr(void *, const struct sockaddr *, int);
 static int	ipsec_ioctl(struct ifnet *, u_long, caddr_t);
 static int	ipsec_transmit(struct ifnet *, struct mbuf *);
@@ -201,11 +204,29 @@ ipsec_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_transmit  = ipsec_transmit;
 	ifp->if_qflush  = ipsec_qflush;
 	ifp->if_output = ipsec_output;
+#ifdef VIMAGE
+	ifp->if_reassign = ipsec_reassign;
+#endif
 	if_attach(ifp);
 	bpfattach(ifp, DLT_NULL, sizeof(uint32_t));
 
 	return (0);
 }
+
+#ifdef VIMAGE
+static void
+ipsec_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
+    char *unused __unused)
+{
+	struct ipsec_softc *sc;
+
+	sx_xlock(&ipsec_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc != NULL)
+		ipsec_delete_tunnel(sc);
+	sx_xunlock(&ipsec_ioctl_sx);
+}
+#endif /* VIMAGE */
 
 static void
 ipsec_clone_destroy(struct ifnet *ifp)

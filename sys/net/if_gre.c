@@ -107,6 +107,9 @@ static void	gre_clone_destroy(struct ifnet *);
 VNET_DEFINE_STATIC(struct if_clone *, gre_cloner);
 #define	V_gre_cloner	VNET(gre_cloner)
 
+#ifdef VIMAGE
+static void	gre_reassign(struct ifnet *, struct vnet *, char *);
+#endif
 static void	gre_qflush(struct ifnet *);
 static int	gre_transmit(struct ifnet *, struct mbuf *);
 static int	gre_ioctl(struct ifnet *, u_long, caddr_t);
@@ -183,12 +186,30 @@ gre_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	GRE2IFP(sc)->if_ioctl = gre_ioctl;
 	GRE2IFP(sc)->if_transmit = gre_transmit;
 	GRE2IFP(sc)->if_qflush = gre_qflush;
+#ifdef VIMAGE
+	GRE2IFP(sc)->if_reassign = gre_reassign;
+#endif
 	GRE2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
 	GRE2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(GRE2IFP(sc));
 	bpfattach(GRE2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	return (0);
 }
+
+#ifdef VIMAGE
+static void
+gre_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
+    char *unused __unused)
+{
+	struct gre_softc *sc;
+
+	sx_xlock(&gre_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc != NULL)
+		gre_delete_tunnel(sc);
+	sx_xunlock(&gre_ioctl_sx);
+}
+#endif /* VIMAGE */
 
 static void
 gre_clone_destroy(struct ifnet *ifp)
