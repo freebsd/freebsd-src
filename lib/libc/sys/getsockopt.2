@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd September 11, 2019
+.Dd June 03, 2020
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -191,6 +191,8 @@ The following options are recognized in
 .It Dv SO_USER_COOKIE Ta "set the 'so_user_cookie' value for the socket (uint32_t, set only)"
 .It Dv SO_TS_CLOCK Ta "set specific format of timestamp returned by SO_TIMESTAMP"
 .It Dv SO_MAX_PACING_RATE Ta "set the maximum transmit rate in bytes per second for the socket"
+.It Dv SO_NO_OFFLOAD Ta "disables protocol offloads"
+.It Dv SO_NO_DDP Ta "disables direct data placement offload"
 .El
 .Pp
 .Dv SO_DEBUG
@@ -512,7 +514,6 @@ the error status.
 It may be used to check for asynchronous errors on connected
 datagram sockets or for other asynchronous errors.
 .Pp
-Finally,
 .Dv SO_LABEL
 returns the MAC label of the socket.
 .Dv SO_PEERLABEL
@@ -521,6 +522,7 @@ Note that your kernel must be compiled with MAC support.
 See
 .Xr mac 3
 for more information.
+.Pp
 .Dv SO_LISTENQLIMIT
 returns the maximal number of queued connections, as set by
 .Xr listen 2 .
@@ -532,6 +534,17 @@ returns the number of unaccepted incomplete connections.
 .Dv SO_MAX_PACING_RATE
 instruct the socket and underlying network adapter layers to limit the
 transfer rate to the given unsigned 32-bit value in bytes per second.
+.Pp
+.Dv SO_NO_OFFLOAD
+disables support for protocol offloads.
+At present, this prevents TCP sockets from using TCP offload engines.
+.Dv SO_NO_DDP
+disables support for a specific TCP offload known as direct data
+placement (DDP).
+DDP is an offload supported by Chelsio network adapters that permits
+reassembled TCP data streams to be received via zero-copy in
+user-supplied buffers using
+.Xr aio_read 2 .
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
