@@ -422,7 +422,7 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 			struct epoch_tracker et;
 
 			NET_EPOCH_ENTER(et);
-			if (ifp->if_afinfo[AF_INET6] == NULL) {
+			if (ifp->if_afdata[AF_INET6] == NULL) {
 				NET_EPOCH_EXIT(et);
 				return (ENETDOWN);
 			}
