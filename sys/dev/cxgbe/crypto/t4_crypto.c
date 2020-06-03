@@ -751,6 +751,7 @@ ccr_blkcipher(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	/* XXX: TODO backpressure */
 	t4_wrq_tx(sc->adapter, wr);
 
+	explicit_bzero(iv, sizeof(iv));
 	return (0);
 }
 
@@ -1069,6 +1070,7 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	/* XXX: TODO backpressure */
 	t4_wrq_tx(sc->adapter, wr);
 
+	explicit_bzero(iv, sizeof(iv));
 	return (0);
 }
 
@@ -1351,6 +1353,7 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	/* XXX: TODO backpressure */
 	t4_wrq_tx(sc->adapter, wr);
 
+	explicit_bzero(iv, sizeof(iv));
 	return (0);
 }
 
@@ -1818,6 +1821,7 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	/* XXX: TODO backpressure */
 	t4_wrq_tx(sc->adapter, wr);
 
+	explicit_bzero(iv, sizeof(iv));
 	return (0);
 }
 
