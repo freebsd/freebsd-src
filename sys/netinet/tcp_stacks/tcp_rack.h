@@ -39,6 +39,7 @@
 #define RACK_RWND_COLLAPSED 0x0100/* The peer collapsed the rwnd on the segment */
 #define RACK_APP_LIMITED    0x0200/* We went app limited after this send */
 #define RACK_WAS_ACKED	    0x0400/* a RTO undid the ack, but it already had a rtt calc done */
+#define RACK_HAS_SIN	    0x0800/* SIN is on this guy */
 #define RACK_NUM_OF_RETRANS 3
 
 #define RACK_INITIAL_RTO 1000 /* 1 second in milli seconds */
