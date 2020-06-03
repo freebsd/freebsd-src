@@ -82,6 +82,6 @@
 /* #undef CLANG_ENABLE_STATIC_ANALYZER */
 
 /* Spawn a new process clang.exe for the CC1 tool invocation, when necessary */
-#define CLANG_SPAWN_CC1 0
+#define CLANG_SPAWN_CC1 1
 
 #endif
