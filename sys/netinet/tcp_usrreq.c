@@ -552,6 +552,10 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (sinp->sin_family == AF_INET
 	    && IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
 		return (EAFNOSUPPORT);
+	if ((sinp->sin_family == AF_INET) &&
+	    ((ntohl(sinp->sin_addr.s_addr) == INADDR_BROADCAST) ||
+	     (sinp->sin_addr.s_addr == INADDR_ANY)))
+		return(EAFNOSUPPORT);
 	if ((error = prison_remote_ip4(td->td_ucred, &sinp->sin_addr)) != 0)
 		return (error);
 
@@ -649,6 +653,11 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 		in6_sin6_2_sin(&sin, sin6);
 		if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
+			error = EAFNOSUPPORT;
+			goto out;
+		}
+		if ((ntohl(sin.sin_addr.s_addr) == INADDR_BROADCAST) ||
+		    (sin.sin_addr.s_addr == INADDR_ANY)) {
 			error = EAFNOSUPPORT;
 			goto out;
 		}
@@ -1019,6 +1028,13 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 				goto out;
 			}
 			if (IN_MULTICAST(ntohl(sinp->sin_addr.s_addr))) {
+				if (m)
+					m_freem(m);
+				error = EAFNOSUPPORT;
+				goto out;
+			}
+			if ((ntohl(sinp->sin_addr.s_addr) == INADDR_BROADCAST) ||
+			    (sinp->sin_addr.s_addr == INADDR_ANY)) {
 				if (m)
 					m_freem(m);
 				error = EAFNOSUPPORT;
