@@ -12,6 +12,10 @@ alias la	ls -aF
 alias lf	ls -FA
 alias ll	ls -lAF
 
+# read(2) of directories may not be desirable by default, as this will provoke
+# EISDIR errors from each directory encountered.
+# alias grep	grep -d skip
+
 # A righteous umask
 umask 22
 

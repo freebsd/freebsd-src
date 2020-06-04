@@ -136,6 +136,11 @@ static u_long vn_io_faults_cnt;
 SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
     &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
 
+static int vfs_allow_read_dir = 0;
+SYSCTL_INT(_security_bsd, OID_AUTO, allow_read_dir, CTLFLAG_RW,
+    &vfs_allow_read_dir, 0,
+    "Enable read(2) of directory by root for filesystems that support it");
+
 /*
  * Returns true if vn_io_fault mode of handling the i/o request should
  * be used.
@@ -1216,6 +1221,20 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 	doio = uio->uio_rw == UIO_READ ? vn_read : vn_write;
 	vp = fp->f_vnode;
+
+	/*
+	 * The ability to read(2) on a directory has historically been
+	 * allowed for all users, but this can and has been the source of
+	 * at least one security issue in the past.  As such, it is now hidden
+	 * away behind a sysctl for those that actually need it to use it.
+	 */
+	if (vp->v_type == VDIR) {
+		KASSERT(uio->uio_rw == UIO_READ,
+		    ("illegal write attempted on a directory"));
+		if (!vfs_allow_read_dir)
+			return (EISDIR);
+	}
+
 	foffset_lock_uio(fp, uio, flags);
 	if (do_vn_io_fault(vp, uio)) {
 		args.kind = VN_IO_FAULT_FOP;
