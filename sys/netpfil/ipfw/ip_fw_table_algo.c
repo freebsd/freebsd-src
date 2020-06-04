@@ -3204,7 +3204,8 @@ ta_lookup_fhash(struct table_info *ti, void *key, uint32_t keylen,
 	struct fhashentry *ent;
 	struct fhashentry4 *m4;
 	struct ipfw_flow_id *id;
-	uint16_t hash, hsize;
+	uint32_t hsize;
+	uint16_t hash;
 
 	id = (struct ipfw_flow_id *)key;
 	head = (struct fhashbhead *)ti->state;
