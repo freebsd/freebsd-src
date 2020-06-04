@@ -1226,12 +1226,16 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	 * The ability to read(2) on a directory has historically been
 	 * allowed for all users, but this can and has been the source of
 	 * at least one security issue in the past.  As such, it is now hidden
-	 * away behind a sysctl for those that actually need it to use it.
+	 * away behind a sysctl for those that actually need it to use it, and
+	 * restricted to root when it's turned on to make it relatively safe to
+	 * leave on for longer sessions of need.
 	 */
 	if (vp->v_type == VDIR) {
 		KASSERT(uio->uio_rw == UIO_READ,
 		    ("illegal write attempted on a directory"));
 		if (!vfs_allow_read_dir)
+			return (EISDIR);
+		if ((error = priv_check(td, PRIV_VFS_READ_DIR)) != 0)
 			return (EISDIR);
 	}
 

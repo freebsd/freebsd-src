@@ -200,7 +200,7 @@ The file was marked for non-blocking I/O,
 and no data were ready to be read.
 .It Bq Er EISDIR
 The file descriptor is associated with a directory.
-Directories may only be read directly if the filesystem supports it and
+Directories may only be read directly by root if the filesystem supports it and
 the
 .Dv security.bsd.allow_read_dir
 sysctl MIB is set to a non-zero value.
