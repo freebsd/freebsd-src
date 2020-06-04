@@ -1487,9 +1487,9 @@ options		VT_ALT_TO_ESC_HACK=1	# Prepend ESC sequence to ALT keys
 options		VT_MAXWINDOWS=16	# Number of virtual consoles
 options		VT_TWOBUTTON_MOUSE	# Use right mouse button to paste
 
-# The following options set the default framebuffer size.
-options		VT_FB_DEFAULT_HEIGHT=480
-options		VT_FB_DEFAULT_WIDTH=640
+# The following options set the maximum framebuffer size.
+options		VT_FB_MAX_HEIGHT=480
+options		VT_FB_MAX_WIDTH=640
 
 # The following options will let you change the default vt terminal colors.
 options		TERMINAL_NORM_ATTR=(FG_GREEN|BG_BLACK)
