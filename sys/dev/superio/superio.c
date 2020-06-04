@@ -190,6 +190,7 @@ static void
 sio_conf_exit(struct siosc *sc)
 {
 	sc->methods->exit(sc->io_res, sc->io_port);
+	sc->current_ldn = 0xff;
 	mtx_unlock(&sc->conf_lock);
 }
 
