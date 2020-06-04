@@ -2,19 +2,13 @@
 # This Package provides all definitions, library classes and libraries instances.
 #
 # It also provides the definitions(including PPIs/PROTOCOLs/GUIDs) of
-# EFI1.10/UEFI2.6/PI1.4 and some Industry Standards.
+# EFI1.10/UEFI2.7/PI1.7 and some Industry Standards.
 #
-# Copyright (c) 2007 - 2017, Intel Corporation. All rights reserved.<BR>
+# Copyright (c) 2007 - 2019, Intel Corporation. All rights reserved.<BR>
 # Portions copyright (c) 2008 - 2009, Apple Inc. All rights reserved.<BR>
-# (C) Copyright 2016 Hewlett Packard Enterprise Development LP<BR>
+# (C) Copyright 2016 - 2020 Hewlett Packard Enterprise Development LP<BR>
 #
-# This program and the accompanying materials are licensed and made available under
-# the terms and conditions of the BSD License which accompanies this distribution.
-# The full text of the license may be found at
-# http://opensource.org/licenses/bsd-license.php
-#
-# THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-# WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+# SPDX-License-Identifier: BSD-2-Clause-Patent
 #
 ##
 
@@ -24,7 +18,7 @@
   PACKAGE_NAME                   = MdePkg
   PACKAGE_UNI_FILE               = MdePkg.uni
   PACKAGE_GUID                   = 1E73767F-8F52-4603-AEB4-F29B510B6766
-  PACKAGE_VERSION                = 1.06
+  PACKAGE_VERSION                = 1.08
 
 
 [Includes]
@@ -36,9 +30,6 @@
 [Includes.X64]
   Include/X64
 
-[Includes.IPF]
-  Include/Ipf
-
 [Includes.EBC]
   Include/Ebc
 
@@ -47,6 +38,9 @@
 
 [Includes.AARCH64]
   Include/AArch64
+
+[Includes.RISCV64]
+  Include/RiscV64
 
 [LibraryClasses]
   ##  @libraryclass  Provides most usb APIs to support the Hid requests defined in Usb Hid 1.1 spec
@@ -131,8 +125,16 @@
   ##  @libraryclass  Provides a service to retrieve the PE/COFF entry point from a PE/COFF image.
   PeCoffGetEntryPointLib|Include/Library/PeCoffGetEntryPointLib.h
 
+  ##  @libraryclass  Provides services to return the PCI segment information.
+  PciSegmentInfoLib|Include/Library/PciSegmentInfoLib.h
+
   ##  @libraryclass  Provides services to access PCI Configuration Space on a platform with multiple PCI segments.
   PciSegmentLib|Include/Library/PciSegmentLib.h
+
+  ##  @libraryclass  The multiple segments PCI configuration Library Services that carry out
+  ##                 PCI configuration and enable the PCI operations to be replayed during an
+  ##                 S3 resume. This library class maps directly on top of the PciSegmentLib class.
+  S3PciSegmentLib|Include/Library/S3PciSegmentLib.h
 
   ##  @libraryclass  Provides services to access PCI Configuration Space.
   PciLib|Include/Library/PciLib.h
@@ -233,6 +235,22 @@
   ##  @libraryclass  provides EFI_FILE_HANDLE services
   FileHandleLib|Include/Library/FileHandleLib.h
 
+  ## @libraryclass provides helper functions to prevent integer overflow during
+  #                type conversion, addition, subtraction, and multiplication.
+  ##
+  SafeIntLib|Include/Library/SafeIntLib.h
+
+  ## @libraryclass Provides a service to retrieve a pointer to the Standalone MM Services Table.
+  #                Only available to MM_STANDALONE, SMM/DXE Combined and SMM module types.
+  MmServicesTableLib|Include/Library/MmServicesTableLib.h
+
+  ##  @libraryclass  Module entry point library for standalone MM drivers.
+  StandaloneMmDriverEntryPoint|Include/Library/StandaloneMmDriverEntryPoint.h
+
+  ## @libraryclass Provides a unit test framework
+  #
+  UnitTestLib|Include/Library/UnitTestLib.h
+
 [LibraryClasses.IA32, LibraryClasses.X64]
   ##  @libraryclass  Abstracts both S/W SMI generation and detection.
   ##
@@ -246,6 +264,10 @@
   #
   SmmMemLib|Include/Library/SmmMemLib.h
 
+  ##  @libraryclass  Provides services for Smm IO Operation.
+  #
+  SmmIoLib|Include/Library/SmmIoLib.h
+
   ##  @libraryclass  Provides services to enable/disable periodic SMI handlers.
   #
   SmmPeriodicSmiLib|Include/Library/SmmPeriodicSmiLib.h
@@ -256,16 +278,6 @@
 
   ##  @libraryclass  Provides services to log the SMI handler registration.
   SmiHandlerProfileLib|Include/Library/SmiHandlerProfileLib.h
-
-[LibraryClasses.IPF]
-  ##  @libraryclass  The SAL Library provides a service to make a SAL CALL.
-  SalLib|Include/Library/SalLib.h
-
-  ##  @libraryclass  Provides library services to make PAL Calls.
-  PalLib|Include/Library/PalLib.h
-
-  ##  @libraryclass  Provides library services to make Extended SAL Calls.
-  ExtendedSalLib|Include/Library/ExtendedSalLib.h
 
 [Guids]
   #
@@ -318,9 +330,6 @@
 
   ## Include/Guid/Mps.h
   gEfiMpsTableGuid               = { 0xEB9D2D2F, 0x2D88, 0x11D3, { 0x9A, 0x16, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
-
-  ## Include/Guid/SalSystemTable.h
-  gEfiSalSystemTableGuid         = { 0xEB9D2D32, 0x2D88, 0x11D3, { 0x9A, 0x16, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D }}
 
   ## Include/Protocol/AuthenticationInfo.h
   gEfiAuthenticationChapLocalGuid = { 0xC280C73E, 0x15CA, 0x11DA, { 0xB0, 0xCA, 0x00, 0x10, 0x83, 0xFF, 0xCA, 0x4D }}
@@ -426,6 +435,15 @@
 
   ## Include/Guid/Cper.h
   gEfiEventNotificationTypeDmarGuid  = { 0x667DD791, 0xC6B3, 0x4c27, { 0x8A, 0x6B, 0x0F, 0x8E, 0x72, 0x2D, 0xEB, 0x41 }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeSeaGuid   = { 0x9A78788A, 0xBBE8, 0x11E4, { 0x80, 0x9E, 0x67, 0x61, 0x1E, 0x5D, 0x46, 0xB0 }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypeSeiGuid   = { 0x5C284C81, 0xB0AE, 0x4E87, { 0xA3, 0x22, 0xB0, 0x4C, 0x85, 0x62, 0x43, 0x23 }}
+
+  ## Include/Guid/Cper.h
+  gEfiEventNotificationTypePeiGuid   = { 0x09A9D5AC, 0x5204, 0x4214, { 0x96, 0xE5, 0x94, 0x99, 0x2E, 0x75, 0x2B, 0xCD }}
 
   ## Include/Guid/Cper.h
   gEfiProcessorGenericErrorSectionGuid  = { 0x9876ccad, 0x47b4, 0x4bdb, { 0xb6, 0x5e, 0x16, 0xf1, 0x93, 0xc4, 0xf3, 0xdb }}
@@ -572,9 +590,6 @@
   # GUIDs defined in UEFI2.5
   #
 
-  ## Include/Guid/PropertiesTable.h
-  gEfiPropertiesTableGuid        = { 0x880aaca3, 0x4adc, 0x4a04, {0x90, 0x79, 0xb7, 0x47, 0x34, 0x8, 0x25, 0xe5 }}
-
   ## Include/Guid/SystemResourceTable.h
   gEfiSystemResourceTableGuid    = { 0xb122a263, 0x3661, 0x4f68, {0x99, 0x29, 0x78, 0xf8, 0xb0, 0xd6, 0x21, 0x80 }}
 
@@ -632,6 +647,28 @@
   ## Include/Protocol/ImageDecoder.h
   gEfiHiiImageDecoderNameJpegGuid           = { 0xefefd093, 0x0d9b, 0x46eb, { 0xa8, 0x56, 0x48, 0x35, 0x07, 0x00, 0xc9, 0x08 }}
   gEfiHiiImageDecoderNamePngGuid            = { 0xaf060190, 0x5e3a, 0x4025, { 0xaf, 0xbd, 0xe1, 0xf9, 0x05, 0xbf, 0xaa, 0x4c }}
+
+  #
+  # GUIDs defined in UEFI2.7
+  #
+  ## Include/Guid/Btt.h
+  gEfiBttAbstractionGuid         = { 0x18633bfc, 0x1735, 0x4217, { 0x8a, 0xc9, 0x17, 0x23, 0x92, 0x82, 0xd3, 0xf8 }}
+
+  # GUIDs defined in UEFI2.8
+  #
+  ## Include/Guid/JsonCapsule.h
+  gEfiJsonConfigDataTableGuid      = { 0x87367f87, 0x1119, 0x41ce, { 0xaa, 0xec, 0x8b, 0xe0, 0x11, 0x1f, 0x55, 0x8a }}
+  gEfiJsonCapsuleDataTableGuid     = { 0x35e7a725, 0x8dd2, 0x4cac, { 0x80, 0x11, 0x33, 0xcd, 0xa8, 0x10, 0x90, 0x56 }}
+  gEfiJsonCapsuleResultTableGuid   = { 0xdbc461c3, 0xb3de, 0x422a, { 0xb9, 0xb4, 0x98, 0x86, 0xfd, 0x49, 0xa1, 0xe5 }}
+  gEfiJsonCapsuleIdGuid            = { 0x67d6f4cd, 0xd6b8, 0x4573, { 0xbf, 0x4a, 0xde, 0x5e, 0x25, 0x2d, 0x61, 0xae }}
+
+  ## Include/Guid/HiiPlatformSetupFormset.h
+  gEfiHiiResetStyleFormsetGuid     = { 0x790217bd, 0xbecf, 0x485b, { 0x91, 0x70, 0x5f, 0xf7, 0x11, 0x31, 0x8b, 0x27 }}
+
+  # GUIDs defined in UEFI2.8a
+  #
+  ## Include/Guid/RtPropertiesTable.h
+  gEfiRtPropertiesTableGuid      = { 0xeb66918a, 0x7eef, 0x402a, { 0x84, 0x2e, 0x93, 0x1d, 0x21, 0xc3, 0x8a, 0xe9 }}
 
   #
   # GUID defined in PI1.0
@@ -741,11 +778,25 @@
   ## Include/Guid/GraphicsInfoHob.h
   gEfiGraphicsDeviceInfoHobGuid     = { 0xe5cb2ac9, 0xd35d, 0x4430, { 0x93, 0x6e, 0x1d, 0xe3, 0x32, 0x47, 0x8d, 0xe7 }}
 
+  ## Include/Guid/SmramMemoryReserve.h
+  gEfiSmmSmramMemoryGuid            = { 0x6dadf1d1, 0xd4cc, 0x4910, { 0xbb, 0x6e, 0x82, 0xb1, 0xfd, 0x80, 0xff, 0x3d }}
+
+  #
+  # GUID defined in PI1.6
+  #
+  ## Include/Protocol/DiskInfo.h
+  gEfiDiskInfoSdMmcInterfaceGuid  = { 0x8deec992, 0xd39c, 0x4a5c, { 0xab, 0x6b, 0x98, 0x6e, 0x14, 0x24, 0x2b, 0x9d }}
+
   #
   # GUID defined in Windows UEFI Firmware Update Platform doc
   #
   ## Include/IndustryStandard/WindowsUxCapsule.h
   gWindowsUxCapsuleGuid          = { 0x3b8c8162, 0x188c, 0x46a4, { 0xae, 0xc9, 0xbe, 0x43, 0xf1, 0xd6, 0x56, 0x97}}
+
+  #
+  # GUID indicates the tiano custom compress/decompress algorithm.
+  #
+  gTianoCustomDecompressGuid     = { 0xA31280AD, 0x481E, 0x41B6, { 0x95, 0xE8, 0x12, 0x7F, 0x4C, 0x98, 0x47, 0x79 }}
 
 [Guids.IA32, Guids.X64]
   ## Include/Guid/Cper.h
@@ -898,6 +949,29 @@
 
   ## Include/Ppi/SecPlatformInformation.h
   gEfiSecPlatformInformation2PpiGuid = { 0x9e9f374b, 0x8f16, 0x4230, {0x98, 0x24, 0x58, 0x46, 0xee, 0x76, 0x6a, 0x97 } }
+
+  #
+  # PPIs defined in PI 1.5.
+  #
+
+  ## Include/Ppi/SecHobData.h
+  gEfiSecHobDataPpiGuid = { 0x3ebdaf20, 0x6667, 0x40d8, {0xb4, 0xee, 0xf5, 0x99, 0x9a, 0xc1, 0xb7, 0x1f } }
+
+  ## Include/Ppi/MmAccess.h
+  gEfiPeiMmAccessPpiGuid          =  { 0x268f33a9, 0xcccd, 0x48be, { 0x88, 0x17, 0x86, 0x5, 0x3a, 0xc3, 0x2e, 0xd6 }}
+
+  ## Include/Ppi/MmControl.h
+  gEfiPeiMmControlPpiGuid         =  { 0x61c68702, 0x4d7e, 0x4f43, { 0x8d, 0xef, 0xa7, 0x43, 0x5, 0xce, 0x74, 0xc5 }}
+
+  #
+  # PPIs defined in PI 1.7.
+  #
+
+  ## Include/Ppi/PeiCoreFvLocation.h
+  gEfiPeiCoreFvLocationPpiGuid   = { 0x52888eae, 0x5b10, 0x47d0, { 0xa8, 0x7f, 0xb8, 0x22, 0xab, 0xa0, 0xca, 0xf4 }}
+
+  ## Include/Ppi/DelayedDispatch.h
+  gEfiPeiDelayedDispatchPpiGuid  = { 0x869c711d, 0x649c, 0x44fe, { 0x8b, 0x9e, 0x2c, 0xbb, 0x29, 0x11, 0xc3, 0xe6 }}
 
 [Protocols]
   ## Include/Protocol/Pcd.h
@@ -1091,29 +1165,6 @@
   ## Include/Protocol/LegacyRegion2.h
   gEfiLegacyRegion2ProtocolGuid = {0x70101eaf, 0x85, 0x440c, {0xb3, 0x56, 0x8e, 0xe3, 0x6f, 0xef, 0x24, 0xf0 } }
 
-  ## Include/Protocol/McaInitPmi.h
-  gEfiSalMcaInitPmiProtocolGuid = { 0xb60dc6e8, 0x3b6f, 0x11d5, {0xaf, 0x9, 0x0, 0xa0, 0xc9, 0x44, 0xa0, 0x5b } }
-
-  ## Include/Protocol/ExtendedSalBootService.h
-  gEfiExtendedSalBootServiceProtocolGuid  = { 0xde0ee9a4, 0x3c7a, 0x44f2, {0xb7, 0x8b, 0xe3, 0xcc, 0xd6, 0x9c, 0x3a, 0xf7 } }
-
-  ## Include/Protocol/ExtendedSalServiceClasses.h
-  gEfiExtendedSalBaseIoServicesProtocolGuid = { 0x5aea42b5, 0x31e1, 0x4515, {0xbc, 0x31, 0xb8, 0xd5, 0x25, 0x75, 0x65, 0xa6 } }
-  gEfiExtendedSalStallServicesProtocolGuid = { 0x53a58d06, 0xac27, 0x4d8c, {0xb5, 0xe9, 0xf0, 0x8a, 0x80, 0x65, 0x41, 0x70 } }
-  gEfiExtendedSalRtcServicesProtocolGuid = { 0x7e97a470, 0xefdb, 0x4d02, {0x8f, 0xce, 0x61, 0x90, 0xd2, 0x7b, 0xa2, 0x96 } }
-  gEfiExtendedSalVariableServicesProtocolGuid = { 0x4ecb6c53, 0xc641, 0x4370, {0x8c, 0xb2, 0x3b, 0x0e, 0x49, 0x6e, 0x83, 0x78 } }
-  gEfiExtendedSalMtcServicesProtocolGuid = { 0x899afd18, 0x75e8, 0x408b, {0xa4, 0x1a, 0x6e, 0x2e, 0x7e, 0xcd, 0xf4, 0x54 } }
-  gEfiExtendedSalResetServicesProtocolGuid = { 0x7d019990, 0x8ce1, 0x46f5, {0xa7, 0x76, 0x3c, 0x51, 0x98, 0x67, 0x6a, 0xa0 } }
-  gEfiExtendedSalStatusCodeServicesProtocolGuid = { 0xdbd91d, 0x55e9, 0x420f, {0x96, 0x39, 0x5e, 0x9f, 0x84, 0x37, 0xb4, 0x4f } }
-  gEfiExtendedSalFvBlockServicesProtocolGuid = { 0xa2271df1, 0xbcbb, 0x4f1d, {0x98, 0xa9, 0x06, 0xbc, 0x17, 0x2f, 0x07, 0x1a } }
-  gEfiExtendedSalMpServicesProtocolGuid = { 0x697d81a2, 0xcf18, 0x4dc0, {0x9e, 0x0d, 0x06, 0x11, 0x3b, 0x61, 0x8a, 0x3f } }
-  gEfiExtendedSalPalServicesProtocolGuid = { 0xe1cd9d21, 0x0fc2, 0x438d, {0x97, 0x03, 0x04, 0xe6, 0x6d, 0x96, 0x1e, 0x57 } }
-  gEfiExtendedSalBaseServicesProtocolGuid = { 0xd9e9fa06, 0x0fe0, 0x41c3, {0x96, 0xfb, 0x83, 0x42, 0x5a, 0x33, 0x94, 0xf8 } }
-  gEfiExtendedSalMcaServicesProtocolGuid = { 0x2a591128, 0x6cc7, 0x42b1, {0x8a, 0xf0, 0x58, 0x93, 0x3b, 0x68, 0x2d, 0xbb } }
-  gEfiExtendedSalPciServicesProtocolGuid = { 0xa46b1a31, 0xad66, 0x4905, {0x92, 0xf6, 0x2b, 0x46, 0x59, 0xdc, 0x30, 0x63 } }
-  gEfiExtendedSalCacheServicesProtocolGuid = { 0xedc9494, 0x2743, 0x4ba5, { 0x88, 0x18, 0x0a, 0xef, 0x52, 0x13, 0xf1, 0x88 } }
-  gEfiExtendedSalMcaLogServicesProtocolGuid = { 0xcb3fd86e, 0x38a3, 0x4c03, {0x9a, 0x5c, 0x90, 0xcf, 0xa3, 0xa2, 0xab, 0x7a } }
-
   #
   # Protocols defined in PI 1.2.1
   #
@@ -1152,6 +1203,117 @@
 
   ## Include/Protocol/I2cBusConfigurationManagement.h
   gEfiI2cBusConfigurationManagementProtocolGuid = { 0x55b71fb5, 0x17c6, 0x410e, { 0xb5, 0xbd, 0x5f, 0xa2, 0xe3, 0xd4, 0x46, 0x6b }}
+
+  #
+  # Protocols defined in PI 1.5.
+  #
+
+  ## Include/Protocol/MmMp.h
+  gEfiMmMpProtocolGuid = { 0x5d5450d7, 0x990c, 0x4180, { 0xa8, 0x3, 0x8e, 0x63, 0xf0, 0x60, 0x83, 0x7 }}
+
+  ## Include/Protocol/MmEndOfDxe.h
+  gEfiMmEndOfDxeProtocolGuid = { 0x24e70042, 0xd5c5, 0x4260, { 0x8c, 0x39, 0xa, 0xd3, 0xaa, 0x32, 0xe9, 0x3d }}
+
+  ## Include/Protocol/MmIoTrapDispatch.h
+  gEfiMmIoTrapDispatchProtocolGuid = { 0x58dc368d, 0x7bfa, 0x4e77, {0xab, 0xbc, 0xe, 0x29, 0x41, 0x8d, 0xf9, 0x30 }}
+
+  ## Include/Protocol/MmPowerButtonDispatch.h
+  gEfiMmPowerButtonDispatchProtocolGuid = { 0x1b1183fa, 0x1823, 0x46a7, {0x88, 0x72, 0x9c, 0x57, 0x87, 0x55, 0x40, 0x9d }}
+
+  ## Include/Protocol/MmStandbyButtonDispatch.h
+  gEfiMmStandbyButtonDispatchProtocolGuid = { 0x7300c4a1, 0x43f2, 0x4017, {0xa5, 0x1b, 0xc8, 0x1a, 0x7f, 0x40, 0x58, 0x5b }}
+
+  ## Include/Protocol/MmGpiDispatch.h
+  gEfiMmGpiDispatchProtocolGuid = { 0x25566b03, 0xb577, 0x4cbf, {0x95, 0x8c, 0xed, 0x66, 0x3e, 0xa2, 0x43, 0x80 }}
+
+  ## Include/Protocol/MmUsbDispatch.h
+  gEfiMmUsbDispatchProtocolGuid = { 0xee9b8d90, 0xc5a6, 0x40a2, {0xbd, 0xe2, 0x52, 0x55, 0x8d, 0x33, 0xcc, 0xa1 }}
+
+  ## Include/Protocol/MmPeriodicTimerDispatch.h
+  gEfiMmPeriodicTimerDispatchProtocolGuid = { 0x4cec368e, 0x8e8e, 0x4d71, {0x8b, 0xe1, 0x95, 0x8c, 0x45, 0xfc, 0x8a, 0x53 }}
+
+  ## Include/Protocol/MmSxDispatch.h
+  gEfiMmSxDispatchProtocolGuid  = { 0x456d2859, 0xa84b, 0x4e47, {0xa2, 0xee, 0x32, 0x76, 0xd8, 0x86, 0x99, 0x7d }}
+
+  ## Include/Protocol/MmSwDispatch.h
+  gEfiMmSwDispatchProtocolGuid  = { 0x18a3c6dc, 0x5eea, 0x48c8, {0xa1, 0xc1, 0xb5, 0x33, 0x89, 0xf9, 0x89, 0x99 }}
+
+  ## Include/Protocol/MmPciRootBridgeIo.h
+  gEfiMmPciRootBridgeIoProtocolGuid = { 0x8bc1714d, 0xffcb, 0x41c3, { 0x89, 0xdc, 0x6c, 0x74, 0xd0, 0x6d, 0x98, 0xea }}
+
+  ## Include/Protocol/MmCpu.h
+  gEfiMmCpuProtocolGuid          = { 0xeb346b97, 0x975f, 0x4a9f, { 0x8b, 0x22, 0xf8, 0xe9, 0x2b, 0xb3, 0xd5, 0x69 }}
+
+  ## Include/Protocol/MmStatusCode.h
+  gEfiMmStatusCodeProtocolGuid   = { 0x6afd2b77, 0x98c1, 0x4acd, { 0xa6, 0xf9, 0x8a, 0x94, 0x39, 0xde, 0xf, 0xb1}}
+
+  ## Include/Protocol/DxeMmReadyToLock.h
+  gEfiDxeMmReadyToLockProtocolGuid = { 0x60ff8964, 0xe906, 0x41d0, { 0xaf, 0xed, 0xf2, 0x41, 0xe9, 0x74, 0xe0, 0x8e }}
+
+  ## Include/Protocol/MmConfiguration.h
+  gEfiMmConfigurationProtocolGuid= { 0x26eeb3de, 0xb689, 0x492e, { 0x80, 0xf0, 0xbe, 0x8b, 0xd7, 0xda, 0x4b, 0xa7 }}
+
+  ## Include/Protocol/MmReadyToLock.h
+  gEfiMmReadyToLockProtocolGuid  = { 0x47b7fa8c, 0xf4bd, 0x4af6, { 0x82, 0x00, 0x33, 0x30, 0x86, 0xf0, 0xd2, 0xc8 }}
+
+  ## Include/Protocol/MmControl.h
+  gEfiMmControlProtocolGuid     = { 0x843dc720, 0xab1e, 0x42cb, { 0x93, 0x57, 0x8a, 0x0, 0x78, 0xf3, 0x56, 0x1b}}
+
+  ## Include/Protocol/MmAccess.h
+  gEfiMmAccessProtocolGuid      = { 0xc2702b74, 0x800c, 0x4131, { 0x87, 0x46, 0x8f, 0xb5, 0xb8, 0x9c, 0xe4, 0xac }}
+
+  ## Include/Protocol/MmBase.h
+  gEfiMmBaseProtocolGuid        = { 0xf4ccbfb7, 0xf6e0, 0x47fd, { 0x9d, 0xd4, 0x10, 0xa8, 0xf1, 0x50, 0xc1, 0x91 }}
+
+  ## Include/Protocol/MmCpuIo.h
+  gEfiMmCpuIoProtocolGuid        = { 0x3242a9d8, 0xce70, 0x4aa0, { 0x95, 0x5d, 0x5e, 0x7b, 0x14, 0x0d, 0xe4, 0xd2 }}
+
+  ## Include/Protocol/MmReportStatusCodeHandler.h
+  gEfiMmRscHandlerProtocolGuid   = { 0x2ff29fa7, 0x5e80, 0x4ed9, { 0xb3, 0x80, 0x1, 0x7d, 0x3c, 0x55, 0x4f, 0xf4 }}
+
+  ## Include/Protocol/MmCommunication.h
+  gEfiMmCommunicationProtocolGuid  = { 0xc68ed8e2, 0x9dc6, 0x4cbd, { 0x9d, 0x94, 0xdb, 0x65, 0xac, 0xc5, 0xc3, 0x32 }}
+
+  #
+  # Protocols defined in PI 1.6.
+  #
+
+  ## Include/Protocol/LegacySpiController.h
+  gEfiLegacySpiControllerProtocolGuid    = { 0x39136fc7, 0x1a11, 0x49de, { 0xbf, 0x35, 0x0e, 0x78, 0xdd, 0xb5, 0x24, 0xfc }}
+
+  ## Include/Protocol/LegacySpiFlash.h
+  gEfiLegacySpiFlashProtocolGuid         = { 0xf01bed57, 0x04bc, 0x4f3f, { 0x96, 0x60, 0xd6, 0xf2, 0xea, 0x22, 0x82, 0x59 }}
+
+  ## Include/Protocol/LegacySpiSmmController.h
+  gEfiLegacySpiSmmControllerProtocolGuid = { 0x62331b78, 0xd8d0, 0x4c8c, { 0x8c, 0xcb, 0xd2, 0x7d, 0xfe, 0x32, 0xdb, 0x9b }}
+
+  ## Include/Protocol/LegacySpiSmmFlash.h
+  gEfiLegacySpiSmmFlashProtocolGuid      = { 0x5e3848d4, 0x0db5, 0x4fc0, { 0x97, 0x29, 0x3f, 0x35, 0x3d, 0x4f, 0x87, 0x9f }}
+
+  ## Include/Protocol/SpiConfiguration.h
+  gEfiSpiConfigurationProtocolGuid       = { 0x85a6d3e6, 0xb65b, 0x4afc, { 0xb3, 0x8f, 0xc6, 0xd5, 0x4a, 0xf6, 0xdd, 0xc8 }}
+
+  ## Include/Protocol/SpiHc.h
+  gEfiSpiHcProtocolGuid                  = { 0xc74e5db2, 0xfa96, 0x4ae2, { 0xb3, 0x99, 0x15, 0x97, 0x7f, 0xe3, 0x0, 0x2d }}
+
+  ## Include/Protocol/SpiNorFlash.h
+  gEfiSpiNorFlashProtocolGuid            = { 0xb57ec3fe, 0xf833, 0x4ba6, { 0x85, 0x78, 0x2a, 0x7d, 0x6a, 0x87, 0x44, 0x4b }}
+
+  ## Include/Protocol/SpiSmmConfiguration.h
+  gEfiSpiSmmConfigurationProtocolGuid    = { 0x995c6eca, 0x171b, 0x45fd, { 0xa3, 0xaa, 0xfd, 0x4c, 0x9c, 0x9d, 0xef, 0x59 }}
+
+  ## Include/Protocol/SpiSmmHc.h
+  gEfiSpiSmmHcProtocolGuid               = { 0xe9f02217, 0x2093, 0x4470, { 0x8a, 0x54, 0x5c, 0x2c, 0xff, 0xe7, 0x3e, 0xcb }}
+
+  ## Include/Protocol/SpiSmmNorFlash.h
+  gEfiSpiSmmNorFlashProtocolGuid         = { 0xaab18f19, 0xfe14, 0x4666, { 0x86, 0x04, 0x87, 0xff, 0x6d, 0x66, 0x2c, 0x9a }}
+
+  #
+  # Protocols defined in PI 1.7.
+  #
+
+  ## Include/Protocol/MmCommunication2.h
+  gEfiMmCommunication2ProtocolGuid  = { 0x378daedc, 0xf06b, 0x4446, { 0x83, 0x14, 0x40, 0xab, 0x93, 0x3c, 0x87, 0xa3 }}
 
   #
   # Protocols defined in UEFI2.1/UEFI2.0/EFI1.1
@@ -1617,7 +1779,7 @@
 
   ## Include/Protocol/Tls.h
   gEfiTlsProtocolGuid                 = { 0xca959f, 0x6cfa, 0x4db1, {0x95, 0xbc, 0xe4, 0x6c, 0x47, 0x51, 0x43, 0x90 }}
-  
+
   ## Include/Protocol/TlsConfig.h
   gEfiTlsConfigurationProtocolGuid    = { 0x1682fe44, 0xbd7a, 0x4407, { 0xb7, 0xc7, 0xdc, 0xa3, 0x7c, 0xa3, 0x92, 0x2d }}
 
@@ -1638,14 +1800,6 @@
   gEfiRamDiskProtocolGuid              = { 0xab38a0df, 0x6873, 0x44a9, { 0x87, 0xe6, 0xd4, 0xeb, 0x56, 0x14, 0x84, 0x49 }}
 
   ## Include/Protocol/ImageDecoder.h
-  ##
-  ## In UEFI 2.6 spec,this guid value is duplicate with
-  ## EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_GUID. Now update this guid value to
-  ## avoid the duplicate guid issue. So its value is not consistent with
-  ## UEFI spec definition now. We have proposed to update UEFI spec to
-  ## use this new guid. After new spec released, we will remove this
-  ## comments.
-  ##
   gEfiHiiImageDecoderProtocolGuid      = { 0x9e66f251, 0x727c, 0x418c, { 0xbf, 0xd6, 0xc2, 0xb4, 0x25, 0x28, 0x18, 0xea }}
 
   ## Include/Protocol/HiiImageEx.h
@@ -1656,6 +1810,34 @@
 
   ## Include/Protocol/EraseBlock.h
   gEfiEraseBlockProtocolGuid           = { 0x95a9a93e, 0xa86e, 0x4926, {0xaa, 0xef, 0x99, 0x18, 0xe7, 0x72, 0xd9, 0x87 }}
+
+  #
+  # Protocols defined in UEFI2.7
+  #
+  ## Include/Protocol/BluetoothAttribute.h
+  gEfiBluetoothAttributeProtocolGuid        = { 0x898890e9, 0x84b2, 0x4f3a, { 0x8c, 0x58, 0xd8, 0x57, 0x78, 0x13, 0xe0, 0xac } }
+  gEfiBluetoothAttributeServiceBindingProtocolGuid = { 0x5639867a, 0x8c8e, 0x408d, {0xac, 0x2f, 0x4b, 0x61, 0xbd, 0xc0, 0xbb, 0xbb }}
+
+  ## Include/Protocol/BluetoothLeConfig.h
+  gEfiBluetoothLeConfigProtocolGuid         = { 0x8f76da58, 0x1f99, 0x4275, { 0xa4, 0xec, 0x47, 0x56, 0x51, 0x5b, 0x1c, 0xe8 } }
+
+  ## Include/Protocol/UfsDeviceConfig.h
+  gEfiUfsDeviceConfigProtocolGuid           = { 0xb81bfab0, 0xeb3, 0x4cf9, { 0x84, 0x65, 0x7f, 0xa9, 0x86, 0x36, 0x16, 0x64 }}
+
+  ## Include/Protocol/HttpBootCallback.h
+  gEfiHttpBootCallbackProtocolGuid   = {0xba23b311, 0x343d, 0x11e6, {0x91, 0x85, 0x58, 0x20, 0xb1, 0xd6, 0x52, 0x99}}
+
+  ## Include/Protocol/ResetNotification.h
+  gEfiResetNotificationProtocolGuid         = { 0x9da34ae0, 0xeaf9, 0x4bbf, { 0x8e, 0xc3, 0xfd, 0x60, 0x22, 0x6c, 0x44, 0xbe } }
+
+  ## Include/Protocol/PartitionInfo.h
+  gEfiPartitionInfoProtocolGuid             = { 0x8cf2f62c, 0xbc9b, 0x4821, { 0x80, 0x8d, 0xec, 0x9e, 0xc4, 0x21, 0xa1, 0xa0 }}
+
+  ## Include/Protocol/HiiPopup.h
+  gEfiHiiPopupProtocolGuid                  = { 0x4311edc0, 0x6054, 0x46d4, { 0x9e, 0x40, 0x89, 0x3e, 0xa9, 0x52, 0xfc, 0xcc }}
+
+  ## Include/Protocol/NvdimmLabel.h
+  gEfiNvdimmLabelProtocolGuid               = { 0xd40b6b80, 0x97d5, 0x4282, { 0xbb, 0x1d, 0x22, 0x3a, 0x16, 0x91, 0x80, 0x58 }}
 
   #
   # Protocols defined in Shell2.0
@@ -1929,6 +2111,22 @@
   # @Prompt Fixed Debug Message Print Level.
   gEfiMdePkgTokenSpaceGuid.PcdFixedDebugPrintErrorLevel|0xFFFFFFFF|UINT32|0x30001016
 
+  ## Indicates the control flow enforcement enabling state.
+  #  If enabled, it uses control flow enforcement technology to prevent ROP or JOP.<BR><BR>
+  #   BIT0 - SMM CET Shadow Stack is enabled.<BR>
+  #   Other - reserved
+  # @Prompt Enable control flow enforcement.
+  gEfiMdePkgTokenSpaceGuid.PcdControlFlowEnforcementPropertyMask|0x0|UINT32|0x30001017
+
+  ## Indicates the type of instruction sequence to use for a speculation
+  #  barrier.  The default instruction sequence is LFENCE.<BR><BR>
+  #   0x00 - No operation.<BR>
+  #   0x01 - LFENCE (IA32/X64).<BR>
+  #   0x02 - CPUID  (IA32/X64).<BR>
+  #   Other - reserved
+  # @Prompt Speculation Barrier Type.
+  gEfiMdePkgTokenSpaceGuid.PcdSpeculationBarrierType|0x01|UINT8|0x30001018
+
 [PcdsFixedAtBuild,PcdsPatchableInModule]
   ## Indicates the maximum length of unicode string used in the following
   #  BaseLib functions: StrLen(), StrSize(), StrCmp(), StrnCmp(), StrCpy(), StrnCpy()<BR><BR>
@@ -2012,8 +2210,15 @@
 
   ## The mask is used to control PerformanceLib behavior.<BR><BR>
   #  BIT0 - Enable Performance Measurement.<BR>
+  #  BIT1 - Disable Start Image Logging.<BR>
+  #  BIT2 - Disable Load Image logging.<BR>
+  #  BIT3 - Disable Binding Support logging.<BR>
+  #  BIT4 - Disable Binding Start logging.<BR>
+  #  BIT5 - Disable Binding Stop logging.<BR>
+  #  BIT6 - Disable all other general Perfs.<BR>
+  #  BIT1-BIT6 are evaluated when BIT0 is set.<BR>
   # @Prompt Performance Measurement Property.
-  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask & 0xFE) == 0
+  # @Expression  0x80000002 | (gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask & 0x80) == 0
   gEfiMdePkgTokenSpaceGuid.PcdPerformanceLibraryPropertyMask|0|UINT8|0x00000009
 
   ## The mask is used to control PostCodeLib behavior.<BR><BR>
@@ -2054,11 +2259,6 @@
   #  The required memory space is decided by the value of PcdMaximumGuidedExtractHandler.
   # @Prompt Memory Address of GuidedExtractHandler Table.
   gEfiMdePkgTokenSpaceGuid.PcdGuidedExtractHandlerTableAddress|0x1000000|UINT64|0x30001015
-
-[PcdsFixedAtBuild.IPF, PcdsPatchableInModule.IPF]
-  ## The base address of IO port space for IA64 arch.
-  # @Prompt IA64 IO Port Space Base Address.
-  gEfiMdePkgTokenSpaceGuid.PcdIoBlockBaseAddressForIpf|0x0ffffc000000|UINT64|0x0000000f
 
 [PcdsFixedAtBuild, PcdsPatchableInModule, PcdsDynamic, PcdsDynamicEx]
   ## This value is used to set the base address of PCI express hierarchy.

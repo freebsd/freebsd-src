@@ -1,15 +1,9 @@
 /** @file
-  EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL as defined in UEFI 2.0.  
+  EFI_DEVICE_PATH_FROM_TEXT_PROTOCOL as defined in UEFI 2.0.
   This protocol provides service to convert text to device paths and device nodes.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -39,8 +33,8 @@ typedef
 EFI_DEVICE_PATH_PROTOCOL*
 (EFIAPI *EFI_DEVICE_PATH_FROM_TEXT_NODE)(
   IN CONST CHAR16                 *TextDeviceNode
-  );    
-  
+  );
+
 
 /**
   Convert text to the binary representation of a device node.
@@ -57,7 +51,7 @@ typedef
 EFI_DEVICE_PATH_PROTOCOL*
 (EFIAPI *EFI_DEVICE_PATH_FROM_TEXT_PATH)(
   IN CONST CHAR16                 *TextDevicePath
-  );  
+  );
 
 ///
 /// This protocol converts text to device paths and device nodes.

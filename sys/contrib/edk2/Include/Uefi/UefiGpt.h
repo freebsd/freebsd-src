@@ -1,14 +1,8 @@
 /** @file
   EFI Guid Partition Table Format Definition.
 
-Copyright (c) 2006 - 2011, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -22,8 +16,12 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
 #define PRIMARY_PART_HEADER_LBA 1
 ///
 /// EFI Partition Table Signature: "EFI PART".
-/// 
+///
 #define EFI_PTAB_HEADER_ID      SIGNATURE_64 ('E','F','I',' ','P','A','R','T')
+///
+/// Minimum bytes reserve for EFI entry array buffer.
+///
+#define EFI_GPT_PART_ENTRY_MIN_SIZE 16384
 
 #pragma pack(1)
 
@@ -119,7 +117,7 @@ typedef struct {
   ///             this partition. By not producing an EFI_BLOCK_IO_PROTOCOL partition, file system
   ///             mappings will not be created for this partition in UEFI.
   /// Bit 2:      This bit is set aside to let systems with traditional PC-AT BIOS firmware implementations
-  ///             inform certain limited, special-purpose software running on these systems that a GPT 
+  ///             inform certain limited, special-purpose software running on these systems that a GPT
   ///             partition may be bootable. The UEFI boot manager must ignore this bit when selecting
   ///             a UEFI-compliant application, e.g., an OS loader.
   /// Bits 3-47:  Undefined and must be zero. Reserved for expansion by future versions of the UEFI
