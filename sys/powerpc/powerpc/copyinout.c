@@ -236,31 +236,51 @@ REMAP(copyin)(const void *udaddr, void *kaddr, size_t len)
 int
 REMAP(copyinstr)(const void *udaddr, void *kaddr, size_t len, size_t *done)
 {
+	struct		thread *td;
+	pmap_t		pm;
+	jmp_buf		env;
 	const char	*up;
-	char		*kp;
-	size_t		l;
-	int		rv, c;
+	char		*kp, *p;
+	size_t		i, l, t;
+	int		rv;
+
+	td = curthread;
+	pm = &td->td_proc->p_vmspace->vm_pmap;
+
+	t = 0;
+	rv = ENAMETOOLONG;
+
+	td->td_pcb->pcb_onfault = &env;
+	if (setjmp(env)) {
+		rv = EFAULT;
+		goto done;
+	}
 
 	kp = kaddr;
 	up = udaddr;
 
-	rv = ENAMETOOLONG;
-
-	for (l = 0; len-- > 0; l++) {
-		if ((c = fubyte(up++)) < 0) {
+	while (len > 0) {
+		if (pmap_map_user_ptr(pm, up, (void **)&p, len, &l)) {
 			rv = EFAULT;
-			break;
+			goto done;
 		}
 
-		if (!(*kp++ = c)) {
-			l++;
-			rv = 0;
-			break;
+		for (i = 0; len > 0 && i < l; i++, t++, len--) {
+			if ((*kp++ = *p++) == 0) {
+				i++, t++;
+				rv = 0;
+				goto done;
+			}
 		}
+
+		up += l;
 	}
 
+done:
+	td->td_pcb->pcb_onfault = NULL;
+
 	if (done != NULL) {
-		*done = l;
+		*done = t;
 	}
 
 	return (rv);
