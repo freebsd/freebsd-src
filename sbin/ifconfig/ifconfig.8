@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2019
+.Dd June 4, 2020
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1511,39 +1511,30 @@ Depending on the capabilities of the stations the following
 flags can be included in the output:
 .Bl -tag -width 3n
 .It Li A
-Authorized.
-Indicates that the station is permitted to send/receive data frames.
+Channel agility.
+.It Li B
+PBCC modulation.
+.It Li C
+Poll request capability.
+.It Li D
+DSSS/OFDM capability.
 .It Li E
-Extended Rate Phy (ERP).
-Indicates that the station is operating in an 802.11g network
-using extended transmit rates.
-.It Li H
-High Throughput (HT).
-Indicates that the station is using HT transmit rates.
-If a `+' follows immediately after then the station associated
-using deprecated mechanisms supported only when
-.Cm htcompat
-is enabled.
+Extended Service Set (ESS).
+.It Li I
+Independent Basic Service Set (IBSS).
 .It Li P
-Power Save.
-Indicates that the station is operating in power save mode.
-.It Li Q
-Quality of Service (QoS).
-Indicates that the station is using QoS encapsulation for
-data frame.
-QoS encapsulation is enabled only when WME mode is enabled.
+Privacy capability.
+The station requires authentication.
+.It Li R
+Robust Secure Network (RSN).
 .It Li S
 Short Preamble.
 Indicates that the station is doing short preamble to optionally
 improve throughput performance with 802.11g and 802.11b.
-.It Li T
-Transitional Security Network (TSN).
-Indicates that the station associated using TSN; see also
-.Cm tsn
-below.
-.It Li W
-Wi-Fi Protected Setup (WPS).
-Indicates that the station associated using WPS.
+.It Li c
+Pollable capability.
+.It Li s
+Short slot time capability.
 .El
 .Pp
 By default interesting information elements captured from the neighboring
@@ -1585,8 +1576,7 @@ Capabilities advertised by the stations are described under
 the
 .Cm scan
 request.
-Depending on the capabilities of the stations the following
-flags can be included in the output:
+The following flags can be included in the output:
 .Bl -tag -width 3n
 .It Li A
 Authorized.
@@ -1598,7 +1588,9 @@ using extended transmit rates.
 .It Li H
 High Throughput (HT).
 Indicates that the station is using HT transmit rates.
-If a `+' follows immediately after then the station associated
+If a
+.Sq Li +
+follows immediately after then the station associated
 using deprecated mechanisms supported only when
 .Cm htcompat
 is enabled.
@@ -1611,9 +1603,10 @@ Indicates that the station is using QoS encapsulation for
 data frame.
 QoS encapsulation is enabled only when WME mode is enabled.
 .It Li S
-Short Preamble.
-Indicates that the station is doing short preamble to optionally
-improve throughput performance with 802.11g and 802.11b.
+Short GI in HT 40MHz mode enabled.
+If a
+.Sq Li +
+follows immediately after then short GI in HT 20MHz mode is enabled as well.
 .It Li T
 Transitional Security Network (TSN).
 Indicates that the station associated using TSN; see also
@@ -1622,6 +1615,8 @@ below.
 .It Li W
 Wi-Fi Protected Setup (WPS).
 Indicates that the station associated using WPS.
+.It Li s
+Short GI in HT 20MHz mode enabled.
 .El
 .Pp
 By default information elements received from associated stations
