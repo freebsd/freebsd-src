@@ -145,6 +145,50 @@ utility exits 0 if some processes have been found and
 signalled successfully.
 Otherwise, a status of 1 will be
 returned.
+.Sh EXAMPLES
+Send
+.Dv SIGTERM
+to all firefox processes:
+.Bd -literal -offset indent
+killall firefox
+.Ed
+.Pp
+Send
+.Dv SIGTERM
+to firefox processes belonging to
+.Va USER :
+.Bd -literal -offset indent
+killall -u ${USER} firefox
+.Ed
+.Pp
+Stop all firefox processes:
+.Bd -literal -offset indent
+killall -SIGSTOP firefox
+.Ed
+.Pp
+Resume firefox processes:
+.Bd -literal -offset indent
+killall -SIGCONT firefox
+.Ed
+.Pp
+Show what would be done to firefox processes, but do not actually signal them:
+.Bd -literal -offset indent
+killall -s firefox
+.Ed
+.Pp
+Send
+.Dv SIGKILL
+to csh process running inside jail ID 282:
+.Bd -literal -offset indent
+killall -9 -j282 csh
+.Ed
+.Pp
+Send
+.Dv SIGTERM
+to all processes matching provided pattern (like vim and vimdiff):
+.Bd -literal -offset indent
+killall -m 'vim*'
+.Ed
 .Sh DIAGNOSTICS
 Diagnostic messages will only be printed if requested by
 .Fl d
