@@ -1,15 +1,9 @@
 /** @file
-  EFI_DEVICE_PATH_TO_TEXT_PROTOCOL as defined in UEFI 2.0.  
+  EFI_DEVICE_PATH_TO_TEXT_PROTOCOL as defined in UEFI 2.0.
   This protocol provides service to convert device nodes and paths to text.
 
-  Copyright (c) 2006 - 2008, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -45,7 +39,7 @@ CHAR16*
   IN CONST EFI_DEVICE_PATH_PROTOCOL   *DeviceNode,
   IN BOOLEAN                          DisplayOnly,
   IN BOOLEAN                          AllowShortcuts
-  );      
+  );
 
 /**
   Convert a device path to its text representation.
@@ -54,7 +48,7 @@ CHAR16*
   @param  DisplayOnly    If DisplayOnly is TRUE, then the shorter text representation
                          of the display node is used, where applicable. If DisplayOnly
                          is FALSE, then the longer text representation of the display node
-                         is used.  
+                         is used.
   @param  AllowShortcuts The AllowShortcuts is FALSE, then the shortcut forms of
                          text representation for a device node cannot be used.
 
@@ -68,7 +62,7 @@ CHAR16*
   IN CONST EFI_DEVICE_PATH_PROTOCOL   *DevicePath,
   IN BOOLEAN                          DisplayOnly,
   IN BOOLEAN                          AllowShortcuts
-  );    
+  );
 
 ///
 /// This protocol converts device paths and device nodes to text.

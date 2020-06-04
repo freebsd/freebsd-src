@@ -1,18 +1,14 @@
 /** @file
   Include file that supports UEFI.
 
-  This include file must contain things defined in the UEFI 2.6 specification.
-  If a code construct is defined in the UEFI 2.6 specification it must be included
+  This include file must contain things defined in the UEFI 2.7 specification.
+  If a code construct is defined in the UEFI 2.7 specification it must be included
   by this include file.
 
-Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.                                          
-    
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2019, Intel Corporation. All rights reserved.<BR>
+Portions Copyright (c) 2020, Hewlett Packard Enterprise Development LP. All rights reserved.<BR>
+
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -35,7 +31,7 @@ typedef enum {
   ///
   AllocateAnyPages,
   ///
-  /// Allocate any available range of pages whose uppermost address is less than 
+  /// Allocate any available range of pages whose uppermost address is less than
   /// or equal to a specified maximum address.
   ///
   AllocateMaxAddress,
@@ -79,7 +75,7 @@ typedef enum {
 #define EFI_MEMORY_XP               0x0000000000004000ULL
 #define EFI_MEMORY_RO               0x0000000000020000ULL
 //
-// Physical memory persistence attribute. 
+// Physical memory persistence attribute.
 // The memory region supports byte-addressable non-volatility.
 //
 #define EFI_MEMORY_NV               0x0000000000008000ULL
@@ -88,6 +84,26 @@ typedef enum {
 // If all memory has the same reliability, then this bit is not used.
 //
 #define EFI_MEMORY_MORE_RELIABLE    0x0000000000010000ULL
+
+//
+// Note: UEFI spec 2.8 and following:
+//
+// Specific-purpose memory (SPM). The memory is earmarked for
+// specific purposes such as for specific device drivers or applications.
+// The SPM attribute serves as a hint to the OS to avoid allocating this
+// memory for core OS data or code that can not be relocated.
+//
+#define EFI_MEMORY_SP               0x0000000000040000ULL
+//
+// If this flag is set, the memory region is capable of being
+// protected with the CPU?s memory cryptographic
+// capabilities. If this flag is clear, the memory region is not
+// capable of being protected with the CPU?s memory
+// cryptographic capabilities or the CPU does not support CPU
+// memory cryptographic capabilities.
+//
+#define EFI_MEMORY_CPU_CRYPTO       0x0000000000080000ULL
+
 //
 // Runtime memory attribute
 //
@@ -103,26 +119,33 @@ typedef enum {
 ///
 typedef struct {
   ///
-  /// Type of the memory region.  See EFI_MEMORY_TYPE.
+  /// Type of the memory region.
+  /// Type EFI_MEMORY_TYPE is defined in the
+  /// AllocatePages() function description.
   ///
   UINT32                Type;
   ///
-  /// Physical address of the first byte of the memory region.  Must aligned 
-  /// on a 4 KB boundary.
+  /// Physical address of the first byte in the memory region. PhysicalStart must be
+  /// aligned on a 4 KiB boundary, and must not be above 0xfffffffffffff000. Type
+  /// EFI_PHYSICAL_ADDRESS is defined in the AllocatePages() function description
   ///
   EFI_PHYSICAL_ADDRESS  PhysicalStart;
   ///
-  /// Virtual address of the first byte of the memory region.  Must aligned 
-  /// on a 4 KB boundary.
+  /// Virtual address of the first byte in the memory region.
+  /// VirtualStart must be aligned on a 4 KiB boundary,
+  /// and must not be above 0xfffffffffffff000.
   ///
   EFI_VIRTUAL_ADDRESS   VirtualStart;
   ///
-  /// Number of 4KB pages in the memory region.
+  /// NumberOfPagesNumber of 4 KiB pages in the memory region.
+  /// NumberOfPages must not be 0, and must not be any value
+  /// that would represent a memory page with a start address,
+  /// either physical or virtual, above 0xfffffffffffff000.
   ///
   UINT64                NumberOfPages;
   ///
   /// Attributes of the memory region that describe the bit mask of capabilities
-  /// for that memory region, and not necessarily the current settings for that 
+  /// for that memory region, and not necessarily the current settings for that
   /// memory region.
   ///
   UINT64                Attribute;
@@ -188,7 +211,7 @@ EFI_STATUS
                                          On output, it is the size of the buffer returned by the firmware if
                                          the buffer was large enough, or the size of the buffer needed to contain
                                          the map if the buffer was too small.
-  @param[in, out]  MemoryMap             A pointer to the buffer in which firmware places the current memory
+  @param[out]      MemoryMap             A pointer to the buffer in which firmware places the current memory
                                          map.
   @param[out]      MapKey                A pointer to the location in which firmware returns the key for the
                                          current memory map.
@@ -209,7 +232,7 @@ typedef
 EFI_STATUS
 (EFIAPI *EFI_GET_MEMORY_MAP)(
   IN OUT UINTN                       *MemoryMapSize,
-  IN OUT EFI_MEMORY_DESCRIPTOR       *MemoryMap,
+  OUT    EFI_MEMORY_DESCRIPTOR       *MemoryMap,
   OUT    UINTN                       *MapKey,
   OUT    UINTN                       *DescriptorSize,
   OUT    UINT32                      *DescriptorVersion
@@ -306,8 +329,8 @@ EFI_STATUS
   @retval EFI_NOT_FOUND         1) There are no EFI_DRIVER_BINDING_PROTOCOL instances
                                 present in the system.
                                 2) No drivers were connected to ControllerHandle.
-  @retval EFI_SECURITY_VIOLATION 
-                                The user has no permission to start UEFI device drivers on the device path 
+  @retval EFI_SECURITY_VIOLATION
+                                The user has no permission to start UEFI device drivers on the device path
                                 associated with the ControllerHandle or specified by the RemainingDevicePath.
 **/
 typedef
@@ -654,7 +677,8 @@ EFI_STATUS
 /**
   Enumerates the current variable names.
 
-  @param[in, out]  VariableNameSize The size of the VariableName buffer.
+  @param[in, out]  VariableNameSize The size of the VariableName buffer. The size must be large
+                                    enough to fit input string supplied in VariableName buffer.
   @param[in, out]  VariableName     On input, supplies the last VariableName that was returned
                                     by GetNextVariableName(). On output, returns the Nullterminated
                                     string of the current variable.
@@ -665,9 +689,14 @@ EFI_STATUS
   @retval EFI_SUCCESS           The function completed successfully.
   @retval EFI_NOT_FOUND         The next variable was not found.
   @retval EFI_BUFFER_TOO_SMALL  The VariableNameSize is too small for the result.
+                                VariableNameSize has been updated with the size needed to complete the request.
   @retval EFI_INVALID_PARAMETER VariableNameSize is NULL.
   @retval EFI_INVALID_PARAMETER VariableName is NULL.
   @retval EFI_INVALID_PARAMETER VendorGuid is NULL.
+  @retval EFI_INVALID_PARAMETER The input values of VariableName and VendorGuid are not a name and
+                                GUID of an existing variable.
+  @retval EFI_INVALID_PARAMETER Null-terminator is not found in the first VariableNameSize bytes of
+                                the input VariableName buffer.
   @retval EFI_DEVICE_ERROR      The variable could not be retrieved due to a hardware error.
 
 **/
@@ -688,15 +717,14 @@ EFI_STATUS
                                  then EFI_INVALID_PARAMETER is returned.
   @param[in]  VendorGuid         A unique identifier for the vendor.
   @param[in]  Attributes         Attributes bitmask to set for the variable.
-  @param[in]  DataSize           The size in bytes of the Data buffer. Unless the EFI_VARIABLE_APPEND_WRITE, 
-                                 EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS, or 
-                                 EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS attribute is set, a size of zero 
-                                 causes the variable to be deleted. When the EFI_VARIABLE_APPEND_WRITE attribute is 
-                                 set, then a SetVariable() call with a DataSize of zero will not cause any change to 
-                                 the variable value (the timestamp associated with the variable may be updated however 
-                                 even if no new data value is provided,see the description of the 
-                                 EFI_VARIABLE_AUTHENTICATION_2 descriptor below. In this case the DataSize will not 
-                                 be zero since the EFI_VARIABLE_AUTHENTICATION_2 descriptor will be populated). 
+  @param[in]  DataSize           The size in bytes of the Data buffer. Unless the EFI_VARIABLE_APPEND_WRITE or
+                                 EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACCESS attribute is set, a size of zero
+                                 causes the variable to be deleted. When the EFI_VARIABLE_APPEND_WRITE attribute is
+                                 set, then a SetVariable() call with a DataSize of zero will not cause any change to
+                                 the variable value (the timestamp associated with the variable may be updated however
+                                 even if no new data value is provided,see the description of the
+                                 EFI_VARIABLE_AUTHENTICATION_2 descriptor below. In this case the DataSize will not
+                                 be zero since the EFI_VARIABLE_AUTHENTICATION_2 descriptor will be populated).
   @param[in]  Data               The contents for the variable.
 
   @retval EFI_SUCCESS            The firmware has successfully stored the variable and its data as
@@ -708,10 +736,9 @@ EFI_STATUS
   @retval EFI_DEVICE_ERROR       The variable could not be retrieved due to a hardware error.
   @retval EFI_WRITE_PROTECTED    The variable in question is read-only.
   @retval EFI_WRITE_PROTECTED    The variable in question cannot be deleted.
-  @retval EFI_SECURITY_VIOLATION The variable could not be written due to EFI_VARIABLE_AUTHENTICATED_WRITE_ACCESS 
-                                 or EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACESS being set, but the AuthInfo 
-                                 does NOT pass the validation check carried out by the firmware.
-  
+  @retval EFI_SECURITY_VIOLATION The variable could not be written due to EFI_VARIABLE_TIME_BASED_AUTHENTICATED_WRITE_ACESS being set,
+                                 but the AuthInfo does NOT pass the validation check carried out by the firmware.
+
   @retval EFI_NOT_FOUND          The variable trying to be updated or deleted was not found.
 
 **/
@@ -859,10 +886,10 @@ EFI_STATUS
   @retval EFI_LOAD_ERROR         Image was not loaded because the image format was corrupt or not
                                  understood.
   @retval EFI_DEVICE_ERROR       Image was not loaded because the device returned a read error.
-  @retval EFI_ACCESS_DENIED      Image was not loaded because the platform policy prohibits the 
+  @retval EFI_ACCESS_DENIED      Image was not loaded because the platform policy prohibits the
                                  image from being loaded. NULL is returned in *ImageHandle.
-  @retval EFI_SECURITY_VIOLATION Image was loaded and an ImageHandle was created with a 
-                                 valid EFI_LOADED_IMAGE_PROTOCOL. However, the current 
+  @retval EFI_SECURITY_VIOLATION Image was loaded and an ImageHandle was created with a
+                                 valid EFI_LOADED_IMAGE_PROTOCOL. However, the current
                                  platform policy specifies that the image should not be started.
 **/
 typedef
@@ -901,15 +928,15 @@ EFI_STATUS
 /**
   Terminates a loaded EFI image and returns control to boot services.
 
-  @param[in]  ImageHandle       Handle that identifies the image. This parameter is passed to the 
+  @param[in]  ImageHandle       Handle that identifies the image. This parameter is passed to the
                                 image on entry.
   @param[in]  ExitStatus        The image's exit code.
   @param[in]  ExitDataSize      The size, in bytes, of ExitData. Ignored if ExitStatus is EFI_SUCCESS.
   @param[in]  ExitData          The pointer to a data buffer that includes a Null-terminated string,
-                                optionally followed by additional binary data. The string is a 
-                                description that the caller may use to further indicate the reason 
-                                for the image's exit. ExitData is only valid if ExitStatus 
-                                is something other than EFI_SUCCESS. The ExitData buffer 
+                                optionally followed by additional binary data. The string is a
+                                description that the caller may use to further indicate the reason
+                                for the image's exit. ExitData is only valid if ExitStatus
+                                is something other than EFI_SUCCESS. The ExitData buffer
                                 must be allocated by calling AllocatePool().
 
   @retval EFI_SUCCESS           The image specified by ImageHandle was unloaded.
@@ -1009,10 +1036,10 @@ EFI_STATUS
                                 EfiResetShutdown the data buffer starts with a Null-terminated
                                 string, optionally followed by additional binary data.
                                 The string is a description that the caller may use to further
-                                indicate the reason for the system reset. ResetData is only
-                                valid if ResetStatus is something other than EFI_SUCCESS
-                                unless the ResetType is EfiResetPlatformSpecific
-                                where a minimum amount of ResetData is always required.
+                                indicate the reason for the system reset.
+                                For a ResetType of EfiResetPlatformSpecific the data buffer
+                                also starts with a Null-terminated string that is followed
+                                by an EFI_GUID that describes the specific type of reset to perform.
 **/
 typedef
 VOID
@@ -1440,7 +1467,7 @@ typedef enum {
   ///
   ByRegisterNotify,
   ///
-  /// Retrieve the set of handles from the handle database that support a 
+  /// Retrieve the set of handles from the handle database that support a
   /// specified protocol.
   ///
   ByProtocol
@@ -1529,7 +1556,7 @@ EFI_STATUS
   @param[in]       Protocol     Provides the protocol to search by.
                                 This parameter is only valid for a SearchType of ByProtocol.
   @param[in]       SearchKey    Supplies the search key depending on the SearchType.
-  @param[in, out]  NoHandles    The number of handles returned in Buffer.
+  @param[out]      NoHandles    The number of handles returned in Buffer.
   @param[out]      Buffer       A pointer to the buffer to return the requested array of handles that
                                 support Protocol.
 
@@ -1547,7 +1574,7 @@ EFI_STATUS
   IN     EFI_LOCATE_SEARCH_TYPE       SearchType,
   IN     EFI_GUID                     *Protocol,      OPTIONAL
   IN     VOID                         *SearchKey,     OPTIONAL
-  IN OUT UINTN                        *NoHandles,
+  OUT    UINTN                        *NoHandles,
   OUT    EFI_HANDLE                   **Buffer
   );
 
@@ -1565,6 +1592,7 @@ EFI_STATUS
   @retval EFI_NOT_FOUND         No protocol instances were found that match Protocol and
                                 Registration.
   @retval EFI_INVALID_PARAMETER Interface is NULL.
+                                Protocol is NULL.
 
 **/
 typedef
@@ -1668,10 +1696,10 @@ typedef struct {
   @retval EFI_INVALID_PARAMETER CapsuleCount is 0.
   @retval EFI_DEVICE_ERROR      The capsule update was started, but failed due to a device error.
   @retval EFI_UNSUPPORTED       The capsule type is not supported on this platform.
-  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has been previously called this error indicates the capsule 
-                                is compatible with this platform but is not capable of being submitted or processed 
+  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has been previously called this error indicates the capsule
+                                is compatible with this platform but is not capable of being submitted or processed
                                 in runtime. The caller may resubmit the capsule prior to ExitBootServices().
-  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has not been previously called then this error indicates 
+  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has not been previously called then this error indicates
                                 the capsule is compatible with this platform but there are insufficient resources to process.
 
 **/
@@ -1699,10 +1727,10 @@ EFI_STATUS
   @retval EFI_UNSUPPORTED       The capsule type is not supported on this platform, and
                                 MaximumCapsuleSize and ResetType are undefined.
   @retval EFI_INVALID_PARAMETER MaximumCapsuleSize is NULL.
-  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has been previously called this error indicates the capsule 
-                                is compatible with this platform but is not capable of being submitted or processed 
+  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has been previously called this error indicates the capsule
+                                is compatible with this platform but is not capable of being submitted or processed
                                 in runtime. The caller may resubmit the capsule prior to ExitBootServices().
-  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has not been previously called then this error indicates 
+  @retval EFI_OUT_OF_RESOURCES  When ExitBootServices() has not been previously called then this error indicates
                                 the capsule is compatible with this platform but there are insufficient resources to process.
 
 **/
@@ -1755,11 +1783,14 @@ EFI_STATUS
 #define EFI_OS_INDICATIONS_FMP_CAPSULE_SUPPORTED            0x0000000000000008
 #define EFI_OS_INDICATIONS_CAPSULE_RESULT_VAR_SUPPORTED     0x0000000000000010
 #define EFI_OS_INDICATIONS_START_PLATFORM_RECOVERY          0x0000000000000040
+#define EFI_OS_INDICATIONS_JSON_CONFIG_DATA_REFRESH         0x0000000000000080
 
 //
 // EFI Runtime Services Table
 //
 #define EFI_SYSTEM_TABLE_SIGNATURE      SIGNATURE_64 ('I','B','I',' ','S','Y','S','T')
+#define EFI_2_80_SYSTEM_TABLE_REVISION  ((2 << 16) | (80))
+#define EFI_2_70_SYSTEM_TABLE_REVISION  ((2 << 16) | (70))
 #define EFI_2_60_SYSTEM_TABLE_REVISION  ((2 << 16) | (60))
 #define EFI_2_50_SYSTEM_TABLE_REVISION  ((2 << 16) | (50))
 #define EFI_2_40_SYSTEM_TABLE_REVISION  ((2 << 16) | (40))
@@ -1770,7 +1801,7 @@ EFI_STATUS
 #define EFI_2_00_SYSTEM_TABLE_REVISION  ((2 << 16) | (00))
 #define EFI_1_10_SYSTEM_TABLE_REVISION  ((1 << 16) | (10))
 #define EFI_1_02_SYSTEM_TABLE_REVISION  ((1 << 16) | (02))
-#define EFI_SYSTEM_TABLE_REVISION       EFI_2_60_SYSTEM_TABLE_REVISION
+#define EFI_SYSTEM_TABLE_REVISION       EFI_2_70_SYSTEM_TABLE_REVISION
 #define EFI_SPECIFICATION_VERSION       EFI_SYSTEM_TABLE_REVISION
 
 #define EFI_RUNTIME_SERVICES_SIGNATURE  SIGNATURE_64 ('R','U','N','T','S','E','R','V')
@@ -2171,11 +2202,10 @@ typedef struct {
 #define EFI_REMOVABLE_MEDIA_FILE_NAME_X64     L"\\EFI\\BOOT\\BOOTX64.EFI"
 #define EFI_REMOVABLE_MEDIA_FILE_NAME_ARM     L"\\EFI\\BOOT\\BOOTARM.EFI"
 #define EFI_REMOVABLE_MEDIA_FILE_NAME_AARCH64 L"\\EFI\\BOOT\\BOOTAA64.EFI"
+#define EFI_REMOVABLE_MEDIA_FILE_NAME_RISCV64 L"\\EFI\\BOOT\\BOOTRISCV64.EFI"
 
 #if   defined (MDE_CPU_IA32)
   #define EFI_REMOVABLE_MEDIA_FILE_NAME   EFI_REMOVABLE_MEDIA_FILE_NAME_IA32
-#elif defined (MDE_CPU_IPF)
-  #define EFI_REMOVABLE_MEDIA_FILE_NAME   EFI_REMOVABLE_MEDIA_FILE_NAME_IA64
 #elif defined (MDE_CPU_X64)
   #define EFI_REMOVABLE_MEDIA_FILE_NAME   EFI_REMOVABLE_MEDIA_FILE_NAME_X64
 #elif defined (MDE_CPU_EBC)
@@ -2183,9 +2213,16 @@ typedef struct {
   #define EFI_REMOVABLE_MEDIA_FILE_NAME   EFI_REMOVABLE_MEDIA_FILE_NAME_ARM
 #elif defined (MDE_CPU_AARCH64)
   #define EFI_REMOVABLE_MEDIA_FILE_NAME   EFI_REMOVABLE_MEDIA_FILE_NAME_AARCH64
+#elif defined (MDE_CPU_RISCV64)
+  #define EFI_REMOVABLE_MEDIA_FILE_NAME   EFI_REMOVABLE_MEDIA_FILE_NAME_RISCV64
 #else
   #error Unknown Processor Type
 #endif
+
+//
+// The directory within the active EFI System Partition defined for delivery of capsule to firmware
+//
+#define EFI_CAPSULE_FILE_DIRECTORY            L"\\EFI\\UpdateCapsule\\"
 
 #include <Uefi/UefiPxe.h>
 #include <Uefi/UefiGpt.h>
