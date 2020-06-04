@@ -648,7 +648,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				dp->di_extsize = smalllblktosize(fs, nb + 1);
 				dp->di_extb[nb] = dbtofsb(fs, bp->b_blkno);
 				bp->b_xflags |= BX_ALTDATA;
-				UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_BLKDATA);
+				UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_IBLKDATA);
 				if (flags & IO_SYNC)
 					bwrite(bp);
 				else
