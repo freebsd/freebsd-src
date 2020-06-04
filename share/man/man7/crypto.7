@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 22, 2020
+.Dd June 04, 2020
 .Dt CRYPTO 7
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@ The following cryptographic algorithms that are part of the OpenCrypto
 framework have the following requirements.
 .Pp
 Cipher algorithms:
-.Bl -tag -width ".Dv CRYPTO_AES_CBC"
+.Bl -tag -width "CRYPTO_AES_NIST_GCM_16"
 .It Dv CRYPTO_AES_CBC
 .Bl -tag -width "Block size :" -compact -offset indent
 .It IV size :
@@ -54,7 +54,33 @@ Cipher algorithms:
 16, 24 or 32
 .El
 .Pp
-This algorithm implements Cipher-block chaining.
+This algorithm implements Cipher Block Chaining.
+.It Dv CRYPTO_AES_CCM_16
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+12
+.It Block size :
+16
+.It Key size :
+16, 24 or 32
+.It Digest size :
+16
+.El
+.Pp
+This algorithm implements Counter with CBC-MAC Mode.
+This cipher uses AEAD
+.Pq Authenticated Encryption with Associated Data
+mode.
+.Pp
+The authentication tag will be read from or written to the offset
+.Va crp_digest_start
+specified in the request.
+.Pp
+Note: The nonce for each request must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
 .It Dv CRYPTO_AES_NIST_GCM_16
 .Bl -tag -width "Block size :" -compact -offset indent
 .It IV size :
@@ -72,11 +98,15 @@ This cipher uses AEAD
 .Pq Authenticated Encryption with Associated Data
 mode.
 .Pp
-The authentication tag will be read/written from/to the offset
+The authentication tag will be read from or written to the offset
 .Va crp_digest_start
 specified in the request.
 .Pp
-Note: You must provide an IV on every call.
+Note: The nonce for each request must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
 .It Dv CRYPTO_AES_ICM
 .Bl -tag -width "Block size :" -compact -offset indent
 .It IV size :
@@ -95,7 +125,11 @@ This does mean that if a counter is required that rolls over at 32 bits,
 the transaction need to be split into two parts where the counter rolls over.
 The counter incremented as a 128-bit big endian number.
 .Pp
-Note: You must provide an IV on every call.
+Note: The counter for each request must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
 .It Dv CRYPTO_AES_XTS
 .Bl -tag -width "Block size :" -compact -offset indent
 .It IV size :
@@ -111,6 +145,26 @@ as defined in NIST SP 800-38E.
 .Pp
 NOTE: The ciphertext stealing part is not implemented which is why this cipher
 is listed as having a block size of 16 instead of 1.
+.It Dv CRYPTO_CAMELLIA_CBC
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+16
+.It Block size :
+16
+.It Key size :
+16, 24 or 32
+.El
+.Pp
+This algorithm implements Cipher Block Chaining.
+.It Dv CRYPTO_CHACHA20
+.Bl -tag -width "Block size :" -compact -offset indent
+.It IV size :
+16
+.It Block size :
+1
+.It Key size :
+16 or 32
+.El
 .El
 .Sh HISTORY
 The
