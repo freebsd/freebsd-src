@@ -117,7 +117,7 @@
     ..
     rescue
     ..
-    root
+    root            mode=0750
     ..
     sbin
     ..
