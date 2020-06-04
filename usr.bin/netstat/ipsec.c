@@ -139,7 +139,7 @@ static struct val2str ipsec_ahnames[] = {
 static struct val2str ipsec_espnames[] = {
 	{ SADB_EALG_NONE, "none", },
 	{ SADB_EALG_NULL, "null", },
-	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
+	{ SADB_X_EALG_AESCBC, "aes-cbc", },
 	{ SADB_X_EALG_AESCTR, "aes-ctr", },
 	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },
 	{ SADB_X_EALG_AESGMAC, "aes-gmac", },
