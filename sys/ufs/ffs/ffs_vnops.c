@@ -416,6 +416,8 @@ next:
 			error = ffs_update(vp, 1);
 		if (DOINGSUJ(vp))
 			softdep_journal_fsync(VTOI(vp));
+	} else if ((ip->i_flags & IN_IBLKDATA) != 0) {
+		error = ffs_update(vp, 1);
 	}
 	return (error);
 }
