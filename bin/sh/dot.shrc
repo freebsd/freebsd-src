@@ -31,6 +31,9 @@
 # alias mv='mv -i'
 # alias rm='rm -i'
 
+# read(2) of directories may not be desirable by default, as this will provoke
+# EISDIR errors from each directory encountered.
+# alias grep='grep -d skip'
 
 # set prompt: ``username@hostname:directory $ '' 
 PS1="\u@\h:\w \\$ "
