@@ -10,8 +10,17 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
-r361238:
-	ZFS will now reject read(2) of a dirfd with EISDIR.
+r361238, r361798, r361799:
+	ZFS will now unconditionally reject read(2) of a directory with EISDIR.
+	Additionally, read(2) of a directory is now rejected with EISDIR by
+	default and may be re-enabled for non-ZFS filesystems that allow it with
+	the sysctl(8) MIB 'security.bsd.allow_read_dir'.
+
+	Aliases for grep to default to '-d skip' may be desired if commonly
+	non-recursively grepping a list that includes directories and the
+	possibility of EISDIR errors in stderr is not tolerable.  Example
+	aliases, commented out, have been installed in /root/.cshrc and
+	/root/.shrc.
 
 r361066:
 	Add exec.prepare and exec.release hooks for jail(8) and jail.conf(5).
