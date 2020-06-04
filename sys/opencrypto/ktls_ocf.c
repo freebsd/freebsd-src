@@ -73,6 +73,16 @@ SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_gcm_crypts,
     CTLFLAG_RD, &ocf_tls13_gcm_crypts,
     "Total number of OCF TLS 1.3 GCM encryption operations");
 
+static counter_u64_t ocf_inplace;
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, inplace,
+    CTLFLAG_RD, &ocf_inplace,
+    "Total number of OCF in-place operations");
+
+static counter_u64_t ocf_separate_output;
+SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, separate_output,
+    CTLFLAG_RD, &ocf_separate_output,
+    "Total number of OCF operations with a separate output buffer");
+
 static counter_u64_t ocf_retries;
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, retries, CTLFLAG_RD,
     &ocf_retries,
@@ -97,21 +107,33 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
     struct iovec *outiov, int iovcnt, uint64_t seqno,
     uint8_t record_type __unused)
 {
-	struct uio uio;
+	struct uio uio, out_uio, *tag_uio;
 	struct tls_aead_data ad;
 	struct cryptop *crp;
 	struct ocf_session *os;
 	struct ocf_operation *oo;
-	struct iovec *iov;
+	struct iovec *iov, *out_iov;
 	int i, error;
 	uint16_t tls_comp_len;
+	bool inplace;
 
 	os = tls->cipher;
 
-	oo = malloc(sizeof(*oo) + (iovcnt + 2) * sizeof(*iov), M_KTLS_OCF,
+	oo = malloc(sizeof(*oo) + (iovcnt + 2) * sizeof(*iov) * 2, M_KTLS_OCF,
 	    M_WAITOK | M_ZERO);
 	oo->os = os;
 	iov = oo->iov;
+	out_iov = iov + iovcnt + 2;
+
+	uio.uio_iov = iov;
+	uio.uio_offset = 0;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_td = curthread;
+
+	out_uio.uio_iov = out_iov;
+	out_uio.uio_offset = 0;
+	out_uio.uio_segflg = UIO_SYSSPACE;
+	out_uio.uio_td = curthread;
 
 	crp = crypto_getreq(os->sid, M_WAITOK);
 
@@ -129,44 +151,50 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	ad.tls_length = htons(tls_comp_len);
 	iov[0].iov_base = &ad;
 	iov[0].iov_len = sizeof(ad);
-	uio.uio_resid = sizeof(ad);
+	crp->crp_aad_start = 0;
+	crp->crp_aad_length = sizeof(ad);
 
-	/*
-	 * OCF always does encryption in place, so copy the data if
-	 * needed.  Ugh.
-	 */
+	/* Copy iov's. */
+	memcpy(iov + 1, iniov, iovcnt * sizeof(*iov));
+	uio.uio_iovcnt = iovcnt + 1;
+	memcpy(out_iov, outiov, iovcnt * sizeof(*out_iov));
+	out_uio.uio_iovcnt = iovcnt;
+
+	/* Compute payload length and determine if encryption is in place. */
+	inplace = true;
+	crp->crp_payload_start = sizeof(ad);
 	for (i = 0; i < iovcnt; i++) {
-		iov[i + 1] = outiov[i];
 		if (iniov[i].iov_base != outiov[i].iov_base)
-			memcpy(outiov[i].iov_base, iniov[i].iov_base,
-			    outiov[i].iov_len);
-		uio.uio_resid += outiov[i].iov_len;
+			inplace = false;
+		crp->crp_payload_length += iniov[i].iov_len;
 	}
+	uio.uio_resid = sizeof(ad) + crp->crp_payload_length;
+	out_uio.uio_resid = crp->crp_payload_length;
 
-	iov[iovcnt + 1].iov_base = trailer;
-	iov[iovcnt + 1].iov_len = AES_GMAC_HASH_LEN;
-	uio.uio_resid += AES_GMAC_HASH_LEN;
+	if (inplace)
+		tag_uio = &uio;
+	else
+		tag_uio = &out_uio;
 
-	uio.uio_iov = iov;
-	uio.uio_iovcnt = iovcnt + 2;
-	uio.uio_offset = 0;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_td = curthread;
+	tag_uio->uio_iov[tag_uio->uio_iovcnt].iov_base = trailer;
+	tag_uio->uio_iov[tag_uio->uio_iovcnt].iov_len = AES_GMAC_HASH_LEN;
+	tag_uio->uio_iovcnt++;
+	crp->crp_digest_start = tag_uio->uio_resid;
+	tag_uio->uio_resid += AES_GMAC_HASH_LEN;
 
 	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
 	crypto_use_uio(crp, &uio);
+	if (!inplace)
+		crypto_use_output_uio(crp, &out_uio);
 	crp->crp_opaque = oo;
 	crp->crp_callback = ktls_ocf_callback;
 
-	crp->crp_aad_start = 0;
-	crp->crp_aad_length = sizeof(ad);
-	crp->crp_payload_start = sizeof(ad);
-	crp->crp_payload_length = uio.uio_resid -
-	    (sizeof(ad) + AES_GMAC_HASH_LEN);
-	crp->crp_digest_start = uio.uio_resid - AES_GMAC_HASH_LEN;
-
 	counter_u64_add(ocf_tls12_gcm_crypts, 1);
+	if (inplace)
+		counter_u64_add(ocf_inplace, 1);
+	else
+		counter_u64_add(ocf_separate_output, 1);
 	for (;;) {
 		error = crypto_dispatch(crp);
 		if (error)
@@ -198,21 +226,34 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
     struct iovec *outiov, int iovcnt, uint64_t seqno, uint8_t record_type)
 {
-	struct uio uio;
+	struct uio uio, out_uio;
 	struct tls_aead_data_13 ad;
 	char nonce[12];
 	struct cryptop *crp;
 	struct ocf_session *os;
 	struct ocf_operation *oo;
-	struct iovec *iov;
+	struct iovec *iov, *out_iov;
 	int i, error;
+	bool inplace;
 
 	os = tls->cipher;
 
-	oo = malloc(sizeof(*oo) + (iovcnt + 2) * sizeof(*iov), M_KTLS_OCF,
+	oo = malloc(sizeof(*oo) + (iovcnt + 2) * sizeof(*iov) * 2, M_KTLS_OCF,
 	    M_WAITOK | M_ZERO);
 	oo->os = os;
 	iov = oo->iov;
+
+	out_iov = iov + iovcnt + 2;
+
+	uio.uio_iov = iov;
+	uio.uio_offset = 0;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_td = curthread;
+
+	out_uio.uio_iov = out_iov;
+	out_uio.uio_offset = 0;
+	out_uio.uio_segflg = UIO_SYSSPACE;
+	out_uio.uio_td = curthread;
 
 	crp = crypto_getreq(os->sid, M_WAITOK);
 
@@ -227,46 +268,59 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	ad.tls_length = hdr->tls_length;
 	iov[0].iov_base = &ad;
 	iov[0].iov_len = sizeof(ad);
-	uio.uio_resid = sizeof(ad);
+	crp->crp_aad_start = 0;
+	crp->crp_aad_length = sizeof(ad);
+
+	/* Copy iov's. */
+	memcpy(iov + 1, iniov, iovcnt * sizeof(*iov));
+	uio.uio_iovcnt = iovcnt + 1;
+	memcpy(out_iov, outiov, iovcnt * sizeof(*out_iov));
+	out_uio.uio_iovcnt = iovcnt;
+
+	/* Compute payload length and determine if encryption is in place. */
+	inplace = true;
+	crp->crp_payload_start = sizeof(ad);
+	for (i = 0; i < iovcnt; i++) {
+		if (iniov[i].iov_base != outiov[i].iov_base)
+			inplace = false;
+		crp->crp_payload_length += iniov[i].iov_len;
+	}
+	uio.uio_resid = sizeof(ad) + crp->crp_payload_length;
+	out_uio.uio_resid = crp->crp_payload_length;
 
 	/*
-	 * OCF always does encryption in place, so copy the data if
-	 * needed.  Ugh.
+	 * Always include the full trailer as input to get the
+	 * record_type even if only the first byte is used.
 	 */
-	for (i = 0; i < iovcnt; i++) {
-		iov[i + 1] = outiov[i];
-		if (iniov[i].iov_base != outiov[i].iov_base)
-			memcpy(outiov[i].iov_base, iniov[i].iov_base,
-			    outiov[i].iov_len);
-		uio.uio_resid += outiov[i].iov_len;
-	}
-
 	trailer[0] = record_type;
 	iov[iovcnt + 1].iov_base = trailer;
 	iov[iovcnt + 1].iov_len = AES_GMAC_HASH_LEN + 1;
+	uio.uio_iovcnt++;
 	uio.uio_resid += AES_GMAC_HASH_LEN + 1;
-
-	uio.uio_iov = iov;
-	uio.uio_iovcnt = iovcnt + 2;
-	uio.uio_offset = 0;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_td = curthread;
+	if (inplace) {
+		crp->crp_digest_start = uio.uio_resid - AES_GMAC_HASH_LEN;
+	} else {
+		out_iov[iovcnt] = iov[iovcnt + 1];
+		out_uio.uio_iovcnt++;
+		out_uio.uio_resid += AES_GMAC_HASH_LEN + 1;
+		crp->crp_digest_start = out_uio.uio_resid - AES_GMAC_HASH_LEN;
+	}
 
 	crp->crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
 	crypto_use_uio(crp, &uio);
+	if (!inplace)
+		crypto_use_output_uio(crp, &out_uio);
 	crp->crp_opaque = oo;
 	crp->crp_callback = ktls_ocf_callback;
 
-	crp->crp_aad_start = 0;
-	crp->crp_aad_length = sizeof(ad);
-	crp->crp_payload_start = sizeof(ad);
-	crp->crp_payload_length = uio.uio_resid -
-	    (sizeof(ad) + AES_GMAC_HASH_LEN);
-	crp->crp_digest_start = uio.uio_resid - AES_GMAC_HASH_LEN;
 	memcpy(crp->crp_iv, nonce, sizeof(nonce));
 
 	counter_u64_add(ocf_tls13_gcm_crypts, 1);
+	if (inplace)
+		counter_u64_add(ocf_inplace, 1);
+	else
+		counter_u64_add(ocf_separate_output, 1);
 	for (;;) {
 		error = crypto_dispatch(crp);
 		if (error)
@@ -313,6 +367,7 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls)
 	int error;
 
 	memset(&csp, 0, sizeof(csp));
+	csp.csp_flags |= CSP_F_SEPARATE_OUTPUT;
 
 	switch (tls->params.cipher_algorithm) {
 	case CRYPTO_AES_NIST_GCM_16:
@@ -376,6 +431,8 @@ ktls_ocf_modevent(module_t mod, int what, void *arg)
 	case MOD_LOAD:
 		ocf_tls12_gcm_crypts = counter_u64_alloc(M_WAITOK);
 		ocf_tls13_gcm_crypts = counter_u64_alloc(M_WAITOK);
+		ocf_inplace = counter_u64_alloc(M_WAITOK);
+		ocf_separate_output = counter_u64_alloc(M_WAITOK);
 		ocf_retries = counter_u64_alloc(M_WAITOK);
 		return (ktls_crypto_backend_register(&ocf_backend));
 	case MOD_UNLOAD:
@@ -384,6 +441,8 @@ ktls_ocf_modevent(module_t mod, int what, void *arg)
 			return (error);
 		counter_u64_free(ocf_tls12_gcm_crypts);
 		counter_u64_free(ocf_tls13_gcm_crypts);
+		counter_u64_free(ocf_inplace);
+		counter_u64_free(ocf_separate_output);
 		counter_u64_free(ocf_retries);
 		return (0);
 	default:
