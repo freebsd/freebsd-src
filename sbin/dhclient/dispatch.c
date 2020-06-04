@@ -474,13 +474,16 @@ add_protocol(const char *name, int fd, void (*handler)(struct protocol *),
 void
 remove_protocol(struct protocol *proto)
 {
-	struct protocol *p, *next;
+	struct protocol *p, *prev;
 
-	for (p = protocols; p; p = next) {
-		next = p->next;
+	for (p = protocols, prev = NULL; p != NULL; prev = p, p = p->next) {
 		if (p == proto) {
-			protocols = p->next;
+			if (prev == NULL)
+				protocols = p->next;
+			else
+				prev->next = p->next;
 			free(p);
+			break;
 		}
 	}
 }
