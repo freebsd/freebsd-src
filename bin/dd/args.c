@@ -266,6 +266,7 @@ static const struct iflag {
 	const char *name;
 	uint64_t set, noset;
 } ilist[] = {
+	{ "direct",	C_IDIRECT,	0 },
 	{ "fullblock",	C_IFULLBLOCK,	C_SYNC },
 };
 
@@ -410,6 +411,7 @@ static const struct oflag {
 	const char *name;
 	uint64_t set;
 } olist[] = {
+	{ "direct",	C_ODIRECT },
 	{ "fsync",	C_OFSYNC },
 	{ "sync",	C_OFSYNC },
 };
