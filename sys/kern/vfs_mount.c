@@ -65,6 +65,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#include <rpc/types.h>
+#include <rpc/auth.h>
+
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
@@ -2049,10 +2052,22 @@ kernel_vmount(int flags, ...)
 	return (error);
 }
 
+/*
+ * Convert the old export args format into new export args.
+ *
+ * The old export args struct does not have security flavors.  Otherwise, the
+ * structs are identical.  The default security flavor 'sys' is applied when
+ * the given args export the filesystem.
+ */
 void
 vfs_oexport_conv(const struct oexport_args *oexp, struct export_args *exp)
 {
 
 	bcopy(oexp, exp, sizeof(*oexp));
-	exp->ex_numsecflavors = 0;
+	if (exp->ex_flags & MNT_EXPORTED) {
+		exp->ex_numsecflavors = 1;
+		exp->ex_secflavors[0] = AUTH_SYS;
+	} else {
+		exp->ex_numsecflavors = 0;
+	}
 }
