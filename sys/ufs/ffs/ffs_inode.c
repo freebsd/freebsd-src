@@ -94,7 +94,7 @@ ffs_update(vp, waitfor)
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
 		return (0);
-	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
+	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED | IN_IBLKDATA);
 	fs = ITOFS(ip);
 	if (fs->fs_ronly && ITOUMP(ip)->um_fsckpid == 0)
 		return (0);
