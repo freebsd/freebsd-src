@@ -56,6 +56,7 @@
 .Fl a
 .Op Fl L
 .Op Fl d
+.Op Fl [gG] Ar groupname
 .Op Fl m
 .Op Fl u
 .Op Fl v
@@ -2910,9 +2911,26 @@ This flag instructs
 to display information about all interfaces in the system.
 The
 .Fl d
-flag limits this to interfaces that are down, and
+flag limits this to interfaces that are down,
 .Fl u
-limits this to interfaces that are up.
+limits this to interfaces that are up,
+limits this to interfaces that are up,
+.Fl g
+limits this to members of the specified group of interfaces, and
+.Fl G
+excludes members of the specified group from the list.
+Both
+.Fl g
+and
+.Fl G
+flags may be specified to apply both conditions.
+Only one option
+.Fl g
+should be specified as later override previous ones
+(same for
+.Fl G ) .
+.Sy groupname
+may contain shell patterns in which case it should be quoted.
 When no arguments are given,
 .Fl a
 is implied.
@@ -3036,6 +3054,9 @@ Display available wireless networks using
 .Pp
 Display inet and inet6 address subnet masks in CIDR notation
 .Dl # ifconfig -f inet:cidr,inet6:cidr
+.Pp
+Display interfaces that are up with the exception of loopback
+.Dl # ifconfig -a -u -G lo
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
