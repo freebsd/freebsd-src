@@ -283,6 +283,7 @@
 #define	PRIV_VFS_SYSFLAGS	342	/* Can modify system flags. */
 #define	PRIV_VFS_UNMOUNT	343	/* Can unmount(). */
 #define	PRIV_VFS_STAT		344	/* Override vnode MAC stat perm. */
+#define	PRIV_VFS_READ_DIR	345	/* Can read(2) a dirfd, needs sysctl. */
 
 /*
  * Virtual memory privileges.

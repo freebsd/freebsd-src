@@ -194,6 +194,14 @@ priv_check_cred(struct ucred *cred, int priv)
 				goto out;
 			}
 			break;
+		case PRIV_VFS_READ_DIR:
+			/*
+			 * Allow PRIV_VFS_READ_DIR for root if we're not in a
+			 * jail, otherwise deny unless a MAC policy grants it.
+			 */
+			if (jailed(cred))
+				break;
+			/* FALLTHROUGH */
 		default:
 			if (cred->cr_uid == 0) {
 				error = 0;
