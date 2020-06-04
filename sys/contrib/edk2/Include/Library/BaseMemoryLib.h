@@ -1,18 +1,12 @@
 /** @file
   Provides copy memory, fill memory, zero memory, and GUID functions.
-   
-  The Base Memory Library provides optimized implementations for common memory-based operations. 
-  These functions should be used in place of coding your own loops to do equivalent common functions. 
-  This allows optimized library implementations to help increase performance. 
 
-Copyright (c) 2006 - 2016, Intel Corporation. All rights reserved.<BR>
-This program and the accompanying materials are licensed and made available under 
-the terms and conditions of the BSD License that accompanies this distribution.  
-The full text of the license may be found at
-http://opensource.org/licenses/bsd-license.php.
+  The Base Memory Library provides optimized implementations for common memory-based operations.
+  These functions should be used in place of coding your own loops to do equivalent common functions.
+  This allows optimized library implementations to help increase performance.
 
-THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -25,7 +19,7 @@ WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
   This function copies Length bytes from SourceBuffer to DestinationBuffer, and returns
   DestinationBuffer.  The implementation must be reentrant, and it must handle the case
   where SourceBuffer overlaps DestinationBuffer.
-  
+
   If Length is greater than (MAX_ADDRESS - DestinationBuffer + 1), then ASSERT().
   If Length is greater than (MAX_ADDRESS - SourceBuffer + 1), then ASSERT().
 
@@ -48,7 +42,7 @@ CopyMem (
   Fills a target buffer with a byte value, and returns the target buffer.
 
   This function fills Length bytes of Buffer with Value, and returns Buffer.
-  
+
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
   @param  Buffer    The memory to set.
@@ -178,7 +172,7 @@ SetMemN (
   Fills a target buffer with zeros, and returns the target buffer.
 
   This function fills Length bytes of Buffer with zeros, and returns Buffer.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
@@ -202,7 +196,7 @@ ZeroMem (
   If all Length bytes of the two buffers are identical, then 0 is returned.  Otherwise, the
   value returned is the first mismatched byte in SourceBuffer subtracted from the first
   mismatched byte in DestinationBuffer.
-  
+
   If Length > 0 and DestinationBuffer is NULL, then ASSERT().
   If Length > 0 and SourceBuffer is NULL, then ASSERT().
   If Length is greater than (MAX_ADDRESS - DestinationBuffer + 1), then ASSERT().
@@ -215,7 +209,7 @@ ZeroMem (
   @return 0                 All Length bytes of the two buffers are identical.
   @retval Non-zero          The first mismatched byte in SourceBuffer subtracted from the first
                             mismatched byte in DestinationBuffer.
-                            
+
 **/
 INTN
 EFIAPI
@@ -233,7 +227,7 @@ CompareMem (
   address to the highest address for an 8-bit value that matches Value.  If a match is found,
   then a pointer to the matching byte in the target buffer is returned.  If no match is found,
   then NULL is returned.  If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Length is greater than (MAX_ADDRESS - Buffer + 1), then ASSERT().
 
@@ -260,7 +254,7 @@ ScanMem8 (
   address to the highest address for a 16-bit value that matches Value.  If a match is found,
   then a pointer to the matching byte in the target buffer is returned.  If no match is found,
   then NULL is returned.  If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Buffer is not aligned on a 16-bit boundary, then ASSERT().
   If Length is not aligned on a 16-bit boundary, then ASSERT().
@@ -289,7 +283,7 @@ ScanMem16 (
   address to the highest address for a 32-bit value that matches Value.  If a match is found,
   then a pointer to the matching byte in the target buffer is returned.  If no match is found,
   then NULL is returned.  If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Buffer is not aligned on a 32-bit boundary, then ASSERT().
   If Length is not aligned on a 32-bit boundary, then ASSERT().
@@ -318,7 +312,7 @@ ScanMem32 (
   address to the highest address for a 64-bit value that matches Value.  If a match is found,
   then a pointer to the matching byte in the target buffer is returned.  If no match is found,
   then NULL is returned.  If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Buffer is not aligned on a 64-bit boundary, then ASSERT().
   If Length is not aligned on a 64-bit boundary, then ASSERT().
@@ -340,14 +334,14 @@ ScanMem64 (
   );
 
 /**
-  Scans a target buffer for a UINTN sized value, and returns a pointer to the matching 
+  Scans a target buffer for a UINTN sized value, and returns a pointer to the matching
   UINTN sized value in the target buffer.
 
   This function searches target the buffer specified by Buffer and Length from the lowest
   address to the highest address for a UINTN sized value that matches Value.  If a match is found,
   then a pointer to the matching byte in the target buffer is returned.  If no match is found,
   then NULL is returned.  If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Buffer is not aligned on a UINTN boundary, then ASSERT().
   If Length is not aligned on a UINTN boundary, then ASSERT().
@@ -367,13 +361,13 @@ ScanMemN (
   IN UINTN       Length,
   IN UINTN       Value
   );
-  
+
 /**
   Copies a source GUID to a destination GUID.
 
   This function copies the contents of the 128-bit GUID specified by SourceGuid to
   DestinationGuid, and returns DestinationGuid.
-  
+
   If DestinationGuid is NULL, then ASSERT().
   If SourceGuid is NULL, then ASSERT().
 
@@ -395,7 +389,7 @@ CopyGuid (
 
   This function compares Guid1 to Guid2.  If the GUIDs are identical then TRUE is returned.
   If there are any bit differences in the two GUIDs, then FALSE is returned.
-  
+
   If Guid1 is NULL, then ASSERT().
   If Guid2 is NULL, then ASSERT().
 
@@ -422,7 +416,7 @@ CompareGuid (
   GUID value that matches Guid.  If a match is found, then a pointer to the matching
   GUID in the target buffer is returned.  If no match is found, then NULL is returned.
   If Length is 0, then NULL is returned.
-  
+
   If Length > 0 and Buffer is NULL, then ASSERT().
   If Buffer is not aligned on a 32-bit boundary, then ASSERT().
   If Length is not aligned on a 128-bit boundary, then ASSERT().

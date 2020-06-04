@@ -1,14 +1,8 @@
 /** @file
   Terminal Device Path Vendor Guid.
 
-  Copyright (c) 2006 - 2009, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials                          
-  are licensed and made available under the terms and conditions of the BSD License         
-  which accompanies this distribution.  The full text of the license may be found at        
-  http://opensource.org/licenses/bsd-license.php                                            
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,                     
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.             
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
   @par Revision Reference:
   GUIDs defined in UEFI 2.0 spec.
@@ -42,7 +36,7 @@
   { \
     0x37499a9d, 0x542f, 0x4c89, {0xa0, 0x26, 0x35, 0xda, 0x14, 0x20, 0x94, 0xe4 } \
   }
-  
+
 #define EFI_SAS_DEVICE_PATH_GUID \
   { \
     0xd487ddb4, 0x008b, 0x11d9, {0xaf, 0xdc, 0x00, 0x10, 0x83, 0xff, 0xca, 0x4d } \

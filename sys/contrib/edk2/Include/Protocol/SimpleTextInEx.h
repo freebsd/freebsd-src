@@ -5,14 +5,8 @@
   which exposes much more state and modifier information from the input device,
   also allows one to register a notification for a particular keystroke.
 
-  Copyright (c) 2006 - 2012, Intel Corporation. All rights reserved.<BR>
-  This program and the accompanying materials
-  are licensed and made available under the terms and conditions of the BSD License
-  which accompanies this distribution.  The full text of the license may be found at
-  http://opensource.org/licenses/bsd-license.php
-
-  THE PROGRAM IS DISTRIBUTED UNDER THE BSD LICENSE ON AN "AS IS" BASIS,
-  WITHOUT WARRANTIES OR REPRESENTATIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+  Copyright (c) 2006 - 2018, Intel Corporation. All rights reserved.<BR>
+  SPDX-License-Identifier: BSD-2-Clause-Patent
 
 **/
 
@@ -190,13 +184,10 @@ typedef struct {
                   pressed.
 
 
-  @retval EFI_SUCCESS     The keystroke information was
-                          returned.
-
-  @retval EFI_NOT_READY   There was no keystroke data available.
-                          EFI_DEVICE_ERROR The keystroke
-                          information was not returned due to
-                          hardware errors.
+  @retval EFI_SUCCESS      The keystroke information was returned.
+  @retval EFI_NOT_READY    There was no keystroke data available.
+  @retval EFI_DEVICE_ERROR The keystroke information was not returned due to
+                           hardware errors.
 
 
 **/
@@ -251,18 +242,19 @@ EFI_STATUS
 
   @param KeyData                  A pointer to a buffer that is filled in with
                                   the keystroke information for the key that was
-                                  pressed.
+                                  pressed. If KeyData.Key, KeyData.KeyState.KeyToggleState
+                                  and KeyData.KeyState.KeyShiftState are 0, then any incomplete
+                                  keystroke will trigger a notification of the KeyNotificationFunction.
 
-  @param KeyNotificationFunction  Points to the function to be
-                                  called when the key sequence
-                                  is typed specified by KeyData.
+  @param KeyNotificationFunction  Points to the function to be called when the key sequence
+                                  is typed specified by KeyData. This notification function
+                                  should be called at <=TPL_CALLBACK.
 
 
   @param NotifyHandle             Points to the unique handle assigned to
                                   the registered notification.
 
-  @retval EFI_SUCCESS           The device state was set
-                                appropriately.
+  @retval EFI_SUCCESS           Key notify was registered successfully.
 
   @retval EFI_OUT_OF_RESOURCES  Unable to allocate necessary
                                 data structures.
@@ -286,7 +278,7 @@ EFI_STATUS
   @param NotificationHandle The handle of the notification
                             function being unregistered.
 
-  @retval EFI_SUCCESS The device state was set appropriately.
+  @retval EFI_SUCCESS           Key notify was unregistered successfully.
 
   @retval EFI_INVALID_PARAMETER The NotificationHandle is
                                 invalid.
