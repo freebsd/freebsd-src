@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "thr_private.h"
 
 __weak_reference(_pthread_set_name_np, pthread_set_name_np);
-__weak_reference(_pthread_set_name_np, pthread_setname_np);
 
 static void
 thr_set_name_np(struct pthread *thread, const char *name)
@@ -90,7 +89,6 @@ thr_get_name_np(struct pthread *thread, char *buf, size_t len)
 }
 
 __weak_reference(_pthread_get_name_np, pthread_get_name_np);
-__weak_reference(_pthread_get_name_np, pthread_getname_np);
 
 void
 _pthread_get_name_np(pthread_t thread, char *buf, size_t len)
