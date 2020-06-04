@@ -26,6 +26,18 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200604:
+	read(2) of a directory fd is now rejected by default.  root may
+	re-enable it for system root only on non-ZFS filesystems with the
+	security.bsd.allow_read_dir sysctl(8) MIB if
+	security.bsd.suser_enabled=1.
+
+	It may be advised to setup aliases for grep to default to `-d skip` if
+	commonly non-recursively grepping a list that includes directories and
+	the potential for the resulting stderr output is not tolerable.  Example
+	aliases are now installed, commented out, in /root/.cshrc and
+	/root/.shrc.
+
 20200523:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 10.0.1.  Please see the 20141231 entry below for
