@@ -652,6 +652,15 @@ g_provider_add_alias(struct g_provider *pp, const char *fmt, ...)
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
 	sbuf_finish(sb);
+
+	LIST_FOREACH(gap, &pp->aliases, ga_next) {
+		if (strcmp(gap->ga_alias, sbuf_data(sb)) != 0)
+			continue;
+		/* Don't re-add the same alias. */
+		sbuf_delete(sb);
+		return;
+	}
+
 	gap = g_malloc(sizeof(*gap) + sbuf_len(sb) + 1, M_WAITOK | M_ZERO);
 	memcpy((char *)(gap + 1), sbuf_data(sb), sbuf_len(sb));
 	sbuf_delete(sb);
