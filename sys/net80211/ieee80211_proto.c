@@ -864,7 +864,8 @@ vap_update_slot(void *arg, int npending)
 	/*
 	 * Call the driver with our new global slot time flags.
 	 */
-	ic->ic_updateslot(ic);
+	if (ic->ic_updateslot != NULL)
+		ic->ic_updateslot(ic);
 }
 
 /*
