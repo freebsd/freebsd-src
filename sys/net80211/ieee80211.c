@@ -645,6 +645,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	ieee80211_scan_vattach(vap);
 	ieee80211_regdomain_vattach(vap);
 	ieee80211_radiotap_vattach(vap);
+	ieee80211_vap_reset_erp(vap);
 	ieee80211_ratectl_set(vap, IEEE80211_RATECTL_NONE);
 
 	return 0;
@@ -2200,7 +2201,7 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 		ieee80211_setbasicrates(&ic->ic_sup_rates[mode], mode);
 
 	ic->ic_curmode = mode;
-	ieee80211_reset_erp(ic);	/* reset ERP state */
+	ieee80211_reset_erp(ic);	/* reset global ERP state */
 
 	return 0;
 }

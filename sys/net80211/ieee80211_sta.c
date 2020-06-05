@@ -1435,7 +1435,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				 * NB: we assume short preamble doesn't
 				 *     change dynamically
 				 */
-				ieee80211_set_shortslottime(ic,
+				ieee80211_vap_set_shortslottime(vap,
 					IEEE80211_IS_CHAN_A(ic->ic_bsschan) ||
 					(scan.capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME));
 				ni->ni_capinfo = (ni->ni_capinfo &~ IEEE80211_CAPINFO_SHORT_SLOTTIME)
@@ -1847,7 +1847,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 			ic->ic_flags &= ~IEEE80211_F_SHPREAMBLE;
 			ic->ic_flags |= IEEE80211_F_USEBARKER;
 		}
-		ieee80211_set_shortslottime(ic,
+		ieee80211_vap_set_shortslottime(vap,
 			IEEE80211_IS_CHAN_A(ic->ic_curchan) ||
 			(ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME));
 		/*
@@ -1866,7 +1866,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		    ISREASSOC(subtype) ? "re" : "",
 		    IEEE80211_NODE_AID(ni),
 		    ic->ic_flags&IEEE80211_F_SHPREAMBLE ? "short" : "long",
-		    ic->ic_flags&IEEE80211_F_SHSLOT ? "short" : "long",
+		    vap->iv_flags&IEEE80211_F_SHSLOT ? "short" : "long",
 		    ic->ic_flags&IEEE80211_F_USEPROT ? ", protection" : "",
 		    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
 		    ni->ni_flags & IEEE80211_NODE_HT ?

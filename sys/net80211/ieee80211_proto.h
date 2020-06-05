@@ -154,8 +154,9 @@ uint16_t ieee80211_getcapinfo(struct ieee80211vap *,
 struct ieee80211_wme_state;
 uint8_t * ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme);
 
+void	ieee80211_vap_reset_erp(struct ieee80211vap *);
 void	ieee80211_reset_erp(struct ieee80211com *);
-void	ieee80211_set_shortslottime(struct ieee80211com *, int onoff);
+void	ieee80211_vap_set_shortslottime(struct ieee80211vap *, int onoff);
 int	ieee80211_iserp_rateset(const struct ieee80211_rateset *);
 void	ieee80211_setbasicrates(struct ieee80211_rateset *,
 		enum ieee80211_phymode);
