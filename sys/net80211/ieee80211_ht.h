@@ -47,6 +47,7 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
 #define	IEEE80211_AGGR_BARPEND		0x0020	/* BAR response pending */
 #define	IEEE80211_AGGR_WAITRX		0x0040	/* Wait for first RX frame to define BAW */
+#define	IEEE80211_AGGR_AMSDU		0x0080	/* A-MSDU in A-MPDU TX allowed */
 	uint8_t		txa_tid;
 	uint8_t		txa_token;	/* dialog token */
 	int		txa_lastsample;	/* ticks @ last traffic sample */
@@ -67,6 +68,14 @@ struct ieee80211_tx_ampdu {
 /* return non-zero if AMPDU tx for the TID is running */
 #define	IEEE80211_AMPDU_RUNNING(tap) \
 	(((tap)->txa_flags & IEEE80211_AGGR_RUNNING) != 0)
+
+/*
+ * Return non-zero if AMPDU tx for the TID is running and we can do
+ * A-MSDU in A-MPDU
+ */
+#define	IEEE80211_AMPDU_RUNNING_AMSDU(tap) \
+	((((tap)->txa_flags & (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU)) \
+	    == (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU))
 
 /* return non-zero if AMPDU tx for the TID was NACKed */
 #define	IEEE80211_AMPDU_NACKED(tap)\

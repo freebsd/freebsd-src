@@ -592,6 +592,7 @@ static int
 ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 	int baparamset, int batimeout, int baseqctl)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
 	int bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 
 	if (rap->rxa_flags & IEEE80211_AGGR_RUNNING) {
@@ -606,6 +607,13 @@ ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 	    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
 	rap->rxa_start = MS(baseqctl, IEEE80211_BASEQ_START);
 	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
+
+	/* XXX this should be a configuration flag */
+	if ((vap->iv_htcaps & IEEE80211_HTC_RX_AMSDU_AMPDU) &&
+	    (MS(baparamset, IEEE80211_BAPS_AMSDU)))
+		rap->rxa_flags |= IEEE80211_AGGR_AMSDU;
+	else
+		rap->rxa_flags &= ~IEEE80211_AGGR_AMSDU;
 
 	return 0;
 }
@@ -641,6 +649,8 @@ ieee80211_ampdu_rx_start_ext(struct ieee80211_node *ni, int tid, int seq, int ba
 		rap->rxa_start = seq;
 	}
 	rap->rxa_flags |=  IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_XCHGPEND;
+
+	/* XXX TODO: no amsdu flag */
 
 	IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_11N, ni,
 	    "%s: tid=%d, start=%d, wnd=%d, flags=0x%08x",
@@ -1163,7 +1173,8 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 		ieee80211_txampdu_init_pps(tap);
 		/* NB: further initialization deferred */
 	}
-	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
+	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU |
+	    IEEE80211_NODE_AMSDU;
 }
 
 /*
@@ -1329,7 +1340,8 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 		ieee80211_txampdu_init_pps(tap);
 	}
 	/* NB: AMPDU tx/rx governed by IEEE80211_FHT_AMPDU_{TX,RX} */
-	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
+	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU |
+	    IEEE80211_NODE_AMSDU;
 }
 
 /*
@@ -2173,6 +2185,7 @@ ieee80211_addba_response(struct ieee80211_node *ni,
 	struct ieee80211_tx_ampdu *tap,
 	int status, int baparamset, int batimeout)
 {
+	struct ieee80211vap *vap = ni->ni_vap;
 	int bufsiz, tid;
 
 	/* XXX locking */
@@ -2182,10 +2195,16 @@ ieee80211_addba_response(struct ieee80211_node *ni,
 		/* XXX override our request? */
 		tap->txa_wnd = (bufsiz == 0) ?
 		    IEEE80211_AGGR_BAWMAX : min(bufsiz, IEEE80211_AGGR_BAWMAX);
-		/* XXX AC/TID */
 		tid = MS(baparamset, IEEE80211_BAPS_TID);
 		tap->txa_flags |= IEEE80211_AGGR_RUNNING;
 		tap->txa_attempts = 0;
+		/* TODO: this should be a vap flag */
+		if ((vap->iv_htcaps & IEEE80211_HTC_TX_AMSDU_AMPDU) &&
+		    (ni->ni_flags & IEEE80211_NODE_AMSDU_TX) &&
+		    (MS(baparamset, IEEE80211_BAPS_AMSDU)))
+			tap->txa_flags |= IEEE80211_AGGR_AMSDU;
+		else
+			tap->txa_flags &= ~IEEE80211_AGGR_AMSDU;
 	} else {
 		/* mark tid so we don't try again */
 		tap->txa_flags |= IEEE80211_AGGR_NAK;
@@ -2204,7 +2223,7 @@ ieee80211_addba_stop(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap)
 	addba_stop_timeout(tap);
 	if (tap->txa_flags & IEEE80211_AGGR_RUNNING) {
 		/* XXX clear aggregation queue */
-		tap->txa_flags &= ~IEEE80211_AGGR_RUNNING;
+		tap->txa_flags &= ~(IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU);
 	}
 	tap->txa_attempts = 0;
 }
@@ -2256,7 +2275,7 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 	 */
 	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_RX) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_RX)) {
-		/* XXX handle ampdu_rx_start failure */
+		/* XXX TODO: handle ampdu_rx_start failure */
 		ic->ic_ampdu_rx_start(ni, rap,
 		    baparamset, batimeout, baseqctl);
 
@@ -2275,7 +2294,16 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 		| SM(tid, IEEE80211_BAPS_TID)
 		| SM(rap->rxa_wnd, IEEE80211_BAPS_BUFSIZ)
 		;
-	/* XXX AMSDU in AMPDU? */
+
+	/*
+	 * TODO: we're out of iv_flags_ht fields; once
+	 * this is extended we should make this configurable.
+	 */
+	if ((baparamset & IEEE80211_BAPS_AMSDU) &&
+	    (ni->ni_flags & IEEE80211_NODE_AMSDU_RX) &&
+	    (vap->iv_htcaps & IEEE80211_HTC_RX_AMSDU_AMPDU))
+		args[2] |= IEEE80211_BAPS_AMSDU;
+
 	args[3] = 0;
 	args[4] = 0;
 	ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
@@ -2294,6 +2322,7 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	uint8_t dialogtoken, policy;
 	uint16_t baparamset, batimeout, code;
 	int tid, bufsiz;
+	int amsdu;
 
 	dialogtoken = frm[2];
 	code = le16dec(frm+3);
@@ -2301,6 +2330,7 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	tid = MS(baparamset, IEEE80211_BAPS_TID);
 	bufsiz = MS(baparamset, IEEE80211_BAPS_BUFSIZ);
 	policy = MS(baparamset, IEEE80211_BAPS_POLICY);
+	amsdu = !! MS(baparamset, IEEE80211_BAPS_AMSDU);
 	batimeout = le16dec(frm+7);
 
 	tap = &ni->ni_tx_ampdu[tid];
@@ -2349,11 +2379,12 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 	}
 #endif
 
-	/* XXX TODO: check AMSDU in AMPDU configuration */
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
 	    "recv ADDBA response: dialogtoken %u code %d "
-	    "baparamset 0x%x (tid %d bufsiz %d) batimeout %d",
-	    dialogtoken, code, baparamset, tid, bufsiz,
+	    "baparamset 0x%x (tid %d bufsiz %d amsdu %d) batimeout %d",
+	    dialogtoken, code, baparamset, tid,
+	    bufsiz,
+	    amsdu,
 	    batimeout);
 	ic->ic_addba_response(ni, tap, code, baparamset, batimeout);
 	return 0;
@@ -2510,7 +2541,11 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 		| SM(tid, IEEE80211_BAPS_TID)
 		| SM(IEEE80211_AGGR_BAWMAX, IEEE80211_BAPS_BUFSIZ)
 		;
-	/* XXX TODO: check AMSDU in AMPDU configuration */
+
+	/* XXX TODO: this should be a flag, not iv_htcaps */
+	if ((ni->ni_flags & IEEE80211_NODE_AMSDU_TX) &&
+	    (ni->ni_vap->iv_htcaps & IEEE80211_HTC_TX_AMSDU_AMPDU))
+		args[2] |= IEEE80211_BAPS_AMSDU;
 
 	args[3] = 0;	/* batimeout */
 	/* NB: do first so there's no race against reply */
@@ -2843,11 +2878,11 @@ ht_send_action_ba_addba(struct ieee80211_node *ni,
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
 	    "send ADDBA %s: dialogtoken %d status %d "
-	    "baparamset 0x%x (tid %d) batimeout 0x%x baseqctl 0x%x",
+	    "baparamset 0x%x (tid %d amsdu %d) batimeout 0x%x baseqctl 0x%x",
 	    (action == IEEE80211_ACTION_BA_ADDBA_REQUEST) ?
 		"request" : "response",
 	    args[0], args[1], args[2], MS(args[2], IEEE80211_BAPS_TID),
-	    args[3], args[4]);
+	    MS(args[2], IEEE80211_BAPS_AMSDU), args[3], args[4]);
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
