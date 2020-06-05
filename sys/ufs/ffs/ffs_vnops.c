@@ -416,7 +416,7 @@ next:
 			error = ffs_update(vp, 1);
 		if (DOINGSUJ(vp))
 			softdep_journal_fsync(VTOI(vp));
-	} else if ((ip->i_flags & IN_IBLKDATA) != 0) {
+	} else if ((ip->i_flags & (IN_SIZEMOD | IN_IBLKDATA)) != 0) {
 		error = ffs_update(vp, 1);
 	}
 	return (error);
@@ -825,6 +825,7 @@ ffs_write(ap)
 		if (uio->uio_offset + xfersize > ip->i_size) {
 			ip->i_size = uio->uio_offset + xfersize;
 			DIP_SET(ip, i_size, ip->i_size);
+			UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE);
 		}
 
 		size = blksize(fs, ip, lbn) - bp->b_resid;
@@ -1108,8 +1109,10 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		if ((bp->b_flags & B_CACHE) == 0 && fs->fs_bsize <= xfersize)
 			vfs_bio_clrbuf(bp);
 
-		if (uio->uio_offset + xfersize > dp->di_extsize)
+		if (uio->uio_offset + xfersize > dp->di_extsize) {
 			dp->di_extsize = uio->uio_offset + xfersize;
+			UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE);
+		}
 
 		size = sblksize(fs, dp->di_extsize, lbn) - bp->b_resid;
 		if (size < xfersize)

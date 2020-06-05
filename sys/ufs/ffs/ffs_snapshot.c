@@ -319,7 +319,7 @@ restart:
 		goto out;
 	ip->i_size = lblktosize(fs, (off_t)numblks);
 	DIP_SET(ip, i_size, ip->i_size);
-	UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
+	UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 	error = readblock(vp, bp, numblks - 1);
 	bawrite(bp);
 	if (error != 0)
