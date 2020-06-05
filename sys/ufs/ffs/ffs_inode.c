@@ -279,7 +279,7 @@ ffs_truncate(vp, length, flags, cred)
 				oldblks[i] = ip->i_din2->di_extb[i];
 				ip->i_din2->di_extb[i] = 0;
 			}
-			UFS_INODE_SET_FLAG(ip, IN_CHANGE);
+			UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE);
 			if ((error = ffs_update(vp, waitforupdate)))
 				return (error);
 			for (i = 0; i < UFS_NXADDR; i++) {
@@ -303,7 +303,7 @@ ffs_truncate(vp, length, flags, cred)
 		bzero(SHORTLINK(ip), (u_int)ip->i_size);
 		ip->i_size = 0;
 		DIP_SET(ip, i_size, 0);
-		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
+		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 		if (needextclean)
 			goto extclean;
 		return (ffs_update(vp, waitforupdate));
@@ -343,7 +343,7 @@ ffs_truncate(vp, length, flags, cred)
 			bdwrite(bp);
 		else
 			bawrite(bp);
-		UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
+		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 		return (ffs_update(vp, waitforupdate));
 	}
 	/*
@@ -429,6 +429,7 @@ ffs_truncate(vp, length, flags, cred)
 	if (blkno != 0 && offset == 0) {
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
+		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 	} else {
 		lbn = lblkno(fs, length);
 		flags |= BA_CLRBUF;
@@ -463,6 +464,7 @@ ffs_truncate(vp, length, flags, cred)
 			bdwrite(bp);
 		else
 			bawrite(bp);
+		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 	}
 	/*
 	 * Calculate index into inode's block list of
@@ -512,6 +514,7 @@ ffs_truncate(vp, length, flags, cred)
 	}
 	ip->i_size = osize;
 	DIP_SET(ip, i_size, osize);
+	UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 
 	error = vtruncbuf(vp, length, fs->fs_bsize);
 	if (error && (allerror == 0))
@@ -578,6 +581,7 @@ ffs_truncate(vp, length, flags, cred)
 		oldspace = blksize(fs, ip, lastblock);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
+		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 		newspace = blksize(fs, ip, lastblock);
 		if (newspace == 0)
 			panic("ffs_truncate: newspace");
@@ -623,7 +627,7 @@ done:
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) - blocksreleased);
 	else	/* sanity */
 		DIP_SET(ip, i_blocks, 0);
-	UFS_INODE_SET_FLAG(ip, IN_CHANGE);
+	UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE);
 #ifdef QUOTA
 	(void) chkdq(ip, -blocksreleased, NOCRED, FORCE);
 #endif

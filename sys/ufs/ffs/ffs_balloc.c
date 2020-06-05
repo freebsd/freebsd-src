@@ -155,7 +155,7 @@ ffs_balloc_ufs1(struct vnode *vp, off_t startoffset, int size,
 			dp->di_size = ip->i_size;
 			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
 			UFS_INODE_SET_FLAG(ip,
-			    IN_CHANGE | IN_UPDATE | IN_IBLKDATA);
+			    IN_SIZEMOD | IN_CHANGE | IN_UPDATE | IN_IBLKDATA);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else if (DOINGASYNC(vp))
@@ -648,7 +648,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 				dp->di_extsize = smalllblktosize(fs, nb + 1);
 				dp->di_extb[nb] = dbtofsb(fs, bp->b_blkno);
 				bp->b_xflags |= BX_ALTDATA;
-				UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_IBLKDATA);
+				UFS_INODE_SET_FLAG(ip,
+				    IN_SIZEMOD | IN_CHANGE | IN_IBLKDATA);
 				if (flags & IO_SYNC)
 					bwrite(bp);
 				else
@@ -751,8 +752,8 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 			ip->i_size = smalllblktosize(fs, nb + 1);
 			dp->di_size = ip->i_size;
 			dp->di_db[nb] = dbtofsb(fs, bp->b_blkno);
-			UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE |
-			    IN_IBLKDATA);
+			UFS_INODE_SET_FLAG(ip,
+			    IN_SIZEMOD |IN_CHANGE | IN_UPDATE | IN_IBLKDATA);
 			if (flags & IO_SYNC)
 				bwrite(bp);
 			else
