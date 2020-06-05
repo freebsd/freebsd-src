@@ -2237,12 +2237,13 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
 	    "recv ADDBA request: dialogtoken %u baparamset 0x%x "
-	    "(tid %d bufsiz %d) batimeout %d baseqctl %d:%d",
+	    "(tid %d bufsiz %d) batimeout %d baseqctl %d:%d amsdu %d",
 	    dialogtoken, baparamset,
 	    tid, MS(baparamset, IEEE80211_BAPS_BUFSIZ),
 	    batimeout,
 	    MS(baseqctl, IEEE80211_BASEQ_START),
-	    MS(baseqctl, IEEE80211_BASEQ_FRAG));
+	    MS(baseqctl, IEEE80211_BASEQ_FRAG),
+	    MS(baparamset, IEEE80211_BAPS_AMSDU));
 
 	rap = &ni->ni_rx_ampdu[tid];
 
@@ -2274,6 +2275,7 @@ ht_recv_action_ba_addba_request(struct ieee80211_node *ni,
 		| SM(tid, IEEE80211_BAPS_TID)
 		| SM(rap->rxa_wnd, IEEE80211_BAPS_BUFSIZ)
 		;
+	/* XXX AMSDU in AMPDU? */
 	args[3] = 0;
 	args[4] = 0;
 	ic->ic_send_action(ni, IEEE80211_ACTION_CAT_BA,
@@ -2346,6 +2348,8 @@ ht_recv_action_ba_addba_response(struct ieee80211_node *ni,
 		return 0;
 	}
 #endif
+
+	/* XXX TODO: check AMSDU in AMPDU configuration */
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_11N, ni,
 	    "recv ADDBA response: dialogtoken %u code %d "
 	    "baparamset 0x%x (tid %d bufsiz %d) batimeout %d",
@@ -2506,6 +2510,8 @@ ieee80211_ampdu_request(struct ieee80211_node *ni,
 		| SM(tid, IEEE80211_BAPS_TID)
 		| SM(IEEE80211_AGGR_BAWMAX, IEEE80211_BAPS_BUFSIZ)
 		;
+	/* XXX TODO: check AMSDU in AMPDU configuration */
+
 	args[3] = 0;	/* batimeout */
 	/* NB: do first so there's no race against reply */
 	if (!ic->ic_addba_request(ni, tap, dialogtoken, args[2], args[3])) {
