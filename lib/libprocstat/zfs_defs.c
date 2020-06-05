@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #define _OPENSOLARIS_SYS_POLICY_H_
 #define _OPENSOLARIS_SYS_VNODE_H_
 #define _VNODE_PAGER_
+#ifdef __powerpc__
+#define	AIM /* AIM or BOOKE, insignificant. */
+#endif
 
 typedef struct vnode vnode_t;
 typedef struct vattr vattr_t;
