@@ -27,7 +27,7 @@ SRCS	+= des_ecb.c des_enc.c des_setkey.c
 SRCS	+= sha1.c sha256c.c sha512c.c
 SRCS	+= skein.c skein_block.c
 # unroll the 256 and 512 loops, half unroll the 1024
-CFLAGS+= -DSKEIN_LOOP=995
+CFLAGS.skein_block.c	+= -DSKEIN_LOOP=995
 .if exists(${MACHINE_ARCH}/skein_block_asm.s)
 .PATH:	${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
 SRCS	+= skein_block_asm.s
