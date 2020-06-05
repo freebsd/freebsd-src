@@ -563,6 +563,10 @@ struct ieee80211vap {
 				    const struct wmeParams *wme_params);
 	struct task		iv_wme_task;	/* deferred VAP WME update */
 
+	/* update device state for 802.11 slot time change */
+	void			(*iv_updateslot)(struct ieee80211vap *);
+	struct task		iv_slot_task;	/* deferred slot time update */
+
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);

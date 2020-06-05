@@ -244,6 +244,7 @@ static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
 static void vap_update_wme(void *, int);
+static void vap_update_slot(void *, int);
 static void restart_vaps(void *, int);
 static void ieee80211_newstate_cb(void *, int);
 
@@ -340,6 +341,7 @@ ieee80211_proto_vattach(struct ieee80211vap *vap)
 	TASK_INIT(&vap->iv_nstate_task, 0, ieee80211_newstate_cb, vap);
 	TASK_INIT(&vap->iv_swbmiss_task, 0, beacon_swmiss, vap);
 	TASK_INIT(&vap->iv_wme_task, 0, vap_update_wme, vap);
+	TASK_INIT(&vap->iv_slot_task, 0, vap_update_slot, vap);
 	/*
 	 * Install default tx rate handling: no fixed rate, lowest
 	 * supported rate for mgmt and multicast frames.  Default
@@ -750,6 +752,32 @@ ieee80211_fix_rate(struct ieee80211_node *ni,
 
 /*
  * Reset 11g-related state.
+ *
+ * This is for per-VAP ERP/11g state.
+ *
+ * Eventually everything in ieee80211_reset_erp() will be
+ * per-VAP and in here.
+ */
+void
+ieee80211_vap_reset_erp(struct ieee80211vap *vap)
+{
+	struct ieee80211com *ic = vap->iv_ic;
+
+	/*
+	 * Short slot time is enabled only when operating in 11g
+	 * and not in an IBSS.  We must also honor whether or not
+	 * the driver is capable of doing it.
+	 */
+	ieee80211_vap_set_shortslottime(vap,
+		IEEE80211_IS_CHAN_A(ic->ic_curchan) ||
+		IEEE80211_IS_CHAN_HT(ic->ic_curchan) ||
+		(IEEE80211_IS_CHAN_ANYG(ic->ic_curchan) &&
+		vap->iv_opmode == IEEE80211_M_HOSTAP &&
+		(ic->ic_caps & IEEE80211_C_SHSLOT)));
+}
+
+/*
+ * Reset 11g-related state.
  */
 void
 ieee80211_reset_erp(struct ieee80211com *ic)
@@ -757,17 +785,6 @@ ieee80211_reset_erp(struct ieee80211com *ic)
 	ic->ic_flags &= ~IEEE80211_F_USEPROT;
 	ic->ic_nonerpsta = 0;
 	ic->ic_longslotsta = 0;
-	/*
-	 * Short slot time is enabled only when operating in 11g
-	 * and not in an IBSS.  We must also honor whether or not
-	 * the driver is capable of doing it.
-	 */
-	ieee80211_set_shortslottime(ic,
-		IEEE80211_IS_CHAN_A(ic->ic_curchan) ||
-		IEEE80211_IS_CHAN_HT(ic->ic_curchan) ||
-		(IEEE80211_IS_CHAN_ANYG(ic->ic_curchan) &&
-		ic->ic_opmode == IEEE80211_M_HOSTAP &&
-		(ic->ic_caps & IEEE80211_C_SHSLOT)));
 	/*
 	 * Set short preamble and ERP barker-preamble flags.
 	 */
@@ -782,18 +799,94 @@ ieee80211_reset_erp(struct ieee80211com *ic)
 }
 
 /*
+ * Deferred slot time update.
+ *
+ * For per-VAP slot time configuration, call the VAP
+ * method if the VAP requires it.  Otherwise, just call the
+ * older global method.
+ *
+ * If the per-VAP method is called then it's expected that
+ * the driver/firmware will take care of turning the per-VAP
+ * flags into slot time configuration.
+ *
+ * If the per-VAP method is not called then the global flags will be
+ * flipped into sync with the VAPs; ic_flags IEEE80211_F_SHSLOT will
+ * be set only if all of the vaps will have it set.
+ */
+static void
+vap_update_slot(void *arg, int npending)
+{
+	struct ieee80211vap *vap = arg;
+	struct ieee80211com *ic = vap->iv_ic;
+	struct ieee80211vap *iv;
+	int num_shslot = 0, num_lgslot = 0;
+
+	/*
+	 * Per-VAP path - we've already had the flags updated;
+	 * so just notify the driver and move on.
+	 */
+	if (vap->iv_updateslot != NULL) {
+		vap->iv_updateslot(vap);
+		return;
+	}
+
+	/*
+	 * Iterate over all of the VAP flags to update the
+	 * global flag.
+	 *
+	 * If all vaps have short slot enabled then flip on
+	 * short slot.  If any vap has it disabled then
+	 * we leave it globally disabled.  This should provide
+	 * correct behaviour in a multi-BSS scenario where
+	 * at least one VAP has short slot disabled for some
+	 * reason.
+	 */
+	IEEE80211_LOCK(ic);
+	TAILQ_FOREACH(iv, &ic->ic_vaps, iv_next) {
+		if (iv->iv_flags & IEEE80211_F_SHSLOT)
+			num_shslot++;
+		else
+			num_lgslot++;
+	}
+	IEEE80211_UNLOCK(ic);
+
+	/*
+	 * It looks backwards but - if the number of short slot VAPs
+	 * is zero then we're not short slot.  Else, we have one
+	 * or more short slot VAPs and we're checking to see if ANY
+	 * of them have short slot disabled.
+	 */
+	if (num_shslot == 0)
+		ic->ic_flags &= ~IEEE80211_F_SHSLOT;
+	else if (num_lgslot == 0)
+		ic->ic_flags |= IEEE80211_F_SHSLOT;
+
+	/*
+	 * Call the driver with our new global slot time flags.
+	 */
+	ic->ic_updateslot(ic);
+}
+
+/*
  * Set the short slot time state and notify the driver.
+ *
+ * This is the per-VAP slot time state.
  */
 void
-ieee80211_set_shortslottime(struct ieee80211com *ic, int onoff)
+ieee80211_vap_set_shortslottime(struct ieee80211vap *vap, int onoff)
 {
+	struct ieee80211com *ic = vap->iv_ic;
+
+	/*
+	 * Only modify the per-VAP slot time.
+	 */
 	if (onoff)
-		ic->ic_flags |= IEEE80211_F_SHSLOT;
+		vap->iv_flags |= IEEE80211_F_SHSLOT;
 	else
-		ic->ic_flags &= ~IEEE80211_F_SHSLOT;
-	/* notify driver */
-	if (ic->ic_updateslot != NULL)
-		ic->ic_updateslot(ic);
+		vap->iv_flags &= ~IEEE80211_F_SHSLOT;
+
+	/* schedule the deferred slot flag update and update */
+	ieee80211_runtask(ic, &vap->iv_slot_task);
 }
 
 /*
