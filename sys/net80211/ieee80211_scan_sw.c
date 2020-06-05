@@ -298,6 +298,11 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 			 * use.  Also discard any frames that might come
 			 * in while temporarily marked as scanning.
 			 */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+			    "cache hot; ic_lastscan=%d, scanvalid=%d, ticks=%d\n",
+			    ic->ic_lastscan,
+			    vap->iv_scanvalid,
+			    ticks);
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_DISCARD;
 			ic->ic_flags |= IEEE80211_F_SCAN;
 
@@ -307,6 +312,8 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 
 			ic->ic_flags &= ~IEEE80211_F_SCAN;
 			SCAN_PRIVATE(ss)->ss_iflags &= ~ISCAN_DISCARD;
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+			    "%s: scan_end returned %d\n", __func__, result);
 			if (result) {
 				ieee80211_notify_scan_done(vap);
 				return 1;
