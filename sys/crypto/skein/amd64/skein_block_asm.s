@@ -18,20 +18,21 @@ _MASK_ALL_  =  (256+512+1024)               #all three algorithm bits
 _MAX_FRAME_ =  240
 #
 #################
-.ifndef SKEIN_USE_ASM
+#ifndef SKEIN_USE_ASM
 _USE_ASM_         = _MASK_ALL_
-.else
+#else
 _USE_ASM_         = SKEIN_USE_ASM
-.endif
+#endif
 #################
-.ifndef SKEIN_LOOP                          #configure loop unrolling
+#configure loop unrolling
+#ifndef SKEIN_LOOP
 _SKEIN_LOOP       =   2                     #default is fully unrolled for 256/512, twice for 1024
-.else
+#else
 _SKEIN_LOOP       = SKEIN_LOOP
   .irp _NN_,%_SKEIN_LOOP                #only display loop unrolling if default changed on command line
 #.print  "+++ SKEIN_LOOP = \_NN_"
   .endr
-.endif
+#endif
 # the unroll counts (0 --> fully unrolled)
 SKEIN_UNROLL_256  = (_SKEIN_LOOP / 100) % 10
 SKEIN_UNROLL_512  = (_SKEIN_LOOP /  10) % 10
