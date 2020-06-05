@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <geom/geom.h>
 #include <geom/geom_dbg.h>
+#include <geom/geom_int.h>
 #include <geom/geom_slice.h>
 #include <geom/label/g_label.h>
 
@@ -344,17 +345,15 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct g_label_metadata md;
 	struct g_consumer *cp;
+	struct g_class *clsp;
 	struct g_geom *gp;
 	int i;
+	bool changed;
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
 
 	G_LABEL_DEBUG(2, "Tasting %s.", pp->name);
-
-	/* Skip providers that are already open for writing. */
-	if (pp->acw > 0)
-		return (NULL);
 
 	if (strcmp(pp->geom->class->name, mp->name) == 0)
 		return (NULL);
@@ -391,9 +390,16 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (md.md_provsize != pp->mediasize)
 			break;
 
+		/* Skip providers that are already open for writing. */
+		if (pp->acw > 0) {
+			g_access(cp, -1, 0, 0);
+			goto end;
+		}
+
 		g_label_create(NULL, mp, pp, md.md_label, G_LABEL_DIR,
 		    pp->mediasize - pp->sectorsize);
 	} while (0);
+	changed = false;
 	for (i = 0; g_labels[i] != NULL; i++) {
 		char label[128];
 
@@ -405,8 +411,28 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		g_topology_lock();
 		if (label[0] == '\0')
 			continue;
-		g_label_create(NULL, mp, pp, label, g_labels[i]->ld_dir,
-		    pp->mediasize);
+		if (!g_label_is_name_ok(label)) {
+			G_LABEL_DEBUG(0,
+			    "%s contains suspicious label, skipping.",
+			    pp->name);
+			G_LABEL_DEBUG(1, "%s suspicious label is: %s",
+			    pp->name, label);
+			continue;
+		}
+		g_provider_add_alias(pp, "%s/%s", g_labels[i]->ld_dir, label);
+		changed = true;
+	}
+	/*
+	 * Force devfs interface to retaste the provider, to catch the new
+	 * alias(es).
+	 */
+	if (changed) {
+		LIST_FOREACH(clsp, &g_classes, class) {
+			if (strcmp(clsp->name, "DEV") != 0)
+				continue;
+			clsp->taste(clsp, pp, 0);
+			break;
+		}
 	}
 	g_access(cp, -1, 0, 0);
 end:
