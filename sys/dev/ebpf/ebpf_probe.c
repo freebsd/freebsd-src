@@ -44,9 +44,8 @@
 
 #include <sys/refcount.h>
 
-struct ebpf_probe_state
-{
-	struct ebpf_probe *probe;
+struct ebpf_probe_state {
+	struct ebpf_probe *probe, (*activate)(ebpf_probe_id_t, void);
 	struct ebpf_prog *prog;
 	ebpf_file *fp;
 	int jit;
@@ -58,8 +57,8 @@ static const struct ebpf_probe_ops *probe_ops[] = {
 };
 
 int
-ebpf_probe_attach(ebpf_probe_id_t id, struct ebpf_prog *prog, ebpf_file *fp,
-    int jit)
+ebpf_probe_attach(
+    ebpf_probe_id_t id, struct ebpf_prog *prog, ebpf_file *fp, int jit)
 {
 	struct ebpf_probe *probe;
 	struct ebpf_probe_state *state;
@@ -154,7 +153,7 @@ ebpf_fire(struct ebpf_probe *probe, void *a, uintptr_t arg0, uintptr_t arg1,
 	ebpf_vm_init_state(&vm_state);
 
 	vm_state.next_prog = state->prog;
-	vm_state.next_prog_arg = (void*)arg0;
+	vm_state.next_prog_arg = (void *)arg0;
 
 	prog_fp = NULL;
 
@@ -169,7 +168,7 @@ ebpf_fire(struct ebpf_probe *probe, void *a, uintptr_t arg0, uintptr_t arg1,
 
 		error = ebpf_probe_reserve_cpu(prog, &vm_state);
 		if (error != 0) {
-			//XXX this only applies to VFS program types...
+			// XXX this only applies to VFS program types...
 			ebpf_probe_set_errno(error);
 			return (EBPF_ACTION_RETURN);
 		}
@@ -234,5 +233,4 @@ ebpf_probe_fini(void)
 		if (probe_ops[i] != NULL)
 			probe_ops[i]->fini();
 	}
-
 }

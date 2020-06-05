@@ -40,22 +40,23 @@
 
 #include <machine/atomic.h>
 
-struct ebpf_proc_probe
-{
+struct ebpf_proc_probe {
 	int probe_id;
 	struct ebpf_probe *probe;
 	void *module_state;
 	RB_ENTRY(ebpf_proc_probe) link;
 };
 
-static int ebpf_proc_probe_cmp(struct ebpf_proc_probe *, struct ebpf_proc_probe *);
+static int ebpf_proc_probe_cmp(
+    struct ebpf_proc_probe *, struct ebpf_proc_probe *);
 
-RB_GENERATE_STATIC(ebpf_proc_probe_tree, ebpf_proc_probe, link, ebpf_proc_probe_cmp);
+RB_GENERATE_STATIC(
+    ebpf_proc_probe_tree, ebpf_proc_probe, link, ebpf_proc_probe_cmp);
 
 static MALLOC_DEFINE(M_EBPF_HOOKS, "ebpf_hooks", "ebpf hooks implementation");
 
-#define	PROBE_HASH_SIZE_SHIFT 16
-#define	PROBE_HASH_SIZE (1 << PROBE_HASH_SIZE_SHIFT)
+#define PROBE_HASH_SIZE_SHIFT 16
+#define PROBE_HASH_SIZE (1 << PROBE_HASH_SIZE_SHIFT)
 
 static CK_SLIST_HEAD(probe_head, ebpf_probe) probe_hashtable[PROBE_HASH_SIZE];
 static LIST_HEAD(, ebpf_probe) probe_id_hashtable[PROBE_HASH_SIZE];
@@ -67,7 +68,7 @@ static struct ebpf_module dummy_module = {
 	.fire = dummy_fire,
 };
 
-static const struct ebpf_module * ebpf_module_callbacks = &dummy_module;
+static const struct ebpf_module *ebpf_module_callbacks = &dummy_module;
 static struct sx ebpf_sx;
 SX_SYSINIT_FLAGS(ebpf_sx, &ebpf_sx, "ebpx_sx", SX_DUPOK);
 
@@ -176,23 +177,27 @@ void
 ebpf_module_register(const struct ebpf_module *mod)
 {
 
-	KASSERT (!ebpf_is_loaded(), ("ebpf.ko loaded twice"));
+	KASSERT(!ebpf_is_loaded(), ("ebpf.ko loaded twice"));
 
-	atomic_store_rel_ptr((uintptr_t*)&ebpf_module_callbacks, (uintptr_t)mod);
+	atomic_store_rel_ptr(
+	    (uintptr_t *)&ebpf_module_callbacks, (uintptr_t)mod);
 
-	printf("EBPF module registered @ %p (%p)\n", mod, ebpf_module_callbacks);
+	printf(
+	    "EBPF module registered @ %p (%p)\n", mod, ebpf_module_callbacks);
 }
 
 void
 ebpf_module_deregister()
 {
-	KASSERT (ebpf_is_loaded(), ("ebpf.ko unloaded twice"));
+	KASSERT(ebpf_is_loaded(), ("ebpf.ko unloaded twice"));
 
 	sx_xlock(&ebpf_sx);
-	atomic_store_rel_ptr((uintptr_t*)&ebpf_module_callbacks, (uintptr_t)&dummy_module);
+	atomic_store_rel_ptr(
+	    (uintptr_t *)&ebpf_module_callbacks, (uintptr_t)&dummy_module);
 	sx_xunlock(&ebpf_sx);
 
-	printf("EBPF module deregistered; revert to %p\n", ebpf_module_callbacks);
+	printf(
+	    "EBPF module deregistered; revert to %p\n", ebpf_module_callbacks);
 }
 
 void
@@ -240,30 +245,39 @@ ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 	hash = probe_id_hash(id);
 
 	sx_slock(&ebpf_sx);
-	LIST_FOREACH(probe, &probe_id_hashtable[hash], id_link) {
+	LIST_FOREACH (probe, &probe_id_hashtable[hash], id_link) {
 		if (id == probe->id) {
-			pp = malloc(sizeof(*pp), M_EBPF_HOOKS, M_WAITOK);
-			pp->probe_id = probe->id;
-			pp->probe = probe;
-			pp->module_state = state;
-
-			proc = curthread->td_proc;
-
-			sx_xlock(&proc->p_ebpf_lock);
-			RB_INSERT(ebpf_proc_probe_tree, &proc->p_ebpf_probes, pp);
-			sx_xunlock(&proc->p_ebpf_lock);
-
+			(*activate)(id, state);
 			atomic_add_int(&probe->active, 1);
 			break;
 		}
 	}
-
 	sx_sunlock(&ebpf_sx);
 	return (probe);
 }
 
+struct ebpf_probe *
+new_function(ebpf_probe_id_t id, void *state)
+{
+	struct ebpf_probe *probe;
+	struct ebpf_proc_probe *pp;
+	struct proc *proc;
+
+	pp = malloc(sizeof(*pp), M_EBPF_HOOKS, M_WAITOK);
+	pp->probe_id = probe->id;
+	pp->probe = probe;
+	pp->module_state = state;
+
+	proc = curthread->td_proc;
+
+	sx_xlock(&proc->p_ebpf_lock);
+	RB_INSERT(ebpf_proc_probe_tree, &proc->p_ebpf_probes, pp);
+	sx_xunlock(&proc->p_ebpf_lock);
+}
+
 int
-ebpf_get_probe_by_name(struct ebpf_probe_name *name, ebpf_probe_cb cb, void *arg)
+ebpf_get_probe_by_name(
+    struct ebpf_probe_name *name, ebpf_probe_cb cb, void *arg)
 {
 	struct ebpf_probe *probe;
 	int ret;
@@ -272,7 +286,8 @@ ebpf_get_probe_by_name(struct ebpf_probe_name *name, ebpf_probe_cb cb, void *arg
 	hash = probe_hash(name);
 
 	sx_slock(&ebpf_sx);
-	CK_SLIST_FOREACH(probe, &probe_hashtable[hash], hash_link) {
+	CK_SLIST_FOREACH(probe, &probe_hashtable[hash], hash_link)
+	{
 		if (probe_name_cmp(name, &probe->name) == 0) {
 			ret = cb(probe, arg);
 			goto done;
@@ -306,7 +321,7 @@ ebpf_next_probe(ebpf_probe_id_t id, ebpf_probe_cb cb, void *arg)
 
 	hash = probe_id_hash(id);
 
-	LIST_FOREACH(probe, &probe_id_hashtable[hash], id_link) {
+	LIST_FOREACH (probe, &probe_id_hashtable[hash], id_link) {
 		if (id == probe->id) {
 			probe = TAILQ_NEXT(probe, list_link);
 			if (probe != NULL) {
@@ -325,8 +340,9 @@ done:
 }
 
 int
-ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
-    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+ebpf_syscall_probe_fire(struct ebpf_probe *probe, uintptr_t arg0,
+    uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
+    uintptr_t arg5)
 {
 	struct proc *proc;
 	struct ebpf_proc_probe lookup, *pp;
@@ -339,11 +355,24 @@ ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
 	lookup.probe_id = probe->id;
 	pp = RB_FIND(ebpf_proc_probe_tree, &proc->p_ebpf_probes, &lookup);
 	if (pp != NULL) {
-		ret = ebpf_module_callbacks->fire(probe, pp->module_state,
-		    arg0, arg1, arg2, arg3, arg4, arg5);
+		ret = ebpf_module_callbacks->fire(probe, pp->module_state, arg0,
+		    arg1, arg2, arg3, arg4, arg5);
 	}
 
 	sx_sunlock(&proc->p_ebpf_lock);
+
+	return (ret);
+}
+
+int
+ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
+    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+{
+	pp = RB_FIND(ebpf_proc_probe_tree, &proc->p_ebpf_probes, &lookup);
+	if (pp != NULL) {
+		ret = ebpf_module_callbacks->fire(probe, pp->module_state, arg0,
+		    arg1, arg2, arg3, arg4, arg5);
+	}
 
 	return (ret);
 }
@@ -362,16 +391,17 @@ ebpf_clone_proc_probes(struct proc *parent, struct proc *newproc)
 
 	sx_slock(&ebpf_sx);
 	sx_slock(&parent->p_ebpf_lock);
-	RB_FOREACH(pp, ebpf_proc_probe_tree, &parent->p_ebpf_probes) {
+	RB_FOREACH (pp, ebpf_proc_probe_tree, &parent->p_ebpf_probes) {
 		new_pp = malloc(sizeof(*new_pp), M_EBPF_HOOKS, M_WAITOK);
 
 		atomic_add_int(&pp->probe->active, 1);
 		new_pp->probe_id = pp->probe_id;
 		new_pp->probe = pp->probe;
-		new_pp->module_state =
-		    ebpf_module_callbacks->clone_probe(pp->probe, pp->module_state);
+		new_pp->module_state = ebpf_module_callbacks->clone_probe(
+		    pp->probe, pp->module_state);
 
-		RB_INSERT(ebpf_proc_probe_tree, &newproc->p_ebpf_probes, new_pp);
+		RB_INSERT(
+		    ebpf_proc_probe_tree, &newproc->p_ebpf_probes, new_pp);
 	}
 	sx_sunlock(&parent->p_ebpf_lock);
 	sx_sunlock(&ebpf_sx);
@@ -384,14 +414,14 @@ ebpf_free_proc_probes(struct proc *proc)
 
 	sx_xlock(&ebpf_sx);
 	sx_xlock(&proc->p_ebpf_lock);
-	RB_FOREACH_SAFE(pp, ebpf_proc_probe_tree, &proc->p_ebpf_probes, next) {
+	RB_FOREACH_SAFE (pp, ebpf_proc_probe_tree, &proc->p_ebpf_probes, next) {
 		atomic_add_int(&pp->probe->active, -1);
-		ebpf_module_callbacks->release_probe(pp->probe, pp->module_state);
+		ebpf_module_callbacks->release_probe(
+		    pp->probe, pp->module_state);
 
 		RB_REMOVE(ebpf_proc_probe_tree, &proc->p_ebpf_probes, pp);
 		free(pp, M_EBPF_HOOKS);
 	}
 	sx_xunlock(&proc->p_ebpf_lock);
 	sx_xunlock(&ebpf_sx);
-
 }
