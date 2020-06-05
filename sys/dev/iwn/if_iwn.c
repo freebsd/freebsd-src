@@ -1351,6 +1351,8 @@ iwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	ivp->iv_newstate = vap->iv_newstate;
 	vap->iv_newstate = iwn_newstate;
 	sc->ivap[IWN_RXON_BSS_CTX] = vap;
+	vap->iv_ampdu_rxmax = IEEE80211_HTCAP_MAXRXAMPDU_64K;
+	vap->iv_ampdu_density = IEEE80211_HTCAP_MPDUDENSITY_4; /* 4uS */
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
