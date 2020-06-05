@@ -34,7 +34,7 @@ SRCS	+= skein_block_asm.s
 CFLAGS	+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
 ACFLAGS	+= -DELF -Wa,--noexecstack
 # Fully unroll all loops in the assembly optimized version
-AFLAGS+= --defsym SKEIN_LOOP=0
+AFLAGS+= --defsym SKEIN_LOOP=0 --defsym SKEIN_USE_ASM=1792
 .endif
 SRCS	+= siphash.c
 SRCS	+= gmac.c gfmult.c
