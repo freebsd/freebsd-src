@@ -336,20 +336,9 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	struct cdev *dev, *adev;
 	char buf[SPECNAMELEN + 6];
 	struct make_dev_args args;
-	bool retaste;
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	/* Only one geom_dev per provider. */
-	LIST_FOREACH(cp, &pp->consumers, consumers) {
-		if (cp->geom->class != mp || (cp->flags & G_CF_SPOILED))
-			continue;
-		gp = cp->geom;
-		sc = cp->private;
-		dev = sc->sc_dev;
-		retaste = true;
-		goto aliases;
-	}
 	gp = g_new_geomf(mp, "%s", pp->name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "g_dev", NULL, MTX_DEF);
@@ -391,8 +380,6 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	g_dev_attrchanged(cp, "GEOM::physpath");
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
 	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
-	retaste = false;
-aliases:
 	/*
 	 * Now add all the aliases for this drive
 	 */
@@ -400,16 +387,8 @@ aliases:
 		error = make_dev_alias_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &adev, dev,
 		    "%s", gap->ga_alias);
 		if (error) {
-			/*
-			 * With aliases added after initial taste, we don't
-			 * know which aliases are new in this retaste, so we
-			 * try to create all of them.  EEXIST is expected and
-			 * silently ignored or else this becomes really spammy.
-			 */
-			if (error != EEXIST || !retaste)
-				printf("%s: make_dev_alias_p() failed (name=%s,"
-				    " error=%d)\n", __func__, gap->ga_alias,
-				    error);
+			printf("%s: make_dev_alias_p() failed (name=%s, error=%d)\n",
+			    __func__, gap->ga_alias, error);
 			continue;
 		}
 		snprintf(buf, sizeof(buf), "cdev=%s", gap->ga_alias);
