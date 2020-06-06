@@ -349,8 +349,6 @@ static vm_offset_t	mmu_booke_quick_enter_page(vm_page_t m);
 static void		mmu_booke_quick_remove_page(vm_offset_t addr);
 static int		mmu_booke_change_attr(vm_offset_t addr,
     vm_size_t sz, vm_memattr_t mode);
-static int		mmu_booke_map_user_ptr(pmap_t pm,
-    volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
 static void		mmu_booke_page_array_startup(long);
@@ -410,7 +408,6 @@ static struct pmap_funcs mmu_booke_methods = {
 	.kremove = mmu_booke_kremove,
 	.unmapdev = mmu_booke_unmapdev,
 	.change_attr = mmu_booke_change_attr,
-	.map_user_ptr = mmu_booke_map_user_ptr,
 	.decode_kernel_ptr =  mmu_booke_decode_kernel_ptr,
 
 	/* dumpsys() support */
@@ -1206,26 +1203,6 @@ mmu_booke_kremove(vm_offset_t va)
 
 	tlb_miss_unlock();
 	mtx_unlock_spin(&tlbivax_mutex);
-}
-
-/*
- * Provide a kernel pointer corresponding to a given userland pointer.
- * The returned pointer is valid until the next time this function is
- * called in this thread. This is used internally in copyin/copyout.
- */
-int
-mmu_booke_map_user_ptr(pmap_t pm, volatile const void *uaddr,
-    void **kaddr, size_t ulen, size_t *klen)
-{
-
-	if (trunc_page((uintptr_t)uaddr + ulen) > VM_MAXUSER_ADDRESS)
-		return (EFAULT);
-
-	*kaddr = (void *)(uintptr_t)uaddr;
-	if (klen)
-		*klen = ulen;
-
-	return (0);
 }
 
 /*

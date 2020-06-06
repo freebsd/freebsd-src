@@ -412,8 +412,6 @@ void mmu_radix_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *,
     vm_size_t);
 void mmu_radix_clear_modify(vm_page_t);
 void mmu_radix_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
-int mmu_radix_map_user_ptr(pmap_t pm,
-    volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen);
 int mmu_radix_decode_kernel_ptr(vm_offset_t, int *, vm_offset_t *);
 int mmu_radix_enter(pmap_t, vm_offset_t, vm_page_t, vm_prot_t, u_int, int8_t);
 void mmu_radix_enter_object(pmap_t, vm_offset_t, vm_offset_t, vm_page_t,
@@ -538,7 +536,6 @@ static struct pmap_funcs mmu_radix_methods = {
 	.kextract = mmu_radix_kextract,
 	.kremove = mmu_radix_kremove,
 	.change_attr = mmu_radix_change_attr,
-	.map_user_ptr = mmu_radix_map_user_ptr,
 	.decode_kernel_ptr =  mmu_radix_decode_kernel_ptr,
 
 	.tlbie_all = mmu_radix_tlbie_all,
@@ -5996,20 +5993,6 @@ mmu_radix_kremove(vm_offset_t va)
 
 	pte = kvtopte(va);
 	pte_clear(pte);
-}
-
-int mmu_radix_map_user_ptr(pmap_t pm,
-    volatile const void *uaddr, void **kaddr, size_t ulen, size_t *klen)
-{
-	if ((uintptr_t)uaddr + ulen >= VM_MAXUSER_ADDRESS ||
-	    (uintptr_t)uaddr + ulen < (uintptr_t)uaddr)
-		return (EFAULT);
-
-	*kaddr = (void *)(uintptr_t)uaddr;
-	if (klen)
-		*klen = ulen;
-
-	return (0);
 }
 
 int
