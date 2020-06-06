@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/mmuvar.h>
 #include <machine/smp.h>
 
-static mmu_t		mmu_obj;
+mmu_t		mmu_obj;
 
 /*
  * pmap globals
@@ -99,24 +99,14 @@ pmap_nomethod(void)
 
 #define DEFINE_PMAP_IFUNC(ret, func, args) 				\
 	DEFINE_IFUNC(, ret, pmap_##func, args) {			\
-		const struct mmu_kobj *mmu = mmu_obj;			\
 		pmap_##func##_t f;					\
-		do {							\
-			f = mmu->funcs->func;				\
-			if (f != NULL) break;				\
-			mmu = mmu->base;				\
-		} while (mmu != NULL);					\
+		f = PMAP_RESOLVE_FUNC(func);				\
 		return (f != NULL ? f : (pmap_##func##_t)pmap_nomethod);\
 	}
 #define DEFINE_DUMPSYS_IFUNC(ret, func, args) 				\
 	DEFINE_IFUNC(, ret, dumpsys_##func, args) {			\
-		const struct mmu_kobj *mmu = mmu_obj;			\
 		pmap_dumpsys_##func##_t f;				\
-		do {							\
-			f = mmu->funcs->dumpsys_##func;			\
-			if (f != NULL) break;				\
-			mmu = mmu->base;				\
-		} while (mmu != NULL);					\
+		f = PMAP_RESOLVE_FUNC(dumpsys_##func);			\
 		return (f != NULL ? f : (pmap_dumpsys_##func##_t)pmap_nomethod);\
 	}
 

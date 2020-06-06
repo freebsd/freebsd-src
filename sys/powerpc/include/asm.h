@@ -114,6 +114,7 @@
 	.p2align 4; \
 	TYPE_ENTRY(name) \
 DOT_LABEL(name):
+#define	_NAKED_ENTRY(name)	_ENTRY(name)
 #else
 #define	_ENTRY(name) \
 	.text; \
@@ -123,6 +124,15 @@ DOT_LABEL(name):
 name: \
 	addis	%r2, %r12, (.TOC.-name)@ha; \
 	addi	%r2, %r2, (.TOC.-name)@l; \
+	.localentry name, .-name;
+
+/* "Naked" function entry.  No TOC prologue for ELFv2. */
+#define	_NAKED_ENTRY(name) \
+	.text; \
+	.p2align 4; \
+	.globl	name; \
+	.type	name,@function; \
+name: \
 	.localentry name, .-name;
 #endif
 
@@ -145,6 +155,8 @@ name: \
 	.type	name,@function; \
 	name:
 #define	_END(name)
+
+#define _NAKED_ENTRY(name)	_ENTRY(name)
 
 #define	LOAD_ADDR(reg, var) \
 	lis	reg, var@ha; \
