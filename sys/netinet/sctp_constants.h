@@ -576,7 +576,6 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_ASOC_MAX_CHUNKS_ON_QUEUE 512
 
-
 /*
  * Basically the minimum amount of time before I do a early FR. Making this
  * value to low will cause duplicate retransmissions.
@@ -756,9 +755,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_FROM_SCTP_ASCONF       0x80000000
 #define SCTP_FROM_SCTP_OUTPUT       0x90000000
 #define SCTP_FROM_SCTP_PEELOFF      0xa0000000
-#define SCTP_FROM_SCTP_PANDA        0xb0000000
-#define SCTP_FROM_SCTP_SYSCTL       0xc0000000
-#define SCTP_FROM_SCTP_CC_FUNCTIONS 0xd0000000
+#define SCTP_FROM_SCTP_SYSCTL       0xb0000000
+#define SCTP_FROM_SCTP_CC_FUNCTIONS 0xc0000000
 
 /* Location ID's */
 #define SCTP_LOC_1  0x00000001
