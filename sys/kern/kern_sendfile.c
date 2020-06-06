@@ -292,36 +292,30 @@ sendfile_iodone(void *arg, vm_page_t *pa, int count, int error)
 	struct socket *so;
 	int i;
 
-	if (error != 0) {
+	if (error != 0)
 		sfio->error = error;
-		/*
-		 * Restore of the pg[] elements is done by
-		 * sendfile_swapin().
-		 */
-	} else {
-		/*
-		 * Restore the valid page pointers.  They are already
-		 * unbusied, but still wired.  For error != 0 case,
-		 * sendfile_swapin() handles unbusy.
-		 *
-		 * XXXKIB since pages are only wired, and we do not
-		 * own the object lock, other users might have
-		 * invalidated them in meantime.  Similarly, after we
-		 * unbusied the swapped-in pages, they can become
-		 * invalid under us.
-		 */
-		MPASS(count == 0 || pa[0] != bogus_page);
-		for (i = 0; i < count; i++) {
-			if (pa[i] == bogus_page) {
-				sfio->pa[(pa[0]->pindex - sfio->pindex0) + i] =
-				    pa[i] = vm_page_relookup(sfio->obj,
-				    pa[0]->pindex + i);
-				KASSERT(pa[i] != NULL,
-				    ("%s: page %p[%d] disappeared",
-				    __func__, pa, i));
-			} else {
-				vm_page_xunbusy_unchecked(pa[i]);
-			}
+
+	/*
+	 * Restore the valid page pointers.  They are already
+	 * unbusied, but still wired.
+	 *
+	 * XXXKIB since pages are only wired, and we do not
+	 * own the object lock, other users might have
+	 * invalidated them in meantime.  Similarly, after we
+	 * unbusied the swapped-in pages, they can become
+	 * invalid under us.
+	 */
+	MPASS(count == 0 || pa[0] != bogus_page);
+	for (i = 0; i < count; i++) {
+		if (pa[i] == bogus_page) {
+			sfio->pa[(pa[0]->pindex - sfio->pindex0) + i] =
+			    pa[i] = vm_page_relookup(sfio->obj,
+			    pa[0]->pindex + i);
+			KASSERT(pa[i] != NULL,
+			    ("%s: page %p[%d] disappeared",
+			    __func__, pa, i));
+		} else {
+			vm_page_xunbusy_unchecked(pa[i]);
 		}
 	}
 
@@ -534,22 +528,12 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 			sendfile_iowait(sfio, "sferrio");
 
 			/*
-			 * Perform full pages recovery before returning EIO.
+			 * Do remaining pages recovery before returning EIO.
 			 * Pages from 0 to npages are wired.
-			 * Pages from (i + 1) to (i + count - 1) may be
-			 * substituted to bogus page, and not busied.
-			 * Pages from (i + count) to (i + count1 - 1) are
-			 * not busied.
-			 * Rest of the pages from i to npages are busied.
+			 * Pages from (i + count1) to npages are busied.
 			 */
 			for (j = 0; j < npages; j++) {
-				if (j >= i + count && j < i + count1)
-					;
-				else if (j > i && j < i + count - 1 &&
-				    pa[j] == bogus_page)
-					pa[j] = vm_page_relookup(obj,
-					    OFF_TO_IDX(vmoff(j, off)));
-				else if (j >= i)
+				if (j >= i + count1)
 					vm_page_xunbusy(pa[j]);
 				KASSERT(pa[j] != NULL && pa[j] != bogus_page,
 				    ("%s: page %p[%d] I/O recovery failure",
