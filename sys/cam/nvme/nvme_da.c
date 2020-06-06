@@ -185,11 +185,14 @@ static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
 static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
 static int nda_enable_biospeedup = 1;
+static int nda_nvd_compat = 1;
 SYSCTL_INT(_kern_cam_nda, OID_AUTO, max_trim, CTLFLAG_RDTUN,
     &nda_max_trim_entries, NDA_MAX_TRIM_ENTRIES,
     "Maximum number of BIO_DELETE to send down as a DSM TRIM.");
 SYSCTL_INT(_kern_cam_nda, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
-    &nda_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
+    &nda_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing.");
+SYSCTL_INT(_kern_cam_nda, OID_AUTO, nvd_compat, CTLFLAG_RDTUN,
+    &nda_nvd_compat, 1, "Enable creation of nvd aliases.");
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
@@ -950,7 +953,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Add alias for older nvd drives to ease transition.
 	 */
-	disk_add_alias(disk, "nvd");
+	if (nda_nvd_compat)
+		disk_add_alias(disk, "nvd");
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
