@@ -125,6 +125,11 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ifnet *ifp = vap->iv_ifp;
 	int mcast;
+	int do_ampdu = 0;
+	int do_amsdu = 0;
+	int do_ampdu_amsdu = 0;
+	int no_ampdu = 1; /* Will be set to 0 if ampdu is active */
+	int do_ff = 0;
 
 	if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) &&
 	    (m->m_flags & M_PWR_SAV) == 0) {
@@ -169,6 +174,27 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
 
+
+	/*
+	 * Figure out if we can do A-MPDU, A-MSDU or FF.
+	 *
+	 * A-MPDU depends upon vap/node config.
+	 * A-MSDU depends upon vap/node config.
+	 * FF depends upon vap config, IE and whether
+	 *  it's 11abg (and not 11n/11ac/etc.)
+	 *
+	 * Note that these flags indiciate whether we can do
+	 * it at all, rather than the situation (eg traffic type.)
+	 */
+	do_ampdu = ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX));
+	do_amsdu = ((ni->ni_flags & IEEE80211_NODE_AMSDU_TX) &&
+	    (vap->iv_flags_ht & IEEE80211_FHT_AMSDU_TX));
+	do_ff =
+	    ((ni->ni_flags & IEEE80211_NODE_HT) == 0) &&
+	    ((ni->ni_flags & IEEE80211_NODE_VHT) == 0) &&
+	    (IEEE80211_ATH_CAP(vap, ni, IEEE80211_NODE_FF));
+
 	/*
 	 * Check if A-MPDU tx aggregation is setup or if we
 	 * should try to enable it.  The sta must be associated
@@ -186,8 +212,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * frames will always have sequence numbers allocated from the NON_QOS
 	 * TID.
 	 */
-	if ((ni->ni_flags & IEEE80211_NODE_AMPDU_TX) &&
-	    (vap->iv_flags_ht & IEEE80211_FHT_AMPDU_TX)) {
+	if (do_ampdu) {
 		if ((m->m_flags & M_EAPOL) == 0 && (! mcast)) {
 			int tid = WME_AC_TO_TID(M_WME_GETAC(m));
 			struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[tid];
@@ -208,6 +233,23 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 				ieee80211_ampdu_request(ni, tap);
 				/* XXX hold frame for reply? */
 			}
+			/*
+			 * Now update the no-ampdu flag.  A-MPDU may have been
+			 * started or administratively disabled above; so now we
+			 * know whether we're running yet or not.
+			 *
+			 * This will let us know whether we should be doing A-MSDU
+			 * at this point.  We only do A-MSDU if we're either not
+			 * doing A-MPDU, or A-MPDU is NACKed, or A-MPDU + A-MSDU
+			 * is available.
+			 *
+			 * Whilst here, update the amsdu-ampdu flag.  The above may
+			 * have also set or cleared the amsdu-in-ampdu txa_flags
+			 * combination so we can correctly do A-MPDU + A-MSDU.
+			 */
+			no_ampdu = (! IEEE80211_AMPDU_RUNNING(tap)
+			    || (IEEE80211_AMPDU_NACKED(tap)));
+			do_ampdu_amsdu = IEEE80211_AMPDU_RUNNING_AMSDU(tap);
 		}
 	}
 
@@ -222,15 +264,11 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	 * to really need to.  For A-MSDU we'd have to set the
 	 * A-MSDU QoS bit in the wifi header, so we just plain
 	 * can't do it.
-	 *
-	 * Strictly speaking, we could actually /do/ A-MSDU / FF
-	 * with A-MPDU together which for certain circumstances
-	 * is beneficial (eg A-MSDU of TCK ACKs.)  However,
-	 * I'll ignore that for now so existing behaviour is maintained.
-	 * Later on it would be good to make "amsdu + ampdu" configurable.
 	 */
-	else if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
-		if ((! mcast) && ieee80211_amsdu_tx_ok(ni)) {
+	if (__predict_true((vap->iv_caps & IEEE80211_C_8023ENCAP) == 0)) {
+		if ((! mcast) &&
+		    (do_ampdu_amsdu || (no_ampdu && do_amsdu)) &&
+		    ieee80211_amsdu_tx_ok(ni)) {
 			m = ieee80211_amsdu_check(ni, m);
 			if (m == NULL) {
 				/* NB: any ni ref held on stageq */
@@ -239,8 +277,7 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 				    __func__);
 				return (0);
 			}
-		} else if ((! mcast) && IEEE80211_ATH_CAP(vap, ni,
-		    IEEE80211_NODE_FF)) {
+		} else if ((! mcast) && do_ff) {
 			m = ieee80211_ff_check(ni, m);
 			if (m == NULL) {
 				/* NB: any ni ref held on stageq */
