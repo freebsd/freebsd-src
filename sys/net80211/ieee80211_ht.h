@@ -74,7 +74,7 @@ struct ieee80211_tx_ampdu {
  * A-MSDU in A-MPDU
  */
 #define	IEEE80211_AMPDU_RUNNING_AMSDU(tap) \
-	((((tap)->txa_flags & (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU)) \
+	(((tap)->txa_flags & (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU)) \
 	    == (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU))
 
 /* return non-zero if AMPDU tx for the TID was NACKed */
