@@ -94,7 +94,27 @@ ffs_update(vp, waitfor)
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
 		return (0);
-	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED | IN_IBLKDATA);
+	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
+	/*
+	 * The IN_SIZEMOD and IN_IBLKDATA flags indicate changes to the
+	 * file size and block pointer fields in the inode. When these
+	 * fields have been changed, the fsync() and fsyncdata() system 
+	 * calls must write the inode to ensure their semantics that the 
+	 * file is on stable store.
+	 *
+	 * The IN_SIZEMOD and IN_IBLKDATA flags cannot be cleared until
+	 * a synchronous write of the inode is done. If they are cleared
+	 * on an asynchronous write, then the inode may not yet have been
+	 * written to the disk when an fsync() or fsyncdata() call is done.
+	 * Absent these flags, these calls would not know that they needed
+	 * to write the inode. Thus, these flags only can be cleared on
+	 * synchronous writes of the inode. Since the inode will be locked
+	 * for the duration of the I/O that writes it to disk, no fsync()
+	 * or fsyncdata() will be able to run before the on-disk inode
+	 * is complete.
+	 */
+	if (waitfor)
+		ip->i_flag &= ~(IN_SIZEMOD | IN_IBLKDATA);
 	fs = ITOFS(ip);
 	if (fs->fs_ronly && ITOUMP(ip)->um_fsckpid == 0)
 		return (0);
