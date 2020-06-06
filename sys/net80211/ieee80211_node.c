@@ -2764,7 +2764,7 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	    ni->ni_flags & IEEE80211_NODE_HT ?
 		(ni->ni_chw == 40 ? ", HT40" : ", HT20") : "",
 	    ni->ni_flags & IEEE80211_NODE_AMPDU ? " (+AMPDU)" : "",
-	    ni->ni_flags & IEEE80211_NODE_AMSDU ? " (+ASPDU)" : "",
+	    ni->ni_flags & IEEE80211_NODE_AMSDU ? " (+AMSDU)" : "",
 	    ni->ni_flags & IEEE80211_NODE_MIMO_RTS ? " (+SMPS-DYN)" :
 	        ni->ni_flags & IEEE80211_NODE_MIMO_PS ? " (+SMPS)" : "",
 	    ni->ni_flags & IEEE80211_NODE_RIFS ? " (+RIFS)" : "",
