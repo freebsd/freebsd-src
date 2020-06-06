@@ -98,6 +98,9 @@ static void	normalize_inputs(void);
 
 extern vm_offset_t __startkernel;
 
+extern int	copy_fault(void);
+extern int	fusufault(void);
+
 #ifdef KDB
 int db_trap_glue(struct trapframe *);		/* Called from trap_subr.S */
 #endif
@@ -590,6 +593,23 @@ handle_onfault(struct trapframe *frame)
 	jmp_buf		*fb;
 
 	td = curthread;
+#if defined(__powerpc64__) || defined(BOOKE)
+	uintptr_t dispatch = (uintptr_t)td->td_pcb->pcb_onfault;
+
+	if (dispatch == 0)
+		return (0);
+	/* Short-circuit radix and Book-E paths. */
+	switch (dispatch) {
+		case COPYFAULT:
+			frame->srr0 = (uintptr_t)copy_fault;
+			return (1);
+		case FUSUFAULT:
+			frame->srr0 = (uintptr_t)fusufault;
+			return (1);
+		default:
+			break;
+	}
+#endif
 	fb = td->td_pcb->pcb_onfault;
 	if (fb != NULL) {
 		frame->srr0 = (*fb)->_jb[FAULTBUF_LR];

@@ -182,6 +182,25 @@ struct mmu_kobj {
 
 typedef struct mmu_kobj		*mmu_t;
 
+/* The currently installed pmap object. */
+extern mmu_t	mmu_obj;
+
+/*
+ * Resolve a given pmap function.
+ * 'func' is the function name less the 'pmap_' * prefix.
+ */
+#define PMAP_RESOLVE_FUNC(func) 		\
+	({					\
+	 pmap_##func##_t f;			\
+	 const struct mmu_kobj	*mmu = mmu_obj;	\
+	 do {					\
+	    f = mmu->funcs->func;		\
+	    if (f != NULL) break;		\
+	    mmu = mmu->base;			\
+	} while (mmu != NULL);			\
+	f;})
+
+
 #define MMU_DEF(name, ident, methods)		\
 						\
 const struct mmu_kobj name = {		\

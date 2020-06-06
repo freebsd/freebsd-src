@@ -134,6 +134,9 @@
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define	USPACE		(kstack_pages * PAGE_SIZE)	/* total size of pcb */
 
+#define	COPYFAULT		0x1
+#define	FUSUFAULT		0x2
+
 /*
  * Mach derived conversion macros
  */
