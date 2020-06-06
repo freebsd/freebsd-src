@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/ifunc.h>
 
 /*
- * On powerpc64 (AIM only) the copy functions are IFUNcs, selecting the best
+ * On powerpc64 (AIM only) the copy functions are IFUNCs, selecting the best
  * option based on the PMAP in use.
  *
  * There are two options for copy functions on powerpc64:
@@ -85,10 +85,10 @@ __FBSDID("$FreeBSD$");
  *   remapping user segments into kernel.  This is used by the 'radix' pmap for
  *   performance.
  *
- * Book-E does not use the C functions, opting instead to use the 'direct'
- * copies, directly, avoiding the IFUNC overhead.
+ * Book-E does not use the C 'remap' functions, opting instead to use the
+ * 'direct' copies, directly, avoiding the IFUNC overhead.
  *
- * On 32-bit AIM these functions are direct, not IFUNCs, for performance.
+ * On 32-bit AIM these functions bypass the IFUNC machinery for performance.
  */
 #ifdef __powerpc64__
 int subyte_remap(volatile void *addr, int byte);
@@ -125,8 +125,8 @@ int casueword_direct(volatile u_long *addr, u_long old, u_long *oldvalp,
 	u_long new);
 
 /*
- * The IFUNC resolver determines the copy based on if the PMAP implementation
- * includes a pmap_map_user_ptr function.
+ * The IFUNC resolver determines the copy based on whether the PMAP
+ * implementation includes a pmap_map_user_ptr function.
  */
 #define DEFINE_COPY_FUNC(ret, func, args)			\
 	DEFINE_IFUNC(, ret, func, args)				\
@@ -140,15 +140,11 @@ DEFINE_COPY_FUNC(int, copyin, (const void *, void *, size_t))
 DEFINE_COPY_FUNC(int, copyout, (const void *, void *, size_t))
 DEFINE_COPY_FUNC(int, suword, (volatile void *, long))
 DEFINE_COPY_FUNC(int, suword32, (volatile void *, int))
-#ifdef __powerpc64__
 DEFINE_COPY_FUNC(int, suword64, (volatile void *, int64_t))
-#endif
 DEFINE_COPY_FUNC(int, fubyte, (volatile const void *))
 DEFINE_COPY_FUNC(int, fuword16, (volatile const void *))
 DEFINE_COPY_FUNC(int, fueword32, (volatile const void *, int32_t *))
-#ifdef __powerpc64__
 DEFINE_COPY_FUNC(int, fueword64, (volatile const void *, int64_t *))
-#endif
 DEFINE_COPY_FUNC(int, fueword, (volatile const void *, long *))
 DEFINE_COPY_FUNC(int, casueword32,
     (volatile uint32_t *, uint32_t, uint32_t *, uint32_t))
