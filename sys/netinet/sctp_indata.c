@@ -2721,8 +2721,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	 * cluster... i.e. it is a small packet sent in and yet the driver
 	 * underneath allocated a full cluster for it. If so we must copy it
 	 * to a smaller mbuf and free up the cluster mbuf. This will help
-	 * with cluster starvation. Note for __Panda__ we don't do this
-	 * since it has clusters all the way down to 64 bytes.
+	 * with cluster starvation.
 	 */
 	if (SCTP_BUF_LEN(m) < (long)MLEN && SCTP_BUF_NEXT(m) == NULL) {
 		/* we only handle mbufs that are singletons.. not chains */
