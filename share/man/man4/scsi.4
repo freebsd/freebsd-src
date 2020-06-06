@@ -24,7 +24,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd December 20, 2017
+.Dd June 6, 2020
 .Dt CAM 4
 .Os
 .Sh NAME
@@ -76,6 +76,17 @@ There are a number of generic kernel configuration options for the
 .Nm
 subsystem:
 .Bl -tag -width SCSI_NO_SENSE_STRINGS
+.It Dv CAM_BOOT_DELAY
+Additional time to wait after the static parts of the kernel have run to allow
+for discovery of additional devices which may take time to connect,
+such as USB attached storage.
+.It Dv CAM_IOSCHED_DYNAMIC
+Enable dynamic decisions in the I/O scheduler based on hints and the current
+performance of the storage devices.
+.It Dv CAM_IO_STATS
+Enable collection of statistics for periph devices.
+.It Dv CAM_TEST_FAILURE
+Enable ability to simulate I/O failures.
 .It Dv CAMDEBUG
 This option compiles in all the
 .Nm
@@ -274,6 +285,83 @@ some adapters, but is not yet complete for this version of the
 .Nm
 .Tn SCSI
 subsystem.
+.Sh ARCHITECTURE
+The
+.Nm
+subsystem glues together the upper layers of the system to the storage devices.
+PERIPH devices accept storage requests from GEOM and other upper layers of the
+system and translates them into protocol requests.
+XPT (transport) dispatches these protocol requests to a SIM driver.
+A SIM driver takes protocol requests and translates them into hardware commands
+the host adapter understands to transfer the protocol requests, and data (if
+any) to the storage device.
+The CCB transports these requests around as messages.
+.Ss CAM
+The Common Access Method was a standard defined in the 1990s to talk to disk
+drives.
+.Fx
+is one of the few operating systems to fully implement this model.
+The interface between different parts of CAM is the CCB (or CAM Control Block).
+Each CCB has a standard header, which contains the type of request and dispatch
+information, and a command specific portion.
+A CAM Periph generates requests.
+The XPT layer dispatches these requests to the appropriate SIM.
+Some CCBs are sent directly to the SIM for immediate processing, while others
+are queued and complete when the I/O has finished.
+A SIM takes CCBs and translates them into hardware specific commands to push the
+SCSI CDB or other protocol control block to the peripheral, along with setting
+up the DMA for the associated data.
+.Ss Periph Devices
+A periph driver knows how to translate standard requests into protocol messages
+that a SIM can deliver to hardware.
+These requests can come from any upper layer source, but primarily come in via
+GEOM as a bio request.
+They can also come in directly from character device requests for tapes and pass
+through commands.
+.Pp
+Disk devices, or direct access (da) in CAM, are one type of peripheral.
+These devices present themselves to the kernel a device ending in
+.Dq da .
+Each protocol has a unique device name:
+.Bl -tag -width 4
+.It Xr da 4
+SCSI or SAS device, or devices that accept SCSI CDBs for I/O.
+.It Xr ada 4
+ATA or SATA device
+.It Xr nda 4
+NVME device
+.It Xr mda 4
+An SD or MMC block storage device.
+.El
+.Pp
+Tape devices are called serial access
+.Po
+.Xr sa 4
+.Pc
+in CAM.
+They interface to the system via a character device and provide
+.Xr ioctl 2
+control for tape drives.
+.Pp
+The
+.Xr pass 4
+device will pass through CCB requests from userland to the SIM directly.
+The device is used to send commands other than read, write, trim or flush to a
+device.
+The
+.Xr camcontrol 8
+command uses this device.
+.Ss XPT drivers
+The transport driver connects the periph to the SIM.
+It is not configured separately.
+It is also responsible for device discovery for those SIM drivers that do not
+enumerate themselves.
+.Ss SIM driver
+SIM used to stand for SCSI Interface Module.
+Now it is just SIM because it understands protocols other than SCSI.
+There are two types of SIM drivers: virtual and physical.
+Physical SIMs are typically called host bus adapters (HBA), but not universally.
+Virtual SIM drivers are for communicating with virtual machine hosts.
 .Sh FILES
 see other
 .Nm
@@ -319,12 +407,12 @@ This builds into the kernel all possible
 .Nm
 debugging.
 .It Dv CAM_DEBUG_COMPILE
-This allows to specify support for which debugging flags described above
+This specifies support for which debugging flags described above
 should be built into the kernel.
 Flags may be ORed together if the user wishes to
 see printfs for multiple debugging levels.
 .It Dv CAM_DEBUG_FLAGS
-This allows to set the various debugging flags from a kernel config file.
+This sets the various debugging flags from a kernel config file.
 .It Dv CAM_DEBUG_BUS
 Specify a bus to debug.
 To debug all buses, set this to -1.
@@ -343,21 +431,65 @@ See
 .Xr camcontrol 8
 for details.
 .Sh SEE ALSO
+.Bl -tag -width 20
+.It Sy Commands:
+.Xr camcontrol 8 ,
+.Xr camdd 8
+.It Sy Libraries:
+.Xr cam 3
+.It Sy Periph Drivers:
 .Xr ada 4 ,
-.Xr ahc 4 ,
-.Xr ahci 4 ,
-.Xr ahd 4 ,
-.Xr ata 4 ,
-.Xr cd 4 ,
-.Xr ch 4 ,
 .Xr da 4 ,
 .Xr nda 4 ,
-.Xr nvme 4 ,
+.\" .Xr mda 4 ,
 .Xr pass 4 ,
-.Xr pt 4 ,
-.Xr sa 4 ,
-.Xr xpt 4 ,
-.Xr camcontrol 8
+.Xr sa 4
+.Pp
+.It Sy SIM Devices:
+.Xr aac 4 ,
+.Xr aacraid 4 ,
+.Xr ahc 4 ,
+.Xr ahci 4 ,
+.Xr ata 4 ,
+.Xr aw_mmc 4 ,
+.Xr ciss 4 ,
+.Xr hv_storvsc 4 ,
+.Xr isci 4 ,
+.Xr iscsi 4 ,
+.Xr isp 4 ,
+.\" .Xr mmcnull 4 ,
+.Xr mpr 4 ,
+.Xr mps 4 ,
+.Xr mpt 4 ,
+.Xr mrsas 4 ,
+.Xr mvs 4 ,
+.Xr nvme 4 ,
+.Xr pms 4 ,
+.Xr pvscsi 4 ,
+.Xr sdhci 4 ,
+.Xr smartpqi 4 ,
+.Xr sym 4 ,
+.Xr tws 4 ,
+.Xr umass 4 ,
+.Xr virtio_scsi 4
+.It Sy Deprecated or Poorly Supported SIM Devices:
+.Xr ahd 4 ,
+.Xr amr 4 ,
+.Xr arcmsr 4 ,
+.Xr esp 4 ,
+.\" .Xr fslsata 4 ,
+.Xr hpt27xx 4 ,
+.Xr hptiop 4 ,
+.Xr hptmv 4 ,
+.Xr hptnr 4 ,
+.\" .Xr htprr 4 ,
+.Xr iir 4
+.Xr mfi 4 ,
+.\" .Xr osc 4 ,
+.\" .Xr ps3cdrom 4 ,
+.Xr sbp 4 ,
+.Xr twa 4
+.El
 .Sh HISTORY
 The
 .Nm
