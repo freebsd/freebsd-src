@@ -1082,6 +1082,7 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			TAILQ_INIT(&trim->bps);
 			bp1 = bp;
 			ents = min(nitems(trim->dsm), nda_max_trim_entries);
+			ents = max(ents, 1);
 			dsm_range = trim->dsm;
 			dsm_end = dsm_range + ents;
 			do {
