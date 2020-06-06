@@ -749,8 +749,7 @@ sctp_del_addr_from_vrf(uint32_t vrf_id, struct sockaddr *addr,
 
 			/*-
 			 * The name has priority over the ifn_index
-			 * if its given. We do this especially for
-			 * panda who might recycle indexes fast.
+			 * if its given.
 			 */
 			if (if_name) {
 				if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, SCTP_IFNAMSIZ) == 0) {
@@ -3157,8 +3156,7 @@ continue_anyway:
 		} else {
 			/*
 			 * Note for BSD we hit here always other O/S's will
-			 * pass things in via the sctp_ifap argument
-			 * (Panda).
+			 * pass things in via the sctp_ifap argument.
 			 */
 			ifa = sctp_find_ifa_by_addr(&store.sa,
 			    vrf_id, SCTP_ADDR_NOT_LOCKED);
@@ -4302,11 +4300,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		 * If you have not performed a bind, then we need to do the
 		 * ephemeral bind for you.
 		 */
-		if ((err = sctp_inpcb_bind(inp->sctp_socket,
-		    (struct sockaddr *)NULL,
-		    (struct sctp_ifa *)NULL,
-		    p
-		    ))) {
+		if ((err = sctp_inpcb_bind(inp->sctp_socket, NULL, NULL, p))) {
 			/* bind error, probably perm */
 			*error = err;
 			return (NULL);
@@ -4674,7 +4668,6 @@ sctp_clean_up_stream(struct sctp_tcb *stcb, struct sctp_readhead *rh)
 		}
 	}
 }
-
 
 /*-
  * Free the association after un-hashing the remote port. This
