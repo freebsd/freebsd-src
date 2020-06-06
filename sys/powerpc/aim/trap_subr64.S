@@ -87,6 +87,9 @@ restore_usersrs:
  */
 restore_kernsrs:
 	GET_CPUINFO(%r28)
+	lwz	%r29, PC_FLAGS(%r28)
+	mtcr	%r29
+	btlr	0
 	addi	%r28,%r28,PC_KERNSLB
 	ld	%r29,16(%r28)		/* One past USER_SLB_SLOT */
 	cmpdi	%r29,0
@@ -270,9 +273,13 @@ restore_kernsrs:
 	std	%r29,(savearea+CPUSAVE_R29)(%r3);			\
 	std	%r30,(savearea+CPUSAVE_R30)(%r3);			\
 	std	%r31,(savearea+CPUSAVE_R31)(%r3);			\
+	lwz	%r28,PC_FLAGS(%r3);					\
+	mtcr	%r28;							\
+	bt	0, 0f;	/* Check to skip restoring SRs. */		\
 	mflr	%r27;			/* preserve LR */		\
 	bl	restore_usersrs;	/* uses r28-r31 */		\
 	mtlr	%r27;							\
+0:									\
 	ld	%r31,(savearea+CPUSAVE_R31)(%r3);			\
 	ld	%r30,(savearea+CPUSAVE_R30)(%r3);			\
 	ld	%r29,(savearea+CPUSAVE_R29)(%r3);			\

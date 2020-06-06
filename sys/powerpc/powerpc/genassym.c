@@ -64,6 +64,7 @@ ASSYM(PC_TEMPSAVE, offsetof(struct pcpu, pc_tempsave));
 ASSYM(PC_DISISAVE, offsetof(struct pcpu, pc_disisave));
 ASSYM(PC_DBSAVE, offsetof(struct pcpu, pc_dbsave));
 ASSYM(PC_RESTORE, offsetof(struct pcpu, pc_restore));
+ASSYM(PC_FLAGS, offsetof(struct pcpu, pc_flags));
 
 #if defined(BOOKE)
 ASSYM(PC_BOOKE_CRITSAVE, offsetof(struct pcpu, pc_booke.critsave));
@@ -106,6 +107,7 @@ ASSYM(TLBSAVE_BOOKE_R31, TLBSAVE_BOOKE_R31*sizeof(register_t));
 
 ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 
+ASSYM(PC_FLAG_NOSRS, PC_FLAG_NOSRS);
 #if defined(AIM)
 ASSYM(USER_ADDR, USER_ADDR);
 #ifdef __powerpc64__
