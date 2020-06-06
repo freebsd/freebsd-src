@@ -201,6 +201,7 @@ __DEFAULT_NO_OPTIONS = \
     BEARSSL \
     BHYVE_SNAPSHOT \
     BINUTILS \
+    BINUTILS_BOOTSTRAP \
     BSD_GREP \
     CLANG_EXTRAS \
     DTRACE_TESTS \
@@ -290,12 +291,6 @@ __DEFAULT_NO_OPTIONS+=LLVM_TARGET_BPF
 # In-tree binutils/gcc are older versions without modern architecture support.
 .if ${__T} == "aarch64" || ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=BINUTILS BINUTILS_BOOTSTRAP GDB
-.endif
-# BINUTILS_BOOTSTRAP is needed on amd64 only, for skein_block_asm.s
-.if ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=BINUTILS_BOOTSTRAP
-.else
-__DEFAULT_NO_OPTIONS+=BINUTILS_BOOTSTRAP
 .endif
 .if ${__T:Mriscv*} != ""
 BROKEN_OPTIONS+=OFED
