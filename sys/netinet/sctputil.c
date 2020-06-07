@@ -1714,9 +1714,6 @@ sctp_timeout_handler(void *t)
 	struct sctp_nets *net;
 	struct sctp_timer *tmr;
 	struct mbuf *op_err;
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	struct socket *so;
-#endif
 	int did_output;
 	int type;
 	int i, secret;
@@ -2052,19 +2049,8 @@ sctp_timeout_handler(void *t)
 		SCTP_INP_DECR_REF(inp);
 		sctp_timer_stop(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_1);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		so = SCTP_INP_SO(inp);
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-#endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_2);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 		/*
 		 * free asoc, always unlocks (or destroy's) so prevent
 		 * duplicate unlock or unlock of a free mtx :-0
@@ -3132,9 +3118,7 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 static void
 sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
     uint16_t error, struct sctp_abort_chunk *abort, uint8_t from_peer, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct mbuf *m_notify;
@@ -3143,9 +3127,6 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	unsigned int notif_len;
 	uint16_t abort_len;
 	unsigned int i;
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	struct socket *so;
-#endif
 
 	if (stcb == NULL) {
 		return;
@@ -3262,20 +3243,6 @@ set_error:
 		SOCK_UNLOCK(stcb->sctp_socket);
 	}
 	/* Wake ANY sleepers */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	so = SCTP_INP_SO(stcb->sctp_ep);
-	if (!so_locked) {
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-			SCTP_SOCKET_UNLOCK(so, 1);
-			return;
-		}
-	}
-#endif
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC))) {
@@ -3283,19 +3250,12 @@ set_error:
 	}
 	sorwakeup(stcb->sctp_socket);
 	sowwakeup(stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	if (!so_locked) {
-		SCTP_SOCKET_UNLOCK(so, 1);
-	}
-#endif
 }
 
 static void
 sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
     struct sockaddr *sa, uint32_t error, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct mbuf *m_notify;
@@ -3386,9 +3346,7 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 static void
 sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
     struct sctp_tmit_chunk *chk, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct mbuf *m_notify;
@@ -3522,9 +3480,7 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 static void
 sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
     struct sctp_stream_queue_pending *sp, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct mbuf *m_notify;
@@ -3672,9 +3628,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 static void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
     uint32_t val, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct mbuf *m_notify;
@@ -3737,28 +3691,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	}
 	if (stcb->sctp_ep && stcb->sctp_socket) {
 		/* This should always be the case */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-		so = SCTP_INP_SO(stcb->sctp_ep);
-		if (!so_locked) {
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_SOCKET_LOCK(so, 1);
-			SCTP_TCB_LOCK(stcb);
-			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return;
-			}
-		}
-#endif
 		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		if (!so_locked) {
-			SCTP_SOCKET_UNLOCK(so, 1);
-		}
-#endif
 	}
 }
 
@@ -3776,24 +3709,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
 		/* mark socket closed for read/write and wakeup! */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-		so = SCTP_INP_SO(stcb->sctp_ep);
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-			SCTP_SOCKET_UNLOCK(so, 1);
-			return;
-		}
-#endif
 		socantsendmore(stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 	}
 	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT)) {
 		/* event not enabled */
@@ -3835,9 +3751,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 static void
 sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
     int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct mbuf *m_notify;
@@ -4126,9 +4040,7 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 void
 sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
     uint32_t error, void *data, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	if ((stcb == NULL) ||
@@ -4305,9 +4217,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 
 void
 sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct sctp_association *asoc;
@@ -4418,9 +4328,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, 
 void
 sctp_abort_notification(struct sctp_tcb *stcb, uint8_t from_peer, uint16_t error,
     struct sctp_abort_chunk *abort, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	if (stcb == NULL) {
@@ -4454,9 +4362,6 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     uint32_t vrf_id, uint16_t port)
 {
 	uint32_t vtag;
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	struct socket *so;
-#endif
 
 	vtag = 0;
 	if (stcb != NULL) {
@@ -4471,14 +4376,6 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		sctp_abort_notification(stcb, 0, 0, NULL, SCTP_SO_NOT_LOCKED);
 		SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_WAS_ABORTED);
 		/* Ok, now lets free it */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		so = SCTP_INP_SO(inp);
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-#endif
 		SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 		if ((SCTP_GET_STATE(stcb) == SCTP_STATE_OPEN) ||
 		    (SCTP_GET_STATE(stcb) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
@@ -4486,9 +4383,6 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_4);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 	}
 }
 #ifdef SCTP_ASOCLOG_OF_TSNS
@@ -4558,18 +4452,10 @@ void
 sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct mbuf *op_err,
     int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	struct socket *so;
-#endif
 
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	so = SCTP_INP_SO(inp);
-#endif
 	if (stcb == NULL) {
 		/* Got to have a TCB */
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
@@ -4597,22 +4483,8 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	sctp_print_out_track_log(stcb);
 #endif
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	if (!so_locked) {
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-	}
-#endif
 	(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 	    SCTP_FROM_SCTPUTIL + SCTP_LOC_5);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	if (!so_locked) {
-		SCTP_SOCKET_UNLOCK(so, 1);
-	}
-#endif
 }
 
 void
@@ -4944,38 +4816,11 @@ void
 sctp_wakeup_the_read_socket(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	if ((inp != NULL) && (inp->sctp_socket != NULL)) {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-		so = SCTP_INP_SO(inp);
-		if (!so_locked) {
-			if (stcb) {
-				atomic_add_int(&stcb->asoc.refcnt, 1);
-				SCTP_TCB_UNLOCK(stcb);
-			}
-			SCTP_SOCKET_LOCK(so, 1);
-			if (stcb) {
-				SCTP_TCB_LOCK(stcb);
-				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			}
-			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return;
-			}
-		}
-#endif
 		sctp_sorwakeup(inp, inp->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		if (!so_locked) {
-			SCTP_SOCKET_UNLOCK(so, 1);
-		}
-#endif
 	}
 }
 
@@ -4987,9 +4832,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     int end,
     int inp_read_lock_held,
     int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	/*
@@ -5173,9 +5016,7 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
     uint8_t sent, int so_locked
-#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
-#endif
 )
 {
 	struct sctp_stream_out *strq;
@@ -5383,29 +5224,7 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
 	if (do_wakeup_routine) {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-		so = SCTP_INP_SO(stcb->sctp_ep);
-		if (!so_locked) {
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_SOCKET_LOCK(so, 1);
-			SCTP_TCB_LOCK(stcb);
-			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-				/* assoc was freed while we were unlocked */
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return (ret_sz);
-			}
-		}
-#endif
 		sctp_sowwakeup(stcb->sctp_ep, stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		if (!so_locked) {
-			SCTP_SOCKET_UNLOCK(so, 1);
-		}
-#endif
 	}
 	return (ret_sz);
 }
