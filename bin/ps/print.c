@@ -89,11 +89,11 @@ printheader(void)
 		v = vent->var;
 		if (v->flag & LJUST) {
 			if (STAILQ_NEXT(vent, next_ve) == NULL)	/* last one */
-				xo_emit("{T:/%s}", vent->header);
+				xo_emit("{T:/%hs}", vent->header);
 			else
-				xo_emit("{T:/%-*s}", v->width, vent->header);
+				xo_emit("{T:/%-*hs}", v->width, vent->header);
 		} else
-			xo_emit("{T:/%*s}", v->width, vent->header);
+			xo_emit("{T:/%*hs}", v->width, vent->header);
 		if (STAILQ_NEXT(vent, next_ve) != NULL)
 			xo_emit("{P: }");
 	}
