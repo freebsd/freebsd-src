@@ -76,10 +76,6 @@ stp_head()
 
 stp_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/246448"
-	fi
-
 	vnet_init
 
 	epair_one=$(vnet_mkepair)
