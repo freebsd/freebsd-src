@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2020
+.Dd June 6, 2020
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -54,6 +54,8 @@ nvme_load="YES"
 .Pp
 Most users will also want to enable
 .Xr nvd 4
+or
+.Xr nda 4
 to expose NVM Express namespaces as disk devices which can be
 partitioned.
 Note that in NVM Express terms, a namespace is roughly equivalent to a
