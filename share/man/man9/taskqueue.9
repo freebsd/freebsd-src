@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2019
+.Dd June 6, 2020
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -236,7 +236,7 @@ function provides finer control over the scheduling based on
 and
 .Va flags ,
 as detailed in
-.Xr timeout 9 .
+.Xr callout 9 .
 Only non-fast task queues can be used for
 .Va timeout_task
 scheduling.
@@ -510,10 +510,10 @@ may be delayed an indeterminate amount of time before execution.
 If queueing delays cannot be tolerated then a private taskqueue should
 be created with a dedicated processing thread.
 .Sh SEE ALSO
+.Xr callout 9 ,
 .Xr ithread 9 ,
 .Xr kthread 9 ,
 .Xr swi 9
-.Xr timeout 9
 .Sh HISTORY
 This interface first appeared in
 .Fx 5.0 .
