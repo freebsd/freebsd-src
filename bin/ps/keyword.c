@@ -254,7 +254,7 @@ showkey(void)
 			i = len;
 			sep = "\n";
 		}
-		xo_emit("{P:/%s}{l:key/%s}", sep, p);
+		xo_emit("{P:/%hs}{l:key/%hs}", sep, p);
 		sep = " ";
 	}
 	xo_emit("\n");
