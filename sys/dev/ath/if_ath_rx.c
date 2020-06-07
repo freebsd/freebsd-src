@@ -379,11 +379,11 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 		 * trying to sync / merge to BSSes that aren't
 		 * actually us.
 		 */
-		if (IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
+		if ((vap->iv_opmode != IEEE80211_M_HOSTAP) &&
+		    IEEE80211_ADDR_EQ(ni->ni_bssid, vap->iv_bss->ni_bssid)) {
 			/* update rssi statistics for use by the hal */
 			/* XXX unlocked check against vap->iv_bss? */
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgbrssi, rssi);
-
 
 			tsf_beacon = ((uint64_t) le32dec(ni->ni_tstamp.data + 4)) << 32;
 			tsf_beacon |= le32dec(ni->ni_tstamp.data);
@@ -427,8 +427,9 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 				tsf_remainder = (tsf_beacon - tsf_beacon_old) % tsf_intval;
 			}
 
-			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: old_tsf=%llu (%u), new_tsf=%llu (%u), target_tsf=%llu (%u), delta=%lld, bmiss=%d, remainder=%d\n",
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: %s: old_tsf=%llu (%u), new_tsf=%llu (%u), target_tsf=%llu (%u), delta=%lld, bmiss=%d, remainder=%d\n",
 			    __func__,
+			    ieee80211_get_vap_ifname(vap),
 			    (unsigned long long) tsf_beacon_old,
 			    (unsigned int) (tsf_beacon_old >> 10),
 			    (unsigned long long) tsf_beacon,
@@ -439,8 +440,11 @@ ath_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m,
 			    tsf_delta_bmiss,
 			    tsf_remainder);
 
-			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: tsf=%llu (%u), nexttbtt=%llu (%u), delta=%d\n",
+			DPRINTF(sc, ATH_DEBUG_BEACON, "%s: %s: ni=%6D bssid=%6D tsf=%llu (%u), nexttbtt=%llu (%u), delta=%d\n",
 			    __func__,
+			    ieee80211_get_vap_ifname(vap),
+			    ni->ni_bssid, ":",
+			    vap->iv_bss->ni_bssid, ":",
 			    (unsigned long long) tsf_beacon,
 			    (unsigned int) (tsf_beacon >> 10),
 			    (unsigned long long) nexttbtt,
