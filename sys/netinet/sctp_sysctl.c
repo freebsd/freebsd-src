@@ -130,9 +130,6 @@ sctp_init_sysctls()
 #if defined(SCTP_DEBUG)
 	SCTP_BASE_SYSCTL(sctp_debug_on) = SCTPCTL_DEBUG_DEFAULT;
 #endif
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	SCTP_BASE_SYSCTL(sctp_output_unlocked) = SCTPCTL_OUTPUT_UNLOCKED_DEFAULT;
-#endif
 }
 
 
@@ -958,9 +955,6 @@ SCTP_UINT_SYSCTL(sendall_limit, sctp_sendall_limit, SCTPCTL_SENDALL_LIMIT)
 SCTP_UINT_SYSCTL(diag_info_code, sctp_diag_info_code, SCTPCTL_DIAG_INFO_CODE)
 #ifdef SCTP_DEBUG
 SCTP_UINT_SYSCTL(debug, sctp_debug_on, SCTPCTL_DEBUG)
-#endif
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-SCTP_UINT_SYSCTL(output_unlocked, sctp_output_unlocked, SCTPCTL_OUTPUT_UNLOCKED)
 #endif
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, stats,
     CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,

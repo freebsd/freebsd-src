@@ -179,9 +179,6 @@ sctp6_notify(struct sctp_inpcb *inp,
     uint8_t icmp6_code,
     uint32_t next_mtu)
 {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-	struct socket *so;
-#endif
 	int timer_stopped;
 
 	switch (icmp6_type) {
@@ -205,19 +202,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 		/* Treat it like an ABORT. */
 		if (icmp6_code == ICMP6_PARAMPROB_NEXTHEADER) {
 			sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			so = SCTP_INP_SO(inp);
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_SOCKET_LOCK(so, 1);
-			SCTP_TCB_LOCK(stcb);
-			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-#endif
 			(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 			    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 		} else {
 			SCTP_TCB_UNLOCK(stcb);
 		}
