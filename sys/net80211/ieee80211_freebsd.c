@@ -1034,6 +1034,20 @@ wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 }
 
 /*
+ * Fetch the VAP name.
+ *
+ * This returns a const char pointer suitable for debugging,
+ * but don't expect it to stick around for much longer.
+ */
+const char *
+ieee80211_get_vap_ifname(struct ieee80211vap *vap)
+{
+	if ((vap->iv_ifp == NULL) || (vap->iv_ifp->if_xname == NULL))
+		return "(none)";
+	return vap->iv_ifp->if_xname;
+}
+
+/*
  * Module glue.
  *
  * NB: the module name is "wlan" for compatibility with NetBSD.

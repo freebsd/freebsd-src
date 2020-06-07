@@ -245,6 +245,7 @@ void	ieee80211_drain_ifq(struct ifqueue *);
 void	ieee80211_flush_ifq(struct ifqueue *, struct ieee80211vap *);
 
 void	ieee80211_vap_destroy(struct ieee80211vap *);
+const char *	ieee80211_get_vap_ifname(struct ieee80211vap *);
 
 #define	IFNET_IS_UP_RUNNING(_ifp) \
 	(((_ifp)->if_flags & IFF_UP) && \
