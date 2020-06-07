@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 - 2017 Yoshihiro Ota
+ * Copyright (c) 2014 - 2017, 2019 Yoshihiro Ota
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,16 +32,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
-/* #include <stdlib.h> */
 #include <inttypes.h>
 #include <string.h>
 #include <err.h>
+#include <libutil.h>
 
 #include "systat.h"
 #include "extern.h"
 #include "devs.h"
 
-struct zfield{
+struct zfield {
 	uint64_t arcstats;
 	uint64_t arcstats_demand_data;
 	uint64_t arcstats_demand_metadata;
@@ -57,18 +57,25 @@ static struct zarcstats {
 	struct zfield misses;
 } curstat, initstat, oldstat;
 
+struct zarcrates {
+	struct zfield current;
+	struct zfield total;
+};
+
 static void
 getinfo(struct zarcstats *ls);
 
 WINDOW *
 openzarc(void)
 {
-	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
+
+	return (subwin(stdscr, LINES - 3 - 1, 0, MAINWIN_ROW, 0));
 }
 
 void
 closezarc(WINDOW *w)
 {
+
 	if (w == NULL)
 		return;
 	wclear(w);
@@ -80,12 +87,12 @@ void
 labelzarc(void)
 {
 	int row = 1;
+
 	wmove(wnd, 0, 0); wclrtoeol(wnd);
-	mvwprintw(wnd, 0, 31+1, "%4.4s %7.7s %7.7s %12.12s %12.12s",
-		"rate", "hits", "misses", "total hits", "total misses");
-#define L(str) mvwprintw(wnd, row, 5, #str); \
-	mvwprintw(wnd, row, 31, ":"); \
-	mvwprintw(wnd, row, 31+4, "%%"); ++row
+	mvwprintw(wnd, 0, 31+1, "%4.4s %6.6s %6.6s | Total %4.4s %6.6s %6.6s",
+		"Rate", "Hits", "Misses", "Rate", "Hits", "Misses");
+#define L(str) mvwprintw(wnd, row++, 5, \
+		"%-26.26s:   %%               |          %%", #str)
 	L(arcstats);
 	L(arcstats.demand_data);
 	L(arcstats.demand_metadata);
@@ -98,21 +105,23 @@ labelzarc(void)
 	dslabel(12, 0, 18);
 }
 
-static int calc(uint64_t hits, uint64_t misses)
+static int
+calc_rate(uint64_t hits, uint64_t misses)
 {
-    if( hits )
-	return 100 * hits / ( hits + misses );
+    if(hits)
+	return 100 * hits / (hits + misses);
     else
 	return 0;
 }
 
 static void
-domode(struct zarcstats *delta, struct zarcstats *rate)
+domode(struct zarcstats *delta, struct zarcrates *rate)
 {
 #define DO(stat) \
 	delta->hits.stat = (curstat.hits.stat - oldstat.hits.stat); \
 	delta->misses.stat = (curstat.misses.stat - oldstat.misses.stat); \
-	rate->hits.stat = calc(delta->hits.stat, delta->misses.stat)
+	rate->current.stat = calc_rate(delta->hits.stat, delta->misses.stat); \
+	rate->total.stat = calc_rate(curstat.hits.stat, curstat.misses.stat)
 	DO(arcstats);
 	DO(arcstats_demand_data);
 	DO(arcstats_demand_metadata);
@@ -136,21 +145,20 @@ void
 showzarc(void)
 {
 	int row = 1;
-	struct zarcstats delta, rate;
-
-	memset(&delta, 0, sizeof delta);
-	memset(&rate, 0, sizeof rate);
+	struct zarcstats delta = {};
+	struct zarcrates rate = {};
 
 	domode(&delta, &rate);
 
-#define DO(stat, col, fmt) \
-	mvwprintw(wnd, row, col, fmt, stat)
-#define	R(stat) DO(rate.hits.stat, 31+1, "%3"PRIu64)
-#define	H(stat) DO(delta.hits.stat, 31+1+5, "%7"PRIu64); \
-	DO(curstat.hits.stat, 31+1+5+8+8, "%12"PRIu64)
-#define	M(stat) DO(delta.misses.stat, 31+1+5+8, "%7"PRIu64); \
-	DO(curstat.misses.stat, 31+1+5+8+8+13, "%12"PRIu64)
-#define	E(stat) R(stat); H(stat); M(stat); ++row
+#define DO(stat, col, width) \
+	sysputuint64(wnd, row, col, width, stat, HN_DIVISOR_1000)
+#define	RATES(stat) mvwprintw(wnd, row, 31+1, "%3"PRIu64, rate.current.stat);\
+	mvwprintw(wnd, row, 31+1+5+7+7+8, "%3"PRIu64, rate.total.stat)
+#define	HITS(stat) DO(delta.hits.stat, 31+1+5, 6); \
+	DO(curstat.hits.stat, 31+1+5+7+7+8+5, 6)
+#define	MISSES(stat) DO(delta.misses.stat, 31+1+5+7, 6); \
+	DO(curstat.misses.stat, 31+1+5+7+7+8+5+7, 6)
+#define	E(stat) RATES(stat); HITS(stat); MISSES(stat); ++row
 	E(arcstats);
 	E(arcstats_demand_data);
 	E(arcstats_demand_metadata);
@@ -161,9 +169,9 @@ showzarc(void)
 	E(vdev_cache_stats);
 #undef DO
 #undef E
-#undef M
-#undef H
-#undef R
+#undef MISSES
+#undef HITS
+#undef RATES
 	dsshow(12, 0, 18, &cur_dev, &last_dev);
 }
 
@@ -180,6 +188,7 @@ initzarc(void)
 void
 resetzarc(void)
 {
+
 	initzarc();
 }
 
@@ -193,11 +202,11 @@ getinfo(struct zarcstats *ls)
 	cur_dev.dinfo = tmp_dinfo;
 
 	last_dev.snap_time = cur_dev.snap_time;
-	dsgetinfo( &cur_dev );
+	dsgetinfo(&cur_dev);
 
-	size_t size = sizeof( ls->hits.arcstats );
-	if ( sysctlbyname("kstat.zfs.misc.arcstats.hits",
-		&ls->hits.arcstats, &size, NULL, 0 ) != 0 )
+	size_t size = sizeof(ls->hits.arcstats);
+	if (sysctlbyname("kstat.zfs.misc.arcstats.hits",
+		&ls->hits.arcstats, &size, NULL, 0) != 0)
 		return;
 	GETSYSCTL("kstat.zfs.misc.arcstats.misses",
 		ls->misses.arcstats);
@@ -234,6 +243,7 @@ getinfo(struct zarcstats *ls)
 void
 fetchzarc(void)
 {
+
 	oldstat = curstat;
 	getinfo(&curstat);
 }

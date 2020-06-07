@@ -104,7 +104,6 @@ static struct Info {
 	/*
 	 * Distribution of page usages.
 	 */
-	u_int v_page_size;	/* page size in bytes */
 	u_int v_free_count;	/* number of pages free */
 	u_int v_wire_count;	/* number of pages wired down */
 	u_int v_active_count;	/* number of pages active */
@@ -173,15 +172,15 @@ closekre(WINDOW *w)
 #define STATCOL		 0
 #define MEMROW		 2	/* uses 4 rows and 45 cols */
 #define MEMCOL		 0
-#define PAGEROW		 2	/* uses 4 rows and 30 cols */
+#define PAGEROW		 1	/* uses 4 rows and 30 cols */
 #define PAGECOL		47
-#define INTSROW		 6	/* uses all rows to bottom and 16 cols */
+#define INTSROW		 5	/* uses all rows to bottom and 16 cols */
 #define INTSCOL		64
 #define PROCSROW	 6	/* uses 3 rows and 19 cols */
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 29 cols */
 #define GENSTATCOL	21
-#define VMSTATROW	 7	/* uses 17 rows and 12-14 cols */
+#define VMSTATROW	 5	/* uses 17 rows and 12-14 cols */
 #define VMSTATCOL	49	/* actually 50-51 for some fields */
 #define GRAPHROW	10	/* uses 3 rows and 49-51 cols */
 #define GRAPHCOL	 0
@@ -304,7 +303,7 @@ labelkre(void)
 	clear();
 	mvprintw(STATROW, STATCOL + 6, "users    Load");
 	mvprintw(STATROW + 1, STATCOL + 3, "Mem usage:    %%Phy   %%Kmem");
-	mvprintw(MEMROW, MEMCOL, "Mem: KB    REAL            VIRTUAL");
+	mvprintw(MEMROW, MEMCOL, "Mem:       REAL            VIRTUAL");
 	mvprintw(MEMROW + 1, MEMCOL, "        Tot   Share      Tot    Share");
 	mvprintw(MEMROW + 2, MEMCOL, "Act");
 	mvprintw(MEMROW + 3, MEMCOL, "All");
@@ -373,7 +372,7 @@ labelkre(void)
 #define PUTRATE(fld, l, c, w) \
 do { \
 	Y(fld); \
-	putint((int)((float)s.fld/etime + 0.5), l, c, w); \
+	sysputwuint64(wnd, l, c, w, (s.fld/etime + 0.5), 0); \
 } while (0)
 #define MAXFAIL 5
 
@@ -454,21 +453,20 @@ showkre(void)
 	putfloat(avenrun[1], STATROW, STATCOL + 26, 5, 2, 0);
 	putfloat(avenrun[2], STATROW, STATCOL + 32, 5, 2, 0);
 	mvaddstr(STATROW, STATCOL + 55, buf);
-#define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
 	putfloat(100.0 * (v_page_count - total.t_free) / v_page_count,
 	   STATROW + 1, STATCOL + 15, 2, 0, 1);
 	putfloat(100.0 * s.v_kmem_map_size / kmem_size,
 	   STATROW + 1, STATCOL + 22, 2, 0, 1);
 
-	putuint64(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 4, 7);
-	putuint64(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 12, 7);
-	putuint64(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 20, 8);
-	putuint64(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 29, 8);
-	putuint64(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 4, 7);
-	putuint64(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 12, 7);
-	putuint64(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 20, 8);
-	putuint64(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 29, 8);
-	putuint64(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 38, 7);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 4, 7, total.t_arm, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 12, 7, total.t_armshr, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 20, 8, total.t_avm, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 29, 8, total.t_avmshr, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 4, 7, total.t_rm, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 12, 7, total.t_rmshr, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 20, 8, total.t_vm, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 29, 8, total.t_vmshr, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 38, 7, total.t_free, 0);
 	putint(total.t_rq - 1, PROCSROW + 2, PROCSCOL, 3);
 	putint(total.t_pw, PROCSROW + 2, PROCSCOL + 4, 3);
 	putint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
@@ -487,13 +485,13 @@ showkre(void)
 	PUTRATE(v_pdwakeups, VMSTATROW + 9, VMSTATCOL, 8);
 	PUTRATE(v_pdpages, VMSTATROW + 10, VMSTATCOL, 8);
 	PUTRATE(v_intrans, VMSTATROW + 11, VMSTATCOL, 8);
-	putuint64(pgtokb(s.v_wire_count), VMSTATROW + 12, VMSTATCOL, 8);
-	putuint64(pgtokb(s.v_active_count), VMSTATROW + 13, VMSTATCOL, 8);
-	putuint64(pgtokb(s.v_inactive_count), VMSTATROW + 14, VMSTATCOL, 8);
-	putuint64(pgtokb(s.v_laundry_count), VMSTATROW + 15, VMSTATCOL, 8);
-	putuint64(pgtokb(s.v_free_count), VMSTATROW + 16, VMSTATCOL, 8);
+	sysputpage(wnd, VMSTATROW + 12, VMSTATCOL + 2, 8 - 2, s.v_wire_count, 0);
+	sysputpage(wnd, VMSTATROW + 13, VMSTATCOL + 2, 8 - 2, s.v_active_count, 0);
+	sysputpage(wnd, VMSTATROW + 14, VMSTATCOL + 2, 8 - 2, s.v_inactive_count, 0);
+	sysputpage(wnd, VMSTATROW + 15, VMSTATCOL + 2, 8 - 2, s.v_laundry_count, 0);
+	sysputpage(wnd, VMSTATROW + 16, VMSTATCOL + 2, 8 - 2, s.v_free_count, 0);
 	if (LINES - 1 > VMSTATROW + 17)
-		putuint64(s.bufspace / 1024, VMSTATROW + 17, VMSTATCOL, 8);
+		sysputuint64(wnd, VMSTATROW + 17, VMSTATCOL + 2, 8 - 2, s.bufspace, 0);
 	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
 	PUTRATE(v_vnodeout, PAGEROW + 2, PAGECOL + 12, 5);
 	PUTRATE(v_swapin, PAGEROW + 2, PAGECOL + 19, 5);
@@ -773,7 +771,6 @@ getinfo(struct Info *ls)
 	GETSYSCTL("vm.stats.vm.v_dfree", ls->v_dfree);
 	GETSYSCTL("vm.stats.vm.v_pfree", ls->v_pfree);
 	GETSYSCTL("vm.stats.vm.v_tfree", ls->v_tfree);
-	GETSYSCTL("vm.stats.vm.v_page_size", ls->v_page_size);
 	GETSYSCTL("vm.stats.vm.v_free_count", ls->v_free_count);
 	GETSYSCTL("vm.stats.vm.v_wire_count", ls->v_wire_count);
 	GETSYSCTL("vm.stats.vm.v_active_count", ls->v_active_count);
