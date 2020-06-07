@@ -182,15 +182,6 @@ Build all binaries with the
 .Dv DF_BIND_NOW
 flag set to indicate that the run-time loader should perform all relocation
 processing at process startup rather than on demand.
-.It Va WITH_BINUTILS
-Build and install GNU
-.Xr as 1
-as part of the normal system build.
-This option is not available as of
-.Fx 13.0 .
-.It Va WITH_BINUTILS_BOOTSTRAP
-Build GNU binutils
-as part of the bootstrap process.
 .It Va WITHOUT_BLACKLIST
 Set this if you do not want to build
 .Xr blacklistd 8
@@ -370,8 +361,6 @@ been any changes to the toolchain between the versions.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
-.It
-.Va WITHOUT_BINUTILS_BOOTSTRAP
 .It
 .Va WITHOUT_CLANG_BOOTSTRAP
 .It
@@ -1630,8 +1619,6 @@ compilers, debuggers etc.
 When set, it enforces these options:
 .Pp
 .Bl -item -compact
-.It
-.Va WITHOUT_BINUTILS
 .It
 .Va WITHOUT_CLANG
 .It
