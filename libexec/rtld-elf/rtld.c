@@ -3303,7 +3303,7 @@ rtld_dlopen(const char *name, int fd, int mode)
     if (mode & RTLD_DEEPBIND)
 	    lo_flags |= RTLD_LO_DEEPBIND;
     if (ld_tracing != NULL)
-	    lo_flags |= RTLD_LO_TRACE;
+	    lo_flags |= RTLD_LO_TRACE | RTLD_LO_IGNSTLS;
 
     return (dlopen_object(name, fd, obj_main, lo_flags,
       mode & (RTLD_MODEMASK | RTLD_GLOBAL), NULL));
@@ -3356,15 +3356,15 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	    if ((lo_flags & RTLD_LO_DEEPBIND) != 0)
 		obj->symbolic = true;
 	    result = 0;
-	    if ((lo_flags & RTLD_LO_EARLY) == 0 && obj->static_tls &&
-	      !allocate_tls_offset(obj)) {
+	    if ((lo_flags & (RTLD_LO_EARLY | RTLD_LO_IGNSTLS)) == 0 &&
+	      obj->static_tls && !allocate_tls_offset(obj)) {
 		_rtld_error("%s: No space available "
 		  "for static Thread Local Storage", obj->path);
 		result = -1;
 	    }
 	    if (result != -1)
 		result = load_needed_objects(obj, lo_flags & (RTLD_LO_DLOPEN |
-		    RTLD_LO_EARLY));
+		    RTLD_LO_EARLY | RTLD_LO_IGNSTLS));
 	    init_dag(obj);
 	    ref_dag(obj);
 	    if (result != -1)
