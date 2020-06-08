@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2019
+.Dd June 7, 2020
 .Dt BOOT 8 i386
 .Os
 .Sh NAME
@@ -61,31 +61,13 @@ That process is described
 in
 .Xr uefi 8 .
 .Pp
-By default, a three-stage bootstrap is employed, and control is
-automatically passed from the boot blocks (bootstrap stages one and
-two) to a separate third-stage bootstrap program,
+A three-stage bootstrap is employed.
+Control is passed from the boot blocks (bootstrap stages one and two) to a
+third-stage bootstrap program,
 .Xr loader 8 .
 This third stage provides more sophisticated control over the booting
 process than it is possible to achieve in the boot blocks, which are
 constrained by occupying limited fixed space on a given disk or slice.
-.Pp
-However, it is possible to dispense with the third stage altogether,
-either by specifying a kernel name in the boot block parameter
-file,
-.Pa /boot.config ,
-or, unless option
-.Fl n
-is set, by hitting a key during a brief pause (while one of the characters
-.Sy - ,
-.Sy \e ,
-.Sy \&| ,
-or
-.Sy /
-is displayed) before
-.Xr loader 8
-is invoked.
-Booting will also be attempted at stage two, if the
-third stage cannot be loaded.
 .Pp
 The remainder of this subsection deals only with the boot blocks.
 The
