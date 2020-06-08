@@ -8763,6 +8763,15 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #endif
 			rack_handle_delayed_ack(tp, rack, tlen, tfo_syn);
 			tp->rcv_nxt += tlen;
+			if (tlen &&
+			    ((tp->t_flags2 & TF2_FBYTES_COMPLETE) == 0) &&
+			    (tp->t_fbyte_in == 0)) {
+				tp->t_fbyte_in = ticks;
+				if (tp->t_fbyte_in == 0)
+					tp->t_fbyte_in = 1;
+				if (tp->t_fbyte_out && tp->t_fbyte_in)
+					tp->t_flags2 |= TF2_FBYTES_COMPLETE;
+			}
 			thflags = th->th_flags & TH_FIN;
 			KMOD_TCPSTAT_ADD(tcps_rcvpack, nsegs);
 			KMOD_TCPSTAT_ADD(tcps_rcvbyte, tlen);
@@ -8986,6 +8995,15 @@ rack_do_fastnewdata(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		tcp_clean_sackreport(tp);
 	KMOD_TCPSTAT_INC(tcps_preddat);
 	tp->rcv_nxt += tlen;
+	if (tlen &&
+	    ((tp->t_flags2 & TF2_FBYTES_COMPLETE) == 0) &&
+	    (tp->t_fbyte_in == 0)) {
+		tp->t_fbyte_in = ticks;
+		if (tp->t_fbyte_in == 0)
+			tp->t_fbyte_in = 1;
+		if (tp->t_fbyte_out && tp->t_fbyte_in)
+			tp->t_flags2 |= TF2_FBYTES_COMPLETE;
+	}
 	/*
 	 * Pull snd_wl1 up to prevent seq wrap relative to th_seq.
 	 */
