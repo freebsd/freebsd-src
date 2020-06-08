@@ -186,11 +186,15 @@ rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 		 * file, but we want the mapping offset relative to the base
 		 * mapping.
 		 */
-		if (kve->kve_type == KVME_TYPE_VNODE &&
-		    kve->kve_vn_fileid != fileid) {
-			base = kve->kve_start;
-			fileid = kve->kve_vn_fileid;
-			path = kve->kve_path;
+		if (kve->kve_type == KVME_TYPE_VNODE) {
+			if (kve->kve_vn_fileid != fileid) {
+				base = kve->kve_start;
+				fileid = kve->kve_vn_fileid;
+				path = kve->kve_path;
+			}
+		} else {
+			base = 0;
+			path = NULL;
 		}
 		memset(&rdl, 0, sizeof(rdl));
 		/*
@@ -205,7 +209,8 @@ rd_loadobj_iter(rd_agent_t *rdap, rl_iter_f *cb, void *clnt_data)
 			rdl.rdl_prot |= RD_RDL_W;
 		if (kve->kve_protection & KVME_PROT_EXEC)
 			rdl.rdl_prot |= RD_RDL_X;
-		strlcpy(rdl.rdl_path, path, sizeof(rdl.rdl_path));
+		if (path != NULL)
+			strlcpy(rdl.rdl_path, path, sizeof(rdl.rdl_path));
 		if ((*cb)(&rdl, clnt_data) != 0) {
 			ret = RD_ERR;
 			break;
