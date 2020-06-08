@@ -36,6 +36,16 @@
 
 INTERFACE icl_conn;
 
+CODE {
+	static void null_pdu_queue_cb(struct icl_conn *ic,
+	    struct icl_pdu *ip, icl_pdu_cb cb)
+	{
+		ICL_CONN_PDU_QUEUE(ic, ip);
+		if (cb)
+			cb(ip, 0);
+	}
+};
+
 METHOD size_t pdu_data_segment_length {
 	struct icl_conn *_ic;
 	const struct icl_pdu *_ip;
@@ -61,6 +71,12 @@ METHOD void pdu_queue {
 	struct icl_conn *_ic;
 	struct icl_pdu *_ip;
 };
+
+METHOD void pdu_queue_cb {
+	struct icl_conn *_ic;
+	struct icl_pdu *_ip;
+	icl_pdu_cb cb;
+} DEFAULT null_pdu_queue_cb;
 
 METHOD void pdu_free {
 	struct icl_conn *_ic;

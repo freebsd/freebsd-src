@@ -64,6 +64,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/iscsi/iscsi_proto.h>
 #include <icl_conn_if.h>
 
+struct icl_soft_pdu {
+	struct icl_pdu	 ip;
+
+	/* soft specific stuff goes here. */
+	u_int		 ref_cnt;
+	icl_pdu_cb	 cb;
+	int		 error;
+};
+
 static int coalesce = 1;
 SYSCTL_INT(_kern_icl, OID_AUTO, coalesce, CTLFLAG_RWTUN,
     &coalesce, 0, "Try to coalesce PDUs before sending");
@@ -79,7 +88,7 @@ SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
 static MALLOC_DEFINE(M_ICL_SOFT, "icl_soft", "iSCSI software backend");
-static uma_zone_t icl_pdu_zone;
+static uma_zone_t icl_soft_pdu_zone;
 
 static volatile u_int	icl_ncons;
 
@@ -97,6 +106,7 @@ static icl_conn_pdu_data_segment_length_t
 static icl_conn_pdu_append_data_t	icl_soft_conn_pdu_append_data;
 static icl_conn_pdu_get_data_t	icl_soft_conn_pdu_get_data;
 static icl_conn_pdu_queue_t	icl_soft_conn_pdu_queue;
+static icl_conn_pdu_queue_cb_t	icl_soft_conn_pdu_queue_cb;
 static icl_conn_handoff_t	icl_soft_conn_handoff;
 static icl_conn_free_t		icl_soft_conn_free;
 static icl_conn_close_t		icl_soft_conn_close;
@@ -116,6 +126,7 @@ static kobj_method_t icl_soft_methods[] = {
 	KOBJMETHOD(icl_conn_pdu_append_data, icl_soft_conn_pdu_append_data),
 	KOBJMETHOD(icl_conn_pdu_get_data, icl_soft_conn_pdu_get_data),
 	KOBJMETHOD(icl_conn_pdu_queue, icl_soft_conn_pdu_queue),
+	KOBJMETHOD(icl_conn_pdu_queue_cb, icl_soft_conn_pdu_queue_cb),
 	KOBJMETHOD(icl_conn_handoff, icl_soft_conn_handoff),
 	KOBJMETHOD(icl_conn_free, icl_soft_conn_free),
 	KOBJMETHOD(icl_conn_close, icl_soft_conn_close),
@@ -209,14 +220,56 @@ icl_conn_receive_buf(struct icl_conn *ic, void *buf, size_t len)
 static void
 icl_soft_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 {
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)ip;
 
+	KASSERT(isp->ref_cnt == 0, ("freeing active PDU"));
 	m_freem(ip->ip_bhs_mbuf);
 	m_freem(ip->ip_ahs_mbuf);
 	m_freem(ip->ip_data_mbuf);
-	uma_zfree(icl_pdu_zone, ip);
+	uma_zfree(icl_soft_pdu_zone, isp);
 #ifdef DIAGNOSTIC
 	refcount_release(&ic->ic_outstanding_pdus);
 #endif
+}
+
+static void
+icl_soft_pdu_call_cb(struct icl_pdu *ip)
+{
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)ip;
+
+	if (isp->cb != NULL)
+		isp->cb(ip, isp->error);
+#ifdef DIAGNOSTIC
+	refcount_release(&ip->ip_conn->ic_outstanding_pdus);
+#endif
+	uma_zfree(icl_soft_pdu_zone, isp);
+}
+
+static void
+icl_soft_pdu_done(struct icl_pdu *ip, int error)
+{
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)ip;
+
+	if (error != 0)
+		isp->error = error;
+
+	m_freem(ip->ip_bhs_mbuf);
+	ip->ip_bhs_mbuf = NULL;
+	m_freem(ip->ip_ahs_mbuf);
+	ip->ip_ahs_mbuf = NULL;
+	m_freem(ip->ip_data_mbuf);
+	ip->ip_data_mbuf = NULL;
+
+	if (atomic_fetchadd_int(&isp->ref_cnt, -1) == 1)
+		icl_soft_pdu_call_cb(ip);
+}
+
+static void
+icl_soft_mbuf_done(struct mbuf *mb)
+{
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)mb->m_ext.ext_arg1;
+
+	icl_soft_pdu_call_cb(&isp->ip);
 }
 
 /*
@@ -225,19 +278,21 @@ icl_soft_conn_pdu_free(struct icl_conn *ic, struct icl_pdu *ip)
 struct icl_pdu *
 icl_soft_conn_new_pdu(struct icl_conn *ic, int flags)
 {
+	struct icl_soft_pdu *isp;
 	struct icl_pdu *ip;
 
 #ifdef DIAGNOSTIC
 	refcount_acquire(&ic->ic_outstanding_pdus);
 #endif
-	ip = uma_zalloc(icl_pdu_zone, flags | M_ZERO);
-	if (ip == NULL) {
-		ICL_WARN("failed to allocate %zd bytes", sizeof(*ip));
+	isp = uma_zalloc(icl_soft_pdu_zone, flags | M_ZERO);
+	if (isp == NULL) {
+		ICL_WARN("failed to allocate soft PDU");
 #ifdef DIAGNOSTIC
 		refcount_release(&ic->ic_outstanding_pdus);
 #endif
 		return (NULL);
 	}
+	ip = &isp->ip;
 	ip->ip_conn = ic;
 
 	CTASSERT(sizeof(struct iscsi_bhs) <= MHLEN);
@@ -926,7 +981,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		if (error != 0) {
 			ICL_DEBUG("failed to finalize PDU; "
 			    "dropping connection");
-			icl_soft_conn_pdu_free(ic, request);
+			icl_soft_pdu_done(request, EIO);
 			icl_conn_fail(ic);
 			return;
 		}
@@ -944,8 +999,8 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 				if (error != 0) {
 					ICL_DEBUG("failed to finalize PDU; "
 					    "dropping connection");
-					icl_soft_conn_pdu_free(ic, request);
-					icl_soft_conn_pdu_free(ic, request2);
+					icl_soft_pdu_done(request, EIO);
+					icl_soft_pdu_done(request2, EIO);
 					icl_conn_fail(ic);
 					return;
 				}
@@ -954,7 +1009,7 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 				request->ip_bhs_mbuf->m_pkthdr.len += size2;
 				size += size2;
 				STAILQ_REMOVE_AFTER(queue, request, ip_next);
-				icl_soft_conn_pdu_free(ic, request2);
+				icl_soft_pdu_done(request2, 0);
 				coalesced++;
 			}
 #if 0
@@ -971,11 +1026,11 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		if (error != 0) {
 			ICL_DEBUG("failed to send PDU, error %d; "
 			    "dropping connection", error);
-			icl_soft_conn_pdu_free(ic, request);
+			icl_soft_pdu_done(request, error);
 			icl_conn_fail(ic);
 			return;
 		}
-		icl_soft_conn_pdu_free(ic, request);
+		icl_soft_pdu_done(request, 0);
 	}
 }
 
@@ -1072,24 +1127,38 @@ static int
 icl_soft_conn_pdu_append_data(struct icl_conn *ic, struct icl_pdu *request,
     const void *addr, size_t len, int flags)
 {
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)request;
 	struct mbuf *mb, *newmb;
 	size_t copylen, off = 0;
 
 	KASSERT(len > 0, ("len == 0"));
 
-	newmb = m_getm2(NULL, len, flags, MT_DATA, 0);
-	if (newmb == NULL) {
-		ICL_WARN("failed to allocate mbuf for %zd bytes", len);
-		return (ENOMEM);
-	}
+	if (flags & ICL_NOCOPY) {
+		newmb = m_get(flags & ~ICL_NOCOPY, MT_DATA);
+		if (newmb == NULL) {
+			ICL_WARN("failed to allocate mbuf");
+			return (ENOMEM);
+		}
 
-	for (mb = newmb; mb != NULL; mb = mb->m_next) {
-		copylen = min(M_TRAILINGSPACE(mb), len - off);
-		memcpy(mtod(mb, char *), (const char *)addr + off, copylen);
-		mb->m_len = copylen;
-		off += copylen;
+		newmb->m_flags |= M_RDONLY;
+		m_extaddref(newmb, __DECONST(char *, addr), len, &isp->ref_cnt,
+		    icl_soft_mbuf_done, isp, NULL);
+		newmb->m_len = len;
+	} else {
+		newmb = m_getm2(NULL, len, flags, MT_DATA, 0);
+		if (newmb == NULL) {
+			ICL_WARN("failed to allocate mbuf for %zd bytes", len);
+			return (ENOMEM);
+		}
+
+		for (mb = newmb; mb != NULL; mb = mb->m_next) {
+			copylen = min(M_TRAILINGSPACE(mb), len - off);
+			memcpy(mtod(mb, char *), (const char *)addr + off, copylen);
+			mb->m_len = copylen;
+			off += copylen;
+		}
+		KASSERT(off == len, ("%s: off != len", __func__));
 	}
-	KASSERT(off == len, ("%s: off != len", __func__));
 
 	if (request->ip_data_mbuf == NULL) {
 		request->ip_data_mbuf = newmb;
@@ -1111,17 +1180,25 @@ icl_soft_conn_pdu_get_data(struct icl_conn *ic, struct icl_pdu *ip,
 }
 
 static void
-icl_pdu_queue(struct icl_pdu *ip)
+icl_soft_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
 {
-	struct icl_conn *ic;
 
-	ic = ip->ip_conn;
+	icl_soft_conn_pdu_queue_cb(ic, ip, NULL);
+}
+
+static void
+icl_soft_conn_pdu_queue_cb(struct icl_conn *ic, struct icl_pdu *ip,
+    icl_pdu_cb cb)
+{
+	struct icl_soft_pdu *isp = (struct icl_soft_pdu *)ip;
 
 	ICL_CONN_LOCK_ASSERT(ic);
+	isp->ref_cnt++;
+	isp->cb = cb;
 
 	if (ic->ic_disconnecting || ic->ic_socket == NULL) {
 		ICL_DEBUG("icl_pdu_queue on closed connection");
-		icl_soft_conn_pdu_free(ic, ip);
+		icl_soft_pdu_done(ip, ENOTCONN);
 		return;
 	}
 
@@ -1137,13 +1214,6 @@ icl_pdu_queue(struct icl_pdu *ip)
 
 	STAILQ_INSERT_TAIL(&ic->ic_to_send, ip, ip_next);
 	cv_signal(&ic->ic_send_cv);
-}
-
-void
-icl_soft_conn_pdu_queue(struct icl_conn *ic, struct icl_pdu *ip)
-{
-
-	icl_pdu_queue(ip);
 }
 
 static struct icl_conn *
@@ -1414,7 +1484,7 @@ icl_soft_conn_close(struct icl_conn *ic)
 	while (!STAILQ_EMPTY(&ic->ic_to_send)) {
 		pdu = STAILQ_FIRST(&ic->ic_to_send);
 		STAILQ_REMOVE_HEAD(&ic->ic_to_send, ip_next);
-		icl_soft_conn_pdu_free(ic, pdu);
+		icl_soft_pdu_done(pdu, ENOTCONN);
 	}
 
 	KASSERT(STAILQ_EMPTY(&ic->ic_to_send),
@@ -1499,8 +1569,8 @@ icl_soft_load(void)
 {
 	int error;
 
-	icl_pdu_zone = uma_zcreate("icl_pdu",
-	    sizeof(struct icl_pdu), NULL, NULL, NULL, NULL,
+	icl_soft_pdu_zone = uma_zcreate("icl_soft_pdu",
+	    sizeof(struct icl_soft_pdu), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 	refcount_init(&icl_ncons, 0);
 
@@ -1537,7 +1607,7 @@ icl_soft_unload(void)
 	icl_unregister("proxytest", true);
 #endif
 
-	uma_zdestroy(icl_pdu_zone);
+	uma_zdestroy(icl_soft_pdu_zone);
 
 	return (0);
 }

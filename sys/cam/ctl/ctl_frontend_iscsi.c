@@ -424,6 +424,17 @@ cfiscsi_pdu_queue(struct icl_pdu *response)
 	CFISCSI_SESSION_UNLOCK(cs);
 }
 
+ static void
+cfiscsi_pdu_queue_cb(struct icl_pdu *response, icl_pdu_cb cb)
+{
+	struct cfiscsi_session *cs = PDU_SESSION(response);
+
+	CFISCSI_SESSION_LOCK(cs);
+	cfiscsi_pdu_prepare(response);
+	icl_pdu_queue_cb(response, cb);
+	CFISCSI_SESSION_UNLOCK(cs);
+}
+
 static void
 cfiscsi_pdu_handle_nop_out(struct icl_pdu *request)
 {
@@ -2417,6 +2428,15 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 }
 
 static void
+cfiscsi_pdu_done(struct icl_pdu *ip, int error)
+{
+
+	if (error != 0)
+		; // XXX: Do something on error?
+	((ctl_ref)ip->ip_prv0)(ip->ip_prv1, -1);
+}
+
+static void
 cfiscsi_datamove_in(union ctl_io *io)
 {
 	struct cfiscsi_session *cs;
@@ -2426,6 +2446,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 	struct ctl_sg_entry ctl_sg_entry, *ctl_sglist;
 	size_t len, expected_len, sg_len, buffer_offset;
 	const char *sg_addr;
+	icl_pdu_cb cb;
 	int ctl_sg_count, error, i;
 
 	request = PRIV_REQUEST(io);
@@ -2470,6 +2491,11 @@ cfiscsi_datamove_in(union ctl_io *io)
 		io->scsiio.be_move_done(io);
 		return;
 	}
+
+	if (io->scsiio.kern_data_ref != NULL)
+		cb = cfiscsi_pdu_done;
+	else
+		cb = NULL;
 
 	i = 0;
 	sg_addr = NULL;
@@ -2534,7 +2560,8 @@ cfiscsi_datamove_in(union ctl_io *io)
 			    len, sg_len));
 		}
 
-		error = icl_pdu_append_data(response, sg_addr, len, M_NOWAIT);
+		error = icl_pdu_append_data(response, sg_addr, len,
+		    M_NOWAIT | (cb ? ICL_NOCOPY : 0));
 		if (error != 0) {
 			CFISCSI_SESSION_WARN(cs, "failed to "
 			    "allocate memory; dropping connection");
@@ -2587,7 +2614,12 @@ cfiscsi_datamove_in(union ctl_io *io)
 				buffer_offset -= response->ip_data_len;
 				break;
 			}
-			cfiscsi_pdu_queue(response);
+			if (cb != NULL) {
+				response->ip_prv0 = io->scsiio.kern_data_ref;
+				response->ip_prv1 = io->scsiio.kern_data_arg;
+				io->scsiio.kern_data_ref(io->scsiio.kern_data_arg, 1);
+			}
+			cfiscsi_pdu_queue_cb(response, cb);
 			response = NULL;
 			bhsdi = NULL;
 		}
@@ -2617,7 +2649,12 @@ cfiscsi_datamove_in(union ctl_io *io)
 			}
 		}
 		KASSERT(response->ip_data_len > 0, ("sending empty Data-In"));
-		cfiscsi_pdu_queue(response);
+		if (cb != NULL) {
+			response->ip_prv0 = io->scsiio.kern_data_ref;
+			response->ip_prv1 = io->scsiio.kern_data_arg;
+			io->scsiio.kern_data_ref(io->scsiio.kern_data_arg, 1);
+		}
+		cfiscsi_pdu_queue_cb(response, cb);
 	}
 
 	io->scsiio.be_move_done(io);

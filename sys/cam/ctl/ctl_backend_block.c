@@ -201,6 +201,7 @@ struct ctl_be_block_io {
 	union ctl_io			*io;
 	struct ctl_sg_entry		sg_segs[CTLBLK_MAX_SEGS];
 	struct iovec			xiovecs[CTLBLK_MAX_SEGS];
+	int				refcnt;
 	int				bio_cmd;
 	int				two_sglists;
 	int				num_segs;
@@ -305,11 +306,12 @@ ctl_alloc_beio(struct ctl_be_block_softc *softc)
 
 	beio = uma_zalloc(softc->beio_zone, M_WAITOK | M_ZERO);
 	beio->softc = softc;
+	beio->refcnt = 1;
 	return (beio);
 }
 
 static void
-ctl_free_beio(struct ctl_be_block_io *beio)
+ctl_real_free_beio(struct ctl_be_block_io *beio)
 {
 	struct ctl_be_block_softc *softc = beio->softc;
 	int i;
@@ -325,6 +327,22 @@ ctl_free_beio(struct ctl_be_block_io *beio)
 	}
 
 	uma_zfree(softc->beio_zone, beio);
+}
+
+static void
+ctl_refcnt_beio(void *arg, int diff)
+{
+	struct ctl_be_block_io *beio = arg;
+
+	if (atomic_fetchadd_int(&beio->refcnt, diff) + diff == 0)
+		ctl_real_free_beio(beio);
+}
+
+static void
+ctl_free_beio(struct ctl_be_block_io *beio)
+{
+
+	ctl_refcnt_beio(beio, -1);
 }
 
 static void
@@ -1613,6 +1631,8 @@ ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
 		io->scsiio.kern_data_ptr = (uint8_t *)beio->sg_segs;
 	io->scsiio.kern_data_len = beio->io_len;
 	io->scsiio.kern_sg_entries = beio->num_segs;
+	io->scsiio.kern_data_ref = ctl_refcnt_beio;
+	io->scsiio.kern_data_arg = beio;
 	io->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 
 	/*
