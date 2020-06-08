@@ -221,6 +221,7 @@ va:
 	and	t1, a1, t1
 	add	t0, t0, t1
 	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
+	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
 
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */

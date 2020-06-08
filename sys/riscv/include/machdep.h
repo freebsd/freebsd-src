@@ -42,6 +42,7 @@ struct riscv_bootparams {
 	vm_offset_t	kern_phys;	/* Kernel base (physical) addr */
 	vm_offset_t	kern_stack;
 	vm_offset_t	dtbp_virt;	/* Device tree blob virtual addr */
+	vm_offset_t	dtbp_phys;	/* Device tree blob physical addr */
 };
 
 extern vm_paddr_t physmap[PHYS_AVAIL_ENTRIES];

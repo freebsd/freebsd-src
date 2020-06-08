@@ -776,8 +776,19 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 	PRELOAD_PUSH_VALUE(uint32_t, 0);
 	preload_metadata = (caddr_t)fake_preload;
 
+	/* Check if bootloader clobbered part of the kernel with the DTB. */
+	KASSERT(rvbp->dtbp_phys + dtb_size <= rvbp->kern_phys ||
+		rvbp->dtbp_phys >= rvbp->kern_phys + (lastaddr - KERNBASE),
+	    ("FDT (%lx-%lx) and kernel (%lx-%lx) overlap", rvbp->dtbp_phys,
+		rvbp->dtbp_phys + dtb_size, rvbp->kern_phys,
+		rvbp->kern_phys + (lastaddr - KERNBASE)));
 	KASSERT(fake_size < sizeof(fake_preload),
 	    ("Too many fake_preload items"));
+
+	if (boothowto & RB_VERBOSE)
+		printf("FDT phys (%lx-%lx), kernel phys (%lx-%lx)\n",
+		    rvbp->dtbp_phys, rvbp->dtbp_phys + dtb_size,
+		    rvbp->kern_phys, rvbp->kern_phys + (lastaddr - KERNBASE));
 
 	return (lastaddr);
 }
