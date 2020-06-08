@@ -1693,6 +1693,9 @@ retry:
 	COPY_STAT(snd_numholes);
 	COPY_STAT(snd_scale);
 	COPY_STAT(rcv_scale);
+	COPY_STAT_T(flags2);
+	COPY_STAT_T(fbyte_in);
+	COPY_STAT_T(fbyte_out);
 #undef COPY_STAT
 #undef COPY_STAT_T
 	log_buf->tlb_flex1 = 0;

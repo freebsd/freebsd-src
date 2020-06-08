@@ -32,7 +32,7 @@
 
 #define	TCP_LOG_REASON_LEN	32
 #define	TCP_LOG_TAG_LEN		32
-#define	TCP_LOG_BUF_VER		(8)
+#define	TCP_LOG_BUF_VER		(9)
 
 /*
  * Because the (struct tcp_log_buffer) includes 8-byte uint64_t's, it requires
@@ -143,6 +143,7 @@ struct tcp_log_buffer
 	uint32_t	tlb_rttvar;	/* TCPCB t_rttvar */
 	uint32_t	tlb_rcv_up;	/* TCPCB rcv_up */
 	uint32_t	tlb_rcv_adv;	/* TCPCB rcv_adv */
+	uint32_t	tlb_flags2;	/* TCPCB t_flags2 */
 	uint32_t	tlb_rcv_nxt;	/* TCPCB rcv_nxt */
 	uint32_t	tlb_rcv_wnd;	/* TCPCB rcv_wnd */
 	uint32_t	tlb_dupacks;	/* TCPCB t_dupacks */
@@ -150,6 +151,8 @@ struct tcp_log_buffer
 	int		tlb_snd_numholes; /* TCPCB snd_numholes */
 	uint32_t	tlb_flex1;	/* Event specific information */
 	uint32_t	tlb_flex2;	/* Event specific information */
+	uint32_t	tlb_fbyte_in;	/* TCPCB first byte in time */
+	uint32_t	tlb_fbyte_out;	/* TCPCB first byte out time */
 	uint8_t		tlb_snd_scale:4, /* TCPCB snd_scale */
 			tlb_rcv_scale:4; /* TCPCB rcv_scale */
 	uint8_t		_pad[3];	/* Padding */
