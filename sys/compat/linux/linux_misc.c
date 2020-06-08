@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_object.h>
 #include <vm/swap_pager.h>
 
 #ifdef COMPAT_LINUX32
@@ -151,7 +150,6 @@ int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 {
 	struct l_sysinfo sysinfo;
-	vm_object_t object;
 	int i, j;
 	struct timespec ts;
 
@@ -170,13 +168,6 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.freeram = sysinfo.totalram - vm_wire_count() * PAGE_SIZE;
 
 	sysinfo.sharedram = 0;
-	mtx_lock(&vm_object_list_mtx);
-	TAILQ_FOREACH(object, &vm_object_list, object_list)
-		if (object->shadow_count > 1)
-			sysinfo.sharedram += object->resident_page_count;
-	mtx_unlock(&vm_object_list_mtx);
-
-	sysinfo.sharedram *= PAGE_SIZE;
 	sysinfo.bufferram = 0;
 
 	swap_pager_status(&i, &j);
