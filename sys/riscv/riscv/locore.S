@@ -139,6 +139,8 @@ _start:
 	lla	s1, pagetable_l2_devmap
 	mv	s2, a1
 	srli	s2, s2, PAGE_SHIFT
+	/* Mask off any bits that aren't aligned */
+	andi	s2, s2, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
 
 	li	t0, (PTE_KERN)
 	slli	t2, s2, PTE_PPN0_S	/* << PTE_PPN0_S */
@@ -214,6 +216,10 @@ va:
 	sd	t0, RISCV_BOOTPARAMS_KERN_STACK(sp)
 
 	li	t0, (VM_EARLY_DTB_ADDRESS)
+	/* Add offset of DTB within superpage */
+	li	t1, (L2_OFFSET)
+	and	t1, a1, t1
+	add	t0, t0, t1
 	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
 
 	mv	a0, sp
