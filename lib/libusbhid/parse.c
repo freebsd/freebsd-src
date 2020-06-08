@@ -403,26 +403,28 @@ hid_get_item_raw(hid_data_t s, hid_item_t *h)
 				s->loc_count = dval & mask;
 				break;
 			case 10:	/* Push */
+				/* stop parsing, if invalid push level */
+				if ((s->pushlevel + 1) >= MAXPUSH)
+					return (0);
 				s->pushlevel ++;
-				if (s->pushlevel < MAXPUSH) {
-					s->cur[s->pushlevel] = *c;
-					/* store size and count */
-					c->report_size = s->loc_size;
-					c->report_count = s->loc_count;
-					/* update current item pointer */
-					c = &s->cur[s->pushlevel];
-				}
+				s->cur[s->pushlevel] = *c;
+				/* store size and count */
+				c->report_size = s->loc_size;
+				c->report_count = s->loc_count;
+				/* update current item pointer */
+				c = &s->cur[s->pushlevel];
 				break;
 			case 11:	/* Pop */
+				/* stop parsing, if invalid push level */
+				if (s->pushlevel == 0)
+					return (0);
 				s->pushlevel --;
-				if (s->pushlevel < MAXPUSH) {
-					c = &s->cur[s->pushlevel];
-					/* restore size and count */
-					s->loc_size = c->report_size;
-					s->loc_count = c->report_count;
-					c->report_size = 0;
-					c->report_count = 0;
-				}
+				c = &s->cur[s->pushlevel];
+				/* restore size and count */
+				s->loc_size = c->report_size;
+				s->loc_count = c->report_count;
+				c->report_size = 0;
+				c->report_count = 0;
 				break;
 			default:
 				break;
