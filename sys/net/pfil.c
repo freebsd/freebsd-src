@@ -213,10 +213,6 @@ pfil_head_register(struct pfil_head_args *pa)
 
 	head = malloc(sizeof(struct pfil_head), M_PFIL, M_WAITOK);
 
-	if (pa->pa_type == PFIL_ETHERNET) {
-		ebpf_probe_register(&arg);
-	}
-
 	head->head_nhooksin = head->head_nhooksout = 0;
 	head->head_flags = pa->pa_flags;
 	head->head_type = pa->pa_type;

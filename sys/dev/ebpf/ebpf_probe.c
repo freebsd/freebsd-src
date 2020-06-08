@@ -45,7 +45,6 @@
 #include <sys/refcount.h>
 
 struct ebpf_probe_state {
-	struct ebpf_probe *probe, (*activate)(ebpf_probe_id_t, void);
 	struct ebpf_prog *prog;
 	ebpf_file *fp;
 	int jit;
