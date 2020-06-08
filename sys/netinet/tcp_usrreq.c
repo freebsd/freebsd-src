@@ -1196,6 +1196,16 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			socantsendmore(so);
 			tcp_usrclosed(tp);
 		}
+		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+		    ((tp->t_flags2 & TF2_FBYTES_COMPLETE) == 0) &&
+		    (tp->t_fbyte_out == 0) &&
+		    (so->so_snd.sb_ccc > 0)) {
+			tp->t_fbyte_out = ticks;
+			if (tp->t_fbyte_out == 0)
+				tp->t_fbyte_out = 1;
+			if (tp->t_fbyte_out && tp->t_fbyte_in)
+				tp->t_flags2 |= TF2_FBYTES_COMPLETE;
+		}
 		if (!(inp->inp_flags & INP_DROPPED) &&
 		    !(flags & PRUS_NOTREADY)) {
 			if (flags & PRUS_MORETOCOME)
