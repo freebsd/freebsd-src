@@ -184,7 +184,8 @@ cleanup(void)
 
 /*
  * usage: install URL
- * where: URL = (tftp|file)://[host]/<package>
+ * where: URL = tftp://[host]/<package>
+ *	or	file://[devname[:fstype]]/<package>
  */
 static int
 install(char *pkgname)
@@ -192,8 +193,9 @@ install(char *pkgname)
 	static char buf[256];
 	struct fs_ops *proto;
 	struct preloaded_file *fp;
-	char *s, *currdev;
-	const char *devname;
+	char *e, *s, *currdev;
+	char *devname;
+	size_t devnamelen;
 	int error, fd, i, local;
 
 	s = strstr(pkgname, "://");
@@ -201,33 +203,73 @@ install(char *pkgname)
 		goto invalid_url;
 
 	i = s - pkgname;
+	s += 3;
+	if (*s == '\0')
+		goto invalid_url;
+
+	proto = NULL;
+	devname = NULL;
+	devnamelen = 0;
+	
 	if (i == 4 && !strncasecmp(pkgname, "tftp", i)) {
 		devname = "net0";
+		devnamelen = 4;
 		proto = &tftp_fsops;
 		local = 0;
 	} else if (i == 4 && !strncasecmp(pkgname, "file", i)) {
 		currdev = getenv("currdev");
-		if (currdev != NULL && strcmp(currdev, "pxe0:") == 0) {
-			devname = "pxe0";
-			proto = NULL;
-#ifdef HOSTPROG
-		} else if (currdev != NULL && strcmp(currdev, "host0:") == 0) {
-			extern struct fs_ops host_fsops;
+		local = 1;
 
-			devname = "host0";
-			proto = &host_fsops;
+		if (*s == '/') {	/* file:/// */
+			if (devname == NULL)
+				devname = currdev;
+			if (devname == NULL)
+				devname = "disk1";
+		} else {		/* file://devname[:fstype]/ */
+			devname = s;
+			e = strchr(devname, '/');
+			if (!e)
+				goto invalid_url;
+			devnamelen = e - devname;
+			s = e;		/* consume devname */
+		}
+		if ((e = strchr(devname, ':')) != NULL) {
+			/* could be :fstype */
+			devnamelen = e - devname;
+			switch (e[1]) {
+			case '\0':	/* just currdev */
+				break;
+			case 'd':
+				proto = &dosfs_fsops;
+				break;
+#ifdef HOSTPROG
+			case 'h':
+				{
+					extern struct fs_ops host_fsops;
+
+					proto = &host_fsops;
+				}
+				break;
 #endif
-		} else {
-			devname = "disk1";
+			case 'u':
+				proto = &ufs_fsops;
+				break;
+			}
+		}
+		if (proto == NULL && strncmp(devname, "disk", 4) == 0) {
 			proto = &dosfs_fsops;
 		}
-		local = 1;
-	} else
+	}
+
+	if (devname == NULL)
 		goto invalid_url;
 
-	s += 3;
-	if (*s == '\0')
-		goto invalid_url;
+	if (devnamelen == 0) {
+		/* default is currdev which ends with ':' */
+		devnamelen = strlen(devname);
+		if (devname[devnamelen - 1] == ':')
+			devnamelen--;
+	}
 
 	if (*s != '/' ) {
 		if (local)
@@ -252,11 +294,12 @@ install(char *pkgname)
 	} else
 		pkgname = s;
 
-	if (strlen(devname) + strlen(pkgname) + 2 > sizeof(buf)) {
+	i = snprintf(buf, sizeof(buf), "%.*s:%s",
+	    (int) devnamelen, devname, pkgname);
+	if (i >= (int) sizeof(buf)) {
 		command_errmsg = "package name too long";
 		return (CMD_ERROR);
 	}
-	sprintf(buf, "%s:%s", devname, pkgname);
 	setenv("install_package", buf, 1);
 
 	error = pkgfs_init(buf, proto);
