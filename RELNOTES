@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r361884:
+	sed(1) has learned about hex escapes (e.g. \x27) and will now do the
+	right thing with them, removing the need for printf magic or obnoxious
+	escaping in many scenarios.
+
 r361238, r361798, r361799:
 	ZFS will now unconditionally reject read(2) of a directory with EISDIR.
 	Additionally, read(2) of a directory is now rejected with EISDIR by
