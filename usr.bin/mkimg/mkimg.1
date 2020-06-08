@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2017
+.Dd June 8, 2020
 .Dt MKIMG 1
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 .Op Fl y
 .Op Fl s Ar scheme Op Fl p Ar partition ...
 .Nm
-.Ar --formats | --schemes | --version
+.Fl -formats | Fl -schemes | Fl -version
 .Sh DESCRIPTION
 The
 .Nm
@@ -183,13 +183,13 @@ utility exits immediately after providing the requested information.
 The version of the
 .Nm
 utility is printed when the
-.Ar --version
+.Fl -version
 option is given.
 The list of supported output formats is printed when the
-.Ar --formats
+.Fl -formats
 option is given and the list of supported partitioning schemes is printed
 when the
-.Ar --schemes
+.Fl -schemes
 option is given.
 Both the format and scheme lists a space-separated lists for easy handling
 in scripts.
