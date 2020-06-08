@@ -29,8 +29,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/types.h>
+#include <sys/eventhandler.h>
+#include <sys/reboot.h>
 
 #include <machine/md_var.h>
 #include <machine/sbi.h>
@@ -78,6 +81,13 @@ static struct sbi_ret
 sbi_get_mimpid(void)
 {
 	return (SBI_CALL0(SBI_EXT_ID_BASE, SBI_BASE_GET_MIMPID));
+}
+
+static void
+sbi_shutdown_final(void *dummy __unused, int howto)
+{
+	if ((howto & RB_POWEROFF) != 0)
+		sbi_shutdown();
 }
 
 void
@@ -187,3 +197,12 @@ sbi_init(void)
 	KASSERT(sbi_probe_extension(SBI_SHUTDOWN) != 0,
 	    ("SBI doesn't implement sbi_shutdown()"));
 }
+
+static void
+sbi_late_init(void *dummy __unused)
+{
+	EVENTHANDLER_REGISTER(shutdown_final, sbi_shutdown_final, NULL,
+	    SHUTDOWN_PRI_LAST);
+}
+
+SYSINIT(sbi, SI_SUB_KLD, SI_ORDER_ANY, sbi_late_init, NULL);
