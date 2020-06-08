@@ -257,6 +257,16 @@ To create a fixed VHD file for use by Azure, specify
 .Fl f Ar vhdf
 on the command line.
 The preferred file extension is ".vhd".
+.Ss Dynamic VHDX
+Microsoft's "Virtual Hard Disk v2" file formats, the
+successor to VHD.
+VHDX is the required format for the 2nd generation Hyper-V VMs.
+To have
+.Nm
+create a dynamic VHDX file, specify
+.Fl f Ar vhdx
+on the command line.
+The preferred file extension is ".vhdx".
 .Ss VMDK
 VMware's "Virtual Machine Disk" file format.
 It's a sparse file format akin to QCOW and VHD and supported by many
