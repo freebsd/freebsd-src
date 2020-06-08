@@ -640,10 +640,13 @@ vtnet_setup_features(struct vtnet_softc *sc)
 		sc->vtnet_flags |= VTNET_FLAG_MAC;
 	}
 
-	if (virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF)) {
+	if (virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF))
 		sc->vtnet_flags |= VTNET_FLAG_MRG_RXBUFS;
+
+	if (virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF) ||
+	    virtio_with_feature(dev, VIRTIO_F_VERSION_1))
 		sc->vtnet_hdr_size = sizeof(struct virtio_net_hdr_mrg_rxbuf);
-	} else
+	else
 		sc->vtnet_hdr_size = sizeof(struct virtio_net_hdr);
 
 	if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
@@ -1459,9 +1462,10 @@ vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 
 	sglist_reset(sg);
 	if ((sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) == 0) {
-		MPASS(sc->vtnet_hdr_size == sizeof(struct virtio_net_hdr));
+		MPASS(sc->vtnet_hdr_size == sizeof(rxhdr->vrh_uhdr.hdr) ||
+		    sc->vtnet_hdr_size == sizeof(rxhdr->vrh_uhdr.mhdr));
 		rxhdr = (struct vtnet_rx_header *) mdata;
-		sglist_append(sg, &rxhdr->vrh_hdr, sc->vtnet_hdr_size);
+		sglist_append(sg, &rxhdr->vrh_uhdr, sc->vtnet_hdr_size);
 		offset = sizeof(struct vtnet_rx_header);
 	} else
 		offset = 0;

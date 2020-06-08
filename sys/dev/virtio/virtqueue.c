@@ -142,6 +142,7 @@ virtqueue_filter_features(uint64_t features)
 	mask = (1 << VIRTIO_TRANSPORT_F_START) - 1;
 	mask |= VIRTIO_RING_F_INDIRECT_DESC;
 	mask |= VIRTIO_RING_F_EVENT_IDX;
+	mask |= VIRTIO_F_VERSION_1;
 
 	return (features & mask);
 }
