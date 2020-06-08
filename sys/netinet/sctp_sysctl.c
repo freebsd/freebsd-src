@@ -451,7 +451,6 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 				xstcb.primary_addr = stcb->asoc.primary_destination->ro._l_addr;
 			xstcb.heartbeat_interval = stcb->asoc.heart_beat_delay;
 			xstcb.state = (uint32_t)sctp_map_assoc_state(stcb->asoc.state);
-			/* 7.0 does not support these */
 			xstcb.assoc_id = sctp_get_associd(stcb);
 			xstcb.peers_rwnd = stcb->asoc.peers_rwnd;
 			xstcb.in_streams = stcb->asoc.streamincnt;

@@ -5565,7 +5565,6 @@ sctp_sorecvmsg(struct socket *so,
 	sockbuf_lock = 1;
 restart:
 
-
 restart_nosblocks:
 	if (hold_sblock == 0) {
 		SOCKBUF_LOCK(&so->so_rcv);
