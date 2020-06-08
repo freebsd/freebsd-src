@@ -142,6 +142,16 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #endif
 
 /*
+ * Helpful macros for quickly coming up with assertions with informative
+ * panic messages.
+ */
+#define MPASS(ex)		MPASS4(ex, #ex, __FILE__, __LINE__)
+#define MPASS2(ex, what)	MPASS4(ex, what, __FILE__, __LINE__)
+#define MPASS3(ex, file, line)	MPASS4(ex, #ex, file, line)
+#define MPASS4(ex, what, file, line)					\
+	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
+
+/*
  * Assert that a pointer can be loaded from memory atomically.
  *
  * This assertion enforces stronger alignment than necessary.  For example,
