@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <machine/ofw_machdep.h>
 #include <powerpc/aim/mmu_oea64.h>
 
@@ -332,6 +334,8 @@ powernv_cpuref_init(void)
 	for (cpu = OF_child(dev); cpu != 0; cpu = OF_peer(cpu)) {
 		res = OF_getprop(cpu, "device_type", buf, sizeof(buf));
 		if (res > 0 && strcmp(buf, "cpu") == 0) {
+			if (!ofw_bus_node_status_okay(cpu))
+				continue;
 			res = OF_getproplen(cpu, "ibm,ppc-interrupt-server#s");
 			if (res > 0) {
 				OF_getencprop(cpu, "ibm,ppc-interrupt-server#s",
