@@ -79,9 +79,8 @@ struct icl_pdu {
 	/*
 	 * User (initiator or provider) private fields.
 	 */
-	uint32_t		ip_prv0;
-	uint32_t		ip_prv1;
-	uint32_t		ip_prv2;
+	void			*ip_prv0;
+	void			*ip_prv1;
 };
 
 #define ICL_CONN_STATE_INVALID		0
@@ -92,6 +91,8 @@ struct icl_pdu {
 #define ICL_CONN_STATE_DATA_DIGEST	5
 
 #define	ICL_MAX_DATA_SEGMENT_LENGTH	(128 * 1024)
+
+#define	ICL_NOCOPY			(1 << 30)
 
 struct icl_conn {
 	KOBJ_FIELDS;
@@ -135,6 +136,8 @@ struct icl_drv_limits {
 	int idl_first_burst_length;
 	int spare[4];
 };
+
+typedef void (*icl_pdu_cb)(struct icl_pdu *, int error);
 
 struct icl_conn	*icl_new_conn(const char *offload, bool iser, const char *name,
 		    struct mtx *lock);

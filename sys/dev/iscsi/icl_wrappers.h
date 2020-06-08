@@ -80,6 +80,13 @@ icl_pdu_queue(struct icl_pdu *ip)
 }
 
 static inline void
+icl_pdu_queue_cb(struct icl_pdu *ip, icl_pdu_cb cb)
+{
+
+	ICL_CONN_PDU_QUEUE_CB(ip->ip_conn, ip, cb);
+}
+
+static inline void
 icl_pdu_free(struct icl_pdu *ip)
 {
 
