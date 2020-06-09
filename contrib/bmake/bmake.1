@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.273 2018/05/27 01:14:51 christos Exp $
+.\"	$NetBSD: make.1,v 1.282 2020/06/06 20:28:42 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd May 26, 2018
+.Dd June 5, 2020
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -272,7 +272,7 @@ that do not depend on the target whose creation caused the error.
 .It Fl m Ar directory
 Specify a directory in which to search for sys.mk and makefiles included
 via the
-.Ao Ar file Ac Ns -style
+.Li \&< Ns Ar file Ns Li \&> Ns -style
 include statement.
 The
 .Fl m
@@ -280,7 +280,7 @@ option can be used multiple times to form a search path.
 This path will override the default system include path: /usr/share/mk.
 Furthermore the system include path will be appended to the search path used
 for
-.Qo Ar file Qc Ns -style
+.Li \*q Ns Ar file Ns Li \*q Ns -style
 include statements (see the
 .Fl I
 option).
@@ -1196,10 +1196,8 @@ but selects all words which do not match
 .Ar pattern .
 .It Cm \&:O
 Order every word in variable alphabetically.
-To sort words in
-reverse order use the
-.Ql Cm \&:O:[-1..1]
-combination of modifiers.
+.It Cm \&:Or
+Order every word in variable in reverse alphabetical order.
 .It Cm \&:Ox
 Randomize words in variable.
 The results will be different each time you are referring to the
@@ -1234,7 +1232,7 @@ Quotes every shell meta-character in the variable, and also doubles
 characters so that it can be passed
 safely through recursive invocations of
 .Nm .
-This is equivalent to: 
+This is equivalent to:
 .Sq \&:S/\e\&$/&&/g:Q .
 .It Cm \&:R
 Replaces each word in the variable with everything but its suffix.
@@ -1429,6 +1427,29 @@ is the substring of
 .Ar old_string
 to be replaced in
 .Ar new_string .
+If only
+.Ar old_string
+contains the pattern matching character
+.Ar % ,
+and
+.Ar old_string
+matches, then the result is the
+.Ar new_string .
+If only the
+.Ar new_string
+contains the pattern matching character
+.Ar % ,
+then it is not treated specially and it is printed as a literal
+.Ar %
+on match.
+If there is more than one pattern matching character
+.Ar ( % )
+in either the
+.Ar new_string
+or
+.Ar old_string ,
+only the first instance is treated specially (as the pattern character);
+all subsequent instances are treated as regular characters
 .Pp
 Variable expansion occurs in the normal fashion inside both
 .Ar old_string
@@ -1591,6 +1612,11 @@ then the words are output in reverse order.
 For example,
 .Ql Cm \&:[-1..1]
 selects all the words from last to first.
+If the list is already ordered, then this effectively reverses
+the list, but it is more efficient to use
+.Ql Cm \&:Or
+instead of
+.Ql Cm \&:O:[-1..1] .
 .\" :[*]
 .It Cm \&*
 Causes subsequent modifiers to treat the value as a single word
@@ -1623,9 +1649,9 @@ dot
 .Pq Ql \&.
 character.
 Files are included with either
-.Cm \&.include Aq Ar file
+.Cm \&.include \&< Ns Ar file Ns Cm \&>
 or
-.Cm \&.include Pf \*q Ar file Ns \*q .
+.Cm \&.include \&\*q Ns Ar file Ns Cm \&\*q .
 Variables between the angle brackets or double quotes are expanded
 to form the file name.
 If angle brackets are used, the included makefile is expected to be in
@@ -2409,9 +2435,9 @@ file).
 .Sh BUGS
 The
 make
-syntax is difficult to parse without actually acting of the data.
-For instance finding the end of a variable use should involve scanning each
-the modifiers using the correct terminator for each field.
+syntax is difficult to parse without actually acting on the data.
+For instance, finding the end of a variable's use should involve scanning
+each of the modifiers, using the correct terminator for each field.
 In many places
 make
 just counts {} and () in order to find the end of a variable expansion.
