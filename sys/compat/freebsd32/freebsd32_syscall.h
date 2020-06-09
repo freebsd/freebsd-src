@@ -31,7 +31,7 @@
 #define	FREEBSD32_SYS_setuid	23
 #define	FREEBSD32_SYS_getuid	24
 #define	FREEBSD32_SYS_geteuid	25
-#define	FREEBSD32_SYS_ptrace	26
+#define	FREEBSD32_SYS_freebsd32_ptrace	26
 #define	FREEBSD32_SYS_freebsd32_recvmsg	27
 #define	FREEBSD32_SYS_freebsd32_sendmsg	28
 #define	FREEBSD32_SYS_freebsd32_recvfrom	29

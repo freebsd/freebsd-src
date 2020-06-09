@@ -43,6 +43,12 @@ struct freebsd32_wait4_args {
 	char options_l_[PADL_(int)]; int options; char options_r_[PADR_(int)];
 	char rusage_l_[PADL_(struct rusage32 *)]; struct rusage32 * rusage; char rusage_r_[PADR_(struct rusage32 *)];
 };
+struct freebsd32_ptrace_args {
+	char req_l_[PADL_(int)]; int req; char req_r_[PADR_(int)];
+	char pid_l_[PADL_(pid_t)]; pid_t pid; char pid_r_[PADR_(pid_t)];
+	char addr_l_[PADL_(caddr_t)]; caddr_t addr; char addr_r_[PADR_(caddr_t)];
+	char data_l_[PADL_(int)]; int data; char data_r_[PADR_(int)];
+};
 struct freebsd32_recvmsg_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char msg_l_[PADL_(struct msghdr32 *)]; struct msghdr32 * msg; char msg_r_[PADR_(struct msghdr32 *)];
@@ -740,6 +746,7 @@ struct freebsd32___sysctlbyname_args {
 #define PAD64_REQUIRED
 #endif
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
+int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
 int	freebsd32_recvmsg(struct thread *, struct freebsd32_recvmsg_args *);
 int	freebsd32_sendmsg(struct thread *, struct freebsd32_sendmsg_args *);
 int	freebsd32_recvfrom(struct thread *, struct freebsd32_recvfrom_args *);
@@ -1293,6 +1300,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_wait4	AUE_WAIT4
 #define	FREEBSD32_SYS_AUE_freebsd4_freebsd32_getfsstat	AUE_GETFSSTAT
 #define	FREEBSD32_SYS_AUE_ofreebsd32_lseek	AUE_LSEEK
+#define	FREEBSD32_SYS_AUE_freebsd32_ptrace	AUE_PTRACE
 #define	FREEBSD32_SYS_AUE_freebsd32_recvmsg	AUE_RECVMSG
 #define	FREEBSD32_SYS_AUE_freebsd32_sendmsg	AUE_SENDMSG
 #define	FREEBSD32_SYS_AUE_freebsd32_recvfrom	AUE_RECVFROM
