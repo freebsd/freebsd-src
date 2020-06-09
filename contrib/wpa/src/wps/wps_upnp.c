@@ -328,9 +328,14 @@ static void subscr_addr_add_url(struct subscription *s, const char *url,
 	int rerr;
 	size_t host_len, path_len;
 
-	/* url MUST begin with http: */
-	if (url_len < 7 || os_strncasecmp(url, "http://", 7))
+	/* URL MUST begin with HTTP scheme. In addition, limit the length of
+	 * the URL to 700 characters which is around the limit that was
+	 * implicitly enforced for more than 10 years due to a bug in
+	 * generating the event messages. */
+	if (url_len < 7 || os_strncasecmp(url, "http://", 7) || url_len > 700) {
+		wpa_printf(MSG_DEBUG, "WPS UPnP: Reject an unacceptable URL");
 		goto fail;
+	}
 	url += 7;
 	url_len -= 7;
 
