@@ -3481,6 +3481,8 @@ parsecred(char *namelist, struct xucred *cr)
 				cr->cr_groups[cnt - 1] = groups[cnt];
 		} else {
 			cr->cr_ngroups = ngroups;
+			if (cr->cr_ngroups > XU_NGROUPS)
+				cr->cr_ngroups = XU_NGROUPS;
 			for (cnt = 1; cnt < ngroups; cnt++)
 				cr->cr_groups[cnt] = groups[cnt];
 		}
