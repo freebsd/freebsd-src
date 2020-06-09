@@ -191,6 +191,8 @@ arm64/coresight/coresight_cmd.c			standard
 arm64/coresight/coresight_cpu_debug.c		standard
 arm64/coresight/coresight_dynamic_replicator.c	standard
 arm64/coresight/coresight_etm4x.c		standard
+arm64/coresight/coresight_etm4x_acpi.c		optional acpi
+arm64/coresight/coresight_etm4x_fdt.c		optional fdt
 arm64/coresight/coresight_funnel.c		standard
 arm64/coresight/coresight_tmc.c			standard
 arm64/intel/firmware.c				optional soc_intel_stratix10

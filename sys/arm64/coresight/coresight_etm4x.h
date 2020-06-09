@@ -34,6 +34,13 @@
 #ifndef	_ARM64_CORESIGHT_ETM4X_H_
 #define	_ARM64_CORESIGHT_ETM4X_H_
 
+DECLARE_CLASS(etm_driver);
+
+struct etm_softc {
+	struct resource			*res;
+	struct coresight_platform_data	*pdata;
+};
+
 #define	TRCPRGCTLR		0x004 /* Trace Programming Control Register */
 #define	 TRCPRGCTLR_EN		(1 << 0) /* Trace unit enable bit */
 #define	TRCPROCSELR		0x008 /* Trace PE Select Control Register */
