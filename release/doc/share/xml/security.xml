@@ -211,9 +211,17 @@
 
       <row>
 	<entry><link
-	    xlink:href="&security.url;/FreeBSD-SA-20:14.cryptodev.asc">FreeBSD-SA-20:14.cryptodev</link></entry>
+	    xlink:href="&security.url;/FreeBSD-SA-20:15.cryptodev.asc">FreeBSD-SA-20:15.cryptodev</link></entry>
 	<entry>12&nbsp;May&nbsp;2020</entry>
 	<entry><para>Use-after-free condition</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:17.usb.asc">FreeBSD-SA-20:17.usb</link></entry>
+	<entry>9&nbsp;June&nbsp;2020</entry>
+	<entry><para><acronym>HID</acronym> descripter parsing
+	  error</para></entry>
       </row>
     </tbody>
   </tgroup>
