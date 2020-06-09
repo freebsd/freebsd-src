@@ -368,7 +368,7 @@ efi_boot_name()
 			echo "bootaa64.efi"
 			;;
 		amd64)
-			echo "bootx86.efi"
+			echo "bootx64.efi"
 			;;
 	esac
 }
