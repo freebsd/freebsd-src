@@ -144,7 +144,6 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN,
 #define	CONN_SESSION(X)			((struct cfiscsi_session *)(X)->ic_prv0)
 #define	PDU_SESSION(X)			CONN_SESSION((X)->ip_conn)
 #define	PDU_EXPDATASN(X)		(X)->ip_prv0
-#define	PDU_TOTAL_TRANSFER_LEN(X)	(X)->ip_prv1
 #define	PDU_R2TSN(X)			(X)->ip_prv2
 
 static int	cfiscsi_init(void);
@@ -2446,13 +2445,6 @@ cfiscsi_datamove_in(union ctl_io *io)
 	}
 
 	/*
-	 * This is the total amount of data to be transferred within the current
-	 * SCSI command.  We need to record it so that we can properly report
-	 * underflow/underflow.
-	 */
-	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
-
-	/*
 	 * This is the offset within the current SCSI command; for the first
 	 * call to cfiscsi_datamove() it will be 0, and for subsequent ones
 	 * it will be the sum of lengths of previous ones.
@@ -2611,17 +2603,17 @@ cfiscsi_datamove_in(union ctl_io *io)
 			bhsdi->bhsdi_flags |= BHSDI_FLAGS_F;
 			if (io->io_hdr.status == CTL_SUCCESS) {
 				bhsdi->bhsdi_flags |= BHSDI_FLAGS_S;
-				if (PDU_TOTAL_TRANSFER_LEN(request) <
+				if (io->scsiio.kern_total_len <
 				    ntohl(bhssc->bhssc_expected_data_transfer_length)) {
 					bhsdi->bhsdi_flags |= BHSSR_FLAGS_RESIDUAL_UNDERFLOW;
 					bhsdi->bhsdi_residual_count =
 					    htonl(ntohl(bhssc->bhssc_expected_data_transfer_length) -
-					    PDU_TOTAL_TRANSFER_LEN(request));
-				} else if (PDU_TOTAL_TRANSFER_LEN(request) >
+					    io->scsiio.kern_total_len);
+				} else if (io->scsiio.kern_total_len >
 				    ntohl(bhssc->bhssc_expected_data_transfer_length)) {
 					bhsdi->bhsdi_flags |= BHSSR_FLAGS_RESIDUAL_OVERFLOW;
 					bhsdi->bhsdi_residual_count =
-					    htonl(PDU_TOTAL_TRANSFER_LEN(request) -
+					    htonl(io->scsiio.kern_total_len -
 					    ntohl(bhssc->bhssc_expected_data_transfer_length));
 				}
 				bhsdi->bhsdi_status = io->scsiio.scsi_status;
@@ -2655,12 +2647,6 @@ cfiscsi_datamove_out(union ctl_io *io)
 	KASSERT((bhssc->bhssc_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
 	    ISCSI_BHS_OPCODE_SCSI_COMMAND,
 	    ("bhssc->bhssc_opcode != ISCSI_BHS_OPCODE_SCSI_COMMAND"));
-
-	/*
-	 * We need to record it so that we can properly report
-	 * underflow/underflow.
-	 */
-	PDU_TOTAL_TRANSFER_LEN(request) = io->scsiio.kern_total_len;
 
 	/*
 	 * Complete write underflow.  Not a single byte to read.  Return.
@@ -2851,19 +2837,18 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	 * XXX: We don't deal with bidirectional under/overflows;
 	 *	does anything actually support those?
 	 */
-	if (PDU_TOTAL_TRANSFER_LEN(request) <
+	if (io->scsiio.kern_total_len <
 	    ntohl(bhssc->bhssc_expected_data_transfer_length)) {
 		bhssr->bhssr_flags |= BHSSR_FLAGS_RESIDUAL_UNDERFLOW;
 		bhssr->bhssr_residual_count =
 		    htonl(ntohl(bhssc->bhssc_expected_data_transfer_length) -
-		    PDU_TOTAL_TRANSFER_LEN(request));
+		    io->scsiio.kern_total_len);
 		//CFISCSI_SESSION_DEBUG(cs, "underflow; residual count %d",
 		//    ntohl(bhssr->bhssr_residual_count));
-	} else if (PDU_TOTAL_TRANSFER_LEN(request) > 
+	} else if (io->scsiio.kern_total_len >
 	    ntohl(bhssc->bhssc_expected_data_transfer_length)) {
 		bhssr->bhssr_flags |= BHSSR_FLAGS_RESIDUAL_OVERFLOW;
-		bhssr->bhssr_residual_count =
-		    htonl(PDU_TOTAL_TRANSFER_LEN(request) -
+		bhssr->bhssr_residual_count = htonl(io->scsiio.kern_total_len -
 		    ntohl(bhssc->bhssc_expected_data_transfer_length));
 		//CFISCSI_SESSION_DEBUG(cs, "overflow; residual count %d",
 		//    ntohl(bhssr->bhssr_residual_count));
