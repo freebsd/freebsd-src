@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2020
+.Dd June 9, 2020
 .Dt CRYPTO_DRIVER 9
 .Os
 .Sh NAME
@@ -113,6 +113,8 @@ should be used for drivers which process requests on separate co-processors.
 .Dv CRYPTOCAP_F_SYNC
 should be set for drivers which process requests synchronously in
 .Fn CRYPTODEV_PROCESS .
+.Dv CRYPTOCAP_F_ACCEL_SOFTWARE
+should be set for software drivers which use accelerated CPU instructions.
 .Fn crypto_get_driverid
 returns an opaque driver id.
 .Pp
