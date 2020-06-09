@@ -78,30 +78,33 @@ coresight_get_ports(phandle_t dev_node,
 		    strncasecmp(name, "port@", 6)) {
 
 			port_reg = -1;
-			OF_getencprop(child, "reg", (void *)&port_reg, sizeof(port_reg));
+			OF_getencprop(child, "reg", (void *)&port_reg,
+			    sizeof(port_reg));
 
 			endpoint_child = ofw_bus_find_child(child, "endpoint");
 			if (endpoint_child) {
-				if (OF_getencprop(endpoint_child, "remote-endpoint", &xref,
+				if (OF_getencprop(endpoint_child,
+				    "remote-endpoint", &xref,
 				    sizeof(xref)) == -1) {
 					printf("failed\n");
 					continue;
 				}
-				endp = malloc(sizeof(struct endpoint), M_CORESIGHT,
-				    M_WAITOK | M_ZERO);
+				endp = malloc(sizeof(struct endpoint),
+				    M_CORESIGHT, M_WAITOK | M_ZERO);
 				endp->my_node = endpoint_child;
 				endp->their_node = OF_node_from_xref(xref);
 				endp->dev_node = dev_node;
 				endp->reg = port_reg;
-				if (OF_getproplen(endpoint_child, "slave-mode") >= 0) {
+				if (OF_getproplen(endpoint_child,
+				    "slave-mode") >= 0) {
 					pdata->in_ports++;
 					endp->slave = 1;
-				} else {
+				} else
 					pdata->out_ports++;
-				}
 
 				mtx_lock(&pdata->mtx_lock);
-				TAILQ_INSERT_TAIL(&pdata->endpoints, endp, link);
+				TAILQ_INSERT_TAIL(&pdata->endpoints,
+				    endp, link);
 				mtx_unlock(&pdata->mtx_lock);
 			}
 		}
