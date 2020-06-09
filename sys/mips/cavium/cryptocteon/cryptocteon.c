@@ -86,7 +86,7 @@ cryptocteon_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct octo_sess),
-	    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SYNC);
+	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "crypto_get_driverid ret %d\n", sc->sc_cid);
 		return (ENXIO);
