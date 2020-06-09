@@ -484,6 +484,10 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
     if (acpi_MatchHid(handle, "ARMH0011") != ACPI_MATCHHID_NOMATCH)
 	    arc.ignore_producer_flag = true;
 
+    /* ARM Coresight on N1SDP set ResourceProducer on memory resources. */
+    if (acpi_MatchHid(handle, "ARMHC500") != ACPI_MATCHHID_NOMATCH)
+	    arc.ignore_producer_flag = true;
+
     status = AcpiWalkResources(handle, "_CRS", acpi_parse_resource, &arc);
     if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
 	printf("can't fetch resources for %s - %s\n",
