@@ -251,9 +251,7 @@ static bool
 unhold_free_page(pmap_t pmap, vm_page_t m)
 {
 
-	m->ref_count--;
-	if (m->ref_count == 0) {
-		vm_wire_sub(1);
+	if (vm_page_unwire_noq(m)) {
 		vm_page_free_zero(m);
 		return (true);
 	}
@@ -262,8 +260,8 @@ unhold_free_page(pmap_t pmap, vm_page_t m)
 }
 
 static vm_offset_t
-alloc_or_hold_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
-    bool nosleep, bool hold, bool *isnew)
+get_pgtbl_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
+    bool nosleep, bool hold_parent, bool *isnew)
 {
 	vm_offset_t	page;
 	vm_page_t	m;
@@ -276,18 +274,18 @@ alloc_or_hold_page(pmap_t pmap, vm_offset_t *ptr_tbl, uint32_t index,
 		if (ptr_tbl[index] == 0) {
 			*isnew = true;
 			ptr_tbl[index] = page;
+			if (hold_parent) {
+				m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)ptr_tbl));
+				m->ref_count++;
+			}
 			return (page);
 		}
 		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS(page));
 		page = ptr_tbl[index];
-		vm_wire_sub(1);
+		vm_page_unwire_noq(m);
 		vm_page_free_zero(m);
 	}
 
-	if (hold) {
-		m = PHYS_TO_VM_PAGE(pmap_kextract(page));
-		m->ref_count++;
-	}
 	*isnew = false;
 
 	return (page);
@@ -301,19 +299,18 @@ ptbl_alloc(pmap_t pmap, vm_offset_t va, bool nosleep, bool *is_new)
 	unsigned int	pdir_l1_idx = PDIR_L1_IDX(va);
 	unsigned int	pdir_idx = PDIR_IDX(va);
 	vm_offset_t	pdir_l1, pdir, ptbl;
-	bool		hold_page;
 
-	hold_page = (pmap != kernel_pmap);
-	pdir_l1 = alloc_or_hold_page(pmap, (vm_offset_t *)pmap->pm_root,
-	    pg_root_idx, nosleep, hold_page, is_new);
+	/* When holding a parent, no need to hold the root index pages. */
+	pdir_l1 = get_pgtbl_page(pmap, (vm_offset_t *)pmap->pm_root,
+	    pg_root_idx, nosleep, false, is_new);
 	if (pdir_l1 == 0)
 		return (NULL);
-	pdir = alloc_or_hold_page(pmap, (vm_offset_t *)pdir_l1, pdir_l1_idx,
-	    nosleep, hold_page, is_new);
+	pdir = get_pgtbl_page(pmap, (vm_offset_t *)pdir_l1, pdir_l1_idx,
+	    nosleep, !*is_new, is_new);
 	if (pdir == 0)
 		return (NULL);
-	ptbl = alloc_or_hold_page(pmap, (vm_offset_t *)pdir, pdir_idx,
-	    nosleep, false, is_new);
+	ptbl = get_pgtbl_page(pmap, (vm_offset_t *)pdir, pdir_idx,
+	    nosleep, !*is_new, is_new);
 
 	return ((pte_t *)ptbl);
 }
@@ -629,6 +626,15 @@ mmu_booke_release(pmap_t pmap)
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
+#ifdef INVARIANTS
+	/*
+	 * Verify that all page directories are gone.
+	 * Protects against reference count leakage.
+	 */
+	for (int i = 0; i < PG_ROOT_NENTRIES; i++)
+		KASSERT(pmap->pm_root[i] == 0,
+		    ("Index %d on root page %p is non-zero!\n", i, pmap->pm_root));
+#endif
 	uma_zfree(ptbl_root_zone, pmap->pm_root);
 }
 
