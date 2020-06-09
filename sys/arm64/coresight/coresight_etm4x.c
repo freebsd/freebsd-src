@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <machine/bus.h>
 
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
-
 #include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_etm4x.h>
 
@@ -65,16 +62,6 @@ __FBSDID("$FreeBSD$");
  * CPU2 -> ETM2 -> funnel1 -^
  * CPU3 -> ETM3 -> funnel1 -^
  */
-
-static struct ofw_compat_data compat_data[] = {
-	{ "arm,coresight-etm4x",		1 },
-	{ NULL,					0 }
-};
-
-struct etm_softc {
-	struct resource			*res;
-	struct coresight_platform_data	*pdata;
-};
 
 static struct resource_spec etm_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -248,20 +235,6 @@ etm_disable(device_t dev, struct endpoint *endp,
 }
 
 static int
-etm_probe(device_t dev)
-{
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "AArch64 Embedded Trace Macrocell");
-
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
 etm_attach(device_t dev)
 {
 	struct coresight_desc desc;
@@ -285,7 +258,6 @@ etm_attach(device_t dev)
 
 static device_method_t etm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		etm_probe),
 	DEVMETHOD(device_attach,	etm_attach),
 
 	/* Coresight interface */
@@ -295,13 +267,4 @@ static device_method_t etm_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t etm_driver = {
-	"etm",
-	etm_methods,
-	sizeof(struct etm_softc),
-};
-
-static devclass_t etm_devclass;
-
-DRIVER_MODULE(etm, simplebus, etm_driver, etm_devclass, 0, 0);
-MODULE_VERSION(etm, 1);
+DEFINE_CLASS_0(etm, etm_driver, etm_methods, sizeof(struct etm_softc));
