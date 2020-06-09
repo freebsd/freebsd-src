@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200609	p6	FreeBSD-EN-20:11.ena
+			FreeBSD-EN-20:12.iflib
+			FreeBSD-SA-20:17.usb
+
+        Fix stability issues in ena(4) driver. [EN-20:11.ena]
+
+        Fix iflib watchdog timeout resetting idle queues. [EN-20:12.iflib]
+
+        Fix USB HID descriptor parsing error. [SA-20:17.usb]
+
 20200512	p5	FreeBSD-EN-20:08.tzdata
 			FreeBSD-EN-20:09.igb
 			FreeBSD-EN-20:10.build
