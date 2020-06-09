@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200609	p10	FreeBSD-SA-20:17.usb
+
+        Fix USB HID descriptor parsing error. [SA-20:17.usb]
+
 20200512	p9	FreeBSD-EN-20:08.tzdata
 			FreeBSD-EN-20:10.build
 			FreeBSD-SA-20:12.libalias
