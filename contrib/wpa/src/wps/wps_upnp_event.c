@@ -147,7 +147,8 @@ static struct wpabuf * event_build_message(struct wps_event_ *e)
 	struct wpabuf *buf;
 	char *b;
 
-	buf = wpabuf_alloc(1000 + wpabuf_len(e->data));
+	buf = wpabuf_alloc(1000 + os_strlen(e->addr->path) +
+			   wpabuf_len(e->data));
 	if (buf == NULL)
 		return NULL;
 	wpabuf_printf(buf, "NOTIFY %s HTTP/1.1\r\n", e->addr->path);
