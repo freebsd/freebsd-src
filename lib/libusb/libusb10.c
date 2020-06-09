@@ -1716,3 +1716,18 @@ libusb_error_name(int code)
 		return ("LIBUSB_ERROR_UNKNOWN");
 	}
 }
+
+int
+libusb_has_capability(uint32_t capability)
+{
+
+	switch (capability) {
+	case LIBUSB_CAP_HAS_CAPABILITY:
+	case LIBUSB_CAP_HAS_HOTPLUG:
+	case LIBUSB_CAP_HAS_HID_ACCESS:
+	case LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER:
+		return (1);
+	default:
+		return (0);
+	}
+}
