@@ -82,9 +82,9 @@ _Static_assert(offsetof(struct thread, td_flags) == 0xfc,
     "struct thread KBI td_flags");
 _Static_assert(offsetof(struct thread, td_pflags) == 0x104,
     "struct thread KBI td_pflags");
-_Static_assert(offsetof(struct thread, td_frame) == 0x498,
+_Static_assert(offsetof(struct thread, td_frame) == 0x4a8,
     "struct thread KBI td_frame");
-_Static_assert(offsetof(struct thread, td_emuldata) == 0x6a0,
+_Static_assert(offsetof(struct thread, td_emuldata) == 0x6b0,
     "struct thread KBI td_emuldata");
 _Static_assert(offsetof(struct proc, p_flag) == 0xb0,
     "struct proc KBI p_flag");
@@ -102,9 +102,9 @@ _Static_assert(offsetof(struct thread, td_flags) == 0x98,
     "struct thread KBI td_flags");
 _Static_assert(offsetof(struct thread, td_pflags) == 0xa0,
     "struct thread KBI td_pflags");
-_Static_assert(offsetof(struct thread, td_frame) == 0x2fc,
+_Static_assert(offsetof(struct thread, td_frame) == 0x304,
     "struct thread KBI td_frame");
-_Static_assert(offsetof(struct thread, td_emuldata) == 0x340,
+_Static_assert(offsetof(struct thread, td_emuldata) == 0x348,
     "struct thread KBI td_emuldata");
 _Static_assert(offsetof(struct proc, p_flag) == 0x68,
     "struct proc KBI p_flag");
@@ -463,7 +463,8 @@ thread_cow_get_proc(struct thread *newtd, struct proc *p)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	newtd->td_ucred = crhold(p->p_ucred);
+	newtd->td_realucred = crcowget(p->p_ucred);
+	newtd->td_ucred = newtd->td_realucred;
 	newtd->td_limit = lim_hold(p->p_limit);
 	newtd->td_cowgen = p->p_cowgen;
 }
@@ -472,7 +473,9 @@ void
 thread_cow_get(struct thread *newtd, struct thread *td)
 {
 
-	newtd->td_ucred = crhold(td->td_ucred);
+	MPASS(td->td_realucred == td->td_ucred);
+	newtd->td_realucred = crcowget(td->td_realucred);
+	newtd->td_ucred = newtd->td_realucred;
 	newtd->td_limit = lim_hold(td->td_limit);
 	newtd->td_cowgen = td->td_cowgen;
 }
@@ -481,8 +484,8 @@ void
 thread_cow_free(struct thread *td)
 {
 
-	if (td->td_ucred != NULL)
-		crfree(td->td_ucred);
+	if (td->td_realucred != NULL)
+		crcowfree(td);
 	if (td->td_limit != NULL)
 		lim_free(td->td_limit);
 }
@@ -495,13 +498,9 @@ thread_cow_update(struct thread *td)
 	struct plimit *oldlimit;
 
 	p = td->td_proc;
-	oldcred = NULL;
 	oldlimit = NULL;
 	PROC_LOCK(p);
-	if (td->td_ucred != p->p_ucred) {
-		oldcred = td->td_ucred;
-		td->td_ucred = crhold(p->p_ucred);
-	}
+	oldcred = crcowsync();
 	if (td->td_limit != p->p_limit) {
 		oldlimit = td->td_limit;
 		td->td_limit = lim_hold(p->p_limit);

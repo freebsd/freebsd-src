@@ -267,7 +267,8 @@ struct thread {
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
-	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
+	struct ucred	*td_realucred;	/* (k) Reference to credentials. */
+	struct ucred	*td_ucred;	/* (k) Used credentials, temporarily switchable. */
 	struct plimit	*td_limit;	/* (k) Resource limits. */
 	int		td_slptick;	/* (t) Time at sleep. */
 	int		td_blktick;	/* (t) Time spent blocked. */
@@ -305,6 +306,7 @@ struct thread {
 	int		td_errno;	/* (k) Error from last syscall. */
 	size_t		td_vslock_sz;	/* (k) amount of vslock-ed space */
 	struct kcov_info *td_kcov_info;	/* (*) Kernel code coverage data */
+	u_int		td_ucredref;	/* (k) references on td_realucred */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
