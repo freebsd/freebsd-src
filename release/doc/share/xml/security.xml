@@ -205,7 +205,7 @@
 	<entry><link
 	    xlink:href="&security.url;/FreeBSD-SA-20:17.usb.asc">FreeBSD-SA-20:17.usb</link></entry>
 	<entry>9&nbsp;June&nbsp;2020</entry>
-	<entry><para><acronym>HID</acronym> descripter parsing
+	<entry><para><acronym>HID</acronym> descriptor parsing
 	  error</para></entry>
       </row>
     </tbody>
