@@ -143,8 +143,17 @@ SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, maxtags, CTLFLAG_RWTUN,
 
 #define	CONN_SESSION(X)			((struct cfiscsi_session *)(X)->ic_prv0)
 #define	PDU_SESSION(X)			CONN_SESSION((X)->ip_conn)
-#define	PDU_EXPDATASN(X)		(X)->ip_prv0
-#define	PDU_R2TSN(X)			(X)->ip_prv2
+
+struct cfiscsi_priv {
+	void		*request;
+	uint32_t	 expdatasn;
+	uint32_t	 r2tsn;
+};
+#define	PRIV(io)	\
+    ((struct cfiscsi_priv *)&(io)->io_hdr.ctl_private[CTL_PRIV_FRONTEND])
+#define	PRIV_REQUEST(io)		PRIV(io)->request
+#define	PRIV_EXPDATASN(io)		PRIV(io)->expdatasn
+#define	PRIV_R2TSN(io)			PRIV(io)->r2tsn
 
 static int	cfiscsi_init(void);
 static int	cfiscsi_shutdown(void);
@@ -512,7 +521,7 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	}
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
 	ctl_zero_io(io);
-	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
+	PRIV_REQUEST(io) = request;
 	io->io_hdr.io_type = CTL_IO_SCSI;
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
@@ -568,7 +577,7 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
 	ctl_zero_io(io);
-	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
+	PRIV_REQUEST(io) = request;
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
@@ -1105,7 +1114,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 		return;		/* No target yet, so nothing to do. */
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
 	ctl_zero_io(io);
-	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = cs;
+	PRIV_REQUEST(io) = cs;
 	io->io_hdr.io_type = CTL_IO_TASK;
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
@@ -2426,7 +2435,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 	const char *sg_addr;
 	int ctl_sg_count, error, i;
 
-	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	request = PRIV_REQUEST(io);
 	cs = PDU_SESSION(request);
 
 	bhssc = (const struct iscsi_bhs_scsi_command *)request->ip_bhs;
@@ -2495,8 +2504,7 @@ cfiscsi_datamove_in(union ctl_io *io)
 			bhsdi->bhsdi_initiator_task_tag =
 			    bhssc->bhssc_initiator_task_tag;
 			bhsdi->bhsdi_target_transfer_tag = 0xffffffff;
-			bhsdi->bhsdi_datasn = htonl(PDU_EXPDATASN(request));
-			PDU_EXPDATASN(request)++;
+			bhsdi->bhsdi_datasn = htonl(PRIV_EXPDATASN(io)++);
 			bhsdi->bhsdi_buffer_offset = htonl(buffer_offset);
 		}
 
@@ -2640,7 +2648,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	uint32_t target_transfer_tag;
 	bool done;
 
-	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	request = PRIV_REQUEST(io);
 	cs = PDU_SESSION(request);
 
 	bhssc = (const struct iscsi_bhs_scsi_command *)request->ip_bhs;
@@ -2753,8 +2761,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	 *	be running concurrently on several CPUs for a given
 	 *	command.
 	 */
-	bhsr2t->bhsr2t_r2tsn = htonl(PDU_R2TSN(request));
-	PDU_R2TSN(request)++;
+	bhsr2t->bhsr2t_r2tsn = htonl(PRIV_R2TSN(io)++);
 	/*
 	 * This is the offset within the current SCSI command;
 	 * i.e. for the first call of datamove(), it will be 0,
@@ -2799,7 +2806,7 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	struct cfiscsi_session *cs;
 	uint16_t sense_length;
 
-	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	request = PRIV_REQUEST(io);
 	cs = PDU_SESSION(request);
 	bhssc = (struct iscsi_bhs_scsi_command *)request->ip_bhs;
 	KASSERT((bhssc->bhssc_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
@@ -2856,7 +2863,7 @@ cfiscsi_scsi_command_done(union ctl_io *io)
 	bhssr->bhssr_response = BHSSR_RESPONSE_COMMAND_COMPLETED;
 	bhssr->bhssr_status = io->scsiio.scsi_status;
 	bhssr->bhssr_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
-	bhssr->bhssr_expdatasn = htonl(PDU_EXPDATASN(request));
+	bhssr->bhssr_expdatasn = htonl(PRIV_EXPDATASN(io));
 
 	if (io->scsiio.sense_len > 0) {
 #if 0
@@ -2886,7 +2893,7 @@ cfiscsi_task_management_done(union ctl_io *io)
 	struct cfiscsi_softc *softc;
 	int cold_reset = 0;
 
-	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	request = PRIV_REQUEST(io);
 	cs = PDU_SESSION(request);
 	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
 	KASSERT((bhstmr->bhstmr_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
@@ -2982,7 +2989,7 @@ cfiscsi_done(union ctl_io *io)
 		/*
 		 * Implicit task termination has just completed; nothing to do.
 		 */
-		cs = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+		cs = PRIV_REQUEST(io);
 		cs->cs_tasks_aborted = true;
 		refcount_release(&cs->cs_outstanding_ctl_pdus);
 		wakeup(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus));
@@ -2990,7 +2997,7 @@ cfiscsi_done(union ctl_io *io)
 		return;
 	}
 
-	request = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	request = PRIV_REQUEST(io);
 	cs = PDU_SESSION(request);
 
 	switch (request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) {
