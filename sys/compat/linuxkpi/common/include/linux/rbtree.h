@@ -57,11 +57,7 @@ RB_HEAD(linux_root, rb_node);
 RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 
 #define	rb_parent(r)	RB_PARENT(r, __entry)
-#define	rb_color(r)	RB_COLOR(r, __entry)
-#define	rb_is_red(r)	(rb_color(r) == RB_RED)
-#define	rb_is_black(r)	(rb_color(r) == RB_BLACK)
 #define	rb_set_parent(r, p)	rb_parent((r)) = (p)
-#define	rb_set_color(r, c)	rb_color((r)) = (c)
 #define	rb_entry(ptr, type, member)	container_of(ptr, type, member)
 
 #define RB_EMPTY_ROOT(root)     RB_EMPTY((struct linux_root *)root)
@@ -82,7 +78,6 @@ rb_link_node(struct rb_node *node, struct rb_node *parent,
     struct rb_node **rb_link)
 {
 	rb_set_parent(node, parent);
-	rb_set_color(node, RB_RED);
 	node->__entry.rbe_left = node->__entry.rbe_right = NULL;
 	*rb_link = node;
 }
