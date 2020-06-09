@@ -192,7 +192,6 @@ main(int argc, char *argv[])
 	char fmtbuf[_POSIX2_LINE_MAX];
 
 	(void) setlocale(LC_ALL, "");
-	xo_no_setlocale();
 	time(&now);			/* Used by routines in print.c. */
 
 	/*
