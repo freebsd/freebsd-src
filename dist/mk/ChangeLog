@@ -1,3 +1,20 @@
+2020-06-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200606
+
+	* dirdeps-targets.mk: allow for filtering of .TARGETS
+
+	* meta2deps.py: fix bug in processing 'L'ink and 'M'ove
+	entries - and we don't care about 'W'rite entries.
+	Also ignore absolute paths that do not exist.
+
+2020-05-25  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200525
+
+	* init.mk: expand and simplify handling of qualified vars
+	like CPPFLAGS.${.TARGET:T}
+
 2020-05-15  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20200515
