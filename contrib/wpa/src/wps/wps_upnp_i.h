@@ -128,6 +128,7 @@ struct upnp_wps_device_sm {
 	u8 mac_addr[ETH_ALEN]; /* mac addr of network i.f. we use */
 	char *ip_addr_text; /* IP address of network i.f. we use */
 	unsigned ip_addr; /* IP address of network i.f. we use (host order) */
+	struct in_addr netmask;
 	int multicast_sd; /* send multicast messages over this socket */
 	int ssdp_sd; /* receive discovery UPD packets on socket */
 	int ssdp_sd_registered; /* nonzero if we must unregister */
@@ -158,7 +159,7 @@ struct subscription * subscription_find(struct upnp_wps_device_sm *sm,
 					const u8 uuid[UUID_LEN]);
 void subscr_addr_delete(struct subscr_addr *a);
 int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
-		   u8 mac[ETH_ALEN]);
+		   struct in_addr *netmask, u8 mac[ETH_ALEN]);
 
 /* wps_upnp_ssdp.c */
 void msearchreply_state_machine_stop(struct advertisement_state_machine *a);
