@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm64/coresight/coresight.h>
-#include <arm64/coresight/coresight-funnel.h>
+#include <arm64/coresight/coresight_funnel.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
