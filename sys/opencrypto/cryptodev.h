@@ -620,6 +620,7 @@ extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_HARDWARE	CRYPTO_FLAG_HARDWARE
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
+#define	CRYPTOCAP_F_ACCEL_SOFTWARE 0x08000000
 extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
     int flags);
 extern	int crypto_find_driver(const char *);
