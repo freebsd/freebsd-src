@@ -187,12 +187,12 @@ arm64/cloudabi32/cloudabi32_sysvec.c	optional compat_cloudabi32
 arm64/cloudabi64/cloudabi64_sysvec.c	optional compat_cloudabi64
 arm64/coresight/coresight.c			standard
 arm64/coresight/coresight_if.m			standard
-arm64/coresight/coresight-cmd.c			standard
-arm64/coresight/coresight-cpu-debug.c		standard
-arm64/coresight/coresight-dynamic-replicator.c	standard
-arm64/coresight/coresight-etm4x.c		standard
-arm64/coresight/coresight-funnel.c		standard
-arm64/coresight/coresight-tmc.c			standard
+arm64/coresight/coresight_cmd.c			standard
+arm64/coresight/coresight_cpu_debug.c		standard
+arm64/coresight/coresight_dynamic_replicator.c	standard
+arm64/coresight/coresight_etm4x.c		standard
+arm64/coresight/coresight_funnel.c		standard
+arm64/coresight/coresight_tmc.c			standard
 arm64/intel/firmware.c				optional soc_intel_stratix10
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10
 arm64/intel/stratix10-svc.c			optional soc_intel_stratix10
