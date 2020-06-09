@@ -134,6 +134,8 @@ fix_fdt_interrupt_data(void)
 	if (gpcnode == -1)
 		gpcnode = OF_finddevice("/soc/aips-bus@2000000/gpc@20dc000");
 	if (gpcnode == -1)
+		gpcnode = OF_finddevice("/soc/bus@2000000/gpc@20dc000");
+	if (gpcnode == -1)
 		return;
 	result = OF_getencprop(gpcnode, "interrupt-parent", &gpcipar,
 	    sizeof(gpcipar));
@@ -172,6 +174,8 @@ fix_fdt_iomuxc_data(void)
 	 * uses for register access.
 	 */
 	node = OF_finddevice("/soc/aips-bus@2000000/iomuxc-gpr@20e0000");
+	if (node == -1)
+	    node = OF_finddevice("/soc/bus@2000000/iomuxc-gpr@20e0000");
 	if (node != -1)
 		OF_setprop(node, "status", "disabled", sizeof("disabled"));
 }
