@@ -33,6 +33,7 @@
 /*$FreeBSD$*/
 
 #include <sys/limits.h>
+#include <sys/time.h>
 
 #include "ixl.h"
 
@@ -45,14 +46,13 @@ i40e_dmamap_cb(void *arg, bus_dma_segment_t * segs, int nseg, int error)
         if (error)
                 return;
         *(bus_addr_t *) arg = segs->ds_addr;
-        return;
 }
 
 i40e_status
 i40e_allocate_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem, u32 size)
 {
 	mem->va = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
-	return(mem->va == NULL);
+	return (mem->va == NULL);
 }
 
 i40e_status
@@ -61,7 +61,7 @@ i40e_free_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem)
 	free(mem->va, M_DEVBUF);
 	mem->va = NULL;
 
-	return(0);
+	return (I40E_SUCCESS);
 }
 
 i40e_status
@@ -113,7 +113,7 @@ i40e_allocate_dma_mem(struct i40e_hw *hw, struct i40e_dma_mem *mem,
 	mem->size = size;
 	bus_dmamap_sync(mem->tag, mem->map,
 	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
-	return (0);
+	return (I40E_SUCCESS);
 fail_2:
 	bus_dmamem_free(mem->tag, mem->va, mem->map);
 fail_1:
@@ -161,25 +161,15 @@ i40e_destroy_spinlock(struct i40e_spinlock *lock)
 		mtx_destroy(&lock->mutex);
 }
 
-static inline int
-ixl_ms_scale(int x)
-{
-	if (hz == 1000)
-		return (x);
-	else if (hz > 1000)
-		return (x*(hz/1000));
-	else
-		return (max(1, x/(1000/hz)));
-}
+#ifndef MSEC_2_TICKS
+#define MSEC_2_TICKS(m) max(1, (uint32_t)((hz == 1000) ? \
+	  (m) : ((uint64_t)(m) * (uint64_t)hz)/(uint64_t)1000))
+#endif
 
 void
 i40e_msec_pause(int msecs)
 {
-	if (cold || SCHEDULER_STOPPED())
-		i40e_msec_delay(msecs);
-	else
-		// ERJ: (msecs * hz) could overflow
-		pause("ixl", ixl_ms_scale(msecs));
+	pause("i40e_msec_pause", MSEC_2_TICKS(msecs));
 }
 
 /*

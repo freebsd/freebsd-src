@@ -43,8 +43,8 @@
 
 
 #define I40E_FW_API_VERSION_MAJOR	0x0001
-#define I40E_FW_API_VERSION_MINOR_X722	0x0005
-#define I40E_FW_API_VERSION_MINOR_X710	0x0007
+#define I40E_FW_API_VERSION_MINOR_X722	0x000A
+#define I40E_FW_API_VERSION_MINOR_X710	0x000A
 
 #define I40E_FW_MINOR_VERSION(_h) ((_h)->mac.type == I40E_MAC_XL710 ? \
 					I40E_FW_API_VERSION_MINOR_X710 : \
@@ -52,6 +52,12 @@
 
 /* API version 1.7 implements additional link and PHY-specific APIs  */
 #define I40E_MINOR_VER_GET_LINK_INFO_XL710 0x0007
+/* API version 1.9 for X722 implements additional link and PHY-specific APIs */
+#define I40E_MINOR_VER_GET_LINK_INFO_X722 0x0009
+/* API version 1.6 for X722 devices adds ability to stop FW LLDP agent */
+#define I40E_MINOR_VER_FW_LLDP_STOPPABLE_X722 0x0006
+/* API version 1.10 for X722 devices adds ability to request FEC encoding */
+#define I40E_MINOR_VER_FW_REQUEST_FEC_X722 0x000A
 
 struct i40e_aq_desc {
 	__le16 flags;
@@ -204,6 +210,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_add_cloud_filters		= 0x025C,
 	i40e_aqc_opc_remove_cloud_filters	= 0x025D,
 	i40e_aqc_opc_clear_wol_switch_filters	= 0x025E,
+	i40e_aqc_opc_replace_cloud_filters	= 0x025F,
 
 	i40e_aqc_opc_add_mirror_rule	= 0x0260,
 	i40e_aqc_opc_delete_mirror_rule	= 0x0261,
@@ -289,6 +296,7 @@ enum i40e_admin_queue_opc {
 	i40e_aqc_opc_get_cee_dcb_cfg	= 0x0A07,
 	i40e_aqc_opc_lldp_set_local_mib	= 0x0A08,
 	i40e_aqc_opc_lldp_stop_start_spec_agent	= 0x0A09,
+	i40e_aqc_opc_lldp_restore		= 0x0A0A,
 
 	/* Tunnel commands */
 	i40e_aqc_opc_add_udp_tunnel	= 0x0B00,
@@ -1382,14 +1390,17 @@ struct i40e_aqc_add_remove_cloud_filters {
 #define I40E_AQC_ADD_CLOUD_CMD_SEID_NUM_SHIFT	0
 #define I40E_AQC_ADD_CLOUD_CMD_SEID_NUM_MASK	(0x3FF << \
 					I40E_AQC_ADD_CLOUD_CMD_SEID_NUM_SHIFT)
-	u8	reserved2[4];
+	u8	big_buffer_flag;
+#define I40E_AQC_ADD_REM_CLOUD_CMD_BIG_BUFFER	1
+#define I40E_AQC_ADD_CLOUD_CMD_BB		1
+	u8	reserved2[3];
 	__le32	addr_high;
 	__le32	addr_low;
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_add_remove_cloud_filters);
 
-struct i40e_aqc_add_remove_cloud_filters_element_data {
+struct i40e_aqc_cloud_filters_element_data {
 	u8	outer_mac[6];
 	u8	inner_mac[6];
 	__le16	inner_vlan;
@@ -1401,13 +1412,16 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 		struct {
 			u8 data[16];
 		} v6;
+		struct {
+			__le16 data[8];
+		} raw_v6;
 	} ipaddr;
 	__le16	flags;
 #define I40E_AQC_ADD_CLOUD_FILTER_SHIFT			0
 #define I40E_AQC_ADD_CLOUD_FILTER_MASK	(0x3F << \
 					I40E_AQC_ADD_CLOUD_FILTER_SHIFT)
 /* 0x0000 reserved */
-#define I40E_AQC_ADD_CLOUD_FILTER_OIP			0x0001
+/* 0x0001 reserved */
 /* 0x0002 reserved */
 #define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN		0x0003
 #define I40E_AQC_ADD_CLOUD_FILTER_IMAC_IVLAN_TEN_ID	0x0004
@@ -1419,6 +1433,13 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 #define I40E_AQC_ADD_CLOUD_FILTER_IMAC			0x000A
 #define I40E_AQC_ADD_CLOUD_FILTER_OMAC_TEN_ID_IMAC	0x000B
 #define I40E_AQC_ADD_CLOUD_FILTER_IIP			0x000C
+/* 0x000D reserved */
+/* 0x000E reserved */
+/* 0x000F reserved */
+/* 0x0010 to 0x0017 is for custom filters */
+#define I40E_AQC_ADD_CLOUD_FILTER_IP_PORT		0x0010 /* Dest IP + L4 Port */
+#define I40E_AQC_ADD_CLOUD_FILTER_MAC_PORT		0x0011 /* Dest MAC + L4 Port */
+#define I40E_AQC_ADD_CLOUD_FILTER_MAC_VLAN_PORT		0x0012 /* Dest MAC + VLAN + L4 Port */
 
 #define I40E_AQC_ADD_CLOUD_FLAGS_TO_QUEUE		0x0080
 #define I40E_AQC_ADD_CLOUD_VNK_SHIFT			6
@@ -1453,6 +1474,88 @@ struct i40e_aqc_add_remove_cloud_filters_element_data {
 	u8	response_reserved[7];
 };
 
+/* i40e_aqc_add_rm_cloud_filt_elem_ext is used when
+ * I40E_AQC_ADD_REM_CLOUD_CMD_BIG_BUFFER flag is set.
+ */
+struct i40e_aqc_add_rm_cloud_filt_elem_ext {
+	struct i40e_aqc_cloud_filters_element_data element;
+	u16     general_fields[32];
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X10_WORD0	0
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X10_WORD1	1
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X10_WORD2	2
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X11_WORD0	3
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X11_WORD1	4
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X11_WORD2	5
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X12_WORD0	6
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X12_WORD1	7
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X12_WORD2	8
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X13_WORD0	9
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X13_WORD1	10
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X13_WORD2	11
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X14_WORD0	12
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X14_WORD1	13
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X14_WORD2	14
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD0	15
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD1	16
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD2	17
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD3	18
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD4	19
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD5	20
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD6	21
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD7	22
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD0	23
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD1	24
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD2	25
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD3	26
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD4	27
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD5	28
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD6	29
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD7	30
+};
+
+I40E_CHECK_STRUCT_LEN(0x40, i40e_aqc_cloud_filters_element_data);
+
+/* i40e_aqc_cloud_filters_element_bb is used when
+ * I40E_AQC_CLOUD_CMD_BB flag is set.
+ */
+struct i40e_aqc_cloud_filters_element_bb {
+	struct i40e_aqc_cloud_filters_element_data element;
+	u16     general_fields[32];
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X10_WORD0	0
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X10_WORD1	1
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X10_WORD2	2
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X11_WORD0	3
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X11_WORD1	4
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X11_WORD2	5
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X12_WORD0	6
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X12_WORD1	7
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X12_WORD2	8
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X13_WORD0	9
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X13_WORD1	10
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X13_WORD2	11
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X14_WORD0	12
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X14_WORD1	13
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X14_WORD2	14
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD0	15
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD1	16
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD2	17
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD3	18
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD4	19
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD5	20
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD6	21
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X16_WORD7	22
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD0	23
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD1	24
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD2	25
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD3	26
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD4	27
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD5	28
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD6	29
+#define I40E_AQC_ADD_CLOUD_FV_FLU_0X17_WORD7	30
+};
+
+I40E_CHECK_STRUCT_LEN(0x80, i40e_aqc_cloud_filters_element_bb);
+
 struct i40e_aqc_remove_cloud_filters_completion {
 	__le16 perfect_ovlan_used;
 	__le16 perfect_ovlan_free;
@@ -1463,6 +1566,61 @@ struct i40e_aqc_remove_cloud_filters_completion {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_remove_cloud_filters_completion);
+
+/* Replace filter Command 0x025F
+ * uses the i40e_aqc_replace_cloud_filters,
+ * and the generic indirect completion structure
+ */
+struct i40e_filter_data {
+	u8 filter_type;
+	u8 input[3];
+};
+
+I40E_CHECK_STRUCT_LEN(4, i40e_filter_data);
+
+struct i40e_aqc_replace_cloud_filters_cmd {
+	u8	valid_flags;
+#define I40E_AQC_REPLACE_L1_FILTER		0x0
+#define I40E_AQC_REPLACE_CLOUD_FILTER		0x1
+#define I40E_AQC_GET_CLOUD_FILTERS		0x2
+#define I40E_AQC_MIRROR_CLOUD_FILTER		0x4
+#define I40E_AQC_HIGH_PRIORITY_CLOUD_FILTER	0x8
+	u8	old_filter_type;
+	u8	new_filter_type;
+	u8	tr_bit;
+	u8	tr_bit2;
+	u8	reserved[3];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_replace_cloud_filters_cmd);
+
+struct i40e_aqc_replace_cloud_filters_cmd_buf {
+	u8	data[32];
+/* Filter type INPUT codes*/
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_ENTRIES_MAX	3
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_VALIDATED	(1 << 7UL)
+
+/* Field Vector offsets */
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_MAC_DA		0
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_STAG_ETH		6
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_STAG		7
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_VLAN		8
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_STAG_OVLAN		9
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_STAG_IVLAN		10
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_TUNNLE_KEY		11
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_IMAC		12
+/* big FLU */
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_IP_DA		14
+/* big FLU */
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_OIP_DA		15
+
+#define I40E_AQC_REPLACE_CLOUD_CMD_INPUT_FV_INNER_VLAN		37
+	struct i40e_filter_data	filters[8];
+};
+
+I40E_CHECK_STRUCT_LEN(0x40, i40e_aqc_replace_cloud_filters_cmd_buf);
 
 /* Add Mirror Rule (indirect or direct 0x0260)
  * Delete Mirror Rule (indirect or direct 0x0261)
@@ -1865,6 +2023,7 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_FEC_ABILITY_KR	0x40
 #define I40E_AQ_PHY_FEC_ABILITY_RS	0x80
 	__le16	eee_capability;
+#define I40E_AQ_EEE_AUTO		0x0001
 #define I40E_AQ_EEE_100BASE_TX		0x0002
 #define I40E_AQ_EEE_1000BASE_T		0x0004
 #define I40E_AQ_EEE_10GBASE_T		0x0008
@@ -1931,20 +2090,21 @@ I40E_CHECK_CMD_LENGTH(i40e_aq_set_phy_config);
 struct i40e_aq_set_mac_config {
 	__le16	max_frame_size;
 	u8	params;
-#define I40E_AQ_SET_MAC_CONFIG_CRC_EN		0x04
-#define I40E_AQ_SET_MAC_CONFIG_PACING_MASK	0x78
-#define I40E_AQ_SET_MAC_CONFIG_PACING_SHIFT	3
-#define I40E_AQ_SET_MAC_CONFIG_PACING_NONE	0x0
-#define I40E_AQ_SET_MAC_CONFIG_PACING_1B_13TX	0xF
-#define I40E_AQ_SET_MAC_CONFIG_PACING_1DW_9TX	0x9
-#define I40E_AQ_SET_MAC_CONFIG_PACING_1DW_4TX	0x8
-#define I40E_AQ_SET_MAC_CONFIG_PACING_3DW_7TX	0x7
-#define I40E_AQ_SET_MAC_CONFIG_PACING_2DW_3TX	0x6
-#define I40E_AQ_SET_MAC_CONFIG_PACING_1DW_1TX	0x5
-#define I40E_AQ_SET_MAC_CONFIG_PACING_3DW_2TX	0x4
-#define I40E_AQ_SET_MAC_CONFIG_PACING_7DW_3TX	0x3
-#define I40E_AQ_SET_MAC_CONFIG_PACING_4DW_1TX	0x2
-#define I40E_AQ_SET_MAC_CONFIG_PACING_9DW_1TX	0x1
+#define I40E_AQ_SET_MAC_CONFIG_CRC_EN			0x04
+#define I40E_AQ_SET_MAC_CONFIG_PACING_MASK		0x78
+#define I40E_AQ_SET_MAC_CONFIG_PACING_SHIFT		3
+#define I40E_AQ_SET_MAC_CONFIG_PACING_NONE		0x0
+#define I40E_AQ_SET_MAC_CONFIG_PACING_1B_13TX		0xF
+#define I40E_AQ_SET_MAC_CONFIG_PACING_1DW_9TX		0x9
+#define I40E_AQ_SET_MAC_CONFIG_PACING_1DW_4TX		0x8
+#define I40E_AQ_SET_MAC_CONFIG_PACING_3DW_7TX		0x7
+#define I40E_AQ_SET_MAC_CONFIG_PACING_2DW_3TX		0x6
+#define I40E_AQ_SET_MAC_CONFIG_PACING_1DW_1TX		0x5
+#define I40E_AQ_SET_MAC_CONFIG_PACING_3DW_2TX		0x4
+#define I40E_AQ_SET_MAC_CONFIG_PACING_7DW_3TX		0x3
+#define I40E_AQ_SET_MAC_CONFIG_PACING_4DW_1TX		0x2
+#define I40E_AQ_SET_MAC_CONFIG_PACING_9DW_1TX		0x1
+#define I40E_AQ_SET_MAC_CONFIG_DROP_BLOCKING_PACKET_EN	0x80
 	u8	tx_timer_priority; /* bitmap */
 	__le16	tx_timer_value;
 	__le16	fc_refresh_threshold;
@@ -2077,8 +2237,8 @@ struct i40e_aqc_set_lb_mode {
 #define I40E_AQ_LB_SERDES	2
 #define I40E_AQ_LB_PHY_INT	3
 #define I40E_AQ_LB_PHY_EXT	4
-#define I40E_AQ_LB_CPVL_PCS	5
-#define I40E_AQ_LB_CPVL_EXT	6
+#define I40E_AQ_LB_BASE_T_PCS	5
+#define I40E_AQ_LB_BASE_T_EXT	6
 #define I40E_AQ_LB_PHY_LOCAL	0x01
 #define I40E_AQ_LB_PHY_REMOTE	0x02
 #define I40E_AQ_LB_MAC_LOCAL	0x04
@@ -2142,7 +2302,13 @@ struct i40e_aqc_phy_register_access {
 #define I40E_AQ_PHY_REG_ACCESS_EXTERNAL	1
 #define I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE	2
 	u8	dev_addres;
-	u8	reserved1[2];
+	u8	cmd_flags;
+#define I40E_AQ_PHY_REG_ACCESS_DONT_CHANGE_QSFP_PAGE	0x01
+#define I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER	0x02
+#define I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT	2
+#define I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK	(0x3 << \
+		I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT)
+	u8	reserved1;
 	__le32	reg_address;
 	__le32	reg_value;
 	u8	reserved2[4];
@@ -2157,6 +2323,8 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_phy_register_access);
 struct i40e_aqc_nvm_update {
 	u8	command_flags;
 #define I40E_AQ_NVM_LAST_CMD			0x01
+#define I40E_AQ_NVM_REARRANGE_TO_FLAT		0x20
+#define I40E_AQ_NVM_REARRANGE_TO_STRUCT		0x40
 #define I40E_AQ_NVM_FLASH_ONLY			0x80
 #define I40E_AQ_NVM_PRESERVATION_FLAGS_SHIFT	1
 #define I40E_AQ_NVM_PRESERVATION_FLAGS_MASK	0x03
@@ -2404,18 +2572,19 @@ I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_update_tlv);
 /* Stop LLDP (direct 0x0A05) */
 struct i40e_aqc_lldp_stop {
 	u8	command;
-#define I40E_AQ_LLDP_AGENT_STOP		0x0
-#define I40E_AQ_LLDP_AGENT_SHUTDOWN	0x1
+#define I40E_AQ_LLDP_AGENT_STOP			0x0
+#define I40E_AQ_LLDP_AGENT_SHUTDOWN		0x1
+#define I40E_AQ_LLDP_AGENT_STOP_PERSIST		0x2
 	u8	reserved[15];
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_stop);
 
 /* Start LLDP (direct 0x0A06) */
-
 struct i40e_aqc_lldp_start {
 	u8	command;
-#define I40E_AQ_LLDP_AGENT_START	0x1
+#define I40E_AQ_LLDP_AGENT_START		0x1
+#define I40E_AQ_LLDP_AGENT_START_PERSIST	0x2
 	u8	reserved[15];
 };
 
@@ -2534,6 +2703,16 @@ struct i40e_aqc_lldp_stop_start_specific_agent {
 };
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_stop_start_specific_agent);
+
+/* Restore LLDP Agent factory settings (direct 0x0A0A) */
+struct i40e_aqc_lldp_restore {
+	u8	command;
+#define I40E_AQ_LLDP_AGENT_RESTORE_NOT		0x0
+#define I40E_AQ_LLDP_AGENT_RESTORE		0x1
+	u8	reserved[15];
+};
+
+I40E_CHECK_CMD_LENGTH(i40e_aqc_lldp_restore);
 
 /* Add Udp Tunnel command and completion (direct 0x0B00) */
 struct i40e_aqc_add_udp_tunnel {

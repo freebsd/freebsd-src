@@ -2124,7 +2124,7 @@ iavf_add_device_sysctls(struct iavf_sc *sc)
 
 	/* Add stats sysctls */
 	ixl_add_vsi_sysctls(dev, vsi, ctx, "vsi");
-	ixl_add_queues_sysctls(dev, vsi);
+	ixl_vsi_add_queues_stats(vsi, ctx);
 
 }
 
