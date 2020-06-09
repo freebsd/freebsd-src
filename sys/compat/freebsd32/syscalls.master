@@ -103,7 +103,7 @@
 23	AUE_SETUID	NOPROTO	{ int setuid(uid_t uid); }
 24	AUE_GETUID	NOPROTO	{ uid_t getuid(void); }
 25	AUE_GETEUID	NOPROTO	{ uid_t geteuid(void); }
-26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
+26	AUE_PTRACE	STD	{ int freebsd32_ptrace(int req, pid_t pid, \
 				    caddr_t addr, int data); }
 27	AUE_RECVMSG	STD	{ int freebsd32_recvmsg(int s, struct msghdr32 *msg, \
 				    int flags); }

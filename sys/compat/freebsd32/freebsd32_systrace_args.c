@@ -168,9 +168,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 0;
 		break;
 	}
-	/* ptrace */
+	/* freebsd32_ptrace */
 	case 26: {
-		struct ptrace_args *p = params;
+		struct freebsd32_ptrace_args *p = params;
 		iarg[0] = p->req; /* int */
 		iarg[1] = p->pid; /* pid_t */
 		uarg[2] = (intptr_t) p->addr; /* caddr_t */
@@ -3623,7 +3623,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* geteuid */
 	case 25:
 		break;
-	/* ptrace */
+	/* freebsd32_ptrace */
 	case 26:
 		switch(ndx) {
 		case 0:
@@ -9228,7 +9228,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 24:
 	/* geteuid */
 	case 25:
-	/* ptrace */
+	/* freebsd32_ptrace */
 	case 26:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
