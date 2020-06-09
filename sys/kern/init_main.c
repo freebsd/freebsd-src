@@ -541,7 +541,10 @@ proc0_init(void *dummy __unused)
 	/* End hack. creds get properly set later with thread_cow_get_proc */
 	curthread->td_ucred = NULL;
 	newcred->cr_prison = &prison0;
+	newcred->cr_users++; /* avoid assertion failure */
 	proc_set_cred_init(p, newcred);
+	newcred->cr_users--;
+	crfree(newcred);
 #ifdef AUDIT
 	audit_cred_kproc0(newcred);
 #endif
@@ -810,8 +813,9 @@ create_init(const void *udata __unused)
 #endif
 	proc_set_cred(initproc, newcred);
 	td = FIRST_THREAD_IN_PROC(initproc);
-	crfree(td->td_ucred);
-	td->td_ucred = crhold(initproc->p_ucred);
+	crcowfree(td);
+	td->td_realucred = crcowget(initproc->p_ucred);
+	td->td_ucred = td->td_realucred;
 	PROC_UNLOCK(initproc);
 	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
