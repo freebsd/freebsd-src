@@ -200,6 +200,19 @@ int ena_log_level = ENA_ALERT | ENA_WARNING;
 SYSCTL_INT(_hw_ena, OID_AUTO, log_level, CTLFLAG_RWTUN,
     &ena_log_level, 0, "Logging level indicating verbosity of the logs");
 
+/*
+ * Use 9k mbufs for the Rx buffers. Default to 0 (use page size mbufs instead).
+ * Using 9k mbufs in low memory conditions might cause allocation to take a lot
+ * of time and lead to the OS instability as it needs to look for the contiguous
+ * pages.
+ * However, page size mbufs has a bit smaller throughput than 9k mbufs, so if
+ * the network performance is the priority, the 9k mbufs can be used.
+ */
+int ena_enable_9k_mbufs = 0;
+SYSCTL_INT(_hw_ena, OID_AUTO, enable_9k_mbufs, CTLFLAG_RDTUN,
+    &ena_enable_9k_mbufs, 0, "Use 9 kB mbufs for Rx descriptors");
+#define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)
+
 static ena_vendor_info_t ena_vendor_info_array[] = {
     { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_PF, 0},
     { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_LLQ_PF, 0},
@@ -470,6 +483,7 @@ ena_init_io_rings(struct ena_adapter *adapter)
 		rxr->que = que;
 
 		rxr->empty_rx_queue = 0;
+		rxr->rx_mbuf_sz = ena_mbuf_sz;
 	}
 }
 
@@ -548,9 +562,9 @@ ena_setup_rx_dma_tag(struct ena_adapter *adapter)
 	    ENA_DMA_BIT_MASK(adapter->dma_width), /* lowaddr of excl window  */
 	    BUS_SPACE_MAXADDR, 			  /* highaddr of excl window */
 	    NULL, NULL,				  /* filter, filterarg 	     */
-	    MJUM16BYTES,			  /* maxsize 		     */
+	    ena_mbuf_sz,			  /* maxsize 		     */
 	    adapter->max_rx_sgl_size,		  /* nsegments 		     */
-	    MJUM16BYTES,			  /* maxsegsize 	     */
+	    ena_mbuf_sz,			  /* maxsegsize 	     */
 	    0,					  /* flags 		     */
 	    NULL,				  /* lockfunc 		     */
 	    NULL,				  /* lockarg 		     */
@@ -957,7 +971,8 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 		return (0);
 
 	/* Get mbuf using UMA allocator */
-	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM16BYTES);
+	rx_info->mbuf = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR,
+	    rx_ring->rx_mbuf_sz);
 
 	if (unlikely(rx_info->mbuf == NULL)) {
 		counter_u64_add(rx_ring->rx_stats.mjum_alloc_fail, 1);
@@ -968,7 +983,7 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 		}
 		mlen = MCLBYTES;
 	} else {
-		mlen = MJUM16BYTES;
+		mlen = rx_ring->rx_mbuf_sz;
 	}
 	/* Set mbuf length*/
 	rx_info->mbuf->m_pkthdr.len = rx_info->mbuf->m_len = mlen;
