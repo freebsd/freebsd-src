@@ -119,7 +119,7 @@ padlock_attach(device_t dev)
 	struct padlock_softc *sc = device_get_softc(dev);
 
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct padlock_session),
-	    CRYPTOCAP_F_HARDWARE);
+	    CRYPTOCAP_F_SOFTWARE | CRYPTOCAP_F_SYNC);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "Could not get crypto driver id.\n");
 		return (ENOMEM);
