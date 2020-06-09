@@ -751,9 +751,11 @@ pgadjustjobc(struct pgrp *pgrp, int entering)
 {
 
 	PGRP_LOCK(pgrp);
-	if (entering)
+	if (entering) {
+		MPASS(pgrp->pg_jobc >= 0);
 		pgrp->pg_jobc++;
-	else {
+	} else {
+		MPASS(pgrp->pg_jobc > 0);
 		--pgrp->pg_jobc;
 		if (pgrp->pg_jobc == 0)
 			orphanpg(pgrp);
