@@ -779,8 +779,9 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
           This is identical to `[1m:M[22m', but selects all words which do not match
           [4mpattern[24m.
 
-     [1m:O   [22mOrder every word in variable alphabetically.  To sort words in
-          reverse order use the `[1m:O:[-1..1][22m' combination of modifiers.
+     [1m:O   [22mOrder every word in variable alphabetically.
+
+     [1m:Or  [22mOrder every word in variable in reverse alphabetical order.
 
      [1m:Ox  [22mRandomize words in variable.  The results will be different each
           time you are referring to the modified variable; use the assignment
@@ -803,7 +804,11 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                 due uno quattro tre
 
      [1m:Q   [22mQuotes every shell meta-character in the variable, so that it can be
-          passed safely through recursive invocations of [1mbmake[22m.
+          passed safely to the shell.
+
+     [1m:q   [22mQuotes every shell meta-character in the variable, and also doubles
+          `$' characters so that it can be passed safely through recursive
+          invocations of [1mbmake[22m.  This is equivalent to: `:S/\$/&&/g:Q'.
 
      [1m:R   [22mReplaces each word in the variable with everything but its suffix.
 
@@ -903,7 +908,15 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
           contain the pattern matching character [4m%[24m then it is assumed that
           they are anchored at the end of each word, so only suffixes or
           entire words may be replaced.  Otherwise [4m%[24m is the substring of
-          [4mold_string[24m to be replaced in [4mnew_string[24m.
+          [4mold_string[24m to be replaced in [4mnew_string[24m.  If only [4mold_string[24m con-
+          tains the pattern matching character [4m%[24m, and [4mold_string[24m matches, then
+          the result is the [4mnew_string[24m.  If only the [4mnew_string[24m contains the
+          pattern matching character [4m%[24m, then it is not treated specially and
+          it is printed as a literal [4m%[24m on match.  If there is more than one
+          pattern matching character ([4m%[24m) in either the [4mnew_string[24m or
+          [4mold_string[24m, only the first instance is treated specially (as the
+          pattern character); all subsequent instances are treated as regular
+          characters
 
           Variable expansion occurs in the normal fashion inside both
           [4mold_string[24m and [4mnew_string[24m with the single exception that a backslash
@@ -1003,7 +1016,9 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
                  `[1m:[2..-1][22m' selects all words from the second word to the last
                  word.  If [4mstart[24m is greater than [4mend[24m, then the words are out-
                  put in reverse order.  For example, `[1m:[-1..1][22m' selects all
-                 the words from last to first.
+                 the words from last to first.  If the list is already
+                 ordered, then this effectively reverses the list, but it is
+                 more efficient to use `[1m:Or[22m' instead of `[1m:O:[-1..1][22m'.
 
           [1m*      [22mCauses subsequent modifiers to treat the value as a single
                  word (possibly containing embedded white space).  Analogous
@@ -1021,7 +1036,7 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      Makefile inclusion, conditional structures and for loops  reminiscent of
      the C programming language are provided in [1mbmake[22m.  All such structures
      are identified by a line beginning with a single dot (`.') character.
-     Files are included with either [1m.include [22m<[4mfile[24m> or [1m.include [22m"[4mfile[24m".  Vari-
+     Files are included with either [1m.include <[4m[22mfile[24m[1m> [22mor [1m.include "[4m[22mfile[24m[1m"[22m.  Vari-
      ables between the angle brackets or double quotes are expanded to form
      the file name.  If angle brackets are used, the included makefile is
      expected to be in the system makefile directory.  If double quotes are
@@ -1184,7 +1199,7 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      the ``make'' or ``defined'' expression is applied to it, depending on the
      form of the conditional.  If the form is `[1m.ifdef[22m', `[1m.ifndef[22m', or `[1m.if[22m'
      the ``defined'' expression is applied.  Similarly, if the form is
-     `[1m.ifmake[22m' or `[1m.ifnmake[22m, [1mthe[22m' ``make'' expression is applied.
+     `[1m.ifmake[22m' or `[1m.ifnmake[22m', the ``make'' expression is applied.
 
      If the conditional evaluates to true the parsing of the makefile contin-
      ues as before.  If it evaluates to false, the following lines are
@@ -1533,12 +1548,12 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
      creates an ``FRC'' file).
 
 [1mBUGS[0m
-     The make syntax is difficult to parse without actually acting of the
-     data.  For instance finding the end of a variable use should involve
-     scanning each the modifiers using the correct terminator for each field.
-     In many places make just counts {} and () in order to find the end of a
-     variable expansion.
+     The make syntax is difficult to parse without actually acting on the
+     data.  For instance, finding the end of a variable's use should involve
+     scanning each of the modifiers, using the correct terminator for each
+     field.  In many places make just counts {} and () in order to find the
+     end of a variable expansion.
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 11.1                     June 22, 2017                    FreeBSD 11.1
+FreeBSD 11.3                     June 5, 2020                     FreeBSD 11.3
