@@ -1,3 +1,25 @@
+2020-06-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200606
+	Merge with NetBSD make, pick up
+	o make.1: cleanup
+
+	* Makefile: fix depends for main.o which broke MAKE_VERSION
+
+2020-06-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200605
+	Merge with NetBSD make, pick up
+	o dir.c: cached_stats - don't confuse stat and lstat results.
+	o var.c: add :Or for reverse sort.
+
+2020-05-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: add AC_PROG_CC_C99 for mipspro compiler
+	also if --with-filemon= specifies path to filemon.h
+	set use_filemon=dev
+	* dirname.c: remove include of namespace.h
+
 2020-05-17  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20200517
