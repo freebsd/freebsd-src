@@ -54,6 +54,7 @@ enum libusb_class_code {
 	LIBUSB_CLASS_AUDIO = 1,
 	LIBUSB_CLASS_COMM = 2,
 	LIBUSB_CLASS_HID = 3,
+	LIBUSB_CLASS_PHYSICAL = 5,
 	LIBUSB_CLASS_PTP = 6,
 	LIBUSB_CLASS_IMAGE = 6,
 	LIBUSB_CLASS_PRINTER = 7,
@@ -176,6 +177,21 @@ enum libusb_bos_type {
 	LIBUSB_BT_USB_2_0_EXTENSION = 2,
 	LIBUSB_BT_SS_USB_DEVICE_CAPABILITY = 3,
 	LIBUSB_BT_CONTAINER_ID = 4,
+};
+
+enum libusb_capability {
+	/* libusb supports libusb_has_capability(). */
+	LIBUSB_CAP_HAS_CAPABILITY = 0,
+	/* Hotplug support is available. */
+	LIBUSB_CAP_HAS_HOTPLUG,
+	/* Can access HID devices without requiring user intervention. */
+	LIBUSB_CAP_HAS_HID_ACCESS,
+
+	/*
+	 * Supports detaching of the default USB driver with
+	 * libusb_detach_kernel_driver().
+	 */
+	LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER,
 };
 
 enum libusb_error {
@@ -450,6 +466,7 @@ const char *libusb_strerror(int code);
 const char *libusb_error_name(int code);
 int	libusb_init(libusb_context ** context);
 void	libusb_exit(struct libusb_context *ctx);
+int	libusb_has_capability(uint32_t capability);
 
 /* Device handling and enumeration */
 
