@@ -606,7 +606,7 @@ write_byte_out:
 }
 
 /**
- *  ixl_read_i2c_byte - Reads 8 bit word over I2C using a hardware register
+ *  ixl_read_i2c_byte_reg - Reads 8 bit word over I2C using a hardware register
  **/
 s32
 ixl_read_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
@@ -627,7 +627,7 @@ ixl_read_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
 	/* Get data from I2C register */
 	reg = rd32(hw, I40E_GLGEN_I2CCMD(hw->func_caps.mdio_port_num));
 
-	/* Retrieve data readed from EEPROM */
+	/* Retrieve data read from EEPROM */
 	*data = (u8)(reg & 0xff);
 
 	if (status)
@@ -636,7 +636,7 @@ ixl_read_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
 }
 
 /**
- *  ixl_write_i2c_byte - Writes 8 bit word over I2C using a hardware register
+ *  ixl_write_i2c_byte_reg - Writes 8 bit word over I2C using a hardware register
  **/
 s32
 ixl_write_i2c_byte_reg(struct ixl_pf *pf, u8 byte_offset,
@@ -694,7 +694,7 @@ ixl_wait_for_i2c_completion(struct i40e_hw *hw, u8 portnum)
 }
 
 /**
- *  ixl_read_i2c_byte - Reads 8 bit word over I2C using a hardware register
+ *  ixl_read_i2c_byte_aq - Reads 8 bit word over I2C using an AQ command
  **/
 s32
 ixl_read_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
@@ -706,7 +706,7 @@ ixl_read_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 
 	status = i40e_aq_get_phy_register(hw,
 					I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
-					dev_addr,
+					dev_addr, false,
 					byte_offset,
 					&reg, NULL);
 
@@ -720,7 +720,7 @@ ixl_read_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 }
 
 /**
- *  ixl_write_i2c_byte - Writes 8 bit word over I2C using a hardware register
+ *  ixl_write_i2c_byte_aq - Writes 8 bit word over I2C using an AQ command
  **/
 s32
 ixl_write_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
@@ -731,7 +731,7 @@ ixl_write_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 
 	status = i40e_aq_set_phy_register(hw,
 					I40E_AQ_PHY_REG_ACCESS_EXTERNAL_MODULE,
-					dev_addr,
+					dev_addr, false,
 					byte_offset,
 					data, NULL);
 
