@@ -144,7 +144,7 @@ enum i40e_status_code i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
 		DEBUGOUT3("i40e_init_lan_hmc: Tx context: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  txq_num, obj->max_cnt, ret_code);
-		goto init_lan_hmc_out;
+		goto free_hmc_out;
 	}
 
 	/* aggregate values into the full LAN object for later */
@@ -167,7 +167,7 @@ enum i40e_status_code i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
 		DEBUGOUT3("i40e_init_lan_hmc: Rx context: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  rxq_num, obj->max_cnt, ret_code);
-		goto init_lan_hmc_out;
+		goto free_hmc_out;
 	}
 
 	/* aggregate values into the full LAN object for later */
@@ -190,7 +190,7 @@ enum i40e_status_code i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
 		DEBUGOUT3("i40e_init_lan_hmc: FCoE context: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  fcoe_cntx_num, obj->max_cnt, ret_code);
-		goto init_lan_hmc_out;
+		goto free_hmc_out;
 	}
 
 	/* aggregate values into the full LAN object for later */
@@ -213,7 +213,7 @@ enum i40e_status_code i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 		ret_code = I40E_ERR_INVALID_HMC_OBJ_COUNT;
 		DEBUGOUT3("i40e_init_lan_hmc: FCoE filter: asks for 0x%x but max allowed is 0x%x, returns error %d\n",
 			  fcoe_filt_num, obj->max_cnt, ret_code);
-		goto init_lan_hmc_out;
+		goto free_hmc_out;
 	}
 
 	/* aggregate values into the full LAN object for later */
@@ -234,7 +234,7 @@ enum i40e_status_code i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 					  (sizeof(struct i40e_hmc_sd_entry) *
 					  hw->hmc.sd_table.sd_cnt));
 		if (ret_code)
-			goto init_lan_hmc_out;
+			goto free_hmc_out;
 		hw->hmc.sd_table.sd_entry =
 			(struct i40e_hmc_sd_entry *)hw->hmc.sd_table.addr.va;
 	}
@@ -242,6 +242,11 @@ enum i40e_status_code i40e_init_lan_hmc(struct i40e_hw *hw, u32 txq_num,
 	full_obj->size = l2fpm_size;
 
 init_lan_hmc_out:
+	return ret_code;
+free_hmc_out:
+	if (hw->hmc.hmc_obj_virt_mem.va)
+		i40e_free_virt_mem(hw, &hw->hmc.hmc_obj_virt_mem);
+
 	return ret_code;
 }
 

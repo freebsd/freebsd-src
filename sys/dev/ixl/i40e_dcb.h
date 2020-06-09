@@ -69,6 +69,11 @@
 #define I40E_LLDP_ADMINSTATUS_ENABLED_TX	2
 #define I40E_LLDP_ADMINSTATUS_ENABLED_RXTX	3
 
+#define I40E_LLDP_CURRENT_STATUS_XL710_OFFSET	0x2B
+#define I40E_LLDP_CURRENT_STATUS_X722_OFFSET	0x31
+#define I40E_LLDP_CURRENT_STATUS_OFFSET		1
+#define I40E_LLDP_CURRENT_STATUS_SIZE		1
+
 /* Defines for LLDP TLV header */
 #define I40E_LLDP_MIB_HLEN		14
 #define I40E_LLDP_TLV_LEN_SHIFT		0
@@ -208,6 +213,12 @@ struct i40e_dcbx_variables {
 	u32 deftsaassignment;
 };
 
+
+enum i40e_get_fw_lldp_status_resp {
+	I40E_GET_FW_LLDP_STATUS_DISABLED = 0,
+	I40E_GET_FW_LLDP_STATUS_ENABLED = 1
+};
+
 enum i40e_status_code i40e_get_dcbx_status(struct i40e_hw *hw,
 					   u16 *status);
 enum i40e_status_code i40e_lldp_to_dcb_config(u8 *lldpmib,
@@ -216,9 +227,12 @@ enum i40e_status_code i40e_aq_get_dcb_config(struct i40e_hw *hw, u8 mib_type,
 					     u8 bridgetype,
 					     struct i40e_dcbx_config *dcbcfg);
 enum i40e_status_code i40e_get_dcb_config(struct i40e_hw *hw);
-enum i40e_status_code i40e_init_dcb(struct i40e_hw *hw);
+enum i40e_status_code i40e_init_dcb(struct i40e_hw *hw,
+				    bool enable_mib_change);
+enum i40e_status_code
+i40e_get_fw_lldp_status(struct i40e_hw *hw,
+			enum i40e_get_fw_lldp_status_resp *lldp_status);
 enum i40e_status_code i40e_set_dcb_config(struct i40e_hw *hw);
 enum i40e_status_code i40e_dcb_config_to_lldp(u8 *lldpmib, u16 *miblen,
 					      struct i40e_dcbx_config *dcbcfg);
-
 #endif /* _I40E_DCB_H_ */
