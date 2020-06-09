@@ -354,8 +354,7 @@ usbd_get_max_frame_length(const struct usb_endpoint_descriptor *edesc,
 			if (ecomp != NULL) {
 				uint8_t mult;
 
-				mult = UE_GET_SS_ISO_MULT(
-				    ecomp->bmAttributes) + 1;
+				mult = (ecomp->bmAttributes & 3) + 1;
 				if (mult > 3)
 					mult = 3;
 
