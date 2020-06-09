@@ -211,7 +211,7 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 {
 	const struct iscsi_bhs_scsi_command *bhssc;
 	struct cfiscsi_session *cs;
-	uint32_t cmdsn, expstatsn;
+	uint32_t cmdsn, curcmdsn;
 
 	cs = PDU_SESSION(request);
 
@@ -220,16 +220,20 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 	 * The purpose of the timeout is to reset the connection when it stalls;
 	 * we don't want this to happen when NOP-In or NOP-Out ends up delayed
 	 * in some queue.
-	 *
-	 * XXX: Locking?
 	 */
 	cs->cs_timeout = 0;
 
 	/*
+	 * Immediate commands carry cmdsn, but it is neither incremented nor
+	 * verified.
+	 */
+	if (request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_IMMEDIATE)
+		return (false);
+
+	/*
 	 * Data-Out PDUs don't contain CmdSN.
 	 */
-	if ((request->ip_bhs->bhs_opcode & ~ISCSI_BHS_OPCODE_IMMEDIATE) ==
-	    ISCSI_BHS_OPCODE_SCSI_DATA_OUT)
+	if (request->ip_bhs->bhs_opcode == ISCSI_BHS_OPCODE_SCSI_DATA_OUT)
 		return (false);
 
 	/*
@@ -237,50 +241,37 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 	 * (initiator -> target) PDUs.
 	 */
 	bhssc = (const struct iscsi_bhs_scsi_command *)request->ip_bhs;
-	cmdsn = ntohl(bhssc->bhssc_cmdsn);
-	expstatsn = ntohl(bhssc->bhssc_expstatsn);
+	curcmdsn = cmdsn = ntohl(bhssc->bhssc_cmdsn);
 
-	CFISCSI_SESSION_LOCK(cs);
-#if 0
-	if (expstatsn != cs->cs_statsn) {
-		CFISCSI_SESSION_DEBUG(cs, "received PDU with ExpStatSN %d, "
-		    "while current StatSN is %d", expstatsn,
-		    cs->cs_statsn);
-	}
-#endif
+	/*
+	 * Increment session cmdsn and exit if we received the expected value.
+	 */
+	do {
+		if (atomic_fcmpset_32(&cs->cs_cmdsn, &curcmdsn, cmdsn + 1))
+			return (false);
+	} while (curcmdsn == cmdsn);
 
-	if ((request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0) {
-		/*
-		 * The target MUST silently ignore any non-immediate command
-		 * outside of this range.
-		 */
-		if (ISCSI_SNLT(cmdsn, cs->cs_cmdsn) ||
-		    ISCSI_SNGT(cmdsn, cs->cs_cmdsn - 1 + maxtags)) {
-			CFISCSI_SESSION_UNLOCK(cs);
-			CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
-			    "while expected %u", cmdsn, cs->cs_cmdsn);
-			return (true);
-		}
-
-		/*
-		 * We don't support multiple connections now, so any
-		 * discontinuity in CmdSN means lost PDUs.  Since we don't
-		 * support PDU retransmission -- terminate the connection.
-		 */
-		if (cmdsn != cs->cs_cmdsn) {
-			CFISCSI_SESSION_UNLOCK(cs);
-			CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
-			    "while expected %u; dropping connection",
-			    cmdsn, cs->cs_cmdsn);
-			cfiscsi_session_terminate(cs);
-			return (true);
-		}
-		cs->cs_cmdsn++;
+	/*
+	 * The target MUST silently ignore any non-immediate command outside
+	 * of this range.
+	 */
+	if (ISCSI_SNLT(cmdsn, curcmdsn) ||
+	    ISCSI_SNGT(cmdsn, curcmdsn - 1 + maxtags)) {
+		CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
+		    "while expected %u", cmdsn, curcmdsn);
+		return (true);
 	}
 
-	CFISCSI_SESSION_UNLOCK(cs);
-
-	return (false);
+	/*
+	 * We don't support multiple connections now, so any discontinuity in
+	 * CmdSN means lost PDUs.  Since we don't support PDU retransmission --
+	 * terminate the connection.
+	 */
+	CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
+	    "while expected %u; dropping connection",
+	    cmdsn, curcmdsn);
+	cfiscsi_session_terminate(cs);
+	return (true);
 }
 
 static void
@@ -367,6 +358,7 @@ cfiscsi_pdu_prepare(struct icl_pdu *response)
 	struct cfiscsi_session *cs;
 	struct iscsi_bhs_scsi_response *bhssr;
 	bool advance_statsn = true;
+	uint32_t cmdsn;
 
 	cs = PDU_SESSION(response);
 
@@ -408,8 +400,9 @@ cfiscsi_pdu_prepare(struct icl_pdu *response)
 	if (bhssr->bhssr_opcode != ISCSI_BHS_OPCODE_SCSI_DATA_IN ||
 	    (bhssr->bhssr_flags & BHSDI_FLAGS_S))
 		bhssr->bhssr_statsn = htonl(cs->cs_statsn);
-	bhssr->bhssr_expcmdsn = htonl(cs->cs_cmdsn);
-	bhssr->bhssr_maxcmdsn = htonl(cs->cs_cmdsn - 1 +
+	cmdsn = cs->cs_cmdsn;
+	bhssr->bhssr_expcmdsn = htonl(cmdsn);
+	bhssr->bhssr_maxcmdsn = htonl(cmdsn - 1 +
 	    imax(0, maxtags - cs->cs_outstanding_ctl_pdus));
 
 	if (advance_statsn)
@@ -2461,19 +2454,14 @@ cfiscsi_datamove_in(union ctl_io *io)
 	buffer_offset = io->scsiio.kern_rel_offset;
 
 	/*
-	 * This is the transfer length expected by the initiator.  In theory,
-	 * it could be different from the correct amount of data from the SCSI
-	 * point of view, even if that doesn't make any sense.
+	 * This is the transfer length expected by the initiator.  It can be
+	 * different from the amount of data from the SCSI point of view.
 	 */
 	expected_len = ntohl(bhssc->bhssc_expected_data_transfer_length);
-#if 0
-	if (expected_len != io->scsiio.kern_total_len) {
-		CFISCSI_SESSION_DEBUG(cs, "expected transfer length %zd, "
-		    "actual length %zd", expected_len,
-		    (size_t)io->scsiio.kern_total_len);
-	}
-#endif
 
+	/*
+	 * If the transfer is outside of expected length -- we are done.
+	 */
 	if (buffer_offset >= expected_len) {
 #if 0
 		CFISCSI_SESSION_DEBUG(cs, "buffer_offset = %zd, "
