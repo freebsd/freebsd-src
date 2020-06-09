@@ -2541,16 +2541,10 @@ swapoff_all(void)
 void
 swap_pager_status(int *total, int *used)
 {
-	struct swdevt *sp;
 
-	*total = 0;
-	*used = 0;
-	mtx_lock(&sw_dev_mtx);
-	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		*total += sp->sw_nblks;
-		*used += sp->sw_used;
-	}
-	mtx_unlock(&sw_dev_mtx);
+	*total = swap_total;
+	*used = swap_total - swap_pager_avail -
+	    nswapdev * howmany(BBSIZE, PAGE_SIZE);
 }
 
 int
