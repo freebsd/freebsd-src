@@ -1,4 +1,4 @@
-/*	$NetBSD: var.c,v 1.223 2020/04/25 18:20:57 christos Exp $	*/
+/*	$NetBSD: var.c,v 1.224 2020/06/05 19:20:46 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: var.c,v 1.223 2020/04/25 18:20:57 christos Exp $";
+static char rcsid[] = "$NetBSD: var.c,v 1.224 2020/06/05 19:20:46 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)var.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: var.c,v 1.223 2020/04/25 18:20:57 christos Exp $");
+__RCSID("$NetBSD: var.c,v 1.224 2020/06/05 19:20:46 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -2027,6 +2027,13 @@ VarWordCompare(const void *a, const void *b)
 	return r;
 }
 
+static int
+VarWordCompareReverse(const void *a, const void *b)
+{
+	int r = strcmp(*(const char * const *)b, *(const char * const *)a);
+	return r;
+}
+
 /*-
  *-----------------------------------------------------------------------
  * VarOrder --
@@ -2058,6 +2065,9 @@ VarOrder(const char *str, const char otype)
 
     if (ac > 0)
 	switch (otype) {
+	case 'r':	/* reverse sort alphabetically */
+	    qsort(av, ac, sizeof(char *), VarWordCompareReverse);
+	    break;
 	case 's':	/* sort alphabetically */
 	    qsort(av, ac, sizeof(char *), VarWordCompare);
 	    break;
@@ -3562,7 +3572,7 @@ ApplyModifiers(char *nstr, const char *tstr,
 		if (tstr[1] == endc || tstr[1] == ':') {
 		    otype = 's';
 		    termc = *cp;
-		} else if ( (tstr[1] == 'x') &&
+		} else if ( (tstr[1] == 'r' || tstr[1] == 'x') &&
 			    (tstr[2] == endc || tstr[2] == ':') ) {
 		    otype = tstr[1];
 		    cp = tstr + 2;

@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.63 2020/04/19 05:17:57 sjg Exp $
+dnl	$Id: configure.in,v 1.65 2020/05/25 01:11:40 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20200418], [sjg@NetBSD.org])
+AC_INIT([bmake], [20200524], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -60,7 +60,11 @@ AC_ARG_WITH(filemon,
 */filemon.h) filemon_h="${withval}";;
 */filemon*) filemon_h="${withval}/filemon.h";;
 *) AC_MSG_ERROR(bad value ${withval} given for filemon) ;;
-esac],
+esac
+case "$use_filemon,$filemon_h" in
+,*.h) use_filemon=dev;;
+esac
+],
 [
 case "$OS" in
 NetBSD) filemon_h=no use_filemon=ktrace;;
@@ -100,7 +104,8 @@ dnl see _EXTENSIONS_ we use it.
 AC_USE_SYSTEM_EXTENSIONS
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_GCC_TRADITIONAL
+AC_PROG_CC_C99
+dnl AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 dnl Executable suffix - normally empty; .exe on os2.
 AC_SUBST(ac_exe_suffix)dnl

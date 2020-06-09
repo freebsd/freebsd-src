@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.104 2020/02/06 01:33:54 sjg Exp $
+#	$Id: Makefile,v 1.107 2020/06/07 21:18:46 sjg Exp $
 
 PROG=	bmake
 
@@ -82,7 +82,7 @@ COPTS.main.c+= "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
 # should be set by now
 USE_FILEMON ?= no
 .if ${USE_FILEMON:tl} != "no"
-.PATH:	${.CURDIR}/filemon
+.PATH:	${srcdir}/filemon
 SRCS+=	filemon_${USE_FILEMON}.c
 COPTS.meta.c+= -DUSE_FILEMON -DUSE_FILEMON_${USE_FILEMON:tu}
 COPTS.job.c+= ${COPTS.meta.c}
@@ -158,7 +158,7 @@ MAN1= ${MAN}
 .if (${PROG} != "make")
 CLEANFILES+= my.history
 .if make(${MAN}) || !exists(${srcdir}/${MAN})
-my.history: ${MAKEFILE}
+my.history:
 	@(echo ".Nm"; \
 	echo "is derived from NetBSD"; \
 	echo ".Xr make 1 ."; \
@@ -207,7 +207,7 @@ ${OBJS}: config.h
 # start-delete2 for bsd.after-import.mk
 
 # make sure that MAKE_VERSION gets updated.
-main.o: ${SRCS} ${.CURDIR}/VERSION
+main.o: ${srcdir}/VERSION
 
 .if ${MK_AUTOCONF_MK} == "yes"
 CONFIGURE_DEPS += ${.CURDIR}/VERSION

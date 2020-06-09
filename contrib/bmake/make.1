@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.280 2020/04/27 20:03:08 christos Exp $
+.\"	$NetBSD: make.1,v 1.282 2020/06/06 20:28:42 wiz Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd April 27, 2020
+.Dd June 5, 2020
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1207,10 +1207,8 @@ but selects all words which do not match
 .Ar pattern .
 .It Cm \&:O
 Order every word in variable alphabetically.
-To sort words in
-reverse order use the
-.Ql Cm \&:O:[-1..1]
-combination of modifiers.
+.It Cm \&:Or
+Order every word in variable in reverse alphabetical order.
 .It Cm \&:Ox
 Randomize words in variable.
 The results will be different each time you are referring to the
@@ -1444,7 +1442,7 @@ If only
 .Ar old_string
 contains the pattern matching character
 .Ar % ,
-and 
+and
 .Ar old_string
 matches, then the result is the
 .Ar new_string .
@@ -1625,6 +1623,11 @@ then the words are output in reverse order.
 For example,
 .Ql Cm \&:[-1..1]
 selects all the words from last to first.
+If the list is already ordered, then this effectively reverses
+the list, but it is more efficient to use
+.Ql Cm \&:Or
+instead of
+.Ql Cm \&:O:[-1..1] .
 .\" :[*]
 .It Cm \&*
 Causes subsequent modifiers to treat the value as a single word

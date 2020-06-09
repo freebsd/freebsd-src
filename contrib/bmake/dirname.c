@@ -39,7 +39,6 @@
 __RCSID("$NetBSD: dirname.c,v 1.14 2018/09/27 00:45:34 kre Exp $");
 #endif /* !LIBC_SCCS && !lint */
 
-#include "namespace.h"
 #include <sys/param.h>
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>

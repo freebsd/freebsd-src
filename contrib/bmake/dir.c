@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.73 2018/07/12 18:03:31 christos Exp $	*/
+/*	$NetBSD: dir.c,v 1.74 2020/06/05 18:03:59 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: dir.c,v 1.73 2018/07/12 18:03:31 christos Exp $";
+static char rcsid[] = "$NetBSD: dir.c,v 1.74 2020/06/05 18:03:59 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: dir.c,v 1.73 2018/07/12 18:03:31 christos Exp $");
+__RCSID("$NetBSD: dir.c,v 1.74 2020/06/05 18:03:59 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -263,7 +263,8 @@ static char *DirLookupAbs(Path *, const char *, const char *);
  * mtime and mode are all we care about.
  */
 struct cache_st {
-    time_t mtime;
+    time_t lmtime;			/* lstat */
+    time_t mtime;			/* stat */
     mode_t  mode;
 };
 
@@ -287,13 +288,15 @@ cached_stats(Hash_Table *htp, const char *pathname, struct stat *st, int flags)
 	cst = entry->clientPtr;
 
 	memset(st, 0, sizeof(*st));
-	st->st_mtime = cst->mtime;
 	st->st_mode = cst->mode;
-        if (DEBUG(DIR)) {
-            fprintf(debug_file, "Using cached time %s for %s\n",
-		Targ_FmtTime(st->st_mtime), pathname);
+	st->st_mtime = (flags & CST_LSTAT) ? cst->lmtime : cst->mtime;
+	if (st->st_mtime) {
+	    if (DEBUG(DIR)) {
+		fprintf(debug_file, "Using cached time %s for %s\n",
+			Targ_FmtTime(st->st_mtime), pathname);
+	    }
+	    return 0;
 	}
-	return 0;
     }
 
     rc = (flags & CST_LSTAT) ? lstat(pathname, st) : stat(pathname, st);
@@ -305,10 +308,16 @@ cached_stats(Hash_Table *htp, const char *pathname, struct stat *st, int flags)
 
     if (!entry)
 	entry = Hash_CreateEntry(htp, pathname, NULL);
-    if (!entry->clientPtr)
+    if (!entry->clientPtr) {
 	entry->clientPtr = bmake_malloc(sizeof(*cst));
+	memset(entry->clientPtr, 0, sizeof(*cst));
+    }
     cst = entry->clientPtr;
-    cst->mtime = st->st_mtime;
+    if ((flags & CST_LSTAT)) {
+	cst->lmtime = st->st_mtime;
+    } else {
+	cst->mtime = st->st_mtime;
+    }
     cst->mode = st->st_mode;
     if (DEBUG(DIR)) {
 	fprintf(debug_file, "   Caching %s for %s\n",
