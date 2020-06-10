@@ -1526,14 +1526,14 @@ hci_write_le_host_support(int s, int argc, char **argv)
 	switch (argc) {
 	case 2:
 		if (sscanf(argv[1], "%d", &n) != 1 || (n != 0 && n != 1)){
-			printf("ARGC2: %d\n", n);
+			printf("-ARGC2: %d\n", n);
 			return (USAGE);
 		}
 		cp.simultaneous_le_host = (n &1);
 		
 	case 1:
 		if (sscanf(argv[0], "%d", &n) != 1 || (n != 0 && n != 1)){
-			printf("ARGC1: %d\n", n);
+			printf("+ARGC1: %d\n", n);
 			return (USAGE);
 		}
 

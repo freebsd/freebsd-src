@@ -69,6 +69,8 @@ static int le_add_device_to_white_list(int s, int argc, char *argv[]);
 static int le_remove_device_from_white_list(int s, int argc, char *argv[]);
 static int le_connect(int s, int argc, char *argv[]);
 static void handle_le_connection_event(ng_hci_event_pkt_t* e, bool verbose);
+static int le_read_channel_map(int s, int argc, char *argv[]);
+static void handle_le_remote_features_event(ng_hci_event_pkt_t* e);
 
 static int
 le_set_scan_param(int s, int argc, char *argv[])
@@ -1086,6 +1088,131 @@ static void handle_le_connection_event(ng_hci_event_pkt_t* e, bool verbose)
 	return;
 }
 
+static int
+le_read_channel_map(int s, int argc, char *argv[])
+{
+	ng_hci_le_read_channel_map_cp	cp;
+	ng_hci_le_read_channel_map_rp	rp;
+	int				n;
+	char 				buffer[2048];
+
+	/* parse command parameters */
+	switch (argc) {
+	case 1:
+		/* connection handle */
+		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
+			return (USAGE);
+
+		cp.connection_handle = (uint16_t) (n & 0x0fff);
+		cp.connection_handle = htole16(cp.connection_handle);
+		break;
+
+	default:
+		return (USAGE);
+	}
+
+	n = sizeof(rp);
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_READ_CHANNEL_MAP), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout,
+			"Read channel map failed. Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout, "Connection handle: %d\n",
+		le16toh(rp.connection_handle));
+	fprintf(stdout, "Used channels:\n");
+	fprintf(stdout, "\n%s\n", hci_le_chanmap2str(rp.le_channel_map, 
+		buffer, sizeof(buffer)));
+
+	return (OK);
+} /* le_read_channel_map */
+
+static int
+le_read_remote_features(int s, int argc, char *argv[])
+{
+	ng_hci_le_read_remote_used_features_cp	cp;
+	ng_hci_status_rp 			rp;
+	int					n, bufsize;
+	char 					b[512];
+
+	ng_hci_event_pkt_t	*e = (ng_hci_event_pkt_t *) b;
+
+	/* parse command parameters */
+	switch (argc) {
+	case 1:
+		/* connection handle */
+		if (sscanf(argv[0], "%d", &n) != 1 || n <= 0 || n > 0x0eff)
+			return (USAGE);
+
+		cp.connection_handle = (uint16_t) (n & 0x0fff);
+		cp.connection_handle = htole16(cp.connection_handle);
+		break;
+
+	default:
+		return (USAGE);
+	}
+
+	n = sizeof(rp);
+	if (hci_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES), 
+		(void *)&cp, sizeof(cp), (void *)&rp, &n) == ERROR)
+		return (ERROR);
+
+	if (rp.status != 0x00) {
+		fprintf(stdout,
+			"Read remote features failed. Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	/* wait for connection events */
+	bufsize = sizeof(b);
+	if (hci_recv(s, b, &bufsize) == ERROR) {
+		return (ERROR);
+	}
+
+	if (bufsize < sizeof(*e)) {
+		errno = EIO;
+		return (ERROR);
+	}
+	if (e->event == NG_HCI_EVENT_LE) {
+		handle_le_remote_features_event(e);
+	}
+
+	return (OK);
+} /* le_read_remote_features */
+
+static void handle_le_remote_features_event(ng_hci_event_pkt_t* e) 
+{
+	ng_hci_le_ep	*ev_pkt;
+	ng_hci_le_read_remote_features_ep *feat_event;
+	char	buffer[2048];
+
+	ev_pkt = (ng_hci_le_ep *)(e + 1);
+
+	if (ev_pkt->subevent_code == NG_HCI_LEEV_READ_REMOTE_FEATURES_COMPL) {
+		feat_event =(ng_hci_le_read_remote_features_ep *)(ev_pkt + 1);
+		fprintf(stdout, "Handle: %d\n",
+			le16toh(feat_event->connection_handle));
+		fprintf(stdout,
+			"Status: %s\n",
+			hci_status2str(feat_event->status));
+		fprintf(stdout, "Features:\n%s\n",
+			hci_le_features2str(feat_event->features,
+				buffer, sizeof(buffer)));
+	}
+
+	return;
+} /* handle_le_remote_features_event */
+
+
+
 struct hci_command le_commands[] = {
 {
 	"le_enable",
@@ -1195,5 +1322,18 @@ struct hci_command le_commands[] = {
 	  "le_connect -a address [-t public|random] [-v]\n"
 	  "Connect to an LE device",
 	  &le_connect
+  },
+  {
+	  "le_read_channel_map",
+	  "le_read_channel_map <connection_handle>\n"
+	  "Read the channel map for a connection",
+	  &le_read_channel_map
+  },
+  {
+	  "le_read_remote_features",
+	  "le_read_remote_features <connection_handle>\n"
+	  "Read supported features for the device\n"
+	  "identified by the connection handle",
+	  &le_read_remote_features
   },
 };
