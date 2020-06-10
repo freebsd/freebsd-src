@@ -167,6 +167,12 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.totalram = physmem * PAGE_SIZE;
 	sysinfo.freeram = sysinfo.totalram - vm_wire_count() * PAGE_SIZE;
 
+	/*
+	 * sharedram counts pages allocated to named, swap-backed objects such
+	 * as shared memory segments and tmpfs files.  There is no cheap way to
+	 * compute this, so just leave the field unpopulated.  Linux itself only
+	 * started setting this field in the 3.x timeframe.
+	 */
 	sysinfo.sharedram = 0;
 	sysinfo.bufferram = 0;
 
