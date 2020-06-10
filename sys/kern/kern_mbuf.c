@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
 #include <vm/uma.h>
 #include <vm/uma_dbg.h>
@@ -1536,4 +1537,105 @@ m_snd_tag_destroy(struct m_snd_tag *mst)
 	ifp->if_snd_tag_free(mst);
 	if_rele(ifp);
 	counter_u64_add(snd_tag_count, -1);
+}
+
+/*
+ * Allocate an mbuf with anonymous external pages.
+ */
+struct mbuf *
+mb_alloc_ext_plus_pages(int len, int how)
+{
+	struct mbuf *m;
+	vm_page_t pg;
+	int i, npgs;
+
+	m = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+	if (m == NULL)
+		return (NULL);
+	m->m_epg_flags |= EPG_FLAG_ANON;
+	npgs = howmany(len, PAGE_SIZE);
+	for (i = 0; i < npgs; i++) {
+		do {
+			pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+			    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP | VM_ALLOC_WIRED);
+			if (pg == NULL) {
+				if (how == M_NOWAIT) {
+					m->m_epg_npgs = i;
+					m_free(m);
+					return (NULL);
+				}
+				vm_wait(NULL);
+			}
+		} while (pg == NULL);
+		m->m_epg_pa[i] = VM_PAGE_TO_PHYS(pg);
+	}
+	m->m_epg_npgs = npgs;
+	return (m);
+}
+
+/*
+ * Copy the data in the mbuf chain to a chain of mbufs with anonymous external
+ * unmapped pages.
+ * len is the length of data in the input mbuf chain.
+ * mlen is the maximum number of bytes put into each ext_page mbuf.
+ */
+struct mbuf *
+mb_mapped_to_unmapped(struct mbuf *mp, int len, int mlen, int how,
+    struct mbuf **mlast)
+{
+	struct mbuf *m, *mout;
+	char *pgpos, *mbpos;
+	int i, mblen, mbufsiz, pglen, xfer;
+
+	if (len == 0)
+		return (NULL);
+	mbufsiz = min(mlen, len);
+	m = mout = mb_alloc_ext_plus_pages(mbufsiz, how);
+	if (m == NULL)
+		return (m);
+	pgpos = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[0]);
+	pglen = PAGE_SIZE;
+	mblen = 0;
+	i = 0;
+	do {
+		if (pglen == 0) {
+			if (++i == m->m_epg_npgs) {
+				m->m_epg_last_len = PAGE_SIZE;
+				mbufsiz = min(mlen, len);
+				m->m_next = mb_alloc_ext_plus_pages(mbufsiz,
+				    how);
+				m = m->m_next;
+				if (m == NULL) {
+					m_freem(mout);
+					return (m);
+				}
+				i = 0;
+			}
+			pgpos = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[i]);
+			pglen = PAGE_SIZE;
+		}
+		while (mblen == 0) {
+			if (mp == NULL) {
+				m_freem(mout);
+				return (NULL);
+			}
+			KASSERT((mp->m_flags & M_EXTPG) == 0,
+			    ("mb_copym_ext_pgs: ext_pgs input mbuf"));
+			mbpos = mtod(mp, char *);
+			mblen = mp->m_len;
+			mp = mp->m_next;
+		}
+		xfer = min(mblen, pglen);
+		memcpy(pgpos, mbpos, xfer);
+		pgpos += xfer;
+		mbpos += xfer;
+		pglen -= xfer;
+		mblen -= xfer;
+		len -= xfer;
+		m->m_len += xfer;
+	} while (len > 0);
+	m->m_epg_last_len = PAGE_SIZE - pglen;
+	if (mlast != NULL)
+		*mlast = m;
+	return (mout);
 }
