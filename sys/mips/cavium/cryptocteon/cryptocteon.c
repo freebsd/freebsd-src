@@ -323,6 +323,8 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 			goto done;
 		}
 		break;
+	default:
+		break;
 	}
 
 	if (csp->csp_cipher_alg != 0) {
