@@ -610,6 +610,37 @@ change_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	return (error);
 }
 
+/*
+ * Performs modification of routing table specificed by @action.
+ * Table is specified by @fibnum and sa_family in @info->rti_info[RTAX_DST].
+ * Needs to be run in network epoch.
+ *
+ * Returns 0 on success and fills in @rc with action result.
+ */
+int
+rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc)
+{
+	int error;
+
+	switch (action) {
+	case RTM_ADD:
+		error = rib_add_route(fibnum, info, rc);
+		break;
+	case RTM_DELETE:
+		error = rib_del_route(fibnum, info, rc);
+		break;
+	case RTM_CHANGE:
+		error = rib_change_route(fibnum, info, rc);
+		break;
+	default:
+		error = ENOTSUP;
+	}
+
+	return (error);
+}
+
+
 static void
 rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 {
