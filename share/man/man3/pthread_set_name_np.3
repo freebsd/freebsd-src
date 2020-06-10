@@ -24,12 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2018
+.Dd June 3, 2020
 .Dt PTHREAD_SET_NAME_NP 3
 .Os
 .Sh NAME
 .Nm pthread_get_name_np ,
+.Nm pthread_getname_np ,
 .Nm pthread_set_name_np
+.Nm pthread_setname_np
 .Nd set and retrieve the thread name
 .Sh LIBRARY
 .Lb libpthread
@@ -37,19 +39,27 @@
 .In pthread_np.h
 .Ft void
 .Fn pthread_get_name_np "pthread_t thread" "char *name" "size_t len"
+.Ft int
+.Fn pthread_getname_np "pthread_t thread" "char *name" "size_t len"
 .Ft void
 .Fn pthread_set_name_np "pthread_t thread" "const char *name"
+.Ft int
+.Fn pthread_setname_np "pthread_t thread" "const char *name"
 .Sh DESCRIPTION
 The
 .Fn pthread_set_name_np
-function applies a copy of the given
+and
+.Fn pthread_setname_np
+functions apply a copy of the given
 .Fa name
 to the given
 .Fa thread .
 .Pp
 The
 .Fn pthread_get_name_np
-function retrieves the
+and
+.Fn pthread_getname_np
+functions retrieve the
 .Fa name
 associated with
 .Fa thread .
@@ -61,7 +71,23 @@ the buffer pointed to by
 .Fa name
 will be empty.
 .Sh ERRORS
-Because of the debugging nature of these functions, all errors that may
+The
+.Nm pthread_getname_np
+and
+.Nm pthread_setname_np
+will fail if
+.Bl -tag -width Er
+.It Bq Er ESRCH
+No thread could be found in the current process corresponding to that
+specified by the given thread ID
+.Fa thread .
+.El
+.Pp
+Because of the debugging nature of
+.Nm pthread_get_name_np
+and
+.Nm pthread_set_name_np
+functions, all errors that may
 appear inside are silently ignored.
 .Sh SEE ALSO
 .Xr thr_set_name 2
@@ -70,6 +96,11 @@ appear inside are silently ignored.
 and
 .Fn pthread_get_name_np
 are non-standard extensions.
+.Fn pthread_setname_np
+and
+.Fn pthread_getname_np
+are also non-standard, but are implemented by larger number of operating
+systems so they are in fact more portable.
 .Sh AUTHORS
 This manual page was written by
 .An Alexey Zelkin Aq Mt phantom@FreeBSD.org
