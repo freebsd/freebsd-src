@@ -658,6 +658,11 @@ hdmi_edid_read(struct dwc_hdmi_softc *sc, int block, uint8_t **edid,
 	int result;
 	uint8_t addr = block & 1 ? EDID_LENGTH : 0;
 	uint8_t segment = block >> 1;
+	/*
+	 * Some devices do not support E-DDC so attempt
+	 * writing segment address only if it's neccessary
+	 */
+	unsigned char xfers = segment ? 3 : 2;
 	struct iic_msg msg[] = {
 		{ I2C_DDC_SEGADDR, IIC_M_WR, 1, &segment },
 		{ I2C_DDC_ADDR, IIC_M_WR, 1, &addr },
@@ -687,7 +692,7 @@ hdmi_edid_read(struct dwc_hdmi_softc *sc, int block, uint8_t **edid,
 		return (result);
 	}
 
-	result = iicbus_transfer(i2c_dev, msg, 3);
+	result = iicbus_transfer(i2c_dev, &msg[3 - xfers], xfers);
 	iicbus_release_bus(i2c_dev, sc->sc_dev);
 
 	if (result) {
