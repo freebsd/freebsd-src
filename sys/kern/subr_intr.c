@@ -797,8 +797,8 @@ intr_pic_register(device_t dev, intptr_t xref)
 	if (pic == NULL)
 		return (NULL);
 
-	debugf("PIC %p registered for %s <dev %p, xref %x>\n", pic,
-	    device_get_nameunit(dev), dev, xref);
+	debugf("PIC %p registered for %s <dev %p, xref %jx>\n", pic,
+	    device_get_nameunit(dev), dev, (uintmax_t)xref);
 	return (pic);
 }
 
