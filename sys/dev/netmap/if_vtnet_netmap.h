@@ -196,9 +196,11 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 }
 
 /*
- * Publish (up to) num netmap receive buffers to the host,
- * starting from the first one that the user made available
- * (kring->nr_hwcur).
+ * Publish 'num 'netmap receive buffers to the host, starting
+ * from the next available one (rx->vtnrx_nm_refill).
+ * Return a positive error code on error, and 0 on success.
+ * If we could not publish all of the buffers that's an error,
+ * since the netmap ring and the virtqueue would go out of sync.
  */
 static int
 vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
@@ -208,7 +210,7 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
 	struct netmap_ring *ring = kring->ring;
 	u_int ring_nr = kring->ring_id;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int nm_i = kring->nr_hwcur;
+	u_int nm_i;
 
 	/* device-specific */
 	struct vtnet_softc *sc = ifp->if_softc;
@@ -219,7 +221,8 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
 	struct sglist_seg ss[2];
 	struct sglist sg = { ss, 0, 0, 2 };
 
-	for (; num > 0; nm_i = nm_next(nm_i, lim), num--) {
+	for (nm_i = rxq->vtnrx_nm_refill; num > 0;
+	    nm_i = nm_next(nm_i, lim), num--) {
 		struct netmap_slot *slot = &ring->slot[nm_i];
 		uint64_t paddr;
 		void *addr = PNMB(na, slot, &paddr);
@@ -227,7 +230,7 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
 
 		if (addr == NETMAP_BUF_BASE(na)) { /* bad buf */
 			if (netmap_ring_reinit(kring))
-				return -1;
+				return EFAULT;
 		}
 
 		slot->flags &= ~NS_BUF_CHANGED;
@@ -240,14 +243,14 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int num)
 		err = virtqueue_enqueue(vq, /*cookie=*/rxq, &sg,
 				/*readable=*/0, /*writeable=*/sg.sg_nseg);
 		if (unlikely(err)) {
-			if (err != ENOSPC)
-				nm_prerr("virtqueue_enqueue(%s) failed: %d",
-					kring->name, err);
+			nm_prerr("virtqueue_enqueue(%s) failed: %d",
+				kring->name, err);
 			break;
 		}
 	}
+	rxq->vtnrx_nm_refill = nm_i;
 
-	return nm_i;
+	return num == 0 ? 0 : ENOSPC;
 }
 
 /*
@@ -274,11 +277,14 @@ vtnet_netmap_rxq_populate(struct vtnet_rxq *rxq)
 	/* Expose all the RX netmap buffers we can. In case of no indirect
 	 * buffers, the number of netmap slots in the RX ring matches the
 	 * maximum number of 2-elements sglist that the RX virtqueue can
-	 * accommodate (minus 1 to avoid netmap ring wraparound). */
+	 * accommodate. We need to start from kring->nr_hwcur, which is 0
+	 * on netmap register and may be different from 0 if a virtio
+	 * re-init happens while the device is in use by netmap. */
+	rxq->vtnrx_nm_refill = kring->nr_hwcur;
 	error = vtnet_netmap_kring_refill(kring, na->num_rx_desc - 1);
 	virtqueue_notify(rxq->vtnrx_vq);
 
-	return error < 0 ? ENXIO : 0;
+	return error;
 }
 
 /* Reconcile kernel and user view of the receive ring. */
@@ -350,15 +356,19 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 */
 	nm_i = kring->nr_hwcur; /* netmap ring index */
 	if (nm_i != head) {
-		int howmany = head - nm_i;
-		int nm_j;
+		int released;
+		int error;
 
-		if (howmany < 0)
-			howmany += kring->nkr_num_slots;
-		nm_j = vtnet_netmap_kring_refill(kring, howmany);
-		if (nm_j < 0)
-			return nm_j;
-		kring->nr_hwcur = nm_j;
+		released = head - nm_i;
+		if (released < 0)
+			released += kring->nkr_num_slots;
+		error = vtnet_netmap_kring_refill(kring, released);
+		if (error) {
+			nm_prerr("Failed to replenish RX VQ with %u sgs",
+			    released);
+			return error;
+		}
+		kring->nr_hwcur = head;
 		virtqueue_notify(vq);
 	}
 
