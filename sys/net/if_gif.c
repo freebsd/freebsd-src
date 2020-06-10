@@ -104,6 +104,9 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
+#ifdef VIMAGE
+static void	gif_reassign(struct ifnet *, struct vnet *, char *);
+#endif
 static void	gif_delete_tunnel(struct gif_softc *);
 static int	gif_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gif_transmit(struct ifnet *, struct mbuf *);
@@ -150,6 +153,9 @@ gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	GIF2IFP(sc)->if_transmit = gif_transmit;
 	GIF2IFP(sc)->if_qflush = gif_qflush;
 	GIF2IFP(sc)->if_output = gif_output;
+#ifdef VIMAGE
+	GIF2IFP(sc)->if_reassign = gif_reassign;
+#endif
 	GIF2IFP(sc)->if_capabilities |= IFCAP_LINKSTATE;
 	GIF2IFP(sc)->if_capenable |= IFCAP_LINKSTATE;
 	if_attach(GIF2IFP(sc));
@@ -159,6 +165,21 @@ gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	return (0);
 }
+
+#ifdef VIMAGE
+static void
+gif_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
+    char *unused __unused)
+{
+	struct gif_softc *sc;
+
+	sx_xlock(&gif_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc != NULL)
+		gif_delete_tunnel(sc);
+	sx_xunlock(&gif_ioctl_sx);
+}
+#endif /* VIMAGE */
 
 static void
 gif_clone_destroy(struct ifnet *ifp)
