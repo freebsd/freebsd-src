@@ -62,6 +62,7 @@ int	linux_kernver(struct thread *td);
 
 #define	linux_use26(t)		(linux_kernver(t) >= LINUX_KERNVER_2006000)
 
+extern int linux_default_openfiles;
 extern int linux_ignore_ip_recverr;
 extern int linux_preserve_vstatus;
 extern bool linux_map_sched_prio;
