@@ -427,7 +427,7 @@ opalpci_attach(device_t dev)
 		sc->msi_base = msi_ranges[0];
 
 		sc->msi_vmem = vmem_create("OPAL MSI", msi_ranges[0],
-		    msi_ranges[1], 1, 16, M_BESTFIT | M_WAITOK);
+		    msi_ranges[1], 1, 0, M_BESTFIT | M_WAITOK);
 
 		sc->base_msi_irq = powerpc_register_pic(dev,
 		    OF_xref_from_node(node),
