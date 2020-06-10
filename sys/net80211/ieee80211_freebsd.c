@@ -1042,7 +1042,7 @@ wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 const char *
 ieee80211_get_vap_ifname(struct ieee80211vap *vap)
 {
-	if ((vap->iv_ifp == NULL) || (vap->iv_ifp->if_xname == NULL))
+	if (vap->iv_ifp == NULL)
 		return "(none)";
 	return vap->iv_ifp->if_xname;
 }
