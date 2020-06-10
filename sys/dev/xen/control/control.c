@@ -303,7 +303,6 @@ xctrl_suspend()
 	 * Warm up timecounter again and reset system clock.
 	 */
 	timecounter->tc_get_timecount(timecounter);
-	timecounter->tc_get_timecount(timecounter);
 	inittodr(time_second);
 
 #ifdef EARLY_AP_STARTUP
