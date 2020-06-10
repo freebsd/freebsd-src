@@ -3322,3 +3322,46 @@ hci_mc_accuracy2str(int accuracy)
 
 	return (accuracy >= SIZE(acc)? "Unknown accuracy" : acc[accuracy]);
 } /* hci_mc_accuracy2str */
+
+char const *
+hci_le_chanmap2str(uint8_t *map, char *buffer, int size)
+{
+	char	chantxt[4];
+	if (buffer != NULL && size > 0) {
+		int n, i, len0, len1;
+
+		memset(buffer, 0, size);
+		len1 = 0;
+		size--;
+
+		for (n = 0; n < 5; n++) {
+			fprintf(stdout, "%02x ", map[n]);
+			for (i = 0; i < 8; i++) {
+				len0 = strlen(buffer);
+				if (len0 >= size)
+					goto done;
+
+				if (map[n] & (1 << i)) {
+					if (len1 + 3 > 60) {
+						len1 = 0;
+						buffer[len0 - 1] = '\n';
+					}
+
+					len1 += 3;
+					snprintf(
+						chantxt,
+						sizeof(chantxt),
+						"%02d ",
+						(n * 8 + i));
+					strncat(
+						buffer,
+						chantxt,
+						size - len0);
+				}
+			}
+		}
+		fprintf(stdout, "\n");
+	}
+done:
+	return (buffer);
+}
