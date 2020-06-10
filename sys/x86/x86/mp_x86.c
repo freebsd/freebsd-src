@@ -1676,9 +1676,21 @@ volatile uint32_t smp_tlb_generation;
 #define	read_eflags() read_rflags()
 #endif
 
+/*
+ * Used by pmap to request invalidation of TLB or cache on local and
+ * remote processors.  Mask provides the set of remote CPUs which are
+ * to be signalled with the IPI specified by vector.  The curcpu_cb
+ * callback is invoked on the calling CPU while waiting for remote
+ * CPUs to complete the operation.
+ *
+ * The callback function is called unconditionally on the caller's
+ * underlying processor, even when this processor is not set in the
+ * mask.  So, the callback function must be prepared to handle such
+ * spurious invocations.
+ */
 static void
 smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
-    vm_offset_t addr1, vm_offset_t addr2)
+    vm_offset_t addr1, vm_offset_t addr2, smp_invl_cb_t curcpu_cb)
 {
 	cpuset_t other_cpus;
 	volatile uint32_t *p_cpudone;
@@ -1686,19 +1698,23 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	int cpu;
 
 	/* It is not necessary to signal other CPUs while in the debugger. */
-	if (kdb_active || KERNEL_PANICKED())
+	if (kdb_active || KERNEL_PANICKED()) {
+		curcpu_cb(pmap, addr1, addr2);
 		return;
+	}
+
+	sched_pin();
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
 	if (CPU_ISFULLSET(&mask)) {
 		if (mp_ncpus <= 1)
-			return;
+			goto nospinexit;
 	} else {
 		CPU_CLR(PCPU_GET(cpuid), &mask);
 		if (CPU_EMPTY(&mask))
-			return;
+			goto nospinexit;
 	}
 
 	if (!(read_eflags() & PSL_I))
@@ -1722,6 +1738,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 			ipi_send_cpu(cpu, vector);
 		}
 	}
+	curcpu_cb(pmap, addr1, addr2);
 	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
 		cpu--;
 		CPU_CLR(cpu, &other_cpus);
@@ -1730,14 +1747,21 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 			ia32_pause();
 	}
 	mtx_unlock_spin(&smp_ipi_mtx);
+	sched_unpin();
+	return;
+
+nospinexit:
+	curcpu_cb(pmap, addr1, addr2);
+	sched_unpin();
 }
 
 void
-smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
+smp_masked_invltlb(cpuset_t mask, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0,
+		    curcpu_cb);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_global++;
 #endif
@@ -1745,11 +1769,13 @@ smp_masked_invltlb(cpuset_t mask, pmap_t pmap)
 }
 
 void
-smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap)
+smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap,
+    smp_invl_cb_t curcpu_cb)
 {
 
 	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0);
+		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0,
+		    curcpu_cb);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_page++;
 #endif
@@ -1758,12 +1784,12 @@ smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap)
 
 void
 smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
-    pmap_t pmap)
+    pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, pmap,
-		    addr1, addr2);
+		    addr1, addr2, curcpu_cb);
 #ifdef COUNT_XINVLTLB_HITS
 		ipi_range++;
 		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
@@ -1772,12 +1798,12 @@ smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
 }
 
 void
-smp_cache_flush(void)
+smp_cache_flush(smp_invl_cb_t curcpu_cb)
 {
 
 	if (smp_started) {
 		smp_targeted_tlb_shootdown(all_cpus, IPI_INVLCACHE, NULL,
-		    0, 0);
+		    0, 0, curcpu_cb);
 	}
 }
 
