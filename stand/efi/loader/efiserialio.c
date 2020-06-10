@@ -216,8 +216,9 @@ comc_get_con_serial_handle(const char *name)
 	status = efi_global_getenv(name, buf, &sz);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		buf = malloc(sz);
-		if (buf != NULL)
-			status = efi_global_getenv(name, buf, &sz);
+		if (buf == NULL)
+			return (NULL);
+		status = efi_global_getenv(name, buf, &sz);
 	}
 	if (status != EFI_SUCCESS) {
 		free(buf);
@@ -232,17 +233,13 @@ comc_get_con_serial_handle(const char *name)
 			free(buf);
 			return (handle);
 		}
-		if (IsDevicePathEndType(node) &&
-		    DevicePathSubType(node) ==
-		    END_INSTANCE_DEVICE_PATH_SUBTYPE) {
-			/*
-			 * Start of next device path in list.
-			 */
-			node = NextDevicePathNode(node);
-			continue;
-		}
-		if (IsDevicePathEnd(node))
+
+		/* Sanity check the node before moving to the next node. */
+		if (DevicePathNodeLength(node) < sizeof(*node))
 			break;
+
+		/* Start of next device path in list. */
+		node = NextDevicePathNode(node);
 	}
 	free(buf);
 	return (NULL);
