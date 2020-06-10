@@ -215,14 +215,28 @@ retry:		(void)_execve(bp, argv, envp);
 		case ENOEXEC:
 			for (cnt = 0; argv[cnt]; ++cnt)
 				;
-			memp = alloca((cnt + 2) * sizeof(char *));
+
+			/*
+			 * cnt may be 0 above; always allocate at least
+			 * 3 entries so that we can at least fit "sh", bp, and
+			 * the NULL terminator.  We can rely on cnt to take into
+			 * account the NULL terminator in all other scenarios,
+			 * as we drop argv[0].
+			 */
+			memp = alloca(MAX(3, cnt + 2) * sizeof(char *));
 			if (memp == NULL) {
 				/* errno = ENOMEM; XXX override ENOEXEC? */
 				goto done;
 			}
-			memp[0] = "sh";
-			memp[1] = bp;
-			bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
+			if (cnt > 0) {
+				memp[0] = argv[0];
+				memp[1] = bp;
+				bcopy(argv + 1, memp + 2, cnt * sizeof(char *));
+			} else {
+				memp[0] = "sh";
+				memp[1] = bp;
+				memp[2] = NULL;
+			}
  			(void)_execve(_PATH_BSHELL,
 			    __DECONST(char **, memp), envp);
 			goto done;

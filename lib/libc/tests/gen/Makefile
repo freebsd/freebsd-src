@@ -24,6 +24,15 @@ ATF_TESTS_C+=		wordexp_test
 # TODO: t_siginfo (fixes require further inspection)
 # TODO: t_sethostname_test (consistently screws up the hostname)
 
+FILESGROUPS+=		posix_spawn_test_FILES
+
+posix_spawn_test_FILES=	spawnp_enoexec.sh
+posix_spawn_test_FILESDIR=	${TESTSDIR}
+posix_spawn_test_FILESMODE= 0755
+posix_spawn_test_FILESOWN= root
+posix_spawn_test_FILESGRP= wheel
+posix_spawn_test_FILESPACKAGE=	${PACKAGE}
+
 CFLAGS+=	-DTEST_LONG_DOUBLE
 
 # Not sure why this isn't defined for all architectures, since most
