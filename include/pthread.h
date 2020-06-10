@@ -301,6 +301,9 @@ void		pthread_testcancel(void);
 int		pthread_getprio(pthread_t);
 int		pthread_setprio(pthread_t, int);
 void		pthread_yield(void);
+
+int		pthread_getname_np(pthread_t, char *, size_t);
+int		pthread_setname_np(pthread_t, const char *);
 #endif
 
 int		pthread_mutexattr_getprioceiling(
