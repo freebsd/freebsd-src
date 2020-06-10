@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
 
@@ -204,8 +205,20 @@ struct posix_spawn_args {
 	volatile int error;
 };
 
+#define	PSPAWN_STACK_ALIGNMENT	16
+#define	PSPAWN_STACK_ALIGNBYTES	(PSPAWN_STACK_ALIGNMENT - 1)
+#define	PSPAWN_STACK_ALIGN(sz) \
+	(((sz) + PSPAWN_STACK_ALIGNBYTES) & ~PSPAWN_STACK_ALIGNBYTES)
+
 #if defined(__i386__) || defined(__amd64__)
+/*
+ * Below we'll assume that _RFORK_THREAD_STACK_SIZE is appropriately aligned for
+ * the posix_spawn() case where we do not end up calling _execvpe and won't ever
+ * try to allocate space on the stack for argv[].
+ */
 #define	_RFORK_THREAD_STACK_SIZE	4096
+_Static_assert((_RFORK_THREAD_STACK_SIZE % PSPAWN_STACK_ALIGNMENT) == 0,
+    "Inappropriate stack size alignment");
 #endif
 
 static int
@@ -246,8 +259,24 @@ do_posix_spawn(pid_t *pid, const char *path,
 	pid_t p;
 #ifdef _RFORK_THREAD_STACK_SIZE
 	char *stack;
+	size_t cnt, stacksz;
 
-	stack = malloc(_RFORK_THREAD_STACK_SIZE);
+	stacksz = _RFORK_THREAD_STACK_SIZE;
+	if (use_env_path) {
+		/*
+		 * We need to make sure we have enough room on the stack for the
+		 * potential alloca() in execvPe if it gets kicked back an
+		 * ENOEXEC from execve(2), plus the original buffer we gave
+		 * ourselves; this protects us in the event that the caller
+		 * intentionally or inadvertently supplies enough arguments to
+		 * make us blow past the stack we've allocated from it.
+		 */
+		for (cnt = 0; argv[cnt] != NULL; ++cnt)
+			;
+		stacksz += MAX(3, cnt + 2) * sizeof(char *);
+		stacksz = PSPAWN_STACK_ALIGN(stacksz);
+	}
+	stack = aligned_alloc(PSPAWN_STACK_ALIGNMENT, stacksz);
 	if (stack == NULL)
 		return (ENOMEM);
 #endif
@@ -273,8 +302,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 	 * parent.  Because of this, we must use rfork_thread instead while
 	 * almost every other arch stores the return address in a register.
 	 */
-	p = rfork_thread(RFSPAWN, stack + _RFORK_THREAD_STACK_SIZE,
-	    _posix_spawn_thr, &psa);
+	p = rfork_thread(RFSPAWN, stack + stacksz, _posix_spawn_thr, &psa);
 	free(stack);
 #else
 	p = rfork(RFSPAWN);
