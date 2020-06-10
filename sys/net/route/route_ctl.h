@@ -51,6 +51,8 @@ int rib_del_route(uint32_t fibnum, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
 int rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
+int rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
+  struct rib_cmd_info *rc);
 
 int rib_add_redirect(u_int fibnum, struct sockaddr *dst,
   struct sockaddr *gateway, struct sockaddr *author, struct ifnet *ifp,

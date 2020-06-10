@@ -62,6 +62,7 @@
 #include <net/netisr.h>
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
@@ -181,10 +182,10 @@ static int	route_output(struct mbuf *m, struct socket *so, ...);
 static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 static int	handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
-			struct rt_msghdr *rtm, struct rtentry **ret_nrt);
+			struct rt_msghdr *rtm, struct rib_cmd_info *rc);
 static int	update_rtm_from_rte(struct rt_addrinfo *info,
 			struct rt_msghdr **prtm, int alloc_len,
-			struct rtentry *rt);
+			struct rtentry *rt, struct nhop_object *nh);
 static void	send_rtm_reply(struct socket *so, struct rt_msghdr *rtm,
 			struct mbuf *m, sa_family_t saf, u_int fibnum,
 			int rtm_errno);
@@ -656,10 +657,9 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, u_int fibnum, struct rt_addrinfo *
  */
 static int
 handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
-    struct rt_msghdr *rtm, struct rtentry **ret_nrt)
+    struct rt_msghdr *rtm, struct rib_cmd_info *rc)
 {
 	RIB_RLOCK_TRACKER;
-	struct rtentry *rt;
 	struct rib_head *rnh;
 	sa_family_t saf;
 
@@ -677,14 +677,14 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 		 * address lookup (no mask).
 		 * 'route -n get addr'
 		 */
-		rt = (struct rtentry *) rnh->rnh_matchaddr(
+		rc->rc_rt = (struct rtentry *) rnh->rnh_matchaddr(
 		    info->rti_info[RTAX_DST], &rnh->head);
 	} else
-		rt = (struct rtentry *) rnh->rnh_lookup(
+		rc->rc_rt = (struct rtentry *) rnh->rnh_lookup(
 		    info->rti_info[RTAX_DST],
 		    info->rti_info[RTAX_NETMASK], &rnh->head);
 
-	if (rt == NULL) {
+	if (rc->rc_rt == NULL) {
 		RIB_RUNLOCK(rnh);
 		return (ESRCH);
 	}
@@ -695,8 +695,9 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 	 * (no need to call rt_mpath_matchgate if gate == NULL)
 	 */
 	if (rt_mpath_capable(rnh) && info->rti_info[RTAX_GATEWAY]) {
-		rt = rt_mpath_matchgate(rt, info->rti_info[RTAX_GATEWAY]);
-		if (!rt) {
+		rc->rc_rt = rt_mpath_matchgate(rc->rc_rt,
+		    info->rti_info[RTAX_GATEWAY]);
+		if (rc->rc_rt == NULL) {
 			RIB_RUNLOCK(rnh);
 			return (ESRCH);
 		}
@@ -713,16 +714,13 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 		struct sockaddr laddr;
 		struct nhop_object *nh;
 
-		nh = rt->rt_nhop;
+		nh = rc->rc_rt->rt_nhop;
 		if (nh->nh_ifp != NULL &&
 		    nh->nh_ifp->if_type == IFT_PROPVIRTUAL) {
-			struct epoch_tracker et;
 			struct ifaddr *ifa;
 
-			NET_EPOCH_ENTER(et);
 			ifa = ifa_ifwithnet(info->rti_info[RTAX_DST], 1,
 					RT_ALL_FIBS);
-			NET_EPOCH_EXIT(et);
 			if (ifa != NULL)
 				rt_maskedcopy(ifa->ifa_addr,
 					      &laddr,
@@ -734,24 +732,21 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 		/* 
 		 * refactor rt and no lock operation necessary
 		 */
-		rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
+		rc->rc_rt = (struct rtentry *)rnh->rnh_matchaddr(&laddr,
 		    &rnh->head);
-		if (rt == NULL) {
+		if (rc->rc_rt == NULL) {
 			RIB_RUNLOCK(rnh);
 			return (ESRCH);
 		}
 	}
-	RT_LOCK(rt);
+	rc->rc_nh_new = rc->rc_rt->rt_nhop;
 	RIB_RUNLOCK(rnh);
-
-	*ret_nrt = rt;
 
 	return (0);
 }
 
 /*
  * Update sockaddrs, flags, etc in @prtm based on @rt data.
- * Assumes @rt is locked.
  * rtm can be reallocated.
  *
  * Returns 0 on success, along with pointer to (potentially reallocated)
@@ -760,21 +755,17 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
  */
 static int
 update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
-    int alloc_len, struct rtentry *rt)
+    int alloc_len, struct rtentry *rt, struct nhop_object *nh)
 {
 	struct sockaddr_storage netmask_ss;
 	struct walkarg w;
 	union sockaddr_union saun;
 	struct rt_msghdr *rtm, *orig_rtm = NULL;
-	struct nhop_object *nh;
 	struct ifnet *ifp;
 	int error, len;
 
-	RT_LOCK_ASSERT(rt);
-
 	rtm = *prtm;
 
-	nh = rt->rt_nhop;
 	info->rti_info[RTAX_DST] = rt_key(rt);
 	info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 	info->rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
@@ -854,6 +845,8 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	int alloc_len = 0, len, error = 0, fibnum;
 	sa_family_t saf = AF_UNSPEC;
 	struct walkarg w;
+	struct rib_cmd_info rc;
+	struct nhop_object *nh;
 
 	fibnum = so->so_fibnum;
 
@@ -881,6 +874,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	m_copydata(m, 0, len, (caddr_t)rtm);
 	bzero(&info, sizeof(info));
 	bzero(&w, sizeof(w));
+	nh = NULL;
 
 	if (rtm->rtm_version != RTM_VERSION) {
 		/* Do not touch message since format is unknown */
@@ -912,33 +906,26 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	}
 
 	switch (rtm->rtm_type) {
-		struct rtentry *saved_nrt;
-
 	case RTM_ADD:
 	case RTM_CHANGE:
 		if (rtm->rtm_type == RTM_ADD) {
 			if (info.rti_info[RTAX_GATEWAY] == NULL)
 				senderr(EINVAL);
 		}
-		saved_nrt = NULL;
-		error = rtrequest1_fib(rtm->rtm_type, &info, &saved_nrt,
-		    fibnum);
-		if (error == 0 && saved_nrt != NULL) {
+		error = rib_action(fibnum, rtm->rtm_type, &info, &rc);
+		if (error == 0) {
 #ifdef INET6
 			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
 #endif
-			RT_LOCK(saved_nrt);
-			rtm->rtm_index = saved_nrt->rt_nhop->nh_ifp->if_index;
-			RT_UNLOCK(saved_nrt);
+			rtm->rtm_index = rc.rc_nh_new->nh_ifp->if_index;
+			nh = rc.rc_nh_new;
 		}
 		break;
 
 	case RTM_DELETE:
-		saved_nrt = NULL;
-		error = rtrequest1_fib(RTM_DELETE, &info, &saved_nrt, fibnum);
+		error = rib_action(fibnum, RTM_DELETE, &info, &rc);
 		if (error == 0) {
-			RT_LOCK(saved_nrt);
-			rt = saved_nrt;
+			nh = rc.rc_nh_old;
 			goto report;
 		}
 #ifdef INET6
@@ -948,17 +935,17 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		break;
 
 	case RTM_GET:
-		error = handle_rtm_get(&info, fibnum, rtm, &rt);
+		error = handle_rtm_get(&info, fibnum, rtm, &rc);
 		if (error != 0)
 			senderr(error);
+		nh = rc.rc_nh_new;
 
 report:
-		RT_LOCK_ASSERT(rt);
-		if (!can_export_rte(curthread->td_ucred, rt)) {
-			RT_UNLOCK(rt);
+		if (!can_export_rte(curthread->td_ucred, rc.rc_rt)) {
 			senderr(ESRCH);
 		}
-		error = update_rtm_from_rte(&info, &rtm, alloc_len, rt);
+
+		error = update_rtm_from_rte(&info, &rtm, alloc_len, rc.rc_rt, nh);
 		/*
 		 * Note that some sockaddr pointers may have changed to
 		 * point to memory outsize @rtm. Some may be pointing
@@ -974,7 +961,6 @@ report:
 #ifdef INET6
 		rti_need_deembed = 0;
 #endif
-		RT_UNLOCK(rt);
 		if (error != 0)
 			senderr(error);
 		break;
