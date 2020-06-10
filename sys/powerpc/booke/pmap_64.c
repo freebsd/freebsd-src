@@ -220,12 +220,13 @@ pte_find_next(pmap_t pmap, vm_offset_t *pva)
 	k = PDIR_IDX(va);
 	l = PTBL_IDX(va);
 	pm_root = pmap->pm_root;
+
 	/* truncate the VA for later. */
 	va &= ~((1UL << (PG_ROOT_H + 1)) - 1);
-	for (; i < PG_ROOT_NENTRIES; i++, j = 0) {
+	for (; i < PG_ROOT_NENTRIES; i++, j = 0, k = 0, l = 0) {
 		if (pm_root[i] == 0)
 			continue;
-		for (; j < PDIR_L1_NENTRIES; j++, k = 0) {
+		for (; j < PDIR_L1_NENTRIES; j++, k = 0, l = 0) {
 			if (pm_root[i][j] == 0)
 				continue;
 			for (; k < PDIR_NENTRIES; k++, l = 0) {
