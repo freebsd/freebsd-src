@@ -484,8 +484,16 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
     if (acpi_MatchHid(handle, "ARMH0011") != ACPI_MATCHHID_NOMATCH)
 	    arc.ignore_producer_flag = true;
 
-    /* ARM Coresight on N1SDP set ResourceProducer on memory resources. */
-    if (acpi_MatchHid(handle, "ARMHC500") != ACPI_MATCHHID_NOMATCH)
+    /*
+     * ARM Coresight on N1SDP set ResourceProducer on memory resources.
+     * Coresight devices: ETM, STM, TPIU, ETF/ETR, REP, FUN.
+     */
+    if (acpi_MatchHid(handle, "ARMHC500") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHC502") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHC979") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHC97C") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHC98D") != ACPI_MATCHHID_NOMATCH ||
+        acpi_MatchHid(handle, "ARMHC9FF") != ACPI_MATCHHID_NOMATCH)
 	    arc.ignore_producer_flag = true;
 
     status = AcpiWalkResources(handle, "_CRS", acpi_parse_resource, &arc);
