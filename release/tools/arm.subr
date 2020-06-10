@@ -194,7 +194,7 @@ arm_install_base() {
 	if [ "${PART_SCHEME}" == "GPT" ]; then
 		echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
 			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-		echo "/dev/msdosfs/efi /boot/efi msdosfs rw,noatime 0 0" \
+		echo "/dev/msdosfs/EFI /boot/efi msdosfs rw,noatime 0 0" \
 			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 	fi
 	if [ "${PART_SCHEME}" == "MBR" ]; then
