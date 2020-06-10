@@ -53,11 +53,9 @@ __FBSDID("$FreeBSD$");
  * form more details on the subsystem.
  *
  * 'struct firmware' is the user-visible part of the firmware table.
- * Additional internal information is stored in a 'struct priv_fw'
- * (currently a static array). A slot is in use if FW_INUSE is true:
+ * Additional internal information is stored in a 'struct priv_fw',
+ * which embeds the public firmware structure.
  */
-
-#define FW_INUSE(p)	((p)->file != NULL || (p)->fw.name != NULL)
 
 /*
  * fw.name != NULL when an image is registered; file != NULL for
@@ -82,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 struct priv_fw {
 	int		refcnt;		/* reference count */
+	LIST_ENTRY(priv_fw) link;	/* table linkage */
 
 	/*
 	 * parent entry, see above. Set on firmware_register(),
@@ -118,13 +117,9 @@ struct priv_fw {
 	((intptr_t)(x) - offsetof(struct priv_fw, fw)) )
 
 /*
- * At the moment we use a static array as backing store for the registry.
- * Should we move to a dynamic structure, keep in mind that we cannot
- * reallocate the array because pointers are held externally.
- * A list may work, though.
+ * Global firmware image registry.
  */
-#define	FIRMWARE_MAX	50
-static struct priv_fw firmware_table[FIRMWARE_MAX];
+static LIST_HEAD(, priv_fw) firmware_table;
 
 /*
  * Firmware module operations are handled in a separate task as they
@@ -139,6 +134,8 @@ static struct task firmware_unload_task;
 static struct mtx firmware_mtx;
 MTX_SYSINIT(firmware, &firmware_mtx, "firmware table", MTX_DEF);
 
+static MALLOC_DEFINE(M_FIRMWARE, "firmware", "device firmware images");
+
 /*
  * Helper function to lookup a name.
  * As a side effect, it sets the pointer to a free slot, if any.
@@ -147,23 +144,17 @@ MTX_SYSINIT(firmware, &firmware_mtx, "firmware table", MTX_DEF);
  * with some other data structure.
  */
 static struct priv_fw *
-lookup(const char *name, struct priv_fw **empty_slot)
+lookup(const char *name)
 {
-	struct priv_fw *fp = NULL;
-	struct priv_fw *dummy;
-	int i;
+	struct priv_fw *fp;
 
-	if (empty_slot == NULL)
-		empty_slot = &dummy;
-	*empty_slot = NULL;
-	for (i = 0; i < FIRMWARE_MAX; i++) {
-		fp = &firmware_table[i];
+	mtx_assert(&firmware_mtx, MA_OWNED);
+
+	LIST_FOREACH(fp, &firmware_table, link) {
 		if (fp->fw.name != NULL && strcasecmp(name, fp->fw.name) == 0)
 			break;
-		else if (!FW_INUSE(fp))
-			*empty_slot = fp;
 	}
-	return (i < FIRMWARE_MAX ) ? fp : NULL;
+	return (fp);
 }
 
 /*
@@ -176,42 +167,42 @@ const struct firmware *
 firmware_register(const char *imagename, const void *data, size_t datasize,
     unsigned int version, const struct firmware *parent)
 {
-	struct priv_fw *match, *frp;
-	char *str;
-
-	str = strdup(imagename, M_TEMP);
+	struct priv_fw *frp;
+	char *name;
 
 	mtx_lock(&firmware_mtx);
-	/*
-	 * Do a lookup to make sure the name is unique or find a free slot.
-	 */
-	match = lookup(imagename, &frp);
-	if (match != NULL) {
+	frp = lookup(imagename);
+	if (frp != NULL) {
 		mtx_unlock(&firmware_mtx);
 		printf("%s: image %s already registered!\n",
-			__func__, imagename);
-		free(str, M_TEMP);
-		return NULL;
-	}
-	if (frp == NULL) {
-		mtx_unlock(&firmware_mtx);
-		printf("%s: cannot register image %s, firmware table full!\n",
 		    __func__, imagename);
-		free(str, M_TEMP);
-		return NULL;
+		return (NULL);
 	}
-	bzero(frp, sizeof(*frp));	/* start from a clean record */
-	frp->fw.name = str;
+	mtx_unlock(&firmware_mtx);
+
+	frp = malloc(sizeof(*frp), M_FIRMWARE, M_WAITOK | M_ZERO);
+	name = strdup(imagename, M_FIRMWARE);
+
+	mtx_lock(&firmware_mtx);
+	if (lookup(imagename) != NULL) {
+		/* We lost a race. */
+		mtx_unlock(&firmware_mtx);
+		free(name, M_FIRMWARE);
+		free(frp, M_FIRMWARE);
+		return (NULL);
+	}
+	frp->fw.name = name;
 	frp->fw.data = data;
 	frp->fw.datasize = datasize;
 	frp->fw.version = version;
 	if (parent != NULL)
 		frp->parent = PRIV_FW(parent);
+	LIST_INSERT_HEAD(&firmware_table, frp, link);
 	mtx_unlock(&firmware_mtx);
 	if (bootverbose)
 		printf("firmware: '%s' version %u: %zu bytes loaded at %p\n",
 		    imagename, version, datasize, data);
-	return &frp->fw;
+	return (&frp->fw);
 }
 
 /*
@@ -226,7 +217,7 @@ firmware_unregister(const char *imagename)
 	int err;
 
 	mtx_lock(&firmware_mtx);
-	fp = lookup(imagename, NULL);
+	fp = lookup(imagename);
 	if (fp == NULL) {
 		/*
 		 * It is ok for the lookup to fail; this can happen
@@ -238,20 +229,13 @@ firmware_unregister(const char *imagename)
 	} else if (fp->refcnt != 0) {	/* cannot unregister */
 		err = EBUSY;
 	} else {
-		linker_file_t x = fp->file;	/* save value */
-
-		/*
-		 * Clear the whole entry with bzero to make sure we
-		 * do not forget anything. Then restore 'file' which is
-		 * non-null for autoloaded images.
-		 */
-		free((void *) (uintptr_t) fp->fw.name, M_TEMP);
-		bzero(fp, sizeof(struct priv_fw));
-		fp->file = x;
+		LIST_REMOVE(fp, link);
+		free(__DECONST(char *, fp->fw.name), M_FIRMWARE);
+		free(fp, M_FIRMWARE);
 		err = 0;
 	}
 	mtx_unlock(&firmware_mtx);
-	return err;
+	return (err);
 }
 
 static void
@@ -262,31 +246,29 @@ loadimage(void *arg, int npending)
 	linker_file_t result;
 	int error;
 
-	/* synchronize with the thread that dispatched us */
-	mtx_lock(&firmware_mtx);
-	mtx_unlock(&firmware_mtx);
-
 	error = linker_reference_module(imagename, NULL, &result);
 	if (error != 0) {
 		printf("%s: could not load firmware image, error %d\n",
 		    imagename, error);
+		mtx_lock(&firmware_mtx);
 		goto done;
 	}
 
 	mtx_lock(&firmware_mtx);
-	fp = lookup(imagename, NULL);
+	fp = lookup(imagename);
 	if (fp == NULL || fp->file != NULL) {
 		mtx_unlock(&firmware_mtx);
 		if (fp == NULL)
 			printf("%s: firmware image loaded, "
 			    "but did not register\n", imagename);
 		(void) linker_release_module(imagename, NULL, NULL);
+		mtx_lock(&firmware_mtx);
 		goto done;
 	}
 	fp->file = result;	/* record the module identity */
-	mtx_unlock(&firmware_mtx);
 done:
-	wakeup_one(imagename);		/* we're done */
+	wakeup_one(imagename);
+	mtx_unlock(&firmware_mtx);
 }
 
 /*
@@ -304,7 +286,7 @@ firmware_get(const char *imagename)
 	struct priv_fw *fp;
 
 	mtx_lock(&firmware_mtx);
-	fp = lookup(imagename, NULL);
+	fp = lookup(imagename);
 	if (fp != NULL)
 		goto found;
 	/*
@@ -318,7 +300,7 @@ firmware_get(const char *imagename)
 		    "load firmware image %s\n", __func__, imagename);
 		return NULL;
 	}
-	/* 
+	/*
 	 * Defer load to a thread with known context.  linker_reference_module
 	 * may do filesystem i/o which requires root & current dirs, etc.
 	 * Also we must not hold any mtx's over this call which is problematic.
@@ -333,7 +315,7 @@ firmware_get(const char *imagename)
 	/*
 	 * After attempting to load the module, see if the image is registered.
 	 */
-	fp = lookup(imagename, NULL);
+	fp = lookup(imagename);
 	if (fp == NULL) {
 		mtx_unlock(&firmware_mtx);
 		return NULL;
@@ -381,7 +363,6 @@ set_rootvnode(void *arg, int npending)
 {
 
 	pwd_ensure_dirs();
-
 	free(arg, M_TEMP);
 }
 
@@ -413,49 +394,38 @@ EVENTHANDLER_DEFINE(mountroot, firmware_mountroot, NULL, 0);
 static void
 unloadentry(void *unused1, int unused2)
 {
-	int limit = FIRMWARE_MAX;
-	int i;	/* current cycle */
+	struct priv_fw *fp, *tmp;
+	int err;
+	bool changed;
 
 	mtx_lock(&firmware_mtx);
-	/*
-	 * Scan the table. limit is set to make sure we make another
-	 * full sweep after matching an entry that requires unloading.
-	 */
-	for (i = 0; i < limit; i++) {
-		struct priv_fw *fp;
-		int err;
-
-		fp = &firmware_table[i % FIRMWARE_MAX];
-		if (fp->fw.name == NULL || fp->file == NULL ||
-		    fp->refcnt != 0 || (fp->flags & FW_UNLOAD) == 0)
+	changed = false;
+restart:
+	LIST_FOREACH_SAFE(fp, &firmware_table, link, tmp) {
+		if (fp->file == NULL || fp->refcnt != 0 ||
+		    (fp->flags & FW_UNLOAD) == 0)
 			continue;
 
 		/*
 		 * Found an entry. Now:
-		 * 1. bump up limit to make sure we make another full round;
+		 * 1. make sure we scan the table again
 		 * 2. clear FW_UNLOAD so we don't try this entry again.
 		 * 3. release the lock while trying to unload the module.
-		 * 'file' remains set so that the entry cannot be reused
-		 * in the meantime (it also means that fp->file will
-		 * not change while we release the lock).
 		 */
-		limit = i + FIRMWARE_MAX;	/* make another full round */
+		changed = true;
 		fp->flags &= ~FW_UNLOAD;	/* do not try again */
-
-		mtx_unlock(&firmware_mtx);
-		err = linker_release_module(NULL, NULL, fp->file);
-		mtx_lock(&firmware_mtx);
 
 		/*
 		 * We rely on the module to call firmware_unregister()
-		 * on unload to actually release the entry.
-		 * If err = 0 we can drop our reference as the system
-		 * accepted it. Otherwise unloading failed (e.g. the
-		 * module itself gave an error) so our reference is
-		 * still valid.
+		 * on unload to actually free the entry.
 		 */
-		if (err == 0)
-			fp->file = NULL; 
+		mtx_unlock(&firmware_mtx);
+		err = linker_release_module(NULL, NULL, fp->file);
+		mtx_lock(&firmware_mtx);
+	}
+	if (changed) {
+		changed = false;
+		goto restart;
 	}
 	mtx_unlock(&firmware_mtx);
 }
@@ -467,8 +437,9 @@ static int
 firmware_modevent(module_t mod, int type, void *unused)
 {
 	struct priv_fw *fp;
-	int i, err;
+	int err;
 
+	err = 0;
 	switch (type) {
 	case MOD_LOAD:
 		TASK_INIT(&firmware_unload_task, 0, unloadentry, NULL);
@@ -478,39 +449,39 @@ firmware_modevent(module_t mod, int type, void *unused)
 		(void) taskqueue_start_threads(&firmware_tq, 1, PWAIT,
 		    "firmware taskq");
 		if (rootvnode != NULL) {
-			/* 
+			/*
 			 * Root is already mounted so we won't get an event;
 			 * simulate one here.
 			 */
 			firmware_mountroot(NULL);
 		}
-		return 0;
+		break;
 
 	case MOD_UNLOAD:
 		/* request all autoloaded modules to be released */
 		mtx_lock(&firmware_mtx);
-		for (i = 0; i < FIRMWARE_MAX; i++) {
-			fp = &firmware_table[i];
+		LIST_FOREACH(fp, &firmware_table, link)
 			fp->flags |= FW_UNLOAD;
-		}
 		mtx_unlock(&firmware_mtx);
 		taskqueue_enqueue(firmware_tq, &firmware_unload_task);
 		taskqueue_drain(firmware_tq, &firmware_unload_task);
-		err = 0;
-		for (i = 0; i < FIRMWARE_MAX; i++) {
-			fp = &firmware_table[i];
+
+		LIST_FOREACH(fp, &firmware_table, link) {
 			if (fp->fw.name != NULL) {
-				printf("%s: image %p ref %d still active slot %d\n",
-					__func__, fp->fw.name,
-					fp->refcnt,  i);
+				printf("%s: image %s still active, %d refs\n",
+				    __func__, fp->fw.name, fp->refcnt);
 				err = EINVAL;
 			}
 		}
 		if (err == 0)
 			taskqueue_free(firmware_tq);
-		return err;
+		break;
+
+	default:
+		err = EOPNOTSUPP;
+		break;
 	}
-	return EINVAL;
+	return (err);
 }
 
 static moduledata_t firmware_mod = {
