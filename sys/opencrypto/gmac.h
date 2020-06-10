@@ -47,10 +47,10 @@ struct aes_gmac_ctx {
 	int			rounds;
 };
 
-void AES_GMAC_Init(struct aes_gmac_ctx *);
-void AES_GMAC_Setkey(struct aes_gmac_ctx *, const uint8_t *, uint16_t);
-void AES_GMAC_Reinit(struct aes_gmac_ctx *, const uint8_t *, uint16_t);
-int AES_GMAC_Update(struct aes_gmac_ctx *, const uint8_t *, uint16_t);
-void AES_GMAC_Final(uint8_t [GMAC_DIGEST_LEN], struct aes_gmac_ctx *);
+void AES_GMAC_Init(void *);
+void AES_GMAC_Setkey(void *, const uint8_t *, u_int);
+void AES_GMAC_Reinit(void *, const uint8_t *, u_int);
+int AES_GMAC_Update(void *, const void *, u_int);
+void AES_GMAC_Final(uint8_t *, void *);
 
 #endif /* _GMAC_H_ */

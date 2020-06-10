@@ -668,12 +668,12 @@ void	crypto_copyback(struct cryptop *crp, int off, int size,
 	    const void *src);
 void	crypto_copydata(struct cryptop *crp, int off, int size, void *dst);
 int	crypto_apply(struct cryptop *crp, int off, int len,
-	    int (*f)(void *, void *, u_int), void *arg);
+	    int (*f)(void *, const void *, u_int), void *arg);
 void	*crypto_contiguous_subsegment(struct cryptop *crp, size_t skip,
 	    size_t len);
 
 int	crypto_apply_buf(struct crypto_buffer *cb, int off, int len,
-	    int (*f)(void *, void *, u_int), void *arg);
+	    int (*f)(void *, const void *, u_int), void *arg);
 void	*crypto_buffer_contiguous_subsegment(struct crypto_buffer *cb,
 	    size_t skip, size_t len);
 size_t	crypto_buffer_len(struct crypto_buffer *cb);
