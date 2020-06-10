@@ -61,11 +61,7 @@ __FBSDID("$FreeBSD$");
 #include "fb_if.h"
 #include "hdmi_if.h"
 
-#define EDID_DEBUG_not
-
 static int have_ipu = 0;
-
-#define	LDB_CLOCK_RATE	280000000
 
 #define	MODE_HBP(mode)	((mode)->htotal - (mode)->hsync_end)
 #define	MODE_HFP(mode)	((mode)->hsync_start - (mode)->hdisplay)
@@ -76,11 +72,6 @@ static int have_ipu = 0;
 
 #define	MODE_BPP	16
 #define	MODE_PIXEL_CLOCK_INVERT	1
-
-#define M(nm,hr,vr,clk,hs,he,ht,vs,ve,vt,f) \
-	{ clk, hr, hs, he, ht, vr, vs, ve, vt, f, nm }
-
-static struct videomode mode1024x768 = M("1024x768x60",1024,768,65000,1048,1184,1344,771,777,806,VID_NHSYNC|VID_PHSYNC);
 
 #define	DMA_CHANNEL	23
 #define	DC_CHAN5	5
@@ -384,7 +375,7 @@ struct ipu_softc {
 	void			*sc_intr_hl;
 	struct mtx		sc_mtx;
 	struct fb_info		sc_fb_info;
-	struct videomode 	*sc_mode;
+	const struct videomode 	*sc_mode;
 
 	/* Framebuffer */
 	bus_dma_tag_t		sc_dma_tag;
@@ -634,10 +625,30 @@ ipu_init_microcode_template(struct ipu_softc *sc, int di, int map)
 	}
 }
 
+static uint32_t
+ipu_calc_divisor(uint32_t reference, uint32_t freq)
+{
+	uint32_t div, i;
+	uint32_t delta, min_delta;
+
+	min_delta = freq;
+	div = 255;
+
+	for (i = 1; i < 255; i++) {
+		delta = abs(reference/i - freq);
+		if (delta < min_delta) {
+			div = i;
+			min_delta = delta;
+		}
+	}
+
+	return (div);
+}
+
 static void
 ipu_config_timing(struct ipu_softc *sc, int di)
 {
-	int div;
+	uint32_t div;
 	uint32_t di_scr_conf;
 	uint32_t gen_offset, gen;
 	uint32_t as_gen_offset, as_gen;
@@ -645,24 +656,17 @@ ipu_config_timing(struct ipu_softc *sc, int di)
 	uint32_t dw_set_offset, dw_set;
 	uint32_t bs_clkgen_offset;
 	int map;
+	uint32_t freq;
 
-	/* TODO: check mode restrictions / fixup */
-	/* TODO: enable timers, get divisors */
-	div = 1;
+	freq = sc->sc_mode->dot_clock * 1000;
+
+	div = ipu_calc_divisor(imx_ccm_ipu_hz(), freq);
 	map = 0;
 
 	bs_clkgen_offset = di ? IPU_DI1_BS_CLKGEN0 : IPU_DI0_BS_CLKGEN0;
 	IPU_WRITE4(sc, bs_clkgen_offset, DI_BS_CLKGEN0(div, 0));
 	/* half of the divider */
 	IPU_WRITE4(sc, bs_clkgen_offset + 4, DI_BS_CLKGEN1_DOWN(div / 2, div % 2));
-
-	/*
-	 * TODO: Configure LLDB clock by changing following fields
-	 * in CCM fields:
-	 * 	CS2CDR_LDB_DI0_CLK_SEL
-	 * 	CSCMR2_LDB_DI0_IPU_DIV
-	 * 	CBCDR_MMDC_CH1_AXI_PODF
-	 */
 
 	/* Setup wave generator */
 	dw_gen_offset = di ? IPU_DI1_DW_GEN_0 : IPU_DI0_DW_GEN_0;
@@ -768,8 +772,6 @@ ipu_dc_enable(struct ipu_softc *sc)
 	conf &= ~WRITE_CH_CONF_PROG_CHAN_TYP_MASK;
 	conf |= WRITE_CH_CONF_PROG_CHAN_NORMAL;
 	IPU_WRITE4(sc, DC_WRITE_CH_CONF_5, conf);
-
-	/* TODO: enable clock */
 }
 
 static void
@@ -1063,15 +1065,55 @@ fail:
 	return (err);
 }
 
+static int
+ipu_mode_is_valid(const struct videomode *mode)
+{
+	if ((mode->dot_clock < 13500) || (mode->dot_clock > 216000))
+		return (0);
+
+	return (1);
+}
+
+static const struct videomode *
+ipu_pick_mode(struct edid_info *ei)
+{
+	const struct videomode *videomode;
+	const struct videomode *m;
+	int n;
+
+	videomode = NULL;
+
+	/*
+	 * Pick a mode.
+	 */
+	if (ei->edid_preferred_mode != NULL) {
+		if (ipu_mode_is_valid(ei->edid_preferred_mode))
+			videomode = ei->edid_preferred_mode;
+	}
+
+	if (videomode == NULL) {
+		m = ei->edid_modes;
+
+		sort_modes(ei->edid_modes,
+		    &ei->edid_preferred_mode,
+		    ei->edid_nmodes);
+		for (n = 0; n < ei->edid_nmodes; n++)
+			if (ipu_mode_is_valid(&m[n])) {
+				videomode = &m[n];
+				break;
+			}
+	}
+
+	return videomode;
+}
+
 static void
 ipu_hdmi_event(void *arg, device_t hdmi_dev)
 {
 	struct ipu_softc *sc;
 	uint8_t *edid;
 	uint32_t edid_len;
-#ifdef EDID_DEBUG
 	struct edid_info ei;
-#endif
 	const struct videomode *videomode;
 
 	sc = arg;
@@ -1084,14 +1126,28 @@ ipu_hdmi_event(void *arg, device_t hdmi_dev)
 
 	videomode = NULL;
 
-#ifdef EDID_DEBUG
 	if ( edid && (edid_parse(edid, &ei) == 0)) {
-		edid_print(&ei);
+		if (bootverbose)
+			edid_print(&ei);
+		videomode = ipu_pick_mode(&ei);
 	} else
 		device_printf(sc->sc_dev, "failed to parse EDID\n");
-#endif
 
-	sc->sc_mode = &mode1024x768;
+	/* Use standard VGA as fallback */
+	if (videomode == NULL)
+		videomode = pick_mode_by_ref(640, 480, 60);
+
+	if (videomode == NULL) {
+		device_printf(sc->sc_dev, "failed to find usable videomode\n");
+		return;
+	}
+
+	sc->sc_mode = videomode;
+
+	if (bootverbose)
+		device_printf(sc->sc_dev, "detected videomode: %dx%d\n",
+		    videomode->hdisplay, videomode->vdisplay);
+
 	ipu_init(sc);
 
 	HDMI_SET_VIDEOMODE(hdmi_dev, sc->sc_mode);
@@ -1145,9 +1201,22 @@ ipu_attach(device_t dev)
 	}
 
 	/* Enable IPU1 */
+	if (imx_ccm_pll_video_enable() != 0) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_mem_rid, sc->sc_mem_res);
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->sc_irq_rid, sc->sc_irq_res);
+		device_printf(dev, "failed to set up video PLL\n");
+		return (ENXIO);
+	}
+
 	imx_ccm_ipu_enable(1);
 
 	if (src_reset_ipu() != 0) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_mem_rid, sc->sc_mem_res);
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->sc_irq_rid, sc->sc_irq_res);
 		device_printf(dev, "failed to reset IPU\n");
 		return (ENXIO);
 	}
