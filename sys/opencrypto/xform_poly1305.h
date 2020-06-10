@@ -6,7 +6,7 @@
 
 struct poly1305_xform_ctx;
 
-void Poly1305_Init(struct poly1305_xform_ctx *);
+void Poly1305_Init(void *);
 
 void Poly1305_Setkey(struct poly1305_xform_ctx *,
     const uint8_t [__min_size(32)], size_t);

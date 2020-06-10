@@ -56,14 +56,20 @@ xor_and_encrypt(struct aes_cbc_mac_ctx *ctx,
 }
 
 void
-AES_CBC_MAC_Init(struct aes_cbc_mac_ctx *ctx)
+AES_CBC_MAC_Init(void *vctx)
 {
+	struct aes_cbc_mac_ctx *ctx;
+
+	ctx = vctx;
 	bzero(ctx, sizeof(*ctx));
 }
 
 void
-AES_CBC_MAC_Setkey(struct aes_cbc_mac_ctx *ctx, const uint8_t *key, uint16_t klen)
+AES_CBC_MAC_Setkey(void *vctx, const uint8_t *key, u_int klen)
 {
+	struct aes_cbc_mac_ctx *ctx;
+
+	ctx = vctx;
 	ctx->rounds = rijndaelKeySetupEnc(ctx->keysched, key, klen * 8);
 }
 
@@ -76,8 +82,9 @@ AES_CBC_MAC_Setkey(struct aes_cbc_mac_ctx *ctx, const uint8_t *key, uint16_t kle
  * nonce, as well as information about the sizes and lengths involved.
  */
 void
-AES_CBC_MAC_Reinit(struct aes_cbc_mac_ctx *ctx, const uint8_t *nonce, uint16_t nonceLen)
+AES_CBC_MAC_Reinit(void *vctx, const uint8_t *nonce, u_int nonceLen)
 {
+	struct aes_cbc_mac_ctx *ctx = vctx;
 	uint8_t b0[CCM_CBC_BLOCK_LEN];
 	uint8_t *bp = b0, flags = 0;
 	uint8_t L = 0;
@@ -150,11 +157,15 @@ AES_CBC_MAC_Reinit(struct aes_cbc_mac_ctx *ctx, const uint8_t *nonce, uint16_t n
 }
 
 int
-AES_CBC_MAC_Update(struct aes_cbc_mac_ctx *ctx, const uint8_t *data,
-    uint16_t length)
+AES_CBC_MAC_Update(void *vctx, const void *vdata, u_int length)
 {
+	struct aes_cbc_mac_ctx *ctx;
+	const uint8_t *data;
 	size_t copy_amt;
 	
+	ctx = vctx;
+	data = vdata;
+
 	/*
 	 * This will be called in one of two phases:
 	 * (1)  Applying authentication data, or
@@ -241,10 +252,13 @@ AES_CBC_MAC_Update(struct aes_cbc_mac_ctx *ctx, const uint8_t *data,
 }
 
 void
-AES_CBC_MAC_Final(uint8_t *buf, struct aes_cbc_mac_ctx *ctx)
+AES_CBC_MAC_Final(uint8_t *buf, void *vctx)
 {
+	struct aes_cbc_mac_ctx *ctx;
 	uint8_t s0[CCM_CBC_BLOCK_LEN];
-	
+
+	ctx = vctx;
+
 	/*
 	 * We first need to check to see if we've got any data
 	 * left over to encrypt.

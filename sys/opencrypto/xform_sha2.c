@@ -56,10 +56,10 @@ __FBSDID("$FreeBSD$");
 #include <crypto/sha2/sha512.h>
 #include <opencrypto/xform_auth.h>
 
-static	int SHA224Update_int(void *, const u_int8_t *, u_int16_t);
-static	int SHA256Update_int(void *, const u_int8_t *, u_int16_t);
-static	int SHA384Update_int(void *, const u_int8_t *, u_int16_t);
-static	int SHA512Update_int(void *, const u_int8_t *, u_int16_t);
+static	int SHA224Update_int(void *, const void *, u_int);
+static	int SHA256Update_int(void *, const void *, u_int);
+static	int SHA384Update_int(void *, const void *, u_int);
+static	int SHA512Update_int(void *, const void *, u_int);
 
 /* Plain hashes */
 struct auth_hash auth_hash_sha2_224 = {
@@ -162,28 +162,28 @@ struct auth_hash auth_hash_hmac_sha2_512 = {
  * And now for auth.
  */
 static int
-SHA224Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
+SHA224Update_int(void *ctx, const void *buf, u_int len)
 {
 	SHA224_Update(ctx, buf, len);
 	return 0;
 }
 
 static int
-SHA256Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
+SHA256Update_int(void *ctx, const void *buf, u_int len)
 {
 	SHA256_Update(ctx, buf, len);
 	return 0;
 }
 
 static int
-SHA384Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
+SHA384Update_int(void *ctx, const void *buf, u_int len)
 {
 	SHA384_Update(ctx, buf, len);
 	return 0;
 }
 
 static int
-SHA512Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
+SHA512Update_int(void *ctx, const void *buf, u_int len)
 {
 	SHA512_Update(ctx, buf, len);
 	return 0;
