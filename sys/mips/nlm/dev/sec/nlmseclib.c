@@ -157,6 +157,8 @@ nlm_crypto_form_srcdst_segs(struct xlp_sec_command *cmd,
 			    crp->crp_buf.cb_buf, crp->crp_buf.cb_buf_len);
 		}
 		break;
+	default:
+		__assert_unreachable();
 	}
 	return (0);
 }
