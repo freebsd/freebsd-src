@@ -212,8 +212,10 @@ linux_to_bsd_so_sockopt(int opt)
 	case LINUX_SO_BROADCAST:
 		return (SO_BROADCAST);
 	case LINUX_SO_SNDBUF:
+	case LINUX_SO_SNDBUFFORCE:
 		return (SO_SNDBUF);
 	case LINUX_SO_RCVBUF:
+	case LINUX_SO_RCVBUFFORCE:
 		return (SO_RCVBUF);
 	case LINUX_SO_KEEPALIVE:
 		return (SO_KEEPALIVE);
