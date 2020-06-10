@@ -896,7 +896,7 @@ fsl_msi_attach(device_t dev)
 	sc = device_get_softc(dev);
 
 	if (msi_vmem == NULL)
-		msi_vmem = vmem_create("MPIC MSI", 0, 0, 1, 1, M_BESTFIT | M_WAITOK);
+		msi_vmem = vmem_create("MPIC MSI", 0, 0, 1, 0, M_BESTFIT | M_WAITOK);
 
 	/* Manually play with resource entries. */
 	sc->sc_base = bus_get_resource_start(dev, SYS_RES_MEMORY, 0);
