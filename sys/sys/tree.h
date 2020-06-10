@@ -333,6 +333,12 @@ struct {								\
 #define RB_TRUE				1
 #define RB_FALSE			0
 
+/* For debugging support */
+#define RB_COLOR(elm, field)		(RB_PARENT(elm, field) == NULL ? RB_FALSE : \
+					    RB_LEFT(RB_PARENT(elm, field), field) == elm ? \
+					    RB_RED_LF(RB_PARENT(elm, field), field) : \
+					    RB_RED_RT(RB_PARENT(elm, field), field)
+
 /*
  * Something to be invoked in a loop at the root of every modified subtree,
  * from the bottom up to the root, to update augmented node data.
