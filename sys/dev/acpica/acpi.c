@@ -3220,7 +3220,6 @@ acpi_resync_clock(struct acpi_softc *sc)
      * Warm up timecounter again and reset system clock.
      */
     (void)timecounter->tc_get_timecount(timecounter);
-    (void)timecounter->tc_get_timecount(timecounter);
     inittodr(time_second + sc->acpi_sleep_delay);
 }
 
