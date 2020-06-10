@@ -73,11 +73,10 @@ struct padlock_sha_ctx {
 };
 CTASSERT(sizeof(struct padlock_sha_ctx) <= sizeof(union authctx));
 
-static void padlock_sha_init(struct padlock_sha_ctx *ctx);
-static int padlock_sha_update(struct padlock_sha_ctx *ctx, const uint8_t *buf,
-    uint16_t bufsize);
-static void padlock_sha1_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
-static void padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
+static void padlock_sha_init(void *vctx);
+static int padlock_sha_update(void *vctx, const void *buf, u_int bufsize);
+static void padlock_sha1_final(uint8_t *hash, void *vctx);
+static void padlock_sha256_final(uint8_t *hash, void *vctx);
 
 static struct auth_hash padlock_hmac_sha1 = {
 	.type = CRYPTO_SHA1_HMAC,
@@ -86,9 +85,9 @@ static struct auth_hash padlock_hmac_sha1 = {
 	.hashsize = SHA1_HASH_LEN,
 	.ctxsize = sizeof(struct padlock_sha_ctx),
 	.blocksize = SHA1_BLOCK_LEN,
-        .Init = (void (*)(void *))padlock_sha_init,
-	.Update = (int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
-	.Final = (void (*)(uint8_t *, void *))padlock_sha1_final,
+        .Init = padlock_sha_init,
+	.Update = padlock_sha_update,
+	.Final = padlock_sha1_final,
 };
 
 static struct auth_hash padlock_hmac_sha256 = {
@@ -98,9 +97,9 @@ static struct auth_hash padlock_hmac_sha256 = {
 	.hashsize = SHA2_256_HASH_LEN,
 	.ctxsize = sizeof(struct padlock_sha_ctx),
 	.blocksize = SHA2_256_BLOCK_LEN,
-        .Init = (void (*)(void *))padlock_sha_init,
-	.Update = (int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
-	.Final = (void (*)(uint8_t *, void *))padlock_sha256_final,
+        .Init = padlock_sha_init,
+	.Update = padlock_sha_update,
+	.Final = padlock_sha256_final,
 };
 
 MALLOC_DECLARE(M_PADLOCK);
@@ -165,18 +164,22 @@ padlock_do_sha256(const char *in, char *out, int count)
 }
 
 static void
-padlock_sha_init(struct padlock_sha_ctx *ctx)
+padlock_sha_init(void *vctx)
 {
+	struct padlock_sha_ctx *ctx;
 
+	ctx = vctx;
 	ctx->psc_buf = NULL;
 	ctx->psc_offset = 0;
 	ctx->psc_size = 0;
 }
 
 static int
-padlock_sha_update(struct padlock_sha_ctx *ctx, const uint8_t *buf, uint16_t bufsize)
+padlock_sha_update(void *vctx, const void *buf, u_int bufsize)
 {
+	struct padlock_sha_ctx *ctx;
 
+	ctx = vctx;
 	if (ctx->psc_size - ctx->psc_offset < bufsize) {
 		ctx->psc_size = MAX(ctx->psc_size * 2, ctx->psc_size + bufsize);
 		ctx->psc_buf = realloc(ctx->psc_buf, ctx->psc_size, M_PADLOCK,
@@ -190,9 +193,11 @@ padlock_sha_update(struct padlock_sha_ctx *ctx, const uint8_t *buf, uint16_t buf
 }
 
 static void
-padlock_sha_free(struct padlock_sha_ctx *ctx)
+padlock_sha_free(void *vctx)
 {
+	struct padlock_sha_ctx *ctx;
 
+	ctx = vctx;
 	if (ctx->psc_buf != NULL) {
 		//bzero(ctx->psc_buf, ctx->psc_size);
 		free(ctx->psc_buf, M_PADLOCK);
@@ -203,17 +208,21 @@ padlock_sha_free(struct padlock_sha_ctx *ctx)
 }
 
 static void
-padlock_sha1_final(uint8_t *hash, struct padlock_sha_ctx *ctx)
+padlock_sha1_final(uint8_t *hash, void *vctx)
 {
+	struct padlock_sha_ctx *ctx;
 
+	ctx = vctx;
 	padlock_do_sha1(ctx->psc_buf, hash, ctx->psc_offset);
 	padlock_sha_free(ctx);
 }
 
 static void
-padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx)
+padlock_sha256_final(uint8_t *hash, void *vctx)
 {
+	struct padlock_sha_ctx *ctx;
 
+	ctx = vctx;
 	padlock_do_sha256(ctx->psc_buf, hash, ctx->psc_offset);
 	padlock_sha_free(ctx);
 }
@@ -282,14 +291,13 @@ padlock_authcompute(struct padlock_session *ses, struct cryptop *crp)
 
 	padlock_copy_ctx(axf, ses->ses_ictx, &ctx);
 	error = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
-	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
+	    axf->Update, &ctx);
 	if (error != 0) {
 		padlock_free_ctx(axf, &ctx);
 		return (error);
 	}
 	error = crypto_apply(crp, crp->crp_payload_start,
-	    crp->crp_payload_length,
-	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
+	    crp->crp_payload_length, axf->Update, &ctx);
 	if (error != 0) {
 		padlock_free_ctx(axf, &ctx);
 		return (error);

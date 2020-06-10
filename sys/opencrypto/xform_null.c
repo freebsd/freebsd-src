@@ -57,8 +57,8 @@ static	int null_setkey(void *, const u_int8_t *, int);
 static	void null_crypt(void *, const uint8_t *, uint8_t *);
 
 static	void null_init(void *);
-static	void null_reinit(void *ctx, const u_int8_t *buf, u_int16_t len);
-static	int null_update(void *, const u_int8_t *, u_int16_t);
+static	void null_reinit(void *ctx, const uint8_t *buf, u_int len);
+static	int null_update(void *, const void *, u_int);
 static	void null_final(u_int8_t *, void *);
 
 /* Encryption instances */
@@ -114,12 +114,12 @@ null_init(void *ctx)
 }
 
 static void
-null_reinit(void *ctx, const u_int8_t *buf, u_int16_t len)
+null_reinit(void *ctx, const uint8_t *buf, u_int len)
 {
 }
 
 static int
-null_update(void *ctx, const u_int8_t *buf, u_int16_t len)
+null_update(void *ctx, const void *buf, u_int len)
 {
 	return 0;
 }

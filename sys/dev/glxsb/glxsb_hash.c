@@ -73,12 +73,11 @@ glxsb_authcompute(struct glxsb_session *ses, struct cryptop *crp)
 	axf = ses->ses_axf;
 	bcopy(ses->ses_ictx, &ctx, axf->ctxsize);
 	error = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
-	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
+	    axf->Update, &ctx);
 	if (error != 0)
 		return (error);
 	error = crypto_apply(crp, crp->crp_payload_start,
-	    crp->crp_payload_length, 
-	    (int (*)(void *, void *, unsigned int))axf->Update, (caddr_t)&ctx);
+	    crp->crp_payload_length, axf->Update, &ctx);
 	if (error != 0)
 		return (error);
 	

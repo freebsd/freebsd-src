@@ -336,7 +336,7 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 	bcopy(sw->sw_ictx, &ctx, axf->ctxsize);
 
 	err = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
-	    (int (*)(void *, void *, unsigned int))axf->Update, &ctx);
+	    axf->Update, &ctx);
 	if (err)
 		return err;
 
@@ -344,11 +344,10 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 	    CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 		err = crypto_apply_buf(&crp->crp_obuf,
 		    crp->crp_payload_output_start, crp->crp_payload_length,
-		    (int (*)(void *, void *, unsigned int))axf->Update, &ctx);
+		    axf->Update, &ctx);
 	else
 		err = crypto_apply(crp, crp->crp_payload_start,
-		    crp->crp_payload_length,
-		    (int (*)(void *, void *, unsigned int))axf->Update, &ctx);
+		    crp->crp_payload_length, axf->Update, &ctx);
 	if (err)
 		return err;
 

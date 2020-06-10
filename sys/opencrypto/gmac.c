@@ -36,19 +36,23 @@
 #include <opencrypto/gmac.h>
 
 void
-AES_GMAC_Init(struct aes_gmac_ctx *agc)
+AES_GMAC_Init(void *ctx)
 {
+	struct aes_gmac_ctx *agc;
 
+	agc = ctx;
 	bzero(agc, sizeof *agc);
 }
 
 void
-AES_GMAC_Setkey(struct aes_gmac_ctx *agc, const uint8_t *key, uint16_t klen)
+AES_GMAC_Setkey(void *ctx, const uint8_t *key, u_int klen)
 {
+	struct aes_gmac_ctx *agc;
 	const uint8_t zeros[GMAC_BLOCK_LEN] = {};
 	struct gf128 h;
 	uint8_t hbuf[GMAC_BLOCK_LEN];
 
+	agc = ctx;
 	agc->rounds = rijndaelKeySetupEnc(agc->keysched, key, klen * 8);
 
 	rijndaelEncrypt(agc->keysched, agc->rounds, zeros, hbuf);
@@ -61,20 +65,26 @@ AES_GMAC_Setkey(struct aes_gmac_ctx *agc, const uint8_t *key, uint16_t klen)
 }
 
 void
-AES_GMAC_Reinit(struct aes_gmac_ctx *agc, const uint8_t *iv, uint16_t ivlen)
+AES_GMAC_Reinit(void *ctx, const uint8_t *iv, u_int ivlen)
 {
+	struct aes_gmac_ctx *agc;
 
+	agc = ctx;
 	KASSERT(ivlen <= sizeof agc->counter, ("passed ivlen too large!"));
 	bcopy(iv, agc->counter, ivlen);
 }
 
 int
-AES_GMAC_Update(struct aes_gmac_ctx *agc, const uint8_t *data, uint16_t len)
+AES_GMAC_Update(void *ctx, const void *vdata, u_int len)
 {
+	struct aes_gmac_ctx *agc;
+	const uint8_t *data;
 	struct gf128 v;
 	uint8_t buf[GMAC_BLOCK_LEN] = {};
 	int i;
 
+	agc = ctx;
+	data = vdata;
 	v = agc->hash;
 
 	while (len > 0) {
@@ -103,12 +113,14 @@ AES_GMAC_Update(struct aes_gmac_ctx *agc, const uint8_t *data, uint16_t len)
 }
 
 void
-AES_GMAC_Final(uint8_t digest[GMAC_DIGEST_LEN], struct aes_gmac_ctx *agc)
+AES_GMAC_Final(uint8_t *digest, void *ctx)
 {
+	struct aes_gmac_ctx *agc;
 	uint8_t enccntr[GMAC_BLOCK_LEN];
 	struct gf128 a;
 
 	/* XXX - zero additional bytes? */
+	agc = ctx;
 	agc->counter[GMAC_BLOCK_LEN - 1] = 1;
 
 	rijndaelEncrypt(agc->keysched, agc->rounds, agc->counter, enccntr);

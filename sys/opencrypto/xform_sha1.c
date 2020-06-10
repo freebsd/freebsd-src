@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/xform_auth.h>
 
 static	void SHA1Init_int(void *);
-static	int SHA1Update_int(void *, const u_int8_t *, u_int16_t);
+static	int SHA1Update_int(void *, const void *, u_int);
 static	void SHA1Final_int(u_int8_t *, void *);
 
 /* Plain hash */
@@ -92,7 +92,7 @@ SHA1Init_int(void *ctx)
 }
 
 static int
-SHA1Update_int(void *ctx, const u_int8_t *buf, u_int16_t len)
+SHA1Update_int(void *ctx, const void *buf, u_int len)
 {
 	SHA1Update(ctx, buf, len);
 	return 0;
