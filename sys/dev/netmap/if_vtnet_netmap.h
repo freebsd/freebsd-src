@@ -310,8 +310,11 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 	/*
 	 * First part: import newly received packets.
 	 * Only accept our own buffers (matching the token). We should only get
-	 * matching buffers. We may need to stop early to avoid hwtail to overrun
-	 * hwcur.
+	 * matching buffers. The hwtail should never overrun hwcur, because
+	 * we publish only N-1 receive buffers (and non N).
+	 * In any case we must not leave this routine with the interrupts
+	 * disabled, pending packets in the VQ and hwtail == (hwcur - 1),
+	 * otherwise the pending packets could stall.
 	 */
 	if (netmap_no_pendintr || force_update) {
 		uint32_t hwtail_lim = nm_prev(kring->nr_hwcur, lim);
@@ -320,10 +323,17 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 		vtnet_rxq_disable_intr(rxq);
 
 		nm_i = kring->nr_hwtail;
-		while (nm_i != hwtail_lim) {
+		for (;;) {
 			int len;
 			token = virtqueue_dequeue(vq, &len);
 			if (token == NULL) {
+				/*
+				 * Enable the interrupts again and double-check
+				 * for more work. We can go on until we win the
+				 * race condition, since we are not replenishing
+				 * in the meanwhile, and thus we will process at
+				 * most N-1 slots.
+				 */
 				if (interrupts && vtnet_rxq_enable_intr(rxq)) {
 					vtnet_rxq_disable_intr(rxq);
 					continue;
@@ -333,6 +343,11 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 			if (unlikely(token != (void *)rxq)) {
 				nm_prerr("BUG: RX token mismatch");
 			} else {
+				if (nm_i == hwtail_lim) {
+					KASSERT(false, ("hwtail would "
+					    "overrun hwcur"));
+				}
+
 				/* Skip the virtio-net header. */
 				len -= sc->vtnet_hdr_size;
 				if (unlikely(len < 0)) {
