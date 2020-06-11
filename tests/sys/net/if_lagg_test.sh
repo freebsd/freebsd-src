@@ -193,8 +193,7 @@ lacp_linkstate_destroy_stress_head()
 }
 lacp_linkstate_destroy_stress_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ] && \
-		[ "$(uname -p)" = "i386" ]; then
+	if [ "$(atf_config_get ci false)" = "true" ]; then
 		atf_skip "https://bugs.freebsd.org/244168"
 	fi
 
