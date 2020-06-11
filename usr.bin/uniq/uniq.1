@@ -31,7 +31,7 @@
 .\"     From: @(#)uniq.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2019
+.Dd June 7, 2020
 .Dt UNIQ 1
 .Os
 .Sh NAME
@@ -147,6 +147,56 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Assuming a file named cities.txt with the following content:
+.Bd -literal -offset indent
+Madrid
+Lisbon
+Madrid
+.Ed
+.Pp
+The following command reports three different lines since identical elements
+are not adjacent:
+.Bd -literal -offset indent
+$ uniq -u cities.txt
+Madrid
+Lisbon
+Madrid
+.Ed
+.Pp
+Sort the file and count the number of identical lines:
+.Bd -literal -offset indent
+$ sort cities.txt | uniq -c
+	1 Lisbon
+	2 Madrid
+.Ed
+.Pp
+Assuming the following content for the file cities.txt:
+.Bd -literal -offset indent
+madrid
+Madrid
+Lisbon
+.Ed
+.Pp
+Show repeated lines ignoring case sensitiveness:
+.Bd -literal -offset indent
+$ uniq -d -i cities.txt
+madrid
+.Ed
+.Pp
+Same as above but showing the whole group of repeated lines:
+.Bd -literal -offset indent
+$ uniq -D -i cities.txt
+madrid
+Madrid
+.Ed
+.Pp
+Report the number of identical lines ignoring the first character of every line:
+.Bd -literal -offset indent
+$ uniq -s 1 -c cities.txt
+	2 madrid
+	1 Lisbon
+.Ed
 .Sh COMPATIBILITY
 The historic
 .Cm \&\(pl Ns Ar number
