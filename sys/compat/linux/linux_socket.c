@@ -223,6 +223,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_OOBINLINE);
 	case LINUX_SO_LINGER:
 		return (SO_LINGER);
+	case LINUX_SO_REUSEPORT:
+		return (SO_REUSEPORT_LB);
 	case LINUX_SO_PEERCRED:
 		return (LOCAL_PEERCRED);
 	case LINUX_SO_RCVLOWAT:
