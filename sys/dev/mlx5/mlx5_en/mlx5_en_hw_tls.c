@@ -689,7 +689,7 @@ mlx5e_sq_tls_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbuf
 {
 	struct mlx5e_tls_tag *ptls_tag;
 	struct mlx5e_snd_tag *ptag;
-	struct tcphdr *th;
+	const struct tcphdr *th;
 	struct mbuf *mb = *ppmb;
 	u64 rcd_sn;
 	u32 header_size;
