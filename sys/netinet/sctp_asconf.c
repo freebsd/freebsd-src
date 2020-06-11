@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
  * SCTP_DEBUG_ASCONF2: detailed info
  */
 
-
 /*
  * RFC 5061
  *

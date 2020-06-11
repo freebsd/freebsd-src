@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/unistd.h>
 
-
 VNET_DEFINE(struct sctp_base_info, system_base_info);
 
 /* FIX: we don't handle multiple link local scopes */
