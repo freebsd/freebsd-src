@@ -427,9 +427,10 @@ cdceem_handle_data(struct usb_xfer *xfer, uint16_t hdr, int *offp)
 	struct usb_ether *ue;
 	struct ifnet *ifp;
 	struct mbuf *m;
-	int actlen, off;
 	uint32_t computed_crc, received_crc;
-	uint16_t pktlen;
+	int pktlen;
+	int actlen;
+	int off;
 
 	off = *offp;
 	sc = usbd_xfer_softc(xfer);
@@ -443,7 +444,7 @@ cdceem_handle_data(struct usb_xfer *xfer, uint16_t hdr, int *offp)
 	    (hdr & CDCEEM_DATA_CRC) ? "valid" : "absent",
 	    pktlen);
 
-	if (pktlen < ETHER_HDR_LEN) {
+	if (pktlen < (ETHER_HDR_LEN + 4)) {
 		CDCEEM_WARN(sc,
 		    "bad ethernet frame length %d, should be at least %d",
 		    pktlen, ETHER_HDR_LEN);
@@ -467,6 +468,14 @@ cdceem_handle_data(struct usb_xfer *xfer, uint16_t hdr, int *offp)
 	}
 
 	pktlen -= 4; /* Subtract the CRC. */
+
+	if (pktlen > m->m_len) {
+		CDCEEM_WARN(sc, "buffer too small %d vs %d bytes",
+		    pktlen, m->m_len);
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+		m_freem(m);
+		return;
+	}
 	usbd_copy_out(pc, off, mtod(m, uint8_t *), pktlen);
 	off += pktlen;
 
@@ -513,7 +522,7 @@ cdceem_bulk_read_callback(struct usb_xfer *xfer, usb_error_t usb_error)
 		pc = usbd_xfer_get_frame(xfer, 0);
 		off = 0;
 
-		while (off < actlen) {
+		while ((off + sizeof(hdr)) <= actlen) {
 			usbd_copy_out(pc, off, &hdr, sizeof(hdr));
 			CDCEEM_DEBUG(sc, "hdr = %#x", hdr);
 			off += sizeof(hdr);
