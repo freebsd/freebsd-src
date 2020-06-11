@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp6.h>
 #endif
 
-
 #ifndef KTR_SCTP
 #define KTR_SCTP KTR_SUBSYS
 #endif
@@ -3117,9 +3116,7 @@ sctp_pad_lastmbuf(struct mbuf *m, int padval, struct mbuf *last_mbuf)
 
 static void
 sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
-    uint16_t error, struct sctp_abort_chunk *abort, uint8_t from_peer, int so_locked
-    SCTP_UNUSED
-)
+    uint16_t error, struct sctp_abort_chunk *abort, uint8_t from_peer, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_assoc_change *sac;
@@ -3254,9 +3251,7 @@ set_error:
 
 static void
 sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
-    struct sockaddr *sa, uint32_t error, int so_locked
-    SCTP_UNUSED
-)
+    struct sockaddr *sa, uint32_t error, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_paddr_change *spc;
@@ -3345,9 +3340,7 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 
 static void
 sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
-    struct sctp_tmit_chunk *chk, int so_locked
-    SCTP_UNUSED
-)
+    struct sctp_tmit_chunk *chk, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_send_failed *ssf;
@@ -3479,9 +3472,7 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 
 static void
 sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
-    struct sctp_stream_queue_pending *sp, int so_locked
-    SCTP_UNUSED
-)
+    struct sctp_stream_queue_pending *sp, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_send_failed *ssf;
@@ -3627,9 +3618,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 /* This always must be called with the read-queue LOCKED in the INP */
 static void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
-    uint32_t val, int so_locked
-    SCTP_UNUSED
-)
+    uint32_t val, int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_pdapi_event *pdapi;
@@ -3750,9 +3739,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 
 static void
 sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
-    int so_locked
-    SCTP_UNUSED
-)
+    int so_locked)
 {
 	struct mbuf *m_notify;
 	struct sctp_sender_dry_event *event;
@@ -4039,9 +4026,7 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 
 void
 sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
-    uint32_t error, void *data, int so_locked
-    SCTP_UNUSED
-)
+    uint32_t error, void *data, int so_locked)
 {
 	if ((stcb == NULL) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
@@ -4216,9 +4201,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 }
 
 void
-sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, int so_locked
-    SCTP_UNUSED
-)
+sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, int so_locked)
 {
 	struct sctp_association *asoc;
 	struct sctp_stream_out *outs;
@@ -4327,9 +4310,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, 
 
 void
 sctp_abort_notification(struct sctp_tcb *stcb, uint8_t from_peer, uint16_t error,
-    struct sctp_abort_chunk *abort, int so_locked
-    SCTP_UNUSED
-)
+    struct sctp_abort_chunk *abort, int so_locked)
 {
 	if (stcb == NULL) {
 		return;
@@ -4451,9 +4432,7 @@ none_in:
 void
 sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct mbuf *op_err,
-    int so_locked
-    SCTP_UNUSED
-)
+    int so_locked)
 {
 
 	if (stcb == NULL) {
@@ -4831,9 +4810,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sockbuf *sb,
     int end,
     int inp_read_lock_held,
-    int so_locked
-    SCTP_UNUSED
-)
+    int so_locked)
 {
 	/*
 	 * Here we must place the control on the end of the socket read
@@ -5015,9 +4992,7 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
-    uint8_t sent, int so_locked
-    SCTP_UNUSED
-)
+    uint8_t sent, int so_locked)
 {
 	struct sctp_stream_out *strq;
 	struct sctp_tmit_chunk *chk = NULL, *tp2;
