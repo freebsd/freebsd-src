@@ -1698,7 +1698,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	int cpu;
 
 	/* It is not necessary to signal other CPUs while in the debugger. */
-	if (kdb_active || KERNEL_PANICKED()) {
+	if (kdb_active || KERNEL_PANICKED() || !smp_started) {
 		curcpu_cb(pmap, addr1, addr2);
 		return;
 	}
@@ -1759,13 +1759,10 @@ void
 smp_masked_invltlb(cpuset_t mask, pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0,
-		    curcpu_cb);
+	smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, pmap, 0, 0, curcpu_cb);
 #ifdef COUNT_XINVLTLB_HITS
-		ipi_global++;
+	ipi_global++;
 #endif
-	}
 }
 
 void
@@ -1773,13 +1770,10 @@ smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, pmap_t pmap,
     smp_invl_cb_t curcpu_cb)
 {
 
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0,
-		    curcpu_cb);
+	smp_targeted_tlb_shootdown(mask, IPI_INVLPG, pmap, addr, 0, curcpu_cb);
 #ifdef COUNT_XINVLTLB_HITS
-		ipi_page++;
+	ipi_page++;
 #endif
-	}
 }
 
 void
@@ -1787,24 +1781,20 @@ smp_masked_invlpg_range(cpuset_t mask, vm_offset_t addr1, vm_offset_t addr2,
     pmap_t pmap, smp_invl_cb_t curcpu_cb)
 {
 
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, pmap,
-		    addr1, addr2, curcpu_cb);
+	smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, pmap, addr1, addr2,
+	    curcpu_cb);
 #ifdef COUNT_XINVLTLB_HITS
-		ipi_range++;
-		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
+	ipi_range++;
+	ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
 #endif
-	}
 }
 
 void
 smp_cache_flush(smp_invl_cb_t curcpu_cb)
 {
 
-	if (smp_started) {
-		smp_targeted_tlb_shootdown(all_cpus, IPI_INVLCACHE, NULL,
-		    0, 0, curcpu_cb);
-	}
+	smp_targeted_tlb_shootdown(all_cpus, IPI_INVLCACHE, NULL, 0, 0,
+	    curcpu_cb);
 }
 
 /*
