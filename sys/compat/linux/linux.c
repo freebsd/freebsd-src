@@ -485,7 +485,7 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 				sin6->sin6_scope_id = 0;
 			} else {
 				linux_msg(curthread,
-				    "obsolete pre-RFC2553 sockaddr_in6 rejected\n");
+				    "obsolete pre-RFC2553 sockaddr_in6 rejected");
 				error = EINVAL;
 				goto out;
 			}
