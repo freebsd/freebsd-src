@@ -1697,7 +1697,10 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 	uint32_t generation;
 	int cpu;
 
-	/* It is not necessary to signal other CPUs while in the debugger. */
+	/*
+	 * It is not necessary to signal other CPUs while booting or
+	 * when in the debugger.
+	 */
 	if (kdb_active || KERNEL_PANICKED() || !smp_started) {
 		curcpu_cb(pmap, addr1, addr2);
 		return;
