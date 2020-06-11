@@ -256,10 +256,10 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 	int eth_hdr_len;
 
 	eh = mtod(mb, const struct ether_vlan_header *);
-	if (mb->m_len < ETHER_HDR_LEN)
+	if (unlikely(mb->m_len < ETHER_HDR_LEN))
 		goto failure;
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-		if (mb->m_len < (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN))
+		if (unlikely(mb->m_len < (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)))
 			goto failure;
 		eth_type = ntohs(eh->evl_proto);
 		eth_hdr_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
@@ -271,7 +271,7 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 	switch (eth_type) {
 	case ETHERTYPE_IP:
 		ip = (const struct ip *)(mb->m_data + eth_hdr_len);
-		if (mb->m_len < eth_hdr_len + sizeof(*ip))
+		if (unlikely(mb->m_len < eth_hdr_len + sizeof(*ip)))
 			goto failure;
 		switch (ip->ip_p) {
 		case IPPROTO_TCP:
@@ -289,7 +289,7 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 		break;
 	case ETHERTYPE_IPV6:
 		ip6 = (const struct ip6_hdr *)(mb->m_data + eth_hdr_len);
-		if (mb->m_len < eth_hdr_len + sizeof(*ip6))
+		if (unlikely(mb->m_len < eth_hdr_len + sizeof(*ip6)))
 			goto failure;
 		switch (ip6->ip6_nxt) {
 		case IPPROTO_TCP:
@@ -307,7 +307,7 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 		goto failure;
 	}
 tcp_packet:
-	if (mb->m_len < eth_hdr_len + sizeof(*th))
+	if (unlikely(mb->m_len < eth_hdr_len + sizeof(*th)))
 		goto failure;
 	th = (const struct tcphdr *)(mb->m_data + eth_hdr_len);
 	tcp_hlen = th->th_off << 2;
@@ -318,7 +318,7 @@ udp_packet:
 	 * does not need to reside within the first m_len bytes of
 	 * data:
 	 */
-	if (mb->m_pkthdr.len < eth_hdr_len)
+	if (unlikely(mb->m_pkthdr.len < eth_hdr_len))
 		goto failure;
 	if (ppth != NULL)
 		*ppth = th;
