@@ -159,7 +159,8 @@
     <sect2 xml:id="userland-config">
       <title>Userland Configuration Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="358903">The netatalk protocol has been removed
+	from &man.services.5;.</para>
     </sect2>
 
     <sect2 xml:id="userland-programs">
@@ -173,6 +174,11 @@
       <para revision="351582">The &man.camcontrol.8; utility has been
 	updated to support block descriptors with the
 	<literal>modepage</literal> subcommand.</para>
+
+      <para revision="351694" contrib="sponsor"
+	sponsor="&mellanox;">The &man.yp.8; subsystem has been updated
+	to increase the value of <literal>YPMAXRECORD</literal> from
+	1M to 16M for compatibility with &linux;.</para>
 
       <para revision="351843">The &man.usbconfig.8; utility has been
 	updated to include the <literal>detach_kernel_driver</literal>
@@ -274,6 +280,10 @@
 	<application>compiler-rt</application> utilities and
 	<application>libc++</application> have been updated to version
 	10.0.0.</para>
+
+      <para revision="361217">A fix to correctly link DTrace-enabled
+	ports with <application>lld</application> has been
+	added.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
@@ -362,19 +372,43 @@
     <sect2 xml:id="drivers-device">
       <title>Device Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="351243">The <application>Kerberos</application>
+	<acronym>GSS</acronym> <acronym>API</acronym> has been updated
+	to emit deprecation warnings for algorithms marked as
+	&quot;SHOULD NOT&quot; be used in RFCs 6649 and 8429.</para>
+
+      <para revision="351246">The &man.crypto.4; driver has been
+	updated to emit deprecation warnings when the ARC4, Blowfish,
+	CAST128, DES, 3DES, MD5-HMAC, and Skipjack algorithms are
+	used.</para>
+
+      <para revision="361049">The &man.ubsec.4; driver has been marked
+	as deprecated, and will be removed in &os;&nbsp;13.0.</para>
     </sect2>
 
     <sect2 xml:id="drivers-storage">
       <title>Storage Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="354965">The &man.aacraid.4; driver has been
+	updated to version 3.2.10.</para>
+
+      <para revision="359971">Support for JMicron&reg; JMB582 and
+	JMB585 <acronym>AHCI</acronym> controllers has been
+	added.</para>
     </sect2>
 
     <sect2 xml:id="drivers-network">
       <title>Network Drivers</title>
 
-      <para>&nbsp;</para>
+      <para revision="359258">Support for the D-Link&reg; DWM-222
+	<acronym>LTE</acronym> dongle has been added.</para>
+
+      <para revision="359698">The &man.ng.nat.4; driver has been
+	updated to allow attaching to an ethernet interface.</para>
+
+      <para revision="361539" contrib="sponsor" sponsor="&amazon;">The
+	&man.ena.4; driver has been updated to version
+	2.2.0.</para>
     </sect2>
   </sect1>
 
@@ -389,7 +423,8 @@
     <sect2 xml:id="hardware-support">
       <title>Hardware Support</title>
 
-      <para>&nbsp;</para>
+      <para revision="359114">Support for &intel; Cannon Lake PCH has
+	been added to &man.snd.hda.4;.</para>
     </sect2>
 
     <sect2 xml:id="hardware-virtualization">
