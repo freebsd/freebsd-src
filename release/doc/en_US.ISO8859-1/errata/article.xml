@@ -96,7 +96,20 @@
 
     <itemizedlist>
       <listitem>
-	<para>No open issues.</para>
+	<para>[2020-06-11] Source-based upgrades from &os;&nbsp;11.2 on the
+	  &arch.i386; architecture may fail to compile
+	  <application>clang</application> due to the amount of
+	  <acronym>RAM</acronym> consumed.</para>
+
+	<para>Adding <literal>CFLAGS+=-O1</literal> to
+	  <filename>/etc/make.conf</filename> or
+	  <filename>/etc/src.conf</filename> has been observed to work
+	  around the compile-time <acronym>RAM</acronym> exhaustion.</para>
+
+	<para>See
+	  <link
+	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=246274">PR
+	      246274</link> for additional details.</para>
       </listitem>
     </itemizedlist>
   </sect1>
