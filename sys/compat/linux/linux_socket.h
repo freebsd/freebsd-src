@@ -190,6 +190,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_SO_NO_CHECK	11
 #define	LINUX_SO_PRIORITY	12
 #define	LINUX_SO_LINGER		13
+#define	LINUX_SO_REUSEPORT	15
 #ifndef LINUX_SO_PASSCRED	/* powerpc differs */
 #define	LINUX_SO_PASSCRED	16
 #define	LINUX_SO_PEERCRED	17
