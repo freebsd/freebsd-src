@@ -6144,7 +6144,9 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 	mutex_exit(&spa_namespace_lock);
 	spa_async_suspend(spa);
 	if (spa->spa_zvol_taskq) {
+#ifdef _KERNEL
 		zvol_remove_minors(spa, spa_name(spa));
+#endif
 		taskq_wait(spa->spa_zvol_taskq);
 	}
 	mutex_enter(&spa_namespace_lock);
