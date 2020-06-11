@@ -102,6 +102,10 @@ tegra_uart_grab(struct uart_softc *sc)
 	uart_lock(sc->sc_hwmtx);
 	ier = uart_getreg(bas, REG_IER);
 	uart_setreg(bas, REG_IER, ier & ns8250->ier_mask);
+
+	while ((uart_getreg(bas, REG_LSR) & LSR_TEMT) == 0)
+		;
+
 	uart_setreg(bas, REG_FCR, 0);
 	uart_barrier(bas);
 	uart_unlock(sc->sc_hwmtx);
