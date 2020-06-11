@@ -33,7 +33,7 @@
 .\" $FreeBSD$
 .\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
 .\"
-.Dd August 4, 2015
+.Dd June 11, 2020
 .Dt XARGS 1
 .Os
 .Sh NAME
@@ -325,6 +325,32 @@ exits with a value of 126.
 If any other error occurs,
 .Nm
 exits with a value of 1.
+.Sh EXAMPLES
+Create a 3x3 matrix with numbers from 1 to 9.
+Every
+.Xr echo 1
+instance receives three lines as arguments:
+.Bd -literal -offset indent
+$ seq 1 9 | xargs -L3 echo
+1 2 3
+4 5 6
+7 8 9
+.Ed
+.Pp
+Duplicate every line from standard input:
+.Bd -literal -offset indent
+$ echo -e "one\\ntwo\\nthree" | xargs -I % echo % %
+one one
+two two
+three three
+.Ed
+.Pp
+Execute at most 2 concurrent instances of
+.Xr find 1
+every one of them using one of the directories from the standard input:
+.Bd -literal -offset indent
+echo -e "/usr/ports\\n/etc\\n/usr/local" | xargs -J % -P2 -n1 find % -name file
+.Ed
 .Sh SEE ALSO
 .Xr echo 1 ,
 .Xr find 1 ,
@@ -336,7 +362,7 @@ utility is expected to be
 .St -p1003.2
 compliant.
 The
-.Fl J , o , P, R
+.Fl J , o , P , R
 and
 .Fl S
 options are non-standard
