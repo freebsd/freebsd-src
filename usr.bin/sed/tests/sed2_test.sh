@@ -134,42 +134,6 @@ commands_on_stdin_body()
 	atf_check -o 'empty' sed -f - < insert_x
 }
 
-atf_test_case commands_on_stdin
-commands_on_stdin_head()
-{
-	atf_set "descr" "Verify -f -"
-}
-commands_on_stdin_body()
-{
-	printf "a\n" > a
-	printf "s/a/b/\n" > a_to_b
-	printf "s/b/c/\n" > b_to_c
-	printf "s/c/d/\n" > ./-
-	atf_check -o 'inline:d\n' sed -f a_to_b -f - -f ./- a < b_to_c
-
-	# Verify that nothing is printed if there are no input files provided.
-	printf 'i\\\nx' > insert_x
-	atf_check -o 'empty' sed -f - < insert_x
-}
-
-atf_test_case commands_on_stdin
-commands_on_stdin_head()
-{
-	atf_set "descr" "Verify -f -"
-}
-commands_on_stdin_body()
-{
-	printf "a\n" > a
-	printf "s/a/b/\n" > a_to_b
-	printf "s/b/c/\n" > b_to_c
-	printf "s/c/d/\n" > ./-
-	atf_check -o 'inline:d\n' sed -f a_to_b -f - -f ./- a < b_to_c
-
-	# Verify that nothing is printed if there are no input files provided.
-	printf 'i\\\nx' > insert_x
-	atf_check -o 'empty' sed -f - < insert_x
-}
-
 atf_init_test_cases()
 {
 	atf_add_test_case inplace_command_q
