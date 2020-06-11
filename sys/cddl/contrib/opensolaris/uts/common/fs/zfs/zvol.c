@@ -30,6 +30,7 @@
  * Copyright (c) 2012, 2017 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
+ * Copyright (c) 2016 Actifio, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org> */
@@ -184,6 +185,20 @@ typedef struct zvol_state {
 	struct mtx	zv_queue_mtx;	/* zv_queue mutex */
 #endif
 } zvol_state_t;
+
+typedef enum {
+	ZVOL_ASYNC_CREATE_MINORS,
+	ZVOL_ASYNC_REMOVE_MINORS,
+	ZVOL_ASYNC_RENAME_MINORS,
+	ZVOL_ASYNC_MAX
+} zvol_async_op_t;
+
+typedef struct {
+	zvol_async_op_t op;
+	char pool[ZFS_MAX_DATASET_NAME_LEN];
+	char name1[ZFS_MAX_DATASET_NAME_LEN];
+	char name2[ZFS_MAX_DATASET_NAME_LEN];
+} zvol_task_t;
 
 #ifndef illumos
 static LIST_HEAD(, zvol_state) all_zvols;
@@ -607,7 +622,7 @@ zvol_name2minor(const char *name, minor_t *minor)
 /*
  * Create a minor node (plus a whole lot more) for the specified volume.
  */
-int
+static int
 zvol_create_minor(const char *name)
 {
 	zfs_soft_state_t *zs;
@@ -691,7 +706,6 @@ zvol_create_minor(const char *name)
 	if (error != 0 || mode == ZFS_VOLMODE_DEFAULT)
 		mode = volmode;
 
-	DROP_GIANT();
 	zv->zv_volmode = mode;
 	if (zv->zv_volmode == ZFS_VOLMODE_GEOM) {
 		g_topology_lock();
@@ -766,7 +780,6 @@ zvol_create_minor(const char *name)
 		zvol_geom_run(zv);
 		g_topology_unlock();
 	}
-	PICKUP_GIANT();
 
 	ZFS_LOG(1, "ZVOL %s created.", name);
 #endif
@@ -817,22 +830,6 @@ zvol_remove_zv(zvol_state_t *zv)
 #endif
 	zvol_minors--;
 	return (0);
-}
-
-int
-zvol_remove_minor(const char *name)
-{
-	zvol_state_t *zv;
-	int rc;
-
-	mutex_enter(&zfsdev_state_lock);
-	if ((zv = zvol_minor_lookup(name)) == NULL) {
-		mutex_exit(&zfsdev_state_lock);
-		return (SET_ERROR(ENXIO));
-	}
-	rc = zvol_remove_zv(zv);
-	mutex_exit(&zfsdev_state_lock);
-	return (rc);
 }
 
 int
@@ -976,7 +973,7 @@ zvol_update_volsize(objset_t *os, uint64_t volsize)
 }
 
 void
-zvol_remove_minors(const char *name)
+zvol_remove_minors_impl(const char *name)
 {
 #ifdef illumos
 	zvol_state_t *zv;
@@ -1004,7 +1001,6 @@ zvol_remove_minors(const char *name)
 
 	namelen = strlen(name);
 
-	DROP_GIANT();
 	mutex_enter(&zfsdev_state_lock);
 
 	LIST_FOREACH_SAFE(zv, &all_zvols, zv_links, tzv) {
@@ -1017,7 +1013,6 @@ zvol_remove_minors(const char *name)
 	}
 
 	mutex_exit(&zfsdev_state_lock);
-	PICKUP_GIANT();
 #endif	/* illumos */
 }
 
@@ -2920,7 +2915,7 @@ zvol_create_snapshots(objset_t *os, const char *name)
 }
 
 int
-zvol_create_minors(const char *name)
+zvol_create_minors_impl(const char *name)
 {
 	uint64_t cookie;
 	objset_t *os;
@@ -2976,7 +2971,7 @@ zvol_create_minors(const char *name)
 	while (dmu_dir_list_next(os, MAXPATHLEN - (p - osname), p, NULL,
 	    &cookie) == 0) {
 		dmu_objset_rele(os, FTAG);
-		(void)zvol_create_minors(osname);
+		(void)zvol_create_minors_impl(osname);
 		if ((error = dmu_objset_hold(name, FTAG, &os)) != 0) {
 			printf("ZFS WARNING: Unable to put hold on %s (error=%d).\n",
 			    name, error);
@@ -3045,7 +3040,7 @@ zvol_rename_minor(zvol_state_t *zv, const char *newname)
 }
 
 void
-zvol_rename_minors(const char *oldname, const char *newname)
+zvol_rename_minors_impl(const char *oldname, const char *newname)
 {
 	char name[MAXPATHLEN];
 	struct g_provider *pp;
@@ -3058,7 +3053,6 @@ zvol_rename_minors(const char *oldname, const char *newname)
 	oldnamelen = strlen(oldname);
 	newnamelen = strlen(newname);
 
-	DROP_GIANT();
 	/* See comment in zvol_open(). */
 	if (!MUTEX_HELD(&zfsdev_state_lock)) {
 		mutex_enter(&zfsdev_state_lock);
@@ -3080,7 +3074,88 @@ zvol_rename_minors(const char *oldname, const char *newname)
 
 	if (locked)
 		mutex_exit(&zfsdev_state_lock);
-	PICKUP_GIANT();
+}
+
+static zvol_task_t *
+zvol_task_alloc(zvol_async_op_t op, const char *name1, const char *name2)
+{
+	zvol_task_t *task;
+	char *delim;
+
+	task = kmem_zalloc(sizeof (zvol_task_t), KM_SLEEP);
+	task->op = op;
+	delim = strchr(name1, '/');
+	strlcpy(task->pool, name1, delim ? (delim - name1 + 1) : MAXNAMELEN);
+
+	strlcpy(task->name1, name1, MAXNAMELEN);
+	if (name2 != NULL)
+		strlcpy(task->name2, name2, MAXNAMELEN);
+
+	return (task);
+}
+
+static void
+zvol_task_free(zvol_task_t *task)
+{
+	kmem_free(task, sizeof (zvol_task_t));
+}
+
+/*
+ * The worker thread function performed asynchronously.
+ */
+static void
+zvol_task_cb(void *param)
+{
+	zvol_task_t *task = (zvol_task_t *)param;
+
+	switch (task->op) {
+	case ZVOL_ASYNC_CREATE_MINORS:
+		(void) zvol_create_minors_impl(task->name1);
+		break;
+	case ZVOL_ASYNC_REMOVE_MINORS:
+		zvol_remove_minors_impl(task->name1);
+		break;
+	case ZVOL_ASYNC_RENAME_MINORS:
+		zvol_rename_minors_impl(task->name1, task->name2);
+		break;
+	default:
+		VERIFY(0);
+		break;
+	}
+
+	zvol_task_free(task);
+}
+
+static void
+zvol_minors_helper(spa_t *spa, zvol_async_op_t op, const char *name1,
+    const char *name2)
+{
+	zvol_task_t *task;
+
+	if (dataset_name_hidden(name1))
+		return;
+	if (name2 != NULL && dataset_name_hidden(name2))
+		return;
+	task = zvol_task_alloc(op, name1, name2);
+	(void)taskq_dispatch(spa->spa_zvol_taskq, zvol_task_cb, task, TQ_SLEEP);
+}
+
+void
+zvol_create_minors(spa_t *spa, const char *name)
+{
+	zvol_minors_helper(spa, ZVOL_ASYNC_CREATE_MINORS, name, NULL);
+}
+
+void
+zvol_remove_minors(spa_t *spa, const char *name)
+{
+	zvol_minors_helper(spa, ZVOL_ASYNC_REMOVE_MINORS, name, NULL);
+}
+
+void
+zvol_rename_minors(spa_t *spa, const char *oldname, const char *newname)
+{
+	zvol_minors_helper(spa, ZVOL_ASYNC_RENAME_MINORS, oldname, newname);
 }
 
 static int

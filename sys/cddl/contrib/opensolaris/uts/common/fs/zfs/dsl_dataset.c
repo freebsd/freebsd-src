@@ -1572,6 +1572,9 @@ dsl_dataset_snapshot_sync(void *arg, dmu_tx_t *tx)
 			dsl_props_set_sync_impl(ds->ds_prev,
 			    ZPROP_SRC_LOCAL, ddsa->ddsa_props, tx);
 		}
+#if defined(__FreeBSD__) && defined(_KERNEL)
+		zvol_create_minors(dp->dp_spa, name);
+#endif
 		dsl_dataset_rele(ds, FTAG);
 	}
 }
@@ -1646,17 +1649,6 @@ dsl_dataset_snapshot(nvlist_t *snaps, nvlist_t *props, nvlist_t *errors)
 		fnvlist_free(suspended);
 	}
 
-#ifdef __FreeBSD__
-#ifdef _KERNEL
-	if (error == 0) {
-		for (pair = nvlist_next_nvpair(snaps, NULL); pair != NULL;
-		    pair = nvlist_next_nvpair(snaps, pair)) {
-			char *snapname = nvpair_name(pair);
-			zvol_create_minors(snapname);
-		}
-	}
-#endif
-#endif
 	return (error);
 }
 
@@ -2535,7 +2527,7 @@ dsl_dataset_rename_snapshot_sync_impl(dsl_pool_t *dp,
 	snprintf(newname, ZFS_MAX_DATASET_NAME_LEN, "%s@%s",
 	    ddrsa->ddrsa_fsname, ddrsa->ddrsa_newsnapname);
 	zfsvfs_update_fromname(oldname, newname);
-	zvol_rename_minors(oldname, newname);
+	zvol_rename_minors(dp->dp_spa, oldname, newname);
 	kmem_free(newname, ZFS_MAX_DATASET_NAME_LEN);
 	kmem_free(oldname, ZFS_MAX_DATASET_NAME_LEN);
 #endif
@@ -3087,9 +3079,6 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 	}
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-	/* Take the spa_namespace_lock early so zvol renames don't deadlock. */
-	mutex_enter(&spa_namespace_lock);
-
 	oldname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 	newname = kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 #endif
@@ -3135,7 +3124,7 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 #if defined(__FreeBSD__) && defined(_KERNEL)
 		dsl_dataset_name(ds, newname);
 		zfsvfs_update_fromname(oldname, newname);
-		zvol_rename_minors(oldname, newname);
+		zvol_rename_minors(dp->dp_spa, oldname, newname);
 #endif
 
 		/* move any clone references */
@@ -3177,8 +3166,6 @@ dsl_dataset_promote_sync(void *arg, dmu_tx_t *tx)
 	}
 
 #if defined(__FreeBSD__) && defined(_KERNEL)
-	mutex_exit(&spa_namespace_lock);
-
 	kmem_free(newname, ZFS_MAX_DATASET_NAME_LEN);
 	kmem_free(oldname, ZFS_MAX_DATASET_NAME_LEN);
 #endif

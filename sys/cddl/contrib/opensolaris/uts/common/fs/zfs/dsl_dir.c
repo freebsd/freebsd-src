@@ -2093,7 +2093,7 @@ dsl_dir_rename_sync(void *arg, dmu_tx_t *tx)
 #ifdef __FreeBSD__
 #ifdef _KERNEL
 	zfsvfs_update_fromname(ddra->ddra_oldname, ddra->ddra_newname);
-	zvol_rename_minors(ddra->ddra_oldname, ddra->ddra_newname);
+	zvol_rename_minors(dp->dp_spa, ddra->ddra_oldname, ddra->ddra_newname);
 #endif
 #endif
 
