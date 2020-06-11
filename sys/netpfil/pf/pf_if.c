@@ -463,13 +463,27 @@ static void
 pfi_kif_update(struct pfi_kif *kif)
 {
 	struct ifg_list		*ifgl;
+	struct ifg_member	*ifgm;
 	struct pfi_dynaddr	*p;
+	struct pfi_kif		*tmpkif;
 
 	PF_RULES_WASSERT();
 
 	/* update all dynaddr */
 	TAILQ_FOREACH(p, &kif->pfik_dynaddrs, entry)
 		pfi_dynaddr_update(p);
+
+	/* Apply group flags to new members. */
+	if (kif->pfik_group != NULL) {
+		CK_STAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members,
+		    ifgm_next) {
+			tmpkif = (struct pfi_kif *)ifgm->ifgm_ifp->if_pf_kif;
+			if (tmpkif == NULL)
+				continue;
+
+			tmpkif->pfik_flags |= kif->pfik_flags;
+		}
+	}
 
 	/* again for all groups kif is member of */
 	if (kif->pfik_ifp != NULL) {
