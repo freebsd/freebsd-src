@@ -25,7 +25,7 @@
 <!ENTITY release.branch "11.4-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
-<!ENTITY release.url "https://www.FreeBSD.org/snapshots/">
+<!ENTITY release.url "https://www.FreeBSD.org/releases/">
 
 <!-- The URL for Security Advisories and Errata Notices. -->
 <!ENTITY security.url "https://www.FreeBSD.org/security/advisories">
