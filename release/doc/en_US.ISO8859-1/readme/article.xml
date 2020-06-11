@@ -366,8 +366,9 @@
 	  other copies are kept updated on the Internet and should be
 	  consulted as the <quote>current errata</quote> for this
 	  release.  These other copies of the errata are located at
+	  the
 	  <uri
-	    xlink:href="&url.base;/releases/">&url.base;/releases/</uri>
+	    xlink:href="&url.base;/releases/">releases page</uri>
 	  (as well as any sites which keep up-to-date mirrors of this
 	  location).</para>
       </note>
