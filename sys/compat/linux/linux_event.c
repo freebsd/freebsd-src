@@ -342,7 +342,7 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 		if ((pem->flags & LINUX_XUNSUP_EPOLL) == 0) {
 			pem->flags |= LINUX_XUNSUP_EPOLL;
 			LINUX_PEM_XUNLOCK(pem);
-			linux_msg(td, "epoll_ctl unsupported flags: 0x%x\n",
+			linux_msg(td, "epoll_ctl unsupported flags: 0x%x",
 			    levents);
 		} else
 			LINUX_PEM_XUNLOCK(pem);

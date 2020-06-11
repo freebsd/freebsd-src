@@ -1085,7 +1085,7 @@ retry2:
 		return (ENOSYS);
 
 	default:
-		linux_msg(td, "unsupported futex op %d\n", args->op);
+		linux_msg(td, "unsupported futex op %d", args->op);
 		LIN_SDT_PROBE1(futex, linux_sys_futex, unknown_operation,
 		    args->op);
 		LIN_SDT_PROBE1(futex, linux_sys_futex, return, ENOSYS);
