@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 struct iicbb_softc {
 	device_t iicbus;
 	u_int udelay;		/* signal toggle delay in usec */
+	u_int io_latency;	/* approximate pin toggling latency */
 	u_int scl_low_timeout;
 };
 
@@ -86,6 +87,7 @@ static int iicbb_probe(device_t);
 
 static int iicbb_callback(device_t, int, caddr_t);
 static int iicbb_start(device_t, u_char, int);
+static int iicbb_repstart(device_t, u_char, int);
 static int iicbb_stop(device_t);
 static int iicbb_write(device_t, const char *, int, int *, int);
 static int iicbb_read(device_t, char *, int, int *, int, int);
@@ -109,7 +111,7 @@ static device_method_t iicbb_methods[] = {
 	/* iicbus interface */
 	DEVMETHOD(iicbus_callback,	iicbb_callback),
 	DEVMETHOD(iicbus_start,		iicbb_start),
-	DEVMETHOD(iicbus_repeated_start, iicbb_start),
+	DEVMETHOD(iicbus_repeated_start, iicbb_repstart),
 	DEVMETHOD(iicbus_stop,		iicbb_stop),
 	DEVMETHOD(iicbus_write,		iicbb_write),
 	DEVMETHOD(iicbus_read,		iicbb_read),
@@ -160,6 +162,11 @@ iicbb_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
 	    "scl_low_timeout", CTLFLAG_RWTUN, &sc->scl_low_timeout,
 	    0, "SCL low timeout, microseconds");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "io_latency", CTLFLAG_RWTUN, &sc->io_latency,
+	    0, "Estimate of pin toggling latency, microseconds");
+
 	bus_generic_attach(dev);
 	return (0);
 }
@@ -217,80 +224,105 @@ iicbb_print_child(device_t bus, device_t dev)
 	return (retval);
 }
 
+#define IICBB_DEBUG
+#ifdef IICBB_DEBUG
+static int i2c_debug = 0;
+
+static SYSCTL_NODE(_hw, OID_AUTO, i2c, CTLFLAG_RW, 0, "i2c debug");
+SYSCTL_INT(_hw_i2c, OID_AUTO, iicbb_debug, CTLFLAG_RWTUN,
+    &i2c_debug, 0, "Enable i2c bit-banging driver debug");
+
+#define I2C_DEBUG(x)	do {		\
+		if (i2c_debug) (x);	\
+	} while (0)
+#else
+#define I2C_DEBUG(x)
+#endif
+
 #define	I2C_GETSDA(dev)		(IICBB_GETSDA(device_get_parent(dev)))
 #define	I2C_SETSDA(dev, x)	(IICBB_SETSDA(device_get_parent(dev), x))
 #define	I2C_GETSCL(dev)		(IICBB_GETSCL(device_get_parent(dev)))
 #define	I2C_SETSCL(dev, x)	(IICBB_SETSCL(device_get_parent(dev), x))
 
-#define I2C_SET(sc, dev, ctrl, val) do {		\
-	iicbb_setscl(dev, ctrl);			\
-	I2C_SETSDA(dev, val);				\
-	DELAY(sc->udelay);				\
-	} while (0)
-
-static int i2c_debug = 0;
-#define I2C_DEBUG(x)	do {					\
-				if (i2c_debug) (x);		\
-			} while (0)
-
-#define I2C_LOG(format,args...)	do {				\
-					printf(format, args);	\
-				} while (0)
-
-static void
-iicbb_setscl(device_t dev, int val)
+static int
+iicbb_waitforscl(device_t dev)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
-	sbintime_t now, end;
-	int fast_timeout;
+	sbintime_t fast_timeout;
+	sbintime_t now, timeout;
 
-	I2C_SETSCL(dev, val);
-	DELAY(sc->udelay);
-
-	/* Pulling low cannot fail. */
-	if (!val)
-		return;
-
-	/* Use DELAY for up to 1 ms, then switch to pause. */
-	end = sbinuptime() + sc->scl_low_timeout * SBT_1US;
-	fast_timeout = MIN(sc->scl_low_timeout, 1000);
-	while (fast_timeout > 0) {
+	/* Spin for up to 1 ms, then switch to pause. */
+	now = sbinuptime();
+	fast_timeout = now + SBT_1MS;
+	timeout = now + sc->scl_low_timeout * SBT_1US;
+	do {
 		if (I2C_GETSCL(dev))
-			return;
-		I2C_SETSCL(dev, 1);	/* redundant ? */
-		DELAY(sc->udelay);
-		fast_timeout -= sc->udelay;
-	}
-
-	while (!I2C_GETSCL(dev)) {
+			return (0);
 		now = sbinuptime();
-		if (now >= end)
-			break;
+	} while (now < fast_timeout);
+	do {
+		I2C_DEBUG(printf("."));
 		pause_sbt("iicbb-scl-low", SBT_1MS, C_PREL(8), 0);
-	}
+		if (I2C_GETSCL(dev))
+			return (0);
+		now = sbinuptime();
+	} while (now < timeout);
 
+	I2C_DEBUG(printf("*"));
+	return (IIC_ETIMEOUT);
 }
 
+/* Start the high phase of the clock. */
+static int
+iicbb_clockin(device_t dev, int sda)
+{
+
+	/*
+	 * Precondition: SCL is low.
+	 * Action:
+	 * - set SDA to the value;
+	 * - release SCL and wait until it's high.
+	 * The caller is responsible for keeping SCL high for udelay.
+	 *
+	 * There should be a data set-up time, 250 ns minimum, between setting
+	 * SDA and raising SCL.  It's expected that the I/O access latency will
+	 * naturally provide that delay.
+	 */
+	I2C_SETSDA(dev, sda);
+	I2C_SETSCL(dev, 1);
+	return (iicbb_waitforscl(dev));
+}
+
+/*
+ * End the high phase of the clock and wait out the low phase
+ * as nothing interesting happens during it anyway.
+ */
 static void
-iicbb_one(device_t dev, int timeout)
+iicbb_clockout(device_t dev)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
 
-	I2C_SET(sc,dev,0,1);
-	I2C_SET(sc,dev,1,1);
-	I2C_SET(sc,dev,0,1);
-	return;
+	/*
+	 * Precondition: SCL is high.
+	 * Action:
+	 * - pull SCL low and hold for udelay.
+	 */
+	I2C_SETSCL(dev, 0);
+	DELAY(sc->udelay);
 }
 
-static void
-iicbb_zero(device_t dev, int timeout)
+static int
+iicbb_sendbit(device_t dev, int bit)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
+	int err;
 
-	I2C_SET(sc,dev,0,0);
-	I2C_SET(sc,dev,1,0);
-	I2C_SET(sc,dev,0,0);
-	return;
+	err = iicbb_clockin(dev, bit);
+	if (err != 0)
+		return (err);
+	DELAY(sc->udelay);
+	iicbb_clockout(dev);
+	return (0);
 }
 
 /*
@@ -308,71 +340,84 @@ iicbb_zero(device_t dev, int timeout)
  * line low and then the SLAVE will release the SDA (data) line.
  */
 static int
-iicbb_ack(device_t dev, int timeout)
+iicbb_getack(device_t dev)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
-	int noack;
-	int k = 0;
+	int noack, err;
+	int t;
 
-	I2C_SET(sc,dev,0,1);
-	I2C_SET(sc,dev,1,1);
+	/* Release SDA so that the slave can drive it. */
+	err = iicbb_clockin(dev, 1);
+	if (err != 0) {
+		I2C_DEBUG(printf("! "));
+		return (err);
+	}
 
-	/* SCL must be high now. */
-	if (!I2C_GETSCL(dev))
-		return (IIC_ETIMEOUT);
-
-	do {
+	/* Sample SDA until ACK (low) or udelay runs out. */
+	for (t = 0; t < sc->udelay; t++) {
 		noack = I2C_GETSDA(dev);
 		if (!noack)
 			break;
 		DELAY(1);
-		k++;
-	} while (k < timeout);
+	}
 
-	I2C_SET(sc,dev,0,1);
-	I2C_DEBUG(printf("%c ",noack?'-':'+'));
+	DELAY(sc->udelay - t);
+	iicbb_clockout(dev);
 
+	I2C_DEBUG(printf("%c ", noack ? '-' : '+'));
 	return (noack ? IIC_ENOACK : 0);
 }
 
-static void
-iicbb_sendbyte(device_t dev, u_char data, int timeout)
+static int
+iicbb_sendbyte(device_t dev, uint8_t data)
 {
-	int i;
+	int err, i;
 
-	for (i=7; i>=0; i--) {
-		if (data&(1<<i)) {
-			iicbb_one(dev, timeout);
-		} else {
-			iicbb_zero(dev, timeout);
+	for (i = 7; i >= 0; i--) {
+		err = iicbb_sendbit(dev, (data & (1 << i)) != 0);
+		if (err != 0) {
+			I2C_DEBUG(printf("w!"));
+			return (err);
 		}
 	}
-	I2C_DEBUG(printf("w%02x",(int)data));
-	return;
+	I2C_DEBUG(printf("w%02x", data));
+	return (0);
 }
 
-static u_char
-iicbb_readbyte(device_t dev, int last, int timeout)
+static int
+iicbb_readbyte(device_t dev, bool last, uint8_t *data)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
-	int i;
-	unsigned char data=0;
+	int i, err;
 
-	I2C_SET(sc,dev,0,1);
-	for (i=7; i>=0; i--) 
-	{
-		I2C_SET(sc,dev,1,1);
+	/*
+	 * Release SDA so that the slave can drive it.
+	 * We do not use iicbb_clockin() here because we need to release SDA
+	 * only once and then we just pulse the SCL.
+	 */
+	*data = 0;
+	I2C_SETSDA(dev, 1);
+	for (i = 7; i >= 0; i--) {
+		I2C_SETSCL(dev, 1);
+		err = iicbb_waitforscl(dev);
+		if (err != 0) {
+			I2C_DEBUG(printf("r! "));
+			return (err);
+		}
+		DELAY((sc->udelay + 1) / 2);
 		if (I2C_GETSDA(dev))
-			data |= (1<<i);
-		I2C_SET(sc,dev,0,1);
+			*data |= 1 << i;
+		DELAY((sc->udelay + 1) / 2);
+		iicbb_clockout(dev);
 	}
-	if (last) {
-		iicbb_one(dev, timeout);
-	} else {
-		iicbb_zero(dev, timeout);
-	}
-	I2C_DEBUG(printf("r%02x%c ",(int)data,last?'-':'+'));
-	return (data);
+
+	/*
+	 * Send master->slave ACK (low) for more data,
+	 * NoACK (high) otherwise.
+	 */
+	iicbb_sendbit(dev, last);
+	I2C_DEBUG(printf("r%02x%c ", *data, last ? '-' : '+'));
+	return (0);
 }
 
 static int
@@ -389,63 +434,106 @@ iicbb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 }
 
 static int
-iicbb_start(device_t dev, u_char slave, int timeout)
+iicbb_start_impl(device_t dev, u_char slave, bool repstart)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
 	int error;
 
-	I2C_DEBUG(printf("<"));
+	if (!repstart) {
+		I2C_DEBUG(printf("<<"));
 
-	I2C_SET(sc,dev,1,1);
+		/* SCL must be high on the idle bus. */
+		if (iicbb_waitforscl(dev) != 0) {
+			I2C_DEBUG(printf("C!\n"));
+			return (IIC_EBUSERR);
+		}
+	} else {
+		I2C_DEBUG(printf("<"));
+		error = iicbb_clockin(dev, 1);
+		if (error != 0)
+			return (error);
 
-	/* SCL must be high now. */
-	if (!I2C_GETSCL(dev))
-		return (IIC_ETIMEOUT);
+		/* SDA will go low in the middle of the SCL high phase. */
+		DELAY((sc->udelay + 1) / 2);
+	}
 
-	I2C_SET(sc,dev,1,0);
-	I2C_SET(sc,dev,0,0);
+	/*
+	 * SDA must be high after the earlier stop condition or the end
+	 * of Ack/NoAck pulse.
+	 */
+	if (!I2C_GETSDA(dev)) {
+		I2C_DEBUG(printf("D!\n"));
+		return (IIC_EBUSERR);
+	}
+
+	/* Start: SDA high->low. */
+	I2C_SETSDA(dev, 0);
+
+	/* Wait the second half of the SCL high phase. */
+	DELAY((sc->udelay + 1) / 2);
+
+	/* Pull SCL low to keep the bus reserved. */
+	iicbb_clockout(dev);
 
 	/* send address */
-	iicbb_sendbyte(dev, slave, timeout);
+	error = iicbb_sendbyte(dev, slave);
 
 	/* check for ack */
-	error = iicbb_ack(dev, timeout);
 	if (error == 0)
-		return (0);
-
-	iicbb_stop(dev);
+		error = iicbb_getack(dev);
+	if (error != 0)
+		(void)iicbb_stop(dev);
 	return (error);
+}
+
+/* NB: the timeout is ignored. */
+static int
+iicbb_start(device_t dev, u_char slave, int timeout)
+{
+	return (iicbb_start_impl(dev, slave, false));
+}
+
+/* NB: the timeout is ignored. */
+static int
+iicbb_repstart(device_t dev, u_char slave, int timeout)
+{
+	return (iicbb_start_impl(dev, slave, true));
 }
 
 static int
 iicbb_stop(device_t dev)
 {
 	struct iicbb_softc *sc = device_get_softc(dev);
+	int err = 0;
 
-	I2C_SET(sc,dev,0,0);
-	I2C_SET(sc,dev,1,0);
-	I2C_SET(sc,dev,1,1);
-	I2C_DEBUG(printf(">"));
+	/*
+	 * Stop: SDA goes from low to high in the middle of the SCL high phase.
+	 */
+	err = iicbb_clockin(dev, 0);
+	if (err != 0)
+		return (err);
+	DELAY((sc->udelay + 1) / 2);
+	I2C_SETSDA(dev, 1);
+	DELAY((sc->udelay + 1) / 2);
+
+	I2C_DEBUG(printf("%s>>", err != 0 ? "!" : ""));
 	I2C_DEBUG(printf("\n"));
-
-	/* SCL must be high now. */
-	if (!I2C_GETSCL(dev))
-		return (IIC_ETIMEOUT);
-	return (0);
+	return (err);
 }
 
+/* NB: the timeout is ignored. */
 static int
 iicbb_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 {
 	int bytes, error = 0;
 
 	bytes = 0;
-	while (len) {
+	while (len > 0) {
 		/* send byte */
-		iicbb_sendbyte(dev,(u_char)*buf++, timeout);
+		iicbb_sendbyte(dev, (uint8_t)*buf++);
 
 		/* check for ack */
-		error = iicbb_ack(dev, timeout);
+		error = iicbb_getack(dev);
 		if (error != 0)
 			break;
 		bytes++;
@@ -456,22 +544,25 @@ iicbb_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 	return (error);
 }
 
+/* NB: whatever delay is, it's ignored. */
 static int
-iicbb_read(device_t dev, char * buf, int len, int *read, int last, int delay)
+iicbb_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 {
-	int bytes;
+	int bytes = 0;
+	int err = 0;
 
-	bytes = 0;
-	while (len) {
-		/* XXX should insert delay here */
-		*buf++ = (char)iicbb_readbyte(dev, (len == 1) ? last : 0, delay);
-
-		bytes ++;
-		len --;
+	while (len > 0) {
+		err = iicbb_readbyte(dev, (len == 1) ? last : 0,
+		    (uint8_t *)buf);
+		if (err != 0)
+			break;
+		buf++;
+		bytes++;
+		len--;
 	}
 
 	*read = bytes;
-	return (0);
+	return (err);
 }
 
 static int
@@ -492,18 +583,15 @@ iicbb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 static void
 iicbb_set_speed(struct iicbb_softc *sc, u_char speed)
 {
-	u_int busfreq, period;
+	u_int busfreq;
+	int period;
 
 	/*
-	 * NB: the resulting frequency will be a quarter (even less) of the
-	 * configured bus frequency.  This is for historic reasons.  The default
-	 * bus frequency is 100 kHz.  And the historic default udelay is 10
-	 * microseconds.  The cycle of sending a bit takes four udelay-s plus
-	 * SCL is kept low for extra two udelay-s.  The actual I/O toggling also
-	 * has an overhead.
+	 * udelay is half a period, the clock is held high or low for this long.
 	 */
 	busfreq = IICBUS_GET_FREQUENCY(sc->iicbus, speed);
-	period = 1000000 / busfreq;	/* Hz -> uS */
+	period = 1000000 / 2 / busfreq;	/* Hz -> uS */
+	period -= sc->io_latency;
 	sc->udelay = MAX(period, 1);
 }
 
