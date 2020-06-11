@@ -1010,9 +1010,7 @@ retry2:
 		/* not yet implemented */
 		pem = pem_find(td->td_proc);
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td,
-				  "linux_sys_futex: "
-				  "unsupported futex_pi op\n");
+			linux_msg(td, "unsupported FUTEX_LOCK_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    unimplemented_lock_pi);
@@ -1024,9 +1022,7 @@ retry2:
 		/* not yet implemented */
 		pem = pem_find(td->td_proc);
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td,
-				  "linux_sys_futex: "
-				  "unsupported futex_pi op\n");
+			linux_msg(td, "unsupported FUTEX_UNLOCK_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    unimplemented_unlock_pi);
@@ -1038,9 +1034,7 @@ retry2:
 		/* not yet implemented */
 		pem = pem_find(td->td_proc);
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td,
-				  "linux_sys_futex: "
-				  "unsupported futex_pi op\n");
+			linux_msg(td, "unsupported FUTEX_TRYLOCK_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    unimplemented_trylock_pi);
@@ -1057,9 +1051,7 @@ retry2:
 		 */
 		pem = pem_find(td->td_proc);
 		if ((pem->flags & LINUX_XDEPR_REQUEUEOP) == 0) {
-			linux_msg(td,
-				  "linux_sys_futex: "
-				  "unsupported futex_requeue op\n");
+			linux_msg(td, "unsupported FUTEX_REQUEUE");
 			pem->flags |= LINUX_XDEPR_REQUEUEOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    deprecated_requeue);
@@ -1072,9 +1064,7 @@ retry2:
 		/* not yet implemented */
 		pem = pem_find(td->td_proc);
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td,
-				  "linux_sys_futex: "
-				  "unsupported futex_pi op\n");
+			linux_msg(td, "unsupported FUTEX_WAIT_REQUEUE_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    unimplemented_wait_requeue_pi);
@@ -1086,9 +1076,7 @@ retry2:
 		/* not yet implemented */
 		pem = pem_find(td->td_proc);
 		if ((pem->flags & LINUX_XUNSUP_FUTEXPIOP) == 0) {
-			linux_msg(td,
-				  "linux_sys_futex: "
-				  "unsupported futex_pi op\n");
+			linux_msg(td, "unsupported FUTEX_CMP_REQUEUE_PI");
 			pem->flags |= LINUX_XUNSUP_FUTEXPIOP;
 			LIN_SDT_PROBE0(futex, linux_sys_futex,
 			    unimplemented_cmp_requeue_pi);
@@ -1097,8 +1085,7 @@ retry2:
 		return (ENOSYS);
 
 	default:
-		linux_msg(td,
-			  "linux_sys_futex: unknown op %d\n", args->op);
+		linux_msg(td, "unsupported futex op %d\n", args->op);
 		LIN_SDT_PROBE1(futex, linux_sys_futex, unknown_operation,
 		    args->op);
 		LIN_SDT_PROBE1(futex, linux_sys_futex, return, ENOSYS);
