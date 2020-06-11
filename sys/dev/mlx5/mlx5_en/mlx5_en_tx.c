@@ -307,9 +307,15 @@ mlx5e_get_full_header_size(const struct mbuf *mb, const struct tcphdr **ppth)
 		goto failure;
 	}
 tcp_packet:
-	if (unlikely(mb->m_len < eth_hdr_len + sizeof(*th)))
-		goto failure;
-	th = (const struct tcphdr *)(mb->m_data + eth_hdr_len);
+	if (unlikely(mb->m_len < eth_hdr_len + sizeof(*th))) {
+		const struct mbuf *m_th = mb->m_next;
+		if (unlikely(mb->m_len != eth_hdr_len ||
+		    m_th == NULL || m_th->m_len < sizeof(*th)))
+			goto failure;
+		th = (const struct tcphdr *)(m_th->m_data);
+	} else {
+		th = (const struct tcphdr *)(mb->m_data + eth_hdr_len);
+	}
 	tcp_hlen = th->th_off << 2;
 	eth_hdr_len += tcp_hlen;
 udp_packet:
