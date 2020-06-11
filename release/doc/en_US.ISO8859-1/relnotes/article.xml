@@ -461,6 +461,12 @@
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
 
+      <para revision="353583">Latency of synchronous 128KB writes has
+	been improved.</para>
+
+      <para revision="353759">Support for renaming
+	<acronym>ZFS</acronym> bookmarks has been added.</para>
+
       <para revision="359554">The <acronym>ZFS</acronym>
 	<acronym>ZIL</acronym> (<acronym>ZFS</acronym> intent log)
 	maximum block size is now tunable.</para>
