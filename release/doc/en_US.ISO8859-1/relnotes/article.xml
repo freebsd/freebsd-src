@@ -285,82 +285,6 @@
 	ports with <application>lld</application> has been
 	added.</para>
     </sect2>
-
-    <sect2 xml:id="userland-installer">
-      <title>Installation and Configuration Tools</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-rc">
-      <title><filename class="directory">/etc/rc.d</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-periodic">
-      <title><filename class="directory">/etc/periodic</filename>
-	Scripts</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-libraries">
-      <title>Runtime Libraries and API</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-abi">
-      <title>ABI Compatibility</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="userland-debug">
-      <title>Userland Debugging</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="kernel">
-    <title>Kernel</title>
-
-    <para>This section covers changes to kernel configurations, system
-      tuning, and system control parameters that are not otherwise
-      categorized.</para>
-
-    <sect2 xml:id="kernel-general">
-      <title>General Kernel Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-bugfix">
-      <title>Kernel Bug Fixes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-config">
-      <title>Kernel Configuration</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-modules">
-      <title>Kernel Modules</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="kernel-sysctl">
-      <title>System Tuning and Controls</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="drivers">
@@ -426,18 +350,6 @@
       <para revision="359114">Support for &intel; Cannon Lake PCH has
 	been added to &man.snd.hda.4;.</para>
     </sect2>
-
-    <sect2 xml:id="hardware-virtualization">
-      <title>Virtualization Support</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="hardware-arm">
-      <title>ARM Support</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="storage">
@@ -445,18 +357,6 @@
 
     <para>This section covers changes and additions to file systems
       and other storage subsystems, both local and networked.</para>
-
-    <sect2 xml:id="storage-general">
-      <title>General Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="storage-net">
-      <title>Networked Storage</title>
-
-      <para>&nbsp;</para>
-    </sect2>
 
     <sect2 xml:id="storage-zfs">
       <title>ZFS</title>
@@ -471,31 +371,6 @@
 	<acronym>ZIL</acronym> (<acronym>ZFS</acronym> intent log)
 	maximum block size is now tunable.</para>
     </sect2>
-
-    <sect2 xml:id="storage-geom">
-      <title><literal>geom(4)</literal></title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="boot">
-    <title>Boot Loader Changes</title>
-
-    <para>This section covers the boot loader, boot menu, and other
-      boot-related changes.</para>
-
-    <sect2 xml:id="boot-loader">
-      <title>Boot Loader Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="boot-menu">
-      <title>Boot Menu Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
   </sect1>
 
   <sect1 xml:id="network">
@@ -503,12 +378,6 @@
 
     <para>This section describes changes that affect networking in
       &os;.</para>
-
-    <sect2 xml:id="network-general">
-      <title>General Network Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
 
     <sect2 xml:id="network-protocols">
       <title>Network Protocols</title>
@@ -527,12 +396,6 @@
       Collection, package infrastructure, and package maintenance and
       installation tools.</para>
 
-    <sect2 xml:id="ports-infrastructure">
-      <title>Infrastructure Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
     <sect2 xml:id="ports-packages ">
       <title>Packaging Changes</title>
 
@@ -544,38 +407,6 @@
 
       <para>The <application>KDE</application> desktop environment has
 	been updated to version 5.8.4.1.19.12.3.</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="doc">
-    <title>Documentation</title>
-
-    <para>This section covers changes to the &os;&nbsp;Documentation
-      Project sources and toolchain.</para>
-
-    <sect2 xml:id="doc-sources">
-      <title>Documentation Source Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-
-    <sect2 xml:id="doc-toolchain">
-      <title>Documentation Toolchain Changes</title>
-
-      <para>&nbsp;</para>
-    </sect2>
-  </sect1>
-
-  <sect1 xml:id="releng">
-    <title>Release Engineering and Integration</title>
-
-    <para>This section convers changes that are specific to the
-      &os;&nbsp;Release Engineering processes.</para>
-
-    <sect2 xml:id="releng-changes">
-      <title>Integration Changes</title>
-
-      <para>&nbsp;</para>
     </sect2>
   </sect1>
 </article>
