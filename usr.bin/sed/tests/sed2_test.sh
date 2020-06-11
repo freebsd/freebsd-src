@@ -177,7 +177,5 @@ atf_init_test_cases()
 	atf_add_test_case inplace_symlink_src
 	atf_add_test_case escape_subst
 	atf_add_test_case commands_on_stdin
-	atf_add_test_case commands_on_stdin
-	atf_add_test_case commands_on_stdin
 	atf_add_test_case hex_subst
 }
