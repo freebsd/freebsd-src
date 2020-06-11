@@ -74,10 +74,7 @@ int
 int
     sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t *ro);
 
-void
-sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
-    SCTP_UNUSED
-);
+void sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int);
 
 void
 sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
@@ -144,14 +141,9 @@ int
 sctp_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct thread *, int);
 
-void
-sctp_chunk_output(struct sctp_inpcb *, struct sctp_tcb *, int, int
-    SCTP_UNUSED
-);
-void
-sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int
-    SCTP_UNUSED
-);
+void sctp_chunk_output(struct sctp_inpcb *, struct sctp_tcb *, int, int);
+
+void sctp_send_abort_tcb(struct sctp_tcb *, struct mbuf *, int);
 
 void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
@@ -160,7 +152,6 @@ void sctp_send_sack(struct sctp_tcb *, int);
 void sctp_send_hb(struct sctp_tcb *, struct sctp_nets *, int);
 
 void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
-
 
 void
 sctp_send_packet_dropped(struct sctp_tcb *, struct sctp_nets *, struct mbuf *,
