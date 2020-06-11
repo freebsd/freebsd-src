@@ -33,25 +33,6 @@
 #include <vm/pmap.h>    /* vtophys ? */
 #include <dev/netmap/netmap_kern.h>
 
-/*
- * Return 1 if the queue identified by 't' and 'idx' is in netmap mode.
- */
-static int
-vtnet_netmap_queue_on(struct vtnet_softc *sc, enum txrx t, int idx)
-{
-	struct netmap_adapter *na = NA(sc->vtnet_ifp);
-
-	if (!nm_native_on(na))
-		return 0;
-
-	if (t == NR_RX)
-		return !!(idx < na->num_rx_rings &&
-			na->rx_rings[idx]->nr_mode == NKR_NETMAP_ON);
-
-	return !!(idx < na->num_tx_rings &&
-		na->tx_rings[idx]->nr_mode == NKR_NETMAP_ON);
-}
-
 /* Register and unregister. */
 static int
 vtnet_netmap_reg(struct netmap_adapter *na, int state)
