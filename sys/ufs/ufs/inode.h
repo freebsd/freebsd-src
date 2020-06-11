@@ -127,12 +127,13 @@ struct inode {
 #define	IN_LAZYMOD	0x0020		/* Modified, but don't write yet. */
 #define	IN_LAZYACCESS	0x0040		/* Process IN_ACCESS after the
 					   suspension finished */
-#define	IN_EA_LOCKED	0x0080
-#define	IN_EA_LOCKWAIT	0x0100
-
+#define	IN_EA_LOCKED	0x0080		/* Extended attributes locked */
+#define	IN_EA_LOCKWAIT	0x0100		/* Want extended attributes lock */
 #define	IN_TRUNCATED	0x0200		/* Journaled truncation pending. */
-
 #define	IN_UFS2		0x0400		/* UFS2 vs UFS1 */
+#define	IN_IBLKDATA	0x0800		/* datasync requires inode block
+					   update */
+#define	IN_SIZEMOD	0x1000		/* Inode size has been modified */
 
 #define	i_dirhash i_un.dirhash
 #define	i_snapblklist i_un.snapblklist

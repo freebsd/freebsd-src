@@ -6654,6 +6654,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		}
 		ip->i_size = length;
 		DIP_SET(ip, i_size, ip->i_size);
+		ip->i_flag |= IN_SIZEMOD | IN_CHANGE;
 		datablocks = DIP(ip, i_blocks) - extblocks;
 		if (length != 0)
 			datablocks = blkcount(fs, datablocks, length);
@@ -6664,6 +6665,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 			setup_freeext(freeblks, ip, i, needj);
 		ip->i_din2->di_extsize = 0;
 		datablocks += extblocks;
+		ip->i_flag |= IN_SIZEMOD | IN_CHANGE;
 	}
 #ifdef QUOTA
 	/* Reference the quotas in case the block count is wrong in the end. */
@@ -6772,7 +6774,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		}
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		ip->i_flag |= IN_SIZEMOD | IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, frags);
 		ffs_update(vp, 0);
 		bawrite(bp);
@@ -6919,6 +6921,7 @@ softdep_setup_freeblocks(ip, length, flags)
 			setup_freeindir(freeblks, ip, i, -lbn -i, 0);
 		ip->i_size = 0;
 		DIP_SET(ip, i_size, 0);
+		ip->i_flag |= IN_SIZEMOD | IN_CHANGE;
 		datablocks = DIP(ip, i_blocks) - extblocks;
 	}
 	if ((flags & IO_EXT) != 0) {
@@ -6926,6 +6929,7 @@ softdep_setup_freeblocks(ip, length, flags)
 			setup_freeext(freeblks, ip, i, 0);
 		ip->i_din2->di_extsize = 0;
 		datablocks += extblocks;
+		ip->i_flag |= IN_SIZEMOD | IN_CHANGE;
 	}
 #ifdef QUOTA
 	/* Reference the quotas in case the block count is wrong in the end. */

@@ -1926,7 +1926,7 @@ ufs_mkdir(ap)
 		goto bad;
 	ip->i_size = DIRBLKSIZ;
 	DIP_SET(ip, i_size, DIRBLKSIZ);
-	ip->i_flag |= IN_CHANGE | IN_UPDATE;
+	ip->i_flag |= IN_SIZEMOD | IN_CHANGE | IN_UPDATE;
 	bcopy((caddr_t)&dirtemplate, (caddr_t)bp->b_data, sizeof dirtemplate);
 	if (DOINGSOFTDEP(tvp)) {
 		/*
@@ -2113,7 +2113,7 @@ ufs_symlink(ap)
 		bcopy(ap->a_target, SHORTLINK(ip), len);
 		ip->i_size = len;
 		DIP_SET(ip, i_size, len);
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		ip->i_flag |= IN_SIZEMOD | IN_CHANGE | IN_UPDATE;
 		error = UFS_UPDATE(vp, 0);
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
