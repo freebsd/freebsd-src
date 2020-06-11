@@ -1249,17 +1249,17 @@ vtnet_rxq_free_mbufs(struct vtnet_rxq *rxq)
 	struct mbuf *m;
 	int last;
 #ifdef DEV_NETMAP
-	int netmap_bufs = vtnet_netmap_queue_on(rxq->vtnrx_sc, NR_RX,
-						rxq->vtnrx_id);
+	struct netmap_kring *kring = netmap_kring_on(NA(rxq->vtnrx_sc->vtnet_ifp),
+							rxq->vtnrx_id, NR_RX);
 #else  /* !DEV_NETMAP */
-	int netmap_bufs = 0;
+	void *kring = NULL;
 #endif /* !DEV_NETMAP */
 
 	vq = rxq->vtnrx_vq;
 	last = 0;
 
 	while ((m = virtqueue_drain(vq, &last)) != NULL) {
-		if (!netmap_bufs)
+		if (kring == NULL)
 			m_freem(m);
 	}
 
@@ -2074,17 +2074,17 @@ vtnet_txq_free_mbufs(struct vtnet_txq *txq)
 	struct vtnet_tx_header *txhdr;
 	int last;
 #ifdef DEV_NETMAP
-	int netmap_bufs = vtnet_netmap_queue_on(txq->vtntx_sc, NR_TX,
-						txq->vtntx_id);
+	struct netmap_kring *kring = netmap_kring_on(NA(txq->vtntx_sc->vtnet_ifp),
+							txq->vtntx_id, NR_TX);
 #else  /* !DEV_NETMAP */
-	int netmap_bufs = 0;
+	void *kring = NULL;
 #endif /* !DEV_NETMAP */
 
 	vq = txq->vtntx_vq;
 	last = 0;
 
 	while ((txhdr = virtqueue_drain(vq, &last)) != NULL) {
-		if (!netmap_bufs) {
+		if (kring == NULL) {
 			m_freem(txhdr->vth_mbuf);
 			uma_zfree(vtnet_tx_header_zone, txhdr);
 		}
