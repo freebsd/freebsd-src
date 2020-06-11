@@ -554,7 +554,7 @@ found:
 		ufs_dirbad(dp, i_offset, "i_size too small");
 		dp->i_size = i_offset + DIRSIZ(OFSFMT(vdp), ep);
 		DIP_SET(dp, i_size, dp->i_size);
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
+		dp->i_flag |= IN_SIZEMOD | IN_CHANGE | IN_UPDATE;
 	}
 	brelse(bp);
 
@@ -916,7 +916,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		dp->i_size = dp->i_offset + DIRBLKSIZ;
 		DIP_SET(dp, i_size, dp->i_size);
 		dp->i_endoff = dp->i_size;
-		dp->i_flag |= IN_CHANGE | IN_UPDATE;
+		dp->i_flag |= IN_SIZEMOD | IN_CHANGE | IN_UPDATE;
 		dirp->d_reclen = DIRBLKSIZ;
 		blkoff = dp->i_offset &
 		    (VFSTOUFS(dvp->v_mount)->um_mountp->mnt_stat.f_iosize - 1);
@@ -1002,6 +1002,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 	if (dp->i_offset + dp->i_count > dp->i_size) {
 		dp->i_size = dp->i_offset + dp->i_count;
 		DIP_SET(dp, i_size, dp->i_size);
+		dp->i_flag |= IN_SIZEMOD | IN_MODIFIED;
 	}
 	/*
 	 * Get the block containing the space for the new directory entry.
