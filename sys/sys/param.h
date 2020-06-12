@@ -136,8 +136,10 @@
 #endif
 
 #ifndef _KERNEL
+#ifndef LOCORE
 /* Signals. */
 #include <sys/signal.h>
+#endif
 #endif
 
 /* Machine type dependent parameters. */
