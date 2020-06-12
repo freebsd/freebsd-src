@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <string.h>
 #include <sys/queue.h>
+#include <sys/kenv.h>
 
 #include "libsecureboot.h"
 #include <verify_file.h>
@@ -532,6 +533,19 @@ verify_pcr_export(void)
 				DEBUG_PRINTF(1,
 				    ("%s: setenv(loader.ve.hashed, %s\n",
 					__func__, hinfo));
+				if ((hlen = strlen(hinfo)) > KENV_MVALLEN) {
+					/*
+					 * bump kenv_mvallen
+					 * roundup to multiple of KENV_MVALLEN
+					 */
+					char mvallen[16];
+
+					hlen += KENV_MVALLEN -
+					    (hlen % KENV_MVALLEN);
+					if (snprintf(mvallen, sizeof(mvallen),
+						"%d", (int) hlen) < sizeof(mvallen))
+						setenv("kenv_mvallen", mvallen, 1);
+				}
 				free(hinfo);
 			}
 		}
