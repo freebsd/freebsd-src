@@ -1371,9 +1371,10 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 
 	case LINUX_F_DUPFD_CLOEXEC:
 		return (kern_fcntl(td, args->fd, F_DUPFD_CLOEXEC, args->arg));
+	default:
+		linux_msg(td, "unsupported fcntl cmd %d\n", args->cmd);
+		return (EINVAL);
 	}
-
-	return (EINVAL);
 }
 
 int
