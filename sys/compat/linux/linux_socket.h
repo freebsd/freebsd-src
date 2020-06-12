@@ -170,12 +170,6 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 
 /* Socket defines */
 #define	LINUX_SOL_SOCKET	1
-#define	LINUX_SOL_IP		0
-#define	LINUX_SOL_TCP		6
-#define	LINUX_SOL_UDP		17
-#define	LINUX_SOL_IPV6		41
-#define	LINUX_SOL_IPX		256
-#define	LINUX_SOL_AX25		257
 
 #define	LINUX_SO_DEBUG		1
 #define	LINUX_SO_REUSEADDR	2
