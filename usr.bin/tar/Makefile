@@ -4,7 +4,7 @@
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=	3.4.2
+BSDTAR_VERSION_STRING=	3.4.3
 
 .PATH: ${_LIBARCHIVEDIR}/tar
 SRCS=	bsdtar.c	\
