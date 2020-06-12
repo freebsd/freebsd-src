@@ -372,8 +372,7 @@ fpuinitstate(void *arg __unused)
 	fpu_save_area_zone = uma_zcreate("FPU_save_area",
 	    cpu_max_ext_state_size, NULL, NULL, NULL, NULL,
 	    XSAVE_AREA_ALIGN - 1, 0);
-	fpu_initialstate = malloc(cpu_max_ext_state_size, M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	fpu_initialstate = uma_zalloc(fpu_save_area_zone, M_WAITOK | M_ZERO);
 	if (use_xsave) {
 		max_ext_n = flsl(xsave_mask);
 		xsave_area_desc = malloc(max_ext_n * sizeof(struct
