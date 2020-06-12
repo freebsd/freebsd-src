@@ -5535,18 +5535,14 @@ sctp_del_local_addr_restricted(struct sctp_tcb *stcb, struct sctp_ifa *ifa)
 	return;
 }
 
-/*
- * Temporarily remove for __APPLE__ until we use the Tiger equivalents
- */
 /* sysctl */
 static int sctp_max_number_of_assoc = SCTP_MAX_NUM_OF_ASOC;
 static int sctp_scale_up_for_address = SCTP_SCALE_FOR_ADDR;
 
-
-
-#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+#if defined(SCTP_MCORE_INPUT) && defined(SMP)
 struct sctp_mcore_ctrl *sctp_mcore_workers = NULL;
 int *sctp_cpuarry = NULL;
+
 void
 sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use)
 {
@@ -5716,13 +5712,13 @@ sctp_pcb_init(void)
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	memset(&SCTP_BASE_SYSCTL(sctp_log), 0, sizeof(struct sctp_log));
 #endif
-#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+#if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_MALLOC(SCTP_BASE_STATS, struct sctpstat *,
 	    ((mp_maxid + 1) * sizeof(struct sctpstat)),
 	    SCTP_M_MCORE);
 #endif
 	(void)SCTP_GETTIME_TIMEVAL(&tv);
-#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+#if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	memset(SCTP_BASE_STATS, 0, sizeof(struct sctpstat) * (mp_maxid + 1));
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_sec = (uint32_t)tv.tv_sec;
 	SCTP_BASE_STATS[PCPU_GET(cpuid)].sctps_discontinuitytime.tv_usec = (uint32_t)tv.tv_usec;
@@ -5833,7 +5829,7 @@ sctp_pcb_init(void)
 	}
 	sctp_startup_iterator();
 
-#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+#if defined(SCTP_MCORE_INPUT) && defined(SMP)
 	sctp_startup_mcore_threads();
 #endif
 
@@ -5988,7 +5984,7 @@ retry:
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_strmoq));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf));
 	SCTP_ZONE_DESTROY(SCTP_BASE_INFO(ipi_zone_asconf_ack));
-#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+#if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	SCTP_FREE(SCTP_BASE_STATS, SCTP_M_MCORE);
 #endif
 }

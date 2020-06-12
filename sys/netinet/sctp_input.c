@@ -5723,7 +5723,7 @@ out:
 	return;
 }
 
-#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+#if defined(SCTP_MCORE_INPUT) && defined(SMP)
 extern int *sctp_cpuarry;
 #endif
 
@@ -5735,7 +5735,7 @@ sctp_input(struct mbuf **mp, int *offp, int proto SCTP_UNUSED)
 
 	m = *mp;
 	off = *offp;
-#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+#if defined(SCTP_MCORE_INPUT) && defined(SMP)
 	if (mp_ncpus > 1) {
 		struct ip *ip;
 		struct sctphdr *sh;

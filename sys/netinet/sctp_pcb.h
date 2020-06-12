@@ -246,7 +246,7 @@ struct sctp_base_info {
 	 * All static structures that anchor the system must be here.
 	 */
 	struct sctp_epinfo sctppcbinfo;
-#if defined(__FreeBSD__) && defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
+#if defined(SMP) && defined(SCTP_USE_PERCPU_STAT)
 	struct sctpstat *sctpstat;
 #else
 	struct sctpstat sctpstat;
@@ -478,7 +478,6 @@ struct sctp_tcb {
 #include <netinet/sctp_lock_bsd.h>
 
 
-/* TODO where to put non-_KERNEL things for __Userspace__? */
 #if defined(_KERNEL) || defined(__Userspace__)
 
 /* Attention Julian, this is the extern that
@@ -646,7 +645,7 @@ sctp_initiate_iterator(inp_func inpf,
     end_func ef,
     struct sctp_inpcb *,
     uint8_t co_off);
-#if defined(__FreeBSD__) && defined(SCTP_MCORE_INPUT) && defined(SMP)
+#if defined(SCTP_MCORE_INPUT) && defined(SMP)
 void
      sctp_queue_to_mcore(struct mbuf *m, int off, int cpu_to_use);
 
