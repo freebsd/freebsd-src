@@ -95,6 +95,7 @@ extern	int	hw_mds_disable;
 extern	int	hw_ssb_active;
 extern	int	x86_taa_enable;
 extern	int	cpu_flush_rsb_ctxsw;
+extern	int	x86_rngds_mitg_enable;
 
 struct	pcb;
 struct	thread;
@@ -139,6 +140,7 @@ void	hw_ibrs_recalculate(bool all_cpus);
 void	hw_mds_recalculate(void);
 void	hw_ssb_recalculate(bool all_cpus);
 void	x86_taa_recalculate(void);
+void	x86_rngds_mitg_recalculate(bool all_cpus);
 void	nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame);
 void	nmi_call_kdb_smp(u_int type, struct trapframe *frame);
 void	nmi_handle_intr(u_int type, struct trapframe *frame);

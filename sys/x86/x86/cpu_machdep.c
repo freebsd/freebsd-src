@@ -1402,6 +1402,60 @@ SYSCTL_INT(_machdep_mitigations, OID_AUTO, flush_rsb_ctxsw,
     CTLFLAG_RW | CTLFLAG_NOFETCH, &cpu_flush_rsb_ctxsw, 0,
     "Flush Return Stack Buffer on context switch");
 
+SYSCTL_NODE(_machdep_mitigations, OID_AUTO, rngds,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "MCU Optimization, disable RDSEED mitigation");
+
+int x86_rngds_mitg_enable = 1;
+void
+x86_rngds_mitg_recalculate(bool all_cpus)
+{
+	if ((cpu_stdext_feature3 & CPUID_STDEXT3_MCUOPT) == 0)
+		return;
+	x86_msr_op(MSR_IA32_MCU_OPT_CTRL,
+	    (x86_rngds_mitg_enable ? MSR_OP_OR : MSR_OP_ANDNOT) |
+	    (all_cpus ? MSR_OP_RENDEZVOUS : MSR_OP_LOCAL),
+	    IA32_RNGDS_MITG_DIS);
+}
+
+static int
+sysctl_rngds_mitg_enable_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = x86_rngds_mitg_enable;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	x86_rngds_mitg_enable = val;
+	x86_rngds_mitg_recalculate(true);
+	return (0);
+}
+SYSCTL_PROC(_machdep_mitigations_rngds, OID_AUTO, enable, CTLTYPE_INT |
+    CTLFLAG_RWTUN | CTLFLAG_NOFETCH | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_rngds_mitg_enable_handler, "I",
+    "MCU Optimization, disabling RDSEED mitigation control "
+    "(0 - mitigation disabled (RDSEED optimized), 1 - mitigation enabled");
+
+static int
+sysctl_rngds_state_handler(SYSCTL_HANDLER_ARGS)
+{
+	const char *state;
+
+	if ((cpu_stdext_feature3 & CPUID_STDEXT3_MCUOPT) == 0) {
+		state = "Not applicable";
+	} else if (x86_rngds_mitg_enable == 0) {
+		state = "RDSEED not serialized";
+	} else {
+		state = "Mitigated";
+	}
+	return (SYSCTL_OUT(req, state, strlen(state)));
+}
+SYSCTL_PROC(_machdep_mitigations_rngds, OID_AUTO, state,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_rngds_state_handler, "A",
+    "MCU Optimization state");
+
 /*
  * Enable and restore kernel text write permissions.
  * Callers must ensure that disable_wp()/restore_wp() are executed

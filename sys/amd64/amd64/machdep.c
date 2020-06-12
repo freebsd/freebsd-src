@@ -1791,6 +1791,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	TUNABLE_INT_FETCH("machdep.mitigations.taa.enable", &x86_taa_enable);
 
+	TUNABLE_INT_FETCH("machdep.mitigations.rndgs.enable",
+	    &x86_rngds_mitg_enable);
+
 	finishidentcpu();	/* Final stage of CPU initialization */
 	initializecpu();	/* Initialize CPU registers */
 
