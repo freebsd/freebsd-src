@@ -205,6 +205,8 @@ TESTS_SRCS= \
 	test_read_format_zip_with_invalid_traditional_eocd.c	\
 	test_read_format_zip_zip64.c		\
 	test_read_large.c			\
+	test_read_pax_xattr_rht_security_selinux.c	\
+	test_read_pax_xattr_schily.c		\
 	test_read_pax_truncated.c		\
 	test_read_position.c			\
 	test_read_set_format.c			\
@@ -383,6 +385,7 @@ FILES+=	test_compat_zip_6.zip.uu
 FILES+=	test_compat_zip_7.xps.uu
 FILES+=	test_compat_zip_8.zip.uu
 FILES+=	test_compat_zstd_1.tar.zst.uu
+FILES+=	test_compat_zstd_2.tar.zst.uu
 FILES+=	test_fuzz.cab.uu
 FILES+=	test_fuzz.lzh.uu
 FILES+=	test_fuzz_1.iso.Z.uu
@@ -627,7 +630,8 @@ FILES+=	test_read_large_splitted_rar_ab.uu
 FILES+=	test_read_large_splitted_rar_ac.uu
 FILES+=	test_read_large_splitted_rar_ad.uu
 FILES+=	test_read_large_splitted_rar_ae.uu
-FILES+=	test_read_pax_schily_xattr.tar.uu
+FILES+=	test_read_pax_xattr_rht_security_selinux.tar.uu
+FILES+=	test_read_pax_xattr_schily.tar.uu
 FILES+=	test_read_splitted_rar_aa.uu
 FILES+=	test_read_splitted_rar_ab.uu
 FILES+=	test_read_splitted_rar_ac.uu
