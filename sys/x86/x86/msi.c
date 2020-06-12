@@ -156,7 +156,7 @@ u_int first_msi_irq;
 SYSCTL_UINT(_machdep, OID_AUTO, first_msi_irq, CTLFLAG_RD, &first_msi_irq, 0,
     "Number of first IRQ reserved for MSI and MSI-X interrupts");
 
-u_int num_msi_irqs = 512;
+u_int num_msi_irqs = 2048;
 SYSCTL_UINT(_machdep, OID_AUTO, num_msi_irqs, CTLFLAG_RDTUN, &num_msi_irqs, 0,
     "Number of IRQs reserved for MSI and MSI-X interrupts");
 
