@@ -1126,12 +1126,14 @@ nvme_ctrlr_start_config_hook(void *arg)
 	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status != 0) {
 		nvme_ctrlr_fail(ctrlr);
+		config_intrhook_disestablish(&ctrlr->config_hook);
 		return;
 	}
 
 	status = nvme_ctrlr_hw_reset(ctrlr);
 	if (status != 0) {
 		nvme_ctrlr_fail(ctrlr);
+		config_intrhook_disestablish(&ctrlr->config_hook);
 		return;
 	}
 
