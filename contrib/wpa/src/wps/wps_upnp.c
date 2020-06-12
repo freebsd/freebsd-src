@@ -303,6 +303,14 @@ static void subscr_addr_free_all(struct subscription *s)
 }
 
 
+static int local_network_addr(struct upnp_wps_device_sm *sm,
+			      struct sockaddr_in *addr)
+{
+	return (addr->sin_addr.s_addr & sm->netmask.s_addr) ==
+		(sm->ip_addr & sm->netmask.s_addr);
+}
+
+
 /* subscr_addr_add_url -- add address(es) for one url to subscription */
 static void subscr_addr_add_url(struct subscription *s, const char *url,
 				size_t url_len)
@@ -320,9 +328,14 @@ static void subscr_addr_add_url(struct subscription *s, const char *url,
 	int rerr;
 	size_t host_len, path_len;
 
-	/* url MUST begin with http: */
-	if (url_len < 7 || os_strncasecmp(url, "http://", 7))
+	/* URL MUST begin with HTTP scheme. In addition, limit the length of
+	 * the URL to 700 characters which is around the limit that was
+	 * implicitly enforced for more than 10 years due to a bug in
+	 * generating the event messages. */
+	if (url_len < 7 || os_strncasecmp(url, "http://", 7) || url_len > 700) {
+		wpa_printf(MSG_DEBUG, "WPS UPnP: Reject an unacceptable URL");
 		goto fail;
+	}
 	url += 7;
 	url_len -= 7;
 
@@ -381,12 +394,20 @@ static void subscr_addr_add_url(struct subscription *s, const char *url,
 
 	for (rp = result; rp; rp = rp->ai_next) {
 		struct subscr_addr *a;
+		struct sockaddr_in *addr = (struct sockaddr_in *) rp->ai_addr;
 
 		/* Limit no. of address to avoid denial of service attack */
 		if (dl_list_len(&s->addr_list) >= MAX_ADDR_PER_SUBSCRIPTION) {
 			wpa_printf(MSG_INFO, "WPS UPnP: subscr_addr_add_url: "
 				   "Ignoring excessive addresses");
 			break;
+		}
+
+		if (!local_network_addr(s->sm, addr)) {
+			wpa_printf(MSG_INFO,
+				   "WPS UPnP: Ignore a delivery URL that points to another network %s",
+				   inet_ntoa(addr->sin_addr));
+			continue;
 		}
 
 		a = os_zalloc(sizeof(*a) + alloc_len);
@@ -889,11 +910,12 @@ static int eth_get(const char *device, u8 ea[ETH_ALEN])
  * @net_if: Selected network interface name
  * @ip_addr: Buffer for returning IP address in network byte order
  * @ip_addr_text: Buffer for returning a pointer to allocated IP address text
+ * @netmask: Buffer for returning netmask or %NULL if not needed
  * @mac: Buffer for returning MAC address
  * Returns: 0 on success, -1 on failure
  */
 int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
-		   u8 mac[ETH_ALEN])
+		   struct in_addr *netmask, u8 mac[ETH_ALEN])
 {
 	struct ifreq req;
 	int sock = -1;
@@ -918,6 +940,23 @@ int get_netif_info(const char *net_if, unsigned *ip_addr, char **ip_addr_text,
 	*ip_addr = addr->sin_addr.s_addr;
 	in_addr.s_addr = *ip_addr;
 	os_snprintf(*ip_addr_text, 16, "%s", inet_ntoa(in_addr));
+
+	if (netmask) {
+		os_memset(&req, 0, sizeof(req));
+		os_strlcpy(req.ifr_name, net_if, sizeof(req.ifr_name));
+		if (ioctl(sock, SIOCGIFNETMASK, &req) < 0) {
+			wpa_printf(MSG_ERROR,
+				   "WPS UPnP: SIOCGIFNETMASK failed: %d (%s)",
+				   errno, strerror(errno));
+			goto fail;
+		}
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+		addr = (struct sockaddr_in *) &req.ifr_addr;
+#else
+		addr = (struct sockaddr_in *) &req.ifr_netmask;
+#endif
+		netmask->s_addr = addr->sin_addr.s_addr;
+	}
 
 #ifdef __linux__
 	os_strlcpy(req.ifr_name, net_if, sizeof(req.ifr_name));
@@ -1025,11 +1064,15 @@ static int upnp_wps_device_start(struct upnp_wps_device_sm *sm, char *net_if)
 
 	/* Determine which IP and mac address we're using */
 	if (get_netif_info(net_if, &sm->ip_addr, &sm->ip_addr_text,
-			   sm->mac_addr)) {
+			   &sm->netmask, sm->mac_addr)) {
 		wpa_printf(MSG_INFO, "WPS UPnP: Could not get IP/MAC address "
 			   "for %s. Does it have IP address?", net_if);
 		goto fail;
 	}
+	wpa_printf(MSG_DEBUG, "WPS UPnP: Local IP address %s netmask %s hwaddr "
+		   MACSTR,
+		   sm->ip_addr_text, inet_ntoa(sm->netmask),
+		   MAC2STR(sm->mac_addr));
 
 	/* Listen for incoming TCP connections so that others
 	 * can fetch our "xml files" from us.
