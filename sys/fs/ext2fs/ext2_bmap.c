@@ -94,21 +94,28 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 {
 	struct inode *ip;
 	struct m_ext2fs *fs;
+	struct mount *mp;
+	struct ext2mount *ump;
 	struct ext4_extent_header *ehp;
 	struct ext4_extent *ep;
 	struct ext4_extent_path *path = NULL;
 	daddr_t lbn;
-	int error, depth;
+	int error, depth, maxrun = 0, bsize;
 
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
+	mp = vp->v_mount;
+	ump = VFSTOEXT2(mp);
 	lbn = bn;
 	ehp = (struct ext4_extent_header *)ip->i_data;
 	depth = ehp->eh_depth;
+	bsize = EXT2_BLOCK_SIZE(ump->um_e2fs);
 
 	*bnp = -1;
-	if (runp != NULL)
+	if (runp != NULL) {
+		maxrun = mp->mnt_iosize_max / bsize - 1;
 		*runp = 0;
+	}
 	if (runb != NULL)
 		*runb = 0;
 
@@ -119,18 +126,21 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	ep = path[depth].ep_ext;
 	if(ep) {
 		if (lbn < ep->e_blk) {
-			if (runp != NULL)
-				*runp = ep->e_blk - lbn - 1;
+			if (runp != NULL) {
+				*runp = min(maxrun, ep->e_blk - lbn - 1);
+			}
 		} else if (ep->e_blk <= lbn && lbn < ep->e_blk + ep->e_len) {
 			*bnp = fsbtodb(fs, lbn - ep->e_blk +
 			    (ep->e_start_lo | (daddr_t)ep->e_start_hi << 32));
-			if (runp != NULL)
-				*runp = ep->e_len - (lbn - ep->e_blk) - 1;
+			if (runp != NULL) {
+				*runp = min(maxrun,
+				    ep->e_len - (lbn - ep->e_blk) - 1);
+			}
 			if (runb != NULL)
-				*runb = lbn - ep->e_blk;
+				*runb = min(maxrun, lbn - ep->e_blk);
 		} else {
 			if (runb != NULL)
-				*runb = ep->e_blk + lbn - ep->e_len;
+				*runb = min(maxrun, ep->e_blk + lbn - ep->e_len);
 		}
 	}
 
