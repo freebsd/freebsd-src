@@ -425,6 +425,11 @@ fuse_vfsop_mount(struct mount *mp)
 	 */
 	mp->mnt_flag &= ~MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_USES_BCACHE;
+	/* 
+	 * Disable nullfs cacheing because it can consume too many resources in
+	 * the FUSE server.
+	 */
+	mp->mnt_kern_flag |= MNTK_NULL_NOCACHE;
 	MNT_IUNLOCK(mp);
 	/* We need this here as this slot is used by getnewvnode() */
 	mp->mnt_stat.f_iosize = maxbcachebuf;
