@@ -12845,18 +12845,24 @@ again:
 		int32_t adv;
 		int oldwin;
 
-		adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale);
+		adv = recwin;
 		if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt)) {
 			oldwin = (tp->rcv_adv - tp->rcv_nxt);
-			adv -= oldwin;
+			if (adv > oldwin)
+			    adv -= oldwin;
+			else {
+				/* We can't increase the window */
+				adv = 0;
+			}
 		} else
 			oldwin = 0;
 
 		/*
-		 * If the new window size ends up being the same as the old
-		 * size when it is scaled, then don't force a window update.
+		 * If the new window size ends up being the same as or less
+		 * than the old size when it is scaled, then don't force
+		 * a window update.
 		 */
-		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
+		if (oldwin >> tp->rcv_scale >= (adv + oldwin) >> tp->rcv_scale)
 			goto dontupdate;
 
 		if (adv >= (int32_t)(2 * segsiz) &&

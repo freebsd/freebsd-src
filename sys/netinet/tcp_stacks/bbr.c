@@ -8078,7 +8078,7 @@ bbr_restart_after_idle(struct tcp_bbr *bbr, uint32_t cts, uint32_t idle_time)
 			bbr->r_ctl.rc_bbr_hptsi_gain = bbr->r_ctl.rc_startup_pg;
 			bbr->r_ctl.rc_bbr_cwnd_gain = bbr->r_ctl.rc_startup_pg;
 			bbr_log_type_statechange(bbr, cts, __LINE__);
-		} else {
+		} else if (bbr->rc_bbr_state == BBR_STATE_PROBE_BW) {
 			bbr_substate_change(bbr, cts, __LINE__, 1);
 		}
 	}
@@ -12000,21 +12000,27 @@ bbr_window_update_needed(struct tcpcb *tp, struct socket *so, uint32_t recwin, i
 	 * "adv" is the amount we could increase the window, taking into
 	 * account that we are limited by TCP_MAXWIN << tp->rcv_scale.
 	 */
-	uint32_t adv;
+	int32_t adv;
 	int32_t oldwin;
 
-	adv = min(recwin, TCP_MAXWIN << tp->rcv_scale);
+	adv = recwin;
 	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt)) {
 		oldwin = (tp->rcv_adv - tp->rcv_nxt);
-		adv -= oldwin;
+		if (adv > oldwin)
+			adv -= oldwin;
+		else {
+			/* We can't increase the window */
+			adv = 0;
+		}
 	} else
 		oldwin = 0;
 
 	/*
-	 * If the new window size ends up being the same as the old size
-	 * when it is scaled, then don't force a window update.
+	 * If the new window size ends up being the same as or less
+	 * than the old size when it is scaled, then don't force
+	 * a window update.
 	 */
-	if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
+	if (oldwin >> tp->rcv_scale >= (adv + oldwin) >> tp->rcv_scale)
 		return (0);
 
 	if (adv >= (2 * maxseg) &&
