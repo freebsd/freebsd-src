@@ -32,7 +32,9 @@
 
 extern "C" {
 #include <dirent.h>
+
 #include <fcntl.h>
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
@@ -82,12 +84,21 @@ TEST_F(Opendir, enoent)
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
+	sem_t sem;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino, O_RDONLY, ReturnErrno(ENOENT));
+	// Since FUSE_OPENDIR returns ENOENT, the kernel will reclaim the vnode
+	// and send a FUSE_FORGET
+	expect_forget(ino, 1, &sem);
 
 	ASSERT_EQ(-1, open(FULLPATH, O_DIRECTORY));
 	EXPECT_EQ(ENOENT, errno);
+
+	sem_wait(&sem);
+	sem_destroy(&sem);
 }
 
 /* 

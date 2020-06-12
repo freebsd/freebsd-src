@@ -32,6 +32,8 @@
 
 extern "C" {
 #include <sys/param.h>
+
+#include <semaphore.h>
 }
 
 #include "mockfs.hh"
@@ -172,6 +174,9 @@ TEST_F(Getattr, enoent)
 	const char RELPATH[] = "some_file.txt";
 	struct stat sb;
 	const uint64_t ino = 42;
+	sem_t sem;
+
+	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
 	expect_lookup(RELPATH, ino, S_IFREG | 0644, 0, 1, 0, 0);
 	EXPECT_CALL(*m_mock, process(
@@ -181,8 +186,15 @@ TEST_F(Getattr, enoent)
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnErrno(ENOENT)));
+	// Since FUSE_GETATTR returns ENOENT, the kernel will reclaim the vnode
+	// and send a FUSE_FORGET
+	expect_forget(ino, 1, &sem);
+
 	EXPECT_NE(0, stat(FULLPATH, &sb));
 	EXPECT_EQ(ENOENT, errno);
+
+	sem_wait(&sem);
+	sem_destroy(&sem);
 }
 
 TEST_F(Getattr, ok)
