@@ -201,7 +201,7 @@ uint64_t xsave_mask;
 static	uma_zone_t fpu_save_area_zone;
 static	union savefpu *npx_initialstate;
 
-struct xsave_area_elm_descr {
+static struct xsave_area_elm_descr {
 	u_int	offset;
 	u_int	size;
 } *xsave_area_desc;
