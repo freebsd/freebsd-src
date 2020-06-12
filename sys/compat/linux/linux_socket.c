@@ -92,10 +92,9 @@ static int
 linux_to_bsd_sockopt_level(int level)
 {
 
-	switch (level) {
-	case LINUX_SOL_SOCKET:
+	if (level == LINUX_SOL_SOCKET)
 		return (SOL_SOCKET);
-	}
+	/* Remaining values are RFC-defined protocol numbers. */
 	return (level);
 }
 
@@ -103,10 +102,8 @@ static int
 bsd_to_linux_sockopt_level(int level)
 {
 
-	switch (level) {
-	case SOL_SOCKET:
+	if (level == SOL_SOCKET)
 		return (LINUX_SOL_SOCKET);
-	}
 	return (level);
 }
 
