@@ -293,6 +293,7 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	 * record_type even if only the first byte is used.
 	 */
 	trailer[0] = record_type;
+	crp->crp_payload_length++;
 	iov[iovcnt + 1].iov_base = trailer;
 	iov[iovcnt + 1].iov_len = AES_GMAC_HASH_LEN + 1;
 	uio.uio_iovcnt++;
