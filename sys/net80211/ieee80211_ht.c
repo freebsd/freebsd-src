@@ -875,6 +875,7 @@ ieee80211_ampdu_reorder(struct ieee80211_node *ni, struct mbuf *m,
 	ieee80211_seq rxseq;
 	uint8_t tid;
 	int off;
+	int amsdu_more = ieee80211_check_rxseq_amsdu_more(rxs);
 
 	KASSERT((m->m_flags & (M_AMPDU | M_AMPDU_MPDU)) == M_AMPDU,
 	    ("!a-mpdu or already re-ordered, flags 0x%x", m->m_flags));
@@ -949,10 +950,11 @@ again:
 			return CONSUMED;
 		} else {
 			/*
-			 * In order; advance window and notify
+			 * In order; advance window if needed and notify
 			 * caller to dispatch directly.
 			 */
-			rap->rxa_start = IEEE80211_SEQ_INC(rxseq);
+			if (amsdu_more)
+				rap->rxa_start = IEEE80211_SEQ_INC(rxseq);
 			return PROCESS;
 		}
 	}
@@ -996,7 +998,8 @@ again:
 					    rap->rxa_qframes;
 					ampdu_rx_flush(ni, rap);
 				}
-				rap->rxa_start = IEEE80211_SEQ_INC(rxseq);
+				if (amsdu_more)
+					rap->rxa_start = IEEE80211_SEQ_INC(rxseq);
 				return PROCESS;
 			}
 		} else {
