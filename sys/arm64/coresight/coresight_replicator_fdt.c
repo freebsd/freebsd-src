@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -40,93 +40,44 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <machine/bus.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_replicator.h>
 
 #include "coresight_if.h"
 
-static struct resource_spec replicator_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
-	{ -1, 0 }
+static struct ofw_compat_data compat_data[] = {
+	{ "arm,coresight-dynamic-replicator",	1 },
+	{ NULL,					0 }
 };
 
 static int
-replicator_init(device_t dev)
+replicator_fdt_probe(device_t dev)
 {
-	struct replicator_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	/* Unlock Coresight */
-	bus_write_4(sc->res, CORESIGHT_LAR, CORESIGHT_UNLOCK);
-
-	return (0);
-}
-
-static int
-replicator_enable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
-{
-	struct replicator_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	/* Enable the port. Keep the other port disabled */
-	if (endp->reg == 0) {
-		bus_write_4(sc->res, REPLICATOR_IDFILTER0, 0x00);
-		bus_write_4(sc->res, REPLICATOR_IDFILTER1, 0xff);
-	} else {
-		bus_write_4(sc->res, REPLICATOR_IDFILTER0, 0xff);
-		bus_write_4(sc->res, REPLICATOR_IDFILTER1, 0x00);
-	}
-
-	return (0);
-}
-
-static void
-replicator_disable(device_t dev, struct endpoint *endp,
-    struct coresight_event *event)
-{
-	struct replicator_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	bus_write_4(sc->res, REPLICATOR_IDFILTER0, 0xff);
-	bus_write_4(sc->res, REPLICATOR_IDFILTER1, 0xff);
-}
-
-static int
-replicator_attach(device_t dev)
-{
-	struct replicator_softc *sc;
-	struct coresight_desc desc;
-
-	sc = device_get_softc(dev);
-
-	if (bus_alloc_resources(dev, replicator_spec, &sc->res) != 0) {
-		device_printf(dev, "cannot allocate resources for device\n");
+	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	}
 
-	sc->pdata = coresight_get_platform_data(dev);
-	desc.pdata = sc->pdata;
-	desc.dev = dev;
-	desc.dev_type = CORESIGHT_DYNAMIC_REPLICATOR;
-	coresight_register(&desc);
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	return (0);
+	device_set_desc(dev, "ARM Coresight Replicator");
+
+	return (BUS_PROBE_DEFAULT);
 }
 
-static device_method_t replicator_methods[] = {
+static device_method_t replicator_fdt_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_attach,	replicator_attach),
-
-	/* Coresight interface */
-	DEVMETHOD(coresight_init,	replicator_init),
-	DEVMETHOD(coresight_enable,	replicator_enable),
-	DEVMETHOD(coresight_disable,	replicator_disable),
+	DEVMETHOD(device_probe,		replicator_fdt_probe),
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(replicator, replicator_driver, replicator_methods,
-    sizeof(struct replicator_softc));
+DEFINE_CLASS_1(replicator, replicator_fdt_driver, replicator_fdt_methods,
+    sizeof(struct replicator_softc), replicator_driver);
+
+static devclass_t replicator_fdt_devclass;
+
+EARLY_DRIVER_MODULE(replicator, simplebus, replicator_fdt_driver,
+    replicator_fdt_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
