@@ -197,6 +197,8 @@ arm64/coresight/coresight_funnel.c		standard
 arm64/coresight/coresight_funnel_acpi.c		optional acpi
 arm64/coresight/coresight_funnel_fdt.c		optional fdt
 arm64/coresight/coresight_tmc.c			standard
+arm64/coresight/coresight_tmc_acpi.c		optional acpi
+arm64/coresight/coresight_tmc_fdt.c		optional fdt
 arm64/intel/firmware.c				optional soc_intel_stratix10
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10
 arm64/intel/stratix10-svc.c			optional soc_intel_stratix10
