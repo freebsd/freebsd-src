@@ -368,8 +368,18 @@ fpuinitstate(void *arg __unused)
 	register_t saveintr;
 	int cp[4], i, max_ext_n;
 
+	/* Do potentially blocking operations before disabling interrupts. */
+	fpu_save_area_zone = uma_zcreate("FPU_save_area",
+	    cpu_max_ext_state_size, NULL, NULL, NULL, NULL,
+	    XSAVE_AREA_ALIGN - 1, 0);
 	fpu_initialstate = malloc(cpu_max_ext_state_size, M_DEVBUF,
 	    M_WAITOK | M_ZERO);
+	if (use_xsave) {
+		max_ext_n = flsl(xsave_mask);
+		xsave_area_desc = malloc(max_ext_n * sizeof(struct
+		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
+	}
+
 	saveintr = intr_disable();
 	stop_emulating();
 
@@ -399,9 +409,6 @@ fpuinitstate(void *arg __unused)
 		    offsetof(struct xstate_hdr, xstate_bv));
 		*xstate_bv = XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE;
 
-		max_ext_n = flsl(xsave_mask);
-		xsave_area_desc = malloc(max_ext_n * sizeof(struct
-		    xsave_area_elm_descr), M_DEVBUF, M_WAITOK | M_ZERO);
 		/* x87 state */
 		xsave_area_desc[0].offset = 0;
 		xsave_area_desc[0].size = 160;
@@ -415,10 +422,6 @@ fpuinitstate(void *arg __unused)
 			xsave_area_desc[i].size = cp[0];
 		}
 	}
-
-	fpu_save_area_zone = uma_zcreate("FPU_save_area",
-	    cpu_max_ext_state_size, NULL, NULL, NULL, NULL,
-	    XSAVE_AREA_ALIGN - 1, 0);
 
 	start_emulating();
 	intr_restore(saveintr);
