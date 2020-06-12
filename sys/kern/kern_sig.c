@@ -3425,7 +3425,7 @@ corefile_open_last(struct thread *td, char *name, int indexpos,
 			if (oldvp != NULL)
 				vn_close(oldvp, FWRITE, td->td_ucred, td);
 			oldvp = vp;
-			VOP_UNLOCK(oldvp);
+			VOP_UNLOCK(oldvp, 0);
 			lasttime = vattr.va_mtime;
 		} else {
 			vnode_close_locked(td, vp);
