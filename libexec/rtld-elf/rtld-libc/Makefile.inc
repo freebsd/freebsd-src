@@ -46,7 +46,7 @@ _libc_string_objects=	bcmp bcopy bzero memset memchr memcmp memcpy memmove \
 # Also use all the syscall .o files from libc_nossp_pic:
 _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
     cerror geteuid getegid sigfastblock munmap mprotect \
-    sysarch __sysctl issetugid __getcwd utrace \
+    sysarch __sysctl issetugid __getcwd utrace getpid \
     thr_self thr_kill pread mmap lseek _exit _fstat _fstatat _fstatfs \
     getdirentries _getdirentries _close _fcntl _open _openat _read \
     _sigprocmask _write readlink __realpathat _setjmp setjmp setjmperr
