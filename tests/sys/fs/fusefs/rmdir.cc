@@ -42,22 +42,6 @@ using namespace testing;
 
 class Rmdir: public FuseTest {
 public:
-void expect_getattr(uint64_t ino, mode_t mode)
-{
-	EXPECT_CALL(*m_mock, process(
-		ResultOf([=](auto in) {
-			return (in.header.opcode == FUSE_GETATTR &&
-				in.header.nodeid == ino);
-		}, Eq(true)),
-		_)
-	).WillOnce(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
-		SET_OUT_HEADER_LEN(out, attr);
-		out.body.attr.attr.ino = ino;	// Must match nodeid
-		out.body.attr.attr.mode = mode;
-		out.body.attr.attr_valid = UINT64_MAX;
-	})));
-}
-
 void expect_lookup(const char *relpath, uint64_t ino, int times=1)
 {
 	EXPECT_LOOKUP(FUSE_ROOT_ID, relpath)
@@ -95,25 +79,34 @@ TEST_F(Rmdir, parent_attr_cache)
 	struct stat sb;
 	sem_t sem;
 	uint64_t ino = 42;
+	Sequence seq;
 
 	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
+	expect_lookup(RELPATH, ino);
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_RMDIR &&
+				0 == strcmp(RELPATH, in.body.rmdir) &&
+				in.header.nodeid == FUSE_ROOT_ID);
+		}, Eq(true)),
+		_)
+	).InSequence(seq)
+	.WillOnce(Invoke(ReturnErrno(0)));
+	expect_forget(ino, 1, &sem);
 	EXPECT_CALL(*m_mock, process(
 		ResultOf([=](auto in) {
 			return (in.header.opcode == FUSE_GETATTR &&
 				in.header.nodeid == FUSE_ROOT_ID);
 		}, Eq(true)),
 		_)
-	).Times(2)
+	).InSequence(seq)
 	.WillRepeatedly(Invoke(ReturnImmediate([=](auto i __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, attr);
-		out.body.attr.attr.ino = ino;	// Must match nodeid
+		out.body.attr.attr.ino = FUSE_ROOT_ID;
 		out.body.attr.attr.mode = S_IFDIR | 0755;
 		out.body.attr.attr_valid = UINT64_MAX;
 	})));
-	expect_lookup(RELPATH, ino);
-	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
-	expect_forget(ino, 1, &sem);
 
 	ASSERT_EQ(0, rmdir(FULLPATH)) << strerror(errno);
 	EXPECT_EQ(0, stat("mountpoint", &sb)) << strerror(errno);
@@ -127,7 +120,6 @@ TEST_F(Rmdir, enotempty)
 	const char RELPATH[] = "some_dir";
 	uint64_t ino = 42;
 
-	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
 	expect_rmdir(FUSE_ROOT_ID, RELPATH, ENOTEMPTY);
 
@@ -143,7 +135,6 @@ TEST_F(Rmdir, entry_cache)
 	sem_t sem;
 	uint64_t ino = 42;
 
-	expect_getattr(1, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino, 2);
 	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
 	expect_forget(ino, 1, &sem);
@@ -163,7 +154,6 @@ TEST_F(Rmdir, ok)
 
 	ASSERT_EQ(0, sem_init(&sem, 0, 0)) << strerror(errno);
 
-	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755);
 	expect_lookup(RELPATH, ino);
 	expect_rmdir(FUSE_ROOT_ID, RELPATH, 0);
 	expect_forget(ino, 1, &sem);
