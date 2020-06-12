@@ -1028,6 +1028,7 @@ printcpuinfo(void)
 				       "\004AVX512_4FMAPS"
 				       "\005FSRM"
 				       "\011AVX512VP2INTERSECT"
+				       "\012MCUOPT"
 				       "\013MD_CLEAR"
 				       "\016TSXFA"
 				       "\023PCONFIG"
