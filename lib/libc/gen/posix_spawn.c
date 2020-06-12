@@ -276,9 +276,19 @@ do_posix_spawn(pid_t *pid, const char *path,
 		stacksz += MAX(3, cnt + 2) * sizeof(char *);
 		stacksz = PSPAWN_STACK_ALIGN(stacksz);
 	}
-	stack = aligned_alloc(PSPAWN_STACK_ALIGNMENT, stacksz);
+
+	/*
+	 * aligned_alloc is not safe to use here, because we can't guarantee
+	 * that aligned_alloc and free will be provided by the same
+	 * implementation.  We've actively hit at least one application that
+	 * will provide its own malloc/free but not aligned_alloc leading to
+	 * a free by the wrong allocator.
+	 */
+	stack = malloc(stacksz);
 	if (stack == NULL)
 		return (ENOMEM);
+	stacksz = (((uintptr_t)stack + stacksz) & ~PSPAWN_STACK_ALIGNBYTES) -
+	    (uintptr_t)stack;
 #endif
 	psa.path = path;
 	psa.fa = fa;
