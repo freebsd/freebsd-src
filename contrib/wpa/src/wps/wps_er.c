@@ -1298,7 +1298,7 @@ wps_er_init(struct wps_context *wps, const char *ifname, const char *filter)
 			   "with %s", filter);
 	}
 	if (get_netif_info(er->ifname, &er->ip_addr, &er->ip_addr_text,
-			   er->mac_addr)) {
+			   NULL, er->mac_addr)) {
 		wpa_printf(MSG_INFO, "WPS UPnP: Could not get IP/MAC address "
 			   "for %s. Does it have IP address?", er->ifname);
 		wps_er_deinit(er, NULL, NULL);

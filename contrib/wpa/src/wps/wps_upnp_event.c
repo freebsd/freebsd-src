@@ -147,7 +147,8 @@ static struct wpabuf * event_build_message(struct wps_event_ *e)
 	struct wpabuf *buf;
 	char *b;
 
-	buf = wpabuf_alloc(1000 + wpabuf_len(e->data));
+	buf = wpabuf_alloc(1000 + os_strlen(e->addr->path) +
+			   wpabuf_len(e->data));
 	if (buf == NULL)
 		return NULL;
 	wpabuf_printf(buf, "NOTIFY %s HTTP/1.1\r\n", e->addr->path);
@@ -293,7 +294,7 @@ static int event_send_start(struct subscription *s)
 
 	buf = event_build_message(e);
 	if (buf == NULL) {
-		event_retry(e, 0);
+		event_addr_failure(e);
 		return -1;
 	}
 
@@ -301,7 +302,7 @@ static int event_send_start(struct subscription *s)
 					 event_http_cb, e);
 	if (e->http_event == NULL) {
 		wpabuf_free(buf);
-		event_retry(e, 0);
+		event_addr_failure(e);
 		return -1;
 	}
 
