@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2020
+.Dd June 12, 2020
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -95,6 +95,10 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va compat.linux.debug
+Enable debugging messages.
+Set to 0 to silence them.
+Defaults to 1.
 .It Va compat.linux.default_openfiles
 Default soft openfiles resource limit for Linux applications.
 Set to -1 to disable the limit.
