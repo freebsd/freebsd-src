@@ -902,7 +902,7 @@ dofault:
 					if (inst.RType.rd == 29) {
 						frame_regs = &(trapframe->zero);
 						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
-						frame_regs[inst.RType.rt] += td->td_md.md_tls_tcb_offset;
+						frame_regs[inst.RType.rt] += td->td_proc->p_md.md_tls_tcb_offset;
 						trapframe->pc += sizeof(int);
 						goto out;
 					}
