@@ -270,6 +270,7 @@ initializecpu(void)
 	hw_ibrs_recalculate(false);
 	hw_ssb_recalculate(false);
 	amd64_syscall_ret_flush_l1d_recalc();
+	x86_rngds_mitg_recalculate(false);
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 	case CPU_VENDOR_HYGON:
