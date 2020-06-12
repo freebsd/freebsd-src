@@ -207,15 +207,15 @@ install(char *pkgname)
 	if (*s == '\0')
 		goto invalid_url;
 
-	proto = NULL;
 	devname = NULL;
 	devnamelen = 0;
-	
+	proto = NULL;
+	local = 0;
+
 	if (i == 4 && !strncasecmp(pkgname, "tftp", i)) {
 		devname = "net0";
 		devnamelen = 4;
 		proto = &tftp_fsops;
-		local = 0;
 	} else if (i == 4 && !strncasecmp(pkgname, "file", i)) {
 		currdev = getenv("currdev");
 		local = 1;
