@@ -289,10 +289,18 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 #endif
 		Elf_Ehdr elf;
 	} hdr;
-	int n;
+	Elf_Phdr phdr, dynphdr;
+	Elf_Dyn *dynp;
+	void *dyndata;
+#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
+	Elf32_Phdr phdr32, dynphdr32;
+	Elf32_Dyn *dynp32;
+#endif
+	int df1pie, dynamic, i, n;
 
 	*is_shlib = 0;
 	*type = TYPE_UNKNOWN;
+	df1pie = 0;
 
 	if ((n = read(fd, &hdr, sizeof(hdr))) == -1) {
 		warn("%s: can't read program header", fname);
@@ -320,8 +328,6 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 	if ((size_t)n >= sizeof(hdr.elf32) && IS_ELF(hdr.elf32) &&
 	    hdr.elf32.e_ident[EI_CLASS] == ELFCLASS32) {
 		/* Handle 32 bit ELF objects */
-		Elf32_Phdr phdr;
-		int dynamic, i;
 
 		dynamic = 0;
 		*type = TYPE_ELF32;
@@ -331,13 +337,14 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			return (0);
 		}
 		for (i = 0; i < hdr.elf32.e_phnum; i++) {
-			if (read(fd, &phdr, hdr.elf32.e_phentsize) !=
-			    sizeof(phdr)) {
+			if (read(fd, &phdr32, hdr.elf32.e_phentsize) !=
+			    sizeof(phdr32)) {
 				warnx("%s: can't read program header", fname);
 				return (0);
 			}
-			if (phdr.p_type == PT_DYNAMIC) {
+			if (phdr32.p_type == PT_DYNAMIC) {
 				dynamic = 1;
+				dynphdr32 = phdr32;
 				break;
 			}
 		}
@@ -346,9 +353,36 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			warnx("%s: not a dynamic ELF executable", fname);
 			return (0);
 		}
+
 		if (hdr.elf32.e_type == ET_DYN) {
+			if (lseek(fd, dynphdr32.p_offset, SEEK_SET) == -1) {
+				warnx("%s: dynamic segment out of range",
+				    fname);
+				return (0);
+			}
+			dyndata = malloc(dynphdr32.p_filesz);
+			if (dyndata == NULL) {
+				warn("malloc");
+				return (0);
+			}
+			if (read(fd, dyndata, dynphdr32.p_filesz) !=
+			    (ssize_t)dynphdr32.p_filesz) {
+				free(dyndata);
+				warnx("%s: can't read dynamic segment", fname);
+				return (0);
+			}
+			for (dynp32 = dyndata; dynp32->d_tag != DT_NULL;
+			    dynp32++) {
+				if (dynp32->d_tag != DT_FLAGS_1)
+					continue;
+				df1pie = (dynp32->d_un.d_val & DF_1_PIE) != 0;
+				break;
+			}
+			free(dyndata);
+
 			if (hdr.elf32.e_ident[EI_OSABI] == ELFOSABI_FREEBSD) {
-				*is_shlib = 1;
+				if (!df1pie)
+					*is_shlib = 1;
 				return (1);
 			}
 			warnx("%s: not a FreeBSD ELF shared object", fname);
@@ -362,8 +396,6 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 	if ((size_t)n >= sizeof(hdr.elf) && IS_ELF(hdr.elf) &&
 	    hdr.elf.e_ident[EI_CLASS] == ELF_TARG_CLASS) {
 		/* Handle default ELF objects on this architecture */
-		Elf_Phdr phdr;
-		int dynamic, i;
 
 		dynamic = 0;
 		*type = TYPE_ELF;
@@ -380,6 +412,7 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			}
 			if (phdr.p_type == PT_DYNAMIC) {
 				dynamic = 1;
+				dynphdr = phdr;
 				break;
 			}
 		}
@@ -388,10 +421,36 @@ is_executable(const char *fname, int fd, int *is_shlib, int *type)
 			warnx("%s: not a dynamic ELF executable", fname);
 			return (0);
 		}
+
 		if (hdr.elf.e_type == ET_DYN) {
+			if (lseek(fd, dynphdr.p_offset, SEEK_SET) == -1) {
+				warnx("%s: dynamic segment out of range",
+				    fname);
+				return (0);
+			}
+			dyndata = malloc(dynphdr.p_filesz);
+			if (dyndata == NULL) {
+				warn("malloc");
+				return (0);
+			}
+			if (read(fd, dyndata, dynphdr.p_filesz) !=
+			    (ssize_t)dynphdr.p_filesz) {
+				free(dyndata);
+				warnx("%s: can't read dynamic segment", fname);
+				return (0);
+			}
+			for (dynp = dyndata; dynp->d_tag != DT_NULL; dynp++) {
+				if (dynp->d_tag != DT_FLAGS_1)
+					continue;
+				df1pie = (dynp->d_un.d_val & DF_1_PIE) != 0;
+				break;
+			}
+			free(dyndata);
+
 			switch (hdr.elf.e_ident[EI_OSABI]) {
 			case ELFOSABI_FREEBSD:
-				*is_shlib = 1;
+				if (!df1pie)
+					*is_shlib = 1;
 				return (1);
 #ifdef __ARM_EABI__
 			case ELFOSABI_NONE:
