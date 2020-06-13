@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .In sys/procctl.h
 .Ft int
-.Fn procctl "idtype_t idtype" "id_t id" "int cmd" "void *arg"
+.Fn procctl "idtype_t idtype" "id_t id" "int cmd" "void *data"
 .Sh DESCRIPTION
 The
 .Fn procctl
@@ -80,7 +80,7 @@ by
 in the specified process or its descendants that did not changed
 the control nor modified it by other means.
 The
-.Va arg
+.Fa data
 parameter must point to the integer variable holding one of the following
 values:
 .Bl -tag -width PROC_ASLR_FORCE_DISABLE
@@ -99,7 +99,7 @@ Use the system-wide configured policy for ASLR.
 .It Dv PROC_ASLR_STATUS
 Returns the current status of ASLR enablement for the target process.
 The
-.Va arg
+.Fa data
 parameter must point to the integer variable, where one of the
 following values is written:
 .Bl -tag -width PROC_ASLR_FORCE_DISABLE
@@ -119,7 +119,7 @@ argument of the
 .Xr mmap 2
 syscall, in the target process.
 The
-.Va arg
+.Fa data
 parameter must point to the integer variable holding one of the following
 values:
 .Bl -tag -width PROC_PROTMAX_FORCE_DISABLE
@@ -140,7 +140,7 @@ Use the system-wide configured policy for PROT_MAX.
 Returns the current status of implicit PROT_MAX enablement for the
 target process.
 The
-.Va arg
+.Fa data
 parameter must point to the integer variable, where one of the
 following values is written:
 .Bl -tag -width PROC_PROTMAX_FORCE_DISABLE
@@ -158,7 +158,7 @@ Set process protection state.
 This is used to mark a process as protected from being killed if the system
 exhausts the available memory and swap.
 The
-.Fa arg
+.Fa data
 parameter must point to an integer containing an operation and zero or more
 optional flags.
 The following operations are supported:
