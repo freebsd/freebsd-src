@@ -80,6 +80,7 @@ static int ieee80211_sta_join1(struct ieee80211_node *);
 
 static struct ieee80211_node *node_alloc(struct ieee80211vap *,
 	const uint8_t [IEEE80211_ADDR_LEN]);
+static int node_init(struct ieee80211_node *);
 static void node_cleanup(struct ieee80211_node *);
 static void node_free(struct ieee80211_node *);
 static void node_age(struct ieee80211_node *);
@@ -116,6 +117,7 @@ ieee80211_node_attach(struct ieee80211com *ic)
 		ieee80211_node_timeout, ic);
 
 	ic->ic_node_alloc = node_alloc;
+	ic->ic_node_init = node_init;
 	ic->ic_node_free = node_free;
 	ic->ic_node_cleanup = node_cleanup;
 	ic->ic_node_age = node_age;
@@ -1074,6 +1076,12 @@ node_alloc(struct ieee80211vap *vap, const uint8_t macaddr[IEEE80211_ADDR_LEN])
 	return ni;
 }
 
+static int
+node_init(struct ieee80211_node *ni)
+{
+	return 0;
+}
+
 /*
  * Initialize an ie blob with the specified data.  If previous
  * data exists re-use the data block.  As a side effect we clear
@@ -1414,6 +1422,15 @@ ieee80211_alloc_node(struct ieee80211_node_table *nt,
 	ni->ni_ic = ic;
 	IEEE80211_NODE_UNLOCK(nt);
 
+	/* handle failure; free node state */
+	if (ic->ic_node_init(ni) != 0) {
+		vap->iv_stats.is_rx_nodealloc++;
+		ieee80211_psq_cleanup(&ni->ni_psq);
+		ieee80211_ratectl_node_deinit(ni);
+		_ieee80211_free_node(ni);
+		return NULL;
+	}
+
 	IEEE80211_NOTE(vap, IEEE80211_MSG_INACT, ni,
 	    "%s: inact_reload %u", __func__, ni->ni_inact_reload);
 
@@ -1456,6 +1473,16 @@ ieee80211_tmp_node(struct ieee80211vap *vap,
 		ieee80211_psq_init(&ni->ni_psq, "unknown");
 
 		ieee80211_ratectl_node_init(ni);
+
+		/* handle failure; free node state */
+		if (ic->ic_node_init(ni) != 0) {
+			vap->iv_stats.is_rx_nodealloc++;
+			ieee80211_psq_cleanup(&ni->ni_psq);
+			ieee80211_ratectl_node_deinit(ni);
+			_ieee80211_free_node(ni);
+			return NULL;
+		}
+
 	} else {
 		/* XXX msg */
 		vap->iv_stats.is_rx_nodealloc++;
