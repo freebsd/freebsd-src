@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_input.h>
 
+DEBUGNET_DEFINE(ieee80211);
 SYSCTL_NODE(_net, OID_AUTO, wlan, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "IEEE 80211 parameters");
 
@@ -111,7 +112,14 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 			cp.icp_flags & IEEE80211_CLONE_MACADDR ?
 			    cp.icp_macaddr : ic->ic_macaddr);
 
-	return (vap == NULL ? EIO : 0);
+	if (vap == NULL)
+		return (EIO);
+
+#ifdef DEBUGNET
+	if (ic->ic_debugnet_meth != NULL)
+		DEBUGNET_SET(vap->iv_ifp, ieee80211);
+#endif
+	return (0);
 }
 
 static void
@@ -1046,6 +1054,54 @@ ieee80211_get_vap_ifname(struct ieee80211vap *vap)
 		return "(none)";
 	return vap->iv_ifp->if_xname;
 }
+
+#ifdef DEBUGNET
+static void
+ieee80211_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211com *ic;
+
+	vap = if_getsoftc(ifp);
+	ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	ic->ic_debugnet_meth->dn8_init(ic, nrxr, ncl, clsize);
+	IEEE80211_UNLOCK(ic);
+}
+
+static void
+ieee80211_debugnet_event(struct ifnet *ifp, enum debugnet_ev ev)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211com *ic;
+
+	vap = if_getsoftc(ifp);
+	ic = vap->iv_ic;
+
+	IEEE80211_LOCK(ic);
+	ic->ic_debugnet_meth->dn8_event(ic, ev);
+	IEEE80211_UNLOCK(ic);
+}
+
+static int
+ieee80211_debugnet_transmit(struct ifnet *ifp, struct mbuf *m)
+{
+	return (ieee80211_vap_transmit(ifp, m));
+}
+
+static int
+ieee80211_debugnet_poll(struct ifnet *ifp, int count)
+{
+	struct ieee80211vap *vap;
+	struct ieee80211com *ic;
+
+	vap = if_getsoftc(ifp);
+	ic = vap->iv_ic;
+
+	return (ic->ic_debugnet_meth->dn8_poll(ic, count));
+}
+#endif
 
 /*
  * Module glue.
