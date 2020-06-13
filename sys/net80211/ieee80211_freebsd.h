@@ -40,6 +40,10 @@
 #include <sys/taskqueue.h>
 #include <sys/time.h>
 
+#ifdef DEBUGNET
+#include <net/debugnet.h>
+#endif
+
 /*
  * Common state locking definitions.
  */
@@ -492,6 +496,36 @@ typedef int ieee80211_ioctl_setfunc(struct ieee80211vap *,
     struct ieee80211req *);
 SET_DECLARE(ieee80211_ioctl_setset, ieee80211_ioctl_setfunc);
 #define	IEEE80211_IOCTL_SET(_name, _set) TEXT_SET(ieee80211_ioctl_setset, _set)
+
+#ifdef DEBUGNET
+typedef void debugnet80211_init_t(struct ieee80211com *, int *nrxr, int *ncl,
+    int *clsize);
+typedef void debugnet80211_event_t(struct ieee80211com *, enum debugnet_ev);
+typedef int debugnet80211_poll_t(struct ieee80211com *, int);
+
+struct debugnet80211_methods {
+	debugnet80211_init_t		*dn8_init;
+	debugnet80211_event_t		*dn8_event;
+	debugnet80211_poll_t		*dn8_poll;
+};
+
+#define	DEBUGNET80211_DEFINE(driver)					\
+	static debugnet80211_init_t driver##_debugnet80211_init;		\
+	static debugnet80211_event_t driver##_debugnet80211_event;	\
+	static debugnet80211_poll_t driver##_debugnet80211_poll;		\
+									\
+	static struct debugnet80211_methods driver##_debugnet80211_methods = { \
+		.dn8_init = driver##_debugnet80211_init,			\
+		.dn8_event = driver##_debugnet80211_event,		\
+		.dn8_poll = driver##_debugnet80211_poll,			\
+	}
+#define DEBUGNET80211_SET(ic, driver)					\
+	(ic)->ic_debugnet_meth = &driver##_debugnet80211_methods
+#else
+#define DEBUGNET80211_DEFINE(driver)
+#define DEBUGNET80211_SET(ic, driver)
+#endif /* DEBUGNET */
+
 #endif /* _KERNEL */
 
 /* XXX this stuff belongs elsewhere */

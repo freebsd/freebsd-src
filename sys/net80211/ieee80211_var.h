@@ -132,6 +132,8 @@ struct ieee80211_rx_ampdu;
 struct ieee80211_superg;
 struct ieee80211_frame;
 
+struct net80211dump_methods;
+
 struct ieee80211com {
 	void			*ic_softc;	/* driver softc */
 	const char		*ic_name;	/* usually device name */
@@ -370,6 +372,7 @@ struct ieee80211com {
 	/* The channel width has changed (20<->2040) */
 	void			(*ic_update_chw)(struct ieee80211com *);
 
+	const struct debugnet80211_methods	*ic_debugnet_meth;
 	uint64_t		ic_spare[7];
 };
 
