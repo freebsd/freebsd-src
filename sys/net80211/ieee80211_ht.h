@@ -33,6 +33,8 @@
  * 802.11n protocol implementation definitions.
  */
 
+#include <sys/mbuf.h>
+
 #define	IEEE80211_AGGR_BAWMAX	64	/* max block ack window size */
 /* threshold for aging overlapping non-HT bss */
 #define	IEEE80211_NONHT_PRESENT_AGE	msecs_to_ticks(60*1000)
@@ -169,7 +171,7 @@ struct ieee80211_rx_ampdu {
 	uint16_t	rxa_wnd;	/* BA window size */
 	int		rxa_age;	/* age of oldest frame in window */
 	int		rxa_nframes;	/* frames since ADDBA */
-	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
+	struct mbufq rxa_mq[IEEE80211_AGGR_BAWMAX];
 	void		*rxa_private;
 	uint64_t	rxa_pad[3];
 };
