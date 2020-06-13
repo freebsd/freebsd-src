@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2018
+.Dd June 13, 2020
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -177,6 +177,23 @@ If a socket is associated with more than one file descriptor,
 it is shown multiple times.
 If a socket is not associated with any file descriptor,
 the first four columns have no meaning.
+.Sh EXAMPLES
+Show information for IPv4 sockets listening on port 22 using protocol
+TCP:
+.Bd -literal -offset indent
+$ sockstat -4 -l -P tcp -p 22
+.Ed
+.Pp
+Show information for sockets using either TCP or UDP, if neither, the local nor
+the foreign addresses are in the loopback network:
+.Bd -literal -offset indent
+$ sockstat -L -P tcp,udp
+.Ed
+.Pp
+Show TCP IPv6 sockets which are listening and connected (default):
+.Bd -literal -offset indent
+$ sockstat -6 -P tcp
+.Ed
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr netstat 1 ,
