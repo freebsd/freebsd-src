@@ -301,8 +301,6 @@ sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 		SCTP_IPI_ADDR_WLOCK();
 	LIST_REMOVE(sctp_ifnp, next_bucket);
 	LIST_REMOVE(sctp_ifnp, next_ifn);
-	SCTP_DEREGISTER_INTERFACE(sctp_ifnp->ifn_index,
-	    sctp_ifnp->registered_af);
 	if (hold_addr_lock == 0)
 		SCTP_IPI_ADDR_WUNLOCK();
 	/* Take away the reference, and possibly free it */
@@ -430,7 +428,6 @@ sctp_add_ifa_to_ifn(struct sctp_ifn *sctp_ifnp, struct sctp_ifa *sctp_ifap)
 	}
 	if (sctp_ifnp->ifa_count == 1) {
 		/* register the new interface */
-		SCTP_REGISTER_INTERFACE(sctp_ifnp->ifn_index, ifa_af);
 		sctp_ifnp->registered_af = ifa_af;
 	}
 }
@@ -471,13 +468,9 @@ sctp_remove_ifa_from_ifn(struct sctp_ifa *sctp_ifap)
 			/* re-register address family type, if needed */
 			if ((sctp_ifap->ifn_p->num_v6 == 0) &&
 			    (sctp_ifap->ifn_p->registered_af == AF_INET6)) {
-				SCTP_DEREGISTER_INTERFACE(sctp_ifap->ifn_p->ifn_index, AF_INET6);
-				SCTP_REGISTER_INTERFACE(sctp_ifap->ifn_p->ifn_index, AF_INET);
 				sctp_ifap->ifn_p->registered_af = AF_INET;
 			} else if ((sctp_ifap->ifn_p->num_v4 == 0) &&
 			    (sctp_ifap->ifn_p->registered_af == AF_INET)) {
-				SCTP_DEREGISTER_INTERFACE(sctp_ifap->ifn_p->ifn_index, AF_INET);
-				SCTP_REGISTER_INTERFACE(sctp_ifap->ifn_p->ifn_index, AF_INET6);
 				sctp_ifap->ifn_p->registered_af = AF_INET6;
 			}
 			/* free the ifn refcount */
@@ -678,7 +671,6 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	vrf->total_ifa_count++;
 	atomic_add_int(&SCTP_BASE_INFO(ipi_count_ifas), 1);
 	if (new_ifn_af) {
-		SCTP_REGISTER_INTERFACE(ifn_index, new_ifn_af);
 		sctp_ifnp->registered_af = new_ifn_af;
 	}
 	SCTP_IPI_ADDR_WUNLOCK();
