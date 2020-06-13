@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2020
+.Dd June 13, 2020
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -565,6 +565,47 @@ Stack gaps are disabled in the process after
 .Xr execve 2 .
 .El
 .El
+.Sh x86 MACHINE-SPECIFIC REQUESTS
+.Bl -tag -width PROC_KPTI_STATUS
+.It Dv PROC_KPTI_CTL
+AMD64 only.
+Controls the Kernel Page Table Isolation (KPTI) option for the children
+of the specified process.
+For the command to work, the
+.Va vm.pmap.kpti
+tunable must be enabled on boot.
+It is not possible to change the KPTI setting for a running process,
+except at the
+.Xr execve 2 ,
+where the address space is reinitialized.
+.Pp
+The
+.Fa data
+parameter must point to an integer variable containing one of the
+following commands:
+.Bl -tag -width PROC_KPTI_CTL_DISABLE_ON_EXEC
+.It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
+Enable KPTI after
+.Xr execve 2 .
+.It Dv PROC_KPTI_CTL_DISABLE_ON_EXEC
+Disable KPTI after
+.Xr execve 2 .
+Only root or a process having the
+.Va PRIV_IO
+privilege might use this option.
+.El
+.It Dv PROC_KPTI_STATUS
+Returns the current KPTI status for the specified process.
+.Fa data must point to the integer variable, which returns the
+following statuses:
+.Bl -tag -width PROC_KPTI_CTL_DISABLE_ON_EXEC
+.It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
+.It Dv PROC_KPTI_CTL_DISABLE_ON_EXEC
+.El
+.Pp
+The status is or-ed with the
+.Va PROC_KPTI_STATUS_ACTIVE
+in case KPTI is active for the current address space of the process.
 .Sh NOTES
 Disabling tracing on a process should not be considered a security
 feature, as it is bypassable both by the kernel and privileged processes,
