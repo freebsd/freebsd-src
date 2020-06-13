@@ -239,7 +239,7 @@ sbuf_tty_drain(void *a, const char *d, int len)
 }
 
 #ifdef STACK
-static bool tty_info_kstacks = false;
+static bool tty_info_kstacks = true;
 SYSCTL_BOOL(_kern, OID_AUTO, tty_info_kstacks, CTLFLAG_RWTUN,
     &tty_info_kstacks, 0,
     "Enable printing kernel stack(9) traces on ^T (tty info)");
