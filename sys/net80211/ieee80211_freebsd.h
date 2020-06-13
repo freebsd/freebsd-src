@@ -40,9 +40,7 @@
 #include <sys/taskqueue.h>
 #include <sys/time.h>
 
-#ifdef DEBUGNET
 #include <net/debugnet.h>
-#endif
 
 /*
  * Common state locking definitions.
