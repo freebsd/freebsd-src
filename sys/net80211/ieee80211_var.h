@@ -310,11 +310,22 @@ struct ieee80211com {
 	/* TDMA update notification */
 	void			(*ic_tdma_update)(struct ieee80211_node *,
 				    const struct ieee80211_tdma_param *, int);
-	/* node state management */
+
+	/* Node state management */
+
+	/* Allocate a new node */
 	struct ieee80211_node*	(*ic_node_alloc)(struct ieee80211vap *,
 				    const uint8_t [IEEE80211_ADDR_LEN]);
+
+	/* Driver node initialisation after net80211 setup */
+	int			(*ic_node_init)(struct ieee80211_node *);
+
+	/* Driver node deallocation */
 	void			(*ic_node_free)(struct ieee80211_node *);
+
+	/* Driver node state cleanup before deallocation */
 	void			(*ic_node_cleanup)(struct ieee80211_node *);
+
 	void			(*ic_node_age)(struct ieee80211_node *);
 	void			(*ic_node_drain)(struct ieee80211_node *);
 	int8_t			(*ic_node_getrssi)(const struct ieee80211_node*);
