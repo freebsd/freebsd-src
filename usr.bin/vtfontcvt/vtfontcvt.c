@@ -35,20 +35,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/font.h>
 
 #include <assert.h>
 #include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <lz4.h>
 
-#define VFNT_MAPS 4
-#define VFNT_MAP_NORMAL 0
-#define VFNT_MAP_NORMAL_RH 1
-#define VFNT_MAP_BOLD 2
-#define VFNT_MAP_BOLD_RH 3
 #define VFNT_MAXGLYPHS 131072
 #define VFNT_MAXDIMENSION 128
 
@@ -89,12 +87,102 @@ static struct mapping_list maps[VFNT_MAPS] = {
 static unsigned int mapping_total, map_count[4], map_folded_count[4],
     mapping_unique, mapping_dupe;
 
+enum output_format {
+	VT_FONT,		/* default */
+	VT_C_SOURCE,		/* C source for built in fonts */
+	VT_C_COMPRESSED		/* C source with compressed font data */
+};
+
+struct whitelist {
+	uint32_t c;
+	uint32_t len;
+};
+
+/*
+ * Compressed font glyph list. To be used with boot loader, we need to have
+ * ascii set and box drawing chars.
+ */
+static struct whitelist c_list[] = {
+	{ .c = 0, .len = 0 },		/* deault char */
+	{ .c = 0x20, .len = 0x5f },
+	{ .c = 0x2500, .len = 0 },	/* single frame */
+	{ .c = 0x2502, .len = 0 },
+	{ .c = 0x250c, .len = 0 },
+	{ .c = 0x2510, .len = 0 },
+	{ .c = 0x2514, .len = 0 },
+	{ .c = 0x2518, .len = 0 },
+	{ .c = 0x2550, .len = 1 },	/* double frame */
+	{ .c = 0x2554, .len = 0 },
+	{ .c = 0x2557, .len = 0 },
+	{ .c = 0x255a, .len = 0 },
+	{ .c = 0x255d, .len = 0 },
+};
+
+/*
+ * Uncompressed source. For x86 we need cp437 so the vga text mode
+ * can program font into the vga card.
+ */
+static struct whitelist s_list[] = {
+	{ .c = 0, .len = 0 },		/* deault char */
+	{ .c = 0x20, .len = 0x5f },	/* ascii set */
+	{ .c = 0xA0, .len = 0x5f },	/* latin 1 */
+	{ .c = 0x0192, .len = 0 },
+	{ .c = 0x0332, .len = 0 },	/* composing lower line */
+	{ .c = 0x0393, .len = 0 },
+	{ .c = 0x0398, .len = 0 },
+	{ .c = 0x03A3, .len = 0 },
+	{ .c = 0x03A6, .len = 0 },
+	{ .c = 0x03A9, .len = 0 },
+	{ .c = 0x03B1, .len = 1 },
+	{ .c = 0x03B4, .len = 0 },
+	{ .c = 0x03C0, .len = 0 },
+	{ .c = 0x03C3, .len = 0 },
+	{ .c = 0x03C4, .len = 0 },
+	{ .c = 0x207F, .len = 0 },
+	{ .c = 0x20A7, .len = 0 },
+	{ .c = 0x2205, .len = 0 },
+	{ .c = 0x220A, .len = 0 },
+	{ .c = 0x2219, .len = 1 },
+	{ .c = 0x221E, .len = 0 },
+	{ .c = 0x2229, .len = 0 },
+	{ .c = 0x2248, .len = 0 },
+	{ .c = 0x2261, .len = 0 },
+	{ .c = 0x2264, .len = 1 },
+	{ .c = 0x2310, .len = 0 },
+	{ .c = 0x2320, .len = 1 },
+	{ .c = 0x2500, .len = 0 },
+	{ .c = 0x2502, .len = 0 },
+	{ .c = 0x250C, .len = 0 },
+	{ .c = 0x2510, .len = 0 },
+	{ .c = 0x2514, .len = 0 },
+	{ .c = 0x2518, .len = 0 },
+	{ .c = 0x251C, .len = 0 },
+	{ .c = 0x2524, .len = 0 },
+	{ .c = 0x252C, .len = 0 },
+	{ .c = 0x2534, .len = 0 },
+	{ .c = 0x253C, .len = 0 },
+	{ .c = 0x2550, .len = 0x1c },
+	{ .c = 0x2580, .len = 0 },
+	{ .c = 0x2584, .len = 0 },
+	{ .c = 0x2588, .len = 0 },
+	{ .c = 0x258C, .len = 0 },
+	{ .c = 0x2590, .len = 3 },
+	{ .c = 0x25A0, .len = 0 },
+};
+
+static bool filter = true;
+static enum output_format format = VT_FONT;
+/* Type for write callback. */
+typedef size_t (*vt_write)(const void *, size_t, size_t, FILE *);
+static uint8_t *uncompressed;
+
 static void
 usage(void)
 {
 
-	(void)fprintf(stderr,
-"usage: vtfontcvt [-w width] [-h height] [-v] normal.bdf [bold.bdf] out.fnt\n");
+	(void)fprintf(stderr, "usage: vtfontcvt "
+	    "[-n] [-f font|source|compressed-source] [-w width] "
+	    "[-h height]\n\t[-v] normal.bdf [bold.bdf] out.fnt\n");
 	exit(1);
 }
 
@@ -148,7 +236,7 @@ dedup_mapping(unsigned int map_idx)
 	struct mapping *mp_bold, *mp_normal, *mp_temp;
 	unsigned normal_map_idx = map_idx - VFNT_MAP_BOLD;
 
-	assert(map_idx == VFNT_MAP_BOLD || map_idx == VFNT_MAP_BOLD_RH);
+	assert(map_idx == VFNT_MAP_BOLD || map_idx == VFNT_MAP_BOLD_RIGHT);
 	mp_normal = TAILQ_FIRST(&maps[normal_map_idx]);
 	TAILQ_FOREACH_SAFE(mp_bold, &maps[map_idx], m_list, mp_temp) {
 		while (mp_normal->m_char < mp_bold->m_char)
@@ -201,6 +289,32 @@ add_glyph(const uint8_t *bytes, unsigned int map_idx, int fallback)
 	return (gl);
 }
 
+static bool
+check_whitelist(unsigned c)
+{
+	struct whitelist *w = NULL;
+	int i, n = 0;
+
+	if (filter == false)
+		return (true);
+
+	if (format == VT_C_SOURCE) {
+		w = s_list;
+		n = sizeof (s_list) / sizeof (s_list[0]);
+	}
+	if (format == VT_C_COMPRESSED) {
+		w = c_list;
+		n = sizeof (c_list) / sizeof (c_list[0]);
+	}
+	if (w == NULL)
+		return (true);
+	for (i = 0; i < n; i++) {
+		if (c >= w[i].c && c <= w[i].c + w[i].len)
+			return (true);
+	}
+	return (false);
+}
+
 static int
 add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 {
@@ -210,7 +324,7 @@ add_char(unsigned curchar, unsigned map_idx, uint8_t *bytes, uint8_t *bytes_r)
 	if (curchar == 0xFFFD) {
 		if (map_idx < VFNT_MAP_BOLD)
 			gl = add_glyph(bytes, 0, 1);
-	} else if (curchar >= 0x20) {
+	} else if (filter == false || curchar >= 0x20) {
 		gl = add_glyph(bytes, map_idx, 0);
 		if (add_mapping(gl, curchar, map_idx) != 0)
 			return (1);
@@ -287,9 +401,9 @@ set_width(int w)
 static int
 parse_bdf(FILE *fp, unsigned int map_idx)
 {
-	char *line, *ln, *p;
+	char *ln, *p;
 	size_t length;
-	uint8_t *bytes, *bytes_r;
+	uint8_t *line, *bytes, *bytes_r;
 	unsigned int curchar = 0, i, j, linenum = 0, bbwbytes;
 	int bbw, bbh, bbox, bboy;		/* Glyph bounding box. */
 	int fbbw = 0, fbbh, fbbox, fbboy;	/* Font bounding box. */
@@ -414,10 +528,12 @@ parse_bdf(FILE *fp, unsigned int map_idx)
 					goto out;
 			}
 
-			rv = add_char(curchar, map_idx, bytes,
-			    dwidth > (int)width ? bytes_r : NULL);
-			if (rv != 0)
-				goto out;
+			if (check_whitelist(curchar) == true) {
+				rv = add_char(curchar, map_idx, bytes,
+				    dwidth > (int)width ? bytes_r : NULL);
+				if (rv != 0)
+					goto out;
+			}
 
 			dwidth = bbw = bbh = 0;
 		}
@@ -484,10 +600,12 @@ parse_hex(FILE *fp, unsigned int map_idx)
 				p += gwbytes * 2;
 			}
 
-			rv = add_char(curchar, map_idx, bytes,
-			    gwidth != width ? bytes_r : NULL);
-			if (rv != 0)
-				goto out;
+			if (check_whitelist(curchar) == true) {
+				rv = add_char(curchar, map_idx, bytes,
+				    gwidth != width ? bytes_r : NULL);
+				if (rv != 0)
+					goto out;
+			}
 		}
 	}
 out:
@@ -529,15 +647,51 @@ number_glyphs(void)
 			gl->g_index = idx++;
 }
 
+/* Note we only deal with byte stream here. */
+static size_t
+write_glyph_source(const void *ptr, size_t size, size_t nitems, FILE *stream)
+{
+	const uint8_t *data = ptr;
+	size_t i;
+
+	size *= nitems;
+	for (i = 0; i < size; i++) {
+		if ((i % wbytes) == 0) {
+			if (fprintf(stream, "\n") < 0)
+				return (0);
+		}
+		if (fprintf(stream, "0x%02x, ", data[i]) < 0)
+			return (0);
+	}
+	if (fprintf(stream, "\n") < 0)
+		nitems = 0;
+
+	return (nitems);
+}
+
+/* Write to buffer */
+static size_t
+write_glyph_buf(const void *ptr, size_t size, size_t nitems,
+    FILE *stream __unused)
+{
+	static size_t index = 0;
+
+	size *= nitems;
+	(void) memmove(uncompressed + index, ptr, size);
+	index += size;
+
+	return (nitems);
+}
+
 static int
-write_glyphs(FILE *fp)
+write_glyphs(FILE *fp, vt_write cb)
 {
 	struct glyph *gl;
 	unsigned int i;
 
 	for (i = 0; i < VFNT_MAPS; i++) {
 		TAILQ_FOREACH(gl, &glyphs[i], g_list)
-			if (fwrite(gl->g_data, wbytes * height, 1, fp) != 1)
+			if (cb(gl->g_data, wbytes * height, 1, fp) != 1)
 				return (1);
 	}
 	return (0);
@@ -561,27 +715,21 @@ fold_mappings(unsigned int map_idx)
 	}
 }
 
-struct file_mapping {
-	uint32_t	source;
-	uint16_t	destination;
-	uint16_t	length;
-} __packed;
-
 static int
 write_mappings(FILE *fp, unsigned int map_idx)
 {
 	struct mapping_list *ml = &maps[map_idx];
 	struct mapping *mp;
-	struct file_mapping fm;
+	vfnt_map_t fm;
 	unsigned int i = 0, j = 0;
 
 	TAILQ_FOREACH(mp, ml, m_list) {
 		j++;
 		if (mp->m_length > 0) {
 			i += mp->m_length;
-			fm.source = htobe32(mp->m_char);
-			fm.destination = htobe16(mp->m_glyph->g_index);
-			fm.length = htobe16(mp->m_length - 1);
+			fm.vfm_src = htobe32(mp->m_char);
+			fm.vfm_dst = htobe16(mp->m_glyph->g_index);
+			fm.vfm_len = htobe16(mp->m_length - 1);
 			if (fwrite(&fm, sizeof fm, 1, fp) != 1)
 				return (1);
 		}
@@ -590,21 +738,33 @@ write_mappings(FILE *fp, unsigned int map_idx)
 	return (0);
 }
 
-struct file_header {
-	uint8_t		magic[8];
-	uint8_t		width;
-	uint8_t		height;
-	uint16_t	pad;
-	uint32_t	glyph_count;
-	uint32_t	map_count[4];
-} __packed;
+static int
+write_source_mappings(FILE *fp, unsigned int map_idx)
+{
+	struct mapping_list *ml = &maps[map_idx];
+	struct mapping *mp;
+	unsigned int i = 0, j = 0;
+
+	TAILQ_FOREACH(mp, ml, m_list) {
+		j++;
+		if (mp->m_length > 0) {
+			i += mp->m_length;
+			if (fprintf(fp, "\t{ 0x%08x, 0x%04x, 0x%04x },\n",
+			    mp->m_char, mp->m_glyph->g_index,
+			    mp->m_length - 1) < 0)
+				return (1);
+		}
+	}
+	assert(i == j);
+	return (0);
+}
 
 static int
 write_fnt(const char *filename)
 {
 	FILE *fp;
-	struct file_header fh = {
-		.magic = "VFNT0002",
+	struct font_header fh = {
+		.fh_magic = FONT_HEADER_MAGIC,
 	};
 
 	fp = fopen(filename, "wb");
@@ -613,29 +773,221 @@ write_fnt(const char *filename)
 		return (1);
 	}
 
-	fh.width = width;
-	fh.height = height;
-	fh.glyph_count = htobe32(glyph_unique);
-	fh.map_count[0] = htobe32(map_folded_count[0]);
-	fh.map_count[1] = htobe32(map_folded_count[1]);
-	fh.map_count[2] = htobe32(map_folded_count[2]);
-	fh.map_count[3] = htobe32(map_folded_count[3]);
-	if (fwrite(&fh, sizeof fh, 1, fp) != 1) {
+	fh.fh_width = width;
+	fh.fh_height = height;
+	fh.fh_glyph_count = htobe32(glyph_unique);
+	fh.fh_map_count[0] = htobe32(map_folded_count[0]);
+	fh.fh_map_count[1] = htobe32(map_folded_count[1]);
+	fh.fh_map_count[2] = htobe32(map_folded_count[2]);
+	fh.fh_map_count[3] = htobe32(map_folded_count[3]);
+	if (fwrite(&fh, sizeof(fh), 1, fp) != 1) {
 		perror(filename);
 		fclose(fp);
 		return (1);
 	}
 
-	if (write_glyphs(fp) != 0 ||
+	if (write_glyphs(fp, &fwrite) != 0 ||
 	    write_mappings(fp, VFNT_MAP_NORMAL) != 0 ||
-	    write_mappings(fp, VFNT_MAP_NORMAL_RH) != 0 ||
+	    write_mappings(fp, VFNT_MAP_NORMAL_RIGHT) != 0 ||
 	    write_mappings(fp, VFNT_MAP_BOLD) != 0 ||
-	    write_mappings(fp, VFNT_MAP_BOLD_RH) != 0) {
+	    write_mappings(fp, VFNT_MAP_BOLD_RIGHT) != 0) {
 		perror(filename);
 		fclose(fp);
 		return (1);
 	}
 
+	fclose(fp);
+	return (0);
+}
+
+static int
+write_fnt_source(bool lz4, const char *filename)
+{
+	FILE *fp;
+	int rv = 1;
+	size_t uncompressed_size = wbytes * height * glyph_unique;
+	size_t compressed_size = uncompressed_size;
+	uint8_t *compressed = NULL;
+
+	fp = fopen(filename, "w");
+	if (fp == NULL) {
+		perror(filename);
+		return (1);
+	}
+
+	if (lz4 == true) {
+		uncompressed = xmalloc(uncompressed_size);
+		compressed = xmalloc(uncompressed_size);
+	}
+	if (fprintf(fp, "/* Generated %ux%u console font source. */\n\n",
+	    width, height) < 0)
+		goto done;
+	if (fprintf(fp, "#include <sys/types.h>\n") < 0)
+		goto done;
+	if (fprintf(fp, "#include <sys/param.h>\n") < 0)
+		goto done;
+	if (fprintf(fp, "#include <sys/font.h>\n\n") < 0)
+		goto done;
+
+	/* Write font bytes. */
+	if (fprintf(fp, "static uint8_t FONTDATA_%ux%u[] = {\n",
+	    width, height) < 0)
+		goto done;
+	if (lz4 == true) {
+		if (write_glyphs(fp, &write_glyph_buf) != 0)
+			goto done;
+		compressed_size = lz4_compress(uncompressed, compressed,
+		    uncompressed_size, compressed_size, 0);
+		if (write_glyph_source(compressed, compressed_size, 1, fp) != 1)
+			goto done;
+		free(uncompressed);
+		free(compressed);
+	} else {
+		if (write_glyphs(fp, &write_glyph_source) != 0)
+			goto done;
+	}
+	if (fprintf(fp, "};\n\n") < 0)
+	goto done;
+
+	/* Write font maps. */
+	if (!TAILQ_EMPTY(&maps[VFNT_MAP_NORMAL])) {
+		if (fprintf(fp, "static vfnt_map_t "
+		    "FONTMAP_NORMAL_%ux%u[] = {\n", width, height) < 0)
+			goto done;
+		if (write_source_mappings(fp, VFNT_MAP_NORMAL) != 0)
+			goto done;
+		if (fprintf(fp, "};\n\n") < 0)
+			goto done;
+	}
+	if (!TAILQ_EMPTY(&maps[VFNT_MAP_NORMAL_RIGHT])) {
+		if (fprintf(fp, "static vfnt_map_t "
+		    "FONTMAP_NORMAL_RH_%ux%u[] = {\n", width, height) < 0)
+			goto done;
+		if (write_source_mappings(fp, VFNT_MAP_NORMAL_RIGHT) != 0)
+			goto done;
+		if (fprintf(fp, "};\n\n") < 0)
+			goto done;
+	}
+	if (!TAILQ_EMPTY(&maps[VFNT_MAP_BOLD])) {
+		if (fprintf(fp, "static vfnt_map_t "
+		    "FONTMAP_BOLD_%ux%u[] = {\n", width, height) < 0)
+			goto done;
+		if (write_source_mappings(fp, VFNT_MAP_BOLD) != 0)
+			goto done;
+		if (fprintf(fp, "};\n\n") < 0)
+			goto done;
+	}
+	if (!TAILQ_EMPTY(&maps[VFNT_MAP_BOLD_RIGHT])) {
+		if (fprintf(fp, "static vfnt_map_t "
+		    "FONTMAP_BOLD_RH_%ux%u[] = {\n", width, height) < 0)
+			goto done;
+		if (write_source_mappings(fp, VFNT_MAP_BOLD_RIGHT) != 0)
+			goto done;
+		if (fprintf(fp, "};\n\n") < 0)
+			goto done;
+	}
+
+	/* Write struct font. */
+	if (fprintf(fp, "struct vt_font font_%ux%u = {\n",
+	    width, height) < 0)
+		goto done;
+	if (fprintf(fp, "\t.vf_map\t= {\n") < 0)
+		goto done;
+	if (TAILQ_EMPTY(&maps[VFNT_MAP_NORMAL])) {
+		if (fprintf(fp, "\t\t\tNULL,\n") < 0)
+			goto done;
+	} else {
+		if (fprintf(fp, "\t\t\tFONTMAP_NORMAL_%ux%u,\n",
+		    width, height) < 0)
+			goto done;
+	}
+	if (TAILQ_EMPTY(&maps[VFNT_MAP_NORMAL_RIGHT])) {
+		if (fprintf(fp, "\t\t\tNULL,\n") < 0)
+			goto done;
+	} else {
+		if (fprintf(fp, "\t\t\tFONTMAP_NORMAL_RH_%ux%u,\n",
+		    width, height) < 0)
+			goto done;
+	}
+	if (TAILQ_EMPTY(&maps[VFNT_MAP_BOLD])) {
+		if (fprintf(fp, "\t\t\tNULL,\n") < 0)
+			goto done;
+	} else {
+		if (fprintf(fp, "\t\t\tFONTMAP_BOLD_%ux%u,\n",
+		    width, height) < 0)
+			goto done;
+	}
+	if (TAILQ_EMPTY(&maps[VFNT_MAP_BOLD_RIGHT])) {
+		if (fprintf(fp, "\t\t\tNULL\n") < 0)
+			goto done;
+	} else {
+		if (fprintf(fp, "\t\t\tFONTMAP_BOLD_RH_%ux%u\n",
+		    width, height) < 0)
+			goto done;
+	}
+	if (fprintf(fp, "\t\t},\n") < 0)
+		goto done;
+	if (lz4 == true) {
+		if (fprintf(fp, "\t.vf_bytes\t= NULL,\n") < 0)
+			goto done;
+	} else {
+		if (fprintf(fp, "\t.vf_bytes\t= FONTDATA_%ux%u,\n",
+		    width, height) < 0) {
+			goto done;
+		}
+	}
+	if (fprintf(fp, "\t.vf_width\t= %u,\n", width) < 0)
+		goto done;
+	if (fprintf(fp, "\t.vf_height\t= %u,\n", height) < 0)
+		goto done;
+	if (fprintf(fp, "\t.vf_map_count\t= { %u, %u, %u, %u }\n",
+	    map_folded_count[0], map_folded_count[1], map_folded_count[2],
+	    map_folded_count[3]) < 0) {
+		goto done;
+	}
+	if (fprintf(fp, "};\n\n") < 0)
+		goto done;
+
+	/* Write bitmap data. */
+	if (fprintf(fp, "vt_font_bitmap_data_t font_data_%ux%u = {\n",
+	    width, height) < 0)
+		goto done;
+	if (fprintf(fp, "\t.vfbd_width\t= %u,\n", width) < 0)
+		goto done;
+	if (fprintf(fp, "\t.vfbd_height\t= %u,\n", height) < 0)
+		goto done;
+	if (lz4 == true) {
+		if (fprintf(fp, "\t.vfbd_compressed_size\t= %zu,\n",
+		    compressed_size) < 0) {
+			goto done;
+		}
+		if (fprintf(fp, "\t.vfbd_uncompressed_size\t= %zu,\n",
+		    uncompressed_size) < 0) {
+			goto done;
+		}
+		if (fprintf(fp, "\t.vfbd_compressed_data\t= FONTDATA_%ux%u,\n",
+		    width, height) < 0) {
+			goto done;
+		}
+	} else {
+		if (fprintf(fp, "\t.vfbd_compressed_size\t= 0,\n") < 0)
+			goto done;
+		if (fprintf(fp, "\t.vfbd_uncompressed_size\t= %zu,\n",
+		    uncompressed_size) < 0) {
+			goto done;
+		}
+		if (fprintf(fp, "\t.vfbd_compressed_data\t= NULL,\n") < 0)
+			goto done;
+	}
+	if (fprintf(fp, "\t.vfbd_font = &font_%ux%u\n", width, height) < 0)
+		goto done;
+	if (fprintf(fp, "};\n") < 0)
+		goto done;
+
+	rv = 0;
+done:
+	if (rv != 0)
+		perror(filename);
 	fclose(fp);
 	return (0);
 }
@@ -683,15 +1035,32 @@ print_font_info(void)
 int
 main(int argc, char *argv[])
 {
-	int ch, verbose = 0;
+	int ch, verbose = 0, rv = 0;
+	char *outfile = NULL;
 
-	assert(sizeof(struct file_header) == 32);
-	assert(sizeof(struct file_mapping) == 8);
+	assert(sizeof(struct font_header) == 32);
+	assert(sizeof(vfnt_map_t) == 8);
 
-	while ((ch = getopt(argc, argv, "h:vw:")) != -1) {
+	while ((ch = getopt(argc, argv, "nf:h:vw:o:")) != -1) {
 		switch (ch) {
+		case 'f':
+			if (strcmp(optarg, "font") == 0)
+				format = VT_FONT;
+			else if (strcmp(optarg, "source") == 0)
+				format = VT_C_SOURCE;
+			else if (strcmp(optarg, "compressed-source") == 0)
+				format = VT_C_COMPRESSED;
+			else
+				errx(1, "Invalid format: %s", optarg);
+			break;
 		case 'h':
 			height = atoi(optarg);
+			break;
+		case 'n':
+			filter = false;
+			break;
+		case 'o':
+			outfile = optarg;
 			break;
 		case 'v':
 			verbose = 1;
@@ -707,8 +1076,13 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc < 2 || argc > 3)
+	if (outfile == NULL && (argc < 2 || argc > 3))
 		usage();
+
+	if (outfile == NULL) {
+		outfile = argv[argc - 1];
+		argc--;
+	}
 
 	set_width(width);
 	set_height(height);
@@ -717,7 +1091,7 @@ main(int argc, char *argv[])
 		return (1);
 	argc--;
 	argv++;
-	if (argc == 2) {
+	if (argc == 1) {
 		if (parse_file(argv[0], VFNT_MAP_BOLD) != 0)
 			return (1);
 		argc--;
@@ -725,16 +1099,26 @@ main(int argc, char *argv[])
 	}
 	number_glyphs();
 	dedup_mapping(VFNT_MAP_BOLD);
-	dedup_mapping(VFNT_MAP_BOLD_RH);
+	dedup_mapping(VFNT_MAP_BOLD_RIGHT);
 	fold_mappings(0);
 	fold_mappings(1);
 	fold_mappings(2);
 	fold_mappings(3);
-	if (write_fnt(argv[0]) != 0)
-		return (1);
+
+	switch (format) {
+	case VT_FONT:
+		rv = write_fnt(outfile);
+		break;
+	case VT_C_SOURCE:
+		rv = write_fnt_source(false, outfile);
+		break;
+	case VT_C_COMPRESSED:
+		rv = write_fnt_source(true, outfile);
+		break;
+	}
 
 	if (verbose)
 		print_font_info();
 
-	return (0);
+	return (rv);
 }
