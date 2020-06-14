@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2007
+.Dd May 10, 2020
 .Dt LOGIN_CAP 3
 .Os
 .Sh NAME
@@ -577,3 +577,21 @@ is returned to indicate this.
 .Xr login_class 3 ,
 .Xr login.conf 5 ,
 .Xr termcap 5
+.Sh HISTORY
+The functions
+.Fn login_close ,
+.Fn login_getcapbool ,
+.Fn login_getcaplist ,
+.Fn login_getcapnum ,
+.Fn login_getcapstr ,
+.Fn login_getcapsize ,
+.Fn login_getcaptime ,
+.Fn login_getclass ,
+.Fn login_getclassbyname ,
+.Fn login_getpwclass ,
+.Fn login_getstyle ,
+.Fn login_getuserclass
+and
+.Fn login_setcryptfmt
+first appeared in
+.Fx 2.1.5 .
