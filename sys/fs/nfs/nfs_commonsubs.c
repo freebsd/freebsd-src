@@ -2922,6 +2922,11 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			txdr_nfsv4time(&vap->va_mtime, tl);
 			retnum += NFSX_V4TIME;
 			break;
+		case NFSATTRBIT_TIMECREATE:
+			NFSM_BUILD(tl, u_int32_t *, NFSX_V4TIME);
+			txdr_nfsv4time(&vap->va_birthtime, tl);
+			retnum += NFSX_V4TIME;
+			break;
 		case NFSATTRBIT_TIMEMODIFYSET:
 			if ((vap->va_vaflags & VA_UTIMES_NULL) == 0) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_V4SETTIME);
