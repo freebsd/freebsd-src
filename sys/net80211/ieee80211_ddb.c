@@ -209,6 +209,7 @@ _db_show_txampdu(const char *sep, int ix, const struct ieee80211_tx_ampdu *tap)
 static void
 _db_show_rxampdu(const char *sep, int ix, const struct ieee80211_rx_ampdu *rap)
 {
+	struct mbuf *m;
 	int i;
 
 	db_printf("%srxampdu[%d]: %p flags 0x%x tid %u\n",
@@ -219,10 +220,15 @@ _db_show_rxampdu(const char *sep, int ix, const struct ieee80211_rx_ampdu *rap)
 	db_printf("%s  age %d nframes %d\n", sep,
 		rap->rxa_age, rap->rxa_nframes);
 	for (i = 0; i < IEEE80211_AGGR_BAWMAX; i++)
-		if (rap->rxa_m[i] != NULL)
-			db_printf("%s  m[%2u:%4u] %p\n", sep, i,
-			    IEEE80211_SEQ_ADD(rap->rxa_start, i),
-			    rap->rxa_m[i]);
+		if (mbufq_len(&rap->rxa_mq[i]) > 0) {
+			db_printf("%s  m[%2u:%4u] ", sep, i,
+			    IEEE80211_SEQ_ADD(rap->rxa_start, i));
+			STAILQ_FOREACH(m, &rap->rxa_mq[i].mq_head,
+			    m_stailqpkt) {
+				db_printf(" %p", m);
+			}
+			db_printf("\n");
+		}
 }
 
 static void
