@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2020
+.Dd May 1, 2020
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -776,6 +776,14 @@ have been applied.
 .Xr write 2 ,
 .Xr pthread_setcancelstate 3 ,
 .Xr signal 3
+.Rs
+.%A Jonathan Lemon
+.%T "Kqueue: A Generic and Scalable Event Notification Facility"
+.%I USENIX Association
+.%B Proceedings of the FREENIX Track: 2001 USENIX Annual Technical Conference
+.%D June 25-30, 2001
+.\".http://www.usenix.org/event/usenix01/freenix01/full_papers/lemon/lemon.pdf
+.Re
 .Sh HISTORY
 The
 .Fn kqueue
