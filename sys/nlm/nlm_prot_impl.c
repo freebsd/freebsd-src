@@ -1735,7 +1735,8 @@ static int
 nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
     fhandle_t *fhp, struct vfs_state *vs, accmode_t accmode)
 {
-	int error, exflags;
+	int error;
+	uint64_t exflags;
 	struct ucred *cred = NULL, *credanon = NULL;
 	
 	memset(vs, 0, sizeof(*vs));
