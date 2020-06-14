@@ -51,6 +51,10 @@ static int z8530_bfe_iclear(struct scc_softc *, struct scc_chan *);
 static int z8530_bfe_ipend(struct scc_softc *);
 static int z8530_bfe_probe(struct scc_softc *);
 
+/* Channel B is always at 0 offset. */
+#define	CHAN_A	(-(sc->sc_class->cl_range))
+#define	CHAN_B	0
+
 static kobj_method_t z8530_methods[] = {
 	KOBJMETHOD(scc_attach,	z8530_bfe_attach),
 	KOBJMETHOD(scc_iclear,	z8530_bfe_iclear),
@@ -59,14 +63,32 @@ static kobj_method_t z8530_methods[] = {
 	KOBJMETHOD_END
 };
 
-struct scc_class scc_z8530_class = {
-	"z8530 class",
+/*
+ * escc (macio) spacing.
+ */
+struct scc_class scc_z8530_escc_class = {
+	"z8530 escc class",
 	z8530_methods,
 	sizeof(struct scc_softc),
 	.cl_channels = 2,
 	.cl_class = SCC_CLASS_Z8530,
 	.cl_modes = SCC_MODE_ASYNC | SCC_MODE_BISYNC | SCC_MODE_HDLC,
-	.cl_range = CHAN_B - CHAN_A,
+	/* Negative .cl_range signifies this is channel spacing. */
+	.cl_range = (CHAN_B - 16),
+};
+
+/*
+ * SUN compatible channel spacing.
+ */
+struct scc_class scc_z8530_legacy_class = {
+	"z8530 legacy class",
+	z8530_methods,
+	sizeof(struct scc_softc),
+	.cl_channels = 2,
+	.cl_class = SCC_CLASS_Z8530,
+	.cl_modes = SCC_MODE_ASYNC | SCC_MODE_BISYNC | SCC_MODE_HDLC,
+	/* Negative .cl_range signifies this is channel spacing. */
+	.cl_range = (CHAN_B - 2),
 };
 
 /* Multiplexed I/O. */

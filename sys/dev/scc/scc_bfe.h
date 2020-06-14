@@ -114,7 +114,8 @@ struct scc_class {
 
 extern struct scc_class scc_quicc_class;
 extern struct scc_class scc_sab82532_class;
-extern struct scc_class scc_z8530_class;
+extern struct scc_class scc_z8530_escc_class;
+extern struct scc_class scc_z8530_legacy_class;
 
 struct scc_softc {
 	KOBJ_FIELDS;

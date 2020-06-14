@@ -55,9 +55,10 @@ scc_macio_probe(device_t dev)
 
 	sc = device_get_softc(dev);
 	nm = ofw_bus_get_name(dev);
+	/* Attach to modern escc (channel shift 4 bits) */
 	if (!strcmp(nm, "escc")) {
 		device_set_desc(dev, "Zilog Z8530 dual channel SCC");
-		sc->sc_class = &scc_z8530_class;
+		sc->sc_class = &scc_z8530_escc_class;
 		return (scc_bfe_probe(dev, MACIO_REGSHFT, MACIO_RCLK, 0));
 	}
 	return (ENXIO);
