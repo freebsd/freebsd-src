@@ -268,8 +268,8 @@ vfs_fhtovp_sigdefer(struct mount *mp, struct fid *fidp, int flags,
 }
 
 static int
-vfs_checkexp_sigdefer(struct mount *mp, struct sockaddr *nam, int *exflg,
-    struct ucred **credp, int *numsecflavors, int **secflavors)
+vfs_checkexp_sigdefer(struct mount *mp, struct sockaddr *nam, uint64_t *exflg,
+    struct ucred **credp, int *numsecflavors, int *secflavors)
 {
 	int prev_stops, rc;
 

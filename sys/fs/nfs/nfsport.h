@@ -1081,6 +1081,11 @@ struct nfsex_args {
 	struct export_args	export;
 };
 
+struct nfsex_oldargs {
+	char	*fspec;
+	struct o2export_args	export;
+};
+
 /*
  * These export flags should be defined, but there are no bits left.
  * Maybe a separate mnt_exflag field could be added or the mnt_flag
