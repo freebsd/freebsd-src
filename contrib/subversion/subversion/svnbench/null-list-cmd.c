@@ -48,6 +48,12 @@ struct print_baton {
   svn_client_ctx_t *ctx;
 };
 
+/* Field flags required for this function */
+static const apr_uint32_t print_dirent_fields = SVN_DIRENT_KIND;
+static const apr_uint32_t print_dirent_fields_verbose = (
+    SVN_DIRENT_KIND  | SVN_DIRENT_SIZE | SVN_DIRENT_TIME |
+    SVN_DIRENT_CREATED_REV | SVN_DIRENT_LAST_AUTHOR);
+
 /* This implements the svn_client_list_func2_t API, printing a single
    directory entry in text format. */
 static svn_error_t *
@@ -100,9 +106,9 @@ svn_cl__null_list(apr_getopt_t *os,
   svn_opt_push_implicit_dot_target(targets, pool);
 
   if (opt_state->verbose)
-    dirent_fields = SVN_DIRENT_ALL;
+    dirent_fields = print_dirent_fields_verbose;
   else
-    dirent_fields = SVN_DIRENT_KIND; /* the only thing we actually need... */
+    dirent_fields = print_dirent_fields;
 
   pb.ctx = ctx;
   pb.verbose = opt_state->verbose;
@@ -116,6 +122,8 @@ svn_cl__null_list(apr_getopt_t *os,
       const char *target = APR_ARRAY_IDX(targets, i, const char *);
       const char *truepath;
       svn_opt_revision_t peg_revision;
+      apr_array_header_t *patterns = NULL;
+      int k;
 
       svn_pool_clear(subpool);
 
@@ -125,8 +133,27 @@ svn_cl__null_list(apr_getopt_t *os,
       SVN_ERR(svn_opt_parse_path(&peg_revision, &truepath, target,
                                  subpool));
 
-      err = svn_client_list3(truepath, &peg_revision,
-                             &(opt_state->start_revision),
+      if (opt_state->search_patterns)
+        {
+          patterns = apr_array_make(subpool, 4, sizeof(const char *));
+          for (k = 0; k < opt_state->search_patterns->nelts; ++k)
+            {
+              apr_array_header_t *pattern_group
+                = APR_ARRAY_IDX(opt_state->search_patterns, k,
+                                apr_array_header_t *);
+
+              /* Should never fail but ... */
+              if (pattern_group->nelts != 1)
+                return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                  _("'search-and' option is not supported"));
+
+              APR_ARRAY_PUSH(patterns, const char *)
+                = APR_ARRAY_IDX(pattern_group, 0, const char *);
+            }
+        }
+
+      err = svn_client_list4(truepath, &peg_revision,
+                             &(opt_state->start_revision), patterns,
                              opt_state->depth,
                              dirent_fields,
                              opt_state->verbose,

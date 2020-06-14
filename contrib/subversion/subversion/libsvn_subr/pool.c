@@ -26,12 +26,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <apr.h>
+#include <apr_version.h>
 #include <apr_general.h>
 #include <apr_pools.h>
-#include <apr_thread_mutex.h>
 
 #include "svn_pools.h"
 
+#include "pools.h"
 
 #if APR_POOL_DEBUG
 /* file_line for the non-debug case. */
@@ -52,6 +54,13 @@ abort_on_pool_failure(int retcode)
   /* Don't translate this string! It requires memory allocation to do so!
      And we don't have any of it... */
   printf("libsvn: Out of memory - terminating application.\n");
+
+#ifdef WIN32
+  /* Provide a way to distinguish the out-of-memory error from abort(). */
+  if (retcode == APR_ENOMEM)
+    RaiseException(STATUS_NO_MEMORY, EXCEPTION_NONCONTINUABLE, 0, NULL);
+#endif
+
   abort();
   return 0; /* not reached */
 }
@@ -124,7 +133,7 @@ svn_pool_create_allocator(svn_boolean_t thread_safe)
 #endif
 
   /* By default, allocators are *not* thread-safe. We must provide a mutex
-   * if we want thread-safety for that mutex. */
+   * if we want thread-safety for that pool. */
 
 #if APR_HAS_THREADS
   if (thread_safe)
@@ -139,4 +148,15 @@ svn_pool_create_allocator(svn_boolean_t thread_safe)
   SVN_ERR_ASSERT_NO_RETURN(allocator != NULL);
 
   return allocator;
+}
+
+
+/* Private function that creates an unmanaged pool. */
+apr_pool_t *
+svn_pool__create_unmanaged(svn_boolean_t thread_safe)
+{
+  apr_pool_t *pool;
+  apr_pool_create_unmanaged_ex(&pool, abort_on_pool_failure,
+                               svn_pool_create_allocator(thread_safe));
+  return pool;
 }

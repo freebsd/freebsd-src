@@ -20,11 +20,12 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__UTIL_H
-#define SVN_LIBSVN_FS__UTIL_H
+#ifndef SVN_LIBSVN_FS_X_UTIL_H
+#define SVN_LIBSVN_FS_X_UTIL_H
 
 #include "svn_fs.h"
 #include "id.h"
+#include "batch_fsync.h"
 
 /* Functions for dealing with recoverable errors on mutable files
  *
@@ -102,6 +103,12 @@ const char *
 svn_fs_x__path_current(svn_fs_t *fs,
                        apr_pool_t *result_pool);
 
+/* Return the path to the 'next' file in FS.
+   Perform allocation in RESULT_POOL. */
+const char *
+svn_fs_x__path_next(svn_fs_t *fs,
+                    apr_pool_t *result_pool);
+
 /* Return the full path of the "uuid" file in FS.
  * The result will be allocated in RESULT_POOL.
  */
@@ -158,9 +165,9 @@ svn_fs_x__path_rev_packed(svn_fs_t *fs,
  * revision REV in FS.  Allocate the result in RESULT_POOL.
  */
 const char *
-svn_fs_x__path_rev_shard(svn_fs_t *fs,
-                         svn_revnum_t rev,
-                         apr_pool_t *result_pool);
+svn_fs_x__path_shard(svn_fs_t *fs,
+                     svn_revnum_t rev,
+                     apr_pool_t *result_pool);
 
 /* Return the full path of the non-packed rev file containing revision REV
  * in FS.  Allocate the result in RESULT_POOL.
@@ -183,23 +190,13 @@ svn_fs_x__path_rev_absolute(svn_fs_t *fs,
                             svn_revnum_t rev,
                             apr_pool_t *result_pool);
 
-/* Return the full path of the revision properties shard directory that
- * will contain the properties of revision REV in FS.
- * Allocate the result in RESULT_POOL.
+/* Return the full path of the pack shard directory that will contain the
+ * packed revision REV in FS.  Allocate the result in RESULT_POOL.
  */
 const char *
-svn_fs_x__path_revprops_shard(svn_fs_t *fs,
-                              svn_revnum_t rev,
-                              apr_pool_t *result_pool);
-
-/* Return the full path of the revision properties pack shard directory
- * that will contain the packed properties of revision REV in FS.
- * Allocate the result in RESULT_POOL.
- */
-const char *
-svn_fs_x__path_revprops_pack_shard(svn_fs_t *fs,
-                                   svn_revnum_t rev,
-                                   apr_pool_t *result_pool);
+svn_fs_x__path_pack_shard(svn_fs_t *fs,
+                          svn_revnum_t rev,
+                          apr_pool_t *result_pool);
 
 /* Return the full path of the non-packed revision properties file that
  * contains the props for revision REV in FS.
@@ -287,15 +284,6 @@ svn_fs_x__path_txn_props(svn_fs_t *fs,
                          svn_fs_x__txn_id_t txn_id,
                          apr_pool_t *result_pool);
 
-/* Return the path of the file containing the "final" transaction
- * properties for the transaction identified by TXN_ID in FS.
- * The result will be allocated in RESULT_POOL.
- */
-const char *
-svn_fs_x__path_txn_props_final(svn_fs_t *fs,
-                               svn_fs_x__txn_id_t txn_id,
-                               apr_pool_t *result_pool);
-
 /* Return the path of the file containing the node and copy ID counters for
  * the transaction identified by TXN_ID in FS.
  * The result will be allocated in RESULT_POOL.
@@ -381,7 +369,7 @@ svn_fs_x__check_file_buffer_numeric(const char *buf,
                                     apr_pool_t *scratch_pool);
 
 /* Set *MIN_UNPACKED_REV to the integer value read from the file returned
- * by #svn_fs_fs__path_min_unpacked_rev() for FS.
+ * by #svn_fs_x__path_min_unpacked_rev() for FS.
  * Use SCRATCH_POOL for temporary allocations.
  */
 svn_error_t *
@@ -434,13 +422,6 @@ svn_fs_x__try_stringbuf_from_file(svn_stringbuf_t **content,
                                   svn_boolean_t last_attempt,
                                   apr_pool_t *result_pool);
 
-/* Fetch the current offset of FILE into *OFFSET_P.
- * Perform temporary allocations in SCRATCH_POOL. */
-svn_error_t *
-svn_fs_x__get_file_offset(apr_off_t *offset_p,
-                          apr_file_t *file,
-                          apr_pool_t *scratch_pool);
-
 /* Read the file FNAME and store the contents in *BUF.
    Allocations are performed in RESULT_POOL. */
 svn_error_t *
@@ -460,17 +441,20 @@ svn_fs_x__read_number_from_stream(apr_int64_t *result,
                                   svn_stream_t *stream,
                                   apr_pool_t *scratch_pool);
 
-/* Move a file into place from OLD_FILENAME in the transactions
-   directory to its final location NEW_FILENAME in the repository.  On
-   Unix, match the permissions of the new file to the permissions of
-   PERMS_REFERENCE.  Temporary allocations are from SCRATCH_POOL.
+/* Move a file into place from temporary OLD_FILENAME to its final
+   location NEW_FILENAME, which must be on to the same volume.  Schedule
+   any necessary fsync calls in BATCH.  On Unix, match the permissions
+   of the new file to the permissions of PERMS_REFERENCE.
+
+   Temporary allocations are from SCRATCH_POOL.
 
    This function almost duplicates svn_io_file_move(), but it tries to
-   guarantee a flush. */
+   guarantee a flush if BATCH->FLUSH_TO_DISK is non-zero. */
 svn_error_t *
 svn_fs_x__move_into_place(const char *old_filename,
                           const char *new_filename,
                           const char *perms_reference,
+                          svn_fs_x__batch_fsync_t *batch,
                           apr_pool_t *scratch_pool);
 
 #endif

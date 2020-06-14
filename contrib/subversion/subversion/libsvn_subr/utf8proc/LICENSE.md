@@ -1,5 +1,13 @@
+## utf8proc license ##
 
-Copyright (c) 2009 Public Software Group e. V., Berlin, Germany
+**utf8proc** is a software package originally developed
+by Jan Behrens and the rest of the Public Software Group, who
+deserve nearly all of the credit for this library, that is now maintained by the Julia-language developers.  Like the original utf8proc,
+whose copyright and license statements are reproduced below, all new
+work on the utf8proc library is licensed under the [MIT "expat"
+license](http://opensource.org/licenses/MIT):
+
+*Copyright &copy; 2014-2015 by Steven G. Johnson, Jiahao Chen, Tony Kelman, Jonas Fonseca, and other contributors listed in the git history.*
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -19,14 +27,37 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
+## Original utf8proc license ##
+
+*Copyright (c) 2009, 2013 Public Software Group e. V., Berlin, Germany*
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the "Software"),
+to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+## Unicode data license ##
 
 This software distribution contains derived data from a modified version of
 the Unicode data files. The following license applies to that data:
 
-COPYRIGHT AND PERMISSION NOTICE
+**COPYRIGHT AND PERMISSION NOTICE**
 
-Copyright (c) 1991-2007 Unicode, Inc. All rights reserved. Distributed
-under the Terms of Use in http://www.unicode.org/copyright.html.
+*Copyright (c) 1991-2007 Unicode, Inc. All rights reserved. Distributed
+under the Terms of Use in http://www.unicode.org/copyright.html.*
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of the Unicode data files and any associated documentation (the "Data
@@ -57,8 +88,6 @@ not be used in advertising or otherwise to promote the sale, use or other
 dealings in these Data Files or Software without prior written
 authorization of the copyright holder.
 
-
 Unicode and the Unicode logo are trademarks of Unicode, Inc., and may be
 registered in some jurisdictions. All other trademarks and registered
 trademarks mentioned herein are the property of their respective owners.
-

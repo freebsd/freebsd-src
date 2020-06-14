@@ -432,7 +432,7 @@ export_node(void *baton,
                                                              scratch_pool));
 
   /* Now that dst_tmp contains the translated data, do the atomic rename. */
-  SVN_ERR(svn_io_file_rename(dst_tmp, to_abspath, scratch_pool));
+  SVN_ERR(svn_io_file_rename2(dst_tmp, to_abspath, FALSE, scratch_pool));
 
   if (eib->notify_func)
     {
@@ -453,12 +453,12 @@ export_node(void *baton,
  * If PATH exists but is a file, then error with SVN_ERR_WC_NOT_WORKING_COPY.
  *
  * If PATH is a already a directory, then error with
- * SVN_ERR_WC_OBSTRUCTED_UPDATE, unless FORCE, in which case just
+ * SVN_ERR_WC_OBSTRUCTED_UPDATE, unless OVERWRITE, in which case just
  * export into PATH with no error.
  */
 static svn_error_t *
 open_root_internal(const char *path,
-                   svn_boolean_t force,
+                   svn_boolean_t overwrite,
                    svn_wc_notify_func2_t notify_func,
                    void *notify_baton,
                    apr_pool_t *pool)
@@ -472,7 +472,7 @@ open_root_internal(const char *path,
     return svn_error_createf(SVN_ERR_WC_NOT_WORKING_COPY, NULL,
                              _("'%s' exists and is not a directory"),
                              svn_dirent_local_style(path, pool));
-  else if ((kind != svn_node_dir) || (! force))
+  else if ((kind != svn_node_dir) || (! overwrite))
     return svn_error_createf(SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                              _("'%s' already exists"),
                              svn_dirent_local_style(path, pool));
@@ -501,7 +501,7 @@ struct edit_baton
   const char *repos_root_url;
   const char *root_path;
   const char *root_url;
-  svn_boolean_t force;
+  svn_boolean_t overwrite;
   svn_revnum_t *target_revision;
   apr_hash_t *externals;
   const char *native_eol;
@@ -587,7 +587,7 @@ open_root(void *edit_baton,
   struct edit_baton *eb = edit_baton;
   struct dir_baton *db = apr_pcalloc(pool, sizeof(*db));
 
-  SVN_ERR(open_root_internal(eb->root_path, eb->force,
+  SVN_ERR(open_root_internal(eb->root_path, eb->overwrite,
                              eb->notify_func, eb->notify_baton, pool));
 
   /* Build our dir baton. */
@@ -621,7 +621,7 @@ add_directory(const char *path,
     return svn_error_createf(SVN_ERR_WC_NOT_WORKING_COPY, NULL,
                              _("'%s' exists and is not a directory"),
                              svn_dirent_local_style(full_path, pool));
-  else if (! (kind == svn_node_dir && eb->force))
+  else if (! (kind == svn_node_dir && eb->overwrite))
     return svn_error_createf(SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                              _("'%s' already exists"),
                              svn_dirent_local_style(full_path, pool));
@@ -816,7 +816,7 @@ close_file(void *file_baton,
 
   if ((! fb->eol_style_val) && (! fb->keywords_val) && (! fb->special))
     {
-      SVN_ERR(svn_io_file_rename(fb->tmppath, fb->path, pool));
+      SVN_ERR(svn_io_file_rename2(fb->tmppath, fb->path, FALSE, pool));
     }
   else
     {
@@ -1035,7 +1035,7 @@ add_file_ev2(void *baton,
                                eb->cancel_baton, scratch_pool));
 
       /* Move the file into place. */
-      SVN_ERR(svn_io_file_rename(tmppath, full_path, scratch_pool));
+      SVN_ERR(svn_io_file_rename2(tmppath, full_path, FALSE, scratch_pool));
     }
 
   if (executable_val)
@@ -1077,7 +1077,7 @@ add_directory_ev2(void *baton,
     return svn_error_createf(SVN_ERR_WC_NOT_WORKING_COPY, NULL,
                              _("'%s' exists and is not a directory"),
                              svn_dirent_local_style(full_path, scratch_pool));
-  else if (! (kind == svn_node_dir && eb->force))
+  else if (! (kind == svn_node_dir && eb->overwrite))
     return svn_error_createf(SVN_ERR_WC_OBSTRUCTED_UPDATE, NULL,
                              _("'%s' already exists"),
                              svn_dirent_local_style(full_path, scratch_pool));
@@ -1141,45 +1141,42 @@ get_editor_ev2(const svn_delta_editor_t **export_editor,
                                        exb, result_pool));
 
   /* Create the root of the export. */
-  SVN_ERR(open_root_internal(eb->root_path, eb->force, eb->notify_func,
+  SVN_ERR(open_root_internal(eb->root_path, eb->overwrite, eb->notify_func,
                              eb->notify_baton, scratch_pool));
 
   return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-export_file_ev2(const char *from_path_or_url,
+export_file_ev2(const char *from_url,
                 const char *to_path,
                 struct edit_baton *eb,
                 svn_client__pathrev_t *loc,
                 svn_ra_session_t *ra_session,
-                svn_boolean_t overwrite,
                 apr_pool_t *scratch_pool)
 {
-  svn_boolean_t from_is_url = svn_path_is_url(from_path_or_url);
   apr_hash_t *props;
   svn_stream_t *tmp_stream;
   svn_node_kind_t to_kind;
 
+  SVN_ERR_ASSERT(svn_path_is_url(from_url));
+
   if (svn_path_is_empty(to_path))
     {
-      if (from_is_url)
-        to_path = svn_uri_basename(from_path_or_url, scratch_pool);
-      else
-        to_path = svn_dirent_basename(from_path_or_url, NULL);
+      to_path = svn_uri_basename(from_url, scratch_pool);
       eb->root_path = to_path;
     }
   else
     {
-      SVN_ERR(append_basename_if_dir(&to_path, from_path_or_url,
-                                     from_is_url, scratch_pool));
+      SVN_ERR(append_basename_if_dir(&to_path, from_url,
+                                     TRUE, scratch_pool));
       eb->root_path = to_path;
     }
 
   SVN_ERR(svn_io_check_path(to_path, &to_kind, scratch_pool));
 
   if ((to_kind == svn_node_file || to_kind == svn_node_unknown) &&
-      ! overwrite)
+      ! eb->overwrite)
     return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
                              _("Destination file '%s' exists, and "
                                "will not be overwritten unless forced"),
@@ -1204,39 +1201,36 @@ export_file_ev2(const char *from_path_or_url,
 }
 
 static svn_error_t *
-export_file(const char *from_path_or_url,
+export_file(const char *from_url,
             const char *to_path,
             struct edit_baton *eb,
             svn_client__pathrev_t *loc,
             svn_ra_session_t *ra_session,
-            svn_boolean_t overwrite,
             apr_pool_t *scratch_pool)
 {
   apr_hash_t *props;
   apr_hash_index_t *hi;
   struct file_baton *fb = apr_pcalloc(scratch_pool, sizeof(*fb));
   svn_node_kind_t to_kind;
-  svn_boolean_t from_is_url = svn_path_is_url(from_path_or_url);
+
+  SVN_ERR_ASSERT(svn_path_is_url(from_url));
 
   if (svn_path_is_empty(to_path))
     {
-      if (from_is_url)
-        to_path = svn_uri_basename(from_path_or_url, scratch_pool);
-      else
-        to_path = svn_dirent_basename(from_path_or_url, NULL);
+      to_path = svn_uri_basename(from_url, scratch_pool);
       eb->root_path = to_path;
     }
   else
     {
-      SVN_ERR(append_basename_if_dir(&to_path, from_path_or_url,
-                                     from_is_url, scratch_pool));
+      SVN_ERR(append_basename_if_dir(&to_path, from_url,
+                                     TRUE, scratch_pool));
       eb->root_path = to_path;
     }
 
   SVN_ERR(svn_io_check_path(to_path, &to_kind, scratch_pool));
 
   if ((to_kind == svn_node_file || to_kind == svn_node_unknown) &&
-      ! overwrite)
+      ! eb->overwrite)
     return svn_error_createf(SVN_ERR_ILLEGAL_TARGET, NULL,
                              _("Destination file '%s' exists, and "
                                "will not be overwritten unless forced"),
@@ -1288,12 +1282,11 @@ export_file(const char *from_path_or_url,
 }
 
 static svn_error_t *
-export_directory(const char *from_path_or_url,
+export_directory(const char *from_url,
                  const char *to_path,
                  struct edit_baton *eb,
                  svn_client__pathrev_t *loc,
                  svn_ra_session_t *ra_session,
-                 svn_boolean_t overwrite,
                  svn_boolean_t ignore_externals,
                  svn_boolean_t ignore_keywords,
                  svn_depth_t depth,
@@ -1306,6 +1299,8 @@ export_directory(const char *from_path_or_url,
   const svn_ra_reporter3_t *reporter;
   void *report_baton;
   svn_node_kind_t kind;
+
+  SVN_ERR_ASSERT(svn_path_is_url(from_url));
 
   if (!ENABLE_EV2_IMPL)
     SVN_ERR(get_editor_ev1(&export_editor, &edit_baton, eb, ctx,
@@ -1346,7 +1341,7 @@ export_directory(const char *from_path_or_url,
   SVN_ERR(svn_io_check_path(to_path, &kind, scratch_pool));
   if (kind == svn_node_none)
     SVN_ERR(open_root_internal
-            (to_path, overwrite, ctx->notify_func2,
+            (to_path, eb->overwrite, ctx->notify_func2,
              ctx->notify_baton2, scratch_pool));
 
   if (! ignore_externals && depth == svn_depth_infinity)
@@ -1355,7 +1350,7 @@ export_directory(const char *from_path_or_url,
 
       SVN_ERR(svn_dirent_get_absolute(&to_abspath, to_path, scratch_pool));
       SVN_ERR(svn_client__export_externals(eb->externals,
-                                           from_path_or_url,
+                                           from_url,
                                            to_abspath, eb->repos_root_url,
                                            depth, native_eol,
                                            ignore_keywords,
@@ -1402,7 +1397,11 @@ svn_client_export5(svn_revnum_t *result_rev,
       svn_client__pathrev_t *loc;
       svn_ra_session_t *ra_session;
       svn_node_kind_t kind;
+      const char *from_url;
       struct edit_baton *eb = apr_pcalloc(pool, sizeof(*eb));
+
+      SVN_ERR(svn_client_url_from_path2(&from_url, from_path_or_url,
+                                        ctx, pool, pool));
 
       /* Get the RA connection. */
       SVN_ERR(svn_client__ra_session_from_path2(&ra_session, &loc,
@@ -1413,7 +1412,7 @@ svn_client_export5(svn_revnum_t *result_rev,
       SVN_ERR(svn_ra_get_repos_root2(ra_session, &eb->repos_root_url, pool));
       eb->root_path = to_path;
       eb->root_url = loc->url;
-      eb->force = overwrite;
+      eb->overwrite = overwrite;
       eb->target_revision = &edit_revision;
       eb->externals = apr_hash_make(pool);
       eb->native_eol = native_eol;
@@ -1428,16 +1427,16 @@ svn_client_export5(svn_revnum_t *result_rev,
       if (kind == svn_node_file)
         {
           if (!ENABLE_EV2_IMPL)
-            SVN_ERR(export_file(from_path_or_url, to_path, eb, loc, ra_session,
-                                overwrite, pool));
+            SVN_ERR(export_file(from_url, to_path, eb, loc, ra_session,
+                                pool));
           else
-            SVN_ERR(export_file_ev2(from_path_or_url, to_path, eb, loc,
-                                    ra_session, overwrite, pool));
+            SVN_ERR(export_file_ev2(from_url, to_path, eb, loc,
+                                    ra_session, pool));
         }
       else if (kind == svn_node_dir)
         {
-          SVN_ERR(export_directory(from_path_or_url, to_path,
-                                   eb, loc, ra_session, overwrite,
+          SVN_ERR(export_directory(from_url, to_path,
+                                   eb, loc, ra_session,
                                    ignore_externals, ignore_keywords, depth,
                                    native_eol, ctx, pool));
         }
@@ -1508,7 +1507,7 @@ svn_client_export5(svn_revnum_t *result_rev,
       eib.ignore_keywords = ignore_keywords;
       eib.wc_ctx = ctx->wc_ctx;
       eib.native_eol = native_eol;
-      eib.notify_func = ctx->notify_func2;;
+      eib.notify_func = ctx->notify_func2;
       eib.notify_baton = ctx->notify_baton2;
       eib.origin_abspath = from_path_or_url;
       eib.exported = FALSE;

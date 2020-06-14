@@ -1946,12 +1946,12 @@ svn_client__mergeinfo_log(svn_boolean_t finding_merged,
 
           SVN_ERR(svn_mergeinfo__add_suffix_to_mergeinfo(
             &subtree_source_history, source_history,
-            subtree_rel_path, scratch_pool, scratch_pool));
+            subtree_rel_path, scratch_pool, iterpool));
 
           if (!finding_merged)
             SVN_ERR(svn_mergeinfo__add_suffix_to_mergeinfo(
                     &subtree_history, target_history,
-                    subtree_rel_path, scratch_pool, scratch_pool));
+                    subtree_rel_path, scratch_pool, iterpool));
         }
       else
         {
@@ -1969,7 +1969,7 @@ svn_client__mergeinfo_log(svn_boolean_t finding_merged,
                                            scratch_pool, iterpool));
           SVN_ERR(svn_mergeinfo_merge2(subtree_mergeinfo,
                                        merged_via_history,
-                                       scratch_pool, scratch_pool));
+                                       scratch_pool, iterpool));
         }
 
       SVN_ERR(svn_mergeinfo_inheritable2(&subtree_inheritable_mergeinfo,
@@ -1995,7 +1995,7 @@ svn_client__mergeinfo_log(svn_boolean_t finding_merged,
                                        subtree_source_history, FALSE,
                                        scratch_pool, iterpool));
       svn_mergeinfo__set_inheritance(merged_noninheritable, FALSE,
-                                     scratch_pool);
+                                     iterpool);
 
       /* Keep track of all ranges partially merged to any and all
          subtrees. */

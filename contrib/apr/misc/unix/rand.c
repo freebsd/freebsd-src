@@ -43,6 +43,31 @@
 #include <sys/uuid.h>
 #endif
 
+#if defined(SYS_RANDOM)
+#if defined(HAVE_SYS_RANDOM_H) && \
+    defined(HAVE_GETRANDOM)
+
+#include <sys/random.h>
+#define USE_GETRANDOM
+
+#elif defined(HAVE_SYS_SYSCALL_H) && \
+      defined(HAVE_LINUX_RANDOM_H) && \
+      defined(HAVE_DECL_SYS_GETRANDOM) && \
+      HAVE_DECL_SYS_GETRANDOM
+
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <linux/random.h>
+#define getrandom(buf, buflen, flags) \
+    syscall(SYS_getrandom, (buf), (buflen), (flags))
+#define USE_GETRANDOM
+
+#endif /* HAVE_SYS_RANDOM_H */
+#endif /* SYS_RANDOM */
+
 #ifndef SHUT_RDWR
 #define SHUT_RDWR 2
 #endif
@@ -87,48 +112,7 @@ APR_DECLARE(apr_status_t) apr_os_uuid_get(unsigned char *uuid_data)
 APR_DECLARE(apr_status_t) apr_generate_random_bytes(unsigned char *buf, 
                                                     apr_size_t length)
 {
-#ifdef DEV_RANDOM
-
-    int fd = -1;
-
-    /* On BSD/OS 4.1, /dev/random gives out 8 bytes at a time, then
-     * gives EOF, so reading 'length' bytes may require opening the
-     * device several times. */
-    do {
-        apr_ssize_t rc;
-
-        if (fd == -1)
-            if ((fd = open(DEV_RANDOM, O_RDONLY)) == -1)
-                return errno;
-        
-        do {
-            rc = read(fd, buf, length);
-        } while (rc == -1 && errno == EINTR);
-
-        if (rc < 0) {
-            int errnum = errno;
-            close(fd);
-            return errnum;
-        }
-        else if (rc == 0) {
-            close(fd);
-            fd = -1; /* force open() again */
-        }
-        else {
-            buf += rc;
-            length -= rc;
-        }
-    } while (length > 0);
-    
-    close(fd);
-#elif defined(OS2)
-    static UCHAR randbyte();
-    unsigned int idx;
-
-    for (idx=0; idx<length; idx++)
-	buf[idx] = randbyte();
-
-#elif defined(HAVE_EGD)
+#if defined(HAVE_EGD)
     /* use EGD-compatible socket daemon (such as EGD or PRNGd).
      * message format:
      * 0x00 (get entropy level)
@@ -224,6 +208,70 @@ APR_DECLARE(apr_status_t) apr_generate_random_bytes(unsigned char *buf,
         return bad_errno;
     }
 
+#elif defined(SYS_RANDOM) && defined(USE_GETRANDOM)
+
+    do {
+        int rc;
+
+        rc = getrandom(buf, length, 0);
+        if (rc == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return errno;
+        }
+
+        buf += rc;
+        length -= rc;
+    } while (length > 0);
+
+#elif defined(SYS_RANDOM) && defined(HAVE_ARC4RANDOM_BUF)
+
+    arc4random_buf(buf, length);
+
+#elif defined(DEV_RANDOM)
+
+    int fd = -1;
+
+    /* On BSD/OS 4.1, /dev/random gives out 8 bytes at a time, then
+     * gives EOF, so reading 'length' bytes may require opening the
+     * device several times. */
+    do {
+        apr_ssize_t rc;
+
+        if (fd == -1)
+            if ((fd = open(DEV_RANDOM, O_RDONLY)) == -1)
+                return errno;
+        
+        do {
+            rc = read(fd, buf, length);
+        } while (rc == -1 && errno == EINTR);
+
+        if (rc < 0) {
+            int errnum = errno;
+            close(fd);
+            return errnum;
+        }
+        else if (rc == 0) {
+            close(fd);
+            fd = -1; /* force open() again */
+        }
+        else {
+            buf += rc;
+            length -= rc;
+        }
+    } while (length > 0);
+    
+    close(fd);
+
+#elif defined(OS2)
+
+    static UCHAR randbyte();
+    unsigned int idx;
+
+    for (idx=0; idx<length; idx++)
+	buf[idx] = randbyte();
+
 #elif defined(HAVE_TRUERAND) /* use truerand */
 
     extern int randbyte(void);	/* from the truerand library */
@@ -234,6 +282,10 @@ APR_DECLARE(apr_status_t) apr_generate_random_bytes(unsigned char *buf,
      */
     for (idx=0; idx<length; idx++)
 	buf[idx] = (unsigned char) randbyte();
+
+#else
+
+#error APR_HAS_RANDOM defined with no implementation
 
 #endif	/* DEV_RANDOM */
 

@@ -24,6 +24,7 @@
 
 #include "svn_private_config.h"
 
+#include "cached_data.h"
 #include "fs_fs.h"
 #include "fs.h"
 #include "rep-cache.h"
@@ -34,9 +35,6 @@
 #include "private/svn_sqlite.h"
 
 #include "rep-cache-db.h"
-
-/* A few magic values */
-#define REP_CACHE_SCHEMA_FORMAT   1
 
 REP_CACHE_DB_SQL_DECLARE_STATEMENTS(statements);
 
@@ -49,13 +47,6 @@ path_rep_cache_db(const char *fs_path,
 {
   return svn_dirent_join(fs_path, REP_CACHE_DB_NAME, result_pool);
 }
-
-#define SVN_ERR_CLOSE(x, db) do                                       \
-{                                                                     \
-  svn_error_t *svn__err = (x);                                        \
-  if (svn__err)                                                       \
-    return svn_error_compose_create(svn__err, svn_sqlite__close(db)); \
-} while (0)
 
 
 /** Library-private API's. **/
@@ -106,12 +97,19 @@ open_rep_cache(void *baton,
                            0, NULL, 0,
                            fs->pool, pool));
 
-  SVN_ERR_CLOSE(svn_sqlite__read_schema_version(&version, sdb, pool), sdb);
-  if (version < REP_CACHE_SCHEMA_FORMAT)
+  SVN_SQLITE__ERR_CLOSE(svn_sqlite__read_schema_version(&version, sdb, pool),
+                        sdb);
+  /* If we have an uninitialized database, go ahead and create the schema. */
+  if (version <= 0)
     {
-      /* Must be 0 -- an uninitialized (no schema) database. Create
-         the schema. Results in schema version of 1.  */
-      SVN_ERR_CLOSE(svn_sqlite__exec_statements(sdb, STMT_CREATE_SCHEMA), sdb);
+      int stmt;
+
+      if (ffd->format >= SVN_FS_FS__MIN_REP_CACHE_SCHEMA_V2_FORMAT)
+        stmt = STMT_CREATE_SCHEMA_V2;
+      else
+        stmt = STMT_CREATE_SCHEMA_V1;
+
+      SVN_SQLITE__ERR_CLOSE(svn_sqlite__exec_statements(sdb, stmt), sdb);
     }
 
   /* This is used as a flag that the database is available so don't
@@ -263,7 +261,7 @@ svn_fs_fs__walk_rep_reference(svn_fs_t *fs,
    If you extend this function, check the callsite to see if you have
    to make it not-ignore additional error codes.  */
 svn_error_t *
-svn_fs_fs__get_rep_reference(representation_t **rep,
+svn_fs_fs__get_rep_reference(representation_t **rep_p,
                              svn_fs_t *fs,
                              svn_checksum_t *checksum,
                              apr_pool_t *pool)
@@ -271,6 +269,7 @@ svn_fs_fs__get_rep_reference(representation_t **rep,
   fs_fs_data_t *ffd = fs->fsap_data;
   svn_sqlite__stmt_t *stmt;
   svn_boolean_t have_row;
+  representation_t *rep;
 
   SVN_ERR_ASSERT(ffd->rep_sharing_allowed);
   if (! ffd->rep_cache_db)
@@ -289,26 +288,28 @@ svn_fs_fs__get_rep_reference(representation_t **rep,
   SVN_ERR(svn_sqlite__step(&have_row, stmt));
   if (have_row)
     {
-      *rep = apr_pcalloc(pool, sizeof(**rep));
-      svn_fs_fs__id_txn_reset(&(*rep)->txn_id);
-      memcpy((*rep)->sha1_digest, checksum->digest,
-             sizeof((*rep)->sha1_digest));
-      (*rep)->has_sha1 = TRUE;
-      (*rep)->revision = svn_sqlite__column_revnum(stmt, 0);
-      (*rep)->item_index = svn_sqlite__column_int64(stmt, 1);
-      (*rep)->size = svn_sqlite__column_int64(stmt, 2);
-      (*rep)->expanded_size = svn_sqlite__column_int64(stmt, 3);
+      rep = apr_pcalloc(pool, sizeof(*rep));
+      svn_fs_fs__id_txn_reset(&(rep->txn_id));
+      memcpy(rep->sha1_digest, checksum->digest, sizeof(rep->sha1_digest));
+      rep->has_sha1 = TRUE;
+      rep->revision = svn_sqlite__column_revnum(stmt, 0);
+      rep->item_index = svn_sqlite__column_int64(stmt, 1);
+      rep->size = svn_sqlite__column_int64(stmt, 2);
+      rep->expanded_size = svn_sqlite__column_int64(stmt, 3);
     }
   else
-    *rep = NULL;
+    rep = NULL;
 
   SVN_ERR(svn_sqlite__reset(stmt));
 
-  if (*rep)
+  if (rep)
     {
+      svn_error_t *err;
+
+      SVN_ERR(svn_fs_fs__fixup_expanded_size(fs, rep, pool));
+
       /* Check that REP refers to a revision that exists in FS. */
-      svn_error_t *err = svn_fs_fs__ensure_revision_exists((*rep)->revision,
-                                                           fs, pool);
+      err = svn_fs_fs__ensure_revision_exists(rep->revision, fs, pool);
       if (err)
         return svn_error_createf(SVN_ERR_FS_CORRUPT, err,
                                  "Checksum '%s' in rep-cache is beyond HEAD",
@@ -316,6 +317,7 @@ svn_fs_fs__get_rep_reference(representation_t **rep,
                                                                  pool));
     }
 
+  *rep_p = rep;
   return SVN_NO_ERROR;
 }
 
@@ -326,7 +328,6 @@ svn_fs_fs__set_rep_reference(svn_fs_t *fs,
 {
   fs_fs_data_t *ffd = fs->fsap_data;
   svn_sqlite__stmt_t *stmt;
-  svn_error_t *err;
   svn_checksum_t checksum;
   checksum.kind = svn_checksum_sha1;
   checksum.digest = rep->sha1_digest;
@@ -349,28 +350,7 @@ svn_fs_fs__set_rep_reference(svn_fs_t *fs,
                             (apr_int64_t) rep->size,
                             (apr_int64_t) rep->expanded_size));
 
-  err = svn_sqlite__insert(NULL, stmt);
-  if (err)
-    {
-      representation_t *old_rep;
-
-      if (err->apr_err != SVN_ERR_SQLITE_CONSTRAINT)
-        return svn_error_trace(err);
-
-      svn_error_clear(err);
-
-      /* Constraint failed so the mapping for SHA1_CHECKSUM->REP
-         should exist.  If so that's cool -- just do nothing.  If not,
-         that's a red flag!  */
-      SVN_ERR(svn_fs_fs__get_rep_reference(&old_rep, fs, &checksum, pool));
-
-      if (!old_rep)
-        {
-          /* Something really odd at this point, we failed to insert the
-             checksum AND failed to read an existing checksum.  Do we need
-             to flag this? */
-        }
-    }
+  SVN_ERR(svn_sqlite__insert(NULL, stmt));
 
   return SVN_NO_ERROR;
 }

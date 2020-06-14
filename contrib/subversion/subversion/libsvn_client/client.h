@@ -682,34 +682,6 @@ svn_client__get_diff_editor2(const svn_delta_editor_t **editor,
 /* ---------------------------------------------------------------- */
 
 
-/*** Editor for diff summary ***/
-
-/* Set *DIFF_PROCESSOR to a diff processor that will report a diff summary
-   to SUMMARIZE_FUNC.
-
-   P_ROOT_RELPATH will return a pointer to a string that must be set to
-   the root of the operation before the processor is called.
-
-   ORIGINAL_PATH specifies the original path and will be used with
-   **ANCHOR_PATH to create paths as the user originally provided them
-   to the diff function.
-
-   SUMMARIZE_FUNC is called with SUMMARIZE_BATON as parameter by the
-   created callbacks for each changed item.
-*/
-svn_error_t *
-svn_client__get_diff_summarize_callbacks(
-                        const svn_diff_tree_processor_t **diff_processor,
-                        const char ***p_root_relpath,
-                        svn_client_diff_summarize_func_t summarize_func,
-                        void *summarize_baton,
-                        const char *original_target,
-                        apr_pool_t *result_pool,
-                        apr_pool_t *scratch_pool);
-
-/* ---------------------------------------------------------------- */
-
-
 /*** Copy Stuff ***/
 
 /* This structure is used to associate a specific copy or move SRC with a
@@ -754,40 +726,23 @@ typedef struct svn_client__copy_pair_t
 
 /*** Commit Stuff ***/
 
-/* WARNING: This is all new, untested, un-peer-reviewed conceptual
-   stuff.
+/* The "Harvest Committables" System
 
-   The day that 'svn switch' came into existence, our old commit
-   crawler (svn_wc_crawl_local_mods) became obsolete.  It relied far
-   too heavily on the on-disk hierarchy of files and directories, and
-   simply had no way to support disjoint working copy trees or nest
-   working copies.  The primary reason for this is that commit
-   process, in order to guarantee atomicity, is a single drive of a
+   The commit process requires, per repository, a single drive of a
    commit editor which is based not on working copy paths, but on
-   URLs.  With the completion of 'svn switch', it became all too
-   likely that the on-disk working copy hierarchy would no longer be
-   guaranteed to map to a similar in-repository hierarchy.
+   URLs.  The on-disk working copy hierarchy does not, in general,
+   map to a similar in-repository hierarchy, due to switched subtrees
+   and disjoint working copies.
 
-   Aside from this new brokenness of the old system, an unrelated
-   feature request had cropped up -- the ability to know in advance of
-   your commit, exactly what would be committed (so that log messages
-   could be initially populated with this information).  Since the old
-   crawler discovered commit candidates while in the process of
-   committing, it was impossible to harvest this information upfront.
-   As a workaround, svn_wc_statuses() was used to stat the whole
-   working copy for changes before the commit started...and then the
-   commit would again stat the whole tree for changes.
-
-   Enter the new system.
+   Also we wish to know exactly what would be committed, in advance of
+   the commit, so that a log message editor can be initially populated
+   with this information.
 
    The primary goal of this system is very straightforward: harvest
    all commit candidate information up front, and cache enough info in
    the process to use this to drive a URL-sorted commit.
 
-   *** END-OF-KNOWLEDGE ***
-
-   The prototypes below are still in development.  In general, the
-   idea is that commit-y processes ('svn mkdir URL', 'svn delete URL',
+   The idea is that commit-y processes ('svn mkdir URL', 'svn delete URL',
    'svn commit', 'svn copy WC_PATH URL', 'svn copy URL1 URL2', 'svn
    move URL1 URL2', others?) generate the cached commit candidate
    information, and hand this information off to a consumer which is
@@ -844,7 +799,7 @@ typedef svn_error_t *(*svn_client__check_url_kind_t)(void *baton,
      - if the candidate has a lock token, add it to the LOCK_TOKENS hash.
 
      - if the candidate is a directory scheduled for deletion, crawl
-       the directories children recursively for any lock tokens and
+       the directory's children recursively for any lock tokens and
        add them to the LOCK_TOKENS array.
 
    At the successful return of this function, COMMITTABLES will point
@@ -914,6 +869,18 @@ svn_error_t *
 svn_client__condense_commit_items(const char **base_url,
                                   apr_array_header_t *commit_items,
                                   apr_pool_t *pool);
+
+/* Rewrite the COMMIT_ITEMS array to be sorted by URL.
+   Rewrite the items' URLs to be relative to BASE_URL.
+
+   COMMIT_ITEMS is an array of (svn_client_commit_item3_t *) items.
+
+   Afterwards, some of the items in COMMIT_ITEMS may contain data
+   allocated in POOL. */
+svn_error_t *
+svn_client__condense_commit_items2(const char *base_url,
+                                   apr_array_header_t *commit_items,
+                                   apr_pool_t *pool);
 
 /* Commit the items in the COMMIT_ITEMS array using EDITOR/EDIT_BATON
    to describe the committed local mods.  Prior to this call,
@@ -1072,9 +1039,13 @@ svn_client__ensure_revprop_table(apr_hash_t **revprop_table_out,
    EXPAND_KEYWORDS operates as per the EXPAND argument to
    svn_subst_stream_translated, which see.  If NORMALIZE_EOLS is TRUE and
    LOCAL_ABSPATH requires translation, then normalize the line endings in
-   *NORMAL_STREAM.
+   *NORMAL_STREAM to "\n" if the stream has svn:eol-style set.
 
-   Uses SCRATCH_POOL for temporary allocations. */
+   Note that this IS NOT the repository normal form of the stream as that
+   would use "\r\n" if set to CRLF and "\r" if set to CR.
+
+   The stream is allocated in RESULT_POOL and temporary SCRATCH_POOL is
+   used for temporary allocations. */
 svn_error_t *
 svn_client__get_normalized_stream(svn_stream_t **normal_stream,
                                   svn_wc_context_t *wc_ctx,
@@ -1125,24 +1096,26 @@ svn_client__resolve_conflicts(svn_boolean_t *conflicts_remain,
                               svn_client_ctx_t *ctx,
                               apr_pool_t *scratch_pool);
 
-/* Produce a diff with depth DEPTH between two files or two directories at
- * LEFT_ABSPATH1 and RIGHT_ABSPATH, using the provided diff callbacks to
- * show changes in files. The files and directories involved may be part of
- * a working copy or they may be unversioned. For versioned files, show
- * property changes, too.
+/* Produce a diff with depth DEPTH between the file or directory at
+ * LEFT_ABSPATH and the file or directory at RIGHT_ABSPATH, reporting
+ * differences to DIFF_PROCESSOR.
  *
- * If ANCHOR_ABSPATH is not null, set it to the anchor of the diff before
- * the first processor call. (The anchor is LEFT_ABSPATH or an ancestor of it)
+ * The files and directories involved may be part of a working copy or
+ * they may be unversioned. For versioned files, show property changes,
+ * too.
+ *
+ * No copy or move information is reported to the diff processor.
+ *
+ * Anchor the DIFF_PROCESSOR at the requested diff targets (LEFT_ABSPATH,
+ * RIGHT_ABSPATH). As any children reached by recursion are matched by
+ * name, a diff processor relpath applies equally to both sides of the diff.
  */
 svn_error_t *
-svn_client__arbitrary_nodes_diff(const char **root_relpath,
-                                 svn_boolean_t *root_is_dir,
-                                 const char *left_abspath,
+svn_client__arbitrary_nodes_diff(const char *left_abspath,
                                  const char *right_abspath,
                                  svn_depth_t depth,
                                  const svn_diff_tree_processor_t *diff_processor,
                                  svn_client_ctx_t *ctx,
-                                 apr_pool_t *result_pool,
                                  apr_pool_t *scratch_pool);
 
 
@@ -1180,6 +1153,88 @@ svn_client__remote_propget(apr_hash_t *props,
                            svn_depth_t depth,
                            apr_pool_t *result_pool,
                            apr_pool_t *scratch_pool);
+
+/* */
+typedef struct merge_source_t
+{
+  /* "left" side URL and revision (inclusive iff youngest) */
+  const svn_client__pathrev_t *loc1;
+
+  /* "right" side URL and revision (inclusive iff youngest) */
+  const svn_client__pathrev_t *loc2;
+
+  /* True iff LOC1 is an ancestor of LOC2 or vice-versa (history-wise). */
+  svn_boolean_t ancestral;
+} merge_source_t;
+
+/* Description of the merge target root node (a WC working node) */
+typedef struct merge_target_t
+{
+  /* Absolute path to the WC node */
+  const char *abspath;
+
+  /* The repository location of the base node of the target WC.  If the node
+   * is locally added, then URL & REV are NULL & SVN_INVALID_REVNUM.
+   * REPOS_ROOT_URL and REPOS_UUID are always valid. */
+  svn_client__pathrev_t loc;
+
+} merge_target_t;
+
+/*
+ * Similar API to svn_client_merge_peg5().
+ */
+svn_error_t *
+svn_client__merge_elements(svn_boolean_t *use_sleep,
+                           apr_array_header_t *merge_sources,
+                           merge_target_t *target,
+                           svn_ra_session_t *ra_session,
+                           svn_boolean_t diff_ignore_ancestry,
+                           svn_boolean_t force_delete,
+                           svn_boolean_t dry_run,
+                           const apr_array_header_t *merge_options,
+                           svn_client_ctx_t *ctx,
+                           apr_pool_t *result_pool,
+                           apr_pool_t *scratch_pool);
+
+/* Data for reporting when a merge aborted because of raising conflicts.
+ *
+ * ### TODO: More info, including the ranges (or other parameters) the user
+ *     needs to complete the merge.
+ */
+typedef struct svn_client__conflict_report_t
+{
+  const char *target_abspath;
+  /* The revision range during which conflicts were raised */
+  const merge_source_t *conflicted_range;
+  /* Was the conflicted range the last range in the whole requested merge? */
+  svn_boolean_t was_last_range;
+} svn_client__conflict_report_t;
+
+/* Create and return an error structure appropriate for the unmerged
+   revisions range(s). */
+svn_error_t *
+svn_client__make_merge_conflict_error(svn_client__conflict_report_t *report,
+                                      apr_pool_t *scratch_pool);
+
+/* The body of svn_client_merge5(), which see for details. */
+svn_error_t *
+svn_client__merge_locked(svn_client__conflict_report_t **conflict_report,
+                         const char *source1,
+                         const svn_opt_revision_t *revision1,
+                         const char *source2,
+                         const svn_opt_revision_t *revision2,
+                         const char *target_abspath,
+                         svn_depth_t depth,
+                         svn_boolean_t ignore_mergeinfo,
+                         svn_boolean_t diff_ignore_ancestry,
+                         svn_boolean_t force_delete,
+                         svn_boolean_t record_only,
+                         svn_boolean_t dry_run,
+                         svn_boolean_t allow_mixed_rev,
+                         const apr_array_header_t *merge_options,
+                         svn_client_ctx_t *ctx,
+                         apr_pool_t *result_pool,
+                         apr_pool_t *scratch_pool);
 
 #ifdef __cplusplus
 }

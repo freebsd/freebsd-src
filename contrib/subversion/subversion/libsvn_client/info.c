@@ -167,7 +167,8 @@ build_info_from_dirent(svn_client_info2_t **info,
 #define DIRENT_FIELDS (SVN_DIRENT_KIND        | \
                        SVN_DIRENT_CREATED_REV | \
                        SVN_DIRENT_TIME        | \
-                       SVN_DIRENT_LAST_AUTHOR)
+                       SVN_DIRENT_LAST_AUTHOR | \
+                       SVN_DIRENT_SIZE)
 
 
 /* Helper func for recursively fetching svn_dirent_t's from a remote
@@ -253,20 +254,21 @@ same_resource_in_head(svn_boolean_t *same_p,
                       apr_pool_t *pool)
 {
   svn_error_t *err;
-  svn_opt_revision_t start_rev, peg_rev;
+  svn_opt_revision_t operative_rev, peg_rev;
   const char *head_url;
 
-  start_rev.kind = svn_opt_revision_head;
-  peg_rev.kind = svn_opt_revision_number;
-  peg_rev.value.number = rev;
+  peg_rev.kind = svn_opt_revision_head;
+  operative_rev.kind = svn_opt_revision_number;
+  operative_rev.value.number = rev;
 
   err = svn_client__repos_locations(&head_url, NULL, NULL, NULL,
                                     ra_session,
                                     url, &peg_rev,
-                                    &start_rev, NULL,
+                                    &operative_rev, NULL,
                                     ctx, pool);
   if (err &&
       ((err->apr_err == SVN_ERR_CLIENT_UNRELATED_RESOURCES) ||
+       (err->apr_err == SVN_ERR_FS_NOT_DIRECTORY) ||
        (err->apr_err == SVN_ERR_FS_NOT_FOUND)))
     {
       svn_error_clear(err);

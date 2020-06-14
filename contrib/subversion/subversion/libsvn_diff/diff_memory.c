@@ -688,7 +688,7 @@ typedef struct context_saver_t {
   const char **data; /* const char *data[context_size] */
   apr_size_t *len;   /* apr_size_t len[context_size] */
   apr_size_t next_slot;
-  apr_size_t total_written;
+  apr_ssize_t total_writes;
 } context_saver_t;
 
 
@@ -701,7 +701,7 @@ context_saver_stream_write(void *baton,
   cs->data[cs->next_slot] = data;
   cs->len[cs->next_slot] = *len;
   cs->next_slot = (cs->next_slot + 1) % cs->context_size;
-  cs->total_written++;
+  cs->total_writes++;
   return SVN_NO_ERROR;
 }
 
@@ -822,13 +822,11 @@ make_trailing_context_printer(merge_output_baton_t *btn)
 
 
 static svn_error_t *
-output_merge_token_range(apr_size_t *lines_printed_p,
-                         merge_output_baton_t *btn,
+output_merge_token_range(merge_output_baton_t *btn,
                          int idx, apr_off_t first,
                          apr_off_t length)
 {
   apr_array_header_t *tokens = btn->sources[idx].tokens;
-  apr_size_t lines_printed = 0;
 
   for (; length > 0 && first < tokens->nelts; length--, first++)
     {
@@ -838,11 +836,7 @@ output_merge_token_range(apr_size_t *lines_printed_p,
       /* Note that the trailing context printer assumes that
          svn_stream_write is called exactly once per line. */
       SVN_ERR(svn_stream_write(btn->output_stream, token->data, &len));
-      lines_printed++;
     }
-
-  if (lines_printed_p)
-    *lines_printed_p = lines_printed;
 
   return SVN_NO_ERROR;
 }
@@ -866,7 +860,7 @@ output_common_modified(void *baton,
                        apr_off_t modified_start, apr_off_t modified_length,
                        apr_off_t latest_start, apr_off_t latest_length)
 {
-  return output_merge_token_range(NULL, baton, 1/*modified*/,
+  return output_merge_token_range(baton, 1/*modified*/,
                                   modified_start, modified_length);
 }
 
@@ -876,7 +870,7 @@ output_latest(void *baton,
               apr_off_t modified_start, apr_off_t modified_length,
               apr_off_t latest_start, apr_off_t latest_length)
 {
-  return output_merge_token_range(NULL, baton, 2/*latest*/,
+  return output_merge_token_range(baton, 2/*latest*/,
                                   latest_start, latest_length);
 }
 
@@ -920,26 +914,26 @@ output_conflict(void *baton,
       style == svn_diff_conflict_display_modified_original_latest)
     {
       SVN_ERR(output_merge_marker(btn, 1/*modified*/));
-      SVN_ERR(output_merge_token_range(NULL, btn, 1/*modified*/,
+      SVN_ERR(output_merge_token_range(btn, 1/*modified*/,
                                        modified_start, modified_length));
 
       if (style == svn_diff_conflict_display_modified_original_latest)
         {
           SVN_ERR(output_merge_marker(btn, 0/*original*/));
-          SVN_ERR(output_merge_token_range(NULL, btn, 0/*original*/,
+          SVN_ERR(output_merge_token_range(btn, 0/*original*/,
                                            original_start, original_length));
         }
 
       SVN_ERR(output_merge_marker(btn, 2/*separator*/));
-      SVN_ERR(output_merge_token_range(NULL, btn, 2/*latest*/,
+      SVN_ERR(output_merge_token_range(btn, 2/*latest*/,
                                        latest_start, latest_length));
       SVN_ERR(output_merge_marker(btn, 3/*latest (end)*/));
     }
   else if (style == svn_diff_conflict_display_modified)
-      SVN_ERR(output_merge_token_range(NULL, btn, 1/*modified*/,
+      SVN_ERR(output_merge_token_range(btn, 1/*modified*/,
                                        modified_start, modified_length));
   else if (style == svn_diff_conflict_display_latest)
-      SVN_ERR(output_merge_token_range(NULL, btn, 2/*latest*/,
+      SVN_ERR(output_merge_token_range(btn, 2/*latest*/,
                                        latest_start, latest_length));
   else /* unknown style */
     SVN_ERR_MALFUNCTION();
@@ -983,7 +977,7 @@ output_conflict_with_context(void *baton,
      trailing context)?  If so, flush it. */
   if (btn->output_stream == btn->context_saver->stream)
     {
-      if (btn->context_saver->total_written > btn->context_size)
+      if (btn->context_saver->total_writes > btn->context_size)
         SVN_ERR(svn_stream_puts(btn->real_output_stream, "@@\n"));
       SVN_ERR(flush_context_saver(btn->context_saver, btn->real_output_stream));
     }
@@ -995,17 +989,17 @@ output_conflict_with_context(void *baton,
   SVN_ERR(output_conflict_with_context_marker(btn, btn->markers[1],
                                               modified_start,
                                               modified_length));
-  SVN_ERR(output_merge_token_range(NULL, btn, 1/*modified*/,
+  SVN_ERR(output_merge_token_range(btn, 1/*modified*/,
                                    modified_start, modified_length));
 
   SVN_ERR(output_conflict_with_context_marker(btn, btn->markers[0],
                                               original_start,
                                               original_length));
-  SVN_ERR(output_merge_token_range(NULL, btn, 0/*original*/,
+  SVN_ERR(output_merge_token_range(btn, 0/*original*/,
                                    original_start, original_length));
 
   SVN_ERR(output_merge_marker(btn, 2/*separator*/));
-  SVN_ERR(output_merge_token_range(NULL, btn, 2/*latest*/,
+  SVN_ERR(output_merge_token_range(btn, 2/*latest*/,
                                    latest_start, latest_length));
   SVN_ERR(output_conflict_with_context_marker(btn, btn->markers[3],
                                               latest_start,

@@ -66,7 +66,7 @@ eagain_bucket_read(serf_bucket_t *bucket,
   return APR_EAGAIN;
 }
 
-
+#if !SERF_VERSION_AT_LEAST(1, 4, 0)
 static apr_status_t
 eagain_bucket_readline(serf_bucket_t *bucket,
                        int acceptable,
@@ -79,6 +79,7 @@ eagain_bucket_readline(serf_bucket_t *bucket,
                                          "Not implemented."));
   return APR_ENOTIMPL;
 }
+#endif
 
 
 static apr_status_t
@@ -98,7 +99,11 @@ eagain_bucket_peek(serf_bucket_t *bucket,
 static const serf_bucket_type_t delay_bucket_vtable = {
     "BUF-EAGAIN",
     eagain_bucket_read,
+#if SERF_VERSION_AT_LEAST(1, 4, 0)
+    serf_default_readline,
+#else
     eagain_bucket_readline,
+#endif
     serf_default_read_iovec,
     serf_default_read_for_sendfile,
     serf_default_read_bucket,

@@ -77,12 +77,21 @@ svn_rdump__get_dump_editor_v2(svn_editor_t **editor,
 
 /**
  * Load the dumpstream carried in @a stream to the location described
- * by @a session.  Use @a aux_session (which is opened to the same URL
- * as @a session) for any secondary, out-of-band RA communications
- * required.  If @a quiet is set, suppress notifications.  Use @a pool
- * for all memory allocations.  Use @a cancel_func and @a cancel_baton
- * to check for user cancellation of the operation (for
- * timely-but-safe termination).
+ * by @a session.
+ *
+ * Use @a aux_session (which is opened to the same URL as @a session)
+ * for any secondary, out-of-band RA communications required. This is
+ * needed when loading a non-deltas dump, and for Ev2.
+ *
+ * Print feedback to the console for each revision, unless @a quiet is true.
+ *
+ * Ignore (don't set) any revision property whose name is a key in
+ * @a skip_revprops. The values in the hash are unimportant.
+ *
+ * Use @a cancel_func and @a cancel_baton to check for user cancellation
+ * of the operation (for timely-but-safe termination).
+ *
+ * Use @a pool for all memory allocations.
  */
 svn_error_t *
 svn_rdump__load_dumpstream(svn_stream_t *stream,
@@ -100,28 +109,11 @@ svn_rdump__load_dumpstream(svn_stream_t *stream,
  * currently all svn:* props) so that they contain only LF (\n) line endings.
  *
  * Put the normalized props into NORMAL_PROPS, allocated in RESULT_POOL.
- *
- * Note: this function does not do a deep copy; it is expected that PROPS has
- * a longer lifetime than NORMAL_PROPS.
  */
 svn_error_t *
 svn_rdump__normalize_props(apr_hash_t **normal_props,
                            apr_hash_t *props,
                            apr_pool_t *result_pool);
-
-/* Normalize the line ending style of a single property that "needs
- * translation" (according to svn_prop_needs_translation(),
- * currently all svn:* props) so that they contain only LF (\n) line endings.
- * "\r" characters found mid-line are replaced with "\n".
- * "\r\n" sequences are replaced with "\n"
- *
- * NAME is used to check that VALUE should be normalized, and if this is the
- * case, VALUE is then normalized, allocated from RESULT_POOL
- */
-svn_error_t *
-svn_rdump__normalize_prop(const char *name,
-                          const svn_string_t **value,
-                          apr_pool_t *result_pool);
 
 #ifdef __cplusplus
 }

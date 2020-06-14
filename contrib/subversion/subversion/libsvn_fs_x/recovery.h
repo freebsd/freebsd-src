@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__RECOVERY_H
-#define SVN_LIBSVN_FS__RECOVERY_H
+#ifndef SVN_LIBSVN_FS_X_RECOVERY_H
+#define SVN_LIBSVN_FS_X_RECOVERY_H
 
 #include "fs.h"
 

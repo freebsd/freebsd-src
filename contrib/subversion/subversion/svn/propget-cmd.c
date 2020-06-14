@@ -137,7 +137,7 @@ print_properties_xml(const char *pname,
   return SVN_NO_ERROR;
 }
 
-/* Print the property PNAME_UTF with the value PROPVAL set on ABSPATH_OR_URL
+/* Print the property PNAME with the value PROPVAL set on ABSPATH_OR_URL
    to the stream OUT.
 
    If INHERITED_PROPERTY is true then the property described is inherited,
@@ -153,7 +153,7 @@ print_single_prop(svn_string_t *propval,
                   const char *abspath_or_URL,
                   const char *wc_path_prefix,
                   svn_stream_t *out,
-                  const char *pname_utf8,
+                  const char *pname,
                   svn_boolean_t print_filenames,
                   svn_boolean_t omit_newline,
                   svn_boolean_t like_proplist,
@@ -211,14 +211,14 @@ print_single_prop(svn_string_t *propval,
       /* Print the property name and value just as "proplist -v" does */
       apr_hash_t *hash = apr_hash_make(scratch_pool);
 
-      svn_hash_sets(hash, pname_utf8, propval);
+      svn_hash_sets(hash, pname, propval);
       SVN_ERR(svn_cmdline__print_prop_hash(out, hash, FALSE, scratch_pool));
     }
   else
     {
       /* If this is a special Subversion property, it is stored as
          UTF8, so convert to the native format. */
-      if (svn_prop_needs_translation(pname_utf8))
+      if (svn_prop_needs_translation(pname))
         SVN_ERR(svn_subst_detranslate_string(&propval, propval,
                                              TRUE, scratch_pool));
 
@@ -244,7 +244,7 @@ print_single_prop(svn_string_t *propval,
    If IS_URL is true, all paths in PROPS are URLs, else all paths are local
    paths.
 
-   PNAME_UTF8 is the property name of all the properties.
+   PNAME is the property name of all the properties.
 
    If PRINT_FILENAMES is true, print the item's path before each property.
 
@@ -255,7 +255,7 @@ print_single_prop(svn_string_t *propval,
 static svn_error_t *
 print_properties(svn_stream_t *out,
                  const char *target_abspath_or_url,
-                 const char *pname_utf8,
+                 const char *pname,
                  apr_hash_t *props,
                  apr_array_header_t *inherited_props,
                  svn_boolean_t print_filenames,
@@ -282,7 +282,7 @@ print_properties(svn_stream_t *out,
                                                           iprop->prop_hash));
           SVN_ERR(print_single_prop(propval, target_abspath_or_url,
                                     iprop->path_or_url,
-                                    path_prefix, out, pname_utf8,
+                                    path_prefix, out, pname,
                                     print_filenames, omit_newline,
                                     like_proplist, TRUE, iterpool));
         }
@@ -298,7 +298,7 @@ print_properties(svn_stream_t *out,
       svn_pool_clear(iterpool);
 
       SVN_ERR(print_single_prop(propval, target_abspath_or_url, filename,
-                                path_prefix, out, pname_utf8, print_filenames,
+                                path_prefix, out, pname, print_filenames,
                                 omit_newline, like_proplist, FALSE,
                                 iterpool));
     }
@@ -317,7 +317,7 @@ svn_cl__propget(apr_getopt_t *os,
 {
   svn_cl__opt_state_t *opt_state = ((svn_cl__cmd_baton_t *) baton)->opt_state;
   svn_client_ctx_t *ctx = ((svn_cl__cmd_baton_t *) baton)->ctx;
-  const char *pname, *pname_utf8;
+  const char *pname;
   apr_array_header_t *args, *targets;
   svn_stream_t *out;
   svn_boolean_t warned = FALSE;
@@ -328,15 +328,14 @@ svn_cl__propget(apr_getopt_t *os,
                             _("--verbose cannot be used with --revprop or "
                               "--no-newline or --xml"));
 
-  /* PNAME is first argument (and PNAME_UTF8 will be a UTF-8 version
-     thereof) */
+  /* PNAME is first argument */
   SVN_ERR(svn_opt_parse_num_args(&args, os, 1, pool));
   pname = APR_ARRAY_IDX(args, 0, const char *);
-  SVN_ERR(svn_utf_cstring_to_utf8(&pname_utf8, pname, pool));
-  if (! svn_prop_name_is_valid(pname_utf8))
+  SVN_ERR(svn_utf_cstring_to_utf8(&pname, pname, pool));
+  if (! svn_prop_name_is_valid(pname))
     return svn_error_createf(SVN_ERR_CLIENT_PROPERTY_NAME, NULL,
                              _("'%s' is not a valid Subversion property name"),
-                             pname_utf8);
+                             pname);
 
   SVN_ERR(svn_cl__args_to_target_array_print_reserved(&targets, os,
                                                       opt_state->targets,
@@ -363,7 +362,7 @@ svn_cl__propget(apr_getopt_t *os,
                                       &URL, ctx, pool));
 
       /* Let libsvn_client do the real work. */
-      SVN_ERR(svn_client_revprop_get(pname_utf8, &propval,
+      SVN_ERR(svn_client_revprop_get(pname, &propval,
                                      URL, &(opt_state->start_revision),
                                      &rev, ctx, pool));
 
@@ -372,7 +371,7 @@ svn_cl__propget(apr_getopt_t *os,
           return svn_error_createf(SVN_ERR_PROPERTY_NOT_FOUND, NULL,
                                    _("Property '%s' not found on "
                                      "revision %s"),
-                                   pname_utf8,
+                                   pname,
                                    svn_opt__revision_to_string(
                                      &opt_state->start_revision,
                                      pool));
@@ -390,7 +389,7 @@ svn_cl__propget(apr_getopt_t *os,
                                     "revprops",
                                     "rev", revstr, SVN_VA_NULL);
 
-              svn_cmdline__print_xml_prop(&sb, pname_utf8, propval, FALSE,
+              svn_cmdline__print_xml_prop(&sb, pname, propval, FALSE,
                                           pool);
 
               svn_xml_make_close_tag(&sb, pool, "revprops");
@@ -405,7 +404,7 @@ svn_cl__propget(apr_getopt_t *os,
               /* If this is a special Subversion property, it is stored as
                  UTF8 and LF, so convert to the native locale and eol-style. */
 
-              if (svn_prop_needs_translation(pname_utf8))
+              if (svn_prop_needs_translation(pname))
                 SVN_ERR(svn_subst_detranslate_string(&printable_val, propval,
                                                      TRUE, pool));
 
@@ -462,7 +461,7 @@ svn_cl__propget(apr_getopt_t *os,
           SVN_ERR(svn_client_propget5(
             &props,
             opt_state->show_inherited_props ? &inherited_props : NULL,
-            pname_utf8, truepath,
+            pname, truepath,
             &peg_revision,
             &(opt_state->start_revision),
             NULL, opt_state->depth,
@@ -491,7 +490,7 @@ svn_cl__propget(apr_getopt_t *os,
               svn_error_t *err;
               err = svn_error_createf(SVN_ERR_PROPERTY_NOT_FOUND, NULL,
                                       _("Property '%s' not found on '%s'"),
-                                      pname_utf8, target);
+                                      pname, target);
               svn_handle_warning2(stderr, err, "svn: ");
               svn_error_clear(err);
               warned = TRUE;
@@ -499,12 +498,12 @@ svn_cl__propget(apr_getopt_t *os,
 
           if (opt_state->xml)
             SVN_ERR(print_properties_xml(
-              pname_utf8, props,
+              pname, props,
               opt_state->show_inherited_props ? inherited_props : NULL,
               subpool));
           else
             SVN_ERR(print_properties(
-              out, truepath, pname_utf8,
+              out, truepath, pname,
               props,
               opt_state->show_inherited_props ? inherited_props : NULL,
               print_filenames,

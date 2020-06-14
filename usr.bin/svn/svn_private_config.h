@@ -19,11 +19,20 @@
 /* Define to 1 if you have the `bind_textdomain_codeset' function. */
 /* #undef HAVE_BIND_TEXTDOMAIN_CODESET */
 
+/* define if the Boost library is available */
+/* #undef HAVE_BOOST */
+
+/* define if the Boost::Unit_Test_Framework library is available */
+/* #undef HAVE_BOOST_UNIT_TEST_FRAMEWORK */
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
 /* Define to 1 if you don't have `vprintf' but do have `_doprnt.' */
 /* #undef HAVE_DOPRNT */
+
+/* Define to 1 if you have the <elf.h> header file. */
+#define HAVE_ELF_H 1
 
 /* Define to 1 if you have the `getpid' function. */
 #define HAVE_GETPID 1
@@ -42,6 +51,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
+
+/* Define to 1 if you have the <py3c.h> header file. */
+/* #undef HAVE_PY3C_H */
 
 /* Define to 1 if you have the `rb_errinfo' function. */
 /* #undef HAVE_RB_ERRINFO */
@@ -110,7 +122,7 @@
 #define PACKAGE_NAME "subversion"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "subversion 1.9.4"
+#define PACKAGE_STRING "subversion 1.14.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "subversion"
@@ -119,16 +131,13 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.9.4"
+#define PACKAGE_VERSION "1.14.0"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Defined to build against httpd 2.4 with broken auth */
 /* #undef SVN_ALLOW_BROKEN_HTTPD_AUTH */
-
-/* Define to the Python/C API format character suitable for apr_int64_t */
-#define SVN_APR_INT64_T_PYCFMT "l"
 
 /* Defined to be the path to the installed binaries */
 #define SVN_BINDIR "/usr/bin"
@@ -147,6 +156,9 @@
 
 /* Defined if plaintext password/passphrase storage is disabled */
 /* #undef SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE */
+
+/* Shared library file name suffix format */
+/* #undef SVN_DSO_SUFFIX_FMT */
 
 /* The desired major version for the Berkeley DB */
 #define SVN_FS_WANT_DB_MAJOR 4
@@ -169,11 +181,17 @@
 /* Is Mac OS KeyChain support enabled? */
 /* #undef SVN_HAVE_KEYCHAIN_SERVICES */
 
+/* Defined if KF5 available */
+/* #undef SVN_HAVE_KF5 */
+
 /* Defined if KWallet support is enabled */
 /* #undef SVN_HAVE_KWALLET */
 
 /* Defined if libmagic support is enabled */
 #define SVN_HAVE_LIBMAGIC 1
+
+/* Is libsecret support enabled? */
+/* #undef SVN_HAVE_LIBSECRET */
 
 /* Is Mach-O low-level _dyld API available? */
 /* #undef SVN_HAVE_MACHO_ITERATE */
@@ -193,14 +211,11 @@
 /* Defined if support for Serf is enabled */
 #define SVN_HAVE_SERF 1
 
-/* Defined if libsvn_client should link against libsvn_ra_local */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_LOCAL 1
+/* Define to use internal LZ4 code */
+#define SVN_INTERNAL_LZ4 1
 
-/* Defined if libsvn_client should link against libsvn_ra_serf */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SERF 1
-
-/* Defined if libsvn_client should link against libsvn_ra_svn */
-#define SVN_LIBSVN_CLIENT_LINKS_RA_SVN 1
+/* Define to use internal UTF8PROC code */
+#define SVN_INTERNAL_UTF8PROC 1
 
 /* Defined if libsvn_fs should link against libsvn_fs_base */
 /* #undef SVN_LIBSVN_FS_LINKS_FS_BASE */
@@ -210,6 +225,15 @@
 
 /* Defined if libsvn_fs should link against libsvn_fs_x */
 #define SVN_LIBSVN_FS_LINKS_FS_X 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_local */
+#define SVN_LIBSVN_RA_LINKS_RA_LOCAL 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_serf */
+#define SVN_LIBSVN_RA_LINKS_RA_SERF 1
+
+/* Defined if libsvn_ra should link against libsvn_ra_svn */
+#define SVN_LIBSVN_RA_LINKS_RA_SVN 1
 
 /* Defined to be the path to the installed locale dirs */
 #define SVN_LOCALE_DIR "NONE/share/locale"

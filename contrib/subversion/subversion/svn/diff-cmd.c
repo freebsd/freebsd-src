@@ -181,6 +181,24 @@ summarize_regular(const svn_client_diff_summarize_t *summary,
   return svn_cmdline_fflush(stdout);
 }
 
+svn_error_t *
+svn_cl__get_diff_summary_writer(svn_client_diff_summarize_func_t *func_p,
+                                void **baton_p,
+                                svn_boolean_t xml,
+                                svn_boolean_t ignore_properties,
+                                const char *anchor,
+                                apr_pool_t *result_pool,
+                                apr_pool_t *scratch_pool)
+{
+  struct summarize_baton_t *b = apr_pcalloc(result_pool, sizeof(*b));
+
+  b->anchor = anchor;
+  b->ignore_properties = ignore_properties;
+  *func_p = xml ? summarize_xml : summarize_regular;
+  *baton_p = b;
+  return SVN_NO_ERROR;
+}
+
 /* An svn_opt_subcommand_t to handle the 'diff' command.
    This implements the `svn_opt_subcommand_t' interface. */
 svn_error_t *
@@ -203,9 +221,6 @@ svn_cl__diff(apr_getopt_t *os,
   svn_boolean_t ignore_properties =
     opt_state->diff.patch_compatible || opt_state->diff.ignore_properties;
   int i;
-  struct summarize_baton_t summarize_baton;
-  const svn_client_diff_summarize_func_t summarize_func =
-    (opt_state->xml ? summarize_xml : summarize_regular);
 
   if (opt_state->extensions)
     options = svn_cstring_split(opt_state->extensions, " \t\n\r", TRUE, pool);
@@ -232,6 +247,43 @@ svn_cl__diff(apr_getopt_t *os,
       sb = svn_stringbuf_create_empty(pool);
       svn_xml_make_open_tag(&sb, pool, svn_xml_normal, "paths", SVN_VA_NULL);
       SVN_ERR(svn_cl__error_checked_fputs(sb->data, stdout));
+    }
+  if (opt_state->diff.summarize)
+    {
+      if (opt_state->diff.use_git_diff_format)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--git");
+      if (opt_state->diff.patch_compatible)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--patch-compatible");
+      if (opt_state->diff.show_copies_as_adds)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--show-copies-as-adds");
+      if (opt_state->diff.internal_diff)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--internal-diff");
+      if (opt_state->diff.diff_cmd)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--diff-cmd");
+      if (opt_state->diff.no_diff_added)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--no-diff-added");
+      if (opt_state->diff.no_diff_deleted)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--no-diff-deleted");
+      if (opt_state->force)
+        return svn_error_createf(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
+                                 _("'%s' not valid with '--summarize' option"),
+                                 "--force");
+      /* Not handling ignore-properties, and properties-only as there should
+         be a patch adding support for these being applied soon */
     }
 
   SVN_ERR(svn_cl__args_to_target_array_print_reserved(&targets, os,
@@ -411,9 +463,13 @@ svn_cl__diff(apr_getopt_t *os,
 
           if (opt_state->diff.summarize)
             {
-              summarize_baton.anchor = target1;
-              summarize_baton.ignore_properties = ignore_properties;
+              svn_client_diff_summarize_func_t summarize_func;
+              void *summarize_baton;
 
+              SVN_ERR(svn_cl__get_diff_summary_writer(
+                                &summarize_func, &summarize_baton,
+                                opt_state->xml, ignore_properties, target1,
+                                iterpool, iterpool));
               SVN_ERR(svn_client_diff_summarize2(
                                 target1,
                                 &opt_state->start_revision,
@@ -422,11 +478,11 @@ svn_cl__diff(apr_getopt_t *os,
                                 opt_state->depth,
                                 ! opt_state->diff.notice_ancestry,
                                 opt_state->changelists,
-                                summarize_func, &summarize_baton,
+                                summarize_func, summarize_baton,
                                 ctx, iterpool));
             }
           else
-            SVN_ERR(svn_client_diff6(
+            SVN_ERR(svn_client_diff7(
                      options,
                      target1,
                      &(opt_state->start_revision),
@@ -442,6 +498,7 @@ svn_cl__diff(apr_getopt_t *os,
                      ignore_properties,
                      opt_state->diff.properties_only,
                      opt_state->diff.use_git_diff_format,
+                     TRUE /*pretty_print_mergeinfo*/,
                      svn_cmdline_output_encoding(pool),
                      outstream,
                      errstream,
@@ -464,8 +521,13 @@ svn_cl__diff(apr_getopt_t *os,
 
           if (opt_state->diff.summarize)
             {
-              summarize_baton.anchor = truepath;
-              summarize_baton.ignore_properties = ignore_properties;
+              svn_client_diff_summarize_func_t summarize_func;
+              void *summarize_baton;
+
+              SVN_ERR(svn_cl__get_diff_summary_writer(
+                                &summarize_func, &summarize_baton,
+                                opt_state->xml, ignore_properties, truepath,
+                                iterpool, iterpool));
               SVN_ERR(svn_client_diff_summarize_peg2(
                                 truepath,
                                 &peg_revision,
@@ -474,11 +536,11 @@ svn_cl__diff(apr_getopt_t *os,
                                 opt_state->depth,
                                 ! opt_state->diff.notice_ancestry,
                                 opt_state->changelists,
-                                summarize_func, &summarize_baton,
+                                summarize_func, summarize_baton,
                                 ctx, iterpool));
             }
           else
-            SVN_ERR(svn_client_diff_peg6(
+            SVN_ERR(svn_client_diff_peg7(
                      options,
                      truepath,
                      &peg_revision,
@@ -494,6 +556,7 @@ svn_cl__diff(apr_getopt_t *os,
                      ignore_properties,
                      opt_state->diff.properties_only,
                      opt_state->diff.use_git_diff_format,
+                     TRUE /*pretty_print_mergeinfo*/,
                      svn_cmdline_output_encoding(pool),
                      outstream,
                      errstream,

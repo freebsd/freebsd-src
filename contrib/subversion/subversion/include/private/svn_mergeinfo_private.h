@@ -52,18 +52,21 @@ svn_rangelist__set_inheritance(svn_rangelist_t *rangelist,
  * Unlike svn_mergeinfo_parse(), this does not sort the ranges into order
  * or combine adjacent and overlapping ranges.
  *
- * The compaction can be done with svn_rangelist__combine_adjacent_ranges().
+ * The compaction can be done with svn_rangelist__canonicalize().
  */
 svn_error_t *
 svn_rangelist__parse(svn_rangelist_t **rangelist,
                      const char *str,
                      apr_pool_t *result_pool);
 
-/* In-place combines adjacent ranges in a rangelist.
-   SCRATCH_POOL is just used for providing error messages. */
-svn_error_t *
-svn_rangelist__combine_adjacent_ranges(svn_rangelist_t *rangelist,
-                                       apr_pool_t *scratch_pool);
+/* Return TRUE, if all ranges in RANGELIST are in ascending order and do
+* not overlap and are not adjacent.
+*
+* If this returns FALSE, you probaly want to call
+* svn_rangelist__canonicalize().
+*/
+svn_boolean_t
+svn_rangelist__is_canonical(const svn_rangelist_t *rangelist);
 
 /** Canonicalize the @a rangelist: sort the ranges, and combine adjacent or
  * overlapping ranges into single ranges where possible.

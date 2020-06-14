@@ -1,4 +1,4 @@
-/* low_level.c --- low level r/w access to fs_x file structures
+/* low_level.c --- low level r/w access to FSX file structures
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -20,8 +20,8 @@
  * ====================================================================
  */
 
-#ifndef SVN_LIBSVN_FS__LOW_LEVEL_H
-#define SVN_LIBSVN_FS__LOW_LEVEL_H
+#ifndef SVN_LIBSVN_FS_X_LOW_LEVEL_H
+#define SVN_LIBSVN_FS_X_LOW_LEVEL_H
 
 #include "svn_fs.h"
 
@@ -50,6 +50,8 @@ extern "C" {
  * *P2L_OFFSET, respectively.  Also, return the expected checksums in
  * in *L2P_CHECKSUM and *P2L_CHECKSUM.
  *
+ * FOOTER_OFFSET is used for validation.
+ *
  * Note that REV is only used to construct nicer error objects that
  * mention this revision.  Allocate the checksums in RESULT_POOL.
  */
@@ -60,6 +62,7 @@ svn_fs_x__parse_footer(apr_off_t *l2p_offset,
                        svn_checksum_t **p2l_checksum,
                        svn_stringbuf_t *footer,
                        svn_revnum_t rev,
+                       apr_off_t footer_offset,
                        apr_pool_t *result_pool);
 
 /* Given the offset of the L2P index data in L2P_OFFSET, the content
@@ -167,15 +170,17 @@ svn_fs_x__write_rep_header(svn_fs_x__rep_header_t *header,
                            svn_stream_t *stream,
                            apr_pool_t *scratch_pool);
 
-/* Read all the changes from STREAM and store them in *CHANGES,
-   allocated in RESULT_POOL. Do temporary allocations in SCRATCH_POOL. */
+/* Read up to MAX_COUNT of the changes from STREAM and store them in
+   *CHANGES, allocated in RESULT_POOL.  Do temporary allocations in
+   SCRATCH_POOL. */
 svn_error_t *
 svn_fs_x__read_changes(apr_array_header_t **changes,
                        svn_stream_t *stream,
+                       int max_count,
                        apr_pool_t *result_pool,
                        apr_pool_t *scratch_pool);
 
-/* Callback function used by svn_fs_fs__read_changes_incrementally(),
+/* Callback function used by svn_fs_x__read_changes_incrementally(),
  * asking the receiver to process to process CHANGE using BATON.  CHANGE
  * and SCRATCH_POOL will not be valid beyond the current callback invocation.
  */
@@ -207,8 +212,25 @@ svn_fs_x__write_changes(svn_stream_t *stream,
                         svn_boolean_t terminate_list,
                         apr_pool_t *scratch_pool);
 
+/* Parse the property list serialized in CONTENT and return it in
+   *PROPERTIES, allocated from RESULT_POOL.  CONTENT must remain
+   valid at least until the next cleanup of RESULT_POOL.
+ */
+svn_error_t *
+svn_fs_x__parse_properties(apr_hash_t **properties,
+                           const svn_string_t *content,
+                           apr_pool_t *result_pool);
+
+/* Write the property list PROPLIST to STREAM in serialized format.
+   Use SCRATCH_POOL for temporary allocations.
+ */
+svn_error_t *
+svn_fs_x__write_properties(svn_stream_t *stream,
+                           apr_hash_t *proplist,
+                           apr_pool_t *scratch_pool);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* SVN_LIBSVN_FS__LOW_LEVEL_H */
+#endif /* SVN_LIBSVN_FS_X_LOW_LEVEL_H */

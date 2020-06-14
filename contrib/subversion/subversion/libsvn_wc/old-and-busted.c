@@ -1203,7 +1203,8 @@ svn_wc__read_entries_old(apr_hash_t **entries,
   /* Open the entries file. */
   SVN_ERR(svn_wc__open_adm_stream(&stream, dir_abspath, SVN_WC__ADM_ENTRIES,
                                   scratch_pool, scratch_pool));
-  SVN_ERR(svn_string_from_stream(&buf, stream, scratch_pool, scratch_pool));
+  SVN_ERR(svn_string_from_stream2(&buf, stream, SVN__STREAM_CHUNK_SIZE,
+                                  scratch_pool));
 
   /* We own the returned data; it is modifiable, so cast away... */
   curp = (char *)buf->data;

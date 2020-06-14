@@ -89,7 +89,9 @@ svn_client__get_revision_number(svn_revnum_t *revnum,
         /* The BASE, COMMITTED, and PREV revision keywords do not
            apply to URLs. */
         if (svn_path_is_url(local_abspath))
-          goto invalid_rev_arg;
+          return svn_error_create(SVN_ERR_CLIENT_BAD_REVISION, NULL,
+                                  _("PREV, BASE, or COMMITTED revision "
+                                    "keywords are invalid for URL"));
 
         err = svn_wc__node_get_origin(NULL, revnum, NULL, NULL, NULL, NULL,
                                       NULL,
@@ -129,7 +131,9 @@ svn_client__get_revision_number(svn_revnum_t *revnum,
         /* The BASE, COMMITTED, and PREV revision keywords do not
            apply to URLs. */
         if (svn_path_is_url(local_abspath))
-          goto invalid_rev_arg;
+          return svn_error_create(SVN_ERR_CLIENT_BAD_REVISION, NULL,
+                                  _("PREV, BASE, or COMMITTED revision "
+                                    "keywords are invalid for URL"));
 
         SVN_ERR(svn_wc__node_get_changed_info(revnum, NULL, NULL,
                                               wc_ctx, local_abspath,
@@ -142,7 +146,14 @@ svn_client__get_revision_number(svn_revnum_t *revnum,
                                                           scratch_pool));
 
         if (revision->kind == svn_opt_revision_previous)
-          (*revnum)--;
+          {
+            if (*revnum == 0)
+              return svn_error_createf(
+                  SVN_ERR_CLIENT_BAD_REVISION, NULL,
+                  _("Path '%s' has no previous revision"),
+                  svn_dirent_local_style(local_abspath, scratch_pool));
+            --(*revnum);
+          }
       }
       break;
 
@@ -183,10 +194,4 @@ svn_client__get_revision_number(svn_revnum_t *revnum,
     *revnum = *youngest_rev;
 
   return SVN_NO_ERROR;
-
-  invalid_rev_arg:
-    return svn_error_create(
-      SVN_ERR_CLIENT_BAD_REVISION, NULL,
-      _("PREV, BASE, or COMMITTED revision keywords are invalid for URL"));
-
 }

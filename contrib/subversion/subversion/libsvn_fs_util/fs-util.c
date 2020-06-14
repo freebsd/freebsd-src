@@ -212,6 +212,21 @@ svn_fs__path_change_create_internal(const svn_fs_id_t *node_rev_id,
   return change;
 }
 
+svn_fs_path_change3_t *
+svn_fs__path_change_create_internal2(svn_fs_path_change_kind_t change_kind,
+                                     apr_pool_t *result_pool)
+{
+  svn_fs_path_change3_t *change;
+
+  change = apr_pcalloc(result_pool, sizeof(*change));
+  change->path.data = "";
+  change->change_kind = change_kind;
+  change->mergeinfo_mod = svn_tristate_unknown;
+  change->copyfrom_rev = SVN_INVALID_REVNUM;
+
+  return change;
+}
+
 svn_error_t *
 svn_fs__append_to_merged_froms(svn_mergeinfo_t *output,
                                svn_mergeinfo_t input,

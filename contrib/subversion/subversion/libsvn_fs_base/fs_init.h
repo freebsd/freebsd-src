@@ -1,4 +1,7 @@
 /*
+ * libsvn_fs_base/fs_init.h:  Exported function of libsvn_fs_base
+ *
+ *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
  *    or more contributor license agreements.  See the NOTICE file
@@ -19,36 +22,12 @@
  * ====================================================================
  */
 
-
-#ifndef SVN_DEBUG_EDITOR_H
-#define SVN_DEBUG_EDITOR_H
+#ifndef LIBSVN_FS_LOADER_H
+#error Please include libsvn_fs/fs_loader.h instead of this file
+#else
 
-#include "svn_delta.h"
+svn_error_t *svn_fs_base__init(const svn_version_t *loader_version,
+                               fs_library_vtable_t **vtable,
+                               apr_pool_t* common_pool);
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
-/* Return a debug editor that wraps @a wrapped_editor.
- *
- * The debug editor simply prints an indication of what callbacks are being
- * called to @c stdout, and is only intended for use in debugging subversion
- * editors.
- *
- * @a prefix, if non-null, is printed between "DBG: " and each indication.
- *
- * Note: Our test suite generally ignores stdout lines starting with "DBG:".
- */
-svn_error_t *
-svn_delta__get_debug_editor(const svn_delta_editor_t **editor,
-                            void **edit_baton,
-                            const svn_delta_editor_t *wrapped_editor,
-                            void *wrapped_baton,
-                            const char *prefix,
-                            apr_pool_t *pool);
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
-#endif /* SVN_DEBUG_EDITOR_H */
+#endif

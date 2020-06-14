@@ -67,6 +67,7 @@ struct apr_shm_t {
     const char *filename;      /* NULL if anonymous */
 #if APR_USE_SHMEM_SHMGET || APR_USE_SHMEM_SHMGET_ANON
     int shmid;          /* shmem ID returned from shmget() */
+    key_t shmkey;       /* shmem key IPC_ANON or returned from ftok() */
 #endif
 };
 

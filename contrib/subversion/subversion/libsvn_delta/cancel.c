@@ -222,6 +222,26 @@ apply_textdelta(void *file_baton,
 }
 
 static svn_error_t *
+apply_textdelta_stream(const svn_delta_editor_t *editor,
+                       void *file_baton,
+                       const char *base_checksum,
+                       svn_txdelta_stream_open_func_t open_func,
+                       void *open_baton,
+                       apr_pool_t *scratch_pool)
+{
+  struct file_baton *fb = file_baton;
+  struct edit_baton *eb = fb->edit_baton;
+
+  SVN_ERR(eb->cancel_func(eb->cancel_baton));
+
+  return eb->wrapped_editor->apply_textdelta_stream(eb->wrapped_editor,
+                                                    fb->wrapped_file_baton,
+                                                    base_checksum,
+                                                    open_func, open_baton,
+                                                    scratch_pool);
+}
+
+static svn_error_t *
 close_file(void *file_baton,
            const char *text_checksum,
            apr_pool_t *pool)
@@ -354,6 +374,7 @@ svn_delta_get_cancellation_editor(svn_cancel_func_t cancel_func,
       tree_editor->add_file = add_file;
       tree_editor->open_file = open_file;
       tree_editor->apply_textdelta = apply_textdelta;
+      tree_editor->apply_textdelta_stream = apply_textdelta_stream;
       tree_editor->change_file_prop = change_file_prop;
       tree_editor->close_file = close_file;
       tree_editor->absent_file = absent_file;

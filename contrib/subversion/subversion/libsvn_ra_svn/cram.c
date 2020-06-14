@@ -140,7 +140,7 @@ svn_error_t *svn_ra_svn_cram_server(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
   char hostbuf[APRMAXHOSTLEN + 1];
   unsigned char cdigest[APR_MD5_DIGESTSIZE], sdigest[APR_MD5_DIGESTSIZE];
   const char *challenge, *sep, *password;
-  svn_ra_svn_item_t *item;
+  svn_ra_svn__item_t *item;
   svn_string_t *resp;
 
   *success = FALSE;
@@ -160,7 +160,7 @@ svn_error_t *svn_ra_svn_cram_server(svn_ra_svn_conn_t *conn, apr_pool_t *pool,
   SVN_ERR(svn_ra_svn__read_item(conn, pool, &item));
   if (item->kind != SVN_RA_SVN_STRING)  /* Very wrong; don't report failure */
     return SVN_NO_ERROR;
-  resp = item->u.string;
+  resp = &item->u.string;
   sep = strrchr(resp->data, ' ');
   if (!sep || resp->len - (sep + 1 - resp->data) != APR_MD5_DIGESTSIZE * 2
       || !hex_decode(cdigest, sep + 1))

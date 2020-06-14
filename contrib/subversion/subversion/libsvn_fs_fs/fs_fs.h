@@ -39,6 +39,15 @@ svn_error_t *svn_fs_fs__open(svn_fs_t *fs,
                              const char *path,
                              apr_pool_t *pool);
 
+/* Initialize parts of the FS data that are being shared across multiple
+   filesystem objects.  Use COMMON_POOL for process-wide and POOL for
+   temporary allocations.  Use COMMON_POOL_LOCK to ensure that the
+   initialization is serialized. */
+svn_error_t *svn_fs_fs__initialize_shared_data(svn_fs_t *fs,
+                                               svn_mutex__t *common_pool_lock,
+                                               apr_pool_t *pool,
+                                               apr_pool_t *common_pool);
+
 /* Upgrade the fsfs filesystem FS.  Indicate progress via the optional
  * NOTIFY_FUNC callback using NOTIFY_BATON.  The optional CANCEL_FUNC
  * will periodically be called with CANCEL_BATON to allow for preemption.
@@ -216,13 +225,16 @@ svn_fs_fs__with_all_locks(svn_fs_t *fs,
                           void *baton,
                           apr_pool_t *pool);
 
-/* Find the value of the property named PROPNAME in transaction TXN.
+/* Find the value of the property named PROPNAME in revision REV.
    Return the contents in *VALUE_P.  The contents will be allocated
-   from POOL. */
+   from RESULT_POOL and SCRATCH_POOL is used for temporaries.
+   Invalidate any revprop cache is REFRESH is set. */
 svn_error_t *svn_fs_fs__revision_prop(svn_string_t **value_p, svn_fs_t *fs,
                                       svn_revnum_t rev,
                                       const char *propname,
-                                      apr_pool_t *pool);
+                                      svn_boolean_t refresh,
+                                      apr_pool_t *result_pool,
+                                      apr_pool_t *scratch_pool);
 
 /* Change, add, or delete a property on a revision REV in filesystem
    FS.  NAME gives the name of the property, and value, if non-NULL,
@@ -291,5 +303,76 @@ svn_fs_fs__initialize_txn_caches(svn_fs_t *fs,
    Calling it more than once per txn or from outside any txn is allowed. */
 void
 svn_fs_fs__reset_txn_caches(svn_fs_t *fs);
+
+/* Scan all contents of the repository FS and return statistics in *STATS,
+ * allocated in RESULT_POOL.  Report progress through PROGRESS_FUNC with
+ * PROGRESS_BATON, if PROGRESS_FUNC is not NULL.
+ * Use SCRATCH_POOL for temporary allocations.
+ */
+svn_error_t *
+svn_fs_fs__get_stats(svn_fs_fs__stats_t **stats,
+                     svn_fs_t *fs,
+                     svn_fs_progress_notify_func_t progress_func,
+                     void *progress_baton,
+                     svn_cancel_func_t cancel_func,
+                     void *cancel_baton,
+                     apr_pool_t *result_pool,
+                     apr_pool_t *scratch_pool);
+
+/* Read the P2L index for the rev / pack file containing REVISION in FS.
+ * For each index entry, invoke CALLBACK_FUNC with CALLBACK_BATON.
+ * If not NULL, call CANCEL_FUNC with CANCEL_BATON from time to time.
+ * Use SCRATCH_POOL for temporary allocations.
+ */
+svn_error_t *
+svn_fs_fs__dump_index(svn_fs_t *fs,
+                      svn_revnum_t revision,
+                      svn_fs_fs__dump_index_func_t callback_func,
+                      void *callback_baton,
+                      svn_cancel_func_t cancel_func,
+                      void *cancel_baton,
+                      apr_pool_t *scratch_pool);
+
+
+/* Rewrite the respective index information of the rev / pack file in FS
+ * containing REVISION and use the svn_fs_fs__p2l_entry_t * array ENTRIES
+ * as the new index contents.  Allocate temporaries from SCRATCH_POOL.
+ *
+ * Note that this becomes a no-op if ENTRIES is empty.  You may use a zero-
+ * sized empty entry instead.
+ */
+svn_error_t *
+svn_fs_fs__load_index(svn_fs_t *fs,
+                      svn_revnum_t revision,
+                      apr_array_header_t *entries,
+                      apr_pool_t *scratch_pool);
+
+/* Set *REV_SIZE to the total size of objects belonging to revision REVISION
+ * in FS. The size includes revision properties and excludes indexes.
+ */
+svn_error_t *
+svn_fs_fs__revision_size(apr_off_t *rev_size,
+                         svn_fs_t *fs,
+                         svn_revnum_t revision,
+                         apr_pool_t *scratch_pool);
+
+/* Add missing entries to the rep-cache on the filesystem FS. Process data
+ * in revisions START_REV through END_REV inclusive. If START_REV is
+ * SVN_INVALID_REVNUM, start at revision 1; if END_REV is SVN_INVALID_REVNUM,
+ * end at the head revision. If the rep-cache does not exist, then create it.
+ *
+ * Indicate progress via the optional PROGRESS_FUNC callback using
+ * PROGRESS_BATON. The optional CANCEL_FUNC will periodically be called with
+ * CANCEL_BATON to allow cancellation. Use POOL for temporary allocations.
+ */
+svn_error_t *
+svn_fs_fs__build_rep_cache(svn_fs_t *fs,
+                           svn_revnum_t start_rev,
+                           svn_revnum_t end_rev,
+                           svn_fs_progress_notify_func_t progress_func,
+                           void *progress_baton,
+                           svn_cancel_func_t cancel_func,
+                           void *cancel_baton,
+                           apr_pool_t *pool);
 
 #endif

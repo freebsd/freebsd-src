@@ -46,7 +46,7 @@ SELECT op_depth, nodes.repos_id, nodes.repos_path, presence, kind, revision,
   lock_token, lock_owner, lock_comment, lock_date
 FROM nodes
 LEFT OUTER JOIN lock ON nodes.repos_id = lock.repos_id
-  AND nodes.repos_path = lock.repos_relpath
+  AND nodes.repos_path = lock.repos_relpath AND nodes.op_depth=0
 WHERE wc_id = ?1 AND local_relpath = ?2
 ORDER BY op_depth DESC
 
@@ -117,6 +117,17 @@ WHERE wc_id = ?1 AND local_relpath = ?2 AND op_depth < ?3
 ORDER BY op_depth DESC
 LIMIT 1
 
+-- STMT_SELECT_PRESENT_HIGHEST_WORKING_NODES_BY_BASENAME_AND_KIND
+SELECT presence, local_relpath
+FROM nodes n
+WHERE wc_id = ?1 AND local_relpath = RELPATH_JOIN(parent_relpath, ?2)
+  AND kind = ?3
+  AND presence in (MAP_NORMAL, MAP_INCOMPLETE)
+  AND op_depth = (SELECT MAX(op_depth)
+                  FROM NODES w
+                  WHERE w.wc_id = ?1
+                    AND w.local_relpath = n.local_relpath)
+
 -- STMT_SELECT_ACTUAL_NODE
 SELECT changelist, properties, conflict_data
 FROM actual_node
@@ -134,7 +145,7 @@ SELECT op_depth, nodes.repos_id, nodes.repos_path, presence, kind, revision,
   lock_comment, lock_date, local_relpath, moved_here, moved_to, file_external
 FROM nodes
 LEFT OUTER JOIN lock ON nodes.repos_id = lock.repos_id
-  AND nodes.repos_path = lock.repos_relpath AND op_depth = 0
+  AND nodes.repos_path = lock.repos_relpath AND nodes.op_depth = 0
 WHERE wc_id = ?1 AND parent_relpath = ?2
 ORDER BY local_relpath DESC, op_depth DESC
 
@@ -148,7 +159,7 @@ SELECT op_depth, nodes.repos_id, nodes.repos_path, presence, kind, revision,
   lock_comment, lock_date, local_relpath, moved_here, moved_to, file_external
 FROM nodes
 LEFT OUTER JOIN lock ON nodes.repos_id = lock.repos_id
-  AND nodes.repos_path = lock.repos_relpath AND op_depth = 0
+  AND nodes.repos_path = lock.repos_relpath
 WHERE wc_id = ?1 AND parent_relpath = ?2 AND op_depth = 0
 ORDER BY local_relpath DESC
 
@@ -249,7 +260,7 @@ WHERE wc_id = ?1 AND IS_STRICT_DESCENDANT_OF(local_relpath, ?2)
 
 -- STMT_DELETE_BASE_RECURSIVE
 DELETE FROM nodes
-WHERE wc_id = ?1 AND (local_relpath = ?2 
+WHERE wc_id = ?1 AND (local_relpath = ?2
                       OR IS_STRICT_DESCENDANT_OF(local_relpath, ?2))
   AND op_depth = 0
 
@@ -1291,6 +1302,10 @@ PRAGMA locking_mode = exclusive;
    exclusive-locking is mostly used on remote file systems. */
 PRAGMA journal_mode = DELETE
 
+-- STMT_FIND_REPOS_PATH_IN_WC
+SELECT local_relpath FROM nodes_current
+  WHERE wc_id = ?1 AND repos_path = ?2
+
 /* ------------------------------------------------------------------------- */
 
 /* these are used in entries.c  */
@@ -1747,13 +1762,6 @@ WHERE wc_id = ?1
 
 /* Queries for cached inherited properties. */
 
-/* Select the inherited properties of a single base node. */
--- STMT_SELECT_IPROPS
-SELECT inherited_props FROM nodes
-WHERE wc_id = ?1
-  AND local_relpath = ?2
-  AND op_depth = 0
-
 /* Update the inherited properties of a single base node. */
 -- STMT_UPDATE_IPROP
 UPDATE nodes
@@ -1787,6 +1795,17 @@ WHERE wc_id = ?1
 -- STMT_HAVE_STAT1_TABLE
 SELECT 1 FROM sqlite_master WHERE name='sqlite_stat1' AND type='table'
 LIMIT 1
+
+-- STMT_SELECT_COPIES_OF_REPOS_RELPATH
+SELECT local_relpath
+FROM nodes n
+WHERE wc_id = ?1 AND repos_path = ?2 AND kind = ?3
+  AND presence = MAP_NORMAL
+  AND op_depth = (SELECT MAX(op_depth)
+                  FROM NODES w
+                  WHERE w.wc_id = ?1
+                    AND w.local_relpath = n.local_relpath)
+ORDER BY local_relpath ASC
 
 /* ------------------------------------------------------------------------- */
 

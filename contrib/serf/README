@@ -1,15 +1,14 @@
-Welcome to serf, a high-performance asynchronous HTTP client library.
+Welcome to Apache Serf, a high-performance asynchronous HTTP client library.
 
-The serf library is a C-based HTTP client library built upon the Apache
+The Apache Serf library is a C-based HTTP client library built upon the Apache
 Portable Runtime (APR) library. It multiplexes connections, running the
 read/write communication asynchronously. Memory copies and transformations are
 kept to a minimum to provide high performance operation.
 
-  * Status: http://code.google.com/p/serf/wiki/
-  * Site: http://code.google.com/p/serf/
-  * Code: http://serf.googlecode.com/svn/
-  * Issues: http://code.google.com/p/serf/issues/list
-  * Mail: serf-dev@googlegroups.com
+  * Site: http://serf.apache.org//
+  * Code: http://svn.apache.org/repos/asf/serf/
+  * Issues: https://issues.apache.org/jira/browse/SERF
+  * Mail: dev@serf.apache.org
   * People: Justin Erenkrantz, Greg Stein 
 
 ----
@@ -18,8 +17,8 @@ kept to a minimum to provide high performance operation.
 
 1.1. SCons build system
 
-serf uses SCons 2.3 for its build system. If it is not installed on
-your system, then you can install it onto your system. If you do not
+Apache Serf uses SCons 2.3 for its build system. If it is not installed
+on your system, then you can install it onto your system. If you do not
 have permissions, then you can download and install the "local"
 version into your home directory. When installed privately, simply
 create a symlink for 'scons' in your PATH to /path/to/scons/scons.py.
@@ -28,7 +27,7 @@ Fetch the scons-local package:
   http://prdownloads.sourceforge.net/scons/scons-local-2.3.0.tar.gz
 
 
-1.2 Building serf
+1.2 Building Apache Serf
 
 To build serf:
 
@@ -70,7 +69,7 @@ $ scons --help
 $ scons check
 
 
-1.4 Installing serf
+1.4 Installing Apache Serf
 
 $ scons install
 

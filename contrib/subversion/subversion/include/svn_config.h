@@ -44,8 +44,8 @@ extern "C" {
 /**************************************************************************
  ***                                                                    ***
  ***  For a description of the SVN configuration file syntax, see       ***
- ***  your ~/.subversion/README, which is written out automatically by  ***
- ***  svn_config_ensure().                                              ***
+ ***  your ~/.subversion/README.txt, which is written out automatically ***
+ ***  by svn_config_ensure().                                           ***
  ***                                                                    ***
  **************************************************************************/
 
@@ -61,6 +61,12 @@ typedef struct svn_config_t svn_config_t;
  * Strings for the names of files, sections, and options in the
  * client configuration files.
  * @{
+ */
+
+/* If you add a new SVN_CONFIG_* category/section/option macro to this group,
+ * you have to re-run gen-make.py manually.
+ *
+ * ### This should be fixed in the build system; see issue #4581.
  */
 
  /* This list of #defines is intentionally presented as a nested list

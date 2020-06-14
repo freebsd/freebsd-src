@@ -38,6 +38,7 @@
 
 #include "private/svn_cmdline_private.h"
 #include "private/svn_sorts_private.h"
+#include "private/svn_utf_private.h"
 
 #include "cl.h"
 #include "cl-log.h"
@@ -87,7 +88,7 @@ display_diff(const svn_log_entry_t *log_entry,
   end_revision.value.number = log_entry->revision;
 
   SVN_ERR(svn_stream_puts(outstream, "\n"));
-  SVN_ERR(svn_client_diff_peg6(diff_options,
+  SVN_ERR(svn_client_diff_peg7(diff_options,
                                target_path_or_url,
                                target_peg_revision,
                                &start_revision, &end_revision,
@@ -101,6 +102,7 @@ display_diff(const svn_log_entry_t *log_entry,
                                FALSE /* ignore prop diff */,
                                FALSE /* properties only */,
                                FALSE /* use git diff format */,
+                               TRUE  /* pretty_print_mergeinfo */,
                                svn_cmdline_output_encoding(pool),
                                outstream,
                                errstream,
@@ -110,6 +112,24 @@ display_diff(const svn_log_entry_t *log_entry,
   return SVN_NO_ERROR;
 }
 
+/* Return TRUE if STR matches PATTERN. Else, return FALSE. Assumes that
+ * PATTERN is a UTF-8 string prepared for case- and accent-insensitive
+ * comparison via svn_utf__xfrm(). */
+static svn_boolean_t
+match(const char *pattern, const char *str, svn_membuf_t *buf)
+{
+  svn_error_t *err;
+
+  err = svn_utf__xfrm(&str, str, strlen(str), TRUE, TRUE, buf);
+  if (err)
+    {
+      /* Can't match invalid data. */
+      svn_error_clear(err);
+      return FALSE;
+    }
+
+  return apr_fnmatch(pattern, str, 0) == APR_SUCCESS;
+}
 
 /* Return TRUE if SEARCH_PATTERN matches the AUTHOR, DATE, LOG_MESSAGE,
  * or a path in the set of keys of the CHANGED_PATHS hash. Else, return FALSE.
@@ -120,22 +140,22 @@ match_search_pattern(const char *search_pattern,
                      const char *date,
                      const char *log_message,
                      apr_hash_t *changed_paths,
+                     svn_membuf_t *buf,
                      apr_pool_t *pool)
 {
   /* Match any substring containing the pattern, like UNIX 'grep' does. */
   const char *pattern = apr_psprintf(pool, "*%s*", search_pattern);
-  int flags = 0;
 
   /* Does the author match the search pattern? */
-  if (author && apr_fnmatch(pattern, author, flags) == APR_SUCCESS)
+  if (author && match(pattern, author, buf))
     return TRUE;
 
   /* Does the date the search pattern? */
-  if (date && apr_fnmatch(pattern, date, flags) == APR_SUCCESS)
+  if (date && match(pattern, date, buf))
     return TRUE;
 
   /* Does the log message the search pattern? */
-  if (log_message && apr_fnmatch(pattern, log_message, flags) == APR_SUCCESS)
+  if (log_message && match(pattern, log_message, buf))
     return TRUE;
 
   if (changed_paths)
@@ -150,15 +170,14 @@ match_search_pattern(const char *search_pattern,
           const char *path = apr_hash_this_key(hi);
           svn_log_changed_path2_t *log_item;
 
-          if (apr_fnmatch(pattern, path, flags) == APR_SUCCESS)
+          if (match(pattern, path, buf))
             return TRUE;
 
           /* Match copy-from paths, too. */
           log_item = apr_hash_this_val(hi);
           if (log_item->copyfrom_path
               && SVN_IS_VALID_REVNUM(log_item->copyfrom_rev)
-              && apr_fnmatch(pattern,
-                             log_item->copyfrom_path, flags) == APR_SUCCESS)
+              && match(pattern, log_item->copyfrom_path, buf))
             return TRUE;
         }
     }
@@ -168,13 +187,14 @@ match_search_pattern(const char *search_pattern,
 
 /* Match all search patterns in SEARCH_PATTERNS against AUTHOR, DATE, MESSAGE,
  * and CHANGED_PATHS. Return TRUE if any pattern matches, else FALSE.
- * SCRACH_POOL is used for temporary allocations. */
+ * BUF and SCRATCH_POOL are used for temporary allocations. */
 static svn_boolean_t
 match_search_patterns(apr_array_header_t *search_patterns,
                       const char *author,
                       const char *date,
                       const char *message,
                       apr_hash_t *changed_paths,
+                      svn_membuf_t *buf,
                       apr_pool_t *scratch_pool)
 {
   int i;
@@ -197,7 +217,7 @@ match_search_patterns(apr_array_header_t *search_patterns,
 
           pattern = APR_ARRAY_IDX(pattern_group, j, const char *);
           match = match_search_pattern(pattern, author, date, message,
-                                       changed_paths, iterpool);
+                                       changed_paths, buf, iterpool);
           if (!match)
             break;
         }
@@ -314,7 +334,7 @@ svn_cl__log_entry_receiver(void *baton,
       return SVN_NO_ERROR;
     }
 
-  /* ### See http://subversion.tigris.org/issues/show_bug.cgi?id=807
+  /* ### See https://issues.apache.org/jira/browse/SVN-807
      for more on the fallback fuzzy conversions below. */
 
   if (author == NULL)
@@ -331,7 +351,7 @@ svn_cl__log_entry_receiver(void *baton,
 
   if (lb->search_patterns &&
       ! match_search_patterns(lb->search_patterns, author, date, message,
-                              log_entry->changed_paths2, pool))
+                              log_entry->changed_paths2, &lb->buffer, pool))
     {
       if (log_entry->has_children)
         {
@@ -535,7 +555,7 @@ svn_cl__log_entry_receiver_xml(void *baton,
   /* Match search pattern before XML-escaping. */
   if (lb->search_patterns &&
       ! match_search_patterns(lb->search_patterns, author, date, message,
-                              log_entry->changed_paths2, pool))
+                              log_entry->changed_paths2, &lb->buffer, pool))
     {
       if (log_entry->has_children)
         {
@@ -713,10 +733,6 @@ svn_cl__log(apr_getopt_t *os,
                                   "XML mode"));
     }
 
-  if (opt_state->quiet && opt_state->show_diff)
-    return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
-                            _("'quiet' and 'diff' options are "
-                              "mutually exclusive"));
   if (opt_state->diff.diff_cmd && (! opt_state->show_diff))
     return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
                             _("'diff-cmd' option requires 'diff' "
@@ -795,6 +811,7 @@ svn_cl__log(apr_getopt_t *os,
   lb.diff_extensions = opt_state->extensions;
   lb.merge_stack = NULL;
   lb.search_patterns = opt_state->search_patterns;
+  svn_membuf__create(&lb.buffer, 0, pool);
   lb.pool = pool;
 
   if (opt_state->xml)

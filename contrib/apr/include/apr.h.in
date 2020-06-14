@@ -93,6 +93,7 @@
 #define APR_HAVE_STDLIB_H        @stdlibh@
 #define APR_HAVE_STRING_H        @stringh@
 #define APR_HAVE_STRINGS_H       @stringsh@
+#define APR_HAVE_INTTYPES_H      @inttypesh@
 #define APR_HAVE_SYS_IOCTL_H     @sys_ioctlh@
 #define APR_HAVE_SYS_SENDFILE_H  @sys_sendfileh@
 #define APR_HAVE_SYS_SIGNAL_H    @sys_signalh@
@@ -168,14 +169,23 @@
 #include <sys/socket.h>
 #endif
 
-#if defined(__cplusplus) && !defined(__STDC_CONSTANT_MACROS)
+#if APR_HAVE_STDINT_H
+#ifdef __cplusplus
 /* C99 7.18.4 requires that stdint.h only exposes INT64_C 
  * and UINT64_C for C++ implementations if this is defined: */
+#ifndef __STDC_CONSTANT_MACROS
 #define __STDC_CONSTANT_MACROS
 #endif
-
-#if APR_HAVE_STDINT_H
+/* C++ needs this too for PRI*NN formats: */
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS
+#endif
+#endif /* __cplusplus */
 #include <stdint.h>
+#endif
+
+#if APR_HAVE_INTTYPES_H
+#include <inttypes.h>
 #endif
 
 #if APR_HAVE_SYS_WAIT_H
@@ -197,6 +207,13 @@
 #endif
 #endif
 
+/* __APPLE__ is now the official pre-defined macro for macOS */
+#ifdef __APPLE__
+#undef DARWIN
+#undef DARWIN_10
+#define DARWIN
+#define DARWIN_10
+#endif /* __APPLE__ */
 
 #ifdef __cplusplus
 extern "C" {
@@ -245,6 +262,7 @@ extern "C" {
 #define APR_HAVE_INET_ADDR      @have_inet_addr@
 #define APR_HAVE_INET_NETWORK   @have_inet_network@
 #define APR_HAVE_IPV6           @have_ipv6@
+#define APR_HAVE_SOCKADDR_UN    @have_sockaddr_un@
 #define APR_HAVE_MEMMOVE        @have_memmove@
 #define APR_HAVE_SETRLIMIT      @have_setrlimit@
 #define APR_HAVE_SIGACTION      @have_sigaction@
@@ -279,6 +297,7 @@ extern "C" {
 #define APR_HAS_LARGE_FILES       @aprlfs@
 #define APR_HAS_XTHREAD_FILES     @apr_has_xthread_files@
 #define APR_HAS_OS_UUID           @osuuid@
+#define APR_HAS_TIMEDLOCKS        @apr_has_timedlocks@
 
 #define APR_PROCATTR_USER_SET_REQUIRES_PASSWORD @apr_procattr_user_set_requires_password@
 
@@ -333,24 +352,28 @@ typedef  unsigned @int_value@    apr_uint32_t;
  */
 #ifdef DARWIN_10
 #undef APR_SIZEOF_VOIDP
-#undef INT64_C
-#undef UINT64_C
+#undef APR_INT64_C
+#undef APR_UINT64_C
 #ifdef __LP64__
  typedef  long            apr_int64_t;
  typedef  unsigned long   apr_uint64_t;
  #define APR_SIZEOF_VOIDP     8
- #define INT64_C(v)   (v ## L)
- #define UINT64_C(v)  (v ## UL)
+ #define APR_INT64_C(v)   (v ## L)
+ #define APR_UINT64_C(v)  (v ## UL)
 #else
  typedef  long long            apr_int64_t;
  typedef  unsigned long long   apr_uint64_t;
  #define APR_SIZEOF_VOIDP     4
- #define INT64_C(v)   (v ## LL)
- #define UINT64_C(v)  (v ## ULL)
+ #define APR_INT64_C(v)   (v ## LL)
+ #define APR_UINT64_C(v)  (v ## ULL)
 #endif
 #else
- typedef  @long_value@            apr_int64_t;
- typedef  unsigned @long_value@   apr_uint64_t;
+ typedef  @int64_value@           apr_int64_t;
+ typedef  @uint64_value@          apr_uint64_t;
+
+ /* Mechanisms to properly type numeric literals */
+ @int64_literal@
+ @uint64_literal@
 #endif
 
 typedef  @size_t_value@          apr_size_t;
@@ -367,10 +390,6 @@ typedef  apr_uint32_t            apr_uintptr_t;
 
 /* Are we big endian? */
 #define APR_IS_BIGENDIAN	@bigendian@
-
-/* Mechanisms to properly type numeric literals */
-@int64_literal@
-@uint64_literal@
 
 #ifdef INT16_MIN
 #define APR_INT16_MIN   INT16_MIN

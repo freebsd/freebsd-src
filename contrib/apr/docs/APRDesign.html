@@ -152,7 +152,7 @@ required APR header files for external use.</p>
 <p>The current design of APR requires that most APR types be incomplete.  
 It is not possible to write flexible portable code if programs can access 
 the internals of APR types.  This is because different platforms are 
-likely to define different native types.  There are only two execptions to
+likely to define different native types.  There are only two exceptions to
 this rule:</p>
 
 <ul>
@@ -227,7 +227,7 @@ file.</p>
 
 <p>For an actual example, look at any file in the include directory.  The 
 reason the docs are in the header files is to ensure that the docs always
-reflect the current code.  If you change paramters or return values for a 
+reflect the current code.  If you change parameters or return values for a
 function, please be sure to update the documentation.</p>
 
 <h2>APR Error reporting</h2>
@@ -246,7 +246,7 @@ Unless you are sure, return an ap_status_t.</p>
 
 <p>All platforms return errno values unchanged.  Each platform can also have
 one system error type, which can be returned after an offset is added.  
-There are five types of error values in APR, each with it's own offset.</p>
+There are five types of error values in APR, each with its own offset.</p>
 
 <!--  This should be turned into a table, but I am lazy today -->
 <pre>
@@ -277,7 +277,7 @@ There are five types of error values in APR, each with it's own offset.</p>
 
 <strong>The difference in naming between APR_OS_START_ERROR and 
 APR_OS_START_STATUS mentioned above allows programmers to easily determine if
-the error code indicates an error condition or a status codition.</strong>
+the error code indicates an error condition or a status condition.</strong>
 
 <p>If your function has multiple return codes that all indicate success, but
 with different results, or if your function can only return PASS/FAIL, you 
@@ -345,7 +345,7 @@ codes to a common code, and most of the time programs want to just output
 an error string.  If we convert all errors to a common subset, we have four 
 steps to output an error string:</p>
 
-<p>The seocnd problem with option 1, is that it is a lossy conversion.  For
+<p>The second problem with option 1, is that it is a lossy conversion.  For
 example, Windows and OS/2 have a couple hundred error codes, but POSIX errno
 only defines about 50 errno values.  This means that if we convert to a
 canonical error value immediately, there is no way for the programmer to

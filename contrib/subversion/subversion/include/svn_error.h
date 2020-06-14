@@ -165,18 +165,16 @@ svn_error_wrap_apr(apr_status_t status,
                    ...)
        __attribute__((format(printf, 2, 3)));
 
-/** A quick n' easy way to create a wrapped exception with your own
- * message, before throwing it up the stack.  (It uses all of the
- * @a child's fields.)
+/** If @a child is SVN_NO_ERROR, return SVN_NO_ERROR.
+ * Else, prepend a new error to the error chain of @a child. The new error
+ * uses @a new_msg as error message but all other error attributes (such
+ * as the error code) are copied from @a child.
  */
 svn_error_t *
 svn_error_quick_wrap(svn_error_t *child,
                      const char *new_msg);
 
-/** A quick n' easy way to create a wrapped exception with your own
- * printf-style error message produced by passing @a fmt, using
- * apr_psprintf(), before throwing it up the stack.  (It uses all of the
- * @a child's fields.)
+/** Like svn_error_quick_wrap(), but with format string support.
  *
  * @since New in 1.9.
  */

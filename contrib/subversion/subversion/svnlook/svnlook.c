@@ -28,7 +28,6 @@
 #include <apr_pools.h>
 #include <apr_time.h>
 #include <apr_file_io.h>
-#include <apr_signal.h>
 
 #define APR_WANT_STDIO
 #define APR_WANT_STRFUNC
@@ -43,6 +42,7 @@
 #include "svn_dirent_uri.h"
 #include "svn_path.h"
 #include "svn_repos.h"
+#include "svn_cache_config.h"
 #include "svn_fs.h"
 #include "svn_time.h"
 #include "svn_utf.h"
@@ -144,6 +144,13 @@ static const apr_getopt_option_t options_table[] =
   {"properties-only",   svnlook__properties_only, 0,
    N_("show only properties during the operation")},
 
+  {"memory-cache-size", 'M', 1,
+   N_("size of the extra in-memory cache in MB used to\n"
+      "                             "
+      "minimize redundant operations. Default: 16.\n"
+      "                             "
+      "[used for FSFS repositories only]")},
+
   {"no-newline",        svnlook__no_newline, 0,
    N_("do not output the trailing newline")},
 
@@ -205,110 +212,144 @@ static const apr_getopt_option_t options_table[] =
 /* Array of available subcommands.
  * The entire list must be terminated with an entry of nulls.
  */
-static const svn_opt_subcommand_desc2_t cmd_table[] =
+static const svn_opt_subcommand_desc3_t cmd_table[] =
 {
-  {"author", subcommand_author, {0},
-   N_("usage: svnlook author REPOS_PATH\n\n"
-      "Print the author.\n"),
+  {"author", subcommand_author, {0}, {N_(
+      "usage: svnlook author REPOS_PATH\n"
+      "\n"), N_(
+      "Print the author.\n"
+   )},
    {'r', 't'} },
 
-  {"cat", subcommand_cat, {0},
-   N_("usage: svnlook cat REPOS_PATH FILE_PATH\n\n"
-      "Print the contents of a file.  Leading '/' on FILE_PATH is optional.\n"),
+  {"cat", subcommand_cat, {0}, {N_(
+      "usage: svnlook cat REPOS_PATH FILE_PATH\n"
+      "\n"), N_(
+      "Print the contents of a file.  Leading '/' on FILE_PATH is optional.\n"
+   )},
    {'r', 't'} },
 
-  {"changed", subcommand_changed, {0},
-   N_("usage: svnlook changed REPOS_PATH\n\n"
-      "Print the paths that were changed.\n"),
+  {"changed", subcommand_changed, {0}, {N_(
+      "usage: svnlook changed REPOS_PATH\n"
+      "\n"), N_(
+      "Print the paths that were changed.\n"
+   )},
    {'r', 't', svnlook__copy_info} },
 
-  {"date", subcommand_date, {0},
-   N_("usage: svnlook date REPOS_PATH\n\n"
-      "Print the datestamp.\n"),
+  {"date", subcommand_date, {0}, {N_(
+      "usage: svnlook date REPOS_PATH\n"
+      "\n"), N_(
+      "Print the datestamp.\n"
+   )},
    {'r', 't'} },
 
-  {"diff", subcommand_diff, {0},
-   N_("usage: svnlook diff REPOS_PATH\n\n"
-      "Print GNU-style diffs of changed files and properties.\n"),
+  {"diff", subcommand_diff, {0}, {N_(
+      "usage: svnlook diff REPOS_PATH\n"
+      "\n"), N_(
+      "Print GNU-style diffs of changed files and properties.\n"
+   )},
    {'r', 't', svnlook__no_diff_deleted, svnlook__no_diff_added,
     svnlook__diff_copy_from, svnlook__diff_cmd, 'x',
     svnlook__ignore_properties, svnlook__properties_only} },
 
-  {"dirs-changed", subcommand_dirschanged, {0},
-   N_("usage: svnlook dirs-changed REPOS_PATH\n\n"
+  {"dirs-changed", subcommand_dirschanged, {0}, {N_(
+      "usage: svnlook dirs-changed REPOS_PATH\n"
+      "\n"), N_(
       "Print the directories that were themselves changed (property edits)\n"
-      "or whose file children were changed.\n"),
+      "or whose file children were changed.\n"
+   )},
    {'r', 't'} },
 
-  {"filesize", subcommand_filesize, {0},
-   N_("usage: svnlook filesize REPOS_PATH PATH_IN_REPOS\n\n"
+  {"filesize", subcommand_filesize, {0}, {N_(
+      "usage: svnlook filesize REPOS_PATH PATH_IN_REPOS\n"
+      "\n"), N_(
       "Print the size (in bytes) of the file located at PATH_IN_REPOS as\n"
-      "it is represented in the repository.\n"),
+      "it is represented in the repository.\n"
+   )},
    {'r', 't'} },
 
-  {"help", subcommand_help, {"?", "h"},
-   N_("usage: svnlook help [SUBCOMMAND...]\n\n"
-      "Describe the usage of this program or its subcommands.\n"),
+  {"help", subcommand_help, {"?", "h"}, {N_(
+      "usage: svnlook help [SUBCOMMAND...]\n"
+      "\n"), N_(
+      "Describe the usage of this program or its subcommands.\n"
+   )},
    {0} },
 
-  {"history", subcommand_history, {0},
-   N_("usage: svnlook history REPOS_PATH [PATH_IN_REPOS]\n\n"
+  {"history", subcommand_history, {0}, {N_(
+      "usage: svnlook history REPOS_PATH [PATH_IN_REPOS]\n"
+      "\n"), N_(
       "Print information about the history of a path in the repository (or\n"
-      "the root directory if no path is supplied).\n"),
+      "the root directory if no path is supplied).\n"
+   )},
    {'r', svnlook__show_ids, 'l'} },
 
-  {"info", subcommand_info, {0},
-   N_("usage: svnlook info REPOS_PATH\n\n"
-      "Print the author, datestamp, log message size, and log message.\n"),
+  {"info", subcommand_info, {0}, {N_(
+      "usage: svnlook info REPOS_PATH\n"
+      "\n"), N_(
+      "Print the author, datestamp, log message size, and log message.\n"
+   )},
    {'r', 't'} },
 
-  {"lock", subcommand_lock, {0},
-   N_("usage: svnlook lock REPOS_PATH PATH_IN_REPOS\n\n"
-      "If a lock exists on a path in the repository, describe it.\n"),
+  {"lock", subcommand_lock, {0}, {N_(
+      "usage: svnlook lock REPOS_PATH PATH_IN_REPOS\n"
+      "\n"), N_(
+      "If a lock exists on a path in the repository, describe it.\n"
+   )},
    {0} },
 
-  {"log", subcommand_log, {0},
-   N_("usage: svnlook log REPOS_PATH\n\n"
-      "Print the log message.\n"),
+  {"log", subcommand_log, {0}, {N_(
+      "usage: svnlook log REPOS_PATH\n"
+      "\n"), N_(
+      "Print the log message.\n"
+   )},
    {'r', 't'} },
 
-  {"propget", subcommand_pget, {"pget", "pg"},
-   N_("usage: 1. svnlook propget REPOS_PATH PROPNAME PATH_IN_REPOS\n"
+  {"propget", subcommand_pget, {"pget", "pg"}, {N_(
+      "usage: 1. svnlook propget REPOS_PATH PROPNAME PATH_IN_REPOS\n"
       "                    "
       /* The line above is actually needed, so do NOT delete it! */
-      "       2. svnlook propget --revprop REPOS_PATH PROPNAME\n\n"
+      "       2. svnlook propget --revprop REPOS_PATH PROPNAME\n"
+      "\n"), N_(
       "Print the raw value of a property on a path in the repository.\n"
-      "With --revprop, print the raw value of a revision property.\n"),
+      "With --revprop, print the raw value of a revision property.\n"
+   )},
    {'r', 't', 'v', svnlook__revprop_opt, svnlook__show_inherited_props} },
 
-  {"proplist", subcommand_plist, {"plist", "pl"},
-   N_("usage: 1. svnlook proplist REPOS_PATH PATH_IN_REPOS\n"
+  {"proplist", subcommand_plist, {"plist", "pl"}, {N_(
+      "usage: 1. svnlook proplist REPOS_PATH PATH_IN_REPOS\n"
       "                      "
       /* The line above is actually needed, so do NOT delete it! */
-      "       2. svnlook proplist --revprop REPOS_PATH\n\n"
+      "       2. svnlook proplist --revprop REPOS_PATH\n"
+      "\n"), N_(
       "List the properties of a path in the repository, or\n"
       "with the --revprop option, revision properties.\n"
-      "With -v, show the property values too.\n"),
+      "With -v, show the property values too.\n"
+   )},
    {'r', 't', 'v', svnlook__revprop_opt, svnlook__xml_opt,
     svnlook__show_inherited_props} },
 
-  {"tree", subcommand_tree, {0},
-   N_("usage: svnlook tree REPOS_PATH [PATH_IN_REPOS]\n\n"
+  {"tree", subcommand_tree, {0}, {N_(
+      "usage: svnlook tree REPOS_PATH [PATH_IN_REPOS]\n"
+      "\n"), N_(
       "Print the tree, starting at PATH_IN_REPOS (if supplied, at the root\n"
-      "of the tree otherwise), optionally showing node revision ids.\n"),
-   {'r', 't', 'N', svnlook__show_ids, svnlook__full_paths} },
+      "of the tree otherwise), optionally showing node revision ids.\n"
+   )},
+   {'r', 't', 'N', svnlook__show_ids, svnlook__full_paths, 'M'} },
 
-  {"uuid", subcommand_uuid, {0},
-   N_("usage: svnlook uuid REPOS_PATH\n\n"
-      "Print the repository's UUID.\n"),
+  {"uuid", subcommand_uuid, {0}, {N_(
+      "usage: svnlook uuid REPOS_PATH\n"
+      "\n"), N_(
+      "Print the repository's UUID.\n"
+   )},
    {0} },
 
-  {"youngest", subcommand_youngest, {0},
-   N_("usage: svnlook youngest REPOS_PATH\n\n"
-      "Print the youngest revision number.\n"),
+  {"youngest", subcommand_youngest, {0}, {N_(
+      "usage: svnlook youngest REPOS_PATH\n"
+      "\n"), N_(
+      "Print the youngest revision number.\n"
+   )},
    {svnlook__no_newline} },
 
-  { NULL, NULL, {0}, NULL, {0} }
+  { NULL, NULL, {0}, {NULL}, {0} }
 };
 
 
@@ -340,6 +381,7 @@ struct svnlook_opt_state
   const char *diff_cmd;           /* --diff-cmd */
   svn_boolean_t show_inherited_props; /*  --show-inherited-props */
   svn_boolean_t no_newline;       /* --no-newline */
+  apr_uint64_t memory_cache_size; /* --memory-cache-size */
 };
 
 
@@ -365,30 +407,10 @@ typedef struct svnlook_ctxt_t
 
 } svnlook_ctxt_t;
 
-/* A flag to see if we've been cancelled by the client or not. */
-static volatile sig_atomic_t cancelled = FALSE;
-
 
 /*** Helper functions. ***/
 
-/* A signal handler to support cancellation. */
-static void
-signal_handler(int signum)
-{
-  apr_signal(signum, SIG_IGN);
-  cancelled = TRUE;
-}
-
-/* Our cancellation callback. */
-static svn_error_t *
-check_cancel(void *baton)
-{
-  if (cancelled)
-    return svn_error_create(SVN_ERR_CANCELLED, NULL, _("Caught signal"));
-  else
-    return SVN_NO_ERROR;
-}
-
+static svn_cancel_func_t check_cancel = NULL;
 
 /* Version compatibility check */
 static svn_error_t *
@@ -426,8 +448,8 @@ get_property(svn_string_t **prop_value,
 
   /* ...or revision property -- it's your call. */
   else
-    SVN_ERR(svn_fs_revision_prop(&raw_value, c->fs, c->rev_id,
-                                 prop_name, pool));
+    SVN_ERR(svn_fs_revision_prop2(&raw_value, c->fs, c->rev_id,
+                                  prop_name, TRUE, pool, pool));
 
   *prop_value = raw_value;
 
@@ -755,8 +777,9 @@ generate_label(const char **label,
       if (svn_fs_is_revision_root(root))
         {
           rev = svn_fs_revision_root_revision(root);
-          SVN_ERR(svn_fs_revision_prop(&date, fs, rev,
-                                       SVN_PROP_REVISION_DATE, pool));
+          SVN_ERR(svn_fs_revision_prop2(&date, fs, rev,
+                                        SVN_PROP_REVISION_DATE, TRUE,
+                                        pool, pool));
         }
       else
         {
@@ -1861,7 +1884,8 @@ do_plist(svnlook_ctxt_t *c,
     }
   else if (c->is_revision)
     {
-      SVN_ERR(svn_fs_revision_proplist(&props, c->fs, c->rev_id, pool));
+      SVN_ERR(svn_fs_revision_proplist2(&props, c->fs, c->rev_id, TRUE,
+                                        pool, pool));
       revprop = TRUE;
     }
   else
@@ -2232,7 +2256,7 @@ subcommand_help(apr_getopt_t *os, void *baton, apr_pool_t *pool)
   version_footer = svn_stringbuf_create(fs_desc_start, pool);
   SVN_ERR(svn_fs_print_modules(version_footer, pool));
 
-  SVN_ERR(svn_opt_print_help4(os, "svnlook",
+  SVN_ERR(svn_opt_print_help5(os, "svnlook",
                               opt_state ? opt_state->version : FALSE,
                               opt_state ? opt_state->quiet : FALSE,
                               opt_state ? opt_state->verbose : FALSE,
@@ -2447,7 +2471,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   svn_error_t *err;
   apr_status_t apr_err;
 
-  const svn_opt_subcommand_desc2_t *subcommand = NULL;
+  const svn_opt_subcommand_desc3_t *subcommand = NULL;
   struct svnlook_opt_state opt_state;
   apr_getopt_t *os;
   int opt_id;
@@ -2472,6 +2496,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
   /* Initialize opt_state. */
   memset(&opt_state, 0, sizeof(opt_state));
   opt_state.rev = SVN_INVALID_REVNUM;
+  opt_state.memory_cache_size = svn_cache_config_get()->cache_size;
 
   /* Parse options. */
   SVN_ERR(svn_cmdline__getopt_init(&os, argc, argv, pool));
@@ -2511,6 +2536,15 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
         case 't':
           opt_state.txn = opt_arg;
+          break;
+
+        case 'M':
+          {
+            apr_uint64_t sz_val;
+            SVN_ERR(svn_cstring_atoui64(&sz_val, opt_arg));
+
+            opt_state.memory_cache_size = 0x100000 * sz_val;
+          }
           break;
 
         case 'N':
@@ -2634,7 +2668,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
      just typos/mistakes.  Whatever the case, the subcommand to
      actually run is subcommand_help(). */
   if (opt_state.help)
-    subcommand = svn_opt_get_canonical_subcommand2(cmd_table, "help");
+    subcommand = svn_opt_get_canonical_subcommand3(cmd_table, "help");
 
   /* If we're not running the `help' subcommand, then look for a
      subcommand in the first argument. */
@@ -2645,8 +2679,8 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           if (opt_state.version)
             {
               /* Use the "help" subcommand to handle the "--version" option. */
-              static const svn_opt_subcommand_desc2_t pseudo_cmd =
-                { "--version", subcommand_help, {0}, "",
+              static const svn_opt_subcommand_desc3_t pseudo_cmd =
+                { "--version", subcommand_help, {0}, {""},
                   {svnlook__version,  /* must accept its own option */
                    'q', 'v',
                   } };
@@ -2665,21 +2699,21 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         }
       else
         {
-          const char *first_arg = os->argv[os->ind++];
-          subcommand = svn_opt_get_canonical_subcommand2(cmd_table, first_arg);
+          const char *first_arg;
+
+          SVN_ERR(svn_utf_cstring_to_utf8(&first_arg, os->argv[os->ind++],
+                                          pool));
+          subcommand = svn_opt_get_canonical_subcommand3(cmd_table, first_arg);
           if (subcommand == NULL)
             {
-              const char *first_arg_utf8;
-              SVN_ERR(svn_utf_cstring_to_utf8(&first_arg_utf8, first_arg,
-                                              pool));
               svn_error_clear(
                 svn_cmdline_fprintf(stderr, pool,
                                     _("Unknown subcommand: '%s'\n"),
-                                    first_arg_utf8));
+                                    first_arg));
               SVN_ERR(subcommand_help(NULL, NULL, pool));
 
               /* Be kind to people who try 'svnlook verify'. */
-              if (strcmp(first_arg_utf8, "verify") == 0)
+              if (strcmp(first_arg, "verify") == 0)
                 {
                   svn_error_clear(
                     svn_cmdline_fprintf(stderr, pool,
@@ -2762,11 +2796,11 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
       if (opt_id == 'h' || opt_id == '?')
         continue;
 
-      if (! svn_opt_subcommand_takes_option3(subcommand, opt_id, NULL))
+      if (! svn_opt_subcommand_takes_option4(subcommand, opt_id, NULL))
         {
           const char *optstr;
           const apr_getopt_option_t *badopt =
-            svn_opt_get_option_from_code2(opt_id, options_table, subcommand,
+            svn_opt_get_option_from_code3(opt_id, options_table, subcommand,
                                           pool);
           svn_opt_format_option(&optstr, badopt, FALSE, pool);
           if (subcommand->name[0] == '-')
@@ -2783,30 +2817,18 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
         }
     }
 
-  /* Set up our cancellation support. */
-  apr_signal(SIGINT, signal_handler);
-#ifdef SIGBREAK
-  /* SIGBREAK is a Win32 specific signal generated by ctrl-break. */
-  apr_signal(SIGBREAK, signal_handler);
-#endif
-#ifdef SIGHUP
-  apr_signal(SIGHUP, signal_handler);
-#endif
-#ifdef SIGTERM
-  apr_signal(SIGTERM, signal_handler);
-#endif
+  check_cancel = svn_cmdline__setup_cancellation_handler();
 
-#ifdef SIGPIPE
-  /* Disable SIGPIPE generation for the platforms that have it. */
-  apr_signal(SIGPIPE, SIG_IGN);
-#endif
+  /* Configure FSFS caches for maximum efficiency with svnadmin.
+   * Also, apply the respective command line parameters, if given. */
+  {
+    svn_cache_config_t settings = *svn_cache_config_get();
 
-#ifdef SIGXFSZ
-  /* Disable SIGXFSZ generation for the platforms that have it, otherwise
-   * working with large files when compiled against an APR that doesn't have
-   * large file support will crash the program, which is uncool. */
-  apr_signal(SIGXFSZ, SIG_IGN);
-#endif
+    settings.cache_size = opt_state.memory_cache_size;
+    settings.single_threaded = TRUE;
+
+    svn_cache_config_set(&settings);
+  }
 
   /* Run the subcommand. */
   err = (*subcommand->cmd_func)(os, &opt_state, pool);
@@ -2855,5 +2877,8 @@ main(int argc, const char *argv[])
     }
 
   svn_pool_destroy(pool);
+
+  svn_cmdline__cancellation_exit();
+
   return exit_code;
 }

@@ -998,7 +998,10 @@ typedef enum svn_wc_notify_action_t
   /** A revert operation has failed. */
   svn_wc_notify_failed_revert,
 
-  /** Resolving a conflict. */
+  /** All conflicts on a path were marked as resolved.
+   * @note As of 1.10, separate notifications are sent for individually
+   * resolved text, property, and tree conflicts. This notification is used
+   * only if all conflicts on a path were marked resolved at once. */
   svn_wc_notify_resolved,
 
   /** Skipping a path. */
@@ -1274,7 +1277,34 @@ typedef enum svn_wc_notify_action_t
 
   /** Finalizing commit.
    * @since New in 1.9. */
-  svn_wc_notify_commit_finalizing
+  svn_wc_notify_commit_finalizing,
+
+  /** All text conflicts in a file were marked as resolved.
+   * @since New in 1.10. */
+  svn_wc_notify_resolved_text,
+
+  /** A property conflict on a path was marked as resolved.
+   * The name of the property is specified in #svn_wc_notify_t.prop_name.
+   * @since New in 1.10. */
+  svn_wc_notify_resolved_prop,
+
+  /** A tree conflict on a path was marked as resolved.
+   * @since New in 1.10. */
+  svn_wc_notify_resolved_tree,
+
+  /** Starting to search the repository for details about a tree conflict.
+   * @since New in 1.10. */
+  svn_wc_notify_begin_search_tree_conflict_details,
+
+  /** Progressing in search of repository for details about a tree conflict.
+   * The revision being searched is specified in #svn_wc_notify_t.revision.
+   * @since New in 1.10. */
+  svn_wc_notify_tree_conflict_details_progress,
+
+  /** Done searching the repository for details about a conflict.
+   * @since New in 1.10. */
+  svn_wc_notify_end_search_tree_conflict_details
+
 } svn_wc_notify_action_t;
 
 
@@ -1911,8 +1941,9 @@ typedef struct svn_wc_conflict_description_t
   /** The path that is in conflict (for a tree conflict, it is the victim) */
   const char *path;
 
-  /** The node type of the path being operated on (for a tree conflict,
-   *  ### which version?) */
+  /** The local node type of the path being operated on (for a tree conflict,
+   *  this specifies the local node kind, which may be (and typically is)
+   *  different than the left and right kind) */
   svn_node_kind_t node_kind;
 
   /** What sort of conflict are we describing? */
@@ -2063,7 +2094,7 @@ svn_wc_conflict_description_create_prop(const char *path,
  *
  * Set the @c local_abspath field of the created struct to @a local_abspath
  * (which must be an absolute path), the @c kind field to
- * #svn_wc_conflict_kind_tree, the @c local_node_kind to @a local_node_kind,
+ * #svn_wc_conflict_kind_tree, the @c node_kind to @a node_kind,
  * the @c operation to @a operation, the @c src_left_version field to
  * @a src_left_version, and the @c src_right_version field to
  * @a src_right_version.
@@ -2131,8 +2162,11 @@ svn_wc__conflict_description2_dup(
  */
 typedef enum svn_wc_conflict_choice_t
 {
-  /** Undefined; for internal use only.
-      This value is never returned in svn_wc_conflict_result_t.
+  /** Undefined; for private use only.
+      This value must never be returned in svn_wc_conflict_result_t,
+      but a separate value, unequal to all other pre-defined values may
+      be useful in conflict resolver implementations to signal that no
+      choice is made yet.
    * @since New in 1.9
    */
   svn_wc_conflict_choose_undefined = -1,
@@ -4544,7 +4578,7 @@ svn_wc_move(svn_wc_context_t *wc_ctx,
  * and everything below @a local_abspath.
  *
  * If @a keep_local is FALSE, this function immediately deletes all files,
- * modified and unmodified, versioned and of @a delete_unversioned is TRUE,
+ * modified and unmodified, versioned and if @a delete_unversioned is TRUE,
  * unversioned from the working copy.
  * It also immediately deletes unversioned directories and directories that
  * are scheduled to be added below @a local_abspath.  Only versioned may
@@ -5050,7 +5084,11 @@ svn_wc_remove_from_revision_control(svn_wc_adm_access_t *adm_access,
  * Temporary allocations will be performed in @a scratch_pool.
  *
  * @since New in 1.7.
+ * @deprecated Provided for backward compatibility with the 1.9 API.
+ * Use svn_client_conflict_text_resolve(), svn_client_conflict_prop_resolve(),
+ * and svn_client_conflict_tree_resolve() instead.
  */
+SVN_DEPRECATED
 svn_error_t *
 svn_wc_resolved_conflict5(svn_wc_context_t *wc_ctx,
                           const char *local_abspath,
@@ -7564,9 +7602,14 @@ svn_wc_relocate(const char *path,
  * If @a clear_changelists is TRUE, then changelist information for the
  * paths is cleared.
  *
- * If @a metadata_only is TRUE, the working copy files are untouched, but
- * if there are conflict marker files attached to these files these
- * markers are removed.
+ * The @a metadata_only and @a added_keep_local options control the
+ * extent of reverting. If @a metadata_only is TRUE, the working copy
+ * files are untouched, but if there are conflict marker files attached
+ * to these files these markers are removed. Otherwise, if
+ * @a added_keep_local is TRUE, then all items are reverted except an
+ * item that was scheduled as plain 'add' (not a copy) will not be
+ * removed from the working copy. Otherwise, all items are reverted and
+ * their on-disk state changed to match.
  *
  * If @a cancel_func is non-NULL, call it with @a cancel_baton at
  * various points during the reversion process.  If it returns an
@@ -7584,8 +7627,30 @@ svn_wc_relocate(const char *path,
  * If @a path is not under version control, return the error
  * #SVN_ERR_UNVERSIONED_RESOURCE.
  *
- * @since New in 1.9.
+ * @since New in 1.11.
  */
+svn_error_t *
+svn_wc_revert6(svn_wc_context_t *wc_ctx,
+               const char *local_abspath,
+               svn_depth_t depth,
+               svn_boolean_t use_commit_times,
+               const apr_array_header_t *changelist_filter,
+               svn_boolean_t clear_changelists,
+               svn_boolean_t metadata_only,
+               svn_boolean_t added_keep_local,
+               svn_cancel_func_t cancel_func,
+               void *cancel_baton,
+               svn_wc_notify_func2_t notify_func,
+               void *notify_baton,
+               apr_pool_t *scratch_pool);
+
+/** Similar to svn_wc_revert6() but with @a added_keep_local always
+ * set to TRUE.
+ *
+ * @since New in 1.9.
+ * @deprecated Provided for backward compatibility with the 1.10 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_wc_revert5(svn_wc_context_t *wc_ctx,
                const char *local_abspath,

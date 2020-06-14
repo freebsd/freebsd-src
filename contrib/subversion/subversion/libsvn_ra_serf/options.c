@@ -71,6 +71,9 @@ typedef struct options_context_t {
   svn_ra_serf__response_handler_t inner_handler;
   void *inner_baton;
 
+  /* Have we received any DAV headers at all? */
+  svn_boolean_t received_dav_header;
+
   const char *activity_collection;
   svn_revnum_t youngest_rev;
 
@@ -165,6 +168,8 @@ capabilities_headers_iterator_callback(void *baton,
       apr_array_header_t *vals = svn_cstring_split(val, ",", TRUE,
                                                    opt_ctx->pool);
 
+      opt_ctx->received_dav_header = TRUE;
+
       /* Right now we only have a few capabilities to detect, so just
          seek for them directly.  This could be written slightly more
          efficiently, but that wouldn't be worth it until we have many
@@ -225,6 +230,26 @@ capabilities_headers_iterator_callback(void *baton,
       if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_REPLAY_REV_RESOURCE, vals))
         {
           session->supports_rev_rsrc_replay = TRUE;
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_SVNDIFF1, vals))
+        {
+          /* Use compressed svndiff1 format for servers that properly
+             advertise this capability (Subversion 1.10 and greater). */
+          session->supports_svndiff1 = TRUE;
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_LIST, vals))
+        {
+          svn_hash_sets(session->capabilities,
+                        SVN_RA_CAPABILITY_LIST, capability_yes);
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_SVNDIFF2, vals))
+        {
+          /* Same for svndiff2. */
+          session->supports_svndiff2 = TRUE;
+        }
+      if (svn_cstring_match_list(SVN_DAV_NS_DAV_SVN_PUT_RESULT_CHECKSUM, vals))
+        {
+          session->supports_put_result_checksum = TRUE;
         }
     }
 
@@ -350,6 +375,7 @@ options_response_handler(serf_request_t *request,
     {
       svn_ra_serf__session_t *session = opt_ctx->session;
       serf_bucket_t *hdrs = serf_bucket_response_get_headers(response);
+      serf_connection_t *conn;
 
       /* Start out assuming all capabilities are unsupported. */
       svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_PARTIAL_REPLAY,
@@ -368,16 +394,35 @@ options_response_handler(serf_request_t *request,
                     capability_no);
       svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_GET_FILE_REVS_REVERSE,
                     capability_no);
+      svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_LIST,
+                    capability_no);
 
       /* Then see which ones we can discover. */
       serf_bucket_headers_do(hdrs, capabilities_headers_iterator_callback,
                              opt_ctx);
+
+      /* Bail out early if we're not talking to a DAV server.
+         Note that this check is only valid if we've received a success
+         response; redirects and errors don't count. */
+      if (opt_ctx->handler->sline.code >= 200
+          && opt_ctx->handler->sline.code < 300
+          && !opt_ctx->received_dav_header)
+        {
+          return svn_error_createf
+            (SVN_ERR_RA_DAV_OPTIONS_REQ_FAILED, NULL,
+             _("The server at '%s' does not support the HTTP/DAV protocol"),
+             session->session_url_str);
+        }
 
       /* Assume mergeinfo capability unsupported, if didn't receive information
          about server or repository mergeinfo capability. */
       if (!svn_hash_gets(session->capabilities, SVN_RA_CAPABILITY_MERGEINFO))
         svn_hash_sets(session->capabilities, SVN_RA_CAPABILITY_MERGEINFO,
                       capability_no);
+
+      /* Remember our latency. */
+      conn = serf_request_get_conn(request);
+      session->conn_latency = serf_connection_get_latency(conn);
 
       opt_ctx->headers_processed = TRUE;
     }
@@ -501,6 +546,7 @@ svn_ra_serf__v1_get_activity_collection(const char **activity_url,
 svn_error_t *
 svn_ra_serf__exchange_capabilities(svn_ra_serf__session_t *serf_sess,
                                    const char **corrected_url,
+                                   const char **redirect_url,
                                    apr_pool_t *result_pool,
                                    apr_pool_t *scratch_pool)
 {
@@ -508,6 +554,8 @@ svn_ra_serf__exchange_capabilities(svn_ra_serf__session_t *serf_sess,
 
   if (corrected_url)
     *corrected_url = NULL;
+  if (redirect_url)
+    *redirect_url = NULL;
 
   /* This routine automatically fills in serf_sess->capabilities */
   SVN_ERR(create_options_req(&opt_ctx, serf_sess, scratch_pool));
@@ -530,8 +578,11 @@ svn_ra_serf__exchange_capabilities(svn_ra_serf__session_t *serf_sess,
         }
       else if (svn_path_is_url(opt_ctx->handler->location))
         {
-          *corrected_url = svn_uri_canonicalize(opt_ctx->handler->location,
-                                                result_pool);
+          SVN_ERR(svn_uri_canonicalize_safe(corrected_url, NULL,
+              opt_ctx->handler->location, result_pool, scratch_pool));
+          if (redirect_url)
+            *redirect_url = apr_pstrdup(result_pool,
+                                        opt_ctx->handler->location);
         }
       else
         {
@@ -542,11 +593,14 @@ svn_ra_serf__exchange_capabilities(svn_ra_serf__session_t *serf_sess,
              See issue #3775 for details. */
 
           apr_uri_t corrected_URI = serf_sess->session_url;
+          char *absolute_uri;
 
           corrected_URI.path = (char *)corrected_url;
-          *corrected_url = svn_uri_canonicalize(
-                              apr_uri_unparse(scratch_pool, &corrected_URI, 0),
-                              result_pool);
+          absolute_uri = apr_uri_unparse(scratch_pool, &corrected_URI, 0);
+          SVN_ERR(svn_uri_canonicalize_safe(corrected_url, NULL,
+              absolute_uri, result_pool, scratch_pool));
+          if (redirect_url)
+            *redirect_url = apr_pstrdup(result_pool, absolute_uri);
         }
 
       return SVN_NO_ERROR;
@@ -654,7 +708,8 @@ svn_ra_serf__has_capability(svn_ra_session_t *ra_session,
 
   /* If any capability is unknown, they're all unknown, so ask. */
   if (cap_result == NULL)
-    SVN_ERR(svn_ra_serf__exchange_capabilities(serf_sess, NULL, pool, pool));
+    SVN_ERR(svn_ra_serf__exchange_capabilities(serf_sess, NULL, NULL,
+                                               pool, pool));
 
   /* Try again, now that we've fetched the capabilities. */
   cap_result = svn_hash_gets(serf_sess->capabilities, capability);

@@ -177,6 +177,10 @@ svn_checksum_deserialize(const svn_checksum_t **checksum,
  *
  * @since New in 1.6.
  */
+/* ### TODO: When revving this, make it set @a *checksum to a non-NULL struct
+ * ###       when @a hex is the all-zeroes checksum.  See
+ * ### http://mail-archives.apache.org/mod_mbox/subversion-dev/201609.mbox/%3c00cd26ab-bdb3-67b4-ca6b-063266493874%40apache.org%3e
+ */
 svn_error_t *
 svn_checksum_parse_hex(svn_checksum_t **checksum,
                        svn_checksum_kind_t kind,
@@ -217,6 +221,15 @@ svn_checksum_empty_checksum(svn_checksum_kind_t kind,
 svn_checksum_ctx_t *
 svn_checksum_ctx_create(svn_checksum_kind_t kind,
                         apr_pool_t *pool);
+
+/**
+ * Reset an existing checksum @a ctx to initial state.
+ * @see svn_checksum_ctx_create()
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_checksum_ctx_reset(svn_checksum_ctx_t *ctx);
 
 /**
  * Update the checksum represented by @a ctx, with @a len bytes starting at

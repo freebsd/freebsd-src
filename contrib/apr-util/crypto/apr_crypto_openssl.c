@@ -31,15 +31,27 @@
 #if APU_HAVE_CRYPTO
 
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 #include <openssl/engine.h>
 
 #define LOG_PREFIX "apr_crypto_openssl: "
+
+#ifndef APR_USE_OPENSSL_PRE_1_1_API
+#if defined(LIBRESSL_VERSION_NUMBER)
+/* LibreSSL declares OPENSSL_VERSION_NUMBER == 2.0 but does not include most
+ * changes from OpenSSL >= 1.1 (new functions, macros, deprecations, ...), so
+ * we have to work around this...
+ */
+#define APR_USE_OPENSSL_PRE_1_1_API (1)
+#else
+#define APR_USE_OPENSSL_PRE_1_1_API (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#endif
+#endif
 
 struct apr_crypto_t {
     apr_pool_t *pool;
     const apr_crypto_driver_t *provider;
     apu_err_t *result;
-    apr_array_header_t *keys;
     apr_crypto_config_t *config;
     apr_hash_t *types;
     apr_hash_t *modes;
@@ -64,20 +76,27 @@ struct apr_crypto_block_t {
     apr_pool_t *pool;
     const apr_crypto_driver_t *provider;
     const apr_crypto_t *f;
-    EVP_CIPHER_CTX cipherCtx;
+    EVP_CIPHER_CTX *cipherCtx;
     int initialised;
     int ivSize;
     int blockSize;
     int doPad;
 };
 
-static int key_3des_192 = APR_KEY_3DES_192;
-static int key_aes_128 = APR_KEY_AES_128;
-static int key_aes_192 = APR_KEY_AES_192;
-static int key_aes_256 = APR_KEY_AES_256;
+static struct apr_crypto_block_key_type_t key_types[] =
+{
+{ APR_KEY_3DES_192, 24, 8, 8 },
+{ APR_KEY_AES_128, 16, 16, 16 },
+{ APR_KEY_AES_192, 24, 16, 16 },
+{ APR_KEY_AES_256, 32, 16, 16 } };
 
-static int mode_ecb = APR_MODE_ECB;
-static int mode_cbc = APR_MODE_CBC;
+static struct apr_crypto_block_key_mode_t key_modes[] =
+{
+{ APR_MODE_ECB },
+{ APR_MODE_CBC } };
+
+/* sufficient space to wrap a key */
+#define BUFFER_SIZE 128
 
 /**
  * Fetch the most recent error from this driver.
@@ -111,7 +130,11 @@ static apr_status_t crypto_shutdown_helper(void *data)
 static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
         const apu_err_t **result)
 {
-    CRYPTO_malloc_init();
+#if APR_USE_OPENSSL_PRE_1_1_API
+    (void)CRYPTO_malloc_init();
+#else
+    OPENSSL_malloc_init();
+#endif
     ERR_load_crypto_strings();
     /* SSL_load_error_strings(); */
     OpenSSL_add_all_algorithms();
@@ -124,6 +147,30 @@ static apr_status_t crypto_init(apr_pool_t *pool, const char *params,
     return APR_SUCCESS;
 }
 
+#if OPENSSL_VERSION_NUMBER < 0x0090802fL
+
+/* Code taken from OpenSSL 0.9.8b, see
+ * https://github.com/openssl/openssl/commit/cf6bc84148cb15af09b292394aaf2b45f0d5af0d
+ */
+
+EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void)
+{
+     EVP_CIPHER_CTX *ctx = OPENSSL_malloc(sizeof *ctx);
+     if (ctx)
+         EVP_CIPHER_CTX_init(ctx);
+     return ctx;
+}
+
+void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
+{
+    if (ctx) {
+        EVP_CIPHER_CTX_cleanup(ctx);
+        OPENSSL_free(ctx);
+    }
+}
+
+#endif
+
 /**
  * @brief Clean encryption / decryption context.
  * @note After cleanup, a context is free to be reused if necessary.
@@ -134,7 +181,7 @@ static apr_status_t crypto_block_cleanup(apr_crypto_block_t *ctx)
 {
 
     if (ctx->initialised) {
-        EVP_CIPHER_CTX_cleanup(&ctx->cipherCtx);
+        EVP_CIPHER_CTX_free(ctx->cipherCtx);
         ctx->initialised = 0;
     }
 
@@ -256,26 +303,21 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
         return APR_ENOMEM;
     }
 
-    f->keys = apr_array_make(pool, 10, sizeof(apr_crypto_key_t));
-    if (!f->keys) {
-        return APR_ENOMEM;
-    }
-
     f->types = apr_hash_make(pool);
     if (!f->types) {
         return APR_ENOMEM;
     }
-    apr_hash_set(f->types, "3des192", APR_HASH_KEY_STRING, &(key_3des_192));
-    apr_hash_set(f->types, "aes128", APR_HASH_KEY_STRING, &(key_aes_128));
-    apr_hash_set(f->types, "aes192", APR_HASH_KEY_STRING, &(key_aes_192));
-    apr_hash_set(f->types, "aes256", APR_HASH_KEY_STRING, &(key_aes_256));
+    apr_hash_set(f->types, "3des192", APR_HASH_KEY_STRING, &(key_types[0]));
+    apr_hash_set(f->types, "aes128", APR_HASH_KEY_STRING, &(key_types[1]));
+    apr_hash_set(f->types, "aes192", APR_HASH_KEY_STRING, &(key_types[2]));
+    apr_hash_set(f->types, "aes256", APR_HASH_KEY_STRING, &(key_types[3]));
 
     f->modes = apr_hash_make(pool);
     if (!f->modes) {
         return APR_ENOMEM;
     }
-    apr_hash_set(f->modes, "ecb", APR_HASH_KEY_STRING, &(mode_ecb));
-    apr_hash_set(f->modes, "cbc", APR_HASH_KEY_STRING, &(mode_cbc));
+    apr_hash_set(f->modes, "ecb", APR_HASH_KEY_STRING, &(key_modes[0]));
+    apr_hash_set(f->modes, "cbc", APR_HASH_KEY_STRING, &(key_modes[1]));
 
     apr_pool_cleanup_register(pool, f, crypto_cleanup_helper,
             apr_pool_cleanup_null);
@@ -298,7 +340,7 @@ static apr_status_t crypto_make(apr_crypto_t **ff,
 
 /**
  * @brief Get a hash table of key types, keyed by the name of the type against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_type_t.
  *
  * @param types - hashtable of key types keyed to constants.
  * @param f - encryption context
@@ -313,7 +355,7 @@ static apr_status_t crypto_get_block_key_types(apr_hash_t **types,
 
 /**
  * @brief Get a hash table of key modes, keyed by the name of the mode against
- * an integer pointer constant.
+ * a pointer to apr_crypto_block_key_mode_t.
  *
  * @param modes - hashtable of key modes keyed to constants.
  * @param f - encryption context
@@ -326,52 +368,13 @@ static apr_status_t crypto_get_block_key_modes(apr_hash_t **modes,
     return APR_SUCCESS;
 }
 
-/**
- * @brief Create a key from the given passphrase. By default, the PBKDF2
- *        algorithm is used to generate the key from the passphrase. It is expected
- *        that the same pass phrase will generate the same key, regardless of the
- *        backend crypto platform used. The key is cleaned up when the context
- *        is cleaned, and may be reused with multiple encryption or decryption
- *        operations.
- * @note If *key is NULL, a apr_crypto_key_t will be created from a pool. If
- *       *key is not NULL, *key must point at a previously created structure.
- * @param key The key returned, see note.
- * @param ivSize The size of the initialisation vector will be returned, based
- *               on whether an IV is relevant for this type of crypto.
- * @param pass The passphrase to use.
- * @param passLen The passphrase length in bytes
- * @param salt The salt to use.
- * @param saltLen The salt length in bytes
- * @param type 3DES_192, AES_128, AES_192, AES_256.
- * @param mode Electronic Code Book / Cipher Block Chaining.
- * @param doPad Pad if necessary.
- * @param iterations Iteration count
- * @param f The context to use.
- * @param p The pool to use.
- * @return Returns APR_ENOKEY if the pass phrase is missing or empty, or if a backend
- *         error occurred while generating the key. APR_ENOCIPHER if the type or mode
- *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
- *         not known. APR_EPADDING if padding was requested but is not supported.
- *         APR_ENOTIMPL if not implemented.
+/*
+ * Work out which mechanism to use.
  */
-static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
-        const char *pass, apr_size_t passLen, const unsigned char * salt,
-        apr_size_t saltLen, const apr_crypto_block_key_type_e type,
-        const apr_crypto_block_key_mode_e mode, const int doPad,
-        const int iterations, const apr_crypto_t *f, apr_pool_t *p)
+static apr_status_t crypto_cipher_mechanism(apr_crypto_key_t *key,
+        const apr_crypto_block_key_type_e type,
+        const apr_crypto_block_key_mode_e mode, const int doPad, apr_pool_t *p)
 {
-    apr_crypto_key_t *key = *k;
-
-    if (!key) {
-        *k = key = apr_array_push(f->keys);
-    }
-    if (!key) {
-        return APR_ENOMEM;
-    }
-
-    key->f = f;
-    key->provider = f->provider;
-
     /* determine the cipher to be used */
     switch (type) {
 
@@ -433,6 +436,148 @@ static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
     }
     apr_crypto_clear(p, key->key, key->keyLen);
 
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Create a key from the provided secret or passphrase. The key is cleaned
+ *        up when the context is cleaned, and may be reused with multiple encryption
+ *        or decryption operations.
+ * @note If *key is NULL, a apr_crypto_key_t will be created from a pool. If
+ *       *key is not NULL, *key must point at a previously created structure.
+ * @param key The key returned, see note.
+ * @param rec The key record, from which the key will be derived.
+ * @param f The context to use.
+ * @param p The pool to use.
+ * @return Returns APR_ENOKEY if the pass phrase is missing or empty, or if a backend
+ *         error occurred while generating the key. APR_ENOCIPHER if the type or mode
+ *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
+ *         not known. APR_EPADDING if padding was requested but is not supported.
+ *         APR_ENOTIMPL if not implemented.
+ */
+static apr_status_t crypto_key(apr_crypto_key_t **k,
+        const apr_crypto_key_rec_t *rec, const apr_crypto_t *f, apr_pool_t *p)
+{
+    apr_crypto_key_t *key = *k;
+    apr_status_t rv;
+
+    if (!key) {
+        *k = key = apr_pcalloc(p, sizeof *key);
+        if (!key) {
+            return APR_ENOMEM;
+        }
+    }
+
+    key->f = f;
+    key->provider = f->provider;
+
+    /* decide on what cipher mechanism we will be using */
+    rv = crypto_cipher_mechanism(key, rec->type, rec->mode, rec->pad, p);
+    if (APR_SUCCESS != rv) {
+        return rv;
+    }
+
+    switch (rec->ktype) {
+
+    case APR_CRYPTO_KTYPE_PASSPHRASE: {
+
+        /* generate the key */
+        if (PKCS5_PBKDF2_HMAC_SHA1(rec->k.passphrase.pass,
+                rec->k.passphrase.passLen,
+                (unsigned char *) rec->k.passphrase.salt,
+                rec->k.passphrase.saltLen, rec->k.passphrase.iterations,
+                key->keyLen, key->key) == 0) {
+            return APR_ENOKEY;
+        }
+
+        break;
+    }
+
+    case APR_CRYPTO_KTYPE_SECRET: {
+
+        /* sanity check - key correct size? */
+        if (rec->k.secret.secretLen != key->keyLen) {
+            return APR_EKEYLENGTH;
+        }
+
+        /* copy the key */
+        memcpy(key->key, rec->k.secret.secret, rec->k.secret.secretLen);
+
+        break;
+    }
+
+    default: {
+
+        return APR_ENOKEY;
+
+    }
+    }
+
+    key->doPad = rec->pad;
+
+    /* note: openssl incorrectly returns non zero IV size values for ECB
+     * algorithms, so work around this by ignoring the IV size.
+     */
+    if (APR_MODE_ECB != rec->mode) {
+        key->ivSize = EVP_CIPHER_iv_length(key->cipher);
+    }
+
+    return APR_SUCCESS;
+}
+
+/**
+ * @brief Create a key from the given passphrase. By default, the PBKDF2
+ *        algorithm is used to generate the key from the passphrase. It is expected
+ *        that the same pass phrase will generate the same key, regardless of the
+ *        backend crypto platform used. The key is cleaned up when the context
+ *        is cleaned, and may be reused with multiple encryption or decryption
+ *        operations.
+ * @note If *key is NULL, a apr_crypto_key_t will be created from a pool. If
+ *       *key is not NULL, *key must point at a previously created structure.
+ * @param key The key returned, see note.
+ * @param ivSize The size of the initialisation vector will be returned, based
+ *               on whether an IV is relevant for this type of crypto.
+ * @param pass The passphrase to use.
+ * @param passLen The passphrase length in bytes
+ * @param salt The salt to use.
+ * @param saltLen The salt length in bytes
+ * @param type 3DES_192, AES_128, AES_192, AES_256.
+ * @param mode Electronic Code Book / Cipher Block Chaining.
+ * @param doPad Pad if necessary.
+ * @param iterations Iteration count
+ * @param f The context to use.
+ * @param p The pool to use.
+ * @return Returns APR_ENOKEY if the pass phrase is missing or empty, or if a backend
+ *         error occurred while generating the key. APR_ENOCIPHER if the type or mode
+ *         is not supported by the particular backend. APR_EKEYTYPE if the key type is
+ *         not known. APR_EPADDING if padding was requested but is not supported.
+ *         APR_ENOTIMPL if not implemented.
+ */
+static apr_status_t crypto_passphrase(apr_crypto_key_t **k, apr_size_t *ivSize,
+        const char *pass, apr_size_t passLen, const unsigned char * salt,
+        apr_size_t saltLen, const apr_crypto_block_key_type_e type,
+        const apr_crypto_block_key_mode_e mode, const int doPad,
+        const int iterations, const apr_crypto_t *f, apr_pool_t *p)
+{
+    apr_crypto_key_t *key = *k;
+    apr_status_t rv;
+
+    if (!key) {
+        *k = key = apr_pcalloc(p, sizeof *key);
+        if (!key) {
+            return APR_ENOMEM;
+        }
+    }
+
+    key->f = f;
+    key->provider = f->provider;
+
+    /* decide on what cipher mechanism we will be using */
+    rv = crypto_cipher_mechanism(key, type, mode, doPad, p);
+    if (APR_SUCCESS != rv) {
+        return rv;
+    }
+
     /* generate the key */
     if (PKCS5_PBKDF2_HMAC_SHA1(pass, passLen, (unsigned char *) salt, saltLen,
             iterations, key->keyLen, key->key) == 0) {
@@ -491,8 +636,10 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
             apr_pool_cleanup_null);
 
     /* create a new context for encryption */
-    EVP_CIPHER_CTX_init(&block->cipherCtx);
-    block->initialised = 1;
+    if (!block->initialised) {
+        block->cipherCtx = EVP_CIPHER_CTX_new();
+        block->initialised = 1;
+    }
 
     /* generate an IV, if necessary */
     usedIv = NULL;
@@ -519,16 +666,16 @@ static apr_status_t crypto_block_encrypt_init(apr_crypto_block_t **ctx,
 
     /* set up our encryption context */
 #if CRYPTO_OPENSSL_CONST_BUFFERS
-    if (!EVP_EncryptInit_ex(&block->cipherCtx, key->cipher, config->engine,
+    if (!EVP_EncryptInit_ex(block->cipherCtx, key->cipher, config->engine,
             key->key, usedIv)) {
 #else
-        if (!EVP_EncryptInit_ex(&block->cipherCtx, key->cipher, config->engine, (unsigned char *) key->key, (unsigned char *) usedIv)) {
+        if (!EVP_EncryptInit_ex(block->cipherCtx, key->cipher, config->engine, (unsigned char *) key->key, (unsigned char *) usedIv)) {
 #endif
         return APR_EINIT;
     }
 
     /* Clear up any read padding */
-    if (!EVP_CIPHER_CTX_set_padding(&block->cipherCtx, key->doPad)) {
+    if (!EVP_CIPHER_CTX_set_padding(block->cipherCtx, key->doPad)) {
         return APR_EPADDING;
     }
 
@@ -582,10 +729,15 @@ static apr_status_t crypto_block_encrypt(unsigned char **out,
     }
 
 #if CRYPT_OPENSSL_CONST_BUFFERS
-    if (!EVP_EncryptUpdate(&ctx->cipherCtx, (*out), &outl, in, inlen)) {
+    if (!EVP_EncryptUpdate(ctx->cipherCtx, (*out), &outl, in, inlen)) {
 #else
-    if (!EVP_EncryptUpdate(&ctx->cipherCtx, (*out), &outl,
+    if (!EVP_EncryptUpdate(ctx->cipherCtx, (*out), &outl,
             (unsigned char *) in, inlen)) {
+#endif
+#if APR_USE_OPENSSL_PRE_1_1_API
+        EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
+#else
+        EVP_CIPHER_CTX_reset(ctx->cipherCtx);
 #endif
         return APR_ECRYPT;
     }
@@ -616,14 +768,22 @@ static apr_status_t crypto_block_encrypt(unsigned char **out,
 static apr_status_t crypto_block_encrypt_finish(unsigned char *out,
         apr_size_t *outlen, apr_crypto_block_t *ctx)
 {
+    apr_status_t rc = APR_SUCCESS;
     int len = *outlen;
 
-    if (EVP_EncryptFinal_ex(&ctx->cipherCtx, out, &len) == 0) {
-        return APR_EPADDING;
+    if (EVP_EncryptFinal_ex(ctx->cipherCtx, out, &len) == 0) {
+        rc = APR_EPADDING;
     }
-    *outlen = len;
+    else {
+        *outlen = len;
+    }
+#if APR_USE_OPENSSL_PRE_1_1_API
+    EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
+#else
+    EVP_CIPHER_CTX_reset(ctx->cipherCtx);
+#endif
 
-    return APR_SUCCESS;
+    return rc;
 
 }
 
@@ -662,8 +822,10 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
             apr_pool_cleanup_null);
 
     /* create a new context for encryption */
-    EVP_CIPHER_CTX_init(&block->cipherCtx);
-    block->initialised = 1;
+    if (!block->initialised) {
+        block->cipherCtx = EVP_CIPHER_CTX_new();
+        block->initialised = 1;
+    }
 
     /* generate an IV, if necessary */
     if (key->ivSize) {
@@ -674,16 +836,16 @@ static apr_status_t crypto_block_decrypt_init(apr_crypto_block_t **ctx,
 
     /* set up our encryption context */
 #if CRYPTO_OPENSSL_CONST_BUFFERS
-    if (!EVP_DecryptInit_ex(&block->cipherCtx, key->cipher, config->engine,
+    if (!EVP_DecryptInit_ex(block->cipherCtx, key->cipher, config->engine,
             key->key, iv)) {
 #else
-        if (!EVP_DecryptInit_ex(&block->cipherCtx, key->cipher, config->engine, (unsigned char *) key->key, (unsigned char *) iv)) {
+        if (!EVP_DecryptInit_ex(block->cipherCtx, key->cipher, config->engine, (unsigned char *) key->key, (unsigned char *) iv)) {
 #endif
         return APR_EINIT;
     }
 
     /* Clear up any read padding */
-    if (!EVP_CIPHER_CTX_set_padding(&block->cipherCtx, key->doPad)) {
+    if (!EVP_CIPHER_CTX_set_padding(block->cipherCtx, key->doPad)) {
         return APR_EPADDING;
     }
 
@@ -737,10 +899,15 @@ static apr_status_t crypto_block_decrypt(unsigned char **out,
     }
 
 #if CRYPT_OPENSSL_CONST_BUFFERS
-    if (!EVP_DecryptUpdate(&ctx->cipherCtx, *out, &outl, in, inlen)) {
+    if (!EVP_DecryptUpdate(ctx->cipherCtx, *out, &outl, in, inlen)) {
 #else
-    if (!EVP_DecryptUpdate(&ctx->cipherCtx, *out, &outl, (unsigned char *) in,
+    if (!EVP_DecryptUpdate(ctx->cipherCtx, *out, &outl, (unsigned char *) in,
             inlen)) {
+#endif
+#if APR_USE_OPENSSL_PRE_1_1_API
+        EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
+#else
+        EVP_CIPHER_CTX_reset(ctx->cipherCtx);
 #endif
         return APR_ECRYPT;
     }
@@ -771,15 +938,22 @@ static apr_status_t crypto_block_decrypt(unsigned char **out,
 static apr_status_t crypto_block_decrypt_finish(unsigned char *out,
         apr_size_t *outlen, apr_crypto_block_t *ctx)
 {
-
+    apr_status_t rc = APR_SUCCESS;
     int len = *outlen;
 
-    if (EVP_DecryptFinal_ex(&ctx->cipherCtx, out, &len) == 0) {
-        return APR_EPADDING;
+    if (EVP_DecryptFinal_ex(ctx->cipherCtx, out, &len) == 0) {
+        rc = APR_EPADDING;
     }
-    *outlen = len;
+    else {
+        *outlen = len;
+    }
+#if APR_USE_OPENSSL_PRE_1_1_API
+    EVP_CIPHER_CTX_cleanup(ctx->cipherCtx);
+#else
+    EVP_CIPHER_CTX_reset(ctx->cipherCtx);
+#endif
 
-    return APR_SUCCESS;
+    return rc;
 
 }
 
@@ -792,7 +966,8 @@ APU_MODULE_DECLARE_DATA const apr_crypto_driver_t apr_crypto_openssl_driver = {
     crypto_block_encrypt_init, crypto_block_encrypt,
     crypto_block_encrypt_finish, crypto_block_decrypt_init,
     crypto_block_decrypt, crypto_block_decrypt_finish,
-    crypto_block_cleanup, crypto_cleanup, crypto_shutdown, crypto_error
+    crypto_block_cleanup, crypto_cleanup, crypto_shutdown, crypto_error,
+    crypto_key
 };
 
 #endif

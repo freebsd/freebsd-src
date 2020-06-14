@@ -105,7 +105,7 @@ svn_log__get_file(const char *path, svn_revnum_t rev,
 const char *
 svn_log__get_dir(const char *path, svn_revnum_t rev,
                  svn_boolean_t want_contents, svn_boolean_t want_props,
-                 apr_uint64_t dirent_fields,
+                 apr_uint32_t dirent_fields,
                  apr_pool_t *pool)
 {
   return apr_psprintf(pool, "get-dir %s r%ld%s%s",
@@ -394,4 +394,36 @@ svn_log__get_inherited_props(const char *path,
   else
     log_path = "/";
   return apr_psprintf(pool, "get-inherited-props %s r%ld", log_path, rev);
+}
+
+const char *
+svn_log__list(const char *path, svn_revnum_t revision,
+              apr_array_header_t *patterns, svn_depth_t depth,
+              apr_uint32_t dirent_fields, apr_pool_t *pool)
+{
+  svn_stringbuf_t *pattern_text = svn_stringbuf_create_empty(pool);
+  const char *log_path;
+  int i;
+
+  if (path && path[0] != '\0')
+    log_path = svn_path_uri_encode(path, pool);
+  else
+    log_path = "/";
+
+  if (patterns)
+    {
+      for (i = 0; i < patterns->nelts; ++i)
+        {
+          const char *pattern = APR_ARRAY_IDX(patterns, i, const char *);
+          svn_stringbuf_appendbyte(pattern_text, ' ');
+          svn_stringbuf_appendcstr(pattern_text, pattern);
+        }
+    }
+  else
+    {
+      svn_stringbuf_appendcstr(pattern_text, " <ANY>");
+    }
+
+  return apr_psprintf(pool, "list %s r%ld%s%s", log_path, revision,
+                      log_depth(depth, pool), pattern_text->data);
 }

@@ -65,7 +65,7 @@ svn_ra_version(void);
  * @a close_baton as appropriate.
  *
  * @a path is relative to the "root" of the session, defined by the
- * @a repos_URL passed to svn_ra_open4() vtable call.
+ * @a repos_URL passed to svn_ra_open5() vtable call.
  *
  * @a name is the name of the property to fetch. If the property is present,
  * then it is returned in @a value. Otherwise, @a *value is set to @c NULL.
@@ -229,7 +229,7 @@ typedef void (*svn_ra_progress_notify_func_t)(apr_off_t progress,
  *
  * @a revision is the target revision number of the received replay report.
  *
- * @a editor and @a edit_baton should provided by the callback implementation.
+ * @a *editor and @a *edit_baton should provided by the callback implementation.
  *
  * @a replay_baton is the baton as originally passed to replay_range.
  *
@@ -253,7 +253,7 @@ typedef svn_error_t *(*svn_ra_replay_revstart_callback_t)(
  *
  * @a revision is the target revision number of the received replay report.
  *
- * @a editor and @a edit_baton should provided by the callback implementation.
+ * @a editor and @a edit_baton are the values provided by the REVSTART callback.
  *
  * @a replay_baton is the baton as originally passed to replay_range.
  *
@@ -369,7 +369,7 @@ typedef struct svn_ra_reporter3_t
    * implementor should assume the directory has no entries or props.
    *
    * This will *override* any previous set_path() calls made on parent
-   * paths.  @a path is relative to the URL specified in svn_ra_open4().
+   * paths.  @a path is relative to the URL specified in svn_ra_open5().
    *
    * If @a lock_token is non-NULL, it is the lock token for @a path in the WC.
    *
@@ -520,7 +520,7 @@ typedef struct svn_ra_reporter_t
 /** A collection of callbacks implemented by libsvn_client which allows
  * an RA layer to "pull" information from the client application, or
  * possibly store information.  libsvn_client passes this vtable to
- * svn_ra_open4().
+ * svn_ra_open5().
  *
  * Each routine takes a @a callback_baton originally provided with the
  * vtable.
@@ -555,9 +555,9 @@ typedef struct svn_ra_callbacks2_t
 
   /** Fetch working copy properties.
    *
-   *<pre> ### we might have a problem if the RA layer ever wants a property
-   * ### that corresponds to a different revision of the file than
-   * ### what is in the WC. we'll cross that bridge one day...</pre>
+   * @note we might have a problem if the RA layer ever wants a property
+   *       that corresponds to a different revision of the file than
+   *       what is in the WC. we'll cross that bridge one day...
    */
   svn_ra_get_wc_prop_func_t get_wc_prop;
 
@@ -710,6 +710,14 @@ typedef struct svn_ra_session_t svn_ra_session_t;
  * within the new repository root URL that @a repos_URL pointed to within
  * the old repository root URL.
  *
+ * If @a redirect_url is not NULL and a @corrected_url is returned, then
+ * @a redirect_url contains a non-canonicalized version of @a corrected_url,
+ * as communicated in the network protocol used by the RA provider.
+ * THe @a redirect_url should be used for to detect redirection loops.
+ * Canonicalization may change the protocol-level URL in a way that
+ * makes detection of redirect loops impossible in some cases since URLs which
+ * are different at the protocol layer could map to the same canonicalized URL.
+ *
  * Return @c SVN_ERR_RA_UUID_MISMATCH if @a uuid is non-NULL and not equal
  * to the UUID of the repository at @c repos_URL.
  *
@@ -728,8 +736,26 @@ typedef struct svn_ra_session_t svn_ra_session_t;
  *
  * @see svn_client_open_ra_session().
  *
- * @since New in 1.7.
+ * @since New in 1.14.
  */
+svn_error_t *
+svn_ra_open5(svn_ra_session_t **session_p,
+             const char **corrected_url,
+             const char **redirect_url,
+             const char *repos_URL,
+             const char *uuid,
+             const svn_ra_callbacks2_t *callbacks,
+             void *callback_baton,
+             apr_hash_t *config,
+             apr_pool_t *pool);
+
+/** Similar to svn_ra_open5(), but with @a redirect_url always passed
+ * as @c NULL.
+ *
+ * @since New in 1.7.
+ * @deprecated Provided for backward compatibility with the 1.13 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_ra_open4(svn_ra_session_t **session_p,
              const char **corrected_url,
@@ -1089,7 +1115,7 @@ svn_ra_get_file(svn_ra_session_t *session,
  * @a path is interpreted relative to the URL in @a session.
  *
  * If @a revision is @c SVN_INVALID_REVNUM (meaning 'head') and
- * @a *fetched_rev is not @c NULL, then this function will set
+ * @a fetched_rev is not @c NULL, then this function will set
  * @a *fetched_rev to the actual revision that was retrieved.  (Some
  * callers want to know, and some don't.)
  *
@@ -1128,6 +1154,63 @@ svn_ra_get_dir(svn_ra_session_t *session,
                svn_revnum_t *fetched_rev,
                apr_hash_t **props,
                apr_pool_t *pool);
+
+/**
+ * Callback type to be used with svn_ra_list().  It will be invoked for
+ * every directory entry found.
+ *
+ * The full path of the entry is given in @a rel_path and @a dirent contains
+ * various additional information. Only the elements of @a dirent specified
+ * by the @a dirent_fields argument to svn_ra_list() will be valid.
+ *
+ * @a baton is the user-provided receiver baton.  @a scratch_pool may be
+ * used for temporary allocations.
+ *
+ * @since New in 1.10.
+ */
+typedef svn_error_t *(* svn_ra_dirent_receiver_t)(const char *rel_path,
+                                                  svn_dirent_t *dirent,
+                                                  void *baton,
+                                                  apr_pool_t *scratch_pool);
+
+/**
+ * Efficiently list everything within a sub-tree.  Specify a glob pattern
+ * to search for specific files and folders.
+ *
+ * In @a session, walk the sub-tree starting at @a path at @a revision down
+ * to the given @a depth.  For each directory entry found, @a receiver will
+ * be called with @a receiver_baton.  The starting @a path will be reported
+ * as well.  Because retrieving elements of a #svn_dirent_t can be
+ * expensive, you need to select them individually via flags set in
+ * @a dirent_fields.
+ *
+ * @a patterns is an optional array of <tt>const char *</tt>.  If it is
+ * not @c NULL, only those directory entries will be reported whose last
+ * path segment matches at least one of these patterns.  This feature uses
+ * apr_fnmatch() for glob matching and requiring '.' to matched by dots
+ * in the path.
+ *
+ * @a path must point to a directory and @a depth must be at least
+ * #svn_depth_empty.
+ *
+ * If the server doesn't support the 'list' command, return
+ * #SVN_ERR_UNSUPPORTED_FEATURE in preference to any other error that
+ * might otherwise be returned.
+ *
+ * Use @a scratch_pool for temporary memory allocation.
+ *
+ * @since New in 1.10.
+ */
+svn_error_t *
+svn_ra_list(svn_ra_session_t *session,
+            const char *path,
+            svn_revnum_t revision,
+            const apr_array_header_t *patterns,
+            svn_depth_t depth,
+            apr_uint32_t dirent_fields,
+            svn_ra_dirent_receiver_t receiver,
+            void *receiver_baton,
+            apr_pool_t *scratch_pool);
 
 /**
  * Set @a *catalog to a mergeinfo catalog for the paths in @a paths.
@@ -1550,7 +1633,7 @@ svn_ra_do_diff(svn_ra_session_t *session,
  * revisions in which at least one of @a paths was changed (i.e., if
  * file, text or props changed; if dir, props changed or an entry
  * was added or deleted).  Each path is an <tt>const char *</tt>, relative
- * to the @a session's common parent.
+ * to the repository root of @a session.
  *
  * If @a limit is greater than zero only invoke @a receiver on the first
  * @a limit logs.
@@ -1717,9 +1800,10 @@ svn_ra_get_repos_root(svn_ra_session_t *session,
 /**
  * Set @a *locations to the locations (at the repository revisions
  * @a location_revisions) of the file identified by @a path in
- * @a peg_revision.  @a path is relative to the URL to which
- * @a session was opened.  @a location_revisions is an array of
- * @c svn_revnum_t's.  @a *locations will be a mapping from the revisions to
+ * @a peg_revision (passing @c SVN_INVALID_REVNUM is an error).
+ * @a path is relative to the URL to which @a session was opened.
+ * @a location_revisions is an array of @c svn_revnum_t's.
+ * @a *locations will be a mapping from the revisions to
  * their appropriate absolute paths.  If the file doesn't exist in a
  * location_revision, that revision will be ignored.
  *
@@ -1799,7 +1883,7 @@ svn_ra_get_location_segments(svn_ra_session_t *session,
  * @note Prior to Subversion 1.9, this function may request delta handlers
  * from @a handler even for empty text deltas.  Starting with 1.9, the
  * delta handler / baton return arguments passed to @a handler will be
- * #NULL unless there is an actual difference in the file contents between
+ * NULL unless there is an actual difference in the file contents between
  * the current and the previous call.
  *
  * @since New in 1.5.
@@ -1966,7 +2050,7 @@ svn_ra_get_locks(svn_ra_session_t *session,
 
 /**
  * Replay the changes from a range of revisions between @a start_revision
- * and @a end_revision.
+ * and @a end_revision (inclusive).
  *
  * When receiving information for one revision, a callback @a revstart_func is
  * called; this callback will provide an editor and baton through which the
@@ -2173,6 +2257,13 @@ svn_ra_has_capability(svn_ra_session_t *session,
  * @since New in 1.8.
  */
 #define SVN_RA_CAPABILITY_GET_FILE_REVS_REVERSE "get-file-revs-reversed"
+
+/**
+ * The capability of a server to understand the list command.
+ *
+ * @since New in 1.10.
+ */
+#define SVN_RA_CAPABILITY_LIST "list"
 
 
 /*       *** PLEASE READ THIS IF YOU ADD A NEW CAPABILITY ***

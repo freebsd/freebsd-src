@@ -41,8 +41,7 @@ svn_x509_name_attr_dup(const svn_x509_name_attr_t *attr,
 {
   svn_x509_name_attr_t *result = apr_palloc(result_pool, sizeof(*result));
   result->oid_len = attr->oid_len;
-  result->oid = apr_palloc(result_pool, result->oid_len);
-  memcpy(result->oid, attr->oid, result->oid_len);
+  result->oid = apr_pmemdup(result_pool, attr->oid, attr->oid_len);
   result->utf8_value = apr_pstrdup(result_pool, attr->utf8_value);
 
   return result;
@@ -124,12 +123,12 @@ svn_x509_certinfo_dup(const svn_x509_certinfo_t *certinfo,
 
 typedef struct asn1_oid {
   const unsigned char *oid;
-  const ptrdiff_t oid_len;
+  const apr_size_t oid_len;
   const char *short_label;
   const char *long_label;
 } asn1_oid;
 
-#define CONSTANT_PAIR(c) (unsigned char *)(c), sizeof((c)) - 1
+#define CONSTANT_PAIR(c) (const unsigned char *)(c), sizeof((c)) - 1
 
 static const asn1_oid asn1_oids[] = {
   { CONSTANT_PAIR(SVN_X509_OID_COMMON_NAME),  "CN", "commonName" },
@@ -312,7 +311,7 @@ svn_x509_certinfo_get_valid_from(const svn_x509_certinfo_t *certinfo)
   return certinfo->valid_from;
 }
 
-const apr_time_t
+apr_time_t
 svn_x509_certinfo_get_valid_to(const svn_x509_certinfo_t *certinfo)
 {
   return certinfo->valid_to;

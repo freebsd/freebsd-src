@@ -6,7 +6,7 @@ includedir=@includedir@
 Name: libsvn_delta
 Description: Subversion Delta Library
 Version: @PACKAGE_VERSION@
-Requires:  apr-util-@SVN_APR_MAJOR_VERSION@ apr-@SVN_APR_MAJOR_VERSION@
-Requires.private:  libsvn_subr
-Libs: -L${libdir}  -lsvn_delta @SVN_ZLIB_LIBS@
-Cflags: -I${includedir}
+Requires: apr-util-@SVN_APR_MAJOR_VERSION@, apr-@SVN_APR_MAJOR_VERSION@
+Requires.private: libsvn_subr
+Libs: -L${libdir}  -lsvn_delta-1 @SVN_ZLIB_LIBS@
+Cflags: -I${includedir}/subversion-1

@@ -69,21 +69,21 @@ apr_size_t
 svn_fs_x__string_table_builder_estimate_size(string_table_builder_t *builder);
 
 /* From the given BUILDER object, create a string table object allocated
- * in POOL that contains all strings previously added to BUILDER.
+ * in RESULT_POOL that contains all strings previously added to BUILDER.
  */
 string_table_t *
 svn_fs_x__string_table_create(const string_table_builder_t *builder,
-                              apr_pool_t *pool);
+                              apr_pool_t *result_pool);
 
 /* Extract string number INDEX from TABLE and return a copy of it allocated
- * in POOL.  If LENGTH is not NULL, set *LENGTH to strlen() of the result
- * string.  Returns an empty string for invalid indexes.
+ * in RESULT_POOL.  If LENGTH is not NULL, set *LENGTH to strlen() of the
+ * result string.  Returns an empty string for invalid indexes.
  */
 const char*
 svn_fs_x__string_table_get(const string_table_t *table,
                            apr_size_t index,
                            apr_size_t *length,
-                           apr_pool_t *pool);
+                           apr_pool_t *result_pool);
 
 /* Write a serialized representation of the string table TABLE to STREAM.
  * Use SCRATCH_POOL for temporary allocations.
@@ -116,15 +116,15 @@ svn_fs_x__deserialize_string_table(void *buffer,
                                    string_table_t **table);
 
 /* Extract string number INDEX from the cache serialized representation at
- * TABLE and return a copy of it allocated in POOL.  If LENGTH is not NULL,
- * set *LENGTH to strlen() of the result string.  Returns an empty string
- * for invalid indexes.
+ * TABLE and return a copy of it allocated in RESULT_POOL.  If LENGTH is not
+ * NULL, set *LENGTH to strlen() of the result string.  Returns an empty
+ * string for invalid indexes.
  */
 const char*
 svn_fs_x__string_table_get_func(const string_table_t *table,
                                 apr_size_t idx,
                                 apr_size_t *length,
-                                apr_pool_t *pool);
+                                apr_pool_t *result_pool);
 
 #ifdef __cplusplus
 }

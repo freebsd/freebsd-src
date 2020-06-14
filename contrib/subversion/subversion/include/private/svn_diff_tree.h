@@ -114,12 +114,24 @@ extern "C" {
  * ### How come many users don't set the 'repos_relpath' field? */
 typedef struct svn_diff_source_t
 {
-  /* Always available */
+  /* Always available
+     In case of copyfrom: the revision copied from
+   */
   svn_revnum_t revision;
 
-  /* Depending on the driver available for copyfrom */
-  /* ### What? */
+  /* In case of copyfrom: the repository relative path copied from.
+
+     NULL if the node wasn't copied or moved, or when the driver doesn't
+     have this information */
   const char *repos_relpath;
+
+  /* In case of copyfrom: the relative path of source location before the
+     move. This path is relative WITHIN THE DIFF. The repository path is
+     typically in repos_relpath
+
+     NULL if the node wasn't moved or if the driver doesn't have this
+     information. */
+  const char *moved_from_relpath;
 } svn_diff_source_t;
 
 /**
@@ -309,7 +321,6 @@ svn_diff__tree_processor_create(void *baton,
  */ /* Used by libsvn clients repository diff */
 const svn_diff_tree_processor_t *
 svn_diff__tree_processor_reverse_create(const svn_diff_tree_processor_t * processor,
-                                        const char *prefix_relpath,
                                         apr_pool_t *result_pool);
 
 /**

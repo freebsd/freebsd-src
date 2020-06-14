@@ -75,7 +75,7 @@ svn_cl__help(apr_getopt_t *os,
   version_footer = svn_stringbuf_create(ra_desc_start, pool);
   SVN_ERR(svn_ra_print_modules(version_footer, pool));
 
-  return svn_opt_print_help4(os,
+  return svn_opt_print_help5(os,
                              "svnbench",   /* ### erm, derive somehow? */
                              opt_state ? opt_state->version : FALSE,
                              opt_state ? opt_state->quiet : FALSE,

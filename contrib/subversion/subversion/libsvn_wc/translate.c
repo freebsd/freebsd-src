@@ -440,3 +440,20 @@ svn_wc__sync_flags_with_props(svn_boolean_t *did_set,
 
   return SVN_NO_ERROR;
 }
+
+svn_error_t *
+svn_wc__translated_stream(svn_stream_t **stream,
+                          svn_wc_context_t *wc_ctx,
+                          const char *local_abspath,
+                          const char *versioned_abspath,
+                          apr_uint32_t flags,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool)
+{
+  return svn_error_trace(
+           svn_wc__internal_translated_stream(stream, wc_ctx->db,
+                                              local_abspath,
+                                              versioned_abspath,
+                                              flags, result_pool,
+                                              scratch_pool));
+}

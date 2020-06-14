@@ -1,5 +1,5 @@
 /*
- * resolved.c:  wrapper around wc resolved functionality.
+ * resolved.c:  wrapper around Subversion <=1.9 wc resolved functionality
  *
  * ====================================================================
  *    Licensed to the Apache Software Foundation (ASF) under one
@@ -41,6 +41,7 @@
 #include "private/svn_wc_private.h"
 
 #include "svn_private_config.h"
+
 
 /*** Code. ***/
 

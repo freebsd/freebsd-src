@@ -89,14 +89,6 @@ fi
 echo "Generating 'make' outputs ..."
 $apr_src_dir/build/gen-build.py $verbose make
 
-#
-# If Expat has been bundled, then go and configure the thing
-#
-if [ -f xml/expat/buildconf.sh ]; then
-  echo "Invoking xml/expat/buildconf.sh ..."
-  (cd xml/expat; ./buildconf.sh $verbose)
-fi
-
 # Remove autoconf cache again
 rm -rf autom4te*.cache
 
@@ -114,3 +106,13 @@ if [ -f `which cut` ]; then
     ./build/rpm/apr-util.spec.in > apr-util.spec
 fi
 
+# Verify the tree was clean, notify user if not (normal in development)
+#
+if [ -f "include/apu.h" -o -f "include/private/apu_config.h" -o \
+     -f "include/apu_want.h" -o -f "include/private/apu_select_dbm.h" ]; then
+    echo ""
+    echo "Generated include files already exist, the tree is not clean."
+    echo "The resulting build-outputs.mk file is incorrect"
+fi
+
+exit 0

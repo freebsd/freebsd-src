@@ -180,6 +180,7 @@ extern "C" {
 #else
 #define APR_HAVE_IPV6                   0
 #endif
+#define APR_HAVE_SOCKADDR_UN            0
 #define APR_HAVE_MEMCHR                 1
 #define APR_HAVE_MEMMOVE                1
 #define APR_HAVE_SETRLIMIT              0
@@ -213,6 +214,7 @@ extern "C" {
 #define APR_HAS_LARGE_FILES             1
 #define APR_HAS_XTHREAD_FILES           0
 #define APR_HAS_OS_UUID                 0
+#define APR_HAS_TIMEDLOCKS              1
 
 #define APR_PROCATTR_USER_SET_REQUIRES_PASSWORD 0
 

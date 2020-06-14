@@ -781,7 +781,7 @@ read_one_entry(const svn_wc_entry_t **new_entry,
               if (parent_root_url != NULL
                        && strcmp(original_root_url, parent_root_url) == 0)
                 {
-                  
+
                   const char *relpath_to_entry = svn_dirent_is_child(
                     op_root_abspath, entry_abspath, NULL);
                   const char *entry_repos_relpath = svn_relpath_join(
@@ -1049,7 +1049,7 @@ read_entries_new(apr_hash_t **result_entries,
       svn_pool_clear(iterpool);
 
       SVN_ERR(read_one_entry(&entry,
-                             db, dir_abspath, 
+                             db, dir_abspath,
                              wcroot, dir_relpath,
                              name, parent_entry,
                              result_pool, iterpool));
@@ -1800,7 +1800,7 @@ write_entry(struct write_baton **entry_node,
      normal         replace+copied        base       base+work
      add+copied     replace+copied        work       work+work
 
-     although obviously the node is a directory rather then a file.
+     although obviously the node is a directory rather than a file.
      There are then more conversion states where the parent is
      replaced.
 
@@ -2004,7 +2004,7 @@ write_entry(struct write_baton **entry_node,
   if (entry_node && entry->tree_conflict_data)
     {
       /* Issues #3840/#3916: 1.6 stores multiple tree conflicts on the
-         parent node, 1.7 stores them directly on the conflited nodes.
+         parent node, 1.7 stores them directly on the conflicted nodes.
          So "((skel1) (skel2))" becomes "(skel1)" and "(skel2)" */
       svn_skel_t *skel;
 

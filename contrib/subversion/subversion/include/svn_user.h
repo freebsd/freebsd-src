@@ -45,6 +45,9 @@ svn_user_get_name(apr_pool_t *pool);
  * any necessary allocation, returning NULL on error.
  *
  * @since New in 1.4.
+ * @since 1.10 returns a canonical path. Earlier versions returned a
+ * non-canonical path if the operating system reported a non-canonical
+ * path such as "/home/user/" or "//home/user".
  */
 const char *
 svn_user_get_homedir(apr_pool_t *pool);

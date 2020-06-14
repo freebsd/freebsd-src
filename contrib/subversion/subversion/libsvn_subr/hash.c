@@ -31,10 +31,14 @@
 #include <apr_hash.h>
 #include <apr_file_io.h>
 
+#ifndef SVN_HASH__GETS_SETS
+#define SVN_HASH__GETS_SETS
+#endif
+#include "svn_hash.h"
+
 #include "svn_types.h"
 #include "svn_string.h"
 #include "svn_error.h"
-#include "svn_hash.h"
 #include "svn_sorts.h"
 #include "svn_io.h"
 #include "svn_pools.h"
@@ -44,7 +48,6 @@
 #include "private/svn_subr_private.h"
 
 #include "svn_private_config.h"
-
 
 
 
@@ -557,6 +560,20 @@ svn_hash_from_cstring_keys(apr_hash_t **hash_p,
     }
   *hash_p = hash;
   return SVN_NO_ERROR;
+}
+
+
+void *
+svn_hash__gets_debug(apr_hash_t *ht, const char *key)
+{
+  return apr_hash_get(ht, key, APR_HASH_KEY_STRING);
+}
+
+
+void
+svn_hash__sets_debug(apr_hash_t *ht, const char *key, const void *val)
+{
+  apr_hash_set(ht, key, APR_HASH_KEY_STRING, val);
 }
 
 

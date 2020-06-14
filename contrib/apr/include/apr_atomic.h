@@ -41,7 +41,7 @@ extern "C" {
  * @param p pool
  * @return APR_SUCCESS on successful completion
  * @remark Programs do NOT need to call this directly. APR will call this
- *         automatically from apr_initialize.
+ *         automatically from apr_initialize().
  * @internal
  */
 APR_DECLARE(apr_status_t) apr_atomic_init(apr_pool_t *p);
@@ -112,6 +112,73 @@ APR_DECLARE(apr_uint32_t) apr_atomic_cas32(volatile apr_uint32_t *mem, apr_uint3
  * @return the old value of *mem
  */
 APR_DECLARE(apr_uint32_t) apr_atomic_xchg32(volatile apr_uint32_t *mem, apr_uint32_t val);
+
+/*
+ * Atomic operations on 64-bit values
+ * Note: Each of these functions internally implements a memory barrier
+ * on platforms that require it
+ */
+
+/**
+ * atomically read an apr_uint64_t from memory
+ * @param mem the pointer
+ */
+APR_DECLARE(apr_uint64_t) apr_atomic_read64(volatile apr_uint64_t *mem);
+
+/**
+ * atomically set an apr_uint64_t in memory
+ * @param mem pointer to the object
+ * @param val value that the object will assume
+ */
+APR_DECLARE(void) apr_atomic_set64(volatile apr_uint64_t *mem, apr_uint64_t val);
+
+/**
+ * atomically add 'val' to an apr_uint64_t
+ * @param mem pointer to the object
+ * @param val amount to add
+ * @return old value pointed to by mem
+ */
+APR_DECLARE(apr_uint64_t) apr_atomic_add64(volatile apr_uint64_t *mem, apr_uint64_t val);
+
+/**
+ * atomically subtract 'val' from an apr_uint64_t
+ * @param mem pointer to the object
+ * @param val amount to subtract
+ */
+APR_DECLARE(void) apr_atomic_sub64(volatile apr_uint64_t *mem, apr_uint64_t val);
+
+/**
+ * atomically increment an apr_uint64_t by 1
+ * @param mem pointer to the object
+ * @return old value pointed to by mem
+ */
+APR_DECLARE(apr_uint64_t) apr_atomic_inc64(volatile apr_uint64_t *mem);
+
+/**
+ * atomically decrement an apr_uint64_t by 1
+ * @param mem pointer to the atomic value
+ * @return zero if the value becomes zero on decrement, otherwise non-zero
+ */
+APR_DECLARE(int) apr_atomic_dec64(volatile apr_uint64_t *mem);
+
+/**
+ * compare an apr_uint64_t's value with 'cmp'.
+ * If they are the same swap the value with 'with'
+ * @param mem pointer to the value
+ * @param with what to swap it with
+ * @param cmp the value to compare it to
+ * @return the old value of *mem
+ */
+APR_DECLARE(apr_uint64_t) apr_atomic_cas64(volatile apr_uint64_t *mem, apr_uint64_t with,
+                              apr_uint64_t cmp);
+
+/**
+ * exchange an apr_uint64_t's value with 'val'.
+ * @param mem pointer to the value
+ * @param val what to swap it with
+ * @return the old value of *mem
+ */
+APR_DECLARE(apr_uint64_t) apr_atomic_xchg64(volatile apr_uint64_t *mem, apr_uint64_t val);
 
 /**
  * compare the pointer's value with cmp.
