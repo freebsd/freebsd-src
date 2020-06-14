@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2011
+.Dd May 10, 2020
 .Dt LOGIN_CLASS 3
 .Os
 .Sh NAME
@@ -221,3 +221,13 @@ with LOG_ERR priority and directed to the currently active facility.
 .Xr mac_set_proc 3 ,
 .Xr login.conf 5 ,
 .Xr termcap 5
+.Sh HISTORY
+The functions
+.Fn setclasscontext ,
+.Fn setclasscpumask ,
+.Fn setclassenvironment ,
+.Fn setclassresources
+and
+.Fn setusercontext
+first appeared in
+.Fx 2.1.5 .

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd December 29, 1996
+.Dd May 10, 2020
 .Dt LOGIN_TTY 3
 .Os
 .Sh NAME
@@ -63,3 +63,9 @@ the controlling terminal of the calling process, and 0 otherwise.
 .Xr ioctl 2 ,
 .Xr setsid 2 ,
 .Xr tty 4
+.Sh HISTORY
+The function
+.Fn login_tty
+first appeared in
+.Bx 4.4 .
+
