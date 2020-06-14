@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\" "
-.Dd March 30, 1997
+.Dd May 10, 2020
 .Dt UUCPLOCK 3
 .Os
 .Sh NAME
@@ -170,6 +170,14 @@ for further details.
 .Xr open 2 ,
 .Xr read 2 ,
 .Xr write 2
+.Sh HISTORY
+The functions
+.Fn uu_lock ,
+.Fn uu_unlock
+and
+.Fn uu_lockerr
+first appeared in
+.Fx 2.0.5 .
 .Sh BUGS
 It is possible that a stale lock is not recognised as such if a new
 processes is assigned the same processes id as the program that left

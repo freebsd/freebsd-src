@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2008
+.Dd May 10, 2020
 .Dt LOGIN_TIMES 3
 .Os
 .Sh NAME
@@ -177,3 +177,13 @@ time falls, or -1 if none of them apply.
 .Xr login_class 3 ,
 .Xr login.conf 5 ,
 .Xr termcap 5
+.Sh HISTORY
+The functions
+.Fn parse_lt ,
+.Fn in_lt ,
+.Fn in_ltm ,
+.Fn in_ltms
+and
+.Fn in_lts
+first appeared in
+.Fx 2.1.5 .

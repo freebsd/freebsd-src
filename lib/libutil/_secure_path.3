@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1997
+.Dd May 10, 2020
 .Dt _SECURE_PATH 3
 .Os
 .Sh NAME
@@ -69,6 +69,10 @@ reason, at LOG_ERR priority.
 Code from which this function was derived was contributed to the
 .Fx
 project by Berkeley Software Design, Inc.
+The function
+.Fn _secure_path
+first appeared in
+.Fx 2.2.5 .
 .Sh BUGS
 The checks carried out are rudimentary and no attempt is made
 to eliminate race conditions between use of this function and
