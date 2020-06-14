@@ -767,8 +767,8 @@ sctp_ss_fb_scheduled(struct sctp_tcb *stcb, struct sctp_nets *net SCTP_UNUSED,
  */
 static void
 sctp_ss_fcfs_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
-    int holds_lock);
+    struct sctp_stream_out *strq SCTP_UNUSED,
+    struct sctp_stream_queue_pending *sp, int holds_lock);
 
 static void
 sctp_ss_fcfs_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
