@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2014
+.Dd Mar 10, 2020
 .Dt VTFONTCVT 8
 .Os
 .Sh NAME
@@ -32,29 +32,44 @@
 .Nd "convert font files for use by the video console"
 .Sh SYNOPSIS
 .Nm
+.Op Fl n
+.Op Fl f Ar font Ns | Ns Ar source Ns | Ns Ar compressed-source
 .Op Fl h Ar height
+.Fl o Ar output_file
 .Op Fl v
 .Op Fl w Ar width
 .Ar normal_font
 .Op Ar bold_font
-.Ar output_file
 .Sh DESCRIPTION
 The
 .Nm
 utility reads source font files in either BDF or Unifont HEX format and
-outputs a binary font file for use by
+outputs a binary font file, C source, or C source with font data compressed
+by using LZ4 compression method.
+The output in C source is intended to be used to embed the font into program
+binary.
+The binary font file is for use by
 .Xr vt 4 .
 HEX format files must have the file extension
 .Pa .hex .
 .Pp
 The following options are available:
 .Bl -tag -width "12345678"
+.It Fl f Ar font Ns | Ns Ar source Ns | Ns Ar compressed-source
+Specify the output format.
+The default is binary
+.Ar font
+file.
 .It Fl h Ar height
 Set font height.
 The default is 16.
 Font height is set automatically for HEX files that have a
 .Ql # Height: Ar height
 comment before any font data.
+.It Fl n
+Do not apply output filtering with C source output.
+.It Fl o Ar output_file
+Specify the name for the output file.
 .It Fl v
 Display verbose statistics about the converted font.
 .It Fl w Ar width

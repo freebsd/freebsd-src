@@ -83,15 +83,6 @@ static struct {
 	struct video_info	video_mode_info;
 } cur_info;
 
-struct vt4font_header {
-	uint8_t		magic[8];
-	uint8_t		width;
-	uint8_t		height;
-	uint16_t	pad;
-	uint32_t	glyph_count;
-	uint32_t	map_count[4];
-} __packed;
-
 static int	hex = 0;
 static int	vesa_cols;
 static int	vesa_rows;
@@ -404,9 +395,9 @@ load_vt4mappingtable(unsigned int nmappings, FILE *f)
 	}
 
 	for (i = 0; i < nmappings; i++) {
-		t[i].src = be32toh(t[i].src);
-		t[i].dst = be16toh(t[i].dst);
-		t[i].len = be16toh(t[i].len);
+		t[i].vfm_src = be32toh(t[i].vfm_src);
+		t[i].vfm_dst = be16toh(t[i].vfm_dst);
+		t[i].vfm_len = be16toh(t[i].vfm_len);
 	}
 
 	return (t);
@@ -428,7 +419,7 @@ load_default_vt4font(void)
 static void
 load_vt4font(FILE *f)
 {
-	struct vt4font_header fh;
+	struct font_header fh;
 	static vfnt_t vfnt;
 	size_t glyphsize;
 	unsigned int i;
@@ -438,16 +429,16 @@ load_vt4font(FILE *f)
 		return;
 	}
 
-	if (memcmp(fh.magic, "VFNT0002", 8) != 0) {
+	if (memcmp(fh.fh_magic, "VFNT0002", 8) != 0) {
 		warnx("bad magic in font file\n");
 		return;
 	}
 
 	for (i = 0; i < VFNT_MAPS; i++)
-		vfnt.map_count[i] = be32toh(fh.map_count[i]);
-	vfnt.glyph_count = be32toh(fh.glyph_count);
-	vfnt.width = fh.width;
-	vfnt.height = fh.height;
+		vfnt.map_count[i] = be32toh(fh.fh_map_count[i]);
+	vfnt.glyph_count = be32toh(fh.fh_glyph_count);
+	vfnt.width = fh.fh_width;
+	vfnt.height = fh.fh_height;
 
 	glyphsize = howmany(vfnt.width, 8) * vfnt.height * vfnt.glyph_count;
 	if ((vfnt.glyphs = malloc(glyphsize)) == NULL) {

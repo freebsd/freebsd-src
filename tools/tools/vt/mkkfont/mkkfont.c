@@ -32,35 +32,21 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
 #include <sys/param.h>
+#include <sys/font.h>
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct file_mapping {
-	uint32_t	source;
-	uint16_t	destination;
-	uint16_t	length;
-} __packed;
-
-struct file_header {
-	uint8_t		magic[8];
-	uint8_t		width;
-	uint8_t		height;
-	uint16_t	pad;
-	uint32_t	glyph_count;
-	uint32_t	map_count[4];
-} __packed;
-
 static int
-print_glyphs(struct file_header *fh)
+print_glyphs(struct font_header *fh)
 {
 	unsigned int gbytes, glyph_count, j, k, total;
 	uint8_t *gbuf;
 
-	gbytes = howmany(fh->width, 8) * fh->height;
-	glyph_count = be32toh(fh->glyph_count);
+	gbytes = howmany(fh->fh_width, 8) * fh->fh_height;
+	glyph_count = be32toh(fh->fh_glyph_count);
 
 	printf("\nstatic uint8_t font_bytes[%u * %u] = {", glyph_count, gbytes);
 	total = glyph_count * gbytes;
@@ -88,18 +74,18 @@ static const char *map_names[4] = {
     "normal", "normal_right", "bold", "bold_right" };
 
 static int
-print_mappings(struct file_header *fh, int map_index)
+print_mappings(struct font_header *fh, int map_index)
 {
-	struct file_mapping fm;
+	vfnt_map_t fm;
 	unsigned int nmappings, i, col = 0;
 
 	
-	nmappings = be32toh(fh->map_count[map_index]);
+	nmappings = be32toh(fh->fh_map_count[map_index]);
 
 	if (nmappings == 0)
 		return (0);
 
-	printf("\nstatic struct vt_font_map font_mapping_%s[%u] = {",
+	printf("\nstatic vfnt_map_t font_mapping_%s[%u] = {",
 	    map_names[map_index], nmappings);
 
 	for (i = 0; i < nmappings; i++) {
@@ -110,8 +96,8 @@ print_mappings(struct file_header *fh, int map_index)
 
 		printf(col == 0 ? "\n\t" : " ");
 		printf("{ 0x%04x, 0x%04x, 0x%02x },",
-		    be32toh(fm.source), be16toh(fm.destination),
-		    be16toh(fm.length));
+		    be32toh(fm.vfm_src), be16toh(fm.vfm_dst),
+		    be16toh(fm.vfm_len));
 		col = (col + 1) % 2;
 	}
 
@@ -121,7 +107,7 @@ print_mappings(struct file_header *fh, int map_index)
 }
 
 static int
-print_info(struct file_header *fh)
+print_info(struct font_header *fh)
 {
 	unsigned int i;
 
@@ -130,21 +116,21 @@ print_info(struct file_header *fh)
 	    "\t.vf_width\t\t= %u,\n"
 	    "\t.vf_height\t\t= %u,\n"
 	    "\t.vf_bytes\t\t= font_bytes,\n",
-	    fh->width, fh->height);
+	    fh->fh_width, fh->fh_height);
 
 	printf("\t.vf_map\t\t\t= {\n");
 	for (i = 0; i < 4; i++) {
-		if (fh->map_count[i] > 0)
+		if (fh->fh_map_count[i] > 0)
 			printf("\t\t\t\t    font_mapping_%s,\n", map_names[i]);
 		else
 			printf("\t\t\t\t    NULL,\n");
 	}
 	printf("\t\t\t\t  },\n");
 	printf("\t.vf_map_count\t\t= { %u, %u, %u, %u },\n",
-	    be32toh(fh->map_count[0]),
-	    be32toh(fh->map_count[1]),
-	    be32toh(fh->map_count[2]),
-	    be32toh(fh->map_count[3]));
+	    be32toh(fh->fh_map_count[0]),
+	    be32toh(fh->fh_map_count[1]),
+	    be32toh(fh->fh_map_count[2]),
+	    be32toh(fh->fh_map_count[3]));
 	printf("\t.vf_refcount\t\t= 1,\n};\n");
 
 	return (0);
@@ -153,15 +139,15 @@ print_info(struct file_header *fh)
 int
 main(int argc __unused, char *argv[] __unused)
 {
-	struct file_header fh;
+	struct font_header fh;
 	unsigned int i;
 
 	if (fread(&fh, sizeof fh, 1, stdin) != 1) {
-		perror("file_header");
+		perror("font_header");
 		return (1);
 	}
 
-	if (memcmp(fh.magic, "VFNT0002", 8) != 0) {
+	if (memcmp(fh.fh_magic, "VFNT0002", 8) != 0) {
 		fprintf(stderr, "Bad magic\n");
 		return (1);
 	}

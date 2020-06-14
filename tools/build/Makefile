@@ -92,6 +92,9 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
 		${SRCTOP}/sys/sys/dnv.h
 
+# vtfontcvt is using sys/font.h
+SYSINCS+=	${SRCTOP}/sys/sys/font.h
+
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.
 # This is especially important when building on Linux/MacOS where many of the
