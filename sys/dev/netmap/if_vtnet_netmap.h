@@ -39,52 +39,18 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 {
 	struct ifnet *ifp = na->ifp;
 	struct vtnet_softc *sc = ifp->if_softc;
-	int success;
-	int i;
 
-	/* Drain the taskqueues to make sure that there are no worker threads
-	 * accessing the virtqueues. */
-	vtnet_drain_taskqueues(sc);
-
+	/*
+	 * Trigger a device reinit, asking vtnet_init_locked() to
+	 * also enter or exit netmap mode.
+	 */
 	VTNET_CORE_LOCK(sc);
-
-	/* We need nm_netmap_on() to return true when called by
-	 * vtnet_init_locked() below. */
-	if (state)
-		nm_set_native_flags(na);
-
-	/* We need to trigger a device reset in order to unexpose guest buffers
-	 * published to the host. */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	/* Get pending used buffers. The way they are freed depends on whether
-	 * they are netmap buffer or they are mbufs. We can tell apart the two
-	 * cases by looking at kring->nr_mode, before this is possibly updated
-	 * in the loop below. */
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
-		struct vtnet_txq *txq = &sc->vtnet_txqs[i];
-		struct vtnet_rxq *rxq = &sc->vtnet_rxqs[i];
-
-		VTNET_TXQ_LOCK(txq);
-		vtnet_txq_free_mbufs(txq);
-		VTNET_TXQ_UNLOCK(txq);
-
-		VTNET_RXQ_LOCK(rxq);
-		vtnet_rxq_free_mbufs(rxq);
-		VTNET_RXQ_UNLOCK(rxq);
-	}
-	vtnet_init_locked(sc);
-	success = (ifp->if_drv_flags & IFF_DRV_RUNNING) ? 0 : ENXIO;
-
-	if (state) {
-		netmap_krings_mode_commit(na, state);
-	} else {
-		nm_clear_native_flags(na);
-		netmap_krings_mode_commit(na, state);
-	}
-
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	vtnet_init_locked(sc, state ? VTNET_INIT_NETMAP_ENTER
+	    : VTNET_INIT_NETMAP_EXIT);
 	VTNET_CORE_UNLOCK(sc);
 
-	return success;
+	return 0;
 }
 
 
@@ -245,15 +211,13 @@ vtnet_netmap_rxq_populate(struct vtnet_rxq *rxq)
 {
 	struct netmap_adapter *na = NA(rxq->vtnrx_sc->vtnet_ifp);
 	struct netmap_kring *kring;
+	struct netmap_slot *slot;
 	int error;
 
-	if (!nm_native_on(na) || rxq->vtnrx_id >= na->num_rx_rings)
+	slot = netmap_reset(na, NR_RX, rxq->vtnrx_id, 0);
+	if (slot == NULL)
 		return -1;
-
 	kring = na->rx_rings[rxq->vtnrx_id];
-	if (!(nm_kring_pending_on(kring) ||
-			kring->nr_pending_mode == NKR_NETMAP_ON))
-		return -1;
 
 	/* Expose all the RX netmap buffers we can. In case of no indirect
 	 * buffers, the number of netmap slots in the RX ring matches the
