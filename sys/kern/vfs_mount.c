@@ -1041,11 +1041,13 @@ vfs_domount_update(
 	)
 {
 	struct export_args export;
+	struct o2export_args o2export;
 	struct vnode *rootvp;
 	void *bufp;
 	struct mount *mp;
-	int error, export_error, len;
+	int error, export_error, i, len;
 	uint64_t flag;
+	gid_t *grps;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) != 0, ("MNT_UPDATE should be here"));
@@ -1128,11 +1130,66 @@ vfs_domount_update(
 		/* Assume that there is only 1 ABI for each length. */
 		switch (len) {
 		case (sizeof(struct oexport_args)):
-			bzero(&export, sizeof(export));
+			bzero(&o2export, sizeof(o2export));
+			o2export.ex_numsecflavors = 1;
+			o2export.ex_secflavors[0] = AUTH_SYS;
 			/* FALLTHROUGH */
+		case (sizeof(o2export)):
+			bcopy(bufp, &o2export, len);
+			export.ex_flags = (uint64_t)o2export.ex_flags;
+			export.ex_root = o2export.ex_root;
+			export.ex_uid = o2export.ex_anon.cr_uid;
+			export.ex_groups = NULL;
+			export.ex_ngroups = o2export.ex_anon.cr_ngroups;
+			if (export.ex_ngroups > 0) {
+				if (export.ex_ngroups <= XU_NGROUPS) {
+					export.ex_groups = malloc(
+					    export.ex_ngroups * sizeof(gid_t),
+					    M_TEMP, M_WAITOK);
+					for (i = 0; i < export.ex_ngroups; i++)
+						export.ex_groups[i] =
+						  o2export.ex_anon.cr_groups[i];
+				} else
+					export_error = EINVAL;
+			} else if (export.ex_ngroups < 0)
+				export_error = EINVAL;
+			export.ex_addr = o2export.ex_addr;
+			export.ex_addrlen = o2export.ex_addrlen;
+			export.ex_mask = o2export.ex_mask;
+			export.ex_masklen = o2export.ex_masklen;
+			export.ex_indexfile = o2export.ex_indexfile;
+			export.ex_numsecflavors = o2export.ex_numsecflavors;
+			if (export.ex_numsecflavors < MAXSECFLAVORS) {
+				for (i = 0; i < export.ex_numsecflavors; i++)
+					export.ex_secflavors[i] =
+					    o2export.ex_secflavors[i];
+			} else
+				export_error = EINVAL;
+			if (export_error == 0)
+				export_error = vfs_export(mp, &export);
+			free(export.ex_groups, M_TEMP);
+			break;
 		case (sizeof(export)):
 			bcopy(bufp, &export, len);
-			export_error = vfs_export(mp, &export);
+			grps = NULL;
+			if (export.ex_ngroups > 0) {
+				if (export.ex_ngroups <= NGROUPS_MAX) {
+					grps = malloc(export.ex_ngroups *
+					    sizeof(gid_t), M_TEMP, M_WAITOK);
+					export_error = copyin(export.ex_groups,
+					    grps, export.ex_ngroups *
+					    sizeof(gid_t));
+					if (export_error == 0)
+						export.ex_groups = grps;
+				} else
+					export_error = EINVAL;
+			} else if (export.ex_ngroups == 0)
+				export.ex_groups = NULL;
+			else
+				export_error = EINVAL;
+			if (export_error == 0)
+				export_error = vfs_export(mp, &export);
+			free(grps, M_TEMP);
 			break;
 		default:
 			export_error = EINVAL;
@@ -2344,24 +2401,4 @@ kernel_vmount(int flags, ...)
 
 	error = kernel_mount(ma, flags);
 	return (error);
-}
-
-/*
- * Convert the old export args format into new export args.
- *
- * The old export args struct does not have security flavors.  Otherwise, the
- * structs are identical.  The default security flavor 'sys' is applied when
- * the given args export the filesystem.
- */
-void
-vfs_oexport_conv(const struct oexport_args *oexp, struct export_args *exp)
-{
-
-	bcopy(oexp, exp, sizeof(*oexp));
-	if (exp->ex_flags & MNT_EXPORTED) {
-		exp->ex_numsecflavors = 1;
-		exp->ex_secflavors[0] = AUTH_SYS;
-	} else {
-		exp->ex_numsecflavors = 0;
-	}
 }
