@@ -372,4 +372,10 @@ CTASSERT(((VTNET_MAX_TX_SEGS - 1) * MCLBYTES) >= VTNET_MAX_MTU);
         "VTNET Core Lock", MTX_DEF);					\
 } while (0)
 
+/*
+ * Values for the init_mode argument of vtnet_init_locked().
+ */
+#define VTNET_INIT_NETMAP_ENTER		1
+#define VTNET_INIT_NETMAP_EXIT		2
+
 #endif /* _IF_VTNETVAR_H */
