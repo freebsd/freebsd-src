@@ -586,6 +586,7 @@ gop_autoresize(EFI_GRAPHICS_OUTPUT *gop)
 			    mode, EFI_ERROR_CODE(status));
 			return (CMD_ERROR);
 		}
+		(void) efi_cons_update_mode();
 	}
 	return (CMD_OK);
 }
@@ -610,6 +611,7 @@ text_autoresize()
 	}
 	if (max_dim > 0)
 		conout->SetMode(conout, best_mode);
+	(void) efi_cons_update_mode();
 	return (CMD_OK);
 }
 
@@ -697,6 +699,7 @@ command_gop(int argc, char *argv[])
 			    argv[0], mode, EFI_ERROR_CODE(status));
 			return (CMD_ERROR);
 		}
+		(void) efi_cons_update_mode();
 	} else if (!strcmp(argv[1], "get")) {
 		if (argc != 2)
 			goto usage;
