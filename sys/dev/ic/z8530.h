@@ -32,15 +32,14 @@
 #define	_DEV_IC_Z8530_H_
 
 /*
- * Channel B control:	0
- * Channel B data:	1
- * Channel A control:	2
- * Channel A data:	3
+ * legacy:	SUN compatible
+ * escc: 	Macintosh
+ *			legacy		escc
+ * Channel B control:	0		0
+ * Channel B data:	1		1
+ * Channel A control:	2		16
+ * Channel A data:	3		17
  */
-
-/* The following apply when using a device-scoped bus handle */
-#define	CHAN_A		2
-#define	CHAN_B		0
 
 #define	REG_CTRL	0
 #define	REG_DATA	1
