@@ -518,7 +518,6 @@ struct o2export_args {
 /*
  * Export arguments for local filesystem mount calls.
  */
-#define	MAXSECFLAVORS	5
 struct export_args {
 	uint64_t ex_flags;		/* export related flags */
 	uid_t	ex_root;		/* mapping for root uid */
