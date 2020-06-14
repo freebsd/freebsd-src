@@ -1042,8 +1042,12 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			cmsg->cmsg_level =
 			    linux_to_bsd_sockopt_level(linux_cmsg.cmsg_level);
 			if (cmsg->cmsg_type == -1
-			    || cmsg->cmsg_level != SOL_SOCKET)
+			    || cmsg->cmsg_level != SOL_SOCKET) {
+				linux_msg(curthread,
+				    "unsupported sendmsg cmsg level %d type %d",
+				    linux_cmsg.cmsg_level, linux_cmsg.cmsg_type);
 				goto bad;
+			}
 
 			/*
 			 * Some applications (e.g. pulseaudio) attempt to
@@ -1228,6 +1232,9 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			    bsd_to_linux_sockopt_level(cm->cmsg_level);
 			if (linux_cmsg->cmsg_type == -1 ||
 			    cm->cmsg_level != SOL_SOCKET) {
+				linux_msg(curthread,
+				    "unsupported recvmsg cmsg level %d type %d",
+				    cm->cmsg_level, cm->cmsg_type);
 				error = EINVAL;
 				goto bad;
 			}
