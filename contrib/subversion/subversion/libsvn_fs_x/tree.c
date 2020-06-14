@@ -2060,7 +2060,7 @@ typedef struct text_baton_t
  * svn_fs_apply_text()      ==> ... ==> txn_body_fulltext_finalize_edits()
  */
 
-/* Write function for the publically returned stream. */
+/* Write function for the publicly returned stream. */
 static svn_error_t *
 text_stream_writer(void *baton,
                    const char *data,

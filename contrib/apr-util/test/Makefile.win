@@ -62,6 +62,7 @@ ALL_TESTS = $(INTDIR)\teststrmatch.obj $(INTDIR)\testuri.obj \
 	$(INTDIR)\testxml.obj $(INTDIR)\testqueue.obj \
 	$(INTDIR)\testrmm.obj $(INTDIR)\testxlate.obj \
 	$(INTDIR)\testdate.obj $(INTDIR)\testmemcache.obj \
+	$(INTDIR)\testredis.obj $(INTDIR)\testsiphash.obj \
 	$(INTDIR)\testcrypto.obj
 
 CLEAN_DATA = manyfile.bin testfile.txt data\sqlite*.db
@@ -89,10 +90,9 @@ APROUTDIR=$(OUTDIR)
 PROGRAM_DEPENDENCIES = \
 	$(APR_PATH)\$(APROUTDIR)\apr-1.lib \
 	$(API_PATH)\$(OUTDIR)\apriconv-1.lib \
-	..\xml\expat\lib\$(OUTDIR)\xml.lib \
 	..\$(OUTDIR)\aprutil-1.lib 
 STATIC_CFLAGS = /D APR_DECLARE_STATIC /D APU_DECLARE_STATIC
-STATIC_LIBS = odbc32.lib odbccp32.lib wldap32.lib 
+STATIC_LIBS = libexpatMT.lib odbc32.lib odbccp32.lib wldap32.lib 
 !ELSE
 PROGRAM_DEPENDENCIES = \
 	$(APR_PATH)\$(APROUTDIR)\libapr-1.lib \

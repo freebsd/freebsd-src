@@ -77,12 +77,21 @@ svn_rdump__get_dump_editor_v2(svn_editor_t **editor,
 
 /**
  * Load the dumpstream carried in @a stream to the location described
- * by @a session.  Use @a aux_session (which is opened to the same URL
- * as @a session) for any secondary, out-of-band RA communications
- * required.  If @a quiet is set, suppress notifications.  Use @a pool
- * for all memory allocations.  Use @a cancel_func and @a cancel_baton
- * to check for user cancellation of the operation (for
- * timely-but-safe termination).
+ * by @a session.
+ *
+ * Use @a aux_session (which is opened to the same URL as @a session)
+ * for any secondary, out-of-band RA communications required. This is
+ * needed when loading a non-deltas dump, and for Ev2.
+ *
+ * Print feedback to the console for each revision, unless @a quiet is true.
+ *
+ * Ignore (don't set) any revision property whose name is a key in
+ * @a skip_revprops. The values in the hash are unimportant.
+ *
+ * Use @a cancel_func and @a cancel_baton to check for user cancellation
+ * of the operation (for timely-but-safe termination).
+ *
+ * Use @a pool for all memory allocations.
  */
 svn_error_t *
 svn_rdump__load_dumpstream(svn_stream_t *stream,

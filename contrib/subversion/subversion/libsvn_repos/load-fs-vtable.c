@@ -75,7 +75,7 @@ struct parse_baton
      (svn_revnum_t *) in the dump stream to their corresponding revisions
      (svn_revnum_t *) in the loaded repository.  The hash and its
      contents are allocated in POOL. */
-  /* ### See http://subversion.tigris.org/issues/show_bug.cgi?id=3903
+  /* ### See https://issues.apache.org/jira/browse/SVN-3903
      ### for discussion about improving the memory costs of this mapping. */
   apr_hash_t *rev_map;
 
@@ -155,9 +155,11 @@ get_revision_mapping(apr_hash_t *rev_map,
 }
 
 
-/* Change revision property NAME to VALUE for REVISION in REPOS.  If
-   VALIDATE_PROPS is set, use functions which perform validation of
-   the property value.  Otherwise, bypass those checks. */
+/* Change revision property NAME to VALUE for REVISION in REPOS.
+   If NORMALIZE_PROPS is set, attempt to normalize properties before
+   changing them, if that is needed.  If VALIDATE_PROPS is set, use
+   functions which perform validation of the property value.
+   Otherwise, bypass those checks. */
 static svn_error_t *
 change_rev_prop(svn_repos_t *repos,
                 svn_revnum_t revision,
@@ -179,17 +181,23 @@ change_rev_prop(svn_repos_t *repos,
                                    NULL, value, pool);
 }
 
-/* Change property NAME to VALUE for PATH in TXN_ROOT.  If
-   VALIDATE_PROPS is set, use functions which perform validation of
-   the property value.  Otherwise, bypass those checks. */
+/* Change property NAME to VALUE for PATH in TXN_ROOT.
+   If NORMALIZE_PROPS is set, attempt to normalize properties before
+   changing them, if that is needed.  If VALIDATE_PROPS is set, use
+   functions which perform validation of the property value.
+   Otherwise, bypass those checks. */
 static svn_error_t *
 change_node_prop(svn_fs_root_t *txn_root,
                  const char *path,
                  const char *name,
                  const svn_string_t *value,
                  svn_boolean_t validate_props,
+                 svn_boolean_t normalize_props,
                  apr_pool_t *pool)
 {
+  if (normalize_props)
+    SVN_ERR(svn_repos__normalize_prop(&value, NULL, name, value, pool, pool));
+
   if (validate_props)
     return svn_repos_fs_change_node_prop(txn_root, path, name, value, pool);
   else
@@ -213,9 +221,11 @@ prefix_mergeinfo_paths(svn_string_t **mergeinfo_val,
     {
       const char *merge_source = apr_hash_this_key(hi);
       svn_rangelist_t *rangelist = apr_hash_this_val(hi);
-      const char *path;
+      const char *path, *canonicalized_path;
 
-      merge_source = svn_relpath_canonicalize(merge_source, pool);
+      SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                       merge_source, pool, pool));
+      merge_source = canonicalized_path;
 
       /* The svn:mergeinfo property syntax demands a repos abspath */
       path = svn_fspath__canonicalize(svn_relpath_join(parent_dir,
@@ -253,7 +263,7 @@ renumber_mergeinfo_revs(svn_string_t **final_val,
   SVN_ERR(svn_mergeinfo_parse(&mergeinfo, initial_val->data, subpool));
 
   /* Issue #3020
-     http://subversion.tigris.org/issues/show_bug.cgi?id=3020#desc16
+     https://issues.apache.org/jira/browse/SVN-3020#desc16
      Remove mergeinfo older than the oldest revision in the dump stream
      and adjust its revisions by the difference between the head rev of
      the target repository and the current dump stream rev. */
@@ -323,7 +333,7 @@ renumber_mergeinfo_revs(svn_string_t **final_val,
                  mergeinfo with a start rev > end rev.  If that gets into the
                  repository then a world of bustage breaks loose anytime that
                  bogus mergeinfo is parsed.  See
-                 http://subversion.tigris.org/issues/show_bug.cgi?id=3020#desc16.
+                 https://issues.apache.org/jira/browse/SVN-3020#desc16.
                  */
               continue;
             }
@@ -377,7 +387,10 @@ make_node_baton(struct node_baton **node_baton_p,
   /* Then add info from the headers.  */
   if ((val = svn_hash_gets(headers, SVN_REPOS_DUMPFILE_NODE_PATH)))
   {
-    val = svn_relpath_canonicalize(val, pool);
+    const char *canonicalized_path;
+    SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                          val, pool, pool));
+    val = canonicalized_path;
     if (rb->pb->parent_dir)
       nb->path = svn_relpath_join(rb->pb->parent_dir, val, pool);
     else
@@ -869,7 +882,8 @@ set_node_property(void *baton,
     }
 
   return change_node_prop(rb->txn_root, nb->path, name, value,
-                          pb->validate_props, nb->pool);
+                          pb->validate_props, rb->pb->normalize_props,
+                          nb->pool);
 }
 
 
@@ -885,7 +899,8 @@ delete_node_property(void *baton,
     return SVN_NO_ERROR;
 
   return change_node_prop(rb->txn_root, nb->path, name, NULL,
-                          rb->pb->validate_props, nb->pool);
+                          rb->pb->validate_props, rb->pb->normalize_props,
+                          nb->pool);
 }
 
 
@@ -909,7 +924,8 @@ remove_node_props(void *baton)
       const char *key = apr_hash_this_key(hi);
 
       SVN_ERR(change_node_prop(rb->txn_root, nb->path, key, NULL,
-                               rb->pb->validate_props, nb->pool));
+                               rb->pb->validate_props, rb->pb->normalize_props,
+                               nb->pool));
     }
 
   return SVN_NO_ERROR;
@@ -1202,7 +1218,12 @@ svn_repos_get_fs_build_parser6(const svn_repos_parse_fns3_t **callbacks,
   struct parse_baton *pb = apr_pcalloc(pool, sizeof(*pb));
 
   if (parent_dir)
-    parent_dir = svn_relpath_canonicalize(parent_dir, pool);
+    {
+      const char *canonicalized_path;
+      SVN_ERR(svn_relpath_canonicalize_safe(&canonicalized_path, NULL,
+                                            parent_dir, pool, pool));
+      parent_dir = canonicalized_path;
+    }
 
   SVN_ERR_ASSERT((SVN_IS_VALID_REVNUM(start_rev) &&
                   SVN_IS_VALID_REVNUM(end_rev))
@@ -1400,7 +1421,7 @@ revprops_close_revision(void *baton)
  * both of these values are #SVN_INVALID_REVNUM (in  which case no
  * revision-based filtering occurs at all), or both are valid revisions
  * (where START_REV is older than or equivalent to END_REV).
- * 
+ *
  * START_REV and END_REV act as filters, the lower and upper (inclusive)
  * range values of revisions which will
  * be loaded.  Either both of these values are #SVN_INVALID_REVNUM (in

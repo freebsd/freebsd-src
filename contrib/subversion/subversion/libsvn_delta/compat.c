@@ -1577,6 +1577,8 @@ drive_ev1_props(const struct editor_baton *eb,
 /* Conforms to svn_delta_path_driver_cb_func_t  */
 static svn_error_t *
 apply_change(void **dir_baton,
+             const svn_delta_editor_t *deditor,
+             void *dedit_baton,
              void *parent_baton,
              void *callback_baton,
              const char *ev1_relpath,
@@ -1614,8 +1616,8 @@ apply_change(void **dir_baton,
 
   if (change->action == RESTRUCTURE_DELETE)
     {
-      SVN_ERR(eb->deditor->delete_entry(ev1_relpath, change->deleting,
-                                        parent_baton, scratch_pool));
+      SVN_ERR(deditor->delete_entry(ev1_relpath, change->deleting,
+                                    parent_baton, scratch_pool));
 
       /* No futher action possible for this node.  */
       return SVN_NO_ERROR;
@@ -1627,11 +1629,11 @@ apply_change(void **dir_baton,
   if (change->action == RESTRUCTURE_ADD_ABSENT)
     {
       if (change->kind == svn_node_dir)
-        SVN_ERR(eb->deditor->absent_directory(ev1_relpath, parent_baton,
-                                              scratch_pool));
+        SVN_ERR(deditor->absent_directory(ev1_relpath, parent_baton,
+                                          scratch_pool));
       else
-        SVN_ERR(eb->deditor->absent_file(ev1_relpath, parent_baton,
-                                         scratch_pool));
+        SVN_ERR(deditor->absent_file(ev1_relpath, parent_baton,
+                                     scratch_pool));
 
       /* No further action possible for this node.  */
       return SVN_NO_ERROR;
@@ -1645,8 +1647,8 @@ apply_change(void **dir_baton,
 
       /* Do we have an old node to delete first?  */
       if (SVN_IS_VALID_REVNUM(change->deleting))
-        SVN_ERR(eb->deditor->delete_entry(ev1_relpath, change->deleting,
-                                          parent_baton, scratch_pool));
+        SVN_ERR(deditor->delete_entry(ev1_relpath, change->deleting,
+                                      parent_baton, scratch_pool));
 
       /* Are we copying the node from somewhere?  */
       if (change->copyfrom_path)
@@ -1669,24 +1671,24 @@ apply_change(void **dir_baton,
         }
 
       if (change->kind == svn_node_dir)
-        SVN_ERR(eb->deditor->add_directory(ev1_relpath, parent_baton,
-                                           copyfrom_url, copyfrom_rev,
-                                           result_pool, dir_baton));
+        SVN_ERR(deditor->add_directory(ev1_relpath, parent_baton,
+                                       copyfrom_url, copyfrom_rev,
+                                       result_pool, dir_baton));
       else
-        SVN_ERR(eb->deditor->add_file(ev1_relpath, parent_baton,
-                                      copyfrom_url, copyfrom_rev,
-                                      result_pool, &file_baton));
+        SVN_ERR(deditor->add_file(ev1_relpath, parent_baton,
+                                  copyfrom_url, copyfrom_rev,
+                                  result_pool, &file_baton));
     }
   else
     {
       if (change->kind == svn_node_dir)
-        SVN_ERR(eb->deditor->open_directory(ev1_relpath, parent_baton,
-                                            change->changing,
-                                            result_pool, dir_baton));
+        SVN_ERR(deditor->open_directory(ev1_relpath, parent_baton,
+                                        change->changing,
+                                        result_pool, dir_baton));
       else
-        SVN_ERR(eb->deditor->open_file(ev1_relpath, parent_baton,
-                                       change->changing,
-                                       result_pool, &file_baton));
+        SVN_ERR(deditor->open_file(ev1_relpath, parent_baton,
+                                   change->changing,
+                                   result_pool, &file_baton));
     }
 
   /* Apply any properties in CHANGE to the node.  */
@@ -1703,8 +1705,8 @@ apply_change(void **dir_baton,
 
       /* ### would be nice to have a BASE_CHECKSUM, but hey: this is the
          ### shim code...  */
-      SVN_ERR(eb->deditor->apply_textdelta(file_baton, NULL, scratch_pool,
-                                           &handler, &handler_baton));
+      SVN_ERR(deditor->apply_textdelta(file_baton, NULL, scratch_pool,
+                                       &handler, &handler_baton));
       SVN_ERR(svn_stream_open_readonly(&contents, change->contents_abspath,
                                        scratch_pool, scratch_pool));
       /* ### it would be nice to send a true txdelta here, but whatever.  */
@@ -1718,7 +1720,7 @@ apply_change(void **dir_baton,
       const char *digest = svn_checksum_to_cstring(change->checksum,
                                                    scratch_pool);
 
-      SVN_ERR(eb->deditor->close_file(file_baton, digest, scratch_pool));
+      SVN_ERR(deditor->close_file(file_baton, digest, scratch_pool));
     }
 
   return SVN_NO_ERROR;
@@ -1747,7 +1749,7 @@ drive_changes(const struct editor_baton *eb,
 
   /* Get a sorted list of Ev1-relative paths.  */
   paths = get_sorted_paths(eb->changes, eb->base_relpath, scratch_pool);
-  SVN_ERR(svn_delta_path_driver2(eb->deditor, eb->dedit_baton, paths,
+  SVN_ERR(svn_delta_path_driver3(eb->deditor, eb->dedit_baton, paths,
                                  FALSE, apply_change, (void *)eb,
                                  scratch_pool));
 

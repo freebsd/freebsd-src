@@ -81,23 +81,31 @@ enum svn_svnrdump__longopt_t
                                    opt_non_interactive, \
                                    opt_force_interactive
 
-static const svn_opt_subcommand_desc2_t svnrdump__cmd_table[] =
+static const svn_opt_subcommand_desc3_t svnrdump__cmd_table[] =
 {
-  { "dump", dump_cmd, { 0 },
-    N_("usage: svnrdump dump URL [-r LOWER[:UPPER]]\n\n"
+  { "dump", dump_cmd, { 0 }, {N_(
+       "usage: svnrdump dump URL [-r LOWER[:UPPER]]\n"
+       "\n"), N_(
        "Dump revisions LOWER to UPPER of repository at remote URL to stdout\n"
        "in a 'dumpfile' portable format.  If only LOWER is given, dump that\n"
-       "one revision.\n"),
-    { 'r', 'q', opt_incremental, SVN_SVNRDUMP__BASE_OPTIONS } },
-  { "load", load_cmd, { 0 },
-    N_("usage: svnrdump load URL\n\n"
-       "Load a 'dumpfile' given on stdin to a repository at remote URL.\n"),
-    { 'q', opt_skip_revprop, SVN_SVNRDUMP__BASE_OPTIONS } },
-  { "help", 0, { "?", "h" },
-    N_("usage: svnrdump help [SUBCOMMAND...]\n\n"
-       "Describe the usage of this program or its subcommands.\n"),
+       "one revision.\n"
+    )},
+    { 'r', 'q', opt_incremental, 'F', SVN_SVNRDUMP__BASE_OPTIONS },
+    {{'F', N_("write to file ARG instead of stdout")}} },
+  { "load", load_cmd, { 0 }, {N_(
+       "usage: svnrdump load URL\n"
+       "\n"), N_(
+       "Load a 'dumpfile' given on stdin to a repository at remote URL.\n"
+    )},
+    { 'q', opt_skip_revprop, 'F', SVN_SVNRDUMP__BASE_OPTIONS },
+    {{'F', N_("read from file ARG instead of stdin")}} },
+  { "help", 0, { "?", "h" }, {N_(
+       "usage: svnrdump help [SUBCOMMAND...]\n"
+       "\n"), N_(
+       "Describe the usage of this program or its subcommands.\n"
+    )},
     { 0 } },
-  { NULL, NULL, { 0 }, NULL, { 0 } }
+  { NULL, NULL, { 0 }, {NULL}, { 0 } }
 };
 
 static const apr_getopt_option_t svnrdump__options[] =
@@ -158,7 +166,8 @@ static const apr_getopt_option_t svnrdump__options[] =
                        "valid certificate) and 'other' (all other not\n"
                        "                             "
                        "separately classified certificate errors).")},
-    {"dumpfile", 'F', 1, N_("Read or write to a dumpfile instead of stdin/stdout")},
+    {"file",          'F', 1,
+                      N_("read/write file ARG instead of stdin/stdout")},
     {0, 0, 0, 0}
   };
 
@@ -338,7 +347,7 @@ init_client_context(svn_client_ctx_t **ctx_p,
      ### auxiliary GETs/PROPFINDs to happening (well-ordered) on a
      ### single server connection.
      ###
-     ### See http://subversion.tigris.org/issues/show_bug.cgi?id=4116.
+     ### See https://issues.apache.org/jira/browse/SVN-4116.
   */
   cfg_servers = svn_hash_gets(ctx->config, SVN_CONFIG_CATEGORY_SERVERS);
   svn_config_set_bool(cfg_servers, SVN_CONFIG_SECTION_GLOBAL,
@@ -423,7 +432,7 @@ dump_initial_full_revision(svn_ra_session_t *session,
      our update-driven dump generation work the way a replay-driven
      one would.
 
-     See http://subversion.tigris.org/issues/show_bug.cgi?id=4101
+     See https://issues.apache.org/jira/browse/SVN-4101
   */
   SVN_ERR(svn_ra_get_session_url(session, &session_url, pool));
   SVN_ERR(svn_ra_get_path_relative_to_root(session, &source_relpath,
@@ -491,12 +500,11 @@ replay_revisions(svn_ra_session_t *session,
   replay_baton->quiet = quiet;
 
   /* Write the magic header and UUID */
-  SVN_ERR(svn_stream_printf(output_stream, pool,
-                            SVN_REPOS_DUMPFILE_MAGIC_HEADER ": %d\n\n",
-                            SVN_REPOS_DUMPFILE_FORMAT_VERSION));
+  SVN_ERR(svn_repos__dump_magic_header_record(output_stream,
+                                              SVN_REPOS_DUMPFILE_FORMAT_VERSION,
+                                              pool));
   SVN_ERR(svn_ra_get_uuid2(session, &uuid, pool));
-  SVN_ERR(svn_stream_printf(output_stream, pool,
-                            SVN_REPOS_DUMPFILE_UUID ": %s\n\n", uuid));
+  SVN_ERR(svn_repos__dump_uuid_header_record(output_stream, uuid, pool));
 
   /* Fake revision 0 if necessary */
   if (start_revision == 0)
@@ -540,6 +548,7 @@ replay_revisions(svn_ra_session_t *session,
 #endif
     }
 
+  SVN_ERR(svn_stream_close(output_stream));
   return SVN_NO_ERROR;
 }
 
@@ -572,6 +581,7 @@ load_revisions(svn_ra_session_t *session,
                                      quiet, skip_revprops,
                                      check_cancel, NULL, pool));
 
+  SVN_ERR(svn_stream_close(output_stream));
   return SVN_NO_ERROR;
 }
 
@@ -612,7 +622,7 @@ version(const char *progname,
                          pool);
 
   SVN_ERR(svn_ra_print_modules(version_footer, pool));
-  return svn_opt_print_help4(NULL, ensure_appname(progname, pool),
+  return svn_opt_print_help5(NULL, ensure_appname(progname, pool),
                              TRUE, quiet, FALSE, version_footer->data,
                              NULL, NULL, NULL, NULL, NULL, pool);
 }
@@ -671,7 +681,7 @@ help_cmd(apr_getopt_t *os,
       "\n"
       "Available subcommands:\n");
 
-  return svn_opt_print_help4(os, "svnrdump", FALSE, FALSE, FALSE, NULL,
+  return svn_opt_print_help5(os, "svnrdump", FALSE, FALSE, FALSE, NULL,
                              header, svnrdump__cmd_table, svnrdump__options,
                              NULL, NULL, pool);
 }
@@ -777,7 +787,7 @@ static svn_error_t *
 sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 {
   svn_error_t *err = SVN_NO_ERROR;
-  const svn_opt_subcommand_desc2_t *subcommand = NULL;
+  const svn_opt_subcommand_desc3_t *subcommand = NULL;
   opt_baton_t *opt_baton;
   svn_revnum_t latest_revision = SVN_INVALID_REVNUM;
   const char *config_dir = NULL;
@@ -915,7 +925,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
             SVN_ERR(svn_utf_cstring_to_utf8(&opt_arg, opt_arg, pool));
             SVN_ERR(svn_cmdline__parse_config_option(config_options,
-                                                     opt_arg, 
+                                                     opt_arg,
                                                      "svnrdump: ",
                                                      pool));
           break;
@@ -937,7 +947,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
   if (opt_baton->help)
     {
-      subcommand = svn_opt_get_canonical_subcommand2(svnrdump__cmd_table,
+      subcommand = svn_opt_get_canonical_subcommand3(svnrdump__cmd_table,
                                                      "help");
     }
   if (subcommand == NULL)
@@ -947,8 +957,8 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
           if (opt_baton->version)
             {
               /* Use the "help" subcommand to handle the "--version" option. */
-              static const svn_opt_subcommand_desc2_t pseudo_cmd =
-                { "--version", help_cmd, {0}, "",
+              static const svn_opt_subcommand_desc3_t pseudo_cmd =
+                { "--version", help_cmd, {0}, {""},
                   {opt_version,  /* must accept its own option */
                    'q',  /* --quiet */
                   } };
@@ -968,7 +978,7 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
 
           SVN_ERR(svn_utf_cstring_to_utf8(&first_arg, os->argv[os->ind++],
                                           pool));
-          subcommand = svn_opt_get_canonical_subcommand2(svnrdump__cmd_table,
+          subcommand = svn_opt_get_canonical_subcommand3(svnrdump__cmd_table,
                                                          first_arg);
 
           if (subcommand == NULL)
@@ -996,11 +1006,11 @@ sub_main(int *exit_code, int argc, const char *argv[], apr_pool_t *pool)
       if (opt_id == 'h' || opt_id == '?')
         continue;
 
-      if (! svn_opt_subcommand_takes_option3(subcommand, opt_id, NULL))
+      if (! svn_opt_subcommand_takes_option4(subcommand, opt_id, NULL))
         {
           const char *optstr;
           const apr_getopt_option_t *badopt =
-            svn_opt_get_option_from_code2(opt_id, svnrdump__options,
+            svn_opt_get_option_from_code3(opt_id, svnrdump__options,
                                           subcommand, pool);
           svn_opt_format_option(&optstr, badopt, FALSE, pool);
           if (subcommand->name[0] == '-')

@@ -449,7 +449,7 @@ verify_checksum(svn_stringbuf_t *content,
                        content->len, scratch_pool));
 
   if (!svn_checksum_match(actual, expected))
-    SVN_ERR(svn_checksum_mismatch_err(expected, actual, scratch_pool, 
+    SVN_ERR(svn_checksum_mismatch_err(expected, actual, scratch_pool,
                                       "checksum mismatch"));
 
   return SVN_NO_ERROR;
@@ -1203,7 +1203,7 @@ repack_file_open(apr_file_t **file,
   if (revprops->entry.start_rev == start_rev)
     APR_ARRAY_IDX(revprops->manifest, idx, manifest_entry_t) = new_entry;
   else
-    svn_sort__array_insert(revprops->manifest, &new_path, idx + 1);
+    SVN_ERR(svn_sort__array_insert2(revprops->manifest, &new_path, idx + 1));
 
   /* open the file */
   new_path = get_revprop_pack_filepath(revprops, &new_entry, scratch_pool);
@@ -1424,7 +1424,7 @@ svn_fs_x__set_revision_proplist(svn_fs_t *fs,
                                  scratch_pool));
   else
     SVN_ERR(write_non_packed_revprop(&final_path, &tmp_path,
-                                     fs, rev, proplist, batch, 
+                                     fs, rev, proplist, batch,
                                      scratch_pool, scratch_pool));
 
   /* We use the rev file of this revision as the perms reference,

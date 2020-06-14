@@ -109,7 +109,7 @@ svn_cl__walk_conflicts(apr_array_header_t *targets,
       svn_client_conflict_t *conflict;
 
       svn_pool_clear(iterpool);
- 
+
       SVN_ERR(svn_cl__check_cancel(ctx->cancel_baton));
 
       SVN_ERR(svn_dirent_get_absolute(&local_abspath, target, iterpool));

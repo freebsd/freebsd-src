@@ -348,19 +348,21 @@ svn_wc__get_wcroot(const char **wcroot_abspath,
                    apr_pool_t *result_pool,
                    apr_pool_t *scratch_pool);
 
-/** Set @a *dir to the abspath of the directory in which shelved patches
- * are stored, which is inside the WC's administrative directory, and ensure
- * the directory exists.
+/** Set @a *dir to the abspath of the directory in which administrative
+ * data for experimental features may be stored. This directory is inside
+ * the WC's administrative directory. Ensure the directory exists.
  *
  * @a local_abspath is any path in the WC, and is used to find the WC root.
+ *
+ * @warning EXPERIMENTAL.
  */
 SVN_EXPERIMENTAL
 svn_error_t *
-svn_wc__get_shelves_dir(char **dir,
-                        svn_wc_context_t *wc_ctx,
-                        const char *local_abspath,
-                        apr_pool_t *result_pool,
-                        apr_pool_t *scratch_pool);
+svn_wc__get_experimental_dir(char **dir,
+                             svn_wc_context_t *wc_ctx,
+                             const char *local_abspath,
+                             apr_pool_t *result_pool,
+                             apr_pool_t *scratch_pool);
 
 /**
  * The following are temporary APIs to aid in the transition from wc-1 to
@@ -537,7 +539,7 @@ svn_wc__node_get_origin(svn_boolean_t *is_copy,
  * If @a base_only is TRUE then only the base node will be examined,
  * otherwise the current base or working node will be examined.
  *
- * If a value is not interesting you can pass #NULL.
+ * If a value is not interesting you can pass NULL.
  *
  * If @a local_abspath is not in the working copy, return
  * @c SVN_ERR_WC_PATH_NOT_FOUND.  Use @a scratch_pool for all temporary
@@ -614,6 +616,42 @@ svn_wc__node_get_base(svn_node_kind_t *kind,
                       apr_pool_t *result_pool,
                       apr_pool_t *scratch_pool);
 
+
+/* Return an array of const char * elements, which represent local absolute
+ * paths for nodes, within the working copy indicated by WRI_ABSPATH, which
+ * have a basename matching BASENAME and have node kind KIND.
+ * If no such nodes exist, return an empty array.
+ *
+ * This function returns only paths to nodes which are present in the highest
+ * layer of the WC. In other words, paths to deleted and/or excluded nodes are
+ * never returned.
+ */
+svn_error_t *
+svn_wc__find_working_nodes_with_basename(apr_array_header_t **abspaths,
+                                         const char *wri_abspath,
+                                         const char *basename,
+                                         svn_node_kind_t kind,
+                                         svn_wc_context_t *wc_ctx,
+                                         apr_pool_t *result_pool,
+                                         apr_pool_t *scratch_pool);
+
+/* Return an array of const char * elements, which represent local absolute
+ * paths for nodes, within the working copy indicated by WRI_ABSPATH, which
+ * are copies of REPOS_RELPATH and have node kind KIND.
+ * If no such nodes exist, return an empty array.
+ *
+ * This function returns only paths to nodes which are present in the highest
+ * layer of the WC. In other words, paths to deleted and/or excluded nodes are
+ * never returned.
+ */
+svn_error_t *
+svn_wc__find_copies_of_repos_path(apr_array_header_t **abspaths,
+                                  const char *wri_abspath,
+                                  const char *repos_relpath,
+                                  svn_node_kind_t kind,
+                                  svn_wc_context_t *wc_ctx,
+                                  apr_pool_t *result_pool,
+                                  apr_pool_t *scratch_pool);
 
 /* Get the working revision of @a local_abspath using @a wc_ctx. If @a
  * local_abspath is not in the working copy, return @c
@@ -1762,7 +1800,7 @@ svn_wc__resolve_conflicts(svn_wc_context_t *wc_ctx,
                           void *notify_baton,
                           apr_pool_t *scratch_pool);
 
-/** 
+/**
  * Resolve the text conflict at LOCAL_ABSPATH as per CHOICE, and then
  * mark the conflict resolved.
  * The working copy must already be locked for resolving, e.g. by calling
@@ -1779,7 +1817,7 @@ svn_wc__conflict_text_mark_resolved(svn_wc_context_t *wc_ctx,
                                     void *notify_baton,
                                     apr_pool_t *scratch_pool);
 
-/** 
+/**
  * Resolve the conflicted property PROPNAME at LOCAL_ABSPATH as per CHOICE,
  * and then mark the conflict resolved.  If MERGED_VALUE is not NULL, this is
  * the new merged property, used when choosing #svn_wc_conflict_choose_merged.
@@ -1810,7 +1848,7 @@ svn_wc__conflict_prop_mark_resolved(svn_wc_context_t *wc_ctx,
  *
  * The tree conflict at LOCAL_ABSPATH must have the following properties or
  * SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE will be returned:
- * 
+ *
  * operation: svn_wc_operation_update or svn_wc_operation_switch
  * local change: svn_wc_conflict_reason_deleted or
  *               svn_wc_conflict_reason_replaced or
@@ -1847,7 +1885,7 @@ svn_wc__conflict_tree_update_break_moved_away(svn_wc_context_t *wc_ctx,
  *
  * The tree conflict at LOCAL_ABSPATH must have the following properties or
  * SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE will be returned:
- * 
+ *
  * operation: svn_wc_operation_update or svn_wc_operation_switch
  * local change: svn_wc_conflict_reason_deleted or
  *               svn_wc_conflict_reason_replaced
@@ -1883,7 +1921,7 @@ svn_wc__conflict_tree_update_raise_moved_away(svn_wc_context_t *wc_ctx,
  *
  * The tree conflict at LOCAL_ABSPATH must have the following properties or
  * SVN_ERR_WC_CONFLICT_RESOLVER_FAILURE will be returned:
- * 
+ *
  * operation: svn_wc_operation_update or svn_wc_operation_switch
  * local change: svn_wc_conflict_reason_moved_away
  * incoming change: svn_wc_conflict_action_edit
@@ -2044,15 +2082,19 @@ svn_wc__acquire_write_lock_for_resolve(const char **lock_root_abspath,
 
 /* The implemementation of svn_wc_diff6(), but reporting to a diff processor
  *
- * If ROOT_RELPATH is not NULL, set *ROOT_RELPATH to the target of the diff
- * within the diff namespace. ("" or a single path component).
+ * New mode, when ANCHOR_AT_GIVEN_PATHS is true:
  *
- * If ROOT_IS_FILE is NOT NULL set it
- * the first processor call. (The anchor is LOCAL_ABSPATH or an ancestor of it)
+ *   Anchor the DIFF_PROCESSOR at LOCAL_ABSPATH.
+ *
+ * Backward compatibility mode for svn_wc_diff6(),
+ * when ANCHOR_AT_GIVEN_PATHS is false:
+ *
+ *   Send diff processor relpaths relative to LOCAL_ABSPATH if it is a
+ *   directory; otherwise, relative to the parent of LOCAL_ABSPATH.
+ *   This matches the "anchor and target" semantics of svn_wc_diff6().
  */
 svn_error_t *
-svn_wc__diff7(const char **root_relpath,
-              svn_boolean_t *root_is_dir,
+svn_wc__diff7(svn_boolean_t anchor_at_given_paths,
               svn_wc_context_t *wc_ctx,
               const char *local_abspath,
               svn_depth_t depth,

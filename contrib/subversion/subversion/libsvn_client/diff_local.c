@@ -647,20 +647,17 @@ do_dir_diff(const char *left_abspath,
 }
 
 svn_error_t *
-svn_client__arbitrary_nodes_diff(const char **root_relpath,
-                                 svn_boolean_t *root_is_dir,
-                                 const char *left_abspath,
+svn_client__arbitrary_nodes_diff(const char *left_abspath,
                                  const char *right_abspath,
                                  svn_depth_t depth,
                                  const svn_diff_tree_processor_t *diff_processor,
                                  svn_client_ctx_t *ctx,
-                                 apr_pool_t *result_pool,
                                  apr_pool_t *scratch_pool)
 {
   svn_node_kind_t left_kind;
   svn_node_kind_t right_kind;
-  const char *left_root_abspath;
-  const char *right_root_abspath;
+  const char *left_root_abspath = left_abspath;
+  const char *right_root_abspath = right_abspath;
   svn_boolean_t left_before_right = TRUE; /* Future argument? */
 
   if (depth == svn_depth_unknown)
@@ -668,28 +665,6 @@ svn_client__arbitrary_nodes_diff(const char **root_relpath,
 
   SVN_ERR(svn_io_check_resolved_path(left_abspath, &left_kind, scratch_pool));
   SVN_ERR(svn_io_check_resolved_path(right_abspath, &right_kind, scratch_pool));
-
-  if (left_kind == svn_node_dir && right_kind == svn_node_dir)
-    {
-      left_root_abspath = left_abspath;
-      right_root_abspath = right_abspath;
-
-      if (root_relpath)
-        *root_relpath = "";
-      if (root_is_dir)
-        *root_is_dir = TRUE;
-    }
-  else
-    {
-      svn_dirent_split(&left_root_abspath, root_relpath, left_abspath,
-                       scratch_pool);
-      right_root_abspath = svn_dirent_dirname(right_abspath, scratch_pool);
-
-      if (root_relpath)
-        *root_relpath = apr_pstrdup(result_pool, *root_relpath);
-      if (root_is_dir)
-        *root_is_dir = FALSE;
-    }
 
   if (left_kind == svn_node_dir && right_kind == svn_node_dir)
     {
@@ -710,79 +685,48 @@ svn_client__arbitrary_nodes_diff(const char **root_relpath,
   else if (left_kind == svn_node_file || left_kind == svn_node_dir
            || right_kind == svn_node_file || right_kind == svn_node_dir)
     {
-      void *dir_baton;
-      svn_boolean_t skip = FALSE;
-      svn_boolean_t skip_children = FALSE;
-      svn_diff_source_t *left_src;
-      svn_diff_source_t *right_src;
-
-      left_src = svn_diff__source_create(SVN_INVALID_REVNUM, scratch_pool);
-      right_src = svn_diff__source_create(SVN_INVALID_REVNUM, scratch_pool);
-
-      /* The root is replaced... */
-      /* Report delete and/or add */
-
-      SVN_ERR(diff_processor->dir_opened(&dir_baton, &skip, &skip_children, "",
-                                         left_src,
-                                         right_src,
-                                         NULL /* copyfrom_src */,
-                                         NULL,
-                                         diff_processor,
-                                         scratch_pool, scratch_pool));
-
-      if (skip)
-        return SVN_NO_ERROR;
-      else if (!skip_children)
+      /* The root is added/deleted/replaced. Report delete and/or add. */
+      if (left_before_right)
         {
-          if (left_before_right)
-            {
-              if (left_kind == svn_node_file)
-                SVN_ERR(do_file_diff(left_abspath, right_abspath,
-                                     left_root_abspath, right_root_abspath,
-                                     TRUE, FALSE, NULL /* parent_baton */,
-                                     diff_processor, ctx, scratch_pool));
-              else if (left_kind == svn_node_dir)
-                SVN_ERR(do_dir_diff(left_abspath, right_abspath,
-                                    left_root_abspath, right_root_abspath,
-                                    TRUE, FALSE, left_before_right,
-                                    depth, NULL /* parent_baton */,
-                                    diff_processor, ctx, scratch_pool));
-            }
-
-          if (right_kind == svn_node_file)
+          if (left_kind == svn_node_file)
             SVN_ERR(do_file_diff(left_abspath, right_abspath,
                                  left_root_abspath, right_root_abspath,
-                                 FALSE, TRUE, NULL /* parent_baton */,
+                                 TRUE, FALSE, NULL /* parent_baton */,
                                  diff_processor, ctx, scratch_pool));
-          else if (right_kind == svn_node_dir)
+          else if (left_kind == svn_node_dir)
             SVN_ERR(do_dir_diff(left_abspath, right_abspath,
                                 left_root_abspath, right_root_abspath,
-                                FALSE, TRUE,  left_before_right,
+                                TRUE, FALSE, left_before_right,
                                 depth, NULL /* parent_baton */,
                                 diff_processor, ctx, scratch_pool));
-
-          if (! left_before_right)
-            {
-              if (left_kind == svn_node_file)
-                SVN_ERR(do_file_diff(left_abspath, right_abspath,
-                                     left_root_abspath, right_root_abspath,
-                                     TRUE, FALSE, NULL /* parent_baton */,
-                                     diff_processor, ctx, scratch_pool));
-              else if (left_kind == svn_node_dir)
-                SVN_ERR(do_dir_diff(left_abspath, right_abspath,
-                                    left_root_abspath, right_root_abspath,
-                                    TRUE, FALSE,  left_before_right,
-                                    depth, NULL /* parent_baton */,
-                                    diff_processor, ctx, scratch_pool));
-            }
         }
 
-      SVN_ERR(diff_processor->dir_closed("",
-                                         left_src,
-                                         right_src,
-                                         dir_baton,
-                                         diff_processor,
-                                         scratch_pool));
+      if (right_kind == svn_node_file)
+        SVN_ERR(do_file_diff(left_abspath, right_abspath,
+                             left_root_abspath, right_root_abspath,
+                             FALSE, TRUE, NULL /* parent_baton */,
+                             diff_processor, ctx, scratch_pool));
+      else if (right_kind == svn_node_dir)
+        SVN_ERR(do_dir_diff(left_abspath, right_abspath,
+                            left_root_abspath, right_root_abspath,
+                            FALSE, TRUE, left_before_right,
+                            depth, NULL /* parent_baton */,
+                            diff_processor, ctx, scratch_pool));
+
+      if (! left_before_right)
+        {
+          if (left_kind == svn_node_file)
+            SVN_ERR(do_file_diff(left_abspath, right_abspath,
+                                 left_root_abspath, right_root_abspath,
+                                 TRUE, FALSE, NULL /* parent_baton */,
+                                 diff_processor, ctx, scratch_pool));
+          else if (left_kind == svn_node_dir)
+            SVN_ERR(do_dir_diff(left_abspath, right_abspath,
+                                left_root_abspath, right_root_abspath,
+                                TRUE, FALSE, left_before_right,
+                                depth, NULL /* parent_baton */,
+                                diff_processor, ctx, scratch_pool));
+        }
     }
   else
     return svn_error_createf(SVN_ERR_NODE_UNEXPECTED_KIND, NULL,

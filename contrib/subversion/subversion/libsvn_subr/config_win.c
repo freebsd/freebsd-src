@@ -137,7 +137,7 @@ parse_section(svn_config_t *cfg, HKEY hkey, const char *section,
                                 _("Can't enumerate registry values"));
 
       /* Ignore option names that start with '#', see
-         http://subversion.tigris.org/issues/show_bug.cgi?id=671 */
+         https://issues.apache.org/jira/browse/SVN-671 */
       if (type == REG_SZ && option->data[0] != '#')
         {
           DWORD value_len = (DWORD)value->blocksize;

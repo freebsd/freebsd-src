@@ -51,6 +51,7 @@
 #include "private/svn_subr_private.h"
 #include "private/svn_wc_private.h"
 #include "private/svn_editor.h"
+#include "private/svn_sorts_private.h"
 
 /* Overall crawler editor baton.  */
 struct edit_baton {
@@ -380,10 +381,10 @@ get_file_from_ra(struct file_baton *fb,
      way.  Hence this little hack:  We populate FILE_BATON->PROPCHANGES only
      with *actual* property changes.
 
-     See http://subversion.tigris.org/issues/show_bug.cgi?id=3657#desc9 and
+     See https://issues.apache.org/jira/browse/SVN-3657#desc9 and
      http://svn.haxx.se/dev/archive-2010-08/0351.shtml for more details.
  */
-static void
+static svn_error_t *
 remove_non_prop_changes(apr_hash_t *pristine_props,
                         apr_array_header_t *changes)
 {
@@ -391,7 +392,7 @@ remove_non_prop_changes(apr_hash_t *pristine_props,
 
   /* For added nodes, there is nothing to filter. */
   if (apr_hash_count(pristine_props) == 0)
-    return;
+    return SVN_NO_ERROR;
 
   for (i = 0; i < changes->nelts; i++)
     {
@@ -404,18 +405,13 @@ remove_non_prop_changes(apr_hash_t *pristine_props,
 
           if (old_val && svn_string_compare(old_val, change->value))
             {
-              int j;
-
-              /* Remove the matching change by shifting the rest */
-              for (j = i; j < changes->nelts - 1; j++)
-                {
-                  APR_ARRAY_IDX(changes, j, svn_prop_t)
-                       = APR_ARRAY_IDX(changes, j+1, svn_prop_t);
-                }
-              changes->nelts--;
+              /* Remove the matching change and re-check the current index */
+              SVN_ERR(svn_sort__array_delete2(changes, i, 1));
+              i--;
             }
         }
     }
+  return SVN_NO_ERROR;
 }
 
 /* Get the empty file associated with the edit baton. This is cached so
@@ -1015,7 +1011,7 @@ close_file(void *file_baton,
         }
 
       if (fb->pristine_props)
-        remove_non_prop_changes(fb->pristine_props, fb->propchanges);
+        SVN_ERR(remove_non_prop_changes(fb->pristine_props, fb->propchanges));
 
       right_props = svn_prop__patch(fb->pristine_props, fb->propchanges,
                                     fb->pool);
@@ -1088,7 +1084,7 @@ close_directory(void *dir_baton,
 
       if (db->propchanges->nelts > 0)
         {
-          remove_non_prop_changes(pristine_props, db->propchanges);
+          SVN_ERR(remove_non_prop_changes(pristine_props, db->propchanges));
         }
 
       if (db->propchanges->nelts > 0 || db->added)

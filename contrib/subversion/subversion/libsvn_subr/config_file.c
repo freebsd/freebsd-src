@@ -1045,7 +1045,7 @@ svn_config_ensure(const char *config_dir, apr_pool_t *pool)
    "The syntax of the configuration files is a subset of the one used by"    NL
    "Python's ConfigParser module; see"                                       NL
    ""                                                                        NL
-   "   http://www.python.org/doc/current/lib/module-ConfigParser.html"       NL
+   "   https://docs.python.org/3/library/configparser.html"                  NL
    ""                                                                        NL
    "Configuration data in the Windows registry"                              NL
    "=========================================="                              NL
@@ -1155,6 +1155,7 @@ svn_config_ensure(const char *config_dir, apr_pool_t *pool)
         "###                              HTTP operation."                   NL
         "###   http-chunked-requests      Whether to use chunked transfer"   NL
         "###                              encoding for HTTP requests body."  NL
+        "###   http-auth-types            List of HTTP authentication types."NL
         "###   ssl-authority-files        List of files, each of a trusted CA"
                                                                              NL
         "###   ssl-trust-default-ca       Trust the system 'default' CAs"    NL
@@ -1191,16 +1192,13 @@ svn_config_ensure(const char *config_dir, apr_pool_t *pool)
         "###                              may be cached to disk."            NL
         "###   username                   Specifies the default username."   NL
         "###"                                                                NL
-        "### Set store-passwords to 'no' to avoid storing passwords on disk" NL
-        "### in any way, including in password stores.  It defaults to"      NL
+        "### Set store-passwords to 'no' to avoid storing new passwords on"  NL
+        "### disk in any way, including in password stores.  It defaults to" NL
         "### 'yes', but Subversion will never save your password to disk in" NL
         "### plaintext unless explicitly configured to do so."               NL
-        "### Note that this option only prevents saving of *new* passwords;" NL
-        "### it doesn't invalidate existing passwords.  (To do that, remove" NL
-        "### the cache files by hand as described in the Subversion book.)"  NL
         "###"                                                                NL
 #ifndef SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE
-        "### Set store-plaintext-passwords to 'no' to avoid storing"         NL
+        "### Set store-plaintext-passwords to 'no' to avoid storing new"     NL
         "### passwords in unencrypted form in the auth/ area of your config" NL
         "### directory. Set it to 'yes' to allow Subversion to store"        NL
         "### unencrypted passwords in the auth/ area.  The default is"       NL
@@ -1210,22 +1208,15 @@ svn_config_ensure(const char *config_dir, apr_pool_t *pool)
         "### 'store-auth-creds' is set to 'no'."                             NL
         "###"                                                                NL
 #endif
-        "### Set store-ssl-client-cert-pp to 'no' to avoid storing ssl"      NL
+        "### Set store-ssl-client-cert-pp to 'no' to avoid storing new ssl"  NL
         "### client certificate passphrases in the auth/ area of your"       NL
         "### config directory.  It defaults to 'yes', but Subversion will"   NL
         "### never save your passphrase to disk in plaintext unless"         NL
         "### explicitly configured to do so."                                NL
         "###"                                                                NL
-        "### Note store-ssl-client-cert-pp only prevents the saving of *new*"NL
-        "### passphrases; it doesn't invalidate existing passphrases.  To do"NL
-        "### that, remove the cache files by hand as described in the"       NL
-        "### Subversion book at http://svnbook.red-bean.com/nightly/en/\\"   NL
-        "###                    svn.serverconfig.netmodel.html\\"            NL
-        "###                    #svn.serverconfig.netmodel.credcache"        NL
-        "###"                                                                NL
 #ifndef SVN_DISABLE_PLAINTEXT_PASSWORD_STORAGE
         "### Set store-ssl-client-cert-pp-plaintext to 'no' to avoid storing"NL
-        "### passphrases in unencrypted form in the auth/ area of your"      NL
+        "### new passphrases in unencrypted form in the auth/ area of your"  NL
         "### config directory.  Set it to 'yes' to allow Subversion to"      NL
         "### store unencrypted passphrases in the auth/ area.  The default"  NL
         "### is 'ask', which means that Subversion will prompt before"       NL
@@ -1234,12 +1225,19 @@ svn_config_ensure(const char *config_dir, apr_pool_t *pool)
         "### 'store-ssl-client-cert-pp' is set to 'no'."                     NL
         "###"                                                                NL
 #endif
-        "### Set store-auth-creds to 'no' to avoid storing any Subversion"   NL
+        "### Set store-auth-creds to 'no' to avoid storing any new Subversion"
+                                                                             NL
         "### credentials in the auth/ area of your config directory."        NL
         "### Note that this includes SSL server certificates."               NL
-        "### It defaults to 'yes'.  Note that this option only prevents"     NL
-        "### saving of *new* credentials;  it doesn't invalidate existing"   NL
-        "### caches.  (To do that, remove the cache files by hand.)"         NL
+        "### It defaults to 'yes'."                                          NL
+        "###"                                                                NL
+        "### Note that setting a 'store-*' option to 'no' only prevents"     NL
+        "### saving of *new* passwords, passphrases or other credentials."   NL
+        "### It does not remove or invalidate existing stored credentials."  NL
+        "### To do that, see the 'svn auth --remove' command, or remove the" NL
+        "### cache files by hand as described in the Subversion book at"     NL
+        "### http://svnbook.red-bean.com/nightly/en/svn.serverconfig.netmodel.html#svn.tour.initial.authn-cache-purge"
+                                                                             NL
         "###"                                                                NL
         "### HTTP timeouts, if given, are specified in seconds.  A timeout"  NL
         "### of 0, i.e. zero, causes a builtin default to be used."          NL

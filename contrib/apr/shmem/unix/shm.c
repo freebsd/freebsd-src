@@ -15,6 +15,7 @@
  */
 
 #include "apr_arch_shm.h"
+#include "apr_arch_file_io.h"
 
 #include "apr_general.h"
 #include "apr_errno.h"
@@ -158,7 +159,6 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
 #endif
 #if APR_USE_SHMEM_SHMGET
     apr_size_t nbytes;
-    key_t shmkey;
 #endif
 #if APR_USE_SHMEM_MMAP_ZERO || APR_USE_SHMEM_SHMGET || \
     APR_USE_SHMEM_MMAP_TMP || APR_USE_SHMEM_MMAP_SHM
@@ -231,8 +231,8 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
         new_m->reqsize = reqsize;
         new_m->realsize = reqsize;
         new_m->filename = NULL;
-
-        if ((new_m->shmid = shmget(IPC_PRIVATE, new_m->realsize,
+        new_m->shmkey = IPC_PRIVATE;
+        if ((new_m->shmid = shmget(new_m->shmkey, new_m->realsize,
                                    SHM_R | SHM_W | IPC_CREAT)) < 0) {
             return errno;
         }
@@ -371,13 +371,13 @@ APR_DECLARE(apr_status_t) apr_shm_create(apr_shm_t **m,
 
         /* ftok() (on solaris at least) requires that the file actually
          * exist before calling ftok(). */
-        shmkey = our_ftok(filename);
-        if (shmkey == (key_t)-1) {
+        new_m->shmkey = our_ftok(filename);
+        if (new_m->shmkey == (key_t)-1) {
             apr_file_close(file);
             return errno;
         }
 
-        if ((new_m->shmid = shmget(shmkey, new_m->realsize,
+        if ((new_m->shmid = shmget(new_m->shmkey, new_m->realsize,
                                    SHM_R | SHM_W | IPC_CREAT | IPC_EXCL)) < 0) {
             apr_file_close(file);
             return errno;
@@ -490,6 +490,16 @@ shm_remove_failed:
     /* No support for anonymous shm */
     return APR_ENOTIMPL;
 #endif
+} 
+
+APR_DECLARE(apr_status_t) apr_shm_delete(apr_shm_t *m)
+{
+    if (m->filename) {
+        return apr_shm_remove(m->filename, m->pool);
+    }
+    else {
+        return APR_ENOTIMPL;
+    }
 } 
 
 APR_DECLARE(apr_status_t) apr_shm_destroy(apr_shm_t *m)
@@ -611,7 +621,6 @@ APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
         apr_status_t status;
         apr_file_t *file;   /* file where metadata is stored */
         apr_size_t nbytes;
-        key_t shmkey;
 
         new_m = apr_palloc(pool, sizeof(apr_shm_t));
 
@@ -634,11 +643,11 @@ APR_DECLARE(apr_status_t) apr_shm_attach(apr_shm_t **m,
 
         new_m->filename = apr_pstrdup(pool, filename);
         new_m->pool = pool;
-        shmkey = our_ftok(filename);
-        if (shmkey == (key_t)-1) {
+        new_m->shmkey = our_ftok(filename);
+        if (new_m->shmkey == (key_t)-1) {
             return errno;
         }
-        if ((new_m->shmid = shmget(shmkey, 0, SHM_R | SHM_W)) == -1) {
+        if ((new_m->shmid = shmget(new_m->shmkey, 0, SHM_R | SHM_W)) == -1) {
             return errno;
         }
         if ((new_m->base = shmat(new_m->shmid, NULL, 0)) == (void *)-1) {
@@ -681,6 +690,28 @@ APR_DECLARE(void *) apr_shm_baseaddr_get(const apr_shm_t *m)
 APR_DECLARE(apr_size_t) apr_shm_size_get(const apr_shm_t *m)
 {
     return m->reqsize;
+}
+
+APR_PERMS_SET_IMPLEMENT(shm)
+{
+#if APR_USE_SHMEM_SHMGET || APR_USE_SHMEM_SHMGET_ANON
+    struct shmid_ds shmbuf;
+    int shmid;
+    apr_shm_t *m = (apr_shm_t *)theshm;
+
+    if ((shmid = shmget(m->shmkey, 0, SHM_R | SHM_W)) == -1) {
+        return errno;
+    }
+    shmbuf.shm_perm.uid  = uid;
+    shmbuf.shm_perm.gid  = gid;
+    shmbuf.shm_perm.mode = apr_unix_perms2mode(perms);
+    if (shmctl(shmid, IPC_SET, &shmbuf) == -1) {
+        return errno;
+    }
+    return APR_SUCCESS;
+#else
+    return APR_ENOTIMPL;
+#endif
 }
 
 APR_POOL_IMPLEMENT_ACCESSOR(shm)

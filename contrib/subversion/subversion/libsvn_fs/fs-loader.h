@@ -159,6 +159,13 @@ typedef struct fs_library_vtable_t
   /* For svn_fs_info_fsfs_dup(). */
   void *(*info_fsap_dup)(const void *fsap_info,
                          apr_pool_t *result_pool);
+
+  svn_error_t *(*ioctl)(svn_fs_ioctl_code_t ctlcode,
+                        void *input, void **output_p,
+                        svn_cancel_func_t cancel_func,
+                        void *cancel_baton,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool);
 } fs_library_vtable_t;
 
 /* This is the type of symbol an FS module defines to fetch the
@@ -200,12 +207,12 @@ typedef struct fs_vtable_t
   svn_error_t *(*revision_prop)(svn_string_t **value_p, svn_fs_t *fs,
                                 svn_revnum_t rev, const char *propname,
                                 svn_boolean_t refresh,
-                                apr_pool_t *result_pool, 
+                                apr_pool_t *result_pool,
                                 apr_pool_t *scratch_pool);
   svn_error_t *(*revision_proplist)(apr_hash_t **table_p, svn_fs_t *fs,
                                     svn_revnum_t rev,
                                     svn_boolean_t refresh,
-                                    apr_pool_t *result_pool, 
+                                    apr_pool_t *result_pool,
                                     apr_pool_t *scratch_pool);
   svn_error_t *(*change_rev_prop)(svn_fs_t *fs, svn_revnum_t rev,
                                   const char *name,
@@ -266,6 +273,12 @@ typedef struct fs_vtable_t
   svn_error_t *(*bdb_set_errcall)(svn_fs_t *fs,
                                   void (*handler)(const char *errpfx,
                                                   char *msg));
+  svn_error_t *(*ioctl)(svn_fs_t *fs, svn_fs_ioctl_code_t ctlcode,
+                        void *input, void **output_p,
+                        svn_cancel_func_t cancel_func,
+                        void *cancel_baton,
+                        apr_pool_t *result_pool,
+                        apr_pool_t *scratch_pool);
 } fs_vtable_t;
 
 

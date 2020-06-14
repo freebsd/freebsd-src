@@ -888,6 +888,21 @@ SVN_ERROR_START
              SVN_ERR_FS_CATEGORY_START + 67,
              "Content checksums supposedly match but content does not.")
 
+  /** @since New in 1.13. */
+  SVN_ERRDEF(SVN_ERR_FS_UNRECOGNIZED_IOCTL_CODE,
+             SVN_ERR_FS_CATEGORY_START + 68,
+             "Unrecognized filesystem I/O control code")
+
+  /** @since New in 1.14. */
+  SVN_ERRDEF(SVN_ERR_FS_REP_SHARING_NOT_ALLOWED,
+             SVN_ERR_FS_CATEGORY_START + 69,
+             "Rep-sharing is not allowed.")
+
+  /** @since New in 1.14. */
+  SVN_ERRDEF(SVN_ERR_FS_REP_SHARING_NOT_SUPPORTED,
+             SVN_ERR_FS_CATEGORY_START + 70,
+             "Rep-sharing is not supported.")
+
   /* repos errors */
 
   SVN_ERRDEF(SVN_ERR_REPOS_LOCKED,
@@ -1482,6 +1497,11 @@ SVN_ERROR_START
              SVN_ERR_MISC_CATEGORY_START + 46,
              "LZ4 decompression failed")
 
+  /** @since New in 1.12.  */
+  SVN_ERRDEF(SVN_ERR_CANONICALIZATION_FAILED,
+             SVN_ERR_MISC_CATEGORY_START + 47,
+             "Could not canonicalize path or URI")
+
   /* command-line client errors */
 
   SVN_ERRDEF(SVN_ERR_CL_ARG_PARSING_ERROR,
@@ -1769,7 +1789,7 @@ SVN_ERROR_START
 
   SVN_ERRDEF(SVN_ERR_X509_CERT_VERIFY_FAILED,
              SVN_ERR_X509_CATEGORY_START + 19,
-             "Certficate verification failed")
+             "Certificate verification failed")
 
 SVN_ERROR_END
 

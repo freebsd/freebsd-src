@@ -495,6 +495,10 @@ svn_txdelta_send_contents(const unsigned char *contents,
  * since there's nothing else in the delta application's context to
  * supply a path for error messages.)
  *
+ * The @a source stream will NOT be closed. The @a target stream will be
+ * closed when the window handler is given a null window to signal the
+ * end of the delta.
+ *
  * @note To avoid lifetime issues, @a error_info is copied into
  * @a pool or a subpool thereof.
  */
@@ -859,7 +863,7 @@ svn_txdelta_skip_svndiff_window(apr_file_t *file,
  * @c apply_textdelta / @c apply_textdelta_stream and @c close_file
  * should not refer to a parent directory baton UNLESS the editor has
  * taken precautions to allocate it in a pool of the appropriate
- * lifetime (the @a dir_pool passed to @c open_directory and
+ * lifetime (the @a result_pool passed to @c open_directory and
  * @c add_directory definitely does not have the proper lifetime).
  * In general, it is recommended to simply avoid keeping a parent
  * directory baton in a file baton.
@@ -1285,24 +1289,47 @@ svn_delta_depth_filter_editor(const svn_delta_editor_t **editor,
 /** Callback function type for svn_delta_path_driver().
  *
  * The handler of this callback is given the callback baton @a
- * callback_baton, @a path which is a relpath relative to the
+ * callback_baton, @a editor and @a edit_baton which represent the
+ * editor being driven, @a relpath which is a relpath relative to the
  * root of the edit, and the @a parent_baton which represents
- * path's parent directory as created by the editor passed to
- * svn_delta_path_driver().
+ * @a relpath's parent directory as created by the editor.
  *
- * If @a path represents a directory, the handler must return a @a
- * *dir_baton for @a path, generated from the same editor (so that the
- * driver can later close that directory).
+ * If the handler deletes the node at @a relpath (and does not replace it
+ * with an added directory) it must set @a *dir_baton to null or leave
+ * it unchanged.
  *
- * If, however, @a path represents a file, the handler should NOT
- * return any file batons.  It can close any opened or added files
- * immediately, or delay that close until the end of the edit when
- * svn_delta_path_driver() returns.
+ * If the handler opens (or adds) a directory at @a relpath, it must set
+ * @a *dir_baton to the directory baton for @a relpath, generated from
+ * the same editor. The driver will close the directory later.
+ *
+ * If the handler opens (or adds) a file at @a relpath, the handler must
+ * set @a *dir_baton to null or leave it unchanged.  The handler must
+ * either close the file immediately, or delay that close until the end
+ * of the edit when svn_delta_path_driver() returns.
  *
  * Finally, if @a parent_baton is @c NULL, then the root of the edit
  * is also one of the paths passed to svn_delta_path_driver().  The
  * handler of this callback must call the editor's open_root()
  * function and return the top-level root dir baton in @a *dir_baton.
+ *
+ * @since New in 1.12.
+ */
+typedef svn_error_t *(*svn_delta_path_driver_cb_func2_t)(
+  void **dir_baton,
+  const svn_delta_editor_t *editor,
+  void *edit_baton,
+  void *parent_baton,
+  void *callback_baton,
+  const char *relpath,
+  apr_pool_t *pool);
+
+/** Like #svn_delta_path_driver_cb_func2_t but without the @a editor and
+ * @a edit_baton parameters. The user must arrange for the editor to be
+ * passed through @a callback_baton (if required, which it usually is).
+ * And @a path could possibly have a '/' prefix instead of being a relpath;
+ * see the note on svn_delta_path_driver2().
+ *
+ * @deprecated Provided for backward compatibility with the 1.11 API.
  */
 typedef svn_error_t *(*svn_delta_path_driver_cb_func_t)(
   void **dir_baton,
@@ -1312,23 +1339,50 @@ typedef svn_error_t *(*svn_delta_path_driver_cb_func_t)(
   apr_pool_t *pool);
 
 
-/** Drive @a editor (with its @a edit_baton) to visit each path in @a paths.
+/** Drive @a editor (with its @a edit_baton) to visit each path in @a relpaths.
+ *
  * As each path is hit as part of the editor drive, use
  * @a callback_func and @a callback_baton to allow the caller to handle
  * the portion of the editor drive related to that path.
  *
- * Each path in @a paths is a (const char *) relpath, relative
- * to the root path of the @a edit. The editor drive will be
- * performed in the same order as @a paths. The paths should be sorted
- * using something like svn_sort_compare_paths to ensure that a depth-first
- * pattern is observed for directory/file baton creation. If @a sort_paths
+ * Each path in @a relpaths is a (const char *) relpath, relative
+ * to the root path of the edit. The editor drive will be
+ * performed in the same order as @a relpaths. The paths should be sorted
+ * using something like svn_sort_compare_paths() to ensure that each
+ * directory in the depth-first walk is visited only once. If @a sort_paths
  * is set, the function will sort the paths for you. Some callers may need
  * further customization of the order (ie. libsvn_delta/compat.c).
  *
+ * If the first target path (after any requested sorting) is @c "" (the
+ * root of the edit), the callback function will be responsible for
+ * calling the editor's @c open_root method; otherwise, this function
+ * will call @c open_root.
+ *
  * Use @a scratch_pool for all necessary allocations.
  *
- * @since New in 1.8.
+ * @since New in 1.12.
  */
+svn_error_t *
+svn_delta_path_driver3(const svn_delta_editor_t *editor,
+                       void *edit_baton,
+                       const apr_array_header_t *relpaths,
+                       svn_boolean_t sort_paths,
+                       svn_delta_path_driver_cb_func2_t callback_func,
+                       void *callback_baton,
+                       apr_pool_t *pool);
+
+/** Like svn_delta_path_driver3() but with a different callback function
+ * signature.
+ *
+ * Optionally, paths in @a paths could have a '/' prefix instead of being
+ * relpaths. If any of them do, then (since 1.12) ALL paths sent to the
+ * callback will have a '/' prefix.
+ *
+ * @deprecated Provided for backward compatibility with the 1.11 API.
+ * @since New in 1.8. Before 1.12, paths sent to the callback were the
+ * exact paths passed in @a paths.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_delta_path_driver2(const svn_delta_editor_t *editor,
                        void *edit_baton,
@@ -1357,6 +1411,80 @@ svn_delta_path_driver(const svn_delta_editor_t *editor,
                       svn_delta_path_driver_cb_func_t callback_func,
                       void *callback_baton,
                       apr_pool_t *scratch_pool);
+
+
+/** A state object for the path driver that is obtained from
+ * svn_delta_path_driver_start() and driven by
+ * svn_delta_path_driver_step() and svn_delta_path_driver_finish().
+ *
+ * @since New in 1.12.
+ */
+typedef struct svn_delta_path_driver_state_t svn_delta_path_driver_state_t;
+
+/** Return a path driver object that can drive @a editor (with its
+ * @a edit_baton) to visit a series of paths.
+ *
+ * As each path is hit as part of the editor drive, the path driver will
+ * call @a callback_func and @a callback_baton to allow the caller to handle
+ * the portion of the editor drive related to that path.
+ *
+ * This will not call the editor's open_root method; for that, see
+ * svn_delta_path_driver_step().
+ *
+ * @since New in 1.12.
+ */
+svn_error_t *
+svn_delta_path_driver_start(svn_delta_path_driver_state_t **state_p,
+                            const svn_delta_editor_t *editor,
+                            void *edit_baton,
+                            svn_delta_path_driver_cb_func2_t callback_func,
+                            void *callback_baton,
+                            apr_pool_t *result_pool);
+
+/** Visit @a relpath.
+ *
+ * @a state is the object returned by svn_delta_path_driver_start().
+ *
+ * @a relpath is a relpath relative to the root path of the edit.
+ *
+ * This function uses the editor and the callback that were originally
+ * supplied to svn_delta_path_driver_start().
+ *
+ * This drives the editor in a depth-first order, closing and then opening
+ * directories if necessary to move from the last visited path to the new
+ * path, as required by the editor driving rules.
+ *
+ * This then calls the callback to allow the caller to handle
+ * the portion of the editor drive related to that path.
+ *
+ * If the first path to visit is @c "" (the root of the edit), the
+ * callback function will be responsible for calling the editor's
+ * @c open_root method; otherwise, this function will call @c open_root.
+ *
+ * The order of paths to visit should in general be sorted using something
+ * like svn_sort_compare_paths() to ensure that each directory in the
+ * depth-first walk is visited only once. Some editors may rely on such a
+ * restriction.
+ *
+ * @since New in 1.12.
+ */
+svn_error_t *
+svn_delta_path_driver_step(svn_delta_path_driver_state_t *state,
+                           const char *relpath,
+                           apr_pool_t *scratch_pool);
+
+/** Finish driving the editor.
+ *
+ * @a state is the object returned by svn_delta_path_driver_start().
+ *
+ * This drives the editor to close any open directories and then calls
+ * the editor's @c close_edit method.
+ *
+ * @since New in 1.12.
+ */
+svn_error_t *
+svn_delta_path_driver_finish(svn_delta_path_driver_state_t *state,
+                             apr_pool_t *scratch_pool);
 
 /** @} */
 

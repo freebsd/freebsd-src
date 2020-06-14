@@ -62,7 +62,7 @@ static unsigned int find_if_index(const apr_sockaddr_t *iface)
     for (ifp = ifs; ifp; ifp = ifp->ifa_next) {
         if (ifp->ifa_addr != NULL && ifp->ifa_addr->sa_family == AF_INET6) {
             if (memcmp(&iface->sa.sin6.sin6_addr,
-                       &ifp->ifa_addr->sa_data[0],
+                       &((struct sockaddr_in6*)ifp->ifa_addr)->sin6_addr,
                        sizeof(iface->sa.sin6.sin6_addr)) == 0) {
                 index = if_nametoindex(ifp->ifa_name);
                 break;

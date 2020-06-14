@@ -455,12 +455,15 @@ svn_cl__auth(apr_getopt_t *os, void *baton, apr_pool_t *pool)
         {
           if (b.patterns->nelts == 0)
             SVN_ERR(svn_cmdline_printf(pool,
-                      _("Credentials cache in '%s' contains %d credentials\n"),
+                      Q_("Credentials cache in '%s' contains %d credential\n",
+                         "Credentials cache in '%s' contains %d credentials\n",
+                         b.matches),
                       svn_dirent_local_style(config_path, pool), b.matches));
           else
             SVN_ERR(svn_cmdline_printf(pool,
-                      _("Credentials cache in '%s' contains %d matching "
-                        "credentials\n"),
+                      Q_("Credentials cache in '%s' contains %d matching credential\n",
+                         "Credentials cache in '%s' contains %d matching credentials\n",
+                         b.matches),
                       svn_dirent_local_style(config_path, pool), b.matches));
         }
 
@@ -474,9 +477,11 @@ svn_cl__auth(apr_getopt_t *os, void *baton, apr_pool_t *pool)
                                    "no matching credentials"),
                                  svn_dirent_local_style(config_path, pool));
       else
-        SVN_ERR(svn_cmdline_printf(pool, _("Deleted %d matching credentials "
-                                   "from '%s'\n"), b.matches,
-                                   svn_dirent_local_style(config_path, pool)));
+        SVN_ERR(svn_cmdline_printf(pool,
+                  Q_("Deleted %d matching credential from '%s'\n",
+                     "Deleted %d matching credentials from '%s'\n",
+                     b.matches),
+                  b.matches, svn_dirent_local_style(config_path, pool)));
     }
 
   return SVN_NO_ERROR;

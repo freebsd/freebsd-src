@@ -36,7 +36,7 @@
 #include "svn_private_config.h"
 
 /*-----------------------------------------------------------------------*/
-/* File provider                                                         */
+/* File password provider                                                */
 /*-----------------------------------------------------------------------*/
 
 /* Baton type for the ssl client cert passphrase provider. */
@@ -50,6 +50,13 @@ typedef struct ssl_client_cert_pw_file_provider_baton_t
      values are 'svn_boolean_t *'. */
   apr_hash_t *plaintext_answers;
 } ssl_client_cert_pw_file_provider_baton_t;
+
+/* The client cert password provider only deals with a password and
+   realm (the client cert filename), there is no username.  The gnome
+   keyring backend based on libsecret requires a non-NULL username so
+   we have to invent one.  An empty string is acceptable and doesn't
+   change the value stored by the kwallet backend. */
+#define DUMMY_USERNAME ""
 
 /* This implements the svn_auth__password_get_t interface.
    Set **PASSPHRASE to the plaintext passphrase retrieved from CREDS;
@@ -132,7 +139,8 @@ svn_auth__ssl_client_cert_pw_cache_get(void **credentials_p,
           svn_boolean_t done;
 
           SVN_ERR(passphrase_get(&done, &password, creds_hash, realmstring,
-                                 NULL, parameters, non_interactive, pool));
+                                 DUMMY_USERNAME, parameters, non_interactive,
+                                 pool));
           if (!done)
             password = NULL;
         }
@@ -293,7 +301,7 @@ svn_auth__ssl_client_cert_pw_cache_set(svn_boolean_t *saved,
       if (may_save_passphrase)
         {
           SVN_ERR(passphrase_set(saved, creds_hash, realmstring,
-                                 NULL, creds->password, parameters,
+                                 DUMMY_USERNAME, creds->password, parameters,
                                  non_interactive, pool));
 
           if (*saved && passtype)

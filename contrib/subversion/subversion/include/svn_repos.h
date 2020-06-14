@@ -679,7 +679,7 @@ svn_repos_fs_type(svn_repos_t *repos,
  * The optional @a cancel_func callback will be invoked with
  * @a cancel_baton as usual to allow the user to preempt this potentially
  * lengthy operation.
- * 
+ *
  * Use @a scratch_pool for temporary allocations.
  *
  * @since New in 1.9.
@@ -861,7 +861,7 @@ typedef svn_error_t *(*svn_repos_freeze_func_t)(void *baton, apr_pool_t *pool);
  * @since New in 1.8.
  */
 svn_error_t *
-svn_repos_freeze(apr_array_header_t *paths,
+svn_repos_freeze(const apr_array_header_t *paths,
                  svn_repos_freeze_func_t freeze_func,
                  void *freeze_baton,
                  apr_pool_t *pool);
@@ -1036,7 +1036,10 @@ svn_repos_hooks_setenv(svn_repos_t *repos,
  *
  * @a send_copyfrom_args instructs the driver to send 'copyfrom'
  * arguments to the editor's add_file() and add_directory() methods,
- * whenever it deems feasible.
+ * and therefore to send their content as deltas against the copy source,
+ * whenever it deems feasible. The implementation only does so for
+ * add_file(), and only when the file itself is the copy root (not when
+ * the file is part of a copied subtree).
  *
  * Use @a authz_read_func and @a authz_read_baton (if not @c NULL) to
  * avoid sending data through @a editor/@a edit_baton which is not
@@ -2404,7 +2407,7 @@ svn_repos_fs_get_mergeinfo(svn_mergeinfo_catalog_t *catalog,
  * @note Prior to Subversion 1.9, this function may request delta handlers
  * from @a handler even for empty text deltas.  Starting with 1.9, the
  * delta handler / baton return arguments passed to @a handler will be
- * #NULL unless there is an actual difference in the file contents between
+ * NULL unless there is an actual difference in the file contents between
  * the current and the previous call.
  *
  * @since New in 1.5.
@@ -3357,7 +3360,7 @@ svn_repos_dump_fs4(svn_repos_t *repos,
                    apr_pool_t *pool);
 
 /**
- * Similar to svn_repos_dump_fs4(), but with @a include_revprops and 
+ * Similar to svn_repos_dump_fs4(), but with @a include_revprops and
  * @a include_changes both set to @c TRUE and @a filter_func and
  * @a filter_baton set to @c NULL.
  *
@@ -3803,7 +3806,7 @@ typedef struct svn_repos_parse_fns3_t
  *
  * @since New in 1.8.
 
- * @since Starting in 1.10, @a parse_fns may contain #NULL pointers for
+ * @since Starting in 1.10, @a parse_fns may contain NULL pointers for
  * those callbacks that the caller is not interested in.
  */
 svn_error_t *
@@ -4144,6 +4147,19 @@ svn_error_t *
 svn_repos_authz_initialize(apr_pool_t *pool);
 
 /**
+ * Callback for reporting authz file parsing warnings.
+ *
+ * The implementation may use @a scratch_pool for temporary
+ * allocations but should not assume that the lifetime of that pool
+ * persists past the callback invocation.
+ *
+ * The implementation @e must @e not clear @a error.
+ */
+typedef void (*svn_repos_authz_warning_func_t)(void *baton,
+                                               const svn_error_t *error,
+                                               apr_pool_t *scratch_pool);
+
+/**
  * Read authz configuration data from @a path (a dirent, an absolute file url
  * or a registry path) into @a *authz_p, allocated in @a pool.
  *
@@ -4161,8 +4177,31 @@ svn_repos_authz_initialize(apr_pool_t *pool);
  * repository instance.  Otherwise, set it to NULL and the repositories will
  * be opened as needed.
  *
- * @since New in 1.10.
+ * If the @a warning_func callback is not @c NULL, it is called
+ * (with @a warning_baton) to report non-fatal warnings emitted by
+ * the parser.
+ *
+ * @since New in 1.12.
  */
+svn_error_t *
+svn_repos_authz_read4(svn_authz_t **authz_p,
+                      const char *path,
+                      const char *groups_path,
+                      svn_boolean_t must_exist,
+                      svn_repos_t *repos_hint,
+                      svn_repos_authz_warning_func_t warning_func,
+                      void *warning_baton,
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool);
+
+/**
+ * Similar to svn_repos_authz_read3(), but with @a warning_func and
+ * @a warning_baton set to @c NULL.
+ *
+ * @since New in 1.10.
+ * @deprecated Provided for backward compatibility with the 1.11 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_repos_authz_read3(svn_authz_t **authz_p,
                       const char *path,
@@ -4203,12 +4242,35 @@ svn_repos_authz_read(svn_authz_t **authz_p,
 
 /**
  * Read authz configuration data from @a stream into @a *authz_p,
- * allocated in @a pool.
+ * allocated in @a result_pool.
  *
  * If @a groups_stream is set, use the global groups parsed from it.
  *
- * @since New in 1.8.
+ * If the @a warning_func callback is not @c NULL, it is called
+ * (with @a warning_baton) to report non-fatal warnings emitted by
+ * the parser.
+ *
+ * Uses @a scratch_pool for temporary aloocations.
+ *
+ * @since New in 1.12.
  */
+svn_error_t *
+svn_repos_authz_parse2(svn_authz_t **authz_p,
+                       svn_stream_t *stream,
+                       svn_stream_t *groups_stream,
+                       svn_repos_authz_warning_func_t warning_func,
+                       void *warning_baton,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool);
+
+/**
+ * Similar to svn_repos_authz_parse2(), but with @a warning_func and
+ * @a warning_baton set to @c NULL.
+ *
+ * @since New in 1.8.
+ * @deprecated Provided for backward compatibility with the 1.11 API.
+ */
+SVN_DEPRECATED
 svn_error_t *
 svn_repos_authz_parse(svn_authz_t **authz_p,
                       svn_stream_t *stream,

@@ -389,27 +389,27 @@ svn_hash__make(apr_pool_t *pool);
 
 /** Struct that represents a key value pair read from a serialized hash
  * representation.  There are special cases that can also be represented:
- * a #NULL @a key signifies the end of the hash, a #NULL @a val for non-
+ * a NULL @a key signifies the end of the hash, a NULL @a val for non-
  * NULL keys is only possible in incremental mode describes a deletion.
  *
  * @since New in 1.9.
  */
 typedef struct svn_hash__entry_t
 {
-  /** 0-terminated Key.  #NULL if this contains no data at all because we
+  /** 0-terminated Key.  NULL if this contains no data at all because we
    * encountered the end of the hash. */
   char *key;
 
-  /** Length of @a key.  Must be 0 if @a key is #NULL. */
+  /** Length of @a key.  Must be 0 if @a key is NULL. */
   apr_size_t keylen;
 
-  /** 0-terminated value stored with the key.  If this is #NULL for a
+  /** 0-terminated value stored with the key.  If this is NULL for a
    * non-NULL @a key, then this means that the key shall be removed from
-   * the hash (only used in incremental mode).  Must be #NULL if @a key is
-   * #NULL. */
+   * the hash (only used in incremental mode).  Must be NULL if @a key is
+   * NULL. */
   char *val;
 
-  /** Length of @a val.  Must be 0 if @a val is #NULL. */
+  /** Length of @a val.  Must be 0 if @a val is NULL. */
   apr_size_t vallen;
 } svn_hash__entry_t;
 

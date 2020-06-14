@@ -983,12 +983,13 @@ svn_client_add5(const char *path,
 
 static svn_error_t *
 path_driver_cb_func(void **dir_baton,
+                    const svn_delta_editor_t *editor,
+                    void *edit_baton,
                     void *parent_baton,
                     void *callback_baton,
                     const char *path,
                     apr_pool_t *pool)
 {
-  const svn_delta_editor_t *editor = callback_baton;
   SVN_ERR(svn_path_check_valid(path, pool));
   return editor->add_directory(path, parent_baton, NULL,
                                SVN_INVALID_REVNUM, pool, dir_baton);
@@ -1177,8 +1178,8 @@ mkdir_urls(const apr_array_header_t *urls,
 
   /* Call the path-based editor driver. */
   err = svn_error_trace(
-        svn_delta_path_driver2(editor, edit_baton, targets, TRUE,
-                               path_driver_cb_func, (void *)editor, pool));
+        svn_delta_path_driver3(editor, edit_baton, targets, TRUE,
+                               path_driver_cb_func, NULL, pool));
 
   if (err)
     {

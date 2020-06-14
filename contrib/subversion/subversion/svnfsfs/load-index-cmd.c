@@ -135,6 +135,7 @@ load_index(const char *path,
   svn_revnum_t revision = SVN_INVALID_REVNUM;
   apr_array_header_t *entries = apr_array_make(pool, 16, sizeof(void*));
   apr_pool_t *iterpool = svn_pool_create(pool);
+  svn_fs_fs__ioctl_load_index_input_t ioctl_input = {0};
 
   /* Check repository type and open it. */
   SVN_ERR(open_fs(&fs, path, pool));
@@ -147,7 +148,7 @@ load_index(const char *path,
 
       /* Get the next line from the input and stop if there is none. */
       svn_pool_clear(iterpool);
-      svn_stream_readline(input, &line, "\n", &eol, iterpool);
+      SVN_ERR(svn_stream_readline(input, &line, "\n", &eol, iterpool));
       if (eol)
         break;
 
@@ -173,7 +174,10 @@ load_index(const char *path,
     }
 
   /* Rewrite the indexes. */
-  SVN_ERR(svn_fs_fs__load_index(fs, revision, entries, iterpool));
+  ioctl_input.revision = revision;
+  ioctl_input.entries = entries;
+  SVN_ERR(svn_fs_ioctl(fs, SVN_FS_FS__IOCTL_LOAD_INDEX, &ioctl_input, NULL,
+                       NULL, NULL, pool, pool));
   svn_pool_destroy(iterpool);
 
   return SVN_NO_ERROR;

@@ -62,6 +62,15 @@ svn_fs_fs__upgrade_cleanup_pack_revprops(svn_fs_t *fs,
 void
 svn_fs_fs__reset_revprop_cache(svn_fs_t *fs);
 
+/* Set *PROPS_SIZE_P to the size in bytes on disk of the revprops for
+ * revision REV in FS. The size excludes indexes.
+ */
+svn_error_t *
+svn_fs_fs__get_revision_props_size(apr_off_t *props_size_p,
+                                   svn_fs_t *fs,
+                                   svn_revnum_t rev,
+                                   apr_pool_t *scratch_pool);
+
 /* Read the revprops for revision REV in FS and return them in *PROPERTIES_P.
  * If REFRESH is set, clear the revprop cache before accessing the data.
  *

@@ -262,7 +262,7 @@ x509_get_alg(const unsigned char **p, const unsigned char *end, x509_buf * alg)
 
   if (*p == end)
     return SVN_NO_ERROR;
-  
+
   /* The OID encoding of 1.2.840.113549.1.1.10 (id-RSASSA-PSS) */
 #define OID_RSASSA_PSS "\x2a\x86\x48\x86\xf7\x0d\x01\x01\x0a"
 

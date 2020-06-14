@@ -311,7 +311,7 @@ checkout_node(const char **working_url,
    fails due to an SVN_ERR_APMOD_BAD_BASELINE error return from the
    server.
 
-   See http://subversion.tigris.org/issues/show_bug.cgi?id=4127 for
+   See https://issues.apache.org/jira/browse/SVN-4127 for
    details.
 */
 static svn_error_t *
@@ -677,7 +677,7 @@ write_prop_xml(const proppatch_context_t *proppatch,
    explicitly deleted in this commit already, then mod_dav removed its
    lock token when it fielded the DELETE request, so we don't want to
    set the lock precondition again.  (See
-   http://subversion.tigris.org/issues/show_bug.cgi?id=3674 for details.)
+   https://issues.apache.org/jira/browse/SVN-3674 for details.)
 */
 static svn_error_t *
 maybe_set_lock_token_header(serf_bucket_t *headers,

@@ -26,6 +26,7 @@
 #include "apr_file_io.h"
 #include "apr_pools.h"
 #include "apr_errno.h"
+#include "apr_perms_set.h"
 
 #if APR_HAVE_STRUCT_RLIMIT
 #include <sys/time.h>
@@ -579,6 +580,18 @@ APR_DECLARE(apr_status_t) apr_procattr_group_set(apr_procattr_t *attr,
                                                  const char *groupname);
 
 
+/**
+ * Register permission set function
+ * @param attr The procattr we care about. 
+ * @param perms_set_fn Permission set callback
+ * @param data Data to pass to permission callback function
+ * @param perms Permissions to set
+ */
+APR_DECLARE(apr_status_t) apr_procattr_perms_set_register(apr_procattr_t *attr,
+                                                 apr_perms_setfn_t *perms_set_fn,
+                                                 void *data,
+                                                 apr_fileperms_t perms);
+
 #if APR_HAS_FORK
 /**
  * This is currently the only non-portable call in APR.  This executes 
@@ -803,6 +816,13 @@ APR_DECLARE(apr_status_t) apr_setup_signal_thread(void);
  * functions should return 1 if the signal has been handled, 0 otherwise.
  * @param signal_handler The function to call when a signal is received
  * apr_status_t apr_signal_thread((int)(*signal_handler)(int signum))
+ * @note Synchronous signals like SIGABRT/SIGSEGV/SIGBUS/... are ignored by
+ * apr_signal_thread() and thus can't be waited by this function (they remain
+ * handled by the operating system or its native signals interface).
+ * @remark In APR version 1.6 and ealier, SIGUSR2 was part of these ignored
+ * signals and thus was never passed in to the signal_handler. From APR 1.7
+ * this is no more the case so SIGUSR2 can be handled in signal_handler and
+ * acted upon like the other asynchronous signals.
  */
 APR_DECLARE(apr_status_t) apr_signal_thread(int(*signal_handler)(int signum));
 
