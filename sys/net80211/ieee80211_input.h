@@ -136,7 +136,8 @@ ishtinfooui(const uint8_t *frm)
 static __inline int
 ieee80211_check_rxseq_amsdu(const struct ieee80211_rx_stats *rxs)
 {
-
+	if (rxs == NULL)
+		return 0;
 	return (!! (rxs->c_pktflags & IEEE80211_RX_F_AMSDU));
 }
 
