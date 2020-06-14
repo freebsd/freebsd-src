@@ -26,6 +26,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200613:
+	r362158 changed the arguments for VFS_CHECKEXP().  As such, any
+	out of tree file systems need to be modified and rebuilt.
+	Also, any file systems that are modules must be rebuilt.
+
 20200604:
 	read(2) of a directory fd is now rejected by default.  root may
 	re-enable it for system root only on non-ZFS filesystems with the
