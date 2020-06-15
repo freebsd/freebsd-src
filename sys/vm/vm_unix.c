@@ -185,8 +185,7 @@ kern_break(struct thread *td, uintptr_t *addr)
 		    0);
 		if (rv == KERN_SUCCESS && (map->flags & MAP_WIREFUTURE) != 0) {
 			rv = vm_map_wire_locked(map, old, new,
-			    VM_MAP_WIRE_USER | VM_MAP_WIRE_USER_LIMIT |
-			    VM_MAP_WIRE_NOHOLES);
+			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 			if (rv != KERN_SUCCESS)
 				vm_map_delete(map, old, new);
 		}

@@ -1046,7 +1046,7 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	}
 #endif
 	error = vm_map_wire(map, start, end,
-	    VM_MAP_WIRE_USER | VM_MAP_WIRE_USER_LIMIT | VM_MAP_WIRE_NOHOLES);
+	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 #ifdef RACCT
 	if (racct_enable && error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
@@ -1111,8 +1111,7 @@ sys_mlockall(struct thread *td, struct mlockall_args *uap)
 		 * calling vm_fault_wire() for each page in the region.
 		 */
 		error = vm_map_wire(map, vm_map_min(map), vm_map_max(map),
-		    VM_MAP_WIRE_USER | VM_MAP_WIRE_USER_LIMIT |
-		    VM_MAP_WIRE_HOLESOK);
+		    VM_MAP_WIRE_USER|VM_MAP_WIRE_HOLESOK);
 		if (error == KERN_SUCCESS)
 			error = 0;
 		else if (error == KERN_RESOURCE_SHORTAGE)
@@ -1590,7 +1589,6 @@ vm_mmap_object(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 			if ((map->flags & MAP_WIREFUTURE) != 0)
 				(void)vm_map_wire_locked(map, *addr,
 				    *addr + size, VM_MAP_WIRE_USER |
-				    VM_MAP_WIRE_USER_LIMIT |
 				    ((flags & MAP_STACK) ? VM_MAP_WIRE_HOLESOK :
 				    VM_MAP_WIRE_NOHOLES));
 			vm_map_unlock(map);
