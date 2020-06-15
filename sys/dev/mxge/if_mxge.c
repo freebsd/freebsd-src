@@ -4223,13 +4223,15 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
+				mask &= ~IFCAP_TSO4;
 				ifp->if_capenable &= ~(IFCAP_TXCSUM|IFCAP_TSO4);
 				ifp->if_hwassist &= ~(CSUM_TCP | CSUM_UDP);
 			} else {
 				ifp->if_capenable |= IFCAP_TXCSUM;
 				ifp->if_hwassist |= (CSUM_TCP | CSUM_UDP);
 			}
-		} else if (mask & IFCAP_RXCSUM) {
+		}
+		if (mask & IFCAP_RXCSUM) {
 			if (IFCAP_RXCSUM & ifp->if_capenable) {
 				ifp->if_capenable &= ~IFCAP_RXCSUM;
 			} else {
@@ -4251,6 +4253,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 #if IFCAP_TSO6
 		if (mask & IFCAP_TXCSUM_IPV6) {
 			if (IFCAP_TXCSUM_IPV6 & ifp->if_capenable) {
+				mask &= ~IFCAP_TSO6;
 				ifp->if_capenable &= ~(IFCAP_TXCSUM_IPV6
 						       | IFCAP_TSO6);
 				ifp->if_hwassist &= ~(CSUM_TCP_IPV6
@@ -4260,7 +4263,8 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist |= (CSUM_TCP_IPV6
 						     | CSUM_UDP_IPV6);
 			}
-		} else if (mask & IFCAP_RXCSUM_IPV6) {
+		}
+		if (mask & IFCAP_RXCSUM_IPV6) {
 			if (IFCAP_RXCSUM_IPV6 & ifp->if_capenable) {
 				ifp->if_capenable &= ~IFCAP_RXCSUM_IPV6;
 			} else {
