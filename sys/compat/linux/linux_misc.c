@@ -704,7 +704,17 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 			*p = '\0';
 			break;
 		}
+#if defined(__amd64__)
+	/*
+	 * On amd64, Linux uname(2) needs to return "x86_64"
+	 * for both 64-bit and 32-bit applications.  On 32-bit,
+	 * the string returned by getauxval(AT_PLATFORM) needs
+	 * to remain "i686", though.
+	 */
+	strlcpy(utsname.machine, "x86_64", LINUX_MAX_UTSNAME);
+#else
 	strlcpy(utsname.machine, linux_kplatform, LINUX_MAX_UTSNAME);
+#endif
 
 	return (copyout(&utsname, args->buf, sizeof(utsname)));
 }
