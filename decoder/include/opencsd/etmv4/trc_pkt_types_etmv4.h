@@ -85,7 +85,8 @@ typedef enum _ocsd_etmv4_i_pkt_type
 
     // speculation 
         ETM4_PKT_I_COMMIT =             0x2D,   /*!< b00101101 */
-        ETM4_PKT_I_CANCEL_F1 =          0x2E,   /*!< b0010111x */
+        ETM4_PKT_I_CANCEL_F1 =          0x2E,   /*!< b00101110 */
+        ETM4_PKT_I_CANCEL_F1_MISPRED =  0x2F,   /*!< b00101111 */
         ETM4_PKT_I_MISPREDICT =         0x30,   /*!< b001100xx */
         ETM4_PKT_I_CANCEL_F2 =          0x34,   /*!< b001101xx */
         ETM4_PKT_I_CANCEL_F3 =          0x38,   /*!< b00111xxx */

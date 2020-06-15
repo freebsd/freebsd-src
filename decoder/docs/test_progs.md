@@ -20,6 +20,9 @@ See [external_custom.md](@ref custom_decoders) for details.
 These programs are both built at the same time as the library for the same set of platforms.
 See [build_libs.md](@ref build_lib) for build details.
 
+_Note:_ The programs above use the library's [core name mapper helper class] (@ref CoreArchProfileMap) to map 
+the name of the core into a profile / architecture pair that the library can use. 
+The snapshot definition must use one of the names recognised by this class or an error will occur.
 
 Trace "Snapshot" directory.
 ----------------------------

@@ -70,8 +70,8 @@ INSTALL_BIN_DIR=$(PREFIX)/bin
 export INSTALL_INCLUDE_DIR=$(PREFIX)/include/
 
 # compile flags
-CFLAGS += $(CPPFLAGS) -c -Wall -DLINUX -Wno-switch -fPIC
-CXXFLAGS += $(CPPFLAGS) -c -Wall -DLINUX -Wno-switch -fPIC -std=c++11
+CFLAGS += $(CPPFLAGS) -c -Wall -DLINUX -Wno-switch -Wlogical-op -fPIC
+CXXFLAGS += $(CPPFLAGS) -c -Wall -DLINUX -Wno-switch -Wlogical-op -fPIC -std=c++11
 LDFLAGS += -Wl,-z,defs
 ARFLAGS ?= rcs
 
@@ -81,8 +81,8 @@ CFLAGS += -g -O0 -DDEBUG
 CXXFLAGS += -g -O0 -DDEBUG
 BUILD_VARIANT=dbg
 else
-CFLAGS += -g -O2 -DNDEBUG
-CXXFLAGS += -g -O2 -DNDEBUG
+CFLAGS += -O2 -DNDEBUG
+CXXFLAGS += -O2 -DNDEBUG
 BUILD_VARIANT=rel
 endif
 

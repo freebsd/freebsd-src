@@ -1,0 +1,370 @@
+Trace Packet Lister: CS Decode library testing
+-----------------------------------------------
+
+Trace Packet Lister : reading snapshot from path ../../../snapshots/juno_r1_1
+snapshot_parser : Start of snapshot section
+snapshot_parser : Start of device_list section
+snapshot_parser : Start of trace section
+snapshot_reader : Parsed snapshot.ini.
+Found 13 devices.
+snapshot_reader : Device 1: Ini file = cpu_0.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 2: Ini file = cpu_1.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 3: Ini file = cpu_2.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 4: Ini file = cpu_3.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 5: Ini file = cpu_4.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 6: Ini file = cpu_5.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 7: Ini file = device_6.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 8: Ini file = device_7.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 9: Ini file = device_8.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 10: Ini file = device_9.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 11: Ini file = device_10.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 12: Ini file = device_11.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 13: Ini file = device_12.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Trace Metadata ini file found : trace.ini
+snapshot_parser : Start of trace_buffers section
+snapshot_parser : Start of buffer0 section
+snapshot_parser : Start of buffer1 section
+snapshot_parser : Start of source_buffers section
+snapshot_parser : Start of core_trace_sources section
+snapshot_reader : Done.
+Using ETB_0 as trace source
+Trace Packet Lister : ETMv4 Protocol on Trace ID 0x13
+Idx:4016; ID:13;	I_ASYNC : Alignment Synchronisation.
+Idx:4028; ID:13;	I_TRACE_INFO : Trace Info.
+Idx:4032; ID:13;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC000096A00; 
+Idx:4097; ID:13;	I_TRACE_ON : Trace On.
+Idx:4098; ID:13;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0xFFFFFFC000096A00; Ctxt: AArch64,EL1, NS; CID=0x00000000; VMID=0x0000; 
+Idx:4154; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4155; ID:13;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC000594AC0; 
+Idx:4210; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4211; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0xFFFFFFC000592B58 ~[0x12B58]
+Idx:4214; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:4215; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4216; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC4C8; 
+Idx:4221; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:4222; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000EA588; 
+Idx:4263; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:4264; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00592B60; 
+Idx:4272; ID:13;	I_EXCEPT : Exception.;  IRQ; Ret Addr Follows;
+Idx:4274; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00592B64 ~[0x164]
+Idx:4276; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00083280; 
+Idx:4324; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:4325; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000813DC ~[0x13DC]
+Idx:4336; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:4337; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000813F8 ~[0x1F8]
+Idx:4369; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:4370; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:4371; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00118B94; 
+Idx:4396; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:4400; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4401; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00118B9C ~[0x19C]
+Idx:4403; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4404; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x0008141C; 
+Idx:4428; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:4429; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:4436; ID:13;	I_ATOM_F3 : Atom format 3.; NEE
+Idx:4437; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x0011D080; 
+Idx:4468; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4469; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000A2E04; 
+Idx:4500; ID:13;	I_ATOM_F5 : Atom format 5.; NEEEE
+Idx:4501; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4502; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000F4014; 
+Idx:4525; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:4532; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:4533; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC4C8; 
+Idx:4570; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:4571; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000EA588; 
+Idx:4602; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:4603; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F4048 ~[0x14048]
+Idx:4624; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEE
+Idx:4625; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F33FC ~[0x133FC]
+Idx:4634; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:4635; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:4636; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F40C8 ~[0x140C8]
+Idx:4763; ID:13;	I_ATOM_F5 : Atom format 5.; NEEEE
+Idx:4764; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:4765; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:4836; ID:13;	I_ASYNC : Alignment Synchronisation.
+Idx:4851; ID:13;	I_TRACE_INFO : Trace Info.
+Idx:4854; ID:13;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC000781E8C; 
+Idx:4978; ID:13;	I_TRACE_ON : Trace On.
+Idx:4979; ID:13;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0xFFFFFFC000781E8C; Ctxt: AArch64,EL1, NS; CID=0x00000000; VMID=0x0000; 
+Idx:5024; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5032; ID:13;	I_ASYNC : Alignment Synchronisation.
+Idx:5046; ID:13;	I_TRACE_INFO : Trace Info.
+Idx:5049; ID:13;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC000781E8C; 
+Idx:5080; ID:13;	I_TRACE_ON : Trace On.
+Idx:5081; ID:13;	I_ADDR_CTXT_L_64IS0 : Address & Context, Long, 64 bit, IS0.; Addr=0xFFFFFFC000781E8C; Ctxt: AArch64,EL1, NS; CID=0x00000000; VMID=0x0000; 
+Idx:5098; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:5099; ID:13;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC0000F3698; 
+Idx:5124; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5125; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0xFFFFFFC0000F408C ~[0x1408C]
+Idx:5144; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5145; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000A2E54; 
+Idx:5170; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:5171; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5172; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000A2E5C ~[0x5C]
+Idx:5174; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5175; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00084898; 
+Idx:5232; ID:13;	I_ATOM_F4 : Atom format 4.; NEEE
+Idx:5233; ID:13;	I_ATOM_F3 : Atom format 3.; NNN
+Idx:5242; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:5243; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:5244; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x0041CE04; 
+Idx:5257; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5258; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x001132DC; 
+Idx:5265; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:5266; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x0011754C ~[0x1754C]
+Idx:5299; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5300; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC27C; 
+Idx:5313; ID:13;	I_ATOM_F3 : Atom format 3.; NEE
+Idx:5314; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000C57DC; 
+Idx:5353; ID:13;	I_ATOM_F4 : Atom format 4.; NENE
+Idx:5354; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5355; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000C5860 ~[0x5860]
+Idx:5402; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:5403; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC4C8; 
+Idx:5440; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5441; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000EC360; 
+Idx:5474; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:5475; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000C5884; 
+Idx:5520; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEN
+Idx:5521; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5522; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC2B8; 
+Idx:5527; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5528; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x001175D4; 
+Idx:5533; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:5536; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00435F34; 
+Idx:5545; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5546; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x001175EC; 
+Idx:5563; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5564; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x001132F0 ~[0x132F0]
+Idx:5573; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5574; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000848B0; 
+Idx:5603; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:5616; ID:13;	I_ATOM_F3 : Atom format 3.; NEE
+Idx:5617; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:5618; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000A2ED0; 
+Idx:5634; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:5650; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:5651; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:5652; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5653; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC4C8; 
+Idx:5670; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5671; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000EA588; 
+Idx:5688; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:5689; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F376C ~[0x1376C]
+Idx:5722; ID:13;	I_ATOM_F5 : Atom format 5.; NNNNN
+Idx:5723; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:5724; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5728; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F3824 ~[0x13824]
+Idx:5746; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:5747; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5748; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F3848 ~[0x48]
+Idx:5766; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:5767; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5768; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F39B0 ~[0x1B0]
+Idx:5804; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:5808; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5809; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000ABE00; 
+Idx:5843; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEN
+Idx:5844; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5845; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000C5744; 
+Idx:5880; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:5881; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000C57C4 ~[0x1C4]
+Idx:5893; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5894; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000ABF88; 
+Idx:5907; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:5908; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000F39C0; 
+Idx:5921; ID:13;	I_ATOM_F3 : Atom format 3.; NEE
+Idx:5922; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:5923; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:5932; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:5936; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000F3FAC ~[0x13FAC]
+Idx:5939; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:5940; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000A2F04; 
+Idx:5980; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:5981; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:5984; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:5985; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x0011CFD4; 
+Idx:6001; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6002; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000A2F08; 
+Idx:6007; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6008; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000848B4; 
+Idx:6028; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6029; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00081424 ~[0x1424]
+Idx:6058; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:6059; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00083DAC ~[0x3DAC]
+Idx:6088; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6089; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00592B64; 
+Idx:6146; ID:13;	I_EXCEPT_RTN : Exception Return.
+Idx:6147; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6148; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6149; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00592B6C ~[0x16C]
+Idx:6181; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:6182; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00592C98 ~[0x12C98]
+Idx:6185; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:6186; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00594354 ~[0x14354]
+Idx:6201; ID:13;	I_ATOM_F2 : Atom format 2.; NE
+Idx:6202; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00592CCC ~[0x12CCC]
+Idx:6211; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6212; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00085174; 
+Idx:6217; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:6218; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000E90D0; 
+Idx:6277; ID:13;	I_ATOM_F3 : Atom format 3.; NEN
+Idx:6278; ID:13;	I_ATOM_F3 : Atom format 3.; NEN
+Idx:6279; ID:13;	I_ATOM_F3 : Atom format 3.; NNN
+Idx:6280; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6281; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x0011CDCC; 
+Idx:6292; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6293; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000E90DC; 
+Idx:6322; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:6323; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000E90E8 ~[0xE8]
+Idx:6325; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:6336; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000E902C ~[0x2C]
+Idx:6338; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:6339; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6340; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000E8FF4 ~[0x8FF4]
+Idx:6343; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:6368; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000E90AC ~[0x90AC]
+Idx:6371; ID:13;	I_ATOM_F4 : Atom format 4.; NENE
+Idx:6394; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x000E90BC ~[0xBC]
+Idx:6396; ID:13;	I_ATOM_F4 : Atom format 4.; NENE
+Idx:6400; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6416; ID:13;	I_ATOM_F3 : Atom format 3.; NNN
+Idx:6417; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6418; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x0011CE88; 
+Idx:6434; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6435; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000E90CC; 
+Idx:6465; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6466; ID:13;	I_ATOM_F3 : Atom format 3.; NNN
+Idx:6467; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:6468; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00592C40; 
+Idx:6473; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6474; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00594394 ~[0x14394]
+Idx:6489; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:6490; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x005943D8 ~[0x1D8]
+Idx:6534; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:6535; ID:13;	I_ATOM_F5 : Atom format 5.; NEEEE
+Idx:6536; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6537; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x005943F4 ~[0x1F4]
+Idx:6545; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:6546; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6547; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x005943F8 ~[0x1F8]
+Idx:6571; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:6572; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00594434 ~[0x14434]
+Idx:6578; ID:13;	I_ATOM_F4 : Atom format 4.; NENE
+Idx:6579; ID:13;	I_ATOM_F3 : Atom format 3.; EEE
+Idx:6580; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00594468 ~[0x68]
+Idx:6601; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:6602; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:6603; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6616; ID:13;	I_ATOM_F3 : Atom format 3.; NEN
+Idx:6617; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:6618; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:6619; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6664; ID:13;	I_ATOM_F3 : Atom format 3.; NEN
+Idx:6665; ID:13;	I_ATOM_F4 : Atom format 4.; NENE
+Idx:6666; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEEEEEEEEEEEEEEEEEN
+Idx:6667; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:6684; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEN
+Idx:6688; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6689; ID:13;	I_ATOM_F5 : Atom format 5.; NEEEE
+Idx:6690; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:6710; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEN
+Idx:6711; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEN
+Idx:6712; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6713; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00594518 ~[0x118]
+Idx:6739; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:6740; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6741; ID:13;	I_ATOM_F4 : Atom format 4.; NEEE
+Idx:6758; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:6759; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:6760; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:6761; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:6780; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6781; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:6784; ID:13;	I_ATOM_F5 : Atom format 5.; NEEEE
+Idx:6785; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEEEEEEEEEEEEEEN
+Idx:6822; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEN
+Idx:6823; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEEEEEN
+Idx:6824; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:6825; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6838; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEN
+Idx:6839; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEN
+Idx:6840; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6841; ID:13;	I_ADDR_MATCH : Exact Address Match., [0]
+Idx:6882; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:6883; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6884; ID:13;	I_ATOM_F4 : Atom format 4.; NEEE
+Idx:6885; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:6900; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6901; ID:13;	I_ATOM_F5 : Atom format 5.; NENEN
+Idx:6902; ID:13;	I_ATOM_F6 : Atom format 6.; EEEN
+Idx:6903; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6946; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6947; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEEEEEEEEEEEEEEEEEEE
+Idx:6948; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6949; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEEN
+Idx:6972; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6976; ID:13;	I_ATOM_F5 : Atom format 5.; NEEEE
+Idx:6977; ID:13;	I_ATOM_F6 : Atom format 6.; EEEEEN
+Idx:6978; ID:13;	I_ATOM_F5 : Atom format 5.; ENENE
+Idx:6988; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6989; ID:13;	I_ATOM_F3 : Atom format 3.; EEN
+Idx:6992; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:6993; ID:13;	I_ADDR_MATCH : Exact Address Match., [0]
+Idx:7004; ID:13;	I_ATOM_F3 : Atom format 3.; ENE
+Idx:7005; ID:13;	I_ATOM_F4 : Atom format 4.; ENEN
+Idx:7008; ID:13;	I_ATOM_F3 : Atom format 3.; NEE
+Idx:7009; ID:13;	I_ATOM_F3 : Atom format 3.; NEE
+Idx:7024; ID:13;	I_ATOM_F4 : Atom format 4.; NENE
+Idx:7025; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00592C54 ~[0x12C54]
+Idx:7066; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:7067; ID:13;	I_ATOM_F3 : Atom format 3.; ENN
+Idx:7068; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:7069; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x005AC4C8; 
+Idx:7094; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:7095; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x000EA588; 
+Idx:7108; ID:13;	I_ATOM_F3 : Atom format 3.; NNE
+Idx:7109; ID:13;	I_ADDR_L_32IS0 : Address, Long, 32 bit, IS0.; Addr=0x00592B34; 
+Idx:7120; ID:13;	I_ATOM_F1 : Atom format 1.; E
+Idx:7121; ID:13;	I_ADDR_S_IS0 : Address, Short, IS0.; Addr=0x00594A88 ~[0x14A88]
+Idx:7130; ID:13;	I_ATOM_F2 : Atom format 2.; EE
+Idx:7460; ID:13;	I_ASYNC : Alignment Synchronisation.
+Idx:7474; ID:13;	I_TRACE_INFO : Trace Info.
+Idx:7477; ID:13;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC000096A00; 
+ID:13	END OF TRACE DATA
+Trace Packet Lister : Trace buffer done, processed 65536 bytes.

@@ -1,0 +1,69 @@
+Trace Packet Lister: CS Decode library testing
+-----------------------------------------------
+
+Trace Packet Lister : reading snapshot from path ../../../snapshots/juno_r1_1
+snapshot_parser : Start of snapshot section
+snapshot_parser : Start of device_list section
+snapshot_parser : Start of trace section
+snapshot_reader : Parsed snapshot.ini.
+Found 13 devices.
+snapshot_reader : Device 1: Ini file = cpu_0.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 2: Ini file = cpu_1.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 3: Ini file = cpu_2.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 4: Ini file = cpu_3.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 5: Ini file = cpu_4.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 6: Ini file = cpu_5.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 7: Ini file = device_6.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 8: Ini file = device_7.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 9: Ini file = device_8.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 10: Ini file = device_9.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 11: Ini file = device_10.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 12: Ini file = device_11.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Device 13: Ini file = device_12.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Trace Metadata ini file found : trace.ini
+snapshot_parser : Start of trace_buffers section
+snapshot_parser : Start of buffer0 section
+snapshot_parser : Start of buffer1 section
+snapshot_parser : Start of source_buffers section
+snapshot_parser : Start of core_trace_sources section
+snapshot_reader : Done.
+Using ETB_0 as trace source
+Trace Packet Lister : ETMv4 Protocol on Trace ID 0x12
+Idx:4068; ID:12;	I_NOT_SYNC : I Stream not synchronised
+Idx:7240; ID:12;	I_ASYNC : Alignment Synchronisation.
+Idx:7255; ID:12;	I_TRACE_INFO : Trace Info.
+Idx:7258; ID:12;	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0xFFFFFFC000096A00; 
+ID:12	END OF TRACE DATA
+Trace Packet Lister : Trace buffer done, processed 65536 bytes.

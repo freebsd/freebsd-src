@@ -111,6 +111,7 @@ DecodeTree::~DecodeTree()
         destroyDecodeElement(i);
     }
     PktPrinterFact::destroyAllPrinters(m_printer_list);
+    delete m_frame_deformatter_root;
 }
 
 

@@ -1,0 +1,44 @@
+Trace Packet Lister: CS Decode library testing
+-----------------------------------------------
+
+Trace Packet Lister : reading snapshot from path ../../../snapshots/run2
+snapshot_parser : Start of snapshot section
+snapshot_parser : Start of device_list section
+snapshot_parser : Start of trace section
+snapshot_reader : Parsed snapshot.ini.
+Found 2 devices.
+snapshot_reader : Device 1: Ini file = device1.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_parser : Start of dump1 section
+snapshot_reader : Device 2: Ini file = device2.ini; Name = UNKNOWN
+snapshot_parser : Start of device section
+snapshot_parser : Start of regs section
+snapshot_reader : Trace Metadata ini file found : trace.ini
+snapshot_parser : Start of trace_buffers section
+snapshot_parser : Start of buffer0 section
+snapshot_parser : Start of core_trace_sources section
+snapshot_parser : Start of source_buffers section
+snapshot_reader : Done.
+Using CSTMC_TRACE_FIFO as trace source
+Trace Packet Lister : ETMv4 Protocol on Trace ID 0x10
+Frame Data; Index      0; ID_DATA[0x10]; 00 00 00 00 00 00 00 00 00 00 00 80 01 00 
+Idx:0; ID:10; [0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x80 ];	I_ASYNC : Alignment Synchronisation.
+Idx:c; ID:10; [0x01 0x00 ];	I_TRACE_INFO : Trace Info.
+Frame Data; Index     16; ID_DATA[0x10]; 04 81 f2 00 00 00 00 00 00 00 00 9d 12 5a fe 
+Idx:10; ID:10; [0x04 ];	I_TRACE_ON : Trace On.
+Idx:11; ID:10; [0x81 0xf2 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 ];	I_CTXT : Context Packet.; Ctxt: AArch32, EL1, NS; CID=0x00000000; VMID=0x0000; 
+Frame Data; Index     32; ID_DATA[0x10]; ff 00 00 00 00 06 03 9d 13 5a fe ff 00 00 00 
+Idx:1b; ID:10; [0x9d 0x12 0x5a 0xfe 0xff 0x00 0x00 0x00 0x00 ];	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x00000000FFFEB448; 
+Idx:25; ID:10; [0x06 0x03 ];	I_EXCEPT : Exception.;  Debug Halt; Ret Addr Follows;
+Frame Data; Index     48; ID_DATA[0x10]; 00 81 f2 00 00 00 00 00 00 00 00 02 c0 a1 c5 
+Idx:27; ID:10; [0x9d 0x13 0x5a 0xfe 0xff 0x00 0x00 0x00 0x00 ];	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x00000000FFFEB44C; 
+Idx:31; ID:10; [0x81 0xf2 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 ];	I_CTXT : Context Packet.; Ctxt: AArch32, EL1, NS; CID=0x00000000; VMID=0x0000; 
+Frame Data; Index     64; ID_DATA[0x10]; 97 80 80 00 
+Idx:3b; ID:10; [0x02 0xc0 0xa1 0xc5 0x97 0x80 0x80 0x00 ];	I_TIMESTAMP : Timestamp.; Updated val = 0x40812f150c0
+Frame Data; Index     68; ID_DATA[0x 0]; 00 00 00 00 00 00 00 00 00 00 
+Frame Data; Index     80; ID_DATA[0x 0]; 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+Frame Data; Index     96; ID_DATA[0x 0]; 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+Frame Data; Index    112; ID_DATA[0x 0]; 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+ID:10	END OF TRACE DATA
+Trace Packet Lister : Trace buffer done, processed 128 bytes.

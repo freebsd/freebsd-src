@@ -99,6 +99,8 @@ You can include these backports in your kernel by either merging the
 appropriate branch using git or generating patches (using `git
 format-patch`).
 
+For 5.x based kernel onwards, the only patch which needs to be applied is the one enabling strobing - etm4x: `Enable strobing of ETM`.
+
 For 4.9 based kernels, use the `coresight-4.9-etr-etm_strobe` branch:
 
 ```
@@ -129,7 +131,7 @@ git am /output/dir/*.patch # or patch -p1 /output/dir/*.patch if not using git
 
 The CoreSight trace drivers must also be enabled in the kernel
 configuration.  This can be done using the configuration menu (`make
-menuconfig`), selecting `Kernel hacking` / `CoreSight Tracing Support` and
+menuconfig`), selecting `Kernel hacking` / `arm64 Debugging`  /`CoreSight Tracing Support` and
 enabling all options, or by setting the following in the configuration
 file:
 
@@ -165,10 +167,14 @@ CoreSight devices, you should find the devices in sysfs:
 
 ```
 # ls /sys/bus/coresight/devices/
-28440000.etm  28540000.etm  28640000.etm  28740000.etm
-28c03000.funnel  28c04000.etf  28c05000.replicator  28c06000.etr
-28c07000.tpiu
+etm0  etm2  etm4  etm6  funnel0  funnel2  funnel4      stm0      tmc_etr0
+etm1  etm3  etm5  etm7  funnel1  funnel3  replicator0  tmc_etf0
 ```
+
+The naming convention for etm devices can be different according to the kernel version you're using.
+For more information about the naming scheme, please check out the [Linux Kernel Documentation](https://www.kernel.org/doc/html/latest/trace/coresight/coresight.html#device-naming-scheme)
+
+If `/sys/bus/coresight/devices/` is empty, you may want to check out your Kernel configuration to make sure your .config file is including CoreSight dependencies, such as the clock.
 
 ### Perf tools
 
@@ -180,8 +186,11 @@ Arm recommends to use the perf version corresponding to the kernel running
 on the target.  This can be built from the same kernel sources with
 
 ```
-make -C tools/perf ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- 
+make -C tools/perf CORESIGHT=1 VF=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
 ```
+
+When specifying CORESIGHT=1, perf will be built using the installed OpenCSD library.
+If you are cross compiling, then additional setup is required to ensure the build process links against the correct version of the library.
 
 If the post-processing (`perf inject`) of the captured data is not being
 done on the target, then the OpenCSD library is not required for this build
@@ -193,13 +202,22 @@ also be restricted to user space or kernel space with 'u' or 'k'
 parameters.  For example:
 
 ```
-perf record -e cs_etm/@28c06000.etr/u --per-thread -- /bin/ls
+perf record -e cs_etm/@tmc_etr0/u --per-thread -- /bin/ls
 ```
-    
-Will record the userspace execution of '/bin/ls' into the ETR located at
-0x28c06000.  Note the `--per-thread` option is required - perf currently
-only supports trace of a single thread of execution.  CPU wide trace is a
-work in progresss.
+
+Will record the userspace execution of '/bin/ls' using tmc_etr0 as sink.
+
+## Capturing modes
+
+You can trace a single-threaded program in two different ways:
+
+1. By specifying `--per-thread`, and in this case the CoreSight subsystem will
+record only a trace relative to the given program.
+
+2. By NOT specifying `--per-thread`, and in this case CPU-wide tracing will
+be enabled. In this scenario the trace will contain both the target program trace
+and other workloads that were executing on the same CPU
+
 
 
 ## Processing trace and profiles
@@ -241,25 +259,41 @@ For example, a typical configuration is to use a window size of 5000 cycles
 and a period of 10000 - this will collect 5000 cycles of trace every 50M
 cycles.  With these proof-of-concept patches, the strobe parameters are
 configured via sysfs - each ETM will have `strobe_window` and
-`strobe_period` parameters in `/sys/bus/coresight/devices/NNNNNNNN.etm` and
+`strobe_period` parameters in `/sys/bus/coresight/devices/<sink>` and
 these values will have to be written to each (In a future version, this
-will be integrated into the drivers and perf tool).  The `record.sh`
-script in this directory [`<opencsd>/decoder/tests/auto-fdo`] automates this process.
+will be integrated into the drivers and perf tool).
+The `set_strobing.sh` script in this directory [`<opencsd>/decoder/tests/auto-fdo`] automates this process.
 
 To collect trace from an application using ETM strobing, run:
 
 ```
-taskset -c 0 ./record.sh --strobe 5000 10000 28c06000.etr ./my_application arg1 arg2
+sudo ./set_strobing.sh 5000 10000
+perf record -e cs_etm/@tmc_etr0/u --per-thread -- <your app>"
 ```
-
-The taskset command is used to ensure the process stays on the same CPU
-during execution.
 
 The raw trace can be examined using the `perf report` command:
 
 ```
 perf report -D -i perf.data --stdio
 ```
+
+Perf needs to be built from your linux kernel version souce code repository against the OpenCSD library in order to be able to properly read ETM-gathered samples and post-process them.
+If running `perf report` produces an error like:
+
+```
+0x1f8 [0x268]: failed to process type: 70 [Operation not permitted]
+Error:
+failed to process sample
+```
+or
+
+```
+"file uses a more recent and unsupported ABI (8 bytes extra). incompatible file format".
+```
+
+You are probably using a perf version which is not using this library: please make sure to install this project in your system by either compiling it from [Source Code]( <https://github.com/Linaro/OpenCSD>) from v0.9.1 or later and compile perf using this library.
+Otherwise, this project is packaged for debian (install the libopencsd0, libopencsd-dev packages).
+
 
 For example:
 
@@ -295,6 +329,8 @@ an embedded target).  The `perf inject` command
 decodes the execution trace and generates periodic instruction samples,
 with branch histories:
 
+!! Careful: if you are using a device different than the one used to collect the profiling data,
+you'll need to run `perf buildid-cache` as described below.
 ```
 perf inject -i perf.data -o inj.data --itrace=i100000il
 ```
@@ -393,7 +429,8 @@ clang -O2 -fprofile-sample-use=program.llvmprof -o program program.c
 The basic commands to run an application and create a compiler profile are:
 
 ```
-taskset -c 0 ./record.sh --strobe 5000 10000 28c06000.etr ./my_application arg1 arg2
+sudo ./set_strobing.sh 5000 10000
+perf record -e cs_etm/@tmc_etr0/u --per-thread -- <your app>"
 perf inject -i perf.data -o inj.data --itrace=i100000il
 create_llvm_prof -binary=/path/to/binary -profile=inj.data -out=program.llvmprof
 ```

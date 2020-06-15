@@ -56,7 +56,12 @@ CXXFLAGS += $(MFLAG)
 CFLAGS += $(MFLAG)
 LDFLAGS += $(MFLAG)
 
+ifdef GCCDIR
+GCCVER:= $(shell $(CROSS_COMPILE)gcc -dumpversion | cut -c 1-3)
+PLAT_DIR=builddir/linux$(BIT_VARIANT)/GCC_$(GCCVER)
+else
 PLAT_DIR=linux$(BIT_VARIANT)/$(BUILD_VARIANT)
+endif
 
 # include the main makefile
 include makefile
