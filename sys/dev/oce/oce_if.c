@@ -539,6 +539,7 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			
 			if (IFCAP_TSO & ifp->if_capenable &&
 			    !(IFCAP_TXCSUM & ifp->if_capenable)) {
+				u &= ~IFCAP_TSO;
 				ifp->if_capenable &= ~IFCAP_TSO;
 				ifp->if_hwassist &= ~CSUM_TSO;
 				if_printf(ifp,
