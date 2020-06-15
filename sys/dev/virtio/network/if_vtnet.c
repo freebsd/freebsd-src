@@ -128,6 +128,7 @@ static int	vtnet_rxq_merged_eof(struct vtnet_rxq *, struct mbuf *, int);
 static void	vtnet_rxq_input(struct vtnet_rxq *, struct mbuf *,
 		    struct virtio_net_hdr *);
 static int	vtnet_rxq_eof(struct vtnet_rxq *);
+static void	vtnet_rx_vq_process(struct vtnet_rxq *rxq, int tries);
 static void	vtnet_rx_vq_intr(void *);
 static void	vtnet_rxq_tq_intr(void *, int);
 
@@ -1915,20 +1916,17 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 }
 
 static void
-vtnet_rx_vq_intr(void *xrxq)
+vtnet_rx_vq_process(struct vtnet_rxq *rxq, int tries)
 {
 	struct vtnet_softc *sc;
-	struct vtnet_rxq *rxq;
 	struct ifnet *ifp;
-	int tries, more;
+	int more;
 #ifdef DEV_NETMAP
 	int nmirq;
 #endif /* DEV_NETMAP */
 
-	rxq = xrxq;
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
-	tries = 0;
 
 	if (__predict_false(rxq->vtnrx_id >= sc->vtnet_act_vq_pairs)) {
 		/*
@@ -1976,58 +1974,32 @@ again:
 		 * This is an occasional condition or race (when !more),
 		 * so retry a few times before scheduling the taskqueue.
 		 */
-		if (tries++ < VTNET_INTR_DISABLE_RETRIES)
+		if (tries-- > 0)
 			goto again;
 
-		VTNET_RXQ_UNLOCK(rxq);
 		rxq->vtnrx_stats.vrxs_rescheduled++;
+		VTNET_RXQ_UNLOCK(rxq);
 		taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
 	} else
 		VTNET_RXQ_UNLOCK(rxq);
 }
 
 static void
-vtnet_rxq_tq_intr(void *xrxq, int pending)
+vtnet_rx_vq_intr(void *xrxq)
 {
-	struct vtnet_softc *sc;
 	struct vtnet_rxq *rxq;
-	struct ifnet *ifp;
-	int more;
-#ifdef DEV_NETMAP
-	int nmirq;
-#endif /* DEV_NETMAP */
 
 	rxq = xrxq;
-	sc = rxq->vtnrx_sc;
-	ifp = sc->vtnet_ifp;
+	vtnet_rx_vq_process(rxq, VTNET_INTR_DISABLE_RETRIES);
+}
 
-	VTNET_RXQ_LOCK(rxq);
+static void
+vtnet_rxq_tq_intr(void *xrxq, int pending)
+{
+	struct vtnet_rxq *rxq;
 
-#ifdef DEV_NETMAP
-	nmirq = netmap_rx_irq(ifp, rxq->vtnrx_id, &more);
-	if (nmirq != NM_IRQ_PASS) {
-		VTNET_RXQ_UNLOCK(rxq);
-		if (nmirq == NM_IRQ_RESCHED) {
-			taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
-		}
-		return;
-	}
-#endif /* DEV_NETMAP */
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		VTNET_RXQ_UNLOCK(rxq);
-		return;
-	}
-
-	more = vtnet_rxq_eof(rxq);
-	if (more || vtnet_rxq_enable_intr(rxq) != 0) {
-		if (!more)
-			vtnet_rxq_disable_intr(rxq);
-		rxq->vtnrx_stats.vrxs_rescheduled++;
-		taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
-	}
-
-	VTNET_RXQ_UNLOCK(rxq);
+	rxq = xrxq;
+	vtnet_rx_vq_process(rxq, 0);
 }
 
 static int
