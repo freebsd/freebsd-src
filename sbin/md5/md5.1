@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd July 9, 2018
+.Dd June 15, 2020
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -16,8 +16,8 @@
 (All other hashes have the same options and usage.)
 .Sh DESCRIPTION
 The
-.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512, sha512t256, rmd160,
-.Nm skein256, skein512,
+.Nm md5 , sha1 , sha224 , sha256 , sha384 , sha512 , sha512t256 , rmd160 ,
+.Nm skein256 , skein512 ,
 and
 .Nm skein1024
 utilities take as input a message of arbitrary length and produce as
@@ -29,43 +29,29 @@ of the input.
 It is conjectured that it is computationally infeasible to
 produce two messages having the same message digest, or to produce any
 message having a given prespecified target message digest.
-The
-.Tn SHA-224 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
-and
-.Tn SKEIN
+The SHA-224 , SHA-256 , SHA-384 , SHA-512, RIPEMD-160,
+and SKEIN
 algorithms are intended for digital signature applications, where a
 large file must be
 .Dq compressed
 in a secure manner before being encrypted with a private
 (secret)
-key under a public-key cryptosystem such as
-.Tn RSA .
+key under a public-key cryptosystem such as RSA.
 .Pp
-The
-.Tn MD5
-and
-.Tn SHA-1
-algorithms have been proven to be vulnerable to practical collision
-attacks and should not be relied upon to produce unique outputs,
+The MD5 and SHA-1 algorithms have been proven to be vulnerable to practical
+collision attacks and should not be relied upon to produce unique outputs,
 .Em nor should they be used as part of a cryptographic signature scheme.
 As of 2017-03-02, there is no publicly known method to
 .Em reverse
-either algorithm, i.e. to find an input that produces a specific
+either algorithm, i.e., to find an input that produces a specific
 output.
 .Pp
-.Tn SHA-512t256
-is a version of
-.Tn SHA-512
-truncated to only 256 bits.
-On 64-bit hardware, this algorithm is approximately 50% faster than
-.Tn SHA-256
-but with the same level of security.
+SHA-512t256 is a version of SHA-512 truncated to only 256 bits.
+On 64-bit hardware, this algorithm is approximately 50% faster than SHA-256 but
+with the same level of security.
 The hashes are not interchangeable.
 .Pp
-It is recommended that all new applications use
-.Tn SHA-512
-or
-.Tn SKEIN-512
+It is recommended that all new applications use SHA-512 or SKEIN-512
 instead of one of the other hash functions.
 .Pp
 The following options may be used in any combination and must
@@ -101,7 +87,7 @@ Run a built-in test script.
 .Sh EXIT STATUS
 The
 .Nm md5 , sha1 , sha224 , sha256 , sha512 , sha512t256 , rmd160 ,
-.Nm skein256 , skein512,
+.Nm skein256 , skein512 ,
 and
 .Nm skein1024
 utilities exit 0 on success,
@@ -114,7 +100,6 @@ option.
 .Xr md5 3 ,
 .Xr ripemd 3 ,
 .Xr sha 3 ,
-.Xr sha224 3 ,
 .Xr sha256 3 ,
 .Xr sha384 3 ,
 .Xr sha512 3 ,
