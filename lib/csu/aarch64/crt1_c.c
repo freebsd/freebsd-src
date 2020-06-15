@@ -1,7 +1,12 @@
 /* LINTLIBRARY */
 /*-
  * Copyright 1996-1998 John D. Polstra.
+ * Copyright 2014 Andrew Turner.
+ * Copyright 2014-2015 The FreeBSD Foundation.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,8 +27,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -34,10 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "ignore_init.c"
 
-typedef void (*fptr)(void);
-
-extern void _start(char *, ...);
-
 #ifdef GCRT
 extern void _mcleanup(void);
 extern void monstartup(void *, void *);
@@ -45,22 +44,21 @@ extern int eprol;
 extern int etext;
 #endif
 
-void _start1(fptr, int, char *[]) __dead2;
+extern long * _end;
 
-/* The entry function, C part. */
+void __start(int, char **, char **, void (*)(void));
+
+/* The entry function. */
 void
-_start1(fptr cleanup, int argc, char *argv[])
+__start(int argc, char *argv[], char *env[], void (*cleanup)(void))
 {
-	char **env;
 
-	env = argv + argc + 1;
 	handle_argv(argc, argv, env);
-	if (&_DYNAMIC != NULL) {
+
+	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	} else {
-		process_irelocs();
+	else
 		_init_tls();
-	}
 
 #ifdef GCRT
 	atexit(_mcleanup);
@@ -71,5 +69,3 @@ __asm__("eprol:");
 	handle_static_init(argc, argv, env);
 	exit(main(argc, argv, env));
 }
-
-__asm(".hidden	_start1");

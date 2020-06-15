@@ -1,9 +1,12 @@
 /* LINTLIBRARY */
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
- *
  * Copyright 1996-1998 John D. Polstra.
+ * Copyright 2014 Andrew Turner.
+ * Copyright 2014-2015 The FreeBSD Foundation.
  * All rights reserved.
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,52 +29,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdlib.h>
+#include "crtbrand.S"
+#include "ignore_init_note.S"
 
-#include "libc_private.h"
-#include "crtbrand.c"
-#include "ignore_init.c"
+ENTRY(_start)
+	mov	x3, x2		/* cleanup */
+	add	x1, x0, #8	/* load argv */
+	ldr	x0, [x0]	/* load argc */
+	add	x2, x1, x0, lsl #3 /* env is after argv */
+	add	x2, x2, #8	/* argv is null terminated */
+	b	 __start
+END(_start)
 
-typedef void (*fptr)(void);
-
-#ifdef GCRT
-extern void _mcleanup(void);
-extern void monstartup(void *, void *);
-extern int eprol;
-extern int etext;
-#endif
-
-void _start(char **, void (*)(void));
-
-/* The entry function. */
-void
-_start(char **ap, void (*cleanup)(void))
-{
-	int argc;
-	char **argv;
-	char **env;
-
-	argc = *(long *)(void *)ap;
-	argv = ap + 1;
-	env = ap + 2 + argc;
-	handle_argv(argc, argv, env);
-
-	if (&_DYNAMIC != NULL) {
-		atexit(cleanup);
-	} else {
-		process_irelocs();
-		_init_tls();
-	}
-
-#ifdef GCRT
-	atexit(_mcleanup);
-	monstartup(&eprol, &etext);
-__asm__("eprol:");
-#endif
-
-	handle_static_init(argc, argv, env);
-	exit(main(argc, argv, env));
-}
+	.section .note.GNU-stack,"",@progbits

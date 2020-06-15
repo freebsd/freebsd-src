@@ -41,94 +41,38 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/elf_common.h>
-#include <stdlib.h>
+#include "crtbrand.S"
+#include "ignore_init_note.S"
 
-#include "libc_private.h"
-#include "crtbrand.c"
-#include "ignore_init.c"
+ENTRY(_start)
+	mov	r5, r2		/* cleanup */
+	mov	r4, r1		/* obj_main */
+	mov	r3, r0		/* ps_strings */
+	/* Get argc, argv, and envp from stack */
+	ldr	r0, [sp, #0x0000]
+	add	r1, sp, #0x0004
+	add	r2, r1, r0, lsl #2
+	add	r2, r2, #0x0004
+	/* Ensure the stack is properly aligned before calling C code. */
+	bic	sp, sp, #7
+	sub	sp, sp, #8
+	str	r5, [sp, #4]
+	str	r4, [sp, #0]
 
-struct Struct_Obj_Entry;
-struct ps_strings;
+	b	 __start
+END(_start)
 
-extern void _start(int, char **, char **, const struct Struct_Obj_Entry *,
-    void (*)(void), struct ps_strings *);
+	.section .note.tag,"a",%note
+	.p2align	2
+	.4byte		2f-1f
+	.4byte		4f-3f
+	.4byte		NT_FREEBSD_ARCH_TAG
+1:	.asciz		NOTE_FREEBSD_VENDOR
+2:	.p2align	2
+3:	.asciz		MACHINE_ARCH
+4:
 
-#ifdef GCRT
-extern void _mcleanup(void);
-extern void monstartup(void *, void *);
-extern int eprol;
-extern int etext;
-#endif
-
-struct ps_strings *__ps_strings;
-
-void __start(int, char **, char **, struct ps_strings *,
-    const struct Struct_Obj_Entry *, void (*)(void));
-
-/* The entry function. */
-__asm("	.text			\n"
-"	.align	0		\n"
-"	.globl	_start		\n"
-"	_start:			\n"
-"	mov	r5, r2		/* cleanup */		\n"
-"	mov	r4, r1		/* obj_main */		\n"
-"	mov	r3, r0		/* ps_strings */	\n"
-"	/* Get argc, argv, and envp from stack */	\n"
-"	ldr	r0, [sp, #0x0000]	\n"
-"	add	r1, sp, #0x0004		\n"
-"	add	r2, r1, r0, lsl #2	\n"
-"	add	r2, r2, #0x0004		\n"
-"	/* Ensure the stack is properly aligned before calling C code. */\n"
-"	bic	sp, sp, #7	\n"
-"	sub	sp, sp, #8	\n"
-"	str	r5, [sp, #4]	\n"
-"	str	r4, [sp, #0]	\n"
-"\n"
-"	b	 __start  ");
-/* ARGSUSED */
-void
-__start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
-    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void))
-{
-
-	handle_argv(argc, argv, env);
-
-	if (ps_strings != (struct ps_strings *)0)
-		__ps_strings = ps_strings;
-
-	if (&_DYNAMIC != NULL)
-		atexit(cleanup);
-	else
-		_init_tls();
-#ifdef GCRT
-	atexit(_mcleanup);
-	monstartup(&eprol, &etext);
-#endif
-	handle_static_init(argc, argv, env);
-	exit(main(argc, argv, env));
-}
-
-static const struct {
-	int32_t	namesz;
-	int32_t	descsz;
-	int32_t	type;
-	char	name[sizeof(NOTE_FREEBSD_VENDOR)];
-	char	desc[sizeof(MACHINE_ARCH)];
-} archtag __attribute__ ((section (NOTE_SECTION), aligned(4))) __used = {
-	.namesz = sizeof(NOTE_FREEBSD_VENDOR),
-	.descsz = sizeof(MACHINE_ARCH),
-	.type = NT_FREEBSD_ARCH_TAG,
-	.name = NOTE_FREEBSD_VENDOR,
-	.desc = MACHINE_ARCH
-};
-
-#ifdef GCRT
-__asm__(".text");
-__asm__("eprol:");
-__asm__(".previous");
-#endif
+	.section .note.GNU-stack,"",%progbits

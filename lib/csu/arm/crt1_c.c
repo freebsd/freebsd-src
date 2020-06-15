@@ -44,15 +44,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/elf_common.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <sys/elf.h>
-
-static uint32_t cpu_features;
-static uint32_t cpu_features2;
 
 #include "libc_private.h"
-#include "crtbrand.c"
 #include "ignore_init.c"
 
 struct Struct_Obj_Entry;
@@ -70,40 +66,13 @@ extern int etext;
 
 struct ps_strings *__ps_strings;
 
-static void
-init_cpu_features(char **env)
-{
-	const Elf_Auxinfo *aux;
+void __start(int, char **, char **, struct ps_strings *,
+    const struct Struct_Obj_Entry *, void (*)(void));
 
-	/* Find the auxiliary vector on the stack. */
-	while (*env++ != 0)	/* Skip over environment, and NULL terminator */
-		;
-	aux = (const Elf_Auxinfo *)env;
-
-	/* Digest the auxiliary vector. */
-	for (;  aux->a_type != AT_NULL; aux++) {
-		switch (aux->a_type) {
-		case AT_HWCAP:
-			cpu_features = (uint32_t)aux->a_un.a_val;
-			break;
-		case AT_HWCAP2:
-			cpu_features2 = (uint32_t)aux->a_un.a_val;
-			break;
-		}
-	}
-}
-
-
-/* The entry function. */
-/*
- * First 5 arguments are specified by the PowerPC SVR4 ABI.
- * The last argument, ps_strings, is a BSD extension.
- */
 /* ARGSUSED */
 void
-_start(int argc, char **argv, char **env,
-    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void),
-    struct ps_strings *ps_strings)
+__start(int argc, char **argv, char **env, struct ps_strings *ps_strings,
+    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void))
 {
 
 	handle_argv(argc, argv, env);
@@ -113,17 +82,12 @@ _start(int argc, char **argv, char **env,
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else {
-		init_cpu_features(env);
-		process_irelocs();
+	else
 		_init_tls();
-	}
-
 #ifdef GCRT
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
 #endif
-
 	handle_static_init(argc, argv, env);
 	exit(main(argc, argv, env));
 }

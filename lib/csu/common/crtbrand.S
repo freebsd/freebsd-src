@@ -1,12 +1,8 @@
-/* LINTLIBRARY */
 /*-
- * Copyright 1996-1998 John D. Polstra.
- * Copyright 2014 Andrew Turner.
- * Copyright 2014-2015 The FreeBSD Foundation.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Portions of this software were developed by Andrew Turner
- * under sponsorship from the FreeBSD Foundation.
+ * Copyright 2000 David E. O'Brien, John D. Polstra.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,57 +25,35 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdlib.h>
+#include <sys/param.h>
+#include <sys/elf_common.h>
+#include "notes.h"
 
-#include "libc_private.h"
-#include "crtbrand.c"
-#include "ignore_init.c"
+/*
+ * Special ".note.tag" entry specifying the ABI version.  See
+ * http://www.netbsd.org/Documentation/kernel/elf-notes.html
+ * for more information.
+ */
 
-#ifdef GCRT
-extern void _mcleanup(void);
-extern void monstartup(void *, void *);
-extern int eprol;
-extern int etext;
-#endif
+	.section .note.tag,"a",%note
+	.p2align	2
+	.4byte		2f-1f
+	.4byte		4f-3f
+	.4byte		NT_FREEBSD_ABI_TAG
+1:	.asciz		NOTE_FREEBSD_VENDOR
+2:	.p2align	2
+3:	.4byte		__FreeBSD_version
+4:
 
-extern long * _end;
-
-void __start(int, char **, char **, void (*)(void));
-
-/* The entry function. */
-__asm("	.text			\n"
-"	.align	0		\n"
-"	.globl	_start		\n"
-"	_start:			\n"
-"	mov	x3, x2		\n" /* cleanup */
-"	add	x1, x0, #8	\n" /* load argv */
-"	ldr	x0, [x0]	\n" /* load argc */
-"	add	x2, x1, x0, lsl #3 \n" /* env is after argv */
-"	add	x2, x2, #8	\n" /* argv is null terminated */
-"	b	 __start  ");
-
-
-/* The entry function. */
-void
-__start(int argc, char *argv[], char *env[], void (*cleanup)(void))
-{
-
-	handle_argv(argc, argv, env);
-
-	if (&_DYNAMIC != NULL)
-		atexit(cleanup);
-	else
-		_init_tls();
-
-#ifdef GCRT
-	atexit(_mcleanup);
-	monstartup(&eprol, &etext);
-__asm__("eprol:");
-#endif
-
-	handle_static_init(argc, argv, env);
-	exit(main(argc, argv, env));
-}
+	.section .note.tag,"a",%note
+	.p2align	2
+	.4byte		2f-1f
+	.4byte		4f-3f
+	.4byte		NT_FREEBSD_FEATURE_CTL
+1:	.asciz		NOTE_FREEBSD_VENDOR
+2:	.p2align	2
+3:	.4byte		0
+4:
