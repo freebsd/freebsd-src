@@ -54,25 +54,15 @@
 
 #define __PCI_REROUTE_INTERRUPT
 
-#if __ARM_ARCH >= 7
-#define	_V_SUFFIX "v7"
-#elif __ARM_ARCH >= 6
-#define	_V_SUFFIX "v6"
-#else
-#define	_V_SUFFIX ""
-#endif
-
-#ifdef __ARM_BIG_ENDIAN
-#define	_EB_SUFFIX "eb"
-#else
-#define	_EB_SUFFIX ""
-#endif
-
 #ifndef MACHINE
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"arm" _V_SUFFIX _EB_SUFFIX
+#if __ARM_ARCH >= 7
+#define	MACHINE_ARCH	"armv7"
+#else
+#define	MACHINE_ARCH	"armv6"
+#endif
 #endif
 
 #ifdef SMP
