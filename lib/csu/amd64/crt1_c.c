@@ -1,5 +1,7 @@
 /* LINTLIBRARY */
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright 1996-1998 John D. Polstra.
  * All rights reserved.
  *
@@ -22,8 +24,6 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 
 typedef void (*fptr)(void);
 
-extern void _start(char *, ...);
-
 #ifdef GCRT
 extern void _mcleanup(void);
 extern void monstartup(void *, void *);
@@ -45,16 +43,21 @@ extern int eprol;
 extern int etext;
 #endif
 
-void _start1(fptr, int, char *[]) __dead2;
+void _start(char **, void (*)(void));
 
-/* The entry function, C part. */
+/* The entry function. */
 void
-_start1(fptr cleanup, int argc, char *argv[])
+_start(char **ap, void (*cleanup)(void))
 {
+	int argc;
+	char **argv;
 	char **env;
 
-	env = argv + argc + 1;
+	argc = *(long *)(void *)ap;
+	argv = ap + 1;
+	env = ap + 2 + argc;
 	handle_argv(argc, argv, env);
+
 	if (&_DYNAMIC != NULL) {
 		atexit(cleanup);
 	} else {
@@ -71,5 +74,3 @@ __asm__("eprol:");
 	handle_static_init(argc, argv, env);
 	exit(main(argc, argv, env));
 }
-
-__asm(".hidden	_start1");

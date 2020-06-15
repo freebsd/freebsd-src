@@ -1,6 +1,9 @@
-/* LINTLIBRARY */
 /*-
+ * SPDX-License-Identifier: BSD-4-Clause
+ *
  * Copyright 1996-1998 John D. Polstra.
+ * All rights reserved.
+ * Copyright (c) 1995 Christopher G. Demetriou
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,6 +14,12 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by Christopher G. Demetriou
+ *    for the NetBSD Project.
+ * 4. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -30,13 +39,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
-
 #include "libc_private.h"
 #include "ignore_init.c"
 
-typedef void (*fptr)(void);
-
-extern void _start(char *, ...);
+struct Struct_Obj_Entry;
+struct ps_strings;
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -45,31 +52,40 @@ extern int eprol;
 extern int etext;
 #endif
 
-void _start1(fptr, int, char *[]) __dead2;
+void __start(char **, void (*)(void), struct Struct_Obj_Entry *, struct ps_strings *);
 
-/* The entry function, C part. */
+/* The entry function. */
 void
-_start1(fptr cleanup, int argc, char *argv[])
+__start(char **ap,
+	void (*cleanup)(void),			/* from shared loader */
+	struct Struct_Obj_Entry *obj __unused,	/* from shared loader */
+	struct ps_strings *ps_strings __unused)
 {
+	int argc;
+	char **argv;
 	char **env;
 
-	env = argv + argc + 1;
+	argc = * (long *) ap;
+	argv = ap + 1;
+	env  = ap + 2 + argc;
 	handle_argv(argc, argv, env);
-	if (&_DYNAMIC != NULL) {
+
+	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	} else {
-		process_irelocs();
+	else
 		_init_tls();
-	}
 
 #ifdef GCRT
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
-__asm__("eprol:");
 #endif
 
 	handle_static_init(argc, argv, env);
 	exit(main(argc, argv, env));
 }
 
-__asm(".hidden	_start1");
+#ifdef GCRT
+__asm__(".text");
+__asm__("eprol:");
+__asm__(".previous");
+#endif

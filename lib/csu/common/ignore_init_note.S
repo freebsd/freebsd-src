@@ -1,6 +1,11 @@
 /*-
- * Copyright 2009 Konstantin Belousov.
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-1-Clause
+ *
+ * Copyright 2012 Konstantin Belousov <kib@FreeBSD.org>
+ * Copyright (c) 2018 The FreeBSD Foundation
+ *
+ * Parts of this software was developed by Konstantin Belousov
+ * <kib@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -18,37 +23,21 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "crtbrand.S"
-#include "ignore_init_note.S"
+#include <sys/elf_common.h>
 
-	.text
-	.align	4
-	.globl	_start
-	.type	_start, @function
-_start:
-	.cfi_startproc
-	xorl	%ebp,%ebp
-	pushl	%ebp
-	.cfi_def_cfa_offset 4
-	movl	%esp,%ebp
-	.cfi_offset %ebp,-8
-	.cfi_def_cfa_register %ebp
-	andl	$0xfffffff0,%esp # align stack
-	leal	8(%ebp),%eax
-	subl	$4,%esp
-	pushl	%eax		# argv
-	pushl	4(%ebp)		# argc
-	pushl	%edx		# rtld cleanup
-	call	_start1
-	int3
-	.cfi_endproc
-	.size	_start, . - _start
+#include "notes.h"
 
-	.section .note.GNU-stack,"",%progbits
+	.section .note.tag,"a",%note
+	.p2align	2
+	.4byte		2f-1f
+	.4byte		4f-3f
+	.4byte		NT_FREEBSD_NOINIT_TAG
+1:	.asciz		NOTE_FREEBSD_VENDOR
+2:	.p2align	2
+3:	.4byte		0
+4:

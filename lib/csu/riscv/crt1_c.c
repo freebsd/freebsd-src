@@ -1,14 +1,16 @@
 /* LINTLIBRARY */
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
- *
- * Copyright 2001 David E. O'Brien.
- * All rights reserved.
  * Copyright 1996-1998 John D. Polstra.
+ * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
- * Copyright (c) 1997 Jason R. Thorpe.
- * Copyright (c) 1995 Christopher G. Demetriou
- * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * FA8750-10-C-0237 ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by the University of Cambridge
+ * Computer Laboratory as part of the CTSRD Project, with support from the
+ * UK Higher Education Innovation Fund (HEIF).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -18,16 +20,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *          This product includes software developed for the
- *          FreeBSD Project.  See https://www.freebsd.org/ for
- *          information about FreeBSD.
- *          This product includes software developed for the
- *          NetBSD Project.  See http://www.netbsd.org/ for
- *          information about NetBSD.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -47,11 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 
 #include "libc_private.h"
-#include "crtbrand.c"
 #include "ignore_init.c"
 
-struct Struct_Obj_Entry;
-struct ps_strings;
+typedef void (*fptr)(void);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -60,28 +50,13 @@ extern int eprol;
 extern int etext;
 #endif
 
-struct ps_strings *__ps_strings;
+void __start(int argc, char **argv, char **env, void (*cleanup)(void));
 
-void _start(int, char **, char **, const struct Struct_Obj_Entry *,
-    void (*)(void), struct ps_strings *);
-
-/* The entry function. */
-/*
- * First 5 arguments are specified by the PowerPC SVR4 ABI.
- * The last argument, ps_strings, is a BSD extension.
- */
-/* ARGSUSED */
 void
-_start(int argc, char **argv, char **env,
-    const struct Struct_Obj_Entry *obj __unused, void (*cleanup)(void),
-    struct ps_strings *ps_strings)
+__start(int argc, char **argv, char **env, void (*cleanup)(void))
 {
 
-
 	handle_argv(argc, argv, env);
-
-	if (ps_strings != (struct ps_strings *)0)
-		__ps_strings = ps_strings;
 
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
@@ -91,20 +66,9 @@ _start(int argc, char **argv, char **env,
 #ifdef GCRT
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
+__asm__("eprol:");
 #endif
 
 	handle_static_init(argc, argv, env);
 	exit(main(argc, argv, env));
 }
-
-#ifdef GCRT
-__asm__(".text");
-__asm__("eprol:");
-__asm__(".previous");
-#endif
-
-#ifndef PIC
-__asm__(".text\n"
-	"\t.global _GLOBAL_OFFSET_TABLE_\n"
-	"\t.reloc 0, R_PPC_NONE, _GLOBAL_OFFSET_TABLE_");
-#endif
