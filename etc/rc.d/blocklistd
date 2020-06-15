@@ -1,15 +1,15 @@
 #!/bin/sh
 #
-# $NetBSD: blacklistd,v 1.2 2016/10/17 22:47:16 christos Exp $
+# $NetBSD: blocklistd,v 1.1 2015/01/22 17:49:41 christos Exp $
 #
 
-# PROVIDE: blacklistd
+# PROVIDE: blocklistd
 # REQUIRE: npf
 # BEFORE:  SERVERS
 
 $_rc_subr_loaded . /etc/rc.subr
 
-name="blacklistd"
+name="blocklistd"
 rcvar=$name
 command="/sbin/${name}"
 pidfile="/var/run/${name}.pid"
@@ -18,17 +18,17 @@ start_precmd="${name}_precmd"
 extra_commands="reload"
 
 _sockfile="/var/run/${name}.sockets"
-_sockname="blacklistd.sock"
+_sockname="blocklistd.sock"
 
-blacklistd_precmd()
+blocklistd_precmd()
 {
-	#	Create default list of blacklistd sockets to watch
+	#	Create default list of blocklistd sockets to watch
 	#
 	( umask 022 ; > $_sockfile )
 
 	#	Find /etc/rc.d scripts with "chrootdir" rcorder(8) keyword,
 	#	and if $${app}_chrootdir is a directory, add appropriate
-	#	blacklistd socket to list of sockets to watch.
+	#	blocklistd socket to list of sockets to watch.
 	#
 	for _lr in $(rcorder -k chrootdir /etc/rc.d/*); do
 	    (
@@ -42,8 +42,8 @@ blacklistd_precmd()
 	done
 
 	#	If other sockets have been provided, change run_rc_command()'s
-	#	internal copy of $blacklistd_flags to force use of specific
-	#	blacklistd sockets.
+	#	internal copy of $blocklistd_flags to force use of specific
+	#	blocklistd sockets.
 	#
 	if [ -s $_sockfile ]; then
 		echo "/var/run/${_sockname}" >> $_sockfile

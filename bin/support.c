@@ -46,7 +46,7 @@ __RCSID("$NetBSD: support.c,v 1.9 2018/09/18 22:12:19 christos Exp $");
 #include "support.h"
 
 static __attribute__((__format_arg__(3))) const char *
-expandm(char *buf, size_t len, const char *fmt) 
+expandm(char *buf, size_t len, const char *fmt)
 {
 	char *p;
 	size_t r;

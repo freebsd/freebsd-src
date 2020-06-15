@@ -1,4 +1,4 @@
-.\" $NetBSD: blacklistctl.8,v 1.9 2016/06/08 12:48:37 wiz Exp $
+.\" $NetBSD: blocklistctl.8,v 1.8 2016/06/07 17:31:02 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -28,11 +28,11 @@
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
 .Dd June 7, 2016
-.Dt BLACKLISTCTL 8
+.Dt BLOCKLISTCTL 8
 .Os
 .Sh NAME
-.Nm blacklistctl
-.Nd display and change the state of blacklistd
+.Nm blocklistctl
+.Nd display and change the state of blocklistd
 .Sh SYNOPSIS
 .Nm
 .Cm dump
@@ -40,7 +40,7 @@
 .Sh DESCRIPTION
 .Nm
 is a program used to display the state of
-.Xr blacklistd 8
+.Xr blocklistd 8
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -60,17 +60,17 @@ Normally the width of addresses is good for IPv4, the
 flag, makes the display wide enough for IPv6 addresses.
 .El
 .Sh SEE ALSO
-.Xr blacklistd 8
+.Xr blocklistd 8
 .Sh NOTES
 Sometimes the reported number of failed attempts can exceed the number
 of attempts that
-.Xr blacklistd 8
+.Xr blocklistd 8
 is configured to block.
 This can happen either because the rule has been removed manually, or
 because there were more attempts in flight while the rule block was being
 added.
 This condition is normal; in that case
-.Xr blacklistd 8
+.Xr blocklistd 8
 will first attempt to remove the existing rule, and then it will re-add
 it to make sure that there is only one rule active.
 .Sh HISTORY

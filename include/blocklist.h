@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklist.h,v 1.3 2015/01/23 18:48:56 christos Exp $	*/
+/*	$NetBSD: blocklist.h,v 1.3 2015/01/23 18:48:56 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -28,19 +28,28 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _BLACKLIST_H
-#define _BLACKLIST_H
+#ifndef _BLOCKLIST_H
+#define _BLOCKLIST_H
 
 #include <sys/socket.h>
 
 __BEGIN_DECLS
-struct blacklist *blacklist_open(void);
-void blacklist_close(struct blacklist *);
-int blacklist(int, int, const char *);
-int blacklist_r(struct blacklist *, int, int, const char *);
-int blacklist_sa(int, int, const struct sockaddr *, socklen_t, const char *);
-int blacklist_sa_r(struct blacklist *, int, int,
+struct blocklist *blocklist_open(void);
+void blocklist_close(struct blocklist *);
+int blocklist(int, int, const char *);
+int blocklist_r(struct blocklist *, int, int, const char *);
+int blocklist_sa(int, int, const struct sockaddr *, socklen_t, const char *);
+int blocklist_sa_r(struct blocklist *, int, int,
     const struct sockaddr *, socklen_t, const char *);
 __END_DECLS
 
-#endif /* _BLACKLIST_H */
+/* action values for user applications */
+#define BLOCKLIST_API_ENUM	1
+enum {
+        BLOCKLIST_AUTH_OK = 0,
+        BLOCKLIST_AUTH_FAIL,
+        BLOCKLIST_ABUSIVE_BEHAVIOR,
+        BLOCKLIST_BAD_USER
+};
+
+#endif /* _BLOCKLIST_H */

@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $	*/
+/*	$NetBSD: blocklistctl.c,v 1.22 2018/05/24 19:19:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistctl.c,v 1.23 2018/05/24 19:21:01 christos Exp $");
+__RCSID("$NetBSD: blocklistctl.c,v 1.22 2018/05/24 19:19:37 christos Exp $");
 
 #include <stdio.h>
 #include <time.h>

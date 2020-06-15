@@ -1,4 +1,4 @@
-/*	$NetBSD: conf.c,v 1.24 2016/04/04 15:52:56 christos Exp $	*/
+/*	$NetBSD: conf.c,v 1.30 2020/03/12 19:47:32 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: conf.c,v 1.24 2016/04/04 15:52:56 christos Exp $");
+__RCSID("$NetBSD: conf.c,v 1.30 2020/03/12 19:47:32 christos Exp $");
 
 #include <stdio.h>
 #ifdef HAVE_LIBUTIL_H
@@ -46,6 +46,7 @@ __RCSID("$NetBSD: conf.c,v 1.24 2016/04/04 15:52:56 christos Exp $");
 #include <ctype.h>
 #include <inttypes.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <pwd.h>
 #include <syslog.h>
 #include <errno.h>
@@ -55,6 +56,7 @@ __RCSID("$NetBSD: conf.c,v 1.24 2016/04/04 15:52:56 christos Exp $");
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <net/route.h>
 #include <sys/socket.h>
 
 #include "bl.h"
@@ -90,7 +92,7 @@ advance(char **p)
 }
 
 static int
-getnum(const char *f, size_t l, bool local, void *rp, const char *name,
+conf_getnum(const char *f, size_t l, bool local, void *rp, const char *name,
     const char *p)
 {
 	int e;
@@ -127,13 +129,14 @@ out:
 }
 
 static int
-getnfail(const char *f, size_t l, bool local, struct conf *c, const char *p)
+conf_getnfail(const char *f, size_t l, bool local, struct conf *c,
+    const char *p)
 {
-	return getnum(f, l, local, &c->c_nfail, "nfail", p);
+	return conf_getnum(f, l, local, &c->c_nfail, "nfail", p);
 }
 
 static int
-getsecs(const char *f, size_t l, bool local, struct conf *c, const char *p)
+conf_getsecs(const char *f, size_t l, bool local, struct conf *c, const char *p)
 {
 	int e;
 	char *ep;
@@ -173,9 +176,9 @@ again:
 			}
 			break;
 		}
-	} else	
+	} else
 		tot = im;
-			
+
 	if (e == 0) {
 		c->c_duration = (int)tot;
 		return 0;
@@ -193,7 +196,7 @@ out:
 }
 
 static int
-getport(const char *f, size_t l, bool local, void *r, const char *p)
+conf_getport(const char *f, size_t l, bool local, void *r, const char *p)
 {
 	struct servent *sv;
 
@@ -207,14 +210,14 @@ getport(const char *f, size_t l, bool local, void *r, const char *p)
 		return 0;
 	}
 
-	return getnum(f, l, local, r, "service", p);
+	return conf_getnum(f, l, local, r, "service", p);
 }
 
 static int
-getmask(const char *f, size_t l, bool local, const char **p, int *mask)
+conf_getmask(const char *f, size_t l, bool local, const char **p, int *mask)
 {
 	char *d;
-	const char *s = *p; 
+	const char *s = *p;
 
 	if ((d = strchr(s, ':')) != NULL) {
 		*d++ = '\0';
@@ -226,11 +229,12 @@ getmask(const char *f, size_t l, bool local, const char **p, int *mask)
 	}
 
 	*d++ = '\0';
-	return getnum(f, l, local, mask, "mask", d);
+	return conf_getnum(f, l, local, mask, "mask", d);
 }
 
 static int
-gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
+conf_gethostport(const char *f, size_t l, bool local, struct conf *c,
+    const char *p)
 {
 	char *d;	// XXX: Ok to write to string.
 	in_port_t *port = NULL;
@@ -249,7 +253,7 @@ gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
 	} else
 		pstr = p;
 
-	if (getmask(f, l, local, &pstr, &c->c_lmask) == -1)
+	if (conf_getmask(f, l, local, &pstr, &c->c_lmask) == -1)
 		goto out;
 
 	if (d) {
@@ -264,7 +268,7 @@ gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
 			sin6->sin6_len = sizeof(*sin6);
 #endif
 			port = &sin6->sin6_port;
-		} 
+		}
 	} else if (pstr != p || strchr(p, '.') || conf_is_interface(p)) {
 		if (pstr == p)
 			pstr = "*";
@@ -300,7 +304,7 @@ gethostport(const char *f, size_t l, bool local, struct conf *c, const char *p)
 		}
 	}
 
-	if (getport(f, l, local, &c->c_port, pstr) == -1)
+	if (conf_getport(f, l, local, &c->c_port, pstr) == -1)
 		return -1;
 
 	if (port && c->c_port != FSTAR && c->c_port != FEQUAL)
@@ -320,7 +324,7 @@ out2:
 }
 
 static int
-getproto(const char *f, size_t l, bool local __unused, struct conf *c,
+conf_getproto(const char *f, size_t l, bool local __unused, struct conf *c,
     const char *p)
 {
 	if (strcmp(p, "stream") == 0) {
@@ -331,22 +335,22 @@ getproto(const char *f, size_t l, bool local __unused, struct conf *c,
 		c->c_proto = IPPROTO_UDP;
 		return 0;
 	}
-	return getnum(f, l, local, &c->c_proto, "protocol", p);
+	return conf_getnum(f, l, local, &c->c_proto, "protocol", p);
 }
 
 static int
-getfamily(const char *f, size_t l, bool local __unused, struct conf *c,
+conf_getfamily(const char *f, size_t l, bool local __unused, struct conf *c,
     const char *p)
 {
 	if (strncmp(p, "tcp", 3) == 0 || strncmp(p, "udp", 3) == 0) {
 		c->c_family = p[3] == '6' ? AF_INET6 : AF_INET;
 		return 0;
 	}
-	return getnum(f, l, local, &c->c_family, "family", p);
+	return conf_getnum(f, l, local, &c->c_family, "family", p);
 }
 
 static int
-getuid(const char *f, size_t l, bool local __unused, struct conf *c,
+conf_getuid(const char *f, size_t l, bool local __unused, struct conf *c,
     const char *p)
 {
 	struct passwd *pw;
@@ -356,21 +360,22 @@ getuid(const char *f, size_t l, bool local __unused, struct conf *c,
 		return 0;
 	}
 
-	return getnum(f, l, local, &c->c_uid, "user", p);
+	return conf_getnum(f, l, local, &c->c_uid, "user", p);
 }
 
 
 static int
-getname(const char *f, size_t l, bool local, struct conf *c,
+conf_getname(const char *f, size_t l, bool local, struct conf *c,
     const char *p)
 {
-	if (getmask(f, l, local, &p, &c->c_rmask) == -1)
+	if (conf_getmask(f, l, local, &p, &c->c_rmask) == -1)
 		return -1;
-		
+
 	if (strcmp(p, "*") == 0) {
 		strlcpy(c->c_name, rulename, CONFNAMESZ);
 		return 0;
 	}
+
 	if (strcmp(p, "=") == 0) {
 		if (local)
 			goto out;
@@ -406,19 +411,19 @@ conf_parseline(const char *f, size_t l, char *p, struct conf *c, bool local)
 		p++;
 
 	memset(c, 0, sizeof(*c));
-	e = getvalue(f, l, local, c, &p, gethostport);
+	e = getvalue(f, l, local, c, &p, conf_gethostport);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getproto);
+	e = getvalue(f, l, local, c, &p, conf_getproto);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getfamily);
+	e = getvalue(f, l, local, c, &p, conf_getfamily);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getuid);
+	e = getvalue(f, l, local, c, &p, conf_getuid);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getname);
+	e = getvalue(f, l, local, c, &p, conf_getname);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getnfail);
+	e = getvalue(f, l, local, c, &p, conf_getnfail);
 	if (e) return -1;
-	e = getvalue(f, l, local, c, &p, getsecs);
+	e = getvalue(f, l, local, c, &p, conf_getsecs);
 	if (e) return -1;
 
 	return 0;
@@ -473,7 +478,6 @@ conf_amask_eq(const void *v1, const void *v2, size_t len, int mask)
 			return 1;
 		goto out;
 	case FEQUAL:
-		
 		(*lfun)(LOG_CRIT, "%s: Internal error: bad mask %d", __func__,
 		    mask);
 		abort();
@@ -687,7 +691,7 @@ conf_addr_eq(const struct sockaddr_storage *s1,
 static int
 conf_eq(const struct conf *c1, const struct conf *c2)
 {
-		
+
 	if (!conf_addr_eq(&c1->c_ss, &c2->c_ss, c2->c_lmask))
 		return 0;
 
@@ -744,7 +748,7 @@ fmtport(char *b, size_t l, int port)
 	if (port == FSTAR)
 		return;
 
-	if (b[0] == '\0' || strcmp(b, "*") == 0) 
+	if (b[0] == '\0' || strcmp(b, "*") == 0)
 		snprintf(b, l, "%d", port);
 	else {
 		snprintf(buf, sizeof(buf), ":%d", port);
@@ -820,7 +824,7 @@ conf_print(char *buf, size_t len, const char *pref, const char *delim,
 
 	fmtmask(ha, sizeof(ha), c->c_family, c->c_lmask);
 	fmtport(ha, sizeof(ha), c->c_port);
-	
+
 	sp = *delim == '\t' ? 20 : -1;
 	hb[0] = '\0';
 	if (*delim)
@@ -878,7 +882,7 @@ conf_merge(struct conf *c, const struct conf *sc)
 		(*lfun)(LOG_DEBUG, "%s: %s", __func__,
 		    conf_print(buf, sizeof(buf), "to:\t", "", c));
 	}
-	
+
 	if (sc->c_name[0])
 		memcpy(c->c_name, sc->c_name, CONFNAMESZ);
 	if (sc->c_uid != FEQUAL)
@@ -998,32 +1002,73 @@ confset_match(const struct confset *cs, struct conf *c,
 	return i;
 }
 
-const struct conf *
-conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
-    struct conf *cr)
-{
-	int proto;
-	socklen_t slen;
-	struct sockaddr_storage lss;
-	size_t i;
-	char buf[BUFSIZ];
+#ifdef AF_ROUTE
+static int
+conf_route_perm(int fd) {
+/* Disable for now, the access check in the routing socket uses curlwp */
+#if defined(RTM_IFANNOUNCE) && defined(RT_ROUNDUP)
+	/*
+	 * Send a routing message that is not supported to check for access
+	 * We expect EOPNOTSUPP for having access, since we are sending a
+	 * request the system does not understand and EACCES if we don't have
+	 * access.
+	 */
+	static struct sockaddr_in sin = {
+#ifdef HAVE_STRUCT_SOCKADDR_SA_LEN
+		.sin_len = sizeof(sin),
+#endif
+		.sin_family = AF_INET,
+	};
+	char buf[4096];
+	struct rt_msghdr *rtm = (void *)buf;
+	char *cp = (char *)(rtm + 1);
+	size_t l;
 
-	memset(cr, 0, sizeof(*cr));
-	slen = sizeof(lss);
-	memset(&lss, 0, slen);
-	if (getsockname(fd, (void *)&lss, &slen) == -1) {
-		(*lfun)(LOG_ERR, "getsockname failed (%m)"); 
-		return NULL;
+#define NEXTADDR(s) \
+	l = RT_ROUNDUP(sizeof(*s)); memmove(cp, s, l); cp += l;
+	memset(buf, 0, sizeof(buf));
+	rtm->rtm_type = RTM_IFANNOUNCE;
+	rtm->rtm_flags = 0;
+	rtm->rtm_addrs = RTA_DST|RTA_GATEWAY;
+	rtm->rtm_version = RTM_VERSION;
+	rtm->rtm_seq = 666;
+	NEXTADDR(&sin);
+	NEXTADDR(&sin);
+	rtm->rtm_msglen = (u_short)((char *)cp - (char *)rtm);
+	if (write(fd, rtm, rtm->rtm_msglen) != -1) {
+		(*lfun)(LOG_ERR, "Writing to routing socket succeeded!");
+		return 0;
 	}
+	switch (errno) {
+	case EACCES:
+		return 0;
+	case EOPNOTSUPP:
+		return 1;
+	default:
+		(*lfun)(LOG_ERR,
+		    "Unexpected error writing to routing socket (%m)");
+		return 0;
+	}
+#else
+	return 0;
+#endif
+}
+#endif
 
-	slen = sizeof(proto);
+static int
+conf_handle_inet(int fd, const void *lss, struct conf *cr)
+{
+	char buf[BUFSIZ];
+	int proto;
+	socklen_t slen = sizeof(proto);
+
 	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, &proto, &slen) == -1) {
-		(*lfun)(LOG_ERR, "getsockopt failed (%m)"); 
-		return NULL;
+		(*lfun)(LOG_ERR, "getsockopt failed (%m)");
+		return -1;
 	}
 
 	if (debug) {
-		sockaddr_snprintf(buf, sizeof(buf), "%a:%p", (void *)&lss);
+		sockaddr_snprintf(buf, sizeof(buf), "%a:%p", lss);
 		(*lfun)(LOG_DEBUG, "listening socket: %s", buf);
 	}
 
@@ -1035,19 +1080,54 @@ conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
 		cr->c_proto = IPPROTO_UDP;
 		break;
 	default:
-		(*lfun)(LOG_ERR, "unsupported protocol %d", proto); 
+		(*lfun)(LOG_ERR, "unsupported protocol %d", proto);
+		return -1;
+	}
+	return 0;
+}
+
+const struct conf *
+conf_find(int fd, uid_t uid, const struct sockaddr_storage *rss,
+    struct conf *cr)
+{
+	socklen_t slen;
+	struct sockaddr_storage lss;
+	size_t i;
+	char buf[BUFSIZ];
+
+	memset(cr, 0, sizeof(*cr));
+	slen = sizeof(lss);
+	memset(&lss, 0, slen);
+	if (getsockname(fd, (void *)&lss, &slen) == -1) {
+		(*lfun)(LOG_ERR, "getsockname failed (%m)");
 		return NULL;
 	}
 
 	switch (lss.ss_family) {
 	case AF_INET:
 		cr->c_port = ntohs(((struct sockaddr_in *)&lss)->sin_port);
+		if (conf_handle_inet(fd, &lss, cr) == -1)
+			return NULL;
 		break;
 	case AF_INET6:
 		cr->c_port = ntohs(((struct sockaddr_in6 *)&lss)->sin6_port);
+		if (conf_handle_inet(fd, &lss, cr) == -1)
+			return NULL;
 		break;
+#ifdef AF_ROUTE
+	case AF_ROUTE:
+		if (!conf_route_perm(fd)) {
+			(*lfun)(LOG_ERR,
+			    "permission denied to routing socket (%m)");
+			return NULL;
+		}
+		cr->c_proto = FSTAR;
+		cr->c_port = FSTAR;
+		memcpy(&lss, rss, sizeof(lss));
+		break;
+#endif
 	default:
-		(*lfun)(LOG_ERR, "unsupported family %d", lss.ss_family); 
+		(*lfun)(LOG_ERR, "unsupported family %d", lss.ss_family);
 		return NULL;
 	}
 
@@ -1119,6 +1199,7 @@ conf_parse(const char *f)
 				confset_free(&lc);
 				confset_free(&rc);
 				fclose(fp);
+				free(line);
 				return;
 			}
 		}
@@ -1131,7 +1212,7 @@ conf_parse(const char *f)
 	fclose(fp);
 	confset_sort(&lc);
 	confset_sort(&rc);
-	
+
 	confset_replace(&rconf, &rc);
 	confset_replace(&lconf, &lc);
 

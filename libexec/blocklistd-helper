@@ -10,9 +10,9 @@
 # $7 id
 
 pf=
-if [ -f "/etc/ipfw-blacklist.rc" ]; then
+if [ -f "/etc/ipfw-blocklist.rc" ]; then
 	pf="ipfw"
-	. /etc/ipfw-blacklist.rc
+	. /etc/ipfw-blocklist.rc
 	ipfw_offset=${ipfw_offset:-2000}
 fi
 

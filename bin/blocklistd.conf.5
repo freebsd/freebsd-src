@@ -1,4 +1,4 @@
-.\" $NetBSD: blacklistd.conf.5,v 1.7 2017/06/07 13:50:57 wiz Exp $
+.\" $NetBSD: blocklistd.conf.5,v 1.9 2019/11/06 20:33:30 para Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,17 +27,17 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 5, 2017
-.Dt BLACKLISTD.CONF 5
+.Dd May 18, 2020
+.Dt BLOCKLISTD.CONF 5
 .Os
 .Sh NAME
-.Nm blacklistd.conf
-.Nd configuration file format for blacklistd
+.Nm blocklistd.conf
+.Nd configuration file format for blocklistd
 .Sh DESCRIPTION
 The
 .Nm
-files contains configuration entries for
-.Xr blacklistd 8
+file contains configuration entries for
+.Xr blocklistd 8
 in a fashion similar to
 .Xr inetd.conf 5 .
 Only one entry per line is permitted.
@@ -125,18 +125,18 @@ The second field is the socket
 .Dv dgram ,
 or numeric.
 The third field is the
-.Va prococol :
+.Va protocol :
 .Dv tcp ,
 .Dv udp ,
 .Dv tcp6 ,
 .Dv udp6 ,
 or numeric.
-The fourth file is the effective user
+The fourth field is the effective user
 .Va ( owner )
 of the daemon process reporting the event,
 either as a username or a userid.
 .Pp
-The rest of the fields are controlling the behavior of the filter.
+The rest of the fields control the behavior of the filter.
 .Pp
 The
 .Va name
@@ -192,12 +192,12 @@ rule that matched.
 .Pp
 The
 .Va remote
-rules can be used for whitelisting specific addresses, changing the mask
+rules can be used for allowing specific addresses, changing the mask
 size, the rule that the packet filter uses, the number of failed attempts,
 or the block duration.
 .Sh FILES
-.Bl -tag -width /etc/blacklistd.conf -compact
-.It Pa /etc/blacklistd.conf
+.Bl -tag -width /etc/blocklistd.conf -compact
+.It Pa /etc/blocklistd.conf
 Configuration file.
 .El
 .Sh EXAMPLES
@@ -214,8 +214,8 @@ bnx0:ssh	*	*	*	*	3	6h
 8.8.0.0/16:ssh	*	*	*	/24	=	=
 .Ed
 .Sh SEE ALSO
-.Xr blacklistctl 8 ,
-.Xr blacklistd 8
+.Xr blocklistctl 8 ,
+.Xr blocklistd 8
 .Sh HISTORY
 .Nm
 first appeared in

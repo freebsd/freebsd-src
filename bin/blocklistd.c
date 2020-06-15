@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $	*/
+/*	$NetBSD: blocklistd.c,v 1.42 2020/03/11 02:33:18 roy Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -32,7 +32,7 @@
 #include "config.h"
 #endif
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklistd.c,v 1.38 2019/02/27 02:20:18 christos Exp $");
+__RCSID("$NetBSD: blocklistd.c,v 1.42 2020/03/11 02:33:18 roy Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -123,7 +123,7 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 		return 0;
 
 	if (errno != ENOTCONN) {
-		(*lfun)(LOG_ERR, "getpeername failed (%m)"); 
+		(*lfun)(LOG_ERR, "getpeername failed (%m)");
 		return -1;
 	}
 
@@ -141,13 +141,13 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 		break;
 	default:
 		(*lfun)(LOG_ERR, "bad client passed socket family %u",
-		    (unsigned)bi->bi_ss.ss_family); 
+		    (unsigned)bi->bi_ss.ss_family);
 		return -1;
 	}
 
 	if (*rsl != bi->bi_slen) {
 		(*lfun)(LOG_ERR, "bad client passed socket length %u != %u",
-		    (unsigned)*rsl, (unsigned)bi->bi_slen); 
+		    (unsigned)*rsl, (unsigned)bi->bi_slen);
 		return -1;
 	}
 
@@ -157,7 +157,7 @@ getremoteaddress(bl_info_t *bi, struct sockaddr_storage *rss, socklen_t *rsl)
 	if (*rsl != rss->ss_len) {
 		(*lfun)(LOG_ERR,
 		    "bad client passed socket internal length %u != %u",
-		    (unsigned)*rsl, (unsigned)rss->ss_len); 
+		    (unsigned)*rsl, (unsigned)rss->ss_len);
 		return -1;
 	}
 #endif
@@ -176,12 +176,12 @@ process(bl_t bl)
 	struct timespec ts;
 
 	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-		(*lfun)(LOG_ERR, "clock_gettime failed (%m)"); 
+		(*lfun)(LOG_ERR, "clock_gettime failed (%m)");
 		return;
 	}
 
 	if ((bi = bl_recv(bl)) == NULL) {
-		(*lfun)(LOG_ERR, "no message (%m)"); 
+		(*lfun)(LOG_ERR, "no message (%m)");
 		return;
 	}
 
@@ -214,33 +214,38 @@ process(bl_t bl)
 	}
 
 	switch (bi->bi_type) {
+	case BL_ABUSE:
+		/*
+		 * If the application has signaled abusive behavior,
+		 * set the number of fails to be one less than the
+		 * configured limit.  Fallthrough to the normal BL_ADD
+		 * processing, which will increment the failure count
+		 * to the threshhold, and block the abusive address.
+		 */
+		if (c.c_nfail != -1)
+			dbi.count = c.c_nfail - 1;
+		/*FALLTHROUGH*/
 	case BL_ADD:
 		dbi.count++;
 		dbi.last = ts.tv_sec;
-		if (dbi.id[0]) {
-			/*
-			 * We should not be getting this since the rule
-			 * should have blocked the address. A possible
-			 * explanation is that someone removed that rule,
-			 * and another would be that we got another attempt
-			 * before we added the rule. In anycase, we remove
-			 * and re-add the rule because we don't want to add
-			 * it twice, because then we'd lose track of it.
-			 */
-			(*lfun)(LOG_DEBUG, "rule exists %s", dbi.id);
-			(void)run_change("rem", &c, dbi.id, 0);
-			dbi.id[0] = '\0';
-		}
 		if (c.c_nfail != -1 && dbi.count >= c.c_nfail) {
-			int res = run_change("add", &c, dbi.id, sizeof(dbi.id));
-			if (res == -1)
-				goto out;
+			/*
+			 * No point in re-adding the rule.
+			 * It might exist already due to latency in processing
+			 * and removing the rule is the wrong thing to do as
+			 * it allows a window to attack again.
+			 */
+			if (dbi.id[0] == '\0') {
+				int res = run_change("add", &c,
+				    dbi.id, sizeof(dbi.id));
+				if (res == -1)
+					goto out;
+			}
 			sockaddr_snprintf(rbuf, sizeof(rbuf), "%a",
 			    (void *)&rss);
 			(*lfun)(LOG_INFO,
 			    "blocked %s/%d:%d for %d seconds",
 			    rbuf, c.c_lmask, c.c_port, c.c_duration);
-				
 		}
 		break;
 	case BL_DELETE:
@@ -249,8 +254,11 @@ process(bl_t bl)
 		dbi.count = 0;
 		dbi.last = 0;
 		break;
+	case BL_BADUSER:
+		/* ignore for now */
+		break;
 	default:
-		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type); 
+		(*lfun)(LOG_ERR, "unknown message %d", bi->bi_type);
 	}
 	state_put(state, &c, &dbi);
 
@@ -292,7 +300,7 @@ update(void)
 	void *ss = &c.c_ss;
 
 	if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-		(*lfun)(LOG_ERR, "clock_gettime failed (%m)"); 
+		(*lfun)(LOG_ERR, "clock_gettime failed (%m)");
 		return;
 	}
 

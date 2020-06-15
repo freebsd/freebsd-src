@@ -1,4 +1,4 @@
-/*	$NetBSD: blacklist.c,v 1.5 2015/01/22 16:19:53 christos Exp $	*/
+/*	$NetBSD: blocklist.c,v 1.6 2019/11/06 20:50:01 christos Exp $	*/
 
 /*-
  * Copyright (c) 2014 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: blacklist.c,v 1.5 2015/01/22 16:19:53 christos Exp $");
+__RCSID("$NetBSD: blocklist.c,v 1.6 2019/11/06 20:50:01 christos Exp $");
 
 #include <stdio.h>
 #include <bl.h>
@@ -45,44 +45,64 @@ __RCSID("$NetBSD: blacklist.c,v 1.5 2015/01/22 16:19:53 christos Exp $");
 #include <syslog.h>
 
 int
-blacklist_sa(int action, int rfd, const struct sockaddr *sa, socklen_t salen,
+blocklist_sa(int action, int rfd, const struct sockaddr *sa, socklen_t salen,
     const char *msg)
 {
-	struct blacklist *bl;
+	struct blocklist *bl;
 	int rv;
-	if ((bl = blacklist_open()) == NULL)
+	if ((bl = blocklist_open()) == NULL)
 		return -1;
-	rv = blacklist_sa_r(bl, action, rfd, sa, salen, msg);
-	blacklist_close(bl);
+	rv = blocklist_sa_r(bl, action, rfd, sa, salen, msg);
+	blocklist_close(bl);
 	return rv;
 }
 
 int
-blacklist_sa_r(struct blacklist *bl, int action, int rfd,
+blocklist_sa_r(struct blocklist *bl, int action, int rfd,
 	const struct sockaddr *sa, socklen_t slen, const char *msg)
 {
-	return bl_send(bl, action ? BL_ADD : BL_DELETE, rfd, sa, slen, msg);
+	bl_type_t internal_action;
+
+	/* internal values are not the same as user application values */
+	switch (action) {
+	case BLOCKLIST_AUTH_FAIL:
+		internal_action = BL_ADD;
+		break;
+	case BLOCKLIST_AUTH_OK:
+		internal_action = BL_DELETE;
+		break;
+	case BLOCKLIST_ABUSIVE_BEHAVIOR:
+		internal_action = BL_ABUSE;
+		break;
+	case BLOCKLIST_BAD_USER:
+		internal_action = BL_BADUSER;
+		break;
+	default:
+		internal_action = BL_INVALID;
+		break;
+	}
+	return bl_send(bl, internal_action, rfd, sa, slen, msg);
 }
 
 int
-blacklist(int action, int rfd, const char *msg)
+blocklist(int action, int rfd, const char *msg)
 {
-	return blacklist_sa(action, rfd, NULL, 0, msg);
+	return blocklist_sa(action, rfd, NULL, 0, msg);
 }
 
 int
-blacklist_r(struct blacklist *bl, int action, int rfd, const char *msg)
+blocklist_r(struct blocklist *bl, int action, int rfd, const char *msg)
 {
-	return blacklist_sa_r(bl, action, rfd, NULL, 0, msg);
+	return blocklist_sa_r(bl, action, rfd, NULL, 0, msg);
 }
 
-struct blacklist *
-blacklist_open(void) {
+struct blocklist *
+blocklist_open(void) {
 	return bl_create(false, NULL, vsyslog);
 }
 
 void
-blacklist_close(struct blacklist *bl)
+blocklist_close(struct blocklist *bl)
 {
 	bl_destroy(bl);
 }

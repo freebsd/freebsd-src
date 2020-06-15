@@ -1,4 +1,4 @@
-/*	$NetBSD: srvtest.c,v 1.10 2015/05/30 22:40:38 christos Exp $	*/
+/*	$NetBSD: srvtest.c,v 1.9 2015/01/22 05:35:55 christos Exp $	*/
 
 /*-
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
@@ -33,7 +33,7 @@
 #endif
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: srvtest.c,v 1.10 2015/05/30 22:40:38 christos Exp $");
+__RCSID("$NetBSD: srvtest.c,v 1.9 2015/01/22 05:35:55 christos Exp $");
 
 #include <sys/types.h> 
 #include <sys/socket.h>
@@ -48,7 +48,7 @@ __RCSID("$NetBSD: srvtest.c,v 1.10 2015/05/30 22:40:38 christos Exp $");
 #include <poll.h>
 #include <err.h>
 
-#include "blacklist.h"
+#include "blocklist.h"
 #ifdef BLDEBUG
 #include "bl.h"
 static void *b;
@@ -71,9 +71,9 @@ process_tcp(int afd)
 	buffer[sizeof(buffer) - 1] = '\0';
 	printf("%s: sending %d %s\n", getprogname(), afd, buffer);
 #ifdef BLDEBUG
-	blacklist_r(b, 1, afd, buffer);
+	blocklist_r(b, 1, afd, buffer);
 #else
-	blacklist(1, afd, buffer);
+	blocklist(1, afd, buffer);
 #endif
 	exit(0);
 }
@@ -95,7 +95,7 @@ process_udp(int afd)
 		err(1, "recvfrom");
 	buffer[sizeof(buffer) - 1] = '\0';
 	printf("%s: sending %d %s\n", getprogname(), afd, buffer);
-	blacklist_sa(1, afd, (void *)&ss, slen, buffer);
+	blocklist_sa(1, afd, (void *)&ss, slen, buffer);
 	exit(0);
 }
 static int

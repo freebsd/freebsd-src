@@ -35,12 +35,14 @@
 #include <stdarg.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#include "blacklist.h"
+#include "blocklist.h"
 
 typedef enum {
 	BL_INVALID,
 	BL_ADD,
-	BL_DELETE
+	BL_DELETE,
+	BL_ABUSE,
+	BL_BADUSER
 } bl_type_t;
 
 typedef struct {
@@ -56,12 +58,12 @@ typedef struct {
 #define bi_cred bi_u._bi_cred
 
 #ifndef _PATH_BLSOCK
-#define _PATH_BLSOCK "/var/run/blacklistd.sock"
+#define _PATH_BLSOCK "/var/run/blocklistd.sock"
 #endif
 
 __BEGIN_DECLS
 
-typedef struct blacklist *bl_t;
+typedef struct blocklist *bl_t;
 
 bl_t bl_create(bool, const char *, void (*)(int, const char *, va_list));
 void bl_destroy(bl_t);

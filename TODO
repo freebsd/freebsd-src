@@ -1,4 +1,4 @@
-# $NetBSD: TODO,v 1.7 2015/01/23 21:34:01 christos Exp $
+# $NetBSD: TODO,v 1.6 2015/01/22 18:15:56 christos Exp $
 
 - don't poll periodically, find the next timeout
 - use the socket also for commands? Or separate socket?
@@ -17,5 +17,5 @@
 	-n
 	block
 	unblock
-- do we need an api in blacklistctl to perform maintenance
-- fix the blacklistctl output to be more user friendly
+- do we need an api in blocklistctl to perform maintenance
+- fix the blocklistctl output to be more user friendly

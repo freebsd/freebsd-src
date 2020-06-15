@@ -1,4 +1,4 @@
-.\" $NetBSD: blacklistd.8,v 1.18 2016/07/30 06:09:29 dholland Exp $
+.\" $NetBSD: blocklistd.8,v 1.23 2020/04/21 13:57:12 christos Exp $
 .\"
 .\" Copyright (c) 2015 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -27,11 +27,11 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 7, 2016
-.Dt BLACKLISTD 8
+.Dd April 21, 2020
+.Dt BLOCKLISTD 8
 .Os
 .Sh NAME
-.Nm blacklistd
+.Nm blocklistd
 .Nd block and release ports on demand to avoid DoS abuse
 .Sh SYNOPSIS
 .Nm
@@ -55,16 +55,52 @@ If no such file is specified, then it only listens to the socket path
 specified by
 .Ar sockspath
 or if that is not specified to
-.Pa /var/run/blacklistd.sock .
+.Pa /var/run/blocklistd.sock .
 Each notification contains an (action, port, protocol, address, owner) tuple
 that identifies the remote connection and the action.
 This tuple is consulted against entries in
 .Ar configfile
 with syntax specified in
-.Xr blacklistd.conf 5 .
+.Xr blocklistd.conf 5 .
 If an entry is matched, a state entry is created for that tuple.
 Each entry contains a number of tries limit and a duration.
 .Pp
+The way
+.Nm
+does configuration entry matching is by having the client side pass the
+file descriptor associated with the connection the client wants to blocklist
+as well as passing socket credentials.
+.Pp
+The file descriptor is used to retrieve information (address and port)
+about the remote side with
+.Xr getpeername 2
+and the local side with
+.Xr getsockname 2 .
+.Pp
+By examining the port of the local side,
+.Nm
+can determine if the client program
+.Dq owns
+the port.
+By examining the optional address portion on the local side, it can match
+interfaces.
+By examining the remote address, it can match specific allow or deny rules.
+.Pp
+Finally
+.Nm
+can examine the socket credentials to match the user in the configuration file.
+.Pp
+While this works well for TCP sockets, it cannot be relied on for unbound
+UDP sockets.
+It is also less meaningful when it comes to connections using non-privileged
+ports.
+On the other hand, if we receive a request that has a local endpoint indicating
+a UDP privileged port, we can presume that the client was privileged to be
+able to acquire that port.
+.Pp
+Once an entry is matched
+.Nm
+can perform various actions.
 If the action is
 .Dq add
 and the number of tries limit is reached, then a
@@ -80,17 +116,17 @@ specified by the arguments.
 The
 .Ar rulename
 argument can be set from the command line (default
-.Dv blacklistd ) .
+.Dv blocklistd ) .
 The script could print a numerical id to stdout as a handle for
 the rule that can be used later to remove that connection, but
 that is not required as all information to remove the rule is
 kept.
 .Pp
 If the action is
-.Dq remove
+.Dq rem
 Then the same control script is invoked as:
 .Bd -literal -offset indent
-control remove <rulename> <proto> <address> <mask> <port> <id>
+control rem <rulename> <proto> <address> <mask> <port> <id>
 .Ed
 .Pp
 where
@@ -117,7 +153,7 @@ The following options are available:
 Use
 .Ar controlprog
 to communicate with the packet filter, usually
-.Pa /libexec/blacklistd-helper .
+.Pa /libexec/blocklistd-helper .
 The following arguments are passed to the control program:
 .Bl -tag -width protocol
 .It action
@@ -148,12 +184,12 @@ The add command is expected to return the rule identifier string to stdout.
 .El
 .It Fl c Ar configuration
 The name of the configuration file to read, usually
-.Pa /etc/blacklistd.conf .
+.Pa /etc/blocklistd.conf .
 .It Fl D Ar dbfile
 The Berkeley DB file where
 .Nm
 stores its state, usually
-.Pa /var/run/blacklistd.db .
+.Pa /var/db/blocklistd.db .
 .It Fl d
 Normally,
 .Nm
@@ -174,11 +210,11 @@ will create sockets to listen to.
 This is useful for chrooted environments.
 .It Fl R Ar rulename
 Specify the default rule name for the packet filter rules, usually
-.Dv blacklistd .
+.Dv blocklistd .
 .It Fl r
 Re-read the firewall rules from the internal database, then
 remove and re-add them.
-This helps for packet filters that don't retain state across reboots.
+This helps for packet filters that do not retain state across reboots.
 .It Fl s Ar sockpath
 Add
 .Ar sockpath
@@ -198,20 +234,41 @@ diagnostic messages to
 instead of
 .Xr syslogd 8 .
 .El
+.Sh SIGNAL HANDLING
+.Nm
+deals with the following signals:
+.Bl -tag -width "USR2"
+.It Dv HUP
+Receipt of this signal causes
+.Nm
+to re-read the configuration file.
+.It Dv INT , Dv TERM & Dv QUIT
+These signals tell
+.Nm
+to exit in an orderly fashion.
+.It Dv USR1
+This signal tells
+.Nm
+to increase the internal debugging level by 1.
+.It Dv USR2
+This signal tells
+.Nm
+to decrease the internal debugging level by 1.
+.El
 .Sh FILES
-.Bl -tag -width /libexec/blacklistd-helper -compact
-.It Pa /libexec/blacklistd-helper
+.Bl -tag -width /libexec/blocklistd-helper -compact
+.It Pa /libexec/blocklistd-helper
 Shell script invoked to interface with the packet filter.
-.It Pa /etc/blacklistd.conf
+.It Pa /etc/blocklistd.conf
 Configuration file.
-.It Pa /var/db/blacklistd.db
+.It Pa /var/db/blocklistd.db
 Database of current connection entries.
-.It Pa /var/run/blacklistd.sock
+.It Pa /var/run/blocklistd.sock
 Socket to receive connection notifications.
 .El
 .Sh SEE ALSO
-.Xr blacklistd.conf 5 ,
-.Xr blacklistctl 8 ,
+.Xr blocklistd.conf 5 ,
+.Xr blocklistctl 8 ,
 .Xr npfctl 8 ,
 .Xr syslogd 8
 .Sh HISTORY

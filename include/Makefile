@@ -1,10 +1,10 @@
-#	$NetBSD: Makefile,v 1.1 2015/01/21 16:16:00 christos Exp $
+#	$NetBSD: Makefile,v 1.140 2013/12/11 01:24:08 joerg Exp $
 
 # Doing a make includes builds /usr/include
 
 NOOBJ=		# defined
 
-INCS=	blacklist.h
+INCS=	blocklist.h
 INCSDIR=	/usr/include
 
 .include <bsd.prog.mk>
