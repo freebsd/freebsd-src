@@ -39,6 +39,23 @@
 #include <string>
 #include "opencsd/ocsd_if_types.h"
 
+/** @class CoreArchProfileMap
+ *
+ *  @brief Map core / arch name to profile for decoder.
+ *
+ *  Helper class for library clients to map core or architecture version names onto 
+ *  a profile / arch version pair suitable for use with the decode library.
+ * 
+ *  Valid core names are:-
+ *   - Cortex-Axx : where xx = 5,7,12,15,17,32,35,53,55,57,65,72,73,75,76,77;
+ *   - Cortex-Rxx : where xx = 5,7,8,52;
+ *   - Cortex-Mxx : where xx = 0,0+,3,4,23,33;
+ *
+ *  Valid architecture profile names are:-
+ *   - ARMv7-A, ARMv7-R, ARMv7-M;
+ *   - ARMv8-A, ARMv8.3A, ARMv8-R, ARMv8-M;
+ *  
+ */
 class CoreArchProfileMap
 {
 public:
@@ -50,16 +67,31 @@ public:
 private:
 
     std::map<std::string, ocsd_arch_profile_t> core_profiles;
+    std::map<std::string, ocsd_arch_profile_t> arch_profiles;
 };
 
 inline ocsd_arch_profile_t CoreArchProfileMap::getArchProfile(const std::string &coreName)
 {
     ocsd_arch_profile_t ap = { ARCH_UNKNOWN, profile_Unknown };
+    bool bFound = false;
 
     std::map<std::string, ocsd_arch_profile_t>::const_iterator it;
+
+    /* match against the core name map. */
     it = core_profiles.find(coreName);
-    if(it != core_profiles.end())
+    if (it != core_profiles.end())
+    {
         ap = it->second;
+        bFound = true;
+    }
+
+    /* scan architecture profiles on no core name match */
+    if (!bFound)
+    {
+        it = arch_profiles.find(coreName);
+        if (it != arch_profiles.end())
+            ap = it->second;
+    }
     return ap;
 }
 

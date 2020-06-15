@@ -1,0 +1,758 @@
+		Debug stop
+		Tracing Enabled
+EL1N:0xFFFFFFC000781E8C		<Unknown>
+EL1N:0xFFFFFFC000781E8C	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+		Tracing Enabled
+EL1N:0xFFFFFFC000781E8C	?	Cannot access target memory
+EL1N:0xFFFFFFC000781E8C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F3698	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000F408C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000A2E54	2A0003F4	MOV      w20,w0
+EL1N:0xFFFFFFC0000A2E58	AA1E03E0	MOV      x0,x30
+EL1N:0xFFFFFFC0000A2E5C	D503201F	NOP      
+EL1N:0xFFFFFFC0000A2E60	D53B4233	MRS      x19,DAIF
+EL1N:0xFFFFFFC0000A2E64	D50342DF	MSR      DAIFSet,#2
+EL1N:0xFFFFFFC0000A2E68	2A1403E0	MOV      w0,w20
+EL1N:0xFFFFFFC0000A2E6C	97FFFF12	BL       {pc}-0x3b8 ; 0xffffffc0000a2ab4
+EL1N:0xFFFFFFC0000A2AB4	A9BE7BFD	STP      x29,x30,[sp,#-0x20]!
+EL1N:0xFFFFFFC0000A2AB8	910003FD	MOV      x29,sp
+EL1N:0xFFFFFFC0000A2ABC	A90153F3	STP      x19,x20,[sp,#0x10]
+EL1N:0xFFFFFFC0000A2AC0	2A0003F4	MOV      w20,w0
+EL1N:0xFFFFFFC0000A2AC4	AA1E03E0	MOV      x0,x30
+EL1N:0xFFFFFFC0000A2AC8	D503201F	NOP      
+EL1N:0xFFFFFFC0000A2ACC	D503201F	NOP      
+EL1N:0xFFFFFFC0000A2AD0	910003E0	MOV      x0,sp
+EL1N:0xFFFFFFC0000A2AD4	B0004BE1	ADRP     x1,{pc}+0x97d000 ; 0xffffffc000a1fad4
+EL1N:0xFFFFFFC0000A2AD8	9272C402	AND      x2,x0,#0xffffffffffffc000
+EL1N:0xFFFFFFC0000A2ADC	D2800020	MOV      x0,#1
+EL1N:0xFFFFFFC0000A2AE0	9AD42014	LSL      x20,x0,x20
+EL1N:0xFFFFFFC0000A2AE4	911E0021	ADD      x1,x1,#0x780
+EL1N:0xFFFFFFC0000A2AE8	B9805440	LDRSW    x0,[x2,#0x54]
+EL1N:0xFFFFFFC0000A2AEC	D37AE400	LSL      x0,x0,#6
+EL1N:0xFFFFFFC0000A2AF0	B8606822	LDR      w2,[x1,x0]
+EL1N:0xFFFFFFC0000A2AF4	2A140054	ORR      w20,w2,w20
+EL1N:0xFFFFFFC0000A2AF8	B8206834	STR      w20,[x1,x0]
+EL1N:0xFFFFFFC0000A2AFC	A94153F3	LDP      x19,x20,[sp,#0x10]
+EL1N:0xFFFFFFC0000A2B00	A8C27BFD	LDP      x29,x30,[sp],#0x20
+EL1N:0xFFFFFFC0000A2B04	D65F03C0	RET      
+EL1N:0xFFFFFFC0000A2B08	B0004B00	ADRP     x0,{pc}+0x961000 ; 0xffffffc000a03b08
+EL1N:0xFFFFFFC0000A2B0C	91298000	ADD      x0,x0,#0xa60
+EL1N:0xFFFFFFC0000A2B10	F9405013	LDR      x19,[x0,#0xa0]
+EL1N:0xFFFFFFC0000A2B14	B40000F3	CBZ      x19,{pc}+0x1c ; 0xffffffc0000a2b30
+EL1N:0xFFFFFFC0000A2B18	F9400262	LDR      x2,[x19,#0]
+EL1N:0xFFFFFFC0000A2B1C	F9400660	LDR      x0,[x19,#8]
+EL1N:0xFFFFFFC0000A2B20	2A1403E1	MOV      w1,w20
+EL1N:0xFFFFFFC0000A2B24	D63F0040	BLR      x2
+EL1N:0xFFFFFFC0000A2E5C	D503201F	NOP      
+EL1N:0xFFFFFFC0000A2E60	D53B4233	MRS      x19,DAIF
+EL1N:0xFFFFFFC0000A2E64	D50342DF	MSR      DAIFSet,#2
+EL1N:0xFFFFFFC0000A2E68	2A1403E0	MOV      w0,w20
+EL1N:0xFFFFFFC0000A2E6C	97FFFF12	BL       {pc}-0x3b8 ; 0xffffffc0000a2ab4
+EL1N:0xFFFFFFC000084898	900048C0	ADRP     x0,{pc}+0x918000 ; 0xffffffc00099c898
+EL1N:0xFFFFFFC00008489C	B94A1000	LDR      w0,[x0,#0xa10]
+EL1N:0xFFFFFFC0000848A0	6B14001F	CMP      w0,w20
+EL1N:0xFFFFFFC0000848A4	54000169	B.LS     {pc}+0x2c ; 0xffffffc0000848d0
+EL1N:0xFFFFFFC0000848A8	2A1403E0	MOV      w0,w20
+EL1N:0xFFFFFFC0000848AC	9402370B	BL       {pc}+0x8dc2c ; 0xffffffc0001124d8
+EL1N:0xFFFFFFC0001124D8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC00041CE04	?	Cannot access target memory
+EL1N:0xFFFFFFC0001132DC	?	Cannot access target memory
+EL1N:0xFFFFFFC0001132DC	?	Cannot access target memory
+EL1N:0xFFFFFFC00011754C	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0005AC27C	?	Cannot access target memory
+EL1N:0xFFFFFFC0005AC27C	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000C57DC	F9000BF3	STR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000C57E0	AA0003F3	MOV      x19,x0
+EL1N:0xFFFFFFC0000C57E4	AA1E03E0	MOV      x0,x30
+EL1N:0xFFFFFFC0000C57E8	D503201F	NOP      
+EL1N:0xFFFFFFC0000C57EC	D2C00020	MOV      x0,#0x100000000
+EL1N:0xFFFFFFC0000C57F0	C85F7E61	LDXR     x1,[x19]
+EL1N:0xFFFFFFC0000C57F4	8B000021	ADD      x1,x1,x0
+EL1N:0xFFFFFFC0000C57F8	C802FE61	STLXR    w2,x1,[x19]
+EL1N:0xFFFFFFC0000C57FC	35FFFFA2	CBNZ     w2,{pc}-0xc ; 0xffffffc0000c57f0
+EL1N:0xFFFFFFC0000C5800	D5033BBF	DMB      ISH
+EL1N:0xFFFFFFC0000C5804	B7F80081	TBNZ     x1,#63,{pc}+0x10 ; 0xffffffc0000c5814
+EL1N:0xFFFFFFC0000C5814	AA1303E0	MOV      x0,x19
+EL1N:0xFFFFFFC0000C5818	940D55E5	BL       {pc}+0x355794 ; 0xffffffc00041afac
+EL1N:0xFFFFFFC0000C581C	F9400BF3	LDR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000C5820	A8C27BFD	LDP      x29,x30,[sp],#0x20
+EL1N:0xFFFFFFC0000C5824	D65F03C0	RET      
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000C5860	AA0003F5	MOV      x21,x0
+EL1N:0xFFFFFFC0000C5864	B40008A0	CBZ      x0,{pc}+0x114 ; 0xffffffc0000c5978
+EL1N:0xFFFFFFC0000C5978	92800162	MOV      x2,#0xfffffffffffffff4
+EL1N:0xFFFFFFC0000C597C	AA0203E0	MOV      x0,x2
+EL1N:0xFFFFFFC0000C5980	A94153F3	LDP      x19,x20,[sp,#0x10]
+EL1N:0xFFFFFFC0000C5984	A9425BF5	LDP      x21,x22,[sp,#0x20]
+EL1N:0xFFFFFFC0000C5988	A8C47BFD	LDP      x29,x30,[sp],#0x40
+EL1N:0xFFFFFFC0000C598C	D65F03C0	RET      
+EL1N:0xFFFFFFC0000C5990	93407C13	SXTW     x19,w0
+EL1N:0xFFFFFFC0000C5994	17FFFFE3	B        {pc}-0x74 ; 0xffffffc0000c5920
+EL1N:0xFFFFFFC0005AC4C8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000EC360	?	Cannot access target memory
+EL1N:0xFFFFFFC0000EC360	?	Cannot access target memory
+EL1N:0xFFFFFFC0000EC360	?	Cannot access target memory
+EL1N:0xFFFFFFC0000C5884	9403E487	BL       {pc}+0xf921c ; 0xffffffc0001beaa0
+EL1N:0xFFFFFFC0001BEAA0	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0005AC2B8	?	Cannot access target memory
+EL1N:0xFFFFFFC0001175D4	?	Cannot access target memory
+EL1N:0xFFFFFFC0001175D4	?	Cannot access target memory
+EL1N:0xFFFFFFC000435F34	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0001175EC	?	Cannot access target memory
+EL1N:0xFFFFFFC0001132F0	?	Cannot access target memory
+EL1N:0xFFFFFFC0000848B0	94007844	BL       {pc}+0x1e110 ; 0xffffffc0000a29c0
+EL1N:0xFFFFFFC0000A29C0	A9BE7BFD	STP      x29,x30,[sp,#-0x20]!
+EL1N:0xFFFFFFC0000A29C4	910003FD	MOV      x29,sp
+EL1N:0xFFFFFFC0000A29C8	F9000BF3	STR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000A29CC	AA1E03E0	MOV      x0,x30
+EL1N:0xFFFFFFC0000A29D0	D503201F	NOP      
+EL1N:0xFFFFFFC0000A29D4	D53B4220	MRS      x0,DAIF
+EL1N:0xFFFFFFC0000A29D8	36380420	TBZ      w0,#7,{pc}+0x84 ; 0xffffffc0000a2a5c
+EL1N:0xFFFFFFC0000A29DC	910003E0	MOV      x0,sp
+EL1N:0xFFFFFFC0000A29E0	9272C413	AND      x19,x0,#0xffffffffffffc000
+EL1N:0xFFFFFFC0000A29E4	B9405260	LDR      w0,[x19,#0x50]
+EL1N:0xFFFFFFC0000A29E8	51404000	SUB      w0,w0,#0x10,LSL #12
+EL1N:0xFFFFFFC0000A29EC	B9005260	STR      w0,[x19,#0x50]
+EL1N:0xFFFFFFC0000A29F0	7218481F	TST      w0,#0x7ffff00
+EL1N:0xFFFFFFC0000A29F4	540000E1	B.NE     {pc}+0x1c ; 0xffffffc0000a2a10
+EL1N:0xFFFFFFC0000A29F8	B9805660	LDRSW    x0,[x19,#0x54]
+EL1N:0xFFFFFFC0000A29FC	B0004BE1	ADRP     x1,{pc}+0x97d000 ; 0xffffffc000a1f9fc
+EL1N:0xFFFFFFC0000A2A00	911E0021	ADD      x1,x1,#0x780
+EL1N:0xFFFFFFC0000A2A04	D37AE400	LSL      x0,x0,#6
+EL1N:0xFFFFFFC0000A2A08	B8606820	LDR      w0,[x1,x0]
+EL1N:0xFFFFFFC0000A2A0C	35000240	CBNZ     w0,{pc}+0x48 ; 0xffffffc0000a2a54
+EL1N:0xFFFFFFC0000A2A10	B9405660	LDR      w0,[x19,#0x54]
+EL1N:0xFFFFFFC0000A2A14	9400B7F2	BL       {pc}+0x2dfc8 ; 0xffffffc0000d09dc
+EL1N:0xFFFFFFC0000D09DC	A9BE7BFD	STP      x29,x30,[sp,#-0x20]!
+EL1N:0xFFFFFFC0000D09E0	910003FD	MOV      x29,sp
+EL1N:0xFFFFFFC0000D09E4	F9000BF3	STR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000D09E8	2A0003F3	MOV      w19,w0
+EL1N:0xFFFFFFC0000D09EC	AA1E03E0	MOV      x0,x30
+EL1N:0xFFFFFFC0000D09F0	D503201F	NOP      
+EL1N:0xFFFFFFC0000D09F4	F0004D22	ADRP     x2,{pc}+0x9a7000 ; 0xffffffc000a779f4
+EL1N:0xFFFFFFC0000D09F8	B0004521	ADRP     x1,{pc}+0x8a5000 ; 0xffffffc0009759f8
+EL1N:0xFFFFFFC0000D09FC	913F0042	ADD      x2,x2,#0xfc0
+EL1N:0xFFFFFFC0000D0A00	912F0021	ADD      x1,x1,#0xbc0
+EL1N:0xFFFFFFC0000D0A04	52800000	MOV      w0,#0
+EL1N:0xFFFFFFC0000D0A08	F873D842	LDR      x2,[x2,w19,SXTW #3]
+EL1N:0xFFFFFFC0000D0A0C	8B020021	ADD      x1,x1,x2
+EL1N:0xFFFFFFC0000D0A10	F9440023	LDR      x3,[x1,#0x800]
+EL1N:0xFFFFFFC0000D0A14	F9440422	LDR      x2,[x1,#0x808]
+EL1N:0xFFFFFFC0000D0A18	EB02007F	CMP      x3,x2
+EL1N:0xFFFFFFC0000D0A1C	54000080	B.EQ     {pc}+0x10 ; 0xffffffc0000d0a2c
+EL1N:0xFFFFFFC0000D0A2C	B9400422	LDR      w2,[x1,#4]
+EL1N:0xFFFFFFC0000D0A30	35FFFF82	CBNZ     w2,{pc}-0x10 ; 0xffffffc0000d0a20
+EL1N:0xFFFFFFC0000D0A34	F9449420	LDR      x0,[x1,#0x928]
+EL1N:0xFFFFFFC0000D0A38	F9400BF3	LDR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000D0A3C	EB1F001F	CMP      x0,xzr
+EL1N:0xFFFFFFC0000D0A40	1A9F17E0	CSET     w0,EQ
+EL1N:0xFFFFFFC0000D0A44	A8C27BFD	LDP      x29,x30,[sp],#0x20
+EL1N:0xFFFFFFC0000D0A48	D65F03C0	RET      
+EL1N:0xFFFFFFC0000A2ED0	9119C021	ADD      x1,x1,#0x670
+EL1N:0xFFFFFFC0000A2ED4	D538D082	MRS      x2,TPIDR_EL1
+EL1N:0xFFFFFFC0000A2ED8	91006021	ADD      x1,x1,#0x18
+EL1N:0xFFFFFFC0000A2EDC	F8616843	LDR      x3,[x2,x1]
+EL1N:0xFFFFFFC0000A2EE0	F9000263	STR      x3,[x19,#0]
+EL1N:0xFFFFFFC0000A2EE4	F8216853	STR      x19,[x2,x1]
+EL1N:0xFFFFFFC0000A2EE8	97FFFEF3	BL       {pc}-0x434 ; 0xffffffc0000a2ab4
+EL1N:0xFFFFFFC0000A2EEC	F9400BF3	LDR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000A2EF0	A8C27BFD	LDP      x29,x30,[sp],#0x20
+EL1N:0xFFFFFFC0000A2EF4	D65F03C0	RET      
+EL1N:0xFFFFFFC0000A2EF8	B0003183	ADRP     x3,{pc}+0x631000 ; 0xffffffc0006d3ef8
+EL1N:0xFFFFFFC0000A2EFC	F0003CC1	ADRP     x1,{pc}+0x79b000 ; 0xffffffc00083defc
+EL1N:0xFFFFFFC0000A2F00	911B4063	ADD      x3,x3,#0x6d0
+EL1N:0xFFFFFFC0000A2F04	D0003CA0	ADRP     x0,{pc}+0x796000 ; 0xffffffc000838f04
+EL1N:0xFFFFFFC0000A2F08	91030063	ADD      x3,x3,#0xc0
+EL1N:0xFFFFFFC0000A2F0C	52803A02	MOV      w2,#0x1d0
+EL1N:0xFFFFFFC0000A2F10	913C2021	ADD      x1,x1,#0xf08
+EL1N:0xFFFFFFC0000A2F14	9116A000	ADD      x0,x0,#0x5a8
+EL1N:0xFFFFFFC0000A2F18	94188C79	BL       {pc}+0x6231e4 ; 0xffffffc0006c60fc
+EL1N:0xFFFFFFC0006C60FC	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0005AC4C8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000EA588	?	Cannot access target memory
+EL1N:0xFFFFFFC0000EA588	?	Cannot access target memory
+EL1N:0xFFFFFFC0000EA588	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F376C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F376C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F376C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F376C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F376C	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F376C	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F3824	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F3824	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F3848	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000F39B0	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F39B0	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000ABE00	11000400	ADD      w0,w0,#1
+EL1N:0xFFFFFFC0000ABE04	489FFC20	STLRH    w0,[x1]
+EL1N:0xFFFFFFC0000ABE08	D50342FF	MSR      DAIFClr,#2
+EL1N:0xFFFFFFC0000ABE0C	17FFFFDD	B        {pc}-0x8c ; 0xffffffc0000abd80
+EL1N:0xFFFFFFC0000ABD80	AA1303E0	MOV      x0,x19
+EL1N:0xFFFFFFC0000ABD84	A94153F3	LDP      x19,x20,[sp,#0x10]
+EL1N:0xFFFFFFC0000ABD88	A9425BF5	LDP      x21,x22,[sp,#0x20]
+EL1N:0xFFFFFFC0000ABD8C	A94363F7	LDP      x23,x24,[sp,#0x30]
+EL1N:0xFFFFFFC0000ABD90	A9446BF9	LDP      x25,x26,[sp,#0x40]
+EL1N:0xFFFFFFC0000ABD94	A8C57BFD	LDP      x29,x30,[sp],#0x50
+EL1N:0xFFFFFFC0000ABD98	D65F03C0	RET      
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000C5744	D503201F	NOP      
+EL1N:0xFFFFFFC0000C5748	C85F7E60	LDXR     x0,[x19]
+EL1N:0xFFFFFFC0000C574C	D1000400	SUB      x0,x0,#1
+EL1N:0xFFFFFFC0000C5750	C801FE60	STLXR    w1,x0,[x19]
+EL1N:0xFFFFFFC0000C5754	35FFFFA1	CBNZ     w1,{pc}-0xc ; 0xffffffc0000c5748
+EL1N:0xFFFFFFC0000C5748	C85F7E60	LDXR     x0,[x19]
+EL1N:0xFFFFFFC0000C574C	D1000400	SUB      x0,x0,#1
+EL1N:0xFFFFFFC0000C5750	C801FE60	STLXR    w1,x0,[x19]
+EL1N:0xFFFFFFC0000C5754	35FFFFA1	CBNZ     w1,{pc}-0xc ; 0xffffffc0000c5748
+EL1N:0xFFFFFFC0000C5748	C85F7E60	LDXR     x0,[x19]
+EL1N:0xFFFFFFC0000C574C	D1000400	SUB      x0,x0,#1
+EL1N:0xFFFFFFC0000C5750	C801FE60	STLXR    w1,x0,[x19]
+EL1N:0xFFFFFFC0000C5754	35FFFFA1	CBNZ     w1,{pc}-0xc ; 0xffffffc0000c5748
+EL1N:0xFFFFFFC0000C57C4	940D55E0	BL       {pc}+0x355780 ; 0xffffffc00041af44
+EL1N:0xFFFFFFC0000ABF88	52800000	MOV      w0,#0
+EL1N:0xFFFFFFC0000ABF8C	17FFFFF5	B        {pc}-0x2c ; 0xffffffc0000abf60
+EL1N:0xFFFFFFC0000ABF60	F9400BF3	LDR      x19,[sp,#0x10]
+EL1N:0xFFFFFFC0000ABF64	A8C37BFD	LDP      x29,x30,[sp],#0x30
+EL1N:0xFFFFFFC0000ABF68	D65F03C0	RET      
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000F39C0	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F39C0	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000F3FAC	?	Cannot access target memory
+EL1N:0xFFFFFFC0000A2F04	D0003CA0	ADRP     x0,{pc}+0x796000 ; 0xffffffc000838f04
+EL1N:0xFFFFFFC0000A2F08	91030063	ADD      x3,x3,#0xc0
+EL1N:0xFFFFFFC0000A2F0C	52803A02	MOV      w2,#0x1d0
+EL1N:0xFFFFFFC0000A2F10	913C2021	ADD      x1,x1,#0xf08
+EL1N:0xFFFFFFC0000A2F14	9116A000	ADD      x0,x0,#0x5a8
+EL1N:0xFFFFFFC0000A2F18	94188C79	BL       {pc}+0x6231e4 ; 0xffffffc0006c60fc
+EL1N:0xFFFFFFC0006C60FC	?	Cannot access target memory
+EL1N:0xFFFFFFC0006C60FC	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC00011CFD4	?	Cannot access target memory
+EL1N:0xFFFFFFC0000A2F08	91030063	ADD      x3,x3,#0xc0
+EL1N:0xFFFFFFC0000A2F0C	52803A02	MOV      w2,#0x1d0
+EL1N:0xFFFFFFC0000A2F10	913C2021	ADD      x1,x1,#0xf08
+EL1N:0xFFFFFFC0000A2F14	9116A000	ADD      x0,x0,#0x5a8
+EL1N:0xFFFFFFC0000A2F18	94188C79	BL       {pc}+0x6231e4 ; 0xffffffc0006c60fc
+EL1N:0xFFFFFFC0000848B4	911D0260	ADD      x0,x19,#0x740
+EL1N:0xFFFFFFC0000848B8	D538D081	MRS      x1,TPIDR_EL1
+EL1N:0xFFFFFFC0000848BC	F8206835	STR      x21,[x1,x0]
+EL1N:0xFFFFFFC0000848C0	A94153F3	LDP      x19,x20,[sp,#0x10]
+EL1N:0xFFFFFFC0000848C4	F94013F5	LDR      x21,[sp,#0x20]
+EL1N:0xFFFFFFC0000848C8	A8C47BFD	LDP      x29,x30,[sp],#0x40
+EL1N:0xFFFFFFC0000848CC	D65F03C0	RET      
+EL1N:0xFFFFFFC000081424	51004004	SUB      w4,w0,#0x10
+EL1N:0xFFFFFFC000081428	92402401	AND      x1,x0,#0x3ff
+EL1N:0xFFFFFFC00008142C	710FB09F	CMP      w4,#0x3ec
+EL1N:0xFFFFFFC000081430	54FFFEE9	B.LS     {pc}-0x24 ; 0xffffffc00008140c
+EL1N:0xFFFFFFC000081434	71003C1F	CMP      w0,#0xf
+EL1N:0xFFFFFFC000081438	540000A9	B.LS     {pc}+0x14 ; 0xffffffc00008144c
+EL1N:0xFFFFFFC00008143C	A94153F3	LDP      x19,x20,[sp,#0x10]
+EL1N:0xFFFFFFC000081440	A9425BF5	LDP      x21,x22,[sp,#0x20]
+EL1N:0xFFFFFFC000081444	A8C37BFD	LDP      x29,x30,[sp],#0x30
+EL1N:0xFFFFFFC000081448	D65F03C0	RET      
+EL1N:0xFFFFFFC000083DAC	A9505BF5	LDP      x21,x22,[sp,#0x100]
+EL1N:0xFFFFFFC000083DB0	A8C107E0	LDP      x0,x1,[sp],#0x10
+EL1N:0xFFFFFFC000083DB4	A8C10FE2	LDP      x2,x3,[sp],#0x10
+EL1N:0xFFFFFFC000083DB8	A8C117E4	LDP      x4,x5,[sp],#0x10
+EL1N:0xFFFFFFC000083DBC	A8C11FE6	LDP      x6,x7,[sp],#0x10
+EL1N:0xFFFFFFC000083DC0	A8C127E8	LDP      x8,x9,[sp],#0x10
+EL1N:0xFFFFFFC000083DC4	D5184035	MSR      ELR_EL1,x21
+EL1N:0xFFFFFFC000083DC8	D5184016	MSR      SPSR_EL1,x22
+EL1N:0xFFFFFFC000083DCC	A8C12FEA	LDP      x10,x11,[sp],#0x10
+EL1N:0xFFFFFFC000083DD0	A8C137EC	LDP      x12,x13,[sp],#0x10
+EL1N:0xFFFFFFC000083DD4	A8C13FEE	LDP      x14,x15,[sp],#0x10
+		Return from exception
+EL1N:0xFFFFFFC000592B64	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000592B6C	?	Cannot access target memory
+EL1N:0xFFFFFFC000592B6C	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C98	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C98	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C98	?	Cannot access target memory
+EL1N:0xFFFFFFC000594354	?	Cannot access target memory
+EL1N:0xFFFFFFC000594354	?	Cannot access target memory
+EL1N:0xFFFFFFC000592CCC	?	Cannot access target memory
+EL1N:0xFFFFFFC000085174	910003FD	MOV      x29,sp
+EL1N:0xFFFFFFC000085178	AA1E03E0	MOV      x0,x30
+EL1N:0xFFFFFFC00008517C	D503201F	NOP      
+EL1N:0xFFFFFFC000085180	D50341FF	MSR      DAIFClr,#1
+EL1N:0xFFFFFFC000085184	A8C17BFD	LDP      x29,x30,[sp],#0x10
+EL1N:0xFFFFFFC000085188	D65F03C0	RET      
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000E90D0	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90D0	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC00011CDCC	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90DC	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90E8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000E902C	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E8FF4	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000E90AC	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90AC	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90BC	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90BC	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC00011CE88	?	Cannot access target memory
+EL1N:0xFFFFFFC0000E90CC	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C40	?	Cannot access target memory
+EL1N:0xFFFFFFC000594394	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0005943D8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0005943F4	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0005943F8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC000594434	?	Cannot access target memory
+EL1N:0xFFFFFFC000594434	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000594468	?	Cannot access target memory
+EL1N:0xFFFFFFC000594468	?	Cannot access target memory
+EL1N:0xFFFFFFC000594468	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000594518	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000594518	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000594518	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C54	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C54	?	Cannot access target memory
+EL1N:0xFFFFFFC000592C54	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Unknown instruction address
+EL1N:?	?	Cannot access target memory
+EL1N:?	?	Cannot access target memory
+EL1N:0xFFFFFFC0005AC4C8	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address
+EL1N:0xFFFFFFC0000EA588	?	Cannot access target memory
+EL1N:0xFFFFFFC0000EA588	?	Cannot access target memory
+EL1N:0xFFFFFFC0000EA588	?	Cannot access target memory
+EL1N:0xFFFFFFC000592B34	?	Cannot access target memory
+EL1N:0xFFFFFFC000594A88	?	Cannot access target memory
+EL1N:?	?	Unknown instruction address

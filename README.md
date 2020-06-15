@@ -27,11 +27,11 @@ Releases will appear on the master branch in the git repository with an appropri
 CoreSight Trace Component Support.
 ----------------------------------
 
-_Current Version 0.12.0_
+_Current Version 0.14.2_
 
 ### Current support:
 
-- ETMv4 (v4.4) instruction trace - packet processing and packet decode.
+- ETMv4 (v4.5 [A/R profile] v4.4 [M profile]) instruction trace - packet processing and packet decode.
 - PTM   (v1.1) instruction trace - packet processing and packet decode.
 - ETMv3 (v3.5) instruction trace - packet processing and packet decode.
 - ETMv3 (v3.5) data trace - packet processing.
@@ -55,12 +55,11 @@ Note on the Git Repository.
 This git repository for OpenCSD contains only source for the OpenCSD decoder library.
 From version 0.4, releases appear as versioned tags on the master branch.
 
-From version 0.7.4, the required updates to CoreSight drivers and perf, that are not
-currently upstream in the linux kernel tree, are now contained in a separate
-repository to be found at:
+CoreSight kernel drivers and perf suport for CoreSight trace is maintained in the latest
+upstream kernel versions.
 
-https://github.com/Linaro/perf-opencsd
-
+One exception is a minor patch required for autoFDO support. 
+See [autofdo.md](@ref AutoFDO).
 
 Documentation
 -------------
@@ -142,29 +141,75 @@ Version and Modification Information
                     AutoFDO: update documentation for AutoFDO usage and add in "record.sh" script
 - _Version 0.9.3_:  Bugfix: Test snapshot library not handling 'offset' parameters in dump file sections.
                     Install: ocsd_if_version.h moved to opencsd/include to allow installation on OS & use in compiling client apps.
-- _Version 0.10.0_: __Updates__: Add additional information about the last instruction to the generic output packet.
-                    __Docs__: update docs for updated output packet.
-                    __Bugfix__: typecast removed from OCSD_VER_NUM in ocsd_if_version.h to allow use in C pre-processor.
-                    __Bugfix__: ETMV4: Interworking ISA change between A32-T32 occasionally missed during instruction decode.
-- _Version 0.10.1_: __Updates__: Build update - allow multi-thread make (make -j<N>).
-                    __Docs__: Minor update to AutoFDO documentation.
-- _Version 0.11.0_: __Update__: ETM v4 decoder updated to support ETM version up to v4.4
-                    __Update__: Memory access callback function - added new callback signature to provide TraceID to client when requesting memory.
-                    __Update__: Created new example program to demonstrate using memory buffer in APIs.
-                    __Bugfix__: Typos in docs and source.
-                    __Bugfix__: Memory accessor - validate callback return values.
-- _Version 0.11.1_: __Update__: build:- change -fpic to -fPIC to allow Debian build on sparc.
-                    __Bugfix__: build:- remove unused variable
-- _Version 0.11.2_: __Update__: docs:- HOWTO.md update to match new perf build requirements.
-                    __Bugfix__: Minor spelling typos fixed.
-- _Version 0.12.0_: __Update__: Frame deformatter - TPIU FSYNC and HSYNC support added.
-                    __Update__: ETM v4: Bugfix & clarification on Exception trace handling. Where exception occurs at a branch target before any instructions
-                    have been executed, the preferred return address is also the target address of the branch instruction. This case now includes as specific flag in
-                    the packet. Additionally any context change associated with this target address was being applied incorrectly.
-                    __Update__: Core / Architecture mapping to core names as used by test programs / snapshots updated to include additional recent ARM cores.
-                    __Update__: Docs: Update to reflect new exception flag. Update test program example to reflect latest output.
-                    __Bugfix__: ETM v4: Valid trace info packet was not handled correctly (0x01, 0x00).
-                    __Bugfix__: ETM v4: Error messaging on commit stack overflow.
+- _Version 0.10.0_: 
+    - __Updates__: Add additional information about the last instruction to the generic output packet.
+    - __Docs__: update docs for updated output packet.
+    - __Bugfix__: typecast removed from OCSD_VER_NUM in ocsd_if_version.h to allow use in C pre-processor.
+    - __Bugfix__: ETMV4: Interworking ISA change between A32-T32 occasionally missed during instruction decode.
+
+- _Version 0.10.1_: 
+    - __Updates__: Build update - allow multi-thread make (make -j<N>).
+    - __Docs__: Minor update to AutoFDO documentation.
+
+- _Version 0.11.0_: 
+    - __Update__: ETM v4 decoder updated to support ETM version up to v4.4
+    - __Update__: Memory access callback function - added new callback signature to provide TraceID to client when requesting memory.
+    - __Update__: Created new example program to demonstrate using memory buffer in APIs.
+    - __Bugfix__: Typos in docs and source.
+    - __Bugfix__: Memory accessor - validate callback return values.
+
+- _Version 0.11.1_: 
+    - __Update__: build:- change -fpic to -fPIC to allow Debian build on sparc.
+    - __Bugfix__: build:- remove unused variable
+
+- _Version 0.11.2_: 
+    - __Update__: docs:- HOWTO.md update to match new perf build requirements.
+    - __Bugfix__: Minor spelling typos fixed.
+
+- _Version 0.12.0_: 
+    - __Update__: Frame deformatter - TPIU FSYNC and HSYNC support added.
+    - __Update__: ETM v4: Bugfix & clarification on Exception trace handling. Where exception occurs at a branch target before any instructions
+                  have been executed, the preferred return address is also the target address of the branch instruction. This case now includes as specific flag in
+                  the packet. Additionally any context change associated with this target address was being applied incorrectly.
+    - _Update__: Core / Architecture mapping to core names as used by test programs / snapshots updated to include additional recent ARM cores.
+    - __Update__: Docs: Update to reflect new exception flag. Update test program example to reflect latest output.
+    - __Bugfix__: ETM v4: Valid trace info packet was not handled correctly (0x01, 0x00).
+    - __Bugfix__: ETM v4: Error messaging on commit stack overflow.
+
+- _Version 0.12.1_: 
+    - __Update__: build: remove -g option from release build.
+    - __Update__: tests: Snapshots can now use generic arch+profile names rather than core names, e.g. ARMv8-A
+    - __Bugfix__: Instruction decode - v8.3 B[L]A{A|B}[Z] instructions mis-identified.
+     -__Bugfix__: Transition from A64 to A32 can be mis-decoded if the trace implementation represents the transition 
+                  as an individual address packet followed by a context packet. 
+
+- _Version 0.12.2_:
+    - __Bugfix__: Clean up memory leaks.
+    - __Bugfix__: ETMv4: Ensure addressing history zeroed after TINFO.
+    - __Update__: Allow GCC version to be included in build output path.
+    - __Bugfix__: Packet printing update when WFI/WFE is P0 element.
+
+- _Version 0.13.x_ : Intermediate development version.
+
+- _Version 0.14.0_: 
+    - __Update__: ETMv4 - decoder update & simplification to handle advanced trace features.
+    - __Update__: ETMv4 - decoder support for speculative trace.
+    - __Update__: Generic Elements: Additional information in EOT, UNSYNC, ON packets to give reason.
+    - __Update__: Memaccess: Add EL2 secure memory space flag.
+    - __Update__: Documentation: Updated for release changes and to reflect latest kernel version support for CoreSight.
+    - __Update__: Perf helper scripts updated to reflect latest build flow.
+    - __Bugfix__: Fix for component operational flag inputs.
+
+- _Version 0.14.1_: 
+    - __Update__: ETMv4 - Add support for Q elements.
+    - __Bugfix__: build: fix logic issue for && operator. (github issue #23, sumitted by yabinc)
+
+- _Version 0.14.2_: 
+    - __Update__: Architecture versioning. Set enum tag values to make conversion to numeric version easier.
+    - __Update__: I-decode: remove global temporary decode state data and replace with local instance data
+                  to make library more easily usable in multi-threaded programs.
+    - __Bugfix__: I-decode: Some Thumb instructions not correctly reported as implied returns.
+                  (github issue #24, submitted by kongy).
 
 
 Licence Information

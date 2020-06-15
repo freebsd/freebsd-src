@@ -1,0 +1,33 @@
+Trace Packet Lister: CS Decode library testing
+-----------------------------------------------
+
+** Library Version : 0.001
+
+Test Command Line:-
+C:\work\opencsd-github\OpenCSD\ref_trace_decoder\tests\build\win\trc_pkt_lister\..\..\..\bin\win32\dbg\trc_pkt_lister.exe   -ss_dir  ..\..\..\snapshots\a57_single_step  -decode  
+
+Trace Packet Lister : reading snapshot from path ..\..\..\snapshots\a57_single_step
+Using CSTMC_TRACE_FIFO as trace source
+Trace Packet Lister : ETMv4 Instuction trace Protocol on Trace ID 0x10
+Trace Packet Lister : Set trace element decode printer
+Gen_Info : Mapped Memory Accessors
+Gen_Info : FileAcc; Range::0xfffeb448:fffec447; Mem Space::Any
+Filename=..\..\..\snapshots\a57_single_step\mem_Cortex-A57_0.bin
+Gen_Info : ========================
+Idx:0; ID:10; [0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x80 ];	I_ASYNC : Alignment Synchronisation.
+Idx:0; ID:10; RCTDL_GEN_TRC_ELEM_NO_SYNC()
+Idx:12; ID:10; [0x01 0x00 ];	I_TRACE_INFO : Trace Info.
+Idx:16; ID:10; [0x04 ];	I_TRACE_ON : Trace On.
+Idx:17; ID:10; [0x81 0xf2 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 ];	I_CTXT : Context Packet.; Ctxt: AArch64,EL2, NS; CID=0x00000000; VMID=0x0000; 
+Idx:27; ID:10; [0x9d 0x12 0x5a 0xfe 0xff 0x00 0x00 0x00 0x00 ];	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x00000000FFFEB448; 
+Idx:37; ID:10; [0x06 0x03 ];	I_EXCEPT : Exception.;  Debug Halt; Ret Addr Follows;
+Idx:39; ID:10; [0x9d 0x13 0x5a 0xfe 0xff 0x00 0x00 0x00 0x00 ];	I_ADDR_L_64IS0 : Address, Long, 64 bit, IS0.; Addr=0x00000000FFFEB44C; 
+Idx:16; ID:10; RCTDL_GEN_TRC_ELEM_TRACE_ON( [begin or filter])
+Idx:17; ID:10; RCTDL_GEN_TRC_ELEM_PE_CONTEXT(EL2N; AArch64; VMID=0x0; CTXTID=0x0; )
+Idx:37; ID:10; RCTDL_GEN_TRC_ELEM_INSTR_RANGE(exec range=0xfffeb448:[0xfffeb44c] E --- )
+Idx:37; ID:10; RCTDL_GEN_TRC_ELEM_EXCEPTION(pref ret addr:0xfffeb44c; excep num (0x01)
+Idx:49; ID:10; [0x81 0xf2 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 ];	I_CTXT : Context Packet.; Ctxt: AArch64,EL2, NS; CID=0x00000000; VMID=0x0000; 
+Idx:59; ID:10; [0x02 0xc0 0xa1 0xc5 0x97 0x80 0x80 0x00 ];	I_TIMESTAMP : Timestamp.; Updated val = 0x40812f150c0
+Idx:59; ID:10; RCTDL_GEN_TRC_ELEM_EO_TRACE()
+ID:10	END OF TRACE DATA
+Trace Packet Lister : Trace buffer done, processed 128 bytes.

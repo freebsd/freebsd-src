@@ -130,6 +130,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::onEOT()
     try {
         pElem = GetNextOpElem(resp);
         pElem->setType(OCSD_GEN_TRC_ELEM_EO_TRACE);
+        pElem->setUnSyncEOTReason(UNSYNC_EOT);
         m_outputElemList.commitAllPendElem();
         m_curr_state = SEND_PKTS;
         resp = m_outputElemList.sendElements();
@@ -147,6 +148,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::onEOT()
 ocsd_datapath_resp_t TrcPktDecodeEtmV3::onReset()
 {
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
+    m_unsync_info = UNSYNC_RESET_DECODER;
     resetDecoder();
     return resp;
 }
@@ -199,6 +201,7 @@ void TrcPktDecodeEtmV3::initDecoder()
 {
     m_CSID = 0;
     resetDecoder();
+    m_unsync_info = UNSYNC_INIT_DECODER;
     m_code_follower.initInterfaces(getMemoryAccessAttachPt(),getInstrDecodeAttachPt());
     m_outputElemList.initSendIf(getTraceElemOutAttachPt());
 }
@@ -355,6 +358,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::decodePacket(bool &pktDone)
     catch(ocsdError &err)
     {
         LogError(err);
+        m_unsync_info = UNSYNC_BAD_PACKET;
         resetDecoder(); // mark decoder as unsynced - dump any current state.
         pktDone = true;
     }
@@ -362,6 +366,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::decodePacket(bool &pktDone)
     {
         LogError(ocsdError(OCSD_ERR_SEV_ERROR,OCSD_ERR_FAIL,m_index_curr_pkt,m_CSID,"Bad Packet sequence."));
         resp = OCSD_RESP_FATAL_SYS_ERR;
+        m_unsync_info = UNSYNC_BAD_PACKET;
         resetDecoder(); // mark decoder as unsynced - dump any current state.
         pktDone = true;
     }
@@ -375,11 +380,13 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::sendUnsyncPacket()
     try {
         pElem = GetNextOpElem(resp);
         pElem->setType(OCSD_GEN_TRC_ELEM_NO_SYNC);
+        pElem->setUnSyncEOTReason(m_unsync_info);
         resp = m_outputElemList.sendElements();
     }
     catch(ocsdError &err)
     {
         LogError(err);
+        m_unsync_info = UNSYNC_BAD_PACKET;
         resetDecoder(); // mark decoder as unsynced - dump any current state.
     }
     return resp;
@@ -464,6 +471,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::processISync(const bool withCC, const bo
     catch(ocsdError &err)
     {
         LogError(err);
+        m_unsync_info = UNSYNC_BAD_PACKET;
         resetDecoder(); // mark decoder as unsynced - dump any current state.
     }
     return resp;
@@ -531,6 +539,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::processBranchAddr()
         catch(ocsdError &err)
         {
             LogError(err);
+            m_unsync_info = UNSYNC_BAD_PACKET;
             resetDecoder(); // mark decoder as unsynced - dump any current state.
         }
     }       
@@ -647,6 +656,7 @@ ocsd_datapath_resp_t TrcPktDecodeEtmV3::processPHdr()
     catch(ocsdError &err)
     {
         LogError(err);
+        m_unsync_info = UNSYNC_BAD_PACKET;
         resetDecoder(); // mark decoder as unsynced - dump any current state.
     }
     return resp;

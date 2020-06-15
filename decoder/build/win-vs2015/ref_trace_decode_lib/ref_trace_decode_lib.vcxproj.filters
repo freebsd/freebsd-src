@@ -221,12 +221,6 @@
     <ClInclude Include="..\..\..\include\opencsd\ptm\trc_pkt_decode_ptm.h">
       <Filter>Header Files\ptm</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4d_impl.h">
-      <Filter>Source Files\etmv4</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i_impl.h">
-      <Filter>Source Files\etmv4</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\source\etmv3\trc_pkt_proc_etmv3_impl.h">
       <Filter>Source Files\etmv3</Filter>
     </ClInclude>
@@ -359,6 +353,9 @@
     <ClInclude Include="..\..\..\include\opencsd\ocsd_if_version.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\include\common\ocsd_gen_elem_stack.h">
+      <Filter>Header Files\common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\source\trc_component.cpp">
@@ -385,16 +382,7 @@
     <ClCompile Include="..\..\..\source\ptm\trc_pkt_proc_ptm.cpp">
       <Filter>Source Files\ptm</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_elem_etmv4d.cpp">
-      <Filter>Source Files\etmv4</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\source\etmv4\trc_pkt_elem_etmv4i.cpp">
-      <Filter>Source Files\etmv4</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4.cpp">
-      <Filter>Source Files\etmv4</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i_impl.cpp">
       <Filter>Source Files\etmv4</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\source\etmv4\trc_pkt_decode_etmv4i.cpp">
@@ -489,6 +477,12 @@
     </ClCompile>
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_cache.cpp">
       <Filter>Source Files\mem_acc</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i.cpp">
+      <Filter>Source Files\etmv4</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\source\ocsd_gen_elem_stack.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

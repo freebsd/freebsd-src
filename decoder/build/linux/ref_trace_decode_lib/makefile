@@ -59,11 +59,9 @@ ETMV3OBJ=	$(BUILD_DIR)/trc_cmp_cfg_etmv3.o \
 			$(BUILD_DIR)/trc_pkt_proc_etmv3_impl.o
 
 ETMV4OBJ=	$(BUILD_DIR)/trc_cmp_cfg_etmv4.o \
-			$(BUILD_DIR)/trc_pkt_proc_etmv4.o \
-			$(BUILD_DIR)/trc_pkt_proc_etmv4i_impl.o \
+			$(BUILD_DIR)/trc_pkt_proc_etmv4i.o \
 			$(BUILD_DIR)/trc_pkt_decode_etmv4i.o \
 			$(BUILD_DIR)/trc_pkt_elem_etmv4i.o \
-			$(BUILD_DIR)/trc_pkt_elem_etmv4d.o \
 			$(BUILD_DIR)/trc_etmv4_stack_elem.o
 
 PTMOBJ=		$(BUILD_DIR)/trc_cmp_cfg_ptm.o \
@@ -94,6 +92,7 @@ OBJECTS=$(BUILD_DIR)/ocsd_code_follower.o \
 		$(BUILD_DIR)/ocsd_error.o \
 		$(BUILD_DIR)/ocsd_error_logger.o \
 		$(BUILD_DIR)/ocsd_gen_elem_list.o \
+		$(BUILD_DIR)/ocsd_gen_elem_stack.o \
 		$(BUILD_DIR)/ocsd_lib_dcd_register.o \
 		$(BUILD_DIR)/ocsd_msg_logger.o \
 		$(BUILD_DIR)/ocsd_version.o \

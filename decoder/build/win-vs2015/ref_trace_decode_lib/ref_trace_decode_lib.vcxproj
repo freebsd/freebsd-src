@@ -323,6 +323,7 @@
     <ClInclude Include="..\..\..\include\common\ocsd_error.h" />
     <ClInclude Include="..\..\..\include\common\ocsd_error_logger.h" />
     <ClInclude Include="..\..\..\include\common\ocsd_gen_elem_list.h" />
+    <ClInclude Include="..\..\..\include\common\ocsd_gen_elem_stack.h" />
     <ClInclude Include="..\..\..\include\common\ocsd_lib_dcd_register.h" />
     <ClInclude Include="..\..\..\include\common\ocsd_msg_logger.h" />
     <ClInclude Include="..\..\..\include\common\ocsd_pe_context.h" />
@@ -400,8 +401,6 @@
     <ClInclude Include="..\..\..\include\opencsd\trc_gen_elem_types.h" />
     <ClInclude Include="..\..\..\include\opencsd\trc_pkt_types.h" />
     <ClInclude Include="..\..\..\source\etmv3\trc_pkt_proc_etmv3_impl.h" />
-    <ClInclude Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4d_impl.h" />
-    <ClInclude Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i_impl.h" />
     <ClInclude Include="..\..\..\source\trc_frame_deformatter_impl.h" />
   </ItemGroup>
   <ItemGroup>
@@ -413,10 +412,8 @@
     <ClCompile Include="..\..\..\source\etmv4\trc_cmp_cfg_etmv4.cpp" />
     <ClCompile Include="..\..\..\source\etmv4\trc_etmv4_stack_elem.cpp" />
     <ClCompile Include="..\..\..\source\etmv4\trc_pkt_decode_etmv4i.cpp" />
-    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_elem_etmv4d.cpp" />
     <ClCompile Include="..\..\..\source\etmv4\trc_pkt_elem_etmv4i.cpp" />
-    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4.cpp" />
-    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i_impl.cpp" />
+    <ClCompile Include="..\..\..\source\etmv4\trc_pkt_proc_etmv4i.cpp" />
     <ClCompile Include="..\..\..\source\i_dec\trc_idec_arminst.cpp" />
     <ClCompile Include="..\..\..\source\i_dec\trc_i_decode.cpp" />
     <ClCompile Include="..\..\..\source\mem_acc\trc_mem_acc_base.cpp" />
@@ -430,6 +427,7 @@
     <ClCompile Include="..\..\..\source\ocsd_error.cpp" />
     <ClCompile Include="..\..\..\source\ocsd_error_logger.cpp" />
     <ClCompile Include="..\..\..\source\ocsd_gen_elem_list.cpp" />
+    <ClCompile Include="..\..\..\source\ocsd_gen_elem_stack.cpp" />
     <ClCompile Include="..\..\..\source\ocsd_lib_dcd_register.cpp" />
     <ClCompile Include="..\..\..\source\ocsd_msg_logger.cpp" />
     <ClCompile Include="..\..\..\source\ocsd_version.cpp" />

@@ -161,6 +161,7 @@ void EtmV4ITrcPacket::toString(std::string &str) const
         {
             std::ostringstream oss;
             oss << "; INFO=" << std::hex << "0x" << trace_info.val;
+            oss << " { CC." << std::dec << trace_info.bits.cc_enabled << " }";
             if (trace_info.bits.cc_enabled)
                 oss << "; CC_THRESHOLD=" << std::hex << "0x" << cc_threshold;
             str += oss.str();
@@ -176,8 +177,96 @@ void EtmV4ITrcPacket::toString(std::string &str) const
             str += oss.str();
         }
         break;
+
+    case ETM4_PKT_I_CANCEL_F1:
+        {
+            std::ostringstream oss;
+            oss << "; Cancel(" << std::dec << cancel_elements << ")";
+            str += oss.str();
+        }
+        break;
+
+    case ETM4_PKT_I_CANCEL_F1_MISPRED:
+        {
+            std::ostringstream oss;
+            oss << "; Cancel(" << std::dec << cancel_elements << "), Mispredict";
+            str += oss.str();
+        }
+        break;
+
+    case ETM4_PKT_I_MISPREDICT:
+        {
+            std::ostringstream oss;
+            oss << "; ";
+            if (atom.num) {
+                atomSeq(valStr);
+                oss << "Atom: " << valStr << ", ";
+            }
+            oss << "Mispredict";
+            str += oss.str();
+        }
+        break;
+
+    case ETM4_PKT_I_CANCEL_F2:
+        {
+            std::ostringstream oss;
+            oss << "; ";
+            if (atom.num) {
+                atomSeq(valStr);
+                oss << "Atom: " << valStr << ", ";
+            }
+            oss << "Cancel(1), Mispredict";
+            str += oss.str();
+        }
+        break;
+
+    case ETM4_PKT_I_CANCEL_F3:
+        {
+            std::ostringstream oss;
+            oss << "; ";
+            if (atom.num) {
+                oss << "Atom: E, ";
+            }
+            oss << "Cancel(" << std::dec << cancel_elements << "), Mispredict";
+            str += oss.str();
+        }
+        break;
+
+    case ETM4_PKT_I_COMMIT:
+        {
+            std::ostringstream oss;
+            oss << "; Commit(" << std::dec << commit_elements << ")";
+            str += oss.str();
+        }
+        break;
+
+    case ETM4_PKT_I_Q:
+        {
+            std::ostringstream oss;
+            if (Q_pkt.count_present)
+            {
+                oss << "; Count(" << std::dec << Q_pkt.q_count << ")";
+                str += oss.str();
+            }
+            else
+                str += "; Count(Unknown)";
+
+            if (Q_pkt.addr_match) 
+            {
+                addrMatchIdx(valStr);
+                str += "; " + valStr;
+            }
+
+            if (Q_pkt.addr_present || Q_pkt.addr_match)
+            {
+                trcPrintableElem::getValStr(valStr, (v_addr.size == VA_64BIT) ? 64 : 32, v_addr.valid_bits, v_addr.val, true, (v_addr.pkt_bits < 64) ? v_addr.pkt_bits : 0);
+                str += "; Addr=" + valStr;
+            }
+        }
+        break;
     }
-}
+
+}   
 
 void EtmV4ITrcPacket::toStringFmt(const uint32_t fmtFlags, std::string &str) const
 {
@@ -295,6 +384,12 @@ const char *EtmV4ITrcPacket::packetTypeName(const ocsd_etmv4_i_pkt_type type, co
         pName = "I_CANCEL_F1";
         pDesc = "Cancel Format 1.";
         break;
+
+    case ETM4_PKT_I_CANCEL_F1_MISPRED:
+        pName = "I_CANCEL_F1_MISPRED";
+        pDesc = "Cancel Format 1 + Mispredict.";
+        break;
+
 
     case ETM4_PKT_I_MISPREDICT:
         pName = "I_MISPREDICT";

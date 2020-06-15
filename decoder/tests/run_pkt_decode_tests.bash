@@ -35,10 +35,20 @@
 # may change due to bugfix / enhancements) or assess the validity  of the trace output.
 #
 #################################################################################
+# Usage options:-
+# * default: run tests on binary + libs in ./bin/linux64/rel
+# run_pkt_decode_tests.bash
+#
+# * use installed opencsd libraries & program
+# run_pkt_decode_tests.bash use-installed
+#
+# * use supplied path for binary + libs (must have trailing /)
+# run_pkt_decode_tests.bash <custom>/<path>/
+#
 
 OUT_DIR=./results
 SNAPSHOT_DIR=./snapshots
-BIN_DIR=./bin/linux64/rel
+BIN_DIR=./bin/linux64/rel/
 
 # directories for tests using full decode
 declare -a test_dirs_decode=( "juno-ret-stck"
@@ -62,17 +72,41 @@ echo "Running trc_pkt_lister on snapshot directories."
 
 mkdir -p ${OUT_DIR}
 
-# === test the decode set ===
-export LD_LIBRARY_PATH=${BIN_DIR}/.
+if [ "$1" == "use-installed" ]; then
+    BIN_DIR=""
+elif [ "$1" != "" ]; then
+    BIN_DIR=$1
+fi
 
+echo "Tests using BIN_DIR = ${BIN_DIR}"
+
+if [ "${BIN_DIR}" != "" ]; then
+    export LD_LIBRARY_PATH=${BIN_DIR}.
+    echo "LD_LIBRARY_PATH set to ${BIN_DIR}"
+fi
+
+# === test the decode set ===
 for test_dir in "${test_dirs_decode[@]}"
 do
     echo "Testing $test_dir..."
-    ${BIN_DIR}/trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/$test_dir" -decode -logfilename "${OUT_DIR}/$test_dir.ppl"
+    ${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/$test_dir" -decode -logfilename "${OUT_DIR}/$test_dir.ppl"
     echo "Done : Return $?"
 done
 
+# === test a packet only example ===
+echo "Testing init-short-addr..."
+${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/init-short-addr" -pkt_mon -logfilename "${OUT_DIR}/init-short-addr.ppl"
+
 # === test the TPIU deformatter ===
 echo "Testing a55-test-tpiu..."
-${BIN_DIR}/trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/a55-test-tpiu" -dstream_format -o_raw_packed -o_raw_unpacked -logfilename "${OUT_DIR}/a55-test-tpiu.ppl"
+${BIN_DIR}trc_pkt_lister -ss_dir "${SNAPSHOT_DIR}/a55-test-tpiu" -dstream_format -o_raw_packed -o_raw_unpacked -logfilename "${OUT_DIR}/a55-test-tpiu.ppl"
 echo "Done : Return $?"
+
+# === test the C-API lib - this test prog is not installed ===
+if [ "$1" != "use-installed" ]; then
+    echo "Testing C-API library"
+    ${BIN_DIR}c_api_pkt_print_test -ss_path ${SNAPSHOT_DIR} -decode > /dev/null
+    echo "Done : Return $?"
+    echo "moving result file."
+    mv ./c_api_test.log ./${OUT_DIR}/c_api_test.ppl
+fi

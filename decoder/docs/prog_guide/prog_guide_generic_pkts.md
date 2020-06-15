@@ -83,7 +83,7 @@ typedef struct _ocsd_generic_trace_elem {
         trace_on_reason_t trace_on_reason;  /* reason for the trace on packet */
         ocsd_swt_info_t sw_trace_info;      /* software trace packet info    */
 		uint32_t num_instr_range;	        /* number of instructions covered by range packet (for T32 this cannot be calculated from en-st/i_size) */
-
+        unsync_info_t unsync_eot_info;      /* additional information for unsync / end-of-trace packets. */
     };
 
     const void *ptr_extended_data;        /* pointer to extended data buffer (data trace, sw trace payload) / custom structure */
@@ -140,6 +140,19 @@ instruction by subtraction from `en_addr`. This value can be 2 or 4 bytes in the
 
 __ETMv3, PTM__ : These protocols can output a cycle count directly as part of the trace packet that generates 
 the trace range. In this case `has_cc` will be 1 and `cycle_count` will be valid.
+
+
+### OCSD_GEN_TRC_ELEM_I_RANGE_NOPATH ###  
+__packet fields valid__: `isa, st_addr, en_addr, num_instr_range`
+
+`num_instr_range` represents the number of instructions executed in this range, but there is incomplete information 
+as to program execution path from start to end of range.
+If `num_instr` is 0, then an unknown number of instructions were executed between the start and end of the range.
+`st_addr` represents the start of execution represented by this packet.
+`en_addr` represents the address where execution will continue from after the instructions represented by this packet.
+`isa` represents the ISA for the instruction at `en_addr`.
+
+Used when ETMv4 Q elements are being traced.
 
 
 ### OCSD_GEN_TRC_ELEM_ADDR_NACC ###

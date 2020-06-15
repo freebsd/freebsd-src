@@ -68,6 +68,7 @@ ocsd_datapath_resp_t TrcPktDecodeStm::processPacket()
         {
         case NO_SYNC:
             m_output_elem.setType(OCSD_GEN_TRC_ELEM_NO_SYNC);
+            m_output_elem.setUnSyncEOTReason(m_unsync_info);
             resp = outputTraceElement(m_output_elem);
             m_curr_state = WAIT_SYNC;
             break;
@@ -90,6 +91,7 @@ ocsd_datapath_resp_t TrcPktDecodeStm::onEOT()
 {
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
     m_output_elem.setType(OCSD_GEN_TRC_ELEM_EO_TRACE);
+    m_output_elem.setUnSyncEOTReason(UNSYNC_EOT);
     resp = outputTraceElement(m_output_elem);
     return resp;
 }
@@ -97,6 +99,7 @@ ocsd_datapath_resp_t TrcPktDecodeStm::onEOT()
 ocsd_datapath_resp_t TrcPktDecodeStm::onReset()
 {
     ocsd_datapath_resp_t resp = OCSD_RESP_CONT;
+    m_unsync_info = UNSYNC_RESET_DECODER;
     resetDecoder();
     return resp;
 }
@@ -127,7 +130,7 @@ void TrcPktDecodeStm::initDecoder()
     // base decoder state - STM requires no memory and instruction decode.
     setUsesMemAccess(false);
     setUsesIDecode(false);
-
+    m_unsync_info = UNSYNC_INIT_DECODER;
     resetDecoder();
 }
 
@@ -166,6 +169,7 @@ ocsd_datapath_resp_t TrcPktDecodeStm::decodePacket(bool &bPktDone)
     case STM_PKT_BAD_SEQUENCE:   /**< Incorrect protocol sequence */
     case STM_PKT_RESERVED:
         resp = OCSD_RESP_FATAL_INVALID_DATA;
+        m_unsync_info = UNSYNC_BAD_PACKET;
     case STM_PKT_NOTSYNC:
         resetDecoder();
         break;

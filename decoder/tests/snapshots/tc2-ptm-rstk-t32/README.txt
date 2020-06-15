@@ -1,0 +1,1 @@
+DS-5 Debugger has generated this trace dump data set. The intention is that in a future release the DS-5 Debugger will be able to directly consume this data set. Until then, this data set must be converted into a Snapshot viewer compatible format before it can be used by DS-5 Debugger.
