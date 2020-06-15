@@ -32,8 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/elf.h>
 #include <sys/elf_common.h>
 
-#include "notes.h"
-
 extern int main(int, char **, char **);
 
 extern void (*__preinit_array_start[])(int, char **, char **) __hidden;
@@ -140,18 +138,3 @@ handle_argv(int argc, char *argv[], char **env)
 		}
 	}
 }
-
-static const struct {
-	int32_t	namesz;
-	int32_t	descsz;
-	int32_t	type;
-	char	name[sizeof(NOTE_FREEBSD_VENDOR)];
-	uint32_t desc;
-} crt_noinit_tag __attribute__ ((section (NOTE_SECTION),
-    aligned(4))) __used = {
-	.namesz = sizeof(NOTE_FREEBSD_VENDOR),
-	.descsz = sizeof(uint32_t),
-	.type = NT_FREEBSD_NOINIT_TAG,
-	.name = NOTE_FREEBSD_VENDOR,
-	.desc = 0
-};

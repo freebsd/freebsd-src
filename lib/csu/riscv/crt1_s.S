@@ -33,60 +33,24 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdlib.h>
+#include "crtbrand.S"
+#include "ignore_init_note.S"
 
-#include "libc_private.h"
-#include "crtbrand.c"
-#include "ignore_init.c"
+ENTRY(_start)
+	mv	a3, a2		# cleanup
+	addi	a1, a0, 8	# get argv
+	ld	a0, 0(a0)	# load argc
+	slli	t0, a0, 3	# mult by arg size
+	add	a2, a1, t0	# env is after argv
+	addi	a2, a2, 8	# argv is null terminated
+	.option push
+	.option norelax
+	lla	gp, __global_pointer$
+	.option pop
+	call	__start
+END(_start)
 
-typedef void (*fptr)(void);
-
-#ifdef GCRT
-extern void _mcleanup(void);
-extern void monstartup(void *, void *);
-extern int eprol;
-extern int etext;
-#endif
-
-void __start(int argc, char **argv, char **env, void (*cleanup)(void));
-
-/* The entry function. */
-__asm("	.text			\n"
-"	.align 0		\n"
-"	.globl _start		\n"
-"	_start:			\n"
-"	mv	a3, a2		\n" /* cleanup */
-"	addi	a1, a0, 8	\n" /* get argv */
-"	ld	a0, 0(a0)	\n" /* load argc */
-"	slli	t0, a0, 3	\n" /* mult by arg size */
-"	add	a2, a1, t0	\n" /* env is after argv */
-"	addi	a2, a2, 8	\n" /* argv is null terminated */
-"	.option push		\n"
-"	.option norelax		\n"
-"	lla	gp, __global_pointer$\n"
-"	.option pop		\n"
-"	call	__start");
-
-void
-__start(int argc, char **argv, char **env, void (*cleanup)(void))
-{
-
-	handle_argv(argc, argv, env);
-
-	if (&_DYNAMIC != NULL)
-		atexit(cleanup);
-	else
-		_init_tls();
-
-#ifdef GCRT
-	atexit(_mcleanup);
-	monstartup(&eprol, &etext);
-__asm__("eprol:");
-#endif
-
-	handle_static_init(argc, argv, env);
-	exit(main(argc, argv, env));
-}
+	.section .note.GNU-stack,"",%progbits
