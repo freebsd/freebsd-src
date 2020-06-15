@@ -3097,7 +3097,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	u_long npages;
 	u_int last_timestamp;
 	int rv;
-	boolean_t need_wakeup, result, user_wire;
+	boolean_t need_wakeup, result, user_wire, user_wire_limit;
 	vm_prot_t prot;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -3108,6 +3108,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 	if (flags & VM_MAP_WIRE_WRITE)
 		prot |= VM_PROT_WRITE;
 	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
+	user_wire_limit = (flags & VM_MAP_WIRE_USER_LIMIT) ? TRUE : FALSE;
 	VM_MAP_RANGE_CHECK(map, start, end);
 	if (!vm_map_lookup_entry(map, start, &first_entry)) {
 		if (flags & VM_MAP_WIRE_HOLESOK)
@@ -3188,7 +3189,8 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 			entry->wired_count++;
 
 			npages = atop(entry->end - entry->start);
-			if (user_wire && !vm_map_wire_user_count_add(npages)) {
+			if (user_wire_limit &&
+			    !vm_map_wire_user_count_add(npages)) {
 				vm_map_wire_entry_failure(map, entry,
 				    entry->start);
 				end = entry->end;
@@ -3250,7 +3252,7 @@ vm_map_wire_locked(vm_map_t map, vm_offset_t start, vm_offset_t end, int flags)
 			last_timestamp = map->timestamp;
 			if (rv != KERN_SUCCESS) {
 				vm_map_wire_entry_failure(map, entry, faddr);
-				if (user_wire)
+				if (user_wire_limit)
 					vm_map_wire_user_count_sub(npages);
 				end = entry->end;
 				goto done;
@@ -3319,7 +3321,7 @@ done:
 			 */
 			if (entry->wired_count == 1) {
 				vm_map_entry_unwire(map, entry);
-				if (user_wire)
+				if (user_wire_limit)
 					vm_map_wire_user_count_sub(
 					    atop(entry->end - entry->start));
 			} else
@@ -4455,7 +4457,8 @@ retry:
 	if (rv == KERN_SUCCESS && (map->flags & MAP_WIREFUTURE) != 0) {
 		rv = vm_map_wire_locked(map, grow_start,
 		    grow_start + grow_amount,
-		    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
+		    VM_MAP_WIRE_USER | VM_MAP_WIRE_USER_LIMIT |
+		    VM_MAP_WIRE_NOHOLES);
 	}
 	vm_map_lock_downgrade(map);
 

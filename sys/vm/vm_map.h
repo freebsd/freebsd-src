@@ -397,6 +397,8 @@ long vmspace_resident_count(struct vmspace *vmspace);
 
 #define VM_MAP_WIRE_WRITE	4	/* Validate writable. */
 
+#define	VM_MAP_WIRE_USER_LIMIT	8	/* Enfore the user wiring limit */
+
 #ifdef _KERNEL
 boolean_t vm_map_check_protection (vm_map_t, vm_offset_t, vm_offset_t, vm_prot_t);
 vm_map_t vm_map_create(pmap_t, vm_offset_t, vm_offset_t);
