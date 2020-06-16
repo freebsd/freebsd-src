@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 11, 2018
+.Dd June 9, 2020
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -60,6 +60,33 @@ failure.
 Deinitialise libusb.
 Must be called at the end of the application.
 Other libusb routines may not be called after this function.
+.Pp
+.Ft int
+.Fn libusb_has_capability "uint32_t capability"
+This function checks the runtime capabilities of
+.Nm .
+This function will return non-zero if the given
+.Fa capability
+is supported, 0 if it is not supported.
+The valid values for
+.Fa capability
+are:
+.Bl -tag -width LIBUSB_CAP -offset indent
+.It Va LIBUSB_CAP_HAS_CAPABILITY
+.Nm
+supports
+.Fn libusb_has_capability .
+.It Va LIBUSB_CAP_HAS_HOTPLUG
+.Nm
+supports hotplug notifications.
+.It Va LIBUSB_CAP_HAS_HID_ACCESS
+.Nm
+can access HID devices without requiring user intervention.
+.It Va LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER
+.Nm
+supports detaching of the default USB driver with
+.Fn libusb_detach_kernel_driver .
+.El
 .Pp
 .Ft const char *
 .Fn libusb_strerror "int code"
