@@ -1147,8 +1147,11 @@ ieee80211_wme_initparams_locked(struct ieee80211vap *vap)
 	 * field and updates hardware when said field changes.
 	 * Otherwise the hardware is programmed with defaults, not what
 	 * the beacon actually announces.
+	 *
+	 * Note that we can't ever have 0xff as an actual value;
+	 * the only valid values are 0..15.
 	 */
-	wme->wme_wmeChanParams.cap_info = 0;
+	wme->wme_wmeChanParams.cap_info = 0xfe;
 
 	/*
 	 * Select mode; we can be called early in which case we
