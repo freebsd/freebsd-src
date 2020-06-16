@@ -673,7 +673,7 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 	lopt_size = create_loadopt(load_opt_buf, MAX_LOADOPT_LEN, load_attrs,
 	    dp, llen + klen, label, env, env ? strlen(env) + 1 : 0);
 	if (lopt_size == BAD_LENGTH)
-		errx(1, "Can't crate loadopt");
+		errx(1, "Can't create loadopt");
 
 	ret = 0;
 	if (!dry_run) {
@@ -684,7 +684,8 @@ make_boot_var(const char *label, const char *loader, const char *kernel, const c
 	if (ret)
 		err(1, "efi_set_variable");
 
-	add_to_boot_order(bootvar); /* first, still not active */
+	if (!dry_run)
+		add_to_boot_order(bootvar); /* first, still not active */
 	new_ent = malloc(sizeof(struct entry));
 	if (new_ent == NULL)
 		err(1, "malloc");
