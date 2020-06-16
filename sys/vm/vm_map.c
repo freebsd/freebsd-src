@@ -2377,24 +2377,17 @@ vm_map_entry_clone(vm_map_t map, vm_map_entry_t entry)
  *	the specified address; if necessary,
  *	it splits the entry into two.
  */
-#define vm_map_clip_start(map, entry, startaddr) \
-{ \
-	if (startaddr > entry->start) \
-		_vm_map_clip_start(map, entry, startaddr); \
-}
-
-/*
- *	This routine is called only when it is known that
- *	the entry must be split.
- */
 static inline void
-_vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
+vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 {
 	vm_map_entry_t new_entry;
 
+	if (start <= entry->start)
+		return;
+
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->end > start && entry->start < start,
-	    ("_vm_map_clip_start: invalid clip of entry %p", entry));
+	    ("%s: invalid clip of entry %p", __func__, entry));
 
 	new_entry = vm_map_entry_clone(map, entry);
 
@@ -2435,24 +2428,17 @@ vm_map_lookup_clip_start(vm_map_t map, vm_offset_t start,
  *	the specified address; if necessary,
  *	it splits the entry into two.
  */
-#define vm_map_clip_end(map, entry, endaddr) \
-{ \
-	if ((endaddr) < (entry->end)) \
-		_vm_map_clip_end((map), (entry), (endaddr)); \
-}
-
-/*
- *	This routine is called only when it is known that
- *	the entry must be split.
- */
 static inline void
-_vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
+vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 {
 	vm_map_entry_t new_entry;
 
+	if (end >= entry->end)
+		return;
+
 	VM_MAP_ASSERT_LOCKED(map);
 	KASSERT(entry->start < end && entry->end > end,
-	    ("_vm_map_clip_end: invalid clip of entry %p", entry));
+	    ("%s: invalid clip of entry %p", __func__, entry));
 
 	new_entry = vm_map_entry_clone(map, entry);
 
