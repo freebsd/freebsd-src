@@ -112,6 +112,14 @@
 	    xlink:href="https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=246274">PR
 	      246274</link> for additional details.</para>
       </listitem>
+
+      <listitem>
+	<para>[2020-06-16] The &os;&nbsp;11.4 release notes
+	  erroneously state the <application>KDE</application>
+	  desktop environment has been updated to version
+	  5.8.4.1.19.12.3.  The correct version is
+	  5.18.4.1.19.12.3.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
