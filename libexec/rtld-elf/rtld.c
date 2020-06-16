@@ -2612,12 +2612,13 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
     obj->path = path;
     if (!digest_dynamic(obj, 0))
 	goto errp;
-    if (obj->z_pie) {
+    dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d", obj->path,
+	obj->valid_hash_sysv, obj->valid_hash_gnu, obj->dynsymcount);
+    if (obj->z_pie && (flags & RTLD_LO_TRACE) == 0) {
+	dbg("refusing to load PIE executable \"%s\"", obj->path);
 	_rtld_error("Cannot load PIE binary %s as DSO", obj->path);
 	goto errp;
     }
-    dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d", obj->path,
-	obj->valid_hash_sysv, obj->valid_hash_gnu, obj->dynsymcount);
     if (obj->z_noopen && (flags & (RTLD_LO_DLOPEN | RTLD_LO_TRACE)) ==
       RTLD_LO_DLOPEN) {
 	dbg("refusing to load non-loadable \"%s\"", obj->path);
