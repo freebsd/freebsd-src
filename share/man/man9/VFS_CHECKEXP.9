@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2010
+.Dd June 16, 2020
 .Dt VFS_CHECKEXP 9
 .Os
 .Sh NAME
@@ -34,7 +34,13 @@
 .In sys/param.h
 .In sys/mount.h
 .Ft int
-.Fn VFS_CHECKEXP "struct mount *mp" "struct sockaddr *nam" "int *exflagsp" "struct ucred **credanonp"
+.Fo VFS_CHECKEXP
+.Fa "struct mount *mp"
+.Fa "struct sockaddr *nam"
+.Fa "uint64_t *exflagsp"
+.Fa "struct ucred **credanonp"
+.Fa "int *numsecflavor"
+.Fa "int *secflavors"
 .Sh DESCRIPTION
 The
 .Fn VFS_CHECKEXP
@@ -51,6 +57,11 @@ An mbuf containing the network address of the client.
 Return parameter for the export flags for this client.
 .It Fa credanonp
 Return parameter for the anonymous credentials for this client.
+.It Fa numsecflavors
+Return value for the number of security flavors for this client.
+.It Fa secflavors
+Must be an array of size MAXSECFLAVORS, in which the security flavors
+for this client are returned.
 .El
 .Pp
 The
@@ -71,13 +82,15 @@ structure and the address of the client,
 .Fa nam ,
 to verify that the client can access this file system.
 .Sh RETURN VALUES
-The export flags and anonymous credentials specific to the client (returned
-by
+The export flags, anonymous credentials and security flavors specific to the
+client (returned by
 .Xr vfs_export_lookup 9 )
 will be returned in
-.Fa *exflagsp
+.Fa *exflagsp ,
+.Fa *credanonp ,
+.Fa *numsecflavors
 and
-.Fa *credanonp .
+.Fa *secflavors .
 .Sh SEE ALSO
 .Xr VFS 9 ,
 .Xr VFS_FHTOVP 9 ,
