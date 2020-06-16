@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2020
+.Dd May 5, 2020
 .Dt CAP_SYSCTL 3
 .Os
 .Sh NAME
@@ -175,6 +175,11 @@ cap_close(capsysctl);
 .Xr sysctlnametomib 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
+.Sh HISTORY
+The
+.Nm cap_sysctl
+service first appeared in
+.Fx 10.3 .
 .Sh AUTHORS
 The
 .Nm cap_sysctl

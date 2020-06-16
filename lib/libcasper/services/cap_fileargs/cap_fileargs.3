@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2019
+.Dd May 5, 2020
 .Dt CAP_FILEARGS 3
 .Os
 .Sh NAME
@@ -263,6 +263,11 @@ fileargs_free(fa);
 .Xr getopt 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
+.Sh HISTORY
+The
+.Nm cap_fileargs
+service first appeared in
+.Fx 10.3 .
 .Sh BUGS
 The
 .Lb cap_fileargs
