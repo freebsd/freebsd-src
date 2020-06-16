@@ -721,7 +721,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     preload_tail = globallist_curr(TAILQ_LAST(&obj_list, obj_entry_q));
 
     dbg("loading needed objects");
-    if (load_needed_objects(obj_main, 0) == -1)
+    if (load_needed_objects(obj_main, ld_tracing != NULL ? RTLD_LO_TRACE :
+      0) == -1)
 	rtld_die();
 
     /* Make a list of all objects loaded at startup. */
@@ -3472,7 +3473,7 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 	    }
 	    if (result != -1)
 		result = load_needed_objects(obj, lo_flags & (RTLD_LO_DLOPEN |
-		    RTLD_LO_EARLY | RTLD_LO_IGNSTLS));
+		  RTLD_LO_EARLY | RTLD_LO_IGNSTLS | RTLD_LO_TRACE));
 	    init_dag(obj);
 	    ref_dag(obj);
 	    if (result != -1)
