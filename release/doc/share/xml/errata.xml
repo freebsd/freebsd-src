@@ -19,92 +19,9 @@
 
     <tbody>
       <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-19:13.mds.asc">FreeBSD-EN-19:13.mds</link></entry>
-	<entry>24&nbsp;July&nbsp;2019</entry>
-	<entry><para>System crash from Intel CPU vulnerability
-	    mitigation</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-19:15.libunwind.asc">FreeBSD-EN-19:15.libunwind</link></entry>
-	<entry>6&nbsp;August&nbsp;2019</entry>
-	<entry><para>Incorrect exception handling</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-19:16.bhyve.asc">FreeBSD-EN-19:16.bhyve</link></entry>
-	<entry>20&nbsp;August&nbsp;2019</entry>
-	<entry><para>Instruction emulation improvements</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-19:17.ipfw.asc">FreeBSD-EN-19:17.ipfw</link></entry>
-	<entry>20&nbsp;August&nbsp;2019</entry>
-	<entry><para>&quot;jail&quot; keyword fix</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-19:18.tzdata.asc">FreeBSD-EN-19:18.tzdata</link></entry>
-	<entry>23&nbsp;October&nbsp;2019</entry>
-	<entry><para>Timezone database information
-	    update</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:01.ssp.asc">FreeBSD-EN-20:01.ssp</link></entry>
-	<entry>28&nbsp;January&nbsp;2020</entry>
-	<entry><para>Imprecise orderring of canary
-	  initialization</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:02.nmount.asc">FreeBSD-EN-20:02.nmount</link></entry>
-	<entry>28&nbsp;January&nbsp;2020</entry>
-	<entry><para>Invalid pointer dereference</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:04.pfctl.asc">FreeBSD-EN-20:04.pfctl</link></entry>
-	<entry>18&nbsp;March&nbsp;2020</entry>
-	<entry><para>Missing &man.pfctl.8; tunable</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:06.ipv6.asc">FreeBSD-EN-20:06.ipv6</link></entry>
-	<entry>18&nbsp;March&nbsp;2020</entry>
-	<entry><para>Incorrect checksum calculations</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:07.quotad.asc">FreeBSD-EN-20:07.quotad</link></entry>
-	<entry>21&nbsp;April&nbsp;2020</entry>
-	<entry><para>Regression with certain <acronym>NFS</acronym>
-	  servers</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:08.tzdata.asc">FreeBSD-EN-20:08.tzdata</link></entry>
-	<entry>12&nbsp;May&nbsp;2020</entry>
-	<entry><para>Timezone database update</para></entry>
-      </row>
-
-      <row>
-	<entry><link
-	    xlink:href="&security.url;/FreeBSD-EN-20:10.build.asc">FreeBSD-EN-20:10.build</link></entry>
-	<entry>12&nbsp;May&nbsp;2020</entry>
-	<entry><para>Incorrect build host clang version
-	  detection</para></entry>
+	<entry>No notices.</entry>
+	<entry>&nbsp;</entry>
+	<entry>&nbsp;</entry>
       </row>
     </tbody>
   </tgroup>
