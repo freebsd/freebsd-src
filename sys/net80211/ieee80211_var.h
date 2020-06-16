@@ -581,6 +581,9 @@ struct ieee80211vap {
 	void			(*iv_updateslot)(struct ieee80211vap *);
 	struct task		iv_slot_task;	/* deferred slot time update */
 
+	/* per-vap U-APSD state */
+	uint8_t			iv_uapsdinfo;	/* sta mode QoS Info flags */
+
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
@@ -662,6 +665,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FEXT_FRAG_OFFLOAD	0x00200000	/* CONF: hardware does 802.11 fragmentation + assignment */
 #define	IEEE80211_FEXT_VHT	0x00400000	/* CONF: VHT support */
 #define	IEEE80211_FEXT_QUIET_IE	0x00800000	/* STATUS: quiet IE in a beacon has been added */
+#define	IEEE80211_FEXT_UAPSD	0x01000000	/* CONF: enable U-APSD */
 
 #define	IEEE80211_FEXT_BITS \
 	"\20\2INACT\3SCANWAIT\4BGSCAN\5WPS\6TSN\7SCANREQ\10RESUME" \
