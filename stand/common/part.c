@@ -647,7 +647,6 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	struct dos_partition *dp;
 	struct ptable *table;
 	uint8_t *buf;
-	int i;
 #ifdef LOADER_MBR_SUPPORT
 	struct pentry *entry;
 	uint32_t start, end;
@@ -720,7 +719,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	 * start sector 1. After DOSPTYP_PMBR, there may be other partitions.
 	 * UEFI compliant PMBR has no other partitions.
 	 */
-	for (i = 0; i < NDOSPART; i++) {
+	for (int i = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_flag != 0 && dp[i].dp_flag != 0x80) {
 			DPRINTF("invalid partition flag %x", dp[i].dp_flag);
 			goto out;
@@ -742,7 +741,7 @@ ptable_open(void *dev, uint64_t sectors, uint16_t sectorsize,
 	/* Read MBR. */
 	DPRINTF("MBR detected");
 	table->type = PTABLE_MBR;
-	for (i = has_ext = 0; i < NDOSPART; i++) {
+	for (int i = has_ext = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_typ == 0)
 			continue;
 		start = le32dec(&(dp[i].dp_start));
