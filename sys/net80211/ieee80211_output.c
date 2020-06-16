@@ -2156,26 +2156,48 @@ add_ie(uint8_t *frm, const uint8_t *ie)
  * Add a WME information element to a frame.
  */
 uint8_t *
-ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme)
+ieee80211_add_wme_info(uint8_t *frm, struct ieee80211_wme_state *wme,
+    struct ieee80211_node *ni)
 {
-	static const struct ieee80211_wme_info info = {
-		.wme_id		= IEEE80211_ELEMID_VENDOR,
-		.wme_len	= sizeof(struct ieee80211_wme_info) - 2,
-		.wme_oui	= { WME_OUI_BYTES },
-		.wme_type	= WME_OUI_TYPE,
-		.wme_subtype	= WME_INFO_OUI_SUBTYPE,
-		.wme_version	= WME_VERSION,
-		.wme_info	= 0,
-	};
-	memcpy(frm, &info, sizeof(info));
-	return frm + sizeof(info); 
+	static const uint8_t oui[4] = { WME_OUI_BYTES, WME_OUI_TYPE };
+	struct ieee80211vap *vap = ni->ni_vap;
+
+	*frm++ = IEEE80211_ELEMID_VENDOR;
+	*frm++ = sizeof(struct ieee80211_wme_info) - 2;
+	memcpy(frm, oui, sizeof(oui));
+	frm += sizeof(oui);
+	*frm++ = WME_INFO_OUI_SUBTYPE;
+	*frm++ = WME_VERSION;
+
+	/* QoS info field depends upon operating mode */
+	switch (vap->iv_opmode) {
+	case IEEE80211_M_HOSTAP:
+		*frm = wme->wme_bssChanParams.cap_info;
+		if (vap->iv_flags_ext & IEEE80211_FEXT_UAPSD)
+			*frm |= WME_CAPINFO_UAPSD_EN;
+		frm++;
+		break;
+	case IEEE80211_M_STA:
+		/*
+		 * NB: UAPSD drivers must set this up in their
+		 * VAP creation method.
+		 */
+		*frm++ = vap->iv_uapsdinfo;
+		break;
+	default:
+		*frm++ = 0;
+		break;
+	}
+
+	return frm;
 }
 
 /*
  * Add a WME parameters element to a frame.
  */
 static uint8_t *
-ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
+ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme,
+    int uapsd_enable)
 {
 #define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 #define	ADDSHORT(frm, v) do {	\
@@ -2195,8 +2217,12 @@ ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme)
 
 	memcpy(frm, &param, sizeof(param));
 	frm += __offsetof(struct ieee80211_wme_info, wme_info);
-	*frm++ = wme->wme_bssChanParams.cap_info;	/* AC info */
+	*frm = wme->wme_bssChanParams.cap_info;	/* AC info */
+	if (uapsd_enable)
+		*frm |= WME_CAPINFO_UAPSD_EN;
+	frm++;
 	*frm++ = 0;					/* reserved field */
+	/* XXX TODO - U-APSD bits - SP, flags below */
 	for (i = 0; i < WME_NUM_AC; i++) {
 		const struct wmeParams *ac =
 		       &wme->wme_bssChanParams.cap_wmeParams[i];
@@ -2789,7 +2815,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		frm = ieee80211_add_wpa(frm, vap);
 		if ((ic->ic_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
-			frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
+			frm = ieee80211_add_wme_info(frm, &ic->ic_wme, ni);
 
 		/*
 		 * Same deal - only send HT info if we're on an 11n
@@ -2881,7 +2907,8 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		}
 		if ((vap->iv_flags & IEEE80211_F_WME) &&
 		    ni->ni_ies.wme_ie != NULL)
-			frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
+			frm = ieee80211_add_wme_param(frm, &ic->ic_wme,
+			    !! (vap->iv_flags_ext & IEEE80211_FEXT_UAPSD));
 		if ((ni->ni_flags & HTFLAGS) == HTFLAGS) {
 			frm = ieee80211_add_htcap_vendor(frm, ni);
 			frm = ieee80211_add_htinfo_vendor(frm, ni);
@@ -3092,7 +3119,8 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	}
 	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME)
-		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
+		frm = ieee80211_add_wme_param(frm, &ic->ic_wme,
+		    !! (vap->iv_flags_ext & IEEE80211_FEXT_UAPSD));
 	if (IEEE80211_IS_CHAN_HT(bss->ni_chan) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT) &&
 	    legacy != IEEE80211_SEND_LEGACY_11B) {
@@ -3490,7 +3518,8 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 	frm = ieee80211_add_wpa(frm, vap);
 	if (vap->iv_flags & IEEE80211_F_WME) {
 		bo->bo_wme = frm;
-		frm = ieee80211_add_wme_param(frm, &ic->ic_wme);
+		frm = ieee80211_add_wme_param(frm, &ic->ic_wme,
+		    !! (vap->iv_flags_ext & IEEE80211_FEXT_UAPSD));
 	}
 	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) &&
 	    (vap->iv_flags_ht & IEEE80211_FHT_HTCOMPAT)) {
@@ -3782,7 +3811,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 					wme->wme_hipri_switch_hysteresis;
 		}
 		if (isset(bo->bo_flags, IEEE80211_BEACON_WME)) {
-			(void) ieee80211_add_wme_param(bo->bo_wme, wme);
+			(void) ieee80211_add_wme_param(bo->bo_wme, wme,
+			  vap->iv_flags_ext & IEEE80211_FEXT_UAPSD);
 			clrbit(bo->bo_flags, IEEE80211_BEACON_WME);
 		}
 	}

@@ -146,6 +146,7 @@ struct ieee80211_node {
 #define	IEEE80211_NODE_AMSDU_TX	0x080000	/* AMSDU tx enabled */
 #define	IEEE80211_NODE_VHT	0x100000	/* VHT enabled */
 #define	IEEE80211_NODE_LDPC	0x200000	/* LDPC enabled */
+#define	IEEE80211_NODE_UAPSD	0x400000	/* U-APSD power save enabled */
 	uint16_t		ni_associd;	/* association ID */
 	uint16_t		ni_vlan;	/* vlan tag */
 	uint16_t		ni_txpower;	/* current transmit power */
@@ -255,6 +256,9 @@ struct ieee80211_node {
 	/* quiet time IE state for the given node */
 	uint32_t		ni_quiet_ie_set;	/* Quiet time IE was seen */
 	struct			ieee80211_quiet_ie ni_quiet_ie;	/* last seen quiet IE */
+
+	/* U-APSD */
+	uint8_t			ni_uapsd;	/* U-APSD per-node flags matching WMM STA QoS Info field */
 
 	uint64_t		ni_spare[3];
 };

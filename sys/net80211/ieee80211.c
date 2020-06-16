@@ -616,6 +616,12 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 	if (vap->iv_opmode == IEEE80211_M_HOSTAP &&
 	    (vap->iv_caps & IEEE80211_C_DFS))
 		vap->iv_flags_ext |= IEEE80211_FEXT_DFS;
+	/* NB: only flip on U-APSD for hostap/sta for now */
+	if ((vap->iv_opmode == IEEE80211_M_STA)
+	    || (vap->iv_opmode == IEEE80211_M_HOSTAP)) {
+		if (vap->iv_caps & IEEE80211_C_UAPSD)
+			vap->iv_flags_ext |= IEEE80211_FEXT_UAPSD;
+	}
 
 	vap->iv_des_chan = IEEE80211_CHAN_ANYC;		/* any channel is ok */
 	vap->iv_bmissthreshold = IEEE80211_HWBMISS_DEFAULT;

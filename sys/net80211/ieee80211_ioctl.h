@@ -710,6 +710,8 @@ struct ieee80211req {
 #define	IEEE80211_IOC_GREENFIELD	112	/* Greenfield (on, off) */
 #define	IEEE80211_IOC_STBC		113	/* STBC Tx/RX (on, off) */
 #define	IEEE80211_IOC_LDPC		114	/* LDPC Tx/RX (on, off) */
+#define	IEEE80211_IOC_UAPSD		115	/* UAPSD (on, off) */
+#define	IEEE80211_IOC_UAPSD_INFO	116	/* UAPSD (SP, per-AC enable) */
 
 /* VHT */
 #define	IEEE80211_IOC_VHTCONF		130	/* VHT config (off, on; widths) */
