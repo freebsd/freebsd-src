@@ -1804,6 +1804,12 @@ set80211ldpc(const char *val, int d, int s, const struct afswtch *rafp)
         set80211(s, IEEE80211_IOC_LDPC, ldpc, 0, NULL);
 }
 
+static void
+set80211uapsd(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_UAPSD, d, 0, NULL);
+}
+
 static
 DECL_CMD_FUNC(set80211ampdulimit, val, d)
 {
@@ -5288,6 +5294,16 @@ end:
 				break;
 			}
 		}
+		if (get80211val(s, IEEE80211_IOC_UAPSD, &val) != -1) {
+			switch (val) {
+			case 0:
+				LINE_CHECK("-uapsd");
+				break;
+			case 1:
+				LINE_CHECK("uapsd");
+				break;
+			}
+		}
 	}
 
 	if (IEEE80211_IS_CHAN_VHT(c) || verbose) {
@@ -5872,6 +5888,8 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-ldpctx",	-1,	set80211ldpc),
 	DEF_CMD("ldpc",		3,	set80211ldpc),		/* NB: tx+rx */
 	DEF_CMD("-ldpc",	-3,	set80211ldpc),
+	DEF_CMD("uapsd",	1,	set80211uapsd),
+	DEF_CMD("-uapsd",	0,	set80211uapsd),
 	DEF_CMD("puren",	1,	set80211puren),
 	DEF_CMD("-puren",	0,	set80211puren),
 	DEF_CMD("doth",		1,	set80211doth),
