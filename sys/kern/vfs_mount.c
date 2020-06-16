@@ -70,9 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
-#include <rpc/types.h>
-#include <rpc/auth.h>
-
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
@@ -1131,8 +1128,6 @@ vfs_domount_update(
 		switch (len) {
 		case (sizeof(struct oexport_args)):
 			bzero(&o2export, sizeof(o2export));
-			o2export.ex_numsecflavors = 1;
-			o2export.ex_secflavors[0] = AUTH_SYS;
 			/* FALLTHROUGH */
 		case (sizeof(o2export)):
 			bcopy(bufp, &o2export, len);
