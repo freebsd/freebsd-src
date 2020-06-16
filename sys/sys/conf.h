@@ -147,6 +147,23 @@ typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh,
 #define	D_TTY	0x0004
 #define	D_MEM	0x0008	/* /dev/(k)mem */
 
+/* Defined uid and gid values. */
+#define		UID_ROOT	0
+#define		UID_BIN		3
+#define		UID_UUCP	66
+#define		UID_NOBODY	65534
+
+#define		GID_WHEEL	0
+#define		GID_KMEM	2
+#define		GID_TTY		4
+#define		GID_OPERATOR	5
+#define		GID_BIN		7
+#define		GID_GAMES	13
+#define		GID_VIDEO	44
+#define		GID_DIALER	68
+#define		GID_NOGROUP	65533
+#define		GID_NOBODY	65534
+
 #ifdef _KERNEL
 
 #define	D_TYPEMASK	0xffff
@@ -308,22 +325,6 @@ void	devfs_clear_cdevpriv(void);
 
 ino_t	devfs_alloc_cdp_inode(void);
 void	devfs_free_cdp_inode(ino_t ino);
-
-#define		UID_ROOT	0
-#define		UID_BIN		3
-#define		UID_UUCP	66
-#define		UID_NOBODY	65534
-
-#define		GID_WHEEL	0
-#define		GID_KMEM	2
-#define		GID_TTY		4
-#define		GID_OPERATOR	5
-#define		GID_BIN		7
-#define		GID_GAMES	13
-#define		GID_VIDEO	44
-#define		GID_DIALER	68
-#define		GID_NOGROUP	65533
-#define		GID_NOBODY	65534
 
 typedef void (*dev_clone_fn)(void *arg, struct ucred *cred, char *name,
 	    int namelen, struct cdev **result);
