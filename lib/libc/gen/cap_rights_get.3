@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 5, 2020
 .Dt CAP_RIGHTS_GET 3
 .Os
 .Sh NAME
@@ -110,6 +110,10 @@ argument points at an invalid address.
 .Xr capsicum 4 ,
 .Xr rights 4
 .Sh HISTORY
+The
+.Fn cap_rights_get
+function first appeared in
+.Fx 9.2 .
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.

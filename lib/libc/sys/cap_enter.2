@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2017
+.Dd May 5, 2020
 .Dt CAP_ENTER 2
 .Os
 .Sh NAME
@@ -150,6 +150,10 @@ points outside the process's allocated address space.
 .Xr capsicum 4 ,
 .Xr sysctl 9
 .Sh HISTORY
+The
+.Fn cap_getmode
+system call first appeared in
+.Fx 8.3 .
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.
