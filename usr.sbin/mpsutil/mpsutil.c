@@ -37,6 +37,8 @@ __RCSID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <err.h>
+#include <inttypes.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -91,6 +93,8 @@ int
 main(int ac, char **av)
 {
 	struct mpsutil_command **cmd;
+	uintmax_t unit;
+	char *end;
 	int ch;
 
 	is_mps = !strcmp(getprogname(), "mpsutil");
@@ -98,7 +102,17 @@ main(int ac, char **av)
 	while ((ch = getopt(ac, av, "u:h?")) != -1) {
 		switch (ch) {
 		case 'u':
-			mps_unit = atoi(optarg);
+			if (strncmp(optarg, _PATH_DEV, strlen(_PATH_DEV)) == 0) {
+				optarg += strlen(_PATH_DEV);
+				if (strncmp(optarg, is_mps ? "mps" : "mpr", 3) != 0)
+					errx(1, "Invalid device: %s", optarg);
+			}
+			if (strncmp(optarg, is_mps ? "mps" : "mpr", 3) == 0)
+				optarg += 3;
+			unit = strtoumax(optarg, &end, 10);
+			if (*end != '\0' || unit == UINTMAX_MAX || unit > INT_MAX)
+				errx(1, "Invalid unit: %s", optarg);
+			mps_unit = unit;
 			break;
 		case 'h':
 		case '?':
