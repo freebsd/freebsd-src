@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/fnv_hash.h>
 #include <sys/linker.h>
@@ -1525,9 +1526,9 @@ get_exportlist_one(int passno)
 		 * Set defaults.
 		 */
 		has_host = FALSE;
-		anon.cr_uid = 65534;
+		anon.cr_uid = UID_NOBODY;
 		anon.cr_ngroups = 1;
-		anon.cr_groups[0] = 65533;
+		anon.cr_groups[0] = GID_NOGROUP;
 		exflags = MNT_EXPORTED;
 		got_nondir = 0;
 		opt_flags = 0;
@@ -3456,8 +3457,8 @@ parsecred(char *namelist, struct expcred *cr)
 	/*
 	 * Set up the unprivileged user.
 	 */
-	cr->cr_uid = 65534;
-	cr->cr_groups[0] = 65533;
+	cr->cr_uid = UID_NOBODY;
+	cr->cr_groups[0] = GID_NOGROUP;
 	cr->cr_ngroups = 1;
 	/*
 	 * Get the user's password table entry.
