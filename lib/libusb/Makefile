@@ -44,6 +44,7 @@ CFLAGS+=	-DCOMPAT_32BIT
 MLINKS += libusb.3 libusb_get_version.3
 MLINKS += libusb.3 libusb_init.3
 MLINKS += libusb.3 libusb_exit.3
+MLINKS += libusb.3 libusb_has_capability.3
 MLINKS += libusb.3 libusb_strerror.3
 MLINKS += libusb.3 libusb_error_name.3
 MLINKS += libusb.3 libusb_set_debug.3
