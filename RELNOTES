@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r362158, r362163:
+	struct export_args has changed so that the "user" specified for
+	the -maproot and -mapall exports(5) options may be in more than
+	16 groups.
+
 r361884:
 	sed(1) has learned about hex escapes (e.g. \x27) and will now do the
 	right thing with them, removing the need for printf magic or obnoxious
