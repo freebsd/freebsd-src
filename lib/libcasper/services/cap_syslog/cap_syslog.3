@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 27, 2018
+.Dd May 5, 2020
 .Dt CAP_SYSLOG 3
 .Os
 .Sh NAME
@@ -103,5 +103,10 @@ cap_syslog(capsyslog, LOG_NOTICE, "System logs from capability mode.");
 .Xr vsyslog 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
+.Sh HISTORY
+The
+.Nm cap_syslog
+service first appeared in
+.Fx 10.3 .
 .Sh AUTHORS
 .An Mariusz Zaborski Aq Mt oshogbo@FreeBSD.org

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2018
+.Dd May 5, 2020
 .Dt CAP_PWD 3
 .Os
 .Sh NAME
@@ -223,6 +223,11 @@ cap_close(cappwd);
 .Xr setpwent 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
+.Sh HISTORY
+The
+.Nm cap_pwd
+service first appeared in
+.Fx 10.3 .
 .Sh AUTHORS
 The
 .Nm cap_pwd
