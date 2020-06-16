@@ -12750,7 +12750,8 @@ again:
 				flags &= ~TH_FIN;
 		}
 	}
-	recwin = sbspace(&so->so_rcv);
+	recwin = lmin(lmax(sbspace(&so->so_rcv), 0),
+	    (long)TCP_MAXWIN << tp->rcv_scale);
 
 	/*
 	 * Sender silly window avoidance.   We transmit under the following
@@ -13656,8 +13657,6 @@ send:
 		if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
 		    recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
 			recwin = (long)(tp->rcv_adv - tp->rcv_nxt);
-		if (recwin > (long)TCP_MAXWIN << tp->rcv_scale)
-			recwin = (long)TCP_MAXWIN << tp->rcv_scale;
 	}
 
 	/*
