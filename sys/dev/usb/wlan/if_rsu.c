@@ -1982,7 +1982,7 @@ rsu_join_bss(struct rsu_softc *sc, struct ieee80211_node *ni)
 	frm = ieee80211_add_qos(frm, ni);
 	if ((ic->ic_flags & IEEE80211_F_WME) &&
 	    (ni->ni_ies.wme_ie != NULL))
-		frm = ieee80211_add_wme_info(frm, &ic->ic_wme);
+		frm = ieee80211_add_wme_info(frm, &ic->ic_wme, ni);
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
 		frm = ieee80211_add_htcap(frm, ni);
 		frm = ieee80211_add_htinfo(frm, ni);
