@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: intel,v 1.17 2018/08/01 10:34:03 christos Exp $
+# $File: intel,v 1.18 2020/04/18 16:19:03 christos Exp $
 # intel:  file(1) magic for x86 Unix
 #
 # Various flavors of x86 UNIX executable/object (other than Xenix, which
@@ -67,3 +67,60 @@
 # From Dr. Jesus <j@hug.gs>
 0	lelong		0x0ff0a55a	Intel serial flash for ICH/PCH ROM <= 5 or 3400 series A-step
 16	lelong		0x0ff0a55a	Intel serial flash for PCH ROM
+
+# From: 	Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/Advanced_Configuration_and_Power_Interface
+# Reference:	https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf
+# Note:		generated for example by `cat /sys/firmware/acpi/tables/DSDT MyDSDT.aml`
+0	string		DSDT
+>0	use		acpi-table
+# not tested or other file format
+0	string		APIC
+>0	use		acpi-table
+#0	string		ASF!
+#>0	use		acpi-table
+0	string		FACP
+>0	use		acpi-table
+#0	string		FACS
+#>0	use		acpi-table
+0	string		MCFG
+>0	use		acpi-table
+0	string		SLIC
+>0	use		acpi-table
+0	string		SSDT
+>0	use		acpi-table
+0	name		acpi-table
+# skip ASCII text starting with DSDT by looking for valid "low" revision
+>8	ubyte		<17	ACPI Machine Language file
+# assume that ACPI tables size are lower than 16 MiB
+#>4	ulelong		<0x01000000
+# DSDT for Differentiated System Description Table
+>>0	string		x	'%.4s'
+#!:mime	application/octet-stream
+!:mime	application/x-intel-aml
+!:ext	aml
+# the manufacture model ID like: VBOXBIOS BXDSDT
+>>16	string		>\0	%.8s
+# OEM revision of DSDT for supplied OEM Table ID like: 0 1 2 20090511
+>>>24	ulelong		x	%x
+# OEM ID like: INTEL VBOX (VirtualBox) BXDSDT (qemu) MEDION or \030\001\0\0 for s3pt.aml
+>>10	ubyte		>040	by %c
+>>>11		ubyte	>040	\b%c
+>>>>12		ubyte	>040	\b%c
+>>>>>13		ubyte	>040	\b%c
+>>>>>>14	ubyte	>040	\b%c
+>>>>>>>15	ubyte	>040	\b%c
+# This field also sets the global integer width for the AML interpreter.
+# Values less than two will cause the interpreter to use 32-bit.
+# Values of two and greater will cause the interpreter to use full 64-bit.
+# 16 for asf!.aml, 67 fo rsdp.aml
+>>8	ubyte		x	\b, revision %u
+# length, in bytes, of the entire DSDT (including the header)
+>>4	ulelong		x	\b, %u bytes
+# entire table must sum to zero
+#>>9	ubyte		x	\b, checksum 0x%x
+# vendor ID for the ASL Compiler like: INTL MSFT ...
+>>28	string		>\0	\b, created by %.4s
+# revision number of the ASL Compiler like: 20051117 20140724 20190703 20200110 ...
+>>>32	ulelong		x	%x
+

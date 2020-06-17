@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: images,v 1.171 2019/11/23 16:19:47 christos Exp $
+# $File: images,v 1.181 2020/05/30 23:49:03 christos Exp $
 # images:  file(1) magic for image formats (see also "iff", and "c-lang" for
 # XPM bitmaps)
 #
@@ -27,6 +27,8 @@
 # and Image Type 1 2 3 9 10 11 32 33
 # and Color Map Entry Size 0 15 16 24 32
 0	ubequad&0x00FeC400000000C0	0
+# Conflict with MPEG sequences.
+!:strength -40
 # Prevent conflicts with CRI ADX.
 >(2.S-2) belong	!0x28632943
 # skip more garbage like *.iso by looking for positive image type
@@ -523,6 +525,17 @@
 # ImageMagick-7.0.9-2/Magick++/demo/smile_anim.miff
 >>>0	ubyte		!0x7b
 >>>>0	string		>\0		'%-.14s'
+# URL:		https://imagemagick.org/
+# Reference:	https://imagemagick.org/script/magick-vector-graphics.php
+# From:		Joerg Jenderek
+# Note:		all white-spaces between commands are ignored
+0	string		push
+# skip some white spaces
+>5	search/3	graphic-context	ImageMagick Vector Graphic
+# TODO: look for dangerous commands like CVE-2016-3715
+#!:mime	text/plain
+!:mime	image/x-mvg
+!:ext	mvg
 
 # Artisan
 0	long		1123028772	Artisan image data
@@ -1372,6 +1385,8 @@
 # From: Tom Hilinski <tom.hilinski@comcast.net>
 # https://www.unidata.ucar.edu/packages/netcdf/
 0	string	CDF\001			NetCDF Data Format data
+# 64-bit offset netcdf Classic https://www.unidata.ucar.edu/software/netcdf/docs/file_format_specifications
+0	string	CDF\002			NetCDF Data Format data (64-bit offset)
 
 #-----------------------------------------------------------------------
 # Hierarchical Data Format, used to facilitate scientific data exchange
@@ -1882,8 +1897,7 @@
 
 # Type: Khronos KTX texture.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
-# References:
-# - https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
+# Reference: https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
 
 # glEnum decoding.
 # NOTE: Only the most common formats are listed here.
@@ -1900,6 +1914,10 @@
 >0	lelong	0x83A3	\b, RGBA4_S3TC
 >0	lelong	0x83A4	\b, RGBA_DXT5_S3TC
 >0	lelong	0x83A5	\b, RGBA4_DXT5_S3TC
+>0	lelong	0x83F0	\b, COMPRESSED_RGB_S3TC_DXT1_EXT
+>0	lelong	0x83F1	\b, COMPRESSED_RGBA_S3TC_DXT1_EXT
+>0	lelong	0x83F2	\b, COMPRESSED_RGBA_S3TC_DXT3_EXT
+>0	lelong	0x83F3	\b, COMPRESSED_RGBA_S3TC_DXT5_EXT
 >0	lelong	0x8D64	\b, ETC1_RGB8_OES
 >0	lelong	0x9270	\b, COMPRESSED_R11_EAC
 >0	lelong	0x9271	\b, COMPRESSED_SIGNED_R11_EAC
@@ -1958,6 +1976,281 @@
 >>16	use	khronos-ktx-endian-header
 >12	belong	0x04030201			(big-endian)
 >>16	use	\^khronos-ktx-endian-header
+
+# Type: Khronos KTX2 texture.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# Based on draft19.
+# Reference: http://github.khronos.org/KTX-Specification/
+
+# Supercompression enum.
+0	name	khronos-ktx2-supercompression
+>0	lelong	1	Basis Universal
+>0	lelong	2	Zstandard
+
+# Vulkan format identifier.
+# NOTE: Formats prohibited from KTX2 are commented out.
+0	name	khronos-ktx2-vkFormat
+>0	lelong	0	UNDEFINED
+>0	lelong	1	R4G4_UNORM_PACK8
+>0	lelong	2	R4G4B4A4_UNORM_PACK16
+>0	lelong	3	B4G4R4A4_UNORM_PACK16
+>0	lelong	4	R5G6B5_UNORM_PACK16
+>0	lelong	5	B5G6R5_UNORM_PACK16
+>0	lelong	6	R5G5B5A1_UNORM_PACK16
+>0	lelong	7	B5G5R5A1_UNORM_PACK16
+>0	lelong	8	A1R5G5B5_UNORM_PACK16
+>0	lelong	9	R8_UNORM
+>0	lelong	10	R8_SNORM
+#>0	lelong	11	R8_USCALED
+#>0	lelong	12	R8_SSCALED
+>0	lelong	13	R8_UINT
+>0	lelong	14	R8_SINT
+>0	lelong	15	R8_SRGB
+>0	lelong	16	R8G8_UNORM
+>0	lelong	17	R8G8_SNORM
+#>0	lelong	18	R8G8_USCALED
+#>0	lelong	19	R8G8_SSCALED
+>0	lelong	20	R8G8_UINT
+>0	lelong	21	R8G8_SINT
+>0	lelong	22	R8G8_SRGB
+>0	lelong	23	R8G8B8_UNORM
+>0	lelong	24	R8G8B8_SNORM
+#>0	lelong	25	R8G8B8_USCALED
+#>0	lelong	26	R8G8B8_SSCALED
+>0	lelong	27	R8G8B8_UINT
+>0	lelong	28	R8G8B8_SINT
+>0	lelong	29	R8G8B8_SRGB
+>0	lelong	30	B8G8R8_UNORM
+>0	lelong	31	B8G8R8_SNORM
+#>0	lelong	32	B8G8R8_USCALED
+#>0	lelong	33	B8G8R8_SSCALED
+>0	lelong	34	B8G8R8_UINT
+>0	lelong	35	B8G8R8_SINT
+>0	lelong	36	B8G8R8_SRGB
+>0	lelong	37	R8G8B8A8_UNORM
+>0	lelong	38	R8G8B8A8_SNORM
+#>0	lelong	39	R8G8B8A8_USCALED
+#>0	lelong	40	R8G8B8A8_SSCALED
+>0	lelong	41	R8G8B8A8_UINT
+>0	lelong	42	R8G8B8A8_SINT
+>0	lelong	43	R8G8B8A8_SRGB
+>0	lelong	44	B8G8R8A8_UNORM
+>0	lelong	45	B8G8R8A8_SNORM
+#>0	lelong	46	B8G8R8A8_USCALED
+#>0	lelong	47	B8G8R8A8_SSCALED
+>0	lelong	48	B8G8R8A8_UINT
+>0	lelong	49	B8G8R8A8_SINT
+>0	lelong	50	B8G8R8A8_SRGB
+#>0	lelong	51	A8B8G8R8_UNORM_PACK32
+#>0	lelong	52	A8B8G8R8_SNORM_PACK32
+#>0	lelong	53	A8B8G8R8_USCALED_PACK32
+#>0	lelong	54	A8B8G8R8_SSCALED_PACK32
+#>0	lelong	55	A8B8G8R8_UINT_PACK32
+#>0	lelong	56	A8B8G8R8_SINT_PACK32
+#>0	lelong	57	A8B8G8R8_SRGB_PACK32
+>0	lelong	58	A2R10G10B10_UNORM_PACK32
+>0	lelong	59	A2R10G10B10_SNORM_PACK32
+#>0	lelong	60	A2R10G10B10_USCALED_PACK32
+#>0	lelong	61	A2R10G10B10_SSCALED_PACK32
+>0	lelong	62	A2R10G10B10_UINT_PACK32
+>0	lelong	63	A2R10G10B10_SINT_PACK32
+>0	lelong	64	A2B10G10R10_UNORM_PACK32
+>0	lelong	65	A2B10G10R10_SNORM_PACK32
+#>0	lelong	66	A2B10G10R10_USCALED_PACK32
+#>0	lelong	67	A2B10G10R10_SSCALED_PACK32
+>0	lelong	68	A2B10G10R10_UINT_PACK32
+>0	lelong	69	A2B10G10R10_SINT_PACK32
+>0	lelong	70	R16_UNORM
+>0	lelong	71	R16_SNORM
+#>0	lelong	72	R16_USCALED
+#>0	lelong	73	R16_SSCALED
+>0	lelong	74	R16_UINT
+>0	lelong	75	R16_SINT
+>0	lelong	76	R16_SFLOAT
+>0	lelong	77	R16G16_UNORM
+>0	lelong	78	R16G16_SNORM
+#>0	lelong	79	R16G16_USCALED
+#>0	lelong	80	R16G16_SSCALED
+>0	lelong	81	R16G16_UINT
+>0	lelong	82	R16G16_SINT
+>0	lelong	83	R16G16_SFLOAT
+>0	lelong	84	R16G16B16_UNORM
+>0	lelong	85	R16G16B16_SNORM
+#>0	lelong	86	R16G16B16_USCALED
+#>0	lelong	87	R16G16B16_SSCALED
+>0	lelong	88	R16G16B16_UINT
+>0	lelong	89	R16G16B16_SINT
+>0	lelong	90	R16G16B16_SFLOAT
+>0	lelong	91	R16G16B16A16_UNORM
+>0	lelong	92	R16G16B16A16_SNORM
+#>0	lelong	93	R16G16B16A16_USCALED
+#>0	lelong	94	R16G16B16A16_SSCALED
+>0	lelong	95	R16G16B16A16_UINT
+>0	lelong	96	R16G16B16A16_SINT
+>0	lelong	97	R16G16B16A16_SFLOAT
+>0	lelong	98	R32_UINT
+>0	lelong	99	R32_SINT
+>0	lelong	100	R32_SFLOAT
+>0	lelong	101	R32G32_UINT
+>0	lelong	102	R32G32_SINT
+>0	lelong	103	R32G32_SFLOAT
+>0	lelong	104	R32G32B32_UINT
+>0	lelong	105	R32G32B32_SINT
+>0	lelong	106	R32G32B32_SFLOAT
+>0	lelong	107	R32G32B32A32_UINT
+>0	lelong	108	R32G32B32A32_SINT
+>0	lelong	109	R32G32B32A32_SFLOAT
+>0	lelong	110	R64_UINT
+>0	lelong	111	R64_SINT
+>0	lelong	112	R64_SFLOAT
+>0	lelong	113	R64G64_UINT
+>0	lelong	114	R64G64_SINT
+>0	lelong	115	R64G64_SFLOAT
+>0	lelong	116	R64G64B64_UINT
+>0	lelong	117	R64G64B64_SINT
+>0	lelong	118	R64G64B64_SFLOAT
+>0	lelong	119	R64G64B64A64_UINT
+>0	lelong	120	R64G64B64A64_SINT
+>0	lelong	121	R64G64B64A64_SFLOAT
+>0	lelong	122	B10G11R11_UFLOAT_PACK32
+>0	lelong	123	E5B9G9R9_UFLOAT_PACK32
+>0	lelong	124	D16_UNORM
+>0	lelong	125	X8_D24_UNORM_PACK32
+>0	lelong	126	D32_SFLOAT
+>0	lelong	127	S8_UINT
+>0	lelong	128	D16_UNORM_S8_UINT
+>0	lelong	129	D24_UNORM_S8_UINT
+>0	lelong	130	D32_SFLOAT_S8_UINT
+
+>0	lelong	131	BC1_RGB_UNORM_BLOCK
+>0	lelong	132	BC1_RGB_SRGB_BLOCK
+>0	lelong	133	BC1_RGBA_UNORM_BLOCK
+>0	lelong	134	BC1_RGBA_SRGB_BLOCK
+>0	lelong	135	BC2_UNORM_BLOCK
+>0	lelong	136	BC2_SRGB_BLOCK
+>0	lelong	137	BC3_UNORM_BLOCK
+>0	lelong	138	BC3_SRGB_BLOCK
+>0	lelong	139	BC4_UNORM_BLOCK
+>0	lelong	140	BC4_SNORM_BLOCK
+>0	lelong	141	BC5_UNORM_BLOCK
+>0	lelong	142	BC5_SNORM_BLOCK
+>0	lelong	143	BC6H_UFLOAT_BLOCK
+>0	lelong	144	BC6H_SFLOAT_BLOCK
+>0	lelong	145	BC7_UNORM_BLOCK
+>0	lelong	146	BC7_SRGB_BLOCK
+
+>0	lelong	147	ETC2_R8G8B8_UNORM_BLOCK
+>0	lelong	148	ETC2_R8G8B8_SRGB_BLOCK
+>0	lelong	149	ETC2_R8G8B8A1_UNORM_BLOCK
+>0	lelong	150	ETC2_R8G8B8A1_SRGB_BLOCK
+>0	lelong	151	ETC2_R8G8B8A8_UNORM_BLOCK
+>0	lelong	152	ETC2_R8G8B8A8_SRGB_BLOCK
+
+>0	lelong	153	EAC_R11_UNORM_BLOCK
+>0	lelong	154	EAC_R11_SNORM_BLOCK
+>0	lelong	155	EAC_R11G11_UNORM_BLOCK
+>0	lelong	156	EAC_R11G11_SNORM_BLOCK
+
+>0	lelong	157	ASTC_4x4_UNORM_BLOCK
+>0	lelong	158	ASTC_4x4_SRGB_BLOCK
+>0	lelong	159	ASTC_5x4_UNORM_BLOCK
+>0	lelong	160	ASTC_5x4_SRGB_BLOCK
+>0	lelong	161	ASTC_5x5_UNORM_BLOCK
+>0	lelong	162	ASTC_5x5_SRGB_BLOCK
+>0	lelong	163	ASTC_6x5_UNORM_BLOCK
+>0	lelong	164	ASTC_6x5_SRGB_BLOCK
+>0	lelong	165	ASTC_6x6_UNORM_BLOCK
+>0	lelong	166	ASTC_6x6_SRGB_BLOCK
+>0	lelong	167	ASTC_8x5_UNORM_BLOCK
+>0	lelong	168	ASTC_8x5_SRGB_BLOCK
+>0	lelong	169	ASTC_8x6_UNORM_BLOCK
+>0	lelong	170	ASTC_8x6_SRGB_BLOCK
+>0	lelong	171	ASTC_8x8_UNORM_BLOCK
+>0	lelong	172	ASTC_8x8_SRGB_BLOCK
+>0	lelong	173	ASTC_10x5_UNORM_BLOCK
+>0	lelong	174	ASTC_10x5_SRGB_BLOCK
+>0	lelong	175	ASTC_10x6_UNORM_BLOCK
+>0	lelong	176	ASTC_10x6_SRGB_BLOCK
+>0	lelong	177	ASTC_10x8_UNORM_BLOCK
+>0	lelong	178	ASTC_10x8_SRGB_BLOCK
+>0	lelong	179	ASTC_10x10_UNORM_BLOCK
+>0	lelong	180	ASTC_10x10_SRGB_BLOCK
+>0	lelong	181	ASTC_12x10_UNORM_BLOCK
+>0	lelong	182	ASTC_12x10_SRGB_BLOCK
+>0	lelong	183	ASTC_12x12_UNORM_BLOCK
+>0	lelong	184	ASTC_12x12_SRGB_BLOCK
+
+>0	lelong	1000156000	G8B8G8R8_422_UNORM
+>0	lelong	1000156001	B8G8R8G8_422_UNORM
+>0	lelong	1000156002	G8_B8_R8_3PLANE_420_UNORM
+>0	lelong	1000156003	G8_B8R8_2PLANE_420_UNORM
+>0	lelong	1000156004	G8_B8_R8_3PLANE_422_UNORM
+>0	lelong	1000156005	G8_B8R8_2PLANE_422_UNORM
+>0	lelong	1000156006	G8_B8_R8_3PLANE_444_UNORM
+>0	lelong	1000156007	R10X6_UNORM_PACK16
+>0	lelong	1000156008	R10X6G10X6_UNORM_2PACK16
+>0	lelong	1000156009	R10X6G10X6B10X6A10X6_UNORM_4PACK16
+>0	lelong	1000156010	G10X6B10X6G10X6R10X6_422_UNORM_4PACK16
+>0	lelong	1000156011	B10X6G10X6R10X6G10X6_422_UNORM_4PACK16
+>0	lelong	1000156012	G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16
+>0	lelong	1000156013	G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16
+>0	lelong	1000156014	G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16
+>0	lelong	1000156015	G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16
+>0	lelong	1000156016	G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16
+>0	lelong	1000156017	R12X4_UNORM_PACK16
+>0	lelong	1000156018	R12X4G12X4_UNORM_2PACK16
+>0	lelong	1000156019	R12X4G12X4B12X4A12X4_UNORM_4PACK16
+>0	lelong	1000156020	G12X4B12X4G12X4R12X4_422_UNORM_4PACK16
+>0	lelong	1000156021	B12X4G12X4R12X4G12X4_422_UNORM_4PACK16
+>0	lelong	1000156022	G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16
+>0	lelong	1000156023	G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16
+>0	lelong	1000156024	G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16
+>0	lelong	1000156025	G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16
+>0	lelong	1000156026	G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16
+>0	lelong	1000156027	G16B16G16R16_422_UNORM
+>0	lelong	1000156028	B16G16R16G16_422_UNORM
+>0	lelong	1000156029	G16_B16_R16_3PLANE_420_UNORM
+>0	lelong	1000156030	G16_B16R16_2PLANE_420_UNORM
+>0	lelong	1000156031	G16_B16_R16_3PLANE_422_UNORM
+>0	lelong	1000156032	G16_B16R16_2PLANE_422_UNORM
+>0	lelong	1000156033	G16_B16_R16_3PLANE_444_UNORM
+
+>0	lelong	1000054000	PVRTC1_2BPP_UNORM_BLOCK_IMG
+>0	lelong	1000054001	PVRTC1_4BPP_UNORM_BLOCK_IMG
+>0	lelong	1000054002	PVRTC2_2BPP_UNORM_BLOCK_IMG
+>0	lelong	1000054003	PVRTC2_4BPP_UNORM_BLOCK_IMG
+>0	lelong	1000054004	PVRTC1_2BPP_SRGB_BLOCK_IMG
+>0	lelong	1000054005	PVRTC1_4BPP_SRGB_BLOCK_IMG
+>0	lelong	1000054006	PVRTC2_2BPP_SRGB_BLOCK_IMG
+>0	lelong	1000054007	PVRTC2_4BPP_SRGB_BLOCK_IMG
+
+>0	lelong	1000066000	ASTC_4x4_SFLOAT_BLOCK_EXT
+>0	lelong	1000066001	ASTC_5x4_SFLOAT_BLOCK_EXT
+>0	lelong	1000066002	ASTC_5x5_SFLOAT_BLOCK_EXT
+>0	lelong	1000066003	ASTC_6x5_SFLOAT_BLOCK_EXT
+>0	lelong	1000066004	ASTC_6x6_SFLOAT_BLOCK_EXT
+>0	lelong	1000066005	ASTC_8x5_SFLOAT_BLOCK_EXT
+>0	lelong	1000066006	ASTC_8x6_SFLOAT_BLOCK_EXT
+>0	lelong	1000066007	ASTC_8x8_SFLOAT_BLOCK_EXT
+>0	lelong	1000066008	ASTC_10x5_SFLOAT_BLOCK_EXT
+>0	lelong	1000066009	ASTC_10x6_SFLOAT_BLOCK_EXT
+>0	lelong	1000066010	ASTC_10x8_SFLOAT_BLOCK_EXT
+>0	lelong	1000066011	ASTC_10x10_SFLOAT_BLOCK_EXT
+>0	lelong	1000066012	ASTC_12x10_SFLOAT_BLOCK_EXT
+>0	lelong	1000066013	ASTC_12x12_SFLOAT_BLOCK_EXT
+
+# Main KTX2 header.
+0	string	\xABKTX\ 20\xBB\r\n\x1A\n	Khronos KTX2 texture
+>20	lelong	x	\b, %u
+>24	lelong	>1	x %u
+>28	lelong	>1	x %u
+>32	lelong	>1	\b, %u layers
+>36	lelong	>1	\b, %u faces
+>40	lelong	>1	\b, %u mipmaps
+>44	lelong	>0	\b,
+>>44	use	khronos-ktx2-supercompression
+>12	lelong	>0	\b,
+>>12	use	khronos-ktx2-vkFormat
 
 # Type: Valve VTF texture.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
@@ -2076,72 +2369,95 @@
 
 # PVR3 pixel formats.
 0	name		pvr3-pixel-format
->4	ulelong	0
->>0	ulelong	0	PVRTC 2bpp RGB
->>0	ulelong	1	PVRTC 2bpp RGBA
->>0	ulelong	2	PVRTC 4bpp RGB
->>0	ulelong	3	PVRTC 4bpp RGBA
->>0	ulelong	4	PVRTC-II 2bpp
->>0	ulelong	5	PVRTC-II 4bpp
->>0	ulelong	6	ETC1
->>0	ulelong	7	DXT1
->>0	ulelong	8	DXT2
->>0	ulelong	9	DXT3
->>0	ulelong	10	DXT4
->>0	ulelong	11	DXT5
->>0	ulelong	12	BC4
->>0	ulelong	13	BC5
->>0	ulelong	14	BC6
->>0	ulelong	15	BC7
->>0	ulelong	16	UYVY
->>0	ulelong	17	YUY2
->>0	ulelong	18	BW1bpp
->>0	ulelong	19	R9G9B9E5 Shared Exponent
->>0	ulelong	20	RGBG8888
->>0	ulelong	21	GRGB8888
->>0	ulelong	22	ETC2 RGB
->>0	ulelong	23	ETC2 RGBA
->>0	ulelong	24	ETC2 RGB A1
->>0	ulelong	25	EAC R11
->>0	ulelong	26	EAC RG11
->>0	ulelong	27	ASTC_4x4
->>0	ulelong	28	ASTC_5x4
->>0	ulelong	29	ASTC_5x5
->>0	ulelong	30	ASTC_6x5
->>0	ulelong	31	ASTC_6x6
->>0	ulelong	32	ASTC_8x5
->>0	ulelong	33	ASTC_8x6
->>0	ulelong	34	ASTC_8x8
->>0	ulelong	35	ASTC_10x5
->>0	ulelong	36	ASTC_10x6
->>0	ulelong	37	ASTC_10x8
->>0	ulelong	38	ASTC_10x10
->>0	ulelong	39	ASTC_12x10
->>0	ulelong	40	ASTC_12x12
->>0	ulelong	41	ASTC_3x3x3
->>0	ulelong	42	ASTC_4x3x3
->>0	ulelong	43	ASTC_4x4x3
->>0	ulelong	44	ASTC_4x4x4
->>0	ulelong	45	ASTC_5x4x4
->>0	ulelong	46	ASTC_5x5x4
->>0	ulelong	47	ASTC_5x5x5
->>0	ulelong	48	ASTC_6x5x5
->>0	ulelong	49	ASTC_6x6x5
->>0	ulelong	50	ASTC_6x6x6
->4	ulelong	!0
->>0	byte	!0	%c
->>1	byte	!0	\b%c
->>2	byte	!0	\b%c
->>3	byte	!0	\b%c
+>0	ulelong	0	PVRTC 2bpp RGB
+>0	ulelong	1	PVRTC 2bpp RGBA
+>0	ulelong	2	PVRTC 4bpp RGB
+>0	ulelong	3	PVRTC 4bpp RGBA
+>0	ulelong	4	PVRTC-II 2bpp
+>0	ulelong	5	PVRTC-II 4bpp
+>0	ulelong	6	ETC1
+>0	ulelong	7	DXT1
+>0	ulelong	8	DXT2
+>0	ulelong	9	DXT3
+>0	ulelong	10	DXT4
+>0	ulelong	11	DXT5
+>0	ulelong	12	BC4
+>0	ulelong	13	BC5
+>0	ulelong	14	BC6
+>0	ulelong	15	BC7
+>0	ulelong	16	UYVY
+>0	ulelong	17	YUY2
+>0	ulelong	18	BW1bpp
+>0	ulelong	19	R9G9B9E5 Shared Exponent
+>0	ulelong	20	RGBG8888
+>0	ulelong	21	GRGB8888
+>0	ulelong	22	ETC2 RGB
+>0	ulelong	23	ETC2 RGBA
+>0	ulelong	24	ETC2 RGB A1
+>0	ulelong	25	EAC R11
+>0	ulelong	26	EAC RG11
+>0	ulelong	27	ASTC_4x4
+>0	ulelong	28	ASTC_5x4
+>0	ulelong	29	ASTC_5x5
+>0	ulelong	30	ASTC_6x5
+>0	ulelong	31	ASTC_6x6
+>0	ulelong	32	ASTC_8x5
+>0	ulelong	33	ASTC_8x6
+>0	ulelong	34	ASTC_8x8
+>0	ulelong	35	ASTC_10x5
+>0	ulelong	36	ASTC_10x6
+>0	ulelong	37	ASTC_10x8
+>0	ulelong	38	ASTC_10x10
+>0	ulelong	39	ASTC_12x10
+>0	ulelong	40	ASTC_12x12
+>0	ulelong	41	ASTC_3x3x3
+>0	ulelong	42	ASTC_4x3x3
+>0	ulelong	43	ASTC_4x4x3
+>0	ulelong	44	ASTC_4x4x4
+>0	ulelong	45	ASTC_5x4x4
+>0	ulelong	46	ASTC_5x5x4
+>0	ulelong	47	ASTC_5x5x5
+>0	ulelong	48	ASTC_6x5x5
+>0	ulelong	49	ASTC_6x6x5
+>0	ulelong	50	ASTC_6x6x6
 
-0	string		PVR\x03			PVR 3.0 texture:
+0	string		PVR\x03			PowerVR 3.0 texture:
 >0x18	ulelong		x	%u x
 >0x1C	ulelong		x	%u
 >0x20	ulelong		>1	x %u
 >0x08	byte		x	\b,
->0x08	use	pvr3-pixel-format
+>0x0C	ulelong		0
+>>0x08	use	pvr3-pixel-format
+>0x0C	ulelong		!0
+>>0x08	byte	!0	%c
+>>>0x0C	byte	!0	\b%u
+>>0x09	byte	!0	\b%c
+>>>0x0D	byte	!0	\b%u
+>>0x0A	byte	!0	\b%c
+>>>0x0E	byte	!0	\b%u
+>>0x0B	byte	!0	\b%c
+>>>0x0F	byte	!0	\b%u
 >0x10	ulelong		1	\b, sRGB
 >0x04	ulelong&0x02	0x02	\b, premultiplied alpha
+
+0	string		\x03RVP			PowerVR 3.0 texture: BE,
+>0x18	ubelong		x	%u x
+>0x1C	ubelong		x	%u
+>0x20	ubelong		>1	x %u
+>0x08	byte		x	\b,
+>0x0C	ubelong		0
+>>0x08	use	pvr3-pixel-format
+>0x0C	ubelong		!0
+>>0x0B	byte	!0	%c
+>>>0x0F	byte	!0	\b%u
+>>0x0A	byte	!0	\b%c
+>>>0x0E	byte	!0	\b%u
+>>0x09	byte	!0	\b%c
+>>>0x0D	byte	!0	\b%u
+>>0x08	byte	!0	\b%c
+>>>0x0C	byte	!0	\b%u
+>0x10	ubelong		1	\b, sRGB
+>0x04	ubelong&0x02	0x02	\b, premultiplied alpha
 
 # Type: Microsoft Xbox XPR0 texture.
 # From: David Korth <gerbilsoft@gerbilsoft.com>
@@ -2232,3 +2548,22 @@
 # https://github.com/dropbox/lepton
 0	belong&0xfffff0ff	0xcf84005a	Lepton image file
 >2	byte			x		(version %d)
+
+# Apple QuickTake camera raw images
+# https://en.wikipedia.org/wiki/Apple_QuickTake
+# dcraw can decode them
+0	name quicktake
+>4	belong	8
+>>544	beshort	x	\b, %dx
+>>546	beshort	x	\b%d
+>4	belong	4
+>>546	beshort	x	\b, %dx
+>>544	beshort	x	\b%d
+
+0	string	qktk	Apple QuickTake 100 Raw Image
+>0	use quicktake
+
+0	string	qktn
+>4	byte	0	Apple QuickTake 150 Raw Image
+>4	byte	>0	Apple QuickTake 200 Raw Image
+>0	use quicktake
