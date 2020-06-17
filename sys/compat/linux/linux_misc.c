@@ -131,8 +131,8 @@ struct l_sysinfo {
 	l_ulong		freeswap;	/* swap space still available */
 	l_ushort	procs;		/* Number of current processes */
 	l_ushort	pads;
-	l_ulong		totalbig;
-	l_ulong		freebig;
+	l_ulong		totalhigh;
+	l_ulong		freehigh;
 	l_uint		mem_unit;
 	char		_f[20-2*sizeof(l_long)-sizeof(l_int)];	/* padding */
 };
@@ -164,7 +164,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 		    LINUX_SYSINFO_LOADS_SCALE / averunnable.fscale;
 
 	sysinfo.totalram = physmem * PAGE_SIZE;
-	sysinfo.freeram = sysinfo.totalram - vm_wire_count() * PAGE_SIZE;
+	sysinfo.freeram = (u_long)vm_free_count() * PAGE_SIZE;
 
 	/*
 	 * sharedram counts pages allocated to named, swap-backed objects such
@@ -181,9 +181,13 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 
 	sysinfo.procs = nprocs;
 
-	/* The following are only present in newer Linux kernels. */
-	sysinfo.totalbig = 0;
-	sysinfo.freebig = 0;
+	/*
+	 * Platforms supported by the emulation layer do not have a notion of
+	 * high memory.
+	 */
+	sysinfo.totalhigh = 0;
+	sysinfo.freehigh = 0;
+
 	sysinfo.mem_unit = 1;
 
 	return (copyout(&sysinfo, args->info, sizeof(sysinfo)));
