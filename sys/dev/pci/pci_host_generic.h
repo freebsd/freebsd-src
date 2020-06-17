@@ -59,14 +59,20 @@ struct pcie_range {
 	uint64_t	phys_base;
 	uint64_t	size;
 	uint64_t	flags;
-#define	FLAG_IO		(1 << 0)
-#define	FLAG_MEM	(1 << 1)
+#define	FLAG_TYPE(x)		((x) & FLAG_TYPE_MASK)
+#define	FLAG_TYPE_MASK		0x3
+#define	FLAG_TYPE_INVALID	0x0
+#define	FLAG_TYPE_IO		0x1
+#define	FLAG_TYPE_MEM		0x2
+#define	FLAG_TYPE_PMEM		0x3
 };
 
 struct generic_pcie_core_softc {
 	struct pcie_range	ranges[MAX_RANGES_TUPLES];
 	int			nranges;
 	int			coherent;
+	bool			has_pmem;
+	struct rman		pmem_rman;
 	struct rman		mem_rman;
 	struct rman		io_rman;
 	struct resource		*res;
