@@ -1,7 +1,233 @@
-This is the file NEWS for the flex package. It records user -visible
-changes between releases of flex.
+flex NEWS
 
-See the file COPYING for copying conditions.
+* Noteworthy changes in release 2.6.4 (2017-05-06) [stable]
+
+** build
+
+*** The indent target now knows about flex's new (as of 2.6.0)
+    layout. The indent rules it would apply are not correct and do
+    need to be fixed.
+
+*** The files included in the flex distribution are now built by the
+    version of flex that is included in the distribution.
+
+*** The configure script has a better idea of which headers are
+    required to build flex. It will also error when missing functions
+    are detected.
+
+*** We have lowered the versions of automake and gettext that
+    configure.ac lists as required for building flex. In autogen.sh,
+    we now check for how to call libtoolize and use what we find in
+    the rest of the script.
+
+*** Since files in lib/ are picked up as needed by src/, we no longer
+    generate a Makefile for that directory.
+
+*** Flex can be cross compiled.
+
+** documentation
+
+*** Some typos were removed from the manual.
+
+** scanner
+
+*** Some minor performance enhancements.
+
+*** We honor user defined yy_* macros again. We are also more careful
+    to not leak macro definitions into header files.
+
+*** A number of portability fixes were introduced so building flex is
+    more reliable on more platforms. Additionally, outdated function
+    calls were removed.
+
+*** When building the flex executable itself, %# comments from
+    flex.skl are removed when generating the C source code array. This
+    reduces the size of flex.
+
+** test suite
+
+*** All scripts in the test suite are now run by $(SHELL) and the
+    needed portability fixes have been included.
+
+*** Test suite dependencies are handled much better. This only matters
+    if you are actively developing flex or its test suite.
+
+*** Tests that depend on platform dependent features now properly skip
+    when those platforms are not present.
+
+*** When running "make check", you can now pas V=0 to silence more of
+    the build. This is useful when you're less connncerned about the
+    details of building and linking the test programs themselves.
+
+* Noteworthy changes in release 2.6.3 (2016-12-30) [stable]
+
+** scanner
+
+*** several bug fixes resolved problems introduced in recent flex
+    versions regarding processing of comments, literals and various
+    quoting scenarios.
+
+*** If the path to m4 was sufficiently long, a buffer overflow could
+    occur. This has been resolved. The fix also removes dependence on
+    the constant PATH_MAX.
+
+** build
+
+*** A new configure option --disable-bootstrap changes the behavior of
+    the build system when building flex. The default
+    "--enable-bootstrap" behavior is to build flex, then to use that
+    flex to build flex again. With --disable-bootstrap, the scanner is
+    simply built by sedding the scanner source. This is friendlier to
+    cross compilation.
+
+*** The compatibility functions in lib/ are no longer built as a
+    library. Instead, they are built as $(LIBOBJ) objects. This is
+    simpler and friendlier to cross compilation.
+
+*** It is now possible to build flex without building the accompanying
+    libfl. This is friendlier to cross compilation. See the
+    --disable-libfl option to configure. Resolves #99.
+
+*** the PIC version of libfl was not correctly built. It is no longer
+    included in the build/installation targets of flex since it was
+    unused.
+
+*** the distributed man page is only rebuilt when the relevant source
+    files change or when the binary doesn't exist. In particular, this
+    is friendlier to cross compilation. Resolves #108
+
+** test
+
+*** the shell scripts in the test suite are more portable across different shell implementations.
+
+* version 2.6.2 released 2016-10-24
+
+** flex internals
+
+*** a segfalt involving yyrestart(NULL) has been fixed
+
+*** flex should now handle quoting when mixed with m4 processing correctly
+
+*** flex handles `[[' and `]]' correctly
+
+*** flex no longer generates non-ANSI code
+
+*** more compilation warnings were squashed in generated scanners
+
+*** prevented a buffer overflow that could occur when input buffers were the exact wrong size
+
+** test suite
+
+*** input filenames on MSWindows are now calculated correctly
+
+*** general code cleanups in a number of tests now make the test suite compile much more cleanly
+
+** build system
+
+*** the xz archive has been replaced with an lzip archive
+
+*** a new option to configure --enable-warnings to encapsulate passing
+    of warning-related flags which is useful in testing flex
+
+*** make indent now works for out of source builds
+
+*** Portability warnings when generating Makefile.in files are now suppressed; they were just noise and the use of GNU extensions in Makefile.{am,in,} was intentional and well known.
+
+** bugs
+
+*** resolved gh#67
+
+** new sv translation from the translation project
+
+* version 2.6.1 released 2016-03-01
+
+** flex resources
+
+*** The flex project is now hosted at github. Consider this a "period of transition". In particular, you should start at https://github.com/westes/flex for the flex codebase, issue tracking and pull requests.
+
+*** New releases of flex are to be found at https://github.com/westes/flex/releases.
+
+** flex internals
+
+*** Flex now uses more modern and more standard names for variable types. There's more work to be done on that front yet, though.
+
+*** A number of compiler warnings have been remedied.
+
+*** Line directives should now  work as expected and be absent when that is expected.
+
+** test suite
+
+*** When running the test suite, c++ files are compiled with the c++ header inside the flex distribution, rather than relying on the build system's flex header , which might not be installed yet or which might be out of date with respect to what flex tests expect.
+
+*** Some portability fixes in the test suite such as opening files for reading in binary mode
+
+** Building flex
+
+*** The file src/scan.c asdistributed  with flex source is now built with the current version of flex. Occasionally this had to be done manually to pick up new flex features. It's now just a part of flex's build system.
+
+*** The pdf version of the manual is no longer distributed with flex, although if you have the texinfo package installed, you can still build it.
+
+*** lots of general build system cleanup
+
+*** the build system tries a bit harder to find libtoolize and texi2dvi.
+
+*** When help2man and texi2dvi are missing, the error messages are now much more helpful.
+
+** bug fixes
+
+*** resolved github issues #53, #54, #55, #61.
+
+*** Resolved sf bugs #128, #129, #155, #160, #184, #187, #195.
+
+* version 2.6.0 released 2015-11-17
+
+** User Visible Changes
+
+*** C++ scanners now use references instead of pointers. See the manual for details.
+
+*** A number of compiler warnings were addressed, so flex generated scanners should be quieter under compiler warning scenarios.
+
+*** Allow error reporting routines to accept varying number of arguments
+
+*** Removed deprecated 'register' storage class specifier
+
+*** Changeed output formats from octal to hexadecimal
+
+*** check limits before using array index cclp; resolves sf-166
+
+*** Suppress clang warning about empty @param paragraph; resolves sf#158
+
+*** Fixed malloc/realloc replacement, resolves sf bug#151.
+
+*** Adjusted buffer sizes on ia64.
+
+*** various documentation and code clean up fixes: resolves sf bugs #167, #168, among other patches.
+
+** Flex Internals
+
+*** flex is now organized into subdirectories. This keeps the tree neater at the top level and puts like things near each other and unlike things away from each other.
+
+*** The test suite has been reorganized and is now run with the parallel test suite harness from automake.
+
+*** Cleaned up the automake parts of the build system to better reflect what automake does on its own. Also added a call to libtoolize in autogen.sh because autoreconf gets confused without a prior run of libtoolize.
+
+*** po/Makefile now includes a rule to fetch the latest translations from the translation project. "make -f po/Makefile getpo" from the top level of the flex tree will fetch the files.
+
+*** New da translation from the translation project
+
+* flex version  2.5.39 released 2014-03-26
+
+** no user visible changes in this release
+
+* version 2.5.38 released 2014-02-14
+
+** internationalization
+
+*** add sr translation from the translation project
+
+*** update da, es, ko, nl, pt_BR, ro, ru, sv, tr, vi, zh_CN translations from the translation project
+
+*** rename zh_tw to its proper zh_TW name
 
 * version 2.5.37 released 2012-08-03
 
@@ -511,6 +737,8 @@ But the inverse is still true
 ** flex input scanner now recognizes '\r' as an EOL character
 
 See the file ONEWS for changes in earlier releases.
+
+See the file COPYING for copying conditions.
 
 Local Variables:
 mode: text
