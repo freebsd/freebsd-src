@@ -736,61 +736,108 @@
 #define	PSR_FLAGS	0xf0000000
 
 /* TCR_EL1 - Translation Control Register */
-#define	TCR_HD_SHIFT	40
-#define	TCR_HD		(0x1UL << TCR_HD_SHIFT)
-#define	TCR_HA_SHIFT	39
-#define	TCR_HA		(0x1UL << TCR_HA_SHIFT)
-
-#define	TCR_ASID_SHIFT	36
-#define	TCR_ASID_WIDTH	1
-#define	TCR_ASID_16	(0x1UL << TCR_ASID_SHIFT)
-
-#define	TCR_IPS_SHIFT	32
-#define	TCR_IPS_WIDTH	3
-#define	TCR_IPS_32BIT	(0 << TCR_IPS_SHIFT)
-#define	TCR_IPS_36BIT	(1 << TCR_IPS_SHIFT)
-#define	TCR_IPS_40BIT	(2 << TCR_IPS_SHIFT)
-#define	TCR_IPS_42BIT	(3 << TCR_IPS_SHIFT)
-#define	TCR_IPS_44BIT	(4 << TCR_IPS_SHIFT)
-#define	TCR_IPS_48BIT	(5 << TCR_IPS_SHIFT)
-
-#define	TCR_TG1_SHIFT	30
-#define	TCR_TG1_16K	(1 << TCR_TG1_SHIFT)
-#define	TCR_TG1_4K	(2 << TCR_TG1_SHIFT)
-#define	TCR_TG1_64K	(3 << TCR_TG1_SHIFT)
-
-#define	TCR_TG0_MASK	0x000000000000c000
-
-#define	TCR_SH1_SHIFT	28
-#define	TCR_SH1_IS	(0x3UL << TCR_SH1_SHIFT)
-#define	TCR_ORGN1_SHIFT	26
-#define	TCR_ORGN1_WBWA	(0x1UL << TCR_ORGN1_SHIFT)
-#define	TCR_IRGN1_SHIFT	24
-#define	TCR_IRGN1_WBWA	(0x1UL << TCR_IRGN1_SHIFT)
-#define	TCR_A1_SHIFT	22
-#define	TCR_A1		(0x1UL << TCR_A1_SHIFT)
-#define	TCR_SH0_SHIFT	12
-#define	TCR_SH0_IS	(0x3UL << TCR_SH0_SHIFT)
-#define	TCR_ORGN0_SHIFT	10
-#define	TCR_ORGN0_WBWA	(0x1UL << TCR_ORGN0_SHIFT)
-#define	TCR_IRGN0_SHIFT	8
-#define	TCR_IRGN0_WBWA	(0x1UL << TCR_IRGN0_SHIFT)
+/* Bits 63:59 are reserved */
+#define	TCR_TCMA1_SHIFT		58
+#define	TCR_TCMA1		(1UL << TCR_TCMA1_SHIFT)
+#define	TCR_TCMA0_SHIFT		57
+#define	TCR_TCMA0		(1UL << TCR_TCMA0_SHIFT)
+#define	TCR_E0PD1_SHIFT		56
+#define	TCR_E0PD1		(1UL << TCR_E0PD1_SHIFT)
+#define	TCR_E0PD0_SHIFT		55
+#define	TCR_E0PD0		(1UL << TCR_E0PD0_SHIFT)
+#define	TCR_NFD1_SHIFT		54
+#define	TCR_NFD1		(1UL << TCR_NFD1_SHIFT)
+#define	TCR_NFD0_SHIFT		53
+#define	TCR_NFD0		(1UL << TCR_NFD0_SHIFT)
+#define	TCR_TBID1_SHIFT		52
+#define	TCR_TBID1		(1UL << TCR_TBID1_SHIFT)
+#define	TCR_TBID0_SHIFT		51
+#define	TCR_TBID0		(1UL << TCR_TBID0_SHIFT)
+#define	TCR_HWU162_SHIFT	50
+#define	TCR_HWU162		(1UL << TCR_HWU162_SHIFT)
+#define	TCR_HWU161_SHIFT	49
+#define	TCR_HWU161		(1UL << TCR_HWU161_SHIFT)
+#define	TCR_HWU160_SHIFT	48
+#define	TCR_HWU160		(1UL << TCR_HWU160_SHIFT)
+#define	TCR_HWU159_SHIFT	47
+#define	TCR_HWU159		(1UL << TCR_HWU159_SHIFT)
+#define	TCR_HWU1		\
+    (TCR_HWU159 | TCR_HWU160 | TCR_HWU161 | TCR_HWU162)
+#define	TCR_HWU062_SHIFT	46
+#define	TCR_HWU062		(1UL << TCR_HWU062_SHIFT)
+#define	TCR_HWU061_SHIFT	45
+#define	TCR_HWU061		(1UL << TCR_HWU061_SHIFT)
+#define	TCR_HWU060_SHIFT	44
+#define	TCR_HWU060		(1UL << TCR_HWU060_SHIFT)
+#define	TCR_HWU059_SHIFT	43
+#define	TCR_HWU059		(1UL << TCR_HWU059_SHIFT)
+#define	TCR_HWU0		\
+    (TCR_HWU059 | TCR_HWU060 | TCR_HWU061 | TCR_HWU062)
+#define	TCR_HPD1_SHIFT		42
+#define	TCR_HPD1		(1UL << TCR_HPD1_SHIFT)
+#define	TCR_HPD0_SHIFT		41
+#define	TCR_HPD0		(1UL << TCR_HPD0_SHIFT)
+#define	TCR_HD_SHIFT		40
+#define	TCR_HD			(1UL << TCR_HD_SHIFT)
+#define	TCR_HA_SHIFT		39
+#define	TCR_HA			(1UL << TCR_HA_SHIFT)
+#define	TCR_TBI1_SHIFT		38
+#define	TCR_TBI1		(1UL << TCR_TBI1_SHIFT
+#define	TCR_TBI0_SHIFT		37
+#define	TCR_TBI0		(1U << TCR_TBI0_SHIFT)
+#define	TCR_ASID_SHIFT		36
+#define	TCR_ASID_WIDTH		1
+#define	TCR_ASID_16		(1UL << TCR_ASID_SHIFT)
+/* Bit 35 is reserved */
+#define	TCR_IPS_SHIFT		32
+#define	TCR_IPS_WIDTH		3
+#define	TCR_IPS_32BIT		(0UL << TCR_IPS_SHIFT)
+#define	TCR_IPS_36BIT		(1UL << TCR_IPS_SHIFT)
+#define	TCR_IPS_40BIT		(2UL << TCR_IPS_SHIFT)
+#define	TCR_IPS_42BIT		(3UL << TCR_IPS_SHIFT)
+#define	TCR_IPS_44BIT		(4UL << TCR_IPS_SHIFT)
+#define	TCR_IPS_48BIT		(5UL << TCR_IPS_SHIFT)
+#define	TCR_TG1_SHIFT		30
+#define	TCR_TG1_16K		(1UL << TCR_TG1_SHIFT)
+#define	TCR_TG1_4K		(2UL << TCR_TG1_SHIFT)
+#define	TCR_TG1_64K		(3UL << TCR_TG1_SHIFT)
+#define	TCR_SH1_SHIFT		28
+#define	TCR_SH1_IS		(3UL << TCR_SH1_SHIFT)
+#define	TCR_ORGN1_SHIFT		26
+#define	TCR_ORGN1_WBWA		(1UL << TCR_ORGN1_SHIFT)
+#define	TCR_IRGN1_SHIFT		24
+#define	TCR_IRGN1_WBWA		(1UL << TCR_IRGN1_SHIFT)
+#define	TCR_EPD1_SHIFT		23
+#define	TCR_EPD1		(1UL << TCR_EPD1_SHIFT)
+#define	TCR_A1_SHIFT		22
+#define	TCR_A1			(0x1UL << TCR_A1_SHIFT)
+#define	TCR_T1SZ_SHIFT		16
+#define	TCR_T1SZ(x)		((x) << TCR_T1SZ_SHIFT)
+#define	TCR_TG0_SHIFT		14
+#define	TCR_TG0_16K		(1UL << TCR_TG0_SHIFT)
+#define	TCR_TG0_4K		(2UL << TCR_TG0_SHIFT)
+#define	TCR_TG0_64K		(3UL << TCR_TG0_SHIFT)
+#define	TCR_SH0_SHIFT		12
+#define	TCR_SH0_IS		(3UL << TCR_SH0_SHIFT)
+#define	TCR_ORGN0_SHIFT		10
+#define	TCR_ORGN0_WBWA		(1UL << TCR_ORGN0_SHIFT)
+#define	TCR_IRGN0_SHIFT		8
+#define	TCR_IRGN0_WBWA		(1UL << TCR_IRGN0_SHIFT)
+#define	TCR_EPD0_SHIFT		7
+#define	TCR_EPD0		(1UL << TCR_EPD1_SHIFT)
+/* Bit 6 is reserved */
+#define	TCR_T0SZ_SHIFT		0
+#define	TCR_T0SZ_MASK		0x3f
+#define	TCR_T0SZ(x)		((x) << TCR_T0SZ_SHIFT)
+#define	TCR_TxSZ(x)		(TCR_T1SZ(x) | TCR_T0SZ(x))
 
 #define	TCR_CACHE_ATTRS	((TCR_IRGN0_WBWA | TCR_IRGN1_WBWA) |\
 				(TCR_ORGN0_WBWA | TCR_ORGN1_WBWA))
-
 #ifdef SMP
 #define	TCR_SMP_ATTRS	(TCR_SH0_IS | TCR_SH1_IS)
 #else
 #define	TCR_SMP_ATTRS	0
 #endif
-
-#define	TCR_T1SZ_SHIFT	16
-#define	TCR_T0SZ_SHIFT	0
-#define	TCR_T0SZ_MASK	0x3f
-#define	TCR_T1SZ(x)	((x) << TCR_T1SZ_SHIFT)
-#define	TCR_T0SZ(x)	((x) << TCR_T0SZ_SHIFT)
-#define	TCR_TxSZ(x)	(TCR_T1SZ(x) | TCR_T0SZ(x))
 
 /* Saved Program Status Register */
 #define	DBG_SPSR_SS	(0x1 << 21)
