@@ -850,9 +850,11 @@ static void mlx4_en_do_multicast(struct mlx4_en_priv *priv,
 	int err = 0;
 	u64 mcast_addr = 0;
 
-
-	/* Enable/disable the multicast filter according to IFF_ALLMULTI */
-	if (dev->if_flags & IFF_ALLMULTI) {
+	/*
+	 * Enable/disable the multicast filter according to
+	 * IFF_ALLMULTI and IFF_PROMISC:
+	 */
+	if (dev->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 					  0, MLX4_MCAST_DISABLE);
 		if (err)
