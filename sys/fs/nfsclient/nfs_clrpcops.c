@@ -356,7 +356,7 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 	struct nfscldeleg *dp;
 	struct nfsfh *nfhp;
 	struct nfsnode *np = VTONFS(vp);
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	u_int32_t mode, clidrev;
 	int ret, newone, error, expireret = 0, retrycnt;
 
@@ -694,7 +694,7 @@ nfsrpc_opendowngrade(vnode_t vp, u_int32_t mode, struct nfsclopen *op,
 
 	NFSCL_REQSTART(nd, NFSPROC_OPENDOWNGRADE, vp);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID + 3 * NFSX_UNSIGNED);
-	if (NFSHASNFSV4N(VFSTONFS(vnode_mount(vp))))
+	if (NFSHASNFSV4N(VFSTONFS(vp->v_mount)))
 		*tl++ = 0;
 	else
 		*tl++ = op->nfso_stateid.seqid;
@@ -894,7 +894,7 @@ nfsrpc_openconfirm(vnode_t vp, u_int8_t *nfhp, int fhlen,
 	struct nfsmount *nmp;
 	int error;
 
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (NFSHASNFSV4N(nmp))
 		return (0);		/* No confirmation for NFSv4.1. */
 	nfscl_reqstart(nd, NFSPROC_OPENCONFIRM, nmp, nfhp, fhlen, NULL, NULL,
@@ -1258,7 +1258,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 {
 	int error, expireret = 0, openerr, retrycnt;
 	u_int32_t clidrev = 0, mode;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsfh *nfhp;
 	nfsv4stateid_t stateid;
 	void *lckp;
@@ -1395,7 +1395,7 @@ nfsrpc_lookup(vnode_t dvp, char *name, int len, struct ucred *cred,
 	*dattrflagp = 0;
 	if (vnode_vtype(dvp) != VDIR)
 		return (ENOTDIR);
-	nmp = VFSTONFS(vnode_mount(dvp));
+	nmp = VFSTONFS(dvp->v_mount);
 	if (len > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
 	if (NFSHASNFSV4(nmp) && len == 1 &&
@@ -1543,7 +1543,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 {
 	int error, expireret = 0, retrycnt;
 	u_int32_t clidrev = 0;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *np = VTONFS(vp);
 	struct ucred *newcred;
 	struct nfsfh *nfhp = NULL;
@@ -1609,7 +1609,7 @@ nfsrpc_readrpc(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	u_int32_t *tl;
 	int error = 0, len, retlen, tsiz, eof = 0;
 	struct nfsrv_descript nfsd;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsrv_descript *nd = &nfsd;
 	int rsize;
 	off_t tmp_off;
@@ -1702,7 +1702,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 {
 	int error, expireret = 0, retrycnt, nostateid;
 	u_int32_t clidrev = 0;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *np = VTONFS(vp);
 	struct ucred *newcred;
 	struct nfsfh *nfhp = NULL;
@@ -1779,7 +1779,7 @@ nfsrpc_writerpc(vnode_t vp, struct uio *uiop, int *iomode,
     NFSPROC_T *p, struct nfsvattr *nap, int *attrflagp, void *stuff)
 {
 	u_int32_t *tl;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *np = VTONFS(vp);
 	int error = 0, len, tsiz, rlen, commit, committed = NFSWRITE_FILESYNC;
 	int wccflag = 0, wsize;
@@ -2049,7 +2049,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	int error = 0, newone, expireret = 0, retrycnt, unlocked;
 	struct nfsclowner *owp;
 	struct nfscldeleg *dp;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(dvp));
+	struct nfsmount *nmp = VFSTONFS(dvp->v_mount);
 	u_int32_t clidrev;
 
 	if (NFSHASNFSV4(nmp)) {
@@ -2369,7 +2369,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		    (owp->nfsow_clp->nfsc_flags & NFSCLFLAGS_GOTDELEG) &&
 		    !error && dp == NULL) {
 		    do {
-			ret = nfsrpc_openrpc(VFSTONFS(vnode_mount(dvp)), dvp,
+			ret = nfsrpc_openrpc(VFSTONFS(dvp->v_mount), dvp,
 			    np->n_fhp->nfh_fh, np->n_fhp->nfh_len,
 			    nfhp->nfh_fh, nfhp->nfh_len,
 			    (NFSV4OPEN_ACCESSWRITE | NFSV4OPEN_ACCESSREAD), op,
@@ -2422,7 +2422,7 @@ nfsrpc_remove(vnode_t dvp, char *name, int namelen, vnode_t vp,
 	*dattrflagp = 0;
 	if (namelen > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
-	nmp = VFSTONFS(vnode_mount(dvp));
+	nmp = VFSTONFS(dvp->v_mount);
 tryagain:
 	if (NFSHASNFSV4(nmp) && ret == 0) {
 		ret = nfscl_removedeleg(vp, p, &dstateid);
@@ -2500,7 +2500,7 @@ nfsrpc_rename(vnode_t fdvp, vnode_t fvp, char *fnameptr, int fnamelen,
 	
 	*fattrflagp = 0;
 	*tattrflagp = 0;
-	nmp = VFSTONFS(vnode_mount(fdvp));
+	nmp = VFSTONFS(fdvp->v_mount);
 	if (fnamelen > NFS_MAXNAMLEN || tnamelen > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
 tryagain:
@@ -2719,7 +2719,7 @@ nfsrpc_symlink(vnode_t dvp, char *name, int namelen, const char *target,
 	*nfhpp = NULL;
 	*attrflagp = 0;
 	*dattrflagp = 0;
-	nmp = VFSTONFS(vnode_mount(dvp));
+	nmp = VFSTONFS(dvp->v_mount);
 	slen = strlen(target);
 	if (slen > NFS_MAXPATHLEN || namelen > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
@@ -2782,7 +2782,7 @@ nfsrpc_mkdir(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	*nfhpp = NULL;
 	*attrflagp = 0;
 	*dattrflagp = 0;
-	nmp = VFSTONFS(vnode_mount(dvp));
+	nmp = VFSTONFS(dvp->v_mount);
 	fhp = VTONFS(dvp)->n_fhp;
 	if (namelen > NFS_MAXNAMLEN)
 		return (ENAMETOOLONG);
@@ -2913,7 +2913,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	struct dirent *dp = NULL;
 	u_int32_t *tl;
 	nfsquad_t cookie, ncookie;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *dnp = VTONFS(vp);
 	struct nfsvattr nfsva;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
@@ -3363,7 +3363,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	struct nameidata nami, *ndp = &nami;
 	struct componentname *cnp = &ndp->ni_cnd;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *dnp = VTONFS(vp), *np;
 	struct nfsvattr nfsva;
 	struct nfsfh *nfhp;
@@ -3740,7 +3740,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				     */
 				    free(nfhp, M_NFSFH);
 				} else {
-				    error = nfscl_nget(vnode_mount(vp), vp,
+				    error = nfscl_nget(vp->v_mount, vp,
 				      nfhp, cnp, p, &np, NULL, LK_EXCLUSIVE);
 				    if (!error) {
 					newvp = NFSTOV(np);
@@ -3868,7 +3868,7 @@ nfsrpc_commit(vnode_t vp, u_quad_t offset, int cnt, struct ucred *cred,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	nfsattrbit_t attrbits;
 	int error;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	
 	*attrflagp = 0;
 	NFSCL_REQSTART(nd, NFSPROC_COMMIT, vp);
@@ -3919,7 +3919,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	struct nfsclclient *clp;
 	struct nfsfh *nfhp;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	u_int64_t off, len;
 	off_t start, end;
 	u_int32_t clidrev = 0;
@@ -3962,7 +3962,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	do {
 	    nd->nd_repstat = 0;
 	    if (op == F_GETLK) {
-		error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+		error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
 		if (error)
 			return (error);
 		error = nfscl_lockt(vp, clp, off, len, fl, p, id, flags);
@@ -3979,7 +3979,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 		 * We must loop around for all lockowner cases.
 		 */
 		callcnt = 0;
-		error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+		error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
 		if (error)
 			return (error);
 		do {
@@ -4304,7 +4304,7 @@ nfsrpc_statfs(vnode_t vp, struct nfsstatfs *sbp, struct nfsfsinfo *fsp,
 	int error;
 
 	*attrflagp = 0;
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (NFSHASNFSV4(nmp)) {
 		/*
 		 * For V4, you actually do a getattr.
@@ -4383,7 +4383,7 @@ nfsrpc_pathconf(vnode_t vp, struct nfsv3_pathconf *pc,
 	int error;
 
 	*attrflagp = 0;
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (NFSHASNFSV4(nmp)) {
 		/*
 		 * For V4, you actually do a getattr.
@@ -4673,7 +4673,7 @@ nfsrpc_getacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
 	nfsattrbit_t attrbits;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	
 	if (nfsrv_useacl == 0 || !NFSHASNFSV4(nmp))
 		return (EOPNOTSUPP);
@@ -4701,7 +4701,7 @@ nfsrpc_setacl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
     struct acl *aclp, void *stuff)
 {
 	int error;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	
 	if (nfsrv_useacl == 0 || !NFSHASNFSV4(nmp))
 		return (EOPNOTSUPP);
@@ -4719,7 +4719,7 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	int error;
 	nfsattrbit_t attrbits;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	
 	if (!NFSHASNFSV4(nmp))
 		return (EOPNOTSUPP);
@@ -4727,7 +4727,7 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSTATEID);
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_ACL);
-	(void) nfsv4_fillattr(nd, vnode_mount(vp), vp, aclp, NULL, NULL, 0,
+	(void) nfsv4_fillattr(nd, vp->v_mount, vp, aclp, NULL, NULL, 0,
 	    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL);
 	error = nfscl_request(nd, vp, p, cred, stuff);
 	if (error)
@@ -5748,7 +5748,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     uint32_t rwaccess, int docommit, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsnode *np = VTONFS(vp);
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfscllayout *layp;
 	struct nfscldevinfo *dip;
 	struct nfsclflayout *rflp;
@@ -6292,7 +6292,7 @@ nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
 	uint32_t *tl;
 	int attrflag, error, retlen;
 	struct nfsrv_descript nfsd;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsrv_descript *nd = &nfsd;
 	struct nfssockreq *nrp;
 	struct nfsvattr na;
@@ -6362,7 +6362,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int attrflag, error, rlen, commit, committed = NFSWRITE_FILESYNC;
 	int32_t backup;
 	struct nfsrv_descript nfsd;
@@ -6493,7 +6493,7 @@ nfsrpc_writedsmir(vnode_t vp, int *iomode, int *must_commit,
     struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	int attrflag, error, commit, committed = NFSWRITE_FILESYNC, rlen;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
@@ -6724,7 +6724,7 @@ nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfssockreq *nrp;
 	struct nfsvattr na;
 	int attrflag, error;
@@ -6872,7 +6872,7 @@ nfsrpc_adviseds(vnode_t vp, uint64_t offset, int cnt, int advise,
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfssockreq *nrp;
 	nfsattrbit_t hints;
 	int error;
@@ -6976,7 +6976,7 @@ nfsrpc_allocate(vnode_t vp, off_t off, off_t len, struct nfsvattr *nap,
 {
 	int error, expireret = 0, retrycnt, nostateid;
 	uint32_t clidrev = 0;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsfh *nfhp = NULL;
 	nfsv4stateid_t stateid;
 	off_t tmp_off;
@@ -8085,7 +8085,7 @@ nfsrpc_copy_file_range(vnode_t invp, off_t *inoffp, vnode_t outvp,
 {
 	int commit, error, expireret = 0, retrycnt;
 	u_int32_t clidrev = 0;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(invp));
+	struct nfsmount *nmp = VFSTONFS(invp->v_mount);
 	struct nfsfh *innfhp = NULL, *outnfhp = NULL;
 	nfsv4stateid_t instateid, outstateid;
 	void *inlckp, *outlckp;
@@ -8277,7 +8277,7 @@ nfsrpc_seek(vnode_t vp, off_t *offp, bool *eofp, int content,
 {
 	int error, expireret = 0, retrycnt;
 	u_int32_t clidrev = 0;
-	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsfh *nfhp = NULL;
 	nfsv4stateid_t stateid;
