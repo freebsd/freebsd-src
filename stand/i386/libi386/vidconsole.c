@@ -709,11 +709,8 @@ vidc_init(int arg)
 	env_setenv("teken.bg_color", EV_VOLATILE, env, vidc_set_colors,
 	    env_nounset);
 
-	for (int row = 0; row < tp.tp_row; row++)
-		for (int col = 0; col < tp.tp_col; col++) {
-			buffer[col + row * tp.tp_col].c = ' ';
-			buffer[col + row * tp.tp_col].a = *a;
-		}
+	/* Erase display, this will also fill our screen buffer. */
+	teken_input(&teken, "\e[J", 3);
 
 	for (int i = 0; i < 10 && vidc_ischar(); i++)
 		(void) vidc_getchar();
