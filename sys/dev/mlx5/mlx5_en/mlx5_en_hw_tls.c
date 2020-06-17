@@ -610,7 +610,7 @@ mlx5e_tls_send_nop(struct mlx5e_sq *sq, struct mlx5e_tls_tag *ptag)
 #define	SBTLS_MBUF_NO_DATA ((struct mbuf *)1)
 
 static struct mbuf *
-sbtls_recover_record(struct mbuf *mb, int wait, uint32_t tcp_old, uint32_t *ptcp_seq)
+sbtls_recover_record(struct mbuf *mb, int wait, uint32_t tcp_old, uint32_t *ptcp_seq, bool *pis_start)
 {
 	struct mbuf *mr, *top;
 	uint32_t offset;
@@ -629,6 +629,7 @@ sbtls_recover_record(struct mbuf *mb, int wait, uint32_t tcp_old, uint32_t *ptcp
 	/* check if we don't need to re-transmit anything */
 	if (offset == 0) {
 		top = SBTLS_MBUF_NO_DATA;
+		*pis_start = true;
 		goto done;
 	}
 
@@ -653,13 +654,19 @@ sbtls_recover_record(struct mbuf *mb, int wait, uint32_t tcp_old, uint32_t *ptcp
 
 	/* setup packet header length */
 	top->m_pkthdr.len = mr->m_len = offset;
+	top->m_len = 0;
 
 	/* check for partial re-transmit */
 	delta = *ptcp_seq - tcp_old;
 
 	if (delta < offset) {
-		m_adj(mr, offset - delta);
+		m_adj(top, offset - delta);
 		offset = delta;
+
+		/* continue where we left off */
+		*pis_start = false;
+	} else {
+		*pis_start = true;
 	}
 
 	/*
@@ -745,10 +752,11 @@ mlx5e_sq_tls_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbuf
 	}
 
 	if (unlikely(ptls_tag->expected_seq != mb_seq)) {
+		bool is_start;
 		struct mbuf *r_mb;
 		uint32_t tcp_seq = mb_seq;
 
-		r_mb = sbtls_recover_record(mb, M_NOWAIT, ptls_tag->expected_seq, &tcp_seq);
+		r_mb = sbtls_recover_record(mb, M_NOWAIT, ptls_tag->expected_seq, &tcp_seq, &is_start);
 		if (r_mb == NULL) {
 			MLX5E_TLS_STAT_INC(ptls_tag, tx_error, 1);
 			return (MLX5E_TLS_FAILURE);
@@ -757,7 +765,7 @@ mlx5e_sq_tls_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbuf
 		MLX5E_TLS_STAT_INC(ptls_tag, tx_packets_ooo, 1);
 
 		/* check if this is the first fragment of a TLS record */
-		if (r_mb == SBTLS_MBUF_NO_DATA || r_mb->m_data == NULL) {
+		if (is_start) {
 			/* setup TLS static parameters */
 			MLX5_SET64(sw_tls_cntx, ptls_tag->crypto_params,
 			    param.initial_record_number, rcd_sn);
