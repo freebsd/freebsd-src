@@ -37,6 +37,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#include <sys/errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -45,37 +46,64 @@ __FBSDID("$FreeBSD$");
 
 #include "thr_private.h"
 
-__weak_reference(_pthread_set_name_np, pthread_set_name_np);
-
 static void
-thr_set_name_np(struct pthread *thread, const char *name)
+thr_set_name_np(struct pthread *thread, char **tmp_name)
 {
 
 	free(thread->name);
-	thread->name = name != NULL ? strdup(name) : NULL;
+	thread->name = *tmp_name;
+	*tmp_name = NULL;
 }
 
-/* Set the thread name for debug. */
-void
-_pthread_set_name_np(pthread_t thread, const char *name)
+/* Set the thread name. */
+__weak_reference(_pthread_setname_np, pthread_setname_np);
+int
+_pthread_setname_np(pthread_t thread, const char *name)
 {
 	struct pthread *curthread;
+	char *tmp_name;
+	int res;
 
+	if (name != NULL) {
+		tmp_name = strdup(name);
+		if (tmp_name == NULL)
+			return (ENOMEM);
+	} else {
+		tmp_name = NULL;
+	}
 	curthread = _get_curthread();
 	if (curthread == thread) {
+		res = 0;
 		THR_THREAD_LOCK(curthread, thread);
-		thr_set_name(thread->tid, name);
-		thr_set_name_np(thread, name);
+		if (thr_set_name(thread->tid, name) == -1)
+			res = errno;
+		else
+			thr_set_name_np(thread, &tmp_name);
 		THR_THREAD_UNLOCK(curthread, thread);
 	} else {
+		res = ESRCH;
 		if (_thr_find_thread(curthread, thread, 0) == 0) {
 			if (thread->state != PS_DEAD) {
-				thr_set_name(thread->tid, name);
-				thr_set_name_np(thread, name);
+				if (thr_set_name(thread->tid, name) == -1) {
+					res = errno;
+				} else {
+					thr_set_name_np(thread, &tmp_name);
+					res = 0;
+				}
 			}
 			THR_THREAD_UNLOCK(curthread, thread);
 		}
 	}
+	free(tmp_name);
+	return (res);
+}
+
+/* Set the thread name for debug. */
+__weak_reference(_pthread_set_name_np, pthread_set_name_np);
+void
+_pthread_set_name_np(pthread_t thread, const char *name)
+{
+	(void)_pthread_setname_np(thread, name);
 }
 
 static void
@@ -88,13 +116,14 @@ thr_get_name_np(struct pthread *thread, char *buf, size_t len)
 		buf[0] = '\0';
 }
 
-__weak_reference(_pthread_get_name_np, pthread_get_name_np);
-
-void
-_pthread_get_name_np(pthread_t thread, char *buf, size_t len)
+__weak_reference(_pthread_getname_np, pthread_getname_np);
+int
+_pthread_getname_np(pthread_t thread, char *buf, size_t len)
 {
 	struct pthread *curthread;
+	int res;
 
+	res = 0;
 	curthread = _get_curthread();
 	if (curthread == thread) {
 		THR_THREAD_LOCK(curthread, thread);
@@ -104,8 +133,21 @@ _pthread_get_name_np(pthread_t thread, char *buf, size_t len)
 		if (_thr_find_thread(curthread, thread, 0) == 0) {
 			if (thread->state != PS_DEAD)
 				thr_get_name_np(thread, buf, len);
+			else
+				res = ESRCH;
 			THR_THREAD_UNLOCK(curthread, thread);
-		} else if (len > 0)
-			buf[0] = '\0';
+		} else {
+			res = ESRCH;
+			if (len > 0)
+				buf[0] = '\0';
+		}
 	}
+	return (res);
+}
+
+__weak_reference(_pthread_get_name_np, pthread_get_name_np);
+void
+_pthread_get_name_np(pthread_t thread, char *buf, size_t len)
+{
+	(void)_pthread_getname_np(thread, buf, len);
 }
