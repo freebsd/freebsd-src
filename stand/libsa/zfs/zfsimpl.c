@@ -1201,7 +1201,7 @@ vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
 		char prefix[] = "/dev/";
 
 		len = strlen(prefix);
-		if (memcmp(path, prefix, len) == 0) {
+		if (len < pathlen && memcmp(path, prefix, len) == 0) {
 			path += len;
 			pathlen -= len;
 		}
