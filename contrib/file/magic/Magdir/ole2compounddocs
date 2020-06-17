@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ole2compounddocs,v 1.7 2019/08/02 18:08:18 christos Exp $
+# $File: ole2compounddocs,v 1.8 2020/03/28 23:10:30 christos Exp $
 # Microsoft OLE 2 Compound Documents : file(1) magic for Microsoft Structured
 # storage (https://en.wikipedia.org/wiki/Compound_File_Binary_Format)
 # Additional tests for OLE 2 Compound Documents should be under this recipe.
@@ -27,6 +27,25 @@
 >>>0x18	uleshort		x			\b.%u
 # SecID of first sector of the directory stream is often 1 but high like 3144h
 >>>48	ulelong			x			\b, SecID 0x%x
+# Sector Shift Exponent in short-stream container stream: 6~64 bytes
+>>>32	uleshort		!6			\b, exponent of short stream %u
+# total number of sectors used for the FAT
+>>>44	ulelong			>1			\b, %u FAT sectors
+# SecID of first sector of the short-sector allocation table (Mini FAT)
+# or -2 (End Of ChainSecID) if not extant
+>>>60	ulelong			!0xffFFffFE		\b, Mini FAT start sector 0x%x
+# total number of sectors used for the short-sector allocation table
+>>>64	ulelong			!1			\b, %u Mini FAT sector
+# plural s
+>>>>64	ulelong			>1			\bs
+# SecID of first sector of the master sector allocation table (DIFAT)
+# or -2 (End Of Chain SecID) if no additional sectors used
+>>>68	ulelong			!0xffFFffFE		\b, DIFAT start sector 0x%x
+# total number of sectors used for the master sector allocation table (DIFAT)
+>>>72	ulelong			>0			\b, %u DIFAT sectors
+# First part of the master sector allocation table (DIFAT) containing 109 SecIDs
+#>>>76 	ubequad			x			\b, DIFAT=0x%16.16llx
+#>>>84 	ubequad			x			\b%16.16llx...
 # pointer to root entry only works with standard configuration for SecID ~< 800h
 # Red-Carpet-presentation-1.0-1.sdd sg10.sdv 2000_GA_Annual_Review_Data.xls
 # "ORLEN Factbook 2017.xls" XnView_metadata.doc
@@ -51,7 +70,7 @@
 #>66 	ubyte		x			\b, type %x
 # node colour of the entry: 00H ~ Red 01H ~ Black
 #>67 	ubyte		x			\b, color %x
-# the DirIDs of the child nodes. Should both be –1 in the root storage entry
+# the DirIDs of the child nodes. Should both be -1 in the root storage entry
 #>68 	bequad		!0xffffffffffffffff	\b, DirIDs %llx
 # second directory entry name like VisioDocument Control000 
 #>128	lestring16	x \b, 2nd %.20s
@@ -207,6 +226,29 @@
 #!:mime	application/x-ole-storage
 !:mime	application/x-star-sdv
 !:ext	sdv
+# URL:	https://en.wikipedia.org/wiki/SoftMaker_Office
+# second directory entry name Current User
+>>>>128 	lestring16	Current\ User		: SoftMaker
+# third directory entry name SMNativeObjData
+>>>>>256	lestring16	SMNativeObjData		
+# 5th directory entry nane PowerPoint
+>>>>>>512	lestring16	PowerPoint		PowerPoint presentation or template
+!:mime	application/vnd.ms-powerpoint
+!:ext	ppt/pps/pot
+# 4th directory entry name PowerPoint
+>>>>>384	lestring16	PowerPoint		Presentations or template
+# http://extension.nirsoft.net/prv
+!:mime	application/vnd.softmaker.presentations
+!:ext	prd/prv
+# third directory entry name like Current User
+>>>>256 	lestring16	Current\ User		: SoftMaker
+# 5th directory entry name PowerPoint
+>>>>>512	lestring16	PowerPoint		Presentations or template
+# http://extension.nirsoft.net/prd
+!:mime	application/vnd.softmaker.presentations
+!:ext	prd/prv
+# 2nd directory entry name Pictures
+>>>>>>128 	lestring16	Pictures		with pictures
 #	remaining null clsid
 >>>>128 	default		x			: UNKNOWN
 !:mime	application/x-ole-storage
@@ -463,6 +505,12 @@
 !:mime	image/vnd.fpx
 !:apple	????FPix
 !:ext	fpx
+# URL:	https://en.wikipedia.org/wiki/SoftMaker_Office
+>>88 	ubequad		0x95f600a0cc3cca14	: PlanMaker
+>>>80 	ubequad		0x9174088a6452d411	document or template
+!:mime	application/vnd.softmaker.planmaker
+# pmv for template	https://www.file-extensions.org/pmv-file-extension
+!:ext	pmd/pmv
 # remaining non null clsid
 >>88 	default		x			: UNKNOWN
 !:mime	application/x-ole-storage

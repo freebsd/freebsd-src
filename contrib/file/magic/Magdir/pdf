@@ -1,26 +1,32 @@
 
 #------------------------------------------------------------------------------
-# $File: pdf,v 1.11 2019/09/12 15:53:49 christos Exp $
+# $File: pdf,v 1.12 2020/01/30 01:48:44 christos Exp $
 # pdf:  file(1) magic for Portable Document Format
 #
+
+0	name	pdf
+>8	search/512	/Filter/FlateDecode/	(password protected)
 
 0	string		%PDF-		PDF document
 !:mime	application/pdf
 !:strength +60
 >5	byte		x		\b, version %c
 >7	byte		x		\b.%c
+>0	use		pdf
 
 0	string		\012%PDF-	PDF document
 !:mime	application/pdf
 !:strength +60
 >6	byte		x		\b, version %c
 >8	byte		x		\b.%c
+>0	use		pdf
 
 0	string		\xef\xbb\xbf%PDF-	PDF document (UTF-8)
 !:mime	application/pdf
 !:strength +60
 >6	byte		x		\b, version %c
 >8	byte		x		\b.%c
+>0	use		pdf
 
 # From: Nick Schmalenberger <nick@schmalenberger.us>
 # Forms Data Format
@@ -35,3 +41,4 @@
 !:strength +60
 >&0	byte		x		\b, version %c
 >&2	byte		x		\b.%c
+>0	use		pdf

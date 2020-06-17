@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.134 2019/10/18 15:16:18 christos Exp $
+# $File: msdos,v 1.137 2020/03/20 17:20:19 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -123,6 +123,7 @@
 >>(0x3c.l+4)	leshort		0x1d3	Matsushita AM33
 >>(0x3c.l+4)	leshort		0x1f0	PowerPC
 >>(0x3c.l+4)	leshort		0x1f1	PowerPC with FPU
+>>(0x3c.l+4)	leshort		0x1f2	PowerPC (big-endian)
 >>(0x3c.l+4)	leshort		0x200	Intel Itanium
 >>(0x3c.l+4)	leshort		0x266	MIPS16
 >>(0x3c.l+4)	leshort		0x268	Motorola 68000
@@ -1215,6 +1216,14 @@
 !:mime	application/vnd.ms-powerpoint
 #!:mime	application/mspowerpoint
 !:ext	ppz
+# URL:		https://en.wikipedia.org/wiki/Windows_Desktop_Gadgets
+# Reference:	https://docs.microsoft.com/en-us/previous-versions/windows/desktop/sidebar/
+# http://win10gadgets.com/download/273/ All_CPU_Meter1.zip/All_CPU_Meter_V4.7.3.gadget
+>0x2c	search/968/c	gadget.xml		\b, Windows Desktop Gadget
+#!:mime	application/vnd.ms-cab-compressed
+# http://extension.nirsoft.net/gadget
+!:mime	application/x-windows-gadget
+!:ext	gadget
 # http://www.incredimail.com/
 # IncrediMail CAB contains an initialisation file "content.ini" like in im2.ims
 >0x2c	search/3369/c	content.ini\0	\b, IncrediMail
@@ -1235,7 +1244,7 @@
 # http://file-extension.net/seeker/file_extension_ime
 >>>0x2c	default		x		emoticons or sound
 !:ext	ime/imw
-# no Diagnostic and IncrediMail
+# no Diagnostic, Packed and Go, Windows Desktop Gadget, IncrediMail
 >0x2c	default		x
 # look for 1st member name
 >>(16.l+16)	ubyte	x
@@ -1243,6 +1252,11 @@
 >>>&-1	string/c 	_accrpt_.snp	\b, Access report snapshot
 !:mime	application/msaccess
 !:ext	snp
+# https://en.wikipedia.org/wiki/Microsoft_InfoPath
+>>>&-1	string 		manifest.xsf	\b, InfoPath Form Template
+!:mime	application/vnd.ms-cab-compressed
+#!:mime	application/vnd.ms-infopath
+!:ext	xsn
 # https://www.cabextract.org.uk/wince_cab_format/
 # extension of DOS 8+3 name with ".000" of 1st archive member name implies Windows CE installer
 >>>&7	string 		=.000		\b, WinCE install
@@ -1306,7 +1320,6 @@
 !:mime	application/vnd.ms-cab-compressed
 !:ext	cab
 # TODO: additional extensions like
-# .xsn	InfoPath Dynamic Form
 # .xtp	InfoPath Template Part
 # .lvf	Logitech Video Effects Face Accessory
 >8	ulelong		x		\b, %u bytes

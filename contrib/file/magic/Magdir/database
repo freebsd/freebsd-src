@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.56 2019/06/14 20:12:00 christos Exp $
+# $File: database,v 1.59 2020/03/25 01:49:58 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -359,16 +359,22 @@
 >>>>>>>>>>>>0	use		foxpro-memo-print
 # dBASE III DBT , garbage
 # skip WORD1XW.DOC with improbably high free block index
->>>>>>>>>0	lelong		<2205083
+>>>>>>>>>0	ulelong		<0x400000
+# skip WinStore.App.exe by looking for printable 2nd character of 1st memo item
+>>>>>>>>>>513	ubyte		>037
 # unusual dBASE III DBT like adressen.dbt
->>>>>>>>>>0	use		dbase3-memo-print
+>>>>>>>>>>>0	use		dbase3-memo-print
 # dBASE III DBT like angest.dbt, or garbage PCX DBF
 >>>>>>>>8	ubelong		!0
 # skip PCX and some DBF by test for for reserved NULL bytes
 >>>>>>>>>510	ubeshort	0
-# skip AI070GEP.EPS with improbably high free block index
->>>>>>>>>>0	lelong		<458766
->>>>>>>>>>>0	use		dbase3-memo-print
+# skip bad symples with improbably high free block index above 2 GiB file limit
+>>>>>>>>>>0	ulelong		<0x400000
+# skip AI070GEP.EPS by printable 1st character of 1st memo item
+>>>>>>>>>>>512	ubyte		>037
+# skip gluon-ffhat-1.0-tp-link-tl-wr1043n-nd-v2-sysupgrade.bin by printable 2nd character
+>>>>>>>>>>>>513	ubyte		>037
+>>>>>>>>>>>>>0	use		dbase3-memo-print
 # dBASE IV DBT with positive block size
 >>>>>>>20	uleshort	>0
 # dBASE IV DBT with valid block length like 512, 1024
@@ -490,9 +496,9 @@
 #>>52	ulelong		3		\b, CleanShutdown
 >>52	ulelong		4		\b, BeingConverted
 >>52	ulelong		5		\b, ForceDetach
-# Windows NT major version when the databases indexes were updated.
+# Windows NT major version when the databases indexes were updated.
 >>216	ulelong		x		\b, Windows version %d
-# Windows NT minor version
+# Windows NT minor version
 >>220	ulelong		x		\b.%d
 
 # From: Joerg Jenderek
@@ -645,3 +651,14 @@
 # From: David Korth <gerbilsoft@gerbilsoft.com>
 0	string	//\ <!--\ <mdb:mork:z\ v="	Mozilla Mork database
 >23	string	x		\b, version %.3s
+
+# URL:		https://en.wikipedia.org/wiki/Management_Information_Format
+# Reference:	https://www.dmtf.org/sites/default/files/standards/documents/DSP0005.pdf
+# From:		Joerg Jenderek
+# Note:		only tested with monitor asset reports of Dell Display Manager
+#		skip start like Language=fr|CA|iso8859-1
+0	search/27/C	Start\040Component	DMI Management Information Format
+#!:mime	text/plain
+!:mime	text/x-dmtf-mif
+!:ext	mif
+

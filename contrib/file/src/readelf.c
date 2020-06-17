@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.168 2019/12/16 03:49:19 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.173 2020/06/07 22:12:54 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -67,6 +67,8 @@ private uint64_t getu64(int, uint64_t);
 private int
 toomany(struct magic_set *ms, const char *name, uint16_t num)
 {
+	if (ms->flags & MAGIC_MIME)
+		return 1;
 	if (file_printf(ms, ", too many %s (%u)", name, num) == -1)
 		return -1;
 	return 1;
@@ -355,6 +357,9 @@ dophn_core(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 	off_t ph_off = off;
 	int ph_num = num;
 
+	if (ms->flags & MAGIC_MIME)
+		return 0;
+
 	if (num == 0) {
 		if (file_printf(ms, ", no program header") == -1)
 			return -1;
@@ -568,8 +573,10 @@ do_bid_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 	}
 	if (namesz == 4 && strcmp(RCAST(char *, &nbuf[noff]), "Go") == 0 &&
 	    type == NT_GO_BUILD_ID && descsz < 128) {
-		if (file_printf(ms, ", Go BuildID=%.*s",
-		    CAST(int, descsz), RCAST(char *, &nbuf[doff])) == -1)
+		char buf[256];
+		if (file_printf(ms, ", Go BuildID=%s",
+		    file_copystr(buf, sizeof(buf), descsz,
+		    RCAST(const char *, &nbuf[doff]))) == -1)
 			return -1;
 		return 1;
 	}
@@ -721,6 +728,7 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     size_t noff, size_t doff, int *flags, size_t size, int clazz)
 {
 #ifdef ELFCORE
+	char buf[256];
 	const char *name = RCAST(const char *, &nbuf[noff]);
 
 	int os_style = -1;
@@ -901,8 +909,10 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 				 */
 				while (cp > cname && isspace(cp[-1]))
 					cp--;
-				if (file_printf(ms, ", from '%.*s'",
-				    CAST(int, cp - cname), cname) == -1)
+				if (file_printf(ms, ", from '%s'",
+				    file_copystr(buf, sizeof(buf),
+				    CAST(size_t, cp - cname),
+				    CAST(const char *, cname))) == -1)
 					return -1;
 				*flags |= FLAGS_DID_CORE;
 				return 1;
@@ -1128,6 +1138,7 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 	Elf64_Nhdr nh64;
 	size_t noff, doff;
 	uint32_t namesz, descsz;
+	char buf[256];
 	unsigned char *nbuf = CAST(unsigned char *, vbuf);
 
 	if (*notecount == 0)
@@ -1255,7 +1266,8 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 		str = RCAST(const char *, &nbuf[doff]);
 		descw = CAST(int, descsz);
 		*flags |= flag;
-		file_printf(ms, ", %s: %.*s", tag, descw, str);
+		file_printf(ms, ", %s: %s", tag,
+		    file_copystr(buf, sizeof(buf), descw, str));
 		return offset;
 	}
 
@@ -1327,6 +1339,9 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 	uint64_t cap_sf1 = 0;	/* SunOS 5.x software capabilities */
 	char name[50];
 	ssize_t namesize;
+
+	if (ms->flags & MAGIC_MIME)
+		return 0;
 
 	if (num == 0) {
 		if (file_printf(ms, ", no section header") == -1)
@@ -1639,6 +1654,7 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 		switch (xph_type) {
 		case PT_DYNAMIC:
 			doread = 1;
+			linking_style = "dynamically";
 			break;
 		case PT_NOTE:
 			if (sh_num)	/* Did this through section headers */
@@ -1653,7 +1669,6 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 			}
 			/*FALLTHROUGH*/
 		case PT_INTERP:
-			linking_style = "dynamically";
 			doread = 1;
 			break;
 		default:
@@ -1690,9 +1705,13 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 				if (offset == 0)
 					break;
 			}
+			if (ms->flags & MAGIC_MIME)
+				continue;
 			break;
 
 		case PT_INTERP:
+			if (ms->flags & MAGIC_MIME)
+				continue;
 			if (bufsize && nbuf[0]) {
 				nbuf[bufsize - 1] = '\0';
 				memcpy(interp, nbuf, CAST(size_t, bufsize));
@@ -1700,6 +1719,8 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 				strlcpy(interp, "*empty*", sizeof(interp));
 			break;
 		case PT_NOTE:
+			if (ms->flags & MAGIC_MIME)
+				return 0;
 			/*
 			 * This is a PT_NOTE section; loop through all the notes
 			 * in the section.
@@ -1716,9 +1737,13 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 			}
 			break;
 		default:
+			if (ms->flags & MAGIC_MIME)
+				continue;
 			break;
 		}
 	}
+	if (ms->flags & MAGIC_MIME)
+		return 0;
 	if (file_printf(ms, ", %s linked", linking_style)
 	    == -1)
 		return -1;
@@ -1751,7 +1776,7 @@ file_tryelf(struct magic_set *ms, const struct buffer *b)
 	Elf64_Ehdr elf64hdr;
 	uint16_t type, phnum, shnum, notecount;
 
-	if (ms->flags & (MAGIC_MIME|MAGIC_APPLE|MAGIC_EXTENSION))
+	if (ms->flags & (MAGIC_APPLE|MAGIC_EXTENSION))
 		return 0;
 	/*
 	 * ELF executables have multiple section headers in arbitrary
