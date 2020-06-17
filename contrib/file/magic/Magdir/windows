@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.29 2019/11/18 03:11:20 christos Exp $
+# $File: windows,v 1.31 2020/03/15 16:44:37 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -620,104 +620,144 @@
 
 # Windows Precompiled INF files *.PNF added by Joerg Jenderek at Mar 2013 of _PNF_HEADER inf.h
 # http://read.pudn.com/downloads3/sourcecode/windows/248345/win2k/private/windows/setup/setupapi/inf.h__.htm
-# GRR: line below too general as it catches also PDP-11 UNIX/RT ldp
-0		leshort&0xFeFe	0x0000
-!:strength -5
-# test for unused null bits in PNF_FLAGs
->4	ulelong&0xFCffFe00	0x00000000
-# only found 58h for Offset of WinDirPath immediately after _PNF_HEADER structure
->>68		ulelong		>0x57
-# test for zero high byte of InfValueBlockSize, followed by WinDirPath like
-# C:\WINDOWS (ASCII 0x433a5c.. , unicode 0x43003a005c..) or X:\MININT
->>>(68.l-1)	ubelong&0xffE0C519	=0x00400018	Windows Precompiled iNF
+# URL:		http://fileformats.archiveteam.org/wiki/INF_(Windows)
+# Reference:	http://en.verysource.com/code/10350344_1/inf.h.html
+# Note:		stored in %Windir%\Inf %Windir%\System32\DriverStore\FileRepository
+# check for valid major and minor versions: 101h - 303h 
+0		leshort&0xFcFc	=0x0000
+# GRR: line above (strength 50) is too general as it catches also "PDP-11 UNIX/RT ldp" ./pdp
+>0		leshort&0x0303	!0x0000
+# test for valid InfStyles: 1 2 
+>>2		uleshort	>0
+>>>2		uleshort	<3
+# look for colon in WinDirPath after PNF header
+#>>>>0x59	search/18	:
+>>>>0	use	PreCompiledInf
+0	name	PreCompiledInf
+>0		uleshort	x	Windows Precompiled iNF
 !:mime	application/x-pnf
-# currently only found Major Version=1 and Minor Version=1
-#>>>>0		uleshort	=0x0101
-#>>>>>1		ubyte		x		\b, version %u
-#>>>>>0		ubyte		x		\b.%u
->>>>0		uleshort	!0x0101
->>>>>1		ubyte		x		\b, version %u
->>>>>0		ubyte		x		\b.%u
+!:ext	pnf
+# major version 1 for older Windows like XP and 3 since about Windows Vista
+# 101h~98-XP; 301h~Windows Vista-7 ; 302h~Windows 10 14393; 303h~Windows 10 18362
+>1		ubyte		x		\b, version %u
+>0		ubyte		x		\b.%u
+>0		uleshort	=0x0101		(Windows
+>>4	ulelong&0x00000001	!0x00000001	98)
+>>4	ulelong&0x00000001	=0x00000001	XP)
+>0		uleshort	=0x0301		(Windows Vista-8.1)
+>0		uleshort	=0x0302		(Windows 10 older)
+>0		uleshort	=0x0303		(Windows 10)
 # 1 ,2 (windows 98 SE)
-#>>>>2		uleshort	=2		\b, InfStyle %u
->>>>2		uleshort	!2		\b, InfStyle %u
+>2		uleshort	!2		\b, InfStyle %u
 #	PNF_FLAG_IS_UNICODE		0x00000001
 #	PNF_FLAG_HAS_STRINGS		0x00000002
 #	PNF_FLAG_SRCPATH_IS_URL		0x00000004
 #	PNF_FLAG_HAS_VOLATILE_DIRIDS	0x00000008
 #	PNF_FLAG_INF_VERIFIED		0x00000010
 #	PNF_FLAG_INF_DIGITALLY_SIGNED	0x00000020
-#	??				0x00000100
-#	??				0x01000000
-#	??				0x02000000
->>>>4	ulelong&0x00000001	0x00000001	\b, unicoded
->>>>4	ulelong&0x00000020	0x00000020	\b, digitally signed
-#>>>>8		ulelong		x		\b, InfSubstValueListOffset 0x%x
+#	UNKNOWN8			0x00000080
+#	UNKNOWN				0x00000100
+#	UNKNOWN1			0x01000000
+#	UNKNOWN2			0x02000000
+>4	ulelong&0x03000180	>0		\b, flags
+>>4	ulelong			x		0x%x
+>4	ulelong&0x00000001	0x00000001	\b, unicoded
+>4	ulelong&0x00000002	0x00000002	\b, has strings
+>4	ulelong&0x00000004	0x00000004	\b, src URL
+>4	ulelong&0x00000008	0x00000008	\b, volatile dir ids
+>4	ulelong&0x00000010	0x00000010	\b, verified
+>4	ulelong&0x00000020	0x00000020	\b, digitally signed
+# >4	ulelong&0x00000080	0x00000080	\b, UNKNOWN8
+# >4	ulelong&0x00000100	0x00000100	\b, UNKNOWN
+# >4	ulelong&0x01000000	0x01000000	\b, UNKNOWN1
+# >4	ulelong&0x02000000	0x02000000	\b, UNKNOWN2
+#>8		ulelong		x		\b, InfSubstValueListOffset 0x%x
 # many 0, 1 lmouusb.PNF, 2 linkfx10.PNF , f webfdr16.PNF
-#>>>>12		uleshort	x		\b, InfSubstValueCount 0x%x
-# only < 9 found
-#>>>>14		uleshort	x		\b, InfVersionDatumCount 0x%x
-# only found values lower 0x0000ffff
-#>>>>16		ulelong		x		\b, InfVersionDataSize 0x%x
+# , 6 bth.PNF, 9 usbport.PNF, d netnwifi.PNF, 10h nettcpip.PNF
+#>12		uleshort	x		\b, InfSubstValueCount 0x%x
+# only < 9 found: 8 hcw85b64.PNF
+#>14		uleshort	x		\b, InfVersionDatumCount 0x%x
+# only found values lower 0x0000ffff ??
+#>16		ulelong		x		\b, InfVersionDataSize 0x%x
 # only found positive values lower 0x00ffFFff for InfVersionDataOffset
->>>>20		ulelong		x		\b, at 0x%x
->>>>4	ulelong&0x00000001	=0x00000001
+>20		ulelong		x		\b, at 0x%x
+>4	ulelong&0x00000001	=0x00000001
 # case independent: CatalogFile Class DriverVer layoutfile LayoutFile SetupClass signature Signature
->>>>>(20.l)	lestring16	x		"%s"
->>>>4	ulelong&0x00000001	!0x00000001
->>>>>(20.l)	string		x		"%s"
+>>(20.l)	lestring16	x		"%s"
+>4	ulelong&0x00000001	!0x00000001
+>>(20.l)	string		x		"%s"
 # FILETIME is number of 100-nanosecond intervals since 1 January 1601
-#>>>>24		ulequad		x		\b, InfVersionLastWriteTime %16.16llx
+#>24		ulequad		x		\b, InfVersionLastWriteTime %16.16llx
+#>24		foodate-0xbar	x		\b, InfVersionLastWriteTime %s
+# for Windows 98, XP
+>0		uleshort	<0x0102
 # only found values lower 0x00ffFFff
-#>>>>32		ulelong		x		\b, StringTableBlockOffset 0x%x
-#>>>>36		ulelong		x		\b, StringTableBlockSize 0x%x
-#>>>>40		ulelong		x		\b, InfSectionCount 0x%x
-#>>>>44		ulelong		x		\b, InfSectionBlockOffset 0x%x
-#>>>>48		ulelong		x		\b, InfSectionBlockSize 0x%x
-#>>>>52		ulelong		x		\b, InfLineBlockOffset 0x%x
-#>>>>56		ulelong		x		\b, InfLineBlockSize 0x%x
-#>>>>60		ulelong		x		\b, InfValueBlockOffset 0x%x
-#>>>>64		ulelong		x		\b, InfValueBlockSize 0x%x
+# often 70 but also 78h for corelist.PNF
+# >>32		ulelong		x		\b, StringTableBlockOffset 0x%x
+# >>36		ulelong		x		\b, StringTableBlockSize 0x%x
+# >>40		ulelong		x		\b, InfSectionCount 0x%x
+# >>44		ulelong		x		\b, InfSectionBlockOffset 0x%x
+# >>48		ulelong		x		\b, InfSectionBlockSize 0x%x
+# >>52		ulelong		x		\b, InfLineBlockOffset 0x%x
+# >>56		ulelong		x		\b, InfLineBlockSize 0x%x
+# >>60		ulelong		x		\b, InfValueBlockOffset 0x%x
+# >>64		ulelong		x		\b, InfValueBlockSize 0x%x
 # WinDirPathOffset
-#>>>>68		ulelong		x		\b, at 0x%x
->>>>68		ulelong		>0x57
->>>>>4	ulelong&0x00000001	=0x00000001
->>>>>>(68.l)	ubequad		=0x43003a005c005700
+# like 58h, which means direct after PNF header
+#>>68		ulelong		x		\b, at 0x%x
+>>68		ulelong		x
+>>>4	ulelong&0x00000001	=0x00000001
+#>>>>(68.l)	ubequad		=0x43003a005c005700
 # normally unicoded C:\Windows
-#>>>>>>>(68.l)	lestring16	x		\b, WinDirPath "%s"
->>>>>>(68.l)	ubequad		!0x43003a005c005700
->>>>>>>(68.l)	lestring16	x		\b, WinDirPath "%s"
->>>>>4	ulelong&0x00000001	!0x00000001
+#>>>>>(68.l)	lestring16	x		\b, WinDirPath "%s"
+>>>>(68.l)	ubequad		!0x43003a005c005700
+>>>>>(68.l)	lestring16	x		\b, WinDirPath "%s"
+>>>4	ulelong&0x00000001	!0x00000001
 # normally ASCII C:\WINDOWS
-#>>>>>>(68.l)	string		=C:\\WINDOWS	\b, WinDirPath "%s"
->>>>>>(68.l)	string		!C:\\WINDOWS	\b, WinDirPath "%s"
+#>>>>(68.l)	string		=C:\\WINDOWS	\b, WinDirPath "%s"
+>>>>(68.l)	string		!C:\\WINDOWS
+>>>>>(68.l)	string		x		\b, WinDirPath "%s"
 # found OsLoaderPathOffset values often 0 , once 70h corelist.PNF, once 68h ASCII machine.PNF
-#>>>>72		ulelong		>0		\b, at 0x%x
->>>>72		ulelong		>0		\b,
->>>>>4	ulelong&0x00000001	=0x00000001
->>>>>>(72.l)	lestring16	x		OsLoaderPath "%s"
->>>>>4	ulelong&0x00000001	!0x00000001
+>>>72		ulelong		>0		\b,
+>>>>4	ulelong&0x00000001	=0x00000001
+>>>>>(72.l)	lestring16	x		OsLoaderPath "%s"
+>>>>4	ulelong&0x00000001	!0x00000001
 # seldom C:\ instead empty
->>>>>>(72.l)	string		x		OsLoaderPath "%s"
+>>>>>(72.l)	string		x		OsLoaderPath "%s"
 # 1fdh
-#>>>>76		uleshort	x		\b, StringTableHashBucketCount 0x%x
->>>>78		uleshort	!0x407		\b, LanguageId %x
+#>>>76		uleshort	x		\b, StringTableHashBucketCount 0x%x
 # only 407h found
-#>>>>78		uleshort	=0x407		\b, LanguageId %x
+>>>78		uleshort	!0x409		\b, LanguageID %x
+#>>>78		uleshort	=0x409		\b, LanguageID %x
 # InfSourcePathOffset often 0
-#>>>>80		ulelong		>0		\b, at 0x%x
->>>>80		ulelong		>0		\b,
->>>>>4	ulelong&0x00000001	=0x00000001
->>>>>>(80.l)	lestring16	x		SourcePath "%s"
->>>>>4	ulelong&0x00000001	!0x00000001
->>>>>>(80.l)	string		>\0		SourcePath "%s"
+>>>80		ulelong		>0		\b, at 0x%x
+>>>>4	ulelong&0x00000001	=0x00000001
+>>>>>(80.l)	lestring16	x		SourcePath "%s"
+>>>>4	ulelong&0x00000001	!0x00000001
+>>>>>(80.l)	string		>\0		SourcePath "%s"
 # OriginalInfNameOffset often 0
-#>>>>84		ulelong		>0		\b, at 0x%x
->>>>84		ulelong		>0		\b,
->>>>>4	ulelong&0x00000001	=0x00000001
->>>>>>(84.l)	lestring16	x		InfName "%s"
->>>>>4	ulelong&0x00000001	!0x00000001
->>>>>>(84.l)	string		>\0		InfName "%s"
+>>>84		ulelong		>0		\b, at 0x%x
+>>>>4	ulelong&0x00000001	=0x00000001
+>>>>>(84.l)	lestring16	x		InfName "%s"
+>>>>4	ulelong&0x00000001	!0x00000001
+>>>>>(84.l)	string		>\0		InfName "%s"
+
+# for newer Windows like Vista, 7 , 8.1 , 10
+>0		uleshort	>0x0101
+>>80	ulelong			x		\b, at 0x%x WinDirPath
+>>>4	ulelong&0x00000001	0x00000001
+# normally unicoded C:\Windows
+#>>>>(80.l)	ubequad		=0x43003a005c005700
+#>>>>>(80.l)	lestring16	x		"%s"
+>>>>(80.l)	ubequad		!0x43003a005c005700
+>>>>>(80.l)	lestring16	x		"%s"
+# language id: 0 407h~german 409h~English_US
+>>90		uleshort	!0x409		\b, LanguageID %x
+#>>90		uleshort	=0x409		\b, LanguageID %x
+>>92	ulelong			>0		\b, at 0x%x
+>>>4	ulelong&0x00000001	0x00000001
+# language string like: de-DE en-US
+>>>>(92.l)	lestring16	x		language %s
 
 # Summary: backup file created with utility like NTBACKUP.EXE shipped with Windows NT/2K/XP/2003
 # Extension: .bkf
@@ -991,3 +1031,9 @@
 # URL like File\C:\Users\nutzer\AppData\Roaming\Microsoft\Internet Explorer\Quick Launch\desktop.ini
 >>&20		lestring16	x	\b, 1st %-s
 
+# Microsoft SYLK
+# https://en.wikipedia.org/wiki/SYmbolic_LinK_(SYLK)
+# https://outflank.nl/upload/sylksum.txt
+0	string	ID;P	Microsoft SYLK program
+>4	string	>0	\b, created by %s
+!:ext	slk/sylk

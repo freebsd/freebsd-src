@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.184 2019/08/03 11:51:59 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.187 2020/06/07 17:38:30 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -83,7 +83,8 @@ int getopt_long(int, char * const *, const char *,
     "Usage: %s [-" FILE_FLAGS "] [--apple] [--extension] [--mime-encoding]\n" \
     "            [--mime-type] [-e <testname>] [-F <separator>] " \
     " [-f <namefile>]\n" \
-    "            [-m <magicfiles>] [-P <parameter=value>] <file> ...\n" \
+    "            [-m <magicfiles>] [-P <parameter=value>] [--exclude-quiet]\n" \
+    "            <file> ...\n" \
     "       %s -C [-m <magicfiles>]\n" \
     "       %s [--help]\n"
 
@@ -100,9 +101,10 @@ private const struct option long_options[] = {
 #define OPT_EXTENSIONS		3
 #define OPT_MIME_TYPE		4
 #define OPT_MIME_ENCODING	5
-#define OPT(shortname, longname, opt, def, doc)      \
+#define OPT_EXCLUDE_QUIET	6
+#define OPT(shortname, longname, opt, def, doc)		\
     {longname, opt, NULL, shortname},
-#define OPT_LONGONLY(longname, opt, def, doc, id)        \
+#define OPT_LONGONLY(longname, opt, def, doc, id)	\
     {longname, opt, NULL, id},
 #include "file_opts.h"
 #undef OPT
@@ -133,14 +135,23 @@ private struct {
 	int tag;
 	size_t value;
 	int set;
+	size_t def;
+	const char *desc;
 } pm[] = {
-	{ "indir",	MAGIC_PARAM_INDIR_MAX, 0, 0 },
-	{ "name",	MAGIC_PARAM_NAME_MAX, 0, 0 },
-	{ "elf_phnum",	MAGIC_PARAM_ELF_PHNUM_MAX, 0, 0 },
-	{ "elf_shnum",	MAGIC_PARAM_ELF_SHNUM_MAX, 0, 0 },
-	{ "elf_notes",	MAGIC_PARAM_ELF_NOTES_MAX, 0, 0 },
-	{ "regex",	MAGIC_PARAM_REGEX_MAX, 0, 0 },
-	{ "bytes",	MAGIC_PARAM_BYTES_MAX, 0, 0 },
+	{ "bytes",	MAGIC_PARAM_BYTES_MAX, 0, 0, FILE_BYTES_MAX,
+	    "max bytes to look inside file" },
+	{ "elf_notes",	MAGIC_PARAM_ELF_NOTES_MAX, 0, 0, FILE_ELF_NOTES_MAX,
+	    "max ELF notes processed" },
+	{ "elf_phnum",	MAGIC_PARAM_ELF_PHNUM_MAX, 0, 0, FILE_ELF_PHNUM_MAX,
+	    "max ELF prog sections processed" },
+	{ "elf_shnum",	MAGIC_PARAM_ELF_SHNUM_MAX, 0, 0, FILE_ELF_SHNUM_MAX,
+	    "max ELF sections processed" },
+	{ "indir",	MAGIC_PARAM_INDIR_MAX, 0, 0, FILE_INDIR_MAX,
+	    "recursion limit for indirection" },
+	{ "name",	MAGIC_PARAM_NAME_MAX, 0, 0, FILE_NAME_MAX,
+	    "use limit for name/use magic" },
+	{ "regex",	MAGIC_PARAM_REGEX_MAX, 0, 0, FILE_REGEX_MAX,
+	    "length limit for REGEX searches" },
 };
 
 private int posixly;
@@ -237,13 +248,15 @@ main(int argc, char *argv[])
 			flags |= MAGIC_ERROR;
 			break;
 		case 'e':
+		case OPT_EXCLUDE_QUIET:
 			for (i = 0; i < __arraycount(nv); i++)
 				if (strcmp(nv[i].name, optarg) == 0)
 					break;
 
-			if (i == __arraycount(nv))
-				errflg++;
-			else
+			if (i == __arraycount(nv)) {
+				if (c != OPT_EXCLUDE_QUIET)
+					errflg++;
+			} else
 				flags |= nv[i].value;
 			break;
 
@@ -609,10 +622,10 @@ private void
 docprint(const char *opts, int def)
 {
 	size_t i;
-	int comma;
+	int comma, pad;
 	char *sp, *p;
 
-	p = strstr(opts, "%o");
+	p = strchr(opts, '%');
 	if (p == NULL) {
 		fprintf(stdout, "%s", opts);
 		defprint(def);
@@ -623,17 +636,34 @@ docprint(const char *opts, int def)
 		continue;
 
 	fprintf(stdout, "%.*s", CAST(int, p - opts), opts);
+	pad = (int)CAST(int, p - sp - 1);
 
-	comma = 0;
-	for (i = 0; i < __arraycount(nv); i++) {
-		fprintf(stdout, "%s%s", comma++ ? ", " : "", nv[i].name);
-		if (i && i % 5 == 0 && i != __arraycount(nv) - 1) {
-			fprintf(stdout, ",\n%*s", CAST(int, p - sp - 1), "");
-			comma = 0;
+	switch (*++p) {
+	case 'e':
+		comma = 0;
+		for (i = 0; i < __arraycount(nv); i++) {
+			fprintf(stdout, "%s%s", comma++ ? ", " : "", nv[i].name);
+			if (i && i % 5 == 0 && i != __arraycount(nv) - 1) {
+				fprintf(stdout, ",\n%*s", pad, "");
+				comma = 0;
+			}
 		}
+		break;
+	case 'P':
+		for (i = 0; i < __arraycount(pm); i++) {
+			fprintf(stdout, "%9s %7zu %s", pm[i].name, pm[i].def,
+			    pm[i].desc);
+			if (i != __arraycount(pm) - 1)
+				fprintf(stdout, "\n%*s", pad, "");
+		}
+		break;
+	default:
+		file_errx(EXIT_FAILURE, "Unknown escape `%c' in long options",
+		   *p);
+		break;
 	}
+	fprintf(stdout, "%s", opts + (p - opts) + 1);
 
-	fprintf(stdout, "%s", opts + (p - opts) + 2);
 }
 
 private void
@@ -646,7 +676,7 @@ help(void)
 #define OPT(shortname, longname, opt, def, doc)      \
 	fprintf(stdout, "  -%c, --" longname, shortname), \
 	docprint(doc, def);
-#define OPT_LONGONLY(longname, opt, def, doc, id)        \
+#define OPT_LONGONLY(longname, opt, def, doc, id)    	\
 	fprintf(stdout, "      --" longname),	\
 	docprint(doc, def);
 #include "file_opts.h"
@@ -680,7 +710,10 @@ file_err(int e, const char *fmt, ...)
 	fprintf(stderr, "%s: ", file_progname);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
-	fprintf(stderr, " (%s)\n", strerror(se));
+	if (se)
+		fprintf(stderr, " (%s)\n", strerror(se));
+	else
+		fputc('\n', stderr);
 	exit(e);
 }
 
@@ -707,7 +740,10 @@ file_warn(const char *fmt, ...)
 	fprintf(stderr, "%s: ", file_progname);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
-	fprintf(stderr, " (%s)\n", strerror(se));
+	if (se)
+		fprintf(stderr, " (%s)\n", strerror(se));
+	else
+		fputc('\n', stderr);
 	errno = se;
 }
 

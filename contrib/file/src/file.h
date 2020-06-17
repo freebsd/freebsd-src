@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.208 2019/06/26 20:31:31 christos Exp $
+ * @(#)$File: file.h,v 1.220 2020/06/08 17:38:27 christos Exp $
  */
 
 #ifndef __file_h__
@@ -36,7 +36,15 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
 #ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
+
 #ifndef __STDC_LIMIT_MACROS
 #define __STDC_LIMIT_MACROS
 #endif
@@ -44,28 +52,33 @@
 #define __STDC_FORMAT_MACROS
 #endif
 
-#ifdef WIN32
-  #ifdef _WIN64
-    #define SIZE_T_FORMAT "I64"
-  #else
-    #define SIZE_T_FORMAT ""
-  #endif
-  #define INT64_T_FORMAT "I64"
-  #define INTMAX_T_FORMAT "I64"
+#ifdef _WIN32
+# ifdef PRIu32
+#  ifdef _WIN64
+#   define SIZE_T_FORMAT PRIu64
+#  else
+#   define SIZE_T_FORMAT PRIu32
+#  endif
+#  define INT64_T_FORMAT PRIi64
+#  define INTMAX_T_FORMAT PRIiMAX
+# else
+#  ifdef _WIN64
+#   define SIZE_T_FORMAT "I64"
+#  else
+#   define SIZE_T_FORMAT ""
+#  endif
+#  define INT64_T_FORMAT "I64"
+#  define INTMAX_T_FORMAT "I64"
+# endif
 #else
-  #define SIZE_T_FORMAT "z"
-  #define INT64_T_FORMAT "ll"
-  #define INTMAX_T_FORMAT "j"
-#endif
-#include <stdint.h>
+# define SIZE_T_FORMAT "z"
+# define INT64_T_FORMAT "ll"
+# define INTMAX_T_FORMAT "j"
 #endif
 
 #include <stdio.h>	/* Include that here, to make sure __P gets defined */
 #include <errno.h>
 #include <fcntl.h>	/* For open and flags */
-#ifdef HAVE_INTTYPES_H
-#include <inttypes.h>
-#endif
 #include <regex.h>
 #include <time.h>
 #include <sys/types.h>
@@ -130,18 +143,16 @@
 #define	MAX(a,b)	(((a) > (b)) ? (a) : (b))
 #endif
 
-#ifndef FILE_BYTES_MAX
-# define FILE_BYTES_MAX (1024 * 1024)	/* how much of the file to look at */
-#endif
-#define MAXMAGIS 8192		/* max entries in any one magic file
-				   or directory */
+#define FILE_BADSIZE CAST(size_t, ~0ul)
 #define MAXDESC	64		/* max len of text description/MIME type */
 #define MAXMIME	80		/* max len of text MIME type */
-#define MAXstring 96		/* max len of "string" types */
+#define MAXstring 128		/* max len of "string" types */
 
 #define MAGICNO		0xF11E041C
-#define VERSIONNO	14
-#define FILE_MAGICSIZE	344
+#define VERSIONNO	16
+#define FILE_MAGICSIZE	376
+
+#define FILE_GUID_SIZE	sizeof("XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
 
 #define	FILE_LOAD	0
 #define FILE_CHECK	1
@@ -168,6 +179,7 @@ union VALUETYPE {
 	uint8_t hq[8];	/* 8 bytes of a fixed-endian "quad" */
 	char s[MAXstring];	/* the search string or regex pattern */
 	unsigned char us[MAXstring];
+	uint64_t guid[2];
 	float f;
 	double d;
 };
@@ -184,6 +196,7 @@ struct magic {
 #define BINTEST		0x20	/* test is for a binary type (set only
 				   for top-level tests) */
 #define TEXTTEST	0x40	/* for passing to file_softmagic */
+#define OFFNEGATIVE	0x80	/* relative to the end of file */
 
 	uint8_t factor;
 
@@ -241,7 +254,9 @@ struct magic {
 #define				FILE_USE	46
 #define				FILE_CLEAR	47
 #define				FILE_DER	48
-#define				FILE_NAMES_SIZE	49 /* size of array to contain all names */
+#define				FILE_GUID	49
+#define				FILE_OFFSET	50
+#define				FILE_NAMES_SIZE	51 /* size of array to contain all names */
 
 #define IS_STRING(t) \
 	((t) == FILE_STRING || \
@@ -405,9 +420,10 @@ struct magic_set {
 	} c;
 	struct out {
 		char *buf;		/* Accumulation buffer */
+		size_t blen;		/* Length of buffer */
 		char *pbuf;		/* Printable buffer */
 	} o;
-	uint32_t offset;		/* a copy of m->offset while we */
+	uint32_t offset;			/* a copy of m->offset while we */
 					/* are working on the magic entry */
 	uint32_t eoffset;		/* offset from end of file */
 	int error;
@@ -436,11 +452,14 @@ struct magic_set {
 	uint16_t elf_notes_max;
 	uint16_t regex_max;
 	size_t bytes_max;		/* number of bytes to read from file */
-#define	FILE_INDIR_MAX			50
-#define	FILE_NAME_MAX			30
-#define	FILE_ELF_SHNUM_MAX		32768
-#define	FILE_ELF_PHNUM_MAX		2048
+#ifndef FILE_BYTES_MAX
+# define FILE_BYTES_MAX (1024 * 1024)	/* how much of the file to look at */
+#endif
 #define	FILE_ELF_NOTES_MAX		256
+#define	FILE_ELF_PHNUM_MAX		2048
+#define	FILE_ELF_SHNUM_MAX		32768
+#define	FILE_INDIR_MAX			50
+#define	FILE_NAME_MAX			50
 #define	FILE_REGEX_MAX			8192
 };
 
@@ -450,7 +469,7 @@ typedef unsigned long unichar;
 struct stat;
 #define FILE_T_LOCAL	1
 #define FILE_T_WINDOWS	2
-protected const char *file_fmttime(uint64_t, int, char *);
+protected const char *file_fmttime(char *, size_t, uint64_t, int);
 protected struct magic_set *file_ms_alloc(int);
 protected void file_ms_free(struct magic_set *);
 protected int file_default(struct magic_set *, size_t);
@@ -461,7 +480,11 @@ protected int file_pipe2file(struct magic_set *, int, const void *, size_t);
 protected int file_vprintf(struct magic_set *, const char *, va_list)
     __attribute__((__format__(__printf__, 2, 0)));
 protected int file_separator(struct magic_set *);
+protected char *file_copystr(char *, size_t, size_t, const char *);
+protected int file_checkfmt(char *, size_t, const char *);
 protected size_t file_printedlen(const struct magic_set *);
+protected int file_print_guid(char *, size_t, const uint64_t *);
+protected int file_parse_guid(const char *, uint64_t *);
 protected int file_replace(struct magic_set *, const char *, const char *);
 protected int file_printf(struct magic_set *, const char *, ...)
     __attribute__((__format__(__printf__, 2, 3)));
@@ -506,8 +529,10 @@ protected ssize_t sread(int, void *, size_t, int);
 protected int file_check_mem(struct magic_set *, unsigned int);
 protected int file_looks_utf8(const unsigned char *, size_t, unichar *,
     size_t *);
-protected size_t file_pstring_length_size(const struct magic *);
-protected size_t file_pstring_get_length(const struct magic *, const char *);
+protected size_t file_pstring_length_size(struct magic_set *,
+    const struct magic *);
+protected size_t file_pstring_get_length(struct magic_set *,
+    const struct magic *, const char *);
 protected char * file_printable(char *, size_t, const char *, size_t);
 #ifdef __EMX__
 protected int file_os2_apptype(struct magic_set *, const char *, const void *,
@@ -545,6 +570,7 @@ protected void file_regerror(file_regex_t *, int, struct magic_set *);
 
 typedef struct {
 	char *buf;
+	size_t blen;
 	uint32_t offset;
 } file_pushbuf_t;
 

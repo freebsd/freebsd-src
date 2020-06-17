@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: pascal,v 1.2 2014/07/14 14:21:33 rrt Exp $
+# $File: pascal,v 1.3 2020/06/07 18:10:26 christos Exp $
 # pascal:  file(1) magic for Pascal source
 #
 0	search/8192	(input,		Pascal source text
@@ -8,3 +8,7 @@
 #!:mime	text/x-pascal
 #0	regex           	\^record		Pascal source text
 #!:mime	text/x-pascal
+
+# Free Pascal
+0	string	PPU	Pascal unit
+>3	string	x	\b, version %s
