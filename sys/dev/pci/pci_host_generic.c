@@ -70,8 +70,11 @@ int
 pci_host_generic_core_attach(device_t dev)
 {
 	struct generic_pcie_core_softc *sc;
+	uint64_t phys_base;
+	uint64_t pci_base;
+	uint64_t size;
 	int error;
-	int rid;
+	int rid, tuple;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -101,12 +104,23 @@ pci_host_generic_core_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->res);
 	sc->bsh = rman_get_bushandle(sc->res);
 
+	sc->has_pmem = false;
+	sc->pmem_rman.rm_type = RMAN_ARRAY;
+	sc->pmem_rman.rm_descr = "PCIe Prefetch Memory";
+
 	sc->mem_rman.rm_type = RMAN_ARRAY;
 	sc->mem_rman.rm_descr = "PCIe Memory";
+
 	sc->io_rman.rm_type = RMAN_ARRAY;
 	sc->io_rman.rm_descr = "PCIe IO window";
 
 	/* Initialize rman and allocate memory regions */
+	error = rman_init(&sc->pmem_rman);
+	if (error) {
+		device_printf(dev, "rman_init() failed. error = %d\n", error);
+		return (error);
+	}
+
 	error = rman_init(&sc->mem_rman);
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
@@ -117,6 +131,39 @@ pci_host_generic_core_attach(device_t dev)
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		return (error);
+	}
+
+	for (tuple = 0; tuple < MAX_RANGES_TUPLES; tuple++) {
+		phys_base = sc->ranges[tuple].phys_base;
+		pci_base = sc->ranges[tuple].pci_base;
+		size = sc->ranges[tuple].size;
+		if (phys_base == 0 || size == 0)
+			continue; /* empty range element */
+		switch (FLAG_TYPE(sc->ranges[tuple].flags)) {
+		case FLAG_TYPE_PMEM:
+			sc->has_pmem = true;
+			error = rman_manage_region(&sc->pmem_rman,
+			   phys_base, phys_base + size - 1);
+			break;
+		case FLAG_TYPE_MEM:
+			error = rman_manage_region(&sc->mem_rman,
+			   phys_base, phys_base + size - 1);
+			break;
+		case FLAG_TYPE_IO:
+			error = rman_manage_region(&sc->io_rman,
+			   phys_base, phys_base + size - 1);
+			break;
+		default:
+			continue;
+		}
+		if (error) {
+			device_printf(dev, "rman_manage_region() failed."
+						"error = %d\n", error);
+			rman_fini(&sc->pmem_rman);
+			rman_fini(&sc->mem_rman);
+			rman_fini(&sc->io_rman);
+			return (error);
+		}
 	}
 
 	return (0);
@@ -236,13 +283,15 @@ generic_pcie_write_ivar(device_t dev, device_t child, int index,
 }
 
 static struct rman *
-generic_pcie_rman(struct generic_pcie_core_softc *sc, int type)
+generic_pcie_rman(struct generic_pcie_core_softc *sc, int type, int flags)
 {
 
 	switch (type) {
 	case SYS_RES_IOPORT:
 		return (&sc->io_rman);
 	case SYS_RES_MEMORY:
+		if (sc->has_pmem && (flags & RF_PREFETCHABLE) != 0)
+			return (&sc->pmem_rman);
 		return (&sc->mem_rman);
 	default:
 		break;
@@ -266,7 +315,7 @@ pci_host_generic_core_release_resource(device_t dev, device_t child, int type,
 	}
 #endif
 
-	rm = generic_pcie_rman(sc, type);
+	rm = generic_pcie_rman(sc, type, rman_get_flags(res));
 	if (rm != NULL) {
 		KASSERT(rman_is_region_manager(res, rm), ("rman mismatch"));
 		rman_release_resource(res);
@@ -282,6 +331,11 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 	struct generic_pcie_core_softc *sc;
 	struct resource *res;
 	struct rman *rm;
+	uint64_t phys_base;
+	uint64_t pci_base;
+	uint64_t size;
+	int i, space;
+	bool found;
 
 	sc = device_get_softc(dev);
 
@@ -292,10 +346,55 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 	}
 #endif
 
-	rm = generic_pcie_rman(sc, type);
+	rm = generic_pcie_rman(sc, type, flags);
 	if (rm == NULL)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
+
+	/* Translate the address from a PCI address to a physical address */
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		found = false;
+		for (i = 0; i < MAX_RANGES_TUPLES; i++) {
+			pci_base = sc->ranges[i].pci_base;
+			phys_base = sc->ranges[i].phys_base;
+			size = sc->ranges[i].size;
+
+			if (start < pci_base || start >= pci_base + size)
+				continue;
+
+			switch (FLAG_TYPE(sc->ranges[i].flags)) {
+			case FLAG_TYPE_MEM:
+			case FLAG_TYPE_PMEM:
+				space = SYS_RES_MEMORY;
+				break;
+			case FLAG_TYPE_IO:
+				space = SYS_RES_IOPORT;
+				break;
+			default:
+				space = -1;
+				continue;
+			}
+
+			if (type == space) {
+				start = start - pci_base + phys_base;
+				end = end - pci_base + phys_base;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			device_printf(dev,
+			    "Failed to allocate %s resource %lx-%lx for %s\n",
+			    type == SYS_RES_IOPORT ? "IOPORT" : "MEMORY",
+			    start, end, device_get_nameunit(child));
+			return (NULL);
+		}
+		break;
+	default:
+		break;
+	}
 
 	if (bootverbose) {
 		device_printf(dev,
@@ -330,53 +429,15 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct generic_pcie_core_softc *sc;
-	uint64_t phys_base;
-	uint64_t pci_base;
-	uint64_t size;
-	int found;
 	int res;
-	int i;
 
 	sc = device_get_softc(dev);
 
 	if ((res = rman_activate_resource(r)) != 0)
 		return (res);
 
-	switch (type) {
-	case SYS_RES_IOPORT:
-	case SYS_RES_MEMORY:
-		found = 0;
-		for (i = 0; i < MAX_RANGES_TUPLES; i++) {
-			pci_base = sc->ranges[i].pci_base;
-			phys_base = sc->ranges[i].phys_base;
-			size = sc->ranges[i].size;
-
-			if ((rman_get_start(r) >= pci_base) && (rman_get_start(r) < (pci_base + size))) {
-				found = 1;
-				break;
-			}
-		}
-		if (found) {
-			rman_set_start(r, rman_get_start(r) - pci_base + phys_base);
-			rman_set_end(r, rman_get_end(r) - pci_base + phys_base);
-			res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
-			    child, type, rid, r);
-		} else {
-			device_printf(dev,
-			    "Failed to activate %s resource\n",
-			    type == SYS_RES_IOPORT ? "IOPORT" : "MEMORY");
-			res = ENXIO;
-		}
-		break;
-	case SYS_RES_IRQ:
-		res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r);
-		break;
-	default:
-		break;
-	}
-
-	return (res);
+	return (BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child, type,
+	    rid, r));
 }
 
 static int
@@ -416,7 +477,7 @@ generic_pcie_adjust_resource(device_t dev, device_t child, int type,
 		    end));
 #endif
 
-	rm = generic_pcie_rman(sc, type);
+	rm = generic_pcie_rman(sc, type, rman_get_flags(res));
 	if (rm != NULL)
 		return (rman_adjust_resource(res, start, end));
 	return (bus_generic_adjust_resource(dev, child, type, res, start, end));
