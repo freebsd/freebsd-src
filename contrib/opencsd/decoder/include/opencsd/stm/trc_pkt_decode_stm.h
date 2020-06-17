@@ -79,6 +79,7 @@ private:
     } processor_state_t;
 
     processor_state_t m_curr_state;  
+    unsync_info_t m_unsync_info;
 
     ocsd_swt_info_t m_swt_packet_info;
 

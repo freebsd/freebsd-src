@@ -102,7 +102,7 @@ template<class P> ocsd_datapath_resp_t PacketPrinter<P>::PacketDataIn( const ocs
     if(!m_bRawPrint && (m_last_resp == OCSD_RESP_WAIT))
     {
         // expect a flush or a complete reset after a wait.
-        if((op != OCSD_OP_FLUSH) || (op != OCSD_OP_RESET))
+        if((op != OCSD_OP_FLUSH) && (op != OCSD_OP_RESET))
         {
             m_oss <<"ID:"<< std::hex << (uint32_t)m_trcID << "\tERROR: FLUSH operation expected after wait on trace decode path\n";
             itemPrintLine(m_oss.str());

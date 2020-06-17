@@ -1,6 +1,6 @@
 /*
- * \file       ocsd_gen_elem_stack.h
- * \brief      OpenCSD : Generic element output stack.
+ * \file       ocsd_gen_elem_list.h
+ * \brief      OpenCSD : Generic element output list.
  * 
  * \copyright  Copyright (c) 2016, ARM Limited. All Rights Reserved.
  */
@@ -47,7 +47,7 @@
  * This should remove some of the requirement on the packet processing to be re-enterant,
  * simplifying this code.
  *
- * Last element(s) on this stack can be marked pending to allow for later cancellation.
+ * Last element(s) on this list can be marked pending to allow for later cancellation.
  * (This required for cancel element in ETMv3 exeception branch).
  * 
  * The "list" is actually a ring buffer - maintaining pointers to indicate current valid elements.
@@ -150,4 +150,4 @@ inline void OcsdGenElemList::initSendIf(componentAttachPt<ITrcGenElemIn> *pGenEl
     m_sendIf = pGenElemIf;
 }
 
-/* End of File ocsd_gen_elem_stack.h */
+/* End of File ocsd_gen_elem_list.h */

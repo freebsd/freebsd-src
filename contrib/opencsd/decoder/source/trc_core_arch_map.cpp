@@ -34,10 +34,12 @@
 
 #include "common/trc_core_arch_map.h"
 
-static struct _ap_map_elements {
+typedef struct _ap_map_elements {
     const char *name;
     ocsd_arch_profile_t ap;
-} ap_map_array[] = 
+} ap_map_elem_t;
+
+static ap_map_elem_t ap_map_array[] = 
 {
     { "Cortex-A77", { ARCH_V8r3, profile_CortexA } },
     { "Cortex-A76", { ARCH_V8r3, profile_CortexA } },
@@ -70,11 +72,27 @@ static struct _ap_map_elements {
     { "Cortex-M4", { ARCH_V7, profile_CortexM } }
 };   
 
+static ap_map_elem_t arch_map_array[] = 
+{
+    { "ARMv7-A", { ARCH_V7, profile_CortexA } },
+    { "ARMv7-R", { ARCH_V7, profile_CortexR } },
+    { "ARMv7-M", { ARCH_V7, profile_CortexM } },
+    { "ARMv8-A", { ARCH_V8, profile_CortexA } },
+    { "ARMv8.3-A", { ARCH_V8r3, profile_CortexA } },
+    { "ARMv8-R", { ARCH_V8, profile_CortexR } },
+    { "ARMv8-M", { ARCH_V8, profile_CortexM } },
+};
+
 CoreArchProfileMap::CoreArchProfileMap()
 {
-    for(unsigned i = 0; i < sizeof(ap_map_array)/sizeof(_ap_map_elements); i++)
+    unsigned i;
+    for (i = 0; i < sizeof(ap_map_array) / sizeof(_ap_map_elements); i++)
     {
         core_profiles[ap_map_array[i].name] = ap_map_array[i].ap;
+    }
+    for (i = 0; i < sizeof(arch_map_array) / sizeof(_ap_map_elements); i++)
+    {
+        arch_profiles[arch_map_array[i].name] = arch_map_array[i].ap;
     }
 }
 

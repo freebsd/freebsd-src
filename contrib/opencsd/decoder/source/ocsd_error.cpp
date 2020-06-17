@@ -207,7 +207,7 @@ const std::string ocsdError::getErrorString(const ocsdError &error)
 
 void ocsdError::appendErrorDetails(std::string &errStr, const ocsdError &error)
 {
-    int numerrstr = ((sizeof(s_errorCodeDescs) / sizeof(const char *)) / 2);
+    int numerrstr = sizeof(s_errorCodeDescs) / sizeof(s_errorCodeDescs[0]);
     int code = (int)error.getErrorCode();
     ocsd_trc_index_t idx = error.getErrorIndex();
     uint8_t chan_ID = error.getErrorChanID();
