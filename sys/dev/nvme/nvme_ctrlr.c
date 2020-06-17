@@ -1458,8 +1458,8 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 			nvme_io_qpair_destroy(&ctrlr->ioq[i]);
 		free(ctrlr->ioq, M_NVME);
 		nvme_ctrlr_hmb_free(ctrlr);
-		nvme_admin_qpair_destroy(&ctrlr->adminq);
 	}
+	nvme_admin_qpair_destroy(&ctrlr->adminq);
 
 	/*
 	 *  Notify the controller of a shutdown, even though this is due to
