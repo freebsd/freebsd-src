@@ -238,7 +238,7 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 	if (nfhp != NULL)
 	    nop = malloc(sizeof (struct nfsclopen) +
 		fhlen - 1, M_NFSCLOPEN, M_WAITOK);
-	ret = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+	ret = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
 	if (ret != 0) {
 		free(nowp, M_NFSCLOWNER);
 		if (nop != NULL)
@@ -272,7 +272,7 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 		ohp = &dp->nfsdl_owner;
 	} else {
 		/* For NFSv4.1 and this option, use a single open_owner. */
-		if (NFSHASONEOPENOWN(VFSTONFS(vnode_mount(vp))))
+		if (NFSHASONEOPENOWN(VFSTONFS(vp->v_mount)))
 			nfscl_filllockowner(NULL, own, F_POSIX);
 		else
 			nfscl_filllockowner(p->td_proc, own, F_POSIX);
@@ -315,7 +315,7 @@ nfscl_open(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t amode, int usedeleg,
 	 * exclusive lock for this case.
 	 */
 	if (lockit != 0) {
-		if (NFSHASONEOPENOWN(VFSTONFS(vnode_mount(vp)))) {
+		if (NFSHASONEOPENOWN(VFSTONFS(vp->v_mount))) {
 			/*
 			 * Get a shared lock on the OpenOwner, but first
 			 * wait for any pending exclusive lock, so that the
@@ -525,7 +525,7 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	if (vnode_vtype(vp) != VREG)
 		return (EISDIR);
 	np = VTONFS(vp);
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	NFSLOCKCLSTATE();
 	clp = nfscl_findcl(nmp);
 	if (clp == NULL) {
@@ -574,7 +574,7 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		 * If p != NULL, we want to search the parentage tree
 		 * for a matching OpenOwner and use that.
 		 */
-		if (NFSHASONEOPENOWN(VFSTONFS(vnode_mount(vp))))
+		if (NFSHASONEOPENOWN(VFSTONFS(vp->v_mount)))
 			nfscl_filllockowner(NULL, own, F_POSIX);
 		else
 			nfscl_filllockowner(p->td_proc, own, F_POSIX);
@@ -1031,7 +1031,7 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 		if (recovery)
 			clp = rclp;
 		else
-			error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+			error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
 	}
 	if (error) {
 		free(nlp, M_NFSCLLOCKOWNER);
@@ -1047,7 +1047,7 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 	} else {
 		nfscl_filllockowner(id, own, flags);
 		ownp = own;
-		if (NFSHASONEOPENOWN(VFSTONFS(vnode_mount(vp))))
+		if (NFSHASONEOPENOWN(VFSTONFS(vp->v_mount)))
 			nfscl_filllockowner(NULL, openown, F_POSIX);
 		else
 			nfscl_filllockowner(p->td_proc, openown, F_POSIX);
@@ -1369,7 +1369,7 @@ nfscl_checkwritelocked(vnode_t vp, struct flock *fl,
 		end = NFS64BITSSET;
 	}
 
-	error = nfscl_getcl(vnode_mount(vp), cred, p, 1, &clp);
+	error = nfscl_getcl(vp->v_mount, cred, p, 1, &clp);
 	if (error)
 		return (1);
 	nfscl_filllockowner(id, own, flags);
@@ -2984,7 +2984,7 @@ nfscl_dupopen(vnode_t vp, int dupopens)
 	struct nfsclopen *op, *op2;
 	struct nfsfh *nfhp;
 
-	clp = VFSTONFS(vnode_mount(vp))->nm_clp;
+	clp = VFSTONFS(vp->v_mount)->nm_clp;
 	if (clp == NULL) {
 		printf("nfscl dupopen NULL clp\n");
 		return;
@@ -3003,7 +3003,7 @@ nfscl_dupopen(vnode_t vp, int dupopens)
 		    NFSV4CL_LOCKNAMELEN)) {
 			NFSUNLOCKCLSTATE();
 			printf("DUP OWNER\n");
-			nfscl_dumpstate(VFSTONFS(vnode_mount(vp)), 1, 1, 0, 0);
+			nfscl_dumpstate(VFSTONFS(vp->v_mount), 1, 1, 0, 0);
 			return;
 		}
 	    }
@@ -3026,8 +3026,7 @@ nfscl_dupopen(vnode_t vp, int dupopens)
 			    op->nfso_stateid.other[2] == op2->nfso_stateid.other[2]) {
 			    NFSUNLOCKCLSTATE();
 			    printf("DUP STATEID\n");
-			    nfscl_dumpstate(VFSTONFS(vnode_mount(vp)), 1, 1, 0,
-				0);
+			    nfscl_dumpstate(VFSTONFS(vp->v_mount), 1, 1, 0, 0);
 			    return;
 			}
 		    }
@@ -3061,8 +3060,8 @@ nfscl_dupopen(vnode_t vp, int dupopens)
 				    NFSUNLOCKCLSTATE();
 				    printf("DUP OPEN\n");
 				}
-				nfscl_dumpstate(VFSTONFS(vnode_mount(vp)), 1, 1,
-				    0, 0);
+				nfscl_dumpstate(VFSTONFS(vp->v_mount), 1, 1, 0,
+				    0);
 				return;
 			    }
 			}
@@ -3095,7 +3094,7 @@ nfscl_getclose(vnode_t vp, struct nfsclclient **clpp)
 	struct nfsfh *nfhp;
 	int error, notdecr;
 
-	error = nfscl_getcl(vnode_mount(vp), NULL, NULL, 1, &clp);
+	error = nfscl_getcl(vp->v_mount, NULL, NULL, 1, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
@@ -3170,7 +3169,7 @@ nfscl_doclose(vnode_t vp, struct nfsclclient **clpp, NFSPROC_T *p)
 	struct nfsclrecalllayout *recallp;
 	int error;
 
-	error = nfscl_getcl(vnode_mount(vp), NULL, NULL, 1, &clp);
+	error = nfscl_getcl(vp->v_mount, NULL, NULL, 1, &clp);
 	if (error)
 		return (error);
 	*clpp = clp;
@@ -3213,8 +3212,7 @@ lookformore:
 				     op->nfso_opencnt));
 #endif
 				NFSUNLOCKCLSTATE();
-				nfsrpc_doclose(VFSTONFS(vnode_mount(vp)), op,
-				    p);
+				nfsrpc_doclose(VFSTONFS(vp->v_mount), op, p);
 				NFSLOCKCLSTATE();
 				goto lookformore;
 			}
@@ -4341,7 +4339,7 @@ nfscl_mustflush(vnode_t vp)
 	struct nfsmount *nmp;
 
 	np = VTONFS(vp);
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return (1);
 	NFSLOCKCLSTATE();
@@ -4375,7 +4373,7 @@ nfscl_nodeleg(vnode_t vp, int writedeleg)
 	struct nfsmount *nmp;
 
 	np = VTONFS(vp);
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return (1);
 	NFSLOCKCLSTATE();
@@ -4411,7 +4409,7 @@ nfscl_removedeleg(vnode_t vp, NFSPROC_T *p, nfsv4stateid_t *stp)
 	struct nfsnode *np;
 	int igotlock = 0, triedrecall = 0, needsrecall, retcnt = 0, islept;
 
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	np = VTONFS(vp);
 	NFSLOCKCLSTATE();
 	/*
@@ -4508,7 +4506,7 @@ nfscl_renamedeleg(vnode_t fvp, nfsv4stateid_t *fstp, int *gotfdp, vnode_t tvp,
 	struct nfsnode *np;
 	int igotlock = 0, triedrecall = 0, needsrecall, retcnt = 0, islept;
 
-	nmp = VFSTONFS(vnode_mount(fvp));
+	nmp = VFSTONFS(fvp->v_mount);
 	*gotfdp = 0;
 	*gottdp = 0;
 	NFSLOCKCLSTATE();
@@ -4677,7 +4675,7 @@ nfscl_reclaimnode(vnode_t vp)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp;
 
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return;
 	NFSLOCKCLSTATE();
@@ -4704,7 +4702,7 @@ nfscl_newnode(vnode_t vp)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp;
 
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return;
 	NFSLOCKCLSTATE();
@@ -4731,7 +4729,7 @@ nfscl_delegmodtime(vnode_t vp)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp;
 
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return;
 	NFSLOCKCLSTATE();
@@ -4760,7 +4758,7 @@ nfscl_deleggetmodtime(vnode_t vp, struct timespec *mtime)
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp;
 
-	nmp = VFSTONFS(vnode_mount(vp));
+	nmp = VFSTONFS(vp->v_mount);
 	if (!NFSHASNFSV4(nmp))
 		return;
 	NFSLOCKCLSTATE();
@@ -4974,7 +4972,7 @@ nfscl_retoncloselayout(vnode_t vp, struct nfsclclient *clp, uint8_t *fhp,
 	struct nfscllayout *lyp;
 	uint32_t iomode;
 
-	if (vp->v_type != VREG || !NFSHASPNFS(VFSTONFS(vnode_mount(vp))) ||
+	if (vp->v_type != VREG || !NFSHASPNFS(VFSTONFS(vp->v_mount)) ||
 	    nfscl_enablecallb == 0 || nfs_numnfscbd == 0 ||
 	    (VTONFS(vp)->n_flag & NNOLAYOUT) != 0)
 		return;
@@ -5448,7 +5446,7 @@ nfscl_layoutcommit(vnode_t vp, NFSPROC_T *p)
 	mount_t mp;
 	struct nfsmount *nmp;
 
-	mp = vnode_mount(vp);
+	mp = vp->v_mount;
 	nmp = VFSTONFS(mp);
 	if (NFSHASNOLAYOUTCOMMIT(nmp))
 		return (0);

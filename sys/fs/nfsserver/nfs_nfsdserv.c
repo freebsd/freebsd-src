@@ -422,7 +422,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat) {
 		if (NFSVNO_NOTSETSIZE(&nva)) {
 			if (NFSVNO_EXRDONLY(exp) ||
-			    (vfs_flags(vnode_mount(vp)) & MNT_RDONLY))
+			    (vfs_flags(vp->v_mount) & MNT_RDONLY))
 				nd->nd_repstat = EROFS;
 		} else {
 			if (vnode_vtype(vp) != VREG)

@@ -1572,7 +1572,7 @@ ncl_doio_directwrite(struct buf *bp)
 	if ((bp->b_flags & B_DIRECT) && bp->b_iocmd == BIO_WRITE) {
 		struct nfsnode *np = VTONFS(bp->b_vp);
 		NFSLOCKNODE(np);
-		if (NFSHASPNFS(VFSTONFS(vnode_mount(bp->b_vp)))) {
+		if (NFSHASPNFS(VFSTONFS(bp->b_vp->v_mount))) {
 			/*
 			 * Invalidate the attribute cache, since writes to a DS
 			 * won't update the size attribute.

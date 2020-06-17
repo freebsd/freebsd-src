@@ -101,12 +101,6 @@ struct nfsexstuff {
 	(n)->cn_flags = (f);						\
     } while (0)
 
-/*
- * A little bit of Darwin vfs kpi.
- */
-#define	vnode_mount(v)	((v)->v_mount)
-#define	vfs_statfs(m)	(&((m)->mnt_stat))
-
 #define	NFSPATHLEN_T	size_t
 
 /*
