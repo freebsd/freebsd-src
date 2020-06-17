@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -132,7 +132,7 @@ debug_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->pdata = coresight_get_platform_data(dev);
+	sc->pdata = coresight_fdt_get_platform_data(dev);
 	desc.pdata = sc->pdata;
 	desc.dev = dev;
 	desc.dev_type = CORESIGHT_CPU_DEBUG;

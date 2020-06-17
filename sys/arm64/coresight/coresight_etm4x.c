@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -234,7 +234,7 @@ etm_disable(device_t dev, struct endpoint *endp,
 	} while ((reg & TRCSTATR_IDLE) == 0);
 }
 
-static int
+int
 etm_attach(device_t dev)
 {
 	struct coresight_desc desc;
@@ -247,7 +247,6 @@ etm_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->pdata = coresight_get_platform_data(dev);
 	desc.pdata = sc->pdata;
 	desc.dev = dev;
 	desc.dev_type = CORESIGHT_ETMV4;
@@ -257,8 +256,6 @@ etm_attach(device_t dev)
 }
 
 static device_method_t etm_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_attach,	etm_attach),
 
 	/* Coresight interface */
 	DEVMETHOD(coresight_init,	etm_init),

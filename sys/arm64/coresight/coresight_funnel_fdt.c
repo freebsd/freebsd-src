@@ -79,6 +79,17 @@ funnel_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static int
+funnel_fdt_attach(device_t dev)
+{
+	struct funnel_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_fdt_get_platform_data(dev);
+
+	return (funnel_attach(dev));
+}
+
 static device_method_t funnel_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		funnel_fdt_probe),

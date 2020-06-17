@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
+#include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_tmc.h>
 
 static int
@@ -62,9 +63,21 @@ tmc_acpi_probe(device_t dev)
 	return (error);
 }
 
+static int
+tmc_acpi_attach(device_t dev)
+{
+	struct tmc_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_acpi_get_platform_data(dev);
+
+	return (tmc_attach(dev));
+}
+
 static device_method_t tmc_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			tmc_acpi_probe),
+	DEVMETHOD(device_attach,		tmc_acpi_attach),
 
 	/* End */
 	DEVMETHOD_END
