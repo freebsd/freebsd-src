@@ -2184,7 +2184,7 @@ ufs_readdir(ap)
 	error = 0;
 	while (error == 0 && uio->uio_resid > 0 &&
 	    uio->uio_offset < ip->i_size) {
-		error = ffs_blkatoff(vp, uio->uio_offset, NULL, &bp);
+		error = UFS_BLKATOFF(vp, uio->uio_offset, NULL, &bp);
 		if (error)
 			break;
 		if (bp->b_offset + bp->b_bcount > ip->i_size)
