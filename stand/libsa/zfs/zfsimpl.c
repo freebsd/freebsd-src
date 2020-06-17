@@ -198,7 +198,7 @@ xdr_uint64_t(const unsigned char **xdr, uint64_t *lp)
 
 static int
 nvlist_find(const unsigned char *nvlist, const char *name, int type,
-    int *elementsp, void *valuep)
+    int *elementsp, void *valuep, int *sizep)
 {
 	const unsigned char *p, *pair;
 	int junk;
@@ -230,6 +230,8 @@ nvlist_find(const unsigned char *nvlist, const char *name, int type,
 			} else if (type == DATA_TYPE_STRING) {
 				int len;
 				xdr_int(&p, &len);
+				if (sizep != NULL)
+					*sizep = len;
 				(*(const char **)valuep) = (const char *)p;
 				return (0);
 			} else if (type == DATA_TYPE_NVLIST ||
@@ -394,7 +396,7 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 
 		for (i = 0; i < indent; i++)
 			printf(" ");
-		printf("%s %s", typenames[pairtype], pairname);
+		printf("%s %.*s", typenames[pairtype], namelen, pairname);
 
 		xdr_int(&p, &elements);
 		switch (pairtype) {
@@ -408,7 +410,7 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 		case DATA_TYPE_STRING: {
 			int len;
 			xdr_int(&p, &len);
-			printf(" = \"%s\"\n", p);
+			printf(" = \"%.*s\"\n", len, p);
 			break;
 		}
 
@@ -424,8 +426,8 @@ nvlist_print(const unsigned char *nvlist, unsigned int indent)
 				if (j != elements - 1) {
 					for (i = 0; i < indent; i++)
 						printf(" ");
-					printf("%s %s", typenames[pairtype],
-					    pairname);
+					printf("%s %.*s", typenames[pairtype],
+					    namelen, pairname);
 				}
 			}
 			break;
@@ -1088,17 +1090,17 @@ vdev_set_initial_state(vdev_t *vdev, const unsigned char *nvlist)
 	is_offline = is_removed = is_faulted = is_degraded = isnt_present = 0;
 	is_log = 0;
 	(void) nvlist_find(nvlist, ZPOOL_CONFIG_OFFLINE, DATA_TYPE_UINT64, NULL,
-	    &is_offline);
+	    &is_offline, NULL);
 	(void) nvlist_find(nvlist, ZPOOL_CONFIG_REMOVED, DATA_TYPE_UINT64, NULL,
-	    &is_removed);
+	    &is_removed, NULL);
 	(void) nvlist_find(nvlist, ZPOOL_CONFIG_FAULTED, DATA_TYPE_UINT64, NULL,
-	    &is_faulted);
+	    &is_faulted, NULL);
 	(void) nvlist_find(nvlist, ZPOOL_CONFIG_DEGRADED, DATA_TYPE_UINT64,
-	    NULL, &is_degraded);
+	    NULL, &is_degraded, NULL);
 	(void) nvlist_find(nvlist, ZPOOL_CONFIG_NOT_PRESENT, DATA_TYPE_UINT64,
-	    NULL, &isnt_present);
+	    NULL, &isnt_present, NULL);
 	(void) nvlist_find(nvlist, ZPOOL_CONFIG_IS_LOG, DATA_TYPE_UINT64, NULL,
-	    &is_log);
+	    &is_log, NULL);
 
 	if (is_offline != 0)
 		vdev->v_state = VDEV_STATE_OFFLINE;
@@ -1120,34 +1122,37 @@ vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
 	uint64_t id, ashift, asize, nparity;
 	const char *path;
 	const char *type;
+	int len, pathlen;
+	char *name;
 	vdev_t *vdev;
 
-	if (nvlist_find(nvlist, ZPOOL_CONFIG_ID, DATA_TYPE_UINT64, NULL, &id) ||
+	if (nvlist_find(nvlist, ZPOOL_CONFIG_ID, DATA_TYPE_UINT64, NULL, &id,
+	    NULL) ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_TYPE, DATA_TYPE_STRING,
-	    NULL, &type)) {
+	    NULL, &type, &len)) {
 		return (ENOENT);
 	}
 
-	if (strcmp(type, VDEV_TYPE_MIRROR) != 0 &&
-	    strcmp(type, VDEV_TYPE_DISK) != 0 &&
+	if (memcmp(type, VDEV_TYPE_MIRROR, len) != 0 &&
+	    memcmp(type, VDEV_TYPE_DISK, len) != 0 &&
 #ifdef ZFS_TEST
-	    strcmp(type, VDEV_TYPE_FILE) != 0 &&
+	    memcmp(type, VDEV_TYPE_FILE, len) != 0 &&
 #endif
-	    strcmp(type, VDEV_TYPE_RAIDZ) != 0 &&
-	    strcmp(type, VDEV_TYPE_INDIRECT) != 0 &&
-	    strcmp(type, VDEV_TYPE_REPLACING) != 0) {
+	    memcmp(type, VDEV_TYPE_RAIDZ, len) != 0 &&
+	    memcmp(type, VDEV_TYPE_INDIRECT, len) != 0 &&
+	    memcmp(type, VDEV_TYPE_REPLACING, len) != 0) {
 		printf("ZFS: can only boot from disk, mirror, raidz1, "
 		    "raidz2 and raidz3 vdevs\n");
 		return (EIO);
 	}
 
-	if (strcmp(type, VDEV_TYPE_MIRROR) == 0)
+	if (memcmp(type, VDEV_TYPE_MIRROR, len) == 0)
 		vdev = vdev_create(guid, vdev_mirror_read);
-	else if (strcmp(type, VDEV_TYPE_RAIDZ) == 0)
+	else if (memcmp(type, VDEV_TYPE_RAIDZ, len) == 0)
 		vdev = vdev_create(guid, vdev_raidz_read);
-	else if (strcmp(type, VDEV_TYPE_REPLACING) == 0)
+	else if (memcmp(type, VDEV_TYPE_REPLACING, len) == 0)
 		vdev = vdev_create(guid, vdev_replacing_read);
-	else if (strcmp(type, VDEV_TYPE_INDIRECT) == 0) {
+	else if (memcmp(type, VDEV_TYPE_INDIRECT, len) == 0) {
 		vdev_indirect_config_t *vic;
 
 		vdev = vdev_create(guid, vdev_indirect_read);
@@ -1158,15 +1163,15 @@ vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
 			nvlist_find(nvlist,
 			    ZPOOL_CONFIG_INDIRECT_OBJECT,
 			    DATA_TYPE_UINT64,
-			    NULL, &vic->vic_mapping_object);
+			    NULL, &vic->vic_mapping_object, NULL);
 			nvlist_find(nvlist,
 			    ZPOOL_CONFIG_INDIRECT_BIRTHS,
 			    DATA_TYPE_UINT64,
-			    NULL, &vic->vic_births_object);
+			    NULL, &vic->vic_births_object, NULL);
 			nvlist_find(nvlist,
 			    ZPOOL_CONFIG_PREV_INDIRECT_VDEV,
 			    DATA_TYPE_UINT64,
-			    NULL, &vic->vic_prev_indirect_vdev);
+			    NULL, &vic->vic_prev_indirect_vdev, NULL);
 		}
 	} else {
 		vdev = vdev_create(guid, vdev_disk_read);
@@ -1178,39 +1183,45 @@ vdev_init(uint64_t guid, const unsigned char *nvlist, vdev_t **vdevp)
 	vdev_set_initial_state(vdev, nvlist);
 	vdev->v_id = id;
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASHIFT,
-	    DATA_TYPE_UINT64, NULL, &ashift) == 0)
+	    DATA_TYPE_UINT64, NULL, &ashift, NULL) == 0)
 		vdev->v_ashift = ashift;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
-	    DATA_TYPE_UINT64, NULL, &asize) == 0) {
+	    DATA_TYPE_UINT64, NULL, &asize, NULL) == 0) {
 		vdev->v_psize = asize +
 		    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
 	}
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_NPARITY,
-	    DATA_TYPE_UINT64, NULL, &nparity) == 0)
+	    DATA_TYPE_UINT64, NULL, &nparity, NULL) == 0)
 		vdev->v_nparity = nparity;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
-	    DATA_TYPE_STRING, NULL, &path) == 0) {
-		if (strncmp(path, "/dev/", 5) == 0)
-			path += 5;
-		vdev->v_name = strdup(path);
-	} else {
-		char *name;
+	    DATA_TYPE_STRING, NULL, &path, &pathlen) == 0) {
+		char prefix[] = "/dev/";
 
+		len = strlen(prefix);
+		if (memcmp(path, prefix, len) == 0) {
+			path += len;
+			pathlen -= len;
+		}
+		name = malloc(pathlen + 1);
+		bcopy(path, name, pathlen);
+		name[pathlen] = '\0';
+		vdev->v_name = name;
+	} else {
 		name = NULL;
-		if (strcmp(type, "raidz") == 0) {
+		if (memcmp(type, VDEV_TYPE_RAIDZ, len) == 0) {
 			if (vdev->v_nparity < 1 ||
 			    vdev->v_nparity > 3) {
 				printf("ZFS: invalid raidz parity: %d\n",
 				    vdev->v_nparity);
 				return (EIO);
 			}
-			(void) asprintf(&name, "%s%d-%" PRIu64, type,
+			(void) asprintf(&name, "%.*s%d-%" PRIu64, len, type,
 			    vdev->v_nparity, id);
 		} else {
-			(void) asprintf(&name, "%s-%" PRIu64, type, id);
+			(void) asprintf(&name, "%.*s-%" PRIu64, len, type, id);
 		}
 		vdev->v_name = name;
 	}
@@ -1314,13 +1325,13 @@ vdev_from_nvlist(spa_t *spa, uint64_t top_guid, const unsigned char *nvlist)
 
 	/* Add children if there are any. */
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
-	    &nkids, &kids);
+	    &nkids, &kids, NULL);
 	if (rc == 0) {
 		for (int i = 0; i < nkids; i++) {
 			uint64_t guid;
 
 			rc = nvlist_find(kids, ZPOOL_CONFIG_GUID,
-			    DATA_TYPE_UINT64, NULL, &guid);
+			    DATA_TYPE_UINT64, NULL, &guid, NULL);
 			if (rc != 0)
 				return (rc);
 			rc = vdev_init(guid, kids, &vdev);
@@ -1351,11 +1362,11 @@ vdev_init_from_label(spa_t *spa, const unsigned char *nvlist)
 	const unsigned char *vdevs;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
-	    NULL, &pool_guid) ||
+	    NULL, &pool_guid, NULL) ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64,
-	    NULL, &top_guid) ||
+	    NULL, &top_guid, NULL) ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
-	    NULL, &vdevs)) {
+	    NULL, &vdevs, NULL)) {
 		printf("ZFS: can't find vdev details\n");
 		return (ENOENT);
 	}
@@ -1422,13 +1433,13 @@ vdev_update_from_nvlist(uint64_t top_guid, const unsigned char *nvlist)
 
 	/* Update children if there are any. */
 	rc = nvlist_find(nvlist, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
-	    &nkids, &kids);
+	    &nkids, &kids, NULL);
 	if (rc == 0) {
 		for (int i = 0; i < nkids; i++) {
 			uint64_t guid;
 
 			rc = nvlist_find(kids, ZPOOL_CONFIG_GUID,
-			    DATA_TYPE_UINT64, NULL, &guid);
+			    DATA_TYPE_UINT64, NULL, &guid, NULL);
 			if (rc != 0)
 				break;
 
@@ -1453,11 +1464,11 @@ vdev_init_from_nvlist(spa_t *spa, const unsigned char *nvlist)
 	int rc, nkids;
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
-	    NULL, &pool_guid) ||
+	    NULL, &pool_guid, NULL) ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_CHILDREN, DATA_TYPE_UINT64,
-	    NULL, &vdev_children) ||
+	    NULL, &vdev_children, NULL) ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_TREE, DATA_TYPE_NVLIST,
-	    NULL, &vdevs)) {
+	    NULL, &vdevs, NULL)) {
 		printf("ZFS: can't find vdev details\n");
 		return (ENOENT);
 	}
@@ -1469,7 +1480,7 @@ vdev_init_from_nvlist(spa_t *spa, const unsigned char *nvlist)
 	spa->spa_root_vdev->v_nchildren = vdev_children;
 
 	rc = nvlist_find(vdevs, ZPOOL_CONFIG_CHILDREN, DATA_TYPE_NVLIST_ARRAY,
-	    &nkids, &kids);
+	    &nkids, &kids, NULL);
 
 	/*
 	 * MOS config has at least one child for root vdev.
@@ -1482,7 +1493,7 @@ vdev_init_from_nvlist(spa_t *spa, const unsigned char *nvlist)
 		vdev_t *vdev;
 
 		rc = nvlist_find(kids, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
-		    NULL, &guid);
+		    NULL, &guid, NULL);
 		if (rc != 0)
 			break;
 		vdev = vdev_find(guid);
@@ -1841,7 +1852,7 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 
 		nvlist = (const unsigned char *) label->vp_nvlist + 4;
 		error = nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG,
-		    DATA_TYPE_UINT64, NULL, &label_txg);
+		    DATA_TYPE_UINT64, NULL, &label_txg, NULL);
 		if (error != 0 || label_txg == 0) {
 			memcpy(nvl, nvlist, nvl_size);
 			goto done;
@@ -1856,7 +1867,7 @@ vdev_label_read_config(vdev_t *vd, uint64_t txg)
 			 * because we can get bad value from BIOS.
 			 */
 			if (nvlist_find(nvlist, ZPOOL_CONFIG_ASIZE,
-			    DATA_TYPE_UINT64, NULL, &asize) == 0) {
+			    DATA_TYPE_UINT64, NULL, &asize, NULL) == 0) {
 				vd->v_psize = asize +
 				    VDEV_LABEL_START_SIZE + VDEV_LABEL_END_SIZE;
 			}
@@ -1909,7 +1920,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	uint64_t pool_txg, pool_guid;
 	const char *pool_name;
 	const unsigned char *features;
-	int rc;
+	int rc, namelen;
 
 	/*
 	 * Load the vdev label and figure out which
@@ -1930,7 +1941,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 		return (EIO);
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_VERSION, DATA_TYPE_UINT64,
-	    NULL, &val) != 0) {
+	    NULL, &val, NULL) != 0) {
 		free(nvlist);
 		return (EIO);
 	}
@@ -1944,14 +1955,14 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 
 	/* Check ZFS features for read */
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_FEATURES_FOR_READ,
-	    DATA_TYPE_NVLIST, NULL, &features) == 0 &&
+	    DATA_TYPE_NVLIST, NULL, &features, NULL) == 0 &&
 	    nvlist_check_features_for_read(features) != 0) {
 		free(nvlist);
 		return (EIO);
 	}
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_STATE, DATA_TYPE_UINT64,
-	    NULL, &val) != 0) {
+	    NULL, &val, NULL) != 0) {
 		free(nvlist);
 		return (EIO);
 	}
@@ -1963,11 +1974,11 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	}
 
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_POOL_TXG, DATA_TYPE_UINT64,
-	    NULL, &pool_txg) != 0 ||
+	    NULL, &pool_txg, NULL) != 0 ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_POOL_GUID, DATA_TYPE_UINT64,
-	    NULL, &pool_guid) != 0 ||
+	    NULL, &pool_guid, NULL) != 0 ||
 	    nvlist_find(nvlist, ZPOOL_CONFIG_POOL_NAME, DATA_TYPE_STRING,
-	    NULL, &pool_name) != 0) {
+	    NULL, &pool_name, &namelen) != 0) {
 		/*
 		 * Cache and spare devices end up here - just ignore
 		 * them.
@@ -1981,9 +1992,19 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 */
 	spa = spa_find_by_guid(pool_guid);
 	if (spa == NULL) {
+		char *name;
+
 		nvlist_find(nvlist, ZPOOL_CONFIG_VDEV_CHILDREN,
-		    DATA_TYPE_UINT64, NULL, &vdev_children);
-		spa = spa_create(pool_guid, pool_name);
+		    DATA_TYPE_UINT64, NULL, &vdev_children, NULL);
+		name = malloc(namelen + 1);
+		if (name == NULL) {
+			free(nvlist);
+			return (ENOMEM);
+		}
+		bcopy(pool_name, name, namelen);
+		name[namelen] = '\0';
+		spa = spa_create(pool_guid, name);
+		free(name);
 		if (spa == NULL) {
 			free(nvlist);
 			return (ENOMEM);
@@ -2000,7 +2021,7 @@ vdev_probe(vdev_phys_read_t *_read, void *read_priv, spa_t **spap)
 	 * disks etc).
 	 */
 	if (nvlist_find(nvlist, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64,
-	    NULL, &guid) != 0) {
+	    NULL, &guid, NULL) != 0) {
 		free(nvlist);
 		return (EIO);
 	}
