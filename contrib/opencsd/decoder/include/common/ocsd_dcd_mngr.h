@@ -115,6 +115,9 @@ ocsd_err_t  DecoderMngrBase<P,Pt,Pc>::createDecoder(const int create_flags, cons
     if(!pkt_proc)
         return OCSD_ERR_MEM;
 
+    // set the op mode flags
+    pkt_proc->setComponentOpMode(create_flags & (OCSD_OPFLG_COMP_MODE_MASK | OCSD_OPFLG_PKTPROC_COMMON));
+
     // set the configuration
     TrcPktProcBase<P,Pt,Pc> *pProcBase = dynamic_cast< TrcPktProcBase<P,Pt,Pc> *>(pkt_proc);       
     if(pProcBase == 0)
@@ -132,6 +135,9 @@ ocsd_err_t  DecoderMngrBase<P,Pt,Pc>::createDecoder(const int create_flags, cons
         pkt_dcd = createPktDecode(bUseInstID, instID);
         if(!pkt_dcd)
             return OCSD_ERR_MEM;
+
+        // set the op mode flags
+        pkt_dcd->setComponentOpMode(create_flags & (OCSD_OPFLG_COMP_MODE_MASK | OCSD_OPFLG_PKTDEC_COMMON));
 
         // get the decoder base
         TrcPktDecodeBase<P,Pc> *pBase = dynamic_cast< TrcPktDecodeBase<P,Pc> *>(pkt_dcd);       

@@ -90,13 +90,17 @@ TrcStackElemExcept *EtmV4P0Stack::createExceptElem(const ocsd_etmv4_i_pkt_type r
     return pElem;
 }
 
-TrcStackElemCtxt *EtmV4P0Stack::createContextElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const etmv4_context_t &context)
+TrcStackElemCtxt *EtmV4P0Stack::createContextElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const etmv4_context_t &context, const uint8_t IS, const bool back /*= false*/)
 {
     TrcStackElemCtxt *pElem = new (std::nothrow) TrcStackElemCtxt(root_pkt, root_index);
     if (pElem)
     {
         pElem->setContext(context);
-        push_front(pElem);
+        pElem->setIS(IS);
+        if (back)
+            push_back(pElem);
+        else
+            push_front(pElem);
     }
     return pElem;
 
@@ -112,5 +116,41 @@ TrcStackElemAddr *EtmV4P0Stack::createAddrElem(const ocsd_etmv4_i_pkt_type root_
     }
     return pElem;
 }
+
+TrcStackQElem *EtmV4P0Stack::createQElem(const ocsd_etmv4_i_pkt_type root_pkt, const ocsd_trc_index_t root_index, const int count)
+{
+    TrcStackQElem *pElem = new (std::nothrow) TrcStackQElem(root_pkt, root_index);
+    if (pElem)
+    {
+        pElem->setInstrCount(count);
+        push_front(pElem);
+    }
+    return pElem;
+}
+
+// iteration functions
+void EtmV4P0Stack::from_front_init()
+{
+    m_iter = m_P0_stack.begin();
+}
+
+TrcStackElem *EtmV4P0Stack::from_front_next()
+{
+    TrcStackElem *pElem = 0;
+    if (m_iter != m_P0_stack.end())
+    {
+        pElem = *m_iter++;
+    }
+    return pElem;
+}
+
+void EtmV4P0Stack::erase_curr_from_front()
+{
+    std::deque<TrcStackElem *>::iterator erase_iter;
+    erase_iter = m_iter;
+    erase_iter--;
+    m_P0_stack.erase(erase_iter);
+}
+
 
 /* End of file trc_etmv4_stack_elem.cpp */

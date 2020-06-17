@@ -1,8 +1,8 @@
 /*
- * \file       trc_pkt_proc_etmv4i_impl.h
+ * \file       trc_pkt_proc_etmv4i.h
  * \brief      OpenCSD : Implementation of ETMv4 packet processing
  * 
- * \copyright  Copyright (c) 2015, ARM Limited. All Rights Reserved.
+ * \copyright  Copyright (c) 2015, 2019 ARM Limited. All Rights Reserved.
  */
 
 /* 
@@ -35,54 +35,37 @@
 #ifndef ARM_TRC_PKT_PROC_ETMV4I_IMPL_H_INCLUDED
 #define ARM_TRC_PKT_PROC_ETMV4I_IMPL_H_INCLUDED
 
+#include "trc_pkt_types_etmv4.h"
 #include "opencsd/etmv4/trc_pkt_proc_etmv4.h"
 #include "opencsd/etmv4/trc_cmp_cfg_etmv4.h"
 #include "opencsd/etmv4/trc_pkt_elem_etmv4i.h"
+#include "common/trc_raw_buffer.h"
+#include "common/trc_pkt_proc_base.h"
 
-class TraceRawBuffer
+class EtmV4ITrcPacket;
+class EtmV4Config;
+
+/** @addtogroup ocsd_pkt_proc
+@{*/
+
+class TrcPktProcEtmV4I : public TrcPktProcBase< EtmV4ITrcPacket, ocsd_etmv4_i_pkt_type, EtmV4Config>
 {
 public:
-    TraceRawBuffer();
-    ~TraceRawBuffer() {};
+    TrcPktProcEtmV4I();
+    TrcPktProcEtmV4I(int instIDNum);
+    virtual ~TrcPktProcEtmV4I();
 
-    // init the buffer
-    void init(const uint32_t size, const uint8_t *rawtrace, std::vector<uint8_t> *out_packet);
-    void copyByteToPkt();   // move a byte to the packet buffer     
-    uint8_t peekNextByte(); // value of next byte in buffer.
-
-    bool empty() { return m_bufProcessed == m_bufSize; };
-    // bytes processed.
-    uint32_t processed() { return m_bufProcessed; }; 
-    // buffer size;
-    uint32_t size() { return m_bufSize; } 
-
-private:
-    uint32_t m_bufSize;
-    uint32_t m_bufProcessed;
-    const uint8_t *m_pBuffer;
-    std::vector<uint8_t> *pkt;
-
-};
-
-class EtmV4IPktProcImpl
-{
-public:
-    EtmV4IPktProcImpl();
-    ~EtmV4IPktProcImpl();
-
-    void Initialise(TrcPktProcEtmV4I *p_interface);
-
-    ocsd_err_t Configure(const EtmV4Config *p_config);
-
-
-    ocsd_datapath_resp_t processData(  const ocsd_trc_index_t index,
+protected:
+    /* implementation packet processing interface */
+    virtual ocsd_datapath_resp_t processData(  const ocsd_trc_index_t index,
                                         const uint32_t dataBlockSize,
                                         const uint8_t *pDataBlock,
                                         uint32_t *numBytesProcessed);
-    ocsd_datapath_resp_t onEOT();
-    ocsd_datapath_resp_t onReset();
-    ocsd_datapath_resp_t onFlush();
-    const bool isBadPacket() const;
+    virtual ocsd_datapath_resp_t onEOT();
+    virtual ocsd_datapath_resp_t onReset();
+    virtual ocsd_datapath_resp_t onFlush();
+    virtual ocsd_err_t onProtocolConfig();
+    virtual const bool isBadPacket() const;
 
 protected:
     typedef enum _process_state {
@@ -100,7 +83,6 @@ protected:
 
     /** packet processor configuration **/
     bool m_isInit;
-    TrcPktProcEtmV4I *m_interface;       /**< The interface to the other decode components */
 
     // etmv4 hardware configuration
     EtmV4Config m_config;
@@ -111,7 +93,6 @@ protected:
     int m_currPktIdx;   // index into raw packet when expanding
     EtmV4ITrcPacket m_curr_packet;  // expanded packet
     ocsd_trc_index_t m_packet_index;   // index of the start of the current packet
-//    uint32_t m_blockBytesProcessed;     // number of bytes processed in the current data block
     ocsd_trc_index_t m_blockIndex;     // index at the start of the current data block being processed
 
     // searching for sync
@@ -207,7 +188,7 @@ private:
     int extractShortAddr(const std::vector<uint8_t> &buffer, const int st_idx, const uint8_t IS, uint32_t &value, int &bits);
 
     // packet processing is table driven.    
-    typedef void (EtmV4IPktProcImpl::*PPKTFN)(uint8_t);
+    typedef void (TrcPktProcEtmV4I::*PPKTFN)(uint8_t);
     PPKTFN m_pIPktFn;
 
     struct _pkt_i_table_t {
@@ -221,10 +202,12 @@ private:
 };
 
 
-inline const bool EtmV4IPktProcImpl::isBadPacket() const
+inline const bool TrcPktProcEtmV4I::isBadPacket() const
 {
     return m_curr_packet.isBadPacket();
 }
+
+/** @}*/
 
 #endif // ARM_TRC_PKT_PROC_ETMV4I_IMPL_H_INCLUDED
 

@@ -68,7 +68,6 @@ public:
 
 private:
     const uint8_t *m_p_buffer;  /**< pointer to the memory buffer  */
-    const uint32_t m_size;  /**< size of the memory buffer. */
 };
 
 #endif // ARM_TRC_MEM_ACC_BUFPTR_H_INCLUDED

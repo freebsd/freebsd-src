@@ -85,7 +85,10 @@ protected:
     virtual ocsd_err_t onProtocolConfig() = 0;
     virtual const uint8_t getCoreSightTraceID() = 0;
 
+    /* init handling */
     const bool checkInit();
+    /* Called on first init confirmation */
+    virtual void onFirstInitOK() {};
 
     /* data output */
     ocsd_datapath_resp_t outputTraceElement(const OcsdTraceElement &elem);    // use current index
@@ -147,6 +150,8 @@ inline const bool TrcPktDecodeI::checkInit()
             init_err_msg = "No instruction decoder interface attached and enabled";
         else
             m_decode_init_ok = true;
+        if (m_decode_init_ok)
+            onFirstInitOK();
     }
     return m_decode_init_ok;
 }
