@@ -67,6 +67,17 @@ replicator_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static int
+replicator_acpi_attach(device_t dev)
+{
+	struct replicator_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_fdt_get_platform_data(dev);
+
+	return (replicator_attach(dev));
+}
+
 static device_method_t replicator_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		replicator_fdt_probe),

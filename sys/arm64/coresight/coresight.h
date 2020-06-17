@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -33,7 +33,19 @@
 #ifndef	_ARM64_CORESIGHT_CORESIGHT_H_
 #define	_ARM64_CORESIGHT_CORESIGHT_H_
 
+#include "opt_acpi.h"
+#include "opt_platform.h"
+
+#include <sys/bus.h>
+
+#ifdef FDT
 #include <dev/ofw/openfirm.h>
+#endif
+
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
 
 #define	CORESIGHT_ITCTRL	0xf00
 #define	CORESIGHT_CLAIMSET	0xfa0
@@ -53,20 +65,30 @@ enum cs_dev_type {
 	CORESIGHT_CPU_DEBUG,
 };
 
+enum cs_bus_type {
+	CORESIGHT_BUS_ACPI,
+	CORESIGHT_BUS_FDT,
+};
+
 struct coresight_device {
 	TAILQ_ENTRY(coresight_device) link;
 	device_t dev;
-	phandle_t node;
 	enum cs_dev_type dev_type;
 	struct coresight_platform_data *pdata;
 };
 
 struct endpoint {
 	TAILQ_ENTRY(endpoint) link;
+#ifdef FDT
 	phandle_t my_node;
 	phandle_t their_node;
 	phandle_t dev_node;
-	boolean_t slave;
+#endif
+#ifdef DEV_ACPI
+	ACPI_HANDLE their_handle;
+	ACPI_HANDLE my_handle;
+#endif
+	boolean_t input;
 	int reg;
 	struct coresight_device *cs_dev;
 	LIST_ENTRY(endpoint) endplink;
@@ -78,6 +100,7 @@ struct coresight_platform_data {
 	int out_ports;
 	struct mtx mtx_lock;
 	TAILQ_HEAD(endpoint_list, endpoint) endpoints;
+	enum cs_bus_type bus_type;
 };
 
 struct coresight_desc {
@@ -125,7 +148,10 @@ struct etm_config {
 	uint8_t excp_level;
 };
 
-struct coresight_platform_data * coresight_get_platform_data(device_t dev);
+static MALLOC_DEFINE(M_CORESIGHT, "coresight", "ARM Coresight");
+
+struct coresight_platform_data *coresight_fdt_get_platform_data(device_t dev);
+struct coresight_platform_data *coresight_acpi_get_platform_data(device_t dev);
 struct endpoint * coresight_get_output_endpoint(struct coresight_platform_data *pdata);
 struct coresight_device * coresight_get_output_device(struct endpoint *endp, struct endpoint **);
 int coresight_register(struct coresight_desc *desc);

@@ -67,9 +67,21 @@ tmc_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static int
+tmc_fdt_attach(device_t dev)
+{
+	struct tmc_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_fdt_get_platform_data(dev);
+
+	return (tmc_attach(dev));
+}
+
 static device_method_t tmc_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tmc_fdt_probe),
+	DEVMETHOD(device_attach,	tmc_fdt_attach),
 	DEVMETHOD_END
 };
 

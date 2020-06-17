@@ -111,7 +111,7 @@ funnel_disable(device_t dev, struct endpoint *endp,
 	bus_write_4(sc->res, FUNNEL_FUNCTL, reg);
 }
 
-static int
+int
 funnel_attach(device_t dev)
 {
 	struct coresight_desc desc;
@@ -124,7 +124,6 @@ funnel_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->pdata = coresight_get_platform_data(dev);
 	desc.pdata = sc->pdata;
 	desc.dev = dev;
 	desc.dev_type = CORESIGHT_FUNNEL;
@@ -134,9 +133,6 @@ funnel_attach(device_t dev)
 }
 
 static device_method_t funnel_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_attach,	funnel_attach),
-
 	/* Coresight interface */
 	DEVMETHOD(coresight_init,	funnel_init),
 	DEVMETHOD(coresight_enable,	funnel_enable),

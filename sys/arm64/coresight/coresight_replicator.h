@@ -43,4 +43,6 @@ struct replicator_softc {
 	struct coresight_platform_data	*pdata;
 };
 
+int replicator_attach(device_t dev);
+
 #endif /* !_ARM64_CORESIGHT_CORESIGHT_REPLICATOR_H_ */
