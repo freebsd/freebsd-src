@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -95,7 +95,7 @@ replicator_disable(device_t dev, struct endpoint *endp,
 	bus_write_4(sc->res, REPLICATOR_IDFILTER1, 0xff);
 }
 
-static int
+int
 replicator_attach(device_t dev)
 {
 	struct replicator_softc *sc;
@@ -108,7 +108,6 @@ replicator_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->pdata = coresight_get_platform_data(dev);
 	desc.pdata = sc->pdata;
 	desc.dev = dev;
 	desc.dev_type = CORESIGHT_DYNAMIC_REPLICATOR;
@@ -118,9 +117,6 @@ replicator_attach(device_t dev)
 }
 
 static device_method_t replicator_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_attach,	replicator_attach),
-
 	/* Coresight interface */
 	DEVMETHOD(coresight_init,	replicator_init),
 	DEVMETHOD(coresight_enable,	replicator_enable),

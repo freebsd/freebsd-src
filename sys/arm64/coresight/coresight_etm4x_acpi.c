@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
+#include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_etm4x.h>
 
 static int
@@ -62,9 +63,21 @@ etm_acpi_probe(device_t dev)
 	return (error);
 }
 
+static int
+etm_acpi_attach(device_t dev)
+{
+	struct etm_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_acpi_get_platform_data(dev);
+
+	return (etm_attach(dev));
+}
+
 static device_method_t etm_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			etm_acpi_probe),
+	DEVMETHOD(device_attach,		etm_acpi_attach),
 
 	/* End */
 	DEVMETHOD_END

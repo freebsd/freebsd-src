@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by BAE Systems, the University of Cambridge
@@ -33,13 +33,6 @@
 
 #ifndef	_ARM64_CORESIGHT_ETM4X_H_
 #define	_ARM64_CORESIGHT_ETM4X_H_
-
-DECLARE_CLASS(etm_driver);
-
-struct etm_softc {
-	struct resource			*res;
-	struct coresight_platform_data	*pdata;
-};
 
 #define	TRCPRGCTLR		0x004 /* Trace Programming Control Register */
 #define	 TRCPRGCTLR_EN		(1 << 0) /* Trace unit enable bit */
@@ -178,5 +171,14 @@ struct etm_softc {
 #define	TRCPIDR(n)		(0xFE0 + (n) * 0x4)	/* Management Peripheral IDn Register [n=0-3] */
 #define	TRCPIDR567(n)		(0xFD4 + ((n) - 5) * 0x4) /*  Management Peripheral ID5 to Peripheral ID7 Registers */
 #define	TRCCIDR(n)		(0xFF0 + (n) * 0x4)	/* Management Component IDn Register [n=0-4] */
+
+DECLARE_CLASS(etm_driver);
+
+struct etm_softc {
+	struct resource			*res;
+	struct coresight_platform_data	*pdata;
+};
+
+int etm_attach(device_t dev);
 
 #endif /* !_ARM64_CORESIGHT_ETM4X_H_ */

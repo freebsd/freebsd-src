@@ -67,9 +67,21 @@ etm_fdt_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+static int
+etm_fdt_attach(device_t dev)
+{
+	struct etm_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_fdt_get_platform_data(dev);
+
+	return (etm_attach(dev));
+}
+
 static device_method_t etm_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		etm_fdt_probe),
+	DEVMETHOD(device_attach,	etm_fdt_attach),
 	DEVMETHOD_END
 };
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -54,7 +54,7 @@ coresight_next_device(struct coresight_device *cs_dev,
 	struct endpoint *endp;
 
 	TAILQ_FOREACH(endp, &cs_dev->pdata->endpoints, link) {
-		if (endp->slave != 0)
+		if (endp->input != 0)
 			continue;
 
 		out = coresight_get_output_device(endp, &out_endp);
@@ -67,6 +67,9 @@ coresight_next_device(struct coresight_device *cs_dev,
 			}
 
 			/* Add output device */
+			if (bootverbose)
+				printf("Adding device %s to the chain\n",
+				    device_get_nameunit(out->dev));
 			out_endp->cs_dev = out;
 			LIST_INSERT_HEAD(&event->endplist, out_endp, endplink);
 

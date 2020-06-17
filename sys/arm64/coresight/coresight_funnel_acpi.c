@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
+#include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_funnel.h>
 
 static int
@@ -78,9 +79,21 @@ funnel_acpi_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+funnel_acpi_attach(device_t dev)
+{
+	struct funnel_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_acpi_get_platform_data(dev);
+
+	return (funnel_attach(dev));
+}
+
 static device_method_t funnel_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			funnel_acpi_probe),
+	DEVMETHOD(device_attach,		funnel_acpi_attach),
 
 	/* End */
 	DEVMETHOD_END

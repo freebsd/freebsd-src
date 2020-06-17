@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2018-2020 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -131,5 +131,7 @@ struct tmc_softc {
 	struct coresight_event		*event;
 	boolean_t			etf_configured;
 };
+
+int tmc_attach(device_t dev);
 
 #endif /* !_ARM64_CORESIGHT_CORESIGHT_TMC_H_ */

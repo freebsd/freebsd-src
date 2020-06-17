@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
 
+#include <arm64/coresight/coresight.h>
 #include <arm64/coresight/coresight_replicator.h>
 
 static int
@@ -63,9 +64,21 @@ replicator_acpi_probe(device_t dev)
 	return (error);
 }
 
+static int
+replicator_acpi_attach(device_t dev)
+{
+	struct replicator_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->pdata = coresight_acpi_get_platform_data(dev);
+
+	return (replicator_attach(dev));
+}
+
 static device_method_t replicator_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,			replicator_acpi_probe),
+	DEVMETHOD(device_probe,		replicator_acpi_probe),
+	DEVMETHOD(device_attach,	replicator_acpi_attach),
 
 	/* End */
 	DEVMETHOD_END
