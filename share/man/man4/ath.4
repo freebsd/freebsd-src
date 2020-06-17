@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd January 25, 2019
+.Dd June 16, 2020
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -59,10 +59,10 @@ The
 driver provides support for wireless network adapters based on
 the Atheros AR5210, AR5211, AR5212, AR5416 and AR9300 programming APIs.
 These APIs are used by a wide variety of chips; most all chips with
-a PCI and/or CardBus interface are supported.
+a PCI, PCIe and/or CardBus interface are supported.
 .Pp
 Supported features include 802.11 and 802.3 frames, power management, BSS,
-IBSS, MBSS, TDMA, and host-based access point operation modes.
+IBSS, MBSS, WDS/DWDS TDMA, and host-based access point operation modes.
 All host/device interaction is via DMA.
 .Pp
 Please note that from FreeBSD-9.0, the
@@ -147,12 +147,13 @@ For more information on configuring this device, see
 .Pp
 Devices supported by the
 .Nm
-driver come in either Cardbus or mini-PCI packages.
-Wireless cards in Cardbus slots may be inserted and ejected on the fly.
+driver come in Cardbus, ExpressCard, Mini-PCI and Mini-PCIe packages.
+Wireless cards in Cardbus and ExpressCard slots may be inserted and
+ejected on the fly.
 .Sh HARDWARE
 The
 .Nm
-driver supports all Atheros Cardbus and PCI cards,
+driver supports all Atheros Cardbus, ExpressCard, PCI and PCIe cards,
 except those that are based on the AR5005VL chipset.
 .Sh EXAMPLES
 Join a specific BSS network with WEP encryption:
@@ -292,8 +293,7 @@ device driver first appeared in
 Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
 Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
-The driver does not fully enable power-save operation of the chip
-in station mode; consequently power use is suboptimal (e.g. on a laptop).
+The driver does supports optional station mode power-save operation.
 .Pp
 The AR5210 can only do WEP in hardware; consequently hardware assisted WEP
 is disabled in order to allow software implementations of TKIP and CCMP to
