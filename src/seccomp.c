@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: seccomp.c,v 1.11 2019/07/18 20:32:06 christos Exp $")
+FILE_RCSID("@(#)$File: seccomp.c,v 1.15 2020/05/30 23:56:26 christos Exp $")
 #endif	/* lint */
 
 #if HAVE_LIBSECCOMP
@@ -186,8 +186,12 @@ enable_sandbox_full(void)
 	ALLOW_IOCTL_RULE(FIONREAD);
 #endif
 #ifdef TIOCGWINSZ
-	// musl libc may call ioctl TIOCGWINSZ when calling stdout
+	// musl libc may call ioctl TIOCGWINSZ on stdout
 	ALLOW_IOCTL_RULE(TIOCGWINSZ);
+#endif
+#ifdef TCGETS
+	// glibc may call ioctl TCGETS on stdout on physical terminal
+	ALLOW_IOCTL_RULE(TCGETS);
 #endif
 	ALLOW_RULE(lseek);
  	ALLOW_RULE(_llseek);
@@ -207,6 +211,9 @@ enable_sandbox_full(void)
 	ALLOW_RULE(pread64);
 	ALLOW_RULE(read);
 	ALLOW_RULE(readlink);
+#ifdef __NR_readlinkat
+	ALLOW_RULE(readlinkat);
+#endif
 	ALLOW_RULE(rt_sigaction);
 	ALLOW_RULE(rt_sigprocmask);
 	ALLOW_RULE(rt_sigreturn);
@@ -215,6 +222,7 @@ enable_sandbox_full(void)
 	ALLOW_RULE(stat64);
 	ALLOW_RULE(sysinfo);
 	ALLOW_RULE(umask);	// Used in file_pipe2file()
+	ALLOW_RULE(getpid);	// Used by glibc in file_pipe2file()
 	ALLOW_RULE(unlink);
 	ALLOW_RULE(write);
 
@@ -222,7 +230,6 @@ enable_sandbox_full(void)
 #if 0
 	// needed by valgrind
 	ALLOW_RULE(gettid);
-	ALLOW_RULE(getpid);
 	ALLOW_RULE(rt_sigtimedwait);
 #endif
 

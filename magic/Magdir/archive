@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.133 2019/11/15 21:03:14 christos Exp $
+# $File: archive,v 1.138 2020/06/07 23:29:26 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -236,7 +236,8 @@
 !:ext	deb/udeb
 >14	string		-binary	Debian binary package
 !:mime	application/vnd.debian.binary-package
-!:ext	deb/udeb
+# For ipk packager see also https://en.wikipedia.org/wiki/Opkg
+!:ext	deb/udeb/ipk
 # This should not happen
 >14	default		x	Unknown Debian package
 # NL terminated version; for most Debian cases this is 2.0 or 2.1 for splitted
@@ -250,7 +251,16 @@
 >>0	search/0x93e4f	data.tar.	\b, data compression
 # the above line only works if FILE_BYTES_MAX in ../../src/file.h is raised
 # for example like libreoffice-dev-doc_1%3a5.2.7-1+rpi1+deb9u3_all.deb
->>>&0	string		x		%.4s
+>>>&0	string		x		%.2s
+# skip space (0x20 BSD) and slash (0x2f System V) character marking end of name
+>>>&2	ubyte		!0x20
+>>>>&-1	ubyte		!0x2f
+# display 3rd character of file name extension like 2 of bz2 or m of lzma
+>>>>>&-1	ubyte	x		\b%c
+>>>>>>&0	ubyte	!0x20
+>>>>>>>&-1	ubyte	!0x2f
+# display 4th character of file name extension like a of lzma
+>>>>>>>>&-1	ubyte	x		\b%c
 # splitted debian package case
 >68	string		=2.1\n
 # dpkg-1.18.25/dpkg-split/info.c
@@ -1124,71 +1134,120 @@
 
 #   OpenOffice formats (for OpenOffice 1.x / StarOffice 6/7)
 #    (mimetype contains "application/vnd.sun.xml.<SUBTYPE>")
+# URL:		https://en.wikipedia.org/wiki/OpenOffice.org_XML
+# reference:	http://fileformats.archiveteam.org/wiki/OpenOffice.org_XML
 >>50	string	vnd.sun.xml.		OpenOffice.org 1.x
 >>>62	string	writer			Writer
 >>>>68	byte	!0x2e			document
+!:mime	application/vnd.sun.xml.writer
+!:ext	sxw
 >>>>68	string	.template		template
+!:mime	application/vnd.sun.xml.writer.template
+!:ext	stw
+>>>>68	string	.web			Web template
+!:mime	application/vnd.sun.xml.writer.web
+!:ext	stw
 >>>>68	string	.global			global document
+!:mime	application/vnd.sun.xml.writer.global
+!:ext	sxg
 >>>62	string	calc			Calc
 >>>>66	byte	!0x2e			spreadsheet
+!:mime	application/vnd.sun.xml.calc
+!:ext	sxc
 >>>>66	string	.template		template
+!:mime	application/vnd.sun.xml.calc.template
+!:ext	stc
 >>>62	string	draw			Draw
 >>>>66	byte	!0x2e			document
+!:mime	application/vnd.sun.xml.draw
+!:ext	sxd
 >>>>66	string	.template		template
+!:mime	application/vnd.sun.xml.draw.template
+!:ext	std
 >>>62	string	impress			Impress
 >>>>69	byte	!0x2e			presentation
+!:mime	application/vnd.sun.xml.impress
+!:ext	sxi
 >>>>69	string	.template		template
+!:mime	application/vnd.sun.xml.impress.template
+!:ext	sti
 >>>62	string	math			Math document
+!:mime	application/vnd.sun.xml.math
+!:ext	sxm
 >>>62	string	base			Database file
+!:mime	application/vnd.sun.xml.base
+!:ext	sdb
 
 #   OpenDocument formats (for OpenOffice 2.x / StarOffice >= 8)
+#   URL: http://fileformats.archiveteam.org/wiki/OpenDocument
 #    https://lists.oasis-open.org/archives/office/200505/msg00006.html
 #    (mimetype contains "application/vnd.oasis.opendocument.<SUBTYPE>")
 >>50	string	vnd.oasis.opendocument.	OpenDocument
 >>>73	string	text
 >>>>77	byte	!0x2d			Text
 !:mime	application/vnd.oasis.opendocument.text
+!:ext	odt
 >>>>77	string	-template		Text Template
 !:mime	application/vnd.oasis.opendocument.text-template
+!:ext	ott
 >>>>77	string	-web			HTML Document Template
 !:mime	application/vnd.oasis.opendocument.text-web
+!:ext	oth
 >>>>77	string	-master			Master Document
 !:mime	application/vnd.oasis.opendocument.text-master
+!:ext	odm
 >>>73	string	graphics
 >>>>81	byte	!0x2d			Drawing
 !:mime	application/vnd.oasis.opendocument.graphics
->>>>81	string	-template		Template
+!:ext	odg
+>>>>81	string	-template		Drawing Template
 !:mime	application/vnd.oasis.opendocument.graphics-template
+!:ext	otg
 >>>73	string	presentation
 >>>>85	byte	!0x2d			Presentation
 !:mime	application/vnd.oasis.opendocument.presentation
->>>>85	string	-template		Template
+!:ext	odp
+>>>>85	string	-template		Presentation Template
 !:mime	application/vnd.oasis.opendocument.presentation-template
+!:ext	otp
 >>>73	string	spreadsheet
 >>>>84	byte	!0x2d			Spreadsheet
 !:mime	application/vnd.oasis.opendocument.spreadsheet
->>>>84	string	-template		Template
+!:ext	ods
+>>>>84	string	-template		Spreadsheet Template
 !:mime	application/vnd.oasis.opendocument.spreadsheet-template
+!:ext	ots
 >>>73	string	chart
 >>>>78	byte	!0x2d			Chart
 !:mime	application/vnd.oasis.opendocument.chart
->>>>78	string	-template		Template
+!:ext	odc
+>>>>78	string	-template		Chart Template
 !:mime	application/vnd.oasis.opendocument.chart-template
+!:ext	otc
 >>>73	string	formula
 >>>>80	byte	!0x2d			Formula
 !:mime	application/vnd.oasis.opendocument.formula
->>>>80	string	-template		Template
+!:ext	odf
+>>>>80	string	-template		Formula Template
 !:mime	application/vnd.oasis.opendocument.formula-template
+!:ext	otf
+# https://www.loc.gov/preservation/digital/formats/fdd/fdd000441.shtml
 >>>73	string	database		Database
 !:mime	application/vnd.oasis.opendocument.database
+!:ext	odb
 # Valid for LibreOffice Base 6.0.1.1 at least
 >>>73	string	base 			Database
-!:mime	application/vnd.oasis.opendocument.base
+# https://bugs.documentfoundation.org/show_bug.cgi?id=45854
+!:mime	application/vnd.oasis.opendocument.database
+#!:mime	application/vnd.oasis.opendocument.base
+!:ext	odb
 >>>73	string	image
 >>>>78	byte	!0x2d			Image
 !:mime	application/vnd.oasis.opendocument.image
->>>>78	string	-template		Template
+!:ext	odi
+>>>>78	string	-template		Image Template
 !:mime	application/vnd.oasis.opendocument.image-template
+!:ext	oti
 
 #  EPUB (OEBPS) books using OCF (OEBPS Container Format)
 #    https://www.idpf.org/ocf/ocf1.0/download/ocf10.htm, section 4.
@@ -1206,12 +1265,33 @@
 >>>62	string	draw.template+zip	Draw template, version 14-16
 !:mime	application/x-vnd.corel.draw.template+zip
 !:ext	cdrt
->>>62	string	zcf.draw.document+zip	Draw drawing, version 17-21
+>>>62	string	zcf.draw.document+zip	Draw drawing, version 17-22
 !:mime	application/x-vnd.corel.zcf.draw.document+zip
 !:ext	cdr
->>>62	string	zcf.draw.template+zip	Draw template, version 17-21
+>>>62	string	zcf.draw.template+zip	Draw template, version 17-22
 !:mime	application/x-vnd.corel.zcf.draw.template+zip
 !:ext	cdt/cdrt
+# URL:	http://product.corel.com/help/CorelDRAW/540240626/Main/EN/Doc/CorelDRAW-Other-file-formats.html
+>>>62	string	zcf.pattern+zip		Draw pattern, version 22
+!:mime	application/x-vnd.corel.zcf.pattern+zip
+!:ext	pat
+# URL:		https://en.wikipedia.org/wiki/Corel_Designer
+# Reference:	http://fileformats.archiveteam.org/wiki/Corel_Designer
+# Note:		called by TrID "Corel DESIGN graphics"
+>>>62	string	designer.document+zip		DESIGNER graphics, version 14-16
+!:mime	application/x-vnd.corel.designer.document+zip
+!:ext	des
+>>>62	string	zcf.designer.document+zip	DESIGNER graphics, version 17-21
+!:mime	application/x-vnd.corel.zcf.designer.document+zip
+!:ext	des
+# URL:	http://product.corel.com/help/CorelDRAW/540223850/Main/EN/Documentation/
+#	CorelDRAW-Corel-Symbol-Library-CSL.html
+>>>62	string	symbol.library+zip		Symbol Library, version 6-16.3
+!:mime	application/x-vnd.corel.symbol.library+zip
+!:ext	csl
+>>>62	string	zcf.symbol.library+zip		Symbol Library, version 17-22
+!:mime	application/x-vnd.corel.zcf.symbol.library+zip
+!:ext	csl
 
 #  Catch other ZIP-with-mimetype formats
 #	In a ZIP file, the bytes immediately after a member's contents are
@@ -1239,16 +1319,19 @@
 >>>>38		search/64       .app/   iOS App
 !:mime application/x-ios-app
 
+>30	search/100/b application/epub+zip	EPUB document
+!:mime application/epub+zip
 
 # Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 #   Next line excludes specialized formats:
 >(26.s+30)	leshort	!0xcafe
->>26    string          !\x8\0\0\0mimetype	Zip archive data
+>>30	search/100/b !application/epub+zip
+>>>26    string          !\x8\0\0\0mimetype	Zip archive data
 !:mime	application/zip
->>>4	beshort		x			\b, at least
->>>4	use		zipversion
->>>4	beshort		x			to extract
->>>0x161	string		WINZIP		\b, WinZIP self-extracting
+>>>>4	beshort		x			\b, at least
+>>>>4	use		zipversion
+>>>>4	beshort		x			to extract
+>>>>0x161	string		WINZIP		\b, WinZIP self-extracting
 
 # StarView Metafile
 # From Pierre Ducroquet <pinaraf@pinaraf.info>

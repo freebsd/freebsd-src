@@ -1,5 +1,5 @@
-.\" $File: magic.man,v 1.97 2019/11/15 21:03:14 christos Exp $
-.Dd January 21, 2019
+.\" $File: magic.man,v 1.98 2020/05/09 18:55:23 christos Exp $
+.Dd May 9, 2020
 .Dt MAGIC __FSECTION__
 .Os
 .\" install as magic.4 on USG, magic.5 on V7, Berkeley and Linux systems.
@@ -300,6 +300,62 @@ This test is always true and clears the match flag for that continuation level.
 It is intended to be used with the
 .Dv default
 test.
+.It Dv der
+Parse the file as a DER Certificate file.
+The test field is used as a der type that needs to be matched.
+The DER types are:
+.Dv eoc ,
+.Dv bool ,
+.Dv int ,
+.Dv bit_str ,
+.Dv octet_str ,
+.Dv null ,
+.Dv obj_id ,
+.Dv obj_desc ,
+.Dv ext ,
+.Dv real ,
+.Dv enum ,
+.Dv embed ,
+.Dv utf8_str ,
+.Dv rel_oid ,
+.Dv time ,
+.Dv res2 ,
+.Dv seq ,
+.Dv set ,
+.Dv num_str ,
+.Dv prt_str ,
+.Dv t61_str ,
+.Dv vid_str ,
+.Dv ia5_str ,
+.Dv utc_time ,
+.Dv gen_time ,
+.Dv gr_str ,
+.Dv vis_str ,
+.Dv gen_str ,
+.Dv univ_str ,
+.Dv char_str ,
+.Dv bmp_str ,
+.Dv date ,
+.Dv tod ,
+.Dv datetime ,
+.Dv duration ,
+.Dv oid-iri ,
+.Dv rel-oid-iri .
+These types can be followed by an optional numeric size, which indicates
+the field width in bytes.
+.It Dv guid
+A Globally Unique Identifier, parsed and printed as
+XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX.
+It's format is a string.
+.It Dv offset
+This is a quad value indicating the current offset of the file.
+It can be used to determine the size of the file or the magic buffer.
+For example the magic entries:
+.Bd -literal -offset indent
+-0	offset	x	this file is %lld bytes
+-0	offset	<=100	must be more than 100 \e
+    bytes and is only %lld
+.Ed
 .El
 .Pp
 For compatibility with the Single
