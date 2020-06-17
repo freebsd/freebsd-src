@@ -28,7 +28,7 @@
 .\"     @(#)fstat.1	8.3 (Berkeley) 2/25/94
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2019
+.Dd June 17, 2020
 .Dt FSTAT 1
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ If no options are specified,
 reports on all open files in the system.
 .Pp
 The following options are available:
-.Bl -tag -width indent
+.Bl -tag -width "-N system"
 .It Fl f
 Restrict examination to files open in the same file systems as
 the named file arguments, or to the file system containing the
@@ -63,17 +63,17 @@ For example, to find all files open in the file system where the
 directory
 .Pa /usr/src
 resides, type
-.Dq Li fstat -f /usr/src .
-.It Fl M
+.Ql fstat -f /usr/src .
+.It Fl M Ar core
 Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
-.It Fl N
-Extract the name list from the specified system instead of the default,
-which is the kernel image the system has booted from.
 .It Fl m
 Include memory-mapped files in the listing; normally these are excluded
 due to the extra processing required.
+.It Fl N Ar system
+Extract the name list from the specified system instead of the default,
+which is the kernel image the system has booted from.
 .It Fl n
 Numerical format.
 Print the device number (maj,min) of the file system
@@ -83,11 +83,11 @@ device number that the special device refers to rather than the filename
 in
 .Pa /dev ;
 and print the mode of the file in octal instead of symbolic form.
-.It Fl p
+.It Fl p Ar pid
 Report all files open by the specified process.
 .It Fl s
 Print socket endpoint information.
-.It Fl u
+.It Fl u Ar user
 Report all files open by the specified user.
 .It Fl v
 Verbose mode.
@@ -108,46 +108,52 @@ Restrict reports to the specified files.
 .Pp
 The following fields are printed:
 .Bl -tag -width MOUNT
-.It Li USER
+.It Sy USER
 The username of the owner of the process (effective uid).
-.It Li CMD
+.It Sy CMD
 The command name of the process.
-.It Li PID
+.It Sy PID
 The process id.
-.It Li FD
+.It Sy FD
 The file number in the per-process open file table or one of the following
 special names:
 .Pp
-.Bd -literal -offset indent -compact
-jail	- jail root directory
-mmap	- memory-mapped file
-root	- root inode
-text	- executable text inode
-tr	- kernel trace file
-wd 	- current working directory
-.Ed
+.Bl -tag -offset indent -compact
+.It Sy jail
+jail root directory
+.It Sy mmap
+memory-mapped file
+.It Sy root
+root inode
+.It Sy text
+executable text inode
+.It Sy tr
+kernel trace file
+.It Sy wd
+current working directory
+.El
 .Pp
-If the file number is followed by an asterisk (``*''), the file is
-not an inode, but rather a socket,
-.Tn FIFO ,
-or there is an error.
+If the file number is followed by an asterisk
+.Pq Ql * ,
+the file is
+not an inode, but rather a socket, FIFO, or there is an error.
 In this case the remainder of the line does not
-correspond to the remaining headers -- the format of the line
+correspond to the remaining headers\(em the format of the line
 is described later under
 .Sx SOCKETS .
-.It Li MOUNT
+.It Sy MOUNT
 If the
 .Fl n
 flag was not specified, this header is present and is the
 pathname that the file system the file resides in is mounted on.
-.It Li DEV
+.It Sy DEV
 If the
 .Fl n
 flag is specified, this header is present and is the
 number of the device that this file resides in.
-.It Li INUM
+.It Sy INUM
 The inode number of the file.
-.It Li MODE
+.It Sy MODE
 The mode of the file.
 If the
 .Fl n
@@ -156,7 +162,7 @@ using a symbolic format (see
 .Xr strmode 3 ) ;
 otherwise, the mode is printed
 as an octal number.
-.It Li SZ\&|DV
+.It Sy SZ\&|DV
 If the file is a semaphore,
 prints the current value of the semaphore.
 If the file is not a character or block special, prints the size of
@@ -171,13 +177,17 @@ located, or the
 .Fl n
 flag is specified, prints the major/minor device
 number that the special device refers to.
-.It Li R/W
+.It Sy R/W
 This column describes the access mode that the file allows.
-The letter ``r'' indicates open for reading;
-the letter ``w'' indicates open for writing.
+The letter
+.Ql r
+indicates open for reading;
+the letter
+.Ql w
+indicates open for writing.
 This field is useful when trying to find the processes that are
 preventing a file system from being down graded to read-only.
-.It Li NAME
+.It Sy NAME
 If filename arguments are specified and the
 .Fl f
 flag is not, then
@@ -194,32 +204,39 @@ name that the process originally used to open that file.
 .Sh SOCKETS
 The formatting of open sockets depends on the protocol domain.
 In all cases the first field is the domain name, the second field
-is the socket type (stream, dgram, etc), and the third is the socket
+is the socket type (stream, dgram, etc.), and the third is the socket
 flags field (in hex).
 The remaining fields are protocol dependent.
-For tcp, it is the address of the tcpcb, and for udp, the inpcb (socket pcb).
-For unix domain sockets, its the address of the socket pcb and the address
+For TCP, it is the address of the tcpcb, and for UDP, the inpcb (socket pcb).
+For UNIX-domain sockets, its the address of the socket pcb and the address
 of the connected pcb (if connected).
 Otherwise the protocol number and address of the socket itself are printed.
 .Pp
 For example, the addresses mentioned above are the addresses which the
-.Dq Li netstat -A
-command would print for tcp, udp, and unixdomain.
+.Ql netstat -A
+command would print for TCP, UDP, and UNIX-domain.
 Note that since pipes are implemented using sockets, a pipe appears as a
-connected unix domain stream socket.
-A unidirectional unix domain socket indicates the direction of flow with
-an arrow (``<-'' or ``->''), and a full duplex socket shows a double arrow
-(``<->'').
+connected UNIX-domain stream socket.
+A unidirectional UNIX-domain socket indicates the direction of flow with
+an arrow
+.Po Ql <-
+or
+.Ql ->
+.Pc ,
+and a full duplex socket shows a double arrow
+.Pq Ql <-> .
 .Pp
 When the
 .Fl s
 flag is used, socket endpoint information is shown after the address of the
 socket.
 For internet sockets the local and remote addresses are shown, separated with
-a double arrow (``<->'').
-For unix/local sockets either the local or remote address is shown, depending
+a double arrow
+.Pq Ql <-> .
+For UNIX/local sockets either the local or remote address is shown, depending
 on which one is available.
 .Sh SEE ALSO
+.Xr fuser 1 ,
 .Xr netstat 1 ,
 .Xr nfsstat 1 ,
 .Xr procstat 1 ,
