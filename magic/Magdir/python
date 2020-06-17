@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: python,v 1.37 2019/10/21 19:40:58 christos Exp $
+# $File: python,v 1.42 2020/06/04 00:22:50 christos Exp $
 # python:  file(1) magic for python
 #
 # Outlook puts """ too for urgent messages
@@ -10,85 +10,255 @@
 # MAGIC as specified in Python/import.c (1.0 to 3.7)
 # two bytes of magic followed by "\r\n" in little endian order
 0	belong		0x02099900	python 1.0 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x03099900	python 1.1/1.2 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x892e0d0a	python 1.3 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x04170d0a	python 1.4 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x994e0d0a	python 1.5 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xfcc40d0a	python 1.6 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xfdc40d0a	python 1.6 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x87c60d0a	python 2.0 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x88c60d0a	python 2.0 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x2aeb0d0a	python 2.1 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x2beb0d0a	python 2.1 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x2ded0d0a	python 2.2 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x2eed0d0a	python 2.2 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x3bf20d0a	python 2.3 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x3cf20d0a	python 2.3 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x45f20d0a	python 2.3 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x59f20d0a	python 2.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x63f20d0a	python 2.4 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x6df20d0a	python 2.4 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x6ef20d0a	python 2.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x77f20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x81f20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x8bf20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x8cf20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x95f20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x9ff20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xa9f20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xb3f20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xb4f20d0a	python 2.5 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xc7f20d0a	python 2.6 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xd1f20d0a	python 2.6 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xd2f20d0a	python 2.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xdbf20d0a	python 2.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xe5f20d0a	python 2.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xeff20d0a	python 2.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xf9f20d0a	python 2.7 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x03f30d0a	python 2.7 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x04f30d0a	python 2.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xb80b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xc20b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xcc0b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xd60b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xe00b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xea0b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xf40b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xf50b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xff0b0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x090c0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x130c0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x1d0c0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x1f0c0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x270c0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x3b0c0d0a	python 3.0 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x450c0d0a	python 3.1 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x4f0c0d0a	python 3.1 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x580c0d0a	python 3.2 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x620c0d0a	python 3.2 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x6c0c0d0a	python 3.2 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x760c0d0a	python 3.3 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x800c0d0a	python 3.3 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x8a0c0d0a	python 3.3 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x940c0d0a	python 3.3 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x9e0c0d0a	python 3.3 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xb20c0d0a	python 3.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xbc0c0d0a	python 3.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xc60c0d0a	python 3.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xd00c0d0a	python 3.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xda0c0d0a	python 3.4 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xe40c0d0a	python 3.4 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0xee0c0d0a	python 3.4 byte-compiled
-0	belong		0x160d0d0a	python 3.5.2- byte-compiled
-0	belong		0x170d0d0a	python 3.5.3+ byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0xf80c0d0a	python 3.5.1- byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x020d0d0a	python 3.5.1- byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x0c0d0d0a	python 3.5.1- byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x160d0d0a	python 3.5.1- byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x170d0d0a	python 3.5.2+ byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x200d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x210d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x2a0d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x2b0d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x2c0d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x2d0d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x2f0d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x300d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x310d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x320d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x330d0d0a	python 3.6 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x3e0d0d0a	python 3.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x3f0d0d0a	python 3.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x400d0d0a	python 3.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x410d0d0a	python 3.7 byte-compiled
+!:mime text/x-bytecode.python
 0	belong		0x420d0d0a	python 3.7 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x480d0d0a	python 3.8 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x490d0d0a	python 3.8 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x520d0d0a	python 3.8 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x530d0d0a	python 3.8 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x540d0d0a	python 3.8 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x550d0d0a	python 3.8 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x5c0d0d0a	python 3.9 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x5d0d0d0a	python 3.9 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x5e0d0d0a	python 3.9 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x5f0d0d0a	python 3.9 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x600d0d0a	python 3.9 byte-compiled
+!:mime text/x-bytecode.python
+0	belong		0x610d0d0a	python 3.9 byte-compiled
+!:mime text/x-bytecode.python
 
-
-0	search/1/w	#!\ /usr/bin/python	Python script text executable
+0	search/1/w	#!\040/usr/bin/python	Python script text executable
 !:strength + 15
-!:mime text/x-python
-0	search/1/w	#!\ /usr/local/bin/python	Python script text executable
+!:mime text/x-script.python
+0	search/1/w	#!\040/usr/local/bin/python	Python script text executable
 !:strength + 15
-!:mime text/x-python
-0	search/1	#!/usr/bin/env\ python	Python script text executable
+!:mime text/x-script.python
+0	search/10/w	#!\040/usr/bin/env\040python	Python script text executable
 !:strength + 15
-!:mime text/x-python
-0	search/10	#!\ /usr/bin/env\ python	Python script text executable
-!:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
 
 
 # from module.submodule import func1, func2
 0	search/8192	import
->0	regex		\^from[\040\t\f\r\n]+([A-Za-z0-9_]|\\.)+[\040\t\f\r\n]+import.*$	Python script text executable
+>0	regex		\^from[\040\t]+([A-Za-z0-9_]|\\.)+[\040\t]+import.*$	Python script text executable
 !:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
 
 # def __init__ (self, ...):
 0	search/4096	def\ __init__
 >&0	search/64 self	Python script text executable
 !:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
 
 # if __name__ == "__main__":
 0 search/4096 if\ __name__
 >&0 search/64 '__main__'	Python script text executable
 >&0 search/64 "__main__"	Python script text executable
 !:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
 
 # import module [as abrev]
 0	search/8192	import
 >0	regex	\^import\ [_[:alpha:]]+\ as\ [[:alpha:]][[:space:]]*$ Python script text executable
-!:mime text/x-python
+!:mime text/x-script.python
 
 # comments
 #0	search/4096	'''
 #>&0	regex	.*'''$	Python script text executable
-#!:mime text/x-python
+#!:mime text/x-script.python
 
 #0	search/4096	"""
 #>&0	regex	.*"""$	Python script text executable
-#!:mime text/x-python
+#!:mime text/x-script.python
 
 # try:
 # except: or finally:
@@ -96,19 +266,27 @@
 0	search/4096	try:
 >&0	regex	\^[[:space:]]*except.*:$	Python script text executable
 !:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
 >&0	search/4096	finally:	Python script text executable
-!:mime text/x-python
+!:mime text/x-script.python
 
 # class name[(base classes,)]: [pass]
 0	search/8192	class
 >0	regex	\^class\ [_[:alpha:]]+(\\(.*\\))?(\ )*:([\ \t]+pass)?$		Python script text executable
 !:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
 
 # def name(*args, **kwargs):
 0	search/8192	def\ 
 >0	regex	 \^[[:space:]]{0,50}def\ {1,50}[_a-zA-Z]{1,100}
 >>&0	regex	 \\(([[:alpha:]*_,\ ]){0,255}\\):$ Python script text executable
 !:strength + 15
-!:mime text/x-python
+!:mime text/x-script.python
+
+# https://numpy.org/devdocs/reference/generated/numpy.lib.format.html
+0	string	\223NUMPY		NumPy data file
+!:mime  application/x-numpy-data
+>6	byte	x			\b, version %d
+>7	byte	x			\b.%d
+#>8	leshort	x			\b, header length=%d
+>10	string	x			\b, description %s
