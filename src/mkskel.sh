@@ -1,4 +1,4 @@
-#!/bin/sh
+#! /bin/sh
 
 #  This file is part of flex.
 
@@ -21,31 +21,34 @@
 #  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
 #  PURPOSE.
 
-# If you see no configure script, then run ./autogen.sh to create it
-# and procede with the "normal" build procedures.
-
-# use LIBTOOLIZE, if set
-LIBTOOLIZE_ORIG="$LIBTOOLIZE";
-if test "x$LIBTOOLIZE" = "x"; then LIBTOOLIZE=libtoolize; fi
-
-# test libtoolize
-$LIBTOOLIZE --version 2>/dev/null
-if test "$?" -ne 0; then
-   LIBTOOLIZE=glibtoolize
-   $LIBTOOLIZE --version 2>/dev/null
-   if test "$?" -ne 0; then
-      echo "error: libtoolize not working, re-run with LIBTOOLIZE=/path/to/libtoolize"
-      echo "       LIBTOOLIZE is currently \"$LIBTOOLIZE_ORIG\""
-      exit 1
-   fi
+if test ! $# = 3; then
+   echo 'Usage: mkskel.sh srcdir m4 version' >&2
+   exit 1
 fi
+echo '/* File created from flex.skl via mkskel.sh */
 
-#if we pretend to have a ChangeLog, then automake is less
-#worried. (Don't worry, we *do* have a ChangeLog, we just need the
-#Makefile first.)
+#include "flexdef.h"
 
-if ! test -f ChangeLog; then
-   touch ChangeLog
-fi
-"$LIBTOOLIZE" --install --force
-autoreconf --install --force
+const char *skel[] = {'
+srcdir=$1
+m4=$2
+VERSION=$3
+case $VERSION in
+   *[!0-9.]*) echo 'Invalid version number' >&2; exit 1;;
+esac
+IFS=.
+set $VERSION
+sed 's/4_/a4_/g
+s/m4preproc_/m4_/g
+' "$srcdir/flex.skl" |
+"$m4" -P -I "$srcdir" "-DFLEX_MAJOR_VERSION=$1" \
+   "-DFLEX_MINOR_VERSION=$2" \
+   "-DFLEX_SUBMINOR_VERSION=$3" |
+sed '/^%#/d
+s/m4_/m4preproc_/g
+s/a4_/4_/g
+s/[\\"]/\\&/g
+s/.*/  "&",/'
+
+echo '  0
+};'
