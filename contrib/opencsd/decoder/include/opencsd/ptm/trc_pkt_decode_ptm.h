@@ -154,6 +154,7 @@ private:
     } processor_state_t;
 
     processor_state_t m_curr_state;
+    unsync_info_t m_unsync_info;
 
     const bool processStateIsCont() const;
 

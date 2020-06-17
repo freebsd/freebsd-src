@@ -41,7 +41,13 @@ public:
     {
         m_pComp = 0;
     };
-    virtual ~ errLogAttachMonitor() {};
+    virtual ~ errLogAttachMonitor()
+    {
+        if (m_pComp)
+            m_pComp->getErrorLogAttachPt()->set_notifier(0);
+        m_pComp = 0;
+        
+    };
     virtual void attachNotify(const int num_attached)
     {
         if(m_pComp)
@@ -73,6 +79,8 @@ TraceComponent::TraceComponent(const std::string &name, int instIDNum)
 
 TraceComponent::~TraceComponent()
 {
+    if (m_pErrAttachMon)
+        delete m_pErrAttachMon;
 }
 
 void TraceComponent::Init(const std::string &name)
@@ -140,9 +148,7 @@ void TraceComponent::updateErrorLogLevel()
 
 ocsd_err_t TraceComponent::setComponentOpMode(uint32_t op_flags)
 {
-    if( (~m_supported_op_flags & op_flags) != 0)
-        return OCSD_ERR_INVALID_PARAM_VAL;
-    m_op_flags = op_flags;
+    m_op_flags = op_flags & m_supported_op_flags;
     return OCSD_OK;
 }
 

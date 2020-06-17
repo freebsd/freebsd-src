@@ -264,6 +264,7 @@ private:
     } processor_state_t;
 
     processor_state_t m_curr_state;
+    unsync_info_t m_unsync_info;    //!< additional state for unsync
 
     uint8_t m_CSID; //!< Coresight trace ID for this decoder.
 };

@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200617: update opencsd to 0.14.2
+OLD_FILES+=usr/include/opencsd/etmv4/trc_pkt_elem_etmv4d.h
+
 # 20200606: retire binutils build infrastructure
 .if !defined(WITH_PORT_BASE_BINUTILS)
 OLD_FILES+=usr/bin/as

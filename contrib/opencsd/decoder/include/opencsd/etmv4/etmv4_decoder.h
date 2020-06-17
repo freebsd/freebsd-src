@@ -38,7 +38,6 @@
 
 #include "trc_cmp_cfg_etmv4.h"
 #include "trc_pkt_elem_etmv4i.h"
-#include "trc_pkt_elem_etmv4d.h"
 #include "trc_pkt_proc_etmv4.h"
 #include "trc_pkt_types_etmv4.h"
 #include "trc_pkt_decode_etmv4i.h"

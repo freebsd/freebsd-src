@@ -52,6 +52,7 @@ typedef enum _ocsd_gen_trc_elem_t
     OCSD_GEN_TRC_ELEM_EO_TRACE,        /*!< end of the available trace in the buffer.  */
     OCSD_GEN_TRC_ELEM_PE_CONTEXT,      /*!< PE status update / change (arch, ctxtid, vmid etc).  */
     OCSD_GEN_TRC_ELEM_INSTR_RANGE,     /*!< traced N consecutive instructions from addr (no intervening events or data elements), may have data assoc key  */
+    OCSD_GEN_TRC_ELEM_I_RANGE_NOPATH,  /*!< traced N instructions in a range, but incomplete information as to program execution path from start to end of range */
     OCSD_GEN_TRC_ELEM_ADDR_NACC,       /*!< tracing in inaccessible memory area  */ 
     OCSD_GEN_TRC_ELEM_ADDR_UNKNOWN,    /*!< address currently unknown - need address packet update */
     OCSD_GEN_TRC_ELEM_EXCEPTION,       /*!< exception - start address may be exception target, end address may be preferred ret addr. */
@@ -74,6 +75,16 @@ typedef struct _trace_event_t {
     uint16_t ev_type;          /**< event type - unknown (0) trigger (1), numbered event (2)*/
     uint16_t ev_number;        /**< event number if numbered event type */
 } trace_event_t;
+
+typedef enum _unsync_info_t {
+    UNSYNC_UNKNOWN,         /**< unknown /undefined */
+    UNSYNC_INIT_DECODER,    /**< decoder intialisation - start of trace. */
+    UNSYNC_RESET_DECODER,   /**< decoder reset. */
+    UNSYNC_OVERFLOW,        /**< overflow packet - need to re-sync / end of trace after overflow. */
+    UNSYNC_DISCARD,         /**< specl trace discard - need to re-sync. */
+    UNSYNC_BAD_PACKET,      /**< bad packet at input - resync to restart. */
+    UNSYNC_EOT,             /**< end of trace - no additional info */
+} unsync_info_t;
 
 typedef struct _ocsd_generic_trace_elem {
     ocsd_gen_trc_elem_t elem_type;   /**< Element type - remaining data interpreted according to this value */
@@ -110,6 +121,7 @@ typedef struct _ocsd_generic_trace_elem {
         trace_on_reason_t trace_on_reason;  /**< reason for the trace on packet */
         ocsd_swt_info_t sw_trace_info;      /**< software trace packet info    */
 		uint32_t num_instr_range;	        /**< number of instructions covered by range packet (for T32 this cannot be calculated from en-st/i_size) */
+        unsync_info_t unsync_eot_info;      /**< additional information for unsync / end-of-trace packets. */
     };
 
     const void *ptr_extended_data;        /**< pointer to extended data buffer (data trace, sw trace payload) / custom structure */
