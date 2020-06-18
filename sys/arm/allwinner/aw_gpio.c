@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/allwinner/allwinner_pinctrl.h>
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/regulator/regulator.h>
 
 #if defined(__aarch64__)
 #include "opt_soc.h"
@@ -78,102 +79,167 @@ __FBSDID("$FreeBSD$");
 #define	AW_PINCTRL	1
 #define	AW_R_PINCTRL	2
 
+struct aw_gpio_conf {
+	struct allwinner_padconf *padconf;
+	const char *banks;
+};
+
 /* Defined in aw_padconf.c */
 #ifdef SOC_ALLWINNER_A10
-extern const struct allwinner_padconf a10_padconf;
+extern struct allwinner_padconf a10_padconf;
+struct aw_gpio_conf a10_gpio_conf = {
+	.padconf = &a10_padconf,
+	.banks = "abcdefghi",
+};
 #endif
 
 /* Defined in a13_padconf.c */
 #ifdef SOC_ALLWINNER_A13
-extern const struct allwinner_padconf a13_padconf;
+extern struct allwinner_padconf a13_padconf;
+struct aw_gpio_conf a13_gpio_conf = {
+	.padconf = &a13_padconf,
+	.banks = "bcdefg",
+};
 #endif
 
 /* Defined in a20_padconf.c */
 #ifdef SOC_ALLWINNER_A20
-extern const struct allwinner_padconf a20_padconf;
+extern struct allwinner_padconf a20_padconf;
+struct aw_gpio_conf a20_gpio_conf = {
+	.padconf = &a20_padconf,
+	.banks = "abcdefghi",
+};
 #endif
 
 /* Defined in a31_padconf.c */
 #ifdef SOC_ALLWINNER_A31
-extern const struct allwinner_padconf a31_padconf;
+extern struct allwinner_padconf a31_padconf;
+struct aw_gpio_conf a31_gpio_conf = {
+	.padconf = &a31_padconf,
+	.banks = "abcdefgh",
+};
 #endif
 
 /* Defined in a31s_padconf.c */
 #ifdef SOC_ALLWINNER_A31S
-extern const struct allwinner_padconf a31s_padconf;
+extern struct allwinner_padconf a31s_padconf;
+struct aw_gpio_conf a31s_gpio_conf = {
+	.padconf = &a31s_padconf,
+	.banks = "abcdefgh",
+};
 #endif
 
 #if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-extern const struct allwinner_padconf a31_r_padconf;
+extern struct allwinner_padconf a31_r_padconf;
+struct aw_gpio_conf a31_r_gpio_conf = {
+	.padconf = &a31_r_padconf,
+	.banks = "lm",
+};
 #endif
 
 /* Defined in a33_padconf.c */
 #ifdef SOC_ALLWINNER_A33
-extern const struct allwinner_padconf a33_padconf;
+extern struct allwinner_padconf a33_padconf;
+struct aw_gpio_conf a33_gpio_conf = {
+	.padconf = &a33_padconf,
+	.banks = "bcdefgh",
+};
 #endif
 
 /* Defined in h3_padconf.c */
 #if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-extern const struct allwinner_padconf h3_padconf;
-extern const struct allwinner_padconf h3_r_padconf;
+extern struct allwinner_padconf h3_padconf;
+extern struct allwinner_padconf h3_r_padconf;
+struct aw_gpio_conf h3_gpio_conf = {
+	.padconf = &h3_padconf,
+	.banks = "acdefg",
+};
+struct aw_gpio_conf h3_r_gpio_conf = {
+	.padconf = &h3_r_padconf,
+	.banks = "l",
+};
 #endif
 
 /* Defined in a83t_padconf.c */
 #ifdef SOC_ALLWINNER_A83T
-extern const struct allwinner_padconf a83t_padconf;
-extern const struct allwinner_padconf a83t_r_padconf;
+extern struct allwinner_padconf a83t_padconf;
+extern struct allwinner_padconf a83t_r_padconf;
+struct aw_gpio_conf a83t_gpio_conf = {
+	.padconf = &a83t_padconf,
+	.banks = "bcdefgh"
+};
+struct aw_gpio_conf a83t_r_gpio_conf = {
+	.padconf = &a83t_r_padconf,
+	.banks = "l",
+};
 #endif
 
 /* Defined in a64_padconf.c */
 #ifdef SOC_ALLWINNER_A64
-extern const struct allwinner_padconf a64_padconf;
-extern const struct allwinner_padconf a64_r_padconf;
+extern struct allwinner_padconf a64_padconf;
+extern struct allwinner_padconf a64_r_padconf;
+struct aw_gpio_conf a64_gpio_conf = {
+	.padconf = &a64_padconf,
+	.banks = "bcdefgh",
+};
+struct aw_gpio_conf a64_r_gpio_conf = {
+	.padconf = &a64_r_padconf,
+	.banks = "l",
+};
 #endif
 
 /* Defined in h6_padconf.c */
 #ifdef SOC_ALLWINNER_H6
-extern const struct allwinner_padconf h6_padconf;
-extern const struct allwinner_padconf h6_r_padconf;
+extern struct allwinner_padconf h6_padconf;
+extern struct allwinner_padconf h6_r_padconf;
+struct aw_gpio_conf h6_gpio_conf = {
+	.padconf = &h6_padconf,
+	.banks = "cdfgh",
+};
+struct aw_gpio_conf h6_r_gpio_conf = {
+	.padconf = &h6_r_padconf,
+	.banks = "lm",
+};
 #endif
 
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
-	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_padconf},
+	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A13
-	{"allwinner,sun5i-a13-pinctrl",		(uintptr_t)&a13_padconf},
+	{"allwinner,sun5i-a13-pinctrl",		(uintptr_t)&a13_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A20
-	{"allwinner,sun7i-a20-pinctrl",		(uintptr_t)&a20_padconf},
+	{"allwinner,sun7i-a20-pinctrl",		(uintptr_t)&a20_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A31
-	{"allwinner,sun6i-a31-pinctrl",		(uintptr_t)&a31_padconf},
+	{"allwinner,sun6i-a31-pinctrl",		(uintptr_t)&a31_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A31S
-	{"allwinner,sun6i-a31s-pinctrl",	(uintptr_t)&a31s_padconf},
+	{"allwinner,sun6i-a31s-pinctrl",	(uintptr_t)&a31s_gpio_conf},
 #endif
 #if defined(SOC_ALLWINNER_A31) || defined(SOC_ALLWINNER_A31S)
-	{"allwinner,sun6i-a31-r-pinctrl",	(uintptr_t)&a31_r_padconf},
+	{"allwinner,sun6i-a31-r-pinctrl",	(uintptr_t)&a31_r_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A33
-	{"allwinner,sun6i-a33-pinctrl",		(uintptr_t)&a33_padconf},
+	{"allwinner,sun6i-a33-pinctrl",		(uintptr_t)&a33_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A83T
-	{"allwinner,sun8i-a83t-pinctrl",	(uintptr_t)&a83t_padconf},
-	{"allwinner,sun8i-a83t-r-pinctrl",	(uintptr_t)&a83t_r_padconf},
+	{"allwinner,sun8i-a83t-pinctrl",	(uintptr_t)&a83t_gpio_conf},
+	{"allwinner,sun8i-a83t-r-pinctrl",	(uintptr_t)&a83t_r_gpio_conf},
 #endif
 #if defined(SOC_ALLWINNER_H3) || defined(SOC_ALLWINNER_H5)
-	{"allwinner,sun8i-h3-pinctrl",		(uintptr_t)&h3_padconf},
-	{"allwinner,sun50i-h5-pinctrl",		(uintptr_t)&h3_padconf},
-	{"allwinner,sun8i-h3-r-pinctrl",	(uintptr_t)&h3_r_padconf},
+	{"allwinner,sun8i-h3-pinctrl",		(uintptr_t)&h3_gpio_conf},
+	{"allwinner,sun50i-h5-pinctrl",		(uintptr_t)&h3_gpio_conf},
+	{"allwinner,sun8i-h3-r-pinctrl",	(uintptr_t)&h3_r_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_A64
-	{"allwinner,sun50i-a64-pinctrl",	(uintptr_t)&a64_padconf},
-	{"allwinner,sun50i-a64-r-pinctrl",	(uintptr_t)&a64_r_padconf},
+	{"allwinner,sun50i-a64-pinctrl",	(uintptr_t)&a64_gpio_conf},
+	{"allwinner,sun50i-a64-r-pinctrl",	(uintptr_t)&a64_r_gpio_conf},
 #endif
 #ifdef SOC_ALLWINNER_H6
-	{"allwinner,sun50i-h6-pinctrl",	(uintptr_t)&h6_padconf},
-	{"allwinner,sun50i-h6-r-pinctrl",	(uintptr_t)&h6_r_padconf},
+	{"allwinner,sun50i-h6-pinctrl",	(uintptr_t)&h6_gpio_conf},
+	{"allwinner,sun50i-h6-r-pinctrl",	(uintptr_t)&h6_r_gpio_conf},
 #endif
 	{NULL,	0}
 };
@@ -192,7 +258,7 @@ struct aw_gpio_softc {
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
-	const struct allwinner_padconf *	padconf;
+	struct aw_gpio_conf	*conf;
 	TAILQ_HEAD(, clk_list)		clk_list;
 };
 
@@ -237,10 +303,10 @@ aw_gpio_get_function(struct aw_gpio_softc *sc, uint32_t pin)
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	if (pin > sc->padconf->npins)
+	if (pin > sc->conf->padconf->npins)
 		return (0);
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 	offset = ((pin & 0x07) << 2);
 
 	func = AW_GPIO_READ(sc, AW_GPIO_GP_CFG(bank, pin >> 3));
@@ -254,14 +320,14 @@ aw_gpio_set_function(struct aw_gpio_softc *sc, uint32_t pin, uint32_t f)
 	uint32_t bank, data, offset;
 
 	/* Check if the function exists in the padconf data */
-	if (sc->padconf->pins[pin].functions[f] == NULL)
+	if (sc->conf->padconf->pins[pin].functions[f] == NULL)
 		return (EINVAL);
 
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 	offset = ((pin & 0x07) << 2);
 
 	data = AW_GPIO_READ(sc, AW_GPIO_GP_CFG(bank, pin >> 3));
@@ -280,8 +346,8 @@ aw_gpio_get_pud(struct aw_gpio_softc *sc, uint32_t pin)
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 	offset = ((pin & 0x0f) << 1);
 
 	val = AW_GPIO_READ(sc, AW_GPIO_GP_PUL(bank, pin >> 4));
@@ -300,8 +366,8 @@ aw_gpio_set_pud(struct aw_gpio_softc *sc, uint32_t pin, uint32_t state)
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 	offset = ((pin & 0x0f) << 1);
 
 	val = AW_GPIO_READ(sc, AW_GPIO_GP_PUL(bank, pin >> 4));
@@ -318,8 +384,8 @@ aw_gpio_get_drv(struct aw_gpio_softc *sc, uint32_t pin)
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 	offset = ((pin & 0x0f) << 1);
 
 	val = AW_GPIO_READ(sc, AW_GPIO_GP_DRV(bank, pin >> 4));
@@ -338,8 +404,8 @@ aw_gpio_set_drv(struct aw_gpio_softc *sc, uint32_t pin, uint32_t drive)
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 	offset = ((pin & 0x0f) << 1);
 
 	val = AW_GPIO_READ(sc, AW_GPIO_GP_DRV(bank, pin >> 4));
@@ -357,7 +423,7 @@ aw_gpio_pin_configure(struct aw_gpio_softc *sc, uint32_t pin, uint32_t flags)
 	/* Must be called with lock held. */
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	if (pin > sc->padconf->npins)
+	if (pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
 	/* Manage input/output. */
@@ -412,7 +478,7 @@ aw_gpio_pin_max(device_t dev, int *maxpin)
 
 	sc = device_get_softc(dev);
 
-	*maxpin = sc->padconf->npins - 1;
+	*maxpin = sc->conf->padconf->npins - 1;
 	return (0);
 }
 
@@ -422,7 +488,7 @@ aw_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	struct aw_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin >= sc->padconf->npins)
+	if (pin >= sc->conf->padconf->npins)
 		return (EINVAL);
 
 	*caps = AW_GPIO_DEFAULT_CAPS;
@@ -438,7 +504,7 @@ aw_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	uint32_t pud;
 
 	sc = device_get_softc(dev);
-	if (pin >= sc->padconf->npins)
+	if (pin >= sc->conf->padconf->npins)
 		return (EINVAL);
 
 	AW_GPIO_LOCK(sc);
@@ -478,11 +544,11 @@ aw_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	struct aw_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
-	if (pin >= sc->padconf->npins)
+	if (pin >= sc->conf->padconf->npins)
 		return (EINVAL);
 
 	snprintf(name, GPIOMAXNAME - 1, "%s",
-	    sc->padconf->pins[pin].name);
+	    sc->conf->padconf->pins[pin].name);
 	name[GPIOMAXNAME - 1] = '\0';
 
 	return (0);
@@ -495,7 +561,7 @@ aw_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	int err;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->padconf->npins)
+	if (pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
 	AW_GPIO_LOCK(sc);
@@ -513,11 +579,11 @@ aw_gpio_pin_set_locked(struct aw_gpio_softc *sc, uint32_t pin,
 
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	if (pin > sc->padconf->npins)
+	if (pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 
 	data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
 	if (value)
@@ -552,11 +618,11 @@ aw_gpio_pin_get_locked(struct aw_gpio_softc *sc,uint32_t pin,
 
 	AW_GPIO_LOCK_ASSERT(sc);
 
-	if (pin > sc->padconf->npins)
+	if (pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 
 	reg_data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
 	*val = (reg_data & (1 << pin)) ? 1 : 0;
@@ -655,11 +721,11 @@ aw_gpio_pin_toggle(device_t dev, uint32_t pin)
 	uint32_t bank, data;
 
 	sc = device_get_softc(dev);
-	if (pin > sc->padconf->npins)
+	if (pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
-	bank = sc->padconf->pins[pin].port;
-	pin = sc->padconf->pins[pin].pin;
+	bank = sc->conf->padconf->pins[pin].port;
+	pin = sc->conf->padconf->pins[pin].pin;
 
 	AW_GPIO_LOCK(sc);
 	data = AW_GPIO_READ(sc, AW_GPIO_GP_DAT(bank));
@@ -681,7 +747,7 @@ aw_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 	uint32_t bank, data, pin;
 
 	sc = device_get_softc(dev);
-	if (first_pin > sc->padconf->npins)
+	if (first_pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
 	/*
@@ -690,8 +756,8 @@ aw_gpio_pin_access_32(device_t dev, uint32_t first_pin, uint32_t clear_pins,
 	 * change simultaneously (required) with reasonably high performance
 	 * (desired); we need to do a read-modify-write on a single register.
 	 */
-	bank = sc->padconf->pins[first_pin].port;
-	pin = sc->padconf->pins[first_pin].pin;
+	bank = sc->conf->padconf->pins[first_pin].port;
+	pin = sc->conf->padconf->pins[first_pin].pin;
 	if (pin != 0)
 		return (EINVAL);
 
@@ -717,11 +783,11 @@ aw_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
 	int err;
 
 	sc = device_get_softc(dev);
-	if (first_pin > sc->padconf->npins)
+	if (first_pin > sc->conf->padconf->npins)
 		return (EINVAL);
 
-	bank = sc->padconf->pins[first_pin].port;
-	if (sc->padconf->pins[first_pin].pin != 0)
+	bank = sc->conf->padconf->pins[first_pin].port;
+	if (sc->conf->padconf->pins[first_pin].pin != 0)
 		return (EINVAL);
 
 	/*
@@ -745,8 +811,8 @@ aw_find_pinnum_by_name(struct aw_gpio_softc *sc, const char *pinname)
 {
 	int i;
 
-	for (i = 0; i < sc->padconf->npins; i++)
-		if (!strcmp(pinname, sc->padconf->pins[i].name))
+	for (i = 0; i < sc->conf->padconf->npins; i++)
+		if (!strcmp(pinname, sc->conf->padconf->pins[i].name))
 			return i;
 
 	return (-1);
@@ -758,8 +824,8 @@ aw_find_pin_func(struct aw_gpio_softc *sc, int pin, const char *func)
 	int i;
 
 	for (i = 0; i < AW_MAX_FUNC_BY_PIN; i++)
-		if (sc->padconf->pins[pin].functions[i] &&
-		    !strcmp(func, sc->padconf->pins[pin].functions[i]))
+		if (sc->conf->padconf->pins[pin].functions[i] &&
+		    !strcmp(func, sc->conf->padconf->pins[pin].functions[i]))
 			return (i);
 
 	return (-1);
@@ -828,6 +894,33 @@ aw_fdt_configure_pins(device_t dev, phandle_t cfgxref)
 	return (ret);
 }
 
+static void
+aw_gpio_enable_bank_supply(void *arg)
+{
+	struct aw_gpio_softc *sc = arg;
+	regulator_t vcc_supply;
+	char bank_reg_name[16];
+	int i, nbanks;
+
+	nbanks = strlen(sc->conf->banks);
+	for (i = 0; i < nbanks; i++) {
+		snprintf(bank_reg_name, sizeof(bank_reg_name), "vcc-p%c-supply",
+		    sc->conf->banks[i]);
+
+		if (regulator_get_by_ofw_property(sc->sc_dev, 0, bank_reg_name, &vcc_supply) == 0) {
+			if (bootverbose)
+				device_printf(sc->sc_dev,
+				    "Enabling regulator for gpio bank %c\n",
+				    sc->conf->banks[i]);
+			if (regulator_enable(vcc_supply) != 0) {
+				device_printf(sc->sc_dev,
+				    "Cannot enable regulator for bank %c\n",
+				    sc->conf->banks[i]);
+			}
+		}
+	}
+}
+
 static int
 aw_gpio_probe(device_t dev)
 {
@@ -884,7 +977,7 @@ aw_gpio_attach(device_t dev)
 		goto fail;
 
 	/* Use the right pin data for the current SoC */
-	sc->padconf = (struct allwinner_padconf *)ofw_bus_search_compatible(dev,
+	sc->conf = (struct aw_gpio_conf *)ofw_bus_search_compatible(dev,
 	    compat_data)->ocd_data;
 
 	if (hwreset_get_by_ofw_idx(dev, 0, 0, &rst) == 0) {
@@ -927,6 +1020,8 @@ aw_gpio_attach(device_t dev)
 	fdt_pinctrl_configure_tree(dev);
 	fdt_pinctrl_register(dev, "allwinner,pins");
 	fdt_pinctrl_configure_tree(dev);
+
+	config_intrhook_oneshot(aw_gpio_enable_bank_supply, sc);
 
 	return (0);
 
@@ -985,9 +1080,9 @@ aw_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 	sc = device_get_softc(bus);
 
 	/* The GPIO pins are mapped as: <gpio-phandle bank pin flags>. */
-	for (i = 0; i < sc->padconf->npins; i++)
-		if (sc->padconf->pins[i].port == gpios[0] &&
-		    sc->padconf->pins[i].pin == gpios[1]) {
+	for (i = 0; i < sc->conf->padconf->npins; i++)
+		if (sc->conf->padconf->pins[i].port == gpios[0] &&
+		    sc->conf->padconf->pins[i].pin == gpios[1]) {
 			*pin = i;
 			break;
 		}

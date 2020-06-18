@@ -1,0 +1,17 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "allwinner,sun50i-a64";
+};
+
+&{/soc/spi@1c68000} {
+	status = "okay";
+
+	spigen0: spigen0 {
+		compatible = "freebsd,spigen";
+		reg = <0>;
+		spi-max-frequency = <500000>;
+		status = "okay";
+	};
+};

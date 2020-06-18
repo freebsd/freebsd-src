@@ -438,6 +438,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL3,
 		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO1,
 		.enable_value = AXP_POWERCTL3_ALDO1,
+		.voltage_reg = AXP_VOLTCTL_ALDO1,
 		.voltage_min = 700,
 		.voltage_max = 3300,
 		.voltage_step1 = 100,
@@ -449,6 +450,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL3,
 		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO2,
 		.enable_value = AXP_POWERCTL3_ALDO2,
+		.voltage_reg = AXP_VOLTCTL_ALDO2,
 		.voltage_min = 700,
 		.voltage_max = 3300,
 		.voltage_step1 = 100,
@@ -460,6 +462,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL3,
 		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO3,
 		.enable_value = AXP_POWERCTL3_ALDO3,
+		.voltage_reg = AXP_VOLTCTL_ALDO3,
 		.voltage_min = 700,
 		.voltage_max = 3300,
 		.voltage_step1 = 100,
@@ -471,6 +474,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL2,
 		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO1,
 		.enable_value = AXP_POWERCTL2_ELDO1,
+		.voltage_reg = AXP_VOLTCTL_ELDO1,
 		.voltage_min = 700,
 		.voltage_max = 1900,
 		.voltage_step1 = 50,
@@ -482,6 +486,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL2,
 		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO2,
 		.enable_value = AXP_POWERCTL2_ELDO2,
+		.voltage_reg = AXP_VOLTCTL_ELDO2,
 		.voltage_min = 700,
 		.voltage_max = 1900,
 		.voltage_step1 = 50,
@@ -493,6 +498,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL2,
 		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO3,
 		.enable_value = AXP_POWERCTL2_ELDO3,
+		.voltage_reg = AXP_VOLTCTL_ELDO3,
 		.voltage_min = 700,
 		.voltage_max = 1900,
 		.voltage_step1 = 50,
@@ -504,6 +510,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL3,
 		.enable_mask = (uint8_t) AXP_POWERCTL3_FLDO1,
 		.enable_value = AXP_POWERCTL3_FLDO1,
+		.voltage_reg = AXP_VOLTCTL_FLDO1,
 		.voltage_min = 700,
 		.voltage_max = 1450,
 		.voltage_step1 = 50,
@@ -515,6 +522,7 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.enable_reg = AXP_POWERCTL3,
 		.enable_mask = (uint8_t) AXP_POWERCTL3_FLDO2,
 		.enable_value = AXP_POWERCTL3_FLDO2,
+		.voltage_reg = AXP_VOLTCTL_FLDO2,
 		.voltage_min = 700,
 		.voltage_max = 1450,
 		.voltage_step1 = 50,
@@ -703,6 +711,8 @@ struct axp8xx_softc {
 
 #define	AXP_LOCK(sc)	mtx_lock(&(sc)->mtx)
 #define	AXP_UNLOCK(sc)	mtx_unlock(&(sc)->mtx)
+static int axp8xx_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
+    int max_uvolt, int *udelay);
 
 static int
 axp8xx_read(device_t dev, uint8_t reg, uint8_t *data, uint8_t size)
@@ -744,6 +754,31 @@ axp8xx_write(device_t dev, uint8_t reg, uint8_t val)
 	msg[1].buf = &val;
 
 	return (iicbus_transfer(dev, msg, 2));
+}
+
+static int
+axp8xx_regnode_init(struct regnode *regnode)
+{
+	struct axp8xx_reg_sc *sc;
+	struct regnode_std_param *param;
+	int rv, udelay;
+
+	sc = regnode_get_softc(regnode);
+	param = regnode_get_stdparam(regnode);
+	if (param->min_uvolt == 0)
+		return (0);
+
+	/* 
+	 * Set the regulator at the correct voltage
+	 * Do not enable it, this is will be done either by a
+	 * consumer or by regnode_set_constraint if boot_on is true
+	 */
+	rv = axp8xx_regnode_set_voltage(regnode, param->min_uvolt,
+	    param->max_uvolt, &udelay);
+	if (rv != 0)
+		DELAY(udelay);
+
+	return (rv);
 }
 
 static int
@@ -863,6 +898,7 @@ axp8xx_regnode_get_voltage(struct regnode *regnode, int *uvolt)
 
 static regnode_method_t axp8xx_regnode_methods[] = {
 	/* Regulator interface */
+	REGNODEMETHOD(regnode_init,		axp8xx_regnode_init),
 	REGNODEMETHOD(regnode_enable,		axp8xx_regnode_enable),
 	REGNODEMETHOD(regnode_set_voltage,	axp8xx_regnode_set_voltage),
 	REGNODEMETHOD(regnode_get_voltage,	axp8xx_regnode_get_voltage),
