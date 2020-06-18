@@ -40,9 +40,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_bpf.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_bpf.h"
 #include "opt_pf.h"
 #include "opt_sctp.h"
 
@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #endif /* INET6 */
 
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 #include <netinet/sctp_crc32.h>
 #endif
 
@@ -5474,7 +5474,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 		in_delayed_cksum(m0);
 		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 	if (m0->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
 		sctp_delayed_cksum(m0, (uint32_t)(ip->ip_hl << 2));
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
