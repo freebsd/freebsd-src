@@ -31,7 +31,7 @@
 .\"     @(#)tee.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2007
+.Dd June 18, 2020
 .Dt TEE 1
 .Os
 .Sh NAME
@@ -74,6 +74,12 @@ except in the event of the
 option.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Send echoed message both to stdout and to the greetings file:
+.Bd -literal -offset indent
+$ echo "Hello" | tee greetings.txt
+Hello
+.Ed
 .Sh STANDARDS
 The
 .Nm
