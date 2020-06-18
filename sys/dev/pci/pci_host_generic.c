@@ -386,9 +386,10 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 		}
 		if (!found) {
 			device_printf(dev,
-			    "Failed to allocate %s resource %lx-%lx for %s\n",
+			    "Failed to allocate %s resource %jx-%jx for %s\n",
 			    type == SYS_RES_IOPORT ? "IOPORT" : "MEMORY",
-			    start, end, device_get_nameunit(child));
+			    (uintmax_t)start, (uintmax_t)end,
+			    device_get_nameunit(child));
 			return (NULL);
 		}
 		break;
