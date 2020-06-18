@@ -303,29 +303,12 @@ hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
 	}
 }
 
-/****************************************************************************
- * void hdac_intr_handler(void *)
- *
- * Interrupt handler. Processes interrupts received from the hdac.
- ****************************************************************************/
 static void
-hdac_intr_handler(void *context)
+hdac_one_intr(struct hdac_softc *sc, uint32_t intsts)
 {
-	struct hdac_softc *sc;
 	device_t dev;
-	uint32_t intsts;
 	uint8_t rirbsts;
 	int i;
-
-	sc = (struct hdac_softc *)context;
-	hdac_lock(sc);
-
-	/* Do we have anything to do? */
-	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
-	if ((intsts & HDAC_INTSTS_GIS) == 0) {
-		hdac_unlock(sc);
-		return;
-	}
 
 	/* Was this a controller interrupt? */
 	if (intsts & HDAC_INTSTS_CIS) {
@@ -346,16 +329,45 @@ hdac_intr_handler(void *context)
 			if ((intsts & (1 << i)) == 0)
 				continue;
 			HDAC_WRITE_1(&sc->mem, (i << 5) + HDAC_SDSTS,
-			    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS );
+			    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS);
 			if ((dev = sc->streams[i].dev) != NULL) {
 				HDAC_STREAM_INTR(dev,
 				    sc->streams[i].dir, sc->streams[i].stream);
 			}
 		}
 	}
+}
 
-	HDAC_WRITE_4(&sc->mem, HDAC_INTSTS, intsts);
-	hdac_unlock(sc);
+/****************************************************************************
+ * void hdac_intr_handler(void *)
+ *
+ * Interrupt handler. Processes interrupts received from the hdac.
+ ****************************************************************************/
+static void
+hdac_intr_handler(void *context)
+{
+	struct hdac_softc *sc;
+	uint32_t intsts;
+
+	sc = (struct hdac_softc *)context;
+
+	/*
+	 * Loop until HDAC_INTSTS_GIS gets clear.
+	 * It is plausible that hardware interrupts a host only when GIS goes
+	 * from zero to one.  GIS is formed by OR-ing multiple hardware
+	 * statuses, so it's possible that a previously cleared status gets set
+	 * again while another status has not been cleared yet.  Thus, there
+	 * will be no new interrupt as GIS always stayed set.  If we don't
+	 * re-examine GIS then we can leave it set and never get an interrupt
+	 * again.
+	 */
+	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
+	while ((intsts & HDAC_INTSTS_GIS) != 0) {
+		hdac_lock(sc);
+		hdac_one_intr(sc, intsts);
+		hdac_unlock(sc);
+		intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
+	}
 }
 
 static void
