@@ -237,7 +237,7 @@ gen_attach(device_t dev)
 {
 	struct ether_addr eaddr;
 	struct gen_softc *sc;
-	int major, minor, error;
+	int major, minor, error, mii_flags;
 	bool eaddr_found;
 
 	sc = device_get_softc(dev);
@@ -315,9 +315,24 @@ gen_attach(device_t dev)
 	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
 
 	/* Attach MII driver */
+	mii_flags = 0;
+	switch (sc->phy_mode)
+	{
+	case MII_CONTYPE_RGMII_ID:
+		mii_flags |= MIIF_RX_DELAY | MIIF_TX_DELAY;
+		break;
+	case MII_CONTYPE_RGMII_RXID:
+		mii_flags |= MIIF_RX_DELAY;
+		break;
+	case MII_CONTYPE_RGMII_TXID:
+		mii_flags |= MIIF_TX_DELAY;
+		break;
+	default:
+		break;
+	}
 	error = mii_attach(dev, &sc->miibus, sc->ifp, gen_media_change,
 	    gen_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
-	    MIIF_DOPAUSE);
+	    mii_flags);
 	if (error != 0) {
 		device_printf(dev, "cannot attach PHY\n");
 		goto fail;
@@ -371,6 +386,7 @@ gen_get_phy_mode(device_t dev)
 
 	switch (type) {
 	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
 	case MII_CONTYPE_RGMII_RXID:
 	case MII_CONTYPE_RGMII_TXID:
 		sc->phy_mode = type;
@@ -791,10 +807,17 @@ gen_init_locked(struct gen_softc *sc)
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
-	if (sc->phy_mode == MII_CONTYPE_RGMII ||
-	    sc->phy_mode == MII_CONTYPE_RGMII_RXID)
-		WR4(sc, GENET_SYS_PORT_CTRL,
-		    GENET_SYS_PORT_MODE_EXT_GPHY);
+	switch (sc->phy_mode)
+	{
+	case MII_CONTYPE_RGMII:
+	case MII_CONTYPE_RGMII_ID:
+	case MII_CONTYPE_RGMII_RXID:
+	case MII_CONTYPE_RGMII_TXID:
+		WR4(sc, GENET_SYS_PORT_CTRL, GENET_SYS_PORT_MODE_EXT_GPHY);
+		break;
+	default:
+		WR4(sc, GENET_SYS_PORT_CTRL, 0);
+	}
 
 	gen_set_enaddr(sc);
 
@@ -1649,6 +1672,8 @@ gen_update_link_locked(struct gen_softc *sc)
 	val |= GENET_EXT_RGMII_OOB_RGMII_MODE_EN;
 	if (sc->phy_mode == MII_CONTYPE_RGMII)
 		val |= GENET_EXT_RGMII_OOB_ID_MODE_DISABLE;
+	else
+		val &= ~GENET_EXT_RGMII_OOB_ID_MODE_DISABLE;
 	WR4(sc, GENET_EXT_RGMII_OOB_CTRL, val);
 
 	val = RD4(sc, GENET_UMAC_CMD);

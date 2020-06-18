@@ -115,6 +115,7 @@ static void	brgphy_fixup_ber_bug(struct mii_softc *);
 static void	brgphy_fixup_crc_bug(struct mii_softc *);
 static void	brgphy_fixup_jitter_bug(struct mii_softc *);
 static void	brgphy_ethernet_wirespeed(struct mii_softc *);
+static void	brgphy_bcm54xx_clock_delay(struct mii_softc *);
 static void	brgphy_jumbo_settings(struct mii_softc *, u_long);
 
 static const struct mii_phydesc brgphys[] = {
@@ -158,6 +159,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM3, BCM5720C),
 	MII_PHY_DESC(BROADCOM3, BCM57765),
 	MII_PHY_DESC(BROADCOM3, BCM57780),
+	MII_PHY_DESC(BROADCOM4, BCM54213PE),
 	MII_PHY_DESC(BROADCOM4, BCM5725C),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5906),
 	MII_PHY_END
@@ -414,6 +416,12 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 				break;
 			}
 			break;
+		case MII_OUI_BROADCOM4:
+			switch (sc->mii_mpd_model) {
+			case MII_MODEL_BROADCOM4_BCM54213PE:
+				brgphy_bcm54xx_clock_delay(sc);
+				break;
+			}
 		}
 	}
 	mii_phy_update(sc, cmd);
@@ -861,6 +869,37 @@ brgphy_ethernet_wirespeed(struct mii_softc *sc)
 	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
 	val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
 	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
+}
+
+static void
+brgphy_bcm54xx_clock_delay(struct mii_softc *sc)
+{
+	uint16_t val;
+
+	if (!(sc->mii_flags & (MIIF_RX_DELAY | MIIF_TX_DELAY)))
+		/* Adjusting the clocks in rgmii mode causes packet losses. */
+		return;
+
+	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, BRGPHY_AUXCTL_SHADOW_MISC |
+	    BRGPHY_AUXCTL_SHADOW_MISC << BRGPHY_AUXCTL_MISC_READ_SHIFT);
+	val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+	val &= BRGPHY_AUXCTL_MISC_DATA_MASK;
+	if (sc->mii_flags & MIIF_RX_DELAY)
+		val |= BRGPHY_AUXCTL_MISC_RGMII_SKEW_EN;
+	else
+		val &= ~BRGPHY_AUXCTL_MISC_RGMII_SKEW_EN;
+	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, BRGPHY_AUXCTL_MISC_WRITE_EN |
+	    BRGPHY_AUXCTL_SHADOW_MISC | val);
+
+	PHY_WRITE(sc, BRGPHY_MII_SHADOW_1C, BRGPHY_SHADOW_1C_CLK_CTRL);
+	val = PHY_READ(sc, BRGPHY_MII_SHADOW_1C);
+	val &= BRGPHY_SHADOW_1C_DATA_MASK;
+	if (sc->mii_flags & MIIF_TX_DELAY)
+		val |= BRGPHY_SHADOW_1C_GTXCLK_EN;
+	else
+		val &= ~BRGPHY_SHADOW_1C_GTXCLK_EN;
+	PHY_WRITE(sc, BRGPHY_MII_SHADOW_1C, BRGPHY_SHADOW_1C_WRITE_EN |
+	    BRGPHY_SHADOW_1C_CLK_CTRL | val);
 }
 
 static void
