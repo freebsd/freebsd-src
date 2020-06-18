@@ -122,6 +122,12 @@ lines in length.
 Split file into
 .Ar chunk_count
 smaller files.
+The first n - 1 files will be of size (size of
+.Ar file
+/
+.Ar chunk_count
+)
+and the last file will contain the remaining bytes.
 .It Fl p Ar pattern
 The file is split whenever an input line matches
 .Ar pattern ,
@@ -164,6 +170,36 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Split input into as many files as needed, so that each file contains at most 2
+lines:
+.Bd -literal -offset indent
+$ echo -e "first line\\nsecond line\\nthird line\\nforth line" | split -l2
+.Ed
+.Pp
+Split input in chunks of 10 bytes using numeric prefixes for file names.
+This generates two files of 10 bytes (x00 and x01) and a third file (x02) with the
+remaining 2 bytes:
+.Bd -literal -offset indent
+$ echo -e "This is 22 bytes long" | split -d -b10
+.Ed
+.Pp
+Split input generating 6 files:
+.Bd -literal -offset indent
+echo -e "This is 22 bytes long" | split -n 6
+.Ed
+.Pp
+Split input creating a new file every time a line matches the regular expression
+for a
+.Dq t
+followed by either
+.Dq a
+or
+.Dq u
+thus creating two files:
+.Bd -literal -offset indent
+$ echo -e "stack\\nstock\\nstuck\\nanother line" | split -p 't[au]'
+.Ed
 .Sh SEE ALSO
 .Xr csplit 1 ,
 .Xr re_format 7
