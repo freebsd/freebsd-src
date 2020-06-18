@@ -1,5 +1,5 @@
-/* config.h.  Generated from conf.in by configure.  */
-/* conf.in.  Generated from configure.in by autoheader.  */
+/* src/config.h.  Generated from config.h.in by configure.  */
+/* src/config.h.in.  Generated from configure.ac by autoheader.  */
 /* $FreeBSD$ */
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
@@ -21,36 +21,65 @@
    */
 /* #undef HAVE_ALLOCA_H */
 
+/* Define to 1 if you have the `available.' function. */
+/* #undef HAVE_AVAILABLE_ */
+
+/* Define to 1 if you have the `by' function. */
+/* #undef HAVE_BY */
+
+/* Define to 1 if you have the MacOS X function CFLocaleCopyCurrent in the
+   CoreFoundation framework. */
+/* #undef HAVE_CFLOCALECOPYCURRENT */
+
+/* Define to 1 if you have the MacOS X function CFPreferencesCopyAppValue in
+   the CoreFoundation framework. */
+/* #undef HAVE_CFPREFERENCESCOPYAPPVALUE */
+
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
 /* #undef HAVE_DCGETTEXT */
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#define HAVE_DLFCN_H 1
+
+/* Define to 1 if you have the `dnl' function. */
+/* #undef HAVE_DNL */
+
 /* Define to 1 if you have the `dup2' function. */
 #define HAVE_DUP2 1
+
+/* Define to 1 if you have the `enabled' function. */
+/* #undef HAVE_ENABLED */
 
 /* Define to 1 if you have the `fork' function. */
 #define HAVE_FORK 1
 
+/* Define to 1 if you have the `function.' function. */
+/* #undef HAVE_FUNCTION_ */
+
 /* Define if the GNU gettext() function is already present or preinstalled. */
 /* #undef HAVE_GETTEXT */
 
-/* Define if you have the iconv() function. */
+/* Define to 1 if you have the `have' function. */
+/* #undef HAVE_HAVE */
+
+/* Define if you have the iconv() function and it works. */
 /* #undef HAVE_ICONV */
+
+/* Define to 1 if you have the `if' function. */
+/* #undef HAVE_IF */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
-/* Define to 1 if you have the `isascii' function. */
-#define HAVE_ISASCII 1
+/* Define to 1 if you have the `is' function. */
+/* #undef HAVE_IS */
 
 /* Define to 1 if you have the <libintl.h> header file. */
 /* #undef HAVE_LIBINTL_H */
 
 /* Define to 1 if you have the `m' library (-lm). */
 #define HAVE_LIBM 1
-
-/* pthread library */
-#define HAVE_LIBPTHREAD 1
 
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
@@ -63,7 +92,7 @@
 #define HAVE_MALLOC 1
 
 /* Define to 1 if you have the <malloc.h> header file. */
-/* #undef HAVE_MALLOC_H */
+#define HAVE_MALLOC_H 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
@@ -71,8 +100,23 @@
 /* Define to 1 if you have the `memset' function. */
 #define HAVE_MEMSET 1
 
+/* Define to 1 if you have the `Needed' function. */
+/* #undef HAVE_NEEDED */
+
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #define HAVE_NETINET_IN_H 1
+
+/* Define to 1 if you have the `NLS' function. */
+/* #undef HAVE_NLS */
+
+/* Define to 1 if you have the `not' function. */
+/* #undef HAVE_NOT */
+
+/* Define to 1 if you have the `only' function. */
+/* #undef HAVE_ONLY */
+
+/* Define to 1 if you have the `OpenBSD' function. */
+/* #undef HAVE_OPENBSD */
 
 /* Define to 1 if you have the `pow' function. */
 #define HAVE_POW 1
@@ -84,11 +128,17 @@
    and to 0 otherwise. */
 #define HAVE_REALLOC 1
 
+/* Define to 1 if you have the `reallocarray' function. */
+#define HAVE_REALLOCARRAY 1
+
 /* Define to 1 if you have the `regcomp' function. */
 #define HAVE_REGCOMP 1
 
 /* Define to 1 if you have the <regex.h> header file. */
 #define HAVE_REGEX_H 1
+
+/* Define to 1 if you have the `replacement' function. */
+/* #undef HAVE_REPLACEMENT */
 
 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SETLOCALE 1
@@ -96,17 +146,20 @@
 /* Define to 1 if stdbool.h conforms to C99. */
 #define HAVE_STDBOOL_H 1
 
-/* Define to 1 if you have the <stddef.h> header file. */
-#define HAVE_STDDEF_H 1
-
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
+/* Define to 1 if you have the `strcasecmp' function. */
+#define HAVE_STRCASECMP 1
+
 /* Define to 1 if you have the `strchr' function. */
 #define HAVE_STRCHR 1
+
+/* Define to 1 if you have the `strdup' function. */
+#define HAVE_STRDUP 1
 
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
@@ -123,17 +176,23 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
-/* Define to 1 if you have <sys/wait.h> that is POSIX.1 compatible. */
+/* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
+
+/* Define to 1 if you have the `Used' function. */
+/* #undef HAVE_USED */
 
 /* Define to 1 if you have the `vfork' function. */
 #define HAVE_VFORK 1
 
 /* Define to 1 if you have the <vfork.h> header file. */
 /* #undef HAVE_VFORK_H */
+
+/* Define to 1 if you have the `We' function. */
+/* #undef HAVE_WE */
 
 /* Define to 1 if `fork' works. */
 #define HAVE_WORKING_FORK 1
@@ -144,11 +203,11 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #define HAVE__BOOL 1
 
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
+#define LT_OBJDIR ".libs/"
+
 /* Define to the m4 executable name. */
 #define M4 "m4"
-
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
 
 /* Name of package */
 #define PACKAGE "flex"
@@ -160,7 +219,7 @@
 #define PACKAGE_NAME "the fast lexical analyser generator"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "the fast lexical analyser generator 2.5.37"
+#define PACKAGE_STRING "the fast lexical analyser generator 2.6.4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "flex"
@@ -169,7 +228,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.5.37"
+#define PACKAGE_VERSION "2.6.4"
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -183,7 +242,7 @@
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "2.5.37"
+#define VERSION "2.6.4"
 
 /* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
    `char[]'. */
