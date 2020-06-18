@@ -1,3 +1,2775 @@
+2017-05-06  Will Estes <westes575@gmail.com>
+
+	* po/ca.po, po/da.po, po/de.po, po/eo.po, po/es.po, po/fi.po,
+	po/fr.po, po/ga.po, po/hr.po, po/ko.po, po/nl.po, po/pl.po,
+	po/pt_BR.po, po/ro.po, po/ru.po, po/sr.po, po/sv.po, po/tr.po,
+	po/vi.po, po/zh_CN.po, po/zh_TW.po: gettext: pulled latest
+	translations; recompiled against current sources
+
+2017-05-06  Will Estes <westes575@gmail.com>
+
+	* NEWS: version 2.6.4 * NEWS: Record release date.
+
+2017-05-06  Will Estes <westes575@gmail.com>
+
+	* .prev-version: note previous version
+
+2017-05-06  Will Estes <westes575@gmail.com>
+
+	* NEWS: doc: update NEWS for upcoming release
+
+2017-05-04  viktor.shepel <shepelvictor@bigmir.net>
+
+	* doc/flex.texi: doc: Correct typo in C code sample in manual
+
+2017-05-04  Explorer09 <explorer09@gmail.com>
+
+	* src/flex.skl: scanner: Mention %# comments are removed when
+	building skel.c
+
+2017-05-02  Demi Obenour <demiobenour@gmail.com>
+
+	* src/flex.skl: Honor user definitions of yy_* macros The user may have defined the yy_* macros themselves.  In that case,
+	don't clobber them.
+
+2017-05-02  Demi Obenour <demiobenour@gmail.com>
+
+	* src/flex.skl, src/main.c: Don't leak macro definitions into header
+	files This allowed unnamespaced definitions to leak into header files,
+	breaking client code.  Fixes #142
+
+2017-05-03  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l: scanner: Check for 0 bracecount when EOL ends quoted
+	literal.  This can happen in the case of // comments (which Flex doesn't
+	handle specially).
+
+2017-05-03  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l: scanner: when bracelevel is negative, treat as zero.  This really should never happen, but this at least fixes the
+	breakage on Verilator.
+
+2017-04-02  Jeff Smith <whydoubt@gmail.com>
+
+	* tests/Makefile.am, tests/tableopts.am, tests/tableopts.sh: test:
+	enable more silent building of tests.  When running 'make V=0 check', some compile and link steps are made
+	less verbose and some are not.  This cleans up most steps that are
+	not.  These have no effect if V=0 is not specified.
+
+2017-05-03  Demi Obenour <demiobenour@gmail.com>
+
+	* src/Makefile.am, src/misc.c, src/mkskel.sh: build: Delete comments
+	from skeleton file.  Since the comments in flex.skl are, by hypothesis, not needed in
+	skel.c, we remove them. THis reduces the size of the resulting
+	executable somewhat.
+
+2017-05-03  Explorer09 <explorer09@gmail.com>
+
+	* Makefile.am, configure.ac, lib/Makefile.am: build: do not generate
+	lib/Makefile.in.  Files in lib/ are picked up and built using makefile directives in
+	src/Makefile.am. Remove the need to generate lib/Makefile.in and the
+	stub lib/Makefile.am.
+
+2017-05-02  Will Estes <westes575@gmail.com>
+
+	* po/POTFILES.in: gettext: revert listing generated .c files
+
+2017-04-10  Jeff Smith <whydoubt@gmail.com>
+
+	* src/filter.c: FLEX_EXIT() is the preferred way to exit flex
+
+2017-04-11  Explorer09 <explorer09@gmail.com>
+
+	* src/misc.c: Fix myesc() 'sptr' conditionals * Don't call isascii() here. It's deprecated in POSIX and not needed   for myesc's case.  * The check of the character class and range here should match
+	  what's defined as {ESCSEQ} in scan.l, so for [[:xdigit:]] we use
+	  isxdigit(); for [0-7] we check '0' <= c <= '7' (not isdigit(c)
+	  because isdigit is locale-dependant in standard's sense) * Add missing length limit for "\x<hex>" (<hex> is at most 2 digits)
+
+2017-04-11  Explorer09 <explorer09@gmail.com>
+
+	* src/flexdef.h, src/misc.c: Obsolete htoui() and otoui(); use
+	strtoul().  No sense to keep these two function when libc's strtoul() can do the
+	same job, but better.
+
+2017-04-12  Todd C. Miller <Todd.Miller@courtesan.com>
+
+	* src/flex.skl: scanner: update yy_buf_size after yyrealloc()
+
+2017-05-02  Simon Sobisch <simonsobisch@web.de>
+
+	* configure.ac: build: use lowest versions for gettext, automake.
+
+2017-05-02  Simon Sobisch <simonsobisch@web.de>
+
+	* po/Makevars, po/Rules-getpo, po/update_linguas.sh: gettext: more
+	recent makevars; new script to update po files.  Previously, "make dist" and similar commands would cause the po
+	files to be updated, which is incorrect. The more recent version now
+	used should not do this.  Replaced Rules-getpo by extra script to manually update and rebuild
+	all po files.
+
+2017-05-02  Simon Sobisch <simonsobisch@web.de>
+
+	* po/POTFILES.in: gettext: list generated files instead of flex,
+	bison sources in POTFILES.in.  Listing the flex and bison sources -- as the gettext manual suggests
+	-- causes warnings. Listing the generated C files for the lexer and
+	parser removes the warnings. Since both files contain line
+	directives, any translator who needs to refer back to those files
+	should be able to find the context in which strings are needed.
+
+2017-05-02  Simon Sobisch <simonsobisch@web.de>
+
+	* autogen.sh: build: only touch ChangeLog if it does not exist
+
+2017-05-02  Simon Sobisch <simonsobisch@web.de>
+
+	* configure.ac, doc/Makefile.am: build: list earliest useable
+	versions for automake
+
+2017-05-02  Simon Sobisch <simonsobisch@web.de>
+
+	* autogen.sh: build: check for how to call libtoolize.  Previously, we would call libtoolize and if that failed, we would
+	call glibtoolize since some platforms have the libtoolize program
+	under that name.  Instead, we check to see if the environment variable LIBTOOLIZE is
+	set and use that if so. Otherwise, we try to find a program
+	"libtoolize" on the path and failing that glibtoolize. We alert the
+	user if no suitable program can be found.
+
+2017-01-06  Alastair Hughes <hobbitalastair@gmail.com>
+
+	* configure.ac, m4/ax_prog_cc_for_build.m4, src/Makefile.am: build:
+	support cross compiling.  Check for cross compiling. If cross compiling, build stage1flex
+	using a custom link command.  We also override LDADD since that adds
+	the replacement implementations that are cross compiled, and instead
+	always use the replacement library implementations.  We don't use BUILD_OBJEXT and BUILD_EXEEXT since it seems that
+	automake does not support these.  Fixes #78.
+
+2017-02-17  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, src/flexdef.h: build: Include <strings.h>; add
+	strcasecmp() check to configure.  strings.h (not string.h) is the standard-defined include header for
+	strcasecmp(). Include <strings.h> for portability (even though glibc
+	exposes strcasecmp() declaration also in <string.h> by default).
+
+2017-02-17  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, src/flexdef.h: build: Let configure error if missing
+	required functions, headers..  `configure` will now error if a required header or function is not
+	found on the system.  Also add comments on optional functions checks.  Add sys/stats.h and sys/wait.h to list of required headers in
+	configure.  This fixes issue #180.
+
+2017-02-12  Explorer09 <explorer09@gmail.com>
+
+	* src/dfa.c, src/flexdef.h: scanner: compute powers of two faster.  Replace the naive "for" loop in determining power of two with a
+	clever bitwise solution. This code is around the Internet already
+	and is in Public Domain.
+
+2017-02-07  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, tests/Makefile.am, tests/pthread.l: test: skip
+	pthread test when needed files missing.  "Unlisting" the pthread test when libpthread is not available is
+	never a good idea. Should let it compile into a stub program that
+	returns the "skip" status.  configure.ac and tests/Makefile.am are edited so that pthread test
+	can be built anyway, but only works (not as the stub) when both
+	pthread.h and libpthread are detected on the system.  Also fix a small typo in tests/pthread.l comments.
+
+2017-02-16  Will Estes <westes575@gmail.com>
+
+	* src/Makefile.am: build: mv scan.c when building dist.  Revert change to copy scan.c when building the distribution archive.
+	Move it instead. This satisfies automake's notions of what should be
+	clean and ensures that the distribution archive contains a
+	just-built copy of scan.c.  Fixes #186
+
+2017-02-06  Will Estes <westes575@gmail.com>
+
+	* src/Makefile.am: build: don't assume distdir/scan.c is writeable
+
+2017-01-02  Explorer09 <explorer09@gmail.com>
+
+	* src/Makefile.am: build: Add dist-hook to force remake scan.c.  This will ensure the flex scanner included in release tarball being
+	generated by exactly the flex version to be released.  Here's one catch after this change: You may not run "make dist" or
+	"make distdir" if you configure the flex source to be
+	cross-compiled.
+
+2017-01-02  Explorer09 <explorer09@gmail.com>
+
+	* src/Makefile.am: build: respect '--localedir' from configure.  Makefile shouldn't overwrite the 'localedir' variable, because
+	that's what '--localedir' option in 'configure' is for.
+
+2017-01-02  Explorer09 <explorer09@gmail.com>
+
+	* src/Makefile.am: build: Remove "-I$(top_srcdir)/intl" from
+	CPPFLAGS.  Revert commit e02c3d27eeb6b53ec82532ab080c23ce26813fd4 ("include the intl/ subdirectory when searching for include files") Flex doesn't come with libintl source code, so inclusion of
+	$(top_srcdir)/intl subdirectory during compiling is unnecessary.  This flag seems to be left after "remove intl from dist" (commit
+	8f45da06adbd7dbcdfdbdd5c20ff4c47fc504f35) without someone cleaning
+	this up.  Users who need to build with gettext functionality from libintl
+	would use the '--with-libintl-prefix' configure option.
+
+2017-02-03  Explorer09 <explorer09@gmail.com>
+
+	* src/regex.c: scanner: fix regcomp's error reporting, double
+	malloc.  Fix unneeded double malloc - let regerror(). Write its message after
+	our "regcomp for (regex) failed: " string.  Also, errbuf cannot be free()'d because of flexfatal containing a
+	longjmp.
+
+2017-01-03  Explorer09 <explorer09@gmail.com>
+
+	* tests/Makefile.am, tests/no_bison_stub.c: test: Skip bison tests
+	if bison is not available
+
+2017-01-03  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac: build: remove repeated bison detection from
+	configure.  AC_PROG_YACC already detects the bison program. We can just use it,
+	and make notice if [ $YACC != 'bison -y' ] Remove unused AC_SUBST([BISON], ...).  Add AM_CONDITIONAL([HAVE_BISON], ...) so that we can skip bison
+	tests in testsuite when bison is absent.  We don't make any attempt to detect other yacc implementations since
+	flex is developed with bison. While it would be possible, the need
+	isn't there right now. It would be possible to add a --with-parser
+	option that defaulted to bison if such a need cropped up.
+
+2017-01-01  Explorer09 <explorer09@gmail.com>
+
+	* src/Makefile.am: build: fix Makefile parse.h dependency clauses.  The current clauses stating "main.c: parse.h" and "yylex.c: parse.h"
+	do not work as expected. Make did not try to build parse.h upon
+	building flex-main.o as it would think main.c exist already and
+	ignore the clause. Fix this by explicitly stating that the .o files
+	depend on parse.h instead.  This dependency bug only happens if user builds flex from a
+	checked-out repository.
+
+2017-01-03  Explorer09 <explorer09@gmail.com>
+
+	* tests/Makefile.am: test: Remake *_scanner.c if *_scanner.h is
+	missing.  If a ${foo}_scanner.c exists but the respective ${foo}_scanner.h is
+	missing, then 'make' can halt. Fix this by deleting the
+	${foo}_scanner.c file and then remake it. This rule is the same as
+	the automake-generated rule for .c files that require LEX or YACC
+	(except automake will use ylwrap).
+
+2016-12-31  Explorer09 <explorer09@gmail.com>
+
+	* tests/Makefile.am: test: remove BUILT_SOURCES; add missing
+	dependencies.  Without BUILT_SOURCES in Makefile, no test sources in tests/ will be
+	built when using the default "make all" target. This is desireable
+	for people who are just building flex but who do not want to run,
+	and therefore, build any part of the test suite.  Also fix missing sources dependencies:     bison_nr_scanner.$(OBJEXT): bison_nr_parser.h     bison_yylloc_scanner.$(OBJEXT): bison_yylloc_parser.h     bison_yylval_scanner.$(OBJEXT): bison_yylval_parser.h
+
+2017-01-19  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, lib/reallocarray.c, src/flexint.h, src/misc.c: 
+	build: detect overflow for [re]allocate_array.  Use reallocarray() when we have it (i.e. in OpenBSD system). When we
+	don't, use equivalent overflow detection for our allocate_array and
+	reallocate_array functions.  Remove lib/reallocarray.c from our LIBOBJS as we no longer need it.  Provide a fallback SIZE_MAX macro definition in flexint.h (not
+	preprocessor friendly, but enough for our reallocate_array use
+	case).
+
+2017-01-23  Will Estes <westes575@gmail.com>
+
+	* NEWS, configure.ac: doc: v2.6.4
+
+2017-01-23  Thomas Klausner <wiz@NetBSD.org>
+
+	* src/Makefile.am: build: more BSD make and vpath build fixes.  BSD make doesn't like $< with more than one source specified.
+	Additionally, make sure to specify srcdir when referring to source
+	files since vpath builds depend on this.
+
+2017-01-22  Thomas Klausner <wiz@NetBSD.org>
+
+	* src/Makefile.am: build: Fix skel.c generation with BSD make
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/flex.skl: Add more defines in the non-reentrant part.  Fix the reentrant part; don't "#define yyfoo yyfoo" because it
+	breaks code that does #ifndef yywrap ..
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/flexdef.h: scanner: Add yyparse prototype
+
+2017-01-22  Thomas Klausner <wiz@NetBSD.org>
+
+	* src/flex.skl: scanner: move comment for consistency
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/misc.c: scanner: Use array instead of pointer
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/main.c: scanner: manage path to m4 better.  Avoid alloca() for SSP; it is better anyway; since we don't need to
+	strdup the path.
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/gen.c: scanner: Avoid creating unused label
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/buf.c: Cast argument to avoid arithmetic on void *.
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/scan.l: scanner: Use strncpy
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/main.c: scanner: Use prefix when defining yywrap to avoid
+	redefinition.  Fixes regression introduced in v2.6.3.
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/flexdef.h, src/misc.c: scanner: Include stdarg.h for va_list
+
+2017-01-22  Christos Zoulas <christos@zoulas.com>
+
+	* src/flexdef.h, src/main.c, src/parse.y: scanner: Rename warn to
+	lwarn.  This avoids a naming conflict in NetBSD's  libc.
+
+2017-01-01  Explorer09 <explorer09@gmail.com>
+
+	* tests/README: test: document automake convention for skipped exit
+	status.
+
+2017-01-03  Explorer09 <explorer09@gmail.com>
+
+	* tests/Makefile.am: test: let testwrapper scripts be run by
+	${SHELL}.  This allows user to use a different shell if /bin/sh has problems.
+	The use of $SHELL (variable) to run scripts is already an Automake
+	convention. All shell scripts in build-aux are run by $SHELL.
+
+2017-01-02  Explorer09 <explorer09@gmail.com>
+
+	* tests/options.cn, tests/tableopts.sh,
+	tests/testwrapper-direct.sh, tests/testwrapper.sh: test: Remove test
+	scripts bashisms.  They now all work under a POSIX compliant sh. Specifically, 'dash'
+	can now be used for running "make check" tests.  Note that none of these scripts has ever been using a pipe, so `set
+	-o pipefail` is unnecessary and removed.
+
+2017-01-02  Explorer09 <explorer09@gmail.com>
+
+	* tests/testwrapper.sh: test: exit on '-1' test non-zero status.  If a '-1' test program returns a non-zero status, don't go further
+	and compare it's (numeric) output values. This allows a '-1' test to
+	indicate a "skip" status or an otherwise error. (Currently no such
+	'-1' test would skip like this, though.) Shell syntax note: `set -e` will not exit with the syntax like this
+	`test $(false) = $(false);`. The exit statuses of `false` in the
+	example will be ignored instead. But putting the output in a
+	variable, such as `VAR=$(false)`, DOES exit.
+
+2017-01-02  Explorer09 <explorer09@gmail.com>
+
+	* Makefile.am, src/Makefile.am: build: Fix 'make indent' target This 'make indent' target has not been working since the directories
+	reorganization in flex 2.6.0. Now make it work again.  Note that the current indent profile breaks many styles of existing
+	code. The indent target should not be used until the .indent.pro
+	options are reviewed for desireability.
+
+2017-01-01  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac: build: Simplify indent program detection
+
+2017-01-12  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/filter.c: filter: Don't emit #line if %option noline set One place emitting a #line directive to the generated header was
+	missed in commit 647a92b9f4 when resolving #55. Fix it to respect
+	gen_line_dirs as well.
+
+2017-01-12  Will Estes <westes575@gmail.com>
+
+	* po/ca.po, po/da.po, po/de.po, po/eo.po, po/es.po, po/fi.po,
+	po/fr.po, po/ga.po, po/hr.po, po/ko.po, po/nl.po, po/pl.po,
+	po/pt_BR.po, po/ro.po, po/ru.po, po/sr.po, po/sv.po, po/tr.po,
+	po/vi.po, po/zh_CN.po, po/zh_TW.po: translation: refresh po files
+	from translation project
+
+2017-01-10  Harald van Dijk <harald@gigawatt.nl>
+
+	* src/flex.skl: c++: Fix yyrestart(NULL) SEGV.  Binding a reference to a dereferenced null pointer is invalid and
+	compilers optimise away the &file == 0 check. We need a real stream.  yyin is available already, and yyrestart(NULL) is only supported
+	when yyin will not be used, so there is no harm in just passing in
+	that.  Since we now always have a valid stream, we can skip the null
+	check too.  Fixes #98.
+
+2017-01-09  luistung <dongliang1986@gmail.com>
+
+	* src/scan.l: scanner: join symbol list.  Removed a newline that caused a problem building the scanner in some
+	circumstances. Specifically: 'bad character' error  when executing /bin/sh ../build-aux/ylwrap scan.l lex.yy.c scan.c -- flex
+
+2017-01-11  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: scanner: remove void cast before fprintf
+
+2016-12-30  Will Estes <westes575@gmail.com>
+
+	* NEWS: doc: update NEWS for 2.6.3 release
+
+2016-11-26  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, src/Makefile.am: build: New configure option
+	'--disable-bootstrap'.  If configure is run with '--disable-bootstrap', then stage1flex
+	won't be built and stage1scan.c will be generated by sed'ing scan.c.  This option is intended to workaround bootstrap bugs rather than to
+	fix the bootstrapping issues which are proving subtler and harder to
+	fix than anyone would like.
+
+2016-11-26  Explorer09 <explorer09@gmail.com>
+
+	* src/Makefile.am: build: "make clean" deletes stage1scan.c,
+	stage1flex
+
+2016-11-26  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, src/Makefile.am: build: allow building libfl even
+	with --disable-libfl.  For various reasons, we may wish to build libfl explicitly even when
+	configure has been run with the --disable-libfl option. This is
+	possible, now, via 'make -C src libfl.la'.
+
+2016-12-19  Alexis La Goutte <alexis.lagoutte@gmail.com>
+
+	* src/flex.skl: scanner: remove trailing whitespace in skeleton
+
+2016-12-01  Demi Obenour <demiobenour@gmail.com>
+
+	* src/buf.c, src/main.c, src/parse.y: scanner: Disallow, overquote
+	'[' and ']' in prefix
+
+2016-12-29  Samuel Thibault <samuel.thibault@ens-lyon.org>
+
+	* src/main.c: scanner: allocate correct buffer size for m4 path.  Flex did not check the length of the m4 path which could lead to a
+	buffer overflow in some cases. Additionally, not all platforms
+	believe in PATH_MAX, so stop relying on it.  Fixes #138
+
+2016-11-24  Will Estes <westes575@gmail.com>
+
+	* NEWS: doc: note no more libcompat in NEWS
+
+2016-11-24  Will Estes <westes575@gmail.com>
+
+	* lib/Makefile.am: build: explain empty lib/Makefile.am
+
+2016-11-20  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac: build: warn about cross compiling with *alloc
+
+2016-11-19  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, lib/Makefile.am, lib/lib.c, src/Makefile.am: build:
+	Link $(LIBOBJS) from src/ dir, remove libcompat.la.  The libcompat.la library was small and less friendly to
+	bootstrapping and cross compilation. Now, we will simply link
+	individual object files as needed, which is simpler.
+
+2016-11-16  Explorer09 <explorer09@gmail.com>
+
+	* src/Makefile.am: build: Let stage1flex respect LFLAGS
+
+2016-11-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: doc: describe --disable-libfl in NEWS
+
+2016-10-31  Explorer09 <explorer09@gmail.com>
+
+	* configure.ac, src/Makefile.am: build: Add --disable-libfl
+	configure option.  Disabling libfl is useful when building flex for a cross-toolchain.  Fixes: GH-99
+
+2016-11-09  Demi Obenour <demiobenour@gmail.com>
+
+	* src/flex.skl, tests/array_r.l: fix backwards incompatible changes
+	in 2.6.2.  This patch addscompatibility `#defines` for all macros affected by
+	`%prefix`.  Fixes #113.
+
+2016-11-08  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore: git: ignore quote_in_comment artifacts
+
+2016-11-08  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l, tests/Makefile.am, tests/quote_in_comment.l,
+	tests/quote_in_comment.txt: Fixes a major bug in Flex's own lexing
+	of literals.  My changes caused Flex to mishandle string and character literals in
+	line comments.  This commit fixes them.  Fixes #113.
+
+2016-11-06  Thomas Klausner <wiz@NetBSD.org>
+
+	* configure.ac: Fix unportable test(1) operator.  "==" is only supported by bash, "=" is the standard comparison
+	operator.
+
+2016-11-02  Demi Obenour <demiobenour@gmail.com>
+
+	* tests/quotes.l: Add more escaping tests
+
+2016-11-01  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l: Fix another escaping bug in non-indented verbatim section 2 code.  I also did some reformatting.
+
+2016-10-28  Alastair Hughes <hobbitalastair@gmail.com>
+
+	* configure.ac: build: fix false negatives for help2man and texi2dvi HELP2MAN and TEXI2DVI (or the corresponding ac_prog variables) will
+	never be zero length as they fall back to the missing script; check
+	for the fall back and warn on that instead of always warning.
+
+2016-10-28  Explorer09 <explorer09@gmail.com>
+
+	* doc/Makefile.am: doc: Don't delete flex.1 during "make distclean".  flex.1 is pre-generated in release tarball. If we delete it, the
+	next "configure and make" on the source directory will then require
+	help2man unnecessarily.
+
+2016-10-27  Alastair Hughes <hobbitalastair@gmail.com>
+
+	* NEWS, doc/Makefile.am: Only regenerate the man page when required.  Make the flex binary an order-only prerequisite, and add back the
+	prerequisites from before 7cfb440. This prevents rebuilding the man
+	page whenever the flex binary is rebuilt, which causes problems if
+	help2man is not installed and will never work when cross compiling.  Fixes #108.
+
+2016-10-26  Will Estes <westes575@gmail.com>
+
+	* NEWS, src/Makefile.am: build: no longer build PIC version of
+	libfl.  The PIC version of libfl was not being built correctly. From the
+	lack of bug reports around this problem, we conclude that the PIC
+	version of libfl is not used and so we drop it from the build build
+	targets for flex.
+
+2016-10-25  Explorer09 <explorer09@gmail.com>
+
+	* README.md: doc: README.md formatting fixes * Wrap everything in the raw document in 72 char per line limit.  * Proper casing for terms "Git" and "GitHub" (don't try to look
+	lazy).  * Add unordered list marks when needed.  * Say `configure && make && make install` and quoted for fixed-width   font.  Signed-off-by: Kang-Che Sung <explorer09@gmail.com>
+
+2016-10-25  Will Estes <westes575@gmail.com>
+
+	* NEWS, configure.ac: build: version 2.6.3 begins
+
+2016-10-24  Will Estes <westes575@gmail.com>
+
+	* NEWS: doc: mark 2.6.2 release date
+
+2016-10-24  Will Estes <westes575@gmail.com>
+
+	* .gitignore, NEWS, configure.ac: build: switch xz to lzip
+
+2016-10-20  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l, tests/quotes.l: Fix M4 quotation in section 2 prologue
+	and refactor duplicated code
+
+2016-10-21  Alex Kennedy <alexzanderkennedy@gmail.com>
+
+	* doc/flex.texi: Update flex.texi: Removed repedative wording "Flex used to" was written twice at the beginning of Chapter 9,
+	paragraph 2.
+
+2016-09-27  Demi Obenour <demiobenour@gmail.com>
+
+	* src/dfa.c, src/gen.c, src/main.c, src/nfa.c, src/parse.y,
+	src/scan.l, tests/bison_yylval_scanner.l,
+	tests/include_by_push.direct.l: Improved M4 quotation This fixes M4 quotation of certain strings beginning with `yy` (in
+	section 3 of the input file only) and character literals.  The new
+	quotation method is also less brittle and faster.  Tests that relied on the old behavior were fixed.  Also, `yyconst` is no longer defined; use `const` (which it
+	unconditionally was defined to) instead.
+
+2016-10-19  Will Estes <westes575@gmail.com>
+
+	* Makefile.am, configure.ac: build: for automake, flex is foreign
+
+2016-10-19  Will Estes <westes575@gmail.com>
+
+	* README, README.md: doc: mv README to README.md
+
+2016-10-19  Will Estes <westes575@gmail.com>
+
+	* README: doc: touch up README
+
+2016-10-19  Will Estes <westes575@gmail.com>
+
+	* README: doc: README no longer mentions sourceforge
+
+2016-10-06  Will Estes <westes575@gmail.com>
+
+	* NEWS: doc: update NEWS with more post-2.6.1 additions
+
+2016-09-27  Demi Obenour <demiobenour@gmail.com>
+
+	* src/filter.c, src/flexdef.h, src/main.c, src/misc.c,
+	src/options.c, src/options.h, src/scan.l, src/yylex.c,
+	tests/Makefile.am, tests/alloc_extra.l, tests/array_r.l,
+	tests/basic_r.l, tests/c_cxx_nr.lll, tests/c_cxx_r.lll,
+	tests/debug_r.l, tests/include_by_reentrant.direct.l,
+	tests/lineno_r.l, tests/mem_nr.l, tests/mem_r.l, tests/posix.l,
+	tests/posixly_correct.l, tests/pthread.l, tests/quotes.l,
+	tests/reject.l4, tests/rescan_nr.direct.l, tests/rescan_r.direct.l,
+	tests/string_nr.l, tests/string_r.l: Fix M4 quoting of section 3.  This fixes M4 quoting of section 3 of the input file, including
+	escape sequences and character constants.  Tests were added to verify the behavior in section 3 with respect to
+	quoting. Both escaping of quotes and quoting of potential
+	macro-start characters are tested. Existing tests were also fixed to
+	account for the new -- and now correct -- behavior. Many tests
+	relied on the old behavior of expanding M4 macros in section 3.
+	They needed to be updated for the new behavior.
+
+2016-10-03  Mightyjo <mightyjo@gmail.com>
+
+	* src/flex.skl, tests/.gitignore, tests/Makefile.am,
+	tests/cxx_restart.ll, tests/cxx_restart.txt: Fix yyrestart(NULL)
+	SEGV.
+
+2016-09-05  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l: scanner: M4 quoting fixes
+
+2016-09-05  Demi Obenour <demiobenour@gmail.com>
+
+	* src/Makefile.am: Support `make indent` for out of source builds
+
+2016-09-24  Demi Obenour <demiobenour@gmail.com>
+
+	* src/Makefile.am, src/mkskel.sh: Simplify some shell code
+
+2016-09-23  Demi Obenour <demiobenour@gmail.com>
+
+	* doc/flex.texi, src/flex.skl, src/flexdef.h, src/main.c,
+	src/options.c, src/options.h, src/scan.l, tests/.gitignore,
+	tests/Makefile.am, tests/noansi_nr.l, tests/noansi_nr.txt,
+	tests/noansi_r.l, tests/noansi_r.txt: no longer generate K&R C
+	scanners
+
+2016-09-04  Demi Obenour <demiobenour@gmail.com>
+
+	* src/scan.l: Fix escaping of `[[` and `]]` in strings Previously, `[[` and `]]` were not escaped in strings, which led to
+	bad interactions with m4.  Also, don't break strings on newline, as GCC et al support
+	whitespace between a backslash and the subsequent newline.
+
+2016-06-20  Translation Project <coordinator@translationproject.org>
+
+	* NEWS, po/sv.po: new sv translation
+
+2016-05-23  Demetri Obenour <demiobenour@gmail.com>
+
+	* src/misc.c: Delete action_m4_define from misc.c This function was not used and always triggered a fatal error when
+	run.
+
+2016-05-20  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am, tests/testwrapper-direct.sh: test: run direct
+	tests from srcdir
+
+2016-01-11  Egor Pugin <egor.pugin@gmail.com>
+
+	* tests/include_by_buffer.direct.l, tests/include_by_push.direct.l,
+	tests/include_by_reentrant.direct.l: Exited with error code on some
+	conditions in include tests
+
+2016-05-20  Will Estes <westes575@gmail.com>
+
+	* tests/testwrapper.sh: test: drop .exe when making input file names
+
+2016-05-20  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: test: removed dependencies for include tests
+
+2016-04-28  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/scanflags.c: Avoid realloc on every call of sf_push() Currently, every call to sf_push() realloc()'s _sf_stack, even if
+	the maximum size _sf_max wasn't changed. As the indentation beneath
+	the "if" clause already indicates, the realloc() should only be
+	executed if _sf_max was increased.  Found by compiling flex with the -Wmisleading-indentation flags of
+	gcc, which leads to the following warning: scanflags.c: In function ‘sf_push’: scanflags.c:42:5: warning:
+	     this ‘if’ clause does not guard... [-Wmisleading-indentation] if
+	     (_sf_top_ix + 1 >= _sf_max) ^~ scanflags.c:44:9: note: ...this
+	         statement, but the latter is misleadingly indented as if it is
+	         guarded by the ‘if’ _sf_stk = realloc(_sf_stk,
+	         sizeof(scanflags_t) * _sf_max); ^~~~~~~
+
+2016-03-31  Will Estes <westes575@gmail.com>
+
+	* doc/Makefile.am: build: prettified command to build man page
+
+2016-03-31  Will Estes <westes575@gmail.com>
+
+	* doc/Makefile.am: build: added man page to DISTCLEANFILES
+
+2016-03-31  Will Estes <westes575@gmail.com>
+
+	* BUGS, TODO: remove unused TODO, BUGS files
+
+2016-03-31  Will Estes <westes575@gmail.com>
+
+	* to.do/README, to.do/Wilhelms.todo, to.do/Wish-List,
+	to.do/flex.rmail, to.do/streams.mail, to.do/unicode/FlexLexer.h,
+	to.do/unicode/ccl.c, to.do/unicode/changes.txt,
+	to.do/unicode/ecs.c, to.do/unicode/flex.1, to.do/unicode/flex.skl,
+	to.do/unicode/flexdef.h, to.do/unicode/gen.c, to.do/unicode/main.c,
+	to.do/unicode/misc.c, to.do/unicode/scan.l, to.do/unicode/tblcmp.c: 
+	removed to.do/ directory
+
+2016-03-31  Will Estes <westes575@gmail.com>
+
+	* po/POTFILES.in: gettext: removed flex.skl from POTFILES.in file
+	list
+
+2016-03-31  rlar <rlar>
+
+	* src/Makefile.am: fix skel.c dependency (missing tables_shared.c)
+	 and polish build rule Also remove references to srcdir since skel.c is no longer mentioned
+	in po/POTFILES.in.
+
+2016-03-31  rlar <rlar>
+
+	* doc/Makefile.am: fix flex.1 dependency git clean -fdx && ./autogen.sh && \   mkdir -p ../build && cd ../build && ../flex/configure && make -j10
+	  && \ make dist failed with: >  help2man: can't get `--help' info from ../../flex/src/flex Note:   There is no dependency except for the flex binary.
+
+2016-03-31  rlar <rlar>
+
+	* src/Makefile.am: fix stage1scan.c and stage1scan.l dependency git clean -fdx && ./autogen.sh && \   mkdir -p ../build && cd ../build && ../flex/configure && make -j10 failed with: > ../src/stage1flex -o stage1scan.c stage1scan.l > stage1flex: can't
+	open stage1scan.l Note:   stage1scan.c is not necessairy in the "make dist" generated tar.gz
+	  file.  stage1flex will be build from scan.c (which is
+	    distributed), and this will then generate stage1scan.c from scan.l
+
+2016-03-31  Will Estes <westes575@gmail.com>
+
+	* po/POTFILES.in: gettext: list src/flex.skl in po/POTFILES.in
+
+2016-03-29  rlar <rlar>
+
+	* src/gen.c: warning in generated code, with -Ca warning: conversion to 'yy_state_type' from 'flex_uint32_t' may
+	change the sign of the result [-Wsign-conversion]
+
+2016-03-29  rlar <rlar>
+
+	* tests/Makefile.am: suppress `WARNINGFLAGS' for the almost obsolete
+	`noansi' test cases
+
+2016-03-29  rlar <rlar>
+
+	* configure.ac, src/Makefile.am, tests/Makefile.am: configure option
+	`--enable-warnings' and `WARNINGFLAGS' `WARNINGFLAGS' can be passed when invoking `configure'  and when invoking `make' if configure switch `--enable-warnings' was given   then default to something useful if we have `GCC' `WARNINGFLAGS' is not used when compiling `stage1flex'   to avoid unnecessary clutter
+
+2016-03-31  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/main.c: Fix potential buffer overflow in strncat() When using clang/llvm 3.8 to compile flex, the following warning is
+	emitted: main.c:378:27: warning: the value of the size argument in 'strncat'
+	                                        is too large, might lead to a buffer overflow [-Wstrncat-size]
+	strncat(m4_path, m4, sizeof(m4_path));
+	^~~~~~~~~~~~~~~
+	main.c:378:27: note: change the argument to be the free space in the
+	                                        destination buffer minus the terminating null byte strncat(m4_path,
+	                                                             m4, sizeof(m4_path)); ^~~~~~~~~~~~~~~
+	sizeof(m4_path) - strlen(m4_path) - 1Fix it up by using the solution proposed by the warning message.
+
+2016-03-29  Robert.Larice Robert Larice <Robert.Larice@t-online.de>
+
+	* src/Makefile.am: build: simplified dependency tracking so parallel
+	make runs succeed
+
+2016-03-20  rlar <rlar>
+
+	* src/flex.skl, src/gen.c, src/main.c: avoid warning in generated
+	code, with -Cf warning: conversion to 'unsigned int' from 'int' may change the sign
+	of the result [-Wsign-conversion]
+
+2016-03-18  Will Estes <westes575@gmail.com>
+
+	* NEWS, configure.ac: mention v2.6.2; summarize changes since 2.6.1
+
+2016-03-18  Will Estes <westes575@gmail.com>
+
+	* doc/flex.texi: doc: corrected example in manual, gh#67
+
+2016-03-16  rlar <rlar>
+
+	* tests/string_nr.l, tests/string_r.l, tests/yyextra.l: warning:
+	conversion to 'size_t' from 'int' may change the sign of the result
+	[-Wsign-conversion]
+
+2016-03-16  rlar <rlar>
+
+	* tests/mem_nr.l, tests/mem_r.l, tests/pthread.l: warning:
+	conversion to 'long unsigned int' from 'int' may change the sign of
+	the result [-Wsign-conversion]
+
+2016-03-16  rlar <rlar>
+
+	* src/flex.skl: warning: conversion to 'flex_uint32_t' from 'long
+	unsigned int' may alter its value [-Wconversion] struct yytbl_reader, member bread is of type flex_uint32_t
+
+2016-03-16  rlar <rlar>
+
+	* tests/alloc_extra.l, tests/bison_nr_main.c,
+	tests/bison_nr_parser.y, tests/bison_yylloc_parser.y: warning:
+	redundant redeclaration of '...' [-Wredundant-decls]
+
+2016-03-16  rlar <rlar>
+
+	* tests/bison_nr_parser.y, tests/bison_yylloc_parser.y,
+	tests/bison_yylval_parser.y, tests/pthread.l: warning: no previous
+	prototype for '...' [-Wmissing-prototypes]
+
+2016-03-16  rlar <rlar>
+
+	* tests/multiple_scanners_r_main.c: warning: unused variable 'fp'
+	[-Wunused-variable]
+
+2016-03-16  rlar <rlar>
+
+	* tests/pthread.l: main(), warning: redundant redeclaration of
+	'main' [-Wredundant-decls]
+
+2016-03-16  rlar <rlar>
+
+	* tests/include_by_reentrant.direct.l, tests/lineno_nr.l,
+	tests/lineno_r.l, tests/lineno_trailing.l: main(), warning:
+	old-style function definition [-Wold-style-definition]
+
+2016-03-16  rlar <rlar>
+
+	* tests/alloc_extra.l, tests/array_nr.l, tests/array_r.l,
+	tests/basic_nr.l, tests/basic_r.l, tests/ccl.l, tests/debug_nr.l,
+	tests/debug_r.l, tests/extended.l, tests/mem_nr.l, tests/mem_r.l,
+	tests/noansi_r.l, tests/posix.l, tests/posixly_correct.l,
+	tests/prefix_nr.l, tests/prefix_r.l, tests/quotes.l,
+	tests/string_nr.l, tests/string_r.l, tests/yyextra.l: main(),
+	warning: old-style function definition [-Wold-style-definition]
+
+2016-03-01  rlar <rlar>
+
+	* src/ecs.c, src/tblcmp.c: Fix two more casts
+
+2016-03-14  Bastian K�cher <git@kchr.de>
+
+	* src/gen.c: Fixes yyl compare with unsigned warning
+
+2016-03-13  Robert Larice <Robert.Larice@t-online.de>
+
+	* configure.ac: Suppress portability warnings in Makefile generation
+
+2016-02-27  rlar <rlar>
+
+	* src/flex.skl: generated code, in yyensure_buffer_stack(), change
+	type of local `num_to_alloc' which is exclusively used in yy_size_t context
+
+2016-03-01  rlar <rlar>
+
+	* src/flex.skl: generated code, in yy_get_next_buffer(), change type
+	of local `number_to_move' suits better, because `yy_n_chars' and `yy_buf_size' are of type
+	`int'
+
+2016-02-27  rlar <rlar>
+
+	* src/flex.skl: generated code, `_yybytes_len' is of type `int', fix
+	code accordingly
+
+2016-02-28  rlar <rlar>
+
+	* src/gen.c: generated code, `max_size' seems to be of type `int',
+	fix casts accordingly
+
+2016-02-28  rlar <rlar>
+
+	* src/flex.skl: generated code, here `new_size' is of type `int',
+	fix casts accordingly
+
+2016-02-28  rlar <rlar>
+
+	* src/flex.skl: generated code, `yy_buf_size' is of type `int', fix
+	casts accordingly
+
+2016-02-28  rlar <rlar>
+
+	* src/flex.skl: generated code, `offset' is of type `int'
+
+2016-02-28  rlar <rlar>
+
+	* src/gen.c: generated code, `yy_more_len' is of type `int'
+
+2016-02-28  rlar <rlar>
+
+	* src/scan.l: scan.l, rewrite two loops to avoid unneccesairy
+	casting
+
+2016-03-01  rlar <rlar>
+
+	* src/regex.c, src/tables.c: improve readability
+
+2016-02-28  rlar <rlar>
+
+	* src/tblcmp.c: another cast in tblcmp.c to avoid warning
+
+2016-02-28  rlar <rlar>
+
+	* src/buf.c: casts in buf_append() to get rid of warnings
+
+2016-02-28  rlar <rlar>
+
+	* src/dfa.c, src/gen.c: cast to suite type of flex_uint32_t td_lolen
+
+2016-02-28  rlar <rlar>
+
+	* src/main.c, src/misc.c, src/regex.c, src/scan.l, src/scanopt.c,
+	src/tables_shared.c: cast to get rid of warnings
+
+2016-03-01  rlar <rlar>
+
+	* src/buf.c, src/main.c: cast and fix usage of log10(), ceil to
+	prevent buffer overflow
+
+2016-03-01  rlar <rlar>
+
+	* src/tables.c: tables.c, sprinkle casts to get rid of warnings
+
+2016-03-01  rlar <rlar>
+
+	* src/tables.c: yytbl_data_compress(), change type of local newsz to
+	get rid of warnings
+
+2016-03-01  rlar <rlar>
+
+	* src/tables.c, src/tables.h: change type of struct
+	yytbl_writer.total_written to get rid of warnings
+
+2016-02-28  rlar <rlar>
+
+	* src/tables.c: change argument type of yytbl_writen() to get rid of
+	warnings
+
+2016-03-01  rlar <rlar>
+
+	* src/tables.c: yytbl_write8/16/32(), change type of local variables
+	to get rid of warnings
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h, src/misc.c, to.do/unicode/flexdef.h,
+	to.do/unicode/misc.c: change return type and rename int
+	htoi()/otoi() --> unsigned int htoui()/otoui()
+
+2016-03-01  Will Estes <westes575@gmail.com>
+
+	* NEWS: Mention 2.6.1 release date
+
+2016-02-28  rlar <rlar>
+
+	* src/gen.c: avoid warning, add (int) cast to the read() return
+	value For similiarity with the fread() case.
+
+2016-02-28  rlar <rlar>
+
+	* src/scan.l: avoid warning, POSIX says yyless() has an `int'
+	argument
+
+2016-02-29  rlar <rlar>
+
+	* src/filter.c: use type size_t in filter_tee_header() to avoid
+	warnings
+
+2016-02-29  rlar <rlar>
+
+	* src/filter.c, src/misc.c, src/scanopt.c, src/tables.c: add
+	(size_t) casts to malloc invocations to prevent warnings
+
+2016-02-29  rlar <rlar>
+
+	* src/buf.c, src/misc.c, src/scan.l, src/scanopt.c, src/tables.c: 
+	add (int) casts to some strlen() invocations to prevent warnings
+
+2016-02-29  rlar <rlar>
+
+	* src/flexdef.h, src/scan.l, src/sym.c: ndlookup(), char *, to get
+	rid of casts and warnings
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h, src/scan.l, src/sym.c: ndinstal(), char *, to get
+	rid of casts and warnings
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h, src/scan.l, src/sym.c: cclinstal() and ccllookup(),
+	char *, to get rid of casts and warnings
+
+2016-02-28  rlar <rlar>
+
+	* src/gen.c: warning: redundant redeclaration of
+	‘gen_next_state’ [-Wredundant-decls]
+
+2016-02-28  rlar <rlar>
+
+	* src/gen.c: warning: no previous prototype for ‘mkecstbl’
+	[-Wmissing-prototypes]
+
+2016-02-28  rlar <rlar>
+
+	* src/main.c: warning: suggest parentheses around assignment used as
+	truth value [-Wparentheses]
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h: warning: redundant redeclaration of ‘yywrap’
+	[-Wredundant-decls]
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h: warning: redundant redeclaration of ‘yylval’
+	[-Wredundant-decls]
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h: warning: redundant redeclaration of ‘yyin’
+	[-Wredundant-decls]
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h, src/main.c: warning: redundant redeclaration of
+	‘yyparse’ [-Wredundant-decls]
+
+2016-02-28  rlar <rlar>
+
+	* src/parse.y, src/scan.l, src/yylex.c, to.do/unicode/scan.l: 
+	unification, rename some more rename these too for improved similiarity:   OPTION_OP OPT_HEADER OPT_EXTRA_TYPE OPT_TABLES
+
+2016-02-28  rlar <rlar>
+
+	* src/parse.y, src/scan.l, src/yylex.c, to.do/unicode/scan.l: fix
+	name clash, OPT_OUTFILE from parse.y and from options.h these collide:   OPT_OUTFILE OPT_PREFIX OPT_YYCLASS rename them TOK_... in the
+	parser
+
+2016-02-28  Will Estes <westes575@gmail.com>
+
+	* lib/reallocarray.c: Prototyped reallocarray implementation
+
+2016-02-28  Will Estes <westes575@gmail.com>
+
+	* src/scanopt.c: Removed custom strcasecmp() function
+
+2016-02-28  rlar <rlar>
+
+	* src/flex.skl: fwrite wants a size_t, yyleng is int per posix
+
+2016-02-28  rlar <rlar>
+
+	* src/scanopt.c: Remove some unneeded casts
+
+2016-02-28  rlar <rlar>
+
+	* src/flexdef.h: warning: negative integer implicitly converted to
+	unsigned type [-Wsign-conversion]
+
+2016-02-27  rlar <rlar>
+
+	* src/dfa.c, src/parse.y: dfa.c:157:24: warning: conversion to
+	'size_t' from 'int' may change the sign of the result
+	[-Wsign-conversion] most certainly safe cast
+
+2016-02-27  rlar <rlar>
+
+	* src/ccl.c: ccl.c:86:19: warning: conversion to 'unsigned char'
+	from 'int' may alter its value [-Wconversion] ch seems to have been checked for proper range some lines above
+
+2016-02-27  rlar <rlar>
+
+	* tests/bison_nr_parser.y: warning: deprecated directive, use
+	'%pure-parser' [-Wdeprecated]
+
+2016-02-27  rlar <rlar>
+
+	* lib/lib.c: warning: no previous prototype for 'do_nothing'
+	[-Wmissing-prototypes]
+
+2016-02-27  rlar <rlar>
+
+	* src/libmain.c: included stdlib.h header
+
+2016-02-27  Will Estes <westes575@gmail.com>
+
+	* NEWS: Described more post v2.6.0 changes
+
+2016-02-27  Will Estes <westes575@gmail.com>
+
+	* configure.ac: build: Removed bzip2 distribiution archive
+
+2016-02-27  Will Estes <westes575@gmail.com>
+
+	* configure.ac: removed obsolete program check
+
+2016-02-27  Will Estes <westes575@gmail.com>
+
+	* configure.ac: Made some program checks more robust
+
+2016-02-27  rlar <rlar>
+
+	* src/flex.skl: Remove unneeded cast to int
+
+2016-02-27  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: Fixed incorrect integer type
+
+2016-02-27  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: Fix more integer types, resolves sf 184, 187
+
+2016-02-26  Robert Larice <Robert.Larice@t-online.de>
+
+	* src/flex.skl, src/gen.c: Removed some type conversion warnings
+
+2016-02-26  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: Changed another buffer size to int; resolves gh#61
+
+2016-02-24  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: Changed type of yy_n_chars to int; gh#53, sf#160.  The variable yy_n_chars had been of type yy_size_t which is
+	incorrect given its use in read(). While it might be adviseable to
+	look at defining a yy_ssize_t, there might be some issues doing this
+	and so, for now, at least, we'll punt back to int.
+
+2016-02-24  Will Estes <westes575@gmail.com>
+
+	* src/buf.c: Fixed size of bufferallocation, resolved gh#54.  The value of n_alloc was a count, not a size. Multiplying the value
+	by the element size was incorrect. That multiplication was already
+	being done and having it done twice was incorrect.
+
+2016-02-23  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/scan.l: Allow '%option noline' in flex input file, resolves
+	gh#56.  Allow specifying '%option noline' in the input file, leading to the
+	same effect as calling flex with the command line option --noline.  Signed-off-by: Tobias Klauser <tklauser@distanz.ch>
+
+2016-02-23  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/buf.c, src/main.c: Emit no #line directives if gen_line_dirs
+	is false, resolves igh#55.  There are two instances in the code which will print a #line
+	directive to the resulting lexer, regardless of the value of
+	gen_line_dirs. Fix them, so they also respect gen_line_dirs.  Signed-off-by: Tobias Klauser <tklauser@distanz.ch>
+
+2016-02-16  Tobias Klauser <tklauser@distanz.ch>
+
+	* lib/lib.c, src/gen.c, src/misc.c, src/scan.l: Converted K&R style
+	function definitions to ANSI C style Consistently make use of the ANSI C function definition style
+	instead of the K&R style.
+
+2016-01-29  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/flex.skl: Used NULL constant instead of plain integer for NULL
+	pointer.  The sparse static checker warns about using plain integer 0 as NULL
+	pointers in the generated lexer code. Fix this by using NULL
+	consistently for pointers.
+
+2016-01-29  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/flex.skl: Marked declaration and definition of yy_fatal_error
+	as noreturn.  Only the declaration of yy_fatal_error is marked with
+	__attribute__((__noreturn__)) in case GCC >= 3 is used, but not the
+	definition. This leads to the sparse static checker to complain
+	about function declaration mismatch.  Fix it by defining a macro yynoreturn and using it for both the
+	declaration and the definition of yy_fatal_error.
+
+2016-01-27  Tobias Klauser <tklauser@distanz.ch>
+
+	* src/flex.skl: Fixed declaration mismatch in yy_fatal_error.  The prototype declares yy_fatal_error parameter as "const char
+	msg[]" while the definition uses "const char* msg" (introduced by
+	commit e9d5fc713f61b) which causes the sparse static checkers to
+	produce an error.  Fix this by adjusting the definition to use "const char* msg" as
+	well.  Also change the C++ version accordingly so it matches the
+	declaration in FlexLexer.hpp.
+
+2016-01-23  Will Estes <westes575@gmail.com>
+
+	* CODE_OF_CONDUCT.md: flex is for flex #NCoC
+
+2016-01-18  Will Estes <westes575@gmail.com>
+
+	* doc/flex.texi: Referred to github for issue tracking, no longer sf
+
+2016-01-10  Egor Pugin <egor.pugin@gmail.com>
+
+	* tests/reject.l4, tests/tableopts.l4: Opened files in binary mode
+	explicitly
+
+2016-01-08  OBATA Akio <obache@NetBSD.org>
+
+	* src/Makefile.am: Linked flex binary against libintl, not libfl.   Signed-off-by: Thomas Klausner <wiz@NetBSD.org>
+
+2016-01-08  Michael van Elst <mlelstv@NetBSD.org>
+
+	* src/filter.c: Improved pipe-stdin hack behavior; resolves sf#198.  Signed-off-by: Thomas <Klausner wiz@NetBSD.org>
+
+2015-12-27  Will Estes <westes575@gmail.com>
+
+	* configure.ac, src/flexdef.h: Removed no longer needed header
+	checks
+
+2015-12-27  Will Estes <westes575@gmail.com>
+
+	* configure.ac: Checked for reallocarray() with AC_REPLACE_FUNCS
+
+2015-12-27  Will Estes <westes575@gmail.com>
+
+	* src/flexdef.h, src/main.c: include libgen.h from flexdef.h, not
+	main.c
+
+2015-12-25  Michael Reed <m.reed@mykolab.com>
+
+	* src/main.c: Replace basename2() with basename(3).  Given the following program: 	\#include <libgen.h> 	\#include <stdio.h> 	/* extracts basename from path, optionally stripping the extension
+		 "\.*" * (same concept as /bin/sh `basename`, but different handling
+		of extension). */ static char *basename2 (char *path) 	{ 		char   *b; 		for (b = path; *path; path++) 			if (*path == '/') 				b = path + 1; 		return b; 	} 	static void basename_compare(char *path) 	{ 		printf("basename: %s\n", basename(path)); 		printf("basename2: %s\n\n", basename2(path)); 	} 	int main (int argc, char *argv[]) 	{ 		// From http://pubs.opengroup.org/onlinepubs/9699919799/ 		// ``Sample Input and Output Strings'' 		basename_compare("/usr/lib"); 		basename_compare("/usr/"); 		basename_compare("/"); 		basename_compare("///"); 		basename_compare("//usr//lib//"); 		return 0; 	} ... and the program's output: 	basename: lib 	basename2: lib 	basename: usr 	basename2: 	basename: / 	basename2: 	basename: / 	basename2: 	basename: lib 	basename2: ... we can see that basename2() behaves the same as basename(3) in
+	the average use case, but messes up pretty severely in others.
+	Besides that, basename(3) is mandated by POSIX so should be present
+	on modern Unix-like systems, so we shouldn't define it ourselves.  Some notes: - it doesn't appear to be mentioned in POSIX, but OpenBSD's
+	  basename(3) returns NULL if the returned path componenet is >
+	  PATH_MAX, so add a check for that - basename(3) shouldn't return an empty string, so remove the   program_name[0] != '\0' check
+
+2015-12-25  Michael Reed <m.reed@mykolab.com>
+
+	* src/main.c: Simplify basename2().  It's only call site does not activate the `strip_ext` code path, so
+	the function can be simplified a lot.  While here, remove a double
+	assignment.
+
+2015-12-25  Michael Reed <m.reed@mykolab.com>
+
+	* src/flex.skl, src/misc.c: Cleaned up __STDC__ #ifdefs.  Assuming a compiler conforming to the ISO C standard is used, i.e.,
+	__STDC__ is defined to 1, YY_USE_CONST is always defined and can be
+	eliminated.
+
+2015-12-25  Michael Reed <m.reed@mykolab.com>
+
+	* src/flexdef.h, src/main.c, src/scanopt.c, src/scanopt.h,
+	src/sym.c: Remove remaining use of PROTO
+
+2015-12-21  Serguey Parkhomovsky <xindigo@gmail.com>
+
+	* src/buf.c: buf.c: use snprintf
+
+2015-12-19  Will Estes <westes575@gmail.com>
+
+	* configure.ac: build: reformatted AC_CHECK_FUNCS for readability
+
+2015-12-17  Will Estes <westes575@gmail.com>
+
+	* src/scanopt.c: correct function prototype
+
+2015-12-15  Michael Reed <m.reed@mykolab.com>
+
+	* src/main.c, src/scanopt.c, src/sym.c, src/tblcmp.c: Remove more
+	instances of PROTO
+
+2015-12-15  Michael Reed <m.reed@mykolab.com>
+
+	* src/main.c: Removed prototype for main().  It's not called anywhere else so the prototype is not needed.  See
+	the C99 standard [1], section 5.1.2.2.1 for more info.  [1]: http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1256.pdf
+
+2015-12-13  Michael McConville <mmcco@mykolab.com>
+
+	* src/dfa.c, src/gen.c, src/nfa.c, to.do/unicode/main.c,
+	to.do/unicode/tblcmp.c: Removed more instances of PROTO, ansifying.
+
+2015-12-13  Will Estes <westes575@gmail.com>
+
+	* README: Noted github for issue tracking and pull requests
+
+2015-12-13  Michael McConville <mmcco@mykolab.com>
+
+	* README: Reformatted README; removed sf bug tracking link.
+
+2015-12-13  Michael McConville <mmcco@mykolab.com>
+
+	* src/gen.c, to.do/unicode/gen.c: Removed macros for indentation
+	level.  Just increment or decrement the indentation counter. That's less to
+	remember and makes the code more readable.  w# Please enter the commit message for your changes. Lines starting
+
+2015-12-12  Mike Frysinger <vapier@gentoo.org>
+
+	* tests/Makefile.am, tests/testwrapper.sh: tests: fixed paths to
+	input files.  The current test wrapper works only when the inputs are specified
+	using relative paths.  If they're specified with absolute paths, the
+	driver fails to detect the inputs because it always prepends the
+	input dir name which itself is a relative path: $ cd tests $
+	./testwrapper.sh -d . -i $PWD/reject.txt -t ./reject_ver.table
+	<fails to open inputs> This normally doesn't show up because people run `./configure` or,
+	for out of tree builds, `../configure`.  But if you happen to run
+	configure with an absolute path, then automake tends to generate
+	absolute paths as well leading to test failures.  Fix all of this by dropping the implicit input directory prepending.  - INPUT_NAME is often a list of files, not just a single one - the input directory is used to find the testname tables which are   usually generated, so it's impossible to use files from both
+	  source and build directories - most of the time, the full/correct path is already specified
+
+2015-12-12  Mike Frysinger <vapier@gentoo.org>
+
+	* configure.ac: configure: fixed realloc test.  The [] characters are used for quoting in m4, so the attempt to use
+	them in place of `test` fails yielding the warning at build time: .../flex/configure: line 20222: no: command not found
+
+2015-12-12  Michael McConville <mmcco@mykolab.com>
+
+	* src/flexdef.h: Started removal of PROTO macro.  The PROTO macro is no longer needed. Additionally, its usage is
+	inconsistent, so we began removing it.
+
+2015-12-12  Michael Reed <m.reed@mykolab.com>
+
+	* Makefile.am, src/main.c: Removed SHORT_FILE_NAMES preprocessor
+	symbol.  As a relic of MS-DOS, we don't need this.  It's never defined; see 13b5b214f53d1c3354a7ab910bd160c126df1331.  Removed additional MSDOS ifdef.
+
+2015-12-11  Michael McConville <mmcco@mykolab.com>
+
+	* configure.ac, lib/reallocarray.c, src/flexdef.h: Added new
+	function reallocarray.  This is taken from OpenSSH Portable, which in turn takes it from
+	OpenBSD.  reallocarray wraps the stdlib's realloc function. It takes two size
+	arguments and checks for overflow, like calloc, but doesn't zero the
+	memory. Therefore, it allows us to do overflow-safe array
+	reallocations and overflow-safe unzeroed array allocations, which
+	the stdlib allocation functions don't.  We have a bunch of specific array allocation macros, none of which
+	check for overflow. reallocarray should be able to replace them.
+
+2015-12-11  Michael McConville <mmcco@mykolab.com>
+
+	* src/flexdef.h: Removed MS-DOS, VMS macros.  Given the age of the MS-DOS and VMS platforms, it's likely that no
+	one is building flex on them any more. Additionally, the preferred
+	approach is to test for particular platform features rather than to
+	test for particular platforms.
+
+2015-12-12  Will Estes <westes575@gmail.com>
+
+	* src/flexdef.h, src/main.c: Made search for m4 more explicit.
+
+2015-12-12  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: Returned 0 from yywrap() instead of EOF
+
+2015-12-11  Will Estes <westes575@gmail.com>
+
+	* src/libmain.c: Changed end of main() in libmain to exit(0)
+
+2015-12-11  Will Estes <westes575@gmail.com>
+
+	* NEWS, configure.ac: Mentioned v2.6.1; documented some changes
+	since v2.6.0
+
+2015-12-11  Will Estes <westes575@gmail.com>
+
+	* README: Updated build documentation; finished sf#155.  Removed version numbers for build tools. Noted that version
+	requirements for build tools will be noted in configure.ac. Expanded
+	documentation of building texinfo based docs.
+
+2015-12-11  Will Estes <westes575@gmail.com>
+
+	* doc/Makefile.am: Removed flex.pdf from distribution; partially
+	fixed sf#155
+
+2015-12-11  Will Estes <westes575@gmail.com>
+
+	* src/flex.skl: Commented in C style in skeleton; fixed sf#195
+
+2015-12-10  Will Estes <westes575@gmail.com>
+
+	* .gitignore: Ignored autoscan files
+
+2015-12-09  Will Estes <westes575@gmail.com>
+
+	* configure.ac: Checked for ranlib and strdup() at configure time
+
+2015-12-09  Michael McConville <mmcconville@mykolab.com>
+
+	* src/flexdef.h, src/misc.c, src/tblcmp.c, to.do/unicode/flexdef.h,
+	to.do/unicode/misc.c, to.do/unicode/tblcmp.c: Replace zero_out()
+	with stdlib's memset.
+
+2015-12-09  Michael McConville <mmcconville@mykolab.com>
+
+	* src/flex.skl: Removed memory allocation casts.
+
+2015-12-09  Michael McConville <mmcconville@mykolab.com>
+
+	* src/flexdef.h: Removed alloca() configuration.  Since alloca() is dangerous, depricated, we remove it.
+
+2015-12-09  Michael McConville <mmcconville@mykolab.com>
+
+	* src/flexdef.h: Removed implementation of isascii().  POSIX defines isascii(), so it's likely present on anything
+	weactually build flex on these days.
+
+2015-12-09  Michael McConville <mmcconville@mykolab.com>
+
+	* src/main.c, src/scanopt.c, src/tables.c: Removed NULL-checks
+	before free()
+
+2015-12-08  Michael McConville <mmcconville@mykolab.com>
+
+	* src/buf.c, src/dfa.c, src/flexdef.h, src/gen.c, src/scan.l,
+	to.do/unicode/flexdef.h, to.do/unicode/scan.l: Removed flex_free()i,
+	corrected buf_destroy logic.  As with flex_alloc(), replace with direct calls to free().  The function buf_destroy is now null safe and the logic was
+	corrected to free() correctly.
+
+2015-12-08  Michael McConville <mmcconville@mykolab.com>
+
+	* src/filter.c, src/flexdef.h, src/misc.c, src/scan.l,
+	src/scanflags.c, to.do/unicode/flexdef.h, to.do/unicode/misc.c,
+	to.do/unicode/scan.l: Removed flex_realloc().  As with flex_alloc(), replace calls to flex_realloc(), which was
+	just a wrapper around realloc().
+
+2015-12-08  Michael McConville <mmcconville@mykolab.com>
+
+	* src/buf.c, src/filter.c, src/flexdef.h, src/main.c, src/misc.c,
+	src/regex.c, src/scan.l, src/scanflags.c, src/sym.c,
+	to.do/unicode/flexdef.h, to.do/unicode/misc.c, to.do/unicode/scan.l: 
+	Removed flex_alloc; cleaned up style.  The function flex_alloc() was just a wrapper around malloc(). Since
+	this only added unclarity, and the flex_alloc() function is likely a
+	legacy of olden times, remove it in favor of calls to malloc()
+	directly.  Style elements cleaned up:  * superfluous spacing around parentheses  * non-constant initialization in variable declarations  * needless casts  * almost all uses of assignments as subexpressions
+
+2015-12-07  Michael McConville <mmcconville@mykolab.com>
+
+	* src/dfa.c, src/flexdef.h, src/gen.c, src/main.c, src/scan.l,
+	src/scanopt.c, tests/bison_nr_scanner.l,
+	tests/bison_yylloc_scanner.l, tests/bison_yylval_scanner.l,
+	tests/mem_nr.l, tests/mem_r.l, tests/pthread.l, tests/string_nr.l,
+	tests/string_r.l, tests/yyextra.l, to.do/unicode/scan.l: Remove
+	allocation casts
+
+2015-12-07  Will Estes <westes575@gmail.com>
+
+	* src/.gitignore, src/Makefile.am: Built flex with itself.  Changes in scan.l need to be built into flex with the same version
+	of flex in some cases. Since this build requirement is minimal, we
+	simply bootstrap flex unconditionally.  We intentionally exclude from version control the bootstrap
+	artifacts as the extra copy of the lexer, the intermediate scanner
+	and the bootstrap executable are not of interest.
+
+2015-12-05  Michael McConville <mmcconville@mykolab.com>
+
+	* src/buf.c, src/dfa.c, src/main.c, src/nfa.c, src/parse.y,
+	src/scan.l, src/scanopt.c, src/sym.c, to.do/unicode/main.c,
+	to.do/unicode/scan.l: Use NULL rather than (type *) 0.
+
+2015-12-05  Michael McConville <mmcconville@mykolab.com>
+
+	* src/flexdef.h, src/misc.c, src/sym.c, to.do/unicode/flexdef.h,
+	to.do/unicode/misc.c: Replace copy_unsigned_string() with xstrdup().  Like copy_string(), copy_unsigned_string() is just a clone of the
+	stlib's strdup(). We only use it twice. I'm pretty confident that
+	char signedness is irrelevant in this case.
+
+2015-12-04  Akim Demaille <akim@lrde.epita.fr>
+
+	* src/FlexLexer.h: Cleaned up white space.
+
+2015-12-04  Akim Demaille <akim@lrde.epita.fr>
+
+	* src/FlexLexer.h: Removed struct keyword before yy_buffer_state
+
+2015-12-04  Akim Demaille <akim@lrde.epita.fr>
+
+	* examples/testxxLexer.l, src/FlexLexer.h, src/flex.skl, src/main.c: 
+	Replaced FLEX_STD macro with std::.  The std:: construct exists as of C++98, so we can simply assume it
+	is supported.
+
+2015-12-04  Akim Demaille <akim@lrde.epita.fr>
+
+	* src/Makefile.am: Generated skel.c explicitly in srcdir.  Rewrote the target for skel.c to explicitly mention the srcdir. This
+	should help when building flex from a directory outside the flex
+	tree. Spread the rule out over several lines to enhance readability.
+
+2015-12-04  Akim Demaille <akim@lrde.epita.fr>
+
+	* autogen.sh: Called glibtoolize if libtoolize run fails.  On Mac OS X, libtoolize is known as glibtoolize. In cases where
+	libtoolize is not present, then calling glibtoolize when
+	bootstrapping the build system gives more folks a shot at getting
+	flex built from the ground up.
+
+2015-12-02  Mightyjo <mightyjo@gmail.com>
+
+	* configure.ac: Checked for (g)texi2dvi. Better bison, help2man
+	checks.  Added test for presence of (g)texi2dvi program. Gave notice if
+	texi2dvi is unavailable and set TEXI2DVI=: to avoid giving users
+	headaches.  Enhanced tests for bison and help2man with notices when the programs
+	aren't found.  Set their program variables to use the missing script
+	in build-aux since it's compatible with them.
+
+2015-12-02  Michael McConville <mmcconville@mykolab.com>
+
+	* src/flexdef.h, src/misc.c, src/parse.y, src/scan.l, src/sym.c,
+	src/tables.c, to.do/unicode/flexdef.h, to.do/unicode/misc.c,
+	to.do/unicode/scan.l: Made string copying more standard.  copy_string() was a clone of the stdlib's strdup(). For safety,
+	simplicity, and speed, we should use that instead. We introduce
+	xstrdup() which wraps strdup() in a failure upon memory allocation
+	errors.
+
+2015-11-30  Serguey Parkhomovsky <sergueyparkhomovsky@gmail.com>
+
+	* src/scan.l: Error on unbalanced parentheses in rules section.
+
+2015-11-29  Will Estes <westes575@gmail.com>
+
+	* src/Makefile.am: Cleaned up BUILT_SOURCES list.  Removed reference to skel.c as a built source since other make rules
+	cover this case.
+
+2015-11-29  Will Estes <westes575@gmail.com>
+
+	* src/Makefile.am: Sorted file names in flex_SOURCES
+
+2015-11-27  Mightyjo <mightyjo@gmail.com>
+
+	* src/ecs.c, src/flexdef.h, src/main.c, src/misc.c, src/scan.l,
+	src/scanopt.c, src/sym.c, src/tblcmp.c: Replaced CHAR macro with
+	unsigned char type.  Thanks to Michael McConville for pointing out that the old Char
+	macro causes problems with static analysis.  The macro has been
+	removed and replaced with 'unsigned char' throughout the flex
+	sources. The macro is not needed at best and was confusing at worst.
+	It was not used in any of the example files nor was it mentioned in
+	the manual at all.
+
+2015-11-21  Will Estes <westes575@gmail.com>
+
+	* configure.ac: updated syntax of AC_INIT call as per autoupdate
+
+2015-11-21  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: removed extra call to a _CPPFLAGS variable
+
+2015-05-14  Stefan Reinauer <stefan.reinauer@coreboot.org>
+
+	* src/buf.c, src/ccl.c, src/dfa.c, src/ecs.c, src/gen.c,
+	src/main.c, src/misc.c, src/nfa.c, src/parse.y, src/scan.l,
+	src/scanopt.c, src/sym.c, src/tblcmp.c: Switch function definitions
+	from mixed K&R to consistent ANSI C.  flex was using K&R function definitions for some functions and ANSI
+	C style in others, sometimes even in the same file. Change the code
+	to consistently use ANSI C.  Signed-off-by: Stefan Reinauer <stefan.reinauer@coreboot.org>
+
+2015-11-16  Mightyjo <mightyjo@gmail.com>
+
+	* tests/Makefile.am: Used in-tree header file for c++ tests.
+
+2015-11-17  Will Estes <westes575@gmail.com>
+
+	* configure.ac: Declared version 2.6.0
+
+2015-11-17  Will Estes <westes575@gmail.com>
+
+	* NEWS: Dated, described flex release 2.6.0
+
+2015-11-13  Will Estes <westes575@gmail.com>
+
+	* NEWS, configure.ac: Declared version 2.6.0rc1
+
+2015-11-13  lukeallardyce <lukeallardyce@users.sourceforge.net>
+
+	* src/Makefile.am: Supplied versioning information in flex
+	libraries.  Resolves sourceforge bug #182. On OSX, and possibly other platforms,
+	building the libfl libraries without versioning information caused a
+	build failures.
+
+2015-11-12  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: Cleaned up more precisely after make check.  BUILT_SOURCES is now just the list of headers built as per the
+	automake manual. We provide the list of files to clean to make
+	rebuilding the test suite programs easier. We then use the
+	CLEANFILES list in a dist-hook to clean up the distribution that
+	automake gathers since not distributing flex generated files is
+	foreign to automake's mindset, but we need exactly that.  Additionally, we locate inputs to the tables-related tests more
+	precisely. Some files are in srcdir and some are in builddir, which
+	the arguments to the log compiler are now made aware of.
+
+2015-11-11  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: Pulled out scripts in tests/Makefile.am
+
+2015-11-11  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: Added srcdir to tableopts.am include
+
+2015-11-11  Will Estes <westes575@gmail.com>
+
+	* doc/Makefile.am: Changed man page dependencies.  The man page is just the --help output as reformatted by help2man.
+	The --help option is most likely to change when the flex skeleton
+	changes or one of the option parsing files changes or the
+	configure.ac script itself changes. The dependencies reflect this
+	now.  It is still necessary, under some circumstances, to rebuild flex
+	explicitly before building the man page. In theory, it's possible to
+	have automake arrange to do this all the time, but doing so works
+	out to be fragile, given the rest of the build system.
+
+2015-11-10  Will Estes <westes575@gmail.com>
+
+	* autogen.sh: Called libtoolize directly because autoreconf fails to
+	pick up LT_INIT properly
+
+2015-11-10  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: Added tableopts.sh to EXTRA_DIST
+
+2015-11-08  Mightyjo <mightyjo@gmail.com>
+
+	* tests/Makefile.am: Made tests depend on the built flex binary.
+
+2015-11-08  Mightyjo <mightyjo@gmail.com>
+
+	* : commit cf6cb4dce791c26567cc506770ca96b4f4118024 Author: Mightyjo
+	<mightyjo@gmail.com> Date:   Sat Nov 7 23:11:35 2015 -0800
+
+2015-11-04  Mightyjo <mightyjo@gmail.com>
+
+	* doc/flex.texi: Updated documentation to reflect the revisions to
+	FlexLexer.h
+
+2015-10-26  Mightyjo <mightyjo@gmail.com>
+
+	* src/FlexLexer.h, src/flex.skl: Changed several pointers to istream
+	(and ostream) to references in c++-only sections of the skeleton.  Patched up a variety of expected errors caused by changing istream*
+	to istream&.  Added a stray 'make' at line 545.  Oops.  Changed the buffer_state struct to store std::streambuf* instead of
+	std::istream* for C++ mode.  Changed interfaces in FlexLexer.h to
+	take std::istream& instead of *.  Backward compatibility temporarily
+	broken.  Patched up backward compatibility with reasonable behavior in the
+	presence of null pointers.  Re-added backward-compatible versions of the yyFlexLexer methods
+	that take iostream pointers.  All tests passing.
+
+2015-09-29  Translation Project <coordinator@translationproject.org>
+
+	* po/zh_CN.po: new zh_CN translation from the translation project
+
+2015-07-27  Jaska Uimonen <jaska.uimonen@helsinki.fi>
+
+	* src/gen.c: fix possible resource leak with yynultrans_tbl
+
+2015-07-27  Jaska Uimonen <jaska.uimonen@helsinki.fi>
+
+	* src/dfa.c: fix possible uninitialized array values
+
+2015-08-05  Will Estes <westes575@gmail.com>
+
+	* doc/flex.texi: add %{...%} block to example in manual
+
+2015-07-15  Will Estes <westes575@gmail.com>
+
+	* configure.ac: initialize libtool earlier in build system
+	generation
+
+2015-05-08  Translation Project <translation@translationproject.org>
+
+	* po/da.po: new da translation from the Translation Project
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/gen.c, src/scan.l, tests/bison_nr_parser.y,
+	tests/bison_yylloc_parser.y, tests/bison_yylval_parser.y,
+	tests/multiple_scanners_nr_main.c: Fix `label unused` warning
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/flex.skl: Fix two "signed/unsigned" warnings
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* tests/alloc_extra.l, tests/array_nr.l, tests/array_r.l,
+	tests/basic_nr.l, tests/basic_r.l, tests/bison_nr_scanner.l,
+	tests/bison_yylloc_scanner.l, tests/bison_yylval_scanner.l,
+	tests/ccl.l, tests/cxx_basic.ll, tests/debug_nr.l, tests/debug_r.l,
+	tests/extended.l, tests/header_nr_scanner.l,
+	tests/header_r_scanner.l, tests/include_by_buffer.direct.l,
+	tests/include_by_push.direct.l,
+	tests/include_by_reentrant.direct.l, tests/lineno_nr.l,
+	tests/lineno_r.l, tests/lineno_trailing.l, tests/mem_nr.l,
+	tests/mem_r.l, tests/multiple_scanners_nr_1.l,
+	tests/multiple_scanners_nr_2.l, tests/multiple_scanners_r_1.l,
+	tests/multiple_scanners_r_2.l, tests/noansi_nr.l, tests/noansi_r.l,
+	tests/posix.l, tests/posixly_correct.l, tests/prefix_nr.l,
+	tests/prefix_r.l, tests/pthread.l, tests/quotes.l, tests/reject.l4,
+	tests/rescan_nr.direct.l, tests/rescan_r.direct.l,
+	tests/string_nr.l, tests/string_r.l, tests/tableopts.l4,
+	tests/top.l, tests/yyextra.l: Fix `unused function` warnings in
+	tests
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* tests/bison_nr_parser.y, tests/bison_yylloc_parser.y,
+	tests/bison_yylval_parser.y: Fix `implicit function declaration`
+	warnings in tests
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* tests/header_r_main.c, tests/multiple_scanners_nr_main.c,
+	tests/reject.l4, tests/tableopts.l4, tests/top_main.c: Remove a few
+	`unused variable` warnings
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/filter.c: Remove unused variable from
+	src/filter.c:filter_fix_linedirs
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/scanopt.c: Remove unused argument and variable from
+	src/scanopt.c:scanopt_err
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/flex.skl, src/libmain.c, src/parse.y, tests/bison_nr_main.c,
+	tests/bison_yylloc_main.c, tests/bison_yylloc_parser.y,
+	tests/bison_yylval_main.c, tests/bison_yylval_parser.y,
+	tests/header_nr_main.c, tests/header_r_main.c, tests/lineno_nr.l,
+	tests/lineno_r.l, tests/lineno_trailing.l, tests/mem_r.l,
+	tests/multiple_scanners_nr_main.c,
+	tests/multiple_scanners_r_main.c, tests/pthread.l,
+	tests/rescan_nr.direct.l, tests/rescan_r.direct.l, tests/top_main.c: 
+	Fix a few "unused parameter" warnings
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/main.c: Fix warning about redefined macro when multiple
+	scanners are used.
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* tests/bison_nr_parser.y: Avoid passing `const char*` argument as
+	`char*` in test-bison-nr
+
+2014-11-21  Alexis La Goutte <alexis.lagoutte@gmail.com>
+
+	* src/misc.c, src/regex.c, src/tables.c, src/tables_shared.c: Fix
+	-Wdocumentation warnings
+
+2014-11-16  Will Estes <westes575@gmail.com>
+
+	* tests/README: document new suite layout
+
+2014-11-16  Will Estes <westes575@gmail.com>
+
+	* tests/TEMPLATE/.gitignore, tests/TEMPLATE/Makefile.am,
+	tests/TEMPLATE/cvsignore, tests/TEMPLATE/parser.y,
+	tests/TEMPLATE/scanner.l, tests/TEMPLATE/test.input,
+	tests/create-test, tests/descriptions: remove unused files after
+	test suite refactor
+
+2014-11-14  Will Estes <westes575@gmail.com>
+
+	* .gitignore, doc/.gitignore: Ignore directories build-aux/, m4/ Since build-aux/ now contains a number of files previously at the
+	top level, we ignore build-aux/. Therefore, it's not necessary to
+	list any files that are now kept in it. Also, explicitly mark m4/ as
+	a directory to ignore.
+
+2014-11-14  Will Estes <westes575@gmail.com>
+
+	* configure.ac: added back call to AC_CONFIG_AUX_DIR.  In an effort to reduce top level directory clutter, reintroduced the
+	call to AC_CONFIG_AUX_DIR. Moved the call to LT_INIT to after that
+	call so configure will be able to find its files.
+
+2014-07-18  Will Estes <westes575@gmail.com>
+
+	* tests/tableopts.sh, tests/testwrapper.sh: use unofficial bash
+	strict mode and cleanups in supporting bash scripts
+
+2014-07-18  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/tableopts.am,
+	tests/tableopts.l4, tests/tableopts.sh, tests/tableopts.txt,
+	tests/test-table-opts/.gitignore,
+	tests/test-table-opts/Makefile.am, tests/test-table-opts/scanner.l,
+	tests/test-table-opts/test.input: split apart table options tests
+	into tests per threading, table option, serialization and
+	verification
+
+2014-07-17  Will Estes <westes575@gmail.com>
+
+	* tests/tableopts.sh: add tableopts.sh script
+
+2014-07-02  Will Estes <westes575@gmail.com>
+
+	* configure.ac, tests/Makefile.am: use automake conditional  around
+	pthread test
+
+2014-07-01  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/lineno_trailing.l,
+	tests/lineno_trailing.one.txt,
+	tests/test-lineno-trailing/.gitignore,
+	tests/test-lineno-trailing/Makefile.am,
+	tests/test-lineno-trailing/scanner.l,
+	tests/test-lineno-trailing/test.input: refactor lineno_trailing test
+	for new test suite layout
+
+2014-07-01  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/lineno_r.l,
+	tests/lineno_r.one.txt, tests/test-lineno-r/.gitignore,
+	tests/test-lineno-r/Makefile.am, tests/test-lineno-r/scanner.l,
+	tests/test-lineno-r/test.input: refactor lineno_r test for new test
+	suite layout
+
+2014-07-01  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/lineno_nr.l,
+	tests/lineno_nr.one.txt, tests/test-lineno-nr/.gitignore,
+	tests/test-lineno-nr/Makefile.am, tests/test-lineno-nr/scanner.l,
+	tests/test-lineno-nr/test.input, tests/testwrapper.sh: refactor
+	lineno_nr test for new test suite layout
+
+2014-06-30  Will Estes <westes575@gmail.com>
+
+	* tests/test-linedir-r/.gitignore,
+	tests/test-linedir-r/Makefile.am,
+	tests/test-linedir-r/check-lines.awk, tests/test-linedir-r/main.c,
+	tests/test-linedir-r/scanner.l, tests/test-linedir-r/test.input: 
+	Remove linedir_r test.  The linedir_r test tested the implementation of line number
+	tracking, not its results.
+
+2014-06-24  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/pthread.l,
+	tests/pthread_1.txt, tests/pthread_2.txt, tests/pthread_3.txt,
+	tests/pthread_4.txt, tests/pthread_5.txt,
+	tests/test-pthread/.gitignore, tests/test-pthread/Makefile.am,
+	tests/test-pthread/scanner.l, tests/test-pthread/test-1.input,
+	tests/test-pthread/test-2.input, tests/test-pthread/test-3.input,
+	tests/test-pthread/test-4.input, tests/test-pthread/test-5.input: 
+	refactor pthread test for new test suite layout
+
+2014-06-24  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: build reject_[vs]er tests explicitly to pass
+	proper compiler flags
+
+2014-06-24  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/cxx_yywrap.ll,
+	tests/cxx_yywrap.txt, tests/test-c++-yywrap/.gitignore,
+	tests/test-c++-yywrap/Makefile.am, tests/test-c++-yywrap/scanner.l,
+	tests/test-c++-yywrap/test.input, tests/testwrapper.sh: refactor
+	cxx_yywrap test for new test suite layout
+
+2014-06-17  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am, tests/options.cn,
+	tests/test-concatenated-options/.gitignore,
+	tests/test-concatenated-options/Makefile.am: refactor concatenated
+	options test for new test suite layout
+
+2014-06-17  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am,
+	tests/include_by_buffer.direct.l,
+	tests/include_by_buffer.direct.txt,
+	tests/include_by_buffer.direct_2.txt,
+	tests/include_by_buffer.direct_3.txt,
+	tests/include_by_push.direct.l, tests/include_by_push.direct.txt,
+	tests/include_by_push.direct_2.txt,
+	tests/include_by_push.direct_3.txt,
+	tests/include_by_reentrant.direct.l,
+	tests/include_by_reentrant.direct.txt,
+	tests/include_by_reentrant.direct_2.txt,
+	tests/include_by_reentrant.direct_3.txt,
+	tests/test-include-by-buffer/.gitignore,
+	tests/test-include-by-buffer/Makefile.am,
+	tests/test-include-by-buffer/scanner.l,
+	tests/test-include-by-buffer/test-1.input,
+	tests/test-include-by-buffer/test-2.input,
+	tests/test-include-by-buffer/test-3.input,
+	tests/test-include-by-push/.gitignore,
+	tests/test-include-by-push/Makefile.am,
+	tests/test-include-by-push/scanner.l,
+	tests/test-include-by-push/test-1.input,
+	tests/test-include-by-push/test-2.input,
+	tests/test-include-by-push/test-3.input,
+	tests/test-include-by-reentrant/.gitignore,
+	tests/test-include-by-reentrant/Makefile.am,
+	tests/test-include-by-reentrant/scanner.l,
+	tests/test-include-by-reentrant/test-1.input,
+	tests/test-include-by-reentrant/test-2.input,
+	tests/test-include-by-reentrant/test-3.input: refactor include_by_*
+	tests for new test suite layout
+
+2014-06-16  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/rescan_nr.direct.l,
+	tests/rescan_nr.direct.txt, tests/rescan_nr.l, tests/rescan_nr.txt,
+	tests/rescan_r.direct.l, tests/rescan_r.direct.txt,
+	tests/test-rescan-r/.gitignore, tests/test-rescan-r/Makefile.am,
+	tests/test-rescan-r/scanner.l, tests/test-rescan-r/test.input,
+	tests/testwrapper.sh: refactor rescan_r test for new test suite
+	layout
+
+2014-06-16  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/rescan_nr.l,
+	tests/rescan_nr.txt, tests/test-rescan-nr/.gitignore,
+	tests/test-rescan-nr/Makefile.am, tests/test-rescan-nr/scanner.l,
+	tests/test-rescan-nr/test.input, tests/testwrapper.sh: Refactor
+	rescan_nr test for new test suite layout.  Also add -r option to testwrapper.sh to support passing input file
+	as a command line argument to the test scanner without using shell
+	redirection.
+
+2014-06-16  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: correct use of objext to OBJEXT
+
+2014-06-16  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/quotes.l,
+	tests/quotes.txt, tests/test-quotes/.gitignore,
+	tests/test-quotes/Makefile.am, tests/test-quotes/scanner.l,
+	tests/test-quotes/test.input: refactor quotes test for new test
+	suite layout
+
+2014-06-16  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/reject.l4,
+	tests/reject.txt, tests/test-reject/.gitignore,
+	tests/test-reject/Makefile.am, tests/test-reject/scanner.l,
+	tests/test-reject/test.input, tests/testwrapper.sh: Refactor reject
+	test for new test suite layout.  Split out reject test into its constituant tests. Add .reject tests
+	and .table tests for automake test log generation. Rewrite
+	testwrapper.sh to handle running with a tables file and specifying
+	optional input using command line options rather than positional
+	parameters.
+
+2014-06-15  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am,
+	tests/multiple_scanners_r_1.l, tests/multiple_scanners_r_2.l,
+	tests/multiple_scanners_r_main.c,
+	tests/test-multiple-scanners-r/.gitignore,
+	tests/test-multiple-scanners-r/Makefile.am,
+	tests/test-multiple-scanners-r/main.c,
+	tests/test-multiple-scanners-r/scanner-1.l,
+	tests/test-multiple-scanners-r/scanner-2.l: Refactor
+	multiple_scanners_r test for new test suite layout.  Also, remove the use of table files from this test as that tests two
+	features at once and we want to be as close to testing one feature
+	at a time as we can be.
+
+2014-06-15  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am,
+	tests/multiple_scanners_nr_1.l, tests/multiple_scanners_nr_2.l,
+	tests/multiple_scanners_nr_main.c,
+	tests/test-multiple-scanners-nr/.gitignore,
+	tests/test-multiple-scanners-nr/Makefile.am,
+	tests/test-multiple-scanners-nr/main.c,
+	tests/test-multiple-scanners-nr/scanner-1.l,
+	tests/test-multiple-scanners-nr/scanner-2.l: refactor
+	multiple_scanners_nr test for new test suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am,
+	tests/cxx_multiple_scanners.txt, tests/cxx_multiple_scanners_1.ll,
+	tests/cxx_multiple_scanners_2.ll,
+	tests/cxx_multiple_scanners_main.cc,
+	tests/test-c++-multiple-scanners/.gitignore,
+	tests/test-c++-multiple-scanners/Makefile.am,
+	tests/test-c++-multiple-scanners/main.cpp,
+	tests/test-c++-multiple-scanners/scanner-1.l,
+	tests/test-c++-multiple-scanners/scanner-2.l,
+	tests/test-c++-multiple-scanners/test.input: refactor
+	cxx_multiple_scanners test for new test suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/c_cxx_nr.lll,
+	tests/c_cxx_nr.txt, tests/c_cxx_r.lll, tests/c_cxx_r.txt,
+	tests/test-c-cpp-nr/.gitignore, tests/test-c-cpp-nr/Makefile.am,
+	tests/test-c-cpp-nr/scanner.l, tests/test-c-cpp-nr/test.input,
+	tests/test-c-cpp-r/.gitignore, tests/test-c-cpp-r/Makefile.am,
+	tests/test-c-cpp-r/scanner.l, tests/test-c-cpp-r/test.input: 
+	refactor c_cxx_nr, c_cxx_r tests for new test suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/cxx_basic.ll,
+	tests/cxx_basic.txt, tests/test-c++-basic/.gitignore,
+	tests/test-c++-basic/Makefile.am, tests/test-c++-basic/scanner.l,
+	tests/test-c++-basic/test.input: refactor cxx_basic test for new
+	test suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/posixly_correct.l,
+	tests/test-posixly-correct/.gitignore,
+	tests/test-posixly-correct/Makefile.am,
+	tests/test-posixly-correct/scanner.l: refactor posixly_correct test
+	for new test suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am,
+	tests/test-yyextra/.gitignore, tests/test-yyextra/Makefile.am,
+	tests/test-yyextra/scanner.l, tests/test-yyextra/test.input,
+	tests/yyextra.l, tests/yyextra.txt: refactor yyextra test for new
+	test suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/test-top/.gitignore,
+	tests/test-top/Makefile.am, tests/test-top/main.c,
+	tests/test-top/scanner.l, tests/test-top/test.input, tests/top.l,
+	tests/top.txt, tests/top_main.c: refactor top test for new test
+	suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/string_r.l,
+	tests/test-string-r/.gitignore, tests/test-string-r/Makefile.am,
+	tests/test-string-r/scanner.l: refactor string_r test for new test
+	suite layout
+
+2014-06-14  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/string_nr.l,
+	tests/test-string-nr/.gitignore, tests/test-string-nr/Makefile.am,
+	tests/test-string-nr/scanner.l: refactor string_nr test for new test
+	suite layout
+
+2014-06-12  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/prefix_r.l,
+	tests/prefix_r.txt, tests/test-prefix-r/.gitignore,
+	tests/test-prefix-r/Makefile.am, tests/test-prefix-r/README,
+	tests/test-prefix-r/scanner.l, tests/test-prefix-r/test.input: 
+	refactor prefix_r test for new test suite layout
+
+2014-06-12  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/prefix_nr.l,
+	tests/prefix_nr.txt, tests/test-prefix-nr/.gitignore,
+	tests/test-prefix-nr/Makefile.am, tests/test-prefix-nr/README,
+	tests/test-prefix-nr/scanner.l, tests/test-prefix-nr/test.input: 
+	refactor prefix_nr for new test suite layout
+
+2014-06-12  Will Estes <westes575@gmail.com>
+
+	* tests/testwrapper.sh: Check if test input file exists.  Not all tests have input files, so check if one exists and run the
+	test program accordingly.
+
+2014-06-12  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/posix.l,
+	tests/test-posix/.gitignore, tests/test-posix/Makefile.am,
+	tests/test-posix/scanner.l: refactor posix test for new test suite
+	layout
+
+2014-06-12  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/noansi_r.l,
+	tests/noansi_r.txt, tests/test-noansi-r/.gitignore,
+	tests/test-noansi-r/Makefile.am, tests/test-noansi-r/scanner.l,
+	tests/test-noansi-r/test.input: refactor noansi_r test for new test
+	suite layout
+
+2014-06-12  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/noansi_nr.l,
+	tests/noansi_nr.txt, tests/test-noansi-nr/.gitignore,
+	tests/test-noansi-nr/Makefile.am, tests/test-noansi-nr/scanner.l,
+	tests/test-noansi-nr/test.input: refactor noansi_nr for new test
+	suite layout
+
+2014-06-05  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/mem_r.l,
+	tests/mem_r.txt, tests/test-mem-r/.gitignore,
+	tests/test-mem-r/Makefile.am, tests/test-mem-r/scanner.l,
+	tests/test-mem-r/test.input: refactor mem_r test for new test suite
+	layout
+
+2014-06-05  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/mem_nr.l,
+	tests/mem_nr.txt, tests/test-mem-nr/.gitignore,
+	tests/test-mem-nr/Makefile.am, tests/test-mem-nr/scanner.l,
+	tests/test-mem-nr/test.input: refactor mem_nr test for new test
+	suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/header_r.txt,
+	tests/header_r_main.c, tests/header_r_scanner.l,
+	tests/test-header-r/.gitignore, tests/test-header-r/Makefile.am,
+	tests/test-header-r/main.c, tests/test-header-r/scanner.l,
+	tests/test-header-r/test.input: refactor header_r test for new test
+	suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/header_nr.txt,
+	tests/header_nr_main.c, tests/header_nr_scanner.l,
+	tests/test-header-nr/.gitignore, tests/test-header-nr/Makefile.am,
+	tests/test-header-nr/main.c, tests/test-header-nr/scanner.l,
+	tests/test-header-nr/test.input: refactor header_nr test for new
+	test suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/extended.l,
+	tests/extended.txt, tests/test-extended/.gitignore,
+	tests/test-extended/Makefile.am, tests/test-extended/scanner.l,
+	tests/test-extended/test.input: refactor extended test for new test
+	suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/debug_r.l,
+	tests/debug_r.txt, tests/test-debug-r/.gitignore,
+	tests/test-debug-r/Makefile.am, tests/test-debug-r/scanner.l,
+	tests/test-debug-r/test.input: refactor debug_r test for new test
+	suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/debug_nr.l,
+	tests/debug_nr.txt, tests/test-debug-nr/.gitignore,
+	tests/test-debug-nr/Makefile.am, tests/test-debug-nr/scanner.l,
+	tests/test-debug-nr/test.input: refactor debug_nr test for new test
+	suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/ccl.l, tests/ccl.txt,
+	tests/test-ccl/.gitignore, tests/test-ccl/Makefile.am,
+	tests/test-ccl/scanner.l, tests/test-ccl/test.input: refactor ccl
+	test for new test suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/alloc-extra.l,
+	tests/alloc-extra.txt, tests/alloc_extra.l, tests/alloc_extra.txt,
+	tests/array-nr.l, tests/array-nr.txt, tests/array-r.l,
+	tests/array-r.txt, tests/array_nr.l, tests/array_nr.txt,
+	tests/array_r.l, tests/array_r.txt, tests/basic-nr.l,
+	tests/basic-nr.txt, tests/basic-r.l, tests/basic-r.txt,
+	tests/basic_nr.l, tests/basic_nr.txt, tests/basic_r.l,
+	tests/basic_r.txt, tests/bison-nr-main.c, tests/bison-nr-parser.y,
+	tests/bison-nr-scanner.l, tests/bison-nr.txt,
+	tests/bison-yylloc-main.c, tests/bison-yylloc-parser.y,
+	tests/bison-yylloc-scanner.l, tests/bison-yylloc.txt,
+	tests/bison-yylval-main.c, tests/bison-yylval-parser.y,
+	tests/bison-yylval-scanner.l, tests/bison-yylval.txt,
+	tests/bison_nr.txt, tests/bison_nr_main.c, tests/bison_nr_parser.y,
+	tests/bison_nr_scanner.l, tests/bison_yylloc.txt,
+	tests/bison_yylloc_main.c, tests/bison_yylloc_parser.y,
+	tests/bison_yylloc_scanner.l, tests/bison_yylval.txt,
+	tests/bison_yylval_main.c, tests/bison_yylval_parser.y,
+	tests/bison_yylval_scanner.l: use underscores in test file names to
+	silence automake warnings
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* .gitignore, m4/.gitignore, m4/Makefile.am: do not track m4
+	subdirectory any more
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* .gitignore, configure.ac: upgrade automake version to 1.14.1 Unfortunately, automake 1.14.1 does not play nicely with
+	AC_CONFIG_AUX_DIR, so upgrading the used automake version required
+	removing the build-aux directory and letting autoconf's installed
+	helper files live more over the tree.
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* doc/.gitignore: ignore more files generated by texinfo
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* configure.ac: update gettext version to 0.19
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* configure.ac: call LT_INIT earlier in configure.ac
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/bison-yylval-main.c,
+	tests/bison-yylval-parser.y, tests/bison-yylval-scanner.l,
+	tests/bison-yylval.txt, tests/test-bison-yylval/.gitignore,
+	tests/test-bison-yylval/Makefile.am,
+	tests/test-bison-yylval/main.c, tests/test-bison-yylval/parser.y,
+	tests/test-bison-yylval/scanner.l,
+	tests/test-bison-yylval/test.input: refactor bison-yylval test for
+	new test suite layout
+
+2014-06-04  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/bison-yylloc-main.c,
+	tests/bison-yylloc-parser.y, tests/bison-yylloc-scanner.l,
+	tests/bison-yylloc.txt, tests/test-bison-yylloc/.gitignore,
+	tests/test-bison-yylloc/Makefile.am,
+	tests/test-bison-yylloc/main.c, tests/test-bison-yylloc/parser.y,
+	tests/test-bison-yylloc/scanner.l,
+	tests/test-bison-yylloc/test.input: refactor bison-yylloc test for
+	new test suite layout
+
+2014-06-03  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/bison-nr-main.c,
+	tests/bison-nr-parser.y, tests/bison-nr-scanner.l,
+	tests/bison-nr.txt, tests/test-bison-nr/.gitignore,
+	tests/test-bison-nr/Makefile.am, tests/test-bison-nr/main.c,
+	tests/test-bison-nr/parser.y, tests/test-bison-nr/scanner.l,
+	tests/test-bison-nr/test.input: refactor bison-nr test for new test
+	suite layout
+
+2014-06-01  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/array-r.l,
+	tests/array-r.txt, tests/test-array-r/.gitignore,
+	tests/test-array-r/Makefile.am, tests/test-array-r/scanner.l,
+	tests/test-array-r/test.input: refactor array-r test for new test
+	suite layout
+
+2014-06-01  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: list tests/README with other EXTRA_DIST files
+	in tests/
+
+2014-06-01  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/array-nr.l,
+	tests/array-nr.txt, tests/test-array-nr/.gitignore,
+	tests/test-array-nr/Makefile.am, tests/test-array-nr/scanner.l,
+	tests/test-array-nr/test.input: refactor array-nr test for new test
+	suite layout
+
+2014-06-01  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am, tests/testwrapper.sh: make tests/testwrapper.sh
+	more verbose; find input in srcdir Since output is redirected by the automake parallel test suite
+	driver, turn on both -v and -x in bash for the testwrapper.sh shell
+	script. This helps a ton in debugging problems with the test harness
+	itself.  In general, the input files are in automake's srcdir and the name of
+	the test includes the relative path to it (even though that's
+	supposed to be ./). Therefore, pass srcdir in AM_LOG_FLAGS and
+	prepend that to the test name as part of constructing the input
+	file's name.
+
+2014-06-01  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: distribute tests/testwrapper.sh
+
+2014-06-01  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/alloc-extra.l,
+	tests/alloc-extra.txt, tests/test-alloc-extra/.gitignore,
+	tests/test-alloc-extra/Makefile.am,
+	tests/test-alloc-extra/scanner.l, tests/test-alloc-extra/test.input: 
+	refacter alloc-extra for new test suite layout
+
+2014-05-29  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore, tests/Makefile.am, tests/basic-r.l,
+	tests/basic-r.txt, tests/test-basic-r/.gitignore,
+	tests/test-basic-r/Makefile.am, tests/test-basic-r/scanner.l,
+	tests/test-basic-r/test.input: refactor basic-r test for new test
+	suite layout
+
+2014-04-22  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am, tests/basic-nr.l, tests/basic-nr.txt,
+	tests/test-basic-nr/.gitignore, tests/test-basic-nr/Makefile.am,
+	tests/test-basic-nr/scanner.l, tests/test-basic-nr/test.input,
+	tests/testwrapper.sh: refactor basic-nr test for new test suite
+	layout
+
+2014-04-22  Will Estes <westes575@gmail.com>
+
+	* configure.ac: remove old tests/ subdirectories from build system
+
+2014-04-22  Will Estes <westes575@gmail.com>
+
+	* configure.ac: add parallel test suite option to build system
+
+2014-04-22  Will Estes <westes575@gmail.com>
+
+	* tests/.gitignore: ignore files for new test suite layout
+
+2014-04-22  Will Estes <westes575@gmail.com>
+
+	* tests/Makefile.am: use automake parallel test suite option  to
+	build test suite
+
+2014-04-09  Manoj Srivastava <srivasta@golden-gryphon.com>
+
+	* tests/test-bison-yylloc/parser.y,
+	tests/test-bison-yylval/parser.y: Do not use obsolete bison
+	constructs in tests.  In Bison 3.0, support for YYLEX_PARAM and YYPARSE_PARAM has been
+	removed (deprecated in Bison 1.875): use %lex-param, %parse-param,
+	or %param. This commit fixes the tests so they still work.  Signed-off-by: Manoj Srivastava <srivasta@golden-gryphon.com>
+
+2014-10-31  Christos Zoulas <christos@zoulas.com>
+
+	* src/buf.c, src/filter.c, src/flex.skl, src/flexdef.h, src/gen.c,
+	src/libmain.c, src/libyywrap.c, src/main.c, src/misc.c, src/nfa.c,
+	src/scan.l, src/scanflags.c, src/scanopt.c, src/yylex.c: NetBSD
+	downstream patches.    const fixes.    -Wconversion fixes for the skeleton files.    param namespace protection (add _ to inline function parameters).    unused variable/code removal.    rename warn to lwarn to avoid conflict with <err.h>.    ctype.h function argument correction.    merged the error functions lerrif and lerrsf -> lerr.
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/flexdef.h, src/misc.c, src/scanflags.c: Allow error reporting
+	routines to accept varying number of arguments in modern style
+
+2014-07-25  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/buf.c: Fix warning on assigning from `const char*` to `char*`
+
+2014-07-24  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/main.c: Add disambiguation braces in main.c
+
+2014-07-17  Yuri <yuri@tsoft.com>
+
+	* doc/flex.texi, examples/fastwc/mywc.c, src/ccl.c, src/dfa.c,
+	src/ecs.c, src/flex.skl, src/flexdef.h, src/gen.c, src/misc.c,
+	src/nfa.c, src/parse.y, src/scan.l, src/sym.c, src/tblcmp.c: Removed
+	deprecated 'register' storage class specifier.  clang-3.5.0 now
+	complains about them: warning: 'register' storage class specifier is
+	deprecated [-Wdeprecated-register]
+
+2014-06-21  Mariusz Pluciński <mplucinski@mplucinski.com>
+
+	* src/flexdef.h, src/main.c, src/misc.c, src/options.c,
+	src/options.h, src/yylex.c: Change output formats from octal to
+	hexadecimal
+
+2014-06-11  Will Estes <westes575@gmail.com>
+
+	* NEWS, configure.ac: update version number to 2.6.0-pre
+
+2014-05-03  Will Estes <westes575@gmail.com>
+
+	* src/ecs.c: check limits before using array index cclp; resolves
+	sf-166
+
+2014-04-02  Sean McBride <sean@rogue-research.com>
+
+	* src/flex.skl: Suppress clang warning about empty @param paragraph;
+	resolves sf#158 Signed-off-by: Will Estes <westes575@gmail.com>
+
+2014-04-02  Will Estes <westes575@gmail.com>
+
+	* doc/flex.texi: fix punction when talking about colon-bracket
+	delimiters; resolves sf#167
+
+2014-04-02  Will Estes <westes575@gmail.com>
+
+	* doc/flex.texi: remove proofreading comment
+
+2014-04-02  Will Estes <westes575@gmail.com>
+
+	* doc/flex.texi: Put angle brackets around start condition name;
+	resolves bug #168.
+
+2014-04-02  Michael Haubenwallner <michael.haubenwallner@ssi-schaefer.com>
+
+	* lib/Makefile.am, lib/realloc.c: Fix malloc/realloc replacement,
+	bug#151.  Signed-off-by: Will Estes <westes575@gmail.com>
+
+2014-04-02  Will Estes <westes575@gmail.com>
+
+	* lib/malloc.c: change crlf line ending to lf
+
+2014-03-26  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention flex 2.5.39 release in NEWS file
+
+2014-03-26  Will Estes <westes575@gmail.com>
+
+	* control.ac: initial default control file for shipper
+
+2014-03-05  Cyril Brulebois <kibi@debian.org>
+
+	* src/flex.skl: Adjust buffer sizes on ia64.  From the debian change entry: > Finish fixing the ia64 buffer issue. Previous commits increased
+	YY_READ_BUF_SIZE (where __ia64__ is defined) but left YY_BUF_SIZE
+	unchanged, so that didn't fix the problem in the end. In the general
+	case, the latter is twice the former. Therefore set it to the same
+	ratio in the ia64 case.  In general, this sort of architecture specific fix is not the path
+	we want to take, but the cleanup should be done in a more organized
+	way in the future and getting it working would be preferrable now.
+
+2014-02-18  Will Estes <westes575@gmail.com>
+
+	* Makefile.am, src/Makefile.am: move m4 make variable to
+	src/Makefile.am.  This prevents an error when building skel.c caused by the $(m4) make
+	variable not being defined. Particularly nasty since skel.c would
+	still be created, thus causing make to think skel.c was up to date.
+
+2014-02-18  Will Estes <westes575@gmail.com>
+
+	* devel/00EXTRACT-ALL-SYMS.sh, devel/README, devel/dump-tables.pl,
+	devel/tables.pl: remove unused devel/ subdirectory from codebase
+
+2014-02-15  Will Estes <westes575@gmail.com>
+
+	* po/Rules-getpo: Add make rule to rsync latest .po files from
+	translation project.  The rule assumes that rsync is on the path and that there is exactly
+	one domain listed in the DOMAIN make variable. The intent is that
+	the rule will work with vpath builds.
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* .gitignore: git ignore directories of the form flex-*
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* po/POTFILES.in: list source files for translation as now being in
+	src/
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* Makefile.am, configure.ac, tools/Makefile.am: Add tools/
+	directory.  Since tools/git2cl is a dependency of ChangeLog, not distributing
+	tools/git2cl with flex causes the "make dist" target to fail in the
+	distributed tar ball.
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* Makefile.am: removes extraneous files from EXTRA_DIST as automake
+	picks them up better without mentioning them
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention version 2.6.0 in release news
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* .gitignore, FlexLexer.h, Makefile.am, buf.c, ccl.c, configure.ac,
+	dfa.c, doc/.gitignore, doc/Makefile.am, ecs.c, filter.c, flex.skl,
+	flexdef.h, flexint.h, gen.c, gettext.h, lib/.gitignore, libmain.c,
+	libyywrap.c, main.c, misc.c, mkskel.sh, nfa.c, options.c,
+	options.h, parse.y, regex.c, scan.l, scanflags.c, scanopt.c,
+	scanopt.h, src/.gitignore, src/FlexLexer.h, src/Makefile.am,
+	src/buf.c, src/ccl.c, src/dfa.c, src/ecs.c, src/filter.c,
+	src/flex.skl, src/flexdef.h, src/flexint.h, src/gen.c,
+	src/gettext.h, src/libmain.c, src/libyywrap.c, src/main.c,
+	src/misc.c, src/mkskel.sh, src/nfa.c, src/options.c, src/options.h,
+	src/parse.y, src/regex.c, src/scan.l, src/scanflags.c,
+	src/scanopt.c, src/scanopt.h, src/sym.c, src/tables.c,
+	src/tables.h, src/tables_shared.c, src/tables_shared.h,
+	src/tblcmp.c, src/version.h, src/yylex.c, sym.c, tables.c,
+	tables.h, tables_shared.c, tables_shared.h, tblcmp.c, version.h,
+	yylex.c: move flex program sources into src/ directory The *.[chly] sources are now in the src directory. This implies a
+	bunch of changes in Makefile.am and friends to account for the new
+	location. The .gitignore files are now more local to places where
+	various object files and generated source files occur.
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* configure.ac: increment flex version to 2.6.0
+
+2014-02-16  Translation Project <coordinator@translationproject.org>
+
+	* po/ru.po: update ru translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated da translation in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/da.po: update da translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated es translation in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/es.po: update es translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated ko translation in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/ko.po: update ko translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated ro translation in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/ro.po: update ro translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated ru translation in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/ru.po: update ru translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated sv translation in news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/sv.po: update sv translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated tr translation in news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/tr.po: update tr translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated zh_CN in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/zh_CN.po: update zh_CN translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS, po/LINGUAS, po/zh_TW.po, po/zh_tw.po: rename zh_tw
+	translation to its proper zh_TW name
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* NEWS: mention updated nl, vi translations in release news
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/vi.po: update vi translation from the translation project
+
+2014-02-14  Translation Project <coordinator@translationproject.org>
+
+	* po/nl.po: update nl translation from the translation project
+
+2014-02-14  Will Estes <westes575@gmail.com>
+
+	* TODO: remove some unneeded entries from the todo list
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* doc/Makefile.am: list more generated files in CLEANFILES
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* doc/flex.xml: remove unmaintained xml documentation
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* configure.ac: bump AM_GNU_GETTEXT_VERSION to 0.18.1
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* README: list new location of flex git repo
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* po/.gitignore: git ignore generated files from english quoting
+	variant translations
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* po/LINGUAS: name english quoting variants correctly
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* Makefile.am, configure.ac, tools/Makefile.am: removed tools/
+	subdirectory from distribution Since it is not possible to rebuild the ChangeLog file without being
+	in a git working directory of flex, distributing the tools directory
+	is misleading. In particular, git2cl will always fail.
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* po/LINGUAS: removed unneeded blank line from translation list
+
+2014-02-13  Will Estes <westes575@gmail.com>
+
+	* po/LINGUAS: added en quoting variants to translation list
+
+2014-02-11  Will Estes <westes575@gmail.com>
+
+	* configure.ac: use gnu automake option instead of gnits option
+
+2014-02-11  Will Estes <westes575@gmail.com>
+
+	* README-alpha: remove README_alpha file since it is no longer
+	needed
+
+2014-02-10  Will Estes <westes575@gmail.com>
+
+	* configure.ac: increment version to 2.5.38
+
+2013-11-27  Will Estes <westes575@gmail.com>
+
+	* NEWS: flesh out internationalization section of NEWS file; mention
+	pt_BR translation
+
+2013-11-27  Translation Project <coordinator@translationproject.org>
+
+	* po/pt_BR.po: update pt_BR translation from the translation project
+
+2013-10-31  Will Estes <westes575@gmail.com>
+
+	* NEWS: begin listing 2.5.38 version in NEWS; list new sr
+	translation
+
+2013-10-31  Will Estes <westes575@gmail.com>
+
+	* po/LINGUAS: list new sr translation in list of translations
+
+2013-10-31  Will Estes <westes575@gmail.com>
+
+	* po/sr.po: add sr translation from the translation project
+
+2013-07-02  Till Varoquaux <till.varoquaux@gmail.com>
+
+	* configure.ac, flex.skl, nfa.c, tests/Makefile.am,
+	tests/test-lineno-trailing/.gitignore,
+	tests/test-lineno-trailing/Makefile.am,
+	tests/test-lineno-trailing/scanner.l,
+	tests/test-lineno-trailing/test.input: Adjust yylineno properly when
+	rewinding trailing contexts.
+
+2013-05-28  Will Estes <westes575@gmail.com>
+
+	* Makefile.am: Remove incorrect / in install-exec-hook target
+
+2013-02-16  Translation Project <coordinators@translationproject.org>
+
+	* po/LINGUAS, po/zh_tw.po: add zh_tw translation from the
+	translation project
+
+2012-12-06  Christoph Junghans <ottxor@gentoo.org>
+
+	* Makefile.am, configure.ac: add version information to shared
+	library Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-12-04  Christoph Junghans <ottxor@gentoo.org>
+
+	* .gitignore, Makefile.am, configure.ac, lib/Makefile.am: Build
+	libfl and libcompat using libtool; resolves #3586814 Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-12-04  Translation Project <coordinator@translationproject.org>
+
+	* po/ca.po: update ca translation
+
+2012-10-31  Hugh Sasse <hgs@dmu.ac.uk>
+
+	* tests/test-extended/Makefile.am, tests/test-quotes/Makefile.am: 
+	use cmp instead of diff in some tests for portability reasons Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-10-31  Dennis Clarke <dclarke@blastwave.org>
+
+	* tests/TEMPLATE/Makefile.am, tests/test-alloc-extra/Makefile.am,
+	tests/test-array-nr/Makefile.am, tests/test-array-r/Makefile.am,
+	tests/test-basic-nr/Makefile.am, tests/test-basic-r/Makefile.am,
+	tests/test-bison-nr/Makefile.am,
+	tests/test-bison-yylloc/Makefile.am,
+	tests/test-bison-yylval/Makefile.am,
+	tests/test-c++-basic/Makefile.am,
+	tests/test-c++-multiple-scanners/Makefile.am,
+	tests/test-c++-yywrap/Makefile.am, tests/test-c-cpp-nr/Makefile.am,
+	tests/test-c-cpp-r/Makefile.am, tests/test-ccl/Makefile.am,
+	tests/test-debug-nr/Makefile.am, tests/test-debug-r/Makefile.am,
+	tests/test-extended/Makefile.am, tests/test-header-nr/Makefile.am,
+	tests/test-header-r/Makefile.am,
+	tests/test-include-by-buffer/Makefile.am,
+	tests/test-include-by-push/Makefile.am,
+	tests/test-include-by-reentrant/Makefile.am,
+	tests/test-linedir-r/Makefile.am, tests/test-lineno-nr/Makefile.am,
+	tests/test-lineno-r/Makefile.am, tests/test-mem-nr/Makefile.am,
+	tests/test-mem-r/Makefile.am,
+	tests/test-multiple-scanners-nr/Makefile.am,
+	tests/test-multiple-scanners-r/Makefile.am,
+	tests/test-noansi-nr/Makefile.am, tests/test-noansi-r/Makefile.am,
+	tests/test-posix/Makefile.am,
+	tests/test-posixly-correct/Makefile.am,
+	tests/test-prefix-nr/Makefile.am, tests/test-prefix-r/Makefile.am,
+	tests/test-pthread/Makefile.am, tests/test-quotes/Makefile.am,
+	tests/test-reject/Makefile.am, tests/test-rescan-nr/Makefile.am,
+	tests/test-rescan-r/Makefile.am, tests/test-string-nr/Makefile.am,
+	tests/test-string-r/Makefile.am, tests/test-table-opts/Makefile.am,
+	tests/test-top/Makefile.am, tests/test-yyextra/Makefile.am: add
+	CFLAGS and CXXFLAGS options as appropriate to testsuite Makefile.am
+	files Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-10-25  Will Estes <westes575@gmail.com>
+
+	* po/LINGUAS: add hr to list of translations
+
+2012-10-25  Translation Project <coordinator@translationproject.org>
+
+	* po/hr.po: add hr translation from the translation project
+
+2012-10-25  Translation Project <coordinator@translationproject.org>
+
+	* po/fr.po: new fr translation project from the translation project
+
+2012-09-08  Will Estes <westes575@gmail.com>
+
+	* po/LINGUAS: update languages list to include esperanto translation
+
+2012-09-08  Translation Project <coordinator@translationproject.org>
+
+	* po/eo.po: add eo translation from the translation project
+
+2012-08-26  Will Estes <westes575@gmail.com>
+
+	* configure.ac: add dist-xz to automake options; resolves #3561837
+
+2012-08-26  Will Estes <westes575@gmail.com>
+
+	* autogen.sh, configure.ac: require gettext 0.18; force autoreconf
+	in autogen.sh; resolves #3561759 Autoconf had trouble finding the shared libraries for gettext. Using
+	gettext 0.18 fixes that.  When updating the gettext version number, autoreconf could fail to
+	update files, since autopoint would assume the gettext-related files
+	had been locally modified. Passing --force prevents that from
+	happening.
+
+2012-08-15  Will Estes <westes575@gmail.com>
+
+	* Makefile.am: remove README.cvs from dist_doc_DATA in Makefile.am
+
+2012-08-13  Will Estes <westes575@gmail.com>
+
+	* : commit 9256a268e2a1000cb410766e95487912a7d66d61 Author: Will
+	Estes <westes575@gmail.com> Date:   Mon Aug 13 16:23:35 2012 -0400
+
+2012-08-08  Will Estes <westes575@gmail.com>
+
+	* README, README.cvs: append README.cvs contents to README
+
+2012-08-08  Will Estes <westes575@gmail.com>
+
+	* gen.c: fix m4 error when useecs and nultrans are true; resolves
+	#1816878
+
+2012-08-08  Robert Minsk <rminsk@users.sourceforge.net>
+
+	* flex.skl: put user code after yyguts init; resolves #1744516 Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-08-08  Robert Minsk <rminsk@users.sourceforge.net>
+
+	* flex.skl, main.c: do not output yy_nxt to header with %option
+	full; resolves #1739922 Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-08-07  Will Estes <westes575@gmail.com>
+
+	* main.c: let flex decide if yymore and  reject are needed in lex
+	compatible mode This resolves bug #3510440.
+
+2012-08-06  Translation Project <coordinator@translationproject.org>
+
+	* po/vi.po: new vi translation from the translation project
+
+2012-08-06  Will Estes <westes575@gmail.com>
+
+	* .gitignore: add more patterns to .gitignore Undersome circumstances, the build process will generate conf.in~,
+	which we want to ignore. Also, some patch files will apply but not
+	cleanly and *.orig and *.rej files are generated. We want to ignore
+	them as well.
+
+2012-08-06  Will Estes <westes575@gmail.com>
+
+	* configure.ac, configure.in: rename configure.in to configure.ac to
+	prep for upcoming automake changes
+
+2012-08-06  Elias Pipping <pipping@users.sourceforge.net>
+
+	* tests/test-bison-yylloc/main.c, tests/test-bison-yylloc/parser.y,
+	tests/test-bison-yylval/main.c, tests/test-bison-yylval/parser.y: 
+	Fix two tests to pass under bison 2.6 Given that bison is moving forward with the %parse-param instead of
+	YYPARSE_PARAM syntax, it makes sense to switch over to using the new
+	style declaration. In particular, this means that flex scanners that
+	use bison features will now require bison 2.6 or higher.  Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-08-04  Will Estes <westes575@gmail.com>
+
+	* po/nl.po: new nl translation from the translation project
+
+2012-08-04  Mike Frysinger <vapier@gentoo.org>
+
+	* flexdef.h: add prototype for lerrsf_fatal to flexdef.h Signed-off-by: Will Estes <westes575@gmail.com>
+
+2012-08-04  nomis52 <nomis52@users.sourceforge.net>
+
+	* flex.skl, gen.c: Change variable types to silence compiler
+	warnings; resolves #3552806 Signed-off-by: Will Estes <westes575@gmail.com>
+
 2012-08-03  Will Estes <westes575@gmail.com>
 
 	* NEWS: update NEWS to reflect changes in 2.5.37
