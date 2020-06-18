@@ -28,7 +28,7 @@
 .\"     @(#)fgetln.3	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2016
+.Dd June 11, 2020
 .Dt FGETLN 3
 .Os
 .Sh NAME
@@ -126,3 +126,33 @@ The
 .Fn fgetln
 function first appeared in
 .Bx 4.4 .
+.Sh CAVEATS
+Since the returned buffer is not a C string (it is not NUL terminated), a
+common practice is to replace the newline character with
+.Sq \e0 .
+However, if the last line in a file does not contain a newline,
+the returned text won't contain a newline either.
+The following code demonstrates how to deal with this problem by allocating a
+temporary buffer:
+.Bd -literal
+	char *buf, *lbuf;
+	size_t len;
+
+	lbuf = NULL;
+	while ((buf = fgetln(fp, &len)) != NULL) {
+		if (buf[len - 1] == '\en')
+			buf[len - 1] = '\e0';
+		else {
+			/* EOF without EOL, copy and add the NUL */
+			if ((lbuf = malloc(len + 1)) == NULL)
+				err(1, NULL);
+			memcpy(lbuf, buf, len);
+			lbuf[len] = '\e0';
+			buf = lbuf;
+		}
+		printf("%s\en", buf);
+	}
+	free(lbuf);
+	if (ferror(fp))
+		err(1, "fgetln");
+.Ed
