@@ -58,6 +58,8 @@ arm/allwinner/clkng/aw_clk_np.c		optional	aw_ccu fdt
 arm/allwinner/clkng/aw_clk_prediv_mux.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_a64.c		optional	soc_allwinner_a64 aw_ccu fdt
 arm/allwinner/clkng/ccu_h3.c		optional	soc_allwinner_h5 aw_ccu fdt
+arm/allwinner/clkng/ccu_h6.c		optional	soc_allwinner_h6 aw_ccu fdt
+arm/allwinner/clkng/ccu_h6_r.c		optional	soc_allwinner_h6 aw_ccu fdt
 arm/allwinner/clkng/ccu_sun8i_r.c	optional	aw_ccu fdt
 arm/allwinner/clkng/ccu_de2.c		optional	aw_ccu fdt
 
@@ -66,6 +68,8 @@ arm/allwinner/a64/a64_padconf.c	optional	soc_allwinner_a64 fdt
 arm/allwinner/a64/a64_r_padconf.c optional	soc_allwinner_a64 fdt
 arm/allwinner/h3/h3_padconf.c	optional	soc_allwinner_h5 fdt
 arm/allwinner/h3/h3_r_padconf.c optional	soc_allwinner_h5 fdt
+arm/allwinner/h6/h6_padconf.c optional		soc_allwinner_h6 fdt
+arm/allwinner/h6/h6_r_padconf.c optional	soc_allwinner_h6 fdt
 
 arm/annapurna/alpine/alpine_ccu.c		optional	al_ccu fdt
 arm/annapurna/alpine/alpine_nb_service.c	optional	al_nb_service fdt

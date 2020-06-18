@@ -130,6 +130,12 @@ extern const struct allwinner_padconf a64_padconf;
 extern const struct allwinner_padconf a64_r_padconf;
 #endif
 
+/* Defined in h6_padconf.c */
+#ifdef SOC_ALLWINNER_H6
+extern const struct allwinner_padconf h6_padconf;
+extern const struct allwinner_padconf h6_r_padconf;
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A10
 	{"allwinner,sun4i-a10-pinctrl",		(uintptr_t)&a10_padconf},
@@ -164,6 +170,10 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ALLWINNER_A64
 	{"allwinner,sun50i-a64-pinctrl",	(uintptr_t)&a64_padconf},
 	{"allwinner,sun50i-a64-r-pinctrl",	(uintptr_t)&a64_r_padconf},
+#endif
+#ifdef SOC_ALLWINNER_H6
+	{"allwinner,sun50i-h6-pinctrl",	(uintptr_t)&h6_padconf},
+	{"allwinner,sun50i-h6-r-pinctrl",	(uintptr_t)&h6_r_padconf},
 #endif
 	{NULL,	0}
 };
