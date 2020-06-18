@@ -291,22 +291,13 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 void
 linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 {
-	struct thread *td = curthread;
+	struct thread *td;
 	struct thread *othertd;
 #if defined(__amd64__)
 	struct linux_pemuldata *pem;
 #endif
 
-	/*
-	 * In a case of execing from Linux binary properly detach
-	 * other threads from the user space.
-	 */
-	if (__predict_false(SV_PROC_ABI(p) == SV_ABI_LINUX)) {
-		FOREACH_THREAD_IN_PROC(p, othertd) {
-			if (td != othertd)
-				(p->p_sysent->sv_thread_detach)(othertd);
-		}
-	}
+	td = curthread;
 
 	/*
 	 * In a case of execing to Linux binary we create Linux
@@ -314,11 +305,32 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 	 */
 	if (__predict_false((imgp->sysent->sv_flags & SV_ABI_MASK) ==
 	    SV_ABI_LINUX)) {
-
-		if (SV_PROC_ABI(p) == SV_ABI_LINUX)
+		if (SV_PROC_ABI(p) == SV_ABI_LINUX) {
+			/*
+			 * Process already was under Linuxolator
+			 * before exec.  Update emuldata to reflect
+			 * single-threaded cleaned state after exec.
+			 */
 			linux_proc_init(td, NULL, 0);
-		else
+		} else {
+			/*
+			 * We are switching the process to Linux emulator.
+			 */
 			linux_proc_init(td, td, 0);
+
+			/*
+			 * Create a transient td_emuldata for all suspended
+			 * threads, so that p->p_sysent->sv_thread_detach() ==
+			 * linux_thread_detach() can find expected but unused
+			 * emuldata.
+			 */
+			FOREACH_THREAD_IN_PROC(td->td_proc, othertd) {
+				if (othertd != td) {
+					linux_proc_init(td, othertd,
+					    LINUX_CLONE_THREAD);
+				}
+			}
+		}
 #if defined(__amd64__)
 		/*
 		 * An IA32 executable which has executable stack will have the
