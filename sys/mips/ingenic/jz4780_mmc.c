@@ -774,17 +774,26 @@ jz4780_mmc_read_ivar(device_t bus, device_t child, int which,
 	case MMCBR_IVAR_POWER_MODE:
 		*(int *)result = sc->sc_host.ios.power_mode;
 		break;
+	case MMCBR_IVAR_RETUNE_REQ:
+		*(int *)result = return_req_none;
+		break;
 	case MMCBR_IVAR_VDD:
 		*(int *)result = sc->sc_host.ios.vdd;
+		break;
+	case MMCBR_IVAR_VCCQ:
+		*result = sc->sc_host.ios.vccq;
 		break;
 	case MMCBR_IVAR_CAPS:
 		*(int *)result = sc->sc_host.caps;
 		break;
+	case MMCBR_IVAR_TIMING:
+		*(int *)result = sc->sc_host.ios.timing;
+		break;
 	case MMCBR_IVAR_MAX_DATA:
 		*(int *)result = 65535;
 		break;
-	case MMCBR_IVAR_TIMING:
-		*(int *)result = sc->sc_host.ios.timing;
+	case MMCBR_IVAR_MAX_BUSY_TIMEOUT:
+		*(int *)result = 1000000;	/* 1s max */
 		break;
 	}
 
@@ -824,6 +833,9 @@ jz4780_mmc_write_ivar(device_t bus, device_t child, int which,
 		break;
 	case MMCBR_IVAR_VDD:
 		sc->sc_host.ios.vdd = value;
+		break;
+	case MMCBR_IVAR_VCCQ:
+		sc->sc_host.ios.vccq = value;
 		break;
 	case MMCBR_IVAR_TIMING:
 		sc->sc_host.ios.timing = value;

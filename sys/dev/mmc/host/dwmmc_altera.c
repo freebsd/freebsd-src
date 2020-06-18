@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 
@@ -40,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/mmc/host/dwmmc_var.h>
+
+#include "opt_mmccam.h"
 
 static struct ofw_compat_data compat_data[] = {
 	{"altr,socfpga-dw-mshc",	1},
@@ -66,9 +70,17 @@ static int
 altera_dwmmc_attach(device_t dev)
 {
 	struct dwmmc_softc *sc;
+	phandle_t root;
 
 	sc = device_get_softc(dev);
 	sc->hwtype = HWTYPE_ALTERA;
+
+	root = OF_finddevice("/");
+
+	if (ofw_bus_node_is_compatible(root, "altr,socfpga-stratix10")) {
+		sc->bus_hz = 24000000;
+		sc->use_pio = 1;
+	}
 
 	return (dwmmc_attach(dev));
 }
