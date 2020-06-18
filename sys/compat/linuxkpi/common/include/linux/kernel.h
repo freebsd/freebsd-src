@@ -94,6 +94,9 @@
 #define	BUILD_BUG_ON_NOT_POWER_OF_2(x)	BUILD_BUG_ON(!powerof2(x))
 #define	BUILD_BUG_ON_INVALID(expr)	while (0) { (void)(expr); }
 
+extern const volatile int lkpi_build_bug_on_zero;
+#define	BUILD_BUG_ON_ZERO(x)	((x) ? lkpi_build_bug_on_zero : 0)
+
 #define	BUG()			panic("BUG at %s:%d", __FILE__, __LINE__)
 #define	BUG_ON(cond)		do {				\
 	if (cond) {						\
