@@ -176,18 +176,26 @@ mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq, struct mbuf *mb)
 	return (MIN(sq->max_inline, mb->m_pkthdr.len));
 }
 
+/*
+ * This function parse IPv4 and IPv6 packets looking for TCP and UDP
+ * headers.
+ *
+ * The return value indicates the number of bytes from the beginning
+ * of the packet until the first byte after the TCP or UDP header. If
+ * this function returns zero, the parsing failed.
+ */
 static int
-mlx5e_get_header_size(struct mbuf *mb)
+mlx5e_get_header_size(const struct mbuf *mb)
 {
-	struct ether_vlan_header *eh;
-	struct tcphdr *th;
-	struct ip *ip;
+	const struct ether_vlan_header *eh;
+	const struct tcphdr *th;
+	const struct ip *ip;
 	int ip_hlen, tcp_hlen;
-	struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 	uint16_t eth_type;
 	int eth_hdr_len;
 
-	eh = mtod(mb, struct ether_vlan_header *);
+	eh = mtod(mb, const struct ether_vlan_header *);
 	if (mb->m_len < ETHER_HDR_LEN)
 		return (0);
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
@@ -201,7 +209,7 @@ mlx5e_get_header_size(struct mbuf *mb)
 		return (0);
 	switch (eth_type) {
 	case ETHERTYPE_IP:
-		ip = (struct ip *)(mb->m_data + eth_hdr_len);
+		ip = (const struct ip *)(mb->m_data + eth_hdr_len);
 		if (mb->m_len < eth_hdr_len + sizeof(*ip))
 			return (0);
 		if (ip->ip_p != IPPROTO_TCP)
@@ -210,7 +218,7 @@ mlx5e_get_header_size(struct mbuf *mb)
 		eth_hdr_len += ip_hlen;
 		break;
 	case ETHERTYPE_IPV6:
-		ip6 = (struct ip6_hdr *)(mb->m_data + eth_hdr_len);
+		ip6 = (const struct ip6_hdr *)(mb->m_data + eth_hdr_len);
 		if (mb->m_len < eth_hdr_len + sizeof(*ip6))
 			return (0);
 		if (ip6->ip6_nxt != IPPROTO_TCP)
@@ -222,7 +230,7 @@ mlx5e_get_header_size(struct mbuf *mb)
 	}
 	if (mb->m_len < eth_hdr_len + sizeof(*th))
 		return (0);
-	th = (struct tcphdr *)(mb->m_data + eth_hdr_len);
+	th = (const struct tcphdr *)(mb->m_data + eth_hdr_len);
 	tcp_hlen = th->th_off << 2;
 	eth_hdr_len += tcp_hlen;
 	if (mb->m_len < eth_hdr_len)
