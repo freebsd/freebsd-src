@@ -697,7 +697,12 @@ options 	LIBALIAS
 # the V6 and V4.. since an association can span
 # both a V6 and V4 address at the SAME time :-)
 #
+# The SCTP_SUPPORT option does not enable SCTP, but provides the necessary
+# support for loading SCTP as a loadable kernel module.
+#
 options 	SCTP
+options 	SCTP_SUPPORT
+
 # There are bunches of options:
 # this one turns on all sorts of
 # nastily printing that you can
@@ -710,6 +715,7 @@ options 	SCTP
 # bits and prints.. which makes the code run
 # faster.. if you are not debugging don't use.
 options 	SCTP_DEBUG
+
 #
 # All that options after that turn on specific types of
 # logging. You can monitor CWND growth, flight size
@@ -732,7 +738,6 @@ options 	SCTP_MBCNT_LOGGING
 options 	SCTP_PACKET_LOGGING
 options 	SCTP_LTRACE_CHUNKS
 options 	SCTP_LTRACE_ERRORS
-
 
 # altq(9). Enable the base part of the hooks with the ALTQ option.
 # Individual disciplines must be built into the base system and can not be
