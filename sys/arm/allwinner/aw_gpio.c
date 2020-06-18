@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/proc.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -61,10 +62,17 @@ __FBSDID("$FreeBSD$");
 #include "opt_soc.h"
 #endif
 
+#ifdef INTRNG
+#include "pic_if.h"
+#endif
+
 #include "gpio_if.h"
 
 #define	AW_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
-    GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
+	  GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
+
+#define	AW_GPIO_INTR_CAPS	(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |	\
+	  GPIO_INTR_EDGE_RISING | GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
 
 #define	AW_GPIO_NONE		0
 #define	AW_GPIO_PULLUP		1
@@ -249,17 +257,45 @@ struct clk_list {
 	clk_t			clk;
 };
 
+#ifdef INTRNG
+struct gpio_irqsrc {
+	struct intr_irqsrc	isrc;
+	u_int			irq;
+	uint32_t		mode;
+	uint32_t		pin;
+	uint32_t		bank;
+	uint32_t		intnum;
+	uint32_t		intfunc;
+	uint32_t		oldfunc;
+	bool			enabled;
+};
+#endif
+
+#define	AW_GPIO_MEMRES		0
+#define	AW_GPIO_IRQRES		1
+#define	AW_GPIO_RESSZ		2
+
 struct aw_gpio_softc {
 	device_t		sc_dev;
 	device_t		sc_busdev;
+	struct resource *	sc_res[AW_GPIO_RESSZ];
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
-	bus_space_tag_t		sc_bst;
-	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
 	struct aw_gpio_conf	*conf;
 	TAILQ_HEAD(, clk_list)		clk_list;
+
+#ifdef INTRNG
+	struct gpio_irqsrc 	*gpio_pic_irqsrc;
+	int			nirqs;
+#endif
+};
+
+static struct resource_spec aw_gpio_res_spec[] = {
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE | RF_SHAREABLE },
+	{ -1,			0,	0 }
 };
 
 #define	AW_GPIO_LOCK(_sc)		mtx_lock_spin(&(_sc)->sc_mtx)
@@ -271,14 +307,18 @@ struct aw_gpio_softc {
 #define	AW_GPIO_GP_DRV(_bank, _idx)	0x14 + ((_bank) * 0x24) + ((_idx) << 2)
 #define	AW_GPIO_GP_PUL(_bank, _idx)	0x1c + ((_bank) * 0x24) + ((_idx) << 2)
 
-#define	AW_GPIO_GP_INT_CFG0		0x200
-#define	AW_GPIO_GP_INT_CFG1		0x204
-#define	AW_GPIO_GP_INT_CFG2		0x208
-#define	AW_GPIO_GP_INT_CFG3		0x20c
+#define	AW_GPIO_GP_INT_BASE(_bank)	(0x200 + 0x20 * _bank)
 
-#define	AW_GPIO_GP_INT_CTL		0x210
-#define	AW_GPIO_GP_INT_STA		0x214
-#define	AW_GPIO_GP_INT_DEB		0x218
+#define	AW_GPIO_GP_INT_CFG(_bank, _pin)	(AW_GPIO_GP_INT_BASE(_bank) + (0x4 * ((_pin) / 8)))
+#define	AW_GPIO_GP_INT_CTL(_bank)	(AW_GPIO_GP_INT_BASE(_bank) + 0x10)
+#define	AW_GPIO_GP_INT_STA(_bank)	(AW_GPIO_GP_INT_BASE(_bank) + 0x14)
+#define	AW_GPIO_GP_INT_DEB(_bank)	(AW_GPIO_GP_INT_BASE(_bank) + 0x18)
+
+#define	AW_GPIO_INT_EDGE_POSITIVE	0x0
+#define	AW_GPIO_INT_EDGE_NEGATIVE	0x1
+#define	AW_GPIO_INT_LEVEL_HIGH		0x2
+#define	AW_GPIO_INT_LEVEL_LOW		0x3
+#define	AW_GPIO_INT_EDGE_BOTH		0x4
 
 static char *aw_gpio_parse_function(phandle_t node);
 static const char **aw_gpio_parse_pins(phandle_t node, int *pins_nb);
@@ -290,10 +330,16 @@ static int aw_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value);
 static int aw_gpio_pin_get_locked(struct aw_gpio_softc *sc, uint32_t pin, unsigned int *value);
 static int aw_gpio_pin_set_locked(struct aw_gpio_softc *sc, uint32_t pin, unsigned int value);
 
+static void aw_gpio_intr(void *arg);
+static void aw_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc);
+static void aw_gpio_pic_disable_intr_locked(struct aw_gpio_softc *sc, struct intr_irqsrc *isrc);
+static void aw_gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc);
+static int aw_gpio_register_isrcs(struct aw_gpio_softc *sc);
+
 #define	AW_GPIO_WRITE(_sc, _off, _val)		\
-    bus_space_write_4(_sc->sc_bst, _sc->sc_bsh, _off, _val)
+	bus_write_4((_sc)->sc_res[AW_GPIO_MEMRES], _off, _val)
 #define	AW_GPIO_READ(_sc, _off)		\
-    bus_space_read_4(_sc->sc_bst, _sc->sc_bsh, _off)
+	bus_read_4((_sc)->sc_res[AW_GPIO_MEMRES], _off)
 
 static uint32_t
 aw_gpio_get_function(struct aw_gpio_softc *sc, uint32_t pin)
@@ -492,6 +538,8 @@ aw_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 		return (EINVAL);
 
 	*caps = AW_GPIO_DEFAULT_CAPS;
+	if (sc->conf->padconf->pins[pin].eint_func != 0)
+		*caps |= AW_GPIO_INTR_CAPS;
 
 	return (0);
 }
@@ -807,6 +855,27 @@ aw_gpio_pin_config_32(device_t dev, uint32_t first_pin, uint32_t num_pins,
 }
 
 static int
+aw_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
+    pcell_t *gpios, uint32_t *pin, uint32_t *flags)
+{
+	struct aw_gpio_softc *sc;
+	int i;
+
+	sc = device_get_softc(bus);
+
+	/* The GPIO pins are mapped as: <gpio-phandle bank pin flags>. */
+	for (i = 0; i < sc->conf->padconf->npins; i++)
+		if (sc->conf->padconf->pins[i].port == gpios[0] &&
+		    sc->conf->padconf->pins[i].pin == gpios[1]) {
+			*pin = i;
+			break;
+		}
+	*flags = gpios[gcells - 1];
+
+	return (0);
+}
+
+static int
 aw_find_pinnum_by_name(struct aw_gpio_softc *sc, const char *pinname)
 {
 	int i;
@@ -938,7 +1007,7 @@ aw_gpio_probe(device_t dev)
 static int
 aw_gpio_attach(device_t dev)
 {
-	int rid, error;
+	int error;
 	phandle_t gpio;
 	struct aw_gpio_softc *sc;
 	struct clk_list *clkp, *clkp_tmp;
@@ -951,22 +1020,15 @@ aw_gpio_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "aw gpio", "gpio", MTX_SPIN);
 
-	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (!sc->sc_mem_res) {
-		device_printf(dev, "cannot allocate memory window\n");
-		goto fail;
+	if (bus_alloc_resources(dev, aw_gpio_res_spec, sc->sc_res) != 0) {
+		device_printf(dev, "cannot allocate device resources\n");
+		return (ENXIO);
 	}
 
-	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
-
-	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
-	if (!sc->sc_irq_res) {
-		device_printf(dev, "cannot allocate interrupt\n");
+	if (bus_setup_intr(dev, sc->sc_res[AW_GPIO_IRQRES],
+	    INTR_TYPE_CLK | INTR_MPSAFE, NULL, aw_gpio_intr, sc,
+	    &sc->sc_intrhand)) {
+		device_printf(dev, "cannot setup interrupt handler\n");
 		goto fail;
 	}
 
@@ -1008,6 +1070,11 @@ aw_gpio_attach(device_t dev)
 		    off, clkret);
 		goto fail;
 	}
+
+#ifdef INTRNG
+	aw_gpio_register_isrcs(sc);
+	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
+#endif
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL)
@@ -1062,6 +1129,314 @@ aw_gpio_detach(device_t dev)
 	return (EBUSY);
 }
 
+static void
+aw_gpio_intr(void *arg)
+{
+	struct aw_gpio_softc *sc;
+	struct intr_irqsrc *isrc;
+	uint32_t reg;
+	int irq;
+
+	sc = (struct aw_gpio_softc *)arg;
+
+	AW_GPIO_LOCK(sc);
+	for (irq = 0; irq < sc->nirqs; irq++) {
+		if (!sc->gpio_pic_irqsrc[irq].enabled)
+			continue;
+
+		reg = AW_GPIO_READ(sc, AW_GPIO_GP_INT_STA(sc->gpio_pic_irqsrc[irq].bank));
+		if (!(reg & (1 << sc->gpio_pic_irqsrc[irq].intnum)))
+			continue;
+
+		isrc = &sc->gpio_pic_irqsrc[irq].isrc;
+		if (intr_isrc_dispatch(isrc, curthread->td_intr_frame) != 0) {
+			aw_gpio_pic_disable_intr_locked(sc, isrc);
+			aw_gpio_pic_post_filter(sc->sc_dev, isrc);
+			device_printf(sc->sc_dev, "Stray irq %u disabled\n", irq);
+		}
+	}
+	AW_GPIO_UNLOCK(sc);
+}
+
+/*
+ * Interrupts support
+ */
+
+static int
+aw_gpio_register_isrcs(struct aw_gpio_softc *sc)
+{
+	const char *name;
+	int nirqs;
+	int pin;
+	int err;
+
+	name = device_get_nameunit(sc->sc_dev);
+
+	for (nirqs = 0, pin = 0; pin < sc->conf->padconf->npins; pin++) {
+		if (sc->conf->padconf->pins[pin].eint_func == 0)
+			continue;
+
+		nirqs++;
+	}
+
+	sc->gpio_pic_irqsrc = malloc(sizeof(*sc->gpio_pic_irqsrc) * nirqs,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	for (nirqs = 0, pin = 0; pin < sc->conf->padconf->npins; pin++) {
+		if (sc->conf->padconf->pins[pin].eint_func == 0)
+			continue;
+
+		sc->gpio_pic_irqsrc[nirqs].pin = pin;
+		sc->gpio_pic_irqsrc[nirqs].bank = sc->conf->padconf->pins[pin].eint_bank;
+		sc->gpio_pic_irqsrc[nirqs].intnum = sc->conf->padconf->pins[pin].eint_num;
+		sc->gpio_pic_irqsrc[nirqs].intfunc = sc->conf->padconf->pins[pin].eint_func;
+		sc->gpio_pic_irqsrc[nirqs].irq = nirqs;
+		sc->gpio_pic_irqsrc[nirqs].mode = GPIO_INTR_CONFORM;
+
+		err = intr_isrc_register(&sc->gpio_pic_irqsrc[nirqs].isrc,
+		    sc->sc_dev, 0, "%s,%s", name,
+		    sc->conf->padconf->pins[pin].functions[sc->conf->padconf->pins[pin].eint_func]);
+		if (err) {
+			device_printf(sc->sc_dev, "intr_isrs_register failed for irq %d\n", nirqs);
+		}
+
+		nirqs++;
+	}
+
+	sc->nirqs = nirqs;
+
+	return (0);
+}
+
+static void
+aw_gpio_pic_disable_intr_locked(struct aw_gpio_softc *sc, struct intr_irqsrc *isrc)
+{
+	u_int irq;
+	uint32_t reg;
+
+	AW_GPIO_LOCK_ASSERT(sc);
+	irq = ((struct gpio_irqsrc *)isrc)->irq;
+	reg = AW_GPIO_READ(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank));
+	reg &= ~(1 << sc->gpio_pic_irqsrc[irq].intnum);
+	AW_GPIO_WRITE(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank), reg);
+
+	sc->gpio_pic_irqsrc[irq].enabled = false;
+}
+
+static void
+aw_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct aw_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	AW_GPIO_LOCK(sc);
+	aw_gpio_pic_disable_intr_locked(sc, isrc);
+	AW_GPIO_UNLOCK(sc);
+}
+
+static void
+aw_gpio_pic_enable_intr(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct aw_gpio_softc *sc;
+	u_int irq;
+	uint32_t reg;
+
+	sc = device_get_softc(dev);
+	irq = ((struct gpio_irqsrc *)isrc)->irq;
+	AW_GPIO_LOCK(sc);
+	reg = AW_GPIO_READ(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank));
+	reg |= 1 << sc->gpio_pic_irqsrc[irq].intnum;
+	AW_GPIO_WRITE(sc, AW_GPIO_GP_INT_CTL(sc->gpio_pic_irqsrc[irq].bank), reg);
+	AW_GPIO_UNLOCK(sc);
+
+	sc->gpio_pic_irqsrc[irq].enabled = true;
+}
+
+static int
+aw_gpio_pic_map_gpio(struct aw_gpio_softc *sc, struct intr_map_data_gpio *dag,
+    u_int *irqp, u_int *mode)
+{
+	u_int irq;
+	int pin;
+
+	irq = dag->gpio_pin_num;
+
+	for (pin = 0; pin < sc->nirqs; pin++)
+		if (sc->gpio_pic_irqsrc[pin].pin == irq)
+			break;
+	if (pin == sc->nirqs) {
+		device_printf(sc->sc_dev, "Invalid interrupt number %u\n", irq);
+		return (EINVAL);
+	}
+
+	switch (dag->gpio_intr_mode) {
+	case GPIO_INTR_LEVEL_LOW:
+	case GPIO_INTR_LEVEL_HIGH:
+	case GPIO_INTR_EDGE_RISING:
+	case GPIO_INTR_EDGE_FALLING:
+	case GPIO_INTR_EDGE_BOTH:
+		break;
+	default:
+		device_printf(sc->sc_dev, "Unsupported interrupt mode 0x%8x\n",
+		    dag->gpio_intr_mode);
+		return (EINVAL);
+	}
+
+	*irqp = pin;
+	if (mode != NULL)
+		*mode = dag->gpio_intr_mode;
+
+	return (0);
+}
+
+static int
+aw_gpio_pic_map_intr(device_t dev, struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct aw_gpio_softc *sc;
+	u_int irq;
+	int err;
+
+	sc = device_get_softc(dev);
+	switch (data->type) {
+	case INTR_MAP_DATA_GPIO:
+		err = aw_gpio_pic_map_gpio(sc,
+		    (struct intr_map_data_gpio *)data,
+		  &irq, NULL);
+		break;
+	default:
+		return (ENOTSUP);
+	};
+
+	if (err == 0)
+		*isrcp = &sc->gpio_pic_irqsrc[irq].isrc;
+	return (0);
+}
+
+static int
+aw_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct aw_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+	uint32_t irqcfg;
+	uint32_t pinidx, reg;
+	u_int irq, mode;
+	int err;
+
+	sc = device_get_softc(dev);
+	gi = (struct gpio_irqsrc *)isrc;
+
+	switch (data->type) {
+	case INTR_MAP_DATA_GPIO:
+		err = aw_gpio_pic_map_gpio(sc,
+		    (struct intr_map_data_gpio *)data,
+		  &irq, &mode);
+		break;
+	default:
+		return (ENOTSUP);
+	};
+
+	pinidx = (sc->gpio_pic_irqsrc[irq].intnum % 8) * 4;
+
+	AW_GPIO_LOCK(sc);
+	switch (mode) {
+	case GPIO_INTR_LEVEL_LOW:
+		irqcfg = AW_GPIO_INT_LEVEL_LOW << pinidx;
+		break;
+	case GPIO_INTR_LEVEL_HIGH:
+		irqcfg = AW_GPIO_INT_LEVEL_HIGH << pinidx;
+		break;
+	case GPIO_INTR_EDGE_RISING:
+		irqcfg = AW_GPIO_INT_EDGE_POSITIVE << pinidx;
+		break;
+	case GPIO_INTR_EDGE_FALLING:
+		irqcfg = AW_GPIO_INT_EDGE_NEGATIVE << pinidx;
+		break;
+	case GPIO_INTR_EDGE_BOTH:
+		irqcfg = AW_GPIO_INT_EDGE_BOTH << pinidx;
+		break;
+	}
+
+	/* Switch the pin to interrupt mode */
+	sc->gpio_pic_irqsrc[irq].oldfunc = aw_gpio_get_function(sc,
+	    sc->gpio_pic_irqsrc[irq].pin);
+	aw_gpio_set_function(sc, sc->gpio_pic_irqsrc[irq].pin,
+	    sc->gpio_pic_irqsrc[irq].intfunc);
+
+	/* Write interrupt mode */
+	reg = AW_GPIO_READ(sc, 
+	    AW_GPIO_GP_INT_CFG(sc->gpio_pic_irqsrc[irq].bank,
+	    sc->gpio_pic_irqsrc[irq].intnum));
+	reg &= ~(0xF << pinidx);
+	reg |= irqcfg;
+	AW_GPIO_WRITE(sc,
+	    AW_GPIO_GP_INT_CFG(sc->gpio_pic_irqsrc[irq].bank,
+	    sc->gpio_pic_irqsrc[irq].intnum),
+	    reg);
+
+	AW_GPIO_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+aw_gpio_pic_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
+    struct resource *res, struct intr_map_data *data)
+{
+	struct aw_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	gi = (struct gpio_irqsrc *)isrc;
+
+	/* Switch back the pin to it's original function */
+	AW_GPIO_LOCK(sc);
+	aw_gpio_set_function(sc, gi->pin, gi->oldfunc);
+	AW_GPIO_UNLOCK(sc);
+
+	return (0);
+}
+
+static void
+aw_gpio_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct aw_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	gi = (struct gpio_irqsrc *)isrc;
+
+	arm_irq_memory_barrier(0);
+	AW_GPIO_WRITE(sc, AW_GPIO_GP_INT_STA(gi->bank), 1 << gi->intnum);
+}
+
+static void
+aw_gpio_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct aw_gpio_softc *sc;
+	struct gpio_irqsrc *gi;
+
+	sc = device_get_softc(dev);
+	gi = (struct gpio_irqsrc *)isrc;
+
+	arm_irq_memory_barrier(0);
+	AW_GPIO_WRITE(sc, AW_GPIO_GP_INT_STA(gi->bank), 1 << gi->intnum);
+	aw_gpio_pic_enable_intr(dev, isrc);
+}
+
+static void
+aw_gpio_pic_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct aw_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+	aw_gpio_pic_disable_intr_locked(sc, isrc);
+}
+
+/*
+ * OFWBUS Interface
+ */
 static phandle_t
 aw_gpio_get_node(device_t dev, device_t bus)
 {
@@ -1070,32 +1445,23 @@ aw_gpio_get_node(device_t dev, device_t bus)
 	return (ofw_bus_get_node(dev));
 }
 
-static int
-aw_gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
-    pcell_t *gpios, uint32_t *pin, uint32_t *flags)
-{
-	struct aw_gpio_softc *sc;
-	int i;
-
-	sc = device_get_softc(bus);
-
-	/* The GPIO pins are mapped as: <gpio-phandle bank pin flags>. */
-	for (i = 0; i < sc->conf->padconf->npins; i++)
-		if (sc->conf->padconf->pins[i].port == gpios[0] &&
-		    sc->conf->padconf->pins[i].pin == gpios[1]) {
-			*pin = i;
-			break;
-		}
-	*flags = gpios[gcells - 1];
-
-	return (0);
-}
-
 static device_method_t aw_gpio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		aw_gpio_probe),
 	DEVMETHOD(device_attach,	aw_gpio_attach),
 	DEVMETHOD(device_detach,	aw_gpio_detach),
+
+#ifdef INTRNG
+	/* Interrupt controller interface */
+	DEVMETHOD(pic_disable_intr,	aw_gpio_pic_disable_intr),
+	DEVMETHOD(pic_enable_intr,	aw_gpio_pic_enable_intr),
+	DEVMETHOD(pic_map_intr,		aw_gpio_pic_map_intr),
+	DEVMETHOD(pic_setup_intr,	aw_gpio_pic_setup_intr),
+	DEVMETHOD(pic_teardown_intr,	aw_gpio_pic_teardown_intr),
+	DEVMETHOD(pic_post_filter,	aw_gpio_pic_post_filter),
+	DEVMETHOD(pic_post_ithread,	aw_gpio_pic_post_ithread),
+	DEVMETHOD(pic_pre_ithread,	aw_gpio_pic_pre_ithread),
+#endif
 
 	/* GPIO protocol */
 	DEVMETHOD(gpio_get_bus,		aw_gpio_get_bus),
