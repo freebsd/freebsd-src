@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_rss.h>
 
 #include <netipsec/ipsec_support.h>
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 #include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>
 #endif
@@ -221,7 +221,7 @@ ip6_output_delayed_csum(struct mbuf *m, struct ifnet *ifp, int csum_flags,
 	    __func__, __LINE__, plen, optlen, m, ifp, csum_flags, frag));
 
 	if ((csum_flags & CSUM_DELAY_DATA_IPV6) ||
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 	    (csum_flags & CSUM_SCTP_IPV6) ||
 #endif
 	    (!frag && (ifp->if_capenable & IFCAP_NOMAP) == 0)) {
@@ -238,7 +238,7 @@ ip6_output_delayed_csum(struct mbuf *m, struct ifnet *ifp, int csum_flags,
 			    sizeof(struct ip6_hdr) + optlen);
 			m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 		}
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 		if (csum_flags & CSUM_SCTP_IPV6) {
 			sctp_delayed_cksum(m, sizeof(struct ip6_hdr) + optlen);
 			m->m_pkthdr.csum_flags &= ~CSUM_SCTP_IPV6;
@@ -1041,7 +1041,7 @@ nonh6lookup:
 				    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
 				m->m_pkthdr.csum_data = 0xffff;
 			}
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 			if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
 				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif
@@ -1073,7 +1073,7 @@ nonh6lookup:
 			    CSUM_DATA_VALID_IPV6 | CSUM_PSEUDO_HDR;
 			m->m_pkthdr.csum_data = 0xffff;
 		}
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 		if (m->m_pkthdr.csum_flags & CSUM_SCTP_IPV6)
 			m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
 #endif

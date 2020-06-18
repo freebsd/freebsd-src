@@ -476,6 +476,7 @@ XBONEHACK
 # SCTP
 #
 SCTP			opt_sctp.h
+SCTP_SUPPORT		opt_sctp.h
 SCTP_DEBUG		opt_sctp.h # Enable debug printfs
 SCTP_LOCK_LOGGING	opt_sctp.h # Log to KTR lock activity
 SCTP_MBUF_LOGGING	opt_sctp.h # Log to KTR general mbuf aloc/free

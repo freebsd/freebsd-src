@@ -26,13 +26,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2020
+.Dd June 18, 2020
 .Dt SCTP 4
 .Os
 .Sh NAME
 .Nm sctp
 .Nd Internet Stream Control Transmission Protocol
 .Sh SYNOPSIS
+.Cd "options SCTP"
+.Cd "options SCTP_SUPPORT"
+.Pp
 .In sys/types.h
 .In sys/socket.h
 .In netinet/sctp.h

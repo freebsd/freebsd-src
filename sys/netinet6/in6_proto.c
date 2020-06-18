@@ -429,7 +429,7 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_UDP, udp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "UDP6");
 SYSCTL_NODE(_net_inet6,	IPPROTO_TCP, tcp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP6");
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 SYSCTL_NODE(_net_inet6,	IPPROTO_SCTP, sctp6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "SCTP6");
 #endif
