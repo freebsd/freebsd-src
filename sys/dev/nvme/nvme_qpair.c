@@ -956,6 +956,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 {
 	struct nvme_request	*req;
 	struct nvme_controller	*ctrlr;
+	int timeout;
 
 	mtx_assert(&qpair->lock, MA_OWNED);
 
@@ -964,9 +965,14 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	qpair->act_tr[tr->cid] = tr;
 	ctrlr = qpair->ctrlr;
 
-	if (req->timeout)
-		callout_reset_on(&tr->timer, ctrlr->timeout_period * hz,
-		    nvme_timeout, tr, qpair->cpu);
+	if (req->timeout) {
+		if (req->cb_fn == nvme_completion_poll_cb)
+			timeout = hz;
+		else
+			timeout = ctrlr->timeout_period * hz;
+		callout_reset_on(&tr->timer, timeout, nvme_timeout, tr,
+		    qpair->cpu);
+	}
 
 	/* Copy the command from the tracker to the submission queue. */
 	memcpy(&qpair->cmd[qpair->sq_tail], &req->cmd, sizeof(req->cmd));
