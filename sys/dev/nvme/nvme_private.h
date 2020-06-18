@@ -463,20 +463,22 @@ int	nvme_detach(device_t dev);
  * Wait for a command to complete using the nvme_completion_poll_cb.
  * Used in limited contexts where the caller knows it's OK to block
  * briefly while the command runs. The ISR will run the callback which
- * will set status->done to true.usually within microseconds. A 1s
- * pause means something is seriously AFU and we should panic to
- * provide the proper context to diagnose.
+ * will set status->done to true, usually within microseconds. If not,
+ * then after one second timeout handler should reset the controller
+ * and abort all outstanding requests including this polled one. If
+ * still not after ten seconds, then something is wrong with the driver,
+ * and panic is the only way to recover.
  */
 static __inline
 void
 nvme_completion_poll(struct nvme_completion_poll_status *status)
 {
-	int sanity = hz * 1;
+	int sanity = hz * 10;
 
 	while (!atomic_load_acq_int(&status->done) && --sanity > 0)
 		pause("nvme", 1);
 	if (sanity <= 0)
-		panic("NVME polled command failed to complete within 1s.");
+		panic("NVME polled command failed to complete within 10s.");
 }
 
 static __inline void
