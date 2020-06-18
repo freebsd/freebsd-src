@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 1998
+.Dd June 18, 2020
 .Dt LOCKF 1
 .Os
 .Sh NAME
@@ -95,7 +95,8 @@ Causes
 .Nm
 to fail if the specified lock
 .Ar file
-does not exist. If
+does not exist.
+If
 .Fl n
 is not specified,
 .Nm
@@ -160,6 +161,25 @@ The
 did not exit normally,
 but may have been signaled or stopped.
 .El
+.Sh EXAMPLES
+The first job takes a lock and sleeps for 5 seconds in the background.
+The second job tries to get the lock and timeouts after 1 second (PID numbers
+will differ):
+.Bd -literal -offset indent
+$ lockf mylock sleep 5 & lockf -t 1 mylock echo "Success"
+[1] 94410
+lockf: mylock: already locked
+.Ed
+.Pp
+The first job takes a lock and sleeps for 1 second in the background.
+The second job waits up to 5 seconds to take the lock and echoes the message on
+success (PID numbers will differ):
+.Bd -literal -offset indent
+$ lockf mylock sleep 1 & lockf -t 5 mylock echo "Success"
+[1] 19995
+Success
+[1]+  Done                    lockf mylock sleep 1
+.Ed
 .Sh SEE ALSO
 .Xr flock 2 ,
 .Xr lockf 3 ,
