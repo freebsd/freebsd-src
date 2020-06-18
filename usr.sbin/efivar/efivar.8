@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2019
+.Dd June 18, 2020
 .Dt EFIVAR 8
 .Os
 .Sh NAME
@@ -132,9 +132,10 @@ may be specified.
 Interpret the variables printed as UEFI device paths and print the
 UEFI standard string representation.
 .It Fl g Fl -guid
-flag is specified, guids are converted to names if they are known (and
-show up in
-.Fl -list-guids ).
+Convert GUIDs to names if they are known
+.Po and show them up in
+.Fl -list-guids
+.Pc .
 .It Fl H Fl -hex
 List variable data as a hex dump.
 .It Fl L Fl -list-guids
