@@ -5454,7 +5454,7 @@ print_devclass_list(void)
  */
 
 static int
-sysctl_bus(SYSCTL_HANDLER_ARGS)
+sysctl_bus_info(SYSCTL_HANDLER_ARGS)
 {
 	struct u_businfo	ubus;
 
@@ -5463,7 +5463,8 @@ sysctl_bus(SYSCTL_HANDLER_ARGS)
 
 	return (SYSCTL_OUT(req, &ubus, sizeof(ubus)));
 }
-SYSCTL_NODE(_hw_bus, OID_AUTO, info, CTLFLAG_RW | CTLFLAG_NEEDGIANT, sysctl_bus,
+SYSCTL_PROC(_hw_bus, OID_AUTO, info, CTLTYPE_STRUCT | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_bus_info, "S,u_businfo",
     "bus-related data");
 
 static int
@@ -5555,7 +5556,8 @@ bus_data_generation_check(int generation)
 void
 bus_data_generation_update(void)
 {
-	bus_data_generation++;
+
+	atomic_add_int(&bus_data_generation, 1);
 }
 
 int
