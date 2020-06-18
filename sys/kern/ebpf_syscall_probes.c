@@ -2302,13 +2302,6 @@ struct ebpf_probe ebpf_syscall_probe[] = {
 		.function = "jail_remove",
 		.name = "enter",
 	}},
-	[SYS_closefrom] = { .name = {
-		.tracer = "ebpf",
-		.provider = "sc_rewrite",
-		.module = "",
-		.function = "closefrom",
-		.name = "enter",
-	}},
 	[SYS___semctl] = { .name = {
 		.tracer = "ebpf",
 		.provider = "sc_rewrite",
@@ -2741,6 +2734,13 @@ struct ebpf_probe ebpf_syscall_probe[] = {
 		.provider = "sc_rewrite",
 		.module = "",
 		.function = "__realpathat",
+		.name = "enter",
+	}},
+	[SYS_close_range] = { .name = {
+		.tracer = "ebpf",
+		.provider = "sc_rewrite",
+		.module = "",
+		.function = "close_range",
 		.name = "enter",
 	}},
 };
