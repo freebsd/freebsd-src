@@ -60,9 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#ifdef __aarch64__
-#include "opt_soc.h"
-#endif
 
 #define GPIO_MAX_INTR_COUNT	8
 #define GPIO_PINS_PER_REG	32
@@ -199,9 +196,6 @@ EARLY_DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0,
 struct ofw_compat_data compat_data[] = {
 	{ "mrvl,gpio", 1 },
 	{ "marvell,orion-gpio", 1 },
-#ifdef SOC_MARVELL_8K
-	{ "marvell,armada-8k-gpio", 1 },
-#endif
 	{ NULL, 0 }
 };
 
