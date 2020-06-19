@@ -567,6 +567,9 @@ quot(char *name, char *mp)
 		printf(" (%s)",mp);
 	putchar('\n');
 	(*func)(fd, fs, name);
+	free(fs->fs_csp);
+	free(fs->fs_si);
+	free(fs);
 	close(fd);
 }
 

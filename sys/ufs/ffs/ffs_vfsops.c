@@ -885,14 +885,11 @@ ffs_reload(struct mount *mp, struct thread *td, int flags)
 			return (EIO);		/* XXX needs translation */
 	}
 	/*
-	 * Copy pointer fields back into superblock before copying in	XXX
-	 * new superblock. These should really be in the ufsmount.	XXX
-	 * Note that important parameters (eg fs_ncg) are unchanged.
+	 * Preserve the summary information, read-only status, and
+	 * superblock location by copying these fields into our new
+	 * superblock before using it to update the existing superblock.
 	 */
-	newfs->fs_csp = fs->fs_csp;
-	newfs->fs_maxcluster = fs->fs_maxcluster;
-	newfs->fs_contigdirs = fs->fs_contigdirs;
-	newfs->fs_active = fs->fs_active;
+	newfs->fs_si = fs->fs_si;
 	newfs->fs_ronly = fs->fs_ronly;
 	sblockloc = fs->fs_sblockloc;
 	bcopy(newfs, fs, (u_int)fs->fs_sbsize);
@@ -1309,6 +1306,7 @@ ffs_mountfs(odevvp, mp, td)
 out:
 	if (fs != NULL) {
 		free(fs->fs_csp, M_UFSMNT);
+		free(fs->fs_si, M_UFSMNT);
 		free(fs, M_UFSMNT);
 	}
 	if (cp != NULL) {
@@ -1546,6 +1544,7 @@ ffs_unmount(mp, mntflags)
 		mp->mnt_gjprovider = NULL;
 	}
 	free(fs->fs_csp, M_UFSMNT);
+	free(fs->fs_si, M_UFSMNT);
 	free(fs, M_UFSMNT);
 	if (ump->um_fsfail_task != NULL)
 		free(ump->um_fsfail_task, M_UFSMNT);
@@ -2294,10 +2293,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
 	fs = (struct fs *)bp->b_data;
 	ffs_oldfscompat_write(fs, ump);
-	/*
-	 * Because we may have made changes to the superblock, we need to
-	 * recompute its check-hash.
-	 */
+	/* Recalculate the superblock hash */
 	fs->fs_ckhash = ffs_calc_sbhash(fs);
 	if (devfdp->suspended)
 		bp->b_flags |= B_VALIDSUSPWRT;

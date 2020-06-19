@@ -122,6 +122,7 @@ g_label_ufs_taste_common(struct g_consumer *cp, char *label, size_t size, int wh
 	}
 out:
 	g_free(fs->fs_csp);
+	g_free(fs->fs_si);
 	g_free(fs);
 }
 
