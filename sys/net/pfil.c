@@ -99,7 +99,6 @@ struct pfil_head {
 	enum pfil_types head_type;
 	LIST_ENTRY(pfil_head) head_list;
 	const char *head_name;
-	struct ebpf_probe;
 };
 
 LIST_HEAD(pfilheadhead, pfil_head);

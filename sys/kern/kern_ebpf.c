@@ -47,6 +47,8 @@ struct ebpf_proc_probe {
 	RB_ENTRY(ebpf_proc_probe) link;
 };
 
+static int ebpf_active_syscall_probe(struct ebpf_probe *, void *);
+
 static int ebpf_proc_probe_cmp(
     struct ebpf_proc_probe *, struct ebpf_proc_probe *);
 
@@ -257,8 +259,8 @@ ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 	return (probe);
 }
 
-static struct ebpf_probe *
-ebpf_active_syscall_probe(struct probe *probe, void *state)
+static int
+ebpf_active_syscall_probe(struct ebpf_probe *probe, void *state)
 {
 	struct ebpf_proc_probe *pp;
 	struct proc *proc;
