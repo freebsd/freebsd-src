@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <net/radix.h>
 
+#include <rpc/types.h>
+#include <rpc/auth.h>
+
 static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
 #if defined(INET) || defined(INET6)
@@ -309,7 +312,7 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		return (EINVAL);
 
 	if ((argp->ex_flags & MNT_EXPORTED) != 0 &&
-	    (argp->ex_numsecflavors <= 0
+	    (argp->ex_numsecflavors < 0
 	    || argp->ex_numsecflavors >= MAXSECFLAVORS))
 		return (EINVAL);
 
@@ -346,6 +349,10 @@ vfs_export(struct mount *mp, struct export_args *argp)
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_EXPUBLIC;
 			MNT_IUNLOCK(mp);
+		}
+		if (argp->ex_numsecflavors == 0) {
+			argp->ex_numsecflavors = 1;
+			argp->ex_secflavors[0] = AUTH_SYS;
 		}
 		if ((error = vfs_hang_addrlist(mp, nep, argp)))
 			goto out;
