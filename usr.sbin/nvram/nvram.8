@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2006
+.Dd June 19, 2020
 .Dt NVRAM 8 powerpc
 .Os
 .Sh NAME
@@ -98,8 +98,7 @@ to
 .Pp
 .Dl "nvram -d foo -d bar baz=100"
 .Sh SEE ALSO
-.Xr powermac_nvram 4 ,
-.Xr eeprom 8
+.Xr powermac_nvram 4
 .Sh HISTORY
 The
 .Nm
@@ -111,8 +110,3 @@ Darwin/Mac OS X
 utility.
 .Sh AUTHORS
 .An Maxim Sobolev Aq Mt sobomax@FreeBSD.org
-.Sh BUGS
-Currently,
-.Nm
-only supports systems equipped with AMD flash and is only tested on Apple
-G4-based Mac Mini machines.
