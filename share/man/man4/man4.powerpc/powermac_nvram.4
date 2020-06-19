@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2010
+.Dd June 19, 2020
 .Dt POWERMAC_NVRAM 4 powerpc
 .Os
 .Sh NAME
@@ -50,8 +50,10 @@ The
 .Nm
 driver provides access to the Open Firmware configuration NVRAM
 available on the Apple PowerPC-based machines.
+.Pp
+This driver currently supports "Core99" machines containing a Sharp, Micron,
+or AMD NVRAM.
 .Sh SEE ALSO
-.Xr eeprom 8 ,
 .Xr nvram 8
 .Sh HISTORY
 The
