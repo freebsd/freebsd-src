@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2011
+.Dd June 19, 2020
 .Dt APIC 4
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ they receive from peripheral buses to one or more local APICs.
 .Pp
 Each local APIC includes one 32-bit programmable timer.
 This driver uses them to supply kernel with one event timer named "LAPIC".
-Event timer provided by the driver supports both one-shot an periodic modes.
+Event timer provided by the driver supports both one-shot and periodic modes.
 Because of local APIC nature it is per-CPU.
 The timer frequency is not reported by the platform and so automatically
 measured by the driver on the first use.
