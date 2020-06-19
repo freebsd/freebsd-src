@@ -106,6 +106,10 @@ D_flag_cleanup()
 atf_test_case F_flag cleanup
 F_flag_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247425"
+	fi
+
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
@@ -125,6 +129,10 @@ F_flag_cleanup()
 atf_test_case from_mtree_spec_file cleanup
 from_mtree_spec_file_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247425"
+	fi
+
 	create_test_inputs
 
 	atf_check -e empty -o save:$TEST_SPEC_FILE -s exit:0 \
@@ -146,6 +154,10 @@ from_mtree_spec_file_cleanup()
 atf_test_case from_multiple_dirs cleanup
 from_multiple_dirs_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247425"
+	fi
+
 	test_inputs_dir2=$TMPDIR/inputs2
 
 	create_test_inputs
@@ -168,6 +180,10 @@ from_multiple_dirs_cleanup()
 atf_test_case from_single_dir cleanup
 from_single_dir_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247425"
+	fi
+
 	create_test_inputs
 
 	atf_check -e empty -o not-empty -s exit:0 \
@@ -184,6 +200,10 @@ from_single_dir_cleanup()
 atf_test_case o_flag_version_1 cleanup
 o_flag_version_1_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247425"
+	fi
+
 	ffs_version=1
 
 	platform=$(uname)
@@ -216,6 +236,10 @@ o_flag_version_1_cleanup()
 atf_test_case o_flag_version_2 cleanup
 o_flag_version_2_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247425"
+	fi
+
 	ffs_version=2
 
 	platform=$(uname)
