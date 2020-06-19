@@ -50,7 +50,6 @@ uint32_t ffs_calc_sbhash(struct fs *);
 struct malloc_type;
 #define UFS_MALLOC(size, type, flags) malloc(size)
 #define UFS_FREE(ptr, type) free(ptr)
-#define UFS_TIME time(NULL)
 /*
  * Request standard superblock location in ffs_sbget
  */
@@ -78,7 +77,6 @@ struct malloc_type;
 
 #define UFS_MALLOC(size, type, flags) malloc(size, type, flags)
 #define UFS_FREE(ptr, type) free(ptr, type)
-#define UFS_TIME time_second
 
 #endif /* _KERNEL */
 
@@ -349,11 +347,24 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 		}
 	}
 	fs->fs_fmod = 0;
-	fs->fs_time = UFS_TIME;
+#ifndef _KERNEL
+	{
+		struct fs_summary_info *fs_si;
+
+		fs->fs_time = time(NULL);
+		/* Clear the pointers for the duration of writing. */
+		fs_si = fs->fs_si;
+		fs->fs_si = NULL;
+		fs->fs_ckhash = ffs_calc_sbhash(fs);
+		error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize);
+		fs->fs_si = fs_si;
+	}
+#else /* _KERNEL */
+	fs->fs_time = time_second;
 	fs->fs_ckhash = ffs_calc_sbhash(fs);
-	if ((error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize)) != 0)
-		return (error);
-	return (0);
+	error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize);
+#endif /* _KERNEL */
+	return (error);
 }
 
 /*
