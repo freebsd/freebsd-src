@@ -101,11 +101,11 @@ static struct aw_sid_efuse a64_efuses[] = {
 		.public = true,
 	},
 	{
-		.name = "ths-calib",
+		.name = "calibration",
 		.desc = "Thermal Sensor Calibration Data",
 		.base = EFUSE_OFFSET,
 		.offset = 0x34,
-		.size = 6,
+		.size = 8,
 		.id = AW_SID_FUSE_THSSENSOR,
 		.public = true,
 	},
@@ -122,7 +122,7 @@ static struct aw_sid_efuse a83t_efuses[] = {
 		.public = true,
 	},
 	{
-		.name = "ths-calib",
+		.name = "calibration",
 		.desc = "Thermal Sensor Calibration Data",
 		.base = EFUSE_OFFSET,
 		.offset = 0x34,
@@ -143,11 +143,11 @@ static struct aw_sid_efuse h3_efuses[] = {
 		.public = true,
 	},
 	{
-		.name = "ths-calib",
+		.name = "calibration",
 		.desc = "Thermal Sensor Calibration Data",
 		.base = EFUSE_OFFSET,
 		.offset = 0x34,
-		.size = 2,
+		.size = 4,
 		.id = AW_SID_FUSE_THSSENSOR,
 		.public = false,
 	},
@@ -164,7 +164,7 @@ static struct aw_sid_efuse h5_efuses[] = {
 		.public = true,
 	},
 	{
-		.name = "ths-calib",
+		.name = "calibration",
 		.desc = "Thermal Sensor Calibration Data",
 		.base = EFUSE_OFFSET,
 		.offset = 0x34,
@@ -351,8 +351,7 @@ aw_sid_read(device_t dev, uint32_t offset, uint32_t size, uint8_t *buffer)
 	sc = device_get_softc(dev);
 
 	for (i = 0; i < sc->sid_conf->nfuses; i++)
-		if (offset == (sc->sid_conf->efuses[i].base +
-		    sc->sid_conf->efuses[i].offset)) {
+		if (offset == sc->sid_conf->efuses[i].offset) {
 			fuse_id = sc->sid_conf->efuses[i].id;
 			break;
 		}

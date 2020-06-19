@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200414:
+	Upstream DTS from Linux 5.6 was merged and they now have the SID
+	and THS (Secure ID controller and THermal Sensor) node present.
+	The DTB overlays have now been removed from the tree for the H3/H5 and
+	A64 SoCs and the aw_sid and aw_thermal driver have been updated to
+	deal with upstream DTS. If you are using those overlays you need to
+	remove them from loader.conf and update the DTBs on the FAT partition.
+
 20200501:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 10.0.0.  Please see the 20141231 entry below for
