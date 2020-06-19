@@ -52,11 +52,14 @@ __FBSDID("$FreeBSD$");
 #define TEST_BLOCK_COUNT 100000
 #define MDTESTCOUNT 8
 
+static int pflag;
 static int qflag;
 static int rflag;
 static int sflag;
+static int skip;
 static char* checkAgainst;
 static int checksFailed;
+static int failed;
 
 typedef void (DIGEST_Init)(void *);
 typedef void (DIGEST_Update)(void *, const unsigned char *, size_t);
@@ -86,10 +89,10 @@ typedef struct Algorithm_t {
 } Algorithm_t;
 
 static void MD5_Update(MD5_CTX *, const unsigned char *, size_t);
-static void MDString(const Algorithm_t *, const char *);
+static void MDOutput(const Algorithm_t *, char *, char **);
 static void MDTimeTrial(const Algorithm_t *);
 static void MDTestSuite(const Algorithm_t *);
-static void MDFilter(const Algorithm_t *, int);
+static char *MDFilter(const Algorithm_t *, char*, int);
 static void usage(const Algorithm_t *);
 
 typedef union {
@@ -170,9 +173,9 @@ main(int argc, char *argv[])
 	cap_rights_t	rights;
 #endif
 	int	ch, fd;
-	char   *p;
+	char   *p, *string;
 	char	buf[HEX_DIGEST_LENGTH];
-	int	failed;
+	size_t	len;
  	unsigned	digest;
  	const char*	progname;
 
@@ -191,13 +194,14 @@ main(int argc, char *argv[])
 	failed = 0;
 	checkAgainst = NULL;
 	checksFailed = 0;
+	skip = 0;
 	while ((ch = getopt(argc, argv, "c:pqrs:tx")) != -1)
 		switch (ch) {
 		case 'c':
 			checkAgainst = optarg;
 			break;
 		case 'p':
-			MDFilter(&Algorithm[digest], 1);
+			pflag = 1;
 			break;
 		case 'q':
 			qflag = 1;
@@ -207,13 +211,15 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			sflag = 1;
-			MDString(&Algorithm[digest], optarg);
+			string = optarg;
 			break;
 		case 't':
 			MDTimeTrial(&Algorithm[digest]);
+			skip = 1;
 			break;
 		case 'x':
 			MDTestSuite(&Algorithm[digest]);
+			skip = 1;
 			break;
 		default:
 			usage(&Algorithm[digest]);
@@ -249,32 +255,19 @@ main(int argc, char *argv[])
 			}
 			p = Algorithm[digest].Fd(fd, buf);
 			(void)close(fd);
-			if (p == NULL) {
-				warn("%s", *argv);
-				failed++;
-			} else {
-				if (qflag)
-					printf("%s", p);
-				else if (rflag)
-					printf("%s %s", p, *argv);
-				else
-					printf("%s (%s) = %s",
-					    Algorithm[digest].name, *argv, p);
-				if (checkAgainst && strcasecmp(checkAgainst, p) != 0)
-				{
-					checksFailed++;
-					if (!qflag)
-						printf(" [ Failed ]");
-				}
-				printf("\n");
-			}
+			MDOutput(&Algorithm[digest], p, argv);
 		} while (*++argv);
-	} else if (!sflag && (optind == 1 || qflag || rflag)) {
+	} else if (!sflag && !skip) {
 #ifdef HAVE_CAPSICUM
 		if (caph_limit_stdin() < 0 || caph_enter() < 0)
 			err(1, "capsicum");
 #endif
-		MDFilter(&Algorithm[digest], 0);
+		p = MDFilter(&Algorithm[digest], (char *)&buf, pflag);
+		MDOutput(&Algorithm[digest], p, NULL);
+	} else if (sflag) {
+		len = strlen(string);
+		p = Algorithm[digest].Data(string, len, buf);
+		MDOutput(&Algorithm[digest], p, &string);
 	}
 
 	if (failed != 0)
@@ -284,30 +277,38 @@ main(int argc, char *argv[])
 
 	return (0);
 }
+
 /*
- * Digests a string and prints the result.
+ * Common output handling
  */
 static void
-MDString(const Algorithm_t *alg, const char *string)
+MDOutput(const Algorithm_t *alg, char *p, char *argv[])
 {
-	size_t len = strlen(string);
-	char buf[HEX_DIGEST_LENGTH];
-
-	alg->Data(string,len,buf);
-	if (qflag)
-		printf("%s", buf);
-	else if (rflag)
-		printf("%s \"%s\"", buf, string);
-	else
-		printf("%s (\"%s\") = %s", alg->name, string, buf);
-	if (checkAgainst && strcasecmp(buf,checkAgainst) != 0)
-	{
-		checksFailed++;
-		if (!qflag)
-			printf(" [ failed ]");
+	if (p == NULL) {
+		warn("%s", *argv);
+		failed++;
+	} else {
+		/*
+		 * If argv is NULL we are reading from stdin, where the output
+		 * format has always been just the hash.
+		 */
+		if (qflag || argv == NULL)
+			printf("%s", p);
+		else if (rflag)
+			printf("%s %s", p, *argv);
+		else
+			printf("%s (%s) = %s",
+			    alg->name, *argv, p);
+		if (checkAgainst && strcasecmp(checkAgainst, p) != 0)
+		{
+			checksFailed++;
+			if (!qflag)
+				printf(" [ Failed ]");
+		}
+		printf("\n");
 	}
-	printf("\n");
 }
+
 /*
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
  */
@@ -507,13 +508,13 @@ MDTestSuite(const Algorithm_t *alg)
 /*
  * Digests the standard input and prints the result.
  */
-static void
-MDFilter(const Algorithm_t *alg, int tee)
+static char *
+MDFilter(const Algorithm_t *alg, char *buf, int tee)
 {
 	DIGEST_CTX context;
 	unsigned int len;
 	unsigned char buffer[BUFSIZ];
-	char buf[HEX_DIGEST_LENGTH];
+	char *p;
 
 	alg->Init(&context);
 	while ((len = fread(buffer, 1, BUFSIZ, stdin))) {
@@ -521,7 +522,9 @@ MDFilter(const Algorithm_t *alg, int tee)
 			err(1, "stdout");
 		alg->Update(&context, buffer, len);
 	}
-	printf("%s\n", alg->End(&context, buf));
+	p = alg->End(&context, buf);
+
+	return (p);
 }
 
 static void
