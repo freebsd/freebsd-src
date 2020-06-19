@@ -1713,10 +1713,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 	end = round_page(addr + len);
 	addr = trunc_page(addr);
 
-	/*
-	 * Check for illegal addresses.
-	 */
-	if (addr < vm_map_min(map) || addr > end || end > vm_map_max(map))
+	if (!vm_map_range_valid(map, addr, end))
 		return (-1);
 
 	if (atop(end - addr) > max_count)
