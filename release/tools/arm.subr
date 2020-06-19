@@ -65,13 +65,21 @@ umount_loop() {
 arm_create_disk() {
 	# Create the target raw file and temporary work directory.
 	chroot ${CHROOTDIR} gpart create -s ${PART_SCHEME} ${mddev}
-	chroot ${CHROOTDIR} gpart add -t '!12' -a 512k -s ${FAT_SIZE} ${mddev}
-	chroot ${CHROOTDIR} gpart set -a active -i 1 ${mddev}
-	chroot ${CHROOTDIR} newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
-	chroot ${CHROOTDIR} gpart add -t freebsd ${mddev}
-	chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
-	chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
-	chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
+	if [ "${PART_SCHEME}" == "GPT" ]; then
+		chroot ${CHROOTDIR} gpart add -t efi -l efi -a 512k -s ${FAT_SIZE} ${mddev}
+		chroot ${CHROOTDIR} newfs_msdos -L efi -F ${FAT_TYPE} /dev/${mddev}p1
+		chroot ${CHROOTDIR} gpart add -t freebsd-ufs -l rootfs -a 64k ${mddev}
+		chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}p2
+	fi
+	if [ "${PART_SCHEME}" == "MBR" ]; then
+		chroot ${CHROOTDIR} gpart add -t '!12' -a 512k -s ${FAT_SIZE} ${mddev}
+		chroot ${CHROOTDIR} gpart set -a active -i 1 ${mddev}
+		chroot ${CHROOTDIR} newfs_msdos -L msdosboot -F ${FAT_TYPE} /dev/${mddev}s1
+		chroot ${CHROOTDIR} gpart add -t freebsd ${mddev}
+		chroot ${CHROOTDIR} gpart create -s bsd ${mddev}s2
+		chroot ${CHROOTDIR} gpart add -t freebsd-ufs -a 64k /dev/${mddev}s2
+		chroot ${CHROOTDIR} newfs -U -L rootfs /dev/${mddev}s2a
+	fi
 
 	return 0
 }
@@ -161,7 +169,12 @@ arm_setup_minimal_loader() {
 }
 
 arm_install_base() {
-	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
+	if [ "${PART_SCHEME}" == "GPT" ]; then
+		chroot ${CHROOTDIR} mount /dev/${mddev}p2 ${DESTDIR}
+	fi
+	if [ "${PART_SCHEME}" == "MBR" ]; then
+		chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
+	fi
 	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
 		TARGET=${EMBEDDED_TARGET} \
 		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
@@ -178,10 +191,18 @@ arm_install_base() {
 
 	echo '# Custom /etc/fstab for FreeBSD embedded images' \
 		> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
-		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
-	echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
-		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	if [ "${PART_SCHEME}" == "GPT" ]; then
+		echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
+			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+		echo "/dev/msdosfs/efi /boot/efi msdosfs rw,noatime 0 0" \
+			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	fi
+	if [ "${PART_SCHEME}" == "MBR" ]; then
+		echo "/dev/ufs/rootfs   /       ufs     rw      1       1" \
+			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+		echo "/dev/msdosfs/MSDOSBOOT /boot/msdos msdosfs rw,noatime 0 0" \
+			>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
+	fi
 	echo "tmpfs /tmp tmpfs rw,mode=1777,size=50m 0 0" \
 		>> ${CHROOTDIR}/${DESTDIR}/etc/fstab
 
@@ -206,8 +227,17 @@ arm_install_boot() {
 	FATMOUNT="${DESTDIR%${KERNEL}}/fat"
 	UFSMOUNT="${DESTDIR%${KERNEL}}/ufs"
 	chroot ${CHROOTDIR} mkdir -p "${FATMOUNT}" "${UFSMOUNT}"
-	chroot ${CHROOTDIR} mount_msdosfs /dev/${mddev}s1 ${FATMOUNT}
-	chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${UFSMOUNT}
+	if [ "${PART_SCHEME}" == "GPT" ]; then
+		dospart="/dev/${mddev}p1"
+		ufspart="/dev/${mddev}p2"
+	fi
+	if [ "${PART_SCHEME}" == "MBR" ]; then
+		dospart="/dev/${mddev}s1"
+		ufspart="/dev/${mddev}s2a"
+	fi
+
+	chroot ${CHROOTDIR} mount_msdosfs ${dospart} ${FATMOUNT}
+	chroot ${CHROOTDIR} mount ${ufspart} ${UFSMOUNT}
 
 	if [ "${EMBEDDED_TARGET}" == "arm" ]; then
 	chroot ${CHROOTDIR} cp -p ${UFSMOUNT}/boot/ubldr.bin \
