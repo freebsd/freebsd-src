@@ -1616,8 +1616,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	/*
 	 * Check that the start and end points are not bogus.
 	 */
-	if (start < vm_map_min(map) || end > vm_map_max(map) ||
-	    start >= end)
+	if (!vm_map_range_valid(map, start, end))
 		return (KERN_INVALID_ADDRESS);
 
 	/*
@@ -2161,9 +2160,7 @@ again:
 			goto done;
 		}
 	} else if ((cow & MAP_REMAP) != 0) {
-		if (*addr < vm_map_min(map) ||
-		    *addr + length > vm_map_max(map) ||
-		    *addr + length <= length) {
+		if (!vm_map_range_valid(map, *addr, *addr + length)) {
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
 		}
@@ -4324,9 +4321,8 @@ vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	KASSERT(orient != (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP),
 	    ("bi-dir stack"));
 
-	if (addrbos < vm_map_min(map) ||
-	    addrbos + max_ssize > vm_map_max(map) ||
-	    addrbos + max_ssize <= addrbos)
+	if (max_ssize == 0 ||
+	    !vm_map_range_valid(map, addrbos, addrbos + max_ssize))
 		return (KERN_INVALID_ADDRESS);
 	sgp = ((curproc->p_flag2 & P2_STKGAP_DISABLE) != 0 ||
 	    (curproc->p_fctl0 & NT_FREEBSD_FCTL_STKGAP_DISABLE) != 0) ? 0 :
