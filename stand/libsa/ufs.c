@@ -678,7 +678,11 @@ out:
 	if (rc) {
 		if (fp->f_buf)
 			free(fp->f_buf);
-		free(fp->f_fs);
+		if (fp->f_fs != NULL) {
+			free(fp->f_fs->fs_csp);
+			free(fp->f_fs->fs_si);
+			free(fp->f_fs);
+		}
 		free(fp);
 	}
 	return (rc);
@@ -723,7 +727,11 @@ ufs_close(f)
 	}
 	if (fp->f_buf)
 		free(fp->f_buf);
-	free(fp->f_fs);
+	if (fp->f_fs != NULL) {
+		free(fp->f_fs->fs_csp);
+		free(fp->f_fs->fs_si);
+		free(fp->f_fs);
+	}
 	free(fp);
 	return (0);
 }

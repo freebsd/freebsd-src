@@ -158,6 +158,7 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
     int (*readfunc)(void *devfd, off_t loc, void **bufp, int size))
 {
 	struct fs *fs;
+	struct fs_summary_info *fs_si;
 	int i, error, size, blks;
 	uint8_t *space;
 	int32_t *lp;
@@ -201,7 +202,14 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 		size += fs->fs_ncg * sizeof(int32_t);
 	size += fs->fs_ncg * sizeof(u_int8_t);
 	/* When running in libufs or libsa, UFS_MALLOC may fail */
+	if ((fs_si = UFS_MALLOC(sizeof(*fs_si), filltype, M_WAITOK)) == NULL) {
+		UFS_FREE(fs, filltype);
+		return (ENOSPC);
+	}
+	bzero(fs_si, sizeof(*fs_si));
+	fs->fs_si = fs_si;
 	if ((space = UFS_MALLOC(size, filltype, M_WAITOK)) == NULL) {
+		UFS_FREE(fs->fs_si, filltype);
 		UFS_FREE(fs, filltype);
 		return (ENOSPC);
 	}
@@ -217,6 +225,7 @@ ffs_sbget(void *devfd, struct fs **fsp, off_t altsblock,
 			if (buf != NULL)
 				UFS_FREE(buf, filltype);
 			UFS_FREE(fs->fs_csp, filltype);
+			UFS_FREE(fs->fs_si, filltype);
 			UFS_FREE(fs, filltype);
 			return (error);
 		}
@@ -299,7 +308,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 		/* Have to set for old filesystems that predate this field */
 		fs->fs_sblockactualloc = sblockloc;
 		/* Not yet any summary information */
-		fs->fs_csp = NULL;
+		fs->fs_si = NULL;
 		return (0);
 	}
 	return (ENOENT);
@@ -325,7 +334,7 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 	 * If there is summary information, write it first, so if there
 	 * is an error, the superblock will not be marked as clean.
 	 */
-	if (fs->fs_csp != NULL) {
+	if (fs->fs_si != NULL && fs->fs_csp != NULL) {
 		blks = howmany(fs->fs_cssize, fs->fs_fsize);
 		space = (uint8_t *)fs->fs_csp;
 		for (i = 0; i < blks; i += fs->fs_frag) {
