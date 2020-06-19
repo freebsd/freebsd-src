@@ -160,7 +160,7 @@ static int
 if_dwc_rk_mac_type(device_t dev)
 {
 
-	return (DWC_GMAC_ALT_DESC);
+	return (DWC_GMAC_NORMAL_DESC);
 }
 
 static int
