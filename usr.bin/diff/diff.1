@@ -30,7 +30,7 @@
 .\"     @(#)diff.1	8.1 (Berkeley) 6/30/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2020
+.Dd June 19, 2020
 .Dt DIFF 1
 .Os
 .Sh NAME
@@ -277,8 +277,7 @@ Produces a script similar to that of
 .Fl e ,
 but in the opposite order and with a count of changed lines on each
 insert or delete command.
-This is the form used by
-.Xr rcsdiff 1 .
+This is the form used by rcsdiff.
 .It Fl q -brief
 Just print a line when the files differ.
 Does not output a list of changes.
@@ -613,6 +612,49 @@ Differences were found.
 .It >1
 An error occurred.
 .El
+.Sh EXAMPLES
+Compare
+.Pa old_dir
+and
+.Pa new_dir
+recursively generating an unified diff and treating files found only in one
+of those directories as new files:
+.Bd -literal -offset indent
+$ diff -ruN /path/to/old_dir /path/to/new_dir
+.Ed
+.Pp
+Same as above but excluding files matching the expressions
+.Dq *.h
+and
+.Dq *.c :
+.Bd -literal -offset indent
+$ diff -ruN -x '*.h' -x '*.c' /path/to/old_dir /path/to/new_dir
+.Ed
+.Pp
+Show a single line indicating if the files differ:
+.Bd -literal -offset indent
+$ diff -q /boot/loader.conf /boot/defaults/loader.conf
+Files /boot/loader.conf and /boot/defaults/loader.conf differ
+.Ed
+.Pp
+Assuming a file named
+.Pa example.txt
+with the following contents:
+.Bd -literal -offset indent
+FreeBSD is an operating system
+Linux is a kernel
+OpenBSD is an operating system
+.Ed
+.Pp
+Compare stdin with
+.Pa example.txt
+excluding from the comparison those lines containing either
+.Qq Linux
+or
+.Qq Open :
+.Bd -literal -offset indent
+$ echo "FreeBSD is an operating system" | diff -q -I 'Linux|Open' example.txt -
+.Ed
 .Sh SEE ALSO
 .Xr cmp 1 ,
 .Xr comm 1 ,
