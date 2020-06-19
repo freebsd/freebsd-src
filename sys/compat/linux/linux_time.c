@@ -67,6 +67,7 @@ __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_timer.h>
+#include <compat/linux/linux_util.h>
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
@@ -268,6 +269,8 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0) {
+		linux_msg(curthread,
+		    "unsupported clock_gettime clockid %d", args->which);
 		LIN_SDT_PROBE1(time, linux_clock_gettime, conversion_error,
 		    error);
 		LIN_SDT_PROBE1(time, linux_clock_gettime, return, error);
@@ -399,6 +402,8 @@ linux_clock_settime(struct thread *td, struct linux_clock_settime_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0) {
+		linux_msg(curthread,
+		    "unsupported clock_settime clockid %d", args->which);
 		LIN_SDT_PROBE1(time, linux_clock_settime, conversion_error,
 		    error);
 		LIN_SDT_PROBE1(time, linux_clock_settime, return, error);
@@ -441,6 +446,8 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0) {
+		linux_msg(curthread,
+		    "unsupported clock_getres clockid %d", args->which);
 		LIN_SDT_PROBE1(time, linux_clock_getres, conversion_error,
 		    error);
 		LIN_SDT_PROBE1(time, linux_clock_getres, return, error);
@@ -600,6 +607,8 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 
 	error = linux_to_native_clockid(&clockid, args->which);
 	if (error != 0) {
+		linux_msg(curthread,
+		    "unsupported clock_nanosleep clockid %d", args->which);
 		LIN_SDT_PROBE1(time, linux_clock_nanosleep, unsupported_clockid,
 		    args->which);
 		LIN_SDT_PROBE1(time, linux_clock_settime, return, error);
