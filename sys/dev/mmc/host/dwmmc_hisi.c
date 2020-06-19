@@ -79,7 +79,6 @@ hisi_dwmmc_attach(device_t dev)
 	 * DMA when the controller is not cache-coherent on arm64.
 	 */
 	sc->use_pio = 1;
-	sc->desc_count = 1;
 
 	return (dwmmc_attach(dev));
 }
