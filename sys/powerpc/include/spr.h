@@ -887,6 +887,7 @@
 #define	  L1CSR1_ICFI		0x00000002	/* Instruction Cache Flash Invalidate */
 #define	  L1CSR1_ICE		0x00000001	/* Instruction Cache Enable */
 
+#define	SPR_L2CFG0		0x207	/* ..8 L2 Configuration Register 0 */
 #define	SPR_L2CSR0		0x3F9	/* ..8 L2 Cache Control and Status Register 0 */
 #define	  L2CSR0_L2E		0x80000000	/* L2 Cache Enable */
 #define	  L2CSR0_L2PE		0x40000000	/* L2 Cache Parity Enable */

@@ -91,7 +91,17 @@ booke_enable_l2_cache(void)
 	if ((((mfpvr() >> 16) & 0xFFFF) == FSL_E500mc) ||
 	    (((mfpvr() >> 16) & 0xFFFF) == FSL_E5500)) {
 		csr = mfspr(SPR_L2CSR0);
-		if ((csr & L2CSR0_L2E) == 0) {
+		/*
+		 * Don't actually attempt to manipulate the L2 cache if
+		 * L2CFG0 is zero.
+		 *
+		 * Any chip with a working L2 cache will have a nonzero
+		 * L2CFG0, as it will have a nonzero L2CSIZE field.
+		 *
+		 * This fixes waiting forever for cache enable in qemu,
+		 * which does not implement the L2 cache.
+		 */
+		if (mfspr(SPR_L2CFG0) != 0 && (csr & L2CSR0_L2E) == 0) {
 			l2cache_inval();
 			l2cache_enable();
 		}
