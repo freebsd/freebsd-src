@@ -2293,6 +2293,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	bcopy((caddr_t)fs, bp->b_data, (u_int)fs->fs_sbsize);
 	fs = (struct fs *)bp->b_data;
 	ffs_oldfscompat_write(fs, ump);
+	fs->fs_si = NULL;
 	/* Recalculate the superblock hash */
 	fs->fs_ckhash = ffs_calc_sbhash(fs);
 	if (devfdp->suspended)
