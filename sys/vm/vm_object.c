@@ -864,6 +864,7 @@ vm_object_backing_collapse_wait(vm_object_t object)
 		VM_OBJECT_WLOCK(backing_object);
 		if ((backing_object->flags & (OBJ_DEAD | OBJ_COLLAPSING)) == 0)
 			break;
+		VM_OBJECT_WUNLOCK(object);
 		vm_object_pip_sleep(backing_object, "vmbckwait");
 		counter_u64_add(object_collapse_waits, 1);
 		VM_OBJECT_WLOCK(object);
