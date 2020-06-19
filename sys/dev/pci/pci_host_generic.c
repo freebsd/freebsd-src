@@ -143,15 +143,15 @@ pci_host_generic_core_attach(device_t dev)
 		case FLAG_TYPE_PMEM:
 			sc->has_pmem = true;
 			error = rman_manage_region(&sc->pmem_rman,
-			   phys_base, phys_base + size - 1);
+			   pci_base, pci_base + size - 1);
 			break;
 		case FLAG_TYPE_MEM:
 			error = rman_manage_region(&sc->mem_rman,
-			   phys_base, phys_base + size - 1);
+			   pci_base, pci_base + size - 1);
 			break;
 		case FLAG_TYPE_IO:
 			error = rman_manage_region(&sc->io_rman,
-			   phys_base, phys_base + size - 1);
+			   pci_base, pci_base + size - 1);
 			break;
 		default:
 			continue;
