@@ -6804,8 +6804,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 		} else if (lep == NULL) {
 			((struct sockaddr_in *)addr_touse)->sin_port = 0;
 			*error = sctp_addr_mgmt_ep_sa(inp, addr_touse,
-			    SCTP_ADD_IP_ADDRESS,
-			    vrf_id, NULL);
+			    SCTP_ADD_IP_ADDRESS, vrf_id);
 		} else {
 			*error = EADDRINUSE;
 		}
@@ -6896,8 +6895,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 	if (assoc_id == 0) {
 		/* delete the address */
 		*error = sctp_addr_mgmt_ep_sa(inp, addr_touse,
-		    SCTP_DEL_IP_ADDRESS,
-		    vrf_id, NULL);
+		    SCTP_DEL_IP_ADDRESS, vrf_id);
 	} else {
 		/*
 		 * FIX: decide whether we allow assoc based bindx
