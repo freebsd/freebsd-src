@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd June 15, 2020
+.Dd June 19, 2020
 .Dt MD5 1
 .Os
 .Sh NAME
@@ -95,6 +95,48 @@ utilities exit 0 on success,
 and 2 if at least one file does not have the same hash as the
 .Fl c
 option.
+.Sh EXAMPLES
+Calculate the MD5 checksum of the string
+.Dq Hello .
+.Bd -literal -offset indent
+$ md5 -s Hello
+MD5 ("Hello") = 8b1a9953c4611296a827abf8c47804d7
+.Ed
+.Pp
+Same as above, but note the absence of the newline character in the input
+string:
+.Bd -literal -offset indent
+$ echo -n Hello | md5
+8b1a9953c4611296a827abf8c47804d7
+.Ed
+.Pp
+Calculate the checksum of multiple files reversing the output:
+.Bd -literal -offset indent
+$ md5 -r /boot/loader.conf /etc/rc.conf
+ada5f60f23af88ff95b8091d6d67bef6 /boot/loader.conf
+d80bf36c332dc0fdc479366ec3fa44cd /etc/rc.conf
+.Ed
+.Pp
+Write the digest for
+.Pa /boot/loader.conf
+in a file named
+.Pa digest .
+Then calculate the checksum again and validate it against the checksum string
+extracted from the
+.Pa digest
+file:
+.Bd -literal -offset indent
+$ md5 /boot/loader.conf > digest && md5 -c $(cut -f2 -d= digest) /boot/loader.conf
+MD5 (/boot/loader.conf) = ada5f60f23af88ff95b8091d6d67bef6
+.Ed
+.Pp
+Same as above but comparing the digest against an invalid string
+.Pq Dq randomstring ,
+which results in a failure.
+.Bd -literal -offset indent
+$ md5 -c randomstring /boot/loader.conf
+MD5 (/boot/loader.conf) = ada5f60f23af88ff95b8091d6d67bef6 [ Failed ]
+.Ed
 .Sh SEE ALSO
 .Xr cksum 1 ,
 .Xr md5 3 ,
