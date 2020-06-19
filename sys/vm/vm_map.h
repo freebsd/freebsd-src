@@ -255,6 +255,17 @@ vm_map_modflags(vm_map_t map, vm_flags_t set, vm_flags_t clear)
 {
 	map->flags = (map->flags | set) & ~clear;
 }
+
+static inline bool
+vm_map_range_valid(vm_map_t map, vm_offset_t start, vm_offset_t end)
+{
+	if (end < start)
+		return (false);
+	if (start < vm_map_min(map) || end > vm_map_max(map))
+		return (false);
+	return (true);
+}
+
 #endif	/* KLD_MODULE */
 #endif	/* _KERNEL */
 
