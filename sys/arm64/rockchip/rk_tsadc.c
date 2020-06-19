@@ -98,24 +98,19 @@ struct tsensor {
 	int			channel;
 };
 
-enum tsadc_type {
-	RK_TSADC_V2,
-	RK_TSADC_V3
-};
-
 struct rk_calib_entry {
 	uint32_t	raw;
 	int		temp;
 };
 
 struct tsadc_calib_info {
-	bool decrement_mode;
 	struct rk_calib_entry	*table;
 	int			nentries;
 };
 
 struct tsadc_conf {
-	enum tsadc_type		type;
+	int			use_syscon;
+	int			q_sel_ntc;
 	int			shutdown_temp;
 	int			shutdown_mode;
 	int			shutdown_pol;
@@ -188,7 +183,8 @@ struct tsensor rk3288_tsensors[] = {
 };
 
 struct tsadc_conf rk3288_tsadc_conf = {
-	.type = 		RK_TSADC_V2,
+	.use_syscon =		0,
+	.q_sel_ntc =		0,
 	.shutdown_temp =	95000,
 	.shutdown_mode =	1, /* GPIO */
 	.shutdown_pol =		0, /* Low  */
@@ -241,7 +237,8 @@ static struct tsensor rk3328_tsensors[] = {
 };
 
 static struct tsadc_conf rk3328_tsadc_conf = {
-	.type = 		RK_TSADC_V3,
+	.use_syscon =		0,
+	.q_sel_ntc =		1,
 	.shutdown_temp =	95000,
 	.shutdown_mode =	0, /* CRU */
 	.shutdown_pol =		0, /* Low  */
@@ -296,7 +293,8 @@ static struct tsensor rk3399_tsensors[] = {
 };
 
 static struct tsadc_conf rk3399_tsadc_conf = {
-	.type = 		RK_TSADC_V3,
+	.use_syscon =		1,
+	.q_sel_ntc =		1,
 	.shutdown_temp =	95000,
 	.shutdown_mode =	1, /* GPIO */
 	.shutdown_pol =		0, /* Low  */
@@ -444,11 +442,11 @@ tsadc_init(struct tsadc_softc *sc)
 		val |= TSADC_AUTO_CON_POL_HI;
 	else
 		val &= ~TSADC_AUTO_CON_POL_HI;
-	if (sc->conf->type == RK_TSADC_V3)
+	if (sc->conf->q_sel_ntc)
 		val |= TSADC_AUTO_Q_SEL;
 	WR4(sc, TSADC_AUTO_CON, val);
 
-	if (sc->conf->type == RK_TSADC_V2) {
+	if (!sc->conf->use_syscon) {
 		/* V2 init */
 		WR4(sc, TSADC_AUTO_PERIOD, 250); 	/* 250 ms */
 		WR4(sc, TSADC_AUTO_PERIOD_HT, 50);	/*  50 ms */
