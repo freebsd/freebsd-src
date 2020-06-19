@@ -235,45 +235,39 @@ dwc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
-inline static uint32_t
+inline static void
 dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
     uint32_t len)
 {
-	uint32_t flags;
-	uint32_t nidx;
-
-	nidx = next_txidx(sc, idx);
+	uint32_t desc0, desc1;
 
 	/* Addr/len 0 means we're clearing the descriptor after xmit done. */
 	if (paddr == 0 || len == 0) {
-		flags = 0;
+		desc0 = 0;
+		desc1 = 0;
 		--sc->txcount;
 	} else {
-		if (sc->mactype != DWC_GMAC_EXT_DESC)
-			flags = NTDESC1_TCH | NTDESC1_FS
-			    | NTDESC1_LS | NTDESC1_IC;
-		else
-			flags = ETDESC0_TCH | ETDESC0_FS | ETDESC0_LS |
-				    ETDESC0_IC;
+		if (sc->mactype != DWC_GMAC_EXT_DESC) {
+			desc0 = 0;
+			desc1 = NTDESC1_TCH | NTDESC1_FS | NTDESC1_LS |
+			    NTDESC1_IC | len;
+		} else {
+			desc0 = ETDESC0_TCH | ETDESC0_FS | ETDESC0_LS |
+			    ETDESC0_IC;
+			desc1 = len;
+		}
 		++sc->txcount;
 	}
 
 	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
-	if (sc->mactype != DWC_GMAC_EXT_DESC) {
-		sc->txdesc_ring[idx].desc0 = 0;
-		sc->txdesc_ring[idx].desc1 = flags | len;
-	} else {
-		sc->txdesc_ring[idx].desc0 = flags;
-		sc->txdesc_ring[idx].desc1 = len;
-	}
+	sc->txdesc_ring[idx].desc0 = desc0;
+	sc->txdesc_ring[idx].desc1 = desc1;
 
 	if (paddr && len) {
 		wmb();
 		sc->txdesc_ring[idx].desc0 |= TDESC0_OWN;
 		wmb();
 	}
-
-	return (nidx);
 }
 
 static int
@@ -528,6 +522,7 @@ dwc_init(void *if_softc)
 	DWC_UNLOCK(sc);
 }
 
+
 inline static uint32_t
 dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 {
@@ -538,14 +533,15 @@ dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 	sc->rxdesc_ring[idx].addr2 = sc->rxdesc_ring_paddr +
 	    (nidx * sizeof(struct dwc_hwdesc));
 	if (sc->mactype != DWC_GMAC_EXT_DESC)
-		sc->rxdesc_ring[idx].desc1 = NRDESC1_RCH | RX_MAX_PACKET;
+		sc->rxdesc_ring[idx].desc1 = NRDESC1_RCH |
+		    MIN(MCLBYTES, NRDESC1_RBS1_MASK);
 	else
-		sc->rxdesc_ring[idx].desc1 = ERDESC1_RCH | MCLBYTES;
+		sc->rxdesc_ring[idx].desc1 = ERDESC1_RCH |
+		    MIN(MCLBYTES, ERDESC1_RBS1_MASK);
 
 	wmb();
 	sc->rxdesc_ring[idx].desc0 = RDESC0_OWN;
 	wmb();
-
 	return (nidx);
 }
 
@@ -583,6 +579,74 @@ dwc_alloc_mbufcl(struct dwc_softc *sc)
 		m->m_pkthdr.len = m->m_len = m->m_ext.ext_size;
 
 	return (m);
+}
+
+static struct mbuf *
+dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
+    struct dwc_bufmap *map)
+{
+	struct ifnet *ifp;
+	struct mbuf *m, *m0;
+	int len;
+	uint32_t rdesc0;
+
+	m = map->mbuf;
+	ifp = sc->ifp;
+	rdesc0 = desc ->desc0;
+	/* Validate descriptor. */
+	if (rdesc0 & RDESC0_ES) {
+		/*
+		 * Errored packet. Statistic counters are updated
+		 * globally, so do nothing
+		 */
+		return (NULL);
+	}
+
+	if ((rdesc0 & (RDESC0_FS | RDESC0_LS)) !=
+		    (RDESC0_FS | RDESC0_LS)) {
+		/*
+		 * Something very wrong happens. The whole packet should be
+		 * recevied in one descriptr. Report problem.
+		 */
+		device_printf(sc->dev,
+		    "%s: RX descriptor without FIRST and LAST bit set: 0x%08X",
+		    __func__, rdesc0);
+		return (NULL);
+	}
+
+	len = (rdesc0 >> RDESC0_FL_SHIFT) & RDESC0_FL_MASK;
+	if (len < 64) {
+		/*
+		 * Lenght is invalid, recycle old mbuf
+		 * Probably impossible case
+		 */
+		return (NULL);
+	}
+
+	/* Allocate new buffer */
+	m0 = dwc_alloc_mbufcl(sc);
+	if (m0 == NULL) {
+		/* no new mbuf available, recycle old */
+		if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
+		return (NULL);
+	}
+	/* Do dmasync for newly received packet */
+	bus_dmamap_sync(sc->rxbuf_tag, map->map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_unload(sc->rxbuf_tag, map->map);
+
+	/* Received packet is valid, process it */
+	m->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.len = len;
+	m->m_len = len;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+
+	/* Remove trailing FCS */
+	m_adj(m, -ETHER_CRC_LEN);
+
+	DWC_UNLOCK(sc);
+	(*ifp->if_input)(ifp, m);
+	DWC_LOCK(sc);
+	return (m0);
 }
 
 static void
@@ -820,52 +884,30 @@ static void
 dwc_rxfinish_locked(struct dwc_softc *sc)
 {
 	struct ifnet *ifp;
-	struct mbuf *m0;
 	struct mbuf *m;
-	int error, idx, len;
-	uint32_t rdes0;
+	int error, idx;
+	struct dwc_hwdesc *desc;
 
+	DWC_ASSERT_LOCKED(sc);
 	ifp = sc->ifp;
-
 	for (;;) {
 		idx = sc->rx_idx;
-
-		rdes0 = sc->rxdesc_ring[idx].desc0;
-		if ((rdes0 & RDESC0_OWN) != 0)
+		desc = sc->rxdesc_ring + idx;
+		if ((desc->desc0 & RDESC0_OWN) != 0)
 			break;
 
-		bus_dmamap_sync(sc->rxbuf_tag, sc->rxbuf_map[idx].map,
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->rxbuf_tag, sc->rxbuf_map[idx].map);
-
-		len = (rdes0 >> RDESC0_FL_SHIFT) & RDESC0_FL_MASK;
-		if (len != 0) {
-			m = sc->rxbuf_map[idx].mbuf;
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = len;
-			m->m_len = len;
-			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-
-			/* Remove trailing FCS */
-			m_adj(m, -ETHER_CRC_LEN);
-
-			DWC_UNLOCK(sc);
-			(*ifp->if_input)(ifp, m);
-			DWC_LOCK(sc);
+		m = dwc_rxfinish_one(sc, desc, sc->rxbuf_map + idx);
+		if (m == NULL) {
+			wmb();
+			desc->desc0 = RDESC0_OWN;
+			wmb();
 		} else {
-			/* XXX Zero-length packet ? */
+			/* We cannot create hole in RX ring */
+			error = dwc_setup_rxbuf(sc, idx, m);
+			if (error != 0)
+				panic("dwc_setup_rxbuf failed:  error %d\n",
+				    error);
 		}
-
-		if ((m0 = dwc_alloc_mbufcl(sc)) != NULL) {
-			if ((error = dwc_setup_rxbuf(sc, idx, m0)) != 0) {
-				/*
-				 * XXX Now what?
-				 * We've got a hole in the rx ring.
-				 */
-			}
-		} else
-			if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
-
 		sc->rx_idx = next_rxidx(sc, sc->rx_idx);
 	}
 }
