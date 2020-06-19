@@ -261,6 +261,7 @@ initializecpu(void)
 	}
 	hw_ibrs_recalculate(false);
 	hw_ssb_recalculate(false);
+	x86_rngds_mitg_recalculate(false);
 	switch (cpu_vendor_id) {
 	case CPU_VENDOR_AMD:
 		init_amd();
