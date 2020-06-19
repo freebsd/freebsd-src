@@ -249,7 +249,7 @@ dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 		flags = 0;
 		--sc->txcount;
 	} else {
-		if (sc->mactype == DWC_GMAC_ALT_DESC)
+		if (sc->mactype != DWC_GMAC_EXT_DESC)
 			flags = NTDESC1_TCH | NTDESC1_FS
 			    | NTDESC1_LS | NTDESC1_IC;
 		else
@@ -259,7 +259,7 @@ dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 	}
 
 	sc->txdesc_ring[idx].addr1 = (uint32_t)(paddr);
-	if (sc->mactype == DWC_GMAC_ALT_DESC) {
+	if (sc->mactype != DWC_GMAC_EXT_DESC) {
 		sc->txdesc_ring[idx].desc0 = 0;
 		sc->txdesc_ring[idx].desc1 = flags | len;
 	} else {
@@ -537,7 +537,7 @@ dwc_setup_rxdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr)
 	nidx = next_rxidx(sc, idx);
 	sc->rxdesc_ring[idx].addr2 = sc->rxdesc_ring_paddr +
 	    (nidx * sizeof(struct dwc_hwdesc));
-	if (sc->mactype == DWC_GMAC_ALT_DESC)
+	if (sc->mactype != DWC_GMAC_EXT_DESC)
 		sc->rxdesc_ring[idx].desc1 = NRDESC1_RCH | RX_MAX_PACKET;
 	else
 		sc->rxdesc_ring[idx].desc1 = ERDESC1_RCH | MCLBYTES;
@@ -661,7 +661,7 @@ dwc_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	crc = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN);
 	/* Take lower 8 bits and reverse it */
 	val = bitreverse(~crc & 0xff);
-	if (ctx->sc->mactype == DWC_GMAC_ALT_DESC)
+	if (ctx->sc->mactype != DWC_GMAC_EXT_DESC)
 		val >>= 2; /* Only need lower 6 bits */
 	hashreg = (val >> 5);
 	hashbit = (val & 31);
@@ -682,7 +682,7 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	DWC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
-	nhash = sc->mactype == DWC_GMAC_ALT_DESC ? 2 : 8;
+	nhash = sc->mactype != DWC_GMAC_EXT_DESC ? 2 : 8;
 
 	/*
 	 * Set the multicast (group) filter hash.
@@ -715,7 +715,7 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 	WRITE4(sc, MAC_ADDRESS_LOW(0), lo);
 	WRITE4(sc, MAC_ADDRESS_HIGH(0), hi);
 	WRITE4(sc, MAC_FRAME_FILTER, ffval);
-	if (sc->mactype == DWC_GMAC_ALT_DESC) {
+	if (sc->mactype != DWC_GMAC_EXT_DESC) {
 		WRITE4(sc, GMAC_MAC_HTLOW, ctx.hash[0]);
 		WRITE4(sc, GMAC_MAC_HTHIGH, ctx.hash[1]);
 	} else {
@@ -1260,7 +1260,7 @@ dwc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (sc->mactype == DWC_GMAC_ALT_DESC) {
+	if (sc->mactype != DWC_GMAC_EXT_DESC) {
 		reg = BUS_MODE_FIXEDBURST;
 		reg |= (BUS_MODE_PRIORXTX_41 << BUS_MODE_PRIORXTX_SHIFT);
 	} else
