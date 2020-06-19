@@ -111,6 +111,7 @@ arm/mv/a37x0_iic.c				optional a37x0_iic iicbus fdt
 arm/mv/a37x0_spi.c				optional a37x0_spi spibus fdt
 arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
 arm/mv/gpio.c					optional mv_gpio fdt
+arm/mv/mvebu_gpio.c				optional mv_gpio fdt
 arm/mv/mvebu_pinctrl.c				optional mvebu_pinctrl fdt
 arm/mv/mv_ap806_clock.c				optional SOC_MARVELL_8K fdt
 arm/mv/mv_ap806_gicp.c				optional mv_ap806_gicp fdt
