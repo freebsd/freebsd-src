@@ -136,6 +136,11 @@ struct linux_mincore_args {
 	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
 	char vec_l_[PADL_(u_char *)]; u_char * vec; char vec_r_[PADR_(u_char *)];
 };
+struct linux_madvise_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char behav_l_[PADL_(int)]; int behav; char behav_r_[PADR_(int)];
+};
 struct linux_shmget_args {
 	char key_l_[PADL_(l_key_t)]; l_key_t key; char key_r_[PADR_(l_key_t)];
 	char size_l_[PADL_(l_size_t)]; l_size_t size; char size_r_[PADR_(l_size_t)];
@@ -1292,6 +1297,7 @@ int	linux_select(struct thread *, struct linux_select_args *);
 int	linux_mremap(struct thread *, struct linux_mremap_args *);
 int	linux_msync(struct thread *, struct linux_msync_args *);
 int	linux_mincore(struct thread *, struct linux_mincore_args *);
+int	linux_madvise(struct thread *, struct linux_madvise_args *);
 int	linux_shmget(struct thread *, struct linux_shmget_args *);
 int	linux_shmat(struct thread *, struct linux_shmat_args *);
 int	linux_shmctl(struct thread *, struct linux_shmctl_args *);
@@ -1622,6 +1628,7 @@ int	linux_io_uring_register(struct thread *, struct linux_io_uring_register_args
 #define	LINUX_SYS_AUE_linux_mremap	AUE_NULL
 #define	LINUX_SYS_AUE_linux_msync	AUE_MSYNC
 #define	LINUX_SYS_AUE_linux_mincore	AUE_MINCORE
+#define	LINUX_SYS_AUE_linux_madvise	AUE_MADVISE
 #define	LINUX_SYS_AUE_linux_shmget	AUE_NULL
 #define	LINUX_SYS_AUE_linux_shmat	AUE_NULL
 #define	LINUX_SYS_AUE_linux_shmctl	AUE_NULL

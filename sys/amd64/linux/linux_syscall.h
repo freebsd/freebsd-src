@@ -33,7 +33,7 @@
 #define	LINUX_SYS_linux_mremap	25
 #define	LINUX_SYS_linux_msync	26
 #define	LINUX_SYS_linux_mincore	27
-#define	LINUX_SYS_madvise	28
+#define	LINUX_SYS_linux_madvise	28
 #define	LINUX_SYS_linux_shmget	29
 #define	LINUX_SYS_linux_shmat	30
 #define	LINUX_SYS_linux_shmctl	31

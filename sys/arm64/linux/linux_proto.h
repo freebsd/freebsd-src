@@ -854,6 +854,11 @@ struct linux_mincore_args {
 	char len_l_[PADL_(l_size_t)]; l_size_t len; char len_r_[PADR_(l_size_t)];
 	char vec_l_[PADL_(u_char *)]; u_char * vec; char vec_r_[PADR_(u_char *)];
 };
+struct linux_madvise_args {
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char len_l_[PADL_(size_t)]; size_t len; char len_r_[PADR_(size_t)];
+	char behav_l_[PADL_(int)]; int behav; char behav_r_[PADR_(int)];
+};
 struct linux_remap_file_pages_args {
 	register_t dummy;
 };
@@ -1240,6 +1245,7 @@ int	linux_swapoff(struct thread *, struct linux_swapoff_args *);
 int	linux_mprotect(struct thread *, struct linux_mprotect_args *);
 int	linux_msync(struct thread *, struct linux_msync_args *);
 int	linux_mincore(struct thread *, struct linux_mincore_args *);
+int	linux_madvise(struct thread *, struct linux_madvise_args *);
 int	linux_remap_file_pages(struct thread *, struct linux_remap_file_pages_args *);
 int	linux_mbind(struct thread *, struct linux_mbind_args *);
 int	linux_get_mempolicy(struct thread *, struct linux_get_mempolicy_args *);
@@ -1514,6 +1520,7 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 #define	LINUX_SYS_AUE_linux_mprotect	AUE_MPROTECT
 #define	LINUX_SYS_AUE_linux_msync	AUE_MSYNC
 #define	LINUX_SYS_AUE_linux_mincore	AUE_MINCORE
+#define	LINUX_SYS_AUE_linux_madvise	AUE_MADVISE
 #define	LINUX_SYS_AUE_linux_remap_file_pages	AUE_NULL
 #define	LINUX_SYS_AUE_linux_mbind	AUE_NULL
 #define	LINUX_SYS_AUE_linux_get_mempolicy	AUE_NULL
