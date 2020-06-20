@@ -531,6 +531,7 @@ llvm/lib/ExecutionEngine/PerfJITEvents/CMakeLists.txt
 llvm/lib/ExecutionEngine/PerfJITEvents/LLVMBuild.txt
 llvm/lib/ExecutionEngine/RuntimeDyld/CMakeLists.txt
 llvm/lib/ExecutionEngine/RuntimeDyld/LLVMBuild.txt
+llvm/lib/Extensions/
 llvm/lib/Frontend/CMakeLists.txt
 llvm/lib/Frontend/LLVMBuild.txt
 llvm/lib/Frontend/OpenMP/CMakeLists.txt
