@@ -47,7 +47,7 @@ struct ebpf_proc_probe {
 	RB_ENTRY(ebpf_proc_probe) link;
 };
 
-static int ebpf_active_syscall_probe(struct ebpf_probe *, void *);
+static void ebpf_active_syscall_probe(struct ebpf_probe *, void *);
 
 static int ebpf_proc_probe_cmp(
     struct ebpf_proc_probe *, struct ebpf_proc_probe *);
@@ -111,7 +111,7 @@ ebpf_register_syscall_probes(void)
 		if (ebpf_syscall_probe[i].name.name[0] == '\0')
 			continue;
 
-		ebpf_syscall_probe[i].active = ebpf_active_syscall_probe;
+		ebpf_syscall_probe[i].activate = ebpf_active_syscall_probe;
 		ebpf_probe_register(&ebpf_syscall_probe[i]);
 	}
 }
@@ -240,17 +240,16 @@ ebpf_probe_deregister(void *arg)
 struct ebpf_probe *
 ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 {
-	struct ebpf_probe *probe;
-	struct ebpf_proc_probe *pp;
-	struct proc *proc;
-	uint32_t hash;
-
+	struct ebpf_probe *probe = NULL;
+	uint32_t hash; 
+	
+	probe->activate = &ebpf_active_syscall_probe;
 	hash = probe_id_hash(id);
 
 	sx_slock(&ebpf_sx);
 	LIST_FOREACH (probe, &probe_id_hashtable[hash], id_link) {
 		if (id == probe->id) {
-			probe->active(probe, state);
+			probe->activate(probe, state);
 			atomic_add_int(&probe->active, 1);
 			break;
 		}
@@ -259,7 +258,7 @@ ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 	return (probe);
 }
 
-static int
+static void
 ebpf_active_syscall_probe(struct ebpf_probe *probe, void *state)
 {
 	struct ebpf_proc_probe *pp;
@@ -373,7 +372,8 @@ ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
 	struct proc *proc;
 	struct ebpf_proc_probe lookup, *pp;
 	int ret = EBPF_ACTION_CONTINUE;
-
+	
+	proc = curthread->td_proc;
 	pp = RB_FIND(ebpf_proc_probe_tree, &proc->p_ebpf_probes, &lookup);
 	if (pp != NULL) {
 		ret = ebpf_module_callbacks->fire(probe, pp->module_state, arg0,

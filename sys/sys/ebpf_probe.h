@@ -56,6 +56,7 @@ struct ebpf_probe
 {
 	ebpf_probe_id_t id;
 	int active;
+	void (*activate)(struct ebpf_probe *, void *);
 	struct ebpf_probe_name name;
 	size_t arglen;
 	CK_SLIST_ENTRY(ebpf_probe) hash_link;
