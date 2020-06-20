@@ -260,6 +260,8 @@ probe_zfs_currdev(uint64_t guid)
 {
 	char *devname;
 	struct zfs_devdesc currdev;
+	char *buf = NULL;
+	bool rv;
 
 	currdev.dd.d_dev = &zfs_dev;
 	currdev.dd.d_unit = 0;
@@ -269,7 +271,18 @@ probe_zfs_currdev(uint64_t guid)
 	devname = efi_fmtdev(&currdev);
 	init_zfs_bootenv(devname);
 
-	return (sanity_check_currdev());
+	rv = sanity_check_currdev();
+	if (rv) {
+		buf = malloc(VDEV_PAD_SIZE);
+		if (buf != NULL) {
+			if (zfs_nextboot(&currdev, buf, VDEV_PAD_SIZE) == 0) {
+				printf("zfs nextboot: %s\n", buf);
+				set_currdev(buf);
+			}
+			free(buf);
+		}
+	}
+	return (rv);
 }
 #endif
 
