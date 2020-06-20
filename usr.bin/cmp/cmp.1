@@ -31,7 +31,7 @@
 .\"     @(#)cmp.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2020
+.Dd June 20, 2020
 .Dt CMP 1
 .Os
 .Sh NAME
@@ -107,26 +107,33 @@ file (before any differences were found).
 An error occurred.
 .El
 .Sh EXAMPLES
-Assuming a file named example.txt with the following contents:
+Assuming a file named
+.Pa example.txt
+with the following contents:
 .Bd -literal -offset indent
 a
 b
 c
 .Ed
 .Pp
-Compare stdin with example.txt:
+Compare stdin with
+.Pa example.txt :
 .Bd -literal -offset indent
 $ echo -e "a\\nb\\nc" | cmp - example.txt
 .Ed
 .Pp
-Same as above but introducing a change in byte three in stdin.
+Same as above but introducing a change in the third byte of stdin.
 Show the byte number (decimal) and differing byte (octal):
 .Bd -literal -offset indent
 $ echo -e "a\\nR\\nc" | cmp -l - example.txt
      3 122 142
 .Ed
 .Pp
-Compare example.txt and /boot/loader.conf exiting if size differs.
+Compare file sizes of
+.Pa example.txt
+and
+.Pa /boot/loader.conf
+and return 1 if they are not equal.
 Note that
 .Fl z
 can only be used with regular files:
@@ -135,8 +142,10 @@ $ cmp -z example.txt /boot/loader.conf
 example.txt /boot/loader.conf differ: size
 .Ed
 .Pp
-Compare stdin with file example.txt omitting the 4 first bytes from stdin and
-the 2 first bytes from example.txt:
+Compare stdin with
+.Pa example.txt
+omitting the first 4 bytes from stdin and the first 2 bytes from
+.Pa example.txt :
 .Bd -literal -offset indent
 $ echo -e "a\\nR\\nb\\nc" | cmp - example.txt 4 2
 .Ed
