@@ -97,8 +97,8 @@
  * safely only from their associated CPU, while the Zones backed by the same
  * Keg all share a common Keg lock (to coalesce contention on the backing
  * slabs).  The backing Keg typically only serves one Zone but in the case of
- * multiple Zones, one of the Zones is considered the Master Zone and all
- * Zone-related stats from the Keg are done in the Master Zone.  For an
+ * multiple Zones, one of the Zones is considered the Primary Zone and all
+ * Zone-related stats from the Keg are done in the Primary Zone.  For an
  * example of a Multi-Zone setup, refer to the Mbuf allocation code.
  */
 

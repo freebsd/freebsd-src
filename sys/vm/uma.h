@@ -197,24 +197,23 @@ uma_zone_t uma_zcreate(const char *name, size_t size, uma_ctor ctor,
  *		ctor/dtor/zinit/zfini may all be null, see notes above.
  *		Note that the zinit and zfini specified here are NOT
  *		exactly the same as the init/fini specified to uma_zcreate()
- *		when creating a master zone.  These zinit/zfini are called
+ *		when creating a primary zone.  These zinit/zfini are called
  *		on the TRANSITION from keg to zone (and vice-versa). Once
  *		these are set, the primary zone may alter its init/fini
  *		(which are called when the object passes from VM to keg)
  *		using uma_zone_set_init/fini()) as well as its own
- *		zinit/zfini (unset by default for master zone) with
+ *		zinit/zfini (unset by default for primary zone) with
  *		uma_zone_set_zinit/zfini() (note subtle 'z' prefix).
  *
- *	master  A reference to this zone's Master Zone (Primary Zone),
- *		which contains the backing Keg for the Secondary Zone
- *		being added.
+ *	primary A reference to this zone's Primary Zone which contains the
+ *		backing Keg for the Secondary Zone being added.
  *
  * Returns:
  *	A pointer to a structure which is intended to be opaque to users of
  *	the interface.  The value may be null if the wait flag is not set.
  */
 uma_zone_t uma_zsecond_create(const char *name, uma_ctor ctor, uma_dtor dtor,
-    uma_init zinit, uma_fini zfini, uma_zone_t master);
+    uma_init zinit, uma_fini zfini, uma_zone_t primary);
 
 /*
  * Create cache-only zones.
