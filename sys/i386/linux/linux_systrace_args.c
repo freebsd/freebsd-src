@@ -1564,9 +1564,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
-	/* madvise */
+	/* linux_madvise */
 	case 219: {
-		struct madvise_args *p = params;
+		struct linux_madvise_args *p = params;
 		uarg[0] = (intptr_t) p->addr; /* void * */
 		uarg[1] = p->len; /* size_t */
 		iarg[2] = p->behav; /* int */
@@ -5477,7 +5477,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* madvise */
+	/* linux_madvise */
 	case 219:
 		switch(ndx) {
 		case 0:
@@ -8696,7 +8696,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* madvise */
+	/* linux_madvise */
 	case 219:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

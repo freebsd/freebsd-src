@@ -227,7 +227,7 @@
 #define	LINUX_SYS_mlockall	230
 #define	LINUX_SYS_munlockall	231
 #define	LINUX_SYS_linux_mincore	232
-#define	LINUX_SYS_madvise	233
+#define	LINUX_SYS_linux_madvise	233
 #define	LINUX_SYS_linux_remap_file_pages	234
 #define	LINUX_SYS_linux_mbind	235
 #define	LINUX_SYS_linux_get_mempolicy	236
