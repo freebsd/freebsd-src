@@ -129,6 +129,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "brcm,bcm2835",	1 },
 	{ "brcm,bcm2836",	1 },
 	{ "brcm,bcm2837",	1 },
+	{ "brcm,bcm2711",	1 },
 	{ NULL, 0 }
 };
 
