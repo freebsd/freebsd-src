@@ -31,7 +31,7 @@
 .\"	@(#)join.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2004
+.Dd June 20, 2020
 .Dt JOIN 1
 .Os
 .Sh NAME
@@ -164,6 +164,78 @@ is
 the standard input is used.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Assuming a file named
+.Pa nobel_laureates.txt
+with information about some of the first Nobel Peace Prize laureates:
+.Bd -literal -offset indent
+1901,Jean Henri Dunant,M
+1901,Frederic Passy,M
+1902,Elie Ducommun,M
+1905,Baroness Bertha Sophie Felicita Von Suttner,F
+1910,Permanent International Peace Bureau,
+.Ed
+.Pp
+and a second file
+.Pa nobel_nationalities.txt
+with their nationalities:
+.Bd -literal -offset indent
+Jean Henri Dunant,Switzerland
+Frederic Passy,France
+Elie Ducommun,Switzerland
+Baroness Bertha Sophie Felicita Von Suttner
+.Ed
+.Pp
+Join the two files using the second column from first file and the default first
+column from second file specifying a custom field delimiter:
+.Bd -literal -offset indent
+$ join -t, -1 2 nobel_laureates.txt nobel_nationalities.txt
+Jean Henri Dunant,1901,M,Switzerland
+Frederic Passy,1901,M,France
+Elie Ducommun,1902,M,Switzerland
+Baroness Bertha Sophie Felicita Von Suttner,1905,F
+.Ed
+.Pp
+Show only the year and the nationality of the laureate using
+.Ql <<NULL>>
+to replace empty fields:
+.Bd -literal -offset indent
+$ join -e "<<NULL>>" -t, -1 2 -o "1.1 2.2" nobel_laureates.txt nobel_nationalities.txt
+1901,Switzerland
+1901,France
+1902,Switzerland
+1905,<<NULL>>
+.Ed
+.Pp
+Show only lines from first file which do not have a match in second file:
+.Bd -literal -offset indent
+$ join -v1 -t, -1 2 nobel_laureates.txt nobel_nationalities.txt
+Permanent International Peace Bureau,1910,
+.Ed
+.Pp
+Assuming a file named
+.Pa capitals.txt
+with the following content:
+.Bd -literal -offset indent
+Belgium,Brussels
+France,Paris
+Italy,Rome
+Switzerland
+.Ed
+.Pp
+Show the name and capital of the country where the laureate was born.
+This example uses
+.Pa nobel_nationalities.txt
+as a bridge but does not show any information from that file.
+Also see the note about
+.Xr sort 1
+above to understand why we need to sort the intermediate result.
+.Bd -literal -offset indent
+$ join -t, -1 2 -o 1.2 2.2 nobel_laureates.txt nobel_nationalities.txt | \e
+    sort -k2 -t, | join -t, -e "<<NULL>>" -1 2 -o 1.1 2.2 - capitals.txt
+Elie Ducommun,<<NULL>>
+Jean Henri Dunant,<<NULL>>
+.Ed
 .Sh COMPATIBILITY
 For compatibility with historic versions of
 .Nm ,
