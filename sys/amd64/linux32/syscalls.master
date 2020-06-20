@@ -390,7 +390,7 @@
 				    char *put_old); }
 218	AUE_MINCORE	STD	{ int linux_mincore(l_ulong start, \
 				    l_size_t len, u_char *vec); }
-219	AUE_MADVISE	NOPROTO	{ int madvise(void *addr, size_t len, \
+219	AUE_MADVISE	STD	{ int linux_madvise(void *addr, size_t len, \
 				    int behav); }
 220	AUE_GETDIRENTRIES	STD { int linux_getdents64(l_uint fd, \
 				    void *dirent, l_uint count); }

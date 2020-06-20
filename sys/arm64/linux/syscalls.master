@@ -1310,8 +1310,9 @@
 		    u_char *vec
 		);
 	}
-233	AUE_MADVISE	NOPROTO	{
-		int madvise(void *addr,
+233	AUE_MADVISE	STD	{
+		int linux_madvise(
+		    void *addr,
 		    size_t len,
 		    int behav
 		);
