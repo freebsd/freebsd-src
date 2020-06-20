@@ -1225,6 +1225,11 @@ retry:
 		 */
 		oce_is_pkt_dest_bmc(sc, m, &os2bmc, &m_new);
 
+		if_inc_counter(sc->ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
+		if (m->m_flags & M_MCAST)
+			if_inc_counter(sc->ifp, IFCOUNTER_OMCASTS, 1);
+		ETHER_BPF_MTAP(sc->ifp, m);
+
 		OCE_WRITE_REG32(sc, db, wq->db_offset, reg_value);
 
 	} else if (rc == EFBIG)	{
@@ -1400,7 +1405,7 @@ oce_start(struct ifnet *ifp)
 	if (!sc->link_status)
 		return;
 	
-	do {
+	while (true) {
 		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		if (m == NULL)
 			break;
@@ -1417,12 +1422,7 @@ oce_start(struct ifnet *ifp)
 			}
 			break;
 		}
-		if (m != NULL)
-			ETHER_BPF_MTAP(ifp, m);
-
-	} while (TRUE);
-
-	return;
+	}
 }
 
 
@@ -1500,10 +1500,6 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 			break;
 		}
 		drbr_advance(ifp, br);
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
-		if (next->m_flags & M_MCAST)
-			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-		ETHER_BPF_MTAP(ifp, next);
 	}
 
 	return 0;
