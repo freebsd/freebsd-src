@@ -3526,22 +3526,22 @@ xpt_run_devq(struct cam_devq *devq)
 }
 
 /*
- * This function merges stuff from the slave ccb into the master ccb, while
- * keeping important fields in the master ccb constant.
+ * This function merges stuff from the src ccb into the dst ccb, while keeping
+ * important fields in the dst ccb constant.
  */
 void
-xpt_merge_ccb(union ccb *master_ccb, union ccb *slave_ccb)
+xpt_merge_ccb(union ccb *dst_ccb, union ccb *src_ccb)
 {
 
 	/*
 	 * Pull fields that are valid for peripheral drivers to set
-	 * into the master CCB along with the CCB "payload".
+	 * into the dst CCB along with the CCB "payload".
 	 */
-	master_ccb->ccb_h.retry_count = slave_ccb->ccb_h.retry_count;
-	master_ccb->ccb_h.func_code = slave_ccb->ccb_h.func_code;
-	master_ccb->ccb_h.timeout = slave_ccb->ccb_h.timeout;
-	master_ccb->ccb_h.flags = slave_ccb->ccb_h.flags;
-	bcopy(&(&slave_ccb->ccb_h)[1], &(&master_ccb->ccb_h)[1],
+	dst_ccb->ccb_h.retry_count = src_ccb->ccb_h.retry_count;
+	dst_ccb->ccb_h.func_code = src_ccb->ccb_h.func_code;
+	dst_ccb->ccb_h.timeout = src_ccb->ccb_h.timeout;
+	dst_ccb->ccb_h.flags = src_ccb->ccb_h.flags;
+	bcopy(&(&src_ccb->ccb_h)[1], &(&dst_ccb->ccb_h)[1],
 	      sizeof(union ccb) - sizeof(struct ccb_hdr));
 }
 

@@ -86,8 +86,8 @@ void			xpt_setup_ccb_flags(struct ccb_hdr *ccb_h,
 void			xpt_setup_ccb(struct ccb_hdr *ccb_h,
 				      struct cam_path *path,
 				      u_int32_t priority);
-void			xpt_merge_ccb(union ccb *master_ccb,
-				      union ccb *slave_ccb);
+void			xpt_merge_ccb(union ccb *dst_ccb,
+				      union ccb *src_ccb);
 cam_status		xpt_create_path(struct cam_path **new_path_ptr,
 					struct cam_periph *perph,
 					path_id_t path_id,
