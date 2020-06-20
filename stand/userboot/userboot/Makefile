@@ -34,6 +34,7 @@ SRCS+=		vers.c
 CFLAGS+=	-Wall
 CFLAGS+=	-I${BOOTSRC}/userboot
 
+CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic
