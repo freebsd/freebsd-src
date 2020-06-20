@@ -6694,13 +6694,21 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
  */
 void
 sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
-    struct sockaddr *sa, sctp_assoc_t assoc_id,
-    uint32_t vrf_id, int *error, void *p)
+    struct sockaddr *sa, uint32_t vrf_id, int *error,
+    void *p)
 {
-	struct sockaddr *addr_touse;
 #if defined(INET) && defined(INET6)
 	struct sockaddr_in sin;
 #endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
+#ifdef INET
+	struct sockaddr_in *sinp;
+#endif
+	struct sockaddr *addr_to_use;
+	struct sctp_inpcb *lep;
+	uint16_t port;
 
 	/* see if we're bound all already! */
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
@@ -6708,13 +6716,9 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 		*error = EINVAL;
 		return;
 	}
-	addr_touse = sa;
+	switch (sa->sa_family) {
 #ifdef INET6
-	if (sa->sa_family == AF_INET6) {
-#ifdef INET
-		struct sockaddr_in6 *sin6;
-
-#endif
+	case AF_INET6:
 		if (sa->sa_len != sizeof(struct sockaddr_in6)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 			*error = EINVAL;
@@ -6726,8 +6730,9 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
+		sin6 = (struct sockaddr_in6 *)sa;
+		port = sin6->sin6_port;
 #ifdef INET
-		sin6 = (struct sockaddr_in6 *)addr_touse;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
 			    SCTP_IPV6_V6ONLY(inp)) {
@@ -6737,13 +6742,15 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 				return;
 			}
 			in6_sin6_2_sin(&sin, sin6);
-			addr_touse = (struct sockaddr *)&sin;
+			addr_to_use = (struct sockaddr *)&sin;
+		} else {
+			addr_to_use = sa;
 		}
 #endif
-	}
+		break;
 #endif
 #ifdef INET
-	if (sa->sa_family == AF_INET) {
+	case AF_INET:
 		if (sa->sa_len != sizeof(struct sockaddr_in)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 			*error = EINVAL;
@@ -6756,8 +6763,16 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
-	}
+		sinp = (struct sockaddr_in *)sa;
+		port = sinp->sin_port;
+		addr_to_use = sa;
+		break;
 #endif
+	default:
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+		*error = EINVAL;
+		return;
+	}
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		if (p == NULL) {
 			/* Can't get proc for Net/Open BSD */
@@ -6765,55 +6780,25 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
-		*error = sctp_inpcb_bind(so, addr_touse, NULL, p);
+		*error = sctp_inpcb_bind(so, addr_to_use, NULL, p);
 		return;
 	}
-	/*
-	 * No locks required here since bind and mgmt_ep_sa all do their own
-	 * locking. If we do something for the FIX: below we may need to
-	 * lock in that case.
-	 */
-	if (assoc_id == 0) {
+	/* Validate the incoming port. */
+	if ((port != 0) && (port != inp->sctp_lport)) {
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+		*error = EINVAL;
+		return;
+	}
+	lep = sctp_pcb_findep(addr_to_use, 1, 0, vrf_id);
+	if (lep == NULL) {
 		/* add the address */
-		struct sctp_inpcb *lep;
-		struct sockaddr_in *lsin = (struct sockaddr_in *)addr_touse;
-
-		/* validate the incoming port */
-		if ((lsin->sin_port != 0) &&
-		    (lsin->sin_port != inp->sctp_lport)) {
-			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
-			*error = EINVAL;
-			return;
-		} else {
-			/* user specified 0 port, set it to existing port */
-			lsin->sin_port = inp->sctp_lport;
-		}
-
-		lep = sctp_pcb_findep(addr_touse, 1, 0, vrf_id);
-		if (lep != NULL) {
-			/*
-			 * We must decrement the refcount since we have the
-			 * ep already and are binding. No remove going on
-			 * here.
-			 */
-			SCTP_INP_DECR_REF(lep);
-		}
-		if (lep == inp) {
-			/* already bound to it.. ok */
-			return;
-		} else if (lep == NULL) {
-			((struct sockaddr_in *)addr_touse)->sin_port = 0;
-			*error = sctp_addr_mgmt_ep_sa(inp, addr_touse,
-			    SCTP_ADD_IP_ADDRESS, vrf_id);
-		} else {
+		*error = sctp_addr_mgmt_ep_sa(inp, addr_to_use,
+		    SCTP_ADD_IP_ADDRESS, vrf_id);
+	} else {
+		if (lep != inp) {
 			*error = EADDRINUSE;
 		}
-		if (*error)
-			return;
-	} else {
-		/*
-		 * FIX: decide whether we allow assoc based bindx
-		 */
+		SCTP_INP_DECR_REF(lep);
 	}
 }
 
@@ -6823,11 +6808,11 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
  */
 void
 sctp_bindx_delete_address(struct sctp_inpcb *inp,
-    struct sockaddr *sa, sctp_assoc_t assoc_id,
-    uint32_t vrf_id, int *error)
+    struct sockaddr *sa, uint32_t vrf_id, int *error)
 {
-	struct sockaddr *addr_touse;
+	struct sockaddr *addr_to_use;
 #if defined(INET) && defined(INET6)
+	struct sockaddr_in6 *sin6;
 	struct sockaddr_in sin;
 #endif
 
@@ -6837,13 +6822,9 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 		*error = EINVAL;
 		return;
 	}
-	addr_touse = sa;
+	switch (sa->sa_family) {
 #ifdef INET6
-	if (sa->sa_family == AF_INET6) {
-#ifdef INET
-		struct sockaddr_in6 *sin6;
-#endif
-
+	case AF_INET6:
 		if (sa->sa_len != sizeof(struct sockaddr_in6)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 			*error = EINVAL;
@@ -6856,7 +6837,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 			return;
 		}
 #ifdef INET
-		sin6 = (struct sockaddr_in6 *)addr_touse;
+		sin6 = (struct sockaddr_in6 *)sa;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
 			    SCTP_IPV6_V6ONLY(inp)) {
@@ -6866,13 +6847,15 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 				return;
 			}
 			in6_sin6_2_sin(&sin, sin6);
-			addr_touse = (struct sockaddr *)&sin;
+			addr_to_use = (struct sockaddr *)&sin;
+		} else {
+			addr_to_use = sa;
 		}
 #endif
-	}
+		break;
 #endif
 #ifdef INET
-	if (sa->sa_family == AF_INET) {
+	case AF_INET:
 		if (sa->sa_len != sizeof(struct sockaddr_in)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 			*error = EINVAL;
@@ -6885,22 +6868,17 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
-	}
+		addr_to_use = sa;
+		break;
 #endif
-	/*
-	 * No lock required mgmt_ep_sa does its own locking. If the FIX:
-	 * below is ever changed we may need to lock before calling
-	 * association level binding.
-	 */
-	if (assoc_id == 0) {
-		/* delete the address */
-		*error = sctp_addr_mgmt_ep_sa(inp, addr_touse,
-		    SCTP_DEL_IP_ADDRESS, vrf_id);
-	} else {
-		/*
-		 * FIX: decide whether we allow assoc based bindx
-		 */
+	default:
+		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+		*error = EINVAL;
+		return;
 	}
+	/* No lock required mgmt_ep_sa does its own locking. */
+	*error = sctp_addr_mgmt_ep_sa(inp, addr_to_use, SCTP_DEL_IP_ADDRESS,
+	    vrf_id);
 }
 
 /*
