@@ -50,6 +50,9 @@ LINKS=		${BINDIR}/loader ${BINDIR}/zfsloader
 LIBOFW=		${BOOTOBJ}/libofw/libofw.a
 CFLAGS+=	-I${BOOTSRC}/libofw
 
+# ZFS conflict
+CFLAGS+=	-DHAVE_BOOLEAN
+
 DPADD=		${LDR_INTERP} ${LIBOFW} ${LIBSA}
 LDADD=		${LDR_INTERP} ${LIBOFW} ${LIBSA}
 

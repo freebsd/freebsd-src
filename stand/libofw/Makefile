@@ -9,7 +9,8 @@ SRCS=	devicename.c ofw_console.c ofw_copy.c ofw_disk.c \
 	ofw_time.c openfirm.c
 .PATH:	${ZFSSRC}
 SRCS+=  devicename_stubs.c
-CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${ZFSSRC} -I${SYSDIR}/cddl/boot/zfs
+CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
 
 # Pick up the bootstrap header for some interface items
 CFLAGS+=	-I${LDRSRC}

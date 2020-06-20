@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .PATH:		${ZFSSRC}
-SRCS+=		zfs.c skein.c skein_block.c list.c
+SRCS+=		zfs.c nvlist.c skein.c skein_block.c list.c
 # Do not unroll skein loops, reduce code size
 CFLAGS+=	-DSKEIN_LOOP=111
 .PATH:		${SYSDIR}/crypto/skein

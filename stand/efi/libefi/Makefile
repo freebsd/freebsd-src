@@ -47,6 +47,8 @@ CFLAGS+= -I${EFIINC}
 CFLAGS+= -I${EFIINCMD}
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=	-I${SYSDIR}/cddl/boot/zfs
+CFLAGS+=	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
 

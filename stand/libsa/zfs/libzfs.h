@@ -26,6 +26,12 @@
  * $FreeBSD$
  */
 
+#include <zfsimpl.h>
+
+#ifdef LOADER_GELI_SUPPORT
+#include <crypto/intake.h>
+#endif
+
 #ifndef _BOOT_LIBZFS_H_
 #define _BOOT_LIBZFS_H_
 
@@ -40,13 +46,80 @@ struct zfs_devdesc {
 	uint64_t	root_guid;
 };
 
-#ifdef LOADER_GELI_SUPPORT
-#include <crypto/intake.h>
-#endif
+/* nvp implementation version */
+#define	NV_VERSION		0
+
+/* nvlist persistent unique name flags, stored in nvl_nvflags */
+#define	NV_UNIQUE_NAME		0x1
+#define	NV_UNIQUE_NAME_TYPE	0x2
+
+#define	NV_ALIGN4(x)		(((x) + 3) & ~3)
+
+/*
+ * nvlist header.
+ * nvlist has 4 bytes header followed by version and flags, then nvpairs
+ * and the list is terminated by double zero.
+ */
+typedef struct {
+	char nvh_encoding;
+	char nvh_endian;
+	char nvh_reserved1;
+	char nvh_reserved2;
+} nvs_header_t;
+
+typedef struct {
+	nvs_header_t nv_header;
+	size_t nv_asize;
+	size_t nv_size;
+	uint8_t *nv_data;
+	uint8_t *nv_idx;
+} nvlist_t;
+
+/*
+ * nvpair header.
+ * nvpair has encoded and decoded size
+ * name string (size and data)
+ * data type and number of elements
+ * data
+ */
+typedef struct {
+	unsigned encoded_size;
+	unsigned decoded_size;
+} nvp_header_t;
+
+/*
+ * nvlist stream head.
+ */
+typedef struct {
+	unsigned nvl_version;
+	unsigned nvl_nvflag;
+	nvp_header_t nvl_pair;
+} nvs_data_t;
+
+typedef struct {
+	unsigned nv_size;
+	uint8_t nv_data[];	/* NV_ALIGN4(string) */
+} nv_string_t;
+
+typedef struct {
+	unsigned nv_type;	/* data_type_t */
+	unsigned nv_nelem;	/* number of elements */
+	uint8_t nv_data[];	/* data stream */
+} nv_pair_data_t;
+
+nvlist_t *nvlist_create(int);
+void nvlist_destroy(nvlist_t *);
+nvlist_t *nvlist_import(const uint8_t *, char, char);
+int nvlist_remove(nvlist_t *, const char *, data_type_t);
+void nvlist_print(nvlist_t *, unsigned int);
+int nvlist_find(const nvlist_t *, const char *, data_type_t,
+    int *, void *, int *);
+int nvlist_next(nvlist_t *);
 
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
 		     const char **path);
 char	*zfs_fmtdev(void *vdev);
+int	zfs_nextboot(void *vdev, char *buf, size_t size);
 int	zfs_probe_dev(const char *devname, uint64_t *pool_guid);
 int	zfs_list(const char *name);
 uint64_t ldi_get_size(void *);
