@@ -211,16 +211,13 @@
 /* #undef HAVE_SHA256INIT */
 
 /* Define to 1 if the system has the type `SHA256_CTX'. */
-/* FreeBSD - disabled libmd SHA256 for now */
-/* #undef HAVE_SHA256_CTX */
+#define HAVE_SHA256_CTX 1
 
 /* Define to 1 if you have the <sha256.h> header file. */
-/* FreeBSD - disabled libmd SHA256 for now */
-/* #undef HAVE_SHA256_H */
+#define HAVE_SHA256_H 1
 
 /* Define to 1 if you have the `SHA256_Init' function. */
-/* FreeBSD - disabled libmd SHA256 for now */
-/* #undef HAVE_SHA256_INIT */
+#define HAVE_SHA256_INIT 1
 
 /* Define to 1 if the system has the type `SHA2_CTX'. */
 /* #undef HAVE_SHA2_CTX */
