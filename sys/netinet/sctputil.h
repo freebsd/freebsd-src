@@ -229,11 +229,10 @@ struct mbuf *sctp_generate_no_user_data_cause(uint32_t);
 
 void
 sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
-    struct sockaddr *sa, sctp_assoc_t assoc_id,
-    uint32_t vrf_id, int *error, void *p);
+    struct sockaddr *sa, uint32_t vrf_id, int *error,
+    void *p);
 void
-sctp_bindx_delete_address(struct sctp_inpcb *inp,
-    struct sockaddr *sa, sctp_assoc_t assoc_id,
+sctp_bindx_delete_address(struct sctp_inpcb *inp, struct sockaddr *sa,
     uint32_t vrf_id, int *error);
 
 int sctp_local_addr_count(struct sctp_tcb *stcb);
