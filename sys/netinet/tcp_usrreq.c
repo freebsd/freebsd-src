@@ -134,6 +134,16 @@ static void	tcp_fill_info(struct tcpcb *, struct tcp_info *);
 #endif
 
 /*
+ * tcp_require_unique port requires a globally-unique source port for each
+ * outgoing connection.  The default is to require the 4-tuple to be unique.
+ */
+VNET_DEFINE(int, tcp_require_unique_port) = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, require_unique_port,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(tcp_require_unique_port), 0,
+    "Require globally-unique ephemeral port for outgoing connections");
+#define	V_tcp_require_unique_port	VNET(tcp_require_unique_port)
+
+/*
  * TCP attaches to socket via pru_attach(), reserving space,
  * and an internet control block.
  */
@@ -1456,7 +1466,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK(&V_tcbinfo);
 
-	if (inp->inp_lport == 0) {
+	if (V_tcp_require_unique_port && inp->inp_lport == 0) {
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 		if (error)
 			goto out;
@@ -1476,6 +1486,15 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	if (oinp) {
 		error = EADDRINUSE;
 		goto out;
+	}
+	/* Handle initial bind if it hadn't been done in advance. */
+	if (inp->inp_lport == 0) {
+		inp->inp_lport = lport;
+		if (in_pcbinshash(inp) != 0) {
+			inp->inp_lport = 0;
+			error = EAGAIN;
+			goto out;
+		}
 	}
 	inp->inp_laddr = laddr;
 	in_pcbrehash(inp);
@@ -1516,7 +1535,7 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK(&V_tcbinfo);
 
-	if (inp->inp_lport == 0) {
+	if (V_tcp_require_unique_port && inp->inp_lport == 0) {
 		error = in6_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 		if (error)
 			goto out;
