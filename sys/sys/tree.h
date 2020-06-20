@@ -493,21 +493,19 @@ name##_RB_REMOVE_COLOR(struct name *head, struct type *parent)		\
 				RB_ROTATE_LEFT(head, parent, tmp, field);\
 				tmp = RB_RIGHT(parent, field);		\
 			}						\
-			if (RB_ISRED(RB_LEFT(tmp, field), field)) {	\
+			if (RB_ISRED(RB_RIGHT(tmp, field), field))	\
+				RB_COLOR(RB_RIGHT(tmp, field), field) = RB_BLACK; \
+			else if (RB_ISRED(RB_LEFT(tmp, field), field)) { \
 				struct type *oleft;			\
-				oleft = RB_LEFT(tmp, field);		\
-				RB_COLOR(oleft, field) = RB_BLACK;	\
-				RB_COLOR(tmp, field) = RB_RED;		\
 				RB_ROTATE_RIGHT(head, tmp, oleft, field); \
-				tmp = RB_RIGHT(parent, field);		\
-			} else if (!RB_ISRED(RB_RIGHT(tmp, field), field)) { \
+				RB_COLOR(oleft, field) = RB_BLACK;	\
+				tmp = oleft;				\
+			} else {					\
 				RB_COLOR(tmp, field) = RB_RED;		\
 				elm = parent;				\
 				parent = RB_PARENT(elm, field);		\
 				continue;				\
 			}						\
-			if (RB_ISRED(RB_RIGHT(tmp, field), field))	\
-				RB_COLOR(RB_RIGHT(tmp, field), field) = RB_BLACK; \
 			RB_COLOR(tmp, field) = RB_COLOR(parent, field);	\
 			RB_COLOR(parent, field) = RB_BLACK;		\
 			RB_ROTATE_LEFT(head, parent, tmp, field);	\
@@ -520,21 +518,19 @@ name##_RB_REMOVE_COLOR(struct name *head, struct type *parent)		\
 				RB_ROTATE_RIGHT(head, parent, tmp, field);\
 				tmp = RB_LEFT(parent, field);		\
 			}						\
-			if (RB_ISRED(RB_RIGHT(tmp, field), field)) {	\
+			if (RB_ISRED(RB_LEFT(tmp, field), field))	\
+				RB_COLOR(RB_LEFT(tmp, field), field) = RB_BLACK; \
+			else if (RB_ISRED(RB_RIGHT(tmp, field), field)) { \
 				struct type *oright;			\
-				oright = RB_RIGHT(tmp, field);		\
-				RB_COLOR(oright, field) = RB_BLACK;	\
-				RB_COLOR(tmp, field) = RB_RED;		\
 				RB_ROTATE_LEFT(head, tmp, oright, field); \
-				tmp = RB_LEFT(parent, field);		\
+				RB_COLOR(oright, field) = RB_BLACK;	\
+				tmp = oright;				\
 			} else if (!RB_ISRED(RB_LEFT(tmp, field), field)) { \
 				RB_COLOR(tmp, field) = RB_RED;		\
 				elm = parent;				\
 				parent = RB_PARENT(elm, field);		\
 				continue;				\
 			}						\
-			if (RB_ISRED(RB_LEFT(tmp, field), field))	\
-				RB_COLOR(RB_LEFT(tmp, field), field) = RB_BLACK; \
 			RB_COLOR(tmp, field) = RB_COLOR(parent, field);	\
 			RB_COLOR(parent, field) = RB_BLACK;		\
 			RB_ROTATE_RIGHT(head, parent, tmp, field);	\
