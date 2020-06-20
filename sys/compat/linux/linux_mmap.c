@@ -242,6 +242,62 @@ linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 	return (kern_mprotect(td, addr, len, prot));
 }
 
+int
+linux_madvise_common(struct thread *td, uintptr_t addr, size_t len, int behav)
+{
+
+	switch (behav) {
+	case LINUX_MADV_NORMAL:
+		return (kern_madvise(td, addr, len, MADV_NORMAL));
+	case LINUX_MADV_RANDOM:
+		return (kern_madvise(td, addr, len, MADV_RANDOM));
+	case LINUX_MADV_SEQUENTIAL:
+		return (kern_madvise(td, addr, len, MADV_SEQUENTIAL));
+	case LINUX_MADV_WILLNEED:
+		return (kern_madvise(td, addr, len, MADV_WILLNEED));
+	case LINUX_MADV_DONTNEED:
+		return (kern_madvise(td, addr, len, MADV_DONTNEED));
+	case LINUX_MADV_FREE:
+		return (kern_madvise(td, addr, len, MADV_FREE));
+	case LINUX_MADV_REMOVE:
+		linux_msg(curthread, "unsupported madvise MADV_REMOVE");
+		return (EINVAL);
+	case LINUX_MADV_DONTFORK:
+		return (kern_minherit(td, addr, len, INHERIT_NONE));
+	case LINUX_MADV_DOFORK:
+		return (kern_minherit(td, addr, len, INHERIT_COPY));
+	case LINUX_MADV_MERGEABLE:
+		linux_msg(curthread, "unsupported madvise MADV_MERGEABLE");
+		return (EINVAL);
+	case LINUX_MADV_UNMERGEABLE:
+		/* We don't merge anyway. */
+		return (0);
+	case LINUX_MADV_HUGEPAGE:
+		/* Ignored; on FreeBSD huge pages are always on. */
+		return (0);
+	case LINUX_MADV_NOHUGEPAGE:
+		linux_msg(curthread, "unsupported madvise MADV_NOHUGEPAGE");
+		return (EINVAL);
+	case LINUX_MADV_DONTDUMP:
+		return (kern_madvise(td, addr, len, MADV_NOCORE));
+	case LINUX_MADV_DODUMP:
+		return (kern_madvise(td, addr, len, MADV_CORE));
+	case LINUX_MADV_WIPEONFORK:
+		return (kern_minherit(td, addr, len, INHERIT_ZERO));
+	case LINUX_MADV_KEEPONFORK:
+		return (kern_minherit(td, addr, len, INHERIT_COPY));
+	case LINUX_MADV_HWPOISON:
+		linux_msg(curthread, "unsupported madvise MADV_HWPOISON");
+		return (EINVAL);
+	case LINUX_MADV_SOFT_OFFLINE:
+		linux_msg(curthread, "unsupported madvise MADV_SOFT_OFFLINE");
+		return (EINVAL);
+	default:
+		linux_msg(curthread, "unsupported madvise behav %d", behav);
+		return (EINVAL);
+	}
+}
+
 #if defined(__amd64__)
 static void
 linux_fixup_prot(struct thread *td, int *prot)

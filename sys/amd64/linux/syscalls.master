@@ -94,7 +94,7 @@
 				    l_size_t len, l_int fl); }
 27	AUE_MINCORE	STD	{ int linux_mincore(l_ulong start, \
 				    l_size_t len, u_char *vec); }
-28	AUE_MADVISE	NOPROTO	{ int madvise(void *addr, size_t len, \
+28	AUE_MADVISE	STD	{ int linux_madvise(void *addr, size_t len, \
 				    int behav); }
 29	AUE_NULL	STD	{ int linux_shmget(l_key_t key, l_size_t size, \
 				    l_int shmflg); }
