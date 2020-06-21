@@ -73,12 +73,12 @@ __FBSDID("$FreeBSD$");
  * Zone.  The Zone can be capped at kern.ipc.nmbclusters, if the
  * administrator so desires.
  *
- * Mbufs are allocated from a UMA Master Zone called the Mbuf
+ * Mbufs are allocated from a UMA Primary Zone called the Mbuf
  * Zone.
  *
  * Additionally, FreeBSD provides a Packet Zone, which it
- * configures as a Secondary Zone to the Mbuf Master Zone,
- * thus sharing backend Slab kegs with the Mbuf Master Zone.
+ * configures as a Secondary Zone to the Mbuf Primary Zone,
+ * thus sharing backend Slab kegs with the Mbuf Primary Zone.
  *
  * Thus common-case allocations and locking are simplified:
  *
@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
  *    |   .------------>[(Packet Cache)]    m_get(), m_gethdr()
  *    |   |             [     Packet   ]            |
  *  [(Cluster Cache)]   [    Secondary ]   [ (Mbuf Cache)     ]
- *  [ Cluster Zone  ]   [     Zone     ]   [ Mbuf Master Zone ]
+ *  [ Cluster Zone  ]   [     Zone     ]   [ Mbuf Primary Zone ]
  *        |                       \________         |
  *  [ Cluster Keg   ]                      \       /
  *        |	                         [ Mbuf Keg   ]
@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
  * for any deallocation through uma_zfree() the _dtor_ function
  * is executed.
  *
- * Caches are per-CPU and are filled from the Master Zone.
+ * Caches are per-CPU and are filled from the Primary Zone.
  *
  * Whenever an object is allocated from the underlying global
  * memory pool it gets pre-initialized with the _zinit_ functions.
@@ -611,7 +611,7 @@ debugnet_mbuf_reinit(int nmbuf, int nclust, int clsize)
 #endif /* DEBUGNET */
 
 /*
- * Constructor for Mbuf master zone.
+ * Constructor for Mbuf primary zone.
  *
  * The 'arg' pointer points to a mb_args structure which
  * contains call-specific information required to support the
@@ -646,7 +646,7 @@ mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 }
 
 /*
- * The Mbuf master zone destructor.
+ * The Mbuf primary zone destructor.
  */
 static void
 mb_dtor_mbuf(void *mem, int size, void *arg)
