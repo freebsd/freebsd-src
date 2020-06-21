@@ -438,8 +438,8 @@ main(int argc, char *argv[])
 				if (ptr == NULL)
 					ptr = "-";
 				xo_open_instance("process-entry");
-				xo_emit("\t\t{:process-id/%-9d/%d} {:command/%s}\n",
-				    dkp->ki_pid, ptr);
+				xo_emit("\t\t{:process-id/%-9d/%d} "
+				    "{:command/%hs}\n", dkp->ki_pid, ptr);
 				xo_close_instance("process-entry");
 			}
 		        xo_close_list("process-entry");
@@ -460,7 +460,7 @@ main(int argc, char *argv[])
 		t = ep->utmp.ut_tv.tv_sec;
 		longattime = pr_attime(&t, &now);
 		longidle = pr_idle(ep->idle);
-		xo_emit("{:command/%.*s/%@*@s}\n",
+		xo_emit("{:command/%.*hs/%@*@hs}\n",
 		    argwidth - longidle - longattime,
 		    ep->args);
 
