@@ -112,7 +112,7 @@ mbr_write(lba_t imgsz __unused, void *bootcode)
 
 static struct mkimg_scheme mbr_scheme = {
 	.name = "mbr",
-	.description = "Master Boot Record",
+	.description = "Main Boot Record",
 	.aliases = mbr_aliases,
 	.metadata = mbr_metadata,
 	.write = mbr_write,

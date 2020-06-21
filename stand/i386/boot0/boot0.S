@@ -53,7 +53,7 @@
 /*
  *		BOOT BLOCK STRUCTURE
  *
- * This code implements a Master Boot Record (MBR) for an Intel/PC disk.
+ * This code implements a Main Boot Record (MBR) for an Intel/PC disk.
  * It is 512 bytes long and it is normally loaded by the BIOS (or another
  * bootloader) at 0:0x7c00. This code depends on %cs:%ip being 0:0x7c00
  *
@@ -68,7 +68,7 @@
  * (called 'packet') or CHS mode, whether to force a drive number,
  * and whether to write back the user's selection back to disk.
  *
- * As in every Master Boot Record, the partition table is at 0x1be,
+ * As in every Main Boot Record, the partition table is at 0x1be,
  * made of four 16-byte entries each containing:
  *
  *   OFF SIZE	DESCRIPTION
