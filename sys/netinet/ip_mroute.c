@@ -740,7 +740,7 @@ X_ip_mrouter_done(void)
 	    if_allmulti(ifp, 0);
 	}
     }
-    bzero((caddr_t)V_viftable, sizeof(V_viftable) * MAXVIFS);
+    bzero((caddr_t)V_viftable, sizeof(*V_viftable) * MAXVIFS);
     V_numvifs = 0;
     V_pim_assert_enabled = 0;
 
