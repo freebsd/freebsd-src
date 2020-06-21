@@ -287,7 +287,8 @@ cloudabi_sys_file_open(struct thread *td,
 
 	/* Install vnode operations if no custom operations are provided. */
 	if (fp->f_ops == &badfileops) {
-		fp->f_seqcount = 1;
+		fp->f_seqcount[UIO_READ] = 1;
+		fp->f_seqcount[UIO_WRITE] = 1;
 		finit(fp, (fflags & FMASK) | (fp->f_flag & FHASLOCK),
 		    DTYPE_VNODE, vp, &vnops);
 	}
