@@ -101,6 +101,7 @@ struct ct_data {
 	struct ct_request_list ct_pending;
 	int		ct_upcallrefs;	/* Ref cnt of upcalls in prog. */
 	SVCXPRT		*ct_backchannelxprt; /* xprt for backchannel */
+	struct mbuf	*ct_raw;	/* Raw mbufs recv'd */
 };
 
 struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
