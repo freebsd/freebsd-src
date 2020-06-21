@@ -6853,6 +6853,8 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 		} else {
 			addr_to_use = sa;
 		}
+#else
+		addr_to_use = sa;
 #endif
 		break;
 #endif
