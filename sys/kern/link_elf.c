@@ -389,6 +389,21 @@ link_elf_link_common_finish(linker_file_t lf)
 }
 
 #ifdef RELOCATABLE_KERNEL
+/*
+ * __startkernel and __endkernel are symbols set up as relocation canaries.
+ *
+ * They are defined in locore to reference linker script symbols at the
+ * beginning and end of the LOAD area. This has the desired side effect of
+ * giving us variables that have relative relocations pointing at them, so
+ * relocation of the kernel object will cause the variables to be updated
+ * automatically by the runtime linker when we initialize.
+ *
+ * There are two main reasons to relocate the kernel:
+ * 1) If the loader needed to load the kernel at an alternate load address.
+ * 2) If the kernel is switching address spaces on machines like POWER9
+ *    under Radix where the high bits of the effective address are used to
+ *    differentiate between hypervisor, host, guest, and problem state.
+ */
 extern vm_offset_t __startkernel, __endkernel;
 #endif
 
@@ -427,6 +442,7 @@ link_elf_init(void* arg)
 	ef = (elf_file_t) linker_kernel_file;
 	ef->preloaded = 1;
 #ifdef RELOCATABLE_KERNEL
+	/* Compute relative displacement */
 	ef->address = (caddr_t) (__startkernel - KERNBASE);
 #else
 	ef->address = 0;

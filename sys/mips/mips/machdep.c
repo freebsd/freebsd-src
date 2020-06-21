@@ -447,7 +447,7 @@ mips_postboot_fixup(void)
 		kernel_kseg0_end += symtabsize;
 		/* end of .strtab */
 		ksym_end = kernel_kseg0_end;
-		db_fetch_ksymtab(ksym_start, ksym_end);
+		db_fetch_ksymtab(ksym_start, ksym_end, 0);
 	}
 #endif
 }
