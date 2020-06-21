@@ -2180,7 +2180,7 @@ static void
 i386_kdb_init(void)
 {
 #ifdef DDB
-	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab);
+	db_fetch_ksymtab(bootinfo.bi_symtab, bootinfo.bi_esymtab, 0);
 #endif
 	kdb_init();
 #ifdef KDB

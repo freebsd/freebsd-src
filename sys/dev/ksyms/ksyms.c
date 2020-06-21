@@ -202,7 +202,7 @@ ksyms_add(linker_file_t lf, void *arg)
 	strsz = LINKER_STRTAB_GET(lf, &strtab);
 	symsz = numsyms * sizeof(Elf_Sym);
 
-#ifdef __powerpc__
+#ifdef RELOCATABLE_KERNEL
 	fixup = true;
 #else
 	fixup = lf->id > 1;

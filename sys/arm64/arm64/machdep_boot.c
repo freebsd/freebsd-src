@@ -208,7 +208,7 @@ freebsd_parse_boot_param(struct arm64_bootparams *abp)
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-	db_fetch_ksymtab(ksym_start, ksym_end);
+	db_fetch_ksymtab(ksym_start, ksym_end, 0);
 #endif
 	return (lastaddr);
 }
