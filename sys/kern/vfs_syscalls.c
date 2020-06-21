@@ -1124,7 +1124,8 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	 */
 	if (fp->f_ops == &badfileops) {
 		KASSERT(vp->v_type != VFIFO, ("Unexpected fifo."));
-		fp->f_seqcount = 1;
+		fp->f_seqcount[UIO_READ] = 1;
+		fp->f_seqcount[UIO_WRITE] = 1;
 		finit(fp, (flags & FMASK) | (fp->f_flag & FHASLOCK),
 		    DTYPE_VNODE, vp, &vnops);
 	}
@@ -4442,7 +4443,8 @@ sys_fhopen(struct thread *td, struct fhopen_args *uap)
 	td->td_dupfd = 0;
 #endif
 	fp->f_vnode = vp;
-	fp->f_seqcount = 1;
+	fp->f_seqcount[UIO_READ] = 1;
+	fp->f_seqcount[UIO_WRITE] = 1;
 	finit(fp, (fmode & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE, vp,
 	    &vnops);
 	VOP_UNLOCK(vp);
