@@ -985,7 +985,7 @@ clnt_vc_soupcall(struct socket *so, void *arg, int waitflag)
 					 * valid RPC message to parse.
 					 * I think it best to close this
 					 * connection and allow
-					 * clnt_reconnect_XXX() to try
+					 * clnt_reconnect_call() to try
 					 * and establish a new one.
 					 */
 					printf("clnt_vc_soupcall: "
