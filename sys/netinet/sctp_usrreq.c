@@ -989,7 +989,7 @@ sctp_shutdown(struct socket *so)
  * returns 0 on success, 1 on error
  */
 static uint32_t
-sctp_fill_user_address(struct sockaddr_storage *ss, struct sockaddr *sa)
+sctp_fill_user_address(union sctp_sockstore *ss, struct sockaddr *sa)
 {
 #ifdef INET6
 	struct sockaddr_in6 lsa6;
@@ -1010,7 +1010,7 @@ static size_t
 sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     size_t limit,
-    struct sockaddr_storage *sas,
+    union sctp_sockstore *addr,
     uint32_t vrf_id)
 {
 	struct sctp_ifn *sctp_ifn;
@@ -1125,18 +1125,18 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 							if (actual + sizeof(struct sockaddr_in6) > limit) {
 								return (actual);
 							}
-							in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)sas);
-							((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
-							sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
+							in6_sin_2_v4mapsin6(sin, &addr->sin6);
+							addr->sin6.sin6_port = inp->sctp_lport;
+							addr = (union sctp_sockstore *)((caddr_t)addr + sizeof(struct sockaddr_in6));
 							actual += sizeof(struct sockaddr_in6);
 						} else {
 #endif
 							if (actual + sizeof(struct sockaddr_in) > limit) {
 								return (actual);
 							}
-							memcpy(sas, sin, sizeof(struct sockaddr_in));
-							((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
-							sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in));
+							memcpy(addr, sin, sizeof(struct sockaddr_in));
+							addr->sin.sin_port = inp->sctp_lport;
+							addr = (union sctp_sockstore *)((caddr_t)addr + sizeof(struct sockaddr_in));
 							actual += sizeof(struct sockaddr_in);
 #ifdef INET6
 						}
@@ -1188,9 +1188,9 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 						if (actual + sizeof(struct sockaddr_in6) > limit) {
 							return (actual);
 						}
-						memcpy(sas, sin6, sizeof(struct sockaddr_in6));
-						((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
-						sas = (struct sockaddr_storage *)((caddr_t)sas + sizeof(struct sockaddr_in6));
+						memcpy(addr, sin6, sizeof(struct sockaddr_in6));
+						addr->sin6.sin6_port = inp->sctp_lport;
+						addr = (union sctp_sockstore *)((caddr_t)addr + sizeof(struct sockaddr_in6));
 						actual += sizeof(struct sockaddr_in6);
 					} else {
 						continue;
@@ -1217,24 +1217,24 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 			if (actual + sa_len > limit) {
 				return (actual);
 			}
-			if (sctp_fill_user_address(sas, &laddr->ifa->address.sa))
+			if (sctp_fill_user_address(addr, &laddr->ifa->address.sa))
 				continue;
 			switch (laddr->ifa->address.sa.sa_family) {
 #ifdef INET
 			case AF_INET:
-				((struct sockaddr_in *)sas)->sin_port = inp->sctp_lport;
+				addr->sin.sin_port = inp->sctp_lport;
 				break;
 #endif
 #ifdef INET6
 			case AF_INET6:
-				((struct sockaddr_in6 *)sas)->sin6_port = inp->sctp_lport;
+				addr->sin6.sin6_port = inp->sctp_lport;
 				break;
 #endif
 			default:
 				/* TSNH */
 				break;
 			}
-			sas = (struct sockaddr_storage *)((caddr_t)sas + sa_len);
+			addr = (union sctp_sockstore *)((caddr_t)addr + sa_len);
 			actual += sa_len;
 		}
 	}
@@ -1245,13 +1245,13 @@ static size_t
 sctp_fill_up_addresses(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     size_t limit,
-    struct sockaddr_storage *sas)
+    union sctp_sockstore *addr)
 {
 	size_t size = 0;
 
 	SCTP_IPI_ADDR_RLOCK();
 	/* fill up addresses for the endpoint's default vrf */
-	size = sctp_fill_up_addresses_vrf(inp, stcb, limit, sas,
+	size = sctp_fill_up_addresses_vrf(inp, stcb, limit, addr,
 	    inp->def_vrf_id);
 	SCTP_IPI_ADDR_RUNLOCK();
 	return (size);
@@ -2226,7 +2226,7 @@ flags_out:
 		 */
 		{
 			size_t cpsz, left;
-			struct sockaddr_storage *sas;
+			union sctp_sockstore *addr;
 			struct sctp_nets *net;
 			struct sctp_getaddresses *saddr;
 
@@ -2234,9 +2234,9 @@ flags_out:
 			SCTP_FIND_STCB(inp, stcb, saddr->sget_assoc_id);
 
 			if (stcb) {
-				left = (*optsize) - sizeof(sctp_assoc_t);
-				*optsize = sizeof(sctp_assoc_t);
-				sas = (struct sockaddr_storage *)&saddr->addr[0];
+				left = *optsize - offsetof(struct sctp_getaddresses, addr);
+				*optsize = offsetof(struct sctp_getaddresses, addr);
+				addr = &saddr->addr[0];
 
 				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 					switch (net->ro._l_addr.sa.sa_family) {
@@ -2274,16 +2274,16 @@ flags_out:
 					    (net->ro._l_addr.sa.sa_family == AF_INET)) {
 						/* Must map the address */
 						in6_sin_2_v4mapsin6(&net->ro._l_addr.sin,
-						    (struct sockaddr_in6 *)sas);
+						    &addr->sin6);
 					} else {
-						memcpy(sas, &net->ro._l_addr, cpsz);
+						memcpy(addr, &net->ro._l_addr, cpsz);
 					}
 #else
-					memcpy(sas, &net->ro._l_addr, cpsz);
+					memcpy(addr, &net->ro._l_addr, cpsz);
 #endif
-					((struct sockaddr_in *)sas)->sin_port = stcb->rport;
+					addr->sin.sin_port = stcb->rport;
 
-					sas = (struct sockaddr_storage *)((caddr_t)sas + cpsz);
+					addr = (union sctp_sockstore *)((caddr_t)addr + cpsz);
 					left -= cpsz;
 					*optsize += cpsz;
 				}
@@ -2297,19 +2297,17 @@ flags_out:
 	case SCTP_GET_LOCAL_ADDRESSES:
 		{
 			size_t limit, actual;
-			struct sockaddr_storage *sas;
 			struct sctp_getaddresses *saddr;
 
 			SCTP_CHECK_AND_CAST(saddr, optval, struct sctp_getaddresses, *optsize);
 			SCTP_FIND_STCB(inp, stcb, saddr->sget_assoc_id);
 
-			sas = (struct sockaddr_storage *)&saddr->addr[0];
-			limit = *optsize - sizeof(sctp_assoc_t);
-			actual = sctp_fill_up_addresses(inp, stcb, limit, sas);
+			limit = *optsize - offsetof(struct sctp_getaddresses, addr);
+			actual = sctp_fill_up_addresses(inp, stcb, limit, saddr->addr);
 			if (stcb) {
 				SCTP_TCB_UNLOCK(stcb);
 			}
-			*optsize = sizeof(sctp_assoc_t) + actual;
+			*optsize = offsetof(struct sctp_getaddresses, addr) + actual;
 			break;
 		}
 	case SCTP_PEER_ADDR_PARAMS:
