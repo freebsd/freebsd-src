@@ -18,7 +18,7 @@ Module Name:
     efipart.h
     
 Abstract:   
-    Info about disk partitions and Master Boot Records
+    Info about disk partitions and Main Boot Records
 
 
 
@@ -62,7 +62,7 @@ typedef struct {
     UINT8                   Unknown[2];
     MBR_PARTITION_RECORD    Partition[MAX_MBR_PARTITIONS];
     UINT16                  Signature;
-} MASTER_BOOT_RECORD;
+} MAIN_BOOT_RECORD;
 #pragma pack()
 
 

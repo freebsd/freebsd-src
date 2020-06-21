@@ -260,13 +260,13 @@ struct fdisk_partition_table
 	ULONG 		numsect;            /* number of sectors in partition */
 };
 
-typedef struct _Master_Boot_Record
+typedef struct _Main_Boot_Record
 {
 	UCHAR   bootinst[446];   		/* space to hold actual boot code */
 	struct 	fdisk_partition_table parts[4];
 	USHORT  signature;       		/* set to 0xAA55 to indicate PC MBR format */
 }
-Master_Boot_Record, *PMaster_Boot_Record;
+Main_Boot_Record, *PMain_Boot_Record;
 
 #ifndef SUPPORT_ARRAY
 /* TODO: move it later */
