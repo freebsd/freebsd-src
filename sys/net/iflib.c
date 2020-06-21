@@ -4874,12 +4874,8 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	if ((err = IFDI_CLONEATTACH(ctx, clctx->cc_ifc, clctx->cc_name,
 								clctx->cc_params)) != 0) {
 		device_printf(dev, "IFDI_CLONEATTACH failed %d\n", err);
-		goto fail_ctx_free;
+		goto fail_unlock;
 	}
-	ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
-	ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_set(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO);
-
 #ifdef INVARIANTS
 	if (scctx->isc_capabilities & IFCAP_TXCSUM)
 		MPASS(scctx->isc_tx_csum_flags);
@@ -4890,7 +4886,14 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 
 	ifp->if_flags |= IFF_NOGROUP;
 	if (sctx->isc_flags & IFLIB_PSEUDO) {
-		ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac.octet);
+		ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO, 0, NULL);
+		ifmedia_set(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO);
+		if (sctx->isc_flags & IFLIB_PSEUDO_ETHER) {
+			ether_ifattach(ctx->ifc_ifp, ctx->ifc_mac.octet);
+		} else {
+			if_attach(ctx->ifc_ifp);
+			bpfattach(ctx->ifc_ifp, DLT_NULL, sizeof(u_int32_t));
+		}
 
 		if ((err = IFDI_ATTACH_POST(ctx)) != 0) {
 			device_printf(dev, "IFDI_ATTACH_POST failed %d\n", err);
@@ -4913,6 +4916,10 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 		CTX_UNLOCK(ctx);
 		return (0);
 	}
+	ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+	ifmedia_add(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(ctx->ifc_mediap, IFM_ETHER | IFM_AUTO);
+
 	_iflib_pre_assert(scctx);
 	ctx->ifc_txrx = *scctx->isc_txrx;
 
@@ -5028,6 +5035,7 @@ int
 iflib_pseudo_deregister(if_ctx_t ctx)
 {
 	if_t ifp = ctx->ifc_ifp;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
 	int i, j;
@@ -5037,7 +5045,13 @@ iflib_pseudo_deregister(if_ctx_t ctx)
 	/* Unregister VLAN event handlers early */
 	iflib_unregister_vlan_handlers(ctx);
 
-	ether_ifdetach(ifp);
+	if ((sctx->isc_flags & IFLIB_PSEUDO)  &&
+		(sctx->isc_flags & IFLIB_PSEUDO_ETHER) == 0) {
+		bpfdetach(ifp);
+		if_detach(ifp);
+	} else {
+		ether_ifdetach(ifp);
+	}
 	/* XXX drain any dependent tasks */
 	tqg = qgroup_if_io_tqg;
 	for (txq = ctx->ifc_txqs, i = 0; i < NTXQSETS(ctx); i++, txq++) {
@@ -5362,13 +5376,22 @@ iflib_register(if_ctx_t ctx)
 	driver_t *driver = sctx->isc_driver;
 	device_t dev = ctx->ifc_dev;
 	if_t ifp;
+	u_char type;
+	int iflags;
 
 	if ((sctx->isc_flags & IFLIB_PSEUDO) == 0)
 		_iflib_assert(sctx);
 
 	CTX_LOCK_INIT(ctx);
 	STATE_LOCK_INIT(ctx, device_get_nameunit(ctx->ifc_dev));
-	ifp = ctx->ifc_ifp = if_alloc(IFT_ETHER);
+	if (sctx->isc_flags & IFLIB_PSEUDO) {
+		if (sctx->isc_flags & IFLIB_PSEUDO_ETHER)
+			type = IFT_ETHER;
+		else
+			type = IFT_PPP;
+	} else
+		type = IFT_ETHER;
+	ifp = ctx->ifc_ifp = if_alloc(type);
 	if (ifp == NULL) {
 		device_printf(dev, "can not allocate ifnet structure\n");
 		return (ENOMEM);
@@ -5393,9 +5416,14 @@ iflib_register(if_ctx_t ctx)
 	if_settransmitfn(ifp, iflib_if_transmit);
 #endif
 	if_setqflushfn(ifp, iflib_if_qflush);
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
-	    IFF_KNOWSEPOCH);
+	iflags = IFF_MULTICAST | IFF_KNOWSEPOCH;
 
+	if ((sctx->isc_flags & IFLIB_PSEUDO) &&
+		(sctx->isc_flags & IFLIB_PSEUDO_ETHER) == 0)
+		iflags |= IFF_POINTOPOINT;
+	else
+		iflags |= IFF_BROADCAST | IFF_SIMPLEX;
+	if_setflags(ifp, iflags);
 	ctx->ifc_vlan_attach_event =
 		EVENTHANDLER_REGISTER(vlan_config, iflib_vlan_register, ctx,
 							  EVENTHANDLER_PRI_FIRST);

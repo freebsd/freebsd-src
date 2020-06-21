@@ -375,6 +375,12 @@ typedef enum {
  * interrupts instead of doing combined RX/TX processing.
  */
 #define	IFLIB_SINGLE_IRQ_RX_ONLY	0x40000
+/*
+ * Don't need/want most of the niceties of
+ * emulating ethernet
+ */
+#define IFLIB_PSEUDO_ETHER	0x80000
+
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib
