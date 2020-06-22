@@ -2006,6 +2006,7 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 
 			if (IFCAP_TSO4 & dev->if_capenable &&
 			    !(IFCAP_TXCSUM & dev->if_capenable)) {
+				mask &= ~IFCAP_TSO4;
 				dev->if_capenable &= ~IFCAP_TSO4;
 				dev->if_hwassist &= ~CSUM_IP_TSO;
 				if_printf(dev,
@@ -2018,6 +2019,7 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 
 			if (IFCAP_TSO6 & dev->if_capenable &&
 			    !(IFCAP_TXCSUM_IPV6 & dev->if_capenable)) {
+				mask &= ~IFCAP_TSO6;
 				dev->if_capenable &= ~IFCAP_TSO6;
 				dev->if_hwassist &= ~CSUM_IP6_TSO;
 				if_printf(dev,
