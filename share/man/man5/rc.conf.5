@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2020
+.Dd June 23, 2020
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1862,46 +1862,35 @@ Even if this variable is specified to
 .Dq :nosticky
 keyword can be used to override it on per interface basis.
 .It Va gif_interfaces
-.Pq Vt str
-This variable is deprecated in favor of
-.Va cloned_interfaces .
 Set to the list of
 .Xr gif 4
 tunnel interfaces to configure on this host.
-For each
-.Xr gif
-tunnel interface, set a variable named
-.Va ifconfig_ Ns Aq Ar interface
-with the parameters for the
-.Xr ifconfig 8
-command to configure the link level for
-.Ar interface
-with the
-.Cm tunnel
-option.
+A
+.Va gifconfig_ Ns Aq Ar interface
+variable is assumed to exist for each value of
+.Ar interface .
 The value of this variable is used to configure the link layer of the
 tunnel using the
 .Cm tunnel
 option to
 .Xr ifconfig .
-For example, configure two
-.Xr gif
-interfaces with:
-.Bd -literal -offset indent
-gif_interfaces="gif0 gif1"
-ifconfig_gif0="tunnel src_addr0 dst_addr0"
-ifconfig_gif1="tunnel src_addr1 dst_addr1"
-.Ed
-.Pp
 Additionally, this option ensures that each listed interface is created
 via the
 .Cm create
 option to
-.Xr ifconfig .
-This example also works with
-.Va cloned_interfaces
-instead of
-.Va gif_interfaces .
+.Xr ifconfig
+before attempting to configure it.
+.Pp
+For example, configure two
+.Xr gif
+interfaces with:
+.Bd -literal
+gif_interfaces="gif0 gif1"
+gifconfig_gif0="100.64.0.1 100.64.0.2"
+ifconfig_gif0="inet 10.0.0.1 10.0.0.2 netmask 255.255.255.252"
+gifconfig_gif1="inet6 2a00::1 2a01::1"
+ifconfig_gif1="inet 10.1.0.1 10.1.0.2 netmask 255.255.255.252"
+.Ed
 .It Va sppp_interfaces
 .Pq Vt str
 Set to the list of
