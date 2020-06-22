@@ -40,7 +40,7 @@ Handy bash(1) prompt:  PS1="\u@\h \w \!$ "
 Having trouble using fetch through a firewall? Try setting the environment
 variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.
 %
-If other operating systems have damaged your Main Boot Record, you can
+If other operating systems have damaged your Master Boot Record, you can
 reinstall it with gpart(8). See
 "man gpart" for details.
 %
