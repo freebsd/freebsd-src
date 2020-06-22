@@ -190,13 +190,15 @@ static const char *const error_rule[] = {
 };
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 
 /* define the initial stack-sizes */
 #ifdef YYSTACKSIZE
@@ -245,7 +247,7 @@ yyerror(const char* s)
 {
     printf("%s\n", s);
 }
-#line 249 "error.tab.c"
+#line 251 "error.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>	/* needed for printf */

@@ -1,4 +1,4 @@
-/* $Id: yaccpar.skel,v 1.9 2017/04/30 23:28:17 tom Exp $ */
+/* $Id: yaccpar.skel,v 1.10 2018/05/06 21:28:14 Guy.Harris Exp $ */
 
 #include "defs.h"
 
@@ -46,14 +46,16 @@ extern char *yyrule[];
 #endif
 %% global_vars
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 %% impure_vars
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 %% hdr_defs
 
 /* define the initial stack-sizes */
@@ -87,6 +89,7 @@ static YYSTACKDATA yystack;
     int      yychar;
     YYSTYPE  yyval;
     YYSTYPE  yylval;
+    int      yynerrs;
 
     /* variables for the parser stack */
     YYSTACKDATA yystack;

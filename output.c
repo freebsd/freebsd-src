@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.81 2017/04/30 23:23:32 tom Exp $ */
+/* $Id: output.c,v 1.92 2019/11/20 00:55:05 tom Exp $ */
 
 #include "defs.h"
 
@@ -183,6 +183,27 @@ output_prefix(FILE * fp)
     if (CountLine(fp))
 	++outline;
     fprintf(fp, "#define YYPREFIX \"%s\"\n", symbol_prefix);
+}
+
+static void
+output_code_lines(FILE * fp, int cl)
+{
+    if (code_lines[cl].lines != NULL)
+    {
+	if (fp == code_file)
+	{
+	    outline += (int)code_lines[cl].num;
+	    outline += 3;
+	    fprintf(fp, "\n");
+	}
+	fprintf(fp, "/* %%code \"%s\" block start */\n", code_lines[cl].name);
+	fputs(code_lines[cl].lines, fp);
+	fprintf(fp, "/* %%code \"%s\" block end */\n", code_lines[cl].name);
+	if (fp == code_file)
+	{
+	    write_code_lineno(fp);
+	}
+    }
 }
 
 static void
@@ -1162,21 +1183,21 @@ is_C_identifier(char *name)
     if (c == '"')
     {
 	c = *++s;
-	if (!isalpha(c) && c != '_' && c != '$')
+	if (!IS_NAME1(c))
 	    return (0);
 	while ((c = *++s) != '"')
 	{
-	    if (!isalnum(c) && c != '_' && c != '$')
+	    if (!IS_NAME2(c))
 		return (0);
 	}
 	return (1);
     }
 
-    if (!isalpha(c) && c != '_' && c != '$')
+    if (!IS_NAME1(c))
 	return (0);
     while ((c = *++s) != 0)
     {
-	if (!isalnum(c) && c != '_' && c != '$')
+	if (!IS_NAME2(c))
 	    return (0);
     }
     return (1);
@@ -1205,6 +1226,11 @@ output_defines(FILE * fp)
 {
     int c, i;
     char *s;
+
+    if (fp == defines_file)
+    {
+	output_code_lines(fp, CODE_REQUIRES);
+    }
 
     for (i = 2; i < ntokens; ++i)
     {
@@ -1239,6 +1265,11 @@ output_defines(FILE * fp)
     if (fp != defines_file || iflag)
 	fprintf(fp, "#define YYERRCODE %d\n", symbol_value[1]);
 
+    if (fp == defines_file)
+    {
+	output_code_lines(fp, CODE_PROVIDES);
+    }
+
     if (token_table && rflag && fp != externs_file)
     {
 	if (fp == code_file)
@@ -1259,11 +1290,15 @@ output_defines(FILE * fp)
 		while ((c = getc(union_file)) != EOF)
 		    putc_code(fp, c);
 	    }
-	    fprintf(fp, "extern YYSTYPE %slval;\n", symbol_prefix);
+	    if (!pure_parser)
+		fprintf(fp, "extern YYSTYPE %slval;\n", symbol_prefix);
 	}
 #if defined(YYBTYACC)
 	if (locations)
+	{
 	    output_ltype(fp);
+	    fprintf(fp, "extern YYLTYPE %slloc;\n", symbol_prefix);
+	}
 #endif
     }
 }
@@ -1274,9 +1309,9 @@ output_stored_text(FILE * fp)
     int c;
     FILE *in;
 
-    rewind(text_file);
     if (text_file == NULL)
 	open_error("text_file");
+    rewind(text_file);
     in = text_file;
     if ((c = getc(in)) == EOF)
 	return;
@@ -1286,6 +1321,15 @@ output_stored_text(FILE * fp)
 	putc_code(fp, c);
     }
     write_code_lineno(fp);
+}
+
+static int
+output_yydebug(FILE * fp)
+{
+    fprintf(fp, "#ifndef YYDEBUG\n");
+    fprintf(fp, "#define YYDEBUG %d\n", tflag);
+    fprintf(fp, "#endif\n");
+    return 3;
 }
 
 static void
@@ -1298,16 +1342,11 @@ output_debug(void)
     ++outline;
     fprintf(code_file, "#define YYFINAL %d\n", final_state);
 
-    putl_code(code_file, "#ifndef YYDEBUG\n");
-    ++outline;
-    fprintf(code_file, "#define YYDEBUG %d\n", tflag);
-    putl_code(code_file, "#endif\n");
+    outline += output_yydebug(code_file);
 
     if (rflag)
     {
-	fprintf(output_file, "#ifndef YYDEBUG\n");
-	fprintf(output_file, "#define YYDEBUG %d\n", tflag);
-	fprintf(output_file, "#endif\n");
+	output_yydebug(output_file);
     }
 
     maxtok = 0;
@@ -1793,6 +1832,23 @@ output_lex_decl(FILE * fp)
 	putl_code(fp, "# define YYLEX yylex()\n");
     }
     putl_code(fp, "#endif\n");
+
+    /*
+     * Provide a prototype for yylex for the simplest case.  This is done for
+     * better compatibility with older yacc's, but can be a problem if someone
+     * uses "static int yylex(void);"
+     */
+    if (!pure_parser
+#if defined(YYBTYACC)
+	&& !backtrack
+#endif
+	&& !strcmp(symbol_prefix, "yy"))
+    {
+	putl_code(fp, "\n");
+	putl_code(fp, "#if !(defined(yylex) || defined(YYSTATE))\n");
+	putl_code(fp, "int YYLEX_DECL();\n");
+	putl_code(fp, "#endif\n");
+    }
 }
 
 static void
@@ -1980,6 +2036,7 @@ output(void)
     free_shifts();
     free_reductions();
 
+    output_code_lines(code_file, CODE_TOP);
 #if defined(YYBTYACC)
     output_backtracking_parser(output_file);
     if (rflag)
@@ -2021,13 +2078,11 @@ output(void)
 
     if (iflag)
     {
+	fprintf(externs_file, "\n");
+	output_yydebug(externs_file);
 	output_externs(externs_file, global_vars);
 	if (!pure_parser)
 	    output_externs(externs_file, impure_vars);
-    }
-
-    if (iflag)
-    {
 	if (dflag)
 	{
 	    ++outline;
@@ -2057,22 +2112,30 @@ output(void)
     output_actions();
     free_parser();
     output_debug();
+
     if (rflag)
     {
 	write_section(code_file, xdecls);
 	output_YYINT_typedef(code_file);
 	write_section(code_file, tables);
     }
+
     write_section(code_file, global_vars);
     if (!pure_parser)
     {
 	write_section(code_file, impure_vars);
     }
+    output_code_lines(code_file, CODE_REQUIRES);
+
     write_section(code_file, hdr_defs);
     if (!pure_parser)
     {
 	write_section(code_file, hdr_vars);
     }
+
+    output_code_lines(code_file, CODE_PROVIDES);
+    output_code_lines(code_file, CODE_HEADER);
+
     output_trailing_text();
 #if defined(YYBTYACC)
     if (destructor)

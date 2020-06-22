@@ -1,4 +1,4 @@
-/* $Id: mkpar.c,v 1.15 2016/06/07 00:22:12 tom Exp $ */
+/* $Id: mkpar.c,v 1.16 2019/11/04 01:23:02 tom Exp $ */
 
 #include "defs.h"
 
@@ -174,14 +174,16 @@ find_final_state(void)
     Value_t *to_state2;
     shifts *p;
 
-    p = shift_table[0];
-    to_state2 = p->shift;
-    goal = ritem[1];
-    for (i = p->nshifts - 1; i >= 0; --i)
+    if ((p = shift_table[0]) != 0)
     {
-	final_state = to_state2[i];
-	if (accessing_symbol[final_state] == goal)
-	    break;
+	to_state2 = p->shift;
+	goal = ritem[1];
+	for (i = p->nshifts - 1; i >= 0; --i)
+	{
+	    final_state = to_state2[i];
+	    if (accessing_symbol[final_state] == goal)
+		break;
+	}
     }
 }
 
