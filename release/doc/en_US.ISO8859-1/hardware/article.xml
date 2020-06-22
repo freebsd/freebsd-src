@@ -1543,8 +1543,6 @@
 
       &hwlist.umct;
 
-      &hwlist.umass;
-
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Audio Devices
 	(&man.uaudio.4; driver)</para>
 
