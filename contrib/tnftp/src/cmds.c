@@ -2653,10 +2653,14 @@ setxferbuf(int argc, char *argv[])
 		goto usage;
 	}
 
-	if (dir & RATE_PUT)
+	if (dir & RATE_PUT) {
 		sndbuf_size = size;
-	if (dir & RATE_GET)
+		auto_sndbuf = 0;
+	}
+	if (dir & RATE_GET) {
 		rcvbuf_size = size;
+		auto_rcvbuf = 0;
+	}
 	fprintf(ttyout, "Socket buffer sizes: send %d, receive %d.\n",
 	    sndbuf_size, rcvbuf_size);
 	code = 0;

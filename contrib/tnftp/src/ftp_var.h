@@ -298,6 +298,8 @@ GLOBAL	int	options;	/* used during socket creation */
 
 GLOBAL	int	sndbuf_size;	/* socket send buffer size */
 GLOBAL	int	rcvbuf_size;	/* socket receive buffer size */
+GLOBAL	int	auto_sndbuf;	/* flag: if != 0 then use auto sndbuf size */
+GLOBAL	int	auto_rcvbuf;	/* flag: if != 0 then use auto rcvbuf size */
 
 GLOBAL	int	macnum;		/* number of defined macros */
 GLOBAL	struct macel macros[16];

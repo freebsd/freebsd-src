@@ -1087,13 +1087,27 @@ setupsockbufsize(int sock)
 		    sndbuf_size);
 	}
 
+#ifdef __FreeBSD__
+	DPRINTF("auto_rcvbuf = %d\n", auto_rcvbuf);
+	if (auto_sndbuf == 0) {
+#endif
 	if (setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
 	    (void *)&sndbuf_size, sizeof(sndbuf_size)) == -1)
 		warn("Unable to set sndbuf size %d", sndbuf_size);
+#ifdef __FreeBSD__
+	}
+#endif
 
+#ifdef __FreeBSD__
+	DPRINTF("auto_sndbuf = %d\n", auto_sndbuf);
+	if (auto_rcvbuf == 0) {
+#endif
 	if (setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
 	    (void *)&rcvbuf_size, sizeof(rcvbuf_size)) == -1)
 		warn("Unable to set rcvbuf size %d", rcvbuf_size);
+#ifdef __FreeBSD__
+	}
+#endif
 }
 
 /*
