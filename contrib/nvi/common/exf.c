@@ -1237,10 +1237,7 @@ file_encinit(SCR *sp)
 	}
 
 	/*
-	 * 1. Check for valid UTF-8.
-	 * 2. Check if fallback fileencoding is set and is NOT UTF-8.
-	 * 3. Check if user locale's encoding is NOT UTF-8.
-	 * 4. Use ISO8859-1 as last resort.
+	 * Detect UTF-8 and fallback to the locale/preset encoding.
 	 *
 	 * XXX
 	 * A manually set O_FILEENCODING indicates the "fallback
@@ -1249,13 +1246,9 @@ file_encinit(SCR *sp)
 	 */
 	if (looks_utf8(buf, blen) > 1)
 		o_set(sp, O_FILEENCODING, OS_STRDUP, "utf-8", 0);
-	else if (O_ISSET(sp, O_FILEENCODING) &&
-	    strcasecmp(O_STR(sp, O_FILEENCODING), "utf-8") != 0)
-		/* Use fileencoding as is */ ;
-	else if (strcasecmp(codeset(), "utf-8") != 0)
+	else if (!O_ISSET(sp, O_FILEENCODING) ||
+	    !strcasecmp(O_STR(sp, O_FILEENCODING), "utf-8"))
 		o_set(sp, O_FILEENCODING, OS_STRDUP, codeset(), 0);
-	else
-		o_set(sp, O_FILEENCODING, OS_STRDUP, "iso8859-1", 0);
 
 	conv_enc(sp, O_FILEENCODING, 0);
 #endif
