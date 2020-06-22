@@ -755,7 +755,8 @@ check_csp(const struct crypto_session_params *csp)
 	struct auth_hash *axf;
 
 	/* Mode-independent checks. */
-	if ((csp->csp_flags & ~CSP_F_SEPARATE_OUTPUT) != 0)
+	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
+	    0)
 		return (false);
 	if (csp->csp_ivlen < 0 || csp->csp_cipher_klen < 0 ||
 	    csp->csp_auth_klen < 0 || csp->csp_auth_mlen < 0)
@@ -771,6 +772,8 @@ check_csp(const struct crypto_session_params *csp)
 			return (false);
 		if (csp->csp_flags & CSP_F_SEPARATE_OUTPUT)
 			return (false);
+		if (csp->csp_flags & CSP_F_SEPARATE_AAD)
+			return (false);
 		if (csp->csp_cipher_klen != 0 || csp->csp_ivlen != 0 ||
 		    csp->csp_auth_alg != 0 || csp->csp_auth_klen != 0 ||
 		    csp->csp_auth_mlen != 0)
@@ -778,6 +781,8 @@ check_csp(const struct crypto_session_params *csp)
 		break;
 	case CSP_MODE_CIPHER:
 		if (!alg_is_cipher(csp->csp_cipher_alg))
+			return (false);
+		if (csp->csp_flags & CSP_F_SEPARATE_AAD)
 			return (false);
 		if (csp->csp_cipher_alg != CRYPTO_NULL_CBC) {
 			if (csp->csp_cipher_klen == 0)
@@ -793,6 +798,9 @@ check_csp(const struct crypto_session_params *csp)
 		break;
 	case CSP_MODE_DIGEST:
 		if (csp->csp_cipher_alg != 0 || csp->csp_cipher_klen != 0)
+			return (false);
+
+		if (csp->csp_flags & CSP_F_SEPARATE_AAD)
 			return (false);
 
 		/* IV is optional for digests (e.g. GMAC). */
@@ -1306,16 +1314,27 @@ crp_sanity(struct cryptop *crp)
 		break;
 	}
 	if (csp->csp_mode == CSP_MODE_AEAD || csp->csp_mode == CSP_MODE_ETA) {
-		KASSERT(crp->crp_aad_start == 0 ||
-		    crp->crp_aad_start < ilen,
-		    ("invalid AAD start"));
-		KASSERT(crp->crp_aad_length != 0 || crp->crp_aad_start == 0,
-		    ("AAD with zero length and non-zero start"));
-		KASSERT(crp->crp_aad_length == 0 ||
-		    crp->crp_aad_start + crp->crp_aad_length <= ilen,
-		    ("AAD outside input length"));
+		if (crp->crp_aad == NULL) {
+			KASSERT(crp->crp_aad_start == 0 ||
+			    crp->crp_aad_start < ilen,
+			    ("invalid AAD start"));
+			KASSERT(crp->crp_aad_length != 0 ||
+			    crp->crp_aad_start == 0,
+			    ("AAD with zero length and non-zero start"));
+			KASSERT(crp->crp_aad_length == 0 ||
+			    crp->crp_aad_start + crp->crp_aad_length <= ilen,
+			    ("AAD outside input length"));
+		} else {
+			KASSERT(csp->csp_flags & CSP_F_SEPARATE_AAD,
+			    ("session doesn't support separate AAD buffer"));
+			KASSERT(crp->crp_aad_start == 0,
+			    ("separate AAD buffer with non-zero AAD start"));
+			KASSERT(crp->crp_aad_length != 0,
+			    ("separate AAD buffer with zero length"));
+		}
 	} else {
-		KASSERT(crp->crp_aad_start == 0 && crp->crp_aad_length == 0,
+		KASSERT(crp->crp_aad == NULL && crp->crp_aad_start == 0 &&
+		    crp->crp_aad_length == 0,
 		    ("AAD region in request not supporting AAD"));
 	}
 	if (csp->csp_ivlen == 0) {
