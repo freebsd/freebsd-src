@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: run_make.sh,v 1.15 2016/06/01 22:56:37 Tom.Shields Exp $
+# $Id: run_make.sh,v 1.18 2019/11/25 23:23:26 tom Exp $
 # vi:ts=4 sw=4:
 
 # do a test-compile on each of the ".c" files in the test-directory
@@ -97,7 +97,7 @@ then
 
 		case $input in
 		${TEST_DIR}/pure_*)
-			if test -z `fgrep -l '%pure-parser' $input`
+			if test -z `fgrep -i -l '%pure-parser' $input`
 			then
 				echo "%pure-parser" >>run_make.y
 			fi
@@ -106,7 +106,14 @@ then
 
 		sed -e '/^%expect/s,%expect.*,,' $input >>run_make.y
 
-		bison -Wno-other -Wno-conflicts-sr -Wconflicts-rr -y run_make.y
+		case $BISON in
+		[3-9].[0-9]*.[0-9]*)
+			bison -Wno-other -Wno-conflicts-sr -Wconflicts-rr -y -Wno-yacc run_make.y
+			;;
+		*)
+			bison -y run_make.y
+			;;
+		esac
 		if test -f "y.tab.c"
 		then
 			sed -e '/^#line/s,"run_make.y","'$input'",' y.tab.c >run_make.c
@@ -151,9 +158,10 @@ then
 			continue;
 			;;
 		*)
-			if fgrep '%pure-parser' $input >/dev/null ||
-			   fgrep '%parse-param' $input >/dev/null ||
-			   fgrep '%lex-param' $input >/dev/null ||
+			if fgrep -i '%pure-parser' $input >/dev/null ||
+			   fgrep -i '%parse-param' $input >/dev/null ||
+			   fgrep -i '%lex-param' $input >/dev/null ||
+			   fgrep -i '%token-table' $input >/dev/null ||
 			   fgrep 'YYLEX_PARAM' $input >/dev/null
 			then
 				echo "... skipping $input"

@@ -1,16 +1,19 @@
-.\" $Id: yacc.1,v 1.24 2014/10/06 00:03:48 tom Exp $
+.\" $Id: yacc.1,v 1.33 2020/03/30 23:36:40 tom Exp $
 .\"
 .\" .TH YACC 1 "July\ 15,\ 1990"
 .\" .UC 6
-.de ES
-.ne 8
+.ds N Yacc
+.ds n yacc
+.de Ex
+.RS +7
+.PP
 .nf
-.sp
-.in +4
+.ft CW
 ..
-.de XE
-.in -4
+.de Ee
 .fi
+.ft R
+.RE
 ..
 .\" Escape single quotes in literal strings from groff's Unicode transform.
 .ie \n(.g .ds AQ \(aq
@@ -21,14 +24,17 @@
 .el       .ds '' ''
 .\" Bulleted paragraph
 .de bP
-.IP \(bu 4
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
 ..
-.TH YACC 1 "October 5, 2014" "Berkeley Yacc" "User Commands"
+.TH YACC 1 "November 19, 2019" "Berkeley Yacc" "User Commands"
 .SH NAME
-Yacc \- an LALR(1) parser generator
+\*N \- an LALR(1) parser generator
 .SH SYNOPSIS
-.B yacc [ -BdgilLPrtvVy ] [ \-b
+.B \*n [ \-BdgilLPrtvVy ] [ \-b
 .I file_prefix
+.B ] [ \-H
+.I defines_file
 .B ] [ \-o
 .I output_file
 .B ] [ \-p
@@ -36,15 +42,15 @@ Yacc \- an LALR(1) parser generator
 .B ]
 .I filename
 .SH DESCRIPTION
-.B Yacc
+.B \*N
 reads the grammar specification in the file
 .I filename
 and generates an LALR(1) parser for it.
 The parsers consist of a set of LALR(1) parsing tables and a driver routine
 written in the C programming language.
-.B Yacc
+.B \*N
 normally writes the parse tables and the driver routine to the file
-.IR y.tab.c.
+.IR  y.tab.c .
 .PP
 The following options are available:
 .TP 5
@@ -53,34 +59,40 @@ The
 .B \-b
 option changes the prefix prepended to the output file names to
 the string denoted by
-.IR file_prefix.
+.I file_prefix.
 The default prefix is the character
-.IR y.
+.I y.
 .TP
 .B \-B
-create a backtracking parser (compile-type configuration for \fBbtyacc\fP).
+create a backtracking parser (compile-time configuration for \fBbtyacc\fP).
 .TP
 .B \-d
-The \fB-d\fR option causes the header file
-.BR y.tab.h
+causes the header file
+.B y.tab.h
 to be written.
 It contains #define's for the token identifiers.
+.TP
+\fB\-H \fP\fIdefines_file\fR
+causes #define's for the token identifiers
+to be written to the given \fIdefines_file\fP rather
+than the \fBy.tab.h\fP file used by the \fB\-d\fP option.
 .TP
 .B \-g
 The
 .B \-g
 option causes a graphical description of the generated LALR(1) parser to
 be written to the file
-.BR y.dot
-in graphviz format, ready to be processed by dot(1).
+.B y.dot
+in graphviz format, ready to be processed by
+.BR dot (1).
 .TP
 .B \-i
-The \fB-i\fR option causes a supplementary header file
-.BR y.tab.i
+The \fB\-i\fR option causes a supplementary header file
+.B y.tab.i
 to be written.
 It contains extern declarations
 and supplementary #define's as needed to map the conventional \fIyacc\fP
-\fByy\fP-prefixed names to whatever the \fB-p\fP option may specify.
+\fByy\fP-prefixed names to whatever the \fB\-p\fP option may specify.
 The code file, e.g., \fBy.tab.c\fP is modified to #include this file
 as well as the \fBy.tab.h\fP file, enforcing consistent usage of the
 symbols defined in those files.
@@ -92,32 +104,33 @@ of lex- and yacc-files.
 If the
 .B \-l
 option is not specified,
-.B yacc
+.B \*n
 will insert \fI#line\fP directives in the generated code.
 The \fI#line\fP directives let the C compiler relate errors in the
 generated code to the user's original code.
-If the \fB-l\fR option is specified,
-.B yacc
+If the \fB\-l\fR option is specified,
+.B \*n
 will not insert the \fI#line\fP directives.
 \&\fI#line\fP directives specified by the user will be retained.
 .TP
 .B \-L
-enable position processing, e.g., \*(``%locations\*('' (compile-type configuration for \fBbtyacc\fP).
+enable position processing,
+e.g., \*(``%locations\*('' (compile-time configuration for \fBbtyacc\fP).
 .TP
 \fB\-o \fP\fIoutput_file\fR
 specify the filename for the parser file.
 If this option is not given, the output filename is
 the file prefix concatenated with the file suffix, e.g., \fBy.tab.c\fP.
-This overrides the \fB-b\fP option.
+This overrides the \fB\-b\fP option.
 .TP
 \fB\-p \fP\fIsymbol_prefix\fR
 The
 .B \-p
 option changes the prefix prepended to yacc-generated symbols to
 the string denoted by
-.IR symbol_prefix.
+.I symbol_prefix.
 The default prefix is the string
-.BR yy.
+.B yy.
 .TP
 .B \-P
 create a reentrant parser, e.g., \*(``%pure-parser\*(''.
@@ -126,12 +139,12 @@ create a reentrant parser, e.g., \*(``%pure-parser\*(''.
 The
 .B \-r
 option causes
-.B yacc
+.B \*n
 to produce separate files for code and tables.
 The code file is named
-.IR y.code.c,
+.IR y.code.c ,
 and the tables file is named
-.IR y.tab.c.
+.IR y.tab.c .
 The prefix \*(``\fIy.\fP\*('' can be overridden using the \fB\-b\fP option.
 .TP
 .B \-s
@@ -140,19 +153,19 @@ a \*(``\fB%token\fP\*('' statement,
 to more closely match original \fByacc\fP behavior.
 .IP
 Normally when \fByacc\fP sees a line such as
-.ES
+.Ex
 %token OP_ADD "ADD"
-.XE
+.Ee
 .IP
 it notices that the quoted \*(``ADD\*('' is a valid C identifier,
 and generates a #define not only for OP_ADD,
 but for ADD as well,
 e.g.,
-.ES
+.Ex
 #define OP_ADD 257
 .br
 #define ADD 258
-.XE
+.Ee
 .IP
 The original \fByacc\fP does not generate the second \*(``\fB#define\fP\*(''.
 The \fB\-s\fP option suppresses this \*(``\fB#define\fP\*(''.
@@ -165,7 +178,7 @@ though original \fByacc\fP and bison also accept string literals.
 The
 .B \-t
 option changes the preprocessor directives generated by
-.B yacc
+.B \*n
 so that debugging statements will be incorporated in the compiled code.
 .TP
 .B \-v
@@ -173,7 +186,7 @@ The
 .B \-v
 option causes a human-readable description of the generated parser to
 be written to the file
-.IR y.output.
+.I y.output.
 .TP
 .B \-V
 print the version number to the standard output.
@@ -181,14 +194,45 @@ print the version number to the standard output.
 .B \-y
 \fByacc\fP ignores this option,
 which bison supports for ostensible POSIX compatibility.
+.PP
+The \fIfilename\fP parameter is not optional.
+However, \fByacc\fP accepts a single \*(``\-\*('' to read the grammar
+from the standard input.
+A double \*(``\-\-\*('' marker denotes the end of options.
+A single \fIfilename\fP parameter is expected after a \*(``\-\-\*('' marker.
 .SH EXTENSIONS
-.B yacc
+.B \*N
 provides some extensions for
 compatibility with bison and other implementations of yacc.
 The \fB%destructor\fP and \fB%locations\fP features are available
-only if \fByacc\fP has been configured and compiled to support the
+only if \fB\*n\fP has been configured and compiled to support the
 back-tracking (\fBbtyacc\fP) functionality.
 The remaining features are always available:
+.TP
+\fB %code\fP \fIkeyword\fP { \fIcode\fP }
+Adds the indicated source \fIcode\fP at a given point in the output file.
+The optional \fIkeyword\fP tells \fB\*n\fP where to insert the \fIcode\fP:
+.RS 7
+.TP 5
+\fBtop\fP
+just after the version-definition in the generated code-file.
+.TP 5
+\fBrequires\fP
+just after the declaration of public parser variables.
+If the \fB\-d\fP option is given, the code is inserted at the
+beginning of the defines-file.
+.TP 5
+\fBprovides\fP
+just after the declaration of private parser variables.
+If the \fB\-d\fP option is given, the code is inserted at the
+end of the defines-file.
+.RE
+.IP
+If no \fIkeyword\fP is given, the code is inserted at the
+beginning of the section of code copied verbatim from the source file.
+Multiple \fB%code\fP directives may be given;
+\fB\*n\fP inserts those into the corresponding code- or defines-file
+in the order that they appear in the source file.
 .TP
 \fB %destructor\fP { \fIcode\fP } \fIsymbol+\fP
 defines code that is invoked when a symbol is automatically
@@ -206,13 +250,14 @@ if the \fBYYSTYPE\fP value is, or contains,
 pointers to dynamically allocated memory.
 .IP
 The bracketed \fIcode\fP is invoked whenever the parser discards one of
-the symbols. Within \fIcode\fP, \*(``\fB$$\fP\*('' or
+the symbols.
+Within \fIcode\fP, \*(``\fB$$\fP\*('' or
 \*(``\fB$<tag>$\fP\*('' designates the semantic value associated with the
-discarded symbol, and  \*(``\fB@$\fP\*('' designates its location (see
+discarded symbol, and \*(``\fB@$\fP\*('' designates its location (see
 \fB%locations\fP directive).
 .IP
 A per-symbol destructor is defined by listing a grammar symbol
-in \fIsymbol+\fP.  A per-type destructor is defined  by listing
+in \fIsymbol+\fP.  A per-type destructor is defined by listing
 a semantic type tag (e.g., \*(``<some_tag>\*('') in \fIsymbol+\fP; in this
 case, the parser will invoke \fIcode\fP whenever it discards any grammar
 symbol that has that semantic type tag, unless that symbol has its own
@@ -241,28 +286,30 @@ That makes it only report the number if it differs.
 This is (unlike bison) allowable in LALR parsers.
 .TP
 \fB %locations\fP
-tells \fByacc\fP to enable  management of position information associated
+tells \fByacc\fP to enable management of position information associated
 with each token, provided by the lexer in the global variable \fByylloc\fP,
 similar to management of semantic value information provided in \fByylval\fP.
 .IP
 As for semantic values, locations can be referenced within actions using
 \fB@$\fP to refer to the location of the left hand side symbol, and \fB@N\fP
 (\fBN\fP an integer) to refer to the location of one of the right hand side
-symbols. Also as for semantic values, when a rule is matched, a default
+symbols.
+Also as for semantic values, when a rule is matched, a default
 action is used the compute the location represented by \fB@$\fP as the
 beginning of the first symbol and the end of the last symbol in the right
-hand side of the rule. This default computation can be overridden by
+hand side of the rule.
+This default computation can be overridden by
 explicit assignment to \fB@$\fP in a rule action.
 .IP
 The type of \fByylloc\fP is \fBYYLTYPE\fP, which is defined by default as:
-.ES
+.Ex
 typedef struct YYLTYPE {
     int first_line;
     int first_column;
     int last_line;
     int last_column;
 } YYLTYPE;
-.XE
+.Ee
 .IP
 \fBYYLTYPE\fP can be redefined by the user
 (\fBYYLTYPE_IS_DEFINED\fP must be defined, to inhibit the default)
@@ -292,23 +339,24 @@ reentrant.
 \fB %token-table\fP
 Make the parser's names for tokens available in the \fByytname\fP array.
 However,
-.B yacc
+.B \*n
 does not predefine \*(``$end\*('', \*(``$error\*(''
 or \*(``$undefined\*('' in this array.
 .SH PORTABILITY
 According to Robert Corbett,
-.ES
-    Berkeley Yacc is an LALR(1) parser generator.  Berkeley Yacc has been made
-as compatible as possible with AT&T Yacc.  Berkeley Yacc can accept any input
-specification that conforms to the AT&T Yacc documentation.  Specifications
-that take advantage of undocumented features of AT&T Yacc will probably be
-rejected.
-.XE
+.Ex
+Berkeley Yacc is an LALR(1) parser generator.  Berkeley Yacc
+has been made as compatible as possible with AT&T Yacc.
+Berkeley Yacc can accept any input specification that
+conforms to the AT&T Yacc documentation.  Specifications
+that take advantage of undocumented features of AT&T Yacc
+will probably be rejected.
+.Ee
 .PP
 The rationale in
-.ES
+.Ex
 http://pubs.opengroup.org/onlinepubs/9699919799/utilities/yacc.html
-.XE
+.Ee
 .PP
 documents some features of AT&T yacc which are no longer required for POSIX
 compliance.
@@ -320,12 +368,12 @@ Here are a few differences:
 .bP
 \fBYacc\fP accepts an equals mark preceding the left curly brace
 of an action (as in the original grammar file \fBftp.y\fP):
-.ES
-	|	STAT CRLF
-		= {
-			statcmd();
-		}
-.XE
+.Ex
+    |   STAT CRLF
+        = {
+                statcmd();
+        }
+.Ee
 .bP
 \fBYacc\fP and bison emit code in different order, and in particular bison
 makes forward reference to common functions such as yylex, yyparse and
@@ -334,18 +382,18 @@ yyerror without providing prototypes.
 Bison's support for \*(``%expect\*('' is broken in more than one release.
 For best results using bison, delete that directive.
 .bP
-Bison has no equivalent for some of \fByacc\fP's commmand-line options,
+Bison has no equivalent for some of \fByacc\fP's command-line options,
 relying on directives embedded in the grammar file.
 .bP
 Bison's \*(``\fB\-y\fP\*('' option does not affect bison's lack of support for
 features of AT&T yacc which were deemed obsolescent.
 .bP
-\fBYacc\fP accepts multiple parameters with \fB%lex-param\fP and \fB%parse-param\fP
-in two forms
-.ES
+\fBYacc\fP accepts multiple parameters
+with \fB%lex-param\fP and \fB%parse-param\fP in two forms
+.Ex
 {type1 name1} {type2 name2} ...
 {type1 name1,  type2 name2 ...}
-.XE
+.Ee
 .IP
 Bison accepts the latter (though undocumented), but depending on the
 release may generate bad code.

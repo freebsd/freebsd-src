@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: run_test.sh,v 1.24 2014/07/15 19:21:10 tom Exp $
+# $Id: run_test.sh,v 1.31 2019/11/03 23:44:07 tom Exp $
 # vi:ts=4 sw=4:
 
 errors=0
@@ -17,6 +17,9 @@ test_diffs() {
 	else
 		sed	-e s,$NEW,$REF, \
 			-e "s%$YACC_escaped%YACC%" \
+			-e "s%^yacc\>%YACC%" \
+			-e "s%YACC:.*option.*$%YACC: error message%" \
+			-e "s%^Usage: yacc\>%Usage: YACC%" \
 			-e '/YYPATCH/s/[0-9][0-9]*/"yyyymmdd"/' \
 			-e '/#define YYPATCH/s/PATCH/CHECK/' \
 			-e 's,#line \([1-9][0-9]*\) "'$REF_DIR'/,#line \1 ",' \
@@ -45,12 +48,63 @@ test_flags() {
 	root=$1
 	ROOT=test-$root
 	shift 1
-	$YACC $* >$ROOT.output \
-	    2>&1 >$ROOT.error
+	$YACC "$@" >$ROOT.output 2>$ROOT.error
 	for type in .output .error
 	do
 		NEW=$ROOT$type
 		REF=$REF_DIR/$root$type
+		test_diffs
+	done
+}
+
+test_stdin() {
+	echo "** testing stdin $*"
+	root=$1
+	ROOT=test-$root
+	shift 1
+	opts="$1"
+	shift 1
+	code=`echo "$1"|sed -e 's/y$/c/' -e "s,${TEST_DIR}/,,"`
+	if test "x$opts" = "x-"
+	then
+		$YACC -o $ROOT.$code $opts <$1 >$ROOT.output 2>$ROOT.error
+	else
+		$YACC -o $ROOT.$code $opts  $1 >$ROOT.output 2>$ROOT.error
+	fi
+	for type in .output .error .$code
+	do
+		NEW=$ROOT$type
+		REF=$REF_DIR/$root$type
+		test_diffs
+	done
+}
+
+test_defines() {
+	echo "** testing defines $*"
+	root=$1
+	ROOT=test-$root
+	shift 1
+	opts=
+	while test $# != 1
+	do
+		opts="$opts $1"
+		shift 1
+	done
+	head=`echo "$1"|sed -e 's/y$/h/' -e "s,${TEST_DIR}/,,"`
+	code=`echo "$1"|sed -e 's/y$/c/' -e "s,${TEST_DIR}/,,"`
+	$YACC $opts -H $ROOT.$head $1 >$ROOT.output 2>$ROOT.error
+	for name in prefix.tab.c y.tab.c
+	do
+		if test -f $name
+		then
+			mv $name $ROOT.$code
+			break
+		fi
+	done
+	for name in .output .error .$head .$code
+	do
+		NEW=$ROOT$name
+		REF=$REF_DIR/$root$name
 		test_diffs
 	done
 }
@@ -137,6 +191,14 @@ test_flags no_code_c -r -o $MYFILE.c $MYFILE.y
 rm -f $MYFILE.code.c
 
 rm -f $MYFILE.*
+
+# Test special cases
+test_stdin stdin1 - ${TEST_DIR}/calc.y
+test_stdin stdin2 -- ${TEST_DIR}/calc.y
+
+test_defines defines1 ${TEST_DIR}/calc.y
+test_defines defines2 -d ${TEST_DIR}/calc.y
+test_defines defines3 -b prefix ${TEST_DIR}/calc.y
 
 for input in ${TEST_DIR}/*.y
 do
