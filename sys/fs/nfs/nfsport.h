@@ -649,6 +649,7 @@ struct nfsvattr {
 #define	na_atime	na_vattr.va_atime
 #define	na_mtime	na_vattr.va_mtime
 #define	na_ctime	na_vattr.va_ctime
+#define	na_btime	na_vattr.va_birthtime
 #define	na_gen		na_vattr.va_gen
 #define	na_flags	na_vattr.va_flags
 #define	na_rdev		na_vattr.va_rdev
