@@ -32,4 +32,10 @@ CFLAGS+=	-I${SRCTOP}/lib/libedit -I${SRCTOP}/contrib/libedit
 LIBADD+=	edit
 .endif
 
+UCLSRC?=	${SRCTOP}/contrib/libucl
+.PATH: ${UCLSRC}/lua
+SRCS+=	lua_ucl.c
+CFLAGS+=	-I${UCLSRC}/include -I${UCLSRC}/src -I${UCLSRC}/uthash
+LIBADD+=	ucl
+
 .include <bsd.prog.mk>
