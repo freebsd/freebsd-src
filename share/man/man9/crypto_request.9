@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2020
+.Dd June 22, 2020
 .Dt CRYPTO_REQUEST 9
 .Os
 .Sh NAME
@@ -181,7 +181,7 @@ The following regions are defined:
 .Bl -column "Payload Output" "Input/Output"
 .It Sy Region Ta Sy Buffer Ta Sy Description
 .It AAD Ta Input Ta
-Additional Authenticated Data
+Embedded Additional Authenticated Data
 .It IV Ta Input Ta
 Embedded IV or nonce
 .It Payload Ta Input Ta
@@ -256,6 +256,15 @@ If the digests do not match,
 fail the request with
 .Er EBADMSG .
 .El
+.Ss Request AAD
+AEAD and Encrypt-then-Authenticate requests may optionally include
+Additional Authenticated Data.
+AAD may either be supplied in the AAD region of the input buffer or
+as a single buffer pointed to by
+.Fa crp_aad .
+In either case,
+.Fa crp_aad_length
+always indicates the amount of AAD in bytes.
 .Ss Request IV and/or Nonce
 Some cryptographic operations require an IV or nonce as an input.
 An IV may be stored either in the IV region of the data buffer or in
