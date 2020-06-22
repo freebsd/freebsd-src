@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <netinet/in.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
@@ -537,32 +538,29 @@ static int
 get_ifnet_from_raddr(struct sockaddr_storage *raddr, struct ifnet **ifp)
 {
 	int err = 0;
+	struct nhop_object *nh;
 
 	if (raddr->ss_family == AF_INET) {
 		struct sockaddr_in *raddr4 = (struct sockaddr_in *)raddr;
-		struct nhop4_extended nh4 = {0};
 
-		err = fib4_lookup_nh_ext(RT_DEFAULT_FIB, raddr4->sin_addr,
-				NHR_REF, 0, &nh4);
-		*ifp = nh4.nh_ifp;
-		if (err)
-			fib4_free_nh_ext(RT_DEFAULT_FIB, &nh4);
+		nh = fib4_lookup(RT_DEFAULT_FIB, raddr4->sin_addr, 0,
+				NHR_NONE, 0);
 	} else {
 		struct sockaddr_in6 *raddr6 = (struct sockaddr_in6 *)raddr;
-		struct nhop6_extended nh6 = {0};
 		struct in6_addr addr6;
 		uint32_t scopeid;
 
 		memset(&addr6, 0, sizeof(addr6));
 		in6_splitscope((struct in6_addr *)&raddr6->sin6_addr,
 					&addr6, &scopeid);
-		err = fib6_lookup_nh_ext(RT_DEFAULT_FIB, &addr6, scopeid,
-				NHR_REF, 0, &nh6);
-		*ifp = nh6.nh_ifp;
-		if (err)
-			fib6_free_nh_ext(RT_DEFAULT_FIB, &nh6);
+		nh = fib6_lookup(RT_DEFAULT_FIB, &addr6, scopeid,
+				NHR_NONE, 0);
 	}
 
+	if (nh == NULL)
+		err = EHOSTUNREACH;
+	else
+		*ifp = nh->nh_ifp;
 	CTR2(KTR_IW_CXGBE, "%s: return: %d", __func__, err);
 	return err;
 }
@@ -2589,6 +2587,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct c4iw_dev *dev = to_c4iw_dev(cm_id->device);
 	struct c4iw_ep *ep = NULL;
 	struct ifnet    *nh_ifp;        /* Logical egress interface */
+	struct epoch_tracker et;
 #ifdef VIMAGE
 	struct rdma_cm_id *rdma_id = (struct rdma_cm_id*)cm_id->context;
 	struct vnet *vnet = rdma_id->route.addr.dev_addr.net;
@@ -2639,9 +2638,11 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	ref_qp(ep);
 	ep->com.thread = curthread;
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(vnet);
 	err = get_ifnet_from_raddr(&cm_id->remote_addr, &nh_ifp);
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 
 	if (err) {
 

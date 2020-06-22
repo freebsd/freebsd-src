@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <netinet/in.h>
 #include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
@@ -1052,10 +1053,9 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 	struct l2t_entry *e;
 	struct sockaddr_in6 sin6;
 	struct sockaddr *dst = (void *)&sin6;
+	struct nhop_object *nh;
 
 	if (inc->inc_flags & INC_ISIPV6) {
-		struct nhop6_basic nh6;
-
 		bzero(dst, sizeof(struct sockaddr_in6));
 		dst->sa_len = sizeof(struct sockaddr_in6);
 		dst->sa_family = AF_INET6;
@@ -1066,24 +1066,28 @@ get_l2te_for_nexthop(struct port_info *pi, struct ifnet *ifp,
 			return (e);
 		}
 
-		if (fib6_lookup_nh_basic(RT_DEFAULT_FIB, &inc->inc6_faddr,
-		    0, 0, 0, &nh6) != 0)
+		nh = fib6_lookup(RT_DEFAULT_FIB, &inc->inc6_faddr, 0, NHR_NONE, 0);
+		if (nh == NULL)
 			return (NULL);
-		if (nh6.nh_ifp != ifp)
+		if (nh->nh_ifp != ifp)
 			return (NULL);
-		((struct sockaddr_in6 *)dst)->sin6_addr = nh6.nh_addr;
+		if (nh->nh_flags & NHF_GATEWAY)
+			((struct sockaddr_in6 *)dst)->sin6_addr = nh->gw6_sa.sin6_addr;
+		else
+			((struct sockaddr_in6 *)dst)->sin6_addr = inc->inc6_faddr;
 	} else {
-		struct nhop4_basic nh4;
-
 		dst->sa_len = sizeof(struct sockaddr_in);
 		dst->sa_family = AF_INET;
 
-		if (fib4_lookup_nh_basic(RT_DEFAULT_FIB, inc->inc_faddr, 0, 0,
-		    &nh4) != 0)
+		nh = fib4_lookup(RT_DEFAULT_FIB, inc->inc_faddr, 0, NHR_NONE, 0);
+		if (nh == NULL)
 			return (NULL);
-		if (nh4.nh_ifp != ifp)
+		if (nh->nh_ifp != ifp)
 			return (NULL);
-		((struct sockaddr_in *)dst)->sin_addr = nh4.nh_addr;
+		if (nh->nh_flags & NHF_GATEWAY)
+			((struct sockaddr_in *)dst)->sin_addr = nh->gw4_sa.sin_addr;
+		else
+			((struct sockaddr_in *)dst)->sin_addr = inc->inc_faddr;
 	}
 
 	e = t4_l2t_get(pi, ifp, dst);
