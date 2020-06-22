@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/reboot.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
 #include <sys/watchdog.h>
@@ -89,10 +90,12 @@ struct bcmwd_softc {
 static struct ofw_compat_data compat_data[] = {
 	{"broadcom,bcm2835-wdt",	BSD_DTB},
 	{"brcm,bcm2835-pm-wdt",		UPSTREAM_DTB},
+	{"brcm,bcm2835-pm",		UPSTREAM_DTB},
 	{NULL,				0}
 };
 
 static void bcmwd_watchdog_fn(void *private, u_int cmd, int *error);
+static void bcmwd_reboot_system(void *, int);
 
 static int
 bcmwd_probe(device_t dev)
@@ -143,6 +146,15 @@ bcmwd_attach(device_t dev)
 	mtx_init(&sc->mtx, "BCM2835 Watchdog", "bcmwd", MTX_DEF);
 	EVENTHANDLER_REGISTER(watchdog_list, bcmwd_watchdog_fn, sc, 0);
 
+	/*
+	 * Handle reboot events. This needs to happen with slightly greater
+	 * priority than the PSCI handler, since PSCI reset is not properly
+	 * implemented on the Pi and it just puts the Pi into a halt
+	 * state.
+	 */
+	EVENTHANDLER_REGISTER(shutdown_final, bcmwd_reboot_system, sc,
+	    SHUTDOWN_PRI_LAST-1);
+
 	return (0);
 }
 
@@ -161,16 +173,17 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 	if (cmd > 0) {
 		sec = ((uint64_t)1 << (cmd & WD_INTERVAL)) / 1000000000;
 		if (sec == 0 || sec > 15) {
-			/* 
+			/*
 			 * Can't arm
 			 * disable watchdog as watchdog(9) requires
 			 */
 			device_printf(sc->dev,
 			    "Can't arm, timeout must be between 1-15 seconds\n");
-			WRITE(sc, BCM2835_RSTC_REG, 
+			WRITE(sc, BCM2835_RSTC_REG,
 			    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
 			    BCM2835_RSTC_RESET);
 			mtx_unlock(&sc->mtx);
+			*error = EINVAL;
 			return;
 		}
 
@@ -187,7 +200,7 @@ bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 		*error = 0;
 	}
 	else
-		WRITE(sc, BCM2835_RSTC_REG, 
+		WRITE(sc, BCM2835_RSTC_REG,
 		    (BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
 		    BCM2835_RSTC_RESET);
 
@@ -208,6 +221,27 @@ bcmwd_watchdog_reset(void)
 	    (READ(bcmwd_lsc, BCM2835_RSTC_REG) & BCM2835_RSTC_WRCFG_CLR) |
 		(BCM2835_PASSWORD << BCM2835_PASSWORD_SHIFT) |
 		BCM2835_RSTC_WRCFG_FULL_RESET);
+}
+
+static void
+bcmwd_reboot_system(void *sc, int howto)
+{
+	int cmd, error = 0;
+
+	/* Only handle reset. */
+	if (howto & RB_HALT || howto & RB_POWEROFF)
+		return;
+
+	printf("Resetting system ... ");
+
+	cmd = WD_TO_1SEC;
+	bcmwd_watchdog_fn(sc, cmd, &error);
+
+	/* Wait for watchdog timeout. */
+	DELAY(2000000);
+
+	/* Not reached ... one hopes. */
+	printf("failed to reset (errno %d).\n", error);
 }
 
 static device_method_t bcmwd_methods[] = {
