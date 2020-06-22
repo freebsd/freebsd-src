@@ -324,13 +324,11 @@ pci_host_generic_core_release_resource(device_t dev, device_t child, int type,
 	return (bus_generic_release_resource(dev, child, type, rid, res));
 }
 
-struct resource *
-pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
-    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+static bool
+generic_pcie_translate_resource(device_t dev, int type, rman_res_t start,
+    rman_res_t end, rman_res_t *new_start, rman_res_t *new_end)
 {
 	struct generic_pcie_core_softc *sc;
-	struct resource *res;
-	struct rman *rm;
 	uint64_t phys_base;
 	uint64_t pci_base;
 	uint64_t size;
@@ -338,19 +336,6 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 	bool found;
 
 	sc = device_get_softc(dev);
-
-#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
-	if (type == PCI_RES_BUS) {
-		return (pci_domain_alloc_bus(sc->ecam, child, rid, start, end,
-		    count, flags));
-	}
-#endif
-
-	rm = generic_pcie_rman(sc, type, flags);
-	if (rm == NULL)
-		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
-		    type, rid, start, end, count, flags));
-
 	/* Translate the address from a PCI address to a physical address */
 	switch (type) {
 	case SYS_RES_IOPORT:
@@ -378,23 +363,55 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 			}
 
 			if (type == space) {
-				start = start - pci_base + phys_base;
-				end = end - pci_base + phys_base;
+				*new_start = start - pci_base + phys_base;
+				*new_end = end - pci_base + phys_base;
 				found = true;
 				break;
 			}
 		}
-		if (!found) {
-			device_printf(dev,
-			    "Failed to allocate %s resource %jx-%jx for %s\n",
-			    type == SYS_RES_IOPORT ? "IOPORT" : "MEMORY",
-			    (uintmax_t)start, (uintmax_t)end,
-			    device_get_nameunit(child));
-			return (NULL);
-		}
 		break;
 	default:
+		/* No translation for non-memory types */
+		*new_start = start;
+		*new_end = end;
+		found = true;
 		break;
+	}
+
+	return (found);
+}
+
+struct resource *
+pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
+    int *rid, rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+{
+	struct generic_pcie_core_softc *sc;
+	struct resource *res;
+	struct rman *rm;
+	rman_res_t phys_start, phys_end;
+
+	sc = device_get_softc(dev);
+
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	if (type == PCI_RES_BUS) {
+		return (pci_domain_alloc_bus(sc->ecam, child, rid, start, end,
+		    count, flags));
+	}
+#endif
+
+	rm = generic_pcie_rman(sc, type, flags);
+	if (rm == NULL)
+		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+		    type, rid, start, end, count, flags));
+
+	/* Translate the address from a PCI address to a physical address */
+	if (!generic_pcie_translate_resource(dev, type, start, end, &phys_start,
+	    &phys_end)) {
+		device_printf(dev,
+		    "Failed to translate resource %jx-%jx type %x for %s\n",
+		    (uintmax_t)start, (uintmax_t)end, type,
+		    device_get_nameunit(child));
+		return (NULL);
 	}
 
 	if (bootverbose) {
@@ -430,12 +447,21 @@ generic_pcie_activate_resource(device_t dev, device_t child, int type,
     int rid, struct resource *r)
 {
 	struct generic_pcie_core_softc *sc;
+	rman_res_t start, end;
 	int res;
 
 	sc = device_get_softc(dev);
 
 	if ((res = rman_activate_resource(r)) != 0)
 		return (res);
+
+	start = rman_get_start(r);
+	end = rman_get_end(r);
+	if (!generic_pcie_translate_resource(dev, type, start, end, &start,
+	    &end))
+		return (EINVAL);
+	rman_set_start(r, start);
+	rman_set_end(r, end);
 
 	return (BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child, type,
 	    rid, r));
