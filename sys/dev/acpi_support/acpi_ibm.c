@@ -2,6 +2,7 @@
  * Copyright (c) 2004 Takanori Watanabe
  * Copyright (c) 2005 Markus Brueffer <markus@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2020 Ali Abdallah <ali.abdallah@suse.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -263,7 +264,8 @@ static struct {
 	{
 		.name		= "fan_level",
 		.method		= ACPI_IBM_METHOD_FANLEVEL,
-		.description	= "Fan level",
+		.description	= "Fan level, 0-7 (recommended max), "
+				  "8 (disengaged, full-speed)",
 	},
 	{
 		.name		= "fan",
@@ -829,7 +831,10 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 		 */
 		if (!sc->fan_handle) {
 			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
-			val = val_ec & IBM_EC_MASK_FANLEVEL;
+			if (val_ec & IBM_EC_MASK_FANDISENGAGED)
+				val = 8;
+			else
+				val = val_ec & IBM_EC_MASK_FANLEVEL;
 		}
 		break;
 
@@ -912,15 +917,23 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 		break;
 
 	case ACPI_IBM_METHOD_FANLEVEL:
-		if (arg < 0 || arg > 7)
+		if (arg < 0 || arg > 8)
 			return (EINVAL);
 
 		if (!sc->fan_handle) {
-			/* Read the current fanstatus */
+			/* Read the current fan status. */
 			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
-			val = val_ec & (~IBM_EC_MASK_FANLEVEL);
+			val = val_ec & ~(IBM_EC_MASK_FANLEVEL |
+			    IBM_EC_MASK_FANDISENGAGED);
 
-			return ACPI_EC_WRITE(sc->ec_dev, IBM_EC_FANSTATUS, val | arg, 1);
+			if (arg == 8)
+				/* Full speed, set the disengaged bit. */
+				val |= 7 | IBM_EC_MASK_FANDISENGAGED;
+			else
+				val |= arg;
+
+			return (ACPI_EC_WRITE(sc->ec_dev, IBM_EC_FANSTATUS, val,
+			    1));
 		}
 		break;
 
