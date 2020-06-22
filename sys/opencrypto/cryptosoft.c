@@ -335,8 +335,11 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 
 	bcopy(sw->sw_ictx, &ctx, axf->ctxsize);
 
-	err = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
-	    axf->Update, &ctx);
+	if (crp->crp_aad != NULL)
+		err = axf->Update(&ctx, crp->crp_aad, crp->crp_aad_length);
+	else
+		err = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
+		    axf->Update, &ctx);
 	if (err)
 		return err;
 
@@ -503,7 +506,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	blksz = GMAC_BLOCK_LEN;
 	KASSERT(axf->blocksize == blksz, ("%s: axf block size mismatch",
 	    __func__));
-	
+
 	swe = &ses->swcr_encdec;
 	exf = swe->sw_exf;
 	KASSERT(axf->blocksize == exf->native_blocksize,
@@ -520,25 +523,38 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 	axf->Reinit(&ctx, iv, ivlen);
 
 	/* Supply MAC with AAD */
-	crypto_cursor_init(&cc_in, &crp->crp_buf);
-	crypto_cursor_advance(&cc_in, crp->crp_aad_start);
-	for (resid = crp->crp_aad_length; resid >= blksz; resid -= len) {
-		len = crypto_cursor_seglen(&cc_in);
-		if (len >= blksz) {
-			inblk = crypto_cursor_segbase(&cc_in);
-			len = rounddown(MIN(len, resid), blksz);
-			crypto_cursor_advance(&cc_in, len);
-		} else {
-			len = blksz;
-			crypto_cursor_copydata(&cc_in, len, blk);
-			inblk = blk;
+	if (crp->crp_aad != NULL) {
+		len = rounddown(crp->crp_aad_length, blksz);
+		if (len != 0)
+			axf->Update(&ctx, crp->crp_aad, len);
+		if (crp->crp_aad_length != len) {
+			memset(blk, 0, blksz);
+			memcpy(blk, (char *)crp->crp_aad + len,
+			    crp->crp_aad_length - len);
+			axf->Update(&ctx, blk, blksz);
 		}
-		axf->Update(&ctx, inblk, len);
-	}
-	if (resid > 0) {
-		memset(blk, 0, blksz);
-		crypto_cursor_copydata(&cc_in, resid, blk);
-		axf->Update(&ctx, blk, blksz);
+	} else {
+		crypto_cursor_init(&cc_in, &crp->crp_buf);
+		crypto_cursor_advance(&cc_in, crp->crp_aad_start);
+		for (resid = crp->crp_aad_length; resid >= blksz;
+		     resid -= len) {
+			len = crypto_cursor_seglen(&cc_in);
+			if (len >= blksz) {
+				inblk = crypto_cursor_segbase(&cc_in);
+				len = rounddown(MIN(len, resid), blksz);
+				crypto_cursor_advance(&cc_in, len);
+			} else {
+				len = blksz;
+				crypto_cursor_copydata(&cc_in, len, blk);
+				inblk = blk;
+			}
+			axf->Update(&ctx, inblk, len);
+		}
+		if (resid > 0) {
+			memset(blk, 0, blksz);
+			crypto_cursor_copydata(&cc_in, resid, blk);
+			axf->Update(&ctx, blk, blksz);
+		}
 	}
 
 	exf->reinit(swe->sw_kschedule, iv);
@@ -607,7 +623,7 @@ swcr_gcm(struct swcr_session *ses, struct cryptop *crp)
 			error = EBADMSG;
 			goto out;
 		}
-		
+
 		/* tag matches, decrypt data */
 		crypto_cursor_init(&cc_in, &crp->crp_buf);
 		crypto_cursor_advance(&cc_in, crp->crp_payload_start);
@@ -675,8 +691,11 @@ swcr_ccm_cbc_mac(struct swcr_session *ses, struct cryptop *crp)
 	ctx.aes_cbc_mac_ctx.cryptDataLength = 0;
 
 	axf->Reinit(&ctx, iv, ivlen);
-	error = crypto_apply(crp, crp->crp_payload_start,
-	    crp->crp_payload_length, axf->Update, &ctx);
+	if (crp->crp_aad != NULL)
+		error = axf->Update(&ctx, crp->crp_aad, crp->crp_aad_length);
+	else
+		error = crypto_apply(crp, crp->crp_payload_start,
+		    crp->crp_payload_length, axf->Update, &ctx);
 	if (error)
 		return (error);
 
@@ -724,7 +743,7 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	blksz = AES_BLOCK_LEN;
 	KASSERT(axf->blocksize == blksz, ("%s: axf block size mismatch",
 	    __func__));
-	
+
 	swe = &ses->swcr_encdec;
 	exf = swe->sw_exf;
 	KASSERT(axf->blocksize == exf->native_blocksize,
@@ -748,8 +767,11 @@ swcr_ccm(struct swcr_session *ses, struct cryptop *crp)
 	axf->Reinit(&ctx, iv, ivlen);
 
 	/* Supply MAC with AAD */
-	error = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
-	    axf->Update, &ctx);
+	if (crp->crp_aad != NULL)
+		error = axf->Update(&ctx, crp->crp_aad, crp->crp_aad_length);
+	else
+		error = crypto_apply(crp, crp->crp_aad_start,
+		    crp->crp_aad_length, axf->Update, &ctx);
 	if (error)
 		return (error);
 
@@ -1013,7 +1035,7 @@ swcr_setup_auth(struct swcr_session *ses,
 	swa->sw_ictx = malloc(axf->ctxsize, M_CRYPTO_DATA, M_NOWAIT);
 	if (swa->sw_ictx == NULL)
 		return (ENOBUFS);
-	
+
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1_HMAC:
 	case CRYPTO_SHA2_224_HMAC:
@@ -1236,7 +1258,8 @@ static int
 swcr_probesession(device_t dev, const struct crypto_session_params *csp)
 {
 
-	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT)) != 0)
+	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
+	    0)
 		return (EINVAL);
 	switch (csp->csp_mode) {
 	case CSP_MODE_COMPRESS:
