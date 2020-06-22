@@ -526,6 +526,13 @@ retry:
 		case CPU_VENDOR_AMD:
 		case CPU_VENDOR_HYGON:
 			/*
+			 * Processor Programming Reference (PPR) for AMD
+			 * Family 17h states that the TSC uses a common
+			 * reference for all sockets, cores and threads.
+			 */
+			if (CPUID_TO_FAMILY(cpu_id) >= 0x17)
+				return (1000);
+			/*
 			 * Starting with Family 15h processors, TSC clock
 			 * source is in the north bridge.  Check whether
 			 * we have a single-socket/multi-core platform.
