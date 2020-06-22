@@ -1369,9 +1369,6 @@ clone_up()
 			fi
 		esac
 	done
-	if [ -n "$gif_interfaces" ]; then
-		warn "\$gif_interfaces is obsolete.  Use \$cloned_interfaces instead."
-	fi
 	for ifn in ${gif_interfaces}; do
 		# Parse ifn:ifopt.
 		OIFS=$IFS; IFS=:; set -- $ifn; ifn=$1; ifopt=$2; IFS=$OIFS
