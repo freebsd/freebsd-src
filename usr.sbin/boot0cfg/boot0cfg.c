@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#define MBRSIZE         512     /* main boot record size */
+#define MBRSIZE         512     /* master boot record size */
 
 #define OFF_VERSION	0x1b0	/* offset: version number, only boot0version */
 #define OFF_SERIAL	0x1b8	/* offset: volume serial number */

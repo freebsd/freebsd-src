@@ -269,8 +269,8 @@
 !:strength +65
 >2		string		OSBS		OS/BS MBR
 # added by Joerg Jenderek at Feb 2013 according to https://thestarman.pcministry.com/asm/mbr/
-# and https://en.wikipedia.org/wiki/Main_Boot_Record
-# test for nearly all MS-DOS Main Boot Record initial program loader (IPL) is now done by
+# and https://en.wikipedia.org/wiki/Master_Boot_Record
+# test for nearly all MS-DOS Master Boot Record initial program loader (IPL) is now done by
 # characteristic assembler instructions: xor ax,ax;mov ss,ax;mov sp,7c00
 >0	search/2	\x33\xc0\x8e\xd0\xbc\x00\x7c	MS-MBR
 # Microsoft Windows 95A and early ( https://thestarman.pcministry.com/asm/mbr/STDMBR.htm )
@@ -436,7 +436,7 @@
 >>>>>>>387	string	Copyright\ (c)\ 1984,1998
 >>>>>>>>411	string	Caldera\ Inc.\0		\b, DR-DOS MBR (IBMBIO.LDR)
 #
-# tests for different MS-DOS Main Boot Records (MBR) moved and merged
+# tests for different MS-DOS Master Boot Records (MBR) moved and merged
 #
 #>0x145	string	Default:\ F				\b, FREE-DOS MBR
 #>0x14B	string	Default:\ F				\b, FREE-DOS 1.0 MBR
@@ -1087,7 +1087,7 @@
 >11			ubyte		x		\b+
 >11			use		DOS-filename
 
-# https://en.wikipedia.org/wiki/Main_boot_record#PTE
+# https://en.wikipedia.org/wiki/Master_boot_record#PTE
 # display standard partition table
 0	name				partition-table
 #>0		ubyte		x	PARTITION-TABLE
