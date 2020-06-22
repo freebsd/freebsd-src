@@ -582,7 +582,7 @@ Requires the
 .Cm GEOM_PART_GPT
 kernel option.
 .It Cm MBR
-Main Boot Record is used on PCs and removable media.
+Master Boot Record is used on PCs and removable media.
 Requires the
 .Cm GEOM_PART_MBR
 kernel option.
@@ -852,7 +852,7 @@ for MBR and
 .Qq Li "!0657fd6d-a4ab-43c4-84e5-0933c84b4f4f"
 for GPT.
 .It Cm mbr
-A partition that is sub-partitioned by a Main Boot Record (MBR).
+A partition that is sub-partitioned by a Master Boot Record (MBR).
 This type is known as
 .Qq Li "!024dee41-33e7-11d3-9d69-0008c781f39f"
 by GPT.
@@ -1020,7 +1020,7 @@ option.
 The GEOM PART class knows how to safely embed bootstrap code into
 specific partitioning scheme metadata without causing any damage.
 .Pp
-The Main Boot Record (MBR) uses a 512-byte bootstrap code image, embedded
+The Master Boot Record (MBR) uses a 512-byte bootstrap code image, embedded
 into the partition table's metadata area.
 There are two variants of this bootstrap code:
 .Pa /boot/mbr
@@ -1256,7 +1256,7 @@ present as independent partition.
 .Em NOTE :
 This may break a mirrored volume and lead to data damage.
 .It Va kern.geom.part.mbr.enforce_chs : No 0
-Specify how the Main Boot Record (MBR) module does alignment.
+Specify how the Master Boot Record (MBR) module does alignment.
 If this variable is set to a non-zero value, the module will automatically
 recalculate the user-specified offset and size for alignment with the CHS
 geometry.
