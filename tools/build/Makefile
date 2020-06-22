@@ -149,6 +149,7 @@ INSTALLDIR_LIST= \
 	lib/casper \
 	lib/geom \
 	usr/include/casper \
+	usr/include/private/ucl \
 	usr/include/private/zstd \
 	usr/lib \
 	usr/libexec
