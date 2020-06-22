@@ -387,7 +387,6 @@ ccr_write_ulptx_sgl(struct ccr_softc *sc, void *dst, int nsegs)
 		usgl->sge[i / 2].addr[i & 1] = htobe64(ss->ss_paddr);
 		ss++;
 	}
-	
 }
 
 static bool
@@ -919,8 +918,13 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 		imm_len = 0;
 		sglist_reset(sc->sg_ulptx);
 		if (crp->crp_aad_length != 0) {
-			error = sglist_append_sglist(sc->sg_ulptx, sc->sg_input,
-			    crp->crp_aad_start, crp->crp_aad_length);
+			if (crp->crp_aad != NULL)
+				error = sglist_append(sc->sg_ulptx,
+				    crp->crp_aad, crp->crp_aad_length);
+			else
+				error = sglist_append_sglist(sc->sg_ulptx,
+				    sc->sg_input, crp->crp_aad_start,
+				    crp->crp_aad_length);
 			if (error)
 				return (error);
 		}
@@ -938,11 +942,7 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 		sgl_len = ccr_ulptx_sgl_len(sgl_nsegs);
 	}
 
-	/*
-	 * Any auth-only data before the cipher region is marked as AAD.
-	 * Auth-data that overlaps with the cipher region is placed in
-	 * the auth section.
-	 */
+	/* Any AAD comes after the IV. */
 	if (crp->crp_aad_length != 0) {
 		aad_start = iv_len + 1;
 		aad_stop = aad_start + crp->crp_aad_length - 1;
@@ -1054,8 +1054,11 @@ ccr_eta(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	dst += iv_len;
 	if (imm_len != 0) {
 		if (crp->crp_aad_length != 0) {
-			crypto_copydata(crp, crp->crp_aad_start,
-			    crp->crp_aad_length, dst);
+			if (crp->crp_aad != NULL)
+				memcpy(dst, crp->crp_aad, crp->crp_aad_length);
+			else
+				crypto_copydata(crp, crp->crp_aad_start,
+				    crp->crp_aad_length, dst);
 			dst += crp->crp_aad_length;
 		}
 		crypto_copydata(crp, crp->crp_payload_start,
@@ -1224,8 +1227,13 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 		imm_len = 0;
 		sglist_reset(sc->sg_ulptx);
 		if (crp->crp_aad_length != 0) {
-			error = sglist_append_sglist(sc->sg_ulptx, sc->sg_input,
-			    crp->crp_aad_start, crp->crp_aad_length);
+			if (crp->crp_aad != NULL)
+				error = sglist_append(sc->sg_ulptx,
+				    crp->crp_aad, crp->crp_aad_length);
+			else
+				error = sglist_append_sglist(sc->sg_ulptx,
+				    sc->sg_input, crp->crp_aad_start,
+				    crp->crp_aad_length);
 			if (error)
 				return (error);
 		}
@@ -1337,8 +1345,11 @@ ccr_gcm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	dst += iv_len;
 	if (imm_len != 0) {
 		if (crp->crp_aad_length != 0) {
-			crypto_copydata(crp, crp->crp_aad_start,
-			    crp->crp_aad_length, dst);
+			if (crp->crp_aad != NULL)
+				memcpy(dst, crp->crp_aad, crp->crp_aad_length);
+			else
+				crypto_copydata(crp, crp->crp_aad_start,
+				    crp->crp_aad_length, dst);
 			dst += crp->crp_aad_length;
 		}
 		crypto_copydata(crp, crp->crp_payload_start,
@@ -1438,11 +1449,24 @@ ccr_gcm_soft(struct ccr_session *s, struct cryptop *crp)
 	axf->Reinit(auth_ctx, iv, sizeof(iv));
 
 	/* MAC the AAD. */
-	for (i = 0; i < crp->crp_aad_length; i += sizeof(block)) {
-		len = imin(crp->crp_aad_length - i, sizeof(block));
-		crypto_copydata(crp, crp->crp_aad_start + i, len, block);
-		bzero(block + len, sizeof(block) - len);
-		axf->Update(auth_ctx, block, sizeof(block));
+	if (crp->crp_aad != NULL) {
+		len = rounddown(crp->crp_aad_length, sizeof(block));
+		if (len != 0)
+			axf->Update(auth_ctx, crp->crp_aad, len);
+		if (crp->crp_aad_length != len) {
+			memset(block, 0, sizeof(block));
+			memcpy(block, (char *)crp->crp_aad + len,
+			    crp->crp_aad_length - len);
+			axf->Update(auth_ctx, block, sizeof(block));
+		}
+	} else {
+		for (i = 0; i < crp->crp_aad_length; i += sizeof(block)) {
+			len = imin(crp->crp_aad_length - i, sizeof(block));
+			crypto_copydata(crp, crp->crp_aad_start + i, len,
+			    block);
+			bzero(block + len, sizeof(block) - len);
+			axf->Update(auth_ctx, block, sizeof(block));
+		}
 	}
 
 	exf->reinit(kschedule, iv);
@@ -1679,8 +1703,13 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 
 		sglist_reset(sc->sg_ulptx);
 		if (crp->crp_aad_length != 0) {
-			error = sglist_append_sglist(sc->sg_ulptx, sc->sg_input,
-			    crp->crp_aad_start, crp->crp_aad_length);
+			if (crp->crp_aad != NULL)
+				error = sglist_append(sc->sg_ulptx,
+				    crp->crp_aad, crp->crp_aad_length);
+			else
+				error = sglist_append_sglist(sc->sg_ulptx,
+				    sc->sg_input, crp->crp_aad_start,
+				    crp->crp_aad_length);
 			if (error)
 				return (error);
 		}
@@ -1788,8 +1817,11 @@ ccr_ccm(struct ccr_softc *sc, struct ccr_session *s, struct cryptop *crp)
 	if (sgl_nsegs == 0) {
 		dst += b0_len;
 		if (crp->crp_aad_length != 0) {
-			crypto_copydata(crp, crp->crp_aad_start,
-			    crp->crp_aad_length, dst);
+			if (crp->crp_aad != NULL)
+				memcpy(dst, crp->crp_aad, crp->crp_aad_length);
+			else
+				crypto_copydata(crp, crp->crp_aad_start,
+				    crp->crp_aad_length, dst);
 			dst += crp->crp_aad_length;
 		}
 		crypto_copydata(crp, crp->crp_payload_start,
@@ -1905,12 +1937,14 @@ ccr_ccm_soft(struct ccr_session *s, struct cryptop *crp)
 	axf->Reinit(auth_ctx, iv, sizeof(iv));
 
 	/* MAC the AAD. */
-	for (i = 0; i < crp->crp_aad_length; i += sizeof(block)) {
-		len = imin(crp->crp_aad_length - i, sizeof(block));
-		crypto_copydata(crp, crp->crp_aad_start + i, len, block);
-		bzero(block + len, sizeof(block) - len);
-		axf->Update(auth_ctx, block, sizeof(block));
-	}
+	if (crp->crp_aad != NULL)
+		error = axf->Update(auth_ctx, crp->crp_aad,
+		    crp->crp_aad_length);
+	else
+		error = crypto_apply(crp, crp->crp_aad_start,
+		    crp->crp_aad_length, axf->Update, auth_ctx);
+	if (error)
+		goto out;
 
 	exf->reinit(kschedule, iv);
 
@@ -2339,7 +2373,8 @@ ccr_probesession(device_t dev, const struct crypto_session_params *csp)
 {
 	unsigned int cipher_mode;
 
-	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT)) != 0)
+	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
+	    0)
 		return (EINVAL);
 	switch (csp->csp_mode) {
 	case CSP_MODE_DIGEST:
