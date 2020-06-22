@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 19, 2014
+.Dd January 27, 2020
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -73,114 +73,6 @@ requires
 and
 .Xr scbus 4
 to be included in the kernel.
-.Sh HARDWARE
-The
-.Nm
-driver supports USB Mass Storage devices, including:
-.Pp
-.Bl -bullet -compact
-.It
-ADTEC Stick Drive AD-UST32M, 64M, 128M, 256M
-.It
-Denno FireWire/USB2 Removable 2.5-inch HDD Case MIFU-25CB20
-.It
-FujiFilm Zip USB Drive ZDR100 USB A
-.It
-GREEN HOUSE USB Flash Memory "PicoDrive" GH-UFD32M, 64M, 128M
-.It
-Huawei Mobile (SD slot)
-.It
-IBM 32MB USB Memory Key (P/N 22P5296)
-.It
-IBM 256MB USB Drive (MSYSTEM DiskOnKey2)
-.It
-IBM ThinkPad USB Portable CD-ROM Drive (P/N 33L5151)
-.It
-I-O DATA USB CD/CD-R/CD-RW/DVD-R/DVD-RW/DVD-RAM/DVD-ROM Drive DVR-iUH2 (CDROM, DVD-RAM only)
-.It
-I-O DATA USB x6 CD-RW Drive CDRW-i64/USB (CDROM only)
-.It
-I-O DATA USB/IEEE1394 Portable HD Drive HDP-i30P/CI, HDP-i40P/CI
-.It
-Iomega USB Zip 100/250 drive
-.It
-Iomega Zip750 USB2.0 drive
-.It
-Keian USB1.1/2.0 3.5-inch HDD Case KU350A
-.It
-Kurouto Shikou USB 2.5-inch HDD Case GAWAP2.5PS-USB2.0
-.It
-LaCie P3 HardDrive USB 200GB
-.It
-Logitec LDR-H443U2 DVD-RAM/-R/+R/-RW/+RW drive
-.It
-Logitec Mobile USB Memory LMC-256UD
-.It
-Logitec USB1.1/2.0 HDD Unit SHD-E60U2
-.It
-Logitec USB Double-Speed Floppy Drive LFD-31U2
-.It
-Logitec USB/IEEE1394 DVD-RAM/R/RW Unit LDR-N21FU2 (CDROM only)
-.It
-MELCO USB Flash Disk "ClipDrive", RUF-C32M, -C64M, -C128M, -C256M, -C512M
-.It
-MELCO USB Flash Disk "PetitDrive", RUF-32M, -64M, -128M, -256Mm
-.It
-MELCO USB2.0 Flash Disk "PetitDrive2", RUF-256M/U2, -512M/U2
-.It
-MELCO USB2.0 MO Drive MO-CH640U2
-.It
-Matshita CF-VFDU03 floppy drive
-.It
-Merlin SM300 MP3/WMA Player (256Mb)
-.It
-Microtech International, Inc.\& USB-SCSI-HD 50 USB to SCSI cable
-.It
-Motorola E398 Mobile Phone (TransFlash memory card)
-.It
-NOVAC USB2.0 2.5/3.5-inch HDD Case NV-HD351U
-.It
-PNY Attache Flash Drive
-.It
-Panasonic ("Matshita FDD CF-VFDU03")
-.It
-Panasonic KXL-CB20AN Portable DVD-ROM/CD-R/RW
-.It
-Panasonic KXL-CB35AN (DVD-ROM & CD-R/RW)
-.It
-Panasonic USB2.0 Portable CD-RW Drive KXL-RW40AN (CDROM only)
-.It
-Panasonic floppy drive
-.It
-Qware BeatZkey!\& Pro
-.It
-RATOC Systems USB2.0 Removable HDD Case U2-MDK1, U2-MDK1B
-.It
-SanDisk SDDR-31 (Compact Flash)
-.It
-SanDisk SDDR-75 (only Compact Flash port works)
-.It
-Sitecom CN-300 MultiFlash (MMC/SD, SmartMedia, CF, MemoryStick)
-.It
-Sony Portable CD-R/RW Drive CRX10U (CDROM only)
-.It
-TEAC Portable USB CD-ROM Unit CD-110PU/210PU
-.It
-Time DPA20B MP3 Player (1Gb)
-.It
-Trek Thumbdrive 8MB
-.It
-VAIO floppy drive (includes Y-E Data Flashbuster-U)
-.It
-Y-E Data floppy drive (720/1.44/2.88Mb)
-.El
-.Pp
-Among the supported digital cameras are:
-.Pp
-.Bl -bullet -compact
-.It
-Asahi Optical (PENTAX) Optio 230 & 330
-.El
 .Sh EXAMPLES
 .Bd -literal -offset indent
 device umass
@@ -193,11 +85,6 @@ Add the
 .Nm
 driver to the kernel.
 .Pp
-.Dl "camcontrol rescan 0"
-.Pp
-Rescan a Zip drive that was added after boot.
-The command above
-assumes that the Zip drive is on the first SCSI bus in the system.
 .Bd -literal -offset indent
 camcontrol rescan 0:0:0
 camcontrol rescan 0:0:1
@@ -208,46 +95,14 @@ camcontrol rescan 0:0:3
 Rescan all slots on a multi-slot flash reader, where the slots map to separate
 LUNs on a single SCSI ID.
 Typically only the first slot will be enabled at boot time.
-Again, this assumes that the flash reader is the first SCSI bus in the system.
-.Bd -literal -offset indent
-bsdlabel -w da0 zip100
-newfs da0c
-mount -t ufs /dev/da0c /mnt
-.Ed
-.Pp
-Write a disklabel to the Zip drive (see
-.Xr vpo 4
-for the
-.Xr disktab 5
-entry), creates the file system and mounts the new file system on /mnt.
-.Pp
-.Dl "newfs_msdos /dev/da0"
-.Pp
-Create a new FAT type file system.
-Care should be taken not to run
-.Xr newfs 8
-on devices that already contain data, as this will result in the
-information being lost.
-.Pp
-Many consumer devices such as digital cameras automatically create
-.Tn MS-DOS
-based file systems when storing information such as images and
-videos.
-These file systems can be accessed by specifying the file system
-type as
-.Cm msdosfs
-when using
-.Xr mount 8 .
+This assumes that the flash reader is the first SCSI bus in the system and has 4 slots.
 .Sh SEE ALSO
 .Xr cfumass 4 ,
 .Xr ehci 4 ,
 .Xr ohci 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
-.Xr vpo 4 ,
 .Xr xhci 4 ,
-.Xr disktab 5 ,
-.Xr bsdlabel 8 ,
 .Xr camcontrol 8
 .\".Sh HISTORY
 .Sh AUTHORS
