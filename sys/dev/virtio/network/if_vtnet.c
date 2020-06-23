@@ -180,7 +180,7 @@ static int	vtnet_init_tx_queues(struct vtnet_softc *);
 static int	vtnet_init_rxtx_queues(struct vtnet_softc *);
 static void	vtnet_set_active_vq_pairs(struct vtnet_softc *);
 static int	vtnet_reinit(struct vtnet_softc *);
-static void	vtnet_init_locked(struct vtnet_softc *);
+static void	vtnet_init_locked(struct vtnet_softc *, int);
 static void	vtnet_init(void *);
 
 static void	vtnet_free_ctrl_vq(struct vtnet_softc *);
@@ -512,7 +512,7 @@ vtnet_resume(device_t dev)
 
 	VTNET_CORE_LOCK(sc);
 	if (ifp->if_flags & IFF_UP)
-		vtnet_init_locked(sc);
+		vtnet_init_locked(sc, 0);
 	sc->vtnet_flags &= ~VTNET_FLAG_SUSPENDED;
 	VTNET_CORE_UNLOCK(sc);
 
@@ -1065,7 +1065,7 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		vtnet_init_locked(sc);
+		vtnet_init_locked(sc, 0);
 	}
 
 	return (0);
@@ -1109,7 +1109,7 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				}
 			}
 		} else
-			vtnet_init_locked(sc);
+			vtnet_init_locked(sc, 0);
 
 		if (error == 0)
 			sc->vtnet_if_flags = ifp->if_flags;
@@ -1167,7 +1167,7 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			vtnet_init_locked(sc);
+			vtnet_init_locked(sc, 0);
 		}
 
 		VTNET_CORE_UNLOCK(sc);
@@ -2716,7 +2716,7 @@ vtnet_tick(void *xsc)
 
 	if (timedout != 0) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		vtnet_init_locked(sc);
+		vtnet_init_locked(sc, 0);
 	} else
 		callout_schedule(&sc->vtnet_tick_ch, hz);
 }
@@ -3001,6 +3001,9 @@ vtnet_init_tx_queues(struct vtnet_softc *sc)
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		txq = &sc->vtnet_txqs[i];
 		txq->vtntx_watchdog = 0;
+#ifdef DEV_NETMAP
+		netmap_reset(NA(sc->vtnet_ifp), NR_TX, i, 0);
+#endif /* DEV_NETMAP */
 	}
 
 	return (0);
@@ -3084,7 +3087,7 @@ vtnet_reinit(struct vtnet_softc *sc)
 }
 
 static void
-vtnet_init_locked(struct vtnet_softc *sc)
+vtnet_init_locked(struct vtnet_softc *sc, int init_mode)
 {
 	device_t dev;
 	struct ifnet *ifp;
@@ -3098,6 +3101,18 @@ vtnet_init_locked(struct vtnet_softc *sc)
 		return;
 
 	vtnet_stop(sc);
+
+#ifdef DEV_NETMAP
+	/* Once stopped we can update the netmap flags, if necessary. */
+	switch (init_mode) {
+	case VTNET_INIT_NETMAP_ENTER:
+		nm_set_native_flags(NA(ifp));
+		break;
+	case VTNET_INIT_NETMAP_EXIT:
+		nm_clear_native_flags(NA(ifp));
+		break;
+	}
+#endif /* DEV_NETMAP */
 
 	/* Reinitialize with the host. */
 	if (vtnet_virtio_reinit(sc) != 0)
@@ -3125,7 +3140,7 @@ vtnet_init(void *xsc)
 	sc = xsc;
 
 	VTNET_CORE_LOCK(sc);
-	vtnet_init_locked(sc);
+	vtnet_init_locked(sc, 0);
 	VTNET_CORE_UNLOCK(sc);
 }
 
