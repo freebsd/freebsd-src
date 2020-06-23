@@ -56,17 +56,11 @@ int panic_cmp(struct rb_node *one, struct rb_node *two);
 RB_HEAD(linux_root, rb_node);
 RB_PROTOTYPE(linux_root, rb_node, __entry, panic_cmp);
 
-#define	rb_parent(r)	RB_PARENT(r, __entry)
-#define	rb_color(r)	RB_COLOR(r, __entry)
-#define	rb_is_red(r)	(rb_color(r) == RB_RED)
-#define	rb_is_black(r)	(rb_color(r) == RB_BLACK)
-#define	rb_set_parent(r, p)	rb_parent((r)) = (p)
-#define	rb_set_color(r, c)	rb_color((r)) = (c)
 #define	rb_entry(ptr, type, member)	container_of(ptr, type, member)
 
 #define RB_EMPTY_ROOT(root)     RB_EMPTY((struct linux_root *)root)
-#define RB_EMPTY_NODE(node)     (rb_parent(node) == node)
-#define RB_CLEAR_NODE(node)     (rb_set_parent(node, node))
+#define RB_EMPTY_NODE(node)     (RB_PARENT(node, __entry) == node)
+#define RB_CLEAR_NODE(node)     (RB_SET_PARENT(node, node, __entry))
 
 #define	rb_insert_color(node, root)					\
 	linux_root_RB_INSERT_COLOR((struct linux_root *)(root), (node))
@@ -81,9 +75,7 @@ static inline void
 rb_link_node(struct rb_node *node, struct rb_node *parent,
     struct rb_node **rb_link)
 {
-	rb_set_parent(node, parent);
-	rb_set_color(node, RB_RED);
-	node->__entry.rbe_left = node->__entry.rbe_right = NULL;
+	RB_SET(node, parent, __entry);
 	*rb_link = node;
 }
 
@@ -91,20 +83,12 @@ static inline void
 rb_replace_node(struct rb_node *victim, struct rb_node *new,
     struct rb_root *root)
 {
-	struct rb_node *p;
 
-	p = rb_parent(victim);
-	if (p) {
-		if (p->rb_left == victim)
-			p->rb_left = new;
-		else
-			p->rb_right = new;
-	} else
-		root->rb_node = new;
+	RB_SWAP_CHILD((struct linux_root *)root, victim, new, __entry);
 	if (victim->rb_left)
-		rb_set_parent(victim->rb_left, new);
+		RB_SET_PARENT(victim->rb_left, new, __entry);
 	if (victim->rb_right)
-		rb_set_parent(victim->rb_right, new);
+		RB_SET_PARENT(victim->rb_right, new, __entry);
 	*new = *victim;
 }
 
