@@ -372,7 +372,59 @@ mmap_out:
 
 		break;
 	}
+	case IOCTL_PRIVCMD_MMAP_RESOURCE: {
+		struct ioctl_privcmd_mmapresource *mmap;
+		struct xen_mem_acquire_resource adq;
+		xen_pfn_t *gpfns;
+		struct privcmd_map *umap;
 
+		mmap = (struct ioctl_privcmd_mmapresource *)arg;
+
+		bzero(&adq, sizeof(adq));
+
+		adq.domid = mmap->dom;
+		adq.type = mmap->type;
+		adq.id = mmap->id;
+
+		/* Shortcut for getting the resource size. */
+		if (mmap->addr == 0 && mmap->num == 0) {
+			error = HYPERVISOR_memory_op(XENMEM_acquire_resource,
+			    &adq);
+			if (error != 0) {
+				error = xen_translate_error(error);
+				break;
+			}
+			error = copyout(&adq.nr_frames, &mmap->num,
+			    sizeof(mmap->num));
+			break;
+		}
+
+		umap = setup_virtual_area(td, mmap->addr, mmap->num);
+		if (umap == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		adq.nr_frames = mmap->num;
+		adq.frame = mmap->idx;
+
+		gpfns = malloc(sizeof(*gpfns) * mmap->num, M_PRIVCMD, M_WAITOK);
+		for (i = 0; i < mmap->num; i++)
+			gpfns[i] = atop(umap->phys_base_addr) + i;
+		set_xen_guest_handle(adq.frame_list, gpfns);
+
+		error = HYPERVISOR_memory_op(XENMEM_acquire_resource, &adq);
+		if (error != 0)
+			error = xen_translate_error(error);
+		else
+			umap->mapped = true;
+
+		free(gpfns, M_PRIVCMD);
+		if (!umap->mapped)
+			free(umap->err, M_PRIVCMD);
+
+		break;
+	}
 	default:
 		error = ENOSYS;
 		break;
