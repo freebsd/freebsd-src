@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2021 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -178,7 +178,7 @@ static int ena_com_close_bounce_buffer(struct ena_com_io_sq *io_sq)
 		return ENA_COM_OK;
 
 	/* bounce buffer was used, so write it and get a new one */
-	if (pkt_ctrl->idx) {
+	if (likely(pkt_ctrl->idx)) {
 		rc = ena_com_write_bounce_buffer_to_dev(io_sq,
 							pkt_ctrl->curr_bounce_buf);
 		if (unlikely(rc)) {
