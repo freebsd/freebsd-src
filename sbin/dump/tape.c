@@ -76,7 +76,7 @@ static	FILE *popenfp = NULL;
 
 static	int atomic(ssize_t (*)(), int, char *, int);
 static	void worker(int, int);
-static	void enworker(void);
+static	void create_workers(void);
 static	void flushtape(void);
 static	void killall(void);
 static	void rollforward(void);
@@ -108,7 +108,7 @@ static struct worker {
 	char (*tblock)[TP_BSIZE]; /* buffer for data blocks */
 	struct req *req;	/* buffer for requests */
 } workers[WORKERS+1];
-static struct worker *mlp;
+static struct worker *wp;
 
 static char	(*nextblock)[TP_BSIZE];
 
@@ -152,11 +152,11 @@ alloctape(void)
 		    (((long)&buf[ntrec + 1] + pgoff) &~ pgoff);
 		workers[i].req = (struct req *)workers[i].tblock - ntrec - 1;
 	}
-	mlp = &workers[0];
-	mlp->count = 1;
-	mlp->tapea = 0;
-	mlp->firstrec = 0;
-	nextblock = mlp->tblock;
+	wp = &workers[0];
+	wp->count = 1;
+	wp->tapea = 0;
+	wp->firstrec = 0;
+	nextblock = wp->tblock;
 	return(1);
 }
 
@@ -164,8 +164,8 @@ void
 writerec(char *dp, int isspcl)
 {
 
-	mlp->req[trecno].dblk = (ufs2_daddr_t)0;
-	mlp->req[trecno].count = 1;
+	wp->req[trecno].dblk = (ufs2_daddr_t)0;
+	wp->req[trecno].count = 1;
 	/* Can't do a structure assignment due to alignment problems */
 	bcopy(dp, *(nextblock)++, sizeof (union u_spcl));
 	if (isspcl)
@@ -185,8 +185,8 @@ dumpblock(ufs2_daddr_t blkno, int size)
 	dblkno = fsbtodb(sblock, blkno);
 	tpblks = size >> tp_bshift;
 	while ((avail = MIN(tpblks, ntrec - trecno)) > 0) {
-		mlp->req[trecno].dblk = dblkno;
-		mlp->req[trecno].count = avail;
+		wp->req[trecno].dblk = dblkno;
+		wp->req[trecno].count = avail;
 		trecno += avail;
 		spcl.c_tapea += avail;
 		if (trecno >= ntrec)
@@ -232,27 +232,27 @@ flushtape(void)
 	int i, blks, got;
 	int64_t lastfirstrec;
 
-	int siz = (char *)nextblock - (char *)mlp->req;
+	int siz = (char *)nextblock - (char *)wp->req;
 
-	mlp->req[trecno].count = 0;			/* Sentinel */
+	wp->req[trecno].count = 0;			/* Sentinel */
 
-	if (atomic(write, mlp->fd, (char *)mlp->req, siz) != siz)
+	if (atomic(write, wp->fd, (char *)wp->req, siz) != siz)
 		quit("error writing command pipe: %s\n", strerror(errno));
-	mlp->sent = 1; /* we sent a request, read the response later */
+	wp->sent = 1; /* we sent a request, read the response later */
 
-	lastfirstrec = mlp->firstrec;
+	lastfirstrec = wp->firstrec;
 
-	if (++mlp >= &workers[WORKERS])
-		mlp = &workers[0];
+	if (++wp >= &workers[WORKERS])
+		wp = &workers[0];
 
 	/* Read results back from next worker */
-	if (mlp->sent) {
-		if (atomic(read, mlp->fd, (char *)&got, sizeof got)
+	if (wp->sent) {
+		if (atomic(read, wp->fd, (char *)&got, sizeof got)
 		    != sizeof got) {
 			perror("  DUMP: error reading command pipe in master");
 			dumpabort(0);
 		}
-		mlp->sent = 0;
+		wp->sent = 0;
 
 		/* Check for end of tape */
 		if (got < writesize) {
@@ -288,11 +288,11 @@ flushtape(void)
 			if (spcl.c_addr[i] != 0)
 				blks++;
 	}
-	mlp->count = lastspclrec + blks + 1 - spcl.c_tapea;
-	mlp->tapea = spcl.c_tapea;
-	mlp->firstrec = lastfirstrec + ntrec;
-	mlp->inode = curino;
-	nextblock = mlp->tblock;
+	wp->count = lastspclrec + blks + 1 - spcl.c_tapea;
+	wp->tapea = spcl.c_tapea;
+	wp->firstrec = lastfirstrec + ntrec;
+	wp->inode = curino;
+	nextblock = wp->tblock;
 	trecno = 0;
 	asize += tenths;
 	blockswritten += ntrec;
@@ -396,12 +396,12 @@ void
 rollforward(void)
 {
 	struct req *p, *q, *prev;
-	struct worker *tmlp;
+	struct worker *twp;
 	int i, size, got;
 	int64_t savedtapea;
 	union u_spcl *ntb, *otb;
-	tmlp = &workers[WORKERS];
-	ntb = (union u_spcl *)tmlp->tblock[1];
+	twp = &workers[WORKERS];
+	ntb = (union u_spcl *)twp->tblock[1];
 
 	/*
 	 * Each of the N workers should have requests that need to
@@ -410,15 +410,15 @@ rollforward(void)
 	 * each worker in turn.
 	 */
 	for (i = 0; i < WORKERS; i++) {
-		q = &tmlp->req[1];
-		otb = (union u_spcl *)mlp->tblock;
+		q = &twp->req[1];
+		otb = (union u_spcl *)wp->tblock;
 
 		/*
-		 * For each request in the current worker, copy it to tmlp.
+		 * For each request in the current worker, copy it to twp.
 		 */
 
 		prev = NULL;
-		for (p = mlp->req; p->count > 0; p += p->count) {
+		for (p = wp->req; p->count > 0; p += p->count) {
 			*q = *p;
 			if (p->dblk == 0)
 				*ntb++ = *otb++; /* copy the datablock also */
@@ -433,26 +433,26 @@ rollforward(void)
 			ntb--;
 		q -= 1;
 		q->count = 0;
-		q = &tmlp->req[0];
+		q = &twp->req[0];
 		if (i == 0) {
 			q->dblk = 0;
 			q->count = 1;
 			trecno = 0;
-			nextblock = tmlp->tblock;
+			nextblock = twp->tblock;
 			savedtapea = spcl.c_tapea;
-			spcl.c_tapea = mlp->tapea;
+			spcl.c_tapea = wp->tapea;
 			startnewtape(0);
 			spcl.c_tapea = savedtapea;
 			lastspclrec = savedtapea - 1;
 		}
 		size = (char *)ntb - (char *)q;
-		if (atomic(write, mlp->fd, (char *)q, size) != size) {
+		if (atomic(write, wp->fd, (char *)q, size) != size) {
 			perror("  DUMP: error writing command pipe");
 			dumpabort(0);
 		}
-		mlp->sent = 1;
-		if (++mlp >= &workers[WORKERS])
-			mlp = &workers[0];
+		wp->sent = 1;
+		if (++wp >= &workers[WORKERS])
+			wp = &workers[0];
 
 		q->count = 1;
 
@@ -464,19 +464,19 @@ rollforward(void)
 			 */
 			q->dblk = prev->dblk +
 				prev->count * (TP_BSIZE / DEV_BSIZE);
-			ntb = (union u_spcl *)tmlp->tblock;
+			ntb = (union u_spcl *)twp->tblock;
 		} else {
 			/*
 			 * It wasn't a disk block.  Copy the data to its
 			 * new location in the buffer.
 			 */
 			q->dblk = 0;
-			*((union u_spcl *)tmlp->tblock) = *ntb;
-			ntb = (union u_spcl *)tmlp->tblock[1];
+			*((union u_spcl *)twp->tblock) = *ntb;
+			ntb = (union u_spcl *)twp->tblock[1];
 		}
 	}
-	mlp->req[0] = *q;
-	nextblock = mlp->tblock;
+	wp->req[0] = *q;
+	nextblock = wp->tblock;
 	if (q->dblk == 0)
 		nextblock++;
 	trecno = 1;
@@ -485,13 +485,13 @@ rollforward(void)
 	 * Clear the first workers' response.  One hopes that it
 	 * worked ok, otherwise the tape is much too short!
 	 */
-	if (mlp->sent) {
-		if (atomic(read, mlp->fd, (char *)&got, sizeof got)
+	if (wp->sent) {
+		if (atomic(read, wp->fd, (char *)&got, sizeof got)
 		    != sizeof got) {
 			perror("  DUMP: error reading command pipe in master");
 			dumpabort(0);
 		}
-		mlp->sent = 0;
+		wp->sent = 0;
 
 		if (got != writesize) {
 			quit("EOT detected at start of the tape!\n");
@@ -634,7 +634,7 @@ restore_check_point:
 			}
 		}
 
-		enworker();  /* Share open tape file descriptor with workers */
+		create_workers();  /* Share open tape file descriptor with workers */
 		if (popenout)
 			close(tapefd);	/* Give up our copy of it. */
 		signal(SIGINFO, infosch);
@@ -643,18 +643,18 @@ restore_check_point:
 		blocksthisvol = 0;
 		if (top)
 			newtape++;		/* new tape signal */
-		spcl.c_count = mlp->count;
+		spcl.c_count = wp->count;
 		/*
 		 * measure firstrec in TP_BSIZE units since restore doesn't
 		 * know the correct ntrec value...
 		 */
-		spcl.c_firstrec = mlp->firstrec;
+		spcl.c_firstrec = wp->firstrec;
 		spcl.c_volume++;
 		spcl.c_type = TS_TAPE;
-		writeheader((ino_t)mlp->inode);
+		writeheader((ino_t)wp->inode);
 		if (tapeno > 1)
 			msg("Volume %d begins with blocks from inode %d\n",
-				tapeno, mlp->inode);
+				tapeno, wp->inode);
 	}
 }
 
@@ -699,7 +699,7 @@ proceed(int signo __unused)
 }
 
 void
-enworker(void)
+create_workers(void)
 {
 	int cmd[2];
 	int i, j;
@@ -712,7 +712,7 @@ enworker(void)
 	signal(SIGUSR2, proceed);    /* Worker sends SIGUSR2 to next worker */
 
 	for (i = 0; i < WORKERS; i++) {
-		if (i == mlp - &workers[0]) {
+		if (i == wp - &workers[0]) {
 			caught = 1;
 		} else {
 			caught = 0;
@@ -785,17 +785,17 @@ worker(int cmd, int worker_number)
 	/*
 	 * Get list of blocks to dump, read the blocks into tape buffer
 	 */
-	while ((nread = atomic(read, cmd, (char *)mlp->req, reqsiz)) == reqsiz) {
-		struct req *p = mlp->req;
+	while ((nread = atomic(read, cmd, (char *)wp->req, reqsiz)) == reqsiz) {
+		struct req *p = wp->req;
 
 		for (trecno = 0; trecno < ntrec;
 		     trecno += p->count, p += p->count) {
 			if (p->dblk) {
-				blkread(p->dblk, mlp->tblock[trecno],
+				blkread(p->dblk, wp->tblock[trecno],
 					p->count * TP_BSIZE);
 			} else {
 				if (p->count != 1 || atomic(read, cmd,
-				    (char *)mlp->tblock[trecno],
+				    (char *)wp->tblock[trecno],
 				    TP_BSIZE) != TP_BSIZE)
 				       quit("master/worker protocol botched.\n");
 			}
@@ -816,11 +816,11 @@ worker(int cmd, int worker_number)
 		while (eot_count < 10 && size < writesize) {
 #ifdef RDUMP
 			if (host)
-				wrote = rmtwrite(mlp->tblock[0]+size,
+				wrote = rmtwrite(wp->tblock[0]+size,
 				    writesize-size);
 			else
 #endif
-				wrote = write(tapefd, mlp->tblock[0]+size,
+				wrote = write(tapefd, wp->tblock[0]+size,
 				    writesize-size);
 #ifdef WRITEDEBUG
 			printf("worker %d wrote %d\n", worker_number, wrote);
