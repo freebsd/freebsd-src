@@ -1347,4 +1347,12 @@ write_via_memwin(struct adapter *sc, int idx, uint32_t addr,
 
 	return (rw_via_memwin(sc, idx, addr, (void *)(uintptr_t)val, len, 1));
 }
+
+/* Number of len16 -> number of descriptors */
+static inline int
+tx_len16_to_desc(int len16)
+{
+
+	return (howmany(len16, EQ_ESIZE / 16));
+}
 #endif
