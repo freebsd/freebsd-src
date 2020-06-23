@@ -28,7 +28,7 @@
 .\"     @(#)colrm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2015
+.Dd June 23, 2020
 .Dt COLRM 1
 .Os
 .Sh NAME
@@ -75,6 +75,26 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show columns below 3 (c) and above 5 (e)
+.Bd -literal -offset indent
+$ echo -e "abcdefgh\en12345678" | colrm 3 5
+abfgh
+12678
+.Ed
+.Pp
+Specifying a start column bigger than the number of columns in the file is
+allowed and shows all the columns:
+.Bd -literal -offset indent
+$ echo "abcdefgh" | colrm 100
+abcdefgh
+.Ed
+.Pp
+Using 1 as start column will show nothing:
+.Bd -literal -offset indent
+$ echo "abcdefgh" | colrm 1
+
+.Ed
 .Sh SEE ALSO
 .Xr awk 1 ,
 .Xr column 1 ,
