@@ -258,14 +258,28 @@ add_leaf(struct sort_level *sl, struct sort_list_item *item)
 static inline int
 get_wc_index(struct sort_list_item *sli, size_t level)
 {
+	const size_t wcfact = (MB_CUR_MAX == 1) ? 1 : sizeof(wchar_t);
 	const struct key_value *kv;
 	const struct bwstring *bws;
 
 	kv = get_key_from_keys_array(&sli->ka, 0);
 	bws = kv->k;
 
-	if ((BWSLEN(bws) > level))
-		return (unsigned char) BWS_GET(bws,level);
+	if ((BWSLEN(bws) * wcfact > level)) {
+		wchar_t res;
+
+		/*
+		 * Sort wchar strings a byte at a time, rather than a single
+		 * byte from each wchar.
+		 */
+		res = (wchar_t)BWS_GET(bws, level / wcfact);
+		/* Sort most-significant byte first. */
+		if (level % wcfact < wcfact - 1)
+			res = (res >> (8 * (wcfact - 1 - (level % wcfact))));
+
+		return (res & 0xff);
+	}
+
 	return (-1);
 }
 
@@ -317,6 +331,7 @@ free_sort_level(struct sort_level *sl)
 static void
 run_sort_level_next(struct sort_level *sl)
 {
+	const size_t wcfact = (MB_CUR_MAX == 1) ? 1 : sizeof(wchar_t);
 	struct sort_level *slc;
 	size_t i, sln, tosort_num;
 
@@ -333,8 +348,16 @@ run_sort_level_next(struct sort_level *sl)
 		sort_left_dec(1);
 		goto end;
 	case (2):
+		/*
+		 * Radixsort only processes a single byte at a time.  In wchar
+		 * mode, this can be a subset of the length of a character.
+		 * list_coll_offset() offset is in units of wchar, not bytes.
+		 * So to calculate the offset, we must divide by
+		 * sizeof(wchar_t) and round down to the index of the first
+		 * character this level references.
+		 */
 		if (list_coll_offset(&(sl->tosort[0]), &(sl->tosort[1]),
-		    sl->level) > 0) {
+		    sl->level / wcfact) > 0) {
 			sl->sorted[sl->start_position++] = sl->tosort[1];
 			sl->sorted[sl->start_position] = sl->tosort[0];
 		} else {
@@ -348,7 +371,13 @@ run_sort_level_next(struct sort_level *sl)
 		if (TINY_NODE(sl) || (sl->level > 15)) {
 			listcoll_t func;
 
-			func = get_list_call_func(sl->level);
+			/*
+			 * Collate comparison offset is in units of
+			 * character-width, so we must divide the level (bytes)
+			 * by operating character width (wchar_t or char).  See
+			 * longer comment above.
+			 */
+			func = get_list_call_func(sl->level / wcfact);
 
 			sl->leaves = sl->tosort;
 			sl->leaves_num = sl->tosort_num;
