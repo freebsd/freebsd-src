@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
 #include "ena.h"
 #include "ena_datapath.h"
 #ifdef DEV_NETMAP
@@ -335,6 +336,19 @@ ena_rx_hash_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 
 	if (likely(ENA_FLAG_ISSET(ENA_FLAG_RSS_ACTIVE, adapter))) {
 		mbuf->m_pkthdr.flowid = ena_rx_ctx->hash;
+
+#ifdef RSS
+		/*
+		 * Hardware and software RSS are in agreement only when both are
+		 * configured to Toeplitz algorithm.  This driver configures
+		 * that algorithm only when software RSS is enabled and uses it.
+		 */
+		if (adapter->ena_dev->rss.hash_func != ENA_ADMIN_TOEPLITZ &&
+		    ena_rx_ctx->l3_proto != ENA_ETH_IO_L3_PROTO_UNKNOWN) {
+			M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE_HASH);
+			return;
+		}
+#endif
 
 		if (ena_rx_ctx->frag &&
 		    (ena_rx_ctx->l3_proto != ENA_ETH_IO_L3_PROTO_UNKNOWN)) {
