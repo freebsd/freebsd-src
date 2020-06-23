@@ -2708,7 +2708,7 @@ start_wrq_wr(struct sge_wrq *wrq, int len16, struct wrq_cookie *cookie)
 	void *w;
 
 	MPASS(len16 > 0);
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc > 0 && ndesc <= SGE_MAX_WR_NDESC);
 
 	EQ_LOCK(eq);
@@ -2920,10 +2920,9 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 		M_ASSERTPKTHDR(m0);
 		MPASS(m0->m_nextpkt == NULL);
 
-		if (available < howmany(mbuf_len16(m0), EQ_ESIZE / 16)) {
-			MPASS(howmany(mbuf_len16(m0), EQ_ESIZE / 16) <= 64);
+		if (available < tx_len16_to_desc(mbuf_len16(m0))) {
 			available += reclaim_tx_descs(txq, 64);
-			if (available < howmany(mbuf_len16(m0), EQ_ESIZE / 16))
+			if (available < tx_len16_to_desc(mbuf_len16(m0)))
 				break;	/* out of descriptors */
 		}
 
@@ -4678,7 +4677,7 @@ write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq,
 	ctrl = sizeof(struct cpl_tx_pkt_core);
 	if (needs_tso(m0))
 		ctrl += sizeof(struct cpl_tx_pkt_lso_core);
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc <= available);
 
 	/* Firmware work request header */
@@ -4789,7 +4788,7 @@ write_raw_wr(struct sge_txq *txq, void *wr, struct mbuf *m0, u_int available)
 	int len16, ndesc;
 
 	len16 = mbuf_len16(m0);
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc <= available);
 
 	dst = wr;
@@ -4842,7 +4841,7 @@ write_txpkt_wr(struct adapter *sc, struct sge_txq *txq,
 		    sizeof(struct cpl_tx_pkt_core) + pktlen, 16);
 		nsegs = 0;
 	}
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc <= available);
 
 	/* Firmware work request header */
@@ -4948,7 +4947,7 @@ try_txpkts(struct mbuf *m, struct mbuf *n, struct txpkts *txp, u_int available)
 		l2 = txpkts0_len16(nsegs2);
 	}
 	txp->len16 = howmany(sizeof(struct fw_eth_tx_pkts_wr), 16) + l1 + l2;
-	needed = howmany(txp->len16, EQ_ESIZE / 16);
+	needed = tx_len16_to_desc(txp->len16);
 	if (needed > SGE_MAX_WR_NDESC || needed > available)
 		return (1);
 
@@ -4985,7 +4984,7 @@ add_to_txpkts(struct mbuf *m, struct txpkts *txp, u_int available)
 		len16 = txpkts0_len16(nsegs);
 	else
 		len16 = txpkts1_len16();
-	needed = howmany(txp->len16 + len16, EQ_ESIZE / 16);
+	needed = tx_len16_to_desc(txp->len16 + len16);
 	if (needed > SGE_MAX_WR_NDESC || needed > available)
 		return (1);
 
@@ -5026,7 +5025,7 @@ write_txpkts_wr(struct adapter *sc, struct sge_txq *txq,
 	MPASS(txp->len16 <= howmany(SGE_MAX_WR_LEN, 16));
 	MPASS(available > 0 && available < eq->sidx);
 
-	ndesc = howmany(txp->len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(txp->len16);
 	MPASS(ndesc <= available);
 
 	MPASS(wr == (void *)&eq->desc[eq->pidx]);
