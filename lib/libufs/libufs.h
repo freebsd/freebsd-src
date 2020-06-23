@@ -49,7 +49,7 @@ struct uufsd {
 	int d_fd;			/* raw device file descriptor */
 	long d_bsize;			/* device bsize */
 	ufs2_daddr_t d_sblock;		/* superblock location */
-	struct csum *d_sbcsum;		/* Superblock summary info */
+	struct fs_summary_info *d_si;	/* Superblock summary info */
 	caddr_t d_inoblock;		/* inode block */
 	uint32_t d_inomin;		/* low ino, not ino_t for ABI compat */
 	uint32_t d_inomax;		/* high ino, not ino_t for ABI compat */
