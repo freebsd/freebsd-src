@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2018
+.Dd June 23, 2020
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -92,14 +92,14 @@ this is usually
 .Pa /usr/local/etc/rc.d .
 All files will be listed whether they are an actual
 rc.d script or not.
+.It Fl R
+Restart all enabled local services.
 .It Fl r
 Generate the
 .Xr rcorder 8
 as in
 .Fl e
 above, but list all of the files, not just what is enabled.
-.It Fl R
-Restart all enabled local services.
 .It Fl v
 Be slightly more verbose.
 .El
@@ -129,7 +129,7 @@ service -j dns named status
 service -rv
 .Ed
 .Pp
-The following programmable completion entry can be use in
+The following programmable completion entry can be used in
 .Xr bash 1
 for the names of the rc.d scripts:
 .Bd -literal -offset -ident
