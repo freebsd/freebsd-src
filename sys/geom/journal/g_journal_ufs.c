@@ -68,7 +68,6 @@ g_journal_ufs_clean(struct mount *mp)
 static void
 g_journal_ufs_dirty(struct g_consumer *cp)
 {
-	struct fs_summary_info *fs_si;
 	struct fs *fs;
 	int error;
 
@@ -81,15 +80,18 @@ g_journal_ufs_dirty(struct g_consumer *cp)
 		    ("g_journal_ufs_dirty: non-NULL fs %p\n", fs));
 		return;
 	}
+	/*
+	 * Do not use or change summary information, so free it now
+	 * to avoid unnecessarily writing it back out in ffs_sbput().
+	 */
+	g_free(fs->fs_csp);
+	g_free(fs->fs_si);
+	fs->fs_si = NULL;
+
 	GJ_DEBUG(0, "clean=%d flags=0x%x", fs->fs_clean, fs->fs_flags);
 	fs->fs_clean = 0;
 	fs->fs_flags |= FS_NEEDSFSCK | FS_UNCLEAN;
-	fs_si = fs->fs_si;
-	fs->fs_si = NULL;
 	error = ffs_sbput(cp, fs, fs->fs_sblockloc, g_use_g_write_data);
-	fs->fs_si = fs_si;
-	g_free(fs->fs_csp);
-	g_free(fs->fs_si);
 	g_free(fs);
 	if (error != 0) {
 		GJ_DEBUG(0, "Cannot mark file system %s as dirty "
