@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -61,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -2700,6 +2705,16 @@ ena_rss_init_default(struct ena_adapter *adapter)
 		}
 	}
 
+#ifdef RSS
+	uint8_t rss_algo = rss_gethashalgo();
+	if (rss_algo == RSS_HASH_TOEPLITZ) {
+		uint8_t hash_key[RSS_KEYSIZE];
+
+		rss_getkey(hash_key);
+		rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
+		    hash_key, RSS_KEYSIZE, 0xFFFFFFFF);
+	} else
+#endif
 	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
 	    ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
