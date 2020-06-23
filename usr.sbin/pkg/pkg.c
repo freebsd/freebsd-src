@@ -915,10 +915,15 @@ bootstrap_pkg(bool force)
 
 fetchfail:
 	warnx("Error fetching %s: %s", url, fetchLastErrString);
-	fprintf(stderr, "A pre-built version of pkg could not be found for "
-	    "your system.\n");
-	fprintf(stderr, "Consider changing PACKAGESITE or installing it from "
-	    "ports: 'ports-mgmt/pkg'.\n");
+	if (fetchLastErrCode == FETCH_RESOLV) {
+		fprintf(stderr, "Address resolution failed for %s.\n", packagesite);
+		fprintf(stderr, "Consider changing PACKAGESITE.\n");
+	} else {
+		fprintf(stderr, "A pre-built version of pkg could not be found for "
+		    "your system.\n");
+		fprintf(stderr, "Consider changing PACKAGESITE or installing it from "
+		    "ports: 'ports-mgmt/pkg'.\n");
+	}
 
 cleanup:
 	if (fd_sig != -1) {
