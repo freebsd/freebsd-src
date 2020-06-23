@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -963,9 +963,19 @@ typedef struct ddt_histogram {
 
 /*
  * /dev/zfs ioctl numbers.
+ *
+ * These numbers cannot change over time. New ioctl numbers must be appended.
  */
 typedef enum zfs_ioc {
+	/*
+	 * Core features - 81/128 numbers reserved.
+	 */
+#ifdef __FreeBSD__
 	ZFS_IOC_FIRST =	0,
+#else
+	ZFS_IOC_FIRST =	('Z' << 8),
+#endif
+	ZFS_IOC = ZFS_IOC_FIRST,
 	ZFS_IOC_POOL_CREATE = ZFS_IOC_FIRST,
 	ZFS_IOC_POOL_DESTROY,
 	ZFS_IOC_POOL_IMPORT,
@@ -1057,6 +1067,8 @@ typedef enum zfs_ioc {
  * The enum implicitly includes all the error codes from errno.h.
  * New code should use and extend this enum for errors that are
  * not described precisely by generic errno codes.
+ *
+ * These numbers should not change over time. New entries should be appended.
  */
 typedef enum {
 	ZFS_ERR_CHECKPOINT_EXISTS = 1024,
@@ -1064,6 +1076,10 @@ typedef enum {
 	ZFS_ERR_NO_CHECKPOINT,
 	ZFS_ERR_DEVRM_IN_PROGRESS,
 	ZFS_ERR_VDEV_TOO_BIG,
+	ZFS_ERR_IOC_CMD_UNAVAIL,
+	ZFS_ERR_IOC_ARG_UNAVAIL,
+	ZFS_ERR_IOC_ARG_REQUIRED,
+	ZFS_ERR_IOC_ARG_BADTYPE,
 	ZFS_ERR_WRONG_PARENT,
 } zfs_errno_t;
 
