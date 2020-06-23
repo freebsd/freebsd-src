@@ -782,7 +782,7 @@
 #define	TCR_HA_SHIFT		39
 #define	TCR_HA			(1UL << TCR_HA_SHIFT)
 #define	TCR_TBI1_SHIFT		38
-#define	TCR_TBI1		(1UL << TCR_TBI1_SHIFT
+#define	TCR_TBI1		(1UL << TCR_TBI1_SHIFT)
 #define	TCR_TBI0_SHIFT		37
 #define	TCR_TBI0		(1U << TCR_TBI0_SHIFT)
 #define	TCR_ASID_SHIFT		36
