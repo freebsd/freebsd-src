@@ -143,7 +143,7 @@ is a string containing one or more of the following kinds of type specifiers:
 .Bl -tag -width indent
 .It Cm a
 Named characters
-.Pq Tn ASCII .
+.Pq ASCII .
 Control characters are displayed using the following names:
 .Bl -column "000 NUL" "001 SOH" "002 STX" "003 ETX" "004 EOT" "005 ENQ"
 .It "000 NUL	001 SOH	002 STX	003 ETX	004 EOT	005 ENQ"
@@ -243,6 +243,24 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Dump stdin and show the output using named characters and C-style escaped
+characters:
+.Bd -literal -offset indent
+$ echo "FreeBSD: The power to serve" | od -a -c
+0000000    F   r   e   e   B   S   D   :  sp   T   h   e  sp   p   o   w
+           F   r   e   e   B   S   D   :       T   h   e       p   o   w
+0000020    e   r  sp   t   o  sp   s   e   r   v   e  nl
+           e   r       t   o       s   e   r   v   e  \en
+0000034
+.Ed
+.Pp
+Dump stdin skipping the first 13 bytes using named characters and dumping no
+more than 5 bytes:
+.Bd -literal -offset indent
+$ echo "FreeBSD: The power to serve" | od -An -a -j 13 -N 5
+           p   o   w   e   r
+.Ed
 .Sh COMPATIBILITY
 The traditional
 .Fl s
