@@ -85,22 +85,6 @@ ldconfig_start()
 			${ldconfig} -soft ${_ins} ${_LDC}
 			;;
 		esac
-
-		# Legacy aout support for i386 only
-		case ${machine_arch} in
-		i386)
-			# Default the a.out ldconfig path.
-			: ${ldconfig_paths_aout=${ldconfig_paths}}
-			_LDC=""
-			for i in /usr/lib/aout ${ldconfig_paths_aout} /etc/ld.so.conf; do
-				if [ -r "${i}" ]; then
-					_LDC="${_LDC} ${i}"
-				fi
-			done
-			check_startmsgs && echo 'a.out ldconfig path:' ${_LDC}
-			${ldconfig} -aout ${_ins} ${_LDC}
-			;;
-		esac
 	fi
 }
 
