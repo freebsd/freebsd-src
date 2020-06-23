@@ -427,7 +427,7 @@ Event::TimestampEventString(std::string &eventString)
 		 * Add a timestamp as the final field of the event if it is
 		 * not already present.
 		 */
-		if (eventString.find("timestamp=") == string::npos) {
+		if (eventString.find(" timestamp=") == string::npos) {
 			const size_t bufsize = 32;	// Long enough for a 64-bit int
 			timeval now;
 			char timebuf[bufsize];
