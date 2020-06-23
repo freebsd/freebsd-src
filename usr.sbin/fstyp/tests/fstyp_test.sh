@@ -197,9 +197,6 @@ ufs1_head() {
 	atf_set "descr" "fstyp(8) should detect UFS version 1 filesystems"
 }
 ufs1_body() {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/247425"
-	fi
 	atf_check -s exit:0 mkdir dir
 	atf_check -s exit:0 -o ignore makefs -Z -s 64m ufs.img dir
 	atf_check -s exit:0 -o inline:"ufs\n" fstyp ufs.img
@@ -211,9 +208,6 @@ ufs2_head() {
 	atf_set "descr" "fstyp(8) should detect UFS version 2 filesystems"
 }
 ufs2_body() {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/247425"
-	fi
 	atf_check -s exit:0 mkdir dir
 	atf_check -s exit:0 -o ignore makefs -o version=2 -Z -s 64m ufs.img dir
 	atf_check -s exit:0 -o inline:"ufs\n" fstyp ufs.img
@@ -225,9 +219,6 @@ ufs2_label_head() {
 	atf_set "descr" "fstyp(8) can read the label on a UFS v2 filesystem"
 }
 ufs2_label_body() {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/247425"
-	fi
 	atf_check -s exit:0 mkdir dir
 	atf_check -s exit:0 -o ignore makefs -o version=2,label="foo" -Z -s 64m ufs.img dir
 	atf_check -s exit:0 -o inline:"ufs foo\n" fstyp -l ufs.img
