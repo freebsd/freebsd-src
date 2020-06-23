@@ -44,30 +44,28 @@ union dinodep {
  * userland ufs disk.
  */
 struct uufsd {
-	const char *d_name;	/* disk name */
-	int d_ufs;		/* decimal UFS version */
-	int d_fd;		/* raw device file descriptor */
-	long d_bsize;		/* device bsize */
-	ufs2_daddr_t d_sblock;	/* superblock location */
-	struct csum *d_sbcsum;	/* Superblock summary info */
-	caddr_t d_inoblock;	/* inode block */
-	uint32_t d_inomin;	/* low inode (not ino_t for ABI compat) */
-	uint32_t d_inomax;	/* high inode (not ino_t for ABI compat) */
-	union dinodep d_dp;	/* pointer to currently active inode */
+	const char *d_name;		/* disk name */
+	int d_ufs;			/* decimal UFS version */
+	int d_fd;			/* raw device file descriptor */
+	long d_bsize;			/* device bsize */
+	ufs2_daddr_t d_sblock;		/* superblock location */
+	struct csum *d_sbcsum;		/* Superblock summary info */
+	caddr_t d_inoblock;		/* inode block */
+	uint32_t d_inomin;		/* low ino, not ino_t for ABI compat */
+	uint32_t d_inomax;		/* high ino, not ino_t for ABI compat */
+	union dinodep d_dp;		/* pointer to currently active inode */
 	union {
-		struct fs d_fs;	/* filesystem information */
-		char d_sb[MAXBSIZE];
-				/* superblock as buffer */
+		struct fs d_fs;		/* filesystem information */
+		char d_sb[MAXBSIZE];	/* superblock as buffer */
 	} d_sbunion;
 	union {
-		struct cg d_cg;	/* cylinder group */
-		char d_buf[MAXBSIZE];
-				/* cylinder group storage */
+		struct cg d_cg;		/* cylinder group */
+		char d_buf[MAXBSIZE];	/* cylinder group storage */
 	} d_cgunion;
-	int d_ccg;		/* current cylinder group */
-	int d_lcg;		/* last cylinder group (in d_cg) */
-	const char *d_error;	/* human readable disk error */
-	int d_mine;		/* internal flags */
+	int d_ccg;			/* current cylinder group */
+	int d_lcg;			/* last cylinder group (in d_cg) */
+	const char *d_error;		/* human readable disk error */
+	int d_mine;			/* internal flags */
 #define	d_fs	d_sbunion.d_fs
 #define	d_sb	d_sbunion.d_sb
 #define	d_cg	d_cgunion.d_cg
