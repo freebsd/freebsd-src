@@ -1099,6 +1099,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * rxr->next_check is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
+		uint32_t hwtail_lim = nm_prev(kring->nr_hwcur, lim);
 		int crclen = iflib_crcstrip ? 0 : 4;
 		int error, avail;
 
@@ -1108,7 +1109,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 			nm_i = netmap_idx_n2k(kring, nic_i);
 			avail = ctx->isc_rxd_available(ctx->ifc_softc,
 			    rxq->ifr_id, nic_i, USHRT_MAX);
-			for (n = 0; avail > 0; n++, avail--) {
+			for (n = 0; avail > 0 && nm_i != hwtail_lim; n++, avail--) {
 				rxd_info_zero(&ri);
 				ri.iri_frags = rxq->ifr_frags;
 				ri.iri_qsidx = kring->ring_id;
