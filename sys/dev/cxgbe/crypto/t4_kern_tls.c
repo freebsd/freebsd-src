@@ -1375,7 +1375,7 @@ ktls_write_tcp_options(struct sge_txq *txq, void *dst, struct mbuf *m,
 	pktlen = m->m_len;
 	ctrl = sizeof(struct cpl_tx_pkt_core) + pktlen;
 	len16 = howmany(sizeof(struct fw_eth_tx_pkt_wr) + ctrl, 16);
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc <= available);
 
 	/* Firmware work request header */
@@ -1475,7 +1475,7 @@ ktls_write_tunnel_packet(struct sge_txq *txq, void *dst, struct mbuf *m,
 	pktlen = m->m_len + m_tls->m_len;
 	ctrl = sizeof(struct cpl_tx_pkt_core) + pktlen;
 	len16 = howmany(sizeof(struct fw_eth_tx_pkt_wr) + ctrl, 16);
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc <= available);
 
 	/* Firmware work request header */
@@ -2116,7 +2116,7 @@ ktls_write_tcp_fin(struct sge_txq *txq, void *dst, struct mbuf *m,
 	pktlen = m->m_len;
 	ctrl = sizeof(struct cpl_tx_pkt_core) + pktlen;
 	len16 = howmany(sizeof(struct fw_eth_tx_pkt_wr) + ctrl, 16);
-	ndesc = howmany(len16, EQ_ESIZE / 16);
+	ndesc = tx_len16_to_desc(len16);
 	MPASS(ndesc <= available);
 
 	/* Firmware work request header */
