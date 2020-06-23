@@ -475,7 +475,7 @@ print_swap_header(void)
 
 	if (humanflag) {
 		header = SIZEHDR;
-		hlen = sizeof(SIZEHDR);
+		hlen = 8; /* as the hardcoded field width of values */
 	} else {
 		header = getbsize(&hlen, &blocksize);
 	}
