@@ -10,11 +10,12 @@ CFLAGS+=	-DHAVE_FENV_H
 # For isqemu.h
 CFLAGS+=	-I${TESTSRC:H}/libc/gen
 
-# Not sure why this isn't defined for all architectures, since most
-# have long double.
+# Define __HAVE_LONG_DOUBLE for architectures whose long double has greater
+# precision than their double.
 .if ${MACHINE_CPUARCH} == "aarch64" || \
     ${MACHINE_CPUARCH} == "amd64" || \
-    ${MACHINE_CPUARCH} == "i386"
+    ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "riscv"
 CFLAGS+=	-D__HAVE_LONG_DOUBLE
 .endif
 
