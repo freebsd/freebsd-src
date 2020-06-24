@@ -1333,9 +1333,10 @@ receive(
 		 * manycaster has already synchronized to us.
 		 */
 		if (   sys_leap == LEAP_NOTINSYNC
-		    || sys_stratum >= hisstratum
+		    || sys_stratum > hisstratum + 1
 		    || (!sys_cohort && sys_stratum == hisstratum + 1)
 		    || rbufp->dstadr->addr_refid == pkt->refid) {
+			DPRINTF(2, ("receive: sys leap: %0x, sys_stratum %d > hisstratum+1 %d, !sys_cohort %d && sys_stratum == hisstratum+1, loop refid %#x == pkt refid %#x\n", sys_leap, sys_stratum, hisstratum + 1, !sys_cohort, rbufp->dstadr->addr_refid, pkt->refid));
 			DPRINTF(2, ("receive: AM_FXMIT drop: LEAP_NOTINSYNC || stratum || loop\n"));
 			sys_declined++;
 			return;			/* no help */
@@ -1681,8 +1682,9 @@ receive(
 		 * MODE_ACTIVE KoDs, which will time out eventually.
 		 */
 		if (   hisleap != LEAP_NOTINSYNC
-		    && (hisstratum < sys_floor || hisstratum >= sys_ceiling)) {
-			DPRINTF(2, ("receive: AM_NEWPASS drop: Autokey group mismatch\n"));
+		       && (hisstratum < sys_floor || hisstratum >= sys_ceiling)) {
+			DPRINTF(2, ("receive: AM_NEWPASS drop: Remote stratum (%d) out of range\n",
+					hisstratum));
 			sys_declined++;
 			return;			/* no help */
 		}
@@ -2485,10 +2487,6 @@ process_packet(
 	double	etemp, ftemp, td;
 #endif /* ASSYM */
 
-#if 0
-	sys_processed++;
-	peer->processed++;
-#endif
 	p_del = FPTOD(NTOHS_FP(pkt->rootdelay));
 	p_offset = 0;
 	p_disp = FPTOD(NTOHS_FP(pkt->rootdisp));
@@ -2500,10 +2498,6 @@ process_packet(
 	pleap = PKT_LEAP(pkt->li_vn_mode);
 	pversion = PKT_VERSION(pkt->li_vn_mode);
 	pstratum = PKT_TO_STRATUM(pkt->stratum);
-
-	/**/
-
-	/**/
 
 	/*
 	 * Verify the server is synchronized; that is, the leap bits,
@@ -2524,19 +2518,15 @@ process_packet(
 		peer->seldisptoolarge++;
 		DPRINTF(1, ("packet: flash header %04x\n",
 			    peer->flash));
-
-		/* ppoll updated? */
-		/* XXX: Fuzz the poll? */
-		poll_update(peer, peer->hpoll, (peer->hmode == MODE_CLIENT));
+		/* [Bug 3592] do *not* update poll on bad packets! */
 		return;
 	}
 
-	/**/
-
-#if 1
+	/*
+	 * update stats, now that we really handle this packet:
+	 */
 	sys_processed++;
 	peer->processed++;
-#endif
 
 	/*
 	 * Capture the header values in the client/peer association..
@@ -2571,9 +2561,6 @@ process_packet(
 		if (peer->burst > 0)
 			peer->nextdate = current_time;
 	}
-	poll_update(peer, peer->hpoll, (peer->hmode == MODE_CLIENT));
-
-	/**/
 
 	/*
 	 * If the peer was previously unreachable, raise a trap. In any
@@ -3455,11 +3442,13 @@ clock_select(void)
 	double	d, e, f, g;
 	double	high, low;
 	double	speermet;
+	double	lastresort_dist = MAXDISPERSE;
 	double	orphmet = 2.0 * U_INT32_MAX; /* 2x is greater than */
 	struct endpoint endp;
 	struct peer *osys_peer;
 	struct peer *sys_prefer = NULL;	/* prefer peer */
 	struct peer *typesystem = NULL;
+	struct peer *typelastresort = NULL;
 	struct peer *typeorphan = NULL;
 #ifdef REFCLOCK
 	struct peer *typeacts = NULL;
@@ -3521,6 +3510,22 @@ clock_select(void)
 		 */
 		if (peer_unfit(peer)) {
 			continue;
+		}
+
+		/*
+		 * If we have never been synchronised, look for any peer 
+		 * which has ever been synchronised and pick the one which 
+		 * has the lowest root distance. This can be used as a last 
+		 * resort if all else fails. Once we get an initial sync 
+		 * with this peer, sys_reftime gets set and so this 
+		 * function becomes disabled.
+		 */
+		if (L_ISZERO(&sys_reftime)) {
+			d = root_distance(peer);
+			if (!L_ISZERO(&peer->reftime) && d < lastresort_dist) {
+				typelastresort = peer;
+				lastresort_dist = d;
+			}
 		}
 
 		/*
@@ -3756,6 +3761,9 @@ clock_select(void)
 		if (typeorphan != NULL) {
 			peers[0].peer = typeorphan;
 			nlist = 1;
+		} else if (typelastresort != NULL) {
+			peers[0].peer = typelastresort;
+			nlist = 1;
 		}
 	}
 
@@ -3949,8 +3957,7 @@ clock_select(void)
 	 */
 	if (typesystem == NULL) {
 		if (osys_peer != NULL) {
-			if (sys_orphwait > 0)
-				orphwait = current_time + sys_orphwait;
+			orphwait = current_time + sys_orphwait;
 			report_event(EVNT_NOPEER, NULL, NULL);
 		}
 		sys_peer = NULL;
@@ -5344,7 +5351,7 @@ proto_config(
 
 	case PROTO_ORPHWAIT:	/* orphan wait (orphwait) */
 		orphwait -= sys_orphwait;
-		sys_orphwait = (int)dvalue;
+		sys_orphwait = (dvalue >= 1) ? (int)dvalue : NTP_ORPHWAIT;
 		orphwait += sys_orphwait;
 		break;
 

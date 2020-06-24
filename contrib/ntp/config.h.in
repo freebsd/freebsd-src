@@ -583,6 +583,9 @@
 /* Define to 1 if you have the <md5.h> header file. */
 #undef HAVE_MD5_H
 
+/* Define to 1 if you have the `memchr' function. */
+#undef HAVE_MEMCHR
+
 /* Define to 1 if you have the `memlk' function. */
 #undef HAVE_MEMLK
 
@@ -894,6 +897,9 @@
 
 /* Define to 1 if you have the `strlcpy' function. */
 #undef HAVE_STRLCPY
+
+/* Define to 1 if you have the `strnlen' function. */
+#undef HAVE_STRNLEN
 
 /* Define to 1 if you have the <stropts.h> header file. */
 #undef HAVE_STROPTS_H
