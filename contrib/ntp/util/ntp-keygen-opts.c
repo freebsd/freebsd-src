@@ -1,7 +1,7 @@
 /*
  *  EDIT THIS FILE WITH CAUTION  (ntp-keygen-opts.c)
  *
- *  It has been AutoGen-ed  March  3, 2020 at 05:41:28 PM by AutoGen 5.18.5
+ *  It has been AutoGen-ed  June 23, 2020 at 02:21:03 AM by AutoGen 5.18.5
  *  From the definitions    ntp-keygen-opts.def
  *  and the template file   options
  *
@@ -72,7 +72,7 @@ extern FILE * option_usage_fp;
  *  static const strings for ntp-keygen options
  */
 static char const ntp_keygen_opt_strs[2442] =
-/*     0 */ "ntp-keygen (ntp) 4.2.8p14\n"
+/*     0 */ "ntp-keygen (ntp) 4.2.8p15\n"
             "Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.\n"
             "This is free software. It is licensed for use, modification and\n"
             "redistribution under the terms of the NTP License, copies of which\n"
@@ -165,14 +165,14 @@ static char const ntp_keygen_opt_strs[2442] =
 /*  2223 */ "no-load-opts\0"
 /*  2236 */ "no\0"
 /*  2239 */ "NTP_KEYGEN\0"
-/*  2250 */ "ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p14\n"
+/*  2250 */ "ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p15\n"
             "Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]...\n\0"
 /*  2365 */ "$HOME\0"
 /*  2371 */ ".\0"
 /*  2373 */ ".ntprc\0"
 /*  2380 */ "http://bugs.ntp.org, bugs@ntp.org\0"
 /*  2414 */ "\n\0"
-/*  2416 */ "ntp-keygen (ntp) 4.2.8p14";
+/*  2416 */ "ntp-keygen (ntp) 4.2.8p15";
 
 /**
  *  imbits option description:
@@ -1310,7 +1310,7 @@ static void bogus_function(void) {
      translate option names.
    */
   /* referenced via ntp_keygenOptions.pzCopyright */
-  puts(_("ntp-keygen (ntp) 4.2.8p14\n\
+  puts(_("ntp-keygen (ntp) 4.2.8p15\n\
 Copyright (C) 1992-2020 The University of Delaware and Network Time Foundation, all rights reserved.\n\
 This is free software. It is licensed for use, modification and\n\
 redistribution under the terms of the NTP License, copies of which\n\
@@ -1409,14 +1409,14 @@ implied warranty.\n"));
   puts(_("load options from a config file"));
 
   /* referenced via ntp_keygenOptions.pzUsageTitle */
-  puts(_("ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p14\n\
+  puts(_("ntp-keygen (ntp) - Create a NTP host key - Ver. 4.2.8p15\n\
 Usage:  %s [ -<flag> [<val>] | --<name>[{=| }<val>] ]...\n"));
 
   /* referenced via ntp_keygenOptions.pzExplain */
   puts(_("\n"));
 
   /* referenced via ntp_keygenOptions.pzFullVersion */
-  puts(_("ntp-keygen (ntp) 4.2.8p14"));
+  puts(_("ntp-keygen (ntp) 4.2.8p15"));
 
   /* referenced via ntp_keygenOptions.pzFullUsage */
   puts(_("<<<NOT-FOUND>>>"));

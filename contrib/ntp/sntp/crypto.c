@@ -70,7 +70,8 @@ compute_mac(
 		}
 		len = (u_int)slen;
 		
-		CMAC_CTX_cleanup(ctx);
+		if (ctx)
+			CMAC_CTX_free(ctx);
 		/* Test our AES-128-CMAC implementation */
 		
 	} else	/* MD5 MAC handling */

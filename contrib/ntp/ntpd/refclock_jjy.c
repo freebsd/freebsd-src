@@ -4,7 +4,7 @@
 
 /**********************************************************************/
 /*								      */
-/*  Copyright (C) 2001-2015, Takao Abe.  All rights reserved.	      */
+/*  Copyright (C) 2001-2020, Takao Abe.  All rights reserved.	      */
 /*								      */
 /*  Permission to use, copy, modify, and distribute this software     */
 /*  and its documentation for any purpose is hereby granted	      */
@@ -115,6 +115,13 @@
 /*             tool. ( The code is harmless and has no bug. )	      */
 /*             teljjy_conn_send()				      */
 /*								      */
+/*  2020/01/19							      */
+/*    [Change] Handling TS-JJY01/02 status of the the STUS reply.     */
+/*             Time synchronization can be skipped by the settings of */
+/*             the flag2 when the status of the reply is UNADJUSTED.  */
+/*    [Change] Quiet compilation for the GCC 9.2.0.                   */
+/*    [Fix]    Correct typos in comment lines                         */
+/*								      */
 /**********************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -194,6 +201,10 @@ struct jjyunit {
 	char	sTextBuf [ MAX_RAWBUF ] ;
 	int 	iTextBufLen ;
 	char	bSkipCntrlCharOnly ;
+/* TS-JJY01, TS-JJY02 */
+	time_t	tLastAdjustedTimestamp ;
+	char	bStusReplyAdjusted ;
+	char	bStusReplyAdjustedAtLeastOnce ;
 /* Telephone JJY auto measurement of the loopback delay */
 	char	bLoopbackMode ;
 	short	iLoopbackCount ;
@@ -371,7 +382,7 @@ struct	refclock refclock_jjy = {
  * Local constants definition
  */
 
-#define	MAX_LOGTEXT	100
+#define	MAX_LOGTEXT	200
 
 #ifndef	TRUE
 #define	TRUE	(0==0)
@@ -410,6 +421,7 @@ struct	refclock refclock_jjy = {
 #define	JJY_CLOCKSTATS_MESSAGE_LOOPBACK_DELAY   	"* Loopback delay : %d.%03d mSec."
 #define	JJY_CLOCKSTATS_MESSAGE_DELAY_ADJUST     	"* Delay adjustment : %d mSec. ( valid=%hd/%d )"
 #define	JJY_CLOCKSTATS_MESSAGE_DELAY_UNADJUST   	"* Delay adjustment : None ( valid=%hd/%d )"
+#define	JJY_CLOCKSTATS_MESSAGE_STUS_UNADJUSTED  	"* Skip time synchronization : STUS is 'UNADJUSTED' for %.0lf %s"
 
 #define	JJY_CLOCKSTATS_MESSAGE_UNEXPECTED_REPLY     	"# Unexpected reply : [%s]"
 #define	JJY_CLOCKSTATS_MESSAGE_INVALID_LENGTH     	"# Invalid length : length=%d"
@@ -619,7 +631,7 @@ jjy_receive ( struct recvbuf *rbufp )
 		/* To avoid its claim, pass the value BMAX-1. */
 
 		/*
-		 * Append received charaters to temporary buffer
+		 * Append received characters to temporary buffer
 		 */
 		for ( i = 0 ;
 		      i < pp->lencode && up->iRawBufLen < MAX_RAWBUF - 2 ;
@@ -703,7 +715,7 @@ jjy_receive ( struct recvbuf *rbufp )
 				iBreakPosition = up->iRawBufLen - 1 ;
 			}
 
-			/* Copy charaters from temporary buffer to process buffer */
+			/* Copy characters from temporary buffer to process buffer */
 			up->iLineBufLen = up->iTextBufLen = 0 ;
 			for ( i = iReadRawBuf ; i <= iBreakPosition ; i ++ ) {
 
@@ -926,7 +938,7 @@ jjy_poll ( int unit, struct peer *peer )
 	up->iRawBufLen = 0 ;
 
 	switch ( up->unittype ) {
-	
+
 	case UNITTYPE_TRISTATE_JJY01 :
 		jjy_poll_tristate_jjy01  ( unit, peer ) ;
 		break ;
@@ -991,7 +1003,7 @@ jjy_timer ( int unit, struct peer *peer )
 	}
 
 	switch ( up->unittype ) {
-	
+
 	case UNITTYPE_TELEPHONE :
 		jjy_timer_telephone ( unit, peer ) ;
 		break ;
@@ -1020,8 +1032,8 @@ jjy_synctime ( struct peer *peer, struct refclockproc *pp, struct jjyunit *up )
 	pp->second = up->second ;
 	pp->nsec   = up->msecond * 1000000 ;
 
-	/* 
-	 * JST to UTC 
+	/*
+	 * JST to UTC
 	 */
 	pp->hour -= 9 ;
 	if ( pp->hour < 0 ) {
@@ -1070,7 +1082,7 @@ jjy_synctime ( struct peer *peer, struct refclockproc *pp, struct jjyunit *up )
 	case 5 : cStatus = '#' ; pStatus = "Selected"  ; break ;
 	case 6 : cStatus = '*' ; pStatus = "Sys.Peer"  ; break ;
 	case 7 : cStatus = 'o' ; pStatus = "PPS.Peer"  ; break ;
-	default : break ; 
+	default : break ;
 	}
 
 	snprintf ( sLog, sizeof(sLog),
@@ -1151,6 +1163,9 @@ jjy_start_tristate_jjy01 ( int unit, struct peer *peer, struct jjyunit *up )
 	up->linespeed = SPEED232_TRISTATE_JJY01 ;
 	up->linediscipline = LDISC_CLK ;
 
+	time( &(up->tLastAdjustedTimestamp) ) ;
+	up->bStusReplyAdjustedAtLeastOnce = FALSE ;
+
 	return 0 ;
 
 }
@@ -1164,10 +1179,12 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 	struct refclockproc *pp ;
 	struct peer	    *peer;
 
-	char *		pBuf ;
-	char		sLog [ 100 ] ;
-	int 		iLen ;
-	int 		rc ;
+	char *	pBuf ;
+	char	sLog [ MAX_LOGTEXT ] ;
+	int 	iLen ;
+	int 	rc ;
+	time_t	now ;
+	double	fSeconds ;
 
 	const char *	pCmd ;
 	int 		iCmdLen ;
@@ -1269,11 +1286,17 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 	case TS_JJY01_COMMAND_NUMBER_STUS :
 
 		if ( strncmp( pBuf, TS_JJY01_REPLY_STUS_ADJUSTED,
-			     TS_JJY01_REPLY_LENGTH_STUS_ADJUSTED ) == 0
-		  || strncmp( pBuf, TS_JJY01_REPLY_STUS_UNADJUSTED,
-			     TS_JJY01_REPLY_LENGTH_STUS_UNADJUSTED ) == 0 ) {
-			/* Good */
+			     TS_JJY01_REPLY_LENGTH_STUS_ADJUSTED ) == 0 ) {
+			/* STUS reply : adjusted */
+			up->bStusReplyAdjusted = TRUE ;
+			up->bStusReplyAdjustedAtLeastOnce = TRUE ;
+			time( &(up->tLastAdjustedTimestamp) ) ;
+		} else if ( strncmp( pBuf, TS_JJY01_REPLY_STUS_UNADJUSTED,
+			             TS_JJY01_REPLY_LENGTH_STUS_UNADJUSTED ) == 0 ) {
+			/* STUS reply : unadjusted */
+			up->bStusReplyAdjusted = FALSE ;
 		} else {
+			/* Bad reply */
 			snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_INVALID_REPLY,
 				  pBuf ) ;
 			jjy_write_clockstats( peer, JJY_CLOCKSTATS_MARK_ERROR, sLog ) ;
@@ -1286,11 +1309,12 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 	case TS_JJY01_COMMAND_NUMBER_DCST :
 
 		if ( strncmp( pBuf, TS_JJY01_REPLY_DCST_VALID,
-			     TS_JJY01_REPLY_LENGTH_DCST_VALID ) == 0
+			      TS_JJY01_REPLY_LENGTH_DCST_VALID ) == 0
 		  || strncmp( pBuf, TS_JJY01_REPLY_DCST_INVALID,
-			     TS_JJY01_REPLY_LENGTH_DCST_INVALID ) == 0 ) {
-			/* Good */
+			      TS_JJY01_REPLY_LENGTH_DCST_INVALID ) == 0 ) {
+			/* Valid reply */
 		} else {
+			/* Bad reply */
 			snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_INVALID_REPLY,
 				  pBuf ) ;
 			jjy_write_clockstats( peer, JJY_CLOCKSTATS_MARK_ERROR, sLog ) ;
@@ -1300,7 +1324,7 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 
 		break ;
 
-	default : /*  Unexpected reply */
+	default : /* Unexpected reply */
 
 		snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_INVALID_REPLY,
 			  pBuf ) ;
@@ -1313,9 +1337,27 @@ jjy_receive_tristate_jjy01 ( struct recvbuf *rbufp )
 	if ( up->iTimestampCount == 2 ) {
 		/* Process date and time */
 
-		if ( up->iTimestamp[1] - 2 <= up->iTimestamp[0]
-		  && up->iTimestamp[0]     <= up->iTimestamp[1] ) {
-			/* 3 commands (time,date,stim) was excuted in two seconds */
+		time( &now ) ;
+		fSeconds = difftime( now, up->tLastAdjustedTimestamp ) ;
+
+		if ( ( pp->sloppyclockflag & CLK_FLAG2 ) != 0
+		  && ( ! up->bStusReplyAdjusted )
+		  && ( fSeconds >= ( pp->fudgetime2 * 3600 ) || ( ! up->bStusReplyAdjustedAtLeastOnce ) ) ) {
+			/* STUS is not ADJUSTED */
+			if ( fSeconds < 60 ) {
+				snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_STUS_UNADJUSTED, fSeconds, "seconds" ) ;
+			} else if ( fSeconds < 3600 ) {
+				snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_STUS_UNADJUSTED, fSeconds / 60, "minutes" ) ;
+			} else if ( fSeconds < 86400 ) {
+				snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_STUS_UNADJUSTED, fSeconds / 3600, "hours" ) ;
+			} else {
+				snprintf( sLog, sizeof(sLog)-1, JJY_CLOCKSTATS_MESSAGE_STUS_UNADJUSTED, fSeconds / 86400, "days" ) ;
+			}
+			jjy_write_clockstats( peer, JJY_CLOCKSTATS_MARK_INFORMATION, sLog ) ;
+			return JJY_RECEIVE_SKIP ;
+		} else if ( up->iTimestamp[1] - 2 <= up->iTimestamp[0]
+		         && up->iTimestamp[0]     <= up->iTimestamp[1] ) {
+			/* 3 commands (time,date,stim) was executed in two seconds */
 			jjy_synctime( peer, pp, up ) ;
 			return JJY_RECEIVE_DONE ;
 		} else if ( up->iTimestamp[0] > up->iTimestamp[1] ) {
@@ -1385,6 +1427,8 @@ jjy_poll_tristate_jjy01  ( int unit, struct peer *peer )
 		up->iLineCount = 2 ;
 	}
 
+	up->bStusReplyAdjusted = FALSE ;
+
 #ifdef DEBUG
 	if ( debug ) {
 		printf ( "%s (refclock_jjy.c) : flag1=%X CLK_FLAG1=%X up->iLineCount=%d\n",
@@ -1421,7 +1465,7 @@ jjy_poll_tristate_jjy01  ( int unit, struct peer *peer )
 /*                                                                                                */
 /*  Command               Response                                  Remarks                       */
 /*  --------------------  ----------------------------------------  ----------------------------  */
-/*  <ENQ>1J<ETX>          <STX>JYYMMDD HHMMSSS<ETX>                 J is a fixed character        */
+/*  <ENQ>1J<ETX>          <STX>JYYMMDDWHHMMSSS<ETX>                 J is a fixed character        */
 /*                                                                                                */
 /*################################################################################################*/
 
@@ -1461,7 +1505,7 @@ jjy_receive_cdex_jst2000 ( struct recvbuf *rbufp )
 	struct refclockproc *pp ;
 	struct peer         *peer ;
 
-	char	*pBuf, sLog [ 100 ] ;
+	char	*pBuf, sLog [ MAX_LOGTEXT ] ;
 	int 	iLen ;
 	int 	rc ;
 
@@ -1946,8 +1990,8 @@ jjy_poll_citizentic_jjy200 ( int unit, struct peer *peer )
 /*################################################################################################*/
 /*################################################################################################*/
 /*                                                                                                */
-/*  This clock has NMEA mode and command/respose mode.                                            */
-/*  When this jjy driver are used, set to command/respose mode of this clock                      */
+/*  This clock has NMEA mode and command/response mode.                                           */
+/*  When this jjy driver are used, set to command/response mode of this clock                     */
 /*  by the onboard switch SW4, and make sure the LED-Y is tured on.                               */
 /*  Other than this JJY driver, the refclock driver type 20, generic NMEA driver,                 */
 /*  works with the NMEA mode of this clock.                                                       */
@@ -2022,7 +2066,7 @@ jjy_receive_tristate_gpsclock01 ( struct recvbuf *rbufp )
 	struct peer	    *peer;
 
 	char *		pBuf ;
-	char		sLog [ 100 ] ;
+	char		sLog [ MAX_LOGTEXT ] ;
 	int 		iLen ;
 	int 		rc ;
 
@@ -2189,7 +2233,7 @@ jjy_receive_tristate_gpsclock01 ( struct recvbuf *rbufp )
 
 		if ( up->iTimestamp[1] - 2 <= up->iTimestamp[0]
 		  && up->iTimestamp[0]     <= up->iTimestamp[1] ) {
-			/* 3 commands (time,date,stim) was excuted in two seconds */
+			/* 3 commands (time,date,stim) was executed in two seconds */
 			jjy_synctime( peer, pp, up ) ;
 			return JJY_RECEIVE_DONE ;
 		} else if ( up->iTimestamp[0] > up->iTimestamp[1] ) {
@@ -2344,7 +2388,7 @@ jjy_receive_seiko_tsys_tdc_300 ( struct recvbuf *rbufp )
 	struct refclockproc	*pp ;
 	struct jjyunit		*up ;
 
-	char	*pBuf, sLog [ 100 ] ;
+	char	*pBuf, sLog [ MAX_LOGTEXT ] ;
 	int	iLen, i ;
 	int	rc, iWeekday ;
 	time_t	now ;
@@ -3402,7 +3446,7 @@ teljjy_conn_data ( struct peer *peer, struct refclockproc *pp, struct jjyunit *u
 
 	char	*pBuf ;
 	int	iLen, rc ;
-	char	sLog [ 80 ] ;
+	char	sLog [ MAX_LOGTEXT ] ;
 	char	bAdjustment ;
 
 

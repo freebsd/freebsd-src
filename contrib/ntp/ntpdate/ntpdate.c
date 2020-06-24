@@ -1984,7 +1984,7 @@ input_handler(void)
 			continue;
 		}
 
-		rb = get_free_recv_buffer();
+		rb = get_free_recv_buffer(TRUE);
 
 		fromlen = sizeof(rb->recv_srcadr);
 		rb->recv_length = recvfrom(fdc, (char *)&rb->recv_pkt,
@@ -2013,7 +2013,7 @@ l_adj_systime(
 	l_fp *ts
 	)
 {
-	struct timeval adjtv, oadjtv;
+	struct timeval adjtv;
 	int isneg = 0;
 	l_fp offset;
 #ifndef STEP_SLEW
@@ -2053,6 +2053,7 @@ l_adj_systime(
 		/* A time correction needs to be applied. */
 #if !defined SYS_WINNT && !defined SYS_CYGWIN32
 		/* Slew the time on systems that support this. */
+		struct timeval oadjtv;
 		if (adjtime(&adjtv, &oadjtv) < 0) {
 			msyslog(LOG_ERR, "Can't adjust the time of day: %m");
 			exit(1);
