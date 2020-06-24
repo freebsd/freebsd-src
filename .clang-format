@@ -64,7 +64,54 @@ TabWidth: 8
 ColumnLimit: 80
 UseTab: Always
 SpaceAfterCStyleCast: false
-SortIncludes: false
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^\"opt_.*\.h\"'
+    Priority: 1
+    SortPriority: 10
+  - Regex: '^<sys/cdefs\.h>'
+    Priority: 2
+    SortPriority: 20
+  - Regex: '^<sys/types\.h>'
+    Priority: 2
+    SortPriority: 21
+  - Regex: '^<sys/param\.h>'
+    Priority: 2
+    SortPriority: 22
+  - Regex: '^<sys.*/'
+    Priority: 2
+    SortPriority: 23
+  - Regex: '^<vm/vm\.h>'
+    Priority: 3
+    SortPriority: 30
+  - Regex: '^<vm/'
+    Priority: 3
+    SortPriority: 31
+  - Regex: '^<machine/'
+    Priority: 4
+    SortPriority: 40
+  - Regex: '^<(x86|amd64|i386|xen)/'
+    Priority: 5
+    SortPriority: 50
+  - Regex: '^<dev/'
+    Priority: 6
+    SortPriority: 60
+  - Regex: '^<net.*/'
+    Priority: 7
+    SortPriority: 70
+  - Regex: '^<protocols/'
+    Priority: 7
+    SortPriority: 71
+  - Regex: '^<(fs|nfs(|client|server)|ufs)/'
+    Priority: 8
+    SortPriority: 80
+  - Regex: '^<[^/].*\.h'
+    Priority: 9
+    SortPriority: 90
+  - Regex: '^\".*\.h\"'
+    Priority: 10
+    SortPriority: 100
+SortIncludes: true
 KeepEmptyLinesAtTheStartOfBlocks: true
 # The options below will only be supported starting with clang 9.0:
 # TODO-CLANG-9: TypenameMacros:
