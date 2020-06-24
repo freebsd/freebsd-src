@@ -313,10 +313,15 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		 * timeout has fired more than once, as there is a reasonable
 		 * chance the first one is a false alarm and may not indicate
 		 * congestion.
+		 * This will put Cubic firmly into the concave / TCP friendly
+		 * region, for a slower ramp-up after two consecutive RTOs.
 		 */
 		if (CCV(ccv, t_rxtshift) >= 2) {
 			cubic_data->flags |= CUBICFLAG_CONG_EVENT;
 			cubic_data->t_last_cong = ticks;
+			cubic_data->max_cwnd = CCV(ccv, snd_cwnd_prev);
+			cubic_data->K = cubic_k(cubic_data->max_cwnd /
+						CCV(ccv, t_maxseg));
 		}
 		break;
 	}
