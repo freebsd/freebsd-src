@@ -188,8 +188,9 @@ struct tcpcb {
 	tcp_seq	snd_wl2;		/* window update seg ack number */
 
 	tcp_seq	irs;			/* initial receive sequence number */
-	tcp_seq	iss;		        /* initial send sequence number */
-	u_int   t_acktime;
+	tcp_seq	iss;			/* initial send sequence number */
+	u_int	t_acktime;		/* RACK and BBR incoming new data was acked */
+	u_int	t_sndtime;		/* time last data was sent */
 	u_int	ts_recent_age;		/* when last updated */
 	tcp_seq	snd_recover;		/* for use in NewReno Fast Recovery */
 	uint16_t cl4_spare;		/* Spare to adjust CL 4 */
