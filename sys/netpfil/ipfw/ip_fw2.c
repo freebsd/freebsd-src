@@ -2225,7 +2225,7 @@ do {								\
 				break;
 
 			case O_IPVER:
-				match = (is_ipv4 &&
+				match = ((is_ipv4 || is_ipv6) &&
 				    cmd->arg1 == ip->ip_v);
 				break;
 
