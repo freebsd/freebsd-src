@@ -729,6 +729,8 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	if (bus_dmamap_load(qpair->dma_tag, qpair->queuemem_map,
 	    queuemem, allocsz, nvme_single_map, &queuemem_phys, 0) != 0) {
 		nvme_printf(ctrlr, "failed to load qpair memory\n");
+		bus_dmamem_free(qpair->dma_tag, qpair->cmd,
+		    qpair->queuemem_map);
 		goto out;
 	}
 
@@ -811,24 +813,15 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 {
 	struct nvme_tracker	*tr;
 
-	if (qpair->tag)
+	if (qpair->tag) {
 		bus_teardown_intr(qpair->ctrlr->dev, qpair->res, qpair->tag);
-
-	if (mtx_initialized(&qpair->lock))
-		mtx_destroy(&qpair->lock);
-
-	if (qpair->res)
-		bus_release_resource(qpair->ctrlr->dev, SYS_RES_IRQ,
-		    rman_get_rid(qpair->res), qpair->res);
-
-	if (qpair->cmd != NULL) {
-		bus_dmamap_unload(qpair->dma_tag, qpair->queuemem_map);
-		bus_dmamem_free(qpair->dma_tag, qpair->cmd,
-		    qpair->queuemem_map);
+		qpair->tag = NULL;
 	}
 
-	if (qpair->act_tr)
+	if (qpair->act_tr) {
 		free_domain(qpair->act_tr, M_NVME);
+		qpair->act_tr = NULL;
+	}
 
 	while (!TAILQ_EMPTY(&qpair->free_tr)) {
 		tr = TAILQ_FIRST(&qpair->free_tr);
@@ -838,11 +831,31 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 		free_domain(tr, M_NVME);
 	}
 
-	if (qpair->dma_tag)
-		bus_dma_tag_destroy(qpair->dma_tag);
+	if (qpair->cmd != NULL) {
+		bus_dmamap_unload(qpair->dma_tag, qpair->queuemem_map);
+		bus_dmamem_free(qpair->dma_tag, qpair->cmd,
+		    qpair->queuemem_map);
+		qpair->cmd = NULL;
+	}
 
-	if (qpair->dma_tag_payload)
+	if (qpair->dma_tag) {
+		bus_dma_tag_destroy(qpair->dma_tag);
+		qpair->dma_tag = NULL;
+	}
+
+	if (qpair->dma_tag_payload) {
 		bus_dma_tag_destroy(qpair->dma_tag_payload);
+		qpair->dma_tag_payload = NULL;
+	}
+
+	if (mtx_initialized(&qpair->lock))
+		mtx_destroy(&qpair->lock);
+
+	if (qpair->res) {
+		bus_release_resource(qpair->ctrlr->dev, SYS_RES_IRQ,
+		    rman_get_rid(qpair->res), qpair->res);
+		qpair->res = NULL;
+	}
 }
 
 static void
