@@ -25,9 +25,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "crtbrand.S"
-#include "ignore_init_note.S"
-
 	.text
 	.align	4
 	.globl	_start

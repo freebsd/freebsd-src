@@ -44,8 +44,9 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "crtbrand.S"
-#include "ignore_init_note.S"
+#include <sys/param.h>
+#include <sys/elf_common.h>
+#include "notes.h"
 
 ENTRY(_start)
 	mov	r5, r2		/* cleanup */
