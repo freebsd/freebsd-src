@@ -1481,7 +1481,6 @@ OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 
 .if ${MK_CLANG_EXTRAS} == no
 OLD_FILES+=usr/bin/bugpoint
-OLD_FILES+=usr/bin/clang-format
 OLD_FILES+=usr/bin/llc
 OLD_FILES+=usr/bin/lli
 OLD_FILES+=usr/bin/llvm-as
@@ -1515,6 +1514,10 @@ OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
+.endif
+
+.if ${MK_CLANG_EXTRAS} == no && ${MK_CLANG_FORMAT} == no
+OLD_FILES+=usr/bin/clang-format
 .endif
 
 .if ${MK_CPP} == no

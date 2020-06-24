@@ -42,7 +42,6 @@ DIRDEPS+= \
 .if ${MK_CLANG_EXTRAS} == "yes"
 DIRDEPS+= \
 	usr.bin/clang/bugpoint \
-	usr.bin/clang/clang-format \
 	usr.bin/clang/llc \
 	usr.bin/clang/lli \
 	usr.bin/clang/llvm-ar \
@@ -69,6 +68,10 @@ DIRDEPS+= \
 	usr.bin/clang/llvm-xray \
 	usr.bin/clang/opt \
 
+.endif
+
+.if ${MK_CLANG_EXTRAS} == "yes" || ${MK_CLANG_FORMAT} == "yes"
+DIRDEPS+=	usr.bin/clang/clang-format
 .endif
 
 .if ${MK_LLD} == "yes"
