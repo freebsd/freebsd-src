@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2020
+.Dd June 24, 2020
 .Dt ACPI_IBM 4
 .Os
 .Sh NAME
@@ -293,7 +293,7 @@ is not set accordingly.
 .It Va dev.acpi_ibm.0.fan_level
 Indicates at what speed the fan should run when being in manual mode.
 Valid values range from 0 (off) to 7 (max) and 8.
-Level 8 is used by the driver to set the fan in disengaged mode.
+Level 8 is used by the driver to set the fan in unthrottled mode.
 In this mode, the fan is set to spin freely and will quickly reach a very
 high speed.
 Use this mode only if absolutely necessary, e.g., if the system has reached its
@@ -311,7 +311,7 @@ off
 .It Li 6, 7
 ~4300 RPM
 .It Li 8
-~6400 RPM (Full-speed, disengaged)
+~6400 RPM (Full-speed, unthrottled)
 .El
 .It Va dev.acpi_ibm.0.fan_speed
 (read-only)
