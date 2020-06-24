@@ -46,23 +46,23 @@
 	.globl	kernbase
 	.set	kernbase, KERNBASE
 
-	/* Trap entries */
 	.text
-
-	/* Reset vector */
-	.text
-	.globl _start
-_start:
+/*
+ * Alternate entry point. Used when booting via SBI firmware. It must be placed
+ * at the beginning of the .text section. Arguments are as follows:
+ *  - a0 = hart ID
+ *  - a1 = dtbp
+ *
+ * Multiple CPUs might enter from this point, so we perform a hart lottery and
+ * send the losers to mpentry.
+ */
+	.globl _alt_start
+_alt_start:
 	/* Set the global pointer */
 .option push
 .option norelax
 	lla	gp, __global_pointer$
 .option pop
-
-	/*
-	 * a0 = hart id
-	 * a1 = dtbp
-	 */
 
 	/* Pick a hart to run the boot process. */
 	lla	t0, hart_lottery
@@ -75,11 +75,43 @@ _start:
 	 */
 	beqz	t0, 1f
 	j	mpentry
+1:
+	/* Store the boot hart */
+	lla	t0, boot_hart
+	sw	a0, 0(t0)
+
+	/* Load zero as modulep */
+	mv	a0, zero
+	j	pagetables
+
+/*
+ * Main entry point. This routine is marked as the ELF entry, and is where
+ * loader(8) will enter the kernel. Arguments are as follows:
+ *  - a0 = modulep
+ *  - a1 = ???
+ *
+ * It is expected that only a single CPU will enter here.
+ */
+	.globl _start
+_start:
+	/* Set the global pointer */
+.option push
+.option norelax
+	lla	gp, __global_pointer$
+.option pop
 
 	/*
-	 * Page tables
+	 * Zero a1 to indicate that we have no DTB pointer. It is already
+	 * included in the loader(8) metadata.
 	 */
-1:
+	mv	a1, zero
+
+	/*
+	 * Page tables setup
+	 *  a0 - modulep or zero
+	 *  a1 - zero or dtbp
+	 */
+pagetables:
 	/* Get the kernel's load address */
 	jal	get_physmem
 
@@ -107,7 +139,7 @@ _start:
 	li	t2, 512			/* Build 512 entries */
 	add	t3, t4, t2
 	li	t5, 0
-2:
+1:
 	li	t0, (PTE_KERN | PTE_X)
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
@@ -115,7 +147,7 @@ _start:
 	addi	s1, s1, PTE_SIZE
 
 	addi	t4, t4, 1
-	bltu	t4, t3, 2b
+	bltu	t4, t3, 1b
 
 	/* Create an L1 page for early devmap */
 	lla	s1, pagetable_l1
@@ -134,6 +166,9 @@ _start:
 	mulw	a5, a5, a6
 	add	t0, s1, a5
 	sd	t6, (t0)
+
+	/* Check if we have a DTB that needs to be mapped */
+	beqz	a1, 2f
 
 	/* Create an L2 page superpage for DTB */
 	lla	s1, pagetable_l2_devmap
@@ -156,6 +191,7 @@ _start:
 	/* Page tables END */
 
 	/* Setup supervisor trap vector */
+2:
 	lla	t0, va
 	sub	t0, t0, s9
 	li	t1, KERNBASE
@@ -201,12 +237,6 @@ va:
 	addi	s0, s0, 8
 	bltu	s0, s1, 1b
 
-#ifdef SMP
-	/* Store boot hart id. */
-	la	t0, boot_hart
-	sw	a0, 0(t0)
-#endif
-
 	/* Fill riscv_bootparams */
 	la	t0, pagetable_l1
 	sd	t0, RISCV_BOOTPARAMS_KERN_L1PT(sp)
@@ -222,6 +252,8 @@ va:
 	add	t0, t0, t1
 	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
 	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
+
+	sd	a0, RISCV_BOOTPARAMS_MODULEP(sp)
 
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */
