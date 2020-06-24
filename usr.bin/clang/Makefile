@@ -18,7 +18,6 @@ SUBDIR+=	llvm-symbolizer
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=	bugpoint
-SUBDIR+=	clang-format
 SUBDIR+=	llc
 SUBDIR+=	lli
 SUBDIR+=	llvm-as
@@ -40,6 +39,10 @@ SUBDIR+=	llvm-pdbutil
 SUBDIR+=	llvm-rtdyld
 SUBDIR+=	llvm-xray
 SUBDIR+=	opt
+.endif
+
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_CLANG_FORMAT} != "no"
+SUBDIR+=	clang-format
 .endif
 
 .if ${MK_LLD} != "no"
