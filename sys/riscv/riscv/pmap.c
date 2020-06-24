@@ -619,8 +619,8 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	 * possibility of an aliased mapping in the future.
 	 */
 	l2p = pmap_l2(kernel_pmap, VM_EARLY_DTB_ADDRESS);
-	KASSERT((pmap_load(l2p) & PTE_V) != 0, ("dtpb not mapped"));
-	pmap_clear(l2p);
+	if ((pmap_load(l2p) & PTE_V) != 0)
+		pmap_clear(l2p);
 
 	sfence_vma();
 
