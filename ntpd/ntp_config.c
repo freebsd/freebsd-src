@@ -137,6 +137,16 @@ typedef struct peer_resolved_ctx_tag {
 #define MAXPPS		20	/* maximum length of PPS device string */
 
 /*
+ * Poll Skew List
+ */
+
+static psl_item psl[17-3+1];	/* values for polls 3-17 */
+				/* To simplify the runtime code we */
+				/* don't want to have to special-case */
+				/* dealing with a default */
+
+
+/*
  * Miscellaneous macros
  */
 #define ISEOL(c)	((c) == '#' || (c) == '\n' || (c) == '\0')

@@ -89,11 +89,13 @@ test_IPv6Address(void)
 	} } }; // 2001:0db8:85a3:08d3:0000:0000:0000:0000
 
 	sockaddr_u input;
+	memset(&input, 0, sizeof(input));
 	input.sa6.sin6_family = AF_INET6;
 	input.sa6.sin6_addr = input_address;
 	SET_PORT(&input, 3000);
 
 	sockaddr_u expected;
+	memset(&expected, 0, sizeof(expected));
 	expected.sa6.sin6_family = AF_INET6;
 	expected.sa6.sin6_addr = expected_address;
 	SET_PORT(&expected, 3000);

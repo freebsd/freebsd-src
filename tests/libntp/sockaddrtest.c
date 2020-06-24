@@ -26,9 +26,9 @@ IsEqual(const sockaddr_u expected, const sockaddr_u actual) {
 	}
 
 	if (actual.sa.sa_family == AF_INET) { // IPv4
-		if (expected.sa4.sin_port == actual.sa4.sin_port &&
-			memcmp(&expected.sa4.sin_addr, &actual.sa4.sin_addr,
-				   sizeof( in )) == 0) {
+		if (   expected.sa4.sin_port == actual.sa4.sin_port
+		    && memcmp(&expected.sa4.sin_addr, &actual.sa4.sin_addr,
+			      sizeof( in )) == 0) {
 			return TRUE;
 		} else {
 			char buf[4][32];
@@ -41,9 +41,10 @@ IsEqual(const sockaddr_u expected, const sockaddr_u actual) {
 			return FALSE;
 		}
 	} else if (actual.sa.sa_family == AF_INET6) { //IPv6
-		if (expected.sa6.sin6_port == actual.sa6.sin6_port &&
-			memcmp(&expected.sa6.sin6_addr, &actual.sa6.sin6_addr,
-				   sizeof(in6)) == 0) {
+		if (   expected.sa6.sin6_port == actual.sa6.sin6_port
+		    && expected.sa6.sin6_scope_id == actual.sa6.sin6_scope_id
+		    && memcmp(&expected.sa6.sin6_addr, &actual.sa6.sin6_addr,
+			      sizeof(in6)) == 0) {
 			return TRUE;
 		} else {
 			printf("IPv6 comparision failed");

@@ -259,6 +259,8 @@ typedef int socklen_t;
 #ifdef OPENSSL
 # define USE_OPENSSL_CRYPTO_RAND 1
 # define AUTOKEY
+# define HAVE_OPENSSL_CMAC_H
+# define ENABLE_CMAC
 #endif
 extern void arc4random_buf(void *buf, size_t nbytes);
 
@@ -409,6 +411,8 @@ typedef int ssize_t;	/* ssize is an int */
 # define HAVE_SETVBUF			1
 # define HAVE_STRCHR			1	/* for libopts */
 # define HAVE_STRDUP			1
+# define HAVE_STRNLEN			1
+# define HAVE_MEMCHR			1
 # define HAVE_TIMEGM			1	/* actually _mkgmtime */
 
 # define HAVE_STRUCT_TIMESPEC
