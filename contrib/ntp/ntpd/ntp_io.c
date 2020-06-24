@@ -3293,15 +3293,20 @@ read_refclock_packet(
 	int			consumed;
 	struct recvbuf *	rb;
 
-	rb = get_free_recv_buffer();
+	rb = get_free_recv_buffer(TRUE);
 
 	if (NULL == rb) {
 		/*
-		 * No buffer space available - just drop the packet
+		 * No buffer space available - just drop the 'packet'.
+		 * Since this is a non-blocking character stream we read
+		 * all data that we can.
+		 *
+		 * ...hmmmm... what about "tcflush(fd,TCIFLUSH)" here?!?
 		 */
-		char buf[RX_BUFF_SIZE];
-
-		buflen = read(fd, buf, sizeof buf);
+		char buf[128];
+		do
+			buflen = read(fd, buf, sizeof(buf));
+		while (buflen > 0);
 		packets_dropped++;
 		return (buflen);
 	}
@@ -3487,15 +3492,18 @@ read_network_packet(
 #endif
 
 	/*
-	 * Get a buffer and read the frame.  If we
-	 * haven't got a buffer, or this is received
-	 * on a disallowed socket, just dump the
+	 * Get a buffer and read the frame.  If we haven't got a buffer,
+	 * or this is received on a disallowed socket, just dump the
 	 * packet.
 	 */
 
-	rb = get_free_recv_buffer();
-	if (NULL == rb || itf->ignore_packets) {
-		char buf[RX_BUFF_SIZE];
+	rb = itf->ignore_packets ? NULL : get_free_recv_buffer(FALSE);
+	if (NULL == rb) {
+		/* A partial read on a UDP socket truncates the data and
+		 * removes the message from the queue. So there's no
+		 * need to have a full buffer here on the stack.
+		 */ 
+		char buf[16];
 		sockaddr_u from;
 
 		if (rb != NULL)
@@ -4740,12 +4748,14 @@ process_routing_msgs(struct asyncio_reader *reader)
 #ifdef HAVE_RTNETLINK
 	for (nh = UA_PTR(struct nlmsghdr, buffer);
 	     NLMSG_OK(nh, cnt);
-	     nh = NLMSG_NEXT(nh, cnt)) {
+	     nh = NLMSG_NEXT(nh, cnt))
+	{
 		msg_type = nh->nlmsg_type;
 #else
 	for (p = buffer;
 	     (p + sizeof(struct rt_msghdr)) <= (buffer + cnt);
-	     p += rtm.rtm_msglen) {
+	     p += rtm.rtm_msglen)
+	{
 		memcpy(&rtm, p, sizeof(rtm));
 		if (rtm.rtm_version != RTM_VERSION) {
 			msyslog(LOG_ERR,

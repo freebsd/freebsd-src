@@ -93,7 +93,7 @@ make_mac(
 		}
 	  cmac_fail:
 		if (ctx)
-			CMAC_CTX_cleanup(ctx);
+			CMAC_CTX_free(ctx);
 	}
 	else
 #   endif /*ENABLE_CMAC*/

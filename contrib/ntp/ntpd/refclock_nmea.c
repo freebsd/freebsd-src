@@ -289,7 +289,7 @@ static	int	nmea_start	(int, struct peer *);
 static	void	nmea_shutdown	(int, struct peer *);
 static	void	nmea_receive	(struct recvbuf *);
 static	void	nmea_poll	(int, struct peer *);
-static	void	nmea_procrec	(struct peer *, l_fp);
+static	void	nmea_procrec	(struct peer * const, l_fp);
 #ifdef HAVE_PPSAPI
 static	double	tabsdiffd	(l_fp, l_fp);
 static	void	nmea_control	(int, const struct refclockstat *,

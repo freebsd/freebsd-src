@@ -20,7 +20,9 @@
 #ifndef ISC_INT_H
 #define ISC_INT_H 1
 
-#define _INTEGRAL_MAX_BITS 64
+#ifndef _INTEGRAL_MAX_BITS
+# define _INTEGRAL_MAX_BITS 64
+#endif
 #include <limits.h>
 
 typedef __int8				isc_int8_t;

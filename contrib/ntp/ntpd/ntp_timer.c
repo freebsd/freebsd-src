@@ -350,21 +350,38 @@ timer(void)
 	 * than the orphan stratum are available. A server with no other
 	 * synchronization source is an orphan. It shows offset zero and
 	 * reference ID the loopback address.
+	 *
+	 * [bug 3644] If the orphan stratum is >= STRATUM_UNSPEC, we
+	 * have to do it a bit different. 'clock_select()' simply
+	 * tiptoed home, but since we're unsync'd and have no peer, we
+	 * should eventually declare we're out of sync. Otherwise we
+	 * would persistently claim we're good, and we're everything but
+	 * that...
+	 *
+	 * XXX: do we want to log an event about this?
 	 */
-	if (sys_orphan < STRATUM_UNSPEC && sys_peer == NULL &&
-	    current_time > orphwait) {
-		if (sys_leap == LEAP_NOTINSYNC) {
-			set_sys_leap(LEAP_NOWARNING);
+	if (sys_peer == NULL && current_time > orphwait) {
+		if (sys_orphan < STRATUM_UNSPEC) {
+			if (sys_leap == LEAP_NOTINSYNC) {
+				set_sys_leap(LEAP_NOWARNING);
 #ifdef AUTOKEY
-			if (crypto_flags)
-				crypto_update();
+				if (crypto_flags)
+					crypto_update();
 #endif	/* AUTOKEY */
+			}
+			sys_stratum = (u_char)sys_orphan;
+		} else {
+			if (sys_leap != LEAP_NOTINSYNC) {
+				set_sys_leap(LEAP_NOTINSYNC);
+				msyslog(LOG_WARNING, "%s",
+					"no peer for too long, server running free now");
+			}
+			sys_stratum = STRATUM_UNSPEC;
 		}
-		sys_stratum = (u_char)sys_orphan;
 		if (sys_stratum > 1)
-			sys_refid = htonl(LOOPBACKADR);
+		    sys_refid = htonl(LOOPBACKADR);
 		else
-			memcpy(&sys_refid, "LOOP", 4);
+		    memcpy(&sys_refid, "LOOP", 4);
 		sys_offset = 0;
 		sys_rootdelay = 0;
 		sys_rootdisp = 0;
