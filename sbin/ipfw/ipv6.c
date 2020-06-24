@@ -342,13 +342,8 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 	if (strcmp(av, "any") == 0)
 		return (1);
 
-
-	if (strcmp(av, "me") == 0) {	/* Set the data for "me" opt*/
-		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
-		return (1);
-	}
-
-	if (strcmp(av, "me6") == 0) {	/* Set the data for "me" opt*/
+	/* Set the data for "me" opt */
+	if (strcmp(av, "me") == 0 || strcmp(av, "me6") == 0) {
 		cmd->o.len |= F_INSN_SIZE(ipfw_insn);
 		return (1);
 	}
