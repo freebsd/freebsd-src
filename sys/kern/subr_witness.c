@@ -361,6 +361,8 @@ static int	witness_output(const char *fmt, ...) __printflike(1, 2);
 static int	witness_voutput(const char *fmt, va_list ap) __printflike(1, 0);
 static void	witness_setflag(struct lock_object *lock, int flag, int set);
 
+FEATURE(witness, "kernel has witness(9) support");
+
 static SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "Witness Locking");
 
