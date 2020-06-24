@@ -32,9 +32,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include "crtbrand.S"
-#include "ignore_init_note.S"
-
 ENTRY(_start)
 	mov	x3, x2		/* cleanup */
 	add	x1, x0, #8	/* load argv */
