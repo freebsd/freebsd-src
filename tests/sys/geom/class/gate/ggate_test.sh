@@ -16,6 +16,11 @@ ggated_head()
 
 ggated_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/244737"
+	fi
+
 	load_ggate
 
 	us=$(alloc_ggate_dev)
