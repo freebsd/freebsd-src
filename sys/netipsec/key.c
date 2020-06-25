@@ -3059,11 +3059,8 @@ key_cleansav(struct secasvar *sav)
 	}
 	if (sav->flags & SADB_X_EXT_F_CLONED)
 		return;
-	/*
-	 * Cleanup xform state.
-	 */
 	if (sav->tdb_xform != NULL) {
-		sav->tdb_xform->xf_zeroize(sav);
+		sav->tdb_xform->xf_cleanup(sav);
 		sav->tdb_xform = NULL;
 	}
 	if (sav->key_auth != NULL) {
