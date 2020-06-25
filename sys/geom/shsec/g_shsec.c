@@ -269,7 +269,7 @@ g_shsec_done(struct bio *bp)
 			    (ssize_t)pbp->bio_length);
 		}
 	}
-	bzero(bp->bio_data, bp->bio_length);
+	explicit_bzero(bp->bio_data, bp->bio_length);
 	uma_zfree(g_shsec_zone, bp->bio_data);
 	g_destroy_bio(bp);
 	pbp->bio_inbed++;
@@ -384,7 +384,7 @@ failure:
 		TAILQ_REMOVE(&queue, cbp, bio_queue);
 		bp->bio_children--;
 		if (cbp->bio_data != NULL) {
-			bzero(cbp->bio_data, cbp->bio_length);
+			explicit_bzero(cbp->bio_data, cbp->bio_length);
 			uma_zfree(g_shsec_zone, cbp->bio_data);
 		}
 		g_destroy_bio(cbp);
