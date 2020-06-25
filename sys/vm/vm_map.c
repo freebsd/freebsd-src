@@ -3644,7 +3644,7 @@ static void
 vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_object_t object;
-	vm_pindex_t offidxstart, offidxend, count, size1;
+	vm_pindex_t offidxstart, offidxend, size1;
 	vm_size_t size;
 
 	vm_map_entry_unlink(map, entry, UNLINK_MERGE_NONE);
@@ -3673,9 +3673,8 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		KASSERT(entry->cred == NULL || object->cred == NULL ||
 		    (entry->eflags & MAP_ENTRY_NEEDS_COPY),
 		    ("OVERCOMMIT vm_map_entry_delete: both cred %p", entry));
-		count = atop(size);
 		offidxstart = OFF_TO_IDX(entry->offset);
-		offidxend = offidxstart + count;
+		offidxend = offidxstart + atop(size);
 		VM_OBJECT_WLOCK(object);
 		if (object->ref_count != 1 &&
 		    ((object->flags & OBJ_ONEMAPPING) != 0 ||
@@ -3690,9 +3689,6 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 			 */
 			vm_object_page_remove(object, offidxstart, offidxend,
 			    OBJPR_NOTMAPPED);
-			if (object->type == OBJT_SWAP)
-				swap_pager_freespace(object, offidxstart,
-				    count);
 			if (offidxend >= object->size &&
 			    offidxstart < object->size) {
 				size1 = object->size;
