@@ -2121,6 +2121,12 @@ wired:
 		vm_page_free(p);
 	}
 	vm_object_pip_wakeup(object);
+
+	if (object->type == OBJT_SWAP) {
+		if (end == 0)
+			end = object->size;
+		swap_pager_freespace(object, start, end - start);
+	}
 }
 
 /*
@@ -2288,9 +2294,6 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	if (next_pindex < prev_object->size) {
 		vm_object_page_remove(prev_object, next_pindex, next_pindex +
 		    next_size, 0);
-		if (prev_object->type == OBJT_SWAP)
-			swap_pager_freespace(prev_object,
-					     next_pindex, next_size);
 #if 0
 		if (prev_object->cred != NULL) {
 			KASSERT(prev_object->charge >=

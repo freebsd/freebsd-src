@@ -540,14 +540,9 @@ retry:
 		}
 		delta = IDX_TO_OFF(object->size - nobjsize);
 
-		/* Toss in memory pages. */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
 			    0);
-
-		/* Toss pages from swap. */
-		if (object->type == OBJT_SWAP)
-			swap_pager_freespace(object, nobjsize, delta);
 
 		/* Free the swap accounted for shm */
 		swap_release_by_cred(delta, object->cred);

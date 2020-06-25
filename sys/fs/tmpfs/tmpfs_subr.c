@@ -1517,11 +1517,8 @@ retry:
 		/*
 		 * Release any swap space and free any whole pages.
 		 */
-		if (newpages < oldpages) {
-			swap_pager_freespace(uobj, newpages, oldpages -
-			    newpages);
+		if (newpages < oldpages)
 			vm_object_page_remove(uobj, newpages, 0, 0);
-		}
 	}
 	uobj->size = newpages;
 	VM_OBJECT_WUNLOCK(uobj);

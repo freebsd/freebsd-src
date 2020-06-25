@@ -1566,8 +1566,6 @@ mdresize(struct md_s *sc, struct md_req *mdr)
 		if (newpages < oldpages) {
 			VM_OBJECT_WLOCK(sc->object);
 			vm_object_page_remove(sc->object, newpages, 0, 0);
-			swap_pager_freespace(sc->object, newpages,
-			    oldpages - newpages);
 			swap_release_by_cred(IDX_TO_OFF(oldpages -
 			    newpages), sc->cred);
 			sc->object->charge = IDX_TO_OFF(newpages);
