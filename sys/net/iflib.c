@@ -3751,9 +3751,7 @@ _task_fn_tx(void *context)
 {
 	iflib_txq_t txq = context;
 	if_ctx_t ctx = txq->ift_ctx;
-#if defined(ALTQ) || defined(DEV_NETMAP)
 	if_t ifp = ctx->ifc_ifp;
-#endif
 	int abdicate = ctx->ifc_sysctl_tx_abdicate;
 
 #ifdef IFLIB_DIAGNOSTICS
