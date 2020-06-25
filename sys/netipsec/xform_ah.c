@@ -250,9 +250,6 @@ int
 ah_zeroize(struct secasvar *sav)
 {
 
-	if (sav->key_auth)
-		bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
-
 	crypto_freesession(sav->tdb_cryptoid);
 	sav->tdb_cryptoid = NULL;
 	sav->tdb_authalgxform = NULL;

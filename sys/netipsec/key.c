@@ -3060,27 +3060,19 @@ key_cleansav(struct secasvar *sav)
 	if (sav->flags & SADB_X_EXT_F_CLONED)
 		return;
 	/*
-	 * Cleanup xform state.  Note that zeroize'ing causes the
-	 * keys to be cleared; otherwise we must do it ourself.
+	 * Cleanup xform state.
 	 */
 	if (sav->tdb_xform != NULL) {
 		sav->tdb_xform->xf_zeroize(sav);
 		sav->tdb_xform = NULL;
-	} else {
-		if (sav->key_auth != NULL)
-			bzero(sav->key_auth->key_data, _KEYLEN(sav->key_auth));
-		if (sav->key_enc != NULL)
-			bzero(sav->key_enc->key_data, _KEYLEN(sav->key_enc));
 	}
 	if (sav->key_auth != NULL) {
-		if (sav->key_auth->key_data != NULL)
-			free(sav->key_auth->key_data, M_IPSEC_MISC);
+		zfree(sav->key_auth->key_data, M_IPSEC_MISC);
 		free(sav->key_auth, M_IPSEC_MISC);
 		sav->key_auth = NULL;
 	}
 	if (sav->key_enc != NULL) {
-		if (sav->key_enc->key_data != NULL)
-			free(sav->key_enc->key_data, M_IPSEC_MISC);
+		zfree(sav->key_enc->key_data, M_IPSEC_MISC);
 		free(sav->key_enc, M_IPSEC_MISC);
 		sav->key_enc = NULL;
 	}
