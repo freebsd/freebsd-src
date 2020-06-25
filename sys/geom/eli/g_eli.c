@@ -1005,8 +1005,7 @@ failed:
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 	g_eli_key_destroy(sc);
-	bzero(sc, sizeof(*sc));
-	free(sc, M_ELI);
+	zfree(sc, M_ELI);
 	return (NULL);
 }
 
@@ -1049,8 +1048,7 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
 	g_eli_key_destroy(sc);
-	bzero(sc, sizeof(*sc));
-	free(sc, M_ELI);
+	zfree(sc, M_ELI);
 
 	G_ELI_DEBUG(0, "Device %s destroyed.", gp->name);
 	g_wither_geom_close(gp, ENXIO);

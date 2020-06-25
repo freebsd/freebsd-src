@@ -357,10 +357,8 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 		fpu_kern_leave(curthread, ctx);
 		RELEASE_CTX(i, ctx);
 	}
-	if (allocated) {
-		bzero(buf, crp->crp_payload_length);
-		free(buf, M_ARMV8_CRYPTO);
-	}
+	if (allocated)
+		zfree(buf, M_ARMV8_CRYPTO);
 	return (0);
 }
 
