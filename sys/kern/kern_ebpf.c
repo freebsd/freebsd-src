@@ -106,12 +106,15 @@ static void
 ebpf_register_syscall_probes(void)
 {
 	int i;
+	struct ebpf_probe *probe;
 
 	for (i = 0; i < nitems(ebpf_syscall_probe); ++i) {
 		if (ebpf_syscall_probe[i].name.name[0] == '\0')
 			continue;
 
 		ebpf_syscall_probe[i].activate = ebpf_active_syscall_probe;
+		probe->activate = &ebpf_active_syscall_probe;
+		
 		ebpf_probe_register(&ebpf_syscall_probe[i]);
 	}
 }
@@ -240,10 +243,9 @@ ebpf_probe_deregister(void *arg)
 struct ebpf_probe *
 ebpf_activate_probe(ebpf_probe_id_t id, void *state)
 {
-	struct ebpf_probe *probe = NULL;
+	struct ebpf_probe *probe;
 	uint32_t hash; 
 	
-	probe->activate = &ebpf_active_syscall_probe;
 	hash = probe_id_hash(id);
 
 	sx_slock(&ebpf_sx);
