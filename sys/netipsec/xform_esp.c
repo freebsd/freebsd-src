@@ -243,11 +243,9 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 static int
 esp_zeroize(struct secasvar *sav)
 {
-	/* NB: ah_zerorize free's the crypto session state */
+	/* NB: ah_zeroize free's the crypto session state */
 	int error = ah_zeroize(sav);
 
-	if (sav->key_enc)
-		bzero(sav->key_enc->key_data, _KEYLEN(sav->key_enc));
 	sav->tdb_encalgxform = NULL;
 	sav->tdb_xform = NULL;
 	return error;
