@@ -388,10 +388,7 @@ g_eli_resize(struct g_consumer *cp)
 		}
 iofail:
 		explicit_bzero(&md, sizeof(md));
-		if (sector != NULL) {
-			explicit_bzero(sector, pp->sectorsize);
-			free(sector, M_ELI);
-		}
+		zfree(sector, M_ELI);
 	}
 
 	oldsize = sc->sc_mediasize;

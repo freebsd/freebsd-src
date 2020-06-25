@@ -2337,8 +2337,7 @@ cxgbe_tls_tag_free(struct m_snd_tag *mst)
 	if (tlsp->tx_key_addr >= 0)
 		free_keyid(tlsp, tlsp->tx_key_addr);
 
-	explicit_bzero(&tlsp->keyctx, sizeof(&tlsp->keyctx));
-	free(tlsp, M_CXGBE);
+	zfree(tlsp, M_CXGBE);
 }
 
 void

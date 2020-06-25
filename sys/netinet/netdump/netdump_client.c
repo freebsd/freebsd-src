@@ -642,11 +642,7 @@ netdump_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t addr,
 		dumper.mediasize = 0;
 
 		error = dumper_insert(&dumper, conf->kda_iface, conf);
-		if (encryptedkey != NULL) {
-			explicit_bzero(encryptedkey,
-			    conf->kda_encryptedkeysize);
-			free(encryptedkey, M_TEMP);
-		}
+		zfree(encryptedkey, M_TEMP);
 		if (error != 0)
 			netdump_unconfigure();
 		break;

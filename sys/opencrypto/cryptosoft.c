@@ -1428,27 +1428,14 @@ static void
 swcr_freesession(device_t dev, crypto_session_t cses)
 {
 	struct swcr_session *ses;
-	struct swcr_auth *swa;
-	struct auth_hash *axf;
 
 	ses = crypto_get_driver_session(cses);
 
 	mtx_destroy(&ses->swcr_lock);
 
 	zfree(ses->swcr_encdec.sw_kschedule, M_CRYPTO_DATA);
-
-	axf = ses->swcr_auth.sw_axf;
-	if (axf != NULL) {
-		swa = &ses->swcr_auth;
-		if (swa->sw_ictx != NULL) {
-			explicit_bzero(swa->sw_ictx, axf->ctxsize);
-			free(swa->sw_ictx, M_CRYPTO_DATA);
-		}
-		if (swa->sw_octx != NULL) {
-			explicit_bzero(swa->sw_octx, axf->ctxsize);
-			free(swa->sw_octx, M_CRYPTO_DATA);
-		}
-	}
+	zfree(ses->swcr_auth.sw_ictx, M_CRYPTO_DATA);
+	zfree(ses->swcr_auth.sw_octx, M_CRYPTO_DATA);
 }
 
 /*

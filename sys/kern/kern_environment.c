@@ -607,8 +607,7 @@ kern_unsetenv(const char *name)
 			kenvp[i++] = kenvp[j];
 		kenvp[i] = NULL;
 		mtx_unlock(&kenv_lock);
-		explicit_bzero(oldenv, strlen(oldenv));
-		free(oldenv, M_KENV);
+		zfree(oldenv, M_KENV);
 		return (0);
 	}
 	mtx_unlock(&kenv_lock);
