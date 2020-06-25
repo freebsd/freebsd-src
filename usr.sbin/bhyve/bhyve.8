@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2020
+.Dd Jun 25, 2020
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd "run a guest operating system inside a virtual machine"
 .Sh SYNOPSIS
 .Nm
-.Op Fl AabCeHhPSuWwxY
+.Op Fl AabCDeHhPSuWwxY
 .Oo
 .Sm off
 .Fl c\~
@@ -131,6 +131,8 @@ If a
 is specified more than once the last one has precedence.
 .It Fl C
 Include guest memory in core file.
+.It Fl D
+Destroy the VM on guest initiated power-off.
 .It Fl e
 Force
 .Nm
