@@ -1444,7 +1444,7 @@ do_pass_establish(struct sge_iq *iq, const struct rss_header *rss,
 
 	ifp = synqe->syn->m_pkthdr.rcvif;
 	vi = ifp->if_softc;
-	KASSERT(vi->pi->adapter == sc,
+	KASSERT(vi->adapter == sc,
 	    ("%s: vi %p, sc %p mismatch", __func__, vi, sc));
 
 	if (__predict_false(inp->inp_flags & INP_DROPPED)) {
