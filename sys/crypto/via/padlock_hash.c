@@ -199,8 +199,7 @@ padlock_sha_free(void *vctx)
 
 	ctx = vctx;
 	if (ctx->psc_buf != NULL) {
-		//bzero(ctx->psc_buf, ctx->psc_size);
-		free(ctx->psc_buf, M_PADLOCK);
+		zfree(ctx->psc_buf, M_PADLOCK);
 		ctx->psc_buf = NULL;
 		ctx->psc_offset = 0;
 		ctx->psc_size = 0;
@@ -415,14 +414,12 @@ padlock_hash_free(struct padlock_session *ses)
 
 	if (ses->ses_ictx != NULL) {
 		padlock_free_ctx(ses->ses_axf, ses->ses_ictx);
-		bzero(ses->ses_ictx, ses->ses_axf->ctxsize);
-		free(ses->ses_ictx, M_PADLOCK);
+		zfree(ses->ses_ictx, M_PADLOCK);
 		ses->ses_ictx = NULL;
 	}
 	if (ses->ses_octx != NULL) {
 		padlock_free_ctx(ses->ses_axf, ses->ses_octx);
-		bzero(ses->ses_octx, ses->ses_axf->ctxsize);
-		free(ses->ses_octx, M_PADLOCK);
+		zfree(ses->ses_octx, M_PADLOCK);
 		ses->ses_octx = NULL;
 	}
 }
