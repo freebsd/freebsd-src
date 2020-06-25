@@ -65,7 +65,7 @@ glxsb_hash_key_setup(struct glxsb_session *ses, const char *key, int klen)
 static int
 glxsb_authcompute(struct glxsb_session *ses, struct cryptop *crp)
 {
-	u_char hash[HASH_MAX_LEN], hash2[HASH_MAX_LEN];
+	u_char hash[HASH_MAX_LEN];
 	struct auth_hash *axf;
 	union authctx ctx;
 	int error;
@@ -86,17 +86,22 @@ glxsb_authcompute(struct glxsb_session *ses, struct cryptop *crp)
 	bcopy(ses->ses_octx, &ctx, axf->ctxsize);
 	axf->Update(&ctx, hash, axf->hashsize);
 	axf->Final(hash, &ctx);
+	explicit_bzero(&ctx, sizeof(ctx));
 
 	/* Verify or inject the authentication data */
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
+		u_char hash2[HASH_MAX_LEN];
+
 		crypto_copydata(crp, crp->crp_digest_start, ses->ses_mlen,
 		    hash2);
 		if (timingsafe_bcmp(hash, hash2, ses->ses_mlen) != 0)
-			return (EBADMSG);
+			error = EBADMSG;
+		explicit_bzero(hash2, sizeof(hash2));
 	} else
 		crypto_copyback(crp, crp->crp_digest_start, ses->ses_mlen,
 		    hash);
-	return (0);
+	explicit_bzero(hash, sizeof(hash));
+	return (error);
 }
 
 int
