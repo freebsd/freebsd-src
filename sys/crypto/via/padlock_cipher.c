@@ -234,8 +234,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptop *crp,
 		crypto_copyback(crp, crp->crp_payload_start,
 		    crp->crp_payload_length, abuf);
 
-		explicit_bzero(buf, crp->crp_payload_length + 16);
-		free(buf, M_PADLOCK);
+		zfree(buf, M_PADLOCK);
 	}
 	return (0);
 }

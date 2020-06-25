@@ -241,8 +241,7 @@ int
 	if (error == ERESTART || error == EINTR)
 		error = 0;
 
-	explicit_bzero(random_buf, bufsize);
-	free(random_buf, M_ENTROPY);
+	zfree(random_buf, M_ENTROPY);
 	return (error);
 }
 

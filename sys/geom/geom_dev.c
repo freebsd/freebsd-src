@@ -614,10 +614,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 			kda->kda_encryptedkey = encryptedkey;
 			error = g_dev_setdumpdev(dev, kda);
 		}
-		if (encryptedkey != NULL) {
-			explicit_bzero(encryptedkey, kda->kda_encryptedkeysize);
-			free(encryptedkey, M_TEMP);
-		}
+		zfree(encryptedkey, M_TEMP);
 		explicit_bzero(kda, sizeof(*kda));
 		break;
 	    }

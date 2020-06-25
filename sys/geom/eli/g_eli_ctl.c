@@ -655,8 +655,7 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			    prov, error);
 		}
 		explicit_bzero(&md, sizeof(md));
-		explicit_bzero(sector, pp->sectorsize);
-		free(sector, M_ELI);
+		zfree(sector, M_ELI);
 	}
 }
 
@@ -759,8 +758,7 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	explicit_bzero(&md, sizeof(md));
 	error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
 	    pp->sectorsize);
-	explicit_bzero(sector, pp->sectorsize);
-	free(sector, M_ELI);
+	zfree(sector, M_ELI);
 	if (error != 0) {
 		gctl_error(req, "Cannot store metadata on %s (error=%d).",
 		    pp->name, error);
@@ -875,8 +873,7 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 		(void)g_io_flush(cp);
 	}
 	explicit_bzero(&md, sizeof(md));
-	explicit_bzero(sector, pp->sectorsize);
-	free(sector, M_ELI);
+	zfree(sector, M_ELI);
 	if (*all)
 		G_ELI_DEBUG(1, "All keys removed from %s.", pp->name);
 	else

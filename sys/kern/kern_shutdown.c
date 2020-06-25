@@ -1058,8 +1058,7 @@ kerneldumpcrypto_create(size_t blocksize, uint8_t encryption,
 
 	return (kdc);
 failed:
-	explicit_bzero(kdc, sizeof(*kdc) + dumpkeysize);
-	free(kdc, M_EKCD);
+	zfree(kdc, M_EKCD);
 	return (NULL);
 }
 
@@ -1156,8 +1155,7 @@ kerneldumpcomp_destroy(struct dumperinfo *di)
 	if (kdcomp == NULL)
 		return;
 	compressor_fini(kdcomp->kdc_stream);
-	explicit_bzero(kdcomp->kdc_buf, di->maxiosize);
-	free(kdcomp->kdc_buf, M_DUMPER);
+	zfree(kdcomp->kdc_buf, M_DUMPER);
 	free(kdcomp, M_DUMPER);
 }
 
@@ -1171,23 +1169,14 @@ free_single_dumper(struct dumperinfo *di)
 	if (di == NULL)
 		return;
 
-	if (di->blockbuf != NULL) {
-		explicit_bzero(di->blockbuf, di->blocksize);
-		free(di->blockbuf, M_DUMPER);
-	}
+	zfree(di->blockbuf, M_DUMPER);
 
 	kerneldumpcomp_destroy(di);
 
 #ifdef EKCD
-	if (di->kdcrypto != NULL) {
-		explicit_bzero(di->kdcrypto, sizeof(*di->kdcrypto) +
-		    di->kdcrypto->kdc_dumpkeysize);
-		free(di->kdcrypto, M_EKCD);
-	}
+	zfree(di->kdcrypto, M_EKCD);
 #endif
-
-	explicit_bzero(di, sizeof(*di));
-	free(di, M_DUMPER);
+	zfree(di, M_DUMPER);
 }
 
 /* Registration of dumpers */

@@ -682,15 +682,12 @@ ktls_cleanup(struct ktls_session *tls)
 #endif
 	}
 	if (tls->params.auth_key != NULL) {
-		explicit_bzero(tls->params.auth_key, tls->params.auth_key_len);
-		free(tls->params.auth_key, M_KTLS);
+		zfree(tls->params.auth_key, M_KTLS);
 		tls->params.auth_key = NULL;
 		tls->params.auth_key_len = 0;
 	}
 	if (tls->params.cipher_key != NULL) {
-		explicit_bzero(tls->params.cipher_key,
-		    tls->params.cipher_key_len);
-		free(tls->params.cipher_key, M_KTLS);
+		zfree(tls->params.cipher_key, M_KTLS);
 		tls->params.cipher_key = NULL;
 		tls->params.cipher_key_len = 0;
 	}
