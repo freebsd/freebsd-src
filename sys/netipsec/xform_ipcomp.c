@@ -179,15 +179,14 @@ ipcomp_init(struct secasvar *sav, struct xformsw *xsp)
 }
 
 /*
- * ipcomp_zeroize() used when IPCA is deleted
+ * ipcomp_cleanup() used when IPCA is deleted
  */
-static int
-ipcomp_zeroize(struct secasvar *sav)
+static void
+ipcomp_cleanup(struct secasvar *sav)
 {
 
 	crypto_freesession(sav->tdb_cryptoid);
 	sav->tdb_cryptoid = NULL;
-	return 0;
 }
 
 /*
@@ -739,7 +738,7 @@ static struct xformsw ipcomp_xformsw = {
 	.xf_type =	XF_IPCOMP,
 	.xf_name =	"IPcomp",
 	.xf_init =	ipcomp_init,
-	.xf_zeroize =	ipcomp_zeroize,
+	.xf_cleanup =	ipcomp_cleanup,
 	.xf_input =	ipcomp_input,
 	.xf_output =	ipcomp_output,
 };

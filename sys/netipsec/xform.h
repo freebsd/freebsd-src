@@ -89,7 +89,7 @@ struct xformsw {
 	u_short			xf_type;	/* xform ID */
 	const char		*xf_name;	/* human-readable name */
 	int	(*xf_init)(struct secasvar*, struct xformsw*);	/* setup */
-	int	(*xf_zeroize)(struct secasvar*);		/* cleanup */
+	void	(*xf_cleanup)(struct secasvar*);		/* cleanup */
 	int	(*xf_input)(struct mbuf*, struct secasvar*,	/* input */
 			int, int);
 	int	(*xf_output)(struct mbuf*,			/* output */
@@ -112,7 +112,6 @@ struct crypto_session_params;
 int xform_ah_authsize(const struct auth_hash *);
 int ah_init0(struct secasvar *, struct xformsw *,
     struct crypto_session_params *);
-extern int ah_zeroize(struct secasvar *sav);
 extern size_t ah_hdrsiz(struct secasvar *);
 
 /* XF_ESP */
