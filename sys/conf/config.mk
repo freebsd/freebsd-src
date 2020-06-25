@@ -44,6 +44,10 @@ opt_printf.h:
 	echo "#define PRINTF_BUFR_SIZE 128" > ${.TARGET}
 opt_scsi.h:
 	echo "#define SCSI_DELAY 15000" > ${.TARGET}
+.if ${MK_SCTP_SUPPORT} != "no"
+opt_sctp.h:
+	@echo "#define SCTP_SUPPORT 1" > ${.TARGET}
+.endif
 opt_wlan.h:
 	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
 	echo "#define IEEE80211_SUPPORT_MESH 1" >> ${.TARGET}
@@ -64,6 +68,9 @@ KERN_OPTS+= INET6
 .endif
 .if ${MK_IPSEC_SUPPORT} != "no"
 KERN_OPTS+= IPSEC_SUPPORT
+.endif
+.if ${MK_SCTP_SUPPORT} != "no"
+KERN_OPTS+= SCTP_SUPPORT
 .endif
 .elif !defined(KERN_OPTS)
 # Add all the options that are mentioned in any opt_*.h file when we
