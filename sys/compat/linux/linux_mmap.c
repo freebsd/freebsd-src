@@ -38,9 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/imgact.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/mman.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
@@ -48,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_mmap.h>
@@ -242,6 +245,98 @@ linux_mprotect_common(struct thread *td, uintptr_t addr, size_t len, int prot)
 	return (kern_mprotect(td, addr, len, prot));
 }
 
+/*
+ * Implement Linux madvise(MADV_DONTNEED), which has unusual semantics: for
+ * anonymous memory, pages in the range are immediately discarded.
+ */
+static int
+linux_madvise_dontneed(struct thread *td, vm_offset_t start, vm_offset_t end)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t backing_object, object;
+	vm_offset_t estart, eend;
+	vm_pindex_t pstart, pend;
+	int error;
+
+	map = &td->td_proc->p_vmspace->vm_map;
+
+	if (!vm_map_range_valid(map, start, end))
+		return (EINVAL);
+	start = trunc_page(start);
+	end = round_page(end);
+
+	error = 0;
+	vm_map_lock_read(map);
+	if (!vm_map_lookup_entry(map, start, &entry))
+		entry = vm_map_entry_succ(entry);
+	for (; entry->start < end; entry = vm_map_entry_succ(entry)) {
+		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0)
+			continue;
+
+		if (entry->wired_count != 0) {
+			error = EINVAL;
+			break;
+		}
+
+		object = entry->object.vm_object;
+		if (object == NULL)
+			continue;
+
+		pstart = OFF_TO_IDX(entry->offset);
+		if (start > entry->start) {
+			pstart += atop(start - entry->start);
+			estart = start;
+		} else {
+			estart = entry->start;
+		}
+		pend = OFF_TO_IDX(entry->offset) +
+		    atop(entry->end - entry->start);
+		if (entry->end > end) {
+			pend -= atop(entry->end - end);
+			eend = end;
+		} else {
+			eend = entry->end;
+		}
+
+		if ((object->flags & (OBJ_ANON | OBJ_ONEMAPPING)) ==
+		    (OBJ_ANON | OBJ_ONEMAPPING)) {
+			/*
+			 * Singly-mapped anonymous memory is discarded.  This
+			 * does not match Linux's semantics when the object
+			 * belongs to a shadow chain of length > 1, since
+			 * subsequent faults may retrieve pages from an
+			 * intermediate anonymous object.  However, handling
+			 * this case correctly introduces a fair bit of
+			 * complexity.
+			 */
+			VM_OBJECT_WLOCK(object);
+			if ((object->flags & OBJ_ONEMAPPING) != 0) {
+				vm_object_collapse(object);
+				vm_object_page_remove(object, pstart, pend, 0);
+				backing_object = object->backing_object;
+				if (backing_object != NULL &&
+				    (backing_object->flags & OBJ_ANON) != 0)
+					linux_msg(td,
+					    "possibly incorrect MADV_DONTNEED");
+				VM_OBJECT_WUNLOCK(object);
+				continue;
+			}
+			VM_OBJECT_WUNLOCK(object);
+		}
+
+		/*
+		 * Handle shared mappings.  Remove them outright instead of
+		 * calling pmap_advise(), for consistency with Linux.
+		 */
+		pmap_remove(map->pmap, estart, eend);
+		vm_object_madvise(object, pstart, pend, MADV_DONTNEED);
+	}
+	vm_map_unlock_read(map);
+
+	return (error);
+}
+
 int
 linux_madvise_common(struct thread *td, uintptr_t addr, size_t len, int behav)
 {
@@ -256,7 +351,7 @@ linux_madvise_common(struct thread *td, uintptr_t addr, size_t len, int behav)
 	case LINUX_MADV_WILLNEED:
 		return (kern_madvise(td, addr, len, MADV_WILLNEED));
 	case LINUX_MADV_DONTNEED:
-		return (kern_madvise(td, addr, len, MADV_DONTNEED));
+		return (linux_madvise_dontneed(td, addr, addr + len));
 	case LINUX_MADV_FREE:
 		return (kern_madvise(td, addr, len, MADV_FREE));
 	case LINUX_MADV_REMOVE:
