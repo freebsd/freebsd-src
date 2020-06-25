@@ -53,7 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 #include <strings.h>
 #include <vmmapi.h>
 #define	KASSERT(exp,msg)	assert((exp))
@@ -1990,22 +1992,36 @@ vie_calculate_gla(enum vm_cpu_mode cpu_mode, enum vm_reg_name seg,
 	return (0);
 }
 
+/*
+ * Prepare a partially decoded vie for a 2nd attempt.
+ */
+void
+vie_restart(struct vie *vie)
+{
+	_Static_assert(
+	    offsetof(struct vie, inst) < offsetof(struct vie, vie_startzero) &&
+	    offsetof(struct vie, num_valid) < offsetof(struct vie, vie_startzero),
+	    "restart should not erase instruction length or contents");
+
+	memset((char *)vie + offsetof(struct vie, vie_startzero), 0,
+	    sizeof(*vie) - offsetof(struct vie, vie_startzero));
+
+	vie->base_register = VM_REG_LAST;
+	vie->index_register = VM_REG_LAST;
+	vie->segment_register = VM_REG_LAST;
+}
+
 void
 vie_init(struct vie *vie, const char *inst_bytes, int inst_length)
 {
 	KASSERT(inst_length >= 0 && inst_length <= VIE_INST_SIZE,
 	    ("%s: invalid instruction length (%d)", __func__, inst_length));
 
-	bzero(vie, sizeof(struct vie));
-
-	vie->base_register = VM_REG_LAST;
-	vie->index_register = VM_REG_LAST;
-	vie->segment_register = VM_REG_LAST;
-
-	if (inst_length) {
-		bcopy(inst_bytes, vie->inst, inst_length);
-		vie->num_valid = inst_length;
-	}
+	vie_restart(vie);
+	memset(vie->inst, 0, sizeof(vie->inst));
+	if (inst_length != 0)
+		memcpy(vie->inst, inst_bytes, inst_length);
+	vie->num_valid = inst_length;
 }
 
 #ifdef _KERNEL

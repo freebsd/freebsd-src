@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #ifndef WITHOUT_CAPSICUM
 #include <machine/vmm_dev.h>
 #endif
+#include <machine/vmm_instruction_emul.h>
 #include <vmmapi.h>
 
 #include "bhyverun.h"
@@ -746,12 +747,26 @@ vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 static int
 vmexit_inst_emul(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
-	int err, i;
+	int err, i, cs_d;
 	struct vie *vie;
+	enum vm_cpu_mode mode;
 
 	stats.vmexit_inst_emul++;
 
 	vie = &vmexit->u.inst_emul.vie;
+	if (!vie->decoded) {
+		/*
+		 * Attempt to decode in userspace as a fallback.  This allows
+		 * updating instruction decode in bhyve without rebooting the
+		 * kernel (rapid prototyping), albeit with much slower
+		 * emulation.
+		 */
+		vie_restart(vie);
+		mode = vmexit->u.inst_emul.paging.cpu_mode;
+		cs_d = vmexit->u.inst_emul.cs_d;
+		(void)vmm_decode_instruction(mode, cs_d, vie);
+	}
+
 	err = emulate_mem(ctx, *pvcpu, vmexit->u.inst_emul.gpa,
 	    vie, &vmexit->u.inst_emul.paging);
 
