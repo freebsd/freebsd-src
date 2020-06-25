@@ -316,9 +316,9 @@ g_bde_keyloc_encrypt(u_char *sha2, uint64_t v0, uint64_t v1, void *output)
 	AES_init(&ci);
 	AES_makekey(&ki, DIR_ENCRYPT, G_BDE_KKEYBITS, sha2 + 0);
 	AES_encrypt(&ci, &ki, buf, output, sizeof buf);
-	bzero(buf, sizeof buf);
-	bzero(&ci, sizeof ci);
-	bzero(&ki, sizeof ki);
+	explicit_bzero(buf, sizeof buf);
+	explicit_bzero(&ci, sizeof ci);
+	explicit_bzero(&ki, sizeof ki);
 	return (0);
 }
 
@@ -333,9 +333,9 @@ g_bde_keyloc_decrypt(u_char *sha2, void *input, uint64_t *output)
 	AES_makekey(&ki, DIR_DECRYPT, G_BDE_KKEYBITS, sha2 + 0);
 	AES_decrypt(&ci, &ki, input, buf, sizeof buf);
 	*output = le64dec(buf);
-	bzero(buf, sizeof buf);
-	bzero(&ci, sizeof ci);
-	bzero(&ki, sizeof ki);
+	explicit_bzero(buf, sizeof buf);
+	explicit_bzero(&ci, sizeof ci);
+	explicit_bzero(&ki, sizeof ki);
 	return(0);
 }
 
