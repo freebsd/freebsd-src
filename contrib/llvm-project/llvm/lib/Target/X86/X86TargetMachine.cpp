@@ -82,6 +82,8 @@ extern "C" LLVM_EXTERNAL_VISIBILITY void LLVMInitializeX86Target() {
   initializeX86SpeculativeLoadHardeningPassPass(PR);
   initializeX86FlagsCopyLoweringPassPass(PR);
   initializeX86CondBrFoldingPassPass(PR);
+  initializeX86LoadValueInjectionLoadHardeningPassPass(PR);
+  initializeX86LoadValueInjectionRetHardeningPassPass(PR);
   initializeX86OptimizeLEAPassPass(PR);
 }
 
@@ -496,6 +498,10 @@ void X86PassConfig::addMachineSSAOptimization() {
 
 void X86PassConfig::addPostRegAlloc() {
   addPass(createX86FloatingPointStackifierPass());
+  if (getOptLevel() != CodeGenOpt::None)
+    addPass(createX86LoadValueInjectionLoadHardeningPass());
+  else
+    addPass(createX86LoadValueInjectionLoadHardeningUnoptimizedPass());
 }
 
 void X86PassConfig::addPreSched2() { addPass(createX86ExpandPseudoPass()); }
@@ -525,7 +531,7 @@ void X86PassConfig::addPreEmitPass2() {
   const Triple &TT = TM->getTargetTriple();
   const MCAsmInfo *MAI = TM->getMCAsmInfo();
 
-  addPass(createX86RetpolineThunksPass());
+  addPass(createX86IndirectThunksPass());
 
   // Insert extra int3 instructions after trailing call instructions to avoid
   // issues in the unwinder.
@@ -542,6 +548,7 @@ void X86PassConfig::addPreEmitPass2() {
   // Identify valid longjmp targets for Windows Control Flow Guard.
   if (TT.isOSWindows())
     addPass(createCFGuardLongjmpPass());
+  addPass(createX86LoadValueInjectionRetHardeningPass());
 }
 
 std::unique_ptr<CSEConfigBase> X86PassConfig::getCSEConfig() const {
