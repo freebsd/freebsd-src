@@ -459,6 +459,7 @@ cesa_set_mkey(struct cesa_session *cs, int alg, const uint8_t *mkey, int mklen)
 		hin[i] = htobe32(hin[i]);
 		hout[i] = htobe32(hout[i]);
 	}
+	explicit_bzero(&auth_ctx, sizeof(auth_ctx));
 }
 
 static int
