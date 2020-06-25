@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 26, 2020
+.Dd June 25, 2020
 .Dt LIMITS 1
 .Os
 .Sh NAME
@@ -376,6 +376,44 @@ exits with a status of
 .Dv EXIT_SUCCESS .
 When run in command mode and execution of the command succeeds, the exit status
 will be whatever the executed program returns.
+.Sh EXAMPLES
+Show current stack size limit:
+.Bd -literal -offset indent
+$ limits -s
+Resource limits (current):
+	  stacksize              524288 kB
+.Ed
+.Pp
+Try to run
+.Xr ls 1
+with 1 byte of
+.Va datasize
+limit:
+.Bd -literal -offset indent
+$ limits -d 1b ls
+Data segment size exceeds process limit
+Abort trap
+.Ed
+.Pp
+Produce
+.Ql eval mode
+output to limit
+.Va sbsize
+to 1 byte.
+Output obtained when command is run from
+.Xr sh 1 :
+.Bd -literal -offset indent
+$ limits -e -b 1b
+ulimit -b 512;
+.Ed
+.Pp
+Same as above from
+.Xr csh 1
+.Bd -literal -offset indent
+% limits -e -b 1b
+limit -h sbsize 512;
+limit sbsize 512;
+.Ed
 .Sh SEE ALSO
 .Xr csh 1 ,
 .Xr env 1 ,
@@ -396,7 +434,7 @@ utility first appeared in
 The
 .Nm
 utility was written by
-.An David Nugent Aq Mt davidn@FreeBSD.org . 
+.An David Nugent Aq Mt davidn@FreeBSD.org .
 .Sh BUGS
 The
 .Nm
