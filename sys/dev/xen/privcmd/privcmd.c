@@ -78,12 +78,14 @@ struct privcmd_map {
 };
 
 static d_ioctl_t     privcmd_ioctl;
+static d_open_t      privcmd_open;
 static d_mmap_single_t	privcmd_mmap_single;
 
 static struct cdevsw privcmd_devsw = {
 	.d_version = D_VERSION,
 	.d_ioctl = privcmd_ioctl,
 	.d_mmap_single = privcmd_mmap_single,
+	.d_open = privcmd_open,
 	.d_name = "privcmd",
 };
 
@@ -97,6 +99,10 @@ static struct cdev_pager_ops privcmd_pg_ops = {
 	.cdev_pg_fault = privcmd_pg_fault,
 	.cdev_pg_ctor =	privcmd_pg_ctor,
 	.cdev_pg_dtor =	privcmd_pg_dtor,
+};
+
+struct per_user_data {
+	domid_t dom;
 };
 
 static device_t privcmd_dev = NULL;
@@ -259,12 +265,30 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 {
 	int error;
 	unsigned int i;
+	void *data;
+	const struct per_user_data *u;
+
+	error = devfs_get_cdevpriv(&data);
+	if (error != 0)
+		return (EINVAL);
+	/*
+	 * Constify user-data to prevent unintended changes to the restriction
+	 * limits.
+	 */
+	u = data;
 
 	switch (cmd) {
 	case IOCTL_PRIVCMD_HYPERCALL: {
 		struct ioctl_privcmd_hypercall *hcall;
 
 		hcall = (struct ioctl_privcmd_hypercall *)arg;
+
+		/* Forbid hypercalls if restricted. */
+		if (u->dom != DOMID_INVALID) {
+			error = EPERM;
+			break;
+		}
+
 #ifdef __amd64__
 		/*
 		 * The hypervisor page table walker will refuse to access
@@ -300,6 +324,11 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		uint16_t num;
 
 		mmap = (struct ioctl_privcmd_mmapbatch *)arg;
+
+		if (u->dom != DOMID_INVALID && u->dom != mmap->dom) {
+			error = EPERM;
+			break;
+		}
 
 		umap = setup_virtual_area(td, mmap->addr, mmap->num);
 		if (umap == NULL) {
@@ -382,6 +411,11 @@ mmap_out:
 
 		mmap = (struct ioctl_privcmd_mmapresource *)arg;
 
+		if (u->dom != DOMID_INVALID && u->dom != mmap->dom) {
+			error = EPERM;
+			break;
+		}
+
 		bzero(&adq, sizeof(adq));
 
 		adq.domid = mmap->dom;
@@ -434,6 +468,11 @@ mmap_out:
 
 		dmop = (struct ioctl_privcmd_dmop *)arg;
 
+		if (u->dom != DOMID_INVALID && u->dom != dmop->dom) {
+			error = EPERM;
+			break;
+		}
+
 		if (dmop->num == 0)
 			break;
 
@@ -474,9 +513,52 @@ mmap_out:
 
 		break;
 	}
+	case IOCTL_PRIVCMD_RESTRICT: {
+		struct per_user_data *u;
+		domid_t dom;
+
+		dom = *(domid_t *)arg;
+
+		error = devfs_get_cdevpriv((void **)&u);
+		if (error != 0)
+			break;
+
+		if (u->dom != DOMID_INVALID && u->dom != dom) {
+			error = -EINVAL;
+			break;
+		}
+		u->dom = dom;
+
+		break;
+	}
 	default:
 		error = ENOSYS;
 		break;
+	}
+
+	return (error);
+}
+
+static void
+user_release(void *arg)
+{
+
+	free(arg, M_PRIVCMD);
+}
+
+static int
+privcmd_open(struct cdev *dev, int flag, int otyp, struct thread *td)
+{
+	struct per_user_data *u;
+	int error;
+
+	u = malloc(sizeof(*u), M_PRIVCMD, M_WAITOK);
+	u->dom = DOMID_INVALID;
+
+	/* Assign the allocated per_user_data to this open instance. */
+	error = devfs_set_cdevpriv(u, user_release);
+	if (error != 0) {
+		free(u, M_PRIVCMD);
 	}
 
 	return (error);

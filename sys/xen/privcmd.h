@@ -82,5 +82,7 @@ struct ioctl_privcmd_dmop {
 	_IOW('E', 2, struct ioctl_privcmd_mmapresource)
 #define IOCTL_PRIVCMD_DM_OP					\
 	_IOW('E', 3, struct ioctl_privcmd_dmop)
+#define IOCTL_PRIVCMD_RESTRICT					\
+	_IOW('E', 4, domid_t)
 
 #endif /* !__XEN_PRIVCMD_H__ */
