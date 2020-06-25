@@ -404,6 +404,13 @@ HYPERVISOR_kexec_op(
 {
         return _hypercall2(int, kexec_op, op, args);
 }
+
+static inline int
+HYPERVISOR_dm_op(
+	domid_t domid, unsigned int nr_bufs, const void *bufs)
+{
+	return _hypercall3(int, dm_op, domid, nr_bufs, bufs);
+}
 #endif /* __HYPERCALL_H__ */
 
 /*
