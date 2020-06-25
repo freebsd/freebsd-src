@@ -145,13 +145,11 @@ glxsb_hash_free(struct glxsb_session *ses)
 {
 
 	if (ses->ses_ictx != NULL) {
-		bzero(ses->ses_ictx, ses->ses_axf->ctxsize);
-		free(ses->ses_ictx, M_GLXSB);
+		zfree(ses->ses_ictx, M_GLXSB);
 		ses->ses_ictx = NULL;
 	}
 	if (ses->ses_octx != NULL) {
-		bzero(ses->ses_octx, ses->ses_axf->ctxsize);
-		free(ses->ses_octx, M_GLXSB);
+		zfree(ses->ses_octx, M_GLXSB);
 		ses->ses_octx = NULL;
 	}
 }
