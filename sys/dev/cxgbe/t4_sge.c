@@ -2149,7 +2149,7 @@ void
 t4_update_fl_bufsize(struct ifnet *ifp)
 {
 	struct vi_info *vi = ifp->if_softc;
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct sge_rxq *rxq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
@@ -2881,8 +2881,7 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx)
 	struct sge_eq *eq = &txq->eq;
 	struct ifnet *ifp = txq->ifp;
 	struct vi_info *vi = ifp->if_softc;
-	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
+	struct adapter *sc = vi->adapter;
 	u_int total, remaining;		/* # of packets */
 	u_int available, dbdiff;	/* # of hardware descriptors */
 	u_int n, next_cidx;
@@ -3498,7 +3497,7 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
     struct sysctl_oid *oid)
 {
 	int rc;
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct sysctl_oid_list *children;
 	char name[16];
 
@@ -3628,7 +3627,7 @@ alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 	struct sysctl_ctx_list *ctx;
 	char name[16];
 	size_t len;
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct netmap_adapter *na = NA(vi->ifp);
 
 	MPASS(na != NULL);
@@ -3694,7 +3693,7 @@ alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
 static int
 free_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
 {
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 
 	if (vi->flags & VI_INIT_DONE)
 		MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
@@ -3760,7 +3759,7 @@ alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
 static int
 free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 {
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 
 	if (vi->flags & VI_INIT_DONE)
 		MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
@@ -4270,7 +4269,7 @@ static int
 free_txq(struct vi_info *vi, struct sge_txq *txq)
 {
 	int rc;
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct sge_eq *eq = &txq->eq;
 
 	rc = free_eq(sc, eq);

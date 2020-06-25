@@ -190,6 +190,7 @@ enum {
 struct vi_info {
 	device_t dev;
 	struct port_info *pi;
+	struct adapter *adapter;
 
 	struct ifnet *ifp;
 	struct pfil_head *pfil;
@@ -953,22 +954,22 @@ struct adapter {
 #define TXQ_LOCK_ASSERT_NOTOWNED(txq)	EQ_LOCK_ASSERT_NOTOWNED(&(txq)->eq)
 
 #define for_each_txq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.txq[vi->first_txq], iter = 0; \
+	for (q = &vi->adapter->sge.txq[vi->first_txq], iter = 0; \
 	    iter < vi->ntxq; ++iter, ++q)
 #define for_each_rxq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.rxq[vi->first_rxq], iter = 0; \
+	for (q = &vi->adapter->sge.rxq[vi->first_rxq], iter = 0; \
 	    iter < vi->nrxq; ++iter, ++q)
 #define for_each_ofld_txq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.ofld_txq[vi->first_ofld_txq], iter = 0; \
+	for (q = &vi->adapter->sge.ofld_txq[vi->first_ofld_txq], iter = 0; \
 	    iter < vi->nofldtxq; ++iter, ++q)
 #define for_each_ofld_rxq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.ofld_rxq[vi->first_ofld_rxq], iter = 0; \
+	for (q = &vi->adapter->sge.ofld_rxq[vi->first_ofld_rxq], iter = 0; \
 	    iter < vi->nofldrxq; ++iter, ++q)
 #define for_each_nm_txq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.nm_txq[vi->first_nm_txq], iter = 0; \
+	for (q = &vi->adapter->sge.nm_txq[vi->first_nm_txq], iter = 0; \
 	    iter < vi->nnmtxq; ++iter, ++q)
 #define for_each_nm_rxq(vi, iter, q) \
-	for (q = &vi->pi->adapter->sge.nm_rxq[vi->first_nm_rxq], iter = 0; \
+	for (q = &vi->adapter->sge.nm_rxq[vi->first_nm_rxq], iter = 0; \
 	    iter < vi->nnmrxq; ++iter, ++q)
 #define for_each_vi(_pi, _iter, _vi) \
 	for ((_vi) = (_pi)->vi, (_iter) = 0; (_iter) < (_pi)->nvi; \

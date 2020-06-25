@@ -702,6 +702,7 @@ t4vf_attach(device_t dev)
 
 		for_each_vi(pi, j, vi) {
 			vi->pi = pi;
+			vi->adapter = sc;
 			vi->qsize_rxq = t4_qsize_rxq;
 			vi->qsize_txq = t4_qsize_txq;
 
