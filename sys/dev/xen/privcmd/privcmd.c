@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_PRIVCMD, "privcmd_dev", "Xen privcmd user-space device");
 
+#define MAX_DMOP_BUFFERS 16
+
 struct privcmd_map {
 	vm_object_t mem;
 	vm_size_t size;
@@ -422,6 +424,53 @@ mmap_out:
 		free(gpfns, M_PRIVCMD);
 		if (!umap->mapped)
 			free(umap->err, M_PRIVCMD);
+
+		break;
+	}
+	case IOCTL_PRIVCMD_DM_OP: {
+		const struct ioctl_privcmd_dmop *dmop;
+		struct privcmd_dmop_buf *bufs;
+		struct xen_dm_op_buf *hbufs;
+
+		dmop = (struct ioctl_privcmd_dmop *)arg;
+
+		if (dmop->num == 0)
+			break;
+
+		if (dmop->num > MAX_DMOP_BUFFERS) {
+			error = E2BIG;
+			break;
+		}
+
+		bufs = malloc(sizeof(*bufs) * dmop->num, M_PRIVCMD, M_WAITOK);
+
+		error = copyin(dmop->ubufs, bufs, sizeof(*bufs) * dmop->num);
+		if (error != 0) {
+			free(bufs, M_PRIVCMD);
+			break;
+		}
+
+		hbufs = malloc(sizeof(*hbufs) * dmop->num, M_PRIVCMD, M_WAITOK);
+		for (i = 0; i < dmop->num; i++) {
+			set_xen_guest_handle(hbufs[i].h, bufs[i].uptr);
+			hbufs[i].size = bufs[i].size;
+		}
+
+#ifdef __amd64__
+		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+			stac();
+#endif
+		error = HYPERVISOR_dm_op(dmop->dom, dmop->num, hbufs);
+#ifdef __amd64__
+		if (cpu_stdext_feature & CPUID_STDEXT_SMAP)
+			clac();
+#endif
+		if (error != 0)
+			error = xen_translate_error(error);
+
+		free(bufs, M_PRIVCMD);
+		free(hbufs, M_PRIVCMD);
+
 
 		break;
 	}

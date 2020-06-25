@@ -63,11 +63,24 @@ struct ioctl_privcmd_mmapresource {
 	 */
 };
 
+struct privcmd_dmop_buf {
+	void *uptr; /* pointer to memory (in calling process) */
+	size_t size; /* size of the buffer */
+};
+
+struct ioctl_privcmd_dmop {
+	domid_t dom; /* target domain */
+	unsigned int num; /* num of buffers */
+	const struct privcmd_dmop_buf *ubufs; /* array of buffers */
+};
+
 #define IOCTL_PRIVCMD_HYPERCALL					\
 	_IOWR('E', 0, struct ioctl_privcmd_hypercall)
 #define IOCTL_PRIVCMD_MMAPBATCH					\
 	_IOWR('E', 1, struct ioctl_privcmd_mmapbatch)
 #define IOCTL_PRIVCMD_MMAP_RESOURCE				\
 	_IOW('E', 2, struct ioctl_privcmd_mmapresource)
+#define IOCTL_PRIVCMD_DM_OP					\
+	_IOW('E', 3, struct ioctl_privcmd_dmop)
 
 #endif /* !__XEN_PRIVCMD_H__ */
