@@ -970,7 +970,7 @@ calc_options0(struct vi_info *vi, struct conn_params *cp)
 	MPASS(cp->opt0_bufsize >= 0 && cp->opt0_bufsize <= M_RCV_BUFSIZ);
 	opt0 |= V_RCV_BUFSIZ(cp->opt0_bufsize);
 
-	MPASS(cp->l2t_idx >= 0 && cp->l2t_idx < vi->pi->adapter->vres.l2t.size);
+	MPASS(cp->l2t_idx >= 0 && cp->l2t_idx < vi->adapter->vres.l2t.size);
 	opt0 |= V_L2T_IDX(cp->l2t_idx);
 
 	opt0 |= V_SMAC_SEL(vi->smt_idx);
@@ -1045,7 +1045,7 @@ calc_options2(struct vi_info *vi, struct conn_params *cp)
 uint64_t
 select_ntuple(struct vi_info *vi, struct l2t_entry *e)
 {
-	struct adapter *sc = vi->pi->adapter;
+	struct adapter *sc = vi->adapter;
 	struct tp_params *tp = &sc->params.tp;
 	uint64_t ntuple = 0;
 

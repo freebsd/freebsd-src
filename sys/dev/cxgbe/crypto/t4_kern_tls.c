@@ -587,7 +587,7 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	}
 
 	vi = ifp->if_softc;
-	sc = vi->pi->adapter;
+	sc = vi->adapter;
 
 	tlsp = alloc_tlspcb(ifp, vi, M_WAITOK);
 

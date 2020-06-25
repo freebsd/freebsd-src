@@ -673,7 +673,7 @@ icl_cxgbei_conn_handoff(struct icl_conn *ic, int fd)
 		MPASS(tp->tod != NULL);
 		MPASS(tp->t_toe != NULL);
 		toep = tp->t_toe;
-		MPASS(toep->vi->pi->adapter == icc->sc);
+		MPASS(toep->vi->adapter == icc->sc);
 		icc->toep = toep;
 		icc->cwt = cxgbei_select_worker_thread(icc);
 
