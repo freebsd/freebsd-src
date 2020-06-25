@@ -140,7 +140,7 @@ static uint16_t evdev_at_set1_scancodes[] = {
 	KEY_KP2,	KEY_KP3,	KEY_KP0,	KEY_KPDOT,
 	NONE,		NONE,		KEY_102ND,	KEY_F11,
 	KEY_F12,	NONE,		NONE,		NONE,
-	NONE,		NONE,		NONE,		NONE,
+	NONE,		KEY_F13,	NONE,		NONE,
 	/* 0x60 - 0x7f */
 	NONE,		NONE,		NONE,		NONE,
 	NONE,		NONE,		NONE,		NONE,
