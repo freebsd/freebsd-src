@@ -444,6 +444,7 @@ hmac_init_pad(struct auth_hash *axf, const char *key, int klen, void *auth_ctx,
 
 	axf->Init(auth_ctx);
 	axf->Update(auth_ctx, hmac_key, axf->blocksize);
+	explicit_bzero(hmac_key, sizeof(hmac_key));
 }
 
 void
