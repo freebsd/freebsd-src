@@ -278,6 +278,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
     int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
+	struct epoch_tracker et;
 	struct ipsec_ctx_data ctx;
 	struct xform_history *xh;
 	struct secasindex *saidx;
@@ -424,7 +425,9 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	if (saidx->mode == IPSEC_MODE_TUNNEL)
 		error = ipsec_if_input(m, sav, af);
 	if (error == 0) {
+		NET_EPOCH_ENTER(et);
 		error = netisr_queue_src(isr_prot, (uintptr_t)sav->spi, m);
+		NET_EPOCH_EXIT(et);
 		if (error) {
 			IPSEC_ISTAT(sproto, qfull);
 			DPRINTF(("%s: queue full; proto %u packet dropped\n",
@@ -489,6 +492,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
     int protoff)
 {
 	IPSEC_DEBUG_DECLARE(char buf[IPSEC_ADDRSTRLEN]);
+	struct epoch_tracker et;
 	struct ipsec_ctx_data ctx;
 	struct xform_history *xh;
 	struct secasindex *saidx;
@@ -621,8 +625,10 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		if (saidx->mode == IPSEC_MODE_TUNNEL)
 			error = ipsec_if_input(m, sav, af);
 		if (error == 0) {
+			NET_EPOCH_ENTER(et);
 			error = netisr_queue_src(isr_prot,
 			    (uintptr_t)sav->spi, m);
+			NET_EPOCH_EXIT(et);
 			if (error) {
 				IPSEC_ISTAT(sproto, qfull);
 				DPRINTF(("%s: queue full; proto %u packet"
@@ -638,11 +644,12 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	 */
 	nest = 0;
 	nxt = nxt8;
+	NET_EPOCH_ENTER(et);
 	while (nxt != IPPROTO_DONE) {
 		if (V_ip6_hdrnestlimit && (++nest > V_ip6_hdrnestlimit)) {
 			IP6STAT_INC(ip6s_toomanyhdr);
 			error = EINVAL;
-			goto bad;
+			goto bad_epoch;
 		}
 
 		/*
@@ -653,7 +660,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 			IP6STAT_INC(ip6s_tooshort);
 			in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_truncated);
 			error = EINVAL;
-			goto bad;
+			goto bad_epoch;
 		}
 		/*
 		 * Enforce IPsec policy checking if we are seeing last header.
@@ -663,12 +670,15 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 		if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
 		    ipsec6_in_reject(m, NULL)) {
 			error = EINVAL;
-			goto bad;
+			goto bad_epoch;
 		}
 		nxt = (*inet6sw[ip6_protox[nxt]].pr_input)(&m, &skip, nxt);
 	}
+	NET_EPOCH_EXIT(et);
 	key_freesav(&sav);
 	return (0);
+bad_epoch:
+	NET_EPOCH_EXIT(et);
 bad:
 	key_freesav(&sav);
 	if (m)
