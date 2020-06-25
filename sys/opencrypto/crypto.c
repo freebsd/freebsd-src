@@ -897,8 +897,7 @@ crypto_deletesession(crypto_session_t cses)
 
 	cap = cses->cap;
 
-	explicit_bzero(cses->softc, cap->cc_session_size);
-	free(cses->softc, M_CRYPTO_DATA);
+	zfree(cses->softc, M_CRYPTO_DATA);
 	uma_zfree(cryptoses_zone, cses);
 
 	CRYPTO_DRIVER_LOCK();
