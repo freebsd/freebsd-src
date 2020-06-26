@@ -31,6 +31,7 @@
 .Os
 .Sh NAME
 .Nm domain_add ,
+.Nm domain_init ,
 .Nm pfctlinput ,
 .Nm pffinddomain ,
 .Nm pffindproto ,
@@ -44,6 +45,8 @@
 .In sys/domain.h
 .Ft void
 .Fn domain_add "void *data"
+.Ft void
+.Fn domain_init "void *data"
 .Ft void
 .Fn pfctlinput "int cmd" "struct sockaddr *sa"
 .Ft struct domain *
@@ -65,8 +68,10 @@ and
 struct domain {
 	int	dom_family;		/* AF_xxx */
 	char	*dom_name;
+	int	dom_flags;
 	void	(*dom_init)		/* initialize domain data structures */
 		(void);
+	int	(*dom_probe)(void);	/* check for support (optional) */
 	void	(*dom_destroy)		/* cleanup structures / state */
 		(void);
 	int	(*dom_externalize)	/* externalize access rights */
@@ -143,15 +148,36 @@ is not called directly, instead
 .Fn DOMAIN_SET
 is used.
 .Pp
-If the new domain has defined an initialization routine, it is called by
-.Fn domain_add ;
+If the new domain has defined a probe routine, it is called first in
+.Fn domain_add
+to determine if the domain should be supported on the current system.
+If the probe routine returns a non-0 value, then the domain will not be
+marked as supported.
+Unsupported domains do not proceed with the initialization process and are not
+discoverable by
+.Fn pffinddomain ,
+.Fn pffindtype ,
+or
+.Fn pffindproto .
+.Pp
+.Fn domain_init
+is called after
+.Fn domain_add
+during boot and for each
+.Xr vnet 9 .
+If the new domain has defined an initialization routine, it is called during
+.Fn domain_init ;
 as well, each of the protocols within the domain that have defined an
 initialization routine will have theirs called.
+Note that domain initialization cannot fail at this time.
 .Pp
-Once a domain is added it cannot be unloaded.
+Once a domain is added it cannot be completely unloaded.
 This is because there is
 no reference counting system in place to determine if there are any
 active references from sockets within that domain.
+If the domain defines a
+.Fn dom_destroy
+routine, then it will be invoked during vnet teardown.
 .Pp
 .Fn pffinddomain
 finds a domain by family.
