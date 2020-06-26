@@ -298,10 +298,7 @@ kern_mmap_fpcheck(struct thread *td, uintptr_t addr0, size_t size, int prot,
 			return (EINVAL);
 
 		/* Address range must be all in user VM space. */
-		if (addr < vm_map_min(&vms->vm_map) ||
-		    addr + size > vm_map_max(&vms->vm_map))
-			return (EINVAL);
-		if (addr + size < addr)
+		if (!vm_map_range_valid(&vms->vm_map, addr, addr + size))
 			return (EINVAL);
 #ifdef MAP_32BIT
 		if (flags & MAP_32BIT && addr + size > MAP_32BIT_MAX_ADDR)
@@ -534,7 +531,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 	vm_map_entry_t entry;
 	bool pmc_handled;
 #endif
-	vm_offset_t addr;
+	vm_offset_t addr, end;
 	vm_size_t pageoff;
 	vm_map_t map;
 
@@ -546,15 +543,11 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 	addr -= pageoff;
 	size += pageoff;
 	size = (vm_size_t) round_page(size);
-	if (addr + size < addr)
+	end = addr + size;
+	map = &td->td_proc->p_vmspace->vm_map;
+	if (!vm_map_range_valid(map, addr, end))
 		return (EINVAL);
 
-	/*
-	 * Check for illegal addresses.  Watch out for address wrap...
-	 */
-	map = &td->td_proc->p_vmspace->vm_map;
-	if (addr < vm_map_min(map) || addr + size > vm_map_max(map))
-		return (EINVAL);
 	vm_map_lock(map);
 #ifdef HWPMC_HOOKS
 	pmc_handled = false;
@@ -566,7 +559,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		 */
 		pkm.pm_address = (uintptr_t) NULL;
 		if (vm_map_lookup_entry(map, addr, &entry)) {
-			for (; entry->start < addr + size;
+			for (; entry->start < end;
 			    entry = entry->next) {
 				if (vm_map_check_protection(map, entry->start,
 					entry->end, VM_PROT_EXECUTE) == TRUE) {
@@ -578,7 +571,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		}
 	}
 #endif
-	vm_map_delete(map, addr, addr + size);
+	vm_map_delete(map, addr, end);
 
 #ifdef HWPMC_HOOKS
 	if (__predict_false(pmc_handled)) {
@@ -715,9 +708,7 @@ kern_madvise(struct thread *td, uintptr_t addr0, size_t len, int behav)
 	 */
 	map = &td->td_proc->p_vmspace->vm_map;
 	addr = addr0;
-	if (addr < vm_map_min(map) || addr + len > vm_map_max(map))
-		return (EINVAL);
-	if ((addr + len) < addr)
+	if (!vm_map_range_valid(map, addr, addr + len))
 		return (EINVAL);
 
 	/*
