@@ -312,8 +312,27 @@ hdac_one_intr(struct hdac_softc *sc, uint32_t intsts)
 
 	/* Was this a controller interrupt? */
 	if (intsts & HDAC_INTSTS_CIS) {
-		rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
+		/*
+		 * Placeholder: if we ever enable any bits in HDAC_WAKEEN, then
+		 * we will need to check and clear HDAC_STATESTS.
+		 * That event is used to report codec status changes such as
+		 * a reset or a wake-up event.
+		 */
+		/*
+		 * Placeholder: if we ever enable HDAC_CORBCTL_CMEIE, then we
+		 * will need to check and clear HDAC_CORBSTS_CMEI in
+		 * HDAC_CORBSTS.
+		 * That event is used to report CORB memory errors.
+		 */
+		/*
+		 * Placeholder: if we ever enable HDAC_RIRBCTL_RIRBOIC, then we
+		 * will need to check and clear HDAC_RIRBSTS_RIRBOIS in
+		 * HDAC_RIRBSTS.
+		 * That event is used to report response FIFO overruns.
+		 */
+
 		/* Get as many responses that we can */
+		rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
 		while (rirbsts & HDAC_RIRBSTS_RINTFL) {
 			HDAC_WRITE_1(&sc->mem,
 			    HDAC_RIRBSTS, HDAC_RIRBSTS_RINTFL);
@@ -1514,6 +1533,24 @@ hdac_attach2(void *arg)
 		device_printf(sc->dev, "Starting RIRB Engine...\n");
 	);
 	hdac_rirb_start(sc);
+
+	/*
+	 * Clear HDAC_WAKEEN as at present we have no use for SDI wake
+	 * (status change) interrupts.  The documentation says that we
+	 * should not make any assumptions about the state of this register
+	 * and set it explicitly.
+	 * NB: this needs to be done before the interrupt is enabled as
+	 * the handler does not expect this interrupt source.
+	 */
+	HDAC_WRITE_2(&sc->mem, HDAC_WAKEEN, 0);
+
+	/*
+	 * Read and clear post-reset SDI wake status.
+	 * Each set bit corresponds to a codec that came out of reset.
+	 */
+	statests = HDAC_READ_2(&sc->mem, HDAC_STATESTS);
+	HDAC_WRITE_2(&sc->mem, HDAC_STATESTS, statests);
+
 	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev,
 		    "Enabling controller interrupt...\n");
@@ -1529,7 +1566,6 @@ hdac_attach2(void *arg)
 	HDA_BOOTHVERBOSE(
 		device_printf(sc->dev, "Scanning HDA codecs ...\n");
 	);
-	statests = HDAC_READ_2(&sc->mem, HDAC_STATESTS);
 	hdac_unlock(sc);
 	for (i = 0; i < HDAC_CODEC_MAX; i++) {
 		if (HDAC_STATESTS_SDIWAKE(statests, i)) {
@@ -1643,6 +1679,19 @@ hdac_resume(device_t dev)
 		device_printf(dev, "Starting RIRB Engine...\n");
 	);
 	hdac_rirb_start(sc);
+
+	/*
+	 * Clear HDAC_WAKEEN as at present we have no use for SDI wake
+	 * (status change) events.  The documentation says that we should
+	 * not make any assumptions about the state of this register and
+	 * set it explicitly.
+	 * Also, clear HDAC_STATESTS.
+	 * NB: this needs to be done before the interrupt is enabled as
+	 * the handler does not expect this interrupt source.
+	 */
+	HDAC_WRITE_2(&sc->mem, HDAC_WAKEEN, 0);
+	HDAC_WRITE_2(&sc->mem, HDAC_STATESTS, HDAC_STATESTS_SDIWAKE_MASK);
+
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Enabling controller interrupt...\n");
 	);
