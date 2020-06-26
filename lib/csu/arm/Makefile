@@ -24,18 +24,18 @@ crt1_c.o: crt1_c.c
 	${CC} ${CFLAGS} ${STATIC_CFLAGS} -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
 
 crt1.o:	crt1_c.o crt1_s.o crtbrand.o ignore_init_note.o
-	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC}
+	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
 gcrt1_c.o: crt1_c.c
 	${CC} ${CFLAGS} ${STATIC_CFLAGS} -DGCRT -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
 
 gcrt1.o: gcrt1_c.o crt1_s.o crtbrand.o ignore_init_note.o
-	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC}
+	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
 Scrt1_c.o: crt1_c.c
 	${CC} ${CFLAGS} -fPIC -DPIC -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
 
 Scrt1.o: Scrt1_c.o crt1_s.o crtbrand.o ignore_init_note.o
-	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC}
+	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
 .include <bsd.lib.mk>
