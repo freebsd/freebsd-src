@@ -37,6 +37,7 @@ KMOD	= if_ena
 SRCS	= ena_com.c ena_eth_com.c
 SRCS	+= ena.c ena_sysctl.c ena_datapath.c ena_netmap.c
 SRCS	+= device_if.h bus_if.h pci_if.h
+SRCS	+= opt_rss.h
 CFLAGS  += -I${SRCTOP}/sys/contrib
 
 .include <bsd.kmod.mk>
