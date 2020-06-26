@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/systm.h>
 
+#include <machine/atomic.h>
+
 #include <net/vnet.h>
 
 /*
@@ -177,6 +179,8 @@ domain_init(void *arg)
 	flags = atomic_load_acq_int(&dp->dom_flags);
 	if ((flags & DOMF_SUPPORTED) == 0)
 		return;
+	KASSERT((flags & DOMF_INITED) == 0 || !IS_DEFAULT_VNET(curvnet),
+	    ("Premature initialization of domain in non-default vnet"));
 	if (dp->dom_init)
 		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
@@ -188,6 +192,8 @@ domain_init(void *arg)
 	max_datalen = MHLEN - max_hdr;
 	if (max_datalen < 1)
 		panic("%s: max_datalen < 1", __func__);
+	if (IS_DEFAULT_VNET(curvnet))
+		atomic_set_rel_int(&dp->dom_flags, DOMF_INITED);
 }
 
 #ifdef VIMAGE
@@ -236,15 +242,6 @@ domain_add(void *data)
 	if (domain_init_status < 1)
 		printf("WARNING: attempt to domain_add(%s) before "
 		    "domaininit()\n", dp->dom_name);
-#endif
-#ifdef notyet
-	KASSERT(domain_init_status < 2,
-	    ("attempt to domain_add(%s) after domainfinalize()",
-	    dp->dom_name));
-#else
-	if (domain_init_status >= 2)
-		printf("WARNING: attempt to domain_add(%s) after "
-		    "domainfinalize()\n", dp->dom_name);
 #endif
 	mtx_unlock(&dom_mtx);
 }
@@ -491,10 +488,14 @@ pfslowtimo(void *arg)
 	struct protosw *pr;
 
 	NET_EPOCH_ENTER(et);
-	for (dp = domains; dp; dp = dp->dom_next)
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if ((atomic_load_int(&dp->dom_flags) & DOMF_INITED) == 0)
+			continue;
+		atomic_thread_fence_acq();
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_slowtimo)
 				(*pr->pr_slowtimo)();
+	}
 	NET_EPOCH_EXIT(et);
 	callout_reset(&pfslow_callout, hz/2, pfslowtimo, NULL);
 }
@@ -507,10 +508,14 @@ pffasttimo(void *arg)
 	struct protosw *pr;
 
 	NET_EPOCH_ENTER(et);
-	for (dp = domains; dp; dp = dp->dom_next)
+	for (dp = domains; dp; dp = dp->dom_next) {
+		if ((atomic_load_int(&dp->dom_flags) & DOMF_INITED) == 0)
+			continue;
+		atomic_thread_fence_acq();
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
 			if (pr->pr_fasttimo)
 				(*pr->pr_fasttimo)();
+	}
 	NET_EPOCH_EXIT(et);
 	callout_reset(&pffast_callout, hz/5, pffasttimo, NULL);
 }
