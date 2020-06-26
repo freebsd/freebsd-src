@@ -257,6 +257,7 @@ typedef struct {
 } pcih2cfgregs;
 
 extern uint32_t pci_numdevs;
+extern int pci_enable_aspm;
 
 /*
  * The bitfield has to be stable and match the fields below (so that
