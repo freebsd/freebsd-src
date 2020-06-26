@@ -499,7 +499,8 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 
 	dp = *dpp;
 	*dpp = NULL;
-	nfscl_reqstart(nd, NFSPROC_OPEN, nmp, nfhp, fhlen, NULL, NULL, 0, 0);
+	nfscl_reqstart(nd, NFSPROC_OPEN, nmp, nfhp, fhlen, NULL, NULL, 0, 0,
+	    false);
 	NFSM_BUILD(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
 	*tl++ = txdr_unsigned(mode & NFSV4OPEN_ACCESSBOTH);
@@ -855,7 +856,7 @@ nfsrpc_closerpc(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_CLOSE, nmp, op->nfso_fh,
-	    op->nfso_fhlen, NULL, NULL, 0, 0);
+	    op->nfso_fhlen, NULL, NULL, 0, 0, false);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_STATEID);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
 	if (NFSHASNFSV4N(nmp))
@@ -898,7 +899,7 @@ nfsrpc_openconfirm(vnode_t vp, u_int8_t *nfhp, int fhlen,
 	if (NFSHASNFSV4N(nmp))
 		return (0);		/* No confirmation for NFSv4.1. */
 	nfscl_reqstart(nd, NFSPROC_OPENCONFIRM, nmp, nfhp, fhlen, NULL, NULL,
-	    0, 0);
+	    0, 0, false);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_STATEID);
 	*tl++ = op->nfso_stateid.seqid;
 	*tl++ = op->nfso_stateid.other[0];
@@ -1068,7 +1069,8 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	tsep = NFSMNT_MDSSESSION(nmp);
 	NFSUNLOCKMNT(nmp);
 
-	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL, 0, 0);
+	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL, 0, 0,
+	    false);
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);
 	*tl = txdr_unsigned(clp->nfsc_rev);
@@ -1138,7 +1140,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	     * and confirm it.
 	     */
 	    nfscl_reqstart(nd, NFSPROC_SETCLIENTIDCFRM, nmp, NULL, 0, NULL,
-		NULL, 0, 0);
+		NULL, 0, 0, false);
 	    NFSM_BUILD(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 	    *tl++ = tsep->nfsess_clientid.lval[0];
 	    *tl++ = tsep->nfsess_clientid.lval[1];
@@ -1153,7 +1155,7 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 	    nd->nd_mrep = NULL;
 	    if (nd->nd_repstat == 0) {
 		nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, nmp->nm_fh,
-		    nmp->nm_fhsize, NULL, NULL, 0, 0);
+		    nmp->nm_fhsize, NULL, NULL, 0, 0, false);
 		NFSZERO_ATTRBIT(&attrbits);
 		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_LEASETIME);
 		(void) nfsrv_putattrbit(nd, &attrbits);
@@ -1220,7 +1222,8 @@ nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
 	int error, vers = NFS_VER2;
 	nfsattrbit_t attrbits;
 	
-	nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, fhp, fhlen, NULL, NULL, 0, 0);
+	nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, fhp, fhlen, NULL, NULL, 0, 0,
+	    false);
 	if (nd->nd_flag & ND_NFSV4) {
 		vers = NFS_VER4;
 		NFSGETATTR_ATTRBIT(&attrbits);
@@ -4162,7 +4165,7 @@ nfsrpc_locku(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LOCKU, nmp, lp->nfsl_open->nfso_fh,
-	    lp->nfsl_open->nfso_fhlen, NULL, NULL, 0, 0);
+	    lp->nfsl_open->nfso_fhlen, NULL, NULL, 0, 0, false);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID + 6 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(type);
 	*tl = txdr_unsigned(lp->nfsl_seqid);
@@ -4214,7 +4217,8 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 	uint8_t own[NFSV4CL_LOCKNAMELEN + NFSX_V4FHMAX];
 	struct nfsclsession *tsep;
 
-	nfscl_reqstart(nd, NFSPROC_LOCK, nmp, nfhp, fhlen, NULL, NULL, 0, 0);
+	nfscl_reqstart(nd, NFSPROC_LOCK, nmp, nfhp, fhlen, NULL, NULL, 0, 0,
+	    false);
 	NFSM_BUILD(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
 	if (type == F_RDLCK)
 		*tl++ = txdr_unsigned(NFSV4LOCKT_READ);
@@ -4488,10 +4492,10 @@ nfsrpc_renew(struct nfsclclient *clp, struct nfsclds *dsp, struct ucred *cred,
 		return (0);
 	if (dsp == NULL)
 		nfscl_reqstart(nd, NFSPROC_RENEW, nmp, NULL, 0, NULL, NULL, 0,
-		    0);
+		    0, false);
 	else
 		nfscl_reqstart(nd, NFSPROC_RENEW, nmp, NULL, 0, NULL,
-		    &dsp->nfsclds_sess, 0, 0);
+		    &dsp->nfsclds_sess, 0, 0, false);
 	if (!NFSHASNFSV4N(nmp)) {
 		/* NFSv4.1 just uses a Sequence Op and not a Renew. */
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -4538,11 +4542,11 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 	if (NFSHASNFSV4N(nmp)) {
 		/* For NFSv4.1, do a FreeStateID. */
 		nfscl_reqstart(nd, NFSPROC_FREESTATEID, nmp, NULL, 0, NULL,
-		    NULL, 0, 0);
+		    NULL, 0, 0, false);
 		nfsm_stateidtom(nd, &lp->nfsl_stateid, NFSSTATEID_PUTSTATEID);
 	} else {
 		nfscl_reqstart(nd, NFSPROC_RELEASELCKOWN, nmp, NULL, 0, NULL,
-		    NULL, 0, 0);
+		    NULL, 0, 0, false);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		tsep = nfsmnt_mdssession(nmp);
 		*tl++ = tsep->nfsess_clientid.lval[0];
@@ -4576,7 +4580,7 @@ nfsrpc_getdirpath(struct nfsmount *nmp, u_char *dirpath, struct ucred *cred,
 	u_int32_t *opcntp;
 
 	nfscl_reqstart(nd, NFSPROC_PUTROOTFH, nmp, NULL, 0, &opcntp, NULL, 0,
-	    0);
+	    0, false);
 	cp = dirpath;
 	cnt = 0;
 	do {
@@ -4643,7 +4647,7 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_DELEGRETURN, nmp, dp->nfsdl_fh,
-	    dp->nfsdl_fhlen, NULL, NULL, 0, 0);
+	    dp->nfsdl_fhlen, NULL, NULL, 0, 0, false);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
 	if (NFSHASNFSV4N(nmp))
 		*tl++ = 0;
@@ -4756,7 +4760,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 	if (minorvers == 0)
 		minorvers = nmp->nm_minorvers;
 	nfscl_reqstart(nd, NFSPROC_EXCHANGEID, nmp, NULL, 0, NULL, NULL,
-	    NFS_VER4, minorvers);
+	    NFS_VER4, minorvers, false);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);	/* Client owner */
 	*tl = txdr_unsigned(clp->nfsc_rev);
@@ -4852,7 +4856,7 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	else
 		minorvers = NFSV41_MINORVERSION;
 	nfscl_reqstart(nd, NFSPROC_CREATESESSION, nmp, NULL, 0, NULL, NULL,
-	    NFS_VER4, minorvers);
+	    NFS_VER4, minorvers, false);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = sep->nfsess_clientid.lval[0];
 	*tl++ = sep->nfsess_clientid.lval[1];
@@ -4979,7 +4983,7 @@ nfsrpc_destroysession(struct nfsmount *nmp, struct nfsclclient *clp,
 	struct nfsclsession *tsep;
 
 	nfscl_reqstart(nd, NFSPROC_DESTROYSESSION, nmp, NULL, 0, NULL, NULL, 0,
-	    0);
+	    0, false);
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID);
 	tsep = nfsmnt_mdssession(nmp);
 	bcopy(tsep->nfsess_sessionid, tl, NFSX_V4SESSIONID);
@@ -5007,7 +5011,7 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
 	struct nfsclsession *tsep;
 
 	nfscl_reqstart(nd, NFSPROC_DESTROYCLIENT, nmp, NULL, 0, NULL, NULL, 0,
-	    0);
+	    0, false);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	tsep = nfsmnt_mdssession(nmp);
 	*tl++ = tsep->nfsess_clientid.lval[0];
@@ -5036,7 +5040,7 @@ nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTGET, nmp, fhp, fhlen, NULL, NULL, 0,
-	    0);
+	    0, false);
 	nfsrv_setuplayoutget(nd, iomode, offset, len, minlen, stateidp,
 	    layouttype, layoutlen, 0);
 	nd->nd_flag |= ND_USEGSSNAME;
@@ -5080,7 +5084,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 	ndi = NULL;
 	gotdspp = NULL;
 	nfscl_reqstart(nd, NFSPROC_GETDEVICEINFO, nmp, NULL, 0, NULL, NULL, 0,
-	    0);
+	    0, false);
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4DEVICEID + 3 * NFSX_UNSIGNED);
 	NFSBCOPY(deviceid, tl, NFSX_V4DEVICEID);
 	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
@@ -5301,7 +5305,7 @@ nfsrpc_layoutcommit(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTCOMMIT, nmp, fh, fhlen, NULL, NULL,
-	    0, 0);
+	    0, 0, false);
 	NFSM_BUILD(tl, uint32_t *, 5 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
 	    NFSX_STATEID);
 	txdr_hyper(off, tl);
@@ -5352,7 +5356,7 @@ nfsrpc_layoutreturn(struct nfsmount *nmp, uint8_t *fh, int fhlen, int reclaim,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LAYOUTRETURN, nmp, fh, fhlen, NULL, NULL,
-	    0, 0);
+	    0, 0, false);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	if (reclaim != 0)
 		*tl++ = newnfs_true;
@@ -5709,7 +5713,7 @@ nfsrpc_reclaimcomplete(struct nfsmount *nmp, struct ucred *cred, NFSPROC_T *p)
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_RECLAIMCOMPL, nmp, NULL, 0, NULL, NULL, 0,
-	    0);
+	    0, false);
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 	*tl = newnfs_false;
 	nd->nd_flag |= ND_USEGSSNAME;
@@ -6300,7 +6304,8 @@ nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
 	nd->nd_mrep = NULL;
 	if (vers == 0 || vers == NFS_VER4) {
 		nfscl_reqstart(nd, NFSPROC_READDS, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		vers = NFS_VER4;
 		NFSCL_DEBUG(4, "nfsrpc_readds: vers4 minvers=%d\n", minorvers);
 		if (flex != 0)
@@ -6309,7 +6314,8 @@ nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
 			nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
 	} else {
 		nfscl_reqstart(nd, NFSPROC_READ, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		NFSCL_DEBUG(4, "nfsrpc_readds: vers3\n");
 	}
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED * 3);
@@ -6374,7 +6380,8 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	nd->nd_mrep = NULL;
 	if (vers == 0 || vers == NFS_VER4) {
 		nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		NFSCL_DEBUG(4, "nfsrpc_writeds: vers4 minvers=%d\n", minorvers);
 		vers = NFS_VER4;
 		if (flex != 0)
@@ -6384,7 +6391,8 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
 	} else {
 		nfscl_reqstart(nd, NFSPROC_WRITE, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		NFSCL_DEBUG(4, "nfsrpc_writeds: vers3\n");
 		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
 	}
@@ -6503,7 +6511,8 @@ nfsrpc_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 	nd->nd_mrep = NULL;
 	if (vers == 0 || vers == NFS_VER4) {
 		nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		vers = NFS_VER4;
 		NFSCL_DEBUG(4, "nfsrpc_writedsmir: vers4 minvers=%d\n",
 		    minorvers);
@@ -6511,7 +6520,8 @@ nfsrpc_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
 	} else {
 		nfscl_reqstart(nd, NFSPROC_WRITE, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		NFSCL_DEBUG(4, "nfsrpc_writedsmir: vers3\n");
 		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 3 * NFSX_UNSIGNED);
 	}
@@ -6732,11 +6742,13 @@ nfsrpc_commitds(vnode_t vp, uint64_t offset, int cnt, struct nfsclds *dsp,
 	nd->nd_mrep = NULL;
 	if (vers == 0 || vers == NFS_VER4) {
 		nfscl_reqstart(nd, NFSPROC_COMMITDS, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 		vers = NFS_VER4;
 	} else
 		nfscl_reqstart(nd, NFSPROC_COMMIT, nmp, fhp->nfh_fh,
-		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+		    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers,
+		    false);
 	NFSCL_DEBUG(4, "nfsrpc_commitds: vers=%d minvers=%d\n", vers,
 	    minorvers);
 	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + NFSX_UNSIGNED);
@@ -6889,7 +6901,7 @@ nfsrpc_adviseds(vnode_t vp, uint64_t offset, int cnt, int advise,
 		return (0);
 	nd->nd_mrep = NULL;
 	nfscl_reqstart(nd, NFSPROC_IOADVISEDS, nmp, fhp->nfh_fh,
-	    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers);
+	    fhp->nfh_len, NULL, &dsp->nfsclds_sess, vers, minorvers, false);
 	vers = NFS_VER4;
 	NFSCL_DEBUG(4, "nfsrpc_adviseds: vers=%d minvers=%d\n", vers,
 	    minorvers);
@@ -7544,7 +7556,7 @@ nfsrpc_openlayoutrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp,
 	*dpp = NULL;
 	*laystatp = ENXIO;
 	nfscl_reqstart(nd, NFSPROC_OPENLAYGET, nmp, nfhp, fhlen, NULL, NULL,
-	    0, 0);
+	    0, 0, false);
 	NFSM_BUILD(tl, uint32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
 	*tl++ = txdr_unsigned(mode & NFSV4OPEN_ACCESSBOTH);

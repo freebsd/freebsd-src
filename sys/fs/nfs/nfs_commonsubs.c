@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+#include <vm/vm_param.h>
+
 /*
  * Data items converted to xdr at startup, since they are constant
  * This is kinda hokey, but may save a little time doing byte swaps
@@ -317,7 +319,7 @@ static int nfs_bigrequest[NFSV42_NPROCS] = {
 void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
     u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep,
-    int vers, int minorvers)
+    int vers, int minorvers, bool use_ext)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
@@ -350,6 +352,9 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	}
 	nd->nd_procnum = procnum;
 	nd->nd_repstat = 0;
+	nd->nd_maxextsiz = 16384;
+	if (use_ext && mb_use_ext_pgs && PMAP_HAS_DMAP != 0)
+		nd->nd_flag |= ND_EXTPG;
 
 	/*
 	 * Get the first mbuf for the request.
@@ -360,7 +365,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		NFSMGET(mb);
 	mb->m_len = 0;
 	nd->nd_mreq = nd->nd_mb = mb;
-	nd->nd_bpos = mtod(mb, caddr_t);
+	nd->nd_bpos = mtod(mb, char *);
 	
 	/*
 	 * And fill the first file handle into the request.
