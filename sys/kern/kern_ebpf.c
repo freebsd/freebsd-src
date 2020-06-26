@@ -106,15 +106,12 @@ static void
 ebpf_register_syscall_probes(void)
 {
 	int i;
-	struct ebpf_probe *probe;
 
 	for (i = 0; i < nitems(ebpf_syscall_probe); ++i) {
 		if (ebpf_syscall_probe[i].name.name[0] == '\0')
 			continue;
 
 		ebpf_syscall_probe[i].activate = ebpf_active_syscall_probe;
-		probe->activate = &ebpf_active_syscall_probe;
-		
 		ebpf_probe_register(&ebpf_syscall_probe[i]);
 	}
 }
@@ -342,7 +339,7 @@ done:
 	return (ret);
 }
 
-static int
+int
 ebpf_syscall_probe_fire(struct ebpf_probe *probe, uintptr_t arg0,
     uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, uintptr_t arg4,
     uintptr_t arg5)
@@ -358,7 +355,7 @@ ebpf_syscall_probe_fire(struct ebpf_probe *probe, uintptr_t arg0,
 	lookup.probe_id = probe->id;
 	pp = RB_FIND(ebpf_proc_probe_tree, &proc->p_ebpf_probes, &lookup);
 	if (pp != NULL) {
-		ret = ebpf_module_callbacks->fire(probe, pp->module_state, arg0,
+		ret = ebpf_probe_fire(probe, pp->module_state, arg0,
 		    arg1, arg2, arg3, arg4, arg5);
 	}
 
@@ -368,21 +365,10 @@ ebpf_syscall_probe_fire(struct ebpf_probe *probe, uintptr_t arg0,
 }
 
 int
-ebpf_probe_fire(struct ebpf_probe *probe, uintptr_t arg0, uintptr_t arg1,
-    uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
+ebpf_probe_fire(struct ebpf_probe *probe, void *module_state, uintptr_t arg0, uintptr_t arg1, uintptr_t arg2, uintptr_t arg3, uintptr_t arg4, uintptr_t arg5)
 {
-	struct proc *proc;
-	struct ebpf_proc_probe lookup, *pp;
-	int ret = EBPF_ACTION_CONTINUE;
-	
-	proc = curthread->td_proc;
-	pp = RB_FIND(ebpf_proc_probe_tree, &proc->p_ebpf_probes, &lookup);
-	if (pp != NULL) {
-		ret = ebpf_module_callbacks->fire(probe, pp->module_state, arg0,
-		    arg1, arg2, arg3, arg4, arg5);
-	}
-
-	return (ret);
+	return (ebpf_module_callbacks->fire(probe, module_state, arg0,
+		    arg1, arg2, arg3, arg4, arg5));
 }
 
 static int
