@@ -765,6 +765,13 @@ vdev_disk_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
 	    offset + VDEV_LABEL_START_SIZE, bytes));
 }
 
+static int
+vdev_missing_read(vdev_t *vdev __unused, const blkptr_t *bp __unused,
+    void *buf __unused, off_t offset __unused, size_t bytes __unused)
+{
+
+	return (ENOTSUP);
+}
 
 static int
 vdev_mirror_read(vdev_t *vdev, const blkptr_t *bp, void *buf,
@@ -904,9 +911,10 @@ vdev_init(uint64_t guid, const nvlist_t *nvlist, vdev_t **vdevp)
 #endif
 	    memcmp(type, VDEV_TYPE_RAIDZ, len) != 0 &&
 	    memcmp(type, VDEV_TYPE_INDIRECT, len) != 0 &&
-	    memcmp(type, VDEV_TYPE_REPLACING, len) != 0) {
+	    memcmp(type, VDEV_TYPE_REPLACING, len) != 0 &&
+	    memcmp(type, VDEV_TYPE_HOLE, len) != 0) {
 		printf("ZFS: can only boot from disk, mirror, raidz1, "
-		    "raidz2 and raidz3 vdevs\n");
+		    "raidz2 and raidz3 vdevs, got: %.*s\n", len, type);
 		return (EIO);
 	}
 
@@ -937,6 +945,8 @@ vdev_init(uint64_t guid, const nvlist_t *nvlist, vdev_t **vdevp)
 			    DATA_TYPE_UINT64,
 			    NULL, &vic->vic_prev_indirect_vdev, NULL);
 		}
+	} else if (memcmp(type, VDEV_TYPE_HOLE, len) == 0) {
+		vdev = vdev_create(guid, vdev_missing_read);
 	} else {
 		vdev = vdev_create(guid, vdev_disk_read);
 	}
