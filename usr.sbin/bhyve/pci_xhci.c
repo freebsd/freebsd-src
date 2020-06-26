@@ -1843,6 +1843,9 @@ retry:
 
 	DPRINTF(("pci_xhci[%d]: xfer->ndata %u", __LINE__, xfer->ndata));
 
+	if (xfer->ndata <= 0)
+		goto errout;
+
 	if (epid == 1) {
 		err = USB_ERR_NOT_STARTED;
 		if (dev->dev_ue->ue_request != NULL)
@@ -1857,6 +1860,7 @@ retry:
 
 	err = USB_TO_XHCI_ERR(err);
 	if ((err == XHCI_TRB_ERROR_SUCCESS) ||
+	    (err == XHCI_TRB_ERROR_STALL) ||
 	    (err == XHCI_TRB_ERROR_SHORT_PKT)) {
 		err = pci_xhci_xfer_complete(sc, xfer, slot, epid, &do_intr);
 		if (err != XHCI_TRB_ERROR_SUCCESS)
