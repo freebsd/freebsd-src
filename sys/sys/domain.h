@@ -50,8 +50,10 @@ struct	rib_head;
 struct domain {
 	int	dom_family;		/* AF_xxx */
 	char	*dom_name;
+	int	dom_flags;
 	void	(*dom_init)		/* initialize domain data structures */
 		(void);
+	int	(*dom_probe)(void);	/* check for support (optional) */
 	void	(*dom_destroy)		/* cleanup structures / state */
 		(void);
 	int	(*dom_externalize)	/* externalize access rights */
@@ -69,6 +71,9 @@ struct domain {
 	int	(*dom_ifmtu)(struct ifnet *);
 					/* af-dependent data on ifnet */
 };
+
+/* dom_flags */
+#define	DOMF_SUPPORTED	0x0001	/* System supports this domain. */
 
 #ifdef _KERNEL
 extern int	domain_init_status;

@@ -172,7 +172,11 @@ domain_init(void *arg)
 {
 	struct domain *dp = arg;
 	struct protosw *pr;
+	int flags;
 
+	flags = atomic_load_acq_int(&dp->dom_flags);
+	if ((flags & DOMF_SUPPORTED) == 0)
+		return;
 	if (dp->dom_init)
 		(*dp->dom_init)();
 	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
@@ -200,6 +204,8 @@ vnet_domain_uninit(void *arg)
 {
 	struct domain *dp = arg;
 
+	if ((atomic_load_acq_int(&dp->dom_flags) & DOMF_SUPPORTED) == 0)
+		return;
 	if (dp->dom_destroy)
 		(*dp->dom_destroy)();
 }
@@ -216,6 +222,9 @@ domain_add(void *data)
 	struct domain *dp;
 
 	dp = (struct domain *)data;
+	if (dp->dom_probe != NULL && (*dp->dom_probe)() != 0)
+		return;
+	atomic_set_rel_int(&dp->dom_flags, DOMF_SUPPORTED);
 	mtx_lock(&dom_mtx);
 	dp->dom_next = domains;
 	domains = dp;
