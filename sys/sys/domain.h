@@ -74,6 +74,7 @@ struct domain {
 
 /* dom_flags */
 #define	DOMF_SUPPORTED	0x0001	/* System supports this domain. */
+#define	DOMF_INITED	0x0002	/* Initialized in the default vnet. */
 
 #ifdef _KERNEL
 extern int	domain_init_status;
