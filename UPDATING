@@ -26,6 +26,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200625:
+	r362639 changed the internal API used between the NFS kernel modules.
+	As such, they all need to be rebuilt from sources.
+
 20200613:
 	r362158 changed the arguments for VFS_CHECKEXP().  As such, any
 	out of tree file systems need to be modified and rebuilt.
