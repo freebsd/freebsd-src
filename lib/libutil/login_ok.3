@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 1997
+.Dd May 10, 2020 
 .Dt LOGIN_OK 3
 .Os
 .Sh NAME
@@ -140,3 +140,11 @@ access list.
 .Xr login_times 3 ,
 .Xr login.conf 5 ,
 .Xr termcap 5
+.Sh HISTORY
+The functions
+.Fn auth_ttyok ,
+.Fn auth_hostok
+ and
+.Fn auth_timeok
+functions first appeared in
+.Fx 2.1.5 .
