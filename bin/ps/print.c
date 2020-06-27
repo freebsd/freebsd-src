@@ -551,6 +551,22 @@ cputime(KINFO *k, VARENT *ve)
 }
 
 char *
+cpunum(KINFO *k, VARENT *ve __unused)
+{
+	char *cpu;
+
+	if (!smp)
+		return (NULL);
+
+	if (k->ki_p->ki_stat == SRUN && k->ki_p->ki_oncpu != NOCPU) {
+		asprintf(&cpu, "%d", k->ki_p->ki_oncpu);
+	} else {
+		asprintf(&cpu, "%d", k->ki_p->ki_lastcpu);
+	}
+	return (cpu);
+}
+
+char *
 systime(KINFO *k, VARENT *ve)
 {
 	long secs, psecs;
