@@ -1040,22 +1040,48 @@
 		);
 	}
 180	AUE_NULL	STD	{
-		int linux_mq_open(void);
+		int linux_mq_open(
+		    const char *name,
+		    l_int oflag,
+		    l_mode_t mode,
+		    struct mq_attr *attr
+		);
 	}
 181	AUE_NULL	STD	{
-		int linux_mq_unlink(void);
+		int linux_mq_unlink(
+		    const char *name
+		);
 	}
 182	AUE_NULL	STD	{
-		int linux_mq_timedsend(void);
+		int linux_mq_timedsend(
+		    l_mqd_t mqd,
+		    const char *msg_ptr,
+		    l_size_t msg_len,
+		    l_uint msg_prio,
+		    const struct l_timespec *abs_timeout
+		);
 	}
 183	AUE_NULL	STD	{
-		int linux_mq_timedreceive(void);
+		int linux_mq_timedreceive(
+		    l_mqd_t mqd,
+		    char *msg_ptr,
+		    l_size_t msg_len,
+		    l_uint *msg_prio,
+		    const struct l_timespec *abs_timeout
+		);
 	}
 184	AUE_NULL	STD	{
-		int linux_mq_notify(void);
+		int linux_mq_notify(
+		    l_mqd_t mqd,
+		    const struct l_timespec *abs_timeout
+		);
 	}
 185	AUE_NULL	STD	{
-		int linux_mq_getsetattr(void);
+		int linux_mq_getsetattr(
+		    l_mqd_t mqd,
+		    const struct mq_attr *attr,
+		    struct mq_attr *oattr
+		);
 	}
 186	AUE_NULL	STD	{
 		int linux_msgget(
