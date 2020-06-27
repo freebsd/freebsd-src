@@ -28,7 +28,7 @@
 .\"	@(#)termios.4	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2009
+.Dd June 27, 2020
 .Dt TERMIOS 4
 .Os
 .Sh NAME
@@ -761,6 +761,13 @@ command in the foreground, its process ID, the symbolic
 wait channel, the number of user and system seconds used,
 the percentage of cpu the process is getting, and the resident
 set size of the process.
+.Pp
+In case the
+.Xr sysctl 8
+variable
+.Va kern.tty_info_kstacks
+is set to a non-zero value, the running thread's stack is
+written to the terminal (e.g., for debugging purposes).
 .El
 .Pp
 The
@@ -1586,4 +1593,5 @@ the values in the header
 .Xr tcsendbreak 3 ,
 .Xr tcsetattr 3 ,
 .Xr tcsetsid 3 ,
-.Xr tty 4
+.Xr tty 4 ,
+.Xr stack 9
