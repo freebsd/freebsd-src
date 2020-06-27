@@ -126,12 +126,13 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	int c, fflag;
+	int c, fflag, fflagstdin;
 	char *temp_arg;
 
 	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
+	fflagstdin = 0;
 	inplace = NULL;
 
 	while ((c = getopt(argc, argv, "EI:ae:f:i:lnru")) != -1)
@@ -157,6 +158,8 @@ main(int argc, char *argv[])
 			break;
 		case 'f':
 			fflag = 1;
+			if (strcmp(optarg, "-") == 0)
+				fflagstdin = 1;
 			add_compunit(CU_FILE, optarg);
 			break;
 		case 'i':
@@ -193,6 +196,8 @@ main(int argc, char *argv[])
 	if (*argv)
 		for (; *argv; argv++)
 			add_file(*argv);
+	else if (fflagstdin)
+		exit(rval);
 	else
 		add_file(NULL);
 	process();
@@ -236,9 +241,14 @@ again:
 		linenum = 0;
 		switch (script->type) {
 		case CU_FILE:
-			if ((f = fopen(script->s, "r")) == NULL)
-				err(1, "%s", script->s);
-			fname = script->s;
+			if (strcmp(script->s, "-") == 0) {
+				f = stdin;
+				fname = "stdin";
+			} else {
+				if ((f = fopen(script->s, "r")) == NULL)
+				        err(1, "%s", script->s);
+				fname = script->s;
+			}
 			state = ST_FILE;
 			goto again;
 		case CU_STRING:

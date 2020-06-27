@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2020
+.Dd June 10, 2020
 .Dt SED 1
 .Os
 .Sh NAME
@@ -98,6 +98,10 @@ Append the editing commands found in the file
 .Ar command_file
 to the list of commands.
 The editing commands should each be listed on a separate line.
+The commands are read from the standard input if
+.Ar command_file
+is
+.Dq Li - .
 .It Fl I Ar extension
 Edit files in-place, saving backups with the specified
 .Ar extension .
@@ -636,7 +640,9 @@ The
 .Fl E , I , a
 and
 .Fl i
-options, the prefixing
+options, the special meaning of
+.Fl f Cm - ,
+the prefixing
 .Dq \&+
 in the second member of an address range,
 as well as the
