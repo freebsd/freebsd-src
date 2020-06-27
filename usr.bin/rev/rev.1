@@ -28,7 +28,7 @@
 .\"	@(#)rev.1	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd June 27, 2020
 .Dt REV 1
 .Os
 .Sh NAME
@@ -43,3 +43,10 @@ The
 utility copies the specified files to the standard output, reversing the
 order of characters in every line.
 If no files are specified, the standard input is read.
+.Sh EXAMPLES
+Reverse the text from stdin:
+.Bd -literal -offset indent
+$ echo -e "reverse \et these\entwo lines" | rev
+eseht    esrever
+senil owt
+.Ed
