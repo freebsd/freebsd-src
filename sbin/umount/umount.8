@@ -28,7 +28,7 @@
 .\"     @(#)umount.8	8.2 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2020
+.Dd June 19, 2020
 .Dt UMOUNT 8
 .Os
 .Sh NAME
@@ -69,8 +69,11 @@ All the file systems described in
 .Xr fstab 5
 are unmounted.
 .It Fl A
-All the currently mounted file systems except
-the root are unmounted.
+All the currently mounted file systems are unmounted,
+except for those mounted at
+.Pa /
+or
+.Pa /dev .
 .It Fl F Ar fstab
 Specify the
 .Pa fstab
