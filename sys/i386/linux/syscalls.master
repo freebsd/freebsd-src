@@ -1532,8 +1532,8 @@
 277	AUE_NULL	STD {
 		int linux_mq_open(
 		    const char *name,
-		    int oflag,
-		    mode_t mode,
+		    l_int oflag,
+		    l_mode_t mode,
 		    struct mq_attr *attr
 		);
 	}
@@ -1546,8 +1546,8 @@
 		int linux_mq_timedsend(
 		    l_mqd_t mqd,
 		    const char *msg_ptr,
-		    size_t msg_len,
-		    unsigned int msg_prio,
+		    l_size_t msg_len,
+		    l_uint msg_prio,
 		    const struct l_timespec *abs_timeout
 		);
 	}
@@ -1555,8 +1555,8 @@
 		int linux_mq_timedreceive(
 		    l_mqd_t mqd,
 		    char *msg_ptr,
-		    size_t msg_len,
-		    unsigned int msg_prio,
+		    l_size_t msg_len,
+		    l_uint *msg_prio,
 		    const struct l_timespec *abs_timeout
 		);
 	}

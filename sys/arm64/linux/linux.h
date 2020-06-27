@@ -64,6 +64,7 @@ typedef l_ulong		l_size_t;
 typedef l_long		l_suseconds_t;
 typedef l_long		l_time_t;
 typedef l_int		l_timer_t;	/* XXX */
+typedef l_int		l_mqd_t;
 typedef l_ulong		l_fd_mask;
 
 typedef struct {
