@@ -593,7 +593,7 @@ contrib/libfdt/fdt_wip.c	optional fdt
 contrib/libnv/cnvlist.c		standard
 contrib/libnv/dnvlist.c		standard
 contrib/libnv/nvlist.c		standard
-contrib/libnv/nvpair.c		standard
+contrib/libnv/bsd_nvpair.c		standard
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
