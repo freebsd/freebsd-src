@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Man page generated from reStructuredText.
 .
-.TH "LLVM-DWARFDUMP" "1" "2018-08-02" "7" "LLVM"
+.TH "LLVM-DWARFDUMP" "1" "2020-06-26" "10" "LLVM"
 .SH NAME
 llvm-dwarfdump \- dump and verify DWARF debug information
 .
@@ -40,11 +40,15 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 archives, and \fI\&.dSYM\fP bundles and prints their contents in
 human\-readable form. Only the .debug_info section is printed unless one of
 the section\-specific options or \fI\%\-\-all\fP is specified.
+.sp
+If no input file is specified, \fIa.out\fP is used instead. If \fI\-\fP is used as the
+input file, \fBllvm\-dwarfdump\fP reads the input from its standard input
+stream.
 .SH OPTIONS
 .INDENT 0.0
 .TP
 .B \-a, \-\-all
-Disassemble all supported DWARF sections.
+Dump all supported DWARF sections.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -58,9 +62,14 @@ default.
 .INDENT 0.0
 .TP
 .B \-c, \-\-show\-children
-Show a debug info entry\(aqs children when using
-the \fI\%\-\-debug\-info\fP, \fI\%\-\-find\fP,
-and \fI\%\-\-name\fP options.
+Show a debug info entry\(aqs children when selectively printing with
+the \fI=<offset>\fP argument of \fI\%\-\-debug\-info\fP, or options such
+as \fI\%\-\-find\fP or \fI\%\-\-name\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-color
+Use colors in output.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -83,42 +92,56 @@ Show help and usage for this command.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-i, \-\-ignore\-case
-Ignore case distinctions in when searching entries by name
-or by regular expression.
+.B \-\-help\-list
+Show help and usage for this command without grouping the options
+into categories.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-n <pattern>, \-\-name=<pattern>
+.B \-i, \-\-ignore\-case
+Ignore case distinctions when using \fI\%\-\-name\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-n <name>, \-\-name=<name>
 Find and print all debug info entries whose name
-(\fIDW_AT_name\fP attribute) matches the exact text in
-<pattern>. Use the \fI\%\-\-regex\fP option to have
-<pattern> become a regular expression for more flexible
-pattern matching.
+(\fIDW_AT_name\fP attribute) is <name>.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-lookup=<address>
-Lookup <address> in the debug information and print out the file,
+Look up <address> in the debug information and print out the file,
 function, block, and line table details.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-o <path>, \-\-out\-file=<path>
-Redirect output to a file specified by <path>.
+.B \-o <path>
+Redirect output to a file specified by <path>, where \fI\-\fP is the
+standard output stream.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-p, \-\-show\-parents
-Show a debug info entry\(aqs parent objects when using the
-\fI\%\-\-debug\-info\fP, \fI\%\-\-find\fP, and
-\fI\%\-\-name\fP options.
+Show a debug info entry\(aqs parents when selectively printing with
+the \fI=<offset>\fP argument of \fI\%\-\-debug\-info\fP, or options such
+as \fI\%\-\-find\fP or \fI\%\-\-name\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-r <n>, \-\-recurse\-depth=<n>
-Only recurse to a maximum depth of <n> when dumping debug info
-entries.
+.B \-\-parent\-recurse\-depth=<N>
+When displaying debug info entry parents, only show them to a
+maximum depth of <N>.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-quiet
+Use with \fI\%\-\-verify\fP to not emit to \fISTDOUT\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r <N>, \-\-recurse\-depth=<N>
+When displaying debug info entries, only show children to a maximum
+depth of <N>.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -128,9 +151,15 @@ as machine\-readable single\-line JSON output.
 .UNINDENT
 .INDENT 0.0
 .TP
+.B \-\-summarize\-types
+Abbreviate the description of type unit entries.
+.UNINDENT
+.INDENT 0.0
+.TP
 .B \-x, \-\-regex
-Treat any <pattern> strings as regular expressions when searching
-instead of just as an exact string match.
+Treat any <name> strings as regular expressions when searching
+with \fI\%\-\-name\fP\&. If \fI\%\-\-ignore\-case\fP is also specified,
+the regular expression becomes case\-insensitive.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -163,16 +192,19 @@ Display the version of the tool.
 .UNINDENT
 .INDENT 0.0
 .TP
-.B \-\-debug\-abbrev, \-\-debug\-aranges, \-\-debug\-cu\-index, \-\-debug\-frame [=<offset>], \-\-debug\-gnu\-pubnames, \-\-debug\-gnu\-pubtypes, \-\-debug\-info [=<offset>], \-\-debug\-line [=<offset>], \-\-debug\-loc [=<offset>], \-\-debug\-macro, \-\-debug\-pubnames, \-\-debug\-pubtypes, \-\-debug\-ranges, \-\-debug\-str, \-\-debug\-str\-offsets, \-\-debug\-tu\-index, \-\-debug\-types, \-\-eh\-frame, \-\-gdb\-index, \-\-apple\-names, \-\-apple\-types, \-\-apple\-namespaces, \-\-apple\-objc
+.B \-\-debug\-abbrev, \-\-debug\-addr, \-\-debug\-aranges, \-\-debug\-cu\-index, \-\-debug\-frame [=<offset>], \-\-debug\-gnu\-pubnames, \-\-debug\-gnu\-pubtypes, \-\-debug\-info [=<offset>], \-\-debug\-line [=<offset>], \-\-debug\-line\-str, \-\-debug\-loc [=<offset>], \-\-debug\-loclists [=<offset>], \-\-debug\-macro, \-\-debug\-names, \-\-debug\-pubnames, \-\-debug\-pubtypes, \-\-debug\-ranges, \-\-debug\-rnglists, \-\-debug\-str, \-\-debug\-str\-offsets, \-\-debug\-tu\-index, \-\-debug\-types, \-\-eh\-frame [=<offset>], \-\-gdb\-index, \-\-apple\-names, \-\-apple\-types, \-\-apple\-namespaces, \-\-apple\-objc
 Dump the specified DWARF section by name. Only the
 \fI\&.debug_info\fP section is shown by default. Some entries
 support adding an \fI=<offset>\fP as a way to provide an
 optional offset of the exact entry to dump within the
 respective section. When an offset is provided, only the
 entry at that offset will be dumped, else the entire
-section will be dumped. Children of items at a specific
-offset can be dumped by also using the
-\fI\%\-\-show\-children\fP option where applicable.
+section will be dumped.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options from \fI<FILE>\fP\&.
 .UNINDENT
 .SH EXIT STATUS
 .sp
@@ -182,8 +214,8 @@ successfully. Otherwise, it returns 1.
 .sp
 \fBdsymutil(1)\fP
 .SH AUTHOR
-Maintained by The LLVM Team (http://llvm.org/).
+Maintained by the LLVM Team (https://llvm.org/).
 .SH COPYRIGHT
-2003-2018, LLVM Project
+2003-2020, LLVM Project
 .\" Generated by docutils manpage writer.
 .
