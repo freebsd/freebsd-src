@@ -105,6 +105,7 @@ __DEFAULT_YES_OPTIONS = \
     FTP \
     GAMES \
     GDB \
+    GH_BC \
     GNU_DIFF \
     GNU_GREP \
     GOOGLETEST \
