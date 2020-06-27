@@ -1598,62 +1598,116 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_setxattr */
 	case 226: {
-		*n_args = 0;
+		struct linux_setxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* const char * */
+		iarg[3] = p->size; /* l_size_t */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
 		break;
 	}
 	/* linux_lsetxattr */
 	case 227: {
-		*n_args = 0;
+		struct linux_lsetxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* const char * */
+		iarg[3] = p->size; /* l_size_t */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
 		break;
 	}
 	/* linux_fsetxattr */
 	case 228: {
-		*n_args = 0;
+		struct linux_fsetxattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* const char * */
+		iarg[3] = p->size; /* l_size_t */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
 		break;
 	}
 	/* linux_getxattr */
 	case 229: {
-		*n_args = 0;
+		struct linux_getxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* char * */
+		iarg[3] = p->size; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_lgetxattr */
 	case 230: {
-		*n_args = 0;
+		struct linux_lgetxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* char * */
+		iarg[3] = p->size; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_fgetxattr */
 	case 231: {
-		*n_args = 0;
+		struct linux_fgetxattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* char * */
+		iarg[3] = p->size; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_listxattr */
 	case 232: {
-		*n_args = 0;
+		struct linux_listxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->list; /* const char * */
+		iarg[2] = p->size; /* l_size_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_llistxattr */
 	case 233: {
-		*n_args = 0;
+		struct linux_llistxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->list; /* const char * */
+		iarg[2] = p->size; /* l_size_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_flistxattr */
 	case 234: {
-		*n_args = 0;
+		struct linux_flistxattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->list; /* const char * */
+		iarg[2] = p->size; /* l_size_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_removexattr */
 	case 235: {
-		*n_args = 0;
+		struct linux_removexattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_lremovexattr */
 	case 236: {
-		*n_args = 0;
+		struct linux_lremovexattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_fremovexattr */
 	case 237: {
-		*n_args = 0;
+		struct linux_fremovexattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_tkill */
@@ -1918,8 +1972,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 277: {
 		struct linux_mq_open_args *p = params;
 		uarg[0] = (intptr_t) p->name; /* const char * */
-		iarg[1] = p->oflag; /* int */
-		iarg[2] = p->mode; /* mode_t */
+		iarg[1] = p->oflag; /* l_int */
+		iarg[2] = p->mode; /* l_mode_t */
 		uarg[3] = (intptr_t) p->attr; /* struct mq_attr * */
 		*n_args = 4;
 		break;
@@ -1936,8 +1990,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_mq_timedsend_args *p = params;
 		iarg[0] = p->mqd; /* l_mqd_t */
 		uarg[1] = (intptr_t) p->msg_ptr; /* const char * */
-		uarg[2] = p->msg_len; /* size_t */
-		uarg[3] = p->msg_prio; /* unsigned int */
+		iarg[2] = p->msg_len; /* l_size_t */
+		iarg[3] = p->msg_prio; /* l_uint */
 		uarg[4] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
 		*n_args = 5;
 		break;
@@ -1947,8 +2001,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_mq_timedreceive_args *p = params;
 		iarg[0] = p->mqd; /* l_mqd_t */
 		uarg[1] = (intptr_t) p->msg_ptr; /* char * */
-		uarg[2] = p->msg_len; /* size_t */
-		uarg[3] = p->msg_prio; /* unsigned int */
+		iarg[2] = p->msg_len; /* l_size_t */
+		uarg[3] = (intptr_t) p->msg_prio; /* l_uint * */
 		uarg[4] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
 		*n_args = 5;
 		break;
@@ -5530,39 +5584,213 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setxattr */
 	case 226:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_lsetxattr */
 	case 227:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fsetxattr */
 	case 228:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_getxattr */
 	case 229:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_lgetxattr */
 	case 230:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fgetxattr */
 	case 231:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_listxattr */
 	case 232:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_llistxattr */
 	case 233:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_flistxattr */
 	case 234:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_removexattr */
 	case 235:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_lremovexattr */
 	case 236:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fremovexattr */
 	case 237:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_tkill */
 	case 238:
@@ -5988,10 +6216,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 1:
-			p = "int";
+			p = "l_int";
 			break;
 		case 2:
-			p = "mode_t";
+			p = "l_mode_t";
 			break;
 		case 3:
 			p = "userland struct mq_attr *";
@@ -6020,10 +6248,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "size_t";
+			p = "l_size_t";
 			break;
 		case 3:
-			p = "unsigned int";
+			p = "l_uint";
 			break;
 		case 4:
 			p = "userland const struct l_timespec *";
@@ -6042,10 +6270,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 2:
-			p = "size_t";
+			p = "l_size_t";
 			break;
 		case 3:
-			p = "unsigned int";
+			p = "userland l_uint *";
 			break;
 		case 4:
 			p = "userland const struct l_timespec *";
@@ -8715,28 +8943,64 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 224:
 	/* linux_setxattr */
 	case 226:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_lsetxattr */
 	case 227:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fsetxattr */
 	case 228:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_getxattr */
 	case 229:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_lgetxattr */
 	case 230:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fgetxattr */
 	case 231:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_listxattr */
 	case 232:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_llistxattr */
 	case 233:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_flistxattr */
 	case 234:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_removexattr */
 	case 235:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_lremovexattr */
 	case 236:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fremovexattr */
 	case 237:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_tkill */
 	case 238:
 		if (ndx == 0 || ndx == 1)
