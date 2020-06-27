@@ -1,0 +1,83 @@
+$quote "
+
+$ Diversen berichten.
+$set 1
+
+1 "Functie:"
+
+$ Fouttypes.
+$set 2
+
+1 "Rekenfout:"
+2 "Parse error:"
+3 "Runtime error:"
+4 "Fatale fout:"
+5 "Waarschuwing:"
+
+$ Math error.
+$set 3
+
+1 "negatief getal"
+2 "niet-integraal getal"
+3 "overloop: nummer past niet in een hardware-nummer"
+4 "delen door 0"
+
+$ Parsefouten.
+$set 4
+
+1 "einde van het file"
+2 "ongeldig teken '%c'"
+3 "string einde kon niet worden gevonden"
+4 "commentaar einde kon niet worden gevonden"
+5 "ongeldige token"
+6 "ongeldige uitdrukking"
+7 "lege uitdrukking"
+8 "ongeldige afdruk"
+9 "ongeldige functiedefinitie"
+10 "ongeldige toewijzing: linkerzijde moet scale, ibase, obase, last, var of array element zijn"
+11 "geen autovariabele gevonden"
+12 "Functieparameter of automatisch bestaat al"
+13 "blokuiteinde kon niet worden gevonden"
+14 "kan geen waarde uit de nietige functie teruggeven: %s()"
+15 "var kan geen referentie zijn: %s"
+16 "POSIX staat geen namen toe die langer zijn dan 1 teken: %s"
+17 "POSIX staat geen '#'-scriptcommentaar toe"
+18 "POSIX laat het volgende sleutelwoord niet toe: %s"
+19 "POSIX staat geen periode ('.') toe als een kortere weg voor het laatste resultaat"
+20 "POSIX vereist haakjes rond de terugkeeruitdrukkingen"
+21 "POSIX laat de volgende operator niet toe: %s"
+22 "POSIX laat geen vergelijking toe tussen operatoren buiten als verklaringen of lussen"
+23 "POSIX vereist 0 of 1 vergelijkingsoperator per conditie"
+24 "POSIX vereist dat alle 3 de delen van een lus niet leeg zijn"
+25 "POSIX laat geen exponentiële notatie toe"
+26 "POSIX staat geen arrayreferenties toe als functieparameters"
+27 "POSIX vereist dat de linkse beugel op dezelfde regel staat als de functiehoofding"
+
+$ Runtime fouten.
+$set 5
+
+1 "ongeldige ibase: moet [%lu, %lu] zijn"
+2 "ongeldige obase: moet [%lu, %lu] zijn"
+3 "ongeldige schaal: moet [%lu, %lu] zijn"
+4 "ongeldige read() expressie"
+5 "recursieve read() call"
+6 "Variabele of matrix-element is het verkeerde type"
+7 "Stapel heeft te weinig elementen"
+8 "Verkeerd aantal parameters; hebben %zu nodig, hebben %zu"
+9 "ongedefinieerde functie: %s()"
+10 "kan geen nietige waarde in een uitdrukking gebruiken"
+
+$ Fatale fouten.
+$set 6
+
+1 "geheugentoewijzing mislukt"
+2 "I/O-fout"
+3 "kon geen file openen: %s"
+4 "bestand is niet ASCII: %s"
+5 "pad is een directory: %s"
+6 "ongeldige opdrachtregeloptie: '%c' (%s)"
+
+$set 7
+
+1 "optie vereist een argument: '%c' (\"%s\")"
+2 "optie neemt geen argumenten aan: '%c' (\"%s\")"
