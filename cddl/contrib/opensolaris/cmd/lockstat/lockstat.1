@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2015
+.Dd February 25, 2020
 .Dt LOCKSTAT 1
 .Os
 .Sh NAME
@@ -366,6 +366,11 @@ Count indv cuml rcnt     nsec Lock                   Caller
 .Xr dtrace 1 ,
 .Xr ksyms 4 ,
 .Xr locking 9
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 7.1 .
 .Sh NOTES
 Tail-call elimination can affect call sites.
 For example, if
