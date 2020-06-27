@@ -41,13 +41,14 @@ extern fixpt_t ccpu;
 extern int cflag, eval, fscale, nlistread, rawcpu;
 extern unsigned long mempages;
 extern time_t now;
-extern int showthreads, sumrusage, termwidth;
+extern int showthreads, sumrusage, termwidth, smp;
 extern STAILQ_HEAD(velisthead, varent) varlist;
 
 __BEGIN_DECLS
 char	 *arguments(KINFO *, VARENT *);
 char	 *command(KINFO *, VARENT *);
 char	 *cputime(KINFO *, VARENT *);
+char	 *cpunum(KINFO *, VARENT *);
 int	 donlist(void);
 char	 *elapsed(KINFO *, VARENT *);
 char	 *elapseds(KINFO *, VARENT *);
