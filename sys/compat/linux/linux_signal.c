@@ -63,24 +63,56 @@ static void	sicode_to_lsicode(int si_code, int *lsi_code);
 static void
 linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 {
+	unsigned long flags;
 
 	linux_to_bsd_sigset(&lsa->lsa_mask, &bsa->sa_mask);
 	bsa->sa_handler = PTRIN(lsa->lsa_handler);
 	bsa->sa_flags = 0;
-	if (lsa->lsa_flags & LINUX_SA_NOCLDSTOP)
+
+	flags = lsa->lsa_flags;
+	if (lsa->lsa_flags & LINUX_SA_NOCLDSTOP) {
+		flags &= ~LINUX_SA_NOCLDSTOP;
 		bsa->sa_flags |= SA_NOCLDSTOP;
-	if (lsa->lsa_flags & LINUX_SA_NOCLDWAIT)
+	}
+	if (lsa->lsa_flags & LINUX_SA_NOCLDWAIT) {
+		flags &= ~LINUX_SA_NOCLDWAIT;
 		bsa->sa_flags |= SA_NOCLDWAIT;
-	if (lsa->lsa_flags & LINUX_SA_SIGINFO)
+	}
+	if (lsa->lsa_flags & LINUX_SA_SIGINFO) {
+		flags &= ~LINUX_SA_SIGINFO;
 		bsa->sa_flags |= SA_SIGINFO;
-	if (lsa->lsa_flags & LINUX_SA_ONSTACK)
+#ifdef notyet
+		/*
+		 * XXX: We seem to be missing code to convert
+		 *      some of the fields in ucontext_t.
+		 */
+		linux_msg(curthread,
+		    "partially unsupported sigaction flag SA_SIGINFO");
+#endif
+	}
+	if (lsa->lsa_flags & LINUX_SA_RESTORER) {
+		flags &= ~LINUX_SA_RESTORER;
+		/* XXX: We might want to handle it; see Linux sigreturn(2). */
+	}
+	if (lsa->lsa_flags & LINUX_SA_ONSTACK) {
+		flags &= ~LINUX_SA_ONSTACK;
 		bsa->sa_flags |= SA_ONSTACK;
-	if (lsa->lsa_flags & LINUX_SA_RESTART)
+	}
+	if (lsa->lsa_flags & LINUX_SA_RESTART) {
+		flags &= ~LINUX_SA_RESTART;
 		bsa->sa_flags |= SA_RESTART;
-	if (lsa->lsa_flags & LINUX_SA_ONESHOT)
+	}
+	if (lsa->lsa_flags & LINUX_SA_ONESHOT) {
+		flags &= ~LINUX_SA_ONESHOT;
 		bsa->sa_flags |= SA_RESETHAND;
-	if (lsa->lsa_flags & LINUX_SA_NOMASK)
+	}
+	if (lsa->lsa_flags & LINUX_SA_NOMASK) {
+		flags &= ~LINUX_SA_NOMASK;
 		bsa->sa_flags |= SA_NODEFER;
+	}
+
+	if (flags != 0)
+		linux_msg(curthread, "unsupported sigaction flag %#lx", flags);
 }
 
 static void
