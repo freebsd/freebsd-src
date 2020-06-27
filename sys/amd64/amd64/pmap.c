@@ -3807,6 +3807,29 @@ pmap_pinit(pmap_t pmap)
  * one or two pages may be held during the wait, only to be released
  * afterwards.  This conservative approach is easily argued to avoid
  * race conditions.
+ *
+ * The ptepindexes, i.e. page indices, of the page table pages encountered
+ * while translating virtual address va are defined as follows:
+ * - for the page table page (last level),
+ *      ptepindex = pmap_pde_pindex(va) = va >> PDRSHIFT,
+ *   in other words, it is just the index of the PDE that maps the page
+ *   table page.
+ * - for the page directory page,
+ *      ptepindex = NUPDE (number of userland PD entries) +
+ *          (pmap_pde_index(va) >> NPDEPGSHIFT)
+ *   i.e. index of PDPE is put after the last index of PDE,
+ * - for the page directory pointer page,
+ *      ptepindex = NUPDE + NUPDPE + (pmap_pde_index(va) >> (NPDEPGSHIFT +
+ *          NPML4EPGSHIFT),
+ *   i.e. index of pml4e is put after the last index of PDPE.
+ *
+ * Define an order on the paging entries, where all entries of the
+ * same height are put together, then heights are put from deepest to
+ * root.  Then ptexpindex is the sequential number of the
+ * corresponding paging entry in this order.
+ *
+ * The root page at PML4 does not participate in this indexing scheme, since
+ * it is statically allocated by pmap_pinit() and not by _pmap_allocpte().
  */
 static vm_page_t
 _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
