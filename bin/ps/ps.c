@@ -105,7 +105,6 @@ int	 rawcpu;		/* -C */
 int	 sumrusage;		/* -S */
 int	 termwidth;		/* Width of the screen (0 == infinity). */
 int	 showthreads;		/* will threads be shown? */
-int	 smp;			/* multi-processor support */
 
 struct velisthead varlist = STAILQ_HEAD_INITIALIZER(varlist);
 
@@ -158,7 +157,6 @@ static void	 saveuser(KINFO *);
 static void	 scanvars(void);
 static void	 sizevars(void);
 static void	 pidmax_init(void);
-static void	 smp_init(void);
 static void	 usage(void);
 
 static char dfmt[] = "pid,tt,state,time,command";
@@ -228,7 +226,6 @@ main(int argc, char *argv[])
 		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
 
 	pidmax_init();
-	smp_init();
 
 	all = descendancy = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
@@ -1457,18 +1454,6 @@ pidmax_init(void)
 		xo_warn("unable to read kern.pid_max");
 		pid_max = 99999;
 	}
-}
-
-static void
-smp_init(void)
-{
-	size_t size;
-
-	size = sizeof(smp);
-	if ((sysctlbyname("machdep.smp_active", &smp, &size, NULL, 0) != 0 &&
-		sysctlbyname("kern.smp.active", &smp, &size, NULL, 0) != 0) ||
-		size != sizeof(smp))
-		smp = 0;
 }
 
 static void __dead2
