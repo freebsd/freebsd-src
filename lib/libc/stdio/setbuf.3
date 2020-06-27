@@ -32,7 +32,7 @@
 .\"     @(#)setbuf.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2013
+.Dd May 1, 2020
 .Dt SETBUF 3
 .Os
 .Sh NAME
@@ -195,6 +195,23 @@ and
 functions
 conform to
 .St -isoC .
+.Sh HISTORY
+The
+.Fn setbuf
+function first appeared in
+.At v7 .
+The
+.Fn setbuffer
+function first appeared in
+.Bx 4.1c .
+The
+.Fn setlinebuf
+function first appeared in
+.Bx 4.2 .
+The
+.Fn setvbuf
+function first appeared in
+.Bx 4.4 .
 .Sh BUGS
 .Fn setbuf
 usually uses a suboptimal buffer size and should be avoided.

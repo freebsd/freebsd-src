@@ -28,7 +28,7 @@
 .\"     @(#)getitimer.2	8.3 (Berkeley) 5/16/95
 .\" $FreeBSD$
 .\"
-.Dd May 16, 1995
+.Dd May 1, 2020 
 .Dt GETITIMER 2
 .Os
 .Sh NAME
@@ -173,6 +173,21 @@ to be handled.
 .Xr select 2 ,
 .Xr sigaction 2 ,
 .Xr clocks 7
+.Sh STANDARDS
+The
+.Fn getitimer
+and
+.Fn setitimer
+functions conform to
+.St -p1003.1-2001 .
+The later
+.St -p1003.1-2008
+revision however marked both functions as obsolescent,
+recommending the use of
+.Xr timer_gettime 2
+and
+.Xr timer_settime 2
+instead.
 .Sh HISTORY
 The
 .Fn getitimer
