@@ -1,0 +1,13 @@
+define x(x, y) {
+	return x - y + 5
+}
+
+define y(y, x) {
+	return x(y, x) + x(x, y)
+}
+
+y(1, 4)
+y(2, 4)
+y(3, 4)
+y(4, 3)
+y(3, 2)

@@ -1,0 +1,201 @@
+/*
+ * *****************************************************************************
+ *
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The bc math library.
+ *
+ */
+
+scale=20
+define e(x){
+	auto b,s,n,r,d,i,p,f,v
+	b=ibase
+	ibase=A
+	if(x<0){
+		n=1
+		x=-x
+	}
+	s=scale
+	r=6+s+.44*x
+	scale=scale(x)+1
+	while(x>1){
+		d+=1
+		x/=2
+		scale+=1
+	}
+	scale=r
+	r=x+1
+	p=x
+	f=v=1
+	for(i=2;v;++i){
+		p*=x
+		f*=i
+		v=p/f
+		r+=v
+	}
+	while(d--)r*=r
+	scale=s
+	ibase=b
+	if(n)return(1/r)
+	return(r/1)
+}
+define l(x){
+	auto b,s,r,p,a,q,i,v
+	if(x<=0)return((1-A^scale)/1)
+	b=ibase
+	ibase=A
+	s=scale
+	scale+=6
+	p=2
+	while(x>=2){
+		p*=2
+		x=sqrt(x)
+	}
+	while(x<=.5){
+		p*=2
+		x=sqrt(x)
+	}
+	r=a=(x-1)/(x+1)
+	q=a*a
+	v=1
+	for(i=3;v;i+=2){
+		a*=q
+		v=a/i
+		r+=v
+	}
+	r*=p
+	scale=s
+	ibase=b
+	return(r/1)
+}
+define s(x){
+	auto b,s,r,a,q,i
+	if(x<0)return(-s(-x))
+	b=ibase
+	ibase=A
+	s=scale
+	scale=1.1*s+2
+	a=a(1)
+	scale=0
+	q=(x/a+2)/4
+	x-=4*q*a
+	if(q%2)x=-x
+	scale=s+2
+	r=a=x
+	q=-x*x
+	for(i=3;a;i+=2){
+		a*=q/(i*(i-1))
+		r+=a
+	}
+	scale=s
+	ibase=b
+	return(r/1)
+}
+define c(x){
+	auto b,s
+	b=ibase
+	ibase=A
+	s=scale
+	scale*=1.2
+	x=s(2*a(1)+x)
+	scale=s
+	ibase=b
+	return(x/1)
+}
+define a(x){
+	auto b,s,r,n,a,m,t,f,i,u
+	b=ibase
+	ibase=A
+	n=1
+	if(x<0){
+		n=-1
+		x=-x
+	}
+	if(scale<65){
+		if(x==1){
+			r=.7853981633974483096156608458198757210492923498437764552437361480/n
+			ibase=b
+			return(r)
+		}
+		if(x==.2){
+			r=.1973955598498807583700497651947902934475851037878521015176889402/n
+			ibase=b
+			return(r)
+		}
+	}
+	s=scale
+	if(x>.2){
+		scale+=5
+		a=a(.2)
+	}
+	scale=s+3
+	while(x>.2){
+		m+=1
+		x=(x-.2)/(1+.2*x)
+	}
+	r=u=x
+	f=-x*x
+	t=1
+	for(i=3;t;i+=2){
+		u*=f
+		t=u/i
+		r+=t
+	}
+	scale=s
+	ibase=b
+	return((m*a+r)/n)
+}
+define j(n,x){
+	auto b,s,o,a,i,v,f
+	b=ibase
+	ibase=A
+	s=scale
+	scale=0
+	n/=1
+	if(n<0){
+		n=-n
+		o=n%2
+	}
+	a=1
+	for(i=2;i<=n;++i)a*=i
+	scale=1.5*s
+	a=(x^n)/2^n/a
+	r=v=1
+	f=-x*x/4
+	scale+=length(a)-scale(a)
+	for(i=1;v;++i){
+		v=v*f/i/(n+i)
+		r+=v
+	}
+	scale=s
+	ibase=b
+	if(o)a=-a
+	return(a*r/1)
+}

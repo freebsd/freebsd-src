@@ -1,0 +1,362 @@
+#
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# %%WARNING%%
+#
+.POSIX:
+
+VERSION = 3.0.2
+
+SRC = %%SRC%%
+OBJ = %%OBJ%%
+GCDA = %%GCDA%%
+GCNO = %%GCNO%%
+
+BC_SRC = %%BC_SRC%%
+BC_OBJ = %%BC_OBJ%%
+BC_GCDA = %%BC_GCDA%%
+BC_GCNO = %%BC_GCNO%%
+
+DC_SRC = %%DC_SRC%%
+DC_OBJ = %%DC_OBJ%%
+DC_GCDA = %%DC_GCDA%%
+DC_GCNO = %%DC_GCNO%%
+
+HISTORY_SRC = %%HISTORY_SRC%%
+HISTORY_OBJ = %%HISTORY_OBJ%%
+HISTORY_GCDA = %%HISTORY_GCDA%%
+HISTORY_GCNO = %%HISTORY_GCNO%%
+
+RAND_SRC = %%RAND_SRC%%
+RAND_OBJ = %%RAND_OBJ%%
+RAND_GCDA = %%RAND_GCDA%%
+RAND_GCNO = %%RAND_GCNO%%
+
+BC_ENABLED_NAME = BC_ENABLED
+BC_ENABLED = %%BC_ENABLED%%
+DC_ENABLED_NAME = DC_ENABLED
+DC_ENABLED = %%DC_ENABLED%%
+
+GEN_DIR = gen
+GEN = %%GEN%%
+GEN_EXEC = $(GEN_DIR)/$(GEN)
+GEN_C = $(GEN_DIR)/$(GEN).c
+
+GEN_EMU = %%GEN_EMU%%
+
+BC_LIB = $(GEN_DIR)/lib.bc
+BC_LIB_C = $(GEN_DIR)/lib.c
+BC_LIB_O = %%BC_LIB_O%%
+BC_LIB_GCDA = $(GEN_DIR)/lib.gcda
+BC_LIB_GCNO = $(GEN_DIR)/lib.gcno
+
+BC_LIB2 = $(GEN_DIR)/lib2.bc
+BC_LIB2_C = $(GEN_DIR)/lib2.c
+BC_LIB2_O = %%BC_LIB2_O%%
+BC_LIB2_GCDA = $(GEN_DIR)/lib2.gcda
+BC_LIB2_GCNO = $(GEN_DIR)/lib2.gcno
+
+BC_HELP = $(GEN_DIR)/bc_help.txt
+BC_HELP_C = $(GEN_DIR)/bc_help.c
+BC_HELP_O = %%BC_HELP_O%%
+BC_HELP_GCDA = $(GEN_DIR)/bc_help.gcda
+BC_HELP_GCNO = $(GEN_DIR)/bc_help.gcno
+
+DC_HELP = $(GEN_DIR)/dc_help.txt
+DC_HELP_C = $(GEN_DIR)/dc_help.c
+DC_HELP_O = %%DC_HELP_O%%
+DC_HELP_GCDA = $(GEN_DIR)/dc_help.gcda
+DC_HELP_GCNO = $(GEN_DIR)/dc_help.gcno
+
+BIN = bin
+LOCALES = locales
+EXEC_SUFFIX = %%EXECSUFFIX%%
+EXEC_PREFIX = %%EXECPREFIX%%
+
+BC = bc
+DC = dc
+BC_EXEC = $(BIN)/$(EXEC_PREFIX)$(BC)
+DC_EXEC = $(BIN)/$(EXEC_PREFIX)$(DC)
+
+MANUALS = manuals
+BC_MANPAGE_NAME = $(EXEC_PREFIX)$(BC)$(EXEC_SUFFIX).1
+BC_MANPAGE = $(MANUALS)/$(BC).1
+BC_RONN = $(BC_MANPAGE).ronn
+DC_MANPAGE_NAME = $(EXEC_PREFIX)$(DC)$(EXEC_SUFFIX).1
+DC_MANPAGE = $(MANUALS)/$(DC).1
+DC_RONN = $(DC_MANPAGE).ronn
+
+MANPAGE_INSTALL_ARGS = -Dm644
+
+%%DESTDIR%%
+BINDIR = %%BINDIR%%
+MAN1DIR = %%MAN1DIR%%
+MAIN_EXEC = $(EXEC_PREFIX)$(%%MAIN_EXEC%%)$(EXEC_SUFFIX)
+EXEC = $(%%EXEC%%)
+NLSPATH = %%NLSPATH%%
+
+BC_ENABLE_HISTORY = %%HISTORY%%
+BC_ENABLE_EXTRA_MATH_NAME = BC_ENABLE_EXTRA_MATH
+BC_ENABLE_EXTRA_MATH = %%EXTRA_MATH%%
+BC_ENABLE_NLS = %%NLS%%
+BC_ENABLE_PROMPT = %%PROMPT%%
+BC_LONG_BIT = %%LONG_BIT%%
+
+RM = rm
+MKDIR = mkdir
+
+INSTALL = ./install.sh
+SAFE_INSTALL = ./safe-install.sh
+LINK = ./link.sh
+MANPAGE = ./manpage.sh
+KARATSUBA = ./karatsuba.py
+LOCALE_INSTALL = ./locale_install.sh
+LOCALE_UNINSTALL = ./locale_uninstall.sh
+
+VALGRIND_ARGS = --error-exitcode=100 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
+
+BC_NUM_KARATSUBA_LEN = %%KARATSUBA_LEN%%
+
+CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
+CPPFLAGS2 = $(CPPFLAGS1) -I./include/ -DVERSION=$(VERSION) %%LONG_BIT_DEFINE%%
+CPPFLAGS3 = $(CPPFLAGS2) -DEXECPREFIX=$(EXEC_PREFIX) -DMAINEXEC=$(MAIN_EXEC)
+CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
+CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
+CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS) -DBC_ENABLE_PROMPT=$(BC_ENABLE_PROMPT)
+CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
+CPPFLAGS = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY)
+CFLAGS = $(CPPFLAGS) %%CPPFLAGS%% %%CFLAGS%%
+LDFLAGS = %%LDFLAGS%%
+
+HOSTCFLAGS = %%HOSTCFLAGS%%
+
+CC = %%CC%%
+HOSTCC = %%HOSTCC%%
+
+BC_LIB_C_ARGS = bc_lib bc.h bc_lib_name $(BC_ENABLED_NAME) 1
+BC_LIB2_C_ARGS = bc_lib2 bc.h bc_lib2_name "$(BC_ENABLED_NAME) && $(BC_ENABLE_EXTRA_MATH_NAME)" 1
+
+OBJS1 = $(OBJ) $(DC_OBJ) $(BC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(BC_HELP_O) $(DC_HELP_O)
+OBJS = $(OBJS1) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O)
+OBJ_TARGETS1 = $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O)
+OBJ_TARGETS = $(OBJ_TARGETS1) $(BC_OBJ) $(DC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(OBJ)
+
+.c.o:
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+all: make_bin $(OBJ_TARGETS)
+	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(EXEC)
+	%%LINK%%
+
+$(GEN_EXEC):
+	%%GEN_EXEC_TARGET%%
+
+$(BC_LIB_C): $(GEN_EXEC) $(BC_LIB)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_LIB_C_ARGS)
+
+$(BC_LIB2_C): $(GEN_EXEC) $(BC_LIB2)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_LIB2_C_ARGS)
+
+$(BC_HELP_C): $(GEN_EXEC) $(BC_HELP)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) bc_help bc.h "" $(BC_ENABLED_NAME)
+
+$(DC_HELP_C): $(GEN_EXEC) $(DC_HELP)
+	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) dc_help dc.h "" $(DC_ENABLED_NAME)
+
+make_bin:
+	$(MKDIR) -p $(BIN)
+
+help:
+	@printf 'available targets:\n'
+	@printf '\n'
+	@printf '    all (default)   builds %%EXECUTABLES%%\n'
+	@printf '    check           alias for `make test`\n'
+	@printf '    clean           removes all build files\n'
+	@printf '    clean_config    removes all build files as well as the generated Makefile\n'
+	@printf '    clean_tests     removes all build files, the generated Makefile,\n'
+	@printf '                    and generated tests\n'
+	@printf '    install         installs binaries to "%s%s"\n' "$(DESTDIR)" "$(BINDIR)"
+	@printf '                    and (if enabled) manpages to "%s%s"\n' "$(DESTDIR)" "$(MAN1DIR)"
+	@printf '    karatsuba       runs the karatsuba script (requires Python 3)\n'
+	@printf '    karatsuba_test  runs the karatsuba script while running tests\n'
+	@printf '                    (requires Python 3)\n'
+	@printf '    uninstall       uninstalls binaries from "%s%s"\n' "$(DESTDIR)" "$(BINDIR)"
+	@printf '                    and (if enabled) manpages from "%s%s"\n' "$(DESTDIR)" "$(MAN1DIR)"
+	@printf '    test            runs the test suite\n'
+	@printf '    test_bc         runs the bc test suite, if bc has been built\n'
+	@printf '    test_dc         runs the dc test suite, if dc has been built\n'
+	@printf '    time_test       runs the test suite, displaying times for some things\n'
+	@printf '    time_test_bc    runs the bc test suite, displaying times for some things\n'
+	@printf '    time_test_dc    runs the dc test suite, displaying times for some things\n'
+	@printf '    timeconst       runs the test on the Linux timeconst.bc script,\n'
+	@printf '                    if it exists and bc has been built\n'
+	@printf '    valgrind        runs the test suite through valgrind\n'
+	@printf '    valgrind_bc     runs the bc test suite, if bc has been built,\n'
+	@printf '                    through valgrind\n'
+	@printf '    valgrind_dc     runs the dc test suite, if dc has been built,\n'
+	@printf '                    through valgrind\n'
+
+check: test
+
+test: test_bc timeconst test_dc
+
+test_bc:
+	%%BC_TEST%%
+
+test_dc:
+	%%DC_TEST%%
+
+time_test: time_test_bc timeconst time_test_dc
+
+time_test_bc:
+	%%BC_TIME_TEST%%
+
+time_test_dc:
+	%%DC_TIME_TEST%%
+
+timeconst:
+	%%TIMECONST%%
+
+valgrind: valgrind_bc valgrind_dc
+
+valgrind_bc:
+	%%VG_BC_TEST%%
+
+valgrind_dc:
+	%%VG_DC_TEST%%
+
+karatsuba:
+	%%KARATSUBA%%
+
+karatsuba_test:
+	%%KARATSUBA_TEST%%
+
+coverage_output:
+	%%COVERAGE_OUTPUT%%
+
+coverage:%%COVERAGE_PREREQS%%
+
+version:
+	@printf '%s' "$(VERSION)"
+
+libcname:
+	@printf '%s' "$(BC_LIB_C)"
+
+extra_math:
+	@printf '%s' "$(BC_ENABLE_EXTRA_MATH)"
+
+manpages:
+	$(MANPAGE) $(BC_RONN) $(BC_MANPAGE)
+	$(MANPAGE) $(DC_RONN) $(DC_MANPAGE)
+
+clean_gen:
+	@$(RM) -f $(GEN_EXEC)
+
+clean:%%CLEAN_PREREQS%%
+	@printf 'Cleaning files...\n'
+	@$(RM) -f $(OBJ)
+	@$(RM) -f $(BC_OBJ)
+	@$(RM) -f $(DC_OBJ)
+	@$(RM) -f $(HISTORY_OBJ)
+	@$(RM) -f $(RAND_OBJ)
+	@$(RM) -f $(BC_EXEC)
+	@$(RM) -f $(DC_EXEC)
+	@$(RM) -fr $(BIN)
+	@$(RM) -f $(LOCALES)/*.cat
+	@$(RM) -f $(BC_LIB_C) $(BC_LIB_O)
+	@$(RM) -f $(BC_LIB2_C) $(BC_LIB2_O)
+	@$(RM) -f $(BC_HELP_C) $(BC_HELP_O)
+	@$(RM) -f $(DC_HELP_C) $(DC_HELP_O)
+
+clean_config: clean
+	@printf 'Cleaning config...\n'
+	@$(RM) -f Makefile
+
+clean_coverage:
+	@printf 'Cleaning coverage files...\n'
+	@$(RM) -f *.gcov
+	@$(RM) -f *.html
+	@$(RM) -f *.gcda *.gcno
+	@$(RM) -f *.profraw
+	@$(RM) -f $(GCDA) $(GCNO)
+	@$(RM) -f $(BC_GCDA) $(BC_GCNO)
+	@$(RM) -f $(DC_GCDA) $(DC_GCNO)
+	@$(RM) -f $(HISTORY_GCDA) $(HISTORY_GCNO)
+	@$(RM) -f $(RAND_GCDA) $(RAND_GCNO)
+	@$(RM) -f $(BC_LIB_GCDA) $(BC_LIB_GCNO)
+	@$(RM) -f $(BC_LIB2_GCDA) $(BC_LIB2_GCNO)
+	@$(RM) -f $(BC_HELP_GCDA) $(BC_HELP_GCNO)
+	@$(RM) -f $(DC_HELP_GCDA) $(DC_HELP_GCNO)
+
+clean_tests: clean clean_config clean_coverage
+	@printf 'Cleaning test files...\n'
+	@$(RM) -f tests/bc/parse.txt tests/bc/parse_results.txt
+	@$(RM) -f tests/bc/print.txt tests/bc/print_results.txt
+	@$(RM) -f tests/bc/bessel.txt tests/bc/bessel_results.txt
+	@$(RM) -f tests/bc/scripts/bessel.txt
+	@$(RM) -f tests/bc/scripts/parse.txt
+	@$(RM) -f tests/bc/scripts/print.txt
+	@$(RM) -f tests/bc/scripts/add.txt
+	@$(RM) -f tests/bc/scripts/divide.txt
+	@$(RM) -f tests/bc/scripts/multiply.txt
+	@$(RM) -f tests/bc/scripts/subtract.txt
+	@$(RM) -f tests/dc/scripts/prime.txt tests/dc/scripts/stream.txt
+	@$(RM) -f .log_*.txt
+	@$(RM) -f .math.txt .results.txt .ops.txt
+	@$(RM) -f .test.txt
+	@$(RM) -f tags .gdbbreakpoints .gdb_history .gdbsetup
+	@$(RM) -f cscope.*
+	@$(RM) -f bc.old
+
+install_locales:
+	$(LOCALE_INSTALL) $(NLSPATH) $(MAIN_EXEC) $(DESTDIR)
+
+install_bc_manpage:
+	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(BC_MANPAGE) $(DESTDIR)$(MAN1DIR)/$(BC_MANPAGE_NAME)
+
+install_dc_manpage:
+	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(DC_MANPAGE) $(DESTDIR)$(MAN1DIR)/$(DC_MANPAGE_NAME)
+
+install:%%INSTALL_LOCALES_PREREQS%%%%INSTALL_PREREQS%%
+	$(INSTALL) $(DESTDIR)$(BINDIR) "$(EXEC_SUFFIX)"
+
+uninstall_locales:
+	$(LOCALE_UNINSTALL) $(NLSPATH) $(MAIN_EXEC) $(DESTDIR)
+
+uninstall_bc_manpage:
+	$(RM) -f $(DESTDIR)$(MAN1DIR)/$(BC_MANPAGE_NAME)
+
+uninstall_bc:
+	$(RM) -f $(DESTDIR)$(BINDIR)/$(EXEC_PREFIX)$(BC)$(EXEC_SUFFIX)
+
+uninstall_dc_manpage:
+	$(RM) -f $(DESTDIR)$(MAN1DIR)/$(DC_MANPAGE_NAME)
+
+uninstall_dc:
+	$(RM) -f $(DESTDIR)$(BINDIR)/$(EXEC_PREFIX)$(DC)$(EXEC_SUFFIX)
+
+uninstall:%%UNINSTALL_LOCALES_PREREQS%%%%UNINSTALL_MAN_PREREQS%%%%UNINSTALL_PREREQS%%

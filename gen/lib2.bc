@@ -1,0 +1,317 @@
+/*
+ * *****************************************************************************
+ *
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The second bc math library.
+ *
+ */
+
+define p(x,y){
+	auto a
+	a=y$
+	if(y==a)return (x^a)@scale
+	return e(y*l(x))
+}
+define r(x,p){
+	auto t,n
+	if(x==0)return x
+	p=abs(p)$
+	n=(x<0)
+	x=abs(x)
+	t=x@p
+	if(p<scale(x)&&x-t>=5>>p+1)t+=1>>p
+	if(n)t=-t
+	return t
+}
+define ceil(x,p){
+	auto t,n
+	if(x==0)return x
+	p=abs(p)$
+	n=(x<0)
+	x=abs(x)
+	t=(x+((x@p<x)>>p))@p
+	if(n)t=-t
+	return t
+}
+define f(n){
+	auto r
+	n=abs(n)$
+	for(r=1;n>1;--n)r*=n
+	return r
+}
+define perm(n,k){
+	auto f,g,s
+	if(k>n)return 0
+	n=abs(n)$
+	k=abs(k)$
+	f=f(n)
+	g=f(n-k)
+	s=scale
+	scale=0
+	f/=g
+	scale=s
+	return f
+}
+define comb(n,r){
+	auto s,f,g,h
+	if(r>n)return 0
+	n=abs(n)$
+	r=abs(r)$
+	s=scale
+	scale=0
+	f=f(n)
+	h=f(r)
+	g=f(n-r)
+	f/=h*g
+	scale=s
+	return f
+}
+define log(x,b){
+	auto p,s
+	s=scale
+	if(scale<K)scale=K
+	if(scale(x)>scale)scale=scale(x)
+	scale*=2
+	p=l(x)/l(b)
+	scale=s
+	return p@s
+}
+define l2(x){return log(x,2)}
+define l10(x){return log(x,A)}
+define root(x,n){
+	auto s,m,r,q,p
+	if(n<0)sqrt(n)
+	n=n$
+	if(n==0)x/n
+	if(n==1)return x
+	if(n==2)return sqrt(x)
+	s=scale
+	scale=0
+	if(x<0&&n%2==0)sqrt(x)
+	scale=s+2
+	m=(x<0)
+	x=abs(x)
+	p=n-1
+	q=10^ceil((length(x$)/n)$,0)
+	while(r!=q){
+		r=q
+		q=(p*r+x/r^p)/n
+	}
+	if(m)r=-r
+	scale=s
+	return r@s
+}
+define cbrt(x){return root(x,3)}
+define pi(s){
+	auto t,v
+	if(s==0)return 3
+	s=abs(s)$
+	t=scale
+	scale=s+1
+	v=4*a(1)
+	scale=t
+	return v@s
+}
+define t(x){
+	auto s,c,l
+	l=scale
+	scale+=2
+	s=s(x)
+	c=c(x)
+	scale=l
+	return s/c
+}
+define a2(y,x){
+	auto a,p
+	if(!x&&!y)y/x
+	if(x<=0){
+		p=pi(scale+2)
+		if(y<0)p=-p
+	}
+	if(x==0)a=p/2
+	else{
+		scale+=2
+		a=a(y/x)+p
+		scale-=2
+	}
+	return a@scale
+}
+define sin(x){return s(x)}
+define cos(x){return c(x)}
+define atan(x){return a(x)}
+define tan(x){return t(x)}
+define atan2(y,x){return a2(y,x)}
+define r2d(x){
+	auto r,i,s
+	s=scale
+	scale+=5
+	i=ibase
+	ibase=A
+	r=x*180/pi(scale)
+	ibase=i
+	scale=s
+	return r@s
+}
+define d2r(x){
+	auto r,i,s
+	s=scale
+	scale+=5
+	i=ibase
+	ibase=A
+	r=x*pi(scale)/180
+	ibase=i
+	scale=s
+	return r@s
+}
+define frand(p){
+	p=abs(p)$
+	return irand(10^p)>>p
+}
+define ifrand(i,p){return irand(abs(i)$)+frand(p)}
+define srand(x){
+	if(irand(2))return -x
+	return x
+}
+define brand(){return irand(2)}
+define void output(x,b){
+	auto c
+	c=obase
+	obase=b
+	x
+	obase=c
+}
+define void hex(x){output(x,G)}
+define void binary(x){output(x,2)}
+define ubytes(x){
+	auto p,b,i
+	b=ibase
+	ibase=A
+	x=abs(x)$
+	i=2^8
+	for(p=1;i-1<x;p*=2){i*=i}
+	ibase=b
+	return p
+}
+define sbytes(x){
+	auto p,b,n,z
+	z=(x<0)
+	x=abs(x)
+	x=x$
+	n=ubytes(x)
+	b=ibase
+	ibase=A
+	p=2^(n*8-1)
+	if(x>p||(!z&&x==p))n*=2
+	ibase=b
+	return n
+}
+define void output_byte(x,i){
+	auto j,p,y,b
+	j=ibase
+	ibase=A
+	s=scale
+	scale=0
+	x=abs(x)$
+	b=x/(2^(i*8))
+	b%=2^8
+	y=log(256,obase)
+	if(b>1)p=log(b,obase)+1
+	else p=b
+	for(i=y-p;i>0;--i)print 0
+	if(b)print b
+	scale=s
+	ibase=j
+}
+define void output_uint(x,n){
+	auto i,b
+	b=ibase
+	ibase=A
+	for(i=n-1;i>=0;--i){
+		output_byte(x,i)
+		if(i)print" "
+		else print"\n"
+	}
+	ibase=b
+}
+define void hex_uint(x,n){
+	auto o
+	o=obase
+	obase=G
+	output_uint(x,n)
+	obase=o
+}
+define void binary_uint(x,n){
+	auto o
+	o=obase
+	obase=2
+	output_uint(x,n)
+	obase=o
+}
+define void uintn(x,n){
+	if(scale(x)){
+		print"Error: ",x," is not an integer.\n"
+		return
+	}
+	if(x<0){
+		print"Error: ",x," is negative.\n"
+		return
+	}
+	if(x>=2^(n*8)){
+		print"Error: ",x," cannot fit into ",n," unsigned byte(s).\n"
+		return
+	}
+	binary_uint(x,n)
+	hex_uint(x,n)
+}
+define void intn(x,n){
+	auto t
+	if(scale(x)){
+		print"Error: ",x," is not an integer.\n"
+		return
+	}
+	t=2^(n*8-1)
+	if(abs(x)>=t&&(x>0||x!=-t)){
+		print "Error: ",x," cannot fit into ",n," signed byte(s).\n"
+		return
+	}
+	if(x<0)x=2^(n*8)-(-x)
+	binary_uint(x,n)
+	hex_uint(x,n)
+}
+define void uint8(x){uintn(x,1)}
+define void int8(x){intn(x,1)}
+define void uint16(x){uintn(x,2)}
+define void int16(x){intn(x,2)}
+define void uint32(x){uintn(x,4)}
+define void int32(x){intn(x,4)}
+define void uint64(x){uintn(x,8)}
+define void int64(x){intn(x,8)}
+define void uint(x){uintn(x,ubytes(x))}
+define void int(x){intn(x,sbytes(x))}
