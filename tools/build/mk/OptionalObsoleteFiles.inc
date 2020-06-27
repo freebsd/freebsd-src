@@ -1191,6 +1191,7 @@ OLD_FILES+=usr/bin/clang
 OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
+OLD_FILES+=usr/bin/llvm-addr2line
 OLD_FILES+=usr/bin/llvm-ar
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
