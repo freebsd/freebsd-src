@@ -108,11 +108,11 @@ gr_lock(void)
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the group file is busy");
 			} else {
-				err(1, "could not lock the group file: ");
+				err(1, "could not lock the group file");
 			}
 		}
 		if (fstat(lockfd, &st) == -1)
-			err(1, "fstat() failed: ");
+			err(1, "fstat() failed");
 		if (st.st_nlink != 0)
 			break;
 		close(lockfd);

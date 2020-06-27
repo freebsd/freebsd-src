@@ -181,7 +181,7 @@ pw_lock(void)
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the password db file is busy");
 			} else {
-				err(1, "could not lock the passwd file: ");
+				err(1, "could not lock the passwd file");
 			}
 		}
 
@@ -191,7 +191,7 @@ pw_lock(void)
 		 * close and retry.
 		 */
 		if (fstat(lockfd, &st) == -1)
-			err(1, "fstat() failed: ");
+			err(1, "fstat() failed");
 		if (st.st_nlink != 0)
 			break;
 		close(lockfd);
@@ -308,12 +308,13 @@ pw_edit(int notsetuid)
 		sigaction(SIGQUIT, &sa_quit, NULL);
 		sigprocmask(SIG_SETMASK, &oldsigset, NULL);
 		if (notsetuid) {
-			(void)setgid(getgid());
-			(void)setuid(getuid());
+			if (setgid(getgid()) == -1)
+				err(1, "setgid");
+			if (setuid(getuid()) == -1)
+				err(1, "setuid");
 		}
-		errno = 0;
 		execlp(editor, editor, tempname, (char *)NULL);
-		_exit(errno);
+		err(1, "%s", editor);
 	default:
 		/* parent */
 		break;
@@ -327,7 +328,9 @@ pw_edit(int notsetuid)
 			break;
 		} else if (WIFSTOPPED(pstat)) {
 			raise(WSTOPSIG(pstat));
-		} else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0) {
+		} else if (WIFEXITED(pstat)) {
+			if (WEXITSTATUS(pstat) != 0)
+				errx(1, "\"%s\" exited with status %d", editor, WEXITSTATUS(pstat));
 			editpid = -1;
 			break;
 		} else {
