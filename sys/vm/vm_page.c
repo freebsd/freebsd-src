@@ -3666,8 +3666,9 @@ vm_page_enqueue(vm_page_t m, uint8_t queue)
  *	disassociating it from any VM object. The caller may return
  *	the page to the free list only if this function returns true.
  *
- *	The object must be locked.  The page must be locked if it is
- *	managed.
+ *	The object, if it exists, must be locked, and then the page must
+ *	be xbusy.  Otherwise the page must be not busied.  A managed
+ *	page must be unmapped.
  */
 static bool
 vm_page_free_prep(vm_page_t m)
