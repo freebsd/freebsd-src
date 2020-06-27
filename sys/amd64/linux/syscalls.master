@@ -42,21 +42,21 @@
 		int read(
 		    int fd,
 		    char *buf,
-		    u_int nbyte
+		    l_size_t nbyte
 		);
 	}
 1	AUE_NULL	NOPROTO {
 		int write(
 		    int fd,
 		    char *buf,
-		    u_int nbyte
+		    l_size_t nbyte
 		);
 	}
 2	AUE_OPEN_RWTC	STD {
 		int linux_open(
 		    char *path,
 		    l_int flags,
-		    l_int mode
+		    l_mode_t mode
 		);
 	}
 3	AUE_CLOSE	NOPROTO {
@@ -108,15 +108,15 @@
 	}
 10	AUE_MPROTECT	STD {
 		int linux_mprotect(
-		    caddr_t addr,
-		    l_int len,
-		    l_int prot
+		    l_ulong addr,
+		    l_size_t len,
+		    l_ulong prot
 		);
 	}
 11	AUE_MUNMAP	NOPROTO {
 		int munmap(
-		    caddr_t addr,
-		    int len
+		    void *addr,
+		    l_size_t len
 		);
 	}
 12	AUE_NULL	STD {
@@ -149,7 +149,7 @@
 		int linux_ioctl(
 		    l_uint fd,
 		    l_uint cmd,
-		    uintptr_t arg
+		    l_ulong arg
 		);
 	}
 17	AUE_PREAD	STD {
@@ -190,7 +190,7 @@
 	}
 22	AUE_PIPE	STD {
 		int linux_pipe(
-		    l_ulong *pipefds
+		    l_int *pipefds
 		);
 	}
 23	AUE_SELECT	STD {
@@ -230,9 +230,9 @@
 	}
 28	AUE_MADVISE	STD {
 		int linux_madvise(
-		    void *addr,
-		    size_t len,
-		    int behav
+		    l_ulong addr,
+		    l_size_t len,
+		    l_int behav
 		);
 	}
 29	AUE_NULL	STD {
@@ -301,7 +301,7 @@
 		int linux_sendfile(
 		    l_int out,
 		    l_int in,
-		    l_long *offset,
+		    l_off_t *offset,
 		    l_size_t count
 		);
 	}
@@ -330,8 +330,8 @@
 		int linux_sendto(
 		    l_int s,
 		    l_uintptr_t msg,
-		    l_int len,
-		    l_int flags,
+		    l_size_t len,
+		    l_uint flags,
 		    l_uintptr_t to,
 		    l_int tolen
 		);
@@ -341,7 +341,7 @@
 		    l_int s,
 		    l_uintptr_t buf,
 		    l_size_t len,
-		    l_int flags,
+		    l_uint flags,
 		    l_uintptr_t from,
 		    l_uintptr_t fromlen
 		);
@@ -350,14 +350,14 @@
 		int linux_sendmsg(
 		    l_int s,
 		    l_uintptr_t msg,
-		    l_int flags
+		    l_uint flags
 		);
 	}
 47	AUE_RECVMSG	STD {
 		int linux_recvmsg(
 		    l_int s,
 		    l_uintptr_t msg,
-		    l_int flags
+		    l_uint flags
 		);
 	}
 48	AUE_NULL	STD {
@@ -421,7 +421,7 @@
 	}
 56	AUE_RFORK	STD {
 		int linux_clone(
-		    l_int flags,
+		    l_ulong flags,
 		    void *stack,
 		    void *parent_tidptr,
 		    void *child_tidptr,
@@ -456,7 +456,7 @@
 	}
 62	AUE_KILL	STD {
 		int linux_kill(
-		    l_int pid,
+		    l_pid_t pid,
 		    l_int signum
 		);
 	}
@@ -548,13 +548,13 @@
 76	AUE_TRUNCATE	STD {
 		int linux_truncate(
 		    char *path,
-		    l_ulong length
+		    l_long length
 		);
 	}
 77	AUE_FTRUNCATE	STD {
 		int linux_ftruncate(
 		    l_int fd,
-		    l_long length
+		    l_ulong length
 		);
 	}
 78	AUE_GETDIRENTRIES	STD  {
@@ -589,7 +589,7 @@
 83	AUE_MKDIR	STD {
 		int linux_mkdir(
 		    char *path,
-		    l_int mode
+		    l_mode_t mode
 		);
 	}
 84	AUE_RMDIR	STD {
@@ -600,7 +600,7 @@
 85	AUE_CREAT	STD {
 		int linux_creat(
 		    char *path,
-		    l_int mode
+		    l_mode_t mode
 		);
 	}
 86	AUE_LINK	STD {
@@ -871,8 +871,8 @@
 133	AUE_MKNOD	STD {
 		int linux_mknod(
 		    char *path,
-		    l_int mode,
-		    l_dev_t dev
+		    l_mode_t mode,
+		    l_uint dev
 		);
 	}
 134	AUE_USELIB	UNIMPL	uselib
@@ -883,7 +883,7 @@
 	}
 136	AUE_NULL	STD {
 		int linux_ustat(
-		    l_dev_t dev,
+		    l_uint dev,
 		    struct l_ustat *ubuf
 		);
 	}
@@ -1070,7 +1070,7 @@
 170	AUE_SYSCTL	STD {
 		int linux_sethostname(
 		    char *hostname,
-		    l_uint len
+		    l_int len
 		);
 	}
 171	AUE_SYSCTL	STD {
@@ -1149,7 +1149,7 @@
 	}
 200	AUE_NULL	STD {
 		int linux_tkill(
-		    l_int tid,
+		    l_pid_t tid,
 		    l_int sig
 		);
 	}
@@ -1290,7 +1290,7 @@
 230	AUE_NULL	STD {
 		int linux_clock_nanosleep(
 		    clockid_t which,
-		    int flags,
+		    l_int flags,
 		    struct l_timespec *rqtp,
 		    struct l_timespec *rmtp
 		);
@@ -1318,8 +1318,8 @@
 	}
 234	AUE_NULL	STD {
 		int linux_tgkill(
-		    l_int tgid,
-		    l_int pid,
+		    l_pid_t tgid,
+		    l_pid_t pid,
 		    l_int sig
 		);
 	}
@@ -1401,21 +1401,21 @@
 		    l_int dfd,
 		    const char *filename,
 		    l_int flags,
-		    l_int mode
+		    l_mode_t mode
 		);
 	}
 258	AUE_MKDIRAT	STD {
 		int linux_mkdirat(
 		    l_int dfd,
 		    const char *pathname,
-		    l_int mode
+		    l_mode_t mode
 		);
 	}
 259	AUE_MKNODAT	STD {
 		int linux_mknodat(
 		    l_int dfd,
 		    const char *filename,
-		    l_int mode,
+		    l_mode_t mode,
 		    l_uint dev
 		);
 	}
@@ -1509,7 +1509,7 @@
 271	AUE_POLL	STD {
 		int linux_ppoll(
 		    struct pollfd *fds,
-		    uint32_t nfds,
+		    l_uint nfds,
 		    struct l_timespec *tsp,
 		    l_sigset_t *sset,
 		    l_size_t ssize
@@ -1542,7 +1542,7 @@
 		    l_int fd,
 		    l_loff_t offset,
 		    l_loff_t nbytes,
-		    unsigned int flags
+		    l_uint flags
 		);
 	}
 278	AUE_NULL	STD {
@@ -1610,7 +1610,7 @@
 		    l_int s,
 		    l_uintptr_t addr,
 		    l_uintptr_t namelen,
-		    int flags
+		    l_int flags
 		);
 	}
 ; Linux 2.6.27:
@@ -1630,8 +1630,8 @@
 	}
 292	AUE_NULL	STD {
 		int linux_dup3(
-		    l_int oldfd,
-		    l_int newfd,
+		    l_uint oldfd,
+		    l_uint newfd,
 		    l_int flags
 		);
 	}
@@ -1803,7 +1803,7 @@
 		    const char *oldname,
 		    l_int newdfd,
 		    const char *newname,
-		    unsigned int flags
+		    l_uint flags
 		);
 	}
 ; Linux 3.17:
