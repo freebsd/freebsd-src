@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2020
+.Dd June 27, 2020
 .Dt KILLALL 1
 .Os
 .Sh NAME
@@ -58,13 +58,11 @@ The super-user is allowed to kill any process.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl c Ar procname"
-.It Fl d | v
-Be more verbose about what will be done.
-For a single
-.Fl d
-option, a list of the processes that will be sent the signal will be
-printed, or a message indicating that no matching processes have been
-found.
+.It Fl d
+Be more verbose about what will be done, but do not send any signal.
+The total number of user processes and the real user ID is shown.
+A list of the processes that will be sent the signal will be printed, or a
+message indicating that no matching processes have been found.
 .It Fl e
 Use the effective user ID instead of the (default) real user ID for matching
 processes specified with the
@@ -86,8 +84,12 @@ of processes found.
 CAUTION!
 This is dangerous, a single dot will match any process
 running under the real UID of the caller.
+.It Fl v
+Be verbose about what will be done.
 .It Fl s
-Show only what would be done, but do not send any signal.
+Same as
+.Fl v ,
+but do not send any signal.
 .It Fl Ar SIGNAL
 Send a different signal instead of the default
 .Dv TERM .
@@ -190,9 +192,9 @@ to all processes matching provided pattern (like vim and vimdiff):
 killall -m 'vim*'
 .Ed
 .Sh DIAGNOSTICS
-Diagnostic messages will only be printed if requested by
+Diagnostic messages will only be printed if the
 .Fl d
-options.
+flag is used.
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr pkill 1 ,
