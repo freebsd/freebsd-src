@@ -1474,8 +1474,10 @@ OLD_DIRS+=usr/share/doc/llvm
 OLD_FILES+=usr/share/man/man1/clang.1.gz
 OLD_FILES+=usr/share/man/man1/clang++.1.gz
 OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-addr2line.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-tblgen.1.gz
 .endif
@@ -1508,11 +1510,13 @@ OLD_FILES+=usr/share/man/man1/llc.1.gz
 OLD_FILES+=usr/share/man/man1/lli.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-as.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-cxxfilt.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
