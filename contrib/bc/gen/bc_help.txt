@@ -1,0 +1,115 @@
+/*
+ * *****************************************************************************
+ *
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ *
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * * Redistributions of source code must retain the above copyright notice, this
+ *   list of conditions and the following disclaimer.
+ *
+ * * Redistributions in binary form must reproduce the above copyright notice,
+ *   this list of conditions and the following disclaimer in the documentation
+ *   and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * *****************************************************************************
+ *
+ * The bc help text.
+ *
+ */
+
+usage: %s [options] [file...]
+
+bc is a command-line, arbitrary-precision calculator with a Turing-complete
+language. For details, use `man %s`.
+
+This bc is compatible with both the GNU bc and the POSIX bc spec. See the GNU bc
+manual (https://www.gnu.org/software/bc/manual/bc.html) and bc spec
+(http://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+for details.
+
+This bc has three differences to the GNU bc:
+
+  1) Arrays can be passed to the builtin "length" function to get the number of
+     elements currently in the array. The following example prints "1":
+
+       a[0] = 0
+       length(a[])
+
+  2) The precedence of the boolean "not" operator (!) is equal to that of the
+     unary minus (-), or negation, operator. This still allows POSIX-compliant
+     scripts to work while somewhat preserving expected behavior (versus C) and
+     making parsing easier.
+  3) This bc has many more extensions than the GNU bc does. For details, see the
+     man page.
+
+Options:
+
+  -e  expr  --expression=expr
+
+      Run "expr" and quit. If multiple expressions or files (see below) are
+      given, they are all run before executing from stdin.
+
+  -f  file  --file=file
+
+      Run the bc code in "file" and exit. See above as well.
+
+  -g  --global-stacks
+
+      Turn scale, ibase, and obase into stacks. This makes the value of each be
+      be restored on returning from functions. See the man page for more
+      details.
+
+  -h  --help
+
+      Print this usage message and exit.
+
+  -i  --interactive
+
+      Force interactive mode.
+
+  -l  --mathlib
+
+      Use predefined math routines:
+
+          s(expr)  =  sine of expr in radians
+          c(expr)  =  cosine of expr in radians
+          a(expr)  =  arctangent of expr, returning radians
+          l(expr)  =  natural log of expr
+          e(expr)  =  raises e to the power of expr
+          j(n, x)  =  Bessel function of integer order n of x
+
+  -P  --no-prompt
+
+      Disable the prompt in interactive mode.
+
+  -q  --quiet
+
+      Don't print version and copyright.
+
+  -s  --standard
+
+      Error if any non-POSIX extensions are used.
+
+  -w  --warn
+
+      Warn if any non-POSIX extensions are used.
+
+  -v  --version
+
+      Print version information and copyright and exit.
