@@ -183,8 +183,6 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	rs->rs_datalen = ads->ds_rxstatus1 & AR_DataLen;
 	rs->rs_tstamp =  ads->AR_RcvTimestamp;
 
-	/* XXX what about KeyCacheMiss? */
-
 	rs->rs_rssi = MS(ads->ds_rxstatus4, AR_RxRSSICombined);
 	rs->rs_rssi_ctl[0] = MS(ads->ds_rxstatus0, AR_RxRSSIAnt00);
 	rs->rs_rssi_ctl[1] = MS(ads->ds_rxstatus0, AR_RxRSSIAnt01);
@@ -276,6 +274,9 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		else if (ads->ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= HAL_RXERR_MIC;
 	}
+
+	if (ads->ds_rxstatus8 & AR_KeyMiss)
+		rs->rs_status |= HAL_RXERR_KEYMISS;
 
 	return HAL_OK;
 }
