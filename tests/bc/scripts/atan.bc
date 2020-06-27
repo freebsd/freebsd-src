@@ -1,0 +1,11 @@
+#! /usr/bin/bc -q
+
+for (i = 1; i <= 100; ++i) {
+	print "scale = ", i, "\n"
+	print "a(.267)\n"
+	print "a(1)\n"
+}
+
+print "halt\n"
+
+halt

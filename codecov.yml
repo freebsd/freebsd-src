@@ -1,0 +1,3 @@
+ignore:
+  - "src/history/history.c"
+  - "gen/strgen.c"

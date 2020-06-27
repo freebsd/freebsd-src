@@ -1,0 +1,951 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "DC" "1" "June 2020" "Gavin D. Howard" "General Commands Manual"
+.
+.SH "NAME"
+\fBdc\fR \- arbitrary\-precision reverse\-Polish notation calculator
+.
+.SH "SYNOPSIS"
+\fBdc\fR [\fB\-hiPvVx\fR] [\fB\-\-version\fR] [\fB\-\-help\fR] [\fB\-\-interactive\fR] [\fB\-\-no\-prompt\fR] [\fB\-\-extended\-register\fR] [\fB\-e\fR \fIexpr\fR] [\fB\-\-expression=\fR\fIexpr\fR\.\.\.] [\fB\-f\fR \fIfile\fR\.\.\.] [\fB\-file=\fR\fIfile\fR\.\.\.] [\fIfile\fR\.\.\.]
+.
+.SH "DESCRIPTION"
+dc(1) is an arbitrary\-precision calculator\. It uses a stack (reverse Polish notation) to store numbers and results of computations\. Arithmetic operations pop arguments off of the stack and push the results\.
+.
+.P
+If no files are given on the command\-line as extra arguments (i\.e\., not as \fB\-f\fR or \fB\-\-file\fR arguments), then dc(1) reads from \fBstdin\fR\. Otherwise, those files are processed, and dc(1) will then exit\.
+.
+.P
+This is different from the dc(1) on OpenBSD and possibly other dc(1) implementations, where \fB\-e\fR (\fB\-\-expression\fR) and \fB\-f\fR (\fB\-\-file\fR) arguments cause dc(1) to execute them and exit\. The reason for this is that this dc(1) allows users to set arguments in the environment variable \fBDC_ENV_ARGS\fR (see the ENVIRONMENT VARIABLES section)\. Any expressions given on the command\-line should be used to set up a standard environment\. For example, if a user wants the \fBscale\fR always set to \fB10\fR, they can set \fBDC_ENV_ARGS\fR to "\-e 10k", and this dc(1) will always start with a \fBscale\fR of \fB10\fR\.
+.
+.P
+If users want to have dc(1) exit after processing all input from \fB\-e\fR and \fB\-f\fR arguments (and their equivalents), then they can just simply add "\-e q" as the last command\-line argument or define the environment variable \fBDC_EXPR_EXIT\fR\.
+.
+.SH "OPTIONS"
+The following are the options that dc(1) accepts\.
+.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Prints a usage message and quits\.
+.
+.TP
+\fB\-v\fR, \fB\-V\fR, \fB\-\-version\fR
+Print the version information (copyright header) and exit\.
+.
+.TP
+\fB\-i\fR, \fB\-\-interactive\fR
+Forces interactive mode\. (See the INTERACTIVE MODE section\.)
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB\-P\fR, \fB\-\-no\-prompt\fR
+Disables the prompt in interactive mode\. This is mostly for those users that do not want a prompt or are not used to having them in \fBdc\fR\. Most of those users would want to put this option in \fBDC_ENV_ARGS\fR\.
+.
+.IP
+If the prompt has been disabled while building dc(1), this option is a no\-op\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB\-x\fR \fB\-\-extended\-register\fR
+Enables extended register mode\. See the REGISTERS section for more information\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB\-e\fR \fIexpr\fR, \fB\-\-expression\fR=\fIexpr\fR
+Evaluates \fBexpr\fR\. If multiple expressions are given, they are evaluated in order\. If files are given as well (see below), the expressions and files are evaluated in the order given\. This means that if a file is given before an expression, the file is read in and evaluated first\.
+.
+.IP
+In other dc(1) implementations, this option causes the program to execute the expressions and then exit\. This dc(1) does not, unless the \fBDC_EXPR_EXIT\fR is defined (see the ENVIRONMENT VARIABLES section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB\-f\fR \fIfile\fR, \fB\-\-file\fR=\fIfile\fR
+Reads in \fBfile\fR and evaluates it\. If expressions are also given (see above), the expressions are evaluated in the order given\.
+.
+.IP
+In other dc(1) implementations, this option causes the program to execute the files and then exit\. This dc(1) does not, unless the \fBDC_EXPR_EXIT\fR is defined (see the ENVIRONMENT VARIABLES section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.P
+\fBNote\fR: long options are only accepted if dc(1) is built with them enabled\.
+.
+.SH "STDOUT"
+Any non\-error output is written to \fBstdout\fR\.
+.
+.P
+\fBNote\fR: Unlike other dc(1) implementations, this dc(1) will issue a fatal error (see the EXIT STATUS section) if it cannot write to \fBstdout\fR, so if \fBstdout\fR is closed, as in \fBdc <file> >&\-\fR, it will quit with an error\. This is done so that dc(1) can report problems when \fBstdout\fR is redirected to a file\.
+.
+.P
+If there are scripts that depend on the behavior of other dc(1) implementations, it is recommended that those scripts be changed to redirect \fBstdout\fR to \fB/dev/null\fR\.
+.
+.SH "STDERR"
+Any error output is written to \fBstderr\fR\.
+.
+.P
+\fBNote\fR: Unlike other dc(1) implementations, this dc(1) will issue a fatal error (see the EXIT STATUS section) if it cannot write to \fBstderr\fR, so if \fBstderr\fR is closed, as in \fBdc <file> 2>&\-\fR, it will quit with an error\. This is done so that dc(1) can report problems when \fBstderr\fR is redirected to a file\.
+.
+.P
+If there are scripts that depend on the behavior of other dc(1) implementations, it is recommended that those scripts be changed to redirect \fBstderr\fR to \fB/dev/null\fR\.
+.
+.SH "SYNTAX"
+\fBibase\fR is a register (see the REGISTERS section) determining how to interpret constant numbers\. It is the "input" base, or the number base used for interpreting input numbers\. \fBibase\fR is initially \fB10\fR\. The max allowable value for \fBibase\fR is \fB16\fR\. The min allowable value for \fBibase\fR is \fB2\fR\. The max allowable value for \fBibase\fR can be queried in dc(1) programs with the \fBT\fR command\.
+.
+.P
+\fBobase\fR is a register (see the REGISTERS section) determining how to output results\. It is the "output" base, or the number base used for outputting numbers\. \fBobase\fR is initially \fB10\fR\. The max allowable value for \fBobase\fR is \fBDC_BASE_MAX\fR\. The min allowable value for \fBobase\fR is \fB2\fR unless dc(1) was built with the extra math option\. If it was, then the min allowable value is \fB0\fR\. In this case, if \fBobase\fR is \fB0\fR, values are output in scientific notation, and if \fBobase\fR is \fB1\fR, values are output in engineering notation\. (Outputting in scientific or engineering notation are \fBnon\-portable extensions\fR\.) The max allowable value for \fBobase\fR can be queried in dc(1) programs with the \fBU\fR command\.
+.
+.P
+The \fBscale\fR of an expression is the number of digits in the result of the expression right of the decimal point, and \fBscale\fR is a register (see the REGISTERS section) that sets the precision of any operations (with exceptions)\. \fBscale\fR is initially \fB0\fR\. \fBscale\fR cannot be negative\. The max allowable value for \fBscale\fR can be queried in dc(1) programs with the \fBV\fR command\.
+.
+.P
+Each item in the input source code, either a number (see the NUMBERS section) or a command (see the COMMANDS section), is processed and executed, in order\. Input is processed immediately when entered\.
+.
+.P
+If dc(1) was built with the extra math option, there is an additional register named \fBseed\fR\. This is the current seed used by the pseudo\-random number generator\. If the current value of \fBseed\fR is queried and stored, then if it is assigned to \fBseed\fR later, the pseudo\-random number generator is guaranteed to produce the same sequence of pseudo\-random numbers that were generated after the value of \fBseed\fR was first queried\.
+.
+.P
+Multiple values assigned to \fBseed\fR can produce the same sequence of pseudo\-random numbers\. Likewise, when a value is assigned to \fBseed\fR, it is not guaranteed that querying \fBseed\fR immediately after will return the same value\. In addition, the value of \fBseed\fR will change after any call to the \fB'\fR or \fB"\fR commands\. The maximum integer returned by the \fB'\fR command can be queried with the \fBW\fR command\.
+.
+.P
+\fBNote\fR: The values returned by the pseudo\-random number generator with the \fB'\fR and \fB"\fR commands are guaranteed to \fBNOT\fR be cryptographically\-secure\. This is a consequence of using a seeded pseudo\-random number generator\. However, they \fBare\fR guaranteed to be reproducible with identical \fBseed\fR values\.
+.
+.P
+The pseudo\-random number generator, \fBseed\fR, and all associated operations are \fBnon\-portable extensions\fR\.
+.
+.SS "Comments"
+Comments go from \fB#\fR until, and not including, the next newline\. This is a \fBnon\-portable extension\fR\.
+.
+.SH "NUMBERS"
+Numbers are strings made up of digits, uppercase letters up to \fBF\fR, and at most \fB1\fR period for a radix\. Numbers can have up to \fBDC_NUM_MAX\fR digits\. Uppercase letters equal \fB9\fR + their position in the alphabet (i\.e\., \fBA\fR equals \fB10\fR, or \fB9 + 1\fR)\. If a digit or letter makes no sense with the current value of \fBibase\fR, they are set to the value of the highest valid digit in \fBibase\fR\.
+.
+.P
+Single\-character numbers (i\.e\., \fBA\fR) take the value that they would have if they were valid digits, regardless of the value of \fBibase\fR\. This means that \fBA\fR always equals decimal \fB10\fR and \fBF\fR always equals decimal \fB15\fR\.
+.
+.P
+In addition, if dc(1) was built with the extra math option, it accepts numbers in scientific notation\. For dc(1), an example is \fB1\.89237e9\fR, which is equal to \fB1892370000\fR\. Negative exponents are also allowed, so \fB4\.2890e_3\fR is equal to \fB0\.0042890\fR\.
+.
+.P
+\fBWARNING\fR: Both the number and the exponent in scientific notation are interpreted according to the current \fBibase\fR, but the number is still multiplied by \fB10^exponent\fR regardless of the current \fBibase\fR\. For example, if \fBibase\fR is \fB16\fR and dc(1) is given the number string \fB"FFeA"\fR, the resulting decimal number will be \fB2550000000000\fR, and if dc(1) is given the number string \fB"10e_4"\fR, the resulting decimal number will be \fB0\.0016\fR\.
+.
+.P
+Accepting input as scientific notation is a \fBnon\-portable extension\fR\.
+.
+.SH "COMMANDS"
+The valid commands are listed below\.
+.
+.SS "Printing"
+These commands are used for printing\.
+.
+.P
+Note that if dc(1) has been built with the extra math option enabled, both scientific notation and engineering notation are available for printing numbers\. Scientific notation is activated by assigning \fB0\fR to \fBobase\fR using \fB0o\fR (in any other context, an \fBobase\fR of \fB0\fR is invalid), and engineering notation is activated by assigning \fB1\fR to \fBobase\fR using \fB1o\fR (which is also invalid in any other context)\. To deactivate them, just assign a different value to \fBobase\fR\.
+.
+.P
+Printing numbers in scientific notation and/or engineering notation is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBp\fR
+Prints the value on top of the stack, whether number or string, and prints a newline after\.
+.
+.IP
+This does not alter the stack\.
+.
+.TP
+\fBn\fR
+Prints the value on top of the stack, whether number or string, and pops it off of the stack\.
+.
+.TP
+\fBP\fR
+Pops a value off the stack\.
+.
+.IP
+If the value is a number, it is truncated and the absolute value of the result is printed as though \fBobase\fR is \fBUCHAR_MAX + 1\fR and each digit is interpreted as an ASCII character, making it a byte stream\.
+.
+.IP
+If the value is a string, it is printed without a trailing newline\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBf\fR
+Prints the entire contents of the stack, in order from newest to oldest, without altering anything\.
+.
+.IP
+Users should use this command when they get lost\.
+.
+.SS "Arithmetic"
+These are the commands used for arithmetic\.
+.
+.TP
+\fB+\fR
+The top two values are popped off the stack, added, and the result is pushed onto the stack\. The \fBscale\fR of the result is equal to the max \fBscale\fR of both operands\.
+.
+.TP
+\fB\-\fR
+The top two values are popped off the stack, subtracted, and the result is pushed onto the stack\. The \fBscale\fR of the result is equal to the max \fBscale\fR of both operands\.
+.
+.TP
+\fB*\fR
+The top two values are popped off the stack, multiplied, and the result is pushed onto the stack\. If \fBa\fR is the \fBscale\fR of the first expression and \fBb\fR is the \fBscale\fR of the second expression, the \fBscale\fR of the result is equal to \fBmin(a+b,max(scale,a,b))\fR where \fBmin\fR and \fBmax\fR return the obvious values\.
+.
+.TP
+\fB/\fR
+The top two values are popped off the stack, divided, and the result is pushed onto the stack\. The \fBscale\fR of the result is equal to \fBscale\fR\.
+.
+.IP
+The first value popped off of the stack must be non\-zero\.
+.
+.TP
+\fB%\fR
+The top two values are popped off the stack, remaindered, and the result is pushed onto the stack\.
+.
+.IP
+Remaindering is equivalent to 1) Computing \fBa/b\fR to current \fBscale\fR, and 2) Using the result of step 1 to calculate \fBa\-(a/b)*b\fR to \fBscale\fR \fBmax(scale + scale(b), scale(a))\fR\.
+.
+.IP
+The first value popped off of the stack must be non\-zero\.
+.
+.TP
+\fB~\fR
+The top two values are popped off the stack, divided and remaindered, and the results (divided first, remainder second) are pushed onto the stack\. This is equivalent to \fBx y / x y %\fR except that \fBx\fR and \fBy\fR are only evaluated once\.
+.
+.IP
+The first value popped off of the stack must be non\-zero\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB^\fR
+The top two values are popped off the stack, the second is raised to the power of the first, and the result is pushed onto the stack\.
+.
+.IP
+The first value popped off of the stack must be an integer, and if that value is negative, the second value popped off of the stack must be non\-zero\.
+.
+.TP
+\fBv\fR
+The top value is popped off the stack, its square root is computed, and the result is pushed onto the stack\. The \fBscale\fR of the result is equal to \fBscale\fR\.
+.
+.IP
+The value popped off of the stack must be non\-negative\.
+.
+.TP
+\fB_\fR
+If this command \fIimmediately\fR precedes a number (i\.e\., no spaces or other commands), then that number is input as a negative number\.
+.
+.IP
+Otherwise, the top value on the stack is popped and copied, and the copy is negated and pushed onto the stack\. This behavior without a number is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBb\fR
+The top value is popped off the stack, and if it is zero, it is pushed back onto the stack\. Otherwise, its absolute value is pushed onto the stack\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB|\fR
+The top three values are popped off the stack, a modular exponentiation is computed, and the result is pushed onto the stack\.
+.
+.IP
+The first value popped is used as the reduction modulus and must be an integer and non\-zero\. The second value popped is used as the exponent and must be an integer and non\-negative\. The third value popped is the base and must be an integer\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB$\fR
+The top value is popped off the stack and copied, and the copy is truncated and pushed onto the stack\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB@\fR
+The top two values are popped off the stack, and the precision of the second is set to the value of the first, whether by truncation or extension\.
+.
+.IP
+The first value popped off of the stack must be an integer and non\-negative\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBH\fR
+The top two values are popped off the stack, and the second is shifted left (radix shifted right) to the value of the first\.
+.
+.IP
+The first value popped off of the stack must be an integer and non\-negative\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBh\fR
+The top two values are popped off the stack, and the second is shifted right (radix shifted left) to the value of the first\.
+.
+.IP
+The first value popped off of the stack must be an integer and non\-negative\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBG\fR
+The top two values are popped off of the stack, they are compared, and a \fB1\fR is pushed if they are equal, or \fB0\fR otherwise\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBN\fR
+The top value is popped off of the stack, and if it a \fB0\fR, a \fB1\fR is pushed; otherwise, a \fB0\fR is pushed\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB(\fR
+The top two values are popped off of the stack, they are compared, and a \fB1\fR is pushed if the first is less than the second, or \fB0\fR otherwise\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB{\fR
+The top two values are popped off of the stack, they are compared, and a \fB1\fR is pushed if the first is less than or equal to the second, or \fB0\fR otherwise\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB)\fR
+The top two values are popped off of the stack, they are compared, and a \fB1\fR is pushed if the first is greater than the second, or \fB0\fR otherwise\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB}\fR
+The top two values are popped off of the stack, they are compared, and a \fB1\fR is pushed if the first is greater than or equal to the second, or \fB0\fR otherwise\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBM\fR
+The top two values are popped off of the stack\. If they are both non\-zero, a \fB1\fR is pushed onto the stack\. If either of them is zero, or both of them are, then a \fB0\fR is pushed onto the stack\.
+.
+.IP
+This is like the \fB&&\fR operator in bc(1), and it is not a short\-circuit operator\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBm\fR
+The top two values are popped off of the stack\. If at least one of them is non\-zero, a \fB1\fR is pushed onto the stack\. If both of them are zero, then a \fB0\fR is pushed onto the stack\.
+.
+.IP
+This is like the \fB||\fR operator in bc(1), and it is not a short\-circuit operator\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.SS "Pseudo\-Random Number Generator"
+If dc(1) was built with the extra math option, it has a built\-in pseudo\-random number generator\. These commands query the pseudo\-random number generator\. (See Parameters for more information about the \fBseed\fR value that controls the pseudo\-random number generator\.)
+.
+.P
+The pseudo\-random number generator is guaranteed to \fBNOT\fR be cryptographically\-secure\.
+.
+.TP
+\fB'\fR
+Generates an integer between 0 and \fBDC_RAND_MAX\fR, inclusive (see the LIMITS section)\.
+.
+.IP
+The generated integer is made as unbiased as possible, subject to the limitations of the pseudo\-random number generator\.
+.
+.IP
+This command is only available if dc(1) was built with the extra math option\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB"\fR
+Pops a value off of the stack, which is used as an \fBexclusive\fR upper bound on the integer that will be generated\. If the bound is negative or is a non\-integer, an error is raised, and dc(1) resets (see the RESET section)\. If the bound is larger than \fBDC_RAND_MAX\fR, the higher bound is honored by generating several pseudo\-random integers, multiplying them by appropriate powers of \fBDC_RAND_MAX + 1\fR, and adding them together\. Thus, the size of integer that can be generated with this command is unbounded\. Using this command will change the value of \fBseed\fR\.
+.
+.IP
+If the operand is \fB0\fR or \fB1\fR, then the result pushed onto the stack is \fB0\fR, and \fBseed\fR is not changed\.
+.
+.IP
+The generated integer is made as unbiased as possible, subject to the limitations of the pseudo\-random number generator\.
+.
+.IP
+This command is only available if dc(1) was built with the extra math option\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.SS "Stack Control"
+These commands control the stack\.
+.
+.TP
+\fBc\fR
+Removes all items from ("clears") the stack\.
+.
+.TP
+\fBd\fR
+Copies the item on top of the stack ("duplicates") and pushes the copy onto the stack\.
+.
+.TP
+\fBr\fR
+Swaps ("reverses") the two top items on the stack\.
+.
+.TP
+\fBR\fR
+Pops ("removes") the top value from the stack\.
+.
+.SS "Register Control"
+These commands control registers (see the REGISTERS section)\.
+.
+.TP
+\fBs\fR\fIr\fR
+Pops the value off the top of the stack and stores it into register \fBr\fR\.
+.
+.TP
+\fBl\fR\fIr\fR
+Copies the value in register \fBr\fR and pushes it onto the stack\. This does not alter the contents of \fBr\fR\.
+.
+.TP
+\fBS\fR\fIr\fR
+Pops the value off the top of the (main) stack and pushes it onto the stack of register \fBr\fR\. The previous value of the register becomes inaccessible\.
+.
+.TP
+\fBL\fR\fIr\fR
+Pops the value off the top of the stack for register \fBr\fR and push it onto the main stack\. The previous value in the stack for register \fBr\fR, if any, is now accessible via the \fBl\fR\fIr\fR command\.
+.
+.SS "Parameters"
+These commands control the values of \fBibase\fR, \fBobase\fR, \fBscale\fR, and \fBseed\fR (if dc(1) was built with the extra math option)\. Also see the SYNTAX section\.
+.
+.TP
+\fBi\fR
+Pops the value off of the top of the stack and uses it to set \fBibase\fR, which must be between \fB2\fR and \fB16\fR, inclusive\.
+.
+.IP
+If the value on top of the stack has any \fBscale\fR, the \fBscale\fR is ignored\.
+.
+.TP
+\fBo\fR
+Pops the value off of the top of the stack and uses it to set \fBobase\fR, which must be between \fB2\fR and \fBDC_BASE_MAX\fR, inclusive (see bc(1))\. The value can be either \fB0\fR or \fB1\fR if dc(1) was built with the extra math option\.
+.
+.IP
+If the value on top of the stack has any \fBscale\fR, the \fBscale\fR is ignored\.
+.
+.TP
+\fBk\fR
+Pops the value off of the top of the stack and uses it to set \fBscale\fR, which must be non\-negative\.
+.
+.IP
+If the value on top of the stack has any \fBscale\fR, the \fBscale\fR is ignored\.
+.
+.TP
+\fBj\fR
+Pops the value off of the top of the stack and uses it to set \fBseed\fR\. The meaning of \fBseed\fR is dependent on the current pseudo\-random number generator but is guaranteed to not change except for new major versions\.
+.
+.IP
+The \fBscale\fR of the value may be significant\.
+.
+.IP
+If a previously used \fBseed\fR value is used again, the pseudo\-random number generator is guaranteed to produce the same sequence of pseudo\-random numbers as it did when the \fBseed\fR value was previously used\.
+.
+.IP
+The exact value assigned to \fBseed\fR is not guaranteed to be returned if the \fBJ\fR command is used\. However, if \fBseed\fR \fIdoes\fR return a different value, both values, when assigned to \fBseed\fR, are guaranteed to produce the same sequence of pseudo\-random numbers\. This means that certain values assigned to \fBseed\fR will not produce unique sequences of pseudo\-random numbers\.
+.
+.IP
+There is no limit to the length (number of significant decimal digits) or \fIscale\fR of the value that can be assigned to \fBseed\fR\.
+.
+.IP
+This command is only available if dc(1) was built with the extra math option\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBI\fR
+Pushes the current value of \fBibase\fR onto the main stack\.
+.
+.TP
+\fBO\fR
+Pushes the current value of \fBobase\fR onto the main stack\.
+.
+.TP
+\fBK\fR
+Pushes the current value of \fBscale\fR onto the main stack\.
+.
+.TP
+\fBJ\fR
+Pushes the current value of \fBseed\fR onto the main stack\.
+.
+.IP
+This command is only available if dc(1) was built with the extra math option\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBT\fR
+Pushes the maximum allowable value of \fBibase\fR onto the main stack\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBU\fR
+Pushes the maximum allowable value of \fBobase\fR onto the main stack\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBV\fR
+Pushes the maximum allowable value of \fBscale\fR onto the main stack\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBW\fR
+Pushes the maximum (inclusive) integer that can be generated with the \fB'\fR pseudo\-random number generator command\.
+.
+.IP
+This command is only available if dc(1) was built with the extra math option\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.SS "Strings"
+The following commands control strings\.
+.
+.P
+dc(1) can work with both numbers and strings, and registers (see the REGISTERS section) can hold both strings and numbers\. dc(1) always knows whether the contents of a register are a string or a number\.
+.
+.P
+While arithmetic operations have to have numbers, and will print an error if given a string, other commands accept strings\.
+.
+.P
+Strings can also be executed as macros\. For example, if the string \fB[1pR]\fR is executed as a macro, then the code \fB1pR\fR is executed, meaning that the \fB1\fR will be printed with a newline after and then popped from the stack\.
+.
+.TP
+\fB[\fR\fIcharacters\fR\fB]\fR
+Makes a string containing \fIcharacters\fR and pushes it onto the stack\.
+.
+.IP
+If there are brackets (\fB[\fR and \fB]\fR) in the string, then they must be balanced\. Unbalanced brackets can be escaped using a backslash (\fB\e\fR) character\.
+.
+.IP
+If there is a backslash character in the string, the character after it (even another backslash) is put into the string verbatim, but the (first) backslash is not\.
+.
+.TP
+\fBa\fR
+The value on top of the stack is popped\.
+.
+.IP
+If it is a number, it is truncated and its absolute value is taken\. The result mod \fBUCHAR_MAX + 1\fR is calculated\. If that result is \fB0\fR, push an empty string; otherwise, push a one\-character string where the character is the result of the mod interpreted as an ASCII character\.
+.
+.IP
+If it is a string, then a new string is made\. If the original string is empty, the new string is empty\. If it is not, then the first character of the original string is used to create the new string as a one\-character string\. The new string is then pushed onto the stack\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fBx\fR
+Pops a value off of the top of the stack\.
+.
+.IP
+If it is a number, it is pushed onto the stack\.
+.
+.IP
+If it is a string, it is executed as a macro\.
+.
+.IP
+This behavior is the norm whenever a macro is executed, whether by this command or by the conditional execution commands below\.
+.
+.TP
+\fB>\fR\fIr\fR
+Pops two values off of the stack that must be numbers and compares them\. If the first value is greater than the second, then the contents of register \fBr\fR are executed\.
+.
+.IP
+For example, \fB0 1>a\fR will execute the contents of register \fBa\fR, and \fB1 0>a\fR will not\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.TP
+\fB>\fR\fIr\fR\fBe\fR\fIs\fR
+Like the above, but will execute register \fBs\fR if the comparison fails\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB!>\fR\fIr\fR
+Pops two values off of the stack that must be numbers and compares them\. If the first value is not greater than the second (less than or equal to), then the contents of register \fBr\fR are executed\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.TP
+\fB!>\fR\fIr\fR\fBe\fR\fIs\fR
+Like the above, but will execute register \fBs\fR if the comparison fails\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB<\fR\fIr\fR
+Pops two values off of the stack that must be numbers and compares them\. If the first value is less than the second, then the contents of register \fBr\fR are executed\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.TP
+\fB<\fR\fIr\fR\fBe\fR\fIs\fR
+Like the above, but will execute register \fBs\fR if the comparison fails\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB!<\fR\fIr\fR
+Pops two values off of the stack that must be numbers and compares them\. If the first value is not less than the second (greater than or equal to), then the contents of register \fBr\fR are executed\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.TP
+\fB!<\fR\fIr\fR\fBe\fR\fIs\fR
+Like the above, but will execute register \fBs\fR if the comparison fails\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB=\fR\fIr\fR
+Pops two values off of the stack that must be numbers and compares them\. If the first value is equal to the second, then the contents of register \fBr\fR are executed\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.TP
+\fB=\fR\fIr\fR\fBe\fR\fIs\fR
+Like the above, but will execute register \fBs\fR if the comparison fails\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB!=\fR\fIr\fR
+Pops two values off of the stack that must be numbers and compares them\. If the first value is not equal to the second, then the contents of register \fBr\fR are executed\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.TP
+\fB!=\fR\fIr\fR\fBe\fR\fIs\fR
+Like the above, but will execute register \fBs\fR if the comparison fails\.
+.
+.IP
+If either or both of the values are not numbers, dc(1) will raise an error and reset (see the RESET section)\.
+.
+.IP
+This is a \fBnon\-portable extension\fR\.
+.
+.TP
+\fB?\fR
+Reads a line from the \fBstdin\fR and executes it\. This is to allow macros to request input from users\.
+.
+.TP
+\fBq\fR
+During execution of a macro, this exits the execution of that macro and the execution of the macro that executed it\. If there are no macros, or only one macro executing, dc(1) exits\.
+.
+.TP
+\fBQ\fR
+Pops a value from the stack which must be non\-negative and is used the number of macro executions to pop off of the execution stack\. If the number of levels to pop is greater than the number of executing macros, dc(1) exits\.
+.
+.SS "Status"
+These commands query status of the stack or its top value\.
+.
+.TP
+\fBZ\fR
+Pops a value off of the stack\.
+.
+.IP
+If it is a number, calculates the number of significant decimal digits it has and pushes the result\.
+.
+.IP
+If it is a string, pushes the number of characters the string has\.
+.
+.TP
+\fBX\fR
+Pops a value off of the stack\.
+.
+.IP
+If it is a number, pushes the \fBscale\fR of the value onto the stack\.
+.
+.IP
+If it is a string, pushes \fB0\fR\.
+.
+.TP
+\fBz\fR
+Pushes the current stack depth (before execution of this command)\.
+.
+.SS "Arrays"
+These commands manipulate arrays\.
+.
+.TP
+\fB:\fR\fIr\fR
+Pops the top two values off of the stack\. The second value will be stored in the array \fBr\fR (see the REGISTERS section), indexed by the first value\.
+.
+.TP
+\fB;\fR\fIr\fR
+Pops the value on top of the stack and uses it as an index into the array \fBr\fR\. The selected value is then pushed onto the stack\.
+.
+.SH "REGISTERS"
+Registers are names that can store strings, numbers, and arrays\. (Number/string registers do not interfere with array registers\.)
+.
+.P
+Each register is also its own stack, so the current register value is the top of the stack for the register\. All registers, when first referenced, have one value (\fB0\fR) in their stack\.
+.
+.P
+In non\-extended register mode, a register name is just the single character that follows any command that needs a register name\. The only exception is a newline (\fB\'\en\'\fR); it is a parse error for a newline to be used as a register name\.
+.
+.SS "Extended Register Mode"
+Unlike most other dc(1) implentations, this dc(1) provides nearly unlimited amounts of registers, if extended register mode is enabled\.
+.
+.P
+If extended register mode is enabled (\fB\-x\fR or \fB\-\-extended\-register\fR command\-line arguments are given), then normal single character registers are used \fB\fIunless\fR\fR the character immediately following a command that needs a register name is a space (according to \fBisspace()\fR) and not a newline (\fB\'\en\'\fR)\.
+.
+.P
+In that case, the register name is found according to the regex \fB[a\-z][a\-z0\-9_]*\fR (like bc(1)), and it is a parse error if the next non\-space characters do not match that regex\.
+.
+.SH "RESET"
+When dc(1) encounters an error or a signal that it has a non\-default handler for, it resets\. This means that several things happen\.
+.
+.P
+First, any macros that are executing are stopped and popped off the stack\. The behavior is not unlike that of exceptions in programming languages\. Then the execution point is set so that any code waiting to execute (after all functions returned) is skipped\.
+.
+.P
+Thus, when dc(1) resets, it skips any remaining code waiting to be executed\. Then, if it is interactive mode, and the error was not a fatal error (see the EXIT STATUS section), it asks for more input; otherwise, it exits with the appropriate return code\.
+.
+.SH "PERFORMANCE"
+Most dc(1) implementations use \fBchar\fR types to calculate the value of \fB1\fR decimal digit at a time, but that can be slow\. This dc(1) does something different\.
+.
+.P
+It uses large integers to calculate more than \fB1\fR decimal digit at a time\. If built in a environment where \fBDC_LONG_BIT\fR (see the LIMITS section) is \fB64\fR, then each integer has \fB9\fR decimal digits\. If built in an environment where \fBDC_LONG_BIT\fR is \fB32\fR then each integer has \fB4\fR decimal digits\. This value (the number of decimal digits per large integer) is called \fBDC_BASE_DIGS\fR\.
+.
+.P
+In addition, this dc(1) uses an even larger integer for overflow checking\. This integer type depends on the value of \fBDC_LONG_BIT\fR, but is always at least twice as large as the integer type used to store digits\.
+.
+.SH "LIMITS"
+The following are the limits on dc(1):
+.
+.TP
+\fBDC_LONG_BIT\fR
+The number of bits in the \fBlong\fR type in the environment where dc(1) was built\. This determines how many decimal digits can be stored in a single large integer (see the PERFORMANCE section)\.
+.
+.TP
+\fBDC_BASE_DIGS\fR
+The number of decimal digits per large integer (see the PERFORMANCE section)\. Depends on \fBDC_LONG_BIT\fR\.
+.
+.TP
+\fBDC_BASE_POW\fR
+The max decimal number that each large integer can store (see \fBDC_BASE_DIGS\fR) plus \fB1\fR\. Depends on \fBDC_BASE_DIGS\fR\.
+.
+.TP
+\fBDC_OVERFLOW_MAX\fR
+The max number that the overflow type (see the PERFORMANCE section) can hold\. Depends on \fBDC_LONG_BIT\fR\.
+.
+.TP
+\fBDC_BASE_DIGS\fR
+The number of decimal digits per large integer (see the PERFORMANCE section)\.
+.
+.TP
+\fBDC_BASE_MAX\fR
+The maximum output base\. Set at \fBDC_BASE_POW\fR\.
+.
+.TP
+\fBDC_DIM_MAX\fR
+The maximum size of arrays\. Set at \fBSIZE_MAX\-1\fR\.
+.
+.TP
+\fBDC_SCALE_MAX\fR
+The maximum \fBscale\fR\. Set at \fBDC_OVERFLOW_MAX\-1\fR\.
+.
+.TP
+\fBDC_STRING_MAX\fR
+The maximum length of strings\. Set at \fBDC_OVERFLOW_MAX\-1\fR\.
+.
+.TP
+\fBDC_NAME_MAX\fR
+The maximum length of identifiers\. Set at \fBDC_OVERFLOW_MAX\-1\fR\.
+.
+.TP
+\fBDC_NUM_MAX\fR
+The maximum length of a number (in decimal digits), which includes digits after the decimal point\. Set at \fBDC_OVERFLOW_MAX\-1\fR\.
+.
+.TP
+\fBDC_RAND_MAX\fR
+The maximum integer (inclusive) returned by the \fB'\fR command, if dc(1) has been built with the extra math option\. Set at \fB2^DC_LONG_BIT\-1\fR\.
+.
+.TP
+Exponent
+The maximum allowable exponent (positive or negative)\. Set at \fBDC_OVERFLOW_MAX\fR\.
+.
+.TP
+Number of vars
+The maximum number of vars/arrays\. Set at \fBSIZE_MAX\-1\fR\.
+.
+.P
+These limits are meant to be effectively non\-existent; the limits are so large (at least on 64\-bit machines) that there should not be any point at which they become a problem\. In fact, memory should be exhausted before these limits should be hit\.
+.
+.SH "ENVIRONMENT VARIABLES"
+dc(1) recognizes the following environment variables:
+.
+.TP
+\fBDC_ENV_ARGS\fR
+This is another way to give command\-line arguments to dc(1)\. They should be in the same format as all other command\-line arguments\. These are always processed first, so any files given in \fBDC_ENV_ARGS\fR will be processed before arguments and files given on the command\-line\. This gives the user the ability to set up "standard" options and files to be used at every invocation\. The most useful thing for such files to contain would be useful functions that the user might want every time dc(1) runs\. Another use would be to use the \fB\-e\fR option to set \fBscale\fR to a value other than \fB0\fR\.
+.
+.IP
+The code that parses \fBDC_ENV_ARGS\fR will correctly handle quoted arguments, but it does not understand escape sequences\. For example, the string \fB"/home/gavin/some dc file\.dc"\fR will be correctly parsed, but the string \fB"/home/gavin/some \e"dc\e" file\.dc"\fR will include the backslashes\.
+.
+.IP
+The quote parsing will handle either kind of quotes, \fB'\fR or \fB"\fR\. Thus, if you have a file with any number of single quotes in the name, you can use double quotes as the outside quotes, as in \fB"some \'bc\' file\.bc"\fR, and vice versa if you have a file with double quotes\. However, handling a file with both kinds of quotes in \fBDC_ENV_ARGS\fR is not supported due to the complexity of the parsing, though such files are still supported on the command\-line where the parsing is done by the shell\.
+.
+.TP
+\fBDC_LINE_LENGTH\fR
+If this environment variable exists and contains an integer that is greater than \fB1\fR and is less than \fBUINT16_MAX\fR (\fB2^16\-1\fR), dc(1) will output lines to that length, including the backslash newline combo\. The default line length is \fB70\fR\.
+.
+.TP
+\fBDC_EXPR_EXIT\fR
+If this variable exists (no matter the contents), dc(1) will exit immediately after executing expressions and files given by the \fB\-e\fR and/or \fB\-f\fR command\-line options (and any equivalents)\.
+.
+.SH "EXIT STATUS"
+dc(1) returns the following exit statuses:
+.
+.TP
+\fB0\fR
+No error\.
+.
+.TP
+\fB1\fR
+A math error occurred\. This follows standard practice of using \fB1\fR for expected errors, since math errors will happen in the process of normal execution\.
+.
+.IP
+Math errors include divide by \fB0\fR, taking the square root of a negative number, using a negative number as a bound for the pseudo\-random number generator, attempting to convert a negative number to a hardware integer, overflow when converting a number to a hardware integer, and attempting to use a non\-integer where an integer is required\.
+.
+.IP
+Converting to a hardware integer happens for the second operand of the power (\fB^\fR), places (\fB@\fR), left shift (\fBH\fR), and right shift (\fBh\fR) operators\.
+.
+.TP
+\fB2\fR
+A parse error occurred\.
+.
+.IP
+Parse errors include unexpected \fBEOF\fR, using an invalid character, failing to find the end of a string or comment, and using a token where it is invalid\.
+.
+.TP
+\fB3\fR
+A runtime error occurred\.
+.
+.IP
+Runtime errors include assigning an invalid number to \fBibase\fR, \fBobase\fR, or \fBscale\fR; give a bad expression to a \fBread()\fR call, calling \fBread()\fR inside of a \fBread()\fR call, type errors, and attempting an operation when the stack has too few elements\.
+.
+.TP
+\fB4\fR
+A fatal error occurred\.
+.
+.IP
+Fatal errors include memory allocation errors, I/O errors, failing to open files, attempting to use files that do not have only ASCII characters (dc(1) only accepts ASCII characters), attempting to open a directory as a file, and giving invalid command\-line options\.
+.
+.P
+The exit status \fB4\fR is special; when a fatal error occurs, dc(1) always exits and returns \fB4\fR, no matter what mode dc(1) is in\.
+.
+.P
+The other statuses will only be returned when dc(1) is not in interactive mode (see the INTERACTIVE MODE section), since dc(1) resets its state (see the RESET section) and accepts more input when one of those errors occurs in interactive mode\. This is also the case when interactive mode is forced by the \fB\-i\fR flag or \fB\-\-interactive\fR option\.
+.
+.P
+These exit statuses allow dc(1) to be used in shell scripting with error checking, and its normal behavior can be forced by using the \fB\-i\fR flag or \fB\-\-interactive\fR option\.
+.
+.SH "INTERACTIVE MODE"
+Like bc(1), dc(1) has an interactive mode and a non\-interactive mode\. Interactive mode is turned on automatically when both \fBstdin\fR and \fBstdout\fR are hooked to a terminal, but the \fB\-i\fR flag and \fB\-\-interactive\fR option can turn it on in other cases\.
+.
+.P
+In interactive mode, dc(1) attempts to recover from errors (see the RESET section), and in normal execution, flushes \fBstdout\fR as soon as execution is done for the current input\.
+.
+.SH "TTY MODE"
+If \fBstdin\fR, \fBstdout\fR, and \fBstderr\fR are all connected to a TTY, dc(1) turns on "TTY mode\."
+.
+.P
+TTY mode is required for history to be enabled (see the COMMAND LINE HISTORY section)\. It is also required to enable special handling for \fBSIGINT\fR signals\.
+.
+.P
+TTY mode is different from interactive mode because interactive mode is required in the bc(1) specification \fIhttps://pubs\.opengroup\.org/onlinepubs/9699919799/utilities/bc\.html\fR, and interactive mode requires only \fBstdin\fR and \fBstdout\fR to be connected to a terminal\.
+.
+.SH "SIGNAL HANDLING"
+Sending a \fBSIGINT\fR will cause dc(1) to stop execution of the current input\. If dc(1) is in TTY mode (see the TTY MODE section), it will reset (see the RESET section)\. Otherwise, it will clean up and exit\.
+.
+.P
+Note that "current input" can mean one of two things\. If dc(1) is processing input from \fBstdin\fR in TTY mode, it will ask for more input\. If dc(1) is processing input from a file in TTY mode, it will stop processing the file and start processing the next file, if one exists, or ask for input from \fBstdin\fR if no other file exists\.
+.
+.P
+This means that if a \fBSIGINT\fR is sent to dc(1) as it is executing a file, it can seem as though dc(1) did not respond to the signal since it will immediately start executing the next file\. This is by design; most files that users execute when interacting with dc(1) have function definitions, which are quick to parse\. If a file takes a long time to execute, there may be a bug in that file\. The rest of the files could still be executed without problem, allowing the user to continue\.
+.
+.P
+\fBSIGTERM\fR and \fBSIGQUIT\fR cause dc(1) to clean up and exit, and it uses the default handler for all other signals\. The one exception is \fBSIGHUP\fR, if dc(1) was built with history support; in that case, when dc(1) is in TTY mode, a \fBSIGHUP\fR will cause dc(1) to clean up and exit\.
+.
+.SH "COMMAND LINE HISTORY"
+dc(1) supports interactive command\-line editing, if compiled with the history option enabled\. If dc(1) is in TTY mode (see the TTY MODE section), history is enabled\. Previous lines can be recalled and edited with the arrow keys\.
+.
+.P
+\fBNote\fR: when dc(1) is built with history support, tabs are converted to 8 spaces\.
+.
+.SH "LOCALES"
+This dc(1) ships with support for adding error messages for different locales\.
+.
+.SH "SEE ALSO"
+bc(1)
+.
+.SH "STANDARDS"
+The dc(1) utility operators are compliant with the operators in the bc(1) IEEE Std 1003\.1\-2017 (“POSIX\.1\-2017”) \fIhttps://pubs\.opengroup\.org/onlinepubs/9699919799/utilities/bc\.html\fR specification\.
+.
+.SH "AUTHOR"
+This dc(1) was made from scratch by Gavin D\. Howard\.
+.
+.SH "BUGS"
+None are known\. Report bugs at https://git\.yzena\.com/gavin/bc\.

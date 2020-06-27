@@ -1,0 +1,22 @@
+#! /dc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#! /bin/dc
+0sm[Nx]0s_[]zsWx[li]zs^x[lili100>Nx]0sm[]zsWx[liNx]zsxx[li;rlilix]
+x[liN]zsWx[liNx]zsxx[li;rlilix]
+x[liNzsxx#! /bin/dc
+*sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]x]zsxx#! /bin/dc
+*sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsdc
+0sm[Nx]0sm[]zsWx[li]zsGx[Nx]0sm[]zsW#! /bipR
+00?00pR0.0pR
+.0000p0000000000000;0000000000.0pR
+.0000p00.000000;00000500000.0pR
+.0000p0000000000?00pR0.0pR
+.0000p0000000000000;0000000000.0pR
+.0000p00.000000;00000500000.0pR
+.0000p00000000000000000000000000000000000000000d000.0pR
+.0000p000000000000000000000000R
+.0000p02730pR
+00000pR0.0pR
+.0000p0000000000000000000000R
+.0000p00pR

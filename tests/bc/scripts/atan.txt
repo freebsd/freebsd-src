@@ -1,0 +1,301 @@
+scale = 1
+a(.267)
+a(1)
+scale = 2
+a(.267)
+a(1)
+scale = 3
+a(.267)
+a(1)
+scale = 4
+a(.267)
+a(1)
+scale = 5
+a(.267)
+a(1)
+scale = 6
+a(.267)
+a(1)
+scale = 7
+a(.267)
+a(1)
+scale = 8
+a(.267)
+a(1)
+scale = 9
+a(.267)
+a(1)
+scale = 10
+a(.267)
+a(1)
+scale = 11
+a(.267)
+a(1)
+scale = 12
+a(.267)
+a(1)
+scale = 13
+a(.267)
+a(1)
+scale = 14
+a(.267)
+a(1)
+scale = 15
+a(.267)
+a(1)
+scale = 16
+a(.267)
+a(1)
+scale = 17
+a(.267)
+a(1)
+scale = 18
+a(.267)
+a(1)
+scale = 19
+a(.267)
+a(1)
+scale = 20
+a(.267)
+a(1)
+scale = 21
+a(.267)
+a(1)
+scale = 22
+a(.267)
+a(1)
+scale = 23
+a(.267)
+a(1)
+scale = 24
+a(.267)
+a(1)
+scale = 25
+a(.267)
+a(1)
+scale = 26
+a(.267)
+a(1)
+scale = 27
+a(.267)
+a(1)
+scale = 28
+a(.267)
+a(1)
+scale = 29
+a(.267)
+a(1)
+scale = 30
+a(.267)
+a(1)
+scale = 31
+a(.267)
+a(1)
+scale = 32
+a(.267)
+a(1)
+scale = 33
+a(.267)
+a(1)
+scale = 34
+a(.267)
+a(1)
+scale = 35
+a(.267)
+a(1)
+scale = 36
+a(.267)
+a(1)
+scale = 37
+a(.267)
+a(1)
+scale = 38
+a(.267)
+a(1)
+scale = 39
+a(.267)
+a(1)
+scale = 40
+a(.267)
+a(1)
+scale = 41
+a(.267)
+a(1)
+scale = 42
+a(.267)
+a(1)
+scale = 43
+a(.267)
+a(1)
+scale = 44
+a(.267)
+a(1)
+scale = 45
+a(.267)
+a(1)
+scale = 46
+a(.267)
+a(1)
+scale = 47
+a(.267)
+a(1)
+scale = 48
+a(.267)
+a(1)
+scale = 49
+a(.267)
+a(1)
+scale = 50
+a(.267)
+a(1)
+scale = 51
+a(.267)
+a(1)
+scale = 52
+a(.267)
+a(1)
+scale = 53
+a(.267)
+a(1)
+scale = 54
+a(.267)
+a(1)
+scale = 55
+a(.267)
+a(1)
+scale = 56
+a(.267)
+a(1)
+scale = 57
+a(.267)
+a(1)
+scale = 58
+a(.267)
+a(1)
+scale = 59
+a(.267)
+a(1)
+scale = 60
+a(.267)
+a(1)
+scale = 61
+a(.267)
+a(1)
+scale = 62
+a(.267)
+a(1)
+scale = 63
+a(.267)
+a(1)
+scale = 64
+a(.267)
+a(1)
+scale = 65
+a(.267)
+a(1)
+scale = 66
+a(.267)
+a(1)
+scale = 67
+a(.267)
+a(1)
+scale = 68
+a(.267)
+a(1)
+scale = 69
+a(.267)
+a(1)
+scale = 70
+a(.267)
+a(1)
+scale = 71
+a(.267)
+a(1)
+scale = 72
+a(.267)
+a(1)
+scale = 73
+a(.267)
+a(1)
+scale = 74
+a(.267)
+a(1)
+scale = 75
+a(.267)
+a(1)
+scale = 76
+a(.267)
+a(1)
+scale = 77
+a(.267)
+a(1)
+scale = 78
+a(.267)
+a(1)
+scale = 79
+a(.267)
+a(1)
+scale = 80
+a(.267)
+a(1)
+scale = 81
+a(.267)
+a(1)
+scale = 82
+a(.267)
+a(1)
+scale = 83
+a(.267)
+a(1)
+scale = 84
+a(.267)
+a(1)
+scale = 85
+a(.267)
+a(1)
+scale = 86
+a(.267)
+a(1)
+scale = 87
+a(.267)
+a(1)
+scale = 88
+a(.267)
+a(1)
+scale = 89
+a(.267)
+a(1)
+scale = 90
+a(.267)
+a(1)
+scale = 91
+a(.267)
+a(1)
+scale = 92
+a(.267)
+a(1)
+scale = 93
+a(.267)
+a(1)
+scale = 94
+a(.267)
+a(1)
+scale = 95
+a(.267)
+a(1)
+scale = 96
+a(.267)
+a(1)
+scale = 97
+a(.267)
+a(1)
+scale = 98
+a(.267)
+a(1)
+scale = 99
+a(.267)
+a(1)
+scale = 100
+a(.267)
+a(1)
+halt

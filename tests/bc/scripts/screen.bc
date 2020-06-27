@@ -1,0 +1,20 @@
+#! /usr/bin/bc -q
+
+define a(i, j) {
+	scale = 0
+	if(i % 2 == 0) return i;
+	if(j - i >= 0.5) return i + 1;
+	return i - 1;
+}
+
+define x(w, h, n) {
+	scale = 20
+	f = w / n
+	scale = 0
+	i = h / f
+	scale = 1
+	j = h / f
+	return a(i, j);
+}
+
+x(720, 576, 600)
