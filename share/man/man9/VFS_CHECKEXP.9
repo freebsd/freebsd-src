@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2020
+.Dd June 17, 2020
 .Dt VFS_CHECKEXP 9
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ macro is used by the NFS server to check if a mount point is exported
 to a client.
 .Pp
 The arguments it expects are:
-.Bl -tag -width credanonp
+.Bl -tag -width numsecflavors
 .It Fa mp
 The mount point to be checked.
 .It Fa nam
@@ -71,21 +71,17 @@ macro should be called on a file system's mount structure to determine if it
 is exported to a client whose address is contained in
 .Fa nam .
 .Pp
-It is generally called before
-.Xr VFS_FHTOVP 9
-to validate that a client has access to the file system.
+It is called in the NFS server once a vnode for a file handle has been
+acquired, in order to determine what access the client is allowed on
+the file system the vnode resides in.
+For NFSv4, it is also called whenever the lookup operation crosses a
+server file system mount point, to update the access information.
 .Pp
-The file system should call
-.Xr vfs_export_lookup 9
-with the address of an appropriate
-.Vt netexport
-structure and the address of the client,
-.Fa nam ,
-to verify that the client can access this file system.
+The operation is file system specific, but is normally handled by
+the default ``vfs_stdcheckexp''.
 .Sh RETURN VALUES
 The export flags, anonymous credentials and security flavors specific to the
-client (returned by
-.Xr vfs_export_lookup 9 )
+client
 will be returned in
 .Fa *exflagsp ,
 .Fa *credanonp ,
