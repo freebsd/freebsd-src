@@ -17,7 +17,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct read_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* char * */
-		uarg[2] = p->nbyte; /* u_int */
+		iarg[2] = p->nbyte; /* l_size_t */
 		*n_args = 3;
 		break;
 	}
@@ -26,7 +26,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct write_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->buf; /* char * */
-		uarg[2] = p->nbyte; /* u_int */
+		iarg[2] = p->nbyte; /* l_size_t */
 		*n_args = 3;
 		break;
 	}
@@ -35,7 +35,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_open_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
 		iarg[1] = p->flags; /* l_int */
-		iarg[2] = p->mode; /* l_int */
+		iarg[2] = p->mode; /* l_mode_t */
 		*n_args = 3;
 		break;
 	}
@@ -103,17 +103,17 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_mprotect */
 	case 10: {
 		struct linux_mprotect_args *p = params;
-		uarg[0] = (intptr_t) p->addr; /* caddr_t */
-		iarg[1] = p->len; /* l_int */
-		iarg[2] = p->prot; /* l_int */
+		iarg[0] = p->addr; /* l_ulong */
+		iarg[1] = p->len; /* l_size_t */
+		iarg[2] = p->prot; /* l_ulong */
 		*n_args = 3;
 		break;
 	}
 	/* munmap */
 	case 11: {
 		struct munmap_args *p = params;
-		uarg[0] = (intptr_t) p->addr; /* caddr_t */
-		iarg[1] = p->len; /* int */
+		uarg[0] = (intptr_t) p->addr; /* void * */
+		iarg[1] = p->len; /* l_size_t */
 		*n_args = 2;
 		break;
 	}
@@ -156,7 +156,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_ioctl_args *p = params;
 		iarg[0] = p->fd; /* l_uint */
 		iarg[1] = p->cmd; /* l_uint */
-		uarg[2] = p->arg; /* uintptr_t */
+		iarg[2] = p->arg; /* l_ulong */
 		*n_args = 3;
 		break;
 	}
@@ -209,7 +209,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_pipe */
 	case 22: {
 		struct linux_pipe_args *p = params;
-		uarg[0] = (intptr_t) p->pipefds; /* l_ulong * */
+		uarg[0] = (intptr_t) p->pipefds; /* l_int * */
 		*n_args = 1;
 		break;
 	}
@@ -261,9 +261,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_madvise */
 	case 28: {
 		struct linux_madvise_args *p = params;
-		uarg[0] = (intptr_t) p->addr; /* void * */
-		uarg[1] = p->len; /* size_t */
-		iarg[2] = p->behav; /* int */
+		iarg[0] = p->addr; /* l_ulong */
+		iarg[1] = p->len; /* l_size_t */
+		iarg[2] = p->behav; /* l_int */
 		*n_args = 3;
 		break;
 	}
@@ -356,7 +356,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_sendfile_args *p = params;
 		iarg[0] = p->out; /* l_int */
 		iarg[1] = p->in; /* l_int */
-		uarg[2] = (intptr_t) p->offset; /* l_long * */
+		uarg[2] = (intptr_t) p->offset; /* l_off_t * */
 		iarg[3] = p->count; /* l_size_t */
 		*n_args = 4;
 		break;
@@ -393,8 +393,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_sendto_args *p = params;
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->msg; /* l_uintptr_t */
-		iarg[2] = p->len; /* l_int */
-		iarg[3] = p->flags; /* l_int */
+		iarg[2] = p->len; /* l_size_t */
+		iarg[3] = p->flags; /* l_uint */
 		iarg[4] = p->to; /* l_uintptr_t */
 		iarg[5] = p->tolen; /* l_int */
 		*n_args = 6;
@@ -406,7 +406,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->buf; /* l_uintptr_t */
 		iarg[2] = p->len; /* l_size_t */
-		iarg[3] = p->flags; /* l_int */
+		iarg[3] = p->flags; /* l_uint */
 		iarg[4] = p->from; /* l_uintptr_t */
 		iarg[5] = p->fromlen; /* l_uintptr_t */
 		*n_args = 6;
@@ -417,7 +417,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_sendmsg_args *p = params;
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->msg; /* l_uintptr_t */
-		iarg[2] = p->flags; /* l_int */
+		iarg[2] = p->flags; /* l_uint */
 		*n_args = 3;
 		break;
 	}
@@ -426,7 +426,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_recvmsg_args *p = params;
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->msg; /* l_uintptr_t */
-		iarg[2] = p->flags; /* l_int */
+		iarg[2] = p->flags; /* l_uint */
 		*n_args = 3;
 		break;
 	}
@@ -508,7 +508,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_clone */
 	case 56: {
 		struct linux_clone_args *p = params;
-		iarg[0] = p->flags; /* l_int */
+		iarg[0] = p->flags; /* l_ulong */
 		uarg[1] = (intptr_t) p->stack; /* void * */
 		uarg[2] = (intptr_t) p->parent_tidptr; /* void * */
 		uarg[3] = (intptr_t) p->child_tidptr; /* void * */
@@ -555,7 +555,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_kill */
 	case 62: {
 		struct linux_kill_args *p = params;
-		iarg[0] = p->pid; /* l_int */
+		iarg[0] = p->pid; /* l_pid_t */
 		iarg[1] = p->signum; /* l_int */
 		*n_args = 2;
 		break;
@@ -675,7 +675,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 76: {
 		struct linux_truncate_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->length; /* l_ulong */
+		iarg[1] = p->length; /* l_long */
 		*n_args = 2;
 		break;
 	}
@@ -683,7 +683,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 77: {
 		struct linux_ftruncate_args *p = params;
 		iarg[0] = p->fd; /* l_int */
-		iarg[1] = p->length; /* l_long */
+		iarg[1] = p->length; /* l_ulong */
 		*n_args = 2;
 		break;
 	}
@@ -730,7 +730,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 83: {
 		struct linux_mkdir_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->mode; /* l_int */
+		iarg[1] = p->mode; /* l_mode_t */
 		*n_args = 2;
 		break;
 	}
@@ -745,7 +745,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 85: {
 		struct linux_creat_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->mode; /* l_int */
+		iarg[1] = p->mode; /* l_mode_t */
 		*n_args = 2;
 		break;
 	}
@@ -1112,8 +1112,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 133: {
 		struct linux_mknod_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->mode; /* l_int */
-		iarg[2] = p->dev; /* l_dev_t */
+		iarg[1] = p->mode; /* l_mode_t */
+		iarg[2] = p->dev; /* l_uint */
 		*n_args = 3;
 		break;
 	}
@@ -1127,7 +1127,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_ustat */
 	case 136: {
 		struct linux_ustat_args *p = params;
-		iarg[0] = p->dev; /* l_dev_t */
+		iarg[0] = p->dev; /* l_uint */
 		uarg[1] = (intptr_t) p->ubuf; /* struct l_ustat * */
 		*n_args = 2;
 		break;
@@ -1382,7 +1382,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 170: {
 		struct linux_sethostname_args *p = params;
 		uarg[0] = (intptr_t) p->hostname; /* char * */
-		iarg[1] = p->len; /* l_uint */
+		iarg[1] = p->len; /* l_int */
 		*n_args = 2;
 		break;
 	}
@@ -1433,68 +1433,122 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_setxattr */
 	case 188: {
-		*n_args = 0;
+		struct linux_setxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* const char * */
+		iarg[3] = p->size; /* l_size_t */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
 		break;
 	}
 	/* linux_lsetxattr */
 	case 189: {
-		*n_args = 0;
+		struct linux_lsetxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* const char * */
+		iarg[3] = p->size; /* l_size_t */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
 		break;
 	}
 	/* linux_fsetxattr */
 	case 190: {
-		*n_args = 0;
+		struct linux_fsetxattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* const char * */
+		iarg[3] = p->size; /* l_size_t */
+		iarg[4] = p->flags; /* l_int */
+		*n_args = 5;
 		break;
 	}
 	/* linux_getxattr */
 	case 191: {
-		*n_args = 0;
+		struct linux_getxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* char * */
+		iarg[3] = p->size; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_lgetxattr */
 	case 192: {
-		*n_args = 0;
+		struct linux_lgetxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* char * */
+		iarg[3] = p->size; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_fgetxattr */
 	case 193: {
-		*n_args = 0;
+		struct linux_fgetxattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		uarg[2] = (intptr_t) p->value; /* char * */
+		iarg[3] = p->size; /* l_size_t */
+		*n_args = 4;
 		break;
 	}
 	/* linux_listxattr */
 	case 194: {
-		*n_args = 0;
+		struct linux_listxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->list; /* const char * */
+		iarg[2] = p->size; /* l_size_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_llistxattr */
 	case 195: {
-		*n_args = 0;
+		struct linux_llistxattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->list; /* const char * */
+		iarg[2] = p->size; /* l_size_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_flistxattr */
 	case 196: {
-		*n_args = 0;
+		struct linux_flistxattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->list; /* const char * */
+		iarg[2] = p->size; /* l_size_t */
+		*n_args = 3;
 		break;
 	}
 	/* linux_removexattr */
 	case 197: {
-		*n_args = 0;
+		struct linux_removexattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_lremovexattr */
 	case 198: {
-		*n_args = 0;
+		struct linux_lremovexattr_args *p = params;
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_fremovexattr */
 	case 199: {
-		*n_args = 0;
+		struct linux_fremovexattr_args *p = params;
+		iarg[0] = p->fd; /* l_int */
+		uarg[1] = (intptr_t) p->name; /* const char * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_tkill */
 	case 200: {
 		struct linux_tkill_args *p = params;
-		iarg[0] = p->tid; /* l_int */
+		iarg[0] = p->tid; /* l_pid_t */
 		iarg[1] = p->sig; /* l_int */
 		*n_args = 2;
 		break;
@@ -1683,7 +1737,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 230: {
 		struct linux_clock_nanosleep_args *p = params;
 		iarg[0] = p->which; /* clockid_t */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->flags; /* l_int */
 		uarg[2] = (intptr_t) p->rqtp; /* struct l_timespec * */
 		uarg[3] = (intptr_t) p->rmtp; /* struct l_timespec * */
 		*n_args = 4;
@@ -1719,8 +1773,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_tgkill */
 	case 234: {
 		struct linux_tgkill_args *p = params;
-		iarg[0] = p->tgid; /* l_int */
-		iarg[1] = p->pid; /* l_int */
+		iarg[0] = p->tgid; /* l_pid_t */
+		iarg[1] = p->pid; /* l_pid_t */
 		iarg[2] = p->sig; /* l_int */
 		*n_args = 3;
 		break;
@@ -1750,32 +1804,58 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_mq_open */
 	case 240: {
-		*n_args = 0;
+		struct linux_mq_open_args *p = params;
+		uarg[0] = (intptr_t) p->name; /* const char * */
+		iarg[1] = p->oflag; /* l_int */
+		iarg[2] = p->mode; /* l_mode_t */
+		uarg[3] = (intptr_t) p->attr; /* struct mq_attr * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_mq_unlink */
 	case 241: {
-		*n_args = 0;
+		struct linux_mq_unlink_args *p = params;
+		uarg[0] = (intptr_t) p->name; /* const char * */
+		*n_args = 1;
 		break;
 	}
 	/* linux_mq_timedsend */
 	case 242: {
-		*n_args = 0;
+		struct linux_mq_timedsend_args *p = params;
+		iarg[0] = p->mqd; /* l_mqd_t */
+		uarg[1] = (intptr_t) p->msg_ptr; /* const char * */
+		iarg[2] = p->msg_len; /* l_size_t */
+		iarg[3] = p->msg_prio; /* l_uint */
+		uarg[4] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
+		*n_args = 5;
 		break;
 	}
 	/* linux_mq_timedreceive */
 	case 243: {
-		*n_args = 0;
+		struct linux_mq_timedreceive_args *p = params;
+		iarg[0] = p->mqd; /* l_mqd_t */
+		uarg[1] = (intptr_t) p->msg_ptr; /* char * */
+		iarg[2] = p->msg_len; /* l_size_t */
+		uarg[3] = (intptr_t) p->msg_prio; /* l_uint * */
+		uarg[4] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
+		*n_args = 5;
 		break;
 	}
 	/* linux_mq_notify */
 	case 244: {
-		*n_args = 0;
+		struct linux_mq_notify_args *p = params;
+		iarg[0] = p->mqd; /* l_mqd_t */
+		uarg[1] = (intptr_t) p->abs_timeout; /* const struct l_timespec * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_mq_getsetattr */
 	case 245: {
-		*n_args = 0;
+		struct linux_mq_getsetattr_args *p = params;
+		iarg[0] = p->mqd; /* l_mqd_t */
+		uarg[1] = (intptr_t) p->attr; /* const struct mq_attr * */
+		uarg[2] = (intptr_t) p->oattr; /* struct mq_attr * */
+		*n_args = 3;
 		break;
 	}
 	/* linux_kexec_load */
@@ -1845,7 +1925,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->filename; /* const char * */
 		iarg[2] = p->flags; /* l_int */
-		iarg[3] = p->mode; /* l_int */
+		iarg[3] = p->mode; /* l_mode_t */
 		*n_args = 4;
 		break;
 	}
@@ -1854,7 +1934,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_mkdirat_args *p = params;
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->pathname; /* const char * */
-		iarg[2] = p->mode; /* l_int */
+		iarg[2] = p->mode; /* l_mode_t */
 		*n_args = 3;
 		break;
 	}
@@ -1863,7 +1943,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_mknodat_args *p = params;
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->filename; /* const char * */
-		iarg[2] = p->mode; /* l_int */
+		iarg[2] = p->mode; /* l_mode_t */
 		iarg[3] = p->dev; /* l_uint */
 		*n_args = 4;
 		break;
@@ -1981,7 +2061,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 271: {
 		struct linux_ppoll_args *p = params;
 		uarg[0] = (intptr_t) p->fds; /* struct pollfd * */
-		uarg[1] = p->nfds; /* uint32_t */
+		iarg[1] = p->nfds; /* l_uint */
 		uarg[2] = (intptr_t) p->tsp; /* struct l_timespec * */
 		uarg[3] = (intptr_t) p->sset; /* l_sigset_t * */
 		iarg[4] = p->ssize; /* l_size_t */
@@ -2026,7 +2106,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->fd; /* l_int */
 		iarg[1] = p->offset; /* l_loff_t */
 		iarg[2] = p->nbytes; /* l_loff_t */
-		uarg[3] = p->flags; /* unsigned int */
+		iarg[3] = p->flags; /* l_uint */
 		*n_args = 4;
 		break;
 	}
@@ -2116,7 +2196,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->s; /* l_int */
 		iarg[1] = p->addr; /* l_uintptr_t */
 		iarg[2] = p->namelen; /* l_uintptr_t */
-		iarg[3] = p->flags; /* int */
+		iarg[3] = p->flags; /* l_int */
 		*n_args = 4;
 		break;
 	}
@@ -2143,8 +2223,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* linux_dup3 */
 	case 292: {
 		struct linux_dup3_args *p = params;
-		iarg[0] = p->oldfd; /* l_int */
-		iarg[1] = p->newfd; /* l_int */
+		iarg[0] = p->oldfd; /* l_uint */
+		iarg[1] = p->newfd; /* l_uint */
 		iarg[2] = p->flags; /* l_int */
 		*n_args = 3;
 		break;
@@ -2351,7 +2431,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->oldname; /* const char * */
 		iarg[2] = p->newdfd; /* l_int */
 		uarg[3] = (intptr_t) p->newname; /* const char * */
-		uarg[4] = p->flags; /* unsigned int */
+		iarg[4] = p->flags; /* l_uint */
 		*n_args = 5;
 		break;
 	}
@@ -2564,7 +2644,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 2:
-			p = "u_int";
+			p = "l_size_t";
 			break;
 		default:
 			break;
@@ -2580,7 +2660,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 2:
-			p = "u_int";
+			p = "l_size_t";
 			break;
 		default:
 			break;
@@ -2596,7 +2676,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		default:
 			break;
@@ -2712,13 +2792,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 10:
 		switch(ndx) {
 		case 0:
-			p = "caddr_t";
+			p = "l_ulong";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_size_t";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_ulong";
 			break;
 		default:
 			break;
@@ -2728,10 +2808,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 11:
 		switch(ndx) {
 		case 0:
-			p = "caddr_t";
+			p = "userland void *";
 			break;
 		case 1:
-			p = "int";
+			p = "l_size_t";
 			break;
 		default:
 			break;
@@ -2805,7 +2885,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_uint";
 			break;
 		case 2:
-			p = "uintptr_t";
+			p = "l_ulong";
 			break;
 		default:
 			break;
@@ -2898,7 +2978,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 22:
 		switch(ndx) {
 		case 0:
-			p = "userland l_ulong *";
+			p = "userland l_int *";
 			break;
 		default:
 			break;
@@ -2987,13 +3067,13 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 28:
 		switch(ndx) {
 		case 0:
-			p = "userland void *";
+			p = "l_ulong";
 			break;
 		case 1:
-			p = "size_t";
+			p = "l_size_t";
 			break;
 		case 2:
-			p = "int";
+			p = "l_int";
 			break;
 		default:
 			break;
@@ -3138,7 +3218,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 2:
-			p = "userland l_long *";
+			p = "userland l_off_t *";
 			break;
 		case 3:
 			p = "l_size_t";
@@ -3205,10 +3285,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_uintptr_t";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_size_t";
 			break;
 		case 3:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		case 4:
 			p = "l_uintptr_t";
@@ -3233,7 +3313,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_size_t";
 			break;
 		case 3:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		case 4:
 			p = "l_uintptr_t";
@@ -3255,7 +3335,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_uintptr_t";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		default:
 			break;
@@ -3271,7 +3351,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_uintptr_t";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		default:
 			break;
@@ -3418,7 +3498,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 56:
 		switch(ndx) {
 		case 0:
-			p = "l_int";
+			p = "l_ulong";
 			break;
 		case 1:
 			p = "userland void *";
@@ -3491,7 +3571,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 62:
 		switch(ndx) {
 		case 0:
-			p = "l_int";
+			p = "l_pid_t";
 			break;
 		case 1:
 			p = "l_int";
@@ -3697,7 +3777,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "l_ulong";
+			p = "l_long";
 			break;
 		default:
 			break;
@@ -3710,7 +3790,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 1:
-			p = "l_long";
+			p = "l_ulong";
 			break;
 		default:
 			break;
@@ -3785,7 +3865,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		default:
 			break;
@@ -3808,7 +3888,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		default:
 			break;
@@ -4374,10 +4454,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		case 2:
-			p = "l_dev_t";
+			p = "l_uint";
 			break;
 		default:
 			break;
@@ -4397,7 +4477,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 136:
 		switch(ndx) {
 		case 0:
-			p = "l_dev_t";
+			p = "l_uint";
 			break;
 		case 1:
 			p = "userland struct l_ustat *";
@@ -4781,7 +4861,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland char *";
 			break;
 		case 1:
-			p = "l_uint";
+			p = "l_int";
 			break;
 		default:
 			break;
@@ -4830,45 +4910,219 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_setxattr */
 	case 188:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_lsetxattr */
 	case 189:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fsetxattr */
 	case 190:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland const char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		case 4:
+			p = "l_int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_getxattr */
 	case 191:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_lgetxattr */
 	case 192:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fgetxattr */
 	case 193:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "userland char *";
+			break;
+		case 3:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_listxattr */
 	case 194:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_llistxattr */
 	case 195:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_flistxattr */
 	case 196:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_removexattr */
 	case 197:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_lremovexattr */
 	case 198:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_fremovexattr */
 	case 199:
+		switch(ndx) {
+		case 0:
+			p = "l_int";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_tkill */
 	case 200:
 		switch(ndx) {
 		case 0:
-			p = "l_int";
+			p = "l_pid_t";
 			break;
 		case 1:
 			p = "l_int";
@@ -5140,7 +5394,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "clockid_t";
 			break;
 		case 1:
-			p = "int";
+			p = "l_int";
 			break;
 		case 2:
 			p = "userland struct l_timespec *";
@@ -5204,10 +5458,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 234:
 		switch(ndx) {
 		case 0:
-			p = "l_int";
+			p = "l_pid_t";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_pid_t";
 			break;
 		case 2:
 			p = "l_int";
@@ -5240,21 +5494,105 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_mq_open */
 	case 240:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "l_mode_t";
+			break;
+		case 3:
+			p = "userland struct mq_attr *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_unlink */
 	case 241:
+		switch(ndx) {
+		case 0:
+			p = "userland const char *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_timedsend */
 	case 242:
+		switch(ndx) {
+		case 0:
+			p = "l_mqd_t";
+			break;
+		case 1:
+			p = "userland const char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "l_uint";
+			break;
+		case 4:
+			p = "userland const struct l_timespec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_timedreceive */
 	case 243:
+		switch(ndx) {
+		case 0:
+			p = "l_mqd_t";
+			break;
+		case 1:
+			p = "userland char *";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "userland l_uint *";
+			break;
+		case 4:
+			p = "userland const struct l_timespec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_notify */
 	case 244:
+		switch(ndx) {
+		case 0:
+			p = "l_mqd_t";
+			break;
+		case 1:
+			p = "userland const struct l_timespec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mq_getsetattr */
 	case 245:
+		switch(ndx) {
+		case 0:
+			p = "l_mqd_t";
+			break;
+		case 1:
+			p = "userland const struct mq_attr *";
+			break;
+		case 2:
+			p = "userland struct mq_attr *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_kexec_load */
 	case 246:
@@ -5321,7 +5659,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_int";
 			break;
 		case 3:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		default:
 			break;
@@ -5337,7 +5675,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		default:
 			break;
@@ -5353,7 +5691,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 2:
-			p = "l_int";
+			p = "l_mode_t";
 			break;
 		case 3:
 			p = "l_uint";
@@ -5575,7 +5913,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland struct pollfd *";
 			break;
 		case 1:
-			p = "uint32_t";
+			p = "l_uint";
 			break;
 		case 2:
 			p = "userland struct l_timespec *";
@@ -5641,7 +5979,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_loff_t";
 			break;
 		case 3:
-			p = "unsigned int";
+			p = "l_uint";
 			break;
 		default:
 			break;
@@ -5787,7 +6125,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_uintptr_t";
 			break;
 		case 3:
-			p = "int";
+			p = "l_int";
 			break;
 		default:
 			break;
@@ -5823,10 +6161,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 292:
 		switch(ndx) {
 		case 0:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		case 1:
-			p = "l_int";
+			p = "l_uint";
 			break;
 		case 2:
 			p = "l_int";
@@ -6177,7 +6515,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "userland const char *";
 			break;
 		case 4:
-			p = "unsigned int";
+			p = "l_uint";
 			break;
 		default:
 			break;
@@ -7329,28 +7667,64 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 187:
 	/* linux_setxattr */
 	case 188:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_lsetxattr */
 	case 189:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fsetxattr */
 	case 190:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_getxattr */
 	case 191:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_lgetxattr */
 	case 192:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fgetxattr */
 	case 193:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_listxattr */
 	case 194:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_llistxattr */
 	case 195:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_flistxattr */
 	case 196:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_removexattr */
 	case 197:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_lremovexattr */
 	case 198:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_fremovexattr */
 	case 199:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_tkill */
 	case 200:
 		if (ndx == 0 || ndx == 1)
@@ -7492,16 +7866,34 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 239:
 	/* linux_mq_open */
 	case 240:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_unlink */
 	case 241:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_timedsend */
 	case 242:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_timedreceive */
 	case 243:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_notify */
 	case 244:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mq_getsetattr */
 	case 245:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_kexec_load */
 	case 246:
 	/* linux_waitid */
