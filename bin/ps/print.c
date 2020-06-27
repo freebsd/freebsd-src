@@ -555,9 +555,6 @@ cpunum(KINFO *k, VARENT *ve __unused)
 {
 	char *cpu;
 
-	if (!smp)
-		return (NULL);
-
 	if (k->ki_p->ki_stat == SRUN && k->ki_p->ki_oncpu != NOCPU) {
 		asprintf(&cpu, "%d", k->ki_p->ki_oncpu);
 	} else {
