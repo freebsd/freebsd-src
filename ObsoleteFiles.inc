@@ -6763,7 +6763,6 @@ OLD_FILES+=usr/include/clang/3.3/x86intrin.h
 OLD_FILES+=usr/include/clang/3.3/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.3/xopintrin.h
 OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_DIRS+=usr/include/clang/3.3
 # 20140216: nve(4) removed
 OLD_FILES+=usr/share/man/man4/if_nve.4.gz
