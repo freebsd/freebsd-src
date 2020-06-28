@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #define	 RK3328_GRF_MAC_CON0_RX_SHIFT	7
 
 #define	RK3328_GRF_MAC_CON1		0x0904
+#define	 RK3328_GRF_MAC_CON1_RX_ENA	(1 << 1)
+#define	 RK3328_GRF_MAC_CON1_TX_ENA	(1 << 0)
 #define	RK3328_GRF_MAC_CON2		0x0908
 #define	RK3328_GRF_MACPHY_CON0		0x0B00
 #define	RK3328_GRF_MACPHY_CON1		0x0B04
@@ -71,7 +73,6 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,			 0}
 };
 
-#ifdef notyet
 static void
 rk3328_set_delays(struct syscon *grf, phandle_t node)
 {
@@ -82,22 +83,26 @@ rk3328_set_delays(struct syscon *grf, phandle_t node)
 	if (OF_getencprop(node, "rx_delay", &rx, sizeof(rx)) <= 0)
 		rx = 0x10;
 
+	if (bootverbose)
+		printf("setting RK3328 RX/TX delays:  %d/%d\n", rx, tx);
 	tx = ((tx & RK3328_GRF_MAC_CON0_TX_MASK) <<
 	    RK3328_GRF_MAC_CON0_TX_SHIFT);
 	rx = ((rx & RK3328_GRF_MAC_CON0_TX_MASK) <<
 	    RK3328_GRF_MAC_CON0_RX_SHIFT);
 
 	SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON0, tx | rx | 0xFFFF0000);
+	SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON1, RK3328_GRF_MAC_CON1_TX_ENA | RK3328_GRF_MAC_CON1_RX_ENA | 
+	    ((RK3328_GRF_MAC_CON1_TX_ENA | RK3328_GRF_MAC_CON1_RX_ENA) << 16));
 }
-#endif
 
 #define	RK3399_GRF_SOC_CON6		0xc218
+#define	 RK3399_GRF_SOC_CON6_TX_ENA	(1 << 7)
 #define	 RK3399_GRF_SOC_CON6_TX_MASK	0x7F
 #define	 RK3399_GRF_SOC_CON6_TX_SHIFT	0
 #define	 RK3399_GRF_SOC_CON6_RX_MASK	0x7F
+#define	 RK3399_GRF_SOC_CON6_RX_ENA	(1 << 15)
 #define	 RK3399_GRF_SOC_CON6_RX_SHIFT	8
 
-#ifdef notyet
 static void
 rk3399_set_delays(struct syscon *grf, phandle_t node)
 {
@@ -108,14 +113,15 @@ rk3399_set_delays(struct syscon *grf, phandle_t node)
 	if (OF_getencprop(node, "rx_delay", &rx, sizeof(rx)) <= 0)
 		rx = 0x10;
 
+	if (bootverbose)
+		printf("setting RK3399 RX/TX delays:  %d/%d\n", rx, tx);
 	tx = ((tx & RK3399_GRF_SOC_CON6_TX_MASK) <<
-	    RK3399_GRF_SOC_CON6_TX_SHIFT);
+	    RK3399_GRF_SOC_CON6_TX_SHIFT) | RK3399_GRF_SOC_CON6_TX_ENA;
 	rx = ((rx & RK3399_GRF_SOC_CON6_TX_MASK) <<
-	    RK3399_GRF_SOC_CON6_RX_SHIFT);
+	    RK3399_GRF_SOC_CON6_RX_SHIFT) | RK3399_GRF_SOC_CON6_RX_ENA;
 
 	SYSCON_WRITE_4(grf, RK3399_GRF_SOC_CON6, tx | rx | 0xFFFF0000);
 }
-#endif
 
 static int
 if_dwc_rk_probe(device_t dev)
@@ -144,12 +150,10 @@ if_dwc_rk_init(device_t dev)
 		return (ENXIO);
 	}
 
-#ifdef notyet
 	if (ofw_bus_is_compatible(dev, "rockchip,rk3399-gmac"))
 	    rk3399_set_delays(grf, node);
 	else if (ofw_bus_is_compatible(dev, "rockchip,rk3328-gmac"))
 	    rk3328_set_delays(grf, node);
-#endif
 
 	/* Mode should be set according to dtb property */
 
