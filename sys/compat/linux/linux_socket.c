@@ -236,6 +236,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_TIMESTAMP);
 	case LINUX_SO_ACCEPTCONN:
 		return (SO_ACCEPTCONN);
+	case LINUX_SO_PROTOCOL:
+		return (SO_PROTOCOL);
 	}
 	return (-1);
 }
