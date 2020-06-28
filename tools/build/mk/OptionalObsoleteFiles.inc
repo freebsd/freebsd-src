@@ -1493,6 +1493,7 @@ OLD_FILES+=usr/bin/llvm-cxxfilt
 OLD_FILES+=usr/bin/llvm-diff
 OLD_FILES+=usr/bin/llvm-dis
 OLD_FILES+=usr/bin/llvm-dwarfdump
+OLD_FILES+=usr/bin/llvm-dwp
 OLD_FILES+=usr/bin/llvm-extract
 OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-lto
@@ -1503,6 +1504,8 @@ OLD_FILES+=usr/bin/llvm-modextract
 OLD_FILES+=usr/bin/llvm-objcopy
 OLD_FILES+=usr/bin/llvm-pdbutil
 OLD_FILES+=usr/bin/llvm-rtdyld
+OLD_FILES+=usr/bin/llvm-size
+OLD_FILES+=usr/bin/llvm-strings
 OLD_FILES+=usr/bin/llvm-xray
 OLD_FILES+=usr/bin/opt
 OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
@@ -1518,6 +1521,8 @@ OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-objcopy.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-pdbutil.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-size.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-strings.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
@@ -2078,6 +2083,7 @@ OLD_FILES+=usr/share/man/man1/gcov.1.gz
 OLD_FILES+=usr/bin/llvm-cov
 OLD_FILES+=usr/bin/llvm-profdata
 OLD_FILES+=usr/share/man/man1/llvm-cov.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-profdata.1.gz
 .endif
 
 .if ${MK_GDB} == no

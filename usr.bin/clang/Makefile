@@ -27,6 +27,7 @@ SUBDIR+=	llvm-cxxfilt
 SUBDIR+=	llvm-diff
 SUBDIR+=	llvm-dis
 SUBDIR+=	llvm-dwarfdump
+SUBDIR+=	llvm-dwp
 SUBDIR+=	llvm-extract
 SUBDIR+=	llvm-link
 SUBDIR+=	llvm-lto
@@ -37,6 +38,8 @@ SUBDIR+=	llvm-modextract
 SUBDIR+=	llvm-objcopy
 SUBDIR+=	llvm-pdbutil
 SUBDIR+=	llvm-rtdyld
+SUBDIR+=	llvm-size
+SUBDIR+=	llvm-strings
 SUBDIR+=	llvm-xray
 SUBDIR+=	opt
 .endif
