@@ -11,6 +11,15 @@
 #include "recvbuff.h"
 #include "iosignal.h"
 
+#if (RECV_INC & (RECV_INC-1))
+# error RECV_INC not a power of 2!
+#endif
+#if (RECV_BATCH & (RECV_BATCH - 1))
+#error RECV_BATCH not a power of 2!
+#endif
+#if (RECV_BATCH < RECV_INC)
+#error RECV_BATCH must be >= RECV_INC!
+#endif
 
 /*
  * Memory allocation
@@ -21,6 +30,8 @@ static u_long volatile total_recvbufs;	/* total recvbufs currently in use */
 static u_long volatile lowater_adds;	/* number of times we have added memory */
 static u_long volatile buffer_shortfall;/* number of missed free receive buffers
 					   between replenishments */
+static u_long limit_recvbufs;		/* maximum total of receive buffers */
+static u_long emerg_recvbufs;		/* emergency/urgent buffers to keep */
 
 static DECL_FIFO_ANCHOR(recvbuf_t) full_recv_fifo;
 static recvbuf_t *		   free_recv_list;
@@ -33,11 +44,16 @@ static recvbuf_t *		   free_recv_list;
  * short a time as possible
  */
 static CRITICAL_SECTION RecvLock;
-# define LOCK()		EnterCriticalSection(&RecvLock)
-# define UNLOCK()	LeaveCriticalSection(&RecvLock)
+static CRITICAL_SECTION FreeLock;
+# define LOCK_R()	EnterCriticalSection(&RecvLock)
+# define UNLOCK_R()	LeaveCriticalSection(&RecvLock)
+# define LOCK_F()	EnterCriticalSection(&FreeLock)
+# define UNLOCK_F()	LeaveCriticalSection(&FreeLock)
 #else
-# define LOCK()		do {} while (FALSE)
-# define UNLOCK()	do {} while (FALSE)
+# define LOCK_R()	do {} while (FALSE)
+# define UNLOCK_R()	do {} while (FALSE)
+# define LOCK_F()	do {} while (FALSE)
+# define UNLOCK_F()	do {} while (FALSE)
 #endif
 
 #ifdef DEBUG
@@ -76,33 +92,52 @@ initialise_buffer(recvbuf_t *buff)
 }
 
 static void
-create_buffers(int nbufs)
+create_buffers(
+	size_t		nbufs)
 {
-	register recvbuf_t *bufp;
-	int i, abuf;
+#   ifndef DEBUG
+	static const u_int chunk = RECV_INC;
+#   else
+	/* Allocate each buffer individually so they can be free()d
+	 * during ntpd shutdown on DEBUG builds to keep them out of heap
+	 * leak reports.
+	 */
+	static const u_int chunk = 1;
+#   endif
 
+	register recvbuf_t *bufp;
+	u_int i;
+	size_t abuf;
+
+	if (limit_recvbufs <= total_recvbufs)
+		return;
+	
 	abuf = nbufs + buffer_shortfall;
 	buffer_shortfall = 0;
 
-#ifndef DEBUG
-	bufp = eallocarray(abuf, sizeof(*bufp));
-#endif
-
-	for (i = 0; i < abuf; i++) {
-#ifdef DEBUG
-		/*
-		 * Allocate each buffer individually so they can be
-		 * free()d during ntpd shutdown on DEBUG builds to
-		 * keep them out of heap leak reports.
-		 */
-		bufp = emalloc_zero(sizeof(*bufp));
-#endif
-		LINK_SLIST(free_recv_list, bufp, link);
-		bufp++;
-		free_recvbufs++;
-		total_recvbufs++;
+	if (abuf < nbufs || abuf > RECV_BATCH)
+		abuf = RECV_BATCH;	/* clamp on overflow */
+	else
+		abuf += (~abuf + 1) & (RECV_INC - 1);	/* round up */
+	
+	if (abuf > (limit_recvbufs - total_recvbufs))
+		abuf = limit_recvbufs - total_recvbufs;
+	abuf += (~abuf + 1) & (chunk - 1);		/* round up */
+	
+	while (abuf) {
+		bufp = calloc(chunk, sizeof(*bufp));
+		if (!bufp) {
+			limit_recvbufs = total_recvbufs;
+			break;
+		}
+		for (i = chunk; i; --i,++bufp) {
+			LINK_SLIST(free_recv_list, bufp, link);
+		}
+		free_recvbufs += chunk;
+		total_recvbufs += chunk;
+		abuf -= chunk;
 	}
-	lowater_adds++;
+	++lowater_adds;
 }
 
 void
@@ -115,15 +150,19 @@ init_recvbuff(int nbufs)
 	free_recvbufs = total_recvbufs = 0;
 	full_recvbufs = lowater_adds = 0;
 
+	limit_recvbufs = RECV_TOOMANY;
+	emerg_recvbufs = RECV_CLOCK;
+
 	create_buffers(nbufs);
 
-#if defined(SYS_WINNT)
+#   if defined(SYS_WINNT)
 	InitializeCriticalSection(&RecvLock);
-#endif
+	InitializeCriticalSection(&FreeLock);
+#   endif
 
-#ifdef DEBUG
+#   ifdef DEBUG
 	atexit(&uninit_recvbuff);
-#endif
+#   endif
 }
 
 
@@ -146,6 +185,10 @@ uninit_recvbuff(void)
 			break;
 		free(rbunlinked);
 	}
+#   if defined(SYS_WINNT)
+	DeleteCriticalSection(&FreeLock);
+	DeleteCriticalSection(&RecvLock);
+#   endif
 }
 #endif	/* DEBUG */
 
@@ -157,13 +200,14 @@ void
 freerecvbuf(recvbuf_t *rb)
 {
 	if (rb) {
-		LOCK();
-		rb->used--;
-		if (rb->used != 0)
+		if (--rb->used != 0) {
 			msyslog(LOG_ERR, "******** freerecvbuff non-zero usage: %d *******", rb->used);
+			rb->used = 0;
+		}
+		LOCK_F();
 		LINK_SLIST(free_recv_list, rb, link);
-		free_recvbufs++;
-		UNLOCK();
+		++free_recvbufs;
+		UNLOCK_F();
 	}
 }
 
@@ -175,28 +219,34 @@ add_full_recv_buffer(recvbuf_t *rb)
 		msyslog(LOG_ERR, "add_full_recv_buffer received NULL buffer");
 		return;
 	}
-	LOCK();
+	LOCK_R();
 	LINK_FIFO(full_recv_fifo, rb, link);
-	full_recvbufs++;
-	UNLOCK();
+	++full_recvbufs;
+	UNLOCK_R();
 }
 
 
 recvbuf_t *
-get_free_recv_buffer(void)
+get_free_recv_buffer(
+    int /*BOOL*/ urgent
+    )
 {
-	recvbuf_t *buffer;
+	recvbuf_t *buffer = NULL;
 
-	LOCK();
-	UNLINK_HEAD_SLIST(buffer, free_recv_list, link);
-	if (buffer != NULL) {
-		free_recvbufs--;
-		initialise_buffer(buffer);
-		buffer->used++;
-	} else {
-		buffer_shortfall++;
+	LOCK_F();
+	if (free_recvbufs > (urgent ? emerg_recvbufs : 0)) {
+		UNLINK_HEAD_SLIST(buffer, free_recv_list, link);
 	}
-	UNLOCK();
+	
+	if (buffer != NULL) {
+		if (free_recvbufs)
+			--free_recvbufs;
+		initialise_buffer(buffer);
+		++buffer->used;
+	} else {
+		++buffer_shortfall;
+	}
+	UNLOCK_F();
 
 	return buffer;
 }
@@ -204,17 +254,15 @@ get_free_recv_buffer(void)
 
 #ifdef HAVE_IO_COMPLETION_PORT
 recvbuf_t *
-get_free_recv_buffer_alloc(void)
+get_free_recv_buffer_alloc(
+    int /*BOOL*/ urgent
+    )
 {
-	recvbuf_t *buffer;
-	
-	buffer = get_free_recv_buffer();
-	if (NULL == buffer) {
+	LOCK_F();	
+	if (free_recvbufs <= emerg_recvbufs || buffer_shortfall > 0)
 		create_buffers(RECV_INC);
-		buffer = get_free_recv_buffer();
-	}
-	ENSURE(buffer != NULL);
-	return (buffer);
+	UNLOCK_F();
+	return get_free_recv_buffer(urgent);
 }
 #endif
 
@@ -224,30 +272,26 @@ get_full_recv_buffer(void)
 {
 	recvbuf_t *	rbuf;
 
-	LOCK();
-	
 	/*
-	 * make sure there are free buffers when we
-	 * wander off to do lengthy packet processing with
-	 * any buffer we grab from the full list.
+	 * make sure there are free buffers when we wander off to do
+	 * lengthy packet processing with any buffer we grab from the
+	 * full list.
 	 * 
-	 * fixes malloc() interrupted by SIGIO risk
-	 * (Bug 889)
+	 * fixes malloc() interrupted by SIGIO risk (Bug 889)
 	 */
-	if (NULL == free_recv_list || buffer_shortfall > 0) {
-		/*
-		 * try to get us some more buffers
-		 */
+	LOCK_F();	
+	if (free_recvbufs <= emerg_recvbufs || buffer_shortfall > 0)
 		create_buffers(RECV_INC);
-	}
+	UNLOCK_F();
 
 	/*
 	 * try to grab a full buffer
 	 */
+	LOCK_R();
 	UNLINK_FIFO(rbuf, full_recv_fifo, link);
-	if (rbuf != NULL)
-		full_recvbufs--;
-	UNLOCK();
+	if (rbuf != NULL && full_recvbufs)
+		--full_recvbufs;
+	UNLOCK_R();
 
 	return rbuf;
 }
@@ -265,12 +309,18 @@ purge_recv_buffers_for_fd(
 	recvbuf_t *rbufp;
 	recvbuf_t *next;
 	recvbuf_t *punlinked;
+	recvbuf_t *freelist = NULL;
 
-	LOCK();
+	/* We want to hold only one lock at a time. So we do a scan on
+	 * the full buffer queue, collecting items as we go, and when
+	 * done we spool the the collected items to 'freerecvbuf()'.
+	 */
+	LOCK_R();
 
 	for (rbufp = HEAD_FIFO(full_recv_fifo);
 	     rbufp != NULL;
-	     rbufp = next) {
+	     rbufp = next)
+	{
 		next = rbufp->link;
 #	    ifdef HAVE_IO_COMPLETION_PORT
 		if (rbufp->dstadr == NULL && rbufp->fd == fd)
@@ -281,12 +331,20 @@ purge_recv_buffers_for_fd(
 			UNLINK_MID_FIFO(punlinked, full_recv_fifo,
 					rbufp, link, recvbuf_t);
 			INSIST(punlinked == rbufp);
-			full_recvbufs--;
-			freerecvbuf(rbufp);
+			if (full_recvbufs)
+				--full_recvbufs;
+			rbufp->link = freelist;
+			freelist = rbufp;
 		}
 	}
 
-	UNLOCK();
+	UNLOCK_R();
+	
+	while (freelist) {
+		next = freelist->link;
+		freerecvbuf(freelist);
+		freelist = next;
+	}
 }
 
 

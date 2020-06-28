@@ -2366,7 +2366,7 @@ local_input(
 			}
 			if (count)
 			{	/* simulate receive */
-				buf = get_free_recv_buffer();
+				buf = get_free_recv_buffer(TRUE);
 				if (buf != NULL) {
 					memmove((caddr_t)buf->recv_buffer,
 						(caddr_t)&parse->parseio.parse_dtime,

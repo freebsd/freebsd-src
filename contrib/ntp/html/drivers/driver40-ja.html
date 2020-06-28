@@ -52,14 +52,21 @@
 						<dl>
 							<dt>server &nbsp; 127.127.40.X &nbsp; mode 1</dt>
 							<dd><br></dd>
-							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN &nbsp; flag1 0|1</dt>
+							<dt>fudge &nbsp; 127.127.40.X &nbsp; time1 0.NNN &nbsp; flag1 0|1 &nbsp; flag2 0|1 &nbsp; time2 H</dt>
 							<dd>
 								<p>Time1 は、受信機からの時刻に加算する調整時間を、固定小数点形式の秒で設定します。<br>
 								この受信機には、数10ミリ秒 ( 0.0NN秒 ) から百数10ミリ秒 ( 0.1NN秒 ) の調整時間を設定すると良いでしょう。</p>
-								<p>Flag1 は、時刻同期には無関係です。Flag1 を 1 に設定すると、状態を問い合わせるコマンドを DATE コマンドと STIM コマンドの前に発行して、応答を clockstats ファイルに記録します。</p>
+								<p>Time2 は、STUSコマンドの応答が adjusted ではなくなってからの猶予時間を時単位で指定します。<br>
+								この猶予時間は、flag1 と flag2 を共に 1 に設定したときに有効です。</p>
+								<p>Flag1 は、flag2 を 1 に設定しない限り、時刻同期には無関係です。Flag1 を 1 に設定すると、状態を問い合わせるコマンドを DATE コマンドと STIM コマンドの前に発行して、応答を clockstats ファイルに記録します。</p>
 								<table border="1" summary="fudge flag1">
 									<tr><td>0 (Default)</td><td>DCST と STUS コマンドは、発行しません。</td></tr>
 									<tr><td>1</td><td>DCST と STUS コマンドを、発行します。</td></tr>
+								</table>
+								<p>Flag2 は STUSコマンドの応答が adjusted の時だけ、時刻同期処理を行う指定です。この機能を使うときは、flag1 も同時に 1 に設定する必要があります。</p>
+								<table border="1" summary="fudge flag2">
+									<tr><td>0 (Default)</td><td>常に、時刻同期処理</td></tr>
+									<tr><td>1</td><td>adjusted の時だ、け時刻同期委処理</td></tr>
 								</table>
 							</dd>
 						</dl>
@@ -194,6 +201,7 @@
 
 			<li>
 				<p><a name="mode-4">シチズンTIC &nbsp; JJY-200</a> &nbsp; <a href="http://www.tic-citizen.co.jp/">http://www.tic-citizen.co.jp/</a> (日本語)</p><br>
+				<p>JJY-200 は、2013年に販売終了となりました。</p><br>
 				<dl>
 					<dt>NTPの設定 ( ntp.conf )</dt>
 					<dd><br>
