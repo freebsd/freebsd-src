@@ -184,6 +184,12 @@ struct fhreturn {
 
 #define	GETPORT_MAXTRY	20	/* Max tries to get a port # */
 
+/*
+ * How long to delay a reload of exports when there are RPC request(s)
+ * to process, in usec.  Must be less than 1second.
+ */
+#define	RELOADDELAY	250000
+
 /* Global defs */
 static char	*add_expdir(struct dirlist **, char *, int);
 static void	add_dlist(struct dirlist **, struct dirlist *,
@@ -410,6 +416,10 @@ main(int argc, char **argv)
 	int maxrec = RPC_MAXDATASIZE;
 	int attempt_cnt, port_len, port_pos, ret;
 	char **port_list;
+	uint64_t curtime, nexttime;
+	struct timeval tv;
+	struct timespec tp;
+	sigset_t sighup_mask;
 
 	/* Check that another mountd isn't already running. */
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &otherpid);
@@ -665,19 +675,49 @@ main(int argc, char **argv)
 	}
 
 	/* Expand svc_run() here so that we can call get_exportlist(). */
+	curtime = nexttime = 0;
+	sigemptyset(&sighup_mask);
+	sigaddset(&sighup_mask, SIGHUP);
 	for (;;) {
-		if (got_sighup) {
-			get_exportlist(1);
+		clock_gettime(CLOCK_MONOTONIC, &tp);
+		curtime = tp.tv_sec;
+		curtime = curtime * 1000000 + tp.tv_nsec / 1000;
+		sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
+		if (got_sighup && curtime >= nexttime) {
 			got_sighup = 0;
-		}
+			sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
+			get_exportlist(1);
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+			nexttime = tp.tv_sec;
+			nexttime = nexttime * 1000000 + tp.tv_nsec / 1000 +
+			    RELOADDELAY;
+		} else
+			sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
+
+		/*
+		 * If a reload is pending, poll for received request(s),
+		 * otherwise set a RELOADDELAY timeout, since a SIGHUP
+		 * could be processed between the got_sighup test and
+		 * the select() system call.
+		 */
+		tv.tv_sec = 0;
+		if (got_sighup)
+			tv.tv_usec = 0;
+		else
+			tv.tv_usec = RELOADDELAY;
 		readfds = svc_fdset;
-		switch (select(svc_maxfd + 1, &readfds, NULL, NULL, NULL)) {
+		switch (select(svc_maxfd + 1, &readfds, NULL, NULL, &tv)) {
 		case -1:
-			if (errno == EINTR)
-                                continue;
+			if (errno == EINTR) {
+				/* Allow a reload now. */
+				nexttime = 0;
+				continue;
+			}
 			syslog(LOG_ERR, "mountd died: select: %m");
 			exit(1);
 		case 0:
+			/* Allow a reload now. */
+			nexttime = 0;
 			continue;
 		default:
 			svc_getreqset(&readfds);
