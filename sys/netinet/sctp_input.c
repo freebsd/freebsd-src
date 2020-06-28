@@ -5178,7 +5178,11 @@ process_control_chunks:
 		default:
 	unknown_chunk:
 			/* it's an unknown chunk! */
-			if ((ch->chunk_type & 0x40) && (stcb != NULL)) {
+			if ((ch->chunk_type & 0x40) &&
+			    (stcb != NULL) &&
+			    (SCTP_GET_STATE(stcb) != SCTP_STATE_EMPTY) &&
+			    (SCTP_GET_STATE(stcb) != SCTP_STATE_INUSE) &&
+			    (SCTP_GET_STATE(stcb) != SCTP_STATE_COOKIE_WAIT)) {
 				struct sctp_gen_error_cause *cause;
 				int len;
 
