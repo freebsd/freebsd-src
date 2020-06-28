@@ -1,4 +1,42 @@
 ---
+NTP 4.2.8p15 (Harlan Stenn <stenn@ntp.org>, 2020 Jun 23)
+
+Focus: Security, Bug fixes
+
+Severity: MEDIUM
+
+This release fixes one vulnerability: Associations that use CMAC
+authentication between ntpd from versions 4.2.8p11/4.3.97 and
+4.2.8p14/4.3.100 will leak a small amount of memory for each packet.
+Eventually, ntpd will run out of memory and abort.
+
+It also fixes 13 other bugs.
+
+* [Sec 3661] memory leak with AES128CMAC keys <perlinger@ntp.org>
+* [Bug 3670] Regression from bad merger between 3592 and 3596 <perlinger@>
+  - Thanks to Sylar Tao
+* [Bug 3667] decodenetnum fails with numeric port <perlinger@ntp.org>
+  - rewrite 'decodenetnum()' in terms of inet_pton
+* [Bug 3666] avoid unlimited receive buffer allocation <perlinger@ntp.org>
+  - limit number of receive buffers, with an iron reserve for refclocks
+* [Bug 3664] Enable openSSL CMAC support on Windows <burnicki@ntp.org>
+* [Bug 3662] Fix build errors on Windows with VS2008 <burnicki@ntp.org>
+* [Bug 3660] Manycast orphan mode startup discovery problem. <stenn@ntp.org>
+  - integrated patch from Charles Claggett
+* [Bug 3659] Move definition of psl[] from ntp_config.h to
+  ntp_config.h <perlinger@ntp.org>
+* [Bug 3657] Wrong "Autokey group mismatch" debug message <perlinger@ntp.org>
+* [Bug 3655] ntpdc memstats hash counts <perlinger@ntp.org>
+  - fix by Gerry garvey
+* [Bug 3653] Refclock jitter RMS calculation <perlinger@ntp.org>
+  - thanks to Gerry Garvey
+* [Bug 3646] Avoid sync with unsync orphan <perlinger@ntp.org>
+  - patch by Gerry Garvey
+* [Bug 3644] Unsynchronized server [...] selected as candidate <perlinger@ntp.org>
+* [Bug 3639] refclock_jjy: TS-JJY0x can skip time sync depending on the STUS reply. <abe@ntp.org>
+  - applied patch by Takao Abe
+
+---
 NTP 4.2.8p14 (Harlan Stenn <stenn@ntp.org>, 2020 Mar 03)
 
 Focus: Security, Bug fixes, enhancements.

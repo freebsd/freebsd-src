@@ -48,15 +48,15 @@
  * structure, which contains for most drivers the decimal equivalants
  * of the year, day, month, hour, second and millisecond/microsecond
  * decoded from the ASCII timecode.  Additional information includes
- * the receive timestamp, exception report, statistics tallies, etc. 
+ * the receive timestamp, exception report, statistics tallies, etc.
  * In addition, there may be a driver-specific unit structure used for
  * local control of the device.
  *
  * The support routines are passed a pointer to the peer structure,
  * which is used for all peer-specific processing and contains a
  * pointer to the refclockproc structure, which in turn contains a
- * pointer to the unit structure, if used.  The peer structure is 
- * identified by an interface address in the dotted quad form 
+ * pointer to the unit structure, if used.  The peer structure is
+ * identified by an interface address in the dotted quad form
  * 127.127.t.u, where t is the clock type and u the unit.
  */
 #define FUDGEFAC	.1	/* fudge correction factor */
@@ -343,7 +343,7 @@ refclock_timer(
 	if (pp->action != NULL && pp->nextaction <= current_time)
 		(*pp->action)(p);
 }
-	
+
 
 /*
  * refclock_transmit - simulate the transmit procedure
@@ -435,17 +435,17 @@ refclock_samples_avail(
 	)
 {
 	u_int	na;
-	
+
 #   if MAXSTAGE & (MAXSTAGE - 1)
-	
+
 	na = pp->coderecv - pp->codeproc;
 	if (na > MAXSTAGE)
 		na += MAXSTAGE;
-	
+
 #   else
-	
+
 	na = (pp->coderecv - pp->codeproc) & (MAXSTAGE - 1);
-	
+
 #   endif
 	return na;
 }
@@ -462,26 +462,26 @@ refclock_samples_expire(
 	)
 {
 	u_int	na;
-	
+
 	if (nd <= 0)
 		return 0;
 
 #   if MAXSTAGE & (MAXSTAGE - 1)
-	
+
 	na = pp->coderecv - pp->codeproc;
 	if (na > MAXSTAGE)
 		na += MAXSTAGE;
 	if ((u_int)nd < na)
-		nd = na;	
+		nd = na;
 	pp->codeproc = (pp->codeproc + nd) % MAXSTAGE;
-	
+
 #   else
-	
+
 	na = (pp->coderecv - pp->codeproc) & (MAXSTAGE - 1);
 	if ((u_int)nd > na)
 		nd = (int)na;
 	pp->codeproc = (pp->codeproc + nd) & (MAXSTAGE - 1);
-	
+
 #   endif
 	return nd;
 }
@@ -615,14 +615,14 @@ refclock_sample(
 	/*
 	 * Determine the offset and jitter.
 	 */
-	pp->offset = 0;
+	pp->offset = off[i];
 	pp->jitter = 0;
-	for (k = i; k < j; k++) {
+	for (k = i + 1; k < j; k++) {
 		pp->offset += off[k];
-		if (k > i)
-			pp->jitter += SQUARE(off[k] - off[k - 1]);
+		pp->jitter += SQUARE(off[k] - off[k - 1]);
 	}
 	pp->offset /= m;
+	m -= (m > 1);	/* only (m-1) terms attribute to jitter! */
 	pp->jitter = max(SQRT(pp->jitter / m), LOGTOD(sys_precision));
 
 	/*
@@ -736,7 +736,7 @@ refclock_gtlin(
 
 	while (sp != spend && dp != dpend) {
 		char c;
-		
+
 		c = *sp++ & 0x7f;
 		if (c >= 0x20 && c < 0x7f)
 			*dp++ = c;
@@ -1407,7 +1407,7 @@ refclock_params(
 		    ap->pps_params.mode & ~PPS_TSFMT_TSPEC,
 		    PPS_TSFMT_TSPEC) < 0)
 		{
-			if (errno != EOPNOTSUPP) { 
+			if (errno != EOPNOTSUPP) {
 				msyslog(LOG_ERR,
 					"refclock_params: time_pps_kcbind: %m");
 				return (0);
@@ -1431,7 +1431,7 @@ int
 refclock_pps(
 	struct peer *peer,		/* peer structure pointer */
 	struct refclock_atom *ap,	/* atom structure pointer */
-	int	mode			/* mode bits */	
+	int	mode			/* mode bits */
 	)
 {
 	struct refclockproc *pp;
@@ -1443,7 +1443,7 @@ refclock_pps(
 	 * We require the clock to be synchronized before setting the
 	 * parameters. When the parameters have been set, fetch the
 	 * most recent PPS timestamp.
-	 */ 
+	 */
 	pp = peer->procptr;
 	if (ap->handle == 0)
 		return (0);
@@ -1519,7 +1519,7 @@ refclock_pps(
 	pp->lastrec.l_uf = (u_int32)(dtemp * FRAC);
 	clk_add_sample(pp, dcorr);
 	refclock_checkburst(peer, pp);
-	
+
 #ifdef DEBUG
 	if (debug > 1)
 		printf("refclock_pps: %lu %f %f\n", current_time,
@@ -1579,7 +1579,7 @@ refclock_ppsaugment(
 	)
 {
 	l_fp		delta[1];
-	
+
 #ifdef HAVE_PPSAPI
 
 	pps_info_t	pps_info;
@@ -1589,14 +1589,14 @@ refclock_ppsaugment(
 
 	static const uint32_t s_plim_hi = UINT32_C(1932735284);
 	static const uint32_t s_plim_lo = UINT32_C(2362232013);
-	
+
 	/* fixup receive time in case we have to bail out early */
 	DTOLFP(rcvfudge, delta);
 	L_SUB(rcvtime, delta);
 
 	if (NULL == ap)
 		return FALSE;
-	
+
 	ZERO(timeout);
 	ZERO(pps_info);
 
@@ -1630,7 +1630,7 @@ refclock_ppsaugment(
 	phase = delta->l_ui;
 	if (phase >= 2 && phase < (uint32_t)-2)
 		return FALSE; /* PPS is stale, don't use it */
-	
+
 	/* If the phase is too close to 0.5, the decision whether to
 	 * move up or down is becoming noise sensitive. That is, we
 	 * might amplify usec noise between samples into seconds with a
@@ -1642,7 +1642,7 @@ refclock_ppsaugment(
 	phase = delta->l_uf;
 	if (phase > s_plim_hi && phase < s_plim_lo)
 		return FALSE; /* we're in the noise lock gap */
-	
+
 	/* sign-extend fraction into seconds */
 	delta->l_ui = UINT32_C(0) - ((phase >> 31) & 1);
 	/* add it up now */
@@ -1650,7 +1650,7 @@ refclock_ppsaugment(
 	return TRUE;
 
 #   else /* have no PPS support at all */
-	
+
 	/* just fixup receive time and fail */
 	UNUSED_ARG(ap);
 	UNUSED_ARG(ppsfudge);
@@ -1658,7 +1658,7 @@ refclock_ppsaugment(
 	DTOLFP(rcvfudge, delta);
 	L_SUB(rcvtime, delta);
 	return FALSE;
-	
+
 #   endif
 }
 
@@ -1694,7 +1694,7 @@ refclock_checkburst(
 	 * reach mask.  With less samples available, we break away.
 	 */
 	needs  = peer->reach;
-	needs -= (needs >> 1) & 0x55; 
+	needs -= (needs >> 1) & 0x55;
 	needs  = (needs & 0x33) + ((needs >> 2) & 0x33);
 	needs  = (needs + (needs >> 4)) & 0x0F;
 	if (needs > 6)
@@ -1706,7 +1706,7 @@ refclock_checkburst(
 
 	/* Get serious. Reduce the poll to minimum and schedule early.
 	 * (Changing the peer poll is probably in vain, as it will be
-	 * re-adjusted, but maybe some time the hint will work...) 
+	 * re-adjusted, but maybe some time the hint will work...)
 	 */
 	peer->hpoll = peer->minpoll;
 	peer->nextdate = limit;
@@ -1749,7 +1749,7 @@ refclock_vformat_lcode(
 		len = 0;
 	else if (len >= sizeof(pp->a_lastcode))
 		len = sizeof(pp->a_lastcode) - 1;
-	
+
 	pp->lencode = (u_short)len;
 	pp->a_lastcode[len] = '\0';
 	/* !note! the NUL byte is needed in case vsnprintf() really fails */
@@ -1763,10 +1763,10 @@ refclock_format_lcode(
 	)
 {
 	va_list va;
-	
+
 	va_start(va, fmt);
 	refclock_vformat_lcode(pp, fmt, va);
-	va_end(va);	
+	va_end(va);
 }
 
 #endif /* REFCLOCK */

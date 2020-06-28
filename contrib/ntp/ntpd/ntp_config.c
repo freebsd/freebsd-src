@@ -137,6 +137,16 @@ typedef struct peer_resolved_ctx_tag {
 #define MAXPPS		20	/* maximum length of PPS device string */
 
 /*
+ * Poll Skew List
+ */
+
+static psl_item psl[17-3+1];	/* values for polls 3-17 */
+				/* To simplify the runtime code we */
+				/* don't want to have to special-case */
+				/* dealing with a default */
+
+
+/*
  * Miscellaneous macros
  */
 #define ISEOL(c)	((c) == '#' || (c) == '\n' || (c) == '\0')
@@ -201,8 +211,6 @@ int old_config_style = 1;    /* A boolean flag, which when set,
 int	cryptosw;		/* crypto command called */
 
 extern char *stats_drift_file;	/* name of the driftfile */
-
-psl_item psl[17-3+1];
 
 #ifdef BC_LIST_FRAMEWORK_NOT_YET_USED
 /*
