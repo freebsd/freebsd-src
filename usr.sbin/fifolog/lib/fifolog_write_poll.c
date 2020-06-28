@@ -239,6 +239,14 @@ fifolog_write_output(struct fifolog_writer *f, int fl, time_t now)
 	 */
 	f->seq++;
 	f->recno++;
+
+	/*
+	 * Ensure we wrap recno once we hit the file size (in records.)
+	 */
+	if (f->recno >= f->ff->logsize)
+		/* recno 0 is header; skip */
+		f->recno = 1;
+
 	f->flag = 0;
 
 	memset(f->obuf, 0, f->obufsize);
