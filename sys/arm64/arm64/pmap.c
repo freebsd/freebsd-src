@@ -5449,7 +5449,7 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		/* L3 table is linked */
 		va = trunc_page(va);
 		pa = trunc_page(pa);
-		pmap_kenter(va, size, pa, VM_MEMATTR_WRITE_BACK);
+		pmap_kenter(va, size, pa, memory_mapping_mode(pa));
 	}
 
 	return ((void *)(va + offset));
