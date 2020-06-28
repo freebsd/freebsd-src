@@ -864,7 +864,8 @@ llvm/tools/llvm-dis/LLVMBuild.txt
 llvm/tools/llvm-dwarfdump/CMakeLists.txt
 llvm/tools/llvm-dwarfdump/LLVMBuild.txt
 llvm/tools/llvm-dwarfdump/fuzzer/
-llvm/tools/llvm-dwp/
+llvm/tools/llvm-dwp/CMakeLists.txt
+llvm/tools/llvm-dwp/LLVMBuild.txt
 llvm/tools/llvm-elfabi/
 llvm/tools/llvm-exegesis/
 llvm/tools/llvm-extract/CMakeLists.txt
@@ -911,12 +912,14 @@ llvm/tools/llvm-reduce/
 llvm/tools/llvm-rtdyld/CMakeLists.txt
 llvm/tools/llvm-rtdyld/LLVMBuild.txt
 llvm/tools/llvm-shlib/
-llvm/tools/llvm-size/
+llvm/tools/llvm-size/CMakeLists.txt
+llvm/tools/llvm-size/LLVMBuild.txt
 llvm/tools/llvm-special-case-list-fuzzer/
 llvm/tools/llvm-split/
 llvm/tools/llvm-stress/CMakeLists.txt
 llvm/tools/llvm-stress/LLVMBuild.txt
-llvm/tools/llvm-strings/
+llvm/tools/llvm-strings/CMakeLists.txt
+llvm/tools/llvm-strings/LLVMBuild.txt
 llvm/tools/llvm-symbolizer/CMakeLists.txt
 llvm/tools/llvm-undname/
 llvm/tools/llvm-xray/CMakeLists.txt
