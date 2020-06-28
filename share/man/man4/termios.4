@@ -28,7 +28,7 @@
 .\"	@(#)termios.4	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2020
+.Dd June 28, 2020
 .Dt TERMIOS 4
 .Os
 .Sh NAME
@@ -766,7 +766,7 @@ In case the
 .Xr sysctl 8
 variable
 .Va kern.tty_info_kstacks
-is set to a non-zero value, the running thread's stack is
+is set to a non-zero value, the running thread's kernel stack is
 written to the terminal (e.g., for debugging purposes).
 .El
 .Pp
