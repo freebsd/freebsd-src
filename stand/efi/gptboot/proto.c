@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "gpt.h"
 #include <sys/gpt.h>
 static const uuid_t freebsd_ufs_uuid = GPT_ENT_TYPE_FREEBSD_UFS;
-static char secbuf[4096];
+static char secbuf[4096] __aligned(4096);
 static struct dsk dsk;
 static dev_info_t *devices = NULL;
 static dev_info_t *raw_device = NULL;
