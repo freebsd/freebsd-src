@@ -199,7 +199,7 @@ linux_get_user_pages_internal(vm_map_t map, unsigned long start, int nr_pages,
 	int count;
 
 	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;
-	len = ((size_t)nr_pages) << PAGE_SHIFT;
+	len = ptoa((vm_offset_t)nr_pages);
 	count = vm_fault_quick_hold_pages(map, start, len, prot, pages, nr_pages);
 	return (count == -1 ? -EFAULT : nr_pages);
 }
@@ -219,9 +219,8 @@ __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		return (0);
 
 	MPASS(pages != NULL);
-	va = start;
 	map = &curthread->td_proc->p_vmspace->vm_map;
-	end = start + (((size_t)nr_pages) << PAGE_SHIFT);
+	end = start + ptoa((vm_offset_t)nr_pages);
 	if (!vm_map_range_valid(map, start, end))
 		return (-EINVAL);
 	prot = write ? (VM_PROT_READ | VM_PROT_WRITE) : VM_PROT_READ;

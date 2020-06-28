@@ -1561,8 +1561,8 @@ mdresize(struct md_s *sc, struct md_req *mdr)
 		if (mdr->md_mediasize <= 0 ||
 		    (mdr->md_mediasize % PAGE_SIZE) != 0)
 			return (EDOM);
-		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
-		newpages = OFF_TO_IDX(round_page(mdr->md_mediasize));
+		oldpages = OFF_TO_IDX(sc->mediasize);
+		newpages = OFF_TO_IDX(mdr->md_mediasize);
 		if (newpages < oldpages) {
 			VM_OBJECT_WLOCK(sc->object);
 			vm_object_page_remove(sc->object, newpages, 0, 0);
