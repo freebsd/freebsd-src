@@ -27,7 +27,6 @@
 # $FreeBSD$
 
 SRCDIR=$(atf_get_srcdir)
-CATEGORY=$(basename ${SRCDIR})
 
 check()
 {
@@ -61,20 +60,7 @@ add_testcase()
 	esac
 
 	atf_test_case ${tc_escaped}
-
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		case "${CATEGORY}/${tc}" in
-		execution/bg12.0)
-			eval "${tc_escaped}_body() { atf_skip 'https://bugs.freebsd.org/247559'; }"
-			;;
-		*)
-			eval "${tc_escaped}_body() { check ${tc}; }"
-			;;
-		esac
-	else
-		eval "${tc_escaped}_body() { check ${tc}; }"
-	fi
-
+	eval "${tc_escaped}_body() { check ${tc}; }"
 	atf_add_test_case ${tc_escaped}
 }
 
