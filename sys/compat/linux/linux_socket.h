@@ -197,6 +197,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_SO_ACCEPTCONN	30
 #define	LINUX_SO_SNDBUFFORCE	32
 #define	LINUX_SO_RCVBUFFORCE	33
+#define	LINUX_SO_PROTOCOL	38
 
 /* Socket options */
 #define	LINUX_IP_TOS		1
