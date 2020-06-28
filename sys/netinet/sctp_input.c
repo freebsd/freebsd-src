@@ -5106,7 +5106,7 @@ process_control_chunks:
 			break;
 		case SCTP_STREAM_RESET:
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_STREAM_RESET\n");
-			if (((stcb == NULL) || (ch == NULL) || (chk_length < sizeof(struct sctp_stream_reset_tsn_req)))) {
+			if ((stcb == NULL) || (chk_length < sizeof(struct sctp_stream_reset_tsn_req))) {
 				/* Its not ours */
 				*offset = length;
 				return (stcb);
@@ -5129,7 +5129,7 @@ process_control_chunks:
 				return (stcb);
 			}
 
-			if ((ch != NULL) && (stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
+			if ((stcb != NULL) && (netp != NULL) && (*netp != NULL)) {
 				if (stcb->asoc.pktdrop_supported == 0) {
 					goto unknown_chunk;
 				}
@@ -5165,8 +5165,7 @@ process_control_chunks:
 				goto next_chunk;
 			}
 			got_auth = 1;
-			if ((ch == NULL) || sctp_handle_auth(stcb, (struct sctp_auth_chunk *)ch,
-			    m, *offset)) {
+			if (sctp_handle_auth(stcb, (struct sctp_auth_chunk *)ch, m, *offset)) {
 				/* auth HMAC failed so dump the packet */
 				*offset = length;
 				return (stcb);
