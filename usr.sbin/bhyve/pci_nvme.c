@@ -99,9 +99,16 @@ static int nvme_debug = 0;
 
 #define	NVME_QUEUES		16
 #define	NVME_MAX_QENTRIES	2048
+/* Memory Page size Minimum reported in CAP register */
+#define	NVME_MPSMIN		0
+/* MPSMIN converted to bytes */
+#define	NVME_MPSMIN_BYTES	(1 << (12 + NVME_MPSMIN))
 
 #define	NVME_PRP2_ITEMS		(PAGE_SIZE/sizeof(uint64_t))
-#define	NVME_MAX_BLOCKIOVS	512
+#define	NVME_MDTS		9
+/* Note the + 1 allows for the initial descriptor to not be page aligned */
+#define	NVME_MAX_IOVEC		((1 << NVME_MDTS) + 1)
+#define	NVME_MAX_DATA_SIZE	((1 << NVME_MDTS) * NVME_MPSMIN_BYTES)
 
 /* This is a synthetic status code to indicate there is no status */
 #define NVME_NO_STATUS		0xffff
@@ -186,6 +193,18 @@ struct pci_nvme_blockstore {
 	uint32_t	deallocate:1;
 };
 
+/*
+ * Calculate the number of additional page descriptors for guest IO requests
+ * based on the advertised Max Data Transfer (MDTS) and given the number of
+ * default iovec's in a struct blockif_req.
+ *
+ * Note the + 1 allows for the initial descriptor to not be page aligned.
+ */
+#define MDTS_PAD_SIZE \
+	NVME_MAX_IOVEC > BLOCKIF_IOV_MAX ? \
+	NVME_MAX_IOVEC - BLOCKIF_IOV_MAX : \
+	0
+
 struct pci_nvme_ioreq {
 	struct pci_nvme_softc *sc;
 	STAILQ_ENTRY(pci_nvme_ioreq) link;
@@ -200,17 +219,9 @@ struct pci_nvme_ioreq {
 	uint64_t	prev_gpaddr;
 	size_t		prev_size;
 
-	/*
-	 * lock if all iovs consumed (big IO);
-	 * complete transaction before continuing
-	 */
-	pthread_mutex_t	mtx;
-	pthread_cond_t	cv;
-
 	struct blockif_req io_req;
 
-	/* pad to fit up to 512 page descriptors from guest IO request */
-	struct iovec	iovpadding[NVME_MAX_BLOCKIOVS-BLOCKIF_IOV_MAX];
+	struct iovec	iovpadding[MDTS_PAD_SIZE];
 };
 
 enum nvme_dsm_type {
@@ -279,7 +290,6 @@ struct pci_nvme_softc {
 };
 
 
-static void pci_nvme_io_partial(struct blockif_req *br, int err);
 static struct pci_nvme_ioreq *pci_nvme_get_ioreq(struct pci_nvme_softc *);
 static void pci_nvme_release_ioreq(struct pci_nvme_softc *, struct pci_nvme_ioreq *);
 static void pci_nvme_io_done(struct blockif_req *, int);
@@ -433,7 +443,7 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 
 	cd->mic = 0;
 
-	cd->mdts = 9;	/* max data transfer size (2^mdts * CAP.MPSMIN) */
+	cd->mdts = NVME_MDTS;	/* max data transfer size (2^mdts * CAP.MPSMIN) */
 
 	cd->ver = 0x00010300;
 
@@ -1461,81 +1471,46 @@ pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 {
 	int iovidx;
 
-	if (req != NULL) {
-		/* concatenate contig block-iovs to minimize number of iovs */
-		if ((req->prev_gpaddr + req->prev_size) == gpaddr) {
-			iovidx = req->io_req.br_iovcnt - 1;
+	if (req == NULL)
+		return (-1);
 
-			req->io_req.br_iov[iovidx].iov_base =
-			    paddr_guest2host(req->sc->nsc_pi->pi_vmctx,
-			                     req->prev_gpaddr, size);
-
-			req->prev_size += size;
-			req->io_req.br_resid += size;
-
-			req->io_req.br_iov[iovidx].iov_len = req->prev_size;
-		} else {
-			pthread_mutex_lock(&req->mtx);
-
-			iovidx = req->io_req.br_iovcnt;
-			if (iovidx == NVME_MAX_BLOCKIOVS) {
-				int err = 0;
-
-				DPRINTF("large I/O, doing partial req");
-
-				iovidx = 0;
-				req->io_req.br_iovcnt = 0;
-
-				req->io_req.br_callback = pci_nvme_io_partial;
-
-				if (!do_write)
-					err = blockif_read(sc->nvstore.ctx,
-					                   &req->io_req);
-				else
-					err = blockif_write(sc->nvstore.ctx,
-					                    &req->io_req);
-
-				/* wait until req completes before cont */
-				if (err == 0)
-					pthread_cond_wait(&req->cv, &req->mtx);
-			}
-			if (iovidx == 0) {
-				req->io_req.br_offset = lba;
-				req->io_req.br_resid = 0;
-				req->io_req.br_param = req;
-			}
-
-			req->io_req.br_iov[iovidx].iov_base =
-			    paddr_guest2host(req->sc->nsc_pi->pi_vmctx,
-			                     gpaddr, size);
-
-			req->io_req.br_iov[iovidx].iov_len = size;
-
-			req->prev_gpaddr = gpaddr;
-			req->prev_size = size;
-			req->io_req.br_resid += size;
-
-			req->io_req.br_iovcnt++;
-
-			pthread_mutex_unlock(&req->mtx);
-		}
-	} else {
-		/* RAM buffer: read/write directly */
-		void *p = sc->nvstore.ctx;
-		void *gptr;
-
-		if ((lba + size) > sc->nvstore.size) {
-			WPRINTF("%s write would overflow RAM", __func__);
-			return (-1);
-		}
-
-		p = (void *)((uintptr_t)p + (uintptr_t)lba);
-		gptr = paddr_guest2host(sc->nsc_pi->pi_vmctx, gpaddr, size);
-		if (do_write) 
-			memcpy(p, gptr, size);
-		else
-			memcpy(gptr, p, size);
+	if (req->io_req.br_iovcnt == NVME_MAX_IOVEC) {
+		return (-1);
 	}
+
+	/* concatenate contig block-iovs to minimize number of iovs */
+	if ((req->prev_gpaddr + req->prev_size) == gpaddr) {
+		iovidx = req->io_req.br_iovcnt - 1;
+
+		req->io_req.br_iov[iovidx].iov_base =
+		    paddr_guest2host(req->sc->nsc_pi->pi_vmctx,
+				     req->prev_gpaddr, size);
+
+		req->prev_size += size;
+		req->io_req.br_resid += size;
+
+		req->io_req.br_iov[iovidx].iov_len = req->prev_size;
+	} else {
+		iovidx = req->io_req.br_iovcnt;
+		if (iovidx == 0) {
+			req->io_req.br_offset = lba;
+			req->io_req.br_resid = 0;
+			req->io_req.br_param = req;
+		}
+
+		req->io_req.br_iov[iovidx].iov_base =
+		    paddr_guest2host(req->sc->nsc_pi->pi_vmctx,
+				     gpaddr, size);
+
+		req->io_req.br_iov[iovidx].iov_len = size;
+
+		req->prev_gpaddr = gpaddr;
+		req->prev_size = size;
+		req->io_req.br_resid += size;
+
+		req->io_req.br_iovcnt++;
+	}
+
 	return (0);
 }
 
@@ -1631,16 +1606,6 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 
 	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, 0, status);
 	pci_nvme_release_ioreq(req->sc, req);
-}
-
-static void
-pci_nvme_io_partial(struct blockif_req *br, int err)
-{
-	struct pci_nvme_ioreq *req = br->br_param;
-
-	DPRINTF("%s error %d %s", __func__, err, strerror(err));
-
-	pthread_cond_signal(&req->cv);
 }
 
 /*
@@ -1800,9 +1765,14 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 	lba = ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10;
 	nblocks = (cmd->cdw12 & 0xFFFF) + 1;
 
-	offset = lba * nvstore->sectsz;
 	bytes  = nblocks * nvstore->sectsz;
+	if (bytes > NVME_MAX_DATA_SIZE) {
+		WPRINTF("%s command would exceed MDTS", __func__);
+		pci_nvme_status_genc(status, NVME_SC_INVALID_FIELD);
+		goto out;
+	}
 
+	offset = lba * nvstore->sectsz;
 	if ((offset + bytes) > nvstore->size) {
 		WPRINTF("%s command would exceed LBA range", __func__);
 		pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
@@ -2479,8 +2449,6 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->ioreqs = calloc(sc->ioslots, sizeof(struct pci_nvme_ioreq));
 	for (int i = 0; i < sc->ioslots; i++) {
 		STAILQ_INSERT_TAIL(&sc->ioreqs_free, &sc->ioreqs[i], link);
-		pthread_mutex_init(&sc->ioreqs[i].mtx, NULL);
-		pthread_cond_init(&sc->ioreqs[i].cv, NULL);
 	}
 
 	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x0A0A);
