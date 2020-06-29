@@ -222,6 +222,23 @@ enum nvme_dsm_type {
 	NVME_DATASET_MANAGEMENT_DISABLE,
 };
 
+struct pci_nvme_softc;
+struct nvme_feature_obj;
+
+typedef void (*nvme_feature_cb)(struct pci_nvme_softc *,
+    struct nvme_feature_obj *,
+    struct nvme_command *,
+    struct nvme_completion *);
+
+struct nvme_feature_obj {
+	uint32_t	cdw11;
+	nvme_feature_cb	set;
+	nvme_feature_cb	get;
+	bool namespace_specific;
+};
+
+#define NVME_FID_MAX		(NVME_FEAT_ENDURANCE_GROUP_EVENT_CONFIGURATION + 1)
+
 struct pci_nvme_softc {
 	struct pci_devinst *nsc_pi;
 
@@ -241,6 +258,7 @@ struct pci_nvme_softc {
 	uint32_t	max_queues;	/* max number of IO SQ's or CQ's */
 	uint32_t	num_cqueues;
 	uint32_t	num_squeues;
+	bool		num_q_is_set; /* Has host set Number of Queues */
 
 	struct pci_nvme_ioreq *ioreqs;
 	STAILQ_HEAD(, pci_nvme_ioreq) ioreqs_free; /* free list of ioreqs */
@@ -255,10 +273,7 @@ struct pci_nvme_softc {
 	struct nvme_completion_queue *compl_queues;
 	struct nvme_submission_queue *submit_queues;
 
-	/* controller features */
-	uint32_t	intr_coales_aggr_time;   /* 0x08: uS to delay intr */
-	uint32_t	intr_coales_aggr_thresh; /* 0x08: compl-Q entries */
-	uint32_t	async_ev_config;         /* 0x0B: async event config */
+	struct nvme_feature_obj feat[NVME_FID_MAX];
 
 	enum nvme_dsm_type dataset_management;
 };
@@ -302,6 +317,15 @@ static void pci_nvme_io_partial(struct blockif_req *br, int err);
 
 #define NVME_ONCS_DSM	(NVME_CTRLR_DATA_ONCS_DSM_MASK << \
 	NVME_CTRLR_DATA_ONCS_DSM_SHIFT)
+
+static void nvme_feature_invalid_cb(struct pci_nvme_softc *,
+    struct nvme_feature_obj *,
+    struct nvme_command *,
+    struct nvme_completion *);
+static void nvme_feature_num_queues(struct pci_nvme_softc *,
+    struct nvme_feature_obj *,
+    struct nvme_command *,
+    struct nvme_completion *);
 
 static __inline void
 cpywithpad(char *dst, size_t dst_size, const char *src, char pad)
@@ -542,6 +566,18 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 }
 
 static void
+pci_nvme_init_features(struct pci_nvme_softc *sc)
+{
+
+	sc->feat[0].set = nvme_feature_invalid_cb;
+	sc->feat[0].get = nvme_feature_invalid_cb;
+
+	sc->feat[NVME_FEAT_LBA_RANGE_TYPE].namespace_specific = true;
+	sc->feat[NVME_FEAT_ERROR_RECOVERY].namespace_specific = true;
+	sc->feat[NVME_FEAT_NUMBER_OF_QUEUES].set = nvme_feature_num_queues;
+}
+
+static void
 pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
 	uint32_t i;
@@ -577,6 +613,8 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 		sc->compl_queues[i].tail = 0;
 		sc->compl_queues[i].head = 0;
 	}
+
+	sc->num_q_is_set = false;
 }
 
 static void
@@ -982,24 +1020,144 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 		DPRINTF("%s unsupported identify command requested 0x%x",
 		         __func__, command->cdw10 & 0xFF);
 		pci_nvme_status_genc(&status, NVME_SC_INVALID_FIELD);
-		return (1);
+		break;
 	}
 
 	compl->status = status;
 	return (1);
 }
 
-static int
-nvme_set_feature_queues(struct pci_nvme_softc* sc, struct nvme_command* command,
-	struct nvme_completion* compl)
+static const char *
+nvme_fid_to_name(uint8_t fid)
+{
+	const char *name;
+
+	switch (fid) {
+	case NVME_FEAT_ARBITRATION:
+		name = "Arbitration";
+		break;
+	case NVME_FEAT_POWER_MANAGEMENT:
+		name = "Power Management";
+		break;
+	case NVME_FEAT_LBA_RANGE_TYPE:
+		name = "LBA Range Type";
+		break;
+	case NVME_FEAT_TEMPERATURE_THRESHOLD:
+		name = "Temperature Threshold";
+		break;
+	case NVME_FEAT_ERROR_RECOVERY:
+		name = "Error Recovery";
+		break;
+	case NVME_FEAT_VOLATILE_WRITE_CACHE:
+		name = "Volatile Write Cache";
+		break;
+	case NVME_FEAT_NUMBER_OF_QUEUES:
+		name = "Number of Queues";
+		break;
+	case NVME_FEAT_INTERRUPT_COALESCING:
+		name = "Interrupt Coalescing";
+		break;
+	case NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION:
+		name = "Interrupt Vector Configuration";
+		break;
+	case NVME_FEAT_WRITE_ATOMICITY:
+		name = "Write Atomicity Normal";
+		break;
+	case NVME_FEAT_ASYNC_EVENT_CONFIGURATION:
+		name = "Asynchronous Event Configuration";
+		break;
+	case NVME_FEAT_AUTONOMOUS_POWER_STATE_TRANSITION:
+		name = "Autonomous Power State Transition";
+		break;
+	case NVME_FEAT_HOST_MEMORY_BUFFER:
+		name = "Host Memory Buffer";
+		break;
+	case NVME_FEAT_TIMESTAMP:
+		name = "Timestamp";
+		break;
+	case NVME_FEAT_KEEP_ALIVE_TIMER:
+		name = "Keep Alive Timer";
+		break;
+	case NVME_FEAT_HOST_CONTROLLED_THERMAL_MGMT:
+		name = "Host Controlled Thermal Management";
+		break;
+	case NVME_FEAT_NON_OP_POWER_STATE_CONFIG:
+		name = "Non-Operation Power State Config";
+		break;
+	case NVME_FEAT_READ_RECOVERY_LEVEL_CONFIG:
+		name = "Read Recovery Level Config";
+		break;
+	case NVME_FEAT_PREDICTABLE_LATENCY_MODE_CONFIG:
+		name = "Predictable Latency Mode Config";
+		break;
+	case NVME_FEAT_PREDICTABLE_LATENCY_MODE_WINDOW:
+		name = "Predictable Latency Mode Window";
+		break;
+	case NVME_FEAT_LBA_STATUS_INFORMATION_ATTRIBUTES:
+		name = "LBA Status Information Report Interval";
+		break;
+	case NVME_FEAT_HOST_BEHAVIOR_SUPPORT:
+		name = "Host Behavior Support";
+		break;
+	case NVME_FEAT_SANITIZE_CONFIG:
+		name = "Sanitize Config";
+		break;
+	case NVME_FEAT_ENDURANCE_GROUP_EVENT_CONFIGURATION:
+		name = "Endurance Group Event Configuration";
+		break;
+	case NVME_FEAT_SOFTWARE_PROGRESS_MARKER:
+		name = "Software Progress Marker";
+		break;
+	case NVME_FEAT_HOST_IDENTIFIER:
+		name = "Host Identifier";
+		break;
+	case NVME_FEAT_RESERVATION_NOTIFICATION_MASK:
+		name = "Reservation Notification Mask";
+		break;
+	case NVME_FEAT_RESERVATION_PERSISTENCE:
+		name = "Reservation Persistence";
+		break;
+	case NVME_FEAT_NAMESPACE_WRITE_PROTECTION_CONFIG:
+		name = "Namespace Write Protection Config";
+		break;
+	default:
+		name = "Unknown";
+		break;
+	}
+
+	return (name);
+}
+
+static void
+nvme_feature_invalid_cb(struct pci_nvme_softc *sc,
+    struct nvme_feature_obj *feat,
+    struct nvme_command *command,
+    struct nvme_completion *compl)
+{
+
+	pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+}
+
+static void
+nvme_feature_num_queues(struct pci_nvme_softc *sc,
+    struct nvme_feature_obj *feat,
+    struct nvme_command *command,
+    struct nvme_completion *compl)
 {
 	uint16_t nqr;	/* Number of Queues Requested */
+
+	if (sc->num_q_is_set) {
+		WPRINTF("%s: Number of Queues already set", __func__);
+		pci_nvme_status_genc(&compl->status,
+		    NVME_SC_COMMAND_SEQUENCE_ERROR);
+		return;
+	}
 
 	nqr = command->cdw11 & 0xFFFF;
 	if (nqr == 0xffff) {
 		WPRINTF("%s: Illegal NSQR value %#x", __func__, nqr);
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
-		return (-1);
+		return;
 	}
 
 	sc->num_squeues = ONE_BASED(nqr);
@@ -1013,7 +1171,7 @@ nvme_set_feature_queues(struct pci_nvme_softc* sc, struct nvme_command* command,
 	if (nqr == 0xffff) {
 		WPRINTF("%s: Illegal NCQR value %#x", __func__, nqr);
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
-		return (-1);
+		return;
 	}
 
 	sc->num_cqueues = ONE_BASED(nqr);
@@ -1023,173 +1181,77 @@ nvme_set_feature_queues(struct pci_nvme_softc* sc, struct nvme_command* command,
 		sc->num_cqueues = sc->max_queues;
 	}
 
+	/* Patch the command value which will be saved on callback's return */
+	command->cdw11 = NVME_FEATURE_NUM_QUEUES(sc);
 	compl->cdw0 = NVME_FEATURE_NUM_QUEUES(sc);
 
-	return (0);
+	sc->num_q_is_set = true;
 }
 
 static int
-nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
-	struct nvme_completion* compl)
+nvme_opc_set_features(struct pci_nvme_softc *sc, struct nvme_command *command,
+	struct nvme_completion *compl)
 {
-	int feature = command->cdw10 & 0xFF;
-	uint32_t iv;
+	struct nvme_feature_obj *feat;
+	uint32_t nsid = command->nsid;
+	uint8_t fid = command->cdw10 & 0xFF;
 
-	DPRINTF("%s feature 0x%x", __func__, feature);
-	compl->cdw0 = 0;
+	DPRINTF("%s: Feature ID 0x%x (%s)", __func__, fid, nvme_fid_to_name(fid));
 
-	switch (feature) {
-	case NVME_FEAT_ARBITRATION:
-		DPRINTF("  arbitration 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_POWER_MANAGEMENT:
-		DPRINTF("  power management 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_LBA_RANGE_TYPE:
-		DPRINTF("  lba range 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_TEMPERATURE_THRESHOLD:
-		DPRINTF("  temperature threshold 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_ERROR_RECOVERY:
-		DPRINTF("  error recovery 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_VOLATILE_WRITE_CACHE:
-		DPRINTF("  volatile write cache 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_NUMBER_OF_QUEUES:
-		nvme_set_feature_queues(sc, command, compl);
-		break;
-	case NVME_FEAT_INTERRUPT_COALESCING:
-		DPRINTF("  interrupt coalescing 0x%x", command->cdw11);
-
-		/* in uS */
-		sc->intr_coales_aggr_time = ((command->cdw11 >> 8) & 0xFF)*100;
-
-		sc->intr_coales_aggr_thresh = command->cdw11 & 0xFF;
-		break;
-	case NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION:
-		iv = command->cdw11 & 0xFFFF;
-
-		DPRINTF("  interrupt vector configuration 0x%x",
-		        command->cdw11);
-
-		for (uint32_t i = 0; i < sc->num_cqueues + 1; i++) {
-			if (sc->compl_queues[i].intr_vec == iv) {
-				if (command->cdw11 & (1 << 16))
-					sc->compl_queues[i].intr_en |=
-					                      NVME_CQ_INTCOAL;  
-				else
-					sc->compl_queues[i].intr_en &=
-					                     ~NVME_CQ_INTCOAL;  
-			}
-		}
-		break;
-	case NVME_FEAT_WRITE_ATOMICITY:
-		DPRINTF("  write atomicity 0x%x", command->cdw11);
-		break;
-	case NVME_FEAT_ASYNC_EVENT_CONFIGURATION:
-		DPRINTF("  async event configuration 0x%x",
-		        command->cdw11);
-		sc->async_ev_config = command->cdw11;
-		break;
-	case NVME_FEAT_SOFTWARE_PROGRESS_MARKER:
-		DPRINTF("  software progress marker 0x%x",
-		        command->cdw11);
-		break;
-	case 0x0C:
-		DPRINTF("  autonomous power state transition 0x%x",
-		        command->cdw11);
-		break;
-	default:
-		WPRINTF("%s invalid feature", __func__);
+	if (fid >= NVME_FID_MAX) {
+		DPRINTF("%s invalid feature 0x%x", __func__, fid);
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 		return (1);
 	}
+	feat = &sc->feat[fid];
 
+	if (!feat->namespace_specific &&
+	    !((nsid == 0) || (nsid == NVME_GLOBAL_NAMESPACE_TAG))) {
+		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_FEATURE_NOT_NS_SPECIFIC);
+		return (1);
+	}
+
+	compl->cdw0 = 0;
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
-	return (1);
+
+	if (feat->set)
+		feat->set(sc, feat, command, compl);
+
+	if (compl->status == NVME_SC_SUCCESS)
+		feat->cdw11 = command->cdw11;
+
+	return (0);
 }
 
 static int
 nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	int feature = command->cdw10 & 0xFF;
+	struct nvme_feature_obj *feat;
+	uint8_t fid = command->cdw10 & 0xFF;
 
-	DPRINTF("%s feature 0x%x", __func__, feature);
+	DPRINTF("%s: Feature ID 0x%x (%s)", __func__, fid, nvme_fid_to_name(fid));
 
-	compl->cdw0 = 0;
-
-	switch (feature) {
-	case NVME_FEAT_ARBITRATION:
-		DPRINTF("  arbitration");
-		break;
-	case NVME_FEAT_POWER_MANAGEMENT:
-		DPRINTF("  power management");
-		break;
-	case NVME_FEAT_LBA_RANGE_TYPE:
-		DPRINTF("  lba range");
-		break;
-	case NVME_FEAT_TEMPERATURE_THRESHOLD:
-		DPRINTF("  temperature threshold");
-		switch ((command->cdw11 >> 20) & 0x3) {
-		case 0:
-			/* Over temp threshold */
-			compl->cdw0 = 0xFFFF;
-			break;
-		case 1:
-			/* Under temp threshold */
-			compl->cdw0 = 0;
-			break;
-		default:
-			WPRINTF("  invalid threshold type select");
-			pci_nvme_status_genc(&compl->status,
-			    NVME_SC_INVALID_FIELD);
-			return (1);
-		}
-		break;
-	case NVME_FEAT_ERROR_RECOVERY:
-		DPRINTF("  error recovery");
-		break;
-	case NVME_FEAT_VOLATILE_WRITE_CACHE:
-		DPRINTF("  volatile write cache");
-		break;
-	case NVME_FEAT_NUMBER_OF_QUEUES:
-		compl->cdw0 = NVME_FEATURE_NUM_QUEUES(sc);
-
-		DPRINTF("  number of queues (submit %u, completion %u)",
-		        compl->cdw0 & 0xFFFF,
-		        (compl->cdw0 >> 16) & 0xFFFF);
-
-		break;
-	case NVME_FEAT_INTERRUPT_COALESCING:
-		DPRINTF("  interrupt coalescing");
-		break;
-	case NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION:
-		DPRINTF("  interrupt vector configuration");
-		break;
-	case NVME_FEAT_WRITE_ATOMICITY:
-		DPRINTF("  write atomicity");
-		break;
-	case NVME_FEAT_ASYNC_EVENT_CONFIGURATION:
-		DPRINTF("  async event configuration");
-		sc->async_ev_config = command->cdw11;
-		break;
-	case NVME_FEAT_SOFTWARE_PROGRESS_MARKER:
-		DPRINTF("  software progress marker");
-		break;
-	case 0x0C:
-		DPRINTF("  autonomous power state transition");
-		break;
-	default:
-		WPRINTF("%s invalid feature 0x%x", __func__, feature);
+	if (fid >= NVME_FID_MAX) {
+		DPRINTF("%s invalid feature 0x%x", __func__, fid);
 		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
 		return (1);
 	}
 
+	compl->cdw0 = 0;
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
-	return (1);
+
+	feat = &sc->feat[fid];
+	if (feat->get) {
+		feat->get(sc, feat, command, compl);
+	}
+
+	if (compl->status == NVME_SC_SUCCESS) {
+		compl->cdw0 = feat->cdw11;
+	}
+
+	return (0);
 }
 
 static int
@@ -2312,7 +2374,6 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		pthread_mutex_init(&sc->ioreqs[i].mtx, NULL);
 		pthread_cond_init(&sc->ioreqs[i].cv, NULL);
 	}
-	sc->intr_coales_aggr_thresh = 1;
 
 	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x0A0A);
 	pci_set_cfgdata16(pi, PCIR_VENDOR, 0xFB5D);
@@ -2363,6 +2424,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_nvme_init_nsdata(sc, &sc->nsdata, 1, &sc->nvstore);
 	pci_nvme_init_ctrldata(sc);
 	pci_nvme_init_logpages(sc);
+	pci_nvme_init_features(sc);
 
 	pci_nvme_reset(sc);
 
