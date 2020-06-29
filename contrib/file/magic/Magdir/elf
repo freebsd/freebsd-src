@@ -50,8 +50,9 @@
 !:mime	application/x-object
 >16	leshort		2		executable,
 !:mime	application/x-executable
->16	leshort		3		shared object,
-!:mime	application/x-sharedlib
+>16	leshort		3		${x?pie executable:shared object},
+
+!:mime	application/x-${x?pie-executable:sharedlib}
 >16	leshort		4		core file,
 !:mime	application/x-coredump
 # OS-specific
