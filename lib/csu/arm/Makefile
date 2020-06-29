@@ -21,13 +21,13 @@ CLEANFILES=	${OBJS} crt1_c.o crt1_s.o gcrt1_c.o Scrt1_c.o
 CLEANFILES+=	crtbrand.o ignore_init_note.o
 
 crt1_c.o: crt1_c.c
-	${CC} ${CFLAGS} ${STATIC_CFLAGS} -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
+	${CC} ${CFLAGS} -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
 
 crt1.o:	crt1_c.o crt1_s.o crtbrand.o ignore_init_note.o
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
 gcrt1_c.o: crt1_c.c
-	${CC} ${CFLAGS} ${STATIC_CFLAGS} -DGCRT -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
+	${CC} ${CFLAGS} -DGCRT -c -o ${.TARGET} ${.CURDIR}/crt1_c.c
 
 gcrt1.o: gcrt1_c.o crt1_s.o crtbrand.o ignore_init_note.o
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
