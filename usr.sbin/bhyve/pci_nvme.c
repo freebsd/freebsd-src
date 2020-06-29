@@ -1683,6 +1683,108 @@ nvme_opc_flush(struct pci_nvme_softc *sc,
 	return (pending);
 }
 
+static uint16_t
+nvme_write_read_ram(struct pci_nvme_softc *sc,
+    struct pci_nvme_blockstore *nvstore,
+    uint64_t prp1, uint64_t prp2,
+    size_t offset, uint64_t bytes,
+    bool is_write)
+{
+	uint8_t *buf = nvstore->ctx;
+	enum nvme_copy_dir dir;
+	uint16_t status;
+
+	if (is_write)
+		dir = NVME_COPY_TO_PRP;
+	else
+		dir = NVME_COPY_FROM_PRP;
+
+	if (nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, prp1, prp2,
+	    buf + offset, bytes, dir))
+		pci_nvme_status_genc(&status,
+		    NVME_SC_DATA_TRANSFER_ERROR);
+	else
+		pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
+
+	return (status);
+}
+
+static uint16_t
+nvme_write_read_blockif(struct pci_nvme_softc *sc,
+    struct pci_nvme_blockstore *nvstore,
+    struct pci_nvme_ioreq *req,
+    uint64_t prp1, uint64_t prp2,
+    size_t offset, uint64_t bytes,
+    bool is_write)
+{
+	uint64_t size;
+	int err;
+	uint16_t status = NVME_NO_STATUS;
+
+	size = MIN(PAGE_SIZE - (prp1 % PAGE_SIZE), bytes);
+	if (pci_nvme_append_iov_req(sc, req, prp1,
+	    size, is_write, offset)) {
+		pci_nvme_status_genc(&status,
+		    NVME_SC_DATA_TRANSFER_ERROR);
+		goto out;
+	}
+
+	offset += size;
+	bytes  -= size;
+
+	if (bytes == 0) {
+		;
+	} else if (bytes <= PAGE_SIZE) {
+		size = bytes;
+		if (pci_nvme_append_iov_req(sc, req, prp2,
+		    size, is_write, offset)) {
+			pci_nvme_status_genc(&status,
+			    NVME_SC_DATA_TRANSFER_ERROR);
+			goto out;
+		}
+	} else {
+		void *vmctx = sc->nsc_pi->pi_vmctx;
+		uint64_t *prp_list = &prp2;
+		uint64_t *last = prp_list;
+
+		/* PRP2 is pointer to a physical region page list */
+		while (bytes) {
+			/* Last entry in list points to the next list */
+			if (prp_list == last) {
+				uint64_t prp = *prp_list;
+
+				prp_list = paddr_guest2host(vmctx, prp,
+				    PAGE_SIZE - (prp % PAGE_SIZE));
+				last = prp_list + (NVME_PRP2_ITEMS - 1);
+			}
+
+			size = MIN(bytes, PAGE_SIZE);
+
+			if (pci_nvme_append_iov_req(sc, req, *prp_list,
+			    size, is_write, offset)) {
+				pci_nvme_status_genc(&status,
+				    NVME_SC_DATA_TRANSFER_ERROR);
+				goto out;
+			}
+
+			offset += size;
+			bytes  -= size;
+
+			prp_list++;
+		}
+	}
+	req->io_req.br_callback = pci_nvme_io_done;
+	if (is_write)
+		err = blockif_write(nvstore->ctx, &req->io_req);
+	else
+		err = blockif_read(nvstore->ctx, &req->io_req);
+
+	if (err)
+		pci_nvme_status_genc(&status, NVME_SC_DATA_TRANSFER_ERROR);
+out:
+	return (status);
+}
+
 static bool
 nvme_opc_write_read(struct pci_nvme_softc *sc,
     struct nvme_command *cmd,
@@ -1714,85 +1816,13 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 	cmd->prp2 &= ~0x3UL;
 
 	if (nvstore->type == NVME_STOR_RAM) {
-		uint8_t *buf = nvstore->ctx;
-		enum nvme_copy_dir dir;
-
-		if (is_write)
-			dir = NVME_COPY_TO_PRP;
-		else
-			dir = NVME_COPY_FROM_PRP;
-
-		if (nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
-		    buf + offset, bytes, dir))
-			pci_nvme_status_genc(status,
-			    NVME_SC_DATA_TRANSFER_ERROR);
-		else
-			pci_nvme_status_genc(status, NVME_SC_SUCCESS);
+		*status = nvme_write_read_ram(sc, nvstore, cmd->prp1,
+		    cmd->prp2, offset, bytes, is_write);
 	} else {
-		uint64_t size;
-		int err;
+		*status = nvme_write_read_blockif(sc, nvstore, req,
+		    cmd->prp1, cmd->prp2, offset, bytes, is_write);
 
-		size = MIN(PAGE_SIZE - (cmd->prp1 % PAGE_SIZE), bytes);
-		if (pci_nvme_append_iov_req(sc, req, cmd->prp1,
-		    size, is_write, offset)) {
-			pci_nvme_status_genc(status,
-			    NVME_SC_DATA_TRANSFER_ERROR);
-			goto out;
-		}
-
-		offset += size;
-		bytes  -= size;
-
-		if (bytes == 0) {
-			;
-		} else if (bytes <= PAGE_SIZE) {
-			size = bytes;
-			if (pci_nvme_append_iov_req(sc, req, cmd->prp2,
-			    size, is_write, offset)) {
-				pci_nvme_status_genc(status,
-				    NVME_SC_DATA_TRANSFER_ERROR);
-				goto out;
-			}
-		} else {
-			void *vmctx = sc->nsc_pi->pi_vmctx;
-			uint64_t *prp_list = &cmd->prp2;
-			uint64_t *last = prp_list;
-
-			/* PRP2 is pointer to a physical region page list */
-			while (bytes) {
-				/* Last entry in list points to the next list */
-				if (prp_list == last) {
-					uint64_t prp = *prp_list;
-
-					prp_list = paddr_guest2host(vmctx, prp,
-					    PAGE_SIZE - (prp % PAGE_SIZE));
-					last = prp_list + (NVME_PRP2_ITEMS - 1);
-				}
-
-				size = MIN(bytes, PAGE_SIZE);
-
-				if (pci_nvme_append_iov_req(sc, req, *prp_list,
-				    size, is_write, offset)) {
-					pci_nvme_status_genc(status,
-					    NVME_SC_DATA_TRANSFER_ERROR);
-					goto out;
-				}
-
-				offset += size;
-				bytes  -= size;
-
-				prp_list++;
-			}
-		}
-		req->io_req.br_callback = pci_nvme_io_done;
-		if (is_write)
-			err = blockif_write(nvstore->ctx, &req->io_req);
-		else
-			err = blockif_read(nvstore->ctx, &req->io_req);
-
-		if (err)
-			pci_nvme_status_genc(status, NVME_SC_DATA_TRANSFER_ERROR);
-		else
+		if (*status == NVME_NO_STATUS)
 			pending = true;
 	}
 out:
