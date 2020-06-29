@@ -134,6 +134,7 @@ struct cpu_desc {
 };
 
 static struct cpu_desc cpu_desc[MAXCPU];
+static struct cpu_desc kern_cpu_desc;
 static struct cpu_desc user_cpu_desc;
 static u_int cpu_print_regs;
 #define	PRINT_ID_AA64_AFR0	0x00000001
@@ -936,46 +937,109 @@ extract_user_id_field(u_int reg, u_int field_shift, uint8_t *val)
 	return (false);
 }
 
+bool
+get_kernel_reg(u_int reg, uint64_t *val)
+{
+	int i;
+
+	for (i = 0; i < nitems(user_regs); i++) {
+		if (user_regs[i].reg == reg) {
+			*val = CPU_DESC_FIELD(kern_cpu_desc, i);
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
+static uint64_t
+update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
+    int width, bool sign)
+{
+	uint64_t mask;
+	uint64_t new_field, old_field;
+	bool update;
+
+	KASSERT(width > 0 && width < 64, ("%s: Invalid width %d", __func__,
+	    width));
+
+	mask = (1ul << width) - 1;
+	new_field = (new_val >> shift) & mask;
+	old_field = (val >> shift) & mask;
+
+	update = false;
+	if (sign) {
+		/*
+		 * The field is signed. Toggle the upper bit so the comparison
+		 * works on unsigned values as this makes positive numbers,
+		 * i.e. those with a 0 bit, larger than negative numbers,
+		 * i.e. those with a 1 bit, in an unsigned comparison.
+		 */
+		if ((new_field ^ (1ul << (width - 1))) <
+		    (old_field ^ (1ul << (width - 1))))
+			update = true;
+	} else {
+		if (new_field < old_field)
+			update = true;
+	}
+
+	if (update) {
+		val &= ~(mask << shift);
+		val |= new_field << shift;
+	}
+
+	return (val);
+}
+
 static void
-update_user_regs(u_int cpu)
+update_special_regs(u_int cpu)
 {
 	struct mrs_field *fields;
-	uint64_t cur, value;
-	int i, j, cur_field, new_field;
+	uint64_t user_reg, kern_reg, value;
+	int i, j;
+
+	if (cpu == 0) {
+		/* Create a user visible cpu description with safe values */
+		memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
+		/* Safe values for these registers */
+		user_cpu_desc.id_aa64pfr0 = ID_AA64PFR0_AdvSIMD_NONE |
+		    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 |
+		    ID_AA64PFR0_EL0_64;
+		user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
+	}
 
 	for (i = 0; i < nitems(user_regs); i++) {
 		value = CPU_DESC_FIELD(cpu_desc[cpu], i);
-		if (cpu == 0)
-			cur = value;
-		else
-			cur = CPU_DESC_FIELD(user_cpu_desc, i);
+		if (cpu == 0) {
+			kern_reg = value;
+			user_reg = value;
+		} else {
+			kern_reg = CPU_DESC_FIELD(kern_cpu_desc, i);
+			user_reg = CPU_DESC_FIELD(user_cpu_desc, i);
+		}
 
 		fields = user_regs[i].fields;
 		for (j = 0; fields[j].type != 0; j++) {
 			switch (fields[j].type & MRS_TYPE_MASK) {
 			case MRS_EXACT:
-				cur &= ~(0xfu << fields[j].shift);
-				cur |=
+				user_reg &= ~(0xfu << fields[j].shift);
+				user_reg |=
 				    (uint64_t)MRS_EXACT_FIELD(fields[j].type) <<
 				    fields[j].shift;
 				break;
 			case MRS_LOWER:
-				new_field = (value >> fields[j].shift) & 0xf;
-				cur_field = (cur >> fields[j].shift) & 0xf;
-				if ((fields[j].sign &&
-				     (int)new_field < (int)cur_field) ||
-				    (!fields[j].sign &&
-				     (u_int)new_field < (u_int)cur_field)) {
-					cur &= ~(0xfu << fields[j].shift);
-					cur |= new_field << fields[j].shift;
-				}
+				user_reg = update_lower_register(user_reg,
+				    value, fields[j].shift, 4, fields[j].sign);
 				break;
 			default:
 				panic("Invalid field type: %d", fields[j].type);
 			}
+			kern_reg = update_lower_register(kern_reg, value,
+			    fields[j].shift, 4, fields[j].sign);
 		}
 
-		CPU_DESC_FIELD(user_cpu_desc, i) = cur;
+		CPU_DESC_FIELD(kern_cpu_desc, i) = kern_reg;
+		CPU_DESC_FIELD(user_cpu_desc, i) = user_reg;
 	}
 }
 
@@ -997,13 +1061,6 @@ identify_cpu_sysinit(void *dummy __unused)
 	u_long hwcap;
 	bool dic, idc;
 
-	/* Create a user visible cpu description with safe values */
-	memset(&user_cpu_desc, 0, sizeof(user_cpu_desc));
-	/* Safe values for these registers */
-	user_cpu_desc.id_aa64pfr0 = ID_AA64PFR0_AdvSIMD_NONE |
-	    ID_AA64PFR0_FP_NONE | ID_AA64PFR0_EL1_64 | ID_AA64PFR0_EL0_64;
-	user_cpu_desc.id_aa64dfr0 = ID_AA64DFR0_DebugVer_8;
-
 	dic = (allow_dic != 0);
 	idc = (allow_idc != 0);
 	CPU_FOREACH(cpu) {
@@ -1013,7 +1070,7 @@ identify_cpu_sysinit(void *dummy __unused)
 			elf_hwcap = hwcap;
 		else
 			elf_hwcap &= hwcap;
-		update_user_regs(cpu);
+		update_special_regs(cpu);
 
 		if (CTR_DIC_VAL(cpu_desc[cpu].ctr) == 0)
 			dic = false;
