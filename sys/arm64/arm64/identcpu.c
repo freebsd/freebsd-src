@@ -1096,7 +1096,7 @@ identify_cpu_sysinit(void *dummy __unused)
 
 	install_undef_handler(true, user_mrs_handler);
 }
-SYSINIT(idenrity_cpu, SI_SUB_SMP, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
+SYSINIT(identify_cpu, SI_SUB_SMP, SI_ORDER_ANY, identify_cpu_sysinit, NULL);
 
 static u_long
 parse_cpu_features_hwcap(u_int cpu)
