@@ -62,7 +62,10 @@ void undef_init(void);
 void *install_undef_handler(bool, undef_handler_t);
 void remove_undef_handler(void *);
 int undef_insn(u_int, struct trapframe *);
+
+/* Functions to read the sanitised view of the special registers */
 bool extract_user_id_field(u_int, u_int, uint8_t *);
+bool get_kernel_reg(u_int, uint64_t *);
 
 #endif /* _KERNEL */
 
