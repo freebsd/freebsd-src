@@ -2379,6 +2379,11 @@ vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 {
 	vm_map_entry_t new_entry;
 
+	if (!map->system_map)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "%s: map %p entry %p start 0x%jx", __func__, map, entry,
+		    (uintmax_t)start);
+
 	if (start <= entry->start)
 		return;
 
@@ -2409,6 +2414,11 @@ vm_map_lookup_clip_start(vm_map_t map, vm_offset_t start,
 {
 	vm_map_entry_t entry;
 
+	if (!map->system_map)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "%s: map %p start 0x%jx prev %p", __func__, map,
+		    (uintmax_t)start, prev_entry);
+
 	if (vm_map_lookup_entry(map, start, prev_entry)) {
 		entry = *prev_entry;
 		vm_map_clip_start(map, entry, start);
@@ -2429,6 +2439,11 @@ static inline void
 vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 {
 	vm_map_entry_t new_entry;
+
+	if (!map->system_map)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "%s: map %p entry %p end 0x%jx", __func__, map, entry,
+		    (uintmax_t)end);
 
 	if (end >= entry->end)
 		return;
@@ -3725,6 +3740,7 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 	vm_map_entry_t entry, next_entry;
 
 	VM_MAP_ASSERT_LOCKED(map);
+
 	if (start == end)
 		return (KERN_SUCCESS);
 
