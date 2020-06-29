@@ -1353,7 +1353,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			compl.status = NVME_NO_STATUS;
 			break;
 		default:
-			WPRINTF("0x%x command is not implemented",
+			DPRINTF("0x%x command is not implemented",
 			    cmd->opc);
 			pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
 		}
