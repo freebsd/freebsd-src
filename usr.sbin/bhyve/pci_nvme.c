@@ -468,6 +468,9 @@ pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 	cd->acl = 2;
 	cd->aerl = 4;
 
+	/* Advertise 1, Read-only firmware slot */
+	cd->frmw = NVME_CTRLR_DATA_FRMW_SLOT1_RO_MASK |
+	    (1 << NVME_CTRLR_DATA_FRMW_NUM_SLOTS_SHIFT);
 	cd->lpa = 0;	/* TODO: support some simple things like SMART */
 	cd->elpe = 0;	/* max error log page entries */
 	cd->npss = 1;	/* number of power states support */
@@ -1556,6 +1559,12 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 		case NVME_OPC_GET_FEATURES:
 			DPRINTF("%s command GET_FEATURES", __func__);
 			nvme_opc_get_features(sc, cmd, &compl);
+			break;
+		case NVME_OPC_FIRMWARE_ACTIVATE:
+			DPRINTF("%s command FIRMWARE_ACTIVATE", __func__);
+			pci_nvme_status_tc(&compl.status,
+			    NVME_SCT_COMMAND_SPECIFIC,
+			    NVME_SC_INVALID_FIRMWARE_SLOT);
 			break;
 		case NVME_OPC_ASYNC_EVENT_REQUEST:
 			DPRINTF("%s command ASYNC_EVENT_REQ", __func__);
