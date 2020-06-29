@@ -1877,6 +1877,11 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
 		    (uint8_t *)range, NVME_MAX_DSM_TRIM, NVME_COPY_FROM_PRP);
 
+		if ((range[0].starting_lba * sectsz) > nvstore->size) {
+			pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+			goto out;
+		}
+
 		/*
 		 * If the request is for more than a single range, store
 		 * the ranges in the br_iov. Optimize for the common case
@@ -1896,6 +1901,10 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 			struct iovec *iov = req->io_req.br_iov;
 
 			for (r = 0; r <= nr; r++) {
+				if ((range[r].starting_lba * sectsz) > nvstore->size) {
+					pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+					goto out;
+				}
 				iov[r].iov_base = (void *)(range[r].starting_lba * sectsz);
 				iov[r].iov_len = range[r].length * sectsz;
 			}
