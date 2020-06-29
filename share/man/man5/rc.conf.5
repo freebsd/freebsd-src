@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 23, 2020
+.Dd June 28, 2020
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3469,7 +3469,9 @@ the first suitable swap device listed in
 .Pa /etc/fstab
 will be used as dump device.
 Otherwise, the value of this variable is passed as the argument to
-.Xr dumpon 8 .
+.Xr dumpon 8
+and
+.Xr savecore 8 .
 To disable crash dumps, set this variable to
 .Dq Li NO .
 .It Va dumpon_flags
