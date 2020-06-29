@@ -58,6 +58,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/errno.h>
 #include <sys/types.h>
 #include <net/ieee_oui.h>
 
@@ -1387,6 +1388,46 @@ pci_nvme_io_partial(struct blockif_req *br, int err)
 	pthread_cond_signal(&req->cv);
 }
 
+/*
+ * Implements the Flush command. The specification states:
+ *    If a volatile write cache is not present, Flush commands complete
+ *    successfully and have no effect
+ * in the description of the Volatile Write Cache (VWC) field of the Identify
+ * Controller data. Therefore, set status to Success if the command is
+ * not supported (i.e. RAM or as indicated by the blockif).
+ */
+static bool
+nvme_opc_flush(struct pci_nvme_softc *sc,
+    struct nvme_command *cmd,
+    struct pci_nvme_blockstore *nvstore,
+    struct pci_nvme_ioreq *req,
+    uint16_t *status)
+{
+	bool pending = false;
+
+	if (nvstore->type == NVME_STOR_RAM) {
+		pci_nvme_status_genc(status, NVME_SC_SUCCESS);
+	} else {
+		int err;
+
+		req->io_req.br_callback = pci_nvme_io_done;
+
+		err = blockif_flush(nvstore->ctx, &req->io_req);
+		switch (err) {
+		case 0:
+			pending = true;
+			break;
+		case EOPNOTSUPP:
+			pci_nvme_status_genc(status, NVME_SC_SUCCESS);
+			break;
+		default:
+			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
+		}
+	}
+
+	return (pending);
+}
+
 static bool
 nvme_opc_write_read(struct pci_nvme_softc *sc,
     struct nvme_command *cmd,
@@ -1682,7 +1723,8 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 
 		switch (cmd->opc) {
 		case NVME_OPC_FLUSH:
-			pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
+			pending = nvme_opc_flush(sc, cmd, &sc->nvstore,
+			    req, &status);
  			break;
 		case NVME_OPC_WRITE:
 		case NVME_OPC_READ:
