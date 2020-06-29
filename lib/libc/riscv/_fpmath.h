@@ -46,19 +46,6 @@ union IEEEl2bits {
 #define	LDBL_IMPLICIT_NBIT
 #define	mask_nbit_l(u)	((void)0)
 
-#define	LDBL_MANH_SIZE	20
-#define	LDBL_MANL_SIZE	32
-
-#define	LDBL_TO_ARRAY32(u, a) do {			\
-	(a)[0] = (uint32_t)(u).bits.manl;		\
-	(a)[1] = (uint32_t)(u).bits.manh;		\
-} while(0)
-
-/*
- * TODO: Due to compiler problem we are temporary using
- * LDBL_PREC == 53. Use code below for LDBL_PREC == 113
- */
-#if 0
 #define	LDBL_MANH_SIZE	48
 #define	LDBL_MANL_SIZE	64
 
@@ -68,4 +55,3 @@ union IEEEl2bits {
 	(a)[2] = (uint32_t)(u).bits.manh;		\
 	(a)[3] = (uint32_t)((u).bits.manh >> 32);	\
 } while(0)
-#endif
