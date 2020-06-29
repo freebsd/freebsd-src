@@ -34,7 +34,7 @@
  * bhyve PCIe-NVMe device emulation.
  *
  * options:
- *  -s <n>,nvme,devpath,maxq=#,qsz=#,ioslots=#,sectsz=#,ser=A-Z,eui64=#
+ *  -s <n>,nvme,devpath,maxq=#,qsz=#,ioslots=#,sectsz=#,ser=A-Z,eui64=#,dsm=<opt>
  *
  *  accepted devpath:
  *    /dev/blockdev
@@ -47,6 +47,7 @@
  *  sectsz  = sector size (defaults to blockif sector size)
  *  ser     = serial number (20-chars max)
  *  eui64   = IEEE Extended Unique Identifier (8 byte value)
+ *  dsm     = DataSet Management support. Option is one of auto, enable,disable
  *
  */
 
