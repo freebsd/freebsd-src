@@ -153,21 +153,21 @@ enum nvme_copy_dir {
 
 struct nvme_completion_queue {
 	struct nvme_completion *qbase;
+	pthread_mutex_t	mtx;
 	uint32_t	size;
 	uint16_t	tail; /* nvme progress */
 	uint16_t	head; /* guest progress */
 	uint16_t	intr_vec;
 	uint32_t	intr_en;
-	pthread_mutex_t	mtx;
 };
 
 struct nvme_submission_queue {
 	struct nvme_command *qbase;
+	pthread_mutex_t	mtx;
 	uint32_t	size;
 	uint16_t	head; /* nvme progress */
 	uint16_t	tail; /* guest progress */
 	uint16_t	cqid; /* completion queue id */
-	int		busy; /* queue is being processed */
 	int		qpriority;
 };
 
@@ -339,6 +339,62 @@ pci_nvme_toggle_phase(uint16_t *status, int prev)
 		*status |= NVME_STATUS_P;
 }
 
+/*
+ * Initialize the requested number or IO Submission and Completion Queues.
+ * Admin queues are allocated implicitly.
+ */
+static void
+pci_nvme_init_queues(struct pci_nvme_softc *sc, uint32_t nsq, uint32_t ncq)
+{
+	uint32_t i;
+
+	/*
+	 * Allocate and initialize the Submission Queues
+	 */
+	if (nsq > NVME_QUEUES) {
+		WPRINTF("%s: clamping number of SQ from %u to %u",
+					__func__, nsq, NVME_QUEUES);
+		nsq = NVME_QUEUES;
+	}
+
+	sc->num_squeues = nsq;
+
+	sc->submit_queues = calloc(sc->num_squeues + 1,
+				sizeof(struct nvme_submission_queue));
+	if (sc->submit_queues == NULL) {
+		WPRINTF("%s: SQ allocation failed", __func__);
+		sc->num_squeues = 0;
+	} else {
+		struct nvme_submission_queue *sq = sc->submit_queues;
+
+		for (i = 0; i < sc->num_squeues; i++)
+			pthread_mutex_init(&sq[i].mtx, NULL);
+	}
+
+	/*
+	 * Allocate and initialize the Completion Queues
+	 */
+	if (ncq > NVME_QUEUES) {
+		WPRINTF("%s: clamping number of CQ from %u to %u",
+					__func__, ncq, NVME_QUEUES);
+		ncq = NVME_QUEUES;
+	}
+
+	sc->num_cqueues = ncq;
+
+	sc->compl_queues = calloc(sc->num_cqueues + 1,
+				sizeof(struct nvme_completion_queue));
+	if (sc->compl_queues == NULL) {
+		WPRINTF("%s: CQ allocation failed", __func__);
+		sc->num_cqueues = 0;
+	} else {
+		struct nvme_completion_queue *cq = sc->compl_queues;
+
+		for (i = 0; i < sc->num_cqueues; i++)
+			pthread_mutex_init(&cq[i].mtx, NULL);
+	}
+}
+
 static void
 pci_nvme_init_ctrldata(struct pci_nvme_softc *sc)
 {
@@ -498,6 +554,8 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 static void
 pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
+	uint32_t i;
+
 	DPRINTF("%s", __func__);
 
 	sc->regs.cap_lo = (ZERO_BASED(sc->max_qentries) & NVME_CAP_LO_REG_MQES_MASK) |
@@ -511,44 +569,23 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 	sc->regs.cc = 0;
 	sc->regs.csts = 0;
 
-	sc->num_cqueues = sc->num_squeues = sc->max_queues;
-	if (sc->submit_queues != NULL) {
-		for (int i = 0; i < sc->num_squeues + 1; i++) {
-			/*
-			 * The Admin Submission Queue is at index 0.
-			 * It must not be changed at reset otherwise the
-			 * emulation will be out of sync with the guest.
-			 */
-			if (i != 0) {
-				sc->submit_queues[i].qbase = NULL;
-				sc->submit_queues[i].size = 0;
-				sc->submit_queues[i].cqid = 0;
-			}
-			sc->submit_queues[i].tail = 0;
-			sc->submit_queues[i].head = 0;
-			sc->submit_queues[i].busy = 0;
-		}
-	} else
-		sc->submit_queues = calloc(sc->num_squeues + 1,
-		                        sizeof(struct nvme_submission_queue));
+	assert(sc->submit_queues != NULL);
 
-	if (sc->compl_queues != NULL) {
-		for (int i = 0; i < sc->num_cqueues + 1; i++) {
-			/* See Admin Submission Queue note above */
-			if (i != 0) {
-				sc->compl_queues[i].qbase = NULL;
-				sc->compl_queues[i].size = 0;
-			}
+	for (i = 0; i < sc->num_squeues + 1; i++) {
+		sc->submit_queues[i].qbase = NULL;
+		sc->submit_queues[i].size = 0;
+		sc->submit_queues[i].cqid = 0;
+		sc->submit_queues[i].tail = 0;
+		sc->submit_queues[i].head = 0;
+	}
 
-			sc->compl_queues[i].tail = 0;
-			sc->compl_queues[i].head = 0;
-		}
-	} else {
-		sc->compl_queues = calloc(sc->num_cqueues + 1,
-		                        sizeof(struct nvme_completion_queue));
+	assert(sc->compl_queues != NULL);
 
-		for (int i = 0; i < sc->num_cqueues + 1; i++)
-			pthread_mutex_init(&sc->compl_queues[i].mtx, NULL);
+	for (i = 0; i < sc->num_cqueues + 1; i++) {
+		sc->compl_queues[i].qbase = NULL;
+		sc->compl_queues[i].size = 0;
+		sc->compl_queues[i].tail = 0;
+		sc->compl_queues[i].head = 0;
 	}
 }
 
@@ -1092,14 +1129,9 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 	sq = &sc->submit_queues[0];
 	cq = &sc->compl_queues[0];
 
-	sqhead = atomic_load_acq_short(&sq->head);
+	pthread_mutex_lock(&sq->mtx);
 
-	if (atomic_testandset_int(&sq->busy, 1)) {
-		DPRINTF("%s SQ busy, head %u, tail %u",
-		        __func__, sqhead, sq->tail);
-		return;
-	}
-
+	sqhead = sq->head;
 	DPRINTF("sqhead %u, tail %u", sqhead, sq->tail);
 	
 	while (sqhead != atomic_load_acq_short(&sq->tail)) {
@@ -1162,6 +1194,8 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			struct nvme_completion *cp;
 			int phase;
 
+			pthread_mutex_lock(&cq->mtx);
+
 			cp = &(cq->qbase)[cq->tail];
 			cp->cdw0 = compl.cdw0;
 			cp->sqid = 0;
@@ -1173,16 +1207,18 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			pci_nvme_toggle_phase(&cp->status, phase);
 
 			cq->tail = (cq->tail + 1) % cq->size;
+
+			pthread_mutex_unlock(&cq->mtx);
 		}
 	}
 
 	DPRINTF("setting sqhead %u", sqhead);
-	atomic_store_short(&sq->head, sqhead);
-	atomic_store_int(&sq->busy, 0);
+	sq->head = sqhead;
 
 	if (cq->head != cq->tail)
 		pci_generate_msix(sc->nsc_pi, 0);
 
+	pthread_mutex_unlock(&sq->mtx);
 }
 
 static int
@@ -1272,7 +1308,7 @@ pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 static void
 pci_nvme_set_completion(struct pci_nvme_softc *sc,
 	struct nvme_submission_queue *sq, int sqid, uint16_t cid,
-	uint32_t cdw0, uint16_t status, int ignore_busy)
+	uint32_t cdw0, uint16_t status)
 {
 	struct nvme_completion_queue *cq = &sc->compl_queues[sq->cqid];
 	struct nvme_completion *compl;
@@ -1290,7 +1326,7 @@ pci_nvme_set_completion(struct pci_nvme_softc *sc,
 
 	compl->cdw0 = cdw0;
 	compl->sqid = sqid;
-	compl->sqhd = atomic_load_acq_short(&sq->head);
+	compl->sqhd = sq->head;
 	compl->cid = cid;
 
 	// toggle phase
@@ -1375,7 +1411,7 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	code = err ? NVME_SC_DATA_TRANSFER_ERROR : NVME_SC_SUCCESS;
 	pci_nvme_status_genc(&status, code);
 
-	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, 0, status, 0);
+	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, 0, status);
 	pci_nvme_release_ioreq(req->sc, req);
 }
 
@@ -1575,7 +1611,7 @@ pci_nvme_dealloc_sm(struct blockif_req *br, int err)
 
 	if (done) {
 		pci_nvme_set_completion(sc, req->nvme_sq, req->sqid,
-		    req->cid, 0, status, 0);
+		    req->cid, 0, status);
 		pci_nvme_release_ioreq(sc, req);
 	}
 }
@@ -1677,13 +1713,9 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 	/* handle all submissions up to sq->tail index */
 	sq = &sc->submit_queues[idx];
 
-	if (atomic_testandset_int(&sq->busy, 1)) {
-		DPRINTF("%s sqid %u busy", __func__, idx);
-		return;
-	}
+	pthread_mutex_lock(&sq->mtx);
 
-	sqhead = atomic_load_acq_short(&sq->head);
-
+	sqhead = sq->head;
 	DPRINTF("nvme_handle_io qid %u head %u tail %u cmdlist %p",
 	         idx, sqhead, sq->tail, sq->qbase);
 
@@ -1750,14 +1782,15 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 complete:
 		if (!pending) {
 			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
-			    status, 1);
+			    status);
 			if (req != NULL)
 				pci_nvme_release_ioreq(sc, req);
 		}
 	}
 
-	atomic_store_short(&sq->head, sqhead);
-	atomic_store_int(&sq->busy, 0);
+	sq->head = sqhead;
+
+	pthread_mutex_unlock(&sq->mtx);
 }
 
 static void
@@ -1768,6 +1801,13 @@ pci_nvme_handle_doorbell(struct vmctx *ctx, struct pci_nvme_softc* sc,
 	        idx, is_sq ? "SQ" : "CQ", value & 0xFFFF);
 
 	if (is_sq) {
+		if (idx > sc->num_squeues) {
+			WPRINTF("%s queue index %lu overflow from "
+			         "guest (max %u)",
+			         __func__, idx, sc->num_squeues);
+			return;
+		}
+
 		atomic_store_short(&sc->submit_queues[idx].tail,
 		                   (uint16_t)value);
 
@@ -1791,7 +1831,8 @@ pci_nvme_handle_doorbell(struct vmctx *ctx, struct pci_nvme_softc* sc,
 			return;
 		}
 
-		sc->compl_queues[idx].head = (uint16_t)value;
+		atomic_store_short(&sc->compl_queues[idx].head,
+				(uint16_t)value);
 	}
 }
 
@@ -2236,7 +2277,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pthread_mutex_init(&sc->mtx, NULL);
 	sem_init(&sc->iosemlock, 0, sc->ioslots);
 
-	pci_nvme_reset(sc);
+	pci_nvme_init_queues(sc, sc->max_queues, sc->max_queues);
 	/*
 	 * Controller data depends on Namespace data so initialize Namespace
 	 * data first.
@@ -2244,6 +2285,8 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_nvme_init_nsdata(sc, &sc->nsdata, 1, &sc->nvstore);
 	pci_nvme_init_ctrldata(sc);
 	pci_nvme_init_logpages(sc);
+
+	pci_nvme_reset(sc);
 
 	pci_lintr_request(pi);
 
