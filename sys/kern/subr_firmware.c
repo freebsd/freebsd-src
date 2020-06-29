@@ -394,14 +394,12 @@ EVENTHANDLER_DEFINE(mountroot, firmware_mountroot, NULL, 0);
 static void
 unloadentry(void *unused1, int unused2)
 {
-	struct priv_fw *fp, *tmp;
+	struct priv_fw *fp;
 	int err;
-	bool changed;
 
 	mtx_lock(&firmware_mtx);
-	changed = false;
 restart:
-	LIST_FOREACH_SAFE(fp, &firmware_table, link, tmp) {
+	LIST_FOREACH(fp, &firmware_table, link) {
 		if (fp->file == NULL || fp->refcnt != 0 ||
 		    (fp->flags & FW_UNLOAD) == 0)
 			continue;
@@ -412,7 +410,6 @@ restart:
 		 * 2. clear FW_UNLOAD so we don't try this entry again.
 		 * 3. release the lock while trying to unload the module.
 		 */
-		changed = true;
 		fp->flags &= ~FW_UNLOAD;	/* do not try again */
 
 		/*
@@ -422,9 +419,11 @@ restart:
 		mtx_unlock(&firmware_mtx);
 		err = linker_release_module(NULL, NULL, fp->file);
 		mtx_lock(&firmware_mtx);
-	}
-	if (changed) {
-		changed = false;
+
+		/*
+		 * When we dropped the lock, another thread could have
+		 * removed an element, so we must restart the scan.
+		 */
 		goto restart;
 	}
 	mtx_unlock(&firmware_mtx);
