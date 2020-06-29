@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -67,6 +68,37 @@ __FBSDID("$FreeBSD$");
 
 static int	linux_common_open(struct thread *, int, char *, int, int);
 static int	linux_getdents_error(struct thread *, int, int);
+
+static struct bsd_to_linux_bitmap seal_bitmap[] = {
+	BITMAP_1t1_LINUX(F_SEAL_SEAL),
+	BITMAP_1t1_LINUX(F_SEAL_SHRINK),
+	BITMAP_1t1_LINUX(F_SEAL_GROW),
+	BITMAP_1t1_LINUX(F_SEAL_WRITE),
+};
+
+#define	MFD_HUGETLB_ENTRY(_size)					\
+	{								\
+		.bsd_value = MFD_HUGE_##_size,				\
+		.linux_value = LINUX_HUGETLB_FLAG_ENCODE_##_size	\
+	}
+static struct bsd_to_linux_bitmap mfd_bitmap[] = {
+	BITMAP_1t1_LINUX(MFD_CLOEXEC),
+	BITMAP_1t1_LINUX(MFD_ALLOW_SEALING),
+	BITMAP_1t1_LINUX(MFD_HUGETLB),
+	MFD_HUGETLB_ENTRY(64KB),
+	MFD_HUGETLB_ENTRY(512KB),
+	MFD_HUGETLB_ENTRY(1MB),
+	MFD_HUGETLB_ENTRY(2MB),
+	MFD_HUGETLB_ENTRY(8MB),
+	MFD_HUGETLB_ENTRY(16MB),
+	MFD_HUGETLB_ENTRY(32MB),
+	MFD_HUGETLB_ENTRY(256MB),
+	MFD_HUGETLB_ENTRY(512MB),
+	MFD_HUGETLB_ENTRY(1GB),
+	MFD_HUGETLB_ENTRY(2GB),
+	MFD_HUGETLB_ENTRY(16GB),
+};
+#undef MFD_HUGETLB_ENTRY
 
 #ifdef LINUX_LEGACY_SYSCALLS
 int
@@ -1371,6 +1403,21 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 
 	case LINUX_F_DUPFD_CLOEXEC:
 		return (kern_fcntl(td, args->fd, F_DUPFD_CLOEXEC, args->arg));
+	/*
+	 * Our F_SEAL_* values match Linux one for maximum compatibility.  So we
+	 * only needed to account for different values for fcntl(2) commands.
+	 */
+	case LINUX_F_GET_SEALS:
+		error = kern_fcntl(td, args->fd, F_GET_SEALS, 0);
+		if (error != 0)
+			return (error);
+		td->td_retval[0] = bsd_to_linux_bits(td->td_retval[0],
+		    seal_bitmap, 0);
+		return (0);
+
+	case LINUX_F_ADD_SEALS:
+		return (kern_fcntl(td, args->fd, F_ADD_SEALS,
+		    linux_to_bsd_bits(args->arg, seal_bitmap, 0)));
 	default:
 		linux_msg(td, "unsupported fcntl cmd %d\n", args->cmd);
 		return (EINVAL);
@@ -1676,3 +1723,46 @@ linux_copy_file_range(struct thread *td, struct linux_copy_file_range_args
 	return (error);
 }
 
+#define	LINUX_MEMFD_PREFIX	"memfd:"
+
+int
+linux_memfd_create(struct thread *td, struct linux_memfd_create_args *args)
+{
+	char memfd_name[LINUX_NAME_MAX + 1];
+	int error, flags, shmflags, oflags;
+
+	/*
+	 * This is our clever trick to avoid the heap allocation to copy in the
+	 * uname.  We don't really need to go this far out of our way, but it
+	 * does keep the rest of this function fairly clean as they don't have
+	 * to worry about cleanup on the way out.
+	 */
+	error = copyinstr(args->uname_ptr,
+	    memfd_name + sizeof(LINUX_MEMFD_PREFIX) - 1,
+	    LINUX_NAME_MAX - sizeof(LINUX_MEMFD_PREFIX) - 1, NULL);
+	if (error != 0) {
+		if (error == ENAMETOOLONG)
+			error = EINVAL;
+		return (error);
+	}
+
+	memcpy(memfd_name, LINUX_MEMFD_PREFIX, sizeof(LINUX_MEMFD_PREFIX) - 1);
+	flags = linux_to_bsd_bits(args->flags, mfd_bitmap, 0);
+	if ((flags & ~(MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_HUGETLB |
+	    MFD_HUGE_MASK)) != 0)
+		return (EINVAL);
+	/* Size specified but no HUGETLB. */
+	if ((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0)
+		return (EINVAL);
+	/* We don't actually support HUGETLB. */
+	if ((flags & MFD_HUGETLB) != 0)
+		return (ENOSYS);
+	oflags = O_RDWR;
+	shmflags = 0;
+	if ((flags & MFD_CLOEXEC) != 0)
+		oflags |= O_CLOEXEC;
+	if ((flags & MFD_ALLOW_SEALING) != 0)
+		shmflags |= SHM_ALLOW_SEALING;
+	return (kern_shm_open2(td, SHM_ANON, oflags, 0, shmflags, NULL,
+	    memfd_name));
+}

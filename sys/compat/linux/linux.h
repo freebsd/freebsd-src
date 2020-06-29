@@ -148,4 +148,49 @@ extern struct mtx futex_mtx;
 void linux_dev_shm_create(void);
 void linux_dev_shm_destroy(void);
 
+/*
+ * mask=0 is not sensible for this application, so it will be taken to mean
+ * a mask equivalent to the value.  Otherwise, (word & mask) == value maps to
+ * (word & ~mask) | value in a bitfield for the platform we're converting to.
+ */
+struct bsd_to_linux_bitmap {
+	int	bsd_mask;
+	int	bsd_value;
+	int	linux_mask;
+	int	linux_value;
+};
+
+int bsd_to_linux_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
+    size_t mapcnt, int no_value);
+int linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
+    size_t mapcnt, int no_value);
+
+#define	bsd_to_linux_bits(_val, _bmap, _noval) \
+    bsd_to_linux_bits_((_val), (_bmap), nitems((_bmap)), (_noval))
+
+/*
+ * These functions are used for simplification of BSD <-> Linux bit conversions.
+ * Given `value`, a bit field, these functions will walk the given bitmap table
+ * and set the appropriate bits for the target platform.  If any bits were
+ * successfully converted, then the return value is the equivalent of value
+ * represented with the bit values appropriate for the target platform.
+ * Otherwise, the value supplied as `no_value` is returned.
+ */
+#define	linux_to_bsd_bits(_val, _bmap, _noval) \
+    linux_to_bsd_bits_((_val), (_bmap), nitems((_bmap)), (_noval))
+
+/*
+ * Easy mapping helpers.  BITMAP_EASY_LINUX represents a single bit to be
+ * translated, and the FreeBSD and Linux values are supplied.  BITMAP_1t1_LINUX
+ * is the extreme version of this, where not only is it a single bit, but the
+ * name of the macro used to represent the Linux version of a bit literally has
+ * LINUX_ prepended to the normal name.
+ */
+#define	BITMAP_EASY_LINUX(_name, _linux_name)	\
+	{					\
+		.bsd_value = (_name),		\
+		.linux_value = (_linux_name),	\
+	}
+#define	BITMAP_1t1_LINUX(_name)	BITMAP_EASY_LINUX(_name, LINUX_##_name)
+
 #endif /* _LINUX_MI_H_ */
