@@ -68,7 +68,7 @@ replicator_fdt_probe(device_t dev)
 }
 
 static int
-replicator_acpi_attach(device_t dev)
+replicator_fdt_attach(device_t dev)
 {
 	struct replicator_softc *sc;
 
@@ -81,6 +81,7 @@ replicator_acpi_attach(device_t dev)
 static device_method_t replicator_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		replicator_fdt_probe),
+	DEVMETHOD(device_attach,	replicator_fdt_attach),
 	DEVMETHOD_END
 };
 
