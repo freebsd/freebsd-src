@@ -870,9 +870,12 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
 	void *dest;
+	uint16_t status;
 
 	DPRINTF("%s identify 0x%x nsid 0x%x", __func__,
 	        command->cdw10 & 0xFF, command->nsid);
+
+	pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
 
 	switch (command->cdw10 & 0xFF) {
 	case 0x00: /* return Identify Namespace data structure */
@@ -892,24 +895,30 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 		((uint32_t *)dest)[0] = 1;
 		((uint32_t *)dest)[1] = 0;
 		break;
-	case 0x11:
-		pci_nvme_status_genc(&compl->status,
-		    NVME_SC_INVALID_NAMESPACE_OR_FORMAT);
-		return (1);
 	case 0x03: /* list of NSID structures in CDW1.NSID, 4096 bytes */
-	case 0x10:
-	case 0x12:
-	case 0x13:
-	case 0x14:
-	case 0x15:
+		if (command->nsid != 1) {
+			pci_nvme_status_genc(&status,
+			    NVME_SC_INVALID_NAMESPACE_OR_FORMAT);
+			break;
+		}
+		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
+		                  sizeof(uint32_t) * 1024);
+		/* All bytes after the descriptor shall be zero */
+		bzero(dest, sizeof(uint32_t) * 1024);
+
+		/* Return NIDT=1 (i.e. EUI64) descriptor */
+		((uint8_t *)dest)[0] = 1;
+		((uint8_t *)dest)[1] = sizeof(uint64_t);
+		bcopy(sc->nsdata.eui64, ((uint8_t *)dest) + 4, sizeof(uint64_t));
+		break;
 	default:
 		DPRINTF("%s unsupported identify command requested 0x%x",
 		         __func__, command->cdw10 & 0xFF);
-		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		pci_nvme_status_genc(&status, NVME_SC_INVALID_FIELD);
 		return (1);
 	}
 
-	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
+	compl->status = status;
 	return (1);
 }
 
