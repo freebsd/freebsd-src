@@ -18,6 +18,7 @@ SRCS+= \
 	qcow.c \
 	raw.c \
 	vhd.c \
+	vhdx.c \
 	vmdk.c
 
 # List of schemes to support
