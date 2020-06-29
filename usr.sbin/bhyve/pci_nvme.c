@@ -280,6 +280,9 @@ struct pci_nvme_softc {
 
 
 static void pci_nvme_io_partial(struct blockif_req *br, int err);
+static struct pci_nvme_ioreq *pci_nvme_get_ioreq(struct pci_nvme_softc *);
+static void pci_nvme_release_ioreq(struct pci_nvme_softc *, struct pci_nvme_ioreq *);
+static void pci_nvme_io_done(struct blockif_req *, int);
 
 /* Controller Configuration utils */
 #define	NVME_CC_GET_EN(cc) \
@@ -645,6 +648,7 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 	sc->compl_queues[0].size = acqs;
 	sc->compl_queues[0].qbase = vm_map_gpa(ctx, sc->regs.acq,
 	         sizeof(struct nvme_completion) * acqs);
+	sc->compl_queues[0].intr_en = NVME_CQ_INTEN;
 
 	DPRINTF("%s mapping Admin-CQ guest 0x%lx, host: %p",
 	        __func__, sc->regs.acq, sc->compl_queues[0].qbase);
@@ -1255,6 +1259,71 @@ nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 }
 
 static int
+nvme_opc_format_nvm(struct pci_nvme_softc* sc, struct nvme_command* command,
+	struct nvme_completion* compl)
+{
+	uint8_t	ses, lbaf, pi;
+
+	/* Only supports Secure Erase Setting - User Data Erase */
+	ses = (command->cdw10 >> 9) & 0x7;
+	if (ses > 0x1) {
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return (1);
+	}
+
+	/* Only supports a single LBA Format */
+	lbaf = command->cdw10 & 0xf;
+	if (lbaf != 0) {
+		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_INVALID_FORMAT);
+		return (1);
+	}
+
+	/* Doesn't support Protection Infomation */
+	pi = (command->cdw10 >> 5) & 0x7;
+	if (pi != 0) {
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return (1);
+	}
+
+	if (sc->nvstore.type == NVME_STOR_RAM) {
+		if (sc->nvstore.ctx)
+			free(sc->nvstore.ctx);
+		sc->nvstore.ctx = calloc(1, sc->nvstore.size);
+		pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
+	} else {
+		struct pci_nvme_ioreq *req;
+		int err;
+
+		req = pci_nvme_get_ioreq(sc);
+		if (req == NULL) {
+			pci_nvme_status_genc(&compl->status,
+			    NVME_SC_INTERNAL_DEVICE_ERROR);
+			WPRINTF("%s: unable to allocate IO req", __func__);
+			return (1);
+		}
+		req->nvme_sq = &sc->submit_queues[0];
+		req->sqid = 0;
+		req->opc = command->opc;
+		req->cid = command->cid;
+		req->nsid = command->nsid;
+
+		req->io_req.br_offset = 0;
+		req->io_req.br_resid = sc->nvstore.size;
+		req->io_req.br_callback = pci_nvme_io_done;
+
+		err = blockif_delete(sc->nvstore.ctx, &req->io_req);
+		if (err) {
+			pci_nvme_status_genc(&compl->status,
+			    NVME_SC_INTERNAL_DEVICE_ERROR);
+			pci_nvme_release_ioreq(sc, req);
+		}
+	}
+
+	return (1);
+}
+
+static int
 nvme_opc_abort(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
@@ -1351,6 +1420,15 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			nvme_opc_async_event_req(sc, cmd, &compl);
 			*/
 			compl.status = NVME_NO_STATUS;
+			break;
+		case NVME_OPC_FORMAT_NVM:
+			DPRINTF("%s command FORMAT_NVM", __func__);
+			if ((sc->ctrldata.oacs &
+			    (1 << NVME_CTRLR_DATA_OACS_FORMAT_SHIFT)) == 0) {
+				pci_nvme_status_genc(&compl.status, NVME_SC_INVALID_OPCODE);
+			}
+			compl.status = NVME_NO_STATUS;
+			nvme_opc_format_nvm(sc, cmd, &compl);
 			break;
 		default:
 			DPRINTF("0x%x command is not implemented",
