@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2017 Shunsuke Mie
  * Copyright (c) 2018 Leon Dang
+ * Copyright (c) 2020 Chuck Tuffli
  *
  * Function crc16 Copyright (c) 2017, Fedor Uporov 
  *     Obtained from function ext2_crc16() in sys/fs/ext2fs/ext2_csum.c
@@ -1386,6 +1387,122 @@ pci_nvme_io_partial(struct blockif_req *br, int err)
 	pthread_cond_signal(&req->cv);
 }
 
+static bool
+nvme_opc_write_read(struct pci_nvme_softc *sc,
+    struct nvme_command *cmd,
+    struct pci_nvme_blockstore *nvstore,
+    struct pci_nvme_ioreq *req,
+    uint16_t *status)
+{
+	uint64_t lba, nblocks, bytes;
+	size_t offset;
+	bool is_write = cmd->opc == NVME_OPC_WRITE;
+	bool pending = false;
+
+	lba = ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10;
+	nblocks = (cmd->cdw12 & 0xFFFF) + 1;
+
+	offset = lba * nvstore->sectsz;
+	bytes  = nblocks * nvstore->sectsz;
+
+	if ((offset + bytes) > nvstore->size) {
+		WPRINTF("%s command would exceed LBA range", __func__);
+		pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+		goto out;
+	}
+
+	req->io_req.br_offset = lba;
+
+	/* PRP bits 1:0 must be zero */
+	cmd->prp1 &= ~0x3UL;
+	cmd->prp2 &= ~0x3UL;
+
+	if (nvstore->type == NVME_STOR_RAM) {
+		uint8_t *buf = nvstore->ctx;
+		enum nvme_copy_dir dir;
+
+		if (is_write)
+			dir = NVME_COPY_TO_PRP;
+		else
+			dir = NVME_COPY_FROM_PRP;
+
+		if (nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
+		    buf + offset, bytes, dir))
+			pci_nvme_status_genc(status,
+			    NVME_SC_DATA_TRANSFER_ERROR);
+		else
+			pci_nvme_status_genc(status, NVME_SC_SUCCESS);
+	} else {
+		uint64_t size;
+		int err;
+
+		size = MIN(PAGE_SIZE - (cmd->prp1 % PAGE_SIZE), bytes);
+		if (pci_nvme_append_iov_req(sc, req, cmd->prp1,
+		    size, is_write, offset)) {
+			pci_nvme_status_genc(status,
+			    NVME_SC_DATA_TRANSFER_ERROR);
+			goto out;
+		}
+
+		offset += size;
+		bytes  -= size;
+
+		if (bytes == 0) {
+			;
+		} else if (bytes <= PAGE_SIZE) {
+			size = bytes;
+			if (pci_nvme_append_iov_req(sc, req, cmd->prp2,
+			    size, is_write, offset)) {
+				pci_nvme_status_genc(status,
+				    NVME_SC_DATA_TRANSFER_ERROR);
+				goto out;
+			}
+		} else {
+			void *vmctx = sc->nsc_pi->pi_vmctx;
+			uint64_t *prp_list = &cmd->prp2;
+			uint64_t *last = prp_list;
+
+			/* PRP2 is pointer to a physical region page list */
+			while (bytes) {
+				/* Last entry in list points to the next list */
+				if (prp_list == last) {
+					uint64_t prp = *prp_list;
+
+					prp_list = paddr_guest2host(vmctx, prp,
+					    PAGE_SIZE - (prp % PAGE_SIZE));
+					last = prp_list + (NVME_PRP2_ITEMS - 1);
+				}
+
+				size = MIN(bytes, PAGE_SIZE);
+
+				if (pci_nvme_append_iov_req(sc, req, *prp_list,
+				    size, is_write, offset)) {
+					pci_nvme_status_genc(status,
+					    NVME_SC_DATA_TRANSFER_ERROR);
+					goto out;
+				}
+
+				offset += size;
+				bytes  -= size;
+
+				prp_list++;
+			}
+		}
+		req->io_req.br_callback = pci_nvme_io_done;
+		if (is_write)
+			err = blockif_write(nvstore->ctx, &req->io_req);
+		else
+			err = blockif_read(nvstore->ctx, &req->io_req);
+
+		if (err)
+			pci_nvme_status_genc(status, NVME_SC_DATA_TRANSFER_ERROR);
+		else
+			pending = true;
+	}
+out:
+	return (pending);
+}
+
 static void
 pci_nvme_dealloc_sm(struct blockif_req *br, int err)
 {
@@ -1421,14 +1538,15 @@ pci_nvme_dealloc_sm(struct blockif_req *br, int err)
 	}
 }
 
-static int
+static bool
 nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
     struct nvme_command *cmd,
     struct pci_nvme_blockstore *nvstore,
     struct pci_nvme_ioreq *req,
     uint16_t *status)
 {
-	int err = -1;
+	int err;
+	bool pending = false;
 
 	if ((sc->ctrldata.oncs & NVME_ONCS_DSM) == 0) {
 		pci_nvme_status_genc(status, NVME_SC_INVALID_OPCODE);
@@ -1463,9 +1581,6 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
 		    (uint8_t *)range, NVME_MAX_DSM_TRIM, NVME_COPY_FROM_PRP);
 
-		req->opc = cmd->opc;
-		req->cid = cmd->cid;
-		req->nsid = cmd->nsid;
 		/*
 		 * If the request is for more than a single range, store
 		 * the ranges in the br_iov. Optimize for the common case
@@ -1501,11 +1616,13 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		err = blockif_delete(nvstore->ctx, &req->io_req);
 		if (err)
 			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
+		else
+			pending = true;
 
 		free(range);
 	}
 out:
-	return (err);
+	return (pending);
 }
 
 static void
@@ -1514,7 +1631,6 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 	struct nvme_submission_queue *sq;
 	uint16_t status;
 	uint16_t sqhead;
-	int err;
 
 	/* handle all submissions up to sq->tail index */
 	sq = &sc->submit_queues[idx];
@@ -1531,189 +1647,69 @@ pci_nvme_handle_io_cmd(struct pci_nvme_softc* sc, uint16_t idx)
 
 	while (sqhead != atomic_load_acq_short(&sq->tail)) {
 		struct nvme_command *cmd;
-		struct pci_nvme_ioreq *req = NULL;
-		uint64_t lba;
-		uint64_t nblocks, bytes, size, cpsz;
+		struct pci_nvme_ioreq *req;
+		uint32_t nsid;
+		bool pending;
 
-		/* TODO: support scatter gather list handling */
+		pending = false;
+		req = NULL;
+		status = 0;
 
 		cmd = &sq->qbase[sqhead];
 		sqhead = (sqhead + 1) % sq->size;
 
-		lba = ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10;
-
-		if (cmd->opc == NVME_OPC_FLUSH) {
-			pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
-			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
-			                        status, 1);
-
-			continue;
-		} else if (cmd->opc == 0x08) {
-			/* TODO: write zeroes */
-			WPRINTF("%s write zeroes lba 0x%lx blocks %u",
-			        __func__, lba, cmd->cdw12 & 0xFFFF);
-			pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
-			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
-			                        status, 1);
-
-			continue;
-		}
-
-		if (sc->nvstore.type == NVME_STOR_BLOCKIF) {
-			req = pci_nvme_get_ioreq(sc);
-			req->nvme_sq = sq;
-			req->sqid = idx;
-		}
-
-		if (cmd->opc == NVME_OPC_DATASET_MANAGEMENT) {
-			if (nvme_opc_dataset_mgmt(sc, cmd, &sc->nvstore, req,
-			    &status)) {
-				pci_nvme_set_completion(sc, sq, idx, cmd->cid,
-				    0, status, 1);
-				if (req)
-					pci_nvme_release_ioreq(sc, req);
-			}
-			continue;
-		}
-
-		nblocks = (cmd->cdw12 & 0xFFFF) + 1;
-
-		bytes = nblocks * sc->nvstore.sectsz;
-
-		/*
-		 * If data starts mid-page and flows into the next page, then
-		 * increase page count
-		 */
-
-		DPRINTF("[h%u:t%u:n%u] %s starting LBA 0x%lx blocks %lu "
-		         "(%lu-bytes)",
-		         sqhead==0 ? sq->size-1 : sqhead-1, sq->tail, sq->size,
-		         cmd->opc == NVME_OPC_WRITE ?
-			     "WRITE" : "READ",
-		         lba, nblocks, bytes);
-
-		cmd->prp1 &= ~(0x03UL);
-		cmd->prp2 &= ~(0x03UL);
-
-		DPRINTF(" prp1 0x%lx prp2 0x%lx", cmd->prp1, cmd->prp2);
-
-		size = bytes;
-		lba *= sc->nvstore.sectsz;
-
-		cpsz = PAGE_SIZE - (cmd->prp1 % PAGE_SIZE);
-
-		if (cpsz > bytes)
-			cpsz = bytes;
-
-		if (req != NULL) {
-			req->io_req.br_offset = ((uint64_t)cmd->cdw11 << 32) |
-			                        cmd->cdw10;
-			req->opc = cmd->opc;
-			req->cid = cmd->cid;
-			req->nsid = cmd->nsid;
-		}
-
-		err = pci_nvme_append_iov_req(sc, req, cmd->prp1, cpsz,
-		    cmd->opc == NVME_OPC_WRITE, lba);
-		lba += cpsz;
-		size -= cpsz;
-
-		if (size == 0)
-			goto iodone;
-
-		if (size <= PAGE_SIZE) {
-			/* prp2 is second (and final) page in transfer */
-
-			err = pci_nvme_append_iov_req(sc, req, cmd->prp2,
-			    size,
-			    cmd->opc == NVME_OPC_WRITE,
-			    lba);
-		} else {
-			uint64_t *prp_list;
-			int i;
-
-			/* prp2 is pointer to a physical region page list */
-			prp_list = paddr_guest2host(sc->nsc_pi->pi_vmctx,
-			                            cmd->prp2, PAGE_SIZE);
-
-			i = 0;
-			while (size != 0) {
-				cpsz = MIN(size, PAGE_SIZE);
-
-				/*
-				 * Move to linked physical region page list
-				 * in last item.
-				 */ 
-				if (i == (NVME_PRP2_ITEMS-1) &&
-				    size > PAGE_SIZE) {
-					assert((prp_list[i] & (PAGE_SIZE-1)) == 0);
-					prp_list = paddr_guest2host(
-					              sc->nsc_pi->pi_vmctx,
-					              prp_list[i], PAGE_SIZE);
-					i = 0;
-				}
-				if (prp_list[i] == 0) {
-					WPRINTF("PRP2[%d] = 0 !!!", i);
-					err = 1;
-					break;
-				}
-
-				err = pci_nvme_append_iov_req(sc, req,
-				    prp_list[i], cpsz,
-				    cmd->opc == NVME_OPC_WRITE, lba);
-				if (err)
-					break;
-
-				lba += cpsz;
-				size -= cpsz;
-				i++;
-			}
-		}
-
-iodone:
-		if (sc->nvstore.type == NVME_STOR_RAM) {
-			uint16_t code, status;
-
-			code = err ? NVME_SC_LBA_OUT_OF_RANGE :
-			    NVME_SC_SUCCESS;
-			pci_nvme_status_genc(&status, code);
-
-			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
-			                        status, 1);
-
-			continue;
-		}
-
-
-		if (err)
-			goto do_error;
-
-		req->io_req.br_callback = pci_nvme_io_done;
-
-		err = 0;
-		switch (cmd->opc) {
-		case NVME_OPC_READ:
-			err = blockif_read(sc->nvstore.ctx, &req->io_req);
-			break;
-		case NVME_OPC_WRITE:
-			err = blockif_write(sc->nvstore.ctx, &req->io_req);
-			break;
-		default:
-			WPRINTF("%s unhandled io command 0x%x",
-				 __func__, cmd->opc);
-			err = 1;
-		}
-
-do_error:
-		if (err) {
-			uint16_t status;
-
+		nsid = le32toh(cmd->nsid);
+		if ((nsid == 0) || (nsid > sc->ctrldata.nn)) {
 			pci_nvme_status_genc(&status,
-			    NVME_SC_DATA_TRANSFER_ERROR);
+			    NVME_SC_INVALID_NAMESPACE_OR_FORMAT);
+			status |=
+			    NVME_STATUS_DNR_MASK << NVME_STATUS_DNR_SHIFT;
+			goto complete;
+ 		}
 
+		req = pci_nvme_get_ioreq(sc);
+		if (req == NULL) {
+			pci_nvme_status_genc(&status,
+			    NVME_SC_INTERNAL_DEVICE_ERROR);
+			WPRINTF("%s: unable to allocate IO req", __func__);
+			goto complete;
+		}
+		req->nvme_sq = sq;
+		req->sqid = idx;
+		req->opc = cmd->opc;
+		req->cid = cmd->cid;
+		req->nsid = cmd->nsid;
+
+		switch (cmd->opc) {
+		case NVME_OPC_FLUSH:
+			pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
+ 			break;
+		case NVME_OPC_WRITE:
+		case NVME_OPC_READ:
+			pending = nvme_opc_write_read(sc, cmd, &sc->nvstore,
+			    req, &status);
+			break;
+		case NVME_OPC_WRITE_ZEROES:
+			/* TODO: write zeroes
+			WPRINTF("%s write zeroes lba 0x%lx blocks %u",
+			        __func__, lba, cmd->cdw12 & 0xFFFF); */
+			pci_nvme_status_genc(&status, NVME_SC_SUCCESS);
+			break;
+		case NVME_OPC_DATASET_MANAGEMENT:
+ 			pending = nvme_opc_dataset_mgmt(sc, cmd, &sc->nvstore,
+			    req, &status);
+			break;
+ 		default:
+ 			WPRINTF("%s unhandled io command 0x%x",
+			    __func__, cmd->opc);
+			pci_nvme_status_genc(&status, NVME_SC_INVALID_OPCODE);
+		}
+complete:
+		if (!pending) {
 			pci_nvme_set_completion(sc, sq, idx, cmd->cid, 0,
-			                        status, 1);
-			pci_nvme_release_ioreq(sc, req);
+			    status, 1);
+			if (req != NULL)
+				pci_nvme_release_ioreq(sc, req);
 		}
 	}
 
