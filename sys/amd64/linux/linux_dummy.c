@@ -138,7 +138,6 @@ DUMMY(sched_getattr);
 /* Linux 3.15: */
 DUMMY(kexec_file_load);
 /* Linux 3.17: */
-DUMMY(memfd_create);
 DUMMY(seccomp);
 /* Linux 3.18: */
 DUMMY(bpf);
