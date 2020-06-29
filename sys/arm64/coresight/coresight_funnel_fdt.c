@@ -93,6 +93,7 @@ funnel_fdt_attach(device_t dev)
 static device_method_t funnel_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		funnel_fdt_probe),
+	DEVMETHOD(device_attach,	funnel_fdt_attach),
 	DEVMETHOD_END
 };
 
