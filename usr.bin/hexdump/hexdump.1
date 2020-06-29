@@ -28,7 +28,7 @@
 .\"	@(#)hexdump.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2014
+.Dd June 29, 2020
 .Dt HEXDUMP 1
 .Os
 .Sh NAME
@@ -242,8 +242,7 @@ Output characters in the default character set.
 Nonprinting characters are displayed as a single
 .Dq Cm \&. .
 .It Cm _u
-Output US
-.Tn ASCII
+Output US ASCII
 characters, with the exception that control characters are
 displayed using the following, lower-case, names.
 Characters greater than 0xff, hexadecimal, are displayed as hexadecimal
@@ -330,18 +329,59 @@ option.
 .Sh EXIT STATUS
 .Ex -std hexdump hd
 .Sh EXAMPLES
-Display the input in perusal format:
+Dump input in canonical (hex+ASCII) form:
+.Bd -literal -offset indent
+$ echo "FreeBSD: The power to serve" | hexdump -C
+00000000  46 72 65 65 42 53 44 3a  20 54 68 65 20 70 6f 77  |FreeBSD: The pow|
+00000010  65 72 20 74 6f 20 73 65  72 76 65 0a              |er to serve.|
+0000001c
+.Ed
+.Pp
+Same as above but skipping the first 4 bytes of stdin and interpreting only 3
+bytes of input:
+.Bd -literal -offset indent
+$ echo "FreeBSD: The power to serve" | hexdump -C -s 4 -n 3
+00000004  42 53 44                                          |BSD|
+00000007
+.Ed
+.Pp
+Assuming a format file named
+.Pa format.txt
+with the following contents that specify a perusal format:
 .Bd -literal -offset indent
 "%06.6_ao "  12/1 "%3_u "
 "\et\et" "%_p "
 "\en"
 .Ed
 .Pp
-Implement the \-x option:
+Dump input in canonical form using the format in
+.Pa format.txt :
+.Bd -literal -offset indent
+$ echo "FreeBSD" | hexdump -f format.txt -C
+000000   F   r   e   e   B   S   D  lf                          F r e e B S D .
+00000000  46 72 65 65 42 53 44 0a                           |FreeBSD.|
+00000008
+.Ed
+.Pp
+Assuming a format file named
+.Pa format.txt
+with the following contents that simulate the
+.Fl x
+option:
 .Bd -literal -offset indent
 "%07.7_Ax\en"
 "%07.7_ax  " 8/2 "%04x " "\en"
 .Ed
+.Pp
+Dump input in canonical form using the format in
+.Pa format.txt :
+.Bd -literal -offset indent
+$ echo "FreeBSD: The power to serve" | hexdump -f format.txt -C
+0000000  7246 6565 5342 3a44 5420 6568 7020 776f
+00000000  46 72 65 65 42 53 44 3a  20 54 68 65 20 70 6f 77  |FreeBSD: The pow|
+0000010  7265 7420 206f 6573 7672 0a65
+00000010  65 72 20 74 6f 20 73 65  72 76 65 0a              |er to serve.|
+0000001c
+.Ed
 .Sh SEE ALSO
-.Xr gdb 1 ,
 .Xr od 1
