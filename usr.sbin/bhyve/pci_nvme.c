@@ -1529,6 +1529,34 @@ pci_nvme_stats_write_read_update(struct pci_nvme_softc *sc, uint8_t opc,
 	pthread_mutex_unlock(&sc->mtx);
 }
 
+/*
+ * Check if the combination of Starting LBA (slba) and Number of Logical
+ * Blocks (nlb) exceeds the range of the underlying storage.
+ *
+ * Because NVMe specifies the SLBA in blocks as a uint64_t and blockif stores
+ * the capacity in bytes as a uint64_t, care must be taken to avoid integer
+ * overflow.
+ */
+static bool
+pci_nvme_out_of_range(struct pci_nvme_blockstore *nvstore, uint64_t slba,
+    uint32_t nlb)
+{
+	size_t	offset, bytes;
+
+	/* Overflow check of multiplying Starting LBA by the sector size */
+	if (slba >> (64 - nvstore->sectsz_bits))
+		return (true);
+
+	offset = slba << nvstore->sectsz_bits;
+	bytes = nlb << nvstore->sectsz_bits;
+
+	/* Overflow check of Number of Logical Blocks */
+	if ((nvstore->size - offset) < bytes)
+		return (true);
+
+	return (false);
+}
+
 static int
 pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 	uint64_t gpaddr, size_t size, int do_write, uint64_t lba)
@@ -1830,20 +1858,20 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 
 	lba = ((uint64_t)cmd->cdw11 << 32) | cmd->cdw10;
 	nblocks = (cmd->cdw12 & 0xFFFF) + 1;
+	if (pci_nvme_out_of_range(nvstore, lba, nblocks)) {
+		WPRINTF("%s command would exceed LBA range", __func__);
+		pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+		goto out;
+	}
 
-	bytes  = nblocks * nvstore->sectsz;
+	bytes  = nblocks << nvstore->sectsz_bits;
 	if (bytes > NVME_MAX_DATA_SIZE) {
 		WPRINTF("%s command would exceed MDTS", __func__);
 		pci_nvme_status_genc(status, NVME_SC_INVALID_FIELD);
 		goto out;
 	}
 
-	offset = lba * nvstore->sectsz;
-	if ((offset + bytes) > nvstore->size) {
-		WPRINTF("%s command would exceed LBA range", __func__);
-		pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
-		goto out;
-	}
+	offset = lba << nvstore->sectsz_bits;
 
 	req->bytes = bytes;
 	req->io_req.br_offset = lba;
@@ -1921,8 +1949,9 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 
 	if (cmd->cdw11 & NVME_DSM_ATTR_DEALLOCATE) {
 		struct nvme_dsm_range *range;
+		size_t offset, bytes;
 		uint32_t nr, r;
-		int sectsz = sc->nvstore.sectsz;
+		int sectsz_bits = sc->nvstore.sectsz_bits;
 
 		/*
 		 * DSM calls are advisory only, and compliant controllers
@@ -1947,10 +1976,13 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
 		    (uint8_t *)range, NVME_MAX_DSM_TRIM, NVME_COPY_FROM_PRP);
 
-		if ((range[0].starting_lba * sectsz) > nvstore->size) {
+		if (pci_nvme_out_of_range(nvstore, range[0].starting_lba,
+		    range[0].length)) {
 			pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
 			goto out;
 		}
+		offset = range[0].starting_lba << sectsz_bits;
+		bytes = range[0].length << sectsz_bits;
 
 		/*
 		 * If the request is for more than a single range, store
@@ -1962,8 +1994,8 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		nr = cmd->cdw10 & 0xff;
 
 		req->io_req.br_iovcnt = 0;
-		req->io_req.br_offset = range[0].starting_lba * sectsz;
-		req->io_req.br_resid = range[0].length * sectsz;
+		req->io_req.br_offset = offset;
+		req->io_req.br_resid = bytes;
 
 		if (nr == 0) {
 			req->io_req.br_callback = pci_nvme_io_done;
@@ -1971,12 +2003,19 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 			struct iovec *iov = req->io_req.br_iov;
 
 			for (r = 0; r <= nr; r++) {
-				if ((range[r].starting_lba * sectsz) > nvstore->size) {
+				if (pci_nvme_out_of_range(nvstore, range[r].starting_lba,
+				    range[r].length)) {
 					pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
 					goto out;
 				}
-				iov[r].iov_base = (void *)(range[r].starting_lba * sectsz);
-				iov[r].iov_len = range[r].length * sectsz;
+				offset = range[r].starting_lba << sectsz_bits;
+				bytes = range[r].length << sectsz_bits;
+				if ((nvstore->size - offset) < bytes) {
+					pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+					goto out;
+				}
+				iov[r].iov_base = (void *)offset;
+				iov[r].iov_len = bytes;
 			}
 			req->io_req.br_callback = pci_nvme_dealloc_sm;
 
