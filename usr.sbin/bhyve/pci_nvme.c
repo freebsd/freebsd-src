@@ -251,6 +251,11 @@ struct nvme_feature_obj {
 
 #define NVME_FID_MAX		(NVME_FEAT_ENDURANCE_GROUP_EVENT_CONFIGURATION + 1)
 
+struct pci_nvme_aer {
+	STAILQ_ENTRY(pci_nvme_aer) link;
+	uint16_t	cid;	/* Command ID of the submitted AER */
+};
+
 struct pci_nvme_softc {
 	struct pci_devinst *nsc_pi;
 
@@ -296,6 +301,9 @@ struct pci_nvme_softc {
 	__uint128_t	write_commands;
 	uint32_t	read_dunits_remainder;
 	uint32_t	write_dunits_remainder;
+
+	STAILQ_HEAD(, pci_nvme_aer) aer_list;
+	uint32_t	aer_count;
 };
 
 
@@ -604,6 +612,93 @@ pci_nvme_init_features(struct pci_nvme_softc *sc)
 }
 
 static void
+pci_nvme_aer_init(struct pci_nvme_softc *sc)
+{
+
+	STAILQ_INIT(&sc->aer_list);
+	sc->aer_count = 0;
+}
+
+static void
+pci_nvme_aer_destroy(struct pci_nvme_softc *sc)
+{
+	struct pci_nvme_aer *aer = NULL;
+
+	while (!STAILQ_EMPTY(&sc->aer_list)) {
+		aer = STAILQ_FIRST(&sc->aer_list);
+		STAILQ_REMOVE_HEAD(&sc->aer_list, link);
+		free(aer);
+	}
+
+	pci_nvme_aer_init(sc);
+}
+
+static bool
+pci_nvme_aer_available(struct pci_nvme_softc *sc)
+{
+
+	return (!STAILQ_EMPTY(&sc->aer_list));
+}
+
+static bool
+pci_nvme_aer_limit_reached(struct pci_nvme_softc *sc)
+{
+	struct nvme_controller_data *cd = &sc->ctrldata;
+
+	/* AERL is a zero based value while aer_count is one's based */
+	return (sc->aer_count == (cd->aerl + 1));
+}
+
+/*
+ * Add an Async Event Request
+ *
+ * Stores an AER to be returned later if the Controller needs to notify the
+ * host of an event.
+ * Note that while the NVMe spec doesn't require Controllers to return AER's
+ * in order, this implementation does preserve the order.
+ */
+static int
+pci_nvme_aer_add(struct pci_nvme_softc *sc, uint16_t cid)
+{
+	struct pci_nvme_aer *aer = NULL;
+
+	if (pci_nvme_aer_limit_reached(sc))
+		return (-1);
+
+	aer = calloc(1, sizeof(struct pci_nvme_aer));
+	if (aer == NULL)
+		return (-1);
+
+	sc->aer_count++;
+
+	/* Save the Command ID for use in the completion message */
+	aer->cid = cid;
+	STAILQ_INSERT_TAIL(&sc->aer_list, aer, link);
+
+	return (0);
+}
+
+/*
+ * Get an Async Event Request structure
+ *
+ * Returns a pointer to an AER previously submitted by the host or NULL if
+ * no AER's exist. Caller is responsible for freeing the returned struct.
+ */
+static struct pci_nvme_aer *
+pci_nvme_aer_get(struct pci_nvme_softc *sc)
+{
+	struct pci_nvme_aer *aer = NULL;
+
+	aer = STAILQ_FIRST(&sc->aer_list);
+	if (aer != NULL) {
+		STAILQ_REMOVE_HEAD(&sc->aer_list, link);
+		sc->aer_count--;
+	}
+	
+	return (aer);
+}
+
+static void
 pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
 	uint32_t i;
@@ -641,6 +736,8 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 	}
 
 	sc->num_q_is_set = false;
+
+	pci_nvme_aer_destroy(sc);
 }
 
 static void
@@ -1376,13 +1473,26 @@ nvme_opc_async_event_req(struct pci_nvme_softc* sc,
 {
 	DPRINTF("%s async event request 0x%x", __func__, command->cdw11);
 
+	/* Don't exceed the Async Event Request Limit (AERL). */
+	if (pci_nvme_aer_limit_reached(sc)) {
+		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
+				NVME_SC_ASYNC_EVENT_REQUEST_LIMIT_EXCEEDED);
+		return (1);
+	}
+
+	if (pci_nvme_aer_add(sc, command->cid)) {
+		pci_nvme_status_tc(&compl->status, NVME_SCT_GENERIC,
+				NVME_SC_INTERNAL_DEVICE_ERROR);
+		return (1);
+	}
+
 	/*
-	 * TODO: raise events when they happen based on the Set Features cmd.
+	 * Raise events when they happen based on the Set Features cmd.
 	 * These events happen async, so only set completion successful if
 	 * there is an event reflective of the request to get event.
 	 */
-	pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
-	    NVME_SC_ASYNC_EVENT_REQUEST_LIMIT_EXCEEDED);
+	compl->status = NVME_NO_STATUS;
+
 	return (0);
 }
 
@@ -1449,10 +1559,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			break;
 		case NVME_OPC_ASYNC_EVENT_REQUEST:
 			DPRINTF("%s command ASYNC_EVENT_REQ", __func__);
-			/* XXX dont care, unhandled for now
 			nvme_opc_async_event_req(sc, cmd, &compl);
-			*/
-			compl.status = NVME_NO_STATUS;
 			break;
 		case NVME_OPC_FORMAT_NVM:
 			DPRINTF("%s command FORMAT_NVM", __func__);
@@ -2619,6 +2726,8 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_nvme_init_ctrldata(sc);
 	pci_nvme_init_logpages(sc);
 	pci_nvme_init_features(sc);
+
+	pci_nvme_aer_init(sc);
 
 	pci_nvme_reset(sc);
 
