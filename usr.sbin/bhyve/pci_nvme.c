@@ -218,6 +218,7 @@ struct pci_nvme_ioreq {
 
 	uint64_t	prev_gpaddr;
 	size_t		prev_size;
+	size_t		bytes;
 
 	struct blockif_req io_req;
 
@@ -287,6 +288,14 @@ struct pci_nvme_softc {
 	struct nvme_feature_obj feat[NVME_FID_MAX];
 
 	enum nvme_dsm_type dataset_management;
+
+	/* Accounting for SMART data */
+	__uint128_t	read_data_units;
+	__uint128_t	write_data_units;
+	__uint128_t	read_commands;
+	__uint128_t	write_commands;
+	uint32_t	read_dunits_remainder;
+	uint32_t	write_dunits_remainder;
 };
 
 
@@ -576,6 +585,10 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 	memset(&sc->err_log, 0, sizeof(sc->err_log));
 	memset(&sc->health_log, 0, sizeof(sc->health_log));
 	memset(&sc->fw_log, 0, sizeof(sc->fw_log));
+
+	/* Set read/write remainder to round up according to spec */
+	sc->read_dunits_remainder = 999;
+	sc->write_dunits_remainder = 999;
 }
 
 static void
@@ -961,7 +974,17 @@ nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_HEALTH_INFORMATION:
-		/* TODO: present some smart info */
+		pthread_mutex_lock(&sc->mtx);
+		memcpy(&sc->health_log.data_units_read, &sc->read_data_units,
+		    sizeof(sc->health_log.data_units_read));
+		memcpy(&sc->health_log.data_units_written, &sc->write_data_units,
+		    sizeof(sc->health_log.data_units_written));
+		memcpy(&sc->health_log.host_read_commands, &sc->read_commands,
+		    sizeof(sc->health_log.host_read_commands));
+		memcpy(&sc->health_log.host_write_commands, &sc->write_commands,
+		    sizeof(sc->health_log.host_write_commands));
+		pthread_mutex_unlock(&sc->mtx);
+
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
 		    command->prp2, (uint8_t *)&sc->health_log,
 		    MIN(logsize, sizeof(sc->health_log)),
@@ -1465,6 +1488,47 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 	pthread_mutex_unlock(&sq->mtx);
 }
 
+/*
+ * Update the Write and Read statistics reported in SMART data
+ *
+ * NVMe defines "data unit" as thousand's of 512 byte blocks and is rounded up.
+ * E.g. 1 data unit is 1 - 1,000 512 byte blocks. 3 data units are 2,001 - 3,000
+ * 512 byte blocks. Rounding up is acheived by initializing the remainder to 999.
+ */
+static void
+pci_nvme_stats_write_read_update(struct pci_nvme_softc *sc, uint8_t opc,
+    size_t bytes, uint16_t status)
+{
+
+	pthread_mutex_lock(&sc->mtx);
+	switch (opc) {
+	case NVME_OPC_WRITE:
+		sc->write_commands++;
+		if (status != NVME_SC_SUCCESS)
+			break;
+		sc->write_dunits_remainder += (bytes / 512);
+		while (sc->write_dunits_remainder >= 1000) {
+			sc->write_data_units++;
+			sc->write_dunits_remainder -= 1000;
+		}
+		break;
+	case NVME_OPC_READ:
+		sc->read_commands++;
+		if (status != NVME_SC_SUCCESS)
+			break;
+		sc->read_dunits_remainder += (bytes / 512);
+		while (sc->read_dunits_remainder >= 1000) {
+			sc->read_data_units++;
+			sc->read_dunits_remainder -= 1000;
+		}
+		break;
+	default:
+		DPRINTF("%s: Invalid OPC 0x%02x for stats", __func__, opc);
+		break;
+	}
+	pthread_mutex_unlock(&sc->mtx);
+}
+
 static int
 pci_nvme_append_iov_req(struct pci_nvme_softc *sc, struct pci_nvme_ioreq *req,
 	uint64_t gpaddr, size_t size, int do_write, uint64_t lba)
@@ -1605,6 +1669,8 @@ pci_nvme_io_done(struct blockif_req *br, int err)
 	pci_nvme_status_genc(&status, code);
 
 	pci_nvme_set_completion(req->sc, sq, req->sqid, req->cid, 0, status);
+	pci_nvme_stats_write_read_update(req->sc, req->opc,
+	    req->bytes, status);
 	pci_nvme_release_ioreq(req->sc, req);
 }
 
@@ -1779,6 +1845,7 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 		goto out;
 	}
 
+	req->bytes = bytes;
 	req->io_req.br_offset = lba;
 
 	/* PRP bits 1:0 must be zero */
@@ -1796,6 +1863,9 @@ nvme_opc_write_read(struct pci_nvme_softc *sc,
 			pending = true;
 	}
 out:
+	if (!pending)
+		pci_nvme_stats_write_read_update(sc, cmd->opc, bytes, *status);
+
 	return (pending);
 }
 
