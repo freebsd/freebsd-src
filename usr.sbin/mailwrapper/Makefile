@@ -31,9 +31,9 @@ SYMLINKS+=	..${BINDIR}/mailwrapper /bin/rmail
 # dma(8) are installed and simply provide a default that can be changed for an
 # alternative in ports.
 .if ${MK_SENDMAIL} != "no" || ${MK_DMAGENT} == "no"
-FILES=		${SRCTOP}/etc/mail/mailer.conf
-FILESDIR=	/etc/mail
-FILESMODE=	644
+CONFS=		${SRCTOP}/etc/mail/mailer.conf
+CONFSDIR=	/etc/mail
+CONFSMODE=	644
 .endif
 .endif
 
