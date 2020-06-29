@@ -165,9 +165,6 @@ int bsd_to_linux_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
 int linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
     size_t mapcnt, int no_value);
 
-#define	bsd_to_linux_bits(_val, _bmap, _noval) \
-    bsd_to_linux_bits_((_val), (_bmap), nitems((_bmap)), (_noval))
-
 /*
  * These functions are used for simplification of BSD <-> Linux bit conversions.
  * Given `value`, a bit field, these functions will walk the given bitmap table
@@ -176,6 +173,8 @@ int linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
  * represented with the bit values appropriate for the target platform.
  * Otherwise, the value supplied as `no_value` is returned.
  */
+#define	bsd_to_linux_bits(_val, _bmap, _noval) \
+    bsd_to_linux_bits_((_val), (_bmap), nitems((_bmap)), (_noval))
 #define	linux_to_bsd_bits(_val, _bmap, _noval) \
     linux_to_bsd_bits_((_val), (_bmap), nitems((_bmap)), (_noval))
 
