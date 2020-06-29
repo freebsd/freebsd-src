@@ -564,4 +564,20 @@ linux_ratelimited(linux_ratelimit_t *rl)
 #define	__is_constexpr(x) \
 	__builtin_constant_p(x)
 
+#define	is_signed(x) (((x)-1 / (x)2) == (x)0)
+
+#define	type_max(x) (						\
+  (sizeof(x) >= 8) ? (is_signed(x) ? INT64_MAX : UINT64_MAX) :	\
+  (sizeof(x) >= 4) ? (is_signed(x) ? INT32_MAX : UINT32_MAX) :	\
+  (sizeof(x) >= 2) ? (is_signed(x) ? INT16_MAX : UINT16_MAX) :	\
+		     (is_signed(x) ? INT8_MAX : UINT8_MAX)	\
+)
+
+#define	type_min(x) (					\
+  (sizeof(x) >= 8) ? (is_signed(x) ? INT64_MIN : 0) :	\
+  (sizeof(x) >= 4) ? (is_signed(x) ? INT32_MIN : 0) :	\
+  (sizeof(x) >= 2) ? (is_signed(x) ? INT16_MIN : 0) :	\
+		     (is_signed(x) ? INT8_MIN : 0)	\
+)
+
 #endif	/* _LINUX_KERNEL_H_ */
