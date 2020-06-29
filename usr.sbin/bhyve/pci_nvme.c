@@ -356,6 +356,10 @@ static void nvme_feature_num_queues(struct pci_nvme_softc *,
     struct nvme_feature_obj *,
     struct nvme_command *,
     struct nvme_completion *);
+static void nvme_feature_iv_config(struct pci_nvme_softc *,
+    struct nvme_feature_obj *,
+    struct nvme_command *,
+    struct nvme_completion *);
 
 static __inline void
 cpywithpad(char *dst, size_t dst_size, const char *src, char pad)
@@ -612,6 +616,8 @@ pci_nvme_init_features(struct pci_nvme_softc *sc)
 	sc->feat[NVME_FEAT_LBA_RANGE_TYPE].namespace_specific = true;
 	sc->feat[NVME_FEAT_ERROR_RECOVERY].namespace_specific = true;
 	sc->feat[NVME_FEAT_NUMBER_OF_QUEUES].set = nvme_feature_num_queues;
+	sc->feat[NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION].set =
+	    nvme_feature_iv_config;
 }
 
 static void
@@ -1273,6 +1279,39 @@ nvme_feature_invalid_cb(struct pci_nvme_softc *sc,
 {
 
 	pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+}
+
+static void
+nvme_feature_iv_config(struct pci_nvme_softc *sc,
+    struct nvme_feature_obj *feat,
+    struct nvme_command *command,
+    struct nvme_completion *compl)
+{
+	uint32_t i;
+	uint32_t cdw11 = command->cdw11;
+	uint16_t iv;
+	bool cd;
+
+	pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+
+	iv = cdw11 & 0xffff;
+	cd = cdw11 & (1 << 16);
+
+	if (iv > (sc->max_queues + 1)) {
+		return;
+	}
+
+	/* No Interrupt Coalescing (i.e. not Coalescing Disable) for Admin Q */
+	if ((iv == 0) && !cd)
+		return;
+
+	/* Requested Interrupt Vector must be used by a CQ */
+	for (i = 0; i < sc->num_cqueues + 1; i++) {
+		if (sc->compl_queues[i].intr_vec == iv) {
+			pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
+		}
+	}
+
 }
 
 static void
