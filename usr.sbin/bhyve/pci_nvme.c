@@ -2098,6 +2098,8 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
     struct pci_nvme_ioreq *req,
     uint16_t *status)
 {
+	struct nvme_dsm_range *range;
+	uint32_t nr, r, non_zero, dr;
 	int err;
 	bool pending = false;
 
@@ -2106,10 +2108,31 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		goto out;
 	}
 
+	nr = cmd->cdw10 & 0xff;
+
+	/* copy locally because a range entry could straddle PRPs */
+	range = calloc(1, NVME_MAX_DSM_TRIM);
+	if (range == NULL) {
+		pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
+		goto out;
+	}
+	nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
+	    (uint8_t *)range, NVME_MAX_DSM_TRIM, NVME_COPY_FROM_PRP);
+
+	/* Check for invalid ranges and the number of non-zero lengths */
+	non_zero = 0;
+	for (r = 0; r <= nr; r++) {
+		if (pci_nvme_out_of_range(nvstore,
+		    range[r].starting_lba, range[r].length)) {
+			pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+			goto out;
+		}
+		if (range[r].length != 0)
+			non_zero++;
+	}
+
 	if (cmd->cdw11 & NVME_DSM_ATTR_DEALLOCATE) {
-		struct nvme_dsm_range *range;
 		size_t offset, bytes;
-		uint32_t nr, r;
 		int sectsz_bits = sc->nvstore.sectsz_bits;
 
 		/*
@@ -2121,25 +2144,17 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 			goto out;
 		}
 
+		/* If all ranges have a zero length, return Success */
+		if (non_zero == 0) {
+			pci_nvme_status_genc(status, NVME_SC_SUCCESS);
+			goto out;
+		}
+
 		if (req == NULL) {
 			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
 			goto out;
 		}
 
-		/* copy locally because a range entry could straddle PRPs */
-		range = calloc(1, NVME_MAX_DSM_TRIM);
-		if (range == NULL) {
-			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
-			goto out;
-		}
-		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, cmd->prp1, cmd->prp2,
-		    (uint8_t *)range, NVME_MAX_DSM_TRIM, NVME_COPY_FROM_PRP);
-
-		if (pci_nvme_out_of_range(nvstore, range[0].starting_lba,
-		    range[0].length)) {
-			pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
-			goto out;
-		}
 		offset = range[0].starting_lba << sectsz_bits;
 		bytes = range[0].length << sectsz_bits;
 
@@ -2150,8 +2165,6 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		 *
 		 * Note that NVMe Number of Ranges is a zero based value
 		 */
-		nr = cmd->cdw10 & 0xff;
-
 		req->io_req.br_iovcnt = 0;
 		req->io_req.br_offset = offset;
 		req->io_req.br_resid = bytes;
@@ -2161,20 +2174,20 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 		} else {
 			struct iovec *iov = req->io_req.br_iov;
 
-			for (r = 0; r <= nr; r++) {
-				if (pci_nvme_out_of_range(nvstore, range[r].starting_lba,
-				    range[r].length)) {
-					pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
-					goto out;
-				}
+			for (r = 0, dr = 0; r <= nr; r++) {
 				offset = range[r].starting_lba << sectsz_bits;
 				bytes = range[r].length << sectsz_bits;
+				if (bytes == 0)
+					continue;
+
 				if ((nvstore->size - offset) < bytes) {
-					pci_nvme_status_genc(status, NVME_SC_LBA_OUT_OF_RANGE);
+					pci_nvme_status_genc(status,
+					    NVME_SC_LBA_OUT_OF_RANGE);
 					goto out;
 				}
-				iov[r].iov_base = (void *)offset;
-				iov[r].iov_len = bytes;
+				iov[dr].iov_base = (void *)offset;
+				iov[dr].iov_len = bytes;
+				dr++;
 			}
 			req->io_req.br_callback = pci_nvme_dealloc_sm;
 
@@ -2183,7 +2196,7 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 			 * prev_size to track the number of entries
 			 */
 			req->prev_gpaddr = 0;
-			req->prev_size = r;
+			req->prev_size = dr;
 		}
 
 		err = blockif_delete(nvstore->ctx, &req->io_req);
@@ -2191,10 +2204,9 @@ nvme_opc_dataset_mgmt(struct pci_nvme_softc *sc,
 			pci_nvme_status_genc(status, NVME_SC_INTERNAL_DEVICE_ERROR);
 		else
 			pending = true;
-
-		free(range);
 	}
 out:
+	free(range);
 	return (pending);
 }
 
