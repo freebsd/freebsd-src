@@ -329,16 +329,6 @@ pci_nvme_status_genc(uint16_t *status, uint16_t code)
 	pci_nvme_status_tc(status, NVME_SCT_GENERIC, code);
 }
 
-static __inline void
-pci_nvme_toggle_phase(uint16_t *status, int prev)
-{
-
-	if (prev)
-		*status &= ~NVME_STATUS_P;
-	else
-		*status |= NVME_STATUS_P;
-}
-
 /*
  * Initialize the requested number or IO Submission and Completion Queues.
  * Admin queues are allocated implicitly.
@@ -617,6 +607,7 @@ pci_nvme_init_controller(struct vmctx *ctx, struct pci_nvme_softc *sc)
 	sc->compl_queues[0].size = acqs;
 	sc->compl_queues[0].qbase = vm_map_gpa(ctx, sc->regs.acq,
 	         sizeof(struct nvme_completion) * acqs);
+
 	DPRINTF("%s mapping Admin-CQ guest 0x%lx, host: %p",
 	        __func__, sc->regs.acq, sc->compl_queues[0].qbase);
 }
@@ -666,6 +657,45 @@ nvme_prp_memcpy(struct vmctx *ctx, uint64_t prp1, uint64_t prp2, uint8_t *b,
 		memcpy(b, p, len);
 
 	return (0);
+}
+
+/*
+ * Write a Completion Queue Entry update
+ *
+ * Write the completion and update the doorbell value
+ */
+static void
+pci_nvme_cq_update(struct pci_nvme_softc *sc,
+		struct nvme_completion_queue *cq,
+		uint32_t cdw0,
+		uint16_t cid,
+		uint16_t sqid,
+		uint16_t status)
+{
+	struct nvme_submission_queue *sq = &sc->submit_queues[sqid];
+	struct nvme_completion *cqe;
+
+	assert(cq->qbase != NULL);
+
+	pthread_mutex_lock(&cq->mtx);
+
+	cqe = &cq->qbase[cq->tail];
+
+	/* Flip the phase bit */
+	status |= (cqe->status ^ NVME_STATUS_P) & NVME_STATUS_P_MASK;
+
+	cqe->cdw0 = cdw0;
+	cqe->sqhd = sq->head;
+	cqe->sqid = sqid;
+	cqe->cid = cid;
+	cqe->status = status;
+
+	cq->tail++;
+	if (cq->tail >= cq->size) {
+		cq->tail = 0;
+	}
+
+	pthread_mutex_unlock(&cq->mtx);
 }
 
 static int
@@ -757,6 +787,7 @@ static int
 nvme_opc_create_io_cq(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
+
 	if (command->cdw11 & NVME_CMD_CDW11_PC) {
 		uint16_t qid = command->cdw10 & 0xffff;
 		struct nvme_completion_queue *ncq;
@@ -1191,24 +1222,11 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 		sqhead = (sqhead + 1) % sq->size;
 
 		if (NVME_COMPLETION_VALID(compl)) {
-			struct nvme_completion *cp;
-			int phase;
-
-			pthread_mutex_lock(&cq->mtx);
-
-			cp = &(cq->qbase)[cq->tail];
-			cp->cdw0 = compl.cdw0;
-			cp->sqid = 0;
-			cp->sqhd = sqhead;
-			cp->cid = cmd->cid;
-
-			phase = NVME_STATUS_GET_P(cp->status);
-			cp->status = compl.status;
-			pci_nvme_toggle_phase(&cp->status, phase);
-
-			cq->tail = (cq->tail + 1) % cq->size;
-
-			pthread_mutex_unlock(&cq->mtx);
+			pci_nvme_cq_update(sc, &sc->compl_queues[0],
+			    compl.cdw0,
+			    cmd->cid,
+			    0,		/* SQID */
+			    compl.status);
 		}
 	}
 
@@ -1311,32 +1329,16 @@ pci_nvme_set_completion(struct pci_nvme_softc *sc,
 	uint32_t cdw0, uint16_t status)
 {
 	struct nvme_completion_queue *cq = &sc->compl_queues[sq->cqid];
-	struct nvme_completion *compl;
-	int phase;
 
 	DPRINTF("%s sqid %d cqid %u cid %u status: 0x%x 0x%x",
 		 __func__, sqid, sq->cqid, cid, NVME_STATUS_GET_SCT(status),
 		 NVME_STATUS_GET_SC(status));
 
-	pthread_mutex_lock(&cq->mtx);
-
-	assert(cq->qbase != NULL);
-
-	compl = &cq->qbase[cq->tail];
-
-	compl->cdw0 = cdw0;
-	compl->sqid = sqid;
-	compl->sqhd = sq->head;
-	compl->cid = cid;
-
-	// toggle phase
-	phase = NVME_STATUS_GET_P(compl->status);
-	compl->status = status;
-	pci_nvme_toggle_phase(&compl->status, phase);
-
-	cq->tail = (cq->tail + 1) % cq->size;
-
-	pthread_mutex_unlock(&cq->mtx);
+	pci_nvme_cq_update(sc, cq,
+	    0,		/* CDW0 */
+	    cid,
+	    sqid,
+	    status);
 
 	if (cq->head != cq->tail) {
 		if (cq->intr_en & NVME_CQ_INTEN) {
