@@ -96,16 +96,7 @@ dotg_fdt_attach(device_t dev)
 	/* initialise some bus fields */
 	sc->sc_mode = DWC_MODE_HOST;
 	sc->sc_bus.parent = dev;
-	sc->sc_bus.devices = sc->sc_devices;
-	sc->sc_bus.devices_max = DWC_OTG_MAX_DEVICES;
-	sc->sc_bus.dma_bits = 32;
 
-	/* get all DMA memory */
-	if (usb_bus_mem_alloc_all(&sc->sc_bus,
-	    USB_GET_DMA_TAG(dev), NULL)) {
-		printf("No mem\n");
-		return (ENOMEM);
-	}
 	rid = 0;
 	sc->sc_io_res =
 	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -113,9 +104,6 @@ dotg_fdt_attach(device_t dev)
 		printf("Can`t alloc MEM\n");
 		goto error;
 	}
-	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
-	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
-	sc->sc_io_size = rman_get_size(sc->sc_io_res);
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
@@ -131,15 +119,6 @@ dotg_fdt_attach(device_t dev)
 		goto error;
 	}
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
-
-	err = bus_setup_intr(dev, sc->sc_irq_res,
-	    INTR_TYPE_TTY | INTR_MPSAFE, dwc_otg_filter_interrupt,
-	    dwc_otg_interrupt, sc, &sc->sc_intr_hdl);
-	if (err) {
-		sc->sc_intr_hdl = NULL;
-		printf("Can`t set IRQ handle\n");
-		goto error;
-	}
 
 	err = dwc_otg_init(sc);
 	if (err) printf("dotg_init fail\n");
