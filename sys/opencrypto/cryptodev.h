@@ -326,13 +326,6 @@ struct crypt_kop {
 #define	CIOCFINDDEV	_IOWR('c', 108, struct crypt_find_op)
 #define	CIOCCRYPTAEAD	_IOWR('c', 109, struct crypt_aead)
 
-struct cryptotstat {
-	struct timespec	acc;		/* total accumulated time */
-	struct timespec	min;		/* min time */
-	struct timespec	max;		/* max time */
-	u_int32_t	count;		/* number of observations */
-};
-
 struct cryptostats {
 	u_int32_t	cs_ops;		/* symmetric crypto ops submitted */
 	u_int32_t	cs_errs;	/* symmetric crypto ops that failed */
@@ -342,16 +335,6 @@ struct cryptostats {
 	u_int32_t	cs_rets;	/* crypto return thread activations */
 	u_int32_t	cs_blocks;	/* symmetric op driver block */
 	u_int32_t	cs_kblocks;	/* symmetric op driver block */
-	/*
-	 * When CRYPTO_TIMING is defined at compile time and the
-	 * sysctl debug.crypto is set to 1, the crypto system will
-	 * accumulate statistics about how long it takes to process
-	 * crypto requests at various points during processing.
-	 */
-	struct cryptotstat cs_invoke;	/* crypto_dipsatch -> crypto_invoke */
-	struct cryptotstat cs_done;	/* crypto_invoke -> crypto_done */
-	struct cryptotstat cs_cb;	/* crypto_done -> callback */
-	struct cryptotstat cs_finis;	/* callback -> callback return */
 };
 
 #ifdef _KERNEL
