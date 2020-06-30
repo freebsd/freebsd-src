@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1998 Doug Rabson
  * Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+ * Copyright (c) 2020 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -177,23 +178,17 @@ acpi_print_gas(ACPI_GENERIC_ADDRESS *gas)
 {
 	switch(gas->SpaceId) {
 	case ACPI_GAS_MEMORY:
-		if (gas->BitWidth <= 32)
-			printf("0x%08x:%u[%u] (Memory)",
-			    (u_int)gas->Address, gas->BitOffset,
-			    gas->BitWidth);
-		else
-			printf("0x%016jx:%u[%u] (Memory)",
-			    (uintmax_t)gas->Address, gas->BitOffset,
-			    gas->BitWidth);
+		printf("0x%016jx:%u[%u] (Memory)", (uintmax_t)gas->Address,
+		    gas->BitOffset, gas->BitWidth);
 		break;
 	case ACPI_GAS_IO:
-		printf("0x%02x:%u[%u] (IO)", (u_int)gas->Address,
+		printf("0x%02jx:%u[%u] (IO)", (uintmax_t)gas->Address,
 		    gas->BitOffset, gas->BitWidth);
 		break;
 	case ACPI_GAS_PCI:
-		printf("%x:%x+0x%x (PCI)", (uint16_t)(gas->Address >> 32),
+		printf("%x:%x+0x%x:%u[%u] (PCI)", (uint16_t)(gas->Address >> 32),
 		       (uint16_t)((gas->Address >> 16) & 0xffff),
-		       (uint16_t)gas->Address);
+		       (uint16_t)gas->Address, gas->BitOffset, gas->BitWidth);
 		break;
 	/* XXX How to handle these below? */
 	case ACPI_GAS_EMBEDDED:
@@ -594,6 +589,269 @@ acpi_handle_madt(ACPI_TABLE_HEADER *sdp)
 }
 
 static void
+acpi_handle_bert(ACPI_TABLE_HEADER *sdp)
+{
+	ACPI_TABLE_BERT *bert;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	bert = (ACPI_TABLE_BERT *)sdp;
+	printf("\tRegionLength=%d\n", bert->RegionLength);
+	printf("\tAddress=0x%016jx\n", bert->Address);
+	printf(END_COMMENT);
+}
+
+static void
+acpi_print_whea(ACPI_WHEA_HEADER *w)
+{
+
+	printf("\n\tAction=%d\n", w->Action);
+	printf("\tInstruction=%d\n", w->Instruction);
+	printf("\tFlags=%02x\n", w->Flags);
+	printf("\tRegisterRegion=");
+	acpi_print_gas(&w->RegisterRegion);
+	printf("\n\tValue=0x%016jx\n", w->Value);
+	printf("\tMask=0x%016jx\n", w->Mask);
+}
+
+static void
+acpi_handle_einj(ACPI_TABLE_HEADER *sdp)
+{
+	ACPI_TABLE_EINJ *einj;
+	ACPI_WHEA_HEADER *w;
+	u_int i;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	einj = (ACPI_TABLE_EINJ *)sdp;
+	printf("\tHeaderLength=%d\n", einj->HeaderLength);
+	printf("\tFlags=0x%02x\n", einj->Flags);
+	printf("\tEntries=%d\n", einj->Entries);
+	w = (ACPI_WHEA_HEADER *)(einj + 1);
+	for (i = 0; i < MIN(einj->Entries, (sdp->Length -
+	    sizeof(ACPI_TABLE_EINJ)) / sizeof(ACPI_WHEA_HEADER)); i++)
+		acpi_print_whea(w + i);
+	printf(END_COMMENT);
+}
+
+static void
+acpi_handle_erst(ACPI_TABLE_HEADER *sdp)
+{
+	ACPI_TABLE_ERST *erst;
+	ACPI_WHEA_HEADER *w;
+	u_int i;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	erst = (ACPI_TABLE_ERST *)sdp;
+	printf("\tHeaderLength=%d\n", erst->HeaderLength);
+	printf("\tEntries=%d\n", erst->Entries);
+	w = (ACPI_WHEA_HEADER *)(erst + 1);
+	for (i = 0; i < MIN(erst->Entries, (sdp->Length -
+	    sizeof(ACPI_TABLE_ERST)) / sizeof(ACPI_WHEA_HEADER)); i++)
+		acpi_print_whea(w + i);
+	printf(END_COMMENT);
+}
+
+static void
+acpi_print_hest_bank(ACPI_HEST_IA_ERROR_BANK *b)
+{
+
+	printf("\tBank:\n");
+	printf("\t\tBankNumber=%d\n", b->BankNumber);
+	printf("\t\tClearStatusOnInit=%d\n", b->ClearStatusOnInit);
+	printf("\t\tStatusFormat=%d\n", b->StatusFormat);
+	printf("\t\tControlRegister=%x\n", b->ControlRegister);
+	printf("\t\tControlData=%jx\n", b->ControlData);
+	printf("\t\tStatusRegister=%x\n", b->StatusRegister);
+	printf("\t\tAddressRegister=%x\n", b->AddressRegister);
+	printf("\t\tMiscRegister=%x\n", b->MiscRegister);
+}
+
+static void
+acpi_print_hest_notify(ACPI_HEST_NOTIFY *n)
+{
+
+	printf("\t\tType=%d\n", n->Type);
+	printf("\t\tLength=%d\n", n->Length);
+	printf("\t\tConfigWriteEnable=%04x\n", n->ConfigWriteEnable);
+	printf("\t\tPollInterval=%d\n", n->PollInterval);
+	printf("\t\tVector=%d\n", n->Vector);
+	printf("\t\tPollingThresholdValue=%d\n", n->PollingThresholdValue);
+	printf("\t\tPollingThresholdWindow=%d\n", n->PollingThresholdWindow);
+	printf("\t\tErrorThresholdValue=%d\n", n->ErrorThresholdValue);
+	printf("\t\tErrorThresholdWindow=%d\n", n->ErrorThresholdWindow);
+}
+
+static void
+acpi_print_hest_aer(ACPI_HEST_AER_COMMON *a)
+{
+
+	printf("\tFlags=%02x\n", a->Flags);
+	printf("\tEnabled=%d\n", a->Enabled);
+	printf("\tRecordsToPreallocate=%d\n", a->RecordsToPreallocate);
+	printf("\tMaxSectionsPerRecord=%d\n", a->MaxSectionsPerRecord);
+	printf("\tBus=%d\n", a->Bus);
+	printf("\tDevice=%d\n", a->Device);
+	printf("\tFunction=%d\n", a->Function);
+	printf("\tDeviceControl=%d\n", a->DeviceControl);
+	printf("\tUncorrectableMask=%d\n", a->UncorrectableMask);
+	printf("\tUncorrectableSeverity=%d\n", a->UncorrectableSeverity);
+	printf("\tCorrectableMask=%d\n", a->CorrectableMask);
+	printf("\tAdvancedCapabilities=%d\n", a->AdvancedCapabilities);
+}
+
+static int
+acpi_handle_hest_structure(void *addr, int remaining)
+{
+	ACPI_HEST_HEADER *hdr = addr;
+	int i;
+
+	if (remaining < (int)sizeof(ACPI_HEST_HEADER))
+		return (-1);
+
+	printf("\n\tType=%d\n", hdr->Type);
+	printf("\tSourceId=%d\n", hdr->SourceId);
+	switch (hdr->Type) {
+	case ACPI_HEST_TYPE_IA32_CHECK: {
+		ACPI_HEST_IA_MACHINE_CHECK *s = addr;
+		printf("\tFlags=%02x\n", s->Flags);
+		printf("\tEnabled=%d\n", s->Enabled);
+		printf("\tRecordsToPreallocate=%d\n", s->RecordsToPreallocate);
+		printf("\tMaxSectionsPerRecord=%d\n", s->MaxSectionsPerRecord);
+		printf("\tGlobalCapabilityData=%jd\n", s->GlobalCapabilityData);
+		printf("\tGlobalControlData=%jd\n", s->GlobalControlData);
+		printf("\tNumHardwareBanks=%d\n", s->NumHardwareBanks);
+		for (i = 0; i < s->NumHardwareBanks; i++) {
+			acpi_print_hest_bank((ACPI_HEST_IA_ERROR_BANK *)
+			    (s + 1) + i);
+		}
+		return (sizeof(*s) + s->NumHardwareBanks *
+		    sizeof(ACPI_HEST_IA_ERROR_BANK));
+	}
+	case ACPI_HEST_TYPE_IA32_CORRECTED_CHECK: {
+		ACPI_HEST_IA_CORRECTED *s = addr;
+		printf("\tFlags=%02x\n", s->Flags);
+		printf("\tEnabled=%d\n", s->Enabled);
+		printf("\tRecordsToPreallocate=%d\n", s->RecordsToPreallocate);
+		printf("\tMaxSectionsPerRecord=%d\n", s->MaxSectionsPerRecord);
+		printf("\tNotify:\n");
+		acpi_print_hest_notify(&s->Notify);
+		printf("\tNumHardwareBanks=%d\n", s->NumHardwareBanks);
+		for (i = 0; i < s->NumHardwareBanks; i++) {
+			acpi_print_hest_bank((ACPI_HEST_IA_ERROR_BANK *)
+			    (s + 1) + i);
+		}
+		return (sizeof(*s) + s->NumHardwareBanks *
+		    sizeof(ACPI_HEST_IA_ERROR_BANK));
+	}
+	case ACPI_HEST_TYPE_IA32_NMI: {
+		ACPI_HEST_IA_NMI *s = addr;
+		printf("\tRecordsToPreallocate=%d\n", s->RecordsToPreallocate);
+		printf("\tMaxSectionsPerRecord=%d\n", s->MaxSectionsPerRecord);
+		printf("\tMaxRawDataLength=%d\n", s->MaxRawDataLength);
+		return (sizeof(*s));
+	}
+	case ACPI_HEST_TYPE_AER_ROOT_PORT: {
+		ACPI_HEST_AER_ROOT *s = addr;
+		acpi_print_hest_aer(&s->Aer);
+		printf("\tRootErrorCommand=%d\n", s->RootErrorCommand);
+		return (sizeof(*s));
+	}
+	case ACPI_HEST_TYPE_AER_ENDPOINT: {
+		ACPI_HEST_AER *s = addr;
+		acpi_print_hest_aer(&s->Aer);
+		return (sizeof(*s));
+	}
+	case ACPI_HEST_TYPE_AER_BRIDGE: {
+		ACPI_HEST_AER_BRIDGE *s = addr;
+		acpi_print_hest_aer(&s->Aer);
+		printf("\tUncorrectableMask2=%d\n", s->UncorrectableMask2);
+		printf("\tUncorrectableSeverity2=%d\n", s->UncorrectableSeverity2);
+		printf("\tAdvancedCapabilities2=%d\n", s->AdvancedCapabilities2);
+		return (sizeof(*s));
+	}
+	case ACPI_HEST_TYPE_GENERIC_ERROR: {
+		ACPI_HEST_GENERIC *s = addr;
+		printf("\tRelatedSourceId=%d\n", s->RelatedSourceId);
+		printf("\tEnabled=%d\n", s->Enabled);
+		printf("\tRecordsToPreallocate=%d\n", s->RecordsToPreallocate);
+		printf("\tMaxSectionsPerRecord=%d\n", s->MaxSectionsPerRecord);
+		printf("\tMaxRawDataLength=%d\n", s->MaxRawDataLength);
+		printf("\tErrorStatusAddress=");
+		acpi_print_gas(&s->ErrorStatusAddress);
+		printf("\n");
+		printf("\tNotify:\n");
+		acpi_print_hest_notify(&s->Notify);
+		printf("\tErrorBlockLength=%d\n", s->ErrorBlockLength);
+		return (sizeof(*s));
+	}
+	case ACPI_HEST_TYPE_GENERIC_ERROR_V2: {
+		ACPI_HEST_GENERIC_V2 *s = addr;
+		printf("\tRelatedSourceId=%d\n", s->RelatedSourceId);
+		printf("\tEnabled=%d\n", s->Enabled);
+		printf("\tRecordsToPreallocate=%d\n", s->RecordsToPreallocate);
+		printf("\tMaxSectionsPerRecord=%d\n", s->MaxSectionsPerRecord);
+		printf("\tMaxRawDataLength=%d\n", s->MaxRawDataLength);
+		printf("\tErrorStatusAddress=");
+		acpi_print_gas(&s->ErrorStatusAddress);
+		printf("\n");
+		printf("\tNotify:\n");
+		acpi_print_hest_notify(&s->Notify);
+		printf("\tErrorBlockLength=%d\n", s->ErrorBlockLength);
+		printf("\tReadAckRegister=");
+		acpi_print_gas(&s->ReadAckRegister);
+		printf("\n");
+		printf("\tReadAckPreserve=%jd\n", s->ReadAckPreserve);
+		printf("\tReadAckWrite=%jd\n", s->ReadAckWrite);
+		return (sizeof(*s));
+	}
+	case ACPI_HEST_TYPE_IA32_DEFERRED_CHECK: {
+		ACPI_HEST_IA_DEFERRED_CHECK *s = addr;
+		printf("\tFlags=%02x\n", s->Flags);
+		printf("\tEnabled=%d\n", s->Enabled);
+		printf("\tRecordsToPreallocate=%d\n", s->RecordsToPreallocate);
+		printf("\tMaxSectionsPerRecord=%d\n", s->MaxSectionsPerRecord);
+		printf("\tNotify:\n");
+		acpi_print_hest_notify(&s->Notify);
+		printf("\tNumHardwareBanks=%d\n", s->NumHardwareBanks);
+		for (i = 0; i < s->NumHardwareBanks; i++) {
+			acpi_print_hest_bank((ACPI_HEST_IA_ERROR_BANK *)
+			    (s + 1) + i);
+		}
+		return (sizeof(*s) + s->NumHardwareBanks *
+		    sizeof(ACPI_HEST_IA_ERROR_BANK));
+	}
+	default:
+		return (-1);
+	}
+}
+
+static void
+acpi_handle_hest(ACPI_TABLE_HEADER *sdp)
+{
+	char *cp;
+	int remaining, consumed;
+	ACPI_TABLE_HEST *hest;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	hest = (ACPI_TABLE_HEST *)sdp;
+	printf("\tErrorSourceCount=%d\n", hest->ErrorSourceCount);
+
+	remaining = sdp->Length - sizeof(ACPI_TABLE_HEST);
+	while (remaining > 0) {
+		cp = (char *)sdp + sdp->Length - remaining;
+		consumed = acpi_handle_hest_structure(cp, remaining);
+		if (consumed <= 0)
+			break;
+		else
+			remaining -= consumed;
+	}
+	printf(END_COMMENT);
+}
+
+static void
 acpi_handle_hpet(ACPI_TABLE_HEADER *sdp)
 {
 	ACPI_TABLE_HPET *hpet;
@@ -604,7 +862,7 @@ acpi_handle_hpet(ACPI_TABLE_HEADER *sdp)
 	printf("\tHPET Number=%d\n", hpet->Sequence);
 	printf("\tADDR=");
 	acpi_print_gas(&hpet->Address);
-	printf("\tHW Rev=0x%x\n", hpet->Id & ACPI_HPET_ID_HARDWARE_REV_ID);
+	printf("\n\tHW Rev=0x%x\n", hpet->Id & ACPI_HPET_ID_HARDWARE_REV_ID);
 	printf("\tComparators=%d\n", (hpet->Id & ACPI_HPET_ID_COMPARATORS) >>
 	    8);
 	printf("\tCounter Size=%d\n", hpet->Id & ACPI_HPET_ID_COUNT_SIZE_CAP ?
@@ -727,13 +985,14 @@ acpi_print_native_lpit(ACPI_LPIT_NATIVE *nl)
 {
 	printf("\tEntryTrigger=");
 	acpi_print_gas(&nl->EntryTrigger);
-	printf("\tResidency=%u\n", nl->Residency);
+	printf("\n\tResidency=%u\n", nl->Residency);
 	printf("\tLatency=%u\n", nl->Latency);
 	if (nl->Header.Flags & ACPI_LPIT_NO_COUNTER)
 		printf("\tResidencyCounter=Not Present");
 	else {
 		printf("\tResidencyCounter=");
 		acpi_print_gas(&nl->ResidencyCounter);
+		printf("\n");
 	}
 	if (nl->CounterFrequency)
 		printf("\tCounterFrequency=%ju\n", nl->CounterFrequency);
@@ -1762,10 +2021,18 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			    sdp->Signature);
 			continue;
 		}
-		if (!memcmp(sdp->Signature, ACPI_SIG_FADT, 4))
+		if (!memcmp(sdp->Signature, ACPI_SIG_BERT, 4))
+			acpi_handle_bert(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_EINJ, 4))
+			acpi_handle_einj(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_ERST, 4))
+			acpi_handle_erst(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_FADT, 4))
 			acpi_handle_fadt(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_MADT, 4))
 			acpi_handle_madt(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_HEST, 4))
+			acpi_handle_hest(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_HPET, 4))
 			acpi_handle_hpet(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_ECDT, 4))
