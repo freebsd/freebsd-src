@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/linker.h>
@@ -217,9 +217,31 @@ static	void crypto_remove(struct cryptocap *cap);
 static	void crypto_task_invoke(void *ctx, int pending);
 static void crypto_batch_enqueue(struct cryptop *crp);
 
-static	struct cryptostats cryptostats;
-SYSCTL_STRUCT(_kern, OID_AUTO, crypto_stats, CTLFLAG_RW, &cryptostats,
-	    cryptostats, "Crypto system statistics");
+static counter_u64_t cryptostats[sizeof(struct cryptostats) / sizeof(uint64_t)];
+SYSCTL_COUNTER_U64_ARRAY(_kern_crypto, OID_AUTO, stats, CTLFLAG_RW,
+    cryptostats, nitems(cryptostats),
+    "Crypto system statistics");
+
+#define	CRYPTOSTAT_INC(stat) do {					\
+	counter_u64_add(						\
+	    cryptostats[offsetof(struct cryptostats, stat) / sizeof(uint64_t)],\
+	    1);								\
+} while (0)
+
+static void
+cryptostats_init(void *arg __unused)
+{
+	COUNTER_ARRAY_ALLOC(cryptostats, nitems(cryptostats), M_WAITOK);
+}
+SYSINIT(cryptostats_init, SI_SUB_COUNTER, SI_ORDER_ANY, cryptostats_init, NULL);
+
+static void
+cryptostats_fini(void *arg __unused)
+{
+	COUNTER_ARRAY_FREE(cryptostats, nitems(cryptostats));
+}
+SYSUNINIT(cryptostats_fini, SI_SUB_COUNTER, SI_ORDER_ANY, cryptostats_fini,
+    NULL);
 
 /* Try to avoid directly exposing the key buffer as a symbol */
 static struct keybuf *keybuf;
@@ -1004,7 +1026,7 @@ crypto_dispatch(struct cryptop *crp)
 	u_int32_t hid;
 	int result;
 
-	cryptostats.cs_ops++;
+	CRYPTOSTAT_INC(cs_ops);
 
 	crp->crp_retw_id = ((uintptr_t)crp->crp_session) % crypto_workers_num;
 
@@ -1069,7 +1091,7 @@ crypto_kdispatch(struct cryptkop *krp)
 {
 	int error;
 
-	cryptostats.cs_kops++;
+	CRYPTOSTAT_INC(cs_kops);
 
 	error = crypto_kinvoke(krp, krp->krp_crid);
 	if (error == ERESTART) {
@@ -1350,7 +1372,7 @@ crypto_done(struct cryptop *crp)
 		("crypto_done: op already done, flags 0x%x", crp->crp_flags));
 	crp->crp_flags |= CRYPTO_F_DONE;
 	if (crp->crp_etype != 0)
-		cryptostats.cs_errs++;
+		CRYPTOSTAT_INC(cs_errs);
 
 	/*
 	 * CBIMM means unconditionally do the callback immediately;
@@ -1422,7 +1444,7 @@ crypto_kdone(struct cryptkop *krp)
 	struct cryptocap *cap;
 
 	if (krp->krp_status != 0)
-		cryptostats.cs_kerrs++;
+		CRYPTOSTAT_INC(cs_kerrs);
 	CRYPTO_DRIVER_LOCK();
 	/* XXX: What if driver is loaded in the meantime? */
 	if (krp->krp_hid < crypto_drivers_num) {
@@ -1564,7 +1586,7 @@ crypto_proc(void)
 				/* XXX validate sid again? */
 				crypto_drivers[crypto_ses2hid(submit->crp_session)].cc_qblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_q, submit, crp_next);
-				cryptostats.cs_blocks++;
+				CRYPTOSTAT_INC(cs_blocks);
 			}
 		}
 
@@ -1604,7 +1626,7 @@ crypto_proc(void)
 				/* XXX validate sid again? */
 				crypto_drivers[krp->krp_hid].cc_kqblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_kq, krp, krp_next);
-				cryptostats.cs_kblocks++;
+				CRYPTOSTAT_INC(cs_kblocks);
 			}
 		}
 
@@ -1626,7 +1648,7 @@ crypto_proc(void)
 			crp_sleep = 0;
 			if (cryptoproc == NULL)
 				break;
-			cryptostats.cs_intrs++;
+			CRYPTOSTAT_INC(cs_intrs);
 		}
 	}
 	CRYPTO_Q_UNLOCK();
@@ -1687,7 +1709,7 @@ crypto_ret_proc(struct crypto_ret_worker *ret_worker)
 				"crypto_ret_wait", 0);
 			if (ret_worker->cryptoretproc == NULL)
 				break;
-			cryptostats.cs_rets++;
+			CRYPTOSTAT_INC(cs_rets);
 		}
 	}
 	CRYPTO_RETW_UNLOCK(ret_worker);
