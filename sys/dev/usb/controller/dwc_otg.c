@@ -66,6 +66,7 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/rman.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -3873,12 +3874,40 @@ int
 dwc_otg_init(struct dwc_otg_softc *sc)
 {
 	uint32_t temp;
+	int err;
 
 	DPRINTF("start\n");
 
+	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
+	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
+	sc->sc_io_size = rman_get_size(sc->sc_io_res);
+
 	/* set up the bus structure */
+	sc->sc_bus.devices = sc->sc_devices;
+	sc->sc_bus.devices_max = DWC_OTG_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 	sc->sc_bus.usbrev = USB_REV_2_0;
 	sc->sc_bus.methods = &dwc_otg_bus_methods;
+
+	/* get all DMA memory */
+	if (usb_bus_mem_alloc_all(&sc->sc_bus,
+	    USB_GET_DMA_TAG(sc->sc_bus.parent), NULL)) {
+		return (ENOMEM);
+	}
+
+	sc->sc_bus.bdev = device_add_child(sc->sc_bus.parent, "usbus", -1);
+	if (sc->sc_bus.bdev == NULL)
+		return (ENXIO);
+
+	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
+
+	err = bus_setup_intr(sc->sc_bus.parent, sc->sc_irq_res,
+	    INTR_TYPE_TTY | INTR_MPSAFE, &dwc_otg_filter_interrupt,
+	    &dwc_otg_interrupt, sc, &sc->sc_intr_hdl);
+	if (err) {
+		sc->sc_intr_hdl = NULL;
+		return (ENXIO);
+	}
 
 	usb_callout_init_mtx(&sc->sc_timer,
 	    &sc->sc_bus.bus_mtx, 0);

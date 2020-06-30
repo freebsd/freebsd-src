@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -39,9 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+
+#include <dev/acpica/acpivar.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -55,25 +58,27 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_bus.h>
 
 #include <dev/usb/controller/dwc_otg.h>
-#include <dev/usb/controller/dwc_otg_fdt.h>
 
 static device_probe_t dwc_otg_probe;
+static device_attach_t dwc_otg_attach;
+static device_attach_t dwc_otg_detach;
 
-static struct ofw_compat_data compat_data[] = {
-	{ "synopsys,designware-hs-otg2",	1 },
-	{ "snps,dwc2",				1 },
-	{ NULL,					0 }
+static char *dwc_otg_ids[] = {
+	"BCM2848",
+	NULL
 };
 
 static int
 dwc_otg_probe(device_t dev)
 {
+	int rv;
 
-	if (!ofw_bus_status_okay(dev))
+	if (acpi_disabled("dwc_otg"))
 		return (ENXIO);
 
-	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
-		return (ENXIO);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, dwc_otg_ids, NULL);
+	if (rv > 0)
+		return (rv);
 
 	device_set_desc(dev, "DWC OTG 2.0 integrated USB controller");
 
@@ -81,76 +86,34 @@ dwc_otg_probe(device_t dev)
 }
 
 static int
-dwc_otg_irq_index(device_t dev, int *rid)
-{
-	int idx, rv;
-	phandle_t node;
-
-	node = ofw_bus_get_node(dev);
-	rv = ofw_bus_find_string_index(node, "interrupt-names", "usb", &idx);
-	if (rv != 0)
-		return (rv);
-	*rid = idx;
-	return (0);
-}
-
-int
 dwc_otg_attach(device_t dev)
 {
-	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
-	char usb_mode[24];
+	struct dwc_otg_softc *sc = device_get_softc(dev);
 	int err;
 	int rid;
 
-	sc->sc_otg.sc_bus.parent = dev;
+	sc->sc_bus.parent = dev;
 
-	/* get USB mode, if any */
-	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode",
-	    &usb_mode, sizeof(usb_mode)) > 0) {
-
-		/* ensure proper zero termination */
-		usb_mode[sizeof(usb_mode) - 1] = 0;
-
-		if (strcasecmp(usb_mode, "host") == 0)
-			sc->sc_otg.sc_mode = DWC_MODE_HOST;
-		else if (strcasecmp(usb_mode, "peripheral") == 0)
-			sc->sc_otg.sc_mode = DWC_MODE_DEVICE;
-		else if (strcasecmp(usb_mode, "otg") != 0) {
-			device_printf(dev, "Invalid FDT dr_mode: %s\n",
-			    usb_mode);
-		}
-	}
+	/* assume device mode (this is only used for the Raspberry Pi 4's
+	 * USB-C port, which only works in device mode) */
+	sc->sc_mode = DWC_MODE_DEVICE;
 
 	rid = 0;
-	sc->sc_otg.sc_io_res =
+	sc->sc_io_res =
 	    bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 
-	if (!(sc->sc_otg.sc_io_res))
+	if (sc->sc_io_res == NULL)
 		goto error;
 
-	/*
-	 * brcm,bcm2708-usb FDT provides two interrupts, we need only the USB
-	 * interrupt (VC_USB).  The latest FDT for it provides an
-	 * interrupt-names property and swapped them around, while older ones
-	 * did not have interrupt-names and put the usb interrupt in the second
-	 * position.  We'll attempt to use interrupt-names first with a fallback
-	 * to the old method of assuming the index based on the compatible
-	 * string.
-	 */
-	if (dwc_otg_irq_index(dev, &rid) != 0)
-		rid = ofw_bus_is_compatible(dev, "brcm,bcm2708-usb") ? 1 : 0;
-	sc->sc_otg.sc_irq_res =
+	rid = 0;
+	sc->sc_irq_res =
 	    bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
-	if (sc->sc_otg.sc_irq_res == NULL)
+	if (sc->sc_irq_res == NULL)
 		goto error;
 
-	sc->sc_otg.sc_bus.bdev = device_add_child(dev, "usbus", -1);
-	if (sc->sc_otg.sc_bus.bdev == NULL)
-		goto error;
-
-	err = dwc_otg_init(&sc->sc_otg);
+	err = dwc_otg_init(sc);
 	if (err == 0) {
-		err = device_probe_and_attach(sc->sc_otg.sc_bus.bdev);
+		err = device_probe_and_attach(sc->sc_bus.bdev);
 	}
 	if (err)
 		goto error;
@@ -162,37 +125,37 @@ error:
 	return (ENXIO);
 }
 
-int
+static int
 dwc_otg_detach(device_t dev)
 {
-	struct dwc_otg_fdt_softc *sc = device_get_softc(dev);
+	struct dwc_otg_softc *sc = device_get_softc(dev);
 
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 
-	if (sc->sc_otg.sc_irq_res && sc->sc_otg.sc_intr_hdl) {
+	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call dwc_otg_uninit() after dwc_otg_init()
 		 */
-		dwc_otg_uninit(&sc->sc_otg);
+		dwc_otg_uninit(sc);
 
-		bus_teardown_intr(dev, sc->sc_otg.sc_irq_res,
-		    sc->sc_otg.sc_intr_hdl);
-		sc->sc_otg.sc_intr_hdl = NULL;
+		bus_teardown_intr(dev, sc->sc_irq_res,
+		    sc->sc_intr_hdl);
+		sc->sc_intr_hdl = NULL;
 	}
 	/* free IRQ channel, if any */
-	if (sc->sc_otg.sc_irq_res) {
+	if (sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0,
-		    sc->sc_otg.sc_irq_res);
-		sc->sc_otg.sc_irq_res = NULL;
+		    sc->sc_irq_res);
+		sc->sc_irq_res = NULL;
 	}
 	/* free memory resource, if any */
-	if (sc->sc_otg.sc_io_res) {
+	if (sc->sc_io_res) {
 		bus_release_resource(dev, SYS_RES_MEMORY, 0,
-		    sc->sc_otg.sc_io_res);
-		sc->sc_otg.sc_io_res = NULL;
+		    sc->sc_io_res);
+		sc->sc_io_res = NULL;
 	}
-	usb_bus_mem_free_all(&sc->sc_otg.sc_bus, NULL);
+	usb_bus_mem_free_all(&sc->sc_bus, NULL);
 
 	return (0);
 }
@@ -209,13 +172,13 @@ static device_method_t dwc_otg_methods[] = {
 	DEVMETHOD_END
 };
 
-driver_t dwc_otg_driver = {
+static driver_t dwc_otg_driver = {
 	.name = "dwcotg",
 	.methods = dwc_otg_methods,
-	.size = sizeof(struct dwc_otg_fdt_softc),
+	.size = sizeof(struct dwc_otg_softc),
 };
 
 static devclass_t dwc_otg_devclass;
 
-DRIVER_MODULE(dwcotg, simplebus, dwc_otg_driver, dwc_otg_devclass, 0, 0);
+DRIVER_MODULE(dwcotg, acpi, dwc_otg_driver, dwc_otg_devclass, 0, 0);
 MODULE_DEPEND(dwcotg, usb, 1, 1, 1);
