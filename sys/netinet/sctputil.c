@@ -5247,7 +5247,11 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 	if (holds_lock == 0) {
 		SCTP_INP_RUNLOCK(inp);
 	}
-	return (laddr->ifa);
+	if (laddr != NULL) {
+		return (laddr->ifa);
+	} else {
+		return (NULL);
+	}
 }
 
 uint32_t
