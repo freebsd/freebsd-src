@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2019
+.Dd June 27, 2020
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -76,7 +76,7 @@ tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
 Receive Side Steering (RSS), all for both IPv4 and IPv6.
 For further hardware information and questions related to hardware
 requirements, see
-.Pa http://support.intel.com/ .
+.Lk http://support.intel.com/ .
 .Pp
 Support for Jumbo Frames is provided via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
@@ -94,9 +94,9 @@ For more information on configuring this device, see
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
 These tools can be downloaded directly from Intel at
-.Pa downloadcenter.intel.com ,
+.Lk https://downloadcenter.intel.com ,
 by searching for their names, or by installing certain packages:
-.Bl -item
+.Bl -bullet
 .It
 To change the behavior of the QSFP+ ports on XL710 adapters, use the
 Intel QCU (QSFP+ configuration utility); installed by the
@@ -263,7 +263,7 @@ with the -S option.
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
-.Pa http://support.intel.com/ .
+.Lk http://support.intel.com/ .
 .Pp
 If an issue is identified with this driver with a supported adapter,
 email all the specific information related to the issue to
@@ -271,6 +271,7 @@ email all the specific information related to the issue to
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr iavf 4 ,
+.Xr iflib 4 ,
 .Xr netintro 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
