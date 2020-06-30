@@ -1620,6 +1620,28 @@ out:
 }
 
 /*
+ * The point of the following two functions is to work around
+ * an assertion in Chromium; see kern/240991 for details.
+ */
+static int
+linprocfs_dotaskattr(PFS_ATTR_ARGS)
+{
+
+	vap->va_nlink = 3;
+	return (0);
+}
+
+/*
+ * Filler function for proc/<pid>/task/.dummy
+ */
+static int
+linprocfs_dotaskdummy(PFS_FILL_ARGS)
+{
+
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/kernel/random/uuid
  */
 static int
@@ -1758,6 +1780,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "auxv", &linprocfs_doauxv,
 	    NULL, &procfs_candebug, NULL, PFS_RD|PFS_RAWRD);
 	pfs_create_file(dir, "limits", &linprocfs_doproclimits,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/<pid>/task/... */
+	dir = pfs_create_dir(dir, "task", linprocfs_dotaskattr, NULL, NULL, 0);
+	pfs_create_file(dir, ".dummy", &linprocfs_dotaskdummy,
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/scsi/... */
