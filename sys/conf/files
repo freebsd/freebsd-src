@@ -3189,6 +3189,7 @@ dev/uart/uart_tty.c		optional uart
 dev/usb/controller/musb_otg.c		optional musb
 dev/usb/controller/dwc_otg.c		optional dwcotg
 dev/usb/controller/dwc_otg_fdt.c	optional dwcotg fdt
+dev/usb/controller/dwc_otg_acpi.c	optional dwcotg acpi
 dev/usb/controller/ehci.c		optional ehci
 dev/usb/controller/ehci_msm.c		optional ehci_msm fdt
 dev/usb/controller/ehci_pci.c		optional ehci pci
