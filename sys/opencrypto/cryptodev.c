@@ -117,28 +117,6 @@ struct crypt_kop32 {
 	struct crparam32	crk_param[CRK_MAXPARAM];
 };
 
-struct cryptotstat32 {
-	struct timespec32	acc;
-	struct timespec32	min;
-	struct timespec32	max;
-	u_int32_t	count;
-};
-
-struct cryptostats32 {
-	u_int32_t	cs_ops;
-	u_int32_t	cs_errs;
-	u_int32_t	cs_kops;
-	u_int32_t	cs_kerrs;
-	u_int32_t	cs_intrs;
-	u_int32_t	cs_rets;
-	u_int32_t	cs_blocks;
-	u_int32_t	cs_kblocks;
-	struct cryptotstat32 cs_invoke;
-	struct cryptotstat32 cs_done;
-	struct cryptotstat32 cs_cb;
-	struct cryptotstat32 cs_finis;
-};
-
 #define	CIOCGSESSION32	_IOWR('c', 101, struct session_op32)
 #define	CIOCCRYPT32	_IOWR('c', 103, struct crypt_op32)
 #define	CIOCKEY32	_IOWR('c', 104, struct crypt_kop32)
