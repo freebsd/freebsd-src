@@ -327,14 +327,14 @@ struct crypt_kop {
 #define	CIOCCRYPTAEAD	_IOWR('c', 109, struct crypt_aead)
 
 struct cryptostats {
-	u_int32_t	cs_ops;		/* symmetric crypto ops submitted */
-	u_int32_t	cs_errs;	/* symmetric crypto ops that failed */
-	u_int32_t	cs_kops;	/* asymetric/key ops submitted */
-	u_int32_t	cs_kerrs;	/* asymetric/key ops that failed */
-	u_int32_t	cs_intrs;	/* crypto swi thread activations */
-	u_int32_t	cs_rets;	/* crypto return thread activations */
-	u_int32_t	cs_blocks;	/* symmetric op driver block */
-	u_int32_t	cs_kblocks;	/* symmetric op driver block */
+	uint64_t	cs_ops;		/* symmetric crypto ops submitted */
+	uint64_t	cs_errs;	/* symmetric crypto ops that failed */
+	uint64_t	cs_kops;	/* asymetric/key ops submitted */
+	uint64_t	cs_kerrs;	/* asymetric/key ops that failed */
+	uint64_t	cs_intrs;	/* crypto swi thread activations */
+	uint64_t	cs_rets;	/* crypto return thread activations */
+	uint64_t	cs_blocks;	/* symmetric op driver block */
+	uint64_t	cs_kblocks;	/* symmetric op driver block */
 };
 
 #ifdef _KERNEL
