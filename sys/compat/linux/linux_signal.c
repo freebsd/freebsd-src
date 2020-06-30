@@ -102,6 +102,10 @@ linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 		flags &= ~LINUX_SA_RESTART;
 		bsa->sa_flags |= SA_RESTART;
 	}
+	if (lsa->lsa_flags & LINUX_SA_INTERRUPT) {
+		flags &= ~LINUX_SA_INTERRUPT;
+		/* Documented to be a "historical no-op". */
+	}
 	if (lsa->lsa_flags & LINUX_SA_ONESHOT) {
 		flags &= ~LINUX_SA_ONESHOT;
 		bsa->sa_flags |= SA_RESETHAND;
