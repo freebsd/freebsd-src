@@ -395,3 +395,18 @@ arm64/rockchip/clk/rk_clk_pll.c		optional fdt soc_rockchip_rk3328 | fdt soc_rock
 arm64/rockchip/clk/rk3328_cru.c		optional fdt soc_rockchip_rk3328
 arm64/rockchip/clk/rk3399_cru.c		optional fdt soc_rockchip_rk3399
 arm64/rockchip/clk/rk3399_pmucru.c	optional fdt soc_rockchip_rk3399
+
+# i.MX8 Clock support
+arm64/freescale/imx/imx8mq_ccm.c	optional fdt soc_freescale_imx8
+arm64/freescale/imx/clk/imx_clk_gate.c	optional fdt soc_freescale_imx8
+arm64/freescale/imx/clk/imx_clk_mux.c	optional fdt soc_freescale_imx8
+arm64/freescale/imx/clk/imx_clk_composite.c	optional fdt soc_freescale_imx8
+arm64/freescale/imx/clk/imx_clk_sscg_pll.c	optional fdt soc_freescale_imx8
+arm64/freescale/imx/clk/imx_clk_frac_pll.c	optional fdt soc_freescale_imx8
+
+# iMX drivers
+arm/freescale/imx/imx_gpio.c		optional gpio
+arm/freescale/imx/imx_i2c.c		optional fsliic
+arm/freescale/imx/imx_machdep.c		standard
+arm64/freescale/imx/imx7gpc.c		optional fdt soc_freescale_imx8
+dev/ffec/if_ffec.c			optional ffec
