@@ -79,6 +79,9 @@ extern "C" {
 #ifndef OPENSSL_NO_SSL3
 # define OPENSSL_NO_SSL3
 #endif
+#ifndef OPENSSL_NO_SSL3_METHOD
+# define OPENSSL_NO_SSL3_METHOD
+#endif
 #ifndef OPENSSL_NO_UBSAN
 # define OPENSSL_NO_UBSAN
 #endif
