@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -144,7 +145,14 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			cubic_data->flags |= CUBICFLAG_IN_SLOWSTART;
 			newreno_cc_algo.ack_received(ccv, type);
 		} else {
-			ticks_since_cong = ticks - cubic_data->t_last_cong;
+			if ((ticks_since_cong =
+			    ticks - cubic_data->t_last_cong) < 0) {
+				/*
+				 * dragging t_last_cong along
+				 */
+				ticks_since_cong = INT_MAX;
+				cubic_data->t_last_cong = ticks - INT_MAX;
+			}
 
 			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
 						 CUBICFLAG_IN_APPLIMIT)) {
@@ -170,12 +178,14 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 
 			ccv->flags &= ~CCF_ABC_SENTAWND;
 
-			if (w_cubic_next < w_tf)
+			if (w_cubic_next < w_tf) {
 				/*
 				 * TCP-friendly region, follow tf
 				 * cwnd growth.
 				 */
-				CCV(ccv, snd_cwnd) = w_tf;
+				if (CCV(ccv, snd_cwnd) < w_tf)
+					CCV(ccv, snd_cwnd) = ulmin(w_tf, INT_MAX);
+			}
 
 			else if (CCV(ccv, snd_cwnd) < w_cubic_next) {
 				/*
@@ -183,12 +193,14 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				 * cwnd growth.
 				 */
 				if (V_tcp_do_rfc3465)
-					CCV(ccv, snd_cwnd) = w_cubic_next;
+					CCV(ccv, snd_cwnd) = ulmin(w_cubic_next,
+					    INT_MAX);
 				else
-					CCV(ccv, snd_cwnd) += ((w_cubic_next -
+					CCV(ccv, snd_cwnd) += ulmax(1,
+					    ((ulmin(w_cubic_next, INT_MAX) -
 					    CCV(ccv, snd_cwnd)) *
 					    CCV(ccv, t_maxseg)) /
-					    CCV(ccv, snd_cwnd);
+					    CCV(ccv, snd_cwnd));
 			}
 
 			/*

@@ -41,6 +41,8 @@
 #ifndef _NETINET_CC_CUBIC_H_
 #define _NETINET_CC_CUBIC_H_
 
+#include <sys/limits.h>
+
 /* Number of bits of precision for fixed point math calcs. */
 #define	CUBIC_SHIFT		8
 
@@ -69,6 +71,12 @@
 
 /* Don't trust s_rtt until this many rtt samples have been taken. */
 #define	CUBIC_MIN_RTT_SAMPLES	8
+
+/*
+ * (2^21)^3 is long max. Dividing (2^63) by Cubic_C_factor
+ * and taking cube-root yields 448845 as the effective useful limit
+ */
+#define	CUBED_ROOT_MAX_ULONG	448845
 
 /* Userland only bits. */
 #ifndef _KERNEL
@@ -172,7 +180,12 @@ cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
 	/* K is in fixed point form with CUBIC_SHIFT worth of precision. */
 
 	/* t - K, with CUBIC_SHIFT worth of precision. */
-	cwnd = ((int64_t)(ticks_since_cong << CUBIC_SHIFT) - (K * hz)) / hz;
+	cwnd = (((int64_t)ticks_since_cong << CUBIC_SHIFT) - (K * hz)) / hz;
+
+	if (cwnd > CUBED_ROOT_MAX_ULONG)
+		return INT_MAX;
+	if (cwnd < -CUBED_ROOT_MAX_ULONG)
+		return 0;
 
 	/* (t - K)^3, with CUBIC_SHIFT^3 worth of precision. */
 	cwnd *= (cwnd * cwnd);
@@ -183,9 +196,13 @@ cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
 	 * CUBIC_SHIFT included in the value. 3 from the cubing of cwnd above,
 	 * and an extra from multiplying through by CUBIC_C_FACTOR.
 	 */
-	cwnd = ((cwnd * CUBIC_C_FACTOR * smss) >> CUBIC_SHIFT_4) + wmax;
 
-	return ((unsigned long)cwnd);
+	cwnd = ((cwnd * CUBIC_C_FACTOR) >> CUBIC_SHIFT_4) * smss + wmax;
+
+	/*
+	 * for negative cwnd, limiting to zero as lower bound
+	 */
+	return (lmax(0,cwnd));
 }
 
 /*
@@ -223,8 +240,10 @@ tf_cwnd(int ticks_since_cong, int rtt_ticks, unsigned long wmax,
 {
 
 	/* Equation 4 of I-D. */
-	return (((wmax * CUBIC_BETA) + (((THREE_X_PT3 * ticks_since_cong *
-	    smss) << CUBIC_SHIFT) / TWO_SUB_PT3 / rtt_ticks)) >> CUBIC_SHIFT);
+	return (((wmax * CUBIC_BETA) +
+	    (((THREE_X_PT3 * (unsigned long)ticks_since_cong *
+	    (unsigned long)smss) << CUBIC_SHIFT) / (TWO_SUB_PT3 * rtt_ticks)))
+	    >> CUBIC_SHIFT);
 }
 
 #endif /* _NETINET_CC_CUBIC_H_ */
