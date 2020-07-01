@@ -92,6 +92,7 @@ struct cubic {
 	uint32_t	flags;
 #define CUBICFLAG_CONG_EVENT	0x00000001	/* congestion experienced */
 #define CUBICFLAG_IN_SLOWSTART	0x00000002	/* in slow start */
+#define CUBICFLAG_IN_APPLIMIT	0x00000004	/* application limited */
 	/* Minimum observed rtt in ticks. */
 	int		min_rtt_ticks;
 	/* Mean observed rtt between congestion epochs. */
@@ -143,8 +144,10 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 		} else {
 			ticks_since_cong = ticks - cubic_data->t_last_cong;
 
-			if (cubic_data->flags & CUBICFLAG_IN_SLOWSTART) {
-				cubic_data->flags &= ~CUBICFLAG_IN_SLOWSTART;
+			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
+						 CUBICFLAG_IN_APPLIMIT)) {
+				cubic_data->flags &= ~(CUBICFLAG_IN_SLOWSTART |
+						       CUBICFLAG_IN_APPLIMIT);
 				cubic_data->t_last_cong = ticks;
 				cubic_data->K = 0;
 			}
@@ -197,6 +200,9 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd))
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
 		}
+	} else if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
+	    !(ccv->flags & CCF_CWND_LIMITED)) {
+		cubic_data->flags |= CUBICFLAG_IN_APPLIMIT;
 	}
 }
 
