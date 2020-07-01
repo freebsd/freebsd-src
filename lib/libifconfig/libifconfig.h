@@ -49,11 +49,22 @@ typedef struct ifconfig_handle ifconfig_handle_t;
 
 struct carpreq;
 struct ifaddrs;
+struct ifbropreq;
+struct ifbreq;
 struct in6_ndireq;
 struct lagg_reqall;
 struct lagg_reqflags;
 struct lagg_reqopts;
 struct lagg_reqport;
+
+/** Stores extra info associated with a bridge(4) interface */
+struct ifconfig_bridge_status {
+	struct ifbropreq *params;	/**< current operational parameters */
+	struct ifbreq *members;		/**< list of bridge members */
+	size_t members_count;		/**< how many member interfaces */
+	uint32_t cache_size;		/**< size of address cache */
+	uint32_t cache_lifetime;	/**< address cache entry lifetime */
+};
 
 struct ifconfig_capabilities {
 	/** Current capabilities (ifconfig prints this as 'options')*/
@@ -217,6 +228,16 @@ int ifconfig_inet_get_addrinfo(ifconfig_handle_t *h,
 int ifconfig_inet6_get_addrinfo(ifconfig_handle_t *h,
     const char *name, struct ifaddrs *ifa, struct ifconfig_inet6_addr *addr);
 
+/** Retrieve additional information about a bridge(4) interface */
+int ifconfig_bridge_get_bridge_status(ifconfig_handle_t *h,
+    const char *name, struct ifconfig_bridge_status **bridge);
+
+/** Frees the structure returned by ifconfig_bridge_get_bridge_status.  Does
+ * nothing if the argument is NULL
+ * @param bridge	Pointer to the structure to free
+ */
+void ifconfig_bridge_free_bridge_status(struct ifconfig_bridge_status *bridge);
+
 /** Retrieve additional information about a lagg(4) interface */
 int ifconfig_lagg_get_lagg_status(ifconfig_handle_t *h,
     const char *name, struct ifconfig_lagg_status **lagg_status);
@@ -225,8 +246,8 @@ int ifconfig_lagg_get_lagg_status(ifconfig_handle_t *h,
 int ifconfig_lagg_get_laggport_status(ifconfig_handle_t *h,
     const char *name, struct lagg_reqport *rp);
 
-/** Frees the structure returned by ifconfig_lagg_get_status.  Does nothing if
- * the argument is NULL
+/** Frees the structure returned by ifconfig_lagg_get_lagg_status.  Does
+ * nothing if the argument is NULL
  * @param laggstat	Pointer to the structure to free
  */
 void ifconfig_lagg_free_lagg_status(struct ifconfig_lagg_status *laggstat);
