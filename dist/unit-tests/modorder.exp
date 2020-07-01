@@ -1,5 +1,6 @@
 LIST      = one two three four five six seven eight nine ten
 LIST:O    = eight five four nine one seven six ten three two
+LIST:Or    = two three ten six seven one nine four five eight
 LIST:Ox   = Ok
 LIST:O:Ox = Ok
 LISTX     = Ok

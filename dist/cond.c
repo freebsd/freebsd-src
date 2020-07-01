@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.75 2017/04/16 20:59:04 riastradh Exp $	*/
+/*	$NetBSD: cond.c,v 1.76 2020/06/28 11:06:26 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: cond.c,v 1.75 2017/04/16 20:59:04 riastradh Exp $";
+static char rcsid[] = "$NetBSD: cond.c,v 1.76 2020/06/28 11:06:26 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: cond.c,v 1.75 2017/04/16 20:59:04 riastradh Exp $");
+__RCSID("$NetBSD: cond.c,v 1.76 2020/06/28 11:06:26 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -146,7 +146,7 @@ typedef enum {
  * last two fields are stored in condInvert and condDefProc, respectively.
  */
 static void CondPushBack(Token);
-static int CondGetArg(char **, char **, const char *);
+static int CondGetArg(Boolean, char **, char **, const char *);
 static Boolean CondDoDefined(int, const char *);
 static int CondStrMatch(const void *, const void *);
 static Boolean CondDoMake(int, const char *);
@@ -225,9 +225,6 @@ CondPushBack(Token t)
  * CondGetArg --
  *	Find the argument of a built-in function.
  *
- * Input:
- *	parens		TRUE if arg should be bounded by parens
- *
  * Results:
  *	The length of the argument and the address of the argument.
  *
@@ -238,7 +235,7 @@ CondPushBack(Token t)
  *-----------------------------------------------------------------------
  */
 static int
-CondGetArg(char **linePtr, char **argPtr, const char *func)
+CondGetArg(Boolean doEval, char **linePtr, char **argPtr, const char *func)
 {
     char	  *cp;
     int	    	  argLen;
@@ -290,7 +287,8 @@ CondGetArg(char **linePtr, char **argPtr, const char *func)
 	    int		len;
 	    void	*freeIt;
 
-	    cp2 = Var_Parse(cp, VAR_CMD, VARF_UNDEFERR|VARF_WANTRES,
+	    cp2 = Var_Parse(cp, VAR_CMD, VARF_UNDEFERR|
+			    (doEval ? VARF_WANTRES : 0),
 			    &len, &freeIt);
 	    Buf_AddBytes(&buf, strlen(cp2), cp2);
 	    free(freeIt);
@@ -577,7 +575,7 @@ CondGetString(Boolean doEval, Boolean *quoted, void **freeIt, Boolean strictLHS)
 	    /* if we are in quotes, then an undefined variable is ok */
 	    str = Var_Parse(condExpr, VAR_CMD,
 			    ((!qt && doEval) ? VARF_UNDEFERR : 0) |
-			    VARF_WANTRES, &len, freeIt);
+			    (doEval ? VARF_WANTRES : 0), &len, freeIt);
 	    if (str == var_Error) {
 		if (*freeIt) {
 		    free(*freeIt);
@@ -813,7 +811,7 @@ done:
 }
 
 static int
-get_mpt_arg(char **linePtr, char **argPtr, const char *func MAKE_ATTR_UNUSED)
+get_mpt_arg(Boolean doEval, char **linePtr, char **argPtr, const char *func MAKE_ATTR_UNUSED)
 {
     /*
      * Use Var_Parse to parse the spec in parens and return
@@ -827,7 +825,7 @@ get_mpt_arg(char **linePtr, char **argPtr, const char *func MAKE_ATTR_UNUSED)
     /* We do all the work here and return the result as the length */
     *argPtr = NULL;
 
-    val = Var_Parse(cp - 1, VAR_CMD, VARF_WANTRES, &length, &freeIt);
+    val = Var_Parse(cp - 1, VAR_CMD, doEval ? VARF_WANTRES : 0, &length, &freeIt);
     /*
      * Advance *linePtr to beyond the closing ). Note that
      * we subtract one because 'length' is calculated from 'cp - 1'.
@@ -864,7 +862,7 @@ compare_function(Boolean doEval)
     static const struct fn_def {
 	const char  *fn_name;
 	int         fn_name_len;
-        int         (*fn_getarg)(char **, char **, const char *);
+        int         (*fn_getarg)(Boolean, char **, char **, const char *);
 	Boolean     (*fn_proc)(int, const char *);
     } fn_defs[] = {
 	{ "defined",   7, CondGetArg, CondDoDefined },
@@ -892,7 +890,7 @@ compare_function(Boolean doEval)
 	if (*cp != '(')
 	    break;
 
-	arglen = fn_def->fn_getarg(&cp, &arg, fn_def->fn_name);
+	arglen = fn_def->fn_getarg(doEval, &cp, &arg, fn_def->fn_name);
 	if (arglen <= 0) {
 	    condExpr = cp;
 	    return arglen < 0 ? TOK_ERROR : TOK_FALSE;
@@ -917,7 +915,7 @@ compare_function(Boolean doEval)
      * would be invalid if we did "defined(a)" - so instead treat as an
      * expression.
      */
-    arglen = CondGetArg(&cp, &arg, NULL);
+    arglen = CondGetArg(doEval, &cp, &arg, NULL);
     for (cp1 = cp; isspace(*(unsigned char *)cp1); cp1++)
 	continue;
     if (*cp1 == '=' || *cp1 == '!')

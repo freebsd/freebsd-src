@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.274 2020/03/30 02:41:06 sjg Exp $	*/
+/*	$NetBSD: main.c,v 1.276 2020/06/22 20:15:25 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.274 2020/03/30 02:41:06 sjg Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.276 2020/06/22 20:15:25 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.274 2020/03/30 02:41:06 sjg Exp $");
+__RCSID("$NetBSD: main.c,v 1.276 2020/06/22 20:15:25 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1889,6 +1889,8 @@ void
 Finish(int errors)
 	           	/* number of errors encountered in Make_Make */
 {
+	if (dieQuietly(NULL, -1))
+		exit(2);
 	Fatal("%d error%s", errors, errors == 1 ? "" : "s");
 }
 
@@ -2041,12 +2043,37 @@ addErrorCMD(void *cmdp, void *gnp MAKE_ATTR_UNUSED)
     return 0;
 }
 
+/*
+ * Return true if we should die without noise.
+ * For example our failing child was a sub-make
+ * or failure happend elsewhere.
+ */
+int
+dieQuietly(GNode *gn, int bf)
+{
+    static int quietly = -1;
+
+    if (quietly < 0) {
+	if (DEBUG(JOB) || getBoolean(".MAKE.DIE_QUIETLY", 1) == 0)
+	    quietly = 0;
+	else if (bf >= 0)
+	    quietly = bf;
+	else
+	    quietly = (gn) ? ((gn->type  & (OP_MAKE)) != 0) : 0;
+    }
+    return quietly;
+}
+
 void
 PrintOnError(GNode *gn, const char *s)
 {
     static GNode *en = NULL;
     char tmp[64];
     char *cp;
+
+    /* we generally want to keep quiet if a sub-make died */
+    if (dieQuietly(gn, -1))
+	return;
 
     if (s)
 	printf("%s", s);
