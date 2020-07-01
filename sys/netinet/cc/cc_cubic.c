@@ -88,8 +88,10 @@ struct cubic {
 	unsigned long	max_cwnd;
 	/* cwnd at the previous congestion event. */
 	unsigned long	prev_max_cwnd;
-	/* Number of congestion events. */
-	uint32_t	num_cong_events;
+	/* various flags */
+	uint32_t	flags;
+#define CUBICFLAG_CONG_EVENT	0x00000001	/* congestion experienced */
+#define CUBICFLAG_IN_SLOWSTART	0x00000002	/* in slow start */
 	/* Minimum observed rtt in ticks. */
 	int		min_rtt_ticks;
 	/* Mean observed rtt between congestion epochs. */
@@ -135,11 +137,17 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 	    (V_tcp_do_rfc3465 && ccv->flags & CCF_ABC_SENTAWND))) {
 		 /* Use the logic in NewReno ack_received() for slow start. */
 		if (CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
-		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE)
+		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE) {
+			cubic_data->flags |= CUBICFLAG_IN_SLOWSTART;
 			newreno_cc_algo.ack_received(ccv, type);
-		else {
+		} else {
 			ticks_since_cong = ticks - cubic_data->t_last_cong;
 
+			if (cubic_data->flags & CUBICFLAG_IN_SLOWSTART) {
+				cubic_data->flags &= ~CUBICFLAG_IN_SLOWSTART;
+				cubic_data->t_last_cong = ticks;
+				cubic_data->K = 0;
+			}
 			/*
 			 * The mean RTT is used to best reflect the equations in
 			 * the I-D. Using min_rtt in the tf_cwnd calculation
@@ -185,7 +193,7 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			 * keep updating our current estimate of the
 			 * max_cwnd.
 			 */
-			if (cubic_data->num_cong_events == 0 &&
+			if (((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0) &&
 			    cubic_data->max_cwnd < CCV(ccv, snd_cwnd))
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
 		}
@@ -233,9 +241,10 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
 				cubic_ssthresh_update(ccv);
-				cubic_data->num_cong_events++;
+				cubic_data->flags |= CUBICFLAG_CONG_EVENT;
 				cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
 				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
@@ -244,10 +253,11 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 	case CC_ECN:
 		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
 			cubic_ssthresh_update(ccv);
-			cubic_data->num_cong_events++;
+			cubic_data->flags |= CUBICFLAG_CONG_EVENT;
 			cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
 			cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
 			cubic_data->t_last_cong = ticks;
+			cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
 		}
@@ -262,7 +272,7 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		 * congestion.
 		 */
 		if (CCV(ccv, t_rxtshift) >= 2) {
-			cubic_data->num_cong_events++;
+			cubic_data->flags |= CUBICFLAG_CONG_EVENT;
 			cubic_data->t_last_cong = ticks;
 		}
 		break;
@@ -408,7 +418,7 @@ cubic_ssthresh_update(struct cc_var *ccv)
 	 * On the first congestion event, set ssthresh to cwnd * 0.5, on
 	 * subsequent congestion events, set it to cwnd * beta.
 	 */
-	if (cubic_data->num_cong_events == 0)
+	if ((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0)
 		ssthresh = CCV(ccv, snd_cwnd) >> 1;
 	else
 		ssthresh = ((uint64_t)CCV(ccv, snd_cwnd) *
