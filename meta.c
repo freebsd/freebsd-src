@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.81 2020/04/03 03:32:28 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.82 2020/06/25 15:45:37 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -174,14 +174,18 @@ filemon_read(FILE *mfp, int fd)
 	return 0;
     }
     /* rewind */
-    (void)lseek(fd, (off_t)0, SEEK_SET);
+    if (lseek(fd, (off_t)0, SEEK_SET) < 0) {
+	error = errno;
+	warn("Could not rewind filemon");
+	fprintf(mfp, "\n");
+    } else {
+	error = 0;
+	fprintf(mfp, "\n-- filemon acquired metadata --\n");
 
-    error = 0;
-    fprintf(mfp, "\n-- filemon acquired metadata --\n");
-
-    while ((n = read(fd, buf, sizeof(buf))) > 0) {
-	if ((int)fwrite(buf, 1, n, mfp) < n)
-	    error = EIO;
+	while ((n = read(fd, buf, sizeof(buf))) > 0) {
+	    if ((int)fwrite(buf, 1, n, mfp) < n)
+		error = EIO;
+	}
     }
     fflush(mfp);
     if (close(fd) < 0)

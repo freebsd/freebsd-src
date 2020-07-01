@@ -1,7 +1,8 @@
-:
-# $Id: mkopt.sh,v 1.11 2017/03/18 21:36:42 sjg Exp $
+#!/bin/sh
+
+# $Id: mkopt.sh,v 1.12 2020/06/23 04:16:35 sjg Exp $
 #
-#	@(#) Copyright (c) 2014, Simon J. Gerraty
+#	@(#) Copyright (c) 2014, 2020, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.

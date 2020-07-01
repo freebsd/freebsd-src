@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.197 2020/02/06 01:13:19 sjg Exp $	*/
+/*	$NetBSD: job.c,v 1.198 2020/06/19 21:17:48 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.197 2020/02/06 01:13:19 sjg Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.198 2020/06/19 21:17:48 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.197 2020/02/06 01:13:19 sjg Exp $");
+__RCSID("$NetBSD: job.c,v 1.198 2020/06/19 21:17:48 sjg Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1058,10 +1058,11 @@ JobFinish (Job *job, WAIT_T status)
 		    meta_job_error(job, job->node, job->flags, WEXITSTATUS(status));
 		}
 #endif
-		(void)printf("*** [%s] Error code %d%s\n",
-				job->node->name,
-			       WEXITSTATUS(status),
-			       (job->flags & JOB_IGNERR) ? " (ignored)" : "");
+		if (!dieQuietly(job->node, -1))
+		    (void)printf("*** [%s] Error code %d%s\n",
+				 job->node->name,
+				 WEXITSTATUS(status),
+				 (job->flags & JOB_IGNERR) ? " (ignored)" : "");
 		if (job->flags & JOB_IGNERR) {
 		    WAIT_STATUS(status) = 0;
 		} else {
@@ -3039,6 +3040,8 @@ Job_TokenWithdraw(void)
 	/* And put the stopper back */
 	while (write(tokenWaitJob.outPipe, &tok, 1) == -1 && errno == EAGAIN)
 	    continue;
+	if (dieQuietly(NULL, 1))
+	    exit(2);
 	Fatal("A failure has been detected in another branch of the parallel make");
     }
 

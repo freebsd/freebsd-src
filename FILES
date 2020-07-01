@@ -1,5 +1,6 @@
 ChangeLog
 FILES
+LICENSE
 Makefile
 Makefile.config.in
 PSD.doc/Makefile
@@ -107,6 +108,8 @@ unit-tests/cond2.exp
 unit-tests/cond2.mk
 unit-tests/cond-late.mk
 unit-tests/cond-late.exp
+unit-tests/cond-short.mk
+unit-tests/cond-short.exp
 unit-tests/dollar.exp
 unit-tests/dollar.mk
 unit-tests/doterror.exp

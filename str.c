@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.42 2020/05/06 02:30:10 christos Exp $	*/
+/*	$NetBSD: str.c,v 1.48 2020/06/15 14:46:28 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: str.c,v 1.42 2020/05/06 02:30:10 christos Exp $";
+static char rcsid[] = "$NetBSD: str.c,v 1.48 2020/06/15 14:46:28 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
 #else
-__RCSID("$NetBSD: str.c,v 1.42 2020/05/06 02:30:10 christos Exp $");
+__RCSID("$NetBSD: str.c,v 1.48 2020/06/15 14:46:28 rillig Exp $");
 #endif
 #endif				/* not lint */
 #endif
@@ -119,7 +119,7 @@ str_concat(const char *s1, const char *s2, int flags)
 	/* copy second string plus EOS into place */
 	memcpy(result + len1, s2, len2 + 1);
 
-	return(result);
+	return result;
 }
 
 /*-
@@ -304,7 +304,7 @@ Str_FindSubstring(const char *string, const char *substring)
 	 * substring.
 	 */
 
-	for (b = substring; *string != 0; string += 1) {
+	for (b = substring; *string != 0; string++) {
 		if (*string != *b)
 			continue;
 		a = string;
@@ -344,9 +344,9 @@ Str_Match(const char *string, const char *pattern)
 		 * pattern but not at the end of the string, we failed.
 		 */
 		if (*pattern == 0)
-			return(!*string);
+			return !*string;
 		if (*string == 0 && *pattern != '*')
-			return(0);
+			return 0;
 		/*
 		 * Check for a "*" as the next pattern character.  It matches
 		 * any substring.  We handle this by calling ourselves
@@ -354,15 +354,17 @@ Str_Match(const char *string, const char *pattern)
 		 * match or we reach the end of the string.
 		 */
 		if (*pattern == '*') {
-			pattern += 1;
+			pattern++;
+			while (*pattern == '*')
+				pattern++;
 			if (*pattern == 0)
-				return(1);
+				return 1;
 			while (*string != 0) {
 				if (Str_Match(string, pattern))
-					return(1);
+					return 1;
 				++string;
 			}
-			return(0);
+			return 0;
 		}
 		/*
 		 * Check for a "?" as the next pattern character.  It matches
@@ -388,14 +390,14 @@ Str_Match(const char *string, const char *pattern)
 				if ((*pattern == ']') || (*pattern == 0)) {
 					if (nomatch)
 						break;
-					return(0);
+					return 0;
 				}
 				if (*pattern == *string)
 					break;
 				if (pattern[1] == '-') {
 					c2 = pattern[2];
 					if (c2 == 0)
-						return(nomatch);
+						return nomatch;
 					if ((*pattern <= *string) &&
 					    (c2 >= *string))
 						break;
@@ -415,20 +417,20 @@ Str_Match(const char *string, const char *pattern)
 			goto thisCharOK;
 		}
 		/*
-		 * If the next pattern character is '/', just strip off the
-		 * '/' so we do exact matching on the character that follows.
+		 * If the next pattern character is a backslash, just strip it
+		 * off so we do exact matching on the character that follows.
 		 */
 		if (*pattern == '\\') {
 			++pattern;
 			if (*pattern == 0)
-				return(0);
+				return 0;
 		}
 		/*
 		 * There's no special character.  Just make sure that the
 		 * next characters of each string match.
 		 */
 		if (*pattern != *string)
-			return(0);
+			return 0;
 thisCharOK:	++pattern;
 		++string;
 	}
