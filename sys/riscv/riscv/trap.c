@@ -147,6 +147,11 @@ dump_regs(struct trapframe *frame)
 	for (i = 0; i < n; i++)
 		printf("a[%d] == 0x%016lx\n", i, frame->tf_a[i]);
 
+	printf("ra == 0x%016lx\n", frame->tf_ra);
+	printf("sp == 0x%016lx\n", frame->tf_sp);
+	printf("gp == 0x%016lx\n", frame->tf_gp);
+	printf("tp == 0x%016lx\n", frame->tf_tp);
+
 	printf("sepc == 0x%016lx\n", frame->tf_sepc);
 	printf("sstatus == 0x%016lx\n", frame->tf_sstatus);
 }
