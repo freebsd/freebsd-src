@@ -212,6 +212,19 @@ init_secondary(uint64_t cpu)
 	    "mov x18, %0 \n"
 	    "msr tpidr_el1, %0" :: "r"(pcpup));
 
+	/*
+	 * Identify current CPU. This is necessary to setup
+	 * affinity registers and to provide support for
+	 * runtime chip identification.
+	 *
+	 * We need this before signalling the CPU is ready to
+	 * let the boot CPU use the results.
+	 */
+	identify_cpu();
+
+	/* Ensure the stores in identify_cpu have completed */
+	atomic_thread_fence_acq_rel();
+
 	/* Signal the BSP and spin until it has released all APs. */
 	atomic_add_int(&aps_started, 1);
 	while (!atomic_load_int(&aps_ready))
@@ -227,12 +240,6 @@ init_secondary(uint64_t cpu)
 	    ("pmap0 doesn't match cpu %ld's ttbr0", cpu));
 	pcpup->pc_curpmap = pmap0;
 
-	/*
-	 * Identify current CPU. This is necessary to setup
-	 * affinity registers and to provide support for
-	 * runtime chip identification.
-	 */
-	identify_cpu();
 	install_cpu_errata();
 
 	intr_pic_init_secondary();
