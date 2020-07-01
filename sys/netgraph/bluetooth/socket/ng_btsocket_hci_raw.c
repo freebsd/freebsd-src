@@ -861,6 +861,7 @@ ng_btsocket_hci_raw_init(void)
 	bit_set(f, NG_HCI_OCF_READ_IAC_LAP - 1);
 	bit_set(f, NG_HCI_OCF_READ_PAGE_SCAN_PERIOD - 1);
 	bit_set(f, NG_HCI_OCF_READ_PAGE_SCAN - 1);
+	bit_set(f, NG_HCI_OCF_READ_LE_HOST_SUPPORTED -1);
 
 	/* Commands - Informational */
 	f = ng_btsocket_hci_raw_sec_filter->commands[NG_HCI_OGF_INFO - 1];
@@ -881,6 +882,11 @@ ng_btsocket_hci_raw_init(void)
 	bit_set(f, NG_HCI_OCF_READ_LOOPBACK_MODE - 1);
 	/*Commands - LE*/
 	f = ng_btsocket_hci_raw_sec_filter->commands[NG_HCI_OGF_LE -1];
+	bit_set(f, NG_HCI_OCF_LE_SET_SCAN_ENABLE - 1);
+	bit_set(f, NG_HCI_OCF_LE_SET_SCAN_PARAMETERS - 1);
+	bit_set(f, NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES - 1);
+	bit_set(f, NG_HCI_OCF_LE_READ_BUFFER_SIZE - 1);
+	bit_set(f, NG_HCI_OCF_LE_READ_WHITE_LIST_SIZE - 1);
 
 } /* ng_btsocket_hci_raw_init */
 
