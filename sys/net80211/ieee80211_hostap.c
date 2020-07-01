@@ -206,8 +206,9 @@ hostap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			 * state and the timeout routines check if the flag
 			 * is set before doing anything so this is sufficient.
 			 */
-			ic->ic_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
-			ic->ic_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
+			vap->iv_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
+			vap->iv_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
+			/* XXX TODO: schedule deferred update? */
 			/* fall thru... */
 		case IEEE80211_S_CAC:
 			/*
@@ -1812,10 +1813,13 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		    scan.status == 0 &&			/* NB: on-channel */
 		    ((scan.erp & 0x100) == 0 ||		/* NB: no ERP, 11b sta*/
 		     (scan.erp & IEEE80211_ERP_NON_ERP_PRESENT))) {
-			ic->ic_lastnonerp = ticks;
-			ic->ic_flags_ext |= IEEE80211_FEXT_NONERP_PR;
-			if (ic->ic_protmode != IEEE80211_PROT_NONE &&
-			    (ic->ic_flags & IEEE80211_F_USEPROT) == 0) {
+			vap->iv_lastnonerp = ticks;
+			vap->iv_flags_ext |= IEEE80211_FEXT_NONERP_PR;
+			/*
+			 * XXX TODO: this may need to check all VAPs?
+			 */
+			if (vap->iv_protmode != IEEE80211_PROT_NONE &&
+			    (vap->iv_flags & IEEE80211_F_USEPROT) == 0) {
 				IEEE80211_NOTE_FRAME(vap,
 				    IEEE80211_MSG_ASSOC, wh,
 				    "non-ERP present on channel %d "
@@ -1823,8 +1827,8 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				    "enable use of protection",
 				    ic->ic_curchan->ic_ieee,
 				    scan.erp, scan.chan);
-				ic->ic_flags |= IEEE80211_F_USEPROT;
-				ieee80211_notify_erp(ic);
+				vap->iv_flags |= IEEE80211_F_USEPROT;
+				ieee80211_vap_update_erp_protmode(vap);
 			}
 		}
 		/* 
@@ -1844,12 +1848,12 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 					break;
 			}
 			if (scan.htinfo == NULL) {
-				ieee80211_htprot_update(ic,
+				ieee80211_htprot_update(vap,
 				    IEEE80211_HTINFO_OPMODE_PROTOPT |
 				    IEEE80211_HTINFO_NONHT_PRESENT);
 			} else if (ishtmixed(scan.htinfo)) {
 				/* XXX? take NONHT_PRESENT from beacon? */
-				ieee80211_htprot_update(ic,
+				ieee80211_htprot_update(vap,
 				    IEEE80211_HTINFO_OPMODE_MIXED |
 				    IEEE80211_HTINFO_NONHT_PRESENT);
 			}

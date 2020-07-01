@@ -233,17 +233,11 @@ struct ieee80211com {
 	/* XXX multi-bss: split out common/vap parts */
 	struct ieee80211_wme_state ic_wme;	/* WME/WMM state */
 
-	/* XXX multi-bss: can per-vap be done/make sense? */
+	/* Protection mode for net80211 driven channel NICs */
 	enum ieee80211_protmode	ic_protmode;	/* 802.11g protection mode */
-	uint16_t		ic_nonerpsta;	/* # non-ERP stations */
-	uint16_t		ic_longslotsta;	/* # long slot time stations */
-	uint16_t		ic_sta_assoc;	/* stations associated */
-	uint16_t		ic_ht_sta_assoc;/* HT stations associated */
-	uint16_t		ic_ht40_sta_assoc;/* HT40 stations associated */
-	uint8_t			ic_curhtprotmode;/* HTINFO bss state */
 	enum ieee80211_protmode	ic_htprotmode;	/* HT protection mode */
-	int			ic_lastnonerp;	/* last time non-ERP sta noted*/
-	int			ic_lastnonht;	/* last time non-HT sta noted */
+	uint8_t			ic_curhtprotmode;/* HTINFO bss state */
+
 	uint8_t			ic_rxstream;    /* # RX streams */
 	uint8_t			ic_txstream;    /* # TX streams */
 
@@ -391,6 +385,8 @@ struct ieee80211_aclator;
 struct ieee80211_tdma_state;
 struct ieee80211_mesh_state;
 struct ieee80211_hwmp_state;
+struct ieee80211_rx_histogram;
+struct ieee80211_tx_histogram;
 
 struct ieee80211vap {
 	struct ifmedia		iv_media;	/* interface media config */
@@ -577,12 +573,37 @@ struct ieee80211vap {
 				    const struct wmeParams *wme_params);
 	struct task		iv_wme_task;	/* deferred VAP WME update */
 
+	/* associated state; protection mode */
+	enum ieee80211_protmode	iv_protmode;	/* 802.11g protection mode */
+	enum ieee80211_protmode	iv_htprotmode;	/* HT protection mode */
+	uint8_t			iv_curhtprotmode;/* HTINFO bss state */
+
+	uint16_t		iv_nonerpsta;	/* # non-ERP stations */
+	uint16_t		iv_longslotsta;	/* # long slot time stations */
+	uint16_t		iv_ht_sta_assoc;/* HT stations associated */
+	uint16_t		iv_ht40_sta_assoc;/* HT40 stations associated */
+	int			iv_lastnonerp;	/* last time non-ERP sta noted*/
+	int			iv_lastnonht;	/* last time non-HT sta noted */
+
 	/* update device state for 802.11 slot time change */
 	void			(*iv_updateslot)(struct ieee80211vap *);
 	struct task		iv_slot_task;	/* deferred slot time update */
 
+	struct task		iv_erp_protmode_task;	/* deferred ERP protmode update */
+	void			(*iv_erp_protmode_update)(struct ieee80211vap *);
+
+	struct task		iv_preamble_task;	/* deferred short/barker preamble update */
+	void			(*iv_preamble_update)(struct ieee80211vap *);
+
+	struct task		iv_ht_protmode_task;	/* deferred HT protmode update */
+	void			(*iv_ht_protmode_update)(struct ieee80211vap *);
+
 	/* per-vap U-APSD state */
 	uint8_t			iv_uapsdinfo;	/* sta mode QoS Info flags */
+
+	/* Optional transmit/receive histogram statistics */
+	struct ieee80211_rx_histogram	*rx_histogram;
+	struct ieee80211_tx_histogram	*tx_histogram;
 
 	uint64_t		iv_spare[6];
 };

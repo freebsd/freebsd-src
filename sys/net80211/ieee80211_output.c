@@ -2100,15 +2100,34 @@ ieee80211_add_ssid(uint8_t *frm, const uint8_t *ssid, u_int len)
  * Add an erp element to a frame.
  */
 static uint8_t *
-ieee80211_add_erp(uint8_t *frm, struct ieee80211com *ic)
+ieee80211_add_erp(uint8_t *frm, struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	uint8_t erp;
 
 	*frm++ = IEEE80211_ELEMID_ERP;
 	*frm++ = 1;
 	erp = 0;
-	if (ic->ic_nonerpsta != 0)
+
+	/*
+	 * TODO:  This uses the global flags for now because
+	 * the per-VAP flags are fine for per-VAP, but don't
+	 * take into account which VAPs share the same channel
+	 * and which are on different channels.
+	 *
+	 * ERP and HT/VHT protection mode is a function of
+	 * how many stations are on a channel, not specifically
+	 * the VAP or global.  But, until we grow that status,
+	 * the global flag will have to do.
+	 */
+	if (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR)
 		erp |= IEEE80211_ERP_NON_ERP_PRESENT;
+
+	/*
+	 * TODO: same as above; these should be based not
+	 * on the vap or ic flags, but instead on a combination
+	 * of per-VAP and channels.
+	 */
 	if (ic->ic_flags & IEEE80211_F_USEPROT)
 		erp |= IEEE80211_ERP_USE_PROTECTION;
 	if (ic->ic_flags & IEEE80211_F_USEBARKER)
@@ -2569,7 +2588,6 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 uint16_t
 ieee80211_getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 {
-	struct ieee80211com *ic = vap->iv_ic;
 	uint16_t capinfo;
 
 	KASSERT(vap->iv_opmode != IEEE80211_M_STA, ("station mode"));
@@ -2582,7 +2600,7 @@ ieee80211_getcapinfo(struct ieee80211vap *vap, struct ieee80211_channel *chan)
 		capinfo = 0;
 	if (vap->iv_flags & IEEE80211_F_PRIVACY)
 		capinfo |= IEEE80211_CAPINFO_PRIVACY;
-	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+	if ((vap->iv_flags & IEEE80211_F_SHPREAMBLE) &&
 	    IEEE80211_IS_CHAN_2GHZ(chan))
 		capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 	if (vap->iv_flags & IEEE80211_F_SHSLOT)
@@ -2761,7 +2779,7 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 		 * NB: Some 11a AP's reject the request when
 		 *     short preamble is set.
 		 */
-		if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
+		if ((vap->iv_flags & IEEE80211_F_SHPREAMBLE) &&
 		    IEEE80211_IS_CHAN_2GHZ(ic->ic_curchan))
 			capinfo |= IEEE80211_CAPINFO_SHORT_PREAMBLE;
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan) &&
@@ -3098,7 +3116,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 		}
 	}
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
-		frm = ieee80211_add_erp(frm, ic);
+		frm = ieee80211_add_erp(frm, vap);
 	frm = ieee80211_add_xrates(frm, rs);
 	frm = ieee80211_add_rsn(frm, vap);
 	/*
@@ -3268,6 +3286,7 @@ ieee80211_alloc_prot(struct ieee80211_node *ni, const struct mbuf *m,
     uint8_t rate, int prot)
 {
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
 	const struct ieee80211_frame *wh;
 	struct mbuf *mprot;
 	uint16_t dur;
@@ -3279,7 +3298,7 @@ ieee80211_alloc_prot(struct ieee80211_node *ni, const struct mbuf *m,
 
 	wh = mtod(m, const struct ieee80211_frame *);
 	pktlen = m->m_pkthdr.len + IEEE80211_CRC_LEN;
-	isshort = (ic->ic_flags & IEEE80211_F_SHPREAMBLE) != 0;
+	isshort = (vap->iv_flags & IEEE80211_F_SHPREAMBLE) != 0;
 	dur = ieee80211_compute_duration(ic->ic_rt, pktlen, rate, isshort)
 	    + ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 
@@ -3288,7 +3307,7 @@ ieee80211_alloc_prot(struct ieee80211_node *ni, const struct mbuf *m,
 		dur += ieee80211_ack_duration(ic->ic_rt, rate, isshort);
 		mprot = ieee80211_alloc_rts(ic, wh->i_addr1, wh->i_addr2, dur);
 	} else
-		mprot = ieee80211_alloc_cts(ic, ni->ni_vap->iv_myaddr, dur);
+		mprot = ieee80211_alloc_cts(ic, vap->iv_myaddr, dur);
 
 	return (mprot);
 }
@@ -3496,7 +3515,7 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 
 	if (IEEE80211_IS_CHAN_ANYG(ni->ni_chan)) {
 		bo->bo_erp = frm;
-		frm = ieee80211_add_erp(frm, ic);
+		frm = ieee80211_add_erp(frm, vap);
 	}
 	frm = ieee80211_add_xrates(frm, rs);
 	frm = ieee80211_add_rsn(frm, vap);
@@ -3981,7 +4000,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni, struct mbuf *m, int mcast)
 			/*
 			 * ERP element needs updating.
 			 */
-			(void) ieee80211_add_erp(bo->bo_erp, ic);
+			(void) ieee80211_add_erp(bo->bo_erp, vap);
 			clrbit(bo->bo_flags, IEEE80211_BEACON_ERP);
 		}
 #ifdef IEEE80211_SUPPORT_SUPERG

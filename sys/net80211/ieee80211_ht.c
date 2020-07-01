@@ -270,6 +270,9 @@ ieee80211_ht_vattach(struct ieee80211vap *vap)
 	vap->iv_ampdu_mintraffic[WME_AC_VO] = 32;
 	vap->iv_ampdu_mintraffic[WME_AC_VI] = 32;
 
+	vap->iv_htprotmode = IEEE80211_PROT_RTSCTS;
+	vap->iv_curhtprotmode = IEEE80211_HTINFO_OPMODE_PURE;
+
 	if (vap->iv_htcaps & IEEE80211_HTC_HT) {
 		/*
 		 * Device is HT capable; enable all HT-related
@@ -1509,38 +1512,36 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 }
 
 /*
- * Notify hostap vaps of a change in the HTINFO ie.
+ * Notify a VAP of a change in the HTINFO ie if it's a hostap VAP.
+ *
+ * This is to be called from the deferred HT protection update
+ * task once the flags are updated.
  */
-static void
-htinfo_notify(struct ieee80211com *ic)
+void
+ieee80211_htinfo_notify(struct ieee80211vap *vap)
 {
-	struct ieee80211vap *vap;
-	int first = 1;
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
 
-	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-		if (vap->iv_opmode != IEEE80211_M_HOSTAP)
-			continue;
-		if (vap->iv_state != IEEE80211_S_RUN ||
-		    !IEEE80211_IS_CHAN_HT(vap->iv_bss->ni_chan))
-			continue;
-		if (first) {
-			IEEE80211_NOTE(vap,
-			    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N,
-			    vap->iv_bss,
-			    "HT bss occupancy change: %d sta, %d ht, "
-			    "%d ht40%s, HT protmode now 0x%x"
-			    , ic->ic_sta_assoc
-			    , ic->ic_ht_sta_assoc
-			    , ic->ic_ht40_sta_assoc
-			    , (ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) ?
-				 ", non-HT sta present" : ""
-			    , ic->ic_curhtprotmode);
-			first = 0;
-		}
-		ieee80211_beacon_notify(vap, IEEE80211_BEACON_HTINFO);
-	}
+	if (vap->iv_opmode != IEEE80211_M_HOSTAP)
+		return;
+	if (vap->iv_state != IEEE80211_S_RUN ||
+	    !IEEE80211_IS_CHAN_HT(vap->iv_bss->ni_chan))
+		return;
+
+	IEEE80211_NOTE(vap,
+	    IEEE80211_MSG_ASSOC | IEEE80211_MSG_11N,
+	    vap->iv_bss,
+	    "HT bss occupancy change: %d sta, %d ht, "
+	    "%d ht40%s, HT protmode now 0x%x"
+	    , vap->iv_sta_assoc
+	    , vap->iv_ht_sta_assoc
+	    , vap->iv_ht40_sta_assoc
+	    , (vap->iv_flags_ht & IEEE80211_FHT_NONHT_PR) ?
+		 ", non-HT sta present" : ""
+	    , vap->iv_curhtprotmode);
+
+	ieee80211_beacon_notify(vap, IEEE80211_BEACON_HTINFO);
 }
 
 /*
@@ -1548,26 +1549,28 @@ htinfo_notify(struct ieee80211com *ic)
  * state and handle updates.
  */
 static void
-htinfo_update(struct ieee80211com *ic)
+htinfo_update(struct ieee80211vap *vap)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 	uint8_t protmode;
 
-	if (ic->ic_sta_assoc != ic->ic_ht_sta_assoc) {
+	if (vap->iv_sta_assoc != vap->iv_ht_sta_assoc) {
 		protmode = IEEE80211_HTINFO_OPMODE_MIXED
 			 | IEEE80211_HTINFO_NONHT_PRESENT;
-	} else if (ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) {
+	} else if (vap->iv_flags_ht & IEEE80211_FHT_NONHT_PR) {
 		protmode = IEEE80211_HTINFO_OPMODE_PROTOPT
 			 | IEEE80211_HTINFO_NONHT_PRESENT;
 	} else if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
 	    IEEE80211_IS_CHAN_HT40(ic->ic_bsschan) && 
-	    ic->ic_sta_assoc != ic->ic_ht40_sta_assoc) {
+	    vap->iv_sta_assoc != vap->iv_ht40_sta_assoc) {
 		protmode = IEEE80211_HTINFO_OPMODE_HT20PR;
 	} else {
 		protmode = IEEE80211_HTINFO_OPMODE_PURE;
 	}
-	if (protmode != ic->ic_curhtprotmode) {
-		ic->ic_curhtprotmode = protmode;
-		htinfo_notify(ic);
+	if (protmode != vap->iv_curhtprotmode) {
+		vap->iv_curhtprotmode = protmode;
+		/* Update VAP with new protection mode */
+		ieee80211_vap_update_ht_protmode(vap);
 	}
 }
 
@@ -1577,16 +1580,16 @@ htinfo_update(struct ieee80211com *ic)
 void
 ieee80211_ht_node_join(struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
-		ic->ic_ht_sta_assoc++;
+		vap->iv_ht_sta_assoc++;
 		if (ni->ni_chw == 40)
-			ic->ic_ht40_sta_assoc++;
+			vap->iv_ht40_sta_assoc++;
 	}
-	htinfo_update(ic);
+	htinfo_update(vap);
 }
 
 /*
@@ -1595,16 +1598,16 @@ ieee80211_ht_node_join(struct ieee80211_node *ni)
 void
 ieee80211_ht_node_leave(struct ieee80211_node *ni)
 {
-	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211vap *vap = ni->ni_vap;
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
 
 	if (ni->ni_flags & IEEE80211_NODE_HT) {
-		ic->ic_ht_sta_assoc--;
+		vap->iv_ht_sta_assoc--;
 		if (ni->ni_chw == 40)
-			ic->ic_ht40_sta_assoc--;
+			vap->iv_ht40_sta_assoc--;
 	}
-	htinfo_update(ic);
+	htinfo_update(vap);
 }
 
 /*
@@ -1618,25 +1621,27 @@ ieee80211_ht_node_leave(struct ieee80211_node *ni)
  * a higher precedence than PROTOPT (i.e. we will not change
  * change PROTOPT -> MIXED; only MIXED -> PROTOPT).  This
  * corresponds to how we handle things in htinfo_update.
+ *
  */
 void
-ieee80211_htprot_update(struct ieee80211com *ic, int protmode)
+ieee80211_htprot_update(struct ieee80211vap *vap, int protmode)
 {
+	struct ieee80211com *ic = vap->iv_ic;
 #define	OPMODE(x)	SM(x, IEEE80211_HTINFO_OPMODE)
 	IEEE80211_LOCK(ic);
 
 	/* track non-HT station presence */
 	KASSERT(protmode & IEEE80211_HTINFO_NONHT_PRESENT,
 	    ("protmode 0x%x", protmode));
-	ic->ic_flags_ht |= IEEE80211_FHT_NONHT_PR;
-	ic->ic_lastnonht = ticks;
+	vap->iv_flags_ht |= IEEE80211_FHT_NONHT_PR;
+	vap->iv_lastnonht = ticks;
 
-	if (protmode != ic->ic_curhtprotmode &&
-	    (OPMODE(ic->ic_curhtprotmode) != IEEE80211_HTINFO_OPMODE_MIXED ||
+	if (protmode != vap->iv_curhtprotmode &&
+	    (OPMODE(vap->iv_curhtprotmode) != IEEE80211_HTINFO_OPMODE_MIXED ||
 	     OPMODE(protmode) == IEEE80211_HTINFO_OPMODE_PROTOPT)) {
-		/* push beacon update */
-		ic->ic_curhtprotmode = protmode;
-		htinfo_notify(ic);
+		vap->iv_curhtprotmode = protmode;
+		/* Update VAP with new protection mode */
+		ieee80211_vap_update_ht_protmode(vap);
 	}
 	IEEE80211_UNLOCK(ic);
 #undef OPMODE
@@ -1651,18 +1656,17 @@ ieee80211_htprot_update(struct ieee80211com *ic, int protmode)
  * gone we time out this condition.
  */
 void
-ieee80211_ht_timeout(struct ieee80211com *ic)
+ieee80211_ht_timeout(struct ieee80211vap *vap)
 {
-	IEEE80211_LOCK_ASSERT(ic);
 
-	if ((ic->ic_flags_ht & IEEE80211_FHT_NONHT_PR) &&
-	    ieee80211_time_after(ticks, ic->ic_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
-#if 0
-		IEEE80211_NOTE(vap, IEEE80211_MSG_11N, ni,
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+
+	if ((vap->iv_flags_ht & IEEE80211_FHT_NONHT_PR) &&
+	    ieee80211_time_after(ticks, vap->iv_lastnonht + IEEE80211_NONHT_PRESENT_AGE)) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_11N,
 		    "%s", "time out non-HT STA present on channel");
-#endif
-		ic->ic_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
-		htinfo_update(ic);
+		vap->iv_flags_ht &= ~IEEE80211_FHT_NONHT_PR;
+		htinfo_update(vap);
 	}
 }
 
@@ -3507,6 +3511,12 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 		ht->hi_byte1 |= IEEE80211_HTINFO_TXWIDTH_2040;
 
 	/* protection mode */
+	/*
+	 * XXX TODO: this uses the global flag, not the per-VAP flag.
+	 * Eventually (once the protection modes are done per-channel
+	 * rather than per-VAP) we can flip this over to be per-VAP but
+	 * using the channel protection mode.
+	 */
 	ht->hi_byte2 = (ht->hi_byte2 &~ PROTMODE) | ic->ic_curhtprotmode;
 
 	ieee80211_free_node(ni);
@@ -3547,7 +3557,11 @@ ieee80211_add_htinfo_body(uint8_t *frm, struct ieee80211_node *ni)
 	if (IEEE80211_IS_CHAN_HT40(ni->ni_chan))
 		frm[0] |= IEEE80211_HTINFO_TXWIDTH_2040;
 
-	frm[1] = ic->ic_curhtprotmode;
+	/*
+	 * Add current protection mode.  Unlike for beacons,
+	 * this will respect the per-VAP flags.
+	 */
+	frm[1] = vap->iv_curhtprotmode;
 
 	frm += 5;
 

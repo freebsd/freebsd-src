@@ -99,7 +99,7 @@ static void ieee80211_node_table_init(struct ieee80211com *ic,
 static void ieee80211_node_table_reset(struct ieee80211_node_table *,
 	struct ieee80211vap *);
 static void ieee80211_node_table_cleanup(struct ieee80211_node_table *nt);
-static void ieee80211_erp_timeout(struct ieee80211com *);
+static void ieee80211_vap_erp_timeout(struct ieee80211vap *);
 
 MALLOC_DEFINE(M_80211_NODE, "80211node", "802.11 node state");
 MALLOC_DEFINE(M_80211_NODE_IE, "80211nodeie", "802.11 node ie");
@@ -674,7 +674,6 @@ ieee80211_ibss_merge(struct ieee80211_node *ni)
 {
 #ifdef IEEE80211_DEBUG
 	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
 #endif
 
 	if (! ieee80211_ibss_merge_check(ni))
@@ -683,9 +682,9 @@ ieee80211_ibss_merge(struct ieee80211_node *ni)
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
 		"%s: new bssid %s: %s preamble, %s slot time%s\n", __func__,
 		ether_sprintf(ni->ni_bssid),
-		ic->ic_flags&IEEE80211_F_SHPREAMBLE ? "short" : "long",
+		vap->iv_flags&IEEE80211_F_SHPREAMBLE ? "short" : "long",
 		vap->iv_flags&IEEE80211_F_SHSLOT ? "short" : "long",
-		ic->ic_flags&IEEE80211_F_USEPROT ? ", protection" : ""
+		vap->iv_flags&IEEE80211_F_USEPROT ? ", protection" : ""
 	);
 	return ieee80211_sta_join1(ieee80211_ref_node(ni));
 }
@@ -2508,12 +2507,27 @@ ieee80211_drain(struct ieee80211com *ic)
 }
 
 /*
+ * Per-ieee80211vap inactivity timer callback.
+ */
+static void
+ieee80211_vap_timeout(struct ieee80211vap *vap)
+{
+
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
+
+	ieee80211_vap_erp_timeout(vap);
+	ieee80211_ht_timeout(vap);
+	ieee80211_vht_timeout(vap);
+}
+
+/*
  * Per-ieee80211com inactivity timer callback.
  */
 void
 ieee80211_node_timeout(void *arg)
 {
 	struct ieee80211com *ic = arg;
+	struct ieee80211vap *vap;
 
 	/*
 	 * Defer timeout processing if a channel switch is pending.
@@ -2530,9 +2544,8 @@ ieee80211_node_timeout(void *arg)
 		ieee80211_ageq_age(&ic->ic_stageq, IEEE80211_INACT_WAIT);
 
 		IEEE80211_LOCK(ic);
-		ieee80211_erp_timeout(ic);
-		ieee80211_ht_timeout(ic);
-		ieee80211_vht_timeout(ic);
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			ieee80211_vap_timeout(vap);
 		IEEE80211_UNLOCK(ic);
 	}
 	callout_reset(&ic->ic_inact, IEEE80211_INACT_WAIT*hz,
@@ -2645,7 +2658,12 @@ ieee80211_dump_nodes(struct ieee80211_node_table *nt)
 		(ieee80211_iter_func *) ieee80211_dump_node, nt);
 }
 
-static void
+/*
+ * Iterate over the VAPs and update their ERP beacon IEs.
+ *
+ * Note this must be called from the deferred ERP update task paths.
+ */
+void
 ieee80211_notify_erp_locked(struct ieee80211com *ic)
 {
 	struct ieee80211vap *vap;
@@ -2655,14 +2673,6 @@ ieee80211_notify_erp_locked(struct ieee80211com *ic)
 	TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ieee80211_beacon_notify(vap, IEEE80211_BEACON_ERP);
-}
-
-void
-ieee80211_notify_erp(struct ieee80211com *ic)
-{
-	IEEE80211_LOCK(ic);
-	ieee80211_notify_erp_locked(ic);
-	IEEE80211_UNLOCK(ic);
 }
 
 /*
@@ -2684,10 +2694,13 @@ ieee80211_node_join_11g(struct ieee80211_node *ni)
 	 * next beacon transmission (per sec. 7.3.1.4 of 11g).
 	 */
 	if ((ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME) == 0) {
-		ic->ic_longslotsta++;
+		vap->iv_longslotsta++;
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ASSOC, ni,
 		    "station needs long slot time, count %d",
-		    ic->ic_longslotsta);
+		    vap->iv_longslotsta);
+		/*
+		 * XXX TODO: this may need all VAPs checked!
+		 */
 		if (!IEEE80211_IS_CHAN_108G(ic->ic_bsschan)) {
 			/*
 			 * Don't force slot time when switched to turbo
@@ -2703,10 +2716,10 @@ ieee80211_node_join_11g(struct ieee80211_node *ni)
 	 * if configured.
 	 */
 	if (!ieee80211_iserp_rateset(&ni->ni_rates)) {
-		ic->ic_nonerpsta++;
+		vap->iv_nonerpsta++;
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ASSOC, ni,
 		    "station is !ERP, %d non-ERP stations associated",
-		    ic->ic_nonerpsta);
+		    vap->iv_nonerpsta);
 		/*
 		 * If station does not support short preamble
 		 * then we must enable use of Barker preamble.
@@ -2714,20 +2727,21 @@ ieee80211_node_join_11g(struct ieee80211_node *ni)
 		if ((ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE) == 0) {
 			IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ASSOC, ni,
 			    "%s", "station needs long preamble");
-			ic->ic_flags |= IEEE80211_F_USEBARKER;
-			ic->ic_flags &= ~IEEE80211_F_SHPREAMBLE;
+			vap->iv_flags |= IEEE80211_F_USEBARKER;
+			vap->iv_flags &= ~IEEE80211_F_SHPREAMBLE;
+			ieee80211_vap_update_preamble(vap);
 		}
 		/*
 		 * If protection is configured and this is the first
 		 * indication we should use protection, enable it.
 		 */
-		if (ic->ic_protmode != IEEE80211_PROT_NONE &&
-		    ic->ic_nonerpsta == 1 &&
-		    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0) {
+		if (vap->iv_protmode != IEEE80211_PROT_NONE &&
+		    vap->iv_nonerpsta == 1 &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0) {
 			IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_ASSOC,
 			    "%s: enable use of protection\n", __func__);
-			ic->ic_flags |= IEEE80211_F_USEPROT;
-			ieee80211_notify_erp_locked(ic);
+			vap->iv_flags |= IEEE80211_F_USEPROT;
+			ieee80211_vap_update_erp_protmode(vap);
 		}
 	} else
 		ni->ni_flags |= IEEE80211_NODE_ERP;
@@ -2762,7 +2776,6 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 		IEEE80211_LOCK(ic);
 		IEEE80211_AID_SET(vap, ni->ni_associd);
 		vap->iv_sta_assoc++;
-		ic->ic_sta_assoc++;
 
 		if (IEEE80211_IS_CHAN_HT(ic->ic_bsschan))
 			ieee80211_ht_node_join(ni);
@@ -2783,9 +2796,9 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, ni,
 	    "station associated at aid %d: %s preamble, %s slot time%s%s%s%s%s%s%s%s%s",
 	    IEEE80211_NODE_AID(ni),
-	    ic->ic_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
+	    vap->iv_flags & IEEE80211_F_SHPREAMBLE ? "short" : "long",
 	    vap->iv_flags & IEEE80211_F_SHSLOT ? "short" : "long",
-	    ic->ic_flags & IEEE80211_F_USEPROT ? ", protection" : "",
+	    vap->iv_flags & IEEE80211_F_USEPROT ? ", protection" : "",
 	    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
 	    /* XXX update for VHT string */
 	    ni->ni_flags & IEEE80211_NODE_HT ?
@@ -2815,20 +2828,23 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 }
 
 static void
-disable_protection(struct ieee80211com *ic)
+disable_protection(struct ieee80211vap *vap)
 {
-	KASSERT(ic->ic_nonerpsta == 0 &&
-	    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0,
-	   ("%d non ERP stations, flags 0x%x", ic->ic_nonerpsta,
-	   ic->ic_flags_ext));
+	struct ieee80211com *ic = vap->iv_ic;
 
-	ic->ic_flags &= ~IEEE80211_F_USEPROT;
+	KASSERT(vap->iv_nonerpsta == 0 &&
+	    (vap->iv_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0,
+	   ("%d non ERP stations, flags 0x%x", vap->iv_nonerpsta,
+	   vap->iv_flags_ext));
+
+	vap->iv_flags &= ~IEEE80211_F_USEPROT;
 	/* XXX verify mode? */
 	if (ic->ic_caps & IEEE80211_C_SHPREAMBLE) {
-		ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
-		ic->ic_flags &= ~IEEE80211_F_USEBARKER;
+		vap->iv_flags |= IEEE80211_F_SHPREAMBLE;
+		vap->iv_flags &= ~IEEE80211_F_USEBARKER;
 	}
-	ieee80211_notify_erp_locked(ic);
+	ieee80211_vap_update_erp_protmode(vap);
+	ieee80211_vap_update_preamble(vap);
 }
 
 /*
@@ -2850,13 +2866,16 @@ ieee80211_node_leave_11g(struct ieee80211_node *ni)
 	 * If a long slot station do the slot time bookkeeping.
 	 */
 	if ((ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME) == 0) {
-		KASSERT(ic->ic_longslotsta > 0,
-		    ("bogus long slot station count %d", ic->ic_longslotsta));
-		ic->ic_longslotsta--;
+		KASSERT(vap->iv_longslotsta > 0,
+		    ("bogus long slot station count %d", vap->iv_longslotsta));
+		vap->iv_longslotsta--;
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ASSOC, ni,
 		    "long slot time station leaves, count now %d",
-		    ic->ic_longslotsta);
-		if (ic->ic_longslotsta == 0) {
+		    vap->iv_longslotsta);
+		/*
+		 * XXX TODO: this may need all VAPs checked!
+		 */
+		if (vap->iv_longslotsta == 0) {
 			/*
 			 * Re-enable use of short slot time if supported
 			 * and not operating in IBSS mode (per spec).
@@ -2875,18 +2894,18 @@ ieee80211_node_leave_11g(struct ieee80211_node *ni)
 	 * If a non-ERP station do the protection-related bookkeeping.
 	 */
 	if ((ni->ni_flags & IEEE80211_NODE_ERP) == 0) {
-		KASSERT(ic->ic_nonerpsta > 0,
-		    ("bogus non-ERP station count %d", ic->ic_nonerpsta));
-		ic->ic_nonerpsta--;
+		KASSERT(vap->iv_nonerpsta > 0,
+		    ("bogus non-ERP station count %d", vap->iv_nonerpsta));
+		vap->iv_nonerpsta--;
 		IEEE80211_NOTE(ni->ni_vap, IEEE80211_MSG_ASSOC, ni,
-		    "non-ERP station leaves, count now %d%s", ic->ic_nonerpsta,
-		    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) ?
+		    "non-ERP station leaves, count now %d%s", vap->iv_nonerpsta,
+		    (vap->iv_flags_ext & IEEE80211_FEXT_NONERP_PR) ?
 			" (non-ERP sta present)" : "");
-		if (ic->ic_nonerpsta == 0 &&
-		    (ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0) {
+		if (vap->iv_nonerpsta == 0 &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_NONERP_PR) == 0) {
 			IEEE80211_DPRINTF(ni->ni_vap, IEEE80211_MSG_ASSOC,
 				"%s: disable use of protection\n", __func__);
-			disable_protection(ic);
+			disable_protection(vap);
 		}
 	}
 }
@@ -2900,20 +2919,18 @@ ieee80211_node_leave_11g(struct ieee80211_node *ni)
  * condition.
  */
 static void
-ieee80211_erp_timeout(struct ieee80211com *ic)
+ieee80211_vap_erp_timeout(struct ieee80211vap *vap)
 {
 
-	IEEE80211_LOCK_ASSERT(ic);
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
 
-	if ((ic->ic_flags_ext & IEEE80211_FEXT_NONERP_PR) &&
-	    ieee80211_time_after(ticks, ic->ic_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
-#if 0
-		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
+	if ((vap->iv_flags_ext & IEEE80211_FEXT_NONERP_PR) &&
+	    ieee80211_time_after(ticks, vap->iv_lastnonerp + IEEE80211_NONERP_PRESENT_AGE)) {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ASSOC,
 		    "%s", "age out non-ERP sta present on channel");
-#endif
-		ic->ic_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
-		if (ic->ic_nonerpsta == 0)
-			disable_protection(ic);
+		vap->iv_flags_ext &= ~IEEE80211_FEXT_NONERP_PR;
+		if (vap->iv_nonerpsta == 0)
+			disable_protection(vap);
 	}
 }
 
@@ -2952,7 +2969,6 @@ ieee80211_node_leave(struct ieee80211_node *ni)
 	IEEE80211_LOCK(ic);
 	IEEE80211_AID_CLR(vap, ni->ni_associd);
 	vap->iv_sta_assoc--;
-	ic->ic_sta_assoc--;
 
 	if (IEEE80211_IS_CHAN_VHT(ic->ic_bsschan))
 		ieee80211_vht_node_leave(ni);
