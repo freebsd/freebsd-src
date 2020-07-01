@@ -175,7 +175,7 @@ enum tcp_log_events {
 	TCP_LOG_BAD_RETRAN, /* Detected bad retransmission 5 */
 	TCP_LOG_PRR,	/* Doing PRR                       6 */
 	TCP_LOG_REORDER,/* Detected reorder                7 */
-	TCP_LOG_PACER,	/* Pacer sending a packet          8 */
+	TCP_LOG_HPTS,	/* Hpts sending a packet          8 */
 	BBR_LOG_BBRUPD,		/* We updated BBR info     9 */
 	BBR_LOG_BBRSND,		/* We did a slot calculation and sending is done 10 */
 	BBR_LOG_ACKCLEAR,	/* A ack clears all outstanding     11 */
@@ -194,31 +194,38 @@ enum tcp_log_events {
 	BBR_LOG_PERSIST,        /* BBR changed to/from a persists   24 */
 	TCP_LOG_FLOWEND,        /* End of a flow                    25 */
 	BBR_LOG_RTO,            /* BBR's timeout includes BBR info  26 */
-	BBR_LOG_DOSEG_DONE,     /* pacer do_segment completes       27 */
-	BBR_LOG_EXIT_GAIN,      /* pacer do_segment completes       28 */
+	BBR_LOG_DOSEG_DONE,     /* hpts do_segment completes       27 */
+	BBR_LOG_EXIT_GAIN,      /* hpts do_segment completes       28 */
 	BBR_LOG_THRESH_CALC,    /* Doing threshold calculation      29 */
 	BBR_LOG_EXTRACWNDGAIN,	/* Removed                          30 */
 	TCP_LOG_USERSEND, 	/* User level sends data            31 */
-	UNUSED_32,	 	/* Unused                           32 */
-	UNUSED_33, 		/* Unused                           33 */
+	BBR_RSM_CLEARED,	/* RSM cleared of ACK flags         32 */
+	BBR_LOG_STATE_TARGET, 	/* Log of target at state           33 */
 	BBR_LOG_TIME_EPOCH, 	/* A timed based Epoch occured      34 */
 	BBR_LOG_TO_PROCESS,	/* A to was processed               35 */
 	BBR_LOG_BBRTSO, 	/* TSO update	                    36 */
-	BBR_LOG_PACERDIAG,	/* Pacer diag insert                37 */
+	BBR_LOG_HPTSDIAG,	/* Hpts diag insert                37 */
 	BBR_LOG_LOWGAIN,	/* Low gain accounting              38 */
 	BBR_LOG_PROGRESS,	/* Progress timer event             39 */
 	TCP_LOG_SOCKET_OPT,	/* A socket option is set	    40 */
 	BBR_LOG_TIMERPREP,	/* A BBR var to debug out TLP issues  41 */
 	BBR_LOG_ENOBUF_JMP,	/* We had a enobuf jump 42 */
-	BBR_LOG_PACING_CALC,	/* calc the pacing time 43 */
+	BBR_LOG_HPTSI_CALC,	/* calc the hptsi time 43 */
 	BBR_LOG_RTT_SHRINKS,	/* We had a log reduction of rttProp 44 */
 	BBR_LOG_BW_RED_EV,	/* B/W reduction events 45 */
 	BBR_LOG_REDUCE,		/* old bbr log reduce for 4.1 and earlier 46*/
 	TCP_LOG_RTT,		/* A rtt (in useconds) is being sampled and applied to the srtt algo 47 */
 	BBR_LOG_SETTINGS_CHG,   /* Settings changed for loss response 48 */
-	BBR_LOG_SRTT_GAIN_EVENT, /* SRTT gaining 49 */
+	BBR_LOG_SRTT_GAIN_EVENT, /* SRTT gaining -- now not used 49 */
 	TCP_LOG_REASS,		/* Reassembly buffer logging 50 */
-	TCP_LOG_END		/* End (keep at end)	            51 */
+	TCP_HDWR_TLS,		/* TCP Hardware TLS logs 51 */
+	BBR_LOG_HDWR_PACE,	/* TCP Hardware pacing log 52 */
+	BBR_LOG_TSTMP_VAL,	/* Temp debug timestamp validation 53 */
+	TCP_LOG_CONNEND,	/* End of connection 54 */
+	TCP_LOG_LRO,		/* LRO entry 55 */
+	TCP_SACK_FILTER_RES,	/* Results of SACK Filter 56 */
+	TCP_SAD_DETECTION,	/* Sack Attack Detection 57 */
+	TCP_LOG_END		/* End (keep at end)	   58 */
 };
 
 enum tcp_log_states {
@@ -275,8 +282,8 @@ struct tcp_log_dev_log_queue {
 
 #ifdef _KERNEL
 
-#define	TCP_LOG_BUF_DEFAULT_SESSION_LIMIT	10000
-#define	TCP_LOG_BUF_DEFAULT_GLOBAL_LIMIT	1000000
+#define	TCP_LOG_BUF_DEFAULT_SESSION_LIMIT	5000
+#define	TCP_LOG_BUF_DEFAULT_GLOBAL_LIMIT	5000000
 
 /*
  * TCP_LOG_EVENT_VERBOSE: The same as TCP_LOG_EVENT, except it always

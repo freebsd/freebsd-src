@@ -310,6 +310,7 @@ struct mbuf {
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
 				      hw-stamped on port (useful for IEEE 1588
 				      and 802.1AS) */
+#define M_TSTMP_LRO	0x00001000 /* Time LRO pushed in pkt is valid in (PH_loc) */
 
 #define	M_PROTO1	0x00001000 /* protocol-specific */
 #define	M_PROTO2	0x00002000 /* protocol-specific */

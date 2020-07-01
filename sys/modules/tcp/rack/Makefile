@@ -6,7 +6,7 @@
 
 STACKNAME=	rack
 KMOD=	tcp_${STACKNAME}
-SRCS=	rack.c sack_filter.c
+SRCS=	rack.c sack_filter.c rack_bbr_common.c
 
 SRCS+=	opt_inet.h opt_inet6.h opt_ipsec.h
 SRCS+=	opt_tcpdebug.h
