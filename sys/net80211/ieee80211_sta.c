@@ -1460,12 +1460,13 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				    ni->ni_erp, scan.erp);
 				if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan) &&
 				    (ni->ni_erp & IEEE80211_ERP_USE_PROTECTION))
-					ic->ic_flags |= IEEE80211_F_USEPROT;
+					vap->iv_flags |= IEEE80211_F_USEPROT;
 				else
-					ic->ic_flags &= ~IEEE80211_F_USEPROT;
+					vap->iv_flags &= ~IEEE80211_F_USEPROT;
 				ni->ni_erp = scan.erp;
 				/* XXX statistic */
-				/* XXX driver notification */
+				/* driver notification */
+				ieee80211_vap_update_erp_protmode(vap);
 			}
 			if ((ni->ni_capinfo ^ scan.capinfo) & IEEE80211_CAPINFO_SHORT_SLOTTIME) {
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_ASSOC,
@@ -1891,15 +1892,16 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		 */
 		if (IEEE80211_IS_CHAN_A(ic->ic_curchan) ||
 		    (ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_PREAMBLE)) {
-			ic->ic_flags |= IEEE80211_F_SHPREAMBLE;
-			ic->ic_flags &= ~IEEE80211_F_USEBARKER;
+			vap->iv_flags |= IEEE80211_F_SHPREAMBLE;
+			vap->iv_flags &= ~IEEE80211_F_USEBARKER;
 		} else {
-			ic->ic_flags &= ~IEEE80211_F_SHPREAMBLE;
-			ic->ic_flags |= IEEE80211_F_USEBARKER;
+			vap->iv_flags &= ~IEEE80211_F_SHPREAMBLE;
+			vap->iv_flags |= IEEE80211_F_USEBARKER;
 		}
 		ieee80211_vap_set_shortslottime(vap,
 			IEEE80211_IS_CHAN_A(ic->ic_curchan) ||
 			(ni->ni_capinfo & IEEE80211_CAPINFO_SHORT_SLOTTIME));
+		ieee80211_vap_update_preamble(vap);
 		/*
 		 * Honor ERP protection.
 		 *
@@ -1907,17 +1909,18 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		 */
 		if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan) &&
 		    (ni->ni_erp & IEEE80211_ERP_USE_PROTECTION))
-			ic->ic_flags |= IEEE80211_F_USEPROT;
+			vap->iv_flags |= IEEE80211_F_USEPROT;
 		else
-			ic->ic_flags &= ~IEEE80211_F_USEPROT;
+			vap->iv_flags &= ~IEEE80211_F_USEPROT;
+		ieee80211_vap_update_erp_protmode(vap);
 		IEEE80211_NOTE_MAC(vap,
 		    IEEE80211_MSG_ASSOC | IEEE80211_MSG_DEBUG, wh->i_addr2,
 		    "%sassoc success at aid %d: %s preamble, %s slot time%s%s%s%s%s%s%s%s%s",
 		    ISREASSOC(subtype) ? "re" : "",
 		    IEEE80211_NODE_AID(ni),
-		    ic->ic_flags&IEEE80211_F_SHPREAMBLE ? "short" : "long",
+		    vap->iv_flags&IEEE80211_F_SHPREAMBLE ? "short" : "long",
 		    vap->iv_flags&IEEE80211_F_SHSLOT ? "short" : "long",
-		    ic->ic_flags&IEEE80211_F_USEPROT ? ", protection" : "",
+		    vap->iv_flags&IEEE80211_F_USEPROT ? ", protection" : "",
 		    ni->ni_flags & IEEE80211_NODE_QOS ? ", QoS" : "",
 		    ni->ni_flags & IEEE80211_NODE_HT ?
 			(ni->ni_chw == 40 ? ", HT40" : ", HT20") : "",

@@ -851,7 +851,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		ireq->i_val = vap->iv_rtsthreshold;
 		break;
 	case IEEE80211_IOC_PROTMODE:
-		ireq->i_val = ic->ic_protmode;
+		ireq->i_val = vap->iv_protmode;
 		break;
 	case IEEE80211_IOC_TXPOWER:
 		/*
@@ -1097,7 +1097,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		error = ieee80211_ioctl_getdevcaps(ic, ireq);
 		break;
 	case IEEE80211_IOC_HTPROTMODE:
-		ireq->i_val = ic->ic_htprotmode;
+		ireq->i_val = vap->iv_htprotmode;
 		break;
 	case IEEE80211_IOC_HTCONF:
 		if (vap->iv_flags_ht & IEEE80211_FHT_HT) {
@@ -2912,11 +2912,13 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	case IEEE80211_IOC_PROTMODE:
 		if (ireq->i_val > IEEE80211_PROT_RTSCTS)
 			return EINVAL;
-		ic->ic_protmode = (enum ieee80211_protmode)ireq->i_val;
+		vap->iv_protmode = (enum ieee80211_protmode)ireq->i_val;
 		/* NB: if not operating in 11g this can wait */
 		if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
 		    IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan))
 			error = ERESTART;
+		/* driver callback for protection mode update */
+		ieee80211_vap_update_erp_protmode(vap);
 		break;
 	case IEEE80211_IOC_TXPOWER:
 		if ((ic->ic_caps & IEEE80211_C_TXPMGT) == 0)
@@ -3384,11 +3386,13 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	case IEEE80211_IOC_HTPROTMODE:
 		if (ireq->i_val > IEEE80211_PROT_RTSCTS)
 			return EINVAL;
-		ic->ic_htprotmode = ireq->i_val ?
+		vap->iv_htprotmode = ireq->i_val ?
 		    IEEE80211_PROT_RTSCTS : IEEE80211_PROT_NONE;
 		/* NB: if not operating in 11n this can wait */
 		if (isvapht(vap))
 			error = ERESTART;
+		/* Notify driver layer of HT protmode changes */
+		ieee80211_vap_update_ht_protmode(vap);
 		break;
 	case IEEE80211_IOC_STA_VLAN:
 		error = ieee80211_ioctl_setstavlan(vap, ireq);
