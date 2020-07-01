@@ -269,6 +269,36 @@ struct ifbpstpconf {
 #define	ifbpstp_req	ifbpstp_ifbpstpu.ifbpstpu_req
 };
 
+#define STP_STATES \
+    "disabled",    \
+    "listening",   \
+    "learning",    \
+    "forwarding",  \
+    "blocking",    \
+    "discarding"
+
+#define STP_PROTOS \
+    "stp"          \
+    "-"            \
+    "rstp"
+
+#define STP_ROLES \
+    "disabled"    \
+    "root"        \
+    "designated"  \
+    "alternate"   \
+    "backup"
+
+#define PV2ID(pv, epri, eaddr)	do { \
+	epri     = pv >> 48;         \
+	eaddr[0] = pv >> 40;         \
+	eaddr[1] = pv >> 32;         \
+	eaddr[2] = pv >> 24;         \
+	eaddr[3] = pv >> 16;         \
+	eaddr[4] = pv >> 8;          \
+	eaddr[5] = pv >> 0;          \
+} while (0)
+
 #ifdef _KERNEL
 
 #define BRIDGE_INPUT(_ifp, _m)		do {			\
