@@ -143,7 +143,7 @@ static void
 setup(void)
 {
 	u_int cnt;
-	int oflags;
+	int iflags, oflags;
 	cap_rights_t rights;
 	unsigned long cmds[] = { FIODTYPE, MTIOCTOP };
 
@@ -151,7 +151,10 @@ setup(void)
 		in.name = "stdin";
 		in.fd = STDIN_FILENO;
 	} else {
-		in.fd = open(in.name, O_RDONLY, 0);
+		iflags = 0;
+		if (ddflags & C_IDIRECT)
+			iflags |= O_DIRECT;
+		in.fd = open(in.name, O_RDONLY | iflags, 0);
 		if (in.fd == -1)
 			err(1, "%s", in.name);
 	}
@@ -186,6 +189,8 @@ setup(void)
 			oflags |= O_TRUNC;
 		if (ddflags & C_OFSYNC)
 			oflags |= O_FSYNC;
+		if (ddflags & C_ODIRECT)
+			oflags |= O_DIRECT;
 		out.fd = open(out.name, O_RDWR | oflags, DEFFILEMODE);
 		/*
 		 * May not have read access, so try again with write only.

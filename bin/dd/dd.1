@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2019
+.Dd June 4, 2020
 .Dt DD 1
 .Os
 .Sh NAME
@@ -117,6 +117,8 @@ limits the number of times
 is called on the input rather than the number of blocks copied in full.
 May not be combined with
 .Cm conv=sync .
+.It Cm direct
+Set the O_DIRECT flag on the input file to make reads bypass any local caching.
 .El
 .It Cm iseek Ns = Ns Ar n
 Seek on the input file
@@ -143,7 +145,7 @@ the output file is truncated at that point.
 Where
 .Cm value
 is one of the symbols from the following list.
-.Bl -tag -width "fsync"
+.Bl -tag -width "direct"
 .It Cm fsync
 Set the O_FSYNC flag on the output file to make writes synchronous.
 .It Cm sync
@@ -151,6 +153,8 @@ Set the O_SYNC flag on the output file to make writes synchronous.
 This is synonymous with the
 .Cm fsync
 value.
+.It Cm direct
+Set the O_DIRECT flag on the output file to make writes bypass any local caching.
 .El
 .It Cm oseek Ns = Ns Ar n
 Seek on the output file
