@@ -312,7 +312,7 @@ ieee80211_setup_vht_rates(struct ieee80211_node *ni,
 }
 
 void
-ieee80211_vht_timeout(struct ieee80211com *ic)
+ieee80211_vht_timeout(struct ieee80211vap *vap)
 {
 }
 
