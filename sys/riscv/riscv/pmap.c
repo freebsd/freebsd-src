@@ -339,7 +339,8 @@ pagezero(void *p)
 #define	pmap_l2_index(va)	(((va) >> L2_SHIFT) & Ln_ADDR_MASK)
 #define	pmap_l3_index(va)	(((va) >> L3_SHIFT) & Ln_ADDR_MASK)
 
-#define	PTE_TO_PHYS(pte)	((pte >> PTE_PPN0_S) * PAGE_SIZE)
+#define	PTE_TO_PHYS(pte) \
+    ((((pte) & ~PTE_HI_MASK) >> PTE_PPN0_S) * PAGE_SIZE)
 
 static __inline pd_entry_t *
 pmap_l1(pmap_t pmap, vm_offset_t va)
