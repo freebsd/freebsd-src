@@ -219,11 +219,21 @@ linux_get_pid_task(pid_t pid)
 bool
 linux_task_exiting(struct task_struct *task)
 {
+	struct thread *td;
 	struct proc *p;
 	bool ret;
 
 	ret = false;
-	p = pfind(task->pid);
+
+	/* try to find corresponding thread */
+	td = tdfind(task->pid, -1);
+	if (td != NULL) {
+		p = td->td_proc;
+	} else {
+		/* try to find corresponding procedure */
+		p = pfind(task->pid);
+	}
+
 	if (p != NULL) {
 		if ((p->p_flag & P_WEXIT) != 0)
 			ret = true;
