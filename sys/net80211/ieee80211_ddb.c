@@ -483,6 +483,17 @@ _db_show_vap(const struct ieee80211vap *vap, int showmesh, int showprocs)
 	if (vap->iv_tdma != NULL)
 		_db_show_tdma("\t", vap->iv_tdma, showprocs);
 #endif /* IEEE80211_SUPPORT_TDMA */
+
+	db_printf("\tsta_assoc %u", vap->iv_sta_assoc);
+	db_printf(" ht_sta_assoc %u", vap->iv_ht_sta_assoc);
+	db_printf(" ht40_sta_assoc %u", vap->iv_ht40_sta_assoc);
+	db_printf("\n");
+	db_printf(" nonerpsta %u", vap->iv_nonerpsta);
+	db_printf(" longslotsta %u", vap->iv_longslotsta);
+	db_printf(" lastnonerp %d", vap->iv_lastnonerp);
+	db_printf(" lastnonht %d", vap->iv_lastnonht);
+	db_printf("\n");
+
 	if (showprocs) {
 		DB_PRINTSYM("\t", "iv_key_alloc", vap->iv_key_alloc);
 		DB_PRINTSYM("\t", "iv_key_delete", vap->iv_key_delete);
@@ -608,17 +619,8 @@ _db_show_com(const struct ieee80211com *ic, int showvaps, int showsta,
 		_db_show_node_table("\t", &ic->ic_sta);
 
 	db_printf("\tprotmode %d", ic->ic_protmode);
-	db_printf(" nonerpsta %u", ic->ic_nonerpsta);
-	db_printf(" longslotsta %u", ic->ic_longslotsta);
-	db_printf(" lastnonerp %d", ic->ic_lastnonerp);
-	db_printf("\n");
-	db_printf("\tsta_assoc %u", ic->ic_sta_assoc);
-	db_printf(" ht_sta_assoc %u", ic->ic_ht_sta_assoc);
-	db_printf(" ht40_sta_assoc %u", ic->ic_ht40_sta_assoc);
-	db_printf("\n");
 	db_printf("\tcurhtprotmode 0x%x", ic->ic_curhtprotmode);
 	db_printf(" htprotmode %d", ic->ic_htprotmode);
-	db_printf(" lastnonht %d", ic->ic_lastnonht);
 	db_printf("\n");
 
 	db_printf("\tsuperg %p\n", ic->ic_superg);

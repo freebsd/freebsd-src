@@ -479,7 +479,7 @@ int	ieee80211_iterate_nodes_vap(struct ieee80211_node_table *,
 void	ieee80211_iterate_nodes(struct ieee80211_node_table *,
 		ieee80211_iter_func *, void *);
 
-void	ieee80211_notify_erp(struct ieee80211com *);
+void	ieee80211_notify_erp_locked(struct ieee80211com *);
 void	ieee80211_dump_node(struct ieee80211_node_table *,
 		struct ieee80211_node *);
 void	ieee80211_dump_nodes(struct ieee80211_node_table *);
