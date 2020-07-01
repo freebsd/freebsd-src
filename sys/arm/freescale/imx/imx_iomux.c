@@ -76,6 +76,7 @@ struct iomux_softc {
 static struct iomux_softc *iomux_sc;
 
 static struct ofw_compat_data compat_data[] = {
+	{"fsl,imx8mq-iomuxc",	true},
 	{"fsl,imx6dl-iomuxc",	true},
 	{"fsl,imx6q-iomuxc",	true},
 	{"fsl,imx6sl-iomuxc",	true},

@@ -123,6 +123,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
 	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_RACC | FECFLAG_GBE },
 	{"fsl,imx6ul-fec",	FECTYPE_IMX6 | FECFLAG_RACC },
+	{"fsl,imx6sx-fec",      FECTYPE_IMX6 | FECFLAG_RACC },
 	{"fsl,imx7d-fec",	FECTYPE_IMX6 | FECFLAG_RACC | FECFLAG_GBE |
 				FECFLAG_AVB },
 	{"fsl,mvf600-fec",	FECTYPE_MVF  | FECFLAG_RACC },

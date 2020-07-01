@@ -40,13 +40,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kdb.h>
 #include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_cpu_fdt.h>
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_dev_imx.h>
+
+#if defined(EXT_RESOURCES) && defined(__aarch64__)
+#define	IMX_ENABLE_CLOCKS
+#endif
+
+#ifdef IMX_ENABLE_CLOCKS
+#include <dev/extres/clk/clk.h>
+#endif
+
 #include "uart_if.h"
 
 #include <arm/freescale/imx/imx_ccmvar.h>
@@ -125,7 +133,7 @@ imx_uart_getbaud(struct uart_bas *bas)
 	 */
 	i = (GETREG(bas, REG(UFCR)) & IMXUART_UFCR_RFDIV_MASK) >>
 	    IMXUART_UFCR_RFDIV_SHIFT;
-	rate = imx_ccm_uart_hz() / predivs[i];
+	rate = bas->rclk / predivs[i];
 	ubir = GETREG(bas, REG(UBIR)) + 1;
 	ubmr = GETREG(bas, REG(UBMR)) + 1;
 	baud = ((rate / 16 ) * ubir) / ubmr;
@@ -193,8 +201,8 @@ imx_uart_init(struct uart_bas *bas, int baudrate, int databits,
 	 * Note that a quirk of the hardware requires that both UBIR and UBMR be
 	 * set back to back in order for the change to take effect.
 	 */
-	if (baudrate > 0) {
-		baseclk = imx_ccm_uart_hz();
+	if ((baudrate > 0) && (bas->rclk != 0)) {
+		baseclk = bas->rclk;
 		reg = GETREG(bas, REG(UFCR));
 		reg = (reg & ~IMXUART_UFCR_RFDIV_MASK) | IMXUART_UFCR_RFDIV_DIV1;
 		SETREG(bas, REG(UFCR), reg);
@@ -323,6 +331,42 @@ UART_FDT_CLASS_AND_DEVICE(compat_data);
 		i = (i & s) ? (i & ~s) | d : i;		\
 	}
 
+#ifdef IMX_ENABLE_CLOCKS
+static int
+imx_uart_setup_clocks(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+	clk_t ipgclk, perclk;
+	uint64_t freq;
+	int error;
+
+	bas = &sc->sc_bas;
+
+	if (clk_get_by_ofw_name(sc->sc_dev, 0, "ipg", &ipgclk) != 0)
+		return (ENOENT);
+
+	if (clk_get_by_ofw_name(sc->sc_dev, 0, "per", &perclk) != 0) {
+		return (ENOENT);
+	}
+
+	error = clk_enable(ipgclk);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "cannot enable ipg clock\n");
+		return (error);
+	}
+
+	error = clk_get_freq(perclk, &freq);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "cannot get frequency\n");
+		return (error);
+	}
+
+	bas->rclk = (uint32_t)freq;
+
+	return (0);
+}
+#endif
+
 static int
 imx_uart_bus_attach(struct uart_softc *sc)
 {
@@ -330,6 +374,15 @@ imx_uart_bus_attach(struct uart_softc *sc)
 	struct uart_devinfo *di;
 
 	bas = &sc->sc_bas;
+
+#ifdef IMX_ENABLE_CLOCKS
+	int error = imx_uart_setup_clocks(sc);
+	if (error)
+		return (error);
+#else
+	bas->rclk = imx_ccm_uart_hz();
+#endif
+
 	if (sc->sc_sysdev != NULL) {
 		di = sc->sc_sysdev;
 		imx_uart_init(bas, di->baudrate, di->databits, di->stopbits,

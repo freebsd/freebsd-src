@@ -1,0 +1,117 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright 2016 Michal Meloun <mmel@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+
+#include <dev/extres/clk/clk.h>
+
+#include <arm64/freescale/imx/clk/imx_clk_gate.h>
+
+#include "clkdev_if.h"
+
+#define	WR4(_clk, off, val)						\
+	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
+#define	RD4(_clk, off, val)						\
+	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+#define	MD4(_clk, off, clr, set )					\
+	CLKDEV_MODIFY_4(clknode_get_device(_clk), off, clr, set)
+#define	DEVICE_LOCK(_clk)						\
+	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
+#define	DEVICE_UNLOCK(_clk)						\
+	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
+
+static int imx_clk_gate_init(struct clknode *clk, device_t dev);
+static int imx_clk_gate_set_gate(struct clknode *clk, bool enable);
+struct imx_clk_gate_sc {
+	uint32_t	offset;
+	uint32_t	shift;
+	uint32_t	mask;
+	int		gate_flags;
+};
+
+static clknode_method_t imx_clk_gate_methods[] = {
+	/* Device interface */
+	CLKNODEMETHOD(clknode_init,	imx_clk_gate_init),
+	CLKNODEMETHOD(clknode_set_gate,	imx_clk_gate_set_gate),
+	CLKNODEMETHOD_END
+};
+DEFINE_CLASS_1(imx_clk_gate, imx_clk_gate_class, imx_clk_gate_methods,
+   sizeof(struct imx_clk_gate_sc), clknode_class);
+
+static int
+imx_clk_gate_init(struct clknode *clk, device_t dev)
+{
+
+	clknode_init_parent_idx(clk, 0);
+	return(0);
+}
+
+static int
+imx_clk_gate_set_gate(struct clknode *clk, bool enable)
+{
+	uint32_t reg;
+	struct imx_clk_gate_sc *sc;
+	int rv;
+
+	sc = clknode_get_softc(clk);
+	DEVICE_LOCK(clk);
+	rv = MD4(clk, sc->offset, sc->mask << sc->shift,
+	    (enable ? sc->mask : 0) << sc->shift);
+	if (rv != 0) {
+		DEVICE_UNLOCK(clk);
+		return (rv);
+	}
+	RD4(clk, sc->offset, &reg);
+	DEVICE_UNLOCK(clk);
+	return(0);
+}
+
+int
+imx_clk_gate_register(struct clkdom *clkdom, struct imx_clk_gate_def *clkdef)
+{
+	struct clknode *clk;
+	struct imx_clk_gate_sc *sc;
+
+	clk = clknode_create(clkdom, &imx_clk_gate_class, &clkdef->clkdef);
+	if (clk == NULL)
+		return (1);
+
+	sc = clknode_get_softc(clk);
+	sc->offset = clkdef->offset;
+	sc->shift = clkdef->shift;
+	sc->mask =  clkdef->mask;
+	sc->gate_flags = clkdef->gate_flags;
+
+	clknode_register(clkdom, clk);
+	return (0);
+}
