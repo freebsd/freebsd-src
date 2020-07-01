@@ -167,11 +167,12 @@ void	cpu_halt(void) __dead2;
 void	cpu_reset(void) __dead2;
 void	fork_trampoline(void);
 void	identify_cache(uint64_t);
-void	identify_cpu(void);
+void	identify_cpu(u_int);
 void	install_cpu_errata(void);
 void	swi_vm(void *v);
 
 /* Functions to read the sanitised view of the special registers */
+void	update_special_regs(u_int);
 bool	extract_user_id_field(u_int, u_int, uint8_t *);
 bool	get_kernel_reg(u_int, uint64_t *);
 
