@@ -274,7 +274,6 @@ acpi_timer_resume_handler(struct timecounter *newtc)
 			    "restoring timecounter, %s -> %s\n",
 			    tc->tc_name, newtc->tc_name);
 		(void)newtc->tc_get_timecount(newtc);
-		(void)newtc->tc_get_timecount(newtc);
 		timecounter = newtc;
 	}
 }
