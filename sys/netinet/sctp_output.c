@@ -52,12 +52,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_bsd_addr.h>
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_crc32.h>
+#include <netinet/sctp_kdtrace.h>
 #if defined(INET) || defined(INET6)
 #include <netinet/udp.h>
 #endif
 #include <netinet/udp_var.h>
 #include <machine/in_cksum.h>
-#include <netinet/in_kdtrace.h>
 
 
 
