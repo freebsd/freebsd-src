@@ -13381,6 +13381,8 @@ send:
 					 */
 					BBR_STAT_INC(bbr_offset_drop);
 					tcp_set_inp_to_drop(inp, EFAULT);
+					SOCKBUF_UNLOCK(sb);
+					(void)m_free(m);
 					return (0);
 				}
 				len = rsm->r_end - rsm->r_start;
