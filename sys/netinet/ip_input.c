@@ -1028,6 +1028,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	if (IPSEC_ENABLED(ipv4)) {
 		if ((error = IPSEC_FORWARD(ipv4, m)) != 0) {
 			/* mbuf consumed by IPsec */
+			RO_NHFREE(&ro);
 			m_freem(mcopy);
 			if (error != EINPROGRESS)
 				IPSTAT_INC(ips_cantforward);
