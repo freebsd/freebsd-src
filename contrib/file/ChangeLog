@@ -1,3 +1,83 @@
+2020-06-14  20:02  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.39
+
+2020-06-07  20:00  Christos Zoulas <christos@zoulas.com>
+
+	* Remove unused subtype_mime (Steve Grubb)
+	* Remove unused check in okstat (Steve Grubb)
+	* Fix mime-type in elf binaries by making sure $x is set
+	* Fix indirect negative offsets broken by OFFNEGATIVE
+	* Fix GUID equality check
+	* PR/165: Handle empty array and strings in JSON
+	* PR/162: Add --exclude-quiet
+
+2020-06-06  15:33  Christos Zoulas <christos@zoulas.com>
+
+	* Fix memory leak in ascmagic (Steve Grubb)
+
+2020-06-04  00:21  Christos Zoulas <christos@zoulas.com>
+
+	* Fix string comparison length with ignore whitespace
+
+2020-05-31  00:11  Christos Zoulas <christos@zoulas.com>
+
+	* Fix mingwin 64 compilation
+
+2020-05-30  23:56  Christos Zoulas <christos@zoulas.com>
+
+	* PR/159: whitelist getpid needed for file_pipe2file()
+
+2020-05-09  18:57  Christos Zoulas <christos@zoulas.com>
+
+	* Indicate negative offsets with a flag OFFNEGATIVE
+	  so that -0 works.
+	* Introduce "offset" magic type that can be used to
+	  detect the file size, and bail on short files.
+	* document DER better in the magic man page.
+
+2020-03-11  21:53  Christos Zoulas <christos@zoulas.com>
+
+	* fix memory leaks (SonarQube)
+
+2020-03-08  21:33  Christos Zoulas <christos@zoulas.com>
+
+	* fix memory leaks (SonarQube)
+	* rewrite confusing loops (SonarQube)
+	* fix bogus test (SonarQube)
+	* pass a sized buffer to file_fmttime() (SonarQube)
+
+	* fix memory leaks (SonarQube)
+
+2020-02-20  15:50  Christos Zoulas <christos@zoulas.com>
+
+	* Don't allow * in printf formats, or the code itself (Christoph Biedl)
+	* Introduce a printf output size checker to avoid DoS attacks
+
+2020-02-17  17:22  Christos Zoulas <christos@zoulas.com>
+
+	* Avoid memory leak on error (oss-fuzz)
+	* Check length of string on DER before derefercing and add new types
+	* Add missing DER string (oss-fuzz)
+
+2020-02-16  20:45  Christos Zoulas <christos@zoulas.com>
+
+	* Add missing DER types, and debugging
+
+2020-02-13  13:10  Christos Zoulas <christos@zoulas.com>
+
+	* PR/140: Avoid abort with hand-crafted magic file (gockelhahn)
+	* PR/139  Avoid DoS in printf with hand-crafted magic file (gockelhahn)
+	* PR/138: Avoid crash with hand-crafted magic file (gockelhahn)
+
+2020-02-12  17:30  Christos Zoulas <christos@zoulas.com>
+
+	* PR/136: Fix static build by adding a libmagic.pc (Fabrice Fontaine)
+
+2019-12-24  14:16  Christos Zoulas <christos@zoulas.com>
+
+	* add guid support
+
 2019-12-16  21:11  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.38

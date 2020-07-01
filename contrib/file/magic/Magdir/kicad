@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: kicad,v 1.1 2018/10/01 18:39:21 christos Exp $
+# $File: kicad,v 1.2 2020/05/06 14:03:28 christos Exp $
 # kicad:  file(1) magic for KiCad files
 #
 # See
@@ -9,26 +9,42 @@
 #
 
 # KiCad Schematic Document
+0	    string  (kicad_sch
+>10	    byte    0x20		KiCad Schematic Document
+!:ext kicad_sch/kicad_sch-bak
+>>11	    string  (version
+>>>19	    byte    0x20
+>>>>20	    regex   [0-9.]+		(Version %s)
+
+# KiCad Schematic Document (Legacy)
 0	    string  EESchema
 >8	    byte    0x20
 >>9	    string  Schematic
->>>18	    byte    0x20		KiCad Schematic Document
+>>>18	    byte    0x20		KiCad Schematic Document (Legacy)
 !:ext sch/bak
 >>>>24	    string  Version
 >>>>>31	    byte    0x20
 >>>>>>32    string  x			(Version %s)
 
 # KiCad Symbol Library
+0	    string  (kicad_symbol_lib
+>17	    byte    0x20		KiCad Symbol Library
+!:ext kicad_sym
+>>18	    string  (version
+>>>26	    byte    0x20
+>>>>27	    regex   [0-9.]+		(Version %s)
+
+# KiCad Symbol Library (Legacy)
 0	    string  EESchema-LIBRARY
->16	    byte    0x20		KiCad Symbol Library
+>16	    byte    0x20		KiCad Symbol Library (Legacy)
 !:ext lib
 >>17	    string  Version
 >>>24	    byte    0x20
 >>>>25	    string  x			(Version %s)
 
-# KiCad Symbol Library Documentation
+# KiCad Symbol Library Documentation (Legacy)
 0	    string  EESchema-DOCLIB
->15	    byte    0x20		KiCad Symbol Library Documentation
+>15	    byte    0x20		KiCad Symbol Library Documentation (Legacy)
 !:ext dcm
 >>17	    string  Version
 >>>24	    byte    0x20
@@ -40,7 +56,7 @@
 !:ext kicad_pcb/kicad_pcb-bak
 >>11	    string  (version
 >>>19	    byte    0x20
->>>>20	    byte    x			(Version %c)
+>>>>20	    regex   [0-9.]+		(Version %s)
 
 # KiCad Footprint
 0	    string  (module

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.20 2019/08/10 13:34:17 christos Exp $
+# $File: cad,v 1.23 2020/05/30 23:58:07 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -229,7 +229,11 @@
 !:mime image/vnd.dwg
 0	string	AC1024	DWG AutoDesk AutoCAD 2010/2011/2012
 !:mime image/vnd.dwg
-0	string	AC1027	DWG AutoDesk AutoCAD 2013/2014
+0	string	AC1027	DWG AutoDesk AutoCAD 2013-2017
+!:mime image/vnd.dwg
+
+# From GNU LibreDWG
+0	string	AC1032	DWG AutoDesk AutoCAD 2018/2019
 !:mime image/vnd.dwg
 
 # KOMPAS 2D drawing from ASCON
@@ -315,3 +319,6 @@
 0	string	\xff\xfe\xff\x0e\x53\x00\x6b\x00\x65\x00\x74\x00\x63\x00\x68\x00\x55\x00\x70\x00\x20\x00\x4d\x00\x6f\x00\x64\x00\x65\x00\x6c\x00	SketchUp Model
 !:mime application/vnd.sketchup.skp
 !:ext skp
+
+4	regex/b	P[0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9][0-9][0-9][0-9]\\.[0-9]	NAXOS CAD System file from version %s
+!:strength +40

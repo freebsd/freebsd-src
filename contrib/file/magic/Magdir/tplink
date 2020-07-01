@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: tplink,v 1.4 2019/04/19 00:42:27 christos Exp $
+# $File: tplink,v 1.5 2020/03/28 23:14:26 christos Exp $
 # tplink: File magic for openwrt firmware files
 
 # URL: https://wiki.openwrt.org/doc/techref/header
@@ -13,7 +13,9 @@
 >>0x100		long		0
 # skip Norton Commander Cleanup Utility NCCLEAN.INI by looking for valid vendor
 >>>4		ubelong		>0x1F000000
->>>>0		use		firmware-tplink
+# skip user.dbt by looking for positive hardware id
+>>>>0x40	ubeshort	>0
+>>>>>0		use		firmware-tplink
 
 0		name		firmware-tplink
 >0		ubyte		x		firmware

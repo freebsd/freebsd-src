@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sgml,v 1.40 2019/09/30 15:44:22 christos Exp $
+# $File: sgml,v 1.41 2020/06/07 18:16:43 christos Exp $
 # Type:	SVG Vectorial Graphics
 # From:	Noel Torres <tecnico@ejerciciosresueltos.com>
 0	string		\<?xml\ version=
@@ -109,7 +109,7 @@
 >15	string/t	>\0			%.3s document text
 >>23	search/1	\<xsl:stylesheet	(XSL stylesheet)
 >>24	search/1	\<xsl:stylesheet	(XSL stylesheet)
-0	string		\<?xml\ version='	XML
+0	string/t	\<?xml\ version='	XML
 !:mime	text/xml
 !:strength + 5
 >15	string/t	>\0			%.3s document text

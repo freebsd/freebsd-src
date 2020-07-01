@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: commands,v 1.61 2019/10/30 03:16:43 christos Exp $
+# $File: commands,v 1.63 2020/06/06 15:36:30 christos Exp $
 # commands:  file(1) magic for various shells and interpreters
 #
 #0	string/w	:			shell archive or script for antique kernel text
@@ -83,6 +83,30 @@
 !:mime	text/x-shellscript
 0	string/wt	#!\ /usr/bin/env\ bash	Bourne-Again shell script text executable
 !:mime	text/x-shellscript
+
+# Fish shell magic
+# From: Benjamin Lowry <ben@ben.gmbh>
+0	string/wt	#!\ /usr/local/bin/fish		fish shell script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/bin/fish		fish shell script text executable
+!:mime	text/x-shellscript
+0	string/wt	#!\ /usr/bin/env\ fish		fish shell script text executable
+!:mime	text/x-shellscript
+
+
+0	search/1/wt	#!\ /usr/bin/tclsh	Tcl/Tk script text executable
+!:mime  text/x-tcl
+
+0	search/1/wt	#!\ /usr/bin/texlua	LuaTex script text executable
+!:mime	text/x-luatex
+
+0	search/1/wt	#!\ /usr/bin/luatex	LuaTex script text executable
+!:mime	text/x-luatex
+
+0	search/1/wt	#!\ /usr/bin/stap	Systemtap script text executable
+!:mime  text/x-systemtap
+
+
 
 # PHP scripts
 # Ulf Harnhammar <ulfh@update.uu.se>

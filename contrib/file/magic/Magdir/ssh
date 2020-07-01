@@ -17,3 +17,23 @@
 >>12	ubequad	x		\b, version %llx
 >>>20	beqdate	x		\b, generated %s
 
+# From:		Joerg Jenderek
+# URL:		https://en.wikipedia.org/wiki/PuTTY
+# Reference:	https://the.earth.li/~sgtatham/putty/latest/putty-0.73.tar.gz
+#		/sshpubk.c
+0	string		PuTTY-User-Key-File-	PuTTY Private Key File
+#!:mime	text/plain
+# https://github.com/github/putty/blob/master/windows/installer.wxs
+!:mime	application/x-putty-private-key
+!:ext	ppk
+# version 1 or 2
+>20	string		x			\b, version %.1s
+# name of the algorithm like: ssh-dss ssh-rsa ecdsa-sha2-nistp256 ssh-ed25519
+>23	string		x			\b, algorithm %s
+# next line says "Encryption: " plus an encryption type like aes256-cbc or none
+>32	search/13	Encryption:\040		\b, Encryption
+>>&0	string		x			%s
+# next line says "Comment: " plus the comment string
+>>>&0	search/3	Comment:\040
+>>>>&0	string		x			"%s"
+

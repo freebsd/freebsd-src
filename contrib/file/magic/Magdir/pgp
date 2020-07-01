@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: pgp,v 1.17 2019/04/19 00:42:27 christos Exp $
+# $File: pgp,v 1.21 2020/03/20 17:11:05 christos Exp $
 # pgp:  file(1) magic for Pretty Good Privacy
 # see https://lists.gnupg.org/pipermail/gnupg-devel/1999-September/016052.html
 #
@@ -58,16 +58,36 @@
 #>15	string	SIGNED\040MESSAGE-	signed message
 #>15	string	PGP\040SIGNATURE-	signature
 
+# Update:	Joerg Jenderek
+# URL:		http://en.wikipedia.org/wiki/Pretty_Good_Privacy
+# Reference:	https://reposcope.com/mimetype/application/pgp-keys
+2	string	---BEGIN\040PGP\040PRIVATE\040KEY\040BLOCK-	PGP private key block
+#!:mime	text/PGP
+!:mime	application/pgp-keys
+!:ext	asc
 2	string	---BEGIN\040PGP\040PUBLIC\040KEY\040BLOCK-	PGP public key block
 !:mime	application/pgp-keys
+!:ext	asc
 >10	search/100	\n\n
 >>&0	use		pgp
 0	string	-----BEGIN\040PGP\040MESSAGE-		PGP message
-!:mime	application/pgp
+# https://reposcope.com/mimetype/application/pgp-encrypted
+#!:mime	application/pgp
+!:mime	application/pgp-encrypted
+!:ext	asc
+#!:ext	asc/pgp/gpg
 >10	search/100	\n\n
 >>&0	use		pgp
+# Reference:	https://www.gnupg.org/gph/en/manual/x135.html
+0	string	-----BEGIN\040PGP\040SIGNED\040MESSAGE-	PGP signed message
+#!:mime	text/plain
+!:mime	text/PGP
+#!:mime	application/pgp
+!:ext	asc
 0	string	-----BEGIN\040PGP\040SIGNATURE-		PGP signature
+# https://reposcope.com/mimetype/application/pgp-signature
 !:mime	application/pgp-signature
+!:ext	asc
 >10	search/100	\n\n
 >>&0	use		pgp
 
@@ -127,8 +147,8 @@
 # 1024b RSA encrypted data
 
 0	string	\x84\x8c\x03		PGP RSA encrypted session key -
->3	lelong	x			keyid: %X
->7	lelong	x			%X
+>3	belong	x			keyid: %08X
+>7	belong	x			%08X
 >11	byte	0x01			RSA (Encrypt or Sign) 1024b
 >11	byte	0x02			RSA Encrypt-Only 1024b
 >12	string	\x04\x00
@@ -144,8 +164,8 @@
 # 2048b RSA encrypted data
 
 0	string	\x85\x01\x0c\x03	PGP RSA encrypted session key -
->4	lelong	x			keyid: %X
->8	lelong	x			%X
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 2048b
 >12	byte	0x02			RSA Encrypt-Only 2048b
 >13	string	\x08\x00
@@ -161,8 +181,8 @@
 # 3072b RSA encrypted data
 
 0	string	\x85\x01\x8c\x03	PGP RSA encrypted session key -
->4	lelong	x			keyid: %X
->8	lelong	x			%X
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 3072b
 >12	byte	0x02			RSA Encrypt-Only 3072b
 >13	string	\x0c\x00
@@ -175,11 +195,11 @@
 >13	string	\x0b\xf9
 >399	byte	0xd2			.
 
-# 3072b RSA encrypted data
+# 4096b RSA encrypted data
 
 0	string	\x85\x02\x0c\x03	PGP RSA encrypted session key -
->4	lelong	x			keyid: %X
->8	lelong	x			%X
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
 >12	byte	0x01			RSA (Encrypt or Sign) 4096b
 >12	byte	0x02			RSA Encrypt-Only 4096b
 >13	string	\x10\x00
@@ -192,13 +212,13 @@
 >13	string	\x0f\xf9
 >527	byte	0xd2			.
 
-# 4096b RSA encrypted data
+# 8192b RSA encrypted data
 
 0	string	\x85\x04\x0c\x03	PGP RSA encrypted session key -
->4	lelong	x			keyid: %X
->8	lelong	x			%X
->12	byte	0x01			RSA (Encrypt or Sign) 8129b
->12	byte	0x02			RSA Encrypt-Only 8129b
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
+>12	byte	0x01			RSA (Encrypt or Sign) 8192b
+>12	byte	0x02			RSA Encrypt-Only 8192b
 >13	string	\x20\x00
 >13	string	\x1f\xff
 >13	string	\x1f\xfe
@@ -208,6 +228,51 @@
 >13	string	\x1f\xfa
 >13	string	\x1f\xf9
 >1039	byte	0xd2			.
+
+# 1024b Elgamal encrypted data
+
+0	string	\x85\x01\x0e\x03	PGP Elgamal encrypted session key -
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
+>12	byte	0x10			Elgamal Encrypt-Only 1024b.
+>13	string	\x04\x00
+>13	string	\x03\xff
+>13	string	\x03\xfe
+>13	string	\x03\xfd
+>13	string	\x03\xfc
+>13	string	\x03\xfb
+>13	string	\x03\xfa
+>13	string	\x03\xf9
+
+# 2048b Elgamal encrypted data
+
+0	string	\x85\x02\x0e\x03	PGP Elgamal encrypted session key -
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
+>12	byte	0x10			Elgamal Encrypt-Only 2048b.
+>13	string	\x08\x00
+>13	string	\x07\xff
+>13	string	\x07\xfe
+>13	string	\x07\xfd
+>13	string	\x07\xfc
+>13	string	\x07\xfb
+>13	string	\x07\xfa
+>13	string	\x07\xf9
+
+# 3072b Elgamal encrypted data
+
+0	string	\x85\x03\x0e\x03	PGP Elgamal encrypted session key -
+>4	belong	x			keyid: %08X
+>8	belong	x			%08X
+>12	byte	0x10			Elgamal Encrypt-Only 3072b.
+>13	string	\x0c\x00
+>13	string	\x0b\xff
+>13	string	\x0b\xfe
+>13	string	\x0b\xfd
+>13	string	\x0b\xfc
+>13	string	\x0b\xfb
+>13	string	\x0b\xfa
+>13	string	\x0b\xf9
 
 # crypto algo mapper
 

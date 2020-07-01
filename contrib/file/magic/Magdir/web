@@ -1,0 +1,12 @@
+
+#------------------------------------------------------------------------------
+# $File: web,v 1.1 2020/05/17 19:14:28 christos Exp $
+
+# http://www.rdfhdt.org/
+# From Christoph Biedl
+# http://www.rdfhdt.org/hdt-internals/
+# https://github.com/rdfhdt/hdt-cpp
+
+0	string	$HDT\x01 HDT file (binary compressed indexed RDF triples) type 1
+!:mime application/vnd.hdt
+!:ext hdt

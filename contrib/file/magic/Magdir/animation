@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: animation,v 1.74 2019/10/29 01:06:20 christos Exp $
+# $File: animation,v 1.77 2020/04/26 15:23:43 christos Exp $
 # animation:  file(1) magic for animation/movie formats
 #
 # animation formats
@@ -159,7 +159,7 @@
 >8	string		mqt		\b, Sony / Mobile QuickTime (.MQV) US Pat 7,477,830
 !:mime	video/quicktime
 >8	string		MSNV		\b, MPEG-4 (.MP4) for SonyPSP
-!:mime	audio/mp4
+!:mime	video/mp4
 >8	string		NDAS		\b, MP4 v2 [ISO 14496-14] Nero Digital AAC Audio
 !:mime	audio/mp4
 >8	string		NDSC		\b, MPEG-4 (.MP4) Nero Cinema Profile
@@ -854,10 +854,6 @@
 >4	byte			^0x01		(DV) movie file
 >3	byte			&0x80		(PAL)
 >3	byte			^0x80		(NTSC)
-
-# Microsoft Advanced Streaming Format (ASF) <mpruett@sgi.com>
-0	belong			0x3026b275	Microsoft ASF
-!:mime  video/x-ms-asf
 
 # MNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
 0	string			\x8aMNG		MNG video data,
