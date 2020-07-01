@@ -58,7 +58,7 @@
 enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
 		  VMARKER };
 
-enum vgetstate	{ VGET_HOLDCNT, VGET_USECOUNT };
+enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
 /*
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
@@ -236,6 +236,9 @@ struct xvnode {
  *	VIRF_DOOMED is doubly protected by the interlock and vnode lock.  Both
  *	are required for writing but the status may be checked with either.
  */
+#define	VHOLD_NO_SMR	(1<<29)	/* Disable vhold_smr */
+#define VHOLD_ALL_FLAGS (VHOLD_NO_SMR)
+
 #define	VIRF_DOOMED	0x0001	/* This vnode is being recycled */
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
@@ -657,12 +660,14 @@ void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
 int	vget(struct vnode *vp, int flags, struct thread *td);
+enum vgetstate	vget_prep_smr(struct vnode *vp);
 enum vgetstate	vget_prep(struct vnode *vp);
 int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
 void	vgone(struct vnode *vp);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
 void	vholdnz(struct vnode *);
+bool	vhold_smr(struct vnode *);
 void	vinactive(struct vnode *vp);
 int	vinvalbuf(struct vnode *vp, int save, int slpflag, int slptimeo);
 int	vtruncbuf(struct vnode *vp, off_t length, int blksize);
@@ -973,6 +978,16 @@ int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
 #define VFS_VOP_VECTOR_REGISTER(vnodeops) \
 	SYSINIT(vfs_vector_##vnodeops##_f, SI_SUB_VFS, SI_ORDER_ANY, \
 	    vfs_vector_op_register, &vnodeops)
+
+#define VFS_SMR_DECLARE				\
+	extern smr_t vfs_smr
+
+#define VFS_SMR()	vfs_smr
+#define vfs_smr_enter()	smr_enter(VFS_SMR())
+#define vfs_smr_exit()	smr_exit(VFS_SMR())
+#define VFS_SMR_ASSERT_ENTERED()	SMR_ASSERT_ENTERED(VFS_SMR())
+#define VFS_SMR_ASSERT_NOT_ENTERED()	SMR_ASSERT_NOT_ENTERED(VFS_SMR())
+#define VFS_SMR_ZONE_SET(zone)	uma_zone_set_smr((zone), VFS_SMR())
 
 #endif /* _KERNEL */
 
