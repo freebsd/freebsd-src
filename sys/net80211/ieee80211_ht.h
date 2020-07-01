@@ -210,8 +210,8 @@ struct ieee80211_channel *ieee80211_ht_adjust_channel(struct ieee80211com *,
 void	ieee80211_ht_wds_init(struct ieee80211_node *);
 void	ieee80211_ht_node_join(struct ieee80211_node *);
 void	ieee80211_ht_node_leave(struct ieee80211_node *);
-void	ieee80211_htprot_update(struct ieee80211com *, int protmode);
-void	ieee80211_ht_timeout(struct ieee80211com *);
+void	ieee80211_htprot_update(struct ieee80211vap *, int protmode);
+void	ieee80211_ht_timeout(struct ieee80211vap *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
@@ -241,5 +241,6 @@ void	ieee80211_ampdu_rx_stop_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni,
 	    int tid, int status);
+void	ieee80211_htinfo_notify(struct ieee80211vap *vap);
 
 #endif /* _NET80211_IEEE80211_HT_H_ */

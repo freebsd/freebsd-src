@@ -45,7 +45,7 @@ int	ieee80211_vht_updateparams(struct ieee80211_node *,
 void	ieee80211_setup_vht_rates(struct ieee80211_node *,
 	    const uint8_t *, const uint8_t *);
 
-void	ieee80211_vht_timeout(struct ieee80211com *ic);
+void	ieee80211_vht_timeout(struct ieee80211vap *vap);
 
 void	ieee80211_vht_node_join(struct ieee80211_node *ni);
 void	ieee80211_vht_node_leave(struct ieee80211_node *ni);
