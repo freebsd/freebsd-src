@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: wordprocessors,v 1.23 2019/10/25 20:15:49 christos Exp $
+# $File: wordprocessors,v 1.24 2020/05/22 19:28:47 christos Exp $
 # wordprocessors:  file(1) magic fo word processors.
 #
 ####### PWP file format used on Smith Corona Personal Word Processors:
@@ -301,4 +301,21 @@
 >>(2.s+4)	ulelong		>0
 # partial file name, URL or internal name like "dd2*" of 1st object or RESRV
 >>>(2.s+11)	pstring/h	x		\b, 1st %s
+
+# From:	Joerg Jenderek
+# URL:	http://fileformats.archiveteam.org/wiki/StarOffice_Gallery
+# Note:	used in Star-, Open- and Libre-Office and found in directories like
+#	%APPDATA%\Roaming\LibreOffice\4\user\gallery
+#	$HOME/.config/libreoffice/4/user/gallery
+0	string		SGA3	StarOffice Gallery thumbnails
+# Unknown like 0x04000?0001000142
+#>4	ubequad		x	\b, UNKNOWN 0x%16.16llx
+#!:mime	application/x-sdg
+!:mime	application/x-stargallery-sdg
+!:ext	sdg
+# display image magic for debugging purpose like 'BM'
+# looking like PC bitmap, Windows 3.x format with unknown compression
+#>11	string		x	\b, image magic '%-.2s'
+# inspect 1st GALLERY thumbnail magic by ./images with 1 space at end
+#>11	indirect	x	\b; contains 
 

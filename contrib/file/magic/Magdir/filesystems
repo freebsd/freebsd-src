@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.131 2019/11/15 23:49:38 christos Exp $
+# $File: filesystems,v 1.133 2020/05/17 19:32:00 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -1994,7 +1994,7 @@
 # to display CD-ROM (70=81-11) after MBR (113=40+72+1), partition-table (71=50+21) and before Apple Driver Map (51)
 #!:strength -11
 # to display CD-ROM (114=81+33) before MBR (113=40+72+1), partition-table (71=50+21) and Apple Driver Map (51)
-!:strength +34
+!:strength +35
 >0	use	cdrom
 
 # URL: https://en.wikipedia.org/wiki/NRG_(file_format)
@@ -2182,7 +2182,7 @@
 >0	use	squashfs
 
 0	string	hsqs	Squashfs filesystem, little endian,
->0	use	^squashfs
+>0	use	\^squashfs
 
 # AFS Dump Magic
 # From: Ty Sarna <tsarna@sarna.org>

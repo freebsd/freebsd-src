@@ -1,0 +1,21 @@
+
+#------------------------------------------------------------------------------
+# $File: usd,v 1.2 2020/05/21 22:17:00 christos Exp $
+#
+# From Christian Schmidbauer
+#
+# https://github.com/PixarAnimationStudios/USD
+
+# USD crate file
+# https://github.com/PixarAnimationStudios/USD/blob/ebac0a8b6703f4fa1c27115f1f013bb9819662f4/pxr/usd/usd/crateFile.h#L441-L450
+0	string		PXR-USDC	USD crate
+>8	byte		x		\b, version %x.
+>9	byte		x		\b%x.
+>10	byte		x		\b%x
+!:ext	usd
+
+# USD ASCII file
+0	string		#usda\040	USD ASCII
+>6	string		x		\b, version %s
+!:mime	text/plain
+!:ext	usd

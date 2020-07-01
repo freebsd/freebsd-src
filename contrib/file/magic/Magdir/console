@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.49 2019/05/27 01:33:32 christos Exp $
+# $File: console,v 1.55 2020/04/19 17:30:55 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -628,10 +628,12 @@
 
 0	string	CON\x20	Microsoft Xbox 360 package (console-signed)
 >0	use	xbox-360-package
-0	string	PIRS	Microsoft Xbox 360 package (non-Xbox Live)
->0	use	xbox-360-package
-0	string	LIVE	Microsoft Xbox 360 package (Xbox Live)
->0	use	xbox-360-package
+0	string	PIRS
+>0	belong	0	Microsoft Xbox 360 package (non-Xbox Live)
+>>0	use	xbox-360-package
+0	string	LIVE
+>0x104	belong	0	Microsoft Xbox 360 package (Xbox Live)
+>>0	use	xbox-360-package
 
 # Atari Lynx cartridge dump (EXE/BLL header)
 # From: "Stefan A. Haubenthal" <polluks@web.de>
@@ -667,6 +669,30 @@
 # IPS Patch Files from: From: Thomas Klausner <tk@giga.or.at>
 # see https://zerosoft.zophar.net/ips.php
 0	string	PATCH			IPS patch file
+!:ext	ips
+
+# BPS Patch Files - from: David Korth <gerbilsoft@gerbilsoft.com>
+# Reference: https://www.romhacking.net/documents/746/
+0	string	BPS1			BPS patch file
+!:ext	bps
+
+# APS Patch Files - from: David Korth <gerbilsoft@gerbilsoft.com>
+# Reference: https://github.com/btimofeev/UniPatcher/wiki/APS-(N64)
+0	string	APS10			APS patch file
+!:ext	aps
+>5	byte	0			\b, simple patch
+>5	byte	1			\b, N64-specific patch for
+>>58	byte	x			N%c
+>>59	byte	x			\b%c
+>>60	byte	x			\b%c
+>7	byte	!0x20
+# FIXME: /T specifier isn't working with a fixed-length string.
+>>7	string	x			\b: "%.50s"
+
+# UPS Patch Files - from: David Korth <gerbilsoft@gerbilsoft.com>
+# Reference: http://fileformats.archiveteam.org/wiki/UPS_(binary_patch_format)
+0	string	UPS1			UPS patch file
+!:ext	ups
 
 # Playstations Patch Files from: From: Thomas Klausner <tk@giga.or.at>
 0	string	PPF30			Playstation Patch File version 3.0
@@ -767,6 +793,8 @@
 >0x07	byte	x	\b, Rev.%02u)
 >0x18	belong	0x5D1C9EA3
 >>0x60	beshort	0x0101	\b (Unencrypted)
+>0x200	string	NKIT	\b (NKit compressed)
+
 
 # Type: Nintendo GameCube disc image
 # From: David Korth <gerbilsoft@gerbilsoft.com>
@@ -1015,3 +1043,61 @@
 >>>>>>0x5B	byte	0x02
 >>>>>>>0x54	belong	x	Nintendo amiibo NFC dump - amiibo ID: %08X-
 >>>>>>>0x58	belong	x	\b%08X
+
+#------------------------------------------------------------------------------
+# Type: Nintendo Switch XCI (Game Cartridge Image)
+# From: Benjamin Lowry <ben@ben.gmbh>
+# Reference: https://switchbrew.org/wiki/Gamecard_Format
+0x100		string	HEAD
+>0x10D		byte	0xFA	Nintendo Switch cartridge image (XCI), 1GB
+>0x10D		byte	0xF8	Nintendo Switch cartridge image (XCI), 2GB
+>0x10D		byte	0xF0	Nintendo Switch cartridge image (XCI), 4GB
+>0x10D		byte	0xE0	Nintendo Switch cartridge image (XCI), 8GB
+>0x10D		byte	0xE1	Nintendo Switch cartridge image (XCI), 16GB
+>0x10D		byte	0xE2	Nintendo Switch cartridge image (XCI), 32GB
+
+#------------------------------------------------------------------------------
+# Type: Nintendo Switch Executable
+# From: Benjamin Lowry <ben@ben.gmbh>
+# Reference: https://switchbrew.org/wiki/NSO
+0x00		string	NSO0	Nintendo Switch executable (NSO)
+
+#------------------------------------------------------------------------------
+# Type: Nintendo Switch PFS0
+# From: Benjamin Lowry <ben@ben.gmbh>
+# Reference: https://switchbrew.org/wiki/NCA_Format#PFS0
+0x00		string	PFS0	Nintendo Switch partition filesystem (PFS0)
+>0x04		ulelong	x	\b, %d files
+
+#------------------------------------------------------------------------------
+# amiibo: file(1) magic for Nintendo Badge Arcade files.
+# From: David Korth <gerbilsoft@gerbilsoft.com>
+# References:
+# - https://github.com/GerbilSoft/rom-properties/issues/92
+# - https://github.com/CaitSith2/BadgeArcadeTool
+# - https://github.com/TheMachinumps/Advanced-badge-editor
+
+# PRBS: Individual badge and/or mega badge.
+0		string	PRBS
+>0x44		byte	>0x20	Nintendo Badge Arcade
+>>0xB8		ulelong	<2
+>>>0xBC		ulelong	<2	badge:
+>>>0xBC		ulelong	>1	Mega Badge
+>>>>0xB8	ulelong	x	(%ux
+>>>>0xBC	ulelong	x	\b%u):
+>>0xB8		ulelong	>1	Mega Badge
+>>>0xB8		ulelong	x	(%ux
+>>>0xBC		ulelong	x	\b%u):
+>0x44		string	x	"%s"
+>0x3C		ulelong	x	\b, badge ID: %u
+>0x74		byte	>0x20
+>>0x74		string	x	\b, set: "%s"
+>0xA8		ulelong	!0xFFFFFFFF
+>>0xA8		ulelong	x	\b, launch title ID: %08X
+>>0xA4		ulelong	x	\b-%08X
+
+# CABS: Badge set.
+0	string	CABS
+>0x2C	byte	>0x20	Nintendo Badge Arcade badge set:
+>>0x2C	string	x	"%.48s"
+>>0x24	ulelong	x	\b, set ID: %u

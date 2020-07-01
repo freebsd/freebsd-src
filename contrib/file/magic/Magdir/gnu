@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: gnu,v 1.21 2019/04/19 00:42:27 christos Exp $
+# $File: gnu,v 1.22 2020/04/09 19:11:58 christos Exp $
 # gnu:  file(1) magic for various GNU tools
 #
 # GNU nlsutils message catalog file format
@@ -157,11 +157,6 @@
 >>>16	bedate	x	\b, created-at %s
 >>>20	bedate	x	\b, last-maintained %s
 
-
-# Gnumeric spreadsheet
-# This entry is only semi-helpful, as Gnumeric compresses its files, so
-# they will ordinarily reported as "compressed", but at least -z helps
-39      string          =<gmr:Workbook           Gnumeric spreadsheet
 
 # From: James Youngman <jay@gnu.org>
 # gnu find magic

@@ -3,6 +3,7 @@
 
 PACKAGE=lib${LIB}
 CONTRDIR=	${SRCTOP}/contrib/file
+.PATH: ${CONTRDIR}
 .PATH: ${CONTRDIR}/src
 .PATH: ${CONTRDIR}/doc
 
@@ -34,6 +35,19 @@ FILESDIR=	${MAGICPATH}
 MAGFILES=	${CONTRDIR}/magic/Header \
 		${CONTRDIR}/magic/Localstuff \
 		${CONTRDIR}/magic/Magdir/[a-z]*
+
+
+PACKAGE_VERSION!=	sed -n '/define.*PACKAGE_VERSION/{s,[^0-9.],,gp;q;}' ${.CURDIR}/config.h
+
+libmagic.pc: libmagic.pc.in
+	sed -e 's,@prefix@,/usr,g ; \
+		s,@exec_prefix@,$${prefix},g ; \
+		s,@libdir@,$${exec_prefix}/lib,g ; \
+		s,@sharedlibdir@,$${libdir},g ; \
+		s,@includedir@,$${prefix}/include,g ; \
+		s,@VERSION@,${PACKAGE_VERSION},g ; \
+		s,@LIBS@,,g ;' \
+                ${.ALLSRC} > ${.TARGET}
 
 magic: ${MAGFILES}
 	cat ${.ALLSRC:O} > ${.TARGET}
@@ -70,5 +84,8 @@ CLEANFILES+=	${INCS}
 ${inc}: ${inc}.in
 	sed -e 's,X.YY,${FILEVER:S,",,g:S,.,,g},g' ${.ALLSRC} > ${.TARGET}
 .endfor
+
+FILES+=			libmagic.pc
+FILESDIR_libmagic.pc=	${LIBDATADIR}/pkgconfig
 
 .include <bsd.lib.mk>

@@ -33,7 +33,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.111 2019/05/07 02:27:11 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.112 2020/06/08 19:44:10 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -463,8 +463,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	}
 
 	if (fd != -1) {
-		if (!okstat)
-			okstat = fstat(fd, &sb) == 0;
+		okstat = fstat(fd, &sb) == 0;
 		if (okstat && S_ISFIFO(sb.st_mode))
 			ispipe = 1;
 		if (inname == NULL)
