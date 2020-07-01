@@ -992,7 +992,7 @@ update_lower_register(uint64_t val, uint64_t new_val, u_int shift,
 	return (val);
 }
 
-static void
+void
 update_special_regs(u_int cpu)
 {
 	struct mrs_field *fields;
@@ -1072,7 +1072,8 @@ identify_cpu_sysinit(void *dummy __unused)
 			elf_hwcap = hwcap;
 		else
 			elf_hwcap &= hwcap;
-		update_special_regs(cpu);
+		if (cpu != 0)
+			update_special_regs(cpu);
 
 		if (CTR_DIC_VAL(cpu_desc[cpu].ctr) == 0)
 			dic = false;
@@ -1457,23 +1458,15 @@ identify_cache(uint64_t ctr)
 }
 
 void
-identify_cpu(void)
+identify_cpu(u_int cpu)
 {
 	u_int midr;
 	u_int impl_id;
 	u_int part_id;
-	u_int cpu;
 	size_t i;
 	const struct cpu_parts *cpu_partsp = NULL;
 
-	cpu = PCPU_GET(cpuid);
 	midr = get_midr();
-
-	/*
-	 * Store midr to pcpu to allow fast reading
-	 * from EL0, EL1 and assembly code.
-	 */
-	PCPU_SET(midr, midr);
 
 	impl_id = CPU_IMPL(midr);
 	for (i = 0; i < nitems(cpu_implementers); i++) {
