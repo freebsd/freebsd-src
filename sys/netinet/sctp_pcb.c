@@ -7131,7 +7131,7 @@ sctp_initiate_iterator(inp_func inpf,
 	    SCTP_M_ITER);
 	if (it == NULL) {
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PCB, ENOMEM);
-		return (ENOMEM);
+		return (-1);
 	}
 	memset(it, 0, sizeof(*it));
 	it->function_assoc = af;
