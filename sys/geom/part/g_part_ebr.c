@@ -52,40 +52,48 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(geom_part_ebr,
     "GEOM partitioning class for extended boot records support");
-#if defined(GEOM_PART_EBR_COMPAT)
 FEATURE(geom_part_ebr_compat,
     "GEOM EBR partitioning class: backward-compatible partition names");
-#endif
 
+SYSCTL_DECL(_kern_geom_part);
+static SYSCTL_NODE(_kern_geom_part, OID_AUTO, ebr, CTLFLAG_RW | CTLFLAG_MPSAFE,
+    0, "GEOM_PART_EBR Extended Boot Record");
+
+static bool compat_aliases = true;
+SYSCTL_BOOL(_kern_geom_part_ebr, OID_AUTO, compat_aliases,
+    CTLFLAG_RDTUN, &compat_aliases, 0,
+    "Set non-zero to enable EBR compatibility alias names (e.g., ada0p5)");
+
+#define	EBRNAMFMT	"+%08u"
 #define	EBRSIZE		512
 
 struct g_part_ebr_table {
 	struct g_part_table	base;
-#ifndef GEOM_PART_EBR_COMPAT
-	u_char		ebr[EBRSIZE];
-#endif
+	u_char			lba0_ebr[EBRSIZE];
 };
 
 struct g_part_ebr_entry {
 	struct g_part_entry	base;
 	struct dos_partition	ent;
+	u_char			ebr[EBRSIZE];
+	u_int			ebr_compat_idx;
 };
 
 static int g_part_ebr_add(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
+static void g_part_ebr_add_alias(struct g_part_table *, struct g_provider *,
+    struct g_part_entry *, const char *);
 static int g_part_ebr_create(struct g_part_table *, struct g_part_parms *);
 static int g_part_ebr_destroy(struct g_part_table *, struct g_part_parms *);
 static void g_part_ebr_dumpconf(struct g_part_table *, struct g_part_entry *,
     struct sbuf *, const char *);
 static int g_part_ebr_dumpto(struct g_part_table *, struct g_part_entry *);
-#if defined(GEOM_PART_EBR_COMPAT)
-static void g_part_ebr_fullname(struct g_part_table *, struct g_part_entry *,
-    struct sbuf *, const char *);
-#endif
 static int g_part_ebr_modify(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
 static const char *g_part_ebr_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
+static struct g_provider *g_part_ebr_new_provider(struct g_part_table *,
+    struct g_geom *, struct g_part_entry *, const char *);
 static int g_part_ebr_precheck(struct g_part_table *, enum g_part_ctl,
     struct g_part_parms *);
 static int g_part_ebr_probe(struct g_part_table *, struct g_consumer *);
@@ -100,15 +108,14 @@ static int g_part_ebr_resize(struct g_part_table *, struct g_part_entry *,
 
 static kobj_method_t g_part_ebr_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_ebr_add),
+	KOBJMETHOD(g_part_add_alias,	g_part_ebr_add_alias),
 	KOBJMETHOD(g_part_create,	g_part_ebr_create),
 	KOBJMETHOD(g_part_destroy,	g_part_ebr_destroy),
 	KOBJMETHOD(g_part_dumpconf,	g_part_ebr_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_ebr_dumpto),
-#if defined(GEOM_PART_EBR_COMPAT)
-	KOBJMETHOD(g_part_fullname,	g_part_ebr_fullname),
-#endif
 	KOBJMETHOD(g_part_modify,	g_part_ebr_modify),
 	KOBJMETHOD(g_part_name,		g_part_ebr_name),
+	KOBJMETHOD(g_part_new_provider,	g_part_ebr_new_provider),
 	KOBJMETHOD(g_part_precheck,	g_part_ebr_precheck),
 	KOBJMETHOD(g_part_probe,	g_part_ebr_probe),
 	KOBJMETHOD(g_part_read,		g_part_ebr_read),
@@ -171,7 +178,7 @@ ebr_entry_link(struct g_part_table *table, uint32_t start, uint32_t end,
 	buf[0] = 0 /* dp_flag */;
 	ebr_set_chs(table, start, &buf[3] /* dp_scyl */, &buf[1] /* dp_shd */,
 	    &buf[2] /* dp_ssect */);
-	buf[4] = 5 /* dp_typ */;
+	buf[4] = DOSPTYP_EXT /* dp_typ */;
 	ebr_set_chs(table, end, &buf[7] /* dp_ecyl */, &buf[5] /* dp_ehd */,
 	    &buf[6] /* dp_esect */);
 	le32enc(buf + 8, start);
@@ -249,7 +256,9 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 {
 	struct g_provider *pp;
 	struct g_part_ebr_entry *entry;
+	struct g_part_entry *iter;
 	uint32_t start, size;
+	u_int idx;
 
 	if (gpp->gpp_parms & G_PART_PARM_LABEL)
 		return (EINVAL);
@@ -276,7 +285,46 @@ g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,
 	    &entry->ent.dp_shd, &entry->ent.dp_ssect);
 	ebr_set_chs(basetable, baseentry->gpe_end, &entry->ent.dp_ecyl,
 	    &entry->ent.dp_ehd, &entry->ent.dp_esect);
+
+	if (compat_aliases) {
+		idx = 5;
+		LIST_FOREACH(iter, &basetable->gpt_entry, gpe_entry)
+			idx++;
+		entry->ebr_compat_idx = idx;
+	}
 	return (ebr_parse_type(gpp->gpp_type, &entry->ent.dp_typ));
+}
+
+static void
+g_part_ebr_add_alias(struct g_part_table *table, struct g_provider *pp,
+    struct g_part_entry *baseentry, const char *pfx)
+{
+	struct g_part_ebr_entry *entry;
+
+	g_provider_add_alias(pp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
+	    baseentry->gpe_index);
+	if (compat_aliases) {
+		entry = (struct g_part_ebr_entry *)baseentry;
+		g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
+		    entry->ebr_compat_idx);
+	}
+}
+
+static struct g_provider *
+g_part_ebr_new_provider(struct g_part_table *table, struct g_geom *gp,
+    struct g_part_entry *baseentry, const char *pfx)
+{
+	struct g_part_ebr_entry *entry;
+	struct g_provider *pp;
+
+	pp = g_new_providerf(gp, "%s%s" EBRNAMFMT, pfx, g_part_separator,
+	    baseentry->gpe_index);
+	if (compat_aliases) {
+		entry = (struct g_part_ebr_entry *)baseentry;
+		g_provider_add_alias(pp, "%.*s%u", (int)strlen(pfx) - 1, pfx,
+		    entry->ebr_compat_idx);
+	}
+	return (pp);
 }
 
 static int
@@ -358,24 +406,6 @@ g_part_ebr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 	    entry->ent.dp_typ == DOSPTYP_LINSWP) ? 1 : 0);
 }
 
-#if defined(GEOM_PART_EBR_COMPAT)
-static void
-g_part_ebr_fullname(struct g_part_table *table, struct g_part_entry *entry,
-    struct sbuf *sb, const char *pfx)
-{
-	struct g_part_entry *iter;
-	u_int idx;
-
-	idx = 5;
-	LIST_FOREACH(iter, &table->gpt_entry, gpe_entry) {
-		if (iter == entry)
-			break;
-		idx++;
-	}
-	sbuf_printf(sb, "%.*s%u", (int)strlen(pfx) - 1, pfx, idx);
-}
-#endif
-
 static int
 g_part_ebr_modify(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
@@ -409,8 +439,7 @@ static const char *
 g_part_ebr_name(struct g_part_table *table, struct g_part_entry *entry,
     char *buf, size_t bufsz)
 {
-
-	snprintf(buf, bufsz, "+%08u", entry->gpe_index);
+	snprintf(buf, bufsz, EBRNAMFMT, entry->gpe_index);
 	return (buf);
 }
 
@@ -418,11 +447,6 @@ static int
 g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
     struct g_part_parms *gpp)
 {
-#if defined(GEOM_PART_EBR_COMPAT)
-	if (req == G_PART_CTL_DESTROY)
-		return (0);
-	return (ECANCELED);
-#else
 	/*
 	 * The index is a function of the start of the partition.
 	 * This is not something the user can override, nor is it
@@ -432,7 +456,6 @@ g_part_ebr_precheck(struct g_part_table *table, enum g_part_ctl req,
 	if (req == G_PART_CTL_ADD)
 		gpp->gpp_index = (gpp->gpp_start / table->gpt_sectors) + 1;
 	return (0);
-#endif
 }
 
 static int
@@ -501,9 +524,10 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 	struct g_part_ebr_entry *entry;
 	u_char *buf;
 	off_t ofs, msize;
-	u_int lba;
+	u_int lba, idx;
 	int error, index;
 
+	idx = 5;
 	pp = cp->provider;
 	table = (struct g_part_ebr_table *)basetable;
 	msize = MIN(pp->mediasize / pp->sectorsize, UINT32_MAX);
@@ -525,18 +549,21 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 			printf("GEOM: %s: invalid entries in the EBR ignored.\n",
 			    pp->name);
 		}
-#ifndef GEOM_PART_EBR_COMPAT
-		/* Save the first EBR, it can contain a boot code */
+		/*
+		 * Preserve EBR, it can contain boot code or other metadata we
+		 * are ignorant of.
+		 */
 		if (lba == 0)
-			bcopy(buf, table->ebr, sizeof(table->ebr));
-#endif
-		g_free(buf);
+			memcpy(table->lba0_ebr, buf, sizeof(table->lba0_ebr));
 
-		if (ent[0].dp_typ == 0)
+		if (ent[0].dp_typ == 0) {
+			g_free(buf);
 			break;
+		}
 
 		if (ent[0].dp_typ == 5 && ent[1].dp_typ == 0) {
 			lba = ent[0].dp_start;
+			g_free(buf);
 			continue;
 		}
 
@@ -547,6 +574,10 @@ g_part_ebr_read(struct g_part_table *basetable, struct g_consumer *cp)
 		    pp->sectorsize;
 		entry = (struct g_part_ebr_entry *)baseentry;
 		entry->ent = ent[0];
+		memcpy(entry->ebr, buf, sizeof(entry->ebr));
+		if (compat_aliases)
+			entry->ebr_compat_idx = idx++;
+		g_free(buf);
 
 		if (ent[1].dp_typ == 0)
 			break;
@@ -618,9 +649,7 @@ g_part_ebr_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 static int
 g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 {
-#ifndef GEOM_PART_EBR_COMPAT
 	struct g_part_ebr_table *table;
-#endif
 	struct g_provider *pp;
 	struct g_part_entry *baseentry, *next;
 	struct g_part_ebr_entry *entry;
@@ -630,10 +659,10 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 	pp = cp->provider;
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
-#ifndef GEOM_PART_EBR_COMPAT
 	table = (struct g_part_ebr_table *)basetable;
-	bcopy(table->ebr, buf, DOSPARTOFF);
-#endif
+
+	_Static_assert(DOSPARTOFF <= sizeof(table->lba0_ebr), "");
+	memcpy(buf, table->lba0_ebr, DOSPARTOFF);
 	le16enc(buf + DOSMAGICOFFSET, DOSMAGIC);
 
 	baseentry = LIST_FIRST(&basetable->gpt_entry);
@@ -661,6 +690,9 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 	do {
 		entry = (struct g_part_ebr_entry *)baseentry;
 
+		_Static_assert(DOSPARTOFF <= sizeof(entry->ebr), "");
+		memcpy(buf, entry->ebr, DOSPARTOFF);
+
 		p = buf + DOSPARTOFF;
 		p[0] = entry->ent.dp_flag;
 		p[1] = entry->ent.dp_shd;
@@ -686,10 +718,6 @@ g_part_ebr_write(struct g_part_table *basetable, struct g_consumer *cp)
 
 		error = g_write_data(cp, baseentry->gpe_start * pp->sectorsize,
 		    buf, pp->sectorsize);
-#ifndef GEOM_PART_EBR_COMPAT
-		if (baseentry->gpe_start == 0)
-			bzero(buf, DOSPARTOFF);
-#endif
 		baseentry = next;
 	} while (!error && baseentry != NULL);
 
