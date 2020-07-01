@@ -139,8 +139,8 @@ pagetables:
 	li	t2, 512			/* Build 512 entries */
 	add	t3, t4, t2
 	li	t5, 0
-1:
 	li	t0, (PTE_KERN | PTE_X)
+1:
 	slli	t2, t4, PTE_PPN1_S	/* << PTE_PPN1_S */
 	or	t5, t0, t2
 	sd	t5, (s1)		/* Store PTE entry to position */
