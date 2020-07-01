@@ -31,7 +31,7 @@
 .\"	@(#)printf.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2019
+.Dd July 1, 2020
 .Dt PRINTF 1
 .Os
 .Sh NAME
@@ -316,12 +316,48 @@ Consult the
 manual page.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Print the string
+.Qq hello :
+.Bd -literal -offset indent
+$ printf "%s\en" hello
+hello
+.Ed
+.Pp
+Same as above, but notice that the format string is not quoted and hence we
+do not get the expected behavior:
+.Bd -literal -offset indent
+$ printf %s\en hello
+hellon$
+.Ed
+.Pp
+Print arguments forcing sign only for the first argument:
+.Bd -literal -offset indent
+$ printf "%+d\en%d\en%d\en" 1 -2 13
++1
+-2
+13
+.Ed
+.Pp
+Same as above, but the single format string will be applied to the three
+arguments:
+.Bd -literal -offset indent
+$ printf "%+d\en" 1 -2 13
++1
+-2
++13
+.Ed
+.Pp
+Print number using only two digits after the decimal point:
+.Bd -literal -offset indent
+$ printf "%.2f\en" 31.7456
+31.75
+.Ed
 .Sh COMPATIBILITY
 The traditional
 .Bx
 behavior of converting arguments of numeric formats not beginning
-with a digit to the
-.Tn ASCII
+with a digit to the ASCII
 code of the first character is not supported.
 .Sh SEE ALSO
 .Xr builtin 1 ,
@@ -343,8 +379,7 @@ It is modeled
 after the standard library function,
 .Xr printf 3 .
 .Sh CAVEATS
-.Tn ANSI
-hexadecimal character constants were deliberately not provided.
+ANSI hexadecimal character constants were deliberately not provided.
 .Pp
 Trying to print a dash ("-") as the first character causes
 .Nm
@@ -364,10 +399,8 @@ and
 formats with a precision
 may not operate as expected.
 .Sh BUGS
-Since the floating point numbers are translated from
-.Tn ASCII
-to floating-point and
-then back again, floating-point precision may be lost.
+Since the floating point numbers are translated from ASCII
+to floating-point and then back again, floating-point precision may be lost.
 (By default, the number is translated to an IEEE-754 double-precision
 value before being printed.
 The
