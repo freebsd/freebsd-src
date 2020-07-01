@@ -171,6 +171,10 @@ void	identify_cpu(void);
 void	install_cpu_errata(void);
 void	swi_vm(void *v);
 
+/* Functions to read the sanitised view of the special registers */
+bool	extract_user_id_field(u_int, u_int, uint8_t *);
+bool	get_kernel_reg(u_int, uint64_t *);
+
 #define	CPU_AFFINITY(cpu)	__cpu_affinity[(cpu)]
 #define	CPU_CURRENT_SOCKET				\
     (CPU_AFF2(CPU_AFFINITY(PCPU_GET(cpuid))))
