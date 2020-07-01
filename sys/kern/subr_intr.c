@@ -1517,13 +1517,12 @@ intr_map_get_isrc(u_int res_id)
 {
 	struct intr_irqsrc *isrc;
 
+	isrc = NULL;
 	mtx_lock(&irq_map_lock);
-	if ((res_id >= irq_map_count) || (irq_map[res_id] == NULL)) {
-		mtx_unlock(&irq_map_lock);
-		return (NULL);
-	}
-	isrc = irq_map[res_id]->isrc;
+	if (res_id < irq_map_count && irq_map[res_id] != NULL)
+		isrc = irq_map[res_id]->isrc;
 	mtx_unlock(&irq_map_lock);
+
 	return (isrc);
 }
 
@@ -1532,11 +1531,8 @@ intr_map_set_isrc(u_int res_id, struct intr_irqsrc *isrc)
 {
 
 	mtx_lock(&irq_map_lock);
-	if ((res_id >= irq_map_count) || (irq_map[res_id] == NULL)) {
-		mtx_unlock(&irq_map_lock);
-		return;
-	}
-	irq_map[res_id]->isrc = isrc;
+	if (res_id < irq_map_count && irq_map[res_id] != NULL)
+		irq_map[res_id]->isrc = isrc;
 	mtx_unlock(&irq_map_lock);
 }
 
