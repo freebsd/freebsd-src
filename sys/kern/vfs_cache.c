@@ -147,22 +147,33 @@ struct	namecache_ts {
 #define	NCF_HOTNEGATIVE	0x40
 #define NCF_INVALID	0x80
 
+/*
+ * Mark an entry as invalid.
+ *
+ * This is called before it starts getting deconstructed.
+ */
+static void
+cache_ncp_invalidate(struct namecache *ncp)
+{
+
+	KASSERT((ncp->nc_flag & NCF_INVALID) == 0,
+	    ("%s: entry %p already invalid", __func__, ncp));
+	ncp->nc_flag |= NCF_INVALID;
+	atomic_thread_fence_rel();
+}
+
+/*
+ * Verify validity of an entry.
+ *
+ * All places which elide locks are supposed to call this after they are
+ * done with reading from an entry.
+ */
 static bool
 cache_ncp_invalid(struct namecache *ncp)
 {
 
 	atomic_thread_fence_acq();
 	return ((ncp->nc_flag & NCF_INVALID) != 0);
-}
-
-static void
-cache_ncp_invalidate(struct namecache *ncp)
-{
-
-	atomic_thread_fence_rel();
-	KASSERT((ncp->nc_flag & NCF_INVALID) == 0,
-	    ("%s: entry %p already invalid", __func__, ncp));
-	ncp->nc_flag |= NCF_INVALID;
 }
 
 /*
