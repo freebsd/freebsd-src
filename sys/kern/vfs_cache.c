@@ -1342,7 +1342,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	uint32_t hash;
 	enum vgetstate vs;
 	int error, ltype;
-	bool try_smr, doing_smr;
+	bool try_smr, doing_smr, whiteout;
 
 #ifdef DEBUG_CACHE
 	if (__predict_false(!doingcache)) {
@@ -1498,28 +1498,28 @@ negative_success:
 		goto zap_and_exit;
 	}
 
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+	cache_out_ts(ncp, tsp, ticksp);
+	counter_u64_add(numneghits, 1);
+	whiteout = (ncp->nc_flag & NCF_WHITE);
+
 	if (doing_smr) {
-		if ((ncp->nc_flag & NCF_HOTNEGATIVE) == 0) {
-			/*
-			 * We need to take locks to promote the entry.
-			 */
+		/*
+		 * We need to take locks to promote an entry.
+		 */
+		if ((ncp->nc_flag & NCF_HOTNEGATIVE) == 0 ||
+		    cache_ncp_invalid(ncp)) {
 			vfs_smr_exit();
 			doing_smr = false;
 			goto retry_hashed;
 		}
+		vfs_smr_exit();
 	} else {
 		cache_negative_hit(ncp);
-	}
-	counter_u64_add(numneghits, 1);
-	if (ncp->nc_flag & NCF_WHITE)
-		cnp->cn_flags |= ISWHITEOUT;
-	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
-	    ncp->nc_name);
-	cache_out_ts(ncp, tsp, ticksp);
-	if (doing_smr)
-		vfs_smr_exit();
-	else
 		cache_lookup_unlock(blp, dvlp);
+	}
+	if (whiteout)
+		cnp->cn_flags |= ISWHITEOUT;
 	return (ENOENT);
 
 zap_and_exit:
