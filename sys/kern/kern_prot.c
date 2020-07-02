@@ -1985,7 +1985,7 @@ crfree(struct ucred *cr)
 	struct thread *td;
 
 	td = curthread;
-	if (td->td_realucred == cr) {
+	if (__predict_true(td->td_realucred == cr)) {
 		KASSERT(cr->cr_users > 0, ("%s: users %d not > 0 on cred %p",
 		    __func__, cr->cr_users, cr));
 		td->td_ucredref--;
