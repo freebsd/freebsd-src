@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>	/* ip_fw.h requires IFNAMSIZ */
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/route/route_var.h>
 
 #include <netinet/in.h>
@@ -3811,11 +3812,7 @@ ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
     uint32_t *val)
 {
 #ifdef INET
-	struct nhop4_basic nh4;
 	struct in_addr in;
-#endif
-#ifdef INET6
-	struct nhop6_basic nh6;
 #endif
 	int error;
 
@@ -3823,14 +3820,14 @@ ta_lookup_kfib(struct table_info *ti, void *key, uint32_t keylen,
 #ifdef INET
 	if (keylen == 4) {
 		in.s_addr = *(in_addr_t *)key;
-		error = fib4_lookup_nh_basic(ti->data,
-		    in, 0, 0, &nh4);
+		NET_EPOCH_ASSERT();
+		error = fib4_lookup(ti->data, in, 0, NHR_NONE, 0) != NULL;
 	}
 #endif
 #ifdef INET6
 	if (keylen == 6)
-		error = fib6_lookup_nh_basic(ti->data,
-		    (struct in6_addr *)key, 0, 0, 0, &nh6);
+		error = fib6_lookup(ti->data, (struct in6_addr *)key,
+		    0, NHR_NONE, 0) != NULL;
 #endif
 
 	if (error != 0)

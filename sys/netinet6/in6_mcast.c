@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -1829,7 +1830,7 @@ static struct ifnet *
 in6p_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in6 *gsin6)
 {
-	struct nhop6_basic	nh6;
+	struct nhop_object	*nh;
 	struct in6_addr		dst;
 	uint32_t		scopeid;
 	uint32_t		fibnum;
@@ -1841,10 +1842,9 @@ in6p_lookup_mcast_ifp(const struct inpcb *inp,
 
 	in6_splitscope(&gsin6->sin6_addr, &dst, &scopeid);
 	fibnum = inp ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
-	if (fib6_lookup_nh_basic(fibnum, &dst, scopeid, 0, 0, &nh6) != 0)
-		return (NULL);
+	nh = fib6_lookup(fibnum, &dst, scopeid, 0, 0);
 
-	return (nh6.nh_ifp);
+	return (nh ? nh->nh_ifp : NULL);
 }
 
 /*
