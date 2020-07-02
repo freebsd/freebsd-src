@@ -45,32 +45,6 @@ struct route_in {
 	struct sockaddr_in ro_dst4;
 };
 
-/* Basic nexthop info used for uRPF/mtu checks */
-struct nhop4_basic {
-	struct ifnet	*nh_ifp;	/* Logical egress interface */
-	uint16_t	nh_mtu;		/* nexthop mtu */
-	uint16_t	nh_flags;	/* nhop flags */
-	struct in_addr	nh_addr;	/* GW/DST IPv4 address */
-};
-
-/* Extended nexthop info used for control protocols */
-struct nhop4_extended {
-	struct ifnet	*nh_ifp;	/* Logical egress interface */
-	struct in_ifaddr *nh_ia;	/* Associated address */
-	uint16_t	nh_mtu;		/* nexthop mtu */
-	uint16_t	nh_flags;	/* nhop flags */
-	uint8_t		spare[4];
-	struct in_addr	nh_addr;	/* GW/DST IPv4 address */
-	struct in_addr	nh_src;		/* default source IPv4 address */
-	uint64_t	spare2;
-};
-
-int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flags,
-    uint32_t flowid, struct nhop4_basic *pnh4);
-int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flags,
-    uint32_t flowid, struct nhop4_extended *pnh4);
-void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
-
 struct nhop_object *fib4_lookup(uint32_t fibnum, struct in_addr dst,
     uint32_t scopeid, uint32_t flags, uint32_t flowid);
 int fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
