@@ -97,6 +97,7 @@
 #include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/vnet.h>
@@ -568,12 +569,14 @@ stf_checkaddr4(struct stf_softc *sc, struct in_addr *in, struct ifnet *inifp)
 	 * perform ingress filter
 	 */
 	if (sc && (STF2IFP(sc)->if_flags & IFF_LINK2) == 0 && inifp) {
-		struct nhop4_basic nh4;
+		struct nhop_object *nh;
 
-		if (fib4_lookup_nh_basic(sc->sc_fibnum, *in, 0, 0, &nh4) != 0)
+		NET_EPOCH_ASSERT();
+		nh = fib4_lookup(sc->sc_fibnum, *in, 0, 0, 0);
+		if (nh == NULL)
 			return (-1);
 
-		if (nh4.nh_ifp != inifp)
+		if (nh->nh_ifp != inifp)
 			return (-1);
 	}
 
