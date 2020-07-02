@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2011
+.Dd June 18, 2020
 .Dt FUSER 1
 .Os
 .Sh NAME
@@ -57,63 +57,63 @@ utility will also look through mmapped files.
 The following options are available:
 .Bl -tag -width indent
 .It Fl c
-Treat files as mount point and report on any files open in the file system.
+Treat files as mount points and report on any files open in the file system.
 .It Fl f
 The report must be only for named files.
 .It Fl k
 Send signal to reported processes
-.Pq SIGKILL by default .
-.It Fl m
-Search through mmapped files too.
-.It Fl u
-Write the user name associated with each process to stderr.
-.It Fl M
+.Pq Dv SIGKILL No by default .
+.It Fl M Ar core
 Extract values associated with the name list from the specified core
 instead of the default
 .Pa /dev/kmem .
-.It Fl N
+.It Fl m
+Search through mmapped files too.
+.It Fl N Ar system
 Extract the name list from the specified system instead of the default,
 which is the kernel image the system has booted from.
-.It Fl s
-Use given signal name instead of default SIGKILL.
+.It Fl s Ar signal
+Use given signal name instead of default
+.Dv SIGKILL .
+.It Fl u
+Write the user name associated with each process to stderr.
 .El
 .Pp
-The following symbols, written to stderr will indicate how files is used:
-.Bl -tag -width MOUNT
-.It Cm r
-The file is the root directory of the process.
-.It Cm c
-The file is the current workdir directory of the process.
-.It Cm j
-The file is the jail-root of the process.
-.It Cm t
-The file is the kernel tracing file for the process.
-.It Cm x
-The file is executable text of the process.
-.It Cm y
-The process use this file as its controlling tty.
-.It Cm m
-The file is mmapped.
-.It Cm w
-The file is open for writing.
-.It Cm a
+The following symbols, written to stderr will indicate how files are used:
+.Pp
+.Bl -tag -width indent -compact
+.It Sy a
 The file is open as append only
-.Pq O_APPEND was specified .
-.It Cm d
+.Pq Dv O_APPEND No was specified .
+.It Sy c
+The file is the current workdir directory of the process.
+.It Sy d
 The process bypasses fs cache while writing to this file
-.Pq O_DIRECT was specified .
-.It Cm s
-Shared lock is hold.
-.It Cm e
+.Pq Dv O_DIRECT No was specified .
+.It Sy e
 Exclusive lock is hold.
+.It Sy j
+The file is the jail root of the process.
+.It Sy m
+The file is mmapped.
+.It Sy r
+The file is the root directory of the process.
+.It Sy s
+Shared lock is hold.
+.It Sy t
+The file is the kernel tracing file for the process.
+.It Sy w
+The file is open for writing.
+.It Sy x
+The file is executable text of the process.
+.It Sy y
+The process uses this file as its controlling tty.
 .El
 .Sh EXIT STATUS
-The
-.Nm
-utility returns 0 on successful completion and >0 otherwise.
+.Ex -std
 .Sh EXAMPLES
-The command:
-.Dq Li "fuser -fu ."
+The command
+.Ql "fuser -fu \&."
 writes to standard output the process IDs of processes that are using the
 current directory and writes to stderr an indication of how those processes are
 using the directory and user names associated with the processes that are using
