@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2016
+.Dd June 18, 2020
 .Dt PERIODIC 8
 .Os
 .Sh NAME
@@ -32,7 +32,10 @@
 .Nd run periodic system functions
 .Sh SYNOPSIS
 .Nm
-.Ar directory ...
+.Sm off
+.Cm daily | weekly | monthly | security | Ar directory
+.Sm on
+.Ar ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -42,22 +45,22 @@ to execute shell scripts
 located in the specified directory.
 .Pp
 One or more of the following arguments must be specified:
-.Bl -tag -width ".Pa monthly"
-.It Pa daily
+.Bl -tag -width "directory"
+.It Cm daily
 Perform the standard daily periodic executable run.
 This usually occurs early in the morning (local time).
-.It Pa weekly
+.It Cm weekly
 Perform the standard weekly periodic executable run.
 This usually occurs very early on Saturday mornings.
-.It Pa monthly
+.It Cm monthly
 Perform the standard monthly periodic executable run.
 This usually occurs on the first day of the month.
-.It Pa security
+.It Cm security
 Perform the standard daily security checks.
 This is usually spawned by the
-.Pa daily
+.Cm daily
 run.
-.It Ar path
+.It Ar directory
 An arbitrary directory containing a set of executables to be run.
 .El
 .Pp
