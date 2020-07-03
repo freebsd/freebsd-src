@@ -731,10 +731,14 @@ pgadjustjobc(struct pgrp *pgrp, int entering)
 
 	PGRP_LOCK(pgrp);
 	if (entering) {
+#ifdef notyet
 		MPASS(pgrp->pg_jobc >= 0);
+#endif
 		pgrp->pg_jobc++;
 	} else {
+#ifdef notyet
 		MPASS(pgrp->pg_jobc > 0);
+#endif
 		--pgrp->pg_jobc;
 		if (pgrp->pg_jobc == 0)
 			orphanpg(pgrp);
