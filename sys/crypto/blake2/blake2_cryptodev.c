@@ -142,7 +142,12 @@ blake2_attach(device_t dev)
 	    M_WAITOK | M_ZERO);
 
 	CPU_FOREACH(i) {
-		ctx_fpu[i] = fpu_kern_alloc_ctx(0);
+#ifdef __amd64__
+		ctx_fpu[i] = fpu_kern_alloc_ctx_domain(
+		    pcpu_find(i)->pc_domain, FPU_KERN_NORMAL);
+#else
+		ctx_fpu[i] = fpu_kern_alloc_ctx(FPU_KERN_NORMAL);
+#endif
 		mtx_init(&ctx_mtx[i], "bl2fpumtx", NULL, MTX_DEF | MTX_NEW);
 	}
 
