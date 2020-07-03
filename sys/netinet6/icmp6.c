@@ -2277,7 +2277,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	in6_splitscope(&reddst6, &kdst, &scopeid);
 	NET_EPOCH_ASSERT();
 	nh = fib6_lookup(ifp->if_fib, &kdst, scopeid, 0, 0);
-	if (nh == NULL) {
+	if (nh != NULL) {
 		struct in6_addr nh_addr;
 		nh_addr = ifatoia6(nh->nh_ifa)->ia_addr.sin6_addr;
 		if ((nh->nh_flags & NHF_GATEWAY) == 0) {
