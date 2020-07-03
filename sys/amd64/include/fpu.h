@@ -71,6 +71,7 @@ int	fputrap_sse(void);
 int	fputrap_x87(void);
 void	fpuuserinited(struct thread *td);
 struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
+struct fpu_kern_ctx *fpu_kern_alloc_ctx_domain(int domain, u_int flags);
 void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
 void	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
