@@ -87,7 +87,15 @@ valid_redirect_body() {
 	local_ll_mac=`jexec ${jname} ifconfig ${epair}b ether | awk '$1~/ether/{print$2}'`
 
 	# wait for DAD to complete
-	sleep 2
+	while [ `ifconfig ${epair}a inet6 | grep -c tentative` != "0" ]; do
+		sleep 0.1
+	done
+	while [ `jexec ${jname}b ifconfig ${epair}b inet6 | grep -c tentative` != "0" ]; do
+		sleep 0.1
+	done
+
+	# enable ND debugging in the target jail to ease catching errors
+	jexec ${jname} sysctl net.inet6.icmp6.nd6_debug=1
 
 	# echo "LOCAL: ${local_ll_ip} ${local_ll_mac}"
 	# echo "REMOTE: ${remote_rtr_ll_ip} ${remote_rtr_mac}"
