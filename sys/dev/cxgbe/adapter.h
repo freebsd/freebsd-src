@@ -550,6 +550,23 @@ struct sge_fl {
 
 struct mp_ring;
 
+struct txpkts {
+	uint8_t wr_type;	/* type 0 or type 1 */
+	uint8_t npkt;		/* # of packets in this work request */
+	uint8_t len16;		/* # of 16B pieces used by this work request */
+	uint8_t score;		/* 1-10. coalescing attempted if score > 3 */
+	uint8_t max_npkt;	/* maximum number of packets allowed */
+	uint16_t plen;		/* total payload (sum of all packets) */
+
+	/* straight from fw_eth_tx_pkts_vm_wr. */
+	__u8   ethmacdst[6];
+	__u8   ethmacsrc[6];
+	__be16 ethtype;
+	__be16 vlantci;
+
+	struct mbuf *mb[15];
+};
+
 /* txq: SGE egress queue + what's needed for Ethernet NIC */
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
@@ -560,6 +577,7 @@ struct sge_txq {
 	struct sglist *gl;
 	__be32 cpl_ctrl0;	/* for convenience */
 	int tc_idx;		/* traffic class */
+	struct txpkts txp;
 
 	struct task tx_reclaim_task;
 	/* stats for common events first */

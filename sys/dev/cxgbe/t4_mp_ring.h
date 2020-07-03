@@ -36,33 +36,38 @@
 #endif
 
 struct mp_ring;
-typedef u_int (*ring_drain_t)(struct mp_ring *, u_int, u_int);
+typedef u_int (*ring_drain_t)(struct mp_ring *, u_int, u_int, bool *);
 typedef u_int (*ring_can_drain_t)(struct mp_ring *);
 
 struct mp_ring {
 	volatile uint64_t	state __aligned(CACHE_LINE_SIZE);
+	struct malloc_type *	mt;
 
 	int			size __aligned(CACHE_LINE_SIZE);
 	void *			cookie;
-	struct malloc_type *	mt;
 	ring_drain_t		drain;
 	ring_can_drain_t	can_drain;	/* cheap, may be unreliable */
-	counter_u64_t		enqueues;
-	counter_u64_t		drops;
-	counter_u64_t		starts;
-	counter_u64_t		stalls;
-	counter_u64_t		restarts;	/* recovered after stalling */
+	struct mtx *		cons_lock;
+	counter_u64_t		dropped;
+	counter_u64_t		consumer[4];
+	counter_u64_t		not_consumer;
 	counter_u64_t		abdications;
+	counter_u64_t		consumed;
+	counter_u64_t		cons_idle;
+	counter_u64_t		cons_idle2;
+	counter_u64_t		stalls;
 
 	void * volatile		items[] __aligned(CACHE_LINE_SIZE);
 };
 
 int mp_ring_alloc(struct mp_ring **, int, void *, ring_drain_t,
-    ring_can_drain_t, struct malloc_type *, int);
+    ring_can_drain_t, struct malloc_type *, struct mtx *, int);
 void mp_ring_free(struct mp_ring *);
 int mp_ring_enqueue(struct mp_ring *, void **, int, int);
 void mp_ring_check_drainage(struct mp_ring *, int);
 void mp_ring_reset_stats(struct mp_ring *);
-int mp_ring_is_idle(struct mp_ring *);
+bool mp_ring_is_idle(struct mp_ring *);
+void mp_ring_sysctls(struct mp_ring *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 
 #endif

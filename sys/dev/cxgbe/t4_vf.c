@@ -231,6 +231,7 @@ static int
 get_params__post_init(struct adapter *sc)
 {
 	int rc;
+	uint32_t param, val;
 
 	rc = -t4vf_get_sge_params(sc);
 	if (rc != 0) {
@@ -281,6 +282,13 @@ get_params__post_init(struct adapter *sc)
 		return (EINVAL);
 	}
 	sc->params.portvec = sc->params.vfres.pmask;
+
+	param = FW_PARAM_PFVF(MAX_PKTS_PER_ETH_TX_PKTS_WR);
+	rc = -t4vf_query_params(sc, 1, &param, &val);
+	if (rc == 0)
+		sc->params.max_pkts_per_eth_tx_pkts_wr = val;
+	else
+		sc->params.max_pkts_per_eth_tx_pkts_wr = 14;
 
 	return (0);
 }
