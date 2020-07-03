@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -1030,17 +1031,31 @@ struct fpu_kern_ctx {
 	char hwstate1[];
 };
 
+static inline size_t __pure2
+fpu_kern_alloc_sz(u_int max_est)
+{
+	return (sizeof(struct fpu_kern_ctx) + XSAVE_AREA_ALIGN + max_est);
+}
+
+static inline int __pure2
+fpu_kern_malloc_flags(u_int fpflags)
+{
+	return (((fpflags & FPU_KERN_NOWAIT) ? M_NOWAIT : M_WAITOK) | M_ZERO);
+}
+
+struct fpu_kern_ctx *
+fpu_kern_alloc_ctx_domain(int domain, u_int flags)
+{
+	return (malloc_domainset(fpu_kern_alloc_sz(cpu_max_ext_state_size),
+	    M_FPUKERN_CTX, DOMAINSET_PREF(domain),
+	    fpu_kern_malloc_flags(flags)));
+}
+
 struct fpu_kern_ctx *
 fpu_kern_alloc_ctx(u_int flags)
 {
-	struct fpu_kern_ctx *res;
-	size_t sz;
-
-	sz = sizeof(struct fpu_kern_ctx) + XSAVE_AREA_ALIGN +
-	    cpu_max_ext_state_size;
-	res = malloc(sz, M_FPUKERN_CTX, ((flags & FPU_KERN_NOWAIT) ?
-	    M_NOWAIT : M_WAITOK) | M_ZERO);
-	return (res);
+	return (malloc(fpu_kern_alloc_sz(cpu_max_ext_state_size),
+	    M_FPUKERN_CTX, fpu_kern_malloc_flags(flags)));
 }
 
 void
