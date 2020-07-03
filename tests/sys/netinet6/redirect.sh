@@ -40,6 +40,10 @@ valid_redirect_head() {
 
 valid_redirect_body() {
 
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		atf_skip "https://bugs.freebsd.org/247729"
+	fi
+
 	ids=65533
 	id=`printf "%x" ${ids}`
 	if [ $$ -gt 65535 ]; then
