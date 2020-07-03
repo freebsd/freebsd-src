@@ -64,14 +64,27 @@ nfsm_build(struct nfsrv_descript *nd, int siz)
 	void *retp;
 	struct mbuf *mb2;
 
-	if (siz > M_TRAILINGSPACE(nd->nd_mb)) {
+	if ((nd->nd_flag & ND_EXTPG) == 0 &&
+	    siz > M_TRAILINGSPACE(nd->nd_mb)) {
 		NFSMCLGET(mb2, M_NOWAIT);
 		if (siz > MLEN)
 			panic("build > MLEN");
 		mb2->m_len = 0;
-		nd->nd_bpos = mtod(mb2, caddr_t);
+		nd->nd_bpos = mtod(mb2, char *);
 		nd->nd_mb->m_next = mb2;
 		nd->nd_mb = mb2;
+	} else if ((nd->nd_flag & ND_EXTPG) != 0) {
+		if (siz > nd->nd_bextpgsiz) {
+			mb2 = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
+			nd->nd_bpos = (char *)(void *)
+			    PHYS_TO_DMAP(mb2->m_epg_pa[0]);
+			nd->nd_bextpg = 0;
+			nd->nd_bextpgsiz = PAGE_SIZE - siz;
+			nd->nd_mb->m_next = mb2;
+			nd->nd_mb = mb2;
+		} else
+			nd->nd_bextpgsiz -= siz;
+		nd->nd_mb->m_epg_last_len += siz;
 	}
 	retp = (void *)(nd->nd_bpos);
 	nd->nd_mb->m_len += siz;
