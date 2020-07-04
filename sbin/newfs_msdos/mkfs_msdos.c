@@ -64,6 +64,7 @@ static const char rcsid[] =
 
 #define	DOSMAGIC  0xaa55	/* DOS magic number */
 #define	MINBPS	  512		/* minimum bytes per sector */
+#define	MAXBPS    4096		/* maximum bytes per sector */
 #define	MAXSPC	  128		/* maximum sectors per cluster */
 #define	MAXNFT	  16		/* maximum number of FATs */
 #define	DEFBLK	  4096		/* default block size */
@@ -76,6 +77,25 @@ static const char rcsid[] =
 #define	MAXCLS12  0xff4U	/* maximum FAT12 clusters */
 #define	MAXCLS16  0xfff4U	/* maximum FAT16 clusters */
 #define	MAXCLS32  0xffffff4U	/* maximum FAT32 clusters */
+
+#ifndef	CTASSERT
+#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
+#define	_CTASSERT(x, y)		__CTASSERT(x, y)
+#define	__CTASSERT(x, y)	typedef char __assert_ ## y [(x) ? 1 : -1]
+#endif
+
+/*
+ * For better performance, we want to write larger chunks instead of
+ * individual sectors (the size can only be 512, 1024, 2048 or 4096
+ * bytes). Assert that MAXPHYS can always hold an integer number of
+ * sectors by asserting that both are power of two numbers and the
+ * MAXPHYS is greater than MAXBPS.
+ */
+CTASSERT(powerof2(MAXPHYS));
+CTASSERT(powerof2(MAXBPS));
+CTASSERT(MAXPHYS > MAXBPS);
+
+const static ssize_t chunksize = MAXPHYS;
 
 #define	mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
 		      (fat) == 16 ? MINCLS16 :	\
@@ -243,6 +263,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     struct bsx *bsx;
     struct de *de;
     u_int8_t *img;
+    u_int8_t *physbuf, *physbuf_end;
     const char *bname;
     ssize_t n;
     time_t now;
@@ -252,7 +273,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     int fd, fd1, rv;
     struct msdos_options o = *op;
 
-    img = NULL;
+    physbuf = NULL;
     rv = -1;
     fd = fd1 = -1;
 
@@ -343,13 +364,11 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 		bpb.bpbSecPerClust = 64;		/* otherwise 32k */
 	}
     }
-    if (!powerof2(bpb.bpbBytesPerSec)) {
-	warnx("bytes/sector (%u) is not a power of 2", bpb.bpbBytesPerSec);
-	goto done;
-    }
-    if (bpb.bpbBytesPerSec < MINBPS) {
-	warnx("bytes/sector (%u) is too small; minimum is %u",
-	     bpb.bpbBytesPerSec, MINBPS);
+    if (bpb.bpbBytesPerSec < MINBPS ||
+        bpb.bpbBytesPerSec > MAXBPS ||
+	!powerof2(bpb.bpbBytesPerSec)) {
+	warnx("Invalid bytes/sector (%u): must be 512, 1024, 2048 or 4096",
+	    bpb.bpbBytesPerSec);
 	goto done;
     }
 
@@ -621,11 +640,14 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	    tm = localtime(&now);
 	}
 
-
-	if (!(img = malloc(bpb.bpbBytesPerSec))) {
+	physbuf = malloc(chunksize);
+	if (physbuf == NULL) {
 	    warn(NULL);
 	    goto done;
 	}
+	physbuf_end = physbuf + chunksize;
+	img = physbuf;
+
 	dir = bpb.bpbResSectors + (bpb.bpbFATsecs ? bpb.bpbFATsecs :
 				   bpb.bpbBigFATsecs) * bpb.bpbFATs;
 	memset(&si_sa, 0, sizeof(si_sa));
@@ -750,19 +772,37 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 		    (u_int)tm->tm_mday;
 		mk2(de->deMDate, x);
 	    }
-	    if ((n = write(fd, img, bpb.bpbBytesPerSec)) == -1) {
-		warn("%s", fname);
-		goto done;
+	    /*
+	     * Issue a write of chunksize once we have collected
+	     * enough sectors.
+	     */
+	    img += bpb.bpbBytesPerSec;
+	    if (img >= physbuf_end) {
+		n = write(fd, physbuf, chunksize);
+		if (n != chunksize) {
+		    warnx("%s: can't write sector %u", fname, lsn);
+		    goto done;
+		}
+		img = physbuf;
 	    }
-	    if ((unsigned)n != bpb.bpbBytesPerSec) {
-		warnx("%s: can't write sector %u", fname, lsn);
-		goto done;
-	    }
+	}
+	/*
+	 * Write remaining sectors, if the last write didn't end
+	 * up filling a whole chunk.
+	 */
+	if (img != physbuf) {
+		ssize_t tailsize = img - physbuf;
+
+		n = write(fd, physbuf, tailsize);
+		if (n != tailsize) {
+		    warnx("%s: can't write sector %u", fname, lsn);
+		    goto done;
+		}
 	}
     }
     rv = 0;
 done:
-    free(img);
+    free(physbuf);
     if (fd != -1)
 	    close(fd);
     if (fd1 != -1)
