@@ -468,6 +468,8 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_ARG_VNODE1(vp)
 #define	AUDIT_ARG_VNODE2(vp)
 
+#define	AUDITING_TD(td)		0
+
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
 
