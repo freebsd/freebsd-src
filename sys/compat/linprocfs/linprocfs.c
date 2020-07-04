@@ -1746,6 +1746,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(root, "version", &linprocfs_doversion,
 	    NULL, NULL, NULL, PFS_RD);
 
+	/* /proc/bus/... */
+	dir = pfs_create_dir(root, "bus", NULL, NULL, NULL, 0);
+	dir = pfs_create_dir(dir, "pci", NULL, NULL, NULL, 0);
+	dir = pfs_create_dir(dir, "devices", NULL, NULL, NULL, 0);
+
 	/* /proc/net/... */
 	dir = pfs_create_dir(root, "net", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "dev", &linprocfs_donetdev,

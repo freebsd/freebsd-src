@@ -622,6 +622,7 @@ linsysfs_init(PFS_INIT_ARGS)
 	struct pfs_node *pci;
 	struct pfs_node *scsi;
 	struct pfs_node *net;
+	struct pfs_node *power_supply;
 	struct pfs_node *devdir, *chardev;
 	devclass_t devclass;
 	device_t dev;
@@ -634,6 +635,7 @@ linsysfs_init(PFS_INIT_ARGS)
 	class = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
 	scsi = pfs_create_dir(class, "scsi_host", NULL, NULL, NULL, 0);
 	drm = pfs_create_dir(class, "drm", NULL, NULL, NULL, 0);
+	power_supply = pfs_create_dir(class, "power_supply", NULL, NULL, NULL, 0);
 
 	/* /sys/class/net/.. */
 	net = pfs_create_dir(class, "net", NULL, NULL, NULL, 0);
