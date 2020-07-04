@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 12, 2020
+.Dd July 4, 2020
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -130,7 +130,9 @@ Defaults to 0.
 .It Pa /compat/linux
 minimal Linux run-time environment
 .It Pa /compat/linux/dev/fd
-file-descriptor file system, see
+file descriptor file system mounted with the
+.Cm linrdlnk
+option, see
 .Xr fdescfs 5
 .It Pa /compat/linux/dev/shm
 in-memory file system, see
