@@ -359,13 +359,19 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	/*
 	 * Get the first mbuf for the request.
 	 */
-	if (nfs_bigrequest[procnum])
-		NFSMCLGET(mb, M_WAITOK);
-	else
-		NFSMGET(mb);
-	mb->m_len = 0;
-	nd->nd_mreq = nd->nd_mb = mb;
-	nd->nd_bpos = mtod(mb, char *);
+	if ((nd->nd_flag & ND_EXTPG) != 0) {
+		mb = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
+		nd->nd_mreq = nd->nd_mb = mb;
+		nfsm_set(nd, 0);
+	} else {
+		if (nfs_bigrequest[procnum])
+			NFSMCLGET(mb, M_WAITOK);
+		else
+			NFSMGET(mb);
+		mb->m_len = 0;
+		nd->nd_mreq = nd->nd_mb = mb;
+		nd->nd_bpos = mtod(mb, char *);
+	}
 	
 	/*
 	 * And fill the first file handle into the request.
@@ -4804,7 +4810,38 @@ void
 nfsm_set(struct nfsrv_descript *nd, u_int offs)
 {
 	struct mbuf *m;
+	int rlen;
 
 	m = nd->nd_mb;
-	nd->nd_bpos = mtod(m, char *) + offs;
+	if ((m->m_flags & M_EXTPG) != 0) {
+		nd->nd_bextpg = 0;
+		while (offs > 0) {
+			if (nd->nd_bextpg == 0)
+				rlen = m_epg_pagelen(m, 0, m->m_epg_1st_off);
+			else
+				rlen = m_epg_pagelen(m, nd->nd_bextpg, 0);
+			if (offs <= rlen)
+				break;
+			offs -= rlen;
+			nd->nd_bextpg++;
+			if (nd->nd_bextpg == m->m_epg_npgs) {
+				printf("nfsm_set: build offs "
+				    "out of range\n");
+				nd->nd_bextpg--;
+				break;
+			}
+		}
+		nd->nd_bpos = (char *)(void *)
+		    PHYS_TO_DMAP(m->m_epg_pa[nd->nd_bextpg]);
+		if (nd->nd_bextpg == 0)
+			nd->nd_bpos += m->m_epg_1st_off;
+		if (offs > 0) {
+			nd->nd_bpos += offs;
+			nd->nd_bextpgsiz = rlen - offs;
+		} else if (nd->nd_bextpg == 0)
+			nd->nd_bextpgsiz = PAGE_SIZE - m->m_epg_1st_off;
+		else
+			nd->nd_bextpgsiz = PAGE_SIZE;
+	} else
+		nd->nd_bpos = mtod(m, char *) + offs;
 }
