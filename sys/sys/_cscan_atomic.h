@@ -87,6 +87,8 @@
 	KCSAN_ATOMIC_TEST(testandclear, name, type);			\
 	KCSAN_ATOMIC_TEST(testandset, name, type)
 
+KCSAN_ATOMIC_FUNCS(char, uint8_t);
+KCSAN_ATOMIC_FUNCS(short, uint16_t);
 KCSAN_ATOMIC_FUNCS(int, u_int);
 KCSAN_ATOMIC_FUNCS(long, u_long);
 KCSAN_ATOMIC_FUNCS(ptr, uintptr_t);
@@ -101,6 +103,62 @@ void	kcsan_atomic_thread_fence_rel(void);
 void	kcsan_atomic_thread_fence_seq_cst(void);
 
 #ifndef KCSAN_RUNTIME
+
+#define	atomic_add_char			kcsan_atomic_add_char
+#define	atomic_add_acq_char		kcsan_atomic_add_acq_char
+#define	atomic_add_rel_char		kcsan_atomic_add_rel_char
+#define	atomic_clear_char		kcsan_atomic_clear_char
+#define	atomic_clear_acq_char		kcsan_atomic_clear_acq_char
+#define	atomic_clear_rel_char		kcsan_atomic_clear_rel_char
+#define	atomic_cmpset_char		kcsan_atomic_cmpset_char
+#define	atomic_cmpset_acq_char		kcsan_atomic_cmpset_acq_char
+#define	atomic_cmpset_rel_char		kcsan_atomic_cmpset_rel_char
+#define	atomic_fcmpset_char		kcsan_atomic_fcmpset_char
+#define	atomic_fcmpset_acq_char		kcsan_atomic_fcmpset_acq_char
+#define	atomic_fcmpset_rel_char		kcsan_atomic_fcmpset_rel_char
+#define	atomic_fetchadd_char		kcsan_atomic_fetchadd_char
+#define	atomic_load_char		kcsan_atomic_load_char
+#define	atomic_load_acq_char		kcsan_atomic_load_acq_char
+#define	atomic_readandclear_char	kcsan_atomic_readandclear_char
+#define	atomic_set_char			kcsan_atomic_set_char
+#define	atomic_set_acq_char		kcsan_atomic_set_acq_char
+#define	atomic_set_rel_char		kcsan_atomic_set_rel_char
+#define	atomic_subtract_char		kcsan_atomic_subtract_char
+#define	atomic_subtract_acq_char	kcsan_atomic_subtract_acq_char
+#define	atomic_subtract_rel_char	kcsan_atomic_subtract_rel_char
+#define	atomic_store_char		kcsan_atomic_store_char
+#define	atomic_store_rel_char		kcsan_atomic_store_rel_char
+#define	atomic_swap_char		kcsan_atomic_swap_char
+#define	atomic_testandclear_char	kcsan_atomic_testandclear_char
+#define	atomic_testandset_char		kcsan_atomic_testandset_char
+
+#define	atomic_add_short		kcsan_atomic_add_short
+#define	atomic_add_acq_short		kcsan_atomic_add_acq_short
+#define	atomic_add_rel_short		kcsan_atomic_add_rel_short
+#define	atomic_clear_short		kcsan_atomic_clear_short
+#define	atomic_clear_acq_short		kcsan_atomic_clear_acq_short
+#define	atomic_clear_rel_short		kcsan_atomic_clear_rel_short
+#define	atomic_cmpset_short		kcsan_atomic_cmpset_short
+#define	atomic_cmpset_acq_short		kcsan_atomic_cmpset_acq_short
+#define	atomic_cmpset_rel_short		kcsan_atomic_cmpset_rel_short
+#define	atomic_fcmpset_short		kcsan_atomic_fcmpset_short
+#define	atomic_fcmpset_acq_short	kcsan_atomic_fcmpset_acq_short
+#define	atomic_fcmpset_rel_short	kcsan_atomic_fcmpset_rel_short
+#define	atomic_fetchadd_short		kcsan_atomic_fetchadd_short
+#define	atomic_load_short		kcsan_atomic_load_short
+#define	atomic_load_acq_short		kcsan_atomic_load_acq_short
+#define	atomic_readandclear_short	kcsan_atomic_readandclear_short
+#define	atomic_set_short		kcsan_atomic_set_short
+#define	atomic_set_acq_short		kcsan_atomic_set_acq_short
+#define	atomic_set_rel_short		kcsan_atomic_set_rel_short
+#define	atomic_subtract_short		kcsan_atomic_subtract_short
+#define	atomic_subtract_acq_short	kcsan_atomic_subtract_acq_short
+#define	atomic_subtract_rel_short	kcsan_atomic_subtract_rel_short
+#define	atomic_store_short		kcsan_atomic_store_short
+#define	atomic_store_rel_short		kcsan_atomic_store_rel_short
+#define	atomic_swap_short		kcsan_atomic_swap_short
+#define	atomic_testandclear_short	kcsan_atomic_testandclear_short
+#define	atomic_testandset_short		kcsan_atomic_testandset_short
 
 #define	atomic_add_int			kcsan_atomic_add_int
 #define	atomic_add_acq_int		kcsan_atomic_add_acq_int
