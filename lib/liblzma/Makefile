@@ -78,8 +78,7 @@ SRCS+=	common.c \
 .PATH: ${LZMADIR}/check
 SRCS+=	check.c \
 	crc32_table.c \
-	crc64_table.c \
-	sha256.c
+	crc64_table.c
 .if defined(MACHINE_ARCH) && ${MACHINE_ARCH} == "i386"
 SRCS+=	crc32_x86.S \
 	crc64_x86.S
@@ -125,11 +124,11 @@ SRCS+=	simple_coder.c \
 
 .PATH: ${LZMADIR}
 
-VERSION_MAJOR!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_MAJOR" {print $$3 } ' \
+VERSION_MAJOR!=	sed -n '/define.*LZMA_VERSION_MAJOR/{s,[^0-9.],,gp;q;}' \
 			${LZMADIR}/api/lzma/version.h
-VERSION_MINOR!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_MINOR" {print $$3 } ' \
+VERSION_MINOR!=	sed -n '/define.*LZMA_VERSION_MINOR/{s,[^0-9.],,gp;q;}' \
 			${LZMADIR}/api/lzma/version.h
-VERSION_PATCH!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_PATCH" {print $$3 } ' \
+VERSION_PATCH!=	sed -n '/define.*LZMA_VERSION_PATCH/{s,[^0-9.],,gp;q;}' \
 			${LZMADIR}/api/lzma/version.h
 
 WARNS?=	3
@@ -147,7 +146,7 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/simple \
 		-I${LZMADIR:H}/common
 
-LIBADD+=	pthread
+LIBADD+=	md pthread
 
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
@@ -160,10 +159,11 @@ FILESDIR=	${LIBDATADIR}/pkgconfig
 
 liblzma.pc: liblzma.pc.in
 	sed -e 's,@prefix@,/usr,g ; \
-		s,@exec_prefix@,/usr,g  ; \
+		s,@exec_prefix@,/usr,g ; \
 		s,@libdir@,/usr/lib,g ; \
 		s,@includedir@,/usr/include,g ; \
-		s,@PACKAGE_URL@,http://tukaani.org/xz/,g ; \
+		s,@LIBS@,-pthread -lmd,g ; \
+		s,@PACKAGE_URL@,https://tukaani.org/xz/,g ; \
 		s,@PACKAGE_VERSION@,${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH},g ; \
 		s,@PTHREAD_CFLAGS@,,g ; \
 		s,@PTHREAD_LIBS@,,g' ${.ALLSRC} > ${.TARGET}
