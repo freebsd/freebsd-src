@@ -132,8 +132,6 @@ static struct linux_ioctl_handler socket_handler =
 { linux_ioctl_socket, LINUX_IOCTL_SOCKET_MIN, LINUX_IOCTL_SOCKET_MAX };
 static struct linux_ioctl_handler sound_handler =
 { linux_ioctl_sound, LINUX_IOCTL_SOUND_MIN, LINUX_IOCTL_SOUND_MAX };
-static struct linux_ioctl_handler termio_handler =
-{ linux_ioctl_termio, LINUX_IOCTL_TERMIO_MIN, LINUX_IOCTL_TERMIO_MAX };
 static struct linux_ioctl_handler private_handler =
 { linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
 static struct linux_ioctl_handler drm_handler =
@@ -156,7 +154,6 @@ DATA_SET(linux_ioctl_handler_set, hdio_handler);
 DATA_SET(linux_ioctl_handler_set, disk_handler);
 DATA_SET(linux_ioctl_handler_set, socket_handler);
 DATA_SET(linux_ioctl_handler_set, sound_handler);
-DATA_SET(linux_ioctl_handler_set, termio_handler);
 DATA_SET(linux_ioctl_handler_set, private_handler);
 DATA_SET(linux_ioctl_handler_set, drm_handler);
 DATA_SET(linux_ioctl_handler_set, sg_handler);
@@ -164,6 +161,14 @@ DATA_SET(linux_ioctl_handler_set, video_handler);
 DATA_SET(linux_ioctl_handler_set, video2_handler);
 DATA_SET(linux_ioctl_handler_set, fbsd_usb);
 DATA_SET(linux_ioctl_handler_set, evdev_handler);
+
+/*
+ * Keep sorted by low.
+ */
+static struct linux_ioctl_handler linux_ioctls[] = {
+	{ .func = linux_ioctl_termio, .low = LINUX_IOCTL_TERMIO_MIN,
+	    .high = LINUX_IOCTL_TERMIO_MAX },
+};
 
 #ifdef __i386__
 static TAILQ_HEAD(, linux_ioctl_handler_element) linux_ioctl_handlers =
@@ -3558,8 +3563,8 @@ linux_ioctl_evdev(struct thread *td, struct linux_ioctl_args *args)
  * main ioctl syscall function
  */
 
-int
-linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
+static int
+linux_ioctl_fallback(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	struct linux_ioctl_handler_element *he;
@@ -3618,6 +3623,35 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	return (EINVAL);
+}
+
+int
+linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
+{
+	struct linux_ioctl_handler *handler;
+	int error, cmd, i;
+
+	cmd = args->cmd & 0xffff;
+
+	/*
+	 * array of ioctls known at compilation time. Elides a lot of work on
+	 * each call compared to the list variant. Everything frequently used
+	 * should be moved here.
+	 *
+	 * Arguably the magic creating the list should create an array instead.
+	 *
+	 * For now just a linear scan.
+	 */
+	for (i = 0; i < nitems(linux_ioctls); i++) {
+		handler = &linux_ioctls[i];
+		if (cmd >= handler->low && cmd <= handler->high) {
+			error = (*handler->func)(td, args);
+			if (error != ENOIOCTL) {
+				return (error);
+			}
+		}
+	}
+	return (linux_ioctl_fallback(td, args));
 }
 
 int
