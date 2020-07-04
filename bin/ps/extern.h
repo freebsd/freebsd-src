@@ -48,6 +48,7 @@ __BEGIN_DECLS
 char	 *arguments(KINFO *, VARENT *);
 char	 *command(KINFO *, VARENT *);
 char	 *cputime(KINFO *, VARENT *);
+char	 *cpunum(KINFO *, VARENT *);
 int	 donlist(void);
 char	 *elapsed(KINFO *, VARENT *);
 char	 *elapseds(KINFO *, VARENT *);
