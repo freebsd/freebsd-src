@@ -1414,6 +1414,17 @@ linprocfs_dosem(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/tainted
+ */
+static int
+linprocfs_dotainted(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "0\n");
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/vm/min_free_kbytes
  *
  * This mirrors the approach in illumos to return zero for reads. Effectively,
@@ -1814,6 +1825,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "sem", &linprocfs_dosem,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "tainted", &linprocfs_dotainted,
 	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/kernel/random/... */
