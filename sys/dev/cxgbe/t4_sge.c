@@ -3013,6 +3013,7 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 				if (avail < n)
 					break;	/* out of descriptors */
 			}
+			ETHER_BPF_MTAP(ifp, m0);
 			if (sc->flags & IS_VF)
 				n = write_txpkt_vm_wr(sc, txq, m0);
 			else
