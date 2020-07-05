@@ -1925,4 +1925,18 @@ link_elf_ireloc(caddr_t kmdp)
 	link_elf_preload_parse_symbols(ef);
 	relocate_file1(ef, elf_lookup_ifunc, elf_reloc, true);
 }
+
+#if defined(__aarch64__) || defined(__amd64__)
+void
+link_elf_late_ireloc(void)
+{
+	elf_file_t ef;
+
+	KASSERT(linker_kernel_file != NULL,
+	    ("link_elf_late_ireloc: No kernel linker file found"));
+	ef = (elf_file_t)linker_kernel_file;
+
+	relocate_file1(ef, elf_lookup_ifunc, elf_reloc_late, true);
+}
+#endif
 #endif
