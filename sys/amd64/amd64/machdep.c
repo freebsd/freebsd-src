@@ -320,6 +320,13 @@ cpu_startup(dummy)
 	cpu_setregs();
 }
 
+static void
+late_ifunc_resolve(void *dummy __unused)
+{
+	link_elf_late_ireloc();
+}
+SYSINIT(late_ifunc_resolve, SI_SUB_CPU, SI_ORDER_ANY, late_ifunc_resolve, NULL);
+
 /*
  * Send an interrupt to process.
  *

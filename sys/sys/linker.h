@@ -289,6 +289,12 @@ const Elf_Sym *elf_get_sym(linker_file_t _lf, Elf_Size _symidx);
 const char *elf_get_symname(linker_file_t _lf, Elf_Size _symidx);
 void	link_elf_ireloc(caddr_t kmdp);
 
+#if defined(__aarch64__) || defined(__amd64__)
+int	elf_reloc_late(linker_file_t _lf, Elf_Addr base, const void *_rel,
+	    int _type, elf_lookup_fn _lu);
+void	link_elf_late_ireloc(void);
+#endif
+
 typedef struct linker_ctf {
 	const uint8_t 	*ctftab;	/* Decompressed CTF data. */
 	int 		ctfcnt;		/* Number of CTF data bytes. */
