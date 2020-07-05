@@ -31,9 +31,10 @@
 #ifndef	_LINUX_IO_H_
 #define	_LINUX_IO_H_
 
-#include <machine/vm.h>
 #include <sys/endian.h>
 #include <sys/types.h>
+
+#include <machine/vm.h>
 
 #include <linux/compiler.h>
 #include <linux/types.h>
