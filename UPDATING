@@ -26,6 +26,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200627:
+	A new implementation of bc and dc has been imorted in r362681. This
+	implementation corrects non-conformant behavior of the previous bc
+	and adds GNU bc compatible options. It offers a number of extensions,
+	is much faster on large values, and has support for message catalogs
+	(a number of languages are already supported, contributions of further
+	languages welcome). The option WITHOUT_GH_BC can be used to build the
+	world with the previous versions of bc and dc.
+
 20200625:
 	r362639 changed the internal API used between the NFS kernel modules.
 	As such, they all need to be rebuilt from sources.
