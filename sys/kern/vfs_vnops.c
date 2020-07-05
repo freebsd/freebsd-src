@@ -1557,7 +1557,7 @@ vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
 	 *    to file"
-	 * Use miminum/default of PAGE_SIZE (e.g. for VCHR).
+	 * Use minimum/default of PAGE_SIZE (e.g. for VCHR).
 	 */
 
 	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
