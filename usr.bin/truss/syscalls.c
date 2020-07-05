@@ -1577,12 +1577,35 @@ print_cmsgs(FILE *fp, pid_t pid, bool receive, struct msghdr *msghdr)
 }
 
 static void
-print_sysctl_oid(FILE *fp, int *oid, int len)
+print_sysctl_oid(FILE *fp, int *oid, size_t len)
 {
-	int i;
+	size_t i;
+	bool first;
 
-	for (i = 0; i < len; i++)
-		fprintf(fp, ".%d", oid[i]);
+	first = true;
+	fprintf(fp, "{ ");
+	for (i = 0; i < len; i++) {
+		fprintf(fp, "%s%d", first ? "" : ".", oid[i]);
+		first = false;
+	}
+	fprintf(fp, " }");
+}
+
+static void
+print_sysctl(FILE *fp, int *oid, size_t len)
+{
+	char name[BUFSIZ];
+	int qoid[CTL_MAXNAME + 2];
+	size_t i;
+
+	qoid[0] = CTL_SYSCTL;
+	qoid[1] = CTL_SYSCTL_NAME;
+	memcpy(qoid + 2, oid, len * sizeof(int));
+	i = sizeof(name);
+	if (sysctl(qoid, len + 2, name, &i, 0, 0) == -1)
+		print_sysctl_oid(fp, oid, len);
+	else
+		fprintf(fp, "%s", name);
 }
 
 /*
@@ -2298,9 +2321,8 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		break;
 	case Sysctl: {
 		char name[BUFSIZ];
-		int oid[CTL_MAXNAME + 2], qoid[CTL_MAXNAME + 2];
-		size_t i;
-		int len;
+		int oid[CTL_MAXNAME + 2];
+		size_t len;
 
 		memset(name, 0, sizeof(name));
 		len = args[sc->offset + 1];
@@ -2314,39 +2336,35 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 					fprintf(fp, "debug");
 					break;
 				case CTL_SYSCTL_NAME:
-					fprintf(fp, "name");
+					fprintf(fp, "name ");
 					print_sysctl_oid(fp, oid + 2, len - 2);
 					break;
 				case CTL_SYSCTL_NEXT:
 					fprintf(fp, "next");
 					break;
 				case CTL_SYSCTL_NAME2OID:
-					fprintf(fp, "name2oid");
+					fprintf(fp, "name2oid %s",
+					    get_string(pid,
+					        args[sc->offset + 4],
+						args[sc->offset + 5]));
 					break;
 				case CTL_SYSCTL_OIDFMT:
-					fprintf(fp, "oidfmt");
-					print_sysctl_oid(fp, oid + 2, len - 2);
+					fprintf(fp, "oidfmt ");
+					print_sysctl(fp, oid + 2, len - 2);
 					break;
 				case CTL_SYSCTL_OIDDESCR:
-					fprintf(fp, "oiddescr");
-					print_sysctl_oid(fp, oid + 2, len - 2);
+					fprintf(fp, "oiddescr ");
+					print_sysctl(fp, oid + 2, len - 2);
 					break;
 				case CTL_SYSCTL_OIDLABEL:
-					fprintf(fp, "oidlabel");
-					print_sysctl_oid(fp, oid + 2, len - 2);
+					fprintf(fp, "oidlabel ");
+					print_sysctl(fp, oid + 2, len - 2);
 					break;
 				default:
-					print_sysctl_oid(fp, oid + 1, len - 1);
+					print_sysctl(fp, oid + 1, len - 1);
 				}
 			} else {
-				qoid[0] = CTL_SYSCTL;
-				qoid[1] = CTL_SYSCTL_NAME;
-				memcpy(qoid + 2, oid, len * sizeof(int));
-				i = sizeof(name);
-				if (sysctl(qoid, len + 2, name, &i, 0, 0) == -1)
-					print_sysctl_oid(fp, qoid + 2, len);
-				else
-					fprintf(fp, "%s", name);
+				print_sysctl(fp, oid, len);
 			}
 		    	fprintf(fp, "\"");
 		}
