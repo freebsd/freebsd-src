@@ -637,6 +637,7 @@ retry_setlock:
 			VI_UNLOCK(vp);
 		} else {
 			state = *statep;
+			MPASS(state->ls_threads >= 0);
 			state->ls_threads++;
 			VI_UNLOCK(vp);
 
@@ -647,6 +648,7 @@ retry_setlock:
 			free(ls, M_LOCKF);
 		}
 	} else {
+		MPASS(state->ls_threads >= 0);
 		state->ls_threads++;
 		VI_UNLOCK(vp);
 	}
@@ -657,8 +659,9 @@ retry_setlock:
 	 * locked. lf_purgelocks() requires that no new threads add
 	 * pending locks when vnode is marked by VIRF_DOOMED flag.
 	 */
-	VI_LOCK(vp);
 	if (VN_IS_DOOMED(vp)) {
+		VI_LOCK(vp);
+		MPASS(state->ls_threads > 0);
 		state->ls_threads--;
 		wakeup(state);
 		VI_UNLOCK(vp);
@@ -666,7 +669,6 @@ retry_setlock:
 		lf_free_lock(lock);
 		return (ENOENT);
 	}
-	VI_UNLOCK(vp);
 
 	switch (ap->a_op) {
 	case F_SETLK:
@@ -728,15 +730,11 @@ retry_setlock:
 	sx_xunlock(&state->ls_lock);
 
 	VI_LOCK(vp);
-
+	MPASS(state->ls_threads > 0);
 	state->ls_threads--;
-	if (LIST_EMPTY(&state->ls_active) && state->ls_threads == 0) {
-		KASSERT(LIST_EMPTY(&state->ls_pending),
-		    ("freeable state with pending locks"));
-	} else {
+	if (state->ls_threads != 0) {
 		wakeup(state);
 	}
-
 	VI_UNLOCK(vp);
 
 	if (error == EDOOFUS) {
@@ -790,6 +788,7 @@ lf_purgelocks(struct vnode *vp, struct lockf **statep)
 		VI_UNLOCK(vp);
 		goto out_free;
 	}
+	MPASS(state->ls_threads >= 0);
 	state->ls_threads++;
 	VI_UNLOCK(vp);
 
@@ -1953,6 +1952,7 @@ lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
 		VI_UNLOCK(vp);
 		return (0);
 	}
+	MPASS(ls->ls_threads >= 0);
 	ls->ls_threads++;
 	VI_UNLOCK(vp);
 
@@ -1976,6 +1976,7 @@ lf_iteratelocks_vnode(struct vnode *vp, lf_iterator *fn, void *arg)
 	}
 	sx_xunlock(&ls->ls_lock);
 	VI_LOCK(vp);
+	MPASS(ls->ls_threads > 0);
 	ls->ls_threads--;
 	wakeup(ls);
 	VI_UNLOCK(vp);
