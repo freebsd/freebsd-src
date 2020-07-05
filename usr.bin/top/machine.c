@@ -333,10 +333,7 @@ machine_init(struct statics *statics, char do_unames)
 	struct passwd *pw;
 
 	size = sizeof(smpmode);
-	if ((sysctlbyname("machdep.smp_active", &smpmode, &size,
-	    NULL, 0) != 0 &&
-	    sysctlbyname("kern.smp.active", &smpmode, &size,
-	    NULL, 0) != 0) ||
+	if (sysctlbyname("kern.smp.active", &smpmode, &size, NULL, 0) != 0 ||
 	    size != sizeof(smpmode))
 		smpmode = 0;
 
