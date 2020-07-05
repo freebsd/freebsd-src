@@ -1196,11 +1196,14 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	if (error != 0)
 		return (error);
 
-	if (msg->msg_name) {
+	if (msg->msg_name != NULL && msg->msg_namelen > 0) {
+		msg->msg_namelen = min(msg->msg_namelen, SOCK_MAXADDRLEN);
 		sa = malloc(msg->msg_namelen, M_SONAME, M_WAITOK);
 		msg->msg_name = sa;
-	} else
+	} else {
 		sa = NULL;
+		msg->msg_name = NULL;
+	}
 
 	uiov = msg->msg_iov;
 	msg->msg_iov = iov;
@@ -1210,7 +1213,10 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	if (error != 0)
 		goto bad;
 
-	if (msg->msg_name) {
+	/*
+	 * Note that kern_recvit() updates msg->msg_namelen.
+	 */
+	if (msg->msg_name != NULL && msg->msg_namelen > 0) {
 		msg->msg_name = PTRIN(linux_msghdr.msg_name);
 		error = bsd_to_linux_sockaddr(sa, &lsa, msg->msg_namelen);
 		if (error == 0)
