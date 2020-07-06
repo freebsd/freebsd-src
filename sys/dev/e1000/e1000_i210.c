@@ -612,6 +612,8 @@ static s32 e1000_pll_workaround_i210(struct e1000_hw *hw)
 	u16 nvm_word, phy_word, pci_word, tmp_nvm;
 	int i;
 
+	/* Get PHY semaphore */
+	hw->phy.ops.acquire(hw);
 	/* Get and set needed register values */
 	wuc = E1000_READ_REG(hw, E1000_WUC);
 	mdicnfg = E1000_READ_REG(hw, E1000_MDICNFG);
@@ -626,8 +628,11 @@ static s32 e1000_pll_workaround_i210(struct e1000_hw *hw)
 	tmp_nvm = nvm_word | E1000_INVM_PLL_WO_VAL;
 	for (i = 0; i < E1000_MAX_PLL_TRIES; i++) {
 		/* check current state directly from internal PHY */
-		e1000_read_phy_reg_gs40g(hw, (E1000_PHY_PLL_FREQ_PAGE |
-					 E1000_PHY_PLL_FREQ_REG), &phy_word);
+		e1000_write_phy_reg_mdic(hw, GS40G_PAGE_SELECT, 0xFC);
+		usec_delay(20);
+		e1000_read_phy_reg_mdic(hw, E1000_PHY_PLL_FREQ_REG, &phy_word);
+		usec_delay(20);
+		e1000_write_phy_reg_mdic(hw, GS40G_PAGE_SELECT, 0);
 		if ((phy_word & E1000_PHY_PLL_UNCONF)
 		    != E1000_PHY_PLL_UNCONF) {
 			ret_val = E1000_SUCCESS;
@@ -661,6 +666,8 @@ static s32 e1000_pll_workaround_i210(struct e1000_hw *hw)
 	}
 	/* restore MDICNFG setting */
 	E1000_WRITE_REG(hw, E1000_MDICNFG, mdicnfg);
+	/* Release PHY semaphore */
+	hw->phy.ops.release(hw);
 	return ret_val;
 }
 
