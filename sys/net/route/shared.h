@@ -51,7 +51,8 @@ struct rib_head;
 void nhops_init(void);
 int nhops_init_rib(struct rib_head *rh);
 void nhops_destroy_rib(struct rib_head *rh);
-int nhop_ref_object(struct nhop_object *nh);
+void nhop_ref_object(struct nhop_object *nh);
+int nhop_try_ref_object(struct nhop_object *nh);
 int nhop_ref_any(struct nhop_object *nh);
 void nhop_free_any(struct nhop_object *nh);
 
