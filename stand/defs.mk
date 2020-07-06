@@ -115,13 +115,14 @@ AFLAGS+=	--32
 SSP_CFLAGS=
 
 # Add in the no float / no SIMD stuff and announce we're freestanding
-# aarch64 and riscv don't have -msoft-float, but all others do. riscv
-# currently has no /boot/loader, but may soon.
+# aarch64 and riscv don't have -msoft-float, but all others do.
 CFLAGS+=	-ffreestanding ${CFLAGS_NO_SIMD}
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS+=	-mgeneral-regs-only -ffixed-x18 -fPIC
 .elif ${MACHINE_CPUARCH} == "riscv"
-CFLAGS+=	-march=rv64imac -mabi=lp64
+CFLAGS+=	-march=rv64imac -mabi=lp64 -fPIC
+CFLAGS.clang+=	-mcmodel=medium
+CFLAGS.gcc+=	-mcmodel=medany
 .else
 CFLAGS+=	-msoft-float
 .endif
@@ -146,6 +147,12 @@ CFLAGS+=	-fPIC -mno-red-zone
 CFLAGS.clang+=	-mno-movt
 CFLAGS.clang+=  -mfpu=none
 CFLAGS+=	-fPIC
+.endif
+
+# Some RISC-V linkers have support for relaxations, while some (lld) do not
+# yet. If this is the case we inhibit the compiler from emitting relaxations.
+.if ${LINKER_FEATURES:Mriscv-relaxations} == ""
+CFLAGS+=	-mno-relax
 .endif
 
 # The boot loader build uses dd status=none, where possible, for reproducible
