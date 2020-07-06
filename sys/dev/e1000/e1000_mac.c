@@ -2362,7 +2362,7 @@ e1000_release_swfw_sync(struct e1000_hw *hw, u16 mask)
 		; /* Empty */
 
 	swfw_sync = E1000_READ_REG(hw, E1000_SW_FW_SYNC);
-	swfw_sync &= ~mask;
+	swfw_sync &= (u32)~mask;
 	E1000_WRITE_REG(hw, E1000_SW_FW_SYNC, swfw_sync);
 
 	e1000_put_hw_semaphore(hw);
