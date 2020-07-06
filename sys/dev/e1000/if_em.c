@@ -1332,7 +1332,7 @@ em_if_init(if_ctx_t ctx)
 
 	/* Clear bad data from Rx FIFOs */
 	if (adapter->hw.mac.type >= igb_mac_min)
-		e1000_rx_fifo_flush_82575(&adapter->hw);
+		e1000_rx_fifo_flush_base(&adapter->hw);
 
 	/* Configure for OS presence */
 	em_init_manageability(adapter);
