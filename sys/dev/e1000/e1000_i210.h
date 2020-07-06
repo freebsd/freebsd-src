@@ -44,10 +44,6 @@ s32 e1000_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
 s32 e1000_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 			     u16 words, u16 *data);
-s32 e1000_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
-			 u16 *data);
-s32 e1000_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
-			  u16 data);
 s32 e1000_init_hw_i210(struct e1000_hw *hw);
 
 #define E1000_STM_OPCODE		0xDB00
