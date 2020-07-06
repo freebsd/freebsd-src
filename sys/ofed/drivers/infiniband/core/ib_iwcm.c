@@ -1052,5 +1052,5 @@ static void __exit iw_cm_cleanup(void)
 	destroy_workqueue(iwcm_wq);
 }
 
-module_init(iw_cm_init);
-module_exit(iw_cm_cleanup);
+module_init_order(iw_cm_init, SI_ORDER_FIRST);
+module_exit_order(iw_cm_cleanup, SI_ORDER_FIRST);

@@ -4218,8 +4218,8 @@ static void __exit mlx4_cleanup(void)
 	destroy_workqueue(mlx4_wq);
 }
 
-module_init(mlx4_init);
-module_exit(mlx4_cleanup);
+module_init_order(mlx4_init, SI_ORDER_FIRST);
+module_exit_order(mlx4_cleanup, SI_ORDER_FIRST);
 
 static int
 mlx4_evhand(module_t mod, int event, void *arg)

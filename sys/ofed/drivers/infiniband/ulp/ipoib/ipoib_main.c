@@ -1753,8 +1753,8 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-module_init(ipoib_init_module);
-module_exit(ipoib_cleanup_module);
+module_init_order(ipoib_init_module, SI_ORDER_FIFTH);
+module_exit_order(ipoib_cleanup_module, SI_ORDER_FIFTH);
 
 static int
 ipoib_evhand(module_t mod, int event, void *arg)

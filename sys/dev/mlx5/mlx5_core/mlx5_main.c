@@ -2026,5 +2026,5 @@ static void __exit cleanup(void)
 	pci_unregister_driver(&mlx5_core_driver);
 }
 
-module_init(init);
-module_exit(cleanup);
+module_init_order(init, SI_ORDER_FIRST);
+module_exit_order(cleanup, SI_ORDER_FIRST);

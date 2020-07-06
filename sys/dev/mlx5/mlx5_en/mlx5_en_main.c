@@ -4723,8 +4723,8 @@ mlx5e_show_version(void __unused *arg)
 }
 SYSINIT(mlx5e_show_version, SI_SUB_DRIVERS, SI_ORDER_ANY, mlx5e_show_version, NULL);
 
-module_init_order(mlx5e_init, SI_ORDER_THIRD);
-module_exit_order(mlx5e_cleanup, SI_ORDER_THIRD);
+module_init_order(mlx5e_init, SI_ORDER_SIXTH);
+module_exit_order(mlx5e_cleanup, SI_ORDER_SIXTH);
 
 #if (__FreeBSD_version >= 1100000)
 MODULE_DEPEND(mlx5en, linuxkpi, 1, 1, 1);

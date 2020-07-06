@@ -1405,5 +1405,5 @@ static void __exit ib_umad_cleanup(void)
 		unregister_chrdev_region(overflow_maj, IB_UMAD_MAX_PORTS * 2);
 }
 
-module_init_order(ib_umad_init, SI_ORDER_THIRD);
-module_exit(ib_umad_cleanup);
+module_init_order(ib_umad_init, SI_ORDER_FIFTH);
+module_exit_order(ib_umad_cleanup, SI_ORDER_FIFTH);

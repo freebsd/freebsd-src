@@ -1782,5 +1782,5 @@ static void __exit ucma_cleanup(void)
 	idr_destroy(&multicast_idr);
 }
 
-module_init(ucma_init);
-module_exit(ucma_cleanup);
+module_init_order(ucma_init, SI_ORDER_FIFTH);
+module_exit_order(ucma_cleanup, SI_ORDER_FIFTH);

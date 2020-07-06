@@ -304,8 +304,8 @@ static void __exit mlx4_en_cleanup(void)
 	mlx4_unregister_interface(&mlx4_en_interface);
 }
 
-module_init(mlx4_en_init);
-module_exit(mlx4_en_cleanup);
+module_init_order(mlx4_en_init, SI_ORDER_SIXTH);
+module_exit_order(mlx4_en_cleanup, SI_ORDER_SIXTH);
 
 static int
 mlx4en_evhand(module_t mod, int event, void *arg)
