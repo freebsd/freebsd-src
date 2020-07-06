@@ -169,6 +169,8 @@
 #define E1000_EMIDATA	0x11     /* Extended Memory Indirect Data */
 /* Shadow Ram Write Register - RW */
 #define E1000_SRWR		0x12018
+#define E1000_EEC_REG		0x12010
+
 #define E1000_I210_FLMNGCTL	0x12038
 #define E1000_I210_FLMNGDATA	0x1203C
 #define E1000_I210_FLMNGCNT	0x12040
@@ -178,6 +180,9 @@
 #define E1000_I210_FLSWCNT	0x12050
 
 #define E1000_I210_FLA		0x1201C
+
+#define E1000_SHADOWINF		0x12068
+#define E1000_FLFWUPDATE	0x12108
 
 #define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
 #define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
