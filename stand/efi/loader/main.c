@@ -912,7 +912,7 @@ main(int argc, CHAR16 *argv[])
 	 */
 	setenv("console", "efi", 1);
 	uhowto = parse_uefi_con_out();
-#if defined(__aarch64__) || defined(__arm__)
+#if defined(__aarch64__) || defined(__arm__) || defined(__riscv)
 	if ((uhowto & RB_SERIAL) != 0)
 		setenv("console", "comconsole", 1);
 #endif

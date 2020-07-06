@@ -227,7 +227,7 @@ efi_copy_init(void)
 	staging_base = staging;
 	staging_end = staging + nr_pages * EFI_PAGE_SIZE;
 
-#if defined(__aarch64__) || defined(__arm__)
+#if defined(__aarch64__) || defined(__arm__) || defined(__riscv)
 	/*
 	 * Round the kernel load address to a 2MiB value. This is needed
 	 * because the kernel builds a page table based on where it has
@@ -277,7 +277,7 @@ before_staging:
 		return (false);
 	}
 	addr = staging - nr_pages * EFI_PAGE_SIZE;
-#if defined(__aarch64__) || defined(__arm__)
+#if defined(__aarch64__) || defined(__arm__) || defined(__riscv)
 	/* See efi_copy_init for why this is needed */
 	addr = rounddown2(addr, 2 * 1024 * 1024);
 #endif
@@ -343,6 +343,11 @@ efi_copyout(const vm_offset_t src, void *dest, const size_t len)
 ssize_t
 efi_readin(readin_handle_t fd, vm_offset_t dest, const size_t len)
 {
+
+	if (!stage_offset_set) {
+		stage_offset = (vm_offset_t)staging - dest;
+		stage_offset_set = 1;
+	}
 
 	if (!efi_check_space(dest + stage_offset + len)) {
 		errno = ENOMEM;
