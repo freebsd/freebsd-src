@@ -9,11 +9,11 @@ SRCS    += $(CORE_SRC) $(LEGACY_SRC)
 SRCS	+= $(COMMON_SHARED) $(LEGACY_SHARED) $(PCIE_SHARED)
 CORE_SRC = if_em.c em_txrx.c e1000_osdep.c
 CORE_SRC += igb_txrx.c
-# This is the Legacy, pre-PCIE source, it can be
-# undefined when using modular driver if not needed
-COMMON_SHARED = e1000_api.c e1000_phy.c e1000_nvm.c e1000_mac.c \
+COMMON_SHARED = e1000_api.c e1000_base.c e1000_phy.c e1000_nvm.c e1000_mac.c \
 		e1000_manage.c e1000_vf.c e1000_mbx.c e1000_i210.c
 PCIE_SHARED = e1000_80003es2lan.c e1000_ich8lan.c e1000_82571.c e1000_82575.c
+# This is the Legacy, pre-PCIE source, it can be
+# undefined when using modular driver if not needed
 LEGACY_SHARED = e1000_82540.c e1000_82542.c e1000_82541.c e1000_82543.c
 
 
