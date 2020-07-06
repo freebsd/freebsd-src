@@ -381,6 +381,7 @@
 #define E1000_TSCTC	0x040F8  /* TCP Segmentation Context Tx - R/clr */
 #define E1000_TSCTFC	0x040FC  /* TCP Segmentation Context Tx Fail - R/clr */
 #define E1000_IAC	0x04100  /* Interrupt Assertion Count */
+/* Interrupt Cause */
 #define E1000_ICRXPTC	0x04104  /* Interrupt Cause Rx Pkt Timer Expire Count */
 #define E1000_ICRXATC	0x04108  /* Interrupt Cause Rx Abs Timer Expire Count */
 #define E1000_ICTXPTC	0x0410C  /* Interrupt Cause Tx Pkt Timer Expire Count */
@@ -503,12 +504,14 @@
 #define E1000_WUC	0x05800  /* Wakeup Control - RW */
 #define E1000_WUFC	0x05808  /* Wakeup Filter Control - RW */
 #define E1000_WUS	0x05810  /* Wakeup Status - RO */
+/* Management registers */
 #define E1000_MANC	0x05820  /* Management Control - RW */
 #define E1000_IPAV	0x05838  /* IP Address Valid - RW */
 #define E1000_IP4AT	0x05840  /* IPv4 Address Table - RW Array */
 #define E1000_IP6AT	0x05880  /* IPv6 Address Table - RW Array */
 #define E1000_WUPL	0x05900  /* Wakeup Packet Length - RW */
 #define E1000_WUPM	0x05A00  /* Wakeup Packet Memory - RO A */
+/* MSI-X Table Register Descriptions */
 #define E1000_PBACL	0x05B68  /* MSIx PBA Clear - Read/Write 1's to clear */
 #define E1000_FFLT	0x05F00  /* Flexible Filter Length Table - RW Array */
 #define E1000_HOST_IF	0x08800  /* Host Interface */
