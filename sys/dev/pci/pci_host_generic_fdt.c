@@ -120,7 +120,7 @@ generic_pcie_fdt_probe(device_t dev)
 }
 
 int
-pci_host_generic_attach(device_t dev)
+pci_host_generic_setup_fdt(device_t dev)
 {
 	struct generic_pcie_fdt_softc *sc;
 	phandle_t node;
@@ -149,11 +149,27 @@ pci_host_generic_attach(device_t dev)
 	/* TODO parse FDT bus ranges */
 	sc->base.bus_start = 0;
 	sc->base.bus_end = 0xFF;
+
 	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
 		return (error);
 
 	ofw_bus_setup_iinfo(node, &sc->pci_iinfo, sizeof(cell_t));
+
+	return (0);
+}
+
+int
+pci_host_generic_attach(device_t dev)
+{
+	struct generic_pcie_fdt_softc *sc;
+	int error;
+
+	sc = device_get_softc(dev);
+
+	error = pci_host_generic_setup_fdt(dev);
+	if (error != 0)
+		return (error);
 
 	device_add_child(dev, "pci", -1);
 	return (bus_generic_attach(dev));
