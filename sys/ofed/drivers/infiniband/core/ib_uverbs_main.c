@@ -1431,5 +1431,5 @@ static void __exit ib_uverbs_cleanup(void)
 	idr_destroy(&ib_uverbs_srq_idr);
 }
 
-module_init_order(ib_uverbs_init, SI_ORDER_THIRD);
-module_exit(ib_uverbs_cleanup);
+module_init_order(ib_uverbs_init, SI_ORDER_FIFTH);
+module_exit_order(ib_uverbs_cleanup, SI_ORDER_FIFTH);

@@ -4180,5 +4180,5 @@ static void __exit ib_cm_cleanup(void)
 }
 
 module_init_order(ib_cm_init, SI_ORDER_SECOND);
-module_exit_order(ib_cm_cleanup, SI_ORDER_FIRST);
+module_exit_order(ib_cm_cleanup, SI_ORDER_SECOND);
 

@@ -139,5 +139,5 @@ static void __exit mlx5_fpga_tools_exit(void)
 	mlx5_fpga_tools_char_deinit();
 }
 
-module_init(mlx5_fpga_tools_init);
-module_exit(mlx5_fpga_tools_exit);
+module_init_order(mlx5_fpga_tools_init, SI_ORDER_SECOND);
+module_exit_order(mlx5_fpga_tools_exit, SI_ORDER_SECOND);
