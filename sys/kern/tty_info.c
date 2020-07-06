@@ -239,10 +239,36 @@ sbuf_tty_drain(void *a, const char *d, int len)
 }
 
 #ifdef STACK
-static bool tty_info_kstacks = true;
-SYSCTL_BOOL(_kern, OID_AUTO, tty_info_kstacks, CTLFLAG_RWTUN,
-    &tty_info_kstacks, 0,
-    "Enable printing kernel stack(9) traces on ^T (tty info)");
+static int tty_info_kstacks = STACK_SBUF_FMT_LONG;
+
+static int
+sysctl_tty_info_kstacks(SYSCTL_HANDLER_ARGS)
+{
+	enum stack_sbuf_fmt val;
+	int error;
+
+	val = tty_info_kstacks;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	switch (val) {
+	case STACK_SBUF_FMT_NONE:
+	case STACK_SBUF_FMT_LONG:
+	case STACK_SBUF_FMT_COMPACT:
+		tty_info_kstacks = val;
+		break;
+	default:
+		error = EINVAL;
+	}
+
+	return (error);
+}
+SYSCTL_PROC(_kern, OID_AUTO, tty_info_kstacks,
+    CTLFLAG_RWTUN | CTLFLAG_MPSAFE | CTLTYPE_INT, NULL, 0,
+    sysctl_tty_info_kstacks, "I",
+    "Adjust format of kernel stack(9) traces on ^T (tty info): "
+    "0 - disabled; 1 - long; 2 - compact");
 #endif
 
 /*
@@ -254,7 +280,8 @@ tty_info(struct tty *tp)
 	struct timeval rtime, utime, stime;
 #ifdef STACK
 	struct stack stack;
-	int sterr;
+	int sterr, kstacks_val;
+	bool print_kstacks;
 #endif
 	struct proc *p, *ppick;
 	struct thread *td, *tdpick;
@@ -337,7 +364,10 @@ tty_info(struct tty *tp)
 		state = "unknown";
 	pctcpu = (sched_pctcpu(td) * 10000 + FSCALE / 2) >> FSHIFT;
 #ifdef STACK
-	if (tty_info_kstacks) {
+	kstacks_val = atomic_load_int(&tty_info_kstacks);
+	print_kstacks = (kstacks_val != STACK_SBUF_FMT_NONE);
+
+	if (print_kstacks) {
 		if (TD_IS_SWAPPED(td))
 			sterr = ENOENT;
 		else
@@ -366,8 +396,8 @@ tty_info(struct tty *tp)
 	    pctcpu / 100, rss);
 
 #ifdef STACK
-	if (tty_info_kstacks && sterr == 0)
-		stack_sbuf_print_flags(&sb, &stack, M_NOWAIT);
+	if (print_kstacks && sterr == 0)
+		stack_sbuf_print_flags(&sb, &stack, M_NOWAIT, kstacks_val);
 #endif
 
 out:

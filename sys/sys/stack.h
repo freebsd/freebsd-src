@@ -39,6 +39,12 @@ MALLOC_DECLARE(M_STACK);
 
 struct sbuf;
 
+enum stack_sbuf_fmt {
+	STACK_SBUF_FMT_NONE	= 0,
+	STACK_SBUF_FMT_LONG	= 1,
+	STACK_SBUF_FMT_COMPACT	= 2,
+};
+
 /* MI Routines. */
 struct stack	*stack_create(int);
 void		 stack_destroy(struct stack *);
@@ -52,7 +58,7 @@ void		 stack_print_short_ddb(const struct stack *);
 void		 stack_sbuf_print(struct sbuf *, const struct stack *);
 void		 stack_sbuf_print_ddb(struct sbuf *, const struct stack *);
 int		 stack_sbuf_print_flags(struct sbuf *, const struct stack *,
-		 int);
+		     int, enum stack_sbuf_fmt);
 #ifdef KTR
 void		 stack_ktr(u_int, const char *, int, const struct stack *,
 		    u_int);
