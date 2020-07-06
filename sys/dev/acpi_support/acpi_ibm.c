@@ -2,6 +2,7 @@
  * Copyright (c) 2004 Takanori Watanabe
  * Copyright (c) 2005 Markus Brueffer <markus@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2020 Ali Abdallah <ali.abdallah@suse.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -105,7 +106,7 @@ ACPI_MODULE_NAME("IBM")
 #define   IBM_EC_MASK_MUTE		(1 << 6)
 #define IBM_EC_FANSTATUS		0x2F
 #define   IBM_EC_MASK_FANLEVEL		0x3f
-#define   IBM_EC_MASK_FANDISENGAGED	(1 << 6)
+#define   IBM_EC_MASK_FANUNTHROTTLED	(1 << 6)
 #define   IBM_EC_MASK_FANSTATUS		(1 << 7)
 #define IBM_EC_FANSPEED			0x84
 
@@ -263,7 +264,8 @@ static struct {
 	{
 		.name		= "fan_level",
 		.method		= ACPI_IBM_METHOD_FANLEVEL,
-		.description	= "Fan level",
+		.description	= "Fan level, 0-7 (recommended max), "
+				  "8 (unthrottled, full-speed)",
 	},
 	{
 		.name		= "fan",
@@ -830,7 +832,10 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 		 */
 		if (!sc->fan_handle) {
 			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
-			val = val_ec & IBM_EC_MASK_FANLEVEL;
+			if (val_ec & IBM_EC_MASK_FANUNTHROTTLED)
+				val = 8;
+			else
+				val = val_ec & IBM_EC_MASK_FANLEVEL;
 		}
 		break;
 
@@ -914,15 +919,23 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 		break;
 
 	case ACPI_IBM_METHOD_FANLEVEL:
-		if (arg < 0 || arg > 7)
+		if (arg < 0 || arg > 8)
 			return (EINVAL);
 
 		if (!sc->fan_handle) {
-			/* Read the current fanstatus */
+			/* Read the current fan status. */
 			ACPI_EC_READ(sc->ec_dev, IBM_EC_FANSTATUS, &val_ec, 1);
-			val = val_ec & (~IBM_EC_MASK_FANLEVEL);
+			val = val_ec & ~(IBM_EC_MASK_FANLEVEL |
+			    IBM_EC_MASK_FANUNTHROTTLED);
 
-			return ACPI_EC_WRITE(sc->ec_dev, IBM_EC_FANSTATUS, val | arg, 1);
+			if (arg == 8)
+				/* Full speed, set the unthrottled bit. */
+				val |= 7 | IBM_EC_MASK_FANUNTHROTTLED;
+			else
+				val |= arg;
+
+			return (ACPI_EC_WRITE(sc->ec_dev, IBM_EC_FANSTATUS, val,
+			    1));
 		}
 		break;
 
