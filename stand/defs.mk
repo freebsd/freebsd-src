@@ -151,7 +151,7 @@ CFLAGS+=	-fPIC
 
 # Some RISC-V linkers have support for relaxations, while some (lld) do not
 # yet. If this is the case we inhibit the compiler from emitting relaxations.
-.if ${LINKER_FEATURES:Mriscv-relaxations} == ""
+.if ${MACHINE_CPUARCH} == "riscv" && ${LINKER_FEATURES:Mriscv-relaxations} == ""
 CFLAGS+=	-mno-relax
 .endif
 
