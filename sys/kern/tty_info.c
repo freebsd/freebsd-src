@@ -239,7 +239,7 @@ sbuf_tty_drain(void *a, const char *d, int len)
 }
 
 #ifdef STACK
-static int tty_info_kstacks = STACK_SBUF_FMT_LONG;
+static int tty_info_kstacks = STACK_SBUF_FMT_COMPACT;
 
 static int
 sysctl_tty_info_kstacks(SYSCTL_HANDLER_ARGS)
