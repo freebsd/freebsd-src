@@ -38,7 +38,6 @@
 static s32 e1000_validate_mdi_setting_generic(struct e1000_hw *hw);
 static void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw);
 static void e1000_config_collision_dist_generic(struct e1000_hw *hw);
-static int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index);
 
 /**
  *  e1000_init_mac_ops_generic - Initialize MAC function pointers
@@ -484,7 +483,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
  *  Sets the receive address array register at index to the address passed
  *  in by addr.
  **/
-static int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
+int e1000_rar_set_generic(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	u32 rar_low, rar_high;
 
