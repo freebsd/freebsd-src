@@ -138,7 +138,7 @@ igb_tso_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 		mss_l4len_idx |= txr->me << 4;
 	TXD->mss_l4len_idx = htole32(mss_l4len_idx);
 
-	TXD->seqnum_seed = htole32(0);
+	TXD->u.seqnum_seed = htole32(0);
 	*cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
 	*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
 	*olinfo_status |= paylen << E1000_ADVTXD_PAYLEN_SHIFT;
@@ -229,7 +229,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, if_pkt_info_t pi, uint32_t *cmd_type_len,
 	/* Now copy bits into descriptor */
 	TXD->vlan_macip_lens = htole32(vlan_macip_lens);
 	TXD->type_tucmd_mlhl = htole32(type_tucmd_mlhl);
-	TXD->seqnum_seed = htole32(0);
+	TXD->u.seqnum_seed = htole32(0);
 	TXD->mss_l4len_idx = htole32(mss_l4len_idx);
 
 	return (1);
