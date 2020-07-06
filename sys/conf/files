@@ -1674,6 +1674,8 @@ dev/e1000/e1000_i210.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_api.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/e1000_base.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_mac.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_manage.c	optional em \
