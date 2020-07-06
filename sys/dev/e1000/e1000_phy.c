@@ -104,6 +104,7 @@ void e1000_init_phy_ops_generic(struct e1000_hw *hw)
 /**
  *  e1000_null_set_page - No-op function, return 0
  *  @hw: pointer to the HW structure
+ *  @data: dummy variable
  **/
 s32 e1000_null_set_page(struct e1000_hw E1000_UNUSEDARG *hw,
 			u16 E1000_UNUSEDARG data)
@@ -115,6 +116,8 @@ s32 e1000_null_set_page(struct e1000_hw E1000_UNUSEDARG *hw,
 /**
  *  e1000_null_read_reg - No-op function, return 0
  *  @hw: pointer to the HW structure
+ *  @offset: dummy variable
+ *  @data: dummy variable
  **/
 s32 e1000_null_read_reg(struct e1000_hw E1000_UNUSEDARG *hw,
 			u32 E1000_UNUSEDARG offset, u16 E1000_UNUSEDARG *data)
@@ -136,6 +139,7 @@ void e1000_null_phy_generic(struct e1000_hw E1000_UNUSEDARG *hw)
 /**
  *  e1000_null_lplu_state - No-op function, return 0
  *  @hw: pointer to the HW structure
+ *  @active: dummy variable
  **/
 s32 e1000_null_lplu_state(struct e1000_hw E1000_UNUSEDARG *hw,
 			  bool E1000_UNUSEDARG active)
@@ -147,6 +151,8 @@ s32 e1000_null_lplu_state(struct e1000_hw E1000_UNUSEDARG *hw,
 /**
  *  e1000_null_write_reg - No-op function, return 0
  *  @hw: pointer to the HW structure
+ *  @offset: dummy variable
+ *  @data: dummy variable
  **/
 s32 e1000_null_write_reg(struct e1000_hw E1000_UNUSEDARG *hw,
 			 u32 E1000_UNUSEDARG offset, u16 E1000_UNUSEDARG data)
