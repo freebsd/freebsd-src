@@ -4619,5 +4619,5 @@ static void __exit cma_cleanup(void)
 	destroy_workqueue(cma_wq);
 }
 
-module_init(cma_init);
-module_exit(cma_cleanup);
+module_init_order(cma_init, SI_ORDER_FOURTH);
+module_exit_order(cma_cleanup, SI_ORDER_FOURTH);
