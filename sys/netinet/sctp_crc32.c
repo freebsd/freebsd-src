@@ -37,17 +37,16 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_sctp.h"
 
-#ifdef SCTP
-#include <netinet/sctp_os.h>
-#include <netinet/sctp.h>
-#include <netinet/sctp_crc32.h>
-#include <netinet/sctp_pcb.h>
-#else
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
+#include <netinet/sctp.h>
 #include <netinet/sctp_crc32.h>
+#ifdef SCTP
+#include <netinet/sctp_os.h>
+#include <netinet/sctp_crc32.h>
+#include <netinet/sctp_pcb.h>
 #endif
 
 static uint32_t
@@ -116,7 +115,7 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	return (base);
 }
 
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 /*
  * Compute and insert the SCTP checksum in network byte order for a given
  * mbuf chain m which contains an SCTP packet starting at offset.
@@ -127,8 +126,10 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 	uint32_t checksum;
 
 	checksum = sctp_calculate_cksum(m, offset);
+#ifdef SCTP
 	SCTP_STAT_DECR(sctps_sendhwcrc);
 	SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 	offset += offsetof(struct sctphdr, checksum);
 
 	if (offset + sizeof(uint32_t) > (uint32_t)(m->m_len)) {
