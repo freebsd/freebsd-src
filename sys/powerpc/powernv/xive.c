@@ -507,6 +507,7 @@ xive_dispatch(device_t dev, struct trapframe *tf)
 
 	sc = device_get_softc(dev);
 
+	xive_cpud = DPCPU_PTR(xive_cpu_data);
 	for (;;) {
 		ack = xive_read_2(sc, XIVE_TM_SPC_ACK);
 		cppr = (ack & 0xff);
@@ -515,19 +516,17 @@ xive_dispatch(device_t dev, struct trapframe *tf)
 
 		if (he == TM_QW3_NSR_HE_NONE)
 			break;
-		switch (he) {
-		case TM_QW3_NSR_HE_NONE:
-			goto end;
-		case TM_QW3_NSR_HE_POOL:
-		case TM_QW3_NSR_HE_LSI:
+
+		else if (__predict_false(he != TM_QW3_NSR_HE_PHYS)) {
+			/*
+			 * We don't support TM_QW3_NSR_HE_POOL or
+			 * TM_QW3_NSR_HE_LSI interrupts.
+			 */
 			device_printf(dev,
 			    "Unexpected interrupt he type: %d\n", he);
 			goto end;
-		case TM_QW3_NSR_HE_PHYS:
-			break;
 		}
 
-		xive_cpud = DPCPU_PTR(xive_cpu_data);
 		xive_write_1(sc, XIVE_TM_CPPR, cppr);
 
 		for (;;) {
