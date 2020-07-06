@@ -95,7 +95,6 @@ typedef struct if_rxd_info {
 
 typedef struct if_rxd_update {
 	uint64_t	*iru_paddrs;
-	caddr_t		*iru_vaddrs;
 	qidx_t		*iru_idxs;
 	qidx_t		iru_pidx;
 	uint16_t	iru_qsidx;
