@@ -34,6 +34,8 @@
 /*$FreeBSD$*/
 
 #include "e1000_api.h"
+#include "e1000_manage.h"
+
 /**
  *  e1000_calculate_checksum - Calculate checksum for buffer
  *  @buffer: pointer to EEPROM
@@ -455,6 +457,7 @@ s32 e1000_host_interface_command(struct e1000_hw *hw, u8 *buffer, u32 length)
 
 	return E1000_SUCCESS;
 }
+
 /**
  *  e1000_load_firmware - Writes proxy FW code buffer to host interface
  *                        and execute.
@@ -573,5 +576,3 @@ s32 e1000_load_firmware(struct e1000_hw *hw, u8 *buffer, u32 length)
 
 	return E1000_SUCCESS;
 }
-
-
