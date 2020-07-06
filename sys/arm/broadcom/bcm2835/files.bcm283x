@@ -17,6 +17,7 @@ arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi
 arm/broadcom/bcm2835/bcm2835_vcbus.c		standard
 arm/broadcom/bcm2835/bcm2835_vcio.c		standard
 arm/broadcom/bcm2835/bcm2835_wdog.c		standard
+arm/broadcom/bcm2835/bcm2838_pci.c		optional pci
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt
 
 dev/mbox/mbox_if.m				standard
