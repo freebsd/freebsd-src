@@ -170,7 +170,8 @@ stack_print_short_ddb(const struct stack *st)
  * flags - M_WAITOK or M_NOWAIT (EWOULDBLOCK).
  */
 int
-stack_sbuf_print_flags(struct sbuf *sb, const struct stack *st, int flags)
+stack_sbuf_print_flags(struct sbuf *sb, const struct stack *st, int flags,
+    enum stack_sbuf_fmt format)
 {
 	char namebuf[64];
 	long offset;
@@ -182,9 +183,19 @@ stack_sbuf_print_flags(struct sbuf *sb, const struct stack *st, int flags)
 		    &offset, flags);
 		if (error == EWOULDBLOCK)
 			return (error);
-		sbuf_printf(sb, "#%d %p at %s+%#lx\n", i, (void *)st->pcs[i],
-		    namebuf, offset);
+		switch (format) {
+		case STACK_SBUF_FMT_LONG:
+			sbuf_printf(sb, "#%d %p at %s+%#lx\n", i,
+			    (void *)st->pcs[i], namebuf, offset);
+			break;
+		case STACK_SBUF_FMT_COMPACT:
+			sbuf_printf(sb, "%s+%#lx ", namebuf, offset);
+			break;
+		default:
+			__assert_unreachable();
+		}
 	}
+	sbuf_nl_terminate(sb);
 	return (0);
 }
 
@@ -192,7 +203,7 @@ void
 stack_sbuf_print(struct sbuf *sb, const struct stack *st)
 {
 
-	(void)stack_sbuf_print_flags(sb, st, M_WAITOK);
+	(void)stack_sbuf_print_flags(sb, st, M_WAITOK, STACK_SBUF_FMT_LONG);
 }
 
 #if defined(DDB) || defined(WITNESS)
