@@ -461,7 +461,7 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	if ((mac->type == e1000_i210) || (mac->type == e1000_i211))
 		mac->ops.init_hw = e1000_init_hw_i210;
 	else
-	mac->ops.init_hw = e1000_init_hw_82575;
+		mac->ops.init_hw = e1000_init_hw_82575;
 	/* link setup */
 	mac->ops.setup_link = e1000_setup_link_generic;
 	/* physical interface link setup */

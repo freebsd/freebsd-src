@@ -776,8 +776,9 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 
 	DEBUGFUNC("e1000_read_pba_string_generic");
 
-	if ((hw->mac.type >= e1000_i210) &&
-	    !e1000_get_flash_presence_i210(hw)) {
+	if ((hw->mac.type == e1000_i210 ||
+	     hw->mac.type == e1000_i211) &&
+	     !e1000_get_flash_presence_i210(hw)) {
 		DEBUGOUT("Flashless no PBA string\n");
 		return -E1000_ERR_NVM_PBA_SECTION;
 	}
