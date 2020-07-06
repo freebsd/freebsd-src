@@ -1975,7 +1975,8 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			bit_ffc(fl->ifl_rx_bitmap, fl->ifl_size, &frag_idx);
 		MPASS(frag_idx >= 0);
 		if ((cl = sd_cl[frag_idx]) == NULL) {
-			if ((cl = m_cljget(NULL, M_NOWAIT, fl->ifl_buf_size)) == NULL)
+			cl = m_cljget(NULL, M_NOWAIT, fl->ifl_buf_size);
+			if (__predict_false(cl == NULL))
 				break;
 
 			cb_arg.error = 0;
@@ -1983,12 +1984,8 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			err = bus_dmamap_load(fl->ifl_buf_tag, sd_map[frag_idx],
 			    cl, fl->ifl_buf_size, _rxq_refill_cb, &cb_arg,
 			    BUS_DMA_NOWAIT);
-			if (err != 0 || cb_arg.error) {
-				/*
-				 * !zone_pack ?
-				 */
-				if (fl->ifl_zone == zone_pack)
-					uma_zfree(fl->ifl_zone, cl);
+			if (__predict_false(err != 0 || cb_arg.error)) {
+				uma_zfree(fl->ifl_zone, cl);
 				break;
 			}
 
@@ -2004,9 +2001,9 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 		    BUS_DMASYNC_PREREAD);
 
 		if (sd_m[frag_idx] == NULL) {
-			if ((m = m_gethdr(M_NOWAIT, MT_NOINIT)) == NULL) {
+			m = m_gethdr(M_NOWAIT, MT_NOINIT);
+			if (__predict_false(m == NULL))
 				break;
-			}
 			sd_m[frag_idx] = m;
 		}
 		bit_set(fl->ifl_rx_bitmap, frag_idx);
@@ -2036,25 +2033,32 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 		}
 	}
 
-	if (i) {
-		iru.iru_pidx = pidx;
-		iru.iru_count = i;
-		ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
-		fl->ifl_pidx = idx;
-		fl->ifl_credits = credits;
-	}
-	DBG_COUNTER_INC(rxd_flush);
-	if (fl->ifl_pidx == 0)
-		pidx = fl->ifl_size - 1;
-	else
-		pidx = fl->ifl_pidx - 1;
+	if (n < count - 1) {
+		if (i != 0) {
+			iru.iru_pidx = pidx;
+			iru.iru_count = i;
+			ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
+			fl->ifl_pidx = idx;
+			fl->ifl_credits = credits;
+		}
+		DBG_COUNTER_INC(rxd_flush);
+		if (fl->ifl_pidx == 0)
+			pidx = fl->ifl_size - 1;
+		else
+			pidx = fl->ifl_pidx - 1;
 
-	bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	ctx->isc_rxd_flush(ctx->ifc_softc, fl->ifl_rxq->ifr_id, fl->ifl_id, pidx);
-	fl->ifl_fragidx = frag_idx + 1;
-	if (fl->ifl_fragidx == fl->ifl_size)
-		fl->ifl_fragidx = 0;
+		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
+		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		ctx->isc_rxd_flush(ctx->ifc_softc, fl->ifl_rxq->ifr_id,
+		    fl->ifl_id, pidx);
+		if (__predict_true(bit_test(fl->ifl_rx_bitmap, frag_idx))) {
+			fl->ifl_fragidx = frag_idx + 1;
+			if (fl->ifl_fragidx == fl->ifl_size)
+				fl->ifl_fragidx = 0;
+		} else {
+			fl->ifl_fragidx = frag_idx;
+		}
+	}
 
 	return (n == -1 ? 0 : IFLIB_RXEOF_EMPTY);
 }
