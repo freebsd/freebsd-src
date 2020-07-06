@@ -841,7 +841,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 /**
  *  __e1000_access_emi_reg_locked - Read/write EMI register
  *  @hw: pointer to the HW structure
- *  @addr: EMI address to program
+ *  @address: EMI address to program
  *  @data: pointer to value to read/write from/to the EMI address
  *  @read: boolean flag to indicate read or write
  *
@@ -1619,8 +1619,6 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 
 		if (hw->mac.type >= e1000_pch_lpt) {
-			u16 phy_reg;
-
 			hw->phy.ops.read_reg_locked(hw, I217_PLL_CLOCK_GATE_REG,
 						    &phy_reg);
 			phy_reg &= ~I217_PLL_CLOCK_GATE_MASK;
@@ -2474,7 +2472,7 @@ release:
 /**
  *  e1000_configure_k1_ich8lan - Configure K1 power state
  *  @hw: pointer to the HW structure
- *  @enable: K1 state to configure
+ *  @k1_enable: K1 state to configure
  *
  *  Configure the K1 power state based on the provided parameter.
  *  Assumes semaphore already acquired.
@@ -2622,6 +2620,7 @@ static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw)
 /**
  *  e1000_hv_phy_workarounds_ich8lan - A series of Phy workarounds to be
  *  done after every PHY reset.
+ *  @hw: pointer to the HW structure
  **/
 static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 {
@@ -2943,6 +2942,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 /**
  *  e1000_lv_phy_workarounds_ich8lan - A series of Phy workarounds to be
  *  done after every PHY reset.
+ *  @hw: pointer to the HW structure
  **/
 static s32 e1000_lv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 {
@@ -3550,8 +3550,9 @@ static s32 e1000_read_nvm_spt(struct e1000_hw *hw, u16 offset, u16 words,
 
 	for (i = 0; i < words; i += 2) {
 		if (words - i == 1) {
-			if (dev_spec->shadow_ram[offset+i].modified) {
-				data[i] = dev_spec->shadow_ram[offset+i].value;
+			if (dev_spec->shadow_ram[offset + i].modified) {
+				data[i] =
+				    dev_spec->shadow_ram[offset + i].value;
 			} else {
 				offset_to_read = act_offset + i -
 						 ((act_offset + i) % 2);
@@ -3568,8 +3569,8 @@ static s32 e1000_read_nvm_spt(struct e1000_hw *hw, u16 offset, u16 words,
 			}
 		} else {
 			offset_to_read = act_offset + i;
-			if (!(dev_spec->shadow_ram[offset+i].modified) ||
-			    !(dev_spec->shadow_ram[offset+i+1].modified)) {
+			if (!(dev_spec->shadow_ram[offset + i].modified) ||
+			    !(dev_spec->shadow_ram[offset + i + 1].modified)) {
 				ret_val =
 				   e1000_read_flash_dword_ich8lan(hw,
 								 offset_to_read,
@@ -3577,15 +3578,16 @@ static s32 e1000_read_nvm_spt(struct e1000_hw *hw, u16 offset, u16 words,
 				if (ret_val)
 					break;
 			}
-			if (dev_spec->shadow_ram[offset+i].modified)
-				data[i] = dev_spec->shadow_ram[offset+i].value;
+			if (dev_spec->shadow_ram[offset + i].modified)
+				data[i] =
+				    dev_spec->shadow_ram[offset + i].value;
 			else
-				data[i] = (u16) (dword & 0xFFFF);
-			if (dev_spec->shadow_ram[offset+i].modified)
-				data[i+1] =
-				   dev_spec->shadow_ram[offset+i+1].value;
+				data[i] = (u16)(dword & 0xFFFF);
+			if (dev_spec->shadow_ram[offset + i + 1].modified)
+				data[i + 1] =
+				   dev_spec->shadow_ram[offset + i + 1].value;
 			else
-				data[i+1] = (u16) (dword >> 16 & 0xFFFF);
+				data[i + 1] = (u16)(dword >> 16 & 0xFFFF);
 		}
 	}
 
@@ -3639,8 +3641,8 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = E1000_SUCCESS;
 	for (i = 0; i < words; i++) {
-		if (dev_spec->shadow_ram[offset+i].modified) {
-			data[i] = dev_spec->shadow_ram[offset+i].value;
+		if (dev_spec->shadow_ram[offset + i].modified) {
+			data[i] = dev_spec->shadow_ram[offset + i].value;
 		} else {
 			ret_val = e1000_read_flash_word_ich8lan(hw,
 								act_offset + i,
@@ -4045,8 +4047,8 @@ static s32 e1000_write_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 	nvm->ops.acquire(hw);
 
 	for (i = 0; i < words; i++) {
-		dev_spec->shadow_ram[offset+i].modified = TRUE;
-		dev_spec->shadow_ram[offset+i].value = data[i];
+		dev_spec->shadow_ram[offset + i].modified = TRUE;
+		dev_spec->shadow_ram[offset + i].value = data[i];
 	}
 
 	nvm->ops.release(hw);
