@@ -1702,6 +1702,12 @@ tcp_newtcpcb(struct inpcb *inp)
 	KASSERT(!STAILQ_EMPTY(&cc_list), ("cc_list is empty!"));
 	CC_ALGO(tp) = CC_DEFAULT();
 	CC_LIST_RUNLOCK();
+	/*
+	 * The tcpcb will hold a reference on its inpcb until tcp_discardcb()
+	 * is called.
+	 */
+	in_pcbref(inp);	/* Reference for tcpcb */
+	tp->t_inpcb = inp;
 
 	if (CC_ALGO(tp)->cb_init != NULL)
 		if (CC_ALGO(tp)->cb_init(tp->ccv) > 0) {
@@ -1746,12 +1752,6 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (V_tcp_do_sack)
 		tp->t_flags |= TF_SACK_PERMIT;
 	TAILQ_INIT(&tp->snd_holes);
-	/*
-	 * The tcpcb will hold a reference on its inpcb until tcp_discardcb()
-	 * is called.
-	 */
-	in_pcbref(inp);	/* Reference for tcpcb */
-	tp->t_inpcb = inp;
 
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
