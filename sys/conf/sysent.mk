@@ -22,6 +22,13 @@ SYSENT_CONF?=	syscalls.conf
 SRCS+=	${SYSENT_FILE}
 SRCS+=	${SYSENT_CONF}
 
+# Ensure that the target gets updated if the capabilities file is modified,
+# even though it is not an explicit input to makesyscalls.lua.  For some
+# targets, like Linux system calls, this is unnecessary, but a spurious rebuild
+# is both rare and harmless.
+CAPABILITIES_CONF?= ${SYSDIR}/kern/capabilities.conf
+SRCS+=	${CAPABILITIES_CONF}
+
 MAKESYSCALLS_INTERP?=	${LUA}
 MAKESYSCALLS_SCRIPT?=	${SYSDIR}/tools/makesyscalls.lua
 MAKESYSCALLS=	${MAKESYSCALLS_INTERP} ${MAKESYSCALLS_SCRIPT}
