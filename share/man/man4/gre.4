@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2019
+.Dd June 29, 2020
 .Dt GRE 4
 .Os
 .Sh NAME
@@ -219,8 +219,44 @@ variable to non-zero.
 .Xr protocols 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
+.Sh STANDARDS
+.Rs
+.%A S. Hanks
+.%A "T. Li"
+.%A D. Farinacci
+.%A P. Traina
+.%D October 1994
+.%R RFC 1701
+.%T Generic Routing Encapsulation (GRE)
+.Re
 .Pp
-A description of GRE encapsulation can be found in RFC 2784 and RFC 2890.
+.Rs
+.%A S. Hanks
+.%A "T. Li"
+.%A D. Farinacci
+.%A P. Traina
+.%D October 1994
+.%R RFC 1702
+.%T Generic Routing Encapsulation over IPv4 networks
+.Re
+.Pp
+.Rs
+.%A D. Farinacci
+.%A "T. Li"
+.%A S. Hanks
+.%A D. Meyer
+.%A P. Traina
+.%D March 2000
+.%R RFC 2784
+.%T Generic Routing Encapsulation (GRE)
+.Re
+.Pp
+.Rs
+.%A G. Dommety
+.%D September 2000
+.%R RFC 2890
+.%T Key and Sequence Number Extensions to GRE
+.Re
 .Sh AUTHORS
 .An Andrey V. Elsukov Aq Mt ae@FreeBSD.org
 .An Heiko W.Rupp Aq Mt hwr@pilhuhn.de
