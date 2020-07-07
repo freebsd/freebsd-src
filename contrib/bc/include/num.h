@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -110,8 +110,16 @@ typedef struct BcNum {
 } BcNum;
 
 #if BC_ENABLE_EXTRA_MATH
+
+#ifndef BC_ENABLE_RAND
+#define BC_ENABLE_RAND (1)
+#endif // BC_ENABLE_RAND
+
+#if BC_ENABLE_RAND
 // Forward declaration
 struct BcRNG;
+#endif // BC_ENABLE_RAND
+
 #endif // BC_ENABLE_EXTRA_MATH
 
 #define BC_NUM_MIN_BASE (BC_NUM_BIGDIG_C(2))
@@ -173,12 +181,12 @@ void bc_num_bigdig(const BcNum *restrict n, BcBigDig *result);
 void bc_num_bigdig2(const BcNum *restrict n, BcBigDig *result);
 void bc_num_bigdig2num(BcNum *restrict n, BcBigDig val);
 
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 void bc_num_irand(const BcNum *restrict a, BcNum *restrict b,
                       struct BcRNG *restrict rng);
 void bc_num_rng(const BcNum *restrict n, struct BcRNG *rng);
 void bc_num_createFromRNG(BcNum *restrict n, struct BcRNG *rng);
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
 void bc_num_add(BcNum *a, BcNum *b, BcNum *c, size_t scale);
 void bc_num_sub(BcNum *a, BcNum *b, BcNum *c, size_t scale);

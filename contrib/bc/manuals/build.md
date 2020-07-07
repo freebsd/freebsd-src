@@ -402,7 +402,7 @@ the others are, as the operators `$`, `@`, `H`, and `h`, respectively.
 In addition, this `bc` has the option of outputting in scientific notation or
 engineering notation. It can also take input in scientific or engineering
 notation. On top of that, it has a pseudo-random number generator. (See the
-[full manual](./bc.md) for more details.)
+full manual for more details.)
 
 Extra operators, scientific notation, engineering notation, and the
 pseudo-random number generator can be disabled by passing either the `-E` flag
@@ -417,8 +417,7 @@ Both commands are equivalent.
 
 This `bc` also has a larger library that is only enabled if extra operators and
 the pseudo-random number generator are. More information about the functions can
-be found in the [Extended Library](./bc.md#extended-library) section of the
-[full manual](./bc.md).
+be found in the Extended Library section of the full manual.
 
 ### Manpages
 

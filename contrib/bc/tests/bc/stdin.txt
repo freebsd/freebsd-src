@@ -1,0 +1,15 @@
+#stuff
+# "string in a hash comment"
+# /* comment in a hash comment */
+1 /* c */ + 2
+"String /* with partial comment"
+"String /* with full comment */"
+1 /* Comment with partial "string */ + 2
+2 /* Comment with full "string" */ + 3
+3 /* Comment with a # hash comment */ + 4
+"String with a # hash comment"
+1 + \
+2
+i = 4
+read()
+i *= 5
