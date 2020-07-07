@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -28,21 +28,86 @@
 #
 
 usage() {
-	printf "usage: %s ronn_file output_file\n" "$0" 1>&2
+	printf "usage: %s manpage\n" "$0" 1>&2
 	exit 1
+}
+
+gen_manpage() {
+
+	_gen_manpage_args="$1"
+	shift
+
+	_gen_manpage_status="$ALL"
+	_gen_manpage_out="$manualsdir/$manpage/$_gen_manpage_args.1"
+	_gen_manpage_md="$manualsdir/$manpage/$_gen_manpage_args.1.md"
+	_gen_manpage_temp="$manualsdir/temp.1.md"
+	_gen_manpage_ifs="$IFS"
+
+	rm -rf "$_gen_manpage_out" "$_gen_manpage_md"
+
+	while IFS= read -r line; do
+
+		if [ "$line" = "{{ end }}" ]; then
+
+			if [ "$_gen_manpage_status" -eq "$ALL" ]; then
+				err_exit "{{ end }} tag without corresponding start tag" 2
+			fi
+
+			_gen_manpage_status="$ALL"
+
+		elif [ "${line#\{\{* $_gen_manpage_args *\}\}}" != "$line" ]; then
+
+			if [ "$_gen_manpage_status" -ne "$ALL" ]; then
+				err_exit "start tag nested in start tag" 3
+			fi
+
+			_gen_manpage_status="$NOSKIP"
+
+		elif [ "${line#\{\{*\}\}}" != "$line" ]; then
+
+			if [ "$_gen_manpage_status" -ne "$ALL" ]; then
+				err_exit "start tag nested in start tag" 3
+			fi
+
+			_gen_manpage_status="$SKIP"
+
+		else
+			if [ "$_gen_manpage_status" -ne "$SKIP" ]; then
+				printf '%s\n' "$line" >> "$_gen_manpage_temp"
+			fi
+		fi
+
+	done < "$manualsdir/${manpage}.1.md.in"
+
+	uniq "$_gen_manpage_temp" "$_gen_manpage_md"
+	rm -rf "$_gen_manpage_temp"
+
+	IFS="$_gen_manpage_ifs"
+
+	cat "$manualsdir/header.txt" > "$_gen_manpage_out"
+	cat "$manualsdir/header_${manpage}.txt" >> "$_gen_manpage_out"
+
+	pandoc -f markdown -t man "$_gen_manpage_md" >> "$_gen_manpage_out"
 }
 
 set -e
 
 script="$0"
 scriptdir=$(dirname "$script")
+manualsdir="$scriptdir/manuals"
 
-test "$#" -ge 2 || usage
+. "$scriptdir/functions.sh"
 
-ronn_file="$1"
+ARGS="A E H N P EH EN EP HN HP NP EHN EHP ENP HNP EHNP"
+ALL=0
+NOSKIP=1
+SKIP=2
+
+test "$#" -eq 1 || usage
+
+manpage="$1"
 shift
 
-output_file="$1"
-shift
-
-ronn --pipe --roff --organization="Gavin D. Howard" --manual="General Commands Manual" $ronn_file | sed 's|\\fB\\'"'"'\\fR|\\fB'"'"'\\fR|g' > $output_file
+for a in $ARGS; do
+	gen_manpage "$a"
+done

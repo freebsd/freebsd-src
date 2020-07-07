@@ -2,8 +2,6 @@
 
 Copyright (c) 2018-2020 Gavin D. Howard <yzena.tech@gmail.com>
 
-All rights reserved.
-
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
@@ -34,8 +32,6 @@ Copyright (c) 2010-2014, Salvatore Sanfilippo <antirez at gmail dot com><br>
 Copyright (c) 2010-2013, Pieter Noordhuis <pcnoordhuis at gmail dot com><br>
 Copyright (c) 2018 rain-1 <rain1@openmailbox.org><br>
 Copyright (c) 2018-2020, Gavin D. Howard <yzena.tech@gmail.com>
-
-All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:

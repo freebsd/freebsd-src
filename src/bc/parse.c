@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -399,8 +399,10 @@ static void bc_parse_incdec(BcParse *p, BcInst *prev, bool *can_assign,
 		// right here, we need to increment this.
 		*nexs = *nexs + 1;
 
-		if (type == BC_LEX_NAME)
-			bc_parse_name(p, prev, can_assign, flags | BC_PARSE_NOCALL);
+		if (type == BC_LEX_NAME) {
+			uint8_t flags2 = flags & ~BC_PARSE_ARRAY;
+			bc_parse_name(p, prev, can_assign, flags2 | BC_PARSE_NOCALL);
+		}
 		else if (type >= BC_LEX_KW_LAST && type <= BC_LEX_KW_OBASE) {
 			bc_parse_push(p, type - BC_LEX_KW_LAST + BC_INST_LAST);
 			bc_lex_next(&p->l);
@@ -1006,24 +1008,24 @@ static void bc_parse_stmt(BcParse *p) {
 		case BC_LEX_KW_LENGTH:
 		case BC_LEX_KW_OBASE:
 		case BC_LEX_KW_SCALE:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_SEED:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_SQRT:
 		case BC_LEX_KW_ABS:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_IRAND:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_READ:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_RAND:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_MAXIBASE:
 		case BC_LEX_KW_MAXOBASE:
 		case BC_LEX_KW_MAXSCALE:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		case BC_LEX_KW_MAXRAND:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 		{
 			bc_parse_expr_status(p, BC_PARSE_PRINT, bc_parse_next_expr);
 			break;
@@ -1092,9 +1094,9 @@ static void bc_parse_stmt(BcParse *p) {
 			bc_vm_printf("BC_STRING_MAX    = %lu\n", BC_MAX_STRING);
 			bc_vm_printf("BC_NAME_MAX      = %lu\n", BC_MAX_NAME);
 			bc_vm_printf("BC_NUM_MAX       = %lu\n", BC_MAX_NUM);
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			bc_vm_printf("BC_RAND_MAX      = %lu\n", BC_MAX_RAND);
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			bc_vm_printf("MAX Exponent     = %lu\n", BC_MAX_EXP);
 			bc_vm_printf("Number of vars   = %lu\n", BC_MAX_VARS);
 
@@ -1161,7 +1163,8 @@ void bc_parse_parse(BcParse *p) {
 
 exit:
 	BC_SIG_MAYLOCK;
-	if (BC_ERR((vm.status && vm.status != BC_STATUS_QUIT))) bc_parse_reset(p);
+	if (BC_ERR(((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig)))
+		bc_parse_reset(p);
 	BC_LONGJMP_CONT;
 }
 
@@ -1212,7 +1215,7 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 				// I can just add the instruction because
 				// negative will already be taken care of.
 				bc_parse_push(p, BC_INST_TRUNC);
-				rprn = can_assign = false;
+				rprn = can_assign = incdec = false;
 				get_token = true;
 				flags &= ~(BC_PARSE_ARRAY);
 				break;
@@ -1355,9 +1358,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			case BC_LEX_KW_IBASE:
 			case BC_LEX_KW_LAST:
 			case BC_LEX_KW_OBASE:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			case BC_LEX_KW_SEED:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			{
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
 					bc_parse_err(p, BC_ERROR_PARSE_EXPR);
@@ -1376,9 +1379,9 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			case BC_LEX_KW_LENGTH:
 			case BC_LEX_KW_SQRT:
 			case BC_LEX_KW_ABS:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			case BC_LEX_KW_IRAND:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			{
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
 					bc_parse_err(p, BC_ERROR_PARSE_EXPR);
@@ -1392,15 +1395,15 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			}
 
 			case BC_LEX_KW_READ:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			case BC_LEX_KW_RAND:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			case BC_LEX_KW_MAXIBASE:
 			case BC_LEX_KW_MAXOBASE:
 			case BC_LEX_KW_MAXSCALE:
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			case BC_LEX_KW_MAXRAND:
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 			{
 				if (BC_ERR(BC_PARSE_LEAF(prev, bin_last, rprn)))
 					bc_parse_err(p, BC_ERROR_PARSE_EXPR);
@@ -1455,6 +1458,8 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 
 		nexprs -= !BC_PARSE_OP_PREFIX(top);
 		bc_vec_pop(&p->ops);
+
+		incdec = false;
 	}
 
 	if (BC_ERR(nexprs != 1)) bc_parse_err(p, BC_ERROR_PARSE_EXPR);
@@ -1482,7 +1487,8 @@ static BcParseStatus bc_parse_expr_err(BcParse *p, uint8_t flags,
 			                                     inst != BC_INST_ASSIGN_PLUS);
 		}
 
-		if (inst >= BC_INST_ASSIGN_PLUS_NO_VAL && inst <= BC_INST_ASSIGN_NO_VAL)
+		if (inst >= BC_INST_ASSIGN_POWER_NO_VAL &&
+		    inst <= BC_INST_ASSIGN_NO_VAL)
 		{
 			bc_vec_pop(&p->func->code);
 			if (incdec) bc_parse_push(p, BC_INST_ONE);

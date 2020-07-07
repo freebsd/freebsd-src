@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -64,24 +64,19 @@ static void bc_parse_update(BcParse *p, uchar inst, size_t idx) {
 
 void bc_parse_addString(BcParse *p) {
 
-	BcFunc *f = BC_IS_BC ? p->func : bc_vec_item(&p->prog->fns, BC_PROG_MAIN);
+	BcVec *strs = BC_IS_BC ? &p->func->strs : p->prog->strs;
 	size_t idx;
 
 	BC_SIG_LOCK;
 
 	if (BC_IS_BC) {
 		const char *str = bc_vm_strdup(p->l.str.v);
-		idx = f->strs.len;
-		bc_vec_push(&f->strs, &str);
+		idx = strs->len;
+		bc_vec_push(strs, &str);
 	}
 #if DC_ENABLED
 	else idx = bc_program_insertFunc(p->prog, p->l.str.v) - BC_PROG_REQ_FUNCS;
 #endif // DC_ENABLED
-
-#ifndef NDEBUG
-	f = BC_IS_BC ? p->func : bc_vec_item(&p->prog->fns, BC_PROG_MAIN);
-	assert(f->strs.len > idx);
-#endif // NDEBUG
 
 	bc_parse_update(p, BC_INST_STR, idx);
 
@@ -90,16 +85,20 @@ void bc_parse_addString(BcParse *p) {
 
 static void bc_parse_addNum(BcParse *p, const char *string) {
 
-	BcFunc *f = BC_IS_BC ? p->func : bc_vec_item(&p->prog->fns, BC_PROG_MAIN);
+	BcVec *consts = &p->func->consts;
 	size_t idx;
 	BcConst c;
 
+	if (bc_parse_zero[0] == string[0] && bc_parse_zero[1] == string[1]) {
+		bc_parse_push(p, BC_INST_ZERO);
+		return;
+	}
 	if (bc_parse_one[0] == string[0] && bc_parse_one[1] == string[1]) {
 		bc_parse_push(p, BC_INST_ONE);
 		return;
 	}
 
-	idx = f->consts.len;
+	idx = consts->len;
 
 	BC_SIG_LOCK;
 
@@ -107,7 +106,7 @@ static void bc_parse_addNum(BcParse *p, const char *string) {
 	c.base = BC_NUM_BIGDIG_MAX;
 
 	bc_num_clear(&c.num);
-	bc_vec_push(&f->consts, &c);
+	bc_vec_push(consts, &c);
 
 	bc_parse_update(p, BC_INST_NUM, idx);
 

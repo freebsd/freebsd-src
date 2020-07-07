@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -58,6 +58,8 @@ This bc has three differences to the GNU bc:
   3) This bc has many more extensions than the GNU bc does. For details, see the
      man page.
 
+This bc also implements the dot (.) extension of the BSD bc.
+
 Options:
 
   -e  expr  --expression=expr
@@ -93,6 +95,9 @@ Options:
           l(expr)  =  natural log of expr
           e(expr)  =  raises e to the power of expr
           j(n, x)  =  Bessel function of integer order n of x
+
+      This bc may load more functions with these options. See the manpage for
+      details.
 
   -P  --no-prompt
 

@@ -1,0 +1,1341 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" * Redistributions of source code must retain the above copyright notice,
+.\"   this list of conditions and the following disclaimer.
+.\"
+.\" * Redistributions in binary form must reproduce the above copyright notice,
+.\"   this list of conditions and the following disclaimer in the documentation
+.\"   and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.TH "BC" "1" "July 2020" "Gavin D. Howard" "General Commands Manual"
+.SH NAME
+.PP
+bc \- arbitrary\-precision arithmetic language and calculator
+.SH SYNOPSIS
+.PP
+\f[B]bc\f[] [\f[B]\-ghilPqsvVw\f[]] [\f[B]\-\-global\-stacks\f[]]
+[\f[B]\-\-help\f[]] [\f[B]\-\-interactive\f[]] [\f[B]\-\-mathlib\f[]]
+[\f[B]\-\-no\-prompt\f[]] [\f[B]\-\-quiet\f[]] [\f[B]\-\-standard\f[]]
+[\f[B]\-\-warn\f[]] [\f[B]\-\-version\f[]] [\f[B]\-e\f[] \f[I]expr\f[]]
+[\f[B]\-\-expression\f[]=\f[I]expr\f[]...] [\f[B]\-f\f[]
+\f[I]file\f[]...] [\f[B]\-file\f[]=\f[I]file\f[]...] [\f[I]file\f[]...]
+.SH DESCRIPTION
+.PP
+bc(1) is an interactive processor for a language first standardized in
+1991 by POSIX.
+(The current standard is
+here (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html).)
+The language provides unlimited precision decimal arithmetic and is
+somewhat C\-like, but there are differences.
+Such differences will be noted in this document.
+.PP
+After parsing and handling options, this bc(1) reads any files given on
+the command line and executes them before reading from \f[B]stdin\f[].
+.PP
+This bc(1) is a drop\-in replacement for \f[I]any\f[] bc(1), including
+(and especially) the GNU bc(1).
+.SH OPTIONS
+.PP
+The following are the options that bc(1) accepts.
+.PP
+\f[B]\-g\f[], \f[B]\-\-global\-stacks\f[]
+.IP
+.nf
+\f[C]
+Turns\ the\ globals\ **ibase**,\ **obase**,\ and\ **scale**\ into\ stacks.
+
+This\ has\ the\ effect\ that\ a\ copy\ of\ the\ current\ value\ of\ all\ three\ are\ pushed
+onto\ a\ stack\ for\ every\ function\ call,\ as\ well\ as\ popped\ when\ every\ function
+returns.\ This\ means\ that\ functions\ can\ assign\ to\ any\ and\ all\ of\ those
+globals\ without\ worrying\ that\ the\ change\ will\ affect\ other\ functions.
+Thus,\ a\ hypothetical\ function\ named\ **output(x,b)**\ that\ simply\ printed
+**x**\ in\ base\ **b**\ could\ be\ written\ like\ this:
+
+\ \ \ \ define\ void\ output(x,\ b)\ {
+\ \ \ \ \ \ \ \ obase=b
+\ \ \ \ \ \ \ \ x
+\ \ \ \ }
+
+instead\ of\ like\ this:
+
+\ \ \ \ define\ void\ output(x,\ b)\ {
+\ \ \ \ \ \ \ \ auto\ c
+\ \ \ \ \ \ \ \ c=obase
+\ \ \ \ \ \ \ \ obase=b
+\ \ \ \ \ \ \ \ x
+\ \ \ \ \ \ \ \ obase=c
+\ \ \ \ }
+
+This\ makes\ writing\ functions\ much\ easier.
+
+However,\ since\ using\ this\ flag\ means\ that\ functions\ cannot\ set\ **ibase**,
+**obase**,\ or\ **scale**\ globally,\ functions\ that\ are\ made\ to\ do\ so\ cannot
+work\ anymore.\ There\ are\ two\ possible\ use\ cases\ for\ that,\ and\ each\ has\ a
+solution.
+
+First,\ if\ a\ function\ is\ called\ on\ startup\ to\ turn\ bc(1)\ into\ a\ number
+converter,\ it\ is\ possible\ to\ replace\ that\ capability\ with\ various\ shell
+aliases.\ Examples:
+
+\ \ \ \ alias\ d2o="bc\ \-e\ ibase=A\ \-e\ obase=8"
+\ \ \ \ alias\ h2b="bc\ \-e\ ibase=G\ \-e\ obase=2"
+
+Second,\ if\ the\ purpose\ of\ a\ function\ is\ to\ set\ **ibase**,\ **obase**,\ or
+**scale**\ globally\ for\ any\ other\ purpose,\ it\ could\ be\ split\ into\ one\ to
+three\ functions\ (based\ on\ how\ many\ globals\ it\ sets)\ and\ each\ of\ those
+functions\ could\ return\ the\ desired\ value\ for\ a\ global.
+
+If\ the\ behavior\ of\ this\ option\ is\ desired\ for\ every\ run\ of\ bc(1),\ then\ users
+could\ make\ sure\ to\ define\ **BC_ENV_ARGS**\ and\ include\ this\ option\ (see\ the
+**ENVIRONMENT\ VARIABLES**\ section\ for\ more\ details).
+
+If\ **\-s**,\ **\-w**,\ or\ any\ equivalents\ are\ used,\ this\ option\ is\ ignored.
+
+This\ is\ a\ **non\-portable\ extension**.
+\f[]
+.fi
+.TP
+.B \f[B]\-h\f[], \f[B]\-\-help\f[]
+Prints a usage message and quits.
+.RS
+.RE
+.TP
+.B \f[B]\-i\f[], \f[B]\-\-interactive\f[]
+Forces interactive mode.
+(See the \f[B]INTERACTIVE MODE\f[] section.)
+.RS
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-l\f[], \f[B]\-\-mathlib\f[]
+Sets \f[B]scale\f[] (see the \f[B]SYNTAX\f[] section) to \f[B]20\f[] and
+loads the included math library before running any code, including any
+expressions or files specified on the command line.
+.RS
+.PP
+To learn what is in the library, see the \f[B]LIBRARY\f[] section.
+.RE
+.TP
+.B \f[B]\-P\f[], \f[B]\-\-no\-prompt\f[]
+Disables the prompt in TTY mode.
+(The prompt is only enabled in TTY mode.
+See the \f[B]TTY MODE\f[] section) This is mostly for those users that
+do not want a prompt or are not used to having them in bc(1).
+Most of those users would want to put this option in
+\f[B]BC_ENV_ARGS\f[] (see the \f[B]ENVIRONMENT VARIABLES\f[] section).
+.RS
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-q\f[], \f[B]\-\-quiet\f[]
+Do not print copyright header.
+bc(1) will also suppress the header in non\-interactive mode.
+.RS
+.PP
+This is mostly for compatibility with the GNU
+bc(1) (https://www.gnu.org/software/bc/).
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-s\f[], \f[B]\-\-standard\f[]
+Process exactly the language defined by the
+standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+and error if any extensions are used.
+.RS
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-v\f[], \f[B]\-V\f[], \f[B]\-\-version\f[]
+Print the version information (copyright header) and exit.
+.RS
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-w\f[], \f[B]\-\-warn\f[]
+Like \f[B]\-s\f[] and \f[B]\-\-standard\f[], except that warnings (and
+not errors) are printed for non\-standard extensions and execution
+continues normally.
+.RS
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-e\f[] \f[I]expr\f[], \f[B]\-\-expression\f[]=\f[I]expr\f[]
+Evaluates \f[I]expr\f[].
+If multiple expressions are given, they are evaluated in order.
+If files are given as well (see below), the expressions and files are
+evaluated in the order given.
+This means that if a file is given before an expression, the file is
+read in and evaluated first.
+.RS
+.PP
+In other bc(1) implementations, this option causes the program to
+execute the expressions and then exit.
+This bc(1) does not, unless the \f[B]BC_EXPR_EXIT\f[] is defined (see
+the \f[B]ENVIRONMENT VARIABLES\f[] section).
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]\-f\f[] \f[I]file\f[], \f[B]\-\-file\f[]=\f[I]file\f[]
+Reads in \f[I]file\f[] and evaluates it, line by line, as though it were
+read through \f[B]stdin\f[].
+If expressions are also given (see above), the expressions are evaluated
+in the order given.
+.RS
+.PP
+In other bc(1) implementations, this option causes the program to
+execute the files and then exit.
+This bc(1) does not, unless the \f[B]BC_EXPR_EXIT\f[] is defined (see
+the \f[B]ENVIRONMENT VARIABLES\f[] section).
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.PP
+All long options are \f[B]non\-portable extensions\f[].
+.SH STDOUT
+.PP
+Any non\-error output is written to \f[B]stdout\f[].
+.PP
+\f[B]Note\f[]: Unlike other bc(1) implementations, this bc(1) will issue
+a fatal error (see the \f[B]EXIT STATUS\f[] section) if it cannot write
+to \f[B]stdout\f[], so if \f[B]stdout\f[] is closed, as in \f[B]bc
+>&\-\f[], it will quit with an error.
+This is done so that bc(1) can report problems when \f[B]stdout\f[] is
+redirected to a file.
+.PP
+If there are scripts that depend on the behavior of other bc(1)
+implementations, it is recommended that those scripts be changed to
+redirect \f[B]stdout\f[] to \f[B]/dev/null\f[].
+.SH STDERR
+.PP
+Any error output is written to \f[B]stderr\f[].
+.PP
+\f[B]Note\f[]: Unlike other bc(1) implementations, this bc(1) will issue
+a fatal error (see the \f[B]EXIT STATUS\f[] section) if it cannot write
+to \f[B]stderr\f[], so if \f[B]stderr\f[] is closed, as in \f[B]bc
+2>&\-\f[], it will quit with an error.
+This is done so that bc(1) can exit with an error code when
+\f[B]stderr\f[] is redirected to a file.
+.PP
+If there are scripts that depend on the behavior of other bc(1)
+implementations, it is recommended that those scripts be changed to
+redirect \f[B]stderr\f[] to \f[B]/dev/null\f[].
+.SH SYNTAX
+.PP
+The syntax for bc(1) programs is mostly C\-like, with some differences.
+This bc(1) follows the POSIX
+standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
+which is a much more thorough resource for the language this bc(1)
+accepts.
+This section is meant to be a summary and a listing of all the
+extensions to the standard.
+.PP
+In the sections below, \f[B]E\f[] means expression, \f[B]S\f[] means
+statement, and \f[B]I\f[] means identifier.
+.PP
+Identifiers (\f[B]I\f[]) start with a lowercase letter and can be
+followed by any number (up to \f[B]BC_NAME_MAX\-1\f[]) of lowercase
+letters (\f[B]a\-z\f[]), digits (\f[B]0\-9\f[]), and underscores
+(\f[B]_\f[]).
+The regex is \f[B][a\-z][a\-z0\-9_]*\f[].
+Identifiers with more than one character (letter) are a
+\f[B]non\-portable extension\f[].
+.PP
+\f[B]ibase\f[] is a global variable determining how to interpret
+constant numbers.
+It is the "input" base, or the number base used for interpreting input
+numbers.
+\f[B]ibase\f[] is initially \f[B]10\f[].
+If the \f[B]\-s\f[] (\f[B]\-\-standard\f[]) and \f[B]\-w\f[]
+(\f[B]\-\-warn\f[]) flags were not given on the command line, the max
+allowable value for \f[B]ibase\f[] is \f[B]36\f[].
+Otherwise, it is \f[B]16\f[].
+The min allowable value for \f[B]ibase\f[] is \f[B]2\f[].
+The max allowable value for \f[B]ibase\f[] can be queried in bc(1)
+programs with the \f[B]maxibase()\f[] built\-in function.
+.PP
+\f[B]obase\f[] is a global variable determining how to output results.
+It is the "output" base, or the number base used for outputting numbers.
+\f[B]obase\f[] is initially \f[B]10\f[].
+The max allowable value for \f[B]obase\f[] is \f[B]BC_BASE_MAX\f[] and
+can be queried in bc(1) programs with the \f[B]maxobase()\f[] built\-in
+function.
+The min allowable value for \f[B]obase\f[] is \f[B]2\f[].
+Values are output in the specified base.
+.PP
+The \f[I]scale\f[] of an expression is the number of digits in the
+result of the expression right of the decimal point, and \f[B]scale\f[]
+is a global variable that sets the precision of any operations, with
+exceptions.
+\f[B]scale\f[] is initially \f[B]0\f[].
+\f[B]scale\f[] cannot be negative.
+The max allowable value for \f[B]scale\f[] is \f[B]BC_SCALE_MAX\f[] and
+can be queried in bc(1) programs with the \f[B]maxscale()\f[] built\-in
+function.
+.PP
+bc(1) has both \f[I]global\f[] variables and \f[I]local\f[] variables.
+All \f[I]local\f[] variables are local to the function; they are
+parameters or are introduced in the \f[B]auto\f[] list of a function
+(see the \f[B]FUNCTIONS\f[] section).
+If a variable is accessed which is not a parameter or in the
+\f[B]auto\f[] list, it is assumed to be \f[I]global\f[].
+If a parent function has a \f[I]local\f[] variable version of a variable
+that a child function considers \f[I]global\f[], the value of that
+\f[I]global\f[] variable in the child function is the value of the
+variable in the parent function, not the value of the actual
+\f[I]global\f[] variable.
+.PP
+All of the above applies to arrays as well.
+.PP
+The value of a statement that is an expression (i.e., any of the named
+expressions or operands) is printed unless the lowest precedence
+operator is an assignment operator \f[I]and\f[] the expression is
+notsurrounded by parentheses.
+.PP
+The value that is printed is also assigned to the special variable
+\f[B]last\f[].
+A single dot (\f[B].\f[]) may also be used as a synonym for
+\f[B]last\f[].
+These are \f[B]non\-portable extensions\f[].
+.PP
+Either semicolons or newlines may separate statements.
+.SS Comments
+.PP
+There are two kinds of comments:
+.IP "1." 3
+Block comments are enclosed in \f[B]/*\f[] and \f[B]*/\f[].
+.IP "2." 3
+Line comments go from \f[B]#\f[] until, and not including, the next
+newline.
+This is a \f[B]non\-portable extension\f[].
+.SS Named Expressions
+.PP
+The following are named expressions in bc(1):
+.IP "1." 3
+Variables: \f[B]I\f[]
+.IP "2." 3
+Array Elements: \f[B]I[E]\f[]
+.IP "3." 3
+\f[B]ibase\f[]
+.IP "4." 3
+\f[B]obase\f[]
+.IP "5." 3
+\f[B]scale\f[]
+.IP "6." 3
+\f[B]last\f[] or a single dot (\f[B].\f[])
+.PP
+Number 6 is a \f[B]non\-portable extension\f[].
+.PP
+Variables and arrays do not interfere; users can have arrays named the
+same as variables.
+This also applies to functions (see the \f[B]FUNCTIONS\f[] section), so
+a user can have a variable, array, and function that all have the same
+name, and they will not shadow each other, whether inside of functions
+or not.
+.PP
+Named expressions are required as the operand of
+\f[B]increment\f[]/\f[B]decrement\f[] operators and as the left side of
+\f[B]assignment\f[] operators (see the \f[I]Operators\f[] subsection).
+.SS Operands
+.PP
+The following are valid operands in bc(1):
+.IP " 1." 4
+Numbers (see the \f[I]Numbers\f[] subsection below).
+.IP " 2." 4
+Array indices (\f[B]I[E]\f[]).
+.IP " 3." 4
+\f[B](E)\f[]: The value of \f[B]E\f[] (used to change precedence).
+.IP " 4." 4
+\f[B]sqrt(E)\f[]: The square root of \f[B]E\f[].
+\f[B]E\f[] must be non\-negative.
+.IP " 5." 4
+\f[B]length(E)\f[]: The number of significant decimal digits in
+\f[B]E\f[].
+.IP " 6." 4
+\f[B]length(I[])\f[]: The number of elements in the array \f[B]I\f[].
+This is a \f[B]non\-portable extension\f[].
+.IP " 7." 4
+\f[B]scale(E)\f[]: The \f[I]scale\f[] of \f[B]E\f[].
+.IP " 8." 4
+\f[B]abs(E)\f[]: The absolute value of \f[B]E\f[].
+This is a \f[B]non\-portable extension\f[].
+.IP " 9." 4
+\f[B]I()\f[], \f[B]I(E)\f[], \f[B]I(E, E)\f[], and so on, where
+\f[B]I\f[] is an identifier for a non\-\f[B]void\f[] function (see the
+\f[I]Void Functions\f[] subsection of the \f[B]FUNCTIONS\f[] section).
+The \f[B]E\f[] argument(s) may also be arrays of the form \f[B]I[]\f[],
+which will automatically be turned into array references (see the
+\f[I]Array References\f[] subsection of the \f[B]FUNCTIONS\f[] section)
+if the corresponding parameter in the function definition is an array
+reference.
+.IP "10." 4
+\f[B]read()\f[]: Reads a line from \f[B]stdin\f[] and uses that as an
+expression.
+The result of that expression is the result of the \f[B]read()\f[]
+operand.
+This is a \f[B]non\-portable extension\f[].
+.IP "11." 4
+\f[B]maxibase()\f[]: The max allowable \f[B]ibase\f[].
+This is a \f[B]non\-portable extension\f[].
+.IP "12." 4
+\f[B]maxobase()\f[]: The max allowable \f[B]obase\f[].
+This is a \f[B]non\-portable extension\f[].
+.IP "13." 4
+\f[B]maxscale()\f[]: The max allowable \f[B]scale\f[].
+This is a \f[B]non\-portable extension\f[].
+.SS Numbers
+.PP
+Numbers are strings made up of digits, uppercase letters, and at most
+\f[B]1\f[] period for a radix.
+Numbers can have up to \f[B]BC_NUM_MAX\f[] digits.
+Uppercase letters are equal to \f[B]9\f[] + their position in the
+alphabet (i.e., \f[B]A\f[] equals \f[B]10\f[], or \f[B]9+1\f[]).
+If a digit or letter makes no sense with the current value of
+\f[B]ibase\f[], they are set to the value of the highest valid digit in
+\f[B]ibase\f[].
+.PP
+Single\-character numbers (i.e., \f[B]A\f[] alone) take the value that
+they would have if they were valid digits, regardless of the value of
+\f[B]ibase\f[].
+This means that \f[B]A\f[] alone always equals decimal \f[B]10\f[] and
+\f[B]Z\f[] alone always equals decimal \f[B]35\f[].
+.SS Operators
+.PP
+The following arithmetic and logical operators can be used.
+They are listed in order of decreasing precedence.
+Operators in the same group have the same precedence.
+.TP
+.B \f[B]++\f[] \f[B]\-\-\f[]
+Type: Prefix and Postfix
+.RS
+.PP
+Associativity: None
+.PP
+Description: \f[B]increment\f[], \f[B]decrement\f[]
+.RE
+.TP
+.B \f[B]\-\f[] \f[B]!\f[]
+Type: Prefix
+.RS
+.PP
+Associativity: None
+.PP
+Description: \f[B]negation\f[], \f[B]boolean not\f[]
+.RE
+.TP
+.B \f[B]^\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Right
+.PP
+Description: \f[B]power\f[]
+.RE
+.TP
+.B \f[B]*\f[] \f[B]/\f[] \f[B]%\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Left
+.PP
+Description: \f[B]multiply\f[], \f[B]divide\f[], \f[B]modulus\f[]
+.RE
+.TP
+.B \f[B]+\f[] \f[B]\-\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Left
+.PP
+Description: \f[B]add\f[], \f[B]subtract\f[]
+.RE
+.TP
+.B \f[B]=\f[] \f[B]+=\f[] \f[B]\-=\f[] \f[B]*=\f[] \f[B]/=\f[] \f[B]%=\f[] \f[B]^=\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Right
+.PP
+Description: \f[B]assignment\f[]
+.RE
+.TP
+.B \f[B]==\f[] \f[B]<=\f[] \f[B]>=\f[] \f[B]!=\f[] \f[B]<\f[] \f[B]>\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Left
+.PP
+Description: \f[B]relational\f[]
+.RE
+.TP
+.B \f[B]&&\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Left
+.PP
+Description: \f[B]boolean and\f[]
+.RE
+.TP
+.B \f[B]||\f[]
+Type: Binary
+.RS
+.PP
+Associativity: Left
+.PP
+Description: \f[B]boolean or\f[]
+.RE
+.PP
+The operators will be described in more detail below.
+.TP
+.B \f[B]++\f[] \f[B]\-\-\f[]
+The prefix and postfix \f[B]increment\f[] and \f[B]decrement\f[]
+operators behave exactly like they would in C.
+They require a named expression (see the \f[I]Named Expressions\f[]
+subsection) as an operand.
+.RS
+.PP
+The prefix versions of these operators are more efficient; use them
+where possible.
+.RE
+.TP
+.B \f[B]\-\f[]
+The \f[B]negation\f[] operator returns \f[B]0\f[] if a user attempts to
+negate any expression with the value \f[B]0\f[].
+Otherwise, a copy of the expression with its sign flipped is returned.
+.RS
+.RE
+.TP
+.B \f[B]!\f[]
+The \f[B]boolean not\f[] operator returns \f[B]1\f[] if the expression
+is \f[B]0\f[], or \f[B]0\f[] otherwise.
+.RS
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]^\f[]
+The \f[B]power\f[] operator (not the \f[B]exclusive or\f[] operator, as
+it would be in C) takes two expressions and raises the first to the
+power of the value of the second.
+.RS
+.PP
+The second expression must be an integer (no \f[I]scale\f[]), and if it
+is negative, the first value must be non\-zero.
+.RE
+.TP
+.B \f[B]*\f[]
+The \f[B]multiply\f[] operator takes two expressions, multiplies them,
+and returns the product.
+If \f[B]a\f[] is the \f[I]scale\f[] of the first expression and
+\f[B]b\f[] is the \f[I]scale\f[] of the second expression, the
+\f[I]scale\f[] of the result is equal to
+\f[B]min(a+b,max(scale,a,b))\f[] where \f[B]min()\f[] and \f[B]max()\f[]
+return the obvious values.
+.RS
+.RE
+.TP
+.B \f[B]/\f[]
+The \f[B]divide\f[] operator takes two expressions, divides them, and
+returns the quotient.
+The \f[I]scale\f[] of the result shall be the value of \f[B]scale\f[].
+.RS
+.PP
+The second expression must be non\-zero.
+.RE
+.TP
+.B \f[B]%\f[]
+The \f[B]modulus\f[] operator takes two expressions, \f[B]a\f[] and
+\f[B]b\f[], and evaluates them by 1) Computing \f[B]a/b\f[] to current
+\f[B]scale\f[] and 2) Using the result of step 1 to calculate
+\f[B]a\-(a/b)*b\f[] to \f[I]scale\f[]
+\f[B]max(scale+scale(b),scale(a))\f[].
+.RS
+.PP
+The second expression must be non\-zero.
+.RE
+.TP
+.B \f[B]+\f[]
+The \f[B]add\f[] operator takes two expressions, \f[B]a\f[] and
+\f[B]b\f[], and returns the sum, with a \f[I]scale\f[] equal to the max
+of the \f[I]scale\f[]s of \f[B]a\f[] and \f[B]b\f[].
+.RS
+.RE
+.TP
+.B \f[B]\-\f[]
+The \f[B]subtract\f[] operator takes two expressions, \f[B]a\f[] and
+\f[B]b\f[], and returns the difference, with a \f[I]scale\f[] equal to
+the max of the \f[I]scale\f[]s of \f[B]a\f[] and \f[B]b\f[].
+.RS
+.RE
+.TP
+.B \f[B]=\f[] \f[B]+=\f[] \f[B]\-=\f[] \f[B]*=\f[] \f[B]/=\f[] \f[B]%=\f[] \f[B]^=\f[]
+The \f[B]assignment\f[] operators take two expressions, \f[B]a\f[] and
+\f[B]b\f[] where \f[B]a\f[] is a named expression (see the \f[I]Named
+Expressions\f[] subsection).
+.RS
+.PP
+For \f[B]=\f[], \f[B]b\f[] is copied and the result is assigned to
+\f[B]a\f[].
+For all others, \f[B]a\f[] and \f[B]b\f[] are applied as operands to the
+corresponding arithmetic operator and the result is assigned to
+\f[B]a\f[].
+.RE
+.TP
+.B \f[B]==\f[] \f[B]<=\f[] \f[B]>=\f[] \f[B]!=\f[] \f[B]<\f[] \f[B]>\f[]
+The \f[B]relational\f[] operators compare two expressions, \f[B]a\f[]
+and \f[B]b\f[], and if the relation holds, according to C language
+semantics, the result is \f[B]1\f[].
+Otherwise, it is \f[B]0\f[].
+.RS
+.PP
+Note that unlike in C, these operators have a lower precedence than the
+\f[B]assignment\f[] operators, which means that \f[B]a=b>c\f[] is
+interpreted as \f[B](a=b)>c\f[].
+.PP
+Also, unlike the
+standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+requires, these operators can appear anywhere any other expressions can
+be used.
+This allowance is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]&&\f[]
+The \f[B]boolean and\f[] operator takes two expressions and returns
+\f[B]1\f[] if both expressions are non\-zero, \f[B]0\f[] otherwise.
+.RS
+.PP
+This is \f[I]not\f[] a short\-circuit operator.
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.TP
+.B \f[B]||\f[]
+The \f[B]boolean or\f[] operator takes two expressions and returns
+\f[B]1\f[] if one of the expressions is non\-zero, \f[B]0\f[] otherwise.
+.RS
+.PP
+This is \f[I]not\f[] a short\-circuit operator.
+.PP
+This is a \f[B]non\-portable extension\f[].
+.RE
+.SS Statements
+.PP
+The following items are statements:
+.IP " 1." 4
+\f[B]E\f[]
+.IP " 2." 4
+\f[B]{\f[] \f[B]S\f[] \f[B];\f[] ...
+\f[B];\f[] \f[B]S\f[] \f[B]}\f[]
+.IP " 3." 4
+\f[B]if\f[] \f[B](\f[] \f[B]E\f[] \f[B])\f[] \f[B]S\f[]
+.IP " 4." 4
+\f[B]if\f[] \f[B](\f[] \f[B]E\f[] \f[B])\f[] \f[B]S\f[] \f[B]else\f[]
+\f[B]S\f[]
+.IP " 5." 4
+\f[B]while\f[] \f[B](\f[] \f[B]E\f[] \f[B])\f[] \f[B]S\f[]
+.IP " 6." 4
+\f[B]for\f[] \f[B](\f[] \f[B]E\f[] \f[B];\f[] \f[B]E\f[] \f[B];\f[]
+\f[B]E\f[] \f[B])\f[] \f[B]S\f[]
+.IP " 7." 4
+An empty statement
+.IP " 8." 4
+\f[B]break\f[]
+.IP " 9." 4
+\f[B]continue\f[]
+.IP "10." 4
+\f[B]quit\f[]
+.IP "11." 4
+\f[B]halt\f[]
+.IP "12." 4
+\f[B]limits\f[]
+.IP "13." 4
+A string of characters, enclosed in double quotes
+.IP "14." 4
+\f[B]print\f[] \f[B]E\f[] \f[B],\f[] ...
+\f[B],\f[] \f[B]E\f[]
+.IP "15." 4
+\f[B]I()\f[], \f[B]I(E)\f[], \f[B]I(E, E)\f[], and so on, where
+\f[B]I\f[] is an identifier for a \f[B]void\f[] function (see the
+\f[I]Void Functions\f[] subsection of the \f[B]FUNCTIONS\f[] section).
+The \f[B]E\f[] argument(s) may also be arrays of the form \f[B]I[]\f[],
+which will automatically be turned into array references (see the
+\f[I]Array References\f[] subsection of the \f[B]FUNCTIONS\f[] section)
+if the corresponding parameter in the function definition is an array
+reference.
+.PP
+Numbers 4, 9, 11, 12, 14, and 15 are \f[B]non\-portable extensions\f[].
+.PP
+Also, as a \f[B]non\-portable extension\f[], any or all of the
+expressions in the header of a for loop may be omitted.
+If the condition (second expression) is omitted, it is assumed to be a
+constant \f[B]1\f[].
+.PP
+The \f[B]break\f[] statement causes a loop to stop iterating and resume
+execution immediately following a loop.
+This is only allowed in loops.
+.PP
+The \f[B]continue\f[] statement causes a loop iteration to stop early
+and returns to the start of the loop, including testing the loop
+condition.
+This is only allowed in loops.
+.PP
+The \f[B]if\f[] \f[B]else\f[] statement does the same thing as in C.
+.PP
+The \f[B]quit\f[] statement causes bc(1) to quit, even if it is on a
+branch that will not be executed (it is a compile\-time command).
+.PP
+The \f[B]halt\f[] statement causes bc(1) to quit, if it is executed.
+(Unlike \f[B]quit\f[] if it is on a branch of an \f[B]if\f[] statement
+that is not executed, bc(1) does not quit.)
+.PP
+The \f[B]limits\f[] statement prints the limits that this bc(1) is
+subject to.
+This is like the \f[B]quit\f[] statement in that it is a compile\-time
+command.
+.PP
+An expression by itself is evaluated and printed, followed by a newline.
+.SS Print Statement
+.PP
+The "expressions" in a \f[B]print\f[] statement may also be strings.
+If they are, there are backslash escape sequences that are interpreted
+specially.
+What those sequences are, and what they cause to be printed, are shown
+below:
+.PP
+.TS
+tab(@);
+l l.
+T{
+\f[B]\\a\f[]
+T}@T{
+\f[B]\\a\f[]
+T}
+T{
+\f[B]\\b\f[]
+T}@T{
+\f[B]\\b\f[]
+T}
+T{
+\f[B]\\\\\f[]
+T}@T{
+\f[B]\\\f[]
+T}
+T{
+\f[B]\\e\f[]
+T}@T{
+\f[B]\\\f[]
+T}
+T{
+\f[B]\\f\f[]
+T}@T{
+\f[B]\\f\f[]
+T}
+T{
+\f[B]\\n\f[]
+T}@T{
+\f[B]\\n\f[]
+T}
+T{
+\f[B]\\q\f[]
+T}@T{
+\f[B]"\f[]
+T}
+T{
+\f[B]\\r\f[]
+T}@T{
+\f[B]\\r\f[]
+T}
+T{
+\f[B]\\t\f[]
+T}@T{
+\f[B]\\t\f[]
+T}
+.TE
+.PP
+Any other character following a backslash causes the backslash and
+character to be printed as\-is.
+.PP
+Any non\-string expression in a print statement shall be assigned to
+\f[B]last\f[], like any other expression that is printed.
+.SS Order of Evaluation
+.PP
+All expressions in a statment are evaluated left to right, except as
+necessary to maintain order of operations.
+This means, for example, assuming that \f[B]i\f[] is equal to
+\f[B]0\f[], in the expression
+.IP
+.nf
+\f[C]
+a[i++]\ =\ i++
+\f[]
+.fi
+.PP
+the first (or 0th) element of \f[B]a\f[] is set to \f[B]1\f[], and
+\f[B]i\f[] is equal to \f[B]2\f[] at the end of the expression.
+.PP
+This includes function arguments.
+Thus, assuming \f[B]i\f[] is equal to \f[B]0\f[], this means that in the
+expression
+.IP
+.nf
+\f[C]
+x(i++,\ i++)
+\f[]
+.fi
+.PP
+the first argument passed to \f[B]x()\f[] is \f[B]0\f[], and the second
+argument is \f[B]1\f[], while \f[B]i\f[] is equal to \f[B]2\f[] before
+the function starts executing.
+.SH FUNCTIONS
+.PP
+Function definitions are as follows:
+.IP
+.nf
+\f[C]
+define\ I(I,...,I){
+\ \ \ \ auto\ I,...,I
+\ \ \ \ S;...;S
+\ \ \ \ return(E)
+}
+\f[]
+.fi
+.PP
+Any \f[B]I\f[] in the parameter list or \f[B]auto\f[] list may be
+replaced with \f[B]I[]\f[] to make a parameter or \f[B]auto\f[] var an
+array, and any \f[B]I\f[] in the parameter list may be replaced with
+\f[B]*I[]\f[] to make a parameter an array reference.
+Callers of functions that take array references should not put an
+asterisk in the call; they must be called with just \f[B]I[]\f[] like
+normal array parameters and will be automatically converted into
+references.
+.PP
+As a \f[B]non\-portable extension\f[], the opening brace of a
+\f[B]define\f[] statement may appear on the next line.
+.PP
+As a \f[B]non\-portable extension\f[], the return statement may also be
+in one of the following forms:
+.IP "1." 3
+\f[B]return\f[]
+.IP "2." 3
+\f[B]return\f[] \f[B](\f[] \f[B])\f[]
+.IP "3." 3
+\f[B]return\f[] \f[B]E\f[]
+.PP
+The first two, or not specifying a \f[B]return\f[] statement, is
+equivalent to \f[B]return (0)\f[], unless the function is a
+\f[B]void\f[] function (see the \f[I]Void Functions\f[] subsection
+below).
+.SS Void Functions
+.PP
+Functions can also be \f[B]void\f[] functions, defined as follows:
+.IP
+.nf
+\f[C]
+define\ void\ I(I,...,I){
+\ \ \ \ auto\ I,...,I
+\ \ \ \ S;...;S
+\ \ \ \ return
+}
+\f[]
+.fi
+.PP
+They can only be used as standalone expressions, where such an
+expression would be printed alone, except in a print statement.
+.PP
+Void functions can only use the first two \f[B]return\f[] statements
+listed above.
+They can also omit the return statement entirely.
+.PP
+The word "void" is not treated as a keyword; it is still possible to
+have variables, arrays, and functions named \f[B]void\f[].
+The word "void" is only treated specially right after the
+\f[B]define\f[] keyword.
+.PP
+This is a \f[B]non\-portable extension\f[].
+.SS Array References
+.PP
+For any array in the parameter list, if the array is declared in the
+form
+.IP
+.nf
+\f[C]
+*I[]
+\f[]
+.fi
+.PP
+it is a \f[B]reference\f[].
+Any changes to the array in the function are reflected, when the
+function returns, to the array that was passed in.
+.PP
+Other than this, all function arguments are passed by value.
+.PP
+This is a \f[B]non\-portable extension\f[].
+.SH LIBRARY
+.PP
+All of the functions below are available when the \f[B]\-l\f[] or
+\f[B]\-\-mathlib\f[] command\-line flags are given.
+.SS Standard Library
+.PP
+The
+standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+defines the following functions for the math library:
+.TP
+.B \f[B]s(x)\f[]
+Returns the sine of \f[B]x\f[], which is assumed to be in radians.
+.RS
+.PP
+This is a transcendental function (see the \f[I]Transcendental
+Functions\f[] subsection below).
+.RE
+.TP
+.B \f[B]c(x)\f[]
+Returns the cosine of \f[B]x\f[], which is assumed to be in radians.
+.RS
+.PP
+This is a transcendental function (see the \f[I]Transcendental
+Functions\f[] subsection below).
+.RE
+.TP
+.B \f[B]a(x)\f[]
+Returns the arctangent of \f[B]x\f[], in radians.
+.RS
+.PP
+This is a transcendental function (see the \f[I]Transcendental
+Functions\f[] subsection below).
+.RE
+.TP
+.B \f[B]l(x)\f[]
+Returns the natural logarithm of \f[B]x\f[].
+.RS
+.PP
+This is a transcendental function (see the \f[I]Transcendental
+Functions\f[] subsection below).
+.RE
+.TP
+.B \f[B]e(x)\f[]
+Returns the mathematical constant \f[B]e\f[] raised to the power of
+\f[B]x\f[].
+.RS
+.PP
+This is a transcendental function (see the \f[I]Transcendental
+Functions\f[] subsection below).
+.RE
+.TP
+.B \f[B]j(x, n)\f[]
+Returns the bessel integer order \f[B]n\f[] (truncated) of \f[B]x\f[].
+.RS
+.PP
+This is a transcendental function (see the \f[I]Transcendental
+Functions\f[] subsection below).
+.RE
+.SS Transcendental Functions
+.PP
+All transcendental functions can return slightly inaccurate results (up
+to 1 ULP (https://en.wikipedia.org/wiki/Unit_in_the_last_place)).
+This is unavoidable, and this
+article (https://people.eecs.berkeley.edu/~wkahan/LOG10HAF.TXT) explains
+why it is impossible and unnecessary to calculate exact results for the
+transcendental functions.
+.PP
+Because of the possible inaccuracy, I recommend that users call those
+functions with the precision (\f[B]scale\f[]) set to at least 1 higher
+than is necessary.
+If exact results are \f[I]absolutely\f[] required, users can double the
+precision (\f[B]scale\f[]) and then truncate.
+.PP
+The transcendental functions in the standard math library are:
+.IP \[bu] 2
+\f[B]s(x)\f[]
+.IP \[bu] 2
+\f[B]c(x)\f[]
+.IP \[bu] 2
+\f[B]a(x)\f[]
+.IP \[bu] 2
+\f[B]l(x)\f[]
+.IP \[bu] 2
+\f[B]e(x)\f[]
+.IP \[bu] 2
+\f[B]j(x, n)\f[]
+.SH RESET
+.PP
+When bc(1) encounters an error or a signal that it has a non\-default
+handler for, it resets.
+This means that several things happen.
+.PP
+First, any functions that are executing are stopped and popped off the
+stack.
+The behavior is not unlike that of exceptions in programming languages.
+Then the execution point is set so that any code waiting to execute
+(after all functions returned) is skipped.
+.PP
+Thus, when bc(1) resets, it skips any remaining code waiting to be
+executed.
+Then, if it is interactive mode, and the error was not a fatal error
+(see the \f[B]EXIT STATUS\f[] section), it asks for more input;
+otherwise, it exits with the appropriate return code.
+.PP
+Note that this reset behavior is different from the GNU bc(1), which
+attempts to start executing the statement right after the one that
+caused an error.
+.SH PERFORMANCE
+.PP
+Most bc(1) implementations use \f[B]char\f[] types to calculate the
+value of \f[B]1\f[] decimal digit at a time, but that can be slow.
+This bc(1) does something different.
+.PP
+It uses large integers to calculate more than \f[B]1\f[] decimal digit
+at a time.
+If built in a environment where \f[B]BC_LONG_BIT\f[] (see the
+\f[B]LIMITS\f[] section) is \f[B]64\f[], then each integer has
+\f[B]9\f[] decimal digits.
+If built in an environment where \f[B]BC_LONG_BIT\f[] is \f[B]32\f[]
+then each integer has \f[B]4\f[] decimal digits.
+This value (the number of decimal digits per large integer) is called
+\f[B]BC_BASE_DIGS\f[].
+.PP
+The actual values of \f[B]BC_LONG_BIT\f[] and \f[B]BC_BASE_DIGS\f[] can
+be queried with the \f[B]limits\f[] statement.
+.PP
+In addition, this bc(1) uses an even larger integer for overflow
+checking.
+This integer type depends on the value of \f[B]BC_LONG_BIT\f[], but is
+always at least twice as large as the integer type used to store digits.
+.SH LIMITS
+.PP
+The following are the limits on bc(1):
+.TP
+.B \f[B]BC_LONG_BIT\f[]
+The number of bits in the \f[B]long\f[] type in the environment where
+bc(1) was built.
+This determines how many decimal digits can be stored in a single large
+integer (see the \f[B]PERFORMANCE\f[] section).
+.RS
+.RE
+.TP
+.B \f[B]BC_BASE_DIGS\f[]
+The number of decimal digits per large integer (see the
+\f[B]PERFORMANCE\f[] section).
+Depends on \f[B]BC_LONG_BIT\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_BASE_POW\f[]
+The max decimal number that each large integer can store (see
+\f[B]BC_BASE_DIGS\f[]) plus \f[B]1\f[].
+Depends on \f[B]BC_BASE_DIGS\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_OVERFLOW_MAX\f[]
+The max number that the overflow type (see the \f[B]PERFORMANCE\f[]
+section) can hold.
+Depends on \f[B]BC_LONG_BIT\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_BASE_MAX\f[]
+The maximum output base.
+Set at \f[B]BC_BASE_POW\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_DIM_MAX\f[]
+The maximum size of arrays.
+Set at \f[B]SIZE_MAX\-1\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_SCALE_MAX\f[]
+The maximum \f[B]scale\f[].
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_STRING_MAX\f[]
+The maximum length of strings.
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_NAME_MAX\f[]
+The maximum length of identifiers.
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_NUM_MAX\f[]
+The maximum length of a number (in decimal digits), which includes
+digits after the decimal point.
+Set at \f[B]BC_OVERFLOW_MAX\-1\f[].
+.RS
+.RE
+.TP
+.B Exponent
+The maximum allowable exponent (positive or negative).
+Set at \f[B]BC_OVERFLOW_MAX\f[].
+.RS
+.RE
+.TP
+.B Number of vars
+The maximum number of vars/arrays.
+Set at \f[B]SIZE_MAX\-1\f[].
+.RS
+.RE
+.PP
+The actual values can be queried with the \f[B]limits\f[] statement.
+.PP
+These limits are meant to be effectively non\-existent; the limits are
+so large (at least on 64\-bit machines) that there should not be any
+point at which they become a problem.
+In fact, memory should be exhausted before these limits should be hit.
+.SH ENVIRONMENT VARIABLES
+.PP
+bc(1) recognizes the following environment variables:
+.TP
+.B \f[B]POSIXLY_CORRECT\f[]
+If this variable exists (no matter the contents), bc(1) behaves as if
+the \f[B]\-s\f[] option was given.
+.RS
+.RE
+.TP
+.B \f[B]BC_ENV_ARGS\f[]
+This is another way to give command\-line arguments to bc(1).
+They should be in the same format as all other command\-line arguments.
+These are always processed first, so any files given in
+\f[B]BC_ENV_ARGS\f[] will be processed before arguments and files given
+on the command\-line.
+This gives the user the ability to set up "standard" options and files
+to be used at every invocation.
+The most useful thing for such files to contain would be useful
+functions that the user might want every time bc(1) runs.
+.RS
+.PP
+The code that parses \f[B]BC_ENV_ARGS\f[] will correctly handle quoted
+arguments, but it does not understand escape sequences.
+For example, the string \f[B]"/home/gavin/some bc file.bc"\f[] will be
+correctly parsed, but the string \f[B]"/home/gavin/some "bc"
+file.bc"\f[] will include the backslashes.
+.PP
+The quote parsing will handle either kind of quotes, \f[B]\[aq]\f[] or
+\f[B]"\f[].
+Thus, if you have a file with any number of single quotes in the name,
+you can use double quotes as the outside quotes, as in \f[B]"some
+\[aq]bc\[aq] file.bc"\f[], and vice versa if you have a file with double
+quotes.
+However, handling a file with both kinds of quotes in
+\f[B]BC_ENV_ARGS\f[] is not supported due to the complexity of the
+parsing, though such files are still supported on the command\-line
+where the parsing is done by the shell.
+.RE
+.TP
+.B \f[B]BC_LINE_LENGTH\f[]
+If this environment variable exists and contains an integer that is
+greater than \f[B]1\f[] and is less than \f[B]UINT16_MAX\f[]
+(\f[B]2^16\-1\f[]), bc(1) will output lines to that length, including
+the backslash (\f[B]\\\f[]).
+The default line length is \f[B]70\f[].
+.RS
+.RE
+.TP
+.B \f[B]BC_EXPR_EXIT\f[]
+If this variable exists (no matter the contents), bc(1) will exit
+immediately after executing expressions and files given by the
+\f[B]\-e\f[] and/or \f[B]\-f\f[] command\-line options (and any
+equivalents).
+.RS
+.RE
+.SH EXIT STATUS
+.PP
+bc(1) returns the following exit statuses:
+.TP
+.B \f[B]0\f[]
+No error.
+.RS
+.RE
+.TP
+.B \f[B]1\f[]
+A math error occurred.
+This follows standard practice of using \f[B]1\f[] for expected errors,
+since math errors will happen in the process of normal execution.
+.RS
+.PP
+Math errors include divide by \f[B]0\f[], taking the square root of a
+negative number, attempting to convert a negative number to a hardware
+integer, overflow when converting a number to a hardware integer, and
+attempting to use a non\-integer where an integer is required.
+.PP
+Converting to a hardware integer happens for the second operand of the
+power (\f[B]^\f[]) operator and the corresponding assignment operator.
+.RE
+.TP
+.B \f[B]2\f[]
+A parse error occurred.
+.RS
+.PP
+Parse errors include unexpected \f[B]EOF\f[], using an invalid
+character, failing to find the end of a string or comment, using a token
+where it is invalid, giving an invalid expression, giving an invalid
+print statement, giving an invalid function definition, attempting to
+assign to an expression that is not a named expression (see the
+\f[I]Named Expressions\f[] subsection of the \f[B]SYNTAX\f[] section),
+giving an invalid \f[B]auto\f[] list, having a duplicate
+\f[B]auto\f[]/function parameter, failing to find the end of a code
+block, attempting to return a value from a \f[B]void\f[] function,
+attempting to use a variable as a reference, and using any extensions
+when the option \f[B]\-s\f[] or any equivalents were given.
+.RE
+.TP
+.B \f[B]3\f[]
+A runtime error occurred.
+.RS
+.PP
+Runtime errors include assigning an invalid number to \f[B]ibase\f[],
+\f[B]obase\f[], or \f[B]scale\f[]; give a bad expression to a
+\f[B]read()\f[] call, calling \f[B]read()\f[] inside of a
+\f[B]read()\f[] call, type errors, passing the wrong number of arguments
+to functions, attempting to call an undefined function, and attempting
+to use a \f[B]void\f[] function call as a value in an expression.
+.RE
+.TP
+.B \f[B]4\f[]
+A fatal error occurred.
+.RS
+.PP
+Fatal errors include memory allocation errors, I/O errors, failing to
+open files, attempting to use files that do not have only ASCII
+characters (bc(1) only accepts ASCII characters), attempting to open a
+directory as a file, and giving invalid command\-line options.
+.RE
+.PP
+The exit status \f[B]4\f[] is special; when a fatal error occurs, bc(1)
+always exits and returns \f[B]4\f[], no matter what mode bc(1) is in.
+.PP
+The other statuses will only be returned when bc(1) is not in
+interactive mode (see the \f[B]INTERACTIVE MODE\f[] section), since
+bc(1) resets its state (see the \f[B]RESET\f[] section) and accepts more
+input when one of those errors occurs in interactive mode.
+This is also the case when interactive mode is forced by the
+\f[B]\-i\f[] flag or \f[B]\-\-interactive\f[] option.
+.PP
+These exit statuses allow bc(1) to be used in shell scripting with error
+checking, and its normal behavior can be forced by using the
+\f[B]\-i\f[] flag or \f[B]\-\-interactive\f[] option.
+.SH INTERACTIVE MODE
+.PP
+Per the
+standard (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
+bc(1) has an interactive mode and a non\-interactive mode.
+Interactive mode is turned on automatically when both \f[B]stdin\f[] and
+\f[B]stdout\f[] are hooked to a terminal, but the \f[B]\-i\f[] flag and
+\f[B]\-\-interactive\f[] option can turn it on in other cases.
+.PP
+In interactive mode, bc(1) attempts to recover from errors (see the
+\f[B]RESET\f[] section), and in normal execution, flushes
+\f[B]stdout\f[] as soon as execution is done for the current input.
+.SH TTY MODE
+.PP
+If \f[B]stdin\f[], \f[B]stdout\f[], and \f[B]stderr\f[] are all
+connected to a TTY, bc(1) turns on "TTY mode."
+.PP
+TTY mode is required for history to be enabled (see the \f[B]COMMAND
+LINE HISTORY\f[] section).
+It is also required to enable special handling for \f[B]SIGINT\f[]
+signals.
+.PP
+The prompt is enabled in TTY mode.
+.PP
+TTY mode is different from interactive mode because interactive mode is
+required in the bc(1)
+specification (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
+and interactive mode requires only \f[B]stdin\f[] and \f[B]stdout\f[] to
+be connected to a terminal.
+.SH SIGNAL HANDLING
+.PP
+Sending a \f[B]SIGINT\f[] will cause bc(1) to stop execution of the
+current input.
+If bc(1) is in TTY mode (see the \f[B]TTY MODE\f[] section), it will
+reset (see the \f[B]RESET\f[] section).
+Otherwise, it will clean up and exit.
+.PP
+Note that "current input" can mean one of two things.
+If bc(1) is processing input from \f[B]stdin\f[] in TTY mode, it will
+ask for more input.
+If bc(1) is processing input from a file in TTY mode, it will stop
+processing the file and start processing the next file, if one exists,
+or ask for input from \f[B]stdin\f[] if no other file exists.
+.PP
+This means that if a \f[B]SIGINT\f[] is sent to bc(1) as it is executing
+a file, it can seem as though bc(1) did not respond to the signal since
+it will immediately start executing the next file.
+This is by design; most files that users execute when interacting with
+bc(1) have function definitions, which are quick to parse.
+If a file takes a long time to execute, there may be a bug in that file.
+The rest of the files could still be executed without problem, allowing
+the user to continue.
+.PP
+\f[B]SIGTERM\f[] and \f[B]SIGQUIT\f[] cause bc(1) to clean up and exit,
+and it uses the default handler for all other signals.
+The one exception is \f[B]SIGHUP\f[]; in that case, when bc(1) is in TTY
+mode, a \f[B]SIGHUP\f[] will cause bc(1) to clean up and exit.
+.SH COMMAND LINE HISTORY
+.PP
+bc(1) supports interactive command\-line editing.
+If bc(1) is in TTY mode (see the \f[B]TTY MODE\f[] section), history is
+enabled.
+Previous lines can be recalled and edited with the arrow keys.
+.PP
+\f[B]Note\f[]: tabs are converted to 8 spaces.
+.SH LOCALES
+.PP
+This bc(1) ships with support for adding error messages for different
+locales and thus, supports \f[B]LC_MESSAGES\f[].
+.SH SEE ALSO
+.PP
+dc(1)
+.SH STANDARDS
+.PP
+bc(1) is compliant with the IEEE Std 1003.1\-2017
+(“POSIX.1\-2017”) (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+specification.
+The flags \f[B]\-efghiqsvVw\f[], all long options, and the extensions
+noted above are extensions to that specification.
+.PP
+Note that the specification explicitly says that bc(1) only accepts
+numbers that use a period (\f[B].\f[]) as a radix point, regardless of
+the value of \f[B]LC_NUMERIC\f[].
+.PP
+This bc(1) supports error messages for different locales, and thus, it
+supports \f[B]LC_MESSAGES\f[].
+.SH BUGS
+.PP
+None are known.
+Report bugs at https://git.yzena.com/gavin/bc.
+.SH AUTHORS
+.PP
+Gavin D.
+Howard <yzena.tech@gmail.com> and contributors.
