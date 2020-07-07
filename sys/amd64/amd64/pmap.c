@@ -2060,7 +2060,7 @@ pmap_init(void)
 	int error, i, ret, skz63;
 
 	/* L1TF, reserve page @0 unconditionally */
-	vm_page_blacklist_add(0, bootverbose);
+	vm_page_excludelist_add(0, bootverbose);
 
 	/* Detect bare-metal Skylake Server and Skylake-X. */
 	if (vm_guest == VM_GUEST_NO && cpu_vendor_id == CPU_VENDOR_INTEL &&
@@ -2081,7 +2081,7 @@ pmap_init(void)
 				printf("SKZ63: skipping 4M RAM starting "
 				    "at physical 1G\n");
 			for (i = 0; i < atop(0x400000); i++) {
-				ret = vm_page_blacklist_add(0x40000000 +
+				ret = vm_page_excludelist_add(0x40000000 +
 				    ptoa(i), FALSE);
 				if (!ret && bootverbose)
 					printf("page at %#lx already used\n",
