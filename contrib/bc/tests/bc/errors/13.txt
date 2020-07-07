@@ -1,0 +1,57 @@
+#! /usr/bin/bc -q
+
+define z(a[]) {
+	for (i = 0; i < l; ++i) {
+		a[i]
+	}
+}
+
+define x(a[]) {
+
+	# Test for separate vars and arrays.
+	auto a
+
+	for (a = 0; a < l; ++a) {
+		a[a] = -a
+	}
+
+	z(a[])
+}
+
+define g(x[], y[]) {
+	return x[0] - y[0]
+}
+
+define h(uto, x[]) {
+	return g(x[], y[])
+}
+
+define m(*x[], *y[]) {
+	return x[0] / y[0]
+}
+
+define n(*y[], *x[]) {
+	return m(x[], y[])
+}
+
+for (i = 0; i < 101; ++i) {
+	a[i] = i
+}
+
+a[104] = 204
+
+l = length(a[])
+
+for (i = 0; i <= l; ++i) {
+	a[i]
+}
+
+z(a[])
+x(a[])
+z(a[])
+l
+
+x[0] = 5
+y[0] = 4
+
+h(x[], y[])

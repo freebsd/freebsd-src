@@ -1,5 +1,54 @@
 # News
 
+## 3.1.1
+
+This is a production release that adds two Spanish locales. Users do ***NOT***
+need to upgrade, unless they want those locales.
+
+## 3.1.0
+
+This is a production release that adjusts one behavior, fixes eight bugs, and
+improves manpages for FreeBSD. Because this release fixes bugs, **users and
+package maintainers should update to this version as soon as possible**.
+
+The behavior that was adjusted was how code from the `-e` and `-f` arguments
+(and equivalents) were executed. They used to be executed as one big chunk, but
+in this release, they are now executed line-by-line.
+
+The first bug fix in how output to `stdout` was handled in `SIGINT`. If a
+`SIGINT` came in, the `stdout` buffer was not correctly flushed. In fact, a
+clean-up function was not getting called. This release fixes that bug.
+
+The second bug is in how `dc` handled input from `stdin`. This affected `bc` as
+well since it was a mishandling of the `stdin` buffer.
+
+The third fixed bug was that `bc` and `dc` could `abort()` (in debug mode) when
+receiving a `SIGTERM`. This one was a race condition with pushing and popping
+items onto and out of vectors.
+
+The fourth bug fixed was that `bc` could leave extra items on the stack and
+thus, not properly clean up some memory. (The memory would still get
+`free()`'ed, but it would not be `free()`'ed when it could have been.)
+
+The next two bugs were bugs in `bc`'s parser that caused crashes when executing
+the resulting code.
+
+The last two bugs were crashes in `dc` that resulted from mishandling of
+strings.
+
+The manpage improvement was done by switching from [ronn][20] to [Pandoc][21] to
+generate manpages. Pandoc generates much cleaner manpages and doesn't leave
+blank lines where they shouldn't be.
+
+## 3.0.3
+
+This is a production release that adds one new feature: specific manpages.
+
+Before this release, `bc` and `dc` only used one manpage each that referred to
+various build options. This release changes it so there is one manpage set per
+relevant build type. Each manual only has information about its particular
+build, and `configure.sh` selects the correct set for install.
+
 ## 3.0.2
 
 This is a production release that adds `utf8` locale symlinks and removes an
@@ -32,8 +81,9 @@ global ones that are already installed, so it will use the previous ones while
 running tests during install. **If `bc` segfaults while running arg tests when
 updating, it is because the global locale files have not been replaced. Make
 sure to either prevent the test suite from running on update or remove the old
-locale files before updating.** Once this is done, `bc` should install without
-problems.*
+locale files before updating.** (Removing the locale files can be done with
+`make uninstall` or by running the `locale_uninstall.sh` script.) Once this is
+done, `bc` should install without problems.*
 
 *Second, **the option to build without signal support has been removed**. See
 below for the reasons why.*
@@ -811,14 +861,16 @@ not thoroughly tested.
 [6]: ./configure.sh
 [7]: https://github.com/rain-1/linenoise-mob
 [8]: https://github.com/antirez/linenoise
-[9]: ./manuals/bc.1.ronn
-[10]: ./manuals/dc.1.ronn
+[9]: ./manuals/bc/A.1.md
+[10]: ./manuals/dc/A.1.md
 [11]: https://scan.coverity.com/projects/gavinhoward-bc
 [12]: ./locale_install.sh
 [13]: ./manuals/build.md
 [14]: https://github.com/stesser
 [15]: https://github.com/bugcrazy
-[16]: ./manuals/bc.1.ronn#extended-library
+[16]: ./manuals/bc/A.1.md#extended-library
 [17]: https://github.com/skeeto/optparse
 [18]: https://www.deepl.com/translator
 [19]: ./manuals/benchmarks.md
+[20]: https://github.com/apjanke/ronn-ng
+[21]: https://pandoc.org/
