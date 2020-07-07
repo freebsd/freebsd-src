@@ -4443,21 +4443,30 @@ nfsrvd_rephead(struct nfsrv_descript *nd)
 {
 	struct mbuf *mreq;
 
-	/*
-	 * If this is a big reply, use a cluster.
-	 */
-	if ((nd->nd_flag & ND_GSSINITREPLY) == 0 &&
-	    nfs_bigreply[nd->nd_procnum]) {
-		NFSMCLGET(mreq, M_WAITOK);
-		nd->nd_mreq = mreq;
-		nd->nd_mb = mreq;
+	if ((nd->nd_flag & ND_EXTPG) != 0) {
+		mreq = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
+		nd->nd_mreq = nd->nd_mb = mreq;
+		nd->nd_bpos = (char *)(void *)
+		    PHYS_TO_DMAP(mreq->m_epg_pa[0]);
+		nd->nd_bextpg = 0;
+		nd->nd_bextpgsiz = PAGE_SIZE;
 	} else {
-		NFSMGET(mreq);
-		nd->nd_mreq = mreq;
-		nd->nd_mb = mreq;
+		/*
+		 * If this is a big reply, use a cluster.
+		 */
+		if ((nd->nd_flag & ND_GSSINITREPLY) == 0 &&
+		    nfs_bigreply[nd->nd_procnum]) {
+			NFSMCLGET(mreq, M_WAITOK);
+			nd->nd_mreq = mreq;
+			nd->nd_mb = mreq;
+		} else {
+			NFSMGET(mreq);
+			nd->nd_mreq = mreq;
+			nd->nd_mb = mreq;
+		}
+		nd->nd_bpos = mtod(mreq, char *);
+		mreq->m_len = 0;
 	}
-	nd->nd_bpos = mtod(mreq, caddr_t);
-	mreq->m_len = 0;
 
 	if ((nd->nd_flag & ND_GSSINITREPLY) == 0)
 		NFSM_BUILD(nd->nd_errp, int *, NFSX_UNSIGNED);
