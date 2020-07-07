@@ -3557,7 +3557,7 @@ mmu_radix_init()
 	int error, i, pv_npg;
 
 	/* L1TF, reserve page @0 unconditionally */
-	vm_page_blacklist_add(0, bootverbose);
+	vm_page_excludelist_add(0, bootverbose);
 
 	zone_radix_pgd = uma_zcache_create("radix_pgd_cache",
 		RADIX_PGD_SIZE, NULL, NULL,
