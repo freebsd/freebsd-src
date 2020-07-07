@@ -17,6 +17,12 @@ bc.old
 .math.txt
 .results.txt
 .ops.txt
+manuals/bc.1
+manuals/bc.1.ronn
+manuals/bc.1.md
+manuals/dc.1
+manuals/dc.1.ronn
+manuals/dc.1.md
 gen/strgen
 lib.c
 lib2.c

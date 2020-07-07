@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -138,6 +138,10 @@ printf '%s\n' "$halt" | "$exe" "$@" > /dev/null 2>&1
 
 if [ "$d" = bc ]; then
 	printf '%s\n' "quit" | "$exe" "$@" > /dev/null 2>&1
+	two=$("$exe" "$@" -e 1+1 -e quit)
+	if [ "$two" != "2" ]; then
+		err_exit "$d failed a quit test" 1
+	fi
 fi
 
 printf 'pass\n'

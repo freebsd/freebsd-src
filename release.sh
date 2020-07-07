@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -86,7 +86,6 @@ configure() {
 	header "$_configure_header"
 	CFLAGS="$_configure_CFLAGS" CC="$_configure_CC" GEN_HOST="$_configure_GEN_HOST" \
 		LONG_BIT="$_configure_LONG_BIT" ./configure.sh $_configure_configure_flags > /dev/null
-
 }
 
 build() {
@@ -513,7 +512,7 @@ if [ "$run_tests" -ne 0 ]; then
 
 		header "Configuring for afl-gcc..."
 
-		configure "$debug $gcc_flags -DDC_ENABLE_RAND=0" "afl-gcc" "-HNP -gO3" "1" "$bits"
+		configure "$debug $gcc_flags -DBC_ENABLE_RAND=0" "afl-gcc" "-HNP -gO3" "1" "$bits"
 
 		printf '\n'
 		printf 'Run make\n'
@@ -522,7 +521,7 @@ if [ "$run_tests" -ne 0 ]; then
 		printf '\n'
 		printf 'Then run ASan on the fuzzer test cases with the following build:\n'
 		printf '\n'
-		printf '    CFLAGS="-fsanitize=address -fno-omit-frame-pointer -DDC_ENABLE_RAND=0" ./configure.sh -gO3 -HNPS\n'
+		printf '    CFLAGS="-fsanitize=address -fno-omit-frame-pointer -DBC_ENABLE_RAND=0" ./configure.sh -gO3 -HNPS\n'
 		printf '    make\n'
 		printf '\n'
 		printf 'Then run the GitHub release script as follows:\n'

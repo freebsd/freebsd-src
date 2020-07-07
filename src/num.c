@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2012,7 +2012,6 @@ void bc_num_init(BcNum *restrict n, size_t req) {
 	if (req == BC_NUM_DEF_SIZE && vm.temps.len) {
 		BcNum *nptr = bc_vec_top(&vm.temps);
 		num = nptr->num;
-		req = nptr->cap;
 		bc_vec_pop(&vm.temps);
 	}
 	else num = bc_vm_malloc(BC_NUM_SIZE(req));
@@ -2184,7 +2183,7 @@ void bc_num_bigdig2num(BcNum *restrict n, BcBigDig val) {
 	n->len = i;
 }
 
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 void bc_num_rng(const BcNum *restrict n, BcRNG *rng) {
 
 	BcNum pow, temp, temp2, intn, frac;
@@ -2465,7 +2464,7 @@ err:
 	bc_num_free(&cp);
 	BC_LONGJMP_CONT;
 }
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
 size_t bc_num_addReq(const BcNum *a, const BcNum *b, size_t scale) {
 

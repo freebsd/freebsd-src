@@ -1,8 +1,8 @@
 #! /bin/sh
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# All rights reserved.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -808,6 +808,28 @@ else
 	fi
 fi
 
+manpage_args=""
+
+if [ "$extra_math" -eq 0 ]; then
+	manpage_args="E"
+fi
+
+if [ "$hist" -eq 0 ]; then
+	manpage_args="${manpage_args}H"
+fi
+
+if [ "$nls" -eq 0 ]; then
+	manpage_args="${manpage_args}N"
+fi
+
+if [ "$prompt" -eq 0 ]; then
+	manpage_args="${manpage_args}P"
+fi
+
+if [ "$manpage_args" = "" ]; then
+	manpage_args="A"
+fi
+
 # Print out the values; this is for debugging.
 if [ "$bc" -ne 0 ]; then
 	printf 'Building bc\n'
@@ -923,5 +945,10 @@ contents=$(replace "$contents" "GEN_EMU" "$GEN_EMU")
 printf '%s\n' "$contents" > "$scriptdir/Makefile"
 
 cd "$scriptdir"
+
+cp -f manuals/bc/$manpage_args.1.md manuals/bc.1.md
+cp -f manuals/bc/$manpage_args.1 manuals/bc.1
+cp -f manuals/dc/$manpage_args.1.md manuals/dc.1.md
+cp -f manuals/dc/$manpage_args.1 manuals/dc.1
 
 make clean > /dev/null

@@ -11,7 +11,7 @@ This is an implementation of the [POSIX `bc` calculator][12] that implements
 [GNU `bc`][1] extensions, as well as the period (`.`) extension for the BSD
 flavor of `bc`.
 
-For more information, see this `bc`'s [full manual][2].
+For more information, see this `bc`'s full manual.
 
 This `bc` also includes an implementation of `dc` in the same binary, accessible
 via a symbolic link, which implements all FreeBSD and GNU extensions. (If a
@@ -19,7 +19,7 @@ standalone `dc` binary is desired, `bc` can be copied and renamed to `dc`.) The
 `!` command is omitted; I believe this poses security concerns and that such
 functionality is unnecessary.
 
-For more information, see the `dc`'s [full manual][3].
+For more information, see the `dc`'s full manual.
 
 This `bc` is Free and Open Source Software (FOSS). It is offered under the BSD
 2-clause License. Full license text may be found in the [`LICENSE.md`][4] file.
@@ -39,7 +39,7 @@ Systems that are known to work:
 * OpenBSD
 * NetBSD
 * Mac OSX
-* Solaris
+* Solaris* (as long as the Solaris version supports POSIX 2008)
 * AIX
 
 Please submit bug reports if this `bc` does not build out of the box on any
@@ -261,6 +261,10 @@ Other projects based on this bc are:
 * [toybox `bc`][9]. The maintainer has also made his own changes, so bugs in the
   toybox `bc` should be reported there.
 
+* [FreeBSD `bc`][23]. While the `bc` in FreeBSD is kept up-to-date, it is better
+  to report bugs there, and the maintainers of the package will contact me if
+  necessary.
+
 ## Language
 
 This `bc` is written in pure ISO C99, using POSIX 2008 APIs.
@@ -293,7 +297,7 @@ Files:
 	locale_install.sh    A script to install locales, if desired.
 	locale_uninstall.sh  A script to uninstall locales.
 	Makefile.in          The Makefile template.
-	manpage.sh           Script to generate man pages from ronn files.
+	manpage.sh           Script to generate man pages from markdown files.
 	NOTICE.md            List of contributors and copyright owners.
 	RELEASE.md           A checklist for making a release (maintainer use only).
 	release.sh           A script to test for release (maintainer use only).
@@ -309,8 +313,6 @@ Folders:
 	tests    All tests.
 
 [1]: https://www.gnu.org/software/bc/
-[2]: ./manuals/bc.md
-[3]: ./manuals/dc.md
 [4]: ./LICENSE.md
 [5]: ./manuals/build.md
 [6]: https://pkg.musl.cc/bc/
@@ -330,3 +332,4 @@ Folders:
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
 [22]: https://www.deepl.com/translator
+[23]: https://github.com/freebsd/freebsd/tree/master/contrib/bc

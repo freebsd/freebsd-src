@@ -87,6 +87,7 @@ if(x == 1) {
 
 for (;;) { 123 ; break; }
 for (i = 0;; ++i) { i ; if (i == 2) break; else i; }
+for (i = 0;;!++i) { i ; if (i == 2) break; else i; }
 for (i = 0;; ++i) { i ; if (i != 2) i else break }
 
 while (i > 0) if (i == 1) break else i--

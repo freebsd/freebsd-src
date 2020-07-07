@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2019 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -69,13 +69,15 @@
 #ifndef BC_RAND_H
 #define BC_RAND_H
 
-#if BC_ENABLE_EXTRA_MATH
-
 #include <stdint.h>
 #include <inttypes.h>
 
 #include <vector.h>
 #include <num.h>
+
+#if BC_ENABLE_EXTRA_MATH
+
+#if BC_ENABLE_RAND
 
 typedef ulong (*BcRandUlong)(void*);
 
@@ -223,6 +225,8 @@ void bc_rand_pop(BcRNG *r, bool reset);
 void bc_rand_getRands(BcRNG *r, BcRand *s1, BcRand *s2, BcRand *i1, BcRand *i2);
 
 extern const BcRandState bc_rand_multiplier;
+
+#endif // BC_ENABLE_RAND
 
 #endif // BC_ENABLE_EXTRA_MATH
 

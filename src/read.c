@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -61,29 +61,29 @@ static bool bc_read_binary(const char *buf, size_t size) {
 	return false;
 }
 
-static bool bc_read_buf(BcVec *vec) {
+bool bc_read_buf(BcVec *vec, char *buf, size_t *buf_len) {
 
 	char *nl;
 
-	if (!vm.buf_len) return false;
+	if (!*buf_len) return false;
 
-	nl = strchr(vm.buf, '\n');
+	nl = strchr(buf, '\n');
 
 	if (nl != NULL) {
 
-		size_t nllen = (size_t) ((nl + 1) - vm.buf);
+		size_t nllen = (size_t) ((nl + 1) - buf);
 
-		nllen = vm.buf_len >= nllen ? nllen : vm.buf_len;
+		nllen = *buf_len >= nllen ? nllen : *buf_len;
 
-		bc_vec_npush(vec, nllen, vm.buf);
-		vm.buf_len -= nllen;
-		memmove(vm.buf, nl + 1, vm.buf_len);
+		bc_vec_npush(vec, nllen, buf);
+		*buf_len -= nllen;
+		memmove(buf, nl + 1, *buf_len + 1);
 
 		return true;
 	}
 
-	bc_vec_npush(vec, vm.buf_len, vm.buf);
-	vm.buf_len = 0;
+	bc_vec_npush(vec, *buf_len, buf);
+	*buf_len = 0;
 
 	return false;
 }
@@ -105,7 +105,7 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 	}
 #endif // BC_ENABLE_PROMPT
 
-	if (bc_read_buf(vec)) {
+	if (bc_read_buf(vec, vm.buf, &vm.buf_len)) {
 		bc_vec_pushByte(vec, '\0');
 		return BC_STATUS_SUCCESS;
 	}
@@ -154,8 +154,9 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 		}
 
 		vm.buf_len += (size_t) r;
+		vm.buf[vm.buf_len] = '\0';
 
-		done = bc_read_buf(vec);
+		done = bc_read_buf(vec, vm.buf, &vm.buf_len);
 	}
 
 	bc_vec_pushByte(vec, '\0');
