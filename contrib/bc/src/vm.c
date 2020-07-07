@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -69,7 +69,7 @@ BC_NORETURN void bc_vm_jmp(const char* f) {
 BC_NORETURN void bc_vm_jmp(void) {
 #endif
 
-	assert(vm.status != BC_STATUS_SUCCESS || vm.sig);
+	assert(BC_SIG_EXC);
 
 	BC_SIG_MAYLOCK;
 
@@ -191,11 +191,13 @@ void bc_vm_error(BcError e, size_t line, ...) {
 			bc_file_putchar(&vm.ferr, ' ');
 			bc_file_puts(&vm.ferr, f->name);
 
+#if BC_ENABLED
 			if (BC_IS_BC && ip->func != BC_PROG_MAIN &&
 			    ip->func != BC_PROG_READ)
 			{
 				bc_file_puts(&vm.ferr, "()");
 			}
+#endif // BC_ENABLED
 		}
 	}
 
@@ -327,14 +329,14 @@ void bc_vm_shutdown(void) {
 	bc_file_free(&vm.ferr);
 }
 
-size_t bc_vm_arraySize(size_t n, size_t size) {
+inline size_t bc_vm_arraySize(size_t n, size_t size) {
 	size_t res = n * size;
 	if (BC_ERR(res >= SIZE_MAX || (n != 0 && res / n != size)))
 		bc_vm_err(BC_ERROR_FATAL_ALLOC_ERR);
 	return res;
 }
 
-size_t bc_vm_growSize(size_t a, size_t b) {
+inline size_t bc_vm_growSize(size_t a, size_t b) {
 	size_t res = a + b;
 	if (BC_ERR(res >= SIZE_MAX || res < a || res < b))
 		bc_vm_err(BC_ERROR_FATAL_ALLOC_ERR);
@@ -402,11 +404,10 @@ void bc_vm_putchar(int c) {
 
 static void bc_vm_clean(void) {
 
-	BcProgram *prog = &vm.prog;
-	BcVec *fns = &prog->fns;
+	BcVec *fns = &vm.prog.fns;
 	BcFunc *f = bc_vec_item(fns, BC_PROG_MAIN);
-	BcInstPtr *ip = bc_vec_item(&prog->stack, 0);
-	bool good = (vm.status && vm.status != BC_STATUS_QUIT);
+	BcInstPtr *ip = bc_vec_item(&vm.prog.stack, 0);
+	bool good = ((vm.status && vm.status != BC_STATUS_QUIT) || vm.sig);
 
 	if (good) bc_program_reset(&vm.prog);
 
@@ -415,53 +416,38 @@ static void bc_vm_clean(void) {
 #endif // BC_ENABLED
 
 #if DC_ENABLED
-	if (!BC_IS_BC) {
+	if (BC_IS_DC) {
 
 		size_t i;
 
-		for (i = 0; i < vm.prog.vars.len; ++i) {
-			BcVec *arr = bc_vec_item(&vm.prog.vars, i);
-			BcNum *n = bc_vec_top(arr);
-			if (arr->len != 1 || BC_PROG_STR(n)) break;
-		}
+		good = true;
 
-		if (i == vm.prog.vars.len) {
-
-			for (i = 0; i < vm.prog.arrs.len; ++i) {
-
-				BcVec *arr = bc_vec_item(&vm.prog.arrs, i);
-				size_t j;
-
-				assert(arr->len == 1);
-
-				arr = bc_vec_top(arr);
-
-				for (j = 0; j < arr->len; ++j) {
-					BcNum *n = bc_vec_item(arr, j);
-					if (BC_PROG_STR(n)) break;
-				}
-
-				if (j != arr->len) break;
-			}
-
-			good = (i == vm.prog.arrs.len);
+		for (i = 0; good && i < vm.prog.results.len; ++i) {
+			BcResult *r = (BcResult*) bc_vec_item(&vm.prog.results, i);
+			good = BC_VM_SAFE_RESULT(r);
 		}
 	}
 #endif // DC_ENABLED
 
 	// If this condition is true, we can get rid of strings,
 	// constants, and code. This is an idea from busybox.
-	if (good && prog->stack.len == 1 && !prog->results.len &&
-	    ip->idx == f->code.len)
-	{
+	if (good && vm.prog.stack.len == 1 && ip->idx == f->code.len) {
+
 #if BC_ENABLED
 		if (BC_IS_BC) {
 			bc_vec_npop(&f->labels, f->labels.len);
 			bc_vec_npop(&f->strs, f->strs.len);
+			bc_vec_npop(&f->consts, f->consts.len);
 		}
 #endif // BC_ENABLED
-		bc_vec_npop(&f->consts, f->consts.len);
+
+#if DC_ENABLED
+		// Note to self: you cannot delete strings and functions. Deal with it.
+		if (BC_IS_DC) bc_vec_npop(vm.prog.consts, vm.prog.consts->len);
+#endif // DC_ENABLED
+
 		bc_vec_npop(&f->code, f->code.len);
+
 		ip->idx = 0;
 	}
 }
@@ -494,6 +480,9 @@ static void bc_vm_process(const char *text, bool is_stdin) {
 #endif // BC_ENABLED
 
 		bc_program_exec(&vm.prog);
+
+		assert(BC_IS_DC || vm.prog.results.len == 0);
+
 		if (BC_I) bc_file_flush(&vm.fout);
 
 	} while (vm.prs.l.t != BC_LEX_EOF);
@@ -604,6 +593,7 @@ restart:
 		bc_vec_empty(&buffer);
 
 		if (vm.eof) break;
+		else bc_vm_clean();
 	}
 
 	if (!BC_STATUS_IS_ERROR(s)) {
@@ -707,6 +697,7 @@ static void bc_vm_exec(const char* env_exp_exit) {
 
 	size_t i;
 	bool has_file = false;
+	BcVec buf;
 
 #if BC_ENABLED
 	if (BC_IS_BC && (vm.flags & BC_FLAG_L)) {
@@ -720,8 +711,40 @@ static void bc_vm_exec(const char* env_exp_exit) {
 #endif // BC_ENABLED
 
 	if (vm.exprs.len) {
+
+		size_t len = vm.exprs.len - 1;
+		bool more;
+
+		BC_SIG_LOCK;
+		bc_vec_init(&buf, sizeof(uchar), NULL);
+
+#ifndef NDEBUG
+		BC_SETJMP_LOCKED(err);
+#endif // NDEBUG
+
+		BC_SIG_UNLOCK;
+
 		bc_lex_file(&vm.prs.l, bc_program_exprs_name);
-		bc_vm_process(vm.exprs.v, false);
+
+		do {
+
+			more = bc_read_buf(&buf, vm.exprs.v, &len);
+			bc_vec_pushByte(&buf, '\0');
+			bc_vm_process(buf.v, false);
+
+			bc_vec_npop(&buf, buf.len);
+
+		} while (more);
+
+		BC_SIG_LOCK;
+		bc_vec_free(&buf);
+
+#ifndef NDEBUG
+		BC_UNSETJMP;
+#endif // NDEBUG
+
+		BC_SIG_UNLOCK;
+
 		if (getenv(env_exp_exit) != NULL) return;
 	}
 
@@ -733,6 +756,18 @@ static void bc_vm_exec(const char* env_exp_exit) {
 	}
 
 	if (BC_IS_BC || !has_file) bc_vm_stdin();
+
+// These are all protected by ifndef NDEBUG because if these are needed, bc is
+// goingi to exit anyway, and I see no reason to include this code in a release
+// build when the OS is going to free all of the resources anyway.
+#ifndef NDEBUG
+	return;
+
+err:
+	BC_SIG_MAYLOCK;
+	bc_vec_free(&buf);
+	BC_LONGJMP_CONT;
+#endif // NDEBUG
 }
 
 void  bc_vm_boot(int argc, char *argv[], const char *env_len,
@@ -798,18 +833,22 @@ void  bc_vm_boot(int argc, char *argv[], const char *env_len,
 	bc_vm_envArgs(env_args);
 	bc_args(argc, argv);
 
+#if BC_ENABLED
 	if (BC_IS_POSIX) vm.flags &= ~(BC_FLAG_G);
+#endif // BC_ENABLED
 
 	vm.maxes[BC_PROG_GLOBALS_IBASE] = BC_NUM_MAX_POSIX_IBASE;
 	vm.maxes[BC_PROG_GLOBALS_OBASE] = BC_MAX_OBASE;
 	vm.maxes[BC_PROG_GLOBALS_SCALE] = BC_MAX_SCALE;
 
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	vm.maxes[BC_PROG_MAX_RAND] = ((BcRand) 0) - 1;
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
+#if BC_ENABLED
 	if (BC_IS_BC && !BC_IS_POSIX)
 		vm.maxes[BC_PROG_GLOBALS_IBASE] = BC_NUM_MAX_IBASE;
+#endif // BC_ENABLED
 
 	if (BC_IS_BC && BC_I && !(vm.flags & BC_FLAG_Q)) bc_vm_info(NULL);
 

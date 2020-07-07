@@ -19,6 +19,7 @@ LINKS=		${BINDIR}/bc ${BINDIR}/dc
 
 CATALOGS=	en_US.UTF-8
 CATALOGS+=	de_DE.UTF-8 de_DE.ISO8859-1
+CATALOGS+=	es_ES.UTF-8 es_ES.ISO8859-1
 CATALOGS+=	fr_FR.UTF-8 fr_FR.ISO8859-1
 CATALOGS+=	ja_JP.UTF-8 ja_JP.eucJP
 CATALOGS+=	nl_NL.UTF-8 nl_NL.ISO8859-1
@@ -37,8 +38,7 @@ CFLAGS+=	-DBC_ENABLE_PROMPT
 CFLAGS+=	-DBC_ENABLE_LONG_OPTIONS
 CFLAGS+=	-DBC_ENABLE_EXTRA_MATH
 CFLAGS+=	-DBC_ENABLE_HISTORY
-CFLAGS+=	-DBC_ENABLE_SIGNALS=0
-CFLAGS+=	-DBC_NUM_KARATSUBA_LEN=64
+CFLAGS+=	-DBC_ENABLE_RAND
 CFLAGS+=	-DDC_ENABLED
 CFLAGS+=	-DNDEBUG
 CFLAGS+=	-DVERSION=${BCVERSION}
@@ -46,8 +46,12 @@ CFLAGS+=	-I${BCDIR}/include
 
 .if ${MK_NLS_CATALOGS} == "no"
 CFLAGS+=	-DBC_ENABLE_NLS=0
+MAN_SRC_BC=	bc/N.1
+MAN_SRC_DC=	dc/N.1
 .else
 CFLAGS+=	-DBC_ENABLE_NLS=1
+MAN_SRC_BC=	bc/A.1
+MAN_SRC_DC=	dc/A.1
 
 # prevent floating point incompatibilities caused by -flto on some architectures
 .if ${MACHINE_ARCH} != mips && ${MACHINE_ARCH} != mips64 && \
@@ -73,6 +77,8 @@ NLSLINKS_de_DE.UTF-8+=	de_AT.UTF-8 de_CH.UTF-8
 NLSLINKS_de_DE.ISO8859-1+= de_AT.ISO8859-1 de_CH.ISO8859-1
 NLSLINKS_de_DE.ISO8859-1+= de_AT.ISO8859-15 de_CH.ISO8859-15 de_DE.ISO8859-15
 
+NLSLINKS_es_ES.ISO8859-1+= es_ES.ISO8859-15
+
 NLSLINKS_fr_FR.UTF-8+=	fr_BE.UTF-8 fr_CA.UTF-8 fr_CH.UTF-8
 NLSLINKS_fr_FR.ISO8859-1+= fr_BE.ISO8859-1 fr_CA.ISO8859-1 fr_CH.ISO8859-1
 NLSLINKS_fr_FR.ISO8859-1+= fr_BE.ISO8859-15 fr_CA.ISO8859-15 fr_CH.ISO8859-15 \
@@ -97,5 +103,11 @@ bc_help.c:	bc_help.txt
 
 dc_help.c:	dc_help.txt
 		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c dc_help dc.h
+
+bc.1:
+		${CP} ${BCDIR}/manuals/${MAN_SRC_BC} ${.OBJDIR}/bc.1
+
+dc.1:
+		${CP} ${BCDIR}/manuals/${MAN_SRC_DC} ${.OBJDIR}/dc.1
 
 .include <bsd.prog.mk>

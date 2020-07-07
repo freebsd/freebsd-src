@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -86,20 +86,19 @@ void bc_vec_expand(BcVec *restrict v, size_t req) {
 
 void bc_vec_npop(BcVec *restrict v, size_t n) {
 
+	sig_atomic_t lock;
+
 	assert(v != NULL && n <= v->len);
+
+	BC_SIG_TRYLOCK(lock);
 
 	if (v->dtor == NULL) v->len -= n;
 	else {
-
-		sig_atomic_t lock;
 		size_t len = v->len - n;
-
-		BC_SIG_TRYLOCK(lock);
-
 		while (v->len > len) v->dtor(v->v + (v->size * --v->len));
-
-		BC_SIG_TRYUNLOCK(lock);
 	}
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_vec_npopAt(BcVec *restrict v, size_t n, size_t idx) {
@@ -112,26 +111,35 @@ void bc_vec_npopAt(BcVec *restrict v, size_t n, size_t idx) {
 	ptr = bc_vec_item(v, idx);
 	data = bc_vec_item(v, idx + n);
 
+	BC_SIG_LOCK;
+
 	if (v->dtor != NULL) {
 
 		size_t i;
 
-		BC_SIG_LOCK;
-
 		for (i = 0; i < n; ++i) v->dtor(bc_vec_item(v, idx + i));
-
-		BC_SIG_UNLOCK;
 	}
 
 	v->len -= n;
 	memmove(ptr, data, (v->len - idx) * v->size);
+
+	BC_SIG_UNLOCK;
 }
 
 void bc_vec_npush(BcVec *restrict v, size_t n, const void *data) {
+
+	sig_atomic_t lock;
+
 	assert(v != NULL && data != NULL);
+
+	BC_SIG_TRYLOCK(lock);
+
 	if (v->len + n > v->cap) bc_vec_grow(v, n);
+
 	memcpy(v->v + (v->size * v->len), data, v->size * n);
 	v->len += n;
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 inline void bc_vec_push(BcVec *restrict v, const void *data) {
@@ -140,31 +148,34 @@ inline void bc_vec_push(BcVec *restrict v, const void *data) {
 
 void bc_vec_pushByte(BcVec *restrict v, uchar data) {
 	assert(v != NULL && v->size == sizeof(uchar));
-	if (v->len == v->cap) bc_vec_grow(v, 1);
-	v->v[v->len] = (char) data;
-	v->len += 1;
+	bc_vec_npush(v, 1, &data);
 }
 
 void bc_vec_pushIndex(BcVec *restrict v, size_t idx) {
 
-	uchar amt, nums[sizeof(size_t)];
+	uchar amt, nums[sizeof(size_t) + 1];
 
 	assert(v != NULL);
 	assert(v->size == sizeof(uchar));
 
 	for (amt = 0; idx; ++amt) {
-		nums[amt] = (uchar) idx;
+		nums[amt + 1] = (uchar) idx;
 		idx &= ((size_t) ~(UCHAR_MAX));
 		idx >>= sizeof(uchar) * CHAR_BIT;
 	}
 
-	bc_vec_push(v, &amt);
-	bc_vec_npush(v, amt, nums);
+	nums[0] = amt;
+
+	bc_vec_npush(v, amt + 1, nums);
 }
 
 static void bc_vec_pushAt(BcVec *restrict v, const void *data, size_t idx) {
 
+	sig_atomic_t lock;
+
 	assert(v != NULL && data != NULL && idx <= v->len);
+
+	BC_SIG_TRYLOCK(lock);
 
 	if (idx == v->len) bc_vec_push(v, data);
 	else {
@@ -178,14 +189,20 @@ static void bc_vec_pushAt(BcVec *restrict v, const void *data, size_t idx) {
 		memmove(ptr + v->size, ptr, v->size * (v->len++ - idx));
 		memmove(ptr, data, v->size);
 	}
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str) {
+
+	sig_atomic_t lock;
 
 	assert(v != NULL && v->size == sizeof(char));
 	assert(v->dtor == NULL);
 	assert(!v->len || !v->v[v->len - 1]);
 	assert(v->v != str);
+
+	BC_SIG_TRYLOCK(lock);
 
 	bc_vec_npop(v, v->len);
 	bc_vec_expand(v, bc_vm_growSize(len, 1));
@@ -193,25 +210,41 @@ void bc_vec_string(BcVec *restrict v, size_t len, const char *restrict str) {
 	v->len = len;
 
 	bc_vec_pushByte(v, '\0');
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_vec_concat(BcVec *restrict v, const char *restrict str) {
+
+	sig_atomic_t lock;
 
 	assert(v != NULL && v->size == sizeof(char));
 	assert(v->dtor == NULL);
 	assert(!v->len || !v->v[v->len - 1]);
 	assert(v->v != str);
 
+	BC_SIG_TRYLOCK(lock);
+
 	if (v->len) v->len -= 1;
 
 	bc_vec_npush(v, strlen(str) + 1, str);
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 void bc_vec_empty(BcVec *restrict v) {
+
+	sig_atomic_t lock;
+
 	assert(v != NULL && v->size == sizeof(char));
 	assert(v->dtor == NULL);
+
+	BC_SIG_TRYLOCK(lock);
+
 	bc_vec_npop(v, v->len);
 	bc_vec_pushByte(v, '\0');
+
+	BC_SIG_TRYUNLOCK(lock);
 }
 
 #if BC_ENABLE_HISTORY
@@ -242,6 +275,7 @@ inline void* bc_vec_item_rev(const BcVec *restrict v, size_t idx) {
 }
 
 inline void bc_vec_clear(BcVec *restrict v) {
+	BC_SIG_ASSERT_LOCKED;
 	v->v = NULL;
 	v->len = 0;
 	v->dtor = NULL;

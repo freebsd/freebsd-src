@@ -1,0 +1,7 @@
+#! /bin/dc
+0si[lid:rli1;rd:rli1;rpRli1+sili10>x]dsxx0sx0si
+1 2
+si[lid:rli1;rd:rli1;rpRli1+sili10>x]dsxx0sx0si
+1 2
+ÿ€
+

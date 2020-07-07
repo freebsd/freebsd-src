@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -46,8 +46,23 @@
 #define bc_lex_err(l, e) (bc_vm_error((e), (l)->line))
 #define bc_lex_verr(l, e, ...) (bc_vm_error((e), (l)->line, __VA_ARGS__))
 
+#if BC_ENABLED
+
+#if DC_ENABLED
 #define BC_LEX_NEG_CHAR (BC_IS_BC ? '-' : '_')
 #define BC_LEX_LAST_NUM_CHAR (BC_IS_BC ? 'Z' : 'F')
+#else // DC_ENABLED
+#define BC_LEX_NEG_CHAR ('-')
+#define BC_LEX_LAST_NUM_CHAR ('Z')
+#endif // DC_ENABLED
+
+#else // BC_ENABLED
+
+#define BC_LEX_NEG_CHAR ('_')
+#define BC_LEX_LAST_NUM_CHAR ('F')
+
+#endif // BC_ENABLED
+
 #define BC_LEX_NUM_CHAR(c, pt, int_only)                          \
 	(isdigit(c) || ((c) >= 'A' && (c) <= BC_LEX_LAST_NUM_CHAR) || \
 	 ((c) == '.' && !(pt) && !(int_only)))
@@ -142,27 +157,27 @@ typedef enum BcLexType {
 	BC_LEX_KW_IBASE,
 	BC_LEX_KW_OBASE,
 	BC_LEX_KW_SCALE,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_SEED,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_LENGTH,
 	BC_LEX_KW_PRINT,
 	BC_LEX_KW_SQRT,
 	BC_LEX_KW_ABS,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_IRAND,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_QUIT,
 	BC_LEX_KW_READ,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_RAND,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_MAXIBASE,
 	BC_LEX_KW_MAXOBASE,
 	BC_LEX_KW_MAXSCALE,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_MAXRAND,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_LEX_KW_ELSE,
 
 #if DC_ENABLED

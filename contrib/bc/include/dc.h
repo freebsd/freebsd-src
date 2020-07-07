@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,10 +35,6 @@
 
 #ifndef BC_DC_H
 #define BC_DC_H
-
-#ifndef DC_ENABLE_RAND
-#define DC_ENABLE_RAND (1)
-#endif // DC_ENABLE_RAND
 
 #if DC_ENABLED
 

@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -129,6 +129,7 @@ typedef enum BcInst {
 	BC_INST_ARRAY,
 #endif // BC_ENABLED
 
+	BC_INST_ZERO,
 	BC_INST_ONE,
 
 #if BC_ENABLED
@@ -137,26 +138,26 @@ typedef enum BcInst {
 	BC_INST_IBASE,
 	BC_INST_OBASE,
 	BC_INST_SCALE,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_SEED,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_LENGTH,
 	BC_INST_SCALE_FUNC,
 	BC_INST_SQRT,
 	BC_INST_ABS,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_IRAND,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_READ,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_RAND,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_MAXIBASE,
 	BC_INST_MAXOBASE,
 	BC_INST_MAXSCALE,
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BC_INST_MAXRAND,
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
 	BC_INST_PRINT,
 	BC_INST_PRINT_POP,
@@ -252,9 +253,9 @@ typedef enum BcResultType {
 
 	BC_RESULT_STR,
 
-	BC_RESULT_CONSTANT,
 	BC_RESULT_TEMP,
 
+	BC_RESULT_ZERO,
 	BC_RESULT_ONE,
 
 #if BC_ENABLED

@@ -1,9 +1,9 @@
 /*
  * *****************************************************************************
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * SPDX-License-Identifier: BSD-2-Clause
  *
- * All rights reserved.
+ * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -61,9 +61,9 @@ typedef struct BcProgram {
 	BcBigDig globals[BC_PROG_GLOBALS_LEN];
 	BcVec globals_v[BC_PROG_GLOBALS_LEN];
 
-#if BC_ENABLE_EXTRA_MATH
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	BcRNG rng;
-#endif // BC_ENABLE_EXTRA_MATH
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
 	BcVec results;
 	BcVec stack;
@@ -81,12 +81,15 @@ typedef struct BcProgram {
 	BcVec arr_map;
 
 #if DC_ENABLED
+	BcVec strs_v;
+
 	BcVec tail_calls;
 
 	BcBigDig strm;
 	BcNum strmb;
 #endif // DC_ENABLED
 
+	BcNum zero;
 	BcNum one;
 
 #if BC_ENABLED
@@ -99,6 +102,7 @@ typedef struct BcProgram {
 	BcDig strmb_num[BC_NUM_BIGDIG_LOG10];
 #endif // DC_ENABLED
 
+	BcDig zero_num[BC_PROG_ONE_CAP];
 	BcDig one_num[BC_PROG_ONE_CAP];
 
 } BcProgram;
