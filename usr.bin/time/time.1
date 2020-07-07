@@ -28,7 +28,7 @@
 .\"     @(#)time.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2006
+.Dd July 7, 2020
 .Dt TIME 1
 .Os
 .Sh NAME
@@ -129,6 +129,62 @@ If
 .Nm
 encounters any other error, the exit status is between 1 and 125
 included.
+.Sh EXAMPLES
+Time the execution of
+.Xr ls 1
+on an empty directory:
+.Bd -literal -offset indent
+$ /usr/bin/time ls
+        0.00 real         0.00 user         0.00 sys
+.Ed
+.Pp
+Time the execution of the
+.Xr cp 1
+command and store the result in the
+.Pa times.txt
+file.
+Then execute the command again to make a new copy and add the result to the same
+file:
+.Bd -literal -offset indent
+$ /usr/bin/time -o times.txt cp FreeBSD-12.1-RELEASE-amd64-bootonly.iso copy1.iso
+$ /usr/bin/time -a -o times.txt cp FreeBSD-12.1-RELEASE-amd64-bootonly.iso copy2.iso
+.Ed
+.Pp
+The
+.Pa times.txt
+file will contain the times of both commands:
+.Bd -literal -offset indent
+$ cat times.txt
+        0.68 real         0.00 user         0.22 sys
+        0.67 real         0.00 user         0.21 sys
+.Ed
+.Pp
+Time the
+.Xr sleep 1
+command and show the results in a human friendly format.
+Show the contents of the
+.Em rusage
+structure too:
+.Bd -literal -offset indent
+$ /usr/bin/time -l -h -p sleep 5
+real 5.01
+user 0.00
+sys 0.00
+         0  maximum resident set size
+         0  average shared memory size
+         0  average unshared data size
+         0  average unshared stack size
+        80  page reclaims
+         0  page faults
+         0  swaps
+         1  block input operations
+         0  block output operations
+         0  messages sent
+         0  messages received
+         0  signals received
+         3  voluntary context switches
+         0  involuntary context switches
+.Ed
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
