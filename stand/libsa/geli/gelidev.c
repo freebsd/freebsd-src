@@ -219,7 +219,7 @@ geli_dev_ioctl(struct open_file *f, u_long cmd, void *data)
 		*(u_int *)data = md->md_sectorsize;
 		break;
 	case DIOCGMEDIASIZE:
-		*(uint64_t *)data = md->md_sectorsize * md->md_provsize;
+		*(uint64_t *)data = md->md_provsize;
 		break;
 	default:
 		return (ENOTTY);
