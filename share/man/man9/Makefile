@@ -1902,9 +1902,8 @@ MLINKS+=sf_buf.9 sf_buf_alloc.9 \
 MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_append.9 \
 	sglist.9 sglist_append_bio.9 \
-	sglist.9 sglist_append_ext_pgs.9 \
-	sglist.9 sglist_append_mb_ext_pgs.9 \
 	sglist.9 sglist_append_mbuf.9 \
+	sglist.9 sglist_append_mbuf_epg.9 \
 	sglist.9 sglist_append_phys.9 \
 	sglist.9 sglist_append_sglist.9 \
 	sglist.9 sglist_append_uio.9 \
@@ -1914,8 +1913,7 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_clone.9 \
 	sglist.9 sglist_consume_uio.9 \
 	sglist.9 sglist_count.9 \
-	sglist.9 sglist_count_ext_pgs.9 \
-	sglist.9 sglist_count_mb_ext_pgs.9 \
+	sglist.9 sglist_count_mbuf_epg.9 \
 	sglist.9 sglist_count_vmpages.9 \
 	sglist.9 sglist_free.9 \
 	sglist.9 sglist_hold.9 \
