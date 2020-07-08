@@ -1730,11 +1730,26 @@ typedef struct {
 #define NG_HCI_OCF_LE_LONG_TERM_KEY_REQUEST_NEGATIVE_REPLY 0x001b
 typedef struct{
 	u_int16_t connection_handle;
-}ng_hci_le_long_term_key_request_negative_reply_cp;
+}__attribute__((packed)) ng_hci_le_long_term_key_request_negative_reply_cp;
 typedef struct {
 	u_int8_t status;
 	u_int16_t connection_handle;
 }__attribute__ ((packed)) ng_hci_le_long_term_key_request_negative_reply_rp;
+
+#define NG_HCI_OCF_LE_READ_SUGGESTED_DATA_LENGTH 	0x0023
+/*No command parameter*/
+typedef struct {
+	u_int8_t status;
+	u_int16_t suggested_max_tx_octets;
+	u_int16_t suggested_max_tx_time;
+}__attribute__ ((packed)) ng_hci_le_read_suggested_data_length_rp;
+
+#define NG_HCI_OCF_LE_WRITE_SUGGESTED_DATA_LENGTH 	0x0024
+typedef struct {
+	u_int16_t suggested_max_tx_octets;
+	u_int16_t suggested_max_tx_time;
+}__attribute__ ((packed)) ng_hci_le_write_suggested_data_length_cp;
+typedef ng_hci_status_rp	ng_hci_le_write_suggested_data_length_rp;
 
 #define NG_HCI_OCF_LE_READ_BUFFER_SIZE_V2		0x0060
 /*No command parameter */
