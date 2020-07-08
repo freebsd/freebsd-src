@@ -1,9 +1,9 @@
-# $Id: varmisc.mk,v 1.9 2017/02/01 18:44:54 sjg Exp $
+# $Id: varmisc.mk,v 1.11 2020/07/02 15:43:43 sjg Exp $
 #
 # Miscellaneous variable tests.
 
 all: unmatched_var_paren D_true U_true D_false U_false Q_lhs Q_rhs NQ_none \
-	strftime cmpv
+	strftime cmpv manok
 
 unmatched_var_paren:
 	@echo ${foo::=foo-text}
@@ -60,3 +60,25 @@ cmpv:
 	@echo Version=${Version} == ${Version:${M_cmpv}}
 	@echo Literal=3.4.5 == ${3.4.5:L:${M_cmpv}}
 	@echo We have ${${.TARGET:T}.only}
+
+# catch misshandling of nested vars in .for loop
+MAN=
+MAN1= make.1
+.for s in 1 2
+.if defined(MAN$s) && !empty(MAN$s)
+MAN+= ${MAN$s}
+.endif
+.endfor
+
+manok:
+	@echo MAN=${MAN}
+
+# This is an expanded variant of the above .for loop.
+# Between 2020-08-28 and 2020-07-02 this paragraph generated a wrong
+# error message "Variable VARNAME is recursive".
+# When evaluating the !empty expression, the ${:U1} was not expanded and
+# thus resulted in the seeming definition VARNAME=${VARNAME}, which is
+# obviously recursive.
+VARNAME=	${VARNAME${:U1}}
+.if defined(VARNAME${:U2}) && !empty(VARNAME${:U2})
+.endif

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.108 2020/06/19 21:17:48 sjg Exp $	*/
+/*	$NetBSD: make.h,v 1.109 2020/07/02 15:14:38 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -511,10 +511,6 @@ int mkTempFile(const char *, char **);
 int str2Lst_Append(Lst, char *, const char *);
 int cached_lstat(const char *, void *);
 int cached_stat(const char *, void *);
-
-#define	VARF_UNDEFERR	1
-#define	VARF_WANTRES	2
-#define	VARF_ASSIGN	4
 
 #ifdef __GNUC__
 #define UNCONST(ptr)	({ 		\

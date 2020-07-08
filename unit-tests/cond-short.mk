@@ -1,4 +1,4 @@
-# $NetBSD: cond-short.mk,v 1.2 2020/06/28 11:06:26 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.6 2020/07/02 16:37:56 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
@@ -25,6 +25,45 @@
 .endif
 
 .if 1 && empty(${echo "expected and empty" 1>&2 :L:sh})
+.endif
+
+# "VAR U11" is not evaluated; it was evaluated before 2020-07-02.
+# The whole !empty condition is only parsed and then discarded.
+VAR=	${VAR${:U11${echo "unexpected VAR U11" 1>&2 :L:sh}}}
+VAR13=	${VAR${:U12${echo "unexpected VAR13" 1>&2 :L:sh}}}
+.if 0 && !empty(VAR${:U13${echo "unexpected U13 condition" 1>&2 :L:sh}})
+.endif
+
+VAR=	${VAR${:U21${echo "unexpected VAR U21" 1>&2 :L:sh}}}
+VAR23=	${VAR${:U22${echo   "expected VAR23" 1>&2 :L:sh}}}
+.if 1 && !empty(VAR${:U23${echo   "expected U23 condition" 1>&2 :L:sh}})
+.endif
+VAR=	# empty again, for the following tests
+
+# The :M modifier is only parsed, not evaluated.
+# Before 2020-07-02, it was wrongly evaluated.
+.if 0 && !empty(VAR:M${:U${echo "unexpected M pattern" 1>&2 :L:sh}})
+.endif
+
+.if 1 && !empty(VAR:M${:U${echo   "expected M pattern" 1>&2 :L:sh}})
+.endif
+
+.if 0 && !empty(VAR:S,from,${:U${echo "unexpected S modifier" 1>&2 :L:sh}},)
+.endif
+
+.if 0 && !empty(VAR:C,from,${:U${echo "unexpected C modifier" 1>&2 :L:sh}},)
+.endif
+
+.if 0 && !empty("" == "" :? ${:U${echo "unexpected ? modifier" 1>&2 :L:sh}} :)
+.endif
+
+.if 0 && !empty(VAR:old=${:U${echo "unexpected = modifier" 1>&2 :L:sh}})
+.endif
+
+.if 0 && !empty(1 2 3:L:@var@${:U${echo "unexpected @ modifier" 1>&2 :L:sh}}@)
+.endif
+
+.if 0 && !empty(:U${:!echo "unexpected exclam modifier" 1>&2 !})
 .endif
 
 # The || operator.
