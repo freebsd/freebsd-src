@@ -293,6 +293,9 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 	/* open socket */
 	s = outnet_get_tcp_fd(&w->addr, w->addrlen, w->outnet->tcp_mss);
 
+	if(s == -1)
+		return 0;
+
 	if(!pick_outgoing_tcp(w, s))
 		return 0;
 
@@ -1971,7 +1974,6 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 
 	sq->pending = NULL; /* removed after callback */
 	if(error == NETEVENT_TIMEOUT) {
-		int rto = 0;
 		if(sq->status == serviced_query_UDP_EDNS && sq->last_rtt < 5000) {
 			/* fallback to 1480/1280 */
 			sq->status = serviced_query_UDP_EDNS_FRAG;
@@ -1987,9 +1989,9 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 			sq->status = serviced_query_UDP_EDNS;
 		}
 		sq->retry++;
-		if(!(rto=infra_rtt_update(outnet->infra, &sq->addr, sq->addrlen,
+		if(!infra_rtt_update(outnet->infra, &sq->addr, sq->addrlen,
 			sq->zone, sq->zonelen, sq->qtype, -1, sq->last_rtt,
-			(time_t)now.tv_sec)))
+			(time_t)now.tv_sec))
 			log_err("out of memory in UDP exponential backoff");
 		if(sq->retry < OUTBOUND_UDP_RETRY) {
 			log_name_addr(VERB_ALGO, "retry query", sq->qbuf+10,

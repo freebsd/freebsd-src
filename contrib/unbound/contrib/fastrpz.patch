@@ -2,7 +2,7 @@ Description: based on the included patch contrib/fastrpz.patch
 Author: fastrpz@farsightsecurity.com
 ---
 diff --git a/Makefile.in b/Makefile.in
-index 721c01b6..56bfb560 100644
+index a20058cc..495779cc 100644
 --- a/Makefile.in
 +++ b/Makefile.in
 @@ -23,6 +23,8 @@ CHECKLOCK_SRC=testcode/checklocks.c
@@ -14,7 +14,7 @@ index 721c01b6..56bfb560 100644
  DNSCRYPT_SRC=@DNSCRYPT_SRC@
  DNSCRYPT_OBJ=@DNSCRYPT_OBJ@
  WITH_PYTHONMODULE=@WITH_PYTHONMODULE@
-@@ -126,7 +128,7 @@ validator/val_sigcrypt.c validator/val_utils.c dns64/dns64.c \
+@@ -127,7 +129,7 @@ validator/val_sigcrypt.c validator/val_utils.c dns64/dns64.c \
  edns-subnet/edns-subnet.c edns-subnet/subnetmod.c \
  edns-subnet/addrtree.c edns-subnet/subnet-whitelist.c \
  cachedb/cachedb.c cachedb/redis.c respip/respip.c $(CHECKLOCK_SRC) \
@@ -23,7 +23,7 @@ index 721c01b6..56bfb560 100644
  COMMON_OBJ_WITHOUT_NETCALL=dns.lo infra.lo rrset.lo dname.lo msgencode.lo \
  as112.lo msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo \
  iter_donotq.lo iter_fwd.lo iter_hints.lo iter_priv.lo iter_resptype.lo \
-@@ -139,7 +141,7 @@ autotrust.lo val_anchor.lo \
+@@ -140,7 +142,7 @@ autotrust.lo val_anchor.lo rpz.lo \
  validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo \
  val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo redis.lo authzone.lo \
  $(SUBNET_OBJ) $(PYTHONMOD_OBJ) $(CHECKLOCK_OBJ) $(DNSTAP_OBJ) $(DNSCRYPT_OBJ) \
@@ -32,7 +32,7 @@ index 721c01b6..56bfb560 100644
  COMMON_OBJ_WITHOUT_UB_EVENT=$(COMMON_OBJ_WITHOUT_NETCALL) netevent.lo listen_dnsport.lo \
  outside_network.lo
  COMMON_OBJ=$(COMMON_OBJ_WITHOUT_UB_EVENT) ub_event.lo
-@@ -409,6 +411,11 @@ dnscrypt.lo dnscrypt.o: $(srcdir)/dnscrypt/dnscrypt.c config.h \
+@@ -410,6 +412,11 @@ dnscrypt.lo dnscrypt.o: $(srcdir)/dnscrypt/dnscrypt.c config.h \
  	$(srcdir)/util/config_file.h $(srcdir)/util/log.h \
  	$(srcdir)/util/netevent.h
  
@@ -45,10 +45,10 @@ index 721c01b6..56bfb560 100644
  pythonmod.lo pythonmod.o: $(srcdir)/pythonmod/pythonmod.c config.h \
  	pythonmod/interface.h \
 diff --git a/config.h.in b/config.h.in
-index 8c2aa3b9..efaf6450 100644
+index 78d47fed..e33073e4 100644
 --- a/config.h.in
 +++ b/config.h.in
-@@ -1325,4 +1325,11 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
+@@ -1345,4 +1345,11 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
  /** the version of unbound-control that this software implements */
  #define UNBOUND_CONTROL_VERSION 1
  
@@ -62,7 +62,7 @@ index 8c2aa3b9..efaf6450 100644
 +/** turn on fastrpz response policy zones */
 +#undef ENABLE_FASTRPZ
 diff --git a/configure.ac b/configure.ac
-index 5276d441..9d74592e 100644
+index 2b91dd3c..e6063d17 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -6,6 +6,7 @@ sinclude(ax_pthread.m4)
@@ -73,7 +73,7 @@ index 5276d441..9d74592e 100644
  sinclude(dnscrypt/dnscrypt.m4)
  
  # must be numbers. ac_defun because of later processing
-@@ -1726,6 +1727,9 @@ case "$enable_ipset" in
+@@ -1778,6 +1779,9 @@ case "$enable_ipset" in
  		;;
  esac
  
@@ -84,7 +84,7 @@ index 5276d441..9d74592e 100644
  # on openBSD, the implicit rule make $< work.
  # on Solaris, it does not work ($? is changed sources, $^ lists dependencies).
 diff --git a/daemon/daemon.c b/daemon/daemon.c
-index 0b1200a2..5857c18b 100644
+index 8b0fc348..7ffb9221 100644
 --- a/daemon/daemon.c
 +++ b/daemon/daemon.c
 @@ -91,6 +91,9 @@
@@ -112,7 +112,7 @@ index 0b1200a2..5857c18b 100644
  #endif
  	}
  	for(i=0; i<daemon->num; i++) {
-@@ -724,6 +735,9 @@ daemon_cleanup(struct daemon* daemon)
+@@ -731,6 +742,9 @@ daemon_cleanup(struct daemon* daemon)
  #ifdef USE_DNSCRYPT
  	dnsc_delete(daemon->dnscenv);
  	daemon->dnscenv = NULL;
@@ -123,10 +123,10 @@ index 0b1200a2..5857c18b 100644
  	daemon->cfg = NULL;
  }
 diff --git a/daemon/daemon.h b/daemon/daemon.h
-index 5749dbef..64ce230f 100644
+index 3effbafb..4d4c34da 100644
 --- a/daemon/daemon.h
 +++ b/daemon/daemon.h
-@@ -136,6 +136,11 @@ struct daemon {
+@@ -138,6 +138,11 @@ struct daemon {
  	/** the dnscrypt environment */
  	struct dnsc_env* dnscenv;
  #endif
@@ -139,10 +139,10 @@ index 5749dbef..64ce230f 100644
  
  /**
 diff --git a/daemon/worker.c b/daemon/worker.c
-index e2ce0e87..f031c656 100644
+index eb7fdf2f..1982228d 100644
 --- a/daemon/worker.c
 +++ b/daemon/worker.c
-@@ -75,6 +75,9 @@
+@@ -76,6 +76,9 @@
  #include "libunbound/context.h"
  #include "libunbound/libworker.h"
  #include "sldns/sbuffer.h"
@@ -152,7 +152,7 @@ index e2ce0e87..f031c656 100644
  #include "sldns/wire2str.h"
  #include "util/shm_side/shm_main.h"
  #include "dnscrypt/dnscrypt.h"
-@@ -533,8 +536,27 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
+@@ -534,8 +537,27 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
  			/* not secure */
  			secure = 0;
  			break;
@@ -180,10 +180,10 @@ index e2ce0e87..f031c656 100644
  	/* return this delegation from the cache */
  	edns_bak = *edns;
  	edns->edns_version = EDNS_ADVERTISED_VERSION;
-@@ -699,6 +721,23 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
- 			secure = 0;
+@@ -710,6 +732,23 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
+ 			*is_secure_answer = 0;
  		}
- 	} else	secure = 0;
+ 	} else *is_secure_answer = 0;
 +#ifdef ENABLE_FASTRPZ
 +	if(repinfo->rpz) {
 +		/* Scan the cached answer for RPZ hits.
@@ -204,7 +204,7 @@ index e2ce0e87..f031c656 100644
  
  	edns_bak = *edns;
  	edns->edns_version = EDNS_ADVERTISED_VERSION;
-@@ -1410,6 +1449,15 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
+@@ -1435,6 +1474,15 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
  		log_addr(VERB_ALGO, "refused nonrec (cache snoop) query from",
  			&repinfo->addr, repinfo->addrlen);
  		goto send_reply;
@@ -220,14 +220,14 @@ index e2ce0e87..f031c656 100644
  	}
  
  	/* If we've found a local alias, replace the qname with the alias
-@@ -1458,12 +1506,21 @@ lookup_cache:
+@@ -1485,12 +1533,21 @@ lookup_cache:
  		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
  		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
  			/* answer from cache - we have acquired a readlock on it */
 -			if(answer_from_cache(worker, &qinfo,
 +			ret = answer_from_cache(worker, &qinfo,
- 				cinfo, &need_drop, &alias_rrset, &partial_rep,
- 				(struct reply_info*)e->data,
+ 				cinfo, &need_drop, &is_expired_answer, &is_secure_answer,
+ 				&alias_rrset, &partial_rep, (struct reply_info*)e->data,
  				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
  				sldns_buffer_read_u16_at(c->buffer, 2), repinfo,
 -				&edns)) {
@@ -244,7 +244,7 @@ index e2ce0e87..f031c656 100644
  				/* prefetch it if the prefetch TTL expired.
  				 * Note that if there is more than one pass
  				 * its qname must be that used for cache
-@@ -1518,11 +1575,19 @@ lookup_cache:
+@@ -1547,11 +1604,19 @@ lookup_cache:
  			lock_rw_unlock(&e->lock);
  		}
  		if(!LDNS_RD_WIRE(sldns_buffer_begin(c->buffer))) {
@@ -267,10 +267,10 @@ index e2ce0e87..f031c656 100644
  			}
  			verbose(VERB_ALGO, "answer norec from cache -- "
 diff --git a/doc/unbound.conf.5.in b/doc/unbound.conf.5.in
-index 4bdfcd56..69e70627 100644
+index 38c2d298..3b07f392 100644
 --- a/doc/unbound.conf.5.in
 +++ b/doc/unbound.conf.5.in
-@@ -1801,6 +1801,81 @@ List domain for which the AAAA records are ignored and the A record is
+@@ -1828,6 +1828,81 @@ List domain for which the AAAA records are ignored and the A record is
  used by dns64 processing instead.  Can be entered multiple times, list a
  new domain for which it applies, one per line.  Applies also to names
  underneath the name given.
@@ -3106,10 +3106,10 @@ index a2f1b570..e1e4a738 100644
  	 * Count number of time-outs. Used to prevent resolving failures when
  	 * the QNAME minimisation QTYPE is blocked. */
 diff --git a/services/cache/dns.c b/services/cache/dns.c
-index aa4efec7..5dd3412e 100644
+index 2a5bca4a..6de8863a 100644
 --- a/services/cache/dns.c
 +++ b/services/cache/dns.c
-@@ -945,6 +945,14 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
+@@ -967,6 +967,14 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
  	struct regional* region, uint32_t flags)
  {
  	struct reply_info* rep = NULL;
@@ -3125,10 +3125,10 @@ index aa4efec7..5dd3412e 100644
  	rep = reply_info_copy(msgrep, env->alloc, NULL);
  	if(!rep)
 diff --git a/services/mesh.c b/services/mesh.c
-index d4f814d5..624a9d95 100644
+index 9114ef4c..3dc518e5 100644
 --- a/services/mesh.c
 +++ b/services/mesh.c
-@@ -60,6 +60,9 @@
+@@ -61,6 +61,9 @@
  #include "sldns/wire2str.h"
  #include "services/localzone.h"
  #include "util/data/dname.h"
@@ -3138,7 +3138,7 @@ index d4f814d5..624a9d95 100644
  #include "respip/respip.h"
  #include "services/listen_dnsport.h"
  
-@@ -1076,6 +1079,13 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
+@@ -1195,6 +1198,13 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
  	else	secure = 0;
  	if(!rep && rcode == LDNS_RCODE_NOERROR)
  		rcode = LDNS_RCODE_SERVFAIL;
@@ -3152,7 +3152,7 @@ index d4f814d5..624a9d95 100644
  	/* send the reply */
  	/* We don't reuse the encoded answer if either the previous or current
  	 * response has a local alias.  We could compare the alias records
-@@ -1255,6 +1265,7 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
+@@ -1415,6 +1425,7 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
  	key.s.is_valrec = valrec;
  	key.s.qinfo = *qinfo;
  	key.s.query_flags = qflags;
@@ -3160,7 +3160,7 @@ index d4f814d5..624a9d95 100644
  	/* We are searching for a similar mesh state when we DO want to
  	 * aggregate the state. Thus unique is set to NULL. (default when we
  	 * desire aggregation).*/
-@@ -1301,6 +1312,10 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
+@@ -1461,6 +1472,10 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
  	if(!r)
  		return 0;
  	r->query_reply = *rep;
@@ -3172,10 +3172,10 @@ index d4f814d5..624a9d95 100644
  	if(edns->opt_list) {
  		r->edns.opt_list = edns_opt_copy_region(edns->opt_list,
 diff --git a/util/config_file.c b/util/config_file.c
-index 119b2223..ce43a234 100644
+index 52ca5a18..0660248f 100644
 --- a/util/config_file.c
 +++ b/util/config_file.c
-@@ -1434,6 +1434,8 @@ config_delete(struct config_file* cfg)
+@@ -1460,6 +1460,8 @@ config_delete(struct config_file* cfg)
  	free(cfg->dnstap_socket_path);
  	free(cfg->dnstap_identity);
  	free(cfg->dnstap_version);
@@ -3185,10 +3185,10 @@ index 119b2223..ce43a234 100644
  	config_deldblstrlist(cfg->ratelimit_below_domain);
  	config_delstrlist(cfg->python_script);
 diff --git a/util/config_file.h b/util/config_file.h
-index b3ef930a..56173b80 100644
+index 8739ca2a..a2dcf215 100644
 --- a/util/config_file.h
 +++ b/util/config_file.h
-@@ -494,6 +494,11 @@ struct config_file {
+@@ -499,6 +499,11 @@ struct config_file {
  	/** true to disable DNSSEC lameness check in iterator */
  	int disable_dnssec_lame_check;
  
@@ -3201,10 +3201,10 @@ index b3ef930a..56173b80 100644
  	int ip_ratelimit;
  	/** number of slabs for ip_ratelimit cache */
 diff --git a/util/configlexer.lex b/util/configlexer.lex
-index a86ddf55..b56bcfb4 100644
+index deedffa5..301458a3 100644
 --- a/util/configlexer.lex
 +++ b/util/configlexer.lex
-@@ -438,6 +438,10 @@ dnstap-log-forwarder-query-messages{COLON}	{
+@@ -446,6 +446,10 @@ dnstap-log-forwarder-query-messages{COLON}	{
  		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
  dnstap-log-forwarder-response-messages{COLON}	{
  		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
@@ -3216,7 +3216,7 @@ index a86ddf55..b56bcfb4 100644
  ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
  ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
 diff --git a/util/configparser.y b/util/configparser.y
-index 10227a2f..cdbcf7cd 100644
+index d471babe..cb6b1d63 100644
 --- a/util/configparser.y
 +++ b/util/configparser.y
 @@ -125,6 +125,7 @@ extern struct config_parser_state* cfg_parser;
@@ -3227,7 +3227,7 @@ index 10227a2f..cdbcf7cd 100644
  %token VAR_RESPONSE_IP_TAG VAR_RESPONSE_IP VAR_RESPONSE_IP_DATA
  %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
  %token VAR_DISABLE_DNSSEC_LAME_CHECK
-@@ -171,7 +172,7 @@ extern struct config_parser_state* cfg_parser;
+@@ -173,7 +174,7 @@ extern struct config_parser_state* cfg_parser;
  
  %%
  toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -3236,7 +3236,7 @@ index 10227a2f..cdbcf7cd 100644
  	forwardstart contents_forward | pythonstart contents_py | 
  	rcstart contents_rc | dtstart contents_dt | viewstart contents_view |
  	dnscstart contents_dnsc | cachedbstart contents_cachedb |
-@@ -2726,6 +2727,50 @@ dt_dnstap_log_forwarder_response_messages: VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MES
+@@ -2837,6 +2838,50 @@ dt_dnstap_log_forwarder_response_messages: VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MES
  		free($2);
  	}
  	;
@@ -3288,10 +3288,10 @@ index 10227a2f..cdbcf7cd 100644
  	{ 
  		OUTYY(("\nP(python:)\n")); 
 diff --git a/util/data/msgencode.c b/util/data/msgencode.c
-index a51a4b9b..475dfce9 100644
+index be69f628..f10773aa 100644
 --- a/util/data/msgencode.c
 +++ b/util/data/msgencode.c
-@@ -590,6 +590,35 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
+@@ -592,6 +592,35 @@ insert_section(struct reply_info* rep, size_t num_rrsets, uint16_t* num_rrs,
  	return RETVAL_OK;
  }
  
@@ -3327,7 +3327,7 @@ index a51a4b9b..475dfce9 100644
  /** store query section in wireformat buffer, return RETVAL */
  static int
  insert_query(struct query_info* qinfo, struct compress_tree_node** tree, 
-@@ -777,6 +806,19 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
+@@ -779,6 +808,19 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
  			}
  			sldns_buffer_write_u16_at(buffer, 10, arcount);
  		}
@@ -3348,10 +3348,10 @@ index a51a4b9b..475dfce9 100644
  	sldns_buffer_flip(buffer);
  	return 1;
 diff --git a/util/data/packed_rrset.c b/util/data/packed_rrset.c
-index 7b9d5494..e44b2ce5 100644
+index 4b0294f9..3b3838f6 100644
 --- a/util/data/packed_rrset.c
 +++ b/util/data/packed_rrset.c
-@@ -255,6 +255,10 @@ sec_status_to_string(enum sec_status s)
+@@ -256,6 +256,10 @@ sec_status_to_string(enum sec_status s)
  	case sec_status_insecure: 	return "sec_status_insecure";
  	case sec_status_secure_sentinel_fail: 	return "sec_status_secure_sentinel_fail";
  	case sec_status_secure: 	return "sec_status_secure";
@@ -3363,7 +3363,7 @@ index 7b9d5494..e44b2ce5 100644
  	return "unknown_sec_status_value";
  }
 diff --git a/util/data/packed_rrset.h b/util/data/packed_rrset.h
-index 3a5335dd..20113217 100644
+index 729877ba..ccd1a0c2 100644
 --- a/util/data/packed_rrset.h
 +++ b/util/data/packed_rrset.h
 @@ -193,7 +193,15 @@ enum sec_status {
@@ -3384,7 +3384,7 @@ index 3a5335dd..20113217 100644
  
  /**
 diff --git a/util/netevent.c b/util/netevent.c
-index 980bb8be..d537d288 100644
+index 9fe5da2d..037e70d1 100644
 --- a/util/netevent.c
 +++ b/util/netevent.c
 @@ -57,6 +57,9 @@
@@ -3427,7 +3427,7 @@ index 980bb8be..d537d288 100644
  		if(!rep.c || rep.c->fd != fd) /* commpoint closed to -1 or reused for
  		another UDP port. Note rep.c cannot be reused with TCP fd. */
  			break;
-@@ -3184,6 +3196,9 @@ comm_point_send_reply(struct comm_reply *repinfo)
+@@ -3192,6 +3204,9 @@ comm_point_send_reply(struct comm_reply *repinfo)
  				repinfo->c->tcp_timeout_msec);
  		}
  	}
@@ -3437,7 +3437,7 @@ index 980bb8be..d537d288 100644
  }
  
  void 
-@@ -3193,6 +3208,9 @@ comm_point_drop_reply(struct comm_reply* repinfo)
+@@ -3201,6 +3216,9 @@ comm_point_drop_reply(struct comm_reply* repinfo)
  		return;
  	log_assert(repinfo->c);
  	log_assert(repinfo->c->type != comm_tcp_accept);
@@ -3447,7 +3447,7 @@ index 980bb8be..d537d288 100644
  	if(repinfo->c->type == comm_udp)
  		return;
  	if(repinfo->c->tcp_req_info)
-@@ -3214,6 +3232,9 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
+@@ -3222,6 +3240,9 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
  {
  	verbose(VERB_ALGO, "comm point start listening %d (%d msec)", 
  		c->fd==-1?newfd:c->fd, msec);
@@ -3473,10 +3473,10 @@ index d80c72b3..0233292f 100644
  	uint8_t client_nonce[crypto_box_HALF_NONCEBYTES];
  	uint8_t nmkey[crypto_box_BEFORENMBYTES];
 diff --git a/validator/validator.c b/validator/validator.c
-index 4c560a8e..71de3760 100644
+index c3ca0a27..15251988 100644
 --- a/validator/validator.c
 +++ b/validator/validator.c
-@@ -2755,6 +2755,12 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
+@@ -2761,6 +2761,12 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
  			default:
  				/* NSEC proof did not work, try next */
  				break;
@@ -3489,7 +3489,7 @@ index 4c560a8e..71de3760 100644
  		}
  
  		sec = nsec3_prove_nods(qstate->env, ve, 
-@@ -2788,6 +2794,12 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
+@@ -2794,6 +2800,12 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
  			default:
  				/* NSEC3 proof did not work */
  				break;

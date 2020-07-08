@@ -107,10 +107,28 @@ void log_thread_set(int* num);
 int log_thread_get(void);
 
 /**
- * Set identity to print, default is 'unbound'. 
+ * Set identity to print, default is 'unbound'.
  * @param id: string to print. Name of executable.
  */
 void log_ident_set(const char* id);
+
+/**
+ * Set default identity to print, default is 'unbound'.
+ * @param id: string to print. Name of executable.
+ */
+void log_ident_set_default(const char* id);
+
+/**
+ * Revert identity to print, back to the recorded default value.
+ */
+void log_ident_revert_to_default(void);
+
+/**
+ * Set identity to print if there is an identity, otherwise
+ * set the default.
+ * @param identity: the identity to set.
+ */
+void log_ident_set_or_default(const char* identity);
 
 /**
  * Set if the time value is printed ascii or decimal in log entries.

@@ -61,8 +61,12 @@ time_t MAX_TTL = 3600 * 24 * 10; /* ten days */
 time_t MIN_TTL = 0;
 /** MAX Negative TTL, for SOA records in authority section */
 time_t MAX_NEG_TTL = 3600; /* one hour */
+/** If we serve expired entries and prefetch them */
+int SERVE_EXPIRED = 0;
 /** Time to serve records after expiration */
 time_t SERVE_EXPIRED_TTL = 0;
+/** TTL to use for expired records */
+time_t SERVE_EXPIRED_REPLY_TTL = 30;
 
 /** allocate qinfo, return 0 on error */
 static int

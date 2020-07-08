@@ -46,6 +46,7 @@
 #include "util/storage/dnstree.h"
 #include "util/module.h"
 #include "services/view.h"
+#include "sldns/sbuffer.h"
 struct packed_rrset_data;
 struct ub_packed_rrset_key;
 struct regional;
@@ -91,8 +92,14 @@ enum localzone_type {
 	local_zone_always_refuse,
 	/** answer with nxdomain, even when there is local data */
 	local_zone_always_nxdomain,
+	/** answer with noerror/nodata, even when there is local data */
+	local_zone_always_nodata,
+	/** drop query, even when there is local data */
+	local_zone_always_deny,
 	/** answer not from the view, but global or no-answer */
-	local_zone_noview
+	local_zone_noview,
+	/** Invalid type, cannot be used to generate answer */
+	local_zone_invalid
 };
 
 /**
@@ -310,6 +317,25 @@ int local_zones_answer(struct local_zones* zones, struct module_env* env,
 	struct config_strlist** tag_datas, size_t tag_datas_size,
 	char** tagname, int num_tags, struct view* view);
 
+/** 
+ * Answer using the local zone only (not local data used).
+ * @param z: zone for query.
+ * @param env: module environment.
+ * @param qinfo: query.
+ * @param edns: edns from query.
+ * @param repinfo: source address for checks. may be NULL.
+ * @param buf: buffer for answer.
+ * @param temp: temp region for encoding.
+ * @param ld: local data, if NULL, no such name exists in localdata.
+ * @param lz_type: type of the local zone.
+ * @return 1 if a reply is to be sent, 0 if not.
+ */
+int
+local_zones_zone_answer(struct local_zone* z, struct module_env* env,
+	struct query_info* qinfo, struct edns_data* edns,
+	struct comm_reply* repinfo, sldns_buffer* buf, struct regional* temp,
+	struct local_data* ld, enum localzone_type lz_type);
+
 /**
  * Parse the string into localzone type.
  *
@@ -339,6 +365,22 @@ const char* local_zone_type2str(enum localzone_type t);
  */
 struct local_zone* local_zones_find(struct local_zones* zones, 
 	uint8_t* name, size_t len, int labs, uint16_t dclass);
+
+/**
+ * Find zone that with exactly or smaller name/class
+ * User must lock the tree or result zone.
+ * @param zones: the zones tree
+ * @param name: dname to lookup
+ * @param len: length of name.
+ * @param labs: labelcount of name.
+ * @param dclass: class to lookup.
+ * @param exact: 1 on return is this is an exact match.
+ * @return the exact or smaller local_zone or NULL.
+ */
+struct local_zone*
+local_zones_find_le(struct local_zones* zones,
+        uint8_t* name, size_t len, int labs, uint16_t dclass,
+	int* exact);
 
 /**
  * Add a new zone. Caller must hold the zones lock.
@@ -474,6 +516,15 @@ int rrset_insert_rr(struct regional* region, struct packed_rrset_data* pd,
 	uint8_t* rdata, size_t rdata_len, time_t ttl, const char* rrstr);
 
 /**
+ * Remove RR from rrset that is created using localzone's rrset_insert_rr.
+ * @param pd: the RRset containing the RR to remove
+ * @param index: index of RR to remove
+ * @return: 1 on success; 0 otherwise.
+ */
+int
+local_rrset_remove_rr(struct packed_rrset_data* pd, size_t index);
+
+/**
   * Valid response ip actions for the IP-response-driven-action feature;
   * defined here instead of in the respip module to enable sharing of enum
   * values with the localzone_type enum.
@@ -501,6 +552,10 @@ enum respip_action {
 	respip_always_refuse = local_zone_always_refuse,
         /** answer with 'no such domain' response */
 	respip_always_nxdomain = local_zone_always_nxdomain,
+        /** answer with nodata response */
+	respip_always_nodata = local_zone_always_nodata,
+        /** answer with nodata response */
+	respip_always_deny = local_zone_always_deny,
 
 	/* The rest of the values are only possible as
 	 * access-control-tag-action */
@@ -513,6 +568,64 @@ enum respip_action {
 	respip_transparent = local_zone_transparent,
 	/** gives response data (if any), else nodata answer. */
 	respip_typetransparent = local_zone_typetransparent,
+	/** type invalid */
+	respip_invalid = local_zone_invalid,
 };
 
+/**
+ * Get local data from local zone and encode answer.
+ * @param z: local zone to use
+ * @param env: module env
+ * @param qinfo: qinfo
+ * @param edns: edns data, for message encoding
+ * @param repinfo: reply info, for message encoding
+ * @param buf: commpoint buffer
+ * @param temp: scratchpad region
+ * @param labs: number of labels in qname
+ * @param ldp: where to store local data
+ * @param lz_type: type of local zone
+ * @param tag: matching tag index
+ * @param tag_datas: alc specific tag data list
+ * @param tag_datas_size: size of tag_datas
+ * @param tagname: list of names of tags, for logging purpose
+ * @param num_tags: number of tags
+ * @return 1 on success
+ */
+int
+local_data_answer(struct local_zone* z, struct module_env* env,
+	struct query_info* qinfo, struct edns_data* edns,
+	struct comm_reply* repinfo, sldns_buffer* buf,
+	struct regional* temp, int labs, struct local_data** ldp,
+	enum localzone_type lz_type, int tag, struct config_strlist** tag_datas,
+	size_t tag_datas_size, char** tagname, int num_tags);
+
+/**
+ * Add RR to local zone.
+ * @param z: local zone to add RR to
+ * @param nm: dname of RR
+ * @param nmlen: length of nm
+ * @param nmlabs: number of labels of nm
+ * @param rrtype: RR type
+ * @param rrclass: RR class
+ * @param ttl: TTL of RR to add
+ * @param rdata: RDATA of RR to add
+ * @param rdata_len: length of rdata
+ * @param rrstr: RR in string format, for logging
+ * @return: 1 on success
+ */
+int
+local_zone_enter_rr(struct local_zone* z, uint8_t* nm, size_t nmlen,
+	int nmlabs, uint16_t rrtype, uint16_t rrclass, time_t ttl,
+	uint8_t* rdata, size_t rdata_len, const char* rrstr);
+
+/**
+ * Find a data node by exact name for a local zone
+ * @param z: local_zone containing data tree
+ * @param nm: name of local-data element to find
+ * @param nmlen: length of nm
+ * @param nmlabs: labs of nm
+ * @return local_data on exact match, NULL otherwise.
+ */
+struct local_data* 
+local_zone_find_data(struct local_zone* z, uint8_t* nm, size_t nmlen, int nmlabs);
 #endif /* SERVICES_LOCALZONE_H */

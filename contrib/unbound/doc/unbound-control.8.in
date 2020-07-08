@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "dec 12, 2019" "NLnet Labs" "unbound 1.9.6"
+.TH "unbound-control" "8" "May 19, 2020" "NLnet Labs" "unbound 1.10.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -323,6 +323,9 @@ serial check).  And then the zone is transferred for a newer zone version.
 .B view_local_data_remove \fIview\fR \fIname
 \fIlocal_data_remove\fR for given view.
 .TP
+.B view_local_datas_remove \fIview\fR
+Remove a list of \fIlocal_data\fR for given view from stdin. Like local_datas_remove.
+.TP
 .B view_local_datas \fIview\fR
 Add a list of \fIlocal_data\fR for given view from stdin.  Like local_datas.
 .SH "EXIT CODE"
@@ -379,8 +382,8 @@ and resulted in recursive processing, taking a slot in the requestlist.
 Not part of the recursivereplies (or the histogram thereof) or cachemiss,
 as a cache response was sent.
 .TP
-.I threadX.num.zero_ttl
-number of replies with ttl zero, because they served an expired cache entry.
+.I threadX.num.expired
+number of replies that served an expired cache entry.
 .TP
 .I threadX.num.recursivereplies
 The number of replies sent to queries that needed recursive processing. Could be smaller than threadX.num.cachemiss if due to timeouts no replies were sent for some queries.
@@ -443,7 +446,7 @@ summed over threads.
 .I total.num.prefetch
 summed over threads.
 .TP
-.I total.num.zero_ttl
+.I total.num.expired
 summed over threads.
 .TP
 .I total.num.recursivereplies
@@ -660,6 +663,11 @@ Number of queries that got an answer that contained EDNS client subnet data.
 Number of queries answered from the edns client subnet cache.  These are
 counted as cachemiss by the main counters, but hit the client subnet
 specific cache, after getting processed by the edns client subnet module.
+.TP
+.I num.rpz.action.<rpz_action>
+Number of queries answered using configured RPZ policy, per RPZ action type.
+Possible actions are: nxdomain, nodata, passthru, drop, local_data, disabled,
+and cname_override.
 .SH "FILES"
 .TP
 .I @ub_conf_file@

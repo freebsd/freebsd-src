@@ -27,10 +27,12 @@ distribution but may be helpful.
   works like the BIND feature (removes AAAA records unless AAAA-only domain).
   Useful for certain 'broken IPv6 default route' scenarios.
   Patch from Stephane Lapie for ASAHI Net.
-* unbound_smf22.tar.gz: Solaris SMF installation/removal scripts.
+* unbound_smf23.tar.gz: Solaris SMF installation/removal scripts.
   Contributed by Yuri Voinov.
 * unbound.socket and unbound.service: systemd files for unbound, install them
   in /usr/lib/systemd/system.  Contributed by Sami Kerola and Pavel Odintsov.
+* unbound_portable.service.in: systemd file for use unbound as portable service,
+  see comments in the file. Contributed by Frzk.
 * redirect-bogus.patch: Return configured address for bogus A and AAAA answers,
   instead of SERVFAIL. Contributed by SIDN.
 * fastrpz.patch: fastrpz support from Farsight Security.
@@ -49,3 +51,5 @@ distribution but may be helpful.
   compile.  From Saksham Manchanda (Secure64).  Please note that we think
   this will drop DNSKEY and DS lookups for tlds and hence break DNSSEC
   lookups for downstream clients.
+* drop2rpz: perl script that converts the Spamhaus DROP-List in RPZ-Format,
+  contributed by Andreas Schulze.

@@ -64,26 +64,26 @@
 #ifdef HAVE_SYS_ENDIAN_H
 #  include <sys/endian.h>
 #endif
-#ifdef HAVE_LIBKERN_OSBYTEORDER_H
-/* In practice this is specific to MacOS X.  We assume it doesn't have
-* htobe64/be64toh but has alternatives with a different name. */
-#  include <libkern/OSByteOrder.h>
-#  define htobe64(x) OSSwapHostToBigInt64(x)
-#  define be64toh(x) OSSwapBigToHostInt64(x)
-#endif
 
-/* Some compilers do not define __BYTE_ORDER__, like IBM XLC on AIX */
-#ifndef be64toh
-#if defined(__sun) || defined(_AIX)
-#  if __BIG_ENDIAN__
-#    define be64toh(n) (n)
-#    define htobe64(n) (n)
+#ifndef HAVE_HTOBE64
+#  ifdef HAVE_LIBKERN_OSBYTEORDER_H
+     /* In practice this is specific to MacOS X.  We assume it doesn't have
+      * htobe64/be64toh but has alternatives with a different name. */
+#    include <libkern/OSByteOrder.h>
+#    define htobe64(x) OSSwapHostToBigInt64(x)
+#    define be64toh(x) OSSwapBigToHostInt64(x)
 #  else
-#    define be64toh(n) (((uint64_t)htonl((n) & 0xFFFFFFFF) << 32) | htonl((n) >> 32))
-#    define htobe64(n) (((uint64_t)htonl((n) & 0xFFFFFFFF) << 32) | htonl((n) >> 32))
-#  endif
-#endif
-#endif /* be64toh */
+     /* not OSX */
+     /* Some compilers do not define __BYTE_ORDER__, like IBM XLC on AIX */
+#    if __BIG_ENDIAN__
+#      define be64toh(n) (n)
+#      define htobe64(n) (n)
+#    else
+#      define be64toh(n) (((uint64_t)htonl((n) & 0xFFFFFFFF) << 32) | htonl((n) >> 32))
+#      define htobe64(n) (((uint64_t)htonl((n) & 0xFFFFFFFF) << 32) | htonl((n) >> 32))
+#    endif /* _ENDIAN */
+#  endif /* HAVE_LIBKERN_OSBYTEORDER_H */
+#endif /* HAVE_BE64TOH */
 
 /** the unit test testframe for cachedb, its module state contains
  * a cache for a couple queries (in memory). */
@@ -218,10 +218,6 @@ static int
 cachedb_apply_cfg(struct cachedb_env* cachedb_env, struct config_file* cfg)
 {
 	const char* backend_str = cfg->cachedb_backend;
-
-	/* If unspecified we use the in-memory test DB. */
-	if(!backend_str)
-		backend_str = "testframe";
 	cachedb_env->backend = cachedb_find_backend(backend_str);
 	if(!cachedb_env->backend) {
 		log_err("cachedb: cannot find backend name '%s'", backend_str);
@@ -259,6 +255,15 @@ cachedb_init(struct module_env* env, int id)
 		return 0;
 	}
 	cachedb_env->enabled = 1;
+	if(env->cfg->serve_expired_reply_ttl)
+		log_warn(
+			"cachedb: serve-expired-reply-ttl is set but not working for data "
+			"originating from the external cache; 0 TLL is used for those.");
+	if(env->cfg->serve_expired_client_timeout)
+		log_warn(
+			"cachedb: serve-expired-client-timeout is set but not working for "
+			"data originating from the external cache; expired data are used "
+			"in the reply without first trying to refresh the data.");
 	return 1;
 }
 
@@ -329,8 +334,7 @@ calc_hash(struct module_qstate* qstate, char* buf, size_t len)
 	size_t clen = 0;
 	uint8_t hash[CACHEDB_HASHSIZE/8];
 	const char* hex = "0123456789ABCDEF";
-	const char* secret = qstate->env->cfg->cachedb_secret ?
-		qstate->env->cfg->cachedb_secret : "default";
+	const char* secret = qstate->env->cfg->cachedb_secret;
 	size_t i;
 
 	/* copy the hash info into the clear buffer */
@@ -433,8 +437,14 @@ good_expiry_and_qinfo(struct module_qstate* qstate, struct sldns_buffer* buf)
 		&expiry, sizeof(expiry));
 	expiry = be64toh(expiry);
 
+	/* Check if we are allowed to return expired entries:
+	 * - serve_expired needs to be set
+	 * - if SERVE_EXPIRED_TTL is set make sure that the record is not older
+	 *   than that. */
 	if((time_t)expiry < *qstate->env->now &&
-		!qstate->env->cfg->serve_expired)
+		(!qstate->env->cfg->serve_expired ||
+			(SERVE_EXPIRED_TTL &&
+			*qstate->env->now - (time_t)expiry > SERVE_EXPIRED_TTL)))
 		return 0;
 
 	return 1;
@@ -445,15 +455,15 @@ good_expiry_and_qinfo(struct module_qstate* qstate, struct sldns_buffer* buf)
 static void
 packed_rrset_ttl_subtract(struct packed_rrset_data* data, time_t subtract)
 {
-        size_t i;
-        size_t total = data->count + data->rrsig_count;
+	size_t i;
+	size_t total = data->count + data->rrsig_count;
 	if(subtract >= 0 && data->ttl > subtract)
 		data->ttl -= subtract;
 	else	data->ttl = 0;
-        for(i=0; i<total; i++) {
+	for(i=0; i<total; i++) {
 		if(subtract >= 0 && data->rr_ttl[i] > subtract)
-                	data->rr_ttl[i] -= subtract;
-                else	data->rr_ttl[i] = 0;
+			data->rr_ttl[i] -= subtract;
+		else	data->rr_ttl[i] = 0;
 	}
 }
 
@@ -465,7 +475,8 @@ adjust_msg_ttl(struct dns_msg* msg, time_t adjust)
 	size_t i;
 	if(adjust >= 0 && msg->rep->ttl > adjust)
 		msg->rep->ttl -= adjust;
-	else	msg->rep->ttl = 0;
+	else
+		msg->rep->ttl = 0;
 	msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
 	msg->rep->serve_expired_ttl = msg->rep->ttl + SERVE_EXPIRED_TTL;
 
@@ -673,7 +684,8 @@ cachedb_handle_query(struct module_qstate* qstate,
 		return;
 	}
 
-	/* lookup inside unbound's internal cache */
+	/* lookup inside unbound's internal cache.
+	 * This does not look for expired entries. */
 	if(cachedb_intcache_lookup(qstate)) {
 		if(verbosity >= VERB_ALGO) {
 			if(qstate->return_msg->rep)
@@ -681,8 +693,9 @@ cachedb_handle_query(struct module_qstate* qstate,
 					&qstate->return_msg->qinfo,
 					qstate->return_msg->rep);
 			else log_info("cachedb internal cache lookup: rcode %s",
-				sldns_lookup_by_id(sldns_rcodes, qstate->return_rcode)?
-				sldns_lookup_by_id(sldns_rcodes, qstate->return_rcode)->name:"??");
+				sldns_lookup_by_id(sldns_rcodes, qstate->return_rcode)
+				?sldns_lookup_by_id(sldns_rcodes, qstate->return_rcode)->name
+				:"??");
 		}
 		/* we are done with the query */
 		qstate->ext_state[id] = module_finished;
@@ -697,6 +710,19 @@ cachedb_handle_query(struct module_qstate* qstate,
 				qstate->return_msg->rep);
 		/* store this result in internal cache */
 		cachedb_intcache_store(qstate);
+		/* In case we have expired data but there is a client timer for expired
+		 * answers, pass execution to next module in order to try updating the
+		 * data first.
+		 * TODO: this needs revisit. The expired data stored from cachedb has
+		 * 0 TTL which is picked up by iterator later when looking in the cache.
+		 * Document that ext cachedb does not work properly with
+		 * serve_stale_reply_ttl yet. */
+		if(qstate->need_refetch && qstate->serve_expired_data &&
+			qstate->serve_expired_data->timer) {
+				qstate->return_msg = NULL;
+				qstate->ext_state[id] = module_wait_module;
+				return;
+		}
 		/* we are done with the query */
 		qstate->ext_state[id] = module_finished;
 		return;

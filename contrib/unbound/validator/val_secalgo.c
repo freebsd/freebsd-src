@@ -54,6 +54,11 @@
 #error "Need crypto library to do digital signature cryptography"
 #endif
 
+/** fake DSA support for unit tests */
+int fake_dsa = 0;
+/** fake SHA1 support for unit tests */
+int fake_sha1 = 0;
+
 /* OpenSSL implementation */
 #ifdef HAVE_SSL
 #ifdef HAVE_OPENSSL_ERR_H
@@ -71,11 +76,6 @@
 #ifdef HAVE_OPENSSL_ENGINE_H
 #include <openssl/engine.h>
 #endif
-
-/** fake DSA support for unit tests */
-int fake_dsa = 0;
-/** fake SHA1 support for unit tests */
-int fake_sha1 = 0;
 
 /**
  * Output a libcrypto openssl error to the logfile.
@@ -1509,13 +1509,21 @@ dnskey_algo_id_is_supported(int id)
 {
 	/* uses libnettle */
 	switch(id) {
-#if defined(USE_DSA) && defined(USE_SHA1)
 	case LDNS_DSA:
 	case LDNS_DSA_NSEC3:
+#if defined(USE_DSA) && defined(USE_SHA1)
+		return 1;
+#else
+		if(fake_dsa || fake_sha1) return 1;
+		return 0;
 #endif
-#ifdef USE_SHA1
 	case LDNS_RSASHA1:
 	case LDNS_RSASHA1_NSEC3:
+#ifdef USE_SHA1
+		return 1;
+#else
+		if(fake_sha1) return 1;
+		return 0;
 #endif
 #ifdef USE_SHA2
 	case LDNS_RSASHA256:
@@ -1819,6 +1827,15 @@ verify_canonrrset(sldns_buffer* buf, int algo, unsigned char* sigblock,
 		*reason = "null signature";
 		return sec_status_bogus;
 	}
+
+#ifndef USE_DSA
+	if((algo == LDNS_DSA || algo == LDNS_DSA_NSEC3) &&(fake_dsa||fake_sha1))
+		return sec_status_secure;
+#endif
+#ifndef USE_SHA1
+	if(fake_sha1 && (algo == LDNS_DSA || algo == LDNS_DSA_NSEC3 || algo == LDNS_RSASHA1 || algo == LDNS_RSASHA1_NSEC3))
+		return sec_status_secure;
+#endif
 
 	switch(algo) {
 #if defined(USE_DSA) && defined(USE_SHA1)

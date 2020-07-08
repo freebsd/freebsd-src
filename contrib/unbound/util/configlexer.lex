@@ -317,6 +317,12 @@ forward-no-cache{COLON}		{ YDVAR(1, VAR_FORWARD_NO_CACHE) }
 forward-ssl-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
 forward-tls-upstream{COLON}	{ YDVAR(1, VAR_FORWARD_SSL_UPSTREAM) }
 auth-zone{COLON}		{ YDVAR(0, VAR_AUTH_ZONE) }
+rpz{COLON}			{ YDVAR(0, VAR_RPZ) }
+tags{COLON}			{ YDVAR(1, VAR_TAGS) }
+rpz-action-override{COLON}	{ YDVAR(1, VAR_RPZ_ACTION_OVERRIDE) }
+rpz-cname-override{COLON}	{ YDVAR(1, VAR_RPZ_CNAME_OVERRIDE) }
+rpz-log{COLON}			{ YDVAR(1, VAR_RPZ_LOG) }
+rpz-log-name{COLON}		{ YDVAR(1, VAR_RPZ_LOG_NAME) }
 zonefile{COLON}			{ YDVAR(1, VAR_ZONEFILE) }
 master{COLON}			{ YDVAR(1, VAR_MASTER) }
 url{COLON}			{ YDVAR(1, VAR_URL) }
@@ -364,6 +370,8 @@ ignore-cd-flag{COLON}		{ YDVAR(1, VAR_IGNORE_CD_FLAG) }
 serve-expired{COLON}		{ YDVAR(1, VAR_SERVE_EXPIRED) }
 serve-expired-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL) }
 serve-expired-ttl-reset{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_TTL_RESET) }
+serve-expired-reply-ttl{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_REPLY_TTL) }
+serve-expired-client-timeout{COLON}	{ YDVAR(1, VAR_SERVE_EXPIRED_CLIENT_TIMEOUT) }
 fake-dsa{COLON}			{ YDVAR(1, VAR_FAKE_DSA) }
 fake-sha1{COLON}		{ YDVAR(1, VAR_FAKE_SHA1) }
 val-log-level{COLON}		{ YDVAR(1, VAR_VAL_LOG_LEVEL) }

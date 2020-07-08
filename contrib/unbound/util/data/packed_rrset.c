@@ -40,6 +40,7 @@
  */
 
 #include "config.h"
+#include "util/data/msgparse.h"
 #include "util/data/packed_rrset.h"
 #include "util/data/dname.h"
 #include "util/storage/lookup3.h"
@@ -351,11 +352,11 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 	/* make TTLs relative - once per rrset */
 	for(i=0; i<d->count + d->rrsig_count; i++) {
 		if(d->rr_ttl[i] < now)
-			d->rr_ttl[i] = 0;
+			d->rr_ttl[i] = SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0;
 		else	d->rr_ttl[i] -= now;
 	}
 	if(d->ttl < now)
-		d->ttl = 0;
+		d->ttl = SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0;
 	else	d->ttl -= now;
 	return ck;
 }
@@ -385,4 +386,20 @@ packed_rrset_copy_alloc(struct ub_packed_rrset_key* key,
 	dk->entry.data = (void*)dd;
 	packed_rrset_ttl_add(dd, now);
 	return dk;
+}
+
+int
+packed_rrset_find_rr(struct packed_rrset_data* d, uint8_t* rdata, size_t len,
+	size_t* index)
+{
+	size_t i;
+	for(i=0; i<d->count; i++) {
+		if(d->rr_len[i] != len)
+			continue;
+		if(memcmp(d->rr_data[i], rdata, len) == 0) {
+			*index = i;
+			return 1;
+		}
+	}
+	return 0;
 }

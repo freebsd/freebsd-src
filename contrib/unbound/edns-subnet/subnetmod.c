@@ -431,7 +431,7 @@ lookup_and_reply(struct module_qstate *qstate, int id, struct subnet_qstate *sq)
 	}
 
 	qstate->return_msg = tomsg(NULL, &qstate->qinfo,
-		(struct reply_info *)node->elem, qstate->region, *env->now,
+		(struct reply_info *)node->elem, qstate->region, *env->now, 0,
 		env->scratch);
 	scope = (uint8_t)node->scope;
 	lock_rw_unlock(&e->lock);

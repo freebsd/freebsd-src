@@ -74,6 +74,7 @@ static lock_basic_type log_lock;
 #endif
 /** the identity of this executable/process */
 static const char* ident="unbound";
+static const char* default_ident="unbound";
 #if defined(HAVE_SYSLOG_H) || defined(UB_ON_WINDOWS)
 /** are we using syslog(3) to log to */
 static int logging_to_syslog = 0;
@@ -179,6 +180,24 @@ int log_thread_get(void)
 void log_ident_set(const char* id)
 {
 	ident = id;
+}
+
+void log_ident_set_default(const char* id)
+{
+	default_ident = id;
+}
+
+void log_ident_revert_to_default()
+{
+	ident = default_ident;
+}
+
+void log_ident_set_or_default(const char* identity)
+{
+	if(identity == NULL || identity[0] == 0)
+		log_ident_set(default_ident);
+	else
+		log_ident_set(identity);
 }
 
 void log_set_time_asc(int use_asc)

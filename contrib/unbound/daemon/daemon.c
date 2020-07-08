@@ -617,7 +617,8 @@ daemon_fork(struct daemon* daemon)
 		have_view_respip_cfg;
 	
 	/* read auth zonefiles */
-	if(!auth_zones_apply_cfg(daemon->env->auth_zones, daemon->cfg, 1))
+	if(!auth_zones_apply_cfg(daemon->env->auth_zones, daemon->cfg, 1,
+		&daemon->use_rpz))
 		fatal_exit("auth_zones could not be setup");
 
 	/* setup modules */
@@ -629,6 +630,12 @@ daemon_fork(struct daemon* daemon)
 	if(daemon->use_response_ip &&
 		modstack_find(&daemon->mods, "respip") < 0)
 		fatal_exit("response-ip options require respip module");
+	/* RPZ response ip triggers don't work as expected without the respip
+	 * module.  To avoid run-time operational surprise we reject such
+	 * configuration. */
+	if(daemon->use_rpz &&
+		modstack_find(&daemon->mods, "respip") < 0)
+		fatal_exit("RPZ requires the respip module");
 
 	/* first create all the worker structures, so we can pass
 	 * them to the newly created threads. 

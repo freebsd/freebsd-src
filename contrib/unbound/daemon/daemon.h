@@ -132,6 +132,8 @@ struct daemon {
 	struct respip_set* respip_set;
 	/** some response-ip tags or actions are configured if true */
 	int use_response_ip;
+	/** some RPZ policies are configured */
+	int use_rpz;
 #ifdef USE_DNSCRYPT
 	/** the dnscrypt environment */
 	struct dnsc_env* dnscenv;

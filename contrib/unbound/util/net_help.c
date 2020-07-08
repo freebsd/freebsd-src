@@ -284,6 +284,113 @@ int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
 	return 1;
 }
 
+/* RPZ format address dname to network byte order address */
+static int ipdnametoaddr(uint8_t* dname, size_t dnamelen,
+	struct sockaddr_storage* addr, socklen_t* addrlen, int* af)
+{
+	uint8_t* ia;
+	size_t dnamelabs = dname_count_labels(dname);
+	uint8_t lablen;
+	char* e = NULL;
+	int z = 0;
+	size_t len = 0;
+	int i;
+	*af = AF_INET;
+
+	/* need 1 byte for label length */
+	if(dnamelen < 1)
+		return 0;
+
+	if(dnamelabs > 6 ||
+		dname_has_label(dname, dnamelen, (uint8_t*)"\002zz")) {
+		*af = AF_INET6;
+	}
+	len = *dname;
+	lablen = *dname++;
+	i = (*af == AF_INET) ? 3 : 15;
+	if(*af == AF_INET6) {
+		struct sockaddr_in6* sa = (struct sockaddr_in6*)addr;
+		*addrlen = (socklen_t)sizeof(struct sockaddr_in6);
+		memset(sa, 0, *addrlen);
+		sa->sin6_family = AF_INET6;
+		ia = (uint8_t*)&sa->sin6_addr;
+	} else { /* ip4 */
+		struct sockaddr_in* sa = (struct sockaddr_in*)addr;
+		*addrlen = (socklen_t)sizeof(struct sockaddr_in);
+		memset(sa, 0, *addrlen);
+		sa->sin_family = AF_INET;
+		ia = (uint8_t*)&sa->sin_addr;
+	}
+	while(lablen && i >= 0 && len <= dnamelen) {
+		char buff[LDNS_MAX_LABELLEN+1];
+		uint16_t chunk; /* big enough to not overflow on IPv6 hextet */
+		if((*af == AF_INET && (lablen > 3 || dnamelabs > 6)) ||
+			(*af == AF_INET6 && (lablen > 4 || dnamelabs > 10))) {
+			return 0;
+		}
+		if(memcmp(dname, "zz", 2) == 0 && *af == AF_INET6) {
+			/* Add one or more 0 labels. Address is initialised at
+			 * 0, so just skip the zero part. */
+			int zl = 11 - dnamelabs;
+			if(z || zl < 0)
+				return 0;
+			z = 1;
+			i -= (zl*2);
+		} else {
+			memcpy(buff, dname, lablen);
+			buff[lablen] = '\0';
+			chunk = strtol(buff, &e, (*af == AF_INET) ? 10 : 16);
+			if(!e || *e != '\0' || (*af == AF_INET && chunk > 255))
+				return 0;
+			if(*af == AF_INET) {
+				log_assert(i < 4 && i >= 0);
+				ia[i] = (uint8_t)chunk;
+				i--;
+			} else {
+				log_assert(i < 16 && i >= 1);
+				/* ia in network byte order */
+				ia[i-1] = (uint8_t)(chunk >> 8);
+				ia[i] = (uint8_t)(chunk & 0x00FF);
+				i -= 2;
+			}
+		}
+		dname += lablen;
+		lablen = *dname++;
+		len += lablen;
+	}
+	if(i != -1)
+		/* input too short */
+		return 0;
+	return 1;
+}
+
+int netblockdnametoaddr(uint8_t* dname, size_t dnamelen,
+	struct sockaddr_storage* addr, socklen_t* addrlen, int* net, int* af)
+{
+	char buff[3 /* 3 digit netblock */ + 1];
+	size_t nlablen;
+	if(dnamelen < 1 || *dname > 3)
+		/* netblock invalid */
+		return 0;
+	nlablen = *dname;
+
+	if(dnamelen < 1 + nlablen)
+		return 0;
+
+	memcpy(buff, dname+1, nlablen);
+	buff[nlablen] = '\0';
+	*net = atoi(buff);
+	if(*net == 0 && strcmp(buff, "0") != 0)
+		return 0;
+	dname += nlablen;
+	dname++;
+	if(!ipdnametoaddr(dname, dnamelen-1-nlablen, addr, addrlen, af))
+		return 0;
+	if((*af == AF_INET6 && *net > 128) || (*af == AF_INET && *net > 32))
+		return 0;
+	return 1;
+}
+
 int authextstrtoaddr(char* str, struct sockaddr_storage* addr, 
 	socklen_t* addrlen, char** auth_name)
 {
@@ -728,11 +835,13 @@ listen_sslctx_setup(void* ctxt)
 #ifdef HAVE_SSL
 	SSL_CTX* ctx = (SSL_CTX*)ctxt;
 	/* no SSLv2, SSLv3 because has defects */
+#if SSL_OP_NO_SSLv2 != 0
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
 		!= SSL_OP_NO_SSLv2){
 		log_crypto_err("could not set SSL_OP_NO_SSLv2");
 		return 0;
 	}
+#endif
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
 		!= SSL_OP_NO_SSLv3){
 		log_crypto_err("could not set SSL_OP_NO_SSLv3");
@@ -968,12 +1077,14 @@ void* connect_sslctx_create(char* key, char* pem, char* verifypem, int wincert)
 		log_crypto_err("could not allocate SSL_CTX pointer");
 		return NULL;
 	}
+#if SSL_OP_NO_SSLv2 != 0
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
 		!= SSL_OP_NO_SSLv2) {
 		log_crypto_err("could not set SSL_OP_NO_SSLv2");
 		SSL_CTX_free(ctx);
 		return NULL;
 	}
+#endif
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
 		!= SSL_OP_NO_SSLv3) {
 		log_crypto_err("could not set SSL_OP_NO_SSLv3");
@@ -1160,13 +1271,21 @@ int listen_sslctx_setup_ticket_keys(void* sslctx, struct config_strlist* tls_ses
 		s++;
 	}
 	keys = calloc(s, sizeof(struct tls_session_ticket_key));
+	if(!keys)
+		return 0;
 	memset(keys, 0, s*sizeof(*keys));
 	ticket_keys = keys;
 
 	for(p = tls_session_ticket_keys; p; p = p->next) {
 		size_t n;
-		unsigned char *data = (unsigned char *)malloc(80);
-		FILE *f = fopen(p->str, "r");
+		unsigned char *data;
+		FILE *f;
+
+		data = (unsigned char *)malloc(80);
+		if(!data)
+			return 0;
+
+		f = fopen(p->str, "r");
 		if(!f) {
 			log_err("could not read tls-session-ticket-key %s: %s", p->str, strerror(errno));
 			free(data);

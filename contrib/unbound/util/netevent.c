@@ -1120,6 +1120,14 @@ ssl_handshake(struct comm_point* c)
 			return 0; /* closed */
 		} else if(want == SSL_ERROR_SYSCALL) {
 			/* SYSCALL and errno==0 means closed uncleanly */
+#ifdef EPIPE
+			if(errno == EPIPE && verbosity < 2)
+				return 0; /* silence 'broken pipe' */
+#endif
+#ifdef ECONNRESET
+			if(errno == ECONNRESET && verbosity < 2)
+				return 0; /* silence reset by peer */
+#endif
 			if(errno != 0)
 				log_err("SSL_handshake syscall: %s",
 					strerror(errno));

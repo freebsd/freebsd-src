@@ -548,10 +548,7 @@ morechecks(struct config_file* cfg)
 	/* check that the modules listed in module_conf exist */
 	check_modules_exist(cfg->module_conf);
 
-	/* There should be no reason for 'respip' module not to work with
-	 * dns64, but it's not explicitly confirmed,  so the combination is
-	 * excluded below.   It's simply unknown yet for the combination of
-	 * respip and other modules. */
+	/* Respip is known to *not* work with dns64. */
 	if(strcmp(cfg->module_conf, "iterator") != 0
 		&& strcmp(cfg->module_conf, "validator iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 validator iterator") != 0
@@ -560,7 +557,9 @@ morechecks(struct config_file* cfg)
 		&& strcmp(cfg->module_conf, "respip validator iterator") != 0
 #ifdef WITH_PYTHONMODULE
 		&& strcmp(cfg->module_conf, "python iterator") != 0
+		&& strcmp(cfg->module_conf, "python respip iterator") != 0
 		&& strcmp(cfg->module_conf, "python validator iterator") != 0
+		&& strcmp(cfg->module_conf, "python respip validator iterator") != 0
 		&& strcmp(cfg->module_conf, "validator python iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 python iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 python validator iterator") != 0
@@ -570,7 +569,9 @@ morechecks(struct config_file* cfg)
 #endif
 #ifdef USE_CACHEDB
 		&& strcmp(cfg->module_conf, "validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "respip validator cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "respip cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 validator cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 cachedb iterator") != 0
 #endif
@@ -580,39 +581,61 @@ morechecks(struct config_file* cfg)
 		&& strcmp(cfg->module_conf, "dns64 python cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 python validator cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "python cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "python respip cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "python validator cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "python respip validator cachedb iterator") != 0
 		&& strcmp(cfg->module_conf, "cachedb python iterator") != 0
+		&& strcmp(cfg->module_conf, "respip cachedb python iterator") != 0
 		&& strcmp(cfg->module_conf, "validator cachedb python iterator") != 0
+		&& strcmp(cfg->module_conf, "respip validator cachedb python iterator") != 0
 		&& strcmp(cfg->module_conf, "validator python cachedb iterator") != 0
+		&& strcmp(cfg->module_conf, "respip validator python cachedb iterator") != 0
 #endif
 #ifdef CLIENT_SUBNET
 		&& strcmp(cfg->module_conf, "subnetcache iterator") != 0
+		&& strcmp(cfg->module_conf, "respip subnetcache iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache validator iterator") != 0
+		&& strcmp(cfg->module_conf, "respip subnetcache validator iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 subnetcache iterator") != 0
 		&& strcmp(cfg->module_conf, "dns64 subnetcache validator iterator") != 0
 #endif
 #if defined(WITH_PYTHONMODULE) && defined(CLIENT_SUBNET)
 		&& strcmp(cfg->module_conf, "python subnetcache iterator") != 0
+		&& strcmp(cfg->module_conf, "python respip subnetcache iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache python iterator") != 0
+		&& strcmp(cfg->module_conf, "respip subnetcache python iterator") != 0
 		&& strcmp(cfg->module_conf, "python subnetcache validator iterator") != 0
+		&& strcmp(cfg->module_conf, "python respip subnetcache validator iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache python validator iterator") != 0
+		&& strcmp(cfg->module_conf, "respip subnetcache python validator iterator") != 0
 		&& strcmp(cfg->module_conf, "subnetcache validator python iterator") != 0
+		&& strcmp(cfg->module_conf, "respip subnetcache validator python iterator") != 0
 #endif
 #ifdef USE_IPSECMOD
 		&& strcmp(cfg->module_conf, "ipsecmod iterator") != 0
+		&& strcmp(cfg->module_conf, "ipsecmod respip iterator") != 0
 		&& strcmp(cfg->module_conf, "ipsecmod validator iterator") != 0
+		&& strcmp(cfg->module_conf, "ipsecmod respip validator iterator") != 0
 #endif
 #if defined(WITH_PYTHONMODULE) && defined(USE_IPSECMOD)
 		&& strcmp(cfg->module_conf, "python ipsecmod iterator") != 0
+		&& strcmp(cfg->module_conf, "python ipsecmod respip iterator") != 0
 		&& strcmp(cfg->module_conf, "ipsecmod python iterator") != 0
+		&& strcmp(cfg->module_conf, "ipsecmod python respip iterator") != 0
 		&& strcmp(cfg->module_conf, "ipsecmod validator iterator") != 0
+		&& strcmp(cfg->module_conf, "ipsecmod respip validator iterator") != 0
 		&& strcmp(cfg->module_conf, "python ipsecmod validator iterator") != 0
+		&& strcmp(cfg->module_conf, "python ipsecmod respip validator iterator") != 0
 		&& strcmp(cfg->module_conf, "ipsecmod python validator iterator") != 0
+		&& strcmp(cfg->module_conf, "ipsecmod python respip validator iterator") != 0
 		&& strcmp(cfg->module_conf, "ipsecmod validator python iterator") != 0
+		&& strcmp(cfg->module_conf, "ipsecmod respip validator python iterator") != 0
 #endif
 #ifdef USE_IPSET
 		&& strcmp(cfg->module_conf, "validator ipset iterator") != 0
+		&& strcmp(cfg->module_conf, "validator ipset respip iterator") != 0
 		&& strcmp(cfg->module_conf, "ipset iterator") != 0
+		&& strcmp(cfg->module_conf, "ipset respip iterator") != 0
 #endif
 		) {
 		fatal_exit("module conf '%s' is not known to work",
@@ -676,8 +699,9 @@ check_hints(struct config_file* cfg)
 static void
 check_auth(struct config_file* cfg)
 {
+	int is_rpz = 0;
 	struct auth_zones* az = auth_zones_create();
-	if(!az || !auth_zones_apply_cfg(az, cfg, 0)) {
+	if(!az || !auth_zones_apply_cfg(az, cfg, 0i, &is_rpz)) {
 		fatal_exit("Could not setup authority zones");
 	}
 	auth_zones_delete(az);

@@ -1142,7 +1142,7 @@ int iter_lookup_parent_glue_from_cache(struct module_env* env,
 			log_rrset_key(VERB_ALGO, "found parent-side", akey);
 			ns->done_pside4 = 1;
 			/* a negative-cache-element has no addresses it adds */
-			if(!delegpt_add_rrset_A(dp, region, akey, 1))
+			if(!delegpt_add_rrset_A(dp, region, akey, 1, NULL))
 				log_err("malloc failure in lookup_parent_glue");
 			lock_rw_unlock(&akey->entry.lock);
 		}
@@ -1154,7 +1154,7 @@ int iter_lookup_parent_glue_from_cache(struct module_env* env,
 			log_rrset_key(VERB_ALGO, "found parent-side", akey);
 			ns->done_pside6 = 1;
 			/* a negative-cache-element has no addresses it adds */
-			if(!delegpt_add_rrset_AAAA(dp, region, akey, 1))
+			if(!delegpt_add_rrset_AAAA(dp, region, akey, 1, NULL))
 				log_err("malloc failure in lookup_parent_glue");
 			lock_rw_unlock(&akey->entry.lock);
 		}

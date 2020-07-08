@@ -78,7 +78,7 @@
  */
 #define MAX_VALUE 0x7fffffff
 
-#if defined(HAVE_SSL)
+#if defined(HAVE_SSL) || defined(HAVE_LIBBSD)
 struct ub_randstate* 
 ub_initstate(struct ub_randstate* ATTR_UNUSED(from))
 {
@@ -183,10 +183,10 @@ long int ub_random(struct ub_randstate* s)
 	}
 	return x & MAX_VALUE;
 }
-#endif /* HAVE_SSL or HAVE_NSS or HAVE_NETTLE */
+#endif /* HAVE_SSL or HAVE_LIBBSD or HAVE_NSS or HAVE_NETTLE */
 
 
-#if defined(HAVE_NSS) || defined(HAVE_NETTLE)
+#if defined(HAVE_NSS) || defined(HAVE_NETTLE) && !defined(HAVE_LIBBSD)
 long int
 ub_random_max(struct ub_randstate* state, long int x)
 {
@@ -198,7 +198,7 @@ ub_random_max(struct ub_randstate* state, long int x)
 		v = ub_random(state);
 	return (v % x);
 }
-#endif /* HAVE_NSS or HAVE_NETTLE */
+#endif /* HAVE_NSS or HAVE_NETTLE and !HAVE_LIBBSD */
 
 void 
 ub_randfree(struct ub_randstate* s)
