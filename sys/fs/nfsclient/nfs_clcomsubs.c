@@ -62,7 +62,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 	struct mbuf *mp, *mp2;
 	int xfer, left, mlen;
 	int uiosiz, clflg, rem;
-	char *cp, *tcp;
+	char *mcp, *tcp;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
@@ -72,41 +72,52 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 		clflg = 0;
 	rem = NFSM_RNDUP(siz) - siz;
 	mp = mp2 = nd->nd_mb;
+	mcp = nd->nd_bpos;
 	while (siz > 0) {
+		KASSERT((nd->nd_flag & ND_EXTPG) != 0 || mcp ==
+		    mtod(mp, char *) + mp->m_len, ("nfsm_uiombuf: mcp wrong"));
 		left = uiop->uio_iov->iov_len;
 		uiocp = uiop->uio_iov->iov_base;
 		if (left > siz)
 			left = siz;
 		uiosiz = left;
 		while (left > 0) {
-			mlen = M_TRAILINGSPACE(mp);
-			if (mlen == 0) {
-				if (clflg)
-					NFSMCLGET(mp, M_WAITOK);
-				else
-					NFSMGET(mp);
-				mp->m_len = 0;
-				mp2->m_next = mp;
-				mp2 = mp;
+			if ((nd->nd_flag & ND_EXTPG) != 0)
+				mlen = nd->nd_bextpgsiz;
+			else
 				mlen = M_TRAILINGSPACE(mp);
+			if (mlen == 0) {
+				if ((nd->nd_flag & ND_EXTPG) != 0) {
+					mp = nfsm_add_ext_pgs(mp,
+					    nd->nd_maxextsiz, &nd->nd_bextpg);
+					mcp = (char *)(void *)PHYS_TO_DMAP(
+					  mp->m_epg_pa[nd->nd_bextpg]);
+					nd->nd_bextpgsiz = PAGE_SIZE;
+				} else {
+					if (clflg)
+						NFSMCLGET(mp, M_WAITOK);
+					else
+						NFSMGET(mp);
+					mp->m_len = 0;
+					mlen = M_TRAILINGSPACE(mp);
+					mcp = mtod(mp, char *);
+					mp2->m_next = mp;
+					mp2 = mp;
+				}
 			}
 			xfer = (left > mlen) ? mlen : left;
-#ifdef notdef
-			/* Not Yet.. */
-			if (uiop->uio_iov->iov_op != NULL)
-				(*(uiop->uio_iov->iov_op))
-				(uiocp, mtod(mp, caddr_t) + mp->m_len,
-				    xfer);
-			else
-#endif
 			if (uiop->uio_segflg == UIO_SYSSPACE)
-			    NFSBCOPY(uiocp, mtod(mp, caddr_t) + mp->m_len,
-				xfer);
+				NFSBCOPY(uiocp, mcp, xfer);
 			else
-			    copyin(uiocp, mtod(mp, caddr_t) + mp->m_len, xfer);
+				copyin(uiocp, mcp, xfer);
 			mp->m_len += xfer;
 			left -= xfer;
 			uiocp += xfer;
+			mcp += xfer;
+			if ((nd->nd_flag & ND_EXTPG) != 0) {
+				nd->nd_bextpgsiz -= xfer;
+				mp->m_epg_last_len += xfer;
+			}
 			uiop->uio_offset += xfer;
 			uiop->uio_resid -= xfer;
 		}
@@ -117,18 +128,30 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 		siz -= uiosiz;
 	}
 	if (rem > 0) {
-		if (rem > M_TRAILINGSPACE(mp)) {
+		if ((nd->nd_flag & ND_EXTPG) == 0 && rem >
+		    M_TRAILINGSPACE(mp)) {
 			NFSMGET(mp);
 			mp->m_len = 0;
 			mp2->m_next = mp;
+			mcp = mtod(mp, char *);
+		} else if ((nd->nd_flag & ND_EXTPG) != 0 && rem >
+		    nd->nd_bextpgsiz) {
+			mp = nfsm_add_ext_pgs(mp, nd->nd_maxextsiz,
+			    &nd->nd_bextpg);
+			mcp = (char *)(void *)
+			    PHYS_TO_DMAP(mp->m_epg_pa[nd->nd_bextpg]);
+			nd->nd_bextpgsiz = PAGE_SIZE;
 		}
-		cp = mtod(mp, caddr_t) + mp->m_len;
 		for (left = 0; left < rem; left++)
-			*cp++ = '\0';
+			*mcp++ = '\0';
 		mp->m_len += rem;
-		nd->nd_bpos = cp;
+		nd->nd_bpos = mcp;
+		if ((nd->nd_flag & ND_EXTPG) != 0) {
+			nd->nd_bextpgsiz -= rem;
+			mp->m_epg_last_len += rem;
+		}
 	} else
-		nd->nd_bpos = mtod(mp, caddr_t) + mp->m_len;
+		nd->nd_bpos = mcp;
 	nd->nd_mb = mp;
 }
 
