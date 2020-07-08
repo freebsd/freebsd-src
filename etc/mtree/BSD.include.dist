@@ -228,6 +228,8 @@
         ..
         netdump
         ..
+        tcp_stacks
+        ..
     ..
     netinet6
     ..
