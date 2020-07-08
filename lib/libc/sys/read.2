@@ -28,7 +28,7 @@
 .\"     @(#)read.2	8.4 (Berkeley) 2/26/94
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2019
+.Dd July 8, 2020
 .Dt READ 2
 .Os
 .Sh NAME
@@ -197,9 +197,14 @@ was negative.
 The file was marked for non-blocking I/O,
 and no data were ready to be read.
 .It Bq Er EISDIR
-The file descriptor is associated with a directory residing
-on a file system that does not allow regular read operations on
-directories (e.g.\& NFS).
+The file descriptor is associated with a directory.
+Directories may only be read directly if the filesystem supports it and
+the
+.Dv security.bsd.allow_read_dir
+sysctl MIB is set to a non-zero value.
+For most scenarios, the
+.Xr readdir 3
+function should be used instead.
 .It Bq Er EOPNOTSUPP
 The file descriptor is associated with a file system and file type that
 do not allow regular read operations on it.
