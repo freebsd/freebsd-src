@@ -1,4 +1,4 @@
-/*	$NetBSD: lstIsAtEnd.c,v 1.13 2008/02/15 21:29:50 christos Exp $	*/
+/*	$NetBSD: lstIsAtEnd.c,v 1.14 2020/07/03 08:37:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstIsAtEnd.c,v 1.13 2008/02/15 21:29:50 christos Exp $";
+static char rcsid[] = "$NetBSD: lstIsAtEnd.c,v 1.14 2020/07/03 08:37:57 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstIsAtEnd.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstIsAtEnd.c,v 1.13 2008/02/15 21:29:50 christos Exp $");
+__RCSID("$NetBSD: lstIsAtEnd.c,v 1.14 2020/07/03 08:37:57 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -81,7 +81,6 @@ Lst_IsAtEnd(Lst l)
 {
     List list = l;
 
-    return (!LstValid (l) || !list->isOpen ||
-	    (list->atEnd == Head) || (list->atEnd == Tail));
+    return !LstValid (l) || !list->isOpen ||
+	   list->atEnd == Head || list->atEnd == Tail;
 }
-

@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $	*/
+/*	$NetBSD: make.c,v 1.99 2020/07/03 08:13:23 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $";
+static char rcsid[] = "$NetBSD: make.c,v 1.99 2020/07/03 08:13:23 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)make.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: make.c,v 1.96 2016/11/10 23:41:58 sjg Exp $");
+__RCSID("$NetBSD: make.c,v 1.99 2020/07/03 08:13:23 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -175,7 +175,7 @@ Make_TimeStamp(GNode *pgn, GNode *cgn)
     if (pgn->cmgn == NULL || cgn->mtime > pgn->cmgn->mtime) {
 	pgn->cmgn = cgn;
     }
-    return (0);
+    return 0;
 }
 
 /*
@@ -264,7 +264,7 @@ Make_OODate(GNode *gn)
 	 * always out of date if no children and :: target
 	 * or non-existent.
 	 */
-	oodate = (gn->mtime == 0 || Arch_LibOODate(gn) || 
+	oodate = (gn->mtime == 0 || Arch_LibOODate(gn) ||
 		  (gn->cmgn == NULL && (gn->type & OP_DOUBLEDEP)));
     } else if (gn->type & OP_JOIN) {
 	/*
@@ -317,7 +317,7 @@ Make_OODate(GNode *gn)
 	}
 	oodate = TRUE;
     } else {
-	/* 
+	/*
 	 * When a non-existing child with no sources
 	 * (such as a typically used FORCE source) has been made and
 	 * the target of the child (usually a directory) has the same
@@ -348,7 +348,7 @@ Make_OODate(GNode *gn)
 	Lst_ForEach(gn->parents, MakeTimeStamp, gn);
     }
 
-    return (oodate);
+    return oodate;
 }
 
 /*-
@@ -380,7 +380,7 @@ MakeAddChild(void *gnp, void *lp)
 		gn->name, gn->cohort_num);
 	(void)Lst_EnQueue(l, gn);
     }
-    return (0);
+    return 0;
 }
 
 /*-
@@ -410,7 +410,7 @@ MakeFindChild(void *gnp, void *pgnp)
     Make_TimeStamp(pgn, gn);
     pgn->unmade--;
 
-    return (0);
+    return 0;
 }
 
 /*-
@@ -535,7 +535,7 @@ MakeHandleUse(void *cgnp, void *pgnp)
     cgn->type |= OP_MARK;
 
     if ((cgn->type & (OP_USE|OP_USEBEFORE)) == 0)
-	return (0);
+	return 0;
 
     if (unmarked)
 	Make_HandleUse(cgn, pgn);
@@ -551,7 +551,7 @@ MakeHandleUse(void *cgnp, void *pgnp)
 	Lst_Remove(pgn->children, ln);
 	pgn->unmade--;
     }
-    return (0);
+    return 0;
 }
 
 
@@ -831,9 +831,9 @@ Make_Update(GNode *cgn)
 	while ((ln = Lst_Next(cgn->iParents)) != NULL) {
 	    pgn = (GNode *)Lst_Datum(ln);
 	    if (pgn->flags & REMAKE) {
-		Var_Set(IMPSRC, cname, pgn, 0);
+		Var_Set(IMPSRC, cname, pgn);
 		if (cpref != NULL)
-		    Var_Set(PREFIX, cpref, pgn, 0);
+		    Var_Set(PREFIX, cpref, pgn);
 	    }
 	}
 	free(p1);
@@ -869,7 +869,7 @@ MakeUnmark(void *cgnp, void *pgnp MAKE_ATTR_UNUSED)
     GNode	*cgn = (GNode *)cgnp;
 
     cgn->type &= ~OP_MARK;
-    return (0);
+    return 0;
 }
 
 /*
@@ -886,7 +886,7 @@ MakeAddAllSrc(void *cgnp, void *pgnp)
     GNode	*pgn = (GNode *)pgnp;
 
     if (cgn->type & OP_MARK)
-	return (0);
+	return 0;
     cgn->type |= OP_MARK;
 
     if ((cgn->type & (OP_EXEC|OP_USE|OP_USEBEFORE|OP_INVISIBLE)) == 0) {
@@ -932,7 +932,7 @@ MakeAddAllSrc(void *cgnp, void *pgnp)
 	}
 	free(p1);
     }
-    return (0);
+    return 0;
 }
 
 /*-
@@ -962,20 +962,20 @@ Make_DoAllVar(GNode *gn)
 {
     if (gn->flags & DONE_ALLSRC)
 	return;
-    
+
     Lst_ForEach(gn->children, MakeUnmark, gn);
     Lst_ForEach(gn->children, MakeAddAllSrc, gn);
 
     if (!Var_Exists (OODATE, gn)) {
-	Var_Set(OODATE, "", gn, 0);
+	Var_Set(OODATE, "", gn);
     }
     if (!Var_Exists (ALLSRC, gn)) {
-	Var_Set(ALLSRC, "", gn, 0);
+	Var_Set(ALLSRC, "", gn);
     }
 
     if (gn->type & OP_JOIN) {
 	char *p1;
-	Var_Set(TARGET, Var_Value(ALLSRC, gn, &p1), gn, 0);
+	Var_Set(TARGET, Var_Value(ALLSRC, gn, &p1), gn);
 	free(p1);
     }
     gn->flags |= DONE_ALLSRC;
@@ -1119,7 +1119,7 @@ MakeStartJobs(void)
 		fprintf(debug_file, "out-of-date\n");
 	    }
 	    if (queryFlag) {
-		return (TRUE);
+		return TRUE;
 	    }
 	    Make_DoAllVar(gn);
 	    Job_Make(gn);
@@ -1145,7 +1145,7 @@ MakeStartJobs(void)
     if (have_token)
 	Job_TokenReturn();
 
-    return (FALSE);
+    return FALSE;
 }
 
 /*-
@@ -1293,7 +1293,7 @@ Make_ExpandUse(Lst targs)
      */
     while (!Lst_IsEmpty (examine)) {
 	gn = (GNode *)Lst_DeQueue(examine);
-    
+
 	if (gn->flags & REMAKE)
 	    /* We've looked at this one already */
 	    continue;
@@ -1324,14 +1324,14 @@ Make_ExpandUse(Lst targs)
 		continue;
 	    *eoa = '\0';
 	    *eon = '\0';
-	    Var_Set(MEMBER, eoa + 1, gn, 0);
-	    Var_Set(ARCHIVE, gn->name, gn, 0);
+	    Var_Set(MEMBER, eoa + 1, gn);
+	    Var_Set(ARCHIVE, gn->name, gn);
 	    *eoa = '(';
 	    *eon = ')';
 	}
 
 	(void)Dir_MTime(gn, 0);
-	Var_Set(TARGET, gn->path ? gn->path : gn->name, gn, 0);
+	Var_Set(TARGET, gn->path ? gn->path : gn->name, gn);
 	Lst_ForEach(gn->children, MakeUnmark, gn);
 	Lst_ForEach(gn->children, MakeHandleUse, gn);
 
@@ -1429,7 +1429,7 @@ Make_ProcessWait(Lst targs)
 
     while (!Lst_IsEmpty (examine)) {
 	pgn = Lst_DeQueue(examine);
-   
+
 	/* We only want to process each child-list once */
 	if (pgn->flags & DONE_WAIT)
 	    continue;
@@ -1509,7 +1509,7 @@ Make_Run(Lst targs)
 	 * next loop... (we won't actually start any, of course, this is just
 	 * to see if any of the targets was out of date)
 	 */
-	return (MakeStartJobs());
+	return MakeStartJobs();
     }
     /*
      * Initialization. At the moment, no jobs are running and until some

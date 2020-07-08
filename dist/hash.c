@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.20 2013/11/14 00:27:05 sjg Exp $	*/
+/*	$NetBSD: hash.c,v 1.22 2020/07/03 17:03:09 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: hash.c,v 1.20 2013/11/14 00:27:05 sjg Exp $";
+static char rcsid[] = "$NetBSD: hash.c,v 1.22 2020/07/03 17:03:09 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)hash.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: hash.c,v 1.20 2013/11/14 00:27:05 sjg Exp $");
+__RCSID("$NetBSD: hash.c,v 1.22 2020/07/03 17:03:09 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -229,7 +229,7 @@ Hash_FindEntry(Hash_Table *t, const char *key)
 	p = key;
 	for (e = t->bucketPtr[h & t->mask]; e != NULL; e = e->next)
 		if (e->namehash == h && strcmp(e->name, p) == 0)
-			return (e);
+			return e;
 	return NULL;
 }
 
@@ -279,7 +279,7 @@ Hash_CreateEntry(Hash_Table *t, const char *key, Boolean *newPtr)
 		if (e->namehash == h && strcmp(e->name, p) == 0) {
 			if (newPtr != NULL)
 				*newPtr = FALSE;
-			return (e);
+			return e;
 		}
 	}
 
@@ -301,7 +301,7 @@ Hash_CreateEntry(Hash_Table *t, const char *key, Boolean *newPtr)
 
 	if (newPtr != NULL)
 		*newPtr = TRUE;
-	return (e);
+	return e;
 }
 
 /*
@@ -418,7 +418,7 @@ Hash_EnumNext(Hash_Search *searchPtr)
 		e = t->bucketPtr[searchPtr->nextIndex++];
 	}
 	searchPtr->hashEntryPtr = e;
-	return (e);
+	return e;
 }
 
 /*
@@ -463,4 +463,15 @@ RebuildTable(Hash_Table *t)
 		}
 	}
 	free(oldhp);
+}
+
+void Hash_ForEach(Hash_Table *t, void (*action)(void *, void *), void *data)
+{
+	Hash_Search search;
+	Hash_Entry *e;
+
+	for (e = Hash_EnumFirst(t, &search);
+	     e != NULL;
+	     e = Hash_EnumNext(&search))
+		action(Hash_GetValue(e), data);
 }

@@ -1,3 +1,42 @@
+2020-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200704
+	Merge with NetBSD make, pick up
+	(most of this by rillig@)
+	o lots of style and white-space cleanup
+	o lots more unit tests for variable modifiers
+	o simplified description of some functions
+	o str.c: refactor Str_Match
+	o var.c: debugging output for :@
+	  constify VarModify parameter
+	  fix :hash modifier on 16-bit platforms
+	  remove unnecessary forward declarations
+	  refactor ApplyModifier_SysV to have less indentation
+	  simplify code for :E and :R
+	  clean up code for :H and :T
+	  refactor ApplyModifiers
+
+	* var.c: we need stdint.h on some platforms to get uint32_t
+	* unit-test/Makefile: we need to supress the specific error
+	for RE substitution error in modmisc, since it varies accross
+	different OS.
+
+2020-07-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200702
+	Merge with NetBSD make, pick up
+	o var.c: more improvements to avoiding unnecessary evaluation
+	use enums for flags
+	o remove flags arg to Var_Set which outside of var.c is always 0
+
+2020-07-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200701
+	Merge with NetBSD make, pick up
+	o var.c: with change to cond.c; ensure that nested variables
+	within a variable name are expanded.
+	o unit-tests/varmisc.mk: test for nested varname
+
 2020-06-29  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20200629

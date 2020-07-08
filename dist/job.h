@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.42 2013/07/05 22:14:56 sjg Exp $	*/
+/*	$NetBSD: job.h,v 1.43 2020/07/03 08:13:23 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -106,7 +106,7 @@ emul_poll(struct pollfd *fd, int nfd, int timeout);
 
 /*
  * The POLL_MSEC constant determines the maximum number of milliseconds spent
- * in poll before coming out to see if a child has finished. 
+ * in poll before coming out to see if a child has finished.
  */
 #define POLL_MSEC	5000
 
@@ -203,11 +203,11 @@ typedef struct Job {
  * a case, errCheck becomes a printf template for echoing the command,
  * should echoing be on and ignErr becomes another printf template for
  * executing the command while ignoring the return status. Finally errOut
- * is a printf template for running the command and causing the shell to 
- * exit on error. If any of these strings are empty when hasErrCtl is FALSE, 
- * the command will be executed anyway as is and if it causes an error, so be 
+ * is a printf template for running the command and causing the shell to
+ * exit on error. If any of these strings are empty when hasErrCtl is FALSE,
+ * the command will be executed anyway as is and if it causes an error, so be
  * it. Any templates setup to echo the command will escape any '$ ` \ "'i
- * characters in the command string to avoid common problems with 
+ * characters in the command string to avoid common problems with
  * echo "%s\n" as a template.
  */
 typedef struct Shell {

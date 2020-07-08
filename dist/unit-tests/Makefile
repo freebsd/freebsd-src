@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.55 2020/06/29 14:47:56 sjg Exp $
+# $Id: Makefile,v 1.58 2020/07/04 22:33:00 sjg Exp $
 #
 # $NetBSD: Makefile,v 1.59 2020/06/28 09:42:40 rillig Exp $
 #
@@ -104,6 +104,9 @@ LANG= C
 # some tests need extra post-processing
 SED_CMDS.varshell = -e 's,^[a-z]*sh: ,,' \
 	-e '/command/s,No such.*,not found,'
+
+# the detailed error message can vary across systems
+SED_CMDS.modmisc = -e 's,\(substitution error:\).*,\1 details omitted,'
 
 # the tests are actually done with sub-makes.
 .SUFFIXES: .mk .rawout .out

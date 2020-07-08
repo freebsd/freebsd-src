@@ -1,4 +1,4 @@
-/*	$NetBSD: trace.c,v 1.11 2008/12/28 18:31:51 christos Exp $	*/
+/*	$NetBSD: trace.c,v 1.12 2020/07/03 08:13:23 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -31,11 +31,11 @@
 
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: trace.c,v 1.11 2008/12/28 18:31:51 christos Exp $";
+static char rcsid[] = "$NetBSD: trace.c,v 1.12 2020/07/03 08:13:23 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: trace.c,v 1.11 2008/12/28 18:31:51 christos Exp $");
+__RCSID("$NetBSD: trace.c,v 1.12 2020/07/03 08:13:23 rillig Exp $");
 #endif /* not lint */
 #endif
 
@@ -90,7 +90,7 @@ void
 Trace_Log(TrEvent event, Job *job)
 {
 	struct timeval rightnow;
-	
+
 	if (trfile == NULL)
 		return;
 
