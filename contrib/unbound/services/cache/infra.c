@@ -41,6 +41,8 @@
 #include "config.h"
 #include "sldns/rrdef.h"
 #include "sldns/str2wire.h"
+#include "sldns/sbuffer.h"
+#include "sldns/wire2str.h"
 #include "services/cache/infra.h"
 #include "util/storage/slabhash.h"
 #include "util/storage/lookup3.h"
@@ -907,7 +909,8 @@ int infra_rate_max(void* data, time_t now)
 }
 
 int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
-	size_t namelen, time_t timenow)
+	size_t namelen, time_t timenow, struct query_info* qinfo,
+	struct comm_reply* replylist)
 {
 	int lim, max;
 	struct lruhash_entry* entry;
@@ -930,9 +933,19 @@ int infra_ratelimit_inc(struct infra_cache* infra, uint8_t* name,
 		lock_rw_unlock(&entry->lock);
 
 		if(premax < lim && max >= lim) {
-			char buf[257];
+			char buf[257], qnm[257], ts[12], cs[12], ip[128];
 			dname_str(name, buf);
-			verbose(VERB_OPS, "ratelimit exceeded %s %d", buf, lim);
+			dname_str(qinfo->qname, qnm);
+			sldns_wire2str_type_buf(qinfo->qtype, ts, sizeof(ts));
+			sldns_wire2str_class_buf(qinfo->qclass, cs, sizeof(cs));
+			ip[0]=0;
+			if(replylist) {
+				addr_to_str((struct sockaddr_storage *)&replylist->addr,
+					replylist->addrlen, ip, sizeof(ip));
+				verbose(VERB_OPS, "ratelimit exceeded %s %d query %s %s %s from %s", buf, lim, qnm, cs, ts, ip);
+			} else {
+				verbose(VERB_OPS, "ratelimit exceeded %s %d query %s %s %s", buf, lim, qnm, cs, ts);
+			}
 		}
 		return (max < lim);
 	}
@@ -991,7 +1004,7 @@ infra_get_mem(struct infra_cache* infra)
 }
 
 int infra_ip_ratelimit_inc(struct infra_cache* infra,
-  struct comm_reply* repinfo, time_t timenow)
+  struct comm_reply* repinfo, time_t timenow, struct sldns_buffer* buffer)
 {
 	int max;
 	struct lruhash_entry* entry;
@@ -1010,11 +1023,28 @@ int infra_ip_ratelimit_inc(struct infra_cache* infra,
 		lock_rw_unlock(&entry->lock);
 
 		if(premax < infra_ip_ratelimit && max >= infra_ip_ratelimit) {
-			char client_ip[128];
+			char client_ip[128], qnm[LDNS_MAX_DOMAINLEN+1+12+12];
 			addr_to_str((struct sockaddr_storage *)&repinfo->addr,
 				repinfo->addrlen, client_ip, sizeof(client_ip));
-			verbose(VERB_OPS, "ip_ratelimit exceeded %s %d",
-				client_ip, infra_ip_ratelimit);
+			qnm[0]=0;
+			if(sldns_buffer_limit(buffer)>LDNS_HEADER_SIZE &&
+				LDNS_QDCOUNT(sldns_buffer_begin(buffer))!=0) {
+				(void)sldns_wire2str_rrquestion_buf(
+					sldns_buffer_at(buffer, LDNS_HEADER_SIZE),
+					sldns_buffer_limit(buffer)-LDNS_HEADER_SIZE,
+					qnm, sizeof(qnm));
+				if(strlen(qnm)>0 && qnm[strlen(qnm)-1]=='\n')
+					qnm[strlen(qnm)-1] = 0; /*remove newline*/
+				if(strchr(qnm, '\t'))
+					*strchr(qnm, '\t') = ' ';
+				if(strchr(qnm, '\t'))
+					*strchr(qnm, '\t') = ' ';
+				verbose(VERB_OPS, "ip_ratelimit exceeded %s %d %s",
+					client_ip, infra_ip_ratelimit, qnm);
+			} else {
+				verbose(VERB_OPS, "ip_ratelimit exceeded %s %d (no query name)",
+					client_ip, infra_ip_ratelimit);
+			}
 		}
 		return (max <= infra_ip_ratelimit);
 	}

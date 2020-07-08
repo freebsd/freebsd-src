@@ -33,7 +33,6 @@ sldns_buffer_new(size_t capacity)
 	buffer->_position = 0;
 	buffer->_limit = buffer->_capacity = capacity;
 	buffer->_fixed = 0;
-	buffer->_vfixed = 0;
 	buffer->_status_err = 0;
 	
 	sldns_buffer_invariant(buffer);
@@ -49,7 +48,6 @@ sldns_buffer_new_frm_data(sldns_buffer *buffer, void *data, size_t size)
 	buffer->_position = 0; 
 	buffer->_limit = buffer->_capacity = size;
 	buffer->_fixed = 0;
-	buffer->_vfixed = 0;
 	if (!buffer->_fixed && buffer->_data)
 		free(buffer->_data);
 	buffer->_data = malloc(size);
@@ -70,17 +68,6 @@ sldns_buffer_init_frm_data(sldns_buffer *buffer, void *data, size_t size)
 	buffer->_data = data;
 	buffer->_capacity = buffer->_limit = size;
 	buffer->_fixed = 1;
-	buffer->_vfixed = 0;
-}
-
-void
-sldns_buffer_init_vfixed_frm_data(sldns_buffer *buffer, void *data, size_t size)
-{
-	memset(buffer, 0, sizeof(*buffer));
-	buffer->_data = data;
-	buffer->_capacity = buffer->_limit = size;
-	buffer->_fixed = 1;
-	buffer->_vfixed = 1;
 }
 
 int
@@ -141,19 +128,6 @@ sldns_buffer_printf(sldns_buffer *buffer, const char *format, ...)
 		if (written == -1) {
 			buffer->_status_err = 1;
 			return -1;
-		} else if (!buffer->_vfixed && (size_t) written >= remaining) {
-			if (!sldns_buffer_reserve(buffer, (size_t) written + 1)) {
-				buffer->_status_err = 1;
-				return -1;
-			}
-			va_start(args, format);
-			written = vsnprintf((char *) sldns_buffer_current(buffer),
-			    sldns_buffer_remaining(buffer), format, args);
-			va_end(args);
-			if (written == -1) {
-				buffer->_status_err = 1;
-				return -1;
-			}
 		}
 		buffer->_position += written;
 	}
@@ -171,13 +145,6 @@ sldns_buffer_free(sldns_buffer *buffer)
 		free(buffer->_data);
 
 	free(buffer);
-}
-
-void *
-sldns_buffer_export(sldns_buffer *buffer)
-{
-	buffer->_fixed = 1;
-	return buffer->_data;
 }
 
 void 

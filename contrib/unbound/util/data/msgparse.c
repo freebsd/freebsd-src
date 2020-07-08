@@ -55,7 +55,11 @@ smart_compare(sldns_buffer* pkt, uint8_t* dnow,
 {
 	if(LABEL_IS_PTR(*dnow)) {
 		/* ptr points to a previous dname */
-		uint8_t* p = sldns_buffer_at(pkt, PTR_OFFSET(dnow[0], dnow[1]));
+		uint8_t* p;
+		if((size_t)PTR_OFFSET(dnow[0], dnow[1])
+			>= sldns_buffer_limit(pkt))
+			return -1;
+		p = sldns_buffer_at(pkt, PTR_OFFSET(dnow[0], dnow[1]));
 		if( p == dprfirst || p == dprlast )
 			return 0;
 		/* prev dname is also a ptr, both ptrs are the same. */
@@ -1061,18 +1065,18 @@ parse_edns_from_pkt(sldns_buffer* pkt, struct edns_data* edns,
 	size_t rdata_len;
 	uint8_t* rdata_ptr;
 	log_assert(LDNS_QDCOUNT(sldns_buffer_begin(pkt)) == 1);
+	memset(edns, 0, sizeof(*edns));
 	if(LDNS_ANCOUNT(sldns_buffer_begin(pkt)) != 0 ||
 		LDNS_NSCOUNT(sldns_buffer_begin(pkt)) != 0) {
 		if(!skip_pkt_rrs(pkt, ((int)LDNS_ANCOUNT(sldns_buffer_begin(pkt)))+
 			((int)LDNS_NSCOUNT(sldns_buffer_begin(pkt)))))
-			return 0;
+			return LDNS_RCODE_FORMERR;
 	}
 	/* check edns section is present */
 	if(LDNS_ARCOUNT(sldns_buffer_begin(pkt)) > 1) {
 		return LDNS_RCODE_FORMERR;
 	}
 	if(LDNS_ARCOUNT(sldns_buffer_begin(pkt)) == 0) {
-		memset(edns, 0, sizeof(*edns));
 		edns->udp_size = 512;
 		return 0;
 	}

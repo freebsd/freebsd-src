@@ -9,6 +9,7 @@ UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 PROG=	local-unbound-checkconf
 SRCS=	ub_event.c unbound-checkconf.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
+CFLAGS+=	-I${.CURDIR:H} -I${.CURDIR}
 LIBADD=	unbound pthread
 MAN=	local-unbound-checkconf.8
 

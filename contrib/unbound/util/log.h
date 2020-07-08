@@ -107,17 +107,28 @@ void log_thread_set(int* num);
 int log_thread_get(void);
 
 /**
- * Set identity to print, default is 'unbound'. 
+ * Set identity to print, default is 'unbound'.
  * @param id: string to print. Name of executable.
  */
 void log_ident_set(const char* id);
 
 /**
- * Set the time value to print in log entries.
- * @param t: the point is copied and used to find the time.
- * 	if NULL, time(2) is used.
+ * Set default identity to print, default is 'unbound'.
+ * @param id: string to print. Name of executable.
  */
-void log_set_time(time_t* t);
+void log_ident_set_default(const char* id);
+
+/**
+ * Revert identity to print, back to the recorded default value.
+ */
+void log_ident_revert_to_default(void);
+
+/**
+ * Set identity to print if there is an identity, otherwise
+ * set the default.
+ * @param identity: the identity to set.
+ */
+void log_ident_set_or_default(const char* identity);
 
 /**
  * Set if the time value is printed ascii or decimal in log entries.
@@ -159,6 +170,20 @@ void log_warn(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
  * @param length: length of data.
  */
 void log_hex(const char* msg, void* data, size_t length);
+
+/**
+ * Log query.
+ * Pass printf formatted arguments. No trailing newline is needed.
+ * @param format: printf-style format string. Arguments follow.
+ */
+void log_query(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
+
+/**
+ * Log reply.
+ * Pass printf formatted arguments. No trailing newline is needed.
+ * @param format: printf-style format string. Arguments follow.
+ */
+void log_reply(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
 
 /**
  * Easy alternative for log_hex, takes a sldns_buffer.

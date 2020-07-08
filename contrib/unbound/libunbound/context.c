@@ -55,11 +55,19 @@
 int 
 context_finalize(struct ub_ctx* ctx)
 {
+	int is_rpz = 0;
 	struct config_file* cfg = ctx->env->cfg;
 	verbosity = cfg->verbosity;
-	if(ctx->logfile_override)
+	if(ctx_logfile_overridden && !ctx->logfile_override) {
+		log_file(NULL); /* clear that override */
+		ctx_logfile_overridden = 0;
+	}
+	if(ctx->logfile_override) {
+		ctx_logfile_overridden = 1;
 		log_file(ctx->log_out);
-	else	log_init(cfg->logfile, cfg->use_syslog, NULL);
+	} else {
+		log_init(cfg->logfile, cfg->use_syslog, NULL);
+	}
 	config_apply(cfg);
 	if(!modstack_setup(&ctx->mods, cfg->module_conf, ctx->env))
 		return UB_INITFAIL;
@@ -69,7 +77,7 @@ context_finalize(struct ub_ctx* ctx)
 		return UB_NOMEM;
 	if(!local_zones_apply_cfg(ctx->local_zones, cfg))
 		return UB_INITFAIL;
-	if(!auth_zones_apply_cfg(ctx->env->auth_zones, cfg, 1))
+	if(!auth_zones_apply_cfg(ctx->env->auth_zones, cfg, 1, &is_rpz))
 		return UB_INITFAIL;
 	if(!slabhash_is_size(ctx->env->msg_cache, cfg->msg_cache_size,
 		cfg->msg_cache_slabs)) {

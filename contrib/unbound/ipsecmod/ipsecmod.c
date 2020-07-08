@@ -103,11 +103,11 @@ ipsecmod_new(struct module_qstate* qstate, int id)
 {
 	struct ipsecmod_qstate* iq = (struct ipsecmod_qstate*)regional_alloc(
 		qstate->region, sizeof(struct ipsecmod_qstate));
-	memset(iq, 0, sizeof(*iq));
 	qstate->minfo[id] = iq;
 	if(!iq)
 		return 0;
 	/* Initialise it. */
+	memset(iq, 0, sizeof(*iq));
 	iq->enabled = qstate->env->cfg->ipsecmod_enabled;
 	iq->is_whitelisted = ipsecmod_domain_is_whitelisted(
 		(struct ipsecmod_env*)qstate->env->modinfo[id], qstate->qinfo.qname,
@@ -162,6 +162,71 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 }
 
 /**
+ * Check if the string passed is a valid domain name with safe characters to
+ * pass to a shell.
+ * This will only allow:
+ *  - digits
+ *  - alphas
+ *  - hyphen (not at the start)
+ *  - dot (not at the start, or the only character)
+ *  - underscore
+ * @param s: pointer to the string.
+ * @param slen: string's length.
+ * @return true if s only contains safe characters; false otherwise.
+ */
+static int
+domainname_has_safe_characters(char* s, size_t slen) {
+	size_t i;
+	for(i = 0; i < slen; i++) {
+		if(s[i] == '\0') return 1;
+		if((s[i] == '-' && i != 0)
+			|| (s[i] == '.' && (i != 0 || s[1] == '\0'))
+			|| (s[i] == '_') || (s[i] >= '0' && s[i] <= '9')
+			|| (s[i] >= 'A' && s[i] <= 'Z')
+			|| (s[i] >= 'a' && s[i] <= 'z')) {
+			continue;
+		}
+		return 0;
+	}
+	return 1;
+}
+
+/**
+ * Check if the stringified IPSECKEY RDATA contains safe characters to pass to
+ * a shell.
+ * This is only relevant for checking the gateway when the gateway type is 3
+ * (domainname).
+ * @param s: pointer to the string.
+ * @param slen: string's length.
+ * @return true if s contains only safe characters; false otherwise.
+ */
+static int
+ipseckey_has_safe_characters(char* s, size_t slen) {
+	int precedence, gateway_type, algorithm;
+	char* gateway;
+	gateway = (char*)calloc(slen, sizeof(char));
+	if(!gateway) {
+		log_err("ipsecmod: out of memory when calling the hook");
+		return 0;
+	}
+	if(sscanf(s, "%d %d %d %s ",
+			&precedence, &gateway_type, &algorithm, gateway) != 4) {
+		free(gateway);
+		return 0;
+	}
+	if(gateway_type != 3) {
+		free(gateway);
+		return 1;
+	}
+	if(domainname_has_safe_characters(gateway, slen)) {
+		free(gateway);
+		return 1;
+	}
+	free(gateway);
+	return 0;
+}
+
+/**
  *  Prepare the data and call the hook.
  *
  *  @param qstate: query state.
@@ -175,7 +240,7 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 {
 	size_t slen, tempdata_len, tempstring_len, i;
 	char str[65535], *s, *tempstring;
-	int w;
+	int w = 0, w_temp, qtype;
 	struct ub_packed_rrset_key* rrset_key;
 	struct packed_rrset_data* rrset_data;
 	uint8_t *tempdata;
@@ -192,9 +257,9 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 	memset(s, 0, slen);
 
 	/* Copy the hook into the buffer. */
-	sldns_str_print(&s, &slen, "%s", qstate->env->cfg->ipsecmod_hook);
+	w += sldns_str_print(&s, &slen, "%s", qstate->env->cfg->ipsecmod_hook);
 	/* Put space into the buffer. */
-	sldns_str_print(&s, &slen, " ");
+	w += sldns_str_print(&s, &slen, " ");
 	/* Copy the qname into the buffer. */
 	tempstring = sldns_wire2str_dname(qstate->qinfo.qname,
 		qstate->qinfo.qname_len);
@@ -202,68 +267,96 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 		log_err("ipsecmod: out of memory when calling the hook");
 		return 0;
 	}
-	sldns_str_print(&s, &slen, "\"%s\"", tempstring);
+	if(!domainname_has_safe_characters(tempstring, strlen(tempstring))) {
+		log_err("ipsecmod: qname has unsafe characters");
+		free(tempstring);
+		return 0;
+	}
+	w += sldns_str_print(&s, &slen, "\"%s\"", tempstring);
 	free(tempstring);
 	/* Put space into the buffer. */
-	sldns_str_print(&s, &slen, " ");
+	w += sldns_str_print(&s, &slen, " ");
 	/* Copy the IPSECKEY TTL into the buffer. */
 	rrset_data = (struct packed_rrset_data*)iq->ipseckey_rrset->entry.data;
-	sldns_str_print(&s, &slen, "\"%ld\"", (long)rrset_data->ttl);
+	w += sldns_str_print(&s, &slen, "\"%ld\"", (long)rrset_data->ttl);
 	/* Put space into the buffer. */
-	sldns_str_print(&s, &slen, " ");
-	/* Copy the A/AAAA record(s) into the buffer. Start and end this section
-	 * with a double quote. */
+	w += sldns_str_print(&s, &slen, " ");
 	rrset_key = reply_find_answer_rrset(&qstate->return_msg->qinfo,
 		qstate->return_msg->rep);
+	/* Double check that the records are indeed A/AAAA.
+	 * This should never happen as this function is only executed for A/AAAA
+	 * queries but make sure we don't pass anything other than A/AAAA to the
+	 * shell. */
+	qtype = ntohs(rrset_key->rk.type);
+	if(qtype != LDNS_RR_TYPE_AAAA && qtype != LDNS_RR_TYPE_A) {
+		log_err("ipsecmod: Answer is not of A or AAAA type");
+		return 0;
+	}
 	rrset_data = (struct packed_rrset_data*)rrset_key->entry.data;
-	sldns_str_print(&s, &slen, "\"");
+	/* Copy the A/AAAA record(s) into the buffer. Start and end this section
+	 * with a double quote. */
+	w += sldns_str_print(&s, &slen, "\"");
 	for(i=0; i<rrset_data->count; i++) {
 		if(i > 0) {
 			/* Put space into the buffer. */
-			sldns_str_print(&s, &slen, " ");
+			w += sldns_str_print(&s, &slen, " ");
 		}
 		/* Ignore the first two bytes, they are the rr_data len. */
-		w = sldns_wire2str_rdata_buf(rrset_data->rr_data[i] + 2,
+		w_temp = sldns_wire2str_rdata_buf(rrset_data->rr_data[i] + 2,
 			rrset_data->rr_len[i] - 2, s, slen, qstate->qinfo.qtype);
-		if(w < 0) {
+		if(w_temp < 0) {
 			/* Error in printout. */
-			return -1;
-		} else if((size_t)w >= slen) {
+			log_err("ipsecmod: Error in printing IP address");
+			return 0;
+		} else if((size_t)w_temp >= slen) {
 			s = NULL; /* We do not want str to point outside of buffer. */
 			slen = 0;
-			return -1;
+			log_err("ipsecmod: shell command too long");
+			return 0;
 		} else {
-			s += w;
-			slen -= w;
+			s += w_temp;
+			slen -= w_temp;
+			w += w_temp;
 		}
 	}
-	sldns_str_print(&s, &slen, "\"");
+	w += sldns_str_print(&s, &slen, "\"");
 	/* Put space into the buffer. */
-	sldns_str_print(&s, &slen, " ");
+	w += sldns_str_print(&s, &slen, " ");
 	/* Copy the IPSECKEY record(s) into the buffer. Start and end this section
 	 * with a double quote. */
-	sldns_str_print(&s, &slen, "\"");
+	w += sldns_str_print(&s, &slen, "\"");
 	rrset_data = (struct packed_rrset_data*)iq->ipseckey_rrset->entry.data;
 	for(i=0; i<rrset_data->count; i++) {
 		if(i > 0) {
 			/* Put space into the buffer. */
-			sldns_str_print(&s, &slen, " ");
+			w += sldns_str_print(&s, &slen, " ");
 		}
 		/* Ignore the first two bytes, they are the rr_data len. */
 		tempdata = rrset_data->rr_data[i] + 2;
 		tempdata_len = rrset_data->rr_len[i] - 2;
 		/* Save the buffer pointers. */
 		tempstring = s; tempstring_len = slen;
-		w = sldns_wire2str_ipseckey_scan(&tempdata, &tempdata_len, &s, &slen,
-			NULL, 0);
+		w_temp = sldns_wire2str_ipseckey_scan(&tempdata, &tempdata_len, &s,
+			&slen, NULL, 0, NULL);
 		/* There was an error when parsing the IPSECKEY; reset the buffer
 		 * pointers to their previous values. */
-		if(w == -1){
+		if(w_temp == -1) {
 			s = tempstring; slen = tempstring_len;
+		} else if(w_temp > 0) {
+			if(!ipseckey_has_safe_characters(
+					tempstring, tempstring_len - slen)) {
+				log_err("ipsecmod: ipseckey has unsafe characters");
+				return 0;
+			}
+			w += w_temp;
 		}
 	}
-	sldns_str_print(&s, &slen, "\"");
-	verbose(VERB_ALGO, "ipsecmod: hook command: '%s'", str);
+	w += sldns_str_print(&s, &slen, "\"");
+	if(w >= (int)sizeof(str)) {
+		log_err("ipsecmod: shell command too long");
+		return 0;
+	}
+	verbose(VERB_ALGO, "ipsecmod: shell command: '%s'", str);
 	/* ipsecmod-hook should return 0 on success. */
 	if(system(str) != 0)
 		return 0;

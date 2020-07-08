@@ -1007,12 +1007,12 @@ anchors_assemble_rrsets(struct val_anchors* anchors)
 		nods = anchors_ds_unsupported(ta);
 		nokey = anchors_dnskey_unsupported(ta);
 		if(nods) {
-			log_nametypeclass(0, "warning: unsupported "
+			log_nametypeclass(NO_VERBOSE, "warning: unsupported "
 				"algorithm for trust anchor", 
 				ta->name, LDNS_RR_TYPE_DS, ta->dclass);
 		}
 		if(nokey) {
-			log_nametypeclass(0, "warning: unsupported "
+			log_nametypeclass(NO_VERBOSE, "warning: unsupported "
 				"algorithm for trust anchor", 
 				ta->name, LDNS_RR_TYPE_DNSKEY, ta->dclass);
 		}

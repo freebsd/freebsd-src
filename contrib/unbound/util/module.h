@@ -307,6 +307,17 @@ typedef int inplace_cb_query_response_func_type(struct module_qstate* qstate,
 	struct dns_msg* response, int id, void* cb_args);
 
 /**
+ * Function called when looking for (expired) cached answers during the serve
+ * expired logic.
+ * Called as func(qstate, lookup_qinfo)
+ * Where:
+ *	qstate: the query state.
+ *	lookup_qinfo: the qinfo to lookup for.
+ */
+typedef struct dns_msg* serve_expired_lookup_func_type(
+	struct module_qstate* qstate, struct query_info* lookup_qinfo);
+
+/**
  * Module environment.
  * Services and data provided to the module.
  */
@@ -572,6 +583,14 @@ struct sock_list {
 struct respip_action_info;
 
 /**
+ * Struct to hold relevant data for serve expired
+ */
+struct serve_expired_data {
+	struct comm_timer* timer;
+	serve_expired_lookup_func_type* get_cached_answer;
+};
+
+/**
  * Module state, per query.
  */
 struct module_qstate {
@@ -612,6 +631,8 @@ struct module_qstate {
 	struct mesh_state* mesh_info;
 	/** how many seconds before expiry is this prefetched (0 if not) */
 	time_t prefetch_leeway;
+	/** serve expired data */
+	struct serve_expired_data* serve_expired_data;
 
 	/** incoming edns options from the front end */
 	struct edns_option* edns_opts_front_in;

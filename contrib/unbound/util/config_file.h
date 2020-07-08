@@ -120,6 +120,12 @@ struct config_file {
 	int tls_win_cert;
 	/** additional tls ports */
 	struct config_strlist* tls_additional_port;
+	/** secret key used to encrypt and decrypt TLS session ticket */
+	struct config_strlist_head tls_session_ticket_keys;
+	/** TLS ciphers */
+	char* tls_ciphers;
+	/** TLS chiphersuites (TLSv1.3) */
+	char* tls_ciphersuites;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -132,6 +138,8 @@ struct config_file {
 
 	/** EDNS buffer size to use */
 	size_t edns_buffer_size;
+	/** size of the stream wait buffers, max */
+	size_t stream_wait_size;
 	/** number of bytes buffer size for DNS messages */
 	size_t msg_buffer_size;
 	/** size of the message cache */
@@ -159,10 +167,11 @@ struct config_file {
 
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
-	/** percent*10, how many times in 1000 to pick low rtt destinations */
-	int low_rtt_permil;
-	/** what time in msec is a low rtt destination */
-	int low_rtt;
+	/** percent*10, how many times in 1000 to pick from the fastest
+	 * destinations */
+	int fast_server_permil;
+	/** number of fastest server to select from */
+	size_t fast_server_num;
 
 	/** automatic interface for incoming messages. Uses ipv6 remapping,
 	 * and recvmsg/sendmsg ancillary data to detect interfaces, boolean */
@@ -214,6 +223,12 @@ struct config_file {
 	/** Subnet length we are willing to give up privacy for */
 	uint8_t max_client_subnet_ipv4;
 	uint8_t max_client_subnet_ipv6;
+	/** Minimum subnet length we are willing to answer */
+	uint8_t min_client_subnet_ipv4;
+	uint8_t min_client_subnet_ipv6;
+	/** Max number of nodes in the ECS radix tree */
+	uint32_t max_ecs_tree_size_ipv4;
+	uint32_t max_ecs_tree_size_ipv6;
 #endif
 	/** list of access control entries, linked list */
 	struct config_str2list* acls;
@@ -257,6 +272,8 @@ struct config_file {
 	int prefetch;
 	/** if prefetching of DNSKEYs should be performed. */
 	int prefetch_key;
+	/** deny queries of type ANY with an empty answer */
+	int deny_any;
 
 	/** chrootdir, if not "" or chroot will be done */
 	char* chrootdir;
@@ -277,6 +294,8 @@ struct config_file {
 	int log_queries;
 	/** log replies with one line per reply */
 	int log_replies;
+	/** tag log_queries and log_replies for filtering */
+	int log_tag_queryreply;
 	/** log every local-zone hit **/
 	int log_local_actions;
 	/** log servfails with a reason */
@@ -343,6 +362,11 @@ struct config_file {
 	int serve_expired_ttl;
 	/** reset serve expired TTL after failed update attempt */
 	int serve_expired_ttl_reset;
+	/** TTL for the serve expired replies */
+	int serve_expired_reply_ttl;
+	/** serve expired entries only after trying to update the entries and this
+	 *  timeout (in milliseconds) is reached */
+	int serve_expired_client_timeout;
 	/** nsec3 maximum iterations per key size, string */
 	char* val_nsec3_key_iterations;
 	/** autotrust add holddown time, in seconds */
@@ -365,6 +389,10 @@ struct config_file {
 	struct config_str2list* local_zones;
 	/** local zones nodefault list */
 	struct config_strlist* local_zones_nodefault;
+#ifdef USE_IPSET
+	/** local zones ipset list */
+	struct config_strlist* local_zones_ipset;
+#endif
 	/** do not add any default local zone */
 	int local_zones_disable_default;
 	/** local data RRs configured */
@@ -414,7 +442,7 @@ struct config_file {
 	char* control_cert_file;
 
 	/** Python script file */
-	char* python_script;
+	struct config_strlist* python_script;
 
 	/** Use systemd socket activation. */
 	int use_systemd;
@@ -427,6 +455,9 @@ struct config_file {
 
 	/* RRSet roundrobin */
 	int rrset_roundrobin;
+
+	/* wait time for unknown server in msec */
+	int unknown_server_time_limit;
 
 	/* maximum UDP response size */
 	size_t max_udp_size;
@@ -553,6 +584,12 @@ struct config_file {
 	int redis_timeout;
 #endif
 #endif
+
+	/* ipset module */
+#ifdef USE_IPSET
+	char* ipset_name_v4;
+	char* ipset_name_v6;
+#endif
 };
 
 /** from cfg username, after daemonize setup performed */
@@ -561,6 +598,8 @@ extern uid_t cfg_uid;
 extern gid_t cfg_gid;
 /** debug and enable small timeouts */
 extern int autr_permit_small_holddown;
+/** size (in bytes) of stream wait buffers max */
+extern size_t stream_wait_max;
 
 /**
  * Stub config options
@@ -607,6 +646,21 @@ struct config_auth {
 	/** fallback to recursion to authorities if zone expired and other
 	 * reasons perhaps (like, query bogus) */
 	int fallback_enabled;
+	/** this zone is used to create local-zone policies */
+	int isrpz;
+	/** rpz tags (or NULL) */
+	uint8_t* rpz_taglist;
+	/** length of the taglist (in bytes) */
+	size_t rpz_taglistlen;
+	/** Override RPZ action for this zone, regardless of zone content */
+	char* rpz_action_override;
+	/** Log when this RPZ policy is applied */
+	int rpz_log;
+	/** Display this name in the log when RPZ policy is applied */
+	char* rpz_log_name;
+	/** Always reply with this CNAME target if the cname override action is
+	 * used */
+	char* rpz_cname;
 };
 
 /**
@@ -623,6 +677,10 @@ struct config_view {
 	struct config_strlist* local_data;
 	/** local zones nodefault list */
 	struct config_strlist* local_zones_nodefault;
+#ifdef USE_IPSET
+	/** local zones ipset list */
+	struct config_strlist* local_zones_ipset;
+#endif
 	/** Fallback to global local_zones when there is no match in the view
 	 * view specific tree. 1 for yes, 0 for no */	
 	int isfirst;
@@ -795,6 +853,14 @@ char* config_collate_cat(struct config_strlist* list);
  * on fail the item is free()ed.
  */
 int cfg_strlist_append(struct config_strlist_head* list, char* item);
+
+/**
+ * Searches the end of a string list and appends the given text.
+ * @param head: pointer to strlist head variable.
+ * @param item: new item. malloced by caller. if NULL the insertion fails.
+ * @return true on success.
+ */
+int cfg_strlist_append_ex(struct config_strlist** head, char* item);
 
 /**
  * Find string in strlist.
@@ -997,7 +1063,7 @@ char* config_taglist2str(struct config_file* cfg, uint8_t* taglist,
  * @param list2len: length in bytes of second list.
  * @return true if there are tags in common, 0 if not.
  */
-int taglist_intersect(uint8_t* list1, size_t list1len, uint8_t* list2,
+int taglist_intersect(uint8_t* list1, size_t list1len, const uint8_t* list2,
 	size_t list2len);
 
 /**
@@ -1157,3 +1223,4 @@ void w_config_adjust_directory(struct config_file* cfg);
 extern int fake_dsa, fake_sha1;
 
 #endif /* UTIL_CONFIG_FILE_H */
+

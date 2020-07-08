@@ -204,8 +204,9 @@ struct ub_result {
 	char* why_bogus;
 
 	/**
-	 * If the query or one of its subqueries was ratelimited. Useful if
-	 * ratelimiting is enabled and answer is SERVFAIL.
+	 * If the query or one of its subqueries was ratelimited.  Useful if
+	 * ratelimiting is enabled and answer to the client is SERVFAIL as a
+	 * result.
 	 */
 	int was_ratelimited;
 
@@ -308,6 +309,17 @@ int ub_ctx_config(struct ub_ctx* ctx, const char* fname);
  * @return 0 if OK, else error.
  */
 int ub_ctx_set_fwd(struct ub_ctx* ctx, const char* addr);
+
+/**
+ * Use DNS over TLS to send queries to machines set with ub_ctx_set_fwd().
+ *
+ * @param ctx: context.
+ *	At this time it is only possible to set configuration before the
+ *	first resolve is done.
+ * @param tls: enable or disable DNS over TLS
+ * @return 0 if OK, else error.
+ */
+int ub_ctx_set_tls(struct ub_ctx* ctx, int tls);
 
 /**
  * Add a stub zone, with given address to send to.  This is for custom
@@ -643,6 +655,8 @@ struct ub_shm_stat_info {
 #define UB_STATS_OPCODE_NUM 16
 /** number of histogram buckets */
 #define UB_STATS_BUCKET_NUM 40
+/** number of RPZ actions */
+#define UB_STATS_RPZ_ACTION_NUM 10
 
 /** per worker statistics. */
 struct ub_server_stats {
@@ -722,8 +736,8 @@ struct ub_server_stats {
 	long long unwanted_queries;
 	/** usage of tcp accept list */
 	long long tcp_accept_usage;
-	/** answers served from expired cache */
-	long long zero_ttl_responses;
+	/** expired answers served from cache */
+	long long ans_expired;
 	/** histogram data exported to array 
 	 * if the array is the same size, no data is lost, and
 	 * if all histograms are same size (is so by default) then
@@ -770,6 +784,12 @@ struct ub_server_stats {
 	/** number of queries answered from edns-subnet specific data, and
 	 * the answer was from the edns-subnet cache. */
 	long long num_query_subnet_cache;
+	/** number of bytes in the stream wait buffers */
+	long long mem_stream_wait;
+	/** number of TLS connection resume */
+	long long qtls_resume;
+	/** RPZ action stats */
+	long long rpz_action[UB_STATS_RPZ_ACTION_NUM];
 };
 
 /** 

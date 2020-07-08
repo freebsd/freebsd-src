@@ -143,11 +143,14 @@ struct delegpt* dns_cache_find_delegation(struct module_env* env,
  * @param r: reply info that, together with qname, will make up the dns message.
  * @param region: where to allocate dns message.
  * @param now: the time now, for check if TTL on cache entry is ok.
+ * @param allow_expired: if true and serve-expired is enabled, it will allow
+ *	for expired dns_msg to be generated based on the configured serve-expired
+ *	logic.
  * @param scratch: where to allocate temporary data.
  * */
 struct dns_msg* tomsg(struct module_env* env, struct query_info* q,
 	struct reply_info* r, struct regional* region, time_t now,
-	struct regional* scratch);
+	int allow_expired, struct regional* scratch);
 
 /** 
  * Find cached message 
@@ -160,7 +163,7 @@ struct dns_msg* tomsg(struct module_env* env, struct query_info* q,
  * @param region: where to allocate result.
  * @param scratch: where to allocate temporary data.
  * @param no_partial: if true, only complete messages and not a partial
- *   one (with only the start of the CNAME chain and not the rest).
+ *	one (with only the start of the CNAME chain and not the rest).
  * @return new response message (alloced in region, rrsets do not have IDs).
  * 	or NULL on error or if not found in cache.
  *	TTLs are made relative to the current time.

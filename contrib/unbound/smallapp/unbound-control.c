@@ -62,6 +62,7 @@
 #include "daemon/stats.h"
 #include "sldns/wire2str.h"
 #include "sldns/pkthdr.h"
+#include "services/rpz.h"
 
 #ifdef HAVE_SYS_IPC_H
 #include "sys/ipc.h"
@@ -154,7 +155,11 @@ usage(void)
 	printf("  view_local_zone view name type  	add local-zone in view\n");
 	printf("  view_local_zone_remove view name  	remove local-zone in view\n");
 	printf("  view_local_data view RR...		add local-data in view\n");
+	printf("  view_local_datas view 		add list of local-data to view\n");
+	printf("  					one entry per line read from stdin\n");
 	printf("  view_local_data_remove view name  	remove local-data in view\n");
+	printf("  view_local_datas_remove view 		remove list of local-data from view\n");
+	printf("  					one entry per line read from stdin\n");
 	printf("Version %s\n", PACKAGE_VERSION);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
@@ -206,7 +211,7 @@ static void pr_stats(const char* nm, struct ub_stats_info* s)
 		s->svr.num_queries - s->svr.num_queries_missed_cache);
 	PR_UL_NM("num.cachemiss", s->svr.num_queries_missed_cache);
 	PR_UL_NM("num.prefetch", s->svr.num_queries_prefetch);
-	PR_UL_NM("num.zero_ttl", s->svr.zero_ttl_responses);
+	PR_UL_NM("num.expired", s->svr.ans_expired);
 	PR_UL_NM("num.recursivereplies", s->mesh_replies_sent);
 #ifdef USE_DNSCRYPT
     PR_UL_NM("num.dnscrypt.crypted", s->svr.num_query_dnscrypt_crypted);
@@ -245,7 +250,8 @@ static void print_uptime(struct ub_shm_stat_info* shm_stat)
 }
 
 /** print memory usage */
-static void print_mem(struct ub_shm_stat_info* shm_stat)
+static void print_mem(struct ub_shm_stat_info* shm_stat,
+	struct ub_stats_info* s)
 {
 	PR_LL("mem.cache.rrset", shm_stat->mem.rrset);
 	PR_LL("mem.cache.message", shm_stat->mem.msg);
@@ -264,6 +270,7 @@ static void print_mem(struct ub_shm_stat_info* shm_stat)
 	PR_LL("mem.cache.dnscrypt_nonce",
 		shm_stat->mem.dnscrypt_nonce);
 #endif
+	PR_LL("mem.streamwait", s->svr.mem_stream_wait);
 }
 
 /** print histogram */
@@ -326,6 +333,7 @@ static void print_extended(struct ub_stats_info* s)
 	PR_UL("num.query.tcp", s->svr.qtcp);
 	PR_UL("num.query.tcpout", s->svr.qtcp_outgoing);
 	PR_UL("num.query.tls", s->svr.qtls);
+	PR_UL("num.query.tls_resume", s->svr.qtls_resume);
 	PR_UL("num.query.ipv6", s->svr.qipv6);
 
 	/* flags */
@@ -367,6 +375,14 @@ static void print_extended(struct ub_stats_info* s)
 	PR_UL("rrset.cache.count", s->svr.rrset_cache_count);
 	PR_UL("infra.cache.count", s->svr.infra_cache_count);
 	PR_UL("key.cache.count", s->svr.key_cache_count);
+	/* applied RPZ actions */
+	for(i=0; i<UB_STATS_RPZ_ACTION_NUM; i++) {
+		if(i == RPZ_NO_OVERRIDE_ACTION)
+			continue;
+		if(inhibit_zero && s->svr.rpz_action[i] == 0)
+			continue;
+		PR_UL_SUB("num.rpz.action", rpz_action_to_string(i), s->svr.rpz_action[i]);
+	}
 #ifdef USE_DNSCRYPT
 	PR_UL("dnscrypt_shared_secret.cache.count",
 			 s->svr.shared_secret_cache_count);
@@ -397,7 +413,7 @@ static void do_stats_shm(struct config_file* cfg, struct ub_stats_info* stats,
 	pr_stats("total", &stats[0]);
 	print_uptime(shm_stat);
 	if(cfg->stat_extended) {
-		print_mem(shm_stat);
+		print_mem(shm_stat, &stats[0]);
 		print_hist(stats);
 		print_extended(stats);
 	}
@@ -418,19 +434,19 @@ static void print_stats_shm(const char* cfgfile)
 	if(!config_read(cfg, cfgfile, NULL))
 		fatal_exit("could not read config file");
 	/* get shm segments */
-	id_ctl = shmget(cfg->shm_key, sizeof(int), SHM_R|SHM_W);
+	id_ctl = shmget(cfg->shm_key, sizeof(int), SHM_R);
 	if(id_ctl == -1) {
 		fatal_exit("shmget(%d): %s", cfg->shm_key, strerror(errno));
 	}
-	id_arr = shmget(cfg->shm_key+1, sizeof(int), SHM_R|SHM_W);
+	id_arr = shmget(cfg->shm_key+1, sizeof(int), SHM_R);
 	if(id_arr == -1) {
 		fatal_exit("shmget(%d): %s", cfg->shm_key+1, strerror(errno));
 	}
-	shm_stat = (struct ub_shm_stat_info*)shmat(id_ctl, NULL, 0);
+	shm_stat = (struct ub_shm_stat_info*)shmat(id_ctl, NULL, SHM_RDONLY);
 	if(shm_stat == (void*)-1) {
 		fatal_exit("shmat(%d): %s", id_ctl, strerror(errno));
 	}
-	stats = (struct ub_stats_info*)shmat(id_arr, NULL, 0);
+	stats = (struct ub_stats_info*)shmat(id_arr, NULL, SHM_RDONLY);
 	if(stats == (void*)-1) {
 		fatal_exit("shmat(%d): %s", id_arr, strerror(errno));
 	}
@@ -488,12 +504,20 @@ setup_ctx(struct config_file* cfg)
 	ctx = SSL_CTX_new(SSLv23_client_method());
 	if(!ctx)
 		ssl_err("could not allocate SSL_CTX pointer");
+#if SSL_OP_NO_SSLv2 != 0
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2)
 		!= SSL_OP_NO_SSLv2)
 		ssl_err("could not set SSL_OP_NO_SSLv2");
+#endif
 	if((SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3)
 		!= SSL_OP_NO_SSLv3)
 		ssl_err("could not set SSL_OP_NO_SSLv3");
+#if defined(SSL_OP_NO_RENEGOTIATION)
+	/* disable client renegotiation */
+	if((SSL_CTX_set_options(ctx, SSL_OP_NO_RENEGOTIATION) &
+		SSL_OP_NO_RENEGOTIATION) != SSL_OP_NO_RENEGOTIATION)
+		ssl_err("could not set SSL_OP_NO_RENEGOTIATION");
+#endif
 	if(!SSL_CTX_use_certificate_chain_file(ctx,c_cert))
 		ssl_path_err("Error setting up SSL_CTX client cert", c_cert);
 	if (!SSL_CTX_use_PrivateKey_file(ctx,c_key,SSL_FILETYPE_PEM))
@@ -604,7 +628,7 @@ setup_ssl(SSL_CTX* ctx, int fd)
 	if(!ssl)
 		ssl_err("could not SSL_new");
 	SSL_set_connect_state(ssl);
-	(void)SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	(void)SSL_set_mode(ssl, (long)SSL_MODE_AUTO_RETRY);
 	if(!SSL_set_fd(ssl, fd))
 		ssl_err("could not SSL_set_fd");
 	while(1) {
@@ -679,6 +703,28 @@ remote_write(SSL* ssl, int fd, const char* buf, size_t len)
 	}
 }
 
+/** check args, to see if too many args. Because when a file is sent it
+ * would wait for the terminal, and we can check for too many arguments,
+ * eg. user put arguments on the commandline. */
+static void
+check_args_for_listcmd(int argc, char* argv[])
+{
+	if(argc >= 1 && (strcmp(argv[0], "local_zones") == 0 ||
+		strcmp(argv[0], "local_zones_remove") == 0 ||
+		strcmp(argv[0], "local_datas") == 0 ||
+		strcmp(argv[0], "local_datas_remove") == 0) &&
+		argc >= 2) {
+		fatal_exit("too many arguments for command '%s', "
+			"content is piped in from stdin", argv[0]);
+	}
+	if(argc >= 1 && (strcmp(argv[0], "view_local_datas") == 0 ||
+		strcmp(argv[0], "view_local_datas_remove") == 0) &&
+		argc >= 3) {
+		fatal_exit("too many arguments for command '%s', "
+			"content is piped in from stdin", argv[0]);
+	}
+}
+
 /** send stdin to server */
 static void
 send_file(SSL* ssl, int fd, FILE* in, char* buf, size_t sz)
@@ -717,10 +763,12 @@ go_cmd(SSL* ssl, int fd, int quiet, int argc, char* argv[])
 	if(argc == 1 && strcmp(argv[0], "load_cache") == 0) {
 		send_file(ssl, fd, stdin, buf, sizeof(buf));
 	}
-	else if(argc == 1 && (strcmp(argv[0], "local_zones") == 0 ||
+	else if(argc >= 1 && (strcmp(argv[0], "local_zones") == 0 ||
 		strcmp(argv[0], "local_zones_remove") == 0 ||
 		strcmp(argv[0], "local_datas") == 0 ||
-		strcmp(argv[0], "local_datas_remove") == 0)) {
+		strcmp(argv[0], "view_local_datas") == 0 ||
+		strcmp(argv[0], "local_datas_remove") == 0 ||
+		strcmp(argv[0], "view_local_datas_remove") == 0)) {
 		send_file(ssl, fd, stdin, buf, sizeof(buf));
 		send_eof(ssl, fd);
 	}
@@ -841,6 +889,7 @@ int main(int argc, char* argv[])
 		print_stats_shm(cfgfile);
 		return 0;
 	}
+	check_args_for_listcmd(argc, argv);
 
 #ifdef USE_WINSOCK
 	if((r = WSAStartup(MAKEWORD(2,2), &wsa_data)) != 0)
@@ -854,7 +903,9 @@ int main(int argc, char* argv[])
 	ERR_load_SSL_strings();
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+#  ifndef S_SPLINT_S
 	OpenSSL_add_all_algorithms();
+#  endif
 #else
 	OPENSSL_init_crypto(OPENSSL_INIT_ADD_ALL_CIPHERS
 		| OPENSSL_INIT_ADD_ALL_DIGESTS

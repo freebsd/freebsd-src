@@ -121,7 +121,7 @@ int shm_main_init(struct daemon* daemon)
 		shmctl(daemon->shm_info->id_arr, IPC_RMID, NULL);
 
 	/* SHM: Create the segment */
-	daemon->shm_info->id_ctl = shmget(daemon->shm_info->key, sizeof(struct ub_shm_stat_info), IPC_CREAT | 0666);
+	daemon->shm_info->id_ctl = shmget(daemon->shm_info->key, sizeof(struct ub_shm_stat_info), IPC_CREAT | 0644);
 
 	if (daemon->shm_info->id_ctl < 0)
 	{
@@ -134,7 +134,7 @@ int shm_main_init(struct daemon* daemon)
 		return 0;
 	}
 
-	daemon->shm_info->id_arr = shmget(daemon->shm_info->key + 1, shm_size, IPC_CREAT | 0666);
+	daemon->shm_info->id_arr = shmget(daemon->shm_info->key + 1, shm_size, IPC_CREAT | 0644);
 
 	if (daemon->shm_info->id_arr < 0)
 	{
@@ -223,8 +223,10 @@ void shm_main_run(struct worker *worker)
 	struct ub_stats_info *stat_info;
 	int offset;
 
+#ifndef S_SPLINT_S
 	verbose(VERB_DETAIL, "SHM run - worker [%d] - daemon [%p] - timenow(%u) - timeboot(%u)",
 		worker->thread_num, worker->daemon, (unsigned)worker->env.now_tv->tv_sec, (unsigned)worker->daemon->time_boot.tv_sec);
+#endif
 
 	offset = worker->thread_num + 1;
 	stat_total = worker->daemon->shm_info->ptr_arr;
@@ -240,9 +242,11 @@ void shm_main_run(struct worker *worker)
 		memset(stat_total, 0, sizeof(struct ub_stats_info));
 
 		/* Point to data into SHM */
+#ifndef S_SPLINT_S
 		shm_stat = worker->daemon->shm_info->ptr_ctl;
 		shm_stat->time.now_sec = (long long)worker->env.now_tv->tv_sec;
 		shm_stat->time.now_usec = (long long)worker->env.now_tv->tv_usec;
+#endif
 
 		stat_timeval_subtract(&shm_stat->time.up_sec, &shm_stat->time.up_usec, worker->env.now_tv, &worker->daemon->time_boot);
 		stat_timeval_subtract(&shm_stat->time.elapsed_sec, &shm_stat->time.elapsed_usec, worker->env.now_tv, &worker->daemon->time_last_stat);
