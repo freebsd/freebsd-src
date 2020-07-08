@@ -176,7 +176,7 @@ val_nsec_proves_no_ds(struct ub_packed_rrset_key* nsec,
 static int
 nsec_verify_rrset(struct module_env* env, struct val_env* ve, 
 	struct ub_packed_rrset_key* nsec, struct key_entry_key* kkey, 
-	char** reason)
+	char** reason, struct module_qstate* qstate)
 {
 	struct packed_rrset_data* d = (struct packed_rrset_data*)
 		nsec->entry.data;
@@ -185,7 +185,8 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 	rrset_check_sec_status(env->rrset_cache, nsec, *env->now);
 	if(d->security == sec_status_secure)
 		return 1;
-	d->security = val_verify_rrset_entry(env, ve, nsec, kkey, reason);
+	d->security = val_verify_rrset_entry(env, ve, nsec, kkey, reason,
+		LDNS_SECTION_AUTHORITY, qstate);
 	if(d->security == sec_status_secure) {
 		rrset_update_sec_status(env->rrset_cache, nsec, *env->now);
 		return 1;
@@ -196,7 +197,8 @@ nsec_verify_rrset(struct module_env* env, struct val_env* ve,
 enum sec_status 
 val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve, 
 	struct query_info* qinfo, struct reply_info* rep, 
-	struct key_entry_key* kkey, time_t* proof_ttl, char** reason)
+	struct key_entry_key* kkey, time_t* proof_ttl, char** reason,
+	struct module_qstate* qstate)
 {
 	struct ub_packed_rrset_key* nsec = reply_find_rrset_section_ns(
 		rep, qinfo->qname, qinfo->qname_len, LDNS_RR_TYPE_NSEC, 
@@ -213,7 +215,7 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 	 * 1) this is a delegation point and there is no DS
 	 * 2) this is not a delegation point */
 	if(nsec) {
-		if(!nsec_verify_rrset(env, ve, nsec, kkey, reason)) {
+		if(!nsec_verify_rrset(env, ve, nsec, kkey, reason, qstate)) {
 			verbose(VERB_ALGO, "NSEC RRset for the "
 				"referral did not verify.");
 			return sec_status_bogus;
@@ -242,7 +244,8 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 		i++) {
 		if(rep->rrsets[i]->rk.type != htons(LDNS_RR_TYPE_NSEC))
 			continue;
-		if(!nsec_verify_rrset(env, ve, rep->rrsets[i], kkey, reason)) {
+		if(!nsec_verify_rrset(env, ve, rep->rrsets[i], kkey, reason,
+			qstate)) {
 			verbose(VERB_ALGO, "NSEC for empty non-terminal "
 				"did not verify.");
 			return sec_status_bogus;
@@ -343,7 +346,7 @@ int nsec_proves_nodata(struct ub_packed_rrset_key* nsec,
 		} else {
 			/* See if the next owner name covers a wildcard
 			 * empty non-terminal. */
-			while (dname_strict_subdomain_c(nm, nsec->rk.dname)) {
+			while (dname_canonical_compare(nsec->rk.dname, nm) < 0) {
 				/* wildcard does not apply if qname below
 				 * the name that exists under the '*' */
 				if (dname_subdomain_c(qinfo->qname, nm))
@@ -510,7 +513,6 @@ val_nsec_proves_no_wc(struct ub_packed_rrset_key* nsec, uint8_t* qname,
 	/* Determine if a NSEC record proves the non-existence of a 
 	 * wildcard that could have produced qname. */
 	int labs;
-	int i;
 	uint8_t* ce = nsec_closest_encloser(qname, nsec);
 	uint8_t* strip;
 	size_t striplen;
@@ -523,13 +525,13 @@ val_nsec_proves_no_wc(struct ub_packed_rrset_key* nsec, uint8_t* qname,
 	 * and next names. */
 	labs = dname_count_labels(qname) - dname_count_labels(ce);
 
-	for(i=labs; i>0; i--) {
+	if(labs > 0) {
 		/* i is number of labels to strip off qname, prepend * wild */
 		strip = qname;
 		striplen = qnamelen;
-		dname_remove_labels(&strip, &striplen, i);
+		dname_remove_labels(&strip, &striplen, labs);
 		if(striplen > LDNS_MAX_DOMAINLEN-2)
-			continue; /* too long to prepend wildcard */
+			return 0; /* too long to prepend wildcard */
 		buf[0] = 1;
 		buf[1] = (uint8_t)'*';
 		memmove(buf+2, strip, striplen);

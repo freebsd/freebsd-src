@@ -474,6 +474,16 @@ OLD_FILES+=usr/include/c++/v1/tr1/__undef_min_max
 OLD_FILES+=usr/share/dtrace/watch_execve
 OLD_FILES+=usr/share/dtrace/watch_kill
 OLD_FILES+=usr/share/dtrace/watch_vop_remove
+# 20180512: Rename Unbound tools
+OLD_FILES+=usr/sbin/unbound
+OLD_FILES+=usr/sbin/unbound-anchor
+OLD_FILES+=usr/sbin/unbound-checkconf
+OLD_FILES+=usr/sbin/unbound-control
+OLD_FILES+=usr/share/man/man5/unbound.conf.5.gz
+OLD_FILES+=usr/share/man/man8/unbound-anchor.8.gz
+OLD_FILES+=usr/share/man/man8/unbound-checkconf.8.gz
+OLD_FILES+=usr/share/man/man8/unbound-control.8.gz
+OLD_FILES+=usr/share/man/man8/unbound.8.gz
 # 20180331: new clang import which bumps version from 5.0.1 to 6.0.0.
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/5.0.1/include/sanitizer/asan_interface.h

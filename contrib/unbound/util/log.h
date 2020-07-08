@@ -107,17 +107,28 @@ void log_thread_set(int* num);
 int log_thread_get(void);
 
 /**
- * Set identity to print, default is 'unbound'. 
+ * Set identity to print, default is 'unbound'.
  * @param id: string to print. Name of executable.
  */
 void log_ident_set(const char* id);
 
 /**
- * Set the time value to print in log entries.
- * @param t: the point is copied and used to find the time.
- * 	if NULL, time(2) is used.
+ * Set default identity to print, default is 'unbound'.
+ * @param id: string to print. Name of executable.
  */
-void log_set_time(time_t* t);
+void log_ident_set_default(const char* id);
+
+/**
+ * Revert identity to print, back to the recorded default value.
+ */
+void log_ident_revert_to_default(void);
+
+/**
+ * Set identity to print if there is an identity, otherwise
+ * set the default.
+ * @param identity: the identity to set.
+ */
+void log_ident_set_or_default(const char* identity);
 
 /**
  * Set if the time value is printed ascii or decimal in log entries.
@@ -126,6 +137,9 @@ void log_set_time(time_t* t);
  *	decimal is printed.
  */
 void log_set_time_asc(int use_asc);
+
+/** get log lock */
+void* log_get_lock(void);
 
 /**
  * Log informational message.
@@ -158,6 +172,20 @@ void log_warn(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
 void log_hex(const char* msg, void* data, size_t length);
 
 /**
+ * Log query.
+ * Pass printf formatted arguments. No trailing newline is needed.
+ * @param format: printf-style format string. Arguments follow.
+ */
+void log_query(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
+
+/**
+ * Log reply.
+ * Pass printf formatted arguments. No trailing newline is needed.
+ * @param format: printf-style format string. Arguments follow.
+ */
+void log_reply(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
+
+/**
  * Easy alternative for log_hex, takes a sldns_buffer.
  * @param level: verbosity level for this message, compared to global 
  *	verbosity setting.
@@ -171,7 +199,7 @@ void log_buf(enum verbosity_value level, const char* msg, struct sldns_buffer* b
  * Pass printf formatted arguments. No trailing newline is needed.
  * @param format: printf-style format string. Arguments follow.
  */
-void fatal_exit(const char* format, ...) ATTR_FORMAT(printf, 1, 2);
+void fatal_exit(const char* format, ...) ATTR_FORMAT(printf, 1, 2) ATTR_NORETURN;
 
 /**
  * va_list argument version of log_info.
@@ -186,11 +214,17 @@ void log_vmsg(int pri, const char* type, const char* format, va_list args);
  * an assertion that is thrown to the logfile.
  */
 #ifdef UNBOUND_DEBUG
+#ifdef __clang_analyzer__
+/* clang analyzer needs to know that log_assert is an assertion, otherwise
+ * it could complain about the nullptr the assert is guarding against. */
+#define log_assert(x) assert(x)
+#else
 #  define log_assert(x) \
 	do { if(!(x)) \
 		fatal_exit("%s:%d: %s: assertion %s failed", \
 			__FILE__, __LINE__, __func__, #x); \
 	} while(0);
+#endif
 #else
 #  define log_assert(x) /*nothing*/
 #endif

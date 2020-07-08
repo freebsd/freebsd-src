@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_solaris.c,v 1.3 2014/07/12 14:46:31 deraadt Exp $	*/
+/*	$OpenBSD: getentropy_solaris.c,v 1.4 2014/07/12 20:41:47 wouter Exp $	*/
 
 /*
  * Copyright (c) 2014 Theo de Raadt <deraadt@openbsd.org>
@@ -204,7 +204,7 @@ start:
 	}
 	for (i = 0; i < len; ) {
 		size_t wanted = len - i;
-		ssize_t ret = read(fd, (char*)buf + i, wanted);
+		ssize_t ret = read(fd, (char *)buf + i, wanted);
 
 		if (ret == -1) {
 			if (errno == EAGAIN || errno == EINTR)
@@ -428,7 +428,7 @@ getentropy_fallback(void *buf, size_t len)
 			HD(cnt);
 		}
 		SHA512_Final(results, &ctx);
-		memcpy((char*)buf + i, results, min(sizeof(results), len - i));
+		memcpy((char *)buf + i, results, min(sizeof(results), len - i));
 		i += min(sizeof(results), len - i);
 	}
 	memset(results, 0, sizeof results);

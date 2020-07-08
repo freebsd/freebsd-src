@@ -6,10 +6,11 @@ UNBOUNDDIR= ${SRCTOP}/contrib/unbound
 
 .PATH: ${UNBOUNDDIR} ${UNBOUNDDIR}/smallapp ${UNBOUNDDIR}/util ${UNBOUNDDIR}/doc
 
-PROG=	unbound-control
+PROG=	local-unbound-control
 SRCS=	ub_event.c unbound-control.c worker_cb.c
 CFLAGS+=	-I${UNBOUNDDIR} -I${LDNSDIR}
+CFLAGS+=	-I${.CURDIR:H} -I${.CURDIR}
 LIBADD=	unbound crypto ssl pthread
-MAN=	unbound-control.8
+MAN=	local-unbound-control.8
 
 .include <bsd.prog.mk>

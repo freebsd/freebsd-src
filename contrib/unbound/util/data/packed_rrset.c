@@ -40,6 +40,7 @@
  */
 
 #include "config.h"
+#include "util/data/msgparse.h"
 #include "util/data/packed_rrset.h"
 #include "util/data/dname.h"
 #include "util/storage/lookup3.h"
@@ -158,14 +159,14 @@ rrsetdata_equal(struct packed_rrset_data* d1, struct packed_rrset_data* d2)
 	return 1;
 }
 
-hashvalue_t 
+hashvalue_type
 rrset_key_hash(struct packed_rrset_key* key)
 {
 	/* type is hashed in host order */
 	uint16_t t = ntohs(key->type);
 	/* Note this MUST be identical to pkt_hash_rrset in msgparse.c */
 	/* this routine does not have a compressed name */
-	hashvalue_t h = 0xab;
+	hashvalue_type h = 0xab;
 	h = dname_query_hash(key->dname, h);
 	h = hashlittle(&t, sizeof(t), h);
 	h = hashlittle(&key->rrset_class, sizeof(uint16_t), h);
@@ -253,6 +254,7 @@ sec_status_to_string(enum sec_status s)
 	case sec_status_bogus: 		return "sec_status_bogus";
 	case sec_status_indeterminate: 	return "sec_status_indeterminate";
 	case sec_status_insecure: 	return "sec_status_insecure";
+	case sec_status_secure_sentinel_fail: 	return "sec_status_secure_sentinel_fail";
 	case sec_status_secure: 	return "sec_status_secure";
 	}
 	return "unknown_sec_status_value";
@@ -350,11 +352,11 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 	/* make TTLs relative - once per rrset */
 	for(i=0; i<d->count + d->rrsig_count; i++) {
 		if(d->rr_ttl[i] < now)
-			d->rr_ttl[i] = 0;
+			d->rr_ttl[i] = SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0;
 		else	d->rr_ttl[i] -= now;
 	}
 	if(d->ttl < now)
-		d->ttl = 0;
+		d->ttl = SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0;
 	else	d->ttl -= now;
 	return ck;
 }
@@ -384,4 +386,20 @@ packed_rrset_copy_alloc(struct ub_packed_rrset_key* key,
 	dk->entry.data = (void*)dd;
 	packed_rrset_ttl_add(dd, now);
 	return dk;
+}
+
+int
+packed_rrset_find_rr(struct packed_rrset_data* d, uint8_t* rdata, size_t len,
+	size_t* index)
+{
+	size_t i;
+	for(i=0; i<d->count; i++) {
+		if(d->rr_len[i] != len)
+			continue;
+		if(memcmp(d->rr_data[i], rdata, len) == 0) {
+			*index = i;
+			return 1;
+		}
+	}
+	return 0;
 }

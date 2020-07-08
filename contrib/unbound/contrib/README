@@ -27,5 +27,29 @@ distribution but may be helpful.
   works like the BIND feature (removes AAAA records unless AAAA-only domain).
   Useful for certain 'broken IPv6 default route' scenarios.
   Patch from Stephane Lapie for ASAHI Net.
-* unbound_smf22.tar.gz: Solaris SMF installation/removal scripts.
+* unbound_smf23.tar.gz: Solaris SMF installation/removal scripts.
   Contributed by Yuri Voinov.
+* unbound.socket and unbound.service: systemd files for unbound, install them
+  in /usr/lib/systemd/system.  Contributed by Sami Kerola and Pavel Odintsov.
+* unbound_portable.service.in: systemd file for use unbound as portable service,
+  see comments in the file. Contributed by Frzk.
+* redirect-bogus.patch: Return configured address for bogus A and AAAA answers,
+  instead of SERVFAIL. Contributed by SIDN.
+* fastrpz.patch: fastrpz support from Farsight Security.
+* libunbound.so.conf: ltrace.conf file, see ltrace.conf(5), for libunbound.
+* unbound-querycachedb.py: utility to show data stored in cachedb backend
+  for a particular query name and type.  It requires dnspython and (for
+  redis backend) redis Python modules.
+* unbound-fuzzme.patch: adds unbound-fuzzme program that parses a packet from
+  stdin.  Used with fuzzers, patch from Jacob Hoffman-Andrews.
+* unbound-fuzzers.tar.bz2: three programs for fuzzing, that are 1:1
+  replacements for unbound-fuzzme.c that gets created after applying
+  the contrib/unbound-fuzzme.patch.  They are contributed by
+  Eric Sesterhenn from X41 D-Sec.
+* drop-tld.diff: adds option drop-tld: yesno that drops 2 label queries,
+  to stop random floods.  Apply with patch -p1 < contrib/drop-tld.diff and
+  compile.  From Saksham Manchanda (Secure64).  Please note that we think
+  this will drop DNSKEY and DS lookups for tlds and hence break DNSSEC
+  lookups for downstream clients.
+* drop2rpz: perl script that converts the Spamhaus DROP-List in RPZ-Format,
+  contributed by Andreas Schulze.

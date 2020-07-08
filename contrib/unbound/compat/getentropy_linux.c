@@ -1,4 +1,4 @@
-/*	$OpenBSD: getentropy_linux.c,v 1.20 2014/07/12 15:43:49 beck Exp $	*/
+/*	$OpenBSD: getentropy_linux.c,v 1.46 2018/11/20 08:04:28 deraadt Exp $	*/
 
 /*
  * Copyright (c) 2014 Theo de Raadt <deraadt@openbsd.org>
@@ -15,20 +15,23 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Emulation of getentropy(2) as documented at:
+ * http://man.openbsd.org/getentropy.2
  */
-#include "config.h"
 
+#include "config.h"
 /*
-#define	_POSIX_C_SOURCE 199309L
-#define	_GNU_SOURCE     1
+#define	_POSIX_C_SOURCE	199309L
+#define	_GNU_SOURCE	1
 */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
-#ifdef HAVE_SYS_SYSCTL_H
-#include <sys/sysctl.h>
+#ifdef SYS__sysctl
+#include <linux/sysctl.h>
 #endif
 #include <sys/statvfs.h>
 #include <sys/socket.h>
@@ -39,6 +42,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <link.h>
 #include <termios.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -46,16 +50,18 @@
 #include <errno.h>
 #include <unistd.h>
 #include <time.h>
-
-#if defined(HAVE_SSL)
+#ifndef HAVE_NETTLE
 #include <openssl/sha.h>
-#elif defined(HAVE_NETTLE)
+#else
 #include <nettle/sha.h>
+#define SHA512_CTX		struct sha512_ctx
+#define SHA512_Init(x)		sha512_init(x)
+#define SHA512_Update(x, b, s)	sha512_update(x, s, b)
+#define SHA512_Final(r, c)	sha512_digest(c, SHA512_DIGEST_SIZE, r)
 #endif
 
 #include <linux/types.h>
 #include <linux/random.h>
-#include <linux/sysctl.h>
 #ifdef HAVE_GETAUXVAL
 #include <sys/auxv.h>
 #endif
@@ -75,29 +81,13 @@
 			HD(b); \
 	} while (0)
 
-#if defined(HAVE_SSL)
-#define CRYPTO_SHA512_CTX		SHA512_CTX
-#define CRYPTO_SHA512_INIT(x)		SHA512_Init(x)
-#define CRYPTO_SHA512_FINAL(r, c)	SHA512_Final(r, c)
 #define HR(x, l) (SHA512_Update(&ctx, (char *)(x), (l)))
 #define HD(x)	 (SHA512_Update(&ctx, (char *)&(x), sizeof (x)))
 #define HF(x)    (SHA512_Update(&ctx, (char *)&(x), sizeof (void*)))
-#elif defined(HAVE_NETTLE)
-#define CRYPTO_SHA512_CTX		struct sha512_ctx
-#define CRYPTO_SHA512_INIT(x)		sha512_init(x)
-#define CRYPTO_SHA512_FINAL(r, c)	sha512_digest(c, SHA512_DIGEST_SIZE, r)
-#define HR(x, l) (sha512_update(&ctx, (l), (uint8_t *)(x)))
-#define HD(x)	 (sha512_update(&ctx, sizeof (x), (uint8_t *)&(x)))
-#define HF(x)    (sha512_update(&ctx, sizeof (void*), (uint8_t *)&(x)))
-#endif
 
 int	getentropy(void *buf, size_t len);
 
-#ifdef CAN_REFERENCE_MAIN
-extern int main(int, char *argv[]);
-#endif
-static int gotdata(char *buf, size_t len);
-#if defined(SYS_getrandom) && defined(__NR_getrandom)
+#if defined(SYS_getrandom) && defined(GRND_NONBLOCK)
 static int getentropy_getrandom(void *buf, size_t len);
 #endif
 static int getentropy_urandom(void *buf, size_t len);
@@ -105,6 +95,7 @@ static int getentropy_urandom(void *buf, size_t len);
 static int getentropy_sysctl(void *buf, size_t len);
 #endif
 static int getentropy_fallback(void *buf, size_t len);
+static int getentropy_phdr(struct dl_phdr_info *info, size_t size, void *data);
 
 int
 getentropy(void *buf, size_t len)
@@ -113,18 +104,21 @@ getentropy(void *buf, size_t len)
 
 	if (len > 256) {
 		errno = EIO;
-		return -1;
+		return (-1);
 	}
 
-#if defined(SYS_getrandom) && defined(__NR_getrandom)
+#if defined(SYS_getrandom) && defined(GRND_NONBLOCK)
 	/*
-	 * Try descriptor-less getrandom()
+	 * Try descriptor-less getrandom(), in non-blocking mode.
+	 *
+	 * The design of Linux getrandom is broken.  It has an
+	 * uninitialized phase coupled with blocking behaviour, which
+	 * is unacceptable from within a library at boot time without
+	 * possible recovery. See http://bugs.python.org/issue26839#msg267745
 	 */
 	ret = getentropy_getrandom(buf, len);
 	if (ret != -1)
 		return (ret);
-	if (errno != ENOSYS)
-		return (-1);
 #endif
 
 	/*
@@ -178,7 +172,7 @@ getentropy(void *buf, size_t len)
 	 *     - Do the best under the circumstances....
 	 *
 	 * This code path exists to bring light to the issue that Linux
-	 * does not provide a failsafe API for entropy collection.
+	 * still does not provide a failsafe API for entropy collection.
 	 *
 	 * We hope this demonstrates that Linux should either retain their
 	 * sysctl ABI, or consider providing a new failsafe API which
@@ -196,23 +190,7 @@ getentropy(void *buf, size_t len)
 	return (ret);
 }
 
-/*
- * Basic sanity checking; wish we could do better.
- */
-static int
-gotdata(char *buf, size_t len)
-{
-	char	any_set = 0;
-	size_t	i;
-
-	for (i = 0; i < len; ++i)
-		any_set |= buf[i];
-	if (any_set == 0)
-		return -1;
-	return 0;
-}
-
-#if defined(SYS_getrandom) && defined(__NR_getrandom)
+#if defined(SYS_getrandom) && defined(GRND_NONBLOCK)
 static int
 getentropy_getrandom(void *buf, size_t len)
 {
@@ -221,7 +199,7 @@ getentropy_getrandom(void *buf, size_t len)
 	if (len > 256)
 		return (-1);
 	do {
-		ret = syscall(SYS_getrandom, buf, len, 0);
+		ret = syscall(SYS_getrandom, buf, len, GRND_NONBLOCK);
 	} while (ret == -1 && errno == EINTR);
 
 	if (ret != (int)len)
@@ -269,7 +247,7 @@ start:
 	}
 	for (i = 0; i < len; ) {
 		size_t wanted = len - i;
-		ssize_t ret = read(fd, (char*)buf + i, wanted);
+		ssize_t ret = read(fd, (char *)buf + i, wanted);
 
 		if (ret == -1) {
 			if (errno == EAGAIN || errno == EINTR)
@@ -280,13 +258,11 @@ start:
 		i += ret;
 	}
 	close(fd);
-	if (gotdata(buf, len) == 0) {
-		errno = save_errno;
-		return 0;		/* satisfied */
-	}
+	errno = save_errno;
+	return (0);		/* satisfied */
 nodevrandom:
 	errno = EIO;
-	return -1;
+	return (-1);
 }
 
 #ifdef SYS__sysctl
@@ -311,17 +287,15 @@ getentropy_sysctl(void *buf, size_t len)
 			goto sysctlfailed;
 		i += chunk;
 	}
-	if (gotdata(buf, len) == 0) {
-		errno = save_errno;
-		return (0);			/* satisfied */
-	}
+	errno = save_errno;
+	return (0);			/* satisfied */
 sysctlfailed:
 	errno = EIO;
-	return -1;
+	return (-1);
 }
 #endif /* SYS__sysctl */
 
-static int cl[] = {
+static const int cl[] = {
 	CLOCK_REALTIME,
 #ifdef CLOCK_MONOTONIC
 	CLOCK_MONOTONIC,
@@ -347,6 +321,15 @@ static int cl[] = {
 };
 
 static int
+getentropy_phdr(struct dl_phdr_info *info, size_t ATTR_UNUSED(size), void *data)
+{
+	SHA512_CTX *ctx = data;
+
+	SHA512_Update(ctx, &info->dlpi_addr, sizeof (info->dlpi_addr));
+	return (0);
+}
+
+static int
 getentropy_fallback(void *buf, size_t len)
 {
 	uint8_t results[SHA512_DIGEST_LENGTH];
@@ -357,7 +340,7 @@ getentropy_fallback(void *buf, size_t len)
 	struct rusage ru;
 	sigset_t sigset;
 	struct stat st;
-	CRYPTO_SHA512_CTX ctx;
+	SHA512_CTX ctx;
 	static pid_t lastpid;
 	pid_t pid;
 	size_t i, ii, m;
@@ -374,13 +357,15 @@ getentropy_fallback(void *buf, size_t len)
 	}
 	for (i = 0; i < len; ) {
 		int j;
-		CRYPTO_SHA512_INIT(&ctx);
+		SHA512_Init(&ctx);
 		for (j = 0; j < repeat; j++) {
 			HX((e = gettimeofday(&tv, NULL)) == -1, tv);
 			if (e != -1) {
 				cnt += (int)tv.tv_sec;
 				cnt += (int)tv.tv_usec;
 			}
+
+			dl_iterate_phdr(getentropy_phdr, &ctx);
 
 			for (ii = 0; ii < sizeof(cl)/sizeof(cl[0]); ii++)
 				HX(clock_gettime(cl[ii], &ts) == -1, ts);
@@ -401,9 +386,6 @@ getentropy_fallback(void *buf, size_t len)
 			HX(sigprocmask(SIG_BLOCK, NULL, &sigset) == -1,
 			    sigset);
 
-#ifdef CAN_REFERENCE_MAIN
-			HF(main);		/* an addr in program */
-#endif
 			HF(getentropy);	/* an addr in this library */
 			HF(printf);		/* an addr in libc */
 			p = (char *)&p;
@@ -528,33 +510,30 @@ getentropy_fallback(void *buf, size_t len)
 			HD(cnt);
 		}
 #ifdef HAVE_GETAUXVAL
-#  ifdef AT_RANDOM
+#ifdef AT_RANDOM
 		/* Not as random as you think but we take what we are given */
 		p = (char *) getauxval(AT_RANDOM);
 		if (p)
 			HR(p, 16);
-#  endif
-#  ifdef AT_SYSINFO_EHDR
+#endif
+#ifdef AT_SYSINFO_EHDR
 		p = (char *) getauxval(AT_SYSINFO_EHDR);
 		if (p)
 			HR(p, pgs);
-#  endif
-#  ifdef AT_BASE
+#endif
+#ifdef AT_BASE
 		p = (char *) getauxval(AT_BASE);
 		if (p)
 			HD(p);
-#  endif
-#endif /* HAVE_GETAUXVAL */
+#endif
+#endif
 
-		CRYPTO_SHA512_FINAL(results, &ctx);
-		memcpy((char*)buf + i, results, min(sizeof(results), len - i));
+		SHA512_Final(results, &ctx);
+		memcpy((char *)buf + i, results, min(sizeof(results), len - i));
 		i += min(sizeof(results), len - i);
 	}
-	memset(results, 0, sizeof results);
-	if (gotdata(buf, len) == 0) {
-		errno = save_errno;
-		return 0;		/* satisfied */
-	}
-	errno = EIO;
-	return -1;
+	explicit_bzero(&ctx, sizeof ctx);
+	explicit_bzero(results, sizeof results);
+	errno = save_errno;
+	return (0);		/* satisfied */
 }

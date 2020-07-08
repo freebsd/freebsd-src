@@ -53,6 +53,9 @@
 #include "util/config_file.h"
 #include "util/net_help.h"
 #include "sldns/sbuffer.h"
+#include "services/mesh.h"
+#include "util/fptr_wlist.h"
+#include "util/locks.h"
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -63,8 +66,24 @@
 #include <sys/un.h>
 #endif
 
+#ifdef HAVE_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
+
 /** number of queued TCP connections for listen() */
 #define TCP_BACKLOG 256 
+
+/** number of simultaneous requests a client can have */
+#define TCP_MAX_REQ_SIMULTANEOUS 32
+
+#ifndef THREADS_DISABLED
+/** lock on the counter of stream buffer memory */
+static lock_basic_type stream_wait_count_lock;
+#endif
+/** size (in bytes) of stream wait buffers */
+static size_t stream_wait_count = 0;
+/** is the lock initialised for stream wait buffers */
+static int stream_wait_lock_inited = 0;
 
 /**
  * Debug print of the getaddrinfo returned address.
@@ -96,14 +115,74 @@ verbose_print_addr(struct addrinfo *addr)
 	}
 }
 
+#ifdef HAVE_SYSTEMD
+static int
+systemd_get_activated(int family, int socktype, int listen,
+		      struct sockaddr *addr, socklen_t addrlen,
+		      const char *path)
+{
+	int i = 0;
+	int r = 0;
+	int s = -1;
+	const char* listen_pid, *listen_fds;
+
+	/* We should use "listen" option only for stream protocols. For UDP it should be -1 */
+
+	if((r = sd_booted()) < 1) {
+		if(r == 0)
+			log_warn("systemd is not running");
+		else
+			log_err("systemd sd_booted(): %s", strerror(-r));
+		return -1;
+	}
+
+	listen_pid = getenv("LISTEN_PID");
+	listen_fds = getenv("LISTEN_FDS");
+
+	if (!listen_pid) {
+		log_warn("Systemd mandatory ENV variable is not defined: LISTEN_PID");
+		return -1;
+	}
+
+	if (!listen_fds) {
+		log_warn("Systemd mandatory ENV variable is not defined: LISTEN_FDS");
+		return -1;
+	}
+
+	if((r = sd_listen_fds(0)) < 1) {
+		if(r == 0)
+			log_warn("systemd: did not return socket, check unit configuration");
+		else
+			log_err("systemd sd_listen_fds(): %s", strerror(-r));
+		return -1;
+	}
+	
+	for(i = 0; i < r; i++) {
+		if(sd_is_socket(SD_LISTEN_FDS_START + i, family, socktype, listen)) {
+			s = SD_LISTEN_FDS_START + i;
+			break;
+		}
+	}
+	if (s == -1) {
+		if (addr)
+			log_err_addr("systemd sd_listen_fds()",
+				     "no such socket",
+				     (struct sockaddr_storage *)addr, addrlen);
+		else
+			log_err("systemd sd_listen_fds(): %s", path);
+	}
+	return s;
+}
+#endif
+
 int
 create_udp_sock(int family, int socktype, struct sockaddr* addr,
         socklen_t addrlen, int v6only, int* inuse, int* noproto,
 	int rcv, int snd, int listen, int* reuseport, int transparent,
-	int freebind)
+	int freebind, int use_systemd)
 {
 	int s;
-#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_USE_MIN_MTU)  || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND)
+#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_USE_MIN_MTU)  || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND) || defined (SO_BINDANY)
 	int on=1;
 #endif
 #ifdef IPV6_MTU
@@ -118,11 +197,21 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #ifndef IPV6_V6ONLY
 	(void)v6only;
 #endif
-#if !defined(IP_TRANSPARENT) && !defined(IP_BINDANY)
+#if !defined(IP_TRANSPARENT) && !defined(IP_BINDANY) && !defined(SO_BINDANY)
 	(void)transparent;
 #endif
 #if !defined(IP_FREEBIND)
 	(void)freebind;
+#endif
+#ifdef HAVE_SYSTEMD
+	int got_fd_from_systemd = 0;
+
+	if (!use_systemd
+	    || (use_systemd
+		&& (s = systemd_get_activated(family, socktype, -1, addr,
+					      addrlen, NULL)) == -1)) {
+#else
+	(void)use_systemd;
 #endif
 	if((s = socket(family, socktype, 0)) == -1) {
 		*inuse = 0;
@@ -144,6 +233,11 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		*noproto = 0;
 		return -1;
 	}
+#ifdef HAVE_SYSTEMD
+	} else {
+		got_fd_from_systemd = 1;
+	}
+#endif
 	if(listen) {
 #ifdef SO_REUSEADDR
 		if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, 
@@ -168,6 +262,26 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		}
 #endif /* SO_REUSEADDR */
 #ifdef SO_REUSEPORT
+#  ifdef SO_REUSEPORT_LB
+		/* on FreeBSD 12 we have SO_REUSEPORT_LB that does loadbalance
+		 * like SO_REUSEPORT on Linux.  This is what the users want
+		 * with the config option in unbound.conf; if we actually
+		 * need local address and port reuse they'll also need to
+		 * have SO_REUSEPORT set for them, assume it was _LB they want.
+		 */
+		if (reuseport && *reuseport &&
+		    setsockopt(s, SOL_SOCKET, SO_REUSEPORT_LB, (void*)&on,
+			(socklen_t)sizeof(on)) < 0) {
+#ifdef ENOPROTOOPT
+			if(errno != ENOPROTOOPT || verbosity >= 3)
+				log_warn("setsockopt(.. SO_REUSEPORT_LB ..) failed: %s",
+					strerror(errno));
+#endif
+			/* this option is not essential, we can continue */
+			*reuseport = 0;
+		}
+#  else /* no SO_REUSEPORT_LB */
+
 		/* try to set SO_REUSEPORT so that incoming
 		 * queries are distributed evenly among the receiving threads.
 		 * Each thread must have its own socket bound to the same port,
@@ -184,6 +298,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			/* this option is not essential, we can continue */
 			*reuseport = 0;
 		}
+#  endif /* SO_REUSEPORT_LB */
 #else
 		(void)reuseport;
 #endif /* defined(SO_REUSEPORT) */
@@ -202,7 +317,14 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			log_warn("setsockopt(.. IP%s_BINDANY ..) failed: %s",
 			(family==AF_INET6?"V6":""), strerror(errno));
 		}
-#endif /* IP_TRANSPARENT || IP_BINDANY */
+#elif defined(SO_BINDANY)
+		if (transparent &&
+		    setsockopt(s, SOL_SOCKET, SO_BINDANY, (void*)&on,
+		    (socklen_t)sizeof(on)) < 0) {
+			log_warn("setsockopt(.. SO_BINDANY ..) failed: %s",
+			strerror(errno));
+		}
+#endif /* IP_TRANSPARENT || IP_BINDANY || SO_BINDANY */
 	}
 #ifdef IP_FREEBIND
 	if(freebind &&
@@ -465,7 +587,11 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		}
 #  endif /* IPv4 MTU */
 	}
-	if(bind(s, (struct sockaddr*)addr, addrlen) != 0) {
+	if(
+#ifdef HAVE_SYSTEMD
+		!got_fd_from_systemd &&
+#endif
+		bind(s, (struct sockaddr*)addr, addrlen) != 0) {
 		*noproto = 0;
 		*inuse = 0;
 #ifndef USE_WINSOCK
@@ -474,7 +600,12 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		/* detect freebsd jail with no ipv6 permission */
 		if(family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
-		else if(errno != EADDRINUSE) {
+		else if(errno != EADDRINUSE &&
+			!(errno == EACCES && verbosity < 4 && !listen)
+#ifdef EADDRNOTAVAIL
+			&& !(errno == EADDRNOTAVAIL && verbosity < 4 && !listen)
+#endif
+			) {
 			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
@@ -482,13 +613,14 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		close(s);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() != WSAEADDRINUSE &&
-			WSAGetLastError() != WSAEADDRNOTAVAIL) {
+			WSAGetLastError() != WSAEADDRNOTAVAIL &&
+			!(WSAGetLastError() == WSAEACCES && verbosity < 4 && !listen)) {
 			log_err_addr("can't bind socket", 
 				wsa_strerror(WSAGetLastError()),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
 		closesocket(s);
-#endif
+#endif /* USE_WINSOCK */
 		return -1;
 	}
 	if(!fd_set_nonblock(s)) {
@@ -506,16 +638,19 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 
 int
 create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent, int mss, int freebind)
+	int* reuseport, int transparent, int mss, int freebind, int use_systemd)
 {
 	int s;
-#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND)
+#if defined(SO_REUSEADDR) || defined(SO_REUSEPORT) || defined(IPV6_V6ONLY) || defined(IP_TRANSPARENT) || defined(IP_BINDANY) || defined(IP_FREEBIND) || defined(SO_BINDANY)
 	int on = 1;
+#endif
+#ifdef HAVE_SYSTEMD
+	int got_fd_from_systemd = 0;
 #endif
 #ifdef USE_TCP_FASTOPEN
 	int qlen;
 #endif
-#if !defined(IP_TRANSPARENT) && !defined(IP_BINDANY)
+#if !defined(IP_TRANSPARENT) && !defined(IP_BINDANY) && !defined(SO_BINDANY)
 	(void)transparent;
 #endif
 #if !defined(IP_FREEBIND)
@@ -523,6 +658,15 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 #endif
 	verbose_print_addr(addr);
 	*noproto = 0;
+#ifdef HAVE_SYSTEMD
+	if (!use_systemd ||
+	    (use_systemd
+	     && (s = systemd_get_activated(addr->ai_family, addr->ai_socktype, 1,
+					   addr->ai_addr, addr->ai_addrlen,
+					   NULL)) == -1)) {
+#else
+	(void)use_systemd;
+#endif
 	if((s = socket(addr->ai_family, addr->ai_socktype, 0)) == -1) {
 #ifndef USE_WINSOCK
 		if(errno == EAFNOSUPPORT || errno == EPROTONOSUPPORT) {
@@ -560,6 +704,11 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 		log_warn(" setsockopt(TCP_MAXSEG) unsupported");
 #endif /* defined(IPPROTO_TCP) && defined(TCP_MAXSEG) */
 	}
+#ifdef HAVE_SYSTEMD
+	} else {
+		got_fd_from_systemd = 1;
+    }
+#endif
 #ifdef SO_REUSEADDR
 	if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, 
 		(socklen_t)sizeof(on)) < 0) {
@@ -636,8 +785,19 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 		log_warn("setsockopt(.. IP%s_BINDANY ..) failed: %s",
 		(addr->ai_family==AF_INET6?"V6":""), strerror(errno));
 	}
-#endif /* IP_TRANSPARENT || IP_BINDANY */
-	if(bind(s, addr->ai_addr, addr->ai_addrlen) != 0) {
+#elif defined(SO_BINDANY)
+	if (transparent &&
+	    setsockopt(s, SOL_SOCKET, SO_BINDANY, (void*)&on, (socklen_t)
+	    sizeof(on)) < 0) {
+		log_warn("setsockopt(.. SO_BINDANY ..) failed: %s",
+		strerror(errno));
+	}
+#endif /* IP_TRANSPARENT || IP_BINDANY || SO_BINDANY */
+	if(
+#ifdef HAVE_SYSTEMD
+		!got_fd_from_systemd &&
+#endif
+        bind(s, addr->ai_addr, addr->ai_addrlen) != 0) {
 #ifndef USE_WINSOCK
 		/* detect freebsd jail with no ipv6 permission */
 		if(addr->ai_family==AF_INET6 && errno==EINVAL)
@@ -688,18 +848,40 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 #endif
 	if ((setsockopt(s, IPPROTO_TCP, TCP_FASTOPEN, &qlen, 
 		  sizeof(qlen))) == -1 ) {
-		log_err("Setting TCP Fast Open as server failed: %s", strerror(errno));
+#ifdef ENOPROTOOPT
+		/* squelch ENOPROTOOPT: freebsd server mode with kernel support
+		   disabled, except when verbosity enabled for debugging */
+		if(errno != ENOPROTOOPT || verbosity >= 3) {
+#endif
+		  if(errno == EPERM) {
+		  	log_warn("Setting TCP Fast Open as server failed: %s ; this could likely be because sysctl net.inet.tcp.fastopen.enabled, net.inet.tcp.fastopen.server_enable, or net.ipv4.tcp_fastopen is disabled", strerror(errno));
+		  } else {
+		  	log_err("Setting TCP Fast Open as server failed: %s", strerror(errno));
+		  }
+#ifdef ENOPROTOOPT
+		}
+#endif
 	}
 #endif
 	return s;
 }
 
 int
-create_local_accept_sock(const char *path, int* noproto)
+create_local_accept_sock(const char *path, int* noproto, int use_systemd)
 {
+#ifdef HAVE_SYSTEMD
+	int ret;
+
+	if (use_systemd && (ret = systemd_get_activated(AF_LOCAL, SOCK_STREAM, 1, NULL, 0, path)) != -1)
+		return ret;
+	else {
+#endif
 #ifdef HAVE_SYS_UN_H
 	int s;
 	struct sockaddr_un usock;
+#ifndef HAVE_SYSTEMD
+	(void)use_systemd;
+#endif
 
 	verbose(VERB_ALGO, "creating unix socket %s", path);
 #ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
@@ -720,29 +902,42 @@ create_local_accept_sock(const char *path, int* noproto)
 		/* The socket already exists and cannot be removed */
 		log_err("Cannot remove old local socket %s (%s)",
 			path, strerror(errno));
-		return -1;
+		goto err;
 	}
 
 	if (bind(s, (struct sockaddr *)&usock,
 		(socklen_t)sizeof(struct sockaddr_un)) == -1) {
 		log_err("Cannot bind local socket %s (%s)",
 			path, strerror(errno));
-		return -1;
+		goto err;
 	}
 
 	if (!fd_set_nonblock(s)) {
 		log_err("Cannot set non-blocking mode");
-		return -1;
+		goto err;
 	}
 
 	if (listen(s, TCP_BACKLOG) == -1) {
 		log_err("can't listen: %s", strerror(errno));
-		return -1;
+		goto err;
 	}
 
 	(void)noproto; /*unused*/
 	return s;
+
+err:
+#ifndef USE_WINSOCK
+	close(s);
 #else
+	closesocket(s);
+#endif
+	return -1;
+
+#ifdef HAVE_SYSTEMD
+	}
+#endif
+#else
+	(void)use_systemd;
 	(void)path;
 	log_err("Local sockets are not supported");
 	*noproto = 1;
@@ -757,7 +952,7 @@ create_local_accept_sock(const char *path, int* noproto)
 static int
 make_sock(int stype, const char* ifname, const char* port, 
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
-	int* reuseport, int transparent, int tcp_mss, int freebind)
+	int* reuseport, int transparent, int tcp_mss, int freebind, int use_systemd)
 {
 	struct addrinfo *res = NULL;
 	int r, s, inuse, noproto;
@@ -785,7 +980,7 @@ make_sock(int stype, const char* ifname, const char* port,
 		s = create_udp_sock(res->ai_family, res->ai_socktype,
 			(struct sockaddr*)res->ai_addr, res->ai_addrlen,
 			v6only, &inuse, &noproto, (int)rcv, (int)snd, 1,
-			reuseport, transparent, freebind);
+			reuseport, transparent, freebind, use_systemd);
 		if(s == -1 && inuse) {
 			log_err("bind: address already in use");
 		} else if(s == -1 && noproto && hints->ai_family == AF_INET6){
@@ -793,7 +988,7 @@ make_sock(int stype, const char* ifname, const char* port,
 		}
 	} else	{
 		s = create_tcp_accept_sock(res, v6only, &noproto, reuseport,
-			transparent, tcp_mss, freebind);
+			transparent, tcp_mss, freebind, use_systemd);
 		if(s == -1 && noproto && hints->ai_family == AF_INET6){
 			*noip6 = 1;
 		}
@@ -806,7 +1001,7 @@ make_sock(int stype, const char* ifname, const char* port,
 static int
 make_sock_port(int stype, const char* ifname, const char* port, 
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
-	int* reuseport, int transparent, int tcp_mss, int freebind)
+	int* reuseport, int transparent, int tcp_mss, int freebind, int use_systemd)
 {
 	char* s = strchr(ifname, '@');
 	if(s) {
@@ -828,10 +1023,10 @@ make_sock_port(int stype, const char* ifname, const char* port,
 		(void)strlcpy(p, s+1, sizeof(p));
 		p[strlen(s+1)]=0;
 		return make_sock(stype, newif, p, hints, v6only, noip6,
-			rcv, snd, reuseport, transparent, tcp_mss, freebind);
+			rcv, snd, reuseport, transparent, tcp_mss, freebind, use_systemd);
 	}
 	return make_sock(stype, ifname, port, hints, v6only, noip6, rcv, snd,
-		reuseport, transparent, tcp_mss, freebind);
+		reuseport, transparent, tcp_mss, freebind, use_systemd);
 }
 
 /**
@@ -881,7 +1076,7 @@ set_recvpktinfo(int s, int family)
 		}
 #           else
 		log_err("no IPV6_RECVPKTINFO and no IPV6_PKTINFO option, please "
-			"disable interface-automatic in config");
+			"disable interface-automatic or do-ip6 in config");
 		return 0;
 #           endif /* defined IPV6_RECVPKTINFO */
 
@@ -902,12 +1097,32 @@ set_recvpktinfo(int s, int family)
 		}
 #           else
 		log_err("no IP_SENDSRCADDR or IP_PKTINFO option, please disable "
-			"interface-automatic in config");
+			"interface-automatic or do-ip4 in config");
 		return 0;
 #           endif /* IP_PKTINFO */
 
 	}
 	return 1;
+}
+
+/** see if interface is ssl, its port number == the ssl port number */
+static int
+if_is_ssl(const char* ifname, const char* port, int ssl_port,
+	struct config_strlist* tls_additional_port)
+{
+	struct config_strlist* s;
+	char* p = strchr(ifname, '@');
+	if(!p && atoi(port) == ssl_port)
+		return 1;
+	if(p && atoi(p+1) == ssl_port)
+		return 1;
+	for(s = tls_additional_port; s; s = s->next) {
+		if(p && atoi(p+1) == atoi(s->str))
+			return 1;
+		if(!p && atoi(port) == atoi(s->str))
+			return 1;
+	}
+	return 0;
 }
 
 /**
@@ -923,26 +1138,40 @@ set_recvpktinfo(int s, int family)
  * @param rcv: receive buffer size for UDP
  * @param snd: send buffer size for UDP
  * @param ssl_port: ssl service port number
+ * @param tls_additional_port: list of additional ssl service port numbers.
  * @param reuseport: try to set SO_REUSEPORT if nonNULL and true.
  * 	set to false on exit if reuseport failed due to no kernel support.
  * @param transparent: set IP_TRANSPARENT socket option.
  * @param tcp_mss: maximum segment size of tcp socket. default if zero.
  * @param freebind: set IP_FREEBIND socket option.
+ * @param use_systemd: if true, fetch sockets from systemd.
+ * @param dnscrypt_port: dnscrypt service port number
  * @return: returns false on error.
  */
 static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp, 
 	struct addrinfo *hints, const char* port, struct listen_port** list,
-	size_t rcv, size_t snd, int ssl_port, int* reuseport, int transparent,
-	int tcp_mss, int freebind)
+	size_t rcv, size_t snd, int ssl_port,
+	struct config_strlist* tls_additional_port, int* reuseport,
+	int transparent, int tcp_mss, int freebind, int use_systemd,
+	int dnscrypt_port)
 {
 	int s, noip6=0;
+#ifdef USE_DNSCRYPT
+	int is_dnscrypt = ((strchr(ifname, '@') && 
+			atoi(strchr(ifname, '@')+1) == dnscrypt_port) ||
+			(!strchr(ifname, '@') && atoi(port) == dnscrypt_port));
+#else
+	int is_dnscrypt = 0;
+	(void)dnscrypt_port;
+#endif
+
 	if(!do_udp && !do_tcp)
 		return 0;
 	if(do_auto) {
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
 			&noip6, rcv, snd, reuseport, transparent,
-			tcp_mss, freebind)) == -1) {
+			tcp_mss, freebind, use_systemd)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -958,7 +1187,8 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 #endif
 			return 0;
 		}
-		if(!port_insert(list, s, listen_type_udpancil)) {
+		if(!port_insert(list, s,
+		   is_dnscrypt?listen_type_udpancil_dnscrypt:listen_type_udpancil)) {
 #ifndef USE_WINSOCK
 			close(s);
 #else
@@ -970,14 +1200,15 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		/* regular udp socket */
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
 			&noip6, rcv, snd, reuseport, transparent,
-			tcp_mss, freebind)) == -1) {
+			tcp_mss, freebind, use_systemd)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
 			}
 			return 0;
 		}
-		if(!port_insert(list, s, listen_type_udp)) {
+		if(!port_insert(list, s,
+		   is_dnscrypt?listen_type_udp_dnscrypt:listen_type_udp)) {
 #ifndef USE_WINSOCK
 			close(s);
 #else
@@ -987,12 +1218,11 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		}
 	}
 	if(do_tcp) {
-		int is_ssl = ((strchr(ifname, '@') && 
-			atoi(strchr(ifname, '@')+1) == ssl_port) ||
-			(!strchr(ifname, '@') && atoi(port) == ssl_port));
+		int is_ssl = if_is_ssl(ifname, port, ssl_port,
+			tls_additional_port);
 		if((s = make_sock_port(SOCK_STREAM, ifname, port, hints, 1, 
 			&noip6, 0, 0, reuseport, transparent, tcp_mss,
-			freebind)) == -1) {
+			freebind, use_systemd)) == -1) {
 			if(noip6) {
 				/*log_warn("IPv6 protocol not available");*/
 				return 1;
@@ -1002,7 +1232,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		if(is_ssl)
 			verbose(VERB_ALGO, "setup TCP for SSL service");
 		if(!port_insert(list, s, is_ssl?listen_type_ssl:
-			listen_type_tcp)) {
+			(is_dnscrypt?listen_type_tcp_dnscrypt:listen_type_tcp))) {
 #ifndef USE_WINSOCK
 			close(s);
 #else
@@ -1035,8 +1265,9 @@ listen_cp_insert(struct comm_point* c, struct listen_dnsport* front)
 
 struct listen_dnsport* 
 listen_create(struct comm_base* base, struct listen_port* ports,
-	size_t bufsize, int tcp_accept_count, void* sslctx,
-	struct dt_env* dtenv, comm_point_callback_t* cb, void *cb_arg)
+	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
+	struct tcl_list* tcp_conn_limit, void* sslctx,
+	struct dt_env* dtenv, comm_point_callback_type* cb, void *cb_arg)
 {
 	struct listen_dnsport* front = (struct listen_dnsport*)
 		malloc(sizeof(struct listen_dnsport));
@@ -1044,25 +1275,39 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		return NULL;
 	front->cps = NULL;
 	front->udp_buff = sldns_buffer_new(bufsize);
+#ifdef USE_DNSCRYPT
+	front->dnscrypt_udp_buff = NULL;
+#endif
 	if(!front->udp_buff) {
 		free(front);
 		return NULL;
+	}
+	if(!stream_wait_lock_inited) {
+		lock_basic_init(&stream_wait_count_lock);
+		stream_wait_lock_inited = 1;
 	}
 
 	/* create comm points as needed */
 	while(ports) {
 		struct comm_point* cp = NULL;
-		if(ports->ftype == listen_type_udp) 
+		if(ports->ftype == listen_type_udp ||
+		   ports->ftype == listen_type_udp_dnscrypt)
 			cp = comm_point_create_udp(base, ports->fd, 
 				front->udp_buff, cb, cb_arg);
-		else if(ports->ftype == listen_type_tcp)
+		else if(ports->ftype == listen_type_tcp ||
+				ports->ftype == listen_type_tcp_dnscrypt)
 			cp = comm_point_create_tcp(base, ports->fd, 
-				tcp_accept_count, bufsize, cb, cb_arg);
+				tcp_accept_count, tcp_idle_timeout,
+				tcp_conn_limit, bufsize, front->udp_buff,
+				cb, cb_arg);
 		else if(ports->ftype == listen_type_ssl) {
 			cp = comm_point_create_tcp(base, ports->fd, 
-				tcp_accept_count, bufsize, cb, cb_arg);
+				tcp_accept_count, tcp_idle_timeout,
+				tcp_conn_limit, bufsize, front->udp_buff,
+				cb, cb_arg);
 			cp->ssl = sslctx;
-		} else if(ports->ftype == listen_type_udpancil) 
+		} else if(ports->ftype == listen_type_udpancil ||
+				  ports->ftype == listen_type_udpancil_dnscrypt)
 			cp = comm_point_create_udp_ancil(base, ports->fd, 
 				front->udp_buff, cb, cb_arg);
 		if(!cp) {
@@ -1072,6 +1317,21 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		}
 		cp->dtenv = dtenv;
 		cp->do_not_close = 1;
+#ifdef USE_DNSCRYPT
+		if (ports->ftype == listen_type_udp_dnscrypt ||
+			ports->ftype == listen_type_tcp_dnscrypt ||
+			ports->ftype == listen_type_udpancil_dnscrypt) {
+			cp->dnscrypt = 1;
+			cp->dnscrypt_buffer = sldns_buffer_new(bufsize);
+			if(!cp->dnscrypt_buffer) {
+				log_err("can't alloc dnscrypt_buffer");
+				comm_point_delete(cp);
+				listen_delete(front);
+				return NULL;
+			}
+			front->dnscrypt_udp_buff = cp->dnscrypt_buffer;
+		}
+#endif
 		if(!listen_cp_insert(cp, front)) {
 			log_err("malloc failed");
 			comm_point_delete(cp);
@@ -1107,8 +1367,18 @@ listen_delete(struct listen_dnsport* front)
 	if(!front) 
 		return;
 	listen_list_delete(front->cps);
+#ifdef USE_DNSCRYPT
+	if(front->dnscrypt_udp_buff &&
+		front->udp_buff != front->dnscrypt_udp_buff) {
+		sldns_buffer_free(front->dnscrypt_udp_buff);
+	}
+#endif
 	sldns_buffer_free(front->udp_buff);
 	free(front);
+	if(stream_wait_lock_inited) {
+		stream_wait_lock_inited = 0;
+		lock_basic_destroy(&stream_wait_count_lock);
+	}
 }
 
 struct listen_port* 
@@ -1148,9 +1418,10 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				do_auto, cfg->do_udp, do_tcp, 
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind)) {
+				cfg->ssl_port, cfg->tls_additional_port,
+				reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1161,9 +1432,10 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				do_auto, cfg->do_udp, do_tcp, 
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind)) {
+				cfg->ssl_port, cfg->tls_additional_port,
+				reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1176,9 +1448,10 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind)) {
+				cfg->ssl_port, cfg->tls_additional_port,
+				reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1189,9 +1462,10 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
-				cfg->ssl_port, reuseport,
-				cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind)) {
+				cfg->ssl_port, cfg->tls_additional_port,
+				reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->dnscrypt_port)) {
 				listening_ports_free(list);
 				return NULL;
 			}
@@ -1219,10 +1493,16 @@ void listening_ports_free(struct listen_port* list)
 
 size_t listen_get_mem(struct listen_dnsport* listen)
 {
+	struct listen_list* p;
 	size_t s = sizeof(*listen) + sizeof(*listen->base) + 
 		sizeof(*listen->udp_buff) + 
 		sldns_buffer_capacity(listen->udp_buff);
-	struct listen_list* p;
+#ifdef USE_DNSCRYPT
+	s += sizeof(*listen->dnscrypt_udp_buff);
+	if(listen->udp_buff != listen->dnscrypt_udp_buff){
+		s += sldns_buffer_capacity(listen->dnscrypt_udp_buff);
+	}
+#endif
 	for(p = listen->cps; p; p = p->next) {
 		s += sizeof(*p);
 		s += comm_point_get_mem(p->com);
@@ -1256,3 +1536,373 @@ void listen_start_accept(struct listen_dnsport* listen)
 	}
 }
 
+struct tcp_req_info*
+tcp_req_info_create(struct sldns_buffer* spoolbuf)
+{
+	struct tcp_req_info* req = (struct tcp_req_info*)malloc(sizeof(*req));
+	if(!req) {
+		log_err("malloc failure for new stream outoforder processing structure");
+		return NULL;
+	}
+	memset(req, 0, sizeof(*req));
+	req->spool_buffer = spoolbuf;
+	return req;
+}
+
+void
+tcp_req_info_delete(struct tcp_req_info* req)
+{
+	if(!req) return;
+	tcp_req_info_clear(req);
+	/* cp is pointer back to commpoint that owns this struct and
+	 * called delete on us */
+	/* spool_buffer is shared udp buffer, not deleted here */
+	free(req);
+}
+
+void tcp_req_info_clear(struct tcp_req_info* req)
+{
+	struct tcp_req_open_item* open, *nopen;
+	struct tcp_req_done_item* item, *nitem;
+	if(!req) return;
+
+	/* free outstanding request mesh reply entries */
+	open = req->open_req_list;
+	while(open) {
+		nopen = open->next;
+		mesh_state_remove_reply(open->mesh, open->mesh_state, req->cp);
+		free(open);
+		open = nopen;
+	}
+	req->open_req_list = NULL;
+	req->num_open_req = 0;
+	
+	/* free pending writable result packets */
+	item = req->done_req_list;
+	while(item) {
+		nitem = item->next;
+		lock_basic_lock(&stream_wait_count_lock);
+		stream_wait_count -= (sizeof(struct tcp_req_done_item)
+			+item->len);
+		lock_basic_unlock(&stream_wait_count_lock);
+		free(item->buf);
+		free(item);
+		item = nitem;
+	}
+	req->done_req_list = NULL;
+	req->num_done_req = 0;
+	req->read_is_closed = 0;
+}
+
+void
+tcp_req_info_remove_mesh_state(struct tcp_req_info* req, struct mesh_state* m)
+{
+	struct tcp_req_open_item* open, *prev = NULL;
+	if(!req || !m) return;
+	open = req->open_req_list;
+	while(open) {
+		if(open->mesh_state == m) {
+			struct tcp_req_open_item* next;
+			if(prev) prev->next = open->next;
+			else req->open_req_list = open->next;
+			/* caller has to manage the mesh state reply entry */
+			next = open->next;
+			free(open);
+			req->num_open_req --;
+
+			/* prev = prev; */
+			open = next;
+			continue;
+		}
+		prev = open;
+		open = open->next;
+	}
+}
+
+/** setup listening for read or write */
+static void
+tcp_req_info_setup_listen(struct tcp_req_info* req)
+{
+	int wr = 0;
+	int rd = 0;
+
+	if(req->cp->tcp_byte_count != 0) {
+		/* cannot change, halfway through */
+		return;
+	}
+
+	if(!req->cp->tcp_is_reading)
+		wr = 1;
+	if(req->num_open_req + req->num_done_req < TCP_MAX_REQ_SIMULTANEOUS &&
+		!req->read_is_closed)
+		rd = 1;
+	
+	if(wr) {
+		req->cp->tcp_is_reading = 0;
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+	} else if(rd) {
+		req->cp->tcp_is_reading = 1;
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+		/* and also read it (from SSL stack buffers), so
+		 * no event read event is expected since the remainder of
+		 * the TLS frame is sitting in the buffers. */
+		req->read_again = 1;
+	} else {
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+		comm_point_listen_for_rw(req->cp, 0, 0);
+	}
+}
+
+/** remove first item from list of pending results */
+static struct tcp_req_done_item*
+tcp_req_info_pop_done(struct tcp_req_info* req)
+{
+	struct tcp_req_done_item* item;
+	log_assert(req->num_done_req > 0 && req->done_req_list);
+	item = req->done_req_list;
+	lock_basic_lock(&stream_wait_count_lock);
+	stream_wait_count -= (sizeof(struct tcp_req_done_item)+item->len);
+	lock_basic_unlock(&stream_wait_count_lock);
+	req->done_req_list = req->done_req_list->next;
+	req->num_done_req --;
+	return item;
+}
+
+/** Send given buffer and setup to write */
+static void
+tcp_req_info_start_write_buf(struct tcp_req_info* req, uint8_t* buf,
+	size_t len)
+{
+	sldns_buffer_clear(req->cp->buffer);
+	sldns_buffer_write(req->cp->buffer, buf, len);
+	sldns_buffer_flip(req->cp->buffer);
+
+	req->cp->tcp_is_reading = 0; /* we are now writing */
+}
+
+/** pick up the next result and start writing it to the channel */
+static void
+tcp_req_pickup_next_result(struct tcp_req_info* req)
+{
+	if(req->num_done_req > 0) {
+		/* unlist the done item from the list of pending results */
+		struct tcp_req_done_item* item = tcp_req_info_pop_done(req);
+		tcp_req_info_start_write_buf(req, item->buf, item->len);
+		free(item->buf);
+		free(item);
+	}
+}
+
+/** the read channel has closed */
+int
+tcp_req_info_handle_read_close(struct tcp_req_info* req)
+{
+	verbose(VERB_ALGO, "tcp channel read side closed %d", req->cp->fd);
+	/* reset byte count for (potential) partial read */
+	req->cp->tcp_byte_count = 0;
+	/* if we still have results to write, pick up next and write it */
+	if(req->num_done_req != 0) {
+		tcp_req_pickup_next_result(req);
+		tcp_req_info_setup_listen(req);
+		return 1;
+	}
+	/* if nothing to do, this closes the connection */
+	if(req->num_open_req == 0 && req->num_done_req == 0)
+		return 0;
+	/* otherwise, we must be waiting for dns resolve, wait with timeout */
+	req->read_is_closed = 1;
+	tcp_req_info_setup_listen(req);
+	return 1;
+}
+
+void
+tcp_req_info_handle_writedone(struct tcp_req_info* req)
+{
+	/* back to reading state, we finished this write event */
+	sldns_buffer_clear(req->cp->buffer);
+	if(req->num_done_req == 0 && req->read_is_closed) {
+		/* no more to write and nothing to read, close it */
+		comm_point_drop_reply(&req->cp->repinfo);
+		return;
+	}
+	req->cp->tcp_is_reading = 1;
+	/* see if another result needs writing */
+	tcp_req_pickup_next_result(req);
+
+	/* see if there is more to write, if not stop_listening for writing */
+	/* see if new requests are allowed, if so, start_listening
+	 * for reading */
+	tcp_req_info_setup_listen(req);
+}
+
+void
+tcp_req_info_handle_readdone(struct tcp_req_info* req)
+{
+	struct comm_point* c = req->cp;
+
+	/* we want to read up several requests, unless there are
+	 * pending answers */
+
+	req->is_drop = 0;
+	req->is_reply = 0;
+	req->in_worker_handle = 1;
+	sldns_buffer_set_limit(req->spool_buffer, 0);
+	/* handle the current request */
+	/* this calls the worker handle request routine that could give
+	 * a cache response, or localdata response, or drop the reply,
+	 * or schedule a mesh entry for later */
+	fptr_ok(fptr_whitelist_comm_point(c->callback));
+	if( (*c->callback)(c, c->cb_arg, NETEVENT_NOERROR, &c->repinfo) ) {
+		req->in_worker_handle = 0;
+		/* there is an answer, put it up.  It is already in the
+		 * c->buffer, just send it. */
+		/* since we were just reading a query, the channel is
+		 * clear to write to */
+	send_it:
+		c->tcp_is_reading = 0;
+		comm_point_stop_listening(c);
+		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
+		return;
+	}
+	req->in_worker_handle = 0;
+	/* it should be waiting in the mesh for recursion.
+	 * If mesh failed to add a new entry and called commpoint_drop_reply. 
+	 * Then the mesh state has been cleared. */
+	if(req->is_drop) {
+		/* the reply has been dropped, stream has been closed. */
+		return;
+	}
+	/* If mesh failed(mallocfail) and called commpoint_send_reply with
+	 * something like servfail then we pick up that reply below. */
+	if(req->is_reply) {
+		goto send_it;
+	}
+
+	sldns_buffer_clear(c->buffer);
+	/* if pending answers, pick up an answer and start sending it */
+	tcp_req_pickup_next_result(req);
+
+	/* if answers pending, start sending answers */
+	/* read more requests if we can have more requests */
+	tcp_req_info_setup_listen(req);
+}
+
+int
+tcp_req_info_add_meshstate(struct tcp_req_info* req,
+	struct mesh_area* mesh, struct mesh_state* m)
+{
+	struct tcp_req_open_item* item;
+	log_assert(req && mesh && m);
+	item = (struct tcp_req_open_item*)malloc(sizeof(*item));
+	if(!item) return 0;
+	item->next = req->open_req_list;
+	item->mesh = mesh;
+	item->mesh_state = m;
+	req->open_req_list = item;
+	req->num_open_req++;
+	return 1;
+}
+
+/** Add a result to the result list.  At the end. */
+static int
+tcp_req_info_add_result(struct tcp_req_info* req, uint8_t* buf, size_t len)
+{
+	struct tcp_req_done_item* last = NULL;
+	struct tcp_req_done_item* item;
+	size_t space;
+
+	/* see if we have space */
+	space = sizeof(struct tcp_req_done_item) + len;
+	lock_basic_lock(&stream_wait_count_lock);
+	if(stream_wait_count + space > stream_wait_max) {
+		lock_basic_unlock(&stream_wait_count_lock);
+		verbose(VERB_ALGO, "drop stream reply, no space left, in stream-wait-size");
+		return 0;
+	}
+	stream_wait_count += space;
+	lock_basic_unlock(&stream_wait_count_lock);
+
+	/* find last element */
+	last = req->done_req_list;
+	while(last && last->next)
+		last = last->next;
+	
+	/* create new element */
+	item = (struct tcp_req_done_item*)malloc(sizeof(*item));
+	if(!item) {
+		log_err("malloc failure, for stream result list");
+		return 0;
+	}
+	item->next = NULL;
+	item->len = len;
+	item->buf = memdup(buf, len);
+	if(!item->buf) {
+		free(item);
+		log_err("malloc failure, adding reply to stream result list");
+		return 0;
+	}
+
+	/* link in */
+	if(last) last->next = item;
+	else req->done_req_list = item;
+	req->num_done_req++;
+	return 1;
+}
+
+void
+tcp_req_info_send_reply(struct tcp_req_info* req)
+{
+	if(req->in_worker_handle) {
+		/* reply from mesh is in the spool_buffer */
+		/* copy now, so that the spool buffer is free for other tasks
+		 * before the callback is done */
+		sldns_buffer_clear(req->cp->buffer);
+		sldns_buffer_write(req->cp->buffer,
+			sldns_buffer_begin(req->spool_buffer),
+			sldns_buffer_limit(req->spool_buffer));
+		sldns_buffer_flip(req->cp->buffer);
+		req->is_reply = 1;
+		return;
+	}
+	/* now that the query has been handled, that mesh_reply entry
+	 * should be removed, from the tcp_req_info list,
+	 * the mesh state cleanup removes then with region_cleanup and
+	 * replies_sent true. */
+	/* see if we can send it straight away (we are not doing
+	 * anything else).  If so, copy to buffer and start */
+	if(req->cp->tcp_is_reading && req->cp->tcp_byte_count == 0) {
+		/* buffer is free, and was ready to read new query into,
+		 * but we are now going to use it to send this answer */
+		tcp_req_info_start_write_buf(req,
+			sldns_buffer_begin(req->spool_buffer),
+			sldns_buffer_limit(req->spool_buffer));
+		/* switch to listen to write events */
+		comm_point_stop_listening(req->cp);
+		comm_point_start_listening(req->cp, -1,
+			req->cp->tcp_timeout_msec);
+		return;
+	}
+	/* queue up the answer behind the others already pending */
+	if(!tcp_req_info_add_result(req, sldns_buffer_begin(req->spool_buffer),
+		sldns_buffer_limit(req->spool_buffer))) {
+		/* drop the connection, we are out of resources */
+		comm_point_drop_reply(&req->cp->repinfo);
+	}
+}
+
+size_t tcp_req_info_get_stream_buffer_size(void)
+{
+	size_t s;
+	if(!stream_wait_lock_inited)
+		return stream_wait_count;
+	lock_basic_lock(&stream_wait_count_lock);
+	s = stream_wait_count;
+	lock_basic_unlock(&stream_wait_count_lock);
+	return s;
+}

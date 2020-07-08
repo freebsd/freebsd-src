@@ -67,9 +67,9 @@ struct ub_packed_rrset_key;
 struct val_neg_cache {
 	/** the big lock on the negative cache.  Because we use a rbtree 
 	 * for the data (quick lookup), we need a big lock */
-	lock_basic_t lock;
+	lock_basic_type lock;
 	/** The zone rbtree. contents sorted canonical, type val_neg_zone */
-	rbtree_t tree;
+	rbtree_type tree;
 	/** the first in linked list of LRU of val_neg_data */
 	struct val_neg_data* first;
 	/** last in lru (least recently used element) */
@@ -80,6 +80,12 @@ struct val_neg_cache {
 	size_t max;
 	/** max nsec3 iterations allowed */
 	size_t nsec3_max_iter;
+	/** number of times neg cache records were used to generate NOERROR
+	 * responses. */
+	size_t num_neg_cache_noerror;
+	/** number of times neg cache records were used to generate NXDOMAIN
+	 * responses. */
+	size_t num_neg_cache_nxdomain;
 };
 
 /**
@@ -87,7 +93,7 @@ struct val_neg_cache {
  */
 struct val_neg_zone {
 	/** rbtree node element, key is this struct: the name, class */
-	rbnode_t node;
+	rbnode_type node;
 	/** name; the key */
 	uint8_t* name;
 	/** length of name */
@@ -114,7 +120,7 @@ struct val_neg_zone {
 
 	/** tree of NSEC data for this zone, sorted canonical 
 	 * by NSEC owner name */
-	rbtree_t tree;
+	rbtree_type tree;
 
 	/** class of node; host order */
 	uint16_t dclass;
@@ -135,7 +141,7 @@ struct val_neg_zone {
  */
 struct val_neg_data {
 	/** rbtree node element, key is this struct: the name */
-	rbnode_t node;
+	rbnode_type node;
 	/** name; the key */
 	uint8_t* name;
 	/** length of name */
@@ -250,6 +256,7 @@ int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
  * 	more conservative, especially for opt-out zones, since the receiver
  * 	may have a trust-anchor below the optout and thus the optout cannot
  * 	be used to create a proof from the negative cache.
+ * @param cfg: config options.
  * @return a reply message if something was found. 
  * 	This reply may still need validation.
  * 	NULL if nothing found (or out of memory).
@@ -257,7 +264,7 @@ int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
 struct dns_msg* val_neg_getmsg(struct val_neg_cache* neg, 
 	struct query_info* qinfo, struct regional* region, 
 	struct rrset_cache* rrset_cache, struct sldns_buffer* buf, time_t now,
-	int addsoa, uint8_t* topname);
+	int addsoa, uint8_t* topname, struct config_file* cfg);
 
 
 /**** functions exposed for unit test ****/

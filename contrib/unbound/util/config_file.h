@@ -42,6 +42,8 @@
 #ifndef UTIL_CONFIG_FILE_H
 #define UTIL_CONFIG_FILE_H
 struct config_stub;
+struct config_auth;
+struct config_view;
 struct config_strlist;
 struct config_str2list;
 struct config_str3list;
@@ -50,6 +52,14 @@ struct module_qstate;
 struct sock_list;
 struct ub_packed_rrset_key;
 struct regional;
+
+/** List head for strlist processing, used for append operation. */
+struct config_strlist_head {
+	/** first in list of text items */
+	struct config_strlist* first;
+	/** last in list of text items */
+	struct config_strlist* last;
+};
 
 /**
  * The configuration options.
@@ -83,10 +93,18 @@ struct config_file {
 	int do_tcp;
 	/** tcp upstream queries (no UDP upstream queries) */
 	int tcp_upstream;
+	/** udp upstream enabled when no UDP downstream is enabled (do_udp no)*/
+	int udp_upstream_without_downstream;
 	/** maximum segment size of tcp socket which queries are answered */
 	int tcp_mss;
 	/** maximum segment size of tcp socket for outgoing queries */
 	int outgoing_tcp_mss;
+	/** tcp idle timeout, in msec */
+	int tcp_idle_timeout;
+	/** do edns tcp keepalive */
+	int do_tcp_keepalive;
+	/** tcp keepalive timeout, in msec */
+	int tcp_keepalive_timeout;
 
 	/** private key file for dnstcp-ssl service (enabled if not NULL) */
 	char* ssl_service_key;
@@ -96,6 +114,18 @@ struct config_file {
 	int ssl_port;
 	/** if outgoing tcp connections use SSL */
 	int ssl_upstream;
+	/** cert bundle for outgoing connections */
+	char* tls_cert_bundle;
+	/** should the system certificate store get added to the cert bundle */
+	int tls_win_cert;
+	/** additional tls ports */
+	struct config_strlist* tls_additional_port;
+	/** secret key used to encrypt and decrypt TLS session ticket */
+	struct config_strlist_head tls_session_ticket_keys;
+	/** TLS ciphers */
+	char* tls_ciphers;
+	/** TLS chiphersuites (TLSv1.3) */
+	char* tls_ciphersuites;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -108,6 +138,8 @@ struct config_file {
 
 	/** EDNS buffer size to use */
 	size_t edns_buffer_size;
+	/** size of the stream wait buffers, max */
+	size_t stream_wait_size;
 	/** number of bytes buffer size for DNS messages */
 	size_t msg_buffer_size;
 	/** size of the message cache */
@@ -135,6 +167,11 @@ struct config_file {
 
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
+	/** percent*10, how many times in 1000 to pick from the fastest
+	 * destinations */
+	int fast_server_permil;
+	/** number of fastest server to select from */
+	size_t fast_server_num;
 
 	/** automatic interface for incoming messages. Uses ipv6 remapping,
 	 * and recvmsg/sendmsg ancillary data to detect interfaces, boolean */
@@ -167,12 +204,39 @@ struct config_file {
 	struct config_stub* stubs;
 	/** the forward zone definitions, linked list */
 	struct config_stub* forwards;
+	/** the auth zone definitions, linked list */
+	struct config_auth* auths;
+	/** the views definitions, linked list */
+	struct config_view* views;
 	/** list of donotquery addresses, linked list */
 	struct config_strlist* donotqueryaddrs;
+#ifdef CLIENT_SUBNET
+	/** list of servers we send edns-client-subnet option to and 
+	 * accept option from, linked list */
+	struct config_strlist* client_subnet;
+	/** list of zones we send edns-client-subnet option for */
+	struct config_strlist* client_subnet_zone;
+	/** opcode assigned by IANA for edns0-client-subnet option */
+	uint16_t client_subnet_opcode;
+	/** Do not check whitelist if incoming query contains an ECS record */
+	int client_subnet_always_forward;
+	/** Subnet length we are willing to give up privacy for */
+	uint8_t max_client_subnet_ipv4;
+	uint8_t max_client_subnet_ipv6;
+	/** Minimum subnet length we are willing to answer */
+	uint8_t min_client_subnet_ipv4;
+	uint8_t min_client_subnet_ipv6;
+	/** Max number of nodes in the ECS radix tree */
+	uint32_t max_ecs_tree_size_ipv4;
+	uint32_t max_ecs_tree_size_ipv6;
+#endif
 	/** list of access control entries, linked list */
 	struct config_str2list* acls;
 	/** use default localhost donotqueryaddr entries */
 	int donotquery_localhost;
+
+	/** list of tcp connection limitss, linked list */
+	struct config_str2list* tcp_connection_limits;
 
 	/** harden against very small edns buffer sizes */
 	int harden_short_bufsize;
@@ -208,6 +272,8 @@ struct config_file {
 	int prefetch;
 	/** if prefetching of DNSKEYs should be performed. */
 	int prefetch_key;
+	/** deny queries of type ANY with an empty answer */
+	int deny_any;
 
 	/** chrootdir, if not "" or chroot will be done */
 	char* chrootdir;
@@ -226,11 +292,23 @@ struct config_file {
 	int log_time_ascii;
 	/** log queries with one line per query */
 	int log_queries;
+	/** log replies with one line per reply */
+	int log_replies;
+	/** tag log_queries and log_replies for filtering */
+	int log_tag_queryreply;
+	/** log every local-zone hit **/
+	int log_local_actions;
+	/** log servfails with a reason */
+	int log_servfail;
+	/** log identity to report */
+	char* log_identity;
 
 	/** do not report identity (id.server, hostname.bind) */
 	int hide_identity;
 	/** do not report version (version.server, version.bind) */
 	int hide_version;
+	/** do not report trustanchor (trustanchor.unbound) */
+	int hide_trustanchor;
 	/** identity, hostname is returned if "". */
 	char* identity;
 	/** version, package version returned if "". */
@@ -253,6 +331,10 @@ struct config_file {
 	struct config_strlist* dlv_anchor_list;
 	/** insecure domain list */
 	struct config_strlist* domain_insecure;
+	/** send key tag query */
+	int trust_anchor_signaling;
+	/** enable root key sentinel */
+	int root_key_sentinel;
 
 	/** if not 0, this value is the validation date for RRSIGs */
 	int32_t val_date_override;
@@ -270,8 +352,21 @@ struct config_file {
 	int val_log_squelch;
 	/** should validator allow bogus messages to go through */
 	int val_permissive_mode;
+	/** use cached NSEC records to synthesise (negative) answers */
+	int aggressive_nsec;
 	/** ignore the CD flag in incoming queries and refuse them bogus data */
 	int ignore_cd;
+	/** serve expired entries and prefetch them */
+	int serve_expired;
+	/** serve expired entries until TTL after expiration */
+	int serve_expired_ttl;
+	/** reset serve expired TTL after failed update attempt */
+	int serve_expired_ttl_reset;
+	/** TTL for the serve expired replies */
+	int serve_expired_reply_ttl;
+	/** serve expired entries only after trying to update the entries and this
+	 *  timeout (in milliseconds) is reached */
+	int serve_expired_client_timeout;
 	/** nsec3 maximum iterations per key size, string */
 	char* val_nsec3_key_iterations;
 	/** autotrust add holddown time, in seconds */
@@ -294,6 +389,12 @@ struct config_file {
 	struct config_str2list* local_zones;
 	/** local zones nodefault list */
 	struct config_strlist* local_zones_nodefault;
+#ifdef USE_IPSET
+	/** local zones ipset list */
+	struct config_strlist* local_zones_ipset;
+#endif
+	/** do not add any default local zone */
+	int local_zones_disable_default;
 	/** local data RRs configured */
 	struct config_strlist* local_data;
 	/** local zone override types per netblock */
@@ -310,6 +411,14 @@ struct config_file {
 	struct config_str3list* acl_tag_actions;
 	/** list of aclname, tagname, redirectdata */
 	struct config_str3list* acl_tag_datas;
+	/** list of aclname, view*/
+	struct config_str2list* acl_view;
+	/** list of IP-netblock, tagbitlist */
+	struct config_strbytelist* respip_tags;
+	/** list of response-driven access control entries, linked list */
+	struct config_str2list* respip_actions;
+	/** RRs configured for response-driven access controls */
+	struct config_str2list* respip_data;
 	/** tag list, array with tagname[i] is malloced string */
 	char** tagname;
 	/** number of items in the taglist */
@@ -318,11 +427,11 @@ struct config_file {
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
 	/** the interfaces the remote control should listen on */
-	struct config_strlist* control_ifs;
+	struct config_strlist_head control_ifs;
+	/** if the use-cert option is set */
+	int control_use_cert;
 	/** port number for the control port */
 	int control_port;
-	/** use certificates for remote control */
-	int remote_control_use_cert;
 	/** private key file for server */
 	char* server_key_file;
 	/** certificate file for server */
@@ -333,7 +442,10 @@ struct config_file {
 	char* control_cert_file;
 
 	/** Python script file */
-	char* python_script;
+	struct config_strlist* python_script;
+
+	/** Use systemd socket activation. */
+	int use_systemd;
 
 	/** daemonize, i.e. fork into the background. */
 	int do_daemonize;
@@ -344,6 +456,9 @@ struct config_file {
 	/* RRSet roundrobin */
 	int rrset_roundrobin;
 
+	/* wait time for unknown server in msec */
+	int unknown_server_time_limit;
+
 	/* maximum UDP response size */
 	size_t max_udp_size;
 
@@ -352,6 +467,8 @@ struct config_file {
 
 	/* Synthetize all AAAA record despite the presence of an authoritative one */
 	int dns64_synthall;
+	/** ignore AAAAs for these domain names and use A record anyway */
+	struct config_strlist* dns64_ignore_aaaa;
 
 	/** true to enable dnstap support */
 	int dnstap;
@@ -382,7 +499,16 @@ struct config_file {
 	/** true to disable DNSSEC lameness check in iterator */
 	int disable_dnssec_lame_check;
 
-	/** ratelimit 0 is off, otherwise qps (unless overridden) */
+	/** ratelimit for ip addresses. 0 is off, otherwise qps (unless overridden) */
+	int ip_ratelimit;
+	/** number of slabs for ip_ratelimit cache */
+	size_t ip_ratelimit_slabs;
+	/** memory size in bytes for ip_ratelimit cache */
+	size_t ip_ratelimit_size;
+	/** ip_ratelimit factor, 0 blocks all, 10 allows 1/10 of traffic */
+	int ip_ratelimit_factor;
+
+	/** ratelimit for domains. 0 is off, otherwise qps (unless overridden) */
 	int ratelimit;
 	/** number of slabs for ratelimit cache */
 	size_t ratelimit_slabs;
@@ -396,14 +522,84 @@ struct config_file {
 	int ratelimit_factor;
 	/** minimise outgoing QNAME and hide original QTYPE if possible */
 	int qname_minimisation;
+	/** minimise QNAME in strict mode, minimise according to RFC.
+	 *  Do not apply fallback */
+	int qname_minimisation_strict;
+	/** SHM data - true if shm is enabled */
+	int shm_enable;
+	/** SHM data - key for the shm */
+	int shm_key;
+
+	/** DNSCrypt */
+	/** true to enable dnscrypt */
+	int dnscrypt;
+	/** port on which to provide dnscrypt service */
+	int dnscrypt_port;
+	/** provider name 2.dnscrypt-cert.example.com */
+	char* dnscrypt_provider;
+	/** dnscrypt secret keys 1.key */
+	struct config_strlist* dnscrypt_secret_key;
+	/** dnscrypt provider certs 1.cert */
+	struct config_strlist* dnscrypt_provider_cert;
+	/** dnscrypt provider certs 1.cert which have been rotated and should not be
+	* advertised through DNS's providername TXT record but are required to be
+	* able to handle existing traffic using the old cert. */
+	struct config_strlist* dnscrypt_provider_cert_rotated;
+	/** memory size in bytes for dnscrypt shared secrets cache */
+	size_t dnscrypt_shared_secret_cache_size;
+	/** number of slabs for dnscrypt shared secrets cache */
+	size_t dnscrypt_shared_secret_cache_slabs;
+	/** memory size in bytes for dnscrypt nonces cache */
+	size_t dnscrypt_nonce_cache_size;
+	/** number of slabs for dnscrypt nonces cache */
+	size_t dnscrypt_nonce_cache_slabs;
+	/** IPsec module */
+#ifdef USE_IPSECMOD
+	/** false to bypass the IPsec module */
+	int ipsecmod_enabled;
+	/** whitelisted domains for ipsecmod */
+	struct config_strlist* ipsecmod_whitelist;
+	/** path to external hook */
+	char* ipsecmod_hook;
+	/** true to proceed even with a bogus IPSECKEY */
+	int ipsecmod_ignore_bogus;
+	/** max TTL for the A/AAAA records that call the hook */
+	int ipsecmod_max_ttl;
+	/** false to proceed even when ipsecmod_hook fails */
+	int ipsecmod_strict;
+#endif
+
+	/* cachedb module */
+#ifdef USE_CACHEDB
+	/** backend DB name */
+	char* cachedb_backend;
+	/** secret seed for hash key calculation */
+	char* cachedb_secret;
+#ifdef USE_REDIS
+	/** redis server's IP address or host name */
+	char* redis_server_host;
+	/** redis server's TCP port */
+	int redis_server_port;
+	/** timeout (in ms) for communication with the redis server */
+	int redis_timeout;
+#endif
+#endif
+
+	/* ipset module */
+#ifdef USE_IPSET
+	char* ipset_name_v4;
+	char* ipset_name_v6;
+#endif
 };
 
-/** from cfg username, after daemonise setup performed */
+/** from cfg username, after daemonize setup performed */
 extern uid_t cfg_uid;
-/** from cfg username, after daemonise setup performed */
+/** from cfg username, after daemonize setup performed */
 extern gid_t cfg_gid;
 /** debug and enable small timeouts */
 extern int autr_permit_small_holddown;
+/** size (in bytes) of stream wait buffers max */
+extern size_t stream_wait_max;
 
 /**
  * Stub config options
@@ -421,6 +617,77 @@ struct config_stub {
 	int isprime;
 	/** if forward-first is set (failover to without if fails) */
 	int isfirst;
+	/** use SSL for queries to this stub */
+	int ssl_upstream;
+	/*** no cache */
+	int no_cache;
+};
+
+/**
+ * Auth config options
+ */
+struct config_auth {
+	/** next in list */
+	struct config_auth* next;
+	/** domain name (in text) of the auth apex domain */
+	char* name;
+	/** list of masters */
+	struct config_strlist* masters;
+	/** list of urls */
+	struct config_strlist* urls;
+	/** list of allow-notify */
+	struct config_strlist* allow_notify;
+	/** zonefile (or NULL) */
+	char* zonefile;
+	/** provide downstream answers */
+	int for_downstream;
+	/** provide upstream answers */
+	int for_upstream;
+	/** fallback to recursion to authorities if zone expired and other
+	 * reasons perhaps (like, query bogus) */
+	int fallback_enabled;
+	/** this zone is used to create local-zone policies */
+	int isrpz;
+	/** rpz tags (or NULL) */
+	uint8_t* rpz_taglist;
+	/** length of the taglist (in bytes) */
+	size_t rpz_taglistlen;
+	/** Override RPZ action for this zone, regardless of zone content */
+	char* rpz_action_override;
+	/** Log when this RPZ policy is applied */
+	int rpz_log;
+	/** Display this name in the log when RPZ policy is applied */
+	char* rpz_log_name;
+	/** Always reply with this CNAME target if the cname override action is
+	 * used */
+	char* rpz_cname;
+};
+
+/**
+ * View config options
+ */
+struct config_view {
+	/** next in list */
+	struct config_view* next;
+	/** view name */
+	char* name;
+	/** local zones */
+	struct config_str2list* local_zones;
+	/** local data RRs */
+	struct config_strlist* local_data;
+	/** local zones nodefault list */
+	struct config_strlist* local_zones_nodefault;
+#ifdef USE_IPSET
+	/** local zones ipset list */
+	struct config_strlist* local_zones_ipset;
+#endif
+	/** Fallback to global local_zones when there is no match in the view
+	 * view specific tree. 1 for yes, 0 for no */	
+	int isfirst;
+	/** predefined actions for particular IP address responses */
+	struct config_str2list* respip_actions;
+	/** data complementing the 'redirect' response IP actions */
+	struct config_str2list* respip_data;
 };
 
 /**
@@ -471,14 +738,6 @@ struct config_strbytelist {
 	/** second bytestring */
 	uint8_t* str2;
 	size_t str2len;
-};
-
-/** List head for strlist processing, used for append operation. */
-struct config_strlist_head {
-	/** first in list of text items */
-	struct config_strlist* first;
-	/** last in list of text items */
-	struct config_strlist* last;
 };
 
 /**
@@ -591,14 +850,33 @@ char* config_collate_cat(struct config_strlist* list);
  * @param list: list head. zeroed at start.
  * @param item: new item. malloced by caller. if NULL the insertion fails.
  * @return true on success.
+ * on fail the item is free()ed.
  */
 int cfg_strlist_append(struct config_strlist_head* list, char* item);
+
+/**
+ * Searches the end of a string list and appends the given text.
+ * @param head: pointer to strlist head variable.
+ * @param item: new item. malloced by caller. if NULL the insertion fails.
+ * @return true on success.
+ */
+int cfg_strlist_append_ex(struct config_strlist** head, char* item);
+
+/**
+ * Find string in strlist.
+ * @param head: pointer to strlist head variable.
+ * @param item: the item to search for.
+ * @return: the element in the list when found, NULL otherwise.
+ */
+struct config_strlist* cfg_strlist_find(struct config_strlist* head,
+	const char* item);
 
 /**
  * Insert string into strlist.
  * @param head: pointer to strlist head variable.
  * @param item: new item. malloced by caller. If NULL the insertion fails.
  * @return: true on success.
+ * on fail, the item is free()d.
  */
 int cfg_strlist_insert(struct config_strlist** head, char* item);
 
@@ -612,6 +890,7 @@ int cfg_region_strlist_insert(struct regional* region,
  * @param item: new item. malloced by caller. If NULL the insertion fails.
  * @param i2: 2nd string, malloced by caller. If NULL the insertion fails.
  * @return: true on success.
+ * on fail, the item and i2 are free()d.
  */
 int cfg_str2list_insert(struct config_str2list** head, char* item, char* i2);
 
@@ -680,6 +959,34 @@ void config_delstub(struct config_stub* p);
  * @param list: list.
  */
 void config_delstubs(struct config_stub* list);
+
+/**
+ * Delete an auth item
+ * @param p: auth item
+ */
+void config_delauth(struct config_auth* p);
+
+/**
+ * Delete items in config auth list.
+ * @param list: list.
+ */
+void config_delauths(struct config_auth* list);
+
+/**
+ * Delete a view item
+ * @param p: view item
+ */
+void config_delview(struct config_view* p);
+
+/**
+ * Delete items in config view list.
+ * @param list: list.
+ */
+void config_delviews(struct config_view* list);
+
+/** check if config for remote control turns on IP-address interface
+ * with certificates or a named pipe without certificates. */
+int options_remote_is_address(struct config_file* cfg);
 
 /**
  * Convert 14digit to time value
@@ -756,7 +1063,7 @@ char* config_taglist2str(struct config_file* cfg, uint8_t* taglist,
  * @param list2len: length in bytes of second list.
  * @return true if there are tags in common, 0 if not.
  */
-int taglist_intersect(uint8_t* list1, size_t list1len, uint8_t* list2,
+int taglist_intersect(uint8_t* list1, size_t list1len, const uint8_t* list2,
 	size_t list2len);
 
 /**
@@ -848,12 +1155,20 @@ void errinf_dname(struct module_qstate* qstate, const char* str,
 	uint8_t* dname);
 
 /**
- * Create error info in string
+ * Create error info in string.  For validation failures.
  * @param qstate: query state.
  * @return string or NULL on malloc failure (already logged).
  *    This string is malloced and has to be freed by caller.
  */
-char* errinf_to_str(struct module_qstate* qstate);
+char* errinf_to_str_bogus(struct module_qstate* qstate);
+
+/**
+ * Create error info in string.  For other servfails.
+ * @param qstate: query state.
+ * @return string or NULL on malloc failure (already logged).
+ *    This string is malloced and has to be freed by caller.
+ */
+char* errinf_to_str_servfail(struct module_qstate* qstate);
 
 /**
  * Used during options parsing
@@ -904,4 +1219,8 @@ char* w_lookup_reg_str(const char* key, const char* name);
 void w_config_adjust_directory(struct config_file* cfg);
 #endif /* UB_ON_WINDOWS */
 
+/** debug option for unit tests. */
+extern int fake_dsa, fake_sha1;
+
 #endif /* UTIL_CONFIG_FILE_H */
+

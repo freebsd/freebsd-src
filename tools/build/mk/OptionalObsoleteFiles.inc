@@ -8978,17 +8978,17 @@ OLD_FILES+=usr/lib32/private/libunbound.a
 OLD_FILES+=usr/lib32/private/libunbound.so
 OLD_LIBS+=usr/lib32/private/libunbound.so.5
 OLD_FILES+=usr/lib32/private/libunbound_p.a
+OLD_FILES+=usr/share/man/man5/local-unbound.conf.5.gz
+OLD_FILES+=usr/share/man/man8/local-unbound-anchor.8.gz
+OLD_FILES+=usr/share/man/man8/local-unbound-checkconf.8.gz
+OLD_FILES+=usr/share/man/man8/local-unbound-control.8.gz
+OLD_FILES+=usr/share/man/man8/local-unbound.8.gz
 .endif
 OLD_FILES+=usr/sbin/local-unbound-setup
-OLD_FILES+=usr/sbin/unbound
-OLD_FILES+=usr/sbin/unbound-anchor
-OLD_FILES+=usr/sbin/unbound-checkconf
-OLD_FILES+=usr/sbin/unbound-control
-OLD_FILES+=usr/share/man/man5/unbound.conf.5.gz
-OLD_FILES+=usr/share/man/man8/unbound-anchor.8.gz
-OLD_FILES+=usr/share/man/man8/unbound-checkconf.8.gz
-OLD_FILES+=usr/share/man/man8/unbound-control.8.gz
-OLD_FILES+=usr/share/man/man8/unbound.8.gz
+OLD_FILES+=usr/sbin/local-unbound
+OLD_FILES+=usr/sbin/local-unbound-anchor
+OLD_FILES+=usr/sbin/local-unbound-checkconf
+OLD_FILES+=usr/sbin/local-unbound-control
 .endif
 
 .if ${MK_USB} == no

@@ -1,4 +1,4 @@
-/*	$OpenBSD$	*/
+/*	$OpenBSD: getentropy_win.c,v 1.5 2016/08/07 03:27:21 tb Exp $	*/
 
 /*
  * Copyright (c) 2014, Theo de Raadt <deraadt@openbsd.org> 
@@ -15,6 +15,9 @@
  * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ * Emulation of getentropy(2) as documented at:
+ * http://man.openbsd.org/getentropy.2
  */
 
 #include <windows.h>
@@ -37,7 +40,7 @@ getentropy(void *buf, size_t len)
 
 	if (len > 256) {
 		errno = EIO;
-		return -1;
+		return (-1);
 	}
 
 	if (CryptAcquireContext(&provider, NULL, NULL, PROV_RSA_FULL,

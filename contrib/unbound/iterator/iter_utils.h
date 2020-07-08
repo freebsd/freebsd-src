@@ -87,13 +87,18 @@ int iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg);
  * @param open_target: number of currently outstanding target queries.
  * 	If we wait for these, perhaps more server addresses become available.
  * @param blacklist: the IP blacklist to use.
+ * @param prefetch: if not 0, prefetch is in use for this query.
+ * 	This means the query can have different timing, because prefetch is
+ * 	not waited upon by the downstream client, and thus a good time to
+ * 	perform exploration of other targets.
  * @return best target or NULL if no target.
  *	if not null, that target is removed from the result list in the dp.
  */
 struct delegpt_addr* iter_server_selection(struct iter_env* iter_env, 
 	struct module_env* env, struct delegpt* dp, uint8_t* name, 
 	size_t namelen, uint16_t qtype, int* dnssec_lame,
-	int* chase_to_rd, int open_target, struct sock_list* blacklist);
+	int* chase_to_rd, int open_target, struct sock_list* blacklist,
+	time_t prefetch);
 
 /**
  * Allocate dns_msg from parsed msg, in regional.
@@ -174,15 +179,14 @@ int iter_dp_is_useless(struct query_info* qinfo, uint16_t qflags,
 	struct delegpt* dp);
 
 /**
- * See if qname has DNSSEC needs in the forwarding case.  This is true if
- * there is a trust anchor above it.  Whether there is an insecure delegation
- * to the data is unknown, but CD-retry is needed.
+ * See if qname has DNSSEC needs.  This is true if there is a trust anchor above
+ * it.  Whether there is an insecure delegation to the data is unknown.
  * @param env: environment with anchors.
  * @param qinfo: query name and class.
  * @return true if trust anchor above qname, false if no anchor or insecure
  * point above qname.
  */
-int iter_indicates_dnssec_fwd(struct module_env* env,
+int iter_qname_indicates_dnssec(struct module_env* env,
 	struct query_info *qinfo);
 
 /**
@@ -193,7 +197,7 @@ int iter_indicates_dnssec_fwd(struct module_env* env,
  * @param dp: delegation point.
  * @param msg: delegation message, with DS if a secure referral.
  * @param dclass: class of query.
- * @return 1 if dnssec is expected, 0 if not.
+ * @return 1 if dnssec is expected, 0 if not or insecure point above qname.
  */
 int iter_indicates_dnssec(struct module_env* env, struct delegpt* dp,
 	struct dns_msg* msg, uint16_t dclass);
@@ -252,7 +256,7 @@ void caps_strip_reply(struct reply_info* rep);
 int caps_failed_rcode(struct reply_info* rep);
 
 /**
- * Store parent-side rrset in seperate rrset cache entries for later 
+ * Store parent-side rrset in separate rrset cache entries for later 
  * last-resort * lookups in case the child-side versions of this information 
  * fails.
  * @param env: environment with cache, time, ...
@@ -331,6 +335,13 @@ void iter_scrub_ds(struct dns_msg* msg, struct ub_packed_rrset_key* ns,
 	uint8_t* z);
 
 /**
+ * Prepare an NXDOMAIN message to be used for a subdomain answer by removing all
+ * RRs from the ANSWER section.
+ * @param msg: the response to scrub.
+ */
+void iter_scrub_nxdomain(struct dns_msg* msg);
+
+/**
  * Remove query attempts from all available ips. For 0x20.
  * @param dp: delegpt.
  * @param d: decrease.
@@ -364,5 +375,14 @@ int iter_ds_toolow(struct dns_msg* msg, struct delegpt* dp);
  * the current response seems to be the one and only, best possible, response.
  */
 int iter_dp_cangodown(struct query_info* qinfo, struct delegpt* dp);
+
+/** 
+ * Lookup if no_cache is set in stub or fwd.
+ * @param qstate: query state with env with hints and fwds.
+ * @param qinf: query name to lookup for.
+ * @return true if no_cache is set in stub or fwd.
+ */
+int iter_stub_fwd_no_cache(struct module_qstate *qstate,
+	struct query_info *qinf);
 
 #endif /* ITERATOR_ITER_UTILS_H */

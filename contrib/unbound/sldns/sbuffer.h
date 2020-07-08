@@ -87,6 +87,19 @@ sldns_write_uint32(void *dst, uint32_t data)
 }
 
 
+INLINE void
+sldns_write_uint48(void *dst, uint64_t data)
+{
+        uint8_t *p = (uint8_t *) dst;
+        p[0] = (uint8_t) ((data >> 40) & 0xff);
+        p[1] = (uint8_t) ((data >> 32) & 0xff);
+        p[2] = (uint8_t) ((data >> 24) & 0xff);
+        p[3] = (uint8_t) ((data >> 16) & 0xff);
+        p[4] = (uint8_t) ((data >> 8) & 0xff);
+        p[5] = (uint8_t) (data & 0xff);
+}
+
+
 /**
  * \file sbuffer.h
  *
@@ -368,7 +381,7 @@ sldns_buffer_remaining_at(sldns_buffer *buffer, size_t at)
 {
 	sldns_buffer_invariant(buffer);
 	assert(at <= buffer->_limit);
-	return buffer->_limit - at;
+	return at < buffer->_limit ? buffer->_limit - at : 0;
 }
 
 /**
@@ -425,10 +438,26 @@ sldns_buffer_write_at(sldns_buffer *buffer, size_t at, const void *data, size_t 
 }
 
 /**
+ * set the given byte to the buffer at the specified position
+ * \param[in] buffer the buffer
+ * \param[in] at the position (in number of bytes) to write the data at
+ * \param[in] c the byte to set to the buffer
+ * \param[in] count the number of bytes of bytes to write
+ */
+
+INLINE void
+sldns_buffer_set_at(sldns_buffer *buffer, size_t at, int c, size_t count)
+{
+	assert(sldns_buffer_available_at(buffer, at, count));
+	memset(buffer->_data + at, c, count);
+}
+
+
+/**
  * writes count bytes of data to the current position of the buffer
  * \param[in] buffer the buffer
  * \param[in] data the data to write
- * \param[in] count the lenght of the data to write
+ * \param[in] count the length of the data to write
  */
 INLINE void
 sldns_buffer_write(sldns_buffer *buffer, const void *data, size_t count)
@@ -524,6 +553,19 @@ sldns_buffer_write_u32_at(sldns_buffer *buffer, size_t at, uint32_t data)
 }
 
 /**
+ * writes the given 6 byte integer at the given position in the buffer
+ * \param[in] buffer the buffer
+ * \param[in] at the position in the buffer
+ * \param[in] data the (lower) 48 bits to write
+ */
+INLINE void
+sldns_buffer_write_u48_at(sldns_buffer *buffer, size_t at, uint64_t data)
+{
+	assert(sldns_buffer_available_at(buffer, at, 6));
+	sldns_write_uint48(buffer->_data + at, data);
+}
+
+/**
  * writes the given 4 byte integer at the current position in the buffer
  * \param[in] buffer the buffer
  * \param[in] data the 32 bits to write
@@ -533,6 +575,18 @@ sldns_buffer_write_u32(sldns_buffer *buffer, uint32_t data)
 {
 	sldns_buffer_write_u32_at(buffer, buffer->_position, data);
 	buffer->_position += sizeof(data);
+}
+
+/**
+ * writes the given 6 byte integer at the current position in the buffer
+ * \param[in] buffer the buffer
+ * \param[in] data the 48 bits to write
+ */
+INLINE void
+sldns_buffer_write_u48(sldns_buffer *buffer, uint64_t data)
+{
+	sldns_buffer_write_u48_at(buffer, buffer->_position, data);
+	buffer->_position += 6;
 }
 
 /**
@@ -681,14 +735,6 @@ int sldns_buffer_printf(sldns_buffer *buffer, const char *format, ...)
  * \return void
  */
 void sldns_buffer_free(sldns_buffer *buffer);
-
-/**
- * Makes the buffer fixed and returns a pointer to the data.  The
- * caller is responsible for free'ing the result.
- * \param[in] *buffer the buffer to be exported
- * \return void
- */
-void *sldns_buffer_export(sldns_buffer *buffer);
 
 /**
  * Copy contents of the from buffer to the result buffer and then flips 

@@ -93,6 +93,24 @@ EVP_PKEY* sldns_ecdsa2pkey_raw(unsigned char* key, size_t keylen, uint8_t algo);
 RSA *sldns_key_buf2rsa_raw(unsigned char* key, size_t len);
 
 /**
+ * Converts a holding buffer with key material to EVP PKEY in openssl.
+ * Only available if ldns was compiled with ED25519.
+ * \param[in] key the uncompressed wireformat of the key.
+ * \param[in] len length of key data
+ * \return the key or NULL on error.
+ */
+EVP_PKEY* sldns_ed255192pkey_raw(const unsigned char* key, size_t len);
+
+/**
+ * Converts a holding buffer with key material to EVP PKEY in openssl.
+ * Only available if ldns was compiled with ED448.
+ * \param[in] key the uncompressed wireformat of the key.
+ * \param[in] len length of key data
+ * \return the key or NULL on error.
+ */
+EVP_PKEY* sldns_ed4482pkey_raw(const unsigned char* key, size_t len);
+
+/**
  * Utility function to calculate hash using generic EVP_MD pointer.
  * \param[in] data the data to hash.
  * \param[in] len  length of data.

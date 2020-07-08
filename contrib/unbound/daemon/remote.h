@@ -73,6 +73,8 @@ struct rc_state {
 	/** the ssl state */
 	SSL* ssl;
 #endif
+	/** file descriptor */
+        int fd;
 	/** the rc this is part of */
 	struct daemon_remote* rc;
 };
@@ -102,6 +104,19 @@ struct daemon_remote {
 	SSL_CTX* ctx;
 #endif
 };
+
+/**
+ * Connection to print to, either SSL or plain over fd
+ */
+struct remote_stream {
+#ifdef HAVE_SSL
+	/** SSL structure, nonNULL if using SSL */
+	SSL* ssl;
+#endif
+	/** file descriptor for plain transfer */
+	int fd;
+};
+typedef struct remote_stream RES;
 
 /**
  * Create new remote control state for the daemon.
@@ -166,26 +181,26 @@ void daemon_remote_exec(struct worker* worker);
  * @param text: the text.
  * @return false on connection failure.
  */
-int ssl_print_text(SSL* ssl, const char* text);
+int ssl_print_text(RES* ssl, const char* text);
 
 /** 
  * printf style printing to the ssl connection
- * @param ssl: the SSL connection to print to. Blocking.
+ * @param ssl: the RES connection to print to. Blocking.
  * @param format: printf style format string.
  * @return success or false on a network failure.
  */
-int ssl_printf(SSL* ssl, const char* format, ...)
+int ssl_printf(RES* ssl, const char* format, ...)
         ATTR_FORMAT(printf, 2, 3);
 
 /**
  * Read until \n is encountered
- * If SSL signals EOF, the string up to then is returned (without \n).
- * @param ssl: the SSL connection to read from. blocking.
+ * If stream signals EOF, the string up to then is returned (without \n).
+ * @param ssl: the RES connection to read from. blocking.
  * @param buf: buffer to read to.
  * @param max: size of buffer.
  * @return false on connection failure.
  */
-int ssl_read_line(SSL* ssl, char* buf, size_t max);
+int ssl_read_line(RES* ssl, char* buf, size_t max);
 #endif /* HAVE_SSL */
 
 #endif /* DAEMON_REMOTE_H */

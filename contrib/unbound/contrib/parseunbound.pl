@@ -91,7 +91,7 @@ while ( scalar keys %startstats < $numthreads || scalar keys %donestats < $numth
             $allstats{$inthread}->{outstandingexc} = $4;
         }
         elsif ( $line =~ m/info: average recursion processing time ([0-9\.]+) sec/ ) {
-            $allstats{$inthread}->{recursionavg} = int($1 * 1000); # change sec to milisec.
+            $allstats{$inthread}->{recursionavg} = int($1 * 1000); # change sec to millisec.
         }
         elsif ( $line =~ m/info: histogram of recursion processing times/ ) {
             next;
@@ -103,7 +103,7 @@ while ( scalar keys %startstats < $numthreads || scalar keys %donestats < $numth
         }
         elsif ( $line =~ m/info: lower\(secs\) upper\(secs\) recursions/ ) {
             # since after this line we're unsure if we get these numbers
-            # at all, we sould consider this marker as the end of the
+            # at all, we should consider this marker as the end of the
             # block. Chances that we're parsing a file halfway written
             # at this stage are small. Bold statement.
             $donestats{$inthread} = 1;

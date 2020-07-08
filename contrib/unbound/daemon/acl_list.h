@@ -43,6 +43,7 @@
 #ifndef DAEMON_ACL_LIST_H
 #define DAEMON_ACL_LIST_H
 #include "util/storage/dnstree.h"
+#include "services/view.h"
 struct config_file;
 struct regional;
 
@@ -62,7 +63,9 @@ enum acl_access {
 	/** allow full access for recursion (+RD) queries */
 	acl_allow,
 	/** allow full access for all queries, recursion and cache snooping */
-	acl_allow_snoop
+	acl_allow_snoop,
+	/** allow full access for recursion queries and set RD flag regardless of request */
+	acl_allow_setrd
 };
 
 /**
@@ -75,7 +78,7 @@ struct acl_list {
 	 * Tree of the addresses that are allowed/blocked.
 	 * contents of type acl_addr.
 	 */
-	rbtree_t tree;
+	rbtree_type tree;
 };
 
 /**
@@ -100,6 +103,8 @@ struct acl_addr {
 	struct config_strlist** tag_datas;
 	/** size of the tag_datas array */
 	size_t tag_datas_size;
+	/* view element, NULL if none */
+	struct view* view;
 };
 
 /**
@@ -118,9 +123,11 @@ void acl_list_delete(struct acl_list* acl);
  * Process access control config.
  * @param acl: where to store.
  * @param cfg: config options.
+ * @param v: views structure
  * @return 0 on error.
  */
-int acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg);
+int acl_list_apply_cfg(struct acl_list* acl, struct config_file* cfg,
+	struct views* v);
 
 /**
  * Lookup access control status for acl structure.

@@ -67,7 +67,7 @@ const char* ub_event_get_version(void);
 /** Return the name, system and method for the pluggable event base */
 void ub_get_event_sys(struct ub_event_base*, const char** n, const char** s,
 	const char** m);
-/** Return a default event base. In the deamon thess will be the only event 
+/** Return a default event base. In the daemon this will be the only event 
  * bases used.
  */
 struct ub_event_base* ub_default_event_base(int, time_t*, struct timeval*);

@@ -33,14 +33,14 @@ ssize_t
 sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *line_nr)
 {
 	int c, prev_c;
-	int p; /* 0 -> no parenthese seen, >0 nr of ( seen */
+	int p; /* 0 -> no parentheses seen, >0 nr of ( seen */
 	int com, quoted;
 	char *t;
 	size_t i;
 	const char *d;
 	const char *del;
 
-	/* standard delimeters */
+	/* standard delimiters */
 	if (!delim) {
 		/* from isspace(3) */
 		del = LDNS_PARSE_NORMAL;
@@ -120,6 +120,10 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 			if (line_nr) {
 				*line_nr = *line_nr + 1;
 			}
+			if (limit > 0 && (i+1 >= limit || (size_t)(t-token)+1 >= limit)) {
+				*t = '\0';
+				return -1;
+			}
 			*t++ = ' ';
 			prev_c = c;
 			continue;
@@ -137,7 +141,8 @@ sldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *l
 		if (c != '\0' && c != '\n') {
 			i++;
 		}
-		if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
+		/* is there space for the character and the zero after it */
+		if (limit > 0 && (i+1 >= limit || (size_t)(t-token)+1 >= limit)) {
 			*t = '\0';
 			return -1;
 		}
@@ -240,7 +245,7 @@ sldns_bget_token_par(sldns_buffer *b, char *token, const char *delim,
 	size_t limit, int* par, const char* skipw)
 {
 	int c, lc;
-	int p; /* 0 -> no parenthese seen, >0 nr of ( seen */
+	int p; /* 0 -> no parentheses seen, >0 nr of ( seen */
 	int com, quoted;
 	char *t;
 	size_t i;
@@ -321,8 +326,14 @@ sldns_bget_token_par(sldns_buffer *b, char *token, const char *delim,
 		if (c == '\n' && p != 0) {
 			/* in parentheses */
 			/* do not write ' ' if we want to skip spaces */
-			if(!(skipw && (strchr(skipw, c)||strchr(skipw, ' '))))
+			if(!(skipw && (strchr(skipw, c)||strchr(skipw, ' ')))) {
+				/* check for space for the space character and a zero delimiter after that. */
+				if (limit > 0 && (i+1 >= limit || (size_t)(t-token)+1 >= limit)) {
+					*t = '\0';
+					return -1;
+				}
 				*t++ = ' ';
+			}
 			lc = c;
 			continue;
 		}
@@ -344,7 +355,7 @@ sldns_bget_token_par(sldns_buffer *b, char *token, const char *delim,
 		}
 
 		i++;
-		if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
+		if (limit > 0 && (i+1 >= limit || (size_t)(t-token)+1 >= limit)) {
 			*t = '\0';
 			return -1;
 		}
