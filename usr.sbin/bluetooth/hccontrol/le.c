@@ -71,6 +71,7 @@ static int le_connect(int s, int argc, char *argv[]);
 static void handle_le_connection_event(ng_hci_event_pkt_t* e, bool verbose);
 static int le_read_channel_map(int s, int argc, char *argv[]);
 static void handle_le_remote_features_event(ng_hci_event_pkt_t* e);
+static int le_rand(int s, int argc, char *argv[]);
 
 static int
 le_set_scan_param(int s, int argc, char *argv[])
@@ -1211,6 +1212,31 @@ static void handle_le_remote_features_event(ng_hci_event_pkt_t* e)
 	return;
 } /* handle_le_remote_features_event */
 
+static int le_rand(int s, int argc, char *argv[])
+{
+	ng_hci_le_rand_rp rp;
+	int n;
+
+	n = sizeof(rp);
+
+	if (hci_simple_request(s, NG_HCI_OPCODE(NG_HCI_OGF_LE,
+		NG_HCI_OCF_LE_RAND), 
+		(void *)&rp, &n) == ERROR)
+		return (ERROR);
+			
+	if (rp.status != 0x00) {
+		fprintf(stdout, "Status: %s [%#02x]\n", 
+			hci_status2str(rp.status), rp.status);
+		return (FAILED);
+	}
+
+	fprintf(stdout,
+		"Random number : %08llx\n",
+		(unsigned long long)le64toh(rp.random_number));
+
+	return (OK);
+}
+
 
 
 struct hci_command le_commands[] = {
@@ -1335,5 +1361,11 @@ struct hci_command le_commands[] = {
 	  "Read supported features for the device\n"
 	  "identified by the connection handle",
 	  &le_read_remote_features
+  },
+  {
+	  "le_rand",
+	  "le_rand\n"
+	  "Generate 64 bits of random data",
+	  &le_rand
   },
 };
