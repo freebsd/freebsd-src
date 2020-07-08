@@ -734,6 +734,7 @@ g_eli_read_metadata_offset(struct g_class *mp, struct g_provider *pp,
 	gp->orphan = g_eli_orphan_spoil_assert;
 	gp->spoiled = g_eli_orphan_spoil_assert;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error != 0)
 		goto end;
@@ -882,6 +883,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 
 	pp = NULL;
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, bpp);
 	if (error != 0) {
 		if (req != NULL) {
@@ -969,6 +971,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 * Create decrypted provider.
 	 */
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
 	LIST_FOREACH(gap, &bpp->aliases, ga_next)
