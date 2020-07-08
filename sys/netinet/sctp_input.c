@@ -5103,8 +5103,8 @@ process_control_chunks:
 				if (stcb->asoc.prsctp_supported == 0) {
 					goto unknown_chunk;
 				}
-				if (((asoc->idata_supported == 1) && (ch->chunk_type == SCTP_FORWARD_CUM_TSN)) ||
-				    ((asoc->idata_supported == 0) && (ch->chunk_type == SCTP_IFORWARD_CUM_TSN))) {
+				if (((stcb->asoc.idata_supported == 1) && (ch->chunk_type == SCTP_FORWARD_CUM_TSN)) ||
+				    ((stcb->asoc.idata_supported == 0) && (ch->chunk_type == SCTP_IFORWARD_CUM_TSN))) {
 					if (ch->chunk_type == SCTP_FORWARD_CUM_TSN) {
 						SCTP_SNPRINTF(msg, sizeof(msg), "%s", "FORWARD-TSN chunk received when I-FORWARD-TSN was negotiated");
 					} else {
