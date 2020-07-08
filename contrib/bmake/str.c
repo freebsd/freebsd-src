@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.42 2020/05/06 02:30:10 christos Exp $	*/
+/*	$NetBSD: str.c,v 1.51 2020/07/03 07:40:13 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: str.c,v 1.42 2020/05/06 02:30:10 christos Exp $";
+static char rcsid[] = "$NetBSD: str.c,v 1.51 2020/07/03 07:40:13 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
 #else
-__RCSID("$NetBSD: str.c,v 1.42 2020/05/06 02:30:10 christos Exp $");
+__RCSID("$NetBSD: str.c,v 1.51 2020/07/03 07:40:13 rillig Exp $");
 #endif
 #endif				/* not lint */
 #endif
@@ -119,7 +119,7 @@ str_concat(const char *s1, const char *s2, int flags)
 	/* copy second string plus EOS into place */
 	memcpy(result + len1, s2, len2 + 1);
 
-	return(result);
+	return result;
 }
 
 /*-
@@ -304,7 +304,7 @@ Str_FindSubstring(const char *string, const char *substring)
 	 * substring.
 	 */
 
-	for (b = substring; *string != 0; string += 1) {
+	for (b = substring; *string != 0; string++) {
 		if (*string != *b)
 			continue;
 		a = string;
@@ -320,120 +320,109 @@ Str_FindSubstring(const char *string, const char *substring)
 }
 
 /*
- * Str_Match --
- *
- * See if a particular string matches a particular pattern.
- *
- * Results: Non-zero is returned if string matches pattern, 0 otherwise. The
- * matching operation permits the following special characters in the
- * pattern: *?\[] (see the man page for details on what these mean).
+ * Str_Match -- Test if a string matches a pattern like "*.[ch]".
  *
  * XXX this function does not detect or report malformed patterns.
  *
+ * Results:
+ *	Non-zero is returned if string matches the pattern, 0 otherwise. The
+ *	matching operation permits the following special characters in the
+ *	pattern: *?\[] (as in fnmatch(3)).
+ *
  * Side effects: None.
  */
-int
-Str_Match(const char *string, const char *pattern)
+Boolean
+Str_Match(const char *str, const char *pat)
 {
-	char c2;
-
 	for (;;) {
 		/*
 		 * See if we're at the end of both the pattern and the
 		 * string. If, we succeeded.  If we're at the end of the
 		 * pattern but not at the end of the string, we failed.
 		 */
-		if (*pattern == 0)
-			return(!*string);
-		if (*string == 0 && *pattern != '*')
-			return(0);
-		/*
-		 * Check for a "*" as the next pattern character.  It matches
-		 * any substring.  We handle this by calling ourselves
-		 * recursively for each postfix of string, until either we
-		 * match or we reach the end of the string.
-		 */
-		if (*pattern == '*') {
-			pattern += 1;
-			if (*pattern == 0)
-				return(1);
-			while (*string != 0) {
-				if (Str_Match(string, pattern))
-					return(1);
-				++string;
-			}
-			return(0);
-		}
-		/*
-		 * Check for a "?" as the next pattern character.  It matches
-		 * any single character.
-		 */
-		if (*pattern == '?')
-			goto thisCharOK;
-		/*
-		 * Check for a "[" as the next pattern character.  It is
-		 * followed by a list of characters that are acceptable, or
-		 * by a range (two characters separated by "-").
-		 */
-		if (*pattern == '[') {
-			int nomatch;
+		if (*pat == 0)
+			return *str == 0;
+		if (*str == 0 && *pat != '*')
+			return FALSE;
 
-			++pattern;
-			if (*pattern == '^') {
-				++pattern;
-				nomatch = 1;
-			} else
-				nomatch = 0;
-			for (;;) {
-				if ((*pattern == ']') || (*pattern == 0)) {
-					if (nomatch)
-						break;
-					return(0);
-				}
-				if (*pattern == *string)
-					break;
-				if (pattern[1] == '-') {
-					c2 = pattern[2];
-					if (c2 == 0)
-						return(nomatch);
-					if ((*pattern <= *string) &&
-					    (c2 >= *string))
-						break;
-					if ((*pattern >= *string) &&
-					    (c2 <= *string))
-						break;
-					pattern += 2;
-				}
-				++pattern;
+		/*
+		 * A '*' in the pattern matches any substring.  We handle this
+		 * by calling ourselves for each suffix of the string.
+		 */
+		if (*pat == '*') {
+			pat++;
+			while (*pat == '*')
+				pat++;
+			if (*pat == 0)
+				return TRUE;
+			while (*str != 0) {
+				if (Str_Match(str, pat))
+					return TRUE;
+				str++;
 			}
-			if (nomatch && (*pattern != ']') && (*pattern != 0))
-				return 0;
-			while ((*pattern != ']') && (*pattern != 0))
-				++pattern;
-			if (*pattern == 0)
-				--pattern;
+			return FALSE;
+		}
+
+		/* A '?' in the pattern matches any single character. */
+		if (*pat == '?')
+			goto thisCharOK;
+
+		/*
+		 * A '[' in the pattern matches a character from a list.
+		 * The '[' is followed by the list of acceptable characters,
+		 * or by ranges (two characters separated by '-'). In these
+		 * character lists, the backslash is an ordinary character.
+		 */
+		if (*pat == '[') {
+			Boolean neg = pat[1] == '^';
+			pat += 1 + neg;
+
+			for (;;) {
+				if (*pat == ']' || *pat == 0) {
+					if (neg)
+						break;
+					return FALSE;
+				}
+				if (*pat == *str)
+					break;
+				if (pat[1] == '-') {
+					if (pat[2] == 0)
+						return neg;
+					if (*pat <= *str && pat[2] >= *str)
+						break;
+					if (*pat >= *str && pat[2] <= *str)
+						break;
+					pat += 2;
+				}
+				pat++;
+			}
+			if (neg && *pat != ']' && *pat != 0)
+				return FALSE;
+			while (*pat != ']' && *pat != 0)
+				pat++;
+			if (*pat == 0)
+				pat--;
 			goto thisCharOK;
 		}
+
 		/*
-		 * If the next pattern character is '/', just strip off the
-		 * '/' so we do exact matching on the character that follows.
+		 * A backslash in the pattern matches the character following
+		 * it exactly.
 		 */
-		if (*pattern == '\\') {
-			++pattern;
-			if (*pattern == 0)
-				return(0);
+		if (*pat == '\\') {
+			pat++;
+			if (*pat == 0)
+				return FALSE;
 		}
-		/*
-		 * There's no special character.  Just make sure that the
-		 * next characters of each string match.
-		 */
-		if (*pattern != *string)
-			return(0);
-thisCharOK:	++pattern;
-		++string;
+
+		if (*pat != *str)
+			return FALSE;
+
+	thisCharOK:
+		pat++;
+		str++;
 	}
 }
-
 
 /*-
  *-----------------------------------------------------------------------

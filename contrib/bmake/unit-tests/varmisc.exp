@@ -22,4 +22,5 @@ date=20160401
 Version=123.456.789 == 123456789
 Literal=3.4.5 == 3004005
 We have target specific vars
+MAN= make.1
 exit status 0
