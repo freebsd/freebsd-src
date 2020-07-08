@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.53 2017/04/16 21:04:44 riastradh Exp $	*/
+/*	$NetBSD: for.c,v 1.54 2020/07/03 08:13:23 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -30,14 +30,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: for.c,v 1.53 2017/04/16 21:04:44 riastradh Exp $";
+static char rcsid[] = "$NetBSD: for.c,v 1.54 2020/07/03 08:13:23 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)for.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: for.c,v 1.53 2017/04/16 21:04:44 riastradh Exp $");
+__RCSID("$NetBSD: for.c,v 1.54 2020/07/03 08:13:23 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -224,7 +224,7 @@ For_Eval(char *line)
     words = brk_string(sub, &nwords, FALSE, &word_buf);
 
     free(sub);
-    
+
     if (words != NULL) {
 	for (n = 0; n < nwords; n++) {
 	    ptr = words[n];
@@ -480,9 +480,9 @@ For_Iterate(void *v_arg, size_t *ret_len)
 
 void
 For_Run(int lineno)
-{ 
+{
     For *arg;
-  
+
     arg = accumFor;
     accumFor = NULL;
 
@@ -491,6 +491,6 @@ For_Run(int lineno)
         For_Free(arg);
         return;
     }
- 
+
     Parse_SetInput(NULL, lineno, -1, For_Iterate, arg);
 }
