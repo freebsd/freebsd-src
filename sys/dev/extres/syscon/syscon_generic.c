@@ -142,6 +142,9 @@ syscon_generic_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "syscon");
+	if (!bootverbose)
+		device_quiet(dev);
+
 	return (BUS_PROBE_GENERIC);
 }
 
