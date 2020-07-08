@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200708	p11	FreeBSD-EN-20:14.linuxkpi
+			FreeBSD-EN-20:15.mps
+			FreeBSD-SA-20:19.unbound
+			FreeBSD-SA-20:20.ipv6
+
+        Fix kernel panic in LinuxKPI subsystem. [EN-20:14.linuxpki]
+
+        Fix kernel panic in mps(4) driver. [EN-20:15.mps]
+
+        Fix multiple vulnerabilities in unbound. [SA-20:19.unbound]
+
+        Fix IPv6 socket option race condition and use after free. [SA-20:20.ipv6]
+
 20200609	p10	FreeBSD-SA-20:17.usb
 
         Fix USB HID descriptor parsing error. [SA-20:17.usb]
