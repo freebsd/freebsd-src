@@ -1,6 +1,6 @@
-# $Id: Makefile,v 1.54 2020/05/17 17:26:14 sjg Exp $
+# $Id: Makefile,v 1.58 2020/07/04 22:33:00 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.58 2020/05/17 12:36:26 rillig Exp $
+# $NetBSD: Makefile,v 1.59 2020/06/28 09:42:40 rillig Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
@@ -27,6 +27,7 @@ UNIT_TESTS:= ${.PARSEDIR}
 TESTNAMES= \
 	comment \
 	cond-late \
+	cond-short \
 	cond1 \
 	cond2 \
 	dollar \
@@ -103,6 +104,9 @@ LANG= C
 # some tests need extra post-processing
 SED_CMDS.varshell = -e 's,^[a-z]*sh: ,,' \
 	-e '/command/s,No such.*,not found,'
+
+# the detailed error message can vary across systems
+SED_CMDS.modmisc = -e 's,\(substitution error:\).*,\1 details omitted,'
 
 # the tests are actually done with sub-makes.
 .SUFFIXES: .mk .rawout .out

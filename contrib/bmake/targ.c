@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $	*/
+/*	$NetBSD: targ.c,v 1.63 2020/07/03 08:02:55 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $";
+static char rcsid[] = "$NetBSD: targ.c,v 1.63 2020/07/03 08:02:55 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)targ.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: targ.c,v 1.62 2017/04/16 19:53:58 riastradh Exp $");
+__RCSID("$NetBSD: targ.c,v 1.63 2020/07/03 08:02:55 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -269,7 +269,7 @@ Targ_NewGN(const char *name)
     Lst_AtEnd(allGNs, gn);
 #endif
 
-    return (gn);
+    return gn;
 }
 
 #ifdef CLEANUP
@@ -389,7 +389,7 @@ Targ_FindList(Lst names, int flags)
     nodes = Lst_Init(FALSE);
 
     if (Lst_Open(names) == FAILURE) {
-	return (nodes);
+	return nodes;
     }
     while ((ln = Lst_Next(names)) != NULL) {
 	name = (char *)Lst_Datum(ln);
@@ -406,7 +406,7 @@ Targ_FindList(Lst names, int flags)
 	}
     }
     Lst_Close(names);
-    return (nodes);
+    return nodes;
 }
 
 /*-
@@ -428,9 +428,9 @@ Boolean
 Targ_Ignore(GNode *gn)
 {
     if (ignoreErrors || gn->type & OP_IGNORE) {
-	return (TRUE);
+	return TRUE;
     } else {
-	return (FALSE);
+	return FALSE;
     }
 }
 
@@ -453,9 +453,9 @@ Boolean
 Targ_Silent(GNode *gn)
 {
     if (beSilent || gn->type & OP_SILENT) {
-	return (TRUE);
+	return TRUE;
     } else {
-	return (FALSE);
+	return FALSE;
     }
 }
 
@@ -478,9 +478,9 @@ Boolean
 Targ_Precious(GNode *gn)
 {
     if (allPrecious || (gn->type & (OP_PRECIOUS|OP_DOUBLEDEP))) {
-	return (TRUE);
+	return TRUE;
     } else {
-	return (FALSE);
+	return FALSE;
     }
 }
 
@@ -549,7 +549,7 @@ Targ_FmtTime(time_t tm)
 
     parts = localtime(&tm);
     (void)strftime(buf, sizeof buf, "%k:%M:%S %b %d, %Y", parts);
-    return(buf);
+    return buf;
 }
 
 /*-
@@ -698,7 +698,7 @@ Targ_PrintNode(void *gnp, void *passp)
 	    Lst_ForEach(gn->cohorts, Targ_PrintNode, &pass);
 	}
     }
-    return (0);
+    return 0;
 }
 
 /*-
@@ -794,7 +794,7 @@ TargPropagateNode(void *gnp, void *junk MAKE_ATTR_UNUSED)
 
     if (gn->type & OP_DOUBLEDEP)
 	Lst_ForEach(gn->cohorts, TargPropagateCohort, gnp);
-    return (0);
+    return 0;
 }
 
 /*-
@@ -822,7 +822,7 @@ TargPropagateCohort(void *cgnp, void *pgnp)
     GNode	  *pgn = (GNode *)pgnp;
 
     cgn->type |= pgn->type & ~OP_OPMASK;
-    return (0);
+    return 0;
 }
 
 /*-

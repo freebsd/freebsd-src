@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.h,v 1.12 2017/05/31 21:07:03 maya Exp $	*/
+/*	$NetBSD: hash.h,v 1.13 2020/07/03 17:03:09 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -145,5 +145,6 @@ Hash_Entry *Hash_CreateEntry(Hash_Table *, const char *, Boolean *);
 void Hash_DeleteEntry(Hash_Table *, Hash_Entry *);
 Hash_Entry *Hash_EnumFirst(Hash_Table *, Hash_Search *);
 Hash_Entry *Hash_EnumNext(Hash_Search *);
+void Hash_ForEach(Hash_Table *, void (*)(void *, void *), void *);
 
 #endif /* _HASH_H */

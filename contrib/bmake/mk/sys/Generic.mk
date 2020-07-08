@@ -1,4 +1,4 @@
-#	$Id: Generic.mk,v 1.14 2020/04/17 21:08:17 sjg Exp $
+#	$Id: Generic.mk,v 1.16 2020/06/29 14:34:42 sjg Exp $
 #
 
 # some reasonable defaults
@@ -7,7 +7,7 @@
 
 .LIBS:		.a
 
-tools = \
+tools  ?= \
 	ar \
 	lorder \
 	ranlib \
@@ -27,71 +27,71 @@ MACHINE_ARCH = ${MACHINE_ARCH.${MACHINE}}
 TSORT += -q
 .endif
 
-ARFLAGS?=	rl
+ARFLAGS ?=	rl
 
-AS?=		as
-AFLAGS?=
+AS ?=		as
+AFLAGS ?=
 .if ${MACHINE_ARCH} == "sparc64" 
 AFLAGS+= -Wa,-Av9a
 .endif
-COMPILE.s?=	${CC} ${AFLAGS} -c
-LINK.s?=	${CC} ${AFLAGS} ${LDFLAGS}
-COMPILE.S?=	${CC} ${AFLAGS} ${CPPFLAGS} -c -traditional-cpp
-LINK.S?=	${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
+COMPILE.s ?=	${CC} ${AFLAGS} -c
+LINK.s ?=	${CC} ${AFLAGS} ${LDFLAGS}
+COMPILE.S ?=	${CC} ${AFLAGS} ${CPPFLAGS} -c -traditional-cpp
+LINK.S ?=	${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-CC?=		cc
-DBG?=		-O2
-CFLAGS?=	${DBG}
-COMPILE.c?=	${CC} ${CFLAGS} ${CPPFLAGS} -c
-LINK.c?=	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
+CC ?=		cc
+DBG ?=		-O2
+CFLAGS ?=	${DBG}
+COMPILE.c ?=	${CC} ${CFLAGS} ${CPPFLAGS} -c
+LINK.c ?=	${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-CXX?=		c++
-CXXFLAGS?=	${CFLAGS}
-COMPILE.cc?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
-LINK.cc?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
+CXX ?=		c++
+CXXFLAGS ?=	${CFLAGS}
+COMPILE.cc ?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
+LINK.cc ?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-OBJC?=		${CC}
-OBJCFLAGS?=	${CFLAGS}
-COMPILE.m?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} -c
-LINK.m?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} ${LDFLAGS}
+OBJC ?=		${CC}
+OBJCFLAGS ?=	${CFLAGS}
+COMPILE.m ?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} -c
+LINK.m ?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-CPP?=		cpp
-CPPFLAGS?=	
+CPP ?=		cpp
+CPPFLAGS ?=	
 
-FC?=		f77
-FFLAGS?=	-O
-RFLAGS?=
-COMPILE.f?=	${FC} ${FFLAGS} -c
-LINK.f?=	${FC} ${FFLAGS} ${LDFLAGS}
-COMPILE.F?=	${FC} ${FFLAGS} ${CPPFLAGS} -c
-LINK.F?=	${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
-COMPILE.r?=	${FC} ${FFLAGS} ${RFLAGS} -c
-LINK.r?=	${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
+FC ?=		f77
+FFLAGS ?=	-O
+RFLAGS ?=
+COMPILE.f ?=	${FC} ${FFLAGS} -c
+LINK.f ?=	${FC} ${FFLAGS} ${LDFLAGS}
+COMPILE.F ?=	${FC} ${FFLAGS} ${CPPFLAGS} -c
+LINK.F ?=	${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
+COMPILE.r ?=	${FC} ${FFLAGS} ${RFLAGS} -c
+LINK.r ?=	${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
 
-INSTALL?=	install
+INSTALL ?=	install
 
-LEX?=		lex
-LFLAGS?=
-LEX.l?=		${LEX} ${LFLAGS}
+LEX ?=		lex
+LFLAGS ?=
+LEX.l ?=		${LEX} ${LFLAGS}
 
-LD?=		ld
-LDFLAGS?=
+LD ?=		ld
+LDFLAGS ?=
 
-LINT?=		lint
-LINTFLAGS?=	-chapbxzF
+LINT ?=		lint
+LINTFLAGS ?=	-chapbxzF
 
-NM?=		nm
+NM ?=		nm
 
-PC?=		pc
-PFLAGS?=
-COMPILE.p?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
-LINK.p?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
+PC ?=		pc
+PFLAGS ?=
+COMPILE.p ?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
+LINK.p ?=	${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-SIZE?=		size
+SIZE ?=		size
 
-YACC?=		yacc
-YFLAGS?=
-YACC.y?=	${YACC} ${YFLAGS}
+YACC ?=		yacc
+YFLAGS ?=
+YACC.y ?=	${YACC} ${YFLAGS}
 
 # C
 .c:

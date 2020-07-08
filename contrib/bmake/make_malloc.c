@@ -1,4 +1,4 @@
-/*	$NetBSD: make_malloc.c,v 1.11 2017/04/16 20:20:24 dholland Exp $	*/
+/*	$NetBSD: make_malloc.c,v 1.12 2020/07/03 08:02:55 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -28,7 +28,7 @@
 
 #ifdef MAKE_NATIVE
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: make_malloc.c,v 1.11 2017/04/16 20:20:24 dholland Exp $");
+__RCSID("$NetBSD: make_malloc.c,v 1.12 2020/07/03 08:02:55 rillig Exp $");
 #endif
 
 #include <stdio.h>
@@ -63,7 +63,7 @@ bmake_malloc(size_t len)
 
 	if ((p = malloc(len)) == NULL)
 		enomem();
-	return(p);
+	return p;
 }
 
 /*
@@ -102,7 +102,7 @@ bmake_strndup(const char *str, size_t max_len)
 	memcpy(p, str, len);
 	p[len] = '\0';
 
-	return(p);
+	return p;
 }
 
 /*
@@ -114,6 +114,6 @@ bmake_realloc(void *ptr, size_t size)
 {
 	if ((ptr = realloc(ptr, size)) == NULL)
 		enomem();
-	return(ptr);
+	return ptr;
 }
 #endif
