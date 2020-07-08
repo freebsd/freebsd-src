@@ -57,6 +57,12 @@
 #define TW_OSLI_MAX_NUM_IOS		(TW_OSLI_MAX_NUM_REQUESTS - 2)
 #define TW_OSLI_MAX_NUM_AENS		0x100
 
+#ifdef PAE
+#define	TW_OSLI_DMA_BOUNDARY		(1u << 31)
+#else
+#define	TW_OSLI_DMA_BOUNDARY		((bus_size_t)((uint64_t)1 << 32))
+#endif
+
 /* Possible values of req->state. */
 #define TW_OSLI_REQ_STATE_INIT		0x0	/* being initialized */
 #define TW_OSLI_REQ_STATE_BUSY		0x1	/* submitted to CL */

@@ -551,7 +551,7 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 	/* Create the parent dma tag. */
 	if (bus_dma_tag_create(bus_get_dma_tag(sc->bus_dev), /* parent */
 				sc->alignment,		/* alignment */
-				0,			/* boundary */
+				TW_OSLI_DMA_BOUNDARY,	/* boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */

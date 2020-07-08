@@ -130,7 +130,7 @@ ctx_tag_init(struct dmar_ctx *ctx, device_t dev)
 	maxaddr = MIN(ctx->domain->end, BUS_SPACE_MAXADDR);
 	ctx->ctx_tag.common.ref_count = 1; /* Prevent free */
 	ctx->ctx_tag.common.impl = &bus_dma_dmar_impl;
-	ctx->ctx_tag.common.boundary = PCI_DMA_BOUNDARY;
+	ctx->ctx_tag.common.boundary = 0;
 	ctx->ctx_tag.common.lowaddr = maxaddr;
 	ctx->ctx_tag.common.highaddr = maxaddr;
 	ctx->ctx_tag.common.maxsize = maxaddr;
