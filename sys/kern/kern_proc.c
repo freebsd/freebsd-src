@@ -370,29 +370,6 @@ pfind_any(pid_t pid)
 	return (p);
 }
 
-static struct proc *
-pfind_tid_locked(pid_t tid)
-{
-	struct proc *p;
-	struct thread *td;
-
-	sx_assert(&allproc_lock, SX_LOCKED);
-	FOREACH_PROC_IN_SYSTEM(p) {
-		PROC_LOCK(p);
-		if (p->p_state == PRS_NEW) {
-			PROC_UNLOCK(p);
-			continue;
-		}
-		FOREACH_THREAD_IN_PROC(p, td) {
-			if (td->td_tid == tid)
-				goto found;
-		}
-		PROC_UNLOCK(p);
-	}
-found:
-	return (p);
-}
-
 /*
  * Locate a process group by number.
  * The caller must hold proctree_lock.
@@ -420,23 +397,24 @@ int
 pget(pid_t pid, int flags, struct proc **pp)
 {
 	struct proc *p;
+	struct thread *td1;
 	int error;
 
 	p = curproc;
 	if (p->p_pid == pid) {
 		PROC_LOCK(p);
 	} else {
-		sx_slock(&allproc_lock);
 		if (pid <= PID_MAX) {
+			sx_slock(&allproc_lock);
 			p = pfind_locked(pid);
 			if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
 				p = zpfind_locked(pid);
+			sx_sunlock(&allproc_lock);
 		} else if ((flags & PGET_NOTID) == 0) {
-			p = pfind_tid_locked(pid);
-		} else {
-			p = NULL;
+			td1 = tdfind(pid, -1);
+			if (td1 != NULL)
+				p = td1->td_proc;
 		}
-		sx_sunlock(&allproc_lock);
 		if (p == NULL)
 			return (ESRCH);
 		if ((flags & PGET_CANSEE) != 0) {
