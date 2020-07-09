@@ -5,6 +5,7 @@ arm/broadcom/bcm2835/bcm2835_cpufreq.c		standard
 arm/broadcom/bcm2835/bcm2835_dma.c		standard
 arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
 arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
+arm/broadcom/bcm2835/bcm2835_firmware.c		standard
 arm/broadcom/bcm2835/bcm2835_ft5406.c		optional evdev bcm2835_ft5406
 arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio
 arm/broadcom/bcm2835/bcm2835_intr.c		standard
