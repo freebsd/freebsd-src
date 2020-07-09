@@ -1,4 +1,4 @@
-/*	$NetBSD: lstNext.c,v 1.13 2020/07/03 08:37:57 rillig Exp $	*/
+/*	$NetBSD: lstNext.c,v 1.12 2008/12/13 15:19:29 dsl Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstNext.c,v 1.13 2020/07/03 08:37:57 rillig Exp $";
+static char rcsid[] = "$NetBSD: lstNext.c,v 1.12 2008/12/13 15:19:29 dsl Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstNext.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstNext.c,v 1.13 2020/07/03 08:37:57 rillig Exp $");
+__RCSID("$NetBSD: lstNext.c,v 1.12 2008/12/13 15:19:29 dsl Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -115,5 +115,6 @@ Lst_Next(Lst l)
 	}
     }
 
-    return tln;
+    return (tln);
 }
+

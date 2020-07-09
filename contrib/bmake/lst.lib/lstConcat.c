@@ -1,4 +1,4 @@
-/*	$NetBSD: lstConcat.c,v 1.17 2020/07/03 08:37:56 rillig Exp $	*/
+/*	$NetBSD: lstConcat.c,v 1.16 2008/12/13 15:19:29 dsl Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstConcat.c,v 1.17 2020/07/03 08:37:56 rillig Exp $";
+static char rcsid[] = "$NetBSD: lstConcat.c,v 1.16 2008/12/13 15:19:29 dsl Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstConcat.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstConcat.c,v 1.17 2020/07/03 08:37:56 rillig Exp $");
+__RCSID("$NetBSD: lstConcat.c,v 1.16 2008/12/13 15:19:29 dsl Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -86,7 +86,7 @@ Lst_Concat(Lst l1, Lst l2, int flags)
     List 	list2 = l2;
 
     if (!LstValid (l1) || !LstValid (l2)) {
-	return FAILURE;
+	return (FAILURE);
     }
 
     if (flags == LST_CONCLINK) {
@@ -180,5 +180,6 @@ Lst_Concat(Lst l1, Lst l2, int flags)
 	}
     }
 
-    return SUCCESS;
+    return (SUCCESS);
 }
+
