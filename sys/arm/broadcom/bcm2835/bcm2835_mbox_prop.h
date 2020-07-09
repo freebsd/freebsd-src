@@ -58,6 +58,10 @@ struct bcm2835_mbox_tag_hdr {
 	(tag_)->tag_hdr.val_len = sizeof((tag_)->body.req);	\
 } while (0)
 
+#define BCM2835_MBOX_TAG_FIRMWARE_REVISION	0x00000001
+
+
+
 #define BCM2835_MBOX_POWER_ID_EMMC		0x00000000
 #define BCM2835_MBOX_POWER_ID_UART0		0x00000001
 #define BCM2835_MBOX_POWER_ID_UART1		0x00000002
