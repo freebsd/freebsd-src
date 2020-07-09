@@ -29,6 +29,10 @@ opt_printf.h:
 	echo "#define PRINTF_BUFR_SIZE 128" > ${.TARGET}
 opt_scsi.h:
 	echo "#define SCSI_DELAY 15000" > ${.TARGET}
+.if ${MK_SCTP_SUPPORT} != "no"
+opt_sctp.h:
+	@echo "#define SCTP_SUPPORT 1" > ${.TARGET}
+.endif
 opt_wlan.h:
 	echo "#define IEEE80211_DEBUG 1" > ${.TARGET}
 	echo "#define IEEE80211_AMPDU_AGE 1" >> ${.TARGET}
@@ -44,6 +48,9 @@ KERN_OPTS+= INET TCP_OFFLOAD
 .endif
 .if ${MK_INET6_SUPPORT} != "no"
 KERN_OPTS+= INET6
+.endif
+.if ${MK_SCTP_SUPPORT} != "no"
+KERN_OPTS+= SCTP_SUPPORT
 .endif
 .elif !defined(KERN_OPTS)
 KERN_OPTS!=cat ${KERNBUILDDIR}/opt*.h | awk '{print $$2;}' | sort -u
