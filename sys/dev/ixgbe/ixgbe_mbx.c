@@ -69,11 +69,11 @@ out:
 }
 
 /**
- * ixgbe_poll_for_ack - Wait for message acknowledgement
+ * ixgbe_poll_for_ack - Wait for message acknowledgment
  * @hw: pointer to the HW structure
  * @mbx_id: id of mailbox to write
  *
- * returns SUCCESS if it successfully received a message acknowledgement
+ * returns SUCCESS if it successfully received a message acknowledgment
  **/
 static s32 ixgbe_poll_for_ack(struct ixgbe_hw *hw, u16 mbx_id)
 {
