@@ -3813,11 +3813,11 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 	if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
 		if (mpsar_lo) {
 			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-			mpsar_lo = 0;
+			mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
 		}
 		if (mpsar_hi) {
 			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
-			mpsar_hi = 0;
+			mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
 		}
 	} else if (vmdq < 32) {
 		mpsar_lo &= ~(1 << vmdq);
