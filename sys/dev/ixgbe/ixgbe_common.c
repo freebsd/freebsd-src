@@ -3118,8 +3118,9 @@ void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	 * - link is not up.
 	 */
 	if (hw->fc.disable_fc_autoneg) {
-		ERROR_REPORT1(IXGBE_ERROR_UNSUPPORTED,
-			     "Flow control autoneg is disabled");
+		/* TODO: This should be just an informative log */
+		ERROR_REPORT1(IXGBE_ERROR_CAUTION,
+			      "Flow control autoneg is disabled");
 		goto out;
 	}
 
