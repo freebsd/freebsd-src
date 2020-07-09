@@ -4557,11 +4557,18 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
 		msec_delay(1);
 	}
 
+	/* For each command except "Apply Update" perform
+	 * status checks in the HICR registry.
+	 */
+	if ((buffer[0] & IXGBE_HOST_INTERFACE_MASK_CMD) ==
+	    IXGBE_HOST_INTERFACE_APPLY_UPDATE_CMD)
+		return IXGBE_SUCCESS;
+
 	/* Check command completion */
 	if ((timeout && i == timeout) ||
 	    !(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV)) {
 		ERROR_REPORT1(IXGBE_ERROR_CAUTION,
-			     "Command has failed with no status valid.\n");
+			      "Command has failed with no status valid.\n");
 		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
 	}
 
