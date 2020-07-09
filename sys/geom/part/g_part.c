@@ -50,10 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include "g_part_if.h"
 
-#ifndef _PATH_DEV
-#define _PATH_DEV "/dev/"
-#endif
-
 static kobj_method_t g_part_null_methods[] = {
 	{ 0, 0 }
 };

@@ -419,6 +419,10 @@ g_free(void *ptr)
 
 int g_is_geom_thread(struct thread *td);
 
+#ifndef	_PATH_DEV
+#define	_PATH_DEV	"/dev/"
+#endif
+
 #endif /* _KERNEL */
 
 /* geom_ctl.c */
