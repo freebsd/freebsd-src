@@ -1,4 +1,4 @@
-/*	$NetBSD: lstClose.c,v 1.12 2020/07/03 08:37:56 rillig Exp $	*/
+/*	$NetBSD: lstClose.c,v 1.11 2006/10/27 21:37:25 dsl Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstClose.c,v 1.12 2020/07/03 08:37:56 rillig Exp $";
+static char rcsid[] = "$NetBSD: lstClose.c,v 1.11 2006/10/27 21:37:25 dsl Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstClose.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstClose.c,v 1.12 2020/07/03 08:37:56 rillig Exp $");
+__RCSID("$NetBSD: lstClose.c,v 1.11 2006/10/27 21:37:25 dsl Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -83,3 +83,4 @@ Lst_Close(Lst l)
 	list->atEnd = Unknown;
     }
 }
+
