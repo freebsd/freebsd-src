@@ -179,7 +179,7 @@ int
 iidesc_count_type(void *data, void *private)
 {
 	iidesc_t *ii = data;
-	iitype_t match = (iitype_t)private;
+	iitype_t match = (iitype_t)(uintptr_t)private;
 
 	return (ii->ii_type == match);
 }
