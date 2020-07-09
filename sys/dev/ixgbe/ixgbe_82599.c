@@ -1583,7 +1583,7 @@ void ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
 	 * is for FDIRCMD.  Then do a 64-bit register write from FDIRHASH.
 	 */
 	fdirhashcmd = (u64)fdircmd << 32;
-	fdirhashcmd |= ixgbe_atr_compute_sig_hash_82599(input, common);
+	fdirhashcmd |= (u64)ixgbe_atr_compute_sig_hash_82599(input, common);
 	IXGBE_WRITE_REG64(hw, IXGBE_FDIRHASH, fdirhashcmd);
 
 	DEBUGOUT2("Tx Queue=%x hash=%x\n", queue, (u32)fdirhashcmd);
@@ -1672,7 +1672,7 @@ static u32 ixgbe_get_fdirtcpm_82599(union ixgbe_atr_input *input_mask)
 {
 	u32 mask = IXGBE_NTOHS(input_mask->formatted.dst_port);
 	mask <<= IXGBE_FDIRTCPM_DPORTM_SHIFT;
-	mask |= IXGBE_NTOHS(input_mask->formatted.src_port);
+	mask |= (u32)IXGBE_NTOHS(input_mask->formatted.src_port);
 	mask = ((mask & 0x55555555) << 1) | ((mask & 0xAAAAAAAA) >> 1);
 	mask = ((mask & 0x33333333) << 2) | ((mask & 0xCCCCCCCC) >> 2);
 	mask = ((mask & 0x0F0F0F0F) << 4) | ((mask & 0xF0F0F0F0) >> 4);
@@ -1905,14 +1905,14 @@ s32 ixgbe_fdir_write_perfect_filter_82599(struct ixgbe_hw *hw,
 		/* record source and destination port (little-endian)*/
 		fdirport = IXGBE_NTOHS(input->formatted.dst_port);
 		fdirport <<= IXGBE_FDIRPORT_DESTINATION_SHIFT;
-		fdirport |= IXGBE_NTOHS(input->formatted.src_port);
+		fdirport |= (u32)IXGBE_NTOHS(input->formatted.src_port);
 		IXGBE_WRITE_REG(hw, IXGBE_FDIRPORT, fdirport);
 	}
 
 	/* record VLAN (little-endian) and flex_bytes(big-endian) */
 	fdirvlan = IXGBE_STORE_AS_BE16(input->formatted.flex_bytes);
 	fdirvlan <<= IXGBE_FDIRVLAN_FLEX_SHIFT;
-	fdirvlan |= IXGBE_NTOHS(input->formatted.vlan_id);
+	fdirvlan |= (u32)IXGBE_NTOHS(input->formatted.vlan_id);
 	IXGBE_WRITE_REG(hw, IXGBE_FDIRVLAN, fdirvlan);
 
 	if (cloud_mode) {
