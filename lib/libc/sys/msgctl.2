@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd July 9, 2009
+.Dd July 9, 2020
 .Dt MSGCTL 2
 .Os
 .Sh NAME
@@ -63,8 +63,6 @@ and contains (amongst others) the following members:
 .Bd -literal
 struct msqid_ds {
 	struct	ipc_perm msg_perm;	/* msg queue permission bits */
-	struct	msg *__msg_first;	/* kernel data, don't use */
-	struct	msg *__msg_last;	/* kernel data, don't use */
 	msglen_t msg_cbytes;	/* number of bytes in use on the queue */
 	msgqnum_t msg_qnum;	/* number of msgs in the queue */
 	msglen_t msg_qbytes;	/* max # of bytes on the queue */
