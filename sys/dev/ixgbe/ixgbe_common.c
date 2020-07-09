@@ -774,7 +774,7 @@ s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num)
 		DEBUGOUT("NVM Read Error\n");
 		return ret_val;
 	}
-	*pba_num |= data;
+	*pba_num |= (u32)data;
 
 	return IXGBE_SUCCESS;
 }
