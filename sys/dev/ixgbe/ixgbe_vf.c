@@ -171,7 +171,7 @@ s32 ixgbe_init_hw_vf(struct ixgbe_hw *hw)
  * ixgbe_reset_hw_vf - Performs hardware reset
  * @hw: pointer to hardware structure
  *
- * Resets the hardware by reseting the transmit and receive units, masks and
+ * Resets the hardware by resetting the transmit and receive units, masks and
  * clears all interrupts.
  **/
 s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
