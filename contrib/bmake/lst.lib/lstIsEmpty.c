@@ -1,4 +1,4 @@
-/*	$NetBSD: lstIsEmpty.c,v 1.12 2020/07/03 08:37:57 rillig Exp $	*/
+/*	$NetBSD: lstIsEmpty.c,v 1.11 2008/12/13 15:19:29 dsl Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstIsEmpty.c,v 1.12 2020/07/03 08:37:57 rillig Exp $";
+static char rcsid[] = "$NetBSD: lstIsEmpty.c,v 1.11 2008/12/13 15:19:29 dsl Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstIsEmpty.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstIsEmpty.c,v 1.12 2020/07/03 08:37:57 rillig Exp $");
+__RCSID("$NetBSD: lstIsEmpty.c,v 1.11 2008/12/13 15:19:29 dsl Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -70,5 +70,6 @@ __RCSID("$NetBSD: lstIsEmpty.c,v 1.12 2020/07/03 08:37:57 rillig Exp $");
 Boolean
 Lst_IsEmpty(Lst l)
 {
-    return !LstValid(l) || LstIsEmpty(l);
+    return ( ! LstValid (l) || LstIsEmpty(l));
 }
+
