@@ -3259,7 +3259,18 @@ s32 ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
 
 	status = ixgbe_host_interface_command(hw, (u32 *)&buffer,
 					      sizeof(buffer),
-					      IXGBE_HI_COMMAND_TIMEOUT, FALSE);
+					      IXGBE_HI_COMMAND_TIMEOUT, TRUE);
+	if (status != IXGBE_SUCCESS) {
+		DEBUGOUT2("for offset %04x failed with status %d\n",
+				  offset, status);
+		return status;
+	}
+
+	if (buffer.hdr.rsp.buf_lenh_status != FW_CEM_RESP_STATUS_SUCCESS) {
+		DEBUGOUT2("for offset %04x host interface return status %02x\n",
+				  offset, buffer.hdr.rsp.buf_lenh_status);
+		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+	}
 
 	return status;
 }
