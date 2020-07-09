@@ -1066,7 +1066,7 @@ void ixgbe_set_source_address_pruning_X550(struct ixgbe_hw *hw, bool enable,
 }
 
 /**
- * ixgbe_set_ethertype_anti_spoofing_X550 - Enable/Disable Ethertype anti-spoofing
+ * ixgbe_set_ethertype_anti_spoofing_X550 - Configure Ethertype anti-spoofing
  * @hw: pointer to hardware structure
  * @enable: enable or disable switch for Ethertype anti-spoofing
  * @vf: Virtual Function pool - VF Pool to set for Ethertype anti-spoofing
