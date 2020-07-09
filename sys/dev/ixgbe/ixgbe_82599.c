@@ -1868,6 +1868,7 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 				     ~input_mask->formatted.src_ip[0]);
 		IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRDIP4M,
 				     ~input_mask->formatted.dst_ip[0]);
+		IXGBE_WRITE_REG_BE32(hw, IXGBE_FDIRIP6M, 0xFFFFFFFF);
 	}
 	return IXGBE_SUCCESS;
 }
