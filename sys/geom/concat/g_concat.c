@@ -897,6 +897,9 @@ g_concat_find_device(struct g_class *mp, const char *name)
 	struct g_concat_softc *sc;
 	struct g_geom *gp;
 
+	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		name += strlen(_PATH_DEV);
+
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
