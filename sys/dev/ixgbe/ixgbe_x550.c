@@ -730,7 +730,7 @@ static s32 ixgbe_setup_fw_link(struct ixgbe_hw *hw)
 
 	for (i = 0; i < sizeof(ixgbe_fw_map) / sizeof(ixgbe_fw_map[0]); ++i) {
 		if (hw->phy.autoneg_advertised & ixgbe_fw_map[i].phy_speed)
-			setup[0] |= ixgbe_fw_map[i].fw_speed;
+			setup[0] |= (u32)(ixgbe_fw_map[i].fw_speed);
 	}
 	setup[0] |= FW_PHY_ACT_SETUP_LINK_HP | FW_PHY_ACT_SETUP_LINK_AN;
 
