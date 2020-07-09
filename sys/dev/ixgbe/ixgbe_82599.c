@@ -2130,9 +2130,7 @@ s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 	if (ret_val != IXGBE_SUCCESS)
 		goto out;
 
-	ret_val = ixgbe_start_hw_gen2(hw);
-	if (ret_val != IXGBE_SUCCESS)
-		goto out;
+	ixgbe_start_hw_gen2(hw);
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;

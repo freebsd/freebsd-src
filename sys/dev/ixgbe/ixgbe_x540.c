@@ -323,7 +323,7 @@ s32 ixgbe_start_hw_X540(struct ixgbe_hw *hw)
 	if (ret_val != IXGBE_SUCCESS)
 		goto out;
 
-	ret_val = ixgbe_start_hw_gen2(hw);
+	ixgbe_start_hw_gen2(hw);
 
 out:
 	return ret_val;
