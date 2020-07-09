@@ -112,8 +112,4 @@ struct g_virstor_bio_q {
 
 #endif	/* _KERNEL */
 
-#ifndef _PATH_DEV
-#define _PATH_DEV "/dev/"
-#endif
-
 #endif	/* !_G_VIRSTOR_H_ */

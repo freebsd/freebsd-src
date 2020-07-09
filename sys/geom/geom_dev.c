@@ -166,7 +166,7 @@ init_dumpdev(struct cdev *dev)
 {
 	struct diocskerneldump_arg kda;
 	struct g_consumer *cp;
-	const char *devprefix = "/dev/", *devname;
+	const char *devprefix = _PATH_DEV, *devname;
 	int error;
 	size_t len;
 

@@ -2511,7 +2511,7 @@ g_journal_find_device(struct g_class *mp, const char *name)
 	struct g_geom *gp;
 	struct g_provider *pp;
 
-	if (strncmp(name, "/dev/", 5) == 0)
+	if (strncmp(name, _PATH_DEV, 5) == 0)
 		name += 5;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;

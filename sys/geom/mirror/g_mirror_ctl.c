@@ -131,7 +131,7 @@ g_mirror_find_disk(struct g_mirror_softc *sc, const char *name)
 	struct g_mirror_disk *disk;
 
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
-	if (strncmp(name, "/dev/", 5) == 0)
+	if (strncmp(name, _PATH_DEV, 5) == 0)
 		name += 5;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_consumer == NULL)
@@ -450,8 +450,8 @@ err:
 			g_topology_unlock();
 			return;
 		}
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
 		pp = g_provider_by_name(name);
 		if (pp == NULL) {
 			G_MIRROR_DEBUG(1, "Disk %s is invalid.", name);
@@ -501,8 +501,8 @@ err2:
 	for (attached = 0, no = 1; no < *nargs; no++) {
 		snprintf(param, sizeof(param), "arg%u", no);
 		name = gctl_get_asciiparam(req, param);
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
 		pp = g_provider_by_name(name);
 		if (pp == NULL) {
 			G_MIRROR_DEBUG(1, "Provider %s disappear?!", name);
@@ -686,7 +686,7 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Provider %s already inserted.", name);
 			continue;
 		}
-		if (strncmp(name, "/dev/", 5) == 0)
+		if (strncmp(name, _PATH_DEV, 5) == 0)
 			name += 5;
 		pp = g_provider_by_name(name);
 		if (pp == NULL) {

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define	iswhite(c) (((c) == ' ') || ((c) == '\t'))
 #else
 #include <ctype.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -466,7 +467,7 @@ gv_new_drive(int max, char *token[])
 			}
 			ptr = token[j];
 
-			if (strncmp(ptr, "/dev/", 5) == 0)
+			if (strncmp(ptr, _PATH_DEV, 5) == 0)
 				ptr += 5;
 			strlcpy(d->device, ptr, sizeof(d->device));
 		} else {

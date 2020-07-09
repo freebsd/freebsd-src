@@ -120,8 +120,8 @@ g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 0);
 		return;
 	}
-	if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-		name += strlen("/dev/");
+	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		name += strlen(_PATH_DEV);
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
 		gctl_error(req, "Provider %s is invalid.", name);
@@ -186,8 +186,8 @@ g_eli_find_device(struct g_class *mp, const char *prov)
 	struct g_provider *pp;
 	struct g_consumer *cp;
 
-	if (strncmp(prov, "/dev/", strlen("/dev/")) == 0)
-		prov += strlen("/dev/");
+	if (strncmp(prov, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		prov += strlen(_PATH_DEV);
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
@@ -373,8 +373,8 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No 'arg%u' argument.", 0);
 		return;
 	}
-	if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-		name += strlen("/dev/");
+	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		name += strlen(_PATH_DEV);
 	pp = g_provider_by_name(name);
 	if (pp == NULL) {
 		gctl_error(req, "Provider %s is invalid.", name);
