@@ -3990,8 +3990,7 @@ chkarg:
 		 *	IPv4 a.b.c.d,port
 		 *	IPv4 a.b.c.d:port
 		 *	IPv6 w:x:y::z,port
-		 * The ':' can only be used with hostname and IPv4 address.
-		 * XXX-BZ Should we also support [w:x:y::z]:port?
+		 *	IPv6 [w:x:y::z]:port
 		 */
 		struct sockaddr_storage result;
 		struct addrinfo *res;
@@ -4001,33 +4000,45 @@ chkarg:
 
 		NEED1("missing forward address[:port]");
 
-		/*
-		 * locate the address-port separator (':' or ',')
-		 */
-		s = strchr(*av, ',');
-		if (s == NULL) {
-			/* Distinguish between IPv4:port and IPv6 cases. */
-			s = strchr(*av, ':');
-			if (s && strchr(s+1, ':'))
-				s = NULL; /* no port */
-		}
-
-		port_number = 0;
-		if (s != NULL) {
-			/* Terminate host portion and set s to start of port. */
-			*(s++) = '\0';
-			i = strtoport(s, &end, 0 /* base */, 0 /* proto */);
-			if (s == end)
-				errx(EX_DATAERR,
-				    "illegal forwarding port ``%s''", s);
-			port_number = (u_short)i;
-		}
-
 		if (_substrcmp(*av, "tablearg") == 0) {
 			family = PF_INET;
 			((struct sockaddr_in*)&result)->sin_addr.s_addr =
 			    INADDR_ANY;
 		} else {
+			/*
+			 * Are we an bracket-enclosed IPv6 address?
+			 */
+			if (strchr(*av, '['))
+				(*av)++;
+
+			/*
+			 * locate the address-port separator (':' or ',')
+			 */
+			s = strchr(*av, ',');
+			if (s == NULL) {
+				s = strchr(*av, ']');
+				/* Prevent erroneous parsing on brackets. */
+				if (s != NULL)
+					*(s++) = '\0';
+				else
+					s = *av;
+
+				/* Distinguish between IPv4:port and IPv6 cases. */
+				s = strchr(s, ':');
+				if (s && strchr(s+1, ':'))
+					s = NULL; /* no port */
+			}
+
+			if (s != NULL) {
+				/* Terminate host portion and set s to start of port. */
+				*(s++) = '\0';
+				i = strtoport(s, &end, 0 /* base */, 0 /* proto */);
+				if (s == end)
+					errx(EX_DATAERR,
+					    "illegal forwarding port ``%s''", s);
+				port_number = (u_short)i;
+			}
+
 			/*
 			 * Resolve the host name or address to a family and a
 			 * network representation of the address.
