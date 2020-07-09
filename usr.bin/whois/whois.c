@@ -117,6 +117,7 @@ static struct {
 	WHOIS_REFERRAL("Whois Server:"),
 	WHOIS_REFERRAL("Registrar WHOIS Server:"), /* corporatedomains.com */
 	WHOIS_REFERRAL("ReferralServer:  whois://"), /* ARIN */
+	WHOIS_REFERRAL("ReferralServer:  rwhois://"), /* ARIN */
 	WHOIS_REFERRAL("descr:          region. Please query"), /* AfriNIC */
 	{ NULL, 0 }
 };
@@ -156,10 +157,10 @@ reset_rir(void) {
 static const char *port = DEFAULT_PORT;
 
 static const char *choose_server(char *);
-static struct addrinfo *gethostinfo(char const *host, int exitnoname);
+static struct addrinfo *gethostinfo(const char *, const char *, int);
 static void s_asprintf(char **ret, const char *format, ...) __printflike(2, 3);
 static void usage(void);
-static void whois(const char *, const char *, int);
+static void whois(const char *, const char *, const char *, int);
 
 int
 main(int argc, char *argv[])
@@ -255,11 +256,11 @@ main(int argc, char *argv[])
 		if (country != NULL) {
 			char *qnichost;
 			s_asprintf(&qnichost, "%s%s", country, QNICHOST_TAIL);
-			whois(*argv, qnichost, flags);
+			whois(*argv, qnichost, port, flags);
 			free(qnichost);
 		} else
 			whois(*argv, host != NULL ? host :
-			      choose_server(*argv), flags);
+			      choose_server(*argv), port, flags);
 		reset_rir();
 		argv++;
 	}
@@ -283,7 +284,7 @@ choose_server(char *domain)
 }
 
 static struct addrinfo *
-gethostinfo(char const *host, int exit_on_noname)
+gethostinfo(const char *host, const char *hport, int exit_on_noname)
 {
 	struct addrinfo hints, *res;
 	int error;
@@ -293,7 +294,7 @@ gethostinfo(char const *host, int exit_on_noname)
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	res = NULL;
-	error = getaddrinfo(host, port, &hints, &res);
+	error = getaddrinfo(host, hport, &hints, &res);
 	if (error && (exit_on_noname || error != EAI_NONAME))
 		err(EX_NOHOST, "%s: %s", host, gai_strerror(error));
 	return (res);
@@ -444,15 +445,15 @@ done:
 }
 
 static void
-whois(const char *query, const char *hostname, int flags)
+whois(const char *query, const char *hostname, const char *hostport, int flags)
 {
 	FILE *fp;
 	struct addrinfo *hostres;
-	char *buf, *host, *nhost, *p;
+	char *buf, *host, *nhost, *nport, *p;
 	int comment, s, f;
 	size_t len, i;
 
-	hostres = gethostinfo(hostname, 1);
+	hostres = gethostinfo(hostname, hostport, 1);
 	s = connect_to_any_host(hostres);
 	if (s == -1)
 		err(EX_OSERR, "connect()");
@@ -532,14 +533,35 @@ whois(const char *query, const char *hostname, int flags)
 				SCAN(p, buf+len, *p == ' ');
 				host = p;
 				SCAN(p, buf+len, ishost(*p));
-				if (p > host)
+				if (p > host) {
+					char *pstr;
+
 					s_asprintf(&nhost, "%.*s",
 						   (int)(p - host), host);
+
+					if (*p != ':') {
+						s_asprintf(&nport, "%s", port);
+						break;
+					}
+
+					pstr = ++p;
+					SCAN(p, buf+len, isdigit(*p));
+					if (p > pstr && (p - pstr) < 6) {
+						s_asprintf(&nport, "%.*s",
+						    (int)(p - pstr), pstr);
+						break;
+					}
+
+					/* Invalid port; don't recurse */
+					free(nhost);
+					nhost = NULL;
+				}
 				break;
 			}
 			for (i = 0; actually_arin[i] != NULL; i++) {
 				if (strncmp(buf, actually_arin[i], len) == 0) {
 					s_asprintf(&nhost, "%s", ANICHOST);
+					s_asprintf(&nport, "%s", port);
 					break;
 				}
 			}
@@ -565,17 +587,19 @@ whois(const char *query, const char *hostname, int flags)
 		/* Do we need to find an alternative RIR? */
 		if (try_rir[i].loop != 0 && nhost != NULL &&
 		    strcasecmp(try_rir[i].host, nhost) == 0) {
-			    free(nhost);
-			    nhost = NULL;
-			    f = 1;
+			free(nhost);
+			nhost = NULL;
+			free(nport);
+			nport = NULL;
+			f = 1;
 		}
 	}
 	if (f) {
 		/* Find a replacement RIR */
 		for (i = 0; try_rir[i].host != NULL; i++) {
 			if (try_rir[i].loop == 0) {
-				s_asprintf(&nhost, "%s",
-					try_rir[i].host);
+				s_asprintf(&nhost, "%s", try_rir[i].host);
+				s_asprintf(&nport, "%s", port);
 				break;
 			}
 		}
@@ -584,9 +608,10 @@ whois(const char *query, const char *hostname, int flags)
 		/* Ignore self-referrals */
 		if (strcasecmp(hostname, nhost) != 0) {
 			printf("# %s\n\n", nhost);
-			whois(query, nhost, flags);
+			whois(query, nhost, nport, flags);
 		}
 		free(nhost);
+		free(nport);
 	}
 }
 
