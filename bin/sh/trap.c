@@ -382,12 +382,7 @@ onsig(int signo)
 {
 
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
-		/*
-		 * The !in_dotrap here is safe.  The only way we can arrive
-		 * here with in_dotrap set is that a trap handler set SIGINT to
-		 * SIG_DFL and killed itself.
-		 */
-		if (suppressint && !in_dotrap)
+		if (suppressint)
 			SET_PENDING_INT;
 		else
 			onint();
