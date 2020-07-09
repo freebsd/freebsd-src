@@ -154,7 +154,7 @@ struct pic msi_pic = {
 
 u_int first_msi_irq;
 
-u_int num_msi_irqs = 512;
+u_int num_msi_irqs = 2048;
 SYSCTL_UINT(_machdep, OID_AUTO, num_msi_irqs, CTLFLAG_RDTUN, &num_msi_irqs, 0,
     "Number of IRQs reserved for MSI and MSI-X interrupts");
 
