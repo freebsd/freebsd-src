@@ -574,6 +574,26 @@ out:
 }
 
 /**
+ * ixgbe_restart_auto_neg - Restart auto negotiation on the PHY
+ * @hw: pointer to hardware structure
+ **/
+void ixgbe_restart_auto_neg(struct ixgbe_hw *hw)
+{
+	u16 autoneg_reg;
+
+	/* Check if PHY reset is blocked by MNG FW */
+	if (ixgbe_check_reset_blocked(hw))
+		return;
+
+	/* Restart PHY auto-negotiation. */
+	hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_CONTROL,
+				IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &autoneg_reg);
+	autoneg_reg |= IXGBE_MII_RESTART;
+	hw->phy.ops.write_reg(hw, IXGBE_MDIO_AUTO_NEG_CONTROL,
+				IXGBE_MDIO_AUTO_NEG_DEV_TYPE, autoneg_reg);
+}
+
+/**
  * ixgbe_read_phy_mdi - Reads a value from a specified PHY register without
  * the SWFW lock
  * @hw: pointer to hardware structure
@@ -857,19 +877,7 @@ s32 ixgbe_setup_phy_link_generic(struct ixgbe_hw *hw)
 			      IXGBE_MDIO_AUTO_NEG_DEV_TYPE,
 			      autoneg_reg);
 
-	/* Blocked by MNG FW so don't reset PHY */
-	if (ixgbe_check_reset_blocked(hw))
-		return status;
-
-	/* Restart PHY auto-negotiation. */
-	hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_CONTROL,
-			     IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &autoneg_reg);
-
-	autoneg_reg |= IXGBE_MII_RESTART;
-
-	hw->phy.ops.write_reg(hw, IXGBE_MDIO_AUTO_NEG_CONTROL,
-			      IXGBE_MDIO_AUTO_NEG_DEV_TYPE, autoneg_reg);
-
+	ixgbe_restart_auto_neg(hw);
 	return status;
 }
 
@@ -1093,19 +1101,7 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 				      autoneg_reg);
 	}
 
-	/* Blocked by MNG FW so don't reset PHY */
-	if (ixgbe_check_reset_blocked(hw))
-		return status;
-
-	/* Restart PHY auto-negotiation. */
-	hw->phy.ops.read_reg(hw, IXGBE_MDIO_AUTO_NEG_CONTROL,
-			     IXGBE_MDIO_AUTO_NEG_DEV_TYPE, &autoneg_reg);
-
-	autoneg_reg |= IXGBE_MII_RESTART;
-
-	hw->phy.ops.write_reg(hw, IXGBE_MDIO_AUTO_NEG_CONTROL,
-			      IXGBE_MDIO_AUTO_NEG_DEV_TYPE, autoneg_reg);
-
+	ixgbe_restart_auto_neg(hw);
 	return status;
 }
 
