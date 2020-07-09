@@ -155,11 +155,10 @@ vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
 
-static TAILQ_HEAD(, vm_page) excludelist_head;
-static int sysctl_vm_page_excludelist(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_vm, OID_AUTO, page_excludelist, CTLTYPE_STRING | CTLFLAG_RD |
-    CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_excludelist, "A",
-    "Blacklist pages");
+static TAILQ_HEAD(, vm_page) blacklist_head;
+static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, NULL, 0, sysctl_vm_page_blacklist, "A", "Blacklist pages");
 
 static uma_zone_t fakepg_zone;
 
@@ -259,16 +258,16 @@ vm_set_page_size(void)
 }
 
 /*
- *	vm_page_excludelist_next:
+ *	vm_page_blacklist_next:
  *
- *	Find the next entry in the provided string of excludelist
+ *	Find the next entry in the provided string of blacklist
  *	addresses.  Entries are separated by space, comma, or newline.
  *	If an invalid integer is encountered then the rest of the
  *	string is skipped.  Updates the list pointer to the next
  *	character, or NULL if the string is exhausted or invalid.
  */
 static vm_paddr_t
-vm_page_excludelist_next(char **list, char *end)
+vm_page_blacklist_next(char **list, char *end)
 {
 	vm_paddr_t bad;
 	char *cp, *pos;
@@ -315,13 +314,13 @@ vm_page_excludelist_next(char **list, char *end)
 			*list = cp;
 		return (trunc_page(bad));
 	}
-	printf("Garbage in RAM excludelist, skipping\n");
+	printf("Garbage in RAM blacklist, skipping\n");
 	*list = NULL;
 	return (0);
 }
 
 bool
-vm_page_excludelist_add(vm_paddr_t pa, bool verbose)
+vm_page_blacklist_add(vm_paddr_t pa, bool verbose)
 {
 	struct vm_domain *vmd;
 	vm_page_t m;
@@ -337,7 +336,7 @@ vm_page_excludelist_add(vm_paddr_t pa, bool verbose)
 	vm_domain_free_unlock(vmd);
 	if (ret != 0) {
 		vm_domain_freecnt_inc(vmd, -1);
-		TAILQ_INSERT_TAIL(&excludelist_head, m, listq);
+		TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
 		if (verbose)
 			printf("Skipping page with pa 0x%jx\n", (uintmax_t)pa);
 	}
@@ -345,35 +344,35 @@ vm_page_excludelist_add(vm_paddr_t pa, bool verbose)
 }
 
 /*
- *	vm_page_excludelist_check:
+ *	vm_page_blacklist_check:
  *
- *	Iterate through the provided string of excludelist addresses, pulling
+ *	Iterate through the provided string of blacklist addresses, pulling
  *	each entry out of the physical allocator free list and putting it
- *	onto a list for reporting via the vm.page_excludelist sysctl.
+ *	onto a list for reporting via the vm.page_blacklist sysctl.
  */
 static void
-vm_page_excludelist_check(char *list, char *end)
+vm_page_blacklist_check(char *list, char *end)
 {
 	vm_paddr_t pa;
 	char *next;
 
 	next = list;
 	while (next != NULL) {
-		if ((pa = vm_page_excludelist_next(&next, end)) == 0)
+		if ((pa = vm_page_blacklist_next(&next, end)) == 0)
 			continue;
-		vm_page_excludelist_add(pa, bootverbose);
+		vm_page_blacklist_add(pa, bootverbose);
 	}
 }
 
 /*
- *	vm_page_excludelist_load:
+ *	vm_page_blacklist_load:
  *
- *	Search for a special module named "ram_excludelist".  It'll be a
+ *	Search for a special module named "ram_blacklist".  It'll be a
  *	plain text file provided by the user via the loader directive
  *	of the same name.
  */
 static void
-vm_page_excludelist_load(char **list, char **end)
+vm_page_blacklist_load(char **list, char **end)
 {
 	void *mod;
 	u_char *ptr;
@@ -382,7 +381,7 @@ vm_page_excludelist_load(char **list, char **end)
 	mod = NULL;
 	ptr = NULL;
 
-	mod = preload_search_by_type("ram_excludelist");
+	mod = preload_search_by_type("ram_blacklist");
 	if (mod != NULL) {
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
@@ -396,7 +395,7 @@ vm_page_excludelist_load(char **list, char **end)
 }
 
 static int
-sysctl_vm_page_excludelist(SYSCTL_HANDLER_ARGS)
+sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
 {
 	vm_page_t m;
 	struct sbuf sbuf;
@@ -407,7 +406,7 @@ sysctl_vm_page_excludelist(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
-	TAILQ_FOREACH(m, &excludelist_head, listq) {
+	TAILQ_FOREACH(m, &blacklist_head, listq) {
 		sbuf_printf(&sbuf, "%s%#jx", first ? "" : ",",
 		    (uintmax_t)m->phys_addr);
 		first = 0;
@@ -794,14 +793,14 @@ vm_page_startup(vm_offset_t vaddr)
 	}
 
 	/*
-	 * Remove excludelisted pages from the physical memory allocator.
+	 * Remove blacklisted pages from the physical memory allocator.
 	 */
-	TAILQ_INIT(&excludelist_head);
-	vm_page_excludelist_load(&list, &listend);
-	vm_page_excludelist_check(list, listend);
+	TAILQ_INIT(&blacklist_head);
+	vm_page_blacklist_load(&list, &listend);
+	vm_page_blacklist_check(list, listend);
 
-	list = kern_getenv("vm.excludelist");
-	vm_page_excludelist_check(list, NULL);
+	list = kern_getenv("vm.blacklist");
+	vm_page_blacklist_check(list, NULL);
 
 	freeenv(list);
 #if VM_NRESERVLEVEL > 0

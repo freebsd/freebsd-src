@@ -613,7 +613,7 @@ vm_page_t vm_page_alloc_contig_domain(vm_object_t object,
 vm_page_t vm_page_alloc_freelist(int, int);
 vm_page_t vm_page_alloc_freelist_domain(int, int, int);
 void vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set);
-bool vm_page_excludelist_add(vm_paddr_t pa, bool verbose);
+bool vm_page_blacklist_add(vm_paddr_t pa, bool verbose);
 vm_page_t vm_page_grab(vm_object_t, vm_pindex_t, int);
 vm_page_t vm_page_grab_unlocked(vm_object_t, vm_pindex_t, int);
 int vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
