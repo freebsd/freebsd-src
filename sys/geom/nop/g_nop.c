@@ -676,8 +676,8 @@ g_nop_ctl_create(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
 		}
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
 		pp = g_provider_by_name(name);
 		if (pp == NULL) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", name);
@@ -787,8 +787,8 @@ g_nop_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
 		}
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
 		pp = g_provider_by_name(name);
 		if (pp == NULL || pp->geom->class != mp) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", name);
@@ -857,8 +857,8 @@ g_nop_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
 		}
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
 		gp = g_nop_find_geom(mp, name);
 		if (gp == NULL) {
 			G_NOP_DEBUG(1, "Device %s is invalid.", name);
@@ -902,8 +902,8 @@ g_nop_ctl_reset(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "No 'arg%d' argument", i);
 			return;
 		}
-		if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
-			name += strlen("/dev/");
+		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+			name += strlen(_PATH_DEV);
 		pp = g_provider_by_name(name);
 		if (pp == NULL || pp->geom->class != mp) {
 			G_NOP_DEBUG(1, "Provider %s is invalid.", name);

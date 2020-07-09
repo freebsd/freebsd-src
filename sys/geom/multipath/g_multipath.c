@@ -944,7 +944,7 @@ g_multipath_ctl_add_name(struct gctl_req *req, struct g_class *mp,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	const char *mpname;
-	static const char devpf[6] = "/dev/";
+	static const char devpf[6] = _PATH_DEV;
 	int error;
 
 	g_topology_assert();
@@ -1007,7 +1007,7 @@ g_multipath_ctl_prefer(struct gctl_req *req, struct g_class *mp)
 	struct g_multipath_softc *sc;
 	struct g_consumer *cp;
 	const char *name, *mpname;
-	static const char devpf[6] = "/dev/";
+	static const char devpf[6] = _PATH_DEV;
 	int *nargs;
 
 	g_topology_assert();

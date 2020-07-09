@@ -760,10 +760,6 @@ g_resize_provider(struct g_provider *pp, off_t size)
 	g_post_event(g_resize_provider_event, hh, M_WAITOK, NULL);
 }
 
-#ifndef	_PATH_DEV
-#define	_PATH_DEV	"/dev/"
-#endif
-
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
