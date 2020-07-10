@@ -244,6 +244,28 @@ bitmap_equal(const unsigned long *pa,
 	return (1);
 }
 
+static inline int
+bitmap_subset(const unsigned long *pa,
+    const unsigned long *pb, unsigned size)
+{
+	const unsigned end = BIT_WORD(size);
+	const unsigned tail = size & (BITS_PER_LONG - 1);
+	unsigned i;
+
+	for (i = 0; i != end; i++) {
+		if (pa[i] & ~pb[i])
+			return (0);
+	}
+
+	if (tail) {
+		const unsigned long mask = BITMAP_LAST_WORD_MASK(tail);
+
+		if (pa[end] & ~pb[end] & mask)
+			return (0);
+	}
+	return (1);
+}
+
 static inline void
 bitmap_complement(unsigned long *dst, const unsigned long *src,
     const unsigned int size)
