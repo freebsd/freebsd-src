@@ -93,6 +93,7 @@ int	FreeBSD_Mflag;				/* Measure using stats(3) */
 int	Nflag;					/* shutdown() network socket */
 int	nflag;					/* Don't do name look up */
 int	FreeBSD_Oflag;				/* Do not use TCP options */
+int	FreeBSD_sctp;				/* Use SCTP */
 char   *Pflag;					/* Proxy username */
 char   *pflag;					/* Localport flag */
 int	rflag;					/* Random ports flag */
@@ -160,6 +161,7 @@ main(int argc, char *argv[])
 	char unix_dg_tmp_socket_buf[UNIX_DG_TMP_SOCKET_SIZE];
 	struct option longopts[] = {
 		{ "no-tcpopt",	no_argument,	&FreeBSD_Oflag,	1 },
+		{ "sctp",	no_argument,	&FreeBSD_sctp,	1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
@@ -324,6 +326,9 @@ main(int argc, char *argv[])
 			if (Tflag < 0 || Tflag > 255 || errstr || errno)
 				errx(1, "illegal tos value %s", optarg);
 			break;
+		case 0:
+			/* Long option. */
+			break;
 		default:
 			usage(1);
 		}
@@ -354,6 +359,12 @@ main(int argc, char *argv[])
 		errx(1, "cannot use -z and -l");
 	if (!lflag && kflag)
 		errx(1, "must use -l with -k");
+	if (FreeBSD_sctp) {
+		if (uflag)
+			errx(1, "cannot use -u and --sctp");
+		if (family == AF_UNIX)
+			errx(1, "cannot use -U and --sctp");
+	}
 
 	/* Get name of temporary socket for unix datagram client */
 	if ((family == AF_UNIX) && uflag && !lflag) {
@@ -373,7 +384,8 @@ main(int argc, char *argv[])
 		memset(&hints, 0, sizeof(struct addrinfo));
 		hints.ai_family = family;
 		hints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
-		hints.ai_protocol = uflag ? IPPROTO_UDP : IPPROTO_TCP;
+		hints.ai_protocol = uflag ? IPPROTO_UDP :
+		    FreeBSD_sctp ? IPPROTO_SCTP : IPPROTO_TCP;
 		if (nflag)
 			hints.ai_flags |= AI_NUMERICHOST;
 	}
@@ -381,6 +393,9 @@ main(int argc, char *argv[])
 	if (xflag) {
 		if (uflag)
 			errx(1, "no proxy support for UDP mode");
+
+		if (FreeBSD_sctp)
+			errx(1, "no proxy support for SCTP mode");
 
 		if (lflag)
 			errx(1, "no proxy support for listen");
@@ -1424,6 +1439,7 @@ help(void)
 	\t-N		Shutdown the network socket after EOF on stdin\n\
 	\t-n		Suppress name/port resolutions\n\
 	\t--no-tcpopt	Disable TCP options\n\
+	\t--sctp\t	SCTP mode\n\
 	\t-O length	TCP send buffer length\n\
 	\t-P proxyuser\tUsername for proxy authentication\n\
 	\t-p port\t	Specify local port for remote connects\n\
@@ -1442,7 +1458,7 @@ help(void)
 	\t-z		Zero-I/O mode [used for scanning]\n\
 	Port numbers can be individual or ranges: lo-hi [inclusive]\n");
 #ifdef IPSEC
-	fprintf(stderr, "See ipsec_set_policy(3) for -e argument format\n");
+	fprintf(stderr, "\tSee ipsec_set_policy(3) for -e argument format\n");
 #endif
 	exit(1);
 }
@@ -1482,6 +1498,7 @@ usage(int ret)
 #else
 	    "usage: nc [-46DdFhklNnrStUuvz] [-I length] [-i interval] [-O length]\n"
 #endif
+	    "\t  [--no-tcpopt] [--sctp]\n"
 	    "\t  [-P proxy_username] [-p source_port] [-s source] [-T ToS]\n"
 	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
 	    "\t  [-x proxy_address[:port]] [destination] [port]\n");

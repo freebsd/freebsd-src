@@ -41,6 +41,7 @@
 .Op Fl I Ar length
 .Op Fl i Ar interval
 .Op Fl -no-tcpopt
+.Op Fl -sctp
 .Op Fl O Ar length
 .Op Fl P Ar proxy_username
 .Op Fl p Ar source_port
@@ -187,6 +188,8 @@ hostnames or ports.
 Disables the use of TCP options on the socket, by setting the boolean
 TCP_NOOPT
 socket option.
+.It Fl -sctp
+Use SCTP instead of the default option of TCP.
 .It Fl O Ar length
 Specifies the size of the TCP send buffer.
 .It Fl P Ar proxy_username
