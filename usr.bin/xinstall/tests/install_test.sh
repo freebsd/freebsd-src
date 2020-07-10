@@ -186,8 +186,12 @@ overwrite_backup_safe_comparing_body() {
 setup_stripbin() {
 	cat <<\STRIPBIN >stripbin
 #!/bin/sh
-tr z @ <"$1" >"$1.new" && mv -- "$1.new" "$1"
+[ "$1" = "-o" ] && dst="$2" && shift 2
+[ "$1" = "--" ] && shift
+[ -z "$dst" ] && dst="$1"
 STRIPBIN
+	[ "$1" = "true" ] && cmd="cat" || cmd="tr z @"
+	echo $cmd '<"$1" >"$1.new" && mv -- "$1.new" "$dst"' >>stripbin
 	chmod 755 stripbin
 	export STRIPBIN="$PWD/stripbin"
 }
@@ -253,7 +257,7 @@ strip_changing_overwrite_eq_comparing_body() {
 
 atf_test_case strip_noop
 strip_noop_body() {
-	export STRIPBIN=true
+	setup_stripbin true
 	printf 'test\n123\r456\r\n789\0z' >testf
 	atf_check install -s testf copyf
 	[ ! testf -nt copyf ] || atf_fail "bad timestamp"
