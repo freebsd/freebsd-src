@@ -441,7 +441,46 @@ restart:
 		tofree = sfsp = *buf = malloc(maxcount * sizeof(struct statfs),
 		    M_STATFS, M_WAITOK);
 	}
+
 	count = 0;
+
+	/*
+	 * If there is no target buffer they only want the count.
+	 *
+	 * This could be TAILQ_FOREACH but it is open-coded to match the original
+	 * code below.
+	 */
+	if (sfsp == NULL) {
+		mtx_lock(&mountlist_mtx);
+		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+			if (prison_canseemount(td->td_ucred, mp) != 0) {
+				nmp = TAILQ_NEXT(mp, mnt_list);
+				continue;
+			}
+#ifdef MAC
+			if (mac_mount_check_stat(td->td_ucred, mp) != 0) {
+				nmp = TAILQ_NEXT(mp, mnt_list);
+				continue;
+			}
+#endif
+			count++;
+			nmp = TAILQ_NEXT(mp, mnt_list);
+		}
+		mtx_unlock(&mountlist_mtx);
+		*countp = count;
+		return (0);
+	}
+
+	/*
+	 * They want the entire thing.
+	 *
+	 * Short-circuit the corner case of no room for anything, avoids
+	 * relocking below.
+	 */
+	if (maxcount < 1) {
+		goto out;
+	}
+
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (prison_canseemount(td->td_ucred, mp) != 0) {
@@ -473,53 +512,55 @@ restart:
 				continue;
 			}
 		}
-		if (sfsp != NULL && count < maxcount) {
-			sp = &mp->mnt_stat;
-			/*
-			 * If MNT_NOWAIT is specified, do not refresh
-			 * the fsstat cache.
-			 */
-			if (mode != MNT_NOWAIT) {
-				error = VFS_STATFS(mp, sp);
-				if (error != 0) {
-					mtx_lock(&mountlist_mtx);
-					nmp = TAILQ_NEXT(mp, mnt_list);
-					vfs_unbusy(mp);
-					continue;
-				}
+		sp = &mp->mnt_stat;
+		/*
+		 * If MNT_NOWAIT is specified, do not refresh
+		 * the fsstat cache.
+		 */
+		if (mode != MNT_NOWAIT) {
+			error = VFS_STATFS(mp, sp);
+			if (error != 0) {
+				mtx_lock(&mountlist_mtx);
+				nmp = TAILQ_NEXT(mp, mnt_list);
+				vfs_unbusy(mp);
+				continue;
 			}
-			if (priv_check_cred_vfs_generation(td->td_ucred)) {
-				sptmp = malloc(sizeof(struct statfs), M_STATFS,
-				    M_WAITOK);
-				*sptmp = *sp;
-				sptmp->f_fsid.val[0] = sptmp->f_fsid.val[1] = 0;
-				prison_enforce_statfs(td->td_ucred, mp, sptmp);
-				sp = sptmp;
-			} else
-				sptmp = NULL;
-			if (bufseg == UIO_SYSSPACE) {
-				bcopy(sp, sfsp, sizeof(*sp));
-				free(sptmp, M_STATFS);
-			} else /* if (bufseg == UIO_USERSPACE) */ {
-				error = copyout(sp, sfsp, sizeof(*sp));
-				free(sptmp, M_STATFS);
-				if (error != 0) {
-					vfs_unbusy(mp);
-					return (error);
-				}
-			}
-			sfsp++;
 		}
+		if (priv_check_cred_vfs_generation(td->td_ucred)) {
+			sptmp = malloc(sizeof(struct statfs), M_STATFS,
+			    M_WAITOK);
+			*sptmp = *sp;
+			sptmp->f_fsid.val[0] = sptmp->f_fsid.val[1] = 0;
+			prison_enforce_statfs(td->td_ucred, mp, sptmp);
+			sp = sptmp;
+		} else
+			sptmp = NULL;
+		if (bufseg == UIO_SYSSPACE) {
+			bcopy(sp, sfsp, sizeof(*sp));
+			free(sptmp, M_STATFS);
+		} else /* if (bufseg == UIO_USERSPACE) */ {
+			error = copyout(sp, sfsp, sizeof(*sp));
+			free(sptmp, M_STATFS);
+			if (error != 0) {
+				vfs_unbusy(mp);
+				return (error);
+			}
+		}
+		sfsp++;
 		count++;
+
+		if (count == maxcount) {
+			vfs_unbusy(mp);
+			break;
+		}
+
 		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
-	if (sfsp != NULL && count > maxcount)
-		*countp = maxcount;
-	else
-		*countp = count;
+out:
+	*countp = count;
 	return (0);
 }
 
