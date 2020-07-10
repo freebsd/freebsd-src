@@ -2173,7 +2173,8 @@ __vfs_statfs(struct mount *mp, struct statfs *sbp)
 	 * Filesystems only fill in part of the structure for updates, we
 	 * have to read the entirety first to get all content.
 	 */
-	memcpy(sbp, &mp->mnt_stat, sizeof(*sbp));
+	if (sbp != &mp->mnt_stat)
+		memcpy(sbp, &mp->mnt_stat, sizeof(*sbp));
 
 	/*
 	 * Set these in case the underlying filesystem fails to do so.
