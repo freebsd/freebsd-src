@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r363084:
+	nc(1) now implements SCTP mode, enabled by specifying the --sctp option.
+
 r362158, r362163:
 	struct export_args has changed so that the "user" specified for
 	the -maproot and -mapall exports(5) options may be in more than
