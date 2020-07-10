@@ -1350,9 +1350,9 @@ strip(const char *to_name, const char *from_name, char **dresp)
 		/* NOTREACHED */
 	}
 	if (status != 0) {
-		(void)unlink(to_name);
 		if (from_name != NULL)
 			return (0);
+		(void)unlink(to_name);
 		errx(EX_SOFTWARE, "strip command %s failed on %s",
 		    stripbin, to_name);
 	}
