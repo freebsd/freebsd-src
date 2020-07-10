@@ -88,17 +88,20 @@ bcm_fb_init(struct bcmsc_softc *sc, struct bcm2835_fb_config *fb)
 	if (bcm2835_mbox_fb_get_bpp(fb) != 0)
 		return (ENXIO);
 	if (fb->bpp < FB_DEPTH) {
-		device_printf(sc->dev, "changing fb bpp from %d to %d\n", fb->bpp, FB_DEPTH);
+		device_printf(sc->dev, "changing fb bpp from %d to %d\n",
+		    fb->bpp, FB_DEPTH);
 		fb->bpp = FB_DEPTH;
 	} else
-		device_printf(sc->dev, "keeping existing fb bpp of %d\n", fb->bpp);
+		device_printf(sc->dev, "keeping existing fb bpp of %d\n",
+		    fb->bpp);
 
 	fb->vxres = fb->xres;
 	fb->vyres = fb->yres;
 	fb->xoffset = fb->yoffset = 0;
 
 	if ((err = bcm2835_mbox_fb_init(fb)) != 0) {
-		device_printf(sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n", err);
+		device_printf(sc->dev, "bcm2835_mbox_fb_init failed, err=%d\n",
+		    err);
 		return (ENXIO);
 	}
 
