@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -38,18 +39,26 @@ __FBSDID("$FreeBSD$");
 ATF_TC_WITHOUT_HEAD(basic);
 ATF_TC_BODY(basic, tc)
 {
+	struct stat sb;
 	int fd;
 	char buf[8];
 
 	ATF_REQUIRE((fd = memfd_create("...", 0)) != -1);
 
-	/* File size should be initially 0 */
-	ATF_REQUIRE(write(fd, buf, sizeof(buf)) == 0);
+	/* write(2) should grow us out automatically. */
+	ATF_REQUIRE(write(fd, buf, sizeof(buf)) == sizeof(buf));
+	ATF_REQUIRE(fstat(fd, &sb) == 0);
+	ATF_REQUIRE(sb.st_size == sizeof(buf));
 
 	/* ftruncate(2) must succeed without seals */
-	ATF_REQUIRE(ftruncate(fd, sizeof(buf) - 1) == 0);
+	ATF_REQUIRE(ftruncate(fd, 2 * (sizeof(buf) - 1)) == 0);
 
-	ATF_REQUIRE(write(fd, buf, sizeof(buf)) == sizeof(buf) - 1);
+	/* write(2) again must not be limited by ftruncate(2) size. */
+	ATF_REQUIRE(write(fd, buf, sizeof(buf)) == sizeof(buf));
+
+	/* Sanity check. */
+	ATF_REQUIRE(fstat(fd, &sb) == 0);
+	ATF_REQUIRE(sb.st_size == 2 * sizeof(buf));
 
 	close(fd);
 }

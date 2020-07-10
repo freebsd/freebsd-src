@@ -1758,7 +1758,7 @@ linux_memfd_create(struct thread *td, struct linux_memfd_create_args *args)
 	if ((flags & MFD_HUGETLB) != 0)
 		return (ENOSYS);
 	oflags = O_RDWR;
-	shmflags = 0;
+	shmflags = SHM_GROW_ON_WRITE;
 	if ((flags & MFD_CLOEXEC) != 0)
 		oflags |= O_CLOEXEC;
 	if ((flags & MFD_ALLOW_SEALING) != 0)
