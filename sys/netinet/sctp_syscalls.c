@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktrace.h>
 #endif
 #ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_syscall.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #endif
 
@@ -78,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include <netinet/sctp.h>
+#include <netinet/sctp_os_bsd.h>
 #include <netinet/sctp_peeloff.h>
 
 static struct syscall_helper_data sctp_syscalls[] = {
@@ -88,28 +91,52 @@ static struct syscall_helper_data sctp_syscalls[] = {
 	SYSCALL_INIT_LAST
 };
 
-static void
-sctp_syscalls_init(void *unused __unused)
-{
-	int error __unused;
-
-	error = syscall_helper_register(sctp_syscalls, SY_THR_STATIC);
-	KASSERT((error == 0),
-	    ("%s: syscall_helper_register failed for sctp syscalls", __func__));
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(sctp_syscalls, SY_THR_STATIC);
-	KASSERT((error == 0),
-	    ("%s: syscall32_helper_register failed for sctp syscalls",
-	    __func__));
+static struct syscall_helper_data sctp32_syscalls[] = {
+	SYSCALL32_INIT_HELPER_COMPAT(sctp_peeloff),
+	SYSCALL32_INIT_HELPER_COMPAT(sctp_generic_sendmsg),
+	SYSCALL32_INIT_HELPER_COMPAT(sctp_generic_sendmsg_iov),
+	SYSCALL32_INIT_HELPER_COMPAT(sctp_generic_recvmsg),
+	SYSCALL_INIT_LAST
+};
 #endif
+
+int
+sctp_syscalls_init(void)
+{
+	int error;
+
+	error = syscall_helper_register(sctp_syscalls, SY_THR_STATIC_KLD);
+	if (error != 0)
+		return (error);
+#ifdef COMPAT_FREEBSD32
+	error = syscall32_helper_register(sctp32_syscalls, SY_THR_STATIC_KLD);
+	if (error != 0)
+		return (error);
+#endif
+	return (0);
 }
-SYSINIT(sctp_syscalls, SI_SUB_SYSCALLS, SI_ORDER_ANY, sctp_syscalls_init, NULL);
+
+int
+sctp_syscalls_uninit(void)
+{
+	int error;
+
+#ifdef COMPAT_FREEBSD32
+	error = syscall32_helper_unregister(sctp32_syscalls);
+	if (error != 0)
+		return (error);
+#endif
+	error = syscall_helper_unregister(sctp_syscalls);
+	if (error != 0)
+		return (error);
+	return (0);
+}
 
 /*
  * SCTP syscalls.
  * Functionality only compiled in if SCTP is defined in the kernel Makefile,
  * otherwise all return EOPNOTSUPP.
- * XXX: We should make this loadable one day.
  */
 int
 sys_sctp_peeloff(td, uap)
@@ -119,7 +146,7 @@ sys_sctp_peeloff(td, uap)
 		caddr_t	name;
 	} */ *uap;
 {
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
+#if defined(INET) || defined(INET6)
 	struct file *headfp, *nfp = NULL;
 	struct socket *head, *so;
 	cap_rights_t rights;
@@ -181,9 +208,7 @@ done:
 	fdrop(headfp, td);
 done2:
 	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
+#endif
 }
 
 int
@@ -199,7 +224,7 @@ sys_sctp_generic_sendmsg (td, uap)
 		int flags
 	} */ *uap;
 {
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
+#if defined(INET) || defined(INET6)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
@@ -294,9 +319,7 @@ sctp_bad:
 sctp_bad2:
 	free(to, M_SONAME);
 	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
+#endif
 }
 
 int
@@ -312,7 +335,7 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 		int flags
 	} */ *uap;
 {
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
+#if defined(INET) || defined(INET6)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
@@ -424,9 +447,7 @@ sctp_bad1:
 sctp_bad2:
 	free(to, M_SONAME);
 	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
+#endif
 }
 
 int
@@ -442,7 +463,7 @@ sys_sctp_generic_recvmsg(td, uap)
 		int *msg_flags
 	} */ *uap;
 {
-#if (defined(INET) || defined(INET6)) && defined(SCTP)
+#if defined(INET) || defined(INET6)
 	uint8_t sockbufstore[256];
 	struct uio auio;
 	struct iovec *iov, *tiov;
@@ -572,7 +593,5 @@ out1:
 		fdrop(fp, td);
 
 	return (error);
-#else  /* SCTP */
-	return (EOPNOTSUPP);
-#endif /* SCTP */
+#endif
 }
