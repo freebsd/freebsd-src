@@ -112,10 +112,10 @@
 
 #if BC_ENABLED
 
-#define BC_S (BC_ENABLED && (vm.flags & BC_FLAG_S))
-#define BC_W (BC_ENABLED && (vm.flags & BC_FLAG_W))
-#define BC_L (BC_ENABLED && (vm.flags & BC_FLAG_L))
-#define BC_G (BC_ENABLED && (vm.flags & BC_FLAG_G))
+#define BC_S (vm.flags & BC_FLAG_S)
+#define BC_W (vm.flags & BC_FLAG_W)
+#define BC_L (vm.flags & BC_FLAG_L)
+#define BC_G (vm.flags & BC_FLAG_G)
 
 #endif // BC_ENABLED
 

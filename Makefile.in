@@ -29,7 +29,7 @@
 #
 .POSIX:
 
-VERSION = 3.1.1
+VERSION = 3.1.3
 
 SRC = %%SRC%%
 OBJ = %%OBJ%%
@@ -335,7 +335,7 @@ clean_tests: clean clean_config clean_coverage
 	@$(RM) -f bc.old
 
 install_locales:
-	$(LOCALE_INSTALL) $(NLSPATH) $(MAIN_EXEC) $(DESTDIR)
+	%%INSTALL_LOCALES%%
 
 install_bc_manpage:
 	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(BC_MANPAGE) $(DESTDIR)$(MAN1DIR)/$(BC_MANPAGE_NAME)

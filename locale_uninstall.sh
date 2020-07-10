@@ -59,6 +59,7 @@ fi
 # This way, we can delete catalogs for locales that we had to install
 # because they are symlinks.
 locales=$(gen_nlspath "$destdir/$nlspath" "*" "$main_exec")
+locales=$(ls $locales 2> /dev/null)
 
 for l in $locales; do
 	rm -f "$l"

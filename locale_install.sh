@@ -28,6 +28,9 @@
 #
 
 usage() {
+	if [ $# -eq 1 ]; then
+		printf '%s\n' "$1"
+	fi
 	printf "usage: %s NLSPATH main_exec [DESTDIR]\n" "$0" 1>&2
 	exit 1
 }
@@ -150,6 +153,17 @@ scriptdir=$(dirname "$script")
 
 . "$scriptdir/functions.sh"
 
+all_locales=0
+
+while getopts "l" opt; do
+
+	case "$opt" in
+		l) all_locales=1 ; shift ;;
+		?) usage "Invalid option $opt" ;;
+	esac
+
+done
+
 test "$#" -ge 2 || usage
 
 nlspath="$1"
@@ -180,18 +194,22 @@ fi
 for file in $locales_dir/*.msg; do
 
 	locale=$(basename "$file" ".msg")
-	loc=$(gen_nlspath "$destdir/$nlspath" "$locale" "$main_exec")
 
-	localeexists "$locales" "$locale" "$destdir"
-	err="$?"
+	if [ "$all_locales" -eq 0 ]; then
 
-	if [ "$err" -eq 0 ]; then
-		continue
+		localeexists "$locales" "$locale" "$destdir"
+		err="$?"
+
+		if [ "$err" -eq 0 ]; then
+			continue
+		fi
 	fi
 
 	if [ -L "$file" ]; then
 		continue
 	fi
+
+	loc=$(gen_nlspath "$destdir/$nlspath" "$locale" "$main_exec")
 
 	gencatfile "$loc" "$file"
 
@@ -200,14 +218,18 @@ done
 for file in $locales_dir/*.msg; do
 
 	locale=$(basename "$file" ".msg")
-	loc=$(gen_nlspath "$destdir/$nlspath" "$locale" "$main_exec")
 
-	localeexists "$locales" "$locale" "$destdir"
-	err="$?"
+	if [ "$all_locales" -eq 0 ]; then
 
-	if [ "$err" -eq 0 ]; then
-		continue
+		localeexists "$locales" "$locale" "$destdir"
+		err="$?"
+
+		if [ "$err" -eq 0 ]; then
+			continue
+		fi
 	fi
+
+	loc=$(gen_nlspath "$destdir/$nlspath" "$locale" "$main_exec")
 
 	mkdir -p $(dirname "$loc")
 
