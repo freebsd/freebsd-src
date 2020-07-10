@@ -190,6 +190,7 @@
  * shmflags for shm_open2()
  */
 #define	SHM_ALLOW_SEALING		0x00000001
+#define	SHM_GROW_ON_WRITE		0x00000002
 
 /*
  * Flags for memfd_create().
@@ -278,6 +279,7 @@ struct shmfd {
 	struct rangelock shm_rl;
 	struct mtx	shm_mtx;
 
+	int		shm_flags;
 	int		shm_seals;
 };
 #endif
