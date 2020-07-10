@@ -371,7 +371,13 @@ linux_madvise_common(struct thread *td, uintptr_t addr, size_t len, int behav)
 		/* Ignored; on FreeBSD huge pages are always on. */
 		return (0);
 	case LINUX_MADV_NOHUGEPAGE:
+#if 0
+		/*
+		 * Don't warn - Firefox uses it a lot, and in real Linux it's
+		 * an optional feature.
+		 */
 		linux_msg(curthread, "unsupported madvise MADV_NOHUGEPAGE");
+#endif
 		return (EINVAL);
 	case LINUX_MADV_DONTDUMP:
 		return (kern_madvise(td, addr, len, MADV_NOCORE));
