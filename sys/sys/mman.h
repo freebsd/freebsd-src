@@ -254,7 +254,7 @@ typedef	__size_t	size_t;
 struct file;
 
 struct shmfd {
-	size_t		shm_size;
+	vm_ooffset_t	shm_size;
 	vm_object_t	shm_object;
 	int		shm_refs;
 	uid_t		shm_uid;
