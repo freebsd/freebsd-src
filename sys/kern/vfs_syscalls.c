@@ -551,7 +551,7 @@ restart:
 
 		if (count == maxcount) {
 			vfs_unbusy(mp);
-			break;
+			goto out;
 		}
 
 		mtx_lock(&mountlist_mtx);
