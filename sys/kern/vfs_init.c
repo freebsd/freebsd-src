@@ -385,7 +385,7 @@ vfs_register(struct vfsconf *vfc)
 		vattr_null(&va_null);
 		once = 1;
 	}
-	
+
 	if (vfc->vfc_version != VFS_VERSION) {
 		printf("ERROR: filesystem %s, unsupported ABI version %x\n",
 		    vfc->vfc_name, vfc->vfc_version);

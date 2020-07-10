@@ -1482,7 +1482,7 @@ static struct kproc_desc vnlru_kp = {
 };
 SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start,
     &vnlru_kp);
- 
+
 /*
  * Routines having to do with the management of the vnode table.
  */

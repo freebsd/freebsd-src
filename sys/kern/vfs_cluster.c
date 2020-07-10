@@ -173,7 +173,7 @@ cluster_read(struct vnode *vp, u_quad_t filesize, daddr_t lblkno, long size,
 					LK_EXCLUSIVE | LK_NOWAIT, NULL))) {
 					rbp->b_flags |= B_RAM;
 					BUF_UNLOCK(rbp);
-				}			
+				}
 			}
 			BO_RUNLOCK(bo);
 			if (i >= maxra) {
