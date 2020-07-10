@@ -192,7 +192,7 @@ vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp)
  * Common code for vnode open operations via a name lookup.
  * Lookup the vnode and invoke VOP_CREATE if needed.
  * Check permissions, and call the VOP_OPEN or VOP_CREATE routine.
- * 
+ *
  * Note that this does NOT free nameidata for the successful case,
  * due to the NDINIT being done elsewhere.
  */
@@ -1552,7 +1552,7 @@ vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	sb->st_birthtim.tv_sec = vap->va_birthtime.tv_sec;
 	sb->st_birthtim.tv_nsec = vap->va_birthtime.tv_nsec;
 
-        /*
+	/*
 	 * According to www.opengroup.org, the meaning of st_blksize is 
 	 *   "a filesystem-specific preferred I/O block size for this 
 	 *    object.  In some filesystem types, this may vary from file
@@ -1561,7 +1561,7 @@ vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
 	 */
 
 	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
-	
+
 	sb->st_flags = vap->va_flags;
 	if (priv_check_cred_vfs_generation(td->td_ucred))
 		sb->st_gen = 0;

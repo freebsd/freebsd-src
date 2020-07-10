@@ -709,7 +709,7 @@ lookup(struct nameidata *ndp)
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lkflags_save;
 	int ni_dvp_unlocked;
-	
+
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
@@ -1302,7 +1302,7 @@ relookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	/* ASSERT(dvp == ndp->ni_startdir) */
 	if (cnp->cn_flags & SAVESTART)
 		VREF(dvp);
-	
+
 	if ((cnp->cn_flags & LOCKLEAF) == 0)
 		VOP_UNLOCK(dp);
 	return (0);

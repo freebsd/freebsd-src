@@ -512,7 +512,7 @@ vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
  * Verify that a host should have access to a filesystem.
  */
 
-int 
+int
 vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, uint64_t *extflagsp,
     struct ucred **credanonp, int *numsecflavors, int *secflavors)
 {
