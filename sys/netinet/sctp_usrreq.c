@@ -100,6 +100,7 @@ sctp_finish(void *unused __unused)
 	EVENTHANDLER_DEREGISTER(rt_addrmsg, SCTP_BASE_VAR(eh_tag));
 	sctp_pcb_finish();
 }
+
 VNET_SYSUNINIT(sctp, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH, sctp_finish, NULL);
 #endif
 
