@@ -84,7 +84,7 @@ memfd_create(const char *name, unsigned int flags)
 	/* We've already validated that we're sufficiently sized. */
 	snprintf(memfd_name, NAME_MAX + 1, "%s%s", MEMFD_NAME_PREFIX, name);
 	oflags = O_RDWR;
-	shmflags = 0;
+	shmflags = SHM_GROW_ON_WRITE;
 	if ((flags & MFD_CLOEXEC) != 0)
 		oflags |= O_CLOEXEC;
 	if ((flags & MFD_ALLOW_SEALING) != 0)
