@@ -39,6 +39,7 @@ local env_changed = {}
 -- Values to restore env to (nil to unset)
 local env_restore = {}
 
+local MSG_FAILDIR = "Failed to load conf dir '%s': not a directory"
 local MSG_FAILEXEC = "Failed to exec '%s'"
 local MSG_FAILSETENV = "Failed to '%s' with value: %s"
 local MSG_FAILOPENCFG = "Failed to open config: '%s'"
@@ -506,6 +507,8 @@ function config.readConf(file, loaded_files)
 		return
 	end
 
+	-- We'll process loader_conf_dirs at the top-level readConf
+	local load_conf_dirs = next(loaded_files) == nil
 	print("Loading " .. file)
 
 	-- The final value of loader_conf_files is not important, so just
@@ -527,6 +530,27 @@ function config.readConf(file, loaded_files)
 	if loader_conf_files ~= nil then
 		for name in loader_conf_files:gmatch("[%w%p]+") do
 			config.readConf(name, loaded_files)
+		end
+	end
+
+	if load_conf_dirs then
+		local loader_conf_dirs = getEnv("loader_conf_dirs")
+		if loader_conf_dirs ~= nil then
+			for name in loader_conf_dirs:gmatch("[%w%p]+") do
+				if lfs.attributes(name, "mode") ~= "directory" then
+					print(MSG_FAILDIR:format(name))
+					goto nextdir
+				end
+				for cfile in lfs.dir(name) do
+					if cfile:match(".conf$") then
+						local fpath = name .. "/" .. cfile
+						if lfs.attributes(fpath, "mode") == "file" then
+							config.readConf(fpath, loaded_files)
+						end
+					end
+				end
+				::nextdir::
+			end
 		end
 	end
 end
