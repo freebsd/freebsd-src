@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd April 29, 2020
+.Dd December 31, 2020
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -88,6 +88,11 @@ than
 so its use should be avoided.
 Multiple instances of it will be processed
 independently.
+.It Ar loader_conf_dirs
+Space separated list of directories to process for configuration files.
+The lua-based loader will process files with a
+.Dq .conf
+suffix that are placed in these directories.
 .It Ar loader_conf_files
 Defines additional configuration files to be processed right after the
 present file.
@@ -253,6 +258,8 @@ The following values are accepted:
 Space or comma separated list of kernels to present in the boot menu.
 .It Va loader_conf_files
 .Pq Dq Pa /boot/loader.conf /boot/loader.conf.local
+.It Va loader_conf_dirs
+.Pq Dq Pa /boot/loader.conf.d
 .It Va splash_bmp_load
 .Pq Dq NO
 If set to

@@ -20,6 +20,8 @@
         ..
         firmware
         ..
+        loader.conf.d             tags=package=bootloader
+        ..
         lua
         ..
         kernel
