@@ -62,6 +62,7 @@ struct ebpf_probe
 	CK_SLIST_ENTRY(ebpf_probe) hash_link;
 	LIST_ENTRY(ebpf_probe) id_link;
 	TAILQ_ENTRY(ebpf_probe) list_link;
+	void *ebpf_head;
 };
 
 typedef int ebpf_fire_t(struct ebpf_probe *, void *, uintptr_t , uintptr_t,

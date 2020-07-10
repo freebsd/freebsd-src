@@ -53,6 +53,8 @@
 #include <net/if_var.h>
 #include <net/pfil.h>
 
+#include <sys/ebpf_probe.h>
+
 static MALLOC_DEFINE(M_PFIL, "pfil", "pfil(9) packet filter hooks");
 
 static int pfil_ioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
@@ -99,6 +101,7 @@ struct pfil_head {
 	enum pfil_types head_type;
 	LIST_ENTRY(pfil_head) head_list;
 	const char *head_name;
+	struct ebpf_probe pfil_probe;
 };
 
 LIST_HEAD(pfilheadhead, pfil_head);
@@ -114,6 +117,7 @@ VNET_DEFINE_STATIC(struct pfilhookhead, pfil_hook_list) = LIST_HEAD_INITIALIZER(
 static struct pfil_link *pfil_link_remove(pfil_chain_t *, pfil_hook_t);
 static void pfil_link_free(epoch_context_t);
 
+static void xdp_activate(struct ebpf_probe *probe, void *state);
 int
 pfil_realloc(pfil_packet_t *p, int flags, struct ifnet *ifp)
 {
@@ -207,7 +211,7 @@ pfil_head_t
 pfil_head_register(struct pfil_head_args *pa)
 {
 	struct pfil_head *head, *list;
-
+	
 	MPASS(pa->pa_version == PFIL_VERSION);
 
 	head = malloc(sizeof(struct pfil_head), M_PFIL, M_WAITOK);
@@ -227,6 +231,14 @@ pfil_head_register(struct pfil_head_args *pa)
 		}
 	LIST_INSERT_HEAD(&V_pfil_head_list, head, head_list);
 	PFIL_UNLOCK();
+
+	strlcpy(head->pfil_probe.name.tracer,"ebpf",sizeof(head->pfil_probe.name	.tracer));		
+	strlcpy(head->pfil_probe.name.provider,"xdp",sizeof(head->pfil_probe.name.provider));
+	strlcpy(head->pfil_probe.name.function,"$head_name",sizeof(head->pfil_probe.name.function));
+	strlcpy(head->pfil_probe.name.name,"rx",sizeof(head->pfil_probe.name.name));
+	strlcpy(head->pfil_probe.name.module,"",sizeof(head->pfil_probe.name.module));
+	head->pfil_probe.activate = xdp_activate;
+	ebpf_probe_register(&xdp_activate);
 
 	return (head);
 }
@@ -677,4 +689,19 @@ pfilioc_link(struct pfilioc_link *req)
 	args.pa_rulname = req->pio_ruleset;
 
 	return (pfil_link(&args));
+}
+
+static void
+xdp_activate(struct ebpf_probe *probe, void *state)
+{
+	struct ebpf_hook_state 
+	{
+		pfil_hook_t hook;
+		//probe = probe;
+		//module_state = state;
+	};
+	pfil_hook_t pfil_add_hook(struct pfil_hook_args *xdp_rx);
+	
+	int pfil_link(struct pfil_link_args *);
+
 }
