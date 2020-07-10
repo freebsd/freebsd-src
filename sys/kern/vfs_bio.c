@@ -1336,7 +1336,7 @@ bufshutdown(int show_busybufs)
 	int subiter;
 #endif
 
-	/* 
+	/*
 	 * Sync filesystems for shutdown
 	 */
 	wdog_kern_pat(WD_LASTVAL);
@@ -1662,7 +1662,7 @@ buf_alloc(struct bufdomain *bd)
 
 	if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
 		panic("getnewbuf_empty: Locked buf %p on free queue.", bp);
-	
+
 	KASSERT(bp->b_vp == NULL,
 	    ("bp: %p still has vnode %p.", bp, bp->b_vp));
 	KASSERT((bp->b_flags & (B_DELWRI | B_NOREUSE)) == 0,
@@ -1798,7 +1798,7 @@ buf_recycle(struct bufdomain *bd, bool kva)
  *	bremfree:
  *
  *	Mark the buffer for removal from the appropriate free list.
- *	
+ *
  */
 void
 bremfree(struct buf *bp)
@@ -2473,7 +2473,7 @@ bdirty(struct buf *bp)
  *
  *	Since the buffer is not on a queue, we do not update the numfreebuffers
  *	count.
- *	
+ *
  *	The buffer must be on QUEUE_NONE.
  */
 
@@ -2734,7 +2734,7 @@ brelse(struct buf *bp)
 		if (bp->b_vp != NULL)
 			brelvp(bp);
 	}
-			
+
 	/*
 	 * If the buffer has junk contents signal it and eventually
 	 * clean up B_DELWRI and diassociate the vnode so that gbincore()
@@ -3823,7 +3823,7 @@ getblk(struct vnode *vp, daddr_t blkno, int size, int slpflag, int slptimeo,
  *
  *	getblk() also forces a bwrite() for any B_DELWRI buffer whose
  *	B_CACHE bit is clear.
- *	
+ *
  *	What this means, basically, is that the caller should use B_CACHE to
  *	determine whether the buffer is fully valid or not and should clear
  *	B_INVAL prior to issuing a read.  If the caller intends to validate
@@ -4334,7 +4334,7 @@ biowait(struct bio *bp, const char *wchan)
 void
 biofinish(struct bio *bp, struct devstat *stat, int error)
 {
-	
+
 	if (error) {
 		bp->bio_error = error;
 		bp->bio_flags |= BIO_ERROR;
@@ -4660,7 +4660,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
  *	b_offset itself may be offset from the beginning of the first
  *	page.
  */
-void   
+void
 vfs_bio_set_valid(struct buf *bp, int base, int size)
 {
 	int i, n;

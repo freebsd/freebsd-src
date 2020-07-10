@@ -89,7 +89,7 @@ acl_copy_oldacl_into_acl(const struct oldacl *source, struct acl *dest)
 
 	if (source->acl_cnt < 0 || source->acl_cnt > OLDACL_MAX_ENTRIES)
 		return (EINVAL);
-	
+
 	bzero(dest, sizeof(*dest));
 
 	dest->acl_cnt = source->acl_cnt;

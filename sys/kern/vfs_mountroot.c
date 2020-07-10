@@ -1049,7 +1049,7 @@ vfs_mountroot(void)
 	struct thread *td;
 	time_t timebase;
 	int error;
-	
+
 	mtx_assert(&Giant, MA_NOTOWNED);
 
 	TSENTER();
