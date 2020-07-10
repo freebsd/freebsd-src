@@ -2805,7 +2805,8 @@ pci_xhci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->hcsparams2 = XHCI_SET_HCSP2_ERSTMAX(XHCI_ERST_MAX) |
 	                 XHCI_SET_HCSP2_IST(0x04);
 	sc->hcsparams3 = 0;				/* no latency */
-	sc->hccparams1 = XHCI_SET_HCCP1_NSS(1) |	/* no 2nd-streams */
+	sc->hccparams1 = XHCI_SET_HCCP1_AC64(1) |	/* 64-bit addrs */
+	                 XHCI_SET_HCCP1_NSS(1) |	/* no 2nd-streams */
 	                 XHCI_SET_HCCP1_SPC(1) |	/* short packet */
 	                 XHCI_SET_HCCP1_MAXPSA(XHCI_STREAMS_MAX);
 	sc->hccparams2 = XHCI_SET_HCCP2_LEC(1) |
