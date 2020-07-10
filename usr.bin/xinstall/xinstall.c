@@ -863,7 +863,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			if (dostrip)
 			    stripped = strip(tempcopy ? tempfile : to_name,
 					     from_name, &digestresult);
-			else
+			if (!stripped)
 			    digestresult = copy(from_fd, from_name, to_fd,
 				tempcopy ? tempfile : to_name, from_sb.st_size);
 		}
