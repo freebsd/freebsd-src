@@ -319,6 +319,7 @@ SUBDIR=	\
 	${_safe} \
 	${_sbni} \
 	scc \
+	${_sctp} \
 	sdhci \
 	${_sdhci_acpi} \
 	sdhci_pci \
@@ -429,6 +430,9 @@ _if_gre=	if_gre
 _ipfw_pmod=	ipfw_pmod
 .if ${KERN_OPTS:MIPSEC_SUPPORT} && !${KERN_OPTS:MIPSEC}
 _ipsec=		ipsec
+.endif
+.if ${KERN_OPTS:MSCTP_SUPPORT} || ${KERN_OPTS:MSCTP}
+_sctp=		sctp
 .endif
 .endif
 
