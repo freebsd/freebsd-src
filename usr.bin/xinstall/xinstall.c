@@ -147,7 +147,7 @@ static void	install_dir(char *);
 static void	metadata_log(const char *, const char *, struct timespec *,
 		    const char *, const char *, off_t);
 static int	parseid(const char *, id_t *);
-static void	strip(const char *);
+static int	strip(const char *, const char *, char **);
 static int	trymmap(int);
 static void	usage(void);
 
@@ -767,12 +767,13 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
 	struct stat from_sb, temp_sb, to_sb;
 	struct timespec tsb[2];
-	int devnull, files_match, from_fd, serrno, target;
+	int devnull, files_match, from_fd, serrno, stripped, target;
 	int tempcopy, temp_fd, to_fd;
 	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 	char *digestresult;
 
-	files_match = 0;
+	digestresult = NULL;
+	files_match = stripped = 0;
 	from_fd = -1;
 	to_fd = -1;
 
@@ -858,19 +859,24 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				(void)printf("install: %s -> %s\n",
 				    from_name, to_name);
 		}
-		if (!devnull)
-			digestresult = copy(from_fd, from_name, to_fd,
-			     tempcopy ? tempfile : to_name, from_sb.st_size);
-		else
-			digestresult = NULL;
+		if (!devnull) {
+			if (dostrip)
+			    stripped = strip(tempcopy ? tempfile : to_name,
+					     from_name, &digestresult);
+			else
+			    digestresult = copy(from_fd, from_name, to_fd,
+				tempcopy ? tempfile : to_name, from_sb.st_size);
+		}
 	}
 
 	if (dostrip) {
-		strip(tempcopy ? tempfile : to_name);
+		if (!stripped)
+			(void)strip(tempcopy ? tempfile : to_name, NULL,
+			    &digestresult);
 
 		/*
-		 * Re-open our fd on the target, in case we used a strip
-		 * that does not work in-place -- like GNU binutils strip.
+		 * Re-open our fd on the target, in case
+		 * we did not strip in-place.
 		 */
 		close(to_fd);
 		to_fd = open(tempcopy ? tempfile : to_name, O_RDONLY, 0);
@@ -1057,7 +1063,9 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 
 /*
  * compare --
- *	compare two files; non-zero means files differ
+ *	Compare two files; non-zero means files differ.
+ *	Compute digest and return its address in *dresp
+ *	unless it points to pre-computed digest.
  */
 static int
 compare(int from_fd, const char *from_name __unused, size_t from_len,
@@ -1066,15 +1074,17 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 {
 	char *p, *q;
 	int rv;
-	int done_compare;
+	int do_digest, done_compare;
 	DIGEST_CTX ctx;
 
 	rv = 0;
 	if (from_len != to_len)
 		return 1;
 
+	do_digest = (digesttype != DIGEST_NONE && dresp != NULL &&
+			*dresp == NULL);
 	if (from_len <= MAX_CMP_SIZE) {
-		if (dresp != NULL)
+		if (do_digest)
 			digest_init(&ctx);
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
@@ -1090,7 +1100,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 			}
 
 			rv = memcmp(p, q, from_len);
-			if (dresp != NULL)
+			if (do_digest)
 				digest_update(&ctx, p, from_len);
 			munmap(p, from_len);
 			munmap(q, from_len);
@@ -1117,7 +1127,8 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 						rv = 1;	/* out of sync */
 				} else
 					rv = 1;		/* read failure */
-				digest_update(&ctx, buf1, n1);
+				if (do_digest)
+					digest_update(&ctx, buf1, n1);
 			}
 			lseek(from_fd, 0, SEEK_SET);
 			lseek(to_fd, 0, SEEK_SET);
@@ -1125,7 +1136,7 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 	} else
 		rv = 1;	/* don't bother in this case */
 
-	if (dresp != NULL) {
+	if (do_digest) {
 		if (rv == 0)
 			*dresp = digest_end(&ctx, NULL);
 		else
@@ -1298,13 +1309,16 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 
 /*
  * strip --
- *	use strip(1) to strip the target file
+ *	Use strip(1) to strip the target file.
+ *	Just invoke strip(1) on to_name if from_name is NULL,
+ *	else try to run "strip -o to_name -- from_name" and return 0 on failure.
+ *	Return 1 on success and assign result of digest_file(to_name) to *dresp.
  */
-static void
-strip(const char *to_name)
+static int
+strip(const char *to_name, const char *from_name, char **dresp)
 {
 	const char *stripbin;
-	const char *args[3];
+	const char *args[6];
 	pid_t pid;
 	int error, status;
 
@@ -1312,8 +1326,16 @@ strip(const char *to_name)
 	if (stripbin == NULL)
 		stripbin = "strip";
 	args[0] = stripbin;
-	args[1] = to_name;
-	args[2] = NULL;
+	if (from_name == NULL) {
+		args[1] = to_name;
+		args[2] = NULL;
+	} else {
+		args[1] = "-o";
+		args[2] = to_name;
+		args[3] = "--";
+		args[4] = from_name;
+		args[5] = NULL;
+	}
 	error = posix_spawnp(&pid, stripbin, NULL, NULL,
 	    __DECONST(char **, args), environ);
 	if (error != 0) {
@@ -1329,9 +1351,14 @@ strip(const char *to_name)
 	}
 	if (status != 0) {
 		(void)unlink(to_name);
+		if (from_name != NULL)
+			return (0);
 		errx(EX_SOFTWARE, "strip command %s failed on %s",
 		    stripbin, to_name);
 	}
+	if (dresp != NULL)
+		*dresp = digest_file(to_name);
+	return (1);
 }
 
 /*
