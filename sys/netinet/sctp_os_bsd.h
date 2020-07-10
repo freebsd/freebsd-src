@@ -479,7 +479,7 @@ sctp_get_mbuf_for_msg(unsigned int space_needed,
 
 #define SCTP_IS_LISTENING(inp) ((inp->sctp_flags & SCTP_PCB_FLAGS_ACCEPTING) != 0)
 
-int	sctp_syscalls_init(void);
-int	sctp_syscalls_uninit(void);
+int sctp_syscalls_init(void);
+int sctp_syscalls_uninit(void);
 
 #endif
