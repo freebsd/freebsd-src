@@ -3347,13 +3347,17 @@ pwd_hold(struct thread *td)
 	fdp = td->td_proc->p_fd;
 
 	smr_enter(pwd_smr);
-	for (;;) {
-		pwd = smr_entered_load(&fdp->fd_pwd, pwd_smr);
-		MPASS(pwd != NULL);
-		if (refcount_acquire_if_not_zero(&pwd->pwd_refcount))
-			break;
+	pwd = smr_entered_load(&fdp->fd_pwd, pwd_smr);
+	MPASS(pwd != NULL);
+	if (__predict_true(refcount_acquire_if_not_zero(&pwd->pwd_refcount))) {
+		smr_exit(pwd_smr);
+		return (pwd);
 	}
 	smr_exit(pwd_smr);
+	FILEDESC_SLOCK(fdp);
+	pwd = pwd_hold_filedesc(fdp);
+	MPASS(pwd != NULL);
+	FILEDESC_SUNLOCK(fdp);
 	return (pwd);
 }
 
