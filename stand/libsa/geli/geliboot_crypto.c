@@ -35,7 +35,7 @@
 #include "geliboot.h"
 
 int
-geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
+geliboot_crypt(u_int algo, geli_op_t enc, u_char *data, size_t datasize,
     const u_char *key, size_t keysize, u_char *iv)
 {
 	keyInstance aeskey;
@@ -49,7 +49,7 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 		err = rijndael_makeKey(&aeskey, !enc, keysize, 
 		    (const char *)key);
 		if (err < 0) {
-			printf("Failed to setup decryption keys: %d\n", err);
+			printf("Failed to setup crypo keys: %d\n", err);
 			return (err);
 		}
 
@@ -59,18 +59,20 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 			return (err);
 		}
 
-		if (enc == 0) {
-			/* decrypt */
+		switch (enc) {
+		case GELI_DECRYPT:
 			blks = rijndael_blockDecrypt(&cipher, &aeskey, data, 
 			    datasize * 8, data);
-		} else {
-			/* encrypt */
+			break;
+		case GELI_ENCRYPT:
 			blks = rijndael_blockEncrypt(&cipher, &aeskey, data, 
 			    datasize * 8, data);
+			break;
 		}
 		if (datasize != (blks / 8)) {
-			printf("Failed to decrypt the entire input: "
-			    "%u != %zu\n", blks, datasize);
+			printf("Failed to %s the entire input: %u != %zu\n",
+			    enc ? "decrypt" : "encrypt",
+			    blks, datasize);
 			return (1);
 		}
 		break;
@@ -82,16 +84,16 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 		enc_xform_aes_xts.reinit(ctxp, iv);
 
 		switch (enc) {
-		case 0: /* decrypt */
+		case GELI_DECRYPT:
 			for (i = 0; i < datasize; i += AES_XTS_BLOCKSIZE) {
 				enc_xform_aes_xts.decrypt(ctxp, data + i,
 				    data + i);
 			}
 			break;
-		case 1: /* encrypt */
+		case GELI_ENCRYPT:
 			for (i = 0; i < datasize; i += AES_XTS_BLOCKSIZE) {
 				enc_xform_aes_xts.encrypt(ctxp, data + i,
-				    data + 1);
+				    data + i);
 			}
 			break;
 		}
@@ -105,7 +107,7 @@ geliboot_crypt(u_int algo, int enc, u_char *data, size_t datasize,
 }
 
 static int
-g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
+g_eli_crypto_cipher(u_int algo, geli_op_t enc, u_char *data, size_t datasize,
     const u_char *key, size_t keysize)
 {
 	u_char iv[keysize];
@@ -123,7 +125,8 @@ g_eli_crypto_encrypt(u_int algo, u_char *data, size_t datasize,
 	if (algo == CRYPTO_AES_XTS)
 		algo = CRYPTO_AES_CBC;
 
-	return (g_eli_crypto_cipher(algo, 1, data, datasize, key, keysize));
+	return (g_eli_crypto_cipher(algo, GELI_ENCRYPT, data, datasize, key,
+	    keysize));
 }
 
 int
@@ -135,5 +138,6 @@ g_eli_crypto_decrypt(u_int algo, u_char *data, size_t datasize,
 	if (algo == CRYPTO_AES_XTS)
 		algo = CRYPTO_AES_CBC;
 
-	return (g_eli_crypto_cipher(algo, 0, data, datasize, key, keysize));
+	return (g_eli_crypto_cipher(algo, GELI_DECRYPT, data, datasize, key,
+	    keysize));
 }

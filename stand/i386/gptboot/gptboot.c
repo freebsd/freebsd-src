@@ -610,7 +610,7 @@ dskread(void *buf, daddr_t lba, unsigned nblk)
 #ifdef LOADER_GELI_SUPPORT
 	if (err == 0 && gdsk.gdev != NULL) {
 		/* Decrypt */
-		if (geli_read(gdsk.gdev, lba * DEV_BSIZE, buf,
+		if (geli_io(gdsk.gdev, GELI_DECRYPT, lba * DEV_BSIZE, buf,
 		    nblk * DEV_BSIZE))
 			return (err);
 	}
