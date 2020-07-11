@@ -21,6 +21,7 @@ MAN=	arch.7 \
 	intro.7 \
 	maclabel.7 \
 	operator.7 \
+	orders.7 \
 	ports.7 \
 	release.7 \
 	sdoc.7 \
