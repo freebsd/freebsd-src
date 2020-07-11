@@ -478,7 +478,7 @@ main(int argc, char *const *argv)
 			break;
 		case 's':		/* size of packet to send */
 			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp < 0)
+			if (*ep || ep == optarg || ltmp > INT_MAX || ltmp < 0)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
 			if (uid != 0 && ltmp > DEFDATALEN) {
