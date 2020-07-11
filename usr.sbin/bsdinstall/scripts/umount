@@ -39,4 +39,6 @@ cat $PATH_FSTAB | awk -v BSDINSTALL_CHROOT=$BSDINSTALL_CHROOT '{
 }' > $TMP_FSTAB
 
 umount $BSDINSTALL_CHROOT/dev 2>/dev/null
-umount -F $TMP_FSTAB -a 2>/dev/null
+if [ -n "$TMP_FSTAB" ]; then
+	umount -F $TMP_FSTAB -a 2>/dev/null
+fi
