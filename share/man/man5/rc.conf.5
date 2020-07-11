@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2020
+.Dd July 11, 2020
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1955,6 +1955,8 @@ Used in conjunction with
 .Va gateway_enable
 allows hosts on private network addresses access to the Internet using
 this host as a network address translating router.
+Default is
+.Dq Li YES .
 .It Va ppp_ Ns Ao Ar profile Ac Ns _nat
 .Pq Vt str
 Overrides the global
