@@ -115,10 +115,6 @@ geli_dev_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
 	char *iobuf;
 	int rc;
 
-	/* We only handle reading; no write support. */
-	if ((rw & F_MASK) != F_READ)
-		return (EOPNOTSUPP);
-
 	gdesc = (struct geli_devdesc *)devdata;
 
 	/*
@@ -139,34 +135,63 @@ geli_dev_strategy(void *devdata, int rw, daddr_t blk, size_t size, char *buf,
 	alnsize  = alnend - alnstart;
 
 	/*
-	 * If alignment requires us to read more than the size of the provided
-	 * buffer, allocate a temporary buffer.
+	 * If alignment requires us to read/write more than the size of the
+	 * provided buffer, allocate a temporary buffer.
+	 * The writes will always get temporary buffer because of encryption.
 	 */
-	if (alnsize <= size)
+	if (alnsize <= size && (rw & F_MASK) == F_READ)
 		iobuf = buf;
 	else if ((iobuf = malloc(alnsize)) == NULL)
 		return (ENOMEM);
 
-	/*
-	 * Read the encrypted data using the host provider, then decrypt it.
-	 */
-	rc = gdesc->hdesc->dd.d_dev->dv_strategy(gdesc->hdesc, rw,
-	    alnstart / DEV_BSIZE, alnsize, iobuf, NULL);
-	if (rc != 0)
-		goto out;
-	rc = geli_read(gdesc->gdev, alnstart, iobuf, alnsize);
-	if (rc != 0)
-		goto out;
+	switch (rw & F_MASK) {
+	case F_READ:
+		/*
+		 * Read the encrypted data using the host provider,
+		 * then decrypt it.
+		 */
+		rc = gdesc->hdesc->dd.d_dev->dv_strategy(gdesc->hdesc, rw,
+		    alnstart / DEV_BSIZE, alnsize, iobuf, NULL);
+		if (rc != 0)
+			goto out;
+		rc = geli_io(gdesc->gdev, GELI_DECRYPT, alnstart, iobuf,
+		    alnsize);
+		if (rc != 0)
+			goto out;
 
-	/*
-	 * If we had to use a temporary buffer, copy the requested part of the
-	 * data to the caller's buffer.
-	 */
-	if (iobuf != buf)
-		memcpy(buf, iobuf + (reqstart - alnstart), size);
+		/*
+		 * If we had to use a temporary buffer, copy the requested
+		 * part of the data to the caller's buffer.
+		 */
+		if (iobuf != buf)
+			memcpy(buf, iobuf + (reqstart - alnstart), size);
 
-	if (rsize != NULL)
-		*rsize = size;
+		if (rsize != NULL)
+			*rsize = size;
+		break;
+	case F_WRITE:
+		if (iobuf != buf) {
+			/* Read, decrypt, then modify.  */
+			rc = gdesc->hdesc->dd.d_dev->dv_strategy(gdesc->hdesc,
+			    F_READ, alnstart / DEV_BSIZE, alnsize, iobuf, NULL);
+			if (rc != 0)
+				goto out;
+			rc = geli_io(gdesc->gdev, GELI_DECRYPT, alnstart, iobuf,
+			    alnsize);
+			if (rc != 0)
+				goto out;
+			/* Copy data to iobuf */
+			memcpy(iobuf + (reqstart - alnstart), buf, size);
+		}
+
+		/* Encrypt and write it. */
+		rc = geli_io(gdesc->gdev, GELI_ENCRYPT, alnstart, iobuf,
+		    alnsize);
+		if (rc != 0)
+			goto out;
+		rc = gdesc->hdesc->dd.d_dev->dv_strategy(gdesc->hdesc,
+		    rw, alnstart / DEV_BSIZE, alnsize, iobuf, NULL);
+	}
 out:
 	if (iobuf != buf)
 		free(iobuf);
