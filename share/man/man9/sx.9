@@ -124,12 +124,6 @@ argument to
 specifies a set of optional flags to alter the behavior of
 .Fa sx .
 It contains one or more of the following flags:
-.Bl -tag -width SX_NOADAPTIVE
-.It Dv SX_NOADAPTIVE
-Disable adaptive spinning, rather than sleeping, for lock operations
-while an exclusive lock holder is executing on another CPU.
-Adaptive spinning is the default unless the kernel is compiled with
-.Cd "options NO_ADAPTIVE_SX" .
 .It Dv SX_DUPOK
 Witness should not log messages about duplicate locks being acquired.
 .It Dv SX_NOWITNESS
