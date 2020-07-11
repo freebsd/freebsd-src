@@ -310,7 +310,8 @@ found_key:
 }
 
 int
-geli_read(struct geli_dev *gdev, off_t offset, u_char *buf, size_t bytes)
+geli_io(struct geli_dev *gdev, geli_op_t enc, off_t offset, u_char *buf,
+    size_t bytes)
 {
 	u_char iv[G_ELI_IVKEYLEN];
 	u_char *pbuf;
@@ -343,12 +344,13 @@ geli_read(struct geli_dev *gdev, off_t offset, u_char *buf, size_t bytes)
 		keyno = (dstoff >> G_ELI_KEY_SHIFT) / secsize;
 		g_eli_key_fill(&gdev->sc, &gkey, keyno);
 
-		error = geliboot_crypt(gdev->sc.sc_ealgo, 0, pbuf, secsize,
+		error = geliboot_crypt(gdev->sc.sc_ealgo, enc, pbuf, secsize,
 		    gkey.gek_key, gdev->sc.sc_ekeylen, iv);
 
 		if (error != 0) {
 			explicit_bzero(&gkey, sizeof(gkey));
-			printf("Failed to decrypt in geli_read()!");
+			printf("%s: Failed to %s!", __func__,
+			    enc ? "encrypt" : "decrypt");
 			return (error);
 		}
 		pbuf += secsize;
