@@ -366,18 +366,18 @@ can be disabled permanently in the build by passing the `-P` flag or the
 
 Both commands are equivalent.
 
-### Long Options
+### Locales
 
-By default, `bc` and `dc` support long options like `--mathlib` and
-`--interactive`. However, support for these options requires `getopt_long()`
-which is not in the POSIX standard. For those platforms that do *not* have
-`getopt_long()` it will be disabled automatically, or if you wish to disable
-them regardless, you can pass the `-L` flag or the `--disable-long-options`
-option to `configure.sh`, as follows:
+By default, `bc` and `dc` do not install all locales, but only the enabled
+locales. If `DESTDIR` exists and is not empty, then they will install all of
+the locales that exist on the system. The `-l` flag or `--install-all-locales`
+option skips all of that and just installs all of the locales that `bc` and `dc`
+have, regardless. To enable that behavior, you can pass the `-l` flag or the
+`--install-all-locales` option to `configure.sh`, as follows:
 
 ```
-./configure.sh -L
-./configure.sh --disable-long-options
+./configure.sh -l
+./configure.sh --install-all-locales
 ```
 
 Both commands are equivalent.
