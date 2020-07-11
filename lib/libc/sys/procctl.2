@@ -483,7 +483,7 @@ and
 must be the either caller's pid or zero, with no difference in effect.
 The value is cleared for child processes
 and when executing set-user-ID or set-group-ID binaries.
-.Fa arg
+.Fa data
 must point to a value of type
 .Vt int
 indicating the signal
@@ -498,7 +498,7 @@ must be
 and
 .Fa id
 must be the either caller's pid or zero, with no difference in effect.
-.Fa arg
+.Fa data
 must point to a memory location that can hold a value of type
 .Vt int .
 If signal delivery has not been requested, it will contain zero
@@ -596,7 +596,8 @@ privilege might use this option.
 .El
 .It Dv PROC_KPTI_STATUS
 Returns the current KPTI status for the specified process.
-.Fa data must point to the integer variable, which returns the
+.Fa data
+must point to the integer variable, which returns the
 following statuses:
 .Bl -tag -width PROC_KPTI_CTL_DISABLE_ON_EXEC
 .It Dv PROC_KPTI_CTL_ENABLE_ON_EXEC
@@ -624,7 +625,7 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 The
-.Fa arg
+.Fa data
 parameter points outside the process's allocated address space.
 .It Bq Er EINVAL
 The
@@ -644,7 +645,7 @@ and
 .Fa id .
 .It Bq Er EINVAL
 An invalid operation or flag was passed in
-.Fa arg
+.Fa data
 for a
 .Dv PROC_SPROTECT
 command.
