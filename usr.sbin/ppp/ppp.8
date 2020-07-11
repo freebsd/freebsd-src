@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2017
+.Dd July 11, 2020
 .Dt PPP 8
 .Os
 .Sh NAME
@@ -1653,6 +1653,15 @@ Check that IP forwarding is enabled in
 and that other machines have designated the
 .Nm
 host as the gateway for the LAN.
+When starting
+.Nm
+with the provided rc script, the default is to
+enable NAT; see
+.Va ppp_nat
+in
+.Xr rc.conf 5
+and
+.Pa /etc/defaults/rc.conf .
 .Sh PACKET FILTERING
 This implementation supports packet filtering.
 There are four kinds of
