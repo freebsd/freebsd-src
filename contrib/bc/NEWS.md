@@ -1,5 +1,25 @@
 # News
 
+## 3.1.3
+
+This is a production release that fixes one minor bug: if `bc` was invoked like
+the following, it would error:
+
+```
+echo "if (1 < 3) 1" | bc
+```
+
+Unless users run into this bug, they do not need to upgrade, but it is suggested
+that they do.
+
+## 3.1.2
+
+This is a production release that adds a way to install *all* locales. Users do
+***NOT*** need to upgrade.
+
+For package maintainers wishing to make use of the change, just pass `-l` to
+`configure.sh`.
+
 ## 3.1.1
 
 This is a production release that adds two Spanish locales. Users do ***NOT***
