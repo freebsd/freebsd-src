@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon_dev.c,v 1.1 2020/01/19 19:49:37 riastradh Exp $	*/
+/*	$NetBSD: filemon_dev.c,v 1.3 2020/07/10 15:53:30 sjg Exp $	*/
 
 /*-
  * Copyright (c) 2020 The NetBSD Foundation, Inc.
@@ -70,7 +70,7 @@ filemon_open(void)
 		return NULL;
 
 	/* Try opening /dev/filemon, up to six times (cargo cult!).  */
-	for (i = 0; (F->fd = open(_PATH_FILEMON, O_RDWR)) == -1; i++) {
+	for (i = 0; (F->fd = open(_PATH_FILEMON, O_RDWR|O_CLOEXEC)) == -1; i++) {
 		if (i == 5) {
 			error = errno;
 			goto fail0;

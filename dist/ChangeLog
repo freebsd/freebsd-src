@@ -1,3 +1,20 @@
+2020-07-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: use AC_INCLUDES_DEFAULT rather than AC_HEADER_STDC
+
+	* VERSION (_MAKE_VERSION): 20200710
+	Merge with NetBSD make, pick up
+	o filemon/filemon_dev.c: use O_CLOEXEC rather than extra syscall
+	o meta.c: target flagged .META is out-of-date if meta file missing
+
+2020-07-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200709
+	Merge with NetBSD make, pick up
+	o cond.c: fix for compare_expression when doEval=0
+	o unit-tests/Makefile: rework
+	o filemon/filemon_dev.c: ensure filemon fd is closed on exec.
+
 2020-07-04  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20200704

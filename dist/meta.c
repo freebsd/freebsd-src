@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.85 2020/07/03 08:13:23 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.86 2020/07/11 00:39:53 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -1610,7 +1610,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 	    oodate = TRUE;
 	}
     } else {
-	if (writeMeta && metaMissing) {
+	if (writeMeta && (metaMissing || (gn->type & OP_META))) {
 	    cp = NULL;
 
 	    /* if target is in .CURDIR we do not need a meta file */

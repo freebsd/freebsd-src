@@ -1,4 +1,4 @@
-# $Id: modmisc.mk,v 1.1.1.2 2020/07/04 17:52:46 sjg Exp $
+# $Id: modmisc.mk,v 1.1.1.3 2020/07/09 22:35:19 sjg Exp $
 #
 # miscellaneous modifier tests
 
@@ -17,6 +17,7 @@ MOD_SEP=S,:, ,g
 
 all:	modvar modvarloop modsysv mod-HTE emptyvar undefvar
 all:	mod-S mod-C mod-at-varname mod-at-resolve
+all:	mod-subst-dollar mod-loop-dollar
 
 modsysv:
 	@echo "The answer is ${libfoo.a:L:libfoo.a=42}"
@@ -93,3 +94,34 @@ RES3=		3
 
 mod-at-resolve:
 	@echo $@:${RESOLVE:@v@w${v}w@:Q}:
+
+# No matter how many dollar characters there are, they all get merged
+# into a single dollar by the :S modifier.
+mod-subst-dollar:
+	@echo $@:${:U1:S,^,$,:Q}:
+	@echo $@:${:U2:S,^,$$,:Q}:
+	@echo $@:${:U3:S,^,$$$,:Q}:
+	@echo $@:${:U4:S,^,$$$$,:Q}:
+	@echo $@:${:U5:S,^,$$$$$,:Q}:
+	@echo $@:${:U6:S,^,$$$$$$,:Q}:
+	@echo $@:${:U7:S,^,$$$$$$$,:Q}:
+	@echo $@:${:U8:S,^,$$$$$$$$,:Q}:
+# This generates no dollar at all:
+	@echo $@:${:UU8:S,^,${:U$$$$$$$$},:Q}:
+# Here is an alternative way to generate dollar characters.
+# It's unexpectedly complicated though.
+	@echo $@:${:U:range=5:ts\x24:C,[0-9],,g:Q}:
+
+# Demonstrate that it is possible to generate dollar characters using the
+# :@ modifier.
+#
+# These are edge cases that could have resulted in a parse error as well
+# since the $@ at the end could have been interpreted as a variable, which
+# would mean a missing closing @ delimiter.
+mod-loop-dollar:
+	@echo $@:${:U1:@word@${word}$@:Q}:
+	@echo $@:${:U2:@word@$${word}$$@:Q}:
+	@echo $@:${:U3:@word@$$${word}$$$@:Q}:
+	@echo $@:${:U4:@word@$$$${word}$$$$@:Q}:
+	@echo $@:${:U5:@word@$$$$${word}$$$$$@:Q}:
+	@echo $@:${:U6:@word@$$$$$${word}$$$$$$@:Q}:
