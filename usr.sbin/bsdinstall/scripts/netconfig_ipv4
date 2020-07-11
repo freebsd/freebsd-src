@@ -51,7 +51,7 @@ if [ $? -eq $DIALOG_OK ]; then
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 		ifconfig $INTERFACE up
 		dialog --backtitle 'FreeBSD Installer' --infobox "Acquiring DHCP lease..." 0 0
-		err=$( dhclient $INTERFACE 2>&1 )
+		err=$( pkill dhclient; dhclient $INTERFACE 2>&1 )
 		if [ $? -ne 0 ]; then
 			f_dprintf "%s" "$err"
 			dialog --backtitle 'FreeBSD Installer' --msgbox "DHCP lease acquisition failed." 0 0
