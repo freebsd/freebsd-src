@@ -375,6 +375,7 @@ parse_config_file(struct configuration *config,
 	char	*fields[128];
 	int	field_count, line_num, value;
 	int	res;
+	int	invalid_value;
 
 	TRACE_IN(parse_config_file);
 	assert(config != NULL);
@@ -388,6 +389,7 @@ parse_config_file(struct configuration *config,
 
 	res = 0;
 	line_num = 0;
+	invalid_value = 0;
 	memset(buffer, 0, sizeof(buffer));
 	while ((res == 0) && (fgets(buffer, sizeof(buffer) - 1, fin) != NULL)) {
 		field_count = strbreak(buffer, fields, sizeof(fields));
@@ -421,12 +423,20 @@ parse_config_file(struct configuration *config,
 			(strcmp(fields[0], "positive-time-to-live") == 0) &&
 			(check_cachename(fields[1]) == 0) &&
 			((value = get_number(fields[2], 0, -1)) != -1)) {
+				if (value <= 0) {
+					invalid_value = 1;
+					break;
+				}
 				set_positive_time_to_live(config,
 					fields[1], value);
 				continue;
 			} else if ((field_count == 3) &&
 			(strcmp(fields[0], "positive-confidence-threshold") == 0) &&
 			((value = get_number(fields[2], 1, -1)) != -1)) {
+				if (value <= 0) {
+					invalid_value = 1;
+					break;
+				}
 				set_positive_confidence_threshold(config,
 					fields[1], value);
 				continue;
@@ -450,12 +460,20 @@ parse_config_file(struct configuration *config,
 			(strcmp(fields[0], "negative-time-to-live") == 0) &&
 			(check_cachename(fields[1]) == 0) &&
 			((value = get_number(fields[2], 0, -1)) != -1)) {
+				if (value <= 0) {
+					invalid_value = 1;
+					break;
+				}
 				set_negative_time_to_live(config,
 					fields[1], value);
 				continue;
 			} else if ((field_count == 3) &&
 			(strcmp(fields[0], "negative-confidence-threshold") == 0) &&
 			((value = get_number(fields[2], 1, -1)) != -1)) {
+				if (value <= 0) {
+					invalid_value = 1;
+					break;
+				}
 				set_negative_confidence_threshold(config,
 					fields[1], value);
 				continue;
@@ -473,6 +491,10 @@ parse_config_file(struct configuration *config,
 			(strcmp(fields[0], "suggested-size") == 0) &&
 			(check_cachename(fields[1]) == 0) &&
 			((value = get_number(fields[2], 1, -1)) != -1)) {
+				if (value <= 0) {
+					invalid_value = 1;
+					break;
+				}
 				set_suggested_size(config, fields[1], value);
 				continue;
 			}
@@ -490,6 +512,10 @@ parse_config_file(struct configuration *config,
 			(strcmp(fields[0], "keep-hot-count") == 0) &&
 			(check_cachename(fields[1]) == 0) &&
 			((value = get_number(fields[2], 0, -1)) != -1)) {
+				if (value < 0) {
+					invalid_value = 1;
+					break;
+				}
 				set_keep_hot_count(config,
 					fields[1], value);
 				continue;
@@ -509,9 +535,16 @@ parse_config_file(struct configuration *config,
 			break;
 		}
 
-		LOG_ERR_2("config file parser", "error in file "
-			"%s on line %d", fname, line_num);
-		*error_str = "syntax error";
+		if (invalid_value != 0) {
+			LOG_ERR_2("Invalid value for parameter",
+				"error in file %s on line %d",
+				fname, line_num);
+			*error_str = "invalid value";
+		} else {
+			LOG_ERR_2("config file parser", "error in file "
+				"%s on line %d", fname, line_num);
+			*error_str = "syntax error";
+		}
 		*error_line = line_num;
 		res = -1;
 	}
