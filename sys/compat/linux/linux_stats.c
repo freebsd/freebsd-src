@@ -70,6 +70,17 @@ translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 		sb->st_mode |= S_IFBLK;
 	}
 
+	/*
+	 * Return the same st_dev for every devfs instance.  The reason
+	 * for this is to work around an idiosyncrasy of glibc getttynam()
+	 * implementation: it checks whether st_dev returned for fd 0
+	 * is the same as st_dev returned for the target of /proc/self/fd/0
+	 * symlink, and with linux chroots having their own devfs instance,
+	 * the check will fail if you chroot into it.
+	 */
+	if (rootdevmp != NULL && vp->v_mount->mnt_vfc == rootdevmp->mnt_vfc)
+		sb->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
+
 	if (vp->v_type == VCHR && vp->v_rdev != NULL &&
 	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
 	    &major, &minor) == 0) {
@@ -110,6 +121,7 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 {
 	struct file *fp;
 	struct vnode *vp;
+	struct mount *mp;
 	int major, minor;
 
 	/*
@@ -122,6 +134,12 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 	if (vp != NULL && vn_isdisk(vp, NULL)) {
 		buf->st_mode &= ~S_IFMT;
 		buf->st_mode |= S_IFBLK;
+	}
+	if (vp != NULL && rootdevmp != NULL) {
+		mp = vp->v_mount;
+		__compiler_membar();
+		if (mp != NULL && mp->mnt_vfc == rootdevmp->mnt_vfc)
+			buf->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
 	}
 	if (vp != NULL && vp->v_rdev != NULL &&
 	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
