@@ -65,8 +65,16 @@ rm -f "$out"
 printf 'Running %s stdin tests...' "$d"
 
 cat "$testdir/$d/stdin.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
-
 diff "$testdir/$d/stdin_results.txt" "$out"
+
+if [ "$d" = "bc" ]; then
+
+	cat "$testdir/$d/stdin1.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
+	diff "$testdir/$d/stdin1_results.txt" "$out"
+
+	cat "$testdir/$d/stdin2.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
+	diff "$testdir/$d/stdin2_results.txt" "$out"
+fi
 
 rm -f "$out1"
 

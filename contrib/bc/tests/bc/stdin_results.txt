@@ -4,3 +4,4 @@ String /* with partial commentString /* with full comment */3
 7
 String with a # hash comment3
 20
+1

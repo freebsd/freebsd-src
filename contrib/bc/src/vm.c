@@ -602,8 +602,21 @@ restart:
 		else if (BC_ERR(string))
 			bc_parse_err(&vm.prs, BC_ERROR_PARSE_STRING);
 #if BC_ENABLED
-		else if (BC_IS_BC && BC_ERR(BC_PARSE_NO_EXEC(&vm.prs)))
-			bc_parse_err(&vm.prs, BC_ERROR_PARSE_BLOCK);
+		else if (BC_IS_BC && BC_ERR(BC_PARSE_NO_EXEC(&vm.prs))) {
+
+			size_t i;
+			bool good = true;
+
+			for (i = 0; good && i < vm.prs.flags.len; ++i) {
+				uint16_t flag = *((uint16_t*) bc_vec_item(&vm.prs.flags, i));
+				good = ((flag & BC_PARSE_FLAG_BRACE) != BC_PARSE_FLAG_BRACE);
+			}
+
+			if (good) {
+				while (BC_PARSE_IF_END(&vm.prs)) bc_vm_process("else {}", true);
+			}
+			else bc_parse_err(&vm.prs, BC_ERROR_PARSE_BLOCK);
+		}
 #endif // BC_ENABLED
 	}
 

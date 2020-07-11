@@ -47,12 +47,12 @@ usage() {
 
 	printf 'usage: %s -h\n' "$script"
 	printf '       %s --help\n' "$script"
-	printf '       %s [-bD|-dB|-c] [-EfgGHMNPT] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
+	printf '       %s [-bD|-dB|-c] [-EfgGHlMNPT] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
 	printf '       %s \\\n' "$script"
 	printf '           [--bc-only --disable-dc|--dc-only --disable-bc|--coverage]      \\\n'
 	printf '           [--debug --disable-extra-math --disable-generated-tests]        \\\n'
 	printf '           [--disable-history --disable-man-pages --disable-nls]           \\\n'
-	printf '           [--disable-prompt --disable-strip]                              \\\n'
+	printf '           [--disable-prompt --disable-strip] [--install-all-locales]      \\\n'
 	printf '           [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]               \\\n'
 	printf '           [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR] \\\n'
 	printf '           [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]       \\\n'
@@ -98,6 +98,10 @@ usage() {
 	printf '    -k KARATSUBA_LEN, --karatsuba-len KARATSUBA_LEN\n'
 	printf '        Set the karatsuba length to KARATSUBA_LEN (default is 64).\n'
 	printf '        It is an error if KARATSUBA_LEN is not a number or is less than 16.\n'
+	printf '    -l, --install-all-locales\n'
+	printf '        Installs all locales, regardless of how many are on the system. This\n'
+	printf '        option is useful for package maintainers who want to make sure that\n'
+	printf '        a package contains all of the locales that end users might need.\n'
 	printf '    -M, --disable-man-pages\n'
 	printf '        Disable installing manpages.\n'
 	printf '    -N, --disable-nls\n'
@@ -319,8 +323,9 @@ nls=1
 prompt=1
 force=0
 strip_bin=1
+all_locales=0
 
-while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
+while getopts "bBcdDEfgGhHk:lMNO:PST-" opt; do
 
 	case "$opt" in
 		b) bc_only=1 ;;
@@ -335,6 +340,7 @@ while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
 		h) usage ;;
 		H) hist=0 ;;
 		k) karatsuba_len="$OPTARG" ;;
+		l) all_locales=1 ;;
 		M) install_manpages=0 ;;
 		N) nls=0 ;;
 		O) optimization="$OPTARG" ;;
@@ -423,6 +429,7 @@ while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
 				disable-nls) nls=0 ;;
 				disable-prompt) prompt=0 ;;
 				disable-strip) strip_bin=0 ;;
+				install-all-locales) all_locales=1 ;;
 				help* | bc-only* | dc-only* | coverage* | debug*)
 					usage "No arg allowed for --$arg option" ;;
 				disable-bc* | disable-dc* | disable-extra-math*)
@@ -430,6 +437,8 @@ while getopts "bBcdDEfgGhHk:MNO:PST-" opt; do
 				disable-generated-tests* | disable-history*)
 					usage "No arg allowed for --$arg option" ;;
 				disable-man-pages* | disable-nls* | disable-strip*)
+					usage "No arg allowed for --$arg option" ;;
+				install-all-locales*)
 					usage "No arg allowed for --$arg option" ;;
 				'') break ;; # "--" terminates argument processing
 				* ) usage "Invalid option $LONG_OPTARG" ;;
@@ -751,6 +760,13 @@ if [ "$nls" -ne 0 ]; then
 else
 	install_locales_prereqs=""
 	uninstall_locales_prereqs=""
+	all_locales=0
+fi
+
+if [ "$nls" -ne 0 ] && [ "$all_locales" -ne 0 ]; then
+	install_locales="\$(LOCALE_INSTALL) -l \$(NLSPATH) \$(MAIN_EXEC) \$(DESTDIR)"
+else
+	install_locales="\$(LOCALE_INSTALL) \$(NLSPATH) \$(MAIN_EXEC) \$(DESTDIR)"
 fi
 
 if [ "$hist" -eq 1 ]; then
@@ -911,6 +927,7 @@ contents=$(replace "$contents" "HOSTCC" "$HOSTCC")
 contents=$(replace "$contents" "COVERAGE_OUTPUT" "$COVERAGE_OUTPUT")
 contents=$(replace "$contents" "COVERAGE_PREREQS" "$COVERAGE_PREREQS")
 contents=$(replace "$contents" "INSTALL_PREREQS" "$install_prereqs")
+contents=$(replace "$contents" "INSTALL_LOCALES" "$install_locales")
 contents=$(replace "$contents" "INSTALL_LOCALES_PREREQS" "$install_locales_prereqs")
 contents=$(replace "$contents" "UNINSTALL_MAN_PREREQS" "$uninstall_man_prereqs")
 contents=$(replace "$contents" "UNINSTALL_PREREQS" "$uninstall_prereqs")
