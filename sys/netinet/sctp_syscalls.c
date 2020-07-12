@@ -117,6 +117,10 @@ sctp_syscalls_init(void)
 	return (0);
 }
 
+#ifdef SCTP
+SYSINIT(sctp_syscalls, SI_SUB_SYSCALLS, SI_ORDER_ANY, sctp_syscalls_init, NULL);
+#endif
+
 int
 sctp_syscalls_uninit(void)
 {
