@@ -67,6 +67,10 @@ int nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_ori
 void nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu);
 int nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
 
+/* subscriptions */
+void rib_init_subscriptions(struct rib_head *rnh);
+void rib_destroy_subscriptions(struct rib_head *rnh);
+
 /* route */
 VNET_DECLARE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
