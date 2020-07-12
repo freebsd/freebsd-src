@@ -147,7 +147,7 @@ static void	install_dir(char *);
 static void	metadata_log(const char *, const char *, struct timespec *,
 		    const char *, const char *, off_t);
 static int	parseid(const char *, id_t *);
-static int	strip(const char *, const char *, char **);
+static int	strip(const char *, int, const char *, char **);
 static int	trymmap(int);
 static void	usage(void);
 
@@ -862,7 +862,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (!devnull) {
 			if (dostrip)
 			    stripped = strip(tempcopy ? tempfile : to_name,
-					     from_name, &digestresult);
+				to_fd, from_name, &digestresult);
 			if (!stripped)
 			    digestresult = copy(from_fd, from_name, to_fd,
 				tempcopy ? tempfile : to_name, from_sb.st_size);
@@ -871,8 +871,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 
 	if (dostrip) {
 		if (!stripped)
-			(void)strip(tempcopy ? tempfile : to_name, NULL,
-			    &digestresult);
+			(void)strip(tempcopy ? tempfile : to_name, to_fd,
+			    NULL, &digestresult);
 
 		/*
 		 * Re-open our fd on the target, in case
@@ -1310,17 +1310,18 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name,
 /*
  * strip --
  *	Use strip(1) to strip the target file.
- *	Just invoke strip(1) on to_name if from_name is NULL,
- *	else try to run "strip -o to_name -- from_name" and return 0 on failure.
- *	Return 1 on success and assign result of digest_file(to_name) to *dresp.
+ *	Just invoke strip(1) on to_name if from_name is NULL, else try
+ *	to run "strip -o to_name -- from_name" and return 0 on failure.
+ *	Return 1 on success and assign result of digest_file(to_name)
+ *	to *dresp.
  */
 static int
-strip(const char *to_name, const char *from_name, char **dresp)
+strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 {
 	const char *stripbin;
 	const char *args[6];
 	pid_t pid;
-	int error, status;
+	int error, serrno, status;
 
 	stripbin = getenv("STRIPBIN");
 	if (stripbin == NULL)
@@ -1355,6 +1356,12 @@ strip(const char *to_name, const char *from_name, char **dresp)
 		(void)unlink(to_name);
 		errx(EX_SOFTWARE, "strip command %s failed on %s",
 		    stripbin, to_name);
+	}
+	if (from_name != NULL && safecopy && fsync(to_fd) == -1) {
+		serrno = errno;
+		(void)unlink(to_name);
+		errno = serrno;
+		err(EX_OSERR, "fsync failed for %s", to_name);
 	}
 	if (dresp != NULL)
 		*dresp = digest_file(to_name);
