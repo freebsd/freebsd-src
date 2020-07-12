@@ -212,10 +212,10 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 		*n = CLOCK_THREAD_CPUTIME_ID;
 		break;
 	case LINUX_CLOCK_REALTIME_COARSE:
-	case LINUX_CLOCK_MONOTONIC_RAW:
 		*n = CLOCK_REALTIME_FAST;
 		break;
 	case LINUX_CLOCK_MONOTONIC_COARSE:
+	case LINUX_CLOCK_MONOTONIC_RAW:
 		*n = CLOCK_MONOTONIC_FAST;
 		break;
 	case LINUX_CLOCK_BOOTTIME:
