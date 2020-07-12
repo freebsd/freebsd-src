@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
-#include <net/route/route_var.h>
+#include <net/route/route_ctl.h>
 #include <net/route/nhop.h>
 #include <net/vnet.h>
 
@@ -138,8 +138,6 @@ static void nd6_free_redirect(const struct llentry *);
 static void nd6_llinfo_timer(void *);
 static void nd6_llinfo_settimer_locked(struct llentry *, long);
 static void clear_llinfo_pqueue(struct llentry *);
-static void nd6_rtrequest(int, struct rtentry *, struct nhop_object *,
-    struct rt_addrinfo *);
 static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
     const struct sockaddr_in6 *, u_char *, uint32_t *, struct llentry **);
 static int nd6_need_cache(struct ifnet *);
@@ -1580,39 +1578,24 @@ nd6_free_redirect(const struct llentry *ln)
 }
 
 /*
- * Rejuvenate this function for routing operations related
- * processing.
+ * Updates status of the default router route.
  */
 void
-nd6_rtrequest(int req, struct rtentry *rt, struct nhop_object *nh,
-    struct rt_addrinfo *info)
+nd6_subscription_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *arg)
 {
-	struct sockaddr_in6 *gateway;
 	struct nd_defrouter *dr;
+	struct nhop_object *nh;
 
-	gateway = &nh->gw6_sa;
+	if (rc->rc_cmd == RTM_DELETE) {
+		nh = rc->rc_nh_old;
 
-	switch (req) {
-	case RTM_ADD:
-		break;
-
-	case RTM_DELETE:
-		/*
-		 * Only indirect routes are interesting.
-		 */
-		if ((nh->nh_flags & NHF_GATEWAY) == 0)
-			return;
-		/*
-		 * check for default route
-		 */
 		if (nh->nh_flags & NHF_DEFAULT) {
-			dr = defrouter_lookup(&gateway->sin6_addr, nh->nh_ifp);
+			dr = defrouter_lookup(&nh->gw6_sa.sin6_addr, nh->nh_ifp);
 			if (dr != NULL) {
 				dr->installed = 0;
 				defrouter_rele(dr);
 			}
 		}
-		break;
 	}
 }
 
@@ -2532,7 +2515,6 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	if (nd6_need_cache(ifp) == 0)
 		return (0);
 
-	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
 	dst = (struct sockaddr *)&ia->ia_addr;
 	ln = lltable_alloc_entry(LLTABLE6(ifp), LLE_IFADDR, dst);
 	if (ln == NULL)
