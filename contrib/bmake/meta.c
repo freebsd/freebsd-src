@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.81 2020/04/03 03:32:28 sjg Exp $ */
+/*      $NetBSD: meta.c,v 1.86 2020/07/11 00:39:53 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -8,16 +8,16 @@
 /*
  * Copyright (c) 2009-2016, Juniper Networks, Inc.
  * Portions Copyright (c) 2009, John Birrell.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * modification, are permitted provided that the following conditions
+ * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.  
- * 
+ *    documentation and/or other materials provided with the distribution.
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -28,7 +28,7 @@
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #if defined(USE_META)
 
@@ -113,7 +113,7 @@ extern char    **environ;
  *
  * See meta_oodate below - we mainly care about 'E' and 'R'.
  *
- * We can still use meta mode without filemon, but 
+ * We can still use meta mode without filemon, but
  * the benefits are more limited.
  */
 #ifdef USE_FILEMON
@@ -174,14 +174,18 @@ filemon_read(FILE *mfp, int fd)
 	return 0;
     }
     /* rewind */
-    (void)lseek(fd, (off_t)0, SEEK_SET);
+    if (lseek(fd, (off_t)0, SEEK_SET) < 0) {
+	error = errno;
+	warn("Could not rewind filemon");
+	fprintf(mfp, "\n");
+    } else {
+	error = 0;
+	fprintf(mfp, "\n-- filemon acquired metadata --\n");
 
-    error = 0;
-    fprintf(mfp, "\n-- filemon acquired metadata --\n");
-
-    while ((n = read(fd, buf, sizeof(buf))) > 0) {
-	if ((int)fwrite(buf, 1, n, mfp) < n)
-	    error = EIO;
+	while ((n = read(fd, buf, sizeof(buf))) > 0) {
+	    if ((int)fwrite(buf, 1, n, mfp) < n)
+		error = EIO;
+	}
     }
     fflush(mfp);
     if (close(fd) < 0)
@@ -214,7 +218,7 @@ eat_dots(char *buf, size_t bufsz, int dots)
     default:
 	return;
     }
-    
+
     do {
 	cp = strstr(buf, eat);
 	if (cp) {
@@ -304,7 +308,7 @@ meta_name(char *mname, size_t mnamelen,
 	}
     }
     free(tp);
-    return (mname);
+    return mname;
 }
 
 /*
@@ -355,7 +359,7 @@ is_submake(void *cmdp, void *gnp)
 	}
     }
     free(mp);
-    return (rc);
+    return rc;
 }
 
 typedef struct meta_file_s {
@@ -403,7 +407,7 @@ meta_needed(GNode *gn, const char *dname,
 
     if (verbose)
 	verbose = DEBUG(META);
-    
+
     /* This may be a phony node which we don't want meta data for... */
     /* Skip .meta for .BEGIN, .END, .ERROR etc as well. */
     /* Or it may be explicitly flagged as .NOMETA */
@@ -454,7 +458,7 @@ meta_needed(GNode *gn, const char *dname,
     return TRUE;
 }
 
-    
+
 static FILE *
 meta_create(BuildMon *pbm, GNode *gn)
 {
@@ -545,7 +549,7 @@ meta_create(BuildMon *pbm, GNode *gn)
 	free(p[i]);
     }
 
-    return (mf.fp);
+    return mf.fp;
 }
 
 static Boolean
@@ -570,7 +574,7 @@ meta_init(void)
 {
 #ifdef USE_FILEMON
 	/* this allows makefiles to test if we have filemon support */
-	Var_Set(".MAKE.PATH_FILEMON", filemon_path(), VAR_GLOBAL, 0);
+	Var_Set(".MAKE.PATH_FILEMON", filemon_path(), VAR_GLOBAL);
 #endif
 }
 
@@ -616,7 +620,7 @@ meta_mode_init(const char *make_mode)
 	 * This works be cause :H will generate '.' if there is no /
 	 * and :tA will resolve that to cwd.
 	 */
-	Var_Set(MAKE_META_PREFIX, "Building ${.TARGET:H:tA}/${.TARGET:T}", VAR_GLOBAL, 0);
+	Var_Set(MAKE_META_PREFIX, "Building ${.TARGET:H:tA}/${.TARGET:T}", VAR_GLOBAL);
     }
     if (once)
 	return;
@@ -790,12 +794,12 @@ meta_job_error(Job *job, GNode *gn, int flags, int status)
 		"(ignored)" : "");
     }
     if (gn) {
-	Var_Set(".ERROR_TARGET", gn->path ? gn->path : gn->name, VAR_GLOBAL, 0);
+	Var_Set(".ERROR_TARGET", gn->path ? gn->path : gn->name, VAR_GLOBAL);
     }
     getcwd(cwd, sizeof(cwd));
-    Var_Set(".ERROR_CWD", cwd, VAR_GLOBAL, 0);
+    Var_Set(".ERROR_CWD", cwd, VAR_GLOBAL);
     if (pbm->meta_fname[0]) {
-	Var_Set(".ERROR_META_FILE", pbm->meta_fname, VAR_GLOBAL, 0);
+	Var_Set(".ERROR_META_FILE", pbm->meta_fname, VAR_GLOBAL);
     }
     meta_job_finish(job);
 }
@@ -804,7 +808,7 @@ void
 meta_job_output(Job *job, char *cp, const char *nl)
 {
     BuildMon *pbm;
-    
+
     if (job != NULL) {
 	pbm = &job->bm;
     } else {
@@ -900,7 +904,7 @@ meta_finish(void)
  * Fetch a full line from fp - growing bufp if needed
  * Return length in bufp.
  */
-static int 
+static int
 fgetLine(char **bufp, size_t *szp, int o, FILE *fp)
 {
     char *buf = *bufp;
@@ -951,7 +955,7 @@ prefix_match(void *p, void *q)
     const char *path = q;
     size_t n = strlen(prefix);
 
-    return (0 == strncmp(path, prefix, n));
+    return strncmp(path, prefix, n) == 0;
 }
 
 /*
@@ -1013,7 +1017,7 @@ meta_ignore(GNode *gn, const char *p)
     if (metaIgnorePatterns) {
 	char *pm;
 
-	Var_Set(".p.", p, gn, 0);
+	Var_Set(".p.", p, gn);
 	pm = Var_Subst(NULL,
 		       "${" MAKE_META_IGNORE_PATTERNS ":@m@${.p.:M$m}@}",
 		       gn, VARF_WANTRES);
@@ -1188,7 +1192,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    have_filemon = TRUE;
 		    continue;
 		}
-	    }		    
+	    }
 
 	    /* Delimit the record type. */
 	    p = buf;
@@ -1238,11 +1242,11 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    if (pid > 0 && pid != lastpid) {
 			char *ldir;
 			char *tp;
-		    
+
 			if (lastpid > 0) {
 			    /* We need to remember these. */
-			    Var_Set(lcwd_vname, lcwd, VAR_GLOBAL, 0);
-			    Var_Set(ldir_vname, latestdir, VAR_GLOBAL, 0);
+			    Var_Set(lcwd_vname, lcwd, VAR_GLOBAL);
+			    Var_Set(ldir_vname, latestdir, VAR_GLOBAL);
 			}
 			snprintf(lcwd_vname, sizeof(lcwd_vname), LCWD_VNAME_FMT, pid);
 			snprintf(ldir_vname, sizeof(ldir_vname), LDIR_VNAME_FMT, pid);
@@ -1288,9 +1292,9 @@ meta_oodate(GNode *gn, Boolean oodate)
 			child = atoi(p);
 			if (child > 0) {
 			    snprintf(cldir, sizeof(cldir), LCWD_VNAME_FMT, child);
-			    Var_Set(cldir, lcwd, VAR_GLOBAL, 0);
+			    Var_Set(cldir, lcwd, VAR_GLOBAL);
 			    snprintf(cldir, sizeof(cldir), LDIR_VNAME_FMT, child);
-			    Var_Set(cldir, latestdir, VAR_GLOBAL, 0);
+			    Var_Set(cldir, latestdir, VAR_GLOBAL);
 #ifdef DEBUG_META_MODE
 			    if (DEBUG(META))
 				    fprintf(debug_file, "%s: %d: %d: cwd=%s lcwd=%s ldir=%s\n",
@@ -1303,10 +1307,10 @@ meta_oodate(GNode *gn, Boolean oodate)
 
 		case 'C':		/* Chdir */
 		    /* Update lcwd and latest directory. */
-		    strlcpy(latestdir, p, sizeof(latestdir));	
+		    strlcpy(latestdir, p, sizeof(latestdir));
 		    strlcpy(lcwd, p, sizeof(lcwd));
-		    Var_Set(lcwd_vname, lcwd, VAR_GLOBAL, 0);
-		    Var_Set(ldir_vname, lcwd, VAR_GLOBAL, 0);
+		    Var_Set(lcwd_vname, lcwd, VAR_GLOBAL);
+		    Var_Set(ldir_vname, lcwd, VAR_GLOBAL);
 #ifdef DEBUG_META_MODE
 		    if (DEBUG(META))
 			fprintf(debug_file, "%s: %d: cwd=%s ldir=%s\n", fname, lineno, cwd, lcwd);
@@ -1383,7 +1387,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    /*
 		     * If a file we generated within our bailiwick
 		     * but outside of .OBJDIR is missing,
-		     * we need to do it again. 
+		     * we need to do it again.
 		     */
 		    /* ignore non-absolute paths */
 		    if (*p != '/')
@@ -1432,7 +1436,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 		     */
 		    if (meta_ignore(gn, p))
 			break;
-		    
+
 		    /*
 		     * The rest of the record is the file name.
 		     * Check if it's not an absolute path.
@@ -1606,7 +1610,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 	    oodate = TRUE;
 	}
     } else {
-	if (writeMeta && metaMissing) {
+	if (writeMeta && (metaMissing || (gn->type & OP_META))) {
 	    cp = NULL;
 
 	    /* if target is in .CURDIR we do not need a meta file */
@@ -1633,7 +1637,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 	 * All we can sanely do is set it to .ALLSRC.
 	 */
 	Var_Delete(OODATE, gn);
-	Var_Set(OODATE, Var_Value(ALLSRC, gn, &cp), gn, 0);
+	Var_Set(OODATE, Var_Value(ALLSRC, gn, &cp), gn);
 	free(cp);
     }
 
@@ -1656,7 +1660,7 @@ meta_compat_start(void)
      * We need to re-open filemon for each cmd.
      */
     BuildMon *pbm = &Mybm;
-    
+
     if (pbm->mfp != NULL && useFilemon) {
 	meta_open_filemon(pbm);
     } else {

@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.42 2020/05/16 23:21:48 sjg Exp $
+# $Id: gendirdeps.mk,v 1.44 2020/06/23 04:21:51 sjg Exp $
 
 # Copyright (c) 2011-2020, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -51,7 +51,7 @@ all:
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
 _OBJTOP ?= ${OBJTOP}
-_OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
+_OBJROOT ?= ${OBJROOT:U${_OBJTOP:H}}
 .if ${_OBJROOT:M*/}
 _slash=/
 .else
@@ -339,6 +339,12 @@ CAT_DEPEND ?= .depend
 .PHONY: ${_DEPENDFILE}
 .endif
 
+.if ${BUILD_AT_LEVEL0:Uno:tl} == "no"
+LOCAL_DEPENDS_GUARD ?= _{.MAKE.LEVEL} > 0
+.else
+LOCAL_DEPENDS_GUARD ?= _{DEP_RELDIR} == _{_DEP_RELDIR}
+.endif
+
 # 'cat .depend' should suffice, but if we are mixing build modes
 # .depend may contain things we don't want.
 # The sed command at the end of the stream, allows for the filters
@@ -350,7 +356,7 @@ ${_DEPENDFILE}: .NOMETA ${CAT_DEPEND:M.depend} ${META_FILES:O:u:@m@${exists($m):
 	${_include_src_dirdeps} \
 	echo '.include <dirdeps.mk>'; \
 	echo; \
-	echo '.if $${DEP_RELDIR} == $${_DEP_RELDIR}'; \
+	echo '.if ${LOCAL_DEPENDS_GUARD}'; \
 	echo '# local dependencies - needed for -jN in clean tree'; \
 	[ -s ${CAT_DEPEND} ] && { grep : ${CAT_DEPEND} | grep -v '[/\\]'; }; \
 	echo '.endif' ) | sed 's,_\([{(]\),$$\1,g' > $@.new${.MAKE.PID}

@@ -1,0 +1,16 @@
+expected and
+expected and exists
+expected and empty
+expected U23 condition
+expected VAR23
+expected M pattern
+expected or
+expected or exists
+expected or empty
+defined(V42) && 42 > 0: Ok
+defined(V66) && ( "" < 42 ): Ok
+1 || 42 < 42: Ok
+1 ||  < 42: Ok
+0 || 42 <= 42: Ok
+0 ||  < 42: Ok
+exit status 0

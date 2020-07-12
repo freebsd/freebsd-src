@@ -1,4 +1,4 @@
-# $NetBSD: modorder.mk,v 1.2 2020/01/07 22:42:14 rillig Exp $
+# $NetBSD: modorder.mk,v 1.3 2020/06/09 01:48:17 sjg Exp $
 
 LIST=		one two three four five six seven eight nine ten
 LISTX=		${LIST:Ox}
@@ -10,6 +10,7 @@ TEST_RESULT= && echo Ok || echo Failed
 all:
 	@echo "LIST      = ${LIST}"
 	@echo "LIST:O    = ${LIST:O}"
+	@echo "LIST:Or    = ${LIST:Or}"
 	# Note that 1 in every 10! trials two independently generated
 	# randomized orderings will be the same.  The test framework doesn't
 	# support checking probabilistic output, so we accept that each of the
