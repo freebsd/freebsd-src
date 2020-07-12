@@ -32,8 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_inet.h"
-#include "opt_inet6.h"
 #include "opt_sctp.h"
 #include "opt_ktrace.h"
 
@@ -139,8 +137,6 @@ sctp_syscalls_uninit(void)
 
 /*
  * SCTP syscalls.
- * Functionality only compiled in if SCTP is defined in the kernel Makefile,
- * otherwise all return EOPNOTSUPP.
  */
 int
 sys_sctp_peeloff(td, uap)
@@ -150,7 +146,6 @@ sys_sctp_peeloff(td, uap)
 		caddr_t	name;
 	} */ *uap;
 {
-#if defined(INET) || defined(INET6)
 	struct file *headfp, *nfp = NULL;
 	struct socket *head, *so;
 	cap_rights_t rights;
@@ -212,7 +207,6 @@ done:
 	fdrop(headfp, td);
 done2:
 	return (error);
-#endif
 }
 
 int
@@ -228,7 +222,6 @@ sys_sctp_generic_sendmsg (td, uap)
 		int flags
 	} */ *uap;
 {
-#if defined(INET) || defined(INET6)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
@@ -323,7 +316,6 @@ sctp_bad:
 sctp_bad2:
 	free(to, M_SONAME);
 	return (error);
-#endif
 }
 
 int
@@ -339,7 +331,6 @@ sys_sctp_generic_sendmsg_iov(td, uap)
 		int flags
 	} */ *uap;
 {
-#if defined(INET) || defined(INET6)
 	struct sctp_sndrcvinfo sinfo, *u_sinfo = NULL;
 	struct socket *so;
 	struct file *fp = NULL;
@@ -451,7 +442,6 @@ sctp_bad1:
 sctp_bad2:
 	free(to, M_SONAME);
 	return (error);
-#endif
 }
 
 int
@@ -467,7 +457,6 @@ sys_sctp_generic_recvmsg(td, uap)
 		int *msg_flags
 	} */ *uap;
 {
-#if defined(INET) || defined(INET6)
 	uint8_t sockbufstore[256];
 	struct uio auio;
 	struct iovec *iov, *tiov;
@@ -597,5 +586,4 @@ out1:
 		fdrop(fp, td);
 
 	return (error);
-#endif
 }
