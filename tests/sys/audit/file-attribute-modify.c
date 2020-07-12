@@ -704,7 +704,7 @@ ATF_TC_BODY(chflagsat_success, tc)
 	/* File needs to exist to call chflagsat(2) */
 	ATF_REQUIRE((filedesc = open(path, O_CREAT, mode)) != -1);
 	FILE *pipefd = setup(fds, auclass);
-	ATF_REQUIRE_EQ(0, chflagsat(AT_FDCWD, path, SF_IMMUTABLE, 0));
+	ATF_REQUIRE_EQ(0, chflagsat(AT_FDCWD, path, UF_OFFLINE, 0));
 	check_audit(fds, successreg, pipefd);
 	close(filedesc);
 }
@@ -726,7 +726,7 @@ ATF_TC_BODY(chflagsat_failure, tc)
 {
 	FILE *pipefd = setup(fds, auclass);
 	/* Failure reason: file does not exist */
-	ATF_REQUIRE_EQ(-1, chflagsat(AT_FDCWD, errpath, SF_IMMUTABLE, 0));
+	ATF_REQUIRE_EQ(-1, chflagsat(AT_FDCWD, errpath, UF_OFFLINE, 0));
 	check_audit(fds, failurereg, pipefd);
 }
 
