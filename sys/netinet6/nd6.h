@@ -385,6 +385,11 @@ void nd6_rem_ifa_lle(struct in6_ifaddr *, int);
 int nd6_output_ifp(struct ifnet *, struct ifnet *, struct mbuf *,
     struct sockaddr_in6 *, struct route *);
 
+struct rib_head;
+struct rib_cmd_info;
+void nd6_subscription_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
+    void *arg);
+
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);
 void nd6_na_output(struct ifnet *, const struct in6_addr *,
