@@ -1,4 +1,4 @@
-/*	$NetBSD: lstSucc.c,v 1.13 2008/12/13 15:19:29 dsl Exp $	*/
+/*	$NetBSD: lstSucc.c,v 1.14 2020/07/03 08:37:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstSucc.c,v 1.13 2008/12/13 15:19:29 dsl Exp $";
+static char rcsid[] = "$NetBSD: lstSucc.c,v 1.14 2020/07/03 08:37:57 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstSucc.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstSucc.c,v 1.13 2008/12/13 15:19:29 dsl Exp $");
+__RCSID("$NetBSD: lstSucc.c,v 1.14 2020/07/03 08:37:57 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -73,7 +73,6 @@ Lst_Succ(LstNode ln)
     if (ln == NULL) {
 	return NULL;
     } else {
-	return (ln->nextPtr);
+	return ln->nextPtr;
     }
 }
-
