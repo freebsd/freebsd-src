@@ -847,3 +847,28 @@ destroy_subscription_epoch(epoch_context_t ctx)
 
 	free(rs, M_RTABLE);
 }
+
+void
+rib_init_subscriptions(struct rib_head *rnh)
+{
+
+	CK_STAILQ_INIT(&rnh->rnh_subscribers);
+}
+
+void
+rib_destroy_subscriptions(struct rib_head *rnh)
+{
+	struct rib_subscription *rs;
+	struct epoch_tracker et;
+
+	NET_EPOCH_ENTER(et);
+	RIB_WLOCK(rnh);
+	while ((rs = CK_STAILQ_FIRST(&rnh->rnh_subscribers)) != NULL) {
+		CK_STAILQ_REMOVE_HEAD(&rnh->rnh_subscribers, next);
+		epoch_call(net_epoch_preempt, destroy_subscription_epoch,
+		    &rs->epoch_ctx);
+	}
+	RIB_WUNLOCK(rnh);
+	NET_EPOCH_EXIT(et);
+}
+
