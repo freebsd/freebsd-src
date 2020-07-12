@@ -739,5 +739,5 @@ DEFINE_CLASS_1(pcib, bcm_pcib_driver, bcm_pcib_methods,
     sizeof(struct bcm_pcib_softc), generic_pcie_fdt_driver);
 
 static devclass_t bcm_pcib_devclass;
-DRIVER_MODULE(pcib, simplebus, bcm_pcib_driver, bcm_pcib_devclass, 0, 0);
+DRIVER_MODULE(bcm_pcib, simplebus, bcm_pcib_driver, bcm_pcib_devclass, 0, 0);
 
