@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2018
+.Dd June 22, 2020
 .Dt RCORDER 8
 .Os
 .Sh NAME
@@ -62,30 +62,30 @@ and which indicate, for each file, which
 may be expected to be filled by that file.
 .Pp
 Within each file, a block containing a series of
-.Dq Li REQUIRE ,
-.Dq Li PROVIDE ,
-.Dq Li BEFORE
+.Ql REQUIRE ,
+.Ql PROVIDE ,
+.Ql BEFORE
 and
-.Dq Li KEYWORD
+.Ql KEYWORD
 lines must appear.
 The format of the lines is rigid.
 Each line must begin with a single
 .Ql # ,
 followed by a single space, followed by
-.Dq Li PROVIDE: ,
-.Dq Li REQUIRE: ,
-.Dq Li BEFORE: ,
+.Ql PROVIDE\&: ,
+.Ql REQUIRE\&: ,
+.Ql BEFORE\&: ,
 or
-.Dq Li KEYWORD: .
+.Ql KEYWORD\&: .
 No deviation is permitted.
 Each dependency line is then followed by a series of conditions,
 separated by whitespace.
 Multiple
-.Dq Li PROVIDE ,
-.Dq Li REQUIRE ,
-.Dq Li BEFORE
+.Ql PROVIDE ,
+.Ql REQUIRE ,
+.Ql BEFORE
 and
-.Dq Li KEYWORD
+.Ql KEYWORD
 lines may appear, but all such lines must appear in a sequence without
 any intervening lines, as once a line that does not follow the format
 is reached, parsing stops.
@@ -94,19 +94,21 @@ is reached, parsing stops.
 .\" that they can be deprecated at some point in the future.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
-.It Fl k
+.Bl -tag -width "-k keep"
+.It Fl k Ar keep
 Add the specified keyword to the
 .Dq "keep list" .
 If any
 .Fl k
 option is given, only those files containing the matching keyword are listed.
-.It Fl s
+This option can be specified multiple times.
+.It Fl s Ar skip
 Add the specified keyword to the
 .Dq "skip list" .
 If any
 .Fl s
 option is given, files containing the matching keyword are not listed.
+This option can be specified multiple times.
 .El
 .Pp
 An example block follows:
@@ -117,20 +119,20 @@ An example block follows:
 .Ed
 .Pp
 This block states that the file in which it appears depends upon the
-.Dq Li networking ,
-.Dq Li syslog ,
+.Ql networking ,
+.Ql syslog ,
 and
-.Dq Li usr
+.Ql usr
 conditions, and provides the
-.Dq Li dns
+.Ql dns
 and
-.Dq Li nscd
+.Ql nscd
 conditions.
 .Pp
 A file may contain zero
-.Dq Li PROVIDE
+.Ql PROVIDE
 lines, in which case it provides no conditions, and may contain zero
-.Dq Li REQUIRE
+.Ql REQUIRE
 lines, in which case it has no dependencies.
 There must be at least one file with no dependencies in the set of
 arguments passed to
@@ -140,19 +142,36 @@ in order for it to find a starting place in the dependency ordering.
 There are several
 .Em KEYWORDs
 in use:
-.Bl -tag -width ".Cm shutdown" -offset indent
-.It Cm firstboot, nojail, nojailvnet, nostart
+.Bl -tag -width "shutdown" -offset indent
+.It Sy firstboot , nojail , nojailvnet , nostart
 Used by
 .Xr rc 8 .
-.It Cm resume
+.It Sy resume
 Used by
 .Nm /etc/rc.resume
 (see
 .Xr acpiconf 8 )
-.It Cm shutdown
+.It Sy shutdown
 Used by
 .Xr rc.shutdown 8 .
 .El
+.Sh EXAMPLES
+Print the dependency ordering of the services from the base system and
+.Xr ports 7 :
+.Bd -literal -offset indent
+$ rcorder /etc/rc.d/* /usr/local/etc/rc.d/*
+.Ed
+.Pp
+Count the number of services in the base system, which specify the
+.Sy shutdown
+keyword, while skipping those with
+.Sy firstboot
+and
+.Sy nojailvnet :
+.Bd -literal -offset indent
+$ rcorder -k nostart -s firstboot -s nojailvnet /etc/rc.d/*  | wc -l
+       3
+.Ed
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -161,9 +180,9 @@ status if it encounters an error while processing the file list.
 .Bl -diag
 .It "Requirement %s has no providers, aborting."
 No file has a
-.Dq Li PROVIDE
+.Ql PROVIDE
 line corresponding to a condition present in a
-.Dq Li REQUIRE
+.Ql REQUIRE
 line in another file.
 .It "Circular dependency on provision %s, aborting."
 A set of files has a circular dependency which was detected while
@@ -175,7 +194,8 @@ processing the stated file.
 .Sh SEE ALSO
 .Xr acpiconf 8 ,
 .Xr rc 8 ,
-.Xr rc.shutdown 8
+.Xr rc.shutdown 8 ,
+.Xr service 8
 .Sh HISTORY
 The
 .Nm
@@ -192,7 +212,7 @@ and
 .An Matthew R. Green Aq Mt mrg@eterna.com.au .
 .Sh BUGS
 The
-.Dq Li REQUIRE
+.Ql REQUIRE
 keyword is misleading:
 It does not describe which daemons have to be running before a script
 will be started.
@@ -200,12 +220,12 @@ It describes which scripts must be placed before it in
 the dependency ordering.
 For example,
 if your script has a
-.Dq Li REQUIRE
+.Ql REQUIRE
 on
-.Dq Li named ,
+.Ql sshd ,
 it means the script must be placed after the
-.Dq Li named
+.Ql sshd
 script in the dependency ordering,
 not necessarily that it requires
-.Xr named 8
+.Nm sshd
 to be started or enabled.
