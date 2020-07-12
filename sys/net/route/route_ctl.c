@@ -79,7 +79,6 @@ struct rib_subscription {
 static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
 
-static void rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info);
 static void destroy_subscription_epoch(epoch_context_t ctx);
 
 static struct rib_head *
@@ -275,10 +274,8 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	if ((rn != NULL) || (rt_old != NULL))
 		rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
 
-	if (rt_old != NULL) {
-		rt_notifydelete(rt_old, info);
+	if (rt_old != NULL)
 		rtfree(rt_old);
-	}
 
 	/*
 	 * If it still failed to go into the tree,
@@ -289,13 +286,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		uma_zfree(V_rtzone, rt);
 		return (EEXIST);
 	}
-
-	/*
-	 * If this protocol has something to add to this then
-	 * allow it to do that as well.
-	 */
-	if (ifa->ifa_rtrequest)
-		ifa->ifa_rtrequest(RTM_ADD, rt, rt->rt_nhop, info);
 
 	RT_UNLOCK(rt);
 
@@ -432,7 +422,6 @@ del_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		return (error);
 
 	rib_notify(rnh, RIB_NOTIFY_DELAYED, rc);
-	rt_notifydelete(rt, info);
 
 	/*
 	 * If the caller wants it, then it can have it,
@@ -554,14 +543,8 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 	RT_LOCK(rt);
 
 	/* Provide notification to the protocols.*/
-	if ((nh_orig->nh_ifa != nh->nh_ifa) && nh_orig->nh_ifa->ifa_rtrequest)
-		nh_orig->nh_ifa->ifa_rtrequest(RTM_DELETE, rt, nh_orig, info);
-
 	rt->rt_nhop = nh;
 	rt_setmetrics(info, rt);
-
-	if ((nh_orig->nh_ifa != nh->nh_ifa) && nh_orig->nh_ifa->ifa_rtrequest)
-		nh_orig->nh_ifa->ifa_rtrequest(RTM_DELETE, rt, nh_orig, info);
 
 	/* Finalize notification */
 	rc->rc_rt = rt;
@@ -640,19 +623,6 @@ rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
 	return (error);
 }
 
-
-static void
-rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
-{
-	struct ifaddr *ifa;
-
-	/*
-	 * give the protocol a chance to keep things in sync.
-	 */
-	ifa = rt->rt_nhop->nh_ifa;
-	if (ifa != NULL && ifa->ifa_rtrequest != NULL)
-		ifa->ifa_rtrequest(RTM_DELETE, rt, rt->rt_nhop, info);
-}
 
 struct rt_delinfo
 {
@@ -748,8 +718,6 @@ rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool 
 		/* TODO std rt -> rt_addrinfo export */
 		di.info.rti_info[RTAX_DST] = rt_key(rt);
 		di.info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-
-		rt_notifydelete(rt, &di.info);
 
 		if (report)
 			rt_routemsg(RTM_DELETE, rt, rt->rt_nhop->nh_ifp, 0,
