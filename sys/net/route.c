@@ -348,7 +348,7 @@ rt_table_init(int offset, int family, u_int fibnum)
 	nhops_init_rib(rh);
 
 	/* Init subscription system */
-	CK_STAILQ_INIT(&rh->rnh_subscribers);
+	rib_init_subscriptions(rh);
 
 	/* Finally, set base callbacks */
 	rh->rnh_addaddr = rn_addroute;
@@ -382,6 +382,8 @@ rt_table_destroy(struct rib_head *rh)
 	rn_walktree(&rh->rmhead.head, rt_freeentry, &rh->rmhead.head);
 
 	nhops_destroy_rib(rh);
+
+	rib_destroy_subscriptions(rh);
 
 	/* Assume table is already empty */
 	RIB_LOCK_DESTROY(rh);
