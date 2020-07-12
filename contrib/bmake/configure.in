@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.65 2020/05/25 01:11:40 sjg Exp $
+dnl	$Id: configure.in,v 1.66 2020/07/10 16:34:38 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20200524], [sjg@NetBSD.org])
+AC_INIT([bmake], [20200710], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -128,7 +128,7 @@ dnl AC_C_CROSS
 dnl
 
 dnl Checks for header files.
-AC_HEADER_STDC
+AC_INCLUDES_DEFAULT
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 dnl Keep this list sorted
@@ -149,13 +149,11 @@ AC_CHECK_HEADERS( \
 	paths.h \
 	poll.h \
 	ranlib.h \
-	string.h \
 	sys/mman.h \
 	sys/select.h \
 	sys/socket.h \
 	sys/time.h \
 	sys/uio.h \
-	unistd.h \
 	utime.h \
 	)
 

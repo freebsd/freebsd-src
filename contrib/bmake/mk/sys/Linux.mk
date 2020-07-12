@@ -1,83 +1,83 @@
-#	$Id: Linux.mk,v 1.10 2020/04/17 21:08:17 sjg Exp $
+#	$Id: Linux.mk,v 1.12 2020/06/29 14:34:42 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
-OS?=		Linux
-unix?=		We run ${OS}.
+OS ?=		Linux
+unix ?=		We run ${OS}.
 
-ROOT_GROUP=	root
+ROOT_GROUP ?=	root
 
 # would be better to work out where it is...
-LIBCRT0= /dev/null
+LIBCRT0 ?= /dev/null
 
-NEED_SOLINKS=yes
+NEED_SOLINKS ?=yes
 
 .SUFFIXES: .out .a .ln .o .c ${CXX_SUFFIXES} .F .f .r .y .l .s .S .cl .p .h .sh .m4
 
 .LIBS:		.a
 
-AR=		ar
-ARFLAGS=	rl
-RANLIB=		ranlib
+AR ?=		ar
+ARFLAGS ?=	rl
+RANLIB ?=		ranlib
 
-AS=		as
+AS ?=		as
 AFLAGS=
-COMPILE.s=	${AS} ${AFLAGS}
-LINK.s=		${CC} ${AFLAGS} ${LDFLAGS}
-COMPILE.S=	${CC} ${AFLAGS} ${CPPFLAGS} -c
-LINK.S=		${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
+COMPILE.s ?=	${AS} ${AFLAGS}
+LINK.s ?=		${CC} ${AFLAGS} ${LDFLAGS}
+COMPILE.S ?=	${CC} ${AFLAGS} ${CPPFLAGS} -c
+LINK.S ?=		${CC} ${AFLAGS} ${CPPFLAGS} ${LDFLAGS}
 .if exists(/usr/local/bin/gcc)
-CC=		gcc -pipe
-DBG=		-O -g
-STATIC?=		-static
+CC ?=		gcc -pipe
+DBG ?=		-O -g
+STATIC ?=		-static
 .else
-CC=             cc -pipe
-DBG=         -g
-STATIC=         -Bstatic
+CC ?=             cc -pipe
+DBG ?=         -g
+STATIC ?=         -Bstatic
 .endif
-CFLAGS=		${DBG}
-COMPILE.c=	${CC} ${CFLAGS} ${CPPFLAGS} -c
-LINK.c=		${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
+CFLAGS ?=		${DBG}
+COMPILE.c ?=	${CC} ${CFLAGS} ${CPPFLAGS} -c
+LINK.c ?=		${CC} ${CFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-CXX=		g++
-CXXFLAGS=	${CFLAGS}
-COMPILE.cc=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
-LINK.cc=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
+CXX ?=		g++
+CXXFLAGS ?=	${CFLAGS}
+COMPILE.cc ?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} -c
+LINK.cc ?=	${CXX} ${CXXFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-CPP=		cpp
+CPP ?=		cpp
 .if defined(DESTDIR)
 CPPFLAGS+=	-nostdinc -idirafter ${DESTDIR}/usr/include
 .endif
 
-MK_DEP=	mkdeps.sh -N
-FC=		f77
-FFLAGS=		-O
+MK_DEP ?=	mkdeps.sh -N
+FC ?=		f77
+FFLAGS ?=		-O
 RFLAGS=
-COMPILE.f=	${FC} ${FFLAGS} -c
-LINK.f=		${FC} ${FFLAGS} ${LDFLAGS}
-COMPILE.F=	${FC} ${FFLAGS} ${CPPFLAGS} -c
-LINK.F=		${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
-COMPILE.r=	${FC} ${FFLAGS} ${RFLAGS} -c
-LINK.r=		${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
+COMPILE.f ?=	${FC} ${FFLAGS} -c
+LINK.f ?=		${FC} ${FFLAGS} ${LDFLAGS}
+COMPILE.F ?=	${FC} ${FFLAGS} ${CPPFLAGS} -c
+LINK.F ?=		${FC} ${FFLAGS} ${CPPFLAGS} ${LDFLAGS}
+COMPILE.r ?=	${FC} ${FFLAGS} ${RFLAGS} -c
+LINK.r ?=		${FC} ${FFLAGS} ${RFLAGS} ${LDFLAGS}
 
-LEX=		lex
+LEX ?=		lex
 LFLAGS=
-LEX.l=		${LEX} ${LFLAGS}
+LEX.l ?=		${LEX} ${LFLAGS}
 
-LD=		ld
+LD ?=		ld
 LDFLAGS=
 
-LINT=		lint
-LINTFLAGS=	-chapbx
+LINT ?=		lint
+LINTFLAGS ?=	-chapbx
 
-PC=		pc
+PC ?=		pc
 PFLAGS=
-COMPILE.p=	${PC} ${PFLAGS} ${CPPFLAGS} -c
-LINK.p=		${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
+COMPILE.p ?=	${PC} ${PFLAGS} ${CPPFLAGS} -c
+LINK.p ?=		${PC} ${PFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
-YACC=		yacc
-YFLAGS=		-d
-YACC.y=		${YACC} ${YFLAGS}
+YACC ?=		yacc
+YFLAGS ?=		-d
+YACC.y ?=		${YACC} ${YFLAGS}
 
 # C
 .c:

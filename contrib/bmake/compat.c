@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.110 2020/01/19 19:42:32 riastradh Exp $	*/
+/*	$NetBSD: compat.c,v 1.113 2020/07/03 08:13:23 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: compat.c,v 1.110 2020/01/19 19:42:32 riastradh Exp $";
+static char rcsid[] = "$NetBSD: compat.c,v 1.113 2020/07/03 08:13:23 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: compat.c,v 1.110 2020/01/19 19:42:32 riastradh Exp $");
+__RCSID("$NetBSD: compat.c,v 1.113 2020/07/03 08:13:23 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -236,7 +236,7 @@ CompatRunCommand(void *cmdp, void *gnp)
     silent = gn->type & OP_SILENT;
     errCheck = !(gn->type & OP_IGNORE);
     doIt = FALSE;
-    
+
     cmdNode = Lst_Member(gn->commands, cmd);
     cmdStart = Var_Subst(NULL, cmd, gn, VARF_WANTRES);
 
@@ -249,18 +249,18 @@ CompatRunCommand(void *cmdp, void *gnp)
 
     if (*cmdStart == '\0') {
 	free(cmdStart);
-	return(0);
+	return 0;
     }
     cmd = cmdStart;
     Lst_Replace(cmdNode, cmdStart);
 
     if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
 	(void)Lst_AtEnd(ENDNode->commands, cmdStart);
-	return(0);
+	return 0;
     }
     if (strcmp(cmdStart, "...") == 0) {
 	gn->type |= OP_SAVE_CMDS;
-	return(0);
+	return 0;
     }
 
     while ((*cmd == '@') || (*cmd == '-') || (*cmd == '+')) {
@@ -287,7 +287,7 @@ CompatRunCommand(void *cmdp, void *gnp)
      * If we did not end up with a command, just skip it.
      */
     if (!*cmd)
-	return (0);
+	return 0;
 
 #if !defined(MAKE_NATIVE)
     /*
@@ -307,7 +307,7 @@ CompatRunCommand(void *cmdp, void *gnp)
      * go to the shell. Therefore treat '=' and ':' like shell
      * meta characters as documented in make(1).
      */
-    
+
     useShell = needshell(cmd, FALSE);
 #endif
 
@@ -325,7 +325,7 @@ CompatRunCommand(void *cmdp, void *gnp)
      * we go...
      */
     if (!doIt && NoExecute(gn)) {
-	return (0);
+	return 0;
     }
     if (DEBUG(JOB))
 	fprintf(debug_file, "Execute: '%s'\n", cmd);
@@ -377,7 +377,7 @@ again:
 	meta_compat_start();
     }
 #endif
-    
+
     /*
      * Fork and execute the single command. If the fork fails, we abort.
      */
@@ -499,8 +499,8 @@ again:
 	bmake_signal(compatSigno, SIG_DFL);
 	kill(myPid, compatSigno);
     }
-    
-    return (status);
+
+    return status;
 }
 
 /*-
@@ -550,7 +550,7 @@ Compat_Make(void *gnp, void *pgnp)
 
 	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
-	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn, 0);
+	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    free(p1);
 	}
 
@@ -654,7 +654,7 @@ Compat_Make(void *gnp, void *pgnp)
     } else {
 	if (Lst_Member(gn->iParents, pgn) != NULL) {
 	    char *p1;
-	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn, 0);
+	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
 	    free(p1);
 	}
 	switch(gn->made) {
@@ -681,7 +681,7 @@ Compat_Make(void *gnp, void *pgnp)
 
 cohorts:
     Lst_ForEach(gn->cohorts, Compat_Make, pgnp);
-    return (0);
+    return 0;
 }
 
 /*-

@@ -1,4 +1,4 @@
-/*	$NetBSD: lstFindFrom.c,v 1.15 2009/01/23 21:58:28 dsl Exp $	*/
+/*	$NetBSD: lstFindFrom.c,v 1.16 2020/07/03 08:37:56 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstFindFrom.c,v 1.15 2009/01/23 21:58:28 dsl Exp $";
+static char rcsid[] = "$NetBSD: lstFindFrom.c,v 1.16 2020/07/03 08:37:56 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstFindFrom.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstFindFrom.c,v 1.15 2009/01/23 21:58:28 dsl Exp $");
+__RCSID("$NetBSD: lstFindFrom.c,v 1.16 2020/07/03 08:37:56 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -81,10 +81,9 @@ Lst_FindFrom(Lst l, LstNode ln, const void *d,
 
     do {
 	if ((*cProc)(tln->datum, d) == 0)
-	    return (tln);
+	    return tln;
 	tln = tln->nextPtr;
     } while (tln != ln && tln != NULL);
 
     return NULL;
 }
-

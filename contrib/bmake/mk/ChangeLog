@@ -1,3 +1,24 @@
+2020-07-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: optimize content of dirdeps.cache
+
+2020-06-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys/*.mk: make it easier for local*sys.mk to customize by
+	using ?=
+
+2020-06-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* gendirdeps.mk (LOCAL_DEPENDS_GUARD): if we don't build at level 0
+	it is much safer to guard local depends with a simple check for
+	.MAKE.LEVEL > 0
+
+2020-06-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200610
+
+	* mkopt.sh: this needs posix shell so #!/bin/sh should be ok
+
 2020-06-06  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20200606
