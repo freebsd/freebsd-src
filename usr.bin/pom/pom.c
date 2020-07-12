@@ -135,11 +135,13 @@ main(int argc, char **argv)
 			tmd.tm_hour = 0;
 			tmd.tm_min = 0;
 			tmd.tm_sec = 0;
+			tmd.tm_isdst = -1;
 		}
 		if (otime != NULL) {
 			tmd.tm_hour = strtol(otime, NULL, 10);
 			tmd.tm_min = strtol(otime + 3, NULL, 10);
 			tmd.tm_sec = strtol(otime + 6, NULL, 10);
+			tmd.tm_isdst = -1;
 		}
 		tt = mktime(&tmd);
 	}
@@ -149,19 +151,19 @@ main(int argc, char **argv)
 	    (GMT.tm_min / 60.0) + (GMT.tm_sec / 3600.0)) / 24.0);
 	for (cnt = EPOCH; cnt < GMT.tm_year; ++cnt)
 		days += isleap(1900 + cnt) ? 366 : 365;
-	today = potm(days) + .5;
+	today = potm(days);
 	if (pflag) {
 		(void)printf("%1.0f\n", today);
 		return (0);
 	}
 	(void)printf("The Moon is ");
-	if ((int)today == 100)
+	if (today >= 99.5)
 		(void)printf("Full\n");
-	else if (!(int)today)
+	else if (today < 0.5)
 		(void)printf("New\n");
 	else {
 		tomorrow = potm(days + 1);
-		if ((int)today == 50)
+		if (today >= 49.5 && today < 50.5)
 			(void)printf("%s\n", tomorrow > today ?
 			    "at the First Quarter" : "at the Last Quarter");
 		else {
