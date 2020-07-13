@@ -92,9 +92,9 @@ result()
 		cp current.out $REGRESS/${TESTNAME}
 	fi
 	if diff -c $REGRESS/${TESTNAME} current.out ; then
-		echo "ok $MARK $TESTNAME # $TODO$COMMENT"
+		echo "ok $MARK $TESTNAME # $TODO$OCOMMENT"
 	else
-		echo "not ok $MARK $TESTNAME # $TODO$COMMENT"
+		echo "not ok $MARK $TESTNAME # $TODO$OCOMMENT"
 	fi 1>&4 2>&5
 }
 
@@ -102,6 +102,7 @@ result()
 mark()
 {
 	[ $MARK -gt 0 ] && result
+	OCOMMENT=$COMMENT
 	MARK=`expr $MARK + 1`
 	TESTNAME=$1
 	exec 1>&4 2>&5
