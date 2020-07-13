@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2018
+.Dd July 11, 2020
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -479,8 +479,14 @@ In that case, the first listed console will become the default console for
 userland output (e.g.\& from
 .Xr init 8 ) .
 .It Va currdev
-Selects the default device.
-Syntax for devices is odd.
+Selects the default device to loader the kernel from.
+The syntax is:
+.Dl Ic loader_device:
+or
+.Dl Ic zfs:dataset:
+Examples:
+.Dl Ic disk0p2:
+.Dl Ic zfs:zroot/ROOT/default:
 .It Va dumpdev
 Sets the device for kernel dumps.
 This can be used to ensure that a device is configured before the corresponding
