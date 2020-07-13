@@ -32,7 +32,7 @@ mountlate_start()
 		;;
 	*)
 		echo 'Mounting /etc/fstab filesystems failed,' \
-		    ' startup aborted'
+		    'startup aborted'
 		stop_boot true
 		;;
 	esac
