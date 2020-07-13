@@ -145,13 +145,12 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 		for (left = 0; left < rem; left++)
 			*mcp++ = '\0';
 		mp->m_len += rem;
-		nd->nd_bpos = mcp;
 		if ((nd->nd_flag & ND_EXTPG) != 0) {
 			nd->nd_bextpgsiz -= rem;
 			mp->m_epg_last_len += rem;
 		}
-	} else
-		nd->nd_bpos = mcp;
+	}
+	nd->nd_bpos = mcp;
 	nd->nd_mb = mp;
 }
 
