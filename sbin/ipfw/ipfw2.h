@@ -328,7 +328,7 @@ struct buf_pr {
 	size_t	needed;	/* length needed */
 };
 
-int pr_u64(struct buf_pr *bp, uint64_t *pd, int width);
+int pr_u64(struct buf_pr *bp, void *pd, int width);
 int bp_alloc(struct buf_pr *b, size_t size);
 void bp_free(struct buf_pr *b);
 int bprintf(struct buf_pr *b, const char *format, ...);

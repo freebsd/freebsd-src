@@ -501,7 +501,7 @@ bprint_uint_arg(struct buf_pr *bp, const char *str, uint32_t arg)
  * otherwise, return the required width.
  */
 int
-pr_u64(struct buf_pr *b, uint64_t *pd, int width)
+pr_u64(struct buf_pr *b, void *pd, int width)
 {
 #ifdef TCC
 #define U64_FMT "I64"
