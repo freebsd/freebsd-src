@@ -28,7 +28,7 @@
 .\"     @(#)gethostname.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2003
+.Dd July 13, 2020
 .Dt GETHOSTNAME 3
 .Os
 .Sh NAME
@@ -68,9 +68,9 @@ which has length
 This call is restricted to the super-user and
 is normally used only when the system is bootstrapped.
 .Pp
-Host names are limited to
-.Brq Dv HOST_NAME_MAX
-characters, not including the trailing null, currently 255.
+Applications should use
+.Fn sysconf _SC_HOST_NAME_MAX
+to find the maximum length of a host name (not including the terminating null).
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
