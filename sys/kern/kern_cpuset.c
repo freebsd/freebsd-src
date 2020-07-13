@@ -1582,6 +1582,25 @@ cpuset_setproc_update_set(struct proc *p, struct cpuset *set)
 	return (0);
 }
 
+/*
+ * In Capability mode, the only accesses that are permitted are to the current
+ * thread and process' CPU and domain sets.
+ */
+static int
+cpuset_check_capabilities(struct thread *td, cpulevel_t level, cpuwhich_t which,
+    id_t id)
+{
+	if (IN_CAPABILITY_MODE(td)) {
+		if (level != CPU_LEVEL_WHICH)
+			return (ECAPMODE);
+		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID)
+			return (ECAPMODE);
+		if (id != -1)
+			return (ECAPMODE);
+	}
+	return (0);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct cpuset_args {
 	cpusetid_t	*setid;
@@ -1739,15 +1758,9 @@ kern_cpuset_getaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 
 	if (cpusetsize < sizeof(cpuset_t) || cpusetsize > CPU_MAXSIZE / NBBY)
 		return (ERANGE);
-	/* In Capability mode, you can only get your own CPU set. */
-	if (IN_CAPABILITY_MODE(td)) {
-		if (level != CPU_LEVEL_WHICH)
-			return (ECAPMODE);
-		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID)
-			return (ECAPMODE);
-		if (id != -1)
-			return (ECAPMODE);
-	}
+	error = cpuset_check_capabilities(td, level, which, id);
+	if (error != 0)
+		return (error);
 	size = cpusetsize;
 	mask = malloc(size, M_TEMP, M_WAITOK | M_ZERO);
 	error = cpuset_which(which, id, &p, &ttd, &set);
@@ -1856,15 +1869,9 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 
 	if (cpusetsize < sizeof(cpuset_t) || cpusetsize > CPU_MAXSIZE / NBBY)
 		return (ERANGE);
-	/* In Capability mode, you can only set your own CPU set. */
-	if (IN_CAPABILITY_MODE(td)) {
-		if (level != CPU_LEVEL_WHICH)
-			return (ECAPMODE);
-		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID)
-			return (ECAPMODE);
-		if (id != -1)
-			return (ECAPMODE);
-	}
+	error = cpuset_check_capabilities(td, level, which, id);
+	if (error != 0)
+		return (error);
 	mask = malloc(cpusetsize, M_TEMP, M_WAITOK | M_ZERO);
 	error = copyin(maskp, mask, cpusetsize);
 	if (error)
@@ -1987,15 +1994,9 @@ kern_cpuset_getdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (domainsetsize < sizeof(domainset_t) ||
 	    domainsetsize > DOMAINSET_MAXSIZE / NBBY)
 		return (ERANGE);
-	/* In Capability mode, you can only get your own domain set. */
-	if (IN_CAPABILITY_MODE(td)) {
-		if (level != CPU_LEVEL_WHICH)
-			return (ECAPMODE);
-		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID)
-			return (ECAPMODE);
-		if (id != -1)
-			return (ECAPMODE);
-	}
+	error = cpuset_check_capabilities(td, level, which, id);
+	if (error != 0)
+		return (error);
 	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
 	bzero(&outset, sizeof(outset));
 	error = cpuset_which(which, id, &p, &ttd, &set);
@@ -2122,15 +2123,9 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 	if (policy <= DOMAINSET_POLICY_INVALID ||
 	    policy > DOMAINSET_POLICY_MAX)
 		return (EINVAL);
-	/* In Capability mode, you can only set your own CPU set. */
-	if (IN_CAPABILITY_MODE(td)) {
-		if (level != CPU_LEVEL_WHICH)
-			return (ECAPMODE);
-		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID)
-			return (ECAPMODE);
-		if (id != -1)
-			return (ECAPMODE);
-	}
+	error = cpuset_check_capabilities(td, level, which, id);
+	if (error != 0)
+		return (error);
 	memset(&domain, 0, sizeof(domain));
 	mask = malloc(domainsetsize, M_TEMP, M_WAITOK | M_ZERO);
 	error = copyin(maskp, mask, domainsetsize);
