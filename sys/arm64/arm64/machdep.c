@@ -62,11 +62,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/ucontext.h>
 #include <sys/vdso.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_phys.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pager.h>
@@ -170,6 +173,26 @@ has_hyp(void)
 static void
 cpu_startup(void *dummy)
 {
+	vm_paddr_t size;
+	int i;
+
+	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)realmem),
+	    ptoa((uintmax_t)realmem) / 1024 / 1024);
+
+	if (bootverbose) {
+		printf("Physical memory chunk(s):\n");
+		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			size = phys_avail[i + 1] - phys_avail[i];
+			printf("%#016jx - %#016jx, %ju bytes (%ju pages)\n",
+			    (uintmax_t)phys_avail[i],
+			    (uintmax_t)phys_avail[i + 1] - 1,
+			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
+		}
+	}
+
+	printf("avail memory = %ju (%ju MB)\n",
+	    ptoa((uintmax_t)vm_free_count()),
+	    ptoa((uintmax_t)vm_free_count()) / 1024 / 1024);
 
 	undef_init();
 	install_cpu_errata();
