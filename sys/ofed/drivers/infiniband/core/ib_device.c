@@ -1060,8 +1060,25 @@ static void __exit ib_core_cleanup(void)
 	destroy_workqueue(ib_wq);
 }
 
-module_init(ib_core_init);
-module_exit(ib_core_cleanup);
+/*
+ * Typical loading and unloading order values and their use:
+ *
+ * SI_ORDER_FIRST (default for module_init):
+ *      Core modules (PCI, infiniband)
+ * SI_ORDER_SECOND (default for module_exit):
+ *      Infiniband core modules (CM)
+ * SI_ORDER_THIRD:
+ * SI_ORDER_FOURTH:
+ *      Infiniband core modules (CMA)
+ * SI_ORDER_FIFTH:
+ *      Infiniband user-space modules (UCM,UCMA,UMAD,UVERBS,IPOIB)
+ * SI_ORDER_SIXTH:
+ *      Network HW driver modules
+ * SI_ORDER_SEVENTH:
+ *      Infiniband HW driver modules
+ */
+module_init_order(ib_core_init, SI_ORDER_FIRST);
+module_exit_order(ib_core_cleanup, SI_ORDER_FIRST);
 
 MODULE_VERSION(ibcore, 1);
 MODULE_DEPEND(ibcore, linuxkpi, 1, 1, 1);

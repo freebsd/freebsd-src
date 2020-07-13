@@ -3399,5 +3399,5 @@ mlx5_ib_show_version(void __unused *arg)
 }
 SYSINIT(mlx5_ib_show_version, SI_SUB_DRIVERS, SI_ORDER_ANY, mlx5_ib_show_version, NULL);
 
-module_init_order(mlx5_ib_init, SI_ORDER_THIRD);
-module_exit_order(mlx5_ib_cleanup, SI_ORDER_THIRD);
+module_init_order(mlx5_ib_init, SI_ORDER_SEVENTH);
+module_exit_order(mlx5_ib_cleanup, SI_ORDER_SEVENTH);

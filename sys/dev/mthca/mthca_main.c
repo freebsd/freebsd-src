@@ -1271,8 +1271,8 @@ static void __exit mthca_cleanup(void)
 	mthca_catas_cleanup();
 }
 
-module_init_order(mthca_init, SI_ORDER_THIRD);
-module_exit(mthca_cleanup);
+module_init_order(mthca_init, SI_ORDER_SEVENTH);
+module_exit_order(mthca_cleanup, SI_ORDER_SEVENTH);
 
 MODULE_VERSION(mthca, 1);
 MODULE_DEPEND(mthca, ibcore, 1, 1, 1);
