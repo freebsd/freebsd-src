@@ -28,7 +28,7 @@
 .\"     @(#)lseek.2	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2016
+.Dd July 13, 2020
 .Dt LSEEK 2
 .Os
 .Sh NAME
@@ -113,10 +113,9 @@ of the existing end-of-file of the file.
 If data is later written
 at this point, subsequent reads of the data in the gap return
 bytes of zeros (until data is actually written into the gap).
-.Pp
-Some devices are incapable of seeking.
-The value of the pointer
-associated with such a device is undefined.
+However, the
+.Fn lseek
+system call does not, by itself, extend the size of a file.
 .Pp
 A
 .Qq hole
@@ -205,13 +204,43 @@ is associated with a pipe, socket, or FIFO.
 The
 .Fn lseek
 system call is expected to conform to
-.St -p1003.1-90 .
+.St -p1003.1-2008 .
+.Pp
+The
+.Dv SEEK_HOLE
+and
+.Dv SEEK_DATA
+directives, along with the
+.Er ENXIO
+error, are extensions to that specification.
 .Sh HISTORY
 The
 .Fn lseek
 function appeared in
 .At v7 .
 .Sh BUGS
+If the
+.Fn lseek
+system call is operating on a device which is incapable of seeking,
+it will request the seek operation and return successfully,
+even though no seek was performed.
+Because the
+.Ar offset
+argument will be stored unconditionally in the file descriptor of that device,
+there is no way to confirm if the seek operation succeeded or not
+(e.g. using the
+.Fn ftell
+function).
+Device types which are known to be incapable of seeking include
+tape drives.
+.Pp
+The
+.Fn lseek
+system call will not detect whether media are present in changeable
+media devices such as DVD or Blu-ray devices.
+A requested seek operation will therefore return sucessfully when no
+medium is present.
+.Pp
 This document's use of
 .Fa whence
 is incorrect English, but is maintained for historical reasons.
