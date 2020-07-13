@@ -594,5 +594,5 @@ static void __exit ib_madeye_cleanup(void)
 	ib_unregister_client(&madeye_client);
 }
 
-module_init(ib_madeye_init);
-module_exit(ib_madeye_cleanup);
+module_init_order(ib_madeye_init, SI_ORDER_THIRD);
+module_exit_order(ib_madeye_cleanup, SI_ORDER_THIRD);
