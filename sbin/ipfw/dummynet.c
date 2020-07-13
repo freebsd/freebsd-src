@@ -166,8 +166,8 @@ enum {
 #define PIE_SCALE (1L<<PIE_FIX_POINT_BITS)
 
 /* integer to time */
-void 
-us_to_time(int t,char *strt)
+static void
+us_to_time(int t, char *strt)
 {
 	if (t < 0)
 		strt[0]='\0';
@@ -221,7 +221,7 @@ time_to_us(const char *s)
 
  
 /* Get AQM or scheduler extra parameters  */
-void
+static void
 get_extra_parms(uint32_t nr, char *out, int subtype)
 { 
 	struct dn_extra_parms *ep;
@@ -586,7 +586,7 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 		break;
 	    }
 	case DN_CMD_GET:
-	    if (co.verbose)
+	    if (g_co.verbose)
 		printf("answer for cmd %d, len %d\n", oid->type, oid->id);
 	    break;
 	case DN_SCH: {
@@ -636,7 +636,7 @@ list_pipes(struct dn_id *oid, struct dn_id *end)
 		sprintf(bwbuf, "%7.3f bit/s ", b);
 
 	    if (humanize_number(burst, sizeof(burst), p->burst,
-		    "", HN_AUTOSCALE, 0) < 0 || co.verbose)
+		    "", HN_AUTOSCALE, 0) < 0 || g_co.verbose)
 		sprintf(burst, "%d", (int)p->burst);
 	    sprintf(buf, "%05d: %s %4d ms burst %s",
 		p->link_nr % DN_MAX_ID, bwbuf, p->delay, burst);
@@ -1317,7 +1317,7 @@ ipfw_config_pipe(int ac, char **av)
 	o_next(&buf, sizeof(struct dn_id), DN_CMD_CONFIG);
 	base->id = DN_API_VERSION;
 
-	switch (co.do_pipe) {
+	switch (g_co.do_pipe) {
 	case 1: /* "pipe N config ..." */
 		/* Allocate space for the WF2Q+ scheduler, its link
 		 * and the FIFO flowset. Set the number, but leave
@@ -1893,7 +1893,7 @@ parse_range(int ac, char *av[], uint32_t *v, int len)
 		}
 		n++;
 		/* translate if 'pipe list' */
-		if (co.do_pipe == 1) {
+		if (g_co.do_pipe == 1) {
 			v[0] += DN_MAX_ID;
 			v[1] += DN_MAX_ID;
 		}
@@ -1947,7 +1947,7 @@ dummynet_list(int ac, char *av[], int show_counters)
 	if (max_size < sizeof(struct dn_flow))
 		max_size = sizeof(struct dn_flow);
 
-	switch (co.do_pipe) {
+	switch (g_co.do_pipe) {
 	case 1:
 		oid->subtype = DN_LINK;	/* list pipe */
 		break;

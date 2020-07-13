@@ -96,8 +96,8 @@ ipfw_nat64clat_handler(int ac, char *av[])
 	int tcmd;
 	uint8_t set;
 
-	if (co.use_set != 0)
-		set = co.use_set - 1;
+	if (g_co.use_set != 0)
+		set = g_co.use_set - 1;
 	else
 		set = 0;
 	ac--; av++;
@@ -389,7 +389,7 @@ nat64clat_stats(const char *name, uint8_t set)
 	if (nat64clat_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	if (co.use_set != 0 || set != 0)
+	if (g_co.use_set != 0 || set != 0)
 		printf("set %u ", set);
 	printf("nat64clat %s\n", name);
 
@@ -438,10 +438,10 @@ nat64clat_show_cb(ipfw_nat64clat_cfg *cfg, const char *name, uint8_t set)
 	if (name != NULL && strcmp(cfg->name, name) != 0)
 		return (ESRCH);
 
-	if (co.use_set != 0 && cfg->set != set)
+	if (g_co.use_set != 0 && cfg->set != set)
 		return (ESRCH);
 
-	if (co.use_set != 0 || cfg->set != 0)
+	if (g_co.use_set != 0 || cfg->set != 0)
 		printf("set %u ", cfg->set);
 
 	inet_ntop(AF_INET6, &cfg->clat_prefix, clat_buf, sizeof(clat_buf));
@@ -457,10 +457,11 @@ nat64clat_show_cb(ipfw_nat64clat_cfg *cfg, const char *name, uint8_t set)
 }
 
 static int
-nat64clat_destroy_cb(ipfw_nat64clat_cfg *cfg, const char *name, uint8_t set)
+nat64clat_destroy_cb(ipfw_nat64clat_cfg *cfg, const char *name __unused,
+    uint8_t set)
 {
 
-	if (co.use_set != 0 && cfg->set != set)
+	if (g_co.use_set != 0 && cfg->set != set)
 		return (ESRCH);
 
 	nat64clat_destroy(cfg->name, cfg->set);
@@ -475,10 +476,10 @@ nat64clat_destroy_cb(ipfw_nat64clat_cfg *cfg, const char *name, uint8_t set)
 static int
 nat64name_cmp(const void *a, const void *b)
 {
-	ipfw_nat64clat_cfg *ca, *cb;
+	const ipfw_nat64clat_cfg *ca, *cb;
 
-	ca = (ipfw_nat64clat_cfg *)a;
-	cb = (ipfw_nat64clat_cfg *)b;
+	ca = (const ipfw_nat64clat_cfg *)a;
+	cb = (const ipfw_nat64clat_cfg *)b;
 
 	if (ca->set > cb->set)
 		return (1);
@@ -500,7 +501,8 @@ nat64clat_foreach(nat64clat_cb_t *f, const char *name, uint8_t set, int sort)
 	ipfw_obj_lheader *olh;
 	ipfw_nat64clat_cfg *cfg;
 	size_t sz;
-	int i, error;
+	uint32_t i;
+	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(*cfg);

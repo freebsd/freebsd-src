@@ -84,13 +84,15 @@ static uint64_t
 nat64lsn_print_states(void *buf)
 {
 	char s[INET6_ADDRSTRLEN], a[INET_ADDRSTRLEN], f[INET_ADDRSTRLEN];
-	char sflags[4], *sf, *proto;
+	const char *proto;
+	char sflags[4], *sf;
 	ipfw_obj_header *oh;
 	ipfw_obj_data *od;
 	ipfw_nat64lsn_stg_v1 *stg;
 	ipfw_nat64lsn_state_v1 *ste;
 	uint64_t next_idx;
-	int i, sz;
+	uint32_t i;
+	int sz;
 
 	oh = (ipfw_obj_header *)buf;
 	od = (ipfw_obj_data *)(oh + 1);
@@ -256,8 +258,8 @@ ipfw_nat64lsn_handler(int ac, char *av[])
 	int tcmd;
 	uint8_t set;
 
-	if (co.use_set != 0)
-		set = co.use_set - 1;
+	if (g_co.use_set != 0)
+		set = g_co.use_set - 1;
 	else
 		set = 0;
 	ac--; av++;
@@ -704,7 +706,7 @@ nat64lsn_stats(const char *name, uint8_t set)
 	if (nat64lsn_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	if (co.use_set != 0 || set != 0)
+	if (g_co.use_set != 0 || set != 0)
 		printf("set %u ", set);
 	printf("nat64lsn %s\n", name);
 	printf("\t%ju packets translated from IPv6 to IPv4\n",
@@ -769,32 +771,32 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 	if (name != NULL && strcmp(cfg->name, name) != 0)
 		return (ESRCH);
 
-	if (co.use_set != 0 && cfg->set != set)
+	if (g_co.use_set != 0 && cfg->set != set)
 		return (ESRCH);
 
-	if (co.use_set != 0 || cfg->set != 0)
+	if (g_co.use_set != 0 || cfg->set != 0)
 		printf("set %u ", cfg->set);
 	inet_ntop(AF_INET, &cfg->prefix4, abuf, sizeof(abuf));
 	printf("nat64lsn %s prefix4 %s/%u", cfg->name, abuf, cfg->plen4);
 	inet_ntop(AF_INET6, &cfg->prefix6, abuf, sizeof(abuf));
 	printf(" prefix6 %s/%u", abuf, cfg->plen6);
-	if (co.verbose || cfg->states_chunks > 1)
+	if (g_co.verbose || cfg->states_chunks > 1)
 		printf(" states_chunks %u", cfg->states_chunks);
-	if (co.verbose || cfg->nh_delete_delay != NAT64LSN_HOST_AGE)
+	if (g_co.verbose || cfg->nh_delete_delay != NAT64LSN_HOST_AGE)
 		printf(" host_del_age %u", cfg->nh_delete_delay);
-	if (co.verbose || cfg->pg_delete_delay != NAT64LSN_PG_AGE)
+	if (g_co.verbose || cfg->pg_delete_delay != NAT64LSN_PG_AGE)
 		printf(" pg_del_age %u", cfg->pg_delete_delay);
-	if (co.verbose || cfg->st_syn_ttl != NAT64LSN_TCP_SYN_AGE)
+	if (g_co.verbose || cfg->st_syn_ttl != NAT64LSN_TCP_SYN_AGE)
 		printf(" tcp_syn_age %u", cfg->st_syn_ttl);
-	if (co.verbose || cfg->st_close_ttl != NAT64LSN_TCP_FIN_AGE)
+	if (g_co.verbose || cfg->st_close_ttl != NAT64LSN_TCP_FIN_AGE)
 		printf(" tcp_close_age %u", cfg->st_close_ttl);
-	if (co.verbose || cfg->st_estab_ttl != NAT64LSN_TCP_EST_AGE)
+	if (g_co.verbose || cfg->st_estab_ttl != NAT64LSN_TCP_EST_AGE)
 		printf(" tcp_est_age %u", cfg->st_estab_ttl);
-	if (co.verbose || cfg->st_udp_ttl != NAT64LSN_UDP_AGE)
+	if (g_co.verbose || cfg->st_udp_ttl != NAT64LSN_UDP_AGE)
 		printf(" udp_age %u", cfg->st_udp_ttl);
-	if (co.verbose || cfg->st_icmp_ttl != NAT64LSN_ICMP_AGE)
+	if (g_co.verbose || cfg->st_icmp_ttl != NAT64LSN_ICMP_AGE)
 		printf(" icmp_age %u", cfg->st_icmp_ttl);
-	if (co.verbose || cfg->jmaxlen != NAT64LSN_JMAXLEN)
+	if (g_co.verbose || cfg->jmaxlen != NAT64LSN_JMAXLEN)
 		printf(" jmaxlen %u", cfg->jmaxlen);
 	if (cfg->flags & NAT64_LOG)
 		printf(" log");
@@ -805,10 +807,11 @@ nat64lsn_show_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 }
 
 static int
-nat64lsn_destroy_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
+nat64lsn_destroy_cb(ipfw_nat64lsn_cfg *cfg, const char *name __unused,
+    uint8_t set)
 {
 
-	if (co.use_set != 0 && cfg->set != set)
+	if (g_co.use_set != 0 && cfg->set != set)
 		return (ESRCH);
 
 	nat64lsn_destroy(cfg->name, cfg->set);
@@ -823,10 +826,10 @@ nat64lsn_destroy_cb(ipfw_nat64lsn_cfg *cfg, const char *name, uint8_t set)
 static int
 nat64name_cmp(const void *a, const void *b)
 {
-	ipfw_nat64lsn_cfg *ca, *cb;
+	const ipfw_nat64lsn_cfg *ca, *cb;
 
-	ca = (ipfw_nat64lsn_cfg *)a;
-	cb = (ipfw_nat64lsn_cfg *)b;
+	ca = (const ipfw_nat64lsn_cfg *)a;
+	cb = (const ipfw_nat64lsn_cfg *)b;
 
 	if (ca->set > cb->set)
 		return (1);
@@ -848,7 +851,8 @@ nat64lsn_foreach(nat64lsn_cb_t *f, const char *name, uint8_t set,  int sort)
 	ipfw_obj_lheader *olh;
 	ipfw_nat64lsn_cfg *cfg;
 	size_t sz;
-	int i, error;
+	uint32_t i;
+	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(ipfw_nat64lsn_cfg);
