@@ -159,8 +159,8 @@ ipfw_table_handler(int ac, char *av[])
 
 	memset(&oh, 0, sizeof(oh));
 	is_all = 0;
-	if (co.use_set != 0)
-		set = co.use_set - 1;
+	if (g_co.use_set != 0)
+		set = g_co.use_set - 1;
 	else
 		set = 0;
 
@@ -213,8 +213,8 @@ ipfw_table_handler(int ac, char *av[])
 	case TOK_DEL:
 		do_add = **av == 'a';
 		ac--; av++;
-		table_modify_record(&oh, ac, av, do_add, co.do_quiet,
-		    co.do_quiet, atomic);
+		table_modify_record(&oh, ac, av, do_add, g_co.do_quiet,
+		    g_co.do_quiet, atomic);
 		break;
 	case TOK_CREATE:
 		ac--; av++;
@@ -232,7 +232,7 @@ ipfw_table_handler(int ac, char *av[])
 				err(EX_OSERR, "failed to destroy table %s",
 				    tablename);
 			/* ESRCH isn't fatal, warn if not quiet mode */
-			if (co.do_quiet == 0)
+			if (g_co.do_quiet == 0)
 				warn("failed to destroy table %s", tablename);
 		} else {
 			error = tables_foreach(table_destroy_one, &oh, 1);
@@ -249,7 +249,7 @@ ipfw_table_handler(int ac, char *av[])
 				err(EX_OSERR, "failed to flush table %s info",
 				    tablename);
 			/* ESRCH isn't fatal, warn if not quiet mode */
-			if (co.do_quiet == 0)
+			if (g_co.do_quiet == 0)
 				warn("failed to flush table %s info",
 				    tablename);
 		} else {
@@ -284,7 +284,6 @@ ipfw_table_handler(int ac, char *av[])
 	case TOK_LIST:
 		arg = is_all ? (void*)1 : NULL;
 		if (is_all == 0) {
-			ipfw_xtable_info i;
 			if ((error = table_get_info(&oh, &i)) != 0)
 				err(EX_OSERR, "failed to request table info");
 			table_show_one(&i, arg);
@@ -341,7 +340,7 @@ static struct _s_x flowtypecmds[] = {
       { NULL, 0 }
 };
 
-int
+static int
 table_parse_type(uint8_t ttype, char *p, uint8_t *tflags)
 {
 	uint32_t fset, fclear;
@@ -363,7 +362,7 @@ table_parse_type(uint8_t ttype, char *p, uint8_t *tflags)
 	return (0);
 }
 
-void
+static void
 table_print_type(char *tbuf, size_t size, uint8_t type, uint8_t tflags)
 {
 	const char *tname;
@@ -614,7 +613,7 @@ table_destroy_one(ipfw_xtable_info *i, void *arg)
 	oh = (ipfw_obj_header *)arg;
 	table_fill_ntlv(&oh->ntlv, i->tablename, i->set, 1);
 	if (table_destroy(oh) != 0) {
-		if (co.do_quiet == 0)
+		if (g_co.do_quiet == 0)
 			warn("failed to destroy table(%s) in set %u",
 			    i->tablename, i->set);
 		return (-1);
@@ -723,7 +722,7 @@ struct ta_cldata {
  * Print global/per-AF table @i algorithm info.
  */
 static void
-table_show_tainfo(ipfw_xtable_info *i, struct ta_cldata *d,
+table_show_tainfo(ipfw_xtable_info *i __unused, struct ta_cldata *d,
     const char *af, const char *taclass)
 {
 
@@ -935,10 +934,10 @@ table_modify_record(ipfw_obj_header *oh, int ac, char *av[], int add,
 {
 	ipfw_obj_tentry *ptent, tent, *tent_buf;
 	ipfw_xtable_info xi;
+	const char *etxt, *px, *texterr;
 	uint8_t type;
 	uint32_t vmask;
 	int cmd, count, error, i, ignored;
-	char *texterr, *etxt, *px;
 
 	if (ac == 0)
 		errx(EX_USAGE, "address required");
@@ -1434,7 +1433,7 @@ tentry_fill_key(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *key,
 		error = 0;
 
 	if (error == 0) {
-		if (co.test_only == 0) {
+		if (g_co.test_only == 0) {
 			/* Table found */
 			type = xi->type;
 			tflags = xi->tflags;
@@ -1494,16 +1493,17 @@ set_legacy_value(uint32_t val, ipfw_table_value *v)
 }
 
 static void
-tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
-    uint8_t type, uint32_t vmask)
+tentry_fill_value(ipfw_obj_header *oh __unused, ipfw_obj_tentry *tent,
+    char *arg, uint8_t type __unused, uint32_t vmask)
 {
 	struct addrinfo hints, *res;
+	struct in_addr ipaddr;
+	const char *etype;
+	char *comma, *e, *n, *p;
 	uint32_t a4, flag, val;
 	ipfw_table_value *v;
 	uint32_t i;
 	int dval;
-	char *comma, *e, *etype, *n, *p;
-	struct in_addr ipaddr;
 
 	v = &tent->v.value;
 
@@ -1535,7 +1535,7 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 
 	n = arg;
 	etype = NULL;
-	for (i = 1; i < (1 << 31); i *= 2) {
+	for (i = 1; i < (1u << 31); i *= 2) {
 		if ((flag = (vmask & i)) == 0)
 			continue;
 		vmask &= ~flag;
@@ -1649,10 +1649,10 @@ tentry_fill_value(ipfw_obj_header *oh, ipfw_obj_tentry *tent, char *arg,
 static int
 tablename_cmp(const void *a, const void *b)
 {
-	ipfw_xtable_info *ia, *ib;
+	const ipfw_xtable_info *ia, *ib;
 
-	ia = (ipfw_xtable_info *)a;
-	ib = (ipfw_xtable_info *)b;
+	ia = (const ipfw_xtable_info *)a;
+	ib = (const ipfw_xtable_info *)b;
 
 	return (stringnum_cmp(ia->tablename, ib->tablename));
 }
@@ -1668,7 +1668,8 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 	ipfw_obj_lheader *olh;
 	ipfw_xtable_info *info;
 	size_t sz;
-	int i, error;
+	uint32_t i;
+	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(ipfw_xtable_info);
@@ -1692,7 +1693,7 @@ tables_foreach(table_cb_t *f, void *arg, int sort)
 
 		info = (ipfw_xtable_info *)(olh + 1);
 		for (i = 0; i < olh->count; i++) {
-			if (co.use_set == 0 || info->set == co.use_set - 1)
+			if (g_co.use_set == 0 || info->set == g_co.use_set - 1)
 				error = f(info, arg);
 			info = (ipfw_xtable_info *)((caddr_t)info +
 			    olh->objsize);
@@ -1791,7 +1792,7 @@ table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
 		return;
 	}
 
-	for (i = 1; i < (1 << 31); i *= 2) {
+	for (i = 1; i < (1u << 31); i *= 2) {
 		if ((flag = (vmask & i)) == 0)
 			continue;
 		l = 0;
@@ -1853,12 +1854,13 @@ table_show_value(char *buf, size_t bufsize, ipfw_table_value *v,
 static void
 table_show_entry(ipfw_xtable_info *i, ipfw_obj_tentry *tent)
 {
-	char *comma, tbuf[128], pval[128];
+	char tbuf[128], pval[128];
+	const char *comma;
 	void *paddr;
 	struct tflow_entry *tfe;
 
 	table_show_value(pval, sizeof(pval), &tent->v.value, i->vmask,
-	    co.do_value_as_ip);
+	    g_co.do_value_as_ip);
 
 	switch (i->type) {
 	case IPFW_TABLE_ADDR:
@@ -1961,12 +1963,13 @@ table_do_get_vlist(ipfw_obj_lheader **polh)
 }
 
 void
-ipfw_list_ta(int ac, char *av[])
+ipfw_list_ta(int ac __unused, char *av[] __unused)
 {
 	ipfw_obj_lheader *olh;
 	ipfw_ta_info *info;
-	int error, i;
 	const char *atype;
+	uint32_t i;
+	int error;
 
 	error = table_do_get_algolist(&olh);
 	if (error != 0)
@@ -2006,13 +2009,13 @@ struct _table_value {
 	uint64_t	refcnt;		/* Number of references */
 };
 
-int
+static int
 compare_values(const void *_a, const void *_b)
 {
-	struct _table_value *a, *b;
+	const struct _table_value *a, *b;
 
-	a = (struct _table_value *)_a;
-	b = (struct _table_value *)_b;
+	a = (const struct _table_value *)_a;
+	b = (const struct _table_value *)_b;
 
 	if (a->spare1 < b->spare1)
 		return (-1);
@@ -2023,13 +2026,13 @@ compare_values(const void *_a, const void *_b)
 }
 
 void
-ipfw_list_values(int ac, char *av[])
+ipfw_list_values(int ac __unused, char *av[] __unused)
 {
+	char buf[128];
 	ipfw_obj_lheader *olh;
 	struct _table_value *v;
-	int error, i;
-	uint32_t vmask;
-	char buf[128];
+	uint32_t i, vmask;
+	int error;
 
 	error = table_do_get_vlist(&olh);
 	if (error != 0)

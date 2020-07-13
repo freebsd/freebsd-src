@@ -226,8 +226,8 @@ ipfw_main(int oldac, char **oldav)
 	av[ac] = NULL;
 
 	/* Set the force flag for non-interactive processes */
-	if (!co.do_force)
-		co.do_force = !isatty(STDIN_FILENO);
+	if (!g_co.do_force)
+		g_co.do_force = !isatty(STDIN_FILENO);
 
 #ifdef EMULATE_SYSCTL /* sysctl emulation */
 	if ( ac >= 2 && !strcmp(av[1], "sysctl")) {
@@ -269,20 +269,20 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		case 'b':
-			co.comment_only = 1;
-			co.do_compact = 1;
+			g_co.comment_only = 1;
+			g_co.do_compact = 1;
 			break;
 
 		case 'c':
-			co.do_compact = 1;
+			g_co.do_compact = 1;
 			break;
 
 		case 'd':
-			co.do_dynamic = 1;
+			g_co.do_dynamic = 1;
 			break;
 
 		case 'D':
-			co.do_dynamic = 2;
+			g_co.do_dynamic = 2;
 			break;
 
 		case 'e':
@@ -290,7 +290,7 @@ ipfw_main(int oldac, char **oldav)
 			break;
 
 		case 'f':
-			co.do_force = 1;
+			g_co.do_force = 1;
 			break;
 
 		case 'h': /* help */
@@ -299,15 +299,15 @@ ipfw_main(int oldac, char **oldav)
 			break;	/* NOTREACHED */
 
 		case 'i':
-			co.do_value_as_ip = 1;
+			g_co.do_value_as_ip = 1;
 			break;
 
 		case 'n':
-			co.test_only = 1;
+			g_co.test_only = 1;
 			break;
 
 		case 'N':
-			co.do_resolv = 1;
+			g_co.do_resolv = 1;
 			break;
 
 		case 'p':
@@ -316,27 +316,27 @@ ipfw_main(int oldac, char **oldav)
 			/* NOTREACHED */
 
 		case 'q':
-			co.do_quiet = 1;
+			g_co.do_quiet = 1;
 			break;
 
 		case 's': /* sort */
-			co.do_sort = atoi(optarg);
+			g_co.do_sort = atoi(optarg);
 			break;
 
 		case 'S':
-			co.show_sets = 1;
+			g_co.show_sets = 1;
 			break;
 
 		case 't':
-			co.do_time = TIMESTAMP_STRING;
+			g_co.do_time = TIMESTAMP_STRING;
 			break;
 
 		case 'T':
-			co.do_time = TIMESTAMP_NUMERIC;
+			g_co.do_time = TIMESTAMP_NUMERIC;
 			break;
 
 		case 'v': /* verbose */
-			co.verbose = 1;
+			g_co.verbose = 1;
 			break;
 
 		default:
@@ -363,31 +363,31 @@ ipfw_main(int oldac, char **oldav)
 	/*
 	 * Optional: pipe, queue or nat.
 	 */
-	co.do_nat = 0;
-	co.do_pipe = 0;
-	co.use_set = 0;
+	g_co.do_nat = 0;
+	g_co.do_pipe = 0;
+	g_co.use_set = 0;
 	if (!strncmp(*av, "nat", strlen(*av)))
- 		co.do_nat = 1;
- 	else if (!strncmp(*av, "pipe", strlen(*av)))
-		co.do_pipe = 1;
+		g_co.do_nat = 1;
+	else if (!strncmp(*av, "pipe", strlen(*av)))
+		g_co.do_pipe = 1;
 	else if (_substrcmp(*av, "queue") == 0)
-		co.do_pipe = 2;
+		g_co.do_pipe = 2;
 	else if (_substrcmp(*av, "flowset") == 0)
-		co.do_pipe = 2;
+		g_co.do_pipe = 2;
 	else if (_substrcmp(*av, "sched") == 0)
-		co.do_pipe = 3;
+		g_co.do_pipe = 3;
 	else if (!strncmp(*av, "set", strlen(*av))) {
 		if (ac > 1 && isdigit(av[1][0])) {
-			co.use_set = strtonum(av[1], 0, resvd_set_number,
+			g_co.use_set = strtonum(av[1], 0, resvd_set_number,
 					&errstr);
 			if (errstr)
 				errx(EX_DATAERR,
 				    "invalid set number %s\n", av[1]);
-			ac -= 2; av += 2; co.use_set++;
+			ac -= 2; av += 2; g_co.use_set++;
 		}
 	}
 
-	if (co.do_pipe || co.do_nat) {
+	if (g_co.do_pipe || g_co.do_nat) {
 		ac--;
 		av++;
 	}
@@ -398,21 +398,21 @@ ipfw_main(int oldac, char **oldav)
 	 * but the code is easier to parse as 'nat|pipe config NN'
 	 * so we swap the two arguments.
 	 */
-	if ((co.do_pipe || co.do_nat) && ac > 1 && isdigit(*av[0])) {
+	if ((g_co.do_pipe || g_co.do_nat) && ac > 1 && isdigit(*av[0])) {
 		char *p = av[0];
 
 		av[0] = av[1];
 		av[1] = p;
 	}
 
-	if (co.use_set == 0) {
+	if (g_co.use_set == 0) {
 		if (_substrcmp(*av, "add") == 0)
 			ipfw_add(av);
-		else if (co.do_nat && _substrcmp(*av, "show") == 0)
+		else if (g_co.do_nat && _substrcmp(*av, "show") == 0)
  			ipfw_show_nat(ac, av);
-		else if (co.do_pipe && _substrcmp(*av, "config") == 0)
+		else if (g_co.do_pipe && _substrcmp(*av, "config") == 0)
 			ipfw_config_pipe(ac, av);
-		else if (co.do_nat && _substrcmp(*av, "config") == 0)
+		else if (g_co.do_nat && _substrcmp(*av, "config") == 0)
  			ipfw_config_nat(ac, av);
 		else if (_substrcmp(*av, "set") == 0)
 			ipfw_sets_handler(av);
@@ -426,7 +426,7 @@ ipfw_main(int oldac, char **oldav)
 			try_next = 1;
 	}
 
-	if (co.use_set || try_next) {
+	if (g_co.use_set || try_next) {
 		if (_substrcmp(*av, "delete") == 0)
 			ipfw_delete(av);
 		else if (!strncmp(*av, "nat64clat", strlen(*av)))
@@ -438,7 +438,7 @@ ipfw_main(int oldac, char **oldav)
 		else if (!strncmp(*av, "nptv6", strlen(*av)))
 			ipfw_nptv6_handler(ac, av);
 		else if (_substrcmp(*av, "flush") == 0)
-			ipfw_flush(co.do_force);
+			ipfw_flush(g_co.do_force);
 		else if (_substrcmp(*av, "zero") == 0)
 			ipfw_zero(ac, av, 0 /* IP_FW_ZERO */);
 		else if (_substrcmp(*av, "resetlog") == 0)
@@ -477,19 +477,19 @@ ipfw_readfile(int ac, char *av[])
 	while ((c = getopt(ac, av, "cfNnp:qS")) != -1) {
 		switch(c) {
 		case 'c':
-			co.do_compact = 1;
+			g_co.do_compact = 1;
 			break;
 
 		case 'f':
-			co.do_force = 1;
+			g_co.do_force = 1;
 			break;
 
 		case 'N':
-			co.do_resolv = 1;
+			g_co.do_resolv = 1;
 			break;
 
 		case 'n':
-			co.test_only = 1;
+			g_co.test_only = 1;
 			break;
 
 		case 'p':
@@ -518,11 +518,11 @@ ipfw_readfile(int ac, char *av[])
 			break;
 
 		case 'q':
-			co.do_quiet = 1;
+			g_co.do_quiet = 1;
 			break;
 
 		case 'S':
-			co.show_sets = 1;
+			g_co.show_sets = 1;
 			break;
 
 		default:
