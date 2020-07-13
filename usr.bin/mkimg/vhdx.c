@@ -429,7 +429,7 @@ vhdx_write_bat(int fd, uint64_t image_size)
 	payload_offset = 3 + (bat_size / SIZE_1MB);
 	bat_ptr = 0;
 	for (idx = 0; idx < data_block_count; idx++) {
-		le32enc(bat + bat_ptr,
+		le64enc(bat + bat_ptr,
 		    BAT_ENTRY(payload_offset, PAYLOAD_BLOCK_FULLY_PRESENT));
 		bat_ptr += 8;
 		payload_offset += (PAYLOAD_BLOCK_SIZE / SIZE_1MB);
@@ -445,9 +445,9 @@ vhdx_write_bat(int fd, uint64_t image_size)
 			bat_ptr = 0;
 		}
 
-		if ((idx % chunk_ratio) == 0 &&
-		    (idx > 0) && (idx != data_block_count - 1)) {
-			le32enc(bat + bat_ptr,
+		if (((idx + 1) % chunk_ratio) == 0 &&
+		    (idx != data_block_count - 1)) {
+			le64enc(bat + bat_ptr,
 			    BAT_ENTRY(0, SB_BLOCK_NOT_PRESENT));
 			bat_ptr += 8;
 
