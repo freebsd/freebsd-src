@@ -28,7 +28,7 @@
 .\"     @(#)arp.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd April 6, 2017
+.Dd July 13, 2020
 .Dt ARP 8
 .Os
 .Sh NAME
@@ -87,7 +87,9 @@ See
 .Xr xo_parse_args 3
 for details on command line arguments.
 .It Fl a
-The program displays or deletes all of the current
+The program displays or, if it is used with the
+.Fl d
+flag, deletes all of the current
 .Tn ARP
 entries.
 .It Fl d
