@@ -1595,7 +1595,9 @@ cpuset_check_capabilities(struct thread *td, cpulevel_t level, cpuwhich_t which,
 			return (ECAPMODE);
 		if (which != CPU_WHICH_TID && which != CPU_WHICH_PID)
 			return (ECAPMODE);
-		if (id != -1)
+		if (id != -1 &&
+		    !(which == CPU_WHICH_TID && id == td->td_tid) &&
+		    !(which == CPU_WHICH_PID && id == td->td_proc->p_pid))
 			return (ECAPMODE);
 	}
 	return (0);
