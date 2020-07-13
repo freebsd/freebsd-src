@@ -4700,6 +4700,8 @@ csum_to_ctrl(struct adapter *sc, struct mbuf *m)
 	return (ctrl);
 }
 
+#define VM_TX_L2HDR_LEN	16	/* ethmacdst to vlantci */
+
 /*
  * Write a VM txpkt WR for this packet to the hardware descriptors, update the
  * software descriptor, and advance the pidx.  It is guaranteed that enough
@@ -4748,7 +4750,7 @@ write_txpkt_vm_wr(struct adapter *sc, struct sge_txq *txq, struct mbuf *m0)
 	 * conditional.  Also, it seems that we do not have to set
 	 * vlantci or fake the ethtype when doing VLAN tag insertion.
 	 */
-	m_copydata(m0, 0, sizeof(struct ether_header) + 2, wr->ethmacdst);
+	m_copydata(m0, 0, VM_TX_L2HDR_LEN, wr->ethmacdst);
 
 	if (needs_tso(m0)) {
 		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
@@ -4985,10 +4987,10 @@ cmp_l2hdr(struct txpkts *txp, struct mbuf *m)
 	int len;
 
 	MPASS(txp->npkt > 0);
-	MPASS(m->m_len >= 16);	/* type1 implies 1 GL with all of the frame. */
+	MPASS(m->m_len >= VM_TX_L2HDR_LEN);
 
 	if (txp->ethtype == be16toh(ETHERTYPE_VLAN))
-		len = sizeof(struct ether_vlan_header);
+		len = VM_TX_L2HDR_LEN;
 	else
 		len = sizeof(struct ether_header);
 
@@ -4998,9 +5000,9 @@ cmp_l2hdr(struct txpkts *txp, struct mbuf *m)
 static inline void
 save_l2hdr(struct txpkts *txp, struct mbuf *m)
 {
-	MPASS(m->m_len >= 16);	/* type1 implies 1 GL with all of the frame. */
+	MPASS(m->m_len >= VM_TX_L2HDR_LEN);
 
-	memcpy(&txp->ethmacdst[0], mtod(m, const void *), 16);
+	memcpy(&txp->ethmacdst[0], mtod(m, const void *), VM_TX_L2HDR_LEN);
 }
 
 static int
