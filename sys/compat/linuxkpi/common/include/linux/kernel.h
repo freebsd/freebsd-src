@@ -536,4 +536,33 @@ linux_ratelimited(linux_ratelimit_t *rl)
 #define	__is_constexpr(x) \
 	__builtin_constant_p(x)
 
+/*
+ * The is_signed() macro below returns true if the passed data type is
+ * signed. Else false is returned.
+ */
+#define	is_signed(datatype) (((datatype)-1 / (datatype)2) == (datatype)0)
+
+/*
+ * The type_max() macro below returns the maxium positive value the
+ * passed data type can hold.
+ */
+#define	type_max(datatype) ( \
+  (sizeof(datatype) >= 8) ? (is_signed(datatype) ? INT64_MAX : UINT64_MAX) : \
+  (sizeof(datatype) >= 4) ? (is_signed(datatype) ? INT32_MAX : UINT32_MAX) : \
+  (sizeof(datatype) >= 2) ? (is_signed(datatype) ? INT16_MAX : UINT16_MAX) : \
+			    (is_signed(datatype) ? INT8_MAX : UINT8_MAX) \
+)
+
+/*
+ * The type_min() macro below returns the minimum value the passed
+ * data type can hold. For unsigned types the minimum value is always
+ * zero. For signed types it may vary.
+ */
+#define	type_min(datatype) ( \
+  (sizeof(datatype) >= 8) ? (is_signed(datatype) ? INT64_MIN : 0) : \
+  (sizeof(datatype) >= 4) ? (is_signed(datatype) ? INT32_MIN : 0) : \
+  (sizeof(datatype) >= 2) ? (is_signed(datatype) ? INT16_MIN : 0) : \
+			    (is_signed(datatype) ? INT8_MIN : 0) \
+)
+
 #endif	/* _LINUX_KERNEL_H_ */
