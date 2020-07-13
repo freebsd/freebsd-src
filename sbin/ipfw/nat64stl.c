@@ -128,8 +128,8 @@ ipfw_nat64stl_handler(int ac, char *av[])
 	int tcmd;
 	uint8_t set;
 
-	if (co.use_set != 0)
-		set = co.use_set - 1;
+	if (g_co.use_set != 0)
+		set = g_co.use_set - 1;
 	else
 		set = 0;
 	ac--; av++;
@@ -405,7 +405,7 @@ nat64stl_stats(const char *name, uint8_t set)
 	if (nat64stl_get_stats(name, set, &stats) != 0)
 		err(EX_OSERR, "Error retrieving stats");
 
-	if (co.use_set != 0 || set != 0)
+	if (g_co.use_set != 0 || set != 0)
 		printf("set %u ", set);
 	printf("nat64stl %s\n", name);
 
@@ -454,10 +454,10 @@ nat64stl_show_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
 	if (name != NULL && strcmp(cfg->name, name) != 0)
 		return (ESRCH);
 
-	if (co.use_set != 0 && cfg->set != set)
+	if (g_co.use_set != 0 && cfg->set != set)
 		return (ESRCH);
 
-	if (co.use_set != 0 || cfg->set != 0)
+	if (g_co.use_set != 0 || cfg->set != 0)
 		printf("set %u ", cfg->set);
 
 	printf("nat64stl %s table4 %s table6 %s",
@@ -473,10 +473,11 @@ nat64stl_show_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
 }
 
 static int
-nat64stl_destroy_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
+nat64stl_destroy_cb(ipfw_nat64stl_cfg *cfg, const char *name __unused,
+    uint8_t set)
 {
 
-	if (co.use_set != 0 && cfg->set != set)
+	if (g_co.use_set != 0 && cfg->set != set)
 		return (ESRCH);
 
 	nat64stl_destroy(cfg->name, cfg->set);
@@ -491,10 +492,10 @@ nat64stl_destroy_cb(ipfw_nat64stl_cfg *cfg, const char *name, uint8_t set)
 static int
 nat64name_cmp(const void *a, const void *b)
 {
-	ipfw_nat64stl_cfg *ca, *cb;
+	const ipfw_nat64stl_cfg *ca, *cb;
 
-	ca = (ipfw_nat64stl_cfg *)a;
-	cb = (ipfw_nat64stl_cfg *)b;
+	ca = (const ipfw_nat64stl_cfg *)a;
+	cb = (const ipfw_nat64stl_cfg *)b;
 
 	if (ca->set > cb->set)
 		return (1);
@@ -516,7 +517,8 @@ nat64stl_foreach(nat64stl_cb_t *f, const char *name, uint8_t set, int sort)
 	ipfw_obj_lheader *olh;
 	ipfw_nat64stl_cfg *cfg;
 	size_t sz;
-	int i, error;
+	uint32_t i;
+	int error;
 
 	/* Start with reasonable default */
 	sz = sizeof(*olh) + 16 * sizeof(*cfg);
