@@ -39,7 +39,7 @@ getcfname(opmode, submitmode, cftype, conffile)
 {
 #if NETINFO
 	char *cflocation;
-#endif /* NETINFO */
+#endif
 
 	if (conffile != NULL)
 		return conffile;
@@ -71,6 +71,6 @@ getcfname(opmode, submitmode, cftype, conffile)
 				"sendmail.cf", '\0');
 	if (cflocation != NULL)
 		return cflocation;
-#endif /* NETINFO */
+#endif
 	return _PATH_SENDMAILCF;
 }

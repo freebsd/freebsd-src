@@ -76,7 +76,7 @@ R$* $| $*		$: ifelse(len(X`'_ARG3_),`1', `$1', `_ARG3_')
 ifdef(`_CANONIFY_BCC_', `dnl
 R$+ @ $+		$: $1@$2 $| <$(canonicalRcpt $1 @ $2 $: $)>
 R$* $| <>		$@
-R$* $| <$* <TMPF>>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."
+R$* $| <$* <TMPF>>	$#error $@ 4.3.0 $: _TMPFMSG_(`BCC')
 R$* $| <$+>		$@ $2			map matched?
 ')
 

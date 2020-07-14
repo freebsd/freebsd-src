@@ -25,9 +25,9 @@ extern SM_DEBUG_T SmXtrapReport;
 
 # if SM_DEBUG_CHECK
 #  define sm_xtrap_check() (++SmXtrapCount == sm_debug_level(&SmXtrapDebug))
-# else /* SM_DEBUG_CHECK */
+# else
 #  define sm_xtrap_check() (0)
-# endif /* SM_DEBUG_CHECK */
+# endif
 
 # define sm_xtrap_raise_x(exc) \
 		if (sm_xtrap_check()) \

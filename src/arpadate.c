@@ -43,7 +43,7 @@ SM_RCSID("@(#)$Id: arpadate.c,v 8.32 2013-11-22 20:51:55 ca Exp $")
 
 #ifndef TZNAME_MAX
 # define TZNAME_MAX	50	/* max size of timezone */
-#endif /* ! TZNAME_MAX */
+#endif
 
 /* values for TZ_TYPE */
 #define TZ_NONE		0	/* no character timezone support */
@@ -149,10 +149,10 @@ arpadate(ud)
 		tz = NULL;
 #if TZ_TYPE == TZ_TM_NAME
 		tz = lt->tm_name;
-#endif /* TZ_TYPE == TZ_TM_NAME */
+#endif
 #if TZ_TYPE == TZ_TM_ZONE
 		tz = lt->tm_zone;
-#endif /* TZ_TYPE == TZ_TM_ZONE */
+#endif
 #if TZ_TYPE == TZ_TZNAME
 		{
 			extern char *tzname[];

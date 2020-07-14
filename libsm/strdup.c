@@ -59,7 +59,7 @@ sm_strndup_x(s, n)
 
 char *
 sm_strdup(s)
-	char *s;
+	const char *s;
 {
 	size_t l;
 	char *d;

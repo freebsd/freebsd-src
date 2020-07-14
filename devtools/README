@@ -137,7 +137,7 @@ confLIBGRP	    bin			The group for libraries.
 confLIBMODE	    444			The mode of installed libraries.
 confLIBOWN	    root		The owner for libraries.
 confLIBS	    [varies]		-l flags passed to ld.
-confLIBSEARCH	    db bind resolv 44bsd
+confLIBSEARCH	    db bind resolv 44bsd cdb
 					Search for these libraries for
 					linking with programs.
 confLIBSEARCHPATH   /lib /usr/lib /usr/shlib
@@ -177,7 +177,8 @@ confMANROOTMAN	    /usr/share/man/man	The root of the man subtree, for
 					unformatted manual pages.
 confMAPDEF	    [varies]		The map definitions, e.g.,
 					-DNDBM -DNEWDB.  -DNEWDB is always
-					added if libdb.* can be found.
+					added if libdb.* can be found,
+					-DCDB is added if libcdb.* is found.
 confMBINDIR	    /usr/sbin		The location of the MTA (sm-mta,
 					sendmail) binary.
 confMBINGRP	    bin			The group of the MTA binary (sm-mta).

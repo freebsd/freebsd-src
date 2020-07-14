@@ -32,6 +32,11 @@
 #  define SM_VA_COPY(dst, src)	__va_copy((dst), (src))
 # else
 #  define SM_VA_COPY(dst, src)	memcpy(&(dst), &(src), sizeof((dst)))
+#  define SM_VA_END_COPY(ap)	do { } while (0)
+# endif
+
+# ifndef SM_VA_END_COPY
+#  define SM_VA_END_COPY(ap)	va_end(ap)
 # endif
 
 /*

@@ -115,10 +115,12 @@ do
 		fi
 		if [ -f $p/lib$l.a -o -f $p/lib$l$SOEXT ]
 		then
-			case $l
-			in
+			case $l in
 			  db)
 				mapdef="$mapdef -DNEWDB"
+				;;
+			  cdb)
+				mapdef="$mapdef -DCDB"
 				;;
 			  bind|resolv)
 				if [ -n "$resolver" ]

@@ -31,7 +31,7 @@ main(argc, argv)
 "If tests for \"h == 2\" fail, check whether size_t is signed on your OS.\n\
 If that is the case, add -DSM_CONF_BROKEN_SIZE_T to confENVDEF\n\
 and start over. Otherwise contact sendmail.org.\n");
-#endif /* !SM_CONF_BROKEN_SIZE_T */
+#endif
 
 	d = 2;
 	sm_snprintf(buf, sizeof(buf), "%d", d);

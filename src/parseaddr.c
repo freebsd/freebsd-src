@@ -134,6 +134,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	*/
 
 	qup = false;
+	e->e_flags |= EF_SECURE;
 	if (REWRITE(pvp, 3, e) == EX_TEMPFAIL)
 		qup = true;
 	if (REWRITE(pvp, 0, e) == EX_TEMPFAIL)
@@ -165,6 +166,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 	*/
 
 	allocaddr(a, flags, addr, e);
+	e->e_flags &= ~EF_SECURE;
 	if (QS_IS_BADADDR(a->q_state))
 	{
 		/* weed out bad characters in the printable address too */
@@ -218,7 +220,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 			msg = "Deferring message until queue run";
 		if (tTd(20, 1))
 			sm_dprintf("parseaddr: queueing message\n");
-		message(msg);
+		message("%s", msg);
 		if (e->e_message == NULL && e->e_sendmode != SM_DEFER)
 			e->e_message = sm_rpool_strdup_x(e->e_rpool, msg);
 		a->q_state = QS_QUEUEUP;
@@ -273,12 +275,14 @@ invalidaddr(addr, delimptr, isrcpt)
 	}
 	for (; *addr != '\0'; addr++)
 	{
+#if !_FFR_EAI
 		if (!EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
 			result = true;
 			*addr = BAD_CHAR_REPLACEMENT;
 		}
+#endif
 		if (++len > MAXNAME - 1)
 		{
 			char saved = *addr;
@@ -350,7 +354,7 @@ hasctrlchar(addr, isrcpt, complain)
 			}
 			result = "too long";
 		}
-		if (!EightBitAddrOK && !quoted && (*addr < 32 || *addr == 127))
+		if (!quoted && ((unsigned char)*addr < 32 || *addr == 127))
 		{
 			result = "non-printable character";
 			*addr = BAD_CHAR_REPLACEMENT;
@@ -368,6 +372,7 @@ hasctrlchar(addr, isrcpt, complain)
 				break;
 			}
 		}
+#if !_FFR_EAI
 		if (!EightBitAddrOK && (*addr & 0340) == 0200)
 		{
 			setstat(EX_USAGE);
@@ -375,6 +380,7 @@ hasctrlchar(addr, isrcpt, complain)
 			*addr = BAD_CHAR_REPLACEMENT;
 			continue;
 		}
+#endif
 	}
 	if (quoted)
 		result = "unbalanced quote"; /* unbalanced quote */
@@ -416,7 +422,7 @@ allocaddr(a, flags, paddr, e)
 	ENVELOPE *e;
 {
 	if (tTd(24, 4))
-		sm_dprintf("allocaddr(flags=%x, paddr=%s)\n", flags, paddr);
+		sm_dprintf("allocaddr(flags=%x, paddr=%s, ad=%d)\n", flags, paddr, bitset(EF_SECURE, e->e_flags));
 
 	a->q_paddr = paddr;
 
@@ -424,6 +430,9 @@ allocaddr(a, flags, paddr, e)
 		a->q_user = "";
 	if (a->q_host == NULL)
 		a->q_host = "";
+
+	if (bitset(EF_SECURE, e->e_flags))
+		a->q_flags |= QSECURE;
 
 	if (bitset(RF_COPYPARSE, flags))
 	{
@@ -869,7 +878,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 				char *ptr = p;
 
 				anglecnt++;
-				while (isascii(*ptr) && isspace(*ptr))
+				while (SM_ISSPACE(*ptr))
 					ptr++;
 				if (*ptr == '@')
 					route_syntax = true;
@@ -888,7 +897,7 @@ prescan(addr, delim, pvpbuf, pvpbsize, delimptr, toktab, ignore)
 					anglecnt--;
 				route_syntax = false;
 			}
-			else if (delim == ' ' && isascii(c) && isspace(c))
+			else if (delim == ' ' && SM_ISSPACE(c))
 				c = ' ';
 
 			if (c == NOCHAR)
@@ -1351,7 +1360,7 @@ rewrite(pvp, ruleset, reclevel, e, maxatom)
 					pp = m->match_first;
 					while (pp <= m->match_last)
 					{
-						sm_dprintf(" %p=\"", *pp);
+						sm_dprintf(" %p=\"", (void *)*pp);
 						sm_dflush();
 						sm_dprintf("%s\"", *pp++);
 					}
@@ -1805,6 +1814,7 @@ map_lookup(smap, key, argvect, pstat, e)
 
 	map = &smap->s_map;
 	DYNOPENMAP(map);
+	map->map_mflags |= MF_SECURE;	/* default: secure */
 
 	if (e->e_sendmode == SM_DEFER &&
 	    bitset(MF_DEFER, map->map_mflags))
@@ -1834,10 +1844,15 @@ map_lookup(smap, key, argvect, pstat, e)
 		sm_dprintf(") => ");
 	}
 	replac = (*map->map_class->map_lookup)(map, key, argvect, &status);
+	if (bitset(MF_SECURE, map->map_mflags))
+		map->map_mflags &= ~MF_SECURE;
+	else
+		e->e_flags &= ~EF_SECURE;
+
 	if (tTd(60, 1))
-		sm_dprintf("%s (%d)\n",
+		sm_dprintf("%s (%d), ad=%d\n",
 			replac != NULL ? replac : "NOT FOUND",
-			status);
+			status, bitset(MF_SECURE, map->map_mflags));
 
 	/* should recover if status == EX_TEMPFAIL */
 	if (status == EX_TEMPFAIL && !bitset(MF_NODEFER, map->map_mflags))
@@ -2287,8 +2302,8 @@ cataddr(pvp, evp, buf, sz, spacesub, external)
 			**  If the current character (c) is METAQUOTE and we
 			**  want the "external" form and the next character
 			**  is not NUL, then overwrite METAQUOTE with that
-			**  character (i.e., METAQUOTE ch is changed to
-			**  ch).  p[-1] is used because p is advanced (above).
+			**  character (i.e., METAQUOTE ch is changed to ch).
+			**  p[-1] is used because p is advanced (above).
 			*/
 
 			if ((c & 0377) == METAQUOTE && external && *q != '\0')
@@ -2439,6 +2454,10 @@ static struct qflags	AddressFlags[] =
 	{ "QINTBCC",		QINTBCC		},
 	{ "QDYNMAILER",		QDYNMAILER	},
 	{ "QRCPTOK",		QRCPTOK		},
+	{ "QSECURE",		QSECURE		},
+	{ "QTHISPASS",		QTHISPASS	},
+	{ "QRCPTOK",		QRCPTOK		},
+	{ "QQUEUED",		QQUEUED		},
 	{ NULL,			0		}
 };
 
@@ -2461,7 +2480,7 @@ printaddr(fp, a, follow)
 
 	while (a != NULL)
 	{
-		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%p=", a);
+		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "%p=", (void *)a);
 		(void) sm_io_flush(fp, SM_TIME_DEFAULT);
 
 		/* find the mailer -- carefully */
@@ -2564,7 +2583,7 @@ printaddr(fp, a, follow)
 		}
 		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT,
 				     ", next=%p, alias %p, uid %d, gid %d\n",
-				     a->q_next, a->q_alias,
+				     (void *)a->q_next, (void *)a->q_alias,
 				     (int) a->q_uid, (int) a->q_gid);
 		(void) sm_io_fprintf(fp, SM_TIME_DEFAULT, "\tflags=%lx<",
 				     a->q_flags);
@@ -2931,7 +2950,7 @@ dequote_init(map, args)
 	map->map_mflags |= MF_KEEPQUOTES;
 	for (;;)
 	{
-		while (isascii(*p) && isspace(*p))
+		while (SM_ISSPACE(*p))
 			p++;
 		if (*p != '-')
 			break;
@@ -2950,7 +2969,7 @@ dequote_init(map, args)
 			map->map_spacesub = *++p;
 			break;
 		}
-		while (*p != '\0' && !(isascii(*p) && isspace(*p)))
+		while (*p != '\0' && !(SM_ISSPACE(*p)))
 			p++;
 		if (*p != '\0')
 			*p = '\0';
@@ -3064,7 +3083,7 @@ dequote_map(map, name, av, statp)
 **	Parameters:
 **		rwset -- the rewriting set to use.
 **		p1 -- the first string to check.
-**		p2 -- the second string to check -- may be null.
+**		p2 -- the second string to check -- may be NULL.
 **		e -- the current envelope.
 **		flags -- control some behavior, see RSF_ in sendmail.h
 **		logl -- logging level.
@@ -3083,13 +3102,13 @@ dequote_map(map, name, av, statp)
 int
 rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr, addrstr)
 	char *rwset;
-	char *p1;
-	char *p2;
+	const char *p1;
+	const char *p2;
 	ENVELOPE *e;
 	int flags;
 	int logl;
-	char *host;
-	char *logid;
+	const char *host;
+	const char *logid;
 	ADDRESS *addr;
 	char **addrstr;
 {
@@ -3239,7 +3258,7 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr, addrstr)
 
 		if (LogLevel > logl)
 		{
-			char *relay;
+			const char *relay;
 			char *p;
 			char lbuf[MAXLINE];
 
@@ -3296,13 +3315,14 @@ rscheck(rwset, p1, p2, e, flags, logl, host, logid, addr, addrstr)
 		sm_exc_raisenew_x(&EtypeQuickAbort, 2);
 	return rstat;
 }
+
 /*
 **  RSCAP -- call rewriting set to return capabilities
 **
 **	Parameters:
 **		rwset -- the rewriting set to use.
 **		p1 -- the first string to check.
-**		p2 -- the second string to check -- may be null.
+**		p2 -- the second string to check -- may be NULL.
 **		e -- the current envelope.
 **		pvp -- pointer to token vector.
 **		pvpbuf -- buffer space.

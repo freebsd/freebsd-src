@@ -18,12 +18,12 @@
 
 #if defined(__QNX__)
 # define E_PSEUDOBASE	512
-#endif /* defined(__QNX__) */
+#endif
 
 #include <errno.h>
 #if NEEDINTERRNO
 extern int errno;
-#endif /* NEEDINTERRNO */
+#endif
 
 /*
 **  These are used in a few cases where we need some special
@@ -33,7 +33,7 @@ extern int errno;
 
 #ifndef E_PSEUDOBASE
 # define E_PSEUDOBASE	256
-#endif /* ! E_PSEUDOBASE */
+#endif
 
 #define E_SM_OPENTIMEOUT (E_PSEUDOBASE + 0)	/* Timeout on file open */
 #define E_SM_NOSLINK	(E_PSEUDOBASE + 1)	/* Symbolic links not allowed */
@@ -88,7 +88,6 @@ extern int errno;
 #define SMDBE_OLD_VERSION		(E_SMDBBASE + 23)
 #define SMDBE_VERSION_MISMATCH		(E_SMDBBASE + 24)
 
-extern const char *sm_errstring __P((int _errno));
-
+extern const char *sm_errstring __P((int _errnum));
 
 #endif /* SM_ERRSTRING_H */

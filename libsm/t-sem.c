@@ -33,12 +33,12 @@ delay(t, s)
 	{
 #if DEBUG
 		fprintf(stderr, "sleep(%d) before %s\n", t, s);
-#endif /* DEBUG */
+#endif
 		sleep(t);
 	}
 #if DEBUG
 	fprintf(stderr, "%s\n", s);
-#endif /* DEBUG */
+#endif
 }
 
 

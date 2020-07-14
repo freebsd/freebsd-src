@@ -115,7 +115,7 @@ T=C:5m;S:10s;R:10s;E:5m
 
 where 's' is seconds and 'm' is minutes.
 
-Which filters are invoked and their sequencing is handled by the 
+Which filters are invoked and their sequencing is handled by the
 InputMailFilters option. Note: if InputMailFilters is not defined no filters
 will be used.
 
@@ -207,21 +207,14 @@ libmilter requires pthread support in the operating system.  Moreover, it
 requires that the library functions it uses are thread safe; which is true
 for the operating systems libmilter has been developed and tested on.  On
 some operating systems this requires special compile time options (e.g.,
-not just -pthread).  libmilter is currently known to work on (modulo problems
-in the pthread support of some specific versions):
+not just -pthread).
 
-FreeBSD 3.x, 4.x
-SunOS 5.x (x >= 5)
-AIX 4.3.x
-HP UX 11.x
-Linux (recent versions/distributions)
-
-libmilter is currently not supported on:
-
+So far, libmilter is not supported on:
 IRIX 6.x
 Ultrix
 
 Feedback about problems (and possible fixes) is welcome.
+
 
 +--------------------------+
 | SOURCE FOR SAMPLE FILTER |
@@ -229,6 +222,4 @@ Feedback about problems (and possible fixes) is welcome.
 
 Note that the filter example.c may not be thread safe on some operating
 systems.  You should check your system man pages for the functions used
-below to verify the functions are thread safe.
-
-$Revision: 8.42 $, Last updated $Date: 2006-06-29 17:10:16 $
+to verify they are thread safe.

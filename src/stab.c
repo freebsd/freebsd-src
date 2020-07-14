@@ -15,6 +15,10 @@
 
 SM_RCSID("@(#)$Id: stab.c,v 8.92 2013-11-22 20:51:56 ca Exp $")
 
+#if DANE
+# include <tls.h>
+#endif
+
 /*
 **  STAB -- manage the symbol table
 **
@@ -157,13 +161,13 @@ stab(name, type, op)
 	  case ST_LMAP:
 		len = sizeof(s->s_lmap);
 		break;
-#endif /* LDAPMAP */
+#endif
 
 #if MILTER
 	  case ST_MILTER:
 		len = sizeof(s->s_milter);
 		break;
-#endif /* MILTER */
+#endif
 
 	  case ST_QUEUE:
 		len = sizeof(s->s_quegrp);
@@ -173,7 +177,13 @@ stab(name, type, op)
 	  case ST_SOCKETMAP:
 		len = sizeof(s->s_socketmap);
 		break;
-#endif /* SOCKETMAP */
+#endif
+
+#if DANE
+	  case ST_TLSA_RR:
+		len = sizeof(s->s_tlsa);
+		break;
+#endif
 
 	  default:
 		/*
@@ -381,6 +391,15 @@ rmexpstab()
 				SM_STAB_FREE(s->s_namecanon.nc_cname); /* XXX */
 				break;
 
+#if DANE
+			  case ST_TLSA_RR:
+				if (s->s_tlsa->dane_tlsa_exp >= now)
+					goto next;	/* not expired */
+				(void) dane_tlsa_free(s->s_tlsa);
+				s->s_tlsa = NULL;
+				break;
+#endif /* DANE */
+
 			  default:
 				if (s->s_symtype >= ST_MCI)
 				{
@@ -396,7 +415,7 @@ rmexpstab()
 #if SASL
 					/* should always by NULL */
 					SM_STAB_FREE(s->s_mci.mci_sasl_string);
-#endif /* SASL */
+#endif
 					if (s->s_mci.mci_rpool != NULL)
 					{
 						sm_rpool_free(s->s_mci.mci_rpool);

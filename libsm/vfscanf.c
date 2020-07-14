@@ -110,7 +110,7 @@ sm_vfscanf(fp, timeout, fmt0, ap)
 	register SM_FILE_T *fp;
 	int SM_NONVOLATILE timeout;
 	char const *fmt0;
-	va_list SM_NONVOLATILE ap;
+	va_list ap;
 {
 	register unsigned char *SM_NONVOLATILE fmt = (unsigned char *) fmt0;
 	register int c;		/* character from format, or conversion */
@@ -828,7 +828,7 @@ doswitch:
 			**  z', but treats `a-a' as `the letter a, the
 			**  character -, and the letter a'.
 			**
-			**  For compatibility, the `-' is not considerd
+			**  For compatibility, the `-' is not considered
 			**  to define a range if the character following
 			**  it is either a close bracket (required by ANSI)
 			**  or is not numerically greater than the character
