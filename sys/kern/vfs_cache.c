@@ -104,6 +104,11 @@ SDT_PROBE_DEFINE2(vfs, namecache, shrink_negative, done, "struct vnode *",
  * This structure describes the elements in the cache of recent
  * names looked up by namei.
  */
+struct negstate {
+	u_char neg_flag;
+};
+_Static_assert(sizeof(struct negstate) <= sizeof(struct vnode *),
+    "the state must fit in a union with a pointer without growing it");
 
 struct	namecache {
 	CK_LIST_ENTRY(namecache) nc_hash;/* hash chain */
@@ -112,6 +117,7 @@ struct	namecache {
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	union {
 		struct	vnode *nu_vp;	/* vnode the name refers to */
+		struct	negstate nu_neg;/* negative entry state */
 	} n_un;
 	u_char	nc_flag;		/* flag bits */
 	u_char	nc_nlen;		/* length of name */
@@ -134,6 +140,7 @@ struct	namecache_ts {
 };
 
 #define	nc_vp		n_un.nu_vp
+#define	nc_neg		n_un.nu_neg
 
 /*
  * Flags in namecache.nc_flag
@@ -144,8 +151,12 @@ struct	namecache_ts {
 #define	NCF_DTS		0x08
 #define	NCF_DVDROP	0x10
 #define	NCF_NEGATIVE	0x20
-#define	NCF_HOTNEGATIVE	0x40
-#define NCF_INVALID	0x80
+#define	NCF_INVALID	0x40
+
+/*
+ * Flags in negstate.neg_flag
+ */
+#define NEG_HOT		0x01
 
 /*
  * Mark an entry as invalid.
@@ -269,6 +280,14 @@ NCP2NEGLIST(struct namecache *ncp)
 {
 
 	return (&neglists[(((uintptr_t)(ncp) >> 8) & ncneghash)]);
+}
+
+static inline struct negstate *
+NCP2NEGSTATE(struct namecache *ncp)
+{
+
+	MPASS(ncp->nc_flag & NCF_NEGATIVE);
+	return (&ncp->nc_neg);
 }
 
 #define	numbucketlocks (ncbuckethash + 1)
@@ -713,21 +732,32 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
  * round-robin manner.
  */
 static void
+cache_negative_init(struct namecache *ncp)
+{
+	struct negstate *negstate;
+
+	ncp->nc_flag |= NCF_NEGATIVE;
+	negstate = NCP2NEGSTATE(ncp);
+	negstate->neg_flag = 0;
+}
+
+static void
 cache_negative_hit(struct namecache *ncp)
 {
 	struct neglist *neglist;
+	struct negstate *negstate;
 
-	MPASS(ncp->nc_flag & NCF_NEGATIVE);
-	if (ncp->nc_flag & NCF_HOTNEGATIVE)
+	negstate = NCP2NEGSTATE(ncp);
+	if ((negstate->neg_flag & NEG_HOT) != 0)
 		return;
 	neglist = NCP2NEGLIST(ncp);
 	mtx_lock(&ncneg_hot.nl_lock);
 	mtx_lock(&neglist->nl_lock);
-	if (!(ncp->nc_flag & NCF_HOTNEGATIVE)) {
+	if ((negstate->neg_flag & NEG_HOT) == 0) {
 		numhotneg++;
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
 		TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
-		ncp->nc_flag |= NCF_HOTNEGATIVE;
+		negstate->neg_flag |= NEG_HOT;
 	}
 	mtx_unlock(&neglist->nl_lock);
 	mtx_unlock(&ncneg_hot.nl_lock);
@@ -756,17 +786,18 @@ static void
 cache_negative_remove(struct namecache *ncp, bool neg_locked)
 {
 	struct neglist *neglist;
+	struct negstate *negstate;
 	bool hot_locked = false;
 	bool list_locked = false;
 
-	MPASS(ncp->nc_flag & NCF_NEGATIVE);
 	cache_assert_bucket_locked(ncp, RA_WLOCKED);
 	neglist = NCP2NEGLIST(ncp);
+	negstate = NCP2NEGSTATE(ncp);
 	if (!neg_locked) {
-		if (ncp->nc_flag & NCF_HOTNEGATIVE) {
+		if ((negstate->neg_flag & NEG_HOT) != 0) {
 			hot_locked = true;
 			mtx_lock(&ncneg_hot.nl_lock);
-			if (!(ncp->nc_flag & NCF_HOTNEGATIVE)) {
+			if ((negstate->neg_flag & NEG_HOT) == 0) {
 				list_locked = true;
 				mtx_lock(&neglist->nl_lock);
 			}
@@ -775,7 +806,7 @@ cache_negative_remove(struct namecache *ncp, bool neg_locked)
 			mtx_lock(&neglist->nl_lock);
 		}
 	}
-	if (ncp->nc_flag & NCF_HOTNEGATIVE) {
+	if ((negstate->neg_flag & NEG_HOT) != 0) {
 		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
 		numhotneg--;
@@ -821,6 +852,7 @@ cache_negative_zap_one(void)
 {
 	struct namecache *ncp, *ncp2;
 	struct neglist *neglist;
+	struct negstate *negstate;
 	struct mtx *dvlp;
 	struct rwlock *blp;
 
@@ -834,10 +866,12 @@ cache_negative_zap_one(void)
 	ncp = TAILQ_FIRST(&ncneg_hot.nl_list);
 	if (ncp != NULL) {
 		neglist = NCP2NEGLIST(ncp);
+		negstate = NCP2NEGSTATE(ncp);
 		mtx_lock(&neglist->nl_lock);
+		MPASS((negstate->neg_flag & NEG_HOT) != 0);
 		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
 		TAILQ_INSERT_TAIL(&neglist->nl_list, ncp, nc_dst);
-		ncp->nc_flag &= ~NCF_HOTNEGATIVE;
+		negstate->neg_flag &= ~NEG_HOT;
 		numhotneg--;
 		mtx_unlock(&neglist->nl_lock);
 	}
@@ -1337,6 +1371,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 {
 	struct namecache_ts *ncp_ts;
 	struct namecache *ncp;
+	struct negstate *negstate;
 	struct rwlock *blp;
 	struct mtx *dvlp;
 	uint32_t hash;
@@ -1507,7 +1542,8 @@ negative_success:
 		/*
 		 * We need to take locks to promote an entry.
 		 */
-		if ((ncp->nc_flag & NCF_HOTNEGATIVE) == 0 ||
+		negstate = NCP2NEGSTATE(ncp);
+		if ((negstate->neg_flag & NEG_HOT) == 0 ||
 		    cache_ncp_invalid(ncp)) {
 			vfs_smr_exit();
 			doing_smr = false;
@@ -1834,7 +1870,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	ncp->nc_flag = flag;
 	ncp->nc_vp = vp;
 	if (vp == NULL)
-		ncp->nc_flag |= NCF_NEGATIVE;
+		cache_negative_init(ncp);
 	ncp->nc_dvp = dvp;
 	if (tsp != NULL) {
 		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
@@ -1869,11 +1905,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				n2_ts->nc_ticks = ncp_ts->nc_ticks;
 				if (dtsp != NULL) {
 					n2_ts->nc_dotdottime = ncp_ts->nc_dotdottime;
-					if (ncp->nc_flag & NCF_NEGATIVE)
-						mtx_lock(&ncneg_hot.nl_lock);
 					n2_ts->nc_nc.nc_flag |= NCF_DTS;
-					if (ncp->nc_flag & NCF_NEGATIVE)
-						mtx_unlock(&ncneg_hot.nl_lock);
 				}
 			}
 			goto out_unlock_free;
