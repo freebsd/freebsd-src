@@ -280,6 +280,7 @@
     ((((id) & CPUID_FAMILY) >> 8) + \
     (((id) & CPUID_EXT_FAMILY) >> 20))
 #endif
+#define CPUID_TO_STEPPING(id) ((id) & CPUID_STEPPING)
 
 /*
  * CPUID instruction 1 ebx info
