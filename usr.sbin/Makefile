@@ -186,9 +186,9 @@ SUBDIR.${MK_NTP}+=	ntp
 SUBDIR.${MK_OPENSSL}+=	keyserv
 SUBDIR.${MK_PF}+=	ftp-proxy
 SUBDIR.${MK_PKGBOOTSTRAP}+=	pkg
-.if ${COMPILER_FEATURES:Mc++11}
-SUBDIR.${MK_PMC}+=	pmc
-.endif
+#.if ${COMPILER_FEATURES:Mc++11}
+#SUBDIR.${MK_PMC}+=	pmc
+#.endif
 SUBDIR.${MK_PMC}+=	pmcannotate pmccontrol pmcstat pmcstudy
 SUBDIR.${MK_PORTSNAP}+=	portsnap
 SUBDIR.${MK_PPP}+=	ppp
