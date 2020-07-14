@@ -407,7 +407,6 @@ static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 STATNODE_ULONG(numneg, "Number of negative cache entries");
 STATNODE_ULONG(numcache, "Number of cache entries");
 STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
-STATNODE_COUNTER(numcalls, "Number of cache lookups");
 STATNODE_COUNTER(numdrops, "Number of dropped entries due to reaching the limit");
 STATNODE_COUNTER(dothits, "Number of '.' hits");
 STATNODE_COUNTER(dotdothits, "Number of '..' hits");
@@ -1384,8 +1383,6 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		return (0);
 	}
 #endif
-
-	counter_u64_add(numcalls, 1);
 
 	if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.'))
 		return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
