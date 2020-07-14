@@ -112,7 +112,8 @@
 #define	APIC_IPI_INTS	(APIC_LOCAL_INTS + 3)
 
 #define	IPI_RENDEZVOUS	(APIC_IPI_INTS)		/* Inter-CPU rendezvous. */
-#define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs */
+#define	IPI_INVLOP	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs, amd64 */
+#define	IPI_INVLTLB	(APIC_IPI_INTS + 1)	/* TLB Shootdown IPIs, i386 */
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
 #define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
