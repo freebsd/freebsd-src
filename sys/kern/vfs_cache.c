@@ -408,6 +408,7 @@ STATNODE_ULONG(numneg, "Number of negative cache entries");
 STATNODE_ULONG(numcache, "Number of cache entries");
 STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(numcalls, "Number of cache lookups");
+STATNODE_COUNTER(numdrops, "Number of dropped entries due to reaching the limit");
 STATNODE_COUNTER(dothits, "Number of '.' hits");
 STATNODE_COUNTER(dotdothits, "Number of '..' hits");
 STATNODE_COUNTER(numchecks, "Number of checks in lookup");
@@ -1853,6 +1854,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
 	if (__predict_false(lnumcache >= ncsize)) {
 		atomic_add_long(&numcache, -1);
+		counter_u64_add(numdrops, 1);
 		return;
 	}
 
