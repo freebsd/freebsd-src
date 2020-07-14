@@ -148,7 +148,7 @@ domain_set_agaw(struct dmar_domain *domain, int mgaw)
  *     address space, accept the biggest sagaw, whatever is it.
  */
 int
-dmar_maxaddr2mgaw(struct dmar_unit *unit, dmar_gaddr_t maxaddr, bool allow_less)
+dmar_maxaddr2mgaw(struct dmar_unit *unit, iommu_gaddr_t maxaddr, bool allow_less)
 {
 	int i;
 
@@ -207,17 +207,17 @@ domain_is_sp_lvl(struct dmar_domain *domain, int lvl)
 	return (alvl < nitems(sagaw_sp) && (sagaw_sp[alvl] & cap_sps) != 0);
 }
 
-dmar_gaddr_t
+iommu_gaddr_t
 pglvl_page_size(int total_pglvl, int lvl)
 {
 	int rlvl;
-	static const dmar_gaddr_t pg_sz[] = {
-		(dmar_gaddr_t)DMAR_PAGE_SIZE,
-		(dmar_gaddr_t)DMAR_PAGE_SIZE << DMAR_NPTEPGSHIFT,
-		(dmar_gaddr_t)DMAR_PAGE_SIZE << (2 * DMAR_NPTEPGSHIFT),
-		(dmar_gaddr_t)DMAR_PAGE_SIZE << (3 * DMAR_NPTEPGSHIFT),
-		(dmar_gaddr_t)DMAR_PAGE_SIZE << (4 * DMAR_NPTEPGSHIFT),
-		(dmar_gaddr_t)DMAR_PAGE_SIZE << (5 * DMAR_NPTEPGSHIFT)
+	static const iommu_gaddr_t pg_sz[] = {
+		(iommu_gaddr_t)DMAR_PAGE_SIZE,
+		(iommu_gaddr_t)DMAR_PAGE_SIZE << DMAR_NPTEPGSHIFT,
+		(iommu_gaddr_t)DMAR_PAGE_SIZE << (2 * DMAR_NPTEPGSHIFT),
+		(iommu_gaddr_t)DMAR_PAGE_SIZE << (3 * DMAR_NPTEPGSHIFT),
+		(iommu_gaddr_t)DMAR_PAGE_SIZE << (4 * DMAR_NPTEPGSHIFT),
+		(iommu_gaddr_t)DMAR_PAGE_SIZE << (5 * DMAR_NPTEPGSHIFT)
 	};
 
 	KASSERT(lvl >= 0 && lvl < total_pglvl,
@@ -227,7 +227,7 @@ pglvl_page_size(int total_pglvl, int lvl)
 	return (pg_sz[rlvl]);
 }
 
-dmar_gaddr_t
+iommu_gaddr_t
 domain_page_size(struct dmar_domain *domain, int lvl)
 {
 
@@ -235,10 +235,10 @@ domain_page_size(struct dmar_domain *domain, int lvl)
 }
 
 int
-calc_am(struct dmar_unit *unit, dmar_gaddr_t base, dmar_gaddr_t size,
-    dmar_gaddr_t *isizep)
+calc_am(struct dmar_unit *unit, iommu_gaddr_t base, iommu_gaddr_t size,
+    iommu_gaddr_t *isizep)
 {
-	dmar_gaddr_t isize;
+	iommu_gaddr_t isize;
 	int am;
 
 	for (am = DMAR_CAP_MAMV(unit->hw_cap);; am--) {
@@ -252,7 +252,7 @@ calc_am(struct dmar_unit *unit, dmar_gaddr_t base, dmar_gaddr_t size,
 	return (am);
 }
 
-dmar_haddr_t dmar_high;
+iommu_haddr_t dmar_high;
 int haw;
 int dmar_tbl_pagecnt;
 
@@ -482,7 +482,7 @@ dmar_flush_write_bufs(struct dmar_unit *unit)
 	 * DMAR_GCMD_WBF is only valid when CAP_RWBF is reported.
 	 */
 	KASSERT((unit->hw_cap & DMAR_CAP_RWBF) != 0,
-	    ("dmar%d: no RWBF", unit->unit));
+	    ("dmar%d: no RWBF", unit->iommu.unit));
 
 	dmar_write4(unit, DMAR_GCMD_REG, unit->hw_gcmd | DMAR_GCMD_WBF);
 	DMAR_WAIT_UNTIL(((dmar_read4(unit, DMAR_GSTS_REG) & DMAR_GSTS_WBFS)
@@ -586,11 +586,12 @@ dmar_barrier_enter(struct dmar_unit *dmar, u_int barrier_id)
 	if ((dmar->barrier_flags & f_inproc) != 0) {
 		while ((dmar->barrier_flags & f_inproc) != 0) {
 			dmar->barrier_flags |= f_wakeup;
-			msleep(&dmar->barrier_flags, &dmar->lock, 0,
+			msleep(&dmar->barrier_flags, &dmar->iommu.lock, 0,
 			    "dmarb", 0);
 		}
 		KASSERT((dmar->barrier_flags & f_done) != 0,
-		    ("dmar%d barrier %d missing done", dmar->unit, barrier_id));
+		    ("dmar%d barrier %d missing done", dmar->iommu.unit,
+		    barrier_id));
 		DMAR_UNLOCK(dmar);
 		return (false);
 	}
@@ -607,7 +608,7 @@ dmar_barrier_exit(struct dmar_unit *dmar, u_int barrier_id)
 
 	DMAR_ASSERT_LOCKED(dmar);
 	KASSERT((dmar->barrier_flags & (f_done | f_inproc)) == f_inproc,
-	    ("dmar%d barrier %d missed entry", dmar->unit, barrier_id));
+	    ("dmar%d barrier %d missed entry", dmar->iommu.unit, barrier_id));
 	dmar->barrier_flags |= f_done;
 	if ((dmar->barrier_flags & f_wakeup) != 0)
 		wakeup(&dmar->barrier_flags);

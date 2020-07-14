@@ -74,20 +74,22 @@ __FBSDID("$FreeBSD$");
  */
 
 static bool
-dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
+iommu_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
 {
 	char str[128], *env;
 	int default_bounce;
 	bool ret;
 	static const char bounce_str[] = "bounce";
-	static const char dmar_str[] = "dmar";
+	static const char iommu_str[] = "iommu";
+	static const char dmar_str[] = "dmar"; /* compatibility */
 
 	default_bounce = 0;
 	env = kern_getenv("hw.busdma.default");
 	if (env != NULL) {
 		if (strcmp(env, bounce_str) == 0)
 			default_bounce = 1;
-		else if (strcmp(env, dmar_str) == 0)
+		else if (strcmp(env, iommu_str) == 0 ||
+		    strcmp(env, dmar_str) == 0)
 			default_bounce = 0;
 		freeenv(env);
 	}
@@ -99,7 +101,8 @@ dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
 		return (default_bounce != 0);
 	if (strcmp(env, bounce_str) == 0)
 		ret = true;
-	else if (strcmp(env, dmar_str) == 0)
+	else if (strcmp(env, iommu_str) == 0 ||
+	    strcmp(env, dmar_str) == 0)
 		ret = false;
 	else
 		ret = default_bounce != 0;
@@ -117,7 +120,7 @@ dmar_bus_dma_is_dev_disabled(int domain, int bus, int slot, int func)
  * bounce mapping.
  */
 device_t
-dmar_get_requester(device_t dev, uint16_t *rid)
+iommu_get_requester(device_t dev, uint16_t *rid)
 {
 	devclass_t pci_class;
 	device_t l, pci, pcib, pcip, pcibp, requester;
@@ -137,15 +140,15 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 	 */
 	for (;;) {
 		pci = device_get_parent(l);
-		KASSERT(pci != NULL, ("dmar_get_requester(%s): NULL parent "
+		KASSERT(pci != NULL, ("iommu_get_requester(%s): NULL parent "
 		    "for %s", device_get_name(dev), device_get_name(l)));
 		KASSERT(device_get_devclass(pci) == pci_class,
-		    ("dmar_get_requester(%s): non-pci parent %s for %s",
+		    ("iommu_get_requester(%s): non-pci parent %s for %s",
 		    device_get_name(dev), device_get_name(pci),
 		    device_get_name(l)));
 
 		pcib = device_get_parent(pci);
-		KASSERT(pcib != NULL, ("dmar_get_requester(%s): NULL bridge "
+		KASSERT(pcib != NULL, ("iommu_get_requester(%s): NULL bridge "
 		    "for %s", device_get_name(dev), device_get_name(pci)));
 
 		/*
@@ -228,15 +231,15 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 	return (requester);
 }
 
-struct dmar_ctx *
-dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
+struct iommu_ctx *
+iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 {
 	device_t requester;
-	struct dmar_ctx *ctx;
+	struct iommu_ctx *ctx;
 	bool disabled;
 	uint16_t rid;
 
-	requester = dmar_get_requester(dev, &rid);
+	requester = iommu_get_requester(dev, &rid);
 
 	/*
 	 * If the user requested the IOMMU disabled for the device, we
@@ -245,10 +248,10 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 	 * Instead provide the identity mapping for the device
 	 * context.
 	 */
-	disabled = dmar_bus_dma_is_dev_disabled(pci_get_domain(requester), 
+	disabled = iommu_bus_dma_is_dev_disabled(pci_get_domain(requester),
 	    pci_get_bus(requester), pci_get_slot(requester), 
 	    pci_get_function(requester));
-	ctx = dmar_get_ctx_for_dev(dmar, requester, rid, disabled, rmrr);
+	ctx = iommu_get_ctx(unit, requester, rid, disabled, rmrr);
 	if (ctx == NULL)
 		return (NULL);
 	if (disabled) {
@@ -256,12 +259,12 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 		 * Keep the first reference on context, release the
 		 * later refs.
 		 */
-		DMAR_LOCK(dmar);
-		if ((ctx->flags & DMAR_CTX_DISABLED) == 0) {
-			ctx->flags |= DMAR_CTX_DISABLED;
-			DMAR_UNLOCK(dmar);
+		IOMMU_LOCK(unit);
+		if ((ctx->flags & IOMMU_CTX_DISABLED) == 0) {
+			ctx->flags |= IOMMU_CTX_DISABLED;
+			IOMMU_UNLOCK(unit);
 		} else {
-			dmar_free_ctx_locked(dmar, ctx);
+			iommu_free_ctx_locked(unit, ctx);
 		}
 		ctx = NULL;
 	}
@@ -271,36 +274,36 @@ dmar_instantiate_ctx(struct dmar_unit *dmar, device_t dev, bool rmrr)
 bus_dma_tag_t
 acpi_iommu_get_dma_tag(device_t dev, device_t child)
 {
-	struct dmar_unit *dmar;
-	struct dmar_ctx *ctx;
+	struct iommu_unit *unit;
+	struct iommu_ctx *ctx;
 	bus_dma_tag_t res;
 
-	dmar = dmar_find(child, bootverbose);
+	unit = iommu_find(child, bootverbose);
 	/* Not in scope of any DMAR ? */
-	if (dmar == NULL)
+	if (unit == NULL)
 		return (NULL);
-	if (!dmar->dma_enabled)
+	if (!unit->dma_enabled)
 		return (NULL);
-	dmar_quirks_pre_use(dmar);
-	dmar_instantiate_rmrr_ctxs(dmar);
+	dmar_quirks_pre_use(unit);
+	dmar_instantiate_rmrr_ctxs(unit);
 
-	ctx = dmar_instantiate_ctx(dmar, child, false);
-	res = ctx == NULL ? NULL : (bus_dma_tag_t)&ctx->ctx_tag;
+	ctx = iommu_instantiate_ctx(unit, child, false);
+	res = ctx == NULL ? NULL : (bus_dma_tag_t)ctx->tag;
 	return (res);
 }
 
 bool
 bus_dma_dmar_set_buswide(device_t dev)
 {
-	struct dmar_unit *dmar;
+	struct iommu_unit *unit;
 	device_t parent;
 	u_int busno, slot, func;
 
 	parent = device_get_parent(dev);
 	if (device_get_devclass(parent) != devclass_find("pci"))
 		return (false);
-	dmar = dmar_find(dev, bootverbose);
-	if (dmar == NULL)
+	unit = iommu_find(dev, bootverbose);
+	if (unit == NULL)
 		return (false);
 	busno = pci_get_bus(dev);
 	slot = pci_get_slot(dev);
@@ -309,40 +312,40 @@ bus_dma_dmar_set_buswide(device_t dev)
 		if (bootverbose) {
 			device_printf(dev,
 			    "dmar%d pci%d:%d:%d requested buswide busdma\n",
-			    dmar->unit, busno, slot, func);
+			    unit->unit, busno, slot, func);
 		}
 		return (false);
 	}
-	dmar_set_buswide_ctx(dmar, busno);
+	dmar_set_buswide_ctx(unit, busno);
 	return (true);
 }
 
-static MALLOC_DEFINE(M_DMAR_DMAMAP, "dmar_dmamap", "Intel DMAR DMA Map");
+static MALLOC_DEFINE(M_IOMMU_DMAMAP, "iommu_dmamap", "IOMMU DMA Map");
 
-static void dmar_bus_schedule_dmamap(struct dmar_unit *unit,
-    struct bus_dmamap_dmar *map);
+static void iommu_bus_schedule_dmamap(struct iommu_unit *unit,
+    struct bus_dmamap_iommu *map);
 
 static int
-dmar_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
+iommu_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     bus_addr_t boundary, bus_addr_t lowaddr, bus_addr_t highaddr,
     bus_dma_filter_t *filter, void *filterarg, bus_size_t maxsize,
     int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
     void *lockfuncarg, bus_dma_tag_t *dmat)
 {
-	struct bus_dma_tag_dmar *newtag, *oldtag;
+	struct bus_dma_tag_iommu *newtag, *oldtag;
 	int error;
 
 	*dmat = NULL;
 	error = common_bus_dma_tag_create(parent != NULL ?
-	    &((struct bus_dma_tag_dmar *)parent)->common : NULL, alignment,
+	    &((struct bus_dma_tag_iommu *)parent)->common : NULL, alignment,
 	    boundary, lowaddr, highaddr, filter, filterarg, maxsize,
 	    nsegments, maxsegsz, flags, lockfunc, lockfuncarg,
-	    sizeof(struct bus_dma_tag_dmar), (void **)&newtag);
+	    sizeof(struct bus_dma_tag_iommu), (void **)&newtag);
 	if (error != 0)
 		goto out;
 
-	oldtag = (struct bus_dma_tag_dmar *)parent;
-	newtag->common.impl = &bus_dma_dmar_impl;
+	oldtag = (struct bus_dma_tag_iommu *)parent;
+	newtag->common.impl = &bus_dma_iommu_impl;
 	newtag->ctx = oldtag->ctx;
 	newtag->owner = oldtag->owner;
 
@@ -355,20 +358,20 @@ out:
 }
 
 static int
-dmar_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
+iommu_bus_dma_tag_set_domain(bus_dma_tag_t dmat)
 {
 
 	return (0);
 }
 
 static int
-dmar_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
+iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 {
-	struct bus_dma_tag_dmar *dmat, *dmat_copy, *parent;
+	struct bus_dma_tag_iommu *dmat, *dmat_copy, *parent;
 	int error;
 
 	error = 0;
-	dmat_copy = dmat = (struct bus_dma_tag_dmar *)dmat1;
+	dmat_copy = dmat = (struct bus_dma_tag_iommu *)dmat1;
 
 	if (dmat != NULL) {
 		if (dmat->map_count != 0) {
@@ -376,12 +379,12 @@ dmar_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 			goto out;
 		}
 		while (dmat != NULL) {
-			parent = (struct bus_dma_tag_dmar *)dmat->common.parent;
+			parent = (struct bus_dma_tag_iommu *)dmat->common.parent;
 			if (atomic_fetchadd_int(&dmat->common.ref_count, -1) ==
 			    1) {
-				if (dmat == &dmat->ctx->ctx_tag)
-					dmar_free_ctx(dmat->ctx);
-				free_domain(dmat->segments, M_DMAR_DMAMAP);
+				if (dmat == dmat->ctx->tag)
+					iommu_free_ctx(dmat->ctx);
+				free_domain(dmat->segments, M_IOMMU_DMAMAP);
 				free(dmat, M_DEVBUF);
 				dmat = parent;
 			} else
@@ -394,20 +397,20 @@ out:
 }
 
 static bool
-dmar_bus_dma_id_mapped(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen)
+iommu_bus_dma_id_mapped(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen)
 {
 
 	return (false);
 }
 
 static int
-dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
+iommu_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = malloc_domainset(sizeof(*map), M_DMAR_DMAMAP,
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = malloc_domainset(sizeof(*map), M_IOMMU_DMAMAP,
 	    DOMAINSET_PREF(tag->common.domain), M_NOWAIT | M_ZERO);
 	if (map == NULL) {
 		*mapp = NULL;
@@ -415,10 +418,10 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	}
 	if (tag->segments == NULL) {
 		tag->segments = malloc_domainset(sizeof(bus_dma_segment_t) *
-		    tag->common.nsegments, M_DMAR_DMAMAP,
+		    tag->common.nsegments, M_IOMMU_DMAMAP,
 		    DOMAINSET_PREF(tag->common.domain), M_NOWAIT);
 		if (tag->segments == NULL) {
-			free_domain(map, M_DMAR_DMAMAP);
+			free_domain(map, M_IOMMU_DMAMAP);
 			*mapp = NULL;
 			return (ENOMEM);
 		}
@@ -434,23 +437,23 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 }
 
 static int
-dmar_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
+iommu_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
-	struct dmar_domain *domain;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
+	struct iommu_domain *domain;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
 	if (map != NULL) {
 		domain = tag->ctx->domain;
-		DMAR_DOMAIN_LOCK(domain);
+		IOMMU_DOMAIN_LOCK(domain);
 		if (!TAILQ_EMPTY(&map->map_entries)) {
-			DMAR_DOMAIN_UNLOCK(domain);
+			IOMMU_DOMAIN_UNLOCK(domain);
 			return (EBUSY);
 		}
-		DMAR_DOMAIN_UNLOCK(domain);
-		free_domain(map, M_DMAR_DMAMAP);
+		IOMMU_DOMAIN_UNLOCK(domain);
+		free_domain(map, M_IOMMU_DMAMAP);
 	}
 	tag->map_count--;
 	return (0);
@@ -458,15 +461,15 @@ dmar_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
 
 
 static int
-dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+iommu_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
     bus_dmamap_t *mapp)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 	int error, mflags;
 	vm_memattr_t attr;
 
-	error = dmar_bus_dmamap_create(dmat, flags, mapp);
+	error = iommu_bus_dmamap_create(dmat, flags, mapp);
 	if (error != 0)
 		return (error);
 
@@ -475,23 +478,23 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	attr = (flags & BUS_DMA_NOCACHE) != 0 ? VM_MEMATTR_UNCACHEABLE :
 	    VM_MEMATTR_DEFAULT;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)*mapp;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)*mapp;
 
 	if (tag->common.maxsize < PAGE_SIZE &&
 	    tag->common.alignment <= tag->common.maxsize &&
 	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = malloc_domainset(tag->common.maxsize, M_DEVBUF,
 		    DOMAINSET_PREF(tag->common.domain), mflags);
-		map->flags |= BUS_DMAMAP_DMAR_MALLOC;
+		map->flags |= BUS_DMAMAP_IOMMU_MALLOC;
 	} else {
 		*vaddr = (void *)kmem_alloc_attr_domainset(
 		    DOMAINSET_PREF(tag->common.domain), tag->common.maxsize,
 		    mflags, 0ul, BUS_SPACE_MAXADDR, attr);
-		map->flags |= BUS_DMAMAP_DMAR_KMEM_ALLOC;
+		map->flags |= BUS_DMAMAP_IOMMU_KMEM_ALLOC;
 	}
 	if (*vaddr == NULL) {
-		dmar_bus_dmamap_destroy(dmat, *mapp);
+		iommu_bus_dmamap_destroy(dmat, *mapp);
 		*mapp = NULL;
 		return (ENOMEM);
 	}
@@ -499,37 +502,37 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 }
 
 static void
-dmar_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map1)
+iommu_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map1)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
 
-	if ((map->flags & BUS_DMAMAP_DMAR_MALLOC) != 0) {
+	if ((map->flags & BUS_DMAMAP_IOMMU_MALLOC) != 0) {
 		free_domain(vaddr, M_DEVBUF);
-		map->flags &= ~BUS_DMAMAP_DMAR_MALLOC;
+		map->flags &= ~BUS_DMAMAP_IOMMU_MALLOC;
 	} else {
-		KASSERT((map->flags & BUS_DMAMAP_DMAR_KMEM_ALLOC) != 0,
-		    ("dmar_bus_dmamem_free for non alloced map %p", map));
+		KASSERT((map->flags & BUS_DMAMAP_IOMMU_KMEM_ALLOC) != 0,
+		    ("iommu_bus_dmamem_free for non alloced map %p", map));
 		kmem_free((vm_offset_t)vaddr, tag->common.maxsize);
-		map->flags &= ~BUS_DMAMAP_DMAR_KMEM_ALLOC;
+		map->flags &= ~BUS_DMAMAP_IOMMU_KMEM_ALLOC;
 	}
 
-	dmar_bus_dmamap_destroy(dmat, map1);
+	iommu_bus_dmamap_destroy(dmat, map1);
 }
 
 static int
-dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
-    struct bus_dmamap_dmar *map, vm_page_t *ma, int offset, bus_size_t buflen,
+iommu_bus_dmamap_load_something1(struct bus_dma_tag_iommu *tag,
+    struct bus_dmamap_iommu *map, vm_page_t *ma, int offset, bus_size_t buflen,
     int flags, bus_dma_segment_t *segs, int *segp,
-    struct dmar_map_entries_tailq *unroll_list)
+    struct iommu_map_entries_tailq *unroll_list)
 {
-	struct dmar_ctx *ctx;
-	struct dmar_domain *domain;
-	struct dmar_map_entry *entry;
-	dmar_gaddr_t size;
+	struct iommu_ctx *ctx;
+	struct iommu_domain *domain;
+	struct iommu_map_entry *entry;
+	iommu_gaddr_t size;
 	bus_size_t buflen1;
 	int error, idx, gas_flags, seg;
 
@@ -555,17 +558,17 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		 * (Too) optimistically allow split if there are more
 		 * then one segments left.
 		 */
-		gas_flags = map->cansleep ? DMAR_GM_CANWAIT : 0;
+		gas_flags = map->cansleep ? IOMMU_MF_CANWAIT : 0;
 		if (seg + 1 < tag->common.nsegments)
-			gas_flags |= DMAR_GM_CANSPLIT;
+			gas_flags |= IOMMU_MF_CANSPLIT;
 
-		error = dmar_gas_map(domain, &tag->common, size, offset,
-		    DMAR_MAP_ENTRY_READ |
-		    ((flags & BUS_DMA_NOWRITE) == 0 ? DMAR_MAP_ENTRY_WRITE : 0),
+		error = iommu_map(domain, &tag->common, size, offset,
+		    IOMMU_MAP_ENTRY_READ |
+		    ((flags & BUS_DMA_NOWRITE) == 0 ? IOMMU_MAP_ENTRY_WRITE : 0),
 		    gas_flags, ma + idx, &entry);
 		if (error != 0)
 			break;
-		if ((gas_flags & DMAR_GM_CANSPLIT) != 0) {
+		if ((gas_flags & IOMMU_MF_CANSPLIT) != 0) {
 			KASSERT(size >= entry->end - entry->start,
 			    ("split increased entry size %jx %jx %jx",
 			    (uintmax_t)size, (uintmax_t)entry->start,
@@ -596,7 +599,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end,
 		    (uintmax_t)tag->common.lowaddr,
 		    (uintmax_t)tag->common.highaddr));
-		KASSERT(dmar_test_boundary(entry->start + offset, buflen1,
+		KASSERT(iommu_test_boundary(entry->start + offset, buflen1,
 		    tag->common.boundary),
 		    ("boundary failed: ctx %p start 0x%jx end 0x%jx "
 		    "boundary 0x%jx", ctx, (uintmax_t)entry->start,
@@ -607,10 +610,10 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		    (uintmax_t)entry->start, (uintmax_t)entry->end,
 		    (uintmax_t)buflen1, (uintmax_t)tag->common.maxsegsz));
 
-		DMAR_DOMAIN_LOCK(domain);
+		IOMMU_DOMAIN_LOCK(domain);
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
-		entry->flags |= DMAR_MAP_ENTRY_MAP;
-		DMAR_DOMAIN_UNLOCK(domain);
+		entry->flags |= IOMMU_MAP_ENTRY_MAP;
+		IOMMU_DOMAIN_UNLOCK(domain);
 		TAILQ_INSERT_TAIL(unroll_list, entry, unroll_link);
 
 		segs[seg].ds_addr = entry->start + offset;
@@ -627,14 +630,14 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 }
 
 static int
-dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
-    struct bus_dmamap_dmar *map, vm_page_t *ma, int offset, bus_size_t buflen,
+iommu_bus_dmamap_load_something(struct bus_dma_tag_iommu *tag,
+    struct bus_dmamap_iommu *map, vm_page_t *ma, int offset, bus_size_t buflen,
     int flags, bus_dma_segment_t *segs, int *segp)
 {
-	struct dmar_ctx *ctx;
-	struct dmar_domain *domain;
-	struct dmar_map_entry *entry, *entry1;
-	struct dmar_map_entries_tailq unroll_list;
+	struct iommu_ctx *ctx;
+	struct iommu_domain *domain;
+	struct iommu_map_entry *entry, *entry1;
+	struct iommu_map_entries_tailq unroll_list;
 	int error;
 
 	ctx = tag->ctx;
@@ -642,7 +645,7 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
 	atomic_add_long(&ctx->loads, 1);
 
 	TAILQ_INIT(&unroll_list);
-	error = dmar_bus_dmamap_load_something1(tag, map, ma, offset,
+	error = iommu_bus_dmamap_load_something1(tag, map, ma, offset,
 	    buflen, flags, segs, segp, &unroll_list);
 	if (error != 0) {
 		/*
@@ -650,7 +653,7 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
 		 * partial buffer load, so unfortunately we have to
 		 * revert all work done.
 		 */
-		DMAR_DOMAIN_LOCK(domain);
+		IOMMU_DOMAIN_LOCK(domain);
 		TAILQ_FOREACH_SAFE(entry, &unroll_list, unroll_link,
 		    entry1) {
 			/*
@@ -664,8 +667,8 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
 			TAILQ_INSERT_TAIL(&domain->unload_entries, entry,
 			    dmamap_link);
 		}
-		DMAR_DOMAIN_UNLOCK(domain);
-		taskqueue_enqueue(domain->dmar->delayed_taskqueue,
+		IOMMU_DOMAIN_UNLOCK(domain);
+		taskqueue_enqueue(domain->iommu->delayed_taskqueue,
 		    &domain->unload_task);
 	}
 
@@ -673,37 +676,37 @@ dmar_bus_dmamap_load_something(struct bus_dma_tag_dmar *tag,
 	    !map->cansleep)
 		error = EINPROGRESS;
 	if (error == EINPROGRESS)
-		dmar_bus_schedule_dmamap(domain->dmar, map);
+		iommu_bus_schedule_dmamap(domain->iommu, map);
 	return (error);
 }
 
 static int
-dmar_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map1,
+iommu_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map1,
     struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
     bus_dma_segment_t *segs, int *segp)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
-	return (dmar_bus_dmamap_load_something(tag, map, ma, ma_offs, tlen,
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
+	return (iommu_bus_dmamap_load_something(tag, map, ma, ma_offs, tlen,
 	    flags, segs, segp));
 }
 
 static int
-dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
+iommu_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
     vm_paddr_t buf, bus_size_t buflen, int flags, bus_dma_segment_t *segs,
     int *segp)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 	vm_page_t *ma, fma;
 	vm_paddr_t pstart, pend, paddr;
 	int error, i, ma_cnt, mflags, offset;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
 	pstart = trunc_page(buf);
 	pend = round_page(buf + buflen);
 	offset = buf & PAGE_MASK;
@@ -735,7 +738,7 @@ dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
 			ma[i] = &fma[i];
 		}
 	}
-	error = dmar_bus_dmamap_load_something(tag, map, ma, offset, buflen,
+	error = iommu_bus_dmamap_load_something(tag, map, ma, offset, buflen,
 	    flags, segs, segp);
 	free(fma, M_DEVBUF);
 	free(ma, M_DEVBUF);
@@ -743,18 +746,18 @@ dmar_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map1,
 }
 
 static int
-dmar_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map1, void *buf,
+iommu_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map1, void *buf,
     bus_size_t buflen, pmap_t pmap, int flags, bus_dma_segment_t *segs,
     int *segp)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 	vm_page_t *ma, fma;
 	vm_paddr_t pstart, pend, paddr;
 	int error, i, ma_cnt, mflags, offset;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
 	pstart = trunc_page((vm_offset_t)buf);
 	pend = round_page((vm_offset_t)buf + buflen);
 	offset = (vm_offset_t)buf & PAGE_MASK;
@@ -788,7 +791,7 @@ dmar_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map1, void *buf,
 			ma[i] = &fma[i];
 		}
 	}
-	error = dmar_bus_dmamap_load_something(tag, map, ma, offset, buflen,
+	error = iommu_bus_dmamap_load_something(tag, map, ma, offset, buflen,
 	    flags, segs, segp);
 	free(ma, M_DEVBUF);
 	free(fma, M_DEVBUF);
@@ -796,29 +799,29 @@ dmar_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map1, void *buf,
 }
 
 static void
-dmar_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map1,
+iommu_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map1,
     struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
-	struct bus_dmamap_dmar *map;
+	struct bus_dmamap_iommu *map;
 
 	if (map1 == NULL)
 		return;
-	map = (struct bus_dmamap_dmar *)map1;
+	map = (struct bus_dmamap_iommu *)map1;
 	map->mem = *mem;
-	map->tag = (struct bus_dma_tag_dmar *)dmat;
+	map->tag = (struct bus_dma_tag_iommu *)dmat;
 	map->callback = callback;
 	map->callback_arg = callback_arg;
 }
 
 static bus_dma_segment_t *
-dmar_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map1,
+iommu_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map1,
     bus_dma_segment_t *segs, int nsegs, int error)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
 
 	if (!map->locked) {
 		KASSERT(map->cansleep,
@@ -848,76 +851,76 @@ dmar_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map1,
  * On amd64, we assume that sf allocation cannot fail.
  */
 static void
-dmar_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map1)
+iommu_bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map1)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
-	struct dmar_ctx *ctx;
-	struct dmar_domain *domain;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
+	struct iommu_ctx *ctx;
+	struct iommu_domain *domain;
 #if defined(__amd64__)
-	struct dmar_map_entries_tailq entries;
+	struct iommu_map_entries_tailq entries;
 #endif
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = (struct bus_dmamap_dmar *)map1;
+	tag = (struct bus_dma_tag_iommu *)dmat;
+	map = (struct bus_dmamap_iommu *)map1;
 	ctx = tag->ctx;
 	domain = ctx->domain;
 	atomic_add_long(&ctx->unloads, 1);
 
 #if defined(__i386__)
-	DMAR_DOMAIN_LOCK(domain);
+	IOMMU_DOMAIN_LOCK(domain);
 	TAILQ_CONCAT(&domain->unload_entries, &map->map_entries, dmamap_link);
-	DMAR_DOMAIN_UNLOCK(domain);
-	taskqueue_enqueue(domain->dmar->delayed_taskqueue,
+	IOMMU_DOMAIN_UNLOCK(domain);
+	taskqueue_enqueue(domain->iommu->delayed_taskqueue,
 	    &domain->unload_task);
 #else /* defined(__amd64__) */
 	TAILQ_INIT(&entries);
-	DMAR_DOMAIN_LOCK(domain);
+	IOMMU_DOMAIN_LOCK(domain);
 	TAILQ_CONCAT(&entries, &map->map_entries, dmamap_link);
-	DMAR_DOMAIN_UNLOCK(domain);
+	IOMMU_DOMAIN_UNLOCK(domain);
 	THREAD_NO_SLEEPING();
-	dmar_domain_unload(domain, &entries, false);
+	iommu_domain_unload(domain, &entries, false);
 	THREAD_SLEEPING_OK();
-	KASSERT(TAILQ_EMPTY(&entries), ("lazy dmar_ctx_unload %p", ctx));
+	KASSERT(TAILQ_EMPTY(&entries), ("lazy iommu_ctx_unload %p", ctx));
 #endif
 }
 
 static void
-dmar_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
+iommu_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
     bus_dmasync_op_t op)
 {
 }
 
-struct bus_dma_impl bus_dma_dmar_impl = {
-	.tag_create = dmar_bus_dma_tag_create,
-	.tag_destroy = dmar_bus_dma_tag_destroy,
-	.tag_set_domain = dmar_bus_dma_tag_set_domain,
-	.id_mapped = dmar_bus_dma_id_mapped,
-	.map_create = dmar_bus_dmamap_create,
-	.map_destroy = dmar_bus_dmamap_destroy,
-	.mem_alloc = dmar_bus_dmamem_alloc,
-	.mem_free = dmar_bus_dmamem_free,
-	.load_phys = dmar_bus_dmamap_load_phys,
-	.load_buffer = dmar_bus_dmamap_load_buffer,
-	.load_ma = dmar_bus_dmamap_load_ma,
-	.map_waitok = dmar_bus_dmamap_waitok,
-	.map_complete = dmar_bus_dmamap_complete,
-	.map_unload = dmar_bus_dmamap_unload,
-	.map_sync = dmar_bus_dmamap_sync,
+struct bus_dma_impl bus_dma_iommu_impl = {
+	.tag_create = iommu_bus_dma_tag_create,
+	.tag_destroy = iommu_bus_dma_tag_destroy,
+	.tag_set_domain = iommu_bus_dma_tag_set_domain,
+	.id_mapped = iommu_bus_dma_id_mapped,
+	.map_create = iommu_bus_dmamap_create,
+	.map_destroy = iommu_bus_dmamap_destroy,
+	.mem_alloc = iommu_bus_dmamem_alloc,
+	.mem_free = iommu_bus_dmamem_free,
+	.load_phys = iommu_bus_dmamap_load_phys,
+	.load_buffer = iommu_bus_dmamap_load_buffer,
+	.load_ma = iommu_bus_dmamap_load_ma,
+	.map_waitok = iommu_bus_dmamap_waitok,
+	.map_complete = iommu_bus_dmamap_complete,
+	.map_unload = iommu_bus_dmamap_unload,
+	.map_sync = iommu_bus_dmamap_sync,
 };
 
 static void
-dmar_bus_task_dmamap(void *arg, int pending)
+iommu_bus_task_dmamap(void *arg, int pending)
 {
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
-	struct dmar_unit *unit;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
+	struct iommu_unit *unit;
 
 	unit = arg;
-	DMAR_LOCK(unit);
+	IOMMU_LOCK(unit);
 	while ((map = TAILQ_FIRST(&unit->delayed_maps)) != NULL) {
 		TAILQ_REMOVE(&unit->delayed_maps, map, delay_link);
-		DMAR_UNLOCK(unit);
+		IOMMU_UNLOCK(unit);
 		tag = map->tag;
 		map->cansleep = true;
 		map->locked = false;
@@ -931,39 +934,42 @@ dmar_bus_task_dmamap(void *arg, int pending)
 		} else
 			map->locked = true;
 		map->cansleep = false;
-		DMAR_LOCK(unit);
+		IOMMU_LOCK(unit);
 	}
-	DMAR_UNLOCK(unit);
+	IOMMU_UNLOCK(unit);
 }
 
 static void
-dmar_bus_schedule_dmamap(struct dmar_unit *unit, struct bus_dmamap_dmar *map)
+iommu_bus_schedule_dmamap(struct iommu_unit *unit, struct bus_dmamap_iommu *map)
 {
 
 	map->locked = false;
-	DMAR_LOCK(unit);
+	IOMMU_LOCK(unit);
 	TAILQ_INSERT_TAIL(&unit->delayed_maps, map, delay_link);
-	DMAR_UNLOCK(unit);
+	IOMMU_UNLOCK(unit);
 	taskqueue_enqueue(unit->delayed_taskqueue, &unit->dmamap_load_task);
 }
 
 int
-dmar_init_busdma(struct dmar_unit *unit)
+iommu_init_busdma(struct iommu_unit *unit)
 {
+	int error;
 
 	unit->dma_enabled = 1;
-	TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
+	error = TUNABLE_INT_FETCH("hw.iommu.dma", &unit->dma_enabled);
+	if (error == 0) /* compatibility */
+		TUNABLE_INT_FETCH("hw.dmar.dma", &unit->dma_enabled);
 	TAILQ_INIT(&unit->delayed_maps);
-	TASK_INIT(&unit->dmamap_load_task, 0, dmar_bus_task_dmamap, unit);
-	unit->delayed_taskqueue = taskqueue_create("dmar", M_WAITOK,
+	TASK_INIT(&unit->dmamap_load_task, 0, iommu_bus_task_dmamap, unit);
+	unit->delayed_taskqueue = taskqueue_create("iommu", M_WAITOK,
 	    taskqueue_thread_enqueue, &unit->delayed_taskqueue);
 	taskqueue_start_threads(&unit->delayed_taskqueue, 1, PI_DISK,
-	    "dmar%d busdma taskq", unit->unit);
+	    "iommu%d busdma taskq", unit->unit);
 	return (0);
 }
 
 void
-dmar_fini_busdma(struct dmar_unit *unit)
+iommu_fini_busdma(struct iommu_unit *unit)
 {
 
 	if (unit->delayed_taskqueue == NULL)
@@ -979,11 +985,11 @@ bus_dma_dmar_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
     vm_paddr_t start, vm_size_t length, int flags)
 {
 	struct bus_dma_tag_common *tc;
-	struct bus_dma_tag_dmar *tag;
-	struct bus_dmamap_dmar *map;
-	struct dmar_ctx *ctx;
-	struct dmar_domain *domain;
-	struct dmar_map_entry *entry;
+	struct bus_dma_tag_iommu *tag;
+	struct bus_dmamap_iommu *map;
+	struct iommu_ctx *ctx;
+	struct iommu_domain *domain;
+	struct iommu_map_entry *entry;
 	vm_page_t *ma;
 	vm_size_t i;
 	int error;
@@ -996,16 +1002,16 @@ bus_dma_dmar_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 	MPASS((flags & ~(BUS_DMA_NOWAIT | BUS_DMA_NOWRITE)) == 0);
 
 	tc = (struct bus_dma_tag_common *)dmat;
-	if (tc->impl != &bus_dma_dmar_impl)
+	if (tc->impl != &bus_dma_iommu_impl)
 		return (0);
 
-	tag = (struct bus_dma_tag_dmar *)dmat;
+	tag = (struct bus_dma_tag_iommu *)dmat;
 	ctx = tag->ctx;
 	domain = ctx->domain;
-	map = (struct bus_dmamap_dmar *)map1;
+	map = (struct bus_dmamap_iommu *)map1;
 	waitok = (flags & BUS_DMA_NOWAIT) != 0;
 
-	entry = dmar_gas_alloc_entry(domain, waitok ? 0 : DMAR_PGF_WAITOK);
+	entry = iommu_map_alloc_entry(domain, waitok ? 0 : DMAR_PGF_WAITOK);
 	if (entry == NULL)
 		return (ENOMEM);
 	entry->start = start;
@@ -1013,23 +1019,23 @@ bus_dma_dmar_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 	ma = malloc(sizeof(vm_page_t) * atop(length), M_TEMP, waitok ?
 	    M_WAITOK : M_NOWAIT);
 	if (ma == NULL) {
-		dmar_gas_free_entry(domain, entry);
+		iommu_map_free_entry(domain, entry);
 		return (ENOMEM);
 	}
 	for (i = 0; i < atop(length); i++) {
 		ma[i] = vm_page_getfake(entry->start + PAGE_SIZE * i,
 		    VM_MEMATTR_DEFAULT);
 	}
-	error = dmar_gas_map_region(domain, entry, DMAR_MAP_ENTRY_READ |
-	    ((flags & BUS_DMA_NOWRITE) ? 0 : DMAR_MAP_ENTRY_WRITE),
-	    waitok ? DMAR_GM_CANWAIT : 0, ma);
+	error = iommu_map_region(domain, entry, IOMMU_MAP_ENTRY_READ |
+	    ((flags & BUS_DMA_NOWRITE) ? 0 : IOMMU_MAP_ENTRY_WRITE),
+	    waitok ? IOMMU_MF_CANWAIT : 0, ma);
 	if (error == 0) {
-		DMAR_DOMAIN_LOCK(domain);
+		IOMMU_DOMAIN_LOCK(domain);
 		TAILQ_INSERT_TAIL(&map->map_entries, entry, dmamap_link);
-		entry->flags |= DMAR_MAP_ENTRY_MAP;
-		DMAR_DOMAIN_UNLOCK(domain);
+		entry->flags |= IOMMU_MAP_ENTRY_MAP;
+		IOMMU_DOMAIN_UNLOCK(domain);
 	} else {
-		dmar_domain_unload_entry(entry, true);
+		iommu_domain_unload_entry(entry, true);
 	}
 	for (i = 0; i < atop(length); i++)
 		vm_page_putfake(ma[i]);
