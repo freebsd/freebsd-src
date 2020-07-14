@@ -166,7 +166,7 @@ coretemp_attach(device_t dev)
 	sc->sc_dev = dev;
 	pdev = device_get_parent(dev);
 	cpu_model = CPUID_TO_MODEL(cpu_id);
-	cpu_stepping = cpu_id & CPUID_STEPPING;
+	cpu_stepping = CPUID_TO_STEPPING(cpu_id);
 
 	/*
 	 * Some CPUs, namely the PIII, don't have thermal sensors, but
