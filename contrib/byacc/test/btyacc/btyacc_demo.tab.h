@@ -46,5 +46,6 @@ typedef struct YYLTYPE
 #define YYLTYPE_IS_DECLARED 1
 #endif
 #define YYRHSLOC(rhs, k) ((rhs)[k])
+extern YYLTYPE demo_lloc;
 
 #endif /* _demo__defines_h_ */

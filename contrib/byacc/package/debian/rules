@@ -1,8 +1,6 @@
 #!/usr/bin/make -f
-# MAde with the aid of dh_make, by Craig Small
-# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
-# Some lines taken from debmake, by Cristoph Lameter.
-
+# $Id: rules,v 1.3 2018/05/25 20:03:37 tom Exp $
+#
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
@@ -11,7 +9,11 @@
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-CFLAGS =
+PACKAGES.arch  = byacc btyacc
+
+CPPFLAGS	:= $(shell dpkg-buildflags --get CPPFLAGS)
+CFLAGS		:= $(shell dpkg-buildflags --get CFLAGS)
+LDFLAGS		:= $(shell dpkg-buildflags --get LDFLAGS)
 
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
         CFLAGS += -O0
@@ -22,12 +24,19 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
         INSTALL_PROGRAM += -s
 endif
 
+BYACC_DIR = $(CURDIR)/debian/byacc
+BTYACC_DIR = $(CURDIR)/debian/btyacc
 
-configure: configure-stamp
-configure-stamp:
-	dh_testdir
+BYACC_TMP = t/byacc
+BTYACC_TMP = t/btyacc
 
-	CFLAGS="$(CFLAGS)" ./configure \
+verbose = # -v
+
+configure = \
+	CPPFLAGS="$(CPPFLAGS)" \
+	CFLAGS="$(CFLAGS)" \
+	LDFLAGS="$(LDFLAGS)" \
+	../../configure \
 		--host=$(DEB_HOST_GNU_TYPE) \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--prefix=/usr \
@@ -35,59 +44,96 @@ configure-stamp:
 		--sysconfdir=/etc \
 		--program-transform-name='s,^,b,'
 
-	touch configure-stamp
+all: build
 
-build: build-stamp
-build-stamp: configure-stamp
+config: config-arch
+build: build-arch
+install: install-arch
+binary: binary-arch
+
+config-arch:  $(PACKAGES.arch:%=config-%-stamp)
+build-arch:   $(PACKAGES.arch:%=build-%-stamp)
+install-arch: $(PACKAGES.arch:%=install-%-stamp)
+
+config-byacc-stamp:
 	dh_testdir
 
-	$(MAKE)
+	rm -rf $(BYACC_TMP)
+	mkdir -p $(BYACC_TMP)
+	cd $(BYACC_TMP); $(configure)
 
-	touch build-stamp
+	touch $@
+
+config-btyacc-stamp:
+	dh_testdir
+
+	rm -rf $(BTYACC_TMP)
+	mkdir -p $(BTYACC_TMP)
+	cd $(BTYACC_TMP); $(configure) \
+		--enable-btyacc \
+		--with-max-table-size=18000 \
+		--program-transform-name='s,^,bt,'
+
+	touch $@
+
+build-byacc-stamp: config-byacc-stamp
+	dh_testdir
+
+	cd $(BYACC_TMP); $(MAKE)
+
+	touch $@
+
+build-btyacc-stamp: config-btyacc-stamp
+	dh_testdir
+
+	cd $(BTYACC_TMP); $(MAKE)
+
+	touch $@
+
+install-byacc-stamp: build-byacc-stamp
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	cd $(BYACC_TMP); $(MAKE) install DESTDIR=$(BYACC_DIR)
+
+	touch $@
+
+install-btyacc-stamp: build-btyacc-stamp
+	dh_testdir
+	dh_testroot
+	dh_installdirs
+
+	cd $(BTYACC_TMP); $(MAKE) install DESTDIR=$(BTYACC_DIR)
+
+	touch $@
 
 clean:
 	dh_testdir
 	dh_testroot
 
-	[ ! -f Makefile ] || $(MAKE) clean
+	dh_clean $(verbose)
 
-	rm -f configure-stamp build-stamp install-stamp \
-		config.cache config.h config.status config.log makefile
-
-	rm -f *.o yacc
-
-	dh_clean
-
-install: install-stamp
-install-stamp: build-stamp
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	dh_installdirs
-
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/byacc
-
-	touch install-stamp
-
-# Build architecture-independent files here.
-binary-indep: build install
-# No binary-indep target.
+	rm -rf t
 
 # Build architecture-dependent files here.
 binary-arch: build install
+ifneq ($(PACKAGES.arch),)
+	rm -f $(PACKAGES.arch:%=install-%-stamp)
 	dh_testdir
 	dh_testroot
-	dh_installdocs
-	dh_installexamples
-	dh_installchangelogs CHANGES
-	dh_strip
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+	dh_lintian           $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_installdocs	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_installexamples   $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_installchangelogs $(verbose) $(PACKAGES.arch:%=-p%) CHANGES
+	dh_strip	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_compress	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_fixperms	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_installdeb	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_shlibdeps	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_gencontrol	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_md5sums	     $(verbose) $(PACKAGES.arch:%=-p%)
+	dh_builddeb	     $(verbose) $(PACKAGES.arch:%=-p%)
+endif
 
-binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install install-stamp
+.PHONY: build clean config config-arch binary binary-arch install install-arch

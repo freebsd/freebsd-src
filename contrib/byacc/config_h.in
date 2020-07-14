@@ -21,16 +21,52 @@
 /* Define if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
 
+/* Define if you have the `getopt' function. */
+#undef HAVE_GETOPT
+
+/* Define if you have the <getopt.h> header file. */
+#undef HAVE_GETOPT_H
+
+/* Define to 1 if getopt variables are declared in header */
+#undef HAVE_GETOPT_HEADER
+
+/* Define if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
 /* Define if you have the `dbmalloc' library (-ldbmalloc). */
 #undef HAVE_LIBDBMALLOC
 
 /* Define if you have the `dmalloc' library (-ldmalloc). */
 #undef HAVE_LIBDMALLOC
 
+/* Define if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
 /* Define to 1 if mkstemp() is available and working. */
 #undef HAVE_MKSTEMP
 
-/* Define to 1 if vsnprintf() is available and working. */
+/* Define if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the `vsnprintf' function. */
 #undef HAVE_VSNPRINTF
 
 /* Define to maximum table size (default: 32500) */
@@ -39,8 +75,14 @@
 /* Define to 1 if filesystem supports mixed-case filenames. */
 #undef MIXEDCASE_FILENAMES
 
+/* Define to 1 if we must include getopt.h */
+#undef NEED_GETOPT_H
+
 /* Define to 1 if you want to perform memory-leak testing. */
 #undef NO_LEAKS
+
+/* Define if you have the ANSI C header files. */
+#undef STDC_HEADERS
 
 /* Define to the system name. */
 #undef SYSTEM_NAME
@@ -59,3 +101,6 @@
 
 /* Define to 1 if you want to perform memory-leak testing. */
 #undef YY_NO_LEAKS
+
+/* Define to `int' if <sys/types.h> does not define. */
+#undef mode_t

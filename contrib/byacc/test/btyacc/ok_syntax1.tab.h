@@ -30,6 +30,5 @@ typedef union
     double	dval;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-extern YYSTYPE ok_syntax1_lval;
 
 #endif /* _ok_syntax1__defines_h_ */
