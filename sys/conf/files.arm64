@@ -324,6 +324,7 @@ dev/pci/pci_dw_if.m		optional	pci fdt
 dev/psci/psci.c			standard
 dev/psci/smccc_arm64.S		standard
 dev/psci/smccc.c		standard
+dev/safexcel/safexcel.c		optional	safexcel fdt
 dev/sdhci/sdhci_xenon.c		optional	sdhci_xenon sdhci fdt
 dev/uart/uart_cpu_arm64.c	optional	uart
 dev/uart/uart_dev_mu.c		optional	uart uart_mu
