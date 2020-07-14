@@ -44,6 +44,7 @@
 
 /* priority types.  Start at 1 to catch uninitialized fields. */
 
+#define RTP_PRIO_ITHD		PRI_ITHD	/* Interrupt thread. */
 #define RTP_PRIO_REALTIME	PRI_REALTIME	/* real time process */
 #define RTP_PRIO_NORMAL		PRI_TIMESHARE	/* time sharing process */
 #define RTP_PRIO_IDLE		PRI_IDLE	/* idle process */
