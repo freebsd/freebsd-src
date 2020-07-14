@@ -449,6 +449,7 @@ MAN=	aac.4 \
 	rue.4 \
 	sa.4 \
 	safe.4 \
+	safexcel.4 \
 	sbp.4 \
 	sbp_targ.4 \
 	scc.4 \
