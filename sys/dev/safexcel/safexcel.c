@@ -1896,8 +1896,8 @@ safexcel_cmd_descr_add(struct safexcel_ring *ring, bool first, bool last,
 	struct safexcel_cmd_descr *cdesc;
 	struct safexcel_cmd_descr_ring *cring;
 
-	KASSERT(full_data_len <= SAFEXCEL_MAX_REQUEST_SIZE,
-	    ("%s: request length %u too long", __func__, full_data_len));
+	KASSERT(reqlen <= SAFEXCEL_MAX_REQUEST_SIZE,
+	    ("%s: request length %u too long", __func__, reqlen));
 	mtx_assert(&ring->mtx, MA_OWNED);
 
 	cring = &ring->cdr;
