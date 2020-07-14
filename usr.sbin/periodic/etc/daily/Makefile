@@ -10,6 +10,7 @@ CONFS=	100.clean-disks \
 	140.clean-rwho \
 	200.backup-passwd \
 	210.backup-aliases \
+	221.backup-gpart \
 	330.news \
 	400.status-disks \
 	401.status-graid \
