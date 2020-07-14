@@ -171,63 +171,13 @@ IDTVEC(spuriousint)
 	.text
 
 	SUPERALIGN_TEXT
-invltlb_ret:
+/*
+ * IPI handler for cache and TLB shootdown
+ */
+	INTR_HANDLER invlop
+	call	invlop_handler
 	call	as_lapic_eoi
 	jmp	ld_regs
-
-	SUPERALIGN_TEXT
-	INTR_HANDLER invltlb
-	call	invltlb_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invltlb_pcid
-	call	invltlb_pcid_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invltlb_invpcid_nopti
-	call	invltlb_invpcid_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invltlb_invpcid_pti
-	call	invltlb_invpcid_pti_handler
-	jmp	invltlb_ret
-
-/*
- * Single page TLB shootdown
- */
-	INTR_HANDLER invlpg
-	call	invlpg_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invlpg_invpcid
-	call	invlpg_invpcid_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invlpg_pcid
-	call	invlpg_pcid_handler
-	jmp	invltlb_ret
-
-/*
- * Page range TLB shootdown.
- */
-	INTR_HANDLER invlrng
-	call	invlrng_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invlrng_invpcid
-	call	invlrng_invpcid_handler
-	jmp	invltlb_ret
-
-	INTR_HANDLER invlrng_pcid
-	call	invlrng_pcid_handler
-	jmp	invltlb_ret
-
-/*
- * Invalidate cache.
- */
-	INTR_HANDLER invlcache
-	call	invlcache_handler
-	jmp	invltlb_ret
 
 /*
  * Handler for IPIs sent via the per-cpu IPI bitmap.
