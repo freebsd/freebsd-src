@@ -255,7 +255,7 @@ dmar_ir_find(device_t src, uint16_t *rid, int *is_dmar)
 	} else {
 		unit = dmar_find(src, bootverbose);
 		if (unit != NULL && rid != NULL)
-			dmar_get_requester(src, rid);
+			iommu_get_requester(src, rid);
 	}
 	return (unit);
 }
