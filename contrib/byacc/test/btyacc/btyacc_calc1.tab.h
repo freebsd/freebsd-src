@@ -18,6 +18,5 @@ typedef union
 	INTERVAL vval;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-extern YYSTYPE calc1_lval;
 
 #endif /* _calc1__defines_h_ */
