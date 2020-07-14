@@ -23,5 +23,5 @@ ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gC $h!rma
 define(`confTIME_ZONE', `USE_TZ')dnl
 define(`confEBINDIR', `/usr/lib')dnl
 dnl
-dnl	For maximum compability with HP-UX, use:
+dnl	For maximum compatibility with HP-UX, use:
 dnl	define(`confME_TOO', True)dnl

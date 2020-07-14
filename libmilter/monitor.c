@@ -39,7 +39,7 @@ static scond_t Mon_cv;
 **	after a mutex_lock() attempt, the order might not be strict,
 **	i.e., if the list contains e1 and e2 (in that order) then
 **	the the start time of e2 can be (slightly) smaller than that of e1.
-**	However, this slight inaccurracy should not matter for the proper
+**	However, this slight inaccuracy should not matter for the proper
 **	working of this algorithm.
 */
 

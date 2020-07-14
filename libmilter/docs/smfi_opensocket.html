@@ -34,13 +34,14 @@ but before calling <TT>smfi_main()</TT>.
 <TD>smfi_opensocket attempts to create the socket specified previously by
 a call to <TT>smfi_setconn()</TT> which will be the interface between MTAs
 and the filter.
-This allows the calling application to ensure that the
-socket can be created.
+This allows the calling application to ensure that the socket can be created.
 If this is not called,
-<TT>smfi_main()</TT> will do so implicitly.
+<TT>smfi_main()</TT> will create the socket implicitly
+(without removing a potentially existing UNIX domain socket).
 </TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -56,7 +57,7 @@ If this is not called,
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_opensocket will fail and return MI_FAILURE if:
 <UL>

@@ -12,7 +12,7 @@ SM_RCSID("@(#)$Id: signal.c,v 1.18 2013-11-22 20:51:43 ca Exp $")
 
 #if SM_CONF_SETITIMER
 # include <sm/time.h>
-#endif /* SM_CONF_SETITIMER */
+#endif
 #include <errno.h>
 #include <stdlib.h>
 #include <time.h>
@@ -42,7 +42,7 @@ sm_signal(sig, handler)
 {
 # if defined(SA_RESTART) || (!defined(SYS5SIGNALS) && !defined(BSD4_3))
 	struct sigaction n, o;
-# endif /* defined(SA_RESTART) || (!defined(SYS5SIGNALS) && !defined(BSD4_3)) */
+# endif
 
 	/*
 	**  First, try for modern signal calls
@@ -54,10 +54,10 @@ sm_signal(sig, handler)
 #  if USE_SA_SIGACTION
 	n.sa_sigaction = (void(*)(int, siginfo_t *, void *)) handler;
 	n.sa_flags = SA_RESTART|SA_SIGINFO;
-#  else /* USE_SA_SIGACTION */
+#  else
 	n.sa_handler = handler;
 	n.sa_flags = SA_RESTART;
-#  endif /* USE_SA_SIGACTION */
+#  endif
 	if (sigaction(sig, &n, &o) < 0)
 		return SIG_ERR;
 	return o.sa_handler;
@@ -71,9 +71,9 @@ sm_signal(sig, handler)
 #  if defined(SYS5SIGNALS) || defined(BSD4_3)
 #   ifdef BSD4_3
 	return signal(sig, handler);
-#   else /* BSD4_3 */
+#   else
 	return sigset(sig, handler);
-#   endif /* BSD4_3 */
+#   endif
 #  else /* defined(SYS5SIGNALS) || defined(BSD4_3) */
 
 	/*
@@ -108,7 +108,7 @@ sm_blocksignal(sig)
 # ifdef BSD4_3
 #  ifndef sigmask
 #   define sigmask(s)	(1 << ((s) - 1))
-#  endif /* ! sigmask */
+#  endif
 	return (sigblock(sigmask(sig)) & sigmask(sig)) != 0;
 # else /* BSD4_3 */
 #  ifdef ALTOS_SYSTEM_V
@@ -192,7 +192,7 @@ pend_signal(sig)
 	int save_errno = errno;
 #if SM_CONF_SETITIMER
 	struct itimerval clr;
-#endif /* SM_CONF_SETITIMER */
+#endif
 
 	/*
 	**  Don't want to interrupt something critical, hence delay
@@ -266,7 +266,7 @@ sm_allsignals(block)
 # ifdef BSD4_3
 #  ifndef sigmask
 #   define sigmask(s)	(1 << ((s) - 1))
-#  endif /* ! sigmask */
+#  endif
 	if (block)
 	{
 		int mask = 0;

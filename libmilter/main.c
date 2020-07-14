@@ -206,7 +206,7 @@ smfi_setbacklog(obacklog)
 
 
 /*
-**  SMFI_MAIN -- setup milter connnection and start listener.
+**  SMFI_MAIN -- setup milter connection and start listener.
 **
 **	Parameters:
 **		none.

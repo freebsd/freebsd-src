@@ -543,6 +543,8 @@ elif [ -r ${OBJ_ROOT}/obj${prefix}.$rel$sfx ]; then
 	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$rel$sfx
 elif [ -r ${OBJ_ROOT}/obj${prefix}.$sfx ]; then
 	abs_obj_dir=${OBJ_ROOT}/obj${prefix}.$sfx
+elif [ -r ${OBJ_ROOT}/obj${prefix}$sfx ]; then
+	abs_obj_dir=${OBJ_ROOT}/obj${prefix}$sfx
 fi
 
 if [ -n "$abs_obj_dir" ]

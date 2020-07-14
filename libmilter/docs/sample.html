@@ -187,7 +187,7 @@ sfsistat
 		++argc;
 
 	/* log this recipient */
-	if (reject != NULL && rcptaddr != NULL &&
+	if (reject != NULL &amp;&amp; rcptaddr != NULL &amp;&amp;
 	    (strcasecmp(rcptaddr, reject) == 0))
 	{
 		if (fprintf(priv-&gt;mlfi_fp, "RCPT %s -- REJECTED\n",
@@ -298,7 +298,7 @@ mlfi_cleanup(ctx, ok)
 		return rstat;
 
 	/* close the archive file */
-	if (priv-&gt;mlfi_fp != NULL && fclose(priv-&gt;mlfi_fp) == EOF)
+	if (priv-&gt;mlfi_fp != NULL &amp;&amp; fclose(priv-&gt;mlfi_fp) == EOF)
 	{
 		/* failed; we have to wait until later */
 		fprintf(stderr, "Couldn't close archive file %s: %s\n",

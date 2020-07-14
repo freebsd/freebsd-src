@@ -19,10 +19,11 @@ SM_RCSID("@(#)$Id: conf.c,v 8.1192 2014-01-27 18:23:21 ca Exp $")
 #include <sendmail/pathnames.h>
 #if NEWDB
 # include "sm/bdb.h"
-#endif /* NEWDB */
+#endif
 
 #include <daemon.h>
 #include "map.h"
+#include <ratectrl.h>
 
 #ifdef DEC
 # if NETINET6
@@ -38,10 +39,13 @@ SM_RCSID("@(#)$Id: conf.c,v 8.1192 2014-01-27 18:23:21 ca Exp $")
 #include <limits.h>
 #if NETINET || NETINET6
 # include <arpa/inet.h>
-#endif /* NETINET || NETINET6 */
+#endif
 #if HASULIMIT && defined(HPUX11)
 # include <ulimit.h>
-#endif /* HASULIMIT && defined(HPUX11) */
+#endif
+#if STARTTLS
+# include "tls.h"
+#endif
 
 static void	setupmaps __P((void));
 static void	setupmailers __P((void));
@@ -117,8 +121,10 @@ struct hdrinfo	HdrInfo[] =
 		/* message identification and control */
 	{ "message-id",			0,			NULL	},
 	{ "resent-message-id",		H_RESENT,		NULL	},
+#if !NO_EOH_FIELDS
 	{ "message",			H_EOH,			NULL	},
 	{ "text",			H_EOH,			NULL	},
+#endif
 
 		/* date fields */
 	{ "date",			0,			NULL	},
@@ -262,7 +268,7 @@ int	DtableSize =	50;		/* max open files; reset in 4.2bsd */
 
 #ifndef MAXRULERECURSION
 # define MAXRULERECURSION	50	/* max ruleset recursion depth */
-#endif /* ! MAXRULERECURSION */
+#endif
 
 void
 setdefaults(e)
@@ -314,13 +320,16 @@ setdefaults(e)
 	e->e_xfqgrp = NOQGRP;
 	e->e_xfqdir = NOQDIR;
 	e->e_ctime = curtime();
+#if _FFR_EAI
+	e->e_smtputf8 = false;
+#endif
 	SevenBitInput = false;			/* option 7 */
 	MaxMciCache = 1;			/* option k */
 	MciCacheTimeout = 5 MINUTES;		/* option K */
 	LogLevel = 9;				/* option L */
 #if MILTER
 	MilterLogLevel = -1;
-#endif /* MILTER */
+#endif
 	inittimeouts(NULL, false);		/* option r */
 	PrivacyFlags = PRIV_PUBLIC;		/* option p */
 	MeToo = true;				/* option m */
@@ -329,9 +338,9 @@ setdefaults(e)
 	clrbitmap(DontBlameSendmail);		/* DontBlameSendmail option */
 #if MIME8TO7
 	MimeMode = MM_CVTMIME|MM_PASS8BIT;	/* option 8 */
-#else /* MIME8TO7 */
+#else
 	MimeMode = MM_PASS8BIT;
-#endif /* MIME8TO7 */
+#endif
 	for (i = 0; i < MAXTOCLASS; i++)
 	{
 		TimeOuts.to_q_return[i] = 5 DAYS;	/* option T */
@@ -360,11 +369,14 @@ setdefaults(e)
 	AuthMechanisms = newstr(AUTH_MECHANISMS);
 	AuthRealm = NULL;
 	MaxSLBits = INT_MAX;
-#endif /* SASL */
+#endif
 #if STARTTLS
 	TLS_Srv_Opts = TLS_I_SRV;
 	if (NULL == EVP_digest)
 		EVP_digest = EVP_md5();
+# if _FFR_TLSFB2CLEAR
+	TLSFallbacktoClear = true;
+# endif
 	Srv_SSL_Options = SSL_OP_ALL;
 	Clt_SSL_Options = SSL_OP_ALL
 # ifdef SSL_OP_NO_SSLv2
@@ -382,7 +394,7 @@ setdefaults(e)
 #endif /* STARTTLS */
 #ifdef HESIOD_INIT
 	HesiodContext = NULL;
-#endif /* HESIOD_INIT */
+#endif
 #if NETINET6
 	/* Detect if IPv6 is available at run time */
 	i = socket(AF_INET6, SOCK_STREAM, 0);
@@ -407,24 +419,23 @@ setdefaults(e)
 		RuleSetNames[i] = NULL;
 #if MILTER
 	InputFilters[0] = NULL;
-#endif /* MILTER */
+#endif
 	RejectLogInterval = 3 HOURS;
 #if REQUIRES_DIR_FSYNC
 	RequiresDirfsync = true;
-#endif /* REQUIRES_DIR_FSYNC */
+#endif
 #if _FFR_RCPTTHROTDELAY
 	BadRcptThrottleDelay = 1;
-#endif /* _FFR_RCPTTHROTDELAY */
+#endif
 	ConnectionRateWindowSize = 60;
 #if _FFR_BOUNCE_QUEUE
 	BounceQueue = NOQGRP;
-#endif /* _FFR_BOUNCE_QUEUE */
+#endif
 	setupmaps();
 	setupqueues();
 	setupmailers();
 	setupheaders();
 }
-
 
 /*
 **  SETDEFUSER -- set/reset DefUser using DefUid (for initgroups())
@@ -539,50 +550,56 @@ setupmaps()
 	MAPDEF("dbm", ".dir", MCF_ALIASOK|MCF_REBUILDABLE,
 		map_parseargs, ndbm_map_open, ndbm_map_close,
 		ndbm_map_lookup, ndbm_map_store);
-#endif /* NDBM */
+#endif
+
+#if CDB
+	MAPDEF("cdb", CDBEXT, MCF_ALIASOK|MCF_REBUILDABLE,
+		map_parseargs, cdb_map_open, cdb_map_close,
+		cdb_map_lookup, cdb_map_store);
+#endif
 
 #if NIS
 	MAPDEF("nis", NULL, MCF_ALIASOK,
 		map_parseargs, nis_map_open, null_map_close,
 		nis_map_lookup, null_map_store);
-#endif /* NIS */
+#endif
 
 #if NISPLUS
 	MAPDEF("nisplus", NULL, MCF_ALIASOK,
 		map_parseargs, nisplus_map_open, null_map_close,
 		nisplus_map_lookup, null_map_store);
-#endif /* NISPLUS */
+#endif
 
 #if LDAPMAP
 	MAPDEF("ldap", NULL, MCF_ALIASOK|MCF_NOTPERSIST,
 		ldapmap_parseargs, ldapmap_open, ldapmap_close,
 		ldapmap_lookup, null_map_store);
-#endif /* LDAPMAP */
+#endif
 
 #if PH_MAP
 	MAPDEF("ph", NULL, MCF_NOTPERSIST,
 		ph_map_parseargs, ph_map_open, ph_map_close,
 		ph_map_lookup, null_map_store);
-#endif /* PH_MAP */
+#endif
 
 #if MAP_NSD
 	/* IRIX 6.5 nsd support */
 	MAPDEF("nsd", NULL, MCF_ALIASOK,
 	       map_parseargs, null_map_open, null_map_close,
 	       nsd_map_lookup, null_map_store);
-#endif /* MAP_NSD */
+#endif
 
 #if HESIOD
-	MAPDEF("hesiod", NULL, MCF_ALIASOK|MCF_ALIASONLY,
+	MAPDEF("hesiod", NULL, MCF_ALIASOK,
 		map_parseargs, hes_map_open, hes_map_close,
 		hes_map_lookup, null_map_store);
-#endif /* HESIOD */
+#endif
 
 #if NETINFO
 	MAPDEF("netinfo", NULL, MCF_ALIASOK,
 		map_parseargs, ni_map_open, null_map_close,
 		ni_map_lookup, null_map_store);
-#endif /* NETINFO */
+#endif
 
 #if 0
 	MAPDEF("dns", NULL, 0,
@@ -609,7 +626,7 @@ setupmaps()
 	MAPDEF("bestmx", NULL, MCF_OPTFILE,
 		map_parseargs, null_map_open, null_map_close,
 		bestmx_map_lookup, null_map_store);
-#endif /* NAMED_BIND */
+#endif
 
 	MAPDEF("host", NULL, 0,
 		host_map_init, null_map_open, null_map_close,
@@ -619,11 +636,11 @@ setupmaps()
 		map_parseargs, text_map_open, null_map_close,
 		text_map_lookup, null_map_store);
 
-	MAPDEF("stab", NULL, MCF_ALIASOK|MCF_ALIASONLY,
+	MAPDEF("stab", NULL, MCF_ALIASOK,
 		map_parseargs, stab_map_open, null_map_close,
 		stab_map_lookup, stab_map_store);
 
-	MAPDEF("implicit", NULL, MCF_ALIASOK|MCF_ALIASONLY|MCF_REBUILDABLE,
+	MAPDEF("implicit", NULL, MCF_ALIASOK|MCF_REBUILDABLE,
 		map_parseargs, impl_map_open, impl_map_close,
 		impl_map_lookup, impl_map_store);
 
@@ -641,14 +658,14 @@ setupmaps()
 	MAPDEF("regex", NULL, 0,
 		regex_map_init, null_map_open, null_map_close,
 		regex_map_lookup, null_map_store);
-#endif /* MAP_REGEX */
+#endif
 
 #if USERDB
 	/* user database */
 	MAPDEF("userdb", ".db", 0,
 		map_parseargs, null_map_open, null_map_close,
 		udb_map_lookup, null_map_store);
-#endif /* USERDB */
+#endif
 
 	/* arbitrary programs */
 	MAPDEF("program", NULL, MCF_ALIASOK,
@@ -695,14 +712,28 @@ setupmaps()
 	MAPDEF("socket", NULL, MCF_ALIASOK,
 		map_parseargs, socket_map_open, socket_map_close,
 		socket_map_lookup, null_map_store);
-#endif /* SOCKETMAP */
+#endif
 
 #if _FFR_DPRINTF_MAP
 	/* dprintf map -- logs information to syslog */
 	MAPDEF("dprintf", NULL, 0,
 		dprintf_map_parseargs, null_map_open, null_map_close,
 		dprintf_map_lookup, null_map_store);
-#endif /* _FFR_DPRINTF_MAP */
+#endif
+
+#if _FFR_SETDEBUG_MAP
+	/* setdebug map -- set debug levels */
+	MAPDEF("setdebug", NULL, 0,
+		dequote_init, null_map_open, null_map_close,
+		setdebug_map_lookup, null_map_store);
+#endif
+
+#if _FFR_SETOPT_MAP
+	/* setopt map -- set option */
+	MAPDEF("setopt", NULL, 0,
+		dequote_init, null_map_open, null_map_close,
+		setopt_map_lookup, null_map_store);
+#endif
 
 	if (tTd(38, 2))
 	{
@@ -754,7 +785,7 @@ inithostmaps()
 #if NAMED_BIND
 		if (ConfigLevel >= 2)
 			(void) sm_strlcat(buf, " -a. -D", sizeof(buf));
-#endif /* NAMED_BIND */
+#endif
 		(void) makemapentry(buf);
 	}
 
@@ -772,6 +803,14 @@ inithostmaps()
 					  sizeof(buf));
 			(void) makemapentry(buf);
 		}
+#if CDB
+		else if (strcmp(maptype[i], "cdb") == 0 &&
+			 stab("aliases.cdb", ST_MAP, ST_FIND) == NULL)
+		{
+			(void) sm_strlcpy(buf, "aliases.cdb null", sizeof(buf));
+			(void) makemapentry(buf);
+		}
+#endif /* CDB */
 #if NISPLUS
 		else if (strcmp(maptype[i], "nisplus") == 0 &&
 			 stab("aliases.nisplus", ST_MAP, ST_FIND) == NULL)
@@ -848,25 +887,25 @@ inithostmaps()
 
 #if defined(SOLARIS) || (defined(sony_news) && defined(__svr4))
 # define _USE_SUN_NSSWITCH_
-#endif /* defined(SOLARIS) || (defined(sony_news) && defined(__svr4)) */
+#endif
 
 #if _FFR_HPUX_NSSWITCH
 # ifdef __hpux
 #  define _USE_SUN_NSSWITCH_
-# endif /* __hpux */
+# endif
 #endif /* _FFR_HPUX_NSSWITCH */
 
 #ifdef _USE_SUN_NSSWITCH_
 # include <nsswitch.h>
-#endif /* _USE_SUN_NSSWITCH_ */
+#endif
 
 #if defined(ultrix) || (defined(__osf__) && defined(__alpha))
 # define _USE_DEC_SVC_CONF_
-#endif /* defined(ultrix) || (defined(__osf__) && defined(__alpha)) */
+#endif
 
 #ifdef _USE_DEC_SVC_CONF_
 # include <sys/svcinfo.h>
-#endif /* _USE_DEC_SVC_CONF_ */
+#endif
 
 int
 switch_map_find(service, maptype, mapreturn)
@@ -951,7 +990,7 @@ switch_map_find(service, maptype, mapreturn)
 		  case SVC_HESIOD:
 			maptype[svcno] = "hesiod";
 			break;
-# endif /* SVC_HESIOD */
+# endif
 
 		  case SVC_LAST:
 			errno = save_errno;
@@ -1001,7 +1040,7 @@ switch_map_find(service, maptype, mapreturn)
 					*p = '\0';
 #ifndef SM_NSSWITCH_DELIMS
 # define SM_NSSWITCH_DELIMS	" \t"
-#endif /* SM_NSSWITCH_DELIMS */
+#endif
 				p = strpbrk(buf, SM_NSSWITCH_DELIMS);
 				if (p != NULL)
 					*p++ = '\0';
@@ -1015,7 +1054,7 @@ switch_map_find(service, maptype, mapreturn)
 						  buf);
 					continue;
 				}
-				while (isascii(*p) && isspace(*p))
+				while (SM_ISSPACE(*p))
 					p++;
 				if (*p == '\0')
 					continue;
@@ -1041,7 +1080,7 @@ switch_map_find(service, maptype, mapreturn)
 					if (p == NULL)
 						break;
 					*p++ = '\0';
-					while (isascii(*p) && isspace(*p))
+					while (SM_ISSPACE(*p))
 						p++;
 				}
 				if (svcno < MAXMAPSTACK)
@@ -1072,23 +1111,31 @@ switch_map_find(service, maptype, mapreturn)
 	/* if the service file doesn't work, use an absolute fallback */
 # ifdef _USE_DEC_SVC_CONF_
   punt:
-# endif /* _USE_DEC_SVC_CONF_ */
+# endif
 	for (svcno = 0; svcno < MAXMAPACTIONS; svcno++)
 		mapreturn[svcno] = 0;
 	svcno = 0;
 	if (strcmp(service, "aliases") == 0)
 	{
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "files";
+# if CDB
+		SM_ASSERT(svcno < MAXMAPSTACK);
+		maptype[svcno++] = "cdb";
+# endif
 # if defined(AUTO_NETINFO_ALIASES) && defined (NETINFO)
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "netinfo";
-# endif /* defined(AUTO_NETINFO_ALIASES) && defined (NETINFO) */
+# endif
 # ifdef AUTO_NIS_ALIASES
 #  if NISPLUS
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "nisplus";
-#  endif /* NISPLUS */
+#  endif
 #  if NIS
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "nis";
-#  endif /* NIS */
+#  endif
 # endif /* AUTO_NIS_ALIASES */
 		errno = save_errno;
 		return svcno;
@@ -1096,16 +1143,20 @@ switch_map_find(service, maptype, mapreturn)
 	if (strcmp(service, "hosts") == 0)
 	{
 # if NAMED_BIND
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "dns";
 # else /* NAMED_BIND */
 #  if defined(sun) && !defined(BSD)
 		/* SunOS */
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "nis";
 #  endif /* defined(sun) && !defined(BSD) */
 # endif /* NAMED_BIND */
 # if defined(AUTO_NETINFO_HOSTS) && defined (NETINFO)
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "netinfo";
-# endif /* defined(AUTO_NETINFO_HOSTS) && defined (NETINFO) */
+# endif
+		SM_ASSERT(svcno < MAXMAPSTACK);
 		maptype[svcno++] = "files";
 		errno = save_errno;
 		return svcno;
@@ -1306,11 +1357,11 @@ init_md_sun()
 
 #ifdef _AUX_SOURCE
 # include <compat.h>
-#endif /* _AUX_SOURCE */
+#endif
 
 #if SHARE_V1
 # include <shares.h>
-#endif /* SHARE_V1 */
+#endif
 
 void
 init_md(argc, argv)
@@ -1319,16 +1370,16 @@ init_md(argc, argv)
 {
 #ifdef _AUX_SOURCE
 	setcompat(getcompat() | COMPAT_BSDPROT);
-#endif /* _AUX_SOURCE */
+#endif
 
 #ifdef SUN_EXTENSIONS
 	init_md_sun();
-#endif /* SUN_EXTENSIONS */
+#endif
 
 #if _CONVEX_SOURCE
 	/* keep gethostby*() from stripping the local domain name */
 	set_domain_trim_off();
-#endif /* _CONVEX_SOURCE */
+#endif
 #if defined(__QNX__) && !defined(__QNXNTO__)
 	/*
 	**  Due to QNX's network distributed nature, you can target a tcpip
@@ -1356,9 +1407,9 @@ init_md(argc, argv)
 
 #ifdef VENDOR_DEFAULT
 	VendorCode = VENDOR_DEFAULT;
-#else /* VENDOR_DEFAULT */
+#else
 	VendorCode = VENDOR_BERKELEY;
-#endif /* VENDOR_DEFAULT */
+#endif
 }
 /*
 **  INIT_VENDOR_MACROS -- vendor-dependent macro initializations
@@ -1416,39 +1467,39 @@ init_vendor_macros(e)
 /* do guesses based on general OS type */
 #ifndef LA_TYPE
 # define LA_TYPE	LA_ZERO
-#endif /* ! LA_TYPE */
+#endif
 
 #ifndef FSHIFT
 # if defined(unixpc)
 #  define FSHIFT	5
-# endif /* defined(unixpc) */
+# endif
 
 # if defined(__alpha) || defined(IRIX)
 #  define FSHIFT	10
-# endif /* defined(__alpha) || defined(IRIX) */
+# endif
 
 #endif /* ! FSHIFT */
 
 #ifndef FSHIFT
 # define FSHIFT		8
-#endif /* ! FSHIFT */
+#endif
 
 #ifndef FSCALE
 # define FSCALE		(1 << FSHIFT)
-#endif /* ! FSCALE */
+#endif
 
 #ifndef LA_AVENRUN
 # ifdef SYSTEM5
 #  define LA_AVENRUN	"avenrun"
-# else /* SYSTEM5 */
+# else
 #  define LA_AVENRUN	"_avenrun"
-# endif /* SYSTEM5 */
+# endif
 #endif /* ! LA_AVENRUN */
 
 /* _PATH_KMEM should be defined in <paths.h> */
 #ifndef _PATH_KMEM
 # define _PATH_KMEM	"/dev/kmem"
-#endif /* ! _PATH_KMEM */
+#endif
 
 #if (LA_TYPE == LA_INT) || (LA_TYPE == LA_FLOAT) || (LA_TYPE == LA_SHORT) || (LA_TYPE == LA_LONGLONG)
 
@@ -1458,9 +1509,9 @@ init_vendor_macros(e)
 # ifndef _PATH_UNIX
 #  if defined(SYSTEM5)
 #   define _PATH_UNIX	"/unix"
-#  else /* defined(SYSTEM5) */
+#  else
 #   define _PATH_UNIX	"/vmunix"
-#  endif /* defined(SYSTEM5) */
+#  endif
 # endif /* ! _PATH_UNIX */
 
 # ifdef _AUX_SOURCE
@@ -1487,9 +1538,9 @@ getla()
 #  else
 #   if LA_TYPE == LA_LONGLONG
 	long long avenrun[3];
-#   else /* LA_TYPE == LA_LONGLONG */
+#   else
 	double avenrun[3];
-#   endif /* LA_TYPE == LA_LONGLONG */
+#   endif
 #  endif /* LA_TYPE == LA_SHORT */
 # endif /* LA_TYPE == LA_INT */
 	extern off_t lseek();
@@ -1504,9 +1555,9 @@ getla()
 
 # if defined(_AIX3) || defined(_AIX4)
 		if (knlist(Nl, 1, sizeof(Nl[0])) < 0)
-# else /* defined(_AIX3) || defined(_AIX4) */
+# else
 		if (nlist(_PATH_UNIX, Nl) < 0)
-# endif /* defined(_AIX3) || defined(_AIX4) */
+# endif
 		{
 			if (tTd(3, 1))
 				sm_dprintf("getla: nlist(%s): %s\n", _PATH_UNIX,
@@ -1522,7 +1573,7 @@ getla()
 		}
 # ifdef NAMELISTMASK
 		Nl[X_AVENRUN].n_value &= NAMELISTMASK;
-# endif /* NAMELISTMASK */
+# endif
 
 		kmem = open(_PATH_KMEM, 0, 0);
 		if (kmem < 0)
@@ -1734,9 +1785,9 @@ getla()
 
 # if defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0
 #  include <mach/mach.h>
-# else /* defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0 */
+# else
 #  include <mach.h>
-# endif /* defined(NX_CURRENT_COMPILER_RELEASE) && NX_CURRENT_COMPILER_RELEASE > NX_COMPILER_RELEASE_3_0 */
+# endif
 
 int
 getla()
@@ -1792,7 +1843,7 @@ getla()
 
 # ifndef _PATH_LOADAVG
 #  define _PATH_LOADAVG	"/proc/loadavg"
-# endif /* ! _PATH_LOADAVG */
+# endif
 
 int
 getla()
@@ -1834,9 +1885,9 @@ getla()
 
 # ifdef _UNICOSMP
 #  define CAST_SYSMP(x)	(x)
-# else /* _UNICOSMP */
+# else
 #  define CAST_SYSMP(x)	((x) & 0x7fffffff)
-# endif /* _UNICOSMP */
+# endif
 
 int
 getla(void)
@@ -1950,7 +2001,7 @@ getla()
 
 # ifndef _PATH_AVENRUN
 #  define _PATH_AVENRUN	"/dev/table/avenrun"
-# endif /* ! _PATH_AVENRUN */
+# endif
 
 int
 getla()
@@ -2090,7 +2141,7 @@ getla()
 /* Non Apollo stuff removed by Don Lewis 11/15/93 */
 #ifndef lint
 SM_UNUSED(static char  rcsid[]) = "@(#)$OrigId: getloadavg.c,v 1.16 1991/06/21 12:51:15 paul Exp $";
-#endif /* ! lint */
+#endif
 
 #ifdef apollo
 # undef volatile
@@ -2163,7 +2214,7 @@ shouldqueue(pri, ct)
 	bool rval;
 #if _FFR_MEMSTAT
 	long memfree;
-#endif /* _FFR_MEMSTAT */
+#endif
 
 	if (tTd(3, 30))
 		sm_dprintf("shouldqueue: CurrentLA=%d, pri=%ld: ",
@@ -2222,12 +2273,12 @@ refuseconnections(e, dn, active)
 	int limit;
 #if _FFR_MEMSTAT
 	long memfree;
-#endif /* _FFR_MEMSTAT */
+#endif
 
 #if XLA
 	if (!xla_smtp_ok())
 		return true;
-#endif /* XLA */
+#endif
 
 	SM_ASSERT(dn >= 0);
 	SM_ASSERT(dn < MAXDAEMONS);
@@ -2374,14 +2425,14 @@ refuseconnections(e, dn, active)
 
 #ifndef SPT_TYPE
 # define SPT_TYPE	SPT_REUSEARGV
-#endif /* ! SPT_TYPE */
+#endif
 
 
 #if SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN
 
 # if SPT_TYPE == SPT_PSTAT
 #  include <sys/pstat.h>
-# endif /* SPT_TYPE == SPT_PSTAT */
+# endif
 # if SPT_TYPE == SPT_PSSTRINGS
 #  include <machine/vmparam.h>
 #  include <sys/exec.h>
@@ -2398,14 +2449,14 @@ typedef unsigned int	*pt_entry_t;
 
 # if SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV
 #  define SETPROC_STATIC	static
-# else /* SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV */
+# else
 #  define SETPROC_STATIC
-# endif /* SPT_TYPE == SPT_PSSTRINGS || SPT_TYPE == SPT_CHANGEARGV */
+# endif
 
 # if SPT_TYPE == SPT_SYSMIPS
 #  include <sys/sysmips.h>
 #  include <sys/sysnews.h>
-# endif /* SPT_TYPE == SPT_SYSMIPS */
+# endif
 
 # if SPT_TYPE == SPT_SCO
 #  include <sys/immu.h>
@@ -2414,18 +2465,18 @@ typedef unsigned int	*pt_entry_t;
 #  include <sys/fs/s5param.h>
 #  if PSARGSZ > MAXLINE
 #   define SPT_BUFSIZE	PSARGSZ
-#  endif /* PSARGSZ > MAXLINE */
+#  endif
 # endif /* SPT_TYPE == SPT_SCO */
 
 # ifndef SPT_PADCHAR
 #  define SPT_PADCHAR	' '
-# endif /* ! SPT_PADCHAR */
+# endif
 
 #endif /* SPT_TYPE != SPT_NONE && SPT_TYPE != SPT_BUILTIN */
 
 #ifndef SPT_BUFSIZE
 # define SPT_BUFSIZE	MAXLINE
-#endif /* ! SPT_BUFSIZE */
+#endif
 
 #if _FFR_SPT_ALIGN
 
@@ -2439,9 +2490,9 @@ typedef unsigned int	*pt_entry_t;
 
 # ifdef SPT_ALIGN_SIZE
 #  define SPT_ALIGN(x, align)	(((((x) + SPT_ALIGN_SIZE) >> (align)) << (align)) - 1)
-# else /* SPT_ALIGN_SIZE */
+# else
 #  define SPT_ALIGN(x, align)	(x)
-# endif /* SPT_ALIGN_SIZE */
+# endif
 #else /* _FFR_SPT_ALIGN */
 # define SPT_ALIGN(x, align)	(x)
 #endif /* _FFR_SPT_ALIGN */
@@ -2455,7 +2506,7 @@ static char	**Argv = NULL;		/* pointer to argument vector */
 static char	*LastArgv = NULL;	/* end of argv */
 #if SPT_TYPE != SPT_BUILTIN
 static void	setproctitle __P((const char *, ...));
-#endif /* SPT_TYPE != SPT_BUILTIN */
+#endif
 
 void
 initsetproctitle(argc, argv, envp)
@@ -2464,7 +2515,9 @@ initsetproctitle(argc, argv, envp)
 	char **envp;
 {
 	register int i;
+#if _FFR_SPT_ALIGN
 	int align;
+#endif
 	extern char **environ;
 
 	/*
@@ -2493,12 +2546,12 @@ initsetproctitle(argc, argv, envp)
 	**  Use all contiguous argv and envp pointers starting at argv[0]
 	*/
 
-	align = -1;
 # if _FFR_SPT_ALIGN
+	align = -1;
 #  ifdef SPT_ALIGN_SIZE
 	for (i = SPT_ALIGN_SIZE; i > 0; i >>= 1)
 		align++;
-#  endif /* SPT_ALIGN_SIZE */
+#  endif
 # endif /* _FFR_SPT_ALIGN */
 
 	for (i = 0; i < argc; i++)
@@ -2532,7 +2585,7 @@ setproctitle(fmt, va_alist)
 	SM_VA_LOCAL_DECL
 #  if SPT_TYPE == SPT_PSTAT
 	union pstun pst;
-#  endif /* SPT_TYPE == SPT_PSTAT */
+#  endif
 #  if SPT_TYPE == SPT_SCO
 	int j;
 	off_t seek_off;
@@ -2559,14 +2612,14 @@ setproctitle(fmt, va_alist)
 #  if SPT_TYPE == SPT_PSTAT
 	pst.pst_command = buf;
 	pstat(PSTAT_SETCMD, pst, i, 0, 0);
-#  endif /* SPT_TYPE == SPT_PSTAT */
+#  endif
 #  if SPT_TYPE == SPT_PSSTRINGS
 	PS_STRINGS->ps_nargvstr = 1;
 	PS_STRINGS->ps_argvstr = buf;
-#  endif /* SPT_TYPE == SPT_PSSTRINGS */
+#  endif
 #  if SPT_TYPE == SPT_SYSMIPS
 	sysmips(SONY_SYSNEWS, NEWS_SETPSARGS, buf);
-#  endif /* SPT_TYPE == SPT_SYSMIPS */
+#  endif
 #  if SPT_TYPE == SPT_SCO
 	if (kmem < 0 || kmempid != CurrentPid)
 	{
@@ -2606,12 +2659,12 @@ setproctitle(fmt, va_alist)
 #  endif /* SPT_TYPE == SPT_REUSEARGV */
 #  if SPT_TYPE == SPT_CHANGEARGV
 	Argv[0] = buf;
-	Argv[1] = 0;
-#  endif /* SPT_TYPE == SPT_CHANGEARGV */
+	Argv[1] = NULL;
+#  endif
 # endif /* SPT_TYPE != SPT_NONE */
 }
-
 #endif /* SPT_TYPE != SPT_BUILTIN */
+
 /*
 **  SM_SETPROCTITLE -- set process task and set process title for ps
 **
@@ -2709,27 +2762,27 @@ sm_wait(status)
 {
 # ifdef WAITUNION
 	union wait st;
-# else /* WAITUNION */
+# else
 	auto int st;
-# endif /* WAITUNION */
+# endif
 	pid_t i;
 # if defined(ISC_UNIX) || defined(_SCO_unix_)
 	int savesig;
-# endif /* defined(ISC_UNIX) || defined(_SCO_unix_) */
+# endif
 
 # if defined(ISC_UNIX) || defined(_SCO_unix_)
 	savesig = sm_releasesignal(SIGCHLD);
-# endif /* defined(ISC_UNIX) || defined(_SCO_unix_) */
+# endif
 	i = wait(&st);
 # if defined(ISC_UNIX) || defined(_SCO_unix_)
 	if (savesig > 0)
 		sm_blocksignal(SIGCHLD);
-# endif /* defined(ISC_UNIX) || defined(_SCO_unix_) */
+# endif
 # ifdef WAITUNION
 	*status = st.w_status;
-# else /* WAITUNION */
+# else
 	*status = st;
-# endif /* WAITUNION */
+# endif
 	return i;
 }
 /*
@@ -2814,7 +2867,7 @@ reapchild(sig)
 
 #ifdef SOLARIS
 # include <sys/resource.h>
-#endif /* SOLARIS */
+#endif
 
 int
 getdtsize()
@@ -2831,9 +2884,9 @@ getdtsize()
 # else /* HASGETDTABLESIZE */
 #  ifdef _SC_OPEN_MAX
 	return sysconf(_SC_OPEN_MAX);
-#  else /* _SC_OPEN_MAX */
+#  else
 	return NOFILE;
-#  endif /* _SC_OPEN_MAX */
+#  endif
 # endif /* HASGETDTABLESIZE */
 }
 /*
@@ -2894,15 +2947,14 @@ uname(name)
 */
 
 #if !HASINITGROUPS
-
 initgroups(name, basegid)
 	char *name;
 	int basegid;
 {
 	return 0;
 }
-
 #endif /* !HASINITGROUPS */
+
 /*
 **  SETGROUPS -- set group list
 **
@@ -2910,7 +2962,6 @@ initgroups(name, basegid)
 */
 
 #ifndef NGROUPS_MAX
-
 int
 setgroups(ngroups, grouplist)
 	int ngroups;
@@ -2918,8 +2969,8 @@ setgroups(ngroups, grouplist)
 {
 	return 0;
 }
-
 #endif /* ! NGROUPS_MAX */
+
 /*
 **  SETSID -- set session id (for non-POSIX systems)
 */
@@ -2941,9 +2992,9 @@ setsid __P ((void))
 #  endif /* TIOCNOTTY */
 #  ifdef SYS5SETPGRP
 	return setpgrp();
-#  else /* SYS5SETPGRP */
+#  else
 	return setpgid(0, CurrentPid);
-#  endif /* SYS5SETPGRP */
+#  endif
 }
 
 #endif /* !HASSETSID */
@@ -2958,13 +3009,13 @@ fsync(fd)
 {
 # ifdef O_SYNC
 	return fcntl(fd, F_SETFL, O_SYNC);
-# else /* O_SYNC */
+# else
 	/* nothing we can do */
 	return 0;
-# endif /* O_SYNC */
+# endif
 }
-
 #endif /* NEEDFSYNC */
+
 /*
 **  DGUX_INET_ADDR -- inet_addr for DG/UX
 **
@@ -3008,7 +3059,7 @@ dgux_inet_addr(host)
 
 # if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getopt.c	4.3 (Berkeley) 3/9/86";
-# endif /* defined(LIBC_SCCS) && !defined(lint) */
+# endif
 
 /*
 **  get option letter from argument vector
@@ -3095,13 +3146,13 @@ getopt(nargc,nargv,ostr)
 
 # ifndef _PATH_SHELLS
 #  define _PATH_SHELLS	"/etc/shells"
-# endif /* ! _PATH_SHELLS */
+# endif
 
 # if defined(_AIX3) || defined(_AIX4)
 #  include <userconf.h>
 #  if _AIX4 >= 40200
 #   include <userpw.h>
-#  endif /* _AIX4 >= 40200 */
+#  endif
 #  include <usersec.h>
 # endif /* defined(_AIX3) || defined(_AIX4) */
 
@@ -3193,7 +3244,7 @@ usershellok(user, shell)
 # else /* HASGETUSERSHELL */
 #  if USEGETCONFATTR
 	auto char *v;
-#  endif /* USEGETCONFATTR */
+#  endif
 	register SM_FILE_T *shellf;
 	char buf[MAXLINE];
 
@@ -3257,7 +3308,7 @@ usershellok(user, shell)
 		if (*p == '#' || *p == '\0')
 			continue;
 		q = p;
-		while (*p != '\0' && *p != '#' && !(isascii(*p) && isspace(*p)))
+		while (*p != '\0' && *p != '#' && !(SM_ISSPACE(*p)))
 			p++;
 		*p = '\0';
 		if (strcmp(shell, q) == 0 || strcmp(WILDCARD_SHELL, q) == 0)
@@ -3299,23 +3350,23 @@ usershellok(user, shell)
 
 # ifndef SFS_TYPE
 #  define SFS_TYPE	SFS_NONE
-# endif /* ! SFS_TYPE */
+# endif
 
 # if SFS_TYPE == SFS_USTAT
 #  include <ustat.h>
-# endif /* SFS_TYPE == SFS_USTAT */
+# endif
 # if SFS_TYPE == SFS_4ARGS || SFS_TYPE == SFS_STATFS
 #  include <sys/statfs.h>
-# endif /* SFS_TYPE == SFS_4ARGS || SFS_TYPE == SFS_STATFS */
+# endif
 # if SFS_TYPE == SFS_VFS
 #  include <sys/vfs.h>
-# endif /* SFS_TYPE == SFS_VFS */
+# endif
 # if SFS_TYPE == SFS_MOUNT
 #  include <sys/mount.h>
-# endif /* SFS_TYPE == SFS_MOUNT */
+# endif
 # if SFS_TYPE == SFS_STATVFS
 #  include <sys/statvfs.h>
-# endif /* SFS_TYPE == SFS_STATVFS */
+# endif
 
 long
 freediskspace(dir, bsize)
@@ -3351,7 +3402,7 @@ freediskspace(dir, bsize)
 #  endif /* SFS_TYPE == SFS_USTAT */
 #  ifndef SFS_BAVAIL
 #   define SFS_BAVAIL f_bavail
-#  endif /* ! SFS_BAVAIL */
+#  endif
 
 #  if SFS_TYPE == SFS_USTAT
 	if (stat(dir, &statbuf) == 0 && ustat(statbuf.st_dev, &fs) == 0)
@@ -3412,7 +3463,7 @@ enoughdiskspace(msize, e)
 #if _FFR_TESTS
 	if (tTd(4, 101))
 		return false;
-#endif /* _FFR_TESTS */
+#endif
 	if (MinBlocksFree <= 0 && msize <= 0)
 	{
 		if (tTd(4, 80))
@@ -3459,73 +3510,73 @@ transienterror(err)
 	  case ETIMEDOUT:		/* Connection timed out */
 #ifdef ESTALE
 	  case ESTALE:			/* Stale NFS file handle */
-#endif /* ESTALE */
+#endif
 #ifdef ENETDOWN
 	  case ENETDOWN:		/* Network is down */
-#endif /* ENETDOWN */
+#endif
 #ifdef ENETUNREACH
 	  case ENETUNREACH:		/* Network is unreachable */
-#endif /* ENETUNREACH */
+#endif
 #ifdef ENETRESET
 	  case ENETRESET:		/* Network dropped connection on reset */
-#endif /* ENETRESET */
+#endif
 #ifdef ECONNABORTED
 	  case ECONNABORTED:		/* Software caused connection abort */
-#endif /* ECONNABORTED */
+#endif
 #ifdef ECONNRESET
 	  case ECONNRESET:		/* Connection reset by peer */
-#endif /* ECONNRESET */
+#endif
 #ifdef ENOBUFS
 	  case ENOBUFS:			/* No buffer space available */
-#endif /* ENOBUFS */
+#endif
 #ifdef ESHUTDOWN
 	  case ESHUTDOWN:		/* Can't send after socket shutdown */
-#endif /* ESHUTDOWN */
+#endif
 #ifdef ECONNREFUSED
 	  case ECONNREFUSED:		/* Connection refused */
-#endif /* ECONNREFUSED */
+#endif
 #ifdef EHOSTDOWN
 	  case EHOSTDOWN:		/* Host is down */
-#endif /* EHOSTDOWN */
+#endif
 #ifdef EHOSTUNREACH
 	  case EHOSTUNREACH:		/* No route to host */
-#endif /* EHOSTUNREACH */
+#endif
 #ifdef EDQUOT
 	  case EDQUOT:			/* Disc quota exceeded */
-#endif /* EDQUOT */
+#endif
 #ifdef EPROCLIM
 	  case EPROCLIM:		/* Too many processes */
-#endif /* EPROCLIM */
+#endif
 #ifdef EUSERS
 	  case EUSERS:			/* Too many users */
-#endif /* EUSERS */
+#endif
 #ifdef EDEADLK
 	  case EDEADLK:			/* Resource deadlock avoided */
-#endif /* EDEADLK */
+#endif
 #ifdef EISCONN
 	  case EISCONN:			/* Socket already connected */
-#endif /* EISCONN */
+#endif
 #ifdef EINPROGRESS
 	  case EINPROGRESS:		/* Operation now in progress */
-#endif /* EINPROGRESS */
+#endif
 #ifdef EALREADY
 	  case EALREADY:		/* Operation already in progress */
-#endif /* EALREADY */
+#endif
 #ifdef EADDRINUSE
 	  case EADDRINUSE:		/* Address already in use */
-#endif /* EADDRINUSE */
+#endif
 #ifdef EADDRNOTAVAIL
 	  case EADDRNOTAVAIL:		/* Can't assign requested address */
-#endif /* EADDRNOTAVAIL */
+#endif
 #ifdef ETXTBSY
 	  case ETXTBSY:			/* (Apollo) file locked */
-#endif /* ETXTBSY */
+#endif
 #if defined(ENOSR) && (!defined(ENOBUFS) || (ENOBUFS != ENOSR))
 	  case ENOSR:			/* Out of streams resources */
-#endif /* defined(ENOSR) && (!defined(ENOBUFS) || (ENOBUFS != ENOSR)) */
+#endif
 #ifdef ENOLCK
 	  case ENOLCK:			/* No locks available */
-#endif /* ENOLCK */
+#endif
 	  case E_SM_OPENTIMEOUT:	/* PSEUDO: open timed out */
 		return true;
 	}
@@ -3714,7 +3765,7 @@ lockfile(fd, filename, ext, type)
 
 #ifndef IS_SAFE_CHOWN
 # define IS_SAFE_CHOWN	> 0
-#endif /* ! IS_SAFE_CHOWN */
+#endif
 
 bool
 chownsafe(fd, safedir)
@@ -3739,9 +3790,9 @@ chownsafe(fd, safedir)
 	rval = fpathconf(fd, _PC_CHOWN_RESTRICTED);
 #  if SAFENFSPATHCONF
 	return errno == 0 && rval IS_SAFE_CHOWN;
-#  else /* SAFENFSPATHCONF */
+#  else
 	return safedir && errno == 0 && rval IS_SAFE_CHOWN;
-#  endif /* SAFENFSPATHCONF */
+#  endif
 # else /* (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && ... */
 	return bitnset(DBS_ASSUMESAFECHOWN, DontBlameSendmail);
 # endif /* (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && ... */
@@ -3761,7 +3812,7 @@ chownsafe(fd, safedir)
 #if HASSETRLIMIT
 # ifdef RLIMIT_NEEDS_SYS_TIME_H
 #  include <sm/time.h>
-# endif /* RLIMIT_NEEDS_SYS_TIME_H */
+# endif
 # include <sys/resource.h>
 #endif /* HASSETRLIMIT */
 
@@ -3777,12 +3828,12 @@ resetlimits()
 # ifdef RLIMIT_NOFILE
 	lim.rlim_cur = lim.rlim_max = FD_SETSIZE;
 	(void) setrlimit(RLIMIT_NOFILE, &lim);
-# endif /* RLIMIT_NOFILE */
+# endif
 #else /* HASSETRLIMIT */
 # if HASULIMIT
 	(void) ulimit(2, 0x3fffff);
 	(void) ulimit(4, FD_SETSIZE);
-# endif /* HASULIMIT */
+# endif
 #endif /* HASSETRLIMIT */
 	errno = 0;
 }
@@ -3901,7 +3952,7 @@ getvendor(vendorcode)
 
 #if SHARE_V1
 int	DefShareUid;	/* default share uid to run as -- unused??? */
-#endif /* SHARE_V1 */
+#endif
 
 void
 vendor_pre_defaults(e)
@@ -3910,10 +3961,10 @@ vendor_pre_defaults(e)
 #if SHARE_V1
 	/* OTHERUID is defined in shares.h, do not be alarmed */
 	DefShareUid = OTHERUID;
-#endif /* SHARE_V1 */
+#endif
 #if defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES)
 	sun_pre_defaults(e);
-#endif /* defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES) */
+#endif
 #ifdef apollo
 	/*
 	**  stupid domain/os can't even open
@@ -3933,10 +3984,10 @@ vendor_post_defaults(e)
 #ifdef __QNX__
 	/* Makes sure the SOCK environment variable remains */
 	sm_setuserenv("SOCK", NULL);
-#endif /* __QNX__ */
+#endif
 #if defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES)
 	sun_post_defaults(e);
-#endif /* defined(SUN_EXTENSIONS) && defined(SUN_DEFAULT_VALUES) */
+#endif
 }
 /*
 **  VENDOR_DAEMON_SETUP -- special vendor setup needed for daemon mode
@@ -3948,7 +3999,7 @@ vendor_daemon_setup(e)
 {
 #if HASSETLOGIN
 	(void) setlogin(RunAsUserName);
-#endif /* HASSETLOGIN */
+#endif
 #if SECUREWARE
 	if (getluid() != -1)
 	{
@@ -3981,10 +4032,10 @@ vendor_set_uid(uid)
 #if SHARE_V1
 	if (setupshares(uid, syserr) != 0)
 		syserr("Unable to set up shares");
-#endif /* SHARE_V1 */
+#endif
 #if SECUREWARE
 	(void) setup_secure(uid);
-#endif /* SECUREWARE */
+#endif
 }
 /*
 **  VALIDATE_CONNECTION -- check connection for rationality
@@ -4085,7 +4136,7 @@ validate_connection(sap, hostname, e)
 
 # if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
-# endif /* defined(LIBC_SCCS) && !defined(lint) */
+# endif
 
 /*
 **  Convert a string to a long integer.
@@ -4113,7 +4164,7 @@ strtol(nptr, endptr, base)
 	*/
 	do {
 		c = *s++;
-	} while (isascii(c) && isspace(c));
+	} while (SM_ISSPACE(c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -4170,7 +4221,7 @@ strtol(nptr, endptr, base)
 		errno = ERANGE;
 	} else if (neg)
 		acc = -acc;
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return acc;
 }
@@ -4228,16 +4279,16 @@ strstr(big, little)
 
 # ifndef AI_DEFAULT
 #  define AI_DEFAULT	0	/* dummy */
-# endif /* ! AI_DEFAULT */
+# endif
 # ifndef AI_ADDRCONFIG
 #  define AI_ADDRCONFIG	0	/* dummy */
-# endif /* ! AI_ADDRCONFIG */
+# endif
 # ifndef AI_V4MAPPED
 #  define AI_V4MAPPED	0	/* dummy */
-# endif /* ! AI_V4MAPPED */
+# endif
 # ifndef AI_ALL
 #  define AI_ALL	0	/* dummy */
-# endif /* ! AI_ALL */
+# endif
 
 static struct hostent *
 sm_getipnodebyname(name, family, flags, err)
@@ -4255,6 +4306,7 @@ sm_getipnodebyname(name, family, flags, err)
 	return h;
 
 # else /* HAS_GETHOSTBYNAME2 */
+#  ifdef RES_USE_INET6
 	bool resv6 = true;
 
 	if (family == AF_INET6)
@@ -4263,17 +4315,20 @@ sm_getipnodebyname(name, family, flags, err)
 		resv6 = bitset(RES_USE_INET6, _res.options);
 		_res.options |= RES_USE_INET6;
 	}
+#  endif /* RES_USE_INET6 */
 	SM_SET_H_ERRNO(0);
 	h = gethostbyname(name);
+#  ifdef RES_USE_INET6
 	if (!resv6)
 		_res.options &= ~RES_USE_INET6;
+#  endif
 
 	/* the function is supposed to return only the requested family */
 	if (h != NULL && h->h_addrtype != family)
 	{
 #  if NETINET6
 		freehostent(h);
-#  endif /* NETINET6 */
+#  endif
 		h = NULL;
 		*err = NO_DATA;
 	}
@@ -4342,7 +4397,7 @@ sm_gethostbyname(name, family)
 #  ifndef SM_IPNODEBYNAME_FLAGS
     /* For IPv4-mapped addresses, use: AI_DEFAULT|AI_ALL */
 #   define SM_IPNODEBYNAME_FLAGS	AI_ADDRCONFIG
-#  endif /* SM_IPNODEBYNAME_FLAGS */
+#  endif
 
 	int flags = SM_IPNODEBYNAME_FLAGS;
 	int err;
@@ -4357,7 +4412,7 @@ sm_gethostbyname(name, family)
 # if NETINET6
 #  if ADDRCONFIG_IS_BROKEN
 	flags &= ~AI_ADDRCONFIG;
-#  endif /* ADDRCONFIG_IS_BROKEN */
+#  endif
 	h = sm_getipnodebyname(name, family, flags, &err);
 	SM_SET_H_ERRNO(err);
 # else /* NETINET6 */
@@ -4414,7 +4469,7 @@ sm_gethostbyname(name, family)
 	{
 # if NETINET6
 		freehostent(h);
-# endif /* NETINET6 */
+# endif
 		h = NULL;
 		SM_SET_H_ERRNO(NO_DATA);
 	}
@@ -4433,7 +4488,7 @@ sm_gethostbyname(name, family)
 #if NETINET6
 				struct in6_addr ia6;
 				char buf6[INET6_ADDRSTRLEN];
-#endif /* NETINET6 */
+#endif
 
 				if (h->h_aliases != NULL)
 					for (i = 0; h->h_aliases[i] != NULL;
@@ -4672,20 +4727,20 @@ add_hostnames(sa)
 #if NETINET && defined(IN_LINKLOCAL)
 		    !(sa->sa.sa_family == AF_INET &&
 		      IN_LINKLOCAL(ntohl(sa->sin.sin_addr.s_addr))) &&
-#endif /* NETINET && defined(IN_LINKLOCAL) */
+#endif
 #if NETINET6
 		    !(sa->sa.sa_family == AF_INET6 &&
 		      IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr)) &&
-#endif /* NETINET6 */
+#endif
 		    true)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "gethostbyaddr(%.100s) failed: %d",
 				  anynet_ntoa(sa),
 #if NAMED_BIND
 				  h_errno
-#else /* NAMED_BIND */
+#else
 				  -1
-#endif /* NAMED_BIND */
+#endif
 				 );
 		errno = save_errno;
 		return -1;
@@ -4731,7 +4786,7 @@ add_hostnames(sa)
 	}
 #if NETINET6
 	freehostent(hp);
-#endif /* NETINET6 */
+#endif
 	return 0;
 }
 /*
@@ -4749,17 +4804,17 @@ add_hostnames(sa)
 
 #if !NETINET
 # define SIOCGIFCONF_IS_BROKEN	1 /* XXX */
-#endif /* !NETINET */
+#endif
 
 #if defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN
 struct rtentry;
 struct mbuf;
 # ifndef SUNOS403
 #  include <sm/time.h>
-# endif /* ! SUNOS403 */
+# endif
 # if (_AIX4 >= 40300) && !defined(_NET_IF_H)
 #  undef __P
-# endif /* (_AIX4 >= 40300) && !defined(_NET_IF_H) */
+# endif
 # include <net/if.h>
 #endif /* defined(SIOCGIFCONF) && !SIOCGIFCONF_IS_BROKEN */
 
@@ -4793,7 +4848,7 @@ load_if_names()
 	struct lifconf lifc;
 #  ifdef SIOCGLIFNUM
 	struct lifnum lifn;
-#  endif /* SIOCGLIFNUM */
+#  endif
 
 	s = socket(InetMode, SOCK_DGRAM, 0);
 	if (s == -1)
@@ -4802,7 +4857,7 @@ load_if_names()
 	/* get the list of known IP address from the kernel */
 #  ifdef __hpux
 	i = ioctl(s, SIOCGIFNUM, (char *) &numifs);
-#  endif /* __hpux */
+#  endif
 #  ifdef SIOCGLIFNUM
 	lifn.lifn_family = AF_UNSPEC;
 	lifn.lifn_flags = 0;
@@ -4836,7 +4891,7 @@ load_if_names()
 #  ifndef __hpux
 	lifc.lifc_family = AF_UNSPEC;
 	lifc.lifc_flags = 0;
-#  endif /* ! __hpux */
+#  endif
 	if (ioctl(s, SIOCGLIFCONF, (char *)&lifc) < 0)
 	{
 		if (tTd(0, 4))
@@ -4864,7 +4919,7 @@ load_if_names()
 		struct in_addr ia;
 #  ifdef SIOCGLIFFLAGS
 		struct lifreq ifrf;
-#  endif /* SIOCGLIFFLAGS */
+#  endif
 		char ip_addr[256];
 		char buf6[INET6_ADDRSTRLEN];
 
@@ -5063,15 +5118,15 @@ load_if_names()
 #   if NETINET6
 		char *addr;
 		struct in6_addr ia6;
-#   endif /* NETINET6 */
+#   endif
 		struct in_addr ia;
 #   ifdef SIOCGIFFLAGS
 		struct ifreq ifrf;
-#   endif /* SIOCGIFFLAGS */
+#   endif
 		char ip_addr[256];
 #   if NETINET6
 		char buf6[INET6_ADDRSTRLEN];
-#   endif /* NETINET6 */
+#   endif
 
 		/*
 		**  If we don't have a complete ifr structure,
@@ -5095,7 +5150,7 @@ load_if_names()
 		if (af != AF_INET
 #   if NETINET6
 		    && af != AF_INET6
-#   endif /* NETINET6 */
+#   endif
 		    )
 			continue;
 
@@ -5214,17 +5269,26 @@ bool
 isloopback(sa)
 	SOCKADDR sa;
 {
-#if NETINET6
-	if (IN6_IS_ADDR_LOOPBACK(&sa.sin6.sin6_addr))
-		return true;
-#else /* NETINET6 */
 	/* XXX how to correctly extract IN_LOOPBACKNET part? */
-	if (((ntohl(sa.sin.sin_addr.s_addr) & IN_CLASSA_NET)
+#define SM_IS_IPV4_LOOP(a) (((ntohl(a) & IN_CLASSA_NET) \
 	     >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
+#if NETINET6
+	if (sa.sa.sa_family == AF_INET6 &&
+	    IN6_IS_ADDR_V4MAPPED(&sa.sin6.sin6_addr) &&
+	    SM_IS_IPV4_LOOP(((uint32_t *) (&sa.sin6.sin6_addr))[3]))
 		return true;
-#endif /* NETINET6 */
+	if (sa.sa.sa_family == AF_INET6 &&
+	    IN6_IS_ADDR_LOOPBACK(&sa.sin6.sin6_addr))
+		return true;
+#endif
+#if NETINET
+	if (sa.sa.sa_family == AF_INET &&
+	    SM_IS_IPV4_LOOP(sa.sin.sin_addr.s_addr))
+		return true;
+#endif
 	return false;
 }
+
 /*
 **  GET_NUM_PROCS_ONLINE -- return the number of processors currently online
 **
@@ -5367,9 +5431,9 @@ seed_random()
 
 # if HASRANDOM
 	(void) srandom(seed);
-# else /* HASRANDOM */
+# else
 	(void) srand((unsigned int) seed);
-# endif /* HASRANDOM */
+# endif
 #endif /* HASSRANDOMDEV */
 }
 /*
@@ -5579,10 +5643,10 @@ sm_syslog(level, id, fmt, va_alist)
 # ifdef V4FS
 #  define XCNST	const
 #  define CAST	(const char *)
-# else /* V4FS */
+# else
 #  define XCNST
 #  define CAST
-# endif /* V4FS */
+# endif
 
 void
 # ifdef __STDC__
@@ -5750,10 +5814,20 @@ link(source, target)
 **  Compile-Time options
 */
 
+#define SM_STR(x) #x
+#define SM_XSTR(x) SM_STR(x)
+
 char	*CompileOptions[] =
 {
 #if ALLOW_255
 	"ALLOW_255",
+#endif
+#if DANE
+# if STARTTLS
+	"DANE",
+# else
+#  error "DANE set but STARTTLS not defined"
+# endif
 #endif
 #if NAMED_BIND
 # if DNSMAP
@@ -5779,6 +5853,14 @@ char	*CompileOptions[] =
 #if LDAPMAP
 	"LDAPMAP",
 #endif
+#if LDAP_NETWORK_TIMEOUT
+# if LDAPMAP && defined(LDAP_OPT_NETWORK_TIMEOUT)
+	/* set LDAP_OPT_NETWORK_TIMEOUT if available (-c) */
+	"LDAP_NETWORK_TIMEOUT",
+# else
+#  ERROR: _LDAP_NETWORK_TIMEOUT requires _LDAPMAP
+# endif
+#endif
 #if LDAP_REFERRALS
 	"LDAP_REFERRALS",
 #endif
@@ -5793,6 +5875,12 @@ char	*CompileOptions[] =
 #endif
 #if MATCHGECOS
 	"MATCHGECOS",
+#endif
+#if MAXDAEMONS != 10
+	"MAXDAEMONS=" SM_XSTR(MAXDAEMONS),
+#endif
+#if defined(MSGIDLOGLEN)
+	"MSGIDLOGLEN=" SM_XSTR(MSGIDLOGLEN),
 #endif
 #if MILTER
 	"MILTER",
@@ -5833,8 +5921,18 @@ char	*CompileOptions[] =
 #if NETX25
 	"NETX25",
 #endif
+#if NO_EOH_FIELDS
+	"NO_EOH_FIELDS",
+#endif
 #if NEWDB
+# if defined(DB_VERSION_MAJOR) && defined(DB_VERSION_MINOR)
+	"NEWDB=" SM_XSTR(DB_VERSION_MAJOR) "." SM_XSTR(DB_VERSION_MINOR),
+# else
 	"NEWDB",
+# endif
+#endif
+#if CDB
+	"CDB=" SM_XSTR(CDB),
 #endif
 #if NIS
 	"NIS",
@@ -5857,7 +5955,7 @@ char	*CompileOptions[] =
 #if SASL
 # if SASL >= 20000
 	"SASLv2",
-# else /* SASL >= 20000 */
+# else
 	"SASL",
 # endif
 #endif
@@ -5879,11 +5977,18 @@ char	*CompileOptions[] =
 #if SUID_ROOT_FILES_OK
 	"SUID_ROOT_FILES_OK",
 #endif
+#if SYSLOG_BUFSIZE > 1024
+	"SYSLOG_BUFSIZE=" SM_XSTR(SYSLOG_BUFSIZE),
+#endif
 #if TCPWRAPPERS
 	"TCPWRAPPERS",
 #endif
 #if TLS_NO_RSA
 	"TLS_NO_RSA",
+#endif
+#if TLS_EC
+	/* elliptic curves */
+	"TLS_EC",
 #endif
 #if TLS_VRFY_PER_CTX
 	"TLS_VRFY_PER_CTX",
@@ -5934,6 +6039,9 @@ char	*OsCompileOptions[] =
 #if DEC_OSF_BROKEN_GETPWENT
 	"DEC_OSF_BROKEN_GETPWENT",
 #endif
+#if DNSSEC_TEST
+	"DNSSEC_TEST",
+#endif
 #if FAST_PID_RECYCLE
 	"FAST_PID_RECYCLE",
 #endif
@@ -5954,6 +6062,9 @@ char	*OsCompileOptions[] =
 #endif
 #if HASGETDTABLESIZE
 	"HASGETDTABLESIZE",
+#endif
+#if HAS_GETHOSTBYNAME2
+	"HAS_GETHOSTBYNAME2",
 #endif
 #if HASGETUSERSHELL
 	"HASGETUSERSHELL",
@@ -6138,7 +6249,16 @@ char	*OsCompileOptions[] =
 	"USESYSCTL",
 #endif
 #if USE_OPENSSL_ENGINE
+	/*
+	**  0: OpenSSL ENGINE?
+	**  1: Support Sun OpenSSL patch for SPARC T4 pkcs11
+	**  2: none
+	*/
+# if USE_OPENSSL_ENGINE != 1
+	"USE_OPENSSL_ENGINE=" SM_XSTR(USE_OPENSSL_ENGINE),
+# else
 	"USE_OPENSSL_ENGINE",
+#endif
 #endif
 #if USING_NETSCAPE_LDAP
 	"USING_NETSCAPE_LDAP",
@@ -6156,6 +6276,7 @@ char	*OsCompileOptions[] =
 char	*FFRCompileOptions[] =
 {
 #if _FFR_ADD_BCC
+	/* see cf/feature/bcc.m4 */
 	"_FFR_ADD_BCC",
 #endif
 #if _FFR_ADDR_TYPE_MODES
@@ -6179,6 +6300,10 @@ char	*FFRCompileOptions[] =
 	/* Better truncation of list of MX records for dns map. */
 	"_FFR_BESTMX_BETTER_TRUNCATION",
 #endif
+#if _FFR_BLANKENV_MACV
+	/* also look up macros in BlankEnvelope */
+	"_FFR_BLANKENV_MACV",
+#endif
 #if _FFR_BOUNCE_QUEUE
 	/* Separate, unprocessed queue for DSNs */
 	/* John Gardiner Myers of Proofpoint */
@@ -6192,13 +6317,27 @@ char	*FFRCompileOptions[] =
 	/* Stricter checks about queue directory permissions. */
 	"_FFR_CHK_QUEUE",
 #endif
+#if _FFR_CLIENTCA
+	/*
+	**  Allow to set client specific CA values.
+	**  CACertFile: see doc/op.*:
+	**  "The DNs of these certificates are sent to the client
+	**  during the TLS handshake (as part of the CertificateRequest)
+	**  as the list of acceptable CAs.
+	**  However, do not list too many root CAs in that file,
+	**  otherwise the TLS handshake may fail;"
+	**  In TLSv1.3 the certs in CACertFile are also sent by
+	**  the client to the server and there is seemingly a
+	**  16KB limit (just in OpenSSL?).
+	**  Having a separate CACertFile for the client
+	**  helps to avoid this problem.
+	*/
+
+	"_FFR_CLIENTCA",
+#endif
 #if _FFR_CLIENT_SIZE
 	/* Don't try to send mail if its size exceeds SIZE= of server. */
 	"_FFR_CLIENT_SIZE",
-#endif
-#if _FFR_CRLPATH
-	/* CRLPath; needs documentation; Al Smith */
-	"_FFR_CRLPATH",
 #endif
 #if _FFR_DM_ONE
 	/* deliver first TA in background, then queue */
@@ -6253,6 +6392,10 @@ char	*FFRCompileOptions[] =
 #if _FFR_EIGHT_BIT_ADDR_OK
 	/* EightBitAddrOK: allow 8-bit e-mail addresses */
 	"_FFR_EIGHT_BIT_ADDR_OK",
+#endif
+#if _FFR_EXPAND_HELONAME
+	/* perform macro expansion for heloname */
+	"_FFR_EXPAND_HELONAME",
 #endif
 #if _FFR_EXTRA_MAP_CHECK
 	/* perform extra checks on $( $) in R lines */
@@ -6320,9 +6463,9 @@ char	*FFRCompileOptions[] =
 	/* Ignore extensions offered in response to HELO */
 	"_FFR_IGNORE_EXT_ON_HELO",
 #endif
-#if _FFR_LINUX_MHNL
-	/* Set MAXHOSTNAMELEN to 256 (Linux) */
-	"_FFR_LINUX_MHNL",
+#if _FFR_KEEPBCC
+	/* Keep Bcc header */
+	"_FFR_KEEPBCC",
 #endif
 #if _FFR_LOCAL_DAEMON
 	/* Local daemon mode (-bl) which only accepts loopback connections */
@@ -6330,16 +6473,19 @@ char	*FFRCompileOptions[] =
 #endif
 #if _FFR_LOG_MORE1
 	/* log some TLS/AUTH info in from= too */
-	"_FFR_LOG_MORE1",
+	"_FFR_LOG_MORE1=" SM_XSTR(_FFR_LOG_MORE1),
 #endif
 #if _FFR_LOG_MORE2
 	/* log some TLS info in to= too */
-	"_FFR_LOG_MORE2",
+	"_FFR_LOG_MORE2=" SM_XSTR(_FFR_LOG_MORE2),
 #endif
-#if _FFR_LOGREPLY
-	"_FFR_LOGREPLY",
+#if _FFR_LOG_MORE1 > 1 || _FFR_LOG_MORE2 > 1
+# if _FFR_LOG_MORE1 != _FFR_LOG_MORE2
+   ERROR: FFR_LOG_MORE1 != FFR_LOG_MORE2
+# endif
 #endif
 #if _FFR_MAIL_MACRO
+	/* make the "real" sender address available in {mail_from} */
 	"_FFR_MAIL_MACRO",
 #endif
 #if _FFR_MAXDATASIZE
@@ -6363,7 +6509,7 @@ char	*FFRCompileOptions[] =
 	"_FFR_MAX_SLEEP_TIME",
 #endif
 #if _FFR_MDS_NEGOTIATE
-	/* MaxDataSize negotation with libmilter */
+	/* MaxDataSize negotiation with libmilter */
 	"_FFR_MDS_NEGOTIATE",
 #endif
 #if _FFR_MEMSTAT
@@ -6429,19 +6575,43 @@ char	*FFRCompileOptions[] =
 	/* Disable PIPELINING, delay client if used. */
 	"_FFR_NO_PIPE",
 #endif
-#if _FFR_LDAP_NETWORK_TIMEOUT
-	/* set LDAP_OPT_NETWORK_TIMEOUT if available (-c) */
-	"_FFR_LDAP_NETWORK_TIMEOUT",
+#if _FFR_LDAP_SINGLEDN
+	/*
+	**  The LDAP database map code in Sendmail 8.12.10, when
+	**  given the -1 switch, would match only a single DN,
+	**  but was able to return multiple attributes for that
+	**  DN.  In Sendmail 8.13 this "bug" was corrected to
+	**  only return if exactly one attribute matched.
+	**
+	**  Unfortunately, our configuration uses the former
+	**  behaviour.  Attached is a relatively simple patch
+	**  to 8.13.4 which adds a -2 switch (for lack of a
+	**  better option) which returns the single dn/multiple
+	**  attributes.
+	**
+	** Jeffrey T. Eaton, Carnegie-Mellon University
+	*/
+
+	"_FFR_LDAP_SINGLEDN",
 #endif
 #if _FFR_LOG_NTRIES
 	/* log ntries=, from Nik Clayton of FreeBSD */
 	"_FFR_LOG_NTRIES",
+#endif
+#if _FFR_OCC
+# if SM_CONF_SHM
+	/* outgoing connection control (not yet working) */
+	"_FFR_OCC",
+# else
+#  ERROR: FFR_OCC requires _SM_CONF_SHM
+# endif
 #endif
 #if _FFR_PROXY
 	/* "proxy" (synchronous) delivery mode */
 	"_FFR_PROXY",
 #endif
 #if _FFR_QF_PARANOIA
+	/* Check to make sure key fields were read from qf */
 	"_FFR_QF_PARANOIA",
 #endif
 #if _FFR_QUEUE_GROUP_SORTORDER
@@ -6462,6 +6632,7 @@ char	*FFRCompileOptions[] =
 	"_FFR_QUEUE_SCHED_DBG",
 #endif
 #if _FFR_RCPTFLAGS
+	/* dynamic mailer modifications via {rcpt_flags}*/
 	"_FFR_RCPTFLAGS",
 #endif
 #if _FFR_RCPTTHROTDELAY
@@ -6498,31 +6669,21 @@ char	*FFRCompileOptions[] =
 	"_FFR_RUNPQG",
 #endif
 #if _FFR_SESSID
-	/* session id (for logging) */
+	/* session id (for logging): WIP, no logging yet!  */
 	"_FFR_SESSID",
+#endif
+#if _FFR_SETANYOPT
+	"_FFR_SETANYOPT",
+#endif
+#if _FFR_SETDEBUG_MAP
+	"_FFR_SETDEBUG_MAP",
+#endif
+#if _FFR_SETOPT_MAP
+	"_FFR_SETOPT_MAP",
 #endif
 #if _FFR_SHM_STATUS
 	/* Donated code (unused). */
 	"_FFR_SHM_STATUS",
-#endif
-#if _FFR_LDAP_SINGLEDN
-	/*
-	**  The LDAP database map code in Sendmail 8.12.10, when
-	**  given the -1 switch, would match only a single DN,
-	**  but was able to return multiple attributes for that
-	**  DN.  In Sendmail 8.13 this "bug" was corrected to
-	**  only return if exactly one attribute matched.
-	**
-	**  Unfortunately, our configuration uses the former
-	**  behaviour.  Attached is a relatively simple patch
-	**  to 8.13.4 which adds a -2 switch (for lack of a
-	**  better option) which returns the single dn/multiple
-	**  attributes.
-	**
-	** Jeffrey T. Eaton, Carnegie-Mellon University
-	*/
-
-	"_FFR_LDAP_SINGLEDN",
 #endif
 #if _FFR_SKIP_DOMAINS
 	/* process every N'th domain instead of every N'th message */
@@ -6531,6 +6692,14 @@ char	*FFRCompileOptions[] =
 #if _FFR_SLEEP_USE_SELECT
 	/* Use select(2) in libsm/clock.c to emulate sleep(2) */
 	"_FFR_SLEEP_USE_SELECT ",
+#endif
+#if _FFR_SM_LDAP_DBG
+# if LDAPMAP && defined(LBER_OPT_LOG_PRINT_FN)
+	/* LDAP debugging */
+	"_FFR_SM_LDAP_DBG",
+# else
+#  ERROR: FFR_SM_LDAP_DBG requires _LDAPMAP and LBER_OPT_LOG_PRINT_FN
+# endif
 #endif
 #if _FFR_SPT_ALIGN
 	/*
@@ -6556,8 +6725,21 @@ char	*FFRCompileOptions[] =
 	/* Donated code (unused). */
 	"_FFR_TIMERS",
 #endif
-#if _FFR_TLS_EC
-	"_FFR_TLS_EC",
+#if _FFR_TLS_ALTNAMES
+	/* store subjectAltNames in class {cert_altnames} */
+# if STARTTLS
+	"_FFR_TLS_ALTNAMES",
+# else
+#  error "_FFR_TLS_ALTNAMES set but STARTTLS not defined"
+# endif
+#endif
+#if _FFR_TLSFB2CLEAR
+	/* set default for TLSFallbacktoClear to true */
+# if STARTTLS
+	"_FFR_TLSFB2CLEAR",
+# else
+#  error "_FFR_TLSFB2CLEAR set but STARTTLS not defined"
+# endif
 #endif
 #if _FFR_TLS_USE_CERTIFICATE_CHAIN_FILE
 	/*
@@ -6565,11 +6747,11 @@ char	*FFRCompileOptions[] =
 	**  instead of SSL_CTX_use_certificate_file()
 	*/
 
+# if STARTTLS
 	"_FFR_TLS_USE_CERTIFICATE_CHAIN_FILE",
-#endif
-#if _FFR_TLS_SE_OPTS
-	/* TLS session options */
-	"_FFR_TLS_SE_OPTS",
+# else
+#  error "_FFR_TLS_USE_CERTIFICATE_CHAIN_FILE set but STARTTLS not defined"
+# endif
 #endif
 #if _FFR_TRUSTED_QF
 	/*
@@ -6590,7 +6772,30 @@ char	*FFRCompileOptions[] =
 
 	"_FFR_USE_GETPWNAM_ERRNO",
 #endif
+#if _FFR_VRFY_TRUSTED_FIRST
+	/*
+	**  Sets X509_V_FLAG_TRUSTED_FIRST if -d88;.101 is used.
+	**  X509_VERIFY_PARAM_set_flags(3)
+	**  When X509_V_FLAG_TRUSTED_FIRST is set, construction of the
+	**  certificate chain in X509_verify_cert(3) will search the trust
+	**  store for issuer certificates before searching the provided
+	**  untrusted certificates. Local issuer certificates are often more
+	**  likely to satisfy local security requirements and lead to a locally
+	**  trusted root. This is especially important when some certificates
+	**  in the trust store have explicit trust settings (see "TRUST
+	**  SETTINGS" in x509(1)).
+	**  As of OpenSSL 1.1.0 this option is on by default.
+	*/
+
+# if defined(X509_V_FLAG_TRUSTED_FIRST)
+	"_FFR_VRFY_TRUSTED_FIRST",
+# else
+#  error "FFR_VRFY_TRUSTED_FIRST set but X509_V_FLAG_TRUSTED_FIRST not defined"
+# endif
+#endif
+
 #if _FFR_USE_SEM_LOCKING
+	/* Use semaphore locking */
 	"_FFR_USE_SEM_LOCKING",
 #endif
 #if _FFR_USE_SETLOGIN
@@ -6599,8 +6804,27 @@ char	*FFRCompileOptions[] =
 	"_FFR_USE_SETLOGIN",
 #endif
 #if _FFR_XCNCT
+	/* X-Connect support */
 	"_FFR_XCNCT",
+#endif
+#if _FFR_EAI
+
+	/*
+	**  Initial/Partial/Experimental EAI (SMTPUTF8) support.
+	**  NOTE: This is currently BROKEN as the handling of
+	**  envelope addresses in sendmail is NOT 8-bit clean
+	**  (in contrast to header addresses/values).
+	**  Requires ICU include files and library depending on the OS.
+	**  Patch from Arnt Gulbrandsen.
+	*/
+
+# if !ALLOW_255
+#  ERROR FFR_EAI requires _ALLOW_255
+# endif
+# if _FFR_EIGHT_BIT_ADDR_OK
+#  error "Cannot enable both of these FFRs: FFR_EAI FFR_EIGHT_BIT_ADDR_OK"
+# endif
+	"_FFR_EAI",
 #endif
 	NULL
 };
-

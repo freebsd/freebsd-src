@@ -268,7 +268,7 @@ sed 's/^X//' << 'SHAR_EOF' > 'libs/date.pl' &&
 ;#		Fixed a couple of problems with &ls as pointed out by
 ;#		Thomas Richter (richter@ki1.chemie.fu-berlin.de), thanks Thomas!
 ;#		Also added a couple of SunOS 4.1.1 strftime-ish formats, %i and %k
-;#		for space padded hours (` 1' to `12' and ` 0' to `23' respectivly),
+;#		for space padded hours (` 1' to `12' and ` 0' to `23' respectively),
 ;#		and %C for locale long date/time format.  Changed &ampmH to take a
 ;#		pad char parameter to make to evaled code for %i and %k simpler. 
 ;#		Added %E for suffixed day-of-month (ie 1st, 3rd, 4th etc).
@@ -398,7 +398,7 @@ X
 X	# watch out in 2070...
 X	$year += ($year < 70) ? 2000 : 1900;
 X
-X	# now loop throught the supplied format looking for tags...
+X	# now loop through the supplied format looking for tags...
 X	while (($pos = index ($format, '%')) != -1) {
 X
 X		# grab the format tag
@@ -471,7 +471,7 @@ sub ls {
 X	return ((&gettime ($TZ, time))[5] == @_[0]) ? "%R" : " %Y";
 }
 X
-# pad - pad $in with leading $pad until lenght $len
+# pad - pad $in with leading $pad until length $len
 sub pad {
 X	local ($in, $len, $pad) = @_;
 X	local ($out) = "$in";
@@ -661,7 +661,7 @@ X
 ;# otherwise, $Status will be 0 and $Error_Msg will contain an error message.
 ;# 
 ;# If $Use_Sendmail is 1 then sendmail is used to send the message. Normally
-;# a mailer such as Mail is used. By specifiying this you can include 
+;# a mailer such as Mail is used. By specifying this you can include 
 ;# headers in addition to text in either $Message or $Message_Is_File.
 ;# If either $Message or $Message_Is_File contain a Subject: header then
 ;# $Subject is ignored; otherwise, a Subject: header is automatically created.
@@ -1026,15 +1026,15 @@ X
 ;#
 ;# Does not care about order of switches, options, and arguments like 
 ;# getopts.pl. Thus all non-switches/options will be kept in ARGV even if they
-;# are not at the end. If $Pass_Invalid is set all unkown options will be
+;# are not at the end. If $Pass_Invalid is set all unknown options will be
 ;# passed back to the caller by keeping them in @ARGV. This is useful when
 ;# parsing a command line for your script while ignoring options that you
 ;# may pass to another script. If this is set New_Getopts tries to maintain 
-;# the switch clustering on the unkown switches.
+;# the switch clustering on the unknown switches.
 ;#
 ;# Accepts the special argument -usage to print the Usage string. Also accepts 
 ;# the special option -version which prints the contents of the string 
-;# $VERSION. $VERSION may or may not have an embeded \n in it. If -usage 
+;# $VERSION. $VERSION may or may not have an embedded \n in it. If -usage 
 ;# or -version are specified a status of -1 is returned. Note that the usage
 ;# option is only accepted if the usage string is not null.
 ;# 
@@ -1048,8 +1048,8 @@ X
 ;#    $Switch_To_Order {"v"} = 1;
 ;#    $Switch_To_Order {"x"} = 2;
 ;#
-;# Note that in the case of multiple occurances of an option $Switch_To_Order
-;# will store each occurance of the argument via a string that emulates
+;# Note that in the case of multiple occurrences of an option $Switch_To_Order
+;# will store each occurrence of the argument via a string that emulates
 ;# an array. This is done by using join ($;, ...). You can retrieve the
 ;# array by using split (/$;/, ...).
 ;#
@@ -1062,7 +1062,7 @@ X
 ;# Another exciting ;-) feature that newgetopts has. Along with creating the 
 ;# normal $opt_ scalars for the last value of an argument the list @opt_ is 
 ;# created. It is an array which contains all the values of arguments to the 
-;# basename of the variable. They are stored in the order which they occured 
+;# basename of the variable. They are stored in the order which they occurred 
 ;# on the command line starting with $[. Note that blank arguments are stored 
 ;# as "". Along with providing support for multiple options on the command 
 ;# line this also provides a method of counting the number of times an option 
@@ -1293,8 +1293,8 @@ X
 ;#      All other lines will be indented to match the amount of whitespace of
 ;#      $Offset.
 ;#
-;#    + If $Bullet_Indent is $TRUE $Offset will only be applied to the begining
-;#      of lines as they occured in the original $String. Lines that are created
+;#    + If $Bullet_Indent is $TRUE $Offset will only be applied to the beginning
+;#      of lines as they occurred in the original $String. Lines that are created
 ;#      by this routine will always be indented by blank spaces.
 ;#
 ;#    + If $Columns is 0 no word-wrap is done. This might be useful to still
@@ -1306,7 +1306,7 @@ X
 ;#    + If $Offset_Blank is $TRUE then empty lines will have $Offset pre-pended
 ;#      to them. Otherwise, they will still empty.
 ;#
-;# This is a realy workhorse routine that I use in many places because of its
+;# This is a really workhorse routine that I use in many places because of its
 ;# veratility.
 ;#
 ;# Arguments:
@@ -1668,7 +1668,7 @@ sed 's/^X//' << 'SHAR_EOF' > 'man/postclip.1' &&
 of the message. This keeps bounced mail private and helps to avoid disk space problems. \*(mp tries its best to keep as much of the header trail as possible.
 Hopefully only the original body of the message will be filtered. Only messages
 that have a subject that begins with 'Returned mail:' are filtered. This
-ensures that other mail is not accidently mucked with. Finally, note that
+ensures that other mail is not accidentally mucked with. Finally, note that
 \fBsendmail\fR is used to deliver the message after it has been (possibly)
 filtered. All of the original headers will remain intact.
 .sp 1 

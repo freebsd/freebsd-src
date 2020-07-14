@@ -2,36 +2,36 @@ PRALIASES(8)                                                      PRALIASES(8)
 
 
 
-NNAAMMEE
+[1mNAME[0m
        praliases - display system mail aliases
 
-SSYYNNOOPPSSIISS
-       pprraalliiaasseess [--CC _f_i_l_e] [--ff _f_i_l_e] [_k_e_y _._._.]
+[1mSYNOPSIS[0m
+       [1mpraliases [22m[[1m-C [4m[22mfile[24m] [[1m-f [4m[22mfile[24m] [[4mkey[24m [4m...[24m]
 
-DDEESSCCRRIIPPTTIIOONN
-       The  pprraalliiaasseess  utility  displays  the  current system aliases, one per
+[1mDESCRIPTION[0m
+       The  [1mpraliases  [22mutility  displays  the  current system aliases, one per
        line, in no particular order.  The special internal @:@ alias  will  be
        displayed if present.
 
        The options are as follows:
 
-       --CC _f_i_l_e
+       [1m-C [4m[22mfile[0m
               Read  the  specified  sendmail configuration file instead of the
-              default sseennddmmaaiill configuration file.
+              default [1msendmail [22mconfiguration file.
 
-       --ff _f_i_l_e
-              Read the specified file instead of the configured sseennddmmaaiill  sys-
+       [1m-f [4m[22mfile[0m
+              Read the specified file instead of the configured [1msendmail  [22msys-
               tem aliases file(s).
 
        If  one  or  more  keys are specified on the command line, only entries
        which match those keys are displayed.
 
-       The pprraalliiaasseess utility exits 0 on success, and >0 if an error occurs.
+       The [1mpraliases [22mutility exits 0 on success, and >0 if an error occurs.
 
-FFIILLEESS
-       /etc/mail/sendmail.cf    The default sseennddmmaaiill configuration file.
+[1mFILES[0m
+       /etc/mail/sendmail.cf    The default [1msendmail [22mconfiguration file.
 
-SSEEEE AALLSSOO
+[1mSEE ALSO[0m
        mailq(1), sendmail(8)
 
 

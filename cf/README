@@ -396,7 +396,7 @@ SMTP_MAILER_MAXMSGS	[undefined] If defined, the maximum number of
 			messages to deliver in a single connection for the
 			smtp, smtp8, esmtp, or dsmtp mailers.
 SMTP_MAILER_MAXRCPTS	[undefined] If defined, the maximum number of
-			recipients to deliver in a single connection for the
+			recipients to deliver in a single envelope for the
 			smtp, smtp8, esmtp, or dsmtp mailers.
 SMTP_MAILER_ARGS	[TCP $h] The arguments passed to the smtp mailer.
 			About the only reason you would want to change this
@@ -1250,7 +1250,7 @@ access_db	Turns on the access database feature.  The access db gives
 		important information about this feature.  Notice:
 		"-T<TMPF>" is meant literal, do not replace it by anything.
 
-blacklist_recipients
+blocklist_recipients
 		Turns on the ability to block incoming mail for certain
 		recipient usernames, hostnames, or addresses.  For
 		example, you can block incoming mail to user nobody,
@@ -1579,7 +1579,7 @@ require_rdns	Reject mail from connecting SMTP clients without proper
 		Entries such as
 			Connect:1.2.3.4		OK
 			Connect:1.2		RELAY
-		will whitelist IP address 1.2.3.4, so that the rDNS
+		will allowlist IP address 1.2.3.4, so that the rDNS
 		blocking does apply to that IP address
 
 		Entries such as
@@ -2602,7 +2602,7 @@ requires a tag.  For example,
 	From:another.dom	REJECT
 
 This would deny mails from spammer@some.dom but you could still
-send mail to that address even if FEATURE(`blacklist_recipients')
+send mail to that address even if FEATURE(`blocklist_recipients')
 is enabled.  Your system will allow relaying to friend.domain, but
 not from it (unless enabled by other means).  Connections from that
 domain will be allowed even if it ends up in one of the DNS based
@@ -2723,7 +2723,7 @@ sender address.
 
 If you use:
 
-	FEATURE(`blacklist_recipients')
+	FEATURE(`blocklist_recipients')
 
 then you can add entries to the map for local users, hosts in your
 domains, or addresses in your domain which should not receive mail:
@@ -2747,14 +2747,14 @@ as value part in the access map.  Taking the example from above:
 Mail can't be sent to spammer@aol.com or anyone at cyberspammer.com.
 That's why tagged entries should be used.
 
-There are several DNS based blacklists which can be found by
+There are several DNS based blocklists which can be found by
 querying a search engine.  These are databases of spammers
 maintained in DNS.  To use such a database, specify
 
 	FEATURE(`dnsbl', `dnsbl.example.com')
 
 This will cause sendmail to reject mail from any site listed in the
-DNS based blacklist.  You must select a DNS based blacklist domain
+DNS based blocklist.  You must select a DNS based blocklist domain
 to check by specifying an argument to the FEATURE.  The default
 error message is
 
@@ -2789,14 +2789,14 @@ This FEATURE can be included several times to query different
 DNS based rejection lists.
 
 Notice: to avoid checking your own local domains against those
-blacklists, use the access_db feature and add:
+blocklists, use the access_db feature and add:
 
 	Connect:10.1		OK
 	Connect:127.0.0.1	RELAY
 
 to the access map, where 10.1 is your local network.  You may
 want to use "RELAY" instead of "OK" to allow also relaying
-instead of just disabling the DNS lookups in the blacklists.
+instead of just disabling the DNS lookups in the blocklists.
 
 
 The features described above make use of the check_relay, check_mail,
@@ -2849,7 +2849,7 @@ my.domain and you have
 in the access map, then any e-mail with a sender address of
 <user@my.domain> will not be rejected by check_relay even though
 it would match the hostname or IP address.  This allows spammers
-to get around DNS based blacklist by faking the sender address.  To
+to get around DNS based blocklist by faking the sender address.  To
 avoid this problem you have to use tagged entries:
 
 	To:my.domain		RELAY
@@ -2978,7 +2978,7 @@ limits per client IP address or net.  These features can limit the
 rate of connections (connections per time unit) or the number of
 incoming SMTP connections, respectively.  If enabled, appropriate
 rulesets are called at the end of check_relay, i.e., after DNS
-blacklists and generic access_db operations.  The features require
+blocklists and generic access_db operations.  The features require
 FEATURE(`access_db') to be listed earlier in the mc file.
 
 Note: FEATURE(`delay_checks') delays those connection control checks
@@ -3071,13 +3071,13 @@ rulesets and map lookups, they are modified as follows: each non-printable
 character and the characters '<', '>', '(', ')', '"', '+', ' ' are replaced
 by their HEX value with a leading '+'.  For example:
 
-/C=US/ST=California/O=endmail.org/OU=private/CN=Darth Mail (Cert)/Email=
+/C=US/ST=California/O=endmail.org/OU=private/CN=Darth Mail (Cert)/emailAddress=
 darth+cert@endmail.org
 
 is encoded as:
 
 /C=US/ST=California/O=endmail.org/OU=private/CN=
-Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
+Darth+20Mail+20+28Cert+29/emailAddress=darth+2Bcert@endmail.org
 
 (line breaks have been inserted for readability).
 
@@ -3089,30 +3089,27 @@ Examples:
 To allow relaying for everyone who can present a cert signed by
 
 /C=US/ST=California/O=endmail.org/OU=private/CN=
-Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
+Darth+20Mail+20+28Cert+29/emailAddress=darth+2Bcert@endmail.org
 
 simply use:
 
 CertIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
-Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org	RELAY
+Darth+20Mail+20+28Cert+29/emailAddress=darth+2Bcert@endmail.org	RELAY
 
 To allow relaying only for a subset of machines that have a cert signed by
 
 /C=US/ST=California/O=endmail.org/OU=private/CN=
-Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org
+Darth+20Mail+20+28Cert+29/emailAddress=darth+2Bcert@endmail.org
 
 use:
 
 CertIssuer:/C=US/ST=California/O=endmail.org/OU=private/CN=
-Darth+20Mail+20+28Cert+29/Email=darth+2Bcert@endmail.org	SUBJECT
+Darth+20Mail+20+28Cert+29/emailAddress=darth+2Bcert@endmail.org	SUBJECT
 CertSubject:/C=US/ST=California/O=endmail.org/OU=private/CN=
-DeathStar/Email=deathstar@endmail.org		RELAY
+DeathStar/emailAddress=deathstar@endmail.org		RELAY
 
-Notes:
-- line breaks have been inserted after "CN=" for readability,
-  each tagged entry must be one (long) line in the access map.
-- if OpenSSL 0.9.7 or newer is used then the "Email=" part of a DN
-  is replaced by "emailAddress=".
+Note: line breaks have been inserted after "CN=" for readability,
+each tagged entry must be one (long) line in the access map.
 
 Of course it is also possible to write a simple ruleset that allows
 relaying for everyone who can present a cert that can be verified, e.g.,
@@ -3188,16 +3185,23 @@ CN:name		name must match ${cn_subject}
 CN		${client_name}/${server_name} must match ${cn_subject}
 CS:name		name must match ${cert_subject}
 CI:name		name must match ${cert_issuer}
+CITag:MYTag	look up MYTag:${cert_issuer} in access map; the check
+		only succeeds if it is found with a RHS of OK.
 
 Example: e-mail sent to secure.example.com should only use an encrypted
 connection.  E-mail received from hosts within the laptop.example.com domain
 should only be accepted if they have been authenticated.  The host which
 receives e-mail for darth@endmail.org must present a cert that uses the
-CN smtp.endmail.org.
+CN smtp.endmail.org.  E-mail sent to safe.example.com must be verified,
+have a matching CN, and must present a cert signed by a CA with one of
+the listed DNs.
 
-TLS_Srv:secure.example.com      ENCR:112
-TLS_Clt:laptop.example.com      PERM+VERIFY:112
+TLS_Srv:secure.example.com	ENCR:112
+TLS_Clt:laptop.example.com	PERM+VERIFY:112
 TLS_Rcpt:darth@endmail.org	ENCR:112+CN:smtp.endmail.org
+TLS_Srv:safe.example.net	VERIFY+CN++CITag:MyCA
+MyCA:/C=US/ST=CA/O=safe/CN=example.net/		OK
+MyCA:/C=US/ST=CA/O=secure/CN=example.net/	OK
 
 
 TLS Options per Session
@@ -3217,6 +3221,7 @@ options:
 - Options: compare {Server,Client}SSLOptions.
 - CipherList: same as the global option.
 - CertFile, KeyFile: {Server,Client}{Cert,Key}File
+- Flags: see doc/op/op.me for details.
 
 If FEATURE(`tls_session_features') is used, then default rulesets
 are activated which look up entries in the access map with the tags
@@ -3234,15 +3239,12 @@ If FEATURE(`tls_session_features') is not used the user can provide
 their own rulesets which must return the appropriate data.
 If the rulesets are not defined or do not return a value, the
 default TLS options are not modified.
-(These rulesets require the sendmail binary to be built with
-_FFR_TLS_SE_OPTS enabled.)
 
-About 2): the ruleset try_tls (srv_features) can be used that work
-together with the access map.  Entries for the access map must be
-tagged with Try_TLS (Srv_Features) and refer to the hostname or IP
-address of the connecting system.  A default case can be specified
-by using just the tag.  For example, the following entries in the
-access map:
+About 2): the ruleset try_tls (srv_features) can be used together
+with the access map.  Entries for the access map must be tagged
+with Try_TLS (Srv_Features) and refer to the hostname or IP address
+of the connecting system.  A default case can be specified by using
+just the tag.  For example, the following entries in the access map:
 
 	Try_TLS:broken.server	NO
 	Srv_Features:my.domain	v
@@ -3654,7 +3656,7 @@ for.  In particular:
   if your system allows "file giveaways" (that is, if a non-root
   user can chown any file they own to any other user).
 
-* If your system allows file giveaways, DO NOT create a publically
+* If your system allows file giveaways, DO NOT create a publicly
   writable directory for forward files.  This will allow anyone
   to steal anyone else's e-mail.  Instead, create a script that
   copies the .forward file from users' home directories once a
@@ -4011,6 +4013,10 @@ confUSERDB_SPEC		UserDatabaseSpec
 confFALLBACK_MX		FallbackMXhost	[undefined] Fallback MX host.
 confFALLBACK_SMARTHOST	FallbackSmartHost
 					[undefined] Fallback smart host.
+confTLS_FALLBACK_TO_CLEAR	TLSFallbacktoClear
+					[undefined] If set, immediately try
+					a connection again without STARTTLS
+					after a TLS handshake failure.
 confTRY_NULL_MX_LIST	TryNullMXList	[False] If this host is the best MX
 					for a host and other arrangements
 					haven't been made, try connecting
@@ -4364,10 +4370,13 @@ confCLIENT_KEY		ClientKeyFile	[undefined] File containing the
 					cert.
 confCRL			CRLFile		[undefined] File containing certificate
 					revocation status, useful for X.509v3
-					authentication. Note that CRL requires
-					at least OpenSSL version 0.9.7.
+					authentication.
+confCRL_PATH		CRLPath		[undefined] Directory containing
+					hashes pointing to certificate
+					revocation status files.
 confDH_PARAMETERS	DHParameters	[undefined] File containing the
 					DH parameters.
+confDANE		DANE		[false] Enable DANE support.
 confRAND_FILE		RandFile	[undefined] File containing random
 					data (use prefix file:) or the
 					name of the UNIX socket if EGD is
@@ -4379,6 +4388,9 @@ confCERT_FINGERPRINT_ALGORITHM	CertFingerprintAlgorithm
 					[undefined] The fingerprint algorithm
 					(digest) to use for the presented
 					cert.
+confSSL_ENGINE		SSLEngine	[undefined] Name of SSLEngine.
+confSSL_ENGINE_PATH	SSLEnginePath	[undefined] Path to dynamic library
+					for SSLEngine.
 confNICE_QUEUE_RUN	NiceQueueRun	[undefined]  If set, the priority of
 					queue runners is set the given value
 					(nice(3)).
@@ -4799,7 +4811,6 @@ M4 DIVERSIONS
    5	locally interpreted names (overrides $R)
    6	local configuration (at top of file)
    7	mailer definitions
-   8	DNS based blacklists
+   8	DNS based blocklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.730 $, Last updated $Date: 2014-01-16 15:55:51 $

@@ -180,9 +180,9 @@ savemail(e, sendbody)
 
 #if USE_TTYPATH
 			p = ttypath();
-#else /* USE_TTYPATH */
+#else
 			p = NULL;
-#endif /* USE_TTYPATH */
+#endif
 
 			if (p == NULL || sm_io_reopen(SmFtStdio,
 						      SM_TIME_DEFAULT,
@@ -524,7 +524,7 @@ returntosender(msg, returnq, flags, e)
 	if (tTd(6, 1))
 	{
 		sm_dprintf("\n*** Return To Sender: msg=\"%s\", depth=%d, e=%p, returnq=",
-			msg, returndepth, e);
+			msg, returndepth, (void *)e);
 		printaddr(sm_debug_file(), returnq, true);
 		if (tTd(6, 20))
 		{
@@ -584,7 +584,7 @@ returntosender(msg, returnq, flags, e)
 #if _FFR_BOUNCE_QUEUE
 	if (BounceQueue != NOQGRP)
 		ee->e_qgrp = ee->e_dfqgrp = BounceQueue;
-#endif /* _FFR_BOUNCE_QUEUE */
+#endif
 	if (!setnewqueue(ee))
 	{
 		syserr("554 5.3.0 returntosender: cannot select queue for %s",
@@ -598,7 +598,7 @@ returntosender(msg, returnq, flags, e)
 #if NAMED_BIND
 	_res.retry = TimeOuts.res_retry[RES_TO_FIRST];
 	_res.retrans = TimeOuts.res_retrans[RES_TO_FIRST];
-#endif /* NAMED_BIND */
+#endif
 	for (q = returnq; q != NULL; q = q->q_next)
 	{
 		if (QS_IS_BADADDR(q->q_state))
@@ -637,9 +637,9 @@ returntosender(msg, returnq, flags, e)
 		(void) sm_snprintf(buf, sizeof(buf),
 #if DSN
 				"multipart/report; report-type=delivery-status;\n\tboundary=\"%s\"",
-#else /* DSN */
+#else
 				"multipart/mixed; boundary=\"%s\"",
-#endif /* DSN */
+#endif
 				ee->e_msgboundary);
 		addheader("Content-Type", buf, 0, ee, true);
 
@@ -743,6 +743,44 @@ returntosender(msg, returnq, flags, e)
 
 	return ret;
 }
+
+
+/*
+**  DSNTYPENAME -- Returns the DSN name of the addrtype for this address
+**
+**	Sendmail's addrtypes are largely in different universes, and
+**	'fred' may be a valid address in different addrtype
+**	universes.
+**
+**	EAI extends the rfc822 universe rather than introduce a new
+**	universe.  Because of that, sendmail uses the rfc822 addrtype,
+**	but names it utf-8 when the EAI DSN extension requires that.
+**
+**	Parameters:
+**		addrtype -- address type
+**		addr -- the address
+**
+**	Returns:
+**		type for DSN
+**
+*/
+
+static const char *dsntypename __P((const char *, const char *));
+
+static const char *
+dsntypename(addrtype, addr)
+	const char *addrtype;
+	const char *addr;
+{
+	if (sm_strcasecmp(addrtype, "rfc822") != 0)
+		return addrtype;
+#if _FFR_EAI
+	if (!addr_is_ascii(addr))
+		return "utf-8";
+#endif
+	return "rfc822";
+}
+
 
 /*
 **  ERRBODY -- output the body of an error message.
@@ -1082,7 +1120,13 @@ errbody(mci, e, separator)
 		(void) sm_strlcpyn(buf, sizeof(buf), 2, "--", e->e_msgboundary);
 		if (!putline("", mci) ||
 		    !putline(buf, mci) ||
+#if _FFR_EAI
+		    !putline(e->e_parent->e_smtputf8
+			     ? "Content-Type: message/global-delivery-status"
+			     : "Content-Type: message/delivery-status", mci) ||
+#else
 		    !putline("Content-Type: message/delivery-status", mci) ||
+#endif
 		    !putline("", mci))
 			goto writeerr;
 
@@ -1223,7 +1267,8 @@ errbody(mci, e, separator)
 					(void) sm_snprintf(actual,
 							   sizeof(actual),
 							   "%s; %.700s@%.100s",
-							   p, q->q_user,
+							   dsntypename(p, q->q_user),
+							   q->q_user,
 							   MyHostName);
 				}
 				else
@@ -1231,7 +1276,8 @@ errbody(mci, e, separator)
 					(void) sm_snprintf(actual,
 							   sizeof(actual),
 							   "%s; %.800s",
-							   p, q->q_user);
+							   dsntypename(p, q->q_user),
+							   q->q_user);
 				}
 			}
 
@@ -1247,6 +1293,23 @@ errbody(mci, e, separator)
 					q->q_finalrcpt = sm_rpool_strdup_x(e->e_rpool,
 									   actual);
 			}
+
+#if _FFR_EAI
+			if (sm_strncasecmp("rfc822;", q->q_finalrcpt, 7) == 0 &&
+			    !addr_is_ascii(q->q_user))
+			{
+				char *a;
+				char utf8rcpt[1024];
+
+				a = strchr(q->q_finalrcpt, ';');
+				while(*a == ';' || *a == ' ')
+					a++;
+				sm_snprintf(utf8rcpt, sizeof(utf8rcpt),
+					    "utf-8; %.800s", a);
+				q->q_finalrcpt = sm_rpool_strdup_x(e->e_rpool,
+								   utf8rcpt);
+			}
+#endif
 
 			if (q->q_finalrcpt != NULL)
 			{
@@ -1373,9 +1436,21 @@ errbody(mci, e, separator)
 
 			if (!putline(buf, mci))
 				goto writeerr;
+#if _FFR_EAI
+			if (e->e_parent->e_smtputf8)
+				(void) sm_strlcpyn(buf, sizeof(buf), 2,
+						   "Content-Type: message/global",
+						   sendbody ? "" : "-headers");
+			else
+				(void) sm_strlcpyn(buf, sizeof(buf), 2,
+						   "Content-Type: ",
+						sendbody ? "message/rfc822"
+							 : "text/rfc822-headers");
+#else /* _FFR_EAI */
 			(void) sm_strlcpyn(buf, sizeof(buf), 2, "Content-Type: ",
 					sendbody ? "message/rfc822"
 						 : "text/rfc822-headers");
+#endif /* _FFR_EAI */
 			if (!putline(buf, mci))
 				goto writeerr;
 
@@ -1804,8 +1879,8 @@ pruneroute(addr)
 
 	while (start != NULL)
 	{
-		if (getmxrr(hostbuf, mxhosts, NULL, false,
-			    &rcode, true, NULL) > 0)
+		if (getmxrr(hostbuf, mxhosts, NULL, TRYFALLBACK, &rcode, NULL, -1)
+		    > 0)
 		{
 			(void) sm_strlcpy(addr + 1, start + 1,
 					  strlen(addr) - 1);

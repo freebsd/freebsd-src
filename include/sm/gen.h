@@ -43,7 +43,7 @@
 # else /* SM_CONF_STDDEF_H */
 #  ifndef NULL
 #   define NULL	0
-#  endif /* ! NULL */
+#  endif
 #  define offsetof(type, member)	((size_t)(&((type *)0)->member))
 # endif /* SM_CONF_STDDEF_H */
 

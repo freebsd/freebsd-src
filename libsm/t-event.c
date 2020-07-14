@@ -17,7 +17,7 @@ SM_RCSID("@(#)$Id: t-event.c,v 1.14 2013-11-22 20:51:43 ca Exp $")
 # include <sys/wait.h>
 #if SM_CONF_SETITIMER
 # include <sm/time.h>
-#endif /* SM_CONF_SETITIMER */
+#endif
 
 #include <sm/clock.h>
 #include <sm/test.h>

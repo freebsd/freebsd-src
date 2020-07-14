@@ -12,7 +12,7 @@ $Id: smfi_setsymlist.html,v 1.7 2013-11-22 20:51:39 ca Exp $
 <PRE>
 #include &lt;libmilter/mfapi.h&gt;
 int smfi_setsymlist(
-        SMFICTX    *ctx, 
+        SMFICTX    *ctx,
 	int        stage,
 	char       *macros
 );
@@ -37,6 +37,7 @@ milter wants to receive from the MTA.
 </TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -72,7 +73,7 @@ milter wants to receive from the MTA.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>MI_FAILURE is returned if
 <UL>
@@ -88,7 +89,7 @@ Otherwise MI_SUCCESS is returned.
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>There is an internal limit on the number of macros
 that can be set
 <!-- XREF: MAXFILTERMACROS -->
