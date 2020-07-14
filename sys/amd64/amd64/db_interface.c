@@ -107,5 +107,4 @@ db_show_mdpcpu(struct pcpu *pc)
 	db_printf("gs32p        = %p\n", pc->pc_gs32p);
 	db_printf("ldt          = %p\n", pc->pc_ldt);
 	db_printf("tss          = %p\n", pc->pc_tss);
-	db_printf("tlb gen      = %u\n", pc->pc_smp_tlb_done);
 }
