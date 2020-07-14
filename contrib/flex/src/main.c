@@ -342,7 +342,7 @@ void check_options (void)
     /* Setup the filter chain. */
     output_chain = filter_create_int(NULL, filter_tee_header, headerfilename);
     if ( !(m4 = getenv("M4"))) {
-	    char *slash;
+		const char *slash;
 		m4 = M4;
 		if ((slash = strrchr(M4, '/')) != NULL) {
 			m4 = slash+1;
