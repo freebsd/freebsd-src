@@ -787,15 +787,17 @@ main(int argc, char *argv[])
 				qname = ldns_dname_new_frm_str(ip6_arpa_str);
 			} else {
 				qname = ldns_dname_new_frm_str(name);
-				qname_tmp = ldns_dname_reverse(qname);
-				ldns_rdf_deep_free(qname);
-				qname = qname_tmp;
-				qname_tmp = ldns_dname_new_frm_str("in-addr.arpa.");
-				status = ldns_dname_cat(qname, qname_tmp);
-				if (status != LDNS_STATUS_OK) {
-					error("%s", "could not create reverse address for ip4: %s\n", ldns_get_errorstr_by_id(status));
+				if (qname) {
+					qname_tmp = ldns_dname_reverse(qname);
+					ldns_rdf_deep_free(qname);
+					qname = qname_tmp;
+					qname_tmp = ldns_dname_new_frm_str("in-addr.arpa.");
+					status = ldns_dname_cat(qname, qname_tmp);
+					if (status != LDNS_STATUS_OK) {
+						error("%s", "could not create reverse address for ip4: %s\n", ldns_get_errorstr_by_id(status));
+					}
+					ldns_rdf_deep_free(qname_tmp);
 				}
-				ldns_rdf_deep_free(qname_tmp);
 			}
 			if (!qname) {
 				error("%s", "-x implies an ip address");
