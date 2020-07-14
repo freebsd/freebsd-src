@@ -1618,6 +1618,9 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 			case O_TCPWIN:
 				s = "tcpwin";
 				break;
+			default:
+				s = "<unknown>";
+				break;
 			}
 			bprintf(bp, " %s %u", s, cmd->arg1);
 		} else
@@ -4003,7 +4006,7 @@ chkarg:
 		struct addrinfo *res;
 		char *s, *end;
 		int family;
-		u_short port_number;
+		u_short port_number = 0;
 
 		NEED1("missing forward address[:port]");
 
@@ -5600,14 +5603,13 @@ ifinfo_cmp(const void *a, const void *b)
 static void
 ipfw_list_tifaces(void)
 {
-	ipfw_obj_lheader *olh;
+	ipfw_obj_lheader *olh = NULL;
 	ipfw_iface_info *info;
 	uint32_t i;
 	int error;
 
 	if ((error = ipfw_get_tracked_ifaces(&olh)) != 0)
 		err(EX_OSERR, "Unable to request ipfw tracked interface list");
-
 
 	qsort(olh + 1, olh->count, olh->objsize, ifinfo_cmp);
 
@@ -5625,7 +5627,3 @@ ipfw_list_tifaces(void)
 
 	free(olh);
 }
-
-
-
-

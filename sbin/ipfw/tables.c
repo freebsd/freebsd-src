@@ -847,7 +847,7 @@ table_show_info(ipfw_xtable_info *i, void *arg)
 static int
 table_show_one(ipfw_xtable_info *i, void *arg)
 {
-	ipfw_obj_header *oh;
+	ipfw_obj_header *oh = NULL;
 	int error;
 	int is_all;
 
@@ -1179,7 +1179,7 @@ tentry_fill_key_type(char *arg, ipfw_obj_tentry *tentry, uint8_t type,
 	struct servent *sent;
 	int masklen;
 
-	masklen = 0;
+	mask = masklen = 0;
 	af = 0;
 	paddr = (struct in6_addr *)&tentry->k;
 
