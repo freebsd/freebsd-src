@@ -764,21 +764,16 @@ cache_negative_hit(struct namecache *ncp)
 }
 
 static void
-cache_negative_insert(struct namecache *ncp, bool neg_locked)
+cache_negative_insert(struct namecache *ncp)
 {
 	struct neglist *neglist;
 
 	MPASS(ncp->nc_flag & NCF_NEGATIVE);
 	cache_assert_bucket_locked(ncp, RA_WLOCKED);
 	neglist = NCP2NEGLIST(ncp);
-	if (!neg_locked) {
-		mtx_lock(&neglist->nl_lock);
-	} else {
-		mtx_assert(&neglist->nl_lock, MA_OWNED);
-	}
+	mtx_lock(&neglist->nl_lock);
 	TAILQ_INSERT_TAIL(&neglist->nl_list, ncp, nc_dst);
-	if (!neg_locked)
-		mtx_unlock(&neglist->nl_lock);
+	mtx_unlock(&neglist->nl_lock);
 	atomic_add_rel_long(&numneg, 1);
 }
 
@@ -1965,7 +1960,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	} else {
 		if (cnp->cn_flags & ISWHITEOUT)
 			ncp->nc_flag |= NCF_WHITE;
-		cache_negative_insert(ncp, false);
+		cache_negative_insert(ncp);
 		SDT_PROBE2(vfs, namecache, enter_negative, done, dvp,
 		    ncp->nc_name);
 	}
