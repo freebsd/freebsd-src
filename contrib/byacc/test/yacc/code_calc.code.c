@@ -180,13 +180,15 @@ extern char *yyname[];
 extern char *yyrule[];
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 
 /* define the initial stack-sizes */
 #ifdef YYSTACKSIZE
@@ -259,7 +261,7 @@ yylex(void)
     }
     return( c );
 }
-#line 263 "code_calc.code.c"
+#line 265 "code_calc.code.c"
 
 #if YYDEBUG
 #include <stdio.h>	/* needed for printf */
@@ -518,7 +520,7 @@ case 18:
 #line 67 "code_calc.y"
 	{  yyval = base * yystack.l_mark[-1] + yystack.l_mark[0]; }
 break;
-#line 522 "code_calc.code.c"
+#line 524 "code_calc.code.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

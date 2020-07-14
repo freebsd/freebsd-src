@@ -196,13 +196,15 @@ static const char *const err_syntax12_rule[] = {
 };
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 
 /* define the initial stack-sizes */
 #ifdef YYSTACKSIZE
@@ -251,7 +253,7 @@ yyerror(const char* s)
 {
     printf("%s\n", s);
 }
-#line 255 "err_syntax12.tab.c"
+#line 257 "err_syntax12.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>	/* needed for printf */

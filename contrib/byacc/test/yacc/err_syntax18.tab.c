@@ -192,13 +192,15 @@ static const char *const err_syntax18_rule[] = {
 };
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 
 /* define the initial stack-sizes */
 #ifdef YYSTACKSIZE
@@ -247,7 +249,7 @@ yyerror(const char* s)
 {
     printf("%s\n", s);
 }
-#line 251 "err_syntax18.tab.c"
+#line 253 "err_syntax18.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>	/* needed for printf */
@@ -450,7 +452,7 @@ case 1:
 #line 9 "err_syntax18.y"
 	{  yyval = yystack.l_mark[1]; }
 break;
-#line 454 "err_syntax18.tab.c"
+#line 456 "err_syntax18.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

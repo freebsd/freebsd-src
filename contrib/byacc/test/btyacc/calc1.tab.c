@@ -195,7 +195,7 @@ extern int YYPARSE_DECL();
 #define CONST 259
 #define UMINUS 260
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT calc1_lhs[] = {                       -1,
     3,    3,    0,    0,    0,    0,    0,    1,    1,    1,
     1,    1,    1,    1,    1,    2,    2,    2,    2,    2,
@@ -393,13 +393,16 @@ static const char *const calc1_rule[] = {
 };
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
+
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
 YYLTYPE  yyloc; /* position returned by actions */
 YYLTYPE  yylloc; /* position from the lexer */
@@ -412,17 +415,17 @@ do \
 { \
     if (n == 0) \
     { \
-        (loc).first_line   = ((rhs)[-1]).last_line; \
-        (loc).first_column = ((rhs)[-1]).last_column; \
-        (loc).last_line    = ((rhs)[-1]).last_line; \
-        (loc).last_column  = ((rhs)[-1]).last_column; \
+        (loc).first_line   = YYRHSLOC(rhs, 0).last_line; \
+        (loc).first_column = YYRHSLOC(rhs, 0).last_column; \
+        (loc).last_line    = YYRHSLOC(rhs, 0).last_line; \
+        (loc).last_column  = YYRHSLOC(rhs, 0).last_column; \
     } \
     else \
     { \
-        (loc).first_line   = ((rhs)[ 0 ]).first_line; \
-        (loc).first_column = ((rhs)[ 0 ]).first_column; \
-        (loc).last_line    = ((rhs)[n-1]).last_line; \
-        (loc).last_column  = ((rhs)[n-1]).last_column; \
+        (loc).first_line   = YYRHSLOC(rhs, 1).first_line; \
+        (loc).first_column = YYRHSLOC(rhs, 1).first_column; \
+        (loc).last_line    = YYRHSLOC(rhs, n).last_line; \
+        (loc).last_column  = YYRHSLOC(rhs, n).last_column; \
     } \
 } while (0)
 #endif /* YYLLOC_DEFAULT */
@@ -648,7 +651,7 @@ vdiv(double a, double b, INTERVAL v)
 {
     return (hilo(a / v.hi, a / v.lo, b / v.hi, b / v.lo));
 }
-#line 652 "calc1.tab.c"
+#line 655 "calc1.tab.c"
 
 /* For use in generated program */
 #define yydepth (int)(yystack.s_mark - yystack.s_base)
@@ -787,7 +790,7 @@ YYPARSE_DECL()
     YYParseState *yyerrctx = NULL;
 #endif /* YYBTYACC */
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
-    YYLTYPE  yyerror_loc_range[2]; /* position of error start & end */
+    YYLTYPE  yyerror_loc_range[3]; /* position of error start/end (0 unused) */
 #endif
 #if YYDEBUG
     const char *yys;
@@ -854,10 +857,10 @@ yyloop:
                 size_t s = (size_t) (yylvlim - yylvals);
 
                 s += YYLVQUEUEGROWTH;
-                if ((yylexemes = realloc(yylexemes, s * sizeof(YYINT))) == NULL) goto yyenomem;
-                if ((yylvals   = realloc(yylvals, s * sizeof(YYSTYPE))) == NULL) goto yyenomem;
+                if ((yylexemes = (YYINT *)realloc(yylexemes, s * sizeof(YYINT))) == NULL) goto yyenomem;
+                if ((yylvals   = (YYSTYPE *)realloc(yylvals, s * sizeof(YYSTYPE))) == NULL) goto yyenomem;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
-                if ((yylpsns   = realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL) goto yyenomem;
+                if ((yylpsns   = (YYLTYPE *)realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL) goto yyenomem;
 #endif
                 yylvp   = yylve = yylvals + p;
                 yylvlim = yylvals + s;
@@ -968,7 +971,7 @@ yyloop:
                 /* If this is a first conflict in the stack, start saving lexemes */
                 if (!yylexemes)
                 {
-                    yylexemes = malloc((YYLVQUEUEGROWTH) * sizeof(YYINT));
+                    yylexemes = (YYINT *) malloc((YYLVQUEUEGROWTH) * sizeof(YYINT));
                     if (yylexemes == NULL) goto yyenomem;
                     yylvals   = (YYSTYPE *) malloc((YYLVQUEUEGROWTH) * sizeof(YYSTYPE));
                     if (yylvals == NULL) goto yyenomem;
@@ -1178,7 +1181,7 @@ yyerrhandler:
 
     YYERROR_CALL("syntax error");
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
-    yyerror_loc_range[0] = yylloc; /* lookahead position is error start position */
+    yyerror_loc_range[1] = yylloc; /* lookahead position is error start position */
 #endif
 
 #if !YYBTYACC
@@ -1207,7 +1210,7 @@ yyinrecovery:
                 *++yystack.l_mark = yylval;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
                 /* lookahead position is error end position */
-                yyerror_loc_range[1] = yylloc;
+                yyerror_loc_range[2] = yylloc;
                 YYLLOC_DEFAULT(yyloc, yyerror_loc_range, 2); /* position of error span */
                 *++yystack.p_mark = yyloc;
 #endif
@@ -1223,7 +1226,7 @@ yyinrecovery:
                 if (yystack.s_mark <= yystack.s_base) goto yyabort;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
                 /* the current TOS position is the error start position */
-                yyerror_loc_range[0] = *yystack.p_mark;
+                yyerror_loc_range[1] = *yystack.p_mark;
 #endif
 #if defined(YYDESTRUCT_CALL)
 #if YYBTYACC
@@ -1309,10 +1312,10 @@ yyreduce:
     if (!yytrial)
 #endif /* YYBTYACC */
     {
-        YYLLOC_DEFAULT(yyloc, &yystack.p_mark[1-yym], yym);
+        YYLLOC_DEFAULT(yyloc, &yystack.p_mark[-yym], yym);
         /* just in case YYERROR is invoked within the action, save
            the start of the rhs as the error start position */
-        yyerror_loc_range[0] = yystack.p_mark[1-yym];
+        yyerror_loc_range[1] = yystack.p_mark[1-yym];
     }
 #endif
 
@@ -1481,7 +1484,7 @@ case 28:
 		yyval.vval = yystack.l_mark[-1].vval;
 	}
 break;
-#line 1485 "calc1.tab.c"
+#line 1488 "calc1.tab.c"
     default:
         break;
     }
@@ -1536,12 +1539,12 @@ break;
                     size_t s = (size_t) (yylvlim - yylvals);
 
                     s += YYLVQUEUEGROWTH;
-                    if ((yylexemes = realloc(yylexemes, s * sizeof(YYINT))) == NULL)
+                    if ((yylexemes = (YYINT *)realloc(yylexemes, s * sizeof(YYINT))) == NULL)
                         goto yyenomem;
-                    if ((yylvals   = realloc(yylvals, s * sizeof(YYSTYPE))) == NULL)
+                    if ((yylvals   = (YYSTYPE *)realloc(yylvals, s * sizeof(YYSTYPE))) == NULL)
                         goto yyenomem;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
-                    if ((yylpsns   = realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL)
+                    if ((yylpsns   = (YYLTYPE *)realloc(yylpsns, s * sizeof(YYLTYPE))) == NULL)
                         goto yyenomem;
 #endif
                     yylvp   = yylve = yylvals + p;

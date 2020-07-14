@@ -297,13 +297,15 @@ static const char *const quote_calc2_rule[] = {
 };
 #endif
 
+#if YYDEBUG
 int      yydebug;
-int      yynerrs;
+#endif
 
 int      yyerrflag;
 int      yychar;
 YYSTYPE  yyval;
 YYSTYPE  yylval;
+int      yynerrs;
 
 /* define the initial stack-sizes */
 #ifdef YYSTACKSIZE
@@ -371,7 +373,7 @@ yylex(void) {
     }
     return( c );
 }
-#line 375 "quote_calc2.tab.c"
+#line 377 "quote_calc2.tab.c"
 
 #if YYDEBUG
 #include <stdio.h>	/* needed for printf */
@@ -630,7 +632,7 @@ case 18:
 #line 70 "quote_calc2.y"
 	{  yyval = base * yystack.l_mark[-1] + yystack.l_mark[0]; }
 break;
-#line 634 "quote_calc2.tab.c"
+#line 636 "quote_calc2.tab.c"
     }
     yystack.s_mark -= yym;
     yystate = *yystack.s_mark;

@@ -1,4 +1,4 @@
-MANIFEST for byacc-20170430, version t20170430
+MANIFEST for byacc-20200330, version t20200330
 --------------------------------------------------------------------------------
 MANIFEST                        this file
 ACKNOWLEDGEMENTS                original version of byacc - 1993
@@ -77,10 +77,6 @@ test/btyacc/btyacc_demo.error   reference output for testing
 test/btyacc/btyacc_demo.output  reference output for testing
 test/btyacc/btyacc_demo.tab.c   reference output for testing
 test/btyacc/btyacc_demo.tab.h   reference output for testing
-test/btyacc/btyacc_demo2.error  reference output for testing
-test/btyacc/btyacc_demo2.output reference output for testing
-test/btyacc/btyacc_demo2.tab.c  reference output for testing
-test/btyacc/btyacc_demo2.tab.h  reference output for testing
 test/btyacc/btyacc_destroy1.error  reference output for testing
 test/btyacc/btyacc_destroy1.output  reference output for testing
 test/btyacc/btyacc_destroy1.tab.c  reference output for testing
@@ -114,11 +110,6 @@ test/btyacc/code_calc.error     reference output for testing
 test/btyacc/code_calc.output    reference output for testing
 test/btyacc/code_calc.tab.c     reference output for testing
 test/btyacc/code_calc.tab.h     reference output for testing
-test/btyacc/code_debug.c        reference for test-output
-test/btyacc/code_debug.error    reference for test-output
-test/btyacc/code_debug.h        reference for test-output
-test/btyacc/code_debug.i        reference for test-output
-test/btyacc/code_debug.output   reference for test-output
 test/btyacc/code_error.code.c   reference output for testing
 test/btyacc/code_error.error    reference output for testing
 test/btyacc/code_error.output   reference output for testing
@@ -382,6 +373,7 @@ test/btyacc_demo.y              testcase for btyacc
 test/btyacc_destroy1.y          btyacc test-case for %parse-param
 test/btyacc_destroy2.y          btyacc test-case for %parse-param
 test/btyacc_destroy3.y          btyacc test-case for %parse-param
+test/calc.tab.c                 c-file for calc.y
 test/calc.y                     example from VMS freeware version of byacc
 test/calc1.y                    advanced example from Steve Johnson's paper.
 test/calc2.y                    test-cases and reference files for %lex-param / %parse-param

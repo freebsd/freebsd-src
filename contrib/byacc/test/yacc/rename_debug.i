@@ -37,6 +37,10 @@ typedef int YYSTYPE;
 # define YYLEX yylex()
 #endif
 
+#if !(defined(yylex) || defined(YYSTATE))
+int YYLEX_DECL();
+#endif
+
 /* Parameters sent to yyerror. */
 #ifndef YYERROR_DECL
 #define YYERROR_DECL() yyerror(const char *s)
@@ -47,10 +51,16 @@ typedef int YYSTYPE;
 
 extern int YYPARSE_DECL();
 
+#ifndef YYDEBUG
+#define YYDEBUG 1
+#endif
+
+#if YYDEBUG
 extern	int      yydebug;
-extern	int      yynerrs;
+#endif
 
 extern	int      yyerrflag;
 extern	int      yychar;
 extern	YYSTYPE  yyval;
 extern	YYSTYPE  yylval;
+extern	int      yynerrs;

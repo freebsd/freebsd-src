@@ -1,11 +1,11 @@
-/* $Id: reader.c,v 1.68 2017/02/02 01:05:36 tom Exp $ */
+/* $Id: reader.c,v 1.79 2020/03/30 23:54:13 tom Exp $ */
 
 #include "defs.h"
 
 /*  The line size must be a positive integer.  One hundred was chosen	*/
 /*  because few lines in Yacc input grammars exceed 100 characters.	*/
 /*  Note that if a line exceeds LINESIZE characters, the line buffer	*/
-/*  will be expanded to accomodate it.					*/
+/*  will be expanded to accommodate it.					*/
 
 #define LINESIZE 100
 
@@ -61,6 +61,13 @@ char line_format[] = "#line %d \"%s\"\n";
 
 param *lex_param;
 param *parse_param;
+
+static const char *code_keys[] =
+{
+    "", "requires", "provides", "top", "imports",
+};
+
+struct code_lines code_lines[CODE_MAX];
 
 #if defined(YYBTYACC)
 int destructor = 0;	/* =1 if at least one %destructor */
@@ -144,7 +151,7 @@ line_directive(void)
 	switch (ld)
 	{
 	case ldSPC1:
-	    if (isspace(ch))
+	    if (isspace(UCH(ch)))
 	    {
 		break;
 	    }
@@ -153,7 +160,7 @@ line_directive(void)
 	    ld = ldSPC2;
 	    break;
 	case ldSPC2:
-	    if (isspace(ch))
+	    if (isspace(UCH(ch)))
 	    {
 		break;
 	    }
@@ -171,26 +178,26 @@ line_directive(void)
 	    ld = ldSPC3;
 	    break;
 	case ldSPC3:
-	    if (isspace(ch))
+	    if (isspace(UCH(ch)))
 	    {
 		break;
 	    }
 	    else
-		UNLESS(!isdigit(ch));
+		UNLESS(!isdigit(UCH(ch)));
 	    line_1st = n;
 	    ld = ldNUM;
 	    /* FALLTHRU */
 	case ldNUM:
-	    if (isdigit(ch))
+	    if (isdigit(UCH(ch)))
 	    {
 		break;
 	    }
 	    else
-		UNLESS(!isspace(ch));
+		UNLESS(!isspace(UCH(ch)));
 	    ld = ldSPC4;
 	    break;
 	case ldSPC4:
-	    if (isspace(ch))
+	    if (isspace(UCH(ch)))
 	    {
 		break;
 	    }
@@ -217,19 +224,33 @@ line_directive(void)
     if (ld == ldOK)
     {
 	size_t need = (size_t) (name_end - name_1st);
-	if (need > input_file_name_len)
+	if ((long)need > (long)input_file_name_len)
 	{
-	    input_file_name_len = need;
-	    input_file_name = TREALLOC(char, input_file_name, need + 1);
+	    input_file_name_len = ((need + 1) * 3) / 2;
+	    input_file_name = TREALLOC(char, input_file_name, input_file_name_len);
 	    NO_SPACE(input_file_name);
 	}
-	memcpy(input_file_name, line + name_1st + 1, need - 1);
-	input_file_name[need - 1] = '\0';
+	if ((long)need > 0)
+	{
+	    memcpy(input_file_name, line + name_1st + 1, need - 1);
+	    input_file_name[need - 1] = '\0';
+	}
+	else
+	{
+	    input_file_name[0] = '\0';
+	}
     }
 
     if (ld >= ldNUM && ld < ldERR)
     {
-	lineno = (int)strtol(line + line_1st, NULL, 10) - 1;
+	if (line_1st >= 0)
+	{
+	    lineno = (int)strtol(line + line_1st, NULL, 10) - 1;
+	}
+	else
+	{
+	    lineno = 0;
+	}
     }
 
     return (ld == ldOK);
@@ -423,11 +444,12 @@ nextc(void)
 /* *INDENT-OFF* */
 static struct keyword
 {
-    char name[14];
+    char name[16];
     int token;
 }
 keywords[] = {
     { "binary",      NONASSOC },
+    { "code",        XCODE },
     { "debug",       XXXDEBUG },
 #if defined(YYBTYACC)
     { "destructor",  DESTRUCTOR },
@@ -435,7 +457,7 @@ keywords[] = {
     { "error-verbose",ERROR_VERBOSE },
     { "expect",      EXPECT },
     { "expect-rr",   EXPECT_RR },
-    { "ident",       IDENT }, 
+    { "ident",       IDENT },
 #if defined(YYBTYACC)
     { "initial-action", INITIAL_ACTION },
 #endif
@@ -447,11 +469,11 @@ keywords[] = {
     { "nonassoc",    NONASSOC },
     { "parse-param", PARSE_PARAM },
     { "pure-parser", PURE_PARSER },
-    { "right",       RIGHT }, 
+    { "right",       RIGHT },
     { "start",       START },
     { "term",        TOKEN },
     { "token",       TOKEN },
-    { "token-table", TOKEN_TABLE }, 
+    { "token-table", TOKEN_TABLE },
     { "type",        TYPE },
     { "union",       UNION },
     { "yacc",        POSIX_YACC },
@@ -474,18 +496,18 @@ keyword(void)
     struct keyword *key;
 
     c = *++cptr;
-    if (isalpha(c))
+    if (isalpha(UCH(c)))
     {
 	cinc = 0;
 	for (;;)
 	{
-	    if (isalpha(c))
+	    if (isalpha(UCH(c)))
 	    {
-		if (isupper(c))
+		if (isupper(UCH(c)))
 		    c = tolower(c);
 		cachec(c);
 	    }
-	    else if (isdigit(c)
+	    else if (isdigit(UCH(c))
 		     || c == '-'
 		     || c == '.'
 		     || c == '$')
@@ -644,6 +666,127 @@ copy_comment(void)
 	}
     }
     return msdone(temp);
+}
+
+static int
+check_key(int pos)
+{
+    const char *key = code_keys[pos];
+    while (*cptr && *key)
+	if (*key++ != *cptr++)
+	    return 0;
+    if (*key || (!isspace(UCH(*cptr)) && *cptr != L_CURL))
+	return 0;
+    cptr--;
+    return 1;
+}
+
+static void
+copy_code(void)
+{
+    int c;
+    int curl;
+    int cline;
+    int on_line = 0;
+    int pos = CODE_HEADER;
+    struct mstring *code_mstr;
+
+    /* read %code <keyword> { */
+    for (;;)
+    {
+	c = *++cptr;
+	if (c == EOF)
+	    unexpected_EOF();
+	if (isspace(UCH(c)))
+	    continue;
+
+	if (c == L_CURL)
+	    break;
+
+	if (pos == CODE_HEADER)
+	{
+	    switch (UCH(c))
+	    {
+	    case 'r':
+		pos = CODE_REQUIRES;
+		break;
+	    case 'p':
+		pos = CODE_PROVIDES;
+		break;
+	    case 't':
+		pos = CODE_TOP;
+		break;
+	    case 'i':
+		pos = CODE_IMPORTS;
+		break;
+	    default:
+		break;
+	    }
+
+	    if (pos == -1 || !check_key(pos))
+	    {
+		syntax_error(lineno, line, cptr);
+		return;
+	    }
+	}
+    }
+
+    cptr++;			/* skip initial curl */
+    while (*cptr && isspace(UCH(*cptr)))	/* skip space */
+	cptr++;
+    curl = 1;			/* nesting count */
+
+    /* gather text */
+    code_lines[pos].name = code_keys[pos];
+    if ((cline = (int)code_lines[pos].num) != 0)
+    {
+	code_mstr = msrenew(code_lines[pos].lines);
+    }
+    else
+    {
+	code_mstr = msnew();
+    }
+    cline++;
+    msprintf(code_mstr, line_format, lineno, input_file_name);
+    for (;;)
+    {
+	c = *cptr++;
+	switch (c)
+	{
+	case '\0':
+	    get_line();
+	    if (line == NULL)
+	    {
+		unexpected_EOF();
+		return;
+	    }
+	    continue;
+	case '\n':
+	    cline++;
+	    on_line = 0;
+	    break;
+	case L_CURL:
+	    curl++;
+	    break;
+	case R_CURL:
+	    if (--curl == 0)
+	    {
+		if (on_line > 1)
+		{
+		    mputc(code_mstr, '\n');
+		    cline++;
+		}
+		code_lines[pos].lines = msdone(code_mstr);
+		code_lines[pos].num = (size_t) cline;
+		return;
+	    }
+	    break;
+	default:
+	    break;
+	}
+	mputc(code_mstr, c);
+	on_line++;
+    }
 }
 
 static void
@@ -1235,7 +1378,7 @@ get_literal(void)
 	    cachec('\\');
 	    cachec(c);
 	}
-	else if (isprint(c))
+	else if (isprint(UCH(c)))
 	    cachec(c);
 	else
 	{
@@ -1329,13 +1472,21 @@ static Value_t
 get_number(void)
 {
     int c;
-    Value_t n;
+    long n;
+    char *base = cptr;
 
     n = 0;
-    for (c = *cptr; isdigit(c); c = *++cptr)
-	n = (Value_t)(10 * n + (c - '0'));
+    for (c = *cptr; isdigit(UCH(c)); c = *++cptr)
+    {
+	n = (10 * n + (c - '0'));
+	if (n > MAXYYINT)
+	{
+	    syntax_error(lineno, line, base);
+	    /*NOTREACHED */
+	}
+    }
 
-    return (n);
+    return (Value_t)(n);
 }
 
 static char *
@@ -1382,7 +1533,7 @@ get_tag(void)
     c = nextc();
     if (c == EOF)
 	unexpected_EOF();
-    if (!isalpha(c) && c != '_' && c != '$')
+    if (!IS_NAME1(c))
 	illegal_tag(t_lineno, t_line, t_cptr);
 
     cinc = 0;
@@ -1412,7 +1563,7 @@ scan_id(void)
 {
     char *b = cptr;
 
-    while (isalnum(UCH(*cptr)) || *cptr == '_' || *cptr == '$')
+    while (IS_NAME2(UCH(*cptr)))
 	cptr++;
     return cache_tag(b, (size_t) (cptr - b));
 }
@@ -1442,7 +1593,7 @@ declare_tokens(int assoc)
 
     for (;;)
     {
-	if (isalpha(c) || c == '_' || c == '.' || c == '$')
+	if (isalpha(UCH(c)) || c == '_' || c == '.' || c == '$')
 	    bp = get_name();
 	else if (c == '\'' || c == '"')
 	    bp = get_literal();
@@ -1472,8 +1623,7 @@ declare_tokens(int assoc)
 	if (c == EOF)
 	    unexpected_EOF();
 
-	value = UNDEFINED;
-	if (isdigit(c))
+	if (isdigit(UCH(c)))
 	{
 	    value = get_number();
 	    if (bp->value != UNDEFINED && value != bp->value)
@@ -1509,7 +1659,7 @@ declare_expect(int assoc)
 
     for (;;)
     {
-	if (isdigit(c))
+	if (isdigit(UCH(c)))
 	{
 	    if (assoc == EXPECT)
 		SRexpect = get_number();
@@ -1522,7 +1672,7 @@ declare_expect(int assoc)
 	 * Spaces, tabs, and numbers are ok,
 	 * words, punc., etc. are syntax errors.
 	 */
-	else if (c == '\n' || isalpha(c) || !isspace(c))
+	else if (c == '\n' || isalpha(UCH(c)) || !isspace(UCH(c)))
 	{
 	    syntax_error(lineno, line, cptr);
 	}
@@ -1591,7 +1741,7 @@ declare_types(void)
 	c = nextc();
 	if (c == EOF)
 	    unexpected_EOF();
-	if (isalpha(c) || c == '_' || c == '.' || c == '$')
+	if (isalpha(UCH(c)) || c == '_' || c == '.' || c == '$')
 	{
 	    bp = get_name();
 #if defined(YYBTYACC)
@@ -1629,7 +1779,7 @@ declare_start(void)
     c = nextc();
     if (c == EOF)
 	unexpected_EOF();
-    if (!isalpha(c) && c != '_' && c != '.' && c != '$')
+    if (!isalpha(UCH(c)) && c != '_' && c != '.' && c != '$')
 	syntax_error(lineno, line, cptr);
     bp = get_name();
     if (bp->class == TERM)
@@ -1662,6 +1812,10 @@ read_declarations(void)
 
 	case IDENT:
 	    copy_ident();
+	    break;
+
+	case XCODE:
+	    copy_code();
 	    break;
 
 	case TEXT:
@@ -1871,7 +2025,7 @@ parse_id(char *p, char **save)
     if (!isalpha(UCH(*p)) && *p != '_')
 	return NULL;
     b = p;
-    while (isalnum(UCH(*p)) || *p == '_' || *p == '$')
+    while (IS_NAME2(UCH(*p)))
 	p++;
     if (save)
     {
@@ -2129,7 +2283,10 @@ can_elide_arg(char **theptr, char *yyvaltag)
     {
 	char *arg;
 	if (!(p = parse_id(p, &arg)))
+	{
+	    FREE(offsets);
 	    return 0;
+	}
 	for (i = plhs[nrules]->args - 1; i >= 0; i--)
 	    if (arg == plhs[nrules]->argnames[i])
 		break;
@@ -2149,7 +2306,7 @@ can_elide_arg(char **theptr, char *yyvaltag)
 	rv = 0;
     if (maxoffset > 0)
 	FREE(offsets);
-    if (*p || rv <= 0)
+    if (p == 0 || *p || rv <= 0)
 	return 0;
     *theptr = p + 1;
     return rv;
@@ -2228,6 +2385,10 @@ advance_to_start(void)
 	s_cptr = cptr;
 	switch (keyword())
 	{
+	case XCODE:
+	    copy_code();
+	    break;
+
 	case MARK:
 	    no_grammar();
 
@@ -2245,7 +2406,7 @@ advance_to_start(void)
     }
 
     c = nextc();
-    if (!isalpha(c) && c != '_' && c != '.' && c != '_')
+    if (!isalpha(UCH(c)) && c != '_' && c != '.' && c != '_')
 	syntax_error(lineno, line, cptr);
     bp = get_name();
     if (goal == 0)
@@ -2572,7 +2733,7 @@ copy_action(void)
 		FREE(d_line);
 		goto loop;
 	    }
-	    else if (isdigit(c))
+	    else if (isdigit(UCH(c)))
 	    {
 		i = get_number();
 		if (i == 0)
@@ -2596,7 +2757,7 @@ copy_action(void)
 		goto loop;
 	    }
 #if defined(YYBTYACC)
-	    else if (isalpha(c) || c == '_')
+	    else if (isalpha(UCH(c)) || c == '_')
 	    {
 		char *arg = scan_id();
 		for (i = plhs[nrules]->args - 1; i >= 0; i--)
@@ -2727,14 +2888,14 @@ copy_action(void)
 	}
     }
 #endif
-    if (isalpha(c) || c == '_' || c == '$')
+    if (IS_NAME1(c))
     {
 	do
 	{
 	    putc(c, f);
 	    c = *++cptr;
 	}
-	while (isalnum(c) || c == '_' || c == '$');
+	while (IS_NAME2(c));
 	goto loop;
     }
     ++cptr;
@@ -2923,14 +3084,14 @@ get_code(struct ainfo *a, const char *loc)
 	cptr += 2;
 	goto loop;
     }
-    if (isalpha(c) || c == '_' || c == '$')
+    if (IS_NAME1(c))
     {
 	do
 	{
 	    mputc(code_mstr, c);
 	    c = *++cptr;
 	}
-	while (isalnum(c) || c == '_' || c == '$');
+	while (IS_NAME2(c));
 	goto loop;
     }
     ++cptr;
@@ -3049,7 +3210,7 @@ copy_destructor(void)
 		    bp->destructor = process_destructor_XX(code_text, tag);
 	    }
 	}
-	else if (isalpha(c) || c == '_' || c == '.' || c == '$')
+	else if (isalpha(UCH(c)) || c == '_' || c == '.' || c == '$')
 	{			/* "symbol" destructor */
 	    bp = get_name();
 	    if (bp->destructor != NULL)
@@ -3090,14 +3251,14 @@ process_destructor_XX(char *code, char *tag)
 	    msprintf(new_code, "(*val).%s", tag);
 	goto loop;
     }
-    if (isalpha(c) || c == '_' || c == '$')
+    if (IS_NAME1(c))
     {
 	do
 	{
 	    mputc(new_code, c);
 	    c = *++codeptr;
 	}
-	while (isalnum(c) || c == '_' || c == '$');
+	while (IS_NAME2(c));
 	goto loop;
     }
     ++codeptr;
@@ -3180,7 +3341,7 @@ mark_symbol(void)
 	syntax_error(lineno, line, cptr);
 
     c = nextc();
-    if (isalpha(c) || c == '_' || c == '.' || c == '$')
+    if (isalpha(UCH(c)) || c == '_' || c == '.' || c == '$')
 	bp = get_name();
     else if (c == '\'' || c == '"')
 	bp = get_literal();
@@ -3211,7 +3372,7 @@ read_grammar(void)
 	c = nextc();
 	if (c == EOF)
 	    break;
-	if (isalpha(c)
+	if (isalpha(UCH(c))
 	    || c == '_'
 	    || c == '.'
 	    || c == '$'

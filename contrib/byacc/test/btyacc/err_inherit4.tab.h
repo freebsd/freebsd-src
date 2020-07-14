@@ -35,5 +35,6 @@ typedef struct YYLTYPE
 #define YYLTYPE_IS_DECLARED 1
 #endif
 #define YYRHSLOC(rhs, k) ((rhs)[k])
+extern YYLTYPE err_inherit4_lloc;
 
 #endif /* _err_inherit4__defines_h_ */
