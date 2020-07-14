@@ -262,7 +262,6 @@ static u_int __read_mostly	ncsize; /* the size as computed on creation or resizi
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
 static struct mtx __exclusive_cache_line	ncneg_shrink_lock;
-static int	shrink_list_turn;
 
 struct neglist {
 	struct mtx		nl_lock;
@@ -815,18 +814,18 @@ cache_negative_remove(struct namecache *ncp)
 }
 
 static void
-cache_negative_shrink_select(int start, struct namecache **ncpp,
+cache_negative_shrink_select(struct namecache **ncpp,
     struct neglist **neglistpp)
 {
 	struct neglist *neglist;
 	struct namecache *ncp;
-	int i;
+	static u_int cycle;
+	u_int i;
 
 	*ncpp = ncp = NULL;
-	neglist = NULL;
 
-	for (i = start; i < numneglists; i++) {
-		neglist = &neglists[i];
+	for (i = 0; i < numneglists; i++) {
+		neglist = &neglists[(cycle + i) % numneglists];
 		if (TAILQ_FIRST(&neglist->nl_list) == NULL)
 			continue;
 		mtx_lock(&neglist->nl_lock);
@@ -838,6 +837,7 @@ cache_negative_shrink_select(int start, struct namecache **ncpp,
 
 	*neglistpp = neglist;
 	*ncpp = ncp;
+	cycle++;
 }
 
 static void
@@ -870,12 +870,8 @@ cache_negative_zap_one(void)
 	}
 	mtx_unlock(&ncneg_hot.nl_lock);
 
-	cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
-	shrink_list_turn++;
-	if (shrink_list_turn == numneglists)
-		shrink_list_turn = 0;
-	if (ncp == NULL && shrink_list_turn == 0)
-		cache_negative_shrink_select(shrink_list_turn, &ncp, &neglist);
+	cache_negative_shrink_select(&ncp, &neglist);
+
 	mtx_unlock(&ncneg_shrink_lock);
 	if (ncp == NULL)
 		return;
