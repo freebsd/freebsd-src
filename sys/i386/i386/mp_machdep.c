@@ -481,9 +481,10 @@ volatile uint32_t smp_tlb_generation;
 /*
  * Used by pmap to request cache or TLB invalidation on local and
  * remote processors.  Mask provides the set of remote CPUs which are
- * to be signalled with the invalidation IPI, specified by vector.  As
- * an optimization, the curcpu_cb callback is invoked on the calling
- * CPU while waiting for remote CPUs to complete the operation.
+ * to be signalled with the invalidation IPI.  Vector specifies which
+ * invalidation IPI is used.  As an optimization, the curcpu_cb
+ * callback is invoked on the calling CPU while waiting for remote
+ * CPUs to complete the operation.
  *
  * The callback function is called unconditionally on the caller's
  * underlying processor, even when this processor is not set in the
