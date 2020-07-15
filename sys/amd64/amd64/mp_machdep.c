@@ -203,7 +203,7 @@ cpu_mp_start(void)
 		cpu_apic_ids[i] = -1;
 	}
 
-	/* Install an inter-CPU IPI for for cache and TLB invalidations. */
+	/* Install an inter-CPU IPI for cache and TLB invalidations. */
 	setidt(IPI_INVLOP, pti ? IDTVEC(invlop_pti) : IDTVEC(invlop),
 	    SDT_SYSIGT, SEL_KPL, 0);
 
@@ -557,7 +557,7 @@ static enum invl_op_codes invl_op_pg;
  * at location (cpu, my_cpuid) for each target cpu.  After that IPI is
  * sent to all targets which scan for zeroed scoreboard generation
  * words.  Upon finding such word the shootdown data is read from
- * corresponding cpu' pcpu, and generation is set.  Meantime initiator
+ * corresponding cpu's pcpu, and generation is set.  Meantime initiator
  * loops waiting for all zeroed generations in scoreboard to update.
  */
 static uint32_t *invl_scoreboard;
@@ -654,8 +654,8 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 
 	/*
 	 * Initiator must have interrupts enabled, which prevents
-	 * non-invalidation IPIs, that takes smp_ipi_mtx spinlock,
-	 * from deadlocking with as.  On the other hand, preemption
+	 * non-invalidation IPIs that take smp_ipi_mtx spinlock,
+	 * from deadlocking with us.  On the other hand, preemption
 	 * must be disabled to pin initiator to the instance of the
 	 * pcpu pc_smp_tlb data and scoreboard line.
 	 */
@@ -687,7 +687,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	/*
 	 * IPI acts as a fence between writing to the scoreboard above
 	 * (zeroing slot) and reading from it below (wait for
-	 * acknowledge).
+	 * acknowledgment).
 	 */
 	if (CPU_ISFULLSET(&mask)) {
 		ipi_all_but_self(IPI_INVLOP);
@@ -1080,7 +1080,7 @@ invlop_handler(void)
 
 		/*
 		 * This acquire fence and its corresponding release
-		 * fence in smp_targeted_tlb_shootdown(), is between
+		 * fence in smp_targeted_tlb_shootdown() is between
 		 * reading zero scoreboard slot and accessing PCPU of
 		 * initiator for pc_smp_tlb values.
 		 */
