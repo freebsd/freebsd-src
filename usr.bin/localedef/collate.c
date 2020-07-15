@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include "parser.h"
 #include "collate.h"
 
+_Static_assert(COLL_WEIGHTS_MAX == 10, "This code assumes a value of 10");
+
 /*
  * Design notes.
  *
