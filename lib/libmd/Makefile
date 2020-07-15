@@ -121,8 +121,6 @@ CFLAGS+= -DRMD160_ASM
 ACFLAGS+= -DSKEIN_LOOP=0
 SRCS+= skein_block_asm.S
 CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
-.else
-.warning as not available: not using optimized Skein asm
 .endif
 .if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.S)
 ACFLAGS+= -DELF -Wa,--noexecstack
