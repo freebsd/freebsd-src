@@ -1749,7 +1749,7 @@ main(int ac, char **av)
 
 	debug("sshd version %s, %s", SSH_VERSION,
 #ifdef WITH_OPENSSL
-	    OpenSSL_version(SSLEAY_VERSION)
+	    OpenSSL_version(OPENSSL_VERSION)
 #else
 	    "without OpenSSL"
 #endif
