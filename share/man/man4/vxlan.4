@@ -80,7 +80,7 @@ The
 driver creates a pseudo Ethernet network interface
 that supports the usual network
 .Xr ioctl 2 Ns s
-and is thus can be used with
+and thus can be used with
 .Xr ifconfig 8
 like any other Ethernet interface.
 The
@@ -89,7 +89,7 @@ interface encapsulates the Ethernet frame
 by prepending IP/UDP and
 .Nm
 headers.
-Thus, the encapsulated (inner) frame is able to transmitted
+Thus, the encapsulated (inner) frame is able to be transmitted
 over a routed, Layer 3 network to the remote host.
 .Pp
 The
@@ -102,7 +102,7 @@ When in multicast mode,
 the interface joins an IP multicast group,
 and receives packets sent to the group address,
 and transmits packets to either the multicast group address,
-or directly the remote host if there is an appropriate
+or directly to the remote host if there is an appropriate
 forwarding table entry.
 .Pp
 When the
@@ -155,7 +155,7 @@ The maximum number of entries in the table is configurable with the
 .Xr ifconfig 8
 .Cm vxlanmaxaddr
 command.
-Stale entries in the table periodically pruned.
+Stale entries in the table are periodically pruned.
 The timeout is configurable with the
 .Xr ifconfig 8
 .Cm vxlantimeout
