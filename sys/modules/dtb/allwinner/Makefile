@@ -21,6 +21,7 @@ DTS=	\
 	sun8i-h3-nanopi-neo.dts \
 	sun8i-h3-orangepi-one.dts \
 	sun8i-h3-orangepi-pc.dts \
+	sun8i-h3-orangepi-pc-plus.dts \
 	sun8i-h3-orangepi-plus2e.dts
 
 DTSO=	sun8i-a83t-sid.dtso \
