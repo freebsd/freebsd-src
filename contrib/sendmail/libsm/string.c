@@ -54,3 +54,34 @@ stripquotes(s)
 		*q++ = c;
 	} while (c != '\0');
 }
+
+/*
+**  UNFOLDSTRIPQUOTES -- Strip quotes & quote bits from a string.
+**
+**	Parameters:
+**		s -- the string to strip.
+**
+**	Returns:
+**		none.
+*/
+
+void
+unfoldstripquotes(s)
+	char *s;
+{
+	char *p, *q, c;
+
+	if (s == NULL)
+		return;
+
+	p = q = s;
+	do
+	{
+		c = *p++;
+		if (c == '\\' || c == '\n')
+			c = *p++;
+		else if (c == '"')
+			continue;
+		*q++ = c;
+	} while (c != '\0');
+}

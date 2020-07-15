@@ -19,8 +19,6 @@ SM_RCSID("@(#)$Id: smdb1.c,v 8.63 2013-11-22 20:51:49 ca Exp $")
 
 #if (DB_VERSION_MAJOR == 1)
 
-# define SMDB1_FILE_EXTENSION "db"
-
 struct smdb_db1_struct
 {
 	DB	*smdb1_db;
@@ -72,10 +70,10 @@ smdb_type_to_db1_type(type)
 	if (type == SMDB_TYPE_DEFAULT)
 		return DB_HASH;
 
-	if (strncmp(type, SMDB_TYPE_HASH, SMDB_TYPE_HASH_LEN) == 0)
+	if (SMDB_IS_TYPE_HASH(type))
 		return DB_HASH;
 
-	if (strncmp(type, SMDB_TYPE_BTREE, SMDB_TYPE_BTREE_LEN) == 0)
+	if (SMDB_IS_TYPE_BTREE(type))
 		return DB_BTREE;
 
 	/* Should never get here thanks to test in smdb_db_open() */
@@ -471,8 +469,8 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 	char db_file_name[MAXPATHLEN];
 
 	if (type == NULL ||
-	    (strncmp(SMDB_TYPE_HASH, type, SMDB_TYPE_HASH_LEN) != 0 &&
-	     strncmp(SMDB_TYPE_BTREE, type, SMDB_TYPE_BTREE_LEN) != 0))
+	    (!SMDB_IS_TYPE_HASH(type) && !SMDB_IS_TYPE_BTREE(type)
+	     ))
 		return SMDBE_UNKNOWN_DB_TYPE;
 
 	result = smdb_add_extension(db_file_name, sizeof db_file_name,
@@ -515,8 +513,7 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 	db1->smdb1_lock_fd = lock_fd;
 
 	params = NULL;
-	if (db_params != NULL &&
-	    (strncmp(SMDB_TYPE_HASH, type, SMDB_TYPE_HASH_LEN) == 0))
+	if (db_params != NULL && SMDB_IS_TYPE_HASH(type))
 	{
 		(void) memset(&hash_info, '\0', sizeof hash_info);
 		hash_info.nelem = db_params->smdbp_num_elements;
@@ -524,8 +521,7 @@ smdb_db_open(database, db_name, mode, mode_mask, sff, type, user_info,
 		params = &hash_info;
 	}
 
-	if (db_params != NULL &&
-	    (strncmp(SMDB_TYPE_BTREE, type, SMDB_TYPE_BTREE_LEN) == 0))
+	if (db_params != NULL && SMDB_IS_TYPE_BTREE(type))
 	{
 		(void) memset(&btree_info, '\0', sizeof btree_info);
 		btree_info.cachesize = db_params->smdbp_cache_size;

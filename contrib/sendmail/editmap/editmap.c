@@ -23,19 +23,19 @@ SM_UNUSED(static char copyright[]) =
 
 #ifndef lint
 SM_UNUSED(static char id[]) = "@(#)$Id: editmap.c,v 1.26 2013-11-22 20:51:26 ca Exp $";
-#endif /* ! lint */
+#endif
 
 
 #include <sys/types.h>
 #ifndef ISC_UNIX
 # include <sys/file.h>
-#endif /* ! ISC_UNIX */
+#endif
 #include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 #include <assert.h>
 #include <sendmail/sendmail.h>
@@ -100,7 +100,7 @@ main(argc, argv)
 #if HASFCHOWN
 	FILE *cfp;
 	char buf[MAXLINE];
-#endif /* HASFCHOWN */
+#endif
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	extern char *optarg;
 	extern int optind;

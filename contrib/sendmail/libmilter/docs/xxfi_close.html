@@ -30,6 +30,7 @@ The current connection is being closed.
 <TD>Do nothing; return SMFIS_CONTINUE.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -43,7 +44,7 @@ The current connection is being closed.
 
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>
 <UL>
 <LI>xxfi_close may be called "out-of-order", i.e. before even the
@@ -59,7 +60,7 @@ xxfi_close code.
 In particular, it is incorrect to assume the private context pointer
 will be something other than NULL in this callback.
 <LI>xxfi_close is called on close even if the previous mail
-transaction was aborted.  
+transaction was aborted.
 <LI>xxfi_close is responsible for freeing any resources allocated on a
 per-connection basis.
 <LI>Since the connection is already closing, the return value is

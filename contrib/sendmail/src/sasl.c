@@ -26,9 +26,9 @@ SM_RCSID("@(#)$Id: sasl.c,v 8.24 2013-11-22 20:51:56 ca Exp $")
 
 # if defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a
 #  define SM_SASL_SIZE_T	size_t
-# else /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
+# else
 #  define SM_SASL_SIZE_T	unsigned long
-# endif /* defined(SASL_VERSION_FULL) && SASL_VERSION_FULL >= 0x02011a */
+# endif
 
 void *sm_sasl_malloc __P((SM_SASL_SIZE_T));
 static void *sm_sasl_calloc __P((SM_SASL_SIZE_T, SM_SASL_SIZE_T));
@@ -249,7 +249,7 @@ iptostring(addr, addrlen, out, outlen)
 	char hbuf[NI_MAXHOST], pbuf[NI_MAXSERV];
 #  if NETINET6
 	int niflags;
-#  endif /* NETINET6 */
+#  endif
 
 	if (addr == NULL || out == NULL)
 	{
@@ -262,7 +262,7 @@ iptostring(addr, addrlen, out, outlen)
 #   ifdef NI_WITHSCOPEID
 	if (addr->sa.sa_family == AF_INET6)
 		niflags |= NI_WITHSCOPEID;
-#   endif /* NI_WITHSCOPEID */
+#   endif
 	if (getnameinfo((struct sockaddr *) addr, addrlen,
 			hbuf, sizeof(hbuf), pbuf, sizeof(pbuf), niflags) != 0)
 		return false;

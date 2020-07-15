@@ -31,13 +31,13 @@
 
 # ifndef LLONG_MIN
 #  define LLONG_MIN	((LONGLONG_T)(~(ULLONG_MAX >> 1)))
-# endif /* ! LLONG_MIN */
+# endif
 # ifndef LLONG_MAX
 #  define LLONG_MAX	((LONGLONG_T)(ULLONG_MAX >> 1))
-# endif /* ! LLONG_MAX */
+# endif
 # ifndef ULLONG_MAX
 #  define ULLONG_MAX	((ULONGLONG_T)(-1))
-# endif /* ! ULLONG_MAX */
+# endif
 
 /*
 **  PATH_MAX is defined by the POSIX standard.  All modern systems
@@ -47,9 +47,9 @@
 # ifndef PATH_MAX
 #  ifdef MAXPATHLEN
 #   define PATH_MAX	MAXPATHLEN
-#  else /* MAXPATHLEN */
+#  else
 #   define PATH_MAX	2048
-#  endif /* MAXPATHLEN */
+#  endif
 # endif /* ! PATH_MAX */
 
 #endif /* ! SM_LIMITS_H */

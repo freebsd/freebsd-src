@@ -23,5 +23,5 @@ ifdef(`LOCAL_SHELL_PATH',, `define(`LOCAL_SHELL_PATH', /usr/bin/sh)')dnl
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gC $h!rmail ($u)')')dnl
 define(`confTIME_ZONE', `USE_TZ')dnl
 dnl
-dnl	For maximum compability with HP-UX, use:
+dnl	For maximum compatibility with HP-UX, use:
 dnl	define(`confME_TOO', True)dnl

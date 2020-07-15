@@ -38,7 +38,7 @@ warntimer(msg, va_alist)
 # if 0
 	if (!tTd(98, 30))
 		return;
-# endif /* 0 */
+# endif
 	SM_VA_START(ap, msg);
 	(void) sm_vsnprintf(buf, sizeof(buf), msg, ap);
 	SM_VA_END(ap);

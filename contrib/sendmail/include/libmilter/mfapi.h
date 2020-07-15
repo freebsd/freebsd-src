@@ -43,11 +43,11 @@
 /* Only need to export C interface if used by C++ source code */
 #ifdef __cplusplus
 extern "C" {
-#endif /* __cplusplus */
+#endif
 
 #ifndef _SOCK_ADDR
 # define _SOCK_ADDR	struct sockaddr
-#endif /* ! _SOCK_ADDR */
+#endif
 
 /*
 **  libmilter functions return one of the following to indicate
@@ -58,7 +58,7 @@ extern "C" {
 #define MI_FAILURE	(-1)
 #if _FFR_WORKERS_POOL
 # define MI_CONTINUE	1
-#endif /* _FFR_WORKERS_POOL */
+#endif
 
 /* "forward" declarations */
 typedef struct smfi_str SMFICTX;
@@ -76,17 +76,17 @@ typedef int	sfsistat;
 
 #if defined(__linux__) && defined(__GNUC__) && defined(__cplusplus) && __GNUC_MINOR__ >= 8
 # define SM__P(X)	__PMT(X)
-#else /* __linux__ && __GNUC__ && __cplusplus && _GNUC_MINOR__ >= 8 */
+#else
 # define SM__P(X)	__P(X)
-#endif /* __linux__ && __GNUC__ && __cplusplus && _GNUC_MINOR__ >= 8 */
+#endif
 
 /* Some platforms don't define __P -- do it for them here: */
 #ifndef __P
 # ifdef __STDC__
 #  define __P(X) X
-# else /* __STDC__ */
+# else
 #  define __P(X) ()
-# endif /* __STDC__ */
+# endif
 #endif /* __P */
 
 #if SM_CONF_STDBOOL_H
@@ -464,7 +464,7 @@ LIBMILTER_API int smfi_chgheader __P((SMFICTX *, char *, int, char *));
 **
 **	SMFICTX *ctx; Opaque context structure
 **	char *headerf; Header field name
-**	int index; The Nth occurence of header field name
+**	int index; The Nth occurrence of header field name
 **	char *headerv; New header field value (empty for delete header)
 */
 
@@ -594,10 +594,10 @@ LIBMILTER_API int smfi_setsymlist __P((SMFICTX *, int, char *));
 
 #if _FFR_THREAD_MONITOR
 LIBMILTER_API int smfi_set_max_exec_time __P((unsigned int));
-#endif /* _FFR_THREAD_MONITOR */
+#endif
 
 #ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#endif
 
 #endif /* ! _LIBMILTER_MFAPI_H */

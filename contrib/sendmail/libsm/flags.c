@@ -23,7 +23,7 @@ SM_RCSID("@(#)$Id: flags.c,v 1.24 2013-11-22 20:51:42 ca Exp $")
 /*
 **  SM_FLAGS -- translate external (user) flags into internal flags
 **
-**	Paramters:
+**	Parameters:
 **		flags -- user select flags
 **
 **	Returns:

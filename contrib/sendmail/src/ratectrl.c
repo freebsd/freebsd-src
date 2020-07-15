@@ -44,57 +44,38 @@
  * SUCH DAMAGE.
  */
 
-#include <sendmail.h>
+#include <ratectrl.h>
 SM_RCSID("@(#)$Id: ratectrl.c,v 8.14 2013-11-22 20:51:56 ca Exp $")
 
-/*
-**  stuff included - given some warnings (inet_ntoa)
-**	- surely not everything is needed
-*/
-
-#if NETINET || NETINET6
-# include <arpa/inet.h>
-#endif	/* NETINET || NETINET6 */
-
-#include <sm/time.h>
-
-#ifndef HASH_ALG
-# define HASH_ALG	2
-#endif /* HASH_ALG */
-
-#ifndef RATECTL_DEBUG
-# define RATECTL_DEBUG  0
-#endif /* RATECTL_DEBUG */
-
-/* forward declarations */
-static int client_rate __P((time_t, SOCKADDR *, bool));
+static int client_rate __P((time_t, SOCKADDR *, int));
 static int total_rate __P((time_t, bool));
+static unsigned int gen_hash __P((SOCKADDR *));
+static void rate_init __P((void));
 
 /*
 **  CONNECTION_RATE_CHECK - updates connection history data
 **      and computes connection rate for the given host
 **
-**    Parameters:
-**      hostaddr -- ip address of smtp client
-**      e -- envelope
+**	Parameters:
+**		hostaddr -- IP address of SMTP client
+**		e -- envelope
 **
-**    Returns:
-**      true (always)
+**	Returns:
+**		none
 **
-**    Side Effects:
-**      updates connection history
+**	Side Effects:
+**		updates connection history
 **
-**    Warnings:
-**      For each connection, this call shall be
-**      done only once with the value true for the
-**      update parameter.
-**      Typically, this call is done with the value
-**      true by the father, and once again with
-**      the value false by the children.
-**
+**	Warnings:
+**		For each connection, this call shall be
+**		done only once with the value true for the
+**		update parameter.
+**		Typically, this call is done with the value
+**		true by the father, and once again with
+**		the value false by the children.
 */
 
-bool
+void
 connection_rate_check(hostaddr, e)
 	SOCKADDR *hostaddr;
 	ENVELOPE *e;
@@ -106,16 +87,16 @@ connection_rate_check(hostaddr, e)
 	now = time(NULL);
 #if RATECTL_DEBUG
 	sm_syslog(LOG_INFO, NOQID, "connection_rate_check entering...");
-#endif /* RATECTL_DEBUG */
+#endif
 
 	/* update server connection rate */
 	totalrate = total_rate(now, e == NULL);
 #if RATECTL_DEBUG
 	sm_syslog(LOG_INFO, NOQID, "global connection rate: %d", totalrate);
-#endif /* RATECTL_DEBUG */
+#endif
 
 	/* update client connection rate */
-	clientrate = client_rate(now, hostaddr, e == NULL);
+	clientrate = client_rate(now, hostaddr, e == NULL ? SM_CLFL_UPDATE : SM_CLFL_NONE);
 
 	if (e == NULL)
 		clientconn = count_open_connections(hostaddr);
@@ -132,7 +113,7 @@ connection_rate_check(hostaddr, e)
 		macdefine(&e->e_macro, A_TEMP, macid("{client_connections}"),
 				s);
 	}
-	return true;
+	return;
 }
 
 /*
@@ -141,17 +122,6 @@ connection_rate_check(hostaddr, e)
 
 static int CollTime = 60;
 
-/* this should be a power of 2, otherwise CPMHMASK doesn't work well */
-#ifndef CPMHSIZE
-# define CPMHSIZE	1024
-#endif /* CPMHSIZE */
-
-#define CPMHMASK	(CPMHSIZE-1)
-
-#ifndef MAX_CT_STEPS
-# define MAX_CT_STEPS	10
-#endif /* MAX_CT_STEPS */
-
 /*
 **  time granularity: 10s (that's one "tick")
 **  will be initialised to ConnectionRateWindowSize/CHTSIZE
@@ -159,151 +129,165 @@ static int CollTime = 60;
 */
 
 static int ChtGran = -1;
-
-#define CHTSIZE		6
-
-/* Number of connections for a certain "tick" */
-typedef struct CTime
-{
-	unsigned long	ct_Ticks;
-	int		ct_Count;
-}
-CTime_T;
-
-typedef struct CHash
-{
-#if NETINET6 && NETINET
-	union
-	{
-		struct in_addr	c4_Addr;
-		struct in6_addr	c6_Addr;
-	} cu_Addr;
-# define ch_Addr4	cu_Addr.c4_Addr
-# define ch_Addr6	cu_Addr.c6_Addr
-#else /* NETINET6 && NETINET */
-# if NETINET6
-	struct in6_addr	ch_Addr;
-#  define ch_Addr6	ch_Addr
-# else /* NETINET6 */
-	struct in_addr ch_Addr;
-#  define ch_Addr4	ch_Addr
-# endif /* NETINET6 */
-#endif /* NETINET6 && NETINET */
-
-	int		ch_Family;
-	time_t		ch_LTime;
-	unsigned long	ch_colls;
-
-	/* 6 buckets for ticks: 60s */
-	CTime_T		ch_Times[CHTSIZE];
-}
-CHash_T;
-
 static CHash_T CHashAry[CPMHSIZE];
-static bool CHashAryOK = false;
+static CTime_T srv_Times[CHTSIZE];
+
+#ifndef MAX_CT_STEPS
+# define MAX_CT_STEPS	10
+#endif
 
 /*
-**  CLIENT_RATE - Evaluate connection rate per smtp client
+**  RATE_INIT - initialize local data
 **
 **	Parameters:
-**		now - current time in secs
-**		saddr - client address
-**		update - update data / check only
+**		none
 **
 **	Returns:
-**		connection rate (connections / ConnectionRateWindowSize)
+**		none
 **
 **	Side effects:
-**		update static global data
-**
+**		initializes static global data
 */
 
-static int
-client_rate(now, saddr, update)
-	 time_t now;
-	 SOCKADDR *saddr;
-	 bool update;
+static void
+rate_init()
+{
+	if (ChtGran > 0)
+		return;
+	ChtGran = ConnectionRateWindowSize / CHTSIZE;
+	if (ChtGran <= 0)
+		ChtGran = 10;
+	memset(CHashAry, 0, sizeof(CHashAry));
+	memset(srv_Times, 0, sizeof(srv_Times));
+	return;
+}
+
+/*
+**  GEN_HASH - calculate a hash value
+**
+**	Parameters:
+**		saddr - client address
+**
+**	Returns:
+**		hash value
+*/
+
+static unsigned int
+gen_hash(saddr)
+	SOCKADDR *saddr;
 {
 	unsigned int hv;
+	int i;
+	int addrlen;
+	char *p;
+#if HASH_ALG != 1
+	int c, d;
+#endif
+
+	hv = 0xABC3D20F;
+	switch (saddr->sa.sa_family)
+	{
+#if NETINET
+	  case AF_INET:
+		p = (char *)&saddr->sin.sin_addr;
+		addrlen = sizeof(struct in_addr);
+		break;
+#endif /* NETINET */
+#if NETINET6
+	  case AF_INET6:
+		p = (char *)&saddr->sin6.sin6_addr;
+		addrlen = sizeof(struct in6_addr);
+		break;
+#endif /* NETINET6 */
+	  default:
+		/* should not happen */
+		return -1;
+	}
+
+	/* compute hash value */
+	for (i = 0; i < addrlen; ++i, ++p)
+#if HASH_ALG == 1
+		hv = (hv << 5) ^ (hv >> 23) ^ *p;
+	hv = (hv ^ (hv >> 16));
+#elif HASH_ALG == 2
+	{
+		d = *p;
+		c = d;
+		c ^= c<<6;
+		hv += (c<<11) ^ (c>>1);
+		hv ^= (d<<14) + (d<<7) + (d<<4) + d;
+	}
+#elif HASH_ALG == 3
+	{
+		hv = (hv << 4) + *p;
+		d = hv & 0xf0000000;
+		if (d != 0)
+		{
+			hv ^= (d >> 24);
+			hv ^= d;
+		}
+	}
+#else /* HASH_ALG == 1 */
+# ERROR: unsupported HASH_ALG
+	hv = ((hv << 1) ^ (*p & 0377)) % cctx->cc_size; ???
+#endif /* HASH_ALG == 1 */
+
+	return hv;
+}
+
+/*
+**  CONN_LIMIT - Evaluate connection limits
+**
+**	Parameters:
+**		e -- envelope (_FFR_OCC, for logging only)
+**		now - current time in secs
+**		saddr - client address
+**		clflags - update data / check only / ...
+**		hashary - hash array
+**		ratelimit - rate limit (_FFR_OCC only)
+**		conclimit - concurrency limit (_FFR_OCC only)
+**
+**	Returns:
+#if _FFR_OCC
+**		outgoing: limit exceeded?
+#endif
+**		incoming:
+**		  connection rate (connections / ConnectionRateWindowSize)
+*/
+
+int
+conn_limits(e, now, saddr, clflags, hashary, ratelimit, conclimit)
+	ENVELOPE *e;
+	time_t now;
+	SOCKADDR *saddr;
+	int clflags;
+	CHash_T hashary[];
+	int ratelimit;
+	int conclimit;
+{
 	int i;
 	int cnt;
 	bool coll;
 	CHash_T *chBest = NULL;
+	CTime_T *ct = NULL;
 	unsigned int ticks;
+	unsigned int hv;
+#if _FFR_OCC
+	bool exceeded = false;
+	int *prv, *pcv;
+#endif
+#if RATECTL_DEBUG || _FFR_OCC
+	bool logit = false;
+#endif
 
 	cnt = 0;
-	hv = 0xABC3D20F;
-	if (ChtGran < 0)
-		ChtGran = ConnectionRateWindowSize / CHTSIZE;
-	if (ChtGran <= 0)
-		ChtGran = 10;
-
+	hv = gen_hash(saddr);
 	ticks = now / ChtGran;
-
-	if (!CHashAryOK)
-	{
-		memset(CHashAry, 0, sizeof(CHashAry));
-		CHashAryOK = true;
-	}
-
-	{
-		char *p;
-		int addrlen;
-#if HASH_ALG != 1
-		int c, d;
-#endif /* HASH_ALG != 1 */
-
-		switch (saddr->sa.sa_family)
-		{
-#if NETINET
-		  case AF_INET:
-			p = (char *)&saddr->sin.sin_addr;
-			addrlen = sizeof(struct in_addr);
-			break;
-#endif /* NETINET */
-#if NETINET6
-		  case AF_INET6:
-			p = (char *)&saddr->sin6.sin6_addr;
-			addrlen = sizeof(struct in6_addr);
-			break;
-#endif /* NETINET6 */
-		  default:
-			/* should not happen */
-			return -1;
-		}
-
-		/* compute hash value */
-		for (i = 0; i < addrlen; ++i, ++p)
-#if HASH_ALG == 1
-			hv = (hv << 5) ^ (hv >> 23) ^ *p;
-		hv = (hv ^ (hv >> 16));
-#elif HASH_ALG == 2
-		{
-			d = *p;
-			c = d;
-			c ^= c<<6;
-			hv += (c<<11) ^ (c>>1);
-			hv ^= (d<<14) + (d<<7) + (d<<4) + d;
-		}
-#elif HASH_ALG == 3
-		{
-			hv = (hv << 4) + *p;
-			d = hv & 0xf0000000;
-			if (d != 0)
-			{
-				hv ^= (d >> 24);
-				hv ^= d;
-			}
-		}
-#else /* HASH_ALG == 1 */
-			hv = ((hv << 1) ^ (*p & 0377)) % cctx->cc_size;
-#endif /* HASH_ALG == 1 */
-	}
 
 	coll = true;
 	for (i = 0; i < MAX_CT_STEPS; ++i)
 	{
-		CHash_T *ch = &CHashAry[(hv + i) & CPMHMASK];
+		CHash_T *ch = &hashary[(hv + i) & CPMHMASK];
 
 #if NETINET
 		if (saddr->sa.sa_family == AF_INET &&
@@ -334,7 +318,7 @@ client_rate(now, saddr, update)
 	}
 
 	/* Let's update data... */
-	if (update)
+	if ((clflags & (SM_CLFL_UPDATE|SM_CLFL_EXC)) != 0)
 	{
 		if (coll && (now - chBest->ch_LTime < CollTime))
 		{
@@ -362,7 +346,7 @@ client_rate(now, saddr, update)
 		**
 		**  Alternative approach: just use the old data, which may
 		**  cause false positives however.
-		**  To activate this, change deactivate following memset call.
+		**  To activate this, deactivate the memset() call.
 		*/
 
 		if (coll)
@@ -381,40 +365,124 @@ client_rate(now, saddr, update)
 				chBest->ch_Addr6 = saddr->sin6.sin6_addr;
 			}
 #endif /* NETINET6 */
-#if 1
 			memset(chBest->ch_Times, '\0',
 			       sizeof(chBest->ch_Times));
-#endif /* 1 */
 		}
 
 		chBest->ch_LTime = now;
-		{
-			CTime_T *ct = &chBest->ch_Times[ticks % CHTSIZE];
+		ct = &chBest->ch_Times[ticks % CHTSIZE];
 
-			if (ct->ct_Ticks != ticks)
-			{
-				ct->ct_Ticks = ticks;
-				ct->ct_Count = 0;
-			}
-			++ct->ct_Count;
+		if (ct->ct_Ticks != ticks)
+		{
+			ct->ct_Ticks = ticks;
+			ct->ct_Count = 0;
 		}
+		if ((clflags & SM_CLFL_UPDATE) != 0)
+			++ct->ct_Count;
 	}
 
 	/* Now let's count connections on the window */
 	for (i = 0; i < CHTSIZE; ++i)
 	{
-		CTime_T *ct = &chBest->ch_Times[i];
+		CTime_T *cth;
 
-		if (ct->ct_Ticks <= ticks && ct->ct_Ticks >= ticks - CHTSIZE)
-			cnt += ct->ct_Count;
+		cth = &chBest->ch_Times[i];
+		if (cth->ct_Ticks <= ticks && cth->ct_Ticks >= ticks - CHTSIZE)
+			cnt += cth->ct_Count;
+	}
+#if _FFR_OCC
+	prv = pcv = NULL;
+	if (ct != NULL && ((clflags & SM_CLFL_EXC) != 0))
+	{
+		if (ratelimit > 0)
+		{
+			if (cnt < ratelimit)
+				prv = &(ct->ct_Count);
+			else
+				exceeded = true;
+		}
+		else if (ratelimit < 0 && ct->ct_Count > 0)
+			--ct->ct_Count;
 	}
 
+	if (chBest != NULL && ((clflags & SM_CLFL_EXC) != 0))
+	{
+		if (conclimit > 0)
+		{
+			if (chBest->ch_oc < conclimit)
+				pcv = &(chBest->ch_oc);
+			else
+				exceeded = true;
+		}
+		else if (conclimit < 0 && chBest->ch_oc > 0)
+			--chBest->ch_oc;
+	}
+#endif
+
+
 #if RATECTL_DEBUG
-	sm_syslog(LOG_WARNING, NOQID,
-		"cln: cnt=(%d), CHTSIZE=(%d), ChtGran=(%d)",
-		cnt, CHTSIZE, ChtGran);
-#endif /* RATECTL_DEBUG */
+	logit = true;
+#endif
+#if RATECTL_DEBUG || _FFR_OCC
+#if _FFR_OCC
+	if (!exceeded)
+	{
+		if (prv != NULL)
+			++*prv, ++cnt;
+		if (pcv != NULL)
+			++*pcv;
+	}
+	logit = exceeded || LogLevel > 11;
+#endif
+	if (logit)
+		sm_syslog(LOG_DEBUG, e != NULL ? e->e_id : NOQID,
+			"conn_limits: addr=%s, flags=0x%x, rate=%d/%d, conc=%d/%d, exc=%d",
+			saddr->sa.sa_family == AF_INET
+				? inet_ntoa(saddr->sin.sin_addr) : "???",
+			clflags, cnt, ratelimit,
+# if _FFR_OCC
+			chBest != NULL ? chBest->ch_oc : -1
+# else
+			-2
+# endif
+			, conclimit
+# if _FFR_OCC
+			, exceeded
+# else
+			, 0
+# endif
+			);
+#endif
+#if _FFR_OCC
+	if ((clflags & SM_CLFL_EXC) != 0)
+		return exceeded;
+#endif
 	return cnt;
+}
+
+/*
+**  CLIENT_RATE - Evaluate connection rate per SMTP client
+**
+**	Parameters:
+**		now - current time in secs
+**		saddr - client address
+**		clflags - update data / check only
+**
+**	Returns:
+**		connection rate (connections / ConnectionRateWindowSize)
+**
+**	Side effects:
+**		update static global data
+*/
+
+static int
+client_rate(now, saddr, clflags)
+	time_t now;
+	SOCKADDR *saddr;
+	int clflags;
+{
+	rate_init();
+	return conn_limits(NULL, now, saddr, clflags, CHashAry, 0, 0);
 }
 
 /*
@@ -428,29 +496,18 @@ client_rate(now, saddr, update)
 **		connection rate (connections / ConnectionRateWindowSize)
 */
 
-static CTime_T srv_Times[CHTSIZE];
-static bool srv_Times_OK = false;
-
 static int
 total_rate(now, update)
-	 time_t now;
-	 bool update;
+	time_t now;
+	bool update;
 {
 	int i;
 	int cnt = 0;
 	CTime_T *ct;
 	unsigned int ticks;
 
-	if (ChtGran < 0)
-		ChtGran = ConnectionRateWindowSize / CHTSIZE;
-	if (ChtGran == 0)
-		ChtGran = 10;
+	rate_init();
 	ticks = now / ChtGran;
-	if (!srv_Times_OK)
-	{
-		memset(srv_Times, 0, sizeof(srv_Times));
-		srv_Times_OK = true;
-	}
 
 	/* Let's update data */
 	if (update)
@@ -476,9 +533,68 @@ total_rate(now, update)
 
 #if RATECTL_DEBUG
 	sm_syslog(LOG_WARNING, NOQID,
-		"srv: cnt=(%d), CHTSIZE=(%d), ChtGran=(%d)",
-		 cnt, CHTSIZE, ChtGran);
-#endif /* RATECTL_DEBUG */
+		"total: cnt=%d, CHTSIZE=%d, ChtGran=%d",
+		cnt, CHTSIZE, ChtGran);
+#endif
 
 	return cnt;
 }
+
+#if RATECTL_DEBUG || _FFR_OCC
+void
+dump_ch(fp)
+	SM_FILE_T *fp;
+{
+	int i, j, cnt;
+	unsigned int ticks;
+
+	ticks = time(NULL) / ChtGran;
+	sm_io_fprintf(fp, SM_TIME_DEFAULT, "dump_ch\n");
+	for (i = 0; i < CPMHSIZE; i++)
+	{
+		CHash_T *ch = &CHashAry[i];
+		bool valid;
+
+		valid = false;
+#if NETINET
+		valid = (ch->ch_Family == AF_INET);
+		if (valid)
+			sm_io_fprintf(fp, SM_TIME_DEFAULT, "ip=%s ",
+				inet_ntoa(ch->ch_Addr4));
+#endif /* NETINET */
+#if NETINET6
+		if (ch->ch_Family == AF_INET6)
+		{
+			char buf[64], *str;
+
+			valid = true;
+			str = anynet_ntop(&ch->ch_Addr6, buf, sizeof(buf));
+			if (str != NULL)
+				sm_io_fprintf(fp, SM_TIME_DEFAULT, "ip=%s ",
+					str);
+		}
+#endif /* NETINET6 */
+		if (!valid)
+			continue;
+
+		cnt = 0;
+		for (j = 0; j < CHTSIZE; ++j)
+		{
+			CTime_T *cth;
+
+			cth = &ch->ch_Times[j];
+			if (cth->ct_Ticks <= ticks && cth->ct_Ticks >= ticks - CHTSIZE)
+				cnt += cth->ct_Count;
+		}
+
+		sm_io_fprintf(fp, SM_TIME_DEFAULT, "time=%ld cnt=%d ",
+			(long) ch->ch_LTime, cnt);
+#if _FFR_OCC
+		sm_io_fprintf(fp, SM_TIME_DEFAULT, "oc=%d", ch->ch_oc);
+#endif
+		sm_io_fprintf(fp, SM_TIME_DEFAULT, "\n");
+	}
+	sm_io_flush(fp, SM_TIME_DEFAULT);
+}
+
+#endif /* RATECTL_DEBUG || _FFR_OCC */

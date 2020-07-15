@@ -17,7 +17,7 @@ define(`_DNSBL_R_',`')
 ifelse(defn(`_ARG_'), `', 
 	`errprint(`*** ERROR: missing argument for FEATURE(`dnsbl')')')
 LOCAL_CONFIG
-# map for DNS based blacklist lookups
+# map for DNS based blocklist lookups
 Kdnsbl DNSBL_MAP -T<TMP>ifdef(`DNSBL_MAP_OPT',` DNSBL_MAP_OPT')')
 divert(-1)
 define(`_DNSBL_SRV_', `_ARG_')dnl

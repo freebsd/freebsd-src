@@ -35,7 +35,7 @@ mi_handle_session(ctx)
 	ctx->ctx_id = (sthread_t) sthread_get_id();
 
 	/*
-	**  Detach so resources are free when the thread returns.
+	**  Detach so resources are freed when the thread returns.
 	**  If we ever "wait" for threads, this call must be removed.
 	*/
 

@@ -29,17 +29,17 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.257 2013-11-22 20:51:51 ca Exp $")
 # include <unistd.h>
 # ifdef EX_OK
 #  undef EX_OK		/* unistd.h may have another use for this */
-# endif /* EX_OK */
+# endif
 # define LOCKFILE_PMODE 0
 #include <sm/mbdb.h>
 #include <sm/sysexits.h>
 
 #ifndef HASHSPOOL
 # define HASHSPOOL	0
-#endif /* ! HASHSPOOL */
+#endif
 #ifndef HASHSPOOLMD5
 # define HASHSPOOLMD5	0
-#endif /* ! HASHSPOOLMD5 */
+#endif
 
 /*
 **  This is not intended to work on System V derived systems
@@ -78,7 +78,7 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.257 2013-11-22 20:51:51 ca Exp $")
 # if HASHSPOOLMD5
 #  define HASH_MD5	2
 #  include <openssl/md5.h>
-# endif /* HASHSPOOLMD5 */
+# endif
 #endif /* HASHSPOOL */
 
 #if _FFR_SPOOL_PATH
@@ -93,10 +93,10 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.257 2013-11-22 20:51:51 ca Exp $")
 
 #ifndef LOCKTO_RM
 # define LOCKTO_RM	300	/* timeout for stale lockfile removal */
-#endif /* ! LOCKTO_RM */
+#endif
 #ifndef LOCKTO_GLOB
 # define LOCKTO_GLOB	400	/* global timeout for lockfile creation */
-#endif /* ! LOCKTO_GLOB */
+#endif
 
 /* define a realloc() which works for NULL pointers */
 #define REALLOC(ptr, size)	(((ptr) == NULL) ? malloc(size) : realloc(ptr, size))
@@ -109,13 +109,13 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.257 2013-11-22 20:51:51 ca Exp $")
 # define flock(a, b)	lockf(a, b, 0)
 # ifdef LOCK_EX
 #  undef LOCK_EX
-# endif /* LOCK_EX */
+# endif
 # define LOCK_EX	F_LOCK
 #endif /* LDA_USE_LOCKF */
 
 #ifndef LOCK_EX
 # include <sys/file.h>
-#endif /* ! LOCK_EX */
+#endif
 
 /*
 **  If you don't have setreuid, and you have saved uids, and you have
@@ -125,29 +125,29 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.257 2013-11-22 20:51:51 ca Exp $")
 
 #ifdef LDA_USE_SETEUID
 # define setreuid(r, e)		seteuid(e)
-#endif /* LDA_USE_SETEUID */
+#endif
 
 #ifdef LDA_CONTENTLENGTH
 # define CONTENTLENGTH	1
-#endif /* LDA_CONTENTLENGTH */
+#endif
 
 #ifndef INADDRSZ
 # define INADDRSZ	4		/* size of an IPv4 address in bytes */
-#endif /* ! INADDRSZ */
+#endif
 
 #ifdef MAILLOCK
 # include <maillock.h>
-#endif /* MAILLOCK */
+#endif
 
 #ifndef MAILER_DAEMON
 # define MAILER_DAEMON	"MAILER-DAEMON"
-#endif /* ! MAILER_DAEMON */
+#endif
 
 #ifdef CONTENTLENGTH
 char	ContentHdr[40] = "Content-Length: ";
 off_t	HeaderLength;
 off_t	BodyLength;
-#endif /* CONTENTLENGTH */
+#endif
 
 bool	EightBitMime = true;		/* advertise 8BITMIME in LMTP */
 char	ErrBuf[10240];			/* error buffer */
@@ -164,9 +164,9 @@ char	*HomeMailFile = NULL;		/* store mail in homedir */
 int	HashType = HASH_NONE;
 int	HashDepth = 0;
 bool	StripRcptDomain = true;
-#else /* HASHSPOOL */
+#else
 # define StripRcptDomain true
-#endif /* HASHSPOOL */
+#endif
 char	SpoolPath[MAXPATHLEN];
 
 char	*parseaddr __P((char *, bool));
@@ -183,7 +183,7 @@ void	mailerr __P((const char *, const char *, ...));
 void	flush_error __P((void));
 #if HASHSPOOL
 const char	*hashname __P((char *));
-#endif /* HASHSPOOL */
+#endif
 
 
 static void sm_exit __P((int));
@@ -224,9 +224,9 @@ main(argc, argv)
 
 # ifdef LOG_MAIL
 	openlog("mail.local", 0, LOG_MAIL);
-# else /* LOG_MAIL */
+# else
 	openlog("mail.local", 0);
-# endif /* LOG_MAIL */
+# endif
 
 	from = NULL;
 
@@ -242,9 +242,9 @@ main(argc, argv)
 #else /* HASHSPOOL */
 #  if _FFR_SPOOL_PATH
 	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:lp:s")) != -1)
-#  else /* _FFR_SPOOL_PATH */
+#  else
 	while ((ch = getopt(argc, argv, "7BbdD:f:h:r:ls")) != -1)
-#  endif /* _FFR_SPOOL_PATH */
+#  endif
 #endif /* HASHSPOOL */
 	{
 		switch(ch)
@@ -313,7 +313,7 @@ main(argc, argv)
 			  case 'm':
 				HashType = HASH_MD5;
 				break;
-# endif /* HASHSPOOLMD5 */
+# endif
 
 			  default:
 				mailerr(NULL, "-H: unknown hash type");
@@ -815,7 +815,7 @@ store(from, inbody)
 #ifdef CONTENTLENGTH
 	HeaderLength = 0;
 	BodyLength = -1;
-#endif /* CONTENTLENGTH */
+#endif
 
 	line[0] = '\0';
 	eline = true;
@@ -995,7 +995,7 @@ deliver(fd, name)
 #ifdef CONTENTLENGTH
 	off_t headerbytes;
 	int readamount;
-#endif /* CONTENTLENGTH */
+#endif
 	char biffmsg[100], buf[8 * 1024];
 	SM_MBDB_T user;
 
@@ -1061,13 +1061,13 @@ deliver(fd, name)
 		if (sm_strlcpyn(path, sizeof(path), 
 #if HASHSPOOL
 				4,
-#else /* HASHSPOOL */
+#else
 				3,
-#endif /* HASHSPOOL */
+#endif
 				SpoolPath, "/",
 #if HASHSPOOL
 				hashname(name),
-#endif /* HASHSPOOL */
+#endif
 				name) >= sizeof(path))
 		{
 			exitval = EX_UNAVAILABLE;
@@ -1115,9 +1115,9 @@ deliver(fd, name)
 tryagain:
 #ifdef MAILLOCK
 	p = name;
-#else /* MAILLOCK */
+#else
 	p = path;
-#endif /* MAILLOCK */
+#endif
 	if ((off = lockmbox(p)) != 0)
 	{
 		if (off == EX_TEMPFAIL || e_to_sys(off) == EX_TEMPFAIL)
@@ -1143,7 +1143,7 @@ tryagain:
 		(void) umask(0007);
 		gid = MAILGID;
 		mode |= S_IRGRP|S_IWGRP;
-#endif /* MAILGID */
+#endif
 
 		mbfd = open(path, O_APPEND|O_CREAT|O_EXCL|O_WRONLY,
 			    mode);
@@ -1214,7 +1214,7 @@ tryagain:
 	}
 #ifdef DEBUG
 	fprintf(stderr, "new euid = %d\n", (int) geteuid());
-#endif /* DEBUG */
+#endif
 	mbfd = open(path, O_APPEND|O_WRONLY, 0);
 	if (mbfd < 0)
 	{
@@ -1229,7 +1229,7 @@ tryagain:
 		 sb.st_ino != fsb.st_ino ||
 # if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
 		 sb.st_gen != fsb.st_gen ||
-# endif /* HAS_ST_GEN && 0 */
+# endif
 		 sb.st_uid != fsb.st_uid)
 	{
 		ExitVal = EX_TEMPFAIL;
@@ -1301,7 +1301,7 @@ tryagain:
 	}
 #ifdef DEBUG
 	fprintf(stderr, "before writing: euid = %d\n", (int) geteuid());
-#endif /* DEBUG */
+#endif
 #ifdef CONTENTLENGTH
 	headerbytes = (BodyLength >= 0) ? HeaderLength : -1 ;
 	for (;;)
@@ -1336,7 +1336,7 @@ tryagain:
 #ifdef EDQUOT
 				if (errno == EDQUOT && BounceQuota)
 					errcode = "552 5.2.2";
-#endif /* EDQUOT */
+#endif
 				mailerr(errcode, "%s: %s",
 					path, sm_errstring(errno));
 				goto err3;
@@ -1357,7 +1357,7 @@ tryagain:
 err3:
 #ifdef DEBUG
 		fprintf(stderr, "reset euid = %d\n", (int) geteuid());
-#endif /* DEBUG */
+#endif
 		if (mbfd >= 0)
 			(void) ftruncate(mbfd, curoff);
 err1:		if (mbfd >= 0)
@@ -1389,7 +1389,7 @@ err0:		(void) setreuid(0, 0);
 #ifdef EDQUOT
 		if (errno == EDQUOT && BounceQuota)
 			errcode = "552 5.2.2";
-#endif /* EDQUOT */
+#endif
 		mailerr(errcode, "%s: %s", path, sm_errstring(errno));
 		mbfd = open(path, O_WRONLY, 0);
 		if (mbfd < 0 ||
@@ -1403,7 +1403,7 @@ err0:		(void) setreuid(0, 0);
 		    sb.st_ino != fsb.st_ino ||
 # if HAS_ST_GEN && 0		/* AFS returns random values for st_gen */
 		    sb.st_gen != fsb.st_gen ||
-# endif /* HAS_ST_GEN && 0 */
+# endif
 		    sb.st_uid != fsb.st_uid
 		   )
 		{
@@ -1429,7 +1429,7 @@ err0:		(void) setreuid(0, 0);
 	}
 #ifdef DEBUG
 	fprintf(stderr, "reset euid = %d\n", (int) geteuid());
-#endif /* DEBUG */
+#endif
 	unlockmbox();
 	if (LMTPMode)
 		printf("250 2.1.5 %s Ok\r\n", name);
@@ -1599,9 +1599,9 @@ usage()
 	ExitVal = EX_USAGE;
 # if _FFR_SPOOL_PATH
 	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-d] [-l] [-s] [-f from|-r from] [-h filename] [-p path] user ...");
-# else /* _FFR_SPOOL_PATH */
+# else
 	mailerr(NULL, "usage: mail.local [-7] [-B] [-b] [-d] [-l] [-s] [-f from|-r from] [-h filename] user ...");
-# endif /* _FFR_SPOOL_PATH */
+# endif
 	sm_exit(ExitVal);
 }
 
@@ -1667,7 +1667,7 @@ hashname(name)
 	unsigned char md5[18];
 #  if MAXPATHLEN <= 24
     ERROR _MAXPATHLEN <= 24
-#  endif /* MAXPATHLEN <= 24 */
+#  endif
 	char b64[24];
 	MD5_LONG bits;
 	int j;
@@ -1751,73 +1751,73 @@ e_to_sys(num)
 #endif /* EDQUOT */
 #ifdef EAGAIN
 	  case EAGAIN:		/* Resource temporarily unavailable */
-#endif /* EAGAIN */
+#endif
 #ifdef EBUSY
 	  case EBUSY:		/* Device busy */
-#endif /* EBUSY */
+#endif
 #ifdef EPROCLIM
 	  case EPROCLIM:	/* Too many processes */
-#endif /* EPROCLIM */
+#endif
 #ifdef EUSERS
 	  case EUSERS:		/* Too many users */
-#endif /* EUSERS */
+#endif
 #ifdef ECONNABORTED
 	  case ECONNABORTED:	/* Software caused connection abort */
-#endif /* ECONNABORTED */
+#endif
 #ifdef ECONNREFUSED
 	  case ECONNREFUSED:	/* Connection refused */
-#endif /* ECONNREFUSED */
+#endif
 #ifdef ECONNRESET
 	  case ECONNRESET:	/* Connection reset by peer */
-#endif /* ECONNRESET */
+#endif
 #ifdef EDEADLK
 	  case EDEADLK:		/* Resource deadlock avoided */
-#endif /* EDEADLK */
+#endif
 #ifdef EFBIG
 	  case EFBIG:		/* File too large */
-#endif /* EFBIG */
+#endif
 #ifdef EHOSTDOWN
 	  case EHOSTDOWN:	/* Host is down */
-#endif /* EHOSTDOWN */
+#endif
 #ifdef EHOSTUNREACH
 	  case EHOSTUNREACH:	/* No route to host */
-#endif /* EHOSTUNREACH */
+#endif
 #ifdef EMFILE
 	  case EMFILE:		/* Too many open files */
-#endif /* EMFILE */
+#endif
 #ifdef ENETDOWN
 	  case ENETDOWN:	/* Network is down */
-#endif /* ENETDOWN */
+#endif
 #ifdef ENETRESET
 	  case ENETRESET:	/* Network dropped connection on reset */
-#endif /* ENETRESET */
+#endif
 #ifdef ENETUNREACH
 	  case ENETUNREACH:	/* Network is unreachable */
-#endif /* ENETUNREACH */
+#endif
 #ifdef ENFILE
 	  case ENFILE:		/* Too many open files in system */
-#endif /* ENFILE */
+#endif
 #ifdef ENOBUFS
 	  case ENOBUFS:		/* No buffer space available */
-#endif /* ENOBUFS */
+#endif
 #ifdef ENOMEM
 	  case ENOMEM:		/* Cannot allocate memory */
-#endif /* ENOMEM */
+#endif
 #ifdef ENOSPC
 	  case ENOSPC:		/* No space left on device */
-#endif /* ENOSPC */
+#endif
 #ifdef EROFS
 	  case EROFS:		/* Read-only file system */
-#endif /* EROFS */
+#endif
 #ifdef ESTALE
 	  case ESTALE:		/* Stale NFS file handle */
-#endif /* ESTALE */
+#endif
 #ifdef ETIMEDOUT
 	  case ETIMEDOUT:	/* Connection timed out */
-#endif /* ETIMEDOUT */
+#endif
 #if defined(EWOULDBLOCK) && EWOULDBLOCK != EAGAIN && EWOULDBLOCK != EDEADLK
 	  case EWOULDBLOCK:	/* Operation would block. */
-#endif /* defined(EWOULDBLOCK) && EWOULDBLOCK != EAGAIN && EWOULDBLOCK != EDEADLK */
+#endif
 		ExitVal = EX_TEMPFAIL;
 		break;
 
@@ -1864,7 +1864,7 @@ e_to_sys(num)
 
 # if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)mktemp.c	8.1 (Berkeley) 6/4/93";
-# endif /* defined(LIBC_SCCS) && !defined(lint) */
+# endif
 
 # include <sys/types.h>
 # include <sys/stat.h>

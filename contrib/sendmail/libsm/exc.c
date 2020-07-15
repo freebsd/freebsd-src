@@ -229,12 +229,12 @@ const SM_EXC_TYPE_T SmEtypeErr =
 **  an out-of-memory exception so that exc is not leaked.
 */
 
-static SM_EXC_T *sm_exc_vnew_x __P((const SM_EXC_TYPE_T *, va_list SM_NONVOLATILE));
+static SM_EXC_T *sm_exc_vnew_x __P((const SM_EXC_TYPE_T *, va_list));
 
 static SM_EXC_T *
 sm_exc_vnew_x(etype, ap)
 	const SM_EXC_TYPE_T *etype;
-	va_list SM_NONVOLATILE ap;
+	va_list ap;
 {
 	/*
 	**  All variables that are modified in the SM_TRY clause and

@@ -22,5 +22,5 @@ define(`confTIME_ZONE', `USE_TZ')dnl
 define(`confDONT_INIT_GROUPS', `True')dnl
 define(`confBIND_OPTS', `WorkAroundBrokenAAAA')dnl
 dnl
-dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:::1]
+dnl If you use IPv6 only, change [127.0.0.1] to [IPv6:0:0:0:0:0:0:0:1]
 FEATURE(`msp', `[127.0.0.1]')dnl

@@ -172,89 +172,89 @@ char *SmCompileOptions[] =
 {
 #if SM_CONF_BROKEN_STRTOD
 	"SM_CONF_BROKEN_STRTOD",
-#endif /* SM_CONF_BROKEN_STRTOD */
+#endif
 #if SM_CONF_GETOPT
 	"SM_CONF_GETOPT",
-#endif /* SM_CONF_GETOPT */
+#endif
 #if SM_CONF_LDAP_INITIALIZE
 	"SM_CONF_LDAP_INITIALIZE",
-#endif /* SM_CONF_LDAP_INITIALIZE */
+#endif
 #if SM_CONF_LDAP_MEMFREE
 	"SM_CONF_LDAP_MEMFREE",
-#endif /* SM_CONF_LDAP_MEMFREE */
+#endif
 #if SM_CONF_LONGLONG
 	"SM_CONF_LONGLONG",
-#endif /* SM_CONF_LONGLONG */
+#endif
 #if SM_CONF_MEMCHR
 	"SM_CONF_MEMCHR",
-#endif /* SM_CONF_MEMCHR */
+#endif
 #if SM_CONF_MSG
 	"SM_CONF_MSG",
-#endif /* SM_CONF_MSG */
+#endif
 #if SM_CONF_QUAD_T
 	"SM_CONF_QUAD_T",
-#endif /* SM_CONF_QUAD_T */
+#endif
 #if SM_CONF_SEM
 	"SM_CONF_SEM",
-#endif /* SM_CONF_SEM */
+#endif
 #if SM_CONF_SETITIMER
 	"SM_CONF_SETITIMER",
-#endif /* SM_CONF_SETITIMER */
+#endif
 #if SM_CONF_SIGSETJMP
 	"SM_CONF_SIGSETJMP",
-#endif /* SM_CONF_SIGSETJMP */
+#endif
 #if SM_CONF_SHM
 	"SM_CONF_SHM",
-#endif /* SM_CONF_SHM */
+#endif
 #if SM_CONF_SHM_DELAY
 	"SM_CONF_SHM_DELAY",
-#endif /* SM_CONF_SHM_DELAY */
+#endif
 #if SM_CONF_SSIZE_T
 	"SM_CONF_SSIZE_T",
-#endif /* SM_CONF_SSIZE_T */
+#endif
 #if SM_CONF_STDBOOL_H
 	"SM_CONF_STDBOOL_H",
-#endif /* SM_CONF_STDBOOL_H */
+#endif
 #if SM_CONF_STDDEF_H
 	"SM_CONF_STDDEF_H",
-#endif /* SM_CONF_STDDEF_H */
+#endif
 
 #if 0
 /* XXX this is always enabled (for now) */
 #if SM_CONF_STRL
 	"SM_CONF_STRL",
-#endif /* SM_CONF_STRL */
+#endif
 #endif /* 0 */
 
 #if SM_CONF_SYS_CDEFS_H
 	"SM_CONF_SYS_CDEFS_H",
-#endif /* SM_CONF_SYS_CDEFS_H */
+#endif
 #if SM_CONF_SYSEXITS_H
 	"SM_CONF_SYSEXITS_H",
-#endif /* SM_CONF_SYSEXITS_H */
+#endif
 #if SM_CONF_UID_GID
 	"SM_CONF_UID_GID",
-#endif /* SM_CONF_UID_GID */
+#endif
 #if DO_NOT_USE_STRCPY
 	"DO_NOT_USE_STRCPY",
-#endif /* DO_NOT_USE_STRCPY */
+#endif
 #if SM_HEAP_CHECK
 	"SM_HEAP_CHECK",
-#endif /* SM_HEAP_CHECK */
+#endif
 #if defined(SM_OS_NAME) && defined(__STDC__)
 	"SM_OS=sm_os_" SM_OS_NAME,
-#endif /* defined(SM_OS_NAME) && defined(__STDC__) */
+#endif
 #if SM_VA_STD
 	"SM_VA_STD",
-#endif /* SM_VA_STD */
+#endif
 #if USEKSTAT
 	"USEKSTAT",
-#endif /* USEKSTAT */
+#endif
 #if USEPROCMEMINFO
 	"USEPROCMEMINFO",
-#endif /* USEPROCMEMINFO */
+#endif
 #if USESWAPCTL
 	"USESWAPCTL",
-#endif /* USESWAPCTL */
+#endif
 	NULL
 };

@@ -91,6 +91,14 @@ attempt to be backward compatible.
 
 The options are:
 
+CDB		Constant DataBase, requires tinycdb (0.75), see
+		http://www.corpit.ru/mjt/tinycdb.html
+		CDB is included automatically if the Build script can find
+		a library named libcdb.a or libcdb.so.
+		By default, .cdb is used as extension for cdb maps, however,
+		if CDB is set to 2, then .db is used to make transition from
+		hash maps easier.  Note: this usually requires to exclude cdb
+		from confLIBSEARCH, see devtools/README.
 NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
 		Digital UNIX 4.0) have some version of this package
 		pre-installed.  If your system does not have Berkeley DB
@@ -129,7 +137,7 @@ PH_MAP		PH map support.  You will need the libphclient library from
 		the nph package (http://www-dev.cites.uiuc.edu/ph/nph/).
 MAP_NSD		nsd map support (IRIX 6.5 and later).
 SOCKETMAP	Support for a trivial query protocol over UNIX domain or TCP
-		sockets. 
+		sockets.
 
 >>>  NOTE WELL for NEWDB support: If you want to get ndbm support, for
 >>>  Berkeley DB versions under 2.0, it is CRITICAL that you remove
@@ -292,6 +300,8 @@ HASULIMIT	Define this if you have the ulimit(2) syscall (System V
 HASWAITPID	Define this if you have the waitpid(2) syscall.
 HASGETDTABLESIZE
 		Define this if you have the getdtablesize(2) syscall.
+HAS_GETHOSTBYNAME2	Define this to 1 if your system supports
+		gethostbyname2(2).
 HAS_ST_GEN	Define this to 1 if your system has the st_gen field in
 		the stat structure (see stat(2)).
 HASSRANDOMDEV	Define this if your system has the srandomdev(3) function
@@ -525,6 +535,7 @@ Several are assumed based on other compilation flags -- if you want to
 "un-assume" something, you probably need to edit conf.h.  Compilation
 flags that add support for special features include:
 
+CDB		Include support for tinycdb.
 NDBM		Include support for "new" DBM library for aliases and maps.
 		Normally defined in the Makefile.
 NEWDB		Include support for Berkeley DB package (hash & btree)
@@ -634,6 +645,16 @@ STARTTLS	Enables SMTP STARTTLS (RFC 2487).  This requires OpenSSL
 		(http://www.OpenSSL.org/); use OpenSSL 0.9.8zc or later.
 		See STARTTLS COMPILATION AND CONFIGURATION for further
 		information.
+TLS_EC		Enable use of elliptic curve cryptography in STARTTLS.
+		If set to 2 sendmail uses SSL_CTX_set_ecdh_auto(),
+		if set to 1 it selects the NID_X9_62_prime256v1 curve
+		(created via EC_KEY_new_by_curve_name()) and uses
+		SSL_CTX_set_tmp_ecdh().
+		Support offered by different TLS libraries varies
+		greatly: some old versions do not support elliptic curve
+		cryptography at all, some new versions have it enabled
+		by default (i.e., no need to set TLS_EC at all), while
+		others may require one of the above settings.
 TLS_NO_RSA	Turn off support for RSA algorithms in STARTTLS.
 MILTER		Turn on support for external filters using the Milter API;
 		this option is set by default, to turn it off use
@@ -1672,13 +1693,6 @@ Listproc 6.0c
 	The fix is to include -DZMAILER in the compilation, which will
 	cause it to use "HELO hostname" (which Z-mail apparently requires
 	as well. :)
-
-OpenSSL
-	OpenSSL versions prior to 0.9.6 use a macro named Free which
-	conflicts with existing macro names on some platforms, such as
-	AIX.
-	Do not use 0.9.3, but OpenSSL 0.9.5a or later if compatible with
-	0.9.5a.
 
 PH
 	PH support is provided by Mark Roth <roth@uiuc.edu>.  The map is

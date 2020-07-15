@@ -67,9 +67,9 @@ struct bf
 
 #ifdef BF_STANDALONE
 # define OPEN(fn, omode, cmode, sff) open(fn, omode, cmode)
-#else /* BF_STANDALONE */
+#else
 # define OPEN(fn, omode, cmode, sff) safeopen(fn, omode, cmode, sff)
-#endif /* BF_STANDALONE */
+#endif
 
 struct bf_info
 {
@@ -566,7 +566,7 @@ sm_bfwrite(fp, buf, nbytes)
 				if (!(errno == ENOSPC
 #ifdef EDQUOT
 				      || errno == EDQUOT
-#endif /* EDQUOT */
+#endif
 				     ))
 					errno = EIO;
 
@@ -804,9 +804,9 @@ sm_bftruncate(fp)
 		/* XXX: Not much we can do except rewind it */
 		errno = EINVAL;
 		return -1;
-#else /* NOFTRUNCATE */
+#else
 		return ftruncate(bfp->bf_disk_fd, 0);
-#endif /* NOFTRUNCATE */
+#endif
 	}
 	return 0;
 }
