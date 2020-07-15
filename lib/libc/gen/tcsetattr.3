@@ -28,7 +28,7 @@
 .\"	@(#)tcsetattr.3	8.3 (Berkeley) 1/2/94
 .\" $FreeBSD$
 .\"
-.Dd January 2, 1994
+.Dd July 15, 2020
 .Dt TCSETATTR 3
 .Os
 .Sh NAME
@@ -221,8 +221,7 @@ termios structure referenced by
 .Fa t .
 The
 .Fa action
-argument is created by
-.Em or Ns 'ing
+argument is one of
 the following values, as specified in the include file
 .In termios.h .
 .Bl -tag -width "TCSADRAIN"
@@ -240,18 +239,20 @@ The change occurs after all output written to
 .Fa fd
 has been transmitted to the terminal.
 Additionally, any input that has been received but not read is discarded.
-.It Fa TCSASOFT
-If this value is
-.Em or Ns 'ed
-into the
+.El
+.Pp
+The
 .Fa action
-value, the values of the
+may be modified by
+.Em or Ns 'ing
+in
+.Fa TCSASOFT
+which causes the values of the
 .Va c_cflag ,
 .Va c_ispeed ,
 and
 .Va c_ospeed
-fields are ignored.
-.El
+fields to be ignored.
 .Pp
 The 0 baud rate is used to terminate the connection.
 If 0 is specified as the output speed to the function
