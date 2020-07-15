@@ -36,6 +36,21 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200714: update byacc to 20200330
+OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_calc1.y
+OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_demo.y
+OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_destroy1.y
+OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_destroy2.y
+OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_destroy3.y
+OLD_FILES+=usr/tests/usr.bin/yacc/err_inherit1.y
+OLD_FILES+=usr/tests/usr.bin/yacc/err_inherit2.y
+OLD_FILES+=usr/tests/usr.bin/yacc/err_inherit3.y
+OLD_FILES+=usr/tests/usr.bin/yacc/err_inherit4.y
+OLD_FILES+=usr/tests/usr.bin/yacc/err_inherit5.y
+OLD_FILES+=usr/tests/usr.bin/yacc/inherit0.y
+OLD_FILES+=usr/tests/usr.bin/yacc/inherit1.y
+OLD_FILES+=usr/tests/usr.bin/yacc/inherit2.y
+
 # 20200706: update of sglist(9), r360574
 OLD_FILES+=usr/share/man/man9/sglist_append_ext_pgs.9.gz
 OLD_FILES+=usr/share/man/man9/sglist_append_mb_ext_pgs.9.gz
