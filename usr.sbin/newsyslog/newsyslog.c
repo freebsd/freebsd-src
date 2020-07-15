@@ -1085,9 +1085,11 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 
 		q = parse = missing_field(sob(line), errline);
 		parse = son(line);
-		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s",
+		if (!*parse) {
+			warnx("malformed line (missing fields):\n%s",
 			    errline);
+			continue;
+		}
 		*parse = '\0';
 
 		/*
@@ -1139,22 +1141,24 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			continue;
 		}
 
+#define badline(msg, ...) do {		\
+	warnx(msg, __VA_ARGS__);	\
+	goto cleanup;			\
+} while (0)
+
 		special = 0;
 		working = init_entry(q, NULL);
 		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
 			special = 1;
-			if (*defconf_p != NULL) {
-				warnx("Ignoring duplicate entry for %s!", q);
-				free_entry(working);
-				continue;
-			}
+			if (*defconf_p != NULL)
+				badline("Ignoring duplicate entry for %s!", q);
 			*defconf_p = working;
 		}
 
 		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s",
+			badline("malformed line (missing fields):\n%s",
 			    errline);
 		*parse = '\0';
 		if ((group = strchr(q, ':')) != NULL ||
@@ -1163,7 +1167,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			if (*q) {
 				if (!(isnumberstr(q))) {
 					if ((pwd = getpwnam(q)) == NULL)
-						errx(1,
+						badline(
 				     "error in config file; unknown user:\n%s",
 						    errline);
 					working->uid = pwd->pw_uid;
@@ -1176,7 +1180,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			if (*q) {
 				if (!(isnumberstr(q))) {
 					if ((grp = getgrnam(q)) == NULL)
-						errx(1,
+						badline(
 				    "error in config file; unknown group:\n%s",
 						    errline);
 					working->gid = grp->gr_gid;
@@ -1188,7 +1192,7 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			q = parse = missing_field(sob(parse + 1), errline);
 			parse = son(parse);
 			if (!*parse)
-				errx(1, "malformed line (missing fields):\n%s",
+				badline("malformed line (missing fields):\n%s",
 				    errline);
 			*parse = '\0';
 		} else {
@@ -1197,23 +1201,23 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 		}
 
 		if (!sscanf(q, "%o", &working->permissions))
-			errx(1, "error in config file; bad permissions:\n%s",
+			badline("error in config file; bad permissions:\n%s",
 			    errline);
 
 		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s",
+			badline("malformed line (missing fields):\n%s",
 			    errline);
 		*parse = '\0';
 		if (!sscanf(q, "%d", &working->numlogs) || working->numlogs < 0)
-			errx(1, "error in config file; bad value for count of logs to save:\n%s",
+			badline("error in config file; bad value for count of logs to save:\n%s",
 			    errline);
 
 		q = parse = missing_field(sob(parse + 1), errline);
 		parse = son(parse);
 		if (!*parse)
-			errx(1, "malformed line (missing fields):\n%s",
+			badline("malformed line (missing fields):\n%s",
 			    errline);
 		*parse = '\0';
 		if (isdigitch(*q))
@@ -1242,14 +1246,14 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			else if (*ep == '*')
 				working->hours = -1;
 			else if (ul > INT_MAX)
-				errx(1, "interval is too large:\n%s", errline);
+				badline("interval is too large:\n%s", errline);
 			else
 				working->hours = ul;
 
 			if (*ep == '\0' || strcmp(ep, "*") == 0)
 				goto no_trimat;
 			if (*ep != '@' && *ep != '$')
-				errx(1, "malformed interval/at:\n%s", errline);
+				badline("malformed interval/at:\n%s", errline);
 
 			working->flags |= CE_TRIMAT;
 			working->trim_at = ptime_init(NULL);
@@ -1260,10 +1264,10 @@ parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
 			res = ptime_relparse(working->trim_at, ptm_opts,
 			    ptimeget_secs(timenow), ep + 1);
 			if (res == -2)
-				errx(1, "nonexistent time for 'at' value:\n%s",
+				badline("nonexistent time for 'at' value:\n%s",
 				    errline);
 			else if (res < 0)
-				errx(1, "malformed 'at' value:\n%s", errline);
+				badline("malformed 'at' value:\n%s", errline);
 		}
 no_trimat:
 
@@ -1323,7 +1327,7 @@ no_trimat:
 			case 'f':	/* Used by OpenBSD for "CE_FOLLOW" */
 			case 'm':	/* Used by OpenBSD for "CE_MONITOR" */
 			default:
-				errx(1, "illegal flag in config file -- %c",
+				badline("illegal flag in config file -- %c",
 				    *q);
 			}
 		}
@@ -1345,7 +1349,7 @@ no_trimat:
 			else if (isalnum(*q))
 				goto got_sig;
 			else {
-				errx(1,
+				badline(
 			"illegal pid file or signal in config file:\n%s",
 				    errline);
 			}
@@ -1363,7 +1367,7 @@ no_trimat:
 got_sig:
 			working->sig = parse_signal(q);
 			if (working->sig < 1 || working->sig >= sys_nsig) {
-				errx(1,
+				badline(
 				    "illegal signal in config file:\n%s",
 				    errline);
 			}
@@ -1414,7 +1418,11 @@ got_sig:
 		} else {
 			STAILQ_INSERT_TAIL(work_p, working, cf_nextp);
 		}
-	}
+		continue;
+cleanup:
+		free_entry(working);
+#undef badline
+	} /* while (fgets(line, BUFSIZ, cf)) */
 	if (errline != NULL)
 		free(errline);
 }
