@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r363233:
+	Merge sendmail 8.16.1: See contrib/sendmail/RELEASE_NOTES for details.
+
 r363180:
 	The safexcel(4) crypto offload driver has been added.
 
