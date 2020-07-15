@@ -139,9 +139,9 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 	}
 #if _FFR_ADD_NULL
 	buf = malloc(expl + 1);
-#else /* _FFR_ADD_NULL */
+#else
 	buf = malloc(expl);
-#endif /* _FFR_ADD_NULL */
+#endif
 	if (buf == NULL)
 	{
 		*cmd = SMFIC_MALLOC;
@@ -194,7 +194,7 @@ mi_rd_cmd(sd, timeout, cmd, rlen, name)
 #if _FFR_ADD_NULL
 			/* makes life simpler for common string routines */
 			buf[expl] = '\0';
-#endif /* _FFR_ADD_NULL */
+#endif
 			return buf;
 		}
 		i += len;

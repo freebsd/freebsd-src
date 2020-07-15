@@ -46,7 +46,7 @@ and outputs them to the indicated
 .PP
 Depending on how it is compiled,
 .B makemap
-handles up to three different database formats, 
+handles different database formats, 
 selected using the
 .I maptype
 parameter.  
@@ -67,6 +67,14 @@ hash
 Hash format maps.  
 This also requires the Berkeley DB 
 library.
+.TP
+cdb
+CDB (Constant DataBase) format maps.  
+This requires the tinycdb library.
+.TP
+implicit
+The first available format in the following order:
+hash, dbm, and cdb.
 .PP
 In all cases,
 .B makemap
@@ -142,6 +150,8 @@ List supported map types.
 .B \-o
 Append to an old file.  
 This allows you to augment an existing file.
+Note: this might not be supported by all database types,
+e.g., cdb.
 .TP
 .B \-r
 Allow replacement of existing keys.  
@@ -164,6 +174,9 @@ dump (unmap) the content of the database to standard output.
 .TP
 .B \-v
 Verbosely print what it is doing.
+.P
+.SH Example
+makemap hash /etc/mail/access < /etc/mail/access
 .SH SEE ALSO
 sendmail(8), newaliases(1)
 .SH HISTORY

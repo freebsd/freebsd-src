@@ -945,7 +945,7 @@ sub mxredirect
 	return undef;
 }
 # follow mx records, return a hostname
-# also follow temporary redirections comming from &domainify and
+# also follow temporary redirections coming from &domainify and
 # &mxlookup
 sub mx
 {

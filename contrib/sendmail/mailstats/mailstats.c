@@ -30,7 +30,7 @@ SM_IDSTR(id, "@(#)$Id: mailstats.c,v 8.103 2013-11-22 20:51:51 ca Exp $")
 #include <time.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 
 #include <sm/errstring.h>

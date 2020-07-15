@@ -14,13 +14,13 @@ SM_RCSID("@(#)$Id: sm_gethost.c,v 8.32 2013-11-22 20:51:36 ca Exp $")
 #include <sendmail.h>
 #if NETINET || NETINET6
 # include <arpa/inet.h>
-#endif /* NETINET || NETINET6 */
+#endif
 #include "libmilter.h"
 
 /*
 **  MI_GETHOSTBY{NAME,ADDR} -- compatibility routines for gethostbyXXX
 **
-**	Some operating systems have wierd problems with the gethostbyXXX
+**	Some operating systems have weird problems with the gethostbyXXX
 **	routines.  For example, Solaris versions at least through 2.3
 **	don't properly deliver a canonical h_name field.  This tries to
 **	work around these problems.
@@ -34,13 +34,13 @@ static struct hostent *sm_getipnodebyname __P((const char *, int, int, int *));
 
 # ifndef AI_ADDRCONFIG
 #  define AI_ADDRCONFIG	0	/* dummy */
-# endif /* ! AI_ADDRCONFIG */
+# endif
 # ifndef AI_ALL
 #  define AI_ALL	0	/* dummy */
-# endif /* ! AI_ALL */
+# endif
 # ifndef AI_DEFAULT
 #  define AI_DEFAULT	0	/* dummy */
-# endif /* ! AI_DEFAULT */
+# endif
 
 static struct hostent *
 sm_getipnodebyname(name, family, flags, err)
@@ -49,8 +49,17 @@ sm_getipnodebyname(name, family, flags, err)
 	int flags;
 	int *err;
 {
-	bool resv6 = true;
 	struct hostent *h;
+# if HAS_GETHOSTBYNAME2
+
+	h = gethostbyname2(name, family);
+	if (h == NULL)
+		*err = h_errno;
+	return h;
+
+# else /* HAS_GETHOSTBYNAME2 */
+#  ifdef RES_USE_INET6
+	bool resv6 = true;
 
 	if (family == AF_INET6)
 	{
@@ -58,23 +67,27 @@ sm_getipnodebyname(name, family, flags, err)
 		resv6 = bitset(RES_USE_INET6, _res.options);
 		_res.options |= RES_USE_INET6;
 	}
+#  endif /* RES_USE_INET6 */
 	SM_SET_H_ERRNO(0);
 	h = gethostbyname(name);
-	if (family == AF_INET6 && !resv6)
+#  ifdef RES_USE_INET6
+	if (!resv6)
 		_res.options &= ~RES_USE_INET6;
+#  endif
 
 	/* the function is supposed to return only the requested family */
 	if (h != NULL && h->h_addrtype != family)
 	{
-# if NETINET6
+#  if NETINET6
 		freehostent(h);
-# endif /* NETINET6 */
+#  endif
 		h = NULL;
 		*err = NO_DATA;
 	}
 	else
 		*err = h_errno;
 	return h;
+# endif /* HAS_GETHOSTBYNAME2 */
 }
 
 void
@@ -89,7 +102,7 @@ freehostent(h)
 	return;
 }
 #else /* NEEDSGETIPNODE && NETINET6 */
-#define sm_getipnodebyname getipnodebyname 
+#define sm_getipnodebyname getipnodebyname
 #endif /* NEEDSGETIPNODE && NETINET6 */
 
 struct hostent *
@@ -115,7 +128,7 @@ mi_gethostbyname(name, family)
 #  ifndef SM_IPNODEBYNAME_FLAGS
     /* For IPv4-mapped addresses, use: AI_DEFAULT|AI_ALL */
 #   define SM_IPNODEBYNAME_FLAGS	AI_ADDRCONFIG
-#  endif /* SM_IPNODEBYNAME_FLAGS */
+#  endif
 
 	int flags = SM_IPNODEBYNAME_FLAGS;
 	int err;
@@ -124,7 +137,7 @@ mi_gethostbyname(name, family)
 # if NETINET6
 #  if ADDRCONFIG_IS_BROKEN
 	flags &= ~AI_ADDRCONFIG;
-#  endif /* ADDRCONFIG_IS_BROKEN */
+#  endif
 	h = sm_getipnodebyname(name, family, flags, &err);
 	SM_SET_H_ERRNO(err);
 # else /* NETINET6 */
@@ -138,7 +151,7 @@ mi_gethostbyname(name, family)
 	{
 # if NETINET6
 		freehostent(h);
-# endif /* NETINET6 */
+# endif
 		h = NULL;
 		SM_SET_H_ERRNO(NO_DATA);
 	}
@@ -158,7 +171,7 @@ mi_gethostbyname(name, family)
 **
 **	Returns:
 **		1 if the address was valid
-**		0 if the address wasn't parseable
+**		0 if the address wasn't parsable
 **		-1 if error
 */
 

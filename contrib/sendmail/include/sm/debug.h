@@ -94,7 +94,7 @@ struct sm_debug
 
 # ifndef SM_DEBUG_CHECK
 #  define SM_DEBUG_CHECK 1
-# endif /* ! SM_DEBUG_CHECK */
+# endif
 
 # if SM_DEBUG_CHECK
 /*

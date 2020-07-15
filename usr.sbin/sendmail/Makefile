@@ -19,7 +19,7 @@ SRCS=	alias.c arpadate.c bf.c collect.c conf.c control.c \
 	macro.c main.c map.c mci.c milter.c mime.c parseaddr.c queue.c \
 	ratectrl.c readcf.c recipient.c savemail.c sasl.c sfsasl.c \
 	shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c \
-	timers.c tls.c trace.c udb.c usersmtp.c util.c version.c
+	timers.c tlsh.c tls.c trace.c udb.c usersmtp.c util.c version.c
 BINOWN=	root
 BINGRP=	smmsp
 .ifdef SENDMAIL_SET_USER_ID
@@ -53,7 +53,7 @@ CLEANFILES+=sm_os.h
 
 .if ${MK_OPENSSL} != "no"
 # STARTTLS support
-CFLAGS+=	-DSTARTTLS -D_FFR_TLS_1
+CFLAGS+=	-DSTARTTLS -DTLS_EC
 LIBADD+=	ssl crypto
 .endif
 

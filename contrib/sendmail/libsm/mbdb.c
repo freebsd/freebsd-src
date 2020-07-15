@@ -29,13 +29,13 @@ SM_RCSID("@(#)$Id: mbdb.c,v 1.43 2014-01-08 17:03:15 ca Exp $")
 #include <sm/string.h>
 # ifdef EX_OK
 #  undef EX_OK			/* for SVr4.2 SMP */
-# endif /* EX_OK */
+# endif
 #include <sm/sysexits.h>
 
 #if LDAPMAP
 # if _LDAP_EXAMPLE_
 #  include <sm/ldap.h>
-# endif /* _LDAP_EXAMPLE_ */
+# endif
 #endif /* LDAPMAP */
 
 typedef struct
@@ -65,7 +65,7 @@ static SM_MBDB_TYPE_T SmMbdbTypes[] =
 #if LDAPMAP
 # if _LDAP_EXAMPLE_
 	{ "ldap", mbdb_ldap_initialize, mbdb_ldap_lookup, mbdb_ldap_terminate },
-# endif /* _LDAP_EXAMPLE_ */
+# endif
 #endif /* LDAPMAP */
 	{ NULL, NULL, NULL, NULL }
 };
@@ -267,7 +267,7 @@ sm_pwfullname(gecos, user, buf, buflen)
 			if ((unsigned char) *p >= 128)
 				*bp++ = Latin1ToASCII[(unsigned char) *p - 128];
 			else
-#endif /* _FFR_HANDLE_ISO8859_GECOS */
+#endif
 				*bp++ = *p;
 		}
 	}
@@ -408,15 +408,15 @@ mbdb_pw_terminate()
 
 #  ifndef MBDB_LDAP_FILTER
 #   define MBDB_LDAP_FILTER		"(&(objectClass=posixAccount)(uid=%0))"
-#  endif /* MBDB_LDAP_FILTER */
+#  endif
 
 #  ifndef MBDB_DEFAULT_LDAP_BASEDN
 #   define MBDB_DEFAULT_LDAP_BASEDN	NULL
-#  endif /* MBDB_DEFAULT_LDAP_BASEDN */
+#  endif
 
 #  ifndef MBDB_DEFAULT_LDAP_SERVER
 #   define MBDB_DEFAULT_LDAP_SERVER	NULL
-#  endif /* MBDB_DEFAULT_LDAP_SERVER */
+#  endif
 
 /*
 **  MBDB_LDAP_INITIALIZE -- initialize LDAP version
@@ -559,7 +559,7 @@ mbdb_ldap_lookup(name, user)
 	{
 		int rc;
 
-		/*  
+		/*
 		**  We may have gotten an LDAP_RES_SEARCH_RESULT response
 		**  with an error inside it, so we have to extract that
 		**  with ldap_parse_result().  This can happen when talking

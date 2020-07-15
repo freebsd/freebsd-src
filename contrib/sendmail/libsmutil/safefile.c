@@ -25,8 +25,7 @@ SM_RCSID("@(#)$Id: safefile.c,v 8.130 2013-11-22 20:51:50 ca Exp $")
 **		fn -- filename to check.
 **		uid -- user id to compare against.
 **		gid -- group id to compare against.
-**		user -- user name to compare against (used for group
-**			sets).
+**		user -- user name to compare against (used for group sets).
 **		flags -- modifiers:
 **			SFF_MUSTOWN -- "uid" must own this file.
 **			SFF_NOSLINK -- file cannot be a symbolic link.
@@ -82,9 +81,9 @@ safefile(fn, uid, gid, user, flags, mode, st)
 # if HASLSTAT
 	if ((bitset(SFF_NOSLINK, flags) ? lstat(fn, st)
 					: stat(fn, st)) < 0)
-# else /* HASLSTAT */
+# else
 	if (stat(fn, st) < 0)
-# endif /* HASLSTAT */
+# endif
 	{
 		file_errno = errno;
 	}
@@ -100,19 +99,19 @@ safefile(fn, uid, gid, user, flags, mode, st)
 
 # ifdef SUID_ROOT_FILES_OK
 		if (bitset(S_ISUID, st->st_mode))
-# else /* SUID_ROOT_FILES_OK */
+# else
 		if (bitset(S_ISUID, st->st_mode) && st->st_uid != 0 &&
 		    st->st_uid != TrustedUid)
-# endif /* SUID_ROOT_FILES_OK */
+# endif
 		{
 			uid = st->st_uid;
 			user = NULL;
 		}
 # ifdef SUID_ROOT_FILES_OK
 		if (bitset(S_ISGID, st->st_mode))
-# else /* SUID_ROOT_FILES_OK */
+# else
 		if (bitset(S_ISGID, st->st_mode) && st->st_gid != 0)
-# endif /* SUID_ROOT_FILES_OK */
+# endif
 			gid = st->st_gid;
 	}
 
@@ -473,9 +472,9 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 
 # if HASLSTAT
 		ret = lstat(s, &stbuf);
-# else /* HASLSTAT */
+# else
 		ret = stat(s, &stbuf);
-# endif /* HASLSTAT */
+# endif
 		if (ret < 0)
 		{
 			ret = errno;
@@ -590,7 +589,7 @@ safedirpath(fn, uid, gid, user, flags, level, offset)
 #ifdef S_ISVTX
 		    !(bitnset(DBS_TRUSTSTICKYBIT, DontBlameSendmail) &&
 		      bitset(S_ISVTX, stbuf.st_mode)) &&
-#endif /* S_ISVTX */
+#endif
 		    bitset(mode, stbuf.st_mode))
 		{
 			if (tTd(44, 4))
@@ -686,7 +685,7 @@ safeopen(fn, omode, cmode, sff)
 {
 #if !NOFTRUNCATE
 	bool truncate;
-#endif /* !NOFTRUNCATE */
+#endif
 	int rval;
 	int fd;
 	int smode;
@@ -741,7 +740,7 @@ safeopen(fn, omode, cmode, sff)
 	truncate = bitset(O_TRUNC, omode);
 	if (truncate)
 		omode &= ~O_TRUNC;
-#endif /* !NOFTRUNCATE */
+#endif
 
 	fd = dfopen(fn, omode, cmode, sff);
 	if (fd < 0)
@@ -874,9 +873,9 @@ filechanged(fn, fd, stb)
 		/* only necessary if exclusive open follows symbolic links */
 		if (lstat(fn, stb) < 0 || stb->st_nlink != 1)
 			return true;
-# else /* HASLSTAT && BOGUS_O_EXCL */
+# else
 		return false;
-# endif /* HASLSTAT && BOGUS_O_EXCL */
+# endif
 	}
 	if (fstat(fd, &sta) < 0)
 		return true;
@@ -886,7 +885,7 @@ filechanged(fn, fd, stb)
 	    sta.st_ino != stb->st_ino ||
 # if HAS_ST_GEN && 0		/* AFS returns garbage in st_gen */
 	    sta.st_gen != stb->st_gen ||
-# endif /* HAS_ST_GEN && 0 */
+# endif
 	    sta.st_uid != stb->st_uid ||
 	    sta.st_gid != stb->st_gid)
 	{
@@ -903,7 +902,7 @@ filechanged(fn, fd, stb)
 # if HAS_ST_GEN
 			sm_dprintf(" gen	= %ld/%ld\n",
 				(long) stb->st_gen, (long) sta.st_gen);
-# endif /* HAS_ST_GEN */
+# endif
 			sm_dprintf(" uid	= %ld/%ld\n",
 				(long) stb->st_uid, (long) sta.st_uid);
 			sm_dprintf(" gid	= %ld/%ld\n",
@@ -947,7 +946,7 @@ dfopen(filename, omode, cmode, sff)
 		  case EINTR:		/* interrupted syscall */
 #ifdef ETXTBSY
 		  case ETXTBSY:		/* Apollo: net file locked */
-#endif /* ETXTBSY */
+#endif
 			continue;
 		}
 		break;

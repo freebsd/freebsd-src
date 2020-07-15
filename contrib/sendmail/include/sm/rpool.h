@@ -123,7 +123,7 @@ typedef struct
 #if _FFR_PERF_RPOOL
 	int	sm_nbigblocks;
 	int	sm_npools;
-#endif /* _FFR_PERF_RPOOL */
+#endif
 
 } SM_RPOOL_T;
 
@@ -167,10 +167,10 @@ sm_rpool_malloc __P((
 
 #if DO_NOT_USE_STRCPY
 extern char *sm_rpool_strdup_x __P((SM_RPOOL_T *rpool, const char *s));
-#else /* DO_NOT_USE_STRCPY */
+#else
 # define sm_rpool_strdup_x(rpool, str) \
 	strcpy(sm_rpool_malloc_x(rpool, strlen(str) + 1), str)
-#endif /* DO_NOT_USE_STRCPY */
+#endif
 
 extern SM_RPOOL_ATTACH_T
 sm_rpool_attach_x __P((

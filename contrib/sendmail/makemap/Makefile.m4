@@ -21,4 +21,5 @@ bldPRODUCT_START(`manpage', `makemap')
 define(`bldSOURCES', `makemap.8')
 bldPRODUCT_END
 
+
 bldFINISH

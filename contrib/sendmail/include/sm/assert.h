@@ -47,19 +47,19 @@ sm_abort __P((
 
 # ifndef SM_CHECK_ALL
 #  define SM_CHECK_ALL		1
-# endif /* ! SM_CHECK_ALL */
+# endif
 
 # ifndef SM_CHECK_REQUIRE
 #  define SM_CHECK_REQUIRE	SM_CHECK_ALL
-# endif /* ! SM_CHECK_REQUIRE */
+# endif
 
 # ifndef SM_CHECK_ENSURE
 #  define SM_CHECK_ENSURE	SM_CHECK_ALL
-# endif /* ! SM_CHECK_ENSURE */
+# endif
 
 # ifndef SM_CHECK_ASSERT
 #  define SM_CHECK_ASSERT	SM_CHECK_ALL
-# endif /* ! SM_CHECK_ASSERT */
+# endif
 
 # if SM_CHECK_REQUIRE
 #  if defined(__STDC__) || defined(__cplusplus)

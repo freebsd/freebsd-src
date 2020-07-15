@@ -16,7 +16,7 @@ SM_RCSID("@(#)$Id: syslogio.c,v 1.30 2013-11-22 20:51:43 ca Exp $")
 #include <errno.h>
 #ifdef SM_RPOOL
 # include <sm/rpool.h>
-#endif /* SM_RPOOL */
+#endif
 #include <sm/io.h>
 #include "local.h"
 

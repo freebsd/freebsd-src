@@ -17,7 +17,7 @@
 # include <db.h>
 # ifndef DB_VERSION_MAJOR
 #  define DB_VERSION_MAJOR 1
-# endif /* ! DB_VERSION_MAJOR */
+# endif
 
 # if (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 1) || DB_VERSION_MAJOR >= 5
 

@@ -16,7 +16,7 @@ ifdef(`_EDNSBL_R_',`dnl',`dnl
 VERSIONID(`$Id: enhdnsbl.m4,v 1.13 2013-11-22 20:51:11 ca Exp $')
 LOCAL_CONFIG
 define(`_EDNSBL_R_',`')dnl
-# map for enhanced DNS based blacklist lookups
+# map for enhanced DNS based blocklist lookups
 Kednsbl dns -R A -a. -T<TMP> -r`'ifdef(`EDNSBL_TO',`EDNSBL_TO',`5')
 ')
 divert(-1)

@@ -80,7 +80,7 @@ static int sm_lflush __P((SM_FILE_T *, int *));
 	do								\
 	{								\
 		(sel_ret) = select((fd) + 1, &sm_io_to_mask, NULL,	\
-			   	&sm_io_x_mask, (to));			\
+				&sm_io_x_mask, (to));			\
 	} while ((sel_ret) < 0 && errno == EINTR);			\
 	if ((sel_ret) < 0)						\
 	{								\
@@ -95,7 +95,7 @@ static int sm_lflush __P((SM_FILE_T *, int *));
 		errno = EAGAIN;						\
 		return SM_IO_EOF;					\
 	}								\
-	/* calulate wall-clock time used */				\
+	/* calculate wall-clock time used */				\
 	if (gettimeofday(&sm_io_to_after, NULL) < 0)			\
 		return SM_IO_EOF;					\
 	timersub(&sm_io_to_after, &sm_io_to_before, &sm_io_to_diff);	\

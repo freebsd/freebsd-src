@@ -1318,7 +1318,7 @@ sfgets(buf, siz, fp, timeout, during)
 			buf[0] = '\0';
 #if XDEBUG
 			checkfd012(during);
-#endif /* XDEBUG */
+#endif
 			if (TrafficLogFile != NULL)
 				(void) sm_io_fprintf(TrafficLogFile,
 						     SM_TIME_DEFAULT,
@@ -1386,6 +1386,7 @@ sfgets(buf, siz, fp, timeout, during)
 **		buf gets lines from f, with continuation lines (lines
 **		with leading white space) appended.  CRLF's are mapped
 **		into single newlines.  Any trailing NL is stripped.
+**		Increases LineNumber for each line.
 */
 
 char *
@@ -1752,7 +1753,7 @@ checkfds(where)
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
-#endif /* NETINET || NETINET6 */
+#endif
 
 void
 printopenfds(logit)
@@ -1788,14 +1789,14 @@ dumpfd(fd, printclosed, logit)
 	char *hp;
 #ifdef S_IFSOCK
 	SOCKADDR sa;
-#endif /* S_IFSOCK */
+#endif
 	auto SOCKADDR_LEN_T slen;
 	int i;
 #if STAT64 > 0
 	struct stat64 st;
-#else /* STAT64 > 0 */
+#else
 	struct stat st;
-#endif /* STAT64 > 0 */
+#endif
 	char buf[200];
 
 	p = buf;
@@ -1805,9 +1806,9 @@ dumpfd(fd, printclosed, logit)
 	if (
 #if STAT64 > 0
 	    fstat64(fd, &st)
-#else /* STAT64 > 0 */
+#else
 	    fstat(fd, &st)
-#endif /* STAT64 > 0 */
+#endif
 	    < 0)
 	{
 		if (errno != EBADF)
@@ -1858,12 +1859,12 @@ dumpfd(fd, printclosed, logit)
 			else if (sa.sa.sa_family == AF_INET)
 				(void) sm_snprintf(p, SPACELEFT(buf, p),
 					"%s/%d", hp, ntohs(sa.sin.sin_port));
-# endif /* NETINET */
+# endif
 # if NETINET6
 			else if (sa.sa.sa_family == AF_INET6)
 				(void) sm_snprintf(p, SPACELEFT(buf, p),
 					"%s/%d", hp, ntohs(sa.sin6.sin6_port));
-# endif /* NETINET6 */
+# endif
 			else
 				(void) sm_snprintf(p, SPACELEFT(buf, p),
 					"%s", hp);
@@ -1887,12 +1888,12 @@ dumpfd(fd, printclosed, logit)
 			else if (sa.sa.sa_family == AF_INET)
 				(void) sm_snprintf(p, SPACELEFT(buf, p),
 					"%s/%d", hp, ntohs(sa.sin.sin_port));
-# endif /* NETINET */
+# endif
 # if NETINET6
 			else if (sa.sa.sa_family == AF_INET6)
 				(void) sm_snprintf(p, SPACELEFT(buf, p),
 					"%s/%d", hp, ntohs(sa.sin6.sin6_port));
-# endif /* NETINET6 */
+# endif
 			else
 				(void) sm_snprintf(p, SPACELEFT(buf, p),
 					"%s", hp);
@@ -1910,28 +1911,28 @@ dumpfd(fd, printclosed, logit)
 		(void) sm_snprintf(p, SPACELEFT(buf, p), "BLK: ");
 		p += strlen(p);
 		goto defprint;
-#endif /* S_IFBLK */
+#endif
 
 #if defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK)
 	  case S_IFIFO:
 		(void) sm_snprintf(p, SPACELEFT(buf, p), "FIFO: ");
 		p += strlen(p);
 		goto defprint;
-#endif /* defined(S_IFIFO) && (!defined(S_IFSOCK) || S_IFIFO != S_IFSOCK) */
+#endif
 
 #ifdef S_IFDIR
 	  case S_IFDIR:
 		(void) sm_snprintf(p, SPACELEFT(buf, p), "DIR: ");
 		p += strlen(p);
 		goto defprint;
-#endif /* S_IFDIR */
+#endif
 
 #ifdef S_IFLNK
 	  case S_IFLNK:
 		(void) sm_snprintf(p, SPACELEFT(buf, p), "LNK: ");
 		p += strlen(p);
 		goto defprint;
-#endif /* S_IFLNK */
+#endif
 
 	  default:
 defprint:
@@ -2123,7 +2124,7 @@ prog_open(argv, pfd, e)
 	sm_mbdb_terminate();
 #if _FFR_MEMSTAT
 	(void) sm_memstat_close();
-#endif /* _FFR_MEMSTAT */
+#endif
 	if (setgid(DefGid) < 0 && geteuid() == 0)
 	{
 		syserr("prog_open: setgid(%ld) failed", (long) DefGid);
@@ -2234,7 +2235,7 @@ get_column(line, col, delim, buf, buflen)
 
 	if (col == 0 && (char) delim == '\0')
 	{
-		while (*begin != '\0' && isascii(*begin) && isspace(*begin))
+		while (*begin != '\0' && SM_ISSPACE(*begin))
 			begin++;
 	}
 
@@ -2245,7 +2246,7 @@ get_column(line, col, delim, buf, buflen)
 		begin++;
 		if ((char) delim == '\0')
 		{
-			while (*begin != '\0' && isascii(*begin) && isspace(*begin))
+			while (*begin != '\0' && SM_ISSPACE(*begin))
 				begin++;
 		}
 	}
@@ -2414,9 +2415,9 @@ path_is_dir(pathname, createflag)
 
 #if HASLSTAT
 	if (lstat(pathname, &statbuf) < 0)
-#else /* HASLSTAT */
+#else
 	if (stat(pathname, &statbuf) < 0)
-#endif /* HASLSTAT */
+#endif
 	{
 		if (errno != ENOENT || !createflag)
 			return false;
@@ -2706,7 +2707,7 @@ proc_list_probe()
 					  "proc_list_probe: lost pid %d",
 					  (int) ProcListVec[i].proc_pid);
 			ProcListVec[i].proc_pid = NO_PID;
-			SM_FREE_CLR(ProcListVec[i].proc_task);
+			SM_FREE(ProcListVec[i].proc_task);
 
 			if (ProcListVec[i].proc_type == PROC_QUEUE)
 			{
@@ -2855,13 +2856,13 @@ count_open_connections(hostaddr)
 		    (hostaddr->sin.sin_addr.s_addr ==
 		     ProcListVec[i].proc_hostaddr.sin.sin_addr.s_addr))
 			n++;
-#endif /* NETINET */
+#endif
 #if NETINET6
 		if (hostaddr->sa.sa_family == AF_INET6 &&
 		    IN6_ARE_ADDR_EQUAL(&(hostaddr->sin6.sin6_addr),
 				       &(ProcListVec[i].proc_hostaddr.sin6.sin6_addr)))
 			n++;
-#endif /* NETINET6 */
+#endif
 	}
 	return n;
 }
@@ -2920,13 +2921,28 @@ xconnect(inchannel)
 		return 0;
 	}
 
+# if _FFR_XCNCT > 1
+	if (pvp != NULL && pvp[0] != NULL &&
+	    pvp[0][0] == '2' && pvp[0][1] == '2' && pvp[0][2] == '0')
+	{
+		char *hostname;			/* my hostname ($j) */
+
+		hostname = macvalue('j', &BlankEnvelope);
+		if (tTd(75, 7))
+			sm_syslog(LOG_INFO, NOQID, "x-connect=%s", pvp[0]);
+		message("220-%s %s", hostname != NULL ? hostname : "xconnect",
+			pvp[1] != NULL ? pvp[1] : "waiting for xconnect");
+		sm_io_flush(OutChannel, SM_TIME_DEFAULT);
+	}
+# endif
+
 	p = sfgets(inp, sizeof(inp), InChannel, TimeOuts.to_nextcommand, "pre");
 	if (tTd(75, 6))
 		sm_syslog(LOG_INFO, NOQID, "x-connect: input=%s", p);
 	if (p == NULL || strncasecmp(p, XCONNECT, XCNNCTLEN) != 0)
 		return -1;
 	p += XCNNCTLEN;
-	while (isascii(*p) && isspace(*p))
+	while (SM_ISSPACE(*p))
 		p++;
 
 	/* parameters: IPAddress [Hostname[ M]] */
@@ -2953,15 +2969,13 @@ xconnect(inchannel)
 		addr.sa.sa_family = AF_INET6;
 		memcpy(&RealHostAddr, &addr, sizeof(addr));
 	}
-# endif /* NETINET6 */
+# endif
 	else
 		return -1;
 
 	/* more parameters? */
 	if (delim != ' ')
 		return D_XCNCT;
-	while (*p != '\0' && isascii(*p) && isspace(*p))
-		p++;
 
 	for (b = ++p, i = 0;
 	     *p != '\0' && isascii(*p) && (isalnum(*p) || *p == '.' || *p == '-');
@@ -2974,7 +2988,7 @@ xconnect(inchannel)
 		b[MAXNAME] = '\0';
 	else
 		b[i] = '\0';
-	SM_FREE_CLR(RealHostName);
+	SM_FREE(RealHostName);
 	RealHostName = newstr(b);
 	if (tTd(75, 2))
 		sm_syslog(LOG_INFO, NOQID, "x-connect: host=%s", b);
@@ -2984,7 +2998,7 @@ xconnect(inchannel)
 	if (*p != ' ')
 		return D_XCNCT;
 
-	while (*p != '\0' && isascii(*p) && isspace(*p))
+	while (*p != '\0' && SM_ISSPACE(*p))
 		p++;
 
 	if (tTd(75, 4))
