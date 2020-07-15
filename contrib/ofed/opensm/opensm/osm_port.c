@@ -161,8 +161,10 @@ osm_port_t *osm_port_new(IN const ib_node_info_t * p_ni,
 	   only the singular part that has this GUID is owned.
 	 */
 	p_physp = osm_node_get_physp_ptr(p_parent_node, port_num);
-	if (!p_physp)
+	if (!p_physp) {
+		osm_port_delete(&p_port);
 		return NULL;
+	}
 
 	CL_ASSERT(port_guid == osm_physp_get_port_guid(p_physp));
 	p_port->p_physp = p_physp;

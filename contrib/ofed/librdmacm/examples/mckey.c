@@ -469,8 +469,7 @@ static int get_dst_addr(char *dst, struct sockaddr *addr)
 	sib = (struct sockaddr_ib *) addr;
 	memset(sib, 0, sizeof *sib);
 	sib->sib_family = AF_IB;
-	inet_pton(AF_INET6, dst, &sib->sib_addr);
-	return 0;
+	return inet_pton(AF_INET6, dst, &sib->sib_addr) != 1;
 }
 
 static int run(void)

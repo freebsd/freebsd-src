@@ -264,7 +264,6 @@ int __ibv_close_device(struct ibv_context *context)
 {
 	int async_fd = context->async_fd;
 	int cmd_fd   = context->cmd_fd;
-	int cq_fd    = -1;
 	struct verbs_context *context_ex;
 	struct verbs_device *verbs_device = verbs_get_device(context->device);
 
@@ -279,8 +278,6 @@ int __ibv_close_device(struct ibv_context *context)
 
 	close(async_fd);
 	close(cmd_fd);
-	if (abi_ver <= 2)
-		close(cq_fd);
 
 	return 0;
 }

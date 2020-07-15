@@ -564,6 +564,7 @@ int main(int argc, char **argv)
 				printf("Port is already in enable state\n");
 				goto close_port;
 			}
+			/* FALLTHROUGH */
 		case ENABLE:
 		case RESET:
 			/* Polling */
