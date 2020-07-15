@@ -373,6 +373,7 @@ static void sa_mad_ctrl_rcv_callback(IN osm_madw_t * p_madw, IN void *context,
 	case IB_MAD_METHOD_GETMULTI:
 #endif
 		is_get_request = TRUE;
+		/* FALLTHROUGH */
 	case IB_MAD_METHOD_SET:
 	case IB_MAD_METHOD_DELETE:
 		/* if we are closing down simply do nothing */
