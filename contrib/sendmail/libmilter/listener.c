@@ -24,11 +24,11 @@ SM_RCSID("@(#)$Id: listener.c,v 8.127 2013-11-22 20:51:36 ca Exp $")
 
 # if NETINET || NETINET6
 #  include <arpa/inet.h>
-# endif /* NETINET || NETINET6 */
+# endif
 # if SM_CONF_POLL
 #  undef SM_FD_OK_SELECT
 #  define SM_FD_OK_SELECT(fd)		true
-# endif /* SM_CONF_POLL */
+# endif
 
 static smutex_t L_Mutex;
 static int L_family;
@@ -38,7 +38,7 @@ static socket_t listenfd = INVALID_SOCKET;
 static socket_t mi_milteropen __P((char *, int, bool, char *));
 #if !_FFR_WORKERS_POOL
 static void *mi_thread_handle_wrapper __P((void *));
-#endif /* !_FFR_WORKERS_POOL */
+#endif
 
 /*
 **  MI_OPENSOCKET -- create the socket where this filter and the MTA will meet
@@ -116,7 +116,7 @@ mi_opensocket(conn, backlog, dbg, rmsocket, smfi)
 
 #if NETUNIX
 static char	*sockpath = NULL;
-#endif /* NETUNIX */
+#endif
 
 static socket_t
 mi_milteropen(conn, backlog, rmsocket, name)
@@ -269,13 +269,13 @@ mi_milteropen(conn, backlog, rmsocket, name)
 	if (
 # if NETINET
 	    addr.sa.sa_family == AF_INET
-# endif /* NETINET */
+# endif
 # if NETINET && NETINET6
 	    ||
-# endif /* NETINET && NETINET6 */
+# endif
 # if NETINET6
 	    addr.sa.sa_family == AF_INET6
-# endif /* NETINET6 */
+# endif
 	   )
 	{
 		unsigned short port;
@@ -290,13 +290,13 @@ mi_milteropen(conn, backlog, rmsocket, name)
 			  case AF_INET:
 				addr.sin.sin_addr.s_addr = INADDR_ANY;
 				break;
-# endif /* NETINET */
+# endif
 
 # if NETINET6
 			  case AF_INET6:
 				addr.sin6.sin6_addr = in6addr_any;
 				break;
-# endif /* NETINET6 */
+# endif
 			}
 		}
 		else
@@ -337,10 +337,10 @@ mi_milteropen(conn, backlog, rmsocket, name)
 					bool found = false;
 # if NETINET
 					unsigned long hid = INADDR_NONE;
-# endif /* NETINET */
+# endif
 # if NETINET6
 					struct sockaddr_in6 hid6;
-# endif /* NETINET6 */
+# endif
 
 					*end = '\0';
 # if NETINET
@@ -421,7 +421,7 @@ mi_milteropen(conn, backlog, rmsocket, name)
 				}
 # if NETINET6
 				freehostent(hp);
-# endif /* NETINET6 */
+# endif
 			}
 		}
 		else
@@ -432,12 +432,12 @@ mi_milteropen(conn, backlog, rmsocket, name)
 			  case AF_INET:
 				addr.sin.sin_port = port;
 				break;
-# endif /* NETINET */
+# endif
 # if NETINET6
 			  case AF_INET6:
 				addr.sin6.sin6_port = port;
 				break;
-# endif /* NETINET6 */
+# endif
 			}
 		}
 	}
@@ -465,7 +465,7 @@ mi_milteropen(conn, backlog, rmsocket, name)
 	if (
 #if NETUNIX
 	    addr.sa.sa_family != AF_UNIX &&
-#endif /* NETUNIX */
+#endif
 	    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *) &sockopt,
 		       sizeof(sockopt)) == -1)
 	{
@@ -607,7 +607,7 @@ mi_closener()
 			    (S_ISFIFO(sockinfo.st_mode)
 # ifdef S_ISSOCK
 			     || S_ISSOCK(sockinfo.st_mode)
-# endif /* S_ISSOCK */
+# endif
 			    );
 #endif /* NETUNIX */
 
@@ -624,13 +624,13 @@ mi_closener()
 			      fileinfo.st_ino == sockinfo.st_ino)
 # ifdef S_ISSOCK
 			     || S_ISSOCK(fileinfo.st_mode)
-# endif /* S_ISSOCK */
+# endif
 			    )
 			    &&
 			    (S_ISFIFO(fileinfo.st_mode)
 # ifdef S_ISSOCK
 			     || S_ISSOCK(fileinfo.st_mode)
-# endif /* S_ISSOCK */
+# endif
 			     ))
 				(void) unlink(sockpath);
 			free(sockpath);
@@ -719,7 +719,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	socket_t connfd = INVALID_SOCKET;
 #if _FFR_DUP_FD
 	socket_t dupfd = INVALID_SOCKET;
-#endif /* _FFR_DUP_FD */
+#endif
 	int sockopt = 1;
 	int r, mistop;
 	int ret = MI_SUCCESS;
@@ -731,7 +731,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 	int fdflags;
 #if !_FFR_WORKERS_POOL
 	sthread_t thread_id;
-#endif /* !_FFR_WORKERS_POOL */
+#endif
 	_SOCK_ADDR cliaddr;
 	SOCKADDR_LEN_T clilen;
 	SMFICTX_PTR ctx;
@@ -744,7 +744,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 #if _FFR_WORKERS_POOL
 	if (mi_pool_controller_init() == MI_FAILURE)
 		return MI_FAILURE;
-#endif /* _FFR_WORKERS_POOL */
+#endif
 
 	clilen = L_socksize;
 	while ((mistop = mi_stop()) == MILTER_CONT)
@@ -817,7 +817,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		    (clilen == 0 ||
 # ifdef BSD4_4_SOCKADDR
 		     cliaddr.sa.sa_len == 0 ||
-# endif /* BSD4_4_SOCKADDR */
+# endif
 		     cliaddr.sa.sa_family != L_family))
 		{
 			(void) closesocket(connfd);
@@ -838,28 +838,28 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 			if (save_errno == EINTR
 #ifdef EAGAIN
 			    || save_errno == EAGAIN
-#endif /* EAGAIN */
+#endif
 #ifdef ECONNABORTED
 			    || save_errno == ECONNABORTED
-#endif /* ECONNABORTED */
+#endif
 #ifdef EMFILE
 			    || save_errno == EMFILE
-#endif /* EMFILE */
+#endif
 #ifdef ENFILE
 			    || save_errno == ENFILE
-#endif /* ENFILE */
+#endif
 #ifdef ENOBUFS
 			    || save_errno == ENOBUFS
-#endif /* ENOBUFS */
+#endif
 #ifdef ENOMEM
 			    || save_errno == ENOMEM
-#endif /* ENOMEM */
+#endif
 #ifdef ENOSR
 			    || save_errno == ENOSR
-#endif /* ENOSR */
+#endif
 #ifdef EWOULDBLOCK
 			    || save_errno == EWOULDBLOCK
-#endif /* EWOULDBLOCK */
+#endif
 			   )
 				continue;
 			acnt++;
@@ -886,7 +886,7 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 		}
 #endif /* _FFR_DUP_FD */
 
- 		/*
+		/*
 		**  Need to set close-on-exec for connfd in case a user's
 		**  filter starts other applications.
 		**  Note: errors will not stop processing (for now).
@@ -951,12 +951,12 @@ mi_listener(conn, dbg, smfi, timeout, backlog)
 #if _FFR_WORKERS_POOL
 # define LOG_CRT_FAIL	"%s: mi_start_session() failed: %d, %s"
 		if ((r = mi_start_session(ctx)) != MI_SUCCESS)
-#else /* _FFR_WORKERS_POOL */
+#else
 # define LOG_CRT_FAIL	"%s: thread_create() failed: %d, %s"
 		if ((r = thread_create(&thread_id,
 					mi_thread_handle_wrapper,
 					(void *) ctx)) != 0)
-#endif /* _FFR_WORKERS_POOL */
+#endif
 		{
 			tcnt++;
 			smi_log(SMI_LOG_ERR,

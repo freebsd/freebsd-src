@@ -99,7 +99,7 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 	if (tTd(38, 21))
 		sm_dprintf("ni_propval(%s, %s, %s, %s, %d) keybuf='%s'\n",
 			keydir, keyprop, keyval, valprop, sepchar, keybuf);
-#endif /* 0 */
+#endif
 
 	/*
 	**  If the passed directory and property name are found
@@ -117,7 +117,7 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 #if 0
 			if (tTd(38, 20))
 				sm_dprintf("ni_open(LOCAL) = %d\n", nis);
-#endif /* 0 */
+#endif
 		}
 		else
 		{
@@ -128,7 +128,7 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 #if 0
 			if (tTd(38, 20))
 				sm_dprintf("ni_open(PARENT) = %d\n", nis);
-#endif /* 0 */
+#endif
 		}
 
 		/*
@@ -160,7 +160,7 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 		if (tTd(38, 20))
 			sm_dprintf("ni_lookupprop: len=%d\n",
 				ninl.ni_namelist_len);
-#endif /* 0 */
+#endif
 
 		/*
 		**  See if we have an acceptable number of values.
@@ -206,7 +206,7 @@ ni_propval(keydir, keyprop, keyval, valprop, sepchar)
 #if 0
 	if (tTd(38, 20))
 		sm_dprintf("ni_propval returns: '%s'\n", propval);
-#endif /* 0 */
+#endif
 
 	return propval;
 }

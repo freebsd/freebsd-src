@@ -14,12 +14,12 @@
 
 # if SASL
 extern int	sfdcsasl __P((SM_FILE_T **, SM_FILE_T **, sasl_conn_t *, int));
-# endif /* SASL */
+# endif
 
 # if STARTTLS
 extern int	tls_retry __P((SSL *, int, int, time_t, int, int,
 				const char *));
 extern int	sfdctls __P((SM_FILE_T **, SM_FILE_T **, SSL *));
-# endif /* STARTTLS */
+# endif
 
 #endif /* ! SFSASL_H */

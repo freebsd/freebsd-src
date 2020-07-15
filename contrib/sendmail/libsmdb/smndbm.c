@@ -19,7 +19,6 @@ SM_RCSID("@(#)$Id: smndbm.c,v 8.55 2013-11-22 20:51:49 ca Exp $")
 
 #ifdef NDBM
 
-# define SMNDB_DIR_FILE_EXTENSION "dir"
 # define SMNDB_PAG_FILE_EXTENSION "pag"
 
 struct smdb_dbm_database_struct

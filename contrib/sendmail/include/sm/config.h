@@ -31,9 +31,9 @@
 # ifndef SM_CONF_STDBOOL_H
 #  if !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #   define SM_CONF_STDBOOL_H		1
-#  else /* !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
+#  else
 #   define SM_CONF_STDBOOL_H		0
-#  endif /* !defined(__clang__) && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
+#  endif
 # endif /* ! SM_CONF_STDBOOL_H */
 
 /*
@@ -42,7 +42,7 @@
 
 # ifndef SM_CONF_SYS_CDEFS_H
 #  define SM_CONF_SYS_CDEFS_H		0
-# endif /* ! SM_CONF_SYS_CDEFS_H */
+# endif
 
 /*
 **  SM_CONF_STDDEF_H is 1 if <stddef.h> exists
@@ -50,7 +50,7 @@
 
 # ifndef SM_CONF_STDDEF_H
 #  define SM_CONF_STDDEF_H		1
-# endif /* ! SM_CONF_STDDEF_H */
+# endif
 
 /*
 **  Configuration macro that specifies whether strlcpy/strlcat are available.
@@ -60,7 +60,7 @@
 
 # ifndef SM_CONF_STRL
 #  define SM_CONF_STRL			0
-# endif /* ! SM_CONF_STRL */
+# endif
 
 /*
 **  Configuration macro indicating that setitimer is available
@@ -68,7 +68,7 @@
 
 # ifndef SM_CONF_SETITIMER
 #  define SM_CONF_SETITIMER		1
-# endif /* ! SM_CONF_SETITIMER */
+# endif
 
 /*
 **  Does <sys/types.h> define uid_t and gid_t?
@@ -76,14 +76,14 @@
 
 # ifndef SM_CONF_UID_GID
 #  define SM_CONF_UID_GID		1
-# endif /* ! SM_CONF_UID_GID */
+# endif
 
 /*
 **  Does <sys/types.h> define ssize_t?
 */
 # ifndef SM_CONF_SSIZE_T
 #  define SM_CONF_SSIZE_T		1
-# endif /* ! SM_CONF_SSIZE_T */
+# endif
 
 /*
 **  Does the C compiler support long long?
@@ -95,9 +95,9 @@
 #  else /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
 #   if defined(__GNUC__)
 #    define SM_CONF_LONGLONG		1
-#   else /* defined(__GNUC__) */
+#   else
 #    define SM_CONF_LONGLONG		0
-#   endif /* defined(__GNUC__) */
+#   endif
 #  endif /* defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L */
 # endif /* ! SM_CONF_LONGLONG */
 
@@ -108,7 +108,7 @@
 
 # ifndef SM_CONF_QUAD_T
 #  define SM_CONF_QUAD_T		0
-# endif /* ! SM_CONF_QUAD_T */
+# endif
 
 /*
 **  Configuration macro indicating that shared memory is available
@@ -116,7 +116,7 @@
 
 # ifndef SM_CONF_SHM
 #  define SM_CONF_SHM		0
-# endif /* ! SM_CONF_SHM */
+# endif
 
 /*
 **  Does <setjmp.h> define sigsetjmp?
@@ -124,7 +124,7 @@
 
 # ifndef SM_CONF_SIGSETJMP
 #  define SM_CONF_SIGSETJMP	1
-# endif /* ! SM_CONF_SIGSETJMP */
+# endif
 
 /*
 **  Does <sysexits.h> exist, and define the EX_* macros with values
@@ -133,17 +133,17 @@
 
 # ifndef SM_CONF_SYSEXITS_H
 #  define SM_CONF_SYSEXITS_H	0
-# endif /* ! SM_CONF_SYSEXITS_H */
+# endif
 
 /* has memchr() prototype? (if not: needs memory.h) */
 # ifndef SM_CONF_MEMCHR
 #  define SM_CONF_MEMCHR	1
-# endif /* ! SM_CONF_MEMCHR */
+# endif
 
 /* try LLONG tests in libsm/t-types.c? */
 # ifndef SM_CONF_TEST_LLONG
 #  define SM_CONF_TEST_LLONG	1
-# endif /* !SM_CONF_TEST_LLONG */
+# endif
 
 /* LDAP Checks */
 # if LDAPMAP
@@ -161,9 +161,9 @@
 
 #   if USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004
 #    define SM_CONF_LDAP_MEMFREE	1
-#   else /* USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004 */
+#   else
 #    define SM_CONF_LDAP_MEMFREE	0
-#   endif /* USING_NETSCAPE_LDAP || LDAP_API_VERSION >= 2004 */
+#   endif
 #  endif /* ! SM_CONF_LDAP_MEMFREE */
 
 /* Does the LDAP library have ldap_initialize()? */
@@ -177,13 +177,13 @@
 /* OpenLDAP does it with LDAP_OPT_URI */
 #   ifdef LDAP_OPT_URI
 #    define SM_CONF_LDAP_INITIALIZE	1
-#   endif /* LDAP_OPT_URI */
+#   endif
 #  endif /* !SM_CONF_LDAP_INITIALIZE */
 # endif /* LDAPMAP */
 
 /* don't use strcpy() */
 # ifndef DO_NOT_USE_STRCPY
 #  define DO_NOT_USE_STRCPY	1
-# endif /* ! DO_NOT_USE_STRCPY */
+# endif
 
 #endif /* ! SM_CONFIG_H */

@@ -64,7 +64,7 @@ SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.66 2013-11-22 20:52:00 ca Exp $")
 #include <errno.h>
 #ifdef EX_OK
 # undef EX_OK
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 #include <syslog.h>
 #include <stdlib.h>
@@ -76,9 +76,9 @@ SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.66 2013-11-22 20:52:00 ca Exp $")
 #ifndef CMDDIR
 # ifdef SMRSH_CMDDIR
 #  define CMDDIR	SMRSH_CMDDIR
-# else /* SMRSH_CMDDIR */
+# else
 #  define CMDDIR	"/usr/adm/sm.bin"
-# endif /* SMRSH_CMDDIR */
+# endif
 #endif /* ! CMDDIR */
 
 /* characters disallowed in the shell "-c" argument */
@@ -88,9 +88,9 @@ SM_IDSTR(id, "@(#)$Id: smrsh.c,v 8.66 2013-11-22 20:52:00 ca Exp $")
 #ifndef PATH
 # ifdef SMRSH_PATH
 #  define PATH		SMRSH_PATH
-# else /* SMRSH_PATH */
+# else
 #  define PATH		"/bin:/usr/bin:/usr/ucb"
-# endif /* SMRSH_PATH */
+# endif
 #endif /* ! PATH */
 
 char newcmdbuf[1000];
@@ -128,7 +128,7 @@ addcmd(s, cmd, len)
 				    "%s: command too long: %s\n", prg, par);
 #ifndef DEBUG
 		syslog(LOG_WARNING, "command too long: %.40s", par);
-#endif /* ! DEBUG */
+#endif
 		exit(EX_UNAVAILABLE);
 	}
 	if (cmd)
@@ -155,9 +155,9 @@ main(argc, argv)
 #ifndef DEBUG
 # ifndef LOG_MAIL
 	openlog("smrsh", 0);
-# else /* ! LOG_MAIL */
+# else
 	openlog("smrsh", LOG_ODELAY|LOG_CONS, LOG_MAIL);
-# endif /* ! LOG_MAIL */
+# endif
 #endif /* ! DEBUG */
 
 	(void) sm_strlcpyn(pathbuf, sizeof pathbuf, 2, "PATH=", PATH);
@@ -176,7 +176,7 @@ main(argc, argv)
 				     "Usage: %s -c command\n", prg);
 #ifndef DEBUG
 		syslog(LOG_ERR, "usage");
-#endif /* ! DEBUG */
+#endif
 		exit(EX_USAGE);
 	}
 
@@ -193,7 +193,7 @@ main(argc, argv)
 	{
 #ifndef DEBUG
 		syslog(LOG_ERR, "too many specials: %.40s", SPECIALS);
-#endif /* ! DEBUG */
+#endif
 		exit(EX_UNAVAILABLE);
 	}
 	(void) sm_strlcpy(specialbuf, SPECIALS, sizeof specialbuf);
@@ -211,7 +211,7 @@ main(argc, argv)
 				     "%s: command too long: %s\n", prg, par);
 #ifndef DEBUG
 		syslog(LOG_WARNING, "command too long: %.40s", par);
-#endif /* ! DEBUG */
+#endif
 		exit(EX_UNAVAILABLE);
 	}
 
@@ -238,7 +238,7 @@ main(argc, argv)
 						     prg);
 #ifndef DEBUG
 				syslog(LOG_CRIT, "uid %d: missing command to exec", (int) getuid());
-#endif /* ! DEBUG */
+#endif
 				exit(EX_UNAVAILABLE);
 			}
 			break;
@@ -300,14 +300,14 @@ main(argc, argv)
 #ifndef DEBUG
 				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (filename too long)",
 				       (int) getuid(), cmd);
-#endif /* ! DEBUG */
+#endif
 				exit(EX_UNAVAILABLE);
 			}
 
 #ifdef DEBUG
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "Trying %s\n", cmdbuf);
-#endif /* DEBUG */
+#endif
 			if (stat(cmdbuf, &st) < 0)
 			{
 				/* can't stat it */
@@ -319,13 +319,13 @@ main(argc, argv)
 #ifndef DEBUG
 				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (stat failed)",
 				       (int) getuid(), cmd);
-#endif /* ! DEBUG */
+#endif
 				exit(EX_UNAVAILABLE);
 			}
 			if (!S_ISREG(st.st_mode)
 #ifdef S_ISLNK
 			    && !S_ISLNK(st.st_mode)
-#endif /* S_ISLNK */
+#endif
 			   )
 			{
 				/* can't stat it */
@@ -337,12 +337,12 @@ main(argc, argv)
 #ifndef DEBUG
 				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\" (not a file)",
 				       (int) getuid(), cmd);
-#endif /* ! DEBUG */
+#endif
 				exit(EX_UNAVAILABLE);
 			}
 			if (access(cmdbuf, X_OK) < 0)
 			{
-				/* oops....  crack attack possiblity */
+				/* oops....  crack attack possibility */
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 						     "%s: \"%s\" not available for sendmail programs\n",
 						      prg, cmd);
@@ -351,7 +351,7 @@ main(argc, argv)
 #ifndef DEBUG
 				syslog(LOG_CRIT, "uid %d: attempt to use \"%s\"",
 				       (int) getuid(), cmd);
-#endif /* ! DEBUG */
+#endif
 				exit(EX_UNAVAILABLE);
 			}
 
@@ -395,7 +395,7 @@ main(argc, argv)
 #ifndef DEBUG
 		syslog(LOG_CRIT, "uid %d: attempt to use %c in command: %s",
 		       (int) getuid(), *r, par);
-#endif /* ! DEBUG */
+#endif
 		exit(EX_UNAVAILABLE);
 	}
 	if (isexec)
@@ -405,7 +405,7 @@ main(argc, argv)
 #ifndef DEBUG
 		syslog(LOG_CRIT, "uid %d: missing command to exec",
 		       (int) getuid());
-#endif /* ! DEBUG */
+#endif
 		exit(EX_UNAVAILABLE);
 	}
 	/* make sure we created something */
@@ -415,7 +415,7 @@ main(argc, argv)
 				     "Usage: %s -c command\n", prg);
 #ifndef DEBUG
 		syslog(LOG_ERR, "usage");
-#endif /* ! DEBUG */
+#endif
 		exit(EX_USAGE);
 	}
 
@@ -425,13 +425,13 @@ main(argc, argv)
 
 #ifdef DEBUG
 	(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%s\n", newcmdbuf);
-#endif /* DEBUG */
+#endif
 	(void) execle("/bin/sh", "/bin/sh", "-c", newcmdbuf,
 		      (char *)NULL, newenv);
 	save_errno = errno;
 #ifndef DEBUG
 	syslog(LOG_CRIT, "Cannot exec /bin/sh: %s", sm_errstring(errno));
-#endif /* ! DEBUG */
+#endif
 	errno = save_errno;
 	sm_perror("/bin/sh");
 	exit(EX_OSFILE);

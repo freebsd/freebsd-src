@@ -20,8 +20,6 @@ SM_RCSID("@(#)$Id: smdb2.c,v 8.83 2013-11-22 20:51:49 ca Exp $")
 
 #if (DB_VERSION_MAJOR >= 2)
 
-# define SMDB2_FILE_EXTENSION "db"
-
 struct smdb_db2_database
 {
 	DB	*smdb2_db;
@@ -41,17 +39,17 @@ typedef struct smdb_db2_database SMDB_DB2_DATABASE;
 **
 */
 
-DBTYPE
+static DBTYPE
 smdb_type_to_db2_type(type)
 	SMDB_DBTYPE type;
 {
 	if (type == SMDB_TYPE_DEFAULT)
 		return DB_HASH;
 
-	if (strncmp(type, SMDB_TYPE_HASH, SMDB_TYPE_HASH_LEN) == 0)
+	if (SMDB_IS_TYPE_HASH(type))
 		return DB_HASH;
 
-	if (strncmp(type, SMDB_TYPE_BTREE, SMDB_TYPE_BTREE_LEN) == 0)
+	if (SMDB_IS_TYPE_BTREE(type))
 		return DB_BTREE;
 
 	return DB_UNKNOWN;
@@ -64,11 +62,11 @@ smdb_type_to_db2_type(type)
 **
 **	Returns:
 **		The SMDBE error corresponding to the db2 error.
-**		If we don't have a corresponding error, it returs errno.
+**		If we don't have a corresponding error, it returns errno.
 **
 */
 
-int
+static int
 db2_error_to_smdb(error)
 	int error;
 {
@@ -80,55 +78,55 @@ db2_error_to_smdb(error)
 		case DB_INCOMPLETE:
 			result = SMDBE_INCOMPLETE;
 			break;
-# endif /* DB_INCOMPLETE */
+# endif
 
 # ifdef DB_NOTFOUND
 		case DB_NOTFOUND:
 			result = SMDBE_NOT_FOUND;
 			break;
-# endif /* DB_NOTFOUND */
+# endif
 
 # ifdef DB_KEYEMPTY
 		case DB_KEYEMPTY:
 			result = SMDBE_KEY_EMPTY;
 			break;
-# endif /* DB_KEYEMPTY */
+# endif
 
 # ifdef DB_KEYEXIST
 		case DB_KEYEXIST:
 			result = SMDBE_KEY_EXIST;
 			break;
-# endif /* DB_KEYEXIST */
+# endif
 
 # ifdef DB_LOCK_DEADLOCK
 		case DB_LOCK_DEADLOCK:
 			result = SMDBE_LOCK_DEADLOCK;
 			break;
-# endif /* DB_LOCK_DEADLOCK */
+# endif
 
 # ifdef DB_LOCK_NOTGRANTED
 		case DB_LOCK_NOTGRANTED:
 			result = SMDBE_LOCK_NOT_GRANTED;
 			break;
-# endif /* DB_LOCK_NOTGRANTED */
+# endif
 
 # ifdef DB_LOCK_NOTHELD
 		case DB_LOCK_NOTHELD:
 			result = SMDBE_LOCK_NOT_HELD;
 			break;
-# endif /* DB_LOCK_NOTHELD */
+# endif
 
 # ifdef DB_RUNRECOVERY
 		case DB_RUNRECOVERY:
 			result = SMDBE_RUN_RECOVERY;
 			break;
-# endif /* DB_RUNRECOVERY */
+# endif
 
 # ifdef DB_OLD_VERSION
 		case DB_OLD_VERSION:
 			result = SMDBE_OLD_VERSION;
 			break;
-# endif /* DB_OLD_VERSION */
+# endif
 
 		case 0:
 			result = SMDBE_OK;
@@ -153,7 +151,7 @@ db2_error_to_smdb(error)
 **
 */
 
-unsigned int
+static unsigned int
 smdb_put_flags_to_db2_flags(flags)
 	SMDB_FLAG flags;
 {
@@ -181,7 +179,7 @@ smdb_put_flags_to_db2_flags(flags)
 **
 */
 
-int
+static int
 smdb_cursor_get_flags_to_db2(flags)
 	SMDB_FLAG flags;
 {
@@ -209,7 +207,7 @@ smdb_cursor_get_flags_to_db2(flags)
 **  interface laid out in smdb.h.
 */
 
-SMDB_DB2_DATABASE *
+static SMDB_DB2_DATABASE *
 smdb2_malloc_database()
 {
 	SMDB_DB2_DATABASE *db2;
@@ -221,7 +219,7 @@ smdb2_malloc_database()
 	return db2;
 }
 
-int
+static int
 smdb2_close(database)
 	SMDB_DATABASE *database;
 {
@@ -239,7 +237,7 @@ smdb2_close(database)
 	return result;
 }
 
-int
+static int
 smdb2_del(database, key, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
@@ -254,7 +252,7 @@ smdb2_del(database, key, flags)
 	return db2_error_to_smdb(db->del(db, NULL, &dbkey, flags));
 }
 
-int
+static int
 smdb2_fd(database, fd)
 	SMDB_DATABASE *database;
 	int *fd;
@@ -264,7 +262,7 @@ smdb2_fd(database, fd)
 	return db2_error_to_smdb(db->fd(db, fd));
 }
 
-int
+static int
 smdb2_lockfd(database)
 	SMDB_DATABASE *database;
 {
@@ -273,7 +271,7 @@ smdb2_lockfd(database)
 	return db2->smdb2_lock_fd;
 }
 
-int
+static int
 smdb2_get(database, key, data, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
@@ -295,7 +293,7 @@ smdb2_get(database, key, data, flags)
 	return db2_error_to_smdb(result);
 }
 
-int
+static int
 smdb2_put(database, key, data, flags)
 	SMDB_DATABASE *database;
 	SMDB_DBENT *key;
@@ -317,7 +315,7 @@ smdb2_put(database, key, data, flags)
 }
 
 
-int
+static int
 smdb2_set_owner(database, uid, gid)
 	SMDB_DATABASE *database;
 	uid_t uid;
@@ -340,7 +338,7 @@ smdb2_set_owner(database, uid, gid)
 	return SMDBE_OK;
 }
 
-int
+static int
 smdb2_sync(database, flags)
 	SMDB_DATABASE *database;
 	unsigned int flags;
@@ -350,7 +348,7 @@ smdb2_sync(database, flags)
 	return db2_error_to_smdb(db->sync(db, flags));
 }
 
-int
+static int
 smdb2_cursor_close(cursor)
 	SMDB_CURSOR *cursor;
 {
@@ -362,7 +360,7 @@ smdb2_cursor_close(cursor)
 	return ret;
 }
 
-int
+static int
 smdb2_cursor_del(cursor, flags)
 	SMDB_CURSOR *cursor;
 	SMDB_FLAG flags;
@@ -372,7 +370,7 @@ smdb2_cursor_del(cursor, flags)
 	return db2_error_to_smdb(dbc->c_del(dbc, 0));
 }
 
-int
+static int
 smdb2_cursor_get(cursor, key, value, flags)
 	SMDB_CURSOR *cursor;
 	SMDB_DBENT *key;
@@ -398,7 +396,7 @@ smdb2_cursor_get(cursor, key, value, flags)
 	return db2_error_to_smdb(result);
 }
 
-int
+static int
 smdb2_cursor_put(cursor, key, value, flags)
 	SMDB_CURSOR *cursor;
 	SMDB_DBENT *key;
@@ -418,7 +416,7 @@ smdb2_cursor_put(cursor, key, value, flags)
 	return db2_error_to_smdb(dbc->c_put(dbc, &dbkey, &dbdata, 0));
 }
 
-int
+static int
 smdb2_cursor(database, cursor, flags)
 	SMDB_DATABASE *database;
 	SMDB_CURSOR **cursor;
@@ -430,9 +428,9 @@ smdb2_cursor(database, cursor, flags)
 
 # if DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >= 6
 	result = db->cursor(db, NULL, &db2_cursor, 0);
-# else /* DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >= 6 */
+# else
 	result = db->cursor(db, NULL, &db2_cursor);
-# endif /* DB_VERSION_MAJOR > 2 || DB_VERSION_MINOR >= 6 */
+# endif
 	if (result != 0)
 		return db2_error_to_smdb(result);
 
@@ -477,6 +475,26 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 # endif /* DB_VERSION_MAJOR == 2 */
 
 # if DB_VERSION_MAJOR > 2
+
+static void
+db_err_cb(
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+	dbenv,
+#endif
+	errpfx, msg)
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+	const DB_ENV *dbenv;
+	const char *errpfx;
+	const char *msg;
+#else
+	const char *errpfx;
+	char *msg;
+#endif
+{
+	/* do not print/log any errors... */
+	return;
+}
+
 static int
 smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 	char *db_name;
@@ -491,41 +509,31 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 	if (result != 0 || *db == NULL)
 		return result;
 
+	(*db)->set_errcall(*db, db_err_cb);
 	if (db_params != NULL)
 	{
 		result = (*db)->set_cachesize(*db, 0,
 					      db_params->smdbp_cache_size, 0);
 		if (result != 0)
-		{
-			(void) (*db)->close((*db), 0);
-			*db = NULL;
-			return db2_error_to_smdb(result);
-		}
+			goto error;
 		if (db_type == DB_HASH)
 		{
 			result = (*db)->set_h_nelem(*db, db_params->smdbp_num_elements);
 			if (result != 0)
-			{
-				(void) (*db)->close(*db, 0);
-				*db = NULL;
-				return db2_error_to_smdb(result);
-			}
+				goto error;
 		}
 		if (db_params->smdbp_allow_dup)
 		{
 			result = (*db)->set_flags(*db, DB_DUP);
 			if (result != 0)
-			{
-				(void) (*db)->close(*db, 0);
-				*db = NULL;
-				return db2_error_to_smdb(result);
-			}
+				goto error;
 		}
 	}
 
 	result = (*db)->open(*db,
 			     DBTXN	/* transaction for DB 4.1 */
 			     db_name, NULL, db_type, db_flags, DBMMODE);
+  error:
 	if (result != 0)
 	{
 		(void) (*db)->close(*db, 0);
@@ -534,6 +542,7 @@ smdb_db_open_internal(db_name, db_type, db_flags, db_params, db)
 	return db2_error_to_smdb(result);
 }
 # endif /* DB_VERSION_MAJOR > 2 */
+
 /*
 **  SMDB_DB_OPEN -- Opens a db database.
 **

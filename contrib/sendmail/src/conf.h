@@ -16,8 +16,9 @@
 /*
 **  CONF.H -- All user-configurable parameters for sendmail
 **
-**	Send updates to sendmail@Sendmail.ORG so they will be
-**	included in the next release.
+**	Send updates to sendmail-YYYY@support.sendmail.org
+**	(replace YYYY with the current year)
+**	so they will be included in the next release.
 */
 
 #ifndef CONF_H
@@ -25,7 +26,7 @@
 
 #ifdef __GNUC__
 struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
-#endif /* __GNUC__ */
+#endif
 
 # include <sys/param.h>
 # include <sys/types.h>
@@ -33,7 +34,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 # ifndef __QNX__
 /* in QNX this grabs bogus LOCK_* manifests */
 #  include <sys/file.h>
-# endif /* ! __QNX__ */
+# endif
 # include <sys/wait.h>
 # include <limits.h>
 # include <fcntl.h>
@@ -46,12 +47,12 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #ifdef ARG_MAX
 # if ARG_MAX > 4096
 #  define SM_ARG_MAX	4096
-# else /* ARG_MAX > 4096 */
+# else
 #  define SM_ARG_MAX	ARG_MAX
-# endif /* ARG_MAX > 4096 */
-#else /* ARG_MAX */
+# endif
+#else
 # define SM_ARG_MAX	4096
-#endif /* ARG_MAX */
+#endif
 
 /**********************************************************************
 **  Table sizes, etc....
@@ -62,13 +63,13 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #define MAXLINE		2048	/* max line length */
 #if SASL
 # define MAXINPLINE	12288	/* max input line length (for AUTH) */
-#else /* SASL */
+#else
 # define MAXINPLINE	MAXLINE	/* max input line length */
-#endif /* SASL */
+#endif
 #define MAXNAME		256	/* max length of a name */
 #ifndef MAXAUTHINFO
 # define MAXAUTHINFO	100	/* max length of authinfo token */
-#endif /* ! MAXAUTHINFO */
+#endif
 #define MAXPV		256	/* max # of parms to mailers */
 #define MAXATOM		1000	/* max atoms per address */
 #define MAXRWSETS	200	/* max # of sets of rewriting rules */
@@ -83,7 +84,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #if MILTER
 # define MAXFILTERS	25	/* max # of milter filters */
 # define MAXFILTERMACROS 50	/* max # of macros per milter cmd */
-#endif /* MILTER */
+#endif
 #define MAXSMTPARGS	20	/* max # of ESMTP args for MAIL/RCPT */
 #define MAXTOCLASS	8	/* max # of message timeout classes */
 #define MAXRESTOTYPES	3	/* max # of resolver timeout types */
@@ -93,7 +94,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 
 #ifndef MAXNOOPCOMMANDS
 # define MAXNOOPCOMMANDS 20	/* max "noise" commands before slowdown */
-#endif /* ! MAXNOOPCOMMANDS */
+#endif
 
 /*
 **  MAXQFNAME == 2 (size of "qf", "df" prefix)
@@ -111,16 +112,17 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 					/* Must match (BITMAPBITS - 1) */
 #ifndef MAXHDRSLEN
 # define MAXHDRSLEN	(32 * 1024)	/* max size of message headers */
-#endif /* ! MAXHDRSLEN */
+#endif
 #ifndef MAXDAEMONS
 # define MAXDAEMONS	10		/* max number of ports to listen to */
-#endif /* MAXDAEMONS */
+	/* XREF: conf.c: MAXDAEMONS != 10 */
+#endif
 #ifndef MAXINTERFACES
 # define MAXINTERFACES	512		/* number of interfaces to probe */
-#endif /* MAXINTERFACES */
+#endif
 #ifndef MAXSYMLINKS
 # define MAXSYMLINKS	32		/* max number of symlinks in a path */
-#endif /* ! MAXSYMLINKS */
+#endif
 #define MAXLINKPATHLEN	(MAXPATHLEN * MAXSYMLINKS) /* max link-expanded file */
 #define DATA_PROGRESS_TIMEOUT	300	/* how often to check DATA progress */
 #define ENHSCLEN	10		/* max len of enhanced status code */
@@ -128,32 +130,32 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #ifndef MAXQUEUEGROUPS
 # define MAXQUEUEGROUPS	50		/* max # of queue groups */
 	/* must be less than BITMAPBITS for DoQueueRun */
-#endif /* MAXQUEUEGROUPS */
+#endif
 #if MAXQUEUEGROUPS >= BITMAPBITS
   ERROR _MAXQUEUEGROUPS must be less than _BITMAPBITS
-#endif /* MAXQUEUEGROUPS >= BITMAPBITS */
+#endif
 
 #ifndef MAXWORKGROUPS
 # define MAXWORKGROUPS	50		/* max # of work groups */
-#endif /* MAXWORKGROUPS */
+#endif
 
 #define MAXFILESYS	BITMAPBITS	/* max # of queue file systems
 					 * must be <= BITMAPBITS */
 #ifndef FILESYS_UPDATE_INTERVAL
 # define FILESYS_UPDATE_INTERVAL 300	/* how often to update FileSys table */
-#endif /* FILESYS_UPDATE_INTERVAL */
+#endif
 
 #ifndef SM_DEFAULT_TTL
 # define SM_DEFAULT_TTL 3600 /* default TTL for services that don't have one */
-#endif /* SM_DEFAULT_TTL */
+#endif
 
 #if SASL
 # ifndef AUTH_MECHANISMS
 #  if STARTTLS
 #   define AUTH_MECHANISMS	"EXTERNAL GSSAPI KERBEROS_V4 DIGEST-MD5 CRAM-MD5"
-#  else /* STARTTLS */
+#  else
 #   define AUTH_MECHANISMS	"GSSAPI KERBEROS_V4 DIGEST-MD5 CRAM-MD5"
-#  endif /* STARTTLS */
+#  endif
 # endif /* ! AUTH_MECHANISMS */
 #endif /* SASL */
 
@@ -164,7 +166,7 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 
 #ifndef DBMMODE
 # define DBMMODE	0640
-#endif /* ! DBMMODE */
+#endif
 
 /*
 **  Value which means a uid or gid value should not change
@@ -172,10 +174,10 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 
 #ifndef NO_UID
 # define NO_UID		-1
-#endif /* ! NO_UID */
+#endif
 #ifndef NO_GID
 # define NO_GID		-1
-#endif /* ! NO_GID */
+#endif
 
 /**********************************************************************
 **  Compilation options.
@@ -186,57 +188,65 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 
 #ifndef NETINET
 # define NETINET	1	/* include internet support */
-#endif /* ! NETINET */
+#endif
 
 #ifndef NETINET6
 # define NETINET6	0	/* do not include IPv6 support */
-#endif /* ! NETINET6 */
+#endif
 
 #ifndef NETISO
 # define NETISO	0		/* do not include ISO socket support */
-#endif /* ! NETISO */
+#endif
 
 #ifndef NAMED_BIND
 # define NAMED_BIND	1	/* use Berkeley Internet Domain Server */
-#endif /* ! NAMED_BIND */
+#endif
 
 #ifndef XDEBUG
 # define XDEBUG		1	/* enable extended debugging */
-#endif /* ! XDEBUG */
+#endif
 
 #ifndef MATCHGECOS
 # define MATCHGECOS	1	/* match user names from gecos field */
-#endif /* ! MATCHGECOS */
+#endif
 
 #ifndef DSN
 # define DSN		1	/* include delivery status notification code */
-#endif /* ! DSN */
+#endif
 
 #if !defined(USERDB) && (defined(NEWDB) || defined(HESIOD))
 # define USERDB		1	/* look in user database */
-#endif /* !defined(USERDB) && (defined(NEWDB) || defined(HESIOD)) */
+#endif
 
 #ifndef MIME8TO7
 # define MIME8TO7	1	/* 8->7 bit MIME conversions */
-#endif /* ! MIME8TO7 */
+#endif
 
 #ifndef MIME7TO8
 # define MIME7TO8	1	/* 7->8 bit MIME conversions */
-#endif /* ! MIME7TO8 */
+#endif
 
 #if NAMED_BIND
 # ifndef DNSMAP
 #  define DNSMAP	1	/* DNS map type */
-# endif /* ! DNSMAP */
-#endif /* NAMED_BIND */
+# endif
+#endif
 
 #ifndef PIPELINING
 # define PIPELINING	1	/* SMTP PIPELINING */
-#endif /* PIPELINING */
+#endif
 
 /**********************************************************************
 **  End of site-specific configuration.
 **********************************************************************/
+
+#if CDB >= 2
+# define CDBEXT ".db"
+# define CDBext "db"
+#else
+# define CDBEXT ".cdb"
+# define CDBext "cdb"
+#endif
 
 #include <sm/conf.h>
 

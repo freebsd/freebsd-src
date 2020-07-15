@@ -26,7 +26,7 @@ SM_RCSID("@(#)$Id: fscanf.c,v 1.18 2013-11-22 20:51:42 ca Exp $")
 **		fp -- the file pointer to obtain the data from
 **		timeout -- time to complete scan
 **		fmt -- the format to translate the data to
-**		... -- memory locations to place the formated data
+**		... -- memory locations to place the formatted data
 **
 **	Returns:
 **		Failure: returns SM_IO_EOF

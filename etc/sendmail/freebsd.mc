@@ -53,7 +53,7 @@ OSTYPE(freebsd6)
 DOMAIN(generic)
 
 FEATURE(access_db, `hash -o -T<TMPF> /etc/mail/access')
-FEATURE(blacklist_recipients)
+FEATURE(blocklist_recipients)
 FEATURE(local_lmtp)
 FEATURE(mailertable, `hash -o /etc/mail/mailertable')
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')

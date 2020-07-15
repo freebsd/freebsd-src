@@ -132,7 +132,7 @@ main(argc, argv)
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 			"test 0 got an exception, as expected:\n");
 		sm_exc_print(exc, smioout);
-#endif /* DEBUG */
+#endif
 		return sm_test_end();
 	SM_END_TRY
 

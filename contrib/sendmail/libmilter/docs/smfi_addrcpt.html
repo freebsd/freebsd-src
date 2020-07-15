@@ -31,6 +31,7 @@ Add a recipient for the current message.
 <TD>Add a recipient to the message envelope.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -47,13 +48,13 @@ Add a recipient for the current message.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_addrcpt will fail and return MI_FAILURE if:
 <UL><LI>rcpt is NULL.
     <LI>Adding recipients in the current connection state is invalid.
     <LI>A network error occurs.
-    <LI>SMFIF_ADDRCPT was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_ADDRCPT">SMFIF_ADDRCPT</A> is not set.
 </UL>
 Otherwise, it will return MI_SUCCESS.
 </TD>
@@ -61,11 +62,10 @@ Otherwise, it will return MI_SUCCESS.
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
-A filter which calls smfi_addrcpt must have set the SMFIF_ADDRCPT flag
-in the smfiDesc_str passed to 
-<A href="smfi_register.html">smfi_register</A>.
+A filter which calls smfi_addrcpt must have set the
+<A HREF="smfi_register.html#SMFIF_ADDRCPT">SMFIF_ADDRCPT</A> flag.
 </TD>
 </TR>
 

@@ -31,6 +31,7 @@ Handle the envelope RCPT command.
 <TD>Do nothing; return SMFIS_CONTINUE.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -54,7 +55,7 @@ Handle the envelope RCPT command.
   <TR bgcolor="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
   <TR valign="top">
      <TD>SMFIS_TEMPFAIL</TD>
-     <TD>Temporarily fail for this particular recipient; further recipients 
+     <TD>Temporarily fail for this particular recipient; further recipients
      may still be sent.  <A href="xxfi_abort.html">xxfi_abort</A> is not called.
      </TD>
   </TR>
@@ -76,11 +77,11 @@ Handle the envelope RCPT command.
      </TD>
    </TR>
 </TABLE>
-</TR>
+</TD></TR>
 
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>For more details on ESMTP responses, please see RFC
 <A href="http://www.rfc-editor.org/rfc/rfc1869.txt">1869</A>.</TD>
 </TR>

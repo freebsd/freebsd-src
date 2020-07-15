@@ -33,6 +33,7 @@ Change or delete a message header.
 <TD>Changes a header's value for the current message.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -55,7 +56,7 @@ Change or delete a message header.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>
 smfi_chgheader will return MI_FAILURE if
@@ -63,17 +64,18 @@ smfi_chgheader will return MI_FAILURE if
     <LI>Modifying headers in the current connection state is invalid.
     <LI>Memory allocation fails.
     <LI>A network error occurs.
-    <LI>SMFIF_CHGHDRS was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_CHGHDRS">SMFIF_CHGHDRS</A> is not set.
 </UL>
 Otherwise, it returns MI_SUCCESS.
-</TR>
+</TD></TR>
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
 <UL><LI>While smfi_chgheader may be used to add new headers, it is more efficient and far safer to use <A href="smfi_addheader.html">smfi_addheader</A>.
-    <LI>A filter which calls smfi_chgheader must have set the SMFIF_CHGHDRS flag in the smfiDesc_str passed to <A href="smfi_register.html">smfi_register</A>.
+    <LI>A filter which calls smfi_chgheader must have set the
+        <A HREF="smfi_register.html#SMFIF_CHGHDRS">SMFIF_CHGHDRS</A> flag.
     <LI>For smfi_chgheader, filter order is important.  <B>Later filters will see the header changes made by earlier ones.</B>
     <LI>Neither the name nor the value of the header is checked for
     standards compliance.  However, each line of the header must be under

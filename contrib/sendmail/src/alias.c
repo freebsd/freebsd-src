@@ -215,7 +215,7 @@ aliaslookup(name, pstat, av)
 #if _FFR_ALIAS_DETAIL
 	int i;
 	char *argv[4];
-#endif /* _FFR_ALIAS_DETAIL */
+#endif
 
 	if (map == NULL)
 	{
@@ -273,7 +273,7 @@ setalias(spec)
 	{
 		char buf[50];
 
-		while (isascii(*p) && isspace(*p))
+		while (SM_ISSPACE(*p))
 			p++;
 		if (*p == '\0')
 			break;
@@ -507,7 +507,7 @@ rebuildaliases(map, automatic)
 	sigfunc_t oldsigint, oldsigquit;
 #ifdef SIGTSTP
 	sigfunc_t oldsigtstp;
-#endif /* SIGTSTP */
+#endif
 
 	if (!bitset(MCF_REBUILDABLE, map->map_class->map_cflags))
 		return false;
@@ -569,7 +569,7 @@ rebuildaliases(map, automatic)
 	oldsigquit = sm_signal(SIGQUIT, SIG_IGN);
 #ifdef SIGTSTP
 	oldsigtstp = sm_signal(SIGTSTP, SIG_IGN);
-#endif /* SIGTSTP */
+#endif
 
 	if (map->map_class->map_open(map, O_RDWR))
 	{
@@ -611,7 +611,7 @@ rebuildaliases(map, automatic)
 	(void) sm_signal(SIGQUIT, oldsigquit);
 #ifdef SIGTSTP
 	(void) sm_signal(SIGTSTP, oldsigtstp);
-#endif /* SIGTSTP */
+#endif
 	return success;
 }
 /*
@@ -736,7 +736,7 @@ readaliases(map, af, announcestats, logstats)
 		**	'p' points to the text of the RHS.
 		*/
 
-		while (isascii(*p) && isspace(*p))
+		while (SM_ISSPACE(*p))
 			p++;
 		rhs = p;
 		for (;;)
@@ -754,8 +754,7 @@ readaliases(map, af, announcestats, logstats)
 				{
 					auto char *delimptr;
 
-					while ((isascii(*p) && isspace(*p)) ||
-								*p == ',')
+					while ((SM_ISSPACE(*p)) || *p == ',')
 						p++;
 					if (*p == '\0')
 						break;
@@ -821,7 +820,7 @@ readaliases(map, af, announcestats, logstats)
 		{
 			/* is RHS empty (just spaces)? */
 			p = rhs;
-			while (isascii(*p) && isspace(*p))
+			while (SM_ISSPACE(*p))
 				p++;
 		}
 		if (rhssize == 0 || *p == '\0')
@@ -840,19 +839,6 @@ readaliases(map, af, announcestats, logstats)
 			if (rhssize > longest)
 				longest = rhssize;
 		}
-
-#if 0
-	/*
-	**  address strings are now stored in the envelope rpool,
-	**  and therefore cannot be freed.
-	*/
-		if (al.q_paddr != NULL)
-			sm_free(al.q_paddr);  /* disabled */
-		if (al.q_host != NULL)
-			sm_free(al.q_host);  /* disabled */
-		if (al.q_user != NULL)
-			sm_free(al.q_user);  /* disabled */
-#endif /* 0 */
 	}
 
 	CurEnv->e_to = NULL;

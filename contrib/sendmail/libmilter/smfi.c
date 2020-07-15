@@ -103,7 +103,7 @@ smfi_addheader(ctx, headerf, headerv)
 **
 **	Parameters:
 **		ctx -- Opaque context structure
-**  		hdridx -- index into header list where insertion should occur
+**		hdridx -- index into header list where insertion should occur
 **		headerf -- Header field name
 **		headerv -- Header field value
 **
@@ -267,7 +267,6 @@ send2(ctx, cmd, arg0, arg1)
 
 	if (arg1 != NULL)
 	{
-		l1 = strlen(arg1) + 1;
 		SM_ASSERT(offset < len);
 		SM_ASSERT(offset + l1 <= len);
 		(void) memcpy(buf + offset, arg1, l1);

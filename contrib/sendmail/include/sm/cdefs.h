@@ -6,7 +6,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: cdefs.h,v 1.17 2013-11-22 20:51:31 ca Exp $
+ *	$Id: cdefs.h,v 1.17 2013/11/22 20:51:31 ca Exp $
  */
 
 /*
@@ -27,7 +27,7 @@
 
 # if SM_CONF_SYS_CDEFS_H
 #  include <sys/cdefs.h>
-# endif /* SM_CONF_SYS_CDEFS_H */
+# endif
 
 /*
 **  Define the standard C language portability macros
@@ -86,9 +86,9 @@
 #  if __GNUC__ >= 2
 #   if __GNUC__ == 2 && __GNUC_MINOR__ < 7
 #    define SM_UNUSED(decl) decl
-#   else /* __GNUC__ == 2 && __GNUC_MINOR__ < 7 */
+#   else
 #    define SM_UNUSED(decl) decl __attribute__((__unused__))
-#   endif /* __GNUC__ == 2 && __GNUC_MINOR__ < 7 */
+#   endif
 #  else /* __GNUC__ >= 2 */
 #   define SM_UNUSED(decl) decl
 #  endif /* __GNUC__ >= 2 */
@@ -112,9 +112,9 @@
 
 # ifdef SM_OMIT_BOGUS_WARNINGS
 #  define SM_NONVOLATILE volatile
-# else /* SM_OMIT_BOGUS_WARNINGS */
+# else
 #  define SM_NONVOLATILE
-# endif /* SM_OMIT_BOGUS_WARNINGS */
+# endif
 
 /*
 **  Turn on format string argument checking.
@@ -131,17 +131,17 @@
 # ifndef PRINTFLIKE
 #  if SM_CONF_FORMAT_TEST
 #   define PRINTFLIKE(x,y) __attribute__ ((__format__ (__printf__, x, y)))
-#  else /* SM_CONF_FORMAT_TEST */
+#  else
 #   define PRINTFLIKE(x,y)
-#  endif /* SM_CONF_FORMAT_TEST */
+#  endif
 # endif /* ! PRINTFLIKE */
 
 # ifndef SCANFLIKE
 #  if SM_CONF_FORMAT_TEST
 #   define SCANFLIKE(x,y) __attribute__ ((__format__ (__scanf__, x, y)))
-#  else /* SM_CONF_FORMAT_TEST */
+#  else
 #   define SCANFLIKE(x,y)
-#  endif /* SM_CONF_FORMAT_TEST */
+#  endif
 # endif /* ! SCANFLIKE */
 
 #endif /* ! SM_CDEFS_H */

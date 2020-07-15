@@ -18,7 +18,7 @@ SM_RCSID("@(#)$Id: clock.c,v 1.48 2013-11-22 20:51:42 ca Exp $")
 #include <errno.h>
 #if SM_CONF_SETITIMER
 # include <sm/time.h>
-#endif /* SM_CONF_SETITIMER */
+#endif
 #include <sm/heap.h>
 #include <sm/debug.h>
 #include <sm/bitops.h>
@@ -26,14 +26,14 @@ SM_RCSID("@(#)$Id: clock.c,v 1.48 2013-11-22 20:51:42 ca Exp $")
 #include "local.h"
 #if _FFR_SLEEP_USE_SELECT > 0
 # include <sys/types.h>
-#endif /* _FFR_SLEEP_USE_SELECT > 0 */
+#endif
 #if defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2
 # include <syslog.h>
-#endif /* defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2 */
+#endif
 
 #ifndef sigmask
 # define sigmask(s)	(1 << ((s) - 1))
-#endif /* ! sigmask */
+#endif
 
 
 /*
@@ -94,9 +94,9 @@ sm_sigsafe_seteventm(intvl, func, arg)
 #if SM_CONF_SETITIMER
 	auto struct timeval now, nowi, ival;
 	auto struct itimerval itime;
-#else /*  SM_CONF_SETITIMER */
+#else
 	auto time_t now, nowi;
-#endif /*  SM_CONF_SETITIMER */
+#endif
 	int wasblocked;
 
 	/* negative times are not allowed */
@@ -122,9 +122,9 @@ sm_sigsafe_seteventm(intvl, func, arg)
 	{
 #if SM_CONF_SETITIMER
 		if (timercmp(&(ev->ev_time), &nowi, >=))
-#else /* SM_CONF_SETITIMER */
+#else
 		if (ev->ev_time >= nowi)
-#endif /* SM_CONF_SETITIMER */
+#endif
 			break;
 	}
 
@@ -200,7 +200,7 @@ sm_clrevent(ev)
 	int wasblocked;
 # if SM_CONF_SETITIMER
 	struct itimerval clr;
-# endif /* SM_CONF_SETITIMER */
+# endif
 
 	if (ev == NULL)
 		return;
@@ -260,7 +260,7 @@ sm_clear_events()
 	register SM_EVENT *ev;
 #if SM_CONF_SETITIMER
 	struct itimerval clr;
-#endif /* SM_CONF_SETITIMER */
+#endif
 	int wasblocked;
 
 	/* nothing will be left in event queue, no need for an alarm */
@@ -325,7 +325,7 @@ sm_tick(sig)
 #if SM_CONF_SETITIMER
 	struct itimerval clr;
 	struct timeval now;
-#else /* SM_CONF_SETITIMER */
+#else
 	register time_t now;
 #endif /* SM_CONF_SETITIMER */
 
@@ -382,16 +382,16 @@ sm_tick(sig)
 
 #if SM_CONF_SETITIMER
 	gettimeofday(&now, NULL);
-#else /* SM_CONF_SETITIMER */
+#else
 	now = time(NULL);
-#endif /* SM_CONF_SETITIMER */
+#endif
 	while ((ev = SmEventQueue) != NULL &&
 	       (ev->ev_pid != mypid ||
 #if SM_CONF_SETITIMER
 		timercmp(&ev->ev_time, &now, <=)
-#else /* SM_CONF_SETITIMER */
+#else
 		ev->ev_time <= now
-#endif /* SM_CONF_SETITIMER */
+#endif
 		))
 	{
 		void (*f)__P((int));
@@ -499,11 +499,11 @@ sm_tick(sig)
 # if !HAVE_NANOSLEEP
 static void	sm_endsleep __P((int));
 static bool	volatile SmSleepDone;
-# endif /* !HAVE_NANOSLEEP */
+# endif
 
 #ifndef SLEEP_T
 # define SLEEP_T	unsigned int
-#endif /* ! SLEEP_T */
+#endif
 
 SLEEP_T
 sleep(intvl)
@@ -525,13 +525,13 @@ sleep(intvl)
 	int r;
 # if _FFR_SLEEP_USE_SELECT > 0
 	struct timeval sm_io_to;
-# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# endif
 #endif /* _FFR_SLEEP_USE_SELECT > 0 */
 #if SM_CONF_SETITIMER
 	struct timeval now, begin, diff;
 # if _FFR_SLEEP_USE_SELECT > 0
 	struct timeval slpv;
-# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# endif
 #else /*  SM_CONF_SETITIMER */
 	time_t begin, now;
 #endif /*  SM_CONF_SETITIMER */
@@ -545,7 +545,7 @@ sleep(intvl)
 			intvl, _FFR_MAX_SLEEP_TIME);
 # if 0
 		SM_ASSERT(intvl < (unsigned int) INT_MAX);
-# endif /* 0 */
+# endif
 		intvl = _FFR_MAX_SLEEP_TIME;
 	}
 #endif /* defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2 */
@@ -555,7 +555,7 @@ sleep(intvl)
 # if _FFR_SLEEP_USE_SELECT > 0
 	slpv.tv_sec = intvl;
 	slpv.tv_usec = 0;
-# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# endif
 	(void) gettimeofday(&now, NULL);
 	begin = now;
 #else /*  SM_CONF_SETITIMER */
@@ -568,7 +568,7 @@ sleep(intvl)
 		/* COMPLAIN */
 #if 0
 		syslog(LOG_ERR, "sleep: sm_setevent(%u) failed", intvl);
-#endif /* 0 */
+#endif
 		SmSleepDone = true;
 	}
 	was_held = sm_releasesignal(SIGALRM);
@@ -583,7 +583,7 @@ sleep(intvl)
 			break;
 # if _FFR_SLEEP_USE_SELECT > 0
 		timersub(&slpv, &diff, &sm_io_to);
-# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+# endif
 #else /* SM_CONF_SETITIMER */
 		now = time(NULL);
 

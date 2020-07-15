@@ -19,7 +19,7 @@
 
 #ifndef SMFI_PROT_VERSION
 # define SMFI_PROT_VERSION	6	/* MTA - libmilter protocol version */
-#endif /* SMFI_PROT_VERSION */
+#endif
 
 /* Shared protocol constants */
 #define MILTER_LEN_BYTES	4	/* length of 32 bit integer in bytes */
@@ -121,6 +121,6 @@
 
 #if _FFR_MILTER_CHECK
 # define SMFIP_TEST	0x80000000L
-#endif /* _FFR_MILTER_CHECK */
+#endif
 
 #endif /* !_LIBMILTER_MFDEF_H */

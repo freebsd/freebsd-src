@@ -57,7 +57,7 @@ tellalrm(sig)
 /*
 **  SM_IO_TELL -- position the file pointer
 **
-**	Paramters:
+**	Parameters:
 **		fp -- the file pointer to get repositioned
 **		timeout -- time to complete the tell (milliseconds)
 **

@@ -44,9 +44,9 @@ sorthost(xx, yy)
 #if _FFR_HOST_SORT_REVERSE
 	/* XXX maybe compare hostnames from the end? */
 	return sm_strrevcasecmp(xx->q_host, yy->q_host);
-#else /* _FFR_HOST_SORT_REVERSE */
+#else
 	return sm_strcasecmp(xx->q_host, yy->q_host);
-#endif /* _FFR_HOST_SORT_REVERSE */
+#endif
 }
 
 /*
@@ -82,9 +82,9 @@ sortexpensive(xx, yy)
 #if _FFR_HOST_SORT_REVERSE
 	/* XXX maybe compare hostnames from the end? */
 	return sm_strrevcasecmp(xx->q_host, yy->q_host);
-#else /* _FFR_HOST_SORT_REVERSE */
+#else
 	return sm_strcasecmp(xx->q_host, yy->q_host);
-#endif /* _FFR_HOST_SORT_REVERSE */
+#endif
 }
 
 /*
@@ -112,9 +112,9 @@ sortbysignature(xx, yy)
 
 	/* Let's avoid redoing the signature over and over again */
 	if (xx->q_signature == NULL)
-		xx->q_signature = hostsignature(xx->q_mailer, xx->q_host);
+		xx->q_signature = hostsignature(xx->q_mailer, xx->q_host, xx->q_flags & QSECURE);
 	if (yy->q_signature == NULL)
-		yy->q_signature = hostsignature(yy->q_mailer, yy->q_host);
+		yy->q_signature = hostsignature(yy->q_mailer, yy->q_host, yy->q_flags & QSECURE);
 	ret = strcmp(xx->q_signature, yy->q_signature);
 
 	/*
@@ -222,7 +222,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 			SM_ASSERT(p < endp);
 
 			/* parse the address */
-			while ((isascii(*p) && isspace(*p)) || *p == ',')
+			while ((SM_ISSPACE(*p)) || *p == ',')
 				p++;
 			SM_ASSERT(p < endp);
 			a = parseaddr(p, NULLADDR, RF_COPYALL, delimiter,
@@ -392,7 +392,7 @@ removefromlist(list, sendq, e)
 			char *delimptr;
 
 			/* parse the address */
-			while ((isascii(*p) && isspace(*p)) || *p == ',')
+			while ((SM_ISSPACE(*p)) || *p == ',')
 				p++;
 			if (parseaddr(p, &a, RF_COPYALL|RF_RM_ADDR,
 				      delimiter, &delimptr, e, true) == NULL)
@@ -508,6 +508,11 @@ recipient(new, sendq, aliaslevel, e)
 		p = e->e_from.q_mailer->m_addrtype;
 		if (p == NULL)
 			p = "rfc822";
+#if _FFR_EAI
+		if (sm_strcasecmp(p, "rfc822") == 0 &&
+		    !addr_is_ascii(q->q_user))
+			p = "utf-8";
+#endif
 		if (sm_strcasecmp(p, "rfc822") != 0)
 		{
 			(void) sm_snprintf(frbuf, sizeof(frbuf), "%s; %.800s",
@@ -949,7 +954,7 @@ recipient(new, sendq, aliaslevel, e)
 	if (tTd(29, 5))
 	{
 		sm_dprintf("recipient: testing local?  cl=%d, rr5=%p\n\t",
-			   ConfigLevel, RewriteRules[5]);
+			   ConfigLevel, (void *)RewriteRules[5]);
 		printaddr(sm_debug_file(), new, false);
 	}
 	if (ConfigLevel >= 2 && RewriteRules[5] != NULL &&
@@ -1164,7 +1169,7 @@ finduser(name, fuzzyp, user)
 {
 #if MATCHGECOS
 	register struct passwd *pw;
-#endif /* MATCHGECOS */
+#endif
 	register char *p;
 	bool tryagain;
 	int status;
@@ -1258,7 +1263,7 @@ finduser(name, fuzzyp, user)
 		sm_dprintf("no fuzzy match found\n");
 # if DEC_OSF_BROKEN_GETPWENT	/* DEC OSF/1 3.2 or earlier */
 	endpwent();
-# endif /* DEC_OSF_BROKEN_GETPWENT */
+# endif
 	if (pw == NULL)
 		return EX_NOUSER;
 	sm_mbdb_frompw(user, pw);
@@ -1838,7 +1843,7 @@ resetuid:
 		{
 			if (p[1] == '@' && p[2] == '#' &&
 			    isascii(p[-1]) && isspace(p[-1]) &&
-			    (p[3] == '\0' || (isascii(p[3]) && isspace(p[3]))))
+			    (p[3] == '\0' || (SM_ISSPACE(p[3]))))
 			{
 				--p;
 				while (p > buf && isascii(p[-1]) &&

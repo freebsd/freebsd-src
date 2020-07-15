@@ -32,6 +32,7 @@ Change the envelope sender (MAIL From) of the current message.
 <TD>Change the envelope sender (MAIL From) of the current message.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -51,13 +52,13 @@ Change the envelope sender (MAIL From) of the current message.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_chgfrom will fail and return MI_FAILURE if:
 <UL><LI>mail is NULL.
     <LI>Changing the sender in the current connection state is invalid.
     <LI>A network error occurs.
-    <LI>SMFIF_CHGFROM was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_CHGFROM">SMFIF_CHGFROM</A> is not set.
 </UL>
 Otherwise, it will return MI_SUCCESS.
 </TD>
@@ -65,11 +66,10 @@ Otherwise, it will return MI_SUCCESS.
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
-A filter which calls smfi_chgfrom must have set the SMFIF_CHGFROM flag
-in the smfiDesc_str passed to 
-<A href="smfi_register.html">smfi_register</A>.
+A filter which calls smfi_chgfrom must have set the
+<A HREF="smfi_register.html#SMFIF_CHGFROM">SMFIF_CHGFROM</A> flag.
 <BR>
 Even though all ESMTP arguments could be set via this call,
 it does not make sense to do so for many of them,

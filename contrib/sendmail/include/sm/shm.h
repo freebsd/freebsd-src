@@ -34,10 +34,10 @@ extern int sm_shmsetowner __P((int, uid_t, gid_t, mode_t));
 /* for those braindead systems... (e.g., SunOS 4) */
 #  ifndef SHM_R
 #   define SHM_R       0400
-#  endif /* SHM_R */
+#  endif
 #  ifndef SHM_W
 #   define SHM_W       0200
-#  endif /* SHM_W */
+#  endif
 
 # endif /* SM_CONF_SHM */
 #endif /* ! SM_SHM_H */

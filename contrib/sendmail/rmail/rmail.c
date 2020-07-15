@@ -60,7 +60,7 @@ SM_IDSTR(id, "@(#)$Id: rmail.c,v 8.63 2013-11-22 20:51:53 ca Exp $")
 #include <unistd.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 
 #include <sm/conf.h>

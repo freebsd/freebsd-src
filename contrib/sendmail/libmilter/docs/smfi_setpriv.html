@@ -31,6 +31,7 @@ Set the private data pointer for this connection.
 <TD>Sets the private data pointer for the context ctx.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -47,14 +48,14 @@ Set the private data pointer for this connection.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_setpriv returns MI_FAILURE if ctx is an invalid context.
 Otherwise, it returns MI_SUCCESS.</TD>
 </TR>
 
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 
 <TD>There is only one private data pointer per connection; multiple
 calls to smfi_setpriv with different values will cause previous values

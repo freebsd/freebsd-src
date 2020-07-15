@@ -30,14 +30,15 @@ Set the socket through which this filter should communicate with sendmail.
 <TD>Sets the socket through which the filter communicates with sendmail.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
     <TABLE border="1" cellspacing=0>
     <TR bgcolor="#dddddd"><TH>Argument</TH><TH>Description</TH></TR>
     <TR valign="top"><TD>oconn</TD>
-	<TD>The address of the desired communication socket.  
-	The address should be a NULL-terminated string in "proto:address" 
+	<TD>The address of the desired communication socket.
+	The address should be a NULL-terminated string in "proto:address"
 	format:
 	<UL>
 	<LI><CODE>{unix|local}:/path/to/file</CODE> -- A named pipe.
@@ -50,7 +51,7 @@ Set the socket through which this filter should communicate with sendmail.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_setconn will not fail on an invalid address.
 The failure will only be detected in <A href="smfi_main.html">smfi_main</A>.
@@ -60,7 +61,7 @@ due to a lack of memory.
 </TR>
 
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 
 <TD>
 <UL>
