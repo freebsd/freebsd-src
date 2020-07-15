@@ -1847,9 +1847,9 @@ fdalloc(struct thread *td, int minfd, int *result)
 	 * If none is found, grow the file table.
 	 */
 	fd = fd_first_free(fdp, minfd, fdp->fd_nfiles);
-	if (fd >= maxfd)
+	if (__predict_false(fd >= maxfd))
 		return (EMFILE);
-	if (fd >= fdp->fd_nfiles) {
+	if (__predict_false(fd >= fdp->fd_nfiles)) {
 		allocfd = min(fd * 2, maxfd);
 #ifdef RACCT
 		if (RACCT_ENABLED()) {
