@@ -50,6 +50,7 @@ struct ar71xx_wdog_softc {
 	device_t dev;
 	int armed;
 	int reboot_from_watchdog;
+	int watchdog_nmi;
 	int debug;
 };
 
@@ -58,32 +59,54 @@ ar71xx_wdog_watchdog_fn(void *private, u_int cmd, int *error)
 {
 	struct ar71xx_wdog_softc *sc = private;
 	uint64_t timer_val;
+	int action;
+
+	action = RST_WDOG_ACTION_RESET;
+	if (sc->watchdog_nmi != 0)
+		action = RST_WDOG_ACTION_NMI;
 
 	cmd &= WD_INTERVAL;
 	if (sc->debug)
-		device_printf(sc->dev, "ar71xx_wdog_watchdog_fn: cmd: %x\n", cmd);
+		device_printf(sc->dev, "%s: : cmd: %x\n", __func__, cmd);
 	if (cmd > 0) {
 		timer_val = (uint64_t)(1ULL << cmd) * ar71xx_ahb_freq() /
 		    1000000000;
-		if (sc->debug)
-			device_printf(sc->dev, "ar71xx_wdog_watchdog_fn: programming timer: %jx\n", (uintmax_t) timer_val);
+
 		/*
-		 * Load timer with large enough value to prevent spurious
-		 * reset
+		 * Clamp the timer value in case we overflow.
 		 */
-		ATH_WRITE_REG(AR71XX_RST_WDOG_TIMER, 
-		    ar71xx_ahb_freq() * 10);
-		ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL, 
-		    RST_WDOG_ACTION_RESET);
-		ATH_WRITE_REG(AR71XX_RST_WDOG_TIMER, 
-		    (timer_val & 0xffffffff));
+		if (timer_val > 0xffffffff)
+			timer_val = 0xffffffff;
+		if (sc->debug)
+			device_printf(sc->dev, "%s: programming timer: %jx\n",
+			    __func__, (uintmax_t) timer_val);
+		/*
+		 * Make sure the watchdog is set to NOACTION and give it
+		 * time to take.
+		 */
+		ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL, RST_WDOG_ACTION_NOACTION);
+		wmb();
+		DELAY(100);
+
+		/*
+		 * Update the timer value.  It's already clamped at this
+		 * point so we don't have to wrap/clamp it here.
+		 */
+		ATH_WRITE_REG(AR71XX_RST_WDOG_TIMER, timer_val);
+		wmb();
+		DELAY(100);
+
+		/*
+		 * And now, arm.
+		 */
+		ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL, action);
 		sc->armed = 1;
 		*error = 0;
 	} else {
 		if (sc->debug)
-			device_printf(sc->dev, "ar71xx_wdog_watchdog_fn: disarming\n");
+			device_printf(sc->dev, "%s: disarming\n", __func__);
 		if (sc->armed) {
-			ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL, 
+			ATH_WRITE_REG(AR71XX_RST_WDOG_CONTROL,
 			    RST_WDOG_ACTION_NOACTION);
 			sc->armed = 0;
 		}
@@ -109,6 +132,9 @@ ar71xx_wdog_sysctl(device_t dev)
         SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
                 "debug", CTLFLAG_RW, &sc->debug, 0,
                 "enable watchdog debugging");
+        SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+                "nmi", CTLFLAG_RW, &sc->watchdog_nmi, 0,
+                "watchdog triggers NMI instead of reset");
         SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
                 "armed", CTLFLAG_RD, &sc->armed, 0,
                 "whether the watchdog is armed");
