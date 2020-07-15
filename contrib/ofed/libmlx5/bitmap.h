@@ -95,17 +95,17 @@ found:
 
 static inline void mlx5_set_bit(unsigned int nr, unsigned long *addr)
 {
-	addr[(nr / BITS_PER_LONG)] |= (1 << (nr % BITS_PER_LONG));
+	addr[(nr / BITS_PER_LONG)] |= (1UL << (nr % BITS_PER_LONG));
 }
 
-static inline void mlx5_clear_bit(unsigned int nr,  unsigned long *addr)
+static inline void mlx5_clear_bit(unsigned int nr, unsigned long *addr)
 {
-	addr[(nr / BITS_PER_LONG)] &= ~(1 << (nr % BITS_PER_LONG));
+	addr[(nr / BITS_PER_LONG)] &= ~(1UL << (nr % BITS_PER_LONG));
 }
 
 static inline int mlx5_test_bit(unsigned int nr, const unsigned long *addr)
 {
-	return !!(addr[(nr / BITS_PER_LONG)] & (1 <<  (nr % BITS_PER_LONG)));
+	return !!(addr[(nr / BITS_PER_LONG)] & (1UL << (nr % BITS_PER_LONG)));
 }
 
 #endif

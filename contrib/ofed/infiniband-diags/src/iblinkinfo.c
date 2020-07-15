@@ -293,7 +293,8 @@ void print_node_header(ibnd_node_t *node, int *out_header_flag,
 			printf("%s%s: %s:\n",
 				out_prefix ? out_prefix : "",
 				nodetype_str(node), remap);
-		(*out_header_flag)++;
+		if (out_header_flag)
+			(*out_header_flag)++;
 		free(remap);
 	}
 }
@@ -397,7 +398,7 @@ void diff_node_ports(ibnd_node_t * fabric1_node, ibnd_node_t * fabric2_node,
 		}
 
 		if (output_diff && fabric2_port) {
-			print_node_header(fabric1_node,
+			print_node_header(fabric2_node,
 					    head_print,
 					    NULL);
 			print_port(fabric2_node,

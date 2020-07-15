@@ -1935,7 +1935,9 @@ ib_api_status_t osm_perfmgr_init(osm_perfmgr_t * pm, osm_opensm_t * osm,
 	pm->state =
 	    p_opt->perfmgr ? PERFMGR_STATE_ENABLED : PERFMGR_STATE_DISABLE;
 	pm->sweep_state = PERFMGR_SWEEP_SLEEP;
-	cl_spinlock_init(&pm->lock);
+	status = cl_spinlock_init(&pm->lock);
+	if (status != IB_SUCCESS)
+		goto Exit;
 	pm->sweep_time_s = p_opt->perfmgr_sweep_time_s;
 	pm->max_outstanding_queries = p_opt->perfmgr_max_outstanding_queries;
 	pm->ignore_cas = p_opt->perfmgr_ignore_cas;
