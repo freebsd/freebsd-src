@@ -1208,7 +1208,7 @@ exec_copyin_data_fds(struct thread *td, struct image_args *args,
 
 	memset(args, '\0', sizeof(*args));
 	ofdp = td->td_proc->p_fd;
-	if (datalen >= ARG_MAX || fdslen > ofdp->fd_lastfile + 1)
+	if (datalen >= ARG_MAX || fdslen >= ofdp->fd_nfiles)
 		return (E2BIG);
 	error = exec_alloc_args(args);
 	if (error != 0)

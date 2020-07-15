@@ -960,7 +960,7 @@ sys_select(struct thread *td, struct select_args *uap)
  *
  * There are applications that rely on the behaviour.
  *
- * nd is fd_lastfile + 1.
+ * nd is fd_nfiles.
  */
 static int
 select_check_badfd(fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
@@ -1023,9 +1023,9 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	ndu = nd;
-	lf = fdp->fd_lastfile;
-	if (nd > lf + 1)
-		nd = lf + 1;
+	lf = fdp->fd_nfiles;
+	if (nd > lf)
+		nd = lf;
 
 	error = select_check_badfd(fd_in, nd, ndu, abi_nfdbits);
 	if (error != 0)
@@ -1556,7 +1556,7 @@ pollscan(struct thread *td, struct pollfd *fds, u_int nfd)
 
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
-		if (fds->fd > fdp->fd_lastfile) {
+		if (fds->fd >= fdp->fd_nfiles) {
 			fds->revents = POLLNVAL;
 			n++;
 		} else if (fds->fd < 0) {
