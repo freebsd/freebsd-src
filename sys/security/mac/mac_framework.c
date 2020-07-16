@@ -118,10 +118,17 @@ SYSCTL_UINT(_security_mac, OID_AUTO, version, CTLFLAG_RD, &mac_version, 0,
     "");
 
 /*
- * Flags for inlined checks.
+ * Flags for inlined checks. Note this would be best hotpatched at runtime.
+ * The following is a band-aid.
+ *
+ * Use FPFLAG for hooks running in commonly executed paths and FPFLAG_RARE
+ * for the rest.
  */
 #define FPFLAG(f)	\
 bool __read_frequently mac_##f##_fp_flag
+
+#define FPFLAG_RARE(f)	\
+bool __read_mostly mac_##f##_fp_flag
 
 FPFLAG(priv_check);
 FPFLAG(priv_grant);
@@ -131,8 +138,10 @@ FPFLAG(vnode_check_stat);
 FPFLAG(vnode_check_read);
 FPFLAG(vnode_check_write);
 FPFLAG(vnode_check_mmap);
+FPFLAG_RARE(vnode_check_poll);
 
 #undef FPFLAG
+#undef FPFLAG_RARE
 
 /*
  * Labels consist of a indexed set of "slots", which are allocated policies
@@ -416,6 +425,8 @@ struct mac_policy_fastpath_elem mac_policy_fastpath_array[] = {
 		.flag = &mac_vnode_check_write_fp_flag },
 	{ .offset = FPO(vnode_check_mmap),
 		.flag = &mac_vnode_check_mmap_fp_flag },
+	{ .offset = FPO(vnode_check_poll),
+		.flag = &mac_vnode_check_poll_fp_flag },
 };
 
 static void
