@@ -463,10 +463,14 @@ mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 
 int	mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
+
+#define mac_vnode_check_poll_enabled() __predict_false(mac_vnode_check_poll_fp_flag)
 #ifdef MAC
+extern bool mac_vnode_check_poll_fp_flag;
 int	mac_vnode_check_poll(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
 #else
+#define mac_vnode_check_poll_fp_flag	0
 static inline int
 mac_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
     struct vnode *vp)
