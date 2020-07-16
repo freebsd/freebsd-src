@@ -965,7 +965,6 @@ tuncreate(struct cdev *dev)
 	ifp->if_capenable |= IFCAP_LINKSTATE;
 
 	if ((tp->tun_flags & TUN_L2) != 0) {
-		ifp->if_mtu = ETHERMTU;
 		ifp->if_init = tunifinit;
 		ifp->if_start = tunstart_l2;
 
