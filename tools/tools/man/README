@@ -1,0 +1,23 @@
+man scripts
+===========
+
+checkmlinks.sh
+--------------
+
+This is a simple script used to check if a man page's Nm/Fo/Fn macro
+names are in the Makefile.
+
+To run, switch to the directory with the pages in it and run the script:
+```
+cd /usr/src/share/man/man9
+sh /usr/src/tools/tools/man/checkmlinks.sh
+```
+
+The script will output the name that is missing, and the file that it
+was sourced from.
+
+There are a number of exceptions, and those should be added to the
+script to skip over, e.g. `SDT_PROBE`.  The last one is added because
+adding the numbered args is a bit redundant.
+
+$FreeBSD$
