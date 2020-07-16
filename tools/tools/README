@@ -44,6 +44,7 @@ kernelcruft	Shellscript to find orphaned *.c files in /sys
 kerninclude	Shellscript to find unused #includes in the kernel.
 kernxref	Shellscript to cross reference symbols in the LINT kernel.
 kttcp		An in-kernel version of the ttcp network performance tool
+man		Scripts useful for working on man pages.
 mctest		A multicast test program
 mid	 	Create a Message-ID database for mailing lists.
 mwl		Tools specific to the Marvell 88W8363 support
