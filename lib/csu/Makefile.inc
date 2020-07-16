@@ -13,7 +13,7 @@ OBJS+=	crtbegin.o crtbeginS.o crtbeginT.o
 OBJS+=	crtend.o crtendS.o
 OBJS+=	crti.o crtn.o
 
-CRT1OBJS+=	crtbrand.o ignore_init_note.o
+CRT1OBJS+=	crtbrand.o feature_note.o ignore_init_note.o
 
 ACFLAGS+=	-DLOCORE
 
@@ -33,6 +33,7 @@ FILESDIR=	${LIBDIR}
 .undef LIBRARIES_ONLY
 
 CLEANFILES+=	${OBJS} ${CRT1OBJS} crt1_c.o gcrt1_c.o Scrt1_c.o
+CLEANFILES+=	crti_s.o
 
 crt1.o:	crt1_c.o ${CRT1OBJS}
 	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
@@ -67,6 +68,12 @@ crtbegin.o crtend.o crtbeginT.o:
 crtbeginS.o crtendS.o:
 	${CC} ${CFLAGS} -I${.CURDIR} ${CFLAGS_CRTS} -c -o ${.TARGET} \
 	    ${.ALLSRC:N*.h:[1]}
+
+crti_s.o: crti.S
+	${CC} ${CFLAGS} ${ACFLAGS} -c ${.ALLSRC:M*.S} -o ${.TARGET}
+
+crti.o: crti_s.o crtbrand.o
+	${LD} ${_LDFLAGS} -o ${.TARGET} -r ${.ALLSRC:M*.o}
 
 .endif
 
