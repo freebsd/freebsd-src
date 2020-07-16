@@ -478,14 +478,6 @@ SVN_CMD=   ${_P}/${_S}
 . endfor
 .export SVN_CMD
 .endif
-.if !defined(GIT_CMD) || empty(GIT_CMD)
-. for _P in /usr/bin /usr/local/bin
-.  if exists(${_P}/git)
-GIT_CMD=   ${_P}/git
-.  endif
-. endfor
-.export GIT_CMD
-.endif
 SVNFLAGS?=	-r HEAD
 .if !defined(VCS_REVISION) || empty(VCS_REVISION)
 .if !defined(SVNVERSION_CMD) || empty(SVNVERSION_CMD)
@@ -503,6 +495,15 @@ _VCS_REVISION?=	$$(eval ${SVNVERSION_CMD} ${SRCDIR})
 VCS_REVISION=	$$(echo r${_VCS_REVISION})
 . endif
 .export VCS_REVISION
+.endif
+
+.if !defined(GIT_CMD) || empty(GIT_CMD)
+. for _P in /usr/bin /usr/local/bin
+.  if exists(${_P}/git)
+GIT_CMD=   ${_P}/git
+.  endif
+. endfor
+.export GIT_CMD
 .endif
 
 .if !defined(OSRELDATE)
