@@ -24,12 +24,17 @@ write_partition_layout() {
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
+			# Create an ESP
+			espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+			make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
 			mkimg -s gpt -f ${VMFORMAT} \
 				-b ${BOOTFILES}/i386/pmbr/pmbr \
 				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
+				-p efi:=${espfilename} \
 				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
+			rm ${espfilename}
 			;;
 		arm64:aarch64)
 			# Create an ESP

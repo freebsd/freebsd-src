@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2002 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1999-2002, 2018 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -18,13 +18,13 @@
 # include <sm/gen.h>
 # include <sm/errstring.h>
 
-# ifdef NDBM
+# if NDBM
 #  include <ndbm.h>
-# endif /* NDBM */
+# endif
 
-# ifdef NEWDB
+# if NEWDB
 #  include "sm/bdb.h"
-# endif /* NEWDB */
+# endif
 
 /*
 **  Some size constants
@@ -119,7 +119,6 @@ typedef int (*db_get_func) __P((SMDB_DATABASE *db,
 **		flags -- put options:
 **			SMDBF_NO_OVERWRITE - Return an error if key alread
 **					     exists.
-**			SMDBF_ALLOW_DUP - Allow duplicates in btree maps.
 **
 **	Returns:
 **		0 - Success, otherwise errno.
@@ -190,6 +189,7 @@ struct database_struct
 	db_lockfd_func		smdb_lockfd;
 	void			*smdb_impl;
 };
+
 /*
 **  DB_CURSOR_CLOSE -- Close a cursor
 **
@@ -244,10 +244,10 @@ typedef int (*db_cursor_get_func) __P((SMDB_CURSOR *cursor,
 **  Flags for DB_CURSOR_GET
 */
 
-#define SMDB_CURSOR_GET_FIRST	0
-#define SMDB_CURSOR_GET_LAST	1
+#define SMDB_CURSOR_GET_FIRST	0	/* NOT USED by any application */
+#define SMDB_CURSOR_GET_LAST	1	/* NOT USED by any application */
 #define SMDB_CURSOR_GET_NEXT	2
-#define SMDB_CURSOR_GET_RANGE	3
+#define SMDB_CURSOR_GET_RANGE	3	/* NOT USED by any application */
 
 /*
 **  DB_CURSOR_PUT -- Put the key/value at this cursor.
@@ -313,12 +313,34 @@ typedef unsigned int SMDB_FLAG;
 
 # define SMDB_TYPE_DEFAULT	NULL
 # define SMDB_TYPE_DEFAULT_LEN	0
+# define SMDB_TYPE_IMPL		"implicit"
+# define SMDB_TYPE_IMPL_LEN	9
 # define SMDB_TYPE_HASH		"hash"
 # define SMDB_TYPE_HASH_LEN	5
 # define SMDB_TYPE_BTREE	"btree"
 # define SMDB_TYPE_BTREE_LEN	6
 # define SMDB_TYPE_NDBM		"dbm"
 # define SMDB_TYPE_NDBM_LEN	4
+# define SMDB_TYPE_CDB		"cdb"
+# define SMDB_TYPE_CDB_LEN	4
+
+# define SMDB_IS_TYPE_HASH(type)	(strncmp(type, SMDB_TYPE_HASH, SMDB_TYPE_HASH_LEN) == 0)
+# define SMDB_IS_TYPE_BTREE(type)	(strncmp(type, SMDB_TYPE_BTREE, SMDB_TYPE_BTREE_LEN) == 0)
+# define SMDB_IS_TYPE_NDBM(type)	(strncmp(type, SMDB_TYPE_NDBM, SMDB_TYPE_NDBM_LEN) == 0)
+# define SMDB_IS_TYPE_CDB(type)	(strncmp(type, SMDB_TYPE_CDB, SMDB_TYPE_CDB_LEN) == 0)
+
+# define SMDB_IS_TYPE_DEFAULT(t) (((t) == SMDB_TYPE_DEFAULT) \
+	|| (strncmp(type, SMDB_TYPE_IMPL, SMDB_TYPE_IMPL_LEN) == 0)	\
+	)
+
+# if CDB >= 2
+#  define SMCDB_FILE_EXTENSION "db"
+# else
+#  define SMCDB_FILE_EXTENSION "cdb"
+# endif
+# define SMDB1_FILE_EXTENSION "db"
+# define SMDB2_FILE_EXTENSION "db"
+# define SMNDB_DIR_FILE_EXTENSION "dir"
 
 /*
 **  These are flags
@@ -326,26 +348,22 @@ typedef unsigned int SMDB_FLAG;
 
 /* Flags for put */
 # define SMDBF_NO_OVERWRITE	0x00000001
-# define SMDBF_ALLOW_DUP	0x00000002
 
+typedef int (smdb_open_func) __P((SMDB_DATABASE **, char *, int, int, long, SMDB_DBTYPE, SMDB_USER_INFO *, SMDB_DBPARAMS *));
 
 extern SMDB_DATABASE	*smdb_malloc_database __P((void));
 extern void		smdb_free_database __P((SMDB_DATABASE *));
-extern int		smdb_open_database __P((SMDB_DATABASE **, char *, int,
-						int, long, SMDB_DBTYPE,
-						SMDB_USER_INFO *,
-						SMDB_DBPARAMS *));
-# ifdef NEWDB
-extern int		smdb_db_open __P((SMDB_DATABASE **, char *, int, int,
-					  long, SMDB_DBTYPE, SMDB_USER_INFO *,
-					  SMDB_DBPARAMS *));
-# endif /* NEWDB */
-# ifdef NDBM
-extern int		smdb_ndbm_open __P((SMDB_DATABASE **, char *, int, int,
-					    long, SMDB_DBTYPE,
-					    SMDB_USER_INFO *,
-					    SMDB_DBPARAMS *));
-# endif /* NDBM */
+extern smdb_open_func	smdb_open_database;
+# if NEWDB
+extern smdb_open_func	smdb_db_open;
+# else
+#  define smdb_db_open 	NULL
+# endif
+# if NDBM
+extern smdb_open_func	smdb_ndbm_open;
+# else
+#  define smdb_ndbm_open 	NULL
+# endif
 extern int		smdb_add_extension __P((char *, int, char *, char *));
 extern int		smdb_setup_file __P((char *, char *, int, long,
 					     SMDB_USER_INFO *, struct stat *));
@@ -353,8 +371,15 @@ extern int		smdb_lock_file __P((int *, char *, int, long, char *));
 extern int		smdb_unlock_file __P((int));
 extern int		smdb_filechanged __P((char *, char *, int,
 					      struct stat *));
-extern void		smdb_print_available_types __P((void));
+extern void		smdb_print_available_types __P((bool));
+extern bool		smdb_is_db_type __P((const char *));
 extern char		*smdb_db_definition __P((SMDB_DBTYPE));
 extern int		smdb_lock_map __P((SMDB_DATABASE *, int));
 extern int		smdb_unlock_map __P((SMDB_DATABASE *));
+
+# if CDB
+extern smdb_open_func	smdb_cdb_open;
+# else
+#  define smdb_cdb_open 	NULL
+# endif
 #endif /* ! _SMDB_H_ */

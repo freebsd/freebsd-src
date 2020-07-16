@@ -60,6 +60,8 @@ returns to <CODE>MESSAGE</CODE>.
 For each of N connections
 {
 	For each filter
+		egotiate MTA/milter capabilities/requirements (<A HREF="xxfi_negotiate.html">xxfi_negotiate</A>)
+	For each filter
 		process connection (<A HREF="xxfi_connect.html">xxfi_connect</A>)
 	For each filter
 		process helo/ehlo (<A HREF="xxfi_helo.html">xxfi_helo</A>)
@@ -203,11 +205,21 @@ communication with the MTA happens.
 Filters are not terminated asynchronously
 (except by signals that can't be caught).
 In the case of <TT>Abort</TT> the
-<A HREF="xxfi_abort.html">xxfi_abort</A> callback is invoked.
+<A HREF="xxfi_abort.html">xxfi_abort</A> callback is usually invoked
+if there is an active transaction.
+However, if an invoked callback takes too long to execute
+(the maximum time <TT>Abort</TT> waits is currently 5s)
+<!-- XREF: MI_CHK_TIME -->
+then the filter is simply terminated, i.e.,
+neither the
+<A HREF="xxfi_abort.html">xxfi_abort</A> callback
+nor the
+<A HREF="xxfi_close.html">xxfi_close</A> callback
+is invoked.
 
 <HR size="1">
 <FONT size="-1">
-Copyright (c) 2000, 2001, 2003, 2006 Proofpoint, Inc. and its suppliers.
+Copyright (c) 2000, 2001, 2003, 2006, 2018 Proofpoint, Inc. and its suppliers.
 All rights reserved.
 <BR>
 By using this file, you agree to the terms and conditions set

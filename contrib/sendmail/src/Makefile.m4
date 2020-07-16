@@ -6,7 +6,7 @@ define(`confREQUIRE_SM_OS_H', `true')
 bldPRODUCT_START(`executable', `sendmail')
 define(`bldBIN_TYPE', `G')
 define(`bldINSTALL_DIR', `')
-define(`bldSOURCES', `main.c alias.c arpadate.c bf.c collect.c conf.c control.c convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c map.c mci.c milter.c mime.c parseaddr.c queue.c ratectrl.c readcf.c recipient.c sasl.c savemail.c sfsasl.c shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c timers.c tls.c trace.c udb.c usersmtp.c util.c version.c ')
+define(`bldSOURCES', `main.c alias.c arpadate.c bf.c collect.c conf.c control.c convtime.c daemon.c deliver.c domain.c envelope.c err.c headers.c macro.c map.c mci.c milter.c mime.c parseaddr.c queue.c ratectrl.c readcf.c recipient.c sasl.c savemail.c sfsasl.c shmticklib.c sm_resolve.c srvrsmtp.c stab.c stats.c sysexits.c timers.c tlsh.c tls.c trace.c udb.c usersmtp.c util.c version.c ')
 PREPENDDEF(`confENVDEF', `confMAPDEF')
 bldPUSH_SMLIB(`sm')
 bldPUSH_SMLIB(`smutil')
@@ -52,7 +52,7 @@ MSPQ=ifdef(`confMSP_QUEUE_DIR', `confMSP_QUEUE_DIR', `/var/spool/clientmqueue')
 
 ${DESTDIR}${MSPQ}:
 	@echo "Please read INSTALL if anything fails while installing the binary."
-	@echo "You must have setup a new user ${MSPQOWN} and a new group ${GBINGRP}"
+	@echo "You must have set up a new user ${MSPQOWN} and a new group ${GBINGRP}"
 	@echo "as explained in sendmail/SECURITY."
 	mkdir -p ${DESTDIR}${MSPQ}
 	chown ${MSPQOWN} ${DESTDIR}${MSPQ}

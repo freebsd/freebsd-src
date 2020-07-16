@@ -105,7 +105,7 @@ newenvelope(e, parent, rpool)
 	e->e_ctime = curtime();
 #if _FFR_SESSID
 	e->e_sessid = e->e_id;
-#endif /* _FFR_SESSID */
+#endif
 	if (parent != NULL)
 	{
 		e->e_msgpriority = parent->e_msgsize;
@@ -113,7 +113,7 @@ newenvelope(e, parent, rpool)
 		if (parent->e_sessid != NULL)
 			e->e_sessid = sm_rpool_strdup_x(rpool,
 							parent->e_sessid);
-#endif /* _FFR_SESSID */
+#endif
 
 		if (parent->e_quarmsg == NULL)
 		{
@@ -189,7 +189,7 @@ dropenvelope(e, fulldrop, split)
 
 	if (tTd(50, 1))
 	{
-		sm_dprintf("dropenvelope %p: id=", e);
+		sm_dprintf("dropenvelope %p: id=", (void *)e);
 		xputs(sm_debug_file(), e->e_id);
 		sm_dprintf(", flags=");
 		printenvflags(e);
@@ -264,7 +264,7 @@ dropenvelope(e, fulldrop, split)
 #if _FFR_PROXY
 		if (queueit && e->e_sendmode == SM_PROXY)
 			queueit = false;
-#endif /* _FFR_PROXY */
+#endif
 
 		/* see if a notification is needed */
 		if (bitset(QPINGONFAILURE, q->q_flags) &&
@@ -323,7 +323,7 @@ dropenvelope(e, fulldrop, split)
 
 			/* don't free, allocated from e_rpool */
 			e->e_message = sm_rpool_strdup_x(e->e_rpool, buf);
-			message(buf);
+			message("%s", buf);
 			e->e_flags |= EF_CLRQUEUE;
 		}
 		if (msg_timeout == MSG_NOT_BY)
@@ -380,7 +380,7 @@ dropenvelope(e, fulldrop, split)
 #if _FFR_NODELAYDSN_ON_HOLD
 					    && !bitnset(M_HOLD,
 							q->q_mailer->m_flags)
-#endif /* _FFR_NODELAYDSN_ON_HOLD */
+#endif
 					   )
 					{
 						if (msg_timeout ==
@@ -420,7 +420,7 @@ dropenvelope(e, fulldrop, split)
 				/* don't free, allocated from e_rpool */
 				e->e_message = sm_rpool_strdup_x(e->e_rpool,
 								 buf);
-				message(buf);
+				message("%s", buf);
 				e->e_flags |= EF_WARNING;
 			}
 			if (msg_timeout == MSG_WARN_BY)
@@ -446,8 +446,8 @@ dropenvelope(e, fulldrop, split)
 			failure_return, delay_return, success_return, queueit);
 
 	/*
-	**  If we had some fatal error, but no addresses are marked as
-	**  bad, mark them _all_ as bad.
+	**  If we had some fatal error, but no addresses are marked as bad,
+	**  mark all OK/VERIFIED addresses as bad (if QPINGONFAILURE).
 	*/
 
 	if (bitset(EF_FATALERRS, e->e_flags) && !failure_return)
@@ -455,8 +455,21 @@ dropenvelope(e, fulldrop, split)
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
 			if ((QS_IS_OK(q->q_state) ||
-			     QS_IS_VERIFIED(q->q_state)) &&
-			    bitset(QPINGONFAILURE, q->q_flags))
+			     QS_IS_VERIFIED(q->q_state))
+			    && bitset(QPINGONFAILURE, q->q_flags)
+
+			/*
+			**  do not mark an address as bad if
+			**  - the address itself is stored in the queue
+			**  - the DeliveryMode requires queueing
+			**  - the envelope is queued
+			*/
+
+			    && !(bitset(QQUEUED, q->q_flags)
+				 && WILL_BE_QUEUED(e->e_sendmode)
+				 && bitset(EF_INQUEUE, e->e_flags)
+				)
+			   )
 			{
 				failure_return = true;
 				q->q_state = QS_BADADDR;
@@ -737,7 +750,7 @@ clearenvelope(e, fullclear, rpool)
 	}
 #if _FFR_MILTER_ENHSC
 	e->e_enhsc[0] = '\0';
-#endif /* _FFR_MILTER_ENHSC */
+#endif
 }
 /*
 **  INITSYS -- initialize instantiation of system
@@ -878,7 +891,7 @@ settime(e)
 
 #ifndef O_APPEND
 # define O_APPEND	0
-#endif /* ! O_APPEND */
+#endif
 
 void
 openxscript(e)
@@ -892,7 +905,7 @@ openxscript(e)
 #if 0
 	if (e->e_lockfp == NULL && bitset(EF_INQUEUE, e->e_flags))
 		syserr("openxscript: job not locked");
-#endif /* 0 */
+#endif
 
 	p = queuename(e, XSCRPT_LETTER);
 	e->e_xfp = bfopen(p, FileMode, XscriptFileBufferSize,
@@ -936,7 +949,7 @@ closexscript(e)
 #if 0
 	if (e->e_lockfp == NULL)
 		syserr("closexscript: job not locked");
-#endif /* 0 */
+#endif
 	(void) sm_io_close(e->e_xfp, SM_TIME_DEFAULT);
 	e->e_xfp = NULL;
 }
@@ -1271,8 +1284,6 @@ static struct eflags	EnvelopeFlags[] =
 	{ "LOGSENDER",		EF_LOGSENDER	},
 	{ "NORECEIPT",		EF_NORECEIPT	},
 	{ "HAS8BIT",		EF_HAS8BIT	},
-	{ "NL_NOT_EOL",		EF_NL_NOT_EOL	},
-	{ "CRLF_NOT_EOL",	EF_CRLF_NOT_EOL	},
 	{ "RET_PARAM",		EF_RET_PARAM	},
 	{ "HAS_DF",		EF_HAS_DF	},
 	{ "IS_MIME",		EF_IS_MIME	},
@@ -1281,6 +1292,8 @@ static struct eflags	EnvelopeFlags[] =
 	{ "TOOBIG",		EF_TOOBIG	},
 	{ "SPLIT",		EF_SPLIT	},
 	{ "UNSAFE",		EF_UNSAFE	},
+	{ "TOODEEP",		EF_TOODEEP	},
+	{ "SECURE",		EF_SECURE	},
 	{ NULL,			0		}
 };
 

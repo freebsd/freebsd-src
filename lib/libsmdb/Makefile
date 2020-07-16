@@ -15,7 +15,7 @@ WARNS?=	3
 LIB=	smdb
 
 SRCS+=	sm_os.h
-SRCS+=	smdb.c smdb1.c smdb2.c smndbm.c
+SRCS+=	smdb.c smdb1.c smdb2.c smndbm.c smcdb.c
 CLEANFILES+=sm_os.h
 
 INTERNALLIB=

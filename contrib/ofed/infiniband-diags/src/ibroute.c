@@ -354,6 +354,8 @@ char *dump_unicast_tables(ib_portid_t * portid, int startlid, int endlid)
 	       " (%s):\n", startlid, endlid, portid2str(portid), nodeguid,
 	       mapnd);
 
+	free(mapnd);
+
 	DEBUG("Switch top is 0x%x\n", top);
 
 	printf("  Lid  Out   Destination\n");
@@ -390,7 +392,6 @@ char *dump_unicast_tables(ib_portid_t * portid, int startlid, int endlid)
 	}
 
 	printf("%d %slids dumped \n", n, dump_all ? "" : "valid ");
-	free(mapnd);
 	return 0;
 }
 

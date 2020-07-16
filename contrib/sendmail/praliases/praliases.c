@@ -28,13 +28,13 @@ SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.98 2013-11-22 20:51:53 ca Exp $")
 #include <unistd.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 
 
 #ifndef NOT_SENDMAIL
 # define NOT_SENDMAIL
-#endif /* ! NOT_SENDMAIL */
+#endif
 #include <sendmail/sendmail.h>
 #include <sendmail/pathnames.h>
 #include <libsmdb/smdb.h>
@@ -274,9 +274,7 @@ praliases(filename, argc, argv)
 	if (db_type != NULL && *db_type != '\0')
 	{
 		if (db_type != SMDB_TYPE_DEFAULT &&
-		    strcmp(db_type, "hash") != 0 &&
-		    strcmp(db_type, "btree") != 0 &&
-		    strcmp(db_type, "dbm") != 0)
+		    !smdb_is_db_type(db_type))
 		{
 			sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 				      "praliases: Skipping non-file based alias type %s\n",

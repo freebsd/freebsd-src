@@ -53,7 +53,7 @@
 #define SM_IO_WHAT_MODE		1
 #define SM_IO_WHAT_VECTORS	2
 #define SM_IO_WHAT_FD		3
-#define SM_IO_WHAT_TYPE		4
+/* was WHAT_TYPE		4 unused */
 #define SM_IO_WHAT_ISTYPE	5
 #define SM_IO_IS_READABLE	6
 #define SM_IO_WHAT_TIMEOUT	7
@@ -342,7 +342,7 @@ __END_DECLS
 __BEGIN_DECLS
 int	sm_rget __P((SM_FILE_T *, int));
 int	sm_vfscanf __P((SM_FILE_T *, int SM_NONVOLATILE, const char *,
-			va_list SM_NONVOLATILE));
+			va_list));
 int	sm_wbuf __P((SM_FILE_T *, int, int));
 __END_DECLS
 
@@ -383,7 +383,7 @@ __END_DECLS
 # ifndef _POSIX_SOURCE
 #  define sm_io_getc(fp, t)	sm_getc(fp, t)
 #  define sm_io_putc(fp, t, x)	sm_putc(fp, t, x)
-# endif /* _POSIX_SOURCE */
+# endif
 #endif /* lint */
 
 #endif /* SM_IO_H */

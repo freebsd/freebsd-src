@@ -459,6 +459,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 {
 	struct file file;
 	struct filedesc filed;
+	struct fdescenttbl *fdt;
 	struct pwd pwd;
 	unsigned long pwd_addr;
 	struct vm_map_entry vmentry;
@@ -467,13 +468,14 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	vm_map_entry_t entryp;
 	vm_object_t objp;
 	struct vnode *vp;
-	struct filedescent *ofiles;
 	struct filestat *entry;
 	struct filestat_list *head;
 	kvm_t *kd;
 	void *data;
-	int i, fflags;
+	int fflags;
+	unsigned int i;
 	int prot, type;
+	size_t fdt_size;
 	unsigned int nfiles;
 	bool haspwd;
 
@@ -553,26 +555,31 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
 
-	nfiles = filed.fd_lastfile + 1;
-	ofiles = malloc(nfiles * sizeof(struct filedescent));
-	if (ofiles == NULL) {
-		warn("malloc(%zu)", nfiles * sizeof(struct filedescent));
+	if (!kvm_read_all(kd, (unsigned long)filed.fd_files, &nfiles,
+	    sizeof(nfiles))) {
+		warnx("can't read fd_files at %p", (void *)filed.fd_files);
+		return (NULL);
+	}
+
+	fdt_size = sizeof(*fdt) + nfiles * sizeof(struct filedescent);
+	fdt = malloc(fdt_size);
+	if (fdt == NULL) {
+		warn("malloc(%zu)", fdt_size);
 		goto do_mmapped;
 	}
-	if (!kvm_read_all(kd, (unsigned long)filed.fd_ofiles, ofiles,
-	    nfiles * sizeof(struct filedescent))) {
-		warnx("cannot read file structures at %p",
-		    (void *)filed.fd_ofiles);
-		free(ofiles);
+	if (!kvm_read_all(kd, (unsigned long)filed.fd_files, fdt, fdt_size)) {
+		warnx("cannot read file structures at %p", (void *)filed.fd_files);
+		free(fdt);
 		goto do_mmapped;
 	}
-	for (i = 0; i <= filed.fd_lastfile; i++) {
-		if (ofiles[i].fde_file == NULL)
+	for (i = 0; i < nfiles; i++) {
+		if (fdt->fdt_ofiles[i].fde_file == NULL) {
 			continue;
-		if (!kvm_read_all(kd, (unsigned long)ofiles[i].fde_file, &file,
+		}
+		if (!kvm_read_all(kd, (unsigned long)fdt->fdt_ofiles[i].fde_file, &file,
 		    sizeof(struct file))) {
 			warnx("can't read file %d at %p", i,
-			    (void *)ofiles[i].fde_file);
+			    (void *)fdt->fdt_ofiles[i].fde_file);
 			continue;
 		}
 		switch (file.f_type) {
@@ -623,7 +630,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 		if (entry != NULL)
 			STAILQ_INSERT_TAIL(head, entry, next);
 	}
-	free(ofiles);
+	free(fdt);
 
 do_mmapped:
 

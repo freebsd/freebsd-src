@@ -246,7 +246,6 @@ static const char * umad_sm_attr_str(__be16 attr_id)
 		default:
 			return (umad_common_attr_str(attr_id));
 	}
-	return ("<unknown>");
 }
 
 static const char * umad_sa_attr_str(__be16 attr_id)
@@ -301,7 +300,6 @@ static const char * umad_sa_attr_str(__be16 attr_id)
 		default:
 			return (umad_common_attr_str(attr_id));
 	}
-	return ("<unknown>");
 }
 
 static const char * umad_cm_attr_str(__be16 attr_id)
@@ -336,7 +334,6 @@ static const char * umad_cm_attr_str(__be16 attr_id)
 		default:
 			return (umad_common_attr_str(attr_id));
 	}
-	return ("<unknown>");
 }
 
 const char * umad_attribute_str(uint8_t mgmt_class, __be16 attr_id)

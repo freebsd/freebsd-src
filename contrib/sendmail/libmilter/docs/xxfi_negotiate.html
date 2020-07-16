@@ -13,7 +13,7 @@ $Id: xxfi_negotiate.html,v 1.24 2013-11-22 20:51:39 ca Exp $
 #include &lt;libmilter/mfapi.h&gt;
 #include &lt;libmilter/mfdef.h&gt;
 sfsistat (*xxfi_negotiate)(
-        SMFICTX    *ctx, 
+        SMFICTX    *ctx,
 	unsigned long f0,
 	unsigned long f1,
 	unsigned long f2,
@@ -36,6 +36,8 @@ sfsistat (*xxfi_negotiate)(
 <TD>Return SMFIS_ALL_OPTS to change nothing.</TD>
 </TR>
 </TABLE>
+</TD></TR>
+
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
     <TABLE border="1" cellspacing=0>
@@ -48,6 +50,7 @@ sfsistat (*xxfi_negotiate)(
 	</TD></TR>
     <TR><TD>f1</TD>
 	<TD>the protocol steps offered by the MTA.
+	</TD></TR>
     <TR><TD>f2</TD>
 	<TD>for future extensions.
 	</TD></TR>
@@ -59,6 +62,7 @@ sfsistat (*xxfi_negotiate)(
 	</TD></TR>
     <TR><TD>pf1</TD>
 	<TD>the protocol steps requested by the milter.
+	</TD></TR>
     <TR><TD>pf2</TD>
 	<TD>for future extensions.
 	</TD></TR>
@@ -101,11 +105,11 @@ as they will be ignored.
      </TD>
   </TR>
 </TABLE>
-</TR>
+</TD></TR>
 
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>This function allows a milter to dynamically determine and
 request operations and actions during startup.
 In previous versions, the actions (f0) were fixed in the
@@ -140,6 +144,11 @@ By setting this bit, a milter can request that the
 MTA should also send <CODE>RCPT</CODE> commands that have been rejected
 because the user is unknown (or similar reasons), but not those
 which have been rejected because of syntax errors etc.
+<!--
+In order for this request to have effect,
+sendmail must have been built with the compile time option
+<TT>_FFR_MILTER_CHECK_REJECTIONS_TOO</TT>.
+-->
 If a milter requests this protocol step,
 then it should check the macro
 <CODE>{rcpt_mailer}</CODE>:
@@ -204,11 +213,12 @@ space to headers when they are added, inserted, or changed.
 <LI>The MTA can be instructed not to send information about
 various SMTP stages, these flags start with:
 <A NAME="SMFIP_NO"><CODE>SMFIP_NO*</CODE></A>.
+Setting any of these flags affects all connections.
 <UL>
 <LI><A NAME="SMFIP_NOCONNECT"><CODE>SMFIP_NOCONNECT</CODE></A>:
 <A HREF="xxfi_connect.html">xxfi_connect()</A>
 <LI><A NAME="SMFIP_NOHELO"><CODE>SMFIP_NOHELO</CODE></A>:
-<A HREF="xxfi_header.html">xxfi_header()</A>
+<A HREF="xxfi_helo.html">xxfi_helo()</A>
 <LI><A NAME="SMFIP_NOMAIL"><CODE>SMFIP_NOMAIL</CODE></A>:
 <A HREF="xxfi_envfrom.html">xxfi_envfrom()</A>
 <LI><A NAME="SMFIP_NORCPT"><CODE>SMFIP_NORCPT</CODE></A>:

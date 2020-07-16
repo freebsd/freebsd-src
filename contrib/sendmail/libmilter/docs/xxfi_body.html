@@ -32,6 +32,7 @@ Handle a piece of a message's body.
 <TD>Do nothing; return SMFIS_CONTINUE.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -51,7 +52,7 @@ Handle a piece of a message's body.
 
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>
 <UL>
 <LI>bodyp points to a sequence of bytes.
@@ -65,7 +66,7 @@ to work as expected.
 significantly impact filter performance.
 <LI>End-of-lines are represented as received from SMTP (normally CR/LF).
 <LI>Later filters will see body changes made by earlier ones.
-<LI>Message bodies may be sent in multiple chunks, with one call to 
+<LI>Message bodies may be sent in multiple chunks, with one call to
     xxfi_body per chunk.
 <LI>Return
 <A HREF="api.html#SMFIS_SKIP">SMFIS_SKIP</A>

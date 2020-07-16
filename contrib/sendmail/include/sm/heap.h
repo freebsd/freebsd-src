@@ -25,7 +25,7 @@
 /* change default to 0 for production? */
 # ifndef SM_HEAP_CHECK
 #  define SM_HEAP_CHECK		1
-# endif /* ! SM_HEAP_CHECK */
+# endif
 
 # if SM_HEAP_CHECK
 #  define sm_malloc_x(sz) sm_malloc_tagged_x(sz, __FILE__, __LINE__, SmHeapGroup)

@@ -130,6 +130,7 @@ static void set_thres(char *name, uint32_t val)
 static void set_thresholds(char *threshold_file)
 {
 	char buf[1024];
+	char orig_buf[1024];
 	int val = 0;
 	FILE *thresf = fopen(threshold_file, "r");
 	char *p_prefix, *p_last;
@@ -156,8 +157,14 @@ static void set_thresholds(char *threshold_file)
 		if (*p_prefix == '#')
 			continue; /* ignore comment lines */
 
+		strlcpy(orig_buf, buf, sizeof(orig_buf));
 		name = strtok_r(p_prefix, "=", &p_last);
 		val_str = strtok_r(NULL, "\n", &p_last);
+		if (!name || !val_str) {
+			fprintf(stderr, "malformed line in \"%s\":\n%s\n",
+			    threshold_file, orig_buf);
+			continue;
+		}
 
 		val = strtoul(val_str, NULL, 0);
 		set_thres(name, val);

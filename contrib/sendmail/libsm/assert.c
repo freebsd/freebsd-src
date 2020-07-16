@@ -83,7 +83,7 @@ sm_abort_defaulthandler(filename, lineno, msg)
 #ifdef SIGSTOP
 	if (sm_debug_active(&SmAbortStop, 1))
 		kill(getpid(), SIGSTOP);
-#endif /* SIGSTOP */
+#endif
 	abort();
 }
 

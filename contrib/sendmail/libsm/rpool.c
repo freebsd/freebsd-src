@@ -22,7 +22,7 @@ SM_RCSID("@(#)$Id: rpool.c,v 1.29 2013-11-22 20:51:43 ca Exp $")
 #include <sm/conf.h>
 #if _FFR_PERF_RPOOL
 # include <syslog.h>
-#endif /* _FFR_PERF_RPOOL */
+#endif
 
 const char SmRpoolMagic[] = "sm_rpool";
 
@@ -181,7 +181,7 @@ sm_rpool_malloc_x(rpool, size)
 	{
 #if _FFR_PERF_RPOOL
 		++rpool->sm_nbigblocks;
-#endif /* _FFR_PERF_RPOOL */
+#endif
 		return sm_rpool_allocblock_x(rpool, size);
 	}
 	SM_ASSERT(rpool->sm_bigobjectsize <= rpool->sm_poolsize);
@@ -190,7 +190,7 @@ sm_rpool_malloc_x(rpool, size)
 	rpool->sm_poolavail = rpool->sm_poolsize - size;
 #if _FFR_PERF_RPOOL
 	++rpool->sm_npools;
-#endif /* _FFR_PERF_RPOOL */
+#endif
 	return ptr;
 }
 
@@ -277,7 +277,7 @@ sm_rpool_malloc(rpool, size)
 	{
 #if _FFR_PERF_RPOOL
 		++rpool->sm_nbigblocks;
-#endif /* _FFR_PERF_RPOOL */
+#endif
 		return sm_rpool_allocblock(rpool, size);
 	}
 	SM_ASSERT(rpool->sm_bigobjectsize <= rpool->sm_poolsize);
@@ -288,7 +288,7 @@ sm_rpool_malloc(rpool, size)
 	rpool->sm_poolavail = rpool->sm_poolsize - size;
 #if _FFR_PERF_RPOOL
 	++rpool->sm_npools;
-#endif /* _FFR_PERF_RPOOL */
+#endif
 	return ptr;
 }
 
@@ -336,7 +336,7 @@ sm_rpool_new_x(parent)
 #if _FFR_PERF_RPOOL
 	rpool->sm_nbigblocks = 0;
 	rpool->sm_npools = 0;
-#endif /* _FFR_PERF_RPOOL */
+#endif
 
 	return rpool;
 }

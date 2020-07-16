@@ -21,13 +21,13 @@ SM_RCSID("@(#)$Id: smdb.c,v 8.59 2013-11-22 20:51:49 ca Exp $")
 static bool	smdb_lockfile __P((int, int));
 
 /*
-** SMDB_MALLOC_DATABASE -- Allocates a database structure.
+**  SMDB_MALLOC_DATABASE -- Allocates a database structure.
 **
 **	Parameters:
 **		None
 **
 **	Returns:
-**		An pointer to an allocated SMDB_DATABASE structure or
+**		A pointer to an allocated SMDB_DATABASE structure or
 **		NULL if it couldn't allocate the memory.
 */
 
@@ -44,9 +44,8 @@ smdb_malloc_database()
 	return db;
 }
 
-
 /*
-** SMDB_FREE_DATABASE -- Unallocates a database structure.
+**  SMDB_FREE_DATABASE -- Unallocates a database structure.
 **
 **	Parameters:
 **		database -- a SMDB_DATABASE pointer to deallocate.
@@ -62,6 +61,7 @@ smdb_free_database(database)
 	if (database != NULL)
 		free(database);
 }
+
 /*
 **  SMDB_LOCKFILE -- lock a file using flock or (shudder) fcntl locking
 **
@@ -155,16 +155,16 @@ smdb_lockfile(fd, type)
 	errno = save_errno;
 	return false;
 }
+
 /*
-** SMDB_OPEN_DATABASE -- Opens a database.
+**  SMDB_OPEN_DATABASE -- Opens a database.
 **
 **	This opens a database. If type is SMDB_DEFAULT it tries to
-**	use a DB1 or DB2 hash. If that isn't available, it will try
-**	to use NDBM. If a specific type is given it will try to open
-**	a database of that type.
+**	use available DB types.  If a specific type is given it will
+**	try to open a database of that type.
 **
 **	Parameters:
-**		database -- An pointer to a SMDB_DATABASE pointer where the
+**		database -- A pointer to a SMDB_DATABASE pointer where the
 **			   opened database will be stored. This should
 **			   be unallocated.
 **		db_name -- The name of the database to open. Do not include
@@ -186,6 +186,20 @@ smdb_lockfile(fd, type)
 **		error in the comments for the specific open() used.
 */
 
+struct type2func_s
+{
+	const char	*t2f_type;
+	smdb_open_func	*t2f_open_fun;
+};
+typedef struct type2func_s type2func_t;
+static type2func_t type2func[] = {
+	{ SMDB_TYPE_HASH, smdb_db_open	},
+	{ SMDB_TYPE_BTREE, smdb_db_open	},
+	{ SMDB_TYPE_NDBM, smdb_ndbm_open},
+	{ SMDB_TYPE_CDB, smdb_cdb_open },
+	{ NULL, NULL }
+};
+
 int
 smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 		   params)
@@ -198,63 +212,44 @@ smdb_open_database(database, db_name, mode, mode_mask, sff, type, user_info,
 	SMDB_USER_INFO *user_info;
 	SMDB_DBPARAMS *params;
 {
-#if defined(NEWDB) && defined(NDBM)
-	bool type_was_default = false;
+	bool type_was_default;
+	int result, i;
+	const char *smdb_type;
+	smdb_open_func *smdb_open_fun;
+
+	result = SMDBE_UNSUPPORTED_DB_TYPE;
+	type_was_default = SMDB_IS_TYPE_DEFAULT(type);
+	for (i = 0; (smdb_type = type2func[i].t2f_type) != NULL; i++)
+	{
+		if (!type_was_default && strcmp(type, smdb_type) != 0)
+			continue;
+		smdb_open_fun = type2func[i].t2f_open_fun;
+		if (smdb_open_fun == NULL)
+		{
+			if (type_was_default)
+				continue;
+			else
+				return SMDBE_UNSUPPORTED_DB_TYPE;
+		}
+		result = (*smdb_open_fun)(database, db_name, mode, mode_mask, sff,
+					(char *)smdb_type, user_info, params);
+		if (!((result == ENOENT
+			|| result == EINVAL
+#ifdef EFTYPE
+			|| result == EFTYPE
 #endif
-
-	if (type == SMDB_TYPE_DEFAULT)
-	{
-#ifdef NEWDB
-# ifdef NDBM
-		type_was_default = true;
-# endif
-		type = SMDB_TYPE_HASH;
-#else /* NEWDB */
-# ifdef NDBM
-		type = SMDB_TYPE_NDBM;
-# endif /* NDBM */
-#endif /* NEWDB */
+		       )
+		    && type_was_default))
+			goto ret;
 	}
-
-	if (type == SMDB_TYPE_DEFAULT)
-		return SMDBE_UNKNOWN_DB_TYPE;
-
-	if ((strncmp(type, SMDB_TYPE_HASH, SMDB_TYPE_HASH_LEN) == 0) ||
-	    (strncmp(type, SMDB_TYPE_BTREE, SMDB_TYPE_BTREE_LEN) == 0))
-	{
-#ifdef NEWDB
-		int result;
-
-		result = smdb_db_open(database, db_name, mode, mode_mask, sff,
-				      type, user_info, params);
-# ifdef NDBM
-		if (result == ENOENT && type_was_default)
-			type = SMDB_TYPE_NDBM;
-		else
-# endif /* NDBM */
-			return result;
-#else /* NEWDB */
-		return SMDBE_UNSUPPORTED_DB_TYPE;
-#endif /* NEWDB */
-	}
-
-	if (strncmp(type, SMDB_TYPE_NDBM, SMDB_TYPE_NDBM_LEN) == 0)
-	{
-#ifdef NDBM
-		int result;
-
-		result = smdb_ndbm_open(database, db_name, mode, mode_mask,
-					sff, type, user_info, params);
-		return result;
-#else /* NDBM */
-		return SMDBE_UNSUPPORTED_DB_TYPE;
-#endif /* NDBM */
-	}
-
 	return SMDBE_UNKNOWN_DB_TYPE;
+
+  ret:
+	return result;
 }
+
 /*
-** SMDB_ADD_EXTENSION -- Adds an extension to a file name.
+**  SMDB_ADD_EXTENSION -- Adds an extension to a file name.
 **
 **	Just adds a . followed by a string to a db_name if there
 **	is room and the db_name does not already have that extension.
@@ -488,8 +483,9 @@ smdb_filechanged(db_name, extension, db_fd, stat_info)
 		return result;
 	return filechanged(db_file_name, db_fd, stat_info);
 }
+
 /*
-** SMDB_PRINT_AVAILABLE_TYPES -- Prints the names of the available types.
+**  SMDB_PRINT_AVAILABLE_TYPES -- Prints the names of the available types.
 **
 **	Parameters:
 **		None
@@ -499,18 +495,62 @@ smdb_filechanged(db_name, extension, db_fd, stat_info)
 */
 
 void
-smdb_print_available_types()
+smdb_print_available_types(ext)
+	bool ext;
 {
-#ifdef NDBM
-	printf("dbm\n");
-#endif /* NDBM */
-#ifdef NEWDB
-	printf("hash\n");
-	printf("btree\n");
-#endif /* NEWDB */
+# define PEXT1	((ext) ? ":" : "")
+# define PEXT2(x)	((ext) ? x : "")
+
+#if NDBM
+	printf("%s%s%s\n", SMDB_TYPE_NDBM, PEXT1, PEXT2(SMNDB_DIR_FILE_EXTENSION));
+#endif
+#if NEWDB
+/* # if SMDB1_FILE_EXTENSION == SMDB2_FILE_EXTENSION */
+	printf("%s%s%s\n", SMDB_TYPE_HASH, PEXT1, PEXT2(SMDB1_FILE_EXTENSION));
+	printf("%s%s%s\n", SMDB_TYPE_BTREE, PEXT1, PEXT2(SMDB1_FILE_EXTENSION));
+#endif
+#if CDB
+	printf("%s%s%s\n", SMDB_TYPE_CDB, PEXT1, PEXT2(SMCDB_FILE_EXTENSION));
+#endif
+#ifdef SMDB_TYPE_IMPL
+	printf("%s%s%s\n", SMDB_TYPE_IMPL, PEXT1, "");
+#endif
 }
+
 /*
-** SMDB_DB_DEFINITION -- Given a database type, return database definition
+**  SMDB_IS_DB_TYPE -- Does a name match an available DB type?
+**
+**	Parameters:
+**		type -- The name of the database type.
+**
+**	Returns:
+**		true iff match
+*/
+
+bool
+smdb_is_db_type(db_type)
+	const char *db_type;
+{
+#if NDBM
+	if (strcmp(db_type, SMDB_TYPE_NDBM) == 0)
+		return true;
+#endif
+#if NEWDB
+	if (strcmp(db_type, SMDB_TYPE_HASH) == 0)
+		return true;
+	if (strcmp(db_type, SMDB_TYPE_BTREE) == 0)
+		return true;
+#endif
+#if CDB
+	if (strcmp(db_type, SMDB_TYPE_CDB) == 0)
+		return true;
+#endif
+	return false;
+}
+
+
+/*
+**  SMDB_DB_DEFINITION -- Given a database type, return database definition
 **
 **	Reads though a structure making an association with the database
 **	type and the required cpp define from sendmail/README.
@@ -534,6 +574,7 @@ static dbtype DatabaseDefs[] =
 	{ SMDB_TYPE_HASH,	"NEWDB" },
 	{ SMDB_TYPE_BTREE,	"NEWDB" },
 	{ SMDB_TYPE_NDBM,	"NDBM"	},
+	{ SMDB_TYPE_CDB,	"CDB"	},
 	{ NULL,			"OOPS"	}
 };
 

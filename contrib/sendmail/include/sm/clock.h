@@ -22,7 +22,7 @@
 # include <sm/signal.h>
 # if SM_CONF_SETITIMER
 #  include <sys/time.h>
-# endif /* SM_CONF_SETITIMER */
+# endif
 
 /*
 **  STRUCT SM_EVENT -- event queue.
@@ -37,9 +37,9 @@ struct sm_event
 {
 # if SM_CONF_SETITIMER
 	struct timeval	ev_time;	/* time of the call (microseconds) */
-# else /* SM_CONF_SETITIMER */
+# else
 	time_t		ev_time;	/* time of the call (seconds) */
-# endif /* SM_CONF_SETITIMER */
+# endif
 	void		(*ev_func)__P((int));
 					/* function to call */
 	int		ev_arg;		/* argument to ev_func */

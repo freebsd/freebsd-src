@@ -29,7 +29,7 @@
 **********************************************************************/
 #ifndef MAXMAILERS
 # define MAXMAILERS	25	/* maximum mailers known to system */
-#endif /* ! MAXMAILERS */
+#endif
 
 /*
 **  Flags passed to safefile/safedirpath.

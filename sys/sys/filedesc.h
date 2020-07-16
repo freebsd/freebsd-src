@@ -96,7 +96,6 @@ struct filedesc {
 	struct	fdescenttbl *fd_files;	/* open files table */
 	smrpwd_t fd_pwd;		/* directories */
 	NDSLOTTYPE *fd_map;		/* bitmap of free fds */
-	int	fd_lastfile;		/* high-water mark of fd_ofiles */
 	int	fd_freefile;		/* approx. next free file */
 	u_short	fd_cmask;		/* mask for file creation */
 	int	fd_refcnt;		/* thread reference count */
@@ -235,7 +234,9 @@ void	fdinstall_remapped(struct thread *td, struct filedesc *fdp);
 void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
 void	fdescfree_remapped(struct filedesc *fdp);
-struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles);
+int	fdlastfile(struct filedesc *fdp);
+int	fdlastfile_single(struct filedesc *fdp);
+struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles, int *lastfile);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,

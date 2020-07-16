@@ -14,16 +14,19 @@
 
 extern char	*arith_map_lookup __P((MAP *, char *, char **, int *));
 
+extern char	*arpa_map_lookup __P((MAP *, char *, char **, int *));
+
 extern char	*bestmx_map_lookup __P((MAP *, char *, char **, int *));
 
 extern char	*bogus_map_lookup __P((MAP *, char *, char **, int *));
 
+#if NEWDB
 extern bool	bt_map_open __P((MAP *, int));
 
 extern char	*db_map_lookup __P((MAP *, char *, char **, int *));
-
 extern void	db_map_store __P((MAP *, char *, char *));
 extern void	db_map_close __P((MAP *));
+#endif /* NEWDB */
 
 extern bool	dequote_init __P((MAP *, char *));
 extern char	*dequote_map __P((MAP *, char *, char **, int *));
@@ -35,7 +38,9 @@ extern char	*dns_map_lookup __P((MAP *, char *, char **, int *));
 extern bool	dprintf_map_parseargs __P((MAP *, char *));
 extern char	*dprintf_map_lookup __P((MAP *, char *, char **, int *));
 
+#if NEWDB
 extern bool	hash_map_open __P((MAP *, int));
+#endif
 
 extern bool	host_map_init __P((MAP *, char *));
 extern char	*host_map_lookup __P((MAP *, char *, char **, int *));
@@ -48,6 +53,12 @@ extern void	impl_map_close __P((MAP *));
 extern char	*macro_map_lookup __P((MAP *, char *, char **, int *));
 
 extern bool	map_parseargs __P((MAP *, char *));
+
+#if NDBM
+extern char	*ndbm_map_lookup __P((MAP *, char *, char **, int *));
+extern void	ndbm_map_store __P((MAP *, char *, char *));
+extern void	ndbm_map_close __P((MAP *));
+#endif /* NDBM */
 
 extern bool	nis_map_open __P((MAP *, int));
 extern char	*nis_map_lookup __P((MAP *, char *, char **, int *));
@@ -66,6 +77,19 @@ extern char	*seq_map_lookup __P((MAP *, char *, char **, int *));
 extern void	seq_map_store __P((MAP *, char *, char *));
 extern bool	seq_map_parse __P((MAP *, char *));
 
+#if _FFR_SETDEBUG_MAP
+extern char	*setdebug_map_lookup __P((MAP *, char *, char **, int *));
+#endif
+#if _FFR_SETOPT_MAP
+extern char	*setopt_map_lookup __P((MAP *, char *, char **, int *));
+#endif
+
+#if SOCKETMAP
+extern bool	socket_map_open __P((MAP *, int));
+extern void	socket_map_close __P((MAP *));
+extern char	*socket_map_lookup __P((MAP *, char *, char **, int *));
+#endif
+
 extern char	*stab_map_lookup __P((MAP *, char *, char **, int *));
 extern void	stab_map_store __P((MAP *, char *, char *));
 extern bool	stab_map_open __P((MAP *, int));
@@ -82,5 +106,12 @@ extern char	*udb_map_lookup __P((MAP *, char *, char **, int *));
 
 extern bool	user_map_open __P((MAP *, int));
 extern char	*user_map_lookup __P((MAP *, char *, char **, int *));
+
+#if CDB
+extern bool	cdb_map_open  __P((MAP *, int));
+extern char	*cdb_map_lookup __P((MAP *, char *, char **, int *));
+extern void	cdb_map_store __P((MAP *, char *, char *));
+extern void	cdb_map_close	__P((MAP *));
+#endif /* CDB */
 
 #endif /* ! _MAP_H */

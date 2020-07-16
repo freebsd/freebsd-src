@@ -43,10 +43,10 @@ struct daemon
 #if MILTER
 	char		*d_inputfilterlist;
 	struct milter	*d_inputfilters[MAXFILTERS];
-#endif /* MILTER */
+#endif
 #if _FFR_SS_PER_DAEMON
 	int		d_supersafe;
-#endif /* _FFR_SS_PER_DAEMON */
+#endif
 };
 
 typedef struct daemon DAEMON_T;

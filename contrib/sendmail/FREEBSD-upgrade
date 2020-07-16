@@ -1,6 +1,6 @@
 $FreeBSD$
 
-sendmail 8.15.2
+sendmail 8.16.1
 	originals can be found at: ftp://ftp.sendmail.org/pub/sendmail/
 
 For the import of sendmail, the following directories were renamed:
@@ -13,12 +13,16 @@ http://www.freebsd.org/doc/en_US.ISO8859-1/articles/committers-guide/subversion-
 
 Then merged using:
 
-% set FSVN=svn+ssh://svn.freebsd.org/base
+% set FSVN=svn+ssh://repo.freebsd.org/base
 % svn checkout $FSVN/head/contrib/sendmail head
 % cd head
-% svn merge --accept=postpone $FSVN/vendor/sendmail/dist .
-% svn rm --force */Build [e-v]*/*.0 cf/cf/generic-*.cf cf/cf/Build
-% svn rm --force Build devtools doc/op/op.ps src/makesendmail src/sysexits.h
+### Replace XXXXXX with import revision number in next command:
+% svn merge -c rXXXXXX --accept=postpone '^/vendor/sendmail/dist' .
+% svn resolve --accept working cf/cf/Build \
+    cf/cf/generic-{bsd4.4,hpux{9,10},linux,mpeix,nextstep3.3,osf1,solaris,sunos4.1,ultrix4}.cf \
+    devtools doc/op/op.ps editmap/editmap.0 mail.local/mail.local.0 mailstats/mailstats.0 \
+    makemap/makemap.0 praliases/praliases.0 rmail/rmail.0 smrsh/smrsh.0 \
+    src/{aliases,mailq,newaliases,sendmail}.0 vacation/vacation.0
 % svn propset -R svn:keywords FreeBSD=%H .
 % svn propdel svn:keywords libmilter/docs/*.jpg
 % svn diff --no-diff-deleted --old=$FSVN/vendor/sendmail/dist --new=.
@@ -98,4 +102,4 @@ infrastructure in FreeBSD:
 	usr.sbin/mailwrapper/Makefile
 
 gshapiro@FreeBSD.org
-06-July-2015
+15-July-2020
