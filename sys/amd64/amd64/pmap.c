@@ -8279,8 +8279,10 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 			return;
 		}
 	}
-	if (pmap_initialized)
+	if (pmap_initialized) {
+		pmap_qremove(va, atop(size));
 		kva_free(va, size);
+	}
 }
 
 /*
