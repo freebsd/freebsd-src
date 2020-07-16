@@ -2673,6 +2673,7 @@ moea_unmapdev(vm_offset_t va, vm_size_t size)
 		base = trunc_page(va);
 		offset = va & PAGE_MASK;
 		size = roundup(offset + size, PAGE_SIZE);
+		moea_qremove(base, atop(size));
 		kva_free(base, size);
 	}
 }
