@@ -901,7 +901,8 @@ static int
 safexcel_dma_init(struct safexcel_softc *sc)
 {
 	struct safexcel_ring *ring;
-	int error, i, size;
+	bus_size_t size;
+	int error, i;
 
 	for (i = 0; i < sc->sc_config.rings; i++) {
 		ring = &sc->sc_ring[i];
@@ -937,8 +938,9 @@ safexcel_dma_init(struct safexcel_softc *sc)
 		    (struct safexcel_cmd_descr *)ring->cdr.dma.vaddr;
 
 		/* Allocate additional CDR token memory. */
-		error = safexcel_dma_alloc_mem(sc, &ring->dma_atok,
-		    sc->sc_config.atok_offset * SAFEXCEL_RING_SIZE);
+		size = (bus_size_t)sc->sc_config.atok_offset *
+		    SAFEXCEL_RING_SIZE;
+		error = safexcel_dma_alloc_mem(sc, &ring->dma_atok, size);
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "failed to allocate atoken DMA memory, error %d\n",
