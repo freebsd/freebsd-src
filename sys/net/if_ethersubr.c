@@ -969,8 +969,8 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 
 	ifp->if_addrlen = ETHER_ADDR_LEN;
 	ifp->if_hdrlen = ETHER_HDR_LEN;
-	if_attach(ifp);
 	ifp->if_mtu = ETHERMTU;
+	if_attach(ifp);
 	ifp->if_output = ether_output;
 	ifp->if_input = ether_input;
 	ifp->if_resolvemulti = ether_resolvemulti;

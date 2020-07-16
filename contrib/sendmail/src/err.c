@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2003, 2010 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 1998-2003, 2010, 2015 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -18,7 +18,7 @@ SM_RCSID("@(#)$Id: err.c,v 8.206 2013-11-22 20:51:55 ca Exp $")
 #if LDAPMAP
 # include <lber.h>
 # include <ldap.h>			/* for LDAP error codes */
-#endif /* LDAPMAP */
+#endif
 
 static void	putoutmsg __P((char *, bool, bool));
 static void	puterrmsg __P((char *));
@@ -113,7 +113,7 @@ static char	HeldMessageBuf[sizeof(MsgBuf)];	/* for held messages */
 
 #if NAMED_BIND && !defined(NO_DATA)
 # define NO_DATA	NO_ADDRESS
-#endif /* NAMED_BIND && !defined(NO_DATA) */
+#endif
 
 void
 /*VARARGS1*/
@@ -224,19 +224,19 @@ syserr(fmt, va_alist)
 	  case ENOTTY:
 #ifdef EFBIG
 	  case EFBIG:
-#endif /* EFBIG */
+#endif
 #ifdef ESPIPE
 	  case ESPIPE:
-#endif /* ESPIPE */
+#endif
 #ifdef EPIPE
 	  case EPIPE:
-#endif /* EPIPE */
+#endif
 #ifdef ENOBUFS
 	  case ENOBUFS:
-#endif /* ENOBUFS */
+#endif
 #ifdef ESTALE
 	  case ESTALE:
-#endif /* ESTALE */
+#endif
 		printopenfds(true);
 		mci_dump_all(smioout, true);
 		break;
@@ -245,7 +245,7 @@ syserr(fmt, va_alist)
 	{
 #if XLA
 		xla_all_end();
-#endif /* XLA */
+#endif
 		sync_queue_time();
 		if (tTd(0, 1))
 			abort();
@@ -255,6 +255,7 @@ syserr(fmt, va_alist)
 	if (QuickAbort)
 		sm_exc_raisenew_x(&EtypeQuickAbort, 2);
 }
+
 /*
 **  USRERR -- Signal user error.
 **
@@ -340,6 +341,7 @@ usrerr(fmt, va_alist)
 	if (QuickAbort)
 		sm_exc_raisenew_x(&EtypeQuickAbort, 1);
 }
+
 /*
 **  USRERRENH -- Signal user error.
 **
@@ -438,9 +440,6 @@ usrerrenh(enhsc, fmt, va_alist)
 **
 **	Returns:
 **		none
-**
-**	Side Effects:
-**		none.
 */
 
 /*VARARGS1*/
@@ -493,9 +492,6 @@ message(msg, va_alist)
 **
 **	Returns:
 **		none
-**
-**	Side Effects:
-**		none.
 */
 
 /*VARARGS3*/
@@ -595,9 +591,6 @@ extsc(msg, delim, replycode, enhsc)
 **
 **	Returns:
 **		none
-**
-**	Side Effects:
-**		none.
 */
 
 /*VARARGS1*/
@@ -636,6 +629,7 @@ nmessage(msg, va_alist)
 		break;
 	}
 }
+
 /*
 **  PUTOUTMSG -- output error message to transcript and channel
 **
@@ -761,6 +755,7 @@ putoutmsg(msg, holdmsg, heldmsg)
 			  shortenstring(msg, MAXSHORTSTR), sm_errstring(errno));
 #endif /* !PIPELINING */
 }
+
 /*
 **  PUTERRMSG -- like putoutmsg, but does special processing for error messages
 **
@@ -804,6 +799,7 @@ puterrmsg(msg)
 		CurEnv->e_flags |= EF_FATALERRS;
 	}
 }
+
 /*
 **  ISENHSC -- check whether a string contains an enhanced status code
 **
@@ -814,10 +810,8 @@ puterrmsg(msg)
 **	Returns:
 **		0  -- no enhanced status code.
 **		>4 -- length of enhanced status code.
-**
-**	Side Effects:
-**		none.
 */
+
 int
 isenhsc(s, delim)
 	const char *s;
@@ -843,6 +837,7 @@ isenhsc(s, delim)
 		return 0;
 	return l + h;
 }
+
 /*
 **  EXTENHSC -- check and extract an enhanced status code
 **
@@ -897,6 +892,7 @@ extenhsc(s, delim, e)
 	e[l + h] = '\0';
 	return l + h;
 }
+
 /*
 **  FMTMSG -- format a message into buffer.
 **
@@ -906,14 +902,15 @@ extenhsc(s, delim, e)
 **		num -- default three digit SMTP reply code.
 **		enhsc -- enhanced status code.
 **		en -- the error number to display.
-**		fmt -- format of string.
+**		fmt -- format of string: See NOTE below.
 **		ap -- arguments for fmt.
 **
 **	Returns:
 **		pointer to error text beyond status codes.
 **
-**	Side Effects:
-**		none.
+**	NOTE:
+**		Do NOT use "%s" as fmt if the argument starts with an SMTP
+**		reply code!
 */
 
 static char *
@@ -1010,15 +1007,23 @@ fmtmsg(eb, to, num, enhsc, eno, fmt, ap)
 		(void) sm_strlcpyn(eb, spaceleft, 2,
 				   shortenstring(to, MAXSHORTSTR), "... ");
 		spaceleft -= strlen(eb);
+#if _FFR_EAI
+		eb += strlen(eb);
+#else
 		while (*eb != '\0')
 			*eb++ &= 0177;
+#endif
 	}
 
 	/* output the message */
 	(void) sm_vsnprintf(eb, spaceleft, fmt, ap);
 	spaceleft -= strlen(eb);
+#if _FFR_EAI
+	eb += strlen(eb);
+#else
 	while (*eb != '\0')
 		*eb++ &= 0177;
+#endif
 
 	/* output the error code, if any */
 	if (eno != 0)
@@ -1026,6 +1031,7 @@ fmtmsg(eb, to, num, enhsc, eno, fmt, ap)
 
 	return errtxt;
 }
+
 /*
 **  BUFFER_ERRORS -- arrange to buffer future error messages
 **
@@ -1042,6 +1048,7 @@ buffer_errors()
 	HeldMessageBuf[0] = '\0';
 	HoldErrs = true;
 }
+
 /*
 **  FLUSH_ERRORS -- flush the held error message buffer
 **
@@ -1070,9 +1077,6 @@ flush_errors(print)
 **
 **	Returns:
 **		A string description of errnum.
-**
-**	Side Effects:
-**		none.
 */
 
 const char *
@@ -1085,11 +1089,11 @@ sm_errstring(errnum)
 #if HASSTRERROR
 	char *err;
 	char errbuf[30];
-#endif /* HASSTRERROR */
+#endif
 #if !HASSTRERROR && !defined(ERRLIST_PREDEFINED)
 	extern char *sys_errlist[];
 	extern int sys_nerr;
-#endif /* !HASSTRERROR && !defined(ERRLIST_PREDEFINED) */
+#endif
 
 	/*
 	**  Handle special network error codes.
@@ -1242,7 +1246,7 @@ sm_errstring(errnum)
 #if LDAPMAP
 	if (errnum >= E_LDAPBASE - E_LDAP_SHIM)
 		return ldap_err2string(errnum - E_LDAPBASE);
-#endif /* LDAPMAP */
+#endif
 
 #if HASSTRERROR
 	err = strerror(errnum);

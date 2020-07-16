@@ -38,6 +38,7 @@ This code  will be used on subsequent error replies resulting from actions
 taken by this filter.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -65,7 +66,7 @@ taken by this filter.</TD>
 
 <!----------- Example ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 <TD>
 For example, the code:<BR>
 <PRE>
@@ -86,13 +87,13 @@ For example, the code:<BR>
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_setmlreply will fail and return MI_FAILURE if:
 <UL>
     <LI>The rcode or xcode argument is invalid.
     <LI>A memory-allocation failure occurs.
-    <LI>If any text line contains a carraige return or line feed.
+    <LI>If any text line contains a carriage return or line feed.
     <LI>The length of any text line is more than MAXREPLYLEN (980).
     <LI>More than 32 lines of text replies are given.
 </UL>
@@ -102,7 +103,7 @@ Otherwise, it return MI_SUCCESS.
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
 <UL>
 <LI>Values passed to smfi_setmlreply are not checked for standards compliance.
@@ -112,7 +113,7 @@ For example, CR or LF will cause the call to fail,
 single '%' characters will cause the text to be ignored
 (if there really should be a '%' in the string,
 use '%%' just like for <TT>printf(3)</TT>).
-<LI>For details about reply codes and their meanings, please see RFC's 
+<LI>For details about reply codes and their meanings, please see RFC's
 <A href="http://www.rfc-editor.org/rfc/rfc821.txt">821</A>/
 <A href="http://www.rfc-editor.org/rfc/rfc2821.txt">2821</A>
 and

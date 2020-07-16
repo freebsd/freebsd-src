@@ -31,11 +31,15 @@ administrator to combine multiple independently-developed filters.
 <P>
 We expect to see both vendor-supplied, configurable mail filtering
 applications and a multiplicity of script-like filters designed by and
-for MTA administrators.  A certain degree of coding sophistication and
-domain knowledge on the part of the filter provider is assumed.  This
-allows filters to exercise fine-grained control at the SMTP level.
+for MTA administrators.
+A certain degree of coding sophistication and
+domain knowledge on the part of the filter provider is assumed.
+This allows filters to exercise fine-grained control at the SMTP level.
 However, as will be seen in the example, many filtering applications
-can be written with relatively little protocol knowledge.
+can be written with relatively little protocol knowledge,
+but a basic understanding (e.g., as documented in RFC 5321:
+<EM>The dialog is purposely lock-step, one-at-a-time</EM>)
+is necessary.
 
 <P>
 Given these expectations, the API is designed to achieve the following

@@ -960,7 +960,7 @@ sys_select(struct thread *td, struct select_args *uap)
  *
  * There are applications that rely on the behaviour.
  *
- * nd is fd_lastfile + 1.
+ * nd is fd_nfiles.
  */
 static int
 select_check_badfd(fd_set *fd_in, int nd, int ndu, int abi_nfdbits)
@@ -1023,9 +1023,9 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
 	ndu = nd;
-	lf = fdp->fd_lastfile;
-	if (nd > lf + 1)
-		nd = lf + 1;
+	lf = fdp->fd_nfiles;
+	if (nd > lf)
+		nd = lf;
 
 	error = select_check_badfd(fd_in, nd, ndu, abi_nfdbits);
 	if (error != 0)
@@ -1476,6 +1476,49 @@ sys_ppoll(struct thread *td, struct ppoll_args *uap)
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
 }
 
+#ifdef CAPABILITIES
+static int
+poll_fget(struct filedesc *fdp, int fd, struct file **fpp)
+{
+	const struct filedescent *fde;
+	const struct fdescenttbl *fdt;
+	const cap_rights_t *haverights;
+	struct file *fp;
+	int error;
+
+	if (__predict_false(fd >= fdp->fd_nfiles))
+		return (EBADF);
+
+	fdt = fdp->fd_files;
+	fde = &fdt->fdt_ofiles[fd];
+	fp = fde->fde_file;
+	if (__predict_false(fp == NULL))
+		return (EBADF);
+	haverights = cap_rights_fde_inline(fde);
+	error = cap_check_inline(haverights, &cap_event_rights);
+	if (__predict_false(error != 0))
+		return (EBADF);
+	*fpp = fp;
+	return (0);
+}
+#else
+static int
+poll_fget(struct filedesc *fdp, int fd, struct file **fpp)
+{
+	struct file *fp;
+
+	if (__predict_false(fd >= fdp->fd_nfiles))
+		return (EBADF);
+
+	fp = fdp->fd_ofiles[fd].fde_file;
+	if (__predict_false(fp == NULL))
+		return (EBADF);
+
+	*fpp = fp;
+	return (0);
+}
+#endif
+
 static int
 pollrescan(struct thread *td)
 {
@@ -1499,19 +1542,11 @@ pollrescan(struct thread *td)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		fp = fdp->fd_ofiles[fd->fd].fde_file;
-#ifdef CAPABILITIES
-		if (fp == NULL ||
-		    cap_check(cap_rights(fdp, fd->fd), &cap_event_rights) != 0)
-#else
-		if (fp == NULL)
-#endif
-		{
+		if (poll_fget(fdp, fd->fd, &fp) != 0) {
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
 		}
-
 		/*
 		 * Note: backend also returns POLLHUP and
 		 * POLLERR if appropriate.
@@ -1550,47 +1585,39 @@ pollout(struct thread *td, struct pollfd *fds, struct pollfd *ufds, u_int nfd)
 static int
 pollscan(struct thread *td, struct pollfd *fds, u_int nfd)
 {
-	struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedesc *fdp;
 	struct file *fp;
-	int i, n = 0;
+	int i, n;
 
+	n = 0;
+	fdp = td->td_proc->p_fd;
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
-		if (fds->fd > fdp->fd_lastfile) {
+		if (fds->fd < 0) {
+			fds->revents = 0;
+			continue;
+		}
+		if (poll_fget(fdp, fds->fd, &fp) != 0) {
 			fds->revents = POLLNVAL;
 			n++;
-		} else if (fds->fd < 0) {
-			fds->revents = 0;
-		} else {
-			fp = fdp->fd_ofiles[fds->fd].fde_file;
-#ifdef CAPABILITIES
-			if (fp == NULL ||
-			    cap_check(cap_rights(fdp, fds->fd), &cap_event_rights) != 0)
-#else
-			if (fp == NULL)
-#endif
-			{
-				fds->revents = POLLNVAL;
-				n++;
-			} else {
-				/*
-				 * Note: backend also returns POLLHUP and
-				 * POLLERR if appropriate.
-				 */
-				selfdalloc(td, fds);
-				fds->revents = fo_poll(fp, fds->events,
-				    td->td_ucred, td);
-				/*
-				 * POSIX requires POLLOUT to be never
-				 * set simultaneously with POLLHUP.
-				 */
-				if ((fds->revents & POLLHUP) != 0)
-					fds->revents &= ~POLLOUT;
-
-				if (fds->revents != 0)
-					n++;
-			}
+			continue;
 		}
+		/*
+		 * Note: backend also returns POLLHUP and
+		 * POLLERR if appropriate.
+		 */
+		selfdalloc(td, fds);
+		fds->revents = fo_poll(fp, fds->events,
+		    td->td_ucred, td);
+		/*
+		 * POSIX requires POLLOUT to be never
+		 * set simultaneously with POLLHUP.
+		 */
+		if ((fds->revents & POLLHUP) != 0)
+			fds->revents &= ~POLLOUT;
+
+		if (fds->revents != 0)
+			n++;
 	}
 	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;

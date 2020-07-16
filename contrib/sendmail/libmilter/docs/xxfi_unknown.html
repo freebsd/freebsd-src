@@ -25,13 +25,14 @@ Handle unknown and unimplemented SMTP commands.
 <TR align="left" valign=top>
 <TH width="80">Called When</TH>
 <TD>xxfi_unknown is called when the client uses an SMTP command
-that is either unknown or not implemented by the MTA.
+that is either unknown or not implemented by the MTA.</TD>
 </TR>
 <TR align="left" valign=top>
 <TH>Default Behavior</TH>
 <TD>Do nothing; return SMFIS_CONTINUE.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -62,13 +63,13 @@ that is either unknown or not implemented by the MTA.
      </TD>
   </TR>
 </TABLE>
-</TR>
+</TD></TR>
 
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>The SMTP command will always be rejected by the server,
-it is only possible to return a different error code.
+it is only possible to return a different error code.</TD>
 </TR>
 </TABLE>
 

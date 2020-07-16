@@ -1073,7 +1073,7 @@ pmc_amd_initialize(void)
 	enum pmc_cputype cputype;
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_class class;
-	int model;
+	int family, model, stepping;
 	char *name;
 
 	/*
@@ -1085,13 +1085,16 @@ pmc_amd_initialize(void)
 	 */
 
 	name = NULL;
-	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
-	if (CPUID_TO_FAMILY(cpu_id) == 0x17)
-		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "AuthenticAMD-%d-%02X",
-				 CPUID_TO_FAMILY(cpu_id), model);
-	if (CPUID_TO_FAMILY(cpu_id) == 0x18)
-		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "HygonGenuine-%d-%02X",
-				 CPUID_TO_FAMILY(cpu_id), model);
+	family = CPUID_TO_FAMILY(cpu_id);
+	model = CPUID_TO_MODEL(cpu_id);
+	stepping = CPUID_TO_STEPPING(cpu_id);
+
+	if (family == 0x18)
+		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "HygonGenuine-%d-%02X-%X",
+		    family, model, stepping);
+	else
+		snprintf(pmc_cpuid, sizeof(pmc_cpuid), "AuthenticAMD-%d-%02X-%X",
+		    family, model, stepping);
 
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)

@@ -75,10 +75,6 @@ extern u_long *ipi_rendezvous_counts[MAXCPU];
 
 /* IPI handlers */
 inthand_t
-	IDTVEC(invltlb),	/* TLB shootdowns - global */
-	IDTVEC(invlpg),		/* TLB shootdowns - 1 page */
-	IDTVEC(invlrng),	/* TLB shootdowns - page range */
-	IDTVEC(invlcache),	/* Write back and invalidate cache */
 	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
@@ -94,10 +90,6 @@ void	cpustop_handler(void);
 void	cpususpend_handler(void);
 void	alloc_ap_trampoline(vm_paddr_t *physmap, unsigned int *physmap_idx);
 void	init_secondary_tail(void);
-void	invltlb_handler(void);
-void	invlpg_handler(void);
-void	invlrng_handler(void);
-void	invlcache_handler(void);
 void	init_secondary(void);
 void	ipi_startup(int apic_id, int vector);
 void	ipi_all_but_self(u_int ipi);

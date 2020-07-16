@@ -167,7 +167,8 @@ enable_intr(void)
 static __inline __pure2 int
 ffsl(long mask)
 {
-	return (mask == 0 ? mask : (int)bsfq((u_long)mask) + 1);
+
+	return (__builtin_ffsl(mask));
 }
 
 #define	HAVE_INLINE_FFSLL

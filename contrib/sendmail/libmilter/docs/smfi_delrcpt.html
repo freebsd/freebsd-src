@@ -31,6 +31,7 @@ Remove a recipient from the current message's envelope.
 <TD>smfi_delrcpt removes the named recipient from the current message's envelope.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -47,14 +48,14 @@ Remove a recipient from the current message's envelope.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_delrcpt will fail and return MI_FAILURE if:
 <UL>
     <LI>rcpt is NULL.
     <LI>Deleting recipients in the current connection state is invalid.
     <LI>A network error occurs.
-    <LI>SMFIF_DELRCPT was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_DELRCPT">SMFIF_DELRCPT</A> is not set.
 </UL>
 Otherwise, it will return MI_SUCCESS
 </TD>
@@ -62,9 +63,13 @@ Otherwise, it will return MI_SUCCESS
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
+<LI>
 The addresses to be removed must match exactly.  For example, an address and its expanded form do not match.
+<LI>
+A filter which calls smfi_delrcpt must have set the
+<A HREF="smfi_register.html#SMFIF_DELRCPT">SMFIF_DELRCPT</A> flag.
 </TD>
 </TR>
 

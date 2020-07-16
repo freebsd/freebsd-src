@@ -25,7 +25,7 @@
 .\"	From: @(#)style	1.14 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2020
+.Dd July 16, 2020
 .Dt STYLE 9
 .Os
 .Sh NAME
@@ -592,12 +592,19 @@ not
 Parts of a
 .Ic for
 loop may be left empty.
-Do not put declarations
-inside blocks unless the routine is unusually complicated.
 .Bd -literal
 	for (; cnt < 15; cnt++) {
 		stmt1;
 		stmt2;
+	}
+.Ed
+.Pp
+A
+.Ic for
+loop may declare and initialize its counting variable.
+.Bd -literal
+	for (int i = 0; i < 15; i++) {
+		stmt1;
 	}
 .Ed
 .Pp
@@ -676,25 +683,26 @@ The opening brace of the function body should be
 on a line by itself.
 .Bd -literal
 static char *
-function(int a1, int a2, float fl, int a4)
+function(int a1, int a2, float fl, int a4, struct bar *bar)
 {
 .Ed
 .Pp
 When declaring variables in functions declare them sorted by size,
 then in alphabetical order; multiple ones per line are okay.
 If a line overflows reuse the type keyword.
-.Pp
-Be careful to not obfuscate the code by initializing variables in
-the declarations.
-Use this feature only thoughtfully.
-DO NOT use function calls in initializers.
+Variables may be initialized where declared especially when they
+are constant for the rest of the scope.
+Declarations may be placed before executable lines at the start
+of any block.
+Calls to complicated functions should be avoided when initializing variables.
 .Bd -literal
 	struct foo one, *two;
-	double three;
-	int *four, five;
-	char *six, seven, eight, nine, ten, eleven, twelve;
+	struct baz *three = bar_get_baz(bar);
+	double four;
+	int *five, six;
+	char *seven, eight, nine, ten, eleven, twelve;
 
-	four = myfunction();
+	four = my_complicated_function(a1, f1, a4);
 .Ed
 .Pp
 Do not declare functions inside other functions; ANSI C says that

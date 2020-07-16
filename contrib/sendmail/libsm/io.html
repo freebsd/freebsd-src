@@ -155,8 +155,7 @@ raising exceptions later.
 <a href="#defaultapi">int sm_snprintf(char *str, size_t n, char const *fmt, ...)</a>
 
 </pre>
-<a name="timeouts">
-<h2>Timeouts</h2>
+<h2><a name="timeouts">Timeouts</a></h2>
 <p>
 For many of the functions a <i>timeout</i> argument is given. This limits
 the amount of time allowed for the function to complete. There are three
@@ -313,7 +312,7 @@ This will make the change for this SM_FILE_T only. The file
 type that <i>sfp</i> originally belonged to will still be
 configured the same way (this is to prevent side-effect
 to other open's of the same file type, particularly with threads).
-The value of <i>what</i> will be file-type dependant since this function
+The value of <i>what</i> will be file-type dependent since this function
 is one of the per file type setable functions.
 One value for <i>what</i> that is valid for all file types is
 SM_WHAT_VECTORS. This sets the currently open file with a new function
@@ -336,7 +335,7 @@ For the open file <i>sfp</i> get the indicated information (<i>what</i>)
 and place the result in <i>(valp</i>).
 This will obtain information for SM_FILE_T only and may be different than
 the information for the file type it was originally opened as.
-The value of <i>what</i> will be file type dependant since this function
+The value of <i>what</i> will be file type dependent since this function
 is one of the per file type setable functions.
 One value for <i>what</i> that is valid for all file types is
 SM_WHAT_VECTORS. This gets from the currently open file a copy of
@@ -370,7 +369,7 @@ previous association.
 void
 <br>
 sm_io_automode(SM_FILE_T *fp1, *SM_FILE_T fp2)
-<dt><tt><a name="sm_io_automode">
+<dt>
 </a></tt></dt>
 <dd>
 Associate the two file pointers for blocking/non-blocking mode changes.
@@ -379,7 +378,7 @@ a file between blocking and non-blocking. If the underlying file descriptor
 has been duplicated with <tt>dup(2)</tt> and these descriptors are used
 by <i>sm_io</i> (for example with an SmFtStdiofd file type), then this API
 should be called to associate them. Otherwise odd behavior (i.e. errors)
-may result that is not consistently reproducable nor easily identifiable.
+may result that is not consistently reproducible nor easily identifiable.
 </dd>
 <!-- SM_IO_CLOSE -->
 <p></p>
@@ -456,7 +455,7 @@ The three types <i>smioin</i>, <i>smioout</i> and <i>smioerr</i> are grouped
 together. These three types
 perform in the same manner as <b>stdio</b>'s <i>stdin</i>, <i>stdout</i>
 and <i>stderr</i>.  These types are both the names and the file pointers.
-They are already open when a program starts (unless the parent explictly
+They are already open when a program starts (unless the parent explicitly
 closed file descriptors 0, 1 and 2).
 Thus <tt>sm_io_open()</tt> should never be called for these types:
 the named file pointers should be used directly.
@@ -477,7 +476,7 @@ The three types <i>smiostdin</i>, <i>smioostdut</i> and <i>smiostderr</i>
 are grouped together. These three types
 perform in the same manner as <b>stdio</b>'s <i>stdin</i>, <i>stdout</i>
 and <i>stderr</i>.  These types are both the names and file pointers.
-They are already open when a program starts (unless the parent explictly
+They are already open when a program starts (unless the parent explicitly
 close file descriptors 0, 1 and 2).
 Thus <tt>sm_io_open()</tt> should
 never be called: the named file pointers should be used directly.
@@ -733,7 +732,7 @@ if a "file pointer" (FILE/SM_FILE_T)
 is one of the arguments for the function, then it is now the first
 argument. <i>Sm_io</i> is standardized so that when a file pointer is
 one of the arguments to function then it will always be the first
-arguement. Many of the <i>sm_io</i> function take a <i>timeout</i>
+argument. Many of the <i>sm_io</i> function take a <i>timeout</i>
 argument (see <a href="#timeouts"><b>Timeouts</b></a>).
 </p>
 <p>

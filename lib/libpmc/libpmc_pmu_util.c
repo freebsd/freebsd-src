@@ -169,7 +169,7 @@ pmu_events_map_get(const char *cpuid)
 {
 	regex_t re;
 	regmatch_t pmatch[1];
-	size_t s, len;
+	size_t s;
 	char buf[64];
 	int match;
 	const struct pmu_events_map *pme;
@@ -193,8 +193,8 @@ pmu_events_map_get(const char *cpuid)
 		match = regexec(&re, buf, 1, pmatch, 0);
 		regfree(&re);
 		if (match == 0) {
-			len = pmatch[0].rm_eo - pmatch[0].rm_so;
-			if(len == strlen(buf))
+			if (pmatch[0].rm_so == 0 && (buf[pmatch[0].rm_eo] == 0
+			    || buf[pmatch[0].rm_eo] == '-'))
 				return (pme);
 		}
 	}

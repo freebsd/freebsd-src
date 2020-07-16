@@ -6,9 +6,9 @@ OPTIONS= $(CONFIG) $(FLAGS)
 
 all: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@
-check: FRC
-	$(SHELL) $(BUILD) $(OPTIONS) $@
 clean: FRC
+	$(SHELL) $(BUILD) $(OPTIONS) $@
+check: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@
 install: FRC
 	$(SHELL) $(BUILD) $(OPTIONS) $@

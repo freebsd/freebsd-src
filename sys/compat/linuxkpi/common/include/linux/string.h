@@ -103,6 +103,8 @@ kstrdup(const char *string, gfp_t gfp)
 	char *retval;
 	size_t len;
 
+	if (string == NULL)
+		return (NULL);
 	len = strlen(string) + 1;
 	retval = kmalloc(len, gfp);
 	if (retval != NULL)
@@ -115,6 +117,8 @@ kstrndup(const char *string, size_t len, gfp_t gfp)
 {
 	char *retval;
 
+	if (string == NULL)
+		return (NULL);
 	retval = kmalloc(len + 1, gfp);
 	if (retval != NULL)
 		strncpy(retval, string, len);

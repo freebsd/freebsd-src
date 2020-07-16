@@ -80,7 +80,7 @@ pmc_intel_initialize(void)
 {
 	struct pmc_mdep *pmc_mdep;
 	enum pmc_cputype cputype;
-	int error, model, nclasses, ncpus, stepping, verov;
+	int error, family, model, nclasses, ncpus, stepping, verov;
 
 	KASSERT(cpu_vendor_id == CPU_VENDOR_INTEL,
 	    ("[intel,%d] Initializing non-intel processor", __LINE__));
@@ -91,11 +91,13 @@ pmc_intel_initialize(void)
 	nclasses = 2;
 	error = 0;
 	verov = 0;
-	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
-	stepping = cpu_id & 0xF;
+	family = CPUID_TO_FAMILY(cpu_id);
+	model = CPUID_TO_MODEL(cpu_id);
+	stepping = CPUID_TO_STEPPING(cpu_id);
 
-	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "GenuineIntel-%d-%02X",
-			 (cpu_id & 0xF00) >> 8, model);
+	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "GenuineIntel-%d-%02X-%X",
+	    family, model, stepping);
+
 	switch (cpu_id & 0xF00) {
 	case 0x600:		/* Pentium Pro, Celeron, Pentium II & III */
 		switch (model) {

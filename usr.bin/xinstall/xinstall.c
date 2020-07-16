@@ -1161,7 +1161,7 @@ create_tempfile(const char *path, char *temp, size_t tsize)
 		p++;
 	else
 		p = temp;
-	(void)strncpy(p, "INS@XXXX", &temp[tsize - 1] - p);
+	(void)strncpy(p, "INS@XXXXXX", &temp[tsize - 1] - p);
 	temp[tsize - 1] = '\0';
 	return (mkstemp(temp));
 }

@@ -23,7 +23,7 @@
 #include <sm/fdset.h>
 #if !SM_CONF_MEMCHR
 # include <memory.h>
-#endif /* !SM_CONF_MEMCHR */
+#endif
 #include <sm/heap.h>
 
 int	sm_flush __P((SM_FILE_T *, int *));

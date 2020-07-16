@@ -73,6 +73,15 @@ define(`_ARG9_',`_ACC_ARG_9_(_ARGS_)')
 dnl define if not yet defined: if `$1' is not defined it will be `$2'
 define(`_DEFIFNOT',`ifdef(`$1',`',`define(`$1',`$2')')')
 dnl ----------------------------------------
+dnl Use a "token" for this error message to make them unique?
+dnl Note: this is not a documented option. To enable it, use:
+dnl define(`_USETMPFTOKEN_', `1')dnl
+ifdef(`_USETMPFTOKEN_', `
+define(_TMPFMSG_, `"451 Temporary system failure $1. Please try again later."')
+', `dnl
+define(_TMPFMSG_, `"451 Temporary system failure. Please try again later."')
+')
+dnl ----------------------------------------
 dnl add a char $2 to a string $1 if it is not there
 define(`_ADDCHAR_',`define(`_I_',`eval(index(`$1',`$2') >= 0)')`'ifelse(_I_,`1',`$1',`$1$2')')
 dnl ----

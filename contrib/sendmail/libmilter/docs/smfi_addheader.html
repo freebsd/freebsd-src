@@ -32,6 +32,7 @@ Add a header to the current message.
 <TD>Adds a header to the current message.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -45,21 +46,21 @@ Add a header to the current message.
 	</TD></TR>
     <TR valign="top"><TD>headerv</TD>
 	<TD>The header value to be added, a non-NULL, null-terminated string.
-	This may be the empty string.  
+	This may be the empty string.
 	</TD></TR>
     </TABLE>
 </TD></TR>
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_addheader returns MI_FAILURE if:
 <UL><LI>headerf or headerv is NULL.
     <LI>Adding headers in the current connection state is invalid.
     <LI>Memory allocation fails.
     <LI>A network error occurs.
-    <LI>SMFIF_ADDHDRS was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_ADDHDRS">SMFIF_ADDHDRS</A> is not set.
 </UL>
 Otherwise, it returns MI_SUCCESS.
 </TD>
@@ -67,14 +68,13 @@ Otherwise, it returns MI_SUCCESS.
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
 <UL><LI>smfi_addheader does not change a message's existing headers.
 To change a header's current value, use
 <A HREF="smfi_chgheader.html">smfi_chgheader</A>.
-    <LI>A filter which calls smfi_addheader must have set the SMFIF_ADDHDRS
-	flag in the smfiDesc_str passed to
-	<A href="smfi_register.html">smfi_register</A>.
+    <LI>A filter which calls smfi_addheader must have set the
+        <A HREF="smfi_register.html#SMFIF_ADDHDRS">SMFIF_ADDHDRS</A> flag.
     <LI>For smfi_addheader, filter order is important.
 	<B>Later filters will see the header changes made by earlier ones.</B>
     <LI>Neither the name nor the value of the header is checked for
@@ -101,7 +101,7 @@ To change a header's current value, use
 
 <!----------- Example code ---------->
 <TR>
-<TH valign="top" align=left>EXAMPLE</TH> 
+<TH valign="top" align=left>EXAMPLE</TH>
 
 <TD>
  <PRE>

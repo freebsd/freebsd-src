@@ -30,7 +30,7 @@ SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.148 2013-11-22 20:52:02 ca Exp $")
 #include <unistd.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sm/sysexits.h>
 
 #include <sm/cf.h>
@@ -93,16 +93,16 @@ bool CloseMBDB = false;
 #if defined(__hpux) || defined(__osf__)
 # ifndef SM_CONF_SYSLOG_INT
 #  define SM_CONF_SYSLOG_INT	1
-# endif /* SM_CONF_SYSLOG_INT */
+# endif
 #endif /* defined(__hpux) || defined(__osf__) */
 
 #if SM_CONF_SYSLOG_INT
 # define SYSLOG_RET_T	int
 # define SYSLOG_RET	return 0
-#else /* SM_CONF_SYSLOG_INT */
+#else
 # define SYSLOG_RET_T	void
 # define SYSLOG_RET
-#endif /* SM_CONF_SYSLOG_INT */
+#endif
 
 typedef SYSLOG_RET_T SYSLOG_T __P((int, const char *, ...));
 SYSLOG_T *msglog = syslog;
@@ -178,9 +178,9 @@ main(argc, argv)
 
 # ifdef LOG_MAIL
 	openlog("vacation", LOG_PID, LOG_MAIL);
-# else /* LOG_MAIL */
+# else
 	openlog("vacation", LOG_PID);
-# endif /* LOG_MAIL */
+# endif
 
 	opterr = 0;
 	initdb = false;
@@ -767,7 +767,7 @@ junkmail(from)
 #if 0
 	if (quot)
 		return false;	/* syntax error... */
-#endif /* 0 */
+#endif
 
 	/* test prefixes */
 	for (cur = ignorepre; cur->name != NULL; ++cur)
@@ -1041,9 +1041,9 @@ sendmessage(myname, msgfn, sender)
 #if _FFR_VAC_WAIT4SM
 # ifdef WAITUNION
 		union wait st;
-# else /* WAITUNION */
+# else
 		auto int st;
-# endif /* WAITUNION */
+# endif
 #endif /* _FFR_VAC_WAIT4SM */
 
 		(void) sm_io_fprintf(sfp, SM_TIME_DEFAULT, "To: %s\n", From);
@@ -1055,7 +1055,7 @@ sendmessage(myname, msgfn, sender)
 		(void) sm_io_close(sfp, SM_TIME_DEFAULT);
 #if _FFR_VAC_WAIT4SM
 		(void) wait(&st);
-#endif /* _FFR_VAC_WAIT4SM */
+#endif
 	}
 	else
 	{

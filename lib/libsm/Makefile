@@ -32,7 +32,7 @@ SRCS+=	assert.c debug.c errstring.c exc.c heap.c match.c rpool.c \
 	wbuf.c wsetup.c string.c stringf.c \
 	xtrap.c strto.c test.c strcasecmp.c strrevcmp.c \
 	signal.c clock.c config.c sem.c shm.c mbdb.c strexit.c cf.c ldap.c \
-	niprop.c mpeix.c memstat.c util.c inet6_ntop.c
+	niprop.c mpeix.c memstat.c util.c inet6_ntop.c notify.c
 CLEANFILES+=sm_os.h
 
 INTERNALLIB=

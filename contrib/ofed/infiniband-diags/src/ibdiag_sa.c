@@ -222,7 +222,7 @@ static const char *ib_mad_inv_field_str[] = {
 	"MAD Reserved",
 	"MAD Reserved",
 	"MAD Reserved",
-	"MAD Invalid value in Attribute field(s) or Attribute Modifier"
+	"MAD Invalid value in Attribute field(s) or Attribute Modifier",
 	"MAD UNKNOWN ERROR"
 };
 #define MAD_ERR_UNKNOWN (ARR_SIZE(ib_mad_inv_field_str) - 1)

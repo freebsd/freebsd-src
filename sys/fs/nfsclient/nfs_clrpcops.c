@@ -6248,10 +6248,17 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				NFSCL_DEBUG(4, "mcopy reloff=%d xfer=%jd\n",
 				    rel_off, (uintmax_t)xfer);
 				/*
-				 * Do last write to a mirrored DS with this
+				 * Do the writes after the first loop iteration
+				 * and the write for the last mirror via this
 				 * thread.
+				 * This loop only iterates for small values
+				 * of nfsdi_wsize, which may never occur in
+				 * practice.  However, the drpc is completely
+				 * used by the first iteration and, as such,
+				 * cannot be used after that.
 				 */
-				if (mirror < flp->nfsfl_mirrorcnt - 1)
+				if (mirror < flp->nfsfl_mirrorcnt - 1 &&
+				    rel_off == 0)
 					error = nfsio_writedsmir(vp, iomode,
 					    must_commit, stateidp, *dspp, off,
 					    xfer, fhp, m, dp->nfsdi_vers,

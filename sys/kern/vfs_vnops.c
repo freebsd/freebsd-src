@@ -1635,14 +1635,16 @@ vn_poll(struct file *fp, int events, struct ucred *active_cred,
 	int error;
 
 	vp = fp->f_vnode;
-#ifdef MAC
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	AUDIT_ARG_VNODE1(vp);
-	error = mac_vnode_check_poll(active_cred, fp->f_cred, vp);
-	VOP_UNLOCK(vp);
-	if (!error)
+#if defined(MAC) || defined(AUDIT)
+	if (AUDITING_TD(td) || mac_vnode_check_poll_enabled()) {
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		AUDIT_ARG_VNODE1(vp);
+		error = mac_vnode_check_poll(active_cred, fp->f_cred, vp);
+		VOP_UNLOCK(vp);
+		if (error != 0)
+			return (error);
+	}
 #endif
-
 	error = VOP_POLL(vp, events, fp->f_cred, td);
 	return (error);
 }

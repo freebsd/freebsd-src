@@ -15,7 +15,7 @@ $Id: api.html,v 1.39 2013-11-22 20:51:39 ca Exp $
     <LI><A HREF="#Miscellaneous">Miscellaneous</A>
 </UL>
 
-<H2><A NAME="LibraryControlFunctions">Library Control Functions</A></H2> 
+<H2><A NAME="LibraryControlFunctions">Library Control Functions</A></H2>
 
 Before handing control to libmilter (by calling
 <A HREF="smfi_main.html">smfi_main</A>), a filter may call the following
@@ -23,11 +23,12 @@ functions to set libmilter parameters.
 In particular, the filter must call
 <A HREF="smfi_register.html">smfi_register</A> to register its callbacks.
 Each function will return either MI_SUCCESS or MI_FAILURE to
-indicate the status of the operation.  
+indicate the status of the operation.
 
 <P>
-None of these functions communicate with the MTA.  All alter the
-library's state, some of which is communicated to the MTA inside
+None of these functions communicate with the MTA.
+All alter the library's state, some of which
+is communicated to the MTA inside
 <A HREF="smfi_main.html">smfi_main</A>.
 
 <P>
@@ -54,7 +55,7 @@ library's state, some of which is communicated to the MTA inside
 <H2><A NAME="DataAccessFunctions">Data Access Functions</A></H2>
 
 The following functions may be called from within the filter-defined callbacks
-to access information about the current connection or message.  
+to access information about the current connection or message.
 <P>
 <TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR bgcolor="#dddddd"><TH>Function</TH><TH>Description</TH></TR>
 <TR><TD><A HREF="smfi_getsymval.html">smfi_getsymval</A></TD><TD>Return the value
@@ -80,33 +81,38 @@ The following functions change a message's contents and attributes.
 <EM>They may only be called in <A HREF="xxfi_eom.html">xxfi_eom</A></EM>.
 All of these functions may invoke additional communication with the MTA.
 They will return either MI_SUCCESS or MI_FAILURE to indicate the status of
-the operation.  Message data (senders, recipients, headers, body chunks)
+the operation.
+Message data (senders, recipients, headers, body chunks)
 passed to these functions via parameters is copied and does not need to be
 preserved (i.e., allocated memory can be freed).
 
 <P>
-A filter must have set the appropriate flag (listed below) in the
-description passed to <A HREF="smfi_register.html">smfi_register</A>
-to call any message modification function.  Failure to do so will
-cause the MTA to treat a call to the function as a failure of the
-filter, terminating its connection.
+A filter which might call a message modification function
+must set the appropriate flag
+(<A HREF="#SMFIF">listed below</A>),
+either
+in the description passed to <A HREF="smfi_register.html">smfi_register</A>
+or via <A HREF="xxfi_negotiate.html">xxfi_negotiate</A>.
+Failure to do so will cause the MTA to treat a call to the function
+as a failure of the filter, terminating its connection.
 
 <P>
 Note that the status returned indicates only whether or not the
 filter's message was successfully sent to the MTA, not whether or not
-the MTA performed the requested operation.  For example,
+the MTA performed the requested operation.
+For example,
 <A HREF="smfi_addheader.html">smfi_addheader</A>, when called with an
 illegal header name, will return MI_SUCCESS even though the MTA may
 later refuse to add the illegal header.
 <P>
-<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH><TH>SMFIF_* flag</TR>
+<TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2><TR BGCOLOR="#dddddd"><TH>Function</TH><TH>Description</TH><TH><A NAME="SMFIF">SMFIF_* flag</A></TH></TR>
 <TR><TD><A HREF="smfi_addheader.html">smfi_addheader</A></TD><TD>Add a header to
-the message.</TD><TD>SMFIF_ADDHDRS</TD></TR> 
+the message.</TD><TD>SMFIF_ADDHDRS</TD></TR>
 
-<TR><TD><A HREF="smfi_chgheader.html">smfi_chgheader</A></TD><TD>Change or delete a header.</TD><TD>SMFIF_CHGHDRS</TD></TR> 
+<TR><TD><A HREF="smfi_chgheader.html">smfi_chgheader</A></TD><TD>Change or delete a header.</TD><TD>SMFIF_CHGHDRS</TD></TR>
 
 <TR><TD><A HREF="smfi_insheader.html">smfi_insheader</A></TD><TD>Insert a
-header into the message.</TD><TD>SMFIF_ADDHDRS</TD></TR> 
+header into the message.</TD><TD>SMFIF_ADDHDRS</TD></TR>
 
 <TR><TD><A HREF="smfi_chgfrom.html">smfi_chgfrom</A></TD><TD>Change the
 envelope sender address.</TD><TD>SMFIF_CHGFROM</TD></TR>
@@ -180,40 +186,43 @@ which are registered via <A HREF="smfi_register.html">smfi_register</A>:
 
 <TR><TD><A HREF="xxfi_close.html">xxfi_close</A></TD><TD>connection cleanup</TD></TR>
 
-<TR><TD><A HREF="xxfi_negotiate.html">xxfi_negotiate</A></TD><TD>option negotiattion</TD></TR>
+<TR><TD><A HREF="xxfi_negotiate.html">xxfi_negotiate</A></TD><TD>option negotiation</TD></TR>
 
 </TABLE>
 
 <P>
 The above callbacks should all return one of the following return values,
-having the indicated meanings.  Any return other than one of the below
-values constitutes an error, and will cause sendmail to terminate its
-connection to the offending filter.
+having the indicated meanings.
+Any return other than one of the below values constitutes an error,
+and will cause sendmail to terminate its connection to the offending filter.
 
 <P><A NAME="conn-spec">Milter</A> distinguishes between recipient-,
-message-, and connection-oriented routines.  Recipient-oriented
-callbacks may affect the processing of a single message recipient;
-message-oriented callbacks, a single message; connection-oriented
-callbacks, an entire connection (during which multiple messages may be
-delivered to multiple sets of recipients).
+message-, and connection-oriented routines.
+Recipient-oriented callbacks may affect the processing
+of a single message recipient;
+message-oriented callbacks, a single message;
+connection-oriented callbacks, an entire connection
+(during which multiple messages may be delivered
+to multiple sets of recipients).
 <A HREF="xxfi_envrcpt.html">xxfi_envrcpt</A> is recipient-oriented.
+<A HREF="xxfi_negotiate.html">xxfi_negotiate</A>,
 <A HREF="xxfi_connect.html">xxfi_connect</A>,
 <A HREF="xxfi_helo.html">xxfi_helo</A> and
-<A HREF="xxfi_close.html">xxfi_close</A> are connection-oriented.  All
-other callbacks are message-oriented.
+<A HREF="xxfi_close.html">xxfi_close</A> are connection-oriented.
+All other callbacks are message-oriented.
 
 <P>
 <TABLE BORDER="1" CELLSPACING=0 CELLPADDING=2>
   <TR BGCOLOR="#dddddd"><TH>Return value</TH><TH>Description</TH></TR>
   <TR VALIGN="TOP">
-     <TD>SMFIS_CONTINUE</TD> 
+     <TD>SMFIS_CONTINUE</TD>
      <TD>Continue processing the current connection, message, or recipient.
      </TD>
   </TR>
   <TR VALIGN="TOP">
      <TD>SMFIS_REJECT</TD>
      <TD>For a connection-oriented routine, reject this connection; call <A HREF="xxfi_close.html">xxfi_close</A>.<BR>
-        For a message-oriented routine (except 
+        For a message-oriented routine (except
         <A HREF="xxfi_abort.html">xxfi_abort</A>), reject this message.<BR>
 	For a recipient-oriented routine, reject the current recipient (but continue processing the current message).
      </TD>
@@ -233,8 +242,8 @@ other callbacks are message-oriented.
   <TR valign="top">
      <TD>SMFIS_TEMPFAIL</TD>
      <TD>Return a temporary failure, i.e., the corresponding SMTP command will return an appropriate 4xx status code.
-	 For a message-oriented routine (except <A HREF="xxfi_envfrom.html">xxfi_envfrom</A>), fail for this message. <BR>
-	 For a connection-oriented routine, fail for this connection; call <A HREF="xxfi_close.html">xxfi_close</A>. <BR>
+	 For a message-oriented routine (except <A HREF="xxfi_envfrom.html">xxfi_envfrom</A>), fail for this message.<BR>
+	 For a connection-oriented routine, fail for this connection; call <A HREF="xxfi_close.html">xxfi_close</A>.<BR>
 	 For a recipient-oriented routine, only fail for the current recipient; continue message processing.
      </TD>
   </TR>

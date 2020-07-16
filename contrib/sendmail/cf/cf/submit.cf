@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@sandman.dev-lab.sendmail.com on Thu Jul 2 05:24:31 PDT 2015
-##### in /x/ca/smi.git/sendmail/OpenSource/sendmail-8.15.2/cf/cf
+##### built by ca@lab.smi.sendmail.com on Thu Jul 2 22:41:57 PDT 2020
+##### in /var/tmp/ca/sm8.git/sendmail/OpenSource/sendmail-8.16.1/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.15.2/Submit
+DZ8.16.1/Submit
 
 
 ###############
@@ -513,6 +513,12 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 #O ServerSSLOptions
 # client side SSL options
 #O ClientSSLOptions
+# SSL Engine
+#O SSLEngine
+# Path to dynamic library for SSLEngine
+#O SSLEnginePath
+# TLS: fall back to clear text after handshake failure?
+#O TLSFallbacktoClear
 
 # Input mail filters
 #O InputMailFilters
@@ -532,12 +538,16 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 #O ClientKeyFile
 # File containing certificate revocation lists 
 #O CRLFile
+# Directory containing hashes pointing to certificate revocation status files
+#O CRLPath
 # DHParameters (only required if DSA/DH is used)
 #O DHParameters
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 #O RandFile
 # fingerprint algorithm (digest) to use for the presented cert
 #O CertFingerprintAlgorithm
+# enable DANE?
+#O DANE=false
 
 # Maximum number of "useless" commands before slowing down
 #O MaxNOOPCommands=20
@@ -1257,6 +1267,7 @@ R$* $| $*	$@ $>"TLS_connection" $1
 ###		${verify}
 ######################################################################
 Stls_server
+
 R$*		$@ $>"TLS_connection" $1
 
 ######################################################################
@@ -1268,6 +1279,7 @@ R$*		$@ $>"TLS_connection" $1
 ######################################################################
 STLS_connection
 RSOFTWARE	$#error $@ 4.7.0 $: "403 TLS handshake."
+RDANE_FAIL	$#error $@ 4.7.0 $: "403 DANE check failed."
 
 
 

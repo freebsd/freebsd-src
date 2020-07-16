@@ -327,11 +327,10 @@ sm_io_setinfo(fp, what, valp)
 **  SM_IO_GETINFO -- get information for an active file type (fp)
 **
 **  This function supplies for all file types the answers for the
-**		three requests SM_IO_WHAT_VECTORS, SM_IO_WHAT_TYPE and
-**		SM_IO_WHAT_ISTYPE. Other requests are handled by the getinfo
+**		three requests SM_IO_WHAT_VECTORS, and SM_IO_WHAT_ISTYPE.
+**		Other requests are handled by the getinfo
 **		vector if available for the open file type.
 **	SM_IO_WHAT_VECTORS returns information for the file pointer vectors.
-**	SM_IO_WHAT_TYPE returns the type identifier for the file pointer
 **	SM_IO_WHAT_ISTYPE returns >0 if the passed in type matches the
 **		file pointer's type.
 **	SM_IO_IS_READABLE returns 1 if there is data available for reading,
@@ -345,8 +344,8 @@ sm_io_setinfo(fp, what, valp)
 **	Returns:
 **		-1 on error and sets errno:
 **			- when valp==NULL and request expects otherwise
-**			- when request is not SM_IO_WHAT_VECTORS and not
-**				SM_IO_WHAT_TYPE and not SM_IO_WHAT_ISTYPE
+**			- when request is not SM_IO_WHAT_VECTORS
+**				and not SM_IO_WHAT_ISTYPE
 **				and getinfo vector is NULL
 **			- when getinfo type vector returns -1
 **		>=0 on success
@@ -380,15 +379,6 @@ sm_io_getinfo(fp, what, valp)
 		v->f_setinfo = fp->f_setinfo;
 		v->f_getinfo = fp->f_getinfo;
 		v->f_type = fp->f_type;
-		return 0;
-
-	  case SM_IO_WHAT_TYPE:
-		if (valp == NULL)
-		{
-			errno = EINVAL;
-			return -1;
-		}
-		valp = sm_strdup_x(fp->f_type);
 		return 0;
 
 	  case SM_IO_WHAT_ISTYPE:

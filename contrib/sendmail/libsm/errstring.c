@@ -27,7 +27,7 @@ SM_RCSID("@(#)$Id: errstring.c,v 1.20 2013-11-22 20:51:42 ca Exp $")
 #if LDAPMAP
 # include <lber.h>
 # include <ldap.h>			/* for LDAP error codes */
-#endif /* LDAPMAP */
+#endif
 
 /*
 **  Notice: this file is used by libmilter. Please try to avoid
@@ -200,63 +200,63 @@ sm_errstring(errnum)
 # ifdef LDAP_URL_ERR_MEM
 	  case E_LDAPURLBASE + LDAP_URL_ERR_MEM:
 		return "LDAP URL can't allocate memory space";
-# endif /* LDAP_URL_ERR_MEM */
+# endif
 
 # ifdef LDAP_URL_ERR_PARAM
 	  case E_LDAPURLBASE + LDAP_URL_ERR_PARAM:
 		return "LDAP URL parameter is bad";
-# endif /* LDAP_URL_ERR_PARAM */
+# endif
 
 # ifdef LDAP_URL_ERR_BADSCHEME
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADSCHEME:
 		return "LDAP URL doesn't begin with \"ldap[si]://\"";
-# endif /* LDAP_URL_ERR_BADSCHEME */
+# endif
 
 # ifdef LDAP_URL_ERR_BADENCLOSURE
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADENCLOSURE:
 		return "LDAP URL is missing trailing \">\"";
-# endif /* LDAP_URL_ERR_BADENCLOSURE */
+# endif
 
 # ifdef LDAP_URL_ERR_BADURL
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADURL:
 		return "LDAP URL is bad";
-# endif /* LDAP_URL_ERR_BADURL */
+# endif
 
 # ifdef LDAP_URL_ERR_BADHOST
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADHOST:
 		return "LDAP URL host port is bad";
-# endif /* LDAP_URL_ERR_BADHOST */
+# endif
 
 # ifdef LDAP_URL_ERR_BADATTRS
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADATTRS:
 		return "LDAP URL bad (or missing) attributes";
-# endif /* LDAP_URL_ERR_BADATTRS */
+# endif
 
 # ifdef LDAP_URL_ERR_BADSCOPE
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADSCOPE:
 		return "LDAP URL scope string is invalid (or missing)";
-# endif /* LDAP_URL_ERR_BADSCOPE */
+# endif
 
 # ifdef LDAP_URL_ERR_BADFILTER
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADFILTER:
 		return "LDAP URL bad or missing filter";
-# endif /* LDAP_URL_ERR_BADFILTER */
+# endif
 
 # ifdef LDAP_URL_ERR_BADEXTS
 	  case E_LDAPURLBASE + LDAP_URL_ERR_BADEXTS:
 		return "LDAP URL bad or missing extensions";
-# endif /* LDAP_URL_ERR_BADEXTS */
+# endif
 
 	/* Sun LDAP errors */
 # ifdef LDAP_URL_ERR_NOTLDAP
 	  case E_LDAPURLBASE + LDAP_URL_ERR_NOTLDAP:
 		return "LDAP URL doesn't begin with \"ldap://\"";
-# endif /* LDAP_URL_ERR_NOTLDAP */
+# endif
 
 # ifdef LDAP_URL_ERR_NODN
 	  case E_LDAPURLBASE + LDAP_URL_ERR_NODN:
 		return "LDAP URL has no DN (required)";
-# endif /* LDAP_URL_ERR_NODN */
+# endif
 
 #endif /* LDAPMAP */
 	}

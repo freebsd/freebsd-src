@@ -42,7 +42,7 @@
 
 # ifdef __STDC__
 #  define HASSETVBUF	1	/* we have setvbuf(3) in libc */
-# endif /* __STDC__ */
+# endif
 
 /*
 **  Assume you have standard calls; can be #undefed below if necessary.
@@ -50,15 +50,15 @@
 
 # ifndef HASLSTAT
 #  define HASLSTAT	1	/* has lstat(2) call */
-# endif /* ! HASLSTAT */
+# endif
 
 # ifndef HASNICE
 #  define HASNICE	1	/* has nice(2) call */
-# endif /* ! HASNICE */
+# endif
 
 # ifndef HASRRESVPORT
 #  define HASRRESVPORT	1	/* has rrsevport(3) call */
-# endif /* ! HASRRESVPORT */
+# endif
 
 /**********************************************************************
 **  "Hard" compilation options.
@@ -101,27 +101,27 @@
 #  define LDA_USE_LOCKF	1
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps */
-#  endif /* ! HASGETUSERSHELL */
+#  endif
 #  ifdef HPUX10
 #   define _PATH_SENDMAIL	"/usr/sbin/sendmail"
 #   ifndef SMRSH_CMDDIR
 #    define SMRSH_CMDDIR	"/var/adm/sm.bin"
-#   endif /* ! SMRSH_CMDDIR */
-#  endif /* HPUX10 */
+#   endif
+#  endif
 #  ifdef HPUX11
 #   define HASSETREUID	1	/* setreuid(2) works on HP-UX 11.x */
 #   define HASFCHOWN	1	/* has fchown(2) */
 #   ifndef BROKEN_RES_SEARCH
 #    define BROKEN_RES_SEARCH 1	/* res_search(unknown) returns h_errno=0 */
-#   endif /* ! BROKEN_RES_SEARCH */
+#   endif
 #   ifndef SMRSH_CMDDIR
 #    define SMRSH_CMDDIR	"/var/adm/sm.bin"
-#   endif /* ! SMRSH_CMDDIR */
+#   endif
 #   define _PATH_SENDMAIL	"/usr/sbin/sendmail"
 #  else /* HPUX11 */
 #   ifndef NOT_SENDMAIL
 #    define syslog	hard_syslog
-#   endif /* ! NOT_SENDMAIL */
+#   endif
 #  endif /* HPUX11 */
 #  define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
 
@@ -130,28 +130,28 @@
 #   define _PATH_UNIX		"/stand/vmunix"
 #   ifndef _PATH_VENDOR_CF
 #    define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
-#   endif /* ! _PATH_VENDOR_CF */
+#   endif
 #   ifndef _PATH_SENDMAILPID
 #    define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
-#   endif /* ! _PATH_SENDMAILPID */
+#   endif
 #   ifndef IDENTPROTO
 #    define IDENTPROTO	1	/* TCP/IP implementation fixed in 10.0 */
-#   endif /* ! IDENTPROTO */
+#   endif
 #   include <sys/mpctl.h>	/* for mpctl() in get_num_procs_online() */
 #  else /* V4FS */
 		/* HP-UX 9.x */
 #   define _PATH_UNIX		"/hp-ux"
 #   ifndef _PATH_VENDOR_CF
 #    define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#   endif /* ! _PATH_VENDOR_CF */
+#   endif
 #   ifndef IDENTPROTO
 #    define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#   endif /* ! IDENTPROTO */
+#   endif
 #   ifdef __STDC__
 extern void	hard_syslog(int, char *, ...);
-#   else /* __STDC__ */
+#   else
 extern void	hard_syslog();
-#   endif /* __STDC__ */
+#   endif
 #   define FDSET_CAST	(int *)	/* cast for fd_set parameters to select */
 #  endif /* V4FS */
 
@@ -169,7 +169,7 @@ extern void	hard_syslog();
 #  define SOCKOPT_LEN_T	socklen_t /* arg#5 to getsockopt */
 #  if _AIX5 >= 50200
 #   define HASUNSETENV	1	/* has unsetenv(3) call */
-#  endif /* _AIX5 >= 50200 */
+#  endif
 # endif /* _AIX5 */
 
 /*
@@ -183,12 +183,12 @@ extern void	hard_syslog();
 #  define TZ_TYPE	TZ_NAME	/* use tzname[] vector */
 #  ifndef SOCKOPT_LEN_T
 #   define SOCKOPT_LEN_T	size_t	/* arg#5 to getsockopt */
-#  endif /* SOCKOPT_LEN_T */
+#  endif
 #  if _AIX4 >= 40200
 #   define HASSETREUID	1	/* setreuid(2) works as of AIX 4.2 */
 #   ifndef SOCKADDR_LEN_T
 #    define SOCKADDR_LEN_T	size_t	/* e.g., arg#3 to accept, getsockname */
-#   endif /* SOCKADDR_LEN_T */
+#   endif
 #  endif /* _AIX4 >= 40200 */
 #  if defined(_ILS_MACROS)	/* IBM versions aren't side-effect clean */
 #   undef isascii
@@ -220,17 +220,17 @@ extern void	hard_syslog();
 #  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_INT
-#  endif /* LA_TYPE */
+#  endif
 #  define FSHIFT	16
 #  define LA_AVENRUN	"avenrun"
 #  if !defined(_AIX4) || _AIX4 < 40300
 #   ifndef __BIT_TYPES_DEFINED__
 #    define SM_INT32	int
-#   endif /* __BIT_TYPES_DEFINED__ */
+#   endif
 #  endif /* !defined(_AIX4) || _AIX4 < 40300 */
 #  if !defined(_AIX4) || _AIX4 < 40200
 #   define SM_CONF_SYSLOG	0
-#  endif /* !defined(_AIX4) || _AIX4 < 40200 */
+#  endif
 # endif /* _AIX3 */
 
 
@@ -272,16 +272,16 @@ typedef int		pid_t;
 /* make this sendmail in a completely different place */
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/local/newmail/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/usr/local/newmail/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 # endif /* AIX */
 
 # if defined(_AIX)
 #  define LDA_USE_LOCKF		1
 #  define LDA_USE_SETEUID	1
-# endif /* defined(_AIX) */
+# endif
 
 /*
 **  Silicon Graphics IRIX
@@ -310,7 +310,7 @@ typedef int		pid_t;
 #  if defined(_SC_NPROC_ONLN) && !defined(_SC_NPROCESSORS_ONLN)
     /* _SC_NPROC_ONLN is 'mpadmin -u', total # of unrestricted processors */
 #   define _SC_NPROCESSORS_ONLN	_SC_NPROC_ONLN
-#  endif /* if defined(_SC_NPROC_ONLN) && !defined(_SC_NPROCESSORS_ONLN) */
+#  endif
 #  ifdef IRIX6
 #   define STAT64	1
 #   define QUAD_T	unsigned long long
@@ -360,7 +360,7 @@ typedef int		pid_t;
 #  define SAFENFSPATHCONF 1	/* pathconf(2) pessimizes on NFS filesystems */
 #  ifndef HASFCHOWN
 #   define HASFCHOWN	1	/* fchown(2) */
-#  endif /* ! HASFCHOWN */
+#  endif
 
 #  ifdef __svr4__
 #   define LDA_USE_LOCKF		1
@@ -374,67 +374,67 @@ typedef int		pid_t;
 
 #  if defined(NOT_SENDMAIL) && !defined(SOLARIS) && defined(sun) && (defined(__svr4__) || defined(__SVR4))
 #   define SOLARIS	1	/* unknown Solaris version */
-#  endif /* defined(NOT_SENDMAIL) && !defined(SOLARIS) && defined(sun) && (defined(__svr4__) || defined(__SVR4)) */
+#  endif
 
 #  ifdef SOLARIS
 			/* Solaris 2.x (a.k.a. SunOS 5.x) */
 #   ifndef __svr4__
 #    define __svr4__		/* use all System V Release 4 defines below */
-#   endif /* ! __svr4__ */
+#   endif
 #   if SOLARIS >= 21100
 #    include <paths.h>
-#   endif /* SOLARIS >= 21100 */
+#   endif
 #   ifndef _PATH_VARRUN
 #    define _PATH_VARRUN	"/var/run/"
-#   endif /* _PATH_VARRUN */
+#   endif
 #   define GIDSET_T	gid_t
 #   define USE_SA_SIGACTION	1	/* use sa_sigaction field */
 #   define BROKEN_PTHREAD_SLEEP	1	/* sleep after pthread_create() fails */
 #   define HASSTRERROR	1	/* has strerror(3) */
 #   ifndef _PATH_UNIX
 #    define _PATH_UNIX		"/dev/ksyms"
-#   endif /* ! _PATH_UNIX */
+#   endif
 #   ifndef _PATH_VENDOR_CF
 #    define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
-#   endif /* ! _PATH_VENDOR_CF */
+#   endif
 #   ifndef _PATH_SENDMAILPID
 #    define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
-#   endif /* ! _PATH_SENDMAILPID */
+#   endif
 #   ifndef _PATH_HOSTS
 #    define _PATH_HOSTS		"/etc/inet/hosts"
-#   endif /* ! _PATH_HOSTS */
+#   endif
 #   ifndef SYSLOG_BUFSIZE
 #    define SYSLOG_BUFSIZE	1024	/* allow full size syslog buffer */
-#   endif /* ! SYSLOG_BUFSIZE */
+#   endif
 #   ifndef TZ_TYPE
 #    define TZ_TYPE	TZ_TZNAME
-#   endif /* ! TZ_TYPE */
+#   endif
 #   if SOLARIS >= 20300 || (SOLARIS < 10000 && SOLARIS >= 203)
 #    define USESETEUID		1	/* seteuid works as of 2.3 */
 #    define LDA_CONTENTLENGTH	1	/* Needs the Content-Length header */
-#   endif /* SOLARIS >= 20300 || (SOLARIS < 10000 && SOLARIS >= 203) */
+#   endif
 #   if SOLARIS >= 20500 || (SOLARIS < 10000 && SOLARIS >= 205)
 #    define HASSETREUID	1		/* setreuid works as of 2.5 */
 #    define HASSETREGID	1	/* use setregid(2) to set saved gid */
 #   if SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206)
 #    define HASSNPRINTF 1	/* has snprintf(3c) starting in 2.6 */
-#   endif /* SOLARIS >= 20600 || (SOLARIS < 10000 && SOLARIS >= 206) */
+#   endif
 #    if SOLARIS < 207 || (SOLARIS > 10000 && SOLARIS < 20700)
 #     ifndef LA_TYPE
 #      define LA_TYPE	LA_KSTAT	/* use kstat(3k) -- may work in < 2.5 */
-#     endif /* ! LA_TYPE */
-#     ifndef RANDOMSHIFT		/* random() doesn't work well (sometimes) */
+#     endif
+#     ifndef RANDOMSHIFT	/* random() doesn't work well (sometimes) */
 #      define RANDOMSHIFT	8
-#     endif /* ! RANDOMSHIFT */
+#     endif
 #    endif /* SOLARIS < 207 || (SOLARIS > 10000 && SOLARIS < 20700) */
 #   else /* SOLARIS >= 20500 || (SOLARIS < 10000 && SOLARIS >= 205) */
 #    ifndef HASRANDOM
 #     define HASRANDOM	0		/* doesn't have random(3) */
-#    endif /* ! HASRANDOM */
+#    endif
 #   endif /* SOLARIS >= 20500 || (SOLARIS < 10000 && SOLARIS >= 205) */
 #   if (SOLARIS > 10000 && SOLARIS < 20600) || SOLARIS < 206
 #    define SM_INT32	int	/* 32bit integer */
-#   endif /* (SOLARIS > 10000 && SOLARIS < 20600) || SOLARIS < 206 */
+#   endif
 #   if SOLARIS >= 20700 || (SOLARIS < 10000 && SOLARIS >= 207)
 #    ifndef LA_TYPE
 #     include <sys/loadavg.h>
@@ -452,7 +452,7 @@ typedef int		pid_t;
 #    define _PATH_SENDMAILPID	_PATH_VARRUN "sendmail.pid"
 #    ifndef SMRSH_CMDDIR
 #     define SMRSH_CMDDIR	"/var/adm/sm.bin"
-#    endif /* ! SMRSH_CMDDIR */
+#    endif
 #    define SL_FUDGE	34	/* fudge offset for SyslogPrefixLen */
 #    define HASLDAPGETALIASBYNAME	1	/* added in S8 */
 #   endif /* SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208) */
@@ -463,7 +463,7 @@ typedef int		pid_t;
 #   endif /* SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209) */
 #   if SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210)
 #    define HASUNSETENV 1       /* unsetenv() added in S10 */
-#   endif /* SOLARIS >= 21000 || (SOLARIS < 10000 && SOLARIS >= 210) */
+#   endif
 #   if SOLARIS >= 21100 || (SOLARIS < 10000 && SOLARIS >= 211)
 #    define GETLDAPALIASBYNAME_VERSION 2	/* changed in S11 */
 #    define HAVE_NANOSLEEP	1	/* moved from librt to libc in S11 */
@@ -472,10 +472,10 @@ typedef int		pid_t;
 #   endif /* SOLARIS >= 21100 || (SOLARIS < 10000 && SOLARIS >= 211) */
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
-#   endif /* ! HASGETUSERSHELL */
+#   endif
 #   if SOLARIS < 21200
 #    define SIGWAIT_TAKES_1_ARG	1	/* S12 moves to UNIX V7 semantic */
-#   endif /* SOLARIS < 21200 */
+#   endif
 
 #  else /* SOLARIS */
 			/* SunOS 4.0.3 or 4.1.x */
@@ -483,14 +483,14 @@ typedef int		pid_t;
 #   define HASSETREUID	1	/* has setreuid(2) call */
 #   ifndef HASFLOCK
 #    define HASFLOCK	1	/* has flock(2) call */
-#   endif /* ! HASFLOCK */
+#   endif
 #   define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #   define TZ_TYPE	TZ_TM_ZONE	/* use tm->tm_zone */
 #   include <memory.h>
 #   include <vfork.h>
 #   ifdef __GNUC__
 #    define strtoul	strtol	/* gcc library bogosity */
-#   endif /* __GNUC__ */
+#   endif
 #   define memmove(d, s, l)	(bcopy((s), (d), (l)))
 #   define atexit(f)	on_exit((f), 0)	/* ugly hack for SunOS */
 #   define SM_INT32	int	/* 32bit integer */
@@ -522,7 +522,7 @@ extern char		*getenv();
 
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_INT
-#  endif /* ! LA_TYPE */
+#  endif
 
 # endif /* defined(sun) && !defined(BSD) */
 
@@ -536,7 +536,7 @@ extern char		*getenv();
 
 # ifdef DGUX_5_4_2
 #  define DGUX		1
-# endif /* DGUX_5_4_2 */
+# endif
 
 # ifdef DGUX
 #  define SYSTEM5	1
@@ -549,7 +549,7 @@ extern char		*getenv();
 #  define HASGETUSERSHELL 0	/* does not have getusershell(3) */
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  define SPT_TYPE	SPT_NONE	/* don't use setproctitle */
 #  define SFS_TYPE	SFS_4ARGS	/* four argument statfs() call */
 #  define LDA_USE_LOCKF		1
@@ -585,14 +585,14 @@ extern long	dgux_inet_addr();
 #  define HASFCHOWN	1	/* has fchown(2) syscall */
 #  ifndef HASFLOCK
 #   define HASFLOCK	1	/* has flock(2) call */
-#  endif /* ! HASFLOCK */
+#  endif
 #  define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
 #  ifndef BROKEN_RES_SEARCH
 #   define BROKEN_RES_SEARCH 1	/* res_search(unknown) returns h_errno=0 */
-#  endif /* ! BROKEN_RES_SEARCH */
+#  endif
 #  if !defined(NEEDLOCAL_HOSTNAME_LENGTH) && NAMED_BIND && __RES >= 19931104 && __RES < 19950621
 #   define NEEDLOCAL_HOSTNAME_LENGTH	1	/* see sendmail/README */
-#  endif /* !defined(NEEDLOCAL_HOSTNAME_LENGTH) && NAMED_BIND && __RES >= 19931104 && __RES < 19950621 */
+#  endif
 #  ifdef vax
 #   define LA_TYPE	LA_FLOAT
 #  else /* vax */
@@ -602,7 +602,7 @@ extern long	dgux_inet_addr();
 #  define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* pre-4.4 TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  define SYSLOG_BUFSIZE	256
 #  define SM_CONF_SYSLOG	0
 # endif /* ultrix */
@@ -618,7 +618,7 @@ extern long	dgux_inet_addr();
 #  define __osf__	1	/* get OSF/1 defines below */
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_TZNAME	/* use tzname[] vector */
-#  endif /* ! TZ_TYPE */
+#  endif
 # endif /* __ksr__ */
 
 
@@ -626,14 +626,14 @@ extern long	dgux_inet_addr();
 **  OSF/1 for Intel Paragon.
 **
 **	Contributed by Jeff A. Earickson <jeff@ssd.intel.com>
-**	of Intel Scalable Systems Divison.
+**	of Intel Scalable Systems Division.
 */
 
 # ifdef __PARAGON__
 #  define __osf__	1	/* get OSF/1 defines below */
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_TZNAME	/* use tzname[] vector */
-#  endif /* ! TZ_TYPE */
+#  endif
 #  define GIDSET_T	gid_t
 #  define MAXNAMLEN	NAME_MAX
 # endif /* __PARAGON__ */
@@ -661,18 +661,18 @@ extern long	dgux_inet_addr();
 #   include <standards.h>
 #   if _XOPEN_SOURCE+0 >= 400
 #    define HASFLOCK	0	/* 5.0 and later has bad flock(2) call */
-#   else /* _XOPEN_SOURCE+0 >= 400 */
+#   else
 #    define HASFLOCK	1	/* has flock(2) call */
-#   endif /* _XOPEN_SOURCE+0 >= 400 */
+#   endif
 #  endif /* ! HASFLOCK */
 #  define LA_TYPE	LA_ALPHAOSF
 #  define SFS_TYPE	SFS_STATVFS	/* use <sys/statvfs.h> statfs() impl */
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/var/adm/sendmail/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  if _FFR_DIGUNIX_SAFECHOWN
 /*
 **  Testing on a Digital UNIX 4.0a system showed this to be the correct
@@ -694,17 +694,17 @@ extern long	dgux_inet_addr();
 #  define NEEDPUTENV	2	/* need putenv(3) call; no setenv(3) call */
 #  ifndef HASFLOCK
 #   define HASFLOCK	1	/* has flock(2) call */
-#  endif /* ! HASFLOCK */
+#  endif
 #  define UID_T		int	/* compiler gripes on uid_t */
 #  define GID_T		int	/* ditto for gid_t */
 #  define MODE_T	int	/* and mode_t */
 #  define setpgid	setpgrp
 #  ifndef NOT_SENDMAIL
 #   define sleep		sleepX
-#  endif /* ! NOT_SENDMAIL */
+#  endif
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_MACH
-#  endif /* ! LA_TYPE */
+#  endif
 #  define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #  ifdef _POSIX_SOURCE
 extern struct passwd	*getpwent();
@@ -719,31 +719,31 @@ typedef int		pid_t;
 #  endif /* _POSIX_SOURCE */
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/etc/sendmail/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  define SM_INT32	int	/* 32bit integer */
 
 #  ifdef TCPWRAPPERS
 #   ifndef HASUNSETENV
 #    define HASUNSETENV	1
-#   endif /* ! HASUNSETENV */
+#   endif
 #   undef NEEDPUTENV
 #  endif /* TCPWRAPPERS */
 #  ifndef __APPLE__
 #   include <libc.h>
 #   ifndef S_IRUSR
 #    define S_IRUSR	S_IREAD
-#   endif /* ! S_IRUSR */
+#   endif
 #   ifndef S_IWUSR
 #    define S_IWUSR	S_IWRITE
-#   endif /* ! S_IWUSR */
+#   endif
 #   define _PATH_MAILDIR	"/usr/spool/mail"
 #  endif /* ! __APPLE__ */
 #  ifndef isascii
 #   define isascii(c)	((unsigned)(c) <= 0177)
-#  endif /* ! isascii */
+#  endif
 # endif /* NeXT */
 
 /*
@@ -774,6 +774,12 @@ typedef int		pid_t;
 #  define HASURANDOMDEV		1	/* has urandom(4) */
 #  define HASSTRERROR		1	/* has strerror(3) */
 #  define HASGETUSERSHELL	1	/* had getusershell(3) */
+#  if DARWIN >=180000
+#   ifdef HASRRESVPORT
+#    undef HASRRESVPORT
+#   endif
+#   define HASRRESVPORT		0	/* deprecated rresvport() */
+#  endif
 #  define GIDSET_T		gid_t	/* getgroups(2) takes gid_t */
 #  define LA_TYPE		LA_SUBR	/* use getloadavg(3) */
 #  define SFS_TYPE		SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
@@ -820,7 +826,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  define NETLINK	1	/* supports AF_LINK */
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_SUBR
-#  endif /* ! LA_TYPE */
+#  endif
 #  define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
 #  define SPT_TYPE	SPT_PSSTRINGS	/* use PS_STRINGS pointer */
 # endif /* defined(BSD4_4) && !defined(__bsdi__) && !defined(__GNU__) && !defined(DARWIN)*/
@@ -849,7 +855,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  define SFS_TYPE	SFS_MOUNT	/* use <sys/mount.h> statfs() impl */
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_SUBR
-#  endif /* ! LA_TYPE */
+#  endif
 #  define GIDSET_T	gid_t
 #  define QUAD_T		quad_t
 #  if defined(_BSDI_VERSION) && _BSDI_VERSION >= 199312
@@ -862,13 +868,13 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  endif /* defined(_BSDI_VERSION) && _BSDI_VERSION >= 199312 */
 #  if defined(_BSDI_VERSION) && _BSDI_VERSION >= 199701	/* on 3.x */
 #   define HASSETUSERCONTEXT 1	/* has setusercontext */
-#  endif /* defined(_BSDI_VERSION) && _BSDI_VERSION >= 199701 */
+#  endif
 #  if defined(_BSDI_VERSION) && _BSDI_VERSION <= 199701	/* 3.1 and earlier */
 #   define MODE_T	int	/* va_arg() can't handle less than int */
-#  endif /* defined(_BSDI_VERSION) && _BSDI_VERSION <= 199701 */
+#  endif
 #  if defined(_BSDI_VERSION) && _BSDI_VERSION >= 199910	/* on 4.x */
 #   define HASURANDOMDEV	1	/* has /dev/urandom(4) */
-#  endif /* defined(_BSDI_VERSION) && _BSDI_VERSION >= 199910 */
+#  endif
 # endif /* __bsdi__ */
 
 
@@ -963,7 +969,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  define HASSNPRINTF	1	/* has snprintf(3) (all versions?) */
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_SUBR
-#  endif /* ! LA_TYPE */
+#  endif
 #  if defined(__NetBSD__) && defined(__NetBSD_Version__) && \
     ((__NetBSD_Version__ >= 200040000 && __NetBSD_Version__ < 200090000) || \
     (__NetBSD_Version__ >= 299000900))
@@ -975,10 +981,10 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  if defined(__NetBSD__) && (NetBSD > 199307 || NetBSD0_9 > 1)
 #   undef SPT_TYPE
 #   define SPT_TYPE	SPT_BUILTIN	/* setproctitle is in libc */
-#  endif /* defined(__NetBSD__) && (NetBSD > 199307 || NetBSD0_9 > 1) */
+#  endif
 #  if defined(__NetBSD__) && ((__NetBSD_Version__ > 102070000) || (NetBSD1_2 > 8) || defined(NetBSD1_4) || defined(NetBSD1_3))
 #   define HASURANDOMDEV	1	/* has /dev/urandom(4) */
-#  endif /* defined(__NetBSD__) && ((__NetBSD_Version__ > 102070000) || (NetBSD1_2 > 8) || defined(NetBSD1_4) || defined(NetBSD1_3)) */
+#  endif
 #  if defined(__NetBSD__) && defined(__NetBSD_Version__) && __NetBSD_Version__ >= 104170000
 #   define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
 #  endif
@@ -1002,10 +1008,10 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
 #   ifndef SMRSH_CMDDIR
 #    define SMRSH_CMDDIR	"/usr/libexec/sm.bin"
-#   endif /* ! SMRSH_CMDDIR */
+#   endif
 #   ifndef SMRSH_PATH
 #    define SMRSH_PATH		"/bin:/usr/bin"
-#   endif /* ! SMRSH_PATH */
+#   endif
 #  define USESYSCTL		1	/* use sysctl(3) for getting ncpus */
 #  include <sys/sysctl.h>
 #  endif /* defined(__DragonFly__) */
@@ -1019,24 +1025,24 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   if __FreeBSD__ >= 2
 #    include <osreldate.h>
 #    if __FreeBSD_version >= 199512	/* 2.2-current when it appeared */
-#      if __FreeBSD_version < 500012
-#     include <libutil.h>
-#      endif
+#     if __FreeBSD_version < 500012	/* Moved to libc in 2000 */
+#      include <libutil.h>
+#     endif
 #     define SPT_TYPE	SPT_BUILTIN
 #    endif /* __FreeBSD_version >= 199512 */
 #    if __FreeBSD_version >= 222000	/* 2.2.2-release and later */
 #     define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
-#    endif /* __FreeBSD_version >= 222000 */
+#    endif
 #    if __FreeBSD_version >= 300000	/* 3.0.0-release and later */
 #     define HAVE_NANOSLEEP	1	/* has nanosleep(2) */
-#    endif /* __FreeBSD_version >= 300000 */
+#    endif
 #    if __FreeBSD_version >= 330000	/* 3.3.0-release and later */
 #     ifndef SMRSH_CMDDIR
 #      define SMRSH_CMDDIR	"/usr/libexec/sm.bin"
-#     endif /* ! SMRSH_CMDDIR */
+#     endif
 #     ifndef SMRSH_PATH
 #      define SMRSH_PATH	"/bin:/usr/bin"
-#     endif /* ! SMRSH_PATH */
+#     endif
 #    endif /* __FreeBSD_version >= 330000 */
 #    if __FreeBSD_version >= 430000	/* 4.3.0-release and later */
 #     define SOCKADDR_LEN_T	socklen_t	/* e.g., arg#3 to accept, getsockname */
@@ -1048,7 +1054,7 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   ifndef SPT_TYPE
 #    define SPT_TYPE	SPT_REUSEARGV
 #    define SPT_PADCHAR	'\0'		/* pad process title with nulls */
-#   endif /* ! SPT_TYPE */
+#   endif
 #  endif /* defined(__FreeBSD__) */
 #  if defined(__OpenBSD__)
 #   undef SPT_TYPE
@@ -1056,24 +1062,30 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   define HASSETLOGIN	1	/* has setlogin(2) */
 #   if OpenBSD < 200305
 #    define HASSETREUID	0	/* setreuid(2) broken in OpenBSD < 3.3 */
-#   endif /* OpenBSD < 200305 */
+#   endif
 #   define HASSETEGID	1	/* use setegid(2) to set saved gid */
 #   define HASURANDOMDEV	1	/* has /dev/urandom(4) */
 #   if OpenBSD >= 200006
 #    define HASSRANDOMDEV	1	/* has srandomdev(3) */
-#   endif /* OpenBSD >= 200006 */
+#   endif
 #   if OpenBSD >= 200012
 #    define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
-#   endif /* OpenBSD >= 200012 */
+#   endif
 #   if OpenBSD >= 200405
 #    define HASCLOSEFROM	1	/* closefrom(3) added in 3.5 */
-#   endif /* OpenBSD >= 200405 */
+#   endif
 #   if OpenBSD >= 200505
 #    undef NETISO	/* iso.h removed in 3.7 */
-#   endif /* OpenBSD >= 200505 */
+#   endif
 #   if OpenBSD >= 200800
 #    define HAVE_NANOSLEEP	1	/* has nanosleep(2) */
-#   endif /* OpenBSD >= 200800 */
+#   endif
+#   ifndef SOCKADDR_LEN_T
+#    define SOCKADDR_LEN_T	socklen_t	/* e.g., arg#3 to accept, getsockname */
+#   endif
+#   ifndef SOCKOPT_LEN_T
+#    define SOCKOPT_LEN_T	socklen_t	/* arg#5 to getsockopt */
+#   endif
 #  endif /* defined(__OpenBSD__) */
 # endif /* defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) */
 
@@ -1090,23 +1102,23 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  define HASINITGROUPS	1	/* has initgroups(3) call */
 #  ifndef HASFLOCK
 #   define HASFLOCK	1	/* has flock(2) call */
-#  endif /* ! HASFLOCK */
+#  endif
 #  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
 #  define NEEDSTRTOL	1	/* need the strtol() function */
 #  define setpgid	setpgrp
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_FLOAT
-#  endif /* ! LA_TYPE */
+#  endif
 #  define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #  undef HASSETVBUF		/* don't actually have setvbuf(3) */
 #  undef WEXITSTATUS
 #  undef WIFEXITED
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 # endif /* defined(MACH) && defined(i386) && !defined(__GNU__) */
 
 
@@ -1162,13 +1174,13 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #  define setpgid	setpgrp
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_FLOAT
-#  endif /* ! LA_TYPE */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  undef WEXITSTATUS
 #  undef WIFEXITED
 typedef short		pid_t;
@@ -1207,7 +1219,7 @@ typedef short		pid_t;
 #  define LDA_USE_LOCKF	1
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_DEVSHORT
-#  endif /* ! LA_TYPE */
+#  endif
 #  define _PATH_AVENRUN	"/dev/table/avenrun"
 #  ifndef _SCO_unix_4_2
 #   define _SCO_unix_4_2
@@ -1231,7 +1243,7 @@ typedef short		pid_t;
 #  define NOFTRUNCATE	0	/* has (simulated) ftruncate call */
 #  ifndef USE_SIGLONGJMP
 #   define USE_SIGLONGJMP	1 /* sigsetjmp needed for signal handling */
-#  endif /* ! USE_SIGLONGJMP */
+#  endif
 #  define MAXPATHLEN	PATHSIZE
 #  define SFS_TYPE	SFS_4ARGS	/* use <sys/statfs.h> 4-arg impl */
 #  define SFS_BAVAIL	f_bfree		/* alternate field name */
@@ -1243,15 +1255,15 @@ typedef short		pid_t;
 #  define _PATH_UNIX		"/unix"
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 
 /* stuff fixed in later releases */
 #  ifndef _SCO_unix_4_2
 #   define SYS5SIGNALS	1	/* SysV signal semantics -- reset on each sig */
-#  endif /* ! _SCO_unix_4_2 */
+#  endif
 
 #  ifndef _SCO_DS
 #   define ftruncate	chsize	/* use chsize(2) to emulate ftruncate */
@@ -1285,10 +1297,10 @@ typedef short		pid_t;
 #  define _PATH_UNIX		"/unix"
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 # endif /* ISC_UNIX */
 
 
@@ -1364,7 +1376,7 @@ extern struct group	*getgrnam();
 #  define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef S_IREAD
 #   define S_IREAD	_S_IREAD
 #   define S_IWRITE	_S_IWRITE
@@ -1375,22 +1387,22 @@ extern struct group	*getgrnam();
 #  endif /* ! S_IREAD */
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_TIMEZONE
-#  endif /* ! TZ_TYPE */
+#  endif
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	1
-#  endif /* ! IDENTPROTO */
+#  endif
 #  ifndef SHARE_V1
 #   define SHARE_V1	1	/* version 1 of the fair share scheduler */
-#  endif /* ! SHARE_V1 */
+#  endif
 #  if !defined(__GNUC__ )
-#   define UID_T	int		/* GNUC gets it right, ConvexC botches */
-#   define GID_T	int		/* GNUC gets it right, ConvexC botches */
-#  endif /* !defined(__GNUC__ ) */
+#   define UID_T	int	/* GNUC gets it right, ConvexC botches */
+#   define GID_T	int	/* GNUC gets it right, ConvexC botches */
+#  endif
 #  if SECUREWARE
 #   define FORK	fork		/* SecureWare wants the real fork! */
-#  else /* SECUREWARE */
+#  else
 #   define FORK	vfork		/* the rest of the OS versions don't care */
-#  endif /* SECUREWARE */
+#  endif
 # endif /* _CONVEX_SOURCE */
 
 
@@ -1405,7 +1417,7 @@ extern struct group	*getgrnam();
 #  define HASUNSETENV	1	/* has unsetenv(3) call */
 #  ifndef HASFLOCK
 #   define HASFLOCK	1	/* has flock(2) call */
-#  endif /* ! HASFLOCK */
+#  endif
 #  define WAITUNION	1	/* use "union wait" as wait argument type */
 #  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
 #  define NEEDPUTENV	1	/* need putenv(3) call */
@@ -1430,7 +1442,7 @@ extern void		*malloc();
 #  ifdef RISCOS_4_0
 #   ifndef ARBPTR_T
 #    define ARBPTR_T	char *
-#   endif /* ! ARBPTR_T */
+#   endif
 #   undef HASFLOCK
 #   define HASFLOCK	0
 #  endif /* RISCOS_4_0 */
@@ -1460,15 +1472,15 @@ extern void		*malloc();
 #  include <linux/version.h>
 #  if !defined(KERNEL_VERSION)	/* not defined in 2.0.x kernel series */
 #   define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
-#  endif /* !defined(KERNEL_VERSION) */
+#  endif
 #  define BSD		1	/* include BSD defines */
 #  define HASSETREGID	1	/* use setregid(2) to set saved gid */
 #  ifndef REQUIRES_DIR_FSYNC
 #   define REQUIRES_DIR_FSYNC	1	/* requires fsync() on directory */
-#  endif /* REQUIRES_DIR_FSYNC */
+#  endif
 #  ifndef USESETEUID
 #   define USESETEUID	0	/* has it due to POSIX, but doesn't work */
-#  endif /* USESETEUID */
+#  endif
 #  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
 #  define HASUNAME	1	/* use System V uname(2) system call */
 #  define HASUNSETENV	1	/* has unsetenv(3) call */
@@ -1476,51 +1488,60 @@ extern void		*malloc();
 #  define GIDSET_T	gid_t	/* from <linux/types.h> */
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) broken in Slackware 2.0 */
-#  endif /* HASGETUSERSHELL */
+#  endif
 #  ifndef IP_SRCROUTE
 #   define IP_SRCROUTE	0	/* linux <= 1.2.8 doesn't support IP_OPTIONS */
-#  endif /* ! IP_SRCROUTE */
+#  endif
 #  ifndef HAS_IN_H
 #   define HAS_IN_H	1	/* use netinet/in.h */
-#  endif /* ! HAS_IN_H */
+#  endif
 #  ifndef USE_SIGLONGJMP
 #   define USE_SIGLONGJMP	1 /* sigsetjmp needed for signal handling */
-#  endif /* ! USE_SIGLONGJMP */
+#  endif
 #  ifndef HASFLOCK
 #   if LINUX_VERSION_CODE < 66399
 #    define HASFLOCK	0	/* flock(2) is broken after 0.99.13 */
 #   else /* LINUX_VERSION_CODE < 66399 */
 #     if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0))
 #      define HASFLOCK	1	/* flock(2) fixed after 1.3.95 */
-#     else /* (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)) */
+#     else
 #      define HASFLOCK	0	/* flock(2) is broken (again) after 2.4.0 */
-#     endif /* (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,0)) */
+#     endif
 #   endif /* LINUX_VERSION_CODE < 66399 */
 #  endif /* ! HASFLOCK */
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_PROCSTR
-#  endif /* ! LA_TYPE */
+#  endif
 #  define SFS_TYPE	SFS_VFS		/* use <sys/vfs.h> statfs() impl */
 #  define SPT_PADCHAR	'\0'		/* pad process title with nulls */
 #  if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,0,0))
 #   ifndef HASURANDOMDEV
 #    define HASURANDOMDEV 1	/* 2.0 (at least) has linux/drivers/char/random.c */
-#   endif /* ! HASURANDOMDEV */
+#   endif
 #  endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2,0,0)) */
 #  if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
 #   define HASSTRERROR	1	/* has strerror(3) */
-#  endif /* defined(__GLIBC__) && defined(__GLIBC_MINOR__) */
+#  endif
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_NONE		/* no standard for Linux */
-#  endif /* ! TZ_TYPE */
+#  endif
 #  if (__GLIBC__ >= 2)
 #   include <paths.h>
-#  endif /* (__GLIBC__ >= 2) */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  include <sys/sysmacros.h>
 #  undef atol			/* wounded in <stdlib.h> */
+
+#  if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+#   define GLIBC_VERSION ((__GLIBC__ << 9) + __GLIBC_MINOR__)
+#   if (GLIBC_VERSION >= 0x201)
+#    define SOCKADDR_LEN_T     socklen_t
+#    define SOCKOPT_LEN_T      socklen_t
+#   endif
+#  endif /* defined(__GLIBC__) && defined(__GLIBC_MINOR__) */
+
 #  if NETINET6
    /*
    **  Linux doesn't have a good way to tell userland what interfaces are
@@ -1535,27 +1556,24 @@ extern void		*malloc();
    **  in 2.1 and later, but the APIs appear before the functions.
    */
 #   if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
-#    define GLIBC_VERSION ((__GLIBC__ << 8) + __GLIBC_MINOR__)
 #    if (GLIBC_VERSION >= 0x201)
-#     define SOCKADDR_LEN_T     socklen_t
-#     define SOCKOPT_LEN_T      socklen_t
 #     undef IPPROTO_ICMPV6	/* linux #defines, glibc enums */
-#    else /* (GLIBC_VERSION >= 0x201) */
+#    else
 #     include <linux/in6.h>	/* IPv6 support */
-#    endif /* (GLIBC_VERSION >= 0x201) */
+#    endif
 #    if (GLIBC_VERSION >= 0x201 && !defined(NEEDSGETIPNODE))
      /* Have APIs in <netdb.h>, but no support in glibc */
 #     define NEEDSGETIPNODE	1
-#    endif /* (GLIBC_VERSION >= 0x201 && !defined(NEEDSGETIPNODE)) */
+#    endif
 #    undef GLIBC_VERSION
 #   endif /* defined(__GLIBC__) && defined(__GLIBC_MINOR__) */
 #  endif /* NETINET6 */
 #  ifndef HASFCHOWN
 #   define HASFCHOWN	1	/* fchown(2) */
-#  endif /* ! HASFCHOWN */
+#  endif
 #  if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,0,36)) && !defined(HASFCHMOD)
 #    define HASFCHMOD	1	/* fchmod(2) */
-#  endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2,0,36)) && !defined(HASFCHMOD) */
+#  endif
 # endif /* __linux__ */
 
 
@@ -1598,20 +1616,20 @@ extern void		*malloc();
 #  define ERRLIST_PREDEFINED	1
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  ifndef LA_TYPE
 #   define LA_TYPE	LA_INT
 #   define FSHIFT	16
-#  endif /* ! LA_TYPE */
+#  endif
 #  define LA_AVENRUN	"avenrun"
 #  define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #  define TZ_TYPE	TZ_TZNAME
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/unix"		/* should be in <paths.h> */
-#  endif /* ! _PATH_UNIX */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  undef WIFEXITED
 #  undef WEXITSTATUS
 # endif /* _AUX_SOURCE */
@@ -1672,7 +1690,7 @@ typedef int		pid_t;
 #  define LA_TYPE	LA_FLOAT
 #  ifdef _POSIX_VERSION
 #   undef _POSIX_VERSION		/* set in <unistd.h> */
-#  endif /* _POSIX_VERSION */
+#  endif
 #  undef HASSETVBUF		/* don't actually have setvbuf(3) */
 #  define setpgid	setpgrp
 
@@ -1686,14 +1704,14 @@ typedef int		pid_t;
 
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/dynix"
-#  endif /* ! _PATH_UNIX */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 # endif /* sequent */
 
 
@@ -1720,20 +1738,20 @@ typedef int		pid_t;
 #  define SPT_TYPE	SPT_NONE	/* don't use setproctitle */
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 # endif /* _SEQUENT_ */
 
 /*
 **  Cray UNICOS, UNICOS/mk, and UNICOS/mp
 **
 **    UNICOS:
-**	Ported by David L. Kensiski, Sterling Sofware <kensiski@nas.nasa.gov>
+**	Ported by David L. Kensiski, Sterling Software <kensiski@nas.nasa.gov>
 **	Update Brian Ginsbach <ginsbach@cray.com>
 **    UNICOS/mk (Cray T3E):
 **	Contributed by Manu Mahonen <mailadm@csc.fi>
@@ -1764,23 +1782,23 @@ typedef int		pid_t;
 #   define GET_IPOPT_DST(dst) *(struct in_addr *)&(dst)
 #   ifndef MAXPATHLEN
 #    define MAXPATHLEN PATHSIZE
-#   endif /* ! MAXPATHLEN */
+#   endif
 #   ifndef _PATH_UNIX
 #    ifdef UNICOSMK
 #     define _PATH_UNIX		"/unicosmk.ar"
 #    else
 #     define _PATH_UNIX		"/unicos"
-#    endif /* UNICOSMK */
+#    endif
 #   endif /* ! _PATH_UNIX */
 #   ifndef _PATH_VENDOR_CF
 #    define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#   endif /* ! _PATH_VENDOR_CF */
+#   endif
 #  endif /* UNICOS */
 #  ifdef _UNICOSMP
 #  if defined(_SC_NPROC_ONLN) && !defined(_SC_NPROCESSORS_ONLN)
     /* _SC_NPROC_ONLN is 'mpadmin -u', total # of unrestricted processors */
 #   define _SC_NPROCESSORS_ONLN  _SC_NPROC_ONLN
-#  endif /* if defined(_SC_NPROC_ONLN) && !defined(_SC_NPROCESSORS_ONLN) */
+#  endif
 #   define HASGETUSERSHELL 0		/* does not have getusershell(3) call */
 #   define HASSETRLIMIT	   1		/* has setrlimit(2) syscall */
 #   define LA_TYPE	LA_IRIX6	/* figure out at run time */
@@ -1810,20 +1828,20 @@ typedef int		pid_t;
 #  define TZ_TYPE	TZ_TZNAME
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  undef	 S_IFSOCK		/* S_IFSOCK and S_IFIFO are the same */
 #  undef	 S_IFIFO
 #  define S_IFIFO	0010000
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  define RLIMIT_NEEDS_SYS_TIME_H	1
 #  if defined(NGROUPS_MAX) && !NGROUPS_MAX
 #   undef NGROUPS_MAX
-#  endif /* defined(NGROUPS_MAX) && !NGROUPS_MAX */
+#  endif
 # endif /* apollo */
 
 /*
@@ -1844,17 +1862,17 @@ typedef int		pid_t;
 #  define HASGETUSERSHELL	0	/* lacks getusershell() */
 #  ifdef HASNICE
 #   undef  HASNICE
-#  endif /* HASNICE */
+#  endif
 #  define HASNICE		0	/* lacks nice() */
 #  define HASRANDOM		0	/* lacks random() */
 #  ifdef HASRRESVPORT
 #   undef HASRRESVPORT
-#  endif /* HASRRESVPORT */
+#  endif
 #  define HASRRESVPORT		0	/* lacks rresvport() */
 #  define IP_SRCROUTE		0	/* lacks IP source routing fields */
 #  ifdef MATCHGECOS
 #   undef MATCHGECOS
-#  endif /* MATCHGECOS */
+#  endif
 #  define MATCHGECOS		0	/* lacks an initialized GECOS field */
 #  define NEEDFSYNC		1	/* use sendmail's fsync() */
 #  define NEEDLINK		1	/* use sendmail's link() */
@@ -1914,21 +1932,21 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define SIGWAIT_TAKES_1_ARG	1
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/stand/unix"
-#  endif /* ! _PATH_UNIX */
+#  endif
 #  define SPT_PADCHAR		'\0'	/* pad process title with nulls */
 #  ifndef SYSLOG_BUFSIZE
 #   define SYSLOG_BUFSIZE	1024	/* unsure */
-#  endif /* ! SYSLOG_BUFSIZE */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/etc/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  undef offsetof		/* avoid stddefs.h, sys/sysmacros.h conflict */
 #if !defined(SM_SET_H_ERRNO) && defined(_REENTRANT)
 # define SM_SET_H_ERRNO(err)	set_h_errno((err))
-#endif /* ! SM_SET_H_ERRNO && _REENTRANT */
+#endif
 # endif /* __svr5__ */
 
 /* ###################################################################### */
@@ -1965,13 +1983,13 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  undef WEXITSTATUS
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/unix"
-#  endif /* ! _PATH_UNIX */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/usr/ucblib/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  define SYSLOG_BUFSIZE	128
 # endif /* UNIXWARE */
 
@@ -1986,7 +2004,7 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define SYSTEM5	1	/* looks like System V */
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
-#  endif /* ! HASGETUSERSHELL */
+#  endif
 #  define DEV_BSIZE	512	/* device block size not defined */
 #  define GIDSET_T	gid_t
 #  undef LOG			/* syslog not available */
@@ -2066,22 +2084,22 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define SFS_TYPE	SFS_VFS	/* use <sys/vfs.h> statfs() implementation */
 #  ifndef HASSETVBUF
 #   define HASSETVBUF	/* HI-UX has no setlinebuf */
-#  endif /* ! HASSETVBUF */
+#  endif
 #  ifndef GIDSET_T
 #   define GIDSET_T	gid_t
-#  endif /* ! GIDSET_T */
+#  endif
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/HI-UX"
-#  endif /* ! _PATH_UNIX */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps */
-#  endif /* ! HASGETUSERSHELL */
+#  endif
 #  define FDSET_CAST	(int *)	/* cast for fd_set parameters to select */
 
 /*
@@ -2112,7 +2130,7 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define HASSETVBUF	1	/* has setvbuf(3) function */
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* does not have getusershell(3) function */
-#  endif /* ! HASGETUSERSHELL */
+#  endif
 #  define GIDSET_T	gid_t	/* type of 2nd arg to getgroups(2) isn't int */
 #  define LA_TYPE	LA_ZERO		/* doesn't have load average */
 #  define SFS_TYPE	SFS_4ARGS	/* use 4-arg statfs() */
@@ -2120,7 +2138,7 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define _PATH_UNIX		"/unix"
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/lib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 # endif /* _UTS */
 
 /*
@@ -2153,7 +2171,7 @@ extern struct group	*getgrent(), *getgrnam(), *getgrgid();
 			/* NEWS-OS 4.2.1R */
 #   ifndef BSD
 #    define BSD			/* has BSD routines */
-#   endif /* ! BSD */
+#   endif
 #   define HASUNSETENV	1	/* has unsetenv(2) call */
 #   undef HASSETVBUF		/* don't actually have setvbuf(3) */
 #   define WAITUNION	1	/* use "union wait" as wait argument type */
@@ -2161,7 +2179,7 @@ extern struct group	*getgrent(), *getgrnam(), *getgrgid();
 #   define SFS_TYPE	SFS_VFS /* use <sys/vfs.h> statfs() implementation */
 #   ifndef HASFLOCK
 #    define HASFLOCK	1	/* has flock(2) call */
-#   endif /* ! HASFLOCK */
+#   endif
 #   define setpgid	setpgrp
 #   undef WIFEXITED
 #   undef WEXITSTATUS
@@ -2176,26 +2194,26 @@ typedef int		(*sigfunc_t)();
 			/* NEWS-OS 6.0.3 with /bin/cc */
 #   ifndef __svr4__
 #    define __svr4__		/* use all System V Release 4 defines below */
-#   endif /* ! __svr4__ */
+#   endif
 #   define HASSETSID	1	/* has POSIX setsid(2) call */
 #   define HASGETUSERSHELL 1	/* DOES have getusershell(3) call in libc */
 #   define LA_TYPE	LA_READKSYM	/* use MIOC_READKSYM ioctl */
 #   ifndef SPT_TYPE
 #    define SPT_TYPE	SPT_SYSMIPS	/* use sysmips() (OS 6.0.2 or later) */
-#   endif /* ! SPT_TYPE */
+#   endif
 #   define GIDSET_T	gid_t
 #   undef WIFEXITED
 #   undef WEXITSTATUS
 #   ifndef SYSLOG_BUFSIZE
 #    define SYSLOG_BUFSIZE	256
-#   endif /* ! SYSLOG_BUFSIZE */
+#   endif
 #   define _PATH_UNIX		"/stand/unix"
 #   ifndef _PATH_VENDOR_CF
 #    define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
-#   endif /* ! _PATH_VENDOR_CF */
+#   endif
 #   ifndef _PATH_SENDMAILPID
 #    define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
-#   endif /* ! _PATH_SENDMAILPID */
+#   endif
 
 #  endif /* ! __svr4 */
 # endif /* sony_news */
@@ -2210,7 +2228,7 @@ typedef int		(*sigfunc_t)();
 # ifdef luna
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 #  define HASUNSETENV	1	/* has unsetenv(2) call */
 #  define NEEDPUTENV	1	/* need putenv(3) call */
 #  define SM_CONF_GETOPT	0	/* need a replacement for getopt(3) */
@@ -2228,7 +2246,7 @@ typedef int		(*sigfunc_t)();
 #  endif /* luna2 */
 #  ifdef luna88k
 #   define LA_TYPE	LA_INT
-#  endif /* luna88k */
+#  endif
 #  define SFS_TYPE	SFS_VFS /* use <sys/vfs.h> statfs() implementation */
 #  define setpgid	setpgrp
 #  undef WIFEXITED
@@ -2254,7 +2272,7 @@ extern char	*getenv();
 # if defined(nec_ews_svr4) || defined(_nec_ews_svr4)
 #  ifndef __svr4__
 #   define __svr4__		/* use all System V Release 4 defines below */
-#  endif /* ! __svr4__ */
+#  endif
 #  define SYS5SIGNALS	1	/* SysV signal semantics -- reset on each sig */
 #  define HASSETSID	1	/* has POSIX setsid(2) call */
 #  define LA_TYPE	LA_READKSYM	/* use MIOC_READSYM ioctl */
@@ -2265,13 +2283,13 @@ extern char	*getenv();
 #  define NAMELISTMASK	0x7fffffff	/* mask for nlist() values */
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/usr/ucblib/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  ifndef SYSLOG_BUFSIZE
 #   define SYSLOG_BUFSIZE	1024	/* allow full size syslog buffer */
-#  endif /* ! SYSLOG_BUFSIZE */
+#  endif
 # endif /* defined(nec_ews_svr4) || defined(_nec_ews_svr4) */
 
 
@@ -2293,10 +2311,10 @@ extern char	*getenv();
 #  define _PATH_UNIX		"/stand/unix"
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/usr/ucblib/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 # endif /* __uxp__ */
 
 /*
@@ -2309,7 +2327,7 @@ extern char	*getenv();
 #  define GIDSET_T	gid_t
 #  ifndef IDENTPROTO
 #   define IDENTPROTO	0	/* TCP/IP implementation is broken */
-#  endif /* ! IDENTPROTO */
+#  endif
 # endif /* DCOSx */
 
 /*
@@ -2333,7 +2351,7 @@ extern char	*getenv();
 #  define SFS_BAVAIL		f_bavail
 #  ifndef SYSLOG_BUFSIZE
 #   define SYSLOG_BUFSIZE	256	/* Use 256 bytes */
-#  endif /* ! SYSLOG_BUFSIZE */
+#  endif
 
 #  undef WUNTRACED
 #  undef WIFEXITED
@@ -2354,13 +2372,13 @@ extern char	*getenv();
 # ifdef _PowerUX
 #  ifndef __svr4__
 #   define __svr4__
-#  endif /* ! __svr4__ */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/etc/mail/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/etc/mail/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  define SYSLOG_BUFSIZE		1024
 #  define LA_TYPE		LA_ZERO
 typedef struct msgb		mblk_t;
@@ -2421,10 +2439,10 @@ typedef struct msgb		mblk_t;
 #  include <sys/mkdev.h>
 #  ifndef major
 #   define major(dev)		((int)(((dev) >> 8) & 0xff))
-#  endif /* ! major */
+#  endif
 #  ifndef minor
 #   define minor(dev)		((int)((dev) & 0xff))
-#  endif /* ! minor */
+#  endif
 # endif /* defined(__INTERIX) */
 
 
@@ -2440,20 +2458,20 @@ typedef struct msgb		mblk_t;
 #  define HASGETDTABLESIZE 1	/* has getdtablesize(2) call */
 #  ifndef HASSETREUID
 #   define HASSETREUID	1	/* has setreuid(2) call */
-#  endif /* ! HASSETREUID */
+#  endif
 #  define HASINITGROUPS	1	/* has initgroups(3) call */
 #  ifndef IP_SRCROUTE
 #   define IP_SRCROUTE	1	/* can check IP source routing */
-#  endif /* ! IP_SRCROUTE */
+#  endif
 #  ifndef HASSETRLIMIT
 #   define HASSETRLIMIT	1	/* has setrlimit(2) call */
-#  endif /* ! HASSETRLIMIT */
+#  endif
 #  ifndef HASFLOCK
 #   define HASFLOCK	1	/* has flock(2) call */
-#  endif /* ! HASFLOCK */
+#  endif
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_TM_ZONE	/* use tm->tm_zone variable */
-#  endif /* ! TZ_TYPE */
+#  endif
 # endif /* BSD */
 
 /* general System V Release 4 defines */
@@ -2464,33 +2482,33 @@ typedef struct msgb		mblk_t;
 #  define BSD_COMP	1	/* get BSD ioctl calls */
 #  ifndef HASSETRLIMIT
 #   define HASSETRLIMIT	1	/* has setrlimit(2) call */
-#  endif /* ! HASSETRLIMIT */
+#  endif
 #  ifndef HASGETUSERSHELL
 #   define HASGETUSERSHELL 0	/* does not have getusershell(3) call */
-#  endif /* ! HASGETUSERSHELL */
+#  endif
 #  ifndef HASFCHMOD
 #   define HASFCHMOD	1	/* most (all?) SVr4s seem to have fchmod(2) */
-#  endif /* ! HASFCHMOD */
+#  endif
 
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/unix"
-#  endif /* ! _PATH_UNIX */
+#  endif
 #  ifndef _PATH_VENDOR_CF
 #   define _PATH_VENDOR_CF	"/usr/ucblib/sendmail.cf"
-#  endif /* ! _PATH_VENDOR_CF */
+#  endif
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/usr/ucblib/sendmail.pid"
-#  endif /* ! _PATH_SENDMAILPID */
+#  endif
 #  ifndef SYSLOG_BUFSIZE
 #   define SYSLOG_BUFSIZE	128
-#  endif /* ! SYSLOG_BUFSIZE */
+#  endif
 #  ifndef SFS_TYPE
 #   define SFS_TYPE		SFS_STATVFS
-#  endif /* ! SFS_TYPE */
+#  endif
 
 #  ifndef USE_SIGLONGJMP
 #   define USE_SIGLONGJMP	1 /* sigsetjmp needed for signal handling */
-#  endif /* ! USE_SIGLONGJMP */
+#  endif
 # endif /* __svr4__ */
 
 # ifdef __SVR4
@@ -2507,20 +2525,20 @@ typedef struct msgb		mblk_t;
 #  define HASSETVBUF	1	/* we have setvbuf(3) in libc */
 #  ifndef HASULIMIT
 #   define HASULIMIT	1	/* has the ulimit(2) syscall */
-#  endif /* ! HASULIMIT */
+#  endif
 #  ifndef LA_TYPE
 #   ifdef MIOC_READKSYM
 #    define LA_TYPE	LA_READKSYM	/* use MIOC_READKSYM ioctl */
-#   else /* MIOC_READKSYM */
+#   else
 #    define LA_TYPE	LA_INT		/* assume integer load average */
-#   endif /* MIOC_READKSYM */
+#   endif
 #  endif /* ! LA_TYPE */
 #  ifndef SFS_TYPE
 #   define SFS_TYPE	SFS_USTAT	/* use System V ustat(2) syscall */
-#  endif /* ! SFS_TYPE */
+#  endif
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_TZNAME	/* use tzname[] vector */
-#  endif /* ! TZ_TYPE */
+#  endif
 # endif /* SYSTEM5 */
 
 /* general POSIX defines */
@@ -2538,15 +2556,15 @@ typedef struct msgb		mblk_t;
 
 # ifdef titan
 #  undef HASINITGROUPS		/* doesn't have initgroups(3) call */
-# endif /* titan */
+# endif
 
 # ifdef _CRAYCOM
 #  undef HASSETSID		/* despite POSIX claim, doesn't have setsid */
-# endif /* _CRAYCOM */
+# endif
 
 # ifdef MOTO
 #  undef USESETEUID
-# endif /* MOTO */
+# endif
 
 /*
 **  Due to a "feature" in some operating systems such as Ultrix 4.3 and
@@ -2561,67 +2579,67 @@ typedef struct msgb		mblk_t;
 
 # ifndef IDENTPROTO
 #  define IDENTPROTO	1	/* use IDENT proto (RFC 1413) */
-# endif /* ! IDENTPROTO */
+# endif
 
 # ifndef IP_SRCROUTE
 #  define IP_SRCROUTE	1	/* Detect IP source routing */
-# endif /* ! IP_SRCROUTE */
+# endif
 
 # ifndef HASGETUSERSHELL
 #  define HASGETUSERSHELL 1	/* libc has getusershell(3) call */
-# endif /* ! HASGETUSERSHELL */
+# endif
 
 # ifndef NETUNIX
 #  define NETUNIX	1	/* include unix domain support */
-# endif /* ! NETUNIX */
+# endif
 
 # ifndef HASRANDOM
 #  define HASRANDOM	1	/* has random(3) support */
-# endif /* ! HASRANDOM */
+# endif
 
 # ifndef HASFLOCK
 #  define HASFLOCK	0	/* assume no flock(2) support */
-# endif /* ! HASFLOCK */
+# endif
 
 # ifndef HASSETREUID
 #  define HASSETREUID	0	/* assume no setreuid(2) call */
-# endif /* ! HASSETREUID */
+# endif
 
 # ifndef HASFCHMOD
 #  define HASFCHMOD	0	/* assume no fchmod(2) syscall */
-# endif /* ! HASFCHMOD */
+# endif
 
 # ifndef USESETEUID
 #  define USESETEUID	0	/* assume no seteuid(2) call or no saved ids */
-# endif /* ! USESETEUID */
+# endif
 
 # ifndef HASSETRLIMIT
 #  define HASSETRLIMIT	0	/* assume no setrlimit(2) support */
-# endif /* ! HASSETRLIMIT */
+# endif
 
 # ifndef HASULIMIT
 #  define HASULIMIT	0	/* assume no ulimit(2) support */
-# endif /* ! HASULIMIT */
+# endif
 
 # ifndef SECUREWARE
 #  define SECUREWARE	0	/* assume no SecureWare C2 auditing hooks */
-# endif /* ! SECUREWARE */
+# endif
 
 # ifndef USE_DOUBLE_FORK
 #  define USE_DOUBLE_FORK	1	/* avoid intermediate zombies */
-# endif /* ! USE_DOUBLE_FORK */
+# endif
 
 # ifndef USE_ENVIRON
 #  define USE_ENVIRON	0	/* use main() envp instead of extern environ */
-# endif /* ! USE_ENVIRON */
+# endif
 
 # ifndef USE_SIGLONGJMP
 #  define USE_SIGLONGJMP	0	/* assume setjmp handles signals properly */
-# endif /* ! USE_SIGLONGJMP */
+# endif
 
 # ifndef FDSET_CAST
 #  define FDSET_CAST		/* (empty) cast for fd_set arg to select */
-# endif /* ! FDSET_CAST */
+# endif
 
 /*
 **  Pick a mailer setuid method for changing the current uid
@@ -2636,9 +2654,9 @@ typedef struct msgb		mblk_t;
 # else /* USESETEUID */
 #  if HASSETREUID
 #   define MAILER_SETUID_METHOD	USE_SETREUID
-#  else /* HASSETREUID */
+#  else
 #   define MAILER_SETUID_METHOD	USE_SETUID
-#  endif /* HASSETREUID */
+#  endif
 # endif /* USESETEUID */
 
 /*
@@ -2649,35 +2667,35 @@ typedef struct msgb		mblk_t;
 
 # ifndef GIDSET_T
 #  define GIDSET_T	int
-# endif /* ! GIDSET_T */
+# endif
 
 # ifndef UID_T
 #  define UID_T		uid_t
-# endif /* ! UID_T */
+# endif
 
 # ifndef GID_T
 #  define GID_T		gid_t
-# endif /* ! GID_T */
+# endif
 
 # ifndef MODE_T
 #  define MODE_T		mode_t
-# endif /* ! MODE_T */
+# endif
 
 # ifndef ARGV_T
 #  define ARGV_T		char **
-# endif /* ! ARGV_T */
+# endif
 
 # ifndef SOCKADDR_LEN_T
 #  define SOCKADDR_LEN_T	int
-# endif /* ! SOCKADDR_LEN_T */
+# endif
 
 # ifndef SOCKOPT_LEN_T
 #  define SOCKOPT_LEN_T	int
-# endif /* ! SOCKOPT_LEN_T */
+# endif
 
 # ifndef QUAD_T
 #  define QUAD_T	unsigned long
-# endif /* ! QUAD_T */
+# endif
 /**********************************************************************
 **  Remaining definitions should never have to be changed.  They are
 **  primarily to provide back compatibility for older systems -- for
@@ -2687,43 +2705,43 @@ typedef struct msgb		mblk_t;
 /* System 5 compatibility */
 # ifndef S_ISREG
 #  define S_ISREG(foo)	((foo & S_IFMT) == S_IFREG)
-# endif /* ! S_ISREG */
+# endif
 # ifndef S_ISDIR
 #  define S_ISDIR(foo)	((foo & S_IFMT) == S_IFDIR)
-# endif /* ! S_ISDIR */
+# endif
 # if !defined(S_ISLNK) && defined(S_IFLNK)
 #  define S_ISLNK(foo)	((foo & S_IFMT) == S_IFLNK)
-# endif /* !defined(S_ISLNK) && defined(S_IFLNK) */
+# endif
 # if !defined(S_ISFIFO)
 #  if defined(S_IFIFO)
 #   define S_ISFIFO(foo)	((foo & S_IFMT) == S_IFIFO)
-#  else /* defined(S_IFIFO) */
+#  else
 #   define S_ISFIFO(foo)	false
-#  endif /* defined(S_IFIFO) */
+#  endif
 # endif /* !defined(S_ISFIFO) */
 # ifndef S_IRUSR
 #  define S_IRUSR		0400
-# endif /* ! S_IRUSR */
+# endif
 # ifndef S_IWUSR
 #  define S_IWUSR		0200
-# endif /* ! S_IWUSR */
+# endif
 # ifndef S_IRGRP
 #  define S_IRGRP		0040
-# endif /* ! S_IRGRP */
+# endif
 # ifndef S_IWGRP
 #  define S_IWGRP		0020
-# endif /* ! S_IWGRP */
+# endif
 # ifndef S_IROTH
 #  define S_IROTH		0004
-# endif /* ! S_IROTH */
+# endif
 # ifndef S_IWOTH
 #  define S_IWOTH		0002
-# endif /* ! S_IWOTH */
+# endif
 
 /* close-on-exec flag */
 # ifndef FD_CLOEXEC
 #  define FD_CLOEXEC	1
-# endif /* ! FD_CLOEXEC */
+# endif
 
 /*
 **  Older systems don't have this error code -- it should be in
@@ -2732,7 +2750,7 @@ typedef struct msgb		mblk_t;
 
 # ifndef EX_CONFIG
 #  define EX_CONFIG	78	/* configuration error */
-# endif /* ! EX_CONFIG */
+# endif
 
 /* pseudo-codes */
 # define EX_QUIT	22	/* drop out of server immediately */
@@ -2741,7 +2759,7 @@ typedef struct msgb		mblk_t;
 
 #ifndef EX_NOTFOUND
 # define EX_NOTFOUND	EX_NOHOST
-#endif /* ! EX_NOTFOUND */
+#endif
 
 /* pseudo-code used for mci_setstat */
 # define EX_NOTSTICKY	(-5)	/* don't save persistent status */
@@ -2757,27 +2775,27 @@ typedef struct msgb		mblk_t;
 /* type of arbitrary pointer */
 # ifndef ARBPTR_T
 #  define ARBPTR_T	void *
-# endif /* ! ARBPTR_T */
+# endif
 
 # ifndef __P
 #  include "sm/cdefs.h"
-# endif /* ! __P */
+# endif
 
 # if HESIOD && !defined(NAMED_BIND)
 #  define NAMED_BIND	1	/* not one without the other */
-# endif /* HESIOD && !defined(NAMED_BIND) */
+# endif
 
 #  if NAMED_BIND && !defined( __ksr__ ) && !defined( h_errno )
 extern int	h_errno;
-#  endif /* NAMED_BIND && !defined( __ksr__ ) && !defined( h_errno ) */
+#  endif
 
 # if NEEDPUTENV
 extern int	putenv __P((char *));
-# endif /* NEEDPUTENV */
+# endif
 
 #if !HASUNSETENV
 extern void	unsetenv __P((char *));
-#endif /* !HASUNSETENV */
+#endif
 
 # ifdef LDAPMAP
 #  include <sys/time.h>
@@ -2797,7 +2815,15 @@ extern void	unsetenv __P((char *));
 
 #  if defined(LDAP_OPT_SIZELIMIT) && !defined(USE_LDAP_INIT)
 #   define USE_LDAP_INIT	1
-#  endif /* defined(LDAP_OPT_SIZELIMIT) && !defined(USE_LDAP_INIT) */
+#  endif
+
+#  if !defined(LDAP_NETWORK_TIMEOUT) && defined(_FFR_LDAP_NETWORK_TIMEOUT)
+#   define LDAP_NETWORK_TIMEOUT	_FFR_LDAP_NETWORK_TIMEOUT
+#  endif
+
+#  if !defined(LDAP_NETWORK_TIMEOUT) && defined(LDAP_OPT_NETWORK_TIMEOUT)
+#   define LDAP_NETWORK_TIMEOUT	1
+#  endif
 
 /*
 **  LDAP_OPT_SIZELIMIT is not defined under Umich 3.x nor OpenLDAP 1.x,
@@ -2806,7 +2832,7 @@ extern void	unsetenv __P((char *));
 
 #  if defined(LDAP_OPT_SIZELIMIT) && !defined(USE_LDAP_SET_OPTION)
 #   define USE_LDAP_SET_OPTION	1
-#  endif /* defined(LDAP_OPT_SIZELIMIT) && !defined(USE_LDAP_SET_OPTION) */
+#  endif
 
 # endif /* LDAPMAP */
 
@@ -2814,7 +2840,7 @@ extern void	unsetenv __P((char *));
 #  include <sys/utsname.h>
 #  ifdef newstr
 #   undef newstr
-#  endif /* newstr */
+#  endif
 # else /* HASUNAME */
 #  define NODE_LENGTH 32
 struct utsname
@@ -2825,10 +2851,10 @@ struct utsname
 
 # if !defined(MAXHOSTNAMELEN) && !defined(_SCO_unix_) && !defined(NonStop_UX_BXX) && !defined(ALTOS_SYSTEM_V)
 #  define MAXHOSTNAMELEN	256
-# endif /* !defined(MAXHOSTNAMELEN) && !defined(_SCO_unix_) && !defined(NonStop_UX_BXX) && !defined(ALTOS_SYSTEM_V) */
+# endif
 
 
-# if _FFR_LINUX_MHNL && defined(__linux__) && MAXHOSTNAMELEN < 255
+# if defined(__linux__) && MAXHOSTNAMELEN < 255
    /*
    **  override Linux weirdness: a FQHN can be 255 chars long
    **  SUSv3 requires HOST_NAME_MAX ("Maximum length of a host
@@ -2839,23 +2865,23 @@ struct utsname
    */
 #  undef MAXHOSTNAMELEN
 #  define MAXHOSTNAMELEN	256
-# endif /* _FFR_LINUX_MHNL && defined(__linux__) && MAXHOSTNAMELEN < 255 */
+# endif /* defined(__linux__) && MAXHOSTNAMELEN < 255 */
 
 # if !defined(SIGCHLD) && defined(SIGCLD)
 #  define SIGCHLD	SIGCLD
-# endif /* !defined(SIGCHLD) && defined(SIGCLD) */
+# endif
 
 # ifndef STDIN_FILENO
 #  define STDIN_FILENO	0
-# endif /* ! STDIN_FILENO */
+# endif
 
 # ifndef STDOUT_FILENO
 #  define STDOUT_FILENO	1
-# endif /* ! STDOUT_FILENO */
+# endif
 
 # ifndef STDERR_FILENO
 #  define STDERR_FILENO	2
-# endif /* ! STDERR_FILENO */
+# endif
 
 # ifndef LOCK_SH
 #  define LOCK_SH	0x01	/* shared lock */
@@ -2866,19 +2892,19 @@ struct utsname
 
 # ifndef S_IXOTH
 #  define S_IXOTH	(S_IEXEC >> 6)
-# endif /* ! S_IXOTH */
+# endif
 
 # ifndef S_IXGRP
 #  define S_IXGRP	(S_IEXEC >> 3)
-# endif /* ! S_IXGRP */
+# endif
 
 # ifndef S_IXUSR
 #  define S_IXUSR	(S_IEXEC)
-# endif /* ! S_IXUSR */
+# endif
 
 #ifndef O_ACCMODE
 # define O_ACCMODE	(O_RDONLY|O_WRONLY|O_RDWR)
-#endif /* ! O_ACCMODE */
+#endif
 
 # ifndef SEEK_SET
 #  define SEEK_SET	0
@@ -2888,47 +2914,47 @@ struct utsname
 
 # ifndef SIG_ERR
 #  define SIG_ERR	((void (*)()) -1)
-# endif /* ! SIG_ERR */
+# endif
 
 # ifndef WEXITSTATUS
 #  define WEXITSTATUS(st)	(((st) >> 8) & 0377)
-# endif /* ! WEXITSTATUS */
+# endif
 # ifndef WIFEXITED
 #  define WIFEXITED(st)		(((st) & 0377) == 0)
-# endif /* ! WIFEXITED */
+# endif
 # ifndef WIFSTOPPED
 #  define WIFSTOPPED(st)		(((st) & 0100) == 0)
-# endif /* ! WIFSTOPPED */
+# endif
 # ifndef WCOREDUMP
 #  define WCOREDUMP(st)		(((st) & 0200) != 0)
-# endif /* ! WCOREDUMP */
+# endif
 # ifndef WTERMSIG
 #  define WTERMSIG(st)		(((st) & 0177))
-# endif /* ! WTERMSIG */
+# endif
 
 # ifndef SIGFUNC_DEFINED
 typedef void		(*sigfunc_t) __P((int));
-# endif /* ! SIGFUNC_DEFINED */
+# endif
 # ifndef SIGFUNC_RETURN
 #  define SIGFUNC_RETURN
-# endif /* ! SIGFUNC_RETURN */
+# endif
 # ifndef SIGFUNC_DECL
 #  define SIGFUNC_DECL	void
-# endif /* ! SIGFUNC_DECL */
+# endif
 
 /* size of syslog buffer */
 # ifndef SYSLOG_BUFSIZE
 #  define SYSLOG_BUFSIZE	1024
-# endif /* ! SYSLOG_BUFSIZE */
+# endif
 
 /* for FD_SET() */
 #ifndef FD_SETSIZE
 # define FD_SETSIZE	256
-#endif /* ! FD_SETSIZE */
+#endif
 
 #ifndef SIGWAIT_TAKES_1_ARG
 # define SIGWAIT_TAKES_1_ARG	0
-#endif /* ! SIGWAIT_TAKES_1_ARG */
+#endif
 
 /*
 **  Size of prescan buffer.
@@ -2941,16 +2967,16 @@ typedef void		(*sigfunc_t) __P((int));
 /* fork routine -- set above using #ifdef _osname_ or in Makefile */
 # ifndef FORK
 #  define FORK		fork		/* function to call to fork mailer */
-# endif /* ! FORK */
+# endif
 
 /* setting h_errno */
 # ifndef SM_SET_H_ERRNO
 #  define SM_SET_H_ERRNO(err)	h_errno = (err)
-# endif /* SM_SET_H_ERRNO */
+# endif
 
 # ifndef SM_CONF_GETOPT
 #  define SM_CONF_GETOPT	1
-# endif /* ! SM_CONF_GETOPT */
+# endif
 
 /* random routine -- set above using #ifdef _osname_ or in Makefile */
 # if HASRANDOM
@@ -2959,7 +2985,7 @@ typedef void		(*sigfunc_t) __P((int));
 #  define get_random()	((long) rand())
 #  ifndef RANDOMSHIFT
 #   define RANDOMSHIFT	8
-#  endif /* ! RANDOMSHIFT */
+#  endif
 # endif /* HASRANDOM */
 
 /*
@@ -2968,17 +2994,17 @@ typedef void		(*sigfunc_t) __P((int));
 
 # ifndef SCANF
 #  define SCANF		1
-# endif /* ! SCANF */
+# endif
 
 /* XXX  32 bit type */
 # ifndef SM_INT32
 #  define SM_INT32	int32_t
-# endif /* ! SM_INT32 */
+# endif
 
 /* XXX  16 bit type */
 # ifndef SM_UINT16
 #  define SM_UINT16	uint16_t
-# endif /* ! SM_UINT16 */
+# endif
 
 /* additional valid chars in user/group names in passwd */
 # ifndef SM_PWN_CHARS
@@ -2994,21 +3020,21 @@ typedef void		(*sigfunc_t) __P((int));
 # if USE_SIGLONGJMP
 #  ifdef jmp_buf
 #   undef jmp_buf
-#  endif /* jmp_buf */
+#  endif
 #  define jmp_buf		sigjmp_buf
 #  ifdef setjmp
 #   undef setjmp
-#  endif /* setjmp */
+#  endif
 #  define setjmp(env)		sigsetjmp(env, 1)
 #  ifdef longjmp
 #   undef longjmp
-#  endif /* longjmp */
+#  endif
 #  define longjmp(env, val)	siglongjmp(env, val)
 # endif /* USE_SIGLONGJMP */
 
 # if !defined(NGROUPS_MAX) && defined(NGROUPS)
 #  define NGROUPS_MAX	NGROUPS		/* POSIX naming convention */
-# endif /* !defined(NGROUPS_MAX) && defined(NGROUPS) */
+# endif
 
 /*
 **  Some snprintf() implementations are rumored not to NUL terminate.
@@ -3016,11 +3042,11 @@ typedef void		(*sigfunc_t) __P((int));
 # if SNPRINTF_IS_BROKEN
 #  ifdef snprintf
 #   undef snprintf
-#  endif /* snprintf */
+#  endif
 #  define snprintf	sm_snprintf
 #  ifdef vsnprintf
 #   undef vsnprintf
-#  endif /* vsnprintf */
+#  endif
 #  define vsnprintf	sm_vsnprintf
 # endif /* SNPRINTF_IS_BROKEN */
 
@@ -3041,14 +3067,14 @@ typedef void		(*sigfunc_t) __P((int));
 
 # ifndef SM_CONF_SYSLOG
 #  define SM_CONF_SYSLOG 1	/* syslog.h has prototype for syslog() */
-# endif /* SM_CONF_SYSLOG */
+# endif
 
 # if !SM_CONF_SYSLOG
 #   ifdef __STDC__
 extern void	syslog(int, const char *, ...);
-#   else /* __STDC__ */
+#   else
 extern void	syslog();
-#   endif /* __STDC__ */
+#   endif
 # endif /* !SM_CONF_SYSLOG */
 
 /* portable(?) definition for alignment */

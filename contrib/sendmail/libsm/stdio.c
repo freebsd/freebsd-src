@@ -93,7 +93,7 @@ sm_stdopen(fp, info, flags, rpool)
 #ifdef O_BINARY
 	if (SM_IS_BINARY(flags))
 		oflags |= O_BINARY;
-#endif /* O_BINARY */
+#endif
 	fp->f_file = open(path, oflags,
 			  S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
 	if (fp->f_file < 0)
@@ -118,7 +118,7 @@ sm_stdopen(fp, info, flags, rpool)
 **		Success: number of bytes read
 **
 **	Side Effects:
-**		Updates internal offset into file.
+**		Updates internal offset for file.
 */
 
 ssize_t
@@ -433,7 +433,7 @@ sm_stdfdopen(fp, info, flags, rpool)
 #ifdef O_BINARY
 	if (SM_IS_BINARY(flags))
 		oflags |= O_BINARY;
-#endif /* O_BINARY */
+#endif
 
 	/* Make sure the mode the user wants is a subset of the actual mode. */
 	if ((fdflags = fcntl(fd, F_GETFL, 0)) < 0)

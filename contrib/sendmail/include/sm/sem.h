@@ -35,10 +35,10 @@ union semun
 
 # ifndef SEM_A
 #  define SEM_A	0200
-# endif /* SEM_A */
+# endif
 # ifndef SEM_R
 #  define SEM_R	0400
-# endif /* SEM_R */
+# endif
 
 # define SM_NSEM	1
 

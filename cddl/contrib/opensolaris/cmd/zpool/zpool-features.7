@@ -521,10 +521,9 @@ property has been set larger than 128KB, and will return to being
 once all filesystems that have ever had their recordsize larger than 128KB
 are destroyed.
 .Pp
-Please note that booting from datasets that have recordsize greater than
-128KB is
-.Em NOT
-supported by the
+Booting from datasets that use the
+.Sy large_block
+feature is supported by the
 .Fx
 boot loader.
 .It Sy large_dnode

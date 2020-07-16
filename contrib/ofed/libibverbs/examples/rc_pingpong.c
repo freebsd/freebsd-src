@@ -273,7 +273,11 @@ static struct pingpong_dest *pp_server_exch_dest(struct pingpong_context *ctx,
 		return NULL;
 	}
 
-	listen(sockfd, 1);
+	if (listen(sockfd, 1) < 0) {
+		perror("listen() failed");
+		close(sockfd);
+		return NULL;
+	}
 	connfd = accept(sockfd, NULL, NULL);
 	close(sockfd);
 	if (connfd < 0) {

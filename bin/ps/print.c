@@ -723,11 +723,18 @@ priorityr(KINFO *k, VARENT *ve __unused)
 		break;
 	case RTP_PRIO_NORMAL:
 	/* alias for PRI_TIMESHARE */
-		asprintf(&str, "normal:%u", level - PRI_MIN_TIMESHARE);
+		if (level >= PRI_MIN_TIMESHARE)
+			asprintf(&str, "normal:%u", level - PRI_MIN_TIMESHARE);
+		else
+			asprintf(&str, "kernel:%u", level - PRI_MIN_KERN);
 		break;
 	case RTP_PRIO_IDLE:
 	/* alias for PRI_IDLE */
 		asprintf(&str, "idle:%u", level - PRI_MIN_IDLE);
+		break;
+	case RTP_PRIO_ITHD:
+	/* alias for PRI_ITHD */
+		asprintf(&str, "intr:%u", level - PRI_MIN_ITHD);
 		break;
 	default:
 		asprintf(&str, "%u:%u", class, level);

@@ -111,7 +111,7 @@ sm_memstat_open()
 		return (errno != 0) ? errno : -1;
 	kst = kstat_lookup(kc, "unix", 0,
 		(name != NULL) ? name : "system_pages");
-	if (kst == 0)
+	if (kst == NULL)
 		return (errno != 0) ? errno : -2;
 	return 0;
 }

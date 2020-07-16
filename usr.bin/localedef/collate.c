@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include "parser.h"
 #include "collate.h"
 
+_Static_assert(COLL_WEIGHTS_MAX == 10, "This code assumes a value of 10");
+
 /*
  * Design notes.
  *
@@ -850,7 +852,8 @@ void
 add_order_directive(void)
 {
 	if (collinfo.directive_count >= COLL_WEIGHTS_MAX) {
-		fprintf(stderr,"too many directives (max %d)", COLL_WEIGHTS_MAX);
+		fprintf(stderr, "too many directives (max %d)\n", COLL_WEIGHTS_MAX);
+		return;
 	}
 	collinfo.directive_count++;
 }
@@ -859,7 +862,7 @@ static void
 add_order_pri(int32_t ref)
 {
 	if (curr_weight >= NUM_WT) {
-		fprintf(stderr,"too many weights (max %d)", NUM_WT);
+		fprintf(stderr, "too many weights (max %d)\n", NUM_WT);
 		return;
 	}
 	order_weights[curr_weight] = ref;

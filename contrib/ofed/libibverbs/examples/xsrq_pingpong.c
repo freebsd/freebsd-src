@@ -630,7 +630,11 @@ static int pp_server_connect(int port)
 		return 1;
 	}
 
-	listen(sockfd, ctx.num_clients);
+	if (listen(sockfd, ctx.num_clients) < 0) {
+		perror("listen() failed");
+		close(sockfd);
+		return 1;
+	}
 
 	for (i = 0; i < ctx.num_clients; i++) {
 		connfd = accept(sockfd, NULL, NULL);
