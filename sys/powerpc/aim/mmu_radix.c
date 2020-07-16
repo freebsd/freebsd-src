@@ -5846,8 +5846,10 @@ mmu_radix_unmapdev(vm_offset_t va, vm_size_t size)
 	size = round_page(offset + size);
 	va = trunc_page(va);
 
-	if (pmap_initialized)
+	if (pmap_initialized) {
+		mmu_radix_qremove(va, atop(size));
 		kva_free(va, size);
+	}
 }
 
 static __inline void

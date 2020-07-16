@@ -3264,6 +3264,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(size + offset, PAGE_SIZE);
+	pmap_qremove(base, atop(size));
 	kva_free(base, size);
 #endif
 }
