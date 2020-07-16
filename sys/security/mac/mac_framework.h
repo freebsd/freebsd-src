@@ -463,8 +463,18 @@ mac_vnode_check_open(struct ucred *cred, struct vnode *vp,
 
 int	mac_vnode_check_mprotect(struct ucred *cred, struct vnode *vp,
 	    int prot);
+#ifdef MAC
 int	mac_vnode_check_poll(struct ucred *active_cred,
 	    struct ucred *file_cred, struct vnode *vp);
+#else
+static inline int
+mac_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
+    struct vnode *vp)
+{
+
+	return (0);
+}
+#endif
 int	mac_vnode_check_readdir(struct ucred *cred, struct vnode *vp);
 int	mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp);
 int	mac_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
