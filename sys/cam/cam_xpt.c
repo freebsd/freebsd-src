@@ -4959,15 +4959,17 @@ xpt_release_device(struct cam_ed *device)
 	devq = bus->sim->devq;
 	mtx_lock(&devq->send_mtx);
 	cam_devq_resize(devq, devq->send_queue.array_size - 1);
-	mtx_unlock(&devq->send_mtx);
 
 	KASSERT(SLIST_EMPTY(&device->periphs),
 	    ("destroying device, but periphs list is not empty"));
 	KASSERT(device->devq_entry.index == CAM_UNQUEUED_INDEX,
 	    ("destroying device while still queued for ccbs"));
 
+	/* The send_mtx must be held when accessing the callout */
 	if ((device->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0)
 		callout_stop(&device->callout);
+
+	mtx_unlock(&devq->send_mtx);
 
 	xpt_release_target(device->target);
 
