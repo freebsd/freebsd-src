@@ -470,19 +470,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    }
 	    direct_exec = true;
 
-	    /*
-	     * Set osrel for us, it is later reset to the binary'
-	     * value before first instruction of code from the binary
-	     * is executed.
-	     */
-	    mib[0] = CTL_KERN;
-	    mib[1] = KERN_PROC;
-	    mib[2] = KERN_PROC_OSREL;
-	    mib[3] = getpid();
-	    osrel = __FreeBSD_version;
-	    sz = sizeof(old_osrel);
-	    (void)sysctl(mib, 4, &old_osrel, &sz, &osrel, sizeof(osrel));
-
 	    dbg("opening main program in direct exec mode");
 	    if (argc >= 2) {
 		rtld_argc = parse_args(argv, argc, &search_in_path, &fd, &argv0);
