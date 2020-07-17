@@ -1177,13 +1177,13 @@ LdAnalyzeExternals (
          * previously declared External
          */
         Node->Flags &= ~ANOBJ_IS_EXTERNAL;
-        Node->Type = (UINT8) ExternalOpType;
+        Node->Type = (UINT8) ActualOpType;
 
         /* Just retyped a node, probably will need to open a scope */
 
-        if (AcpiNsOpensScope (ExternalOpType))
+        if (AcpiNsOpensScope (ActualOpType))
         {
-            Status = AcpiDsScopeStackPush (Node, ExternalOpType, WalkState);
+            Status = AcpiDsScopeStackPush (Node, ActualOpType, WalkState);
             if (ACPI_FAILURE (Status))
             {
                 return (Status);
@@ -1204,11 +1204,11 @@ LdAnalyzeExternals (
     }
     else if ((Node->Flags & ANOBJ_IS_EXTERNAL) &&
              (Op->Asl.ParseOpcode == PARSEOP_EXTERNAL) &&
-             (ExternalOpType == ACPI_TYPE_ANY))
+             (ActualOpType == ACPI_TYPE_ANY))
     {
         /* Allow update of externals of unknown type. */
 
-        Node->Type = (UINT8) ExternalOpType;
+        Node->Type = (UINT8) ActualExternalOpType;
         Status = AE_OK;
     }
 
