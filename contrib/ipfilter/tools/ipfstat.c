@@ -57,7 +57,9 @@ static	wordtab_t	*state_fields = NULL;
 
 int	nohdrfields = 0;
 int	opts = 0;
+#ifdef	USE_INET6
 int	use_inet6 = 0;
+#endif
 int	live_kernel = 1;
 int	state_fd = -1;
 int	ipf_fd = -1;
@@ -410,8 +412,13 @@ int main(argc,argv)
 #ifdef STATETOP
 	else if (opts & OPT_STATETOP)
 		topipstates(saddr, daddr, sport, dport, protocol,
-			    use_inet6 ? 6 : 4, refreshtime, topclosed, filter);
+#ifdef	USE_INET6
+			    use_inet6 ? 6 : 4,
+#else
+			    4,
 #endif
+#endif
+			    refreshtime, topclosed, filter);
 	else if (opts & OPT_AUTHSTATS)
 		showauthstates(frauthstp);
 	else if (opts & OPT_GROUPS)
@@ -904,10 +911,13 @@ static void printdeadlist(fiop, out, set, fp, group, comment)
 			return;
 		}
 		fp = &fb;
+#ifdef	USE_INET6
 		if (use_inet6 != 0) {
 			if (fp->fr_family != 0 && fp->fr_family != 6)
 				continue;
-		} else {
+		} else
+#endif
+		{
 			if (fp->fr_family != 0 && fp->fr_family != 4)
 				continue;
 		}
