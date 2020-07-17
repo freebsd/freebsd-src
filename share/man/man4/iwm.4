@@ -106,6 +106,12 @@ For more information on configuring this device, see
 This driver requires the firmware built with the
 .Nm iwmfw
 module to work.
+.Pp
+Currently,
+.Nm
+only supports 802.11b and 802.11g modes.
+It will not associate to access points that are configured to operate only
+in 802.11n or 802.11ac modes.
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Bd -literal -offset indent
