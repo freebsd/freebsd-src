@@ -171,10 +171,12 @@ static void usage(name)
 	fprintf(stderr, "Usage: %s [-4aAdfghIilnoRsv]\n", name);
 #endif
 	fprintf(stderr, "       %s [-M corefile] [-N symbol-list]\n", name);
+#ifdef	STATETOP
 #ifdef	USE_INET6
 	fprintf(stderr, "       %s -t [-46C] ", name);
 #else
 	fprintf(stderr, "       %s -t [-4C] ", name);
+#endif
 #endif
 	fprintf(stderr, "[-D destination address] [-P protocol] [-S source address] [-T refresh time]\n");
 	exit(1);
