@@ -404,6 +404,7 @@ ipfr_frag_new(softc, softf, fin, pass, table
 		}
 	}
 
+	memset(&frag, 0, sizeof(frag));
 	frag.ipfr_v = fin->fin_v;
 	idx = fin->fin_v;
 	frag.ipfr_p = fin->fin_p;
@@ -452,6 +453,7 @@ ipfr_frag_new(softc, softf, fin, pass, table
 		FBUMPD(ifs_nomem);
 		return NULL;
 	}
+	memset(fran, 0, sizeof(*fran));
 
 	WRITE_ENTER(lock);
 
@@ -489,6 +491,7 @@ ipfr_frag_new(softc, softf, fin, pass, table
 	table[idx] = fra;
 	bcopy((char *)&frag.ipfr_ifp, (char *)&fra->ipfr_ifp, IPFR_CMPSZ);
 	fra->ipfr_v = fin->fin_v;
+	fra->ipfr_p = fin->fin_p;
 	fra->ipfr_ttl = softc->ipf_ticks + softf->ipfr_ttl;
 	fra->ipfr_firstend = frag.ipfr_firstend;
 
@@ -677,6 +680,7 @@ ipf_frag_lookup(softc, softf, fin, table
 	 *
 	 * build up a hash value to index the table with.
 	 */
+	memset(&frag, 0, sizeof(frag));
 	frag.ipfr_v = fin->fin_v;
 	idx = fin->fin_v;
 	frag.ipfr_p = fin->fin_p;
