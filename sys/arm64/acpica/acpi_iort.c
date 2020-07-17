@@ -160,7 +160,7 @@ iort_entry_lookup(struct iort_node *node, u_int id, u_int *outid)
 	if (i == node->nentries)
 		return (NULL);
 	if ((entry->flags & ACPI_IORT_ID_SINGLE_MAPPING) == 0)
-		*outid =  entry->outbase + (id - entry->base);
+		*outid = entry->outbase + (id - entry->base);
 	else
 		*outid = entry->outbase;
 	return (entry->out_node);
@@ -562,5 +562,24 @@ acpi_iort_map_pci_msi(u_int seg, u_int rid, u_int *xref, u_int *devid)
 
 	/* return first node, we don't handle more than that now. */
 	*xref = node->entries.its[0].xref;
+	return (0);
+}
+
+int
+acpi_iort_map_pci_smmuv3(u_int seg, u_int rid, u_int *xref, u_int *sid)
+{
+	ACPI_IORT_SMMU_V3 *smmu;
+	struct iort_node *node;
+
+	node = iort_pci_rc_map(seg, rid, ACPI_IORT_NODE_SMMU_V3, sid);
+	if (node == NULL)
+		return (ENOENT);
+
+	/* This should be an SMMU node. */
+	KASSERT(node->type == ACPI_IORT_NODE_SMMU_V3, ("bad node"));
+
+	smmu = (ACPI_IORT_SMMU_V3 *)&node->data.smmu_v3;
+	*xref = smmu->BaseAddress;
+
 	return (0);
 }
