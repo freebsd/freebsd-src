@@ -531,6 +531,7 @@ retry:
 		object->charge += delta;
 	}
 	shmfd->shm_size = length;
+	shmfd->shm_oldsize = (size_t)length;
 	mtx_lock(&shm_timestamp_lock);
 	vfs_timestamp(&shmfd->shm_ctime);
 	shmfd->shm_mtime = shmfd->shm_ctime;

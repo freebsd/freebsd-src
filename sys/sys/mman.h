@@ -207,7 +207,7 @@ typedef	__size_t	size_t;
 struct file;
 
 struct shmfd {
-	size_t		shm_size;
+	size_t		shm_oldsize;
 	vm_object_t	shm_object;
 	int		shm_refs;
 	uid_t		shm_uid;
@@ -230,6 +230,7 @@ struct shmfd {
 
 	struct rangelock shm_rl;
 	struct mtx	shm_mtx;
+	vm_ooffset_t	shm_size;
 };
 #endif
 
