@@ -1973,6 +1973,9 @@ static char *getip(v, addr)
 	static char hostbuf[MAXHOSTNAMELEN+1];
 #endif
 
+	if (v == 0)
+		return ("any");
+
 	if (v == 4)
 		return inet_ntoa(addr->in4);
 
