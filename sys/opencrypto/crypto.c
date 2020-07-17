@@ -325,41 +325,25 @@ crypto_init(void)
 	TAILQ_INIT(&crp_kq);
 	mtx_init(&crypto_q_mtx, "crypto", "crypto op queues", MTX_DEF);
 
-	cryptop_zone = uma_zcreate("cryptop", sizeof (struct cryptop),
-				    0, 0, 0, 0,
-				    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	cryptop_zone = uma_zcreate("cryptop",
+	    sizeof(struct cryptop), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 	cryptoses_zone = uma_zcreate("crypto_session",
 	    sizeof(struct crypto_session), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
-	if (cryptop_zone == NULL || cryptoses_zone == NULL) {
-		printf("crypto_init: cannot setup crypto zones\n");
-		error = ENOMEM;
-		goto bad;
-	}
-
 	crypto_drivers_size = CRYPTO_DRIVERS_INITIAL;
 	crypto_drivers = malloc(crypto_drivers_size *
-	    sizeof(struct cryptocap), M_CRYPTO_DATA, M_NOWAIT | M_ZERO);
-	if (crypto_drivers == NULL) {
-		printf("crypto_init: cannot setup crypto drivers\n");
-		error = ENOMEM;
-		goto bad;
-	}
+	    sizeof(struct cryptocap), M_CRYPTO_DATA, M_WAITOK | M_ZERO);
 
 	if (crypto_workers_num < 1 || crypto_workers_num > mp_ncpus)
 		crypto_workers_num = mp_ncpus;
 
-	crypto_tq = taskqueue_create("crypto", M_WAITOK|M_ZERO,
-				taskqueue_thread_enqueue, &crypto_tq);
-	if (crypto_tq == NULL) {
-		printf("crypto init: cannot setup crypto taskqueue\n");
-		error = ENOMEM;
-		goto bad;
-	}
+	crypto_tq = taskqueue_create("crypto", M_WAITOK | M_ZERO,
+	    taskqueue_thread_enqueue, &crypto_tq);
 
 	taskqueue_start_threads(&crypto_tq, crypto_workers_num, PRI_MIN_KERN,
-		"crypto");
+	    "crypto");
 
 	error = kproc_create((void (*)(void *)) crypto_proc, NULL,
 		    &cryptoproc, 0, 0, "crypto");
@@ -369,14 +353,8 @@ crypto_init(void)
 		goto bad;
 	}
 
-	crypto_ret_workers = malloc(crypto_workers_num * sizeof(struct crypto_ret_worker),
-			M_CRYPTO_DATA, M_NOWAIT|M_ZERO);
-	if (crypto_ret_workers == NULL) {
-		error = ENOMEM;
-		printf("crypto_init: cannot allocate ret workers\n");
-		goto bad;
-	}
-
+	crypto_ret_workers = mallocarray(crypto_workers_num,
+	    sizeof(struct crypto_ret_worker), M_CRYPTO_DATA, M_WAITOK | M_ZERO);
 
 	FOREACH_CRYPTO_RETW(ret_worker) {
 		TAILQ_INIT(&ret_worker->crp_ordered_ret_q);
