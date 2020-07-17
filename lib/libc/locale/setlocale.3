@@ -115,9 +115,24 @@ argument of
 causes
 .Fn setlocale
 to return the current locale.
+.Pp
+The option
+.Fl a
+to the
+.Xr locale 1
+command can be used to display all further possible names for the
+.Fa locale
+argument that are recognized.
+Specifying any unrecognized value for
+.Fa locale
+makes
+.Fn setlocale
+fail.
+.Pp
 By default, C programs start in the
 .Li \&"C"
 locale.
+.Pp
 The only function in the library that sets the locale is
 .Fn setlocale ;
 the locale is never changed as a side effect of some other routine.
@@ -150,6 +165,7 @@ and the category
 .Sh ERRORS
 No errors are defined.
 .Sh SEE ALSO
+.Xr locale 1 ,
 .Xr localedef 1 ,
 .Xr catopen 3 ,
 .Xr ctype 3 ,
