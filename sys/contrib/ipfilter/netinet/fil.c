@@ -115,6 +115,8 @@ extern	int	opts;
 extern	int	blockreason;
 #endif /* _KERNEL */
 
+#define FASTROUTE_RECURSION
+
 #define	LBUMP(x)	softc->x++
 #define	LBUMPD(x, y)	do { softc->x.y++; DT(y); } while (0)
 
