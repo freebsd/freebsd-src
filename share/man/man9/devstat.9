@@ -27,25 +27,24 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd July 15, 2020
 .Dt DEVSTAT 9
 .Os
 .Sh NAME
 .Nm devstat ,
-.Nm devstat_add_entry ,
 .Nm devstat_end_transaction ,
 .Nm devstat_end_transaction_bio ,
 .Nm devstat_end_transaction_bio_bt ,
+.Nm devstat_new_entry ,
 .Nm devstat_remove_entry ,
 .Nm devstat_start_transaction ,
 .Nm devstat_start_transaction_bio
 .Nd kernel interface for keeping device statistics
 .Sh SYNOPSIS
 .In sys/devicestat.h
-.Ft void
-.Fo devstat_add_entry
-.Fa "struct devstat *ds"
-.Fa "const char *dev_name"
+.Ft struct devstat *
+.Fo devstat_new_entry
+.Fa "const void *dev_name"
 .Fa "int unit_number"
 .Fa "uint32_t block_size"
 .Fa "devstat_support_flags flags"
@@ -78,7 +77,6 @@
 .Fa "struct devstat *ds"
 .Fa "const struct bio *bp"
 .Fc
-.Fc
 .Ft void
 .Fo devstat_end_transaction_bio_bt
 .Fa "struct devstat *ds"
@@ -103,19 +101,13 @@ for most disk-like drivers in the 2000s and beyond.
 New consumers of the interface should almost certainly use only the "bio"
 variants of the start and end transacation routines.
 .Pp
-.Fn devstat_add_entry
-registers a device with the
-.Nm
-subsystem.
-The caller is expected to have already allocated \fBand zeroed\fR
-the devstat structure before calling this function.
-.Fn devstat_add_entry
+.Fn devstat_new_entry
+allocates and initializes
+.Va devstat
+structure and returns a pointer to it.
+.Fn devstat_new_entry
 takes several arguments:
 .Bl -tag -width device_type
-.It ds
-The
-.Va devstat
-structure, allocated and zeroed by the client.
 .It dev_name
 The device name, e.g., da, cd, sa.
 .It unit_number
@@ -386,6 +378,8 @@ to insert a device in the
 list.
 The second parameter is attach order.
 See below for a list of available priorities.
+.It id
+Identification for GEOM nodes.
 .El
 .Pp
 Each device is given a device type.
@@ -478,7 +472,18 @@ typedef enum {
 	DEVSTAT_WRITE	= 0x02,
 	DEVSTAT_FREE	= 0x03
 } devstat_trans_flags;
+#define DEVSTAT_N_TRANS_FLAGS   4
 .Ed
+.Pp
+DEVSTAT_NO_DATA is a type of transactions to the device which are neither
+reads or writes.
+For instance,
+.Tn SCSI
+drivers often send a test unit ready command to
+.Tn SCSI
+devices.
+The test unit ready command does not read or write any data.
+It merely causes the device to return its status.
 .Pp
 There are four possible values for the
 .Va tag_type
