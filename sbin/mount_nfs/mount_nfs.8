@@ -159,7 +159,16 @@ should be specified without instance or domain and is typically
 .Dq "host" ,
 .Dq "nfs"
 or
-.Dq "root" .
+.Dq "root" ,
+although the form
+.Sm off
+.Aq Ar service
+@
+.Aq Ar fqdn
+.Sm on
+can also be used if the local system's
+.Xr gethostname 3
+value does not match the host-based principal in the keytab.
 .It Cm hard
 Same as not specifying
 .Cm soft .
