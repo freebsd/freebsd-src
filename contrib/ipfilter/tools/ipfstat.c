@@ -394,6 +394,15 @@ int main(argc,argv)
 		}
 	}
 #ifdef	USE_INET6
+	if ((use_inet4 || use_inet6) &&
+	   !(opts & (OPT_INQUE | OPT_OUTQUE | OPT_STATETOP))) {
+#ifdef	STATETOP
+		FPRINTF(stderr, "No -i, -o, or -t given with -4 or -6\n");
+#else
+		FPRINTF(stderr, "No -i or -o given with -4 or -6\n");
+#endif
+		exit(-2);
+	}
 	if (use_inet4 == 0 && use_inet6 == 0)
 		use_inet4 = use_inet6 = 1;
 #endif
