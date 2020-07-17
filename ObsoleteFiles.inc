@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200715: rework of devstat(9) man page
+OLD_FILES+=usr/share/man/man9/devstat_add_entry.9.gz
+
 # 20200714: update byacc to 20200330
 OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_calc1.y
 OLD_FILES+=usr/tests/usr.bin/yacc/btyacc_demo.y
