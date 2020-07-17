@@ -547,7 +547,7 @@ ng_l2cap_lp_send(ng_l2cap_con_p con, u_int16_t dcid, struct mbuf *m0)
 	ng_l2cap_hdr_t		*l2cap_hdr = NULL;
         ng_hci_acldata_pkt_t	*acl_hdr = NULL;
         struct mbuf		*m_last = NULL, *m = NULL;
-        int			 len, flag = NG_HCI_PACKET_START;
+        int			 len, flag = (con->linktype == NG_HCI_LINK_ACL) ? NG_HCI_PACKET_START : NG_HCI_LE_PACKET_START;
 
 	KASSERT((con->tx_pkt == NULL),
 ("%s: %s - another packet pending?!\n", __func__, NG_NODE_NAME(l2cap->node)));
@@ -713,7 +713,8 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 	}
 
 	/* Process packet */
-	if (pb == NG_HCI_PACKET_START) {
+	if ((pb == NG_HCI_PACKET_START) || (pb == NG_HCI_LE_PACKET_START))
+	  {
 		if (con->rx_pkt != NULL) {
 			NG_L2CAP_ERR(
 "%s: %s - dropping incomplete L2CAP packet, got %d bytes, want %d bytes\n",
