@@ -913,12 +913,12 @@ static void printdeadlist(fiop, out, set, fp, group, comment)
 		fp = &fb;
 #ifdef	USE_INET6
 		if (use_inet6 != 0) {
-			if (fp->fr_family != 0 && fp->fr_family != 6)
+			if (fp->fr_family != 0 && fp->fr_family != AF_INET6)
 				continue;
 		} else
 #endif
 		{
-			if (fp->fr_family != 0 && fp->fr_family != 4)
+			if (fp->fr_family != 0 && fp->fr_family != AF_INET)
 				continue;
 		}
 
