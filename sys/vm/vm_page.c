@@ -1362,6 +1362,31 @@ vm_page_readahead_finish(vm_page_t m)
 }
 
 /*
+ * Destroy the identity of an invalid page and free it if possible.
+ * This is intended to be used when reading a page from backing store fails.
+ */
+void
+vm_page_free_invalid(vm_page_t m)
+{
+
+	KASSERT(vm_page_none_valid(m), ("page %p is valid", m));
+	KASSERT(!pmap_page_is_mapped(m), ("page %p is mapped", m));
+	vm_page_assert_xbusied(m);
+	KASSERT(m->object != NULL, ("page %p has no object", m));
+	VM_OBJECT_ASSERT_WLOCKED(m->object);
+
+	/*
+	 * If someone has wired this page while the object lock
+	 * was not held, then the thread that unwires is responsible
+	 * for freeing the page.  Otherwise just free the page now.
+	 * The wire count of this unmapped page cannot change while
+	 * we have the page xbusy and the page's object wlocked.
+	 */
+	if (vm_page_remove(m))
+		vm_page_free(m);
+}
+
+/*
  *	vm_page_sleep_if_busy:
  *
  *	Sleep and release the object lock if the page is busied.
