@@ -404,6 +404,7 @@ pget(pid_t pid, int flags, struct proc **pp)
 	if (p->p_pid == pid) {
 		PROC_LOCK(p);
 	} else {
+		p = NULL;
 		if (pid <= PID_MAX) {
 			sx_slock(&allproc_lock);
 			p = pfind_locked(pid);
