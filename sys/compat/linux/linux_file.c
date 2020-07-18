@@ -1670,7 +1670,7 @@ linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
 	 * mode should be 0.
 	 */
 	if (args->mode != 0)
-		return (ENOSYS);
+		return (EOPNOTSUPP);
 
 #if defined(__amd64__) && defined(COMPAT_LINUX32)
 	len = PAIR32TO64(off_t, args->len);
