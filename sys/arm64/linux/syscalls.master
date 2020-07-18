@@ -467,7 +467,14 @@
 		int linux_vmsplice(void);
 	}
 76	AUE_NULL	STD	{
-		int linux_splice(void);
+		int linux_splice(
+		    int fd_in,
+		    l_loff_t *off_in,
+		    int fd_out,
+		    l_loff_t *off_out,
+		    l_size_t len,
+		    l_uint flags
+		);
 	}
 77	AUE_NULL	STD	{
 		int linux_tee(void);
