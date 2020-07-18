@@ -47,6 +47,7 @@
 #include <machine/asmacros.h>
 #include <machine/trap.h>
 #include <machine/specialreg.h>
+#include <machine/pmap.h>
 
 #ifdef KDTRACE_HOOKS
 	.bss
@@ -607,8 +608,10 @@ fast_syscall_common:
 	cmpq	$~0,PCPU(UCR3)
 	je	2f
 	movq	PCPU(UCR3),%r9
+	andq	PCPU(UCR3_LOAD_MASK),%r9
 	movq	%r9,%cr3
 2:	xorl	%r9d,%r9d
+	movq	$PMAP_UCR3_NOMASK,PCPU(UCR3_LOAD_MASK)
 	swapgs
 	sysretq
 
@@ -1262,6 +1265,8 @@ ld_regs:
 	movq	TF_SS(%rsp),%rax
 	movq	%rax,PTI_SS(%rdx)
 	movq	PCPU(UCR3),%rax
+	andq	PCPU(UCR3_LOAD_MASK),%rax
+	movq	$PMAP_UCR3_NOMASK,PCPU(UCR3_LOAD_MASK)
 	swapgs
 	movq	%rdx,%rsp
 	movq	%rax,%cr3
