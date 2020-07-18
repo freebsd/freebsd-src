@@ -41,6 +41,9 @@
 #define	DMAR_NPTEPGSHIFT 9
 #define	DMAR_PTEMASK	(DMAR_NPTEPG - 1)
 
+#define	IOMMU_PAGE_SIZE	DMAR_PAGE_SIZE
+#define	IOMMU_PAGE_MASK	DMAR_PAGE_MASK
+
 typedef struct dmar_root_entry {
 	uint64_t r1;
 	uint64_t r2;
