@@ -306,6 +306,8 @@ MtMethodAnalysisWalkBegin (
         {
             ActualArgs = MtProcessParameterTypeList (NextType,
                 MethodInfo->ValidArgTypes);
+            MethodInfo->NumArguments = ActualArgs;
+            ArgNode->Asl.Value.Integer |= ActualArgs;
         }
 
         if ((MethodInfo->NumArguments) &&
@@ -670,6 +672,16 @@ MtProcessParameterTypeList (
 {
     UINT8                   ParameterCount = 0;
 
+
+    if (ParamTypeOp && ParamTypeOp->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG)
+    {
+        /* Special case for a single parameter without braces */
+
+        TypeList[ParameterCount] =
+            MtProcessTypeOp (ParamTypeOp);
+
+        return (1);
+    }
 
     while (ParamTypeOp)
     {

@@ -994,12 +994,14 @@ XfNamespaceLocateBegin (
          * invocation of the method, it is simply a reference to the method.
          *
          * September 2016: Removed DeRefOf from this list
+         * July 2020: Added Alias to this list
          */
         if ((Op->Asl.Parent) &&
             ((Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_REFOF)     ||
             (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_PACKAGE)    ||
             (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_VAR_PACKAGE)||
-            (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_OBJECTTYPE)))
+            (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_OBJECTTYPE) ||
+            (Op->Asl.Parent->Asl.ParseOpcode == PARSEOP_ALIAS)))
         {
             return_ACPI_STATUS (AE_OK);
         }

@@ -200,6 +200,14 @@ ExDoExternal (
 
 
     ExternType = AnMapObjTypeToBtype (ExternTypeOp);
+    if (ExternType != ACPI_BTYPE_METHOD)
+    {
+        /*
+         * If this is not a method, it has zero parameters this local variable
+         * is used only for methods
+         */
+        ParamCount = 0;
+    }
 
     /*
      * The parser allows optional parameter return types regardless of the
