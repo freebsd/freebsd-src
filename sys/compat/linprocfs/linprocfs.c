@@ -364,7 +364,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 #else
 		    "",
 #endif
-		    fqmhz, fqkhz,
+		    fqmhz * 2, fqkhz,
 		    cpu_clflush_line_size, cpu_clflush_line_size,
 		    cpu_maxphyaddr,
 		    (cpu_maxphyaddr > 32) ? 48 : 0);
