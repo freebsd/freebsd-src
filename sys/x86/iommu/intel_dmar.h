@@ -77,7 +77,6 @@ struct dmar_domain {
 	LIST_HEAD(, dmar_ctx) contexts;	/* (u) */
 	vm_object_t pgtbl_obj;		/* (c) Page table pages */
 	u_int flags;			/* (u) */
-	u_int entries_cnt;		/* (d) */
 	struct dmar_gas_entries_tree rb_root; /* (d) */
 	struct iommu_map_entry *first_place, *last_place; /* (d) */
 	u_int batch_no;
@@ -458,16 +457,6 @@ dmar_pte_clear(volatile uint64_t *dst)
 #else
 	*dst = 0;
 #endif
-}
-
-static inline bool
-iommu_test_boundary(iommu_gaddr_t start, iommu_gaddr_t size,
-    iommu_gaddr_t boundary)
-{
-
-	if (boundary == 0)
-		return (true);
-	return (start + size <= ((start + boundary) & ~(boundary - 1)));
 }
 
 extern struct timespec dmar_hw_timeout;

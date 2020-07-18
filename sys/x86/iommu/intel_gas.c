@@ -98,7 +98,7 @@ dmar_gas_alloc_entry(struct dmar_domain *domain, u_int flags)
 	    0 ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (res != NULL) {
 		res->domain = (struct iommu_domain *)domain;
-		atomic_add_int(&domain->entries_cnt, 1);
+		atomic_add_int(&domain->iodom.entries_cnt, 1);
 	}
 	return (res);
 }
@@ -110,7 +110,7 @@ dmar_gas_free_entry(struct dmar_domain *domain, struct iommu_map_entry *entry)
 	KASSERT(domain == (struct dmar_domain *)entry->domain,
 	    ("mismatched free domain %p entry %p entry->domain %p", domain,
 	    entry, entry->domain));
-	atomic_subtract_int(&domain->entries_cnt, 1);
+	atomic_subtract_int(&domain->iodom.entries_cnt, 1);
 	uma_zfree(iommu_map_entry_zone, entry);
 }
 
@@ -214,7 +214,7 @@ dmar_gas_init_domain(struct dmar_domain *domain)
 	end = dmar_gas_alloc_entry(domain, DMAR_PGF_WAITOK);
 
 	DMAR_DOMAIN_LOCK(domain);
-	KASSERT(domain->entries_cnt == 2, ("dirty domain %p", domain));
+	KASSERT(domain->iodom.entries_cnt == 2, ("dirty domain %p", domain));
 	KASSERT(RB_EMPTY(&domain->rb_root), ("non-empty entries %p", domain));
 
 	begin->start = 0;
@@ -239,7 +239,8 @@ dmar_gas_fini_domain(struct dmar_domain *domain)
 	struct iommu_map_entry *entry, *entry1;
 
 	DMAR_DOMAIN_ASSERT_LOCKED(domain);
-	KASSERT(domain->entries_cnt == 2, ("domain still in use %p", domain));
+	KASSERT(domain->iodom.entries_cnt == 2,
+	    ("domain still in use %p", domain));
 
 	entry = RB_MIN(dmar_gas_entries_tree, &domain->rb_root);
 	KASSERT(entry->start == 0, ("start entry start %p", domain));
