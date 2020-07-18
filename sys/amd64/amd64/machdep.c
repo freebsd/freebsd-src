@@ -1562,6 +1562,7 @@ amd64_bsp_pcpu_init1(struct pcpu *pc)
 	PCPU_SET(ldt, (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL]);
 	PCPU_SET(fs32p, &gdt[GUFS32_SEL]);
 	PCPU_SET(gs32p, &gdt[GUGS32_SEL]);
+	PCPU_SET(ucr3_load_mask, PMAP_UCR3_NOMASK);
 	PCPU_SET(smp_tlb_gen, 1);
 }
 
