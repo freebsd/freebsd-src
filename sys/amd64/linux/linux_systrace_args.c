@@ -2092,7 +2092,14 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_splice */
 	case 275: {
-		*n_args = 0;
+		struct linux_splice_args *p = params;
+		iarg[0] = p->fd_in; /* int */
+		uarg[1] = (intptr_t) p->off_in; /* l_loff_t * */
+		iarg[2] = p->fd_out; /* int */
+		uarg[3] = (intptr_t) p->off_out; /* l_loff_t * */
+		iarg[4] = p->len; /* l_size_t */
+		iarg[5] = p->flags; /* l_uint */
+		*n_args = 6;
 		break;
 	}
 	/* linux_tee */
@@ -5962,6 +5969,28 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_splice */
 	case 275:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "userland l_loff_t *";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "userland l_loff_t *";
+			break;
+		case 4:
+			p = "l_size_t";
+			break;
+		case 5:
+			p = "l_uint";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_tee */
 	case 276:
@@ -8008,6 +8037,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_splice */
 	case 275:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_tee */
 	case 276:
 	/* linux_sync_file_range */
