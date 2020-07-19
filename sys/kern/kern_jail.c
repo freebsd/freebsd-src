@@ -3107,10 +3107,8 @@ prison_priv_check(struct ucred *cred, int priv)
 		/*
 		 * 802.11-related privileges.
 		 */
-	case PRIV_NET80211_GETKEY:
-#ifdef notyet
-	case PRIV_NET80211_MANAGE:		/* XXX-BZ discuss with sam@ */
-#endif
+	case PRIV_NET80211_VAP_GETKEY:
+	case PRIV_NET80211_VAP_MANAGE:
 
 #ifdef notyet
 		/*
