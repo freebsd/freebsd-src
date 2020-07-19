@@ -36,8 +36,10 @@ static const char rcsid[] =
 #include <sys/disklabel.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 
+#include <assert.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -72,25 +74,6 @@ static const char rcsid[] =
 #define	MAXCLS12  0xff4U	/* maximum FAT12 clusters */
 #define	MAXCLS16  0xfff4U	/* maximum FAT16 clusters */
 #define	MAXCLS32  0xffffff4U	/* maximum FAT32 clusters */
-
-#ifndef	CTASSERT
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert_ ## y [(x) ? 1 : -1]
-#endif
-
-/*
- * For better performance, we want to write larger chunks instead of
- * individual sectors (the size can only be 512, 1024, 2048 or 4096
- * bytes). Assert that MAXPHYS can always hold an integer number of
- * sectors by asserting that both are power of two numbers and the
- * MAXPHYS is greater than MAXBPS.
- */
-CTASSERT(powerof2(MAXPHYS));
-CTASSERT(powerof2(MAXBPS));
-CTASSERT(MAXPHYS > MAXBPS);
-
-const static ssize_t chunksize = MAXPHYS;
 
 #define	mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
 		      (fat) == 16 ? MINCLS16 :	\
@@ -235,6 +218,7 @@ static volatile sig_atomic_t got_siginfo;
 static void infohandler(int);
 
 static int check_mounted(const char *, mode_t);
+static ssize_t getchunksize(void);
 static int getstdfmt(const char *, struct bpb *);
 static int getdiskinfo(int, const char *, const char *, int, struct bpb *);
 static void print_bpb(struct bpb *);
@@ -267,6 +251,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
     bool set_res, set_spf, set_spc;
     int fd, fd1, rv;
     struct msdos_options o = *op;
+    ssize_t chunksize;
 
     physbuf = NULL;
     rv = -1;
@@ -629,6 +614,7 @@ mkfs_msdos(const char *fname, const char *dtype, const struct msdos_options *op)
 	    tm = localtime(&now);
 	}
 
+	chunksize = getchunksize();
 	physbuf = malloc(chunksize);
 	if (physbuf == NULL) {
 	    warn(NULL);
@@ -829,6 +815,47 @@ check_mounted(const char *fname, mode_t mode)
 	}
     }
     return 0;
+}
+
+/*
+ * Get optimal I/O size
+ */
+static ssize_t
+getchunksize(void)
+{
+	static int chunksize;
+
+	if (chunksize != 0)
+		return ((ssize_t)chunksize);
+
+#ifdef	KERN_MAXPHYS
+	int mib[2];
+	size_t len;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_MAXPHYS;
+	len = sizeof(chunksize);
+
+	if (sysctl(mib, 2, &chunksize, &len, NULL, 0) == -1) {
+		warn("sysctl: KERN_MAXPHYS, using %zu", (size_t)MAXPHYS);
+		chunksize = 0;
+	}
+#endif
+	if (chunksize == 0)
+		chunksize = MAXPHYS;
+
+	/*
+	 * For better performance, we want to write larger chunks instead of
+	 * individual sectors (the size can only be 512, 1024, 2048 or 4096
+	 * bytes). Assert that chunksize can always hold an integer number of
+	 * sectors by asserting that both are power of two numbers and the
+	 * chunksize is greater than MAXBPS.
+	 */
+	static_assert(powerof2(MAXBPS), "MAXBPS is not power of 2");
+	assert(powerof2(chunksize));
+	assert(chunksize > MAXBPS);
+
+	return ((ssize_t)chunksize);
 }
 
 /*
