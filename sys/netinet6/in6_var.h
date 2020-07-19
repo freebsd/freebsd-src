@@ -915,8 +915,6 @@ void	in6_newaddrmsg(struct in6_ifaddr *, int);
  * Extended API for IPv6 FIB support.
  */
 struct mbuf *ip6_tryforward(struct mbuf *);
-int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,
-	    struct sockaddr *, int, struct rtentry **, u_int);
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */
