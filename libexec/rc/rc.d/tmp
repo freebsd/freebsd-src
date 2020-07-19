@@ -41,6 +41,9 @@ load_rc_config $name
 mount_tmpmfs()
 {
 	if ! /bin/df /tmp | grep -q "^/dev/md[0-9].* /tmp"; then
+		if test -w /tmp/. && checkyesno tmpmfs_clear_mnt; then
+			(cd /tmp/. && rm -rf .* *)
+		fi
 		mount_md ${tmpsize} /tmp "${tmpmfs_flags}"
 		chmod 01777 /tmp
 	fi
