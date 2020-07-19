@@ -351,8 +351,10 @@
 /*
  * 802.11-related privileges.
  */
-#define	PRIV_NET80211_GETKEY	440	/* Query 802.11 keys. */
-#define	PRIV_NET80211_MANAGE	441	/* Administer 802.11. */
+#define	PRIV_NET80211_VAP_GETKEY	440	/* Query VAP 802.11 keys. */
+#define	PRIV_NET80211_VAP_MANAGE	441	/* Administer 802.11 VAP */
+#define	PRIV_NET80211_VAP_SETMAC	442	/* Set VAP MAC address */
+#define	PRIV_NET80211_CREATE_VAP	443	/* Create a new VAP */
 
 /*
  * Placeholder for AppleTalk privileges, not supported anymore.
