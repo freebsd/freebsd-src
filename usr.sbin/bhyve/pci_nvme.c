@@ -830,32 +830,42 @@ static int
 nvme_opc_get_log_page(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
-	uint32_t logsize = (1 + ((command->cdw10 >> 16) & 0xFFF)) * 2;
+	uint32_t logsize;
 	uint8_t logpage = command->cdw10 & 0xFF;
 
 	DPRINTF("%s log page %u len %u", __func__, logpage, logsize);
 
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
 
+	/*
+	 * Command specifies the number of dwords to return in fields NUMDU
+	 * and NUMDL. This is a zero-based value.
+	 */
+	logsize = ((command->cdw11 << 16) | (command->cdw10 >> 16)) + 1;
+	logsize *= sizeof(uint32_t);
+
 	switch (logpage) {
 	case NVME_LOG_ERROR:
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->err_log, logsize,
+		    command->prp2, (uint8_t *)&sc->err_log,
+		    MIN(logsize, sizeof(sc->err_log)),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_HEALTH_INFORMATION:
 		/* TODO: present some smart info */
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->health_log, logsize,
+		    command->prp2, (uint8_t *)&sc->health_log,
+		    MIN(logsize, sizeof(sc->health_log)),
 		    NVME_COPY_TO_PRP);
 		break;
 	case NVME_LOG_FIRMWARE_SLOT:
 		nvme_prp_memcpy(sc->nsc_pi->pi_vmctx, command->prp1,
-		    command->prp2, (uint8_t *)&sc->fw_log, logsize,
+		    command->prp2, (uint8_t *)&sc->fw_log,
+		    MIN(logsize, sizeof(sc->fw_log)),
 		    NVME_COPY_TO_PRP);
 		break;
 	default:
-		WPRINTF("%s get log page %x command not supported",
+		DPRINTF("%s get log page %x command not supported",
 		        __func__, logpage);
 
 		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
