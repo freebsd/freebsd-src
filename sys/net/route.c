@@ -470,7 +470,7 @@ int
 rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
     struct sockaddr *author, struct ifnet *ifp, int flags, int lifetime_sec)
 {
-	struct rtentry *rt;
+	struct rib_cmd_info rc;
 	int error;
 	struct rt_addrinfo info;
 	struct rt_metrics rti_rmx;
@@ -504,7 +504,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	info.rti_mflags |= RTV_EXPIRE;
 	info.rti_rmx = &rti_rmx;
 
-	error = rtrequest1_fib(RTM_ADD, &info, &rt, fibnum);
+	error = rib_action(fibnum, RTM_ADD, &info, &rc);
 	ifa_free(ifa);
 
 	if (error != 0) {
@@ -512,9 +512,9 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 		return (error);
 	}
 
-	RT_LOCK(rt);
-	flags = rt->rt_flags;
-	RT_UNLOCK(rt);
+	RT_LOCK(rc.rc_rt);
+	flags = rc.rc_rt->rt_flags;
+	RT_UNLOCK(rc.rc_rt);
 
 	RTSTAT_INC(rts_dynamic);
 
@@ -600,32 +600,6 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst,
 	}
 
 	return (ifa);
-}
-
-/*
- * Do appropriate manipulations of a routing tree given
- * all the bits of info needed
- */
-int
-rtrequest_fib(int req,
-	struct sockaddr *dst,
-	struct sockaddr *gateway,
-	struct sockaddr *netmask,
-	int flags,
-	struct rtentry **ret_nrt,
-	u_int fibnum)
-{
-	struct rt_addrinfo info;
-
-	if (dst->sa_len == 0)
-		return(EINVAL);
-
-	bzero((caddr_t)&info, sizeof(info));
-	info.rti_flags = flags;
-	info.rti_info[RTAX_DST] = dst;
-	info.rti_info[RTAX_GATEWAY] = gateway;
-	info.rti_info[RTAX_NETMASK] = netmask;
-	return rtrequest1_fib(req, &info, ret_nrt, fibnum);
 }
 
 
@@ -1148,73 +1122,6 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 }
 #endif
 
-int
-rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
-				u_int fibnum)
-{
-	const struct sockaddr *dst;
-	struct rib_head *rnh;
-	struct rib_cmd_info rc;
-	int error;
-
-	KASSERT((fibnum < rt_numfibs), ("rtrequest1_fib: bad fibnum"));
-	KASSERT((info->rti_flags & RTF_RNH_LOCKED) == 0, ("rtrequest1_fib: locked"));
-	NET_EPOCH_ASSERT();
-
-	dst = info->rti_info[RTAX_DST];
-
-	switch (dst->sa_family) {
-	case AF_INET6:
-	case AF_INET:
-		/* We support multiple FIBs. */
-		break;
-	default:
-		fibnum = RT_DEFAULT_FIB;
-		break;
-	}
-
-	/*
-	 * Find the correct routing tree to use for this Address Family
-	 */
-	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
-	if (rnh == NULL)
-		return (EAFNOSUPPORT);
-
-	/*
-	 * If we are adding a host route then we don't want to put
-	 * a netmask in the tree, nor do we want to clone it.
-	 */
-	if (info->rti_flags & RTF_HOST)
-		info->rti_info[RTAX_NETMASK] = NULL;
-
-	bzero(&rc, sizeof(struct rib_cmd_info));
-	error = 0;
-	switch (req) {
-	case RTM_DELETE:
-		error = del_route(rnh, info, &rc);
-		break;
-	case RTM_RESOLVE:
-		/*
-		 * resolve was only used for route cloning
-		 * here for compat
-		 */
-		break;
-	case RTM_ADD:
-		error = add_route(rnh, info, &rc);
-		break;
-	case RTM_CHANGE:
-		error = change_route(rnh, info, &rc);
-		break;
-	default:
-		error = EOPNOTSUPP;
-	}
-
-	if (ret_nrt != NULL)
-		*ret_nrt = rc.rc_rt;
-
-	return (error);
-}
-
 void
 rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt)
 {
@@ -1258,7 +1165,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	struct epoch_tracker et;
 	struct sockaddr *dst;
 	struct sockaddr *netmask;
-	struct rtentry *rt = NULL;
+	struct rib_cmd_info rc;
 	struct rt_addrinfo info;
 	int error = 0;
 	int startfib, endfib;
@@ -1349,7 +1256,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 				if (rn == NULL) 
 					error = ESRCH;
 				else {
-					rt = RNTORT(rn);
+					struct rtentry *rt = RNTORT(rn);
 					/*
 					 * for interface route the gateway
 					 * gateway is sockaddr_dl, so
@@ -1389,14 +1296,14 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			info.rti_info[RTAX_GATEWAY] = ifa->ifa_addr;
 		info.rti_info[RTAX_NETMASK] = netmask;
 		NET_EPOCH_ENTER(et);
-		error = rtrequest1_fib(cmd, &info, &rt, fibnum);
-		if (error == 0 && rt != NULL) {
+		error = rib_action(fibnum, cmd, &info, &rc);
+		if (error == 0 && rc.rc_rt != NULL) {
 			/*
 			 * notify any listening routing agents of the change
 			 */
 
 			/* TODO: interface routes/aliases */
-			rt_newaddrmsg_fib(cmd, ifa, rt, fibnum);
+			rt_newaddrmsg_fib(cmd, ifa, rc.rc_rt, fibnum);
 			didwork = 1;
 		}
 		NET_EPOCH_EXIT(et);
