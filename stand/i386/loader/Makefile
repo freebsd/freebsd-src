@@ -1,5 +1,5 @@
 # $FreeBSD$
-
+.if 0
 HAVE_ZFS=		${MK_LOADER_ZFS}
 
 LOADER_NET_SUPPORT?=	yes
@@ -11,6 +11,10 @@ LOADER_MSDOS_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
 LOADER_GZIP_SUPPORT?=	yes
 LOADER_BZIP2_SUPPORT?=	yes
+.else
+LOADER_NET_SUPPORT?=	yes
+LOADER_UFS_SUPPORT?=    yes
+.endif
 
 .include <bsd.init.mk>
 
@@ -56,8 +60,8 @@ LIBI386=	${BOOTOBJ}/i386/libi386/libi386.a
 CFLAGS+=	-I${BOOTSRC}/i386
 
 # Debug me!
-#CFLAGS+=	-g
-#LDFLAGS+=	-g
+CFLAGS+=	-g
+LDFLAGS+=	-g
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 	btxld -v -f aout -e ${LOADER_ADDRESS} -o ${.TARGET} -l ${BTXLDR} \
