@@ -2324,7 +2324,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		break;
 	case SIOCS80211:
-		if ((error = priv_check(td, PRIV_NET80211_MANAGE)))
+		if ((error = priv_check(td, PRIV_NET80211_VAP_MANAGE)))
 			goto out;
 		AN_LOCK(sc);
 		sc->areq.an_len = sizeof(sc->areq);
