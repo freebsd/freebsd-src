@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/boot.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
@@ -800,6 +801,19 @@ fake_preload_metadata(struct riscv_bootparams *rvbp)
 		    rvbp->kern_phys, rvbp->kern_phys + (lastaddr - KERNBASE));
 }
 
+#ifdef FDT
+static void
+parse_fdt_bootargs(void)
+{
+	char bootargs[512];
+
+	bootargs[sizeof(bootargs) - 1] = '\0';
+	if (fdt_get_chosen_bootargs(bootargs, sizeof(bootargs) - 1) == 0) {
+		boothowto |= boot_parse_cmdline(bootargs);
+	}
+}
+#endif
+
 static vm_offset_t
 parse_metadata(void)
 {
@@ -829,6 +843,8 @@ parse_metadata(void)
 #endif
 #ifdef FDT
 	try_load_dtb(kmdp);
+	if (kern_envp == NULL)
+		parse_fdt_bootargs();
 #endif
 	return (lastaddr);
 }
