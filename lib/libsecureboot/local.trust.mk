@@ -8,9 +8,6 @@
 
 # force these for Junos
 #MANIFEST_SKIP_ALWAYS= boot
-MANIFEST_SKIP= boot
-XCFLAGS.veopen+= -DMANIFEST_SKIP_MAYBE=\"${MANIFEST_SKIP}\"
-
 VE_HASH_LIST= \
 	SHA1 \
 	SHA256 \
@@ -40,7 +37,6 @@ VE_SIGNATURE_EXT_LIST+= \
 VE_SIGNATURE_LIST+= OPENPGP
 VE_SIGNATURE_EXT_LIST+= asc
 
-PYTHON ?= /usr/local/bin/python
 SIGNER ?= ${SB_TOOLS_PATH:U/volume/buildtools/bin}/sign.py
 
 .if exists(${SIGNER})
@@ -103,7 +99,7 @@ ta.h: vc_rsa.pem
 .endif
 
 # we take the mtime of this as our baseline time
-BUILD_UTC_FILE= ecerts.pem
+#BUILD_UTC_FILE= ecerts.pem
 #VE_DEBUG_LEVEL=3
 #VE_VERBOSE_DEFAULT=1
 
