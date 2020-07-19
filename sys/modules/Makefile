@@ -421,6 +421,12 @@ _ktls_ocf=	ktls_ocf
 SUBDIR+=	cuse
 .endif
 
+.if ${MK_EFI} != "no"
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64"
+_efirt=		efirt
+.endif
+.endif
+
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=		carp
@@ -585,7 +591,6 @@ _cxgb=		cxgb
 .if ${MACHINE_CPUARCH} == "aarch64"
 _allwinner=	allwinner
 _armv8crypto=	armv8crypto
-_efirt=		efirt
 _em=		em
 _rockchip=	rockchip
 .endif
@@ -707,7 +712,6 @@ _x86bios=	x86bios
 .if ${MACHINE_CPUARCH} == "amd64"
 _amdgpio=	amdgpio
 _ccp=		ccp
-_efirt=		efirt
 _iavf=		iavf
 _ioat=		ioat
 _ixl=		ixl
