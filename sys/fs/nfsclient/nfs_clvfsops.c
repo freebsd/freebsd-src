@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 #include <netinet/in.h>
 
 #include <fs/nfs/nfsport.h>
@@ -466,6 +467,8 @@ nfs_mountroot(struct mount *mp)
 	    nd->mygateway.sin_addr.s_addr != 0) {
 		struct sockaddr_in mask, sin;
 		struct epoch_tracker et;
+		struct rt_addrinfo info;
+		struct rib_cmd_info rc;
 
 		bzero((caddr_t)&mask, sizeof(mask));
 		sin = mask;
@@ -474,10 +477,14 @@ nfs_mountroot(struct mount *mp)
                 /* XXX MRT use table 0 for this sort of thing */
 		NET_EPOCH_ENTER(et);
 		CURVNET_SET(TD_TO_VNET(td));
-		error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&sin,
-		    (struct sockaddr *)&nd->mygateway,
-		    (struct sockaddr *)&mask,
-		    RTF_UP | RTF_GATEWAY, NULL, RT_DEFAULT_FIB);
+
+		bzero((caddr_t)&info, sizeof(info));
+		info.rti_flags = RTF_UP | RTF_GATEWAY;
+		info.rti_info[RTAX_DST] = (struct sockaddr *)&sin;
+		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&nd->mygateway;
+		info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&mask;
+
+		error = rib_action(RT_DEFAULT_FIB, RTM_ADD, &info, &rc);
 		CURVNET_RESTORE();
 		NET_EPOCH_EXIT(et);
 		if (error)
