@@ -285,9 +285,9 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	int error;
-	u_int sectorsize;
+	u_int sectorsize, psectorsize;
 	uint64_t blksize64;
-	off_t mediasize;
+	off_t mediasize, stripesize;
 
 	error = fget(td, args->fd, &cap_ioctl_rights, &fp);
 	if (error != 0)
@@ -327,6 +327,27 @@ linux_ioctl_disk(struct thread *td, struct linux_ioctl_args *args)
 		return (copyout(&sectorsize, (void *)args->arg,
 		    sizeof(sectorsize)));
 		break;
+	case LINUX_BLKPBSZGET:
+		error = fo_ioctl(fp, DIOCGSTRIPESIZE,
+		    (caddr_t)&stripesize, td->td_ucred, td);
+		if (error != 0) {
+			fdrop(fp, td);
+			return (error);
+		}
+		if (stripesize > 0 && stripesize <= 4096) {
+			psectorsize = stripesize;
+		} else  {
+			error = fo_ioctl(fp, DIOCGSECTORSIZE,
+			    (caddr_t)&sectorsize, td->td_ucred, td);
+			if (error != 0) {
+				fdrop(fp, td);
+				return (error);
+			}
+			psectorsize = sectorsize;
+		}
+		fdrop(fp, td);
+		return (copyout(&psectorsize, (void *)args->arg,
+		    sizeof(psectorsize)));
 	}
 	fdrop(fp, td);
 	return (ENOIOCTL);
