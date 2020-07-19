@@ -705,7 +705,8 @@ nvme_opc_delete_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 	uint16_t qid = command->cdw10 & 0xffff;
 
 	DPRINTF("%s DELETE_IO_SQ %u", __func__, qid);
-	if (qid == 0 || qid > sc->num_squeues) {
+	if (qid == 0 || qid > sc->num_squeues ||
+	    (sc->submit_queues[qid].qbase == NULL)) {
 		WPRINTF("%s NOT PERMITTED queue id %u / num_squeues %u",
 		        __func__, qid, sc->num_squeues);
 		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
@@ -714,6 +715,7 @@ nvme_opc_delete_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 	}
 
 	sc->submit_queues[qid].qbase = NULL;
+	sc->submit_queues[qid].cqid = 0;
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
 	return (1);
 }
@@ -726,7 +728,8 @@ nvme_opc_create_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		uint16_t qid = command->cdw10 & 0xffff;
 		struct nvme_submission_queue *nsq;
 
-		if ((qid == 0) || (qid > sc->num_squeues)) {
+		if ((qid == 0) || (qid > sc->num_squeues) ||
+		    (sc->submit_queues[qid].qbase != NULL)) {
 			WPRINTF("%s queue index %u > num_squeues %u",
 			        __func__, qid, sc->num_squeues);
 			pci_nvme_status_tc(&compl->status,
@@ -737,11 +740,38 @@ nvme_opc_create_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 
 		nsq = &sc->submit_queues[qid];
 		nsq->size = ONE_BASED((command->cdw10 >> 16) & 0xffff);
+		DPRINTF("%s size=%u (max=%u)", __func__, nsq->size, sc->max_qentries);
+		if ((nsq->size < 2) || (nsq->size > sc->max_qentries)) {
+			/*
+			 * Queues must specify at least two entries
+			 * NOTE: "MAXIMUM QUEUE SIZE EXCEEDED" was renamed to
+			 * "INVALID QUEUE SIZE" in the NVM Express 1.3 Spec
+			 */
+			pci_nvme_status_tc(&compl->status,
+			    NVME_SCT_COMMAND_SPECIFIC,
+			    NVME_SC_MAXIMUM_QUEUE_SIZE_EXCEEDED);
+			return (1);
+		}
+
+		nsq->cqid = (command->cdw11 >> 16) & 0xffff;
+		if ((nsq->cqid == 0) || (nsq->cqid > sc->num_cqueues)) {
+			pci_nvme_status_tc(&compl->status,
+			    NVME_SCT_COMMAND_SPECIFIC,
+			    NVME_SC_INVALID_QUEUE_IDENTIFIER);
+			return (1);
+		}
+
+		if (sc->compl_queues[nsq->cqid].qbase == NULL) {
+			pci_nvme_status_tc(&compl->status,
+			    NVME_SCT_COMMAND_SPECIFIC,
+			    NVME_SC_COMPLETION_QUEUE_INVALID);
+			return (1);
+		}
+
+		nsq->qpriority = (command->cdw11 >> 1) & 0x03;
 
 		nsq->qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
 		              sizeof(struct nvme_command) * (size_t)nsq->size);
-		nsq->cqid = (command->cdw11 >> 16) & 0xffff;
-		nsq->qpriority = (command->cdw11 >> 1) & 0x03;
 
 		DPRINTF("%s sq %u size %u gaddr %p cqid %u", __func__,
 		        qid, nsq->size, nsq->qbase, nsq->cqid);
@@ -768,15 +798,26 @@ nvme_opc_delete_io_cq(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
 	uint16_t qid = command->cdw10 & 0xffff;
+	uint16_t sqid;
 
 	DPRINTF("%s DELETE_IO_CQ %u", __func__, qid);
-	if (qid == 0 || qid > sc->num_cqueues) {
+	if (qid == 0 || qid > sc->num_cqueues ||
+	    (sc->compl_queues[qid].qbase == NULL)) {
 		WPRINTF("%s queue index %u / num_cqueues %u",
 		        __func__, qid, sc->num_cqueues);
 		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
 		    NVME_SC_INVALID_QUEUE_IDENTIFIER);
 		return (1);
 	}
+
+	/* Deleting an Active CQ is an error */
+	for (sqid = 1; sqid < sc->num_squeues + 1; sqid++)
+		if (sc->submit_queues[sqid].cqid == qid) {
+			pci_nvme_status_tc(&compl->status,
+			    NVME_SCT_COMMAND_SPECIFIC,
+			    NVME_SC_INVALID_QUEUE_DELETION);
+			return (1);
+		}
 
 	sc->compl_queues[qid].qbase = NULL;
 	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
@@ -787,41 +828,57 @@ static int
 nvme_opc_create_io_cq(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
+	struct nvme_completion_queue *ncq;
+	uint16_t qid = command->cdw10 & 0xffff;
 
-	if (command->cdw11 & NVME_CMD_CDW11_PC) {
-		uint16_t qid = command->cdw10 & 0xffff;
-		struct nvme_completion_queue *ncq;
-
-		if ((qid == 0) || (qid > sc->num_cqueues)) {
-			WPRINTF("%s queue index %u > num_cqueues %u",
-			        __func__, qid, sc->num_cqueues);
-			pci_nvme_status_tc(&compl->status,
-			    NVME_SCT_COMMAND_SPECIFIC,
-			    NVME_SC_INVALID_QUEUE_IDENTIFIER);
-			return (1);
-		}
-
-		ncq = &sc->compl_queues[qid];
-		ncq->intr_en = (command->cdw11 & NVME_CMD_CDW11_IEN) >> 1;
-		ncq->intr_vec = (command->cdw11 >> 16) & 0xffff;
-		ncq->size = ONE_BASED((command->cdw10 >> 16) & 0xffff);
-
-		ncq->qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx,
-		             command->prp1,
-		             sizeof(struct nvme_command) * (size_t)ncq->size);
-
-		pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
-	} else {
-		/* 
-		 * Non-contig completion queue unsupported.
-		 */
+	/* Only support Physically Contiguous queues */
+	if ((command->cdw11 & NVME_CMD_CDW11_PC) == 0) {
 		WPRINTF("%s unsupported non-contig (list-based) "
 		         "create i/o completion queue",
 		         __func__);
 
-		/* 0x12 = Invalid Use of Controller Memory Buffer */
-		pci_nvme_status_genc(&compl->status, 0x12);
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return (1);
 	}
+
+	if ((qid == 0) || (qid > sc->num_cqueues) ||
+	    (sc->compl_queues[qid].qbase != NULL)) {
+		WPRINTF("%s queue index %u > num_cqueues %u",
+			__func__, qid, sc->num_cqueues);
+		pci_nvme_status_tc(&compl->status,
+		    NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_INVALID_QUEUE_IDENTIFIER);
+		return (1);
+ 	}
+
+	ncq = &sc->compl_queues[qid];
+	ncq->intr_en = (command->cdw11 & NVME_CMD_CDW11_IEN) >> 1;
+	ncq->intr_vec = (command->cdw11 >> 16) & 0xffff;
+	if (ncq->intr_vec > (sc->max_queues + 1)) {
+		pci_nvme_status_tc(&compl->status,
+		    NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_INVALID_INTERRUPT_VECTOR);
+		return (1);
+	}
+
+	ncq->size = ONE_BASED((command->cdw10 >> 16) & 0xffff);
+	if ((ncq->size < 2) || (ncq->size > sc->max_qentries))  {
+		/*
+		 * Queues must specify at least two entries
+		 * NOTE: "MAXIMUM QUEUE SIZE EXCEEDED" was renamed to
+		 * "INVALID QUEUE SIZE" in the NVM Express 1.3 Spec
+		 */
+		pci_nvme_status_tc(&compl->status,
+		    NVME_SCT_COMMAND_SPECIFIC,
+		    NVME_SC_MAXIMUM_QUEUE_SIZE_EXCEEDED);
+		return (1);
+	}
+	ncq->qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx,
+		     command->prp1,
+		     sizeof(struct nvme_command) * (size_t)ncq->size);
+
+	pci_nvme_status_genc(&compl->status, NVME_SC_SUCCESS);
+
 
 	return (1);
 }
