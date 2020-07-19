@@ -526,17 +526,17 @@ prot_addrf:
 IDTVEC(fast_syscall_pti)
 	swapgs
 	lfence
-	movq	%rax,PCPU(SCRATCH_RAX)
 	cmpq	$~0,PCPU(UCR3)
 	je	fast_syscall_common
+	movq	%rax,PCPU(SCRATCH_RAX)
 	movq	PCPU(KCR3),%rax
 	movq	%rax,%cr3
+	movq	PCPU(SCRATCH_RAX),%rax
 	jmp	fast_syscall_common
 	SUPERALIGN_TEXT
 IDTVEC(fast_syscall)
 	swapgs
 	lfence
-	movq	%rax,PCPU(SCRATCH_RAX)
 fast_syscall_common:
 	movq	%rsp,PCPU(SCRATCH_RSP)
 	movq	PCPU(RSP0),%rsp
@@ -547,7 +547,6 @@ fast_syscall_common:
 	movq	%rcx,TF_RIP(%rsp)	/* %rcx original value is in %r10 */
 	movq	PCPU(SCRATCH_RSP),%r11	/* %r11 already saved */
 	movq	%r11,TF_RSP(%rsp)	/* user stack pointer */
-	movq	PCPU(SCRATCH_RAX),%rax
 	/*
 	 * Save a few arg registers early to free them for use in
 	 * handle_ibrs_entry().  %r10 is especially tricky.  It is not an
