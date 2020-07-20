@@ -1,4 +1,4 @@
-# $Id: init.mk,v 1.16 2019/09/28 16:54:02 sjg Exp $
+# $Id: init.mk,v 1.17 2020/05/25 20:15:07 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
@@ -36,8 +36,27 @@ CXX_SUFFIXES?= .cc .cpp .cxx .C
 .include <warnings.mk>
 .endif
 
-.for x in COPTS CPPFLAGS CPUFLAGS LDFLAGS
-$x += ${$x.${COMPILER_TYPE}:U} ${$x.${.IMPSRC:T}:U}
+# these are applied in order, least specific to most
+VAR_QUALIFIER_LIST += \
+	${TARGET_SPEC_VARS:UMACHINE:@v@${$v}@} \
+	${COMPILER_TYPE} \
+	${.TARGET:T:R} \
+	${.TARGET:T} \
+	${.IMPSRC:T} \
+	${VAR_QUALIFIER_XTRA_LIST}
+
+QUALIFIED_VAR_LIST += \
+	CFLAGS \
+	COPTS \
+	CPPFLAGS \
+	CPUFLAGS \
+	LDFLAGS \
+
+# a final :U avoids errors if someone uses :=
+.for V in ${QUALIFIED_VAR_LIST:O:u:@q@$q $q_LAST@}
+.for Q in ${VAR_QUALIFIER_LIST:u}
+$V += ${$V.$Q:U} ${$V.$Q.${COMPILER_TYPE}:U}
+.endfor
 .endfor
 
 CC_PG?= -pg

@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.28 2020/05/16 23:21:48 sjg Exp $
+	$Id: meta2deps.py,v 1.30 2020/06/08 23:05:00 sjg Exp $
 
 	Copyright (c) 2011-2019, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -81,7 +81,11 @@ def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     if path.endswith('/.'):
         path = path[0:-2]
     if len(path) > 0 and path[0] == '/':
-        return path
+        if os.path.exists(path):
+            return path
+        if debug > 2:
+            print("skipping non-existent:", path, file=debug_out)
+        return None
     if path == '.':
         return cwd
     if path.startswith('./'):
@@ -139,6 +143,8 @@ def abspath(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     rpath = resolve(path, cwd, last_dir, debug, debug_out)
     if rpath:
         path = rpath
+    elif len(path) > 0 and path[0] == '/':
+        return None
     if (path.find('/') < 0 or
         path.find('./') > 0 or
         path.endswith('/..')):
@@ -475,6 +481,10 @@ class MetaFile:
                 continue
             elif w[0] == 'C':
                 cwd = abspath(w[2], cwd, None, self.debug, self.debug_out)
+                if not cwd:
+                    cwd = w[2]
+                    if self.debug > 1:
+                        print("missing cwd=", cwd, file=self.debug_out)
                 if cwd.endswith('/.'):
                     cwd = cwd[0:-2]
                 self.last_dir = pid_last_dir[pid] = cwd
@@ -491,8 +501,8 @@ class MetaFile:
             if w[0] in 'ML':
                 # these are special, tread src as read and
                 # target as write
-                self.parse_path(w[1].strip("'"), cwd, 'R', w)
-                self.parse_path(w[2].strip("'"), cwd, 'W', w)
+                self.parse_path(w[2].strip("'"), cwd, 'R', w)
+                self.parse_path(w[3].strip("'"), cwd, 'W', w)
                 continue
             elif w[0] in 'ERWS':
                 path = w[2]
@@ -563,7 +573,7 @@ class MetaFile:
                     print("ldir=", self.last_dir, file=self.debug_out)
                 return
 
-        if op in 'ERW':
+        if op in 'ER':
             # finally, we get down to it
             if dir == self.cwd or dir == self.curdir:
                 return

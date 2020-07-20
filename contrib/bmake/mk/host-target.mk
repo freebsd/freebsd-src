@@ -1,5 +1,5 @@
 # RCSid:
-#	$Id: host-target.mk,v 1.11 2015/10/25 00:07:20 sjg Exp $
+#	$Id: host-target.mk,v 1.12 2020/07/08 23:35:29 sjg Exp $
 
 # Host platform information; may be overridden
 .if !defined(_HOST_OSNAME)
@@ -37,6 +37,11 @@ HOST_OSTYPE  :=	${_HOST_OSNAME:S,/,,g}-${_HOST_OSREL:C/\([^\)]*\)//}-${_HOST_ARC
 HOST_OS      :=	${_HOST_OSNAME}
 host_os      :=	${_HOST_OSNAME:tl}
 HOST_TARGET  := ${host_os:S,/,,g}${HOST_OSMAJOR}-${_HOST_ARCH}
+# sometimes we want HOST_TARGET32
+MACHINE32.amd64 = i386
+MACHINE32.x86_64 = i386
+_HOST_ARCH32 := ${MACHINE32.${_HOST_ARCH}:U${_HOST_ARCH:S,64$,,}}
+HOST_TARGET32 := ${host_os:S,/,,g}${HOST_OSMAJOR}-${_HOST_ARCH32}
 
 # tr is insanely non-portable, accommodate the lowest common denominator
 TR ?= tr

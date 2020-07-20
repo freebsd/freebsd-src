@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.104 2020/05/16 23:21:48 sjg Exp $
+# $Id: dirdeps.mk,v 1.106 2020/07/11 16:25:17 sjg Exp $
 
 # Copyright (c) 2010-2020, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -507,7 +507,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 # we want to capture the dirdeps count in the cache
 .END: _count_dirdeps
 _count_dirdeps: .NOMETA
-	@echo '.info $${.newline}$${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]}' >&3
+	@{ echo; echo '.info $${.newline}$${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]}'; } >&3
 
 .endif
 .elif !make(dirdeps) && !target(_count_dirdeps)
@@ -644,19 +644,19 @@ _build_all_dirs := ${_build_all_dirs:O:u}
 .if ${.MAKEFLAGS:M-V${_V_READ_DIRDEPS}} == ""
 .if !empty(_build_all_dirs)
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
-# guard against _build_all_dirs being too big for a single command line
-# first get list of dirs that need _DIRDEP_USE
-# then export that and _build_all_dirs
+x!= echo; { echo; echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; } >&3
+# guard against _new_dirdeps being too big for a single command line
 _new_dirdeps := ${_build_all_dirs:@x@${target($x):?:$x}@}
-.export _new_dirdeps _build_all_dirs
-x!= echo; { echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; \
-	echo "dirdeps: \\"; \
-	for x in $$_build_all_dirs; do echo "	$$x \\"; done; echo; \
-	for x in $$_new_dirdeps; do echo "$$x: _DIRDEP_USE"; done; echo; } >&3
+.if !empty(_new_dirdeps)
+.export _new_dirdeps
+x!= echo; { echo; echo "dirdeps: \\"; \
+	for x in $$_new_dirdeps; do echo "	$$x \\"; done; echo; \
+	for x in $$_new_dirdeps; do echo "$$x: _DIRDEP_USE"; done; } >&3
+.endif
 .if !empty(DEP_EXPORT_VARS)
 # Discouraged, but there are always exceptions.
 # Handle it here rather than explain how.
-x!= { echo; ${DEP_EXPORT_VARS:@v@echo '$v=${$v}';@} echo '.export ${DEP_EXPORT_VARS}'; echo; } >&3; echo
+x!= echo; { echo; ${DEP_EXPORT_VARS:@v@echo '$v=${$v}';@} echo '.export ${DEP_EXPORT_VARS}'; echo; } >&3
 .endif
 .else
 # this makes it all happen
@@ -675,6 +675,9 @@ DEP_EXPORT_VARS=
 
 # this builds the dependency graph
 .for m in ${_machines}
+.if ${BUILD_DIRDEPS_CACHE} == "yes" && !empty(_build_dirs)
+x!= echo; { echo; echo "${_this_dir}.$m: \\"; } >&3
+.endif
 # it would be nice to do :N${.TARGET}
 .if !empty(__qual_depdirs)
 .for q in ${__qual_depdirs:${M_dep_qual_fixes:ts:}:E:O:u:N$m}
@@ -683,9 +686,10 @@ DEP_EXPORT_VARS=
 .endif
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
 _cache_deps := ${_build_dirs:M*.$q}
+.if !empty(_cache_deps)
 .export _cache_deps
-x!= echo; { echo "${_this_dir}.$m: \\"; \
-	for x in $$_cache_deps; do echo "	$$x \\"; done; echo; } >&3
+x!= echo; for x in $$_cache_deps; do echo "	$$x \\"; done >&3
+.endif
 .else
 ${_this_dir}.$m: ${_build_dirs:M*.$q}
 .endif
@@ -696,9 +700,10 @@ ${_this_dir}.$m: ${_build_dirs:M*.$q}
 .endif
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
 _cache_deps := ${_build_dirs:M*.$m:N${_this_dir}.$m}
+.if !empty(_cache_deps)
 .export _cache_deps
-x!= echo; { echo "${_this_dir}.$m: \\"; \
-	for x in $$_cache_deps; do echo "       $$x \\"; done; echo; } >&3
+x!= echo; for x in $$_cache_deps; do echo "	$$x \\"; done >&3
+.endif
 .else
 ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 .endif

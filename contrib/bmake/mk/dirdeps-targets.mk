@@ -1,7 +1,7 @@
 # RCSid:
-#       $Id: dirdeps-targets.mk,v 1.9 2019/10/06 20:07:50 sjg Exp $
+#       $Id: dirdeps-targets.mk,v 1.10 2020/06/06 22:41:02 sjg Exp $
 #
-#       @(#) Copyright (c) 2019 Simon J. Gerraty
+#       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
 #       This file is provided in the hope that it will
 #       be of use.  There is absolutely NO WARRANTY.
@@ -37,8 +37,11 @@ DIRDEPS_TARGETS_DIRS ?= targets targets/pseudo
 # they need to be stripped when looking for target dirs
 DIRDEPS_TARGETS_PREFIX_LIST ?= pkg- build-
 
+# some .TARGETS need filtering
+DIRDEPS_TARGETS_FILTER += Nall
+
 # matching target dirs if any
-tdirs := ${.TARGETS:Nall:${DIRDEPS_TARGETS_PREFIX_LIST:@p@S,^$p,,@:ts:}:@t@${DIRDEPS_TARGETS_DIRS:@d@$d/$t@}@:@d@${exists(${SRCTOP}/$d):?$d:}@}
+tdirs := ${.TARGETS:${DIRDEPS_TARGETS_FILTER:ts:}:${DIRDEPS_TARGETS_PREFIX_LIST:@p@S,^$p,,@:ts:}:@t@${DIRDEPS_TARGETS_DIRS:@d@$d/$t@}@:@d@${exists(${SRCTOP}/$d):?$d:}@}
 
 .if !empty(DEBUG_DIRDEPS_TARGETS)
 .info tdirs=${tdirs}

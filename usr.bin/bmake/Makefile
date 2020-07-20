@@ -12,7 +12,7 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.104 2020/02/06 01:33:54 sjg Exp $
+#	$Id: Makefile,v 1.107 2020/06/07 21:18:46 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 
@@ -123,7 +123,7 @@ MAN1= ${MAN}
 .if (${PROG} != "make")
 CLEANFILES+= my.history
 .if make(${MAN}) || !exists(${srcdir}/${MAN})
-my.history: ${MAKEFILE}
+my.history:
 	@(echo ".Nm"; \
 	echo "is derived from NetBSD"; \
 	echo ".Xr make 1 ."; \

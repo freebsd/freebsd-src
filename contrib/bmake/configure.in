@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.63 2020/04/19 05:17:57 sjg Exp $
+dnl	$Id: configure.in,v 1.66 2020/07/10 16:34:38 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20200418], [sjg@NetBSD.org])
+AC_INIT([bmake], [20200710], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -60,7 +60,11 @@ AC_ARG_WITH(filemon,
 */filemon.h) filemon_h="${withval}";;
 */filemon*) filemon_h="${withval}/filemon.h";;
 *) AC_MSG_ERROR(bad value ${withval} given for filemon) ;;
-esac],
+esac
+case "$use_filemon,$filemon_h" in
+,*.h) use_filemon=dev;;
+esac
+],
 [
 case "$OS" in
 NetBSD) filemon_h=no use_filemon=ktrace;;
@@ -100,7 +104,8 @@ dnl see _EXTENSIONS_ we use it.
 AC_USE_SYSTEM_EXTENSIONS
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_GCC_TRADITIONAL
+AC_PROG_CC_C99
+dnl AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 dnl Executable suffix - normally empty; .exe on os2.
 AC_SUBST(ac_exe_suffix)dnl
@@ -123,7 +128,7 @@ dnl AC_C_CROSS
 dnl
 
 dnl Checks for header files.
-AC_HEADER_STDC
+AC_INCLUDES_DEFAULT
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 dnl Keep this list sorted
@@ -144,13 +149,11 @@ AC_CHECK_HEADERS( \
 	paths.h \
 	poll.h \
 	ranlib.h \
-	string.h \
 	sys/mman.h \
 	sys/select.h \
 	sys/socket.h \
 	sys/time.h \
 	sys/uio.h \
-	unistd.h \
 	utime.h \
 	)
 

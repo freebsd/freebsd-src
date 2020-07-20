@@ -1,4 +1,4 @@
-/*	$NetBSD: lstOpen.c,v 1.12 2008/12/13 15:19:29 dsl Exp $	*/
+/*	$NetBSD: lstOpen.c,v 1.13 2020/07/03 08:37:57 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -33,14 +33,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: lstOpen.c,v 1.12 2008/12/13 15:19:29 dsl Exp $";
+static char rcsid[] = "$NetBSD: lstOpen.c,v 1.13 2020/07/03 08:37:57 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)lstOpen.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: lstOpen.c,v 1.12 2008/12/13 15:19:29 dsl Exp $");
+__RCSID("$NetBSD: lstOpen.c,v 1.13 2020/07/03 08:37:57 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -76,12 +76,11 @@ ReturnStatus
 Lst_Open(Lst l)
 {
 	if (LstValid (l) == FALSE) {
-		return (FAILURE);
+		return FAILURE;
 	}
 	(l)->isOpen = TRUE;
 	(l)->atEnd = LstIsEmpty (l) ? Head : Unknown;
 	(l)->curPtr = NULL;
 
-	return (SUCCESS);
+	return SUCCESS;
 }
-
