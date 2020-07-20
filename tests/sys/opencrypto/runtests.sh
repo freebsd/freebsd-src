@@ -30,7 +30,7 @@
 # $FreeBSD$
 #
 
-: ${PYTHON=python2}
+: ${PYTHON=python3}
 
 if [ ! -d /usr/local/share/nist-kat ]; then
 	echo "1..0 # SKIP: nist-kat package not installed for test vectors"
