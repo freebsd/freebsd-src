@@ -29,6 +29,7 @@ grep=grep
 zcat=zstdcat
 
 endofopts=0
+pattern_file=0
 pattern_found=0
 grep_args=""
 hyphen=0
@@ -75,28 +76,45 @@ while [ $# -gt 0 -a ${endofopts} -eq 0 ]
 do
     case $1 in
     # from GNU grep-2.5.1 -- keep in sync!
-	-[ABCDXdefm])
+	--)
+	    shift
+	    endofopts=1
+	    ;;
+	--file=*)
+	    pattern_file=1
+	    grep_args="${grep_args} ${1}"
+	    shift
+	    ;;
+	--regexp=*)
+	    pattern="${1#--regexp=}"
+	    pattern_found=1
+	    shift
+	    ;;
+	--*)
+	    grep_args="${grep_args} $1"
+	    shift
+	    ;;
+	-*[ABCDXdefm])
 	    if [ $# -lt 2 ]
 		then
 		echo "${prg}: missing argument for $1 flag" >&2
 		exit 1
 	    fi
 	    case $1 in
-		-e)
+		-*e)
 		    pattern="$2"
 		    pattern_found=1
 		    shift 2
-		    break
+		    continue
+		    ;;
+		-*f)
+		    pattern_file=1
 		    ;;
 		*)
 		    ;;
 	    esac
 	    grep_args="${grep_args} $1 $2"
 	    shift 2
-	    ;;
-	--)
-	    shift
-	    endofopts=1
 	    ;;
 	-)
 	    hyphen=1
@@ -125,7 +143,7 @@ do
 done
 
 # if no -e option was found, take next argument as grep-pattern
-if [ ${pattern_found} -lt 1 ]
+if [ ${pattern_file} -eq 0 -a ${pattern_found} -eq 0 ]
 then
     if [ $# -ge 1 ]; then
 	pattern="$1"
@@ -136,6 +154,7 @@ then
 	echo "${prg}: missing pattern" >&2
 	exit 1
     fi
+    pattern_found=1
 fi
 
 ret=0
@@ -143,15 +162,24 @@ ret=0
 if [ $# -lt 1 ]
 then
     # ... on stdin
-    ${cattool} ${catargs} - | ${grep} ${grep_args} -- "${pattern}" - || ret=$?
+    if [ ${pattern_file} -eq 0 ]; then
+	${cattool} ${catargs} - | ${grep} ${grep_args} -- "${pattern}" - || ret=$?
+    else
+	${cattool} ${catargs} - | ${grep} ${grep_args} -- - || ret=$?
+    fi
 else
     # ... on all files given on the command line
     if [ ${silent} -lt 1 -a $# -gt 1 ]; then
 	grep_args="-H ${grep_args}"
     fi
     for file; do
-	${cattool} ${catargs} -- "${file}" |
-	    ${grep} --label="${file}" ${grep_args} -- "${pattern}" - || ret=$?
+	if [ ${pattern_file} -eq 0 ]; then
+	    ${cattool} ${catargs} -- "${file}" |
+		${grep} --label="${file}" ${grep_args} -- "${pattern}" - || ret=$?
+	else
+	    ${cattool} ${catargs} -- "${file}" |
+		${grep} --label="${file}" ${grep_args} -- - || ret=$?
+	fi
     done
 fi
 

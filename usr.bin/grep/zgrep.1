@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2018
+.Dd July 20, 2020
 .Dt ZGREP 1
 .Os
 .Sh NAME
@@ -86,9 +86,29 @@ to read compressed files.
 .Sh SEE ALSO
 .Xr bzip2 1 ,
 .Xr grep 1 ,
-.Xr xz 1
+.Xr gzip 1 ,
+.Xr xz 1 ,
+.Xr zstd 1
 .Sh AUTHORS
 This version of the
 .Nm
 utility was written by
 .An Thomas Klausner Aq Mt wiz@NetBSD.org .
+.Sh BUGS
+.Xr zgrep 1
+does not handle flags that take arguments if there is no whitespace
+between the flag and the argument, for example:
+.Pp
+.Dl "zgrep -enfs /etc/rpc"
+.Pp
+When more than one
+.Fl e
+flag is used matching
+should occur for any of the patterns (similar to multiple patterns
+supplied in a file with the
+.Fl f
+flag).
+.Xr zgrep 1
+only matches the last
+.Fl e
+pattern.
