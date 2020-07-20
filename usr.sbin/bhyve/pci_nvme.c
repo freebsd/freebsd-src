@@ -618,6 +618,10 @@ pci_nvme_init_features(struct pci_nvme_softc *sc)
 	sc->feat[NVME_FEAT_NUMBER_OF_QUEUES].set = nvme_feature_num_queues;
 	sc->feat[NVME_FEAT_INTERRUPT_VECTOR_CONFIGURATION].set =
 	    nvme_feature_iv_config;
+	sc->feat[NVME_FEAT_PREDICTABLE_LATENCY_MODE_CONFIG].get =
+	    nvme_feature_invalid_cb;
+	sc->feat[NVME_FEAT_PREDICTABLE_LATENCY_MODE_WINDOW].get =
+	    nvme_feature_invalid_cb;
 }
 
 static void
