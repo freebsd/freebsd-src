@@ -1789,7 +1789,7 @@ dsl_scan_visitbp(blkptr_t *bp, const zbookmark_phys_t *zb,
 	*bp_toread = *bp;
 
 	if (dsl_scan_recurse(scn, ds, ostype, dnp, bp_toread, zb, tx) != 0)
-		return;
+		goto out;
 
 	/*
 	 * If dsl_scan_ddt() has already visited this block, it will have
