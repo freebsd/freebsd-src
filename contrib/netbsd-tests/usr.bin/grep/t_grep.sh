@@ -214,6 +214,89 @@ zgrep_body()
 	atf_check -o file:"$(atf_get_srcdir)/d_zgrep.out" zgrep -h line d_input.gz
 }
 
+atf_test_case zgrep_combined_flags
+zgrep_combined_flags_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper problems with combined flags (PR 247126)"
+}
+zgrep_combined_flags_body()
+{
+	atf_expect_fail "known but unsolved zgrep wrapper script regression"
+
+	echo 'foo bar' > test
+
+	atf_check -o inline:"foo bar\n" zgrep -we foo test
+	# Avoid hang on reading from stdin in the failure case
+	atf_check -o inline:"foo bar\n" zgrep -wefoo test < /dev/null
+}
+
+atf_test_case zgrep_eflag
+zgrep_eflag_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper problems with -e PATTERN (PR 247126)"
+}
+zgrep_eflag_body()
+{
+	echo 'foo bar' > test
+
+	# Avoid hang on reading from stdin in the failure case
+	atf_check -o inline:"foo bar\n" zgrep -e 'foo bar' test < /dev/null
+	atf_check -o inline:"foo bar\n" zgrep --regexp='foo bar' test < /dev/null
+}
+
+atf_test_case zgrep_fflag
+zgrep_fflag_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper problems with -f FILE (PR 247126)"
+}
+zgrep_fflag_body()
+{
+	echo foo > pattern
+	echo foobar > test
+
+	# Avoid hang on reading from stdin in the failure case
+	atf_check -o inline:"foobar\n" zgrep -f pattern test </dev/null
+	atf_check -o inline:"foobar\n" zgrep --file=pattern test </dev/null
+}
+
+atf_test_case zgrep_long_eflag
+zgrep_long_eflag_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper problems with --ignore-case reading from stdin (PR 247126)"
+}
+zgrep_long_eflag_body()
+{
+	echo foobar > test
+
+	atf_check -o inline:"foobar\n" zgrep -e foo --ignore-case < test
+}
+
+atf_test_case zgrep_multiple_eflags
+zgrep_multiple_eflags_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper problems with multiple -e flags (PR 247126)"
+}
+zgrep_multiple_eflags_body()
+{
+	atf_expect_fail "known but unsolved zgrep wrapper script regression"
+
+	echo foobar > test
+
+	atf_check -o inline:"foobar\n" zgrep -e foo -e xxx test
+}
+
+atf_test_case zgrep_empty_eflag
+zgrep_empty_eflag_head()
+{
+	atf_set "descr" "Checks for zgrep wrapper problems with empty -e flags pattern (PR 247126)"
+}
+zgrep_empty_eflag_body()
+{
+	echo foobar > test
+
+	atf_check -o inline:"foobar\n" zgrep -e '' test
+}
+
 atf_test_case nonexistent
 nonexistent_head()
 {
@@ -826,6 +909,12 @@ atf_init_test_cases()
 	atf_add_test_case file_exp
 	atf_add_test_case egrep
 	atf_add_test_case zgrep
+	atf_add_test_case zgrep_combined_flags
+	atf_add_test_case zgrep_eflag
+	atf_add_test_case zgrep_empty_eflag
+	atf_add_test_case zgrep_fflag
+	atf_add_test_case zgrep_long_eflag
+	atf_add_test_case zgrep_multiple_eflags
 	atf_add_test_case nonexistent
 	atf_add_test_case context2
 # Begin FreeBSD
