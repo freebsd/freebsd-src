@@ -894,10 +894,6 @@ ext2_add_first_entry(struct vnode *dvp, struct ext2fs_direct_2 *entry,
 		entry->e2d_reclen = htole16(dirblksize -
 		    sizeof(struct ext2fs_direct_tail));
 		buf = malloc(dirblksize, M_TEMP, M_WAITOK);
-		if (!buf) {
-			error = ENOMEM;
-			goto out;
-		}
 		memcpy(buf, entry, EXT2_DIR_REC_LEN(entry->e2d_namlen));
 		ext2_init_dirent_tail(EXT2_DIRENT_TAIL(buf, dirblksize));
 		ext2_dirent_csum_set(dp, (struct ext2fs_direct_2 *)buf);
