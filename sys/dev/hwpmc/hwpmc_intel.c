@@ -94,8 +94,8 @@ pmc_intel_initialize(void)
 	model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
 	stepping = cpu_id & 0xF;
 
-	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "GenuineIntel-%d-%02X",
-			 (cpu_id & 0xF00) >> 8, model);
+	snprintf(pmc_cpuid, sizeof(pmc_cpuid), "GenuineIntel-%d-%02X-%X",
+			 (cpu_id & 0xF00) >> 8, model, stepping);
 	switch (cpu_id & 0xF00) {
 	case 0x600:		/* Pentium Pro, Celeron, Pentium II & III */
 		switch (model) {
