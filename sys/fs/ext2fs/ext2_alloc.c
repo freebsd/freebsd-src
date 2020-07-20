@@ -425,9 +425,6 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	}
 
 	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
-	if (ip == NULL) {
-		return (ENOMEM);
-	}
 
 	/* Allocate a new vnode/inode. */
 	if ((error = getnewvnode("ext2fs", ump->um_mountp, &ext2_vnodeops, &vp)) != 0) {
