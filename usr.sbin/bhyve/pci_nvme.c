@@ -1144,8 +1144,9 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 	case 0x02: /* list of 1024 active NSIDs > CDW1.NSID */
 		dest = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
 		                  sizeof(uint32_t) * 1024);
+		/* All unused entries shall be zero */
+		bzero(dest, sizeof(uint32_t) * 1024);
 		((uint32_t *)dest)[0] = 1;
-		((uint32_t *)dest)[1] = 0;
 		break;
 	case 0x03: /* list of NSID structures in CDW1.NSID, 4096 bytes */
 		if (command->nsid != 1) {
