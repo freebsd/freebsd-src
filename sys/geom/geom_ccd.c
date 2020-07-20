@@ -917,7 +917,7 @@ g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 	} else if (!strcmp(verb, "destroy geom")) {
 		gp = gctl_get_geom(req, mp, "geom");
 		if (gp != NULL)
-		g_ccd_destroy_geom(req, mp, gp);
+			g_ccd_destroy_geom(req, mp, gp);
 	} else if (!strcmp(verb, "list")) {
 		g_ccd_list(req, mp);
 	} else {
