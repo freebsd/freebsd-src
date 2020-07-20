@@ -322,9 +322,6 @@ ext4_ext_fill_path_bdata(struct ext4_extent_path *path,
 	    ("ext4_ext_fill_path_bdata: bad ep_data"));
 
 	path->ep_data = malloc(bp->b_bufsize, M_EXT2EXTENTS, M_WAITOK);
-	if (!path->ep_data)
-		return (ENOMEM);
-
 	memcpy(path->ep_data, bp->b_data, bp->b_bufsize);
 	path->ep_blk = blk;
 
@@ -397,9 +394,6 @@ ext4_ext_find_extent(struct inode *ip, daddr_t block,
 		path = malloc(EXT4_EXT_DEPTH_MAX *
 		    sizeof(struct ext4_extent_path),
 		    M_EXT2EXTENTS, M_WAITOK | M_ZERO);
-		if (!path)
-			return (ENOMEM);
-
 		*ppath = path;
 		alloc = 1;
 	}
@@ -762,8 +756,6 @@ ext4_ext_split(struct inode *ip, struct ext4_extent_path *path,
 	/* Allocate new blocks. */
 	ablks = malloc(sizeof(e4fs_daddr_t) * depth,
 	    M_EXT2EXTENTS, M_WAITOK | M_ZERO);
-	if (!ablks)
-		return (ENOMEM);
 	for (a = 0; a < depth - at; a++) {
 		newblk = ext4_ext_alloc_meta(ip);
 		if (newblk == 0)
@@ -1517,9 +1509,6 @@ ext4_ext_remove_space(struct inode *ip, off_t length, int flags,
 
 	path = malloc(sizeof(struct ext4_extent_path) * (depth + 1),
 	    M_EXT2EXTENTS, M_WAITOK | M_ZERO);
-	if (!path)
-		return (ENOMEM);
-
 	path[0].ep_header = ehp;
 	path[0].ep_depth = depth;
 	i = 0;
