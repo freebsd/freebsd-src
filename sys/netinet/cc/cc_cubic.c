@@ -473,3 +473,4 @@ cubic_ssthresh_update(struct cc_var *ccv)
 
 
 DECLARE_CC_MODULE(cubic, &cubic_cc_algo);
+MODULE_VERSION(cubic, 1);
