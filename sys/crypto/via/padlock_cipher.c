@@ -124,7 +124,7 @@ padlock_cipher_setup(struct padlock_session *ses,
 {
 	union padlock_cw *cw;
 
-	if (csp->csp_cipher_klen != 16 && csp->csp_cipher_klen != 25 &&
+	if (csp->csp_cipher_klen != 16 && csp->csp_cipher_klen != 24 &&
 	    csp->csp_cipher_klen != 32) {
 		return (EINVAL);
 	}
