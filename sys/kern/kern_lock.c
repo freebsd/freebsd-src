@@ -140,7 +140,7 @@ LK_CAN_SHARE(uintptr_t x, int flags, bool fp)
 #define	lockmgr_xlocked_v(v)						\
 	(((v) & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
 
-#define	lockmgr_xlocked(lk) lockmgr_xlocked_v((lk)->lk_lock)
+#define	lockmgr_xlocked(lk) lockmgr_xlocked_v(lockmgr_read_value(lk))
 
 static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
@@ -233,7 +233,7 @@ static void
 lockmgr_note_exclusive_release(struct lock *lk, const char *file, int line)
 {
 
-	if (LK_HOLDER(lk->lk_lock) != LK_KERNPROC) {
+	if (LK_HOLDER(lockmgr_read_value(lk)) != LK_KERNPROC) {
 		WITNESS_UNLOCK(&lk->lock_object, LOP_EXCLUSIVE, file, line);
 		TD_LOCKS_DEC(curthread);
 	}
@@ -246,7 +246,7 @@ lockmgr_xholder(const struct lock *lk)
 {
 	uintptr_t x;
 
-	x = lk->lk_lock;
+	x = lockmgr_read_value(lk);
 	return ((x & LK_SHARE) ? NULL : (struct thread *)LK_HOLDER(x));
 }
 
@@ -309,7 +309,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 
 	wakeup_swapper = 0;
 	for (;;) {
-		x = lk->lk_lock;
+		x = lockmgr_read_value(lk);
 		if (lockmgr_sunlock_try(lk, &x))
 			break;
 
@@ -318,7 +318,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 		 * path in order to handle wakeups correctly.
 		 */
 		sleepq_lock(&lk->lock_object);
-		orig_x = lk->lk_lock;
+		orig_x = lockmgr_read_value(lk);
 retry_sleepq:
 		x = orig_x & (LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS);
 		v = LK_UNLOCKED;
@@ -515,7 +515,7 @@ lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags, bool fp)
 	 * waiters, if we fail to acquire the shared lock
 	 * loop back and retry.
 	 */
-	*xp = lk->lk_lock;
+	*xp = lockmgr_read_value(lk);
 	while (LK_CAN_SHARE(*xp, flags, fp)) {
 		if (atomic_fcmpset_acq_ptr(&lk->lk_lock, xp,
 		    *xp + LK_ONE_SHARER)) {
@@ -603,7 +603,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * probabilly will need to manipulate waiters flags.
 		 */
 		sleepq_lock(&lk->lock_object);
-		x = lk->lk_lock;
+		x = lockmgr_read_value(lk);
 retry_sleepq:
 
 		/*
@@ -772,7 +772,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * probabilly will need to manipulate waiters flags.
 		 */
 		sleepq_lock(&lk->lock_object);
-		x = lk->lk_lock;
+		x = lockmgr_read_value(lk);
 retry_sleepq:
 
 		/*
@@ -889,7 +889,7 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	tid = (uintptr_t)curthread;
 
 	_lockmgr_assert(lk, KA_SLOCKED, file, line);
-	v = lk->lk_lock;
+	v = lockmgr_read_value(lk);
 	x = v & LK_ALL_WAITERS;
 	v &= LK_EXCLUSIVE_SPINNERS;
 
@@ -970,7 +970,7 @@ lockmgr_lock_flags(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    LOP_EXCLUSIVE, file, line, flags & LK_INTERLOCK ?
 			    ilk : NULL);
 		tid = (uintptr_t)curthread;
-		if (lk->lk_lock == LK_UNLOCKED &&
+		if (lockmgr_read_value(lk) == LK_UNLOCKED &&
 		    atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid)) {
 			lockmgr_note_exclusive_acquire(lk, 0, 0, file, line,
 			    flags);
@@ -1054,7 +1054,7 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 		goto out;
 
 	sleepq_lock(&lk->lock_object);
-	x = lk->lk_lock;
+	x = lockmgr_read_value(lk);
 	v = LK_UNLOCKED;
 
 	/*
@@ -1178,7 +1178,7 @@ lockmgr_unlock(struct lock *lk)
 	line = __LINE__;
 
 	_lockmgr_assert(lk, KA_LOCKED, file, line);
-	x = lk->lk_lock;
+	x = lockmgr_read_value(lk);
 	if (__predict_true(x & LK_SHARE) != 0) {
 		lockmgr_note_shared_release(lk, file, line);
 		if (lockmgr_sunlock_try(lk, &x)) {
@@ -1292,7 +1292,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		 * In order to preserve waiters flags, just spin.
 		 */
 		for (;;) {
-			x = lk->lk_lock;
+			x = lockmgr_read_value(lk);
 			MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
 			x &= LK_ALL_WAITERS;
 			if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid | x,
@@ -1305,7 +1305,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		break;
 	case LK_RELEASE:
 		_lockmgr_assert(lk, KA_LOCKED, file, line);
-		x = lk->lk_lock;
+		x = lockmgr_read_value(lk);
 
 		if (__predict_true(x & LK_SHARE) != 0) {
 			lockmgr_note_shared_release(lk, file, line);
@@ -1359,7 +1359,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 			 * probabilly will need to manipulate waiters flags.
 			 */
 			sleepq_lock(&lk->lock_object);
-			x = lk->lk_lock;
+			x = lockmgr_read_value(lk);
 
 			/*
 			 * if the lock has been released while we spun on
@@ -1545,7 +1545,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 	 * In order to preserve waiters flags, just spin.
 	 */
 	for (;;) {
-		x = lk->lk_lock;
+		x = lockmgr_read_value(lk);
 		MPASS((x & LK_EXCLUSIVE_SPINNERS) == 0);
 		x &= LK_ALL_WAITERS;
 		if (atomic_cmpset_rel_ptr(&lk->lk_lock, tid | x,
@@ -1597,7 +1597,7 @@ lockstatus(const struct lock *lk)
 	int ret;
 
 	ret = LK_SHARED;
-	x = lk->lk_lock;
+	x = lockmgr_read_value(lk);
 	v = LK_HOLDER(x);
 
 	if ((x & LK_SHARE) == 0) {
