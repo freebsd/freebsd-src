@@ -536,13 +536,15 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crp->crp_digest_start = 0;
 		crp->crp_payload_start = sc->sc_alen;
 		crp->crp_payload_length = data_secsize;
-		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 		if ((sc->sc_flags & G_ELI_FLAG_FIRST_KEY) == 0) {
 			crp->crp_cipher_key = g_eli_key_hold(sc, dstoff,
 			    encr_secsize);
 		}
-		g_eli_crypto_ivgen(sc, dstoff, crp->crp_iv,
-		    sizeof(crp->crp_iv));
+		if (g_eli_ivlen(sc->sc_ealgo) != 0) {
+			crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
+			g_eli_crypto_ivgen(sc, dstoff, crp->crp_iv,
+			sizeof(crp->crp_iv));
+		}
 
 		g_eli_auth_keygen(sc, dstoff, authkey);
 		crp->crp_auth_key = authkey;
