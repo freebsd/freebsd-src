@@ -2794,7 +2794,7 @@ moea64_unmapdev(mmu_t mmu, vm_offset_t va, vm_size_t size)
 	offset = va & PAGE_MASK;
 	size = roundup2(offset + size, PAGE_SIZE);
 
-	moea64_qremove(base, atop(size));
+	moea64_qremove(mmu, base, atop(size));
 	kva_free(base, size);
 }
 
