@@ -1564,6 +1564,7 @@ nd6_free_redirect(const struct llentry *ln)
 	int fibnum;
 	struct sockaddr_in6 sin6;
 	struct rt_addrinfo info;
+	struct rib_cmd_info rc;
 	struct epoch_tracker et;
 
 	lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
@@ -1573,7 +1574,7 @@ nd6_free_redirect(const struct llentry *ln)
 
 	NET_EPOCH_ENTER(et);
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
-		rtrequest1_fib(RTM_DELETE, &info, NULL, fibnum);
+		rib_action(fibnum, RTM_DELETE, &info, &rc);
 	NET_EPOCH_EXIT(et);
 }
 
