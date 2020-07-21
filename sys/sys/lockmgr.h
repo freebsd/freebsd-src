@@ -119,6 +119,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 /*
  * Define aliases in order to complete lockmgr KPI.
  */
+#define	lockmgr_read_value(lk)	((lk)->lk_lock)
 #define	lockmgr(lk, flags, ilk)						\
 	_lockmgr_args((lk), (flags), (ilk), LK_WMESG_DEFAULT,		\
 	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, LOCK_FILE, LOCK_LINE)
