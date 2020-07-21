@@ -28,7 +28,7 @@
 .\"	@(#)netstat.1	8.8 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2018
+.Dd July 21, 2020
 .Dt NETSTAT 1
 .Os
 .Sh NAME
@@ -744,7 +744,6 @@ The flags field shows available ISR handlers:
 .It Li F Ta Dv NETISR_SNP_FLAGS_M2FLOW Ta "Able to map mbuf to flow id"
 .El
 .El
-.Pp
 .Ss GENERAL OPTIONS
 Some options have the general meaning:
 .Bl -tag -width flag
@@ -798,6 +797,28 @@ Normally
 attempts to resolve addresses and ports,
 and display them symbolically.
 .El
+.Sh EXAMPLES
+Show packet traffic information (packets, bytes, errors, packet drops, etc) for
+interface re0 updated every 2 seconds and exit after 5 outputs:
+.Bd -literal -offset indent
+$ netstat -w 2 -q 5 -I re0
+.Ed
+.Pp
+Show statistics for ICMP on any interface:
+.Bd -literal -offset indent
+$ netstat -s -p icmp
+.Ed
+.Pp
+Show routing tables:
+.Bd -literal -offset indent
+$ netstat -r
+.Ed
+.Pp
+Same as above, but without resolving numeric addresses and port numbers to
+names:
+.Bd -literal -offset indent
+$ netstat -rn
+.Ed
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr nfsstat 1 ,
