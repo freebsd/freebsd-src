@@ -736,6 +736,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 			panic("%s: recursing on non recursive lockmgr %p "
 			    "@ %s:%d\n", __func__, lk, file, line);
 		}
+		atomic_set_ptr(&lk->lk_lock, LK_WRITER_RECURSED);
 		lk->lk_recurse++;
 		LOCK_LOG2(lk, "%s: %p recursing", __func__, lk);
 		LOCK_LOG_LOCK("XLOCK", &lk->lock_object, 0,
@@ -1039,9 +1040,11 @@ lockmgr_xunlock_hard(struct lock *lk, uintptr_t x, u_int flags, struct lock_obje
 	 * The lock is held in exclusive mode.
 	 * If the lock is recursed also, then unrecurse it.
 	 */
-	if (lockmgr_xlocked_v(x) && lockmgr_recursed(lk)) {
+	if (lockmgr_recursed_v(x)) {
 		LOCK_LOG2(lk, "%s: %p unrecursing", __func__, lk);
 		lk->lk_recurse--;
+		if (lk->lk_recurse == 0)
+			atomic_clear_ptr(&lk->lk_lock, LK_WRITER_RECURSED);
 		goto out;
 	}
 	if (tid != LK_KERNPROC)
@@ -1187,9 +1190,8 @@ lockmgr_unlock(struct lock *lk)
 	} else {
 		tid = (uintptr_t)curthread;
 		lockmgr_note_exclusive_release(lk, file, line);
-		if (!lockmgr_recursed(lk) &&
-		    atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED)) {
-			LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk, LOCKSTAT_WRITER);
+		if (x == tid && atomic_cmpset_rel_ptr(&lk->lk_lock, tid, LK_UNLOCKED)) {
+			LOCKSTAT_PROFILE_RELEASE_RWLOCK(lockmgr__release, lk,LOCKSTAT_WRITER);
 		} else {
 			return (lockmgr_xunlock_hard(lk, x, LK_RELEASE, NULL, file, line));
 		}
