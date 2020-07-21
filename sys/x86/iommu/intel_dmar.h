@@ -34,7 +34,7 @@
 #ifndef __X86_IOMMU_INTEL_DMAR_H
 #define	__X86_IOMMU_INTEL_DMAR_H
 
-#include <sys/iommu.h>
+#include <dev/iommu/iommu.h>
 
 struct dmar_unit;
 

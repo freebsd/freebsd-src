@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/interrupt.h>
-#include <sys/iommu.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -68,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
 #include <dev/iommu/busdma_iommu.h>
+#include <dev/iommu/iommu.h>
 #include <x86/iommu/intel_dmar.h>
 #endif
 
