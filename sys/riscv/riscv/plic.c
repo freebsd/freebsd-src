@@ -408,8 +408,7 @@ plic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 	sc = device_get_softc(dev);
 	src = (struct plic_irqsrc *)isrc;
 
-	/* Bind to the boot CPU for now. */
-	CPU_SET(PCPU_GET(cpuid), &isrc->isrc_cpu);
+	CPU_ZERO(&isrc->isrc_cpu);
 	plic_bind_intr(dev, isrc);
 
 	return (0);
