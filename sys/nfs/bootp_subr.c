@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -979,6 +980,8 @@ bootpc_add_default_route(struct bootpc_ifcontext *ifctx)
 	int error;
 	struct sockaddr_in defdst;
 	struct sockaddr_in defmask;
+	struct rt_addrinfo info;
+	struct rib_cmd_info rc;
 
 	if (ifctx->gw.sin_addr.s_addr == htonl(INADDR_ANY))
 		return;
@@ -986,9 +989,14 @@ bootpc_add_default_route(struct bootpc_ifcontext *ifctx)
 	clear_sinaddr(&defdst);
 	clear_sinaddr(&defmask);
 
-	error = rtrequest_fib(RTM_ADD, (struct sockaddr *)&defdst,
-	    (struct sockaddr *) &ifctx->gw, (struct sockaddr *)&defmask,
-	    (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, RT_DEFAULT_FIB);
+	bzero((caddr_t)&info, sizeof(info));
+	info.rti_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
+	info.rti_info[RTAX_DST] = (struct sockaddr *)&defdst;
+	info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&defmask;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&ifctx->gw;
+
+	error = rib_action(RT_DEFAULT_FIB, RTM_ADD, &info, &rc);
+
 	if (error != 0) {
 		printf("%s: RTM_ADD, error=%d\n", __func__, error);
 	}
@@ -1000,6 +1008,8 @@ bootpc_remove_default_route(struct bootpc_ifcontext *ifctx)
 	int error;
 	struct sockaddr_in defdst;
 	struct sockaddr_in defmask;
+	struct rt_addrinfo info;
+	struct rib_cmd_info rc;
 
 	if (ifctx->gw.sin_addr.s_addr == htonl(INADDR_ANY))
 		return;
@@ -1007,9 +1017,13 @@ bootpc_remove_default_route(struct bootpc_ifcontext *ifctx)
 	clear_sinaddr(&defdst);
 	clear_sinaddr(&defmask);
 
-	error = rtrequest_fib(RTM_DELETE, (struct sockaddr *)&defdst,
-	    (struct sockaddr *) &ifctx->gw, (struct sockaddr *)&defmask,
-	    (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, RT_DEFAULT_FIB);
+	bzero((caddr_t)&info, sizeof(info));
+	info.rti_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;
+	info.rti_info[RTAX_DST] = (struct sockaddr *)&defdst;
+	info.rti_info[RTAX_NETMASK] = (struct sockaddr *)&defmask;
+	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&ifctx->gw;
+
+	error = rib_action(RT_DEFAULT_FIB, RTM_DELETE, &info, &rc);
 	if (error != 0) {
 		printf("%s: RTM_DELETE, error=%d\n", __func__, error);
 	}
