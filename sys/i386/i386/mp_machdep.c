@@ -536,13 +536,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
 		other_cpus = mask;
-		while ((cpu = CPU_FFS(&mask)) != 0) {
-			cpu--;
-			CPU_CLR(cpu, &mask);
-			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__,
-			    cpu, vector);
-			ipi_send_cpu(cpu, vector);
-		}
+		ipi_selected(mask, vector);
 	}
 	curcpu_cb(pmap, addr1, addr2);
 	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
