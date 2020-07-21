@@ -878,9 +878,8 @@ static __noinline int
 lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *file, int line, struct lockmgr_wait *lwa)
 {
-	uintptr_t tid, x, v;
+	uintptr_t tid, v, setv;
 	int error = 0;
-	int wakeup_swapper = 0;
 	int op;
 
 	if (KERNEL_PANICKED())
@@ -889,48 +888,47 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	tid = (uintptr_t)curthread;
 
 	_lockmgr_assert(lk, KA_SLOCKED, file, line);
-	v = lockmgr_read_value(lk);
-	x = v & LK_ALL_WAITERS;
-	v &= LK_EXCLUSIVE_SPINNERS;
-
-	/*
-	 * Try to switch from one shared lock to an exclusive one.
-	 * We need to preserve waiters flags during the operation.
-	 */
-	if (atomic_cmpset_ptr(&lk->lk_lock, LK_SHARERS_LOCK(1) | x | v,
-	    tid | x)) {
-		LOCK_LOG_LOCK("XUPGRADE", &lk->lock_object, 0, 0, file,
-		    line);
-		WITNESS_UPGRADE(&lk->lock_object, LOP_EXCLUSIVE |
-		    LK_TRYWIT(flags), file, line);
-		LOCKSTAT_RECORD0(lockmgr__upgrade, lk);
-		TD_SLOCKS_DEC(curthread);
-		goto out;
-	}
 
 	op = flags & LK_TYPE_MASK;
+	v = lockmgr_read_value(lk);
+	for (;;) {
+		if (LK_SHARERS_LOCK(v) > 1) {
+			if (op == LK_TRYUPGRADE) {
+				LOCK_LOG2(lk, "%s: %p failed the nowait upgrade",
+				    __func__, lk);
+				error = EBUSY;
+				goto out;
+			}
+			if (lockmgr_sunlock_try(lk, &v)) {
+				lockmgr_note_shared_release(lk, file, line);
+				goto out_xlock;
+			}
+		}
+		MPASS((v & ~LK_ALL_WAITERS) == LK_SHARERS_LOCK(1));
 
-	/*
-	 * In LK_TRYUPGRADE mode, do not drop the lock,
-	 * returning EBUSY instead.
-	 */
-	if (op == LK_TRYUPGRADE) {
-		LOCK_LOG2(lk, "%s: %p failed the nowait upgrade",
-		    __func__, lk);
-		error = EBUSY;
-		goto out;
+		setv = tid;
+		setv |= (v & LK_ALL_WAITERS);
+
+		/*
+		 * Try to switch from one shared lock to an exclusive one.
+		 * We need to preserve waiters flags during the operation.
+		 */
+		if (atomic_fcmpset_ptr(&lk->lk_lock, &v, setv)) {
+			LOCK_LOG_LOCK("XUPGRADE", &lk->lock_object, 0, 0, file,
+			    line);
+			WITNESS_UPGRADE(&lk->lock_object, LOP_EXCLUSIVE |
+			    LK_TRYWIT(flags), file, line);
+			LOCKSTAT_RECORD0(lockmgr__upgrade, lk);
+			TD_SLOCKS_DEC(curthread);
+			goto out;
+		}
 	}
 
-	/*
-	 * We have been unable to succeed in upgrading, so just
-	 * give up the shared lock.
-	 */
-	lockmgr_note_shared_release(lk, file, line);
-	wakeup_swapper |= wakeupshlk(lk, file, line);
+out_xlock:
 	error = lockmgr_xlock_hard(lk, flags, ilk, file, line, lwa);
 	flags &= ~LK_INTERLOCK;
 out:
-	lockmgr_exit(flags, ilk, wakeup_swapper);
+	lockmgr_exit(flags, ilk, 0);
 	return (error);
 }
 
