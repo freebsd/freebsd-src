@@ -281,13 +281,15 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 
 		crp->crp_payload_start = 0;
 		crp->crp_payload_length = secsize;
-		crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
 		if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0) {
 			crp->crp_cipher_key = g_eli_key_hold(sc, dstoff,
 			    secsize);
 		}
-		g_eli_crypto_ivgen(sc, dstoff, crp->crp_iv,
-		    sizeof(crp->crp_iv));
+		if (g_eli_ivlen(sc->sc_ealgo) != 0) {
+			crp->crp_flags |= CRYPTO_F_IV_SEPARATE;
+			g_eli_crypto_ivgen(sc, dstoff, crp->crp_iv,
+			sizeof(crp->crp_iv));
+		}
 
 		error = crypto_dispatch(crp);
 		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
