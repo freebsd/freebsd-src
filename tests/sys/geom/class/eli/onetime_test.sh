@@ -130,7 +130,7 @@ onetime_d_cleanup()
 	geli_test_cleanup
 }
 
-atf_test_case onetime cleanup
+atf_test_case onetime_null cleanup
 onetime_null_head()
 {
 	atf_set "descr" "geli onetime can use the null cipher"
