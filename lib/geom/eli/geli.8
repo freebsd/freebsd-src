@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2020
+.Dd July 22, 2020
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -1130,6 +1130,8 @@ is requested when geli init is called.
 # geli init -K /root/private0.key -s 4096 /dev/md0
 Enter new passphrase:
 Reenter new passphrase:
+# geli attach -k /root/private0.key /dev/md0
+Enter passphrase:
 # dd if=/dev/random of=/dev/md0.eli bs=1m
 .Ed
 .Pp
@@ -1150,7 +1152,7 @@ It is recommended to do this procedure after the boot, because otherwise
 the boot process would be waiting for the passphrase input.
 .Bd -literal -offset indent
 # geli attach -k /root/private0.key /dev/md0
-Enter new passphrase:
+Enter passphrase:
 # mount /dev/md0.eli /private
 .Ed
 .Sh ENCRYPTION MODES
