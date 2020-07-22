@@ -53,6 +53,7 @@
 #define	USB_HAVE_FIXED_CONFIG 0
 #define	USB_HAVE_FIXED_PORT 0
 #define	USB_HAVE_DISABLE_ENUM 1
+#define	USB_HAVE_MALLOC_WAITOK 1
 
 /* define zero ticks callout value */
 #define	USB_CALLOUT_ZERO_TICKS 1
