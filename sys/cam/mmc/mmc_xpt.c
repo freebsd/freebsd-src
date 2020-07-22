@@ -167,6 +167,7 @@ typedef struct {
 	union ccb	saved_ccb;
 	uint32_t	flags;
 #define PROBE_FLAG_ACMD_SENT	0x1 /* CMD55 is sent, card expects ACMD */
+#define PROBE_FLAG_HOST_CAN_DO_18V   0x2 /* Host can do 1.8V signaling */
 	uint8_t         acmd41_count; /* how many times ACMD41 has been issued */
 	struct cam_periph *periph;
 } mmcprobe_softc;
@@ -457,6 +458,9 @@ mmc_print_ident(struct mmc_params *ident_data)
 		sbuf_printf(sb, "%sSDIO", space ? " " : "");
 		space = true;
 	}
+	if (ident_data->card_features & CARD_FEATURE_18V) {
+		sbuf_printf(sb, "%s1.8-Signaling", space ? " " : "");
+	}
 	sbuf_printf(sb, ">\n");
 
 	if (ident_data->card_features & CARD_FEATURE_MEMORY)
@@ -636,6 +640,9 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		init_standard_ccb(start_ccb, XPT_GET_TRAN_SETTINGS);
 		xpt_action(start_ccb);
 
+		uint32_t host_caps = cts->host_caps;
+		if (host_caps & MMC_CAP_SIGNALING_180)
+			softc->flags |= PROBE_FLAG_HOST_CAN_DO_18V;
 		uint32_t hv = mmc_highest_voltage(cts->host_ocr);
 		init_standard_ccb(start_ccb, XPT_SET_TRAN_SETTINGS);
 		cts->ios.vdd = hv;
@@ -1008,6 +1015,18 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 				CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
 					  ("Card supports 1.8V signaling\n"));
 				mmcp->card_features |= CARD_FEATURE_18V;
+				if (softc->flags & PROBE_FLAG_HOST_CAN_DO_18V) {
+					CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
+						  ("Host supports 1.8V signaling. Switch voltage!\n"));
+					done_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+					done_ccb->ccb_h.flags = CAM_DIR_NONE;
+					done_ccb->ccb_h.retry_count = 0;
+					done_ccb->ccb_h.timeout = 100;
+					done_ccb->ccb_h.cbfcnp = NULL;
+					done_ccb->cts.proto_specific.mmc.ios.vccq = vccq_180;
+					done_ccb->cts.proto_specific.mmc.ios_valid = MMC_VCCQ;
+					xpt_action(done_ccb);
+				}
 			}
 		} else {
 			CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
