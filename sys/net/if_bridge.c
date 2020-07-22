@@ -1467,9 +1467,9 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 		bifc->ifbic_len = buflen;
 		return (0);
 	}
-	BRIDGE_UNLOCK(sc);
-	outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-	BRIDGE_LOCK(sc);
+	outbuf = malloc(buflen, M_TEMP, M_NOWAIT | M_ZERO);
+	if (outbuf == NULL)
+		return (ENOMEM);
 
 	count = 0;
 	buf = outbuf;
@@ -1529,9 +1529,9 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		count++;
 	buflen = sizeof(bareq) * count;
 
-	BRIDGE_UNLOCK(sc);
-	outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-	BRIDGE_LOCK(sc);
+	outbuf = malloc(buflen, M_TEMP, M_NOWAIT | M_ZERO);
+	if (outbuf == NULL)
+		return (ENOMEM);
 
 	count = 0;
 	buf = outbuf;
@@ -1857,9 +1857,9 @@ bridge_ioctl_gifsstp(struct bridge_softc *sc, void *arg)
 		return (0);
 	}
 
-	BRIDGE_UNLOCK(sc);
-	outbuf = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-	BRIDGE_LOCK(sc);
+	outbuf = malloc(buflen, M_TEMP, M_NOWAIT | M_ZERO);
+	if (outbuf == NULL)
+		return (ENOMEM);
 
 	count = 0;
 	buf = outbuf;
