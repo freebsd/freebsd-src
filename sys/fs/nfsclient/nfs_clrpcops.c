@@ -158,7 +158,6 @@ static int nfscl_dofflayoutio(vnode_t, struct uio *, int *, int *, int *,
     nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
     struct nfsclflayout *, uint64_t, uint64_t, int, int, struct mbuf *,
     struct nfsclwritedsdorpc *, struct ucred *, NFSPROC_T *);
-static struct mbuf *nfsm_copym(struct mbuf *, int, int);
 static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
     struct nfsclds *, uint64_t, int, struct nfsfh *, int, int, int,
     struct ucred *, NFSPROC_T *);
@@ -220,6 +219,7 @@ static int nfsrpc_copyrpc(vnode_t, off_t, vnode_t, off_t, size_t *,
     struct nfsvattr *, int *, bool, int *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_seekrpc(vnode_t, off_t *, nfsv4stateid_t *, bool *,
     int, struct nfsvattr *, int *, struct ucred *);
+static struct mbuf *nfsm_split(struct mbuf *, uint64_t);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -5756,7 +5756,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	struct nfscllayout *layp;
 	struct nfscldevinfo *dip;
 	struct nfsclflayout *rflp;
-	struct mbuf *m;
+	struct mbuf *m, *m2;
 	struct nfsclwritedsdorpc *drpc, *tdrpc;
 	nfsv4stateid_t stateid;
 	struct ucred *newcred;
@@ -5870,6 +5870,13 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 				}
 			}
 			for (i = firstmirror; i < mirrorcnt && error == 0; i++){
+				m2 = NULL;
+				if (m != NULL && i < mirrorcnt - 1)
+					m2 = m_copym(m, 0, M_COPYALL, M_WAITOK);
+				else {
+					m2 = m;
+					m = NULL;
+				}
 				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0) {
 					dev = rflp->nfsfl_ffm[i].dev;
 					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
@@ -5886,7 +5893,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 						    uiop, iomode, must_commit,
 						    &eof, &stateid, rwaccess,
 						    dip, layp, rflp, off, xfer,
-						    i, docommit, m, tdrpc,
+						    i, docommit, m2, tdrpc,
 						    newcred, p);
 					else
 						error = nfscl_doflayoutio(vp,
@@ -5895,8 +5902,11 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 						    dip, layp, rflp, off, xfer,
 						    docommit, newcred, p);
 					nfscl_reldevinfo(dip);
-				} else
+				} else {
+					if (m2 != NULL)
+						m_freem(m2);
 					error = EIO;
+				}
 				tdrpc++;
 			}
 			if (m != NULL)
@@ -5959,38 +5969,6 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	nfscl_rellayout(layp, 0);
 	nfscl_relref(nmp);
 	return (error);
-}
-
-/*
- * Make a copy of the mbuf chain and add an mbuf for null padding, as required.
- */
-static struct mbuf *
-nfsm_copym(struct mbuf *m, int off, int xfer)
-{
-	struct mbuf *m2, *m3, *m4;
-	uint32_t *tl;
-	int rem;
-
-	m2 = m_copym(m, off, xfer, M_WAITOK);
-	rem = NFSM_RNDUP(xfer) - xfer;
-	if (rem > 0) {
-		/*
-		 * The zero padding to a multiple of 4 bytes is required by
-		 * the XDR. So that the mbufs copied by reference aren't
-		 * modified, add an mbuf with the zero'd bytes to the list.
-		 * rem will be a maximum of 3, so one zero'd uint32_t is
-		 * sufficient.
-		 */
-		m3 = m2;
-		while (m3->m_next != NULL)
-			m3 = m3->m_next;
-		NFSMGET(m4);
-		tl = mtod(m4, uint32_t *);
-		*tl = 0;
-		m4->m_len = rem;
-		m3->m_next = m4;
-	}
-	return (m2);
 }
 
 /*
@@ -6148,17 +6126,17 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
     uint64_t len, int mirror, int docommit, struct mbuf *mp,
     struct nfsclwritedsdorpc *drpc, struct ucred *cred, NFSPROC_T *p)
 {
-	uint64_t transfer, xfer;
-	int error, rel_off;
+	uint64_t xfer;
+	int error;
 	struct nfsnode *np;
 	struct nfsfh *fhp;
 	struct nfsclds **dspp;
 	struct ucred *tcred;
-	struct mbuf *m;
+	struct mbuf *m, *m2;
+	uint32_t copylen;
 
 	np = VTONFS(vp);
 	error = 0;
-	rel_off = 0;
 	NFSCL_DEBUG(4, "nfscl_dofflayoutio: off=%ju len=%ju\n", (uintmax_t)off,
 	    (uintmax_t)len);
 	/* Loop around, doing I/O for each stripe unit. */
@@ -6176,14 +6154,31 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		} else
 			tcred = cred;
 		if (rwflag == NFSV4OPEN_ACCESSREAD)
-			transfer = dp->nfsdi_rsize;
-		else
-			transfer = dp->nfsdi_wsize;
+			copylen = dp->nfsdi_rsize;
+		else {
+			copylen = dp->nfsdi_wsize;
+			if (len > copylen && mp != NULL) {
+				/*
+				 * When a mirrored configuration needs to do
+				 * multiple writes to each mirror, all writes
+				 * except the last one must be a multiple of
+				 * 4 bytes.  This is required so that the XDR
+				 * does not need padding.
+				 * If possible, clip the size to an exact
+				 * multiple of the mbuf length, so that the
+				 * split will be on an mbuf boundary.
+				 */
+				copylen &= 0xfffffffc;
+				if (copylen > mp->m_len)
+					copylen = copylen / mp->m_len *
+					    mp->m_len;
+			}
+		}
 		NFSLOCKNODE(np);
 		np->n_flag |= NDSCOMMIT;
 		NFSUNLOCKNODE(np);
-		if (len > transfer && docommit == 0)
-			xfer = transfer;
+		if (len > copylen && docommit == 0)
+			xfer = copylen;
 		else
 			xfer = len;
 		if (docommit != 0) {
@@ -6244,31 +6239,41 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					NFSUNLOCKCLSTATE();
 				}
 			} else {
-				m = nfsm_copym(mp, rel_off, xfer);
-				NFSCL_DEBUG(4, "mcopy reloff=%d xfer=%jd\n",
-				    rel_off, (uintmax_t)xfer);
+				m = mp;
+				if (xfer < len) {
+					/* The mbuf list must be split. */
+					m2 = nfsm_split(mp, xfer);
+					if (m2 != NULL)
+						mp = m2;
+					else {
+						m_freem(mp);
+						error = EIO;
+					}
+				}
+				NFSCL_DEBUG(4, "mcopy len=%jd xfer=%jd\n",
+				    (uintmax_t)len, (uintmax_t)xfer);
 				/*
-				 * Do the writes after the first loop iteration
-				 * and the write for the last mirror via this
+				 * Do last write to a mirrored DS with this
 				 * thread.
-				 * This loop only iterates for small values
-				 * of nfsdi_wsize, which may never occur in
-				 * practice.  However, the drpc is completely
-				 * used by the first iteration and, as such,
-				 * cannot be used after that.
 				 */
-				if (mirror < flp->nfsfl_mirrorcnt - 1 &&
-				    rel_off == 0)
-					error = nfsio_writedsmir(vp, iomode,
-					    must_commit, stateidp, *dspp, off,
-					    xfer, fhp, m, dp->nfsdi_vers,
-					    dp->nfsdi_minorvers, drpc, tcred,
-					    p);
-				else
-					error = nfsrpc_writedsmir(vp, iomode,
-					    must_commit, stateidp, *dspp, off,
-					    xfer, fhp, m, dp->nfsdi_vers,
-					    dp->nfsdi_minorvers, tcred, p);
+				if (error == 0) {
+					if (mirror < flp->nfsfl_mirrorcnt - 1)
+						error = nfsio_writedsmir(vp,
+						    iomode, must_commit,
+						    stateidp, *dspp, off,
+						    xfer, fhp, m,
+						    dp->nfsdi_vers,
+						    dp->nfsdi_minorvers, drpc,
+						    tcred, p);
+					else
+						error = nfsrpc_writedsmir(vp,
+						    iomode, must_commit,
+						    stateidp, *dspp, off,
+						    xfer, fhp, m,
+						    dp->nfsdi_vers,
+						    dp->nfsdi_minorvers, tcred,
+						    p);
+				}
 				NFSCL_DEBUG(4, "nfsio_writedsmir=%d\n", error);
 				if (error != 0 && error != EACCES && error !=
 				    ESTALE) {
@@ -6283,7 +6288,6 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		if (error == 0) {
 			len -= xfer;
 			off += xfer;
-			rel_off += xfer;
 		}
 		if ((dp->nfsdi_flags & NFSDI_TIGHTCOUPLED) == 0)
 			NFSFREECRED(tcred);
@@ -8615,3 +8619,14 @@ nfsmout:
 	return (error);
 }
 
+/*
+ * Split an mbuf list.  For non-M_EXTPG mbufs, just use m_split().
+ */
+static struct mbuf *
+nfsm_split(struct mbuf *mp, uint64_t xfer)
+{
+	struct mbuf *m;
+
+	m = m_split(mp, xfer, M_WAITOK);
+	return (m);
+}

@@ -164,9 +164,9 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 {
 	char *uiocp;
 	struct mbuf *mp, *mp2, *firstmp;
-	int xfer, left, mlen;
+	int i, left, mlen, rem, xfer;
 	int uiosiz, clflg;
-	char *tcp;
+	char *mcp, *tcp;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
@@ -179,7 +179,9 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 	else
 		NFSMGET(mp);
 	mp->m_len = 0;
+	mcp = mtod(mp, char *);
 	firstmp = mp2 = mp;
+	rem = NFSM_RNDUP(siz) - siz;
 	while (siz > 0) {
 		left = uiop->uio_iov->iov_len;
 		uiocp = uiop->uio_iov->iov_base;
@@ -194,18 +196,18 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 				else
 					NFSMGET(mp);
 				mp->m_len = 0;
+				mcp = mtod(mp, char *);
 				mp2->m_next = mp;
 				mp2 = mp;
 				mlen = M_TRAILINGSPACE(mp);
 			}
 			xfer = (left > mlen) ? mlen : left;
 			if (uiop->uio_segflg == UIO_SYSSPACE)
-				NFSBCOPY(uiocp, mtod(mp, caddr_t) +
-				    mp->m_len, xfer);
+				NFSBCOPY(uiocp, mcp, xfer);
 			else
-				copyin(uiocp, mtod(mp, caddr_t) +
-				    mp->m_len, xfer);
+				copyin(uiocp, mcp, xfer);
 			mp->m_len += xfer;
+			mcp += xfer;
 			left -= xfer;
 			uiocp += xfer;
 			uiop->uio_offset += xfer;
@@ -216,6 +218,13 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 		uiop->uio_iov->iov_base = (void *)tcp;
 		uiop->uio_iov->iov_len -= uiosiz;
 		siz -= uiosiz;
+	}
+	if (rem > 0) {
+		KASSERT(rem <= M_TRAILINGSPACE(mp),
+		    ("nfsm_uiombuflist: no space for padding"));
+		for (i = 0; i < rem; i++)
+			*mcp++ = '\0';
+		mp->m_len += rem;
 	}
 	if (cpp != NULL)
 		*cpp = mtod(mp, caddr_t) + mp->m_len;
