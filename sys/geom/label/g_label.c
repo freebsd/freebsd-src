@@ -437,19 +437,9 @@ g_label_ctl_create(struct gctl_req *req, struct g_class *mp)
 	/*
 	 * arg1 is the name of provider.
 	 */
-	name = gctl_get_asciiparam(req, "arg1");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg%d' argument", 1);
+	pp = gctl_get_provider(req, "arg1");
+	if (pp == NULL)
 		return;
-	}
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		name += strlen(_PATH_DEV);
-	pp = g_provider_by_name(name);
-	if (pp == NULL) {
-		G_LABEL_DEBUG(1, "Provider %s is invalid.", name);
-		gctl_error(req, "Provider %s is invalid.", name);
-		return;
-	}
 	/*
 	 * arg0 is the label.
 	 */
