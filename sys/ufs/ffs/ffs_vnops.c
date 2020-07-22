@@ -445,6 +445,7 @@ ffs_lock(ap)
 	struct lock *lkp;
 	int result;
 
+	ap->a_flags |= LK_ADAPTIVE;
 	switch (ap->a_flags & LK_TYPE_MASK) {
 	case LK_SHARED:
 	case LK_UPGRADE:
@@ -482,6 +483,7 @@ ffs_lock(ap)
 	}
 	return (result);
 #else
+	ap->a_flags |= LK_ADAPTIVE;
 	return (VOP_LOCK1_APV(&ufs_vnodeops, ap));
 #endif
 }
