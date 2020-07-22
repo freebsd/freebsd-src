@@ -341,7 +341,7 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 		break;
 	}
 
-	switch(exception) {
+	switch (exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
 #ifdef VFP
@@ -452,7 +452,7 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	    "do_el0_sync: curthread: %p, esr %lx, elr: %lx, frame: %p", td, esr,
 	    frame->tf_elr, frame);
 
-	switch(exception) {
+	switch (exception) {
 	case EXCP_FP_SIMD:
 	case EXCP_TRAP_FP:
 #ifdef VFP
