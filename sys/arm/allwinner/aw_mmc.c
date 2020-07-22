@@ -371,6 +371,9 @@ aw_mmc_helper_cd_handler(device_t dev, bool present)
 	struct aw_mmc_softc *sc;
 
 	sc = device_get_softc(dev);
+#ifdef MMCCAM
+	mmccam_start_discovery(sc->sim);
+#else
 	AW_MMC_LOCK(sc);
 	if (present) {
 		if (sc->child == NULL) {
@@ -397,6 +400,7 @@ aw_mmc_helper_cd_handler(device_t dev, bool present)
 		} else
 			AW_MMC_UNLOCK(sc);
 	}
+#endif /* MMCCAM */
 }
 
 static int
