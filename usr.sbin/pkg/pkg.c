@@ -1050,8 +1050,16 @@ main(int argc, char *argv[])
 
 	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
 		bootstrap_only = true;
-		if (argc == 3 && strcmp(argv[2], "-f") == 0)
+		if (argc > 3) {
+			fprintf(stderr, "Too many arguments\nUsage: pkg bootstrap [-f]\n");
+			exit(EXIT_FAILURE);
+		}
+		if (argc == 3 && strcmp(argv[2], "-f") == 0) {
 			force = true;
+		} else if (argc == 3) {
+			fprintf(stderr, "Invalid argument specified\nUsage: pkg bootstrap [-f]\n");
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
