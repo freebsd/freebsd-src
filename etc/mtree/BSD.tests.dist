@@ -448,6 +448,8 @@
         ..
         ping6
         ..
+        route
+        ..
     ..
     secure
         lib
