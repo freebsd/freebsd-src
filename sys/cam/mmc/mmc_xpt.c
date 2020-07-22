@@ -404,6 +404,29 @@ mmc_announce_periph(struct cam_periph *periph)
 	printf("XPT info: CLK %04X, ...\n", cts.proto_specific.mmc.ios.clock);
 }
 
+void
+mmccam_start_discovery(struct cam_sim *sim) {
+	union ccb *ccb;
+	uint32_t pathid;
+
+	pathid = cam_sim_path(sim);
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		return;
+	}
+
+	/*
+	 * We create a rescan request for BUS:0:0, since the card
+	 * will be at lun 0.
+	 */
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
+		/* target */ 0, /* lun */ 0) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_rescan(ccb);
+}
+
 /* This func is called per attached device :-( */
 void
 mmc_print_ident(struct mmc_params *ident_data)

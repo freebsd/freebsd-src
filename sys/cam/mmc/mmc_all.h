@@ -64,6 +64,7 @@
 #ifndef CAM_MMC_ALL_H
 #define CAM_MMC_ALL_H
 
+#include <cam/cam_sim.h>
 #include <cam/mmc/mmc.h>
 #include <dev/mmc/mmcreg.h>
 
@@ -72,5 +73,6 @@ struct ccb_pathinq;
 struct cam_sim;
 void	mmc_path_inq(struct ccb_pathinq *cpi, const char *hba,
     const struct cam_sim *sim, size_t maxio);
+void    mmccam_start_discovery(struct cam_sim *sim);
 
 #endif
