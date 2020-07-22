@@ -757,19 +757,9 @@ g_cache_ctl_create(struct gctl_req *req, struct g_class *mp)
 	/* This field is not important here. */
 	md.md_provsize = 0;
 
-	name = gctl_get_asciiparam(req, "arg1");
-	if (name == NULL) {
-		gctl_error(req, "No 'arg1' argument");
+	pp = gctl_get_provider(req, "arg1");
+	if (pp == NULL)
 		return;
-	}
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		name += strlen(_PATH_DEV);
-	pp = g_provider_by_name(name);
-	if (pp == NULL) {
-		G_CACHE_DEBUG(1, "Provider %s is invalid.", name);
-		gctl_error(req, "Provider %s is invalid.", name);
-		return;
-	}
 	gp = g_cache_create(mp, pp, &md, G_CACHE_TYPE_MANUAL);
 	if (gp == NULL) {
 		gctl_error(req, "Can't create %s.", md.md_name);
