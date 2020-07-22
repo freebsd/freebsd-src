@@ -563,7 +563,7 @@ be_setup_snapshot_name(libbe_handle_t *lbh, char *buf, size_t buflen)
 }
 
 bool
-be_is_auto_snapshot_name(libbe_handle_t *lbh, const char *name)
+be_is_auto_snapshot_name(libbe_handle_t *lbh __unused, const char *name)
 {
 	const char *snap;
 	int day, hour, minute, month, second, serial, year;
