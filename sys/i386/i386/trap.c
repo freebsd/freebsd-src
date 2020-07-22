@@ -407,7 +407,6 @@ user_trctrap_out:
 			signo = SIGFPE;
 			break;
 
-#ifdef DEV_ISA
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 #ifndef TIMER_FREQ
@@ -423,7 +422,6 @@ user_trctrap_out:
 			nmi_handle_intr(type, frame);
 			return;
 #endif /* POWERFAIL_NMI */
-#endif /* DEV_ISA */
 
 		case T_OFLOW:		/* integer overflow fault */
 			ucode = FPE_INTOVF;
@@ -669,7 +667,6 @@ kernel_trctrap:
 #endif
 			break;
 
-#ifdef DEV_ISA
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 			if (time_second - lastalert > 10) {
@@ -682,7 +679,6 @@ kernel_trctrap:
 			nmi_handle_intr(type, frame);
 			return;
 #endif /* POWERFAIL_NMI */
-#endif /* DEV_ISA */
 		}
 
 		trap_fatal(frame, eva);
