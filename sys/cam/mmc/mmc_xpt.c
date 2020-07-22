@@ -574,10 +574,11 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 	/* Here is the place where the identify fun begins */
 	switch (softc->action) {
 	case PROBE_RESET:
+		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_RESET\n"));
 		/* FALLTHROUGH */
 	case PROBE_IDENTIFY:
 		xpt_path_inq(&start_ccb->cpi, periph->path);
-		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_RESET\n"));
+		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_IDENTIFY\n"));
 		init_standard_ccb(start_ccb, XPT_GET_TRAN_SETTINGS);
 		xpt_action(start_ccb);
 		if (cts->ios.power_mode != power_off) {
