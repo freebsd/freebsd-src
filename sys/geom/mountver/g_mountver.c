@@ -404,7 +404,6 @@ static void
 g_mountver_ctl_create(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_provider *pp;
-	const char *name;
 	char param[16];
 	int i, *nargs;
 
@@ -421,19 +420,9 @@ g_mountver_ctl_create(struct gctl_req *req, struct g_class *mp)
 	}
 	for (i = 0; i < *nargs; i++) {
 		snprintf(param, sizeof(param), "arg%d", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%d' argument", i);
+		pp = gctl_get_provider(req, param);
+		if (pp == NULL)
 			return;
-		}
-		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			name += strlen(_PATH_DEV);
-		pp = g_provider_by_name(name);
-		if (pp == NULL) {
-			G_MOUNTVER_DEBUG(1, "Provider %s is invalid.", name);
-			gctl_error(req, "Provider %s is invalid.", name);
-			return;
-		}
 		if (g_mountver_create(req, mp, pp) != 0)
 			return;
 	}
