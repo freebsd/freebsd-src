@@ -167,6 +167,12 @@ struct lock_class lock_class_lockmgr = {
 #endif
 };
 
+static __read_mostly bool lk_adaptive = true;
+static SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
+SYSCTL_BOOL(_debug_lockmgr, OID_AUTO, adaptive_spinning, CTLFLAG_RW, &lk_adaptive,
+    0, "");
+#define lockmgr_delay  locks_delay
+
 struct lockmgr_wait {
 	const char *iwmesg;
 	int ipri;
@@ -515,7 +521,6 @@ lockmgr_slock_try(struct lock *lk, uintptr_t *xp, int flags, bool fp)
 	 * waiters, if we fail to acquire the shared lock
 	 * loop back and retry.
 	 */
-	*xp = lockmgr_read_value(lk);
 	while (LK_CAN_SHARE(*xp, flags, fp)) {
 		if (atomic_fcmpset_acq_ptr(&lk->lk_lock, xp,
 		    *xp + LK_ONE_SHARER)) {
@@ -541,6 +546,38 @@ lockmgr_sunlock_try(struct lock *lk, uintptr_t *xp)
 	return (false);
 }
 
+static bool
+lockmgr_slock_adaptive(struct lock_delay_arg *lda, struct lock *lk, uintptr_t *xp,
+    int flags)
+{
+	struct thread *owner;
+	uintptr_t x;
+
+	x = *xp;
+	MPASS(x != LK_UNLOCKED);
+	owner = (struct thread *)LK_HOLDER(x);
+	for (;;) {
+		MPASS(owner != curthread);
+		if (owner == (struct thread *)LK_KERNPROC)
+			return (false);
+		if ((x & LK_SHARE) && LK_SHARERS(x) > 0)
+			return (false);
+		if (owner == NULL)
+			return (false);
+		if (!TD_IS_RUNNING(owner))
+			return (false);
+		if ((x & LK_ALL_WAITERS) != 0)
+			return (false);
+		lock_delay(lda);
+		x = lockmgr_read_value(lk);
+		if (LK_CAN_SHARE(x, flags, false)) {
+			*xp = x;
+			return (true);
+		}
+		owner = (struct thread *)LK_HOLDER(x);
+	}
+}
+
 static __noinline int
 lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *file, int line, struct lockmgr_wait *lwa)
@@ -557,6 +594,7 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
+	struct lock_delay_arg lda;
 
 	if (KERNEL_PANICKED())
 		goto out;
@@ -566,26 +604,36 @@ lockmgr_slock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 	if (LK_CAN_WITNESS(flags))
 		WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER,
 		    file, line, flags & LK_INTERLOCK ? ilk : NULL);
+	lock_delay_arg_init(&lda, &lockmgr_delay);
+	if (!lk_adaptive)
+		flags &= ~LK_ADAPTIVE;
+	x = lockmgr_read_value(lk);
+	/*
+	 * The lock may already be locked exclusive by curthread,
+	 * avoid deadlock.
+	 */
+	if (LK_HOLDER(x) == tid) {
+		LOCK_LOG2(lk,
+		    "%s: %p already held in exclusive mode",
+		    __func__, lk);
+		error = EDEADLK;
+		goto out;
+	}
+
 	for (;;) {
 		if (lockmgr_slock_try(lk, &x, flags, false))
 			break;
+
+		if ((flags & (LK_ADAPTIVE | LK_INTERLOCK)) == LK_ADAPTIVE) {
+			if (lockmgr_slock_adaptive(&lda, lk, &x, flags))
+				continue;
+		}
+
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
 		lock_profile_obtain_lock_failed(&lk->lock_object,
 		    &contested, &waittime);
-
-		/*
-		 * If the lock is already held by curthread in
-		 * exclusive way avoid a deadlock.
-		 */
-		if (LK_HOLDER(x) == tid) {
-			LOCK_LOG2(lk,
-			    "%s: %p already held in exclusive mode",
-			    __func__, lk);
-			error = EDEADLK;
-			break;
-		}
 
 		/*
 		 * If the lock is expected to not sleep just give up
@@ -660,6 +708,7 @@ retry_sleepq:
 		}
 		LOCK_LOG2(lk, "%s: %p resuming from the sleep queue",
 		    __func__, lk);
+		x = lockmgr_read_value(lk);
 	}
 	if (error == 0) {
 #ifdef KDTRACE_HOOKS
@@ -682,6 +731,37 @@ out:
 	return (error);
 }
 
+static bool
+lockmgr_xlock_adaptive(struct lock_delay_arg *lda, struct lock *lk, uintptr_t *xp)
+{
+	struct thread *owner;
+	uintptr_t x;
+
+	x = *xp;
+	MPASS(x != LK_UNLOCKED);
+	owner = (struct thread *)LK_HOLDER(x);
+	for (;;) {
+		MPASS(owner != curthread);
+		if (owner == NULL)
+			return (false);
+		if ((x & LK_SHARE) && LK_SHARERS(x) > 0)
+			return (false);
+		if (owner == (struct thread *)LK_KERNPROC)
+			return (false);
+		if (!TD_IS_RUNNING(owner))
+			return (false);
+		if ((x & LK_ALL_WAITERS) != 0)
+			return (false);
+		lock_delay(lda);
+		x = lockmgr_read_value(lk);
+		if (x == LK_UNLOCKED) {
+			*xp = x;
+			return (true);
+		}
+		owner = (struct thread *)LK_HOLDER(x);
+	}
+}
+
 static __noinline int
 lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
     const char *file, int line, struct lockmgr_wait *lwa)
@@ -699,6 +779,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 	uint64_t waittime = 0;
 	int contested = 0;
 #endif
+	struct lock_delay_arg lda;
 
 	if (KERNEL_PANICKED())
 		goto out;
@@ -747,10 +828,19 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		goto out;
 	}
 
+	x = LK_UNLOCKED;
+	lock_delay_arg_init(&lda, &lockmgr_delay);
+	if (!lk_adaptive)
+		flags &= ~LK_ADAPTIVE;
 	for (;;) {
-		if (lk->lk_lock == LK_UNLOCKED &&
-		    atomic_cmpset_acq_ptr(&lk->lk_lock, LK_UNLOCKED, tid))
-			break;
+		if (x == LK_UNLOCKED) {
+			if (atomic_fcmpset_acq_ptr(&lk->lk_lock, &x, tid))
+				break;
+		}
+		if ((flags & (LK_ADAPTIVE | LK_INTERLOCK)) == LK_ADAPTIVE) {
+			if (lockmgr_xlock_adaptive(&lda, lk, &x))
+				continue;
+		}
 #ifdef HWPMC_HOOKS
 		PMC_SOFT_CALL( , , lock, failed);
 #endif
@@ -853,6 +943,7 @@ retry_sleepq:
 		}
 		LOCK_LOG2(lk, "%s: %p resuming from the sleep queue",
 		    __func__, lk);
+		x = lockmgr_read_value(lk);
 	}
 	if (error == 0) {
 #ifdef KDTRACE_HOOKS
@@ -954,6 +1045,7 @@ lockmgr_lock_flags(struct lock *lk, u_int flags, struct lock_object *ilk,
 			    file, line, flags & LK_INTERLOCK ? ilk : NULL);
 		if (__predict_false(lk->lock_object.lo_flags & LK_NOSHARE))
 			break;
+		x = lockmgr_read_value(lk);
 		if (lockmgr_slock_try(lk, &x, flags, true)) {
 			lockmgr_note_shared_acquire(lk, 0, 0,
 			    file, line, flags);
@@ -1139,12 +1231,13 @@ lockmgr_slock(struct lock *lk, u_int flags, const char *file, int line)
 	if (LK_CAN_WITNESS(flags))
 		WITNESS_CHECKORDER(&lk->lock_object, LOP_NEWORDER,
 		    file, line, NULL);
+	x = lockmgr_read_value(lk);
 	if (__predict_true(lockmgr_slock_try(lk, &x, flags, true))) {
 		lockmgr_note_shared_acquire(lk, 0, 0, file, line, flags);
 		return (0);
 	}
 
-	return (lockmgr_slock_hard(lk, flags, NULL, file, line, NULL));
+	return (lockmgr_slock_hard(lk, flags | LK_ADAPTIVE, NULL, file, line, NULL));
 }
 
 int
@@ -1165,7 +1258,7 @@ lockmgr_xlock(struct lock *lk, u_int flags, const char *file, int line)
 		return (0);
 	}
 
-	return (lockmgr_xlock_hard(lk, flags, NULL, file, line, NULL));
+	return (lockmgr_xlock_hard(lk, flags | LK_ADAPTIVE, NULL, file, line, NULL));
 }
 
 int
