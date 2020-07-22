@@ -1091,7 +1091,8 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 	struct sockaddr *saddr;
 	u_short sport;
 	char rpcpath[MNTPATHLEN + 1], dirpath[MAXPATHLEN];
-	int bad = 0, defset, hostset;
+	int defset, hostset;
+	long bad = 0;
 	sigset_t sighup_mask;
 	int numsecflavors, *secflavorsp;
 
