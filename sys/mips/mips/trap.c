@@ -740,7 +740,7 @@ dofault:
 				}
 				goto err;
 			}
-			addr = trapframe->pc;
+			addr = trapframe->badvaddr;
 
 			msg = "BAD_PAGE_FAULT";
 			log_bad_page_fault(msg, trapframe, type);
