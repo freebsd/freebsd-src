@@ -538,7 +538,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 #if defined(ADAPTIVE_MUTEXES)
 	lock_delay_arg_init(&lda, &mtx_delay);
 #elif defined(KDTRACE_HOOKS)
-	lock_delay_arg_init(&lda, NULL);
+	lock_delay_arg_init_noadapt(&lda);
 #endif
 
 	if (__predict_false(v == MTX_UNOWNED))
