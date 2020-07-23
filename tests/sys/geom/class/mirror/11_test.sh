@@ -31,7 +31,7 @@ tmp2=$(mktemp $base.XXXXXX)
 ENXIO=6
 # gmirror has special handling for ENXIO. It does not mark the failed component
 # as broken, allowing it to rejoin the mirror automatically when it appears.
-sysctl ${regreadfp}="1*return(${ENXIO})"
+sysctl ${regreadfp}="1*return(${ENXIO})[pid $(gmirror_worker_pid)]"
 dd if=/dev/mirror/$name of=$tmp1 iseek=512 bs=$ddbs count=1 >/dev/null 2>&1
 dd if=/dev/$us1 of=$tmp2 iseek=512 bs=$ddbs count=1 >/dev/null 2>&1
 sysctl ${regreadfp}='off'

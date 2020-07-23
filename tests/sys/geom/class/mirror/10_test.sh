@@ -30,7 +30,7 @@ tmp2=$(mktemp $base.XXXXXX)
 
 EIO=5
 # gmirror should retry a failed read from the other mirror.
-sysctl ${regreadfp}="1*return(${EIO})"
+sysctl ${regreadfp}="1*return(${EIO})[pid $(gmirror_worker_pid)]"
 dd if=/dev/mirror/$name of=$tmp1 iseek=256 bs=$ddbs count=1 >/dev/null 2>&1
 dd if=/dev/$us1 of=$tmp2 iseek=256 bs=$ddbs count=1 >/dev/null 2>&1
 sysctl ${regreadfp}='off'
