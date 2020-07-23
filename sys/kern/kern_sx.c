@@ -623,7 +623,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 #if defined(ADAPTIVE_SX)
 	lock_delay_arg_init(&lda, &sx_delay);
 #elif defined(KDTRACE_HOOKS)
-	lock_delay_arg_init(&lda, NULL);
+	lock_delay_arg_init_noadapt(&lda);
 #endif
 
 	if (__predict_false(x == SX_LOCK_UNLOCKED))
@@ -1063,7 +1063,7 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 #if defined(ADAPTIVE_SX)
 	lock_delay_arg_init(&lda, &sx_delay);
 #elif defined(KDTRACE_HOOKS)
-	lock_delay_arg_init(&lda, NULL);
+	lock_delay_arg_init_noadapt(&lda);
 #endif
 
 #ifdef HWPMC_HOOKS

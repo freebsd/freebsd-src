@@ -195,6 +195,13 @@ lock_delay_arg_init(struct lock_delay_arg *la, struct lock_delay_config *lc)
 	la->spin_cnt = 0;
 }
 
+static inline void
+lock_delay_arg_init_noadapt(struct lock_delay_arg *la)
+{
+	la->delay = 0;
+	la->spin_cnt = 0;
+}
+
 #define lock_delay_spin(n)	do {	\
 	u_int _i;			\
 					\
