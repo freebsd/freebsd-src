@@ -28,14 +28,14 @@ SRCS	+= sha1.c sha256c.c sha512c.c
 SRCS	+= skein.c skein_block.c
 # unroll the 256 and 512 loops, half unroll the 1024
 CFLAGS.skein_block.c	+= -DSKEIN_LOOP=995
-.if exists(${MACHINE_ARCH}/skein_block_asm.S)
-.PATH:	${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
-SRCS	+= skein_block_asm.S
-CFLAGS	+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
-ACFLAGS	+= -DELF -Wa,--noexecstack
-# Fully unroll all loops in the assembly optimized version
-ACFLAGS	+= -DSKEIN_LOOP=0
-.endif
+#.if exists(${MACHINE_ARCH}/skein_block_asm.S)
+#.PATH:	${SRCTOP}/sys/crypto/skein/${MACHINE_ARCH}
+#SRCS	+= skein_block_asm.S
+#CFLAGS	+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
+#ACFLAGS	+= -DELF -Wa,--noexecstack
+## Fully unroll all loops in the assembly optimized version
+#ACFLAGS	+= -DSKEIN_LOOP=0
+#.endif
 SRCS	+= siphash.c
 SRCS	+= gmac.c gfmult.c
 SRCS	+= blake2b-ref.c
