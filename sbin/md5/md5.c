@@ -498,10 +498,12 @@ MDTestSuite(const Algorithm_t *alg)
 	for (i = 0; i < MDTESTCOUNT; i++) {
 		(*alg->Data)(MDTestInput[i], strlen(MDTestInput[i]), buffer);
 		printf("%s (\"%s\") = %s", alg->name, MDTestInput[i], buffer);
-		if (strcmp(buffer, (*alg->TestOutput)[i]) == 0)
+		if (strcmp(buffer, (*alg->TestOutput)[i]) == 0) {
 			printf(" - verified correct\n");
-		else
+		} else {
 			printf(" - INCORRECT RESULT!\n");
+			failed++;
+		}
 	}
 }
 
