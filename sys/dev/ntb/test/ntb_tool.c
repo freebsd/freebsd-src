@@ -619,10 +619,6 @@ tool_mw_write_fn(struct sysctl_oid *oidp, struct sysctl_req *req,
 write:
 	data_buf_size = *buf_size;
 	data_buf = malloc(data_buf_size, M_NTB_TOOL, M_WAITOK | M_ZERO);
-	if (!data_buf) {
-		rc = ENOMEM;
-		goto out;
-	}
 
 	if (s_pflag)
 		memset(data_buf, pattern, data_buf_size);
@@ -677,7 +673,7 @@ sysctl_local_port_number(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-static int
+static void
 tool_init_peers(struct tool_ctx *tc)
 {
 	int pidx;
@@ -685,14 +681,10 @@ tool_init_peers(struct tool_ctx *tc)
 	tc->peer_cnt = ntb_peer_port_count(tc->dev);
 	tc->peers = malloc(tc->peer_cnt * sizeof(*tc->peers), M_NTB_TOOL,
 	    M_WAITOK | M_ZERO);
-	if (tc->peers == NULL)
-		return (ENOMEM);
 	for (pidx = 0; pidx < tc->peer_cnt; pidx++) {
 		tc->peers[pidx].pidx = pidx;
 		tc->peers[pidx].tc = tc;
 	}
-
-	return (0);
 }
 
 static void
@@ -1016,8 +1008,6 @@ tool_init_mws(struct tool_ctx *tc)
 		tc->peers[pidx].inmws = malloc(tc->peers[pidx].inmw_cnt *
 		    sizeof(*tc->peers[pidx].inmws), M_NTB_TOOL,
 		    M_WAITOK | M_ZERO);
-		if (tc->peers[pidx].inmws == NULL)
-			return (ENOMEM);
 
 		for (widx = 0; widx < tc->peers[pidx].inmw_cnt; widx++) {
 			mw = &tc->peers[pidx].inmws[widx];
@@ -1219,7 +1209,7 @@ sysctl_peer_spad_handle(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
-static int
+static void
 tool_init_spads(struct tool_ctx *tc)
 {
 	int sidx, pidx;
@@ -1228,8 +1218,6 @@ tool_init_spads(struct tool_ctx *tc)
 	tc->inspad_cnt = ntb_spad_count(tc->dev);
 	tc->inspads = malloc(tc->inspad_cnt * sizeof(*tc->inspads), M_NTB_TOOL,
 	    M_WAITOK | M_ZERO);
-	if (tc->inspads == NULL)
-		return (ENOMEM);
 
 	for (sidx = 0; sidx < tc->inspad_cnt; sidx++) {
 		tc->inspads[sidx].sidx = sidx;
@@ -1243,8 +1231,6 @@ tool_init_spads(struct tool_ctx *tc)
 		tc->peers[pidx].outspads =  malloc(tc->peers[pidx].outspad_cnt *
 		    sizeof(*tc->peers[pidx].outspads), M_NTB_TOOL, M_WAITOK |
 		    M_ZERO);
-		if (tc->peers[pidx].outspads == NULL)
-			return (ENOMEM);
 
 		for (sidx = 0; sidx < tc->peers[pidx].outspad_cnt; sidx++) {
 			tc->peers[pidx].outspads[sidx].sidx = sidx;
@@ -1252,8 +1238,6 @@ tool_init_spads(struct tool_ctx *tc)
 			tc->peers[pidx].outspads[sidx].tc = tc;
 		}
 	}
-
-	return (0);
 }
 
 static void
@@ -1450,17 +1434,13 @@ ntb_tool_attach(device_t dev)
 	if (rc)
 		goto out;
 
-	rc = tool_init_peers(tc);
-	if (rc)
-		goto err_clear_data;
+	tool_init_peers(tc);
 
 	rc = tool_init_mws(tc);
 	if (rc)
 		goto err_clear_data;
 
-	rc = tool_init_spads(tc);
-	if (rc)
-		goto err_clear_mws;
+	tool_init_spads(tc);
 
 	rc = tool_init_ntb(tc);
 	if (rc)
@@ -1472,7 +1452,6 @@ ntb_tool_attach(device_t dev)
 
 err_clear_spads:
 	tool_clear_spads(tc);
-err_clear_mws:
 	tool_clear_mws(tc);
 	tool_clear_peers(tc);
 err_clear_data:
