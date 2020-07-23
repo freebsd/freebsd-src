@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2019
+.Dd July 23, 2020
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
@@ -66,28 +66,34 @@
 .Nm
 .Fl T
 .Sh "DESCRIPTION"
+The
 .Nm
-manipulates how UEFI Boot Managers boot the system.
-Methods of booting can be created and destroyed.
-Boot methods can be activated or deactivated.
-The order of boot methods tried can be changed.
-Temporary boot methods can override the usual booting methods.
+program manipulates how UEFI Boot Managers boot the system.
+It can create and destroy methods for booting along with activating or
+deactivating them.
+It can also change the defined order of boot methods.
+It can create a temporary boot (BootNext) variable that references a
+boot method to be tried once upon the next boot.
 .Pp
 The UEFI standard defines how hosts may control what is used to
 bootstrap the system.
 Each method is encapsulated within a persistent UEFI variable, stored
 by the UEFI BIOS of the form
-.Cm Boot Ns Em XXXX .
-These variables are numbered, describe where to load the bootstrap
-program from, and whether or not the method is active.
-The boot order of these methods is controlled by another variable
+.Cm Boot Ns Em XXXX
+(where XXXX are uppercase hexadecimal digits).
+These variables are numbered, each describing where to load the bootstrap
+program from, and whether or not the method is active (used for booting,
+otherwise the method will be skipped).
+The order of these methods is controlled by another variable,
 .Cm BootOrder .
-The currently booting method is communicated using
+The currently booted method is communicated using
 .Cm BootCurrent .
 A global timeout can also be set.
 .Pp
 .Nm
-requires that the kernel efirt module be loaded to get and set these
+requires that the kernel module
+.Xr efirt 9
+module be present or loaded to get and set these
 non-volatile variables.
 .Pp
 The following options are available:
@@ -113,7 +119,7 @@ boot entry.
 .It Fl c -create
 Create a new
 .Cm Boot
-variable.
+variable (aka method or entry).
 .It Fl D -dry-run
 Process but do not change any variables.
 .It Fl E -esp
@@ -136,7 +142,7 @@ The path to and name of the kernel.
 .It Fl l -loader Ar loader
 The path to and name of the loader.
 .It Fl L -label Ar label
-An optional description for the entry.
+An optional description for the method.
 .It Fl n -bootnext
 Set
 .Ar bootnum
@@ -169,32 +175,36 @@ To display the current
 .Cm Boot
 related variables in the system:
 .Pp
-.Dl efibootmgr [-v]
+.Dl efibootmgr -v
 .Pp
 This will display the optional
 .Cm BootNext
-bootnum,
-.Cm BootCurrent ,
-or currently booted bootnum, followed by the optional
+(if present),
+.Cm BootCurrent
+(currently booted method), followed by the optional
 .Cm Timeout
 value, any
 .Cm BootOrder
 that may be set, followed finally by all currently defined
 .Cm Boot
 variables, active or not.
-The verbose flag will augment this output with the disk partition uuids,
+The verbose flag,
+.Pq Fl v ,
+augments this output with the disk partition uuids,
 size/offset and device-path of the variable.
+The flag will also include any unreferenced (by BootOrder) variables.
 .Pp
 The
 .Nm
 program can be used to create new EFI boot variables.
-To create a new boot var pointing to an installation with its EFI partition
-mounted under
+The following command may be used to create a new boot method, using
+the EFI partition mounted under
 .Pa /mnt ,
-the given loader and a label
+mark the method active, using
+the given loader and label the method
 .Qq FreeBSD-11 :
 .Pp
-.Dl efibootmgr -c -l /mnt/EFI/freebsd/loader.efi -L FreeBSD-11
+.Dl efibootmgr -a -c -l /mnt/EFI/freebsd/loader.efi -L FreeBSD-11
 .Pp
 This will result in the next available bootnum being assigned to a
 new UEFI boot variable, and given the label
@@ -203,8 +213,11 @@ such as:
 .Pp
 .Dl Boot0009 FreeBSD-11
 .Pp
-Note newly created boot entries are created inactive.
-The active state is denoted by an '*' following the
+Note newly created boot entries are, by default, created inactive, hence
+the reason
+.Fl a
+flag is specified above so that it will be considered for booting.
+The active state is denoted by a '*' following the
 .Cm Boot Ns Em XXXX
 name in the output.
 They are also inserted into the first position of current
@@ -217,7 +230,7 @@ booting from, else they are ignored.
 .Pp
 Will delete the given boot entry Boot0009.
 .Pp
-To set a given newly created boot entry active use:
+To set the given boot entry active:
 .Pp
 .Dl efibootmgr -a -b 0009
 .Pp
@@ -233,6 +246,11 @@ for the next reboot use:
 .Pp
 .Dl efibootmgr -o 0009,0003,...
 .Sh SEE ALSO
+.Xr efirt 9 ,
 .Xr efivar 8 ,
 .Xr gpart 8 ,
 .Xr uefi 8
+.Sh STANDARDS
+The Unified Extensible Firmware Interface Specification is available
+from
+.Pa www.uefi.org .
