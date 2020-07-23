@@ -222,9 +222,6 @@ case ${firewall_type} in
 	if [ -n "$net6" ]; then
 		${fwcmd} add pass all from me to ${net6}
 		${fwcmd} add pass all from ${net6} to me
-	fi
-
-	if [ -n "$net6" ]; then
 		# Allow any link-local multicast traffic
 		${fwcmd} add pass all from fe80::/10 to ff02::/16
 		${fwcmd} add pass all from ${net6} to ff02::/16
