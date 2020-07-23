@@ -99,7 +99,7 @@
 .Nm RB_INSERT ,
 .Nm RB_REMOVE ,
 .Nm RB_REINSERT
-.Nd "implementations of splay and red-black trees"
+.Nd "implementations of splay and rank-balanced (wavl) trees"
 .Sh SYNOPSIS
 .In sys/tree.h
 .Fn SPLAY_PROTOTYPE NAME TYPE FIELD CMP
@@ -195,7 +195,7 @@
 .Fn RB_REINSERT NAME "RB_HEAD *head" "struct TYPE *elm"
 .Sh DESCRIPTION
 These macros define data structures for different types of trees:
-splay trees and red-black trees.
+splay trees and rank-balanced (wavl) trees.
 .Pp
 In the macro definitions,
 .Fa TYPE
@@ -364,26 +364,26 @@ macro:
 The
 .Fn SPLAY_EMPTY
 macro should be used to check whether a splay tree is empty.
-.Sh RED-BLACK TREES
-A red-black tree is a binary search tree with the node color as an
-extra attribute.
-It fulfills a set of conditions:
-.Bl -enum -offset indent
-.It
-Every search path from the root to a leaf consists of the same number of
-black nodes.
-.It
-Each red node (except for the root) has a black parent.
-.It
-Each leaf node is black.
-.El
+.Sh RANK-BALANCED TREES
+Rank-balanced (RB) trees are a framework for defining height-balanced
+binary search trees, including AVL and red-black trees.
+Each tree node has an associated rank.
+Balance conditions are expressed by conditions on the differences in
+rank between any node and its children.
+Rank differences are stored in each tree node.
+.Pp  
+The balance conditions implemented by the RB macros lead to weak AVL
+(wavl) trees, which combine the best aspects of AVL and red-black
+trees.
+Wavl trees rebalance after an insertion in the same way AVL trees do,
+with the same worst-case time as red-black trees offer, and with
+better balance in the resulting tree.
+Wavl trees rebalance after a removal in a way that requires less
+restructuring, in the worst case, than either AVL or red-black trees
+do.  Removals can lead to a tree almost as unbalanced as a red-black
+tree; insertions lead to a tree becoming as balanced as an AVL tree.
 .Pp
-Every operation on a red-black tree is bounded as
-.Fn O "lg n" .
-The maximum height of a red-black tree is
-.Fn 2lg "n + 1" .
-.Pp
-A red-black tree is headed by a structure defined by the
+A rank-balanced tree is headed by a structure defined by the
 .Fn RB_HEAD
 macro.
 A
@@ -488,7 +488,7 @@ The
 macro initializes the tree referenced by
 .Fa head .
 .Pp
-The red-black tree can also be initialized statically by using the
+The rank-balanced tree can also be initialized statically by using the
 .Fn RB_INITIALIZER
 macro like this:
 .Bd -ragged -offset indent
@@ -567,7 +567,7 @@ and will be overwritten to provide safe traversal.
 .Pp
 The
 .Fn RB_EMPTY
-macro should be used to check whether a red-black tree is empty.
+macro should be used to check whether a rank-balanced tree is empty.
 .Pp
 The
 .Fn RB_REINSERT
@@ -581,7 +581,7 @@ a node's key.
 This is a lower overhead alternative to removing the element
 and reinserting it again.
 .Sh EXAMPLES
-The following example demonstrates how to declare a red-black tree
+The following example demonstrates how to declare a rank-balanced tree
 holding integers.
 Values are inserted into it and the contents of the tree are printed
 in order.
@@ -697,6 +697,17 @@ to indicate an error.
 .Sh SEE ALSO
 .Xr arb 3 ,
 .Xr queue 3
+.Rs
+.%A "Bernhard Haeupler"
+.%A "Siddhartha Sen"
+.%A "Robert E. Tarjan"
+.%T "Rank-Balanced Trees"
+.%U "http://sidsen.azurewebsites.net/papers/rb-trees-talg.pdf"
+.%J "ACM Transactions on Algorithms"
+.%V "11"
+.%N "4"
+.%D "June 2015"
+.Re
 .Sh HISTORY
 The tree macros first appeared in
 .Fx 4.6 .
