@@ -70,6 +70,8 @@ u_long sb_max_adj =
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
+static void	sbcompress_ktls_rx(struct sockbuf *sb, struct mbuf *m,
+    struct mbuf *n);
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
@@ -334,6 +336,51 @@ sbfree(struct sockbuf *sb, struct mbuf *m)
 		sb->sb_sndptroff -= m->m_len;
 }
 
+#ifdef KERN_TLS
+/*
+ * Similar to sballoc/sbfree but does not adjust state associated with
+ * the sb_mb chain such as sb_fnrdy or sb_sndptr*.  Also assumes mbufs
+ * are not ready.
+ */
+void
+sballoc_ktls_rx(struct sockbuf *sb, struct mbuf *m)
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	sb->sb_ccc += m->m_len;
+	sb->sb_tlscc += m->m_len;
+
+	sb->sb_mbcnt += MSIZE;
+	sb->sb_mcnt += 1;
+
+	if (m->m_flags & M_EXT) {
+		sb->sb_mbcnt += m->m_ext.ext_size;
+		sb->sb_ccnt += 1;
+	}
+}
+
+void
+sbfree_ktls_rx(struct sockbuf *sb, struct mbuf *m)
+{
+
+#if 0	/* XXX: not yet: soclose() call path comes here w/o lock. */
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+
+	sb->sb_ccc -= m->m_len;
+	sb->sb_tlscc -= m->m_len;
+
+	sb->sb_mbcnt -= MSIZE;
+	sb->sb_mcnt -= 1;
+
+	if (m->m_flags & M_EXT) {
+		sb->sb_mbcnt -= m->m_ext.ext_size;
+		sb->sb_ccnt -= 1;
+	}
+}
+#endif
+
 /*
  * Socantsendmore indicates that no more data will be sent on the socket; it
  * would normally be applied to a socket when the user informs the system
@@ -370,6 +417,10 @@ socantrcvmore_locked(struct socket *so)
 	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 
 	so->so_rcv.sb_state |= SBS_CANTRCVMORE;
+#ifdef KERN_TLS
+	if (so->so_rcv.sb_flags & SB_TLS_RX)
+		ktls_check_rx(&so->so_rcv);
+#endif
 	sorwakeup_locked(so);
 	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
 }
@@ -770,6 +821,24 @@ sblastmbufchk(struct sockbuf *sb, const char *file, int line)
 		}
 		panic("%s from %s:%u", __func__, file, line);
 	}
+
+#ifdef KERN_TLS
+	m = sb->sb_mtls;
+	while (m && m->m_next)
+		m = m->m_next;
+
+	if (m != sb->sb_mtlstail) {
+		printf("%s: sb_mtls %p sb_mtlstail %p last %p\n",
+			__func__, sb->sb_mtls, sb->sb_mtlstail, m);
+		printf("TLS packet tree:\n");
+		printf("\t");
+		for (m = sb->sb_mtls; m != NULL; m = m->m_next) {
+			printf("%p ", m);
+		}
+		printf("\n");
+		panic("%s from %s:%u", __func__, file, line);
+	}
+#endif
 }
 #endif /* SOCKBUF_DEBUG */
 
@@ -847,6 +916,29 @@ sbappend(struct sockbuf *sb, struct mbuf *m, int flags)
 	SOCKBUF_UNLOCK(sb);
 }
 
+#ifdef KERN_TLS
+/*
+ * Append an mbuf containing encrypted TLS data.  The data
+ * is marked M_NOTREADY until it has been decrypted and
+ * stored as a TLS record.
+ */
+static void
+sbappend_ktls_rx(struct sockbuf *sb, struct mbuf *m)
+{
+	struct mbuf *n;
+
+	SBLASTMBUFCHK(sb);
+
+	/* Remove all packet headers and mbuf tags to get a pure data chain. */
+	m_demote(m, 1, 0);
+
+	for (n = m; n != NULL; n = n->m_next)
+		n->m_flags |= M_NOTREADY;
+	sbcompress_ktls_rx(sb, m, sb->sb_mtlstail);
+	ktls_check_rx(sb);
+}
+#endif
+
 /*
  * This version of sbappend() should only be used when the caller absolutely
  * knows that there will never be more than one record in the socket buffer,
@@ -858,6 +950,19 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	KASSERT(m->m_nextpkt == NULL,("sbappendstream 0"));
+
+#ifdef KERN_TLS
+	/*
+	 * Decrypted TLS records are appended as records via
+	 * sbappendrecord().  TCP passes encrypted TLS records to this
+	 * function which must be scheduled for decryption.
+	 */
+	if (sb->sb_flags & SB_TLS_RX) {
+		sbappend_ktls_rx(sb, m);
+		return;
+	}
+#endif
+
 	KASSERT(sb->sb_mb == sb->sb_lastrecord,("sbappendstream 1"));
 
 	SBLASTMBUFCHK(sb);
@@ -896,6 +1001,9 @@ sbcheck(struct sockbuf *sb, const char *file, int line)
 {
 	struct mbuf *m, *n, *fnrdy;
 	u_long acc, ccc, mbcnt;
+#ifdef KERN_TLS
+	u_long tlscc;
+#endif
 
 	SOCKBUF_LOCK_ASSERT(sb);
 
@@ -931,9 +1039,46 @@ sbcheck(struct sockbuf *sb, const char *file, int line)
 			mbcnt += m->m_ext.ext_size;
 	    }
 	}
+#ifdef KERN_TLS
+	/*
+	 * Account for mbufs "detached" by ktls_detach_record() while
+	 * they are decrypted by ktls_decrypt().  tlsdcc gives a count
+	 * of the detached bytes that are included in ccc.  The mbufs
+	 * and clusters are not included in the socket buffer
+	 * accounting.
+	 */
+	ccc += sb->sb_tlsdcc;
+
+	tlscc = 0;
+	for (m = sb->sb_mtls; m; m = m->m_next) {
+		if (m->m_nextpkt != NULL) {
+			printf("sb %p TLS mbuf %p with nextpkt\n", sb, m);
+			goto fail;
+		}
+		if ((m->m_flags & M_NOTREADY) == 0) {
+			printf("sb %p TLS mbuf %p ready\n", sb, m);
+			goto fail;
+		}
+		tlscc += m->m_len;
+		ccc += m->m_len;
+		mbcnt += MSIZE;
+		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
+			mbcnt += m->m_ext.ext_size;
+	}
+
+	if (sb->sb_tlscc != tlscc) {
+		printf("tlscc %ld/%u dcc %u\n", tlscc, sb->sb_tlscc,
+		    sb->sb_tlsdcc);
+		goto fail;
+	}
+#endif
 	if (acc != sb->sb_acc || ccc != sb->sb_ccc || mbcnt != sb->sb_mbcnt) {
 		printf("acc %ld/%u ccc %ld/%u mbcnt %ld/%u\n",
 		    acc, sb->sb_acc, ccc, sb->sb_ccc, mbcnt, sb->sb_mbcnt);
+#ifdef KERN_TLS
+		printf("tlscc %ld/%u dcc %u\n", tlscc, sb->sb_tlscc,
+		    sb->sb_tlsdcc);
+#endif
 		goto fail;
 	}
 	return;
@@ -1209,6 +1354,64 @@ sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
 	SBLASTMBUFCHK(sb);
 }
 
+#ifdef KERN_TLS
+/*
+ * A version of sbcompress() for encrypted TLS RX mbufs.  These mbufs
+ * are appended to the 'sb_mtls' chain instead of 'sb_mb' and are also
+ * a bit simpler (no EOR markers, always MT_DATA, etc.).
+ */
+static void
+sbcompress_ktls_rx(struct sockbuf *sb, struct mbuf *m, struct mbuf *n)
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	while (m) {
+		KASSERT((m->m_flags & M_EOR) == 0,
+		    ("TLS RX mbuf %p with EOR", m));
+		KASSERT(m->m_type == MT_DATA,
+		    ("TLS RX mbuf %p is not MT_DATA", m));
+		KASSERT((m->m_flags & M_NOTREADY) != 0,
+		    ("TLS RX mbuf %p ready", m));
+		KASSERT((m->m_flags & M_EXTPG) == 0,
+		    ("TLS RX mbuf %p unmapped", m));
+
+		if (m->m_len == 0) {
+			m = m_free(m);
+			continue;
+		}
+
+		/*
+		 * Even though both 'n' and 'm' are NOTREADY, it's ok
+		 * to coalesce the data.
+		 */
+		if (n &&
+		    M_WRITABLE(n) &&
+		    ((sb->sb_flags & SB_NOCOALESCE) == 0) &&
+		    !(n->m_flags & (M_EXTPG)) &&
+		    m->m_len <= MCLBYTES / 4 && /* XXX: Don't copy too much */
+		    m->m_len <= M_TRAILINGSPACE(n)) {
+			m_copydata(m, 0, m->m_len, mtodo(n, n->m_len));
+			n->m_len += m->m_len;
+			sb->sb_ccc += m->m_len;
+			sb->sb_tlscc += m->m_len;
+			m = m_free(m);
+			continue;
+		}
+		if (n)
+			n->m_next = m;
+		else
+			sb->sb_mtls = m;
+		sb->sb_mtlstail = m;
+		sballoc_ktls_rx(sb, m);
+		n = m;
+		m = m->m_next;
+		n->m_next = NULL;
+	}
+	SBLASTMBUFCHK(sb);
+}
+#endif
+
 /*
  * Free all mbufs in a sockbuf.  Check that all resources are reclaimed.
  */
@@ -1216,7 +1419,7 @@ static void
 sbflush_internal(struct sockbuf *sb)
 {
 
-	while (sb->sb_mbcnt) {
+	while (sb->sb_mbcnt || sb->sb_tlsdcc) {
 		/*
 		 * Don't call sbcut(sb, 0) if the leading mbuf is non-empty:
 		 * we would loop forever. Panic instead.
@@ -1254,6 +1457,7 @@ static struct mbuf *
 sbcut_internal(struct sockbuf *sb, int len)
 {
 	struct mbuf *m, *next, *mfree;
+	bool is_tls;
 
 	KASSERT(len >= 0, ("%s: len is %d but it is supposed to be >= 0",
 	    __func__, len));
@@ -1261,10 +1465,25 @@ sbcut_internal(struct sockbuf *sb, int len)
 	    __func__, len, sb->sb_ccc));
 
 	next = (m = sb->sb_mb) ? m->m_nextpkt : 0;
+	is_tls = false;
 	mfree = NULL;
 
 	while (len > 0) {
 		if (m == NULL) {
+#ifdef KERN_TLS
+			if (next == NULL && !is_tls) {
+				if (sb->sb_tlsdcc != 0) {
+					MPASS(len >= sb->sb_tlsdcc);
+					len -= sb->sb_tlsdcc;
+					sb->sb_ccc -= sb->sb_tlsdcc;
+					sb->sb_tlsdcc = 0;
+					if (len == 0)
+						break;
+				}
+				next = sb->sb_mtls;
+				is_tls = true;
+			}
+#endif
 			KASSERT(next, ("%s: no next, len %d", __func__, len));
 			m = next;
 			next = m->m_nextpkt;
@@ -1283,12 +1502,17 @@ sbcut_internal(struct sockbuf *sb, int len)
 			break;
 		}
 		len -= m->m_len;
-		sbfree(sb, m);
+#ifdef KERN_TLS
+		if (is_tls)
+			sbfree_ktls_rx(sb, m);
+		else
+#endif
+			sbfree(sb, m);
 		/*
 		 * Do not put M_NOTREADY buffers to the free list, they
 		 * are referenced from outside.
 		 */
-		if (m->m_flags & M_NOTREADY)
+		if (m->m_flags & M_NOTREADY && !is_tls)
 			m = m->m_next;
 		else {
 			struct mbuf *n;
@@ -1314,6 +1538,14 @@ sbcut_internal(struct sockbuf *sb, int len)
 		mfree = m;
 		m = n;
 	}
+#ifdef KERN_TLS
+	if (is_tls) {
+		sb->sb_mb = NULL;
+		sb->sb_mtls = m;
+		if (m == NULL)
+			sb->sb_mtlstail = NULL;
+	} else
+#endif
 	if (m) {
 		sb->sb_mb = m;
 		m->m_nextpkt = next;
@@ -1489,17 +1721,18 @@ sbdroprecord(struct sockbuf *sb)
  * type for presentation on a socket buffer.
  */
 struct mbuf *
-sbcreatecontrol(caddr_t p, int size, int type, int level)
+sbcreatecontrol_how(void *p, int size, int type, int level, int wait)
 {
 	struct cmsghdr *cp;
 	struct mbuf *m;
 
+	MBUF_CHECKSLEEP(wait);
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
 	if (CMSG_SPACE((u_int)size) > MLEN)
-		m = m_getcl(M_NOWAIT, MT_CONTROL, 0);
+		m = m_getcl(wait, MT_CONTROL, 0);
 	else
-		m = m_get(M_NOWAIT, MT_CONTROL);
+		m = m_get(wait, MT_CONTROL);
 	if (m == NULL)
 		return ((struct mbuf *) NULL);
 	cp = mtod(m, struct cmsghdr *);
@@ -1518,6 +1751,13 @@ sbcreatecontrol(caddr_t p, int size, int type, int level)
 	cp->cmsg_level = level;
 	cp->cmsg_type = type;
 	return (m);
+}
+
+struct mbuf *
+sbcreatecontrol(caddr_t p, int size, int type, int level)
+{
+
+	return (sbcreatecontrol_how(p, size, type, level, M_NOWAIT));
 }
 
 /*

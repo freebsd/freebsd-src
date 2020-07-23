@@ -83,6 +83,7 @@ enum socket_qstate {
  * (f) not locked since integer reads/writes are atomic.
  * (g) used only as a sleep/wakeup address, no value.
  * (h) locked by global mutex so_global_mtx.
+ * (k) locked by KTLS workqueue mutex
  */
 TAILQ_HEAD(accept_queue, socket);
 struct socket {
@@ -132,6 +133,9 @@ struct socket {
 			/* (b) cached MAC label for peer */
 			struct	label		*so_peerlabel;
 			u_long	so_oobmark;	/* chars to oob mark */
+
+			/* (k) Our place on KTLS RX work queue. */
+			STAILQ_ENTRY(socket)	so_ktls_rx_list;
 		};
 		/*
 		 * Listening socket, where accepts occur, is so_listen in all
