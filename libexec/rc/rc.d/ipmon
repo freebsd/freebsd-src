@@ -6,7 +6,7 @@
 # PROVIDE: ipmon
 # REQUIRE: FILESYSTEMS hostname sysctl ipfilter
 # BEFORE:  SERVERS
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 
