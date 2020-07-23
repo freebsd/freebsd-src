@@ -101,6 +101,40 @@ ktls_ocf_callback(struct cryptop *crp)
 }
 
 static int
+ktls_ocf_dispatch(struct ocf_session *os, struct cryptop *crp)
+{
+	struct ocf_operation oo;
+	int error;
+
+	oo.os = os;
+	oo.done = false;
+
+	crp->crp_opaque = &oo;
+	crp->crp_callback = ktls_ocf_callback;
+	for (;;) {
+		error = crypto_dispatch(crp);
+		if (error)
+			break;
+
+		mtx_lock(&os->lock);
+		while (!oo.done)
+			mtx_sleep(&oo, &os->lock, 0, "ocfktls", 0);
+		mtx_unlock(&os->lock);
+
+		if (crp->crp_etype != EAGAIN) {
+			error = crp->crp_etype;
+			break;
+		}
+
+		crp->crp_etype = 0;
+		crp->crp_flags &= ~CRYPTO_F_DONE;
+		oo.done = false;
+		counter_u64_add(ocf_retries, 1);
+	}
+	return (error);
+}
+
+static int
 ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
     struct iovec *outiov, int iovcnt, uint64_t seqno,
@@ -110,16 +144,12 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	struct tls_aead_data ad;
 	struct cryptop crp;
 	struct ocf_session *os;
-	struct ocf_operation oo;
 	struct iovec iov[iovcnt + 1];
 	int i, error;
 	uint16_t tls_comp_len;
 	bool inplace;
 
 	os = tls->cipher;
-
-	oo.os = os;
-	oo.done = false;
 
 	uio.uio_iov = iniov;
 	uio.uio_iovcnt = iovcnt;
@@ -180,34 +210,13 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 	crypto_use_uio(&crp, &uio);
 	if (!inplace)
 		crypto_use_output_uio(&crp, &out_uio);
-	crp.crp_opaque = &oo;
-	crp.crp_callback = ktls_ocf_callback;
 
 	counter_u64_add(ocf_tls12_gcm_crypts, 1);
 	if (inplace)
 		counter_u64_add(ocf_inplace, 1);
 	else
 		counter_u64_add(ocf_separate_output, 1);
-	for (;;) {
-		error = crypto_dispatch(&crp);
-		if (error)
-			break;
-
-		mtx_lock(&os->lock);
-		while (!oo.done)
-			mtx_sleep(&oo, &os->lock, 0, "ocfktls", 0);
-		mtx_unlock(&os->lock);
-
-		if (crp.crp_etype != EAGAIN) {
-			error = crp.crp_etype;
-			break;
-		}
-
-		crp.crp_etype = 0;
-		crp.crp_flags &= ~CRYPTO_F_DONE;
-		oo.done = false;
-		counter_u64_add(ocf_retries, 1);
-	}
+	error = ktls_ocf_dispatch(os, &crp);
 
 	crypto_destroyreq(&crp);
 	return (error);
@@ -223,15 +232,11 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 	char nonce[12];
 	struct cryptop crp;
 	struct ocf_session *os;
-	struct ocf_operation oo;
 	struct iovec iov[iovcnt + 1], out_iov[iovcnt + 1];
 	int i, error;
 	bool inplace;
 
 	os = tls->cipher;
-
-	oo.os = os;
-	oo.done = false;
 
 	crypto_initreq(&crp, os->sid);
 
@@ -294,8 +299,6 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 
 	crp.crp_op = CRYPTO_OP_ENCRYPT | CRYPTO_OP_COMPUTE_DIGEST;
 	crp.crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
-	crp.crp_opaque = &oo;
-	crp.crp_callback = ktls_ocf_callback;
 
 	memcpy(crp.crp_iv, nonce, sizeof(nonce));
 
@@ -304,26 +307,7 @@ ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
 		counter_u64_add(ocf_inplace, 1);
 	else
 		counter_u64_add(ocf_separate_output, 1);
-	for (;;) {
-		error = crypto_dispatch(&crp);
-		if (error)
-			break;
-
-		mtx_lock(&os->lock);
-		while (!oo.done)
-			mtx_sleep(&oo, &os->lock, 0, "ocfktls", 0);
-		mtx_unlock(&os->lock);
-
-		if (crp.crp_etype != EAGAIN) {
-			error = crp.crp_etype;
-			break;
-		}
-
-		crp.crp_etype = 0;
-		crp.crp_flags &= ~CRYPTO_F_DONE;
-		oo.done = false;
-		counter_u64_add(ocf_retries, 1);
-	}
+	error = ktls_ocf_dispatch(os, &crp);
 
 	crypto_destroyreq(&crp);
 	return (error);
