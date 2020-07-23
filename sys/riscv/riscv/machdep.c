@@ -419,7 +419,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 		KASSERT((curpcb->pcb_fpflags & ~PCB_FP_USERMASK) == 0,
 		    ("Non-userspace FPE flags set in get_fpcontext"));
 		memcpy(mcp->mc_fpregs.fp_x, curpcb->pcb_x,
-		    sizeof(mcp->mc_fpregs));
+		    sizeof(mcp->mc_fpregs.fp_x));
 		mcp->mc_fpregs.fp_fcsr = curpcb->pcb_fcsr;
 		mcp->mc_fpregs.fp_flags = curpcb->pcb_fpflags;
 		mcp->mc_flags |= _MC_FP_VALID;
@@ -446,7 +446,7 @@ set_fpcontext(struct thread *td, mcontext_t *mcp)
 		curpcb = curthread->td_pcb;
 		/* FPE usage is enabled, override registers. */
 		memcpy(curpcb->pcb_x, mcp->mc_fpregs.fp_x,
-		    sizeof(mcp->mc_fpregs));
+		    sizeof(mcp->mc_fpregs.fp_x));
 		curpcb->pcb_fcsr = mcp->mc_fpregs.fp_fcsr;
 		curpcb->pcb_fpflags = mcp->mc_fpregs.fp_flags & PCB_FP_USERMASK;
 		td->td_frame->tf_sstatus |= SSTATUS_FS_CLEAN;
