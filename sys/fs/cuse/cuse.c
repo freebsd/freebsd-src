@@ -425,8 +425,6 @@ cuse_server_alloc_memory(struct cuse_server *pcs, uint32_t alloc_nr,
 	int error;
 
 	mem = malloc(sizeof(*mem), M_CUSE, M_WAITOK | M_ZERO);
-	if (mem == NULL)
-		return (ENOMEM);
 
 	object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * page_count,
 	    VM_PROT_DEFAULT, 0, curthread->td_ucred);
@@ -748,8 +746,6 @@ cuse_server_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	struct cuse_server *pcs;
 
 	pcs = malloc(sizeof(*pcs), M_CUSE, M_WAITOK | M_ZERO);
-	if (pcs == NULL)
-		return (ENOMEM);
 
 	if (devfs_set_cdevpriv(pcs, &cuse_server_free)) {
 		printf("Cuse: Cannot set cdevpriv.\n");
@@ -1217,10 +1213,6 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 
 		pcsd = malloc(sizeof(*pcsd), M_CUSE, M_WAITOK | M_ZERO);
 
-		if (pcsd == NULL) {
-			error = ENOMEM;
-			break;
-		}
 		pcsd->server = pcs;
 
 		pcsd->user_dev = pcd->dev;
@@ -1430,11 +1422,6 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	}
 
 	pcc = malloc(sizeof(*pcc), M_CUSE, M_WAITOK | M_ZERO);
-	if (pcc == NULL) {
-		/* drop reference on server */
-		cuse_server_unref(pcs);
-		return (ENOMEM);
-	}
 	if (devfs_set_cdevpriv(pcc, &cuse_client_free)) {
 		printf("Cuse: Cannot set cdevpriv.\n");
 		/* drop reference on server */
