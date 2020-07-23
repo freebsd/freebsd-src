@@ -223,6 +223,56 @@ ktls_ocf_tls12_gcm_encrypt(struct ktls_session *tls,
 }
 
 static int
+ktls_ocf_tls12_gcm_decrypt(struct ktls_session *tls,
+    const struct tls_record_layer *hdr, struct mbuf *m, uint64_t seqno,
+    int *trailer_len)
+{
+	struct tls_aead_data ad;
+	struct cryptop crp;
+	struct ocf_session *os;
+	struct ocf_operation oo;
+	int error;
+	uint16_t tls_comp_len;
+
+	os = tls->cipher;
+
+	oo.os = os;
+	oo.done = false;
+
+	crypto_initreq(&crp, os->sid);
+
+	/* Setup the IV. */
+	memcpy(crp.crp_iv, tls->params.iv, TLS_AEAD_GCM_LEN);
+	memcpy(crp.crp_iv + TLS_AEAD_GCM_LEN, hdr + 1, sizeof(uint64_t));
+
+	/* Setup the AAD. */
+	tls_comp_len = ntohs(hdr->tls_length) -
+	    (AES_GMAC_HASH_LEN + sizeof(uint64_t));
+	ad.seq = htobe64(seqno);
+	ad.type = hdr->tls_type;
+	ad.tls_vmajor = hdr->tls_vmajor;
+	ad.tls_vminor = hdr->tls_vminor;
+	ad.tls_length = htons(tls_comp_len);
+	crp.crp_aad = &ad;
+	crp.crp_aad_length = sizeof(ad);
+
+	crp.crp_payload_start = tls->params.tls_hlen;
+	crp.crp_payload_length = tls_comp_len;
+	crp.crp_digest_start = crp.crp_payload_start + crp.crp_payload_length;
+
+	crp.crp_op = CRYPTO_OP_DECRYPT | CRYPTO_OP_VERIFY_DIGEST;
+	crp.crp_flags = CRYPTO_F_CBIMM | CRYPTO_F_IV_SEPARATE;
+	crypto_use_mbuf(&crp, m);
+
+	counter_u64_add(ocf_tls12_gcm_crypts, 1);
+	error = ktls_ocf_dispatch(os, &crp);
+
+	crypto_destroyreq(&crp);
+	*trailer_len = AES_GMAC_HASH_LEN;
+	return (error);
+}
+
+static int
 ktls_ocf_tls13_gcm_encrypt(struct ktls_session *tls,
     const struct tls_record_layer *hdr, uint8_t *trailer, struct iovec *iniov,
     struct iovec *outiov, int iovcnt, uint64_t seqno, uint8_t record_type)
@@ -325,7 +375,7 @@ ktls_ocf_free(struct ktls_session *tls)
 }
 
 static int
-ktls_ocf_try(struct socket *so, struct ktls_session *tls)
+ktls_ocf_try(struct socket *so, struct ktls_session *tls, int direction)
 {
 	struct crypto_session_params csp;
 	struct ocf_session *os;
@@ -359,6 +409,11 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls)
 	    tls->params.tls_vminor > TLS_MINOR_VER_THREE)
 		return (EPROTONOSUPPORT);
 
+	/* TLS 1.3 is not yet supported for receive. */
+	if (direction == KTLS_RX &&
+	    tls->params.tls_vminor == TLS_MINOR_VER_THREE)
+		return (EPROTONOSUPPORT);
+
 	os = malloc(sizeof(*os), M_KTLS_OCF, M_NOWAIT | M_ZERO);
 	if (os == NULL)
 		return (ENOMEM);
@@ -372,10 +427,14 @@ ktls_ocf_try(struct socket *so, struct ktls_session *tls)
 
 	mtx_init(&os->lock, "ktls_ocf", NULL, MTX_DEF);
 	tls->cipher = os;
-	if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)
-		tls->sw_encrypt = ktls_ocf_tls13_gcm_encrypt;
-	else
-		tls->sw_encrypt = ktls_ocf_tls12_gcm_encrypt;
+	if (direction == KTLS_TX) {
+		if (tls->params.tls_vminor == TLS_MINOR_VER_THREE)
+			tls->sw_encrypt = ktls_ocf_tls13_gcm_encrypt;
+		else
+			tls->sw_encrypt = ktls_ocf_tls12_gcm_encrypt;
+	} else {
+		tls->sw_decrypt = ktls_ocf_tls12_gcm_decrypt;
+	}
 	tls->free = ktls_ocf_free;
 	return (0);
 }
