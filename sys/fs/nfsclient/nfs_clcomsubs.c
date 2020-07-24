@@ -160,26 +160,33 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
  * NOTE: can ony handle iovcnt == 1
  */
 struct mbuf *
-nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
+nfsm_uiombuflist(struct uio *uiop, int siz, u_int maxext)
 {
 	char *uiocp;
 	struct mbuf *mp, *mp2, *firstmp;
-	int i, left, mlen, rem, xfer;
+	int extpg, extpgsiz = 0, i, left, mlen, rem, xfer;
 	int uiosiz, clflg;
 	char *mcp, *tcp;
 
 	KASSERT(uiop->uio_iovcnt == 1, ("nfsm_uiotombuf: iovcnt != 1"));
 
-	if (siz > ncl_mbuf_mlen)	/* or should it >= MCLBYTES ?? */
-		clflg = 1;
-	else
-		clflg = 0;
-	if (clflg != 0)
-		NFSMCLGET(mp, M_WAITOK);
-	else
-		NFSMGET(mp);
+	if (maxext > 0) {
+		mp = mb_alloc_ext_plus_pages(PAGE_SIZE, M_WAITOK);
+		mcp = (char *)(void *)PHYS_TO_DMAP(mp->m_epg_pa[0]);
+		extpg = 0;
+		extpgsiz = PAGE_SIZE;
+	} else {
+		if (siz > ncl_mbuf_mlen) /* or should it >= MCLBYTES ?? */
+			clflg = 1;
+		else
+			clflg = 0;
+		if (clflg != 0)
+			NFSMCLGET(mp, M_WAITOK);
+		else
+			NFSMGET(mp);
+		mcp = mtod(mp, char *);
+	}
 	mp->m_len = 0;
-	mcp = mtod(mp, char *);
 	firstmp = mp2 = mp;
 	rem = NFSM_RNDUP(siz) - siz;
 	while (siz > 0) {
@@ -189,17 +196,28 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 			left = siz;
 		uiosiz = left;
 		while (left > 0) {
-			mlen = M_TRAILINGSPACE(mp);
-			if (mlen == 0) {
-				if (clflg)
-					NFSMCLGET(mp, M_WAITOK);
-				else
-					NFSMGET(mp);
-				mp->m_len = 0;
-				mcp = mtod(mp, char *);
-				mp2->m_next = mp;
-				mp2 = mp;
+			if (maxext > 0)
+				mlen = extpgsiz;
+			else
 				mlen = M_TRAILINGSPACE(mp);
+			if (mlen == 0) {
+				if (maxext > 0) {
+					mp = nfsm_add_ext_pgs(mp, maxext,
+					    &extpg);
+					mlen = extpgsiz = PAGE_SIZE;
+					mcp = (char *)(void *)PHYS_TO_DMAP(
+					    mp->m_epg_pa[extpg]);
+				} else {
+					if (clflg)
+						NFSMCLGET(mp, M_WAITOK);
+					else
+						NFSMGET(mp);
+					mcp = mtod(mp, char *);
+					mlen = M_TRAILINGSPACE(mp);
+					mp->m_len = 0;
+					mp2->m_next = mp;
+					mp2 = mp;
+				}
 			}
 			xfer = (left > mlen) ? mlen : left;
 			if (uiop->uio_segflg == UIO_SYSSPACE)
@@ -208,6 +226,10 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 				copyin(uiocp, mcp, xfer);
 			mp->m_len += xfer;
 			mcp += xfer;
+			if (maxext > 0) {
+				extpgsiz -= xfer;
+				mp->m_epg_last_len += xfer;
+			}
 			left -= xfer;
 			uiocp += xfer;
 			uiop->uio_offset += xfer;
@@ -220,16 +242,15 @@ nfsm_uiombuflist(struct uio *uiop, int siz, struct mbuf **mbp, char **cpp)
 		siz -= uiosiz;
 	}
 	if (rem > 0) {
-		KASSERT(rem <= M_TRAILINGSPACE(mp),
+		KASSERT((mp->m_flags & M_EXTPG) != 0 ||
+		    rem <= M_TRAILINGSPACE(mp),
 		    ("nfsm_uiombuflist: no space for padding"));
 		for (i = 0; i < rem; i++)
 			*mcp++ = '\0';
 		mp->m_len += rem;
+		if (maxext > 0)
+			mp->m_epg_last_len += rem;
 	}
-	if (cpp != NULL)
-		*cpp = mtod(mp, caddr_t) + mp->m_len;
-	if (mbp != NULL)
-		*mbp = mp;
 	return (firstmp);
 }
 
