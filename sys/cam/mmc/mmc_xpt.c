@@ -179,7 +179,6 @@ mmc_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
 	struct cam_ed *device;
 
-	printf("mmc_alloc_device()\n");
 	device = xpt_alloc_device(bus, target, lun_id);
 	if (device == NULL)
 		return (NULL);
@@ -282,7 +281,8 @@ mmc_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_done(request_ccb);
 		}
 	} else {
-		xpt_print(path, " Set up the mmcprobe device...\n");
+		if (bootverbose)
+			xpt_print(path, " Set up the mmcprobe device...\n");
 
                 status = cam_periph_alloc(mmcprobe_register, NULL,
 					  mmcprobe_cleanup,
@@ -829,7 +829,6 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 		/* FALLTHROUGH */
 	case PROBE_IDENTIFY:
 	{
-		printf("Starting completion of PROBE_RESET\n");
 		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("done with PROBE_RESET\n"));
 		mmcio = &done_ccb->mmcio;
 		err = mmcio->cmd.error;
@@ -1149,7 +1148,7 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
                 xpt_schedule(periph, priority);
 	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
 	int frozen = cam_release_devq(path, 0, 0, 0, FALSE);
-        printf("mmc_probedone: remaining freezecnt %d\n", frozen);
+        CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("mmc_probedone: remaining freezecnt %d\n", frozen));
 
 	if (softc->action == PROBE_DONE) {
                 /* Notify the system that the device is found! */
