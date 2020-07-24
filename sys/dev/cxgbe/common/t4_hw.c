@@ -1359,8 +1359,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x9608, 0x9638,
 		0x9640, 0x96f4,
 		0x9800, 0x9808,
-		0x9820, 0x983c,
-		0x9850, 0x9864,
+		0x9810, 0x9864,
 		0x9c00, 0x9c6c,
 		0x9c80, 0x9cec,
 		0x9d00, 0x9d6c,
@@ -1369,7 +1368,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x9e80, 0x9eec,
 		0x9f00, 0x9f6c,
 		0x9f80, 0xa020,
-		0xd004, 0xd004,
+		0xd000, 0xd004,
 		0xd010, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0x1106c,
@@ -1410,10 +1409,8 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x1a0b0, 0x1a0e4,
 		0x1a0ec, 0x1a0f8,
 		0x1a100, 0x1a108,
-		0x1a114, 0x1a120,
-		0x1a128, 0x1a130,
-		0x1a138, 0x1a138,
-		0x1a190, 0x1a1c4,
+		0x1a114, 0x1a130,
+		0x1a138, 0x1a1c4,
 		0x1a1fc, 0x1a1fc,
 		0x1e008, 0x1e00c,
 		0x1e040, 0x1e044,
@@ -2084,7 +2081,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x1180, 0x1184,
 		0x1190, 0x1194,
 		0x11a0, 0x11a4,
-		0x11b0, 0x11b4,
+		0x11b0, 0x11c4,
 		0x11fc, 0x1274,
 		0x1280, 0x133c,
 		0x1800, 0x18fc,
@@ -2140,7 +2137,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x7e4c, 0x7e78,
 		0x7e80, 0x7edc,
 		0x7ee8, 0x7efc,
-		0x8dc0, 0x8de4,
+		0x8dc0, 0x8de0,
 		0x8df8, 0x8e04,
 		0x8e10, 0x8e84,
 		0x8ea0, 0x8f88,
@@ -2154,8 +2151,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x9640, 0x9704,
 		0x9710, 0x971c,
 		0x9800, 0x9808,
-		0x9820, 0x983c,
-		0x9850, 0x9864,
+		0x9810, 0x9864,
 		0x9c00, 0x9c6c,
 		0x9c80, 0x9cec,
 		0x9d00, 0x9d6c,
@@ -2164,7 +2160,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x9e80, 0x9eec,
 		0x9f00, 0x9f6c,
 		0x9f80, 0xa020,
-		0xd004, 0xd03c,
+		0xd000, 0xd03c,
 		0xd100, 0xd118,
 		0xd200, 0xd214,
 		0xd220, 0xd234,
@@ -2198,7 +2194,6 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x191d0, 0x191e8,
 		0x19238, 0x19290,
 		0x192a4, 0x192b0,
-		0x192bc, 0x192bc,
 		0x19348, 0x1934c,
 		0x193f8, 0x19418,
 		0x19420, 0x19428,
@@ -2216,7 +2211,7 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x19d00, 0x19d28,
 		0x19d50, 0x19d78,
 		0x19d94, 0x19d98,
-		0x19da0, 0x19dc8,
+		0x19da0, 0x19de0,
 		0x19df0, 0x19e10,
 		0x19e50, 0x19e6c,
 		0x19ea0, 0x19ebc,
@@ -2232,10 +2227,8 @@ void t4_get_regs(struct adapter *adap, u8 *buf, size_t buf_size)
 		0x1a0b0, 0x1a0e4,
 		0x1a0ec, 0x1a0f8,
 		0x1a100, 0x1a108,
-		0x1a114, 0x1a120,
-		0x1a128, 0x1a130,
-		0x1a138, 0x1a138,
-		0x1a190, 0x1a1c4,
+		0x1a114, 0x1a130,
+		0x1a138, 0x1a1c4,
 		0x1a1fc, 0x1a1fc,
 		0x1e008, 0x1e00c,
 		0x1e040, 0x1e044,
@@ -3357,7 +3350,7 @@ int t4_get_tp_version(struct adapter *adapter, u32 *vers)
  *	this in the Firmware Version Format since it's convenient.  Return
  *	0 on success, -ENOENT if no Expansion ROM is present.
  */
-int t4_get_exprom_version(struct adapter *adap, u32 *vers)
+int t4_get_exprom_version(struct adapter *adapter, u32 *vers)
 {
 	struct exprom_header {
 		unsigned char hdr_arr[16];	/* must start with 0x55aa */
@@ -3367,7 +3360,7 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
 					   sizeof(u32))];
 	int ret;
 
-	ret = t4_read_flash(adap, FLASH_EXP_ROM_START,
+	ret = t4_read_flash(adapter, FLASH_EXP_ROM_START,
 			    ARRAY_SIZE(exprom_header_buf), exprom_header_buf,
 			    0);
 	if (ret)
@@ -5703,8 +5696,9 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 {
 	u32 val;
 	int i, ret;
+	int rss_nentries = adapter->chip_params->rss_nentries;
 
-	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
+	for (i = 0; i < rss_nentries / 2; ++i) {
 		ret = rd_rss_row(adapter, i, &val);
 		if (ret)
 			return ret;
@@ -7374,14 +7368,16 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
  *      Issues a FW command through the given mailbox to flush the
  *      SGE context cache.
  */
-int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox)
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox, int ctxt_type)
 {
 	int ret;
 	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_SGE_EGRC);
+	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(ctxt_type == CTXT_EGRESS ?
+						 FW_LDST_ADDRSPC_SGE_EGRC :
+						 FW_LDST_ADDRSPC_SGE_INGC);
 	c.op_to_addrspace = cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
 					F_FW_CMD_REQUEST | F_FW_CMD_READ |
 					ldst_addrspace);
@@ -8035,6 +8031,111 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 }
 
 /**
+ *	t4_alloc_encap_mac_filt - Adds a mac entry in mps tcam with VNI support
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@mac: the MAC address
+ *	@mask: the mask
+ *	@vni: the VNI id for the tunnel protocol
+ *	@vni_mask: mask for the VNI id
+ *	@dip_hit: to enable DIP match for the MPS entry
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Allocates an MPS entry with specified MAC address and VNI value.
+ *
+ *	Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			    const u8 *addr, const u8 *mask, unsigned int vni,
+			    unsigned int vni_mask, u8 dip_hit, u8 lookup_type,
+			    bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_vni *p = c.u.exact_vni;
+	int ret = 0;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	val = V_FW_CMD_LEN16(1) |
+	      V_FW_VI_MAC_CMD_ENTRY_TYPE(FW_VI_MAC_TYPE_EXACTMAC_VNI);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+	p->valid_to_idx = cpu_to_be16(F_FW_VI_MAC_CMD_VALID |
+				      V_FW_VI_MAC_CMD_IDX(FW_VI_MAC_ADD_MAC));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	memcpy(p->macaddr_mask, mask, sizeof(p->macaddr_mask));
+
+	p->lookup_type_to_vni = cpu_to_be32(V_FW_VI_MAC_CMD_VNI(vni) |
+					    V_FW_VI_MAC_CMD_DIP_HIT(dip_hit) |
+					    V_FW_VI_MAC_CMD_LOOKUP_TYPE(lookup_type));
+	p->vni_mask_pkd = cpu_to_be32(V_FW_VI_MAC_CMD_VNI_MASK(vni_mask));
+
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0)
+		ret = G_FW_VI_MAC_CMD_IDX(be16_to_cpu(p->valid_to_idx));
+	return ret;
+}
+
+/**
+ *	t4_alloc_raw_mac_filt - Adds a mac entry in mps tcam
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@mac: the MAC address
+ *	@mask: the mask
+ *	@idx: index at which to add this entry
+ *	@port_id: the port index
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Adds the mac entry at the specified index using raw mac interface.
+ *
+ *	Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			  const u8 *addr, const u8 *mask, unsigned int idx,
+			  u8 lookup_type, u8 port_id, bool sleep_ok)
+{
+	int ret = 0;
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_raw *p = &c.u.raw;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	val = V_FW_CMD_LEN16(1) |
+	      V_FW_VI_MAC_CMD_ENTRY_TYPE(FW_VI_MAC_TYPE_RAW);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+
+	/* Specify that this is an inner mac address */
+	p->raw_idx_pkd = cpu_to_be32(V_FW_VI_MAC_CMD_RAW_IDX(idx));
+
+	/* Lookup Type. Outer header: 0, Inner header: 1 */
+	p->data0_pkd = cpu_to_be32(V_DATALKPTYPE(lookup_type) |
+				   V_DATAPORTNUM(port_id));
+	/* Lookup mask and port mask */
+	p->data0m_pkd = cpu_to_be64(V_DATALKPTYPE(M_DATALKPTYPE) |
+				    V_DATAPORTNUM(M_DATAPORTNUM));
+
+	/* Copy the address and the mask */
+	memcpy((u8 *)&p->data1[0] + 2, addr, ETHER_ADDR_LEN);
+	memcpy((u8 *)&p->data1m[0] + 2, mask, ETHER_ADDR_LEN);
+
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0) {
+		ret = G_FW_VI_MAC_CMD_RAW_IDX(be32_to_cpu(p->raw_idx_pkd));
+		if (ret != idx)
+			ret = -ENOMEM;
+	}
+
+	return ret;
+}
+
+/**
  *	t4_alloc_mac_filt - allocates exact-match filters for MAC addresses
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -8123,6 +8224,168 @@ int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox,
 	}
 
 	if (ret == 0 || ret == -FW_ENOMEM)
+		ret = nfilters;
+	return ret;
+}
+
+/**
+ *	t4_free_encap_mac_filt - frees MPS entry at given index
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@idx: index of MPS entry to be freed
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Frees the MPS entry at supplied index
+ *
+ *	Returns a negative error number or zero on success
+ */
+int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			   int idx, bool sleep_ok)
+{
+	struct fw_vi_mac_exact *p;
+	struct fw_vi_mac_cmd c;
+	u8 addr[] = {0,0,0,0,0,0};
+	int ret = 0;
+	u32 exact;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST |
+				   F_FW_CMD_WRITE |
+				   V_FW_CMD_EXEC(0) |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	exact = V_FW_VI_MAC_CMD_ENTRY_TYPE(FW_VI_MAC_TYPE_EXACTMAC);
+	c.freemacs_to_len16 = cpu_to_be32(V_FW_VI_MAC_CMD_FREEMACS(0) |
+					  exact |
+					  V_FW_CMD_LEN16(1));
+	p = c.u.exact;
+	p->valid_to_idx = cpu_to_be16(F_FW_VI_MAC_CMD_VALID |
+				      V_FW_VI_MAC_CMD_IDX(idx));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	return ret;
+}
+
+/**
+ *	t4_free_raw_mac_filt - Frees a raw mac entry in mps tcam
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@addr: the MAC address
+ *	@mask: the mask
+ *	@idx: index of the entry in mps tcam
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@port_id: the port index
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Removes the mac entry at the specified index using raw mac interface.
+ *
+ *	Returns a negative error number on failure.
+ */
+int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			 const u8 *addr, const u8 *mask, unsigned int idx,
+			 u8 lookup_type, u8 port_id, bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_raw *p = &c.u.raw;
+	u32 raw;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_CMD_EXEC(0) |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	raw = V_FW_VI_MAC_CMD_ENTRY_TYPE(FW_VI_MAC_TYPE_RAW);
+	c.freemacs_to_len16 = cpu_to_be32(V_FW_VI_MAC_CMD_FREEMACS(0) |
+					  raw |
+					  V_FW_CMD_LEN16(1));
+
+	p->raw_idx_pkd = cpu_to_be32(V_FW_VI_MAC_CMD_RAW_IDX(idx) |
+				     FW_VI_MAC_ID_BASED_FREE);
+
+	/* Lookup Type. Outer header: 0, Inner header: 1 */
+	p->data0_pkd = cpu_to_be32(V_DATALKPTYPE(lookup_type) |
+				   V_DATAPORTNUM(port_id));
+	/* Lookup mask and port mask */
+	p->data0m_pkd = cpu_to_be64(V_DATALKPTYPE(M_DATALKPTYPE) |
+				    V_DATAPORTNUM(M_DATAPORTNUM));
+
+	/* Copy the address and the mask */
+	memcpy((u8 *)&p->data1[0] + 2, addr, ETHER_ADDR_LEN);
+	memcpy((u8 *)&p->data1m[0] + 2, mask, ETHER_ADDR_LEN);
+
+	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+}
+
+/**
+ *	t4_free_mac_filt - frees exact-match filters of given MAC addresses
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@viid: the VI id
+ *	@naddr: the number of MAC addresses to allocate filters for (up to 7)
+ *	@addr: the MAC address(es)
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Frees the exact-match filter for each of the supplied addresses
+ *
+ *	Returns a negative error number or the number of filters freed.
+ */
+int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
+		      unsigned int viid, unsigned int naddr,
+		      const u8 **addr, bool sleep_ok)
+{
+	int offset, ret = 0;
+	struct fw_vi_mac_cmd c;
+	unsigned int nfilters = 0;
+	unsigned int max_naddr = adap->chip_params->mps_tcam_size;
+	unsigned int rem = naddr;
+
+	if (naddr > max_naddr)
+		return -EINVAL;
+
+	for (offset = 0; offset < (int)naddr ; /**/) {
+		unsigned int fw_naddr = (rem < ARRAY_SIZE(c.u.exact)
+					 ? rem
+					 : ARRAY_SIZE(c.u.exact));
+		size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
+						     u.exact[fw_naddr]), 16);
+		struct fw_vi_mac_exact *p;
+		int i;
+
+		memset(&c, 0, sizeof(c));
+		c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				     F_FW_CMD_REQUEST |
+				     F_FW_CMD_WRITE |
+				     V_FW_CMD_EXEC(0) |
+				     V_FW_VI_MAC_CMD_VIID(viid));
+		c.freemacs_to_len16 =
+				cpu_to_be32(V_FW_VI_MAC_CMD_FREEMACS(0) |
+					    V_FW_CMD_LEN16(len16));
+
+		for (i = 0, p = c.u.exact; i < (int)fw_naddr; i++, p++) {
+			p->valid_to_idx = cpu_to_be16(
+				F_FW_VI_MAC_CMD_VALID |
+				V_FW_VI_MAC_CMD_IDX(FW_VI_MAC_MAC_BASED_FREE));
+			memcpy(p->macaddr, addr[offset+i], sizeof(p->macaddr));
+		}
+
+		ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
+		if (ret)
+			break;
+
+		for (i = 0, p = c.u.exact; i < fw_naddr; i++, p++) {
+			u16 index = G_FW_VI_MAC_CMD_IDX(
+						be16_to_cpu(p->valid_to_idx));
+
+			if (index < max_naddr)
+				nfilters++;
+		}
+
+		offset += fw_naddr;
+		rem -= fw_naddr;
+	}
+
+	if (ret == 0)
 		ret = nfilters;
 	return ret;
 }
@@ -8916,6 +9179,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO,
 			.mps_tcam_size = NUM_MPS_CLS_SRAM_L_INSTANCES,
+			.rss_nentries = RSS_NENTRIES,
 		},
 		{
 			/* T5 */
@@ -8928,6 +9192,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.vfcount = 128,
 			.sge_fl_db = F_DBPRIO | F_DBTYPE,
 			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
+			.rss_nentries = RSS_NENTRIES,
 		},
 		{
 			/* T6 */
@@ -8940,6 +9205,7 @@ const struct chip_params *t4_get_chip_params(int chipid)
 			.vfcount = 256,
 			.sge_fl_db = 0,
 			.mps_tcam_size = NUM_MPS_T5_CLS_SRAM_L_INSTANCES,
+			.rss_nentries = T6_RSS_NENTRIES,
 		},
 	};
 
@@ -9728,15 +9994,15 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
 		if (ret)
 			break;
 
-		/* address can't exceed 0xfff (UpDbgLaRdPtr is of 12-bits) */
-		idx = (idx + 1) & M_UPDBGLARDPTR;
-		/*
-		 * Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
+		/* Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
 		 * identify the 32-bit portion of the full 312-bit data
 		 */
-		if (is_t6(adap))
-			while ((idx & 0xf) > 9)
-				idx = (idx + 1) % M_UPDBGLARDPTR;
+		if (is_t6(adap) && (idx & 0xf) >= 9)
+			idx = (idx & 0xff0) + 0x10;
+		else
+			idx++;
+		/* address can't exceed 0xfff */
+		idx &= M_UPDBGLARDPTR;
 	}
 restart:
 	if (cfg & F_UPDBGLAEN) {
@@ -10479,88 +10745,81 @@ void t4_clr_port_stats(struct adapter *adap, int idx)
 }
 
 /**
- *	t4_i2c_rd - read I2C data from adapter
+ *	t4_i2c_io - read/write I2C data from adapter
  *	@adap: the adapter
  *	@port: Port number if per-port device; <0 if not
  *	@devid: per-port device ID or absolute device ID
  *	@offset: byte offset into device I2C space
  *	@len: byte length of I2C space data
- *	@buf: buffer in which to return I2C data
- *
- *	Reads the I2C data from the indicated device and location.
+ *	@buf: buffer in which to return I2C data for read
+ *	      buffer which holds the I2C data for write
+ *	@write: if true, do a write; else do a read
+ *	Reads/Writes the I2C data from/to the indicated device and location.
  */
+int t4_i2c_io(struct adapter *adap, unsigned int mbox,
+	      int port, unsigned int devid,
+	      unsigned int offset, unsigned int len,
+	      u8 *buf, bool write)
+{
+	struct fw_ldst_cmd ldst_cmd, ldst_rpl;
+	unsigned int i2c_max = sizeof(ldst_cmd.u.i2c.data);
+	int ret = 0;
+
+	if (len > I2C_PAGE_SIZE)
+		return -EINVAL;
+
+	/* Dont allow reads that spans multiple pages */
+	if (offset < I2C_PAGE_SIZE && offset + len > I2C_PAGE_SIZE)
+		return -EINVAL;
+
+	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+	ldst_cmd.op_to_addrspace =
+		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
+			    F_FW_CMD_REQUEST |
+			    (write ? F_FW_CMD_WRITE : F_FW_CMD_READ) |
+			    V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C));
+	ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
+	ldst_cmd.u.i2c.pid = (port < 0 ? 0xff : port);
+	ldst_cmd.u.i2c.did = devid;
+
+	while (len > 0) {
+		unsigned int i2c_len = (len < i2c_max) ? len : i2c_max;
+
+		ldst_cmd.u.i2c.boffset = offset;
+		ldst_cmd.u.i2c.blen = i2c_len;
+
+		if (write)
+			memcpy(ldst_cmd.u.i2c.data, buf, i2c_len);
+
+		ret = t4_wr_mbox(adap, mbox, &ldst_cmd, sizeof(ldst_cmd),
+				 write ? NULL : &ldst_rpl);
+		if (ret)
+			break;
+
+		if (!write)
+			memcpy(buf, ldst_rpl.u.i2c.data, i2c_len);
+		offset += i2c_len;
+		buf += i2c_len;
+		len -= i2c_len;
+	}
+
+	return ret;
+}
+
 int t4_i2c_rd(struct adapter *adap, unsigned int mbox,
 	      int port, unsigned int devid,
 	      unsigned int offset, unsigned int len,
 	      u8 *buf)
 {
-	u32 ldst_addrspace;
-	struct fw_ldst_cmd ldst;
-	int ret;
-
-	if (port >= 4 ||
-	    devid >= 256 ||
-	    offset >= 256 ||
-	    len > sizeof ldst.u.i2c.data)
-		return -EINVAL;
-
-	memset(&ldst, 0, sizeof ldst);
-	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C);
-	ldst.op_to_addrspace =
-		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
-			    F_FW_CMD_REQUEST |
-			    F_FW_CMD_READ |
-			    ldst_addrspace);
-	ldst.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst));
-	ldst.u.i2c.pid = (port < 0 ? 0xff : port);
-	ldst.u.i2c.did = devid;
-	ldst.u.i2c.boffset = offset;
-	ldst.u.i2c.blen = len;
-	ret = t4_wr_mbox(adap, mbox, &ldst, sizeof ldst, &ldst);
-	if (!ret)
-		memcpy(buf, ldst.u.i2c.data, len);
-	return ret;
+	return t4_i2c_io(adap, mbox, port, devid, offset, len, buf, false);
 }
 
-/**
- *	t4_i2c_wr - write I2C data to adapter
- *	@adap: the adapter
- *	@port: Port number if per-port device; <0 if not
- *	@devid: per-port device ID or absolute device ID
- *	@offset: byte offset into device I2C space
- *	@len: byte length of I2C space data
- *	@buf: buffer containing new I2C data
- *
- *	Write the I2C data to the indicated device and location.
- */
 int t4_i2c_wr(struct adapter *adap, unsigned int mbox,
 	      int port, unsigned int devid,
 	      unsigned int offset, unsigned int len,
 	      u8 *buf)
 {
-	u32 ldst_addrspace;
-	struct fw_ldst_cmd ldst;
-
-	if (port >= 4 ||
-	    devid >= 256 ||
-	    offset >= 256 ||
-	    len > sizeof ldst.u.i2c.data)
-		return -EINVAL;
-
-	memset(&ldst, 0, sizeof ldst);
-	ldst_addrspace = V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_I2C);
-	ldst.op_to_addrspace =
-		cpu_to_be32(V_FW_CMD_OP(FW_LDST_CMD) |
-			    F_FW_CMD_REQUEST |
-			    F_FW_CMD_WRITE |
-			    ldst_addrspace);
-	ldst.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst));
-	ldst.u.i2c.pid = (port < 0 ? 0xff : port);
-	ldst.u.i2c.did = devid;
-	ldst.u.i2c.boffset = offset;
-	ldst.u.i2c.blen = len;
-	memcpy(ldst.u.i2c.data, buf, len);
-	return t4_wr_mbox(adap, mbox, &ldst, sizeof ldst, &ldst);
+	return t4_i2c_io(adap, mbox, port, devid, offset, len, buf, true);
 }
 
 /**
@@ -10826,4 +11085,220 @@ int t4_set_devlog_level(struct adapter *adapter, unsigned int level)
 	devlog_cmd.retval_len16 = cpu_to_be32(FW_LEN16(devlog_cmd));
 	return t4_wr_mbox(adapter, adapter->mbox, &devlog_cmd,
 			  sizeof(devlog_cmd), &devlog_cmd);
+}
+
+int t4_configure_add_smac(struct adapter *adap)
+{
+	unsigned int param, val;
+	int ret = 0;
+
+	adap->params.smac_add_support = 0;
+	param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+		  V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_ADD_SMAC));
+	/* Query FW to check if FW supports adding source mac address
+	 * to TCAM feature or not.
+	 * If FW returns 1, driver can use this feature and driver need to send
+	 * FW_PARAMS_PARAM_DEV_ADD_SMAC write command with value 1 to
+	 * enable adding smac to TCAM.
+	 */
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret)
+		return ret;
+
+	if (val == 1) {
+		ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1,
+				    &param, &val);
+		if (!ret)
+			/* Firmware allows adding explicit TCAM entries.
+			 * Save this internally.
+			 */
+			adap->params.smac_add_support = 1;
+	}
+
+	return ret;
+}
+
+int t4_configure_ringbb(struct adapter *adap)
+{
+	unsigned int param, val;
+	int ret = 0;
+
+	param = (V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) |
+		  V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_RING_BACKBONE));
+	/* Query FW to check if FW supports ring switch feature or not.
+	 * If FW returns 1, driver can use this feature and driver need to send
+	 * FW_PARAMS_PARAM_DEV_RING_BACKBONE write command with value 1 to
+	 * enable the ring backbone configuration.
+	 */
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret < 0) {
+		CH_ERR(adap, "Querying FW using Ring backbone params command failed, err=%d\n",
+			ret);
+		goto out;
+	}
+
+	if (val != 1) {
+		CH_ERR(adap, "FW doesnot support ringbackbone features\n");
+		goto out;
+	}
+
+	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret < 0) {
+		CH_ERR(adap, "Could not set Ringbackbone, err= %d\n",
+			ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+/*
+ *	t4_set_vlan_acl - Set a VLAN id for the specified VF
+ *	@adapter: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@vf: one of the VFs instantiated by the specified PF
+ *	@vlan: The vlanid to be set
+ *
+ */
+int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
+		    u16 vlan)
+{
+	struct fw_acl_vlan_cmd vlan_cmd;
+	unsigned int enable;
+
+	enable = (vlan ? F_FW_ACL_VLAN_CMD_EN : 0);
+	memset(&vlan_cmd, 0, sizeof(vlan_cmd));
+	vlan_cmd.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_ACL_VLAN_CMD) |
+					 F_FW_CMD_REQUEST |
+					 F_FW_CMD_WRITE |
+					 F_FW_CMD_EXEC |
+					 V_FW_ACL_VLAN_CMD_PFN(adap->pf) |
+					 V_FW_ACL_VLAN_CMD_VFN(vf));
+	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd));
+	/* Drop all packets that donot match vlan id */
+	vlan_cmd.dropnovlan_fm = (enable
+				  ? (F_FW_ACL_VLAN_CMD_DROPNOVLAN |
+				     F_FW_ACL_VLAN_CMD_FM)
+				  : 0);
+	if (enable != 0) {
+		vlan_cmd.nvlan = 1;
+		vlan_cmd.vlanid[0] = cpu_to_be16(vlan);
+	}
+
+	return t4_wr_mbox(adap, adap->mbox, &vlan_cmd, sizeof(vlan_cmd), NULL);
+}
+
+/**
+ *	t4_del_mac - Removes the exact-match filter for a MAC address
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@viid: the VI id
+ *	@addr: the MAC address value
+ *	@smac: if true, delete from only the smac region of MPS
+ *
+ *	Modifies an exact-match filter and sets it to the new MAC address if
+ *	@idx >= 0, or adds the MAC address to a new filter if @idx < 0.  In the
+ *	latter case the address is added persistently if @persist is %true.
+ *
+ *	Returns a negative error number or the index of the filter with the new
+ *	MAC value.  Note that this index may differ from @idx.
+ */
+int t4_del_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
+	       const u8 *addr, bool smac)
+{
+	int ret;
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_exact *p = c.u.exact;
+	unsigned int max_mac_addr = adap->chip_params->mps_tcam_size;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	c.freemacs_to_len16 = cpu_to_be32(
+					V_FW_CMD_LEN16(1) |
+					(smac ? F_FW_VI_MAC_CMD_IS_SMAC : 0));
+
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	p->valid_to_idx = cpu_to_be16(
+				F_FW_VI_MAC_CMD_VALID |
+				V_FW_VI_MAC_CMD_IDX(FW_VI_MAC_MAC_BASED_FREE));
+
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	if (ret == 0) {
+		ret = G_FW_VI_MAC_CMD_IDX(be16_to_cpu(p->valid_to_idx));
+		if (ret < max_mac_addr)
+			return -ENOMEM;
+	}
+
+	return ret;
+}
+
+/**
+ *	t4_add_mac - Adds an exact-match filter for a MAC address
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@viid: the VI id
+ *	@idx: index of existing filter for old value of MAC address, or -1
+ *	@addr: the new MAC address value
+ *	@persist: whether a new MAC allocation should be persistent
+ *	@add_smt: if true also add the address to the HW SMT
+ *	@smac: if true, update only the smac region of MPS
+ *
+ *	Modifies an exact-match filter and sets it to the new MAC address if
+ *	@idx >= 0, or adds the MAC address to a new filter if @idx < 0.  In the
+ *	latter case the address is added persistently if @persist is %true.
+ *
+ *	Returns a negative error number or the index of the filter with the new
+ *	MAC value.  Note that this index may differ from @idx.
+ */
+int t4_add_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
+	       int idx, const u8 *addr, bool persist, u8 *smt_idx, bool smac)
+{
+	int ret, mode;
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_exact *p = c.u.exact;
+	unsigned int max_mac_addr = adap->chip_params->mps_tcam_size;
+
+	if (idx < 0)		/* new allocation */
+		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
+	mode = smt_idx ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(V_FW_CMD_OP(FW_VI_MAC_CMD) |
+				   F_FW_CMD_REQUEST | F_FW_CMD_WRITE |
+				   V_FW_VI_MAC_CMD_VIID(viid));
+	c.freemacs_to_len16 = cpu_to_be32(
+				V_FW_CMD_LEN16(1) |
+				(smac ? F_FW_VI_MAC_CMD_IS_SMAC : 0));
+	p->valid_to_idx = cpu_to_be16(F_FW_VI_MAC_CMD_VALID |
+				      V_FW_VI_MAC_CMD_SMAC_RESULT(mode) |
+				      V_FW_VI_MAC_CMD_IDX(idx));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	if (ret == 0) {
+		ret = G_FW_VI_MAC_CMD_IDX(be16_to_cpu(p->valid_to_idx));
+		if (ret >= max_mac_addr)
+			return -ENOMEM;
+		if (smt_idx) {
+			/* Does fw supports returning smt_idx? */
+			if (adap->params.viid_smt_extn_support)
+				*smt_idx = G_FW_VI_MAC_CMD_SMTID(be32_to_cpu(c.op_to_viid));
+			else {
+				/* In T4/T5, SMT contains 256 SMAC entries
+				 * organized in 128 rows of 2 entries each.
+				 * In T6, SMT contains 256 SMAC entries in
+				 * 256 rows.
+				 */
+				if (chip_id(adap) <= CHELSIO_T5)
+					*smt_idx = ((viid & M_FW_VIID_VIN) << 1);
+				else
+					*smt_idx = (viid & M_FW_VIID_VIN);
+			}
+		}
+	}
+
+	return ret;
 }

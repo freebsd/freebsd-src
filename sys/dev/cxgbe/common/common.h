@@ -299,6 +299,7 @@ struct chip_params {
 	u16 vfcount;
 	u32 sge_fl_db;
 	u16 mps_tcam_size;
+	u16 rss_nentries;
 };
 
 /* VF-only parameters. */
@@ -377,6 +378,7 @@ struct adapter_params {
 	unsigned int hash_filter:1;
 	unsigned int filter2_wr_support:1;
 	unsigned int port_caps32:1;
+	unsigned int smac_add_support:1;
 
 	unsigned int ofldq_wr_cred;
 	unsigned int eo_wr_cred;
@@ -783,8 +785,27 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 int t4_alloc_mac_filt(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		      bool free, unsigned int naddr, const u8 **addr, u16 *idx,
 		      u64 *hash, bool sleep_ok);
+int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
+		      unsigned int viid, unsigned int naddr,
+		      const u8 **addr, bool sleep_ok);
+int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			   int idx, bool sleep_ok);
+int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			 const u8 *addr, const u8 *mask, unsigned int idx,
+			 u8 lookup_type, u8 port_id, bool sleep_ok);
+int t4_alloc_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			  const u8 *addr, const u8 *mask, unsigned int idx,
+			  u8 lookup_type, u8 port_id, bool sleep_ok);
+int t4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			    const u8 *addr, const u8 *mask, unsigned int vni,
+			    unsigned int vni_mask, u8 dip_hit, u8 lookup_type,
+			    bool sleep_ok);
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		  int idx, const u8 *addr, bool persist, uint16_t *smt_idx);
+int t4_del_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
+	       const u8 *addr, bool smac);
+int t4_add_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
+	       int idx, const u8 *addr, bool persist, u8 *smt_idx, bool smac);
 int t4_set_addr_hash(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     bool ucast, u64 vec, bool sleep_ok);
 int t4_enable_vi_params(struct adapter *adap, unsigned int mbox,
@@ -797,6 +818,10 @@ int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int *valp);
 int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int val);
+int t4_i2c_io(struct adapter *adap, unsigned int mbox,
+	      int port, unsigned int devid,
+	      unsigned int offset, unsigned int len,
+	      u8 *buf, bool write);
 int t4_i2c_rd(struct adapter *adap, unsigned int mbox,
 	      int port, unsigned int devid,
 	      unsigned int offset, unsigned int len,
@@ -821,7 +846,7 @@ int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
 		   enum ctxt_type ctype, u32 *data);
 int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type ctype,
 		      u32 *data);
-int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox, int ctxt_type);
 const char *t4_link_down_rc_str(unsigned char link_down_rc);
 int t4_update_port_info(struct port_info *pi);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
@@ -854,6 +879,10 @@ void t4_tp_tm_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
 		       u32 start_index, bool sleep_ok);
 void t4_tp_mib_read(struct adapter *adap, u32 *buff, u32 nregs,
 		    u32 start_index, bool sleep_ok);
+int t4_configure_ringbb(struct adapter *adap);
+int t4_configure_add_smac(struct adapter *adap);
+int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
+		    u16 vlan);
 
 static inline int t4vf_query_params(struct adapter *adapter,
 				    unsigned int nparams, const u32 *params,
