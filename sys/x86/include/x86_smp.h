@@ -97,6 +97,7 @@ void 	ipi_bitmap_handler(struct trapframe frame);
 void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
+void	ipi_self_from_nmi(u_int vector);
 void	set_interrupt_apic_ids(void);
 void	smp_cache_flush(smp_invl_cb_t curcpu_cb);
 void	smp_masked_invlpg(cpuset_t mask, vm_offset_t addr, struct pmap *pmap,
