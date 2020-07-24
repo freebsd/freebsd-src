@@ -300,31 +300,38 @@ aw_mmc_cam_settran_settings(struct aw_mmc_softc *sc, union ccb *ccb)
 	/* Update only requested fields */
 	if (cts->ios_valid & MMC_CLK) {
 		ios->clock = new_ios->clock;
-		device_printf(sc->aw_dev, "Clock => %d\n", ios->clock);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Clock => %d\n", ios->clock);
 	}
 	if (cts->ios_valid & MMC_VDD) {
 		ios->vdd = new_ios->vdd;
-		device_printf(sc->aw_dev, "VDD => %d\n", ios->vdd);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "VDD => %d\n", ios->vdd);
 	}
 	if (cts->ios_valid & MMC_CS) {
 		ios->chip_select = new_ios->chip_select;
-		device_printf(sc->aw_dev, "CS => %d\n", ios->chip_select);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "CS => %d\n", ios->chip_select);
 	}
 	if (cts->ios_valid & MMC_BW) {
 		ios->bus_width = new_ios->bus_width;
-		device_printf(sc->aw_dev, "Bus width => %d\n", ios->bus_width);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Bus width => %d\n", ios->bus_width);
 	}
 	if (cts->ios_valid & MMC_PM) {
 		ios->power_mode = new_ios->power_mode;
-		device_printf(sc->aw_dev, "Power mode => %d\n", ios->power_mode);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Power mode => %d\n", ios->power_mode);
 	}
 	if (cts->ios_valid & MMC_BT) {
 		ios->timing = new_ios->timing;
-		device_printf(sc->aw_dev, "Timing => %d\n", ios->timing);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Timing => %d\n", ios->timing);
 	}
 	if (cts->ios_valid & MMC_BM) {
 		ios->bus_mode = new_ios->bus_mode;
-		device_printf(sc->aw_dev, "Bus mode => %d\n", ios->bus_mode);
+		if (bootverbose)
+			device_printf(sc->aw_dev, "Bus mode => %d\n", ios->bus_mode);
 	}
 
 	return (aw_mmc_update_ios(sc->aw_dev, NULL));
