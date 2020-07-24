@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2019
+.Dd July 24, 2020
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -237,8 +237,13 @@ The
 .Ar name
 argument is the
 .Xr basename 1
-component of the path to the script, usually
-.Pa /etc/rc.d/name .
+component of the path to the script located at
+.Pa /etc/rc.d
+(scripts stored in other locations like
+.Pa /usr/local/etc/rc.d
+cannot be contolled with
+.Ic force_depend
+currently).
 If the script fails for any reason it will output a warning
 and return with a return value of 1.
 If it was successful
