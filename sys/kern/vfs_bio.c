@@ -3849,7 +3849,7 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 	struct buf *bp;
 	struct bufobj *bo;
 	daddr_t d_blkno;
-	int bsize, error, maxsize, vmio;
+	int bsize, error, maxsize, vmio, lockflags;
 	off_t offset;
 
 	CTR3(KTR_BUF, "getblk(%p, %ld, %d)", vp, (long)blkno, size);
@@ -3864,11 +3864,33 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 
 	bo = &vp->v_bufobj;
 	d_blkno = dblkno;
+
+	/* Attempt lockless lookup first. */
+	bp = gbincore_unlocked(bo, blkno);
+	if (bp == NULL)
+		goto newbuf_unlocked;
+
+	lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL |
+	    ((flags & GB_LOCK_NOWAIT) ? LK_NOWAIT : 0);
+
+	error = BUF_TIMELOCK(bp, lockflags, NULL, "getblku", slpflag,
+	    slptimeo);
+	if (error == EINTR || error == ERESTART)
+		return (error);
+	else if (error != 0)
+		goto loop;
+
+	/* Verify buf identify has not changed since lookup. */
+	if (bp->b_bufobj == bo && bp->b_lblkno == blkno)
+		goto foundbuf_fastpath;
+
+	/* It changed, fallback to locked lookup. */
+	BUF_UNLOCK_RAW(bp);
+
 loop:
 	BO_RLOCK(bo);
 	bp = gbincore(bo, blkno);
 	if (bp != NULL) {
-		int lockflags;
 		/*
 		 * Buffer is in-core.  If the buffer is not busy nor managed,
 		 * it must be on a queue.
@@ -3890,8 +3912,10 @@ loop:
 		/* We timed out or were interrupted. */
 		else if (error != 0)
 			return (error);
+
+foundbuf_fastpath:
 		/* If recursed, assume caller knows the rules. */
-		else if (BUF_LOCKRECURSED(bp))
+		if (BUF_LOCKRECURSED(bp))
 			goto end;
 
 		/*
@@ -3989,6 +4013,7 @@ loop:
 		 * buffer is also considered valid (not marked B_INVAL).
 		 */
 		BO_RUNLOCK(bo);
+newbuf_unlocked:
 		/*
 		 * If the user does not want us to create the buffer, bail out
 		 * here.

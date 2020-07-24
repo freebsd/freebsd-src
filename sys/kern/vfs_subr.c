@@ -234,6 +234,7 @@ static struct mtx __exclusive_cache_line vnode_list_mtx;
 struct nfs_public nfs_pub;
 
 static uma_zone_t buf_trie_zone;
+static smr_t buf_trie_smr;
 
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static uma_zone_t vnode_zone;
@@ -491,17 +492,16 @@ static int vnsz2log;
 static void *
 buf_trie_alloc(struct pctrie *ptree)
 {
-
-	return uma_zalloc(buf_trie_zone, M_NOWAIT);
+	return (uma_zalloc_smr(buf_trie_zone, M_NOWAIT));
 }
 
 static void
 buf_trie_free(struct pctrie *ptree, void *node)
 {
-
-	uma_zfree(buf_trie_zone, node);
+	uma_zfree_smr(buf_trie_zone, node);
 }
-PCTRIE_DEFINE(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free);
+PCTRIE_DEFINE_SMR(BUF, buf, b_lblkno, buf_trie_alloc, buf_trie_free,
+    buf_trie_smr);
 
 /*
  * Initialize the vnode management data structures.
@@ -675,7 +675,8 @@ vntblinit(void *dummy __unused)
 	 */
 	buf_trie_zone = uma_zcreate("BUF TRIE", pctrie_node_size(),
 	    NULL, NULL, pctrie_zone_init, NULL, UMA_ALIGN_PTR, 
-	    UMA_ZONE_NOFREE);
+	    UMA_ZONE_NOFREE | UMA_ZONE_SMR);
+	buf_trie_smr = uma_zone_get_smr(buf_trie_zone);
 	uma_prealloc(buf_trie_zone, nbuf);
 
 	vnodes_created = counter_u64_alloc(M_WAITOK);
@@ -2330,7 +2331,25 @@ gbincore(struct bufobj *bo, daddr_t lblkno)
 	bp = BUF_PCTRIE_LOOKUP(&bo->bo_clean.bv_root, lblkno);
 	if (bp != NULL)
 		return (bp);
-	return BUF_PCTRIE_LOOKUP(&bo->bo_dirty.bv_root, lblkno);
+	return (BUF_PCTRIE_LOOKUP(&bo->bo_dirty.bv_root, lblkno));
+}
+
+/*
+ * Look up a buf using the buffer tries, without the bufobj lock.  This relies
+ * on SMR for safe lookup, and bufs being in a no-free zone to provide type
+ * stability of the result.  Like other lockless lookups, the found buf may
+ * already be invalid by the time this function returns.
+ */
+struct buf *
+gbincore_unlocked(struct bufobj *bo, daddr_t lblkno)
+{
+	struct buf *bp;
+
+	ASSERT_BO_UNLOCKED(bo);
+	bp = BUF_PCTRIE_LOOKUP_UNLOCKED(&bo->bo_clean.bv_root, lblkno);
+	if (bp != NULL)
+		return (bp);
+	return (BUF_PCTRIE_LOOKUP_UNLOCKED(&bo->bo_dirty.bv_root, lblkno));
 }
 
 /*
