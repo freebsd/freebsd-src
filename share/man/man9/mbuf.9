@@ -635,9 +635,12 @@ on failure.
 .It Fn m_getjcl how type flags size
 This is like
 .Fn m_getcl
-but it the size of the cluster allocated will be large enough for
+but the specified
 .Fa size
-bytes.
+of the cluster to be allocated must be one of
+.Dv MCLBYTES , MJUMPAGESIZE , MJUM9BYTES ,
+or
+.Dv MJUM16BYTES.
 .It Fn m_free mbuf
 Frees
 .Vt mbuf .
