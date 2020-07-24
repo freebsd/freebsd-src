@@ -107,6 +107,5 @@ void	smp_masked_invltlb(cpuset_t mask, struct pmap *pmap,
 	    smp_invl_cb_t curcpu_cb);
 void	mem_range_AP_init(void);
 void	topo_probe(void);
-void	ipi_send_cpu(int cpu, u_int ipi);
 
 #endif

@@ -1233,32 +1233,39 @@ ipi_startup(int apic_id, int vector)
 	DELAY(200);		/* wait ~200uS */
 }
 
-/*
- * Send an IPI to specified CPU handling the bitmap logic.
- */
-void
-ipi_send_cpu(int cpu, u_int ipi)
+static bool
+ipi_bitmap_set(int cpu, u_int ipi)
 {
 	u_int bitmap, old, new;
 	u_int *cpu_bitmap;
+
+	bitmap = 1 << ipi;
+	cpu_bitmap = &cpuid_to_pcpu[cpu]->pc_ipi_bitmap;
+	old = *cpu_bitmap;
+	for (;;) {
+		if ((old & bitmap) != 0)
+			break;
+		new = old | bitmap;
+		if (atomic_fcmpset_int(cpu_bitmap, &old, new))
+			break;
+	}
+	return (old != 0);
+}
+
+/*
+ * Send an IPI to specified CPU handling the bitmap logic.
+ */
+static void
+ipi_send_cpu(int cpu, u_int ipi)
+{
 
 	KASSERT((u_int)cpu < MAXCPU && cpu_apic_ids[cpu] != -1,
 	    ("IPI to non-existent CPU %d", cpu));
 
 	if (IPI_IS_BITMAPED(ipi)) {
-		bitmap = 1 << ipi;
-		ipi = IPI_BITMAP_VECTOR;
-		cpu_bitmap = &cpuid_to_pcpu[cpu]->pc_ipi_bitmap;
-		old = *cpu_bitmap;
-		for (;;) {
-			if ((old & bitmap) == bitmap)
-				break;
-			new = old | bitmap;
-			if (atomic_fcmpset_int(cpu_bitmap, &old, new))
-				break;
-		}
-		if (old)
+		if (ipi_bitmap_set(cpu, ipi))
 			return;
+		ipi = IPI_BITMAP_VECTOR;
 	}
 	lapic_ipi_vectored(ipi, cpu_apic_ids[cpu]);
 }
@@ -1366,23 +1373,28 @@ void
 ipi_all_but_self(u_int ipi)
 {
 	cpuset_t other_cpus;
-
-	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-	if (IPI_IS_BITMAPED(ipi)) {
-		ipi_selected(other_cpus, ipi);
-		return;
-	}
+	int cpu, c;
 
 	/*
 	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
 	 * of help in order to understand what is the source.
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
-	if (ipi == IPI_STOP_HARD)
+	if (ipi == IPI_STOP_HARD) {
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 		CPU_OR_ATOMIC(&ipi_stop_nmi_pending, &other_cpus);
+	}
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
+	if (IPI_IS_BITMAPED(ipi)) {
+		cpu = PCPU_GET(cpuid);
+		CPU_FOREACH(c) {
+			if (c != cpu)
+				ipi_bitmap_set(c, ipi);
+		}
+		ipi = IPI_BITMAP_VECTOR;
+	}
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
