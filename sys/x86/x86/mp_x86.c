@@ -1398,6 +1398,21 @@ ipi_all_but_self(u_int ipi)
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
 
+void
+ipi_self_from_nmi(u_int vector)
+{
+
+	lapic_ipi_vectored(vector, APIC_IPI_DEST_SELF);
+
+	/* Wait for IPI to finish. */
+	if (!lapic_ipi_wait(50000)) {
+		if (KERNEL_PANICKED())
+			return;
+		else
+			panic("APIC: IPI is stuck");
+	}
+}
+
 int
 ipi_nmi_handler(void)
 {
