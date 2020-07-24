@@ -254,22 +254,6 @@ lapic_write32_nofence(enum LAPIC_REGISTERS reg, uint32_t val)
 
 #ifdef SMP
 static uint64_t
-lapic_read_icr(void)
-{
-	uint64_t v;
-	uint32_t vhi, vlo;
-
-	if (x2apic_mode) {
-		v = rdmsr(MSR_APIC_000 + LAPIC_ICR_LO);
-	} else {
-		vhi = lapic_read32(LAPIC_ICR_HI);
-		vlo = lapic_read32(LAPIC_ICR_LO);
-		v = ((uint64_t)vhi << 32) | vlo;
-	}
-	return (v);
-}
-
-static uint64_t
 lapic_read_icr_lo(void)
 {
 
@@ -279,6 +263,7 @@ lapic_read_icr_lo(void)
 static void
 lapic_write_icr(uint32_t vhi, uint32_t vlo)
 {
+	register_t saveintr;
 	uint64_t v;
 
 	if (x2apic_mode) {
@@ -286,9 +271,31 @@ lapic_write_icr(uint32_t vhi, uint32_t vlo)
 		mfence();
 		wrmsr(MSR_APIC_000 + LAPIC_ICR_LO, v);
 	} else {
+		saveintr = intr_disable();
 		lapic_write32(LAPIC_ICR_HI, vhi);
 		lapic_write32(LAPIC_ICR_LO, vlo);
+		intr_restore(saveintr);
 	}
+}
+
+static void
+lapic_write_icr_lo(uint32_t vlo)
+{
+
+	if (x2apic_mode) {
+		mfence();
+		wrmsr(MSR_APIC_000 + LAPIC_ICR_LO, vlo);
+	} else {
+		lapic_write32(LAPIC_ICR_LO, vlo);
+	}
+}
+
+static void
+lapic_write_self_ipi(uint32_t vector)
+{
+
+	KASSERT(x2apic_mode, ("SELF IPI write in xAPIC mode"));
+	wrmsr(MSR_APIC_000 + LAPIC_SELF_IPI, vector);
 }
 #endif /* SMP */
 
@@ -1991,9 +1998,7 @@ native_lapic_ipi_wait(int delay)
 static void
 native_lapic_ipi_raw(register_t icrlo, u_int dest)
 {
-	uint64_t icr;
-	uint32_t vhi, vlo;
-	register_t saveintr;
+	uint32_t icrhi;
 
 	/* XXX: Need more sanity checking of icrlo? */
 	KASSERT(x2apic_mode || lapic_map != NULL,
@@ -2004,35 +2009,15 @@ native_lapic_ipi_raw(register_t icrlo, u_int dest)
 	KASSERT((icrlo & APIC_ICRLO_RESV_MASK) == 0,
 	    ("%s: reserved bits set in ICR LO register", __func__));
 
-	/* Set destination in ICR HI register if it is being used. */
-	if (!x2apic_mode) {
-		saveintr = intr_disable();
-		icr = lapic_read_icr();
-	}
-
 	if ((icrlo & APIC_DEST_MASK) == APIC_DEST_DESTFLD) {
-		if (x2apic_mode) {
-			vhi = dest;
-		} else {
-			vhi = icr >> 32;
-			vhi &= ~APIC_ID_MASK;
-			vhi |= dest << APIC_ID_SHIFT;
-		}
+		if (x2apic_mode)
+			icrhi = dest;
+		else
+			icrhi = dest << APIC_ID_SHIFT;
+		lapic_write_icr(icrhi, icrlo);
 	} else {
-		vhi = 0;
+		lapic_write_icr_lo(icrlo);
 	}
-
-	/* Program the contents of the IPI and dispatch it. */
-	if (x2apic_mode) {
-		vlo = icrlo;
-	} else {
-		vlo = icr;
-		vlo &= APIC_ICRLO_RESV_MASK;
-		vlo |= icrlo;
-	}
-	lapic_write_icr(vhi, vlo);
-	if (!x2apic_mode)
-		intr_restore(saveintr);
 }
 
 #define	BEFORE_SPIN	50000
@@ -2048,7 +2033,28 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 	KASSERT((vector & ~APIC_VECTOR_MASK) == 0,
 	    ("%s: invalid vector %d", __func__, vector));
 
-	icrlo = APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE | APIC_LEVEL_ASSERT;
+	destfield = 0;
+	switch (dest) {
+	case APIC_IPI_DEST_SELF:
+		if (x2apic_mode && vector < IPI_NMI_FIRST) {
+			lapic_write_self_ipi(vector);
+			return;
+		}
+		icrlo = APIC_DEST_SELF;
+		break;
+	case APIC_IPI_DEST_ALL:
+		icrlo = APIC_DEST_ALLISELF;
+		break;
+	case APIC_IPI_DEST_OTHERS:
+		icrlo = APIC_DEST_ALLESELF;
+		break;
+	default:
+		icrlo = 0;
+		KASSERT(x2apic_mode ||
+		    (dest & ~(APIC_ID_MASK >> APIC_ID_SHIFT)) == 0,
+		    ("%s: invalid destination 0x%x", __func__, dest));
+		destfield = dest;
+	}
 
 	/*
 	 * NMI IPIs are just fake vectors used to send a NMI.  Use special rules
@@ -2058,23 +2064,7 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 		icrlo |= APIC_DELMODE_NMI;
 	else
 		icrlo |= vector | APIC_DELMODE_FIXED;
-	destfield = 0;
-	switch (dest) {
-	case APIC_IPI_DEST_SELF:
-		icrlo |= APIC_DEST_SELF;
-		break;
-	case APIC_IPI_DEST_ALL:
-		icrlo |= APIC_DEST_ALLISELF;
-		break;
-	case APIC_IPI_DEST_OTHERS:
-		icrlo |= APIC_DEST_ALLESELF;
-		break;
-	default:
-		KASSERT(x2apic_mode ||
-		    (dest & ~(APIC_ID_MASK >> APIC_ID_SHIFT)) == 0,
-		    ("%s: invalid destination 0x%x", __func__, dest));
-		destfield = dest;
-	}
+	icrlo |= APIC_DESTMODE_PHY | APIC_TRIGMOD_EDGE | APIC_LEVEL_ASSERT;
 
 	/* Wait for an earlier IPI to finish. */
 	if (!lapic_ipi_wait(BEFORE_SPIN)) {
