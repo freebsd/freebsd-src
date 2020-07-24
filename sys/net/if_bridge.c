@@ -189,41 +189,14 @@ extern void	nd6_setmtu(struct ifnet *);
  */
 #define BRIDGE_LOCK_INIT(_sc)		do {			\
 	mtx_init(&(_sc)->sc_mtx, "if_bridge", NULL, MTX_DEF);	\
-	cv_init(&(_sc)->sc_cv, "if_bridge_cv");			\
 } while (0)
 #define BRIDGE_LOCK_DESTROY(_sc)	do {	\
 	mtx_destroy(&(_sc)->sc_mtx);		\
-	cv_destroy(&(_sc)->sc_cv);		\
 } while (0)
 #define BRIDGE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define BRIDGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define BRIDGE_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define BRIDGE_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
-#define	BRIDGE_LOCK2REF(_sc, _err)	do {	\
-	mtx_assert(&(_sc)->sc_mtx, MA_OWNED);	\
-	if ((_sc)->sc_iflist_xcnt > 0)		\
-		(_err) = EBUSY;			\
-	else					\
-		(_sc)->sc_iflist_ref++;		\
-	mtx_unlock(&(_sc)->sc_mtx);		\
-} while (0)
-#define	BRIDGE_UNREF(_sc)		do {				\
-	mtx_lock(&(_sc)->sc_mtx);					\
-	(_sc)->sc_iflist_ref--;						\
-	if (((_sc)->sc_iflist_xcnt > 0) && ((_sc)->sc_iflist_ref == 0))	\
-		cv_broadcast(&(_sc)->sc_cv);				\
-	mtx_unlock(&(_sc)->sc_mtx);					\
-} while (0)
-#define	BRIDGE_XLOCK(_sc)		do {		\
-	mtx_assert(&(_sc)->sc_mtx, MA_OWNED);		\
-	(_sc)->sc_iflist_xcnt++;			\
-	while ((_sc)->sc_iflist_ref > 0)		\
-		cv_wait(&(_sc)->sc_cv, &(_sc)->sc_mtx);	\
-} while (0)
-#define	BRIDGE_XDROP(_sc)		do {	\
-	mtx_assert(&(_sc)->sc_mtx, MA_OWNED);	\
-	(_sc)->sc_iflist_xcnt--;		\
-} while (0)
 
 /*
  * Bridge interface list entry.
@@ -265,13 +238,10 @@ struct bridge_softc {
 	struct ifnet		*sc_ifp;	/* make this an interface */
 	LIST_ENTRY(bridge_softc) sc_list;
 	struct mtx		sc_mtx;
-	struct cv		sc_cv;
 	uint32_t		sc_brtmax;	/* max # of addresses */
 	uint32_t		sc_brtcnt;	/* cur. # of addresses */
 	uint32_t		sc_brttimeout;	/* rt timeout in seconds */
 	struct callout		sc_brcallout;	/* bridge callout */
-	uint32_t		sc_iflist_ref;	/* refcount for sc_iflist */
-	uint32_t		sc_iflist_xcnt;	/* refcount for sc_iflist */
 	CK_LIST_HEAD(, bridge_iflist) sc_iflist;	/* member interface list */
 	CK_LIST_HEAD(, bridge_rtnode) *sc_rthash;	/* our forwarding table */
 	CK_LIST_HEAD(, bridge_rtnode) sc_rtlist;	/* list version of above */
@@ -790,7 +760,9 @@ bridge_clone_destroy(struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_softc;
 	struct bridge_iflist *bif;
+	struct epoch_tracker et;
 
+	NET_EPOCH_ENTER_ET(et);
 	BRIDGE_LOCK(sc);
 
 	bridge_stop(ifp, 1);
@@ -815,6 +787,8 @@ bridge_clone_destroy(struct ifnet *ifp)
 	BRIDGE_LIST_UNLOCK();
 
 	bstp_detach(&sc->sc_stp);
+	NET_EPOCH_EXIT_ET(et);
+
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -994,7 +968,6 @@ bridge_mutecaps(struct bridge_softc *sc)
 		mask &= bif->bif_savedcaps;
 	}
 
-	BRIDGE_XLOCK(sc);
 	CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		enabled = bif->bif_ifp->if_capenable;
 		enabled &= ~BRIDGE_IFCAPS_STRIP;
@@ -1005,8 +978,6 @@ bridge_mutecaps(struct bridge_softc *sc)
 		bridge_set_ifcap(sc, bif, enabled);
 		BRIDGE_LOCK(sc);
 	}
-	BRIDGE_XDROP(sc);
-
 }
 
 static void
@@ -1107,9 +1078,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		bstp_disable(&bif->bif_stp);
 
 	ifs->if_bridge = NULL;
-	BRIDGE_XLOCK(sc);
 	CK_LIST_REMOVE(bif, bif_next);
-	BRIDGE_XDROP(sc);
 
 	/*
 	 * If removing the interface that gave the bridge its mac address, set
@@ -1245,7 +1214,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		 * If any, remove all inet6 addresses from the member
 		 * interfaces.
 		 */
-		BRIDGE_XLOCK(sc);
 		CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
  			if (in6ifa_llaonifp(bif->bif_ifp)) {
 				BRIDGE_UNLOCK(sc);
@@ -1258,7 +1226,6 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 				    bif->bif_ifp->if_xname);
 			}
 		}
-		BRIDGE_XDROP(sc);
 		if (in6ifa_llaonifp(ifs)) {
 			BRIDGE_UNLOCK(sc);
 			in6_ifdetach(ifs);
