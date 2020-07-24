@@ -836,6 +836,7 @@ lockmgr_xlock_hard(struct lock *lk, u_int flags, struct lock_object *ilk,
 		if (x == LK_UNLOCKED) {
 			if (atomic_fcmpset_acq_ptr(&lk->lk_lock, &x, tid))
 				break;
+			continue;
 		}
 		if ((flags & (LK_ADAPTIVE | LK_INTERLOCK)) == LK_ADAPTIVE) {
 			if (lockmgr_xlock_adaptive(&lda, lk, &x))
