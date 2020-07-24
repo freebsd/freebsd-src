@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bio.h>
+#include <sys/sysctl.h>
 #include <sys/endian.h>
 #include <sys/taskqueue.h>
 #include <sys/lock.h>
@@ -185,6 +186,13 @@ static uint32_t sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb);
 static void sdda_init_switch_part(struct cam_periph *periph, union ccb *start_ccb, u_int part);
 static int mmc_select_card(struct cam_periph *periph, union ccb *ccb, uint32_t rca);
 static inline uint32_t mmc_get_sector_size(struct cam_periph *periph) {return MMC_SECTOR_SIZE;}
+
+static SYSCTL_NODE(_kern_cam, OID_AUTO, sdda, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "CAM Direct Access Disk driver");
+
+static int sdda_mmcsd_compat = 1;
+SYSCTL_INT(_kern_cam_sdda, OID_AUTO, mmcsd_compat, CTLFLAG_RDTUN,
+    &sdda_mmcsd_compat, 1, "Enable creation of mmcsd aliases.");
 
 /* TODO: actually issue GET_TRAN_SETTINGS to get R/O status */
 static inline bool sdda_get_read_only(struct cam_periph *periph, union ccb *start_ccb)
@@ -1604,6 +1612,9 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	part->disk->d_stripesize = 0;
 	part->disk->d_fwsectors = 0;
 	part->disk->d_fwheads = 0;
+
+	if (sdda_mmcsd_compat)
+		disk_add_alias(part->disk, "mmcsd");
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
