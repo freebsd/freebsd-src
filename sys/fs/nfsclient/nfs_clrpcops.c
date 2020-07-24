@@ -5862,7 +5862,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 						    uiop->uio_iov->iov_base;
 						iovlen = uiop->uio_iov->iov_len;
 						m = nfsm_uiombuflist(uiop, len,
-						    NULL, NULL);
+						    0);
 					}
 					tdrpc = drpc = malloc(sizeof(*drpc) *
 					    (mirrorcnt - 1), M_TEMP, M_WAITOK |
@@ -6545,12 +6545,6 @@ nfsrpc_writedsmir(vnode_t vp, int *iomode, int *must_commit,
 	if (len > 0) {
 		/* Put data in mbuf chain. */
 		nd->nd_mb->m_next = m;
-		/* Set nd_mb and nd_bpos to end of data. */
-		while (m->m_next != NULL)
-			m = m->m_next;
-		nd->nd_mb = m;
-		nd->nd_bpos = mtod(m, char *) + m->m_len;
-		NFSCL_DEBUG(4, "nfsrpc_writedsmir: lastmb len=%d\n", m->m_len);
 	}
 	nrp = dsp->nfsclds_sockp;
 	if (nrp == NULL)
@@ -8625,8 +8619,97 @@ nfsmout:
 static struct mbuf *
 nfsm_split(struct mbuf *mp, uint64_t xfer)
 {
-	struct mbuf *m;
+	struct mbuf *m, *m2;
+	vm_page_t pg;
+	int i, j, left, pgno, plen, trim;
+	char *cp, *cp2;
 
-	m = m_split(mp, xfer, M_WAITOK);
-	return (m);
+	if ((mp->m_flags & M_EXTPG) == 0) {
+		m = m_split(mp, xfer, M_WAITOK);
+		return (m);
+	}
+
+	/* Find the correct mbuf to split at. */
+	for (m = mp; m != NULL && xfer > m->m_len; m = m->m_next)
+		xfer -= m->m_len;
+	if (m == NULL)
+		return (NULL);
+
+	/* If xfer == m->m_len, we can just split the mbuf list. */
+	if (xfer == m->m_len) {
+		m2 = m->m_next;
+		m->m_next = NULL;
+		return (m2);
+	}
+
+	/* Find the page to split at. */
+	pgno = 0;
+	left = xfer;
+	do {
+		if (pgno == 0)
+			plen = m_epg_pagelen(m, 0, m->m_epg_1st_off);
+		else
+			plen = m_epg_pagelen(m, pgno, 0);
+		if (left <= plen)
+			break;
+		left -= plen;
+		pgno++;
+	} while (pgno < m->m_epg_npgs);
+	if (pgno == m->m_epg_npgs)
+		panic("nfsm_split: eroneous ext_pgs mbuf");
+
+	m2 = mb_alloc_ext_pgs(M_WAITOK, mb_free_mext_pgs);
+	m2->m_epg_flags |= EPG_FLAG_ANON;
+
+	/*
+	 * If left < plen, allocate a new page for the new mbuf
+	 * and copy the data after left in the page to this new
+	 * page.
+	 */
+	if (left < plen) {
+		do {
+			pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+			    VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP |
+			    VM_ALLOC_WIRED);
+			if (pg == NULL)
+				vm_wait(NULL);
+		} while (pg == NULL);
+		m2->m_epg_pa[0] = VM_PAGE_TO_PHYS(pg);
+		m2->m_epg_npgs = 1;
+
+		/* Copy the data after left to the new page. */
+		trim = plen - left;
+		cp = (char *)(void *)PHYS_TO_DMAP(m->m_epg_pa[pgno]);
+		if (pgno == 0)
+			cp += m->m_epg_1st_off;
+		cp += left;
+		cp2 = (char *)(void *)PHYS_TO_DMAP(m2->m_epg_pa[0]);
+		if (pgno == m->m_epg_npgs - 1)
+			m2->m_epg_last_len = trim;
+		else {
+			cp2 += PAGE_SIZE - trim;
+			m2->m_epg_1st_off = PAGE_SIZE - trim;
+			m2->m_epg_last_len = m->m_epg_last_len;
+		}
+		memcpy(cp2, cp, trim);
+		m2->m_len = trim;
+	} else {
+		m2->m_len = 0;
+		m2->m_epg_last_len = m->m_epg_last_len;
+	}
+
+	/* Move the pages beyond pgno to the new mbuf. */
+	for (i = pgno + 1, j = m2->m_epg_npgs; i < m->m_epg_npgs; i++, j++) {
+		m2->m_epg_pa[j] = m->m_epg_pa[i];
+		/* Never moves page 0. */
+		m2->m_len += m_epg_pagelen(m, i, 0);
+	}
+	m2->m_epg_npgs = j;
+	m->m_epg_npgs = pgno + 1;
+	m->m_epg_last_len = left;
+	m->m_len = xfer;
+
+	m2->m_next = m->m_next;
+	m->m_next = NULL;
+	return (m2);
 }
