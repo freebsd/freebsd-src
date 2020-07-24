@@ -18,7 +18,7 @@ SM_RCSID("@(#)$Id: macro.c,v 8.108 2013-11-22 20:51:55 ca Exp $")
 #include <sm/sendmail.h>
 #if MAXMACROID != (BITMAPBITS - 1)
 	ERROR Read the comment in conf.h
-#endif /* MAXMACROID != (BITMAPBITS - 1) */
+#endif
 
 static char	*MacroName[MAXMACROID + 1];	/* macro id to name table */
 
@@ -362,6 +362,33 @@ expand(s, buf, bufsize, e)
 }
 
 /*
+**  MACTABCLEAR -- clear entire macro table
+**
+**	Parameters:
+**		mac -- Macro table.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		clears entire mac structure including rpool pointer!
+*/
+
+void
+mactabclear(mac)
+	MACROS_T *mac;
+{
+	int i;
+
+	if (mac->mac_rpool == NULL)
+	{
+		for (i = 0; i < MAXMACROID; i++)
+			SM_FREE(mac->mac_table[i]);
+	}
+	memset((char *) mac, '\0', sizeof(*mac));
+}
+
+/*
 **  MACDEFINE -- bind a macro name to a value
 **
 **	Set a macro to a value, with fancy storage management.
@@ -439,9 +466,9 @@ macdefine(mac, vclass, id, value)
 		{
 #if SM_HEAP_CHECK
 			newvalue = sm_strdup_tagged_x(value, file, line, 0);
-#else /* SM_HEAP_CHECK */
+#else
 			newvalue = sm_strdup_x(value);
-#endif /* SM_HEAP_CHECK */
+#endif
 			setbitn(id, mac->mac_allocated);
 		}
 		mac->mac_table[id] = newvalue;
@@ -539,6 +566,15 @@ macvalue(n, e)
 			break;
 		e = e->e_parent;
 	}
+#if _FFR_BLANKENV_MACV
+	if (LOOKUP_MACRO_IN_BLANKENV && e != &BlankEnvelope)
+	{
+		char *p = BlankEnvelope.e_macro.mac_table[n];
+
+		if (p != NULL)
+			return p;
+	}
+#endif
 	return GlobalMacros.mac_table[n];
 }
 

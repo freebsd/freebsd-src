@@ -36,7 +36,7 @@ SM_RCSID("@(#)$Id: mime.c,v 8.149 2013-11-22 20:51:56 ca Exp $")
 /* use "old" mime 7 to 8 algorithm by default */
 #ifndef MIME7TO8_OLD
 # define MIME7TO8_OLD	1
-#endif /* ! MIME7TO8_OLD */
+#endif
 
 #if MIME8TO7
 static int	isboundary __P((char *, char **));
@@ -246,7 +246,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 # ifdef USE_B_CLASS
 	if (wordinclass(buf, 'b') || wordinclass(type, 'b'))
 		MapNLtoCRLF = false;
-# endif /* USE_B_CLASS */
+# endif
 	if (wordinclass(buf, 'q') || wordinclass(type, 'q'))
 		use_qp = true;
 
@@ -282,7 +282,7 @@ mime8to7(mci, header, e, boundaries, flags, level)
 		else
 		{
 			p = argv[i].a_value;
-			stripquotes(p);
+			unfoldstripquotes(p);
 		}
 		if (sm_strlcpy(bbuf, p, sizeof(bbuf)) >= sizeof(bbuf))
 		{
@@ -904,7 +904,7 @@ mimeboundary(line, boundaries)
 	while (i > 0 && (line[i - 1] == ' ' || line[i - 1] == '\t'
 #if _FFR_MIME_CR_OK
 		|| line[i - 1] == '\r'
-#endif /* _FFR_MIME_CR_OK */
+#endif
 	       ))
 		i--;
 	savec = line[i];
@@ -1103,27 +1103,27 @@ mime7to8(mci, header, e)
 		while ((c1 = sm_io_getc(e->e_dfp, SM_TIME_DEFAULT)) !=
 			SM_IO_EOF)
 		{
-			if (isascii(c1) && isspace(c1))
+			if (SM_ISSPACE(c1))
 				continue;
 
 			do
 			{
 				c2 = sm_io_getc(e->e_dfp, SM_TIME_DEFAULT);
-			} while (isascii(c2) && isspace(c2));
+			} while (SM_ISSPACE(c2));
 			if (c2 == SM_IO_EOF)
 				break;
 
 			do
 			{
 				c3 = sm_io_getc(e->e_dfp, SM_TIME_DEFAULT);
-			} while (isascii(c3) && isspace(c3));
+			} while (SM_ISSPACE(c3));
 			if (c3 == SM_IO_EOF)
 				break;
 
 			do
 			{
 				c4 = sm_io_getc(e->e_dfp, SM_TIME_DEFAULT);
-			} while (isascii(c4) && isspace(c4));
+			} while (SM_ISSPACE(c4));
 			if (c4 == SM_IO_EOF)
 				break;
 

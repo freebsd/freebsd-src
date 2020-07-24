@@ -26,15 +26,16 @@ SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.183 2013-11-22 20:51:52 ca Exp $")
 #include <sys/types.h>
 #ifndef ISC_UNIX
 # include <sys/file.h>
-#endif /* ! ISC_UNIX */
+#endif
 #include <ctype.h>
 #include <stdlib.h>
 #include <unistd.h>
 #ifdef EX_OK
 # undef EX_OK		/* unistd.h may have another use for this */
-#endif /* EX_OK */
+#endif
 #include <sysexits.h>
 #include <sendmail/sendmail.h>
+#include <sm/path.h>
 #include <sendmail/pathnames.h>
 #include <libsmdb/smdb.h>
 
@@ -50,13 +51,15 @@ uid_t	TrustedUid = 0;
 BITMAP256 DontBlameSendmail;
 
 #define BUFSIZE		1024
-#define ISSEP(c) (sep == '\0' ? isascii(c) && isspace(c) : (c) == sep)
+#define ISASCII(c)	isascii((unsigned char)(c))
+#define ISSEP(c) (sep == '\0' ? ISASCII(c) && isspace(c) : (c) == sep)
 
-static void usage __P((char *));
+static void usage __P((const char *));
+static char *readcf __P((const char *, char *, bool));
 
 static void
 usage(progname)
-	char *progname;
+	const char *progname;
 {
 	sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 		      "Usage: %s [-C cffile] [-N] [-c cachesize] [-D commentchar]\n",
@@ -68,6 +71,181 @@ usage(progname)
 		      "       %*s [-u] [-v] type mapname\n",
 		      (int) strlen(progname), "");
 	exit(EX_USAGE);
+}
+
+/*
+**  READCF -- read some settings from configuration file.
+**
+**	Parameters:
+**		cfile -- configuration file name.
+**		mapfile -- file name of map to look up (if not NULL/empty)
+**			Note: this finds the first match, so in case someone
+**			uses the same map file for different maps, they are
+**			hopefully using the same map type.
+**		fullpath -- compare the full paths or just the "basename"s?
+**			(even excluding any .ext !)
+**
+**	Returns:
+**		pointer to map class name (static!)
+*/
+
+static char *
+readcf(cfile, mapfile, fullpath)
+	const char *cfile;
+	char *mapfile;
+	bool fullpath;
+{
+	SM_FILE_T *cfp;
+	char buf[MAXLINE];
+	static char classbuf[MAXLINE];
+	char *classname;
+	char *p;
+
+	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile,
+			      SM_IO_RDONLY, NULL)) == NULL)
+	{
+		sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+			      "makemap: %s: %s\n",
+			      cfile, sm_errstring(errno));
+		exit(EX_NOINPUT);
+	}
+	classname = NULL;
+	classbuf[0] = '\0';
+
+	if (!fullpath && mapfile != NULL)
+	{
+		p = strrchr(mapfile, '/');
+		if (p != NULL)
+			mapfile = ++p;
+		p = strrchr(mapfile, '.');
+		if (p != NULL)
+			*p = '\0';
+	}
+
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
+	{
+		char *b;
+
+		if ((b = strchr(buf, '\n')) != NULL)
+			*b = '\0';
+
+		b = buf;
+		switch (*b++)
+		{
+		  case 'O':		/* option */
+#if HASFCHOWN
+			if (strncasecmp(b, " TrustedUser", 12) == 0 &&
+			    !(ISASCII(b[12]) && isalnum(b[12])))
+			{
+				b = strchr(b, '=');
+				if (b == NULL)
+					continue;
+				while (ISASCII(*++b) && isspace(*b))
+					continue;
+				if (ISASCII(*b) && isdigit(*b))
+					TrustedUid = atoi(b);
+				else
+				{
+					struct passwd *pw;
+
+					TrustedUid = 0;
+					pw = getpwnam(b);
+					if (pw == NULL)
+						(void) sm_io_fprintf(smioerr,
+								     SM_TIME_DEFAULT,
+								     "TrustedUser: unknown user %s\n", b);
+					else
+						TrustedUid = pw->pw_uid;
+				}
+
+# ifdef UID_MAX
+				if (TrustedUid > UID_MAX)
+				{
+					(void) sm_io_fprintf(smioerr,
+							     SM_TIME_DEFAULT,
+							     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
+						(long) TrustedUid,
+						(long) UID_MAX);
+					TrustedUid = 0;
+				}
+# endif /* UID_MAX */
+			}
+#endif /* HASFCHOWN */
+			break;
+
+		  case 'K':		/* Keyfile (map) */
+			if (classname != NULL)	/* found it already */
+				continue;
+			if (mapfile == NULL || *mapfile == '\0')
+				continue;
+
+			/* cut off trailing spaces */
+			for (p = buf + strlen(buf) - 1; ISASCII(*p) && isspace(*p) && p > buf; p--)
+				*p = '\0';
+
+			/* find the last argument */
+			p = strrchr(buf, ' ');
+			if (p == NULL)
+				continue;
+			b = strstr(p, mapfile);
+			if (b == NULL)
+				continue;
+			if (b <= buf)
+				continue;
+			if (!fullpath)
+			{
+				p = strrchr(b, '.');
+				if (p != NULL)
+					*p = '\0';
+			}
+
+			/* allow trailing white space? */
+			if (strcmp(mapfile, b) != 0)
+				continue;
+			/* SM_ASSERT(b > buf); */
+			--b;
+			if (!ISASCII(*b))
+				continue;
+			if (!isspace(*b) && fullpath)
+				continue;
+			if (!fullpath && !(SM_IS_DIR_DELIM(*b) || isspace(*b)))
+				continue;
+
+			/* basically from readcf.c */
+			for (b = buf + 1; ISASCII(*b) && isspace(*b); b++)
+				;
+			if (!(ISASCII(*b) && isalnum(*b)))
+			{
+				/* syserr("readcf: config K line: no map name"); */
+				return NULL;
+			}
+
+			while ((ISASCII(*++b) && isalnum(*b)) || *b == '_' || *b == '.')
+				;
+			if (*b != '\0')
+				*b++ = '\0';
+			while (ISASCII(*b) && isspace(*b))
+				b++;
+			if (!(ISASCII(*b) && isalnum(*b)))
+			{
+				/* syserr("readcf: config K line, map %s: no map class", b); */
+				return NULL;
+			}
+			classname = b;
+			while (ISASCII(*++b) && isalnum(*b))
+				;
+			if (*b != '\0')
+				*b++ = '\0';
+			(void) sm_strlcpy(classbuf, classname, sizeof classbuf);
+			break;
+
+		  default:
+			continue;
+		}
+	}
+	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
+
+	return classbuf;
 }
 
 int
@@ -84,11 +262,13 @@ main(argc, argv)
 	bool verbose = false;
 	bool foldcase = true;
 	bool unmake = false;
+	bool didreadcf = false;
 	char sep = '\0';
 	char comment = '#';
 	int exitstat;
 	int opt;
 	char *typename = NULL;
+	char *fallback = NULL;
 	char *mapname = NULL;
 	unsigned int lineno;
 	int st;
@@ -103,10 +283,6 @@ main(argc, argv)
 	SMDB_DBPARAMS params;
 	SMDB_USER_INFO user_info;
 	char ibuf[BUFSIZE];
-#if HASFCHOWN
-	SM_FILE_T *cfp;
-	char buf[MAXLINE];
-#endif /* HASFCHOWN */
 	static char rnamebuf[MAXNAME];	/* holds RealUserName */
 	extern char *optarg;
 	extern int optind;
@@ -136,7 +312,7 @@ main(argc, argv)
 	(void) sm_strlcpy(user_info.smdbu_name, RunAsUserName,
 		       SMDB_MAX_USER_NAME_LEN);
 
-#define OPTIONS		"C:D:Nc:deflorst:uv"
+#define OPTIONS		"C:D:Nc:defi:Llorst:uvx"
 	while ((opt = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch (opt)
@@ -165,12 +341,23 @@ main(argc, argv)
 			foldcase = false;
 			break;
 
+		  case 'i':
+			fallback =optarg;
+			break;
+
 		  case 'D':
 			comment = *optarg;
 			break;
 
+		  case 'L':
+			smdb_print_available_types(false);
+			sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				      "cf\nCF\n");
+			exit(EX_OK);
+			break;
+
 		  case 'l':
-			smdb_print_available_types();
+			smdb_print_available_types(false);
 			exit(EX_OK);
 			break;
 
@@ -206,6 +393,11 @@ main(argc, argv)
 		  case 'v':
 			verbose = true;
 			break;
+ 
+		  case 'x':
+			smdb_print_available_types(true);
+			exit(EX_OK);
+			break;
 
 		  default:
 			usage(progname);
@@ -233,68 +425,18 @@ main(argc, argv)
 		mapname = argv[1];
 	}
 
+#define TYPEFROMCF	(strcasecmp(typename, "cf") == 0)
+#define FULLPATHFROMCF	(strcmp(typename, "cf") == 0)
+
 #if HASFCHOWN
-	/* Find TrustedUser value in sendmail.cf */
-	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
-			      NULL)) == NULL)
+	if (geteuid() == 0)
 	{
-		sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "makemap: %s: %s\n",
-			      cfile, sm_errstring(errno));
-		exit(EX_NOINPUT);
+		if (TYPEFROMCF)
+			typename = readcf(cfile, mapname, FULLPATHFROMCF);
+		else
+			(void) readcf(cfile, NULL, false);
+		didreadcf = true;
 	}
-	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
-	{
-		register char *b;
-
-		if ((b = strchr(buf, '\n')) != NULL)
-			*b = '\0';
-
-		b = buf;
-		switch (*b++)
-		{
-		  case 'O':		/* option */
-			if (strncasecmp(b, " TrustedUser", 12) == 0 &&
-			    !(isascii(b[12]) && isalnum(b[12])))
-			{
-				b = strchr(b, '=');
-				if (b == NULL)
-					continue;
-				while (isascii(*++b) && isspace(*b))
-					continue;
-				if (isascii(*b) && isdigit(*b))
-					TrustedUid = atoi(b);
-				else
-				{
-					TrustedUid = 0;
-					pw = getpwnam(b);
-					if (pw == NULL)
-						(void) sm_io_fprintf(smioerr,
-								     SM_TIME_DEFAULT,
-								     "TrustedUser: unknown user %s\n", b);
-					else
-						TrustedUid = pw->pw_uid;
-				}
-
-# ifdef UID_MAX
-				if (TrustedUid > UID_MAX)
-				{
-					(void) sm_io_fprintf(smioerr,
-							     SM_TIME_DEFAULT,
-							     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
-						(long) TrustedUid,
-						(long) UID_MAX);
-					TrustedUid = 0;
-				}
-# endif /* UID_MAX */
-				break;
-			}
-
-
-		  default:
-			continue;
-		}
-	}
-	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 #endif /* HASFCHOWN */
 
 	if (!params.smdbp_allow_dup && !allowreplace)
@@ -317,6 +459,36 @@ main(argc, argv)
 	}
 
 	params.smdbp_num_elements = 4096;
+
+	if (!didreadcf && TYPEFROMCF)
+	{
+		typename = readcf(cfile, mapname, FULLPATHFROMCF);
+		didreadcf = true;
+	}
+	if (didreadcf && (typename == NULL || *typename == '\0'))
+	{
+		if (fallback != NULL && *fallback != '\0')
+		{
+			typename = fallback;
+			if (verbose)
+				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "%s: mapfile %s: not found in %s, using fallback %s\n",
+				     progname, mapname, cfile, fallback);
+		}
+		else
+		{
+			(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				     "%s: mapfile %s: not found in %s\n",
+				     progname, mapname, cfile);
+			exit(EX_DATAERR);
+		}
+	}
+
+	/*
+	**  Note: if "implicit" is selected it does not work like
+	**  sendmail: it will just use the first available DB type,
+	**  it won't try several (for -u) to find one that "works".
+	*/
 
 	errno = smdb_open_database(&database, mapname, mode, smode, sff,
 				   typename, &user_info, &params);
@@ -417,7 +589,7 @@ main(argc, argv)
 
 			if (ibuf[0] == '\0' || ibuf[0] == comment)
 				continue;
-			if (sep == '\0' && isascii(ibuf[0]) && isspace(ibuf[0]))
+			if (sep == '\0' && ISASCII(ibuf[0]) && isspace(ibuf[0]))
 			{
 				(void) sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
 						     "%s: %s: line %u: syntax error (leading space)\n",
@@ -432,7 +604,7 @@ main(argc, argv)
 
 			for (p = ibuf; *p != '\0' && !(ISSEP(*p)); p++)
 			{
-				if (foldcase && isascii(*p) && isupper(*p))
+				if (foldcase && ISASCII(*p) && isupper(*p))
 					*p = tolower(*p);
 			}
 			db_key.size = p - ibuf;

@@ -159,7 +159,7 @@ sm_sem_rel(semid, semnum, timeout)
 #if PARANOID
 	/* XXX should we check whether the value is already 0 ? */
 	SM_REQUIRE(sm_get_sem(semid, semnum) > 0);
-#endif /* PARANOID */
+#endif
 
 	semops[0].sem_num = semnum;
 	semops[0].sem_op = 1;

@@ -538,16 +538,16 @@ reswitch:	switch (ch)
 #if HASSNPRINTF
 					snprintf(out, sizeof(out), fmt, width,
 						prec, val);
-#else /* HASSNPRINTF */
+#else
 					sprintf(out, fmt, width, prec, val);
-#endif /* HASSNPRINTF */
+#endif
 				else
 #if HASSNPRINTF
 					snprintf(out, sizeof(out), fmt, width,
 						val);
-#else /* HASSNPRINTF */
+#else
 					sprintf(out, fmt, width, val);
-#endif /* HASSNPRINTF */
+#endif
 				len = strlen(out);
 				PRINT(out, len);
 				FLUSH();
@@ -782,6 +782,7 @@ number:			if ((dprec = prec) >= 0)
 done:
 	FLUSH();
 error:
+	SM_VA_END_COPY(orgap);
 	if ((argtable != NULL) && (argtable != statargtable))
 		sm_free(argtable);
 	return sm_error(fp) ? SM_IO_EOF : ret;

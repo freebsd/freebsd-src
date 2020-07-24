@@ -33,6 +33,7 @@ If smfi_settimeout is not called, a default timeout of 7210 seconds is used.
 </TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -47,24 +48,21 @@ If smfi_settimeout is not called, a default timeout of 7210 seconds is used.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_settimeout always returns MI_SUCCESS.</TD>
 </TR>
 
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>
 Decreasing the timeout is strongly discouraged
 and may break the communication with the MTA.
 Do <EM>not</EM> decrease this value without making sure that
 the MTA also uses lower timeouts for communication
 (with the milter and with the SMTP client).
-</TR>
-</TABLE>
-
-
+</TD></TR>
 </TABLE>
 
 <HR size="1">

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2006, 2008, 2009, 2011, 2013 Proofpoint, Inc. and its suppliers.
+ * Copyright (c) 2000-2006, 2008, 2009, 2011, 2013-2016 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -13,57 +13,53 @@
 SM_RCSID("@(#)$Id: tls.c,v 8.127 2013-11-27 02:51:11 gshapiro Exp $")
 
 #if STARTTLS
+# include <tls.h>
 # include <openssl/err.h>
 # include <openssl/bio.h>
 # include <openssl/pem.h>
-# if !NO_DH
-# include <openssl/dh.h>
-# endif /* !NO_DH */
 # ifndef HASURANDOMDEV
 #  include <openssl/rand.h>
-# endif /* ! HASURANDOMDEV */
-# if !TLS_NO_RSA
+# endif
+# include <openssl/engine.h>
+# if _FFR_TLS_ALTNAMES
+#  include <openssl/x509v3.h>
+# endif
+
+# if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER <= 0x00907000L
+# ERROR: OpenSSL version OPENSSL_VERSION_NUMBER is unsupported.
+# endif
+
+# if OPENSSL_VERSION_NUMBER >= 0x10100000L && OPENSSL_VERSION_NUMBER < 0x20000000L
+#  define MTA_HAVE_DH_set0_pqg 1
+#  define MTA_HAVE_DSA_GENERATE_EX	1
+
+#  define MTA_HAVE_OPENSSL_init_ssl	1
+#  define MTA_ASN1_STRING_data ASN1_STRING_get0_data
+#  include <openssl/bn.h>
+#  include <openssl/dsa.h>
+# else
+#  define X509_STORE_CTX_get0_cert(ctx)	(ctx)->cert
+#  define MTA_RSA_TMP_CB	1
+#  define MTA_ASN1_STRING_data ASN1_STRING_data
+# endif
+
+# if !TLS_NO_RSA && MTA_RSA_TMP_CB
 static RSA *rsa_tmp = NULL;	/* temporary RSA key */
 static RSA *tmp_rsa_key __P((SSL *, int, int));
-# endif /* !TLS_NO_RSA */
-# if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
-static int	tls_verify_cb __P((X509_STORE_CTX *));
-# else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+# endif
 static int	tls_verify_cb __P((X509_STORE_CTX *, void *));
-# endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
 
-# if OPENSSL_VERSION_NUMBER > 0x00907000L
 static int x509_verify_cb __P((int, X509_STORE_CTX *));
-# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
 
-# if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
-#  define CONST097
-# else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
-#  define CONST097 const
-# endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
-static void	apps_ssl_info_cb __P((CONST097 SSL *, int , int));
+static void	apps_ssl_info_cb __P((const SSL *, int , int));
 static bool	tls_ok_f __P((char *, char *, int));
 static bool	tls_safe_f __P((char *, long, bool));
 static int	tls_verify_log __P((int, X509_STORE_CTX *, const char *));
 
-# if !NO_DH
-# if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x10100001L || \
-     (defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20700000L)
-static int
-DH_set0_pqg(dh, p, q, g)
-	DH *dh;
-	BIGNUM *p;
-	BIGNUM *q;
-	BIGNUM *g;
-{
-	dh->p = p;
-	if (q != NULL)
-		dh->q = q;
-	dh->g = g;
-	return 1; /* success */
-}
-# endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+int TLSsslidx = -1;
 
+# if !NO_DH
+# include <openssl/dh.h>
 static DH *get_dh512 __P((void));
 
 static unsigned char dh512_p[] =
@@ -83,25 +79,31 @@ static unsigned char dh512_g[] =
 static DH *
 get_dh512()
 {
-	DH *dh;
+	DH *dh = NULL;
+#  if MTA_HAVE_DH_set0_pqg
 	BIGNUM *dhp_bn, *dhg_bn;
+#  endif
 
 	if ((dh = DH_new()) == NULL)
 		return NULL;
-	dhp_bn = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
-	dhg_bn = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
-	if ((dhp_bn == NULL) || (dhg_bn == NULL))
-	{
+#  if MTA_HAVE_DH_set0_pqg
+	dhp_bn = BN_bin2bn(dh512_p, sizeof (dh512_p), NULL);
+	dhg_bn = BN_bin2bn(dh512_g, sizeof (dh512_g), NULL);
+	if (dhp_bn == NULL || dhg_bn == NULL || !DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))  {
 		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
 		return NULL;
 	}
-	if (!DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
+#  else
+	dh->p = BN_bin2bn(dh512_p, sizeof(dh512_p), NULL);
+	dh->g = BN_bin2bn(dh512_g, sizeof(dh512_g), NULL);
+	if ((dh->p == NULL) || (dh->g == NULL))
 	{
 		DH_free(dh);
 		return NULL;
 	}
+#  endif
 	return dh;
 }
 
@@ -122,7 +124,7 @@ oK0jjSXgFyeU4/NfyA+zuNeWzUL6bHmigwIBAg==
 static DH *
 get_dh2048()
 {
-	static unsigned char dh2048_p[] = {
+	static unsigned char dh2048_p[]={
 		0xAC,0x37,0x20,0x70,0xBA,0x71,0x12,0x4B,0x10,0x1C,0xF9,0x68,
 		0x95,0x12,0x82,0x50,0x9D,0xAC,0xCC,0xA4,0x73,0x8A,0xC7,0x96,
 		0x57,0xD7,0x14,0x49,0x03,0x59,0x1B,0x1A,0x06,0xC3,0xB2,0xA4,
@@ -146,27 +148,33 @@ get_dh2048()
 		0xE3,0xF3,0x5F,0xC8,0x0F,0xB3,0xB8,0xD7,0x96,0xCD,0x42,0xFA,
 		0x6C,0x79,0xA2,0x83,
 		};
-	static unsigned char dh2048_g[] = { 0x02, };
+	static unsigned char dh2048_g[]={ 0x02, };
 	DH *dh;
+#  if MTA_HAVE_DH_set0_pqg
 	BIGNUM *dhp_bn, *dhg_bn;
+#  endif
 
-	if ((dh = DH_new()) == NULL)
-		return NULL;
-	dhp_bn = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-	dhg_bn = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
-	if ((dhp_bn == NULL) || (dhg_bn == NULL))
-	{
+	if ((dh=DH_new()) == NULL)
+		return(NULL);
+#  if MTA_HAVE_DH_set0_pqg
+	dhp_bn = BN_bin2bn(dh2048_p, sizeof (dh2048_p), NULL);
+	dhg_bn = BN_bin2bn(dh2048_g, sizeof (dh2048_g), NULL);
+	if (dhp_bn == NULL || dhg_bn == NULL || !DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))  {
 		DH_free(dh);
 		BN_free(dhp_bn);
 		BN_free(dhg_bn);
 		return NULL;
 	}
-	if (!DH_set0_pqg(dh, dhp_bn, NULL, dhg_bn))
+#  else
+	dh->p=BN_bin2bn(dh2048_p,sizeof(dh2048_p),NULL);
+	dh->g=BN_bin2bn(dh2048_g,sizeof(dh2048_g),NULL);
+	if ((dh->p == NULL) || (dh->g == NULL))
 	{
 		DH_free(dh);
-		return NULL;
+		return(NULL);
 	}
-	return dh;
+#  endif
+	return(dh);
 }
 # endif /* !NO_DH */
 
@@ -221,7 +229,7 @@ tls_rand_init(randfile, logl)
 	ok = false;
 	done = RI_FAIL;
 	randdef = (randfile == NULL || *randfile == '\0') ? RF_MISS : RF_OK;
-#   if EGD
+#  if EGD
 	if (randdef == RF_OK && sm_strncasecmp(randfile, "egd:", 4) == 0)
 	{
 		randfile += 4;
@@ -235,7 +243,7 @@ tls_rand_init(randfile, logl)
 			ok = true;
 	}
 	else
-#   endif /* EGD */
+#  endif /* EGD */
 	if (randdef == RF_OK && sm_strncasecmp(randfile, "file:", 5) == 0)
 	{
 		int fd;
@@ -365,25 +373,46 @@ tls_rand_init(randfile, logl)
 **		fipsmode -- use FIPS?
 **
 **	Returns:
-**		succeeded?
+**		0: OK
+**		<0: perm.fail
+**		>0: fail but can continue
 */
 
-bool
+int
 init_tls_library(fipsmode)
 	bool fipsmode;
 {
 	bool bv;
 
+	/*
+	**  OPENSSL_init_ssl(3): "As of version 1.1.0 OpenSSL will
+	**  automatically allocate all resources that it needs
+	**  so no explicit initialisation is required."
+	*/
+
+# if !MTA_HAVE_OPENSSL_init_ssl
 	/* basic TLS initialization, ignore result for now */
 	SSL_library_init();
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
-# if 0
-	/* this is currently a macro for SSL_library_init */
-	SSLeay_add_ssl_algorithms();
-# endif /* 0 */
+# endif
 
-	bv = tls_rand_init(RandFile, 7);
+	bv = true;
+	if (TLSsslidx < 0)
+	{
+		TLSsslidx = SSL_get_ex_new_index(0, 0, 0, 0, 0);
+		if (TLSsslidx < 0)
+		{
+			if (LogLevel > 0)
+				sm_syslog(LOG_ERR, NOQID,
+					"STARTTLS=init, SSL_get_ex_new_index=%d",
+					TLSsslidx);
+			bv = false;
+		}
+	}
+
+	if (bv)
+		bv = tls_rand_init(RandFile, 7);
 # if _FFR_FIPSMODE
 	if (bv && fipsmode)
 	{
@@ -396,7 +425,7 @@ init_tls_library(fipsmode)
 				sm_syslog(LOG_ERR, NOQID,
 					"STARTTLS=init, FIPSMode=%s",
 					ERR_error_string(err, NULL));
-			return false;
+			return -1;
 		}
 		else
 		{
@@ -404,8 +433,20 @@ init_tls_library(fipsmode)
 				sm_syslog(LOG_INFO, NOQID,
 					"STARTTLS=init, FIPSMode=ok");
 		}
+		if (CertFingerprintAlgorithm == NULL)
+			CertFingerprintAlgorithm = "sha1";
 	}
-#endif /* _FFR_FIPSMODE  */
+# endif /* _FFR_FIPSMODE  */
+
+	if (!TLS_set_engine(SSLEngine, true))
+	{
+		if (LogLevel > 0)
+			sm_syslog(LOG_ERR, NOQID,
+				  "STARTTLS=init, engine=%s, TLS_set_engine=failed",
+				  SSLEngine);
+		return -1;
+	}
+
 	if (bv && CertFingerprintAlgorithm != NULL)
 	{
 		const EVP_MD *md;
@@ -422,7 +463,7 @@ init_tls_library(fipsmode)
 		else
 			EVP_digest = md;
 	}
-	return bv;
+	return bv ? 0 : 1;
 }
 
 /*
@@ -430,7 +471,7 @@ init_tls_library(fipsmode)
 **
 **	Parameters:
 **		ctx -- TLS context
-**		ssl -- TLS structure
+**		ssl -- TLS session context
 **		vrfy -- request certificate?
 **
 **	Returns:
@@ -456,10 +497,10 @@ tls_set_verify(ctx, ssl, vrfy)
 {
 # if !TLS_VRFY_PER_CTX
 	SSL_set_verify(ssl, vrfy ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
-# else /* !TLS_VRFY_PER_CTX */
+# else
 	SSL_CTX_set_verify(ctx, vrfy ? SSL_VERIFY_PEER : SSL_VERIFY_NONE,
 			NULL);
-# endif /* !TLS_VRFY_PER_CTX */
+# endif
 }
 
 /*
@@ -585,6 +626,7 @@ tls_safe_f(var, sff, srv)
 **	Returns:
 **		0/SFF_NORFILES
 */
+
 # define TLS_UNR(bit, req)	(bitset(bit, req) ? SFF_NORFILES : 0)
 # define TLS_OUNR(bit, req)	(bitset(bit, req) ? SFF_NOWRFILES : 0)
 # define TLS_KEYSFF(req)	\
@@ -617,12 +659,12 @@ tls_safe_f(var, sff, srv)
 			ok = false;	\
 	}
 
-# if _FFR_TLS_SE_OPTS
 /*
 **  LOAD_CERTKEY -- load cert/key for TLS session
 **
 **	Parameters:
 **		ssl -- TLS session context
+**		srv -- server side?
 **		certfile -- filename of certificate
 **		keyfile -- filename of private key
 **
@@ -678,8 +720,7 @@ load_certkey(ssl, srv, certfile, keyfile)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: %s(%s) failed",
 				  who, SSL_USE_CERT, certfile);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		if (bitset(TLS_I_USE_CERT, req))
 			return false;
@@ -692,8 +733,7 @@ load_certkey(ssl, srv, certfile, keyfile)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_use_PrivateKey_file(%s) failed",
 				  who, keyfile);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		if (bitset(TLS_I_USE_KEY, req))
 			return false;
@@ -709,8 +749,7 @@ load_certkey(ssl, srv, certfile, keyfile)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_check_private_key failed(%s): %d",
 				  who, keyfile, r);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		if (bitset(TLS_I_USE_KEY, req))
 			return false;
@@ -718,7 +757,143 @@ load_certkey(ssl, srv, certfile, keyfile)
 
 	return true;
 }
-# endif /* _FFR_TLS_SE_OPTS */
+
+/*
+**  LOAD_CRLFILE -- load a file holding a CRL into the TLS context
+**
+**	Parameters:
+**		ctx -- TLS context
+**		srv -- server side?
+**		filename -- filename of CRL
+**
+**	Returns:
+**		succeeded?
+*/
+
+static bool load_crlfile __P((SSL_CTX *, bool, char *));
+
+static bool
+load_crlfile(ctx, srv, filename)
+	SSL_CTX *ctx;
+	bool srv;
+	char *filename;
+{
+	char *who;
+	BIO *crl_file;
+	X509_CRL *crl;
+	X509_STORE *store;
+
+	who = srv ? "server" : "client";
+	crl_file = BIO_new(BIO_s_file());
+	if (crl_file == NULL)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: BIO_new=failed", who);
+		return false;
+	}
+
+	if (BIO_read_filename(crl_file, filename) < 0)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: BIO_read_filename(%s)=failed",
+				  who, filename);
+
+		/* avoid memory leaks */
+		BIO_free(crl_file);
+		return false;
+	}
+
+	crl = PEM_read_bio_X509_CRL(crl_file, NULL, NULL, NULL);
+	if (crl == NULL)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: PEM_read_bio_X509_CRL(%s)=failed",
+				  who, filename);
+		BIO_free(crl_file);
+		return true;	/* XXX should probably be 'false' */
+	}
+
+	BIO_free(crl_file);
+
+	/* get a pointer to the current certificate validation store */
+	store = SSL_CTX_get_cert_store(ctx);	/* does not fail */
+
+	if (X509_STORE_add_crl(store, crl) == 0)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: X509_STORE_add_crl=failed",
+				  who);
+		X509_CRL_free(crl);
+		return false;
+	}
+
+	X509_CRL_free(crl);
+
+	X509_STORE_set_flags(store,
+		X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL);
+	X509_STORE_set_verify_cb_func(store, x509_verify_cb);
+
+	return true;
+}
+
+/*
+**  LOAD_CRLPATH -- configure the TLS context to lookup CRLs in a directory
+**
+**	Parameters:
+**		ctx -- TLS context
+**		srv -- server side?
+**		path -- path of hashed directory of CRLs
+**
+**	Returns:
+**		succeeded?
+*/
+
+static bool load_crlpath __P((SSL_CTX *, bool, char *));
+
+static bool
+load_crlpath(ctx, srv, path)
+	SSL_CTX *ctx;
+	bool srv;
+	char *path;
+{
+	char *who;
+	X509_STORE *store;
+	X509_LOOKUP *lookup;
+
+	who = srv ? "server" : "client";
+
+	/* get a pointer to the current certificate validation store */
+	store = SSL_CTX_get_cert_store(ctx);	/* does not fail */
+
+	lookup = X509_STORE_add_lookup(store, X509_LOOKUP_hash_dir());
+	if (lookup == NULL)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: X509_STORE_add_lookup(hash)=failed",
+				  who);
+		return false;
+	}
+
+	if (X509_LOOKUP_add_dir(lookup, path, X509_FILETYPE_PEM) == 0)
+	{
+		if (LogLevel > 9)
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, error: X509_LOOKUP_add_dir(%s)=failed",
+				  who, path);
+		return false;
+	}
+
+	X509_STORE_set_flags(store,
+		X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL);
+	X509_STORE_set_verify_cb_func(store, x509_verify_cb);
+
+	return true;
+}
 
 /*
 **  INITTLS -- initialize TLS
@@ -747,35 +922,12 @@ load_certkey(ssl, srv, certfile, keyfile)
 
 static char server_session_id_context[] = "sendmail8";
 
-# if !TLS_NO_RSA
-static RSA *
-sm_RSA_generate_key(num, e)
-	int num;
-	unsigned long e;
-{
-	RSA *rsa = NULL;
-	BIGNUM *bn_rsa_r4;
-
-	bn_rsa_r4 = BN_new();
-	if ((bn_rsa_r4 != NULL) && BN_set_word(bn_rsa_r4, e) && (rsa = RSA_new()) != NULL)
-	{
-		if (!RSA_generate_key_ex(rsa, num, bn_rsa_r4, NULL))
-		{
-			RSA_free(rsa);
-			rsa = NULL;
-		}
-	}
-	BN_free(bn_rsa_r4);
-	return rsa;
-}
-# endif /* !TLS_NO_RSA */
-
 /* 0.9.8a and b have a problem with SSL_OP_TLS_BLOCK_PADDING_BUG */
-#if (OPENSSL_VERSION_NUMBER >= 0x0090800fL)
-# define SM_SSL_OP_TLS_BLOCK_PADDING_BUG	1
-#else
-# define SM_SSL_OP_TLS_BLOCK_PADDING_BUG	0
-#endif
+# if (OPENSSL_VERSION_NUMBER >= 0x0090800fL)
+#  define SM_SSL_OP_TLS_BLOCK_PADDING_BUG	1
+# else
+#  define SM_SSL_OP_TLS_BLOCK_PADDING_BUG	0
+# endif
 
 bool
 inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhparam)
@@ -787,24 +939,19 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 {
 # if !NO_DH
 	static DH *dh = NULL;
-# endif /* !NO_DH */
+# endif
 	int r;
 	bool ok;
 	long sff, status;
 	char *who;
 	char *cf2, *kf2;
-# if SM_CONF_SHM
+# if SM_CONF_SHM && !TLS_NO_RSA && MTA_RSA_TMP_CB
 	extern int ShmId;
-# endif /* SM_CONF_SHM */
-# if OPENSSL_VERSION_NUMBER > 0x00907000L
-	BIO *crl_file;
-	X509_CRL *crl;
-	X509_STORE *store;
-# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
-#if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
+# endif
+# if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
 	long rt_version;
 	STACK_OF(SSL_COMP) *comp_methods;
-#endif
+# endif
 
 	status = TLS_S_NONE;
 	who = srv ? "server" : "client";
@@ -852,10 +999,8 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	TLS_OK_F(cacertfile, "CACertFile", bitset(TLS_I_CERTF_EX, req),
 		 TLS_S_CERTF_EX, TLS_T_OTHER);
 
-# if OPENSSL_VERSION_NUMBER > 0x00907000L
 	TLS_OK_F(CRLFile, "CRLFile", bitset(TLS_I_CRLF_EX, req),
 		 TLS_S_CRLF_EX, TLS_T_OTHER);
-# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
 
 	/*
 	**  if the second file is specified it must exist
@@ -883,7 +1028,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	**  /file/name	read parameters from /file/name
 	*/
 
-#define SET_DH_DFL	\
+# define SET_DH_DFL	\
 	do {	\
 		dhparam = "I";	\
 		req |= TLS_I_DHFIXED;	\
@@ -950,11 +1095,9 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		if (!bitset(TLS_S_DHPAR_OK, status))
 			SET_DH_DFL;
 	}
-# if OPENSSL_VERSION_NUMBER > 0x00907000L
 	TLS_SAFE_F(CRLFile, sff | TLS_UNR(TLS_I_CRLF_UNR, req),
 		   bitset(TLS_I_CRLF_EX, req),
 		   bitset(TLS_S_CRLF_EX, status), TLS_S_CRLF_OK, srv);
-# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
 	if (!ok)
 		return ok;
 	if (cf2 != NULL)
@@ -978,82 +1121,57 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_CTX_new(SSLv23_%s_method()) failed",
 				  who, who);
-		if (LogLevel > 9)
-			tlslogerr(LOG_WARNING, who);
+		tlslogerr(LOG_WARNING, 9, who);
 		return false;
 	}
 
-# if OPENSSL_VERSION_NUMBER > 0x00907000L
-	if (CRLFile != NULL)
+# if _FFR_VRFY_TRUSTED_FIRST
+	if (!tTd(88, 101))
 	{
+		X509_STORE *store;
+
 		/* get a pointer to the current certificate validation store */
 		store = SSL_CTX_get_cert_store(*ctx);	/* does not fail */
-		crl_file = BIO_new(BIO_s_file());
-		if (crl_file != NULL)
-		{
-			if (BIO_read_filename(crl_file, CRLFile) >= 0)
-			{
-				crl = PEM_read_bio_X509_CRL(crl_file, NULL,
-							NULL, NULL);
-				BIO_free(crl_file);
-				X509_STORE_add_crl(store, crl);
-				X509_CRL_free(crl);
-				X509_STORE_set_flags(store,
-					X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL);
-				X509_STORE_set_verify_cb_func(store,
-						x509_verify_cb);
-			}
-			else
-			{
-				if (LogLevel > 9)
-				{
-					sm_syslog(LOG_WARNING, NOQID,
-						  "STARTTLS=%s, error: PEM_read_bio_X509_CRL(%s)=failed",
-						  who, CRLFile);
-				}
+		SM_ASSERT(store != NULL);
+		X509_STORE_set_flags(store, X509_V_FLAG_TRUSTED_FIRST);
+	}
+# endif
 
-				/* avoid memory leaks */
-				BIO_free(crl_file);
-				return false;
-			}
+	if (CRLFile != NULL && !load_crlfile(*ctx, srv, CRLFile))
+		return false;
+	if (CRLPath != NULL && !load_crlpath(*ctx, srv, CRLPath))
+		return false;
 
-		}
-		else if (LogLevel > 9)
+# if defined(SSL_MODE_AUTO_RETRY) && OPENSSL_VERSION_NUMBER >= 0x10100000L && OPENSSL_VERSION_NUMBER < 0x20000000L
+	/*
+	 *  Turn off blocking I/O handling in OpenSSL: someone turned
+	 *  this on by default in 1.1? should we check first?
+	 */
+#  if _FFR_TESTS
+	if (LogLevel > 9) {
+		sff = SSL_CTX_get_mode(*ctx);
+		if (sff & SSL_MODE_AUTO_RETRY)
 			sm_syslog(LOG_WARNING, NOQID,
-				  "STARTTLS=%s, error: BIO_new=failed", who);
+				"STARTTLS=%s, SSL_MODE_AUTO_RETRY=set, mode=%#lx",
+				who, sff);
 	}
-	else
-		store = NULL;
-#  if _FFR_CRLPATH
-	if (CRLPath != NULL && store != NULL)
-	{
-		X509_LOOKUP *lookup;
 
-		lookup = X509_STORE_add_lookup(store, X509_LOOKUP_hash_dir());
-		if (lookup == NULL)
-		{
-			if (LogLevel > 9)
-			{
-				sm_syslog(LOG_WARNING, NOQID,
-					  "STARTTLS=%s, error: X509_STORE_add_lookup(hash)=failed",
-					  who, CRLFile);
-			}
-			return false;
-		}
-		X509_LOOKUP_add_dir(lookup, CRLPath, X509_FILETYPE_PEM);
-		X509_STORE_set_flags(store,
-			X509_V_FLAG_CRL_CHECK|X509_V_FLAG_CRL_CHECK_ALL);
-	}
-#  endif /* _FFR_CRLPATH */
-# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+	/* hack for testing! */
+	if (tTd(96, 101) || getenv("SSL_MODE_AUTO_RETRY") != NULL)
+			SSL_CTX_set_mode(*ctx, SSL_MODE_AUTO_RETRY);
+	else
+#  endif
+	SSL_CTX_clear_mode(*ctx, SSL_MODE_AUTO_RETRY);
+# endif /* defined(SSL_MODE_AUTO_RETRY) && OPENSSL_VERSION_NUMBER >= 0x10100000L && OPENSSL_VERSION_NUMBER < 0x20000000L */
+
 
 # if TLS_NO_RSA
 	/* turn off backward compatibility, required for no-rsa */
 	SSL_CTX_set_options(*ctx, SSL_OP_NO_SSLv2);
-# endif /* TLS_NO_RSA */
+# endif
 
 
-# if !TLS_NO_RSA
+# if !TLS_NO_RSA && MTA_RSA_TMP_CB
 	/*
 	**  Create a temporary RSA key
 	**  XXX  Maybe we shouldn't create this always (even though it
@@ -1065,7 +1183,8 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	if (bitset(TLS_I_RSA_TMP, req)
 #  if SM_CONF_SHM
 	    && ShmId != SM_SHM_NO_ID &&
-	    (rsa_tmp = sm_RSA_generate_key(RSA_KEYLENGTH, RSA_F4)) == NULL
+	    (rsa_tmp = RSA_generate_key(RSA_KEYLENGTH, RSA_F4, NULL,
+					NULL)) == NULL
 #  else /* SM_CONF_SHM */
 	    && 0	/* no shared memory: no need to generate key now */
 #  endif /* SM_CONF_SHM */
@@ -1076,12 +1195,11 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: RSA_generate_key failed",
 				  who);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		return false;
 	}
-# endif /* !TLS_NO_RSA */
+# endif /* !TLS_NO_RSA && MTA_RSA_TMP_CB */
 
 	/*
 	**  load private key
@@ -1097,22 +1215,21 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_CTX_use_PrivateKey_file(%s) failed",
 				  who, keyfile);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		if (bitset(TLS_I_USE_KEY, req))
 			return false;
 	}
 
-#if _FFR_TLS_USE_CERTIFICATE_CHAIN_FILE
-# define SSL_CTX_use_cert(ssl_ctx, certfile) \
+# if _FFR_TLS_USE_CERTIFICATE_CHAIN_FILE
+#  define SSL_CTX_use_cert(ssl_ctx, certfile) \
 	SSL_CTX_use_certificate_chain_file(ssl_ctx, certfile)
-# define SSL_CTX_USE_CERT "SSL_CTX_use_certificate_chain_file"
-#else
-# define SSL_CTX_use_cert(ssl_ctx, certfile) \
+#  define SSL_CTX_USE_CERT "SSL_CTX_use_certificate_chain_file"
+# else
+#  define SSL_CTX_use_cert(ssl_ctx, certfile) \
 	SSL_CTX_use_certificate_file(ssl_ctx, certfile, SSL_FILETYPE_PEM)
-# define SSL_CTX_USE_CERT "SSL_CTX_use_certificate_file"
-#endif
+#  define SSL_CTX_USE_CERT "SSL_CTX_use_certificate_file"
+# endif
 
 	/* get the certificate file */
 	if (bitset(TLS_S_CERT_OK, status) &&
@@ -1123,8 +1240,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: %s(%s) failed",
 				  who, SSL_CTX_USE_CERT, certfile);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		if (bitset(TLS_I_USE_CERT, req))
 			return false;
@@ -1140,8 +1256,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_CTX_check_private_key failed(%s): %d",
 				  who, keyfile, r);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 		if (bitset(TLS_I_USE_KEY, req))
 			return false;
@@ -1158,8 +1273,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_CTX_use_PrivateKey_file(%s) failed",
 				  who, kf2);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 	}
 
@@ -1172,8 +1286,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: %s(%s) failed",
 				  who, SSL_CTX_USE_CERT, cf2);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 	}
 
@@ -1187,14 +1300,13 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS=%s, error: SSL_CTX_check_private_key 2 failed: %d",
 				  who, r);
-			if (LogLevel > 9)
-				tlslogerr(LOG_WARNING, who);
+			tlslogerr(LOG_WARNING, 9, who);
 		}
 	}
 
 	/* SSL_CTX_set_quiet_shutdown(*ctx, 1); violation of standard? */
 
-#if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
+# if SM_SSL_OP_TLS_BLOCK_PADDING_BUG
 
 	/*
 	**  In OpenSSL 0.9.8[ab], enabling zlib compression breaks the
@@ -1206,23 +1318,23 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	**  just the compile time version.
 	*/
 
-	rt_version = SSLeay();
+	rt_version = TLS_version_num();
 	if (rt_version >= 0x00908000L && rt_version <= 0x0090802fL)
 	{
 		comp_methods = SSL_COMP_get_compression_methods();
 		if (comp_methods != NULL && sk_SSL_COMP_num(comp_methods) > 0)
 			options &= ~SSL_OP_TLS_BLOCK_PADDING_BUG;
 	}
-#endif
+# endif
 	SSL_CTX_set_options(*ctx, (long) options);
 
 # if !NO_DH
 	/* Diffie-Hellman initialization */
 	if (bitset(TLS_I_TRY_DH, req))
 	{
-#if _FFR_TLS_EC
+#  if TLS_EC == 1
 		EC_KEY *ecdh;
-#endif /* _FFR_TLS_EC */
+#  endif
 
 		if (tTd(96, 8))
 			sm_dprintf("inittls: req=%#lx, status=%#lx\n",
@@ -1244,8 +1356,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 						  "STARTTLS=%s, error: cannot read DH parameters(%s): %s",
 						  who, dhparam,
 						  ERR_error_string(err, NULL));
-					if (LogLevel > 9)
-						tlslogerr(LOG_WARNING, who);
+					tlslogerr(LOG_WARNING, 9, who);
 					SET_DH_DFL;
 				}
 			}
@@ -1256,8 +1367,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 					sm_syslog(LOG_WARNING, NOQID,
 						  "STARTTLS=%s, error: BIO_new_file(%s) failed",
 						  who, dhparam);
-					if (LogLevel > 9)
-						tlslogerr(LOG_WARNING, who);
+					tlslogerr(LOG_WARNING, 9, who);
 				}
 			}
 		}
@@ -1270,11 +1380,21 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			if (tTd(96, 2))
 				sm_dprintf("inittls: Generating %d bit DH parameters\n", bits);
 
+#  if MTA_HAVE_DSA_GENERATE_EX
 			dsa = DSA_new();
+			if (dsa != NULL)
+			{
+				r = DSA_generate_parameters_ex(dsa, bits, NULL,
+							0, NULL, NULL, NULL);
+				if (r != 0)
+					dh = DSA_dup_DH(dsa);
+			}
+#  else
 			/* this takes a while! */
-			(void)DSA_generate_parameters_ex(dsa, bits, NULL, 0,
-							 NULL, NULL, NULL);
+			dsa = DSA_generate_parameters(bits, NULL, 0, NULL,
+						      NULL, 0, NULL);
 			dh = DSA_dup_DH(dsa);
+#  endif
 			DSA_free(dsa);
 		}
 		else if (dh == NULL && bitset(TLS_I_DHFIXED, req))
@@ -1318,7 +1438,10 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			DH_free(dh);
 		}
 
-#if _FFR_TLS_EC
+#  if TLS_EC == 2
+		SSL_CTX_set_options(*ctx, SSL_OP_SINGLE_ECDH_USE);
+		SSL_CTX_set_ecdh_auto(*ctx, 1);
+#  elif TLS_EC == 1
 		ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
 		if (ecdh != NULL)
 		{
@@ -1326,7 +1449,13 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			SSL_CTX_set_tmp_ecdh(*ctx, ecdh);
 			EC_KEY_free(ecdh);
 		}
-#endif /* _FFR_TLS_EC */
+		else if (LogLevel > 9)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, EC_KEY_new_by_curve_name(NID_X9_62_prime256v1)=failed, error=%s",
+				  who, ERR_error_string(ERR_get_error(), NULL));
+		}
+#  endif /* TLS_EC */
 
 	}
 # endif /* !NO_DH */
@@ -1355,10 +1484,10 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		if ((r = SSL_CTX_load_verify_locations(*ctx, cacertfile,
 						       cacertpath)) == 1)
 		{
-# if !TLS_NO_RSA
+# if !TLS_NO_RSA && MTA_RSA_TMP_CB
 			if (bitset(TLS_I_RSA_TMP, req))
 				SSL_CTX_set_tmp_rsa_callback(*ctx, tmp_rsa_key);
-# endif /* !TLS_NO_RSA */
+# endif
 
 			/*
 			**  We have to install our own verify callback:
@@ -1374,16 +1503,19 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			**  but we hope that that function will later on
 			**  only set the mode per connection.
 			*/
+
 			SSL_CTX_set_verify(*ctx,
 				bitset(TLS_I_NO_VRFY, req) ? SSL_VERIFY_NONE
 							   : SSL_VERIFY_PEER,
 				NULL);
 
-			/* install verify callback */
+			if (srv)
+			{
+				SSL_CTX_set_client_CA_list(*ctx,
+					SSL_load_client_CA_file(cacertfile));
+			}
 			SSL_CTX_set_cert_verify_callback(*ctx, tls_verify_cb,
-							 NULL);
-			SSL_CTX_set_client_CA_list(*ctx,
-				SSL_load_client_CA_file(cacertfile));
+							NULL);
 		}
 		else
 		{
@@ -1393,13 +1525,15 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 			**  which in turn would be necessary
 			**  if we want to allow relaying based on it.
 			*/
+
 			if (LogLevel > 5)
 			{
 				sm_syslog(LOG_WARNING, NOQID,
 					  "STARTTLS=%s, error: load verify locs %s, %s failed: %d",
 					  who, cacertpath, cacertfile, r);
-				if (LogLevel > 9)
-					tlslogerr(LOG_WARNING, who);
+				tlslogerr(LOG_WARNING,
+					bitset(TLS_I_VRFY_LOC, req) ? 8 : 9,
+					who);
 			}
 			if (bitset(TLS_I_VRFY_LOC, req))
 				return false;
@@ -1421,8 +1555,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 					  "STARTTLS=%s, error: SSL_CTX_set_cipher_list(%s) failed, list ignored",
 					  who, CipherList);
 
-				if (LogLevel > 9)
-					tlslogerr(LOG_WARNING, who);
+				tlslogerr(LOG_WARNING, 9, who);
 			}
 			/* failure if setting to this list is required? */
 		}
@@ -1454,6 +1587,7 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 **
 **	Parameters:
 **		cert -- TLS cert
+**		evp_digest -- digest algorithm
 **		mac -- macro storage
 **		macro -- where to store cert fp
 **
@@ -1494,12 +1628,117 @@ cert_fp(cert, evp_digest, mac, macro)
 	return 1;
 }
 
+/* host for logging */
+#define whichhost	host == NULL ? "local" : host
+
+# if _FFR_TLS_ALTNAMES
+
+/*
+**  CLEARCLASS -- clear the specified class (called from stabapply)
+**
+**	Parameters:
+**		s -- STAB
+**		id -- class id
+**
+**	Returns:
+**		none.
+*/
+
+static void
+clearclass(s, id)
+	STAB *s;
+	int id;
+{
+	if (s->s_symtype != ST_CLASS)
+		return;
+	if (bitnset(bitidx(id), s->s_class))
+		clrbitn(bitidx(id), s->s_class);
+}
+
+/*
+**  GETALTNAMES -- set subject_alt_name
+**
+**	Parameters:
+**		cert -- cert
+**		srv -- server side?
+**		host -- hostname of other side
+**
+**	Returns:
+**		none.
+*/
+
+static void
+getaltnames(cert, srv, host)
+	X509 *cert;
+	bool srv;
+	const char *host;
+{
+	STACK_OF(GENERAL_NAME) *gens;
+	int i, j, len, r;
+	const GENERAL_NAME *gn;
+	char *dnsname, *who;
+
+	if (!SetCertAltnames)
+		return;
+	who = srv ? "server" : "client";
+	gens = X509_get_ext_d2i(cert, NID_subject_alt_name, 0, 0);
+	if (gens == NULL)
+		return;
+
+	r = sk_GENERAL_NAME_num(gens);
+	for (i = 0; i < r; i++)
+	{
+		gn = sk_GENERAL_NAME_value(gens, i);
+		if (gn == NULL || gn->type != GEN_DNS)
+			continue;
+
+		/* Ensure data is IA5 */
+		if (ASN1_STRING_type(gn->d.ia5) != V_ASN1_IA5STRING)
+		{
+			if (LogLevel > 6)
+				sm_syslog(LOG_INFO, NOQID,
+					"STARTTLS=%s, relay=%.100s, field=AltName, status=value contains non IA5",
+					who, whichhost);
+			continue;
+		}
+		dnsname = (char *) MTA_ASN1_STRING_data(gn->d.ia5);
+		if (dnsname == NULL)
+			continue;
+		len = ASN1_STRING_length(gn->d.ia5);
+
+		/*
+		**  "remove" trailing NULs (except for one of course),
+		**  those can happen and are OK (not a sign of an attack)
+		*/
+
+		while (len > 0 && '\0' == dnsname[len - 1])
+			len--;
+
+#define ISPRINT(c)	(isascii(c) && isprint(c))
+
+		/* just check for printable char for now */
+		for (j = 0; j < len && ISPRINT(dnsname[j]); j++)
+			;
+		if (dnsname[j] != '\0' || len != j)
+			continue;
+
+		setclass(macid("{cert_altnames}"), xtextify(dnsname, "<>\")"));
+		if (LogLevel > 14)
+			sm_syslog(LOG_DEBUG, NOQID,
+				"STARTTLS=%s, relay=%.100s, AltName=%s",
+				who, whichhost, xtextify(dnsname, "<>\")"));
+	}
+}
+# else
+#  define getaltnames(cert, srv, host)
+# endif /* _FFR_TLS_ALTNAMES */
+
 /*
 **  TLS_GET_INFO -- get information about TLS connection
 **
 **	Parameters:
-**		ssl -- TLS connection structure
-**		srv -- server or client
+**		ssl -- TLS session context
+**		srv -- server side?
 **		host -- hostname of other side
 **		mac -- macro storage
 **		certreq -- did we ask for a cert?
@@ -1525,6 +1764,9 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	char *s, *who;
 	char bitstr[16];
 	X509 *cert;
+# if DANE
+	dane_vrfy_ctx_P dane_vrfy_ctx;
+# endif
 
 	c = SSL_get_current_cipher(ssl);
 
@@ -1548,6 +1790,9 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		sm_syslog(LOG_INFO, NOQID,
 			  "STARTTLS=%s, get_verify: %ld get_peer: 0x%lx",
 			  who, verifyok, (unsigned long) cert);
+# if _FFR_TLS_ALTNAMES
+	stabapply(clearclass, macid("{cert_altnames}"));
+# endif
 	if (cert != NULL)
 	{
 		X509_NAME *subj, *issuer;
@@ -1562,7 +1807,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		macdefine(mac, A_TEMP, macid("{cert_issuer}"),
 			 xtextify(buf, "<>\")"));
 
-# define LL_BADCERT	8
+#  define LL_BADCERT	8
 
 #define CERTFPMACRO (CertFingerprintAlgorithm != NULL ? "{cert_fp}" : "{cert_md5}")
 
@@ -1574,9 +1819,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 			if (LogLevel > LL_BADCERT)	\
 				sm_syslog(LOG_INFO, NOQID,	\
 					"STARTTLS=%s, relay=%.100s, field=%s, status=failed to extract CN",	\
-					who,	\
-					host == NULL ? "local" : host,	\
-					which);	\
+					who, whichhost,	which);	\
 		}		\
 		else if ((size_t)r >= sizeof(buf) - 1)	\
 		{		\
@@ -1584,9 +1827,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 			if (LogLevel > 7)	\
 				sm_syslog(LOG_INFO, NOQID,	\
 					"STARTTLS=%s, relay=%.100s, field=%s, status=CN too long",	\
-					who,	\
-					host == NULL ? "local" : host,	\
-					which);	\
+					who, whichhost, which);	\
 		}		\
 		else if ((size_t)r > strlen(buf))	\
 		{		\
@@ -1595,9 +1836,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 			if (LogLevel > 7)	\
 				sm_syslog(LOG_INFO, NOQID,	\
 					"STARTTLS=%s, relay=%.100s, field=%s, status=CN contains NUL",	\
-					who,	\
-					host == NULL ? "local" : host,	\
-					which);	\
+					who, whichhost, which);	\
 		}		\
 	} while (0)
 
@@ -1612,6 +1851,7 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		macdefine(mac, A_TEMP, macid("{cn_issuer}"),
 			 xtextify(buf, "<>\")"));
 		(void) cert_fp(cert, EVP_digest, mac, CERTFPMACRO);
+		getaltnames(cert, srv, host);
 	}
 	else
 	{
@@ -1621,6 +1861,30 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		macdefine(mac, A_PERM, macid("{cn_issuer}"), "");
 		macdefine(mac, A_TEMP, macid(CERTFPMACRO), "");
 	}
+# if DANE
+	dane_vrfy_ctx = NULL;
+	if (TLSsslidx >= 0)
+	{
+		tlsi_ctx_T *tlsi_ctx;
+
+		tlsi_ctx = (tlsi_ctx_P) SSL_get_ex_data(ssl, TLSsslidx);
+		if (tlsi_ctx != NULL)
+			dane_vrfy_ctx = &(tlsi_ctx->tlsi_dvc);
+	}
+#  define DANE_VRFY_RES_IS(r) \
+	((dane_vrfy_ctx != NULL) && dane_vrfy_ctx->dane_vrfy_res == (r))
+	if (DANE_VRFY_RES_IS(DANE_VRFY_OK))
+	{
+		s = "TRUSTED";
+		r = TLS_AUTH_OK;
+	}
+	else if (DANE_VRFY_RES_IS(DANE_VRFY_FAIL))
+	{
+		s = "DANE_FAIL";
+		r = TLS_AUTH_FAIL;
+	}
+	else
+# endif /* if DANE */
 	switch (verifyok)
 	{
 	  case X509_V_OK:
@@ -1655,14 +1919,25 @@ tls_get_info(ssl, srv, host, mac, certreq)
 		s1 = macget(mac, macid("{verify}"));
 		s2 = macget(mac, macid("{cipher}"));
 
+# if DANE
+#  define LOG_DANE_FP	\
+	('\0' != dane_vrfy_ctx->dane_vrfy_fp[0] && DANE_VRFY_RES_IS(DANE_VRFY_FAIL))
+# endif
 		/* XXX: maybe cut off ident info? */
 		sm_syslog(LOG_INFO, NOQID,
-			  "STARTTLS=%s, relay=%.100s, version=%.16s, verify=%.16s, cipher=%.64s, bits=%.6s/%.6s",
+			  "STARTTLS=%s, relay=%.100s, version=%.16s, verify=%.16s, cipher=%.64s, bits=%.6s/%.6s%s%s",
 			  who,
 			  host == NULL ? "local" : host,
 			  vers, s1, s2, /* sm_snprintf() can deal with NULL */
 			  algbits == NULL ? "0" : algbits,
-			  cbits == NULL ? "0" : cbits);
+			  cbits == NULL ? "0" : cbits
+# if DANE
+			, LOG_DANE_FP ? ", pubkey_fp=" : ""
+			, LOG_DANE_FP ? dane_vrfy_ctx->dane_vrfy_fp : ""
+# else
+			, "", ""
+# endif
+			);
 		if (LogLevel > 11)
 		{
 			/*
@@ -1682,101 +1957,101 @@ tls_get_info(ssl, srv, host, mac, certreq)
 	}
 	return r;
 }
+
 /*
 **  ENDTLS -- shutdown secure connection
 **
 **	Parameters:
-**		ssl -- SSL connection information.
-**		side -- server/client (for logging).
+**		pssl -- pointer to TLS session context
+**		who -- server/client (for logging).
 **
 **	Returns:
 **		success? (EX_* code)
 */
 
 int
-endtls(ssl, side)
-	SSL *ssl;
-	char *side;
+endtls(pssl, who)
+	SSL **pssl;
+	const char *who;
 {
-	int ret = EX_OK;
+	SSL *ssl;
+	int ret, r;
 
-	if (ssl != NULL)
+	SM_REQUIRE(pssl != NULL);
+	ret = EX_OK;
+	ssl = *pssl;
+	if (ssl == NULL)
+		return ret;
+
+	if ((r = SSL_shutdown(ssl)) < 0)
 	{
-		int r;
-
-		if ((r = SSL_shutdown(ssl)) < 0)
+		if (LogLevel > 11)
 		{
-			if (LogLevel > 11)
-			{
-				sm_syslog(LOG_WARNING, NOQID,
-					  "STARTTLS=%s, SSL_shutdown failed: %d",
-					  side, r);
-				tlslogerr(LOG_WARNING, side);
-			}
-			ret = EX_SOFTWARE;
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, SSL_shutdown failed: %d",
+				  who, r);
+			tlslogerr(LOG_WARNING, 11, who);
 		}
-# if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER > 0x0090602fL
-
-		/*
-		**  Bug in OpenSSL (at least up to 0.9.6b):
-		**  From: Lutz.Jaenicke@aet.TU-Cottbus.DE
-		**  Message-ID: <20010723152244.A13122@serv01.aet.tu-cottbus.de>
-		**  To: openssl-users@openssl.org
-		**  Subject: Re: SSL_shutdown() woes (fwd)
-		**
-		**  The side sending the shutdown alert first will
-		**  not care about the answer of the peer but will
-		**  immediately return with a return value of "0"
-		**  (ssl/s3_lib.c:ssl3_shutdown()). SSL_get_error will evaluate
-		**  the value of "0" and as the shutdown alert of the peer was
-		**  not received (actually, the program did not even wait for
-		**  the answer), an SSL_ERROR_SYSCALL is flagged, because this
-		**  is the default rule in case everything else does not apply.
-		**
-		**  For your server the problem is different, because it
-		**  receives the shutdown first (setting SSL_RECEIVED_SHUTDOWN),
-		**  then sends its response (SSL_SENT_SHUTDOWN), so for the
-		**  server the shutdown was successfull.
-		**
-		**  As is by know, you would have to call SSL_shutdown() once
-		**  and ignore an SSL_ERROR_SYSCALL returned. Then call
-		**  SSL_shutdown() again to actually get the server's response.
-		**
-		**  In the last discussion, Bodo Moeller concluded that a
-		**  rewrite of the shutdown code would be necessary, but
-		**  probably with another API, as the change would not be
-		**  compatible to the way it is now.  Things do not become
-		**  easier as other programs do not follow the shutdown
-		**  guidelines anyway, so that a lot error conditions and
-		**  compitibility issues would have to be caught.
-		**
-		**  For now the recommondation is to ignore the error message.
-		*/
-
-		else if (r == 0)
-		{
-			if (LogLevel > 15)
-			{
-				sm_syslog(LOG_WARNING, NOQID,
-					  "STARTTLS=%s, SSL_shutdown not done",
-					  side);
-				tlslogerr(LOG_WARNING, side);
-			}
-			ret = EX_SOFTWARE;
-		}
-# endif /* !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER > 0x0090602fL */
-		SSL_free(ssl);
-		ssl = NULL;
+		ret = EX_SOFTWARE;
 	}
+
+	/*
+	**  Bug in OpenSSL (at least up to 0.9.6b):
+	**  From: Lutz.Jaenicke@aet.TU-Cottbus.DE
+	**  Message-ID: <20010723152244.A13122@serv01.aet.tu-cottbus.de>
+	**  To: openssl-users@openssl.org
+	**  Subject: Re: SSL_shutdown() woes (fwd)
+	**
+	**  The side sending the shutdown alert first will
+	**  not care about the answer of the peer but will
+	**  immediately return with a return value of "0"
+	**  (ssl/s3_lib.c:ssl3_shutdown()). SSL_get_error will evaluate
+	**  the value of "0" and as the shutdown alert of the peer was
+	**  not received (actually, the program did not even wait for
+	**  the answer), an SSL_ERROR_SYSCALL is flagged, because this
+	**  is the default rule in case everything else does not apply.
+	**
+	**  For your server the problem is different, because it
+	**  receives the shutdown first (setting SSL_RECEIVED_SHUTDOWN),
+	**  then sends its response (SSL_SENT_SHUTDOWN), so for the
+	**  server the shutdown was successful.
+	**
+	**  As is by know, you would have to call SSL_shutdown() once
+	**  and ignore an SSL_ERROR_SYSCALL returned. Then call
+	**  SSL_shutdown() again to actually get the server's response.
+	**
+	**  In the last discussion, Bodo Moeller concluded that a
+	**  rewrite of the shutdown code would be necessary, but
+	**  probably with another API, as the change would not be
+	**  compatible to the way it is now.  Things do not become
+	**  easier as other programs do not follow the shutdown
+	**  guidelines anyway, so that a lot error conditions and
+	**  compitibility issues would have to be caught.
+	**
+	**  For now the recommondation is to ignore the error message.
+	*/
+
+	else if (r == 0)
+	{
+		if (LogLevel > 15)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "STARTTLS=%s, SSL_shutdown not done",
+				  who);
+			tlslogerr(LOG_WARNING, 15, who);
+		}
+		ret = EX_SOFTWARE;
+	}
+	SM_SSL_FREE(*pssl);
 	return ret;
 }
 
-# if !TLS_NO_RSA
+# if !TLS_NO_RSA && MTA_RSA_TMP_CB
 /*
 **  TMP_RSA_KEY -- return temporary RSA key
 **
 **	Parameters:
-**		s -- TLS connection structure
+**		ssl -- TLS session context
 **		export --
 **		keylength --
 **
@@ -1784,9 +2059,9 @@ endtls(ssl, side)
 **		temporary RSA key.
 */
 
-#   ifndef MAX_RSA_TMP_CNT
-#    define MAX_RSA_TMP_CNT	1000	/* XXX better value? */
-#   endif /* ! MAX_RSA_TMP_CNT */
+#  ifndef MAX_RSA_TMP_CNT
+#   define MAX_RSA_TMP_CNT	1000	/* XXX better value? */
+#  endif
 
 /* ARGUSED0 */
 static RSA *
@@ -1795,18 +2070,18 @@ tmp_rsa_key(s, export, keylength)
 	int export;
 	int keylength;
 {
-#   if SM_CONF_SHM
+#  if SM_CONF_SHM
 	extern int ShmId;
 	extern int *PRSATmpCnt;
 
 	if (ShmId != SM_SHM_NO_ID && rsa_tmp != NULL &&
 	    ++(*PRSATmpCnt) < MAX_RSA_TMP_CNT)
 		return rsa_tmp;
-#   endif /* SM_CONF_SHM */
+#  endif /* SM_CONF_SHM */
 
 	if (rsa_tmp != NULL)
 		RSA_free(rsa_tmp);
-	rsa_tmp = sm_RSA_generate_key(RSA_KEYLENGTH, RSA_F4);
+	rsa_tmp = RSA_generate_key(RSA_KEYLENGTH, RSA_F4, NULL, NULL);
 	if (rsa_tmp == NULL)
 	{
 		if (LogLevel > 0)
@@ -1815,32 +2090,33 @@ tmp_rsa_key(s, export, keylength)
 	}
 	else
 	{
-#   if SM_CONF_SHM
-#    if 0
+#  if SM_CONF_SHM
+#   if 0
 		/*
 		**  XXX we can't (yet) share the new key...
 		**	The RSA structure contains pointers hence it can't be
 		**	easily kept in shared memory.  It must be transformed
-		**	into a continous memory region first, then stored,
+		**	into a continuous memory region first, then stored,
 		**	and later read out again (each time re-transformed).
 		*/
 
 		if (ShmId != SM_SHM_NO_ID)
 			*PRSATmpCnt = 0;
-#    endif /* 0 */
-#   endif /* SM_CONF_SHM */
+#   endif /* 0 */
+#  endif /* SM_CONF_SHM */
 		if (LogLevel > 9)
 			sm_syslog(LOG_ERR, NOQID,
 				  "STARTTLS=server, tmp_rsa_key: new temp RSA key");
 	}
 	return rsa_tmp;
 }
-# endif /* !TLS_NO_RSA */
+# endif /* !TLS_NO_RSA && MTA_RSA_TMP_CB */
+
 /*
 **  APPS_SSL_INFO_CB -- info callback for TLS connections
 **
 **	Parameters:
-**		s -- TLS connection structure
+**		ssl -- TLS session context
 **		where -- state in handshake
 **		ret -- return code of last operation
 **
@@ -1849,8 +2125,8 @@ tmp_rsa_key(s, export, keylength)
 */
 
 static void
-apps_ssl_info_cb(s, where, ret)
-	CONST097 SSL *s;
+apps_ssl_info_cb(ssl, where, ret)
+	const SSL *ssl;
 	int where;
 	int ret;
 {
@@ -1879,7 +2155,7 @@ apps_ssl_info_cb(s, where, ret)
 		if (LogLevel > 12)
 			sm_syslog(LOG_NOTICE, NOQID,
 				"STARTTLS: %s:%s",
-				str, SSL_state_string_long(s));
+				str, SSL_state_string_long(ssl));
 	}
 	else if (bitset(SSL_CB_ALERT, where))
 	{
@@ -1897,23 +2173,24 @@ apps_ssl_info_cb(s, where, ret)
 			if (LogLevel > 7)
 				sm_syslog(LOG_WARNING, NOQID,
 					"STARTTLS: %s:failed in %s",
-					str, SSL_state_string_long(s));
+					str, SSL_state_string_long(ssl));
 		}
 		else if (ret < 0)
 		{
 			if (LogLevel > 7)
 				sm_syslog(LOG_WARNING, NOQID,
 					"STARTTLS: %s:error in %s",
-					str, SSL_state_string_long(s));
+					str, SSL_state_string_long(ssl));
 		}
 	}
 }
+
 /*
 **  TLS_VERIFY_LOG -- log verify error for TLS certificates
 **
 **	Parameters:
 **		ok -- verify ok?
-**		ctx -- x509 context
+**		ctx -- X509 context
 **		name -- from where is this called?
 **
 **	Returns:
@@ -1941,10 +2218,203 @@ tls_verify_log(ok, ctx, name)
 }
 
 /*
+**  Declaration and access to tlsi_ctx in callbacks.
+**  Currently only used in one of them.
+*/
+
+#define SM_DECTLSI	\
+	tlsi_ctx_T *tlsi_ctx;	\
+	SSL *ssl
+#define SM_GETTLSI	\
+	do {		\
+		tlsi_ctx = NULL;	\
+		if (TLSsslidx >= 0)	\
+		{	\
+			ssl = (SSL *) X509_STORE_CTX_get_ex_data(ctx,	\
+				SSL_get_ex_data_X509_STORE_CTX_idx());	\
+			if (ssl != NULL)	\
+				tlsi_ctx = (tlsi_ctx_P) SSL_get_ex_data(ssl, TLSsslidx);	\
+		}	\
+	}	\
+	while (0)
+
+
+# if DANE
+
+/*
+**  DANE_GET_TLSA -- Retrieve TLSA RR for DANE
+**
+**	Parameters:
+**		dane -- dane verify context
+**
+**	Returns:
+**		dane_tlsa if TLSA RR is available
+**		NULL otherwise
+*/
+
+dane_tlsa_P
+dane_get_tlsa(dane_vrfy_ctx)
+	dane_vrfy_ctx_P dane_vrfy_ctx;
+{
+	STAB *s;
+	dane_tlsa_P dane_tlsa;
+
+	dane_tlsa = NULL;
+	if (NULL == dane_vrfy_ctx)
+		return NULL;
+	if (dane_vrfy_ctx->dane_vrfy_chk == DANE_NEVER ||
+	    dane_vrfy_ctx->dane_vrfy_host == NULL)
+		return NULL;
+
+	GETTLSANOX(dane_vrfy_ctx->dane_vrfy_host, &s,
+		dane_vrfy_ctx->dane_vrfy_port);
+	if (NULL == s)
+		goto notfound;
+	dane_tlsa = s->s_tlsa;
+	if (NULL == dane_tlsa)
+		goto notfound;
+	if (0 == dane_tlsa->dane_tlsa_n)
+		goto notfound;
+	if (tTd(96, 4))
+		sm_dprintf("dane_get_tlsa, chk=%d, host=%s, n=%d, stat=entry found\n",
+			dane_vrfy_ctx->dane_vrfy_chk,
+			dane_vrfy_ctx->dane_vrfy_host, dane_tlsa->dane_tlsa_n);
+	return dane_tlsa;
+
+  notfound:
+	if (tTd(96, 4))
+		sm_dprintf("dane_get_tlsa, chk=%d, host=%s, stat=no valid entry found\n",
+			dane_vrfy_ctx->dane_vrfy_chk,
+			dane_vrfy_ctx->dane_vrfy_host);
+	return NULL;
+}
+
+/*
+**  DANE_VERIFY -- verify callback for TLS certificates
+**
+**	Parameters:
+**		ctx -- X509 context
+**		dane_vrfy_ctx -- callback context
+**
+**	Returns:
+**		DANE_VRFY_{OK,NONE,FAIL}
+*/
+
+/* NOTE: this only works because the "matching type" is 0, 1, 2 for these! */
+static const char *dane_mdalgs[] = { "", "sha256", "sha512" };
+
+static int
+dane_verify(ctx, dane_vrfy_ctx)
+	X509_STORE_CTX *ctx;
+	dane_vrfy_ctx_P dane_vrfy_ctx;
+{
+	int r, i, ok, mdalg;
+	X509 *cert;
+	dane_tlsa_P dane_tlsa;
+	char *fp;
+
+	dane_tlsa = dane_get_tlsa(dane_vrfy_ctx);
+	if (dane_tlsa == NULL)
+		return DANE_VRFY_NONE;
+
+	dane_vrfy_ctx->dane_vrfy_fp[0] = '\0';
+	cert = X509_STORE_CTX_get0_cert(ctx);
+	if (tTd(96, 8))
+		sm_dprintf("dane_verify, cert=%p\n", (void *)cert);
+	if (cert == NULL)
+		return DANE_VRFY_FAIL;
+
+	ok = DANE_VRFY_NONE;
+	fp = NULL;
+
+	/*
+	**  If the TLSA RRs would be sorted the two loops below could
+	**  be merged into one and simply change mdalg when it changes
+	**  in dane_tlsa->dane_tlsa_rr.
+	*/
+
+	/* use a different order? */
+	for (mdalg = 0; mdalg < SM_ARRAY_SIZE(dane_mdalgs); mdalg++)
+	{
+		SM_FREE(fp);
+		r = 0;
+		for (i = 0; i < dane_tlsa->dane_tlsa_n; i++)
+		{
+			char *p;
+			int alg;
+
+			p = dane_tlsa->dane_tlsa_rr[i];
+
+			/* ignore bogus/unsupported TLSA RRs */
+			alg = dane_tlsa_chk(p, dane_tlsa->dane_tlsa_len[i],
+					  dane_vrfy_ctx->dane_vrfy_host, false);
+			if (tTd(96, 8))
+				sm_dprintf("dane_verify, alg=%d, mdalg=%d\n",
+					alg, mdalg);
+			if (alg != mdalg)
+				continue;
+
+			if (NULL == fp)
+			{
+				r = pubkey_fp(cert, dane_mdalgs[mdalg], &fp);
+				if (NULL == fp)
+					return DANE_VRFY_FAIL;
+					/* or continue? */
+			}
+
+			/* just for logging */
+			if (r > 0 && fp != NULL)
+			{
+				(void) data2hex((unsigned char *)fp, r,
+					(unsigned char *)dane_vrfy_ctx->dane_vrfy_fp,
+					sizeof(dane_vrfy_ctx->dane_vrfy_fp));
+			}
+
+			if (tTd(96, 4))
+				sm_dprintf("dane_verify, alg=%d, r=%d, len=%d\n",
+					alg, r, dane_tlsa->dane_tlsa_len[i]);
+			if (r != dane_tlsa->dane_tlsa_len[i] - 3)
+				continue;
+			ok = DANE_VRFY_FAIL;
+
+			/*
+			**  Note: Type is NOT checked because only 3-1-x
+			**  is supported.
+			*/
+
+			if (memcmp(p + 3, fp, r) == 0)
+			{
+				if (tTd(96, 2))
+					sm_dprintf("dane_verify, status=match\n");
+				if (tTd(96, 8))
+				{
+					unsigned char hex[256];
+
+					data2hex((unsigned char *)p,
+						dane_tlsa->dane_tlsa_len[i],
+						hex, sizeof(hex));
+					sm_dprintf("dane_verify, pubkey_fp=%s\n"
+						, hex);
+				}
+				dane_vrfy_ctx->dane_vrfy_res = DANE_VRFY_OK;
+				SM_FREE(fp);
+				return DANE_VRFY_OK;
+			}
+		}
+	}
+
+	SM_FREE(fp);
+	dane_vrfy_ctx->dane_vrfy_res = ok;
+	return ok;
+}
+# endif /* DANE */
+
+/*
 **  TLS_VERIFY_CB -- verify callback for TLS certificates
 **
 **	Parameters:
-**		ctx -- x509 context
+**		ctx -- X509 context
+**		cb_ctx -- callback context
 **
 **	Returns:
 **		accept connection?
@@ -1952,22 +2422,36 @@ tls_verify_log(ok, ctx, name)
 */
 
 static int
-#  if !defined(OPENSSL_VERSION_NUMBER) || OPENSSL_VERSION_NUMBER < 0x00907000L
-tls_verify_cb(ctx)
+tls_verify_cb(ctx, cb_ctx)
 	X509_STORE_CTX *ctx;
-#  else /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
-tls_verify_cb(ctx, unused)
-	X509_STORE_CTX *ctx;
-	void *unused;
-#  endif /* !defined() || OPENSSL_VERSION_NUMBER < 0x00907000L */
+	void *cb_ctx;
 {
 	int ok;
+# if DANE
+	SM_DECTLSI;
+# endif
 
 	/*
-	**  man SSL_CTX_set_cert_verify_callback():
+	**  SSL_CTX_set_cert_verify_callback(3):
 	**  callback should return 1 to indicate verification success
 	**  and 0 to indicate verification failure.
 	*/
+
+# if DANE
+	SM_GETTLSI;
+	if (tlsi_ctx != NULL)
+	{
+		dane_vrfy_ctx_P dane_vrfy_ctx;
+
+		dane_vrfy_ctx = &(tlsi_ctx->tlsi_dvc);
+		ok = dane_verify(ctx, dane_vrfy_ctx);
+		if (tTd(96, 2))
+			sm_dprintf("dane_verify=%d, res=%d\n", ok,
+				dane_vrfy_ctx->dane_vrfy_res);
+		if (ok != DANE_VRFY_NONE)
+			return 1;
+	}
+# endif /* DANE */
 
 	ok = X509_verify_cert(ctx);
 	if (ok <= 0)
@@ -1975,13 +2459,17 @@ tls_verify_cb(ctx, unused)
 		if (LogLevel > 13)
 			return tls_verify_log(ok, ctx, "TLS");
 	}
+	else if (LogLevel > 14)
+		(void) tls_verify_log(ok, ctx, "TLS");
 	return 1;
 }
+
 /*
 **  TLSLOGERR -- log the errors from the TLS error stack
 **
 **	Parameters:
-**		level -- syslog level
+**		priority -- syslog priority
+**		ll -- loglevel
 **		who -- server/client (for logging).
 **
 **	Returns:
@@ -1989,35 +2477,36 @@ tls_verify_cb(ctx, unused)
 */
 
 void
-tlslogerr(level, who)
-	int level;
+tlslogerr(priority, ll, who)
+	int priority;
+	int ll;
 	const char *who;
 {
 	unsigned long l;
 	int line, flags;
-	unsigned long es;
 	char *file, *data;
 	char buf[256];
 
-	es = CRYPTO_thread_id();
+	if (LogLevel <= ll)
+		return;
 	while ((l = ERR_get_error_line_data((const char **) &file, &line,
 					    (const char **) &data, &flags))
 		!= 0)
 	{
-		sm_syslog(level, NOQID,
-			  "STARTTLS=%s: %lu:%s:%s:%d:%s", who, es,
+		sm_syslog(priority, NOQID,
+			  "STARTTLS=%s: %s:%s:%d:%s", who,
 			  ERR_error_string(l, buf),
 			  file, line,
 			  bitset(ERR_TXT_STRING, flags) ? data : "");
 	}
 }
 
-# if OPENSSL_VERSION_NUMBER > 0x00907000L
 /*
 **  X509_VERIFY_CB -- verify callback
 **
 **	Parameters:
-**		ctx -- x509 context
+**		ok -- current result
+**		ctx -- X509 context
 **
 **	Returns:
 **		accept connection?
@@ -2029,17 +2518,141 @@ x509_verify_cb(ok, ctx)
 	int ok;
 	X509_STORE_CTX *ctx;
 {
-	if (ok == 0)
+	SM_DECTLSI;
+
+	if (ok != 0)
+		return ok;
+
+	SM_GETTLSI;
+	if (LogLevel > 13)
+		tls_verify_log(ok, ctx, "X509");
+	if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_UNABLE_TO_GET_CRL &&
+	    !SM_TLSI_IS(tlsi_ctx, TLSI_FL_CRLREQ))
 	{
-		if (LogLevel > 13)
-			tls_verify_log(ok, ctx, "x509");
-		if (X509_STORE_CTX_get_error(ctx) == X509_V_ERR_UNABLE_TO_GET_CRL)
-		{
-			X509_STORE_CTX_set_error(ctx, 0);
-			return 1;	/* override it */
-		}
+		X509_STORE_CTX_set_error(ctx, 0);
+		return 1;	/* override it */
 	}
 	return ok;
 }
-# endif /* OPENSSL_VERSION_NUMBER > 0x00907000L */
+
+# if !USE_OPENSSL_ENGINE
+/*
+**  TLS_SET_ENGINE -- set up ENGINE if needed
+**
+**	Parameters:
+**		id -- id for ENGINE
+**		isprefork -- called before fork()?
+**
+**	Returns: (OpenSSL "semantics", reverse it to allow returning error codes)
+**		0: failure
+**		!=0: ok
+*/
+
+int
+TLS_set_engine(id, isprefork)
+	const char *id;
+	bool isprefork;
+{
+	static bool TLSEngineInitialized = false;
+	ENGINE *e;
+	char enginepath[MAXPATHLEN];
+
+	/*
+	**  Todo: put error for logging into a string and log it in error:
+	*/
+
+	if (LogLevel > 13)
+		sm_syslog(LOG_DEBUG, NOQID,
+			"engine=%s, path=%s, ispre=%d, pre=%d, initialized=%d",
+			id, SSLEnginePath, isprefork, SSLEngineprefork,
+			TLSEngineInitialized);
+	if (TLSEngineInitialized)
+		return 1;
+	if (id == NULL || *id == '\0')
+		return 1;
+
+	/* is this the "right time" to initialize the engine? */
+	if (isprefork != SSLEngineprefork)
+		return 1;
+
+	e = NULL;
+	ENGINE_load_builtin_engines();
+
+	if (SSLEnginePath != NULL && *SSLEnginePath != '\0')
+	{
+		if ((e = ENGINE_by_id("dynamic")) == NULL)
+		{
+			if (LogLevel > 1)
+				sm_syslog(LOG_ERR, NOQID,
+					"engine=%s, by_id=failed", "dynamic");
+			goto error;
+		}
+		(void) sm_snprintf(enginepath, sizeof(enginepath),
+			"%s/lib%s.so", SSLEnginePath, id);
+
+		if (!ENGINE_ctrl_cmd_string(e, "SO_PATH", enginepath, 0))
+		{
+			if (LogLevel > 1)
+				sm_syslog(LOG_ERR, NOQID,
+					"engine=%s, SO_PATH=%s, status=failed",
+					id, enginepath);
+			goto error;
+		}
+
+		if (!ENGINE_ctrl_cmd_string(e, "ID", id, 0))
+		{
+			if (LogLevel > 1)
+				sm_syslog(LOG_ERR, NOQID,
+					"engine=%s, ID=failed", id);
+			goto error;
+		}
+
+		if (!ENGINE_ctrl_cmd_string(e, "LOAD", NULL, 0))
+		{
+			if (LogLevel > 1)
+				sm_syslog(LOG_ERR, NOQID,
+					"engine=%s, LOAD=failed", id);
+			goto error;
+		}
+	}
+	else if ((e = ENGINE_by_id(id)) == NULL)
+	{
+		if (LogLevel > 1)
+			sm_syslog(LOG_ERR, NOQID, "engine=%s, by_id=failed",
+				id);
+		return 0;
+	}
+
+	if (!ENGINE_init(e))
+	{
+		if (LogLevel > 1)
+			sm_syslog(LOG_ERR, NOQID, "engine=%s, init=failed", id);
+		goto error;
+	}
+	if (!ENGINE_set_default(e, ENGINE_METHOD_ALL))
+	{
+		if (LogLevel > 1)
+			sm_syslog(LOG_ERR, NOQID,
+				"engine=%s, set_default=failed", id);
+		goto error;
+	}
+#  ifdef ENGINE_CTRL_CHIL_SET_FORKCHECK
+	if (strcmp(id, "chil") == 0)
+		ENGINE_ctrl(e, ENGINE_CTRL_CHIL_SET_FORKCHECK, 1, 0, 0);
+#  endif
+
+	/* Free our "structural" reference. */
+	ENGINE_free(e);
+	if (LogLevel > 10)
+		sm_syslog(LOG_INFO, NOQID, "engine=%s, loaded=ok", id);
+	TLSEngineInitialized = true;
+	return 1;
+
+  error:
+	tlslogerr(LOG_WARNING, 7, "init");
+	if (e != NULL)
+		ENGINE_free(e);
+	return 0;
+}
+# endif /* !USE_OPENSSL_ENGINE */
 #endif /* STARTTLS */

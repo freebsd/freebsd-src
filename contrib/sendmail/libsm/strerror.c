@@ -29,7 +29,7 @@ SM_RCSID("@(#)$Id: strerror.c,v 1.24 2013-11-22 20:51:43 ca Exp $")
 #if !defined(ERRLIST_PREDEFINED)
 extern char *sys_errlist[];
 extern int sys_nerr;
-#endif /* !defined(ERRLIST_PREDEFINED) */
+#endif
 
 #if !HASSTRERROR
 

@@ -19,7 +19,7 @@ SM_IDSTR(id, "@(#)$Id: t-heap.c,v 1.11 2013-11-22 20:51:43 ca Exp $")
 #if SM_HEAP_CHECK
 extern SM_DEBUG_T SmHeapCheck;
 # define HEAP_CHECK sm_debug_active(&SmHeapCheck, 1)
-#else /* SM_HEAP_CHECK */
+#else
 # define HEAP_CHECK 0
 #endif /* SM_HEAP_CHECK */
 
@@ -58,7 +58,7 @@ main(argc, argv)
 	/* this will cause a core dump */
 	sm_dprintf("about to free %p for the second time\n", p);
 	sm_free(p);
-#endif /* DEBUG */
+#endif
 
 	return sm_test_end();
 }

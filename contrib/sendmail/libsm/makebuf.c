@@ -114,7 +114,7 @@ sm_whatbuf(fp, bufsize, couldbetty)
 #if SM_IO_MAX_BUF_FILE > 0
 	if (S_ISREG(st.st_mode) && st.st_blksize > SM_IO_MAX_BUF_FILE)
 		st.st_blksize = SM_IO_MAX_BUF_FILE;
-#endif /* SM_IO_MAX_BUF_FILE > 0 */
+#endif
 
 #if SM_IO_MAX_BUF > 0 || SM_IO_MIN_BUF > 0
 	if (!S_ISREG(st.st_mode))
@@ -129,7 +129,7 @@ sm_whatbuf(fp, bufsize, couldbetty)
 # if SM_IO_MIN_BUF > 0
 		if (st.st_blksize < SM_IO_MIN_BUF)
 			st.st_blksize = SM_IO_MIN_BUF;
-# endif /* SM_IO_MIN_BUF > 0 */
+# endif
 	}
 #endif /* SM_IO_MAX_BUF > 0 || SM_IO_MIN_BUF > 0 */
 

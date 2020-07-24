@@ -224,18 +224,18 @@ sm_stropen(fp, info, flags, rpool)
 
 #if SM_RPOOL
 	s = sm_rpool_malloc_x(rpool, sizeof(SM_STR_OBJ_T));
-#else /* SM_RPOOL */
+#else
 	s = sm_malloc(sizeof(SM_STR_OBJ_T));
 	if (s == NULL)
 		return -1;
-#endif /* SM_RPOOL */
+#endif
 
 	fp->f_cookie = s;
 	s->strio_rpool = rpool;
 	s->strio_offset = 0;
 	s->strio_size = 0;
 	s->strio_base = NULL;
-	s->strio_end = 0;
+	s->strio_end = NULL;
 
 	switch (flags)
 	{
@@ -297,7 +297,7 @@ sm_strclose(fp)
 #if !SM_RPOOL
 	sm_free(s->strio_base);
 	s->strio_base = NULL;
-#endif /* !SM_RPOOL */
+#endif
 	return 0;
 }
 

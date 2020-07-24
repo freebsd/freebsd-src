@@ -20,9 +20,9 @@
 
 # if defined(__STDC__) || defined(__cplusplus)
 #  define SM_TEST(cond) sm_test(cond, #cond, __FILE__, __LINE__)
-# else /* defined(__STDC__) || defined(__cplusplus) */
+# else
 #  define SM_TEST(cond) sm_test(cond, "cond", __FILE__, __LINE__)
-# endif /* defined(__STDC__) || defined(__cplusplus) */
+# endif
 
 extern int SmTestIndex;
 extern int SmTestNumErrors;

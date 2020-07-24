@@ -103,7 +103,7 @@ M4FILES=\
 	${CFDIR}/feature/bcc.m4 \
 	${CFDIR}/feature/bestmx_is_local.m4 \
 	${CFDIR}/feature/bitdomain.m4 \
-	${CFDIR}/feature/blacklist_recipients.m4 \
+	${CFDIR}/feature/blocklist_recipients.m4 \
 	${CFDIR}/feature/conncontrol.m4 \
 	${CFDIR}/feature/dnsbl.m4 \
 	${CFDIR}/feature/domaintable.m4 \

@@ -77,19 +77,23 @@
 63	queue.c		runqueue process watching
 64	multiple	Milter
 65	main.c		permission checks
-#if _FFR_ADAPTIVE_EOL
-66	srvrsmtp.c	conformance checks
-#endif /* _FFR_ADAPTIVE_EOL */
+#if DANE
+67	domain.c	TLSA RR lookups
+#endif
 #if _FFR_QUEUE_SCHED_DBG
 69	queue.c		scheduling
-#endif /* _FFR_QUEUE_SCHED_DBG */
+#endif
 70	queue.c		quarantining
 71,>99	milter.c	quarantine on errors
 73	queue.c		shared memory updates
 74,>99	map.c		LDAP map defer
 #if _FFR_XCNCT
 75			debug FFR_XC*
-#endif /* _FFR_XCNCT */
+#endif
+#if _FFR_TESTS
+76,>99	queue.c		run_work_group: sleep
+77,>99	daemon.c	change delivery host/port
+#endif
 80			content length
 81			sun remote mode
 83	collect.c	timeout
@@ -100,6 +104,7 @@
 #endif
 89	conf.c		>=8 use sm_dprintf() instead of syslog()
 91	mci.c		syslogging of MCI cache information
+92	EF_LOGSENDER
 93,>99	*		Prevent daemon connection fork for profiling/debugging
 94,>99	srvrsmtp.c	cause commands to fail (for protocol testing)
 95	srvrsmtp.c	AUTH

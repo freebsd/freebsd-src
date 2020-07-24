@@ -30,7 +30,7 @@ extern bool
 sm_match __P((const char *_str, const char *_pattern));
 
 extern char *
-sm_strdup __P((char *));
+sm_strdup __P((const char *));
 
 extern char *
 sm_strndup_x __P((const char *_str, size_t _len));
@@ -87,7 +87,7 @@ sm_strlcpyn __P((char *,
 # if !HASSTRERROR
 extern char *
 strerror __P((int _errno));
-# endif /* !HASSTRERROR */
+# endif
 
 extern int
 sm_strrevcmp __P((const char *, const char *));
@@ -109,5 +109,7 @@ sm_strtoull __P((const char *, char**, int));
 
 extern void
 stripquotes __P((char *));
+extern void
+unfoldstripquotes __P((char *));
 
 #endif /* SM_STRING_H */

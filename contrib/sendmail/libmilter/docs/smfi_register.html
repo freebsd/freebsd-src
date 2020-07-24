@@ -37,6 +37,7 @@ is obeyed.
 </TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -96,12 +97,12 @@ simply returning SMFIS_CONTINUE.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>
 smfi_register may return MI_FAILURE for any of the following reasons:
 <UL>
-<LI>memory allocation failed.  
+<LI>memory allocation failed.
 <LI>incompatible version or illegal flags value.
 </UL>
 
@@ -110,7 +111,7 @@ smfi_register may return MI_FAILURE for any of the following reasons:
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH><A NAME=Notes>NOTES</A></TH>
 <TD>
 
 <A NAME="flags">The xxfi_flags</A>
@@ -120,7 +121,7 @@ the following values, describing the actions the filter may take:
 <TR valign="top" bgcolor="#dddddd"><TH align="left">Flag</TH><TH align="center">Description</TH></TR>
   <TR align="left" valign=top>
     <TD>
-        SMFIF_ADDHDRS
+        <A NAME="SMFIF_ADDHDRS">SMFIF_ADDHDRS</A>
     </TD>
     <TD>
         This filter may <A HREF="smfi_addheader.html">add headers</A>.
@@ -128,7 +129,7 @@ the following values, describing the actions the filter may take:
   </TR>
   <TR align="left" valign=top>
     <TD>
-        SMFIF_CHGHDRS
+        <A NAME="SMFIF_CHGHDRS">SMFIF_CHGHDRS</A>
     </TD>
     <TD>
         This filter may
@@ -137,7 +138,7 @@ the following values, describing the actions the filter may take:
   </TR>
   <TR align="left" valign=top>
     <TD VALIGN="TOP">
-        SMFIF_CHGBODY
+        <A NAME="SMFIF_CHGBODY">SMFIF_CHGBODY</A>
     </TD>
     <TD>
         This filter may
@@ -148,7 +149,7 @@ the following values, describing the actions the filter may take:
   </TR>
   <TR>
     <TD VALIGN="TOP">
-        SMFIF_ADDRCPT
+        <A NAME="SMFIF_ADDRCPT">SMFIF_ADDRCPT</A>
     </TD>
     <TD>
         This filter may
@@ -158,7 +159,7 @@ the following values, describing the actions the filter may take:
   </TR>
   <TR>
     <TD VALIGN="TOP">
-	SMFIF_ADDRCPT_PAR
+	<A NAME="SMFIF_ADDRCPT_PAR">SMFIF_ADDRCPT_PAR</A>
     </TD>
     <TD>
 	This filter may
@@ -167,7 +168,7 @@ the following values, describing the actions the filter may take:
   </TR>
   <TR>
     <TD VALIGN="TOP">
-        SMFIF_DELRCPT
+        <A NAME="SMFIF_DELRCPT">SMFIF_DELRCPT</A>
     </TD>
     <TD>
         This filter may
@@ -176,7 +177,7 @@ the following values, describing the actions the filter may take:
   </TR>
   <TR>
     <TD VALIGN="TOP">
-	SMFIF_QUARANTINE
+	<A NAME="SMFIF_QUARANTINE">SMFIF_QUARANTINE</A>
     </TD>
     <TD>
 	This filter may
@@ -186,7 +187,7 @@ the following values, describing the actions the filter may take:
 
   <TR>
     <TD VALIGN="TOP">
-	SMFIF_CHGFROM
+	<A NAME="SMFIF_CHGFROM">SMFIF_CHGFROM</A>
     </TD>
     <TD>
 	This filter may
@@ -196,7 +197,7 @@ the following values, describing the actions the filter may take:
 
   <TR>
     <TD VALIGN="TOP">
-	SMFIF_SETSYMLIST
+	<A NAME="SMFIF_SETSYMLIST">SMFIF_SETSYMLIST</A>
     </TD>
     <TD>
 	This filter can

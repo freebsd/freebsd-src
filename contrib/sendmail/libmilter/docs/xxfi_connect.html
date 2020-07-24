@@ -12,7 +12,7 @@ $Id: xxfi_connect.html,v 1.20 2013-11-22 20:51:39 ca Exp $
 <PRE>
 #include &lt;libmilter/mfapi.h&gt;
 sfsistat (*xxfi_connect)(
-        SMFICTX    *ctx, 
+        SMFICTX    *ctx,
         char       *hostname,
         _SOCK_ADDR *hostaddr);
 </PRE>
@@ -29,16 +29,18 @@ sfsistat (*xxfi_connect)(
 <TD>Do nothing; return SMFIS_CONTINUE.</TD>
 </TR>
 </TABLE>
+
 <!--
-This callback function is invoked on each connection to the mail 
+This callback function is invoked on each connection to the mail
 filter program.
 The callback is to be implemented by the Milter application developers.
 The name of the callback can be any valid function name.
 The function pointer is to be assigned to the
 smfiDesc.xxfi_connect and the pointer to the smfiDesc structure
 is passed to smfi_register().
-</TD></TR>
 -->
+</TD></TR>
+
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
     <TABLE border="1" cellspacing=0>
@@ -103,7 +105,7 @@ is passed to smfi_register().
 -->
 <!----------- Notes ---------->
 <TR>
-<TH valign="top" align=left>NOTES</TH> 
+<TH valign="top" align=left>NOTES</TH>
 <TD>If an earlier filter rejects the connection in its xxfi_connect()
 routine, this filter's xxfi_connect() will not be called.</TD>
 </TR>
