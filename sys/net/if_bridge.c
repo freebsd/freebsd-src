@@ -2189,10 +2189,13 @@ sendunicast:
 static int
 bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 {
+	struct epoch_tracker et;
 	struct bridge_softc *sc;
 	struct ether_header *eh;
 	struct ifnet *dst_if;
 	int error = 0;
+
+	NET_EPOCH_ENTER_ET(et);
 
 	sc = ifp->if_softc;
 
@@ -2205,6 +2208,8 @@ bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 		error = bridge_enqueue(sc, dst_if, m);
 	} else
 		bridge_broadcast(sc, ifp, m, 0);
+
+	NET_EPOCH_EXIT_ET(et);
 
 	return (error);
 }
