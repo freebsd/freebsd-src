@@ -3576,12 +3576,7 @@ flushbufqueues(struct vnode *lvp, struct bufdomain *bd, int target,
 struct buf *
 incore(struct bufobj *bo, daddr_t blkno)
 {
-	struct buf *bp;
-
-	BO_RLOCK(bo);
-	bp = gbincore(bo, blkno);
-	BO_RUNLOCK(bo);
-	return (bp);
+	return (gbincore_unlocked(bo, blkno));
 }
 
 /*
