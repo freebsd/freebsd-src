@@ -3,6 +3,7 @@
 .clang-format
 .clang-tidy
 .git-blame-ignore-revs
+.github/
 .gitignore
 CONTRIBUTING.md
 README.md
@@ -264,6 +265,7 @@ lldb/.clang-format
 lldb/.gitignore
 lldb/CMakeLists.txt
 lldb/CODE_OWNERS.txt
+lldb/bindings/CMakeLists.txt
 lldb/cmake/
 lldb/docs/.htaccess
 lldb/docs/CMakeLists.txt
@@ -529,6 +531,7 @@ llvm/lib/ExecutionEngine/PerfJITEvents/CMakeLists.txt
 llvm/lib/ExecutionEngine/PerfJITEvents/LLVMBuild.txt
 llvm/lib/ExecutionEngine/RuntimeDyld/CMakeLists.txt
 llvm/lib/ExecutionEngine/RuntimeDyld/LLVMBuild.txt
+llvm/lib/Extensions/
 llvm/lib/Frontend/CMakeLists.txt
 llvm/lib/Frontend/LLVMBuild.txt
 llvm/lib/Frontend/OpenMP/CMakeLists.txt
@@ -861,7 +864,8 @@ llvm/tools/llvm-dis/LLVMBuild.txt
 llvm/tools/llvm-dwarfdump/CMakeLists.txt
 llvm/tools/llvm-dwarfdump/LLVMBuild.txt
 llvm/tools/llvm-dwarfdump/fuzzer/
-llvm/tools/llvm-dwp/
+llvm/tools/llvm-dwp/CMakeLists.txt
+llvm/tools/llvm-dwp/LLVMBuild.txt
 llvm/tools/llvm-elfabi/
 llvm/tools/llvm-exegesis/
 llvm/tools/llvm-extract/CMakeLists.txt
@@ -908,12 +912,14 @@ llvm/tools/llvm-reduce/
 llvm/tools/llvm-rtdyld/CMakeLists.txt
 llvm/tools/llvm-rtdyld/LLVMBuild.txt
 llvm/tools/llvm-shlib/
-llvm/tools/llvm-size/
+llvm/tools/llvm-size/CMakeLists.txt
+llvm/tools/llvm-size/LLVMBuild.txt
 llvm/tools/llvm-special-case-list-fuzzer/
 llvm/tools/llvm-split/
 llvm/tools/llvm-stress/CMakeLists.txt
 llvm/tools/llvm-stress/LLVMBuild.txt
-llvm/tools/llvm-strings/
+llvm/tools/llvm-strings/CMakeLists.txt
+llvm/tools/llvm-strings/LLVMBuild.txt
 llvm/tools/llvm-symbolizer/CMakeLists.txt
 llvm/tools/llvm-undname/
 llvm/tools/llvm-xray/CMakeLists.txt
