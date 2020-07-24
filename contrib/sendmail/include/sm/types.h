@@ -38,11 +38,11 @@
 # if !SM_CONF_UID_GID
 #  define uid_t		int
 #  define gid_t		int
-# endif /* !SM_CONF_UID_GID */
+# endif
 
 # if !SM_CONF_SSIZE_T
 #  define ssize_t	int
-# endif /* !SM_CONF_SSIZE_T */
+# endif
 
 /*
 **  Define LONGLONG_T and ULONGLONG_T, which are portable locutions

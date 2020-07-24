@@ -314,17 +314,16 @@ control_command(sock, e)
 	sm_setproctitle(false, e, "control: %s", inp);
 
 	/* break off command */
-	for (p = inp; isascii(*p) && isspace(*p); p++)
+	for (p = inp; SM_ISSPACE(*p); p++)
 		continue;
 	cmd = cmdbuf;
 	while (*p != '\0' &&
-	       !(isascii(*p) && isspace(*p)) &&
-	       cmd < &cmdbuf[sizeof(cmdbuf) - 2])
+	       !(SM_ISSPACE(*p)) && cmd < &cmdbuf[sizeof(cmdbuf) - 2])
 		*cmd++ = *p++;
 	*cmd = '\0';
 
 	/* throw away leading whitespace */
-	while (isascii(*p) && isspace(*p))
+	while (SM_ISSPACE(*p))
 		p++;
 
 	/* decode command */

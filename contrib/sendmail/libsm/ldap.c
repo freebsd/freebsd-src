@@ -29,13 +29,12 @@ SM_RCSID("@(#)$Id: ldap.c,v 1.86 2013-11-22 20:51:43 ca Exp $")
 # include <sm/string.h>
 #  ifdef EX_OK
 #   undef EX_OK			/* for SVr4.2 SMP */
-#  endif /* EX_OK */
+#  endif
 # include <sm/sysexits.h>
 
 SM_DEBUG_T SmLDAPTrace = SM_DEBUG_INITIALIZER("sm_trace_ldap",
 	"@(#)$Debug: sm_trace_ldap - trace LDAP operations $");
 
-static void	ldaptimeout __P((int));
 static bool	sm_ldap_has_objectclass __P((SM_LDAP_STRUCT *, LDAPMessage *, char *));
 static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, char *, int, SM_RPOOL_T *));
 
@@ -53,10 +52,10 @@ static SM_LDAP_RECURSE_ENTRY *sm_ldap_add_recurse __P((SM_LDAP_RECURSE_LIST **, 
 #if _FFR_LDAP_VERSION
 # if defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX
     ERROR FFR_LDAP_VERSION > _LDAP_VERSION_MAX
-# endif /* defined(LDAP_VERSION_MAX) && _FFR_LDAP_VERSION > LDAP_VERSION_MAX */
+# endif
 # if defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN
     ERROR FFR_LDAP_VERSION < _LDAP_VERSION_MIN
-# endif /* defined(LDAP_VERSION_MIN) && _FFR_LDAP_VERSION < LDAP_VERSION_MIN */
+# endif
 # define SM_LDAP_VERSION_DEFAULT	_FFR_LDAP_VERSION
 #else /* _FFR_LDAP_VERSION */
 # define SM_LDAP_VERSION_DEFAULT	0
@@ -78,9 +77,9 @@ sm_ldap_clear(lmap)
 	lmap->ldap_sizelimit = LDAP_NO_LIMIT;
 # ifdef LDAP_REFERRALS
 	lmap->ldap_options = LDAP_OPT_REFERRALS;
-# else /* LDAP_REFERRALS */
+# else
 	lmap->ldap_options = 0;
-# endif /* LDAP_REFERRALS */
+# endif
 	lmap->ldap_attrsep = '\0';
 	lmap->ldap_binddn = NULL;
 	lmap->ldap_secret = NULL;
@@ -101,6 +100,147 @@ sm_ldap_clear(lmap)
 	lmap->ldap_multi_args = false;
 }
 
+#  if _FFR_SM_LDAP_DBG && defined(LBER_OPT_LOG_PRINT_FN)
+static void ldap_debug_cb __P((const char *msg));
+
+static void
+ldap_debug_cb(msg)
+	const char *msg;
+{
+	if (sm_debug_active(&SmLDAPTrace, 4))
+		sm_dprintf("%s", msg);
+}
+#  endif /* _FFR_SM_LDAP_DBG && defined(LBER_OPT_LOG_PRINT_FN) */
+
+
+# if LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT)
+#  define SET_LDAP_TMO(ld, lmap)					\
+	do								\
+	{								\
+		if (lmap->ldap_networktmo > 0)				\
+		{							\
+			struct timeval tmo;				\
+									\
+			if (sm_debug_active(&SmLDAPTrace, 9))		\
+				sm_dprintf("ldap_networktmo=%d\n",	\
+					lmap->ldap_networktmo);		\
+			tmo.tv_sec = lmap->ldap_networktmo;		\
+			tmo.tv_usec = 0;				\
+			ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tmo); \
+		}	\
+	} while (0)
+# else /* LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT) */
+#  define SET_LDAP_TMO(ld, lmap)
+# endif /* LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT) */
+
+/*
+**  SM_LDAP_SETOPTSG -- set some (global) LDAP options
+**
+**	Parameters:
+**		lmap -- LDAP map information
+**
+**	Returns:
+**		None.
+**
+*/
+
+# if _FFR_SM_LDAP_DBG
+static bool dbg_init = false;
+# endif
+# if SM_CONF_LDAP_INITIALIZE
+static void sm_ldap_setoptsg __P((SM_LDAP_STRUCT *lmap));
+static void
+sm_ldap_setoptsg(lmap)
+	SM_LDAP_STRUCT *lmap;
+{
+#  if USE_LDAP_SET_OPTION
+
+	SET_LDAP_TMO(NULL, lmap);
+
+#   if _FFR_SM_LDAP_DBG
+	if (!dbg_init && sm_debug_active(&SmLDAPTrace, 1) &&
+	    lmap->ldap_debug != 0)
+	{
+		int r;
+#    if defined(LBER_OPT_LOG_PRINT_FN)
+		r = ber_set_option(NULL, LBER_OPT_LOG_PRINT_FN, ldap_debug_cb);
+#    endif
+		if (sm_debug_active(&SmLDAPTrace, 9))
+			sm_dprintf("ldap_debug0=%d\n", lmap->ldap_debug);
+		r = ber_set_option(NULL, LBER_OPT_DEBUG_LEVEL,
+				&(lmap->ldap_debug));
+		if (sm_debug_active(&SmLDAPTrace, 9) && r != LDAP_OPT_SUCCESS)
+			sm_dprintf("ber_set_option=%d\n", r);
+		r = ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL,
+				&(lmap->ldap_debug));
+		if (sm_debug_active(&SmLDAPTrace, 9) && r != LDAP_OPT_SUCCESS)
+			sm_dprintf("ldap_set_option=%d\n", r);
+		dbg_init = true;
+	}
+#   endif /* _FFR_SM_LDAP_DBG */
+#  endif /* USE_LDAP_SET_OPTION */
+}
+# endif /* SM_CONF_LDAP_INITIALIZE */
+
+/*
+**  SM_LDAP_SETOPTS -- set LDAP options
+**
+**	Parameters:
+**		ld -- LDAP session handle
+**		lmap -- LDAP map information
+**
+**	Returns:
+**		None.
+**
+*/
+
+void
+sm_ldap_setopts(ld, lmap)
+	LDAP *ld;
+	SM_LDAP_STRUCT *lmap;
+{
+# if USE_LDAP_SET_OPTION
+	if (lmap->ldap_version != 0)
+	{
+		ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION,
+				&lmap->ldap_version);
+	}
+	ldap_set_option(ld, LDAP_OPT_DEREF, &lmap->ldap_deref);
+	if (bitset(LDAP_OPT_REFERRALS, lmap->ldap_options))
+		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON);
+	else
+		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
+	ldap_set_option(ld, LDAP_OPT_SIZELIMIT, &lmap->ldap_sizelimit);
+	ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &lmap->ldap_timelimit);
+	SET_LDAP_TMO(ld, lmap);
+#  if _FFR_SM_LDAP_DBG
+	if ((!dbg_init || ld != NULL) && sm_debug_active(&SmLDAPTrace, 1)
+	    && lmap->ldap_debug > 0)
+	{
+		int r;
+
+		if (sm_debug_active(&SmLDAPTrace, 9))
+			sm_dprintf("ldap_debug=%d, dbg_init=%d\n",
+				lmap->ldap_debug, dbg_init);
+		r = ldap_set_option(ld, LDAP_OPT_DEBUG_LEVEL,
+				&(lmap->ldap_debug));
+		if (sm_debug_active(&SmLDAPTrace, 9) && r != LDAP_OPT_SUCCESS)
+			sm_dprintf("ldap_set_option=%d\n", r);
+	}
+#  endif /* _FFR_SM_LDAP_DBG */
+#  ifdef LDAP_OPT_RESTART
+	ldap_set_option(ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
+#  endif
+
+# else /* USE_LDAP_SET_OPTION */
+	/* From here on in we can use ldap internal timelimits */
+	ld->ld_deref = lmap->ldap_deref;
+	ld->ld_options = lmap->ldap_options;
+	ld->ld_sizelimit = lmap->ldap_sizelimit;
+	ld->ld_timelimit = lmap->ldap_timelimit;
+# endif /* USE_LDAP_SET_OPTION */
+}
+
 /*
 **  SM_LDAP_START -- actually connect to an LDAP server
 **
@@ -115,15 +255,36 @@ sm_ldap_clear(lmap)
 **		Populates lmap->ldap_ld.
 */
 
+# if !USE_LDAP_INIT || !LDAP_NETWORK_TIMEOUT
 static jmp_buf	LDAPTimeout;
+static void	ldaptimeout __P((int));
 
-#define SM_LDAP_SETTIMEOUT(to)						\
+/* ARGSUSED */
+static void
+ldaptimeout(unused)
+	int unused;
+{
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
+	longjmp(LDAPTimeout, 1);
+}
+
+
+#define SM_LDAP_SETTIMEOUT(to, where)					\
 do									\
 {									\
 	if (to != 0)							\
 	{								\
 		if (setjmp(LDAPTimeout) != 0)				\
 		{							\
+			if (sm_debug_active(&SmLDAPTrace, 9))		\
+				sm_dprintf("ldap_settimeout(%s)=triggered\n",\
+					where);				\
 			errno = ETIMEDOUT;				\
 			return false;					\
 		}							\
@@ -137,17 +298,21 @@ do									\
 	if (ev != NULL)							\
 		sm_clrevent(ev);					\
 } while (0)
+#endif /* !USE_LDAP_INIT || !LDAP_NETWORK_TIMEOUT */
 
 bool
 sm_ldap_start(name, lmap)
 	char *name;
 	SM_LDAP_STRUCT *lmap;
 {
-	int bind_result;
 	int save_errno = 0;
 	char *id;
+# if !USE_LDAP_INIT || !LDAP_NETWORK_TIMEOUT
 	SM_EVENT *ev = NULL;
+# endif
 	LDAP *ld = NULL;
+	struct timeval tmo;
+	int msgid, err, r;
 
 	if (sm_debug_active(&SmLDAPTrace, 2))
 		sm_dprintf("ldapmap_start(%s)\n", name == NULL ? "" : name);
@@ -172,10 +337,15 @@ sm_ldap_start(name, lmap)
 	if (lmap->ldap_uri != NULL)
 	{
 #if SM_CONF_LDAP_INITIALIZE
+		if (sm_debug_active(&SmLDAPTrace, 9))
+			sm_dprintf("ldap_initialize(%s)\n", lmap->ldap_uri);
 		/* LDAP server supports URIs so use them directly */
 		save_errno = ldap_initialize(&ld, lmap->ldap_uri);
+		if (sm_debug_active(&SmLDAPTrace, 9))
+			sm_dprintf("ldap_initialize(%s)=%d, ld=%p\n", lmap->ldap_uri, save_errno, ld);
+		sm_ldap_setoptsg(lmap);
+
 #else /* SM_CONF_LDAP_INITIALIZE */
-		int err;
 		LDAPURLDesc *ludp = NULL;
 
 		/* Blast apart URL and use the ldap_init/ldap_open below */
@@ -201,8 +371,11 @@ sm_ldap_start(name, lmap)
 	if (ld == NULL)
 	{
 # if USE_LDAP_INIT
+		if (sm_debug_active(&SmLDAPTrace, 9))
+			sm_dprintf("ldap_init(%s, %d)\n", lmap->ldap_host, lmap->ldap_port);
 		ld = ldap_init(lmap->ldap_host, lmap->ldap_port);
 		save_errno = errno;
+
 # else /* USE_LDAP_INIT */
 		/*
 		**  If using ldap_open(), the actual connection to the server
@@ -210,7 +383,10 @@ sm_ldap_start(name, lmap)
 		**  the connection happens at bind time.
 		*/
 
-		SM_LDAP_SETTIMEOUT(lmap->ldap_timeout.tv_sec);
+		if (sm_debug_active(&SmLDAPTrace, 9))
+			sm_dprintf("ldap_open(%s, %d)\n", lmap->ldap_host, lmap->ldap_port);
+
+		SM_LDAP_SETTIMEOUT(lmap->ldap_timeout.tv_sec, "ldap_open");
 		ld = ldap_open(lmap->ldap_host, lmap->ldap_port);
 		save_errno = errno;
 
@@ -221,18 +397,21 @@ sm_ldap_start(name, lmap)
 
 	errno = save_errno;
 	if (ld == NULL)
+	{
+		if (sm_debug_active(&SmLDAPTrace, 7))
+			sm_dprintf("FAIL: ldap_open(%s, %d)=%d\n", lmap->ldap_host, lmap->ldap_port, save_errno);
 		return false;
+	}
 
 	sm_ldap_setopts(ld, lmap);
-
-# if USE_LDAP_INIT
+# if USE_LDAP_INIT && !LDAP_NETWORK_TIMEOUT
 	/*
 	**  If using ldap_init(), the actual connection to the server
 	**  happens at ldap_bind_s() so we need the timeout here.
 	*/
 
-	SM_LDAP_SETTIMEOUT(lmap->ldap_timeout.tv_sec);
-# endif /* USE_LDAP_INIT */
+	SM_LDAP_SETTIMEOUT(lmap->ldap_timeout.tv_sec, "ldap_bind");
+# endif /* USE_LDAP_INIT && !LDAP_NETWORK_TIMEOUT */
 
 # ifdef LDAP_AUTH_KRBV4
 	if (lmap->ldap_method == LDAP_AUTH_KRBV4 &&
@@ -248,17 +427,68 @@ sm_ldap_start(name, lmap)
 	}
 # endif /* LDAP_AUTH_KRBV4 */
 
-	bind_result = ldap_bind_s(ld, lmap->ldap_binddn,
-				  lmap->ldap_secret, lmap->ldap_method);
+# if LDAP_NETWORK_TIMEOUT
+	tmo.tv_sec = lmap->ldap_networktmo;
+# else
+	tmo.tv_sec = lmap->ldap_timeout.tv_sec;
+# endif
+	tmo.tv_usec = 0;
 
-# if USE_LDAP_INIT
+	if (sm_debug_active(&SmLDAPTrace, 9))
+		sm_dprintf("ldap_bind(%s)\n", lmap->ldap_uri);
+	errno = 0;
+	msgid = ldap_bind(ld, lmap->ldap_binddn, lmap->ldap_secret,
+			lmap->ldap_method);
+	save_errno = errno;
+	if (sm_debug_active(&SmLDAPTrace, 9))
+		sm_dprintf("ldap_bind(%s)=%d, errno=%d, tmo=%ld\n",
+			lmap->ldap_uri, msgid, save_errno,
+			(long) tmo.tv_sec);
+	if (-1 == msgid)
+	{
+		r = -1;
+		goto fail;
+	}
+
+	errno = 0;
+	r = ldap_result(ld, msgid, LDAP_MSG_ALL,
+			tmo.tv_sec == 0 ? NULL : &(tmo), &(lmap->ldap_res));
+	if (sm_debug_active(&SmLDAPTrace, 9))
+		sm_dprintf("ldap_result(%s)=%d, errno=%d\n", lmap->ldap_uri, r, errno);
+	if (-1 == r)
+		goto fail;
+	if (0 == r)
+	{
+		save_errno = ETIMEDOUT;
+		r = -1;
+		goto fail;
+	}
+	r = ldap_parse_result(ld, lmap->ldap_res, &err, NULL, NULL, NULL, NULL,
+				1);
+	if (sm_debug_active(&SmLDAPTrace, 9))
+		sm_dprintf("ldap_parse_result(%s)=%d, err=%d\n", lmap->ldap_uri, r, err);
+	if (r != LDAP_SUCCESS)
+		goto fail;
+	if (err != LDAP_SUCCESS)
+	{
+		r = -1;
+		goto fail;
+	}
+
+# if USE_LDAP_INIT && !LDAP_NETWORK_TIMEOUT
 	/* clear the event if it has not sprung */
 	SM_LDAP_CLEARTIMEOUT();
-# endif /* USE_LDAP_INIT */
+	if (sm_debug_active(&SmLDAPTrace, 9))
+		sm_dprintf("ldap_cleartimeout(%s)\n", lmap->ldap_uri);
+# endif /* USE_LDAP_INIT && !LDAP_NETWORK_TIMEOUT */
 
-	if (bind_result != LDAP_SUCCESS)
+	if (r != LDAP_SUCCESS)
 	{
-		errno = bind_result + E_LDAPBASE;
+  fail:
+		if (-1 == r)
+			errno = save_errno;
+		else
+			errno = r + E_LDAPBASE;
 		return false;
 	}
 
@@ -266,21 +496,6 @@ sm_ldap_start(name, lmap)
 	lmap->ldap_pid = getpid();
 	lmap->ldap_ld = ld;
 	return true;
-}
-
-/* ARGSUSED */
-static void
-ldaptimeout(unused)
-	int unused;
-{
-	/*
-	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
-	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
-	**	DOING.
-	*/
-
-	errno = ETIMEDOUT;
-	longjmp(LDAPTimeout, 1);
 }
 
 /*
@@ -292,7 +507,7 @@ ldaptimeout(unused)
 **	Parameters:
 **		lmap -- LDAP map information
 **		argv -- key vector of substitutions in LDAP filter
-**		        NOTE: argv must have SM_LDAP_ARGS elements to prevent
+**			NOTE: argv must have SM_LDAP_ARGS elements to prevent
 **			      out of bound array references
 **
 **	Returns:
@@ -1361,59 +1576,6 @@ sm_ldap_close(lmap)
 	lmap->ldap_ld = NULL;
 	lmap->ldap_pid = 0;
 }
-
-/*
-**  SM_LDAP_SETOPTS -- set LDAP options
-**
-**	Parameters:
-**		ld -- LDAP session handle
-**		lmap -- LDAP map information
-**
-**	Returns:
-**		None.
-**
-*/
-
-void
-sm_ldap_setopts(ld, lmap)
-	LDAP *ld;
-	SM_LDAP_STRUCT *lmap;
-{
-# if USE_LDAP_SET_OPTION
-	if (lmap->ldap_version != 0)
-	{
-		ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION,
-				&lmap->ldap_version);
-	}
-	ldap_set_option(ld, LDAP_OPT_DEREF, &lmap->ldap_deref);
-	if (bitset(LDAP_OPT_REFERRALS, lmap->ldap_options))
-		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_ON);
-	else
-		ldap_set_option(ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
-	ldap_set_option(ld, LDAP_OPT_SIZELIMIT, &lmap->ldap_sizelimit);
-	ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &lmap->ldap_timelimit);
-#  if _FFR_LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT)
-	if (lmap->ldap_networktmo > 0)
-	{
-		struct timeval tmo;
-
-		tmo.tv_sec = lmap->ldap_networktmo;
-		tmo.tv_usec = 0;
-		ldap_set_option(ld, LDAP_OPT_NETWORK_TIMEOUT, &tmo);
-	}
-#  endif /* _FFR_LDAP_NETWORK_TIMEOUT && defined(LDAP_OPT_NETWORK_TIMEOUT) */
-#  ifdef LDAP_OPT_RESTART
-	ldap_set_option(ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
-#  endif /* LDAP_OPT_RESTART */
-# else /* USE_LDAP_SET_OPTION */
-	/* From here on in we can use ldap internal timelimits */
-	ld->ld_deref = lmap->ldap_deref;
-	ld->ld_options = lmap->ldap_options;
-	ld->ld_sizelimit = lmap->ldap_sizelimit;
-	ld->ld_timelimit = lmap->ldap_timelimit;
-# endif /* USE_LDAP_SET_OPTION */
-}
-
 /*
 **  SM_LDAP_GETERRNO -- get ldap errno value
 **
@@ -1432,11 +1594,16 @@ sm_ldap_geterrno(ld)
 	int err = LDAP_SUCCESS;
 
 # if defined(LDAP_VERSION_MAX) && LDAP_VERSION_MAX >= 3
-	(void) ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &err);
-# else /* defined(LDAP_VERSION_MAX) && LDAP_VERSION_MAX >= 3 */
+#  ifdef LDAP_OPT_RESULT_CODE
+#   define LDAP_GET_RESULT_CODE LDAP_OPT_RESULT_CODE
+#  else
+#   define LDAP_GET_RESULT_CODE LDAP_OPT_ERROR_NUMBER
+#  endif
+	(void) ldap_get_option(ld, LDAP_GET_RESULT_CODE, &err);
+# else
 #  ifdef LDAP_OPT_SIZELIMIT
 	err = ldap_get_lderrno(ld, NULL, NULL);
-#  else /* LDAP_OPT_SIZELIMIT */
+#  else
 	err = ld->ld_errno;
 
 	/*

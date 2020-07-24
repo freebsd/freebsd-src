@@ -158,7 +158,7 @@ sm_strtoll(nptr, endptr, base)
 			}
 		}
 	}
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = (char *) (any ? s - 1 : nptr);
 	return acc;
 }
@@ -248,7 +248,7 @@ sm_strtoull(nptr, endptr, base)
 	}
 	if (neg && any > 0)
 		acc = -((LONGLONG_T) acc);
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = (char *) (any ? s - 1 : nptr);
 	return acc;
 }

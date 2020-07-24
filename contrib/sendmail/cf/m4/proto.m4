@@ -161,7 +161,7 @@ ifdef(`_ACCESS_TABLE_', `dnl
 # access_db acceptance class
 C{Accept}OK RELAY
 ifdef(`_DELAY_COMPAT_8_10_',`dnl
-ifdef(`_BLACKLIST_RCPT_',`dnl
+ifdef(`_BLOCKLIST_RCPT_',`dnl
 # possible access_db RHS for spam friends/haters
 C{SpamTag}SPAMFRIEND SPAMHATER')')',
 `dnl')
@@ -197,7 +197,9 @@ ifdef(`_MACRO_MAP_', `', `# macro storage map
 define(`_MACRO_MAP_', `1')dnl
 Kmacro macro')
 # possible values for TLS_connection in access map
-C{Tls}VERIFY ENCR', `dnl')
+C{Tls}VERIFY ENCR
+C{TlsVerified}OK TRUSTED
+dnl', `dnl')
 ifdef(`_CERT_REGEX_ISSUER_', `dnl
 # extract relevant part from cert issuer
 KCERTIssuer regex _CERT_REGEX_ISSUER_', `dnl')
@@ -653,6 +655,12 @@ _OPTION(CipherList, `confCIPHER_LIST', `')
 _OPTION(ServerSSLOptions, `confSERVER_SSL_OPTIONS', `')
 # client side SSL options
 _OPTION(ClientSSLOptions, `confCLIENT_SSL_OPTIONS', `')
+# SSL Engine
+_OPTION(SSLEngine, `confSSL_ENGINE', `')
+# Path to dynamic library for SSLEngine
+_OPTION(SSLEnginePath, `confSSL_ENGINE_PATH', `')
+# TLS: fall back to clear text after handshake failure?
+_OPTION(TLSFallbacktoClear, `confTLS_FALLBACK_TO_CLEAR', `')
 
 # Input mail filters
 _OPTION(InputMailFilters, `confINPUT_MAIL_FILTERS', `')
@@ -682,12 +690,16 @@ _OPTION(ClientCertFile, `confCLIENT_CERT', `')
 _OPTION(ClientKeyFile, `confCLIENT_KEY', `')
 # File containing certificate revocation lists 
 _OPTION(CRLFile, `confCRL', `')
+# Directory containing hashes pointing to certificate revocation status files
+_OPTION(CRLPath, `confCRL_PATH', `')
 # DHParameters (only required if DSA/DH is used)
 _OPTION(DHParameters, `confDH_PARAMETERS', `')
 # Random data source (required for systems without /dev/urandom under OpenSSL)
 _OPTION(RandFile, `confRAND_FILE', `')
 # fingerprint algorithm (digest) to use for the presented cert
 _OPTION(CertFingerprintAlgorithm, `confCERT_FINGERPRINT_ALGORITHM', `')
+# enable DANE?
+_OPTION(DANE, `confDANE', `false')
 
 # Maximum number of "useless" commands before slowing down
 _OPTION(MaxNOOPCommands, `confMAX_NOOP_COMMANDS', `20')
@@ -1500,7 +1512,7 @@ R<$* <TMPF>> <$*> <$+> <$+> <$*>	$: $&{opMode} $| TMPF <$&{addr_type}> $| $3
 R<$*> <$* <TMPF>> <$+> <$+> <$*>	$: $&{opMode} $| TMPF <$&{addr_type}> $| $3
 ifelse(_LDAP_ROUTE_MAPTEMP_, `_TEMPFAIL_', `dnl
 # ... temp fail RCPT SMTP commands
-R$={SMTPOpModes} $| TMPF <e r> $| $+	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."')
+R$={SMTPOpModes} $| TMPF <e r> $| $+	$#error $@ 4.3.0 $: _TMPFMSG_(`OPM')')
 # ... return original address for MTA to queue up
 R$* $| TMPF <$*> $| $+			$@ $3
 
@@ -1733,7 +1745,7 @@ dnl if mark is <NO> then change it to <RELAY> if domain is "authorized"
 
 dnl what if access map returns something else than RELAY?
 dnl we are only interested in RELAY entries...
-dnl other To: entries: blacklist recipient; generic entries?
+dnl other To: entries: blocklist recipient; generic entries?
 dnl if it is an error we probably do not want to relay anyway
 ifdef(`_RELAY_HOSTS_ONLY_',
 `R<NO> $* < @ $=R >		$: <RELAY> $1 < @ $2 >
@@ -1807,7 +1819,7 @@ R<QUARANTINE:$+> <$*>	$#error $@ quarantine $: $1
 dnl error tag
 R<ERROR:$-.$-.$-:$+> <$*>	$#error $@ $1.$2.$3 $: $4
 R<ERROR:$+> <$*>		$#error $: $1
-ifdef(`_ATMPF_', `R<$* _ATMPF_> <$*>		$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<$* _ATMPF_> <$*>		$#error $@ 4.3.0 $: _TMPFMSG_(`CR')', `dnl')
 dnl generic error from access map
 R<$+> <$*>		$#error $: $1', `dnl')
 
@@ -1976,7 +1988,7 @@ R<REJECT> $*		$#error ifdef(`confREJECT_MSG', `$: confREJECT_MSG', `$@ 5.7.1 $: 
 dnl error tag
 R<ERROR:$-.$-.$-:$+> $*		$#error $@ $1.$2.$3 $: $4
 R<ERROR:$+> $*		$#error $: $1
-ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#error $@ 4.3.0 $: _TMPFMSG_(`CM')', `dnl')
 dnl generic error from access map
 R<$+> $*		$#error $: $1		error from access db',
 `dnl')
@@ -2108,9 +2120,9 @@ R$* $=O $* < @ $* @@ $=w . > $*	$@ $>"Rcpt_ok" $1 $2 $3
 R$* < @ $* @@ $=w . > $*	$: $1 < @ $3 > $4
 R$* < @ $* @@ $* > $*		$: $1 < @ $2 > $4')
 
-ifdef(`_BLACKLIST_RCPT_',`dnl
+ifdef(`_BLOCKLIST_RCPT_',`dnl
 ifdef(`_ACCESS_TABLE_', `dnl
-# blacklist local users or any host from receiving mail
+# blocklist local users or any host from receiving mail
 R$*			$: <?> $1
 dnl user is now tagged with @ to be consistent with check_mail
 dnl and to distinguish users from hosts (com would be host, com@ would be user)
@@ -2143,7 +2155,7 @@ R<QUARANTINE:$+> $*	$#error $@ quarantine $: $1
 dnl error tag
 R<ERROR:$-.$-.$-:$+> $*		$#error $@ $1.$2.$3 $: $4
 R<ERROR:$+> $*		$#error $: $1
-ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#error $@ 4.3.0 $: _TMPFMSG_(`ROK1')', `dnl')
 dnl generic error from access map
 R<$+> $*		$#error $: $1		error from access db
 R@ $*			$1		remove mark', `dnl')', `dnl')
@@ -2198,7 +2210,7 @@ R$+ < @ $+ > $| $*	$: <$3> <$1 <@ $2>>',
 ifdef(`_ACCESS_TABLE_', `dnl
 dnl workspace: <Result-of-lookup | ?> <localpart<@domain>>
 R<RELAY> $*		$@ RELAY
-ifdef(`_ATMPF_', `R<$* _ATMPF_> $*		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<$* _ATMPF_> $*		$#TEMP $@ 4.3.0 $: _TMPFMSG_(`ROK2')', `dnl')
 R<$*> <$*>		$: $2',`dnl')
 
 
@@ -2268,7 +2280,7 @@ dnl Connect:My.Host.Domain	RELAY
 dnl Connect:My.Net		REJECT
 dnl since in check_relay client_name is checked before client_addr
 R<REJECT> $* 		$@ REJECT		rejected IP address')
-ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<_ATMPF_> $*		$#TEMP $@ 4.3.0 $: _TMPFMSG_(`YOK1')', `dnl')
 R<$*> <$*>		$: $2', `dnl')
 R$*			$: [ $1 ]		put brackets around it...
 R$=w			$@ RELAY		... and see if it is local
@@ -2287,7 +2299,7 @@ R<?> $+ < @ $=w >	$@ RELAY		FROM local', `dnl')
 ifdef(`_RELAY_DB_FROM_', `dnl
 R<?> $+ < @ $+ >	$: <@> $>SearchList <! From> $| <F:$1@$2> ifdef(`_RELAY_DB_FROM_DOMAIN_', ifdef(`_RELAY_HOSTS_ONLY_', `<E:$2>', `<D:$2>')) <>
 R<@> <RELAY>		$@ RELAY		RELAY FROM sender ok
-ifdef(`_ATMPF_', `R<@> <_ATMPF_>		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<@> <_ATMPF_>		$#TEMP $@ 4.3.0 $: _TMPFMSG_(`YOK2')', `dnl')
 ', `dnl
 ifdef(`_RELAY_DB_FROM_DOMAIN_',
 `errprint(`*** ERROR: _RELAY_DB_FROM_DOMAIN_ requires _RELAY_DB_FROM_
@@ -2331,7 +2343,7 @@ ifdef(`_ACCESS_TABLE_', `dnl
 R<?> $*			$: $>D <$1> <?> <+ Connect> <$1>',`dnl')')
 ifdef(`_ACCESS_TABLE_', `dnl
 R<RELAY> $*		$@ RELAY
-ifdef(`_ATMPF_', `R<$* _ATMPF_> $*		$#TEMP $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+ifdef(`_ATMPF_', `R<$* _ATMPF_> $*		$#TEMP $@ 4.3.0 $: _TMPFMSG_(`YOK3')', `dnl')
 R<$*> <$*>		$: $2',`dnl')
 dnl end of _PROMISCUOUS_RELAY_
 divert(0)
@@ -2384,7 +2396,7 @@ ifdef(`_ACCESS_TABLE_', `',
 `errprint(`*** ERROR: FEATURE(`delay_checks', `argument') requires FEATURE(`access_db')
 ')')dnl
 dnl one of the next two rules is supposed to match
-dnl this code has been copied from BLACKLIST... etc
+dnl this code has been copied from BLOCKLIST... etc
 dnl and simplified by omitting some < >.
 R<?> $+ < @ $=w >	$: <> $1 < @ $2 > $| <F: $1@$2 > <D: $2 > <U: $1@>
 R<?> $+ < @ $* >	$: <> $1 < @ $2 > $| <F: $1@$2 > <D: $2 >
@@ -2688,7 +2700,7 @@ R<?>$*		$: $>A <$&{server_addr}> <?> <! TLS_TRY_TAG> <>
 R<?>$*		$: <$(access TLS_TRY_TAG`'_TAG_DELIM_ $: ? $)>
 R<?>$*		$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
-R<$* _ATMPF_>$*	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+R<$* _ATMPF_>$*	$#error $@ 4.3.0 $: _TMPFMSG_(`TT')', `dnl')
 R<NO>$*		$#error $@ 5.7.1 $: "550 do not try TLS with " $&{server_name} " ["$&{server_addr}"]"')
 
 ######################################################################
@@ -2721,7 +2733,7 @@ R$* $| $+	$: $1 $| $>SearchList <! TLS_RCPT_TAG> $| $2 <>
 dnl found nothing: stop here
 R$* $| <?>	$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
-R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: _TMPFMSG_(`TR')', `dnl')
 dnl use the generic routine (for now)
 R$* $| <$+>	$@ $>"TLS_connection" $&{verify} $| <$2>')
 
@@ -2751,7 +2763,7 @@ R$* $| <?>$*	$: $1 $| $>A <$&{client_addr}> <?> <! TLS_CLT_TAG> <>
 dnl do a default lookup: just TLS_CLT_TAG
 R$* $| <?>$*	$: $1 $| <$(access TLS_CLT_TAG`'_TAG_DELIM_ $: ? $)>
 ifdef(`_ATMPF_', `dnl tempfail?
-R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: _TMPFMSG_(`TC')', `dnl')
 R$*		$@ $>"TLS_connection" $1', `dnl
 R$* $| $*	$@ $>"TLS_connection" $1')
 
@@ -2769,6 +2781,8 @@ ifdef(`_LOCAL_TLS_SERVER_', `dnl
 R$*			$: $1 $| $>"Local_tls_server" $1
 R$* $| $#$*		$#$2
 R$* $| $*		$: $1', `dnl')
+ifdef(`_TLS_FAILURES_',`dnl
+R$*		$: $(macro {saved_verify} $@ $1 $) $1')
 ifdef(`_ACCESS_TABLE_', `dnl
 dnl store name of other side
 R$*		$: $(macro {TLS_Name} $@ $&{server_name} $) $1
@@ -2777,7 +2791,7 @@ R$* $| <?>$*	$: $1 $| $>A <$&{server_addr}> <?> <! TLS_SRV_TAG> <>
 dnl do a default lookup: just TLS_SRV_TAG
 R$* $| <?>$*	$: $1 $| <$(access TLS_SRV_TAG`'_TAG_DELIM_ $: ? $)>
 ifdef(`_ATMPF_', `dnl tempfail?
-R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+R$* $| <$* _ATMPF_>	$#error $@ 4.3.0 $: _TMPFMSG_(`TS')', `dnl')
 R$*		$@ $>"TLS_connection" $1', `dnl
 R$*		$@ $>"TLS_connection" $1')
 
@@ -2798,6 +2812,7 @@ STLS_connection
 ifdef(`_ACCESS_TABLE_', `dnl', `dnl use default error
 dnl deal with TLS handshake failures: abort
 RSOFTWARE	$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') TLS handshake."
+RDANE_FAIL	$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') DANE check failed."
 divert(-1)')
 dnl common ruleset for tls_{client|server}
 dnl input: ${verify} $| <ResultOfLookup> [<>]
@@ -2813,14 +2828,19 @@ R$* $| <$={Tls} $*>		$: $1 $| <ifdef(`TLS_PERM_ERR', `503:5.7.0', `403:4.7.0')> 
 dnl workspace: ${verify} $| [<SMTP:ESC>] <ResultOfLookup>
 # deal with TLS handshake failures: abort
 RSOFTWARE $| <$-:$+> $* 	$#error $@ $2 $: $1 " TLS handshake failed."
-dnl no <reply:dns> i.e. not requirements in the access map
+dnl no <reply:dns> i.e. no requirements in the access map
 dnl use default error
 RSOFTWARE $| $* 		$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') TLS handshake failed."
 # deal with TLS protocol errors: abort
 RPROTOCOL $| <$-:$+> $* 	$#error $@ $2 $: $1 " STARTTLS failed."
-dnl no <reply:dns> i.e. not requirements in the access map
+dnl no <reply:dns> i.e. no requirements in the access map
 dnl use default error
 RPROTOCOL $| $* 		$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') STARTTLS failed."
+# deal with DANE errors: abort
+RDANE_FAIL $| <$-:$+> $* 	$#error $@ $2 $: $1 " DANE check failed."
+dnl no <reply:dns> i.e. no requirements in the access map
+dnl use default error
+RDANE_FAIL $| $* 		$#error $@ ifdef(`TLS_PERM_ERR', `5.7.0', `4.7.0') $: "ifdef(`TLS_PERM_ERR', `503', `403') DANE check failed."
 R$* $| <$*> <VERIFY>		$: <$2> <VERIFY> <> $1
 dnl separate optional requirements
 R$* $| <$*> <VERIFY + $+>	$: <$2> <VERIFY> <$3> $1
@@ -2834,16 +2854,16 @@ R$* $| $*			$@ OK
 # other side did authenticate (via STARTTLS)
 dnl workspace: <SMTP:ESC> <{VERIFY,ENCR}[:BITS]> <[extensions]> ${verify}
 dnl only verification required and it succeeded
-R<$*><VERIFY> <> OK		$@ OK
+R<$*><VERIFY> <> $={TlsVerified}	$@ OK
 dnl verification required and it succeeded but extensions are given
 dnl change it to <SMTP:ESC> <REQ:0>  <extensions>
-R<$*><VERIFY> <$+> OK		$: <$1> <REQ:0> <$2>
+R<$*><VERIFY> <$+> $={TlsVerified}	$: <$1> <REQ:0> <$2>
 dnl verification required + some level of encryption
-R<$*><VERIFY:$-> <$*> OK	$: <$1> <REQ:$2> <$3>
+R<$*><VERIFY:$-> <$*> $={TlsVerified}	$: <$1> <REQ:$2> <$3>
 dnl just some level of encryption required
 R<$*><ENCR:$-> <$*> $*		$: <$1> <REQ:$2> <$3>
 dnl workspace:
-dnl 1. <SMTP:ESC> <VERIFY [:bits]>  <[extensions]> {verify} (!= OK)
+dnl 1. <SMTP:ESC> <VERIFY [:bits]>  <[extensions]> {verify} (!~ $={TlsVerified})
 dnl 2. <SMTP:ESC> <REQ:bits>  <[extensions]>
 dnl verification required but ${verify} is not set (case 1.)
 R<$-:$+><VERIFY $*> <$*>	$#error $@ $2 $: $1 " authentication required"
@@ -2851,6 +2871,7 @@ R<$-:$+><VERIFY $*> <$*> FAIL	$#error $@ $2 $: $1 " authentication failed"
 R<$-:$+><VERIFY $*> <$*> NO	$#error $@ $2 $: $1 " not authenticated"
 R<$-:$+><VERIFY $*> <$*> NOT	$#error $@ $2 $: $1 " no authentication requested"
 R<$-:$+><VERIFY $*> <$*> NONE	$#error $@ $2 $: $1 " other side does not support STARTTLS"
+R<$-:$+><VERIFY $*> <$*> CLEAR	$#error $@ $2 $: $1 " STARTTLS disabled locally"
 dnl some other value for ${verify}
 R<$-:$+><VERIFY $*> <$*> $+	$#error $@ $2 $: $1 " authentication failure " $4
 dnl some level of encryption required: get the maximum level (case 2.)
@@ -2884,7 +2905,6 @@ R<$-:$+> $+			$@ $>"TLS_req" $3 $| <$1:$2>
 dnl  further requirements for this ruleset:
 dnl	name of "other side" is stored is {TLS_name} (client/server_name)
 dnl
-dnl	currently only CN[:common_name] is implemented
 dnl	right now this is only a logical AND
 dnl	i.e. all requirements must be true
 dnl	how about an OR? CN must be X or CN must be Y or ..
@@ -2896,6 +2916,11 @@ dnl no additional requirements: ok
 R $| $+		$@ OK
 dnl require CN: but no CN specified: use name of other side
 R<CN> $* $| <$+>		$: <CN:$&{TLS_Name}> $1 $| <$2>
+ifdef(`_FFR_TLS_ALTNAMES', `dnl
+R<CN:$={cert_altnames}> $* $| <$+>	$@ $>"TLS_req" $2 $| <$3>
+R<CN:$-.$+> $* $| <$+>			$: <CN:*.$2> $3 $| <$4>
+R<CN:$={cert_altnames}> $* $| <$+>	$@ $>"TLS_req" $3 $| <$3>
+R<CN:$*> $* $| <$+>			$: <CN:$&{TLS_Name}> $2 $| <$3>', `dnl')
 dnl match, check rest
 R<CN:$&{cn_subject}> $* $| <$+>		$@ $>"TLS_req" $1 $| <$2>
 dnl CN does not match
@@ -2911,6 +2936,10 @@ R<CI:$&{cert_issuer}> $* $| <$+>	$@ $>"TLS_req" $1 $| <$2>
 dnl CI does not match
 dnl  1   2      3  4
 R<CI:$+> $* $| <$-:$+>	$#error $@ $4 $: $3 " Cert Issuer " $&{cert_issuer} " does not match " $1
+dnl
+R<CITag:$-> $* $| <$+>	$: <$(access $1:$&{cert_issuer} $: ? $)> $2 $| <$3>
+R<?> $* $| <$-:$+>	$#error $@ $3 $: $2 " Cert Issuer " $&{cert_issuer} " not acceptable"
+R<OK> $* $| <$+>	$@ $>"TLS_req" $1 $| <$2>
 dnl return from recursive call
 ROK			$@ OK
 
@@ -2970,7 +2999,7 @@ dnl if it returns SUBJECT we perform a similar check on the
 dnl cert subject.
 ifdef(`_ACCESS_TABLE_', `dnl
 R$*			$: <?> $&{verify}
-R<?> OK			$: OK		authenticated: continue
+R<?> $={TlsVerified}	$: OK		authenticated: continue
 R<?> $*			$@ NO		not authenticated
 ifdef(`_CERT_REGEX_ISSUER_', `dnl
 R$*			$: $(CERTIssuer $&{cert_issuer} $)',
@@ -3029,7 +3058,7 @@ R$+		$: $>SearchList <! ClientRate> $| $1 <>
 dnl found nothing: stop here
 R<?>		$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
-R<$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+R<$* _ATMPF_>	$#error $@ 4.3.0 $: _TMPFMSG_(`RC')', `dnl')
 dnl use the generic routine (for now)
 R<0>		$@ OK		no limit
 R<$+>		$: <$1> $| $(arith l $@ $1 $@ $&{client_rate} $)
@@ -3051,7 +3080,7 @@ R$+		$: $>SearchList <! ClientConn> $| $1 <>
 dnl found nothing: stop here
 R<?>		$@ OK
 ifdef(`_ATMPF_', `dnl tempfail?
-R<$* _ATMPF_>	$#error $@ 4.3.0 $: "451 Temporary system failure. Please try again later."', `dnl')
+R<$* _ATMPF_>	$#error $@ 4.3.0 $: _TMPFMSG_(`CC')', `dnl')
 dnl use the generic routine (for now)
 R<0>		$@ OK		no limit
 R<$+>		$: <$1> $| $(arith l $@ $1 $@ $&{client_connections} $)

@@ -20,10 +20,10 @@
 # define EXTERN
 # define INIT(x)	= x
 SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.78 2013-11-22 20:51:36 ca Exp $")
-#else /* _DEFINE */
+#else
 # define EXTERN extern
 # define INIT(x)
-#endif /* _DEFINE */
+#endif
 
 
 #include "sm/tailq.h"
@@ -111,7 +111,7 @@ struct smfi_str
 #if _FFR_THREAD_MONITOR
 	time_t		ctx_start;	/* start time of thread */
 	SM_TAILQ_ENTRY(smfi_str)	ctx_mon_link;
-#endif /* _FFR_THREAD_MONITOR */
+#endif
 
 #if _FFR_WORKERS_POOL
 	long		ctx_sid;	/* session identifier */
@@ -142,7 +142,7 @@ typedef pthread_mutex_t smutex_t;
 /* SM_CONF_POLL shall be defined with _FFR_WORKERS_POOL */
 # if !SM_CONF_POLL
 #  define SM_CONF_POLL 1
-# endif /* SM_CONF_POLL */
+# endif
 #endif /* _FFR_WORKERS_POOL */
 
 typedef pthread_cond_t scond_t;
@@ -173,7 +173,7 @@ typedef pthread_cond_t scond_t;
 
 # define MI_POLL_RD_FLAGS (POLLIN | POLLPRI)
 # define MI_POLL_WR_FLAGS (POLLOUT)
-# define MI_MS(timeout)	(((timeout)->tv_sec * 1000) + (timeout)->tv_usec)
+# define MI_MS(timeout) (((timeout)->tv_sec * 1000) + (((timeout)->tv_usec) / 1000))
 
 # define FD_RD_VAR(rds, excs) struct pollfd rds
 # define FD_WR_VAR(wrs) struct pollfd wrs
@@ -197,7 +197,7 @@ typedef pthread_cond_t scond_t;
 # define FD_IS_RD_RDY(sd, rds, excs)			\
 		(((rds).revents & MI_POLL_RD_FLAGS) != 0)
 
-# define FD_WR_READY(sd, excs, timeout)	\
+# define FD_WR_READY(sd, wrs, timeout)	\
 		poll(&(wrs), 1, MI_MS(timeout))
 
 # define FD_RD_READY(sd, rds, excs, timeout)	\
@@ -241,9 +241,9 @@ typedef pthread_cond_t scond_t;
 #ifndef MI_SOMAXCONN
 # if SOMAXCONN > 20
 #  define MI_SOMAXCONN	SOMAXCONN
-# else /* SOMAXCONN */
+# else
 #  define MI_SOMAXCONN	20
-# endif /* SOMAXCONN */
+# endif
 #endif /* ! MI_SOMAXCONN */
 
 /* maximum number of repeated failures in mi_listener() */

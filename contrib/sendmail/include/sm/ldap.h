@@ -22,13 +22,13 @@
 
 # ifndef LDAPMAP_MAX_ATTR
 #  define LDAPMAP_MAX_ATTR	64
-# endif /* ! LDAPMAP_MAX_ATTR */
+# endif
 # ifndef LDAPMAP_MAX_FILTER
 #  define LDAPMAP_MAX_FILTER	1024
-# endif /* ! LDAPMAP_MAX_FILTER */
+# endif
 # ifndef LDAPMAP_MAX_PASSWD
 #  define LDAPMAP_MAX_PASSWD	256
-# endif /* ! LDAPMAP_MAX_PASSWD */
+# endif
 
 # if LDAPMAP
 
@@ -91,9 +91,12 @@ struct sm_ldap_struct
 	/* ldapmap_lookup options */
 	char		ldap_attrsep;
 
-# if _FFR_LDAP_NETWORK_TIMEOUT
+#  if LDAP_NETWORK_TIMEOUT
 	int		ldap_networktmo;
-# endif /* _FFR_LDAP_NETWORK_TIMEOUT */
+#  endif
+#  if _FFR_SM_LDAP_DBG
+	int		ldap_debug;
+#  endif
 
 	/* Linked list of maps sharing the same LDAP binding */
 	void		*ldap_next;
@@ -135,7 +138,7 @@ extern void	sm_ldap_close __P((SM_LDAP_STRUCT *));
 /* Portability defines */
 #  if !SM_CONF_LDAP_MEMFREE
 #   define ldap_memfree(x)	((void) 0)
-#  endif /* !SM_CONF_LDAP_MEMFREE */
+#  endif
 
 # endif /* LDAPMAP */
 #endif /* ! SM_LDAP_H */

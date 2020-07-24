@@ -31,6 +31,7 @@ Quarantine the message using the given reason.
 <TD>smfi_quarantine quarantines the message using the given reason.</TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -47,13 +48,13 @@ Quarantine the message using the given reason.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_quarantine will fail and return MI_FAILURE if:
 <UL>
     <LI>reason is NULL or empty.
     <LI>A network error occurs.
-    <LI>SMFIF_QUARANTINE was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_QUARANTINE">SMFIF_QUARANTINE</A> is not set.
 </UL>
 Otherwise, it will return MI_SUCCESS
 </TD>

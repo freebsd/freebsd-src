@@ -19,6 +19,8 @@ SM_RCSID("@(#)$Id: debug.c,v 1.33 2013-11-22 20:51:42 ca Exp $")
 #include <stdlib.h>
 #if _FFR_DEBUG_PID_TIME
 #include <unistd.h>
+#include <sm/types.h>
+#include <sm/time.h>
 #include <time.h>
 #endif /* _FFR_DEBUG_PID_TIME */
 #include <setjmp.h>
@@ -119,7 +121,7 @@ sm_debug_close()
 #if _FFR_DEBUG_PID_TIME
 SM_DEBUG_T SmDBGPidTime = SM_DEBUG_INITIALIZER("sm_trace_pid_time",
 	"@(#)$Debug: sm_trace_pid_time - print pid and time in debug $");
-#endif /* _FFR_DEBUG_PID_TIME */
+#endif
 
 void
 #if SM_VA_STD
@@ -131,12 +133,42 @@ sm_dprintf(fmt, va_alist)
 #endif /* SM_VA_STD */
 {
 	SM_VA_LOCAL_DECL
+#if _FFR_DEBUG_PID_TIME
+	static struct timeval lasttv;
+#endif
 
 	if (SmDebugOutput == NULL)
 		return;
 #if _FFR_DEBUG_PID_TIME
 	/* note: this is ugly if the output isn't a full line! */
-	if (sm_debug_active(&SmDBGPidTime, 1))
+	if (sm_debug_active(&SmDBGPidTime, 3))
+	{
+		struct timeval tv, tvd;
+
+		gettimeofday(&tv, NULL);
+		if (timerisset(&lasttv))
+			timersub(&tv, &lasttv, &tvd);
+		else
+			timerclear(&tvd);
+		sm_io_fprintf(SmDebugOutput, SmDebugOutput->f_timeout,
+			"%ld: %ld.%06ld ",
+			(long) getpid(),
+			(long) tvd.tv_sec,
+			(long) tvd.tv_usec);
+		lasttv = tv;
+	}
+	else if (sm_debug_active(&SmDBGPidTime, 2))
+	{
+		struct timeval tv;
+
+		gettimeofday(&tv, NULL);
+		sm_io_fprintf(SmDebugOutput, SmDebugOutput->f_timeout,
+			"%ld: %ld.%06ld ",
+			(long) getpid(),
+			(long) tv.tv_sec,
+			(long) tv.tv_usec);
+	}
+	else if (sm_debug_active(&SmDBGPidTime, 1))
 	{
 		static char str[32] = "[1900-00-00/00:00:00] ";
 		struct tm *tmp;

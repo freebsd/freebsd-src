@@ -1,13 +1,14 @@
 #!/usr/bin/perl -w
-
-# $Id: cidrexpand,v 8.8 2006-08-07 17:18:37 ca Exp $
+#
+# usage:
+#  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
 #
 # v 0.4
 #
 # 17 July 2000 Derek J. Balling (dredd@megacity.org)
-# 
+#
 # Acts as a preparser on /etc/mail/access_db to allow you to use address/bit
-# notation. 
+# notation.
 #
 # If you have two overlapping CIDR blocks with conflicting actions
 # e.g.   10.2.3.128/25 REJECT and 10.2.3.143 ACCEPT
@@ -25,114 +26,156 @@
 #     Added code to deal with the prefix tags that may now be included in
 #     the access_db
 #
-#     Added clarification in the notes for what to do if you have 
+#     Added clarification in the notes for what to do if you have
 #     exceptions to a larger CIDR block.
 #
-#  26 Jul 2006 Richard Rognlie (richard@sendmail.com>
+#  26 Jul 2006 Richard Rognlie (richard@sendmail.com)
 #     Added code to strip "comments" (anything after a non-escaped #)
 #     # characters after a \ or within quotes (single and double) are
-#     left intact. 
+#     left intact.
 #
 #     e.g.
 #	From:1.2.3.4	550 Die spammer # spammed us 2006.07.26
 #     becomes
-#	From:1.2.3.4	550 Die spammer 
+#	From:1.2.3.4	550 Die spammer
 #
 #  3 August 2006
-#
 #     Corrected a bug to have it handle the special case of "0.0.0.0/0"
 #     since Net::CIDR doesn't handle it properly.
 #
-# usage: 
-#  cidrexpand < /etc/mail/access | makemap -r hash /etc/mail/access
+#  27 April 2016
+#     Corrected IPv6 handling.  Note that UseCompressedIPv6Addresses must
+#     be turned off for this to work; there are three reasons for this:
+#       1) if the MTA uses compressed IPv6 addresses then CIDR 'cuts'
+#          in the compressed range *cannot* be matched, as the MTA simply
+#          won't look for them.  E.g., there's no way to accurately
+#          match "IPv6:fe80::/64" when for the address "IPv6:fe80::54ad"
+#          the MTA doesn't lookup up "IPv6:fe80:0:0:0"
+#       2) cidrexpand only generates uncompressed addresses, so CIDR
+#          'cuts' to the right of the compressed range won't be matched
+#          either.  Why doesn't it generate compressed address output?
+#          Oh, because:
+#       3) compressed addresses are ambiguous when colon-groups are
+#          chopped off!  You want an access map entry for
+#               IPv6:fe80::0:5420
+#          but not for
+#               IPv6:fe80::5420:1234
+#          ?  Sorry, the former is really
+#               IPv6:fe80::5420
+#          which will also match the latter!
 #
+#  25 July 2016
+#     Since cidrexpand already requires UseCompressedIPv6Addresses to be
+#     turned off, it can also canonicalize non-CIDR IPv6 addresses to the
+#     format that sendmail looks up, expanding compressed addresses and
+#     trimming superfluous leading zeros.
 #
 # Report bugs to: <dredd@megacity.org>
 #
 
 
 use strict;
-use Net::CIDR;
+use Net::CIDR qw(cidr2octets cidrvalidate);
 use Getopt::Std;
 
-our ($opt_c,$opt_t);
-getopts('ct:');
+sub print_expanded_v4network;
+sub print_expanded_v6network;
 
-my $spaceregex = '\s+';
-if ($opt_t)
-{
-    $spaceregex = $opt_t;
-}
+our %opts;
+getopts('ct:', \%opts);
+
+# Delimiter between the key and value
+my $space_re = exists $opts{t} ? $opts{t} : '\s+';
+
+# Regexp that matches IPv4 address literals
+my $ipv4_re = qr"(?:\d+\.){3}\d+";
+
+# Regexp that matches IPv6 address literals, plus a lot more.
+# Further checks are required for verifying that it's really one
+my $ipv6_re = qr"[0-9A-Fa-f:]{2,39}(?:\.\d+\.\d+\.\d+)?";
 
 while (<>)
 {
     chomp;
-    my ($prefix,$left,$right,$space);
+    my ($prefix, $network, $len, $right);
 
-    if ( (/\#/) && $opt_c )
+    if ( (/\#/) && $opts{c} )
     {
 	# print "checking...\n";
 	my $i;
 	my $qtype='';
-	for ($i=0 ; $i<length($_) ; $i++) 
+	for ($i=0 ; $i<length($_) ; $i++)
 	{
 	    my $ch = substr($_,$i,1);
-	    if ($ch eq '\\') 
+	    if ($ch eq '\\')
 	    {
 		$i++;
 		next;
 	    }
-	    elsif ($qtype eq '' && $ch eq '#') 
+	    elsif ($qtype eq '' && $ch eq '#')
 	    {
 		substr($_,$i) = '';
 		last;
 	    }
-	    elsif ($qtype ne '' && $ch eq $qtype) 
+	    elsif ($qtype ne '' && $ch eq $qtype)
 	    {
 		$qtype = '';
 	    }
-	    elsif ($qtype eq '' && $ch =~ /[\'\"]/) 
+	    elsif ($qtype eq '' && $ch =~ /[\'\"]/)
 	    {
 		$qtype = $ch;
 	    }
 	}
-    } 
-    
-    if (! /^(|\S\S*:)(\d+\.){3}\d+\/\d\d?$spaceregex.*/ )
+    }
+
+    if (($prefix, $network, $len, $right) =
+	    m!^(|\S+:)(${ipv4_re})/(\d+)(${space_re}.*)$!)
     {
-	print "$_\n";
+	print_expanded_v4network($network, $len, $prefix, $right);
+    }
+    elsif ((($prefix, $network, $len, $right) =
+	    m!^((?:\S+:)?[Ii][Pp][Vv]6:)(${ipv6_re})(?:/(\d+))?(${space_re}.*)$!) &&
+	    (!defined($len) || $len <= 128) &&
+	    defined(cidrvalidate($network)))
+    {
+	print_expanded_v6network($network, $len // 128, $prefix, $right);
     }
     else
     {
-	($prefix,$left,$space,$right) = 
-	    /^(|\S\S*:)((?:\d+\.){3}\d+\/\d\d?)($spaceregex)(.*)$/;
-	
-	my @new_lefts = expand_network($left);
-	foreach my $nl (@new_lefts)
-	{
-	    print "$prefix$nl$space$right\n";
-	}
+	print "$_\n";
     }
 }
-    
-sub expand_network
-{
-    my $left_input = shift;
-    my @rc = ($left_input);
-    my ($network,$mask) = split /\//, $left_input;
-    if (defined $mask)
-    {
-	return (0..255)	if $mask == 0;
 
-	my @parts = split /\./, $network;
-	while ($#parts < 3)
-	{
-	    push @parts, "0";
-	}
-	my $clean_input = join '.', @parts;
-	$clean_input .= "/$mask";
-	my @octets = Net::CIDR::cidr2octets($clean_input);
-	@rc = @octets;
+sub print_expanded_v4network
+{
+    my ($network, $len, $prefix, $suffix) = @_;
+
+    # cidr2octets() doesn't handle a prefix-length of zero, so do
+    # that ourselves
+    foreach my $nl ($len == 0 ? (0..255) : cidr2octets("$network/$len"))
+    {
+	print "$prefix$nl$suffix\n";
     }
-    return @rc;
+}
+
+sub print_expanded_v6network
+{
+    my ($network, $len, $prefix, $suffix) = @_;
+
+    # cidr2octets() doesn't handle a prefix-length of zero, so do
+    # that ourselves.  Easiest is to just recurse on bottom and top
+    # halves with a length of 1
+    if ($len == 0) {
+	print_expanded_v6network("::", 1, $prefix, $suffix);
+	print_expanded_v6network("8000::", 1, $prefix, $suffix);
+    }
+    else
+    {
+	foreach my $nl (cidr2octets("$network/$len"))
+	{
+	    # trim leading zeros from each group
+	    $nl =~ s/(^|:)0+(?=[^:])/$1/g;
+	    print "$prefix$nl$suffix\n";
+	}
+    }
 }

@@ -24,7 +24,7 @@ dnl ##	email.  A tempfail-message value of `t' temporarily rejects
 dnl ##	with a default message.  Otherwise the value should be your
 dnl ##	own message.  The keytag is used to lookup the access map to
 dnl ##	further refine the result.  I recommend a qualified keytag
-dnl ##	(containing a ".") as less likely to accidently conflict with
+dnl ##	(containing a ".") as less likely to accidentally conflict with
 dnl ##	other access tags.
 dnl ##
 dnl ##	This is best illustrated with an example.  Please do not use
@@ -66,7 +66,7 @@ ifdef(`_ACCESS_TABLE_', `dnl',
 ifdef(`_EDNSBL_R_',`dnl',`dnl
 define(`_EDNSBL_R_', `1')dnl ## prevent multiple redefines of the map.
 LOCAL_CONFIG
-# map for enhanced DNS based blacklist lookups
+# map for enhanced DNS based blocklist lookups
 Kednsbl dns -R A -a. -T<TMP> -r`'ifdef(`EDNSBL_TO',`EDNSBL_TO',`5')
 ')
 divert(-1)

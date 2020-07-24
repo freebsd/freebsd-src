@@ -16,9 +16,9 @@
 
 #if USERDB
 SM_RCSID("@(#)$Id: udb.c,v 8.166 2013-11-22 20:51:57 ca Exp $ (with USERDB)")
-#else /* USERDB */
+#else
 SM_RCSID("@(#)$Id: udb.c,v 8.166 2013-11-22 20:51:57 ca Exp $ (without USERDB)")
-#endif /* USERDB */
+#endif
 
 #if USERDB
 
@@ -98,7 +98,7 @@ struct udb_option
 
 # if HESIOD
 static int	hes_udb_get __P((DBT *, DBT *));
-# endif /* HESIOD */
+# endif
 static char	*udbmatch __P((char *, char *, SM_RPOOL_T *));
 static int	_udbx_init __P((ENVELOPE *));
 static int	_udb_parsespec __P((char *, struct udb_option [], int));
@@ -187,19 +187,23 @@ udbexpand(a, sendq, aliaslevel, e)
 	for (up = UdbEnts; !breakout; up++)
 	{
 		int usersize;
+# if NEWDB
 		int userleft;
+# endif
 		char userbuf[MEMCHUNKSIZE];
 # if HESIOD && HES_GETMAILHOST
 		char pobuf[MAXNAME];
-# endif /* HESIOD && HES_GETMAILHOST */
+# endif
 # if defined(NEWDB) && DB_VERSION_MAJOR > 1
 		DBC *dbc = NULL;
-# endif /* defined(NEWDB) && DB_VERSION_MAJOR > 1 */
+# endif
 
 		user = userbuf;
 		userbuf[0] = '\0';
 		usersize = sizeof(userbuf);
+# if NEWDB
 		userleft = sizeof(userbuf) - 1;
+# endif
 
 		/*
 		**  Select action based on entry type.
@@ -362,10 +366,10 @@ udbexpand(a, sendq, aliaslevel, e)
 
 #  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->get)(up->udb_dbp, &key, &info, 0);
-#  else /* DB_VERSION_MAJOR < 2 */
+#  else
 			i = errno = (*up->udb_dbp->get)(up->udb_dbp, NULL,
 							&key, &info, 0);
-#  endif /* DB_VERSION_MAJOR < 2 */
+#  endif
 			if (i != 0 || info.size <= 0)
 				break;
 			a->q_owner = sm_rpool_malloc_x(e->e_rpool,
@@ -404,7 +408,7 @@ udbexpand(a, sendq, aliaslevel, e)
 			{
 #  if HES_GETMAILHOST
 				struct hes_postoffice *hp;
-#  endif /* HES_GETMAILHOST */
+#  endif
 
 				if (tTd(28, 2))
 					sm_dprintf("udbexpand: no match on %s (%d)\n",
@@ -649,10 +653,10 @@ udbmatch(user, field, rpool)
 			key.size = keylen;
 #  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->get)(up->udb_dbp, &key, &info, 0);
-#  else /* DB_VERSION_MAJOR < 2 */
+#  else
 			i = errno = (*up->udb_dbp->get)(up->udb_dbp, NULL,
 							&key, &info, 0);
-#  endif /* DB_VERSION_MAJOR < 2 */
+#  endif
 			if (i != 0 || info.size <= 0)
 			{
 				if (tTd(28, 2))
@@ -748,10 +752,10 @@ udbmatch(user, field, rpool)
 			key.size = keylen;
 #  if DB_VERSION_MAJOR < 2
 			i = (*up->udb_dbp->get)(up->udb_dbp, &key, &info, 0);
-#  else /* DB_VERSION_MAJOR < 2 */
+#  else
 			i = errno = (*up->udb_dbp->get)(up->udb_dbp, NULL,
 							&key, &info, 0);
-#  endif /* DB_VERSION_MAJOR < 2 */
+#  endif
 			if (i != 0 || info.size <= 0)
 			{
 				/* nope -- no aliasing for this user */
@@ -906,14 +910,16 @@ _udbx_init(e)
 # ifdef UDB_DEFAULT_SPEC
 	if (UdbSpec == NULL)
 		UdbSpec = UDB_DEFAULT_SPEC;
-# endif /* UDB_DEFAULT_SPEC */
+# endif
 
 	p = UdbSpec;
 	up = UdbEnts;
 	while (p != NULL)
 	{
 		char *spec;
+# if NEWDB
 		int l;
+# endif
 		struct udb_option opts[MAXUDBOPTS + 1];
 
 		while (*p == ' ' || *p == '\t' || *p == ',')
@@ -1019,7 +1025,7 @@ _udbx_init(e)
 #ifdef DB_OLD_VERSION
 						if (ret == DB_OLD_VERSION)
 							ret = EINVAL;
-#endif /* DB_OLD_VERSION */
+#endif
 						(void) up->udb_dbp->close(up->udb_dbp, 0);
 						up->udb_dbp = NULL;
 					}
@@ -1086,7 +1092,7 @@ _udbx_init(e)
 		  default:
 # if HESIOD
 badspec:
-# endif /* HESIOD */
+# endif
 			syserr("Unknown UDB spec %s", spec);
 			break;
 		}
@@ -1107,11 +1113,10 @@ badspec:
 
 			  case UDB_DBFETCH:
 # if NEWDB
-				sm_dprintf("FETCH: file %s\n",
-					up->udb_dbname);
-# else /* NEWDB */
+				sm_dprintf("FETCH: file %s\n", up->udb_dbname);
+# else
 				sm_dprintf("FETCH\n");
-# endif /* NEWDB */
+# endif
 				break;
 
 			  case UDB_FORWARD:
@@ -1138,17 +1143,17 @@ badspec:
 	**  On temporary failure, back out anything we've already done
 	*/
 
-  tempfail:
 # if NEWDB
+  tempfail:
 	for (up = UdbEnts; up->udb_type != UDB_EOLIST; up++)
 	{
 		if (up->udb_type == UDB_DBFETCH)
 		{
 #  if DB_VERSION_MAJOR < 2
 			(*up->udb_dbp->close)(up->udb_dbp);
-#  else /* DB_VERSION_MAJOR < 2 */
+#  else
 			errno = (*up->udb_dbp->close)(up->udb_dbp, 0);
-#  endif /* DB_VERSION_MAJOR < 2 */
+#  endif
 			if (tTd(28, 1))
 				sm_dprintf("_udbx_init: db->close(%s)\n",
 					up->udb_dbname);
@@ -1173,7 +1178,7 @@ _udb_parsespec(udbspec, opt, maxopts)
 	{
 		register char *p;
 
-		while (isascii(*spec) && isspace(*spec))
+		while (SM_ISSPACE(*spec))
 			spec++;
 		spec_end = strchr(spec, ':');
 		if (spec_end != NULL)
@@ -1214,9 +1219,9 @@ _udbx_close()
 		{
 #  if DB_VERSION_MAJOR < 2
 			(*up->udb_dbp->close)(up->udb_dbp);
-#  else /* DB_VERSION_MAJOR < 2 */
+#  else
 			errno = (*up->udb_dbp->close)(up->udb_dbp, 0);
-#  endif /* DB_VERSION_MAJOR < 2 */
+#  endif
 		}
 		if (tTd(28, 1))
 			sm_dprintf("_udbx_close: db->close(%s)\n",
@@ -1254,9 +1259,9 @@ hes_udb_get(key, info)
 	if (HesiodContext == NULL && hesiod_init(&HesiodContext) != 0)
 		return -1;
 	hp = hesiod_resolve(HesiodContext, name, type);
-#  else /* HESIOD_INIT */
+#  else
 	hp = hes_resolve(name, type);
-#  endif /* HESIOD_INIT */
+#  endif
 	*--type = ':';
 #  ifdef HESIOD_INIT
 	if (hp == NULL)

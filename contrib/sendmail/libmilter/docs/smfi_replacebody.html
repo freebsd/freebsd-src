@@ -29,12 +29,13 @@ Replace message-body data.
 </TR>
 <TR align="left" valign=top>
 <TH width="80">Effects</TH>
-<TD>smfi_replacebody replaces the body of the current message.  If called 
-more than once, subsequent calls result in data being appended to the new 
+<TD>smfi_replacebody replaces the body of the current message.  If called
+more than once, subsequent calls result in data being appended to the new
 body.
 </TD>
 </TR>
 </TABLE>
+</TD></TR>
 
 <!----------- Arguments ---------->
 <TR><TH valign="top" align=left>ARGUMENTS</TH><TD>
@@ -54,14 +55,14 @@ body.
 
 <!----------- Return values ---------->
 <TR>
-<TH valign="top" align=left>RETURN VALUES</TH> 
+<TH valign="top" align=left>RETURN VALUES</TH>
 
 <TD>smfi_replacebody fails and returns MI_FAILURE if:
 <UL>
     <LI>bodyp == NULL and bodylen &gt; 0.
     <LI>Changing the body in the current connection state is invalid.
     <LI>A network error occurs.
-    <LI>SMFIF_CHGBODY was not set when <A href="smfi_register.html">smfi_register</A> was called.
+    <LI><A HREF="smfi_register.html#SMFIF_CHGBODY">SMFIF_CHGBODY</A> is not set.
 </UL>
 Otherwise, it will return MI_SUCCESS.
 </TD>
@@ -69,12 +70,14 @@ Otherwise, it will return MI_SUCCESS.
 
 <!----------- Notes ---------->
 <TR align="left" valign=top>
-<TH>NOTES</TH> 
+<TH>NOTES</TH>
 <TD>
 <UL>
-    <LI>Since the message body may be very large, setting SMFIF_CHGBODY may significantly affect filter performance.
+    <LI>Since the message body may be very large, calling smfi_replacebody may significantly affect filter performance.
     <LI>If a filter sets SMFIF_CHGBODY but does not call smfi_replacebody, the original body remains unchanged.
     <LI>For smfi_replacebody, filter order is important.  <B>Later filters will see the new body contents created by earlier ones.</B>
+    <LI>A filter which calls smfi_replacebody must have set the
+    <A HREF="smfi_register.html#SMFIF_CHGBODY">SMFIF_CHGBODY</A> flag.
 </UL>
 </TD>
 </TR>
