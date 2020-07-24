@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/pctrie.h>
+#include <sys/proc.h>	/* smr.h depends on struct thread. */
+#include <sys/smr.h>
+#include <sys/smr_types.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -72,18 +75,27 @@ __FBSDID("$FreeBSD$");
 #define	PCTRIE_UNITLEVEL(lev)						\
 	((uint64_t)1 << ((lev) * PCTRIE_WIDTH))
 
+struct pctrie_node;
+typedef SMR_POINTER(struct pctrie_node *) smr_pctnode_t;
+
 struct pctrie_node {
-	uint64_t	 pn_owner;			/* Owner of record. */
-	uint16_t	 pn_count;			/* Valid children. */
-	uint16_t	 pn_clev;			/* Current level. */
-	void		*pn_child[PCTRIE_COUNT];	/* Child nodes. */
+	uint64_t	pn_owner;			/* Owner of record. */
+	uint16_t	pn_count;			/* Valid children. */
+	uint8_t		pn_clev;			/* Current level. */
+	int8_t		pn_last;			/* Zero last ptr. */
+	smr_pctnode_t	pn_child[PCTRIE_COUNT];		/* Child nodes. */
 };
+
+enum pctrie_access { PCTRIE_SMR, PCTRIE_LOCKED, PCTRIE_UNSERIALIZED };
+
+static __inline void pctrie_node_store(smr_pctnode_t *p, void *val,
+    enum pctrie_access access);
 
 /*
  * Allocate a node.  Pre-allocation should ensure that the request
  * will always be satisfied.
  */
-static __inline struct pctrie_node *
+static struct pctrie_node *
 pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
     uint16_t count, uint16_t clevel)
 {
@@ -92,10 +104,20 @@ pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
 	node = allocfn(ptree);
 	if (node == NULL)
 		return (NULL);
+
+	/*
+	 * We want to clear the last child pointer after the final section
+	 * has exited so lookup can not return false negatives.  It is done
+	 * here because it will be cache-cold in the dtor callback.
+	 */
+	if (node->pn_last != 0) {
+		pctrie_node_store(&node->pn_child[node->pn_last - 1], NULL,
+		    PCTRIE_UNSERIALIZED);
+		node->pn_last = 0;
+	}
 	node->pn_owner = owner;
 	node->pn_count = count;
 	node->pn_clev = clevel;
-
 	return (node);
 }
 
@@ -104,7 +126,7 @@ pctrie_node_get(struct pctrie *ptree, pctrie_alloc_t allocfn, uint64_t owner,
  */
 static __inline void
 pctrie_node_put(struct pctrie *ptree, struct pctrie_node *node,
-    pctrie_free_t freefn)
+    pctrie_free_t freefn, int8_t last)
 {
 #ifdef INVARIANTS
 	int slot;
@@ -112,10 +134,14 @@ pctrie_node_put(struct pctrie *ptree, struct pctrie_node *node,
 	KASSERT(node->pn_count == 0,
 	    ("pctrie_node_put: node %p has %d children", node,
 	    node->pn_count));
-	for (slot = 0; slot < PCTRIE_COUNT; slot++)
-		KASSERT(node->pn_child[slot] == NULL,
-		    ("pctrie_node_put: node %p has a child", node));
+	for (slot = 0; slot < PCTRIE_COUNT; slot++) {
+		if (slot == last)
+			continue;
+		KASSERT(smr_unserialized_load(&node->pn_child[slot], true) ==
+		    NULL, ("pctrie_node_put: node %p has a child", node));
+	}
 #endif
+	node->pn_last = last + 1;
 	freefn(ptree, node);
 }
 
@@ -144,23 +170,58 @@ pctrie_trimkey(uint64_t index, uint16_t level)
 }
 
 /*
+ * Fetch a node pointer from a slot.
+ */
+static __inline struct pctrie_node *
+pctrie_node_load(smr_pctnode_t *p, smr_t smr, enum pctrie_access access)
+{
+	switch (access) {
+	case PCTRIE_UNSERIALIZED:
+		return (smr_unserialized_load(p, true));
+	case PCTRIE_LOCKED:
+		return (smr_serialized_load(p, true));
+	case PCTRIE_SMR:
+		return (smr_entered_load(p, smr));
+	}
+	__assert_unreachable();
+}
+
+static __inline void
+pctrie_node_store(smr_pctnode_t *p, void *v, enum pctrie_access access)
+{
+	switch (access) {
+	case PCTRIE_UNSERIALIZED:
+		smr_unserialized_store(p, v, true);
+		break;
+	case PCTRIE_LOCKED:
+		smr_serialized_store(p, v, true);
+		break;
+	case PCTRIE_SMR:
+		panic("%s: Not supported in SMR section.", __func__);
+		break;
+	default:
+		__assert_unreachable();
+		break;
+	}
+}
+
+/*
  * Get the root node for a tree.
  */
 static __inline struct pctrie_node *
-pctrie_getroot(struct pctrie *ptree)
+pctrie_root_load(struct pctrie *ptree, smr_t smr, enum pctrie_access access)
 {
-
-	return ((struct pctrie_node *)ptree->pt_root);
+	return (pctrie_node_load((smr_pctnode_t *)&ptree->pt_root, smr, access));
 }
 
 /*
  * Set the root node for a tree.
  */
 static __inline void
-pctrie_setroot(struct pctrie *ptree, struct pctrie_node *node)
+pctrie_root_store(struct pctrie *ptree, struct pctrie_node *node,
+    enum pctrie_access access)
 {
-
-	ptree->pt_root = (uintptr_t)node;
+	pctrie_node_store((smr_pctnode_t *)&ptree->pt_root, node, access);
 }
 
 /*
@@ -188,12 +249,13 @@ pctrie_toval(struct pctrie_node *node)
  */
 static __inline void
 pctrie_addval(struct pctrie_node *node, uint64_t index, uint16_t clev,
-    uint64_t *val)
+    uint64_t *val, enum pctrie_access access)
 {
 	int slot;
 
 	slot = pctrie_slot(index, clev);
-	node->pn_child[slot] = (void *)((uintptr_t)val | PCTRIE_ISLEAF);
+	pctrie_node_store(&node->pn_child[slot],
+	    (void *)((uintptr_t)val | PCTRIE_ISLEAF), access);
 }
 
 /*
@@ -237,20 +299,23 @@ static void
 pctrie_reclaim_allnodes_int(struct pctrie *ptree, struct pctrie_node *node,
     pctrie_free_t freefn)
 {
+	struct pctrie_node *child;
 	int slot;
 
 	KASSERT(node->pn_count <= PCTRIE_COUNT,
 	    ("pctrie_reclaim_allnodes_int: bad count in node %p", node));
 	for (slot = 0; node->pn_count != 0; slot++) {
-		if (node->pn_child[slot] == NULL)
+		child = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_UNSERIALIZED);
+		if (child == NULL)
 			continue;
-		if (!pctrie_isleaf(node->pn_child[slot]))
-			pctrie_reclaim_allnodes_int(ptree,
-			    node->pn_child[slot], freefn);
-		node->pn_child[slot] = NULL;
+		if (!pctrie_isleaf(child))
+			pctrie_reclaim_allnodes_int(ptree, child, freefn);
+		pctrie_node_store(&node->pn_child[slot], NULL,
+		    PCTRIE_UNSERIALIZED);
 		node->pn_count--;
 	}
-	pctrie_node_put(ptree, node, freefn);
+	pctrie_node_put(ptree, node, freefn, -1);
 }
 
 /*
@@ -262,6 +327,7 @@ pctrie_zone_init(void *mem, int size __unused, int flags __unused)
 	struct pctrie_node *node;
 
 	node = mem;
+	node->pn_last = 0;
 	memset(node->pn_child, 0, sizeof(node->pn_child));
 	return (0);
 }
@@ -281,8 +347,8 @@ int
 pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 {
 	uint64_t index, newind;
-	void **parentp;
 	struct pctrie_node *node, *tmp;
+	smr_pctnode_t *parentp;
 	uint64_t *m;
 	int slot;
 	uint16_t clev;
@@ -293,12 +359,12 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	 * The owner of record for root is not really important because it
 	 * will never be used.
 	 */
-	node = pctrie_getroot(ptree);
+	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (node == NULL) {
 		ptree->pt_root = (uintptr_t)val | PCTRIE_ISLEAF;
 		return (0);
 	}
-	parentp = (void **)&ptree->pt_root;
+	parentp = (smr_pctnode_t *)&ptree->pt_root;
 	for (;;) {
 		if (pctrie_isleaf(node)) {
 			m = pctrie_toval(node);
@@ -310,20 +376,25 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 			    pctrie_trimkey(index, clev + 1), 2, clev);
 			if (tmp == NULL)
 				return (ENOMEM);
-			*parentp = tmp;
-			pctrie_addval(tmp, index, clev, val);
-			pctrie_addval(tmp, *m, clev, m);
+			/* These writes are not yet visible due to ordering. */
+			pctrie_addval(tmp, index, clev, val,
+			    PCTRIE_UNSERIALIZED);
+			pctrie_addval(tmp, *m, clev, m, PCTRIE_UNSERIALIZED);
+			/* Synchronize to make leaf visible. */
+			pctrie_node_store(parentp, tmp, PCTRIE_LOCKED);
 			return (0);
 		} else if (pctrie_keybarr(node, index))
 			break;
 		slot = pctrie_slot(index, node->pn_clev);
-		if (node->pn_child[slot] == NULL) {
+		parentp = &node->pn_child[slot];
+		tmp = pctrie_node_load(parentp, NULL, PCTRIE_LOCKED);
+		if (tmp == NULL) {
 			node->pn_count++;
-			pctrie_addval(node, index, node->pn_clev, val);
+			pctrie_addval(node, index, node->pn_clev, val,
+			    PCTRIE_LOCKED);
 			return (0);
 		}
-		parentp = &node->pn_child[slot];
-		node = node->pn_child[slot];
+		node = tmp;
 	}
 
 	/*
@@ -337,10 +408,12 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
 	    pctrie_trimkey(index, clev + 1), 2, clev);
 	if (tmp == NULL)
 		return (ENOMEM);
-	*parentp = tmp;
-	pctrie_addval(tmp, index, clev, val);
 	slot = pctrie_slot(newind, clev);
-	tmp->pn_child[slot] = node;
+	/* These writes are not yet visible due to ordering. */
+	pctrie_addval(tmp, index, clev, val, PCTRIE_UNSERIALIZED);
+	pctrie_node_store(&tmp->pn_child[slot], node, PCTRIE_UNSERIALIZED);
+	/* Synchronize to make the above visible. */
+	pctrie_node_store(parentp, tmp, PCTRIE_LOCKED);
 
 	return (0);
 }
@@ -349,31 +422,61 @@ pctrie_insert(struct pctrie *ptree, uint64_t *val, pctrie_alloc_t allocfn)
  * Returns the value stored at the index.  If the index is not present,
  * NULL is returned.
  */
-uint64_t *
-pctrie_lookup(struct pctrie *ptree, uint64_t index)
+static __always_inline uint64_t *
+_pctrie_lookup(struct pctrie *ptree, uint64_t index, smr_t smr,
+    enum pctrie_access access)
 {
 	struct pctrie_node *node;
 	uint64_t *m;
 	int slot;
 
-	node = pctrie_getroot(ptree);
+	node = pctrie_root_load(ptree, smr, access);
 	while (node != NULL) {
 		if (pctrie_isleaf(node)) {
 			m = pctrie_toval(node);
 			if (*m == index)
 				return (m);
-			else
-				break;
-		} else if (pctrie_keybarr(node, index))
+			break;
+		}
+		if (pctrie_keybarr(node, index))
 			break;
 		slot = pctrie_slot(index, node->pn_clev);
-		node = node->pn_child[slot];
+		node = pctrie_node_load(&node->pn_child[slot], smr, access);
 	}
 	return (NULL);
 }
 
 /*
- * Look up the nearest entry at a position bigger than or equal to index.
+ * Returns the value stored at the index, assuming access is externally
+ * synchronized by a lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+uint64_t *
+pctrie_lookup(struct pctrie *ptree, uint64_t index)
+{
+	return (_pctrie_lookup(ptree, index, NULL, PCTRIE_LOCKED));
+}
+
+/*
+ * Returns the value stored at the index without requiring an external lock.
+ *
+ * If the index is not present, NULL is returned.
+ */
+uint64_t *
+pctrie_lookup_unlocked(struct pctrie *ptree, uint64_t index, smr_t smr)
+{
+	uint64_t *res;
+
+	smr_enter(smr);
+	res = _pctrie_lookup(ptree, index, smr, PCTRIE_SMR);
+	smr_exit(smr);
+	return (res);
+}
+
+/*
+ * Look up the nearest entry at a position bigger than or equal to index,
+ * assuming access is externally synchronized by a lock.
  */
 uint64_t *
 pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
@@ -388,7 +491,7 @@ pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 	unsigned tos;
 	int slot;
 
-	node = pctrie_getroot(ptree);
+	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (node == NULL)
 		return (NULL);
 	else if (pctrie_isleaf(node)) {
@@ -404,7 +507,7 @@ pctrie_lookup_ge(struct pctrie *ptree, uint64_t index)
 		 * If the keys differ before the current bisection node,
 		 * then the search key might rollback to the earliest
 		 * available bisection node or to the smallest key
-		 * in the current node (if the owner is bigger than the
+		 * in the current node (if the owner is greater than the
 		 * search key).
 		 */
 		if (pctrie_keybarr(node, index)) {
@@ -439,7 +542,8 @@ ascend:
 			    ("pctrie_lookup_ge: keybarr failed"));
 		}
 		slot = pctrie_slot(index, node->pn_clev);
-		child = node->pn_child[slot];
+		child = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
 		if (pctrie_isleaf(child)) {
 			m = pctrie_toval(child);
 			if (*m >= index)
@@ -457,7 +561,8 @@ ascend:
 			do {
 				index += inc;
 				slot++;
-				child = node->pn_child[slot];
+				child = pctrie_node_load(&node->pn_child[slot],
+				    NULL, PCTRIE_LOCKED);
 				if (pctrie_isleaf(child)) {
 					m = pctrie_toval(child);
 					if (*m >= index)
@@ -470,7 +575,7 @@ ascend:
 		    ("pctrie_lookup_ge: child is radix node"));
 
 		/*
-		 * If a value or edge bigger than the search slot is not found
+		 * If a value or edge greater than the search slot is not found
 		 * in the current node, ascend to the next higher-level node.
 		 */
 		goto ascend;
@@ -485,7 +590,8 @@ descend:
 }
 
 /*
- * Look up the nearest entry at a position less than or equal to index.
+ * Look up the nearest entry at a position less than or equal to index,
+ * assuming access is externally synchronized by a lock.
  */
 uint64_t *
 pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
@@ -500,7 +606,7 @@ pctrie_lookup_le(struct pctrie *ptree, uint64_t index)
 	unsigned tos;
 	int slot;
 
-	node = pctrie_getroot(ptree);
+	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (node == NULL)
 		return (NULL);
 	else if (pctrie_isleaf(node)) {
@@ -553,7 +659,8 @@ ascend:
 			    ("pctrie_lookup_le: keybarr failed"));
 		}
 		slot = pctrie_slot(index, node->pn_clev);
-		child = node->pn_child[slot];
+		child = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
 		if (pctrie_isleaf(child)) {
 			m = pctrie_toval(child);
 			if (*m <= index)
@@ -571,7 +678,8 @@ ascend:
 			do {
 				index -= inc;
 				slot--;
-				child = node->pn_child[slot];
+				child = pctrie_node_load(&node->pn_child[slot],
+				    NULL, PCTRIE_LOCKED);
 				if (pctrie_isleaf(child)) {
 					m = pctrie_toval(child);
 					if (*m <= index)
@@ -605,16 +713,16 @@ descend:
 void
 pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 {
-	struct pctrie_node *node, *parent;
+	struct pctrie_node *node, *parent, *tmp;
 	uint64_t *m;
 	int i, slot;
 
-	node = pctrie_getroot(ptree);
+	node = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (pctrie_isleaf(node)) {
 		m = pctrie_toval(node);
 		if (*m != index)
 			panic("%s: invalid key found", __func__);
-		pctrie_setroot(ptree, NULL);
+		pctrie_root_store(ptree, NULL, PCTRIE_LOCKED);
 		return;
 	}
 	parent = NULL;
@@ -622,34 +730,46 @@ pctrie_remove(struct pctrie *ptree, uint64_t index, pctrie_free_t freefn)
 		if (node == NULL)
 			panic("pctrie_remove: impossible to locate the key");
 		slot = pctrie_slot(index, node->pn_clev);
-		if (pctrie_isleaf(node->pn_child[slot])) {
-			m = pctrie_toval(node->pn_child[slot]);
+		tmp = pctrie_node_load(&node->pn_child[slot], NULL,
+		    PCTRIE_LOCKED);
+		if (pctrie_isleaf(tmp)) {
+			m = pctrie_toval(tmp);
 			if (*m != index)
 				panic("%s: invalid key found", __func__);
-			node->pn_child[slot] = NULL;
+			pctrie_node_store(&node->pn_child[slot], NULL,
+			    PCTRIE_LOCKED);
 			node->pn_count--;
 			if (node->pn_count > 1)
 				break;
-			for (i = 0; i < PCTRIE_COUNT; i++)
-				if (node->pn_child[i] != NULL)
+			for (i = 0; i < PCTRIE_COUNT; i++) {
+				tmp = pctrie_node_load(&node->pn_child[i],
+				    NULL, PCTRIE_LOCKED);
+				if (tmp != NULL)
 					break;
+			}
 			KASSERT(i != PCTRIE_COUNT,
 			    ("%s: invalid node configuration", __func__));
 			if (parent == NULL)
-				pctrie_setroot(ptree, node->pn_child[i]);
+				pctrie_root_store(ptree, tmp, PCTRIE_LOCKED);
 			else {
 				slot = pctrie_slot(index, parent->pn_clev);
-				KASSERT(parent->pn_child[slot] == node,
+				KASSERT(pctrie_node_load(
+					&parent->pn_child[slot], NULL,
+					PCTRIE_LOCKED) == node,
 				    ("%s: invalid child value", __func__));
-				parent->pn_child[slot] = node->pn_child[i];
+				pctrie_node_store(&parent->pn_child[slot], tmp,
+				    PCTRIE_LOCKED);
 			}
+			/*
+			 * The child is still valid and we can not zero the
+			 * pointer until all SMR references are gone.
+			 */
 			node->pn_count--;
-			node->pn_child[i] = NULL;
-			pctrie_node_put(ptree, node, freefn);
+			pctrie_node_put(ptree, node, freefn, i);
 			break;
 		}
 		parent = node;
-		node = node->pn_child[slot];
+		node = tmp;
 	}
 }
 
@@ -663,10 +783,10 @@ pctrie_reclaim_allnodes(struct pctrie *ptree, pctrie_free_t freefn)
 {
 	struct pctrie_node *root;
 
-	root = pctrie_getroot(ptree);
+	root = pctrie_root_load(ptree, NULL, PCTRIE_LOCKED);
 	if (root == NULL)
 		return;
-	pctrie_setroot(ptree, NULL);
+	pctrie_root_store(ptree, NULL, PCTRIE_UNSERIALIZED);
 	if (!pctrie_isleaf(root))
 		pctrie_reclaim_allnodes_int(ptree, root, freefn);
 }
@@ -677,7 +797,7 @@ pctrie_reclaim_allnodes(struct pctrie *ptree, pctrie_free_t freefn)
  */
 DB_SHOW_COMMAND(pctrienode, db_show_pctrienode)
 {
-	struct pctrie_node *node;
+	struct pctrie_node *node, *tmp;
 	int i;
 
         if (!have_addr)
@@ -686,12 +806,14 @@ DB_SHOW_COMMAND(pctrienode, db_show_pctrienode)
 	db_printf("node %p, owner %jx, children count %u, level %u:\n",
 	    (void *)node, (uintmax_t)node->pn_owner, node->pn_count,
 	    node->pn_clev);
-	for (i = 0; i < PCTRIE_COUNT; i++)
-		if (node->pn_child[i] != NULL)
+	for (i = 0; i < PCTRIE_COUNT; i++) {
+		tmp = pctrie_node_load(&node->pn_child[i], NULL,
+		    PCTRIE_UNSERIALIZED);
+		if (tmp != NULL)
 			db_printf("slot: %d, val: %p, value: %p, clev: %d\n",
-			    i, (void *)node->pn_child[i],
-			    pctrie_isleaf(node->pn_child[i]) ?
-			    pctrie_toval(node->pn_child[i]) : NULL,
+			    i, (void *)tmp,
+			    pctrie_isleaf(tmp) ? pctrie_toval(tmp) : NULL,
 			    node->pn_clev);
+	}
 }
 #endif /* DDB */
