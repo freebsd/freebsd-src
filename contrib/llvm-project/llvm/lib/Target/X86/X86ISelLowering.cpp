@@ -23319,7 +23319,8 @@ static SDValue getTargetVShiftByConstNode(unsigned Opc, const SDLoc &dl, MVT VT,
       for (unsigned i = 0; i != NumElts; ++i) {
         SDValue CurrentOp = SrcOp->getOperand(i);
         if (CurrentOp->isUndef()) {
-          Elts.push_back(CurrentOp);
+          // Must produce 0s in the correct bits.
+          Elts.push_back(DAG.getConstant(0, dl, ElementType));
           continue;
         }
         auto *ND = cast<ConstantSDNode>(CurrentOp);
@@ -23331,7 +23332,8 @@ static SDValue getTargetVShiftByConstNode(unsigned Opc, const SDLoc &dl, MVT VT,
       for (unsigned i = 0; i != NumElts; ++i) {
         SDValue CurrentOp = SrcOp->getOperand(i);
         if (CurrentOp->isUndef()) {
-          Elts.push_back(CurrentOp);
+          // Must produce 0s in the correct bits.
+          Elts.push_back(DAG.getConstant(0, dl, ElementType));
           continue;
         }
         auto *ND = cast<ConstantSDNode>(CurrentOp);
@@ -23343,7 +23345,8 @@ static SDValue getTargetVShiftByConstNode(unsigned Opc, const SDLoc &dl, MVT VT,
       for (unsigned i = 0; i != NumElts; ++i) {
         SDValue CurrentOp = SrcOp->getOperand(i);
         if (CurrentOp->isUndef()) {
-          Elts.push_back(CurrentOp);
+          // All shifted in bits must be the same so use 0.
+          Elts.push_back(DAG.getConstant(0, dl, ElementType));
           continue;
         }
         auto *ND = cast<ConstantSDNode>(CurrentOp);
@@ -30218,8 +30221,8 @@ bool X86TargetLowering::isVectorClearMaskLegal(ArrayRef<int> Mask,
 }
 
 bool X86TargetLowering::areJTsAllowed(const Function *Fn) const {
-  // If the subtarget is using retpolines, we need to not generate jump tables.
-  if (Subtarget.useRetpolineIndirectBranches())
+  // If the subtarget is using thunks, we need to not generate jump tables.
+  if (Subtarget.useIndirectThunkBranches())
     return false;
 
   // Otherwise, fallback on the generic logic.
@@ -31342,22 +31345,22 @@ X86TargetLowering::EmitLoweredTLSCall(MachineInstr &MI,
   return BB;
 }
 
-static unsigned getOpcodeForRetpoline(unsigned RPOpc) {
+static unsigned getOpcodeForIndirectThunk(unsigned RPOpc) {
   switch (RPOpc) {
-  case X86::RETPOLINE_CALL32:
+  case X86::INDIRECT_THUNK_CALL32:
     return X86::CALLpcrel32;
-  case X86::RETPOLINE_CALL64:
+  case X86::INDIRECT_THUNK_CALL64:
     return X86::CALL64pcrel32;
-  case X86::RETPOLINE_TCRETURN32:
+  case X86::INDIRECT_THUNK_TCRETURN32:
     return X86::TCRETURNdi;
-  case X86::RETPOLINE_TCRETURN64:
+  case X86::INDIRECT_THUNK_TCRETURN64:
     return X86::TCRETURNdi64;
   }
-  llvm_unreachable("not retpoline opcode");
+  llvm_unreachable("not indirect thunk opcode");
 }
 
-static const char *getRetpolineSymbol(const X86Subtarget &Subtarget,
-                                      unsigned Reg) {
+static const char *getIndirectThunkSymbol(const X86Subtarget &Subtarget,
+                                          unsigned Reg) {
   if (Subtarget.useRetpolineExternalThunk()) {
     // When using an external thunk for retpolines, we pick names that match the
     // names GCC happens to use as well. This helps simplify the implementation
@@ -31389,39 +31392,48 @@ static const char *getRetpolineSymbol(const X86Subtarget &Subtarget,
       assert(Subtarget.is64Bit() && "Should not be using a 64-bit thunk!");
       return "__x86_indirect_thunk_r11";
     }
+    llvm_unreachable("unexpected reg for external indirect thunk");
+  }
+
+  if (Subtarget.useRetpolineIndirectCalls() ||
+      Subtarget.useRetpolineIndirectBranches()) {
+    // When targeting an internal COMDAT thunk use an LLVM-specific name.
+    switch (Reg) {
+    case X86::EAX:
+      assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
+      return "__llvm_retpoline_eax";
+    case X86::ECX:
+      assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
+      return "__llvm_retpoline_ecx";
+    case X86::EDX:
+      assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
+      return "__llvm_retpoline_edx";
+    case X86::EDI:
+      assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
+      return "__llvm_retpoline_edi";
+    case X86::R11:
+      assert(Subtarget.is64Bit() && "Should not be using a 64-bit thunk!");
+      return "__llvm_retpoline_r11";
+    }
     llvm_unreachable("unexpected reg for retpoline");
   }
 
-  // When targeting an internal COMDAT thunk use an LLVM-specific name.
-  switch (Reg) {
-  case X86::EAX:
-    assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
-    return "__llvm_retpoline_eax";
-  case X86::ECX:
-    assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
-    return "__llvm_retpoline_ecx";
-  case X86::EDX:
-    assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
-    return "__llvm_retpoline_edx";
-  case X86::EDI:
-    assert(!Subtarget.is64Bit() && "Should not be using a 32-bit thunk!");
-    return "__llvm_retpoline_edi";
-  case X86::R11:
+  if (Subtarget.useLVIControlFlowIntegrity()) {
     assert(Subtarget.is64Bit() && "Should not be using a 64-bit thunk!");
-    return "__llvm_retpoline_r11";
+    return "__llvm_lvi_thunk_r11";
   }
-  llvm_unreachable("unexpected reg for retpoline");
+  llvm_unreachable("getIndirectThunkSymbol() invoked without thunk feature");
 }
 
 MachineBasicBlock *
-X86TargetLowering::EmitLoweredRetpoline(MachineInstr &MI,
-                                        MachineBasicBlock *BB) const {
+X86TargetLowering::EmitLoweredIndirectThunk(MachineInstr &MI,
+                                            MachineBasicBlock *BB) const {
   // Copy the virtual register into the R11 physical register and
   // call the retpoline thunk.
   DebugLoc DL = MI.getDebugLoc();
   const X86InstrInfo *TII = Subtarget.getInstrInfo();
   Register CalleeVReg = MI.getOperand(0).getReg();
-  unsigned Opc = getOpcodeForRetpoline(MI.getOpcode());
+  unsigned Opc = getOpcodeForIndirectThunk(MI.getOpcode());
 
   // Find an available scratch register to hold the callee. On 64-bit, we can
   // just use R11, but we scan for uses anyway to ensure we don't generate
@@ -31455,7 +31467,7 @@ X86TargetLowering::EmitLoweredRetpoline(MachineInstr &MI,
     report_fatal_error("calling convention incompatible with retpoline, no "
                        "available registers");
 
-  const char *Symbol = getRetpolineSymbol(Subtarget, AvailableReg);
+  const char *Symbol = getIndirectThunkSymbol(Subtarget, AvailableReg);
 
   BuildMI(*BB, MI, DL, TII->get(TargetOpcode::COPY), AvailableReg)
       .addReg(CalleeVReg);
@@ -32231,11 +32243,11 @@ X86TargetLowering::EmitInstrWithCustomInserter(MachineInstr &MI,
   case X86::TLS_base_addr32:
   case X86::TLS_base_addr64:
     return EmitLoweredTLSAddr(MI, BB);
-  case X86::RETPOLINE_CALL32:
-  case X86::RETPOLINE_CALL64:
-  case X86::RETPOLINE_TCRETURN32:
-  case X86::RETPOLINE_TCRETURN64:
-    return EmitLoweredRetpoline(MI, BB);
+  case X86::INDIRECT_THUNK_CALL32:
+  case X86::INDIRECT_THUNK_CALL64:
+  case X86::INDIRECT_THUNK_TCRETURN32:
+  case X86::INDIRECT_THUNK_TCRETURN64:
+    return EmitLoweredIndirectThunk(MI, BB);
   case X86::CATCHRET:
     return EmitLoweredCatchRet(MI, BB);
   case X86::CATCHPAD:
@@ -33998,6 +34010,7 @@ static SDValue combineX86ShufflesConstants(ArrayRef<SDValue> Ops,
     return SDValue();
 
   // Shuffle the constant bits according to the mask.
+  SDLoc DL(Root);
   APInt UndefElts(NumMaskElts, 0);
   APInt ZeroElts(NumMaskElts, 0);
   APInt ConstantElts(NumMaskElts, 0);
@@ -34035,6 +34048,10 @@ static SDValue combineX86ShufflesConstants(ArrayRef<SDValue> Ops,
   }
   assert((UndefElts | ZeroElts | ConstantElts).isAllOnesValue());
 
+  // Attempt to create a zero vector.
+  if ((UndefElts | ZeroElts).isAllOnesValue())
+    return getZeroVector(Root.getSimpleValueType(), Subtarget, DAG, DL);
+
   // Create the constant data.
   MVT MaskSVT;
   if (VT.isFloatingPoint() && (MaskSizeInBits == 32 || MaskSizeInBits == 64))
@@ -34043,8 +34060,9 @@ static SDValue combineX86ShufflesConstants(ArrayRef<SDValue> Ops,
     MaskSVT = MVT::getIntegerVT(MaskSizeInBits);
 
   MVT MaskVT = MVT::getVectorVT(MaskSVT, NumMaskElts);
+  if (!DAG.getTargetLoweringInfo().isTypeLegal(MaskVT))
+    return SDValue();
 
-  SDLoc DL(Root);
   SDValue CstOp = getConstVector(ConstantBitData, UndefElts, MaskVT, DAG, DL);
   return DAG.getBitcast(VT, CstOp);
 }
@@ -39693,14 +39711,22 @@ static SDValue combineVectorShiftImm(SDNode *N, SelectionDAG &DAG,
       getTargetConstantBitsFromNode(N0, NumBitsPerElt, UndefElts, EltBits)) {
     assert(EltBits.size() == VT.getVectorNumElements() &&
            "Unexpected shift value type");
-    for (APInt &Elt : EltBits) {
-      if (X86ISD::VSHLI == Opcode)
+    // Undef elements need to fold to 0. It's possible SimplifyDemandedBits
+    // created an undef input due to no input bits being demanded, but user
+    // still expects 0 in other bits.
+    for (unsigned i = 0, e = EltBits.size(); i != e; ++i) {
+      APInt &Elt = EltBits[i];
+      if (UndefElts[i])
+        Elt = 0;
+      else if (X86ISD::VSHLI == Opcode)
         Elt <<= ShiftVal;
       else if (X86ISD::VSRAI == Opcode)
         Elt.ashrInPlace(ShiftVal);
       else
         Elt.lshrInPlace(ShiftVal);
     }
+    // Reset undef elements since they were zeroed above.
+    UndefElts = 0;
     return getConstVector(EltBits, UndefElts, VT.getSimpleVT(), DAG, SDLoc(N));
   }
 

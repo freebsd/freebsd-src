@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG_CXX=	llvm-objcopy
-MAN=
 
 SRCDIR=		llvm/tools/llvm-objcopy
 SRCS+=		Buffer.cpp

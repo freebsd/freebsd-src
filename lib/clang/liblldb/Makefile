@@ -13,6 +13,8 @@ CFLAGS+=	-I${LLDB_SRCS}/source/Plugins/Process/Utility
 CFLAGS+=	-I${OBJTOP}/lib/clang/libllvm
 CFLAGS+=	-I${OBJTOP}/lib/clang/libclang
 CFLAGS+=	-I${OBJTOP}/lib/clang/liblldb
+CFLAGS+=	-I${SRCTOP}/contrib/lua/src
+CFLAGS+=	-I${SRCTOP}/lib/liblua
 
 SRCS+=		API/SBAddress.cpp
 SRCS+=		API/SBAttachInfo.cpp
@@ -462,6 +464,8 @@ SRCS+=		Plugins/Process/gdb-remote/GDBRemoteRegisterContext.cpp
 SRCS+=		Plugins/Process/gdb-remote/ProcessGDBRemote.cpp
 SRCS+=		Plugins/Process/gdb-remote/ProcessGDBRemoteLog.cpp
 SRCS+=		Plugins/Process/gdb-remote/ThreadGDBRemote.cpp
+SRCS+=		Plugins/ScriptInterpreter/Lua/Lua.cpp
+SRCS+=		Plugins/ScriptInterpreter/Lua/ScriptInterpreterLua.cpp
 SRCS+=		Plugins/ScriptInterpreter/None/ScriptInterpreterNone.cpp
 SRCS+=		Plugins/SymbolFile/Breakpad/SymbolFileBreakpad.cpp
 SRCS+=		Plugins/SymbolFile/DWARF/AppleDWARFIndex.cpp
@@ -642,6 +646,7 @@ SRCS+=		Utility/UserID.cpp
 SRCS+=		Utility/UserIDResolver.cpp
 SRCS+=		Utility/VASprintf.cpp
 SRCS+=		Utility/VMRange.cpp
+SRCS+=		LLDBWrapLua.cpp
 SRCS+=		lldb.cpp
 
 LLDB_TBLGEN?=	lldb-tblgen
@@ -678,5 +683,18 @@ CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
 .include "../clang.build.mk"
 
 INTERNALLIB=
+
+# Building lldb's bindings requires swig, but we do not want to include it in
+# the FreeBSD base system (as a build tool) because it has non-trivial
+# dependencies.  As a workaround we commit the generated file.  Requires the
+# swig30 package.
+#
+# After importing an updated llvm/lldb into FreeBSD run `make run-swig` in
+# this directory to generate generate LLDBWrapLua.cpp, and commit the result.
+.PHONY:	run-swig
+run-swig:
+	swig3.0 -I${LLDB_SRCS}/include \
+	    -c++ -features autodoc -lua -w503 \
+	    -o ${.CURDIR}/LLDBWrapLua.cpp ${LLDB_SRCS}/bindings/lua.swig
 
 .include <bsd.lib.mk>

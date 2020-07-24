@@ -22,7 +22,7 @@ SRCDIR=		clang/lib
 
 # Explanation of different SRCS variants below:
 # SRCS_MIN:	always required, even for bootstrap
-# SRCS_EXT:	required for MK_CLANG_EXTRAS
+# SRCS_EXT:	required for MK_CLANG_EXTRAS || MK_CLANG_FORMAT
 # SRCS_FUL:	required for MK_CLANG_FULL
 # SRCS_LDB:	required for MK_LLDB
 
@@ -686,7 +686,7 @@ SRCS_MIN+=	Tooling/RefactoringCallbacks.cpp
 SRCS_MIN+=	Tooling/Tooling.cpp
 
 SRCS_ALL+=	${SRCS_MIN}
-.if ${MK_CLANG_EXTRAS} != "no"
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_CLANG_FORMAT} != "no"
 SRCS_ALL+=	${SRCS_EXT}
 .endif
 .if ${MK_CLANG_FULL} != "no"

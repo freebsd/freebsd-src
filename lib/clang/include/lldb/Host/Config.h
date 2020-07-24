@@ -43,7 +43,7 @@
 
 #define LLDB_ENABLE_LIBXML2 0
 
-#define LLDB_ENABLE_LUA 0
+#define LLDB_ENABLE_LUA 1
 
 #define LLDB_ENABLE_PYTHON 0
 

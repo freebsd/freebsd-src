@@ -167,6 +167,23 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
     setLoadExtAction(ISD::SEXTLOAD, VT, MVT::i8, Expand);
   }
 
+  if (Subtarget.isISA3_0()) {
+    setLoadExtAction(ISD::EXTLOAD, MVT::f64, MVT::f16, Legal);
+    setLoadExtAction(ISD::EXTLOAD, MVT::f32, MVT::f16, Legal);
+    setTruncStoreAction(MVT::f64, MVT::f16, Legal);
+    setTruncStoreAction(MVT::f32, MVT::f16, Legal);
+  } else {
+    // No extending loads from f16 or HW conversions back and forth.
+    setLoadExtAction(ISD::EXTLOAD, MVT::f64, MVT::f16, Expand);
+    setOperationAction(ISD::FP16_TO_FP, MVT::f64, Expand);
+    setOperationAction(ISD::FP_TO_FP16, MVT::f64, Expand);
+    setLoadExtAction(ISD::EXTLOAD, MVT::f32, MVT::f16, Expand);
+    setOperationAction(ISD::FP16_TO_FP, MVT::f32, Expand);
+    setOperationAction(ISD::FP_TO_FP16, MVT::f32, Expand);
+    setTruncStoreAction(MVT::f64, MVT::f16, Expand);
+    setTruncStoreAction(MVT::f32, MVT::f16, Expand);
+  }
+
   setTruncStoreAction(MVT::f64, MVT::f32, Expand);
 
   // PowerPC has pre-inc load and store's.
@@ -677,6 +694,7 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
         setLoadExtAction(ISD::EXTLOAD, VT, InnerVT, Expand);
       }
     }
+    setOperationAction(ISD::SELECT_CC, MVT::v4i32, Expand);
     if (!Subtarget.hasP8Vector()) {
       setOperationAction(ISD::SMAX, MVT::v2i64, Expand);
       setOperationAction(ISD::SMIN, MVT::v2i64, Expand);
@@ -7720,15 +7738,17 @@ void PPCTargetLowering::LowerFP_TO_INTForReuse(SDValue Op, ReuseLoadInfo &RLI,
 
   // Emit a store to the stack slot.
   SDValue Chain;
+  unsigned Alignment = DAG.getEVTAlignment(Tmp.getValueType());
   if (i32Stack) {
     MachineFunction &MF = DAG.getMachineFunction();
+    Alignment = 4;
     MachineMemOperand *MMO =
-      MF.getMachineMemOperand(MPI, MachineMemOperand::MOStore, 4, 4);
+      MF.getMachineMemOperand(MPI, MachineMemOperand::MOStore, 4, Alignment);
     SDValue Ops[] = { DAG.getEntryNode(), Tmp, FIPtr };
     Chain = DAG.getMemIntrinsicNode(PPCISD::STFIWX, dl,
               DAG.getVTList(MVT::Other), Ops, MVT::i32, MMO);
   } else
-    Chain = DAG.getStore(DAG.getEntryNode(), dl, Tmp, FIPtr, MPI);
+    Chain = DAG.getStore(DAG.getEntryNode(), dl, Tmp, FIPtr, MPI, Alignment);
 
   // Result is a load from the stack slot.  If loading 4 bytes, make sure to
   // add in a bias on big endian.
@@ -7741,6 +7761,7 @@ void PPCTargetLowering::LowerFP_TO_INTForReuse(SDValue Op, ReuseLoadInfo &RLI,
   RLI.Chain = Chain;
   RLI.Ptr = FIPtr;
   RLI.MPI = MPI;
+  RLI.Alignment = Alignment;
 }
 
 /// Custom lowers floating point to integer conversions to use
@@ -10358,6 +10379,7 @@ SDValue PPCTargetLowering::LowerFP_EXTEND(SDValue Op, SelectionDAG &DAG) const {
   assert(Op.getOpcode() == ISD::FP_EXTEND &&
          "Should only be called for ISD::FP_EXTEND");
 
+  // FIXME: handle extends from half precision float vectors on P9.
   // We only want to custom lower an extend from v2f32 to v2f64.
   if (Op.getValueType() != MVT::v2f64 ||
       Op.getOperand(0).getValueType() != MVT::v2f32)
@@ -10570,6 +10592,11 @@ void PPCTargetLowering::ReplaceNodeResults(SDNode *N,
   }
   case ISD::BITCAST:
     // Don't handle bitcast here.
+    return;
+  case ISD::FP_EXTEND:
+    SDValue Lowered = LowerFP_EXTEND(SDValue(N, 0), DAG);
+    if (Lowered)
+      Results.push_back(Lowered);
     return;
   }
 }
@@ -13589,7 +13616,7 @@ SDValue PPCTargetLowering::combineStoreFPToInt(SDNode *N,
         (Op1VT == MVT::i32 || Op1VT == MVT::i64 ||
          (Subtarget.hasP9Vector() && (Op1VT == MVT::i16 || Op1VT == MVT::i8)));
 
-  if (ResVT == MVT::ppcf128 || !Subtarget.hasP8Altivec() ||
+  if (ResVT == MVT::ppcf128 || !Subtarget.hasP8Vector() ||
       cast<StoreSDNode>(N)->isTruncatingStore() || !ValidTypeForStoreFltAsInt)
     return SDValue();
 
@@ -15250,6 +15277,10 @@ bool PPCTargetLowering::allowsMisalignedMemoryAccesses(EVT VT,
   // boundaries.
 
   if (!VT.isSimple())
+    return false;
+
+  if (VT.isFloatingPoint() && !VT.isVector() &&
+      !Subtarget.allowsUnalignedFPAccess())
     return false;
 
   if (VT.getSimpleVT().isVector()) {
