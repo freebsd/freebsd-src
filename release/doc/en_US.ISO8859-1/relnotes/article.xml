@@ -306,6 +306,9 @@
 
       <para revision="348980"><application>OpenPAM</application> has
 	been updated to the latest upstream version.</para>
+
+      <para revision="363466"><application>sendmail</application> has
+	been updated to version 8.16.1.</para>
     </sect2>
 
     <sect2 xml:id="userland-installer">
