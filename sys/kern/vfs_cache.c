@@ -3029,10 +3029,6 @@ cache_can_fplookup(struct cache_fpl *fpl)
 		cache_fpl_aborted(fpl);
 		return (false);
 	}
-	if ((cnp->cn_flags & LOCKLEAF) == 0) {
-		cache_fpl_aborted(fpl);
-		return (false);
-	}
 	if (cnp->cn_nameiop != LOOKUP) {
 		cache_fpl_aborted(fpl);
 		return (false);
@@ -3120,7 +3116,6 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	tvp_seqc = fpl->tvp_seqc;
 
 	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
-	MPASS((cnp->cn_flags & LOCKLEAF) != 0);
 
 	tvs = vget_prep_smr(tvp);
 	if (tvs == VGET_NONE) {
@@ -3135,13 +3130,20 @@ cache_fplookup_final(struct cache_fpl *fpl)
 
 	cache_fpl_smr_exit(fpl);
 
-	error = vget_finish(tvp, cnp->cn_lkflags, tvs);
-	if (error != 0) {
-		return (cache_fpl_aborted(fpl));
+	if ((cnp->cn_flags & LOCKLEAF) != 0) {
+		error = vget_finish(tvp, cnp->cn_lkflags, tvs);
+		if (error != 0) {
+			return (cache_fpl_aborted(fpl));
+		}
+	} else {
+		vget_finish_ref(tvp, tvs);
 	}
 
 	if (!vn_seqc_consistent(tvp, tvp_seqc)) {
-		vput(tvp);
+		if ((cnp->cn_flags & LOCKLEAF) != 0)
+			vput(tvp);
+		else
+			vrele(tvp);
 		return (cache_fpl_aborted(fpl));
 	}
 
