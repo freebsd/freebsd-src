@@ -70,8 +70,10 @@ u_long sb_max_adj =
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
+#ifdef KERN_TLS
 static void	sbcompress_ktls_rx(struct sockbuf *sb, struct mbuf *m,
     struct mbuf *n);
+#endif
 static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
