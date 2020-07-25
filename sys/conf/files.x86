@@ -166,6 +166,7 @@ dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
 dev/intel/spi.c			optional	intelspi
 dev/io/iodev.c			optional	io
 dev/iommu/busdma_iommu.c	optional	acpi acpi_dmar pci
+dev/iommu/iommu_gas.c		optional	acpi acpi_dmar pci
 dev/ipmi/ipmi.c			optional	ipmi
 dev/ipmi/ipmi_acpi.c		optional	ipmi acpi
 dev/ipmi/ipmi_isa.c		optional	ipmi isa
@@ -304,7 +305,6 @@ x86/cpufreq/powernow.c		optional	cpufreq
 x86/iommu/intel_ctx.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_drv.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_fault.c		optional	acpi acpi_dmar pci
-x86/iommu/intel_gas.c		optional	acpi acpi_dmar pci
 x86/iommu/intel_idpgtbl.c	optional	acpi acpi_dmar pci
 x86/iommu/intel_intrmap.c	optional	acpi acpi_dmar pci
 x86/iommu/intel_qi.c		optional	acpi acpi_dmar pci
