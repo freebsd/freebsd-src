@@ -35,6 +35,7 @@
 #define _SYS_IOMMU_H_
 
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/types.h>
@@ -209,5 +210,7 @@ int iommu_gas_map_region(struct iommu_domain *domain,
     struct iommu_map_entry *entry, u_int eflags, u_int flags, vm_page_t *ma);
 int iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t end);
+
+SYSCTL_DECL(_hw_iommu);
 
 #endif /* !_SYS_IOMMU_H_ */
