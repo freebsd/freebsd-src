@@ -526,6 +526,9 @@ VP_TO_TMPFS_NODE(struct vnode *vp)
 	return (node);
 }
 
+#define	VP_TO_TMPFS_NODE_SMR(vp)	\
+	((struct tmpfs_node *)vn_load_v_data_smr(vp))
+
 static inline struct tmpfs_node *
 VP_TO_TMPFS_DIR(struct vnode *vp)
 {
