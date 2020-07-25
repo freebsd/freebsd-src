@@ -146,6 +146,17 @@ vop_close {
 };
 
 
+%% fplookup_vexec	vp	- - -
+%! fplookup_vexec	pre	vop_fplookup_vexec_pre
+%! fplookup_vexec	post	vop_fplookup_vexec_post
+
+vop_fplookup_vexec {
+	IN struct vnode *vp;
+	IN struct ucred *cred;
+	IN struct thread *td;
+};
+
+
 %% access	vp	L L L
 
 vop_access {

@@ -664,8 +664,8 @@ vntblinit(void *dummy __unused)
 	vnode_list_reclaim_marker = vn_alloc_marker(NULL);
 	TAILQ_INSERT_HEAD(&vnode_list, vnode_list_reclaim_marker, v_vnodelist);
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
-	    vnode_init, vnode_fini, UMA_ALIGN_PTR, UMA_ZONE_SMR);
-	vfs_smr = uma_zone_get_smr(vnode_zone);
+	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
+	uma_zone_set_smr(vnode_zone, vfs_smr);
 	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/*
@@ -2914,6 +2914,22 @@ vget_prep(struct vnode *vp)
 	return (vs);
 }
 
+void
+vget_abort(struct vnode *vp, enum vgetstate vs)
+{
+
+	switch (vs) {
+	case VGET_USECOUNT:
+		vrele(vp);
+		break;
+	case VGET_HOLDCNT:
+		vdrop(vp);
+		break;
+	default:
+		__assert_unreachable();
+	}
+}
+
 int
 vget(struct vnode *vp, int flags, struct thread *td)
 {
@@ -2925,7 +2941,7 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	return (vget_finish(vp, flags, vs));
 }
 
-static int __noinline
+static void __noinline
 vget_finish_vchr(struct vnode *vp)
 {
 
@@ -2941,7 +2957,7 @@ vget_finish_vchr(struct vnode *vp)
 #else
 		refcount_release(&vp->v_holdcnt);
 #endif
-		return (0);
+		return;
 	}
 
 	VI_LOCK(vp);
@@ -2953,18 +2969,17 @@ vget_finish_vchr(struct vnode *vp)
 		refcount_release(&vp->v_holdcnt);
 #endif
 		VI_UNLOCK(vp);
-		return (0);
+		return;
 	}
 	v_incr_devcount(vp);
 	refcount_acquire(&vp->v_usecount);
 	VI_UNLOCK(vp);
-	return (0);
 }
 
 int
 vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 {
-	int error, old;
+	int error;
 
 	if ((flags & LK_INTERLOCK) != 0)
 		ASSERT_VI_LOCKED(vp, __func__);
@@ -2976,20 +2991,32 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 
 	error = vn_lock(vp, flags);
 	if (__predict_false(error != 0)) {
-		if (vs == VGET_USECOUNT)
-			vrele(vp);
-		else
-			vdrop(vp);
+		vget_abort(vp, vs);
 		CTR2(KTR_VFS, "%s: impossible to lock vnode %p", __func__,
 		    vp);
 		return (error);
 	}
 
-	if (vs == VGET_USECOUNT)
-		return (0);
+	vget_finish_ref(vp, vs);
+	return (0);
+}
 
-	if (__predict_false(vp->v_type == VCHR))
-		return (vget_finish_vchr(vp));
+void
+vget_finish_ref(struct vnode *vp, enum vgetstate vs)
+{
+	int old;
+
+	VNPASS(vs == VGET_HOLDCNT || vs == VGET_USECOUNT, vp);
+	VNPASS(vp->v_holdcnt > 0, vp);
+	VNPASS(vs == VGET_HOLDCNT || vp->v_usecount > 0, vp);
+
+	if (vs == VGET_USECOUNT)
+		return;
+
+	if (__predict_false(vp->v_type == VCHR)) {
+		vget_finish_vchr(vp);
+		return;
+	}
 
 	/*
 	 * We hold the vnode. If the usecount is 0 it will be utilized to keep
@@ -3006,7 +3033,6 @@ vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 		refcount_release(&vp->v_holdcnt);
 #endif
 	}
-	return (0);
 }
 
 /*
@@ -4424,6 +4450,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
 	MNT_KERN_FLAG(MNTK_MARKER);
 	MNT_KERN_FLAG(MNTK_USES_BCACHE);
+	MNT_KERN_FLAG(MNTK_FPLOOKUP);
 	MNT_KERN_FLAG(MNTK_NOASYNC);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
@@ -5240,6 +5267,38 @@ out:
 }
 
 /*
+ * VOP_FPLOOKUP_VEXEC routines are subject to special circumstances, see
+ * the comment above cache_fplookup for details.
+ *
+ * We never deny as priv_check_cred calls are not yet supported, see vaccess.
+ */
+int
+vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred *cred)
+{
+
+	VFS_SMR_ASSERT_ENTERED();
+
+	/* Check the owner. */
+	if (cred->cr_uid == file_uid) {
+		if (file_mode & S_IXUSR)
+			return (0);
+		return (EAGAIN);
+	}
+
+	/* Otherwise, check the groups (first match) */
+	if (groupmember(file_gid, cred)) {
+		if (file_mode & S_IXGRP)
+			return (0);
+		return (EAGAIN);
+	}
+
+	/* Otherwise, check everyone else. */
+	if (file_mode & S_IXOTH)
+		return (0);
+	return (EAGAIN);
+}
+
+/*
  * Common filesystem object access control check routine.  Accepts a
  * vnode's type, "mode", uid and gid, requested access mode, credentials,
  * and optional call-by-reference privused argument allowing vaccess()
@@ -5537,6 +5596,20 @@ vop_rename_pre(void *ap)
 }
 
 #ifdef DEBUG_VFS_LOCKS
+void
+vop_fplookup_vexec_pre(void *ap __unused)
+{
+
+	VFS_SMR_ASSERT_ENTERED();
+}
+
+void
+vop_fplookup_vexec_post(void *ap __unused, int rc __unused)
+{
+
+	VFS_SMR_ASSERT_ENTERED();
+}
+
 void
 vop_strategy_pre(void *ap)
 {
