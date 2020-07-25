@@ -43,6 +43,7 @@
 #include <sys/lock.h>
 #include <sys/queue.h>
 #include <ufs/ufs/dinode.h>
+#include <sys/seqc.h>
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
@@ -149,6 +150,14 @@ struct inode {
 #define UFS_INODE_FLAG_LAZY_MASK_ASSERTABLE \
 	(UFS_INODE_FLAG_LAZY_MASK & ~(IN_LAZYMOD | IN_LAZYACCESS))
 
+#define UFS_INODE_SET_MODE(ip, mode) do {			\
+	struct inode *_ip = (ip);				\
+	int _mode = (mode);					\
+								\
+	ASSERT_VOP_IN_SEQC(ITOV(_ip));				\
+	atomic_store_short(&(_ip)->i_mode, _mode);		\
+} while (0)
+
 #define UFS_INODE_SET_FLAG(ip, flags) do {			\
 	struct inode *_ip = (ip);				\
 	struct vnode *_vp = ITOV(_ip);				\
@@ -229,6 +238,7 @@ struct indir {
 
 /* Convert between inode pointers and vnode pointers. */
 #define	VTOI(vp)	((struct inode *)(vp)->v_data)
+#define	VTOI_SMR(vp)	((struct inode *)vn_load_v_data_smr(vp))
 #define	ITOV(ip)	((ip)->i_vnode)
 
 /* Determine if soft dependencies are being done */
