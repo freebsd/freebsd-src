@@ -246,6 +246,8 @@ VTOZ(vnode_t *vp)
 #define	VTOZ(VP)	((znode_t *)(VP)->v_data)
 #endif
 
+#define	VTOZ_SMR(VP)	((znode_t *)vn_load_v_data_smr(VP))
+
 /* Called on entry to each ZFS vnode and vfs operation  */
 #define	ZFS_ENTER(zfsvfs) \
 	{ \
