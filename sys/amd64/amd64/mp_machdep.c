@@ -223,6 +223,10 @@ cpu_mp_start(void)
 	setidt(IPI_SUSPEND, pti ? IDTVEC(cpususpend_pti) : IDTVEC(cpususpend),
 	    SDT_SYSIGT, SEL_KPL, 0);
 
+	/* Install an IPI for calling delayed SWI */
+	setidt(IPI_SWI, pti ? IDTVEC(ipi_swi_pti) : IDTVEC(ipi_swi),
+	    SDT_SYSIGT, SEL_KPL, 0);
+
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
 		boot_cpu_id = PCPU_GET(apic_id);
