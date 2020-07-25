@@ -132,7 +132,7 @@ device_tag_init(struct dmar_ctx *ctx, device_t dev)
 	bus_addr_t maxaddr;
 
 	domain = (struct dmar_domain *)ctx->context.domain;
-	maxaddr = MIN(domain->end, BUS_SPACE_MAXADDR);
+	maxaddr = MIN(domain->iodom.end, BUS_SPACE_MAXADDR);
 	ctx->context.tag->common.ref_count = 1; /* Prevent free */
 	ctx->context.tag->common.impl = &bus_dma_iommu_impl;
 	ctx->context.tag->common.boundary = 0;
@@ -186,7 +186,7 @@ ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp, bool move,
 	    pci_get_function(ctx->context.tag->owner),
 	    ctxp->ctx1, ctxp->ctx2));
 
-	if ((domain->flags & DMAR_DOMAIN_IDMAP) != 0 &&
+	if ((domain->iodom.flags & DMAR_DOMAIN_IDMAP) != 0 &&
 	    (unit->hw_ecap & DMAR_ECAP_PT) != 0) {
 		KASSERT(domain->pgtbl_obj == NULL,
 		    ("ctx %p non-null pgtbl_obj", ctx));
@@ -254,7 +254,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 		 * and round as neccesary.
 		 *
 		 * We also allow the overlapping RMRR entries, see
-		 * dmar_gas_alloc_region().
+		 * iommu_gas_alloc_region().
 		 */
 		start = entry->start;
 		end = entry->end;
@@ -282,7 +282,8 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 			ma[i] = vm_page_getfake(entry->start + PAGE_SIZE * i,
 			    VM_MEMATTR_DEFAULT);
 		}
-		error1 = dmar_gas_map_region(domain, entry,
+		error1 = iommu_gas_map_region((struct iommu_domain *)domain,
+		    entry,
 		    IOMMU_MAP_ENTRY_READ | IOMMU_MAP_ENTRY_WRITE,
 		    IOMMU_MF_CANWAIT | IOMMU_MF_RMRR, ma);
 		/*
@@ -294,7 +295,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 		if (error1 == 0 && entry->end != entry->start) {
 			IOMMU_LOCK(domain->iodom.iommu);
 			domain->refs++; /* XXXKIB prevent free */
-			domain->flags |= DMAR_DOMAIN_RMRR;
+			domain->iodom.flags |= DMAR_DOMAIN_RMRR;
 			IOMMU_UNLOCK(domain->iodom.iommu);
 		} else {
 			if (error1 != 0) {
@@ -308,7 +309,8 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 				error = error1;
 			}
 			TAILQ_REMOVE(&rmrr_entries, entry, unroll_link);
-			dmar_gas_free_entry(domain, entry);
+			iommu_gas_free_entry((struct iommu_domain *)domain,
+			    entry);
 		}
 		for (i = 0; i < size; i++)
 			vm_page_putfake(ma[i]);
@@ -320,6 +322,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 static struct dmar_domain *
 dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 {
+	struct iommu_domain *iodom;
 	struct dmar_domain *domain;
 	int error, id, mgaw;
 
@@ -327,9 +330,10 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 	if (id == -1)
 		return (NULL);
 	domain = malloc(sizeof(*domain), M_DMAR_DOMAIN, M_WAITOK | M_ZERO);
+	iodom = (struct iommu_domain *)domain;
 	domain->domain = id;
 	LIST_INIT(&domain->contexts);
-	RB_INIT(&domain->rb_root);
+	RB_INIT(&domain->iodom.rb_root);
 	TAILQ_INIT(&domain->iodom.unload_entries);
 	TASK_INIT(&domain->iodom.unload_task, 0, dmar_domain_unload_task,
 	    domain);
@@ -343,29 +347,29 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 	 * It is useful for the identity mapping, and less so for the
 	 * virtualized bus address space.
 	 */
-	domain->end = id_mapped ? ptoa(Maxmem) : BUS_SPACE_MAXADDR;
-	mgaw = dmar_maxaddr2mgaw(dmar, domain->end, !id_mapped);
+	domain->iodom.end = id_mapped ? ptoa(Maxmem) : BUS_SPACE_MAXADDR;
+	mgaw = dmar_maxaddr2mgaw(dmar, domain->iodom.end, !id_mapped);
 	error = domain_set_agaw(domain, mgaw);
 	if (error != 0)
 		goto fail;
 	if (!id_mapped)
 		/* Use all supported address space for remapping. */
-		domain->end = 1ULL << (domain->agaw - 1);
+		domain->iodom.end = 1ULL << (domain->agaw - 1);
 
-	dmar_gas_init_domain(domain);
+	iommu_gas_init_domain((struct iommu_domain *)domain);
 
 	if (id_mapped) {
 		if ((dmar->hw_ecap & DMAR_ECAP_PT) == 0) {
 			domain->pgtbl_obj = domain_get_idmap_pgtbl(domain,
-			    domain->end);
+			    domain->iodom.end);
 		}
-		domain->flags |= DMAR_DOMAIN_IDMAP;
+		domain->iodom.flags |= DMAR_DOMAIN_IDMAP;
 	} else {
 		error = domain_alloc_pgtbl(domain);
 		if (error != 0)
 			goto fail;
 		/* Disable local apic region access */
-		error = dmar_gas_reserve_region(domain, 0xfee00000,
+		error = iommu_gas_reserve_region(iodom, 0xfee00000,
 		    0xfeefffff + 1);
 		if (error != 0)
 			goto fail;
@@ -436,12 +440,12 @@ dmar_domain_destroy(struct dmar_domain *domain)
 	    ("destroying dom %p with ctx_cnt %d", domain, domain->ctx_cnt));
 	KASSERT(domain->refs == 0,
 	    ("destroying dom %p with refs %d", domain, domain->refs));
-	if ((domain->flags & DMAR_DOMAIN_GAS_INITED) != 0) {
+	if ((domain->iodom.flags & DMAR_DOMAIN_GAS_INITED) != 0) {
 		DMAR_DOMAIN_LOCK(domain);
-		dmar_gas_fini_domain(domain);
+		iommu_gas_fini_domain((struct iommu_domain *)domain);
 		DMAR_DOMAIN_UNLOCK(domain);
 	}
-	if ((domain->flags & DMAR_DOMAIN_PGTBL_INITED) != 0) {
+	if ((domain->iodom.flags & DMAR_DOMAIN_PGTBL_INITED) != 0) {
 		if (domain->pgtbl_obj != NULL)
 			DMAR_DOMAIN_PGLOCK(domain);
 		domain_free_pgtbl(domain);
@@ -639,7 +643,7 @@ dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx)
 	/* If flush failed, rolling back would not work as well. */
 	printf("dmar%d rid %x domain %d->%d %s-mapped\n",
 	    dmar->iommu.unit, ctx->rid, old_domain->domain, domain->domain,
-	    (domain->flags & DMAR_DOMAIN_IDMAP) != 0 ? "id" : "re");
+	    (domain->iodom.flags & DMAR_DOMAIN_IDMAP) != 0 ? "id" : "re");
 	dmar_unref_domain_locked(dmar, old_domain);
 	TD_PINNED_ASSERT;
 	return (error);
@@ -663,7 +667,7 @@ dmar_unref_domain_locked(struct dmar_unit *dmar, struct dmar_domain *domain)
 		return;
 	}
 
-	KASSERT((domain->flags & DMAR_DOMAIN_RMRR) == 0,
+	KASSERT((domain->iodom.flags & DMAR_DOMAIN_RMRR) == 0,
 	    ("lost ref on RMRR domain %p", domain));
 
 	LIST_REMOVE(domain, link);
@@ -781,17 +785,17 @@ dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid)
 void
 dmar_domain_free_entry(struct iommu_map_entry *entry, bool free)
 {
-	struct dmar_domain *domain;
+	struct iommu_domain *domain;
 
-	domain = (struct dmar_domain *)entry->domain;
-	DMAR_DOMAIN_LOCK(domain);
+	domain = entry->domain;
+	IOMMU_DOMAIN_LOCK(domain);
 	if ((entry->flags & IOMMU_MAP_ENTRY_RMRR) != 0)
-		dmar_gas_free_region(domain, entry);
+		iommu_gas_free_region(domain, entry);
 	else
-		dmar_gas_free_space(domain, entry);
-	DMAR_DOMAIN_UNLOCK(domain);
+		iommu_gas_free_space(domain, entry);
+	IOMMU_DOMAIN_UNLOCK(domain);
 	if (free)
-		dmar_gas_free_entry(domain, entry);
+		iommu_gas_free_entry(domain, entry);
 	else
 		entry->flags = 0;
 }
