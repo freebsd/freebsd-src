@@ -2369,7 +2369,6 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 {
 	struct swdevt *sp, *tsp;
 	daddr_t dvbase;
-	u_long mblocks;
 
 	/*
 	 * nblks is in DEV_BSIZE'd chunks, convert to PAGE_SIZE'd chunks.
@@ -2380,19 +2379,8 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	nblks &= ~(ctodb(1) - 1);
 	nblks = dbtoc(nblks);
 
-	/*
-	 * If we go beyond this, we get overflows in the radix
-	 * tree bitmap code.
-	 */
-	mblocks = 0x40000000 / BLIST_META_RADIX;
-	if (nblks > mblocks) {
-		printf(
-    "WARNING: reducing swap size to maximum of %luMB per unit\n",
-		    mblocks / 1024 / 1024 * PAGE_SIZE);
-		nblks = mblocks;
-	}
-
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
+	sp->sw_blist = blist_create(nblks, M_WAITOK);
 	sp->sw_vp = vp;
 	sp->sw_id = id;
 	sp->sw_dev = dev;
@@ -2402,7 +2390,6 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks,
 	sp->sw_close = close;
 	sp->sw_flags = flags;
 
-	sp->sw_blist = blist_create(nblks, M_WAITOK);
 	/*
 	 * Do not free the first blocks in order to avoid overwriting
 	 * any bsd label at the front of the partition
