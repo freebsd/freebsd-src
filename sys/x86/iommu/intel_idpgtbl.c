@@ -499,15 +499,23 @@ domain_map_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 }
 
 int
-domain_map_buf(struct dmar_domain *domain, iommu_gaddr_t base, iommu_gaddr_t size,
-    vm_page_t *ma, uint64_t pflags, int flags)
+domain_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
+    iommu_gaddr_t size, vm_page_t *ma, uint64_t eflags, int flags)
 {
+	struct dmar_domain *domain;
 	struct dmar_unit *unit;
+	uint64_t pflags;
 	int error;
 
+	pflags = ((eflags & IOMMU_MAP_ENTRY_READ) != 0 ? DMAR_PTE_R : 0) |
+	    ((eflags & IOMMU_MAP_ENTRY_WRITE) != 0 ? DMAR_PTE_W : 0) |
+	    ((eflags & IOMMU_MAP_ENTRY_SNOOP) != 0 ? DMAR_PTE_SNP : 0) |
+	    ((eflags & IOMMU_MAP_ENTRY_TM) != 0 ? DMAR_PTE_TM : 0);
+
+	domain = (struct dmar_domain *)iodom;
 	unit = domain->dmar;
 
-	KASSERT((domain->flags & DMAR_DOMAIN_IDMAP) == 0,
+	KASSERT((domain->iodom.flags & DMAR_DOMAIN_IDMAP) == 0,
 	    ("modifying idmap pagetable domain %p", domain));
 	KASSERT((base & DMAR_PAGE_MASK) == 0,
 	    ("non-aligned base %p %jx %jx", domain, (uintmax_t)base,
@@ -618,7 +626,7 @@ domain_unmap_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 	if (size == 0)
 		return (0);
 
-	KASSERT((domain->flags & DMAR_DOMAIN_IDMAP) == 0,
+	KASSERT((domain->iodom.flags & DMAR_DOMAIN_IDMAP) == 0,
 	    ("modifying idmap pagetable domain %p", domain));
 	KASSERT((base & DMAR_PAGE_MASK) == 0,
 	    ("non-aligned base %p %jx %jx", domain, (uintmax_t)base,
@@ -705,7 +713,7 @@ domain_alloc_pgtbl(struct dmar_domain *domain)
 	m->ref_count = 1;
 	DMAR_DOMAIN_PGUNLOCK(domain);
 	DMAR_LOCK(domain->dmar);
-	domain->flags |= DMAR_DOMAIN_PGTBL_INITED;
+	domain->iodom.flags |= DMAR_DOMAIN_PGTBL_INITED;
 	DMAR_UNLOCK(domain->dmar);
 	return (0);
 }
@@ -719,16 +727,16 @@ domain_free_pgtbl(struct dmar_domain *domain)
 	obj = domain->pgtbl_obj;
 	if (obj == NULL) {
 		KASSERT((domain->dmar->hw_ecap & DMAR_ECAP_PT) != 0 &&
-		    (domain->flags & DMAR_DOMAIN_IDMAP) != 0,
+		    (domain->iodom.flags & DMAR_DOMAIN_IDMAP) != 0,
 		    ("lost pagetable object domain %p", domain));
 		return;
 	}
 	DMAR_DOMAIN_ASSERT_PGLOCKED(domain);
 	domain->pgtbl_obj = NULL;
 
-	if ((domain->flags & DMAR_DOMAIN_IDMAP) != 0) {
+	if ((domain->iodom.flags & DMAR_DOMAIN_IDMAP) != 0) {
 		put_idmap_pgtbl(obj);
-		domain->flags &= ~DMAR_DOMAIN_IDMAP;
+		domain->iodom.flags &= ~DMAR_DOMAIN_IDMAP;
 		return;
 	}
 

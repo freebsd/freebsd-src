@@ -48,6 +48,10 @@ struct bus_dma_tag_common;
 struct iommu_map_entry;
 TAILQ_HEAD(iommu_map_entries_tailq, iommu_map_entry);
 
+RB_HEAD(iommu_gas_entries_tree, iommu_map_entry);
+RB_PROTOTYPE(iommu_gas_entries_tree, iommu_map_entry, rb_entry,
+    iommu_gas_cmp_entries);
+
 struct iommu_qi_genseq {
 	u_int gen;
 	uint32_t seq;
@@ -107,6 +111,11 @@ struct iommu_domain {
 	u_int entries_cnt;		/* (d) */
 	struct iommu_map_entries_tailq unload_entries; /* (d) Entries to
 							 unload */
+	struct iommu_gas_entries_tree rb_root; /* (d) */
+	iommu_gaddr_t end;		/* (c) Highest address + 1 in
+					   the guest AS */
+	struct iommu_map_entry *first_place, *last_place; /* (d) */
+	u_int flags;			/* (u) */
 };
 
 struct iommu_ctx {
