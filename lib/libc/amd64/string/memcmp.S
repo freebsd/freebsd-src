@@ -31,91 +31,176 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#define ALIGN_TEXT      .p2align 4,0x90 /* 16-byte alignment, nop filled */
+
 ENTRY(memcmp)
-	cmpq	$16,%rdx
-	jae	5f
-1:
-	testq	%rdx,%rdx
-	je	3f
-	xorl	%ecx,%ecx
-2:
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
-	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jz	3f
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
-	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jz	3f
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
-	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jz	3f
-	movzbl	(%rdi,%rcx,1),%eax
-	movzbl	(%rsi,%rcx,1),%r8d
-	cmpb	%r8b,%al
-	jne	4f
-	addq	$1,%rcx
-	cmpq	%rcx,%rdx
-	jne	2b
-3:
 	xorl	%eax,%eax
-	ret
-4:
-	subl	%r8d,%eax
-	ret
-5:
-	cmpq	$32,%rdx
-	jae	7f
-6:
-	/*
-	 * 8 bytes
-	 */
+10:
+	cmpq	$16,%rdx
+	ja	101632f
+
+100816:
+	cmpb	$8,%dl
+	jl	100408f
 	movq	(%rdi),%r8
 	movq	(%rsi),%r9
 	cmpq	%r8,%r9
-	jne	1b
-	leaq	8(%rdi),%rdi
-	leaq	8(%rsi),%rsi
-	subq	$8,%rdx
-	cmpq	$8,%rdx
-	jae	6b
-	jl	1b
-	jmp	3b
-7:
-	/*
-	 * 32 bytes
-	 */
-	movq	(%rsi),%r8
+	jne	80f
+	movq	-8(%rdi,%rdx),%r8
+	movq	-8(%rsi,%rdx),%r9
+	cmpq	%r8,%r9
+	jne	10081608f
+	ret
+100408:
+	cmpb	$4,%dl
+	jl	100204f
+	movl	(%rdi),%r8d
+	movl	(%rsi),%r9d
+	cmpl	%r8d,%r9d
+	jne	80f
+	movl	-4(%rdi,%rdx),%r8d
+	movl	-4(%rsi,%rdx),%r9d
+	cmpl	%r8d,%r9d
+	jne	10040804f
+	ret
+100204:
+	cmpb	$2,%dl
+	jl	100001f
+	movzwl	(%rdi),%r8d
+	movzwl	(%rsi),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	movzwl	-2(%rdi,%rdx),%r8d
+	movzwl	-2(%rsi,%rdx),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	ret
+100001:
+	cmpb	$1,%dl
+	jl	100000f
+	movzbl	(%rdi),%eax
+	movzbl	(%rsi),%r8d
+	subl	%r8d,%eax
+100000:
+	ret
+ALIGN_TEXT
+101632:
+	cmpq	$32,%rdx
+	ja	103200f
+	movq	(%rdi),%r8
+	movq	(%rsi),%r9
+	cmpq	%r8,%r9
+	jne	80f
+	movq	8(%rdi),%r8
 	movq	8(%rsi),%r9
-	subq	(%rdi),%r8
-	subq	8(%rdi),%r9
-	or	%r8,%r9
-	jnz	1b
+	cmpq	%r8,%r9
+	jne	10163208f
+	movq	-16(%rdi,%rdx),%r8
+	movq	-16(%rsi,%rdx),%r9
+	cmpq	%r8,%r9
+	jne	10163216f
+	movq	-8(%rdi,%rdx),%r8
+	movq	-8(%rsi,%rdx),%r9
+	cmpq	%r8,%r9
+	jne	10163224f
+	ret
+ALIGN_TEXT
+103200:
+	movq	(%rdi),%r8
+	movq	8(%rdi),%r9
+	subq	(%rsi),%r8
+	subq	8(%rsi),%r9
+	orq	%r8,%r9
+	jnz	10320000f
 
-	movq	16(%rsi),%r8
-	movq	24(%rsi),%r9
-	subq	16(%rdi),%r8
-	subq	24(%rdi),%r9
-	or	%r8,%r9
-	jnz	1b
+	movq    16(%rdi),%r8
+	movq    24(%rdi),%r9
+	subq    16(%rsi),%r8
+	subq    24(%rsi),%r9
+	orq	%r8,%r9
+	jnz     10320016f
 
 	leaq	32(%rdi),%rdi
 	leaq	32(%rsi),%rsi
 	subq	$32,%rdx
 	cmpq	$32,%rdx
-	jae	7b
-	jnz	1b
-	jmp	3b
+	jae	103200b
+	cmpb	$0,%dl
+	jne	10b
+	ret
+
+/*
+ * Mismatch was found.
+ *
+ * Before we compute it we narrow down the range (16 -> 8 -> 4 bytes).
+ */
+ALIGN_TEXT
+10320016:
+	leaq	16(%rdi),%rdi
+	leaq	16(%rsi),%rsi
+10320000:
+	movq	(%rdi),%r8
+	movq	(%rsi),%r9
+	cmpq	%r8,%r9
+	jne	80f
+	leaq	8(%rdi),%rdi
+	leaq	8(%rsi),%rsi
+	jmp	80f
+ALIGN_TEXT
+10081608:
+10163224:
+	leaq	-8(%rdi,%rdx),%rdi
+	leaq	-8(%rsi,%rdx),%rsi
+	jmp	80f
+ALIGN_TEXT
+10163216:
+	leaq	-16(%rdi,%rdx),%rdi
+	leaq	-16(%rsi,%rdx),%rsi
+	jmp	80f
+ALIGN_TEXT
+10163208:
+	leaq	8(%rdi),%rdi
+	leaq	8(%rsi),%rsi
+	jmp	80f
+ALIGN_TEXT
+10040804:
+	leaq	-4(%rdi,%rdx),%rdi
+	leaq	-4(%rsi,%rdx),%rsi
+	jmp	1f
+
+ALIGN_TEXT
+80:
+	movl	(%rdi),%r8d
+	movl	(%rsi),%r9d
+	cmpl	%r8d,%r9d
+	jne	1f
+	leaq	4(%rdi),%rdi
+	leaq	4(%rsi),%rsi
+
+/*
+ * We have up to 4 bytes to inspect.
+ */
+1:
+	movzbl	(%rdi),%eax
+	movzbl	(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
+	movzbl	1(%rdi),%eax
+	movzbl	1(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
+	movzbl	2(%rdi),%eax
+	movzbl	2(%rsi),%r8d
+	cmpb	%r8b,%al
+	jne	2f
+
+	movzbl	3(%rdi),%eax
+	movzbl	3(%rsi),%r8d
+2:
+	subl	%r8d,%eax
+	ret
 END(memcmp)
 
 	.section .note.GNU-stack,"",%progbits
