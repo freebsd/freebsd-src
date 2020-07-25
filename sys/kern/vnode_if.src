@@ -88,6 +88,7 @@ vop_cachedlookup {
 
 %% create	dvp	E E E
 %% create	vpp	- L -
+%! create	pre	vop_create_pre
 %! create	post	vop_create_post
 
 vop_create {
@@ -99,6 +100,8 @@ vop_create {
 
 
 %% whiteout	dvp	E E E
+%! whiteout	pre	vop_whiteout_pre
+%! whiteout	post	vop_whiteout_post
 
 vop_whiteout {
 	IN struct vnode *dvp;
@@ -109,6 +112,7 @@ vop_whiteout {
 
 %% mknod	dvp	E E E
 %% mknod	vpp	- L -
+%! mknod	pre	vop_mknod_pre
 %! mknod	post	vop_mknod_post
 
 vop_mknod {
@@ -172,6 +176,7 @@ vop_getattr {
 
 
 %% setattr	vp	E E E
+%! setattr	pre	vop_setattr_pre
 %! setattr	post	vop_setattr_post
 
 vop_setattr {
@@ -260,6 +265,7 @@ vop_fsync {
 
 %% remove	dvp	E E E
 %% remove	vp	E E E
+%! remove	pre	vop_remove_pre
 %! remove	post	vop_remove_post
 
 vop_remove {
@@ -271,6 +277,7 @@ vop_remove {
 
 %% link		tdvp	E E E
 %% link		vp	E E E
+%! link		pre	vop_link_pre
 %! link		post	vop_link_post
 
 vop_link {
@@ -295,6 +302,7 @@ vop_rename {
 
 %% mkdir	dvp	E E E
 %% mkdir	vpp	- E -
+%! mkdir	pre	vop_mkdir_pre
 %! mkdir	post	vop_mkdir_post
 
 vop_mkdir {
@@ -307,6 +315,7 @@ vop_mkdir {
 
 %% rmdir	dvp	E E E
 %% rmdir	vp	E E E
+%! rmdir	pre	vop_rmdir_pre
 %! rmdir	post	vop_rmdir_post
 
 vop_rmdir {
@@ -318,6 +327,7 @@ vop_rmdir {
 
 %% symlink	dvp	E E E
 %% symlink	vpp	- E -
+%! symlink	pre	vop_symlink_pre
 %! symlink	post	vop_symlink_post
 
 vop_symlink {
@@ -523,6 +533,8 @@ vop_getacl {
 
 
 %% setacl	vp	E E E
+%! setacl	pre	vop_setacl_pre
+%! setacl	post	vop_setacl_post
 
 vop_setacl {
 	IN struct vnode *vp;
@@ -589,6 +601,7 @@ vop_openextattr {
 
 
 %% deleteextattr	vp	E E E
+%! deleteextattr	pre	vop_deleteextattr_pre
 %! deleteextattr	post	vop_deleteextattr_post
 
 vop_deleteextattr {
@@ -601,6 +614,7 @@ vop_deleteextattr {
 
 
 %% setextattr	vp	E E E
+%! setextattr	pre	vop_setextattr_pre
 %! setextattr	post	vop_setextattr_post
 
 vop_setextattr {

@@ -45,6 +45,7 @@
 #include <sys/uio.h>
 #include <sys/acl.h>
 #include <sys/ktr.h>
+#include <sys/_seqc.h>
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a
@@ -105,6 +106,7 @@ struct vnode {
 	 */
 	enum	vtype v_type:8;			/* u vnode type */
 	short	v_irflag;			/* i frequently read flags */
+	seqc_t	v_seqc;				/* i modification count */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
@@ -175,6 +177,7 @@ struct vnode {
 	short	v_dbatchcpu;			/* i LRU requeue deferral batch */
 	int	v_writecount;			/* I ref count of writers or
 						   (negative) text users */
+	int	v_seqc_users;			/* i modifications pending */
 	u_int	v_hash;
 };
 
@@ -539,6 +542,18 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 #define	ASSERT_VOP_LOCKED(vp, str)	assert_vop_locked((vp), (str))
 #define	ASSERT_VOP_UNLOCKED(vp, str)	assert_vop_unlocked((vp), (str))
 
+#define ASSERT_VOP_IN_SEQC(vp)	do {				\
+	struct vnode *_vp = (vp);				\
+								\
+	VNPASS(seqc_in_modify(_vp->v_seqc), _vp);		\
+} while (0)
+
+#define ASSERT_VOP_NOT_IN_SEQC(vp)	do {			\
+	struct vnode *_vp = (vp);				\
+								\
+	VNPASS(!seqc_in_modify(_vp->v_seqc), _vp);		\
+} while (0)
+
 #else /* !DEBUG_VFS_LOCKS */
 
 #define	ASSERT_VI_LOCKED(vp, str)	((void)0)
@@ -546,6 +561,10 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 #define	ASSERT_VOP_ELOCKED(vp, str)	((void)0)
 #define	ASSERT_VOP_LOCKED(vp, str)	((void)0)
 #define	ASSERT_VOP_UNLOCKED(vp, str)	((void)0)
+
+#define ASSERT_VOP_IN_SEQC(vp)		((void)0)
+#define ASSERT_VOP_NOT_IN_SEQC(vp)	((void)0)
+
 #endif /* DEBUG_VFS_LOCKS */
 
 
@@ -738,6 +757,13 @@ int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 	    struct uio *uio);
 
+void	vn_seqc_write_begin_locked(struct vnode *vp);
+void	vn_seqc_write_begin(struct vnode *vp);
+void	vn_seqc_write_end_locked(struct vnode *vp);
+void	vn_seqc_write_end(struct vnode *vp);
+#define	vn_seqc_read_any(vp)		seqc_read_any(&(vp)->v_seqc)
+#define	vn_seqc_consistent(vp, seq)	seqc_consistent(&(vp)->v_seqc, seq)
+
 #define	vn_rangelock_unlock(vp, cookie)					\
 	rangelock_unlock(&(vp)->v_rl, (cookie), VI_MTX(vp))
 #define	vn_rangelock_unlock_range(vp, cookie, start, end)		\
@@ -804,23 +830,37 @@ int	dead_write(struct vop_write_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_close_post(void *a, int rc);
+void	vop_create_pre(void *a);
 void	vop_create_post(void *a, int rc);
+void	vop_whiteout_pre(void *a);
+void	vop_whiteout_post(void *a, int rc);
+void	vop_deleteextattr_pre(void *a);
 void	vop_deleteextattr_post(void *a, int rc);
+void	vop_link_pre(void *a);
 void	vop_link_post(void *a, int rc);
 void	vop_lookup_post(void *a, int rc);
 void	vop_lookup_pre(void *a);
+void	vop_mkdir_pre(void *a);
 void	vop_mkdir_post(void *a, int rc);
+void	vop_mknod_pre(void *a);
 void	vop_mknod_post(void *a, int rc);
 void	vop_open_post(void *a, int rc);
 void	vop_read_post(void *a, int rc);
 void	vop_readdir_post(void *a, int rc);
 void	vop_reclaim_post(void *a, int rc);
+void	vop_remove_pre(void *a);
 void	vop_remove_post(void *a, int rc);
 void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
+void	vop_rmdir_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
+void	vop_setattr_pre(void *a);
 void	vop_setattr_post(void *a, int rc);
+void	vop_setacl_pre(void *a);
+void	vop_setacl_post(void *a, int rc);
+void	vop_setextattr_pre(void *a);
 void	vop_setextattr_post(void *a, int rc);
+void	vop_symlink_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 

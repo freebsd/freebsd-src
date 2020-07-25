@@ -1761,6 +1761,12 @@ freevnode(struct vnode *vp)
 	 * so as not to contaminate the freshly allocated vnode.
 	 */
 	CTR2(KTR_VFS, "%s: destroying the vnode %p", __func__, vp);
+	/*
+	 * Paired with vgone.
+	 */
+	vn_seqc_write_end_locked(vp);
+	VNPASS(vp->v_seqc_users == 0, vp);
+
 	bo = &vp->v_bufobj;
 	VNASSERT(vp->v_data == NULL, vp, ("cleaned vnode isn't"));
 	VNPASS(vp->v_holdcnt == VHOLD_NO_SMR, vp);
@@ -4018,6 +4024,10 @@ vgonel(struct vnode *vp)
 	 */
 	if (vp->v_irflag & VIRF_DOOMED)
 		return;
+	/*
+	 * Paired with freevnode.
+	 */
+	vn_seqc_write_begin_locked(vp);
 	vunlazy_gone(vp);
 	vp->v_irflag |= VIRF_DOOMED;
 
@@ -4160,8 +4170,9 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	printf("%p: ", (void *)vp);
 	printf("type %s\n", typename[vp->v_type]);
 	holdcnt = atomic_load_int(&vp->v_holdcnt);
-	printf("    usecount %d, writecount %d, refcount %d",
-	    vp->v_usecount, vp->v_writecount, holdcnt & ~VHOLD_ALL_FLAGS);
+	printf("    usecount %d, writecount %d, refcount %d seqc users %d",
+	    vp->v_usecount, vp->v_writecount, holdcnt & ~VHOLD_ALL_FLAGS,
+	    vp->v_seqc_users);
 	switch (vp->v_type) {
 	case VDIR:
 		printf(" mountedhere %p\n", vp->v_mountedhere);
@@ -5508,6 +5519,14 @@ vop_rename_pre(void *ap)
 		ASSERT_VOP_LOCKED(a->a_tvp, "vop_rename: tvp not locked");
 	ASSERT_VOP_LOCKED(a->a_tdvp, "vop_rename: tdvp not locked");
 #endif
+	/*
+	 * It may be tempting to add vn_seqc_write_begin/end calls here and
+	 * in vop_rename_post but that's not going to work out since some
+	 * filesystems relookup vnodes mid-rename. This is probably a bug.
+	 *
+	 * For now filesystems are expected to do the relevant calls after they
+	 * decide what vnodes to operate on.
+	 */
 	if (a->a_tdvp != a->a_fdvp)
 		vhold(a->a_fdvp);
 	if (a->a_tvp != a->a_fvp)
@@ -5589,69 +5608,193 @@ vop_need_inactive_post(void *ap, int rc)
 #endif
 
 void
+vop_create_pre(void *ap)
+{
+	struct vop_create_args *a;
+	struct vnode *dvp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_begin(dvp);
+}
+
+void
 vop_create_post(void *ap, int rc)
 {
-	struct vop_create_args *a = ap;
+	struct vop_create_args *a;
+	struct vnode *dvp;
 
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_end(dvp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
+}
+
+void
+vop_whiteout_pre(void *ap)
+{
+	struct vop_whiteout_args *a;
+	struct vnode *dvp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_begin(dvp);
+}
+
+void
+vop_whiteout_post(void *ap, int rc)
+{
+	struct vop_whiteout_args *a;
+	struct vnode *dvp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_end(dvp);
+}
+
+void
+vop_deleteextattr_pre(void *ap)
+{
+	struct vop_deleteextattr_args *a;
+	struct vnode *vp;
+
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_begin(vp);
 }
 
 void
 vop_deleteextattr_post(void *ap, int rc)
 {
-	struct vop_deleteextattr_args *a = ap;
+	struct vop_deleteextattr_args *a;
+	struct vnode *vp;
 
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_end(vp);
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
 }
 
 void
+vop_link_pre(void *ap)
+{
+	struct vop_link_args *a;
+	struct vnode *vp, *tdvp;
+
+	a = ap;
+	vp = a->a_vp;
+	tdvp = a->a_tdvp;
+	vn_seqc_write_begin(vp);
+	vn_seqc_write_begin(tdvp);
+}
+
+void
 vop_link_post(void *ap, int rc)
 {
-	struct vop_link_args *a = ap;
+	struct vop_link_args *a;
+	struct vnode *vp, *tdvp;
 
+	a = ap;
+	vp = a->a_vp;
+	tdvp = a->a_tdvp;
+	vn_seqc_write_end(vp);
+	vn_seqc_write_end(tdvp);
 	if (!rc) {
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_LINK);
-		VFS_KNOTE_LOCKED(a->a_tdvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(vp, NOTE_LINK);
+		VFS_KNOTE_LOCKED(tdvp, NOTE_WRITE);
 	}
+}
+
+void
+vop_mkdir_pre(void *ap)
+{
+	struct vop_mkdir_args *a;
+	struct vnode *dvp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_begin(dvp);
 }
 
 void
 vop_mkdir_post(void *ap, int rc)
 {
-	struct vop_mkdir_args *a = ap;
+	struct vop_mkdir_args *a;
+	struct vnode *dvp;
 
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_end(dvp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE | NOTE_LINK);
+		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
+}
+
+void
+vop_mknod_pre(void *ap)
+{
+	struct vop_mknod_args *a;
+	struct vnode *dvp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_begin(dvp);
 }
 
 void
 vop_mknod_post(void *ap, int rc)
 {
-	struct vop_mknod_args *a = ap;
+	struct vop_mknod_args *a;
+	struct vnode *dvp;
 
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_end(dvp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 }
 
 void
 vop_reclaim_post(void *ap, int rc)
 {
-	struct vop_reclaim_args *a = ap;
+	struct vop_reclaim_args *a;
+	struct vnode *vp;
 
+	a = ap;
+	vp = a->a_vp;
+	ASSERT_VOP_IN_SEQC(vp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_REVOKE);
+		VFS_KNOTE_LOCKED(vp, NOTE_REVOKE);
+}
+
+void
+vop_remove_pre(void *ap)
+{
+	struct vop_remove_args *a;
+	struct vnode *dvp, *vp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vp = a->a_vp;
+	vn_seqc_write_begin(dvp);
+	vn_seqc_write_begin(vp);
 }
 
 void
 vop_remove_post(void *ap, int rc)
 {
-	struct vop_remove_args *a = ap;
+	struct vop_remove_args *a;
+	struct vnode *dvp, *vp;
 
+	a = ap;
+	dvp = a->a_dvp;
+	vp = a->a_vp;
+	vn_seqc_write_end(dvp);
+	vn_seqc_write_end(vp);
 	if (!rc) {
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_DELETE);
+		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(vp, NOTE_DELETE);
 	}
 }
 
@@ -5694,41 +5837,127 @@ vop_rename_post(void *ap, int rc)
 }
 
 void
+vop_rmdir_pre(void *ap)
+{
+	struct vop_rmdir_args *a;
+	struct vnode *dvp, *vp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vp = a->a_vp;
+	vn_seqc_write_begin(dvp);
+	vn_seqc_write_begin(vp);
+}
+
+void
 vop_rmdir_post(void *ap, int rc)
 {
-	struct vop_rmdir_args *a = ap;
+	struct vop_rmdir_args *a;
+	struct vnode *dvp, *vp;
 
+	a = ap;
+	dvp = a->a_dvp;
+	vp = a->a_vp;
+	vn_seqc_write_end(dvp);
+	vn_seqc_write_end(vp);
 	if (!rc) {
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE | NOTE_LINK);
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_DELETE);
+		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
+		VFS_KNOTE_LOCKED(vp, NOTE_DELETE);
 	}
+}
+
+void
+vop_setattr_pre(void *ap)
+{
+	struct vop_setattr_args *a;
+	struct vnode *vp;
+
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_begin(vp);
 }
 
 void
 vop_setattr_post(void *ap, int rc)
 {
-	struct vop_setattr_args *a = ap;
+	struct vop_setattr_args *a;
+	struct vnode *vp;
 
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_end(vp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+		VFS_KNOTE_LOCKED(vp, NOTE_ATTRIB);
+}
+
+void
+vop_setacl_pre(void *ap)
+{
+	struct vop_setacl_args *a;
+	struct vnode *vp;
+
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_begin(vp);
+}
+
+void
+vop_setacl_post(void *ap, int rc __unused)
+{
+	struct vop_setacl_args *a;
+	struct vnode *vp;
+
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_end(vp);
+}
+
+void
+vop_setextattr_pre(void *ap)
+{
+	struct vop_setextattr_args *a;
+	struct vnode *vp;
+
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_begin(vp);
 }
 
 void
 vop_setextattr_post(void *ap, int rc)
 {
-	struct vop_setextattr_args *a = ap;
+	struct vop_setextattr_args *a;
+	struct vnode *vp;
 
+	a = ap;
+	vp = a->a_vp;
+	vn_seqc_write_end(vp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+		VFS_KNOTE_LOCKED(vp, NOTE_ATTRIB);
+}
+
+void
+vop_symlink_pre(void *ap)
+{
+	struct vop_symlink_args *a;
+	struct vnode *dvp;
+
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_begin(dvp);
 }
 
 void
 vop_symlink_post(void *ap, int rc)
 {
-	struct vop_symlink_args *a = ap;
+	struct vop_symlink_args *a;
+	struct vnode *dvp;
 
+	a = ap;
+	dvp = a->a_dvp;
+	vn_seqc_write_end(dvp);
 	if (!rc)
-		VFS_KNOTE_LOCKED(a->a_dvp, NOTE_WRITE);
+		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE);
 }
 
 void
@@ -6281,6 +6510,8 @@ vfs_cache_root_clear(struct mount *mp)
 	 */
 	MPASS(mp->mnt_vfs_ops > 0);
 	vp = mp->mnt_rootvnode;
+	if (vp != NULL)
+		vn_seqc_write_begin(vp);
 	mp->mnt_rootvnode = NULL;
 	return (vp);
 }
@@ -6576,4 +6807,45 @@ vn_dir_check_exec(struct vnode *vp, struct componentname *cnp)
 	}
 
 	return (VOP_ACCESS(vp, VEXEC, cnp->cn_cred, cnp->cn_thread));
+}
+
+void
+vn_seqc_write_begin_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(vp->v_holdcnt > 0, vp);
+	VNPASS(vp->v_seqc_users >= 0, vp);
+	vp->v_seqc_users++;
+	if (vp->v_seqc_users == 1)
+		seqc_sleepable_write_begin(&vp->v_seqc);
+}
+
+void
+vn_seqc_write_begin(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	vn_seqc_write_begin_locked(vp);
+	VI_UNLOCK(vp);
+}
+
+void
+vn_seqc_write_end_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(vp->v_seqc_users > 0, vp);
+	vp->v_seqc_users--;
+	if (vp->v_seqc_users == 0)
+		seqc_sleepable_write_end(&vp->v_seqc);
+}
+
+void
+vn_seqc_write_end(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	vn_seqc_write_end_locked(vp);
+	VI_UNLOCK(vp);
 }
