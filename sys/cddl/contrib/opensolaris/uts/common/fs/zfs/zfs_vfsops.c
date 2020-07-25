@@ -1391,6 +1391,9 @@ zfs_domount(vfs_t *vfsp, char *osname)
 
 	vfsp->vfs_data = zfsvfs;
 	vfsp->mnt_flag |= MNT_LOCAL;
+#if defined(_KERNEL) && !defined(KMEM_DEBUG)
+	vfsp->mnt_kern_flag |= MNTK_FPLOOKUP;
+#endif
 	vfsp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
 	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;
 	vfsp->mnt_kern_flag |= MNTK_EXTENDED_SHARED;
