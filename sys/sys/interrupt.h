@@ -133,7 +133,8 @@ struct intr_event {
 #define	IE_SOFT		0x000001	/* Software interrupt. */
 #define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
 
-/* Flags to pass to sched_swi. */
+/* Flags to pass to swi_sched. */
+#define	SWI_FROMNMI	0x1
 #define	SWI_DELAY	0x2
 
 /*
@@ -151,6 +152,7 @@ struct intr_event {
 
 struct proc;
 
+extern struct	intr_event *clk_intr_event;
 extern struct	intr_event *tty_intr_event;
 extern void	*vm_ih;
 

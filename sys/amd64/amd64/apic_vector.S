@@ -206,6 +206,16 @@ IDTVEC(spuriousint)
 	jmp	doreti
 
 /*
+ * Executed by a CPU when it receives an IPI_SWI.
+ */
+	INTR_HANDLER ipi_swi
+	call	as_lapic_eoi
+	FAKE_MCOUNT(TF_RIP(%rsp))
+	call	ipi_swi_handler
+	MEXITCOUNT
+	jmp	doreti
+
+/*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
  *
  * - Calls the generic rendezvous action function.
