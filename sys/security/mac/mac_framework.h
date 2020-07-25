@@ -422,13 +422,14 @@ int	mac_vnode_check_listextattr(struct ucred *cred, struct vnode *vp,
 int	mac_vnode_check_lookup_impl(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
 extern bool mac_vnode_check_lookup_fp_flag;
+#define mac_vnode_check_lookup_enabled() __predict_false(mac_vnode_check_lookup_fp_flag)
 static inline int
 mac_vnode_check_lookup(struct ucred *cred, struct vnode *dvp,
     struct componentname *cnp)
 {
 
 	mac_vnode_assert_locked(dvp, "mac_vnode_check_lookup");
-	if (__predict_false(mac_vnode_check_lookup_fp_flag))
+	if (mac_vnode_check_lookup_enabled())
                 return (mac_vnode_check_lookup_impl(cred, dvp, cnp));
 	return (0);
 }
