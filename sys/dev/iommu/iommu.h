@@ -133,6 +133,24 @@ struct iommu_ctx {
 					   ephemeral reference is kept
 					   to prevent context destruction */
 
+#define	DMAR_DOMAIN_GAS_INITED		0x0001
+#define	DMAR_DOMAIN_PGTBL_INITED	0x0002
+#define	DMAR_DOMAIN_IDMAP		0x0010	/* Domain uses identity
+						   page table */
+#define	DMAR_DOMAIN_RMRR		0x0020	/* Domain contains RMRR entry,
+						   cannot be turned off */
+
+/* Map flags */
+#define	IOMMU_MF_CANWAIT	0x0001
+#define	IOMMU_MF_CANSPLIT	0x0002
+#define	IOMMU_MF_RMRR		0x0004
+
+#define	DMAR_PGF_WAITOK		0x0001
+#define	DMAR_PGF_ZERO		0x0002
+#define	DMAR_PGF_ALLOC		0x0004
+#define	DMAR_PGF_NOALLOC	0x0008
+#define	DMAR_PGF_OBJL		0x0010
+
 #define	IOMMU_LOCK(unit)		mtx_lock(&(unit)->lock)
 #define	IOMMU_UNLOCK(unit)		mtx_unlock(&(unit)->lock)
 #define	IOMMU_ASSERT_LOCKED(unit)	mtx_assert(&(unit)->lock, MA_OWNED)
@@ -173,5 +191,23 @@ int iommu_map(struct iommu_domain *iodom,
     u_int eflags, u_int flags, vm_page_t *ma, struct iommu_map_entry **res);
 int iommu_map_region(struct iommu_domain *domain,
     struct iommu_map_entry *entry, u_int eflags, u_int flags, vm_page_t *ma);
+
+void iommu_gas_init_domain(struct iommu_domain *domain);
+void iommu_gas_fini_domain(struct iommu_domain *domain);
+struct iommu_map_entry *iommu_gas_alloc_entry(struct iommu_domain *domain,
+    u_int flags);
+void iommu_gas_free_entry(struct iommu_domain *domain,
+    struct iommu_map_entry *entry);
+void iommu_gas_free_space(struct iommu_domain *domain,
+    struct iommu_map_entry *entry);
+int iommu_gas_map(struct iommu_domain *domain,
+    const struct bus_dma_tag_common *common, iommu_gaddr_t size, int offset,
+    u_int eflags, u_int flags, vm_page_t *ma, struct iommu_map_entry **res);
+void iommu_gas_free_region(struct iommu_domain *domain,
+    struct iommu_map_entry *entry);
+int iommu_gas_map_region(struct iommu_domain *domain,
+    struct iommu_map_entry *entry, u_int eflags, u_int flags, vm_page_t *ma);
+int iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
+    iommu_gaddr_t end);
 
 #endif /* !_SYS_IOMMU_H_ */

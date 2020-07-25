@@ -79,6 +79,10 @@ __FBSDID("$FreeBSD$");
 
 static uma_zone_t iommu_map_entry_zone;
 
+#ifdef INVARIANTS
+static int iommu_check_free;
+#endif
+
 static void
 intel_gas_init(void)
 {
@@ -727,3 +731,11 @@ iommu_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 
 	return (error);
 }
+
+#ifdef INVARIANTS
+static SYSCTL_NODE(_hw, OID_AUTO, iommu, CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+    "");
+SYSCTL_INT(_hw_iommu, OID_AUTO, check_free, CTLFLAG_RWTUN,
+    &iommu_check_free, 0,
+    "Check the GPA RBtree for free_down and free_after validity");
+#endif
