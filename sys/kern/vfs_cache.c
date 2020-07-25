@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
+#include <sys/seqc.h>
 #include <sys/sdt.h>
 #include <sys/smr.h>
 #include <sys/smp.h>
@@ -66,6 +67,11 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
+#include <sys/capsicum.h>
+
+#include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -99,6 +105,10 @@ SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, "struct vnode *",
     "char *");
 SDT_PROBE_DEFINE2(vfs, namecache, shrink_negative, done, "struct vnode *",
     "char *");
+
+SDT_PROBE_DEFINE3(vfs, fplookup, lookup, done, "struct nameidata", "int", "bool");
+SDT_PROBE_DECLARE(vfs, namei, lookup, entry);
+SDT_PROBE_DECLARE(vfs, namei, lookup, return);
 
 /*
  * This structure describes the elements in the cache of recent
@@ -2835,3 +2845,859 @@ DB_SHOW_COMMAND(vpath, db_show_vpath)
 }
 
 #endif
+
+extern uma_zone_t namei_zone;
+
+static bool __read_frequently cache_fast_lookup = true;
+SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_lookup, CTLFLAG_RW,
+    &cache_fast_lookup, 0, "");
+
+#define CACHE_FPL_FAILED	-2020
+
+static void
+cache_fpl_cleanup_cnp(struct componentname *cnp)
+{
+
+	uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+	cnp->cn_pnbuf = NULL;
+	cnp->cn_nameptr = NULL;
+#endif
+}
+
+static void
+cache_fpl_handle_root(struct nameidata *ndp, struct vnode **dpp)
+{
+	struct componentname *cnp;
+
+	cnp = &ndp->ni_cnd;
+	while (*(cnp->cn_nameptr) == '/') {
+		cnp->cn_nameptr++;
+		ndp->ni_pathlen--;
+	}
+
+	*dpp = ndp->ni_rootdir;
+}
+
+/*
+ * Components of nameidata (or objects it can point to) which may
+ * need restoring in case fast path lookup fails.
+ */
+struct nameidata_saved {
+	int cn_flags;
+	long cn_namelen;
+	char *cn_nameptr;
+	size_t ni_pathlen;
+};
+
+struct cache_fpl {
+	int line;
+	enum cache_fpl_status status;
+	bool in_smr;
+	struct nameidata *ndp;
+	struct nameidata_saved snd;
+	struct componentname *cnp;
+	struct vnode *dvp;
+	seqc_t dvp_seqc;
+	struct vnode *tvp;
+	seqc_t tvp_seqc;
+	struct pwd *pwd;
+};
+
+static void
+cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
+{
+
+	snd->cn_flags = fpl->ndp->ni_cnd.cn_flags;
+	snd->cn_namelen = fpl->ndp->ni_cnd.cn_namelen;
+	snd->cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
+	snd->ni_pathlen = fpl->ndp->ni_pathlen;
+}
+
+static void
+cache_fpl_restore(struct cache_fpl *fpl, struct nameidata_saved *snd)
+{
+
+	fpl->ndp->ni_cnd.cn_flags = snd->cn_flags;
+	fpl->ndp->ni_cnd.cn_namelen = snd->cn_namelen;
+	fpl->ndp->ni_cnd.cn_nameptr = snd->cn_nameptr;
+	fpl->ndp->ni_pathlen = snd->ni_pathlen;
+}
+
+#ifdef INVARIANTS
+#define cache_fpl_smr_assert_entered(fpl) ({			\
+	struct cache_fpl *_fpl = (fpl);				\
+	MPASS(_fpl->in_smr == true);				\
+	VFS_SMR_ASSERT_ENTERED();				\
+})
+#define cache_fpl_smr_assert_not_entered(fpl) ({		\
+	struct cache_fpl *_fpl = (fpl);				\
+	MPASS(_fpl->in_smr == false);				\
+	VFS_SMR_ASSERT_NOT_ENTERED();				\
+})
+#else
+#define cache_fpl_smr_assert_entered(fpl) do { } while (0)
+#define cache_fpl_smr_assert_not_entered(fpl) do { } while (0)
+#endif
+
+#define cache_fpl_smr_enter(fpl) ({				\
+	struct cache_fpl *_fpl = (fpl);				\
+	MPASS(_fpl->in_smr == false);				\
+	vfs_smr_enter();					\
+	_fpl->in_smr = true;					\
+})
+
+#define cache_fpl_smr_exit(fpl) ({				\
+	struct cache_fpl *_fpl = (fpl);				\
+	MPASS(_fpl->in_smr == true);				\
+	vfs_smr_exit();						\
+	_fpl->in_smr = false;					\
+})
+
+static int
+cache_fpl_aborted_impl(struct cache_fpl *fpl, int line)
+{
+
+	if (fpl->status != CACHE_FPL_STATUS_UNSET) {
+		KASSERT(fpl->status == CACHE_FPL_STATUS_PARTIAL,
+		    ("%s: converting to abort from %d at %d, set at %d\n",
+		    __func__, fpl->status, line, fpl->line));
+	}
+	fpl->status = CACHE_FPL_STATUS_ABORTED;
+	fpl->line = line;
+	return (CACHE_FPL_FAILED);
+}
+
+#define cache_fpl_aborted(x)	cache_fpl_aborted_impl((x), __LINE__)
+
+static int
+cache_fpl_partial_impl(struct cache_fpl *fpl, int line)
+{
+
+	KASSERT(fpl->status == CACHE_FPL_STATUS_UNSET,
+	    ("%s: setting to partial at %d, but already set to %d at %d\n",
+	    __func__, line, fpl->status, fpl->line));
+	cache_fpl_smr_assert_entered(fpl);
+	fpl->status = CACHE_FPL_STATUS_PARTIAL;
+	fpl->line = line;
+	return (CACHE_FPL_FAILED);
+}
+
+#define cache_fpl_partial(x)	cache_fpl_partial_impl((x), __LINE__)
+
+static int
+cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
+{
+
+	KASSERT(fpl->status == CACHE_FPL_STATUS_UNSET,
+	    ("%s: setting to handled at %d, but already set to %d at %d\n",
+	    __func__, line, fpl->status, fpl->line));
+	cache_fpl_smr_assert_not_entered(fpl);
+	MPASS(error != CACHE_FPL_FAILED);
+	fpl->status = CACHE_FPL_STATUS_HANDLED;
+	fpl->line = line;
+	return (error);
+}
+
+#define cache_fpl_handled(x, e)	cache_fpl_handled_impl((x), (e), __LINE__)
+
+#define CACHE_FPL_SUPPORTED_CN_FLAGS \
+	(LOCKLEAF | FOLLOW | LOCKSHARED | SAVENAME | ISOPEN | AUDITVNODE1)
+
+static bool
+cache_can_fplookup(struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+	struct thread *td;
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+	td = cnp->cn_thread;
+
+	if (!cache_fast_lookup) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+#ifdef MAC
+	if (mac_vnode_check_lookup_enabled()) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+#endif
+	if ((cnp->cn_flags & ~CACHE_FPL_SUPPORTED_CN_FLAGS) != 0) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	if ((cnp->cn_flags & LOCKLEAF) == 0) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	if (cnp->cn_nameiop != LOOKUP) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	if (ndp->ni_dirfd != AT_FDCWD) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	if (IN_CAPABILITY_MODE(td)) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	if (AUDITING_TD(td)) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	if (ndp->ni_startdir != NULL) {
+		cache_fpl_aborted(fpl);
+		return (false);
+	}
+	return (true);
+}
+
+static bool
+cache_fplookup_vnode_supported(struct vnode *vp)
+{
+
+	return (vp->v_type != VLNK);
+}
+
+/*
+ * The target vnode is not supported, prepare for the slow path to take over.
+ */
+static int
+cache_fplookup_partial_setup(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+	enum vgetstate dvs;
+	struct vnode *dvp;
+	struct pwd *pwd;
+	seqc_t dvp_seqc;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
+
+	dvs = vget_prep_smr(dvp);
+	if (dvs == VGET_NONE) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	cache_fpl_smr_exit(fpl);
+
+	vget_finish_ref(dvp, dvs);
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+		vrele(dvp);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	pwd = pwd_hold(curthread);
+	if (fpl->pwd != pwd) {
+		vrele(dvp);
+		pwd_drop(pwd);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	fpl->ndp->ni_startdir = dvp;
+	return (0);
+}
+
+static int
+cache_fplookup_final(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+	enum vgetstate tvs;
+	struct vnode *dvp, *tvp;
+	seqc_t dvp_seqc, tvp_seqc;
+	int error;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
+	tvp = fpl->tvp;
+	tvp_seqc = fpl->tvp_seqc;
+
+	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
+	MPASS((cnp->cn_flags & LOCKLEAF) != 0);
+
+	tvs = vget_prep_smr(tvp);
+	if (tvs == VGET_NONE) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+		cache_fpl_smr_exit(fpl);
+		vget_abort(tvp, tvs);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	cache_fpl_smr_exit(fpl);
+
+	error = vget_finish(tvp, cnp->cn_lkflags, tvs);
+	if (error != 0) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	if (!vn_seqc_consistent(tvp, tvp_seqc)) {
+		vput(tvp);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	return (cache_fpl_handled(fpl, 0));
+}
+
+static int
+cache_fplookup_next(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+	struct namecache *ncp;
+	struct negstate *negstate;
+	struct vnode *dvp, *tvp;
+	u_char nc_flag;
+	uint32_t hash;
+	bool neg_hot;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+
+	if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.')) {
+		fpl->tvp = dvp;
+		fpl->tvp_seqc = vn_seqc_read_any(dvp);
+		if (seqc_in_modify(fpl->tvp_seqc)) {
+			return (cache_fpl_aborted(fpl));
+		}
+		return (0);
+	}
+
+	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
+
+	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		counter_u64_add(numchecks, 1);
+		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+			break;
+	}
+
+	/*
+	 * If there is no entry we have to punt to the slow path to perform
+	 * actual lookup. Should there be nothing with this name a negative
+	 * entry will be created.
+	 */
+	if (__predict_false(ncp == NULL)) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	tvp = atomic_load_ptr(&ncp->nc_vp);
+	nc_flag = atomic_load_char(&ncp->nc_flag);
+	if ((nc_flag & NCF_NEGATIVE) != 0) {
+		negstate = NCP2NEGSTATE(ncp);
+		neg_hot = ((negstate->neg_flag & NEG_HOT) != 0);
+		if (__predict_false(cache_ncp_invalid(ncp))) {
+			return (cache_fpl_partial(fpl));
+		}
+		if (__predict_false((nc_flag & NCF_WHITE) != 0)) {
+			return (cache_fpl_partial(fpl));
+		}
+		if (!neg_hot) {
+			/*
+			 * TODO
+			 * Promoting to hot negative requires locks, thus is
+			 * left not yet supported for simplicity.
+			 */
+			return (cache_fpl_partial(fpl));
+		}
+		SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
+		    ncp->nc_name);
+		counter_u64_add(numneghits, 1);
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, ENOENT));
+	}
+
+	if (__predict_false(cache_ncp_invalid(ncp))) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	fpl->tvp = tvp;
+	fpl->tvp_seqc = vn_seqc_read_any(tvp);
+	if (seqc_in_modify(fpl->tvp_seqc)) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	if (!cache_fplookup_vnode_supported(tvp)) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	counter_u64_add(numposhits, 1);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name, tvp);
+	return (0);
+}
+
+static bool
+cache_fplookup_mp_supported(struct mount *mp)
+{
+
+	if (mp == NULL)
+		return (false);
+	if ((mp->mnt_kern_flag & MNTK_FPLOOKUP) == 0)
+		return (false);
+	if ((mp->mnt_flag & MNT_UNION) != 0)
+		return (false);
+	return (true);
+}
+
+/*
+ * Walk up the mount stack (if any).
+ *
+ * Correctness is provided in the following ways:
+ * - all vnodes are protected from freeing with SMR
+ * - struct mount objects are type stable making them always safe to access
+ * - stability of the particular mount is provided by busying it
+ * - relationship between the vnode which is mounted on and the mount is
+ *   verified with the vnode sequence counter after busying
+ * - association between root vnode of the mount and the mount is protected
+ *   by busy
+ *
+ * From that point on we can read the sequence counter of the root vnode
+ * and get the next mount on the stack (if any) using the same protection.
+ *
+ * By the end of successful walk we are guaranteed the reached state was
+ * indeed present at least at some point which matches the regular lookup.
+ */
+static int
+cache_fplookup_climb_mount(struct cache_fpl *fpl)
+{
+	struct mount *mp, *prev_mp;
+	struct vnode *vp;
+	seqc_t vp_seqc;
+
+	vp = fpl->tvp;
+	vp_seqc = fpl->tvp_seqc;
+	if (vp->v_type != VDIR)
+		return (0);
+
+	mp = atomic_load_ptr(&vp->v_mountedhere);
+	if (mp == NULL)
+		return (0);
+
+	prev_mp = NULL;
+	for (;;) {
+		if (!vfs_op_thread_enter(mp)) {
+			if (prev_mp != NULL)
+				vfs_op_thread_exit(prev_mp);
+			return (cache_fpl_partial(fpl));
+		}
+		if (prev_mp != NULL)
+			vfs_op_thread_exit(prev_mp);
+		if (!vn_seqc_consistent(vp, vp_seqc)) {
+			vfs_op_thread_exit(mp);
+			return (cache_fpl_partial(fpl));
+		}
+		if (!cache_fplookup_mp_supported(mp)) {
+			vfs_op_thread_exit(mp);
+			return (cache_fpl_partial(fpl));
+		}
+		vp = atomic_load_ptr(&mp->mnt_rootvnode);
+		if (vp == NULL || VN_IS_DOOMED(vp)) {
+			vfs_op_thread_exit(mp);
+			return (cache_fpl_partial(fpl));
+		}
+		vp_seqc = vn_seqc_read_any(vp);
+		if (seqc_in_modify(vp_seqc)) {
+			vfs_op_thread_exit(mp);
+			return (cache_fpl_partial(fpl));
+		}
+		prev_mp = mp;
+		mp = atomic_load_ptr(&vp->v_mountedhere);
+		if (mp == NULL)
+			break;
+	}
+
+	vfs_op_thread_exit(prev_mp);
+	fpl->tvp = vp;
+	fpl->tvp_seqc = vp_seqc;
+	return (0);
+}
+
+/*
+ * Parse the path.
+ *
+ * The code is mostly copy-pasted from regular lookup, see lookup().
+ * The structure is maintained along with comments for easier maintenance.
+ * Deduplicating the code will become feasible after fast path lookup
+ * becomes more feature-complete.
+ */
+static int
+cache_fplookup_parse(struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+	char *cp;
+	char *prev_ni_next;             /* saved ndp->ni_next */
+	size_t prev_ni_pathlen;         /* saved ndp->ni_pathlen */
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+
+	/*
+	 * Search a new directory.
+	 *
+	 * The last component of the filename is left accessible via
+	 * cnp->cn_nameptr for callers that need the name. Callers needing
+	 * the name set the SAVENAME flag. When done, they assume
+	 * responsibility for freeing the pathname buffer.
+	 */
+	for (cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
+		continue;
+	cnp->cn_namelen = cp - cnp->cn_nameptr;
+	if (cnp->cn_namelen > NAME_MAX) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, ENAMETOOLONG));
+	}
+	prev_ni_pathlen = ndp->ni_pathlen;
+	ndp->ni_pathlen -= cnp->cn_namelen;
+	KASSERT(ndp->ni_pathlen <= PATH_MAX,
+	    ("%s: ni_pathlen underflow to %zd\n", __func__, ndp->ni_pathlen));
+	prev_ni_next = ndp->ni_next;
+	ndp->ni_next = cp;
+
+	/*
+	 * Replace multiple slashes by a single slash and trailing slashes
+	 * by a null.  This must be done before VOP_LOOKUP() because some
+	 * fs's don't know about trailing slashes.  Remember if there were
+	 * trailing slashes to handle symlinks, existing non-directories
+	 * and non-existing files that won't be directories specially later.
+	 */
+	while (*cp == '/' && (cp[1] == '/' || cp[1] == '\0')) {
+		cp++;
+		ndp->ni_pathlen--;
+		if (*cp == '\0') {
+			/*
+			 * TODO
+			 * Regular lookup performs the following:
+			 * *ndp->ni_next = '\0';
+			 * cnp->cn_flags |= TRAILINGSLASH;
+			 *
+			 * Which is problematic since it modifies data read
+			 * from userspace. Then if fast path lookup was to
+			 * abort we would have to either restore it or convey
+			 * the flag. Since this is a corner case just ignore
+			 * it for simplicity.
+			 */
+			return (cache_fpl_partial(fpl));
+		}
+	}
+	ndp->ni_next = cp;
+
+	cnp->cn_flags |= MAKEENTRY;
+
+	if (cnp->cn_namelen == 2 &&
+	    cnp->cn_nameptr[1] == '.' && cnp->cn_nameptr[0] == '.')
+		cnp->cn_flags |= ISDOTDOT;
+	else
+		cnp->cn_flags &= ~ISDOTDOT;
+	if (*ndp->ni_next == 0)
+		cnp->cn_flags |= ISLASTCN;
+	else
+		cnp->cn_flags &= ~ISLASTCN;
+
+	/*
+	 * Check for degenerate name (e.g. / or "")
+	 * which is a way of talking about a directory,
+	 * e.g. like "/." or ".".
+	 *
+	 * TODO
+	 * Another corner case handled by the regular lookup
+	 */
+	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
+		return (cache_fpl_partial(fpl));
+	}
+	return (0);
+}
+
+static void
+cache_fplookup_parse_advance(struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+
+	cnp->cn_nameptr = ndp->ni_next;
+	while (*cnp->cn_nameptr == '/') {
+		cnp->cn_nameptr++;
+		ndp->ni_pathlen--;
+	}
+}
+
+static int
+cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+	struct mount *mp;
+	int error;
+
+	error = CACHE_FPL_FAILED;
+	ndp = fpl->ndp;
+	ndp->ni_lcf = 0;
+	cnp = fpl->cnp;
+	cnp->cn_lkflags = LK_SHARED;
+	if ((cnp->cn_flags & LOCKSHARED) == 0)
+		cnp->cn_lkflags = LK_EXCLUSIVE;
+
+	cache_fpl_checkpoint(fpl, &fpl->snd);
+
+	fpl->dvp = dvp;
+	fpl->dvp_seqc = vn_seqc_read_any(fpl->dvp);
+	if (seqc_in_modify(fpl->dvp_seqc)) {
+		cache_fpl_aborted(fpl);
+		goto out;
+	}
+	mp = atomic_load_ptr(&fpl->dvp->v_mount);
+	if (!cache_fplookup_mp_supported(mp)) {
+		cache_fpl_aborted(fpl);
+		goto out;
+	}
+
+	VNPASS(cache_fplookup_vnode_supported(fpl->dvp), fpl->dvp);
+
+	for (;;) {
+		error = cache_fplookup_parse(fpl);
+		if (__predict_false(error != 0)) {
+			break;
+		}
+
+		if (cnp->cn_flags & ISDOTDOT) {
+			error = cache_fpl_partial(fpl);
+			break;
+		}
+
+		VNPASS(cache_fplookup_vnode_supported(fpl->dvp), fpl->dvp);
+
+		error = VOP_FPLOOKUP_VEXEC(fpl->dvp, cnp->cn_cred, cnp->cn_thread);
+		if (__predict_false(error != 0)) {
+			switch (error) {
+			case EAGAIN:
+			case EOPNOTSUPP: /* can happen when racing against vgone */
+				cache_fpl_partial(fpl);
+				break;
+			default:
+				/*
+				 * See the API contract for VOP_FPLOOKUP_VEXEC.
+				 */
+				if (!vn_seqc_consistent(fpl->dvp, fpl->dvp_seqc)) {
+					error = cache_fpl_aborted(fpl);
+				} else {
+					cache_fpl_smr_exit(fpl);
+					cache_fpl_handled(fpl, error);
+				}
+				break;
+			}
+			break;
+		}
+
+		error = cache_fplookup_next(fpl);
+		if (__predict_false(error != 0)) {
+			break;
+		}
+
+		VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
+
+		error = cache_fplookup_climb_mount(fpl);
+		if (__predict_false(error != 0)) {
+			break;
+		}
+
+		VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
+
+		if (cnp->cn_flags & ISLASTCN) {
+			error = cache_fplookup_final(fpl);
+			break;
+		}
+
+		if (!vn_seqc_consistent(fpl->dvp, fpl->dvp_seqc)) {
+			error = cache_fpl_aborted(fpl);
+			break;
+		}
+
+		fpl->dvp = fpl->tvp;
+		fpl->dvp_seqc = fpl->tvp_seqc;
+
+		cache_fplookup_parse_advance(fpl);
+		cache_fpl_checkpoint(fpl, &fpl->snd);
+	}
+out:
+	switch (fpl->status) {
+	case CACHE_FPL_STATUS_UNSET:
+		__assert_unreachable();
+		break;
+	case CACHE_FPL_STATUS_PARTIAL:
+		cache_fpl_smr_assert_entered(fpl);
+		return (cache_fplookup_partial_setup(fpl));
+	case CACHE_FPL_STATUS_ABORTED:
+		if (fpl->in_smr)
+			cache_fpl_smr_exit(fpl);
+		return (CACHE_FPL_FAILED);
+	case CACHE_FPL_STATUS_HANDLED:
+		cache_fpl_smr_assert_not_entered(fpl);
+		if (__predict_false(error != 0)) {
+			ndp->ni_dvp = NULL;
+			ndp->ni_vp = NULL;
+			cache_fpl_cleanup_cnp(cnp);
+			return (error);
+		}
+		ndp->ni_dvp = fpl->dvp;
+		ndp->ni_vp = fpl->tvp;
+		if (cnp->cn_flags & SAVENAME)
+			cnp->cn_flags |= HASBUF;
+		else
+			cache_fpl_cleanup_cnp(cnp);
+		return (error);
+	}
+}
+
+/*
+ * Fast path lookup protected with SMR and sequence counters.
+ *
+ * Note: all VOP_FPLOOKUP_VEXEC routines have a comment referencing this one.
+ *
+ * Filesystems can opt in by setting the MNTK_FPLOOKUP flag and meeting criteria
+ * outlined below.
+ *
+ * Traditional vnode lookup conceptually looks like this:
+ *
+ * vn_lock(current);
+ * for (;;) {
+ *	next = find();
+ *	vn_lock(next);
+ *	vn_unlock(current);
+ *	current = next;
+ *	if (last)
+ *	    break;
+ * }
+ * return (current);
+ *
+ * Each jump to the next vnode is safe memory-wise and atomic with respect to
+ * any modifications thanks to holding respective locks.
+ *
+ * The same guarantee can be provided with a combination of safe memory
+ * reclamation and sequence counters instead. If all operations which affect
+ * the relationship between the current vnode and the one we are looking for
+ * also modify the counter, we can verify whether all the conditions held as
+ * we made the jump. This includes things like permissions, mount points etc.
+ * Counter modification is provided by enclosing relevant places in
+ * vn_seqc_write_begin()/end() calls.
+ *
+ * Thus this translates to:
+ *
+ * vfs_smr_enter();
+ * dvp_seqc = seqc_read_any(dvp);
+ * if (seqc_in_modify(dvp_seqc)) // someone is altering the vnode
+ *     abort();
+ * for (;;) {
+ * 	tvp = find();
+ * 	tvp_seqc = seqc_read_any(tvp);
+ * 	if (seqc_in_modify(tvp_seqc)) // someone is altering the target vnode
+ * 	    abort();
+ * 	if (!seqc_consistent(dvp, dvp_seqc) // someone is altering the vnode
+ * 	    abort();
+ * 	dvp = tvp; // we know nothing of importance has changed
+ * 	dvp_seqc = tvp_seqc; // store the counter for the tvp iteration
+ * 	if (last)
+ * 	    break;
+ * }
+ * vget(); // secure the vnode
+ * if (!seqc_consistent(tvp, tvp_seqc) // final check
+ * 	    abort();
+ * // at this point we know nothing has changed for any parent<->child pair
+ * // as they were crossed during the lookup, meaning we matched the guarantee
+ * // of the locked variant
+ * return (tvp);
+ *
+ * The API contract for VOP_FPLOOKUP_VEXEC routines is as follows:
+ * - they are called while within vfs_smr protection which they must never exit
+ * - EAGAIN can be returned to denote checking could not be performed, it is
+ *   always valid to return it
+ * - if the sequence counter has not changed the result must be valid
+ * - if the sequence counter has changed both false positives and false negatives
+ *   are permitted (since the result will be rejected later)
+ * - for simple cases of unix permission checks vaccess_vexec_smr can be used
+ *
+ * Caveats to watch out for:
+ * - vnodes are passed unlocked and unreferenced with nothing stopping
+ *   VOP_RECLAIM, in turn meaning that ->v_data can become NULL. It is advised
+ *   to use atomic_load_ptr to fetch it.
+ * - the aforementioned object can also get freed, meaning absent other means it
+ *   should be protected with vfs_smr
+ * - either safely checking permissions as they are modified or guaranteeing
+ *   their stability is left to the routine
+ */
+int
+cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
+    struct pwd **pwdp)
+{
+	struct cache_fpl fpl;
+	struct pwd *pwd;
+	struct vnode *dvp;
+	struct componentname *cnp;
+	struct nameidata_saved orig;
+	int error;
+
+	*status = CACHE_FPL_STATUS_UNSET;
+	bzero(&fpl, sizeof(fpl));
+	fpl.status = CACHE_FPL_STATUS_UNSET;
+	fpl.ndp = ndp;
+	fpl.cnp = &ndp->ni_cnd;
+	MPASS(curthread == fpl.cnp->cn_thread);
+
+	if (!cache_can_fplookup(&fpl)) {
+		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
+		*status = fpl.status;
+		return (EOPNOTSUPP);
+	}
+
+	cache_fpl_checkpoint(&fpl, &orig);
+
+	cache_fpl_smr_enter(&fpl);
+	pwd = pwd_get_smr();
+	fpl.pwd = pwd;
+	ndp->ni_rootdir = pwd->pwd_rdir;
+	ndp->ni_topdir = pwd->pwd_jdir;
+
+	cnp = fpl.cnp;
+	cnp->cn_nameptr = cnp->cn_pnbuf;
+	if (cnp->cn_pnbuf[0] == '/') {
+		cache_fpl_handle_root(ndp, &dvp);
+	} else {
+		MPASS(ndp->ni_dirfd == AT_FDCWD);
+		dvp = pwd->pwd_cdir;
+	}
+
+	SDT_PROBE4(vfs, namei, lookup, entry, dvp, cnp->cn_pnbuf, cnp->cn_flags, true);
+
+	error = cache_fplookup_impl(dvp, &fpl);
+	cache_fpl_smr_assert_not_entered(&fpl);
+	SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
+
+	*status = fpl.status;
+	switch (fpl.status) {
+	case CACHE_FPL_STATUS_UNSET:
+		__assert_unreachable();
+		break;
+	case CACHE_FPL_STATUS_HANDLED:
+		SDT_PROBE3(vfs, namei, lookup, return, error,
+		    (error == 0 ? ndp->ni_vp : NULL), true);
+		break;
+	case CACHE_FPL_STATUS_PARTIAL:
+		*pwdp = fpl.pwd;
+		cache_fpl_restore(&fpl, &fpl.snd);
+		break;
+	case CACHE_FPL_STATUS_ABORTED:
+		cache_fpl_restore(&fpl, &orig);
+		break;
+	}
+	return (error);
+}
