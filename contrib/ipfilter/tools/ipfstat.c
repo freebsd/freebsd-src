@@ -57,7 +57,10 @@ static	wordtab_t	*state_fields = NULL;
 
 int	nohdrfields = 0;
 int	opts = 0;
+#ifdef	USE_INET6
+int	use_inet4 = 0;
 int	use_inet6 = 0;
+#endif
 int	live_kernel = 1;
 int	state_fd = -1;
 int	ipf_fd = -1;
@@ -163,15 +166,17 @@ static void usage(name)
 	char *name;
 {
 #ifdef  USE_INET6
-	fprintf(stderr, "Usage: %s [-6aAdfghIilnoRsv]\n", name);
+	fprintf(stderr, "Usage: %s [-46aAdfghIilnoRsv]\n", name);
 #else
-	fprintf(stderr, "Usage: %s [-aAdfghIilnoRsv]\n", name);
+	fprintf(stderr, "Usage: %s [-4aAdfghIilnoRsv]\n", name);
 #endif
 	fprintf(stderr, "       %s [-M corefile] [-N symbol-list]\n", name);
+#ifdef	STATETOP
 #ifdef	USE_INET6
-	fprintf(stderr, "       %s -t [-6C] ", name);
+	fprintf(stderr, "       %s -t [-46C] ", name);
 #else
-	fprintf(stderr, "       %s -t [-C] ", name);
+	fprintf(stderr, "       %s -t [-4C] ", name);
+#endif
 #endif
 	fprintf(stderr, "[-D destination address] [-P protocol] [-S source address] [-T refresh time]\n");
 	exit(1);
@@ -206,9 +211,9 @@ int main(argc,argv)
 	u_32_t frf;
 
 #ifdef	USE_INET6
-	options = "6aACdfghIilnostvD:m:M:N:O:P:RS:T:";
+	options = "46aACdfghIilnostvD:m:M:N:O:P:RS:T:";
 #else
-	options = "aACdfghIilnostvD:m:M:N:O:P:RS:T:";
+	options = "4aACdfghIilnostvD:m:M:N:O:P:RS:T:";
 #endif
 
 	saddr.in4.s_addr = INADDR_ANY; 	/* default any v4 source addr */
@@ -283,6 +288,9 @@ int main(argc,argv)
 		switch (c)
 		{
 #ifdef	USE_INET6
+		case '4' :
+			use_inet4 = 1;
+			break;
 		case '6' :
 			use_inet6 = 1;
 			break;
@@ -385,6 +393,19 @@ int main(argc,argv)
 			break;
 		}
 	}
+#ifdef	USE_INET6
+	if ((use_inet4 || use_inet6) &&
+	   !(opts & (OPT_INQUE | OPT_OUTQUE | OPT_STATETOP))) {
+#ifdef	STATETOP
+		FPRINTF(stderr, "No -i, -o, or -t given with -4 or -6\n");
+#else
+		FPRINTF(stderr, "No -i or -o given with -4 or -6\n");
+#endif
+		exit(-2);
+	}
+	if (use_inet4 == 0 && use_inet6 == 0)
+		use_inet4 = use_inet6 = 1;
+#endif
 
 	if (live_kernel == 1) {
 		bzero((char *)&fio, sizeof(fio));
@@ -410,8 +431,13 @@ int main(argc,argv)
 #ifdef STATETOP
 	else if (opts & OPT_STATETOP)
 		topipstates(saddr, daddr, sport, dport, protocol,
-			    use_inet6 ? 6 : 4, refreshtime, topclosed, filter);
+#ifdef	USE_INET6
+		use_inet6 && use_inet4 ? 0 : use_inet6 && !use_inet4 ? 6 : 4,
+#else
+		4,
 #endif
+#endif
+			    refreshtime, topclosed, filter);
 	else if (opts & OPT_AUTHSTATS)
 		showauthstates(frauthstp);
 	else if (opts & OPT_GROUPS)
@@ -805,15 +831,21 @@ printlivelist(fiop, out, set, fp, group, comment)
 		if (rule.iri_rule == NULL)
 			break;
 #ifdef USE_INET6
-		if (use_inet6 != 0) {
+		if (use_inet6 != 0 && use_inet4 == 0) {
 			if (fp->fr_family != 0 && fp->fr_family != AF_INET6)
 				continue;
-		} else
+		} else if (use_inet4 != 0 && use_inet6 == 0) {
 #endif
-		{
 			if (fp->fr_family != 0 && fp->fr_family != AF_INET)
 				continue;
+#ifdef USE_INET6
+		} else {
+			if (fp->fr_family != 0 &&
+			   fp->fr_family != AF_INET && fp->fr_family != AF_INET6)
+				continue;
 		}
+#endif
+
 		if (fp->fr_data != NULL)
 			fp->fr_data = (char *)fp + fp->fr_size;
 
@@ -904,13 +936,21 @@ static void printdeadlist(fiop, out, set, fp, group, comment)
 			return;
 		}
 		fp = &fb;
-		if (use_inet6 != 0) {
-			if (fp->fr_family != 0 && fp->fr_family != 6)
+#ifdef	USE_INET6
+		if (use_inet6 != 0 && use_inet4 == 0) {
+			if (fp->fr_family != 0 && fp->fr_family != AF_INET6)
 				continue;
+		} else if (use_inet4 != 0 && use_inet6 == 0) {
+#endif
+			if (fp->fr_family != 0 && fp->fr_family != AF_INET)
+				continue;
+#ifdef	USE_INET6
 		} else {
-			if (fp->fr_family != 0 && fp->fr_family != 4)
+			if (fp->fr_family != 0 &&
+			   fp->fr_family != AF_INET && fp->fr_family != AF_INET6)
 				continue;
 		}
+#endif
 
 		data = NULL;
 		type = fb.fr_type & ~FR_T_BUILTIN;
@@ -1338,7 +1378,7 @@ static void topipstates(saddr, daddr, sport, dport, protocol, ver,
 			if (ipsstp->iss_list == NULL)
 				break;
 
-			if (ips.is_v != ver)
+			if (ver != 0 && ips.is_v != ver)
 				continue;
 
 			if ((filter != NULL) &&
@@ -1906,7 +1946,7 @@ static void parse_ipportstr(argument, ip, port)
 		ok = 1;
 #ifdef	USE_INET6
 		ip->in6 = in6addr_any;
-	} else if (use_inet6 && inet_pton(AF_INET6, s, &ip->in6)) {
+	} else if (use_inet6 && !use_inet4 && inet_pton(AF_INET6, s, &ip->in6)) {
 		ok = 1;
 #endif
 	} else if (inet_aton(s, &ip->in4))
@@ -1943,6 +1983,9 @@ static char *getip(v, addr)
 #ifdef  USE_INET6
 	static char hostbuf[MAXHOSTNAMELEN+1];
 #endif
+
+	if (v == 0)
+		return ("any");
 
 	if (v == 4)
 		return inet_ntoa(addr->in4);
@@ -2047,7 +2090,7 @@ static int sort_srcip(a, b)
 	register const statetop_t *bp = b;
 
 #ifdef USE_INET6
-	if (use_inet6) {
+	if (use_inet6 && !use_inet4) {
 		if (IP6_EQ(&ap->st_src, &bp->st_src))
 			return 0;
 		else if (IP6_GT(&ap->st_src, &bp->st_src))
@@ -2087,7 +2130,7 @@ static int sort_dstip(a, b)
 	register const statetop_t *bp = b;
 
 #ifdef USE_INET6
-	if (use_inet6) {
+	if (use_inet6 && !use_inet4) {
 		if (IP6_EQ(&ap->st_dst, &bp->st_dst))
 			return 0;
 		else if (IP6_GT(&ap->st_dst, &bp->st_dst))
