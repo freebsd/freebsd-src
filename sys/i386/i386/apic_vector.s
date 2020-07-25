@@ -309,6 +309,23 @@ IDTVEC(cpususpend)
 	jmp	doreti
 
 /*
+ * Executed by a CPU when it receives an IPI_SWI.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(ipi_swi)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	KENTER
+	call	as_lapic_eoi
+	FAKE_MCOUNT(TF_EIP(%esp))
+	movl	$ipi_swi_handler, %eax
+	call	*%eax
+	MEXITCOUNT
+	jmp	doreti
+
+/*
  * Executed by a CPU when it receives a RENDEZVOUS IPI from another CPU.
  *
  * - Calls the generic rendezvous action function.

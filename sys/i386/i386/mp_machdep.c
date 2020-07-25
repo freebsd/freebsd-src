@@ -188,6 +188,10 @@ cpu_mp_start(void)
 	setidt(IPI_SUSPEND, IDTVEC(cpususpend),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
+	/* Install an IPI for calling delayed SWI */
+	setidt(IPI_SWI, IDTVEC(ipi_swi),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
 		boot_cpu_id = PCPU_GET(apic_id);

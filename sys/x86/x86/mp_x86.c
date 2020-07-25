@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
+#include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -1618,6 +1619,16 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &resuming_cpus);
 	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &toresume_cpus);
+}
+
+/*
+ * Handle an IPI_SWI by waking delayed SWI thread.
+ */
+void
+ipi_swi_handler(struct trapframe frame)
+{
+
+	intr_event_handle(clk_intr_event, &frame);
 }
 
 /*
