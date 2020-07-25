@@ -947,6 +947,7 @@ vfs_domount_first(
 		vput(vp);
 		return (error);
 	}
+	vn_seqc_write_begin(vp);
 	VOP_UNLOCK(vp);
 
 	/* Allocate and initialize the filesystem. */
@@ -979,9 +980,11 @@ vfs_domount_first(
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
+		vn_seqc_write_end(vp);
 		vrele(vp);
 		return (error);
 	}
+	vn_seqc_write_begin(newdp);
 	VOP_UNLOCK(newdp);
 
 	if (mp->mnt_opt != NULL)
@@ -1018,6 +1021,8 @@ vfs_domount_first(
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp);
 	mountcheckdirs(vp, newdp);
+	vn_seqc_write_end(vp);
+	vn_seqc_write_end(newdp);
 	vrele(newdp);
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		vfs_allocate_syncvnode(mp);
@@ -1094,7 +1099,9 @@ vfs_domount_update(
 	VOP_UNLOCK(vp);
 
 	vfs_op_enter(mp);
+	vn_seqc_write_begin(vp);
 
+	rootvp = NULL;
 	MNT_ILOCK(mp);
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0) {
 		MNT_IUNLOCK(mp);
@@ -1108,8 +1115,6 @@ vfs_domount_update(
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	rootvp = vfs_cache_root_clear(mp);
 	MNT_IUNLOCK(mp);
-	if (rootvp != NULL)
-		vrele(rootvp);
 	mp->mnt_optnew = *optlist;
 	vfs_mergeopts(mp->mnt_optnew, mp->mnt_opt);
 
@@ -1233,6 +1238,11 @@ vfs_domount_update(
 		vfs_deallocate_syncvnode(mp);
 end:
 	vfs_op_exit(mp);
+	if (rootvp != NULL) {
+		vn_seqc_write_end(rootvp);
+		vrele(rootvp);
+	}
+	vn_seqc_write_end(vp);
 	vfs_unbusy(mp);
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
@@ -1723,14 +1733,19 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	}
 	mp->mnt_kern_flag |= MNTK_UNMOUNT;
 	rootvp = vfs_cache_root_clear(mp);
+	if (coveredvp != NULL)
+		vn_seqc_write_begin(coveredvp);
 	if (flags & MNT_NONBUSY) {
 		MNT_IUNLOCK(mp);
 		error = vfs_check_usecounts(mp);
 		MNT_ILOCK(mp);
 		if (error != 0) {
+			vn_seqc_write_end(coveredvp);
 			dounmount_cleanup(mp, coveredvp, MNTK_UNMOUNT);
-			if (rootvp != NULL)
+			if (rootvp != NULL) {
+				vn_seqc_write_end(rootvp);
 				vrele(rootvp);
+			}
 			return (error);
 		}
 	}
@@ -1759,21 +1774,18 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	    ("%s: invalid return value for msleep in the drain path @ %s:%d",
 	    __func__, __FILE__, __LINE__));
 
-	if (rootvp != NULL)
+	/*
+	 * We want to keep the vnode around so that we can vn_seqc_write_end
+	 * after we are done with unmount. Downgrade our reference to a mere
+	 * hold count so that we don't interefere with anything.
+	 */
+	if (rootvp != NULL) {
+		vhold(rootvp);
 		vrele(rootvp);
+	}
 
 	if (mp->mnt_flag & MNT_EXPUBLIC)
 		vfs_setpublicfs(NULL, NULL, NULL);
-
-	/*
-	 * From now, we can claim that the use reference on the
-	 * coveredvp is ours, and the ref can be released only by
-	 * successfull unmount by us, or left for later unmount
-	 * attempt.  The previously acquired hold reference is no
-	 * longer needed to protect the vnode from reuse.
-	 */
-	if (coveredvp != NULL)
-		vdrop(coveredvp);
 
 	vfs_periodic(mp, MNT_WAIT);
 	MNT_ILOCK(mp);
@@ -1809,8 +1821,15 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 		}
 		vfs_op_exit_locked(mp);
 		MNT_IUNLOCK(mp);
-		if (coveredvp)
+		if (coveredvp) {
+			vn_seqc_write_end(coveredvp);
 			VOP_UNLOCK(coveredvp);
+			vdrop(coveredvp);
+		}
+		if (rootvp != NULL) {
+			vn_seqc_write_end(rootvp);
+			vdrop(rootvp);
+		}
 		return (error);
 	}
 	mtx_lock(&mountlist_mtx);
@@ -1819,7 +1838,13 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	EVENTHANDLER_DIRECT_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
+		vn_seqc_write_end(coveredvp);
 		VOP_UNLOCK(coveredvp);
+		vdrop(coveredvp);
+	}
+	if (rootvp != NULL) {
+		vn_seqc_write_end(rootvp);
+		vdrop(rootvp);
 	}
 	vfs_event_signal(NULL, VQ_UNMOUNT, 0);
 	if (rootvnode != NULL && mp == rootvnode->v_mount) {
