@@ -667,10 +667,3 @@ SYSCTL_PROC(_hw_dmar, OID_AUTO, timeout,
     CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     dmar_timeout_sysctl, "QU",
     "Timeout for command wait, in nanoseconds");
-#ifdef INVARIANTS
-int iommu_check_free;
-SYSCTL_INT(_hw_dmar, OID_AUTO, check_free, CTLFLAG_RWTUN,
-    &iommu_check_free, 0,
-    "Check the GPA RBtree for free_down and free_after validity");
-#endif
-

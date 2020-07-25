@@ -175,9 +175,6 @@ dmar_identify(driver_t *driver, device_t parent)
 	TUNABLE_INT_FETCH("hw.dmar.enable", &dmar_enable);
 	if (!dmar_enable)
 		return;
-#ifdef INVARIANTS
-	TUNABLE_INT_FETCH("hw.iommu.check_free", &iommu_check_free);
-#endif
 	status = AcpiGetTable(ACPI_SIG_DMAR, 1, (ACPI_TABLE_HEADER **)&dmartbl);
 	if (ACPI_FAILURE(status))
 		return;
