@@ -139,7 +139,7 @@ statement:
 debug_statement:
 		DEBUG_CMD flag EOS
 		{
-#ifdef YYDEBUG
+#if YYDEBUG
 			yydebug = $2;
 #endif /* YYDEBUG */
 		}

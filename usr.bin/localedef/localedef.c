@@ -257,7 +257,9 @@ main(int argc, char **argv)
 	init_numeric();
 	init_time();
 
+#if YYDEBUG
 	yydebug = 0;
+#endif
 
 	(void) setlocale(LC_ALL, "");
 

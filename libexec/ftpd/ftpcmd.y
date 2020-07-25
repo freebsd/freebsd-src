@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "pathnames.h"
 
+#define	yylex	ftpcmd_yylex
+
 off_t	restart_point;
 
 static	int cmd_type;
