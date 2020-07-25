@@ -75,6 +75,7 @@ static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
 
 static uma_zone_t tmpfs_dirent_pool;
 static uma_zone_t tmpfs_node_pool;
+VFS_SMR_DECLARE;
 
 static int
 tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
@@ -131,6 +132,7 @@ tmpfs_subr_init(void)
 	tmpfs_node_pool = uma_zcreate("TMPFS node",
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
 	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
+	VFS_SMR_ZONE_SET(tmpfs_node_pool);
 }
 
 void
@@ -288,7 +290,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	if ((mp->mnt_kern_flag & MNT_RDONLY) != 0)
 		return (EROFS);
 
-	nnode = uma_zalloc_arg(tmpfs_node_pool, tmp, M_WAITOK);
+	nnode = uma_zalloc_smr(tmpfs_node_pool, M_WAITOK);
 
 	/* Generic initialization. */
 	nnode->tn_type = type;
@@ -435,7 +437,7 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		panic("tmpfs_free_node: type %p %d", node, (int)node->tn_type);
 	}
 
-	uma_zfree(tmpfs_node_pool, node);
+	uma_zfree_smr(tmpfs_node_pool, node);
 	TMPFS_LOCK(tmp);
 	tmpfs_free_tmp(tmp);
 	return (true);
@@ -1621,8 +1623,10 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 {
 	int error;
 	struct tmpfs_node *node;
+	mode_t newmode;
 
 	ASSERT_VOP_ELOCKED(vp, "chmod");
+	ASSERT_VOP_IN_SEQC(vp);
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1656,9 +1660,9 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 			return (error);
 	}
 
-
-	node->tn_mode &= ~ALLPERMS;
-	node->tn_mode |= mode & ALLPERMS;
+	newmode = node->tn_mode & ~ALLPERMS;
+	newmode |= mode & ALLPERMS;
+	atomic_store_short(&node->tn_mode, newmode);
 
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
@@ -1682,8 +1686,10 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	struct tmpfs_node *node;
 	uid_t ouid;
 	gid_t ogid;
+	mode_t newmode;
 
 	ASSERT_VOP_ELOCKED(vp, "chown");
+	ASSERT_VOP_IN_SEQC(vp);
 
 	node = VP_TO_TMPFS_NODE(vp);
 
@@ -1729,8 +1735,10 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
 	if ((node->tn_mode & (S_ISUID | S_ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID))
-			node->tn_mode &= ~(S_ISUID | S_ISGID);
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID)) {
+			newmode = node->tn_mode & ~(S_ISUID | S_ISGID);
+			atomic_store_short(&node->tn_mode, newmode);
+		}
 	}
 
 	ASSERT_VOP_ELOCKED(vp, "chown2");
