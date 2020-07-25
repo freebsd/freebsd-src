@@ -102,8 +102,8 @@ MALLOC_DECLARE(M_FADVISE);
 
 static __read_mostly uma_zone_t file_zone;
 static __read_mostly uma_zone_t filedesc0_zone;
-static __read_mostly uma_zone_t pwd_zone;
-static __read_mostly smr_t pwd_smr;
+__read_mostly uma_zone_t pwd_zone;
+VFS_SMR_DECLARE;
 
 static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 		    struct thread *td, int holdleaders);
@@ -3343,18 +3343,27 @@ pwd_hold(struct thread *td)
 
 	fdp = td->td_proc->p_fd;
 
-	smr_enter(pwd_smr);
-	pwd = smr_entered_load(&fdp->fd_pwd, pwd_smr);
+	vfs_smr_enter();
+	pwd = vfs_smr_entered_load(&fdp->fd_pwd);
 	MPASS(pwd != NULL);
 	if (__predict_true(refcount_acquire_if_not_zero(&pwd->pwd_refcount))) {
-		smr_exit(pwd_smr);
+		vfs_smr_exit();
 		return (pwd);
 	}
-	smr_exit(pwd_smr);
+	vfs_smr_exit();
 	FILEDESC_SLOCK(fdp);
 	pwd = pwd_hold_filedesc(fdp);
 	MPASS(pwd != NULL);
-	FILEDESC_SUNLOCK(fdp);
+	return (pwd);
+}
+
+struct pwd *
+pwd_get_smr(void)
+{
+	struct pwd *pwd;
+
+	pwd = vfs_smr_entered_load(&curproc->p_fd->fd_pwd);
+	MPASS(pwd != NULL);
 	return (pwd);
 }
 
@@ -4368,7 +4377,11 @@ filelistinit(void *dummy)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	pwd_zone = uma_zcreate("PWD", sizeof(struct pwd), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_SMR);
-	pwd_smr = uma_zone_get_smr(pwd_zone);
+	/*
+	 * XXXMJG this is a temporary hack due to boot ordering issues against
+	 * the vnode zone.
+	 */
+	vfs_smr = uma_zone_get_smr(pwd_zone);
 	mtx_init(&sigio_lock, "sigio lock", NULL, MTX_DEF);
 }
 SYSINIT(select, SI_SUB_LOCK, SI_ORDER_FIRST, filelistinit, NULL);

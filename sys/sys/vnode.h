@@ -666,6 +666,8 @@ int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
+int	vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid,
+	    struct ucred *cred);
 int	vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	    struct acl *aclp, accmode_t accmode, struct ucred *cred,
 	    int *privused);
@@ -682,6 +684,8 @@ int	vget(struct vnode *vp, int flags, struct thread *td);
 enum vgetstate	vget_prep_smr(struct vnode *vp);
 enum vgetstate	vget_prep(struct vnode *vp);
 int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
+void	vget_finish_ref(struct vnode *vp, enum vgetstate vs);
+void	vget_abort(struct vnode *vp, enum vgetstate vs);
 void	vgone(struct vnode *vp);
 void	vhold(struct vnode *);
 void	vholdl(struct vnode *);
@@ -865,6 +869,8 @@ void	vop_symlink_post(void *a, int rc);
 int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 
 #ifdef DEBUG_VFS_LOCKS
+void	vop_fplookup_vexec_pre(void *a);
+void	vop_fplookup_vexec_post(void *a, int rc);
 void	vop_strategy_pre(void *a);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
@@ -872,6 +878,8 @@ void	vop_unlock_pre(void *a);
 void	vop_need_inactive_pre(void *a);
 void	vop_need_inactive_post(void *a, int rc);
 #else
+#define	vop_fplookup_vexec_pre(x)	do { } while (0)
+#define	vop_fplookup_vexec_post(x, y)	do { } while (0)
 #define	vop_strategy_pre(x)	do { } while (0)
 #define	vop_lock_pre(x)		do { } while (0)
 #define	vop_lock_post(x, y)	do { } while (0)
@@ -1025,9 +1033,17 @@ int vn_dir_check_exec(struct vnode *vp, struct componentname *cnp);
 #define VFS_SMR()	vfs_smr
 #define vfs_smr_enter()	smr_enter(VFS_SMR())
 #define vfs_smr_exit()	smr_exit(VFS_SMR())
+#define vfs_smr_entered_load(ptr)	smr_entered_load((ptr), VFS_SMR())
 #define VFS_SMR_ASSERT_ENTERED()	SMR_ASSERT_ENTERED(VFS_SMR())
 #define VFS_SMR_ASSERT_NOT_ENTERED()	SMR_ASSERT_NOT_ENTERED(VFS_SMR())
 #define VFS_SMR_ZONE_SET(zone)	uma_zone_set_smr((zone), VFS_SMR())
+
+#define vn_load_v_data_smr(vp)	({		\
+	struct vnode *_vp = (vp);		\
+						\
+	VFS_SMR_ASSERT_ENTERED();		\
+	atomic_load_ptr(&(_vp)->v_data);	\
+})
 
 #endif /* _KERNEL */
 
