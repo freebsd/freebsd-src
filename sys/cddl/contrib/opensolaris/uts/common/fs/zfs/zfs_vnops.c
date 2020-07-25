@@ -38,6 +38,7 @@
 #include <sys/vfs.h>
 #include <sys/vm.h>
 #include <sys/vnode.h>
+#include <sys/smr.h>
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/kmem.h>
@@ -77,6 +78,8 @@
 #include <sys/vmmeter.h>
 #include <vm/vm_param.h>
 #include <sys/zil.h>
+
+VFS_SMR_DECLARE;
 
 /*
  * Programming rules.
@@ -3698,6 +3701,7 @@ zfs_rename(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 	char		*snm = scnp->cn_nameptr;
 	char		*tnm = tcnp->cn_nameptr;
 	int		error = 0;
+	bool		want_seqc_end = false;
 
 	/* Reject renames across filesystems. */
 	if ((*svpp)->v_mount != tdvp->v_mount ||
@@ -3828,6 +3832,14 @@ zfs_rename(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 		}
 	}
 
+	vn_seqc_write_begin(*svpp);
+	vn_seqc_write_begin(sdvp);
+	if (*tvpp != NULL)
+		vn_seqc_write_begin(*tvpp);
+	if (tdvp != *tvpp)
+		vn_seqc_write_begin(tdvp);
+	want_seqc_end = true;
+
 	vnevent_rename_src(*svpp, sdvp, scnp->cn_nameptr, ct);
 	if (tzp)
 		vnevent_rename_dest(*tvpp, tdvp, tnm, ct);
@@ -3914,10 +3926,20 @@ zfs_rename(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 
 unlockout:			/* all 4 vnodes are locked, ZFS_ENTER called */
 	ZFS_EXIT(zfsvfs);
+	if (want_seqc_end) {
+		vn_seqc_write_end(*svpp);
+		vn_seqc_write_end(sdvp);
+		if (*tvpp != NULL)
+			vn_seqc_write_end(*tvpp);
+		if (tdvp != *tvpp)
+			vn_seqc_write_end(tdvp);
+		want_seqc_end = false;
+	}
 	VOP_UNLOCK(*svpp);
 	VOP_UNLOCK(sdvp);
 
 out:				/* original two vnodes are locked */
+	MPASS(!want_seqc_end);
 	if (error == 0 && zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
 		zil_commit(zilog, 0);
 
@@ -4859,6 +4881,31 @@ zfs_freebsd_write(ap)
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
 	    ap->a_cred, NULL));
+}
+
+/*
+ * VOP_FPLOOKUP_VEXEC routines are subject to special circumstances, see
+ * the comment above cache_fplookup for details.
+ */
+static int
+zfs_freebsd_fplookup_vexec(struct vop_fplookup_vexec_args *v)
+{
+	vnode_t *vp;
+	znode_t *zp;
+	uint64_t pflags;
+
+	vp = v->a_vp;
+	zp = VTOZ_SMR(vp);
+	if (__predict_false(zp == NULL))
+		return (EAGAIN);
+	pflags = atomic_load_64(&zp->z_pflags);
+	if (pflags & ZFS_AV_QUARANTINED)
+		return (EAGAIN);
+	if (pflags & ZFS_XATTR)
+		return (EAGAIN);
+	if ((pflags & ZFS_NO_EXECS_DENIED) == 0)
+		return (EAGAIN);
+	return (0);
 }
 
 static int
@@ -5998,6 +6045,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_inactive =		zfs_freebsd_inactive,
 	.vop_need_inactive =	zfs_freebsd_need_inactive,
 	.vop_reclaim =		zfs_freebsd_reclaim,
+	.vop_fplookup_vexec =	zfs_freebsd_fplookup_vexec,
 	.vop_access =		zfs_freebsd_access,
 	.vop_allocate =		VOP_EINVAL,
 	.vop_lookup =		zfs_cache_lookup,
@@ -6066,6 +6114,7 @@ VFS_VOP_VECTOR_REGISTER(zfs_fifoops);
  */
 struct vop_vector zfs_shareops = {
 	.vop_default =		&default_vnodeops,
+	.vop_fplookup_vexec =	zfs_freebsd_fplookup_vexec,
 	.vop_access =		zfs_freebsd_access,
 	.vop_inactive =		zfs_freebsd_inactive,
 	.vop_reclaim =		zfs_freebsd_reclaim,
