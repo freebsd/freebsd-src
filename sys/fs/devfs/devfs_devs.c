@@ -138,6 +138,8 @@ devfs_alloc(int flags)
 	if (cdp == NULL)
 		return (NULL);
 
+	mtx_init(&cdp->cdp_threadlock, "devthrd", NULL, MTX_DEF);
+
 	cdp->cdp_dirents = &cdp->cdp_dirent0;
 
 	cdev = &cdp->cdp_c;
@@ -180,6 +182,7 @@ devfs_free(struct cdev *cdev)
 	devfs_free_cdp_inode(cdp->cdp_inode);
 	if (cdp->cdp_maxdirent > 0) 
 		free(cdp->cdp_dirents, M_DEVFS2);
+	mtx_destroy(&cdp->cdp_threadlock);
 	free(cdp, M_CDEVP);
 }
 
