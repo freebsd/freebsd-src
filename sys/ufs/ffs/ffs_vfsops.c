@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 static uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
+VFS_SMR_DECLARE;
 
 static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
@@ -393,6 +394,7 @@ ffs_mount(struct mount *mp)
 		uma_ufs2 = uma_zcreate("FFS2 dinode",
 		    sizeof(struct ufs2_dinode), NULL, NULL, NULL, NULL,
 		    UMA_ALIGN_PTR, 0);
+		VFS_SMR_ZONE_SET(uma_inode);
 	}
 
 	vfs_deleteopt(mp->mnt_optnew, "groupquota");
@@ -455,6 +457,7 @@ ffs_mount(struct mount *mp)
 	}
 
 	MNT_ILOCK(mp);
+	mp->mnt_kern_flag &= ~MNTK_FPLOOKUP;
 	mp->mnt_flag |= mntorflags;
 	MNT_IUNLOCK(mp);
 	/*
@@ -795,6 +798,17 @@ ffs_mount(struct mount *mp)
 			}
 		}
 	}
+
+	MNT_ILOCK(mp);
+	/*
+	 * This is racy versus lookup, see ufs_fplookup_vexec for details.
+	 */
+	if ((mp->mnt_kern_flag & MNTK_FPLOOKUP) != 0)
+		panic("MNTK_FPLOOKUP set on mount %p when it should not be", mp);
+	if ((mp->mnt_flag & (MNT_ACLS | MNT_NFS4ACLS)) == 0)
+		mp->mnt_kern_flag |= MNTK_FPLOOKUP;
+	MNT_IUNLOCK(mp);
+
 	vfs_mountedfrom(mp, fspec);
 	return (0);
 }
@@ -1968,14 +1982,14 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
-	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
+	ip = uma_zalloc_smr(uma_inode, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode("ufs", mp, fs->fs_magic == FS_UFS1_MAGIC ?
 	    &ffs_vnodeops1 : &ffs_vnodeops2, &vp);
 	if (error) {
 		*vpp = NULL;
-		uma_zfree(uma_inode, ip);
+		uma_zfree_smr(uma_inode, ip);
 		return (error);
 	}
 	/*
@@ -2004,7 +2018,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 		vp->v_vflag |= VV_FORCEINSMQ;
 	error = insmntque(vp, mp);
 	if (error != 0) {
-		uma_zfree(uma_inode, ip);
+		uma_zfree_smr(uma_inode, ip);
 		*vpp = NULL;
 		return (error);
 	}
@@ -2327,7 +2341,7 @@ ffs_ifree(struct ufsmount *ump, struct inode *ip)
 		uma_zfree(uma_ufs1, ip->i_din1);
 	else if (ip->i_din2 != NULL)
 		uma_zfree(uma_ufs2, ip->i_din2);
-	uma_zfree(uma_inode, ip);
+	uma_zfree_smr(uma_inode, ip);
 }
 
 static int dobkgrdwrite = 1;
