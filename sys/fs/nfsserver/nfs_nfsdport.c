@@ -757,7 +757,12 @@ nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
 	if (uiop->uio_resid > 0) {
 		len -= uiop->uio_resid;
 		tlen = NFSM_RNDUP(len);
-		nfsrv_adj(mp3, NFS_MAXPATHLEN - tlen, tlen - len);
+		if (tlen == 0) {
+			m_freem(mp3);
+			mp3 = mp = NULL;
+		} else if (tlen != NFS_MAXPATHLEN || tlen != len)
+			mp = nfsrv_adj(mp3, NFS_MAXPATHLEN - tlen,
+			    tlen - len);
 	}
 	*lenp = len;
 	*mpp = mp3;
@@ -872,9 +877,9 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	tlen = NFSM_RNDUP(cnt);
 	if (tlen == 0) {
 		m_freem(m3);
-		m3 = NULL;
+		m3 = m = NULL;
 	} else if (len != tlen || tlen != cnt)
-		nfsrv_adj(m3, len - tlen, tlen - cnt);
+		m = nfsrv_adj(m3, len - tlen, tlen - cnt);
 	*mpp = m3;
 	*mpendp = m;
 
@@ -6247,7 +6252,11 @@ nfsvno_getxattr(struct vnode *vp, char *name, uint32_t maxresp,
 		tlen = NFSM_RNDUP(len);
 		if (alen != tlen)
 			printf("nfsvno_getxattr: weird size read\n");
-		nfsrv_adj(m, alen - tlen, tlen - len);
+		if (tlen == 0) {
+			m_freem(m);
+			m = m2 = NULL;
+		} else if (alen != tlen || tlen != len)
+			m2 = nfsrv_adj(m, alen - tlen, tlen - len);
 	}
 	*lenp = len;
 	*mpp = m;
