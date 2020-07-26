@@ -459,6 +459,7 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 {
 	u_quad_t savsize = 0;
 	int error, savedit;
+	time_t savbtime;
 
 	/*
 	 * If this is an exported file system and a pNFS service is running,
@@ -490,9 +491,13 @@ nfsvno_setattr(struct vnode *vp, struct nfsvattr *nvap, struct ucred *cred,
 	    nvap->na_vattr.va_mode != (mode_t)VNOVAL ||
 	    nvap->na_vattr.va_atime.tv_sec != VNOVAL ||
 	    nvap->na_vattr.va_mtime.tv_sec != VNOVAL)) {
+		/* Never modify birthtime on a DS file. */
+		savbtime = nvap->na_vattr.va_birthtime.tv_sec;
+		nvap->na_vattr.va_birthtime.tv_sec = VNOVAL;
 		/* For a pNFS server, set the attributes on the DS file. */
 		error = nfsrv_proxyds(vp, 0, 0, cred, p, NFSPROC_SETATTR,
 		    NULL, NULL, NULL, nvap, NULL, NULL, 0, NULL);
+		nvap->na_vattr.va_birthtime.tv_sec = savbtime;
 		if (error == ENOENT)
 			error = 0;
 	}
@@ -2914,8 +2919,7 @@ nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
 			break;
 		case NFSATTRBIT_TIMECREATE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_V4TIME);
-			if (!nd->nd_repstat)
-				nd->nd_repstat = NFSERR_ATTRNOTSUPP;
+			fxdr_nfsv4time(tl, &nvap->na_btime);
 			attrsum += NFSX_V4TIME;
 			break;
 		case NFSATTRBIT_TIMEMODIFYSET:
