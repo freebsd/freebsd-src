@@ -38,7 +38,6 @@
 #include <linux/scatterlist.h>
 #include <linux/mm.h>
 #include <linux/page.h>
-#include <linux/sizes.h>
 
 #include <sys/systm.h>
 #include <sys/malloc.h>
