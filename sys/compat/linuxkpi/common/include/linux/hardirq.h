@@ -32,6 +32,7 @@
 #define	_LINUX_HARDIRQ_H_
 
 #include <linux/types.h>
+#include <linux/lockdep.h>
 
 #include <sys/param.h>
 #include <sys/bus.h>
