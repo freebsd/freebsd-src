@@ -336,24 +336,11 @@ again:
 	return (gp);
 }
 
-static void
-g_redboot_config(struct gctl_req *req, struct g_class *mp, const char *verb)
-{
-	struct g_geom *gp;
-
-	g_topology_assert();
-	gp = gctl_get_geom(req, mp, "geom");
-	if (gp == NULL)
-		return;
-	gctl_error(req, "Unknown verb");
-}
-
 static struct g_class g_redboot_class	= {
 	.name		= REDBOOT_CLASS_NAME,
 	.version	= G_VERSION,
 	.taste		= g_redboot_taste,
 	.dumpconf	= g_redboot_dumpconf,
-	.ctlreq		= g_redboot_config,
 	.ioctl		= g_redboot_ioctl,
 };
 DECLARE_GEOM_CLASS(g_redboot_class, g_redboot);
