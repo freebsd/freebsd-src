@@ -99,7 +99,7 @@ static struct option lopts[] = {
 	{"copy", required_argument, NULL, 'C'},		/* Copy boot method */
 	{"create", no_argument, NULL, 'c'},
 	{"deactivate", required_argument, NULL, 'A'},
-	{"del-timout", no_argument, NULL, 'T'},
+	{"del-timeout", no_argument, NULL, 'T'},
 	{"delete", required_argument, NULL, 'B'},
 	{"delete-bootnext", required_argument, NULL, 'N'},
 	{"dry-run", no_argument, NULL, 'D'},
