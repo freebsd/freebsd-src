@@ -1144,7 +1144,7 @@ find_element(char *voltag, uint16_t *et, uint16_t *eu)
 	/*
 	 * Now search the list the specified <voltag>
 	 */	
-	for (elem = 0; elem <= total_elem; ++elem) {
+	for (elem = 0; elem < total_elem; ++elem) {
 
 		ces = &ch_ces[elem];
 
