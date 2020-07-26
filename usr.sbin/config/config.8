@@ -28,7 +28,7 @@
 .\"     @(#)config.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2007
+.Dd June 29, 2020
 .Dt CONFIG 8
 .Os
 .Sh NAME
@@ -61,7 +61,7 @@ that give alternate files for a specific machine
 section below).
 .Pp
 Available options and operands:
-.Bl -tag -width ".Ar SYSTEM_NAME"
+.Bl -tag -width "SYSTEM_NAME"
 .It Fl V
 Print the
 .Nm
@@ -235,7 +235,7 @@ installs
 in the root file system.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /sys/ Ns Va ARCH Ns Pa /compile/ Ns Ar SYSTEM_NAME" -compact
+.Bl -tag -width "/sys/ARCH/compile/SYSTEM_NAME" -compact
 .It Pa /sys/conf/files
 list of common files system is built from
 .It Pa /sys/conf/Makefile. Ns Va ARCH
