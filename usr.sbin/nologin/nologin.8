@@ -28,7 +28,7 @@
 .\"     @(#)nologin.8	8.1 (Berkeley) 6/19/93
 .\" $FreeBSD$
 .\"
-.Dd June 19, 1993
+.Dd April 15, 2020
 .Dt NOLOGIN 8
 .Os
 .Sh NAME
@@ -39,14 +39,31 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility displays a message that an account is not available and
-exits non-zero.
-It is intended as a replacement shell field for accounts that
+is intended as a replacement shell field for accounts that
 have been disabled.
+.Pp
+When executed,
+.Nm
+first writes about the login attempt to
+.Xr syslog 3
+and then a displays a message that an account is not available.
 .Pp
 To disable all logins,
 investigate
 .Xr nologin 5 .
+.Sh EXIT STATUS
+The
+.Nm
+utility always exits non-zero.
+.Sh EXAMPLES
+Here is a demonstration of executing
+.Nm :
+.Bd -literal -offset 4n
+$ nologin
+This account is currently not available.
+$ tail -n 1 /var/log/messages
+Mar 30 21:53:07 example.org nologin[65992]: Attempted login by beastie on /dev/pts/18
+.Ed
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr nologin 5
