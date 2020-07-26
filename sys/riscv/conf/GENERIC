@@ -77,6 +77,13 @@ options 	INTRNG
 # RISC-V SBI console
 device		rcons
 
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device		clk
+device		syscon
+device		syscon_power
+device		riscv_syscon
+
 # Bus drivers
 device		pci
 
