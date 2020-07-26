@@ -61,7 +61,7 @@ void	list_locales(void);
 const char *lookup_localecat(int);
 char	*kwval_lconv(int);
 int	kwval_lookup(const char *, char **, int *, int *, int *);
-void	showdetails(const char *);
+int	showdetails(const char *);
 void	showkeywordslist(char *substring);
 void	showlocale(void);
 void	usage(void);
@@ -414,7 +414,8 @@ main(int argc, char *argv[])
 			setlocale(LC_ALL, "");
 		if (argc > 0) {
 			while (argc > 0) {
-				showdetails(*argv);
+				if (showdetails(*argv) != 0)
+					exit(EXIT_FAILURE);
 				argv++;
 				argc--;
 			}
@@ -837,19 +838,16 @@ kwval_lookup(const char *kwname, char **kwval, int *cat, int *type, int *alloc)
  * Show details about requested keyword according to '-k' and/or '-c'
  * command line options specified.
  */
-void
+int
 showdetails(const char *kw)
 {
 	int	type, cat, tmpval, alloc;
 	char	*kwval;
 
 	if (kwval_lookup(kw, &kwval, &cat, &type, &alloc) == 0) {
-		/*
-		 * invalid keyword specified.
-		 * XXX: any actions?
-		 */
+		/* Invalid keyword specified */
 		fprintf(stderr, "Unknown keyword: `%s'\n", kw);
-		return;
+		return (1);
 	}
 
 	if (prt_categories) {
@@ -889,6 +887,8 @@ showdetails(const char *kw)
 
 	if (alloc)
 		free(kwval);
+
+	return (0);
 }
 
 /*
