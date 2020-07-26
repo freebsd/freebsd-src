@@ -89,7 +89,7 @@ dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
 	/*
 	 * Allocated context page must be linked.
 	 */
-	ctxm = dmar_pgalloc(dmar->ctx_obj, 1 + bus, DMAR_PGF_NOALLOC);
+	ctxm = dmar_pgalloc(dmar->ctx_obj, 1 + bus, IOMMU_PGF_NOALLOC);
 	if (ctxm != NULL)
 		return;
 
@@ -100,9 +100,9 @@ dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
 	 * threads are equal.
 	 */
 	TD_PREP_PINNED_ASSERT;
-	ctxm = dmar_pgalloc(dmar->ctx_obj, 1 + bus, DMAR_PGF_ZERO |
-	    DMAR_PGF_WAITOK);
-	re = dmar_map_pgtbl(dmar->ctx_obj, 0, DMAR_PGF_NOALLOC, &sf);
+	ctxm = dmar_pgalloc(dmar->ctx_obj, 1 + bus, IOMMU_PGF_ZERO |
+	    IOMMU_PGF_WAITOK);
+	re = dmar_map_pgtbl(dmar->ctx_obj, 0, IOMMU_PGF_NOALLOC, &sf);
 	re += bus;
 	dmar_pte_store(&re->r1, DMAR_ROOT_R1_P | (DMAR_ROOT_R1_CTP_MASK &
 	    VM_PAGE_TO_PHYS(ctxm)));
@@ -120,7 +120,7 @@ dmar_map_ctx_entry(struct dmar_ctx *ctx, struct sf_buf **sfp)
 	dmar = (struct dmar_unit *)ctx->context.domain->iommu;
 
 	ctxp = dmar_map_pgtbl(dmar->ctx_obj, 1 +
-	    PCI_RID2BUS(ctx->rid), DMAR_PGF_NOALLOC | DMAR_PGF_WAITOK, sfp);
+	    PCI_RID2BUS(ctx->rid), IOMMU_PGF_NOALLOC | IOMMU_PGF_WAITOK, sfp);
 	ctxp += ctx->rid & 0xff;
 	return (ctxp);
 }
@@ -186,13 +186,14 @@ ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp, bool move,
 	    pci_get_function(ctx->context.tag->owner),
 	    ctxp->ctx1, ctxp->ctx2));
 
-	if ((domain->iodom.flags & DMAR_DOMAIN_IDMAP) != 0 &&
+	if ((domain->iodom.flags & IOMMU_DOMAIN_IDMAP) != 0 &&
 	    (unit->hw_ecap & DMAR_ECAP_PT) != 0) {
 		KASSERT(domain->pgtbl_obj == NULL,
 		    ("ctx %p non-null pgtbl_obj", ctx));
 		ctx_root = NULL;
 	} else {
-		ctx_root = dmar_pgalloc(domain->pgtbl_obj, 0, DMAR_PGF_NOALLOC);
+		ctx_root = dmar_pgalloc(domain->pgtbl_obj, 0,
+		    IOMMU_PGF_NOALLOC);
 	}
 
 	if (dmar_is_buswide_ctx(unit, busno)) {
@@ -295,7 +296,7 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 		if (error1 == 0 && entry->end != entry->start) {
 			IOMMU_LOCK(domain->iodom.iommu);
 			domain->refs++; /* XXXKIB prevent free */
-			domain->iodom.flags |= DMAR_DOMAIN_RMRR;
+			domain->iodom.flags |= IOMMU_DOMAIN_RMRR;
 			IOMMU_UNLOCK(domain->iodom.iommu);
 		} else {
 			if (error1 != 0) {
@@ -363,7 +364,7 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 			domain->pgtbl_obj = domain_get_idmap_pgtbl(domain,
 			    domain->iodom.end);
 		}
-		domain->iodom.flags |= DMAR_DOMAIN_IDMAP;
+		domain->iodom.flags |= IOMMU_DOMAIN_IDMAP;
 	} else {
 		error = domain_alloc_pgtbl(domain);
 		if (error != 0)
@@ -440,12 +441,12 @@ dmar_domain_destroy(struct dmar_domain *domain)
 	    ("destroying dom %p with ctx_cnt %d", domain, domain->ctx_cnt));
 	KASSERT(domain->refs == 0,
 	    ("destroying dom %p with refs %d", domain, domain->refs));
-	if ((domain->iodom.flags & DMAR_DOMAIN_GAS_INITED) != 0) {
+	if ((domain->iodom.flags & IOMMU_DOMAIN_GAS_INITED) != 0) {
 		DMAR_DOMAIN_LOCK(domain);
 		iommu_gas_fini_domain((struct iommu_domain *)domain);
 		DMAR_DOMAIN_UNLOCK(domain);
 	}
-	if ((domain->iodom.flags & DMAR_DOMAIN_PGTBL_INITED) != 0) {
+	if ((domain->iodom.flags & IOMMU_DOMAIN_PGTBL_INITED) != 0) {
 		if (domain->pgtbl_obj != NULL)
 			DMAR_DOMAIN_PGLOCK(domain);
 		domain_free_pgtbl(domain);
@@ -643,7 +644,7 @@ dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx)
 	/* If flush failed, rolling back would not work as well. */
 	printf("dmar%d rid %x domain %d->%d %s-mapped\n",
 	    dmar->iommu.unit, ctx->rid, old_domain->domain, domain->domain,
-	    (domain->iodom.flags & DMAR_DOMAIN_IDMAP) != 0 ? "id" : "re");
+	    (domain->iodom.flags & IOMMU_DOMAIN_IDMAP) != 0 ? "id" : "re");
 	dmar_unref_domain_locked(dmar, old_domain);
 	TD_PINNED_ASSERT;
 	return (error);
@@ -667,7 +668,7 @@ dmar_unref_domain_locked(struct dmar_unit *dmar, struct dmar_domain *domain)
 		return;
 	}
 
-	KASSERT((domain->iodom.flags & DMAR_DOMAIN_RMRR) == 0,
+	KASSERT((domain->iodom.flags & IOMMU_DOMAIN_RMRR) == 0,
 	    ("lost ref on RMRR domain %p", domain));
 
 	LIST_REMOVE(domain, link);
@@ -848,7 +849,7 @@ dmar_domain_unload(struct dmar_domain *domain,
 		KASSERT((entry->flags & IOMMU_MAP_ENTRY_MAP) != 0,
 		    ("not mapped entry %p %p", domain, entry));
 		error = domain_unmap_buf(domain, entry->start, entry->end -
-		    entry->start, cansleep ? DMAR_PGF_WAITOK : 0);
+		    entry->start, cansleep ? IOMMU_PGF_WAITOK : 0);
 		KASSERT(error == 0, ("unmap %p error %d", domain, error));
 		if (!unit->qi_enabled) {
 			domain_flush_iotlb_sync(domain, entry->start,

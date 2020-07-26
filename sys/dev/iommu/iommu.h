@@ -134,11 +134,11 @@ struct iommu_ctx {
 					   ephemeral reference is kept
 					   to prevent context destruction */
 
-#define	DMAR_DOMAIN_GAS_INITED		0x0001
-#define	DMAR_DOMAIN_PGTBL_INITED	0x0002
-#define	DMAR_DOMAIN_IDMAP		0x0010	/* Domain uses identity
+#define	IOMMU_DOMAIN_GAS_INITED		0x0001
+#define	IOMMU_DOMAIN_PGTBL_INITED	0x0002
+#define	IOMMU_DOMAIN_IDMAP		0x0010	/* Domain uses identity
 						   page table */
-#define	DMAR_DOMAIN_RMRR		0x0020	/* Domain contains RMRR entry,
+#define	IOMMU_DOMAIN_RMRR		0x0020	/* Domain contains RMRR entry,
 						   cannot be turned off */
 
 /* Map flags */
@@ -146,11 +146,11 @@ struct iommu_ctx {
 #define	IOMMU_MF_CANSPLIT	0x0002
 #define	IOMMU_MF_RMRR		0x0004
 
-#define	DMAR_PGF_WAITOK		0x0001
-#define	DMAR_PGF_ZERO		0x0002
-#define	DMAR_PGF_ALLOC		0x0004
-#define	DMAR_PGF_NOALLOC	0x0008
-#define	DMAR_PGF_OBJL		0x0010
+#define	IOMMU_PGF_WAITOK	0x0001
+#define	IOMMU_PGF_ZERO		0x0002
+#define	IOMMU_PGF_ALLOC		0x0004
+#define	IOMMU_PGF_NOALLOC	0x0008
+#define	IOMMU_PGF_OBJL		0x0010
 
 #define	IOMMU_LOCK(unit)		mtx_lock(&(unit)->lock)
 #define	IOMMU_UNLOCK(unit)		mtx_unlock(&(unit)->lock)
