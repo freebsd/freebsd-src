@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 11, 2017
+.Dd July 6, 2020
 .Dt CAM 3
 .Os
 .Sh NAME
@@ -218,15 +218,12 @@ structure using
 .Fn cam_open_btl
 is similar to
 .Fn cam_open_spec_device ,
-except that it takes a
-.Tn SCSI
-bus, target and logical unit instead of a device name and unit number as
+except that it takes a SCSI bus,
+target and logical unit instead of a device name and unit number as
 arguments.
 The
 .Va path_id
-argument is the CAM equivalent of a
-.Tn SCSI
-bus number.
+argument is the CAM equivalent of a SCSI bus number.
 It represents the logical bus number in the system.
 The
 .Ar flags
@@ -263,10 +260,13 @@ should be
 if the user wants the CAM library to allocate space for the
 .Va cam_device
 structure.
+.Pp
 .Fn cam_close_device
 frees the
 .Va cam_device
-structure allocated by one of the above open() calls, and closes the file
+structure allocated by one of the above
+.Xr open 2
+calls, and closes the file
 descriptor to the passthrough device.
 This routine should not be called if
 the user allocated space for the
@@ -276,7 +276,9 @@ Instead, the user should call
 .Fn cam_close_spec_device .
 .Pp
 .Fn cam_close_spec_device
-merely closes the file descriptor opened in one of the open() routines
+merely closes the file descriptor opened in one of the
+.Xr open 2
+routines
 described above.
 This function should be called when the
 .Va cam_device
