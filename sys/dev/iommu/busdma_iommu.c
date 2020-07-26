@@ -1017,7 +1017,7 @@ bus_dma_dmar_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 	map = (struct bus_dmamap_iommu *)map1;
 	waitok = (flags & BUS_DMA_NOWAIT) != 0;
 
-	entry = iommu_map_alloc_entry(domain, waitok ? 0 : DMAR_PGF_WAITOK);
+	entry = iommu_map_alloc_entry(domain, waitok ? 0 : IOMMU_PGF_WAITOK);
 	if (entry == NULL)
 		return (ENOMEM);
 	entry->start = start;

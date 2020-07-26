@@ -262,22 +262,22 @@ dmar_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags)
 	vm_page_t m;
 	int zeroed, aflags;
 
-	zeroed = (flags & DMAR_PGF_ZERO) != 0 ? VM_ALLOC_ZERO : 0;
+	zeroed = (flags & IOMMU_PGF_ZERO) != 0 ? VM_ALLOC_ZERO : 0;
 	aflags = zeroed | VM_ALLOC_NOBUSY | VM_ALLOC_SYSTEM | VM_ALLOC_NODUMP |
-	    ((flags & DMAR_PGF_WAITOK) != 0 ? VM_ALLOC_WAITFAIL :
+	    ((flags & IOMMU_PGF_WAITOK) != 0 ? VM_ALLOC_WAITFAIL :
 	    VM_ALLOC_NOWAIT);
 	for (;;) {
-		if ((flags & DMAR_PGF_OBJL) == 0)
+		if ((flags & IOMMU_PGF_OBJL) == 0)
 			VM_OBJECT_WLOCK(obj);
 		m = vm_page_lookup(obj, idx);
-		if ((flags & DMAR_PGF_NOALLOC) != 0 || m != NULL) {
-			if ((flags & DMAR_PGF_OBJL) == 0)
+		if ((flags & IOMMU_PGF_NOALLOC) != 0 || m != NULL) {
+			if ((flags & IOMMU_PGF_OBJL) == 0)
 				VM_OBJECT_WUNLOCK(obj);
 			break;
 		}
 		m = vm_page_alloc_contig(obj, idx, aflags, 1, 0,
 		    dmar_high, PAGE_SIZE, 0, VM_MEMATTR_DEFAULT);
-		if ((flags & DMAR_PGF_OBJL) == 0)
+		if ((flags & IOMMU_PGF_OBJL) == 0)
 			VM_OBJECT_WUNLOCK(obj);
 		if (m != NULL) {
 			if (zeroed && (m->flags & PG_ZERO) == 0)
@@ -285,7 +285,7 @@ dmar_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags)
 			atomic_add_int(&dmar_tbl_pagecnt, 1);
 			break;
 		}
-		if ((flags & DMAR_PGF_WAITOK) == 0)
+		if ((flags & IOMMU_PGF_WAITOK) == 0)
 			break;
 	}
 	return (m);
@@ -296,14 +296,14 @@ dmar_pgfree(vm_object_t obj, vm_pindex_t idx, int flags)
 {
 	vm_page_t m;
 
-	if ((flags & DMAR_PGF_OBJL) == 0)
+	if ((flags & IOMMU_PGF_OBJL) == 0)
 		VM_OBJECT_WLOCK(obj);
 	m = vm_page_grab(obj, idx, VM_ALLOC_NOCREAT);
 	if (m != NULL) {
 		vm_page_free(m);
 		atomic_subtract_int(&dmar_tbl_pagecnt, 1);
 	}
-	if ((flags & DMAR_PGF_OBJL) == 0)
+	if ((flags & IOMMU_PGF_OBJL) == 0)
 		VM_OBJECT_WUNLOCK(obj);
 }
 
@@ -314,39 +314,39 @@ dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
 	vm_page_t m;
 	bool allocated;
 
-	if ((flags & DMAR_PGF_OBJL) == 0)
+	if ((flags & IOMMU_PGF_OBJL) == 0)
 		VM_OBJECT_WLOCK(obj);
 	m = vm_page_lookup(obj, idx);
-	if (m == NULL && (flags & DMAR_PGF_ALLOC) != 0) {
-		m = dmar_pgalloc(obj, idx, flags | DMAR_PGF_OBJL);
+	if (m == NULL && (flags & IOMMU_PGF_ALLOC) != 0) {
+		m = dmar_pgalloc(obj, idx, flags | IOMMU_PGF_OBJL);
 		allocated = true;
 	} else
 		allocated = false;
 	if (m == NULL) {
-		if ((flags & DMAR_PGF_OBJL) == 0)
+		if ((flags & IOMMU_PGF_OBJL) == 0)
 			VM_OBJECT_WUNLOCK(obj);
 		return (NULL);
 	}
 	/* Sleepable allocations cannot fail. */
-	if ((flags & DMAR_PGF_WAITOK) != 0)
+	if ((flags & IOMMU_PGF_WAITOK) != 0)
 		VM_OBJECT_WUNLOCK(obj);
 	sched_pin();
-	*sf = sf_buf_alloc(m, SFB_CPUPRIVATE | ((flags & DMAR_PGF_WAITOK)
+	*sf = sf_buf_alloc(m, SFB_CPUPRIVATE | ((flags & IOMMU_PGF_WAITOK)
 	    == 0 ? SFB_NOWAIT : 0));
 	if (*sf == NULL) {
 		sched_unpin();
 		if (allocated) {
 			VM_OBJECT_ASSERT_WLOCKED(obj);
-			dmar_pgfree(obj, m->pindex, flags | DMAR_PGF_OBJL);
+			dmar_pgfree(obj, m->pindex, flags | IOMMU_PGF_OBJL);
 		}
-		if ((flags & DMAR_PGF_OBJL) == 0)
+		if ((flags & IOMMU_PGF_OBJL) == 0)
 			VM_OBJECT_WUNLOCK(obj);
 		return (NULL);
 	}
-	if ((flags & (DMAR_PGF_WAITOK | DMAR_PGF_OBJL)) ==
-	    (DMAR_PGF_WAITOK | DMAR_PGF_OBJL))
+	if ((flags & (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL)) ==
+	    (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL))
 		VM_OBJECT_WLOCK(obj);
-	else if ((flags & (DMAR_PGF_WAITOK | DMAR_PGF_OBJL)) == 0)
+	else if ((flags & (IOMMU_PGF_WAITOK | IOMMU_PGF_OBJL)) == 0)
 		VM_OBJECT_WUNLOCK(obj);
 	return ((void *)sf_buf_kva(*sf));
 }

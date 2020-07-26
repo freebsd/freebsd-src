@@ -98,10 +98,10 @@ iommu_gas_alloc_entry(struct iommu_domain *domain, u_int flags)
 {
 	struct iommu_map_entry *res;
 
-	KASSERT((flags & ~(DMAR_PGF_WAITOK)) == 0,
+	KASSERT((flags & ~(IOMMU_PGF_WAITOK)) == 0,
 	    ("unsupported flags %x", flags));
 
-	res = uma_zalloc(iommu_map_entry_zone, ((flags & DMAR_PGF_WAITOK) !=
+	res = uma_zalloc(iommu_map_entry_zone, ((flags & IOMMU_PGF_WAITOK) !=
 	    0 ? M_WAITOK : M_NOWAIT) | M_ZERO);
 	if (res != NULL) {
 		res->domain = domain;
@@ -218,8 +218,8 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 {
 	struct iommu_map_entry *begin, *end;
 
-	begin = iommu_gas_alloc_entry(domain, DMAR_PGF_WAITOK);
-	end = iommu_gas_alloc_entry(domain, DMAR_PGF_WAITOK);
+	begin = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
+	end = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
 
 	IOMMU_DOMAIN_LOCK(domain);
 	KASSERT(domain->entries_cnt == 2, ("dirty domain %p", domain));
@@ -238,7 +238,7 @@ iommu_gas_init_domain(struct iommu_domain *domain)
 
 	domain->first_place = begin;
 	domain->last_place = end;
-	domain->flags |= DMAR_DOMAIN_GAS_INITED;
+	domain->flags |= IOMMU_DOMAIN_GAS_INITED;
 	IOMMU_DOMAIN_UNLOCK(domain);
 }
 
@@ -598,7 +598,7 @@ iommu_gas_map(struct iommu_domain *domain,
 	    ("invalid flags 0x%x", flags));
 
 	entry = iommu_gas_alloc_entry(domain,
-	    (flags & IOMMU_MF_CANWAIT) != 0 ?  DMAR_PGF_WAITOK : 0);
+	    (flags & IOMMU_MF_CANWAIT) != 0 ?  IOMMU_PGF_WAITOK : 0);
 	if (entry == NULL)
 		return (ENOMEM);
 	IOMMU_DOMAIN_LOCK(domain);
@@ -622,7 +622,7 @@ iommu_gas_map(struct iommu_domain *domain,
 
 	error = domain_map_buf(domain, entry->start, entry->end - entry->start,
 	    ma, eflags,
-	    ((flags & IOMMU_MF_CANWAIT) != 0 ? DMAR_PGF_WAITOK : 0));
+	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, true);
 		return (error);
@@ -660,7 +660,7 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 
 	error = domain_map_buf(domain, entry->start, entry->end - entry->start,
 	    ma + OFF_TO_IDX(start - entry->start), eflags,
-	    ((flags & IOMMU_MF_CANWAIT) != 0 ? DMAR_PGF_WAITOK : 0));
+	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, false);
 		return (error);
@@ -678,7 +678,7 @@ iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
 	struct iommu_map_entry *entry;
 	int error;
 
-	entry = iommu_gas_alloc_entry(domain, DMAR_PGF_WAITOK);
+	entry = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
 	entry->start = start;
 	entry->end = end;
 	IOMMU_DOMAIN_LOCK(domain);
