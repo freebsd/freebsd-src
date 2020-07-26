@@ -45,18 +45,19 @@ sshd_keygen_alg()
 		;;
 	esac
 
+	if [ -f "${keyfile}" ] ; then
+		info "$ALG host key exists."
+		return 0
+	fi
+
 	if [ ! -x /usr/bin/ssh-keygen ] ; then
 		warn "/usr/bin/ssh-keygen does not exist."
 		return 1
 	fi
 
-	if [ -f "${keyfile}" ] ; then
-		info "$ALG host key exists."
-	else
-		echo "Generating $ALG host key."
-		/usr/bin/ssh-keygen -q -t $alg -f "$keyfile" -N ""
-		/usr/bin/ssh-keygen -l -f "$keyfile.pub"
-	fi
+	echo "Generating $ALG host key."
+	/usr/bin/ssh-keygen -q -t $alg -f "$keyfile" -N ""
+	/usr/bin/ssh-keygen -l -f "$keyfile.pub"
 }
 
 sshd_keygen()
