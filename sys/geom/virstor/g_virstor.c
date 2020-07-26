@@ -227,7 +227,7 @@ virstor_ctl_stop(struct gctl_req *req, struct g_class *cp)
 		struct g_virstor_softc *sc;
 		int error;
 
-		sprintf(param, "arg%d", i);
+		snprintf(param, sizeof(param), "arg%d", i);
 		name = gctl_get_asciiparam(req, param);
 		if (name == NULL) {
 			gctl_error(req, "No 'arg%d' argument", i);
@@ -565,7 +565,7 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 		int j, found;
 		struct g_virstor_component *newcomp, *compbak;
 
-		sprintf(param, "arg%d", i);
+		snprintf(param, sizeof(param), "arg%d", i);
 		prov_name = gctl_get_asciiparam(req, param);
 		if (prov_name == NULL) {
 			gctl_error(req, "Error fetching argument '%s'", param);
