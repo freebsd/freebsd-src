@@ -593,4 +593,7 @@ linux_ratelimited(linux_ratelimit_t *rl)
 			    (is_signed(datatype) ? INT8_MIN : 0) \
 )
 
+#define	TAINT_WARN	0
+#define	test_taint(x)	(0)
+
 #endif	/* _LINUX_KERNEL_H_ */
