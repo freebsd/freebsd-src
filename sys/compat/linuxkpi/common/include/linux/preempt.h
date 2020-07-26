@@ -29,6 +29,7 @@
 #ifndef _LINUX_PREEMPT_H_
 #define	_LINUX_PREEMPT_H_
 
+#include <linux/hardirq.h>
 #include <linux/list.h>
 
 #define	in_interrupt() \
