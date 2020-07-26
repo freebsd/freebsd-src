@@ -134,6 +134,22 @@ commands_on_stdin_body()
 	atf_check -o 'empty' sed -f - < insert_x
 }
 
+atf_test_case bracket_y
+bracket_y_head()
+{
+	atf_set "descr" "Verify '[' is ordinary character for 'y' command"
+}
+bracket_y_body()
+{
+	atf_check -e empty -o ignore echo | sed 'y/[/x/'
+	atf_check -e empty -o ignore echo | sed 'y/[]/xy/'
+	atf_check -e empty -o ignore echo | sed 'y/[a]/xyz/'
+	atf_check -e empty -o "inline:zyx" echo '][a' | sed 'y/[a]/xyz/'
+	atf_check -e empty -o "inline:bracket\n" echo 'bra[ke]' | sed 'y/[]/ct/'
+	atf_check -e empty -o "inline:bracket\n" \
+	    echo 'bra[ke]' | sed 'y[\[][ct['
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case inplace_command_q
@@ -142,4 +158,5 @@ atf_init_test_cases()
 	atf_add_test_case escape_subst
 	atf_add_test_case commands_on_stdin
 	atf_add_test_case hex_subst
+	atf_add_test_case bracket_y
 }
