@@ -13,10 +13,10 @@
 #ifndef LLVM_EXECUTIONENGINE_ORC_SPECULATION_H
 #define LLVM_EXECUTIONENGINE_ORC_SPECULATION_H
 
-#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ExecutionEngine/Orc/Core.h"
+#include "llvm/ExecutionEngine/Orc/DebugUtils.h"
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
@@ -182,8 +182,8 @@ public:
   IRSpeculationLayer(ExecutionSession &ES, IRCompileLayer &BaseLayer,
                      Speculator &Spec, MangleAndInterner &Mangle,
                      ResultEval Interpreter)
-      : IRLayer(ES), NextLayer(BaseLayer), S(Spec), Mangle(Mangle),
-        QueryAnalysis(Interpreter) {}
+      : IRLayer(ES, BaseLayer.getManglingOptions()), NextLayer(BaseLayer),
+        S(Spec), Mangle(Mangle), QueryAnalysis(Interpreter) {}
 
   void emit(MaterializationResponsibility R, ThreadSafeModule TSM);
 
@@ -192,11 +192,10 @@ private:
   internToJITSymbols(DenseMap<StringRef, DenseSet<StringRef>> IRNames) {
     assert(!IRNames.empty() && "No IRNames received to Intern?");
     TargetAndLikelies InternedNames;
-    DenseSet<SymbolStringPtr> TargetJITNames;
     for (auto &NamePair : IRNames) {
+      DenseSet<SymbolStringPtr> TargetJITNames;
       for (auto &TargetNames : NamePair.second)
         TargetJITNames.insert(Mangle(TargetNames));
-
       InternedNames[Mangle(NamePair.first)] = std::move(TargetJITNames);
     }
     return InternedNames;

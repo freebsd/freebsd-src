@@ -95,6 +95,7 @@ namespace clang {
     void VisitCXXConversionDecl(CXXConversionDecl *D);
     void VisitFieldDecl(FieldDecl *D);
     void VisitMSPropertyDecl(MSPropertyDecl *D);
+    void VisitMSGuidDecl(MSGuidDecl *D);
     void VisitIndirectFieldDecl(IndirectFieldDecl *D);
     void VisitVarDecl(VarDecl *D);
     void VisitImplicitParamDecl(ImplicitParamDecl *D);
@@ -104,6 +105,7 @@ namespace clang {
     void VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
     void VisitTemplateDecl(TemplateDecl *D);
     void VisitConceptDecl(ConceptDecl *D);
+    void VisitRequiresExprBodyDecl(RequiresExprBodyDecl *D);
     void VisitRedeclarableTemplateDecl(RedeclarableTemplateDecl *D);
     void VisitClassTemplateDecl(ClassTemplateDecl *D);
     void VisitVarTemplateDecl(VarTemplateDecl *D);
@@ -952,6 +954,17 @@ void ASTDeclWriter::VisitMSPropertyDecl(MSPropertyDecl *D) {
   Code = serialization::DECL_MS_PROPERTY;
 }
 
+void ASTDeclWriter::VisitMSGuidDecl(MSGuidDecl *D) {
+  VisitValueDecl(D);
+  MSGuidDecl::Parts Parts = D->getParts();
+  Record.push_back(Parts.Part1);
+  Record.push_back(Parts.Part2);
+  Record.push_back(Parts.Part3);
+  for (auto C : Parts.Part4And5)
+    Record.push_back(C);
+  Code = serialization::DECL_MS_GUID;
+}
+
 void ASTDeclWriter::VisitIndirectFieldDecl(IndirectFieldDecl *D) {
   VisitValueDecl(D);
   Record.push_back(D->getChainingSize());
@@ -1010,16 +1023,15 @@ void ASTDeclWriter::VisitVarDecl(VarDecl *D) {
 
   if (D->getStorageDuration() == SD_Static) {
     bool ModulesCodegen = false;
-    if (!D->getDescribedVarTemplate() && !D->getMemberSpecializationInfo() &&
+    if (Writer.WritingModule &&
+        !D->getDescribedVarTemplate() && !D->getMemberSpecializationInfo() &&
         !isa<VarTemplateSpecializationDecl>(D)) {
       // When building a C++ Modules TS module interface unit, a strong
       // definition in the module interface is provided by the compilation of
       // that module interface unit, not by its users. (Inline variables are
       // still emitted in module users.)
       ModulesCodegen =
-          (((Writer.WritingModule &&
-             Writer.WritingModule->Kind == Module::ModuleInterfaceUnit) ||
-            Writer.Context->getLangOpts().BuildingPCHWithObjectFile) &&
+          (Writer.WritingModule->Kind == Module::ModuleInterfaceUnit &&
            Writer.Context->GetGVALinkageForVariable(D) == GVA_StrongExternal);
     }
     Record.push_back(ModulesCodegen);
@@ -1087,8 +1099,6 @@ void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   if (D->hasUninstantiatedDefaultArg())
     Record.AddStmt(D->getUninstantiatedDefaultArg());
   Code = serialization::DECL_PARM_VAR;
-
-  assert(!D->isARCPseudoStrong()); // can be true of ImplicitParamDecl
 
   // If the assumptions about the DECL_PARM_VAR abbrev are true, use it.  Here
   // we dynamically check for the properties that we optimize for, but don't
@@ -1481,6 +1491,10 @@ void ASTDeclWriter::VisitConceptDecl(ConceptDecl *D) {
   Code = serialization::DECL_CONCEPT;
 }
 
+void ASTDeclWriter::VisitRequiresExprBodyDecl(RequiresExprBodyDecl *D) {
+  Code = serialization::DECL_REQUIRES_EXPR_BODY;
+}
+
 void ASTDeclWriter::VisitRedeclarableTemplateDecl(RedeclarableTemplateDecl *D) {
   VisitRedeclarable(D);
 
@@ -1670,6 +1684,8 @@ void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   // For an expanded parameter pack, record the number of expansion types here
   // so that it's easier for deserialization to allocate the right amount of
   // memory.
+  Expr *TypeConstraint = D->getPlaceholderTypeConstraint();
+  Record.push_back(!!TypeConstraint);
   if (D->isExpandedParameterPack())
     Record.push_back(D->getNumExpansionTypes());
 
@@ -1677,6 +1693,8 @@ void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   // TemplateParmPosition.
   Record.push_back(D->getDepth());
   Record.push_back(D->getPosition());
+  if (TypeConstraint)
+    Record.AddStmt(TypeConstraint);
 
   if (D->isExpandedParameterPack()) {
     for (unsigned I = 0, N = D->getNumExpansionTypes(); I != N; ++I) {
@@ -2101,7 +2119,7 @@ void ASTWriter::WriteDeclAbbrevs() {
   Abv->Add(BitCodeAbbrevOp(0));                       // SClass
   Abv->Add(BitCodeAbbrevOp(0));                       // TSCSpec
   Abv->Add(BitCodeAbbrevOp(0));                       // InitStyle
-  Abv->Add(BitCodeAbbrevOp(0));                       // ARCPseudoStrong
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // isARCPseudoStrong
   Abv->Add(BitCodeAbbrevOp(0));                       // Linkage
   Abv->Add(BitCodeAbbrevOp(0));                       // HasInit
   Abv->Add(BitCodeAbbrevOp(0));                   // HasMemberSpecializationInfo
@@ -2266,13 +2284,13 @@ void ASTWriter::WriteDeclAbbrevs() {
   Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(serialization::EXPR_DECL_REF));
   //Stmt
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsOMPStructuredBlock
   // Expr
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Type
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //TypeDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ValueDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //InstantiationDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //UnexpandedParamPack
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ContainsErrors
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetValueKind
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetObjectKind
   //DeclRefExpr
@@ -2290,13 +2308,13 @@ void ASTWriter::WriteDeclAbbrevs() {
   Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(serialization::EXPR_INTEGER_LITERAL));
   //Stmt
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsOMPStructuredBlock
   // Expr
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Type
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //TypeDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ValueDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //InstantiationDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //UnexpandedParamPack
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ContainsErrors
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetValueKind
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetObjectKind
   //Integer Literal
@@ -2309,13 +2327,13 @@ void ASTWriter::WriteDeclAbbrevs() {
   Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(serialization::EXPR_CHARACTER_LITERAL));
   //Stmt
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsOMPStructuredBlock
   // Expr
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Type
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //TypeDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ValueDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //InstantiationDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //UnexpandedParamPack
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ContainsErrors
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetValueKind
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetObjectKind
   //Character Literal
@@ -2328,13 +2346,13 @@ void ASTWriter::WriteDeclAbbrevs() {
   Abv = std::make_shared<BitCodeAbbrev>();
   Abv->Add(BitCodeAbbrevOp(serialization::EXPR_IMPLICIT_CAST));
   // Stmt
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); // IsOMPStructuredBlock
   // Expr
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // Type
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //TypeDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ValueDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //InstantiationDependent
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //UnexpandedParamPack
+  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 1)); //ContainsErrors
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetValueKind
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Fixed, 3)); //GetObjectKind
   // CastExpr
@@ -2414,12 +2432,12 @@ void ASTWriter::WriteDecl(ASTContext &Context, Decl *D) {
   SourceLocation Loc = D->getLocation();
   unsigned Index = ID - FirstDeclID;
   if (DeclOffsets.size() == Index)
-    DeclOffsets.push_back(DeclOffset(Loc, Offset));
+    DeclOffsets.emplace_back(Loc, Offset, DeclTypesBlockStartOffset);
   else if (DeclOffsets.size() < Index) {
     // FIXME: Can/should this happen?
     DeclOffsets.resize(Index+1);
     DeclOffsets[Index].setLocation(Loc);
-    DeclOffsets[Index].BitOffset = Offset;
+    DeclOffsets[Index].setBitOffset(Offset, DeclTypesBlockStartOffset);
   } else {
     llvm_unreachable("declarations should be emitted in ID order");
   }
@@ -2442,9 +2460,8 @@ void ASTRecordWriter::AddFunctionDefinition(const FunctionDecl *FD) {
   bool ModulesCodegen = false;
   if (!FD->isDependentContext()) {
     Optional<GVALinkage> Linkage;
-    if ((Writer->WritingModule &&
-         Writer->WritingModule->Kind == Module::ModuleInterfaceUnit) ||
-        Writer->Context->getLangOpts().BuildingPCHWithObjectFile) {
+    if (Writer->WritingModule &&
+        Writer->WritingModule->Kind == Module::ModuleInterfaceUnit) {
       // When building a C++ Modules TS module interface unit, a strong
       // definition in the module interface is provided by the compilation of
       // that module interface unit, not by its users. (Inline functions are

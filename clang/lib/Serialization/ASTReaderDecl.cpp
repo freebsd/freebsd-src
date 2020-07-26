@@ -365,6 +365,7 @@ namespace clang {
     void VisitCXXConversionDecl(CXXConversionDecl *D);
     void VisitFieldDecl(FieldDecl *FD);
     void VisitMSPropertyDecl(MSPropertyDecl *FD);
+    void VisitMSGuidDecl(MSGuidDecl *D);
     void VisitIndirectFieldDecl(IndirectFieldDecl *FD);
     RedeclarableResult VisitVarDeclImpl(VarDecl *D);
     void VisitVarDecl(VarDecl *VD) { VisitVarDeclImpl(VD); }
@@ -375,6 +376,7 @@ namespace clang {
     void VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D);
     DeclID VisitTemplateDecl(TemplateDecl *D);
     void VisitConceptDecl(ConceptDecl *D);
+    void VisitRequiresExprBodyDecl(RequiresExprBodyDecl *D);
     RedeclarableResult VisitRedeclarableTemplateDecl(RedeclarableTemplateDecl *D);
     void VisitClassTemplateDecl(ClassTemplateDecl *D);
     void VisitBuiltinTemplateDecl(BuiltinTemplateDecl *D);
@@ -554,7 +556,7 @@ void ASTDeclReader::Visit(Decl *D) {
 
 void ASTDeclReader::VisitDecl(Decl *D) {
   if (D->isTemplateParameter() || D->isTemplateParameterPack() ||
-      isa<ParmVarDecl>(D)) {
+      isa<ParmVarDecl>(D) || isa<ObjCTypeParamDecl>(D)) {
     // We don't want to deserialize the DeclContext of a template
     // parameter or of a parameter of a function template immediately.   These
     // entities might be used in the formulation of its DeclContext (for
@@ -1282,10 +1284,9 @@ void ASTDeclReader::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
   QualType T = Record.readType();
   TypeSourceInfo *TSI = readTypeSourceInfo();
   D->setType(T, TSI);
-  D->setPropertyAttributes(
-      (ObjCPropertyDecl::PropertyAttributeKind)Record.readInt());
+  D->setPropertyAttributes((ObjCPropertyAttribute::Kind)Record.readInt());
   D->setPropertyAttributesAsWritten(
-      (ObjCPropertyDecl::PropertyAttributeKind)Record.readInt());
+      (ObjCPropertyAttribute::Kind)Record.readInt());
   D->setPropertyImplementation(
       (ObjCPropertyDecl::PropertyControl)Record.readInt());
   DeclarationName GetterName = Record.readDeclarationName();
@@ -1359,6 +1360,19 @@ void ASTDeclReader::VisitMSPropertyDecl(MSPropertyDecl *PD) {
   VisitDeclaratorDecl(PD);
   PD->GetterId = Record.readIdentifier();
   PD->SetterId = Record.readIdentifier();
+}
+
+void ASTDeclReader::VisitMSGuidDecl(MSGuidDecl *D) {
+  VisitValueDecl(D);
+  D->PartVal.Part1 = Record.readInt();
+  D->PartVal.Part2 = Record.readInt();
+  D->PartVal.Part3 = Record.readInt();
+  for (auto &C : D->PartVal.Part4And5)
+    C = Record.readInt();
+
+  // Add this GUID to the AST context's lookup structure, and merge if needed.
+  if (MSGuidDecl *Existing = Reader.getContext().MSGuidDecls.GetOrInsertNode(D))
+    Reader.getContext().setPrimaryMergedDecl(D, Existing->getCanonicalDecl());
 }
 
 void ASTDeclReader::VisitIndirectFieldDecl(IndirectFieldDecl *FD) {
@@ -1979,8 +1993,8 @@ void ASTDeclReader::VisitCXXConversionDecl(CXXConversionDecl *D) {
 
 void ASTDeclReader::VisitImportDecl(ImportDecl *D) {
   VisitDecl(D);
-  D->ImportedAndComplete.setPointer(readModule());
-  D->ImportedAndComplete.setInt(Record.readInt());
+  D->ImportedModule = readModule();
+  D->setImportComplete(Record.readInt());
   auto *StoredLocs = D->getTrailingObjects<SourceLocation>();
   for (unsigned I = 0, N = Record.back(); I != N; ++I)
     StoredLocs[I] = readSourceLocation();
@@ -2035,6 +2049,9 @@ void ASTDeclReader::VisitConceptDecl(ConceptDecl *D) {
   VisitTemplateDecl(D);
   D->ConstraintExpr = Record.readExpr();
   mergeMergeable(D);
+}
+
+void ASTDeclReader::VisitRequiresExprBodyDecl(RequiresExprBodyDecl *D) {
 }
 
 ASTDeclReader::RedeclarableResult
@@ -2313,12 +2330,12 @@ void ASTDeclReader::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
 
   D->setDeclaredWithTypename(Record.readInt());
 
-  if (Record.readInt()) {
+  if (Record.readBool()) {
     NestedNameSpecifierLoc NNS = Record.readNestedNameSpecifierLoc();
     DeclarationNameInfo DN = Record.readDeclarationNameInfo();
-    ConceptDecl *NamedConcept = cast<ConceptDecl>(Record.readDecl());
+    ConceptDecl *NamedConcept = Record.readDeclAs<ConceptDecl>();
     const ASTTemplateArgumentListInfo *ArgsAsWritten = nullptr;
-    if (Record.readInt())
+    if (Record.readBool())
         ArgsAsWritten = Record.readASTTemplateArgumentListInfo();
     Expr *ImmediatelyDeclaredConstraint = Record.readExpr();
     D->setTypeConstraint(NNS, DN, /*FoundDecl=*/nullptr, NamedConcept,
@@ -2336,6 +2353,8 @@ void ASTDeclReader::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   // TemplateParmPosition.
   D->setDepth(Record.readInt());
   D->setPosition(Record.readInt());
+  if (D->hasPlaceholderTypeConstraint())
+    D->setPlaceholderTypeConstraint(Record.readExpr());
   if (D->isExpandedParameterPack()) {
     auto TypesAndInfos =
         D->getTrailingObjects<std::pair<QualType, TypeSourceInfo *>>();
@@ -2750,6 +2769,8 @@ public:
     return Reader.readVersionTuple();
   }
 
+  OMPTraitInfo *readOMPTraitInfo() { return Reader.readOMPTraitInfo(); }
+
   template <typename T> T *GetLocalDeclAs(uint32_t LocalID) {
     return Reader.GetLocalDeclAs<T>(LocalID);
   }
@@ -2834,7 +2855,8 @@ static bool isConsumerInterestedIn(ASTContext &Ctx, Decl *D, bool HasBody) {
       isa<PragmaDetectMismatchDecl>(D))
     return true;
   if (isa<OMPThreadPrivateDecl>(D) || isa<OMPDeclareReductionDecl>(D) ||
-      isa<OMPDeclareMapperDecl>(D) || isa<OMPAllocateDecl>(D))
+      isa<OMPDeclareMapperDecl>(D) || isa<OMPAllocateDecl>(D) ||
+      isa<OMPRequiresDecl>(D))
     return !D->getDeclContext()->isFunctionOrMethod();
   if (const auto *Var = dyn_cast<VarDecl>(D))
     return Var->isFileVarDecl() &&
@@ -2859,7 +2881,7 @@ ASTReader::DeclCursorForID(DeclID ID, SourceLocation &Loc) {
   const DeclOffset &DOffs =
       M->DeclOffsets[ID - M->BaseDeclID - NUM_PREDEF_DECL_IDS];
   Loc = TranslateSourceLocation(*M, DOffs.getLocation());
-  return RecordLocation(M, DOffs.BitOffset);
+  return RecordLocation(M, DOffs.getBitOffset(M->DeclsBlockStartOffset));
 }
 
 ASTReader::RecordLocation ASTReader::getLocalBitOffset(uint64_t GlobalOffset) {
@@ -2869,11 +2891,12 @@ ASTReader::RecordLocation ASTReader::getLocalBitOffset(uint64_t GlobalOffset) {
   return RecordLocation(I->second, GlobalOffset - I->second->GlobalBitOffset);
 }
 
-uint64_t ASTReader::getGlobalBitOffset(ModuleFile &M, uint32_t LocalOffset) {
+uint64_t ASTReader::getGlobalBitOffset(ModuleFile &M, uint64_t LocalOffset) {
   return LocalOffset + M.GlobalBitOffset;
 }
 
-static bool isSameTemplateParameterList(const TemplateParameterList *X,
+static bool isSameTemplateParameterList(const ASTContext &C,
+                                        const TemplateParameterList *X,
                                         const TemplateParameterList *Y);
 
 /// Determine whether two template parameters are similar enough
@@ -2885,7 +2908,32 @@ static bool isSameTemplateParameter(const NamedDecl *X,
 
   if (const auto *TX = dyn_cast<TemplateTypeParmDecl>(X)) {
     const auto *TY = cast<TemplateTypeParmDecl>(Y);
-    return TX->isParameterPack() == TY->isParameterPack();
+    if (TX->isParameterPack() != TY->isParameterPack())
+      return false;
+    if (TX->hasTypeConstraint() != TY->hasTypeConstraint())
+      return false;
+    if (TX->hasTypeConstraint()) {
+      const TypeConstraint *TXTC = TX->getTypeConstraint();
+      const TypeConstraint *TYTC = TY->getTypeConstraint();
+      if (TXTC->getNamedConcept() != TYTC->getNamedConcept())
+        return false;
+      if (TXTC->hasExplicitTemplateArgs() != TYTC->hasExplicitTemplateArgs())
+        return false;
+      if (TXTC->hasExplicitTemplateArgs()) {
+        const auto *TXTCArgs = TXTC->getTemplateArgsAsWritten();
+        const auto *TYTCArgs = TYTC->getTemplateArgsAsWritten();
+        if (TXTCArgs->NumTemplateArgs != TYTCArgs->NumTemplateArgs)
+          return false;
+        llvm::FoldingSetNodeID XID, YID;
+        for (const auto &ArgLoc : TXTCArgs->arguments())
+          ArgLoc.getArgument().Profile(XID, X->getASTContext());
+        for (const auto &ArgLoc : TYTCArgs->arguments())
+          ArgLoc.getArgument().Profile(YID, Y->getASTContext());
+        if (XID != YID)
+          return false;
+      }
+    }
+    return true;
   }
 
   if (const auto *TX = dyn_cast<NonTypeTemplateParmDecl>(X)) {
@@ -2897,7 +2945,8 @@ static bool isSameTemplateParameter(const NamedDecl *X,
   const auto *TX = cast<TemplateTemplateParmDecl>(X);
   const auto *TY = cast<TemplateTemplateParmDecl>(Y);
   return TX->isParameterPack() == TY->isParameterPack() &&
-         isSameTemplateParameterList(TX->getTemplateParameters(),
+         isSameTemplateParameterList(TX->getASTContext(),
+                                     TX->getTemplateParameters(),
                                      TY->getTemplateParameters());
 }
 
@@ -2950,7 +2999,8 @@ static bool isSameQualifier(const NestedNameSpecifier *X,
 
 /// Determine whether two template parameter lists are similar enough
 /// that they may be used in declarations of the same template.
-static bool isSameTemplateParameterList(const TemplateParameterList *X,
+static bool isSameTemplateParameterList(const ASTContext &C,
+                                        const TemplateParameterList *X,
                                         const TemplateParameterList *Y) {
   if (X->size() != Y->size())
     return false;
@@ -2958,6 +3008,18 @@ static bool isSameTemplateParameterList(const TemplateParameterList *X,
   for (unsigned I = 0, N = X->size(); I != N; ++I)
     if (!isSameTemplateParameter(X->getParam(I), Y->getParam(I)))
       return false;
+
+  const Expr *XRC = X->getRequiresClause();
+  const Expr *YRC = Y->getRequiresClause();
+  if (!XRC != !YRC)
+    return false;
+  if (XRC) {
+    llvm::FoldingSetNodeID XRCID, YRCID;
+    XRC->Profile(XRCID, C, /*Canonical=*/true);
+    YRC->Profile(YRCID, C, /*Canonical=*/true);
+    if (XRCID != YRCID)
+      return false;
+  }
 
   return true;
 }
@@ -2995,7 +3057,7 @@ static bool hasSameOverloadableAttrs(const FunctionDecl *A,
   return true;
 }
 
-/// Determine whether the two declarations refer to the same entity.
+/// Determine whether the two declarations refer to the same entity.pr
 static bool isSameEntity(NamedDecl *X, NamedDecl *Y) {
   assert(X->getDeclName() == Y->getDeclName() && "Declaration name mismatch!");
 
@@ -3070,6 +3132,19 @@ static bool isSameEntity(NamedDecl *X, NamedDecl *Y) {
     }
 
     ASTContext &C = FuncX->getASTContext();
+
+    const Expr *XRC = FuncX->getTrailingRequiresClause();
+    const Expr *YRC = FuncY->getTrailingRequiresClause();
+    if (!XRC != !YRC)
+      return false;
+    if (XRC) {
+      llvm::FoldingSetNodeID XRCID, YRCID;
+      XRC->Profile(XRCID, C, /*Canonical=*/true);
+      YRC->Profile(YRCID, C, /*Canonical=*/true);
+      if (XRCID != YRCID)
+        return false;
+    }
+
     auto GetTypeAsWritten = [](const FunctionDecl *FD) {
       // Map to the first declaration that we've already merged into this one.
       // The TSI of redeclarations might not match (due to calling conventions
@@ -3093,6 +3168,7 @@ static bool isSameEntity(NamedDecl *X, NamedDecl *Y) {
         return true;
       return false;
     }
+
     return FuncX->getLinkageInternal() == FuncY->getLinkageInternal() &&
            hasSameOverloadableAttrs(FuncX, FuncY);
   }
@@ -3132,7 +3208,8 @@ static bool isSameEntity(NamedDecl *X, NamedDecl *Y) {
     const auto *TemplateY = cast<TemplateDecl>(Y);
     return isSameEntity(TemplateX->getTemplatedDecl(),
                         TemplateY->getTemplatedDecl()) &&
-           isSameTemplateParameterList(TemplateX->getTemplateParameters(),
+           isSameTemplateParameterList(TemplateX->getASTContext(),
+                                       TemplateX->getTemplateParameters(),
                                        TemplateY->getTemplateParameters());
   }
 
@@ -3819,13 +3896,19 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
                                                  HasTypeConstraint);
     break;
   }
-  case DECL_NON_TYPE_TEMPLATE_PARM:
-    D = NonTypeTemplateParmDecl::CreateDeserialized(Context, ID);
-    break;
-  case DECL_EXPANDED_NON_TYPE_TEMPLATE_PARM_PACK:
+  case DECL_NON_TYPE_TEMPLATE_PARM: {
+    bool HasTypeConstraint = Record.readInt();
     D = NonTypeTemplateParmDecl::CreateDeserialized(Context, ID,
-                                                    Record.readInt());
+                                                    HasTypeConstraint);
     break;
+  }
+  case DECL_EXPANDED_NON_TYPE_TEMPLATE_PARM_PACK: {
+    bool HasTypeConstraint = Record.readInt();
+    D = NonTypeTemplateParmDecl::CreateDeserialized(Context, ID,
+                                                    Record.readInt(),
+                                                    HasTypeConstraint);
+    break;
+  }
   case DECL_TEMPLATE_TEMPLATE_PARM:
     D = TemplateTemplateParmDecl::CreateDeserialized(Context, ID);
     break;
@@ -3838,6 +3921,9 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
     break;
   case DECL_CONCEPT:
     D = ConceptDecl::CreateDeserialized(Context, ID);
+    break;
+  case DECL_REQUIRES_EXPR_BODY:
+    D = RequiresExprBodyDecl::CreateDeserialized(Context, ID);
     break;
   case DECL_STATIC_ASSERT:
     D = StaticAssertDecl::CreateDeserialized(Context, ID);
@@ -3904,6 +3990,9 @@ Decl *ASTReader::ReadDeclRecord(DeclID ID) {
     break;
   case DECL_MS_PROPERTY:
     D = MSPropertyDecl::CreateDeserialized(Context, ID);
+    break;
+  case DECL_MS_GUID:
+    D = MSGuidDecl::CreateDeserialized(Context, ID);
     break;
   case DECL_CAPTURED:
     D = CapturedDecl::CreateDeserialized(Context, ID, Record.readInt());

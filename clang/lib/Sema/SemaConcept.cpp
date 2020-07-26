@@ -17,7 +17,10 @@
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Sema/TemplateDeduction.h"
 #include "clang/Sema/Template.h"
-#include "clang/AST/ExprCXX.h"
+#include "clang/Sema/Overload.h"
+#include "clang/Sema/Initialization.h"
+#include "clang/Sema/SemaInternal.h"
+#include "clang/AST/ExprConcepts.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Basic/OperatorPrecedence.h"
 #include "llvm/ADT/DenseMap.h"
@@ -25,21 +28,47 @@
 using namespace clang;
 using namespace sema;
 
-bool
-Sema::CheckConstraintExpression(Expr *ConstraintExpression, Token NextToken,
-                                bool *PossibleNonPrimary,
-                                bool IsTrailingRequiresClause) {
+namespace {
+class LogicalBinOp {
+  OverloadedOperatorKind Op = OO_None;
+  const Expr *LHS = nullptr;
+  const Expr *RHS = nullptr;
+
+public:
+  LogicalBinOp(const Expr *E) {
+    if (auto *BO = dyn_cast<BinaryOperator>(E)) {
+      Op = BinaryOperator::getOverloadedOperator(BO->getOpcode());
+      LHS = BO->getLHS();
+      RHS = BO->getRHS();
+    } else if (auto *OO = dyn_cast<CXXOperatorCallExpr>(E)) {
+      Op = OO->getOperator();
+      LHS = OO->getArg(0);
+      RHS = OO->getArg(1);
+    }
+  }
+
+  bool isAnd() const { return Op == OO_AmpAmp; }
+  bool isOr() const { return Op == OO_PipePipe; }
+  explicit operator bool() const { return isAnd() || isOr(); }
+
+  const Expr *getLHS() const { return LHS; }
+  const Expr *getRHS() const { return RHS; }
+};
+}
+
+bool Sema::CheckConstraintExpression(const Expr *ConstraintExpression,
+                                     Token NextToken, bool *PossibleNonPrimary,
+                                     bool IsTrailingRequiresClause) {
   // C++2a [temp.constr.atomic]p1
   // ..E shall be a constant expression of type bool.
 
   ConstraintExpression = ConstraintExpression->IgnoreParenImpCasts();
 
-  if (auto *BinOp = dyn_cast<BinaryOperator>(ConstraintExpression)) {
-    if (BinOp->getOpcode() == BO_LAnd || BinOp->getOpcode() == BO_LOr)
-      return CheckConstraintExpression(BinOp->getLHS(), NextToken,
-                                       PossibleNonPrimary) &&
-             CheckConstraintExpression(BinOp->getRHS(), NextToken,
-                                       PossibleNonPrimary);
+  if (LogicalBinOp BO = ConstraintExpression) {
+    return CheckConstraintExpression(BO.getLHS(), NextToken,
+                                     PossibleNonPrimary) &&
+           CheckConstraintExpression(BO.getRHS(), NextToken,
+                                     PossibleNonPrimary);
   } else if (auto *C = dyn_cast<ExprWithCleanups>(ConstraintExpression))
     return CheckConstraintExpression(C->getSubExpr(), NextToken,
                                      PossibleNonPrimary);
@@ -57,7 +86,7 @@ Sema::CheckConstraintExpression(Expr *ConstraintExpression, Token NextToken,
           (NextToken.is(tok::l_paren) &&
            (IsTrailingRequiresClause ||
             (Type->isDependentType() &&
-             IsDependentFunctionNameExpr(ConstraintExpression)) ||
+             isa<UnresolvedLookupExpr>(ConstraintExpression)) ||
             Type->isFunctionType() ||
             Type->isSpecificBuiltinType(BuiltinType::Overload))) ||
           // We have the following case:
@@ -96,39 +125,37 @@ calculateConstraintSatisfaction(Sema &S, const Expr *ConstraintExpr,
                                 AtomicEvaluator &&Evaluator) {
   ConstraintExpr = ConstraintExpr->IgnoreParenImpCasts();
 
-  if (auto *BO = dyn_cast<BinaryOperator>(ConstraintExpr)) {
-    if (BO->getOpcode() == BO_LAnd || BO->getOpcode() == BO_LOr) {
-      if (calculateConstraintSatisfaction(S, BO->getLHS(), Satisfaction,
-                                          Evaluator))
-        return true;
+  if (LogicalBinOp BO = ConstraintExpr) {
+    if (calculateConstraintSatisfaction(S, BO.getLHS(), Satisfaction,
+                                        Evaluator))
+      return true;
 
-      bool IsLHSSatisfied = Satisfaction.IsSatisfied;
+    bool IsLHSSatisfied = Satisfaction.IsSatisfied;
 
-      if (BO->getOpcode() == BO_LOr && IsLHSSatisfied)
-        // [temp.constr.op] p3
-        //    A disjunction is a constraint taking two operands. To determine if
-        //    a disjunction is satisfied, the satisfaction of the first operand
-        //    is checked. If that is satisfied, the disjunction is satisfied.
-        //    Otherwise, the disjunction is satisfied if and only if the second
-        //    operand is satisfied.
-        return false;
+    if (BO.isOr() && IsLHSSatisfied)
+      // [temp.constr.op] p3
+      //    A disjunction is a constraint taking two operands. To determine if
+      //    a disjunction is satisfied, the satisfaction of the first operand
+      //    is checked. If that is satisfied, the disjunction is satisfied.
+      //    Otherwise, the disjunction is satisfied if and only if the second
+      //    operand is satisfied.
+      return false;
 
-      if (BO->getOpcode() == BO_LAnd && !IsLHSSatisfied)
-        // [temp.constr.op] p2
-        //    A conjunction is a constraint taking two operands. To determine if
-        //    a conjunction is satisfied, the satisfaction of the first operand
-        //    is checked. If that is not satisfied, the conjunction is not
-        //    satisfied. Otherwise, the conjunction is satisfied if and only if
-        //    the second operand is satisfied.
-        return false;
+    if (BO.isAnd() && !IsLHSSatisfied)
+      // [temp.constr.op] p2
+      //    A conjunction is a constraint taking two operands. To determine if
+      //    a conjunction is satisfied, the satisfaction of the first operand
+      //    is checked. If that is not satisfied, the conjunction is not
+      //    satisfied. Otherwise, the conjunction is satisfied if and only if
+      //    the second operand is satisfied.
+      return false;
 
-      return calculateConstraintSatisfaction(S, BO->getRHS(), Satisfaction,
-          std::forward<AtomicEvaluator>(Evaluator));
-    }
-  }
-  else if (auto *C = dyn_cast<ExprWithCleanups>(ConstraintExpr))
+    return calculateConstraintSatisfaction(
+        S, BO.getRHS(), Satisfaction, std::forward<AtomicEvaluator>(Evaluator));
+  } else if (auto *C = dyn_cast<ExprWithCleanups>(ConstraintExpr)) {
     return calculateConstraintSatisfaction(S, C->getSubExpr(), Satisfaction,
         std::forward<AtomicEvaluator>(Evaluator));
+  }
 
   // An atomic constraint expression
   ExprResult SubstitutedAtomicExpr = Evaluator(ConstraintExpr);
@@ -164,9 +191,8 @@ calculateConstraintSatisfaction(Sema &S, const Expr *ConstraintExpr,
   return false;
 }
 
-template <typename TemplateDeclT>
 static bool calculateConstraintSatisfaction(
-    Sema &S, TemplateDeclT *Template, ArrayRef<TemplateArgument> TemplateArgs,
+    Sema &S, const NamedDecl *Template, ArrayRef<TemplateArgument> TemplateArgs,
     SourceLocation TemplateNameLoc, MultiLevelTemplateArgumentList &MLTAL,
     const Expr *ConstraintExpr, ConstraintSatisfaction &Satisfaction) {
   return calculateConstraintSatisfaction(
@@ -179,8 +205,9 @@ static bool calculateConstraintSatisfaction(
         {
           TemplateDeductionInfo Info(TemplateNameLoc);
           Sema::InstantiatingTemplate Inst(S, AtomicExpr->getBeginLoc(),
-              Sema::InstantiatingTemplate::ConstraintSubstitution{}, Template,
-              Info, AtomicExpr->getSourceRange());
+              Sema::InstantiatingTemplate::ConstraintSubstitution{},
+              const_cast<NamedDecl *>(Template), Info,
+              AtomicExpr->getSourceRange());
           if (Inst.isInvalid())
             return ExprError();
           // We do not want error diagnostics escaping here.
@@ -227,8 +254,7 @@ static bool calculateConstraintSatisfaction(
       });
 }
 
-template<typename TemplateDeclT>
-static bool CheckConstraintSatisfaction(Sema &S, TemplateDeclT *Template,
+static bool CheckConstraintSatisfaction(Sema &S, const NamedDecl *Template,
                                         ArrayRef<const Expr *> ConstraintExprs,
                                         ArrayRef<TemplateArgument> TemplateArgs,
                                         SourceRange TemplateIDRange,
@@ -246,8 +272,8 @@ static bool CheckConstraintSatisfaction(Sema &S, TemplateDeclT *Template,
     }
 
   Sema::InstantiatingTemplate Inst(S, TemplateIDRange.getBegin(),
-      Sema::InstantiatingTemplate::ConstraintsCheck{}, Template, TemplateArgs,
-      TemplateIDRange);
+      Sema::InstantiatingTemplate::ConstraintsCheck{},
+      const_cast<NamedDecl *>(Template), TemplateArgs, TemplateIDRange);
   if (Inst.isInvalid())
     return true;
 
@@ -269,36 +295,45 @@ static bool CheckConstraintSatisfaction(Sema &S, TemplateDeclT *Template,
   return false;
 }
 
-bool Sema::CheckConstraintSatisfaction(TemplateDecl *Template,
-                                       ArrayRef<const Expr *> ConstraintExprs,
-                                       ArrayRef<TemplateArgument> TemplateArgs,
-                                       SourceRange TemplateIDRange,
-                                       ConstraintSatisfaction &Satisfaction) {
-  return ::CheckConstraintSatisfaction(*this, Template, ConstraintExprs,
-                                       TemplateArgs, TemplateIDRange,
-                                       Satisfaction);
-}
+bool Sema::CheckConstraintSatisfaction(
+    const NamedDecl *Template, ArrayRef<const Expr *> ConstraintExprs,
+    ArrayRef<TemplateArgument> TemplateArgs, SourceRange TemplateIDRange,
+    ConstraintSatisfaction &OutSatisfaction) {
+  if (ConstraintExprs.empty()) {
+    OutSatisfaction.IsSatisfied = true;
+    return false;
+  }
 
-bool
-Sema::CheckConstraintSatisfaction(ClassTemplatePartialSpecializationDecl* Part,
-                                  ArrayRef<const Expr *> ConstraintExprs,
-                                  ArrayRef<TemplateArgument> TemplateArgs,
-                                  SourceRange TemplateIDRange,
-                                  ConstraintSatisfaction &Satisfaction) {
-  return ::CheckConstraintSatisfaction(*this, Part, ConstraintExprs,
-                                       TemplateArgs, TemplateIDRange,
-                                       Satisfaction);
-}
+  llvm::FoldingSetNodeID ID;
+  void *InsertPos;
+  ConstraintSatisfaction *Satisfaction = nullptr;
+  bool ShouldCache = LangOpts.ConceptSatisfactionCaching && Template;
+  if (ShouldCache) {
+    ConstraintSatisfaction::Profile(ID, Context, Template, TemplateArgs);
+    Satisfaction = SatisfactionCache.FindNodeOrInsertPos(ID, InsertPos);
+    if (Satisfaction) {
+      OutSatisfaction = *Satisfaction;
+      return false;
+    }
+    Satisfaction = new ConstraintSatisfaction(Template, TemplateArgs);
+  } else {
+    Satisfaction = &OutSatisfaction;
+  }
+  if (::CheckConstraintSatisfaction(*this, Template, ConstraintExprs,
+                                    TemplateArgs, TemplateIDRange,
+                                    *Satisfaction)) {
+    if (ShouldCache)
+      delete Satisfaction;
+    return true;
+  }
 
-bool
-Sema::CheckConstraintSatisfaction(VarTemplatePartialSpecializationDecl* Partial,
-                                  ArrayRef<const Expr *> ConstraintExprs,
-                                  ArrayRef<TemplateArgument> TemplateArgs,
-                                  SourceRange TemplateIDRange,
-                                  ConstraintSatisfaction &Satisfaction) {
-  return ::CheckConstraintSatisfaction(*this, Partial, ConstraintExprs,
-                                       TemplateArgs, TemplateIDRange,
-                                       Satisfaction);
+  if (ShouldCache) {
+    // We cannot use InsertNode here because CheckConstraintSatisfaction might
+    // have invalidated it.
+    SatisfactionCache.InsertNode(Satisfaction);
+    OutSatisfaction = *Satisfaction;
+  }
+  return false;
 }
 
 bool Sema::CheckConstraintSatisfaction(const Expr *ConstraintExpr,
@@ -308,6 +343,30 @@ bool Sema::CheckConstraintSatisfaction(const Expr *ConstraintExpr,
       [](const Expr *AtomicExpr) -> ExprResult {
         return ExprResult(const_cast<Expr *>(AtomicExpr));
       });
+}
+
+bool Sema::CheckFunctionConstraints(const FunctionDecl *FD,
+                                    ConstraintSatisfaction &Satisfaction,
+                                    SourceLocation UsageLoc) {
+  const Expr *RC = FD->getTrailingRequiresClause();
+  if (RC->isInstantiationDependent()) {
+    Satisfaction.IsSatisfied = true;
+    return false;
+  }
+  Qualifiers ThisQuals;
+  CXXRecordDecl *Record = nullptr;
+  if (auto *Method = dyn_cast<CXXMethodDecl>(FD)) {
+    ThisQuals = Method->getMethodQualifiers();
+    Record = const_cast<CXXRecordDecl *>(Method->getParent());
+  }
+  CXXThisScopeRAII ThisScope(*this, Record, ThisQuals, Record != nullptr);
+  // We substitute with empty arguments in order to rebuild the atomic
+  // constraint in a constant-evaluated context.
+  // FIXME: Should this be a dedicated TreeTransform?
+  return CheckConstraintSatisfaction(
+      FD, {RC}, /*TemplateArgs=*/{},
+      SourceRange(UsageLoc.isValid() ? UsageLoc : FD->getLocation()),
+      Satisfaction);
 }
 
 bool Sema::EnsureTemplateArgumentListConstraints(
@@ -335,6 +394,118 @@ bool Sema::EnsureTemplateArgumentListConstraints(
   }
   return false;
 }
+
+static void diagnoseUnsatisfiedRequirement(Sema &S,
+                                           concepts::ExprRequirement *Req,
+                                           bool First) {
+  assert(!Req->isSatisfied()
+         && "Diagnose() can only be used on an unsatisfied requirement");
+  switch (Req->getSatisfactionStatus()) {
+    case concepts::ExprRequirement::SS_Dependent:
+      llvm_unreachable("Diagnosing a dependent requirement");
+      break;
+    case concepts::ExprRequirement::SS_ExprSubstitutionFailure: {
+      auto *SubstDiag = Req->getExprSubstitutionDiagnostic();
+      if (!SubstDiag->DiagMessage.empty())
+        S.Diag(SubstDiag->DiagLoc,
+               diag::note_expr_requirement_expr_substitution_error)
+               << (int)First << SubstDiag->SubstitutedEntity
+               << SubstDiag->DiagMessage;
+      else
+        S.Diag(SubstDiag->DiagLoc,
+               diag::note_expr_requirement_expr_unknown_substitution_error)
+            << (int)First << SubstDiag->SubstitutedEntity;
+      break;
+    }
+    case concepts::ExprRequirement::SS_NoexceptNotMet:
+      S.Diag(Req->getNoexceptLoc(),
+             diag::note_expr_requirement_noexcept_not_met)
+          << (int)First << Req->getExpr();
+      break;
+    case concepts::ExprRequirement::SS_TypeRequirementSubstitutionFailure: {
+      auto *SubstDiag =
+          Req->getReturnTypeRequirement().getSubstitutionDiagnostic();
+      if (!SubstDiag->DiagMessage.empty())
+        S.Diag(SubstDiag->DiagLoc,
+               diag::note_expr_requirement_type_requirement_substitution_error)
+            << (int)First << SubstDiag->SubstitutedEntity
+            << SubstDiag->DiagMessage;
+      else
+        S.Diag(SubstDiag->DiagLoc,
+               diag::note_expr_requirement_type_requirement_unknown_substitution_error)
+            << (int)First << SubstDiag->SubstitutedEntity;
+      break;
+    }
+    case concepts::ExprRequirement::SS_ConstraintsNotSatisfied: {
+      ConceptSpecializationExpr *ConstraintExpr =
+          Req->getReturnTypeRequirementSubstitutedConstraintExpr();
+      if (ConstraintExpr->getTemplateArgsAsWritten()->NumTemplateArgs == 1)
+        // A simple case - expr type is the type being constrained and the concept
+        // was not provided arguments.
+        S.Diag(ConstraintExpr->getBeginLoc(),
+               diag::note_expr_requirement_constraints_not_satisfied_simple)
+            << (int)First << S.BuildDecltypeType(Req->getExpr(),
+                                                 Req->getExpr()->getBeginLoc())
+            << ConstraintExpr->getNamedConcept();
+      else
+        S.Diag(ConstraintExpr->getBeginLoc(),
+               diag::note_expr_requirement_constraints_not_satisfied)
+            << (int)First << ConstraintExpr;
+      S.DiagnoseUnsatisfiedConstraint(ConstraintExpr->getSatisfaction());
+      break;
+    }
+    case concepts::ExprRequirement::SS_Satisfied:
+      llvm_unreachable("We checked this above");
+  }
+}
+
+static void diagnoseUnsatisfiedRequirement(Sema &S,
+                                           concepts::TypeRequirement *Req,
+                                           bool First) {
+  assert(!Req->isSatisfied()
+         && "Diagnose() can only be used on an unsatisfied requirement");
+  switch (Req->getSatisfactionStatus()) {
+  case concepts::TypeRequirement::SS_Dependent:
+    llvm_unreachable("Diagnosing a dependent requirement");
+    return;
+  case concepts::TypeRequirement::SS_SubstitutionFailure: {
+    auto *SubstDiag = Req->getSubstitutionDiagnostic();
+    if (!SubstDiag->DiagMessage.empty())
+      S.Diag(SubstDiag->DiagLoc,
+             diag::note_type_requirement_substitution_error) << (int)First
+          << SubstDiag->SubstitutedEntity << SubstDiag->DiagMessage;
+    else
+      S.Diag(SubstDiag->DiagLoc,
+             diag::note_type_requirement_unknown_substitution_error)
+          << (int)First << SubstDiag->SubstitutedEntity;
+    return;
+  }
+  default:
+    llvm_unreachable("Unknown satisfaction status");
+    return;
+  }
+}
+
+static void diagnoseUnsatisfiedRequirement(Sema &S,
+                                           concepts::NestedRequirement *Req,
+                                           bool First) {
+  if (Req->isSubstitutionFailure()) {
+    concepts::Requirement::SubstitutionDiagnostic *SubstDiag =
+        Req->getSubstitutionDiagnostic();
+    if (!SubstDiag->DiagMessage.empty())
+      S.Diag(SubstDiag->DiagLoc,
+             diag::note_nested_requirement_substitution_error)
+             << (int)First << SubstDiag->SubstitutedEntity
+             << SubstDiag->DiagMessage;
+    else
+      S.Diag(SubstDiag->DiagLoc,
+             diag::note_nested_requirement_unknown_substitution_error)
+          << (int)First << SubstDiag->SubstitutedEntity;
+    return;
+  }
+  S.DiagnoseUnsatisfiedConstraint(Req->getConstraintSatisfaction(), First);
+}
+
 
 static void diagnoseWellFormedUnsatisfiedConstraintExpr(Sema &S,
                                                         Expr *SubstExpr,
@@ -412,6 +583,19 @@ static void diagnoseWellFormedUnsatisfiedConstraintExpr(Sema &S,
     }
     S.DiagnoseUnsatisfiedConstraint(CSE->getSatisfaction());
     return;
+  } else if (auto *RE = dyn_cast<RequiresExpr>(SubstExpr)) {
+    for (concepts::Requirement *Req : RE->getRequirements())
+      if (!Req->isDependent() && !Req->isSatisfied()) {
+        if (auto *E = dyn_cast<concepts::ExprRequirement>(Req))
+          diagnoseUnsatisfiedRequirement(S, E, First);
+        else if (auto *T = dyn_cast<concepts::TypeRequirement>(Req))
+          diagnoseUnsatisfiedRequirement(S, T, First);
+        else
+          diagnoseUnsatisfiedRequirement(
+              S, cast<concepts::NestedRequirement>(Req), First);
+        break;
+      }
+    return;
   }
 
   S.Diag(SubstExpr->getSourceRange().getBegin(),
@@ -434,11 +618,11 @@ static void diagnoseUnsatisfiedConstraintExpr(
       Record.template get<Expr *>(), First);
 }
 
-void Sema::DiagnoseUnsatisfiedConstraint(
-    const ConstraintSatisfaction& Satisfaction) {
+void
+Sema::DiagnoseUnsatisfiedConstraint(const ConstraintSatisfaction& Satisfaction,
+                                    bool First) {
   assert(!Satisfaction.IsSatisfied &&
          "Attempted to diagnose a satisfied constraint");
-  bool First = true;
   for (auto &Pair : Satisfaction.Details) {
     diagnoseUnsatisfiedConstraintExpr(*this, Pair.first, Pair.second, First);
     First = false;
@@ -446,10 +630,10 @@ void Sema::DiagnoseUnsatisfiedConstraint(
 }
 
 void Sema::DiagnoseUnsatisfiedConstraint(
-    const ASTConstraintSatisfaction &Satisfaction) {
+    const ASTConstraintSatisfaction &Satisfaction,
+    bool First) {
   assert(!Satisfaction.IsSatisfied &&
          "Attempted to diagnose a satisfied constraint");
-  bool First = true;
   for (auto &Pair : Satisfaction) {
     diagnoseUnsatisfiedConstraintExpr(*this, Pair.first, Pair.second, First);
     First = false;
@@ -523,6 +707,10 @@ static bool substituteParameterMappings(Sema &S, NormalizedConstraint &N,
                   ArgsAsWritten->arguments().back().getSourceRange().getEnd()));
   if (S.SubstTemplateArguments(*Atomic.ParameterMapping, MLTAL, SubstArgs))
     return true;
+  Atomic.ParameterMapping.emplace(
+        MutableArrayRef<TemplateArgumentLoc>(
+            new (S.Context) TemplateArgumentLoc[SubstArgs.size()],
+            SubstArgs.size()));
   std::copy(SubstArgs.arguments().begin(), SubstArgs.arguments().end(),
             N.getAtomicConstraint()->ParameterMapping->begin());
   return false;
@@ -561,19 +749,16 @@ NormalizedConstraint::fromConstraintExpr(Sema &S, NamedDecl *D, const Expr *E) {
   // - The normal form of an expression (E) is the normal form of E.
   // [...]
   E = E->IgnoreParenImpCasts();
-  if (auto *BO = dyn_cast<const BinaryOperator>(E)) {
-    if (BO->getOpcode() == BO_LAnd || BO->getOpcode() == BO_LOr) {
-      auto LHS = fromConstraintExpr(S, D, BO->getLHS());
-      if (!LHS)
-        return None;
-      auto RHS = fromConstraintExpr(S, D, BO->getRHS());
-      if (!RHS)
-        return None;
+  if (LogicalBinOp BO = E) {
+    auto LHS = fromConstraintExpr(S, D, BO.getLHS());
+    if (!LHS)
+      return None;
+    auto RHS = fromConstraintExpr(S, D, BO.getRHS());
+    if (!RHS)
+      return None;
 
-      return NormalizedConstraint(
-          S.Context, std::move(*LHS), std::move(*RHS),
-          BO->getOpcode() == BO_LAnd ? CCK_Conjunction : CCK_Disjunction);
-    }
+    return NormalizedConstraint(S.Context, std::move(*LHS), std::move(*RHS),
+                                BO.isAnd() ? CCK_Conjunction : CCK_Disjunction);
   } else if (auto *CSE = dyn_cast<const ConceptSpecializationExpr>(E)) {
     const NormalizedConstraint *SubNF;
     {
@@ -826,3 +1011,67 @@ bool Sema::MaybeEmitAmbiguousAtomicConstraintsDiagnostic(NamedDecl *D1,
       << AmbiguousAtomic2->getSourceRange();
   return true;
 }
+
+concepts::ExprRequirement::ExprRequirement(
+    Expr *E, bool IsSimple, SourceLocation NoexceptLoc,
+    ReturnTypeRequirement Req, SatisfactionStatus Status,
+    ConceptSpecializationExpr *SubstitutedConstraintExpr) :
+    Requirement(IsSimple ? RK_Simple : RK_Compound, Status == SS_Dependent,
+                Status == SS_Dependent &&
+                (E->containsUnexpandedParameterPack() ||
+                 Req.containsUnexpandedParameterPack()),
+                Status == SS_Satisfied), Value(E), NoexceptLoc(NoexceptLoc),
+    TypeReq(Req), SubstitutedConstraintExpr(SubstitutedConstraintExpr),
+    Status(Status) {
+  assert((!IsSimple || (Req.isEmpty() && NoexceptLoc.isInvalid())) &&
+         "Simple requirement must not have a return type requirement or a "
+         "noexcept specification");
+  assert((Status > SS_TypeRequirementSubstitutionFailure && Req.isTypeConstraint()) ==
+         (SubstitutedConstraintExpr != nullptr));
+}
+
+concepts::ExprRequirement::ExprRequirement(
+    SubstitutionDiagnostic *ExprSubstDiag, bool IsSimple,
+    SourceLocation NoexceptLoc, ReturnTypeRequirement Req) :
+    Requirement(IsSimple ? RK_Simple : RK_Compound, Req.isDependent(),
+                Req.containsUnexpandedParameterPack(), /*IsSatisfied=*/false),
+    Value(ExprSubstDiag), NoexceptLoc(NoexceptLoc), TypeReq(Req),
+    Status(SS_ExprSubstitutionFailure) {
+  assert((!IsSimple || (Req.isEmpty() && NoexceptLoc.isInvalid())) &&
+         "Simple requirement must not have a return type requirement or a "
+         "noexcept specification");
+}
+
+concepts::ExprRequirement::ReturnTypeRequirement::
+ReturnTypeRequirement(TemplateParameterList *TPL) :
+    TypeConstraintInfo(TPL, 0) {
+  assert(TPL->size() == 1);
+  const TypeConstraint *TC =
+      cast<TemplateTypeParmDecl>(TPL->getParam(0))->getTypeConstraint();
+  assert(TC &&
+         "TPL must have a template type parameter with a type constraint");
+  auto *Constraint =
+      cast_or_null<ConceptSpecializationExpr>(
+          TC->getImmediatelyDeclaredConstraint());
+  bool Dependent = false;
+  if (Constraint->getTemplateArgsAsWritten()) {
+    for (auto &ArgLoc :
+         Constraint->getTemplateArgsAsWritten()->arguments().drop_front(1)) {
+      if (ArgLoc.getArgument().isDependent()) {
+        Dependent = true;
+        break;
+      }
+    }
+  }
+  TypeConstraintInfo.setInt(Dependent ? 1 : 0);
+}
+
+concepts::TypeRequirement::TypeRequirement(TypeSourceInfo *T) :
+    Requirement(RK_Type, T->getType()->isDependentType(),
+                T->getType()->containsUnexpandedParameterPack(),
+                // We reach this ctor with either dependent types (in which
+                // IsSatisfied doesn't matter) or with non-dependent type in
+                // which the existence of the type indicates satisfaction.
+                /*IsSatisfied=*/true
+                ), Value(T),
+    Status(T->getType()->isDependentType() ? SS_Dependent : SS_Satisfied) {}

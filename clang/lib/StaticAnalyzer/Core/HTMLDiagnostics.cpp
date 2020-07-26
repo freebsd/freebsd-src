@@ -66,11 +66,9 @@ class HTMLDiagnostics : public PathDiagnosticConsumer {
   const bool SupportsCrossFileDiagnostics;
 
 public:
-  HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts,
-                  const std::string& prefix,
-                  const Preprocessor &pp,
-                  bool supportsMultipleFiles)
-      : Directory(prefix), PP(pp), AnalyzerOpts(AnalyzerOpts),
+  HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts, const std::string &OutputDir,
+                  const Preprocessor &pp, bool supportsMultipleFiles)
+      : Directory(OutputDir), PP(pp), AnalyzerOpts(AnalyzerOpts),
         SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
   ~HTMLDiagnostics() override { FlushDiagnostics(nullptr); }
@@ -136,16 +134,45 @@ private:
 
 void ento::createHTMLDiagnosticConsumer(
     AnalyzerOptions &AnalyzerOpts, PathDiagnosticConsumers &C,
-    const std::string &prefix, const Preprocessor &PP,
-    const cross_tu::CrossTranslationUnitContext &) {
-  C.push_back(new HTMLDiagnostics(AnalyzerOpts, prefix, PP, true));
+    const std::string &OutputDir, const Preprocessor &PP,
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+
+  // FIXME: HTML is currently our default output type, but if the output
+  // directory isn't specified, it acts like if it was in the minimal text
+  // output mode. This doesn't make much sense, we should have the minimal text
+  // as our default. In the case of backward compatibility concerns, this could
+  // be preserved with -analyzer-config-compatibility-mode=true.
+  createTextMinimalPathDiagnosticConsumer(AnalyzerOpts, C, OutputDir, PP, CTU);
+
+  // TODO: Emit an error here.
+  if (OutputDir.empty())
+    return;
+
+  C.push_back(new HTMLDiagnostics(AnalyzerOpts, OutputDir, PP, true));
 }
 
 void ento::createHTMLSingleFileDiagnosticConsumer(
     AnalyzerOptions &AnalyzerOpts, PathDiagnosticConsumers &C,
+    const std::string &OutputDir, const Preprocessor &PP,
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+
+  // TODO: Emit an error here.
+  if (OutputDir.empty())
+    return;
+
+  C.push_back(new HTMLDiagnostics(AnalyzerOpts, OutputDir, PP, false));
+  createTextMinimalPathDiagnosticConsumer(AnalyzerOpts, C, OutputDir, PP, CTU);
+}
+
+void ento::createPlistHTMLDiagnosticConsumer(
+    AnalyzerOptions &AnalyzerOpts, PathDiagnosticConsumers &C,
     const std::string &prefix, const Preprocessor &PP,
-    const cross_tu::CrossTranslationUnitContext &) {
-  C.push_back(new HTMLDiagnostics(AnalyzerOpts, prefix, PP, false));
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+  createHTMLDiagnosticConsumer(
+      AnalyzerOpts, C, std::string(llvm::sys::path::parent_path(prefix)), PP,
+      CTU);
+  createPlistMultiFileDiagnosticConsumer(AnalyzerOpts, C, prefix, PP, CTU);
+  createTextMinimalPathDiagnosticConsumer(AnalyzerOpts, C, prefix, PP, CTU);
 }
 
 //===----------------------------------------------------------------------===//
@@ -607,10 +634,17 @@ window.addEventListener("keydown", function (event) {
 )<<<";
 }
 
+static bool shouldDisplayPopUpRange(const SourceRange &Range) {
+  return !(Range.getBegin().isMacroID() || Range.getEnd().isMacroID());
+}
+
 static void
 HandlePopUpPieceStartTag(Rewriter &R,
                          const std::vector<SourceRange> &PopUpRanges) {
   for (const auto &Range : PopUpRanges) {
+    if (!shouldDisplayPopUpRange(Range))
+      continue;
+
     html::HighlightRange(R, Range.getBegin(), Range.getEnd(), "",
                          "<table class='variable_popup'><tbody>",
                          /*IsTokenRange=*/true);
@@ -626,6 +660,8 @@ static void HandlePopUpPieceEndTag(Rewriter &R,
   llvm::raw_svector_ostream Out(Buf);
 
   SourceRange Range(Piece.getLocation().asRange());
+  if (!shouldDisplayPopUpRange(Range))
+    return;
 
   // Write out the path indices with a right arrow and the message as a row.
   Out << "<tr><td valign='top'><div class='PathIndex PathIndexPopUp'>"
@@ -870,7 +906,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter &R, FileID BugFileID,
          << (num - 1)
          << "\" title=\"Previous event ("
          << (num - 1)
-         << ")\">&#x2190;</a></div></td>";
+         << ")\">&#x2190;</a></div>";
     }
 
     os << "</td><td>";
@@ -1034,8 +1070,13 @@ StringRef HTMLDiagnostics::generateKeyboardNavigationJavascript() {
 <script type='text/javascript'>
 var digitMatcher = new RegExp("[0-9]+");
 
+var querySelectorAllArray = function(selector) {
+  return Array.prototype.slice.call(
+    document.querySelectorAll(selector));
+}
+
 document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".PathNav > a").forEach(
+    querySelectorAllArray(".PathNav > a").forEach(
         function(currentValue, currentIndex) {
             var hrefValue = currentValue.getAttribute("href");
             currentValue.onclick = function() {
@@ -1055,7 +1096,7 @@ var findNum = function() {
 };
 
 var scrollTo = function(el) {
-    document.querySelectorAll(".selected").forEach(function(s) {
+    querySelectorAllArray(".selected").forEach(function(s) {
         s.classList.remove("selected");
     });
     el.classList.add("selected");

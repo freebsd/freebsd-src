@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_ClangPersistentVariables_h_
-#define liblldb_ClangPersistentVariables_h_
+#ifndef LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CLANGPERSISTENTVARIABLES_H
+#define LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CLANGPERSISTENTVARIABLES_H
 
 #include "llvm/ADT/DenseMap.h"
 
@@ -17,6 +17,9 @@
 #include "lldb/Expression/ExpressionVariable.h"
 
 namespace lldb_private {
+
+class ClangASTImporter;
+class TypeSystemClang;
 
 /// \class ClangPersistentVariables ClangPersistentVariables.h
 /// "lldb/Expression/ClangPersistentVariables.h" Manages persistent values
@@ -36,6 +39,8 @@ public:
     return pv->getKind() == PersistentExpressionState::eKindClang;
   }
 
+  std::shared_ptr<ClangASTImporter> GetClangASTImporter();
+
   lldb::ExpressionVariableSP
   CreatePersistentVariable(const lldb::ValueObjectSP &valobj_sp) override;
 
@@ -46,9 +51,7 @@ public:
 
   void RemovePersistentVariable(lldb::ExpressionVariableSP variable) override;
 
-  llvm::StringRef GetPersistentVariablePrefix(bool is_error) const override {
-    return "$";
-  }
+  ConstString GetNextPersistentVariableName(bool is_error = false) override;
 
   /// Returns the next file name that should be used for user expressions.
   std::string GetNextExprFileName() {
@@ -63,7 +66,7 @@ public:
   GetCompilerTypeFromPersistentDecl(ConstString type_name) override;
 
   void RegisterPersistentDecl(ConstString name, clang::NamedDecl *decl,
-                              ClangASTContext *ctx);
+                              TypeSystemClang *ctx);
 
   clang::NamedDecl *GetPersistentDecl(ConstString name);
 
@@ -75,6 +78,12 @@ public:
     return m_hand_loaded_clang_modules;
   }
 
+protected:
+  llvm::StringRef
+  GetPersistentVariablePrefix(bool is_error = false) const override {
+    return "$";
+  }
+
 private:
   /// The counter used by GetNextExprFileName.
   uint32_t m_next_user_file_id = 0;
@@ -84,8 +93,8 @@ private:
   struct PersistentDecl {
     /// The persistent decl.
     clang::NamedDecl *m_decl = nullptr;
-    /// The ClangASTContext for the ASTContext of m_decl.
-    ClangASTContext *m_context = nullptr;
+    /// The TypeSystemClang for the ASTContext of m_decl.
+    TypeSystemClang *m_context = nullptr;
   };
 
   typedef llvm::DenseMap<const char *, PersistentDecl> PersistentDeclMap;
@@ -96,8 +105,9 @@ private:
       m_hand_loaded_clang_modules; ///< These are Clang modules we hand-loaded;
                                    ///these are the highest-
                                    ///< priority source for macros.
+  std::shared_ptr<ClangASTImporter> m_ast_importer_sp;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_ClangPersistentVariables_h_
+#endif // LLDB_SOURCE_PLUGINS_EXPRESSIONPARSER_CLANG_CLANGPERSISTENTVARIABLES_H

@@ -49,7 +49,6 @@ namespace llvm {
 
 class AsmPrinter;
 class ByteStreamer;
-class DebugLocEntry;
 class DIE;
 class DwarfCompileUnit;
 class DwarfExpression;
@@ -59,7 +58,6 @@ class LexicalScope;
 class MachineFunction;
 class MCSection;
 class MCSymbol;
-class MDNode;
 class Module;
 
 //===----------------------------------------------------------------------===//
@@ -327,7 +325,7 @@ class DwarfDebug : public DebugHandlerBase {
   const MachineFunction *CurFn = nullptr;
 
   /// If nonnull, stores the CU in which the previous subprogram was contained.
-  const DwarfCompileUnit *PrevCU;
+  const DwarfCompileUnit *PrevCU = nullptr;
 
   /// As an optimization, there is no need to emit an entry in the directory
   /// table for the same directory as DW_AT_comp_dir.
@@ -385,6 +383,11 @@ class DwarfDebug : public DebugHandlerBase {
   /// The pre-DWARF v5 string offsets table for split dwarf is, in contrast,
   /// a monolithic sequence of string offsets.
   bool UseSegmentedStringOffsetsTable;
+
+  /// Enable production of call site parameters needed to print the debug entry
+  /// values. Useful for testing purposes when a debugger does not support the
+  /// feature yet.
+  bool EmitDebugEntryValues;
 
   /// Separated Dwarf Variables
   /// In general these will all be for bits that are left in the
@@ -523,6 +526,9 @@ class DwarfDebug : public DebugHandlerBase {
   void emitDebugMacinfoImpl(MCSection *Section);
   void emitMacro(DIMacro &M);
   void emitMacroFile(DIMacroFile &F, DwarfCompileUnit &U);
+  void emitMacroFileImpl(DIMacroFile &F, DwarfCompileUnit &U,
+                         unsigned StartFile, unsigned EndFile,
+                         StringRef (*MacroFormToString)(unsigned Form));
   void handleMacroNodes(DIMacroNodeArray Nodes, DwarfCompileUnit &U);
 
   /// DWARF 5 Experimental Split Dwarf Emitters
@@ -586,8 +592,10 @@ class DwarfDebug : public DebugHandlerBase {
   /// function that describe the same variable. If the resulting 
   /// list has only one entry that is valid for entire variable's
   /// scope return true.
-  bool buildLocationList(SmallVectorImpl<DebugLocEntry> &DebugLoc,
-                         const DbgValueHistoryMap::Entries &Entries);
+  bool buildLocationList(
+      SmallVectorImpl<DebugLocEntry> &DebugLoc,
+      const DbgValueHistoryMap::Entries &Entries,
+      DenseSet<const MachineBasicBlock *> &VeryLargeBlocks);
 
   /// Collect variable information from the side table maintained by MF.
   void collectVariableInfoFromMFTable(DwarfCompileUnit &TheCU,
@@ -634,7 +642,6 @@ public:
   void addDwarfTypeUnitType(DwarfCompileUnit &CU, StringRef Identifier,
                             DIE &Die, const DICompositeType *CTy);
 
-  friend class NonTypeUnitContext;
   class NonTypeUnitContext {
     DwarfDebug *DD;
     decltype(DwarfDebug::TypeUnitsUnderConstruction) TypeUnitsUnderConstruction;
@@ -708,6 +715,10 @@ public:
     return UseSegmentedStringOffsetsTable;
   }
 
+  bool emitDebugEntryValues() const {
+    return EmitDebugEntryValues;
+  }
+
   bool shareAcrossDWOCUs() const;
 
   /// Returns the Dwarf Version.
@@ -768,6 +779,7 @@ public:
 
   void addSectionLabel(const MCSymbol *Sym);
   const MCSymbol *getSectionLabel(const MCSection *S);
+  void insertSectionLabel(const MCSymbol *S);
 
   static void emitDebugLocValue(const AsmPrinter &AP, const DIBasicType *BT,
                                 const DbgValueLoc &Value,
