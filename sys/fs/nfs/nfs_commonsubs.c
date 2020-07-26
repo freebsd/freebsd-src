@@ -504,6 +504,7 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 	u_int32_t *tl;
 	struct nfsv2_sattr *sp;
 	nfsattrbit_t attrbits;
+	struct nfsnode *np;
 
 	switch (nd->nd_flag & (ND_NFSV2 | ND_NFSV3 | ND_NFSV4)) {
 	case ND_NFSV2:
@@ -605,8 +606,18 @@ nfscl_fillsattr(struct nfsrv_descript *nd, struct vattr *vap,
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEACCESSSET);
 		if (vap->va_mtime.tv_sec != VNOVAL)
 			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFYSET);
-		if (vap->va_birthtime.tv_sec != VNOVAL)
-			NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMECREATE);
+		if (vap->va_birthtime.tv_sec != VNOVAL &&
+		    strcmp(vp->v_mount->mnt_vfc->vfc_name, "nfs") == 0) {
+			/*
+			 * We can only test for support of TimeCreate if
+			 * the "vp" argument is for an NFS vnode.
+			 */
+			np = VTONFS(vp);
+			if (NFSISSET_ATTRBIT(&np->n_vattr.na_suppattr,
+			    NFSATTRBIT_TIMECREATE))
+				NFSSETBIT_ATTRBIT(&attrbits,
+				    NFSATTRBIT_TIMECREATE);
+		}
 		(void) nfsv4_fillattr(nd, vp->v_mount, vp, NULL, vap, NULL, 0,
 		    &attrbits, NULL, NULL, 0, 0, 0, 0, (uint64_t)0, NULL);
 		break;
