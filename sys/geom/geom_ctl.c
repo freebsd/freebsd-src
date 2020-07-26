@@ -409,25 +409,20 @@ gctl_get_class(struct gctl_req *req, char const *arg)
 }
 
 struct g_geom *
-gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg)
+gctl_get_geom(struct gctl_req *req, struct g_class *mp, char const *arg)
 {
 	char const *p;
-	struct g_class *mp;
 	struct g_geom *gp;
 
+	MPASS(mp != NULL);
 	p = gctl_get_asciiparam(req, arg);
 	if (p == NULL) {
 		gctl_error(req, "Missing %s argument", arg);
 		return (NULL);
 	}
-	LIST_FOREACH(mp, &g_classes, class) {
-		if (mpr != NULL && mpr != mp)
-			continue;
-		LIST_FOREACH(gp, &mp->geom, geom) {
-			if (!strcmp(p, gp->name))
-				return (gp);
-		}
-	}
+	LIST_FOREACH(gp, &mp->geom, geom)
+		if (!strcmp(p, gp->name))
+			return (gp);
 	gctl_error(req, "Geom not found: \"%s\"", p);
 	return (NULL);
 }
