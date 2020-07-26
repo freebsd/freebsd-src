@@ -771,7 +771,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 
 	/* Check all providers are valid */
 	for (i = 0; i < *nprovider; i++) {
-		sprintf(buf, "provider%d", i);
+		snprintf(buf, sizeof(buf), "provider%d", i);
 		pp = gctl_get_provider(req, buf);
 		if (pp == NULL)
 			return;
@@ -788,7 +788,7 @@ g_ccd_create(struct gctl_req *req, struct g_class *mp)
 
 	/* Create consumers and attach to all providers */
 	for (i = 0; i < *nprovider; i++) {
-		sprintf(buf, "provider%d", i);
+		snprintf(buf, sizeof(buf), "provider%d", i);
 		pp = gctl_get_provider(req, buf);
 		cp = g_new_consumer(gp);
 		error = g_attach(cp, pp);
