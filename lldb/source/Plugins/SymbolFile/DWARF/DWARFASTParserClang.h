@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SymbolFileDWARF_DWARFASTParserClang_h_
-#define SymbolFileDWARF_DWARFASTParserClang_h_
+#ifndef LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFASTPARSERCLANG_H
+#define LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFASTPARSERCLANG_H
 
 #include "clang/AST/CharUnits.h"
 #include "llvm/ADT/DenseMap.h"
@@ -19,10 +19,10 @@
 #include "DWARFDefines.h"
 #include "DWARFFormValue.h"
 #include "LogChannelDWARF.h"
-#include "lldb/Core/ClangForward.h"
 #include "lldb/Core/PluginInterface.h"
-#include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/ClangASTImporter.h"
+
+#include "Plugins/ExpressionParser/Clang/ClangASTImporter.h"
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 
 #include <vector>
 
@@ -36,7 +36,7 @@ struct ParsedDWARFTypeAttributes;
 
 class DWARFASTParserClang : public DWARFASTParser {
 public:
-  DWARFASTParserClang(lldb_private::ClangASTContext &ast);
+  DWARFASTParserClang(lldb_private::TypeSystemClang &ast);
 
   ~DWARFASTParserClang() override;
 
@@ -78,15 +78,19 @@ protected:
       DIEToDeclContextMap;
   typedef std::multimap<const clang::DeclContext *, const DWARFDIE>
       DeclContextToDIEMap;
+  typedef llvm::DenseMap<const DWARFDebugInfoEntry *,
+                         lldb_private::OptionalClangModuleID>
+      DIEToModuleMap;
   typedef llvm::DenseMap<const DWARFDebugInfoEntry *, clang::Decl *>
       DIEToDeclMap;
   typedef llvm::DenseMap<const clang::Decl *, DIEPointerSet> DeclToDIEMap;
 
-  lldb_private::ClangASTContext &m_ast;
+  lldb_private::TypeSystemClang &m_ast;
   DIEToDeclMap m_die_to_decl;
   DeclToDIEMap m_decl_to_die;
   DIEToDeclContextMap m_die_to_decl_ctx;
   DeclContextToDIEMap m_decl_ctx_to_die;
+  DIEToModuleMap m_die_to_module;
   std::unique_ptr<lldb_private::ClangASTImporter> m_clang_ast_importer_up;
   /// @}
 
@@ -97,16 +101,15 @@ protected:
   clang::NamespaceDecl *ResolveNamespaceDIE(const DWARFDIE &die);
 
   bool ParseTemplateDIE(const DWARFDIE &die,
-                        lldb_private::ClangASTContext::TemplateParameterInfos
+                        lldb_private::TypeSystemClang::TemplateParameterInfos
                             &template_param_infos);
   bool ParseTemplateParameterInfos(
       const DWARFDIE &parent_die,
-      lldb_private::ClangASTContext::TemplateParameterInfos
+      lldb_private::TypeSystemClang::TemplateParameterInfos
           &template_param_infos);
 
   bool ParseChildMembers(
       const DWARFDIE &die, lldb_private::CompilerType &class_compiler_type,
-      const lldb::LanguageType class_language,
       std::vector<std::unique_ptr<clang::CXXBaseSpecifier>> &base_classes,
       std::vector<int> &member_accessibilities,
       std::vector<DWARFDIE> &member_function_dies,
@@ -140,6 +143,7 @@ protected:
 
   clang::DeclContext *GetClangDeclContextContainingDIE(const DWARFDIE &die,
                                                        DWARFDIE *decl_ctx_die);
+  lldb_private::OptionalClangModuleID GetOwningClangModule(const DWARFDIE &die);
 
   bool CopyUniqueClassMethodTypes(const DWARFDIE &src_class_die,
                                   const DWARFDIE &dst_class_die,
@@ -170,45 +174,31 @@ protected:
   lldb::ModuleSP GetModuleForType(const DWARFDIE &die);
 
 private:
-  struct BitfieldInfo {
-    uint64_t bit_size;
-    uint64_t bit_offset;
+  struct FieldInfo {
+    uint64_t bit_size = 0;
+    uint64_t bit_offset = 0;
+    bool is_bitfield = false;
 
-    BitfieldInfo()
-        : bit_size(LLDB_INVALID_ADDRESS), bit_offset(LLDB_INVALID_ADDRESS) {}
+    FieldInfo() = default;
 
-    void Clear() {
-      bit_size = LLDB_INVALID_ADDRESS;
-      bit_offset = LLDB_INVALID_ADDRESS;
-    }
-
-    bool IsValid() const {
-      return (bit_size != LLDB_INVALID_ADDRESS) &&
-             (bit_offset != LLDB_INVALID_ADDRESS);
-    }
+    void SetIsBitfield(bool flag) { is_bitfield = flag; }
+    bool IsBitfield() { return is_bitfield; }
 
     bool NextBitfieldOffsetIsValid(const uint64_t next_bit_offset) const {
-      if (IsValid()) {
-        // This bitfield info is valid, so any subsequent bitfields must not
-        // overlap and must be at a higher bit offset than any previous bitfield
-        // + size.
-        return (bit_size + bit_offset) <= next_bit_offset;
-      } else {
-        // If the this BitfieldInfo is not valid, then any offset isOK
-        return true;
-      }
+      // Any subsequent bitfields must not overlap and must be at a higher
+      // bit offset than any previous bitfield + size.
+      return (bit_size + bit_offset) <= next_bit_offset;
     }
   };
 
   void
   ParseSingleMember(const DWARFDIE &die, const DWARFDIE &parent_die,
-                    lldb_private::CompilerType &class_clang_type,
-                    const lldb::LanguageType class_language,
+                    const lldb_private::CompilerType &class_clang_type,
                     std::vector<int> &member_accessibilities,
-                    lldb::AccessType &default_accessibility,
+                    lldb::AccessType default_accessibility,
                     DelayedPropertyList &delayed_properties,
                     lldb_private::ClangASTImporter::LayoutInfo &layout_info,
-                    BitfieldInfo &last_field_info);
+                    FieldInfo &last_field_info);
 
   bool CompleteRecordType(const DWARFDIE &die, lldb_private::Type *type,
                           lldb_private::CompilerType &clang_type);
@@ -227,6 +217,12 @@ private:
                               ParsedDWARFTypeAttributes &attrs);
   lldb::TypeSP ParsePointerToMemberType(const DWARFDIE &die,
                                         const ParsedDWARFTypeAttributes &attrs);
+
+  /// Complete a type from debug info, or mark it as forcefully completed if
+  /// there is no of the type in the current Module. Call this function in
+  /// contexts where the usual C++ rules require a type to be complete (base
+  /// class, member, etc.).
+  void CompleteType(lldb_private::CompilerType type);
 };
 
 /// Parsed form of all attributes that are relevant for type reconstruction.
@@ -264,4 +260,4 @@ struct ParsedDWARFTypeAttributes {
   uint32_t encoding = 0;
 };
 
-#endif // SymbolFileDWARF_DWARFASTParserClang_h_
+#endif // LLDB_SOURCE_PLUGINS_SYMBOLFILE_DWARF_DWARFASTPARSERCLANG_H

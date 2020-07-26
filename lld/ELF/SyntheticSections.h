@@ -364,7 +364,7 @@ private:
 
   // Try to merge two GOTs. In case of success the `Dst` contains
   // result of merging and the function returns true. In case of
-  // ovwerflow the `Dst` is unchanged and the function returns false.
+  // overflow the `Dst` is unchanged and the function returns false.
   bool tryMergeGots(FileGot & dst, FileGot & src, bool isPrimary);
 };
 
@@ -683,9 +683,8 @@ public:
   void addEntry(Symbol &sym);
   size_t getNumEntries() const { return entries.size(); }
 
-  size_t headerSize = 0;
+  size_t headerSize;
 
-private:
   std::vector<const Symbol *> entries;
 };
 
@@ -703,6 +702,16 @@ public:
   bool isNeeded() const override { return !entries.empty(); }
   void addSymbols();
   void addEntry(Symbol &sym);
+};
+
+class PPC32GlinkSection : public PltSection {
+public:
+  PPC32GlinkSection();
+  void writeTo(uint8_t *buf) override;
+  size_t getSize() const override;
+
+  std::vector<const Symbol *> canonical_plts;
+  static constexpr size_t footerSize = 64;
 };
 
 // This is x86-only.
@@ -1037,7 +1046,7 @@ public:
   std::vector<InputSection *> exidxSections;
 
 private:
-  size_t size;
+  size_t size = 0;
 
   // Instead of storing pointers to the .ARM.exidx InputSections from
   // InputObjects, we store pointers to the executable sections that need
@@ -1068,6 +1077,10 @@ public:
   void writeTo(uint8_t *buf) override;
   InputSection *getTargetInputSection() const;
   bool assignOffsets();
+
+  // When true, round up reported size of section to 4 KiB. See comment
+  // in addThunkSection() for more details.
+  bool roundUpSizeForErrata = false;
 
 private:
   std::vector<Thunk *> thunks;

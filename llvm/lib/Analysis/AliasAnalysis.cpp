@@ -58,7 +58,7 @@ using namespace llvm;
 
 /// Allow disabling BasicAA from the AA results. This is particularly useful
 /// when testing to isolate a single AA implementation.
-static cl::opt<bool> DisableBasicAA("disable-basicaa", cl::Hidden,
+static cl::opt<bool> DisableBasicAA("disable-basic-aa", cl::Hidden,
                                     cl::init(false));
 
 AAResults::AAResults(AAResults &&Arg)
@@ -196,8 +196,7 @@ ModRefInfo AAResults::getModRefInfo(const CallBase *Call,
   // Try to refine the mod-ref info further using other API entry points to the
   // aggregate set of AA results.
   auto MRB = getModRefBehavior(Call);
-  if (MRB == FMRB_DoesNotAccessMemory ||
-      MRB == FMRB_OnlyAccessesInaccessibleMem)
+  if (onlyAccessesInaccessibleMem(MRB))
     return ModRefInfo::NoModRef;
 
   if (onlyReadsMemory(MRB))
@@ -631,16 +630,14 @@ ModRefInfo AAResults::getModRefInfo(const AtomicRMWInst *RMW,
 
 /// Return information about whether a particular call site modifies
 /// or reads the specified memory location \p MemLoc before instruction \p I
-/// in a BasicBlock. An ordered basic block \p OBB can be used to speed up
-/// instruction-ordering queries inside the BasicBlock containing \p I.
+/// in a BasicBlock.
 /// FIXME: this is really just shoring-up a deficiency in alias analysis.
 /// BasicAA isn't willing to spend linear time determining whether an alloca
 /// was captured before or after this particular call, while we are. However,
 /// with a smarter AA in place, this test is just wasting compile time.
 ModRefInfo AAResults::callCapturesBefore(const Instruction *I,
                                          const MemoryLocation &MemLoc,
-                                         DominatorTree *DT,
-                                         OrderedBasicBlock *OBB) {
+                                         DominatorTree *DT) {
   if (!DT)
     return ModRefInfo::ModRef;
 
@@ -656,8 +653,7 @@ ModRefInfo AAResults::callCapturesBefore(const Instruction *I,
 
   if (PointerMayBeCapturedBefore(Object, /* ReturnCaptures */ true,
                                  /* StoreCaptures */ true, I, DT,
-                                 /* include Object */ true,
-                                 /* OrderedBasicBlock */ OBB))
+                                 /* include Object */ true))
     return ModRefInfo::ModRef;
 
   unsigned ArgNo = 0;

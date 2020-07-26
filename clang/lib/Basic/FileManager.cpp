@@ -454,11 +454,12 @@ void FileManager::fillRealPathName(FileEntry *UFE, llvm::StringRef FileName) {
   // misleading. We need to clean up the interface here.
   makeAbsolutePath(AbsPath);
   llvm::sys::path::remove_dots(AbsPath, /*remove_dot_dot=*/true);
-  UFE->RealPathName = AbsPath.str();
+  UFE->RealPathName = std::string(AbsPath.str());
 }
 
 llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
-FileManager::getBufferForFile(const FileEntry *Entry, bool isVolatile) {
+FileManager::getBufferForFile(const FileEntry *Entry, bool isVolatile,
+                              bool RequiresNullTerminator) {
   uint64_t FileSize = Entry->getSize();
   // If there's a high enough chance that the file have changed since we
   // got its size, force a stat before opening it.
@@ -468,28 +469,29 @@ FileManager::getBufferForFile(const FileEntry *Entry, bool isVolatile) {
   StringRef Filename = Entry->getName();
   // If the file is already open, use the open file descriptor.
   if (Entry->File) {
-    auto Result =
-        Entry->File->getBuffer(Filename, FileSize,
-                               /*RequiresNullTerminator=*/true, isVolatile);
+    auto Result = Entry->File->getBuffer(Filename, FileSize,
+                                         RequiresNullTerminator, isVolatile);
     Entry->closeFile();
     return Result;
   }
 
   // Otherwise, open the file.
-  return getBufferForFileImpl(Filename, FileSize, isVolatile);
+  return getBufferForFileImpl(Filename, FileSize, isVolatile,
+                              RequiresNullTerminator);
 }
 
 llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
 FileManager::getBufferForFileImpl(StringRef Filename, int64_t FileSize,
-                                  bool isVolatile) {
+                                  bool isVolatile,
+                                  bool RequiresNullTerminator) {
   if (FileSystemOpts.WorkingDir.empty())
-    return FS->getBufferForFile(Filename, FileSize,
-                                /*RequiresNullTerminator=*/true, isVolatile);
+    return FS->getBufferForFile(Filename, FileSize, RequiresNullTerminator,
+                                isVolatile);
 
   SmallString<128> FilePath(Filename);
   FixupRelativePath(FilePath);
-  return FS->getBufferForFile(FilePath, FileSize,
-                              /*RequiresNullTerminator=*/true, isVolatile);
+  return FS->getBufferForFile(FilePath, FileSize, RequiresNullTerminator,
+                              isVolatile);
 }
 
 /// getStatValue - Get the 'stat' information for the specified path,
@@ -513,7 +515,7 @@ FileManager::getStatValue(StringRef Path, llvm::vfs::Status &Status,
                                   StatCache.get(), *FS);
 }
 
-std::error_code 
+std::error_code
 FileManager::getNoncachedStatValue(StringRef Path,
                                    llvm::vfs::Status &Result) {
   SmallString<128> FilePath(Path);
