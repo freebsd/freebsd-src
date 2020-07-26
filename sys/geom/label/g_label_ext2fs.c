@@ -97,7 +97,7 @@ exit_free:
 
 struct g_label_desc g_label_ext2fs = {
 	.ld_taste = g_label_ext2fs_taste,
-	.ld_dir = "ext2fs",
+	.ld_dirprefix = "ext2fs/",
 	.ld_enabled = 1
 };
 

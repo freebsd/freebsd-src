@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_dbg.h>
 #include <geom/label/g_label.h>
 
-#define G_LABEL_UFS_VOLUME_DIR	"ufs"
-#define G_LABEL_UFS_ID_DIR	"ufsid"
-
 #define	G_LABEL_UFS_VOLUME	0
 #define	G_LABEL_UFS_ID		1
 
@@ -142,13 +139,13 @@ g_label_ufs_id_taste(struct g_consumer *cp, char *label, size_t size)
 
 struct g_label_desc g_label_ufs_volume = {
 	.ld_taste = g_label_ufs_volume_taste,
-	.ld_dir = G_LABEL_UFS_VOLUME_DIR,
+	.ld_dirprefix = "ufs/",
 	.ld_enabled = 1
 };
 
 struct g_label_desc g_label_ufs_id = {
 	.ld_taste = g_label_ufs_id_taste,
-	.ld_dir = G_LABEL_UFS_ID_DIR,
+	.ld_dirprefix = "ufsid/",
 	.ld_enabled = 1
 };
 

@@ -116,7 +116,7 @@ exit_free:
 
 struct g_label_desc g_label_reiserfs = {
 	.ld_taste = g_label_reiserfs_taste,
-	.ld_dir = "reiserfs",
+	.ld_dirprefix = "reiserfs/",
 	.ld_enabled = 1
 };
 
