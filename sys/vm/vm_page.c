@@ -1371,9 +1371,14 @@ vm_page_free_invalid(vm_page_t m)
 
 	KASSERT(vm_page_none_valid(m), ("page %p is valid", m));
 	KASSERT(!pmap_page_is_mapped(m), ("page %p is mapped", m));
-	vm_page_assert_xbusied(m);
 	KASSERT(m->object != NULL, ("page %p has no object", m));
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
+
+	/*
+	 * We may be attempting to free the page as part of the handling for an
+	 * I/O error, in which case the page was xbusied by a different thread.
+	 */
+	vm_page_xbusy_claim(m);
 
 	/*
 	 * If someone has wired this page while the object lock
