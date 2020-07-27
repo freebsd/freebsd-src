@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2020
+.Dd July 9, 2020
 .Dt SCTP 4
 .Os
 .Sh NAME
@@ -144,8 +144,18 @@ The
 transport protocol also provides a unordered service as well.
 The unordered service allows a message to be sent and delivered
 with no regard to the ordering of any other message.
+.Pp
+The
+.Tn SCTP
+kernel implementation may either be compiled into the kernel, or loaded
+dynamically as a module.
+To support dynamic loading of the stack, the kernel must be compiled
+with
+.Cd "options SCTP_SUPPORT" .
 .Ss Extensions
-The FreeBSD implementation of
+The
+.Fx
+implementation of
 .Tn SCTP
 also supports the following extensions:
 .Bl -tag -width "sctp partial reliability"
@@ -609,3 +619,7 @@ Maximum outgoing SCTP buffer size.
 .Xr sctp_recvmsg 3 ,
 .Xr sctp_sendmsg 3 ,
 .Xr blackhole 4
+.Sh BUGS
+The
+.Nm
+kernel module cannot be unloaded.

@@ -98,6 +98,7 @@ sctp_init(void)
 static void
 sctp_finish(void *unused __unused)
 {
+	EVENTHANDLER_DEREGISTER(rt_addrmsg, SCTP_BASE_VAR(eh_tag));
 	sctp_pcb_finish();
 }
 
