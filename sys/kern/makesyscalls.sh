@@ -60,6 +60,8 @@ case $# in
 	;;
 esac
 
+1>&2 echo "$0: This script is deprecated and will be removed before FreeBSD 13."
+
 if [ -n "$2" ]; then
 	. "$2"
 fi
