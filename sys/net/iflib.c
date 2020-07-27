@@ -4192,7 +4192,9 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 				if ((if_getflags(ifp) ^ ctx->ifc_if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
+					CTX_UNLOCK(ctx);
 					err = IFDI_PROMISC_SET(ctx, if_getflags(ifp));
+					CTX_LOCK(ctx);
 				}
 			} else
 				reinit = 1;
