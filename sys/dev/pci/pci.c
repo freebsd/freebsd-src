@@ -6306,6 +6306,67 @@ pcie_get_max_completion_timeout(device_t dev)
 	}
 }
 
+void
+pcie_apei_error(device_t dev, int sev, uint8_t *aerp)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	const char *s;
+	int aer;
+	uint32_t r, r1;
+	uint16_t rs;
+
+	if (sev == PCIEM_STA_CORRECTABLE_ERROR)
+		s = "Correctable";
+	else if (sev == PCIEM_STA_NON_FATAL_ERROR)
+		s = "Uncorrectable (Non-Fatal)";
+	else
+		s = "Uncorrectable (Fatal)";
+	device_printf(dev, "%s PCIe error reported by APEI\n", s);
+	if (aerp) {
+		if (sev == PCIEM_STA_CORRECTABLE_ERROR) {
+			r = le32dec(aerp + PCIR_AER_COR_STATUS);
+			r1 = le32dec(aerp + PCIR_AER_COR_MASK);
+		} else {
+			r = le32dec(aerp + PCIR_AER_UC_STATUS);
+			r1 = le32dec(aerp + PCIR_AER_UC_MASK);
+		}
+		device_printf(dev, "status 0x%08x mask 0x%08x", r, r1);
+		if (sev != PCIEM_STA_CORRECTABLE_ERROR) {
+			r = le32dec(aerp + PCIR_AER_UC_SEVERITY);
+			rs = le16dec(aerp + PCIR_AER_CAP_CONTROL);
+			printf(" severity 0x%08x first %d\n",
+			    r, rs & 0x1f);
+		} else
+			printf("\n");
+	}
+
+	/* As kind of recovery just report and clear the error statuses. */
+	if (pci_find_extcap(dev, PCIZ_AER, &aer) == 0) {
+		r = pci_read_config(dev, aer + PCIR_AER_UC_STATUS, 4);
+		if (r != 0) {
+			pci_write_config(dev, aer + PCIR_AER_UC_STATUS, r, 4);
+			device_printf(dev, "Clearing UC AER errors 0x%08x\n", r);
+		}
+
+		r = pci_read_config(dev, aer + PCIR_AER_COR_STATUS, 4);
+		if (r != 0) {
+			pci_write_config(dev, aer + PCIR_AER_COR_STATUS, r, 4);
+			device_printf(dev, "Clearing COR AER errors 0x%08x\n", r);
+		}
+	}
+	if (dinfo->cfg.pcie.pcie_location != 0) {
+		rs = pci_read_config(dev, dinfo->cfg.pcie.pcie_location +
+		    PCIER_DEVICE_STA, 2);
+		if ((rs & (PCIEM_STA_CORRECTABLE_ERROR |
+		    PCIEM_STA_NON_FATAL_ERROR | PCIEM_STA_FATAL_ERROR |
+		    PCIEM_STA_UNSUPPORTED_REQ)) != 0) {
+			pci_write_config(dev, dinfo->cfg.pcie.pcie_location +
+			    PCIER_DEVICE_STA, rs, 2);
+			device_printf(dev, "Clearing PCIe errors 0x%04x\n", rs);
+		}
+	}
+}
+
 /*
  * Perform a Function Level Reset (FLR) on a device.
  *

@@ -831,6 +831,7 @@ int nmi_is_broadcast = 1;
 SYSCTL_INT(_machdep, OID_AUTO, nmi_is_broadcast, CTLFLAG_RWTUN,
     &nmi_is_broadcast, 0,
     "Chipset NMI is broadcast");
+int (*apei_nmi)(void);
 
 void
 nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
@@ -845,6 +846,10 @@ nmi_call_kdb(u_int cpu, u_int type, struct trapframe *frame)
 			panic("NMI indicates hardware failure");
 	}
 #endif /* DEV_ISA */
+
+	/* ACPI Platform Error Interfaces callback. */
+	if (apei_nmi != NULL && (*apei_nmi)())
+		claimed = true;
 
 	/*
 	 * NMIs can be useful for debugging.  They can be hooked up to a

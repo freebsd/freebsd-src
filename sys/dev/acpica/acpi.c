@@ -152,6 +152,7 @@ static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
 		    int max_depth, acpi_scan_cb_t user_fn, void *arg);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 		    struct isa_pnp_id *ids);
+static void	acpi_platform_osc(device_t dev);
 static void	acpi_probe_children(device_t bus);
 static void	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
@@ -682,6 +683,8 @@ acpi_attach(device_t dev)
 
     /* Register ACPI again to pass the correct argument of pm_func. */
     power_pm_register(POWER_PM_TYPE_ACPI, acpi_pm_func, sc);
+
+    acpi_platform_osc(dev);
 
     if (!acpi_disabled("bus")) {
 	EVENTHANDLER_REGISTER(dev_lookup, acpi_lookup, NULL, 1000);
@@ -1941,6 +1944,34 @@ acpi_enable_pcie(void)
 		alloc++;
 	}
 #endif
+}
+
+static void
+acpi_platform_osc(device_t dev)
+{
+	ACPI_HANDLE sb_handle;
+	ACPI_STATUS status;
+	uint32_t cap_set[2];
+
+	/* 0811B06E-4A27-44F9-8D60-3CBBC22E7B48 */
+	static uint8_t acpi_platform_uuid[ACPI_UUID_LENGTH] = {
+		0x6e, 0xb0, 0x11, 0x08, 0x27, 0x4a, 0xf9, 0x44,
+		0x8d, 0x60, 0x3c, 0xbb, 0xc2, 0x2e, 0x7b, 0x48
+	};
+
+	if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, "\\_SB_", &sb_handle)))
+		return;
+
+	cap_set[1] = 0x10;	/* APEI Support */
+	status = acpi_EvaluateOSC(sb_handle, acpi_platform_uuid, 1,
+	    nitems(cap_set), cap_set, cap_set, false);
+	if (ACPI_FAILURE(status)) {
+		if (status == AE_NOT_FOUND)
+			return;
+		device_printf(dev, "_OSC failed: %s\n",
+		    AcpiFormatException(status));
+		return;
+	}
 }
 
 /*

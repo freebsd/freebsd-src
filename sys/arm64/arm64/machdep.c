@@ -132,6 +132,8 @@ void pagezero_cache(void *);
 /* pagezero_simple is default pagezero */
 void (*pagezero)(void *p) = pagezero_simple;
 
+int (*apei_nmi)(void);
+
 static void
 pan_setup(void)
 {

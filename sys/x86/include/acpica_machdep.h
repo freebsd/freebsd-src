@@ -84,6 +84,7 @@ void	madt_parse_interrupt_values(void *entry,
 	    enum intr_trigger *trig, enum intr_polarity *pol);
 
 extern int madt_found_sci_override;
+extern int (*apei_nmi)(void);
 
 #endif /* _KERNEL */
 
