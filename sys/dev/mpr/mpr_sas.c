@@ -736,11 +736,6 @@ mpr_attach_sas(struct mpr_softc *sc)
 	mpr_dprint(sc, MPR_INIT, "%s entered\n", __func__);
 
 	sassc = malloc(sizeof(struct mprsas_softc), M_MPR, M_WAITOK|M_ZERO);
-	if (!sassc) {
-		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
-		    "Cannot allocate SAS subsystem memory\n");
-		return (ENOMEM);
-	}
 
 	/*
 	 * XXX MaxTargets could change during a reinit.  Since we don't
@@ -751,12 +746,6 @@ mpr_attach_sas(struct mpr_softc *sc)
 	sassc->maxtargets = sc->facts->MaxTargets + sc->facts->MaxVolumes;
 	sassc->targets = malloc(sizeof(struct mprsas_target) *
 	    sassc->maxtargets, M_MPR, M_WAITOK|M_ZERO);
-	if (!sassc->targets) {
-		mpr_dprint(sc, MPR_INIT|MPR_ERROR,
-		    "Cannot allocate SAS target memory\n");
-		free(sassc, M_MPR);
-		return (ENOMEM);
-	}
 	sc->sassc = sassc;
 	sassc->sc = sc;
 
@@ -3556,8 +3545,4 @@ mprsas_realloc_targets(struct mpr_softc *sc, int maxtargets)
 
 	sassc->targets = malloc(sizeof(struct mprsas_target) * maxtargets,
 	    M_MPR, M_WAITOK|M_ZERO);
-	if (!sassc->targets) {
-		panic("%s failed to alloc targets with error %d\n",
-		    __func__, ENOMEM);
-	}
 }
