@@ -139,9 +139,9 @@ struct ahci_ioreq {
 struct ahci_port {
 	struct blockif_ctxt *bctx;
 	struct pci_ahci_softc *pr_sc;
+	struct ata_params ata_ident;
 	uint8_t *cmd_lst;
 	uint8_t *rfis;
-	char ident[AHCI_PORT_IDENT];
 	int port;
 	int atapi;
 	int reset;
@@ -987,7 +987,49 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		ahci_write_fis_d2h(p, slot, cfis,
 		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 	} else {
-		uint16_t buf[256];
+		ahci_write_fis_piosetup(p);
+		write_prdt(p, slot, cfis, (void*)&p->ata_ident, sizeof(struct ata_params));
+		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
+	}
+}
+
+static void
+ata_identify_init(struct ahci_port* p, int atapi)
+{
+	struct ata_params* ata_ident = &p->ata_ident;
+
+	if (atapi) {
+		ata_ident->config = (2 << 14 | 5 << 8 | 1 << 7 | 2 << 5);
+		ata_ident->capabilities1 = ATA_SUPPORT_LBA |
+			ATA_SUPPORT_DMA;
+		ata_ident->capabilities2 = (1 << 14 | 1);
+		ata_ident->atavalid = ATA_FLAG_54_58 | ATA_FLAG_64_70;
+		ata_ident->obsolete62 = 0x3f;
+		ata_ident->mwdmamodes = 7;
+		if (p->xfermode & ATA_WDMA0)
+			ata_ident->mwdmamodes |= (1 << ((p->xfermode & 7) + 8));
+		ata_ident->apiomodes = 3;
+		ata_ident->mwdmamin = 0x0078;
+		ata_ident->mwdmarec = 0x0078;
+		ata_ident->pioblind = 0x0078;
+		ata_ident->pioiordy = 0x0078;
+		ata_ident->satacapabilities = (ATA_SATA_GEN1 | ATA_SATA_GEN2 | ATA_SATA_GEN3);
+		ata_ident->satacapabilities2 = ((p->ssts & ATA_SS_SPD_MASK) >> 3);
+		ata_ident->satasupport = ATA_SUPPORT_NCQ_STREAM;
+		ata_ident->version_major = 0x3f0;
+		ata_ident->support.command1 = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_PACKET |
+			ATA_SUPPORT_RESET | ATA_SUPPORT_NOP);
+		ata_ident->support.command2 = (1 << 14);
+		ata_ident->support.extension = (1 << 14);
+		ata_ident->enabled.command1 = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_PACKET |
+			ATA_SUPPORT_RESET | ATA_SUPPORT_NOP);
+		ata_ident->enabled.extension = (1 << 14);
+		ata_ident->udmamodes = 0x7f;
+		if (p->xfermode & ATA_UDMA0)
+			ata_ident->udmamodes |= (1 << ((p->xfermode & 7) + 8));
+		ata_ident->transport_major = 0x1020;
+		ata_ident->integrity = 0x00a5;
+	} else {
 		uint64_t sectors;
 		int sectsz, psectsz, psectoff, candelete, ro;
 		uint16_t cyl;
@@ -999,87 +1041,85 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		sectors = blockif_size(p->bctx) / sectsz;
 		blockif_chs(p->bctx, &cyl, &heads, &sech);
 		blockif_psectsz(p->bctx, &psectsz, &psectoff);
-		memset(buf, 0, sizeof(buf));
-		buf[0] = 0x0040;
-		buf[1] = cyl;
-		buf[3] = heads;
-		buf[6] = sech;
-		ata_string((uint8_t *)(buf+10), p->ident, 20);
-		ata_string((uint8_t *)(buf+23), "001", 8);
-		ata_string((uint8_t *)(buf+27), "BHYVE SATA DISK", 40);
-		buf[47] = (0x8000 | 128);
-		buf[48] = 0;
-		buf[49] = (1 << 8 | 1 << 9 | 1 << 11);
-		buf[50] = (1 << 14);
-		buf[53] = (1 << 1 | 1 << 2);
+		ata_ident->config = ATA_DRQ_FAST;
+		ata_ident->cylinders = cyl;
+		ata_ident->heads = heads;
+		ata_ident->sectors = sech;
+
+		ata_ident->sectors_intr = (0x8000 | 128);
+		ata_ident->tcg = 0;
+
+		ata_ident->capabilities1 = ATA_SUPPORT_DMA |
+			ATA_SUPPORT_LBA | ATA_SUPPORT_IORDY;
+		ata_ident->capabilities2 = (1 << 14);
+		ata_ident->atavalid = ATA_FLAG_54_58 |
+			ATA_FLAG_64_70;
 		if (p->mult_sectors)
-			buf[59] = (0x100 | p->mult_sectors);
+			ata_ident->multi = (ATA_MULTI_VALID | p->mult_sectors);
 		if (sectors <= 0x0fffffff) {
-			buf[60] = sectors;
-			buf[61] = (sectors >> 16);
+			ata_ident->lba_size_1 = sectors;
+			ata_ident->lba_size_2 = (sectors >> 16);
 		} else {
-			buf[60] = 0xffff;
-			buf[61] = 0x0fff;
+			ata_ident->lba_size_1 = 0xffff;
+			ata_ident->lba_size_2 = 0x0fff;
 		}
-		buf[63] = 0x7;
+		ata_ident->mwdmamodes = 0x7;
 		if (p->xfermode & ATA_WDMA0)
-			buf[63] |= (1 << ((p->xfermode & 7) + 8));
-		buf[64] = 0x3;
-		buf[65] = 120;
-		buf[66] = 120;
-		buf[67] = 120;
-		buf[68] = 120;
-		buf[69] = 0;
-		buf[75] = 31;
-		buf[76] = (ATA_SATA_GEN1 | ATA_SATA_GEN2 | ATA_SATA_GEN3 |
-			   ATA_SUPPORT_NCQ);
-		buf[77] = (ATA_SUPPORT_RCVSND_FPDMA_QUEUED |
-			   (p->ssts & ATA_SS_SPD_MASK) >> 3);
-		buf[80] = 0x3f0;
-		buf[81] = 0x28;
-		buf[82] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE|
-			   ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
-		buf[83] = (ATA_SUPPORT_ADDRESS48 | ATA_SUPPORT_FLUSHCACHE |
-			   ATA_SUPPORT_FLUSHCACHE48 | 1 << 14);
-		buf[84] = (1 << 14);
-		buf[85] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE|
-			   ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
-		buf[86] = (ATA_SUPPORT_ADDRESS48 | ATA_SUPPORT_FLUSHCACHE |
-			   ATA_SUPPORT_FLUSHCACHE48 | 1 << 15);
-		buf[87] = (1 << 14);
-		buf[88] = 0x7f;
+			ata_ident->mwdmamodes |= (1 << ((p->xfermode & 7) + 8));
+		ata_ident->apiomodes = 0x3;
+		ata_ident->mwdmamin = 0x0078;
+		ata_ident->mwdmarec = 0x0078;
+		ata_ident->pioblind = 0x0078;
+		ata_ident->pioiordy = 0x0078;
+		ata_ident->support3 = 0;
+		ata_ident->queue = 31;
+		ata_ident->satacapabilities = (ATA_SATA_GEN1 | ATA_SATA_GEN2 | ATA_SATA_GEN3 |
+			ATA_SUPPORT_NCQ);
+		ata_ident->satacapabilities2 = (ATA_SUPPORT_RCVSND_FPDMA_QUEUED |
+			(p->ssts & ATA_SS_SPD_MASK) >> 3);
+		ata_ident->version_major = 0x3f0;
+		ata_ident->version_minor = 0x28;
+		ata_ident->support.command1 = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE |
+			ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
+		ata_ident->support.command2 = (ATA_SUPPORT_ADDRESS48 | ATA_SUPPORT_FLUSHCACHE |
+			ATA_SUPPORT_FLUSHCACHE48 | 1 << 14);
+		ata_ident->support.extension = (1 << 14);
+		ata_ident->enabled.command1 = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_WRITECACHE |
+			ATA_SUPPORT_LOOKAHEAD | ATA_SUPPORT_NOP);
+		ata_ident->enabled.command2 = (ATA_SUPPORT_ADDRESS48 | ATA_SUPPORT_FLUSHCACHE |
+			ATA_SUPPORT_FLUSHCACHE48 | 1 << 15);
+		ata_ident->enabled.extension = (1 << 14);
+		ata_ident->udmamodes = 0x7f;
 		if (p->xfermode & ATA_UDMA0)
-			buf[88] |= (1 << ((p->xfermode & 7) + 8));
-		buf[100] = sectors;
-		buf[101] = (sectors >> 16);
-		buf[102] = (sectors >> 32);
-		buf[103] = (sectors >> 48);
+			ata_ident->udmamodes |= (1 << ((p->xfermode & 7) + 8));
+		ata_ident->lba_size48_1 = sectors;
+		ata_ident->lba_size48_2 = (sectors >> 16);
+		ata_ident->lba_size48_3 = (sectors >> 32);
+		ata_ident->lba_size48_4 = (sectors >> 48);
+
 		if (candelete && !ro) {
-			buf[69] |= ATA_SUPPORT_RZAT | ATA_SUPPORT_DRAT;
-			buf[105] = 1;
-			buf[169] = ATA_SUPPORT_DSM_TRIM;
+			ata_ident->support3 |= ATA_SUPPORT_RZAT | ATA_SUPPORT_DRAT;
+			ata_ident->max_dsm_blocks = 1;
+			ata_ident->support_dsm = ATA_SUPPORT_DSM_TRIM;
 		}
-		buf[106] = 0x4000;
-		buf[209] = 0x4000;
+		ata_ident->pss = ATA_PSS_VALID_VALUE;
+		ata_ident->lsalign = 0x4000;
 		if (psectsz > sectsz) {
-			buf[106] |= 0x2000;
-			buf[106] |= ffsl(psectsz / sectsz) - 1;
-			buf[209] |= (psectoff / sectsz);
+			ata_ident->pss |= ATA_PSS_MULTLS;
+			ata_ident->pss |= ffsl(psectsz / sectsz) - 1;
+			ata_ident->lsalign |= (psectoff / sectsz);
 		}
 		if (sectsz > 512) {
-			buf[106] |= 0x1000;
-			buf[117] = sectsz / 2;
-			buf[118] = ((sectsz / 2) >> 16);
+			ata_ident->pss |= ATA_PSS_LSSABOVE512;
+			ata_ident->lss_1 = sectsz / 2;
+			ata_ident->lss_2 = ((sectsz / 2) >> 16);
 		}
-		buf[119] = (ATA_SUPPORT_RWLOGDMAEXT | 1 << 14);
-		buf[120] = (ATA_SUPPORT_RWLOGDMAEXT | 1 << 14);
-		buf[222] = 0x1020;
-		buf[255] = 0x00a5;
-		ahci_checksum((uint8_t *)buf, sizeof(buf));
-		ahci_write_fis_piosetup(p);
-		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
-		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
+		ata_ident->support2 = (ATA_SUPPORT_RWLOGDMAEXT | 1 << 14);
+		ata_ident->enabled2 = (ATA_SUPPORT_RWLOGDMAEXT | 1 << 14);
+		ata_ident->transport_major = 0x1020;
+		ata_ident->integrity = 0x00a5;
 	}
+	ahci_checksum((uint8_t*)ata_ident, sizeof(struct ata_params));
 }
 
 static void
@@ -1089,44 +1129,8 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		ahci_write_fis_d2h(p, slot, cfis,
 		    (ATA_E_ABORT << 8) | ATA_S_READY | ATA_S_ERROR);
 	} else {
-		uint16_t buf[256];
-
-		memset(buf, 0, sizeof(buf));
-		buf[0] = (2 << 14 | 5 << 8 | 1 << 7 | 2 << 5);
-		ata_string((uint8_t *)(buf+10), p->ident, 20);
-		ata_string((uint8_t *)(buf+23), "001", 8);
-		ata_string((uint8_t *)(buf+27), "BHYVE SATA DVD ROM", 40);
-		buf[49] = (1 << 9 | 1 << 8);
-		buf[50] = (1 << 14 | 1);
-		buf[53] = (1 << 2 | 1 << 1);
-		buf[62] = 0x3f;
-		buf[63] = 7;
-		if (p->xfermode & ATA_WDMA0)
-			buf[63] |= (1 << ((p->xfermode & 7) + 8));
-		buf[64] = 3;
-		buf[65] = 120;
-		buf[66] = 120;
-		buf[67] = 120;
-		buf[68] = 120;
-		buf[76] = (ATA_SATA_GEN1 | ATA_SATA_GEN2 | ATA_SATA_GEN3);
-		buf[77] = ((p->ssts & ATA_SS_SPD_MASK) >> 3);
-		buf[78] = (1 << 5);
-		buf[80] = 0x3f0;
-		buf[82] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_PACKET |
-			   ATA_SUPPORT_RESET | ATA_SUPPORT_NOP);
-		buf[83] = (1 << 14);
-		buf[84] = (1 << 14);
-		buf[85] = (ATA_SUPPORT_POWERMGT | ATA_SUPPORT_PACKET |
-			   ATA_SUPPORT_RESET | ATA_SUPPORT_NOP);
-		buf[87] = (1 << 14);
-		buf[88] = 0x7f;
-		if (p->xfermode & ATA_UDMA0)
-			buf[88] |= (1 << ((p->xfermode & 7) + 8));
-		buf[222] = 0x1020;
-		buf[255] = 0x00a5;
-		ahci_checksum((uint8_t *)buf, sizeof(buf));
 		ahci_write_fis_piosetup(p);
-		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
+		write_prdt(p, slot, cfis, (void *)&p->ata_ident, sizeof(struct ata_params));
 		ahci_write_fis_d2h(p, slot, cfis, ATA_S_DSC | ATA_S_READY);
 	}
 }
@@ -2319,6 +2323,10 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	MD5_CTX mdctx;
 	u_char digest[16];
 	char *next, *next2;
+	char *bopt, *uopt, *xopts, *config;
+	FILE* fp;
+	size_t block_len;
+	int comma, optpos;
 
 	ret = 0;
 
@@ -2335,6 +2343,9 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 	slots = 32;
 
 	for (p = 0; p < MAX_PORTS && opts != NULL; p++, opts = next) {
+		struct ata_params *ata_ident = &sc->port[p].ata_ident;
+		memset(ata_ident, 0, sizeof(struct ata_params));
+
 		/* Identify and cut off type of present port. */
 		if (strncmp(opts, "hd:", 3) == 0) {
 			atapi = 0;
@@ -2357,13 +2368,82 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 		if (opts[0] == 0)
 			continue;
 
+		uopt = strdup(opts);
+		bopt = NULL;
+		fp = open_memstream(&bopt, &block_len);
+		comma = 0;
+		optpos = 0;
+
+		for (xopts = strtok(uopt, ",");
+		     xopts != NULL;
+		     xopts = strtok(NULL, ",")) {
+
+			/* First option assume as block filename. */
+			if (optpos == 0) {
+				/*
+				 * Create an identifier for the backing file.
+				 * Use parts of the md5 sum of the filename
+				 */
+				char ident[AHCI_PORT_IDENT];
+				MD5Init(&mdctx);
+				MD5Update(&mdctx, opts, strlen(opts));
+				MD5Final(digest, &mdctx);
+				snprintf(ident, AHCI_PORT_IDENT,
+					"BHYVE-%02X%02X-%02X%02X-%02X%02X",
+					digest[0], digest[1], digest[2], digest[3], digest[4],
+					digest[5]);
+				ata_string((uint8_t*)&ata_ident->serial, ident, 20);
+				ata_string((uint8_t*)&ata_ident->revision, "001", 8);
+				if (atapi) {
+					ata_string((uint8_t*)&ata_ident->model, "BHYVE SATA DVD ROM", 40);
+				}
+				else {
+					ata_string((uint8_t*)&ata_ident->model, "BHYVE SATA DISK", 40);
+				}
+			}
+
+			if ((config = strchr(xopts, '=')) != NULL) {
+				*config++ = '\0';
+				if (!strcmp("nmrr", xopts)) {
+					ata_ident->media_rotation_rate = atoi(config);
+				}
+				else if (!strcmp("ser", xopts)) {
+					ata_string((uint8_t*)(&ata_ident->serial), config, 20);
+				}
+				else if (!strcmp("rev", xopts)) {
+					ata_string((uint8_t*)(&ata_ident->revision), config, 8);
+				}
+				else if (!strcmp("model", xopts)) {
+					ata_string((uint8_t*)(&ata_ident->model), config, 40);
+				}
+				else {
+					/* Pass all other options to blockif_open. */
+					*--config = '=';
+					fprintf(fp, "%s%s", comma ? "," : "", xopts);
+					comma = 1;
+				}
+			}
+			else {
+				/* Pass all other options to blockif_open. */
+				fprintf(fp, "%s%s", comma ? "," : "", xopts);
+				comma = 1;
+			}
+			optpos++;
+		}
+		free(uopt);
+		fclose(fp);
+
+		DPRINTF("%s\n", bopt);
+
 		/*
 		 * Attempt to open the backing image. Use the PCI slot/func
 		 * and the port number for the identifier string.
 		 */
 		snprintf(bident, sizeof(bident), "%d:%d:%d", pi->pi_slot,
 		    pi->pi_func, p);
-		bctxt = blockif_open(opts, bident);
+		bctxt = blockif_open(bopt, bident);
+		free(bopt);
+
 		if (bctxt == NULL) {
 			sc->ports = p;
 			ret = 1;
@@ -2374,17 +2454,7 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 		sc->port[p].port = p;
 		sc->port[p].atapi = atapi;
 
-		/*
-		 * Create an identifier for the backing file.
-		 * Use parts of the md5 sum of the filename
-		 */
-		MD5Init(&mdctx);
-		MD5Update(&mdctx, opts, strlen(opts));
-		MD5Final(digest, &mdctx);
-		snprintf(sc->port[p].ident, AHCI_PORT_IDENT,
-		    "BHYVE-%02X%02X-%02X%02X-%02X%02X",
-		    digest[0], digest[1], digest[2], digest[3], digest[4],
-		    digest[5]);
+		ata_identify_init(&sc->port[p], atapi);
 
 		/*
 		 * Allocate blockif request structures and add them
