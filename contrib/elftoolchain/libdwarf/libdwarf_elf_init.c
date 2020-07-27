@@ -260,6 +260,9 @@ _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 			goto fail_cleanup;
 		}
 
+		if (sh.sh_type == SHT_NOBITS)
+			continue;
+
 		if ((name = elf_strptr(elf, e->eo_strndx, sh.sh_name)) ==
 		    NULL) {
 			DWARF_SET_ELF_ERROR(dbg, error);
@@ -312,6 +315,9 @@ _dwarf_elf_init(Dwarf_Debug dbg, Elf *elf, Dwarf_Error *error)
 			ret = DW_DLE_ELF;
 			goto fail_cleanup;
 		}
+
+		if (sh.sh_type == SHT_NOBITS)
+			continue;
 
 		memcpy(&e->eo_shdr[j], &sh, sizeof(sh));
 
