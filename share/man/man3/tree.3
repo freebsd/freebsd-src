@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2020
+.Dd July 27, 2020
 .Dt TREE 3
 .Os
 .Sh NAME
@@ -371,7 +371,7 @@ Each tree node has an associated rank.
 Balance conditions are expressed by conditions on the differences in
 rank between any node and its children.
 Rank differences are stored in each tree node.
-.Pp  
+.Pp
 The balance conditions implemented by the RB macros lead to weak AVL
 (wavl) trees, which combine the best aspects of AVL and red-black
 trees.
@@ -380,7 +380,8 @@ with the same worst-case time as red-black trees offer, and with
 better balance in the resulting tree.
 Wavl trees rebalance after a removal in a way that requires less
 restructuring, in the worst case, than either AVL or red-black trees
-do.  Removals can lead to a tree almost as unbalanced as a red-black
+do.
+Removals can lead to a tree almost as unbalanced as a red-black
 tree; insertions lead to a tree becoming as balanced as an AVL tree.
 .Pp
 A rank-balanced tree is headed by a structure defined by the
