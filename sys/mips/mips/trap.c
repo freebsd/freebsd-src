@@ -824,12 +824,12 @@ dofault:
 
 			i = SIGTRAP;
 			ucode = TRAP_BRKPT;
-			addr = trapframe->pc;
 
 			/* compute address of break instruction */
 			va = trapframe->pc;
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
+			addr = va;
 
 			if (td->td_md.md_ss_addr != va)
 				break;
