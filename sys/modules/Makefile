@@ -462,7 +462,7 @@ _ipfw_pmod=	ipfw_pmod
 .if ${MK_IPSEC_SUPPORT} != "no"
 _ipsec=		ipsec
 .endif
-.if ${KERN_OPTS:MSCTP_SUPPORT} || ${KERN_OPTS:MSCTP}
+.if ${MK_SCTP_SUPPORT} != "no" || ${MK_SCTP} != "no"
 _sctp=		sctp
 .endif
 .endif
