@@ -51,7 +51,7 @@ struct cmdline_opts {
 	int	do_sort;	/* field to sort results (0 = no) */
 		/* valid fields are 1 and above */
 
-	int	use_set;	/* work with specified set number */
+	uint32_t use_set;	/* work with specified set number */
 		/* 0 means all sets, otherwise apply to set use_set - 1 */
 
 };
@@ -62,7 +62,7 @@ enum {
 	TIMESTAMP_NUMERIC,
 };
 
-extern struct cmdline_opts co;
+extern struct cmdline_opts g_co;
 
 /*
  * _s_x is a structure that stores a string <-> token pairs, used in
@@ -328,10 +328,10 @@ struct buf_pr {
 	size_t	needed;	/* length needed */
 };
 
-int pr_u64(struct buf_pr *bp, uint64_t *pd, int width);
+int pr_u64(struct buf_pr *bp, void *pd, int width);
 int bp_alloc(struct buf_pr *b, size_t size);
 void bp_free(struct buf_pr *b);
-int bprintf(struct buf_pr *b, char *format, ...);
+int bprintf(struct buf_pr *b, const char *format, ...);
 
 
 /* memory allocation support */
@@ -349,7 +349,7 @@ int match_token_relaxed(struct _s_x *table, const char *string);
 int get_token(struct _s_x *table, const char *string, const char *errbase);
 char const *match_value(struct _s_x *p, int value);
 size_t concat_tokens(char *buf, size_t bufsize, struct _s_x *table,
-    char *delimiter);
+    const char *delimiter);
 int fill_flags(struct _s_x *flags, char *p, char **e, uint32_t *set,
     uint32_t *clear);
 void print_flags_buffer(char *buf, size_t sz, struct _s_x *list, uint32_t set);
@@ -361,7 +361,7 @@ int do_get3(int optname, struct _ip_fw3_opheader *op3, size_t *optlen);
 
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
-int contigmask(uint8_t *p, int len);
+int contigmask(const uint8_t *p, int len);
 
 /*
  * Forward declarations to avoid include way too many headers.
@@ -409,7 +409,7 @@ int ipfw_check_nat64prefix(const struct in6_addr *prefix, int length);
 /* altq.c */
 void altq_set_enabled(int enabled);
 u_int32_t altq_name_to_qid(const char *name);
-void print_altq_cmd(struct buf_pr *bp, struct _ipfw_insn_altq *altqptr);
+void print_altq_cmd(struct buf_pr *bp, const struct _ipfw_insn_altq *altqptr);
 #else
 #define NO_ALTQ
 #endif
@@ -421,10 +421,10 @@ int ipfw_delete_pipe(int pipe_or_queue, int n);
 
 /* ipv6.c */
 void print_unreach6_code(struct buf_pr *bp, uint16_t code);
-void print_ip6(struct buf_pr *bp, struct _ipfw_insn_ip6 *cmd);
-void print_flow6id(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
-void print_icmp6types(struct buf_pr *bp, struct _ipfw_insn_u32 *cmd);
-void print_ext6hdr(struct buf_pr *bp, struct _ipfw_insn *cmd );
+void print_ip6(struct buf_pr *bp, const struct _ipfw_insn_ip6 *cmd);
+void print_flow6id(struct buf_pr *bp, const struct _ipfw_insn_u32 *cmd);
+void print_icmp6types(struct buf_pr *bp, const struct _ipfw_insn_u32 *cmd);
+void print_ext6hdr(struct buf_pr *bp, const struct _ipfw_insn *cmd);
 
 struct tidx;
 struct _ipfw_insn *add_srcip6(struct _ipfw_insn *cmd, char *av, int cblen,

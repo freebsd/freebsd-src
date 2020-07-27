@@ -85,14 +85,14 @@ print_unreach6_code(struct buf_pr *bp, uint16_t code)
  * Print the ip address contained in a command.
  */
 void
-print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd)
+print_ip6(struct buf_pr *bp, const ipfw_insn_ip6 *cmd)
 {
 	char trad[255];
 	struct hostent *he = NULL;
-	struct in6_addr *a = &(cmd->addr6);
+	const struct in6_addr *a = &(cmd->addr6);
 	int len, mb;
 
-	len = F_LEN((ipfw_insn *) cmd) - 1;
+	len = F_LEN((const ipfw_insn *)cmd) - 1;
 	if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
 		bprintf(bp, " me6");
 		return;
@@ -112,10 +112,11 @@ print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd)
 		/* mask length */
 		mb = (cmd->o.opcode == O_IP6_SRC ||
 		    cmd->o.opcode == O_IP6_DST) ?  128:
-		    contigmask((uint8_t *)&(a[1]), 128);
+		    contigmask((const uint8_t *)&(a[1]), 128);
 
-		if (mb == 128 && co.do_resolv)
-			he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
+		if (mb == 128 && g_co.do_resolv)
+			he = gethostbyaddr((const char *)a, sizeof(*a),
+			    AF_INET6);
 
 		if (he != NULL)	     /* resolved to name */
 			bprintf(bp, "%s", he->h_name);
@@ -142,7 +143,7 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
 {
        uint8_t type;
 
-       CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn_icmp6));
+       CHECK_LENGTH(cblen, (int)F_INSN_SIZE(ipfw_insn_icmp6));
        memset(cmd, 0, sizeof(*cmd));
        while (*av) {
 	       if (*av == ',')
@@ -165,7 +166,7 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
 }
 
 void
-print_icmp6types(struct buf_pr *bp, ipfw_insn_u32 *cmd)
+print_icmp6types(struct buf_pr *bp, const ipfw_insn_u32 *cmd)
 {
 	int i, j;
 	char sep= ' ';
@@ -181,7 +182,7 @@ print_icmp6types(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 }
 
 void
-print_flow6id(struct buf_pr *bp, ipfw_insn_u32 *cmd)
+print_flow6id(struct buf_pr *bp, const ipfw_insn_u32 *cmd)
 {
 	uint16_t i, limit = cmd->o.arg1;
 	char sep = ',';
@@ -257,7 +258,7 @@ fill_ext6hdr( ipfw_insn *cmd, char *av)
 }
 
 void
-print_ext6hdr(struct buf_pr *bp, ipfw_insn *cmd )
+print_ext6hdr(struct buf_pr *bp, const ipfw_insn *cmd )
 {
 	char sep = ' ';
 
@@ -364,7 +365,8 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 		int masklen;
 		char md = '\0';
 
-		CHECK_LENGTH(cblen, 1 + len + 2 * F_INSN_SIZE(struct in6_addr));
+		CHECK_LENGTH(cblen,
+		    1 + len + 2 * (int)F_INSN_SIZE(struct in6_addr));
 
 		if ((q = strchr(av, ',')) ) {
 			*q = '\0';
@@ -453,7 +455,8 @@ fill_flow6( ipfw_insn_u32 *cmd, char *av, int cblen)
 	cmd->d[0] = 0;	  /* Initializing the base number*/
 
 	while (s) {
-		CHECK_LENGTH(cblen, F_INSN_SIZE(ipfw_insn_u32) + nflow + 1);
+		CHECK_LENGTH(cblen,
+		    (int)F_INSN_SIZE(ipfw_insn_u32) + nflow + 1);
 
 		av = strsep( &s, ",") ;
 		type = strtoul(av, &av, 0);
