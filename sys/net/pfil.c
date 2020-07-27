@@ -725,14 +725,10 @@ xdp_activate(struct ebpf_probe *probe, void *state)
 	link_args.pa_version = PFIL_VERSION;
 	link_args.pa_flags = PFIL_HEADPTR | PFIL_HOOKPTR;
 
-	//link_args.pa_hook = ;
+	link_args.pa_hook = pfil_add_hook(&hook_args);
 	link_args.pa_head = __containerof(probe, struct pfil_head, pfil_probe);
 
-	// do we need a function declaration here and equate the return value to link_args.pa_hook above?
-	pfil_hook_t pfil_add_hook(struct pfil_hook_args *hook_args);
-	
-	// Is this link correct?
-	int pfil_link(struct pfil_link_args *link_args);
+	pfil_link(&link_args);	
 }
 
 pfil_return_t
