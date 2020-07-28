@@ -293,7 +293,8 @@ static driver_t bcm_mbox_driver = {
 
 static devclass_t bcm_mbox_devclass;
 
-DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0);
+EARLY_DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
 static void
 bcm2835_mbox_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
