@@ -109,9 +109,6 @@ struct uidinfo {
 #endif
 };
 
-#define	UIDINFO_VMSIZE_LOCK(ui)		mtx_lock(&((ui)->ui_vmsize_mtx))
-#define	UIDINFO_VMSIZE_UNLOCK(ui)	mtx_unlock(&((ui)->ui_vmsize_mtx))
-
 struct proc;
 struct rusage_ext;
 struct thread;
