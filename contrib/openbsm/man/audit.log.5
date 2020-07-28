@@ -102,7 +102,7 @@ token can be created using
 .It Sy "Field	Bytes	Description"
 .It "Token ID	1 byte	Token ID"
 .It "Record Byte Count	4 bytes	Number of bytes in record"
-.It "Version Number	2 bytes	Record version number"
+.It "Version Number	1 byte	Record version number"
 .It "Event Type	2 bytes	Event type"
 .It "Event Modifier	2 bytes	Event sub-type"
 .It "Seconds	4/8 bytes	Record time stamp (32/64-bits)"
@@ -126,7 +126,7 @@ token can be created using
 .It Sy "Field	Bytes	Description"
 .It "Token ID	1 byte	Token ID"
 .It "Record Byte Count	4 bytes	Number of bytes in record"
-.It "Version Number	2 bytes	Record version number"
+.It "Version Number	1 byte	Record version number"
 .It "Event Type	2 bytes	Event type"
 .It "Event Modifier	2 bytes	Event sub-type"
 .It "Address Type/Length	1 byte	Host address type and length"
@@ -325,7 +325,7 @@ or
 .It "Process ID	4 bytes	Process ID"
 .It "Session ID	4 bytes	Audit session ID"
 .It "Terminal Port ID	4/8 bytes	Terminal port ID (32/64-bits)"
-.It "Terminal Address Type/Length	1 byte	Length of machine address"
+.It "Terminal Address Type/Length	4 bytes	Length of machine address"
 .It "Terminal Machine Address	4 bytes	IPv4 or IPv6 address of machine"
 .El
 .Ss Return Token
