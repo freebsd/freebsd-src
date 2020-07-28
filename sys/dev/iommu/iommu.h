@@ -34,11 +34,13 @@
 #ifndef _SYS_IOMMU_H_
 #define _SYS_IOMMU_H_
 
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
-#include <sys/types.h>
+
+#include <dev/pci/pcireg.h>
 
 /* Host or physical memory address, after translation. */
 typedef uint64_t iommu_haddr_t;
@@ -96,6 +98,14 @@ struct iommu_unit {
 	struct task dmamap_load_task;
 	TAILQ_HEAD(, bus_dmamap_iommu) delayed_maps;
 	struct taskqueue *delayed_taskqueue;
+
+	/*
+	 * Bitmap of buses for which context must ignore slot:func,
+	 * duplicating the page table pointer into all context table
+	 * entries.  This is a client-controlled quirk to support some
+	 * NTBs.
+	 */
+	uint32_t buswide_ctxs[(PCI_BUSMAX + 1) / NBBY / sizeof(uint32_t)];
 };
 
 /*

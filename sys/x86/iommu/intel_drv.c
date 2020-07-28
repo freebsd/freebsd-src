@@ -593,21 +593,18 @@ DRIVER_MODULE(dmar, acpi, dmar_driver, dmar_devclass, 0, 0);
 MODULE_DEPEND(dmar, acpi, 1, 1, 1);
 
 void
-dmar_set_buswide_ctx(struct iommu_unit *unit, u_int busno)
+iommu_set_buswide_ctx(struct iommu_unit *unit, u_int busno)
 {
-	struct dmar_unit *dmar;
-
-	dmar = (struct dmar_unit *)unit;
 
 	MPASS(busno <= PCI_BUSMAX);
-	DMAR_LOCK(dmar);
-	dmar->buswide_ctxs[busno / NBBY / sizeof(uint32_t)] |=
+	IOMMU_LOCK(unit);
+	unit->buswide_ctxs[busno / NBBY / sizeof(uint32_t)] |=
 	    1 << (busno % (NBBY * sizeof(uint32_t)));
-	DMAR_UNLOCK(dmar);
+	IOMMU_UNLOCK(unit);
 }
 
 bool
-dmar_is_buswide_ctx(struct dmar_unit *unit, u_int busno)
+iommu_is_buswide_ctx(struct iommu_unit *unit, u_int busno)
 {
 
 	MPASS(busno <= PCI_BUSMAX);
