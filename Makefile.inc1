@@ -1724,10 +1724,14 @@ _vtfontcvt=	usr.bin/vtfontcvt
 .if ${BOOTSTRAPPING} < 1000033
 _libopenbsd=	lib/libopenbsd
 _m4=		usr.bin/m4
-_lex=		usr.bin/lex
 
 ${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
 ${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
+.endif
+
+# flex 2.6.4 introduced in 13-CURRRENT r362333 breaks binutils/ld build
+.if ${BOOTSTRAPPING} < 1000033 || ${BOOTSTRAPPING} > 1300098
+_lex=		usr.bin/lex
 .endif
 
 # r245440 mtree -N support added
