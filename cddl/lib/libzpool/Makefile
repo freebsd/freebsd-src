@@ -18,9 +18,7 @@
 .if exists(${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 ATOMIC_SRCS=	opensolaris_atomic.S
-.if ${MACHINE_ARCH} != "sparc64"
 ACFLAGS+=	-Wa,--noexecstack
-.endif
 .else
 .PATH: ${SRCTOP}/sys/cddl/compat/opensolaris/kern
 ATOMIC_SRCS=	opensolaris_atomic.c
