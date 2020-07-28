@@ -712,7 +712,7 @@ auditd_config_controls(void)
 	 */
 	err = auditd_set_qsize();
 	if (err) {
-		auditd_log_err("audit_set_qsize() %s: %m",
+		auditd_log_err("auditd_set_qsize() %s: %m",
 		    auditd_strerror(err));
 		ret = -1;
 	} else
