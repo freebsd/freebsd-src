@@ -294,15 +294,13 @@ static const char rcsid[] =
 #define freehostent(x)
 #endif
 
-u_char	packet[512];		/* last inbound (icmp) packet */
-char 	*outpacket;		/* last output packet */
+static u_char	packet[512];		/* last inbound (icmp) packet */
+static char 	*outpacket;		/* last output packet */
 
 int	main(int, char *[]);
 int	wait_for_reply(int, struct msghdr *);
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 int	setpolicy(int so, char *policy);
-#endif
 #endif
 void	send_probe(int, u_long);
 void	*get_uphdr(struct ip6_hdr *, u_char *);
@@ -318,40 +316,40 @@ u_int16_t tcp_chksum(struct sockaddr_in6 *, struct sockaddr_in6 *,
     void *, u_int32_t);
 void	usage(void);
 
-int rcvsock;			/* receive (icmp) socket file descriptor */
-int sndsock;			/* send (raw/udp) socket file descriptor */
+static int rcvsock;			/* receive (icmp) socket file descriptor */
+static int sndsock;			/* send (raw/udp) socket file descriptor */
 
-struct msghdr rcvmhdr;
-struct iovec rcviov[2];
-int rcvhlim;
-struct in6_pktinfo *rcvpktinfo;
+static struct msghdr rcvmhdr;
+static struct iovec rcviov[2];
+static int rcvhlim;
+static struct in6_pktinfo *rcvpktinfo;
 
-struct sockaddr_in6 Src, Dst, Rcv;
-u_long datalen = 20;			/* How much data */
+static struct sockaddr_in6 Src, Dst, Rcv;
+static u_long datalen = 20;			/* How much data */
 #define	ICMP6ECHOLEN	8
 /* XXX: 2064 = 127(max hops in type 0 rthdr) * sizeof(ip6_hdr) + 16(margin) */
-char rtbuf[2064];
-struct ip6_rthdr *rth;
-struct cmsghdr *cmsg;
+static char rtbuf[2064];
+static struct ip6_rthdr *rth;
+static struct cmsghdr *cmsg;
 
-char *source = NULL;
-char *hostname;
+static char *source = NULL;
+static char *hostname;
 
-u_long nprobes = 3;
-u_long first_hop = 1;
-u_long max_hops = 30;
-u_int16_t srcport;
-u_int16_t port = 32768+666;	/* start udp dest port # for probe packets */
-u_int16_t ident;
-int options;			/* socket options */
-int verbose;
-int waittime = 5;		/* time to wait for response (in seconds) */
-int nflag;			/* print addresses numerically */
-int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
-int lflag;			/* print both numerical address & hostname */
-int as_path;			/* print as numbers for each hop */
-char *as_server = NULL;
-void *asn;
+static u_long nprobes = 3;
+static u_long first_hop = 1;
+static u_long max_hops = 30;
+static u_int16_t srcport;
+static u_int16_t port = 32768+666;	/* start udp dest port # for probe packets */
+static u_int16_t ident;
+static int options;			/* socket options */
+static int verbose;
+static int waittime = 5;		/* time to wait for response (in seconds) */
+static int nflag;			/* print addresses numerically */
+static int useproto = IPPROTO_UDP;	/* protocol to use to send packet */
+static int lflag;			/* print both numerical address & hostname */
+static int as_path;			/* print as numbers for each hop */
+static char *as_server = NULL;
+static void *asn;
 
 int
 main(int argc, char *argv[])
@@ -366,6 +364,10 @@ main(int argc, char *argv[])
 	size_t size, minlen;
 	uid_t uid;
 	u_char type, code;
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	char ipsec_inpolicy[] = "in bypass";
+	char ipsec_outpolicy[] = "out bypass";
+#endif
 
 	/*
 	 * Receive ICMP
@@ -628,7 +630,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "traceroute6: Warning: %s has multiple "
 		    "addresses; using %s\n", hostname, hbuf);
 	}
-
+	freeaddrinfo(res);
 	if (*++argv) {
 		ep = NULL;
 		errno = 0;
@@ -705,15 +707,14 @@ main(int argc, char *argv[])
 	if (options & SO_DONTROUTE)
 		(void) setsockopt(rcvsock, SOL_SOCKET, SO_DONTROUTE,
 		    (char *)&on, sizeof(on));
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	/*
 	 * do not raise error even if setsockopt fails, kernel may have ipsec
 	 * turned off.
 	 */
-	if (setpolicy(rcvsock, "in bypass") < 0)
+	if (setpolicy(rcvsock, ipsec_inpolicy) < 0)
 		errx(1, "%s", ipsec_strerror());
-	if (setpolicy(rcvsock, "out bypass") < 0)
+	if (setpolicy(rcvsock, ipsec_outpolicy) < 0)
 		errx(1, "%s", ipsec_strerror());
 #else
     {
@@ -735,8 +736,7 @@ main(int argc, char *argv[])
 	    sizeof(level));
 #endif
     }
-#endif /*IPSEC_POLICY_IPSEC*/
-#endif /*IPSEC*/
+#endif /* !(IPSEC && IPSEC_POLICY_IPSEC) */
 
 #ifdef SO_SNDBUF
 	i = datalen;
@@ -763,15 +763,14 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 	}
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 	/*
 	 * do not raise error even if setsockopt fails, kernel may have ipsec
 	 * turned off.
 	 */
-	if (setpolicy(sndsock, "in bypass") < 0)
+	if (setpolicy(sndsock, ipsec_inpolicy) < 0)
 		errx(1, "%s", ipsec_strerror());
-	if (setpolicy(sndsock, "out bypass") < 0)
+	if (setpolicy(sndsock, ipsec_outpolicy) < 0)
 		errx(1, "%s", ipsec_strerror());
 #else
     {
@@ -793,17 +792,13 @@ main(int argc, char *argv[])
 	    sizeof(level));
 #endif
     }
-#endif /*IPSEC_POLICY_IPSEC*/
-#endif /*IPSEC*/
+#endif /* !(IPSEC && IPSEC_POLICY_IPSEC) */
 
 	/*
 	 * Source selection
 	 */
 	bzero(&Src, sizeof(Src));
 	if (source) {
-		struct addrinfo hints, *res;
-		int error;
-
 		memset(&hints, 0, sizeof(hints));
 		hints.ai_family = AF_INET6;
 		hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
@@ -1018,12 +1013,9 @@ wait_for_reply(int sock, struct msghdr *mhdr)
 #endif
 }
 
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
 int
-setpolicy(so, policy)
-	int so;
-	char *policy;
+setpolicy(int so, char *policy)
 {
 	char *buf;
 
@@ -1039,7 +1031,6 @@ setpolicy(so, policy)
 
 	return 0;
 }
-#endif
 #endif
 
 void
@@ -1627,11 +1618,11 @@ static u_int32_t crc_c[256] = {
 };
 
 u_int32_t
-sctp_crc32c(void *packet, u_int32_t len)
+sctp_crc32c(void *pack, u_int32_t len)
 {
 	u_int32_t i, crc32c;
 	u_int8_t byte0, byte1, byte2, byte3;
-	u_int8_t *buf = (u_int8_t *)packet;
+	u_int8_t *buf = (u_int8_t *)pack;
 
 	crc32c = ~0;
 	for (i = 0; i < len; i++)
