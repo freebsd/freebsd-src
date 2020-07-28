@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2020
+.Dd July 28, 2020
 .Dt SIGINFO 3
 .Os
 .Sh NAME
@@ -68,7 +68,7 @@ sending process ID
 .It Vt uid_t Ta Va si_uid Ta
 sending process's real user ID
 .It Vt void Ta Va *si_addr Ta
-address of faulting instruction
+virtual address
 .It Vt int Ta Va si_status Ta
 exit value or signal
 .It Vt long Ta Va si_band Ta
@@ -208,25 +208,24 @@ signal sent by
 .Xr pthread_kill 3
 .El
 .Pp
+For synchronous signals,
+.Va si_addr
+is generally set to the address of the faulting instruction.
+However, synchronous signals raised by a faulting memory access such as
+.Dv SIGSEGV
+and
+.Dv SIGBUS
+may report the address of the faulting memory access (if available) in
+.Va si_addr
+instead.
+.Pp
+Sychronous signals set
+.Va si_trapno
+to a machine-dependent trap number.
+.Pp
 In addition, the following signal-specific information is available:
 .Bl -column ".Dv SIGPOLL" ".Dv CLD_CONTINUED"
 .It Sy Signal Ta Sy Member Ta Sy Value
-.It Dv SIGILL Ta Va si_addr Ta
-address of faulting instruction
-.It Ta Va si_trapno Ta
-machine dependent of trap code
-.It Dv SIGFPE Ta Va si_addr Ta
-address of faulting instruction
-.It Ta Va si_trapno Ta
-machine dependent of trap code
-.It Dv SIGSEGV Ta Va si_addr Ta
-address of faulting memory reference
-.It Ta Va si_trapno Ta
-machine dependent of trap code
-.It Dv SIGBUS Ta Va si_addr Ta
-address of faulting instruction
-.It Ta Va si_trapno Ta
-machine dependent of trap code
 .It Dv SIGCHLD Ta Va si_pid Ta
 child process ID
 .It Ta Va si_status Ta
