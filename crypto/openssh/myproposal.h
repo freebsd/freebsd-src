@@ -1,5 +1,4 @@
 /* $OpenBSD: myproposal.h,v 1.57 2018/09/12 01:34:02 djm Exp $ */
-/* $FreeBSD$ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -122,8 +121,7 @@
 #define KEX_SERVER_ENCRYPT \
 	"chacha20-poly1305@openssh.com," \
 	"aes128-ctr,aes192-ctr,aes256-ctr" \
-	AESGCM_CIPHER_MODES \
-	",aes128-cbc,aes192-cbc,aes256-cbc"
+	AESGCM_CIPHER_MODES
 
 #define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT
 
