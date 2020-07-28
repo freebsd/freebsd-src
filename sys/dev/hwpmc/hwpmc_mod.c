@@ -305,7 +305,7 @@ static int pmc_callchaindepth = PMC_CALLCHAIN_DEPTH;
 SYSCTL_INT(_kern_hwpmc, OID_AUTO, callchaindepth, CTLFLAG_RDTUN,
     &pmc_callchaindepth, 0, "depth of call chain records");
 
-char pmc_cpuid[64];
+char pmc_cpuid[PMC_CPUID_LEN];
 SYSCTL_STRING(_kern_hwpmc, OID_AUTO, cpuid, CTLFLAG_RD,
 	pmc_cpuid, 0, "cpu version string");
 #ifdef	HWPMC_DEBUG
