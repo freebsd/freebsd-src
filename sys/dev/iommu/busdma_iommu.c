@@ -299,7 +299,7 @@ acpi_iommu_get_dma_tag(device_t dev, device_t child)
 }
 
 bool
-bus_dma_dmar_set_buswide(device_t dev)
+bus_dma_iommu_set_buswide(device_t dev)
 {
 	struct iommu_unit *unit;
 	device_t parent;
@@ -317,12 +317,12 @@ bus_dma_dmar_set_buswide(device_t dev)
 	if (slot != 0 || func != 0) {
 		if (bootverbose) {
 			device_printf(dev,
-			    "dmar%d pci%d:%d:%d requested buswide busdma\n",
+			    "iommu%d pci%d:%d:%d requested buswide busdma\n",
 			    unit->unit, busno, slot, func);
 		}
 		return (false);
 	}
-	dmar_set_buswide_ctx(unit, busno);
+	iommu_set_buswide_ctx(unit, busno);
 	return (true);
 }
 
@@ -987,7 +987,7 @@ iommu_fini_busdma(struct iommu_unit *unit)
 }
 
 int
-bus_dma_dmar_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
+bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
     vm_paddr_t start, vm_size_t length, int flags)
 {
 	struct bus_dma_tag_common *tc;
