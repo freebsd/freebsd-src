@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 #include <sys/errno.h>
+#include <sys/pmc.h>
 #include <sys/sysctl.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -89,20 +90,13 @@ static struct pmu_alias pmu_amd_alias_table[] = {
 static pmu_mfr_t
 pmu_events_mfr(void)
 {
-	char *buf;
-	size_t s;
+	char buf[PMC_CPUID_LEN];
+	size_t s = sizeof(buf);
 	pmu_mfr_t mfr;
 
-	if (sysctlbyname("kern.hwpmc.cpuid", (void *)NULL, &s,
+	if (sysctlbyname("kern.hwpmc.cpuid", buf, &s,
 	    (void *)NULL, 0) == -1)
 		return (PMU_INVALID);
-	if ((buf = malloc(s + 1)) == NULL)
-		return (PMU_INVALID);
-	if (sysctlbyname("kern.hwpmc.cpuid", buf, &s,
-		(void *)NULL, 0) == -1) {
-		free(buf);
-		return (PMU_INVALID);
-	}
 	if (strcasestr(buf, "AuthenticAMD") != NULL ||
 	    strcasestr(buf, "HygonGenuine") != NULL)
 		mfr = PMU_AMD;
@@ -110,7 +104,6 @@ pmu_events_mfr(void)
 		mfr = PMU_INTEL;
 	else
 		mfr = PMU_INVALID;
-	free(buf);
 	return (mfr);
 }
 
@@ -169,17 +162,14 @@ pmu_events_map_get(const char *cpuid)
 {
 	regex_t re;
 	regmatch_t pmatch[1];
-	size_t s;
-	char buf[64];
+	char buf[PMC_CPUID_LEN];
+	size_t s = sizeof(buf);
 	int match;
 	const struct pmu_events_map *pme;
 
 	if (cpuid != NULL) {
-		memcpy(buf, cpuid, 64);
+		strlcpy(buf, cpuid, s);
 	} else {
-		if (sysctlbyname("kern.hwpmc.cpuid", (void *)NULL, &s,
-		    (void *)NULL, 0) == -1)
-			return (NULL);
 		if (sysctlbyname("kern.hwpmc.cpuid", buf, &s,
 		    (void *)NULL, 0) == -1)
 			return (NULL);
