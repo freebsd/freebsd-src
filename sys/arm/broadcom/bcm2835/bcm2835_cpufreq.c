@@ -47,12 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/broadcom/bcm2835/bcm2835_mbox.h>
-#include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
+#include <arm/broadcom/bcm2835/bcm2835_firmware.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
 #include "cpufreq_if.h"
-#include "mbox_if.h"
 
 #ifdef DEBUG
 #define DPRINTF(fmt, ...) do {			\
@@ -101,6 +99,7 @@ static struct sysctl_ctx_list bcm2835_sysctl_ctx;
 
 struct bcm2835_cpufreq_softc {
 	device_t	dev;
+	device_t	firmware;
 	int		arm_max_freq;
 	int		arm_min_freq;
 	int		core_max_freq;
@@ -161,7 +160,7 @@ static int
 bcm2835_cpufreq_get_clock_rate(struct bcm2835_cpufreq_softc *sc,
     uint32_t clock_id)
 {
-	struct msg_get_clock_rate msg;
+	union msg_get_clock_rate_body msg;
 	int rate;
 	int err;
 
@@ -181,16 +180,11 @@ bcm2835_cpufreq_get_clock_rate(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_CLOCK_RATE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.clock_id = clock_id;
-	msg.end_tag = 0;
+	msg.req.clock_id = clock_id;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_CLOCK_RATE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get clock rate (id=%u)\n",
 		    clock_id);
@@ -198,7 +192,7 @@ bcm2835_cpufreq_get_clock_rate(struct bcm2835_cpufreq_softc *sc,
 	}
 
 	/* result (Hz) */
-	rate = (int)msg.body.resp.rate_hz;
+	rate = (int)msg.resp.rate_hz;
 	DPRINTF("clock = %d(Hz)\n", rate);
 	return (rate);
 }
@@ -207,7 +201,7 @@ static int
 bcm2835_cpufreq_get_max_clock_rate(struct bcm2835_cpufreq_softc *sc,
     uint32_t clock_id)
 {
-	struct msg_get_max_clock_rate msg;
+	union msg_get_clock_rate_body msg;
 	int rate;
 	int err;
 
@@ -227,16 +221,11 @@ bcm2835_cpufreq_get_max_clock_rate(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_MAX_CLOCK_RATE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.clock_id = clock_id;
-	msg.end_tag = 0;
+	msg.req.clock_id = clock_id;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_MAX_CLOCK_RATE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get max clock rate (id=%u)\n",
 		    clock_id);
@@ -244,7 +233,7 @@ bcm2835_cpufreq_get_max_clock_rate(struct bcm2835_cpufreq_softc *sc,
 	}
 
 	/* result (Hz) */
-	rate = (int)msg.body.resp.rate_hz;
+	rate = (int)msg.resp.rate_hz;
 	DPRINTF("clock = %d(Hz)\n", rate);
 	return (rate);
 }
@@ -253,7 +242,7 @@ static int
 bcm2835_cpufreq_get_min_clock_rate(struct bcm2835_cpufreq_softc *sc,
     uint32_t clock_id)
 {
-	struct msg_get_min_clock_rate msg;
+	union msg_get_clock_rate_body msg;
 	int rate;
 	int err;
 
@@ -273,16 +262,11 @@ bcm2835_cpufreq_get_min_clock_rate(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_MIN_CLOCK_RATE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.clock_id = clock_id;
-	msg.end_tag = 0;
+	msg.req.clock_id = clock_id;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_MIN_CLOCK_RATE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get min clock rate (id=%u)\n",
 		    clock_id);
@@ -290,7 +274,7 @@ bcm2835_cpufreq_get_min_clock_rate(struct bcm2835_cpufreq_softc *sc,
 	}
 
 	/* result (Hz) */
-	rate = (int)msg.body.resp.rate_hz;
+	rate = (int)msg.resp.rate_hz;
 	DPRINTF("clock = %d(Hz)\n", rate);
 	return (rate);
 }
@@ -299,7 +283,7 @@ static int
 bcm2835_cpufreq_set_clock_rate(struct bcm2835_cpufreq_softc *sc,
     uint32_t clock_id, uint32_t rate_hz)
 {
-	struct msg_set_clock_rate msg;
+	union msg_set_clock_rate_body msg;
 	int rate;
 	int err;
 
@@ -320,17 +304,12 @@ bcm2835_cpufreq_set_clock_rate(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_SET_CLOCK_RATE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.clock_id = clock_id;
-	msg.body.req.rate_hz = rate_hz;
-	msg.end_tag = 0;
+	msg.req.clock_id = clock_id;
+	msg.req.rate_hz = rate_hz;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_SET_CLOCK_RATE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't set clock rate (id=%u)\n",
 		    clock_id);
@@ -338,7 +317,7 @@ bcm2835_cpufreq_set_clock_rate(struct bcm2835_cpufreq_softc *sc,
 	}
 
 	/* workaround for core clock */
-	if (clock_id == BCM2835_MBOX_CLOCK_ID_CORE) {
+	if (clock_id == BCM2835_FIRMWARE_CLOCK_ID_CORE) {
 		/* for safety (may change voltage without changing clock) */
 		DELAY(TRANSITION_LATENCY);
 
@@ -349,17 +328,12 @@ bcm2835_cpufreq_set_clock_rate(struct bcm2835_cpufreq_softc *sc,
 
 		/* setup single tag buffer */
 		memset(&msg, 0, sizeof(msg));
-		msg.hdr.buf_size = sizeof(msg);
-		msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-		msg.tag_hdr.tag = BCM2835_MBOX_TAG_SET_CLOCK_RATE;
-		msg.tag_hdr.val_buf_size = sizeof(msg.body);
-		msg.tag_hdr.val_len = sizeof(msg.body.req);
-		msg.body.req.clock_id = clock_id;
-		msg.body.req.rate_hz = rate_hz;
-		msg.end_tag = 0;
+		msg.req.clock_id = clock_id;
+		msg.req.rate_hz = rate_hz;
 
 		/* call mailbox property */
-		err = bcm2835_mbox_property(&msg, sizeof(msg));
+		err = bcm2835_firmware_property(sc->firmware,
+		    BCM2835_FIRMWARE_TAG_SET_CLOCK_RATE, &msg, sizeof(msg));
 		if (err) {
 			device_printf(sc->dev,
 			    "can't set clock rate (id=%u)\n", clock_id);
@@ -368,7 +342,7 @@ bcm2835_cpufreq_set_clock_rate(struct bcm2835_cpufreq_softc *sc,
 	}
 
 	/* result (Hz) */
-	rate = (int)msg.body.resp.rate_hz;
+	rate = (int)msg.resp.rate_hz;
 	DPRINTF("clock = %d(Hz)\n", rate);
 	return (rate);
 }
@@ -376,7 +350,7 @@ bcm2835_cpufreq_set_clock_rate(struct bcm2835_cpufreq_softc *sc,
 static int
 bcm2835_cpufreq_get_turbo(struct bcm2835_cpufreq_softc *sc)
 {
-	struct msg_get_turbo msg;
+	union msg_get_turbo_body msg;
 	int level;
 	int err;
 
@@ -396,23 +370,18 @@ bcm2835_cpufreq_get_turbo(struct bcm2835_cpufreq_softc *sc)
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_TURBO;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.id = 0;
-	msg.end_tag = 0;
+	msg.req.id = 0;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_TURBO, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get turbo\n");
 		return (MSG_ERROR);
 	}
 
 	/* result 0=non-turbo, 1=turbo */
-	level = (int)msg.body.resp.level;
+	level = (int)msg.resp.level;
 	DPRINTF("level = %d\n", level);
 	return (level);
 }
@@ -420,7 +389,7 @@ bcm2835_cpufreq_get_turbo(struct bcm2835_cpufreq_softc *sc)
 static int
 bcm2835_cpufreq_set_turbo(struct bcm2835_cpufreq_softc *sc, uint32_t level)
 {
-	struct msg_set_turbo msg;
+	union msg_set_turbo_body msg;
 	int value;
 	int err;
 
@@ -440,29 +409,25 @@ bcm2835_cpufreq_set_turbo(struct bcm2835_cpufreq_softc *sc, uint32_t level)
 	 */
 
 	/* replace unknown value to OFF */
-	if (level != BCM2835_MBOX_TURBO_ON && level != BCM2835_MBOX_TURBO_OFF)
-		level = BCM2835_MBOX_TURBO_OFF;
+	if (level != BCM2835_FIRMWARE_TURBO_ON &&
+	    level != BCM2835_FIRMWARE_TURBO_OFF)
+		level = BCM2835_FIRMWARE_TURBO_OFF;
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_SET_TURBO;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.id = 0;
-	msg.body.req.level = level;
-	msg.end_tag = 0;
+	msg.req.id = 0;
+	msg.req.level = level;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_SET_TURBO, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't set turbo\n");
 		return (MSG_ERROR);
 	}
 
 	/* result 0=non-turbo, 1=turbo */
-	value = (int)msg.body.resp.level;
+	value = (int)msg.resp.level;
 	DPRINTF("level = %d\n", value);
 	return (value);
 }
@@ -471,7 +436,7 @@ static int
 bcm2835_cpufreq_get_voltage(struct bcm2835_cpufreq_softc *sc,
     uint32_t voltage_id)
 {
-	struct msg_get_voltage msg;
+	union msg_get_voltage_body msg;
 	int value;
 	int err;
 
@@ -491,23 +456,18 @@ bcm2835_cpufreq_get_voltage(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_VOLTAGE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.voltage_id = voltage_id;
-	msg.end_tag = 0;
+	msg.req.voltage_id = voltage_id;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_VOLTAGE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get voltage\n");
 		return (MSG_ERROR);
 	}
 
 	/* result (offset from 1.2V) */
-	value = (int)msg.body.resp.value;
+	value = (int)msg.resp.value;
 	DPRINTF("value = %d\n", value);
 	return (value);
 }
@@ -516,7 +476,7 @@ static int
 bcm2835_cpufreq_get_max_voltage(struct bcm2835_cpufreq_softc *sc,
     uint32_t voltage_id)
 {
-	struct msg_get_max_voltage msg;
+	union msg_get_voltage_body msg;
 	int value;
 	int err;
 
@@ -536,23 +496,18 @@ bcm2835_cpufreq_get_max_voltage(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_MAX_VOLTAGE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.voltage_id = voltage_id;
-	msg.end_tag = 0;
+	msg.req.voltage_id = voltage_id;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_MAX_VOLTAGE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get max voltage\n");
 		return (MSG_ERROR);
 	}
 
 	/* result (offset from 1.2V) */
-	value = (int)msg.body.resp.value;
+	value = (int)msg.resp.value;
 	DPRINTF("value = %d\n", value);
 	return (value);
 }
@@ -560,7 +515,7 @@ static int
 bcm2835_cpufreq_get_min_voltage(struct bcm2835_cpufreq_softc *sc,
     uint32_t voltage_id)
 {
-	struct msg_get_min_voltage msg;
+	union msg_get_voltage_body msg;
 	int value;
 	int err;
 
@@ -580,23 +535,18 @@ bcm2835_cpufreq_get_min_voltage(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_MIN_VOLTAGE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.voltage_id = voltage_id;
-	msg.end_tag = 0;
+	msg.req.voltage_id = voltage_id;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_MIN_VOLTAGE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get min voltage\n");
 		return (MSG_ERROR);
 	}
 
 	/* result (offset from 1.2V) */
-	value = (int)msg.body.resp.value;
+	value = (int)msg.resp.value;
 	DPRINTF("value = %d\n", value);
 	return (value);
 }
@@ -605,7 +555,7 @@ static int
 bcm2835_cpufreq_set_voltage(struct bcm2835_cpufreq_softc *sc,
     uint32_t voltage_id, int32_t value)
 {
-	struct msg_set_voltage msg;
+	union msg_set_voltage_body msg;
 	int err;
 
 	/*
@@ -636,24 +586,19 @@ bcm2835_cpufreq_set_voltage(struct bcm2835_cpufreq_softc *sc,
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_SET_VOLTAGE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.voltage_id = voltage_id;
-	msg.body.req.value = (uint32_t)value;
-	msg.end_tag = 0;
+	msg.req.voltage_id = voltage_id;
+	msg.req.value = (uint32_t)value;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_SET_VOLTAGE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't set voltage\n");
 		return (MSG_ERROR);
 	}
 
 	/* result (offset from 1.2V) */
-	value = (int)msg.body.resp.value;
+	value = (int)msg.resp.value;
 	DPRINTF("value = %d\n", value);
 	return (value);
 }
@@ -661,7 +606,7 @@ bcm2835_cpufreq_set_voltage(struct bcm2835_cpufreq_softc *sc,
 static int
 bcm2835_cpufreq_get_temperature(struct bcm2835_cpufreq_softc *sc)
 {
-	struct msg_get_temperature msg;
+	union msg_get_temperature_body msg;
 	int value;
 	int err;
 
@@ -681,23 +626,18 @@ bcm2835_cpufreq_get_temperature(struct bcm2835_cpufreq_softc *sc)
 
 	/* setup single tag buffer */
 	memset(&msg, 0, sizeof(msg));
-	msg.hdr.buf_size = sizeof(msg);
-	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
-	msg.tag_hdr.tag = BCM2835_MBOX_TAG_GET_TEMPERATURE;
-	msg.tag_hdr.val_buf_size = sizeof(msg.body);
-	msg.tag_hdr.val_len = sizeof(msg.body.req);
-	msg.body.req.temperature_id = 0;
-	msg.end_tag = 0;
+	msg.req.temperature_id = 0;
 
 	/* call mailbox property */
-	err = bcm2835_mbox_property(&msg, sizeof(msg));
+	err = bcm2835_firmware_property(sc->firmware,
+	    BCM2835_FIRMWARE_TAG_GET_TEMPERATURE, &msg, sizeof(msg));
 	if (err) {
 		device_printf(sc->dev, "can't get temperature\n");
 		return (MSG_ERROR);
 	}
 
 	/* result (temperature of degree C) */
-	value = (int)msg.body.resp.value;
+	value = (int)msg.resp.value;
 	DPRINTF("value = %d\n", value);
 	return (value);
 }
@@ -713,7 +653,7 @@ sysctl_bcm2835_cpufreq_arm_freq(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_ARM);
+	val = bcm2835_cpufreq_get_clock_rate(sc, BCM2835_FIRMWARE_CLOCK_ID_ARM);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -724,7 +664,7 @@ sysctl_bcm2835_cpufreq_arm_freq(SYSCTL_HANDLER_ARGS)
 
 	/* write request */
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_ARM,
+	err = bcm2835_cpufreq_set_clock_rate(sc, BCM2835_FIRMWARE_CLOCK_ID_ARM,
 	    val);
 	VC_UNLOCK(sc);
 	if (err == MSG_ERROR) {
@@ -745,7 +685,8 @@ sysctl_bcm2835_cpufreq_core_freq(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_CORE);
+	val = bcm2835_cpufreq_get_clock_rate(sc,
+	    BCM2835_FIRMWARE_CLOCK_ID_CORE);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -756,7 +697,7 @@ sysctl_bcm2835_cpufreq_core_freq(SYSCTL_HANDLER_ARGS)
 
 	/* write request */
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_CORE,
+	err = bcm2835_cpufreq_set_clock_rate(sc, BCM2835_FIRMWARE_CLOCK_ID_CORE,
 	    val);
 	if (err == MSG_ERROR) {
 		VC_UNLOCK(sc);
@@ -778,7 +719,8 @@ sysctl_bcm2835_cpufreq_sdram_freq(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_SDRAM);
+	val = bcm2835_cpufreq_get_clock_rate(sc,
+	    BCM2835_FIRMWARE_CLOCK_ID_SDRAM);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -789,8 +731,8 @@ sysctl_bcm2835_cpufreq_sdram_freq(SYSCTL_HANDLER_ARGS)
 
 	/* write request */
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_SDRAM,
-	    val);
+	err = bcm2835_cpufreq_set_clock_rate(sc,
+	    BCM2835_FIRMWARE_CLOCK_ID_SDRAM, val);
 	VC_UNLOCK(sc);
 	if (err == MSG_ERROR) {
 		device_printf(sc->dev, "set clock sdram_freq error\n");
@@ -821,9 +763,9 @@ sysctl_bcm2835_cpufreq_turbo(SYSCTL_HANDLER_ARGS)
 
 	/* write request */
 	if (val > 0)
-		sc->turbo_mode = BCM2835_MBOX_TURBO_ON;
+		sc->turbo_mode = BCM2835_FIRMWARE_TURBO_ON;
 	else
-		sc->turbo_mode = BCM2835_MBOX_TURBO_OFF;
+		sc->turbo_mode = BCM2835_FIRMWARE_TURBO_OFF;
 
 	VC_LOCK(sc);
 	err = bcm2835_cpufreq_set_turbo(sc, sc->turbo_mode);
@@ -846,7 +788,7 @@ sysctl_bcm2835_cpufreq_voltage_core(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_CORE);
+	val = bcm2835_cpufreq_get_voltage(sc, BCM2835_FIRMWARE_VOLTAGE_ID_CORE);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -861,7 +803,7 @@ sysctl_bcm2835_cpufreq_voltage_core(SYSCTL_HANDLER_ARGS)
 	sc->voltage_core = val;
 
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_CORE,
+	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_FIRMWARE_VOLTAGE_ID_CORE,
 	    sc->voltage_core);
 	VC_UNLOCK(sc);
 	if (err == MSG_ERROR) {
@@ -882,7 +824,8 @@ sysctl_bcm2835_cpufreq_voltage_sdram_c(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_C);
+	val = bcm2835_cpufreq_get_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_C);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -897,7 +840,8 @@ sysctl_bcm2835_cpufreq_voltage_sdram_c(SYSCTL_HANDLER_ARGS)
 	sc->voltage_sdram_c = val;
 
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_C,
+	err = bcm2835_cpufreq_set_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_C,
 	   sc->voltage_sdram_c);
 	VC_UNLOCK(sc);
 	if (err == MSG_ERROR) {
@@ -918,7 +862,8 @@ sysctl_bcm2835_cpufreq_voltage_sdram_i(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_I);
+	val = bcm2835_cpufreq_get_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_I);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -933,8 +878,8 @@ sysctl_bcm2835_cpufreq_voltage_sdram_i(SYSCTL_HANDLER_ARGS)
 	sc->voltage_sdram_i = val;
 
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_I,
-	    sc->voltage_sdram_i);
+	err = bcm2835_cpufreq_set_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_I, sc->voltage_sdram_i);
 	VC_UNLOCK(sc);
 	if (err == MSG_ERROR) {
 		device_printf(sc->dev, "set voltage sdram_i error\n");
@@ -954,7 +899,8 @@ sysctl_bcm2835_cpufreq_voltage_sdram_p(SYSCTL_HANDLER_ARGS)
 
 	/* get realtime value */
 	VC_LOCK(sc);
-	val = bcm2835_cpufreq_get_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_P);
+	val = bcm2835_cpufreq_get_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_P);
 	VC_UNLOCK(sc);
 	if (val == MSG_ERROR)
 		return (EIO);
@@ -969,8 +915,8 @@ sysctl_bcm2835_cpufreq_voltage_sdram_p(SYSCTL_HANDLER_ARGS)
 	sc->voltage_sdram_p = val;
 
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_P,
-	    sc->voltage_sdram_p);
+	err = bcm2835_cpufreq_set_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_P, sc->voltage_sdram_p);
 	VC_UNLOCK(sc);
 	if (err == MSG_ERROR) {
 		device_printf(sc->dev, "set voltage sdram_p error\n");
@@ -1002,22 +948,22 @@ sysctl_bcm2835_cpufreq_voltage_sdram(SYSCTL_HANDLER_ARGS)
 	sc->voltage_sdram = val;
 
 	VC_LOCK(sc);
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_C,
-	    val);
+	err = bcm2835_cpufreq_set_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_C, val);
 	if (err == MSG_ERROR) {
 		VC_UNLOCK(sc);
 		device_printf(sc->dev, "set voltage sdram_c error\n");
 		return (EIO);
 	}
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_I,
-	    val);
+	err = bcm2835_cpufreq_set_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_I, val);
 	if (err == MSG_ERROR) {
 		VC_UNLOCK(sc);
 		device_printf(sc->dev, "set voltage sdram_i error\n");
 		return (EIO);
 	}
-	err = bcm2835_cpufreq_set_voltage(sc, BCM2835_MBOX_VOLTAGE_ID_SDRAM_P,
-	    val);
+	err = bcm2835_cpufreq_set_voltage(sc,
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_P, val);
 	if (err == MSG_ERROR) {
 		VC_UNLOCK(sc);
 		device_printf(sc->dev, "set voltage sdram_p error\n");
@@ -1097,42 +1043,42 @@ bcm2835_cpufreq_init(void *arg)
 
 	/* current clock */
 	arm_freq = bcm2835_cpufreq_get_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM);
 	core_freq = bcm2835_cpufreq_get_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_CORE);
+	    BCM2835_FIRMWARE_CLOCK_ID_CORE);
 	sdram_freq = bcm2835_cpufreq_get_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_SDRAM);
+	    BCM2835_FIRMWARE_CLOCK_ID_SDRAM);
 
 	/* max/min clock */
 	arm_max_freq = bcm2835_cpufreq_get_max_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM);
 	arm_min_freq = bcm2835_cpufreq_get_min_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM);
 	core_max_freq = bcm2835_cpufreq_get_max_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_CORE);
+	    BCM2835_FIRMWARE_CLOCK_ID_CORE);
 	core_min_freq = bcm2835_cpufreq_get_min_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_CORE);
+	    BCM2835_FIRMWARE_CLOCK_ID_CORE);
 	sdram_max_freq = bcm2835_cpufreq_get_max_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_SDRAM);
+	    BCM2835_FIRMWARE_CLOCK_ID_SDRAM);
 	sdram_min_freq = bcm2835_cpufreq_get_min_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_SDRAM);
+	    BCM2835_FIRMWARE_CLOCK_ID_SDRAM);
 
 	/* turbo mode */
 	turbo = bcm2835_cpufreq_get_turbo(sc);
 	if (turbo > 0)
-		sc->turbo_mode = BCM2835_MBOX_TURBO_ON;
+		sc->turbo_mode = BCM2835_FIRMWARE_TURBO_ON;
 	else
-		sc->turbo_mode = BCM2835_MBOX_TURBO_OFF;
+		sc->turbo_mode = BCM2835_FIRMWARE_TURBO_OFF;
 
 	/* voltage */
 	voltage_core = bcm2835_cpufreq_get_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_CORE);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_CORE);
 	voltage_sdram_c = bcm2835_cpufreq_get_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_C);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_C);
 	voltage_sdram_i = bcm2835_cpufreq_get_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_I);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_I);
 	voltage_sdram_p = bcm2835_cpufreq_get_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_P);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_P);
 
 	/* current values (offset from 1.2V) */
 	sc->voltage_core = voltage_core;
@@ -1143,21 +1089,21 @@ bcm2835_cpufreq_init(void *arg)
 
 	/* max/min voltage */
 	max_voltage_core = bcm2835_cpufreq_get_max_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_CORE);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_CORE);
 	min_voltage_core = bcm2835_cpufreq_get_min_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_CORE);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_CORE);
 	max_voltage_sdram_c = bcm2835_cpufreq_get_max_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_C);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_C);
 	max_voltage_sdram_i = bcm2835_cpufreq_get_max_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_I);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_I);
 	max_voltage_sdram_p = bcm2835_cpufreq_get_max_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_P);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_P);
 	min_voltage_sdram_c = bcm2835_cpufreq_get_min_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_C);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_C);
 	min_voltage_sdram_i = bcm2835_cpufreq_get_min_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_I);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_I);
 	min_voltage_sdram_p = bcm2835_cpufreq_get_min_voltage(sc,
-	    BCM2835_MBOX_VOLTAGE_ID_SDRAM_P);
+	    BCM2835_FIRMWARE_VOLTAGE_ID_SDRAM_P);
 
 	/* temperature */
 	temperature = bcm2835_cpufreq_get_temperature(sc);
@@ -1168,7 +1114,7 @@ bcm2835_cpufreq_init(void *arg)
 		device_printf(sc->dev,
 		    "current ARM %dMHz, Core %dMHz, SDRAM %dMHz, Turbo %s\n",
 		    HZ2MHZ(arm_freq), HZ2MHZ(core_freq), HZ2MHZ(sdram_freq),
-		    (sc->turbo_mode == BCM2835_MBOX_TURBO_ON) ? "ON" : "OFF");
+		    (sc->turbo_mode == BCM2835_FIRMWARE_TURBO_ON) ? "ON":"OFF");
 
 		device_printf(sc->dev,
 		    "max/min ARM %d/%dMHz, Core %d/%dMHz, SDRAM %d/%dMHz\n",
@@ -1202,7 +1148,7 @@ bcm2835_cpufreq_init(void *arg)
 		device_printf(sc->dev,
 		    "ARM %dMHz, Core %dMHz, SDRAM %dMHz, Turbo %s\n",
 		    HZ2MHZ(arm_freq), HZ2MHZ(core_freq), HZ2MHZ(sdram_freq),
-		    (sc->turbo_mode == BCM2835_MBOX_TURBO_ON) ? "ON" : "OFF");
+		    (sc->turbo_mode == BCM2835_FIRMWARE_TURBO_ON) ? "ON":"OFF");
 	}
 
 	/* keep in softc (MHz/mV) */
@@ -1216,25 +1162,25 @@ bcm2835_cpufreq_init(void *arg)
 	sc->min_voltage_core = OFFSET2MVOLT(min_voltage_core);
 
 	/* if turbo is on, set to max values */
-	if (sc->turbo_mode == BCM2835_MBOX_TURBO_ON) {
-		bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_ARM,
-		    arm_max_freq);
-		DELAY(TRANSITION_LATENCY);
-		bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_CORE,
-		    core_max_freq);
+	if (sc->turbo_mode == BCM2835_FIRMWARE_TURBO_ON) {
+		bcm2835_cpufreq_set_clock_rate(sc,
+		    BCM2835_FIRMWARE_CLOCK_ID_ARM, arm_max_freq);
 		DELAY(TRANSITION_LATENCY);
 		bcm2835_cpufreq_set_clock_rate(sc,
-		    BCM2835_MBOX_CLOCK_ID_SDRAM, sdram_max_freq);
+		    BCM2835_FIRMWARE_CLOCK_ID_CORE, core_max_freq);
+		DELAY(TRANSITION_LATENCY);
+		bcm2835_cpufreq_set_clock_rate(sc,
+		    BCM2835_FIRMWARE_CLOCK_ID_SDRAM, sdram_max_freq);
 		DELAY(TRANSITION_LATENCY);
 	} else {
-		bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_ARM,
-		    arm_min_freq);
-		DELAY(TRANSITION_LATENCY);
-		bcm2835_cpufreq_set_clock_rate(sc, BCM2835_MBOX_CLOCK_ID_CORE,
-		    core_min_freq);
+		bcm2835_cpufreq_set_clock_rate(sc,
+		    BCM2835_FIRMWARE_CLOCK_ID_ARM, arm_min_freq);
 		DELAY(TRANSITION_LATENCY);
 		bcm2835_cpufreq_set_clock_rate(sc,
-		    BCM2835_MBOX_CLOCK_ID_SDRAM, sdram_min_freq);
+		    BCM2835_FIRMWARE_CLOCK_ID_CORE, core_min_freq);
+		DELAY(TRANSITION_LATENCY);
+		bcm2835_cpufreq_set_clock_rate(sc,
+		    BCM2835_FIRMWARE_CLOCK_ID_SDRAM, sdram_min_freq);
 		DELAY(TRANSITION_LATENCY);
 	}
 
@@ -1297,6 +1243,12 @@ bcm2835_cpufreq_attach(device_t dev)
 	/* set self dev */
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	sc->firmware = devclass_get_device(
+	    devclass_find("bcm2835_firmware"), 0);
+	if (sc->firmware == NULL) {
+		device_printf(dev, "Unable to find firmware device\n");
+		return (ENXIO);
+	}
 
 	/* initial values */
 	sc->arm_max_freq = -1;
@@ -1430,7 +1382,7 @@ bcm2835_cpufreq_set(device_t dev, const struct cf_setting *cf)
 
 	/* adjust min freq */
 	min_freq = sc->arm_min_freq;
-	if (sc->turbo_mode != BCM2835_MBOX_TURBO_ON)
+	if (sc->turbo_mode != BCM2835_FIRMWARE_TURBO_ON)
 		if (min_freq > cpufreq_lowest_freq)
 			min_freq = cpufreq_lowest_freq;
 
@@ -1441,28 +1393,28 @@ bcm2835_cpufreq_set(device_t dev, const struct cf_setting *cf)
 	VC_LOCK(sc);
 #ifdef DEBUG
 	cur_freq = bcm2835_cpufreq_get_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM);
 #endif
 	resp_freq = bcm2835_cpufreq_set_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM, rate_hz);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM, rate_hz);
 	DELAY(TRANSITION_LATENCY);
 	arm_freq = bcm2835_cpufreq_get_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM);
 
 	/*
 	 * if non-turbo and lower than or equal min_freq,
 	 * clock down core and sdram to default first.
 	 */
-	if (sc->turbo_mode != BCM2835_MBOX_TURBO_ON) {
+	if (sc->turbo_mode != BCM2835_FIRMWARE_TURBO_ON) {
 		core_freq = bcm2835_cpufreq_get_clock_rate(sc,
-		    BCM2835_MBOX_CLOCK_ID_CORE);
+		    BCM2835_FIRMWARE_CLOCK_ID_CORE);
 		if (rate_hz > MHZ2HZ(sc->arm_min_freq)) {
 			bcm2835_cpufreq_set_clock_rate(sc,
-			    BCM2835_MBOX_CLOCK_ID_CORE,
+			    BCM2835_FIRMWARE_CLOCK_ID_CORE,
 			    MHZ2HZ(sc->core_max_freq));
 			DELAY(TRANSITION_LATENCY);
 			bcm2835_cpufreq_set_clock_rate(sc,
-			    BCM2835_MBOX_CLOCK_ID_SDRAM,
+			    BCM2835_FIRMWARE_CLOCK_ID_SDRAM,
 			    MHZ2HZ(sc->sdram_max_freq));
 			DELAY(TRANSITION_LATENCY);
 		} else {
@@ -1471,20 +1423,20 @@ bcm2835_cpufreq_set(device_t dev, const struct cf_setting *cf)
 				/* first, down to 250, then down to min */
 				DELAY(TRANSITION_LATENCY);
 				bcm2835_cpufreq_set_clock_rate(sc,
-				    BCM2835_MBOX_CLOCK_ID_CORE,
+				    BCM2835_FIRMWARE_CLOCK_ID_CORE,
 				    MHZ2HZ(DEFAULT_CORE_FREQUENCY));
 				DELAY(TRANSITION_LATENCY);
 				/* reset core voltage */
 				bcm2835_cpufreq_set_voltage(sc,
-				    BCM2835_MBOX_VOLTAGE_ID_CORE, 0);
+				    BCM2835_FIRMWARE_VOLTAGE_ID_CORE, 0);
 				DELAY(TRANSITION_LATENCY);
 			}
 			bcm2835_cpufreq_set_clock_rate(sc,
-			    BCM2835_MBOX_CLOCK_ID_CORE,
+			    BCM2835_FIRMWARE_CLOCK_ID_CORE,
 			    MHZ2HZ(sc->core_min_freq));
 			DELAY(TRANSITION_LATENCY);
 			bcm2835_cpufreq_set_clock_rate(sc,
-			    BCM2835_MBOX_CLOCK_ID_SDRAM,
+			    BCM2835_FIRMWARE_CLOCK_ID_SDRAM,
 			    MHZ2HZ(sc->sdram_min_freq));
 			DELAY(TRANSITION_LATENCY);
 		}
@@ -1517,7 +1469,7 @@ bcm2835_cpufreq_get(device_t dev, struct cf_setting *cf)
 	/* get cuurent value */
 	VC_LOCK(sc);
 	arm_freq = bcm2835_cpufreq_get_clock_rate(sc,
-	    BCM2835_MBOX_CLOCK_ID_ARM);
+	    BCM2835_FIRMWARE_CLOCK_ID_ARM);
 	VC_UNLOCK(sc);
 	if (arm_freq < 0) {
 		device_printf(dev, "can't get clock\n");
@@ -1557,7 +1509,7 @@ bcm2835_cpufreq_make_freq_list(device_t dev, struct cf_setting *sets,
 		freq = min_freq;
 
 	/* if non-turbo, add extra low freq */
-	if (sc->turbo_mode != BCM2835_MBOX_TURBO_ON)
+	if (sc->turbo_mode != BCM2835_FIRMWARE_TURBO_ON)
 		if (min_freq > cpufreq_lowest_freq)
 			min_freq = cpufreq_lowest_freq;
 
@@ -1654,3 +1606,4 @@ static driver_t bcm2835_cpufreq_driver = {
 
 DRIVER_MODULE(bcm2835_cpufreq, cpu, bcm2835_cpufreq_driver,
     bcm2835_cpufreq_devclass, 0, 0);
+MODULE_DEPEND(bcm2835_cpufreq, bcm2835_firmware, 1, 1, 1);
