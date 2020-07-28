@@ -772,8 +772,13 @@ void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
 	vm_page_assert_pga_writeable(m, bits)
 #define	vm_page_xbusy_claim(m) do {					\
+	u_int _busy_lock;						\
+									\
 	vm_page_assert_xbusied_unchecked((m));				\
-	(m)->busy_lock = VPB_CURTHREAD_EXCLUSIVE;			\
+	do {								\
+		_busy_lock = atomic_load_int(&(m)->busy_lock);		\
+	} while (!atomic_cmpset_int(&(m)->busy_lock, _busy_lock,	\
+	    (_busy_lock & VPB_BIT_FLAGMASK) | VPB_CURTHREAD_EXCLUSIVE)); \
 } while (0)
 #else
 #define	VM_PAGE_OBJECT_BUSY_ASSERT(m)	(void)0
