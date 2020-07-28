@@ -777,6 +777,30 @@ kernel_lun_modify(struct lun *lun)
 	req.reqdata.modify.lun_id = lun->l_ctl_lun;
 	req.reqdata.modify.lun_size_bytes = lun->l_size;
 
+	if (lun->l_path != NULL) {
+		o = option_find(&lun->l_options, "file");
+		if (o != NULL) {
+			option_set(o, lun->l_path);
+		} else {
+			o = option_new(&lun->l_options, "file", lun->l_path);
+			assert(o != NULL);
+		}
+	}
+
+	o = option_find(&lun->l_options, "ctld_name");
+	if (o != NULL) {
+		option_set(o, lun->l_name);
+	} else {
+		o = option_new(&lun->l_options, "ctld_name", lun->l_name);
+		assert(o != NULL);
+	}
+
+	o = option_find(&lun->l_options, "scsiname");
+	if (o == NULL && lun->l_scsiname != NULL) {
+		o = option_new(&lun->l_options, "scsiname", lun->l_scsiname);
+		assert(o != NULL);
+	}
+
 	if (!TAILQ_EMPTY(&lun->l_options)) {
 		req.args_nvl = nvlist_create(0);
 		if (req.args_nvl == NULL) {
