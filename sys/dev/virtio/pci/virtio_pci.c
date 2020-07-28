@@ -179,22 +179,24 @@ static void	vtpci_config_intr(void *);
  * I/O port read/write wrappers.
  */
 #define vtpci_read_config_1(sc, o)	bus_read_1((sc)->vtpci_res, (o))
-#define vtpci_read_config_2(sc, o)	bus_read_2((sc)->vtpci_res, (o))
-#define vtpci_read_config_4(sc, o)	bus_read_4((sc)->vtpci_res, (o))
 #define vtpci_write_config_1(sc, o, v)	bus_write_1((sc)->vtpci_res, (o), (v))
-#define vtpci_write_config_2(sc, o, v)	bus_write_2((sc)->vtpci_res, (o), (v))
-#define vtpci_write_config_4(sc, o, v)	bus_write_4((sc)->vtpci_res, (o), (v))
 
 /*
- * Legacy VirtIO header is always PCI endianness (little), so if we
- * are in a BE machine we need to swap bytes from LE to BE when reading
- * and from BE to LE when writing.
- * If we are in a LE machine, there will be no swaps.
+ * Virtio-pci specifies that PCI Configuration area is guest endian. However,
+ * since PCI devices are inherently little-endian, on BE systems the bus layer
+ * transparently converts it to BE. For virtio-legacy, this conversion is
+ * undesired, so an extra byte swap is required to fix it.
  */
-#define vtpci_read_header_2(sc, o)	le16toh(vtpci_read_config_2(sc, o))
-#define vtpci_read_header_4(sc, o)	le32toh(vtpci_read_config_4(sc, o))
-#define vtpci_write_header_2(sc, o, v)  vtpci_write_config_2(sc, o, (htole16(v)))
-#define vtpci_write_header_4(sc, o, v)  vtpci_write_config_4(sc, o, (htole32(v)))
+#define vtpci_read_config_2(sc, o)      le16toh(bus_read_2((sc)->vtpci_res, (o)))
+#define vtpci_read_config_4(sc, o)      le32toh(bus_read_4((sc)->vtpci_res, (o)))
+#define vtpci_write_config_2(sc, o, v)  bus_write_2((sc)->vtpci_res, (o), (htole16(v)))
+#define vtpci_write_config_4(sc, o, v)  bus_write_4((sc)->vtpci_res, (o), (htole32(v)))
+
+/* PCI Header LE. On BE systems the bus layer takes care of byte swapping */
+#define vtpci_read_header_2(sc, o)      (bus_read_2((sc)->vtpci_res, (o)))
+#define vtpci_read_header_4(sc, o)      (bus_read_4((sc)->vtpci_res, (o)))
+#define vtpci_write_header_2(sc, o, v)  bus_write_2((sc)->vtpci_res, (o), (v))
+#define vtpci_write_header_4(sc, o, v)  bus_write_4((sc)->vtpci_res, (o), (v))
 
 /* Tunables. */
 static int vtpci_disable_msix = 0;
@@ -289,17 +291,6 @@ vtpci_attach(device_t dev)
 		device_printf(dev, "cannot map I/O space\n");
 		return (ENXIO);
 	}
-
-/*
- * For legacy VirtIO, the device-specific configuration is guest
- * endian, while the common configuration header is always
- * PCI (little) endian and will be handled specifically in
- * other parts of this file via functions
- * 'vtpci_[read|write]_header_[2|4]'
- */
-#if _BYTE_ORDER == _BIG_ENDIAN
-	rman_set_bustag(sc->vtpci_res, &bs_be_tag);
-#endif
 
 	if (pci_find_cap(dev, PCIY_MSI, NULL) != 0)
 		sc->vtpci_flags |= VTPCI_FLAG_NO_MSI;
