@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
+#include <dev/mmc/mmc_fdt_helpers.h>
 
 #include <dev/sdhci/sdhci.h>
 
@@ -155,6 +156,7 @@ struct bcm_sdhci_softc {
 	void *			sc_intrhand;
 	struct mmc_request *	sc_req;
 	struct sdhci_slot	sc_slot;
+	struct mmc_fdt_helper	sc_mmc_helper;
 	int			sc_dma_ch;
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
@@ -315,6 +317,7 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_slot.quirks = sc->conf->quirks;
 
 	sdhci_init_slot(dev, &sc->sc_slot, 0);
+	mmc_fdt_parse(dev, 0, &sc->sc_mmc_helper, &sc->sc_slot.host);
 
 	sc->sc_dma_ch = bcm_dma_allocate(BCM_DMA_CH_ANY);
 	if (sc->sc_dma_ch == BCM_DMA_CH_INVALID)
@@ -386,6 +389,37 @@ bcm_sdhci_intr(void *arg)
 	struct bcm_sdhci_softc *sc = arg;
 
 	sdhci_generic_intr(&sc->sc_slot);
+}
+
+static int
+bcm_sdhci_update_ios(device_t bus, device_t child)
+{
+	struct bcm_sdhci_softc *sc;
+	struct mmc_ios *ios;
+	int rv;
+
+	sc = device_get_softc(bus);
+	ios = &sc->sc_slot.host.ios;
+
+	if (ios->power_mode == power_up) {
+		if (sc->sc_mmc_helper.vmmc_supply)
+			regulator_enable(sc->sc_mmc_helper.vmmc_supply);
+		if (sc->sc_mmc_helper.vqmmc_supply)
+			regulator_enable(sc->sc_mmc_helper.vqmmc_supply);
+	}
+
+	rv = sdhci_generic_update_ios(bus, child);
+	if (rv != 0)
+		return (rv);
+
+	if (ios->power_mode == power_off) {
+		if (sc->sc_mmc_helper.vmmc_supply)
+			regulator_disable(sc->sc_mmc_helper.vmmc_supply);
+		if (sc->sc_mmc_helper.vqmmc_supply)
+			regulator_disable(sc->sc_mmc_helper.vqmmc_supply);
+	}
+
+	return (0);
 }
 
 static int
@@ -787,7 +821,7 @@ static device_method_t bcm_sdhci_methods[] = {
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 
 	/* MMC bridge interface */
-	DEVMETHOD(mmcbr_update_ios,	sdhci_generic_update_ios),
+	DEVMETHOD(mmcbr_update_ios,	bcm_sdhci_update_ios),
 	DEVMETHOD(mmcbr_request,	sdhci_generic_request),
 	DEVMETHOD(mmcbr_get_ro,		bcm_sdhci_get_ro),
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
