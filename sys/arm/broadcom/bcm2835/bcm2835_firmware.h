@@ -142,6 +142,61 @@ union msg_set_turbo_body {
 	} resp;
 };
 
+#define	BCM2835_FIRMWARE_TAG_GET_GPIO_STATE		0x00030041
+#define	BCM2835_FIRMWARE_TAG_SET_GPIO_STATE		0x00038041
+#define	BCM2835_FIRMWARE_TAG_GET_GPIO_CONFIG		0x00030043
+#define	BCM2835_FIRMWARE_TAG_SET_GPIO_CONFIG		0x00038043
+
+#define	BCM2835_FIRMWARE_GPIO_IN			0
+#define	BCM2835_FIRMWARE_GPIO_OUT			1
+
+union msg_get_gpio_state {
+	struct {
+		uint32_t gpio;
+	} req;
+	struct {
+		uint32_t gpio;
+		uint32_t state;
+	} resp;
+};
+
+union msg_set_gpio_state {
+	struct {
+		uint32_t gpio;
+		uint32_t state;
+	} req;
+	struct {
+		uint32_t gpio;
+	} resp;
+};
+
+union msg_get_gpio_config {
+	struct {
+		uint32_t gpio;
+	} req;
+	struct {
+		uint32_t gpio;
+		uint32_t dir;
+		uint32_t pol;
+		uint32_t term_en;
+		uint32_t term_pull_up;
+	} resp;
+};
+
+union msg_set_gpio_config {
+	struct {
+		uint32_t gpio;
+		uint32_t dir;
+		uint32_t pol;
+		uint32_t term_en;
+		uint32_t term_pull_up;
+		uint32_t state;
+	} req;
+	struct {
+		uint32_t gpio;
+	} resp;
+};
+
 int bcm2835_firmware_property(device_t, uint32_t, void *, size_t);
 
 #endif
