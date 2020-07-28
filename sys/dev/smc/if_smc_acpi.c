@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2008 Benno Rice
  * All rights reserved.
+ * Copyright (c) 2020 Andrew Turner
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,47 +40,41 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/smc/if_smcvar.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
 
-static int		smc_fdt_probe(device_t);
+static int		smc_acpi_probe(device_t);
 
 static int
-smc_fdt_probe(device_t dev)
+smc_acpi_probe(device_t dev)
 {
 	struct	smc_softc *sc;
+	ACPI_HANDLE h;
 
-	if (!ofw_bus_status_okay(dev))
+	if ((h = acpi_get_handle(dev)) == NULL)
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "smsc,lan91c111")) {
-		sc = device_get_softc(dev);
-		sc->smc_usemem = 1;
+	if (!acpi_MatchHid(h, "LNRO0003"))
+		return (ENXIO);
 
-		if (smc_probe(dev) != 0) {
-			return (ENXIO);
-		}
+	sc = device_get_softc(dev);
+	sc->smc_usemem = 1;
 
-		return (0);
-	}
-
-	return (ENXIO);
+	return (smc_probe(dev));
 }
 
-static device_method_t smc_fdt_methods[] = {
+static device_method_t smc_acpi_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		smc_fdt_probe),
+	DEVMETHOD(device_probe,		smc_acpi_probe),
 	{ 0, 0 }
 };
 
-DEFINE_CLASS_1(smc, smc_fdt_driver, smc_fdt_methods,
+DEFINE_CLASS_1(smc, smc_acpi_driver, smc_acpi_methods,
     sizeof(struct smc_softc), smc_driver);
 
 extern devclass_t smc_devclass;
 
-DRIVER_MODULE(smc, simplebus, smc_fdt_driver, smc_devclass, 0, 0);
-MODULE_DEPEND(smc, fdt, 1, 1, 1);
+DRIVER_MODULE(smc, acpi, smc_acpi_driver, smc_devclass, 0, 0);
+MODULE_DEPEND(smc, acpi, 1, 1, 1);
 MODULE_DEPEND(smc, ether, 1, 1, 1);
 MODULE_DEPEND(smc, miibus, 1, 1, 1);
