@@ -394,10 +394,13 @@ bcm_sdhci_intr(void *arg)
 static int
 bcm_sdhci_update_ios(device_t bus, device_t child)
 {
+#ifdef EXT_RESOURCES
 	struct bcm_sdhci_softc *sc;
 	struct mmc_ios *ios;
+#endif
 	int rv;
 
+#ifdef EXT_RESOURCES
 	sc = device_get_softc(bus);
 	ios = &sc->sc_slot.host.ios;
 
@@ -407,17 +410,20 @@ bcm_sdhci_update_ios(device_t bus, device_t child)
 		if (sc->sc_mmc_helper.vqmmc_supply)
 			regulator_enable(sc->sc_mmc_helper.vqmmc_supply);
 	}
+#endif
 
 	rv = sdhci_generic_update_ios(bus, child);
 	if (rv != 0)
 		return (rv);
 
+#ifdef EXT_RESOURCES
 	if (ios->power_mode == power_off) {
 		if (sc->sc_mmc_helper.vmmc_supply)
 			regulator_disable(sc->sc_mmc_helper.vmmc_supply);
 		if (sc->sc_mmc_helper.vqmmc_supply)
 			regulator_disable(sc->sc_mmc_helper.vqmmc_supply);
 	}
+#endif
 
 	return (0);
 }
