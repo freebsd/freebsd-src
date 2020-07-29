@@ -3142,9 +3142,9 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 					goto error_exit;
 				}
 				/* back up over the last component */
-				while (*cp == '/' && cp > dirp)
+				while (cp > dirp && *cp == '/')
 					cp--;
-				while (*(cp - 1) != '/' && cp > dirp)
+				while (cp > dirp && *(cp - 1) != '/')
 					cp--;
 				if (cp == dirp) {
 					if (debug)
