@@ -34,14 +34,6 @@
 #ifndef _SYS_IOMMU_H_
 #define _SYS_IOMMU_H_
 
-#include <sys/types.h>
-#include <sys/queue.h>
-#include <sys/sysctl.h>
-#include <sys/taskqueue.h>
-#include <sys/tree.h>
-
-#include <dev/pci/pcireg.h>
-
 /* Host or physical memory address, after translation. */
 typedef uint64_t iommu_haddr_t;
 /* Guest or bus address, before translation. */
