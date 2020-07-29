@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r363679:
+	Applications using regex(3), e.g. sed/grep, will no longer accept
+	redundant escapes for most ordinary characters.
+
 r363253:
 	SCTP support has been removed from GENERIC kernel configurations.
 	The SCTP stack is now built as sctp.ko and can be dynamically loaded.
