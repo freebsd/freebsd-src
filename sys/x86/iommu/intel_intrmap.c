@@ -40,24 +40,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/rwlock.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
-#include <machine/bus.h>
-#include <machine/intr_machdep.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <machine/bus.h>
+#include <machine/intr_machdep.h>
 #include <x86/include/apicreg.h>
 #include <x86/include/apicvar.h>
 #include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
 #include <dev/iommu/busdma_iommu.h>
-#include <dev/pci/pcireg.h>
+#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/intel_dmar.h>
-#include <dev/pci/pcivar.h>
 #include <x86/iommu/iommu_intrmap.h>
 
 static struct dmar_unit *dmar_ir_find(device_t src, uint16_t *rid,

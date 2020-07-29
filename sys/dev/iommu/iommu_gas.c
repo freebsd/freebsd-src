@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 #include <sys/uio.h>
 #include <sys/vmem.h>
-#include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -60,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/uma.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/iommu/iommu.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
@@ -67,11 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <x86/include/busdma_impl.h>
 #include <x86/iommu/intel_reg.h>
-#include <dev/iommu/busdma_iommu.h>
-#include <dev/iommu/iommu.h>
-#include <dev/pci/pcireg.h>
 #include <x86/iommu/intel_dmar.h>
 #endif
+#include <dev/iommu/busdma_iommu.h>
 
 /*
  * Guest Address Space management.
