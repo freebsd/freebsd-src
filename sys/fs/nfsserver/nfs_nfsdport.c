@@ -144,6 +144,8 @@ static int nfsrv_dsremove(struct vnode *, char *, struct ucred *, NFSPROC_T *);
 static int nfsrv_dssetacl(struct vnode *, struct acl *, struct ucred *,
     NFSPROC_T *);
 static int nfsrv_pnfsstatfs(struct statfs *, struct mount *);
+static void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *,
+    char *, int, int);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -2043,6 +2045,17 @@ again:
 	vput(vp);
 
 	/*
+	 * If cnt > MCLBYTES and the reply will not be saved, use
+	 * ext_pgs mbufs for TLS.
+	 * For NFSv4.0, we do not know for sure if the reply will
+	 * be saved, so do not use ext_pgs mbufs for NFSv4.0.
+	 */
+	if (cnt > MCLBYTES && siz > MCLBYTES &&
+	    (nd->nd_flag & (ND_TLS | ND_EXTPG | ND_SAVEREPLY)) == ND_TLS &&
+	    (nd->nd_flag & (ND_NFSV4 | ND_NFSV41)) != ND_NFSV4)
+		nd->nd_flag |= ND_EXTPG;
+
+	/*
 	 * dirlen is the size of the reply, including all XDR and must
 	 * not exceed cnt. For NFSv2, RFC1094 didn't clearly indicate
 	 * if the XDR should be included in "count", but to be safe, we do.
@@ -2146,6 +2159,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct mount *mp, *new_mp;
 	uint64_t mounted_on_fileno;
 	struct thread *p = curthread;
+	int bextpg0, bextpg1, bextpgsiz0, bextpgsiz1;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -2359,11 +2373,27 @@ again:
 	}
 
 	/*
+	 * If the reply is likely to exceed MCLBYTES and the reply will
+	 * not be saved, use ext_pgs mbufs for TLS.
+	 * It is difficult to predict how large each entry will be and
+	 * how many entries have been read, so just assume the directory
+	 * entries grow by a factor of 4 when attributes are included.
+	 * For NFSv4.0, we do not know for sure if the reply will
+	 * be saved, so do not use ext_pgs mbufs for NFSv4.0.
+	 */
+	if (cnt > MCLBYTES && siz > MCLBYTES / 4 &&
+	    (nd->nd_flag & (ND_TLS | ND_EXTPG | ND_SAVEREPLY)) == ND_TLS &&
+	    (nd->nd_flag & (ND_NFSV4 | ND_NFSV41)) != ND_NFSV4)
+		nd->nd_flag |= ND_EXTPG;
+
+	/*
 	 * Save this position, in case there is an error before one entry
 	 * is created.
 	 */
 	mb0 = nd->nd_mb;
 	bpos0 = nd->nd_bpos;
+	bextpg0 = nd->nd_bextpg;
+	bextpgsiz0 = nd->nd_bextpgsiz;
 
 	/*
 	 * Fill in the first part of the reply.
@@ -2385,6 +2415,8 @@ again:
 	 */
 	mb1 = nd->nd_mb;
 	bpos1 = nd->nd_bpos;
+	bextpg1 = nd->nd_bextpg;
+	bextpgsiz1 = nd->nd_bextpgsiz;
 
 	/* Loop through the records and build reply */
 	entrycnt = 0;
@@ -2401,6 +2433,8 @@ again:
 			 */
 			mb1 = nd->nd_mb;
 			bpos1 = nd->nd_bpos;
+			bextpg1 = nd->nd_bextpg;
+			bextpgsiz1 = nd->nd_bextpgsiz;
 	
 			/*
 			 * For readdir_and_lookup get the vnode using
@@ -2626,11 +2660,11 @@ invalid:
 		if (!nd->nd_repstat && entrycnt == 0)
 			nd->nd_repstat = NFSERR_TOOSMALL;
 		if (nd->nd_repstat) {
-			newnfs_trimtrailing(nd, mb0, bpos0);
+			nfsm_trimtrailing(nd, mb0, bpos0, bextpg0, bextpgsiz0);
 			if (nd->nd_flag & ND_NFSV3)
 				nfsrv_postopattr(nd, getret, &at);
 		} else
-			newnfs_trimtrailing(nd, mb1, bpos1);
+			nfsm_trimtrailing(nd, mb1, bpos1, bextpg1, bextpgsiz1);
 		eofflag = 0;
 	} else if (cpos < cend)
 		eofflag = 0;
@@ -6416,6 +6450,44 @@ out:
 	}
 	NFSEXITCODE(error);
 	return (error);
+}
+
+/*
+ * Trim trailing data off the mbuf list being built.
+ */
+static void
+nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
+    int bextpg, int bextpgsiz)
+{
+	vm_page_t pg;
+	int fullpgsiz, i;
+
+	if (mb->m_next != NULL) {
+		m_freem(mb->m_next);
+		mb->m_next = NULL;
+	}
+	if ((mb->m_flags & M_EXTPG) != 0) {
+		/* First, get rid of any pages after this position. */
+		for (i = mb->m_epg_npgs - 1; i > bextpg; i--) {
+			pg = PHYS_TO_VM_PAGE(mb->m_epg_pa[i]);
+			vm_page_unwire_noq(pg);
+			vm_page_free(pg);
+		}
+		mb->m_epg_npgs = bextpg + 1;
+		if (bextpg == 0)
+			fullpgsiz = PAGE_SIZE - mb->m_epg_1st_off;
+		else
+			fullpgsiz = PAGE_SIZE;
+		mb->m_epg_last_len = fullpgsiz - bextpgsiz;
+		mb->m_len = m_epg_pagelen(mb, 0, mb->m_epg_1st_off);
+		for (i = 1; i < mb->m_epg_npgs; i++)
+			mb->m_len += m_epg_pagelen(mb, i, 0);
+		nd->nd_bextpgsiz = bextpgsiz;
+		nd->nd_bextpg = bextpg;
+	} else
+		mb->m_len = bpos - mtod(mb, char *);
+	nd->nd_mb = mb;
+	nd->nd_bpos = bpos;
 }
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
