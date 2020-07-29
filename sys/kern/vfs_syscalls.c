@@ -3556,20 +3556,27 @@ again:
 	NDINIT_ATRIGHTS(&fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
 	    AUDITVNODE1, pathseg, old, oldfd,
 	    &cap_renameat_source_rights, td);
-#else
-	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | SAVESTART | AUDITVNODE1,
-	    pathseg, old, oldfd,
-	    &cap_renameat_source_rights, td);
-#endif
-
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
-#ifdef MAC
 	error = mac_vnode_check_rename_from(td->td_ucred, fromnd.ni_dvp,
 	    fromnd.ni_vp, &fromnd.ni_cnd);
 	VOP_UNLOCK(fromnd.ni_dvp);
 	if (fromnd.ni_dvp != fromnd.ni_vp)
 		VOP_UNLOCK(fromnd.ni_vp);
+	if (error != 0) {
+		NDFREE(&fromnd, NDF_ONLY_PNBUF);
+		vrele(fromnd.ni_dvp);
+		vrele(fromnd.ni_vp);
+		if (fromnd.ni_startdir)
+			vrele(fromnd.ni_startdir);
+		return (error);
+	}
+#else
+	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | SAVESTART | AUDITVNODE1,
+	    pathseg, old, oldfd,
+	    &cap_renameat_source_rights, td);
+	if ((error = namei(&fromnd)) != 0)
+		return (error);
 #endif
 	fvp = fromnd.ni_vp;
 	NDINIT_ATRIGHTS(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE |
