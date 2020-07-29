@@ -221,6 +221,13 @@ int iommu_gas_map_region(struct iommu_domain *domain,
 int iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t end);
 
+void iommu_set_buswide_ctx(struct iommu_unit *unit, u_int busno);
+bool iommu_is_buswide_ctx(struct iommu_unit *unit, u_int busno);
+
+bool bus_dma_iommu_set_buswide(device_t dev);
+int bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_paddr_t start, vm_size_t length, int flags);
+
 SYSCTL_DECL(_hw_iommu);
 
 #endif /* !_SYS_IOMMU_H_ */

@@ -281,9 +281,6 @@ void dmar_quirks_pre_use(struct iommu_unit *dmar);
 int dmar_init_irt(struct dmar_unit *unit);
 void dmar_fini_irt(struct dmar_unit *unit);
 
-void iommu_set_buswide_ctx(struct iommu_unit *unit, u_int busno);
-bool iommu_is_buswide_ctx(struct iommu_unit *unit, u_int busno);
-
 extern iommu_haddr_t dmar_high;
 extern int haw;
 extern int dmar_tbl_pagecnt;
