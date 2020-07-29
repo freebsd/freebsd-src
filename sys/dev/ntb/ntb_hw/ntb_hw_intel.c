@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/iommu/iommu.h>
 
 #include "ntb_hw_intel.h"
 #include "../ntb.h"
