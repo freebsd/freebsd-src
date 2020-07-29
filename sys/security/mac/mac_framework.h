@@ -482,6 +482,10 @@ mac_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
 #endif
 int	mac_vnode_check_readdir(struct ucred *cred, struct vnode *vp);
 int	mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp);
+#define mac_vnode_check_rename_from_enabled() __predict_false(mac_vnode_check_rename_from_fp_flag)
+#ifdef MAC
+extern bool mac_vnode_check_rename_from_fp_flag;
+#endif
 int	mac_vnode_check_rename_from(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
 int	mac_vnode_check_rename_to(struct ucred *cred, struct vnode *dvp,
