@@ -12,7 +12,7 @@ a(b+)c		-	abbbc	abbbc	bbb
 a(b*)c		-	ac	ac	@c
 (a|ab)(bc([de]+)f|cde)	-	abcdef	abcdef	a,bcdef,de
 # Begin FreeBSD
-a\(b\|c\)d	b	ab|cd	ab|cd	b|c
+a\(b|c\)d	b	ab|cd	ab|cd	b|c
 # End FreeBSD
 # the regression tester only asks for 9 subexpressions
 a(b)(c)(d)(e)(f)(g)(h)(i)(j)k	-	abcdefghijk	abcdefghijk	b,c,d,e,f,g,h,i,j
