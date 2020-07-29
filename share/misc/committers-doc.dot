@@ -62,6 +62,7 @@ carlavilla [label="Sergio Carlavilla\ncarlavilla@FreeBSD.org\n2019/05/16"]
 chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
 crees [label="Chris Rees\ncrees@FreeBSD.org\n2013/05/27"]
 danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
+debdrup [label="Daniel Ebdrup Jensen\ndebdrup@FreeBSD.org\n2020/07/26"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
 dexter [label="Michael Dexter\ndexter@FreeBSD.org\n2016/11/15"]
 dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
@@ -103,6 +104,10 @@ zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
 # Group together all the mentees for a particular mentor.
 # Keep the list sorted by mentor login.
 
+"0mp" -> debdrup
+
+allanjude -> debdrup
+
 bcr -> gavin
 bcr -> wblock
 bcr -> eadler
@@ -117,6 +122,7 @@ bcr -> sg
 bcr -> carlavilla
 bcr -> "0mp"
 bcr -> gbe
+bcr -> debdrup
 
 blackend -> ale
 
