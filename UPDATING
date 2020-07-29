@@ -26,6 +26,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200729:
+	r363679 has redefined some undefined behavior in regcomp(3); notably,
+	extraneous escapes of most ordinary characters will no longer be
+	accepted.  An exp-run has identified all of the problems with this in
+	ports, but other non-ports software may need extra escapes removed to
+	continue to function.
+
 20200627:
 	A new implementation of bc and dc has been imorted in r362681. This
 	implementation corrects non-conformant behavior of the previous bc
