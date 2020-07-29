@@ -35,7 +35,7 @@
 .\"
 .\" $OpenBSD: sshd_config.5,v 1.282 2018/09/20 03:28:06 djm Exp $
 .\" $FreeBSD$
-.Dd $Mdocdate: September 20 2018 $
+.Dd $Mdocdate: July 28 2020 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -1602,6 +1602,11 @@ to the
 daemon.
 The default is
 .Cm no .
+For forward compatibility with an upcoming
+.Xr blacklistd
+rename, the
+.Cm UseBlocklist
+alias can be used instead.
 .It Cm UseDNS
 Specifies whether
 .Xr sshd 8
