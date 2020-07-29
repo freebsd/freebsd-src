@@ -100,7 +100,8 @@
  *	field and is described in detail below.
  *
  *	The following annotations are possible:
- *	(A) the field is atomic and may require additional synchronization.
+ *	(A) the field must be accessed using atomic(9) and may require
+ *	    additional synchronization.
  *	(B) the page busy lock.
  *	(C) the field is immutable.
  *	(F) the per-domain lock for the free queues
@@ -243,8 +244,8 @@ struct vm_page {
 	vm_paddr_t phys_addr;		/* physical address of page (C) */
 	struct md_page md;		/* machine dependent stuff */
 	u_int ref_count;		/* page references (A) */
-	volatile u_int busy_lock;	/* busy owners lock */
-	union vm_page_astate a;		/* state accessed atomically */
+	u_int busy_lock;		/* busy owners lock (A) */
+	union vm_page_astate a;		/* state accessed atomically (A) */
 	uint8_t order;			/* index of the buddy queue (F) */
 	uint8_t pool;			/* vm_phys freepool index (F) */
 	uint8_t flags;			/* page PG_* flags (P) */
@@ -701,6 +702,8 @@ void vm_page_assert_locked_KBI(vm_page_t m, const char *file, int line);
 void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #endif
 
+#define	vm_page_busy_fetch(m)	atomic_load_int(&(m)->busy_lock)
+
 #define	vm_page_assert_busied(m)					\
 	KASSERT(vm_page_busied(m),					\
 	    ("vm_page_assert_busied: page %p not busy @ %s:%d", \
@@ -712,7 +715,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 	    (m), __FILE__, __LINE__))
 
 #define	vm_page_assert_unbusied(m)					\
-	KASSERT((m->busy_lock & ~VPB_BIT_WAITERS) != 			\
+	KASSERT((vm_page_busy_fetch(m) & ~VPB_BIT_WAITERS) !=		\
 	    VPB_CURTHREAD_EXCLUSIVE,					\
 	    ("vm_page_assert_xbusied: page %p busy_lock %#x owned"	\
             " by me @ %s:%d",						\
@@ -725,7 +728,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 } while (0)
 #define	vm_page_assert_xbusied(m) do {					\
 	vm_page_assert_xbusied_unchecked(m);				\
-	KASSERT((m->busy_lock & ~VPB_BIT_WAITERS) == 			\
+	KASSERT((vm_page_busy_fetch(m) & ~VPB_BIT_WAITERS) ==		\
 	    VPB_CURTHREAD_EXCLUSIVE,					\
 	    ("vm_page_assert_xbusied: page %p busy_lock %#x not owned"	\
             " by me @ %s:%d",						\
@@ -733,7 +736,7 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 } while (0)
 
 #define	vm_page_busied(m)						\
-	((m)->busy_lock != VPB_UNBUSIED)
+	(vm_page_busy_fetch(m) != VPB_UNBUSIED)
 
 #define	vm_page_sbusy(m) do {						\
 	if (!vm_page_trysbusy(m))					\
@@ -742,10 +745,10 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 } while (0)
 
 #define	vm_page_xbusied(m)						\
-	(((m)->busy_lock & VPB_SINGLE_EXCLUSIVE) != 0)
+	((vm_page_busy_fetch(m) & VPB_SINGLE_EXCLUSIVE) != 0)
 
 #define	vm_page_busy_freed(m)						\
-	((m)->busy_lock == VPB_FREED)
+	(vm_page_busy_fetch(m) == VPB_FREED)
 
 #define	vm_page_xbusy(m) do {						\
 	if (!vm_page_tryxbusy(m))					\
@@ -771,12 +774,17 @@ void vm_page_object_busy_assert(vm_page_t m);
 void vm_page_assert_pga_writeable(vm_page_t m, uint16_t bits);
 #define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
 	vm_page_assert_pga_writeable(m, bits)
+/*
+ * Claim ownership of a page's xbusy state.  In non-INVARIANTS kernels this
+ * operation is a no-op since ownership is not tracked.  In particular
+ * this macro does not provide any synchronization with the previous owner.
+ */
 #define	vm_page_xbusy_claim(m) do {					\
 	u_int _busy_lock;						\
 									\
 	vm_page_assert_xbusied_unchecked((m));				\
 	do {								\
-		_busy_lock = atomic_load_int(&(m)->busy_lock);		\
+		_busy_lock = vm_page_busy_fetch(m);			\
 	} while (!atomic_cmpset_int(&(m)->busy_lock, _busy_lock,	\
 	    (_busy_lock & VPB_BIT_FLAGMASK) | VPB_CURTHREAD_EXCLUSIVE)); \
 } while (0)

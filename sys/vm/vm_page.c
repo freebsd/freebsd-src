@@ -908,7 +908,7 @@ vm_page_busy_downgrade(vm_page_t m)
 
 	vm_page_assert_xbusied(m);
 
-	x = m->busy_lock;
+	x = vm_page_busy_fetch(m);
 	for (;;) {
 		if (atomic_fcmpset_rel_int(&m->busy_lock,
 		    &x, VPB_SHARERS_WORD(1)))
@@ -931,7 +931,7 @@ vm_page_busy_tryupgrade(vm_page_t m)
 
 	vm_page_assert_sbusied(m);
 
-	x = m->busy_lock;
+	x = vm_page_busy_fetch(m);
 	ce = VPB_CURTHREAD_EXCLUSIVE;
 	for (;;) {
 		if (VPB_SHARERS(x) > 1)
@@ -955,7 +955,7 @@ vm_page_sbusied(vm_page_t m)
 {
 	u_int x;
 
-	x = m->busy_lock;
+	x = vm_page_busy_fetch(m);
 	return ((x & VPB_BIT_SHARED) != 0 && x != VPB_UNBUSIED);
 }
 
@@ -971,7 +971,7 @@ vm_page_sunbusy(vm_page_t m)
 
 	vm_page_assert_sbusied(m);
 
-	x = m->busy_lock;
+	x = vm_page_busy_fetch(m);
 	for (;;) {
 		KASSERT(x != VPB_FREED,
 		    ("vm_page_sunbusy: Unlocking freed page."));
@@ -1072,7 +1072,7 @@ _vm_page_busy_sleep(vm_object_t obj, vm_page_t m, vm_pindex_t pindex,
 
 	xsleep = (allocflags & (VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY)) != 0;
 	sleepq_lock(m);
-	x = atomic_load_int(&m->busy_lock);
+	x = vm_page_busy_fetch(m);
 	do {
 		/*
 		 * If the page changes objects or becomes unlocked we can
@@ -1110,7 +1110,7 @@ vm_page_trysbusy(vm_page_t m)
 	u_int x;
 
 	obj = m->object;
-	x = m->busy_lock;
+	x = vm_page_busy_fetch(m);
 	for (;;) {
 		if ((x & VPB_BIT_SHARED) == 0)
 			return (0);
@@ -1146,7 +1146,7 @@ vm_page_tryxbusy(vm_page_t m)
 {
 	vm_object_t obj;
 
-        if (atomic_cmpset_acq_int(&(m)->busy_lock, VPB_UNBUSIED,
+        if (atomic_cmpset_acq_int(&m->busy_lock, VPB_UNBUSIED,
             VPB_CURTHREAD_EXCLUSIVE) == 0)
 		return (0);
 
@@ -1354,7 +1354,7 @@ vm_page_readahead_finish(vm_page_t m)
 	 * have shown that deactivating the page is usually the best choice,
 	 * unless the page is wanted by another thread.
 	 */
-	if ((m->busy_lock & VPB_BIT_WAITERS) != 0)
+	if ((vm_page_busy_fetch(m) & VPB_BIT_WAITERS) != 0)
 		vm_page_activate(m);
 	else
 		vm_page_deactivate(m);
@@ -1719,7 +1719,7 @@ vm_page_busy_release(vm_page_t m)
 {
 	u_int x;
 
-	x = atomic_load_int(&m->busy_lock);
+	x = vm_page_busy_fetch(m);
 	for (;;) {
 		if (x == VPB_FREED)
 			break;
