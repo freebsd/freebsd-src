@@ -1390,7 +1390,17 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
  * Free data allocated by namei(); see namei(9) for details.
  */
 void
-NDFREE(struct nameidata *ndp, const u_int flags)
+NDFREE_PNBUF(struct nameidata *ndp)
+{
+
+	if ((ndp->ni_cnd.cn_flags & HASBUF) != 0) {
+		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
+		ndp->ni_cnd.cn_flags &= ~HASBUF;
+	}
+}
+
+void
+(NDFREE)(struct nameidata *ndp, const u_int flags)
 {
 	int unlock_dvp;
 	int unlock_vp;
@@ -1398,10 +1408,8 @@ NDFREE(struct nameidata *ndp, const u_int flags)
 	unlock_dvp = 0;
 	unlock_vp = 0;
 
-	if (!(flags & NDF_NO_FREE_PNBUF) &&
-	    (ndp->ni_cnd.cn_flags & HASBUF)) {
-		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
-		ndp->ni_cnd.cn_flags &= ~HASBUF;
+	if (!(flags & NDF_NO_FREE_PNBUF)) {
+		NDFREE_PNBUF(ndp);
 	}
 	if (!(flags & NDF_NO_VP_UNLOCK) &&
 	    (ndp->ni_cnd.cn_flags & LOCKLEAF) && ndp->ni_vp)
