@@ -419,7 +419,6 @@ STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(numdrops, "Number of dropped entries due to reaching the limit");
 STATNODE_COUNTER(dothits, "Number of '.' hits");
 STATNODE_COUNTER(dotdothits, "Number of '..' hits");
-STATNODE_COUNTER(numchecks, "Number of checks in lookup");
 STATNODE_COUNTER(nummiss, "Number of cache misses");
 STATNODE_COUNTER(nummisszap, "Number of cache misses we do not want to cache");
 STATNODE_COUNTER(numposzaps,
@@ -1315,7 +1314,6 @@ retry:
 	rw_wlock(blp);
 
 	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
@@ -1460,7 +1458,6 @@ retry_hashed:
 	}
 
 	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
@@ -3366,7 +3363,6 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 
 	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
