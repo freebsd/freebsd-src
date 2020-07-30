@@ -869,23 +869,23 @@ void	vop_symlink_post(void *a, int rc);
 int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 
 #ifdef DEBUG_VFS_LOCKS
-void	vop_fplookup_vexec_pre(void *a);
-void	vop_fplookup_vexec_post(void *a, int rc);
-void	vop_strategy_pre(void *a);
-void	vop_lock_pre(void *a);
-void	vop_lock_post(void *a, int rc);
-void	vop_unlock_pre(void *a);
-void	vop_need_inactive_pre(void *a);
-void	vop_need_inactive_post(void *a, int rc);
+void	vop_fplookup_vexec_debugpre(void *a);
+void	vop_fplookup_vexec_debugpost(void *a, int rc);
+void	vop_strategy_debugpre(void *a);
+void	vop_lock_debugpre(void *a);
+void	vop_lock_debugpost(void *a, int rc);
+void	vop_unlock_debugpre(void *a);
+void	vop_need_inactive_debugpre(void *a);
+void	vop_need_inactive_debugpost(void *a, int rc);
 #else
-#define	vop_fplookup_vexec_pre(x)	do { } while (0)
-#define	vop_fplookup_vexec_post(x, y)	do { } while (0)
-#define	vop_strategy_pre(x)	do { } while (0)
-#define	vop_lock_pre(x)		do { } while (0)
-#define	vop_lock_post(x, y)	do { } while (0)
-#define	vop_unlock_pre(x)	do { } while (0)
-#define	vop_need_inactive_pre(x)	do { } while (0)
-#define	vop_need_inactive_post(x, y)	do { } while (0)
+#define	vop_fplookup_vexec_debugpre(x)		do { } while (0)
+#define	vop_fplookup_vexec_debugpost(x, y)	do { } while (0)
+#define	vop_strategy_debugpre(x)		do { } while (0)
+#define	vop_lock_debugpre(x)			do { } while (0)
+#define	vop_lock_debugpost(x, y)		do { } while (0)
+#define	vop_unlock_debugpre(x)			do { } while (0)
+#define	vop_need_inactive_debugpre(x)		do { } while (0)
+#define	vop_need_inactive_debugpost(x, y)	do { } while (0)
 #endif
 
 void	vop_rename_fail(struct vop_rename_args *ap);
