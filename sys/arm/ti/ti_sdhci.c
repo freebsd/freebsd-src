@@ -44,10 +44,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
+#include <arm/ti/ti_cpuid.h>
+#include <arm/ti/ti_sysc.h>
+#include "gpio_if.h"
 
+#include <dev/extres/clk/clk.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -59,10 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/sdhci/sdhci_fdt_gpio.h>
 #include "sdhci_if.h"
 
-#include <arm/ti/ti_cpuid.h>
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/ti_hwmods.h>
-#include "gpio_if.h"
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <machine/intr.h>
+
 
 #include "opt_mmccam.h"
 
@@ -73,10 +74,9 @@ struct ti_sdhci_softc {
 	struct resource *	irq_res;
 	void *			intr_cookie;
 	struct sdhci_slot	slot;
-	clk_ident_t		mmchs_clk_id;
 	uint32_t		mmchs_reg_off;
 	uint32_t		sdhci_reg_off;
-	uint32_t		baseclk_hz;
+	uint64_t		baseclk_hz;
 	uint32_t		cmd_and_mode;
 	uint32_t		sdhci_clkdiv;
 	boolean_t		disable_highspeed;
@@ -414,24 +414,32 @@ ti_sdhci_detach(device_t dev)
 	return (EBUSY);
 }
 
-static void
+static int
 ti_sdhci_hw_init(device_t dev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t regval;
 	unsigned long timeout;
+	clk_t mmc_clk;
+	int err;
 
 	/* Enable the controller and interface/functional clocks */
-	if (ti_prcm_clk_enable(sc->mmchs_clk_id) != 0) {
+	if (ti_sysc_clock_enable(device_get_parent(dev)) != 0) {
 		device_printf(dev, "Error: failed to enable MMC clock\n");
-		return;
+		return (ENXIO);
 	}
 
-	/* Get the frequency of the source clock */
-	if (ti_prcm_clk_get_source_freq(sc->mmchs_clk_id,
-	    &sc->baseclk_hz) != 0) {
-		device_printf(dev, "Error: failed to get source clock freq\n");
-		return;
+	/* FIXME: Devicetree dosent have any reference to mmc_clk */
+	err = clk_get_by_name(dev, "mmc_clk", &mmc_clk);
+	if (err) {
+		device_printf(dev, "Can not find mmc_clk\n");
+		return (ENXIO);
+	}
+	err = clk_get_freq(mmc_clk, &sc->baseclk_hz);
+	if (err) {
+		device_printf(dev, "Cant get mmc_clk frequency\n");
+		/* AM335x TRM 8.1.6.8 table 8-24 96MHz @ OPP100 */
+		sc->baseclk_hz = 96000000;
 	}
 
 	/* Issue a softreset to the controller */
@@ -499,6 +507,8 @@ ti_sdhci_hw_init(device_t dev)
 
 	/* Set the initial controller configuration. */
 	ti_mmchs_write_4(sc, MMCHS_CON, MMCHS_CON_DVAL_8_4MS);
+
+	return (0);
 }
 
 static int
@@ -512,16 +522,9 @@ ti_sdhci_attach(device_t dev)
 	sc->dev = dev;
 
 	/*
-	 * Get the MMCHS device id from FDT.  If it's not there use the newbus
-	 * unit number (which will work as long as the devices are in order and
-	 * none are skipped in the fdt).  Note that this is a property we made
-	 * up and added in freebsd, it doesn't exist in the published bindings.
+	 * Get the MMCHS device id from FDT. Use rev address to identify the unit.
 	 */
 	node = ofw_bus_get_node(dev);
-	sc->mmchs_clk_id = ti_hwmods_get_clock(dev);
-	if (sc->mmchs_clk_id == INVALID_CLK_IDENT) {
-		device_printf(dev, "failed to get clock based on hwmods property\n");
-	}
 
 	/*
 	 * The hardware can inherently do dual-voltage (1p8v, 3p0v) on the first
@@ -531,7 +534,8 @@ ti_sdhci_attach(device_t dev)
 	 * that it can set the right values in the CAPA register.
 	 */
 	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
-	if (sc->mmchs_clk_id == MMC1_CLK || OF_hasprop(node, "ti,dual-volt")) {
+
+	if (OF_hasprop(node, "ti,dual-volt")) {
 		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
 	}
 
@@ -603,7 +607,11 @@ ti_sdhci_attach(device_t dev)
 		sc->disable_readonly = true;
 
 	/* Initialise the MMCHS hardware. */
-	ti_sdhci_hw_init(dev);
+	err = ti_sdhci_hw_init(dev);
+	if (err != 0) {
+		/* err should already contain ENXIO from ti_sdhci_hw_init() */
+		goto fail;
+	}
 
 	/*
 	 * The capabilities register can only express base clock frequencies in
@@ -754,6 +762,7 @@ static driver_t ti_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
     NULL);
+MODULE_DEPEND(sdhci_ti, ti_sysc, 1, 1, 1);
 SDHCI_DEPEND(sdhci_ti);
 
 #ifndef MMCCAM

@@ -26,14 +26,18 @@
  *
  * $FreeBSD$
  */
+#ifndef __TI_SYSC__
+#define __TI_SYSC__
 
-#ifndef __TI_PRCM_H__
-#define __TI_PRCM_H__
+uint64_t ti_sysc_get_rev_address(device_t dev);
+uint64_t ti_sysc_get_rev_address_offset_host(device_t dev);
+uint64_t ti_sysc_get_sysc_address(device_t dev);
+uint64_t ti_sysc_get_sysc_address_offset_host(device_t dev);
+uint64_t ti_sysc_get_syss_address(device_t dev);
+uint64_t ti_sysc_get_syss_address_offset_host(device_t dev);
+int ti_sysc_clock_enable(device_t dev);
+int ti_sysc_clock_disable(device_t dev);
 
-int ti_prcm_write_4(device_t dev, bus_addr_t addr, uint32_t val);
-int ti_prcm_read_4(device_t dev, bus_addr_t addr, uint32_t *val);
-int ti_prcm_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set);
-void ti_prcm_device_lock(device_t dev);
-void ti_prcm_device_unlock(device_t dev);
+uint32_t ti_sysc_get_soft_reset_bit(device_t dev);
 
-#endif
+#endif /* __TI_SYSC__ */

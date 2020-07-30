@@ -26,14 +26,9 @@
  *
  * $FreeBSD$
  */
+#ifndef __TI_OMAP4_CM__
+#define __TI_OMAP4_CM__
 
-#ifndef __TI_PRCM_H__
-#define __TI_PRCM_H__
+uint64_t ti_omap4_cm_get_simplebus_base_host(device_t dev);
 
-int ti_prcm_write_4(device_t dev, bus_addr_t addr, uint32_t val);
-int ti_prcm_read_4(device_t dev, bus_addr_t addr, uint32_t *val);
-int ti_prcm_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set);
-void ti_prcm_device_lock(device_t dev);
-void ti_prcm_device_unlock(device_t dev);
-
-#endif
+#endif /* __TI_OMAP4_CM__ */
