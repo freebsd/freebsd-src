@@ -289,11 +289,13 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	struct pwd *pwd;
 	cap_rights_t rights;
 	struct filecaps dirfd_caps;
-	int error, startdir_used;
+	int error;
+	bool startdir_used;
 
 	cnp = &ndp->ni_cnd;
 	td = cnp->cn_thread;
 
+	startdir_used = false;
 	*pwdp = NULL;
 
 #ifdef CAPABILITY_MODE
@@ -340,7 +342,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	} else {
 		if (ndp->ni_startdir != NULL) {
 			*dpp = ndp->ni_startdir;
-			startdir_used = 1;
+			startdir_used = true;
 		} else if (ndp->ni_dirfd == AT_FDCWD) {
 			*dpp = pwd->pwd_cdir;
 			vrefact(*dpp);
