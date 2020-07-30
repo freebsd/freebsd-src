@@ -259,7 +259,11 @@ void	mac_posixshm_destroy(struct shmfd *);
 void	mac_posixshm_init(struct shmfd *);
 
 int	mac_priv_check_impl(struct ucred *cred, int priv);
+#ifdef MAC
 extern bool mac_priv_check_fp_flag;
+#else
+#define mac_priv_check_fp_flag 0
+#endif
 static inline int
 mac_priv_check(struct ucred *cred, int priv)
 {
@@ -270,7 +274,11 @@ mac_priv_check(struct ucred *cred, int priv)
 }
 
 int	mac_priv_grant_impl(struct ucred *cred, int priv);
+#ifdef MAC
 extern bool mac_priv_grant_fp_flag;
+#else
+#define mac_priv_grant_fp_flag 0
+#endif
 static inline int
 mac_priv_grant(struct ucred *cred, int priv)
 {
