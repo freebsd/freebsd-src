@@ -35,3 +35,6 @@ OFWCONS_POLL_HZ		opt_ofw.h
 AGP_DEBUG		opt_agp.h
 
 MIKROTIK
+
+# iWARP client interface support in ixl
+IXL_IW			opt_ixl.h

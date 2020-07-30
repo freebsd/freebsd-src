@@ -824,6 +824,8 @@ _wi=		wi
 _drm2=		drm2
 .endif
 _ipmi=		ipmi
+_ixl=		ixl
+_nvram=		opal_nvram
 .endif
 .if ${MACHINE_ARCH} == "powerpc64" || ${MACHINE_ARCH} == "powerpc"
 # Don't build powermac_nvram for powerpcspe, it's never supported.
