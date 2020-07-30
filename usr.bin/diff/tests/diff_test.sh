@@ -108,8 +108,8 @@ side_by_side_body()
 	atf_check -o save:A printf "A\nB\nC\n"
 	atf_check -o save:B printf "D\nB\nE\n"
 
-	exp_output="A[[:space:]]+|[[:space:]]+D\nB[[:space:]]+B\nC[[:space:]]+|[[:space:]]+E"
-	exp_output_suppressed="A[[:space:]]+|[[:space:]]+D\nC[[:space:]]+|[[:space:]]+E"
+	exp_output=$(printf "A[[:space:]]+|[[:space:]]+D\nB[[:space:]]+B\nC[[:space:]]+|[[:space:]]+E")
+	exp_output_suppressed=$(printf "A[[:space:]]+|[[:space:]]+D\nC[[:space:]]+|[[:space:]]+E")
 
 	atf_check -o match:"$exp_output" -s exit:1 \
 	    diff --side-by-side A B
