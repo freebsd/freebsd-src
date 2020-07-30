@@ -761,6 +761,10 @@ again:
 		    IN6_IS_ADDR_MC_NODELOCAL(&dst_sa.sin6_addr)) {
 			if (scopeid > 0) {
 				ifp = in6_getlinkifnet(scopeid);
+				if (ifp == NULL) {
+					error = EHOSTUNREACH;
+					goto bad;
+				}
 				*dst = dst_sa;	/* XXX */
 				goto nonh6lookup;
 			}
