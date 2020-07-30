@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <arm/ti/ti_mbox.h>
-#include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_sysc.h>
 
 #include "mbox_if.h"
 
@@ -102,6 +102,7 @@ static driver_t ti_mbox_driver = {
 static devclass_t ti_mbox_devclass;
 
 DRIVER_MODULE(ti_mbox, simplebus, ti_mbox_driver, ti_mbox_devclass, 0, 0);
+MODULE_DEPEND(ti_mbox, ti_sysc, 1, 1, 1);
 
 static __inline uint32_t
 ti_mbox_reg_read(struct ti_mbox_softc *sc, uint16_t reg)
@@ -137,10 +138,11 @@ ti_mbox_attach(device_t dev)
 	int rid, delay, chan;
 	uint32_t rev, sysconfig;
 
-	if (ti_prcm_clk_enable(MAILBOX0_CLK) != 0) {
+	if (ti_sysc_clock_enable(device_get_parent(dev)) != 0) {
 		device_printf(dev, "could not enable MBOX clock\n");
 		return (ENXIO);
 	}
+
 	sc = device_get_softc(dev);
 	rid = 0;
 	mtx_init(&sc->sc_mtx, "TI mbox", NULL, MTX_DEF);
@@ -188,7 +190,8 @@ ti_mbox_attach(device_t dev)
 	 */
 	ti_mbox_reg_write(sc, TI_MBOX_SYSCONFIG,
 	    ti_mbox_reg_read(sc, TI_MBOX_SYSCONFIG) | TI_MBOX_SYSCONFIG_SMARTIDLE);
-	rev = ti_mbox_reg_read(sc, TI_MBOX_REVISION);
+	rev = ti_mbox_reg_read(sc,
+	    ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 	DPRINTF("rev %d\n", rev);
 	device_printf(dev, "revision %d.%d\n", (rev >> 8) & 0x4, rev & 0x40);
 	/*
