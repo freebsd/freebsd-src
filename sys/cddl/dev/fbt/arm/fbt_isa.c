@@ -56,9 +56,12 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 	register_t fifthparam;
 
 	for (; fbt != NULL; fbt = fbt->fbtp_hashnext) {
-		if ((uintptr_t)fbt->fbtp_patchpoint == addr) {
-			cpu->cpu_dtrace_caller = addr;
+		if ((uintptr_t)fbt->fbtp_patchpoint != addr)
+			continue;
 
+		cpu->cpu_dtrace_caller = addr;
+
+		if (fbt->fbtp_roffset == 0) {
 			/* Get 5th parameter from stack */
 			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOFAULT);
 			fifthparam = *(register_t *)frame->tf_svc_sp;
@@ -67,11 +70,13 @@ fbt_invop(uintptr_t addr, struct trapframe *frame, uintptr_t rval)
 			dtrace_probe(fbt->fbtp_id, frame->tf_r0,
 			    frame->tf_r1, frame->tf_r2,
 			    frame->tf_r3, fifthparam);
-
-			cpu->cpu_dtrace_caller = 0;
-
-			return (fbt->fbtp_rval | (fbt->fbtp_savedval << DTRACE_INVOP_SHIFT));
+		} else {
+			dtrace_probe(fbt->fbtp_id, fbt->fbtp_roffset, rval,
+			    0, 0, 0);
 		}
+
+		cpu->cpu_dtrace_caller = 0;
+		return (fbt->fbtp_rval | (fbt->fbtp_savedval << DTRACE_INVOP_SHIFT));
 	}
 
 	return (0);
@@ -178,6 +183,7 @@ again:
 		fbt->fbtp_rval = DTRACE_INVOP_B;
 	else
 		fbt->fbtp_rval = DTRACE_INVOP_POPM;
+	fbt->fbtp_roffset = (uintptr_t)instr - (uintptr_t)symval->value;
 	fbt->fbtp_savedval = *instr;
 	fbt->fbtp_patchval = FBT_BREAKPOINT;
 	fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
