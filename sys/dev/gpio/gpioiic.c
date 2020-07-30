@@ -191,16 +191,14 @@ static void
 gpioiic_setsda(device_t dev, int val)
 {
 	struct gpioiic_softc *sc = device_get_softc(dev);
-	int err;
 
-	/*
-	 * Some controllers cannot set an output value while a pin is in input
-	 * mode; in that case we set the pin again after changing mode.
-	 */
-	err = gpio_pin_set_active(sc->sdapin, val);
-	gpio_pin_setflags(sc->sdapin, GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN);
-	if (err != 0)
-		gpio_pin_set_active(sc->sdapin, val);
+	if (val) {
+		gpio_pin_setflags(sc->sdapin, GPIO_PIN_INPUT);
+	} else {
+		gpio_pin_setflags(sc->sdapin,
+		    GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN);
+		gpio_pin_set_active(sc->sdapin, 0);
+	}
 }
 
 static void
@@ -208,8 +206,13 @@ gpioiic_setscl(device_t dev, int val)
 {
 	struct gpioiic_softc *sc = device_get_softc(dev);
 
-	gpio_pin_setflags(sc->sclpin, GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN);
-	gpio_pin_set_active(sc->sclpin, val);
+	if (val) {
+		gpio_pin_setflags(sc->sclpin, GPIO_PIN_INPUT);
+	} else {
+		gpio_pin_setflags(sc->sclpin,
+		    GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN);
+		gpio_pin_set_active(sc->sclpin, 0);
+	}
 }
 
 static int
