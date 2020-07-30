@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2019 Emmanuel Vadot <manu@FreeBSD.org>
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
+ * Copyright (c) 2019 Emmanuel Vadot <manu@FreeBSD.org>
  * Copyright (c) 2020 Oskar Holmlund <oskar.holmlund@ohdata.se>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,14 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * Based on sys/arm/ti/ti_sysc.c
+ *
  * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-
-/* Based on sys/arm/ti/ti_sysc.c */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,51 +52,35 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#define TI_AM3_SCM			14
-#define TI_AM4_SCM			13
-#define TI_DM814_SCRM			12
-#define TI_DM816_SCRM			11
-#define TI_OMAP2_SCM			10
-#define TI_OMAP3_SCM			9
-#define TI_OMAP4_SCM_CORE		8
-#define TI_OMAP4_SCM_PADCONF_CORE	7
-#define TI_OMAP4_SCM_WKUP		6
-#define TI_OMAP4_SCM_PADCONF_WKUP	5
-#define TI_OMAP5_SCM_CORE		4
-#define TI_OMAP5_SCM_PADCONF_CORE	3
-#define TI_OMAP5_SCM_WKUP_PAD_CONF	2
-#define TI_DRA7_SCM_CORE		1
-#define TI_SCM_END			0
+#include <arm/ti/ti_omap4_cm.h>
 
 static struct ofw_compat_data compat_data[] = {
-	{ "ti,am3-scm",			TI_AM3_SCM },
-	{ "ti,am4-scm",			TI_AM4_SCM },
-	{ "ti,dm814-scrm",		TI_DM814_SCRM },
-	{ "ti,dm816-scrm",		TI_DM816_SCRM },
-	{ "ti,omap2-scm",		TI_OMAP2_SCM },
-	{ "ti,omap3-scm",		TI_OMAP3_SCM },
-	{ "ti,omap4-scm-core",		TI_OMAP4_SCM_CORE },
-	{ "ti,omap4-scm-padconf-core",	TI_OMAP4_SCM_PADCONF_CORE },
-	{ "ti,omap4-scm-wkup",		TI_OMAP4_SCM_WKUP },
-	{ "ti,omap4-scm-padconf-wkup",	TI_OMAP4_SCM_PADCONF_WKUP },
-	{ "ti,omap5-scm-core",		TI_OMAP5_SCM_CORE },
-	{ "ti,omap5-scm-padconf-core",	TI_OMAP5_SCM_PADCONF_CORE },
-	{ "ti,omap5-scm-wkup-pad-conf",	TI_OMAP5_SCM_WKUP_PAD_CONF },
-	{ "ti,dra7-scm-core",		TI_DRA7_SCM_CORE },
-	{ NULL,				TI_SCM_END }
+	{ "ti,omap4-cm",	1 },
+	{ NULL,				0 }
 };
 
-struct ti_scm_softc {
+struct ti_omap4_cm_softc {
 	struct simplebus_softc	sc;
 	device_t		dev;
 };
 
-static int ti_scm_probe(device_t dev);
-static int ti_scm_attach(device_t dev);
-static int ti_scm_detach(device_t dev);
+uint64_t
+ti_omap4_cm_get_simplebus_base_host(device_t dev) {
+	struct ti_omap4_cm_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->sc.nranges == 0)
+		return (0);
+
+	return (sc->sc.ranges[0].host);
+}
+
+static int ti_omap4_cm_probe(device_t dev);
+static int ti_omap4_cm_attach(device_t dev);
+static int ti_omap4_cm_detach(device_t dev);
 
 static int
-ti_scm_probe(device_t dev)
+ti_omap4_cm_probe(device_t dev)
 {
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -104,15 +88,17 @@ ti_scm_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "TI OMAP Control Module");
+	device_set_desc(dev, "TI OMAP4-CM");
+	if (!bootverbose)
+		device_quiet(dev);
 
 	return (BUS_PROBE_DEFAULT);
 }
 
 static int
-ti_scm_attach(device_t dev)
+ti_omap4_cm_attach(device_t dev)
 {
-	struct ti_scm_softc *sc;
+	struct ti_omap4_cm_softc *sc;
 	device_t cdev;
 	phandle_t node, child;
 
@@ -126,6 +112,8 @@ ti_scm_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	bus_generic_probe(sc->dev);
+
 	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
 		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
 		if (cdev != NULL)
@@ -136,27 +124,28 @@ ti_scm_attach(device_t dev)
 }
 
 static int
-ti_scm_detach(device_t dev)
+ti_omap4_cm_detach(device_t dev)
 {
 	return (EBUSY);
 }
 
-static device_method_t ti_scm_methods[] = {
+static device_method_t ti_omap4_cm_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ti_scm_probe),
-	DEVMETHOD(device_attach,	ti_scm_attach),
-	DEVMETHOD(device_detach,	ti_scm_detach),
+	DEVMETHOD(device_probe,		ti_omap4_cm_probe),
+	DEVMETHOD(device_attach,	ti_omap4_cm_attach),
+	DEVMETHOD(device_detach,	ti_omap4_cm_detach),
 
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(ti_scm, ti_scm_driver, ti_scm_methods,
-    sizeof(struct ti_scm_softc), simplebus_driver);
+DEFINE_CLASS_1(ti_omap4_cm, ti_omap4_cm_driver, ti_omap4_cm_methods,
+    sizeof(struct ti_omap4_cm_softc), simplebus_driver);
 
-static devclass_t ti_scm_devclass;
+static devclass_t ti_omap4_cm_devclass;
 
-EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver,
-    ti_scm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
-MODULE_VERSION(ti_scm, 1);
-MODULE_DEPEND(ti_scm, ti_sysc, 1, 1, 1);
+EARLY_DRIVER_MODULE(ti_omap4_cm, simplebus, ti_omap4_cm_driver,
+ti_omap4_cm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
+
+EARLY_DRIVER_MODULE(ti_omap4_cm, ofwbus, ti_omap4_cm_driver,
+ti_omap4_cm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 

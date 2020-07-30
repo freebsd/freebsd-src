@@ -27,13 +27,17 @@
  * $FreeBSD$
  */
 
-#ifndef __TI_PRCM_H__
-#define __TI_PRCM_H__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-int ti_prcm_write_4(device_t dev, bus_addr_t addr, uint32_t val);
-int ti_prcm_read_4(device_t dev, bus_addr_t addr, uint32_t *val);
-int ti_prcm_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set);
-void ti_prcm_device_lock(device_t dev);
-void ti_prcm_device_unlock(device_t dev);
+struct clock_cell_info {
+	cell_t		*clock_cells;
+	uint8_t		*clock_cells_ncells;
+	uint32_t	num_clock_cells;
+	uint8_t		num_real_clocks;
+};
 
-#endif
+void read_clock_cells(device_t dev, struct clock_cell_info *clk);
+int find_parent_clock_names(device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def);
+void create_clkdef(device_t dev, struct clock_cell_info *clk, struct clknode_init_def *def);
+void free_clkdef(struct clknode_init_def *def);

@@ -46,9 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/ti_hwmods.h>
-#include <arm/ti/ti_scm.h>
+#include <arm/ti/ti_sysc.h>
+
+#include <dev/extres/syscon/syscon.h>
+#include "syscon_if.h"
 
 #include "am335x_pwm.h"
 #include "am335x_scm.h"
@@ -59,6 +60,11 @@ __FBSDID("$FreeBSD$");
 #define		CLKCONFIG_EPWMCLK_EN	(1 << 8)
 #define	PWMSS_CLKSTATUS		0x0C
 
+/* TRM chapter 2 memory map table 2-3 + VER register location */
+#define PWMSS_REV_0		0x0000
+#define PWMSS_REV_1		0x2000
+#define PWMSS_REV_2		0x4000
+
 static device_probe_t am335x_pwmss_probe;
 static device_attach_t am335x_pwmss_attach;
 static device_detach_t am335x_pwmss_detach;
@@ -66,7 +72,7 @@ static device_detach_t am335x_pwmss_detach;
 struct am335x_pwmss_softc {
 	struct simplebus_softc	sc_simplebus;
 	device_t		sc_dev;
-	clk_ident_t		sc_clk;
+	struct syscon           *syscon;
 };
 
 static device_method_t am335x_pwmss_methods[] = {
@@ -97,36 +103,45 @@ am335x_pwmss_attach(device_t dev)
 {
 	struct am335x_pwmss_softc *sc;
 	uint32_t reg, id;
-	phandle_t node;
+	uint64_t rev_address;
+	phandle_t node, opp_table;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 
-	sc->sc_clk = ti_hwmods_get_clock(dev);
-	if (sc->sc_clk == INVALID_CLK_IDENT) {
-		device_printf(dev, "failed to get device id based on ti,hwmods\n");
-		return (EINVAL);
+	/* FIXME: For now; Go and kidnap syscon from opp-table */
+	opp_table = OF_finddevice("/opp-table");
+	if (opp_table == -1) {
+		device_printf(dev, "Cant find /opp-table\n");
+		return (ENXIO);
+	}
+	if (!OF_hasprop(opp_table, "syscon")) {
+		device_printf(dev, "/opp-table doesnt have required syscon property\n");
+		return (ENXIO);
+	}
+	if (syscon_get_by_ofw_property(dev, opp_table, "syscon", &sc->syscon) != 0) {
+		device_printf(dev, "Failed to get syscon\n");
+		return (ENXIO);
 	}
 
-	ti_prcm_clk_enable(sc->sc_clk);
-	ti_scm_reg_read_4(SCM_PWMSS_CTRL, &reg);
-	switch (sc->sc_clk) {
-		case PWMSS0_CLK:
-			id = 0;
-			break;
-		case PWMSS1_CLK:
-			id = 1;
-			break;
+	ti_sysc_clock_enable(device_get_parent(dev));
 
-		case PWMSS2_CLK:
-			id = 2;
-			break;
-		default:
-			device_printf(dev, "unknown pwmss clock id: %d\n", sc->sc_clk);
-			return (EINVAL);
+	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
+	switch (rev_address) {
+	case PWMSS_REV_0:
+		id = 0;
+		break;
+	case PWMSS_REV_1:
+		id = 1;
+		break;
+	case PWMSS_REV_2:
+		id = 2;
+		break;
 	}
+
+	reg = SYSCON_READ_4(sc->syscon, SCM_PWMSS_CTRL);
 	reg |= (1 << id);
-	ti_scm_reg_write_4(SCM_PWMSS_CTRL, reg);
+	SYSCON_WRITE_4(sc->syscon, SCM_PWMSS_CTRL, reg);
 
 	node = ofw_bus_get_node(dev);
 
@@ -161,3 +176,4 @@ DEFINE_CLASS_1(am335x_pwmss, am335x_pwmss_driver, am335x_pwmss_methods,
 static devclass_t am335x_pwmss_devclass;
 DRIVER_MODULE(am335x_pwmss, simplebus, am335x_pwmss_driver, am335x_pwmss_devclass, 0, 0);
 MODULE_VERSION(am335x_pwmss, 1);
+MODULE_DEPEND(am335x_pwmss, ti_sysc, 1, 1, 1);

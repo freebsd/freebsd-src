@@ -9,7 +9,7 @@ arm/ti/ti_sdma.c				optional	ti_sdma
 
 arm/ti/omap4/omap4_gpio.c			optional	gpio
 arm/ti/omap4/omap4_l2cache.c			optional	pl310
-arm/ti/omap4/omap4_prcm_clks.c			standard
+#arm/ti/omap4/omap4_prcm_clks.c			standard
 arm/ti/omap4/omap4_scm_padconf.c		standard
 arm/ti/omap4/omap4_mp.c				optional	smp
 arm/ti/omap4/omap4_wugen.c			standard

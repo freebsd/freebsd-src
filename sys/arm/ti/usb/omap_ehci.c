@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <arm/ti/ti_prcm.h>
 #include <arm/ti/usb/omap_usb.h>
 
 #include <arm/ti/omap4/pandaboard/pandaboard.h>

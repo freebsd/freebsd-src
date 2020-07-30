@@ -27,13 +27,17 @@
  * $FreeBSD$
  */
 
-#ifndef __TI_PRCM_H__
-#define __TI_PRCM_H__
+#ifndef _TI_CLK_CLKCTRL_H_
+#define _TI_CLK_CLKCTRL_H_
 
-int ti_prcm_write_4(device_t dev, bus_addr_t addr, uint32_t val);
-int ti_prcm_read_4(device_t dev, bus_addr_t addr, uint32_t *val);
-int ti_prcm_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set);
-void ti_prcm_device_lock(device_t dev);
-void ti_prcm_device_unlock(device_t dev);
+#include <dev/extres/clk/clk.h>
 
-#endif
+struct ti_clk_clkctrl_def {
+	struct clknode_init_def 	clkdef;
+	bool				gdbclk;
+	uint32_t			register_offset;
+};
+
+int ti_clknode_clkctrl_register(struct clkdom *clkdom, struct ti_clk_clkctrl_def *clkdef);
+
+#endif /* _TI_CLK_CLKCTRL_H_ */
