@@ -3011,8 +3011,8 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 #define cache_fpl_handled(x, e)	cache_fpl_handled_impl((x), (e), __LINE__)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
-	(LOCKLEAF | FOLLOW | LOCKSHARED | SAVENAME | ISOPEN | NOMACCHECK | \
-	 AUDITVNODE1 | AUDITVNODE2)
+	(LOCKLEAF | LOCKPARENT | WANTPARENT | FOLLOW | LOCKSHARED | SAVENAME | \
+	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
 
 static bool
 cache_can_fplookup(struct cache_fpl *fpl)
@@ -3208,34 +3208,16 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 }
 
 static int
-cache_fplookup_final(struct cache_fpl *fpl)
+cache_fplookup_final_child(struct cache_fpl *fpl, enum vgetstate tvs)
 {
 	struct componentname *cnp;
-	enum vgetstate tvs;
-	struct vnode *dvp, *tvp;
-	seqc_t dvp_seqc, tvp_seqc;
+	struct vnode *tvp;
+	seqc_t tvp_seqc;
 	int error;
 
 	cnp = fpl->cnp;
-	dvp = fpl->dvp;
-	dvp_seqc = fpl->dvp_seqc;
 	tvp = fpl->tvp;
 	tvp_seqc = fpl->tvp_seqc;
-
-	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
-
-	tvs = vget_prep_smr(tvp);
-	if (tvs == VGET_NONE) {
-		return (cache_fpl_partial(fpl));
-	}
-
-	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
-		cache_fpl_smr_exit(fpl);
-		vget_abort(tvp, tvs);
-		return (cache_fpl_aborted(fpl));
-	}
-
-	cache_fpl_smr_exit(fpl);
 
 	if ((cnp->cn_flags & LOCKLEAF) != 0) {
 		error = vget_finish(tvp, cnp->cn_lkflags, tvs);
@@ -3255,6 +3237,107 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	}
 
 	return (cache_fpl_handled(fpl, 0));
+}
+
+static int __noinline
+cache_fplookup_final_withparent(struct cache_fpl *fpl)
+{
+	enum vgetstate dvs, tvs;
+	struct componentname *cnp;
+	struct vnode *dvp, *tvp;
+	seqc_t dvp_seqc, tvp_seqc;
+	int error;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
+	tvp = fpl->tvp;
+	tvp_seqc = fpl->tvp_seqc;
+
+	MPASS((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0);
+
+	/*
+	 * This is less efficient than it can be for simplicity.
+	 */
+	dvs = vget_prep_smr(dvp);
+	if (dvs == VGET_NONE) {
+		return (cache_fpl_aborted(fpl));
+	}
+	tvs = vget_prep_smr(tvp);
+	if (tvs == VGET_NONE) {
+		cache_fpl_smr_exit(fpl);
+		vget_abort(dvp, dvs);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	cache_fpl_smr_exit(fpl);
+
+	if ((cnp->cn_flags & LOCKPARENT) != 0) {
+		error = vget_finish(dvp, LK_EXCLUSIVE, dvs);
+		if (error != 0) {
+			vget_abort(tvp, tvs);
+			return (cache_fpl_aborted(fpl));
+		}
+	} else {
+		vget_finish_ref(dvp, dvs);
+	}
+
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+		vget_abort(tvp, tvs);
+		if ((cnp->cn_flags & LOCKPARENT) != 0)
+			vput(dvp);
+		else
+			vrele(dvp);
+		cache_fpl_aborted(fpl);
+		return (error);
+	}
+
+	error = cache_fplookup_final_child(fpl, tvs);
+	if (error != 0) {
+		MPASS(fpl->status == CACHE_FPL_STATUS_ABORTED);
+		if ((cnp->cn_flags & LOCKPARENT) != 0)
+			vput(dvp);
+		else
+			vrele(dvp);
+		return (error);
+	}
+
+	MPASS(fpl->status == CACHE_FPL_STATUS_HANDLED);
+	return (0);
+}
+
+static int
+cache_fplookup_final(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+	enum vgetstate tvs;
+	struct vnode *dvp, *tvp;
+	seqc_t dvp_seqc, tvp_seqc;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
+	tvp = fpl->tvp;
+	tvp_seqc = fpl->tvp_seqc;
+
+	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
+
+	if ((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0)
+		return (cache_fplookup_final_withparent(fpl));
+
+	tvs = vget_prep_smr(tvp);
+	if (tvs == VGET_NONE) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+		cache_fpl_smr_exit(fpl);
+		vget_abort(tvp, tvs);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	cache_fpl_smr_exit(fpl);
+	return (cache_fplookup_final_child(fpl, tvs));
 }
 
 static int
