@@ -30,6 +30,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_rss.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -62,6 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <net/rss_config.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
 
 #include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
@@ -1423,6 +1428,19 @@ ena_rx_hash_mbuf(struct ena_ring *rx_ring, struct ena_com_rx_ctx *ena_rx_ctx,
 
 	if (likely(adapter->rss_support)) {
 		mbuf->m_pkthdr.flowid = ena_rx_ctx->hash;
+
+#ifdef RSS
+		/*
+		 * Hardware and software RSS are in agreement only when both are
+		 * configured to Toeplitz algorithm.  This driver configures
+		 * that algorithm only when software RSS is enabled and uses it.
+		 */
+		if (adapter->ena_dev->rss.hash_func != ENA_ADMIN_TOEPLITZ &&
+		    ena_rx_ctx->l3_proto != ENA_ETH_IO_L3_PROTO_UNKNOWN) {
+			M_HASHTYPE_SET(mbuf, M_HASHTYPE_OPAQUE_HASH);
+			return;
+		}
+#endif
 
 		if (ena_rx_ctx->frag &&
 		    (ena_rx_ctx->l3_proto != ENA_ETH_IO_L3_PROTO_UNKNOWN)) {
@@ -3106,6 +3124,16 @@ ena_rss_init_default(struct ena_adapter *adapter)
 		}
 	}
 
+#ifdef RSS
+	uint8_t rss_algo = rss_gethashalgo();
+	if (rss_algo == RSS_HASH_TOEPLITZ) {
+		uint8_t hash_key[RSS_KEYSIZE];
+
+		rss_getkey(hash_key);
+		rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_TOEPLITZ,
+		    hash_key, RSS_KEYSIZE, 0xFFFFFFFF);
+	} else
+#endif
 	rc = ena_com_fill_hash_function(ena_dev, ENA_ADMIN_CRC32, NULL,
 	    ENA_HASH_KEY_SIZE, 0xFFFFFFFF);
 	if (unlikely((rc != 0) && (rc != EOPNOTSUPP))) {
