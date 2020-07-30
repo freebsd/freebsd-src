@@ -5597,21 +5597,21 @@ vop_rename_pre(void *ap)
 
 #ifdef DEBUG_VFS_LOCKS
 void
-vop_fplookup_vexec_pre(void *ap __unused)
+vop_fplookup_vexec_debugpre(void *ap __unused)
 {
 
 	VFS_SMR_ASSERT_ENTERED();
 }
 
 void
-vop_fplookup_vexec_post(void *ap __unused, int rc __unused)
+vop_fplookup_vexec_debugpost(void *ap __unused, int rc __unused)
 {
 
 	VFS_SMR_ASSERT_ENTERED();
 }
 
 void
-vop_strategy_pre(void *ap)
+vop_strategy_debugpre(void *ap)
 {
 	struct vop_strategy_args *a;
 	struct buf *bp;
@@ -5635,7 +5635,7 @@ vop_strategy_pre(void *ap)
 }
 
 void
-vop_lock_pre(void *ap)
+vop_lock_debugpre(void *ap)
 {
 	struct vop_lock1_args *a = ap;
 
@@ -5646,7 +5646,7 @@ vop_lock_pre(void *ap)
 }
 
 void
-vop_lock_post(void *ap, int rc)
+vop_lock_debugpost(void *ap, int rc)
 {
 	struct vop_lock1_args *a = ap;
 
@@ -5656,7 +5656,7 @@ vop_lock_post(void *ap, int rc)
 }
 
 void
-vop_unlock_pre(void *ap)
+vop_unlock_debugpre(void *ap)
 {
 	struct vop_unlock_args *a = ap;
 
@@ -5664,7 +5664,7 @@ vop_unlock_pre(void *ap)
 }
 
 void
-vop_need_inactive_pre(void *ap)
+vop_need_inactive_debugpre(void *ap)
 {
 	struct vop_need_inactive_args *a = ap;
 
@@ -5672,7 +5672,7 @@ vop_need_inactive_pre(void *ap)
 }
 
 void
-vop_need_inactive_post(void *ap, int rc)
+vop_need_inactive_debugpost(void *ap, int rc)
 {
 	struct vop_need_inactive_args *a = ap;
 

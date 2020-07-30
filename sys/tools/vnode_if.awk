@@ -87,6 +87,24 @@ function add_debug_code(name, arg, pos, ind)
 	}
 }
 
+function add_debugpre(name)
+{
+	if (lockdata[name, "debugpre"]) {
+		printc("#ifdef DEBUG_VFS_LOCKS");
+		printc("\t"lockdata[name, "debugpre"]"(a);");
+		printc("#endif");
+	}
+}
+
+function add_debugpost(name)
+{
+	if (lockdata[name, "debugpost"]) {
+		printc("#ifdef DEBUG_VFS_LOCKS");
+		printc("\t"lockdata[name, "debugpost"]"(a, rc);");
+		printc("#endif");
+	}
+}
+
 function add_pre(name)
 {
 	if (lockdata[name, "pre"]) {
@@ -99,6 +117,15 @@ function add_post(name)
 	if (lockdata[name, "post"]) {
 		printc("\t"lockdata[name, "post"]"(a, rc);");
 	}
+}
+
+function can_inline(name)
+{
+	if (lockdata[name, "pre"])
+		return 0;
+	if (lockdata[name, "post"])
+		return 0;
+	return 1;
 }
 
 function find_arg_with_type (type)
@@ -213,7 +240,8 @@ while ((getline < srcfile) > 0) {
 
 	if ($1 ~ /^%!/) {
 		if (NF != 4 ||
-		    ($3 != "pre" && $3 != "post")) {
+		    ($3 != "pre" && $3 != "post" &&
+		     $3 != "debugpre" && $3 != "debugpost")) {
 			die("Invalid %s construction", "%!");
 			continue;
 		}
@@ -316,7 +344,18 @@ while ((getline < srcfile) > 0) {
 		printh("\ta.a_gen.a_desc = &" name "_desc;");
 		for (i = 0; i < numargs; ++i)
 			printh("\ta.a_" args[i] " = " args[i] ";");
+		if (can_inline(name)) {
+			printh("\n#if !defined(DEBUG_VFS_LOCKS) && !defined(INVARIANTS) && !defined(KTR)");
+			printh("\tif (!SDT_PROBES_ENABLED())");
+			printh("\t\treturn (" args[0]"->v_op->"name"(&a));");
+			printh("\telse");
+			printh("\t\treturn (" uname "_APV("args[0]"->v_op, &a));");
+			printh("#else");
+		}
 		printh("\treturn (" uname "_APV("args[0]"->v_op, &a));");
+		if (can_inline(name))
+			printh("#endif");
+
 		printh("}");
 
 		printh("");
@@ -364,6 +403,7 @@ while ((getline < srcfile) > 0) {
 		printc("\t    (\"Wrong a_desc in " name "(%p, %p)\", a->a_" args[0]", a));");
 		printc("\tVNASSERT(vop != NULL, a->a_" args[0]", (\"No "name"(%p, %p)\", a->a_" args[0]", a));")
 		printc("\tKTR_START" ctrstr);
+		add_debugpre(name);
 		add_pre(name);
 		for (i = 0; i < numargs; ++i)
 			add_debug_code(name, args[i], "Entry", "\t");
@@ -382,6 +422,7 @@ while ((getline < srcfile) > 0) {
 			add_debug_code(name, args[i], "Error", "\t\t");
 		printc("\t}");
 		add_post(name);
+		add_debugpost(name);
 		printc("\tKTR_STOP" ctrstr);
 		printc("\treturn (rc);");
 		printc("}\n");
