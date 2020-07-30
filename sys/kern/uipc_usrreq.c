@@ -1279,7 +1279,8 @@ uipc_ready_scan(struct socket *so, struct mbuf *m, int count, int *errorp)
 			mb = mb->m_next;
 			if (mb == NULL) {
 				mb = n;
-				n = mb->m_nextpkt;
+				if (mb != NULL)
+					n = mb->m_nextpkt;
 			}
 		}
 	}
