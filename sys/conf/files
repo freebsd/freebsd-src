@@ -1541,9 +1541,6 @@ t6fw.fw			optional cxgbe					\
 	clean		"t6fw.fw"
 dev/cxgbe/crypto/t4_crypto.c	optional ccr \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
-dev/cy/cy.c			optional cy
-dev/cy/cy_isa.c			optional cy isa
-dev/cy/cy_pci.c			optional cy pci
 dev/cyapa/cyapa.c		optional cyapa iicbus
 dev/dc/if_dc.c			optional dc pci
 dev/dc/dcphy.c			optional dc pci
@@ -2775,14 +2772,10 @@ dev/random/random_harvestq.c	standard
 dev/random/randomdev.c		optional !random_loadable
 dev/random/fortuna.c		optional !random_loadable
 dev/random/hash.c		optional !random_loadable
-dev/rc/rc.c			optional rc
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
-dev/rp/rp.c			optional rp
-dev/rp/rp_isa.c			optional rp isa
-dev/rp/rp_pci.c			optional rp pci
 #
 dev/rtwn/if_rtwn.c		optional rtwn
 dev/rtwn/if_rtwn_beacon.c	optional rtwn
