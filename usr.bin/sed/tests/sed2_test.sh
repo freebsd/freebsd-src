@@ -109,11 +109,9 @@ hex_subst_body()
 	# Single digit \x should work as well.
 	atf_check -o "inline:xn" sed 's/\xd/x/' c
 
-	# Invalid digit should cause us to ignore the sequence.  This test
-	# invokes UB, escapes of an ordinary character.  A future change will
-	# make regex(3) on longer tolerate this and we'll need to adjust what
-	# we're doing, but for now this will suffice.
-	atf_check -o "inline:" sed 's/\xx//' d
+	# This should get passed through to the underlying regex engine as
+	# \xx, which is an invalid escape of an ordinary character.
+	atf_check -s exit:1 -e not-empty sed 's/\xx//' d
 }
 
 atf_test_case commands_on_stdin
