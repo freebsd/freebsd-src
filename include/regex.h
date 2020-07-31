@@ -71,6 +71,7 @@ typedef struct {
 #define	REG_NOSPEC	0020
 #define	REG_PEND	0040
 #define	REG_DUMP	0200
+#define	REG_POSIX	0400	/* only POSIX-compliant regex (libregex) */
 
 /* regerror() flags */
 #define	REG_ENOSYS	(-1)
