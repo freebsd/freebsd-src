@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/sbuf.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/syscallsubr.h>
@@ -235,10 +236,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	};
 
 	static char *cpu_feature2_names[] = {
-		/*  0 */ "pni", "pclmulqdq", "dtes3", "monitor",
+		/*  0 */ "pni", "pclmulqdq", "dtes64", "monitor",
 		/*  4 */ "ds_cpl", "vmx", "smx", "est",
 		/*  8 */ "tm2", "ssse3", "cid", "sdbg",
-		/* 12 */ "fma", "cx16", "xptr", "pdcm",
+		/* 12 */ "fma", "cx16", "xtpr", "pdcm",
 		/* 16 */ "", "pcid", "dca", "sse4_1",
 		/* 20 */ "sse4_2", "x2apic", "movbe", "popcnt",
 		/* 24 */ "tsc_deadline_timer", "aes", "xsave", "",
@@ -364,7 +365,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 #else
 		    "",
 #endif
-		    fqmhz, fqkhz,
+		    fqmhz * 2, fqkhz,
 		    cpu_clflush_line_size, cpu_clflush_line_size,
 		    cpu_maxphyaddr,
 		    (cpu_maxphyaddr > 32) ? 48 : 0);
@@ -1405,6 +1406,17 @@ linprocfs_doosbuild(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/msgmax
+ */
+static int
+linprocfs_domsgmax(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", msginfo.msgmax);
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/kernel/msgmni
  */
 static int
@@ -1412,6 +1424,17 @@ linprocfs_domsgmni(PFS_FILL_ARGS)
 {
 
 	sbuf_printf(sb, "%d\n", msginfo.msgmni);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/msgmnb
+ */
+static int
+linprocfs_domsgmnb(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%d\n", msginfo.msgmnb);
 	return (0);
 }
 
@@ -1435,6 +1458,39 @@ linprocfs_dosem(PFS_FILL_ARGS)
 
 	sbuf_printf(sb, "%d %d %d %d\n", seminfo.semmsl, seminfo.semmns,
 	    seminfo.semopm, seminfo.semmni);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/shmall
+ */
+static int
+linprocfs_doshmall(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%lu\n", shminfo.shmall);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/shmmax
+ */
+static int
+linprocfs_doshmmax(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%lu\n", shminfo.shmmax);
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/shmmni
+ */
+static int
+linprocfs_doshmmni(PFS_FILL_ARGS)
+{
+
+	sbuf_printf(sb, "%lu\n", shminfo.shmmni);
 	return (0);
 }
 
@@ -1837,6 +1893,7 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	/* /proc/sys/... */
 	sys = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
+
 	/* /proc/sys/kernel/... */
 	dir = pfs_create_dir(sys, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,
@@ -1845,11 +1902,21 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "version", &linprocfs_doosbuild,
 	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "msgmax", &linprocfs_domsgmax,
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "msgmni", &linprocfs_domsgmni,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "msgmnb", &linprocfs_domsgmnb,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "sem", &linprocfs_dosem,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "shmall", &linprocfs_doshmall,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "shmmax", &linprocfs_doshmmax,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "shmmni", &linprocfs_doshmmni,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "tainted", &linprocfs_dotainted,
 	    NULL, NULL, NULL, PFS_RD);
@@ -1887,3 +1954,4 @@ MODULE_DEPEND(linprocfs, linux, 1, 1, 1);
 MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
 MODULE_DEPEND(linprocfs, sysvmsg, 1, 1, 1);
 MODULE_DEPEND(linprocfs, sysvsem, 1, 1, 1);
+MODULE_DEPEND(linprocfs, sysvshm, 1, 1, 1);

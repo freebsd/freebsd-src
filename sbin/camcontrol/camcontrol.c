@@ -190,7 +190,7 @@ static struct camcontrol_opts option_table[] = {
 	{"rescan", CAM_CMD_RESCAN, CAM_ARG_NONE, NULL},
 	{"reset", CAM_CMD_RESET, CAM_ARG_NONE, NULL},
 	{"cmd", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
-	{"mmcsdcmd", CAM_CMD_MMCSD_CMD, CAM_ARG_NONE, "c:a:f:Wb:l:41S:I"},
+	{"mmcsdcmd", CAM_CMD_MMCSD_CMD, CAM_ARG_NONE, "c:a:F:f:Wb:l:41S:I"},
 	{"command", CAM_CMD_SCSI_CMD, CAM_ARG_NONE, scsicmd_opts},
 	{"smpcmd", CAM_CMD_SMP_CMD, CAM_ARG_NONE, "r:R:"},
 	{"smprg", CAM_CMD_SMP_RG, CAM_ARG_NONE, smprg_opts},
@@ -7833,10 +7833,12 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	int retval;
 	int is_write = 0;
 	int is_bw_4 = 0, is_bw_1 = 0;
+	int is_frequency = 0;
 	int is_highspeed = 0, is_stdspeed = 0;
 	int is_info_request = 0;
 	int flags = 0;
 	uint8_t mmc_data_byte = 0;
+	uint32_t mmc_frequency = 0;
 
 	/* For IO_RW_EXTENDED command */
 	uint8_t *mmc_data = NULL;
@@ -7872,6 +7874,10 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			break;
 		case 'I':
 			is_info_request = 1;
+			break;
+		case 'F':
+			is_frequency = 1;
+			mmc_frequency = strtol(optarg, NULL, 0);
 			break;
 		case 'c':
 			mmc_opcode = strtol(optarg, NULL, 0);
@@ -7978,6 +7984,23 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		return (retval);
 	}
 
+	if (is_frequency) {
+		struct ccb_trans_settings_mmc *cts;
+		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		ccb->ccb_h.flags = 0;
+		cts = &ccb->cts.proto_specific.mmc;
+		cts->ios.clock = mmc_frequency;
+		cts->ios_valid = MMC_CLK;
+		if (((retval = cam_send_ccb(device, ccb)) < 0)
+		    || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
+			warn("Error sending command");
+		} else {
+			printf("Parameters set OK\n");
+		}
+		cam_freeccb(ccb);
+		return (retval);
+	}
+
 	// Switch bus speed instead of sending IO command
 	if (is_stdspeed || is_highspeed) {
 		struct ccb_trans_settings_mmc *cts;
@@ -8011,13 +8034,48 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 		printf("Host OCR: 0x%x\n", cts->host_ocr);
 		printf("Min frequency: %u KHz\n", cts->host_f_min / 1000);
 		printf("Max frequency: %u MHz\n", cts->host_f_max / 1000000);
-		printf("Supported bus width: ");
+		printf("Supported bus width:\n");
 		if (cts->host_caps & MMC_CAP_4_BIT_DATA)
 			printf(" 4 bit\n");
 		if (cts->host_caps & MMC_CAP_8_BIT_DATA)
 			printf(" 8 bit\n");
-		printf("\nCurrent settings:\n");
-		printf("Bus width: ");
+
+		printf("Supported operating modes:\n");
+		if (cts->host_caps & MMC_CAP_HSPEED)
+			printf(" Can do High Speed transfers\n");
+		if (cts->host_caps & MMC_CAP_UHS_SDR12)
+			printf(" Can do UHS SDR12\n");
+		if (cts->host_caps & MMC_CAP_UHS_SDR25)
+			printf(" Can do UHS SDR25\n");
+		if (cts->host_caps & MMC_CAP_UHS_SDR50)
+			printf(" Can do UHS SDR50\n");
+		if (cts->host_caps & MMC_CAP_UHS_SDR104)
+			printf(" Can do UHS SDR104\n");
+		if (cts->host_caps & MMC_CAP_UHS_DDR50)
+			printf(" Can do UHS DDR50\n");
+		if (cts->host_caps & MMC_CAP_MMC_DDR52_120)
+			printf(" Can do eMMC DDR52 at 1.2V\n");
+		if (cts->host_caps & MMC_CAP_MMC_DDR52_180)
+			printf(" Can do eMMC DDR52 at 1.8V\n");
+		if (cts->host_caps & MMC_CAP_MMC_HS200_120)
+			printf(" Can do eMMC HS200 at 1.2V\n");
+		if (cts->host_caps & MMC_CAP_MMC_HS200_180)
+			printf(" Can do eMMC HS200 at 1.8V\n");
+		if (cts->host_caps & MMC_CAP_MMC_HS400_120)
+			printf(" Can do eMMC HS400 at 1.2V\n");
+		if (cts->host_caps & MMC_CAP_MMC_HS400_180)
+			printf(" Can do eMMC HS400 at 1.8V\n");
+
+		printf("Supported VCCQ voltages:\n");
+		if (cts->host_caps & MMC_CAP_SIGNALING_120)
+			printf(" 1.2V\n");
+		if (cts->host_caps & MMC_CAP_SIGNALING_180)
+			printf(" 1.8V\n");
+		if (cts->host_caps & MMC_CAP_SIGNALING_330)
+			printf(" 3.3V\n");
+
+		printf("Current settings:\n");
+		printf(" Bus width: ");
 		switch (cts->ios.bus_width) {
 		case bus_width_1:
 			printf("1 bit\n");
@@ -8029,10 +8087,23 @@ mmcsdcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			printf("8 bit\n");
 			break;
 		}
-		printf("Freq: %d.%03d MHz%s\n",
+		printf(" Freq: %d.%03d MHz%s\n",
 		       cts->ios.clock / 1000000,
 		       (cts->ios.clock / 1000) % 1000,
-		       cts->ios.timing == bus_timing_hs ? "(high-speed timing)" : "");
+		       cts->ios.timing == bus_timing_hs ? " (high-speed timing)" : "");
+
+		printf(" VCCQ: ");
+		switch (cts->ios.vccq) {
+		case vccq_330:
+			printf("3.3V\n");
+			break;
+		case vccq_180:
+			printf("1.8V\n");
+			break;
+		case vccq_120:
+			printf("1.2V\n");
+			break;
+		}
 		return (0);
 	}
 

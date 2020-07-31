@@ -36,7 +36,7 @@
 /*
  * seqc_t may be included in structs visible to userspace
  */
-typedef uint32_t seqc_t;
+#include <sys/_seqc.h>
 
 #ifdef _KERNEL
 
@@ -45,12 +45,14 @@ typedef uint32_t seqc_t;
 
 #include <machine/cpu.h>
 
-static __inline bool
-seqc_in_modify(seqc_t seqcp)
-{
-
-	return (seqcp & 1);
-}
+/*
+ * Predicts from inline functions are not honored by clang.
+ */
+#define seqc_in_modify(seqc)	({			\
+	seqc_t __seqc = (seqc);				\
+							\
+	__predict_false(__seqc & 1);			\
+})
 
 static __inline void
 seqc_write_begin(seqc_t *seqcp)
@@ -86,7 +88,7 @@ seqc_read(const seqc_t *seqcp)
 
 	for (;;) {
 		ret = seqc_read_any(seqcp);
-		if (__predict_false(seqc_in_modify(ret))) {
+		if (seqc_in_modify(ret)) {
 			cpu_spinwait();
 			continue;
 		}
@@ -96,19 +98,38 @@ seqc_read(const seqc_t *seqcp)
 	return (ret);
 }
 
-static __inline bool
-seqc_consistent_nomb(const seqc_t *seqcp, seqc_t oldseqc)
+#define seqc_consistent_nomb(seqcp, oldseqc)	({	\
+	const seqc_t *__seqcp = (seqcp);		\
+	seqc_t __oldseqc = (oldseqc);			\
+							\
+	MPASS(!(seqc_in_modify(__oldseqc)));		\
+	__predict_true(*__seqcp == __oldseqc);		\
+})
+
+#define seqc_consistent(seqcp, oldseqc)		({	\
+	atomic_thread_fence_acq();			\
+	seqc_consistent_nomb(seqcp, oldseqc);		\
+})
+
+/*
+ * Variant which does not critical enter/exit.
+ */
+static __inline void
+seqc_sleepable_write_begin(seqc_t *seqcp)
 {
 
-	return (*seqcp == oldseqc);
+	MPASS(!seqc_in_modify(*seqcp));
+	*seqcp += 1;
+	atomic_thread_fence_rel();
 }
 
-static __inline bool
-seqc_consistent(const seqc_t *seqcp, seqc_t oldseqc)
+static __inline void
+seqc_sleepable_write_end(seqc_t *seqcp)
 {
 
-	atomic_thread_fence_acq();
-	return (seqc_consistent_nomb(seqcp, oldseqc));
+	atomic_thread_fence_rel();
+	*seqcp += 1;
+	MPASS(!seqc_in_modify(*seqcp));
 }
 
 #endif	/* _KERNEL */

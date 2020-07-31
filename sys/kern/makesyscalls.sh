@@ -60,6 +60,9 @@ case $# in
 	;;
 esac
 
+1>&2 echo "$0: This script has been replaced by sys/tools/makesyscalls.lua and"
+1>&2 echo "$0: will be removed before FreeBSD 13.  See also: sys/conf/sysent.mk"
+
 if [ -n "$2" ]; then
 	. "$2"
 fi

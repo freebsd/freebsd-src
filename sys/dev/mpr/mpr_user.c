@@ -1528,13 +1528,6 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
 	bzero(sc->fw_diag_buffer, buffer_size);
 
 	ctx = malloc(sizeof(*ctx), M_MPR, M_WAITOK | M_ZERO);
-	if (ctx == NULL) {
-		device_printf(sc->mpr_dev, "%s: context malloc failed\n",
-		    __func__);
-		*return_code = MPR_FW_DIAG_ERROR_NO_BUFFER;
-		status = MPR_DIAG_FAILURE;
-		goto bailout;
-	}
 	ctx->addr = &sc->fw_diag_busaddr;
 	ctx->buffer_dmat = sc->fw_diag_dmat;
 	ctx->buffer_dmamap = sc->fw_diag_map;

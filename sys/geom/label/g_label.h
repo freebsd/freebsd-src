@@ -45,7 +45,6 @@
  * 2 - Added md_provsize field to metadata.
  */
 #define	G_LABEL_VERSION		2
-#define	G_LABEL_DIR		"label"
 
 #ifdef _KERNEL
 extern u_int g_label_debug;
@@ -66,7 +65,7 @@ typedef void g_label_taste_t (struct g_consumer *cp, char *label, size_t size);
 
 struct g_label_desc {
 	g_label_taste_t	*ld_taste;
-	char		*ld_dir;
+	char		*ld_dirprefix;
 	int		 ld_enabled;
 };
 

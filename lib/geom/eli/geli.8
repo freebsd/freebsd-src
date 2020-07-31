@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2020
+.Dd July 22, 2020
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -1095,6 +1095,66 @@ resuming the laptop:
 # geli resume gpt/private
 Enter passphrase:
 .Ed
+.Pp
+To create a
+.Nm
+encrypted filesystem with a file as storage device follow this example.
+First a file named private0 is created in
+.Pa /usr
+and attached as a memory disk like
+.Pa /dev/md0
+for example.
+.Bd -literal -offset indent
+# dd if=/dev/zero of=/usr/private0 bs=1m count=256
+# chmod 0600 /usr/private0
+# mdconfig -t vnode -f /usr/private0
+.Ed
+.Pp
+It is recommended to place the following line in
+.Xr rc.conf 5
+to have the memory disk automatically created during boot.
+.Bd -literal -offset indent
+mdconfig_md0="-t vnode -f /usr/private0"
+.Ed
+.Pp
+After
+.Pa /dev/md0
+is created a random key has to be generated and stored in a secure location,
+like
+.Pa /root
+for example.
+This key should be protected by a passphrase, which
+is requested when geli init is called.
+.Bd -literal -offset indent
+# dd if=/dev/random of=/root/private0.key bs=64 count=1
+# geli init -K /root/private0.key -s 4096 /dev/md0
+Enter new passphrase:
+Reenter new passphrase:
+# geli attach -k /root/private0.key /dev/md0
+Enter passphrase:
+# dd if=/dev/random of=/dev/md0.eli bs=1m
+.Ed
+.Pp
+Once the initialization of the
+.Pa /dev/md0.eli
+device is ready create a UFS filesystem and mount it for example in
+.Pa /private .
+.Bd -literal -offset indent
+# newfs /dev/md0.eli
+# mount /dev/md0.eli /private
+.Ed
+.Pp
+After a system reboot the
+.Nm
+device can be mounted again with the following commands.
+The call of geli attach will ask for the passphrase.
+It is recommended to do this procedure after the boot, because otherwise
+the boot process would be waiting for the passphrase input.
+.Bd -literal -offset indent
+# geli attach -k /root/private0.key /dev/md0
+Enter passphrase:
+# mount /dev/md0.eli /private
+.Ed
 .Sh ENCRYPTION MODES
 .Nm
 supports two encryption modes:
@@ -1157,7 +1217,9 @@ block cipher was implemented by Yoshisato Yanagisawa in
 .Pp
 Highest
 .Nm GELI
-metadata version supported by the given FreeBSD version:
+metadata version supported by the given
+.Fx
+version:
 .Bl -column -offset indent ".Sy FreeBSD" ".Sy version"
 .It Sy FreeBSD Ta Sy GELI
 .It Sy version Ta Sy version

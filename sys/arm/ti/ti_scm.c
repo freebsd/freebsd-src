@@ -1,9 +1,7 @@
 /*-
- * SPDX-License-Identifier: BSD-4-Clause
+ * Copyright (c) 2019 Emmanuel Vadot <manu@FreeBSD.org>
  *
- * Copyright (c) 2010
- *	Ben Gray <ben.r.gray@gmail.com>.
- * All rights reserved.
+ * Copyright (c) 2020 Oskar Holmlund <oskar.holmlund@ohdata.se>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -13,169 +11,152 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Ben Gray.
- * 4. The name of the company nor the name of the author may be used to
- *    endorse or promote products derived from this software without specific
- *    prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY BEN GRAY ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL BEN GRAY BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-/**
- *	SCM - System Control Module
- *
- *	Hopefully in the end this module will contain a bunch of utility functions
- *	for configuring and querying the general system control registers, but for
- *	now it only does pin(pad) multiplexing.
- *
- *	This is different from the GPIO module in that it is used to configure the
- *	pins between modules not just GPIO input/output.
- *
- *	This file contains the generic top level driver, however it relies on chip
- *	specific settings and therefore expects an array of ti_scm_padconf structs
- *	call ti_padconf_devmap to be located somewhere in the kernel.
- *
- */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+
+/* Based on sys/arm/ti/ti_sysc.c */
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
-#include <sys/resource.h>
 #include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-
+#include <sys/resource.h>
 #include <machine/bus.h>
-#include <machine/resource.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
+#include <vm/pmap.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/fdt/simplebus.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/fdt/fdt_pinctrl.h>
 
-#include "ti_scm.h"
-#include "ti_cpuid.h"
+#define TI_AM3_SCM			14
+#define TI_AM4_SCM			13
+#define TI_DM814_SCRM			12
+#define TI_DM816_SCRM			11
+#define TI_OMAP2_SCM			10
+#define TI_OMAP3_SCM			9
+#define TI_OMAP4_SCM_CORE		8
+#define TI_OMAP4_SCM_PADCONF_CORE	7
+#define TI_OMAP4_SCM_WKUP		6
+#define TI_OMAP4_SCM_PADCONF_WKUP	5
+#define TI_OMAP5_SCM_CORE		4
+#define TI_OMAP5_SCM_PADCONF_CORE	3
+#define TI_OMAP5_SCM_WKUP_PAD_CONF	2
+#define TI_DRA7_SCM_CORE		1
+#define TI_SCM_END			0
 
-static struct resource_spec ti_scm_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Control memory window */
-	{ -1, 0 }
+static struct ofw_compat_data compat_data[] = {
+	{ "ti,am3-scm",			TI_AM3_SCM },
+	{ "ti,am4-scm",			TI_AM4_SCM },
+	{ "ti,dm814-scrm",		TI_DM814_SCRM },
+	{ "ti,dm816-scrm",		TI_DM816_SCRM },
+	{ "ti,omap2-scm",		TI_OMAP2_SCM },
+	{ "ti,omap3-scm",		TI_OMAP3_SCM },
+	{ "ti,omap4-scm-core",		TI_OMAP4_SCM_CORE },
+	{ "ti,omap4-scm-padconf-core",	TI_OMAP4_SCM_PADCONF_CORE },
+	{ "ti,omap4-scm-wkup",		TI_OMAP4_SCM_WKUP },
+	{ "ti,omap4-scm-padconf-wkup",	TI_OMAP4_SCM_PADCONF_WKUP },
+	{ "ti,omap5-scm-core",		TI_OMAP5_SCM_CORE },
+	{ "ti,omap5-scm-padconf-core",	TI_OMAP5_SCM_PADCONF_CORE },
+	{ "ti,omap5-scm-wkup-pad-conf",	TI_OMAP5_SCM_WKUP_PAD_CONF },
+	{ "ti,dra7-scm-core",		TI_DRA7_SCM_CORE },
+	{ NULL,				TI_SCM_END }
 };
 
-static struct ti_scm_softc *ti_scm_sc;
+struct ti_scm_softc {
+	struct simplebus_softc	sc;
+	device_t		dev;
+};
 
-#define	ti_scm_read_4(sc, reg)		\
-    bus_space_read_4((sc)->sc_bst, (sc)->sc_bsh, (reg))
-#define	ti_scm_write_4(sc, reg, val)		\
-    bus_space_write_4((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
+static int ti_scm_probe(device_t dev);
+static int ti_scm_attach(device_t dev);
+static int ti_scm_detach(device_t dev);
 
-/*
- * Device part of OMAP SCM driver
- */
 static int
 ti_scm_probe(device_t dev)
 {
-
-	if (!ti_soc_is_supported())
-		return (ENXIO);
-
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "syscon"))
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	if (ti_scm_sc) {
-		return (EEXIST);
-	}
+	device_set_desc(dev, "TI OMAP Control Module");
 
-	device_set_desc(dev, "TI Control Module");
 	return (BUS_PROBE_DEFAULT);
 }
 
-/**
- *	ti_scm_attach - attaches the timer to the simplebus
- *	@dev: new device
- *
- *	Reserves memory and interrupt resources, stores the softc structure
- *	globally and registers both the timecount and eventtimer objects.
- *
- *	RETURNS
- *	Zero on success or ENXIO if an error occuried.
- */
 static int
 ti_scm_attach(device_t dev)
 {
-	struct ti_scm_softc *sc = device_get_softc(dev);
+	struct ti_scm_softc *sc;
+	device_t cdev;
+	phandle_t node, child;
 
-	sc->sc_dev = dev;
+	sc = device_get_softc(dev);
+	sc->dev = dev;
+	node = ofw_bus_get_node(dev);
 
-	if (bus_alloc_resources(dev, ti_scm_res_spec, sc->sc_res)) {
-		device_printf(dev, "could not allocate resources\n");
+	simplebus_init(dev, node);
+	if (simplebus_fill_ranges(node, &sc->sc) < 0) {
+		device_printf(dev, "could not get ranges\n");
 		return (ENXIO);
 	}
 
-	/* Global timer interface */
-	sc->sc_bst = rman_get_bustag(sc->sc_res[0]);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_res[0]);
-
-	ti_scm_sc = sc;
-
-	/* Attach platform extensions, if any. */
-	bus_generic_probe(dev);
+	for (child = OF_child(node); child > 0; child = OF_peer(child)) {
+		cdev = simplebus_add_device(dev, child, 0, NULL, -1, NULL);
+		if (cdev != NULL)
+			device_probe_and_attach(cdev);
+	}
 
 	return (bus_generic_attach(dev));
 }
 
-int
-ti_scm_reg_read_4(uint32_t reg, uint32_t *val)
+static int
+ti_scm_detach(device_t dev)
 {
-	if (!ti_scm_sc)
-		return (ENXIO);
-
-	*val = ti_scm_read_4(ti_scm_sc, reg);
-	return (0);
+	return (EBUSY);
 }
-
-int
-ti_scm_reg_write_4(uint32_t reg, uint32_t val)
-{
-	if (!ti_scm_sc)
-		return (ENXIO);
-
-	ti_scm_write_4(ti_scm_sc, reg, val);
-	return (0);
-}
-
 
 static device_method_t ti_scm_methods[] = {
+	/* Device interface */
 	DEVMETHOD(device_probe,		ti_scm_probe),
 	DEVMETHOD(device_attach,	ti_scm_attach),
+	DEVMETHOD(device_detach,	ti_scm_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
-static driver_t ti_scm_driver = {
-	"ti_scm",
-	ti_scm_methods,
-	sizeof(struct ti_scm_softc),
-};
+DEFINE_CLASS_1(ti_scm, ti_scm_driver, ti_scm_methods,
+    sizeof(struct ti_scm_softc), simplebus_driver);
 
 static devclass_t ti_scm_devclass;
 
-EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver, ti_scm_devclass, 0, 0,
-    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver,
+    ti_scm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
+MODULE_VERSION(ti_scm, 1);
+MODULE_DEPEND(ti_scm, ti_sysc, 1, 1, 1);
+

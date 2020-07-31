@@ -2339,11 +2339,6 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		}
 		f->fs_xfer = malloc(sizeof(f->fs_xfer[0]) *
 		    u.pinit->ep_index_max, M_USB, M_WAITOK | M_ZERO);
-		if (f->fs_xfer == NULL) {
-			usb_fifo_free_buffer(f);
-			error = ENOMEM;
-			break;
-		}
 		f->fs_ep_max = u.pinit->ep_index_max;
 		f->fs_ep_ptr = u.pinit->pEndpoints;
 		break;

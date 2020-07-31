@@ -248,7 +248,7 @@ dtrace_invop_start(struct trapframe *frame)
 	register_t *r0, *sp;
 	int data, invop, reg, update_sp;
 
-	invop = dtrace_invop(frame->tf_pc, frame, frame->tf_pc);
+	invop = dtrace_invop(frame->tf_pc, frame, frame->tf_r0);
 	switch (invop & DTRACE_INVOP_MASK) {
 	case DTRACE_INVOP_PUSHM:
 		sp = (register_t *)frame->tf_svc_sp;

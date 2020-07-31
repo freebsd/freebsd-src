@@ -29,7 +29,7 @@ dd if=/dev/random of=$tmp1 bs=$ddbs count=1 >/dev/null 2>&1
 
 EIO=5
 # gmirror should kick one of the mirrors out after hitting EIO.
-sysctl ${regwritefp}="1*return(${EIO})"
+sysctl ${regwritefp}="1*return(${EIO})[pid $(gmirror_worker_pid)]"
 dd if=$tmp1 of=/dev/mirror/$name bs=$ddbs count=1 >/dev/null 2>&1
 dd if=/dev/mirror/$name of=$tmp2 bs=$ddbs count=1 >/dev/null 2>&1
 sysctl ${regwritefp}='off'

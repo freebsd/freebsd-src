@@ -451,10 +451,6 @@ uhid_get_report(struct uhid_softc *sc, uint8_t type,
 
 	if (kern_data == NULL) {
 		kern_data = malloc(len, M_USBDEV, M_WAITOK);
-		if (kern_data == NULL) {
-			err = ENOMEM;
-			goto done;
-		}
 		free_data = 1;
 	}
 	err = usbd_req_get_report(sc->sc_udev, NULL, kern_data,
@@ -487,10 +483,6 @@ uhid_set_report(struct uhid_softc *sc, uint8_t type,
 
 	if (kern_data == NULL) {
 		kern_data = malloc(len, M_USBDEV, M_WAITOK);
-		if (kern_data == NULL) {
-			err = ENOMEM;
-			goto done;
-		}
 		free_data = 1;
 		err = copyin(user_data, kern_data, len);
 		if (err) {

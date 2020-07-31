@@ -44,9 +44,6 @@ __FBSDID("$FreeBSD$");
 #define	PART_CLASS_NAME	"PART"
 #define	SCHEME_NAME	"GPT"
 
-#define	G_LABEL_GPT_VOLUME_DIR	"gpt"
-#define	G_LABEL_GPT_ID_DIR	"gptid"
-
 /* XXX: Also defined in geom/part/g_part_gpt.c */
 struct g_part_gpt_entry {
 	struct g_part_entry     base;
@@ -158,13 +155,13 @@ g_label_gpt_uuid_taste(struct g_consumer *cp, char *label, size_t size)
 
 struct g_label_desc g_label_gpt = {
 	.ld_taste = g_label_gpt_taste,
-	.ld_dir = G_LABEL_GPT_VOLUME_DIR,
+	.ld_dirprefix = "gpt/",
 	.ld_enabled = 1
 };
 
 struct g_label_desc g_label_gpt_uuid = {
 	.ld_taste = g_label_gpt_uuid_taste,
-	.ld_dir = G_LABEL_GPT_ID_DIR,
+	.ld_dirprefix = "gptid/",
 	.ld_enabled = 1
 };
 

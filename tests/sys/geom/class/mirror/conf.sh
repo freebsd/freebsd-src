@@ -12,6 +12,11 @@ gmirror_test_cleanup()
 }
 trap gmirror_test_cleanup ABRT EXIT INT TERM
 
+gmirror_worker_pid()
+{
+	pgrep -S -n "g_mirror mirror\..*"
+}
+
 syncwait()
 {
 	while $(gmirror status -s $name | grep -q SYNCHRONIZING); do

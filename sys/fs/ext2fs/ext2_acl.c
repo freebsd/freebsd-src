@@ -234,8 +234,6 @@ ext2_getacl_posix1e(struct vop_getacl_args *ap)
 
 	len = sizeof(*ap->a_aclp) + sizeof(struct ext2_acl_header);
 	value = malloc(len, M_ACL, M_WAITOK);
-	if (!value)
-		return (ENOMEM);
 
 	error = vn_extattr_get(ap->a_vp, IO_NODELOCKED, attrnamespace, attrname,
 	    &len, value, ap->a_td);

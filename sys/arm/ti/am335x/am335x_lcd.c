@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/extres/clk/clk.h>
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -65,7 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/vt.h>
 #endif
 
-#include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_sysc.h>
 #include <arm/ti/ti_scm.h>
 
 #include "am335x_lcd.h"
@@ -219,6 +221,9 @@ struct am335x_lcd_softc {
 	/* HDMI framer */
 	phandle_t		sc_hdmi_framer;
 	eventhandler_tag	sc_hdmi_evh;
+
+	/* Clock */
+	clk_t			sc_clk_dpll_disp_ck;
 };
 
 static void
@@ -615,24 +620,28 @@ am335x_lcd_configure(struct am335x_lcd_softc *sc)
 	uint32_t hbp, hfp, hsw;
 	uint32_t vbp, vfp, vsw;
 	uint32_t width, height;
-	unsigned int ref_freq;
+	uint64_t ref_freq;
 	int err;
 
 	/*
 	 * try to adjust clock to get double of requested frequency
 	 * HDMI/DVI displays are very sensitive to error in frequncy value
 	 */
-	if (ti_prcm_clk_set_source_freq(LCDC_CLK, sc->sc_panel.panel_pxl_clk*2)) {
+
+	err = clk_set_freq(sc->sc_clk_dpll_disp_ck, sc->sc_panel.panel_pxl_clk*2,
+	    CLK_SET_ROUND_ANY);
+	if (err != 0) {
 		device_printf(sc->sc_dev, "can't set source frequency\n");
 		return (ENXIO);
 	}
 
-	if (ti_prcm_clk_get_source_freq(LCDC_CLK, &ref_freq)) {
+	err = clk_get_freq(sc->sc_clk_dpll_disp_ck, &ref_freq);
+	if (err != 0) {
 		device_printf(sc->sc_dev, "can't get reference frequency\n");
 		return (ENXIO);
 	}
 
-	/* Panle initialization */
+	/* Panel initialization */
 	dma_size = round_page(sc->sc_panel.panel_width*sc->sc_panel.panel_height*sc->sc_panel.bpp/8);
 
 	/*
@@ -967,6 +976,13 @@ am335x_lcd_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Fixme: Cant find any reference in DTS for dpll_disp_ck@498 for now. */
+	err = clk_get_by_name(dev, "dpll_disp_ck@498", &sc->sc_clk_dpll_disp_ck);
+	if (err != 0) {
+		device_printf(dev, "Cant get dpll_disp_ck@49\n");
+		return (ENXIO);
+	}
+
 	sc->sc_panel.ac_bias = 255;
 	sc->sc_panel.ac_bias_intrpt = 0;
 	sc->sc_panel.dma_burst_sz = 16;
@@ -989,7 +1005,11 @@ am335x_lcd_attach(device_t dev)
 		}
 	}
 
-	ti_prcm_clk_enable(LCDC_CLK);
+	err = ti_sysc_clock_enable(device_get_parent(dev));
+	if (err != 0) {
+		device_printf(dev, "Failed to enable sysc clkctrl, err %d\n", err);
+		return (ENXIO);
+	}
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -1081,3 +1101,4 @@ static devclass_t am335x_lcd_devclass;
 DRIVER_MODULE(am335x_lcd, simplebus, am335x_lcd_driver, am335x_lcd_devclass, 0, 0);
 MODULE_VERSION(am335x_lcd, 1);
 MODULE_DEPEND(am335x_lcd, simplebus, 1, 1, 1);
+MODULE_DEPEND(am335x_lcd, ti_sysc, 1, 1, 1);

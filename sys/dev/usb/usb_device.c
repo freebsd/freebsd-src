@@ -1785,9 +1785,11 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 		return (NULL);
 	}
 	udev = malloc(sizeof(*udev), M_USB, M_WAITOK | M_ZERO);
+#if (USB_HAVE_MALLOC_WAITOK == 0)
 	if (udev == NULL) {
 		return (NULL);
 	}
+#endif
 	/* initialise our SX-lock */
 	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
 	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_NOWITNESS);

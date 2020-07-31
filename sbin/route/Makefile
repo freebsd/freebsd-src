@@ -19,6 +19,9 @@ CFLAGS+= -DINET6
 .endif
 CFLAGS+= -I.
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 keywords.h: keywords
 	LC_ALL=C awk '!/^#|^$$/ { \
 		printf "#define\tK_%s\t%d\n\t{\"%s\", K_%s},\n", \

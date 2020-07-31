@@ -311,6 +311,7 @@ pwd_set(struct filedesc *fdp, struct pwd *newpwd)
 	smr_serialized_store(&fdp->fd_pwd, newpwd,
 	    (FILEDESC_XLOCK_ASSERT(fdp), true));
 }
+struct pwd *pwd_get_smr(void);
 
 #endif /* _KERNEL */
 

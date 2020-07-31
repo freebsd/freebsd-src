@@ -231,6 +231,31 @@ dtrace_probe_error(dtrace_state_t *state, dtrace_epid_t epid, int which,
 	    (uintptr_t)which, (uintptr_t)fault, (uintptr_t)fltoffs);
 }
 
+static void
+dtrace_load64(uint64_t *addr, struct trapframe *frame, u_int reg)
+{
+
+	KASSERT(reg <= 31, ("dtrace_load64: Invalid register %u", reg));
+	if (reg < nitems(frame->tf_x))
+		frame->tf_x[reg] = *addr;
+	else if (reg == 30) /* lr */
+		frame->tf_lr = *addr;
+	/* Nothing to do for load to xzr */
+}
+
+static void
+dtrace_store64(uint64_t *addr, struct trapframe *frame, u_int reg)
+{
+
+	KASSERT(reg <= 31, ("dtrace_store64: Invalid register %u", reg));
+	if (reg < nitems(frame->tf_x))
+		*addr = frame->tf_x[reg];
+	else if (reg == 30) /* lr */
+		*addr = frame->tf_lr;
+	else if (reg == 31) /* xzr */
+		*addr = 0;
+}
+
 static int
 dtrace_invop_start(struct trapframe *frame)
 {
@@ -258,12 +283,12 @@ dtrace_invop_start(struct trapframe *frame)
 				sp -= (~offs & OFFSET_MASK) + 1;
 			else
 				sp += (offs);
-			*(sp + 0) = frame->tf_x[arg1];
-			*(sp + 1) = frame->tf_x[arg2];
+			dtrace_store64(sp + 0, frame, arg1);
+			dtrace_store64(sp + 1, frame, arg2);
 			break;
 		case LDP_64:
-			frame->tf_x[arg1] = *(sp + 0);
-			frame->tf_x[arg2] = *(sp + 1);
+			dtrace_load64(sp + 0, frame, arg1);
+			dtrace_load64(sp + 1, frame, arg2);
 			if (offs >> (OFFSET_SIZE - 1))
 				sp -= (~offs & OFFSET_MASK) + 1;
 			else

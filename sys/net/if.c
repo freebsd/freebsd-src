@@ -80,6 +80,7 @@
 #include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
@@ -1845,6 +1846,7 @@ static int
 ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
     struct sockaddr *ia)
 {
+	struct rib_cmd_info rc;
 	struct epoch_tracker et;
 	int error;
 	struct rt_addrinfo info;
@@ -1872,7 +1874,7 @@ ifa_maintain_loopback_route(int cmd, const char *otype, struct ifaddr *ifa,
 	info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&null_sdl;
 	link_init_sdl(ifp, (struct sockaddr *)&null_sdl, ifp->if_type);
 
-	error = rtrequest1_fib(cmd, &info, NULL, ifp->if_fib);
+	error = rib_action(ifp->if_fib, cmd, &info, &rc);
 	NET_EPOCH_EXIT(et);
 
 	if (rti_ifa != NULL)

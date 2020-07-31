@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
  * for more information.
  */
 
-	.section .note.tag,"a",%note
+	.section .note.tag,"aG",%note,.freebsd.noteG,comdat
 	.p2align	2
 	.4byte		2f-1f
 	.4byte		4f-3f
@@ -46,14 +46,4 @@ __FBSDID("$FreeBSD$");
 1:	.asciz		NOTE_FREEBSD_VENDOR
 2:	.p2align	2
 3:	.4byte		__FreeBSD_version
-4:
-
-	.section .note.tag,"a",%note
-	.p2align	2
-	.4byte		2f-1f
-	.4byte		4f-3f
-	.4byte		NT_FREEBSD_FEATURE_CTL
-1:	.asciz		NOTE_FREEBSD_VENDOR
-2:	.p2align	2
-3:	.4byte		0
 4:

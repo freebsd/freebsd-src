@@ -396,33 +396,33 @@ gctl_get_class(struct gctl_req *req, char const *arg)
 	struct g_class *cp;
 
 	p = gctl_get_asciiparam(req, arg);
-	if (p == NULL)
+	if (p == NULL) {
+		gctl_error(req, "Missing %s argument", arg);
 		return (NULL);
+	}
 	LIST_FOREACH(cp, &g_classes, class) {
 		if (!strcmp(p, cp->name))
 			return (cp);
 	}
+	gctl_error(req, "Class not found: \"%s\"", p);
 	return (NULL);
 }
 
 struct g_geom *
-gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg)
+gctl_get_geom(struct gctl_req *req, struct g_class *mp, char const *arg)
 {
 	char const *p;
-	struct g_class *mp;
 	struct g_geom *gp;
 
+	MPASS(mp != NULL);
 	p = gctl_get_asciiparam(req, arg);
-	if (p == NULL)
+	if (p == NULL) {
+		gctl_error(req, "Missing %s argument", arg);
 		return (NULL);
-	LIST_FOREACH(mp, &g_classes, class) {
-		if (mpr != NULL && mpr != mp)
-			continue;
-		LIST_FOREACH(gp, &mp->geom, geom) {
-			if (!strcmp(p, gp->name))
-				return (gp);
-		}
 	}
+	LIST_FOREACH(gp, &mp->geom, geom)
+		if (!strcmp(p, gp->name))
+			return (gp);
 	gctl_error(req, "Geom not found: \"%s\"", p);
 	return (NULL);
 }
@@ -434,8 +434,10 @@ gctl_get_provider(struct gctl_req *req, char const *arg)
 	struct g_provider *pp;
 
 	p = gctl_get_asciiparam(req, arg);
-	if (p == NULL)
+	if (p == NULL) {
+		gctl_error(req, "Missing '%s' argument", arg);
 		return (NULL);
+	}
 	pp = g_provider_by_name(p);
 	if (pp != NULL)
 		return (pp);
@@ -453,10 +455,8 @@ g_ctl_req(void *arg, int flag __unused)
 	g_topology_assert();
 	req = arg;
 	mp = gctl_get_class(req, "class");
-	if (mp == NULL) {
-		gctl_error(req, "Class not found");
+	if (mp == NULL)
 		return;
-	}
 	if (mp->ctlreq == NULL) {
 		gctl_error(req, "Class takes no requests");
 		return;

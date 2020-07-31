@@ -445,6 +445,7 @@ ffs_lock(ap)
 	struct lock *lkp;
 	int result;
 
+	ap->a_flags |= LK_ADAPTIVE;
 	switch (ap->a_flags & LK_TYPE_MASK) {
 	case LK_SHARED:
 	case LK_UPGRADE:
@@ -482,6 +483,7 @@ ffs_lock(ap)
 	}
 	return (result);
 #else
+	ap->a_flags |= LK_ADAPTIVE;
 	return (VOP_LOCK1_APV(&ufs_vnodeops, ap));
 #endif
 }
@@ -903,8 +905,10 @@ ffs_write(ap)
 	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid &&
 	    ap->a_cred) {
 		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID)) {
-			ip->i_mode &= ~(ISUID | ISGID);
+			vn_seqc_write_begin(vp);
+			UFS_INODE_SET_MODE(ip, ip->i_mode & ~(ISUID | ISGID));
 			DIP_SET(ip, i_mode, ip->i_mode);
+			vn_seqc_write_end(vp);
 		}
 	}
 	if (error) {
@@ -1150,8 +1154,10 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	 */
 	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid && ucred) {
 		if (priv_check_cred(ucred, PRIV_VFS_RETAINSUGID)) {
-			ip->i_mode &= ~(ISUID | ISGID);
+			vn_seqc_write_begin(vp);
+			UFS_INODE_SET_MODE(ip, ip->i_mode & ~(ISUID | ISGID));
 			dp->di_mode = ip->i_mode;
+			vn_seqc_write_end(vp);
 		}
 	}
 	if (error) {

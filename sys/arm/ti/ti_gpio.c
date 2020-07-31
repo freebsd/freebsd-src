@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_gpio.h>
 #include <arm/ti/ti_scm.h>
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/ti_hwmods.h>
+#include <arm/ti/ti_sysc.h>
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
@@ -116,6 +115,18 @@ __FBSDID("$FreeBSD$");
 #define	AM335X_GPIO_REV			0x50600801
 #define	PINS_PER_BANK			32
 #define	TI_GPIO_MASK(p)			(1U << ((p) % PINS_PER_BANK))
+
+#define OMAP4_GPIO1_REV			0x00000
+#define OMAP4_GPIO2_REV			0x55000
+#define OMAP4_GPIO3_REV			0x57000
+#define OMAP4_GPIO4_REV			0x59000
+#define OMAP4_GPIO5_REV			0x5b000
+#define OMAP4_GPIO6_REV			0x5d000
+
+#define AM335X_GPIO0_REV		0x07000
+#define AM335X_GPIO1_REV		0x4C000
+#define AM335X_GPIO2_REV		0xAC000
+#define AM335X_GPIO3_REV		0xAE000
 
 static int ti_gpio_intr(void *arg);
 static int ti_gpio_detach(device_t);
@@ -434,7 +445,7 @@ ti_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		oe &= ~TI_GPIO_MASK(pin);
 	ti_gpio_write_4(sc, TI_GPIO_OE, oe);
 	TI_GPIO_UNLOCK(sc);
-	
+
 	return (0);
 }
 
@@ -499,7 +510,7 @@ ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 		return (EINVAL);
 
 	/*
-	 * Return data from output latch when set as output and from the 
+	 * Return data from output latch when set as output and from the
 	 * input register otherwise.
 	 */
 	TI_GPIO_LOCK(sc);
@@ -553,29 +564,72 @@ ti_gpio_pin_toggle(device_t dev, uint32_t pin)
 static int
 ti_gpio_bank_init(device_t dev)
 {
-	int pin;
+	int pin, err;
 	struct ti_gpio_softc *sc;
 	uint32_t flags, reg_oe, reg_set, rev;
-	clk_ident_t clk;
+	uint64_t rev_address;
 
 	sc = device_get_softc(dev);
 
 	/* Enable the interface and functional clocks for the module. */
-	clk = ti_hwmods_get_clock(dev);
-	if (clk == INVALID_CLK_IDENT) {
-		device_printf(dev, "failed to get device id based on ti,hwmods\n");
+	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
+	/* AM335x
+	 * sc->sc_bank used in am335x/am335x_gpio.c and omap4/omap4_gpio.c */
+	switch(ti_chip()) {
+#ifdef SOC_OMAP4
+	case CHIP_OMAP_4:
+		switch (rev_address) {
+			case OMAP4_GPIO1_REV:
+				sc->sc_bank = 0;
+				break;
+			case OMAP4_GPIO2_REV:
+				sc->sc_bank = 1;
+				break;
+			case OMAP4_GPIO3_REV:
+				sc->sc_bank = 2;
+				break;
+			case OMAP4_GPIO4_REV:
+				sc->sc_bank = 3;
+				break;
+			case OMAP4_GPIO5_REV:
+				sc->sc_bank = 4;
+				break;
+			case OMAP4_GPIO6_REV:
+				sc->sc_bank = 5;
+				break;
+		}
+#endif
+#ifdef SOC_TI_AM335X
+	case CHIP_AM335X:
+		switch (rev_address) {
+			case AM335X_GPIO0_REV:
+				sc->sc_bank = 0;
+				break;
+			case AM335X_GPIO1_REV:
+				sc->sc_bank = 1;
+				break;
+			case AM335X_GPIO2_REV:
+				sc->sc_bank = 2;
+				break;
+			case AM335X_GPIO3_REV:
+				sc->sc_bank = 3;
+				break;
+		}
+#endif
+	}
+	err = ti_sysc_clock_enable(device_get_parent(dev));
+	if (err) {
+		device_printf(dev, "Failed to enable clock\n");
 		return (EINVAL);
 	}
-
-	sc->sc_bank = clk - GPIO1_CLK + ti_first_gpio_bank();
-	ti_prcm_clk_enable(clk);
 
 	/*
 	 * Read the revision number of the module.  TI don't publish the
 	 * actual revision numbers, so instead the values have been
 	 * determined by experimentation.
 	 */
-	rev = ti_gpio_read_4(sc, TI_GPIO_REVISION);
+	rev = ti_gpio_read_4(sc,
+	    ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 
 	/* Check the revision. */
 	if (rev != ti_gpio_rev()) {
@@ -669,7 +723,7 @@ ti_gpio_attach(device_t dev)
 	/* We need to go through each block and ensure the clocks are running and
 	 * the module is enabled.  It might be better to do this only when the
 	 * pins are configured which would result in less power used if the GPIO
-	 * pins weren't used ... 
+	 * pins weren't used ...
 	 */
 	if (sc->sc_mem_res != NULL) {
 		/* Initialize the GPIO module. */

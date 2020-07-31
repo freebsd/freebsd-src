@@ -68,6 +68,8 @@ struct smc_softc {
 	void			*smc_read_arg;
 };
 
+DECLARE_CLASS(smc_driver);
+
 int	smc_probe(device_t);
 int	smc_attach(device_t);
 int	smc_detach(device_t);

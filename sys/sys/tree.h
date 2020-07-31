@@ -36,7 +36,7 @@
 
 /*
  * This file defines data structures for different types of trees:
- * splay trees and red-black trees.
+ * splay trees and rank-balanced trees.
  *
  * A splay tree is a self-organizing data structure.  Every operation
  * on the tree causes a splay to happen.  The splay moves the requested
@@ -50,15 +50,24 @@
  * and n inserts on an initially empty tree as O((m + n)lg n).  The
  * amortized cost for a sequence of m accesses to a splay tree is O(lg n);
  *
- * A red-black tree is a binary search tree with the node color as an
- * extra attribute.  It fulfills a set of conditions:
- *	- every search path from the root to a leaf consists of the
- *	  same number of black nodes,
- *	- each red node (except for the root) has a black parent,
- *	- each leaf node is black.
+ * A rank-balanced tree is a binary search tree with an integer
+ * rank-difference as an attribute of each pointer from parent to child.
+ * The sum of the rank-differences on any path from a node down to null is
+ * the same, and defines the rank of that node. The rank of the null node
+ * is -1.
  *
- * Every operation on a red-black tree is bounded as O(lg n).
- * The maximum height of a red-black tree is 2lg (n+1).
+ * Different additional conditions define different sorts of balanced
+ * trees, including "red-black" and "AVL" trees.  The set of conditions
+ * applied here are the "weak-AVL" conditions of Haeupler, Sen and Tarjan:
+ *	- every rank-difference is 1 or 2.
+ *	- the rank of any leaf is 1.
+ *
+ * For historical reasons, rank differences that are even are associated
+ * with the color red (Rank-Even-Difference), and the child that a red edge
+ * points to is called a red child.
+ *
+ * Every operation on a rank-balanced tree is bounded as O(lg n).
+ * The maximum height of a rank-balanced tree is 2lg (n+1).
  */
 
 #define SPLAY_HEAD(name, type)						\
@@ -294,7 +303,7 @@ void name##_SPLAY_MINMAX(struct name *head, int __comp) \
 	     (x) != NULL;						\
 	     (x) = SPLAY_NEXT(name, head, x))
 
-/* Macros that define a red-black tree */
+/* Macros that define a rank-balanced tree */
 #define RB_HEAD(name, type)						\
 struct name {								\
 	struct type *rbh_root; /* root of the tree */			\
@@ -325,25 +334,16 @@ struct {								\
  * that the left or right child of the tree node is "red".
  */
 #define RB_UP(elm, field)		(elm)->field.rbe_parent
-#define RB_BITS(elm, field)		*(__uintptr_t *)&RB_UP(elm, field)
-#define RB_RED_L			(__uintptr_t)1
-#define RB_RED_R			(__uintptr_t)2
-#define RB_RED_MASK			(__uintptr_t)3
+#define RB_BITS(elm, field)		(*(__uintptr_t *)&RB_UP(elm, field))
+#define RB_RED_L			((__uintptr_t)1)
+#define RB_RED_R			((__uintptr_t)2)
+#define RB_RED_MASK			((__uintptr_t)3)
 #define RB_FLIP_LEFT(elm, field)	(RB_BITS(elm, field) ^= RB_RED_L)
 #define RB_FLIP_RIGHT(elm, field)	(RB_BITS(elm, field) ^= RB_RED_R)
 #define RB_RED_LEFT(elm, field)		((RB_BITS(elm, field) & RB_RED_L) != 0)
 #define RB_RED_RIGHT(elm, field)	((RB_BITS(elm, field) & RB_RED_R) != 0)
 #define RB_PARENT(elm, field)		((__typeof(RB_UP(elm, field)))	\
 					 (RB_BITS(elm, field) & ~RB_RED_MASK))
-
-/*
- * This header may appear in user code where 'bool' is not defined,
- * so it defines its own boolean type to avoid breaking that code.
- */
-#define RB_BOOL				int
-#define RB_TRUE				1
-#define RB_FALSE			0
-
 #define RB_ROOT(head)			(head)->rbh_root
 #define RB_EMPTY(head)			(RB_ROOT(head) == NULL)
 
@@ -357,7 +357,7 @@ struct {								\
 	RB_LEFT(elm, field) = RB_RIGHT(elm, field) = NULL;		\
 } while (/*CONSTCOND*/ 0)
 
-#define RB_COLOR(elm, field)	(RB_PARENT(elm, field) == NULL ? RB_FALSE : \
+#define RB_COLOR(elm, field)	(RB_PARENT(elm, field) == NULL ? 0 :	\
 				RB_LEFT(RB_PARENT(elm, field), field) == elm ? \
 				RB_RED_LEFT(RB_PARENT(elm, field), field) : \
 				RB_RED_RIGHT(RB_PARENT(elm, field), field))
@@ -422,7 +422,8 @@ struct {								\
 #define RB_PROTOTYPE_INSERT_COLOR(name, type, attr)			\
 	attr void name##_RB_INSERT_COLOR(struct name *, struct type *)
 #define RB_PROTOTYPE_REMOVE_COLOR(name, type, attr)			\
-	attr void name##_RB_REMOVE_COLOR(struct name *, struct type *)
+	attr void name##_RB_REMOVE_COLOR(struct name *,			\
+	    struct type *, struct type *)
 #define RB_PROTOTYPE_REMOVE(name, type, attr)				\
 	attr struct type *name##_RB_REMOVE(struct name *, struct type *)
 #define RB_PROTOTYPE_INSERT(name, type, attr)				\
@@ -464,123 +465,132 @@ struct {								\
 attr void								\
 name##_RB_INSERT_COLOR(struct name *head, struct type *elm)		\
 {									\
-	struct type *gparent, *parent;					\
+	struct type *child, *parent;					\
 	while ((parent = RB_PARENT(elm, field)) != NULL) {		\
-		if (RB_LEFT(parent, field) == elm)			\
-			RB_FLIP_LEFT(parent, field);			\
-		else							\
-			RB_FLIP_RIGHT(parent, field);			\
-		if ((gparent = RB_PARENT(parent, field)) == NULL)	\
-			break;						\
-		if (RB_RED_LEFT(gparent, field) &&			\
-		    RB_RED_RIGHT(gparent, field)) {			\
-			RB_FLIP_LEFT(gparent, field);			\
-			RB_FLIP_RIGHT(gparent, field);			\
-			elm = gparent;					\
-			continue;					\
-		}							\
-		if (RB_RED_LEFT(gparent, field) &&			\
-		    parent == RB_LEFT(gparent, field)) { 		\
-			if (RB_RIGHT(parent, field) == elm) {		\
-				RB_ROTATE_LEFT(head, parent, elm, field);\
-				RB_FLIP_RIGHT(parent, field);		\
-				RB_FLIP_LEFT(elm, field);		\
-				parent = elm;				\
-			}						\
-			RB_ROTATE_RIGHT(head, gparent, parent, field);	\
-			RB_FLIP_LEFT(gparent, field);			\
-			RB_FLIP_RIGHT(parent, field);			\
-		} else if (RB_RED_RIGHT(gparent, field) &&		\
-		    parent == RB_RIGHT(gparent, field)) {		\
-			if (RB_LEFT(parent, field) == elm) {		\
-				RB_ROTATE_RIGHT(head, parent, elm, field);\
+		if (RB_LEFT(parent, field) == elm) {			\
+			if (RB_RED_LEFT(parent, field)) {		\
 				RB_FLIP_LEFT(parent, field);		\
-				RB_FLIP_RIGHT(elm, field);		\
-				parent = elm;				\
+				return;					\
 			}						\
-			RB_ROTATE_LEFT(head, gparent, parent, field);	\
-			RB_FLIP_RIGHT(gparent, field);			\
+			RB_FLIP_RIGHT(parent, field);			\
+			if (RB_RED_RIGHT(parent, field)) {		\
+				elm = parent;				\
+				continue;				\
+			}						\
+			if (!RB_RED_RIGHT(elm, field)) {		\
+				RB_FLIP_LEFT(elm, field);		\
+				RB_ROTATE_LEFT(head, elm, child, field);\
+				if (RB_RED_LEFT(child, field))		\
+					RB_FLIP_RIGHT(elm, field);	\
+				else if (RB_RED_RIGHT(child, field))	\
+					RB_FLIP_LEFT(parent, field);	\
+				elm = child;				\
+			}						\
+			RB_ROTATE_RIGHT(head, parent, elm, field);	\
+		} else {						\
+			if (RB_RED_RIGHT(parent, field)) {		\
+				RB_FLIP_RIGHT(parent, field);		\
+				return;					\
+			}						\
 			RB_FLIP_LEFT(parent, field);			\
+			if (RB_RED_LEFT(parent, field)) {		\
+				elm = parent;				\
+				continue;				\
+			}						\
+			if (!RB_RED_LEFT(elm, field)) {			\
+				RB_FLIP_RIGHT(elm, field);		\
+				RB_ROTATE_RIGHT(head, elm, child, field);\
+				if (RB_RED_RIGHT(child, field))		\
+					RB_FLIP_LEFT(elm, field);	\
+				else if (RB_RED_LEFT(child, field))	\
+					RB_FLIP_RIGHT(parent, field);	\
+				elm = child;				\
+			}						\
+			RB_ROTATE_LEFT(head, parent, elm, field);	\
 		}							\
+		RB_BITS(elm, field) &= ~RB_RED_MASK;			\
 		break;							\
 	}								\
 }
 
 #define RB_GENERATE_REMOVE_COLOR(name, type, field, attr)		\
 attr void								\
-name##_RB_REMOVE_COLOR(struct name *head, struct type *par)		\
+name##_RB_REMOVE_COLOR(struct name *head,				\
+    struct type *parent, struct type *elm)				\
 {									\
-	struct type *gpr, *sib, *nec;					\
-	RB_BOOL left_elm, left_par, red_gpr;				\
-	left_par = (RB_LEFT(par, field) == NULL);			\
-	do {								\
-		left_elm = left_par;					\
-		if (left_elm ?						\
-		    !RB_RED_RIGHT(par, field) :				\
-		    !RB_RED_LEFT(par, field)) {				\
-			gpr = RB_PARENT(par, field);			\
-			left_par = gpr != NULL &&			\
-			    RB_LEFT(gpr, field) == par;			\
-			red_gpr = gpr == NULL ?				\
-				RB_TRUE: RB_COLOR(par, field);		\
-		}							\
-		if (left_elm) {						\
-			if (RB_RED_RIGHT(par, field)) {			\
-				red_gpr = RB_TRUE;			\
-				RB_ROTATE_LEFT(head, par, gpr, field);	\
-				RB_FLIP_RIGHT(par, field);		\
-				RB_FLIP_LEFT(gpr, field);		\
+	struct type *sib;						\
+	if (RB_LEFT(parent, field) == elm &&				\
+	    RB_RIGHT(parent, field) == elm) {				\
+		RB_BITS(parent, field) &= ~RB_RED_MASK;			\
+		elm = parent;						\
+		parent = RB_PARENT(elm, field);				\
+		if (parent == NULL)					\
+			return;						\
+	}								\
+	do  {								\
+		if (RB_LEFT(parent, field) == elm) {			\
+			if (!RB_RED_LEFT(parent, field)) {		\
+				RB_FLIP_LEFT(parent, field);		\
+				return;					\
 			}						\
-			sib = RB_RIGHT(par, field);			\
-			if (RB_RED_RIGHT(sib, field)) {			\
-				if (RB_RED_LEFT(sib, field)) {		\
+			if (RB_RED_RIGHT(parent, field)) {		\
+				RB_FLIP_RIGHT(parent, field);		\
+				elm = parent;				\
+				continue;				\
+			}						\
+			sib = RB_RIGHT(parent, field);			\
+			if ((~RB_BITS(sib, field) & RB_RED_MASK) == 0) {\
+				RB_BITS(sib, field) &= ~RB_RED_MASK;	\
+				elm = parent;				\
+				continue;				\
+			}						\
+			RB_FLIP_RIGHT(sib, field);			\
+			if (RB_RED_LEFT(sib, field))			\
+				RB_FLIP_LEFT(parent, field);		\
+			else if (!RB_RED_RIGHT(sib, field)) {		\
+				RB_FLIP_LEFT(parent, field);		\
+				RB_ROTATE_RIGHT(head, sib, elm, field);	\
+				if (RB_RED_RIGHT(elm, field))		\
 					RB_FLIP_LEFT(sib, field);	\
-					RB_FLIP_RIGHT(par, field);	\
-				}					\
-				RB_FLIP_RIGHT(sib, field);		\
-			} else if (RB_RED_LEFT(sib, field)) {		\
-				RB_ROTATE_RIGHT(head, sib, nec, field);	\
-				RB_FLIP_LEFT(sib, field);		\
-				sib = nec;				\
-			} else {					\
-				RB_FLIP_RIGHT(par, field);		\
-				par = gpr;				\
-				continue;				\
+				if (RB_RED_LEFT(elm, field))		\
+					RB_FLIP_RIGHT(parent, field);	\
+				RB_BITS(elm, field) |= RB_RED_MASK;	\
+				sib = elm;				\
 			}						\
-			RB_ROTATE_LEFT(head, par, sib, field);		\
-			return;						\
+			RB_ROTATE_LEFT(head, parent, sib, field);	\
 		} else {						\
-			if (RB_RED_LEFT(par, field)) {			\
-				red_gpr = RB_TRUE;			\
-				RB_ROTATE_RIGHT(head, par, gpr, field); \
-				RB_FLIP_LEFT(par, field);		\
-				RB_FLIP_RIGHT(gpr, field);		\
+			if (!RB_RED_RIGHT(parent, field)) {		\
+				RB_FLIP_RIGHT(parent, field);		\
+				return;					\
 			}						\
-			sib = RB_LEFT(par, field);			\
-			if (RB_RED_LEFT(sib, field)) {			\
-				if (RB_RED_RIGHT(sib, field)) {		\
-					RB_FLIP_RIGHT(sib, field);	\
-					RB_FLIP_LEFT(par, field);	\
-				}					\
-				RB_FLIP_LEFT(sib, field);		\
-			} else if (RB_RED_RIGHT(sib, field)) {		\
-				RB_ROTATE_LEFT(head, sib, nec, field);	\
-				RB_FLIP_RIGHT(sib, field);		\
-				sib = nec;				\
-			} else {					\
-				RB_FLIP_LEFT(par, field);		\
-				par = gpr;				\
+			if (RB_RED_LEFT(parent, field)) {		\
+				RB_FLIP_LEFT(parent, field);		\
+				elm = parent;				\
 				continue;				\
 			}						\
-			RB_ROTATE_RIGHT(head, par, sib, field);		\
-			return;						\
+			sib = RB_LEFT(parent, field);			\
+			if ((~RB_BITS(sib, field) & RB_RED_MASK) == 0) {\
+				RB_BITS(sib, field) &= ~RB_RED_MASK;	\
+				elm = parent;				\
+				continue;				\
+			}						\
+			RB_FLIP_LEFT(sib, field);			\
+			if (RB_RED_RIGHT(sib, field))			\
+				RB_FLIP_RIGHT(parent, field);		\
+			else if (!RB_RED_LEFT(sib, field)) {		\
+				RB_FLIP_RIGHT(parent, field);		\
+				RB_ROTATE_LEFT(head, sib, elm, field);	\
+				if (RB_RED_LEFT(elm, field))		\
+					RB_FLIP_RIGHT(sib, field);	\
+				if (RB_RED_RIGHT(elm, field))		\
+					RB_FLIP_LEFT(parent, field);	\
+				RB_BITS(elm, field) |= RB_RED_MASK;	\
+				sib = elm;				\
+			}						\
+			RB_ROTATE_RIGHT(head, parent, sib, field);	\
 		}							\
-	} while (!red_gpr);						\
-	if (gpr == NULL);						\
-	else if (left_par)						\
-		RB_FLIP_LEFT(gpr, field);				\
-	else								\
-		RB_FLIP_RIGHT(gpr, field);				\
+		break;							\
+	} while ((parent = RB_PARENT(elm, field)) != NULL);		\
 }
 
 #define RB_GENERATE_REMOVE(name, type, field, attr)			\
@@ -588,7 +598,6 @@ attr struct type *							\
 name##_RB_REMOVE(struct name *head, struct type *elm)			\
 {									\
 	struct type *child, *old, *parent, *right;			\
-	RB_BOOL red;							\
 									\
 	old = elm;							\
 	parent = RB_PARENT(elm, field);					\
@@ -600,9 +609,6 @@ name##_RB_REMOVE(struct name *head, struct type *elm)			\
 	else {								\
 		if ((child = RB_LEFT(right, field)) == NULL) {		\
 			child = RB_RIGHT(right, field);			\
-			red = RB_RED_RIGHT(old, field);			\
-			if (red)					\
-				RB_FLIP_RIGHT(old, field);		\
 			RB_RIGHT(old, field) = child;			\
 			parent = elm = right;				\
 		} else {						\
@@ -611,28 +617,17 @@ name##_RB_REMOVE(struct name *head, struct type *elm)			\
 			while ((child = RB_LEFT(elm, field)) != NULL);	\
 			child = RB_RIGHT(elm, field);			\
 			parent = RB_PARENT(elm, field);			\
-			red = RB_RED_LEFT(parent, field);		\
-			if (red)					\
-				RB_FLIP_LEFT(parent, field);		\
 			RB_LEFT(parent, field) = child;			\
-			RB_SET_PARENT(RB_RIGHT(old, field), elm, field); \
+			RB_SET_PARENT(RB_RIGHT(old, field), elm, field);\
 		}							\
 		RB_SET_PARENT(RB_LEFT(old, field), elm, field);		\
 		elm->field = old->field;				\
 	}								\
-	if (elm == child) {						\
-		red = RB_COLOR(old, field);				\
-		if (!red);						\
-		else if (RB_LEFT(parent, field) == old)			\
-			RB_FLIP_LEFT(parent, field);			\
-		else							\
-			RB_FLIP_RIGHT(parent, field);			\
-	}								\
 	RB_SWAP_CHILD(head, old, elm, field);				\
 	if (child != NULL)						\
 		RB_SET_PARENT(child, parent, field);			\
-	else if (!red && parent != NULL)				\
-		name##_RB_REMOVE_COLOR(head, parent);			\
+	if (parent != NULL)						\
+		name##_RB_REMOVE_COLOR(head, parent, child);		\
 	while (parent != NULL) {					\
 		RB_AUGMENT(parent);					\
 		parent = RB_PARENT(parent, field);			\

@@ -188,6 +188,10 @@ cpu_mp_start(void)
 	setidt(IPI_SUSPEND, IDTVEC(cpususpend),
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
+	/* Install an IPI for calling delayed SWI */
+	setidt(IPI_SWI, IDTVEC(ipi_swi),
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
 		boot_cpu_id = PCPU_GET(apic_id);
@@ -536,13 +540,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, pmap_t pmap,
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
 		other_cpus = mask;
-		while ((cpu = CPU_FFS(&mask)) != 0) {
-			cpu--;
-			CPU_CLR(cpu, &mask);
-			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__,
-			    cpu, vector);
-			ipi_send_cpu(cpu, vector);
-		}
+		ipi_selected(mask, vector);
 	}
 	curcpu_cb(pmap, addr1, addr2);
 	while ((cpu = CPU_FFS(&other_cpus)) != 0) {

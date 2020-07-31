@@ -54,8 +54,6 @@
 /* My hook names */
 #define NG_IFACE_HOOK_INET		"inet"
 #define NG_IFACE_HOOK_INET6		"inet6"
-#define NG_IFACE_HOOK_ATM		"atm"
-#define NG_IFACE_HOOK_NATM		"natm"
 
 /* MTU bounds */
 #define NG_IFACE_MTU_MIN		72

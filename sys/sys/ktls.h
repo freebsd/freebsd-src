@@ -163,7 +163,7 @@ struct tls_session_params {
 #define	KTLS_TX		1
 #define	KTLS_RX		2
 
-#define	KTLS_API_VERSION 6
+#define	KTLS_API_VERSION 7
 
 struct iovec;
 struct ktls_session;
@@ -174,7 +174,7 @@ struct socket;
 
 struct ktls_crypto_backend {
 	LIST_ENTRY(ktls_crypto_backend) next;
-	int (*try)(struct socket *so, struct ktls_session *tls);
+	int (*try)(struct socket *so, struct ktls_session *tls, int direction);
 	int prio;
 	int api_version;
 	int use_count;
@@ -182,10 +182,15 @@ struct ktls_crypto_backend {
 };
 
 struct ktls_session {
-	int	(*sw_encrypt)(struct ktls_session *tls,
-	    const struct tls_record_layer *hdr, uint8_t *trailer,
-	    struct iovec *src, struct iovec *dst, int iovcnt,
-	    uint64_t seqno, uint8_t record_type);
+	union {
+		int	(*sw_encrypt)(struct ktls_session *tls,
+		    const struct tls_record_layer *hdr, uint8_t *trailer,
+		    struct iovec *src, struct iovec *dst, int iovcnt,
+		    uint64_t seqno, uint8_t record_type);
+		int	(*sw_decrypt)(struct ktls_session *tls,
+		    const struct tls_record_layer *hdr, struct mbuf *m,
+		    uint64_t seqno, int *trailer_len);
+	};
 	union {
 		void *cipher;
 		struct m_snd_tag *snd_tag;
@@ -202,6 +207,7 @@ struct ktls_session {
 	bool reset_pending;
 } __aligned(CACHE_LINE_SIZE);
 
+void ktls_check_rx(struct sockbuf *sb);
 int ktls_crypto_backend_register(struct ktls_crypto_backend *be);
 int ktls_crypto_backend_deregister(struct ktls_crypto_backend *be);
 int ktls_enable_rx(struct socket *so, struct tls_enable *en);

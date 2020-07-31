@@ -749,11 +749,6 @@ AcpiUtUpdateObjectReference (
             NextObject = Object->BufferField.BufferObj;
             break;
 
-        case ACPI_TYPE_LOCAL_REGION_FIELD:
-
-            NextObject = Object->Field.RegionObj;
-            break;
-
         case ACPI_TYPE_LOCAL_BANK_FIELD:
 
             NextObject = Object->BankField.BankObj;
@@ -789,6 +784,7 @@ AcpiUtUpdateObjectReference (
             }
             break;
 
+        case ACPI_TYPE_LOCAL_REGION_FIELD:
         case ACPI_TYPE_REGION:
         default:
 

@@ -76,6 +76,7 @@ static driver_filter_t xen_invlcache;
 static driver_filter_t xen_ipi_bitmap_handler;
 static driver_filter_t xen_cpustop_handler;
 static driver_filter_t xen_cpususpend_handler;
+static driver_filter_t xen_ipi_swi_handler;
 #endif
 
 /*---------------------------------- Macros ----------------------------------*/
@@ -103,6 +104,7 @@ static struct xen_ipi_handler xen_ipis[] =
 	[IPI_TO_IDX(IPI_BITMAP_VECTOR)] = { xen_ipi_bitmap_handler,	"b"   },
 	[IPI_TO_IDX(IPI_STOP)]		= { xen_cpustop_handler,	"st"  },
 	[IPI_TO_IDX(IPI_SUSPEND)]	= { xen_cpususpend_handler,	"sp"  },
+	[IPI_TO_IDX(IPI_SWI)]		= { xen_ipi_swi_handler,	"sw"  },
 };
 #endif
 
@@ -519,6 +521,15 @@ xen_cpususpend_handler(void *arg)
 {
 
 	cpususpend_handler();
+	return (FILTER_HANDLED);
+}
+
+static int
+xen_ipi_swi_handler(void *arg)
+{
+	struct trapframe *frame = arg;
+
+	ipi_swi_handler(*frame);
 	return (FILTER_HANDLED);
 }
 

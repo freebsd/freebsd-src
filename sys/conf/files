@@ -754,6 +754,7 @@ dev/acpica/Osd/OsdSynch.c	optional acpi
 dev/acpica/Osd/OsdTable.c	optional acpi
 dev/acpica/acpi.c		optional acpi
 dev/acpica/acpi_acad.c		optional acpi
+dev/acpica/acpi_apei.c		optional acpi
 dev/acpica/acpi_battery.c	optional acpi
 dev/acpica/acpi_button.c	optional acpi
 dev/acpica/acpi_cmbat.c		optional acpi
@@ -1540,9 +1541,6 @@ t6fw.fw			optional cxgbe					\
 	clean		"t6fw.fw"
 dev/cxgbe/crypto/t4_crypto.c	optional ccr \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
-dev/cy/cy.c			optional cy
-dev/cy/cy_isa.c			optional cy isa
-dev/cy/cy_pci.c			optional cy pci
 dev/cyapa/cyapa.c		optional cyapa iicbus
 dev/dc/if_dc.c			optional dc pci
 dev/dc/dcphy.c			optional dc pci
@@ -1640,6 +1638,10 @@ dev/e1000/e1000_osdep.c		optional em \
 dev/et/if_et.c			optional et
 dev/ena/ena.c			optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
+dev/ena/ena_datapath.c		optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
+dev/ena/ena_netmap.c		optional ena \
+	compile-with "${NORMAL_C} -I$S/contrib"
 dev/ena/ena_sysctl.c 		optional ena \
 	compile-with "${NORMAL_C} -I$S/contrib"
 contrib/ena-com/ena_com.c	optional ena
@@ -1702,6 +1704,7 @@ dev/extres/regulator/regulator_fixed.c	optional ext_resources regulator fdt
 dev/extres/syscon/syscon.c		optional ext_resources syscon
 dev/extres/syscon/syscon_generic.c	optional ext_resources syscon fdt
 dev/extres/syscon/syscon_if.m		optional ext_resources syscon
+dev/extres/syscon/syscon_power.c	optional ext_resources syscon syscon_power fdt
 dev/fb/fbd.c			optional fbd | vt
 dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
@@ -1736,6 +1739,7 @@ dev/fxp/if_fxp.c		optional fxp
 dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
+dev/goldfish/goldfish_rtc.c	optional goldfish_rtc fdt
 dev/gpio/dwgpio/dwgpio.c	optional gpio dwgpio fdt
 dev/gpio/dwgpio/dwgpio_bus.c	optional gpio dwgpio fdt
 dev/gpio/dwgpio/dwgpio_if.m	optional gpio dwgpio fdt
@@ -2768,14 +2772,10 @@ dev/random/random_harvestq.c	standard
 dev/random/randomdev.c		optional !random_loadable
 dev/random/fortuna.c		optional !random_loadable
 dev/random/hash.c		optional !random_loadable
-dev/rc/rc.c			optional rc
 dev/rccgpio/rccgpio.c		optional rccgpio gpio
 dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
-dev/rp/rp.c			optional rp
-dev/rp/rp_isa.c			optional rp isa
-dev/rp/rp_pci.c			optional rp pci
 #
 dev/rtwn/if_rtwn.c		optional rtwn
 dev/rtwn/if_rtwn_beacon.c	optional rtwn
@@ -3026,6 +3026,7 @@ dev/smbus/smbconf.c		optional smbus
 dev/smbus/smbus.c		optional smbus
 dev/smbus/smbus_if.m		optional smbus
 dev/smc/if_smc.c		optional smc
+dev/smc/if_smc_acpi.c		optional smc acpi
 dev/smc/if_smc_fdt.c		optional smc fdt
 dev/snp/snp.c			optional snp
 dev/sound/clone.c		optional sound

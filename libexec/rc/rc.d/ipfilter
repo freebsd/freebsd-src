@@ -5,7 +5,7 @@
 
 # PROVIDE: ipfilter
 # REQUIRE: FILESYSTEMS
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 

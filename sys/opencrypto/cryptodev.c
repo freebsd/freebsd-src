@@ -1315,11 +1315,7 @@ cryptodev_key(struct crypt_kop *kop)
 		return (EINVAL);
 	}
 
-	krp = (struct cryptkop *)malloc(sizeof *krp, M_XDATA, M_WAITOK|M_ZERO);
-	if (!krp) {
-		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-		return (ENOMEM);
-	}
+	krp = malloc(sizeof(*krp), M_XDATA, M_WAITOK | M_ZERO);
 	krp->krp_op = kop->crk_op;
 	krp->krp_status = kop->crk_status;
 	krp->krp_iparams = kop->crk_iparams;
