@@ -167,15 +167,6 @@ struct dmar_unit {
 	struct iommu_map_entries_tailq tlb_flush_entries;
 	struct task qi_task;
 	struct taskqueue *qi_taskqueue;
-
-	/*
-	 * Bitmap of buses for which context must ignore slot:func,
-	 * duplicating the page table pointer into all context table
-	 * entries.  This is a client-controlled quirk to support some
-	 * NTBs.
-	 */
-	uint32_t buswide_ctxs[(PCI_BUSMAX + 1) / NBBY / sizeof(uint32_t)];
-
 };
 
 #define	DMAR_LOCK(dmar)		mtx_lock(&(dmar)->iommu.lock)
@@ -289,9 +280,6 @@ void dmar_quirks_pre_use(struct iommu_unit *dmar);
 
 int dmar_init_irt(struct dmar_unit *unit);
 void dmar_fini_irt(struct dmar_unit *unit);
-
-void dmar_set_buswide_ctx(struct iommu_unit *unit, u_int busno);
-bool dmar_is_buswide_ctx(struct dmar_unit *unit, u_int busno);
 
 extern iommu_haddr_t dmar_high;
 extern int haw;

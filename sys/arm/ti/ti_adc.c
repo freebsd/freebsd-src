@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/evdev/evdev.h>
 #endif
 
-#include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_sysc.h>
 #include <arm/ti/ti_adcreg.h>
 #include <arm/ti/ti_adcvar.h>
 
@@ -824,7 +824,7 @@ ti_adc_attach(device_t dev)
 	}
 
 	/* Activate the ADC_TSC module. */
-	err = ti_prcm_clk_enable(TSC_ADC_CLK);
+	err = ti_sysc_clock_enable(device_get_parent(dev));
 	if (err)
 		return (err);
 
@@ -846,7 +846,7 @@ ti_adc_attach(device_t dev)
 	}
 
 	/* Check the ADC revision. */
-	rev = ADC_READ4(sc, ADC_REVISION);
+	rev = ADC_READ4(sc, ti_sysc_get_rev_address_offset_host(device_get_parent(dev)));
 	device_printf(dev,
 	    "scheme: %#x func: %#x rtl: %d rev: %d.%d custom rev: %d\n",
 	    (rev & ADC_REV_SCHEME_MSK) >> ADC_REV_SCHEME_SHIFT,
@@ -964,6 +964,7 @@ static devclass_t ti_adc_devclass;
 DRIVER_MODULE(ti_adc, simplebus, ti_adc_driver, ti_adc_devclass, 0, 0);
 MODULE_VERSION(ti_adc, 1);
 MODULE_DEPEND(ti_adc, simplebus, 1, 1, 1);
+MODULE_DEPEND(ti_adc, ti_sysc, 1, 1, 1);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(ti_adc, evdev, 1, 1, 1);
 #endif

@@ -66,9 +66,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/ti_scm.h>
 #include <arm/ti/am335x/am335x_scm.h>
+#include <arm/ti/ti_sysc.h>
+#include <dev/extres/clk/clk.h>
+#include <dev/extres/syscon/syscon.h>
+#include "syscon_if.h"
 
 #define USBCTRL_REV		0x00
 #define USBCTRL_CTRL		0x14
@@ -130,6 +132,7 @@ struct musbotg_super_softc {
 	struct musbotg_softc	sc_otg;
 	struct resource		*sc_mem_res[2];
 	int			sc_irq_rid;
+	struct syscon		*syscon;
 };
 
 static void
@@ -155,30 +158,33 @@ static void
 musbotg_clocks_on(void *arg)
 {
 	struct musbotg_softc *sc;
-	uint32_t c, reg;
+	struct musbotg_super_softc *ssc;
+	uint32_t reg;
 
 	sc = arg;
-        reg = USB_CTRL[sc->sc_id];
+	ssc = sc->sc_platform_data;
 
-	ti_scm_reg_read_4(reg, &c);
-	c &= ~3; /* Enable power */
-	c |= 1 << 19; /* VBUS detect enable */
-	c |= 1 << 20; /* Session end enable */
-	ti_scm_reg_write_4(reg, c);
+	reg = SYSCON_READ_4(ssc->syscon, USB_CTRL[sc->sc_id]);
+	reg &= ~3; /* Enable power */
+	reg |= 1 << 19; /* VBUS detect enable */
+	reg |= 1 << 20; /* Session end enable */
+
+	SYSCON_WRITE_4(ssc->syscon, USB_CTRL[sc->sc_id], reg);
 }
 
 static void
 musbotg_clocks_off(void *arg)
 {
 	struct musbotg_softc *sc;
-	uint32_t c, reg;
+	struct musbotg_super_softc *ssc;
+	uint32_t reg;
 
 	sc = arg;
-        reg = USB_CTRL[sc->sc_id];
+	ssc = sc->sc_platform_data;
 
 	/* Disable power to PHY */
-	ti_scm_reg_read_4(reg, &c);
-	ti_scm_reg_write_4(reg, c | 3);
+	reg = SYSCON_READ_4(ssc->syscon, USB_CTRL[sc->sc_id]);
+	SYSCON_WRITE_4(ssc->syscon, USB_CTRL[sc->sc_id], reg | 3);
 }
 
 static void
@@ -241,8 +247,41 @@ musbotg_attach(device_t dev)
 	char mode[16];
 	int err;
 	uint32_t reg;
+	phandle_t opp_table;
+	clk_t clk_usbotg_fck;
 
 	sc->sc_otg.sc_id = device_get_unit(dev);
+
+	/* FIXME: The devicetree needs to be updated to get a handle to the gate
+	 * usbotg_fck@47c. see TRM 8.1.12.2 CM_WKUP CM_CLKDCOLDO_DPLL_PER.
+	 */
+	err = clk_get_by_name(dev, "usbotg_fck@47c", &clk_usbotg_fck);
+	if (err) {
+		device_printf(dev, "Can not find usbotg_fck@47c\n");
+		return (ENXIO);
+	}
+
+	err = clk_enable(clk_usbotg_fck);
+	if (err) {
+		device_printf(dev, "Can not enable usbotg_fck@47c\n");
+		return (ENXIO);
+	}
+
+	/* FIXME: For now; Go and kidnap syscon from opp-table */
+	opp_table = OF_finddevice("/opp-table");
+	if (opp_table == -1) {
+		device_printf(dev, "Cant find /opp-table\n");
+		return (ENXIO);
+	}
+	if (!OF_hasprop(opp_table, "syscon")) {
+		device_printf(dev, "/opp-table missing syscon property\n");
+		return (ENXIO);
+	}
+	err = syscon_get_by_ofw_property(dev, opp_table, "syscon", &sc->syscon);
+	if (err) {
+		device_printf(dev, "Failed to get syscon\n");
+		return (ENXIO);
+	}
 
 	/* Request the memory resources */
 	err = bus_alloc_resources(dev, am335x_musbotg_mem_spec,
@@ -417,5 +456,7 @@ static driver_t musbotg_driver = {
 
 static devclass_t musbotg_devclass;
 
-DRIVER_MODULE(musbotg, usbss, musbotg_driver, musbotg_devclass, 0, 0);
-MODULE_DEPEND(musbotg, usbss, 1, 1, 1);
+DRIVER_MODULE(musbotg, ti_sysc, musbotg_driver, musbotg_devclass, 0, 0);
+MODULE_DEPEND(musbotg, ti_sysc, 1, 1, 1);
+MODULE_DEPEND(musbotg, ti_am3359_cppi41, 1, 1, 1);
+MODULE_DEPEND(usbss, usb, 1, 1, 1);

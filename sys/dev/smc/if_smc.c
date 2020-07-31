@@ -80,6 +80,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
+#include "miibus_if.h"
+
 #define	SMC_LOCK(sc)		mtx_lock(&(sc)->smc_mtx)
 #define	SMC_UNLOCK(sc)		mtx_unlock(&(sc)->smc_mtx)
 #define	SMC_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->smc_mtx, MA_OWNED)
@@ -479,6 +481,27 @@ smc_detach(device_t dev)
 
 	return (0);
 }
+
+static device_method_t smc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_attach,	smc_attach),
+	DEVMETHOD(device_detach,	smc_detach),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	smc_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	smc_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	smc_miibus_statchg),
+
+	{ 0, 0 }
+};
+
+driver_t smc_driver = {
+	"smc",
+	smc_methods,
+	sizeof(struct smc_softc),
+};
+
+DRIVER_MODULE(miibus, smc, miibus_driver, miibus_devclass, 0, 0);
 
 static void
 smc_start(struct ifnet *ifp)

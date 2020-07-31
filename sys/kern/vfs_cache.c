@@ -419,7 +419,6 @@ STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
 STATNODE_COUNTER(numdrops, "Number of dropped entries due to reaching the limit");
 STATNODE_COUNTER(dothits, "Number of '.' hits");
 STATNODE_COUNTER(dotdothits, "Number of '..' hits");
-STATNODE_COUNTER(numchecks, "Number of checks in lookup");
 STATNODE_COUNTER(nummiss, "Number of cache misses");
 STATNODE_COUNTER(nummisszap, "Number of cache misses we do not want to cache");
 STATNODE_COUNTER(numposzaps,
@@ -807,6 +806,15 @@ cache_negative_remove(struct namecache *ncp)
 	} else {
 		list_locked = true;
 		mtx_lock(&neglist->nl_lock);
+		/*
+		 * We may be racing against promotion in lockless lookup.
+		 */
+		if ((negstate->neg_flag & NEG_HOT) != 0) {
+			mtx_unlock(&neglist->nl_lock);
+			hot_locked = true;
+			mtx_lock(&ncneg_hot.nl_lock);
+			mtx_lock(&neglist->nl_lock);
+		}
 	}
 	if ((negstate->neg_flag & NEG_HOT) != 0) {
 		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
@@ -1306,7 +1314,6 @@ retry:
 	rw_wlock(blp);
 
 	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
@@ -1451,7 +1458,6 @@ retry_hashed:
 	}
 
 	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
@@ -3002,7 +3008,8 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 #define cache_fpl_handled(x, e)	cache_fpl_handled_impl((x), (e), __LINE__)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
-	(LOCKLEAF | FOLLOW | LOCKSHARED | SAVENAME | ISOPEN | AUDITVNODE1)
+	(LOCKLEAF | LOCKPARENT | WANTPARENT | FOLLOW | LOCKSHARED | SAVENAME | \
+	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
 
 static bool
 cache_can_fplookup(struct cache_fpl *fpl)
@@ -3060,6 +3067,103 @@ cache_fplookup_vnode_supported(struct vnode *vp)
 }
 
 /*
+ * Move a negative entry to the hot list.
+ *
+ * We have to take locks, but they may be contended and in the worst
+ * case we may need to go off CPU. We don't want to spin within the
+ * smr section and we can't block with it. Instead we are going to
+ * look up the entry again.
+ */
+static int __noinline
+cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
+    uint32_t hash)
+{
+	struct componentname *cnp;
+	struct namecache *ncp;
+	struct neglist *neglist;
+	struct negstate *negstate;
+	struct vnode *dvp;
+	u_char nc_flag;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+
+	if (!vhold_smr(dvp))
+		return (cache_fpl_aborted(fpl));
+
+	neglist = NCP2NEGLIST(oncp);
+	cache_fpl_smr_exit(fpl);
+
+	mtx_lock(&ncneg_hot.nl_lock);
+	mtx_lock(&neglist->nl_lock);
+	/*
+	 * For hash iteration.
+	 */
+	cache_fpl_smr_enter(fpl);
+
+	/*
+	 * Avoid all surprises by only succeeding if we got the same entry and
+	 * bailing completely otherwise.
+	 *
+	 * In particular at this point there can be a new ncp which matches the
+	 * search but hashes to a different neglist.
+	 */
+	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		if (ncp == oncp)
+			break;
+	}
+
+	/*
+	 * No match to begin with.
+	 */
+	if (__predict_false(ncp == NULL)) {
+		goto out_abort;
+	}
+
+	/*
+	 * The newly found entry may be something different...
+	 */
+	if (!(ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+	    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))) {
+		goto out_abort;
+	}
+
+	/*
+	 * ... and not even negative.
+	 */
+	nc_flag = atomic_load_char(&ncp->nc_flag);
+	if ((nc_flag & NCF_NEGATIVE) == 0) {
+		goto out_abort;
+	}
+
+	if (__predict_false(cache_ncp_invalid(ncp))) {
+		goto out_abort;
+	}
+
+	negstate = NCP2NEGSTATE(ncp);
+	if ((negstate->neg_flag & NEG_HOT) == 0) {
+		numhotneg++;
+		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
+		negstate->neg_flag |= NEG_HOT;
+	}
+
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+	counter_u64_add(numneghits, 1);
+	cache_fpl_smr_exit(fpl);
+	mtx_unlock(&neglist->nl_lock);
+	mtx_unlock(&ncneg_hot.nl_lock);
+	vdrop(dvp);
+	return (cache_fpl_handled(fpl, ENOENT));
+out_abort:
+	cache_fpl_smr_exit(fpl);
+	mtx_unlock(&neglist->nl_lock);
+	mtx_unlock(&ncneg_hot.nl_lock);
+	vdrop(dvp);
+	return (cache_fpl_aborted(fpl));
+}
+
+/*
  * The target vnode is not supported, prepare for the slow path to take over.
  */
 static int
@@ -3101,34 +3205,16 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 }
 
 static int
-cache_fplookup_final(struct cache_fpl *fpl)
+cache_fplookup_final_child(struct cache_fpl *fpl, enum vgetstate tvs)
 {
 	struct componentname *cnp;
-	enum vgetstate tvs;
-	struct vnode *dvp, *tvp;
-	seqc_t dvp_seqc, tvp_seqc;
+	struct vnode *tvp;
+	seqc_t tvp_seqc;
 	int error;
 
 	cnp = fpl->cnp;
-	dvp = fpl->dvp;
-	dvp_seqc = fpl->dvp_seqc;
 	tvp = fpl->tvp;
 	tvp_seqc = fpl->tvp_seqc;
-
-	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
-
-	tvs = vget_prep_smr(tvp);
-	if (tvs == VGET_NONE) {
-		return (cache_fpl_partial(fpl));
-	}
-
-	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
-		cache_fpl_smr_exit(fpl);
-		vget_abort(tvp, tvs);
-		return (cache_fpl_aborted(fpl));
-	}
-
-	cache_fpl_smr_exit(fpl);
 
 	if ((cnp->cn_flags & LOCKLEAF) != 0) {
 		error = vget_finish(tvp, cnp->cn_lkflags, tvs);
@@ -3148,6 +3234,107 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	}
 
 	return (cache_fpl_handled(fpl, 0));
+}
+
+static int __noinline
+cache_fplookup_final_withparent(struct cache_fpl *fpl)
+{
+	enum vgetstate dvs, tvs;
+	struct componentname *cnp;
+	struct vnode *dvp, *tvp;
+	seqc_t dvp_seqc, tvp_seqc;
+	int error;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
+	tvp = fpl->tvp;
+	tvp_seqc = fpl->tvp_seqc;
+
+	MPASS((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0);
+
+	/*
+	 * This is less efficient than it can be for simplicity.
+	 */
+	dvs = vget_prep_smr(dvp);
+	if (dvs == VGET_NONE) {
+		return (cache_fpl_aborted(fpl));
+	}
+	tvs = vget_prep_smr(tvp);
+	if (tvs == VGET_NONE) {
+		cache_fpl_smr_exit(fpl);
+		vget_abort(dvp, dvs);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	cache_fpl_smr_exit(fpl);
+
+	if ((cnp->cn_flags & LOCKPARENT) != 0) {
+		error = vget_finish(dvp, LK_EXCLUSIVE, dvs);
+		if (error != 0) {
+			vget_abort(tvp, tvs);
+			return (cache_fpl_aborted(fpl));
+		}
+	} else {
+		vget_finish_ref(dvp, dvs);
+	}
+
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+		vget_abort(tvp, tvs);
+		if ((cnp->cn_flags & LOCKPARENT) != 0)
+			vput(dvp);
+		else
+			vrele(dvp);
+		cache_fpl_aborted(fpl);
+		return (error);
+	}
+
+	error = cache_fplookup_final_child(fpl, tvs);
+	if (error != 0) {
+		MPASS(fpl->status == CACHE_FPL_STATUS_ABORTED);
+		if ((cnp->cn_flags & LOCKPARENT) != 0)
+			vput(dvp);
+		else
+			vrele(dvp);
+		return (error);
+	}
+
+	MPASS(fpl->status == CACHE_FPL_STATUS_HANDLED);
+	return (0);
+}
+
+static int
+cache_fplookup_final(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+	enum vgetstate tvs;
+	struct vnode *dvp, *tvp;
+	seqc_t dvp_seqc, tvp_seqc;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
+	tvp = fpl->tvp;
+	tvp_seqc = fpl->tvp_seqc;
+
+	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
+
+	if ((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0)
+		return (cache_fplookup_final_withparent(fpl));
+
+	tvs = vget_prep_smr(tvp);
+	if (tvs == VGET_NONE) {
+		return (cache_fpl_partial(fpl));
+	}
+
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+		cache_fpl_smr_exit(fpl);
+		vget_abort(tvp, tvs);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	cache_fpl_smr_exit(fpl);
+	return (cache_fplookup_final_child(fpl, tvs));
 }
 
 static int
@@ -3176,7 +3363,6 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 
 	CK_LIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		counter_u64_add(numchecks, 1);
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
 			break;
@@ -3203,12 +3389,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 			return (cache_fpl_partial(fpl));
 		}
 		if (!neg_hot) {
-			/*
-			 * TODO
-			 * Promoting to hot negative requires locks, thus is
-			 * left not yet supported for simplicity.
-			 */
-			return (cache_fpl_partial(fpl));
+			return (cache_fplookup_negative_promote(fpl, ncp, hash));
 		}
 		SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
 		    ncp->nc_name);

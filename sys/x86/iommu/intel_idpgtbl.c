@@ -58,15 +58,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
+#include <dev/pci/pcireg.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 #include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
 #include <dev/iommu/busdma_iommu.h>
-#include <dev/pci/pcireg.h>
+#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/intel_dmar.h>
 
 static int domain_unmap_buf_locked(struct dmar_domain *domain,

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <arm/broadcom/bcm2835/bcm2835_firmware.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
@@ -293,7 +294,8 @@ static driver_t bcm_mbox_driver = {
 
 static devclass_t bcm_mbox_devclass;
 
-DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0);
+EARLY_DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
 static void
 bcm2835_mbox_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
@@ -361,6 +363,16 @@ bcm2835_mbox_err(device_t dev, bus_addr_t msg_phys, uint32_t resp_phys,
 	tag = (struct bcm2835_mbox_tag_hdr *)(msg + 1);
 	last = (uint8_t *)msg + len;
 	for (idx = 0; tag->tag != 0; idx++) {
+		/*
+		 * When setting the GPIO config or state the firmware doesn't
+		 * set tag->val_len correctly.
+		 */
+		if ((tag->tag == BCM2835_FIRMWARE_TAG_SET_GPIO_CONFIG ||
+		     tag->tag == BCM2835_FIRMWARE_TAG_SET_GPIO_STATE) &&
+		    tag->val_len == 0) {
+			tag->val_len = BCM2835_MBOX_TAG_VAL_LEN_RESPONSE |
+			    tag->val_buf_size;
+		}
 		if ((tag->val_len & BCM2835_MBOX_TAG_VAL_LEN_RESPONSE) == 0) {
 			device_printf(dev, "tag %d response error\n", idx);
 			return (EIO);

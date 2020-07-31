@@ -168,13 +168,6 @@
    ignore HPN-related configuration options to avoid breaking existing
    configurations.
 
-9) AES-CBC
-
-   The AES-CBC ciphers were removed from the server-side proposal list
-   in 6.7p1 due to theoretical weaknesses and the availability of
-   superior ciphers (including AES-CTR and AES-GCM).  We have re-added
-   them for compatibility with third-party clients.
-
 
 
 This port was brought to you by (in no particular order) DARPA, NAI

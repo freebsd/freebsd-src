@@ -523,7 +523,7 @@ main_loop(void)
 		}
 		TAILQ_FOREACH(adhost, &adcfg->adc_hosts, adh_next) {
 			if (adhost->adh_role == ADIST_ROLE_SENDER) {
-				/* Only sender workers asks for connections. */
+				/* Only sender workers ask for connections. */
 				PJDLOG_ASSERT(adhost->adh_conn != NULL);
 				fd = proto_descriptor(adhost->adh_conn);
 				PJDLOG_ASSERT(fd >= 0);

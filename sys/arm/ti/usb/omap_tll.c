@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <arm/ti/ti_prcm.h>
+#include <arm/ti/ti_sysc.h>
 #include <arm/ti/usb/omap_usb.h>
 
 /*
@@ -212,7 +212,7 @@ omap_tll_init(struct omap_tll_softc *sc)
 	int ret = 0;
 
 	/* Enable the USB TLL */
-	ti_prcm_clk_enable(USBTLL_CLK);
+	ti_sysc_clock_enable(device_get_parent(sc->sc_dev));
 
 	/* Perform TLL soft reset, and wait until reset is complete */
 	omap_tll_write_4(sc, OMAP_USBTLL_SYSCONFIG, TLL_SYSCONFIG_SOFTRESET);
@@ -248,7 +248,7 @@ omap_tll_init(struct omap_tll_softc *sc)
 
 err_sys_status:
 	/* Disable the TLL clocks */
-	ti_prcm_clk_disable(USBTLL_CLK);
+	ti_sysc_clock_disable(device_get_parent(sc->sc_dev));
 
 	return(ret);
 }
@@ -273,7 +273,7 @@ omap_tll_disable(struct omap_tll_softc *sc)
 	}
 
 	/* Disable functional and interface clocks for the TLL and HOST modules */
-	ti_prcm_clk_disable(USBTLL_CLK);
+	ti_sysc_clock_disable(device_get_parent(sc->sc_dev));
 }
 
 static int

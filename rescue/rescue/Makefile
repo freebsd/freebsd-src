@@ -147,10 +147,6 @@ CRUNCH_ALIAS_bsdlabel= disklabel
 #CRUNCH_LIBS+= -lsmb
 .endif
 
-.if ${MACHINE_CPUARCH} == "sparc64"
-CRUNCH_PROGS_sbin+= bsdlabel sunlabel
-.endif
-
 .if ${MACHINE_CPUARCH} == "amd64"
 CRUNCH_PROGS_sbin+= bsdlabel fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel

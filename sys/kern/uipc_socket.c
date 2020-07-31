@@ -1965,12 +1965,17 @@ restart:
 		}
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-			if (m == NULL && so->so_rcv.sb_tlsdcc == 0 &&
+			if (m != NULL)
+				goto dontblock;
+#ifdef KERN_TLS
+			else if (so->so_rcv.sb_tlsdcc == 0 &&
 			    so->so_rcv.sb_tlscc == 0) {
+#else
+			else {
+#endif
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				goto release;
-			} else
-				goto dontblock;
+			}
 		}
 		for (; m != NULL; m = m->m_next)
 			if (m->m_type == MT_OOBDATA  || (m->m_flags & M_EOR)) {

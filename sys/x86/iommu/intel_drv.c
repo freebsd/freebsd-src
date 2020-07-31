@@ -54,11 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
-#include <machine/bus.h>
-#include <machine/pci_cfgreg.h>
-#include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/include/accommon.h>
-#include <dev/acpica/acpivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -66,11 +61,16 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_map.h>
-#include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
-#include <dev/iommu/busdma_iommu.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <machine/bus.h>
+#include <machine/pci_cfgreg.h>
+#include <x86/include/busdma_impl.h>
+#include <dev/iommu/busdma_iommu.h>
+#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/intel_dmar.h>
 
 #ifdef DEV_APIC
@@ -591,29 +591,6 @@ static driver_t	dmar_driver = {
 
 DRIVER_MODULE(dmar, acpi, dmar_driver, dmar_devclass, 0, 0);
 MODULE_DEPEND(dmar, acpi, 1, 1, 1);
-
-void
-dmar_set_buswide_ctx(struct iommu_unit *unit, u_int busno)
-{
-	struct dmar_unit *dmar;
-
-	dmar = (struct dmar_unit *)unit;
-
-	MPASS(busno <= PCI_BUSMAX);
-	DMAR_LOCK(dmar);
-	dmar->buswide_ctxs[busno / NBBY / sizeof(uint32_t)] |=
-	    1 << (busno % (NBBY * sizeof(uint32_t)));
-	DMAR_UNLOCK(dmar);
-}
-
-bool
-dmar_is_buswide_ctx(struct dmar_unit *unit, u_int busno)
-{
-
-	MPASS(busno <= PCI_BUSMAX);
-	return ((unit->buswide_ctxs[busno / NBBY / sizeof(uint32_t)] &
-	    (1U << (busno % (NBBY * sizeof(uint32_t))))) != 0);
-}
 
 static void
 dmar_print_path(int busno, int depth, const ACPI_DMAR_PCI_PATH *path)

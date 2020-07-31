@@ -74,7 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_types.h>
 
-#include <arm/ti/ti_scm.h>
+#include <dev/extres/syscon/syscon.h>
+#include "syscon_if.h"
 #include <arm/ti/am335x/am335x_scm.h>
 
 #include <dev/mii/mii.h>
@@ -1004,6 +1005,8 @@ cpswp_attach(device_t dev)
 	struct cpswp_softc *sc;
 	uint32_t reg;
 	uint8_t mac_addr[ETHER_ADDR_LEN];
+	phandle_t opp_table;
+	struct syscon *syscon;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1047,15 +1050,34 @@ cpswp_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
+	/* FIXME: For now; Go and kidnap syscon from opp-table */
+	/* ti,cpsw actually have an optional syscon reference but only for am33xx?? */
+	opp_table = OF_finddevice("/opp-table");
+	if (opp_table == -1) {
+		device_printf(dev, "Cant find /opp-table\n");
+		cpswp_detach(dev);
+		return (ENXIO);
+	}
+	if (!OF_hasprop(opp_table, "syscon")) {
+		device_printf(dev, "/opp-table doesnt have required syscon property\n");
+		cpswp_detach(dev);
+		return (ENXIO);
+	}
+	if (syscon_get_by_ofw_property(dev, opp_table, "syscon", &syscon) != 0) {
+		device_printf(dev, "Failed to get syscon\n");
+		cpswp_detach(dev);
+		return (ENXIO);
+	}
+
 	/* Get high part of MAC address from control module (mac_id[0|1]_hi) */
-	ti_scm_reg_read_4(SCM_MAC_ID0_HI + sc->unit * 8, &reg);
+	reg = SYSCON_READ_4(syscon, SCM_MAC_ID0_HI + sc->unit * 8);
 	mac_addr[0] = reg & 0xFF;
 	mac_addr[1] = (reg >>  8) & 0xFF;
 	mac_addr[2] = (reg >> 16) & 0xFF;
 	mac_addr[3] = (reg >> 24) & 0xFF;
 
 	/* Get low part of MAC address from control module (mac_id[0|1]_lo) */
-	ti_scm_reg_read_4(SCM_MAC_ID0_LO + sc->unit * 8, &reg);
+	reg = SYSCON_READ_4(syscon, SCM_MAC_ID0_LO + sc->unit * 8);
 	mac_addr[4] = reg & 0xFF;
 	mac_addr[5] = (reg >>  8) & 0xFF;
 

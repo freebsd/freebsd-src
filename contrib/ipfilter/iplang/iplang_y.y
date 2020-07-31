@@ -45,11 +45,6 @@
 #include "ipf.h"
 #include "iplang.h"
 
-#if !defined(__NetBSD__) && (!defined(__FreeBSD_version) && \
-    __FreeBSD_version < 400020) && (!SOLARIS || SOLARIS2 < 10)
-extern	struct ether_addr *ether_aton __P((char *));
-#endif
-
 extern	int	opts;
 extern	struct ipopt_names ionames[];
 extern	int	state, state, lineNum, token;
@@ -58,11 +53,7 @@ extern	char	yytext[];
 extern	FILE	*yyin;
 int	yylex	__P((void));
 #define	YYDEBUG 1
-#if !defined(ultrix) && !defined(hpux)
 int	yydebug = 1;
-#else
-extern	int	yydebug;
-#endif
 
 iface_t *iflist = NULL, **iftail = &iflist;
 iface_t *cifp = NULL;

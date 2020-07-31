@@ -40,11 +40,15 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_scm.h>
 
+#include <dev/extres/syscon/syscon.h>
+#include "syscon_if.h"
+
 #define	TZ_ZEROC	2731
 
 struct am335x_scm_softc {
 	int			sc_last_temp;
 	struct sysctl_oid	*sc_temp_oid;
+	struct syscon		*syscon;
 };
 
 static int
@@ -60,7 +64,7 @@ am335x_scm_temp_sysctl(SYSCTL_HANDLER_ARGS)
 
 	/* Read the temperature and convert to Kelvin. */
 	for(i = 50; i > 0; i--) {
-		ti_scm_reg_read_4(SCM_BGAP_CTRL, &reg);
+		reg = SYSCON_READ_4(sc->syscon, SCM_BGAP_CTRL);
 		if ((reg & SCM_BGAP_EOCZ) == 0)
 			break;
 		DELAY(50);
@@ -96,6 +100,9 @@ am335x_scm_identify(driver_t *driver, device_t parent)
 static int
 am335x_scm_probe(device_t dev)
 {
+	/* Just allow the first one */
+	if (strcmp(device_get_nameunit(dev), "am335x_scm0") != 0)
+		return (ENXIO);
 
 	device_set_desc(dev, "AM335x Control Module Extension");
 
@@ -109,21 +116,40 @@ am335x_scm_attach(device_t dev)
 	struct sysctl_ctx_list *ctx;
 	struct sysctl_oid_list *tree;
 	uint32_t reg;
+	phandle_t opp_table;
+	int err;
+
+	sc = device_get_softc(dev);
+
+	/* FIXME: For now; Go and kidnap syscon from opp-table */
+	opp_table = OF_finddevice("/opp-table");
+	if (opp_table == -1) {
+		device_printf(dev, "Cant find /opp-table\n");
+		return (ENXIO);
+	}
+	if (!OF_hasprop(opp_table, "syscon")) {
+		device_printf(dev, "/opp-table missing syscon property\n");
+		return (ENXIO);
+	}
+	err = syscon_get_by_ofw_property(dev, opp_table, "syscon", &sc->syscon);
+	if (err) {
+		device_printf(dev, "Failed to get syscon\n");
+		return (ENXIO);
+	}
 
 	/* Reset the digital outputs. */
-	ti_scm_reg_write_4(SCM_BGAP_CTRL, 0);
-	ti_scm_reg_read_4(SCM_BGAP_CTRL, &reg);
+	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, 0);
+	reg = SYSCON_READ_4(sc->syscon, SCM_BGAP_CTRL);
 	DELAY(500);
 	/* Set continous mode. */
-	ti_scm_reg_write_4(SCM_BGAP_CTRL, SCM_BGAP_CONTCONV);
-	ti_scm_reg_read_4(SCM_BGAP_CTRL, &reg);
+	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, SCM_BGAP_CONTCONV);
+	reg = SYSCON_READ_4(sc->syscon, SCM_BGAP_CTRL);
 	DELAY(500);
 	/* Start the ADC conversion. */
 	reg = SCM_BGAP_CLRZ | SCM_BGAP_CONTCONV | SCM_BGAP_SOC;
-	ti_scm_reg_write_4(SCM_BGAP_CTRL, reg);
+	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, reg);
 
 	/* Temperature sysctl. */
-	sc = device_get_softc(dev);
         ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	sc->sc_temp_oid = SYSCTL_ADD_PROC(ctx, tree, OID_AUTO,
@@ -145,7 +171,7 @@ am335x_scm_detach(device_t dev)
 		sysctl_remove_oid(sc->sc_temp_oid, 1, 0);
 
 	/* Stop the bandgap ADC. */
-	ti_scm_reg_write_4(SCM_BGAP_CTRL, SCM_BGAP_BGOFF);
+	SYSCON_WRITE_4(sc->syscon, SCM_BGAP_CTRL, SCM_BGAP_BGOFF);
 
 	return (0);
 }
@@ -169,4 +195,4 @@ static devclass_t am335x_scm_devclass;
 
 DRIVER_MODULE(am335x_scm, ti_scm, am335x_scm_driver, am335x_scm_devclass, 0, 0);
 MODULE_VERSION(am335x_scm, 1);
-MODULE_DEPEND(am335x_scm, ti_scm, 1, 1, 1);
+MODULE_DEPEND(am335x_scm, ti_scm_syscon, 1, 1, 1);

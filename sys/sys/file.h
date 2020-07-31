@@ -279,21 +279,22 @@ int fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp,
 int fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
 
-static __inline int
-_fnoop(void)
-{
-
-	return (0);
-}
-
 static __inline __result_use_check bool
 fhold(struct file *fp)
 {
 	return (refcount_acquire_checked(&fp->f_count));
 }
 
-#define	fdrop(fp, td)							\
-	(refcount_release(&(fp)->f_count) ? _fdrop((fp), (td)) : _fnoop())
+#define	fdrop(fp, td)		({				\
+	struct file *_fp;					\
+	int _error;						\
+								\
+	_error = 0;						\
+	_fp = (fp);						\
+	if (__predict_false(refcount_release(&_fp->f_count)))	\
+		_error = _fdrop(_fp, td);			\
+	_error;							\
+})
 
 static __inline fo_rdwr_t	fo_read;
 static __inline fo_rdwr_t	fo_write;
