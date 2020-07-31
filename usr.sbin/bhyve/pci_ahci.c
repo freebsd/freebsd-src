@@ -999,7 +999,8 @@ ata_identify_init(struct ahci_port* p, int atapi)
 	struct ata_params* ata_ident = &p->ata_ident;
 
 	if (atapi) {
-		ata_ident->config = (2 << 14 | 5 << 8 | 1 << 7 | 2 << 5);
+		ata_ident->config = ATA_PROTO_ATAPI | ATA_ATAPI_TYPE_CDROM |
+		    ATA_ATAPI_REMOVABLE | ATA_DRQ_FAST;
 		ata_ident->capabilities1 = ATA_SUPPORT_LBA |
 			ATA_SUPPORT_DMA;
 		ata_ident->capabilities2 = (1 << 14 | 1);
