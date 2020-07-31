@@ -38,15 +38,7 @@ int	opts = 0;
 #  ifdef	sun
 char	default_device[] = "le0";
 #  else
-#   ifdef	ultrix
-char	default_device[] = "ln0";
-#   else
-#    ifdef	__bsdi__
-char	default_device[] = "ef0";
-#    else
 char	default_device[] = "lan0";
-#    endif
-#   endif
 #  endif
 #else
 char	default_device[] = DEFAULT_DEVICE;

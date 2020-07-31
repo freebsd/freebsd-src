@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #define	NTFS_FILEMAGIC		((uint32_t)(0x454C4946))
 #define	NTFS_VOLUMEINO		3
 
-#define G_LABEL_NTFS_DIR	"ntfs"
-
 struct ntfs_attr {
 	uint32_t	a_type;
 	uint32_t	reclen;
@@ -170,7 +168,7 @@ done:
 
 struct g_label_desc g_label_ntfs = {
 	.ld_taste = g_label_ntfs_taste,
-	.ld_dir = G_LABEL_NTFS_DIR,
+	.ld_dirprefix = "ntfs/",
 	.ld_enabled = 1
 };
 

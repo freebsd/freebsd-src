@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2019
+.Dd July 23, 2020
 .Dt MBUF 9
 .Os
 .\"
@@ -574,6 +574,9 @@ for non-critical paths.
 Allocate an
 .Vt mbuf
 with enough space to hold specified amount of data.
+If the size is is larger than 
+.Dv MJUMPAGESIZE , NULL
+will be returned.
 .It Fn m_getm orig len how type
 Allocate
 .Fa len
@@ -632,9 +635,12 @@ on failure.
 .It Fn m_getjcl how type flags size
 This is like
 .Fn m_getcl
-but it the size of the cluster allocated will be large enough for
+but the specified
 .Fa size
-bytes.
+of the cluster to be allocated must be one of
+.Dv MCLBYTES , MJUMPAGESIZE , MJUM9BYTES ,
+or
+.Dv MJUM16BYTES.
 .It Fn m_free mbuf
 Frees
 .Vt mbuf .

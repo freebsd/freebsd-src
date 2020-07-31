@@ -42,13 +42,14 @@
 #define	LK_SHARED_WAITERS		0x02
 #define	LK_EXCLUSIVE_WAITERS		0x04
 #define	LK_EXCLUSIVE_SPINNERS		0x08
+#define	LK_WRITER_RECURSED		0x10
 #define	LK_ALL_WAITERS							\
 	(LK_SHARED_WAITERS | LK_EXCLUSIVE_WAITERS)
 #define	LK_FLAGMASK							\
-	(LK_SHARE | LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS)
+	(LK_SHARE | LK_ALL_WAITERS | LK_EXCLUSIVE_SPINNERS | LK_WRITER_RECURSED)
 
 #define	LK_HOLDER(x)			((x) & ~LK_FLAGMASK)
-#define	LK_SHARERS_SHIFT		4
+#define	LK_SHARERS_SHIFT		5
 #define	LK_SHARERS(x)			(LK_HOLDER(x) >> LK_SHARERS_SHIFT)
 #define	LK_SHARERS_LOCK(x)		((x) << LK_SHARERS_SHIFT | LK_SHARE)
 #define	LK_ONE_SHARER			(1 << LK_SHARERS_SHIFT)
@@ -119,6 +120,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 /*
  * Define aliases in order to complete lockmgr KPI.
  */
+#define	lockmgr_read_value(lk)	((lk)->lk_lock)
 #define	lockmgr(lk, flags, ilk)						\
 	_lockmgr_args((lk), (flags), (ilk), LK_WMESG_DEFAULT,		\
 	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, LOCK_FILE, LOCK_LINE)
@@ -130,8 +132,10 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 	    LOCK_FILE, LOCK_LINE)
 #define	lockmgr_disown(lk)						\
 	_lockmgr_disown((lk), LOCK_FILE, LOCK_LINE)
+#define	lockmgr_recursed_v(v)						\
+	(v & LK_WRITER_RECURSED)
 #define	lockmgr_recursed(lk)						\
-	((lk)->lk_recurse != 0)
+	lockmgr_recursed_v((lk)->lk_lock)
 #define	lockmgr_rw(lk, flags, ilk)					\
 	_lockmgr_args_rw((lk), (flags), (ilk), LK_WMESG_DEFAULT,	\
 	    LK_PRIO_DEFAULT, LK_TIMO_DEFAULT, LOCK_FILE, LOCK_LINE)
@@ -166,6 +170,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_SLEEPFAIL	0x000800
 #define	LK_TIMELOCK	0x001000
 #define	LK_NODDLKTREAT	0x002000
+#define	LK_ADAPTIVE	0x004000
 
 /*
  * Operations for lockmgr().

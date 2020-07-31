@@ -441,34 +441,25 @@ g_mirror_ctl_create(struct gctl_req *req, struct g_class *mp)
 	cp = g_new_consumer(gp);
 	for (no = 1; no < *nargs; no++) {
 		snprintf(param, sizeof(param), "arg%u", no);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", no);
+		pp = gctl_get_provider(req, param);
+		if (pp == NULL) {
 err:
 			g_destroy_consumer(cp);
 			g_destroy_geom(gp);
 			g_topology_unlock();
 			return;
 		}
-		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			name += strlen(_PATH_DEV);
-		pp = g_provider_by_name(name);
-		if (pp == NULL) {
-			G_MIRROR_DEBUG(1, "Disk %s is invalid.", name);
-			gctl_error(req, "Disk %s is invalid.", name);
-			goto err;
-		}
 		g_attach(cp, pp);
 		if (g_access(cp, 1, 0, 0) != 0) {
-			G_MIRROR_DEBUG(1, "Can't open disk %s.", name);
-			gctl_error(req, "Can't open disk %s.", name);
+			G_MIRROR_DEBUG(1, "Can't open disk %s.", pp->name);
+			gctl_error(req, "Can't open disk %s.", pp->name);
 err2:
 			g_detach(cp);
 			goto err;
 		}
 		if (pp->mediasize == 0 || pp->sectorsize == 0) {
-			G_MIRROR_DEBUG(1, "Disk %s has no media.", name);
-			gctl_error(req, "Disk %s has no media.", name);
+			G_MIRROR_DEBUG(1, "Disk %s has no media.", pp->name);
+			gctl_error(req, "Disk %s has no media.", pp->name);
 			g_access(cp, -1, 0, 0);
 			goto err2;
 		}
@@ -500,12 +491,10 @@ err2:
 	sbuf_printf(sb, "Can't attach disk(s) to %s:", gp->name);
 	for (attached = 0, no = 1; no < *nargs; no++) {
 		snprintf(param, sizeof(param), "arg%u", no);
-		name = gctl_get_asciiparam(req, param);
-		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			name += strlen(_PATH_DEV);
-		pp = g_provider_by_name(name);
+		pp = gctl_get_provider(req, param);
 		if (pp == NULL) {
-			G_MIRROR_DEBUG(1, "Provider %s disappear?!", name);
+			name = gctl_get_asciiparam(req, param);
+			MPASS(name != NULL);
 			sbuf_printf(sb, " %s", name);
 			continue;
 		}
@@ -677,30 +666,21 @@ g_mirror_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	g_topology_lock();
 	for (i = 1, n = 0; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_asciiparam(req, param);
-		if (name == NULL) {
-			gctl_error(req, "No 'arg%u' argument.", i);
+		pp = gctl_get_provider(req, param);
+		if (pp == NULL)
 			continue;
-		}
-		if (g_mirror_find_disk(sc, name) != NULL) {
-			gctl_error(req, "Provider %s already inserted.", name);
-			continue;
-		}
-		if (strncmp(name, _PATH_DEV, 5) == 0)
-			name += 5;
-		pp = g_provider_by_name(name);
-		if (pp == NULL) {
-			gctl_error(req, "Unknown provider %s.", name);
+		if (g_mirror_find_disk(sc, pp->name) != NULL) {
+			gctl_error(req, "Provider %s already inserted.", pp->name);
 			continue;
 		}
 		cp = g_new_consumer(sc->sc_geom);
 		if (g_attach(cp, pp) != 0) {
 			g_destroy_consumer(cp);
-			gctl_error(req, "Cannot attach to provider %s.", name);
+			gctl_error(req, "Cannot attach to provider %s.", pp->name);
 			continue;
 		}
 		if (g_access(cp, 0, 1, 1) != 0) {
-			gctl_error(req, "Cannot access provider %s.", name);
+			gctl_error(req, "Cannot access provider %s.", pp->name);
 err:
 			g_detach(cp);
 			g_destroy_consumer(cp);
@@ -709,14 +689,14 @@ err:
 		mdsize = (sc->sc_type == G_MIRROR_TYPE_AUTOMATIC) ?
 		    pp->sectorsize : 0;
 		if (sc->sc_provider->mediasize > pp->mediasize - mdsize) {
-			gctl_error(req, "Provider %s too small.", name);
+			gctl_error(req, "Provider %s too small.", pp->name);
 err2:
 			g_access(cp, 0, -1, -1);
 			goto err;
 		}
 		if ((sc->sc_provider->sectorsize % pp->sectorsize) != 0) {
 			gctl_error(req, "Invalid sectorsize of provider %s.",
-			    name);
+			    pp->name);
 			goto err2;
 		}
 		if (sc->sc_type != G_MIRROR_TYPE_AUTOMATIC) {
@@ -731,7 +711,7 @@ err2:
 				md.md_dflags |= G_MIRROR_DISK_FLAG_INACTIVE;
 			if (g_mirror_add_disk(sc, pp, &md) != 0) {
 				sc->sc_ndisks--;
-				gctl_error(req, "Disk %s not inserted.", name);
+				gctl_error(req, "Disk %s not inserted.", pp->name);
 			}
 			g_topology_lock();
 			continue;

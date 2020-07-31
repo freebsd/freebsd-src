@@ -1670,7 +1670,7 @@ linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
 	 * mode should be 0.
 	 */
 	if (args->mode != 0)
-		return (ENOSYS);
+		return (EOPNOTSUPP);
 
 #if defined(__amd64__) && defined(COMPAT_LINUX32)
 	len = PAIR32TO64(off_t, args->len);
@@ -1765,4 +1765,18 @@ linux_memfd_create(struct thread *td, struct linux_memfd_create_args *args)
 		shmflags |= SHM_ALLOW_SEALING;
 	return (kern_shm_open2(td, SHM_ANON, oflags, 0, shmflags, NULL,
 	    memfd_name));
+}
+
+int
+linux_splice(struct thread *td, struct linux_splice_args *args)
+{
+
+	linux_msg(td, "syscall splice not really implemented");
+
+	/*
+	 * splice(2) is documented to return EINVAL in various circumstances;
+	 * returning it instead of ENOSYS should hint the caller to use fallback
+	 * instead.
+	 */
+	return (EINVAL);
 }

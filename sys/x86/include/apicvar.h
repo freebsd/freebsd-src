@@ -130,7 +130,8 @@
 
 #define	IPI_STOP	(APIC_IPI_INTS + 6)	/* Stop CPU until restarted. */
 #define	IPI_SUSPEND	(APIC_IPI_INTS + 7)	/* Suspend CPU until restarted. */
-#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 8)
+#define	IPI_SWI		(APIC_IPI_INTS + 8)	/* Run clk_intr_event. */
+#define	IPI_DYN_FIRST	(APIC_IPI_INTS + 9)
 #define	IPI_DYN_LAST	(254)			/* IPIs allocated at runtime */
 
 /*

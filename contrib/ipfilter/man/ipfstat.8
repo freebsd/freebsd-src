@@ -5,7 +5,7 @@ ipfstat \- reports on packet filter statistics and filter list
 .SH SYNOPSIS
 .B ipfstat
 [
-.B \-6aAdfghIilnoRsv
+.B \-46aAdfghIilnoRsv
 ]
 .br
 .B ipfstat -t
@@ -34,6 +34,11 @@ The default behaviour of \fBipfstat\fP
 is to retrieve and display the accumulated statistics which have been
 accumulated over time as the kernel has put packets through the filter.
 .SH OPTIONS
+.TP
+.B \-4
+Display filter lists and states for IPv4, if available. This is the default
+when displaying states.  \fB-4\fP and \fB-6\fP is the default when
+displaying lists.
 .TP
 .B \-6
 Display filter lists and states for IPv6, if available.
@@ -190,4 +195,5 @@ more entries is to resize the screen.
 .SH SEE ALSO
 ipf(8)
 .SH BUGS
-none known.
+\fB-4\fP and \fB-6\fP are only valid with \fB-i\fP, \fB-o\fP, and \fB-t\fP.
+An error should result when used with other arguments.

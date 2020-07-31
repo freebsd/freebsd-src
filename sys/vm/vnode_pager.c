@@ -1139,6 +1139,21 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 		bp->b_data = unmapped_buf;
 	}
 
+	/*
+	 * If the read failed, we must free any read ahead/behind pages here.
+	 * The requested pages are freed by the caller (for sync requests)
+	 * or by the bp->b_pgiodone callback (for async requests).
+	 */
+	if (error != 0) {
+		VM_OBJECT_WLOCK(object);
+		for (i = 0; i < bp->b_pgbefore; i++)
+			vm_page_free_invalid(bp->b_pages[i]);
+		for (i = bp->b_npages - bp->b_pgafter; i < bp->b_npages; i++)
+			vm_page_free_invalid(bp->b_pages[i]);
+		VM_OBJECT_WUNLOCK(object);
+		return (error);
+	}
+
 	/* Read lock to protect size. */
 	VM_OBJECT_RLOCK(object);
 	for (i = 0, tfoff = IDX_TO_OFF(bp->b_pages[0]->pindex);
@@ -1150,30 +1165,28 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 		if (mt == bogus_page)
 			continue;
 
-		if (error == 0) {
-			if (nextoff <= object->un_pager.vnp.vnp_size) {
-				/*
-				 * Read filled up entire page.
-				 */
-				vm_page_valid(mt);
-				KASSERT(mt->dirty == 0,
-				    ("%s: page %p is dirty", __func__, mt));
-				KASSERT(!pmap_page_is_mapped(mt),
-				    ("%s: page %p is mapped", __func__, mt));
-			} else {
-				/*
-				 * Read did not fill up entire page.
-				 *
-				 * Currently we do not set the entire page
-				 * valid, we just try to clear the piece that
-				 * we couldn't read.
-				 */
-				vm_page_set_valid_range(mt, 0,
-				    object->un_pager.vnp.vnp_size - tfoff);
-				KASSERT((mt->dirty & vm_page_bits(0,
-				    object->un_pager.vnp.vnp_size - tfoff)) ==
-				    0, ("%s: page %p is dirty", __func__, mt));
-			}
+		if (nextoff <= object->un_pager.vnp.vnp_size) {
+			/*
+			 * Read filled up entire page.
+			 */
+			vm_page_valid(mt);
+			KASSERT(mt->dirty == 0,
+			    ("%s: page %p is dirty", __func__, mt));
+			KASSERT(!pmap_page_is_mapped(mt),
+			    ("%s: page %p is mapped", __func__, mt));
+		} else {
+			/*
+			 * Read did not fill up entire page.
+			 *
+			 * Currently we do not set the entire page valid,
+			 * we just try to clear the piece that we couldn't
+			 * read.
+			 */
+			vm_page_set_valid_range(mt, 0,
+			    object->un_pager.vnp.vnp_size - tfoff);
+			KASSERT((mt->dirty & vm_page_bits(0,
+			    object->un_pager.vnp.vnp_size - tfoff)) == 0,
+			    ("%s: page %p is dirty", __func__, mt));
 		}
 
 		if (i < bp->b_pgbefore || i >= bp->b_npages - bp->b_pgafter)

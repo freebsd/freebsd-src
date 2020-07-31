@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 19, 2006
+.Dd July 27, 2020
 .Dt TRUNCATE 1
 .Os
 .Sh NAME
@@ -143,6 +143,43 @@ If the operation fails for an argument,
 .Nm
 will issue a diagnostic
 and continue processing the remaining arguments.
+.Sh EXAMPLES
+Adjust the size of the file
+.Pa test_file
+to 10 Megabytes but do not create it if it does not exist:
+.Bd -literal -offset indent
+truncate -c -s +10M test_file
+.Ed
+.Pp
+Same as above but create the file if it does not exist:
+.Bd -literal -offset indent
+truncate -s +10M test_file
+ls -l test_file
+-rw-r--r--  1 root  wheel  10485760 Jul 22 18:48 test_file
+.Ed
+.Pp
+Adjust the size of
+.Pa test_file
+to the size of the kernel and create another file
+.Pa test_file2
+with the same size:
+.Bd -literal -offset indent
+truncate -r /boot/kernel/kernel test_file test_file2
+ls -l /boot/kernel/kernel test_file*
+-r-xr-xr-x  1 root  wheel    31352552 May 15 14:18 /boot/kernel/kernel*
+-rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file
+-rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file2
+.Ed
+.Pp
+Downsize
+.Pa test_file
+in 5 Megabytes:
+.Bd -literal -offset indent
+# truncate -s -5M test_file
+ls -l test_file*
+-rw-r--r--  1 root  wheel    26109672 Jul 22 19:17 test_file
+-rw-r--r--  1 root  wheel    31352552 Jul 22 19:15 test_file2
+.Ed
 .Sh SEE ALSO
 .Xr dd 1 ,
 .Xr touch 1 ,

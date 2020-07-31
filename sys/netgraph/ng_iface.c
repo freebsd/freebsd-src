@@ -111,8 +111,6 @@ typedef const struct iffam *iffam_p;
 const static struct iffam gFamilies[] = {
 	{ AF_INET,	NG_IFACE_HOOK_INET	},
 	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
-	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
-	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
 };
 #define	NUM_FAMILIES		nitems(gFamilies)
 
@@ -732,9 +730,11 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	}
 	random_harvest_queue(m, sizeof(*m), RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
+	CURVNET_SET(ifp->if_vnet);
 	NET_EPOCH_ENTER(et);
 	netisr_dispatch(isr, m);
 	NET_EPOCH_EXIT(et);
+	CURVNET_RESTORE();
 	return (0);
 }
 

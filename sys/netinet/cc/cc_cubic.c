@@ -185,12 +185,11 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				 */
 				if (CCV(ccv, snd_cwnd) < w_tf)
 					CCV(ccv, snd_cwnd) = ulmin(w_tf, INT_MAX);
-			}
-
-			else if (CCV(ccv, snd_cwnd) < w_cubic_next) {
+			} else if (CCV(ccv, snd_cwnd) < w_cubic_next) {
 				/*
 				 * Concave or convex region, follow CUBIC
 				 * cwnd growth.
+				 * Only update snd_cwnd, if it doesn't shrink.
 				 */
 				if (V_tcp_do_rfc3465)
 					CCV(ccv, snd_cwnd) = ulmin(w_cubic_next,
@@ -473,3 +472,4 @@ cubic_ssthresh_update(struct cc_var *ccv)
 
 
 DECLARE_CC_MODULE(cubic, &cubic_cc_algo);
+MODULE_VERSION(cubic, 1);

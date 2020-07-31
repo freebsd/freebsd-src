@@ -408,8 +408,8 @@ arm64/freescale/imx/clk/imx_clk_sscg_pll.c	optional fdt soc_freescale_imx8
 arm64/freescale/imx/clk/imx_clk_frac_pll.c	optional fdt soc_freescale_imx8
 
 # iMX drivers
-arm/freescale/imx/imx_gpio.c		optional gpio
+arm/freescale/imx/imx_gpio.c		optional gpio soc_freescale_imx8
 arm/freescale/imx/imx_i2c.c		optional fsliic
-arm/freescale/imx/imx_machdep.c		standard
+arm/freescale/imx/imx_machdep.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx7gpc.c		optional fdt soc_freescale_imx8
 dev/ffec/if_ffec.c			optional ffec

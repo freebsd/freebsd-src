@@ -200,6 +200,7 @@ sctp_find_ifn(void *ifn, uint32_t ifn_index)
 	 * We assume the lock is held for the addresses if that's wrong
 	 * problems could occur :-)
 	 */
+	SCTP_IPI_ADDR_LOCK_ASSERT();
 	hash_ifn_head = &SCTP_BASE_INFO(vrf_ifn_hash)[(ifn_index & SCTP_BASE_INFO(vrf_ifn_hashmark))];
 	LIST_FOREACH(sctp_ifnp, hash_ifn_head, next_bucket) {
 		if (sctp_ifnp->ifn_index == ifn_index) {
@@ -295,12 +296,16 @@ sctp_delete_ifn(struct sctp_ifn *sctp_ifnp, int hold_addr_lock)
 		/* Not in the list.. sorry */
 		return;
 	}
-	if (hold_addr_lock == 0)
+	if (hold_addr_lock == 0) {
 		SCTP_IPI_ADDR_WLOCK();
+	} else {
+		SCTP_IPI_ADDR_WLOCK_ASSERT();
+	}
 	LIST_REMOVE(sctp_ifnp, next_bucket);
 	LIST_REMOVE(sctp_ifnp, next_ifn);
-	if (hold_addr_lock == 0)
+	if (hold_addr_lock == 0) {
 		SCTP_IPI_ADDR_WUNLOCK();
+	}
 	/* Take away the reference, and possibly free it */
 	sctp_free_ifn(sctp_ifnp);
 }
@@ -486,8 +491,8 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
     int dynamic_add)
 {
 	struct sctp_vrf *vrf;
-	struct sctp_ifn *sctp_ifnp = NULL;
-	struct sctp_ifa *sctp_ifap = NULL;
+	struct sctp_ifn *sctp_ifnp, *new_sctp_ifnp;
+	struct sctp_ifa *sctp_ifap, *new_sctp_ifap;
 	struct sctp_ifalist *hash_addr_head;
 	struct sctp_ifnlist *hash_ifn_head;
 	uint32_t hash_of_addr;
@@ -497,6 +502,23 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	SCTPDBG(SCTP_DEBUG_PCB4, "vrf_id 0x%x: adding address: ", vrf_id);
 	SCTPDBG_ADDR(SCTP_DEBUG_PCB4, addr);
 #endif
+	SCTP_MALLOC(new_sctp_ifnp, struct sctp_ifn *,
+	    sizeof(struct sctp_ifn), SCTP_M_IFN);
+	if (new_sctp_ifnp == NULL) {
+#ifdef INVARIANTS
+		panic("No memory for IFN");
+#endif
+		return (NULL);
+	}
+	SCTP_MALLOC(new_sctp_ifap, struct sctp_ifa *, sizeof(struct sctp_ifa), SCTP_M_IFA);
+	if (new_sctp_ifap == NULL) {
+#ifdef INVARIANTS
+		panic("No memory for IFA");
+#endif
+		SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
+		return (NULL);
+	}
+
 	SCTP_IPI_ADDR_WLOCK();
 	sctp_ifnp = sctp_find_ifn(ifn, ifn_index);
 	if (sctp_ifnp) {
@@ -507,6 +529,8 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			vrf = sctp_allocate_vrf(vrf_id);
 			if (vrf == NULL) {
 				SCTP_IPI_ADDR_WUNLOCK();
+				SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
+				SCTP_FREE(new_sctp_ifap, SCTP_M_IFA);
 				return (NULL);
 			}
 		}
@@ -516,15 +540,8 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		 * build one and add it, can't hold lock until after malloc
 		 * done though.
 		 */
-		SCTP_IPI_ADDR_WUNLOCK();
-		SCTP_MALLOC(sctp_ifnp, struct sctp_ifn *,
-		    sizeof(struct sctp_ifn), SCTP_M_IFN);
-		if (sctp_ifnp == NULL) {
-#ifdef INVARIANTS
-			panic("No memory for IFN");
-#endif
-			return (NULL);
-		}
+		sctp_ifnp = new_sctp_ifnp;
+		new_sctp_ifnp = NULL;
 		memset(sctp_ifnp, 0, sizeof(struct sctp_ifn));
 		sctp_ifnp->ifn_index = ifn_index;
 		sctp_ifnp->ifn_p = ifn;
@@ -540,7 +557,6 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		}
 		hash_ifn_head = &SCTP_BASE_INFO(vrf_ifn_hash)[(ifn_index & SCTP_BASE_INFO(vrf_ifn_hashmark))];
 		LIST_INIT(&sctp_ifnp->ifalist);
-		SCTP_IPI_ADDR_WLOCK();
 		LIST_INSERT_HEAD(hash_ifn_head, sctp_ifnp, next_bucket);
 		LIST_INSERT_HEAD(&vrf->ifnlist, sctp_ifnp, next_ifn);
 		atomic_add_int(&SCTP_BASE_INFO(ipi_count_ifns), 1);
@@ -567,6 +583,10 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			}
 	exit_stage_left:
 			SCTP_IPI_ADDR_WUNLOCK();
+			if (new_sctp_ifnp != NULL) {
+				SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
+			}
+			SCTP_FREE(new_sctp_ifap, SCTP_M_IFA);
 			return (sctp_ifap);
 		} else {
 			if (sctp_ifap->ifn_p) {
@@ -593,14 +613,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			goto exit_stage_left;
 		}
 	}
-	SCTP_IPI_ADDR_WUNLOCK();
-	SCTP_MALLOC(sctp_ifap, struct sctp_ifa *, sizeof(struct sctp_ifa), SCTP_M_IFA);
-	if (sctp_ifap == NULL) {
-#ifdef INVARIANTS
-		panic("No memory for IFA");
-#endif
-		return (NULL);
-	}
+	sctp_ifap = new_sctp_ifap;
 	memset(sctp_ifap, 0, sizeof(struct sctp_ifa));
 	sctp_ifap->ifn_p = sctp_ifnp;
 	atomic_add_int(&sctp_ifnp->refcount, 1);
@@ -660,7 +673,6 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 	    (sctp_ifap->src_is_loop == 0)) {
 		sctp_ifap->src_is_glob = 1;
 	}
-	SCTP_IPI_ADDR_WLOCK();
 	hash_addr_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_addr_hashmark)];
 	LIST_INSERT_HEAD(hash_addr_head, sctp_ifap, next_bucket);
 	sctp_ifap->refcount = 1;
@@ -672,6 +684,10 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		sctp_ifnp->registered_af = new_ifn_af;
 	}
 	SCTP_IPI_ADDR_WUNLOCK();
+	if (new_sctp_ifnp != NULL) {
+		SCTP_FREE(new_sctp_ifnp, SCTP_M_IFN);
+	}
+
 	if (dynamic_add) {
 		/*
 		 * Bump up the refcount so that when the timer completes it
@@ -2723,23 +2739,54 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 			}
 		}
 	}
-	/*
-	 * Now any running timers need to be adjusted since we really don't
-	 * care if they are running or not just blast in the new_inp into
-	 * all of them.
-	 */
-
-	stcb->asoc.dack_timer.ep = (void *)new_inp;
-	stcb->asoc.asconf_timer.ep = (void *)new_inp;
-	stcb->asoc.strreset_timer.ep = (void *)new_inp;
-	stcb->asoc.shut_guard_timer.ep = (void *)new_inp;
-	stcb->asoc.autoclose_timer.ep = (void *)new_inp;
-	stcb->asoc.delete_prim_timer.ep = (void *)new_inp;
+	/* Now any running timers need to be adjusted. */
+	if (stcb->asoc.dack_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.dack_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.asconf_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.asconf_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.strreset_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.strreset_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.shut_guard_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.shut_guard_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.autoclose_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.autoclose_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.delete_prim_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.delete_prim_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
 	/* now what about the nets? */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-		net->pmtu_timer.ep = (void *)new_inp;
-		net->hb_timer.ep = (void *)new_inp;
-		net->rxt_timer.ep = (void *)new_inp;
+		if (net->pmtu_timer.ep == old_inp) {
+			SCTP_INP_DECR_REF(old_inp);
+			net->pmtu_timer.ep = new_inp;
+			SCTP_INP_INCR_REF(new_inp);
+		}
+		if (net->hb_timer.ep == old_inp) {
+			SCTP_INP_DECR_REF(old_inp);
+			net->hb_timer.ep = new_inp;
+			SCTP_INP_INCR_REF(new_inp);
+		}
+		if (net->rxt_timer.ep == old_inp) {
+			SCTP_INP_DECR_REF(old_inp);
+			net->rxt_timer.ep = new_inp;
+			SCTP_INP_INCR_REF(new_inp);
+		}
 	}
 	SCTP_INP_WUNLOCK(new_inp);
 	SCTP_INP_WUNLOCK(old_inp);
@@ -3498,6 +3545,11 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	cnt = 0;
 	LIST_FOREACH_SAFE(asoc, &inp->sctp_asoc_list, sctp_tcblist, nasoc) {
 		SCTP_TCB_LOCK(asoc);
+		if (immediate != SCTP_FREE_SHOULD_USE_GRACEFUL_CLOSE) {
+			/* Disconnect the socket please */
+			asoc->sctp_socket = NULL;
+			SCTP_ADD_SUBSTATE(asoc, SCTP_STATE_CLOSED_SOCKET);
+		}
 		if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 			if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
 				SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_IN_ACCEPT_QUEUE);
@@ -3546,7 +3598,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		being_refed++;
 	if (SCTP_ASOC_CREATE_LOCK_CONTENDED(inp))
 		being_refed++;
-
+	/* NOTE: 0 refcount also means no timers are referencing us. */
 	if ((inp->refcount) ||
 	    (being_refed) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
@@ -3568,19 +3620,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_INP_WUNLOCK(inp);
 	SCTP_ASOC_CREATE_UNLOCK(inp);
 	SCTP_INP_INFO_WUNLOCK();
-	/*
-	 * Now we release all locks. Since this INP cannot be found anymore
-	 * except possibly by the kill timer that might be running. We call
-	 * the drain function here. It should hit the case were it sees the
-	 * ACTIVE flag cleared and exit out freeing us to proceed and
-	 * destroy everything.
-	 */
-	if (from != SCTP_CALLED_FROM_INPKILL_TIMER) {
-		(void)SCTP_OS_TIMER_STOP_DRAIN(&inp->sctp_ep.signature_change.timer);
-	} else {
-		/* Probably un-needed */
-		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
-	}
 
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 5);
@@ -5906,6 +5945,7 @@ retry:
 	 * free the vrf/ifn/ifa lists and hashes (be sure address monitor is
 	 * destroyed first).
 	 */
+	SCTP_IPI_ADDR_WLOCK();
 	vrf_bucket = &SCTP_BASE_INFO(sctp_vrfhash)[(SCTP_DEFAULT_VRFID & SCTP_BASE_INFO(hashvrfmark))];
 	LIST_FOREACH_SAFE(vrf, vrf_bucket, next_vrf, nvrf) {
 		LIST_FOREACH_SAFE(ifn, &vrf->ifnlist, next_ifn, nifn) {
@@ -5925,6 +5965,7 @@ retry:
 		LIST_REMOVE(vrf, next_vrf);
 		SCTP_FREE(vrf, SCTP_M_VRF);
 	}
+	SCTP_IPI_ADDR_WUNLOCK();
 	/* free the vrf hashes */
 	SCTP_HASH_FREE(SCTP_BASE_INFO(sctp_vrfhash), SCTP_BASE_INFO(hashvrfmark));
 	SCTP_HASH_FREE(SCTP_BASE_INFO(vrf_ifn_hash), SCTP_BASE_INFO(vrf_ifn_hashmark));

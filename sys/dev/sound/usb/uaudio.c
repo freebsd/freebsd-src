@@ -4968,10 +4968,6 @@ uaudio_mixer_fill_info(struct uaudio_softc *sc,
 	iot = malloc(sizeof(struct uaudio_terminal_node) * 256, M_TEMP,
 	    M_WAITOK | M_ZERO);
 
-	if (iot == NULL) {
-		DPRINTF("no memory!\n");
-		goto done;
-	}
 	while ((desc = usb_desc_foreach(cd, desc))) {
 
 		dp = desc;

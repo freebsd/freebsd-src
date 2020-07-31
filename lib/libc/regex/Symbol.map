@@ -3,8 +3,11 @@
  */
 
 FBSD_1.0 {
-	regcomp;
 	regerror;
 	regexec;
 	regfree;
+};
+
+FBSD_1.6 {
+	regcomp;
 };

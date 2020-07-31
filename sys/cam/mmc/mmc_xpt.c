@@ -167,6 +167,7 @@ typedef struct {
 	union ccb	saved_ccb;
 	uint32_t	flags;
 #define PROBE_FLAG_ACMD_SENT	0x1 /* CMD55 is sent, card expects ACMD */
+#define PROBE_FLAG_HOST_CAN_DO_18V   0x2 /* Host can do 1.8V signaling */
 	uint8_t         acmd41_count; /* how many times ACMD41 has been issued */
 	struct cam_periph *periph;
 } mmcprobe_softc;
@@ -178,7 +179,6 @@ mmc_alloc_device(struct cam_eb *bus, struct cam_et *target, lun_id_t lun_id)
 {
 	struct cam_ed *device;
 
-	printf("mmc_alloc_device()\n");
 	device = xpt_alloc_device(bus, target, lun_id);
 	if (device == NULL)
 		return (NULL);
@@ -281,7 +281,8 @@ mmc_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_done(request_ccb);
 		}
 	} else {
-		xpt_print(path, " Set up the mmcprobe device...\n");
+		if (bootverbose)
+			xpt_print(path, " Set up the mmcprobe device...\n");
 
                 status = cam_periph_alloc(mmcprobe_register, NULL,
 					  mmcprobe_cleanup,
@@ -404,31 +405,77 @@ mmc_announce_periph(struct cam_periph *periph)
 	printf("XPT info: CLK %04X, ...\n", cts.proto_specific.mmc.ios.clock);
 }
 
+void
+mmccam_start_discovery(struct cam_sim *sim) {
+	union ccb *ccb;
+	uint32_t pathid;
+
+	pathid = cam_sim_path(sim);
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		return;
+	}
+
+	/*
+	 * We create a rescan request for BUS:0:0, since the card
+	 * will be at lun 0.
+	 */
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, pathid,
+		/* target */ 0, /* lun */ 0) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_rescan(ccb);
+}
+
 /* This func is called per attached device :-( */
 void
 mmc_print_ident(struct mmc_params *ident_data)
 {
-        printf("Relative addr: %08x\n", ident_data->card_rca);
-        printf("Card features: <");
-        if (ident_data->card_features & CARD_FEATURE_MMC)
-                printf("MMC ");
-        if (ident_data->card_features & CARD_FEATURE_MEMORY)
-                printf("Memory ");
-        if (ident_data->card_features & CARD_FEATURE_SDHC)
-                printf("High-Capacity ");
-        if (ident_data->card_features & CARD_FEATURE_SD20)
-                printf("SD2.0-Conditions ");
-        if (ident_data->card_features & CARD_FEATURE_SDIO)
-                printf("SDIO ");
-        printf(">\n");
+	struct sbuf *sb;
+	bool space = false;
 
-        if (ident_data->card_features & CARD_FEATURE_MEMORY)
-                printf("Card memory OCR: %08x\n", ident_data->card_ocr);
+	sb = sbuf_new_auto();
+	sbuf_printf(sb, "Relative addr: %08x\n", ident_data->card_rca);
+	sbuf_printf(sb, "Card features: <");
+	if (ident_data->card_features & CARD_FEATURE_MMC) {
+		sbuf_printf(sb, "MMC");
+		space = true;
+	}
+	if (ident_data->card_features & CARD_FEATURE_MEMORY) {
+		sbuf_printf(sb, "%sMemory", space ? " " : "");
+		space = true;
+	}
+	if (ident_data->card_features & CARD_FEATURE_SDHC) {
+		sbuf_printf(sb, "%sHigh-Capacity", space ? " " : "");
+		space = true;
+	}
+	if (ident_data->card_features & CARD_FEATURE_SD20) {
+		sbuf_printf(sb, "%sSD2.0-Conditions", space ? " " : "");
+		space = true;
+	}
+	if (ident_data->card_features & CARD_FEATURE_SDIO) {
+		sbuf_printf(sb, "%sSDIO", space ? " " : "");
+		space = true;
+	}
+	if (ident_data->card_features & CARD_FEATURE_18V) {
+		sbuf_printf(sb, "%s1.8-Signaling", space ? " " : "");
+	}
+	sbuf_printf(sb, ">\n");
 
-        if (ident_data->card_features & CARD_FEATURE_SDIO) {
-                printf("Card IO OCR: %08x\n", ident_data->io_ocr);
-                printf("Number of funcitions: %u\n", ident_data->sdio_func_count);
-        }
+	if (ident_data->card_features & CARD_FEATURE_MEMORY)
+		sbuf_printf(sb, "Card memory OCR: %08x\n",
+		    ident_data->card_ocr);
+
+	if (ident_data->card_features & CARD_FEATURE_SDIO) {
+		sbuf_printf(sb, "Card IO OCR: %08x\n", ident_data->io_ocr);
+		sbuf_printf(sb, "Number of functions: %u\n",
+		    ident_data->sdio_func_count);
+	}
+
+	sbuf_finish(sb);
+	printf("%s", sbuf_data(sb));
+	sbuf_clear(sb);
 }
 
 static void
@@ -574,10 +621,11 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 	/* Here is the place where the identify fun begins */
 	switch (softc->action) {
 	case PROBE_RESET:
+		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_RESET\n"));
 		/* FALLTHROUGH */
 	case PROBE_IDENTIFY:
 		xpt_path_inq(&start_ccb->cpi, periph->path);
-		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_RESET\n"));
+		CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("Start with PROBE_IDENTIFY\n"));
 		init_standard_ccb(start_ccb, XPT_GET_TRAN_SETTINGS);
 		xpt_action(start_ccb);
 		if (cts->ios.power_mode != power_off) {
@@ -592,6 +640,9 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 		init_standard_ccb(start_ccb, XPT_GET_TRAN_SETTINGS);
 		xpt_action(start_ccb);
 
+		uint32_t host_caps = cts->host_caps;
+		if (host_caps & MMC_CAP_SIGNALING_180)
+			softc->flags |= PROBE_FLAG_HOST_CAN_DO_18V;
 		uint32_t hv = mmc_highest_voltage(cts->host_ocr);
 		init_standard_ccb(start_ccb, XPT_SET_TRAN_SETTINGS);
 		cts->ios.vdd = hv;
@@ -778,7 +829,6 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 		/* FALLTHROUGH */
 	case PROBE_IDENTIFY:
 	{
-		printf("Starting completion of PROBE_RESET\n");
 		CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("done with PROBE_RESET\n"));
 		mmcio = &done_ccb->mmcio;
 		err = mmcio->cmd.error;
@@ -964,6 +1014,18 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 				CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
 					  ("Card supports 1.8V signaling\n"));
 				mmcp->card_features |= CARD_FEATURE_18V;
+				if (softc->flags & PROBE_FLAG_HOST_CAN_DO_18V) {
+					CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
+						  ("Host supports 1.8V signaling. Switch voltage!\n"));
+					done_ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+					done_ccb->ccb_h.flags = CAM_DIR_NONE;
+					done_ccb->ccb_h.retry_count = 0;
+					done_ccb->ccb_h.timeout = 100;
+					done_ccb->ccb_h.cbfcnp = NULL;
+					done_ccb->cts.proto_specific.mmc.ios.vccq = vccq_180;
+					done_ccb->cts.proto_specific.mmc.ios_valid = MMC_VCCQ;
+					xpt_action(done_ccb);
+				}
 			}
 		} else {
 			CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
@@ -1086,7 +1148,7 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
                 xpt_schedule(periph, priority);
 	/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
 	int frozen = cam_release_devq(path, 0, 0, 0, FALSE);
-        printf("mmc_probedone: remaining freezecnt %d\n", frozen);
+        CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE, ("mmc_probedone: remaining freezecnt %d\n", frozen));
 
 	if (softc->action == PROBE_DONE) {
                 /* Notify the system that the device is found! */

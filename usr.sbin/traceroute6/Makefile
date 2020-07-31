@@ -26,8 +26,8 @@ BINMODE= 4555
 CFLAGS+= -DIPSEC -DHAVE_POLL
 CFLAGS+= -I${.CURDIR} -I${TRACEROUTE_DISTDIR} -I.
 
-WARNS?=	3
-
 LIBADD=	ipsec
 
 .include <bsd.prog.mk>
+
+CWARNFLAGS+= -Wno-cast-align

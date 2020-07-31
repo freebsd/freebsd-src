@@ -31,7 +31,7 @@ dd if=/dev/random of=$tmp1 bs=$ddbs count=1 >/dev/null 2>&1
 ENXIO=6
 # gmirror has special handling for ENXIO. It does not mark the failed component
 # as broken, allowing it to rejoin the mirror automatically when it appears.
-sysctl ${regwritefp}="1*return(${ENXIO})"
+sysctl ${regwritefp}="1*return(${ENXIO})[pid $(gmirror_worker_pid)]"
 dd if=$tmp1 of=/dev/mirror/$name bs=$ddbs count=1 >/dev/null 2>&1
 dd if=/dev/mirror/$name of=$tmp2 bs=$ddbs count=1 >/dev/null 2>&1
 sysctl ${regwritefp}='off'

@@ -239,7 +239,7 @@ ure_read_1(struct ure_softc *sc, uint16_t reg, uint16_t index)
 
 	shift = (reg & 3) << 3;
 	reg &= ~3;
-	
+
 	ure_read_mem(sc, reg, index, &temp, 4);
 	val = UGETDW(temp);
 	val >>= shift;
@@ -385,7 +385,7 @@ ure_miibus_writereg(device_t dev, int phy, int reg, int val)
 	locked = mtx_owned(&sc->sc_mtx);
 	if (!locked)
 		URE_LOCK(sc);
-	
+
 	ure_ocp_reg_write(sc, URE_OCP_BASE_MII + reg * 2, val);
 
 	if (!locked)
@@ -751,7 +751,7 @@ ure_init(struct usb_ether *ue)
 	ure_write_2(sc, URE_PLA_FMC, URE_MCU_TYPE_PLA,
 	    ure_read_2(sc, URE_PLA_FMC, URE_MCU_TYPE_PLA) |
 	    URE_FMC_FCR_MCU_EN);
-	    
+
 	/* Enable transmit and receive. */
 	ure_write_1(sc, URE_PLA_CR, URE_MCU_TYPE_PLA,
 	    ure_read_1(sc, URE_PLA_CR, URE_MCU_TYPE_PLA) | URE_CR_RE |
@@ -975,7 +975,7 @@ ure_rtl8152_init(struct ure_softc *sc)
 	    ure_read_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB) |
 	    URE_RX_AGG_DISABLE);
 
-        /* Disable ALDPS. */
+	/* Disable ALDPS. */
 	ure_ocp_reg_write(sc, URE_OCP_ALDPS_CONFIG, URE_ENPDNPS | URE_LINKENA |
 	    URE_DIS_SDSAVE);
 	uether_pause(&sc->sc_ue, hz / 50);
@@ -1005,7 +1005,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	ure_write_mem(sc, URE_USB_TOLERANCE,
 	    URE_MCU_TYPE_USB | URE_BYTE_EN_SIX_BYTES, u1u2, sizeof(u1u2));
 
-        for (i = 0; i < URE_TIMEOUT; i++) {
+	for (i = 0; i < URE_TIMEOUT; i++) {
 		if (ure_read_2(sc, URE_PLA_BOOT_CTRL, URE_MCU_TYPE_PLA) &
 		    URE_AUTOLOAD_DONE)
 			break;
@@ -1015,7 +1015,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 		device_printf(sc->sc_ue.ue_dev,
 		    "timeout waiting for chip autoload\n");
 
-        for (i = 0; i < URE_TIMEOUT; i++) {
+	for (i = 0; i < URE_TIMEOUT; i++) {
 		val = ure_ocp_reg_read(sc, URE_OCP_PHY_STATUS) &
 		    URE_PHY_STAT_MASK;
 		if (val == URE_PHY_STAT_LAN_ON || val == URE_PHY_STAT_PWRDN)
@@ -1025,7 +1025,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	if (i == URE_TIMEOUT)
 		device_printf(sc->sc_ue.ue_dev,
 		    "timeout waiting for phy to stabilize\n");
-	
+
 	ure_write_2(sc, URE_USB_U2P3_CTRL, URE_MCU_TYPE_USB,
 	    ure_read_2(sc, URE_USB_U2P3_CTRL, URE_MCU_TYPE_USB) &
 	    ~URE_U2P3_ENABLE);
@@ -1057,7 +1057,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	ure_write_1(sc, URE_USB_CSR_DUMMY2, URE_MCU_TYPE_USB,
 	    ure_read_1(sc, URE_USB_CSR_DUMMY2, URE_MCU_TYPE_USB) |
 	    URE_EP4_FULL_FC);
-	
+
 	ure_write_2(sc, URE_USB_WDT11_CTRL, URE_MCU_TYPE_USB,
 	    ure_read_2(sc, URE_USB_WDT11_CTRL, URE_MCU_TYPE_USB) &
 	    ~URE_TIMER11_EN);
@@ -1065,7 +1065,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	ure_write_2(sc, URE_PLA_LED_FEATURE, URE_MCU_TYPE_PLA,
 	    ure_read_2(sc, URE_PLA_LED_FEATURE, URE_MCU_TYPE_PLA) &
 	    ~URE_LED_MODE_MASK);
-	    
+
 	if ((sc->sc_chip & URE_CHIP_VER_5C10) &&
 	    usbd_get_speed(sc->sc_ue.ue_udev) != USB_SPEED_SUPER)
 		val = URE_LPM_TIMER_500MS;
@@ -1112,7 +1112,7 @@ ure_rtl8153_init(struct ure_softc *sc)
 	ure_write_2(sc, URE_USB_U2P3_CTRL, URE_MCU_TYPE_USB, val);
 
 	memset(u1u2, 0x00, sizeof(u1u2));
-        ure_write_mem(sc, URE_USB_TOLERANCE,
+	ure_write_mem(sc, URE_USB_TOLERANCE,
 	    URE_MCU_TYPE_USB | URE_BYTE_EN_SIX_BYTES, u1u2, sizeof(u1u2));
 
 	/* Disable ALDPS. */
@@ -1162,7 +1162,7 @@ ure_disable_teredo(struct ure_softc *sc)
 {
 
 	ure_write_4(sc, URE_PLA_TEREDO_CFG, URE_MCU_TYPE_PLA,
-	    ure_read_4(sc, URE_PLA_TEREDO_CFG, URE_MCU_TYPE_PLA) & 
+	    ure_read_4(sc, URE_PLA_TEREDO_CFG, URE_MCU_TYPE_PLA) &
 	    ~(URE_TEREDO_SEL | URE_TEREDO_RS_EVENT_MASK | URE_OOB_TEREDO_EN));
 	ure_write_2(sc, URE_PLA_WDT6_CTRL, URE_MCU_TYPE_PLA,
 	    URE_WDT6_SET_MODE);
@@ -1194,7 +1194,7 @@ ure_init_fifo(struct ure_softc *sc)
 		}
 		if (sc->sc_chip & URE_CHIP_VER_5C00) {
 			ure_ocp_reg_write(sc, URE_OCP_EEE_CFG,
-			    ure_ocp_reg_read(sc, URE_OCP_EEE_CFG) & 
+			    ure_ocp_reg_read(sc, URE_OCP_EEE_CFG) &
 			    ~URE_CTAP_SHORT_EN);
 		}
 		ure_ocp_reg_write(sc, URE_OCP_POWER_CFG,

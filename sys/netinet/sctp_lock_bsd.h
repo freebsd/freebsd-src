@@ -177,6 +177,13 @@ __FBSDID("$FreeBSD$");
 	rw_wunlock(&SCTP_BASE_INFO(ipi_addr_mtx));			\
 } while (0)
 
+#define SCTP_IPI_ADDR_LOCK_ASSERT() do {				\
+	rw_assert(&SCTP_BASE_INFO(ipi_addr_mtx), RA_LOCKED);		\
+} while (0)
+
+#define SCTP_IPI_ADDR_WLOCK_ASSERT() do {				\
+	rw_assert(&SCTP_BASE_INFO(ipi_addr_mtx), RA_WLOCKED);		\
+} while (0)
 
 #define SCTP_IPI_ITERATOR_WQ_INIT() do {				\
 	mtx_init(&sctp_it_ctl.ipi_iterator_wq_mtx, "sctp-it-wq",	\

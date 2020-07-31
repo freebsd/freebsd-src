@@ -31,7 +31,7 @@
 .\"     From: @(#)comm.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2009
+.Dd July 27, 2020
 .Dt COMM 1
 .Os
 .Sh NAME
@@ -95,6 +95,35 @@ as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Assuming a file named
+.Pa example.txt
+with the following contents:
+.Bd -literal -offset indent
+a
+b
+c
+d
+.Ed
+.Pp
+Show lines only in
+.Pa example.txt ,
+lines only in stdin and common lines:
+.Bd -literal -offset indent
+$ echo -e "B\enc" | comm example.txt -
+        B
+a
+b
+                c
+d
+.Ed
+.Pp
+Show only common lines doing case insensitive comparisons:
+.Bd -literal -offset indent
+$ echo -e "B\enc" | comm -1 -2 -i example.txt -
+b
+c
+.Ed
 .Sh SEE ALSO
 .Xr cmp 1 ,
 .Xr diff 1 ,
@@ -108,9 +137,7 @@ utility conforms to
 .Pp
 The
 .Fl i
-option is an extension to the
-.Tn POSIX
-standard.
+option is an extension to the POSIX standard.
 .Sh HISTORY
 A
 .Nm

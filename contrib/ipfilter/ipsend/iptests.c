@@ -36,18 +36,13 @@ typedef	int	boolean_t;
 # endif
 # undef  _KERNEL
 # undef  KERNEL
-#if !defined(solaris) && !defined(linux) && !defined(__sgi)
+#if !defined(solaris)
 # include <nlist.h>
 # include <sys/user.h>
 # include <sys/proc.h>
 #endif
-#if !defined(ultrix) && !defined(hpux) && !defined(linux) && \
-    !defined(__sgi) && !defined(__osf__) && !defined(_AIX51)
 # include <kvm.h>
-#endif
-#ifndef	ultrix
 # include <sys/socket.h>
-#endif
 #if defined(solaris)
 # include <sys/stream.h>
 #else
@@ -57,11 +52,9 @@ typedef	int	boolean_t;
 #include <sys/systm.h>
 #include <sys/session.h>
 #endif
-#if BSD >= 199103
 # include <sys/sysctl.h>
 # include <sys/filedesc.h>
 # include <paths.h>
-#endif
 #include <netinet/in_systm.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -74,7 +67,7 @@ typedef	int	boolean_t;
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/ip.h>
-#if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
+#if defined(__SVR4) || defined(__svr4__)
 # include <sys/sysmacros.h>
 #endif
 #include <stdio.h>
@@ -82,7 +75,7 @@ typedef	int	boolean_t;
 #include <stdlib.h>
 #include <string.h>
 # include <netinet/ip_var.h>
-# if !defined(__hpux) && !defined(solaris)
+# if !defined(solaris)
 #  include <netinet/in_pcb.h>
 # endif
 #include "ipsend.h"

@@ -223,6 +223,10 @@ cpu_mp_start(void)
 	setidt(IPI_SUSPEND, pti ? IDTVEC(cpususpend_pti) : IDTVEC(cpususpend),
 	    SDT_SYSIGT, SEL_KPL, 0);
 
+	/* Install an IPI for calling delayed SWI */
+	setidt(IPI_SWI, pti ? IDTVEC(ipi_swi_pti) : IDTVEC(ipi_swi),
+	    SDT_SYSIGT, SEL_KPL, 0);
+
 	/* Set boot_cpu_id if needed. */
 	if (boot_cpu_id == -1) {
 		boot_cpu_id = PCPU_GET(apic_id);
@@ -283,6 +287,7 @@ init_secondary(void)
 	pc->pc_fs32p = &gdt[GUFS32_SEL];
 	pc->pc_gs32p = &gdt[GUGS32_SEL];
 	pc->pc_ldt = (struct system_segment_descriptor *)&gdt[GUSERLDT_SEL];
+	pc->pc_ucr3_load_mask = PMAP_UCR3_NOMASK;
 	/* See comment in pmap_bootstrap(). */
 	pc->pc_pcid_next = PMAP_PCID_KERN + 2;
 	pc->pc_pcid_gen = 1;
@@ -695,13 +700,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
 	} else {
 		other_cpus = mask;
-		while ((cpu = CPU_FFS(&mask)) != 0) {
-			cpu--;
-			CPU_CLR(cpu, &mask);
-			CTR3(KTR_SMP, "%s: cpu: %d invl ipi op: %x", __func__,
-			    cpu, op);
-			ipi_send_cpu(cpu, IPI_INVLOP);
-		}
+		ipi_selected(mask, IPI_INVLOP);
 	}
 	curcpu_cb(pmap, addr1, addr2);
 	while ((cpu = CPU_FFS(&other_cpus)) != 0) {
@@ -821,15 +820,14 @@ invltlb_invpcid_pti_handler(pmap_t smp_tlb_pmap)
 		invpcid(&d, INVPCID_CTXGLOB);
 	} else {
 		invpcid(&d, INVPCID_CTX);
-		d.pcid |= PMAP_PCID_USER_PT;
-		invpcid(&d, INVPCID_CTX);
+		if (smp_tlb_pmap == PCPU_GET(curpmap))
+			PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 	}
 }
 
 static void
 invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 {
-	uint64_t kcr3, ucr3;
 	uint32_t pcid;
   
 #ifdef COUNT_XINVLTLB_HITS
@@ -849,15 +847,11 @@ invltlb_pcid_handler(pmap_t smp_tlb_pmap)
 		 * invalidation when switching to the pmap on this
 		 * CPU.
 		 */
-		if (PCPU_GET(curpmap) == smp_tlb_pmap) {
+		if (smp_tlb_pmap == PCPU_GET(curpmap)) {
 			pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
-			kcr3 = smp_tlb_pmap->pm_cr3 | pcid;
-			ucr3 = smp_tlb_pmap->pm_ucr3;
-			if (ucr3 != PMAP_NO_CR3) {
-				ucr3 |= PMAP_PCID_USER_PT | pcid;
-				pmap_pti_pcid_invalidate(ucr3, kcr3);
-			} else
-				load_cr3(kcr3);
+			load_cr3(smp_tlb_pmap->pm_cr3 | pcid);
+			if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3)
+				PCPU_SET(ucr3_load_mask, ~CR3_PCID_SAVE);
 		}
 	}
 }
@@ -888,7 +882,9 @@ invlpg_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 #endif /* COUNT_IPIS */
 
 	invlpg(smp_tlb_addr1);
-	if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3) {
+	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
+	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
 		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
 		    PMAP_PCID_USER_PT;
 		d.pad = 0;
@@ -912,7 +908,8 @@ invlpg_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1)
 
 	invlpg(smp_tlb_addr1);
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
-	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3) {
+	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
+	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
 		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
 		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
 		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;
@@ -960,7 +957,9 @@ invlrng_invpcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 		invlpg(addr);
 		addr += PAGE_SIZE;
 	} while (addr < addr2);
-	if (smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3) {
+	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
+	    smp_tlb_pmap->pm_ucr3 != PMAP_NO_CR3 &&
+	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
 		d.pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid |
 		    PMAP_PCID_USER_PT;
 		d.pad = 0;
@@ -994,7 +993,8 @@ invlrng_pcid_handler(pmap_t smp_tlb_pmap, vm_offset_t smp_tlb_addr1,
 		addr += PAGE_SIZE;
 	} while (addr < addr2);
 	if (smp_tlb_pmap == PCPU_GET(curpmap) &&
-	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3) {
+	    (ucr3 = smp_tlb_pmap->pm_ucr3) != PMAP_NO_CR3 &&
+	    PCPU_GET(ucr3_load_mask) == PMAP_UCR3_NOMASK) {
 		pcid = smp_tlb_pmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid;
 		kcr3 = smp_tlb_pmap->pm_cr3 | pcid | CR3_PCID_SAVE;
 		ucr3 |= pcid | PMAP_PCID_USER_PT | CR3_PCID_SAVE;

@@ -26,7 +26,7 @@ devwait
 # Break one of the mirrors by forcing a single metadata write error.
 # When dd closes the mirror provider, gmirror will attempt to mark the mirrors
 # clean, and will kick one of the mirrors out upon hitting the error.
-sysctl debug.fail_point.g_mirror_metadata_write='1*return(5)' || exit 1
+sysctl debug.fail_point.g_mirror_metadata_write="1*return(5)[pid $(gmirror_worker_pid)]" || exit 1
 dd if=/dev/random of=/dev/mirror/$name bs=$ddbs count=1 >/dev/null 2>&1
 sysctl debug.fail_point.g_mirror_metadata_write='off' || exit 1
 

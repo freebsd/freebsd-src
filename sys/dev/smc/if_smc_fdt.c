@@ -35,29 +35,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-
-#include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_media.h>
 
 #include <dev/smc/if_smcvar.h>
-
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include "miibus_if.h"
-
 static int		smc_fdt_probe(device_t);
-static int		smc_fdt_attach(device_t);
-static int		smc_fdt_detach(device_t);
 
 static int
 smc_fdt_probe(device_t dev)
@@ -81,46 +68,18 @@ smc_fdt_probe(device_t dev)
 	return (ENXIO);
 }
 
-static int
-smc_fdt_attach(device_t dev)
-{
-
-	return smc_attach(dev);
-}
-
-static int
-smc_fdt_detach(device_t dev)
-{
-
-	smc_detach(dev);
-
-	return (0);
-}
-
 static device_method_t smc_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		smc_fdt_probe),
-	DEVMETHOD(device_attach,	smc_fdt_attach),
-	DEVMETHOD(device_detach,	smc_fdt_detach),
-
-	/* MII interface */
-	DEVMETHOD(miibus_readreg,	smc_miibus_readreg),
-	DEVMETHOD(miibus_writereg,	smc_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	smc_miibus_statchg),
-
 	{ 0, 0 }
 };
 
-static driver_t smc_fdt_driver = {
-	"smc",
-	smc_fdt_methods,
-	sizeof(struct smc_softc),
-};
+DEFINE_CLASS_1(smc, smc_fdt_driver, smc_fdt_methods,
+    sizeof(struct smc_softc), smc_driver);
 
 extern devclass_t smc_devclass;
 
 DRIVER_MODULE(smc, simplebus, smc_fdt_driver, smc_devclass, 0, 0);
-DRIVER_MODULE(miibus, smc, miibus_driver, miibus_devclass, 0, 0);
 MODULE_DEPEND(smc, fdt, 1, 1, 1);
 MODULE_DEPEND(smc, ether, 1, 1, 1);
 MODULE_DEPEND(smc, miibus, 1, 1, 1);

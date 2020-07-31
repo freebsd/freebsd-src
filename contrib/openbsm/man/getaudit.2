@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 19, 2008
+.Dd March 14, 2018 
 .Dt GETAUDIT 2
 .Os
 .Sh NAME
@@ -62,6 +62,7 @@ struct auditinfo {
 	au_mask_t      ai_mask;         /* Audit masks */
 	au_tid_t       ai_termid;       /* Terminal ID */
 	au_asid_t      ai_asid;         /* Audit session ID */
+	au_asflgs_t    ai_flags;        /* Audit session flags. */
 };
 typedef struct auditinfo        auditinfo_t;
 .Ed

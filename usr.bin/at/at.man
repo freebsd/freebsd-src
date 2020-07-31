@@ -213,9 +213,14 @@ every five minutes.
 This implies that the granularity of
 .Nm
 might not be optimal for every deployment.
-If a finer granularity is needed, the system crontab at
-.Pa /etc/crontab
-needs to be changed.
+If a finer granularity is desired, the
+.Pa /etc/cron.d/at
+file can be edited and will be read by the system crontab, from which
+the 
+.Ev SHELL 
+and 
+.Ev PATH
+environment variables are inherited. 
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl q Ar queue

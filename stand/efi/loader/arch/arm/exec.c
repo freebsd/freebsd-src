@@ -77,7 +77,7 @@ __elfN(arm_exec)(struct preloaded_file *fp)
 
 	entry = efi_translate(e->e_entry);
 
-	printf("Kernel entry at 0x%x...\n", (unsigned)entry);
+	printf("Kernel entry at %p...\n", entry);
 	printf("Kernel args: %s\n", fp->f_args);
 
 	if ((error = bi_load(fp->f_args, &modulep, &kernend)) != 0) {

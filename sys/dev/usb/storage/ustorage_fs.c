@@ -381,10 +381,6 @@ ustorage_fs_attach(device_t dev)
 			ustorage_fs_ramdisk =
 			    malloc(USTORAGE_FS_RAM_SECT << 9, M_USB,
 			    M_ZERO | M_WAITOK);
-
-			if (ustorage_fs_ramdisk == NULL) {
-				return (ENOMEM);
-			}
 		}
 		sc->sc_lun[0].memory_image = ustorage_fs_ramdisk;
 		sc->sc_lun[0].num_sectors = USTORAGE_FS_RAM_SECT;

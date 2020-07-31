@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2020
+.Dd July 23, 2020
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -356,10 +356,22 @@ control message along with the decrypted payload.
 The control message contains a
 .Vt struct tls_get_record
 which includes fields from the TLS record header.
-If a corrupted TLS record is received,
+If an invalid or corrupted TLS record is received,
 recvmsg 2
-will fail with
-.Dv EBADMSG .
+will fail with one of the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The version fields in a TLS record's header did not match the version required
+by the
+.Vt struct tls_so_enable
+structure used to enable in-kernel TLS.
+.It Bq Er EMSGSIZE
+A TLS record's length was either too small or too large.
+.It Bq Er EMSGSIZE
+The connection was closed after sending a truncated TLS record.
+.It Bq Er EBADMSG
+The TLS record failed to match the included authentication tag.
+.El
 .Pp
 At present, only a single receive key may be set on a socket.
 As such, users of this option must disable rekeying.

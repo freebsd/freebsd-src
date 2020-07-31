@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>   
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
@@ -81,6 +82,10 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ieee80211vap *vap;
 	struct ieee80211com *ic;
 	int error;
+
+	error = priv_check(curthread, PRIV_NET80211_CREATE_VAP);
+	if (error)
+		return error;
 
 	error = copyin(params, &cp, sizeof(cp));
 	if (error)

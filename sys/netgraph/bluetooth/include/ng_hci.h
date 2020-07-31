@@ -393,10 +393,10 @@
 	(((h) & 0x0fff) | (((pb) & 3) << 12) | (((bc) & 3) << 14))
 
 /* PB flag values */
-					/* 00 - reserved for future use */
+#define	NG_HCI_LE_PACKET_START		0x0
 #define	NG_HCI_PACKET_FRAGMENT		0x1 
 #define	NG_HCI_PACKET_START		0x2
-					/* 11 - reserved for future use */
+					/* 11 for AMP packet, not supported */
 
 /* BC flag values */
 #define NG_HCI_POINT2POINT		0x0 /* only Host controller to Host */
