@@ -1713,6 +1713,7 @@ tcp_newtcpcb(struct inpcb *inp)
 		if (CC_ALGO(tp)->cb_init(tp->ccv) > 0) {
 			if (tp->t_fb->tfb_tcp_fb_fini)
 				(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+			in_pcbrele_wlocked(inp);
 			refcount_release(&tp->t_fb->tfb_refcnt);
 			uma_zfree(V_tcpcb_zone, tm);
 			return (NULL);
@@ -1723,6 +1724,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (khelp_init_osd(HELPER_CLASS_TCP, tp->osd)) {
 		if (tp->t_fb->tfb_tcp_fb_fini)
 			(*tp->t_fb->tfb_tcp_fb_fini)(tp, 1);
+		in_pcbrele_wlocked(inp);
 		refcount_release(&tp->t_fb->tfb_refcnt);
 		uma_zfree(V_tcpcb_zone, tm);
 		return (NULL);
@@ -1783,7 +1785,12 @@ tcp_newtcpcb(struct inpcb *inp)
 	tcp_log_tcpcbinit(tp);
 #endif
 	if (tp->t_fb->tfb_tcp_fb_init) {
-		(*tp->t_fb->tfb_tcp_fb_init)(tp);
+		if ((*tp->t_fb->tfb_tcp_fb_init)(tp)) {
+			refcount_release(&tp->t_fb->tfb_refcnt);
+			in_pcbrele_wlocked(inp);
+			uma_zfree(V_tcpcb_zone, tm);
+			return (NULL);
+		}
 	}
 #ifdef STATS
 	if (V_tcp_perconn_stats_enable == 1)
