@@ -15,9 +15,13 @@
 
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/Host.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/SwapByteOrder.h"
 
 namespace llvm {
+
+class Triple;
+
 namespace MachO {
 // Enums from <mach-o/loader.h>
 enum : uint32_t {
@@ -78,7 +82,8 @@ enum {
   MH_HAS_TLV_DESCRIPTORS = 0x00800000u,
   MH_NO_HEAP_EXECUTION = 0x01000000u,
   MH_APP_EXTENSION_SAFE = 0x02000000u,
-  MH_NLIST_OUTOFSYNC_WITH_DYLDINFO = 0x04000000u
+  MH_NLIST_OUTOFSYNC_WITH_DYLDINFO = 0x04000000u,
+  MH_DYLIB_IN_CACHE = 0x80000000u,
 };
 
 enum : uint32_t {
@@ -948,13 +953,8 @@ struct fat_arch_64 {
 // Structs from <mach-o/reloc.h>
 struct relocation_info {
   int32_t r_address;
-#if defined(BYTE_ORDER) && defined(BIG_ENDIAN) && (BYTE_ORDER == BIG_ENDIAN)
-  uint32_t r_type : 4,  r_extern : 1, r_length : 2, r_pcrel : 1,
-      r_symbolnum : 24;
-#else
   uint32_t r_symbolnum : 24, r_pcrel : 1, r_length : 2, r_extern : 1,
       r_type : 4;
-#endif
 };
 
 struct scattered_relocation_info {
@@ -1517,6 +1517,9 @@ enum CPUSubTypePowerPC {
   CPU_SUBTYPE_MC980000_ALL = CPU_SUBTYPE_POWERPC_ALL,
   CPU_SUBTYPE_MC98601 = CPU_SUBTYPE_POWERPC_601
 };
+
+Expected<uint32_t> getCPUType(const Triple &T);
+Expected<uint32_t> getCPUSubType(const Triple &T);
 
 struct x86_thread_state32_t {
   uint32_t eax;

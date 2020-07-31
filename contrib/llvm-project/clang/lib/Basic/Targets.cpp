@@ -33,6 +33,7 @@
 #include "Targets/Sparc.h"
 #include "Targets/SystemZ.h"
 #include "Targets/TCE.h"
+#include "Targets/VE.h"
 #include "Targets/WebAssembly.h"
 #include "Targets/X86.h"
 #include "Targets/XCore.h"
@@ -117,6 +118,9 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     return new XCoreTargetInfo(Triple, Opts);
 
   case llvm::Triple::hexagon:
+    if (os == llvm::Triple::Linux &&
+        Triple.getEnvironment() == llvm::Triple::Musl)
+      return new LinuxTargetInfo<HexagonTargetInfo>(Triple, Opts);
     return new HexagonTargetInfo(Triple, Opts);
 
   case llvm::Triple::lanai:
@@ -477,6 +481,8 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new OpenBSDI386TargetInfo(Triple, Opts);
     case llvm::Triple::FreeBSD:
       return new FreeBSDTargetInfo<X86_32TargetInfo>(Triple, Opts);
+    case llvm::Triple::Fuchsia:
+      return new FuchsiaTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::KFreeBSD:
       return new KFreeBSDTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Minix:
@@ -608,6 +614,9 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     return new LinuxTargetInfo<RenderScript32TargetInfo>(Triple, Opts);
   case llvm::Triple::renderscript64:
     return new LinuxTargetInfo<RenderScript64TargetInfo>(Triple, Opts);
+
+  case llvm::Triple::ve:
+    return new LinuxTargetInfo<VETargetInfo>(Triple, Opts);
   }
 }
 } // namespace targets

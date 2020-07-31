@@ -1,4 +1,4 @@
-//===-- TargetList.cpp ------------------------------------------*- C++ -*-===//
+//===-- TargetList.cpp ----------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -398,6 +398,8 @@ Status TargetList::CreateTargetInternal(Debugger &debugger,
       if (user_exe_path_is_bundle)
         exe_module_sp->GetFileSpec().GetPath(resolved_bundle_exe_path,
                                              sizeof(resolved_bundle_exe_path));
+      if (target_sp->GetPreloadSymbols())
+        exe_module_sp->PreloadSymbols();
     }
   } else {
     // No file was specified, just create an empty target with any arch if a

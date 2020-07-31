@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_SBModule_h_
-#define LLDB_SBModule_h_
+#ifndef LLDB_API_SBMODULE_H
+#define LLDB_API_SBMODULE_H
 
 #include "lldb/API/SBDefines.h"
 #include "lldb/API/SBError.h"
@@ -288,6 +288,9 @@ public:
   lldb::SBAddress GetObjectFileHeaderAddress() const;
   lldb::SBAddress GetObjectFileEntryPointAddress() const;
 
+  /// Get the number of global modules.
+  static uint32_t GetNumberAllocatedModules();
+
 private:
   friend class SBAddress;
   friend class SBFrame;
@@ -306,4 +309,4 @@ private:
 
 } // namespace lldb
 
-#endif // LLDB_SBModule_h_
+#endif // LLDB_API_SBMODULE_H

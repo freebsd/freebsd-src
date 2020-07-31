@@ -80,7 +80,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachinePassRegistry.h"
 #include "llvm/CodeGen/RegisterPressure.h"
@@ -102,6 +101,7 @@ extern cl::opt<bool> ForceTopDown;
 extern cl::opt<bool> ForceBottomUp;
 extern cl::opt<bool> VerifyScheduling;
 
+class AAResults;
 class LiveIntervals;
 class MachineDominatorTree;
 class MachineFunction;
@@ -121,7 +121,7 @@ struct MachineSchedContext {
   const MachineLoopInfo *MLI = nullptr;
   const MachineDominatorTree *MDT = nullptr;
   const TargetPassConfig *PassConfig = nullptr;
-  AliasAnalysis *AA = nullptr;
+  AAResults *AA = nullptr;
   LiveIntervals *LIS = nullptr;
 
   RegisterClassInfo *RegClassInfo;
@@ -185,6 +185,9 @@ struct MachineSchedPolicy {
   // Disable heuristic that tries to fetch nodes from long dependency chains
   // first.
   bool DisableLatencyHeuristic = false;
+
+  // Compute DFSResult for use in scheduling heuristics.
+  bool ComputeDFSResult = false;
 
   MachineSchedPolicy() = default;
 };
@@ -261,7 +264,7 @@ public:
 /// PreRA and PostRA MachineScheduler.
 class ScheduleDAGMI : public ScheduleDAGInstrs {
 protected:
-  AliasAnalysis *AA;
+  AAResults *AA;
   LiveIntervals *LIS;
   std::unique_ptr<MachineSchedStrategy> SchedImpl;
 
@@ -1061,7 +1064,7 @@ public:
   }
 
 protected:
-  void tryCandidate(SchedCandidate &Cand, SchedCandidate &TryCand);
+  virtual void tryCandidate(SchedCandidate &Cand, SchedCandidate &TryCand);
 
   void pickNodeFromQueue(SchedCandidate &Cand);
 };

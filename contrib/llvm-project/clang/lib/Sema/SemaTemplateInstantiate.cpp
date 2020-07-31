@@ -9,7 +9,6 @@
 //
 //===----------------------------------------------------------------------===/
 
-#include "clang/Sema/SemaInternal.h"
 #include "TreeTransform.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -21,13 +20,15 @@
 #include "clang/AST/TypeVisitor.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/Stack.h"
+#include "clang/Basic/TargetInfo.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/Lookup.h"
+#include "clang/Sema/SemaConcept.h"
+#include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/Template.h"
 #include "clang/Sema/TemplateDeduction.h"
 #include "clang/Sema/TemplateInstCallback.h"
-#include "clang/Sema/SemaConcept.h"
 #include "llvm/Support/TimeProfiler.h"
 
 using namespace clang;
@@ -214,6 +215,8 @@ bool Sema::CodeSynthesisContext::isInstantiationRecord() const {
   case ParameterMappingSubstitution:
   case ConstraintNormalization:
   case RewritingOperatorAsSpaceship:
+  case InitializingStructuredBinding:
+  case MarkingClassDllexported:
     return false;
 
   // This function should never be called when Kind's value is Memoization.
@@ -759,9 +762,21 @@ void Sema::PrintInstantiationStack() {
                    diag::note_rewriting_operator_as_spaceship);
       break;
 
+    case CodeSynthesisContext::InitializingStructuredBinding:
+      Diags.Report(Active->PointOfInstantiation,
+                   diag::note_in_binding_decl_init)
+          << cast<BindingDecl>(Active->Entity);
+      break;
+
+    case CodeSynthesisContext::MarkingClassDllexported:
+      Diags.Report(Active->PointOfInstantiation,
+                   diag::note_due_to_dllexported_class)
+          << cast<CXXRecordDecl>(Active->Entity) << !getLangOpts().CPlusPlus11;
+      break;
+
     case CodeSynthesisContext::Memoization:
       break;
-    
+
     case CodeSynthesisContext::ConstraintsCheck: {
       unsigned DiagID = 0;
       if (!Active->Entity) {
@@ -860,6 +875,8 @@ Optional<TemplateDeductionInfo *> Sema::isSFINAEContext() const {
     case CodeSynthesisContext::DeclaringImplicitEqualityComparison:
     case CodeSynthesisContext::DefiningSynthesizedFunction:
     case CodeSynthesisContext::RewritingOperatorAsSpaceship:
+    case CodeSynthesisContext::InitializingStructuredBinding:
+    case CodeSynthesisContext::MarkingClassDllexported:
       // This happens in a context unrelated to template instantiation, so
       // there is no SFINAE.
       return None;
@@ -1345,6 +1362,19 @@ TemplateName TemplateInstantiator::TransformTemplateName(
 
       TemplateArgument Arg = TemplateArgs(TTP->getDepth(), TTP->getPosition());
 
+      if (TemplateArgs.isRewrite()) {
+        // We're rewriting the template parameter as a reference to another
+        // template parameter.
+        if (Arg.getKind() == TemplateArgument::Pack) {
+          assert(Arg.pack_size() == 1 && Arg.pack_begin()->isPackExpansion() &&
+                 "unexpected pack arguments in template rewrite");
+          Arg = Arg.pack_begin()->getPackExpansionPattern();
+        }
+        assert(Arg.getKind() == TemplateArgument::Template &&
+               "unexpected nontype template argument kind in template rewrite");
+        return Arg.getAsTemplate();
+      }
+
       if (TTP->isParameterPack()) {
         assert(Arg.getKind() == TemplateArgument::Pack &&
                "Missing argument pack");
@@ -1384,10 +1414,46 @@ TemplateName TemplateInstantiator::TransformTemplateName(
                                           AllowInjectedClassName);
 }
 
+static ExprResult TransformUniqueStableName(TemplateInstantiator &TI,
+                                            PredefinedExpr *E) {
+  if (E->getIdentKind() == PredefinedExpr::UniqueStableNameType) {
+    TypeSourceInfo *Info =
+        TI.getDerived().TransformType(E->getTypeSourceInfo());
+
+    if (!Info)
+      return ExprError();
+
+    if (!TI.getDerived().AlwaysRebuild() && Info == E->getTypeSourceInfo())
+      return E;
+
+    return TI.getSema().BuildUniqueStableName(E->getLocation(), Info);
+  }
+
+  if (E->getIdentKind() == PredefinedExpr::UniqueStableNameExpr) {
+    EnterExpressionEvaluationContext Unevaluated(
+        TI.getSema(), Sema::ExpressionEvaluationContext::Unevaluated);
+    ExprResult SubExpr = TI.getDerived().TransformExpr(E->getExpr());
+
+    if (SubExpr.isInvalid())
+      return ExprError();
+
+    if (!TI.getDerived().AlwaysRebuild() && SubExpr.get() == E->getExpr())
+      return E;
+
+    return TI.getSema().BuildUniqueStableName(E->getLocation(), SubExpr.get());
+  }
+
+  llvm_unreachable("Only valid for UniqueStableNameType/Expr");
+}
+
 ExprResult
 TemplateInstantiator::TransformPredefinedExpr(PredefinedExpr *E) {
   if (!E->isTypeDependent())
     return E;
+
+  if (E->getIdentKind() == PredefinedExpr::UniqueStableNameType ||
+      E->getIdentKind() == PredefinedExpr::UniqueStableNameExpr)
+    return TransformUniqueStableName(*this, E);
 
   return getSema().BuildPredefinedExpr(E->getLocation(), E->getIdentKind());
 }
@@ -1405,19 +1471,18 @@ TemplateInstantiator::TransformTemplateParmRefExpr(DeclRefExpr *E,
 
   TemplateArgument Arg = TemplateArgs(NTTP->getDepth(), NTTP->getPosition());
 
-  if (TemplateArgs.getNumLevels() != TemplateArgs.getNumSubstitutedLevels()) {
-    // We're performing a partial substitution, so the substituted argument
-    // could be dependent. As a result we can't create a SubstNonType*Expr
-    // node now, since that represents a fully-substituted argument.
-    // FIXME: We should have some AST representation for this.
+  if (TemplateArgs.isRewrite()) {
+    // We're rewriting the template parameter as a reference to another
+    // template parameter.
     if (Arg.getKind() == TemplateArgument::Pack) {
-      // FIXME: This won't work for alias templates.
       assert(Arg.pack_size() == 1 && Arg.pack_begin()->isPackExpansion() &&
-             "unexpected pack arguments in partial substitution");
+             "unexpected pack arguments in template rewrite");
       Arg = Arg.pack_begin()->getPackExpansionPattern();
     }
     assert(Arg.getKind() == TemplateArgument::Expression &&
-           "unexpected nontype template argument kind in partial substitution");
+           "unexpected nontype template argument kind in template rewrite");
+    // FIXME: This can lead to the same subexpression appearing multiple times
+    // in a complete expression.
     return Arg.getAsExpr();
   }
 
@@ -1728,6 +1793,24 @@ TemplateInstantiator::TransformTemplateTypeParmType(TypeLocBuilder &TLB,
     }
 
     TemplateArgument Arg = TemplateArgs(T->getDepth(), T->getIndex());
+
+    if (TemplateArgs.isRewrite()) {
+      // We're rewriting the template parameter as a reference to another
+      // template parameter.
+      if (Arg.getKind() == TemplateArgument::Pack) {
+        assert(Arg.pack_size() == 1 && Arg.pack_begin()->isPackExpansion() &&
+               "unexpected pack arguments in template rewrite");
+        Arg = Arg.pack_begin()->getPackExpansionPattern();
+      }
+      assert(Arg.getKind() == TemplateArgument::Type &&
+             "unexpected nontype template argument kind in template rewrite");
+      QualType NewT = Arg.getAsType();
+      assert(isa<TemplateTypeParmType>(NewT) &&
+             "type parm not rewritten to type parm");
+      auto NewTL = TLB.push<TemplateTypeParmTypeLoc>(NewT);
+      NewTL.setNameLoc(TL.getNameLoc());
+      return NewT;
+    }
 
     if (T->isParameterPack()) {
       assert(Arg.getKind() == TemplateArgument::Pack &&
@@ -2343,7 +2426,7 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
     UnparsedDefaultArgInstantiations[OldParm].push_back(NewParm);
   } else if (Expr *Arg = OldParm->getDefaultArg()) {
     FunctionDecl *OwningFunc = cast<FunctionDecl>(OldParm->getDeclContext());
-    if (OwningFunc->isInLocalScope()) {
+    if (OwningFunc->isInLocalScopeForInstantiation()) {
       // Instantiate default arguments for methods of local classes (DR1484)
       // and non-defining declarations.
       Sema::ContextRAII SavedContext(*this, OwningFunc);
@@ -2352,7 +2435,12 @@ ParmVarDecl *Sema::SubstParmVarDecl(ParmVarDecl *OldParm,
       if (NewArg.isUsable()) {
         // It would be nice if we still had this.
         SourceLocation EqualLoc = NewArg.get()->getBeginLoc();
-        SetParamDefaultArgument(NewParm, NewArg.get(), EqualLoc);
+        ExprResult Result =
+            ConvertParamDefaultArgument(NewParm, NewArg.get(), EqualLoc);
+        if (Result.isInvalid())
+          return nullptr;
+
+        SetParamDefaultArgument(NewParm, Result.getAs<Expr>(), EqualLoc);
       }
     } else {
       // FIXME: if we non-lazily instantiated non-dependent default args for
@@ -3521,6 +3609,12 @@ LocalInstantiationScope::findInstantiationOf(const Decl *D) {
   if (isa<EnumDecl>(D))
     return nullptr;
 
+  // Materialized typedefs/type alias for implicit deduction guides may require
+  // instantiation.
+  if (isa<TypedefNameDecl>(D) &&
+      isa<CXXDeductionGuideDecl>(D->getDeclContext()))
+    return nullptr;
+
   // If we didn't find the decl, then we either have a sema bug, or we have a
   // forward reference to a label declaration.  Return null to indicate that
   // we have an uninstantiated label.
@@ -3570,6 +3664,13 @@ void LocalInstantiationScope::MakeInstantiatedLocalArgPack(const Decl *D) {
   DeclArgumentPack *Pack = new DeclArgumentPack;
   Stored = Pack;
   ArgumentPacks.push_back(Pack);
+}
+
+bool LocalInstantiationScope::isLocalPackExpansion(const Decl *D) {
+  for (DeclArgumentPack *Pack : ArgumentPacks)
+    if (std::find(Pack->begin(), Pack->end(), D) != Pack->end())
+      return true;
+  return false;
 }
 
 void LocalInstantiationScope::SetPartiallySubstitutedPack(NamedDecl *Pack,

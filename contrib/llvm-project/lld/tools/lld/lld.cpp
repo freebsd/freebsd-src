@@ -36,6 +36,7 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/PluginLoader.h"
 #include <cstdlib>
 
 using namespace lld;
@@ -44,10 +45,11 @@ using namespace llvm::sys;
 
 enum Flavor {
   Invalid,
-  Gnu,     // -flavor gnu
-  WinLink, // -flavor link
-  Darwin,  // -flavor darwin
-  Wasm,    // -flavor wasm
+  Gnu,       // -flavor gnu
+  WinLink,   // -flavor link
+  Darwin,    // -flavor darwin
+  DarwinNew, // -flavor darwinnew
+  Wasm,      // -flavor wasm
 };
 
 LLVM_ATTRIBUTE_NORETURN static void die(const Twine &s) {
@@ -61,6 +63,7 @@ static Flavor getFlavor(StringRef s) {
       .CasesLower("wasm", "ld-wasm", Wasm)
       .CaseLower("link", WinLink)
       .CasesLower("ld64", "ld64.lld", "darwin", Darwin)
+      .CaseLower("darwinnew", DarwinNew)
       .Default(Invalid);
 }
 
@@ -93,17 +96,9 @@ static bool isPETarget(std::vector<const char *> &v) {
 }
 
 static Flavor parseProgname(StringRef progname) {
-#if __APPLE__
-  // Use Darwin driver for "ld" on Darwin.
-  if (progname == "ld")
-    return Darwin;
-#endif
-
-#if LLVM_ON_UNIX
-  // Use GNU driver for "ld" on other Unix-like system.
+  // Use GNU driver for "ld" by default.
   if (progname == "ld")
     return Gnu;
-#endif
 
   // Progname may be something like "lld-gnu". Parse it.
   SmallVector<StringRef, 3> v;
@@ -147,9 +142,6 @@ int main(int argc, const char **argv) {
   InitLLVM x(argc, argv);
 
   std::vector<const char *> args(argv, argv + argc);
-#ifdef __FreeBSD__
-  return !elf::link(args, canExitEarly(), llvm::outs(), llvm::errs());
-#else
   switch (parseFlavor(args)) {
   case Gnu:
     if (isPETarget(args))
@@ -159,6 +151,8 @@ int main(int argc, const char **argv) {
     return !coff::link(args, canExitEarly(), llvm::outs(), llvm::errs());
   case Darwin:
     return !mach_o::link(args, canExitEarly(), llvm::outs(), llvm::errs());
+  case DarwinNew:
+    return !macho::link(args, canExitEarly(), llvm::outs(), llvm::errs());
   case Wasm:
     return !wasm::link(args, canExitEarly(), llvm::outs(), llvm::errs());
   default:
@@ -166,5 +160,4 @@ int main(int argc, const char **argv) {
         "Invoke ld.lld (Unix), ld64.lld (macOS), lld-link (Windows), wasm-ld"
         " (WebAssembly) instead");
   }
-#endif
 }

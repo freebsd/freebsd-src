@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_SBBreakpoint_h_
-#define LLDB_SBBreakpoint_h_
+#ifndef LLDB_API_SBBREAKPOINT_H
+#define LLDB_API_SBBREAKPOINT_H
 
 #include "lldb/API/SBDefines.h"
 
@@ -105,6 +105,8 @@ public:
 
   bool AddName(const char *new_name);
 
+  SBError AddNameWithErrorHandling(const char *new_name);
+
   void RemoveName(const char *name_to_remove);
 
   bool MatchesName(const char *name);
@@ -181,4 +183,4 @@ private:
 
 } // namespace lldb
 
-#endif // LLDB_SBBreakpoint_h_
+#endif // LLDB_API_SBBREAKPOINT_H

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_CompilerDeclContext_h_
-#define liblldb_CompilerDeclContext_h_
+#ifndef LLDB_SYMBOL_COMPILERDECLCONTEXT_H
+#define LLDB_SYMBOL_COMPILERDECLCONTEXT_H
 
 #include <vector>
 
@@ -38,7 +38,7 @@ public:
   /// This constructor should only be called from the respective TypeSystem
   /// implementation.
   ///
-  /// \see lldb_private::ClangASTContext::CreateDeclContext(clang::DeclContext*)
+  /// \see lldb_private::TypeSystemClang::CreateDeclContext(clang::DeclContext*)
   CompilerDeclContext(TypeSystem *type_system, void *decl_ctx)
       : m_type_system(type_system), m_opaque_decl_ctx(decl_ctx) {}
 
@@ -126,4 +126,4 @@ bool operator!=(const CompilerDeclContext &lhs, const CompilerDeclContext &rhs);
 
 } // namespace lldb_private
 
-#endif // #ifndef liblldb_CompilerDeclContext_h_
+#endif // LLDB_SYMBOL_COMPILERDECLCONTEXT_H

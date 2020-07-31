@@ -25,11 +25,6 @@
 extern "C" void SCUDO_PREFIX(malloc_postinit)();
 static scudo::Allocator<scudo::AndroidConfig, SCUDO_PREFIX(malloc_postinit)>
     SCUDO_ALLOCATOR;
-// Pointer to the static allocator so that the C++ wrappers can access it.
-// Technically we could have a completely separated heap for C & C++ but in
-// reality the amount of cross pollination between the two is staggering.
-scudo::Allocator<scudo::AndroidConfig, SCUDO_PREFIX(malloc_postinit)> *
-    CONCATENATE(SCUDO_ALLOCATOR, Ptr) = &SCUDO_ALLOCATOR;
 
 #include "wrappers_c.inc"
 
@@ -44,22 +39,37 @@ extern "C" void SCUDO_PREFIX(malloc_postinit)();
 static scudo::Allocator<scudo::AndroidSvelteConfig,
                         SCUDO_PREFIX(malloc_postinit)>
     SCUDO_ALLOCATOR;
-// Pointer to the static allocator so that the C++ wrappers can access it.
-// Technically we could have a completely separated heap for C & C++ but in
-// reality the amount of cross pollination between the two is staggering.
-scudo::Allocator<scudo::AndroidSvelteConfig, SCUDO_PREFIX(malloc_postinit)> *
-    CONCATENATE(SCUDO_ALLOCATOR, Ptr) = &SCUDO_ALLOCATOR;
 
 #include "wrappers_c.inc"
 
 #undef SCUDO_ALLOCATOR
 #undef SCUDO_PREFIX
 
-// The following is the only function that will end up initializing both
-// allocators, which will result in a slight increase in memory footprint.
-INTERFACE void __scudo_print_stats(void) {
-  Allocator.printStats();
-  SvelteAllocator.printStats();
+// TODO(kostyak): support both allocators.
+INTERFACE void __scudo_print_stats(void) { Allocator.printStats(); }
+
+INTERFACE void __scudo_get_error_info(
+    struct scudo_error_info *error_info, uintptr_t fault_addr,
+    const char *stack_depot, const char *region_info, const char *memory,
+    const char *memory_tags, uintptr_t memory_addr, size_t memory_size) {
+  Allocator.getErrorInfo(error_info, fault_addr, stack_depot, region_info,
+                         memory, memory_tags, memory_addr, memory_size);
+}
+
+INTERFACE const char *__scudo_get_stack_depot_addr() {
+  return Allocator.getStackDepotAddress();
+}
+
+INTERFACE size_t __scudo_get_stack_depot_size() {
+  return sizeof(scudo::StackDepot);
+}
+
+INTERFACE const char *__scudo_get_region_info_addr() {
+  return Allocator.getRegionInfoArrayAddress();
+}
+
+INTERFACE size_t __scudo_get_region_info_size() {
+  return Allocator.getRegionInfoArraySize();
 }
 
 #endif // SCUDO_ANDROID && _BIONIC

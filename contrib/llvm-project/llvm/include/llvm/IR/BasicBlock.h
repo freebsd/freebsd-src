@@ -31,6 +31,7 @@
 
 namespace llvm {
 
+class AssemblyAnnotationWriter;
 class CallInst;
 class Function;
 class LandingPadInst;
@@ -131,6 +132,15 @@ public:
   CallInst *getTerminatingDeoptimizeCall() {
     return const_cast<CallInst *>(
          static_cast<const BasicBlock *>(this)->getTerminatingDeoptimizeCall());
+  }
+
+  /// Returns the call instruction calling \@llvm.experimental.deoptimize
+  /// that is present either in current basic block or in block that is a unique
+  /// successor to current block, if such call is present. Otherwise, returns null.
+  const CallInst *getPostdominatingDeoptimizeCall() const;
+  CallInst *getPostdominatingDeoptimizeCall() {
+    return const_cast<CallInst *>(
+         static_cast<const BasicBlock *>(this)->getPostdominatingDeoptimizeCall());
   }
 
   /// Returns the call instruction marked 'musttail' prior to the terminating
@@ -267,6 +277,12 @@ public:
                    static_cast<const BasicBlock *>(this)->getUniqueSuccessor());
   }
 
+  /// Print the basic block to an output stream with an optional
+  /// AssemblyAnnotationWriter.
+  void print(raw_ostream &OS, AssemblyAnnotationWriter *AAW = nullptr,
+             bool ShouldPreserveUseListOrder = false,
+             bool IsForDebug = false) const;
+
   //===--------------------------------------------------------------------===//
   /// Instruction iterator methods
   ///
@@ -361,12 +377,12 @@ public:
   /// except operator delete.
   void dropAllReferences();
 
-  /// Notify the BasicBlock that the predecessor \p Pred is no longer able to
-  /// reach it.
+  /// Update PHI nodes in this BasicBlock before removal of predecessor \p Pred.
+  /// Note that this function does not actually remove the predecessor.
   ///
-  /// This is actually not used to update the Predecessor list, but is actually
-  /// used to update the PHI nodes that reside in the block.  Note that this
-  /// should be called while the predecessor still refers to this block.
+  /// If \p KeepOneInputPHIs is true then don't remove PHIs that are left with
+  /// zero or one incoming values, and don't simplify PHIs with all incoming
+  /// values the same.
   void removePredecessor(BasicBlock *Pred, bool KeepOneInputPHIs = false);
 
   bool canSplitPredecessors() const;
@@ -393,7 +409,9 @@ public:
 
   /// Returns true if there are any uses of this basic block other than
   /// direct branches, switches, etc. to it.
-  bool hasAddressTaken() const { return getSubclassDataFromValue() != 0; }
+  bool hasAddressTaken() const {
+    return getBasicBlockBits().BlockAddressRefCount != 0;
+  }
 
   /// Update all phi nodes in this basic block to refer to basic block \p New
   /// instead of basic block \p Old.
@@ -428,16 +446,81 @@ public:
 
   Optional<uint64_t> getIrrLoopHeaderWeight() const;
 
+  /// Returns true if the Order field of child Instructions is valid.
+  bool isInstrOrderValid() const {
+    return getBasicBlockBits().InstrOrderValid;
+  }
+
+  /// Mark instruction ordering invalid. Done on every instruction insert.
+  void invalidateOrders() {
+    validateInstrOrdering();
+    BasicBlockBits Bits = getBasicBlockBits();
+    Bits.InstrOrderValid = false;
+    setBasicBlockBits(Bits);
+  }
+
+  /// Renumber instructions and mark the ordering as valid.
+  void renumberInstructions();
+
+  /// Asserts that instruction order numbers are marked invalid, or that they
+  /// are in ascending order. This is constant time if the ordering is invalid,
+  /// and linear in the number of instructions if the ordering is valid. Callers
+  /// should be careful not to call this in ways that make common operations
+  /// O(n^2). For example, it takes O(n) time to assign order numbers to
+  /// instructions, so the order should be validated no more than once after
+  /// each ordering to ensure that transforms have the same algorithmic
+  /// complexity when asserts are enabled as when they are disabled.
+  void validateInstrOrdering() const;
+
 private:
+#if defined(_AIX) && (!defined(__GNUC__) || defined(__ibmxl__))
+// Except for GCC; by default, AIX compilers store bit-fields in 4-byte words
+// and give the `pack` pragma push semantics.
+#define BEGIN_TWO_BYTE_PACK() _Pragma("pack(2)")
+#define END_TWO_BYTE_PACK() _Pragma("pack(pop)")
+#else
+#define BEGIN_TWO_BYTE_PACK()
+#define END_TWO_BYTE_PACK()
+#endif
+
+  BEGIN_TWO_BYTE_PACK()
+  /// Bitfield to help interpret the bits in Value::SubclassData.
+  struct BasicBlockBits {
+    unsigned short BlockAddressRefCount : 15;
+    unsigned short InstrOrderValid : 1;
+  };
+  END_TWO_BYTE_PACK()
+
+#undef BEGIN_TWO_BYTE_PACK
+#undef END_TWO_BYTE_PACK
+
+  /// Safely reinterpret the subclass data bits to a more useful form.
+  BasicBlockBits getBasicBlockBits() const {
+    static_assert(sizeof(BasicBlockBits) == sizeof(unsigned short),
+                  "too many bits for Value::SubclassData");
+    unsigned short ValueData = getSubclassDataFromValue();
+    BasicBlockBits AsBits;
+    memcpy(&AsBits, &ValueData, sizeof(AsBits));
+    return AsBits;
+  }
+
+  /// Reinterpret our subclass bits and store them back into Value.
+  void setBasicBlockBits(BasicBlockBits AsBits) {
+    unsigned short D;
+    memcpy(&D, &AsBits, sizeof(D));
+    Value::setValueSubclassData(D);
+  }
+
   /// Increment the internal refcount of the number of BlockAddresses
   /// referencing this BasicBlock by \p Amt.
   ///
   /// This is almost always 0, sometimes one possibly, but almost never 2, and
   /// inconceivably 3 or more.
   void AdjustBlockAddressRefCount(int Amt) {
-    setValueSubclassData(getSubclassDataFromValue()+Amt);
-    assert((int)(signed char)getSubclassDataFromValue() >= 0 &&
-           "Refcount wrap-around");
+    BasicBlockBits Bits = getBasicBlockBits();
+    Bits.BlockAddressRefCount += Amt;
+    setBasicBlockBits(Bits);
+    assert(Bits.BlockAddressRefCount < 255 && "Refcount wrap-around");
   }
 
   /// Shadow Value::setValueSubclassData with a private forwarding method so
@@ -453,6 +536,12 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(BasicBlock, LLVMBasicBlockRef)
 /// Advance \p It while it points to a debug instruction and return the result.
 /// This assumes that \p It is not at the end of a block.
 BasicBlock::iterator skipDebugIntrinsics(BasicBlock::iterator It);
+
+#ifdef NDEBUG
+/// In release builds, this is a no-op. For !NDEBUG builds, the checks are
+/// implemented in the .cpp file to avoid circular header deps.
+inline void BasicBlock::validateInstrOrdering() const {}
+#endif
 
 } // end namespace llvm
 

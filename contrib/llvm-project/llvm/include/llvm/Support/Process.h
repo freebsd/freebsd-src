@@ -25,7 +25,7 @@
 #define LLVM_SUPPORT_PROCESS_H
 
 #include "llvm/ADT/Optional.h"
-#include "llvm/Support/Allocator.h"
+#include "llvm/Support/AllocatorBase.h"
 #include "llvm/Support/Chrono.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Error.h"
@@ -42,6 +42,11 @@ namespace sys {
 /// current executing process.
 class Process {
 public:
+  using Pid = int32_t;
+
+  /// Get the process's identifier.
+  static Pid getProcessId();
+
   /// Get the process's page size.
   /// This may fail if the underlying syscall returns an error. In most cases,
   /// page size information is used for optimization, and this error can be

@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_LLDB_h_
-#define LLDB_LLDB_h_
+#ifndef LLDB_API_LLDB_H
+#define LLDB_API_LLDB_H
 
 #include "lldb/API/SBAddress.h"
 #include "lldb/API/SBAttachInfo.h"
@@ -24,6 +24,7 @@
 #include "lldb/API/SBDebugger.h"
 #include "lldb/API/SBDeclaration.h"
 #include "lldb/API/SBDefines.h"
+#include "lldb/API/SBEnvironment.h"
 #include "lldb/API/SBError.h"
 #include "lldb/API/SBEvent.h"
 #include "lldb/API/SBExecutionContext.h"
@@ -78,4 +79,4 @@
 #include "lldb/API/SBVariablesOptions.h"
 #include "lldb/API/SBWatchpoint.h"
 
-#endif // LLDB_LLDB_h_
+#endif // LLDB_API_LLDB_H

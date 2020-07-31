@@ -185,7 +185,14 @@ ModuleManager::addModule(StringRef FileName, ModuleKind Type,
       Buf = llvm::MemoryBuffer::getSTDIN();
     } else {
       // Get a buffer of the file and close the file descriptor when done.
-      Buf = FileMgr.getBufferForFile(NewModule->File, /*isVolatile=*/false);
+      // The file is volatile because in a parallel build we expect multiple
+      // compiler processes to use the same module file rebuilding it if needed.
+      //
+      // RequiresNullTerminator is false because module files don't need it, and
+      // this allows the file to still be mmapped.
+      Buf = FileMgr.getBufferForFile(NewModule->File,
+                                     /*IsVolatile=*/true,
+                                     /*RequiresNullTerminator=*/false);
     }
 
     if (!Buf) {
@@ -439,7 +446,7 @@ bool ModuleManager::lookupModuleFile(StringRef FileName,
 
   // Open the file immediately to ensure there is no race between stat'ing and
   // opening the file.
-  auto FileOrErr = FileMgr.getFile(FileName, /*OpenFile=*/true, 
+  auto FileOrErr = FileMgr.getFile(FileName, /*OpenFile=*/true,
                                    /*CacheFailure=*/false);
   if (!FileOrErr) {
     File = nullptr;

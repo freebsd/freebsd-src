@@ -1,5 +1,4 @@
-//===-- NSString.cpp ----------------------------------------------*- C++
-//-*-===//
+//===-- NSString.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,11 +8,11 @@
 
 #include "NSString.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
 #include "lldb/DataFormatters/StringPrinter.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/ProcessStructReader.h"
 #include "lldb/Target/Target.h"
@@ -35,7 +34,7 @@ NSString_Additionals::GetAdditionalSummaries() {
 static CompilerType GetNSPathStore2Type(Target &target) {
   static ConstString g_type_name("__lldb_autogen_nspathstore2");
 
-  ClangASTContext *ast_ctx = ClangASTContext::GetScratch(target);
+  TypeSystemClang *ast_ctx = TypeSystemClang::GetScratch(target);
 
   if (!ast_ctx)
     return CompilerType();
@@ -171,11 +170,11 @@ bool lldb_private::formatters::NSStringSummaryProvider(
       options.SetStream(&stream);
       options.SetQuote('"');
       options.SetSourceSize(explicit_length);
+      options.SetHasSourceSize(has_explicit_length);
       options.SetNeedsZeroTermination(false);
       options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                  TypeSummaryCapping::eTypeSummaryUncapped);
       options.SetBinaryZeroIsTerminator(false);
-      options.SetLanguage(summary_options.GetLanguage());
       return StringPrinter::ReadStringAndDumpToStream<
           StringPrinter::StringElementType::UTF16>(options);
     } else {
@@ -183,11 +182,11 @@ bool lldb_private::formatters::NSStringSummaryProvider(
       options.SetProcessSP(process_sp);
       options.SetStream(&stream);
       options.SetSourceSize(explicit_length);
+      options.SetHasSourceSize(has_explicit_length);
       options.SetNeedsZeroTermination(false);
       options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                  TypeSummaryCapping::eTypeSummaryUncapped);
       options.SetBinaryZeroIsTerminator(false);
-      options.SetLanguage(summary_options.GetLanguage());
       return StringPrinter::ReadStringAndDumpToStream<
           StringPrinter::StringElementType::ASCII>(options);
     }
@@ -200,9 +199,9 @@ bool lldb_private::formatters::NSStringSummaryProvider(
     options.SetStream(&stream);
     options.SetQuote('"');
     options.SetSourceSize(explicit_length);
+    options.SetHasSourceSize(has_explicit_length);
     options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                TypeSummaryCapping::eTypeSummaryUncapped);
-    options.SetLanguage(summary_options.GetLanguage());
     return StringPrinter::ReadStringAndDumpToStream<
         StringPrinter::StringElementType::ASCII>(options);
   } else if (is_unicode) {
@@ -222,11 +221,11 @@ bool lldb_private::formatters::NSStringSummaryProvider(
     options.SetStream(&stream);
     options.SetQuote('"');
     options.SetSourceSize(explicit_length);
+    options.SetHasSourceSize(has_explicit_length);
     options.SetNeedsZeroTermination(!has_explicit_length);
     options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                TypeSummaryCapping::eTypeSummaryUncapped);
     options.SetBinaryZeroIsTerminator(!has_explicit_length);
-    options.SetLanguage(summary_options.GetLanguage());
     return StringPrinter::ReadStringAndDumpToStream<
         StringPrinter::StringElementType::UTF16>(options);
   } else if (is_path_store) {
@@ -242,11 +241,11 @@ bool lldb_private::formatters::NSStringSummaryProvider(
     options.SetStream(&stream);
     options.SetQuote('"');
     options.SetSourceSize(explicit_length);
+    options.SetHasSourceSize(has_explicit_length);
     options.SetNeedsZeroTermination(!has_explicit_length);
     options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                TypeSummaryCapping::eTypeSummaryUncapped);
     options.SetBinaryZeroIsTerminator(!has_explicit_length);
-    options.SetLanguage(summary_options.GetLanguage());
     return StringPrinter::ReadStringAndDumpToStream<
         StringPrinter::StringElementType::UTF16>(options);
   } else if (is_inline) {
@@ -264,11 +263,11 @@ bool lldb_private::formatters::NSStringSummaryProvider(
     options.SetProcessSP(process_sp);
     options.SetStream(&stream);
     options.SetSourceSize(explicit_length);
+    options.SetHasSourceSize(has_explicit_length);
     options.SetNeedsZeroTermination(!has_explicit_length);
     options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                TypeSummaryCapping::eTypeSummaryUncapped);
     options.SetBinaryZeroIsTerminator(!has_explicit_length);
-    options.SetLanguage(summary_options.GetLanguage());
     if (has_explicit_length)
       return StringPrinter::ReadStringAndDumpToStream<
           StringPrinter::StringElementType::UTF8>(options);
@@ -287,9 +286,9 @@ bool lldb_private::formatters::NSStringSummaryProvider(
     options.SetProcessSP(process_sp);
     options.SetStream(&stream);
     options.SetSourceSize(explicit_length);
+    options.SetHasSourceSize(has_explicit_length);
     options.SetIgnoreMaxLength(summary_options.GetCapping() ==
                                TypeSummaryCapping::eTypeSummaryUncapped);
-    options.SetLanguage(summary_options.GetLanguage());
     return StringPrinter::ReadStringAndDumpToStream<
         StringPrinter::StringElementType::ASCII>(options);
   }

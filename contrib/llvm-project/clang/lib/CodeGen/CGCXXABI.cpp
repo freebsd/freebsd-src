@@ -156,6 +156,8 @@ void CGCXXABI::setCXXABIThisValue(CodeGenFunction &CGF, llvm::Value *ThisPtr) {
 
 void CGCXXABI::EmitReturnFromThunk(CodeGenFunction &CGF,
                                    RValue RV, QualType ResultType) {
+  assert(!CGF.hasAggregateEvaluationKind(ResultType) &&
+         "cannot handle aggregates");
   CGF.EmitReturnOfRValue(RV, ResultType);
 }
 
@@ -312,4 +314,21 @@ CatchTypeInfo CGCXXABI::getCatchAllTypeInfo() {
 
 std::vector<CharUnits> CGCXXABI::getVBPtrOffsets(const CXXRecordDecl *RD) {
   return std::vector<CharUnits>();
+}
+
+CGCXXABI::AddedStructorArgCounts CGCXXABI::addImplicitConstructorArgs(
+    CodeGenFunction &CGF, const CXXConstructorDecl *D, CXXCtorType Type,
+    bool ForVirtualBase, bool Delegating, CallArgList &Args) {
+  AddedStructorArgs AddedArgs =
+      getImplicitConstructorArgs(CGF, D, Type, ForVirtualBase, Delegating);
+  for (size_t i = 0; i < AddedArgs.Prefix.size(); ++i) {
+    Args.insert(Args.begin() + 1 + i,
+                CallArg(RValue::get(AddedArgs.Prefix[i].Value),
+                        AddedArgs.Prefix[i].Type));
+  }
+  for (const auto &arg : AddedArgs.Suffix) {
+    Args.add(RValue::get(arg.Value), arg.Type);
+  }
+  return AddedStructorArgCounts(AddedArgs.Prefix.size(),
+                                AddedArgs.Suffix.size());
 }

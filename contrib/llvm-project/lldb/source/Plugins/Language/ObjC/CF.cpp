@@ -1,5 +1,4 @@
-//===-- CF.cpp ----------------------------------------------------*- C++
-//-*-===//
+//===-- CF.cpp ------------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,10 +8,10 @@
 
 #include "CF.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
@@ -30,7 +29,7 @@ using namespace lldb_private::formatters;
 bool lldb_private::formatters::CFAbsoluteTimeSummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
   time_t epoch = GetOSXEpoch();
-  epoch = epoch + (time_t)valobj.GetValueAsUnsigned(0);
+  epoch = epoch + (time_t)valobj.GetValueAsSigned(0);
   tm *tm_date = localtime(&epoch);
   if (!tm_date)
     return false;

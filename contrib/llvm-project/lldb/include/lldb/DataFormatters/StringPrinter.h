@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_StringPrinter_h_
-#define liblldb_StringPrinter_h_
+#ifndef LLDB_DATAFORMATTERS_STRINGPRINTER_H
+#define LLDB_DATAFORMATTERS_STRINGPRINTER_H
 
 #include <functional>
 #include <string>
@@ -23,6 +23,8 @@ public:
   enum class StringElementType { ASCII, UTF8, UTF16, UTF32 };
 
   enum class GetPrintableElementType { ASCII, UTF8 };
+
+  enum class EscapeStyle { CXX, Swift };
 
   class DumpToStreamOptions {
   public:
@@ -68,9 +70,9 @@ public:
 
     bool GetIgnoreMaxLength() const { return m_ignore_max_length; }
 
-    void SetLanguage(lldb::LanguageType l) { m_language_type = l; }
+    void SetEscapeStyle(EscapeStyle style) { m_escape_style = style; }
 
-    lldb::LanguageType GetLanguage() const { return m_language_type; }
+    EscapeStyle GetEscapeStyle() const { return m_escape_style; }
 
   private:
     /// The used output stream.
@@ -93,12 +95,8 @@ public:
     /// True iff a zero bytes ('\0') should terminate the memory region that
     /// is being dumped.
     bool m_zero_is_terminator = true;
-    /// The language that the generated string literal is supposed to be valid
-    /// for. This changes for example what and how certain characters are
-    /// escaped.
-    /// For example, printing the a string containing only a quote (") char
-    /// with eLanguageTypeC would escape the quote character.
-    lldb::LanguageType m_language_type = lldb::eLanguageTypeUnknown;
+    /// The language-specific style for escaping special characters.
+    EscapeStyle m_escape_style = EscapeStyle::CXX;
   };
 
   class ReadStringAndDumpToStreamOptions : public DumpToStreamOptions {
@@ -115,9 +113,15 @@ public:
 
     lldb::ProcessSP GetProcessSP() const { return m_process_sp; }
 
+    void SetHasSourceSize(bool e) { m_has_source_size = e; }
+
+    bool HasSourceSize() const { return m_has_source_size; }
+
   private:
     uint64_t m_location = 0;
     lldb::ProcessSP m_process_sp;
+    /// True iff we know the source size of the string.
+    bool m_has_source_size = false;
   };
 
   class ReadBufferAndDumpToStreamOptions : public DumpToStreamOptions {
@@ -141,75 +145,6 @@ public:
     bool m_is_truncated = false;
   };
 
-  // I can't use a std::unique_ptr for this because the Deleter is a template
-  // argument there
-  // and I want the same type to represent both pointers I want to free and
-  // pointers I don't need to free - which is what this class essentially is
-  // It's very specialized to the needs of this file, and not suggested for
-  // general use
-  template <typename T = uint8_t, typename U = char, typename S = size_t>
-  struct StringPrinterBufferPointer {
-  public:
-    typedef std::function<void(const T *)> Deleter;
-
-    StringPrinterBufferPointer(std::nullptr_t ptr)
-        : m_data(nullptr), m_size(0), m_deleter() {}
-
-    StringPrinterBufferPointer(const T *bytes, S size,
-                               Deleter deleter = nullptr)
-        : m_data(bytes), m_size(size), m_deleter(deleter) {}
-
-    StringPrinterBufferPointer(const U *bytes, S size,
-                               Deleter deleter = nullptr)
-        : m_data(reinterpret_cast<const T *>(bytes)), m_size(size),
-          m_deleter(deleter) {}
-
-    StringPrinterBufferPointer(StringPrinterBufferPointer &&rhs)
-        : m_data(rhs.m_data), m_size(rhs.m_size), m_deleter(rhs.m_deleter) {
-      rhs.m_data = nullptr;
-    }
-
-    StringPrinterBufferPointer(const StringPrinterBufferPointer &rhs)
-        : m_data(rhs.m_data), m_size(rhs.m_size), m_deleter(rhs.m_deleter) {
-      rhs.m_data = nullptr; // this is why m_data has to be mutable
-    }
-
-    ~StringPrinterBufferPointer() {
-      if (m_data && m_deleter)
-        m_deleter(m_data);
-      m_data = nullptr;
-    }
-
-    const T *GetBytes() const { return m_data; }
-
-    const S GetSize() const { return m_size; }
-
-    StringPrinterBufferPointer &
-    operator=(const StringPrinterBufferPointer &rhs) {
-      if (m_data && m_deleter)
-        m_deleter(m_data);
-      m_data = rhs.m_data;
-      m_size = rhs.m_size;
-      m_deleter = rhs.m_deleter;
-      rhs.m_data = nullptr;
-      return *this;
-    }
-
-  private:
-    mutable const T *m_data;
-    size_t m_size;
-    Deleter m_deleter;
-  };
-
-  typedef std::function<StringPrinter::StringPrinterBufferPointer<
-      uint8_t, char, size_t>(uint8_t *, uint8_t *, uint8_t *&)>
-      EscapingHelper;
-  typedef std::function<EscapingHelper(GetPrintableElementType)>
-      EscapingHelperGenerator;
-
-  static EscapingHelper
-  GetDefaultEscapingHelper(GetPrintableElementType elem_type);
-
   template <StringElementType element_type>
   static bool
   ReadStringAndDumpToStream(const ReadStringAndDumpToStreamOptions &options);
@@ -222,4 +157,4 @@ public:
 } // namespace formatters
 } // namespace lldb_private
 
-#endif // liblldb_StringPrinter_h_
+#endif // LLDB_DATAFORMATTERS_STRINGPRINTER_H

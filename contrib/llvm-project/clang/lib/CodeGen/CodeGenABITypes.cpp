@@ -16,7 +16,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/CodeGen/CodeGenABITypes.h"
+#include "CGCXXABI.h"
 #include "CGRecordLayout.h"
+#include "CodeGenFunction.h"
 #include "CodeGenModule.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -24,6 +26,11 @@
 
 using namespace clang;
 using namespace CodeGen;
+
+void CodeGen::addDefaultFunctionDefinitionAttributes(CodeGenModule &CGM,
+                                                     llvm::AttrBuilder &attrs) {
+  CGM.addDefaultFunctionDefinitionAttributes(attrs);
+}
 
 const CGFunctionInfo &
 CodeGen::arrangeObjCMessageSendSignature(CodeGenModule &CGM,
@@ -63,6 +70,30 @@ CodeGen::arrangeFreeFunctionCall(CodeGenModule &CGM,
       info, {}, args);
 }
 
+ImplicitCXXConstructorArgs
+CodeGen::getImplicitCXXConstructorArgs(CodeGenModule &CGM,
+                                       const CXXConstructorDecl *D) {
+  // We have to create a dummy CodeGenFunction here to pass to
+  // getImplicitConstructorArgs(). In some cases (base and delegating
+  // constructor calls), getImplicitConstructorArgs() can reach into the
+  // CodeGenFunction to find parameters of the calling constructor to pass on to
+  // the called constructor, but that can't happen here because we're asking for
+  // the args for a complete, non-delegating constructor call.
+  CodeGenFunction CGF(CGM, /* suppressNewContext= */ true);
+  CGCXXABI::AddedStructorArgs addedArgs =
+      CGM.getCXXABI().getImplicitConstructorArgs(CGF, D, Ctor_Complete,
+                                                 /* ForVirtualBase= */ false,
+                                                 /* Delegating= */ false);
+  ImplicitCXXConstructorArgs implicitArgs;
+  for (const auto &arg : addedArgs.Prefix) {
+    implicitArgs.Prefix.push_back(arg.Value);
+  }
+  for (const auto &arg : addedArgs.Suffix) {
+    implicitArgs.Suffix.push_back(arg.Value);
+  }
+  return implicitArgs;
+}
+
 llvm::FunctionType *
 CodeGen::convertFreeFunctionType(CodeGenModule &CGM, const FunctionDecl *FD) {
   assert(FD != nullptr && "Expected a non-null function declaration!");
@@ -83,4 +114,17 @@ unsigned CodeGen::getLLVMFieldNumber(CodeGenModule &CGM,
                                      const RecordDecl *RD,
                                      const FieldDecl *FD) {
   return CGM.getTypes().getCGRecordLayout(RD).getLLVMFieldNo(FD);
+}
+
+llvm::Value *CodeGen::getCXXDestructorImplicitParam(
+    CodeGenModule &CGM, llvm::BasicBlock *InsertBlock,
+    llvm::BasicBlock::iterator InsertPoint, const CXXDestructorDecl *D,
+    CXXDtorType Type, bool ForVirtualBase, bool Delegating) {
+  CodeGenFunction CGF(CGM, /*suppressNewContext=*/true);
+  CGF.CurCodeDecl = D;
+  CGF.CurFuncDecl = D;
+  CGF.CurFn = InsertBlock->getParent();
+  CGF.Builder.SetInsertPoint(InsertBlock, InsertPoint);
+  return CGM.getCXXABI().getCXXDestructorImplicitParam(
+      CGF, D, Type, ForVirtualBase, Delegating);
 }

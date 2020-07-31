@@ -1,4 +1,4 @@
-//===-- ThreadPlanCallUserExpression.cpp -------------------------*- C++-*-===//
+//===-- ThreadPlanCallUserExpression.cpp ----------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -101,8 +101,7 @@ StopInfoSP ThreadPlanCallUserExpression::GetRealStopInfo() {
 
   if (stop_info_sp) {
     lldb::addr_t addr = GetStopAddress();
-    DynamicCheckerFunctions *checkers =
-        m_thread.GetProcess()->GetDynamicCheckers();
+    DynamicCheckerFunctions *checkers = m_process.GetDynamicCheckers();
     StreamString s;
 
     if (checkers && checkers->DoCheckersExplainStop(addr, s))

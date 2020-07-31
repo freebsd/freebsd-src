@@ -65,16 +65,16 @@
 using namespace llvm;
 
 /// Enable analysis of recursive PHI nodes.
-static cl::opt<bool> EnableRecPhiAnalysis("basicaa-recphi", cl::Hidden,
+static cl::opt<bool> EnableRecPhiAnalysis("basic-aa-recphi", cl::Hidden,
                                           cl::init(false));
 
 /// By default, even on 32-bit architectures we use 64-bit integers for
 /// calculations. This will allow us to more-aggressively decompose indexing
 /// expressions calculated using i64 values (e.g., long long in C) which is
 /// common enough to worry about.
-static cl::opt<bool> ForceAtLeast64Bits("basicaa-force-at-least-64b",
+static cl::opt<bool> ForceAtLeast64Bits("basic-aa-force-at-least-64b",
                                         cl::Hidden, cl::init(true));
-static cl::opt<bool> DoubleCalcBits("basicaa-double-calc-bits",
+static cl::opt<bool> DoubleCalcBits("basic-aa-double-calc-bits",
                                     cl::Hidden, cl::init(false));
 
 /// SearchLimitReached / SearchTimes shows how often the limit of
@@ -433,7 +433,7 @@ static bool isObjectSize(const Value *V, uint64_t Size, const DataLayout &DL,
 /// an issue, for example, in particular for 32b pointers with negative indices
 /// that rely on two's complement wrap-arounds for precise alias information
 /// where the maximum pointer size is 64b.
-static APInt adjustToPointerSize(APInt Offset, unsigned PointerSize) {
+static APInt adjustToPointerSize(const APInt &Offset, unsigned PointerSize) {
   assert(PointerSize <= Offset.getBitWidth() && "Invalid PointerSize!");
   unsigned ShiftBits = Offset.getBitWidth() - PointerSize;
   return (Offset << ShiftBits).ashr(ShiftBits);
@@ -492,7 +492,13 @@ bool BasicAAResult::DecomposeGEPExpression(const Value *V,
 
     const GEPOperator *GEPOp = dyn_cast<GEPOperator>(Op);
     if (!GEPOp) {
-      if (const auto *Call = dyn_cast<CallBase>(V)) {
+      if (const auto *PHI = dyn_cast<PHINode>(V)) {
+        // Look through single-arg phi nodes created by LCSSA.
+        if (PHI->getNumIncomingValues() == 1) {
+          V = PHI->getIncomingValue(0);
+          continue;
+        }
+      } else if (const auto *Call = dyn_cast<CallBase>(V)) {
         // CaptureTracking can know about special capturing properties of some
         // intrinsics like launder.invariant.group, that can't be expressed with
         // the attributes, but have properties like returning aliasing pointer.
@@ -508,19 +514,6 @@ bool BasicAAResult::DecomposeGEPExpression(const Value *V,
         }
       }
 
-      // If it's not a GEP, hand it off to SimplifyInstruction to see if it
-      // can come up with something. This matches what GetUnderlyingObject does.
-      if (const Instruction *I = dyn_cast<Instruction>(V))
-        // TODO: Get a DominatorTree and AssumptionCache and use them here
-        // (these are both now available in this function, but this should be
-        // updated when GetUnderlyingObject is updated). TLI should be
-        // provided also.
-        if (const Value *Simplified =
-                SimplifyInstruction(const_cast<Instruction *>(I), DL)) {
-          V = Simplified;
-          continue;
-        }
-
       Decomposed.Base = V;
       return false;
     }
@@ -528,6 +521,14 @@ bool BasicAAResult::DecomposeGEPExpression(const Value *V,
     // Don't attempt to analyze GEPs over unsized objects.
     if (!GEPOp->getSourceElementType()->isSized()) {
       Decomposed.Base = V;
+      return false;
+    }
+
+    // Don't attempt to analyze GEPs if index scale is not a compile-time
+    // constant.
+    if (isa<ScalableVectorType>(GEPOp->getSourceElementType())) {
+      Decomposed.Base = V;
+      Decomposed.HasCompileTimeConstantScale = false;
       return false;
     }
 
@@ -557,15 +558,16 @@ bool BasicAAResult::DecomposeGEPExpression(const Value *V,
         if (CIdx->isZero())
           continue;
         Decomposed.OtherOffset +=
-          (DL.getTypeAllocSize(GTI.getIndexedType()) *
-            CIdx->getValue().sextOrSelf(MaxPointerSize))
-              .sextOrTrunc(MaxPointerSize);
+            (DL.getTypeAllocSize(GTI.getIndexedType()).getFixedSize() *
+             CIdx->getValue().sextOrSelf(MaxPointerSize))
+                .sextOrTrunc(MaxPointerSize);
         continue;
       }
 
       GepHasConstantOffset = false;
 
-      APInt Scale(MaxPointerSize, DL.getTypeAllocSize(GTI.getIndexedType()));
+      APInt Scale(MaxPointerSize,
+                  DL.getTypeAllocSize(GTI.getIndexedType()).getFixedSize());
       unsigned ZExtBits = 0, SExtBits = 0;
 
       // If the integer type is smaller than the pointer size, it is implicitly
@@ -723,7 +725,7 @@ FunctionModRefBehavior BasicAAResult::getModRefBehavior(const CallBase *Call) {
   if (Call->onlyReadsMemory())
     Min = FMRB_OnlyReadsMemory;
   else if (Call->doesNotReadMemory())
-    Min = FMRB_DoesNotReadMemory;
+    Min = FMRB_OnlyWritesMemory;
 
   if (Call->onlyAccessesArgMemory())
     Min = FunctionModRefBehavior(Min & FMRB_OnlyAccessesArgumentPointees);
@@ -756,7 +758,7 @@ FunctionModRefBehavior BasicAAResult::getModRefBehavior(const Function *F) {
   if (F->onlyReadsMemory())
     Min = FMRB_OnlyReadsMemory;
   else if (F->doesNotReadMemory())
-    Min = FMRB_DoesNotReadMemory;
+    Min = FMRB_OnlyWritesMemory;
 
   if (F->onlyAccessesArgMemory())
     Min = FunctionModRefBehavior(Min & FMRB_OnlyAccessesArgumentPointees);
@@ -960,7 +962,7 @@ ModRefInfo BasicAAResult::getModRefInfo(const CallBase *Call,
     }
   }
 
-  // If the call is to malloc or calloc, we can assume that it doesn't
+  // If the call is malloc/calloc like, we can assume that it doesn't
   // modify any IR visible value.  This is only valid because we assume these
   // routines do not read values visible in the IR.  TODO: Consider special
   // casing realloc and strdup routines which access only their arguments as
@@ -1145,11 +1147,11 @@ static AliasResult aliasSameBasePointerGEPs(const GEPOperator *GEP1,
     GEP1->getSourceElementType(), IntermediateIndices);
   StructType *LastIndexedStruct = dyn_cast<StructType>(Ty);
 
-  if (isa<SequentialType>(Ty)) {
+  if (isa<ArrayType>(Ty) || isa<VectorType>(Ty)) {
     // We know that:
     // - both GEPs begin indexing from the exact same pointer;
     // - the last indices in both GEPs are constants, indexing into a sequential
-    //   type (array or pointer);
+    //   type (array or vector);
     // - both GEPs only index through arrays prior to that.
     //
     // Because array indices greater than the number of elements are valid in
@@ -1157,8 +1159,9 @@ static AliasResult aliasSameBasePointerGEPs(const GEPOperator *GEP1,
     // GEP1 and GEP2 we cannot guarantee that the last indexed arrays don't
     // partially overlap. We also need to check that the loaded size matches
     // the element size, otherwise we could still have overlap.
+    Type *LastElementTy = GetElementPtrInst::getTypeAtIndex(Ty, (uint64_t)0);
     const uint64_t ElementSize =
-        DL.getTypeStoreSize(cast<SequentialType>(Ty)->getElementType());
+        DL.getTypeStoreSize(LastElementTy).getFixedSize();
     if (V1Size != ElementSize || V2Size != ElementSize)
       return MayAlias;
 
@@ -1316,11 +1319,19 @@ AliasResult BasicAAResult::aliasGEP(
   unsigned MaxPointerSize = getMaxPointerSize(DL);
   DecompGEP1.StructOffset = DecompGEP1.OtherOffset = APInt(MaxPointerSize, 0);
   DecompGEP2.StructOffset = DecompGEP2.OtherOffset = APInt(MaxPointerSize, 0);
+  DecompGEP1.HasCompileTimeConstantScale =
+      DecompGEP2.HasCompileTimeConstantScale = true;
 
   bool GEP1MaxLookupReached =
     DecomposeGEPExpression(GEP1, DecompGEP1, DL, &AC, DT);
   bool GEP2MaxLookupReached =
     DecomposeGEPExpression(V2, DecompGEP2, DL, &AC, DT);
+
+  // Don't attempt to analyze the decomposed GEP if index scale is not a
+  // compile-time constant.
+  if (!DecompGEP1.HasCompileTimeConstantScale ||
+      !DecompGEP2.HasCompileTimeConstantScale)
+    return MayAlias;
 
   APInt GEP1BaseOffset = DecompGEP1.StructOffset + DecompGEP1.OtherOffset;
   APInt GEP2BaseOffset = DecompGEP2.StructOffset + DecompGEP2.OtherOffset;
@@ -1713,6 +1724,10 @@ AliasResult BasicAAResult::aliasPHI(const PHINode *PN, LocationSize PNSize,
   // Other results are not possible.
   if (Alias == MayAlias)
     return MayAlias;
+  // With recursive phis we cannot guarantee that MustAlias/PartialAlias will
+  // remain valid to all elements and needs to conservatively return MayAlias.
+  if (isRecursive && Alias != NoAlias)
+    return MayAlias;
 
   // If all sources of the PHI node NoAlias or MustAlias V2, then returns
   // NoAlias / MustAlias. Otherwise, returns MayAlias.
@@ -1978,7 +1993,7 @@ void BasicAAResult::GetIndexDifference(
 
 bool BasicAAResult::constantOffsetHeuristic(
     const SmallVectorImpl<VariableGEPIndex> &VarIndices,
-    LocationSize MaybeV1Size, LocationSize MaybeV2Size, APInt BaseOffset,
+    LocationSize MaybeV1Size, LocationSize MaybeV2Size, const APInt &BaseOffset,
     AssumptionCache *AC, DominatorTree *DT) {
   if (VarIndices.size() != 2 || MaybeV1Size == LocationSize::unknown() ||
       MaybeV2Size == LocationSize::unknown())
@@ -2058,13 +2073,13 @@ char BasicAAWrapperPass::ID = 0;
 
 void BasicAAWrapperPass::anchor() {}
 
-INITIALIZE_PASS_BEGIN(BasicAAWrapperPass, "basicaa",
+INITIALIZE_PASS_BEGIN(BasicAAWrapperPass, "basic-aa",
                       "Basic Alias Analysis (stateless AA impl)", true, true)
 INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfoWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(PhiValuesWrapperPass)
-INITIALIZE_PASS_END(BasicAAWrapperPass, "basicaa",
+INITIALIZE_PASS_END(BasicAAWrapperPass, "basic-aa",
                     "Basic Alias Analysis (stateless AA impl)", true, true)
 
 FunctionPass *llvm::createBasicAAWrapperPass() {

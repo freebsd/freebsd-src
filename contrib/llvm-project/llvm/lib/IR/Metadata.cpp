@@ -914,7 +914,7 @@ MDNode *MDNode::intersect(MDNode *A, MDNode *B) {
 
   SmallSetVector<Metadata *, 4> MDs(A->op_begin(), A->op_end());
   SmallPtrSet<Metadata *, 4> BSet(B->op_begin(), B->op_end());
-  MDs.remove_if([&](Metadata *MD) { return !is_contained(BSet, MD); });
+  MDs.remove_if([&](Metadata *MD) { return !BSet.count(MD); });
 
   // FIXME: This preserves long-standing behaviour, but is it really the right
   // behaviour?  Or was that an unintended side-effect of node uniquing?
@@ -934,7 +934,7 @@ MDNode *MDNode::getMostGenericFPMath(MDNode *A, MDNode *B) {
 
   APFloat AVal = mdconst::extract<ConstantFP>(A->getOperand(0))->getValueAPF();
   APFloat BVal = mdconst::extract<ConstantFP>(B->getOperand(0))->getValueAPF();
-  if (AVal.compare(BVal) == APFloat::cmpLessThan)
+  if (AVal < BVal)
     return A;
   return B;
 }
@@ -1500,7 +1500,10 @@ void GlobalObject::addTypeMetadata(unsigned Offset, Metadata *TypeID) {
                      TypeID}));
 }
 
-void GlobalObject::addVCallVisibilityMetadata(VCallVisibility Visibility) {
+void GlobalObject::setVCallVisibilityMetadata(VCallVisibility Visibility) {
+  // Remove any existing vcall visibility metadata first in case we are
+  // updating.
+  eraseMetadata(LLVMContext::MD_vcall_visibility);
   addMetadata(LLVMContext::MD_vcall_visibility,
               *MDNode::get(getContext(),
                            {ConstantAsMetadata::get(ConstantInt::get(

@@ -1,4 +1,4 @@
-//===-- ValueObjectVariable.cpp ---------------------------------*- C++ -*-===//
+//===-- ValueObjectVariable.cpp -------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -50,12 +50,14 @@ using namespace lldb_private;
 lldb::ValueObjectSP
 ValueObjectVariable::Create(ExecutionContextScope *exe_scope,
                             const lldb::VariableSP &var_sp) {
-  return (new ValueObjectVariable(exe_scope, var_sp))->GetSP();
+  auto manager_sp = ValueObjectManager::Create();
+  return (new ValueObjectVariable(exe_scope, *manager_sp, var_sp))->GetSP();
 }
 
 ValueObjectVariable::ValueObjectVariable(ExecutionContextScope *exe_scope,
+                                         ValueObjectManager &manager,
                                          const lldb::VariableSP &var_sp)
-    : ValueObject(exe_scope), m_variable_sp(var_sp) {
+    : ValueObject(exe_scope, manager), m_variable_sp(var_sp) {
   // Do not attempt to construct one of these objects with no variable!
   assert(m_variable_sp.get() != nullptr);
   m_name = var_sp->GetName();
@@ -166,6 +168,27 @@ bool ValueObjectVariable::UpdateValue() {
 
       Value::ValueType value_type = m_value.GetValueType();
 
+      // The size of the buffer within m_value can be less than the size
+      // prescribed by its type. E.g. this can happen when an expression only
+      // partially describes an object (say, because it contains DW_OP_piece).
+      //
+      // In this case, grow m_value to the expected size. An alternative way to
+      // handle this is to teach Value::GetValueAsData() and ValueObjectChild
+      // not to read past the end of a host buffer, but this gets impractically
+      // complicated as a Value's host buffer may be shared with a distant
+      // ancestor or sibling in the ValueObject hierarchy.
+      //
+      // FIXME: When we grow m_value, we should represent the added bits as
+      // undefined somehow instead of as 0's.
+      if (value_type == Value::eValueTypeHostAddress &&
+          compiler_type.IsValid()) {
+        if (size_t value_buf_size = m_value.GetBuffer().GetByteSize()) {
+          size_t value_size = m_value.GetValueByteSize(&m_error, &exe_ctx);
+          if (m_error.Success() && value_buf_size < value_size)
+            m_value.ResizeData(value_size);
+        }
+      }
+
       Process *process = exe_ctx.GetProcessPtr();
       const bool process_is_alive = process && process->IsAlive();
 
@@ -219,8 +242,63 @@ bool ValueObjectVariable::UpdateValue() {
       m_resolved_value.SetContext(Value::eContextTypeInvalid, nullptr);
     }
   }
+  
   return m_error.Success();
 }
+
+void ValueObjectVariable::DoUpdateChildrenAddressType(ValueObject &valobj) {
+  Value::ValueType value_type = valobj.GetValue().GetValueType();
+  ExecutionContext exe_ctx(GetExecutionContextRef());
+  Process *process = exe_ctx.GetProcessPtr();
+  const bool process_is_alive = process && process->IsAlive();
+  const uint32_t type_info = valobj.GetCompilerType().GetTypeInfo();
+  const bool is_pointer_or_ref =
+      (type_info & (lldb::eTypeIsPointer | lldb::eTypeIsReference)) != 0;
+
+  switch (value_type) {
+  case Value::eValueTypeFileAddress:
+    // If this type is a pointer, then its children will be considered load
+    // addresses if the pointer or reference is dereferenced, but only if
+    // the process is alive.
+    //
+    // There could be global variables like in the following code:
+    // struct LinkedListNode { Foo* foo; LinkedListNode* next; };
+    // Foo g_foo1;
+    // Foo g_foo2;
+    // LinkedListNode g_second_node = { &g_foo2, NULL };
+    // LinkedListNode g_first_node = { &g_foo1, &g_second_node };
+    //
+    // When we aren't running, we should be able to look at these variables
+    // using the "target variable" command. Children of the "g_first_node"
+    // always will be of the same address type as the parent. But children
+    // of the "next" member of LinkedListNode will become load addresses if
+    // we have a live process, or remain a file address if it was a file
+    // address.
+    if (process_is_alive && is_pointer_or_ref)
+      valobj.SetAddressTypeOfChildren(eAddressTypeLoad);
+    else
+      valobj.SetAddressTypeOfChildren(eAddressTypeFile);
+    break;
+  case Value::eValueTypeHostAddress:
+    // Same as above for load addresses, except children of pointer or refs
+    // are always load addresses. Host addresses are used to store freeze
+    // dried variables. If this type is a struct, the entire struct
+    // contents will be copied into the heap of the
+    // LLDB process, but we do not currently follow any pointers.
+    if (is_pointer_or_ref)
+      valobj.SetAddressTypeOfChildren(eAddressTypeLoad);
+    else
+      valobj.SetAddressTypeOfChildren(eAddressTypeHost);
+    break;
+  case Value::eValueTypeLoadAddress:
+  case Value::eValueTypeScalar:
+  case Value::eValueTypeVector:
+    valobj.SetAddressTypeOfChildren(eAddressTypeLoad);
+    break;
+  }
+}
+
+
 
 bool ValueObjectVariable::IsInScope() {
   const ExecutionContextRef &exe_ctx_ref = GetExecutionContextRef();

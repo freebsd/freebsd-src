@@ -1,4 +1,4 @@
-//===-- ProcessMonitor.cpp ------------------------------------ -*- C++ -*-===//
+//===-- ProcessMonitor.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -786,7 +786,7 @@ ProcessMonitor::~ProcessMonitor() { StopMonitor(); }
 
 // Thread setup and tear down.
 void ProcessMonitor::StartLaunchOpThread(LaunchArgs *args, Status &error) {
-  static const char *g_thread_name = "freebsd.op";
+  static const char *g_thread_name = "lldb.process.freebsd.operation";
 
   if (m_operation_thread && m_operation_thread->IsJoinable())
     return;
@@ -855,7 +855,7 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
     // terminal has already dupped the tty descriptors to stdin/out/err. This
     // closes original fd from which they were copied (and avoids leaking
     // descriptors to the debugged process.
-    terminal.CloseSlaveFileDescriptor();
+    terminal.CloseSecondaryFileDescriptor();
 
     // Do not inherit setgid powers.
     if (setgid(getgid()) != 0)
@@ -939,7 +939,7 @@ bool ProcessMonitor::Launch(LaunchArgs *args) {
 #endif
   // Release the master terminal descriptor and pass it off to the
   // ProcessMonitor instance.  Similarly stash the inferior pid.
-  monitor->m_terminal_fd = terminal.ReleaseMasterFileDescriptor();
+  monitor->m_terminal_fd = terminal.ReleasePrimaryFileDescriptor();
   monitor->m_pid = pid;
 
   // Set the terminal fd to be in non blocking mode (it simplifies the
@@ -956,7 +956,7 @@ FINISH:
 
 void ProcessMonitor::StartAttachOpThread(AttachArgs *args,
                                          lldb_private::Status &error) {
-  static const char *g_thread_name = "freebsd.op";
+  static const char *g_thread_name = "lldb.process.freebsd.operation";
 
   if (m_operation_thread && m_operation_thread->IsJoinable())
     return;

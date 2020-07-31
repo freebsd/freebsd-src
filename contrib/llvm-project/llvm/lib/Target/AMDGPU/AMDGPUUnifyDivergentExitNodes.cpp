@@ -195,7 +195,11 @@ static BasicBlock *unifyReturnBlockSet(Function &F,
 
 bool AMDGPUUnifyDivergentExitNodes::runOnFunction(Function &F) {
   auto &PDT = getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
-  if (PDT.getRoots().size() <= 1)
+
+  // If there's only one exit, we don't need to do anything, unless this is a
+  // pixel shader and that exit is an infinite loop, since we still have to
+  // insert an export in that case.
+  if (PDT.root_size() <= 1 && F.getCallingConv() != CallingConv::AMDGPU_PS)
     return false;
 
   LegacyDivergenceAnalysis &DA = getAnalysis<LegacyDivergenceAnalysis>();
@@ -203,6 +207,7 @@ bool AMDGPUUnifyDivergentExitNodes::runOnFunction(Function &F) {
   // Loop over all of the blocks in a function, tracking all of the blocks that
   // return.
   SmallVector<BasicBlock *, 4> ReturningBlocks;
+  SmallVector<BasicBlock *, 4> UniformlyReachedRetBlocks;
   SmallVector<BasicBlock *, 4> UnreachableBlocks;
 
   // Dummy return block for infinite loop.
@@ -210,10 +215,13 @@ bool AMDGPUUnifyDivergentExitNodes::runOnFunction(Function &F) {
 
   bool InsertExport = false;
 
-  for (BasicBlock *BB : PDT.getRoots()) {
+  bool Changed = false;
+  for (BasicBlock *BB : PDT.roots()) {
     if (isa<ReturnInst>(BB->getTerminator())) {
       if (!isUniformlyReached(DA, *BB))
         ReturningBlocks.push_back(BB);
+      else
+        UniformlyReachedRetBlocks.push_back(BB);
     } else if (isa<UnreachableInst>(BB->getTerminator())) {
       if (!isUniformlyReached(DA, *BB))
         UnreachableBlocks.push_back(BB);
@@ -273,6 +281,7 @@ bool AMDGPUUnifyDivergentExitNodes::runOnFunction(Function &F) {
         BB->getTerminator()->eraseFromParent();
         BranchInst::Create(TransitionBB, DummyReturnBB, BoolTrue, BB);
       }
+      Changed = true;
     }
   }
 
@@ -291,6 +300,7 @@ bool AMDGPUUnifyDivergentExitNodes::runOnFunction(Function &F) {
         BB->getTerminator()->eraseFromParent();
         BranchInst::Create(UnreachableBlock, BB);
       }
+      Changed = true;
     }
 
     if (!ReturningBlocks.empty()) {
@@ -314,19 +324,32 @@ bool AMDGPUUnifyDivergentExitNodes::runOnFunction(Function &F) {
       // actually reached here.
       ReturnInst::Create(F.getContext(), RetVal, UnreachableBlock);
       ReturningBlocks.push_back(UnreachableBlock);
+      Changed = true;
     }
   }
 
   // Now handle return blocks.
   if (ReturningBlocks.empty())
-    return false; // No blocks return
+    return Changed; // No blocks return
 
-  if (ReturningBlocks.size() == 1)
-    return false; // Already has a single return block
+  if (ReturningBlocks.size() == 1 && !InsertExport)
+    return Changed; // Already has a single return block
 
   const TargetTransformInfo &TTI
     = getAnalysis<TargetTransformInfoWrapperPass>().getTTI(F);
 
-  unifyReturnBlockSet(F, ReturningBlocks, InsertExport, TTI, "UnifiedReturnBlock");
+  // Unify returning blocks. If we are going to insert the export it is also
+  // necessary to include blocks that are uniformly reached, because in addition
+  // to inserting the export the "done" bits on existing exports will be cleared
+  // and we do not want to end up with the normal export in a non-unified,
+  // uniformly reached block with the "done" bit cleared.
+  auto BlocksToUnify = std::move(ReturningBlocks);
+  if (InsertExport) {
+    BlocksToUnify.insert(BlocksToUnify.end(), UniformlyReachedRetBlocks.begin(),
+                         UniformlyReachedRetBlocks.end());
+  }
+
+  unifyReturnBlockSet(F, BlocksToUnify, InsertExport, TTI,
+                      "UnifiedReturnBlock");
   return true;
 }

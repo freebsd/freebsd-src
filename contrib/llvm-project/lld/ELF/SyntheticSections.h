@@ -364,7 +364,7 @@ private:
 
   // Try to merge two GOTs. In case of success the `Dst` contains
   // result of merging and the function returns true. In case of
-  // ovwerflow the `Dst` is unchanged and the function returns false.
+  // overflow the `Dst` is unchanged and the function returns false.
   bool tryMergeGots(FileGot & dst, FileGot & src, bool isPrimary);
 };
 
@@ -1046,7 +1046,7 @@ public:
   std::vector<InputSection *> exidxSections;
 
 private:
-  size_t size;
+  size_t size = 0;
 
   // Instead of storing pointers to the .ARM.exidx InputSections from
   // InputObjects, we store pointers to the executable sections that need

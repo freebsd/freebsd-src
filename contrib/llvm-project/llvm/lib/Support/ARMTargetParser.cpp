@@ -13,6 +13,7 @@
 
 #include "llvm/Support/ARMTargetParser.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/ADT/Triple.h"
 #include <cctype>
 
 using namespace llvm;
@@ -27,7 +28,7 @@ static StringRef getHWDivSynonym(StringRef HWDiv) {
 ARM::ArchKind ARM::parseArch(StringRef Arch) {
   Arch = getCanonicalArchName(Arch);
   StringRef Syn = getArchSynonym(Arch);
-  for (const auto A : ARCHNames) {
+  for (const auto &A : ARCHNames) {
     if (A.getName().endswith(Syn))
       return A.ID;
   }
@@ -74,6 +75,7 @@ unsigned ARM::parseArchVersion(StringRef Arch) {
   case ArchKind::ARMV8_3A:
   case ArchKind::ARMV8_4A:
   case ArchKind::ARMV8_5A:
+  case ArchKind::ARMV8_6A:
   case ArchKind::ARMV8R:
   case ArchKind::ARMV8MBaseline:
   case ArchKind::ARMV8MMainline:
@@ -108,6 +110,7 @@ ARM::ProfileKind ARM::parseArchProfile(StringRef Arch) {
   case ArchKind::ARMV8_3A:
   case ArchKind::ARMV8_4A:
   case ArchKind::ARMV8_5A:
+  case ArchKind::ARMV8_6A:
     return ProfileKind::A;
   case ArchKind::ARMV2:
   case ArchKind::ARMV2A:
@@ -150,6 +153,7 @@ StringRef ARM::getArchSynonym(StringRef Arch) {
       .Case("v8.3a", "v8.3-a")
       .Case("v8.4a", "v8.4-a")
       .Case("v8.5a", "v8.5-a")
+      .Case("v8.6a", "v8.6-a")
       .Case("v8r", "v8-r")
       .Case("v8m.base", "v8-m.base")
       .Case("v8m.main", "v8-m.main")
@@ -367,11 +371,11 @@ unsigned ARM::getDefaultFPU(StringRef CPU, ARM::ArchKind AK) {
    .Default(ARM::FK_INVALID);
 }
 
-unsigned ARM::getDefaultExtensions(StringRef CPU, ARM::ArchKind AK) {
+uint64_t ARM::getDefaultExtensions(StringRef CPU, ARM::ArchKind AK) {
   if (CPU == "generic")
     return ARM::ARCHNames[static_cast<unsigned>(AK)].ArchBaseExtensions;
 
-  return StringSwitch<unsigned>(CPU)
+  return StringSwitch<uint64_t>(CPU)
 #define ARM_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT)           \
   .Case(NAME,                                                                  \
         ARCHNames[static_cast<unsigned>(ArchKind::ID)].ArchBaseExtensions |    \
@@ -380,7 +384,7 @@ unsigned ARM::getDefaultExtensions(StringRef CPU, ARM::ArchKind AK) {
   .Default(ARM::AEK_INVALID);
 }
 
-bool ARM::getHWDivFeatures(unsigned HWDivKind,
+bool ARM::getHWDivFeatures(uint64_t HWDivKind,
                            std::vector<StringRef> &Features) {
 
   if (HWDivKind == AEK_INVALID)
@@ -399,7 +403,7 @@ bool ARM::getHWDivFeatures(unsigned HWDivKind,
   return true;
 }
 
-bool ARM::getExtensionFeatures(unsigned Extensions,
+bool ARM::getExtensionFeatures(uint64_t Extensions,
                                std::vector<StringRef> &Features) {
 
   if (Extensions == AEK_INVALID)
@@ -431,7 +435,7 @@ unsigned ARM::getArchAttr(ARM::ArchKind AK) {
   return ARCHNames[static_cast<unsigned>(AK)].ArchAttr;
 }
 
-StringRef ARM::getArchExtName(unsigned ArchExtKind) {
+StringRef ARM::getArchExtName(uint64_t ArchExtKind) {
   for (const auto AE : ARCHExtNames) {
     if (ArchExtKind == AE.ID)
       return AE.getName();
@@ -486,29 +490,25 @@ static unsigned findDoublePrecisionFPU(unsigned InputFPUKind) {
   return ARM::FK_INVALID;
 }
 
-static unsigned getAEKID(StringRef ArchExtName) {
-  for (const auto AE : ARM::ARCHExtNames)
-    if (AE.getName() == ArchExtName)
-      return AE.ID;
-  return ARM::AEK_INVALID;
-}
-
 bool ARM::appendArchExtFeatures(
   StringRef CPU, ARM::ArchKind AK, StringRef ArchExt,
   std::vector<StringRef> &Features) {
 
   size_t StartingNumFeatures = Features.size();
   const bool Negated = stripNegationPrefix(ArchExt);
-  unsigned ID = getAEKID(ArchExt);
+  uint64_t ID = parseArchExt(ArchExt);
 
   if (ID == AEK_INVALID)
     return false;
 
   for (const auto AE : ARCHExtNames) {
-    if (Negated && (AE.ID & ID) == ID && AE.NegFeature)
-      Features.push_back(AE.NegFeature);
-    else if (AE.ID == ID && AE.Feature)
-      Features.push_back(AE.Feature);
+    if (Negated) {
+      if ((AE.ID & ID) == ID && AE.NegFeature)
+        Features.push_back(AE.NegFeature);
+    } else {
+      if ((AE.ID & ID) == AE.ID && AE.Feature)
+        Features.push_back(AE.Feature);
+    }
   }
 
   if (CPU == "")
@@ -532,7 +532,7 @@ bool ARM::appendArchExtFeatures(
   return StartingNumFeatures != Features.size();
 }
 
-StringRef ARM::getHWDivName(unsigned HWDivKind) {
+StringRef ARM::getHWDivName(uint64_t HWDivKind) {
   for (const auto D : HWDivNames) {
     if (HWDivKind == D.ID)
       return D.getName();
@@ -555,7 +555,7 @@ StringRef ARM::getDefaultCPU(StringRef Arch) {
   return "generic";
 }
 
-unsigned ARM::parseHWDiv(StringRef HWDiv) {
+uint64_t ARM::parseHWDiv(StringRef HWDiv) {
   StringRef Syn = getHWDivSynonym(HWDiv);
   for (const auto D : HWDivNames) {
     if (Syn == D.getName())
@@ -564,7 +564,7 @@ unsigned ARM::parseHWDiv(StringRef HWDiv) {
   return AEK_INVALID;
 }
 
-unsigned ARM::parseArchExt(StringRef ArchExt) {
+uint64_t ARM::parseArchExt(StringRef ArchExt) {
   for (const auto A : ARCHExtNames) {
     if (ArchExt == A.getName())
       return A.ID;

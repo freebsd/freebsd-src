@@ -34,12 +34,22 @@ VERegisterInfo::VERegisterInfo() : VEGenRegisterInfo(VE::SX10) {}
 
 const MCPhysReg *
 VERegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  return CSR_SaveList;
+  switch (MF->getFunction().getCallingConv()) {
+  default:
+    return CSR_SaveList;
+  case CallingConv::PreserveAll:
+    return CSR_preserve_all_SaveList;
+  }
 }
 
 const uint32_t *VERegisterInfo::getCallPreservedMask(const MachineFunction &MF,
                                                      CallingConv::ID CC) const {
-  return CSR_RegMask;
+  switch (CC) {
+  default:
+    return CSR_RegMask;
+  case CallingConv::PreserveAll:
+    return CSR_preserve_all_RegMask;
+  }
 }
 
 const uint32_t *VERegisterInfo::getNoPreservedMask() const {
@@ -48,26 +58,34 @@ const uint32_t *VERegisterInfo::getNoPreservedMask() const {
 
 BitVector VERegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  Reserved.set(VE::SX8);  // stack limit
-  Reserved.set(VE::SX9);  // frame pointer
-  Reserved.set(VE::SX10); // link register (return address)
-  Reserved.set(VE::SX11); // stack pointer
 
-  Reserved.set(VE::SX12); // outer register
-  Reserved.set(VE::SX13); // id register for dynamic linker
+  const Register ReservedRegs[] = {
+      VE::SX8,  // Stack limit
+      VE::SX9,  // Frame pointer
+      VE::SX10, // Link register (return address)
+      VE::SX11, // Stack pointer
 
-  Reserved.set(VE::SX14); // thread pointer
-  Reserved.set(VE::SX15); // global offset table register
-  Reserved.set(VE::SX16); // procedure linkage table register
-  Reserved.set(VE::SX17); // linkage-area register
+      // FIXME: maybe not need to be reserved
+      VE::SX12, // Outer register
+      VE::SX13, // Id register for dynamic linker
 
-  // sx18-sx33 are callee-saved registers
-  // sx34-sx63 are temporary registers
+      VE::SX14, // Thread pointer
+      VE::SX15, // Global offset table register
+      VE::SX16, // Procedure linkage table register
+      VE::SX17, // Linkage-area register
+                // sx18-sx33 are callee-saved registers
+                // sx34-sx63 are temporary registers
+  };
+
+  for (auto R : ReservedRegs)
+    for (MCRegAliasIterator ItAlias(R, this, true); ItAlias.isValid();
+         ++ItAlias)
+      Reserved.set(*ItAlias);
 
   return Reserved;
 }
 
-bool VERegisterInfo::isConstantPhysReg(unsigned PhysReg) const { return false; }
+bool VERegisterInfo::isConstantPhysReg(MCRegister PhysReg) const { return false; }
 
 const TargetRegisterClass *
 VERegisterInfo::getPointerRegClass(const MachineFunction &MF,
@@ -77,12 +95,12 @@ VERegisterInfo::getPointerRegClass(const MachineFunction &MF,
 
 static void replaceFI(MachineFunction &MF, MachineBasicBlock::iterator II,
                       MachineInstr &MI, const DebugLoc &dl,
-                      unsigned FIOperandNum, int Offset, unsigned FramePtr) {
+                      unsigned FIOperandNum, int Offset, Register FrameReg) {
   // Replace frame index with a frame pointer reference directly.
   // VE has 32 bit offset field, so no need to expand a target instruction.
   // Directly encode it.
-  MI.getOperand(FIOperandNum).ChangeToRegister(FramePtr, false);
-  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
+  MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false);
+  MI.getOperand(FIOperandNum + 2).ChangeToImmediate(Offset);
 }
 
 void VERegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
@@ -96,11 +114,11 @@ void VERegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MachineFunction &MF = *MI.getParent()->getParent();
   const VEFrameLowering *TFI = getFrameLowering(MF);
 
-  unsigned FrameReg;
+  Register FrameReg;
   int Offset;
   Offset = TFI->getFrameIndexReference(MF, FrameIndex, FrameReg);
 
-  Offset += MI.getOperand(FIOperandNum + 1).getImm();
+  Offset += MI.getOperand(FIOperandNum + 2).getImm();
 
   replaceFI(MF, II, MI, dl, FIOperandNum, Offset, FrameReg);
 }

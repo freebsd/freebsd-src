@@ -18,9 +18,10 @@ template <class Allocator, u32 MaxTSDCount> struct TSDRegistrySharedT {
   void initLinkerInitialized(Allocator *Instance) {
     Instance->initLinkerInitialized();
     CHECK_EQ(pthread_key_create(&PThreadKey, nullptr), 0); // For non-TLS
-    NumberOfTSDs = Min(Max(1U, getNumberOfCPUs()), MaxTSDCount);
-    TSDs = reinterpret_cast<TSD<Allocator> *>(
-        map(nullptr, sizeof(TSD<Allocator>) * NumberOfTSDs, "scudo:tsd"));
+    const u32 NumberOfCPUs = getNumberOfCPUs();
+    NumberOfTSDs = (SCUDO_ANDROID || NumberOfCPUs == 0)
+                       ? MaxTSDCount
+                       : Min(NumberOfCPUs, MaxTSDCount);
     for (u32 I = 0; I < NumberOfTSDs; I++)
       TSDs[I].initLinkerInitialized(Instance);
     // Compute all the coprimes of NumberOfTSDs. This will be used to walk the
@@ -46,8 +47,6 @@ template <class Allocator, u32 MaxTSDCount> struct TSDRegistrySharedT {
   }
 
   void unmapTestOnly() {
-    unmap(reinterpret_cast<void *>(TSDs),
-          sizeof(TSD<Allocator>) * NumberOfTSDs);
     setCurrentTSD(nullptr);
     pthread_key_delete(PThreadKey);
   }
@@ -77,7 +76,7 @@ template <class Allocator, u32 MaxTSDCount> struct TSDRegistrySharedT {
   }
 
   void enable() {
-    for (s32 I = NumberOfTSDs - 1; I >= 0; I--)
+    for (s32 I = static_cast<s32>(NumberOfTSDs - 1); I >= 0; I--)
       TSDs[I].unlock();
     Mutex.unlock();
   }
@@ -160,11 +159,11 @@ private:
   pthread_key_t PThreadKey;
   atomic_u32 CurrentIndex;
   u32 NumberOfTSDs;
-  TSD<Allocator> *TSDs;
   u32 NumberOfCoPrimes;
   u32 CoPrimes[MaxTSDCount];
   bool Initialized;
   HybridMutex Mutex;
+  TSD<Allocator> TSDs[MaxTSDCount];
 #if SCUDO_LINUX && !_BIONIC
   static THREADLOCAL TSD<Allocator> *ThreadTSD;
 #endif

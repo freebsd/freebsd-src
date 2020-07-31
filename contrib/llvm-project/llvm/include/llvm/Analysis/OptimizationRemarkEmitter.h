@@ -17,15 +17,11 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/IR/DiagnosticInfo.h"
-#include "llvm/IR/Function.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 
 namespace llvm {
-class DebugLoc;
-class Loop;
-class Pass;
-class Twine;
+class Function;
 class Value;
 
 /// The optimization diagnostic interface.
@@ -77,7 +73,7 @@ public:
     // remarks enabled. We can't currently check whether remarks are requested
     // for the calling pass since that requires actually building the remark.
 
-    if (F->getContext().getRemarkStreamer() ||
+    if (F->getContext().getLLVMRemarkStreamer() ||
         F->getContext().getDiagHandlerPtr()->isAnyRemarkEnabled()) {
       auto R = RemarkBuilder();
       emit((DiagnosticInfoOptimizationBase &)R);
@@ -92,7 +88,7 @@ public:
   /// provide more context so that non-trivial false positives can be quickly
   /// detected by the user.
   bool allowExtraAnalysis(StringRef PassName) const {
-    return (F->getContext().getRemarkStreamer() ||
+    return (F->getContext().getLLVMRemarkStreamer() ||
             F->getContext().getDiagHandlerPtr()->isAnyRemarkEnabled(PassName));
   }
 

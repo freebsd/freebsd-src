@@ -131,6 +131,9 @@ void RISCVTargetInfo::getTargetDefines(const LangOptions &Opts,
 
   if (HasC)
     Builder.defineMacro("__riscv_compressed");
+
+  if (HasB)
+    Builder.defineMacro("__riscv_bitmanip");
 }
 
 /// Return true if has this feature, need to sync with handleTargetFeatures.
@@ -145,6 +148,7 @@ bool RISCVTargetInfo::hasFeature(StringRef Feature) const {
       .Case("f", HasF)
       .Case("d", HasD)
       .Case("c", HasC)
+      .Case("experimental-b", HasB)
       .Default(false);
 }
 
@@ -162,6 +166,8 @@ bool RISCVTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
       HasD = true;
     else if (Feature == "+c")
       HasC = true;
+    else if (Feature == "+experimental-b")
+      HasB = true;
   }
 
   return true;

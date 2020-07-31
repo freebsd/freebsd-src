@@ -211,8 +211,8 @@ public:
     return cast<ConstantInt>(getArgOperand(SizeArg))->getZExtValue();
   }
 
-  uint64_t getStorageAlignment() const {
-    return cast<ConstantInt>(getArgOperand(AlignArg))->getZExtValue();
+  Align getStorageAlignment() const {
+    return cast<ConstantInt>(getArgOperand(AlignArg))->getAlignValue();
   }
 
   Value *getStorage() const {
@@ -338,11 +338,16 @@ class LLVM_LIBRARY_VISIBILITY CoroPromiseInst : public IntrinsicInst {
   enum { FrameArg, AlignArg, FromArg };
 
 public:
+  /// Are we translating from the frame to the promise (false) or from
+  /// the promise to the frame (true)?
   bool isFromPromise() const {
     return cast<Constant>(getArgOperand(FromArg))->isOneValue();
   }
-  unsigned getAlignment() const {
-    return cast<ConstantInt>(getArgOperand(AlignArg))->getZExtValue();
+
+  /// The required alignment of the promise.  This must match the
+  /// alignment of the promise alloca in the coroutine.
+  Align getAlignment() const {
+    return cast<ConstantInt>(getArgOperand(AlignArg))->getAlignValue();
   }
 
   // Methods to support type inquiry through isa, cast, and dyn_cast:
@@ -463,8 +468,8 @@ public:
   Value *getSize() const {
     return getArgOperand(SizeArg);
   }
-  unsigned getAlignment() const {
-    return cast<ConstantInt>(getArgOperand(AlignArg))->getZExtValue();
+  Align getAlignment() const {
+    return cast<ConstantInt>(getArgOperand(AlignArg))->getAlignValue();
   }
 
   // Methods to support type inquiry through isa, cast, and dyn_cast:

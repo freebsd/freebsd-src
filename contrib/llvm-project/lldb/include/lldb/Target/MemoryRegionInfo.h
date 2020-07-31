@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef lldb_MemoryRegionInfo_h
-#define lldb_MemoryRegionInfo_h
+#ifndef LLDB_TARGET_MEMORYREGIONINFO_H
+#define LLDB_TARGET_MEMORYREGIONINFO_H
 
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/RangeMap.h"
@@ -126,7 +126,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
 // Forward-declarable wrapper.
 class MemoryRegionInfos : public std::vector<lldb_private::MemoryRegionInfo> {
 public:
-  //using std::vector<lldb_private::MemoryRegionInfo>::vector;
+  using std::vector<lldb_private::MemoryRegionInfo>::vector;
 };
 
 }
@@ -143,4 +143,4 @@ struct format_provider<lldb_private::MemoryRegionInfo::OptionalBool> {
 };
 }
 
-#endif // #ifndef lldb_MemoryRegionInfo_h
+#endif // LLDB_TARGET_MEMORYREGIONINFO_H

@@ -1,4 +1,4 @@
-//===-- HistoryUnwind.cpp ---------------------------------------*- C++ -*-===//
+//===-- HistoryUnwind.cpp -------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -23,8 +23,10 @@ using namespace lldb_private;
 
 // Constructor
 
-HistoryUnwind::HistoryUnwind(Thread &thread, std::vector<lldb::addr_t> pcs)
-    : Unwind(thread), m_pcs(pcs) {}
+HistoryUnwind::HistoryUnwind(Thread &thread, std::vector<lldb::addr_t> pcs,
+                             bool pcs_are_call_addresses)
+    : Unwind(thread), m_pcs(pcs),
+      m_pcs_are_call_addresses(pcs_are_call_addresses) {}
 
 // Destructor
 
@@ -59,7 +61,10 @@ bool HistoryUnwind::DoGetFrameInfoAtIndex(uint32_t frame_idx, lldb::addr_t &cfa,
   if (frame_idx < m_pcs.size()) {
     cfa = frame_idx;
     pc = m_pcs[frame_idx];
-    behaves_like_zeroth_frame = (frame_idx == 0);
+    if (m_pcs_are_call_addresses)
+      behaves_like_zeroth_frame = true;
+    else
+      behaves_like_zeroth_frame = (frame_idx == 0);
     return true;
   }
   return false;

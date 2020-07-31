@@ -1,4 +1,4 @@
-//===-- CommandObjectBreakpoint.cpp -----------------------------*- C++ -*-===//
+//===-- CommandObjectBreakpoint.cpp ---------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -70,7 +70,7 @@ public:
       m_bp_opts.m_set_flags.Set(BreakpointOptions::eCondition);
       break;
     case 'C':
-      m_commands.push_back(option_arg);
+      m_commands.push_back(std::string(option_arg));
       break;
     case 'd':
       m_bp_opts.SetEnabled(false);
@@ -270,11 +270,11 @@ public:
         break;
 
       case 'b':
-        m_func_names.push_back(option_arg);
+        m_func_names.push_back(std::string(option_arg));
         m_func_name_type_mask |= eFunctionNameTypeBase;
         break;
 
-      case 'C':
+      case 'u':
         if (option_arg.getAsInteger(0, m_column))
           error.SetErrorStringWithFormat("invalid column number: %s",
                                          option_arg.str().c_str());
@@ -320,7 +320,7 @@ public:
         break;
 
       case 'F':
-        m_func_names.push_back(option_arg);
+        m_func_names.push_back(std::string(option_arg));
         m_func_name_type_mask |= eFunctionNameTypeFull;
         break;
 
@@ -383,18 +383,18 @@ public:
       }
 
       case 'M':
-        m_func_names.push_back(option_arg);
+        m_func_names.push_back(std::string(option_arg));
         m_func_name_type_mask |= eFunctionNameTypeMethod;
         break;
 
       case 'n':
-        m_func_names.push_back(option_arg);
+        m_func_names.push_back(std::string(option_arg));
         m_func_name_type_mask |= eFunctionNameTypeAuto;
         break;
 
       case 'N': {
         if (BreakpointID::StringIsBreakpointName(option_arg, error))
-          m_breakpoint_names.push_back(option_arg);
+          m_breakpoint_names.push_back(std::string(option_arg));
         else
           error.SetErrorStringWithFormat("Invalid breakpoint name: %s",
                                          option_arg.str().c_str());
@@ -415,11 +415,11 @@ public:
         break;
 
       case 'p':
-        m_source_text_regexp.assign(option_arg);
+        m_source_text_regexp.assign(std::string(option_arg));
         break;
 
       case 'r':
-        m_func_regexp.assign(option_arg);
+        m_func_regexp.assign(std::string(option_arg));
         break;
 
       case 's':
@@ -427,7 +427,7 @@ public:
         break;
 
       case 'S':
-        m_func_names.push_back(option_arg);
+        m_func_names.push_back(std::string(option_arg));
         m_func_name_type_mask |= eFunctionNameTypeSelector;
         break;
 
@@ -441,7 +441,7 @@ public:
       } break;
 
       case 'X':
-        m_source_regex_func_names.insert(option_arg);
+        m_source_regex_func_names.insert(std::string(option_arg));
         break;
 
       default:
@@ -620,8 +620,16 @@ protected:
       RegularExpression regexp(m_options.m_func_regexp);
       if (llvm::Error err = regexp.GetError()) {
         result.AppendErrorWithFormat(
-            "Function name regular expression could not be compiled: \"%s\"",
+            "Function name regular expression could not be compiled: %s",
             llvm::toString(std::move(err)).c_str());
+        // Check if the incorrect regex looks like a globbing expression and
+        // warn the user about it.
+        if (!m_options.m_func_regexp.empty()) {
+          if (m_options.m_func_regexp[0] == '*' ||
+              m_options.m_func_regexp[0] == '?')
+            result.AppendWarning(
+                "Function name regex does not accept glob patterns.");
+        }
         result.SetStatus(eReturnStatusFailed);
         return false;
       }
@@ -811,6 +819,14 @@ public:
 
   ~CommandObjectBreakpointModify() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
+
   Options *GetOptions() override { return &m_options; }
 
 protected:
@@ -876,6 +892,14 @@ public:
   }
 
   ~CommandObjectBreakpointEnable() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -984,6 +1008,14 @@ the second re-enables the first location.");
   }
 
   ~CommandObjectBreakpointDisable() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
@@ -1231,7 +1263,7 @@ public:
 
       switch (short_option) {
       case 'f':
-        m_filename.assign(option_arg);
+        m_filename.assign(std::string(option_arg));
         break;
 
       case 'l':
@@ -1362,6 +1394,14 @@ public:
   }
 
   ~CommandObjectBreakpointDelete() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
 
   Options *GetOptions() override { return &m_options; }
 
@@ -1730,6 +1770,14 @@ public:
 
   ~CommandObjectBreakpointNameAdd() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
+
   Options *GetOptions() override { return &m_option_group; }
 
 protected:
@@ -1808,6 +1856,14 @@ public:
   }
 
   ~CommandObjectBreakpointNameDelete() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
 
   Options *GetOptions() override { return &m_option_group; }
 
@@ -1978,14 +2034,7 @@ public:
                             "Read and set the breakpoints previously saved to "
                             "a file with \"breakpoint write\".  ",
                             nullptr),
-        m_options() {
-    CommandArgumentEntry arg;
-    CommandObject::AddIDsArgumentData(arg, eArgTypeBreakpointID,
-                                      eArgTypeBreakpointIDRange);
-    // Add the entry for the first argument for this command to the object's
-    // arguments vector.
-    m_arguments.push_back(arg);
-  }
+        m_options() {}
 
   ~CommandObjectBreakpointRead() override = default;
 
@@ -2004,7 +2053,7 @@ public:
 
       switch (short_option) {
       case 'f':
-        m_filename.assign(option_arg);
+        m_filename.assign(std::string(option_arg));
         break;
       case 'N': {
         Status name_error;
@@ -2013,7 +2062,7 @@ public:
           error.SetErrorStringWithFormat("Invalid breakpoint name: %s",
                                          name_error.AsCString());
         }
-        m_names.push_back(option_arg);
+        m_names.push_back(std::string(option_arg));
         break;
       }
       default:
@@ -2107,6 +2156,14 @@ public:
 
   ~CommandObjectBreakpointWrite() override = default;
 
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    CommandCompletions::InvokeCommonCompletionCallbacks(
+        GetCommandInterpreter(), CommandCompletions::eBreakpointCompletion,
+        request, nullptr);
+  }
+
   Options *GetOptions() override { return &m_options; }
 
   class CommandOptions : public Options {
@@ -2122,7 +2179,7 @@ public:
 
       switch (short_option) {
       case 'f':
-        m_filename.assign(option_arg);
+        m_filename.assign(std::string(option_arg));
         break;
       case 'a':
         m_append = true;

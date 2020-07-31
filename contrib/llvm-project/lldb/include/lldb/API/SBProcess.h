@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLDB_SBProcess_h_
-#define LLDB_SBProcess_h_
+#ifndef LLDB_API_SBPROCESS_H
+#define LLDB_API_SBPROCESS_H
 
 #include "lldb/API/SBDefines.h"
 #include "lldb/API/SBError.h"
@@ -222,6 +222,8 @@ public:
 
   bool GetDescription(lldb::SBStream &description);
 
+  SBStructuredData GetExtendedCrashInformation();
+
   /// Start Tracing with the given SBTraceOptions.
   ///
   /// \param[in] options
@@ -416,4 +418,4 @@ protected:
 
 } // namespace lldb
 
-#endif // LLDB_SBProcess_h_
+#endif // LLDB_API_SBPROCESS_H

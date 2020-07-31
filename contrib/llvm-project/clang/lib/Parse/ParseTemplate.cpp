@@ -22,6 +22,16 @@
 #include "llvm/Support/TimeProfiler.h"
 using namespace clang;
 
+/// Re-enter a possible template scope, creating as many template parameter
+/// scopes as necessary.
+/// \return The number of template parameter scopes entered.
+unsigned Parser::ReenterTemplateScopes(MultiParseScope &S, Decl *D) {
+  return Actions.ActOnReenterTemplateScope(D, [&] {
+    S.Enter(Scope::TemplateParamScope);
+    return Actions.getCurScope();
+  });
+}
+
 /// Parse a template declaration, explicit instantiation, or
 /// explicit specialization.
 Decl *Parser::ParseDeclarationStartingWithTemplate(
@@ -67,8 +77,7 @@ Decl *Parser::ParseTemplateDeclarationOrSpecialization(
   assert(Tok.isOneOf(tok::kw_export, tok::kw_template) &&
          "Token does not start a template declaration.");
 
-  // Enter template-parameter scope.
-  ParseScope TemplateParmScope(this, Scope::TemplateParamScope);
+  MultiParseScope TemplateParamScopes(*this);
 
   // Tell the action that names should be checked in the context of
   // the declaration to come.
@@ -116,7 +125,8 @@ Decl *Parser::ParseTemplateDeclarationOrSpecialization(
     // Parse the '<' template-parameter-list '>'
     SourceLocation LAngleLoc, RAngleLoc;
     SmallVector<NamedDecl*, 4> TemplateParams;
-    if (ParseTemplateParameters(CurTemplateDepthTracker.getDepth(),
+    if (ParseTemplateParameters(TemplateParamScopes,
+                                CurTemplateDepthTracker.getDepth(),
                                 TemplateParams, LAngleLoc, RAngleLoc)) {
       // Skip until the semi-colon or a '}'.
       SkipUntil(tok::r_brace, StopAtSemi | StopBeforeMatch);
@@ -149,9 +159,6 @@ Decl *Parser::ParseTemplateDeclarationOrSpecialization(
         CurTemplateDepthTracker.getDepth(), ExportLoc, TemplateLoc, LAngleLoc,
         TemplateParams, RAngleLoc, OptionalRequiresClauseConstraintER.get()));
   } while (Tok.isOneOf(tok::kw_export, tok::kw_template));
-
-  unsigned NewFlags = getCurScope()->getFlags() & ~Scope::TemplateParamScope;
-  ParseScopeFlags TemplateScopeFlags(this, NewFlags, isSpecialization);
 
   // Parse the actual template declaration.
   if (Tok.is(tok::kw_concept))
@@ -253,9 +260,9 @@ Decl *Parser::ParseSingleDeclarationAfterTemplate(
   }
 
   llvm::TimeTraceScope TimeScope("ParseTemplate", [&]() {
-    return DeclaratorInfo.getIdentifier() != nullptr
-               ? DeclaratorInfo.getIdentifier()->getName()
-               : "<unknown>";
+    return std::string(DeclaratorInfo.getIdentifier() != nullptr
+                           ? DeclaratorInfo.getIdentifier()->getName()
+                           : "<unknown>");
   });
 
   LateParsedAttrList LateParsedAttrs(true);
@@ -363,9 +370,11 @@ Parser::ParseConceptDefinition(const ParsedTemplateInfo &TemplateInfo,
   DiagnoseAndSkipCXX11Attributes();
 
   CXXScopeSpec SS;
-  if (ParseOptionalCXXScopeSpecifier(SS, ParsedType(),
-      /*EnteringContext=*/false, /*MayBePseudoDestructor=*/nullptr,
-      /*IsTypename=*/false, /*LastII=*/nullptr, /*OnlyNamespace=*/true) ||
+  if (ParseOptionalCXXScopeSpecifier(
+          SS, /*ObjectType=*/nullptr,
+          /*ObjectHadErrors=*/false, /*EnteringContext=*/false,
+          /*MayBePseudoDestructor=*/nullptr,
+          /*IsTypename=*/false, /*LastII=*/nullptr, /*OnlyNamespace=*/true) ||
       SS.isInvalid()) {
     SkipUntil(tok::semi);
     return nullptr;
@@ -376,12 +385,12 @@ Parser::ParseConceptDefinition(const ParsedTemplateInfo &TemplateInfo,
          diag::err_concept_definition_not_identifier);
 
   UnqualifiedId Result;
-  if (ParseUnqualifiedId(SS, /*EnteringContext=*/false,
+  if (ParseUnqualifiedId(SS, /*ObjectType=*/nullptr,
+                         /*ObjectHadErrors=*/false, /*EnteringContext=*/false,
                          /*AllowDestructorName=*/false,
                          /*AllowConstructorName=*/false,
                          /*AllowDeductionGuide=*/false,
-                         /*ObjectType=*/ParsedType(), /*TemplateKWLoc=*/nullptr,
-                         Result)) {
+                         /*TemplateKWLoc=*/nullptr, Result)) {
     SkipUntil(tok::semi);
     return nullptr;
   }
@@ -428,8 +437,9 @@ Parser::ParseConceptDefinition(const ParsedTemplateInfo &TemplateInfo,
 ///
 /// \returns true if an error occurred, false otherwise.
 bool Parser::ParseTemplateParameters(
-    unsigned Depth, SmallVectorImpl<NamedDecl *> &TemplateParams,
-    SourceLocation &LAngleLoc, SourceLocation &RAngleLoc) {
+    MultiParseScope &TemplateScopes, unsigned Depth,
+    SmallVectorImpl<NamedDecl *> &TemplateParams, SourceLocation &LAngleLoc,
+    SourceLocation &RAngleLoc) {
   // Get the template parameter list.
   if (!TryConsumeToken(tok::less, LAngleLoc)) {
     Diag(Tok.getLocation(), diag::err_expected_less_after) << "template";
@@ -438,8 +448,11 @@ bool Parser::ParseTemplateParameters(
 
   // Try to parse the template parameter list.
   bool Failed = false;
-  if (!Tok.is(tok::greater) && !Tok.is(tok::greatergreater))
+  // FIXME: Missing greatergreatergreater support.
+  if (!Tok.is(tok::greater) && !Tok.is(tok::greatergreater)) {
+    TemplateScopes.Enter(Scope::TemplateParamScope);
     Failed = ParseTemplateParameterList(Depth, TemplateParams);
+  }
 
   if (Tok.is(tok::greatergreater)) {
     // No diagnostic required here: a template-parameter-list can only be
@@ -678,23 +691,23 @@ bool Parser::isTypeConstraintAnnotation() {
 ///
 /// \returns true if an error occurred, and false otherwise.
 bool Parser::TryAnnotateTypeConstraint() {
-  if (!getLangOpts().CPlusPlus2a)
+  if (!getLangOpts().CPlusPlus20)
     return false;
   CXXScopeSpec SS;
   bool WasScopeAnnotation = Tok.is(tok::annot_cxxscope);
-  if (ParseOptionalCXXScopeSpecifier(
-          SS, ParsedType(),
-          /*EnteringContext=*/false,
-          /*MayBePseudoDestructor=*/nullptr,
-          // If this is not a type-constraint, then
-          // this scope-spec is part of the typename
-          // of a non-type template parameter
-          /*IsTypename=*/true, /*LastII=*/nullptr,
-          // We won't find concepts in
-          // non-namespaces anyway, so might as well
-          // parse this correctly for possible type
-          // names.
-          /*OnlyNamespace=*/false))
+  if (ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/nullptr,
+                                     /*ObjectHadErrors=*/false,
+                                     /*EnteringContext=*/false,
+                                     /*MayBePseudoDestructor=*/nullptr,
+                                     // If this is not a type-constraint, then
+                                     // this scope-spec is part of the typename
+                                     // of a non-type template parameter
+                                     /*IsTypename=*/true, /*LastII=*/nullptr,
+                                     // We won't find concepts in
+                                     // non-namespaces anyway, so might as well
+                                     // parse this correctly for possible type
+                                     // names.
+                                     /*OnlyNamespace=*/false))
     return true;
 
   if (Tok.is(tok::identifier)) {
@@ -754,7 +767,8 @@ NamedDecl *Parser::ParseTypeParameter(unsigned Depth, unsigned Position) {
   TemplateIdAnnotation *TypeConstraint = nullptr;
   bool TypenameKeyword = false;
   SourceLocation KeyLoc;
-  ParseOptionalCXXScopeSpecifier(TypeConstraintSS, nullptr,
+  ParseOptionalCXXScopeSpecifier(TypeConstraintSS, /*ObjectType=*/nullptr,
+                                 /*ObjectHadErrors=*/false,
                                  /*EnteringContext*/ false);
   if (Tok.is(tok::annot_template_id)) {
     // Consume the 'type-constraint'.
@@ -847,9 +861,9 @@ Parser::ParseTemplateTemplateParameter(unsigned Depth, unsigned Position) {
   SmallVector<NamedDecl*,8> TemplateParams;
   SourceLocation LAngleLoc, RAngleLoc;
   {
-    ParseScope TemplateParmScope(this, Scope::TemplateParamScope);
-    if (ParseTemplateParameters(Depth + 1, TemplateParams, LAngleLoc,
-                               RAngleLoc)) {
+    MultiParseScope TemplateParmScope(*this);
+    if (ParseTemplateParameters(TemplateParmScope, Depth + 1, TemplateParams,
+                                LAngleLoc, RAngleLoc)) {
       return nullptr;
     }
   }
@@ -987,7 +1001,7 @@ Parser::ParseNonTypeTemplateParameter(unsigned Depth, unsigned Position) {
 
   // Create the parameter.
   return Actions.ActOnNonTypeTemplateParameter(getCurScope(), ParamDecl,
-                                               Depth, Position, EqualLoc, 
+                                               Depth, Position, EqualLoc,
                                                DefaultArg.get());
 }
 
@@ -1028,7 +1042,8 @@ void Parser::DiagnoseMisplacedEllipsisInDeclarator(SourceLocation EllipsisLoc,
 /// or argument list.
 ///
 /// \returns true, if current token does not start with '>', false otherwise.
-bool Parser::ParseGreaterThanInTemplateList(SourceLocation &RAngleLoc,
+bool Parser::ParseGreaterThanInTemplateList(SourceLocation LAngleLoc,
+                                            SourceLocation &RAngleLoc,
                                             bool ConsumeLastToken,
                                             bool ObjCGenericList) {
   // What will be left once we've consumed the '>'.
@@ -1038,7 +1053,8 @@ bool Parser::ParseGreaterThanInTemplateList(SourceLocation &RAngleLoc,
 
   switch (Tok.getKind()) {
   default:
-    Diag(Tok.getLocation(), diag::err_expected) << tok::greater;
+    Diag(getEndOfPreviousToken(), diag::err_expected) << tok::greater;
+    Diag(LAngleLoc, diag::note_matching) << tok::less;
     return true;
 
   case tok::greater:
@@ -1217,16 +1233,17 @@ Parser::ParseTemplateIdAfterTemplateName(bool ConsumeLastToken,
 
     if (Invalid) {
       // Try to find the closing '>'.
-      if (ConsumeLastToken)
-        SkipUntil(tok::greater, StopAtSemi);
+      if (getLangOpts().CPlusPlus11)
+        SkipUntil(tok::greater, tok::greatergreater,
+                  tok::greatergreatergreater, StopAtSemi | StopBeforeMatch);
       else
         SkipUntil(tok::greater, StopAtSemi | StopBeforeMatch);
-      return true;
     }
   }
 
-  return ParseGreaterThanInTemplateList(RAngleLoc, ConsumeLastToken,
-                                        /*ObjCGenericList=*/false);
+  return ParseGreaterThanInTemplateList(LAngleLoc, RAngleLoc, ConsumeLastToken,
+                                        /*ObjCGenericList=*/false) ||
+         Invalid;
 }
 
 /// Replace the tokens that form a simple-template-id with an
@@ -1277,12 +1294,13 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
                                      bool AllowTypeAnnotation,
                                      bool TypeConstraint) {
   assert(getLangOpts().CPlusPlus && "Can only annotate template-ids in C++");
-  assert(Template && (Tok.is(tok::less) || TypeConstraint) &&
+  assert((Tok.is(tok::less) || TypeConstraint) &&
          "Parser isn't at the beginning of a template-id");
   assert(!(TypeConstraint && AllowTypeAnnotation) && "type-constraint can't be "
                                                      "a type annotation");
   assert((!TypeConstraint || TNK == TNK_Concept_template) && "type-constraint "
          "must accompany a concept name");
+  assert((Template || TNK == TNK_Non_template) && "missing template name");
 
   // Consume the template-name.
   SourceLocation TemplateNameLoc = TemplateName.getSourceRange().getBegin();
@@ -1290,40 +1308,31 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
   // Parse the enclosed template argument list.
   SourceLocation LAngleLoc, RAngleLoc;
   TemplateArgList TemplateArgs;
+  bool ArgsInvalid = false;
   if (!TypeConstraint || Tok.is(tok::less)) {
-    bool Invalid = ParseTemplateIdAfterTemplateName(false, LAngleLoc,
-                                                    TemplateArgs,
-                                                    RAngleLoc);
-
-    if (Invalid) {
-      // If we failed to parse the template ID but skipped ahead to a >, we're not
-      // going to be able to form a token annotation.  Eat the '>' if present.
-      TryConsumeToken(tok::greater);
-      // FIXME: Annotate the token stream so we don't produce the same errors
-      // again if we're doing this annotation as part of a tentative parse.
+    ArgsInvalid = ParseTemplateIdAfterTemplateName(false, LAngleLoc,
+                                                   TemplateArgs, RAngleLoc);
+    // If we couldn't recover from invalid arguments, don't form an annotation
+    // token -- we don't know how much to annotate.
+    // FIXME: This can lead to duplicate diagnostics if we retry parsing this
+    // template-id in another context. Try to annotate anyway?
+    if (RAngleLoc.isInvalid())
       return true;
-    }
   }
 
   ASTTemplateArgsPtr TemplateArgsPtr(TemplateArgs);
 
   // Build the annotation token.
   if (TNK == TNK_Type_template && AllowTypeAnnotation) {
-    TypeResult Type = Actions.ActOnTemplateIdType(
-        getCurScope(), SS, TemplateKWLoc, Template, TemplateName.Identifier,
-        TemplateNameLoc, LAngleLoc, TemplateArgsPtr, RAngleLoc);
-    if (Type.isInvalid()) {
-      // If we failed to parse the template ID but skipped ahead to a >, we're
-      // not going to be able to form a token annotation.  Eat the '>' if
-      // present.
-      TryConsumeToken(tok::greater);
-      // FIXME: Annotate the token stream so we don't produce the same errors
-      // again if we're doing this annotation as part of a tentative parse.
-      return true;
-    }
+    TypeResult Type = ArgsInvalid
+                          ? TypeError()
+                          : Actions.ActOnTemplateIdType(
+                                getCurScope(), SS, TemplateKWLoc, Template,
+                                TemplateName.Identifier, TemplateNameLoc,
+                                LAngleLoc, TemplateArgsPtr, RAngleLoc);
 
     Tok.setKind(tok::annot_typename);
-    setTypeAnnotation(Tok, Type.get());
+    setTypeAnnotation(Tok, Type);
     if (SS.isNotEmpty())
       Tok.setLocation(SS.getBeginLoc());
     else if (TemplateKWLoc.isValid())
@@ -1347,7 +1356,7 @@ bool Parser::AnnotateTemplateIdToken(TemplateTy Template, TemplateNameKind TNK,
 
     TemplateIdAnnotation *TemplateId = TemplateIdAnnotation::Create(
         TemplateKWLoc, TemplateNameLoc, TemplateII, OpKind, Template, TNK,
-        LAngleLoc, RAngleLoc, TemplateArgs, TemplateIds);
+        LAngleLoc, RAngleLoc, TemplateArgs, ArgsInvalid, TemplateIds);
 
     Tok.setAnnotationValue(TemplateId);
     if (TemplateKWLoc.isValid())
@@ -1383,29 +1392,24 @@ void Parser::AnnotateTemplateIdTokenAsType(CXXScopeSpec &SS,
   assert(Tok.is(tok::annot_template_id) && "Requires template-id tokens");
 
   TemplateIdAnnotation *TemplateId = takeTemplateIdAnnotation(Tok);
-  assert((TemplateId->Kind == TNK_Type_template ||
-          TemplateId->Kind == TNK_Dependent_template_name ||
-          TemplateId->Kind == TNK_Undeclared_template) &&
+  assert(TemplateId->mightBeType() &&
          "Only works for type and dependent templates");
 
   ASTTemplateArgsPtr TemplateArgsPtr(TemplateId->getTemplateArgs(),
                                      TemplateId->NumArgs);
 
-  TypeResult Type
-    = Actions.ActOnTemplateIdType(getCurScope(),
-                                  SS,
-                                  TemplateId->TemplateKWLoc,
-                                  TemplateId->Template,
-                                  TemplateId->Name,
-                                  TemplateId->TemplateNameLoc,
-                                  TemplateId->LAngleLoc,
-                                  TemplateArgsPtr,
-                                  TemplateId->RAngleLoc,
-                                  /*IsCtorOrDtorName*/false,
-                                  IsClassName);
+  TypeResult Type =
+      TemplateId->isInvalid()
+          ? TypeError()
+          : Actions.ActOnTemplateIdType(
+                getCurScope(), SS, TemplateId->TemplateKWLoc,
+                TemplateId->Template, TemplateId->Name,
+                TemplateId->TemplateNameLoc, TemplateId->LAngleLoc,
+                TemplateArgsPtr, TemplateId->RAngleLoc,
+                /*IsCtorOrDtorName*/ false, IsClassName);
   // Create the new "type" annotation token.
   Tok.setKind(tok::annot_typename);
-  setTypeAnnotation(Tok, Type.isInvalid() ? nullptr : Type.get());
+  setTypeAnnotation(Tok, Type);
   if (SS.isNotEmpty()) // it was a C++ qualified type name.
     Tok.setLocation(SS.getBeginLoc());
   // End location stays the same
@@ -1417,7 +1421,9 @@ void Parser::AnnotateTemplateIdTokenAsType(CXXScopeSpec &SS,
 
 /// Determine whether the given token can end a template argument.
 static bool isEndOfTemplateArgument(Token Tok) {
-  return Tok.isOneOf(tok::comma, tok::greater, tok::greatergreater);
+  // FIXME: Handle '>>>'.
+  return Tok.isOneOf(tok::comma, tok::greater, tok::greatergreater,
+                     tok::greatergreatergreater);
 }
 
 /// Parse a C++ template template argument.
@@ -1438,7 +1444,8 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
   // followed by a token that terminates a template argument, such as ',',
   // '>', or (in some cases) '>>'.
   CXXScopeSpec SS; // nested-name-specifier, if present
-  ParseOptionalCXXScopeSpecifier(SS, nullptr,
+  ParseOptionalCXXScopeSpecifier(SS, /*ObjectType=*/nullptr,
+                                 /*ObjectHadErrors=*/false,
                                  /*EnteringContext=*/false);
 
   ParsedTemplateArgument Result;
@@ -1456,15 +1463,14 @@ ParsedTemplateArgument Parser::ParseTemplateTemplateArgument() {
 
       TryConsumeToken(tok::ellipsis, EllipsisLoc);
 
-      // If the next token signals the end of a template argument,
-      // then we have a dependent template name that could be a template
-      // template argument.
+      // If the next token signals the end of a template argument, then we have
+      // a (possibly-dependent) template name that could be a template template
+      // argument.
       TemplateTy Template;
       if (isEndOfTemplateArgument(Tok) &&
-          Actions.ActOnDependentTemplateName(
-              getCurScope(), SS, TemplateKWLoc, Name,
-              /*ObjectType=*/nullptr,
-              /*EnteringContext=*/false, Template))
+          Actions.ActOnTemplateName(getCurScope(), SS, TemplateKWLoc, Name,
+                                    /*ObjectType=*/nullptr,
+                                    /*EnteringContext=*/false, Template))
         Result = ParsedTemplateArgument(SS, Template, Name.StartLocation);
     }
   } else if (Tok.is(tok::identifier)) {
@@ -1568,10 +1574,8 @@ Parser::ParseTemplateArgumentList(TemplateArgList &TemplateArgs) {
     if (TryConsumeToken(tok::ellipsis, EllipsisLoc))
       Arg = Actions.ActOnPackExpansion(Arg, EllipsisLoc);
 
-    if (Arg.isInvalid()) {
-      SkipUntil(tok::comma, tok::greater, StopAtSemi | StopBeforeMatch);
+    if (Arg.isInvalid())
       return true;
-    }
 
     // Save this template argument.
     TemplateArgs.push_back(Arg);
@@ -1625,6 +1629,9 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
   if (!LPT.D)
      return;
 
+  // Destroy TemplateIdAnnotations when we're done, if possible.
+  DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
+
   // Get the FunctionDecl.
   FunctionDecl *FunD = LPT.D->getAsFunction();
   // Track template parameter depth.
@@ -1634,40 +1641,22 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
   Sema::ContextRAII GlobalSavedContext(
       Actions, Actions.Context.getTranslationUnitDecl());
 
-  SmallVector<ParseScope*, 4> TemplateParamScopeStack;
+  MultiParseScope Scopes(*this);
 
-  // Get the list of DeclContexts to reenter. For inline methods, we only want
-  // to push the DeclContext of the outermost class. This matches the way the
-  // parser normally parses bodies of inline methods when the outermost class is
-  // complete.
-  struct ContainingDC {
-    ContainingDC(DeclContext *DC, bool ShouldPush) : Pair(DC, ShouldPush) {}
-    llvm::PointerIntPair<DeclContext *, 1, bool> Pair;
-    DeclContext *getDC() { return Pair.getPointer(); }
-    bool shouldPushDC() { return Pair.getInt(); }
-  };
-  SmallVector<ContainingDC, 4> DeclContextsToReenter;
-  DeclContext *DD = FunD;
-  DeclContext *NextContaining = Actions.getContainingDC(DD);
-  while (DD && !DD->isTranslationUnit()) {
-    bool ShouldPush = DD == NextContaining;
-    DeclContextsToReenter.push_back({DD, ShouldPush});
-    if (ShouldPush)
-      NextContaining = Actions.getContainingDC(DD);
-    DD = DD->getLexicalParent();
-  }
+  // Get the list of DeclContexts to reenter.
+  SmallVector<DeclContext*, 4> DeclContextsToReenter;
+  for (DeclContext *DC = FunD; DC && !DC->isTranslationUnit();
+       DC = DC->getLexicalParent())
+    DeclContextsToReenter.push_back(DC);
 
-  // Reenter template scopes from outermost to innermost.
-  for (ContainingDC CDC : reverse(DeclContextsToReenter)) {
-    TemplateParamScopeStack.push_back(
-        new ParseScope(this, Scope::TemplateParamScope));
-    unsigned NumParamLists = Actions.ActOnReenterTemplateScope(
-        getCurScope(), cast<Decl>(CDC.getDC()));
-    CurTemplateDepthTracker.addDepth(NumParamLists);
-    if (CDC.shouldPushDC()) {
-      TemplateParamScopeStack.push_back(new ParseScope(this, Scope::DeclScope));
-      Actions.PushDeclContext(Actions.getCurScope(), CDC.getDC());
-    }
+  // Reenter scopes from outermost to innermost.
+  for (DeclContext *DC : reverse(DeclContextsToReenter)) {
+    CurTemplateDepthTracker.addDepth(
+        ReenterTemplateScopes(Scopes, cast<Decl>(DC)));
+    Scopes.Enter(Scope::DeclScope);
+    // We'll reenter the function context itself below.
+    if (DC != FunD)
+      Actions.PushDeclContext(Actions.getCurScope(), DC);
   }
 
   assert(!LPT.Toks.empty() && "Empty body!");
@@ -1688,8 +1677,7 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
                                Scope::CompoundStmtScope);
 
   // Recreate the containing function DeclContext.
-  Sema::ContextRAII FunctionSavedContext(Actions,
-                                         Actions.getContainingDC(FunD));
+  Sema::ContextRAII FunctionSavedContext(Actions, FunD->getLexicalParent());
 
   Actions.ActOnStartOfFunctionDef(getCurScope(), FunD);
 
@@ -1713,13 +1701,6 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
     } else
       Actions.ActOnFinishFunctionBody(LPT.D, nullptr);
   }
-
-  // Exit scopes.
-  FnScope.Exit();
-  SmallVectorImpl<ParseScope *>::reverse_iterator I =
-   TemplateParamScopeStack.rbegin();
-  for (; I != TemplateParamScopeStack.rend(); ++I)
-    delete *I;
 }
 
 /// Lex a delayed template function for late parsing.
@@ -1751,7 +1732,7 @@ bool Parser::diagnoseUnknownTemplateId(ExprResult LHS, SourceLocation Less) {
     TPA.Commit();
 
     SourceLocation Greater;
-    ParseGreaterThanInTemplateList(Greater, true, false);
+    ParseGreaterThanInTemplateList(Less, Greater, true, false);
     Actions.diagnoseExprIntendedAsTemplateName(getCurScope(), LHS,
                                                Less, Greater);
     return true;
@@ -1780,7 +1761,7 @@ void Parser::checkPotentialAngleBracket(ExprResult &PotentialTemplateName) {
        NextToken().isOneOf(tok::greatergreater, tok::greatergreatergreater))) {
     SourceLocation Less = ConsumeToken();
     SourceLocation Greater;
-    ParseGreaterThanInTemplateList(Greater, true, false);
+    ParseGreaterThanInTemplateList(Less, Greater, true, false);
     Actions.diagnoseExprIntendedAsTemplateName(
         getCurScope(), PotentialTemplateName, Less, Greater);
     // FIXME: Perform error recovery.

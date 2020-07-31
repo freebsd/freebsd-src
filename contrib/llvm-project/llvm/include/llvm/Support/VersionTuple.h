@@ -14,13 +14,14 @@
 #ifndef LLVM_SUPPORT_VERSIONTUPLE_H
 #define LLVM_SUPPORT_VERSIONTUPLE_H
 
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/Optional.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/raw_ostream.h"
 #include <string>
 #include <tuple>
 
 namespace llvm {
+class raw_ostream;
+class StringRef;
 
 /// Represents a version number in the form major[.minor[.subminor[.build]]].
 class VersionTuple {
@@ -142,6 +143,10 @@ public:
   /// zero.
   friend bool operator>=(const VersionTuple &X, const VersionTuple &Y) {
     return !(X < Y);
+  }
+
+  friend llvm::hash_code hash_value(const VersionTuple &VT) {
+    return llvm::hash_combine(VT.Major, VT.Minor, VT.Subminor, VT.Build);
   }
 
   /// Retrieve a string representation of the version number.

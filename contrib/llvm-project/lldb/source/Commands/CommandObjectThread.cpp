@@ -1,4 +1,4 @@
-//===-- CommandObjectThread.cpp ---------------------------------*- C++ -*-===//
+//===-- CommandObjectThread.cpp -------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,7 +10,6 @@
 
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Host/OptionParser.h"
-#include "lldb/Host/StringConvert.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
 #include "lldb/Interpreter/OptionArgParser.h"
@@ -109,11 +108,8 @@ public:
           process->GetThreadList().GetMutex());
 
       for (size_t i = 0; i < num_args; i++) {
-        bool success;
-
-        uint32_t thread_idx = StringConvert::ToUInt32(
-            command.GetArgumentAtIndex(i), 0, 0, &success);
-        if (!success) {
+        uint32_t thread_idx;
+        if (!llvm::to_integer(command.GetArgumentAtIndex(i), thread_idx)) {
           result.AppendErrorWithFormat("invalid thread specification: \"%s\"\n",
                                        command.GetArgumentAtIndex(i));
           result.SetStatus(eReturnStatusFailed);
@@ -464,12 +460,12 @@ public:
 
     case 'r':
       m_avoid_regexp.clear();
-      m_avoid_regexp.assign(option_arg);
+      m_avoid_regexp.assign(std::string(option_arg));
       break;
 
     case 't':
       m_step_in_target.clear();
-      m_step_in_target.assign(option_arg);
+      m_step_in_target.assign(std::string(option_arg));
       break;
 
     default:
@@ -565,9 +561,9 @@ protected:
       }
     } else {
       const char *thread_idx_cstr = command.GetArgumentAtIndex(0);
-      uint32_t step_thread_idx =
-          StringConvert::ToUInt32(thread_idx_cstr, LLDB_INVALID_INDEX32);
-      if (step_thread_idx == LLDB_INVALID_INDEX32) {
+      uint32_t step_thread_idx;
+
+      if (!llvm::to_integer(thread_idx_cstr, step_thread_idx)) {
         result.AppendErrorWithFormat("invalid thread index '%s'.\n",
                                      thread_idx_cstr);
         result.SetStatus(eReturnStatusFailed);
@@ -775,7 +771,6 @@ protected:
     return result.Succeeded();
   }
 
-protected:
   StepType m_step_type;
   StepScope m_step_scope;
   ThreadStepScopeOptionGroup m_options;
@@ -1096,9 +1091,7 @@ protected:
         size_t num_args = command.GetArgumentCount();
         for (size_t i = 0; i < num_args; i++) {
           uint32_t line_number;
-          line_number = StringConvert::ToUInt32(command.GetArgumentAtIndex(i),
-                                                UINT32_MAX);
-          if (line_number == UINT32_MAX) {
+          if (!llvm::to_integer(command.GetArgumentAtIndex(i), line_number)) {
             result.AppendErrorWithFormat("invalid line number: '%s'.\n",
                                          command.GetArgumentAtIndex(i));
             result.SetStatus(eReturnStatusFailed);
@@ -1322,8 +1315,13 @@ protected:
       return false;
     }
 
-    uint32_t index_id =
-        StringConvert::ToUInt32(command.GetArgumentAtIndex(0), 0, 0);
+    uint32_t index_id;
+    if (!llvm::to_integer(command.GetArgumentAtIndex(0), index_id)) {
+      result.AppendErrorWithFormat("Invalid thread index '%s'",
+                                   command.GetArgumentAtIndex(0));
+      result.SetStatus(eReturnStatusFailed);
+      return false;
+    }
 
     Thread *new_thread =
         process->GetThreadList().FindThreadByIndexID(index_id).get();
@@ -1833,12 +1831,20 @@ public:
 
     Status SetOptionValue(uint32_t option_idx, llvm::StringRef option_arg,
                           ExecutionContext *execution_context) override {
-      Status error;
       const int short_option = m_getopt_table[option_idx].val;
 
       switch (short_option) {
       case 'i':
         m_internal = true;
+        break;
+      case 't':
+        lldb::tid_t tid;
+        if (option_arg.getAsInteger(0, tid))
+          return Status("invalid tid: '%s'.", option_arg.str().c_str());
+        m_tids.push_back(tid);
+        break;
+      case 'u':
+        m_unreported = false;
         break;
       case 'v':
         m_verbose = true;
@@ -1846,12 +1852,15 @@ public:
       default:
         llvm_unreachable("Unimplemented option");
       }
-      return error;
+      return {};
     }
 
     void OptionParsingStarting(ExecutionContext *execution_context) override {
       m_verbose = false;
       m_internal = false;
+      m_unreported = true; // The variable is "skip unreported" and we want to
+                           // skip unreported by default.
+      m_tids.clear();
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
@@ -1861,6 +1870,8 @@ public:
     // Instance variables to hold the values for command options.
     bool m_verbose;
     bool m_internal;
+    bool m_unreported;
+    std::vector<lldb::tid_t> m_tids;
   };
 
   CommandObjectThreadPlanList(CommandInterpreter &interpreter)
@@ -1879,25 +1890,59 @@ public:
 
   Options *GetOptions() override { return &m_options; }
 
+  bool DoExecute(Args &command, CommandReturnObject &result) override {
+    // If we are reporting all threads, dispatch to the Process to do that:
+    if (command.GetArgumentCount() == 0 && m_options.m_tids.empty()) {
+      Stream &strm = result.GetOutputStream();
+      DescriptionLevel desc_level = m_options.m_verbose
+                                        ? eDescriptionLevelVerbose
+                                        : eDescriptionLevelFull;
+      m_exe_ctx.GetProcessPtr()->DumpThreadPlans(
+          strm, desc_level, m_options.m_internal, true, m_options.m_unreported);
+      result.SetStatus(eReturnStatusSuccessFinishResult);
+      return true;
+    } else {
+      // Do any TID's that the user may have specified as TID, then do any
+      // Thread Indexes...
+      if (!m_options.m_tids.empty()) {
+        Process *process = m_exe_ctx.GetProcessPtr();
+        StreamString tmp_strm;
+        for (lldb::tid_t tid : m_options.m_tids) {
+          bool success = process->DumpThreadPlansForTID(
+              tmp_strm, tid, eDescriptionLevelFull, m_options.m_internal,
+              true /* condense_trivial */, m_options.m_unreported);
+          // If we didn't find a TID, stop here and return an error.
+          if (!success) {
+            result.SetError("Error dumping plans:");
+            result.AppendError(tmp_strm.GetString());
+            result.SetStatus(eReturnStatusFailed);
+            return false;
+          }
+          // Otherwise, add our data to the output:
+          result.GetOutputStream() << tmp_strm.GetString();
+        }
+      }
+      return CommandObjectIterateOverThreads::DoExecute(command, result);
+    }
+  }
+
 protected:
   bool HandleOneThread(lldb::tid_t tid, CommandReturnObject &result) override {
-    ThreadSP thread_sp =
-        m_exe_ctx.GetProcessPtr()->GetThreadList().FindThreadByID(tid);
-    if (!thread_sp) {
-      result.AppendErrorWithFormat("thread no longer exists: 0x%" PRIx64 "\n",
-                                   tid);
-      result.SetStatus(eReturnStatusFailed);
-      return false;
-    }
+    // If we have already handled this from a -t option, skip it here.
+    if (std::find(m_options.m_tids.begin(), m_options.m_tids.end(), tid) !=
+        m_options.m_tids.end())
+      return true;
 
-    Thread *thread = thread_sp.get();
+    Process *process = m_exe_ctx.GetProcessPtr();
 
     Stream &strm = result.GetOutputStream();
     DescriptionLevel desc_level = eDescriptionLevelFull;
     if (m_options.m_verbose)
       desc_level = eDescriptionLevelVerbose;
 
-    thread->DumpThreadPlans(&strm, desc_level, m_options.m_internal, true);
+    process->DumpThreadPlansForTID(strm, tid, desc_level, m_options.m_internal,
+                                   true /* condense_trivial */,
+                                   m_options.m_unreported);
     return true;
   }
 
@@ -1943,10 +1988,8 @@ public:
       return false;
     }
 
-    bool success;
-    uint32_t thread_plan_idx =
-        StringConvert::ToUInt32(args.GetArgumentAtIndex(0), 0, 0, &success);
-    if (!success) {
+    uint32_t thread_plan_idx;
+    if (!llvm::to_integer(args.GetArgumentAtIndex(0), thread_plan_idx)) {
       result.AppendErrorWithFormat(
           "Invalid thread index: \"%s\" - should be unsigned int.",
           args.GetArgumentAtIndex(0));
@@ -1974,6 +2017,71 @@ public:
   }
 };
 
+class CommandObjectThreadPlanPrune : public CommandObjectParsed {
+public:
+  CommandObjectThreadPlanPrune(CommandInterpreter &interpreter)
+      : CommandObjectParsed(interpreter, "thread plan prune",
+                            "Removes any thread plans associated with "
+                            "currently unreported threads.  "
+                            "Specify one or more TID's to remove, or if no "
+                            "TID's are provides, remove threads for all "
+                            "unreported threads",
+                            nullptr,
+                            eCommandRequiresProcess |
+                                eCommandTryTargetAPILock |
+                                eCommandProcessMustBeLaunched |
+                                eCommandProcessMustBePaused) {
+    CommandArgumentEntry arg;
+    CommandArgumentData tid_arg;
+
+    // Define the first (and only) variant of this arg.
+    tid_arg.arg_type = eArgTypeThreadID;
+    tid_arg.arg_repetition = eArgRepeatStar;
+
+    // There is only one variant this argument could be; put it into the
+    // argument entry.
+    arg.push_back(tid_arg);
+
+    // Push the data for the first argument into the m_arguments vector.
+    m_arguments.push_back(arg);
+  }
+
+  ~CommandObjectThreadPlanPrune() override = default;
+
+  bool DoExecute(Args &args, CommandReturnObject &result) override {
+    Process *process = m_exe_ctx.GetProcessPtr();
+    
+    if (args.GetArgumentCount() == 0) {
+      process->PruneThreadPlans();
+      result.SetStatus(eReturnStatusSuccessFinishNoResult);
+      return true;  
+    }
+
+    const size_t num_args = args.GetArgumentCount();
+
+    std::lock_guard<std::recursive_mutex> guard(
+        process->GetThreadList().GetMutex());
+
+    for (size_t i = 0; i < num_args; i++) {
+      lldb::tid_t tid;
+      if (!llvm::to_integer(args.GetArgumentAtIndex(i), tid)) {
+        result.AppendErrorWithFormat("invalid thread specification: \"%s\"\n",
+                                     args.GetArgumentAtIndex(i));
+        result.SetStatus(eReturnStatusFailed);
+        return false;
+      }
+      if (!process->PruneThreadPlansForTID(tid)) {
+        result.AppendErrorWithFormat("Could not find unreported tid: \"%s\"\n",
+                                     args.GetArgumentAtIndex(i));
+        result.SetStatus(eReturnStatusFailed);
+        return false;
+      }
+    }
+    result.SetStatus(eReturnStatusSuccessFinishNoResult);
+    return true;
+  }
+};
+
 // CommandObjectMultiwordThreadPlan
 
 class CommandObjectMultiwordThreadPlan : public CommandObjectMultiword {
@@ -1988,6 +2096,9 @@ public:
     LoadSubCommand(
         "discard",
         CommandObjectSP(new CommandObjectThreadPlanDiscard(interpreter)));
+    LoadSubCommand(
+        "prune",
+        CommandObjectSP(new CommandObjectThreadPlanPrune(interpreter)));
   }
 
   ~CommandObjectMultiwordThreadPlan() override = default;

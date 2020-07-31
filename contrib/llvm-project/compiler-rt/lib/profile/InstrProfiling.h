@@ -218,6 +218,9 @@ int __llvm_profile_register_write_file_atexit(void);
 /*! \brief Initialize file handling. */
 void __llvm_profile_initialize_file(void);
 
+/*! \brief Initialize the profile runtime. */
+void __llvm_profile_initialize(void);
+
 /*!
  * \brief Return path prefix (excluding the base filename) of the profile data.
  * This is useful for users using \c -fprofile-generate=./path_prefix who do
@@ -306,5 +309,12 @@ extern uint64_t INSTR_PROF_RAW_VERSION_VAR; /* __llvm_profile_raw_version */
  * from compiler command line. This variable has default visibility.
  */
 extern char INSTR_PROF_PROFILE_NAME_VAR[1]; /* __llvm_profile_filename. */
+
+/*!
+ * This variable is a weak symbol defined in InstrProfilingBiasVar.c. It
+ * allows compiler instrumentation to provide overriding definition with
+ * value from compiler command line. This variable has hidden visibility.
+ */
+COMPILER_RT_VISIBILITY extern intptr_t __llvm_profile_counter_bias;
 
 #endif /* PROFILE_INSTRPROFILING_H_ */

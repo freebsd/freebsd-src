@@ -43,11 +43,10 @@ class CGFunctionInfo;
 /// codegeneration issues, like target-specific attributes, builtins and so
 /// on.
 class TargetCodeGenInfo {
-  ABIInfo *Info;
+  std::unique_ptr<ABIInfo> Info = nullptr;
 
 public:
-  // WARNING: Acquires the ownership of ABIInfo.
-  TargetCodeGenInfo(ABIInfo *info = nullptr) : Info(info) {}
+  TargetCodeGenInfo(std::unique_ptr<ABIInfo> Info) : Info(std::move(Info)) {}
   virtual ~TargetCodeGenInfo();
 
   /// getABIInfo() - Returns ABI info helper for the target.
@@ -58,10 +57,18 @@ public:
   virtual void setTargetAttributes(const Decl *D, llvm::GlobalValue *GV,
                                    CodeGen::CodeGenModule &M) const {}
 
-  /// emitTargetMD - Provides a convenient hook to handle extra
-  /// target-specific metadata for the given global.
-  virtual void emitTargetMD(const Decl *D, llvm::GlobalValue *GV,
-                            CodeGen::CodeGenModule &M) const {}
+  /// emitTargetMetadata - Provides a convenient hook to handle extra
+  /// target-specific metadata for the given globals.
+  virtual void emitTargetMetadata(
+      CodeGen::CodeGenModule &CGM,
+      const llvm::MapVector<GlobalDecl, StringRef> &MangledDeclNames) const {}
+
+  /// Any further codegen related checks that need to be done on a function call
+  /// in a target specific manner.
+  virtual void checkFunctionCallABI(CodeGenModule &CGM, SourceLocation CallLoc,
+                                    const FunctionDecl *Caller,
+                                    const FunctionDecl *Callee,
+                                    const CallArgList &Args) const {}
 
   /// Determines the size of struct _Unwind_Exception on this platform,
   /// in 8-bit units.  The Itanium ABI defines this as:
@@ -315,6 +322,32 @@ public:
   virtual bool shouldEmitStaticExternCAliases() const { return true; }
 
   virtual void setCUDAKernelCallingConvention(const FunctionType *&FT) const {}
+
+  /// Return the device-side type for the CUDA device builtin surface type.
+  virtual llvm::Type *getCUDADeviceBuiltinSurfaceDeviceType() const {
+    // By default, no change from the original one.
+    return nullptr;
+  }
+  /// Return the device-side type for the CUDA device builtin texture type.
+  virtual llvm::Type *getCUDADeviceBuiltinTextureDeviceType() const {
+    // By default, no change from the original one.
+    return nullptr;
+  }
+
+  /// Emit the device-side copy of the builtin surface type.
+  virtual bool emitCUDADeviceBuiltinSurfaceDeviceCopy(CodeGenFunction &CGF,
+                                                      LValue Dst,
+                                                      LValue Src) const {
+    // DO NOTHING by default.
+    return false;
+  }
+  /// Emit the device-side copy of the builtin texture type.
+  virtual bool emitCUDADeviceBuiltinTextureDeviceCopy(CodeGenFunction &CGF,
+                                                      LValue Dst,
+                                                      LValue Src) const {
+    // DO NOTHING by default.
+    return false;
+  }
 };
 
 } // namespace CodeGen

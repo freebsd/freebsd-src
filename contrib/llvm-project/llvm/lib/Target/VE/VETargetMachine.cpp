@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "VETargetMachine.h"
+#include "TargetInfo/VETargetInfo.h"
 #include "VE.h"
 #include "VETargetTransformInfo.h"
 #include "llvm/CodeGen/Passes.h"
@@ -40,8 +41,8 @@ static std::string computeDataLayout(const Triple &T) {
   // VE supports 32 bit and 64 bits integer on registers
   Ret += "-n32:64";
 
-  // Stack alignment is 64 bits
-  Ret += "-S64";
+  // Stack alignment is 128 bits
+  Ret += "-S128";
 
   return Ret;
 }
@@ -73,7 +74,8 @@ VETargetMachine::VETargetMachine(const Target &T, const Triple &TT,
     : LLVMTargetMachine(T, computeDataLayout(TT), TT, CPU, FS, Options,
                         getEffectiveRelocModel(RM),
                         getEffectiveCodeModel(CM, CodeModel::Small), OL),
-      TLOF(createTLOF()), Subtarget(TT, CPU, FS, *this) {
+      TLOF(createTLOF()),
+      Subtarget(TT, std::string(CPU), std::string(FS), *this) {
   initAsmInfo();
 }
 

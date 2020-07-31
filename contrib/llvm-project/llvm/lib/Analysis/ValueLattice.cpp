@@ -19,6 +19,12 @@ raw_ostream &operator<<(raw_ostream &OS, const ValueLatticeElement &Val) {
 
   if (Val.isNotConstant())
     return OS << "notconstant<" << *Val.getNotConstant() << ">";
+
+  if (Val.isConstantRangeIncludingUndef())
+    return OS << "constantrange incl. undef <"
+              << Val.getConstantRange(true).getLower() << ", "
+              << Val.getConstantRange(true).getUpper() << ">";
+
   if (Val.isConstantRange())
     return OS << "constantrange<" << Val.getConstantRange().getLower() << ", "
               << Val.getConstantRange().getUpper() << ">";

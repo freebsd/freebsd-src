@@ -1,4 +1,4 @@
-//===-- FileSpec.cpp --------------------------------------------*- C++ -*-===//
+//===-- FileSpec.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -536,4 +536,20 @@ void llvm::format_provider<FileSpec>::format(const FileSpec &F,
 
   if (!file.empty())
     Stream << file;
+}
+
+void llvm::yaml::ScalarEnumerationTraits<FileSpecStyle>::enumeration(
+    IO &io, FileSpecStyle &value) {
+  io.enumCase(value, "windows", FileSpecStyle(FileSpec::Style::windows));
+  io.enumCase(value, "posix", FileSpecStyle(FileSpec::Style::posix));
+  io.enumCase(value, "native", FileSpecStyle(FileSpec::Style::native));
+}
+
+void llvm::yaml::MappingTraits<FileSpec>::mapping(IO &io, FileSpec &f) {
+  io.mapRequired("directory", f.m_directory);
+  io.mapRequired("file", f.m_filename);
+  io.mapRequired("resolved", f.m_is_resolved);
+  FileSpecStyle style = f.m_style;
+  io.mapRequired("style", style);
+  f.m_style = style;
 }

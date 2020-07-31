@@ -1,4 +1,4 @@
-//===-- ASTResultSynthesizer.cpp --------------------------------*- C++ -*-===//
+//===-- ASTResultSynthesizer.cpp ------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,10 +8,10 @@
 
 #include "ASTResultSynthesizer.h"
 
+#include "ClangASTImporter.h"
 #include "ClangPersistentVariables.h"
 
-#include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Symbol/ClangASTImporter.h"
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/LLDBAssert.h"
 #include "lldb/Utility/Log.h"
@@ -248,48 +248,37 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
   // For Lvalues
   //
   //   - In AST result synthesis (here!) the expression E is transformed into an
-  //   initialization
-  //     T *$__lldb_expr_result_ptr = &E.
+  //     initialization T *$__lldb_expr_result_ptr = &E.
   //
   //   - In structure allocation, a pointer-sized slot is allocated in the
-  //   struct that is to be
-  //     passed into the expression.
+  //     struct that is to be passed into the expression.
   //
   //   - In IR transformations, reads and writes to $__lldb_expr_result_ptr are
-  //   redirected at
-  //     an entry in the struct ($__lldb_arg) passed into the expression.
-  //     (Other persistent
-  //     variables are treated similarly, having been materialized as
-  //     references, but in those
-  //     cases the value of the reference itself is never modified.)
+  //     redirected at an entry in the struct ($__lldb_arg) passed into the
+  //     expression. (Other persistent variables are treated similarly, having
+  //     been materialized as references, but in those cases the value of the
+  //     reference itself is never modified.)
   //
   //   - During materialization, $0 (the result persistent variable) is ignored.
   //
   //   - During dematerialization, $0 is marked up as a load address with value
-  //   equal to the
-  //     contents of the structure entry.
+  //     equal to the contents of the structure entry.
   //
   // For Rvalues
   //
   //   - In AST result synthesis the expression E is transformed into an
-  //   initialization
-  //     static T $__lldb_expr_result = E.
+  //     initialization static T $__lldb_expr_result = E.
   //
   //   - In structure allocation, a pointer-sized slot is allocated in the
-  //   struct that is to be
-  //     passed into the expression.
+  //     struct that is to be passed into the expression.
   //
   //   - In IR transformations, an instruction is inserted at the beginning of
-  //   the function to
-  //     dereference the pointer resident in the slot.  Reads and writes to
-  //     $__lldb_expr_result
-  //     are redirected at that dereferenced version.  Guard variables for the
-  //     static variable
-  //     are excised.
+  //     the function to dereference the pointer resident in the slot. Reads and
+  //     writes to $__lldb_expr_result are redirected at that dereferenced
+  //     version. Guard variables for the static variable are excised.
   //
   //   - During materialization, $0 (the result persistent variable) is
-  //   populated with the location
-  //     of a newly-allocated area of memory.
+  //     populated with the location of a newly-allocated area of memory.
   //
   //   - During dematerialization, $0 is ignored.
 
@@ -325,7 +314,8 @@ bool ASTResultSynthesizer::SynthesizeBodyResult(CompoundStmt *Body,
     else
       result_ptr_id = &Ctx.Idents.get("$__lldb_expr_result_ptr");
 
-    m_sema->RequireCompleteType(SourceLocation(), expr_qual_type,
+    m_sema->RequireCompleteType(last_expr->getSourceRange().getBegin(),
+                                expr_qual_type,
                                 clang::diag::err_incomplete_type);
 
     QualType ptr_qual_type;
@@ -453,13 +443,13 @@ void ASTResultSynthesizer::CommitPersistentDecls() {
     return;
 
   auto *persistent_vars = llvm::cast<ClangPersistentVariables>(state);
-  ClangASTContext *scratch_ctx = ClangASTContext::GetScratch(m_target);
+  TypeSystemClang *scratch_ctx = TypeSystemClang::GetScratch(m_target);
 
   for (clang::NamedDecl *decl : m_decls) {
     StringRef name = decl->getName();
     ConstString name_cs(name.str().c_str());
 
-    Decl *D_scratch = m_target.GetClangASTImporter()->DeportDecl(
+    Decl *D_scratch = persistent_vars->GetClangASTImporter()->DeportDecl(
         &scratch_ctx->getASTContext(), decl);
 
     if (!D_scratch) {

@@ -1,4 +1,4 @@
-//===-- LibCxxMap.cpp -------------------------------------------*- C++ -*-===//
+//===-- LibCxxMap.cpp -----------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,10 +8,10 @@
 
 #include "LibCxx.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/FormattersHelpers.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Endian.h"
@@ -298,8 +298,8 @@ void lldb_private::formatters::LibcxxStdMapSyntheticFrontEnd::GetValueOffset(
       UINT32_MAX) {
     m_skip_size = bit_offset / 8u;
   } else {
-    ClangASTContext *ast_ctx =
-        llvm::dyn_cast_or_null<ClangASTContext>(node_type.GetTypeSystem());
+    TypeSystemClang *ast_ctx =
+        llvm::dyn_cast_or_null<TypeSystemClang>(node_type.GetTypeSystem());
     if (!ast_ctx)
       return;
     CompilerType tree_node_type = ast_ctx->CreateStructForIdentifier(

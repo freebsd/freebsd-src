@@ -80,9 +80,9 @@ static void AddImplicitIncludeMacros(MacroBuilder &Builder, StringRef File) {
 static void AddImplicitIncludePCH(MacroBuilder &Builder, Preprocessor &PP,
                                   const PCHContainerReader &PCHContainerRdr,
                                   StringRef ImplicitIncludePCH) {
-  std::string OriginalFile =
-      ASTReader::getOriginalSourceFile(ImplicitIncludePCH, PP.getFileManager(),
-                                       PCHContainerRdr, PP.getDiagnostics());
+  std::string OriginalFile = ASTReader::getOriginalSourceFile(
+      std::string(ImplicitIncludePCH), PP.getFileManager(), PCHContainerRdr,
+      PP.getDiagnostics());
   if (OriginalFile.empty())
     return;
 
@@ -377,7 +377,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
   } else {
     //   -- __cplusplus
     //      [C++20] The integer literal 202002L.
-    if (LangOpts.CPlusPlus2a)
+    if (LangOpts.CPlusPlus20)
       Builder.defineMacro("__cplusplus", "202002L");
     //      [C++17] The integer literal 201703L.
     else if (LangOpts.CPlusPlus17)
@@ -460,6 +460,13 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     if (LangOpts.FastRelaxedMath)
       Builder.defineMacro("__FAST_RELAXED_MATH__");
   }
+
+  if (LangOpts.SYCL) {
+    // SYCL Version is set to a value when building SYCL applications
+    if (LangOpts.SYCLVersion == 2017)
+      Builder.defineMacro("CL_SYCL_LANGUAGE_VERSION", "121");
+  }
+
   // Not "standard" per se, but available even with the -undef flag.
   if (LangOpts.AsmPreprocessor)
     Builder.defineMacro("__ASSEMBLER__");
@@ -491,7 +498,7 @@ static void InitializeCPlusPlusFeatureTestMacros(const LangOptions &LangOpts,
     Builder.defineMacro("__cpp_user_defined_literals", "200809L");
     Builder.defineMacro("__cpp_lambdas", "200907L");
     Builder.defineMacro("__cpp_constexpr",
-                        LangOpts.CPlusPlus2a ? "201907L" :
+                        LangOpts.CPlusPlus20 ? "201907L" :
                         LangOpts.CPlusPlus17 ? "201603L" :
                         LangOpts.CPlusPlus14 ? "201304L" : "200704");
     Builder.defineMacro("__cpp_constexpr_in_decltype", "201711L");
@@ -518,9 +525,9 @@ static void InitializeCPlusPlusFeatureTestMacros(const LangOptions &LangOpts,
     Builder.defineMacro("__cpp_binary_literals", "201304L");
     Builder.defineMacro("__cpp_digit_separators", "201309L");
     Builder.defineMacro("__cpp_init_captures",
-                        LangOpts.CPlusPlus2a ? "201803L" : "201304L");
+                        LangOpts.CPlusPlus20 ? "201803L" : "201304L");
     Builder.defineMacro("__cpp_generic_lambdas",
-                        LangOpts.CPlusPlus2a ? "201707L" : "201304L");
+                        LangOpts.CPlusPlus20 ? "201707L" : "201304L");
     Builder.defineMacro("__cpp_decltype_auto", "201304L");
     Builder.defineMacro("__cpp_return_type_deduction", "201304L");
     Builder.defineMacro("__cpp_aggregate_nsdmi", "201304L");
@@ -556,7 +563,7 @@ static void InitializeCPlusPlusFeatureTestMacros(const LangOptions &LangOpts,
     Builder.defineMacro("__cpp_template_template_args", "201611L");
 
   // C++20 features.
-  if (LangOpts.CPlusPlus2a) {
+  if (LangOpts.CPlusPlus20) {
     //Builder.defineMacro("__cpp_aggregate_paren_init", "201902L");
     Builder.defineMacro("__cpp_concepts", "201907L");
     Builder.defineMacro("__cpp_conditional_explicit", "201806L");
@@ -1069,12 +1076,12 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     case 40:
       Builder.defineMacro("_OPENMP", "201307");
       break;
-    case 50:
-      Builder.defineMacro("_OPENMP", "201811");
+    case 45:
+      Builder.defineMacro("_OPENMP", "201511");
       break;
     default:
-      // Default version is OpenMP 4.5
-      Builder.defineMacro("_OPENMP", "201511");
+      // Default version is OpenMP 5.0
+      Builder.defineMacro("_OPENMP", "201811");
       break;
     }
   }

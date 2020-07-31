@@ -1,4 +1,4 @@
-//===-- Module.cpp ----------------------------------------------*- C++ -*-===//
+//===-- Module.cpp --------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -18,6 +18,7 @@
 #include "lldb/Core/Section.h"
 #include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
 #include "lldb/Symbol/CompileUnit.h"
@@ -33,7 +34,6 @@
 #include "lldb/Symbol/TypeMap.h"
 #include "lldb/Symbol/TypeSystem.h"
 #include "lldb/Target/Language.h"
-#include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
@@ -147,11 +147,16 @@ Module::Module(const ModuleSpec &module_spec)
                   : module_spec.GetObjectName().AsCString(""),
               module_spec.GetObjectName().IsEmpty() ? "" : ")");
 
+  auto data_sp = module_spec.GetData();
+  lldb::offset_t file_size = 0;
+  if (data_sp)
+    file_size = data_sp->GetByteSize();
+
   // First extract all module specifications from the file using the local file
   // path. If there are no specifications, then don't fill anything in
   ModuleSpecList modules_specs;
-  if (ObjectFile::GetModuleSpecifications(module_spec.GetFileSpec(), 0, 0,
-                                          modules_specs) == 0)
+  if (ObjectFile::GetModuleSpecifications(
+          module_spec.GetFileSpec(), 0, file_size, modules_specs, data_sp) == 0)
     return;
 
   // Now make sure that one of the module specifications matches what we just
@@ -170,11 +175,20 @@ Module::Module(const ModuleSpec &module_spec)
     return;
   }
 
-  if (module_spec.GetFileSpec())
-    m_mod_time = FileSystem::Instance().GetModificationTime(module_spec.GetFileSpec());
-  else if (matching_module_spec.GetFileSpec())
-    m_mod_time =
-        FileSystem::Instance().GetModificationTime(matching_module_spec.GetFileSpec());
+  // Set m_data_sp if it was initially provided in the ModuleSpec. Note that
+  // we cannot use the data_sp variable here, because it will have been
+  // modified by GetModuleSpecifications().
+  if (auto module_spec_data_sp = module_spec.GetData()) {
+    m_data_sp = module_spec_data_sp;
+    m_mod_time = {};
+  } else {
+    if (module_spec.GetFileSpec())
+      m_mod_time =
+          FileSystem::Instance().GetModificationTime(module_spec.GetFileSpec());
+    else if (matching_module_spec.GetFileSpec())
+      m_mod_time = FileSystem::Instance().GetModificationTime(
+          matching_module_spec.GetFileSpec());
+  }
 
   // Copy the architecture from the actual spec if we got one back, else use
   // the one that was specified
@@ -297,7 +311,9 @@ ObjectFile *Module::GetMemoryObjectFile(const lldb::ProcessSP &process_sp,
       const size_t bytes_read =
           process_sp->ReadMemory(header_addr, data_up->GetBytes(),
                                  data_up->GetByteSize(), readmem_error);
-      if (bytes_read == size_to_read) {
+      if (bytes_read < size_to_read)
+        data_up->SetByteSize(bytes_read);
+      if (data_up->GetByteSize() > 0) {
         DataBufferSP data_sp(data_up.release());
         m_objfile_sp = ObjectFile::FindPlugin(shared_from_this(), process_sp,
                                               header_addr, data_sp);
@@ -364,11 +380,11 @@ void Module::ParseAllDebugSymbols() {
   if (num_comp_units == 0)
     return;
 
-  SymbolContext sc;
-  sc.module_sp = shared_from_this();
   SymbolFile *symbols = GetSymbolFile();
 
   for (size_t cu_idx = 0; cu_idx < num_comp_units; cu_idx++) {
+    SymbolContext sc;
+    sc.module_sp = shared_from_this();
     sc.comp_unit = symbols->GetCompileUnitAtIndex(cu_idx).get();
     if (!sc.comp_unit)
       continue;
@@ -595,7 +611,7 @@ uint32_t Module::ResolveSymbolContextsForFileSpec(
 }
 
 void Module::FindGlobalVariables(ConstString name,
-                                 const CompilerDeclContext *parent_decl_ctx,
+                                 const CompilerDeclContext &parent_decl_ctx,
                                  size_t max_matches, VariableList &variables) {
   if (SymbolFile *symbols = GetSymbolFile())
     symbols->FindGlobalVariables(name, parent_decl_ctx, max_matches, variables);
@@ -783,7 +799,7 @@ void Module::LookupInfo::Prune(SymbolContextList &sc_list,
 }
 
 void Module::FindFunctions(ConstString name,
-                           const CompilerDeclContext *parent_decl_ctx,
+                           const CompilerDeclContext &parent_decl_ctx,
                            FunctionNameType name_type_mask,
                            bool include_symbols, bool include_inlines,
                            SymbolContextList &sc_list) {
@@ -920,7 +936,7 @@ void Module::FindAddressesForLine(const lldb::TargetSP target_sp,
 }
 
 void Module::FindTypes_Impl(
-    ConstString name, const CompilerDeclContext *parent_decl_ctx,
+    ConstString name, const CompilerDeclContext &parent_decl_ctx,
     size_t max_matches,
     llvm::DenseSet<lldb_private::SymbolFile *> &searched_symbol_files,
     TypeMap &types) {
@@ -932,7 +948,7 @@ void Module::FindTypes_Impl(
 }
 
 void Module::FindTypesInNamespace(ConstString type_name,
-                                  const CompilerDeclContext *parent_decl_ctx,
+                                  const CompilerDeclContext &parent_decl_ctx,
                                   size_t max_matches, TypeList &type_list) {
   TypeMap types_map;
   llvm::DenseSet<lldb_private::SymbolFile *> searched_symbol_files;
@@ -974,10 +990,11 @@ void Module::FindTypes(
     exact_match = type_scope.consume_front("::");
 
     ConstString type_basename_const_str(type_basename);
-    FindTypes_Impl(type_basename_const_str, nullptr, max_matches,
+    FindTypes_Impl(type_basename_const_str, CompilerDeclContext(), max_matches,
                    searched_symbol_files, typesmap);
     if (typesmap.GetSize())
-      typesmap.RemoveMismatchedTypes(type_scope, type_basename, type_class,
+      typesmap.RemoveMismatchedTypes(std::string(type_scope),
+                                     std::string(type_basename), type_class,
                                      exact_match);
   } else {
     // The type is not in a namespace/class scope, just search for it by
@@ -985,16 +1002,18 @@ void Module::FindTypes(
     if (type_class != eTypeClassAny && !type_basename.empty()) {
       // The "type_name_cstr" will have been modified if we have a valid type
       // class prefix (like "struct", "class", "union", "typedef" etc).
-      FindTypes_Impl(ConstString(type_basename), nullptr, UINT_MAX,
-                     searched_symbol_files, typesmap);
-      typesmap.RemoveMismatchedTypes(type_scope, type_basename, type_class,
+      FindTypes_Impl(ConstString(type_basename), CompilerDeclContext(),
+                     UINT_MAX, searched_symbol_files, typesmap);
+      typesmap.RemoveMismatchedTypes(std::string(type_scope),
+                                     std::string(type_basename), type_class,
                                      exact_match);
     } else {
-      FindTypes_Impl(name, nullptr, UINT_MAX, searched_symbol_files, typesmap);
+      FindTypes_Impl(name, CompilerDeclContext(), UINT_MAX,
+                     searched_symbol_files, typesmap);
       if (exact_match) {
         std::string name_str(name.AsCString(""));
-        typesmap.RemoveMismatchedTypes(type_scope, name_str, type_class,
-                                       exact_match);
+        typesmap.RemoveMismatchedTypes(std::string(type_scope), name_str,
+                                       type_class, exact_match);
       }
     }
   }
@@ -1105,6 +1124,10 @@ void Module::ReportError(const char *format, ...) {
 }
 
 bool Module::FileHasChanged() const {
+  // We have provided the DataBuffer for this module to avoid accessing the
+  // filesystem. We never want to reload those files.
+  if (m_data_sp)
+    return false;
   if (!m_file_has_changed)
     m_file_has_changed =
         (FileSystem::Instance().GetModificationTime(m_file) != m_mod_time);
@@ -1224,12 +1247,19 @@ ObjectFile *Module::GetObjectFile() {
       static Timer::Category func_cat(LLVM_PRETTY_FUNCTION);
       Timer scoped_timer(func_cat, "Module::GetObjectFile () module = %s",
                          GetFileSpec().GetFilename().AsCString(""));
-      DataBufferSP data_sp;
       lldb::offset_t data_offset = 0;
-      const lldb::offset_t file_size =
-          FileSystem::Instance().GetByteSize(m_file);
+      lldb::offset_t file_size = 0;
+
+      if (m_data_sp)
+        file_size = m_data_sp->GetByteSize();
+      else if (m_file)
+        file_size = FileSystem::Instance().GetByteSize(m_file);
+
       if (file_size > m_object_offset) {
         m_did_load_objfile = true;
+        // FindPlugin will modify its data_sp argument. Do not let it
+        // modify our m_data_sp member.
+        auto data_sp = m_data_sp;
         m_objfile_sp = ObjectFile::FindPlugin(
             shared_from_this(), &m_file, m_object_offset,
             file_size - m_object_offset, data_sp, data_offset);
@@ -1409,7 +1439,7 @@ void Module::SetSymbolFileFileSpec(const FileSpec &file) {
         if (FileSystem::Instance().IsDirectory(file)) {
           std::string new_path(file.GetPath());
           std::string old_path(obj_file->GetFileSpec().GetPath());
-          if (old_path.find(new_path) == 0) {
+          if (llvm::StringRef(old_path).startswith(new_path)) {
             // We specified the same bundle as the symbol file that we already
             // have
             return;
@@ -1589,6 +1619,19 @@ bool Module::RemapSourceFile(llvm::StringRef path,
                              std::string &new_path) const {
   std::lock_guard<std::recursive_mutex> guard(m_mutex);
   return m_source_mappings.RemapPath(path, new_path);
+}
+
+void Module::RegisterXcodeSDK(llvm::StringRef sdk_name, llvm::StringRef sysroot) {
+  XcodeSDK sdk(sdk_name.str());
+  ConstString sdk_path(HostInfo::GetXcodeSDKPath(sdk));
+  if (!sdk_path)
+    return;
+  // If the SDK changed for a previously registered source path, update it.
+  // This could happend with -fdebug-prefix-map, otherwise it's unlikely.
+  ConstString sysroot_cs(sysroot);
+  if (!m_source_mappings.Replace(sysroot_cs, sdk_path, true))
+    // In the general case, however, append it to the list.
+    m_source_mappings.Append(sysroot_cs, sdk_path, false);
 }
 
 bool Module::MergeArchitecture(const ArchSpec &arch_spec) {

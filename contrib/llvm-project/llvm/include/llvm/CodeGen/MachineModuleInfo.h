@@ -165,9 +165,9 @@ public:
 
   /// Returns the MachineFunction constructed for the IR function \p F.
   /// Creates a new MachineFunction if none exists yet.
-  MachineFunction &getOrCreateMachineFunction(const Function &F);
+  MachineFunction &getOrCreateMachineFunction(Function &F);
 
-  /// \bried Returns the MachineFunction associated to IR function \p F if there
+  /// \brief Returns the MachineFunction associated to IR function \p F if there
   /// is one, otherwise nullptr.
   MachineFunction *getMachineFunction(const Function &F) const;
 
@@ -232,13 +232,6 @@ public:
   /// address is taken.  If other blocks were RAUW'd to this one, we may have
   /// to emit them as well, return the whole set.
   ArrayRef<MCSymbol *> getAddrLabelSymbolToEmit(const BasicBlock *BB);
-
-  /// If the specified function has had any references to address-taken blocks
-  /// generated, but the block got deleted, return the symbol now so we can
-  /// emit it.  This prevents emitting a reference to a symbol that has no
-  /// definition.
-  void takeDeletedSymbolsForFunction(const Function *F,
-                                     std::vector<MCSymbol*> &Result);
 
   /// \name Exception Handling
   /// \{

@@ -1,4 +1,4 @@
-//===-- SBStructuredData.cpp ------------------------------------*- C++ -*-===//
+//===-- SBStructuredData.cpp ----------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -45,7 +45,7 @@ SBStructuredData::SBStructuredData(lldb_private::StructuredDataImpl *impl)
                           (lldb_private::StructuredDataImpl *), impl);
 }
 
-SBStructuredData::~SBStructuredData() {}
+SBStructuredData::~SBStructuredData() = default;
 
 SBStructuredData &SBStructuredData::
 operator=(const lldb::SBStructuredData &rhs) {
@@ -126,10 +126,10 @@ bool SBStructuredData::GetKeys(lldb::SBStringList &keys) const {
 
   if (!m_impl_up)
     return false;
-  
+
   if (GetType() != eStructuredDataTypeDictionary)
     return false;
-  
+
   StructuredData::ObjectSP obj_sp = m_impl_up->GetObjectSP();
   if (!obj_sp)
     return false;
@@ -141,7 +141,7 @@ bool SBStructuredData::GetKeys(lldb::SBStringList &keys) const {
   StructuredData::ObjectSP array_sp = dict->GetKeys();
   StructuredData::Array *key_arr = array_sp->GetAsArray();
   assert(key_arr);
-  
+
   key_arr->ForEach([&keys] (StructuredData::Object *object) -> bool {
     llvm::StringRef key = object->GetStringValue("");
     keys.AppendString(key.str().c_str());
@@ -196,8 +196,8 @@ bool SBStructuredData::GetBooleanValue(bool fail_value) const {
 }
 
 size_t SBStructuredData::GetStringValue(char *dst, size_t dst_len) const {
-  LLDB_RECORD_METHOD_CONST(size_t, SBStructuredData, GetStringValue,
-                           (char *, size_t), dst, dst_len);
+  LLDB_RECORD_CHAR_PTR_METHOD_CONST(size_t, SBStructuredData, GetStringValue,
+                                    (char *, size_t), dst, "", dst_len);
 
   return (m_impl_up ? m_impl_up->GetStringValue(dst, dst_len) : 0);
 }
@@ -205,11 +205,9 @@ size_t SBStructuredData::GetStringValue(char *dst, size_t dst_len) const {
 namespace lldb_private {
 namespace repro {
 
-template <>
-void RegisterMethods<SBStructuredData>(Registry &R) {
+template <> void RegisterMethods<SBStructuredData>(Registry &R) {
   LLDB_REGISTER_CONSTRUCTOR(SBStructuredData, ());
-  LLDB_REGISTER_CONSTRUCTOR(SBStructuredData,
-                            (const lldb::SBStructuredData &));
+  LLDB_REGISTER_CONSTRUCTOR(SBStructuredData, (const lldb::SBStructuredData &));
   LLDB_REGISTER_CONSTRUCTOR(SBStructuredData, (const lldb::EventSP &));
   LLDB_REGISTER_CONSTRUCTOR(SBStructuredData,
                             (lldb_private::StructuredDataImpl *));
@@ -236,12 +234,10 @@ void RegisterMethods<SBStructuredData>(Registry &R) {
                              GetItemAtIndex, (size_t));
   LLDB_REGISTER_METHOD_CONST(uint64_t, SBStructuredData, GetIntegerValue,
                              (uint64_t));
-  LLDB_REGISTER_METHOD_CONST(double, SBStructuredData, GetFloatValue,
-                             (double));
+  LLDB_REGISTER_METHOD_CONST(double, SBStructuredData, GetFloatValue, (double));
   LLDB_REGISTER_METHOD_CONST(bool, SBStructuredData, GetBooleanValue, (bool));
-  LLDB_REGISTER_METHOD_CONST(size_t, SBStructuredData, GetStringValue,
-                             (char *, size_t));
+  LLDB_REGISTER_CHAR_PTR_METHOD_CONST(size_t, SBStructuredData, GetStringValue);
 }
 
-}
-}
+} // namespace repro
+} // namespace lldb_private

@@ -66,16 +66,12 @@ static const _Unwind_State _US_ACTION_MASK            = 3;
 static const _Unwind_State _US_FORCE_UNWIND           = 8;
 
 typedef uint32_t _Unwind_EHT_Header;
-/*
- * gcc_personality_v0 references 'struct _Unwind_Exception' all over the place.
- * Nothing in libunwind cares about 'struct _Unwind_Control_Block,' so make it
- * the alias of struct _Unwind_Exception, instead of the other way around.
- */
-struct _Unwind_Exception;
-typedef struct _Unwind_Exception _Unwind_Exception;
-typedef struct _Unwind_Exception _Unwind_Control_Block; /* Alias */
 
-struct _Unwind_Exception {
+struct _Unwind_Control_Block;
+typedef struct _Unwind_Control_Block _Unwind_Control_Block;
+typedef struct _Unwind_Control_Block _Unwind_Exception; /* Alias */
+
+struct _Unwind_Control_Block {
   uint64_t exception_class;
   void (*exception_cleanup)(_Unwind_Reason_Code, _Unwind_Control_Block*);
 
@@ -115,10 +111,9 @@ typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)
        _Unwind_Exception* exceptionObject,
        struct _Unwind_Context* context);
 
-typedef _Unwind_Reason_Code (*__personality_routine)
-      (_Unwind_State state,
-       _Unwind_Exception* exceptionObject,
-       struct _Unwind_Context* context);
+typedef _Unwind_Reason_Code (*_Unwind_Personality_Fn)(
+    _Unwind_State state, _Unwind_Exception *exceptionObject,
+    struct _Unwind_Context *context);
 #else
 struct _Unwind_Context;   // opaque
 struct _Unwind_Exception; // forward declaration
@@ -154,12 +149,9 @@ typedef _Unwind_Reason_Code (*_Unwind_Stop_Fn)
      struct _Unwind_Context* context,
      void* stop_parameter );
 
-typedef _Unwind_Reason_Code (*__personality_routine)
-      (int version,
-       _Unwind_Action actions,
-       uint64_t exceptionClass,
-       _Unwind_Exception* exceptionObject,
-       struct _Unwind_Context* context);
+typedef _Unwind_Reason_Code (*_Unwind_Personality_Fn)(
+    int version, _Unwind_Action actions, uint64_t exceptionClass,
+    _Unwind_Exception *exceptionObject, struct _Unwind_Context *context);
 #endif
 
 #ifdef __cplusplus
@@ -391,10 +383,9 @@ typedef struct _DISPATCHER_CONTEXT DISPATCHER_CONTEXT;
 #endif
 // This is the common wrapper for GCC-style personality functions with SEH.
 extern EXCEPTION_DISPOSITION _GCC_specific_handler(EXCEPTION_RECORD *exc,
-                                                   void *frame,
-                                                   CONTEXT *ctx,
+                                                   void *frame, CONTEXT *ctx,
                                                    DISPATCHER_CONTEXT *disp,
-                                                   __personality_routine pers);
+                                                   _Unwind_Personality_Fn pers);
 #endif
 
 #ifdef __cplusplus

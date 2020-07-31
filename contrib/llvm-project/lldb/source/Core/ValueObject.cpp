@@ -1,4 +1,4 @@
-//===-- ValueObject.cpp -----------------------------------------*- C++ -*-===//
+//===-- ValueObject.cpp ---------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -25,7 +25,6 @@
 #include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Expression/ExpressionVariable.h"
 #include "lldb/Host/Config.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/CompileUnit.h"
 #include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/Declaration.h"
@@ -46,7 +45,6 @@
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Logging.h"
 #include "lldb/Utility/Scalar.h"
-#include "lldb/Utility/SharingPtr.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/lldb-private-types.h"
@@ -106,12 +104,13 @@ ValueObject::ValueObject(ValueObject &parent)
 
 // ValueObject constructor
 ValueObject::ValueObject(ExecutionContextScope *exe_scope,
+                         ValueObjectManager &manager,
                          AddressType child_ptr_or_ref_addr_type)
     : UserID(++g_value_obj_uid), // Unique identifier for every value object
       m_parent(nullptr), m_root(nullptr), m_update_point(exe_scope), m_name(),
       m_data(), m_value(), m_error(), m_value_str(), m_old_value_str(),
       m_location_str(), m_summary_str(), m_object_desc_str(),
-      m_manager(), m_children(), m_synthetic_children(),
+      m_manager(&manager), m_children(), m_synthetic_children(),
       m_dynamic_value(nullptr), m_synthetic_value(nullptr),
       m_deref_valobj(nullptr), m_format(eFormatDefault),
       m_last_format(eFormatDefault), m_last_format_mgr_revision(0),
@@ -135,64 +134,11 @@ ValueObject::ValueObject(ExecutionContextScope *exe_scope,
       m_data.SetAddressByteSize(arch.GetAddressByteSize());
     }
   }
-  m_manager = new ValueObjectManager();
   m_manager->ManageObject(this);
 }
 
 // Destructor
 ValueObject::~ValueObject() {}
-
-void ValueObject::UpdateChildrenAddressType() {
-  Value::ValueType value_type = m_value.GetValueType();
-  ExecutionContext exe_ctx(GetExecutionContextRef());
-  Process *process = exe_ctx.GetProcessPtr();
-  const bool process_is_alive = process && process->IsAlive();
-  const uint32_t type_info = GetCompilerType().GetTypeInfo();
-  const bool is_pointer_or_ref =
-      (type_info & (lldb::eTypeIsPointer | lldb::eTypeIsReference)) != 0;
-
-  switch (value_type) {
-  case Value::eValueTypeFileAddress:
-    // If this type is a pointer, then its children will be considered load
-    // addresses if the pointer or reference is dereferenced, but only if
-    // the process is alive.
-    //
-    // There could be global variables like in the following code:
-    // struct LinkedListNode { Foo* foo; LinkedListNode* next; };
-    // Foo g_foo1;
-    // Foo g_foo2;
-    // LinkedListNode g_second_node = { &g_foo2, NULL };
-    // LinkedListNode g_first_node = { &g_foo1, &g_second_node };
-    //
-    // When we aren't running, we should be able to look at these variables
-    // using the "target variable" command. Children of the "g_first_node"
-    // always will be of the same address type as the parent. But children
-    // of the "next" member of LinkedListNode will become load addresses if
-    // we have a live process, or remain a file address if it was a file
-    // address.
-    if (process_is_alive && is_pointer_or_ref)
-      SetAddressTypeOfChildren(eAddressTypeLoad);
-    else
-      SetAddressTypeOfChildren(eAddressTypeFile);
-    break;
-  case Value::eValueTypeHostAddress:
-    // Same as above for load addresses, except children of pointer or refs
-    // are always load addresses. Host addresses are used to store freeze
-    // dried variables. If this type is a struct, the entire struct
-    // contents will be copied into the heap of the
-    // LLDB process, but we do not currently follow any pointers.
-    if (is_pointer_or_ref)
-      SetAddressTypeOfChildren(eAddressTypeLoad);
-    else
-      SetAddressTypeOfChildren(eAddressTypeHost);
-    break;
-  case Value::eValueTypeLoadAddress:
-  case Value::eValueTypeScalar:
-  case Value::eValueTypeVector:
-    SetAddressTypeOfChildren(eAddressTypeLoad);
-    break;
-  }
-}
 
 bool ValueObject::UpdateValueIfNeeded(bool update_format) {
 
@@ -416,7 +362,7 @@ const char *ValueObject::GetLocationAsCStringImpl(const Value &value,
         uint32_t addr_nibble_size = data.GetAddressByteSize() * 2;
         sstr.Printf("0x%*.*llx", addr_nibble_size, addr_nibble_size,
                     value.GetScalar().ULongLong(LLDB_INVALID_ADDRESS));
-        m_location_str = sstr.GetString();
+        m_location_str = std::string(sstr.GetString());
       } break;
       }
     }
@@ -576,15 +522,13 @@ size_t ValueObject::GetIndexOfChildWithName(ConstString name) {
 
 ValueObjectSP ValueObject::GetChildMemberWithName(ConstString name,
                                                   bool can_create) {
-  // when getting a child by name, it could be buried inside some base classes
-  // (which really aren't part of the expression path), so we need a vector of
-  // indexes that can get us down to the correct child
-  ValueObjectSP child_sp;
-
-  // We may need to update our value if we are dynamic
+  // We may need to update our value if we are dynamic.
   if (IsPossibleDynamicType())
     UpdateValueIfNeeded(false);
 
+  // When getting a child by name, it could be buried inside some base classes
+  // (which really aren't part of the expression path), so we need a vector of
+  // indexes that can get us down to the correct child.
   std::vector<uint32_t> child_indexes;
   bool omit_empty_base_classes = true;
 
@@ -594,20 +538,13 @@ ValueObjectSP ValueObject::GetChildMemberWithName(ConstString name,
   const size_t num_child_indexes =
       GetCompilerType().GetIndexOfChildMemberWithName(
           name.GetCString(), omit_empty_base_classes, child_indexes);
-  if (num_child_indexes > 0) {
-    std::vector<uint32_t>::const_iterator pos = child_indexes.begin();
-    std::vector<uint32_t>::const_iterator end = child_indexes.end();
+  if (num_child_indexes == 0)
+    return nullptr;
 
-    child_sp = GetChildAtIndex(*pos, can_create);
-    for (++pos; pos != end; ++pos) {
-      if (child_sp) {
-        ValueObjectSP new_child_sp(child_sp->GetChildAtIndex(*pos, can_create));
-        child_sp = new_child_sp;
-      } else {
-        child_sp.reset();
-      }
-    }
-  }
+  ValueObjectSP child_sp = GetSP();
+  for (uint32_t idx : child_indexes)
+    if (child_sp)
+      child_sp = child_sp->GetChildAtIndex(idx, can_create);
   return child_sp;
 }
 
@@ -689,6 +626,16 @@ ValueObject *ValueObject::CreateChildAtIndex(size_t idx,
         language_flags);
   }
 
+  // In case of an incomplete type, try to use the ValueObject's
+  // synthetic value to create the child ValueObject.
+  if (!valobj && synthetic_array_member) {
+    if (ValueObjectSP synth_valobj_sp = GetSyntheticValue()) {
+      valobj = synth_valobj_sp
+                   ->GetChildAtIndex(synthetic_index, synthetic_array_member)
+                   .get();
+    }
+  }
+
   return valobj;
 }
 
@@ -766,7 +713,7 @@ bool ValueObject::IsCStringContainer(bool check_pointer) {
     return true;
   addr_t cstr_address = LLDB_INVALID_ADDRESS;
   AddressType cstr_address_type = eAddressTypeInvalid;
-  cstr_address = GetAddressOf(true, &cstr_address_type);
+  cstr_address = GetPointerValue(&cstr_address_type);
   return (cstr_address != LLDB_INVALID_ADDRESS);
 }
 
@@ -1120,7 +1067,7 @@ const char *ValueObject::GetObjectDescription() {
     if (LanguageRuntime *runtime = process->GetLanguageRuntime(language)) {
       StreamString s;
       if (runtime->GetObjectDescription(s, *this)) {
-        m_object_desc_str.append(s.GetString());
+        m_object_desc_str.append(std::string(s.GetString()));
         return m_object_desc_str.c_str();
       }
     }
@@ -1200,6 +1147,7 @@ uint64_t ValueObject::GetValueAsUnsigned(uint64_t fail_value, bool *success) {
     if (ResolveValue(scalar)) {
       if (success)
         *success = true;
+      scalar.MakeUnsigned();
       return scalar.ULongLong(fail_value);
     }
     // fallthrough, otherwise...
@@ -1217,6 +1165,7 @@ int64_t ValueObject::GetValueAsSigned(int64_t fail_value, bool *success) {
     if (ResolveValue(scalar)) {
       if (success)
         *success = true;
+      scalar.MakeSigned();
       return scalar.SLongLong(fail_value);
     }
     // fallthrough, otherwise...
@@ -1447,7 +1396,7 @@ bool ValueObject::DumpPrintableRepresentation(
       break;
 
     case eValueObjectRepresentationStyleExpressionPath:
-      GetExpressionPath(strm, false);
+      GetExpressionPath(strm);
       str = strm.GetString();
       break;
     }
@@ -1553,7 +1502,7 @@ addr_t ValueObject::GetPointerValue(AddressType *address_type) {
   case Value::eValueTypeLoadAddress:
   case Value::eValueTypeFileAddress: {
     lldb::offset_t data_offset = 0;
-    address = m_data.GetPointer(&data_offset);
+    address = m_data.GetAddress(&data_offset);
   } break;
   }
 
@@ -1652,13 +1601,13 @@ bool ValueObject::GetDeclaration(Declaration &decl) {
 }
 
 ConstString ValueObject::GetTypeName() {
-  return GetCompilerType().GetConstTypeName();
+  return GetCompilerType().GetTypeName();
 }
 
 ConstString ValueObject::GetDisplayTypeName() { return GetTypeName(); }
 
 ConstString ValueObject::GetQualifiedTypeName() {
-  return GetCompilerType().GetConstQualifiedTypeName();
+  return GetCompilerType().GetTypeName();
 }
 
 LanguageType ValueObject::GetObjectRuntimeLanguage() {
@@ -1720,7 +1669,7 @@ bool ValueObject::IsRuntimeSupportValue() {
     return false;
 
   if (auto *runtime = process->GetLanguageRuntime(GetVariable()->GetLanguage()))
-    if (runtime->IsWhitelistedRuntimeValue(GetName()))
+    if (runtime->IsAllowedRuntimeValue(GetName()))
       return false;
 
   return true;
@@ -1935,10 +1884,7 @@ ValueObject::GetSyntheticExpressionPathChild(const char *expression,
   return synthetic_child_sp;
 }
 
-void ValueObject::CalculateSyntheticValue(bool use_synthetic) {
-  if (!use_synthetic)
-    return;
-
+void ValueObject::CalculateSyntheticValue() {
   TargetSP target_sp(GetTargetSP());
   if (target_sp && !target_sp->GetEnableSyntheticValue()) {
     m_synthetic_value = nullptr;
@@ -1990,11 +1936,8 @@ ValueObjectSP ValueObject::GetStaticValue() { return GetSP(); }
 
 lldb::ValueObjectSP ValueObject::GetNonSyntheticValue() { return GetSP(); }
 
-ValueObjectSP ValueObject::GetSyntheticValue(bool use_synthetic) {
-  if (!use_synthetic)
-    return ValueObjectSP();
-
-  CalculateSyntheticValue(use_synthetic);
+ValueObjectSP ValueObject::GetSyntheticValue() {
+  CalculateSyntheticValue();
 
   if (m_synthetic_value)
     return m_synthetic_value->GetSP();
@@ -2008,26 +1951,9 @@ bool ValueObject::HasSyntheticValue() {
   if (m_synthetic_children_sp.get() == nullptr)
     return false;
 
-  CalculateSyntheticValue(true);
+  CalculateSyntheticValue();
 
   return m_synthetic_value != nullptr;
-}
-
-bool ValueObject::GetBaseClassPath(Stream &s) {
-  if (IsBaseClass()) {
-    bool parent_had_base_class =
-        GetParent() && GetParent()->GetBaseClassPath(s);
-    CompilerType compiler_type = GetCompilerType();
-    llvm::Optional<std::string> cxx_class_name =
-        ClangASTContext::GetCXXClassName(compiler_type);
-    if (cxx_class_name) {
-      if (parent_had_base_class)
-        s.PutCString("::");
-      s.PutCString(cxx_class_name.getValue());
-    }
-    return parent_had_base_class || cxx_class_name;
-  }
-  return false;
 }
 
 ValueObject *ValueObject::GetNonBaseClassParent() {
@@ -2055,7 +1981,7 @@ bool ValueObject::IsBaseClass(uint32_t &depth) {
   return true;
 }
 
-void ValueObject::GetExpressionPath(Stream &s, bool qualify_cxx_base_classes,
+void ValueObject::GetExpressionPath(Stream &s,
                                     GetExpressionPathFormat epformat) {
   // synthetic children do not actually "exist" as part of the hierarchy, and
   // sometimes they are consed up in ways that don't make sense from an
@@ -2104,14 +2030,14 @@ void ValueObject::GetExpressionPath(Stream &s, bool qualify_cxx_base_classes,
   ValueObject *parent = GetParent();
 
   if (parent)
-    parent->GetExpressionPath(s, qualify_cxx_base_classes, epformat);
+    parent->GetExpressionPath(s, epformat);
 
   // if we are a deref_of_parent just because we are synthetic array members
   // made up to allow ptr[%d] syntax to work in variable printing, then add our
   // name ([%d]) to the expression path
   if (m_is_array_item_for_pointer &&
       epformat == eGetExpressionPathFormatHonorPointers)
-    s.PutCString(m_name.AsCString());
+    s.PutCString(m_name.GetStringRef());
 
   if (!IsBaseClass()) {
     if (!is_deref_of_parent) {
@@ -2139,13 +2065,8 @@ void ValueObject::GetExpressionPath(Stream &s, bool qualify_cxx_base_classes,
       }
 
       const char *name = GetName().GetCString();
-      if (name) {
-        if (qualify_cxx_base_classes) {
-          if (GetBaseClassPath(s))
-            s.PutCString("::");
-        }
+      if (name)
         s.PutCString(name);
-      }
     }
   }
 
@@ -2834,7 +2755,7 @@ ValueObjectSP ValueObject::Dereference(Status &error) {
     const bool transparent_pointers = false;
     CompilerType compiler_type = GetCompilerType();
     CompilerType child_compiler_type;
-    uint64_t language_flags;
+    uint64_t language_flags = 0;
 
     ExecutionContext exe_ctx(GetExecutionContextRef());
 
@@ -2854,11 +2775,35 @@ ValueObjectSP ValueObject::Dereference(Status &error) {
           child_is_base_class, child_is_deref_of_parent, eAddressTypeInvalid,
           language_flags);
     }
+
+    // In case of incomplete child compiler type, use the pointee type and try
+    // to recreate a new ValueObjectChild using it.
+    if (!m_deref_valobj) {
+      if (HasSyntheticValue()) {
+        child_compiler_type = compiler_type.GetPointeeType();
+
+        if (child_compiler_type) {
+          ConstString child_name;
+          if (!child_name_str.empty())
+            child_name.SetCString(child_name_str.c_str());
+
+          m_deref_valobj = new ValueObjectChild(
+              *this, child_compiler_type, child_name, child_byte_size,
+              child_byte_offset, child_bitfield_bit_size,
+              child_bitfield_bit_offset, child_is_base_class,
+              child_is_deref_of_parent, eAddressTypeInvalid, language_flags);
+        }
+      }
+    }
+
   } else if (HasSyntheticValue()) {
     m_deref_valobj =
         GetSyntheticValue()
             ->GetChildMemberWithName(ConstString("$$dereference$$"), true)
             .get();
+  } else if (IsSynthetic()) {
+    m_deref_valobj =
+        GetChildMemberWithName(ConstString("$$dereference$$"), true).get();
   }
 
   if (m_deref_valobj) {
@@ -2866,7 +2811,7 @@ ValueObjectSP ValueObject::Dereference(Status &error) {
     return m_deref_valobj->GetSP();
   } else {
     StreamString strm;
-    GetExpressionPath(strm, true);
+    GetExpressionPath(strm);
 
     if (is_pointer_or_reference_type)
       error.SetErrorStringWithFormat("dereference failed: (%s) %s",
@@ -2892,7 +2837,7 @@ ValueObjectSP ValueObject::AddressOf(Status &error) {
     switch (address_type) {
     case eAddressTypeInvalid: {
       StreamString expr_path_strm;
-      GetExpressionPath(expr_path_strm, true);
+      GetExpressionPath(expr_path_strm);
       error.SetErrorStringWithFormat("'%s' is not in memory",
                                      expr_path_strm.GetData());
     } break;
@@ -2915,7 +2860,7 @@ ValueObjectSP ValueObject::AddressOf(Status &error) {
     }
   } else {
     StreamString expr_path_strm;
-    GetExpressionPath(expr_path_strm, true);
+    GetExpressionPath(expr_path_strm);
     error.SetErrorStringWithFormat("'%s' doesn't have a valid address",
                                    expr_path_strm.GetData());
   }
@@ -3291,19 +3236,17 @@ ValueObjectSP ValueObject::Persist() {
   if (!persistent_state)
     return nullptr;
 
-  auto prefix = persistent_state->GetPersistentVariablePrefix();
-  ConstString name =
-      persistent_state->GetNextPersistentVariableName(*target_sp, prefix);
+  ConstString name = persistent_state->GetNextPersistentVariableName();
 
   ValueObjectSP const_result_sp =
       ValueObjectConstResult::Create(target_sp.get(), GetValue(), name);
 
-  ExpressionVariableSP clang_var_sp =
+  ExpressionVariableSP persistent_var_sp =
       persistent_state->CreatePersistentVariable(const_result_sp);
-  clang_var_sp->m_live_sp = clang_var_sp->m_frozen_sp;
-  clang_var_sp->m_flags |= ExpressionVariable::EVIsProgramReference;
+  persistent_var_sp->m_live_sp = persistent_var_sp->m_frozen_sp;
+  persistent_var_sp->m_flags |= ExpressionVariable::EVIsProgramReference;
 
-  return clang_var_sp->GetValueObject();
+  return persistent_var_sp->GetValueObject();
 }
 
 bool ValueObject::IsSyntheticChildrenGenerated() {
@@ -3364,7 +3307,7 @@ lldb::ValueObjectSP ValueObjectManager::GetSP() {
   }
 
   if (m_use_synthetic) {
-    lldb::ValueObjectSP synthetic_sp = m_user_valobj_sp->GetSyntheticValue(m_use_synthetic);
+    lldb::ValueObjectSP synthetic_sp = m_user_valobj_sp->GetSyntheticValue();
     if (synthetic_sp)
       m_user_valobj_sp = synthetic_sp;
   }

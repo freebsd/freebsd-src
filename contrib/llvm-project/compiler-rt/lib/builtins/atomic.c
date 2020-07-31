@@ -23,6 +23,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -119,20 +120,13 @@ static __inline Lock *lock_for_pointer(void *ptr) {
   return locks + (hash & SPINLOCK_MASK);
 }
 
-/// Macros for determining whether a size is lock free.
+/// Macros for determining whether a size is lock free.  Clang can not yet
+/// codegen __atomic_is_lock_free(16), so for now we assume 16-byte values are
+/// not lock free.
 #define IS_LOCK_FREE_1 __c11_atomic_is_lock_free(1)
 #define IS_LOCK_FREE_2 __c11_atomic_is_lock_free(2)
 #define IS_LOCK_FREE_4 __c11_atomic_is_lock_free(4)
-
-/// 32 bit MIPS and PowerPC don't support 8-byte lock_free atomics
-#if defined(__mips__) || (!defined(__powerpc64__) && defined(__powerpc__))
-#define IS_LOCK_FREE_8 0
-#else
 #define IS_LOCK_FREE_8 __c11_atomic_is_lock_free(8)
-#endif
-
-/// Clang can not yet codegen __atomic_is_lock_free(16), so for now we assume
-/// 16-byte values are not lock free.
 #define IS_LOCK_FREE_16 0
 
 /// Macro that calls the compiler-generated lock-free versions of functions
@@ -300,8 +294,8 @@ OPTIMISED_CASES
 #undef OPTIMISED_CASE
 
 #define OPTIMISED_CASE(n, lockfree, type)                                      \
-  int __atomic_compare_exchange_##n(type *ptr, type *expected, type desired,   \
-                                    int success, int failure) {                \
+  bool __atomic_compare_exchange_##n(type *ptr, type *expected, type desired,  \
+                                     int success, int failure) {               \
     if (lockfree)                                                              \
       return __c11_atomic_compare_exchange_strong(                             \
           (_Atomic(type) *)ptr, expected, desired, success, failure);          \
@@ -310,11 +304,11 @@ OPTIMISED_CASES
     if (*ptr == *expected) {                                                   \
       *ptr = desired;                                                          \
       unlock(l);                                                               \
-      return 1;                                                                \
+      return true;                                                             \
     }                                                                          \
     *expected = *ptr;                                                          \
     unlock(l);                                                                 \
-    return 0;                                                                  \
+    return false;                                                              \
   }
 OPTIMISED_CASES
 #undef OPTIMISED_CASE

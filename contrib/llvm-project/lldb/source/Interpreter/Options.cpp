@@ -1,4 +1,4 @@
-//===-- Options.cpp ---------------------------------------------*- C++ -*-===//
+//===-- Options.cpp -------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -282,7 +282,7 @@ void Options::OutputFormattedUsageText(Stream &strm,
   if (static_cast<uint32_t>(actual_text.length() + strm.GetIndentLevel()) <
       output_max_columns) {
     // Output it as a single line.
-    strm.Indent(actual_text.c_str());
+    strm.Indent(actual_text);
     strm.EOL();
   } else {
     // We need to break it up into multiple lines.
@@ -798,7 +798,8 @@ void Options::HandleOptionArgumentCompletion(
               interpreter.GetDebugger().GetSelectedTarget();
           // Search filters require a target...
           if (target_sp)
-            filter_up.reset(new SearchFilterByModule(target_sp, module_spec));
+            filter_up =
+                std::make_unique<SearchFilterByModule>(target_sp, module_spec);
         }
         break;
       }
@@ -932,7 +933,7 @@ static size_t FindArgumentIndexForOption(const Args &args,
                                          const Option &long_option) {
   std::string short_opt = llvm::formatv("-{0}", char(long_option.val)).str();
   std::string long_opt =
-      llvm::formatv("--{0}", long_option.definition->long_option);
+      std::string(llvm::formatv("--{0}", long_option.definition->long_option));
   for (const auto &entry : llvm::enumerate(args)) {
     if (entry.value().ref().startswith(short_opt) ||
         entry.value().ref().startswith(long_opt))
@@ -1075,7 +1076,7 @@ llvm::Expected<Args> Options::ParseAlias(const Args &args,
 
     if (!input_line.empty()) {
       auto tmp_arg = args_copy[idx].ref();
-      size_t pos = input_line.find(tmp_arg);
+      size_t pos = input_line.find(std::string(tmp_arg));
       if (pos != std::string::npos)
         input_line.erase(pos, tmp_arg.size());
     }
@@ -1087,7 +1088,7 @@ llvm::Expected<Args> Options::ParseAlias(const Args &args,
         (args_copy[idx].ref() == OptionParser::GetOptionArgument())) {
       if (input_line.size() > 0) {
         auto tmp_arg = args_copy[idx].ref();
-        size_t pos = input_line.find(tmp_arg);
+        size_t pos = input_line.find(std::string(tmp_arg));
         if (pos != std::string::npos)
           input_line.erase(pos, tmp_arg.size());
       }

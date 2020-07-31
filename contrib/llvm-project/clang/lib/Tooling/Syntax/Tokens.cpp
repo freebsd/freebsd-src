@@ -35,6 +35,69 @@
 using namespace clang;
 using namespace clang::syntax;
 
+namespace {
+// Finds the smallest consecutive subsuquence of Toks that covers R.
+llvm::ArrayRef<syntax::Token>
+getTokensCovering(llvm::ArrayRef<syntax::Token> Toks, SourceRange R,
+                  const SourceManager &SM) {
+  if (R.isInvalid())
+    return {};
+  const syntax::Token *Begin =
+      llvm::partition_point(Toks, [&](const syntax::Token &T) {
+        return SM.isBeforeInTranslationUnit(T.location(), R.getBegin());
+      });
+  const syntax::Token *End =
+      llvm::partition_point(Toks, [&](const syntax::Token &T) {
+        return !SM.isBeforeInTranslationUnit(R.getEnd(), T.location());
+      });
+  if (Begin > End)
+    return {};
+  return {Begin, End};
+}
+
+// Finds the smallest expansion range that contains expanded tokens First and
+// Last, e.g.:
+// #define ID(x) x
+// ID(ID(ID(a1) a2))
+//          ~~       -> a1
+//              ~~   -> a2
+//       ~~~~~~~~~   -> a1 a2
+SourceRange findCommonRangeForMacroArgs(const syntax::Token &First,
+                                        const syntax::Token &Last,
+                                        const SourceManager &SM) {
+  SourceRange Res;
+  auto FirstLoc = First.location(), LastLoc = Last.location();
+  // Keep traversing up the spelling chain as longs as tokens are part of the
+  // same expansion.
+  while (!FirstLoc.isFileID() && !LastLoc.isFileID()) {
+    auto ExpInfoFirst = SM.getSLocEntry(SM.getFileID(FirstLoc)).getExpansion();
+    auto ExpInfoLast = SM.getSLocEntry(SM.getFileID(LastLoc)).getExpansion();
+    // Stop if expansions have diverged.
+    if (ExpInfoFirst.getExpansionLocStart() !=
+        ExpInfoLast.getExpansionLocStart())
+      break;
+    // Do not continue into macro bodies.
+    if (!ExpInfoFirst.isMacroArgExpansion() ||
+        !ExpInfoLast.isMacroArgExpansion())
+      break;
+    FirstLoc = SM.getImmediateSpellingLoc(FirstLoc);
+    LastLoc = SM.getImmediateSpellingLoc(LastLoc);
+    // Update the result afterwards, as we want the tokens that triggered the
+    // expansion.
+    Res = {FirstLoc, LastLoc};
+  }
+  // Normally mapping back to expansion location here only changes FileID, as
+  // we've already found some tokens expanded from the same macro argument, and
+  // they should map to a consecutive subset of spelled tokens. Unfortunately
+  // SourceManager::isBeforeInTranslationUnit discriminates sourcelocations
+  // based on their FileID in addition to offsets. So even though we are
+  // referring to same tokens, SourceManager might tell us that one is before
+  // the other if they've got different FileIDs.
+  return SM.getExpansionRange(CharSourceRange(Res, true)).getAsRange();
+}
+
+} // namespace
+
 syntax::Token::Token(SourceLocation Location, unsigned Length,
                      tok::TokenKind Kind)
     : Location(Location), Length(Length), Kind(Kind) {
@@ -67,7 +130,8 @@ FileRange syntax::Token::range(const SourceManager &SM,
   auto F = First.range(SM);
   auto L = Last.range(SM);
   assert(F.file() == L.file() && "tokens from different files");
-  assert((F == L || F.endOffset() <= L.beginOffset()) && "wrong order of tokens");
+  assert((F == L || F.endOffset() <= L.beginOffset()) &&
+         "wrong order of tokens");
   return FileRange(F.file(), F.beginOffset(), L.endOffset());
 }
 
@@ -120,19 +184,7 @@ llvm::StringRef FileRange::text(const SourceManager &SM) const {
 }
 
 llvm::ArrayRef<syntax::Token> TokenBuffer::expandedTokens(SourceRange R) const {
-  if (R.isInvalid())
-    return {};
-  const Token *Begin =
-      llvm::partition_point(expandedTokens(), [&](const syntax::Token &T) {
-        return SourceMgr->isBeforeInTranslationUnit(T.location(), R.getBegin());
-      });
-  const Token *End =
-      llvm::partition_point(expandedTokens(), [&](const syntax::Token &T) {
-        return !SourceMgr->isBeforeInTranslationUnit(R.getEnd(), T.location());
-      });
-  if (Begin > End)
-    return {};
-  return {Begin, End};
+  return getTokensCovering(expandedTokens(), R, *SourceMgr);
 }
 
 CharSourceRange FileRange::toCharRange(const SourceManager &SM) const {
@@ -161,19 +213,109 @@ TokenBuffer::spelledForExpandedToken(const syntax::Token *Expanded) const {
   // Our token could only be produced by the previous mapping.
   if (It == File.Mappings.begin()) {
     // No previous mapping, no need to modify offsets.
-    return {&File.SpelledTokens[ExpandedIndex - File.BeginExpanded], nullptr};
+    return {&File.SpelledTokens[ExpandedIndex - File.BeginExpanded],
+            /*Mapping=*/nullptr};
   }
   --It; // 'It' now points to last mapping that started before our token.
 
   // Check if the token is part of the mapping.
   if (ExpandedIndex < It->EndExpanded)
-    return {&File.SpelledTokens[It->BeginSpelled], /*Mapping*/ &*It};
+    return {&File.SpelledTokens[It->BeginSpelled], /*Mapping=*/&*It};
 
   // Not part of the mapping, use the index from previous mapping to compute the
   // corresponding spelled token.
   return {
       &File.SpelledTokens[It->EndSpelled + (ExpandedIndex - It->EndExpanded)],
-      /*Mapping*/ nullptr};
+      /*Mapping=*/nullptr};
+}
+
+const TokenBuffer::Mapping *
+TokenBuffer::mappingStartingBeforeSpelled(const MarkedFile &F,
+                                          const syntax::Token *Spelled) {
+  assert(F.SpelledTokens.data() <= Spelled);
+  unsigned SpelledI = Spelled - F.SpelledTokens.data();
+  assert(SpelledI < F.SpelledTokens.size());
+
+  auto It = llvm::partition_point(F.Mappings, [SpelledI](const Mapping &M) {
+    return M.BeginSpelled <= SpelledI;
+  });
+  if (It == F.Mappings.begin())
+    return nullptr;
+  --It;
+  return &*It;
+}
+
+llvm::SmallVector<llvm::ArrayRef<syntax::Token>, 1>
+TokenBuffer::expandedForSpelled(llvm::ArrayRef<syntax::Token> Spelled) const {
+  if (Spelled.empty())
+    return {};
+  assert(Spelled.front().location().isFileID());
+
+  auto FID = sourceManager().getFileID(Spelled.front().location());
+  auto It = Files.find(FID);
+  assert(It != Files.end());
+
+  const MarkedFile &File = It->second;
+  // `Spelled` must be a subrange of `File.SpelledTokens`.
+  assert(File.SpelledTokens.data() <= Spelled.data());
+  assert(&Spelled.back() <=
+         File.SpelledTokens.data() + File.SpelledTokens.size());
+#ifndef NDEBUG
+  auto T1 = Spelled.back().location();
+  auto T2 = File.SpelledTokens.back().location();
+  assert(T1 == T2 || sourceManager().isBeforeInTranslationUnit(T1, T2));
+#endif
+
+  auto *FrontMapping = mappingStartingBeforeSpelled(File, &Spelled.front());
+  unsigned SpelledFrontI = &Spelled.front() - File.SpelledTokens.data();
+  assert(SpelledFrontI < File.SpelledTokens.size());
+  unsigned ExpandedBegin;
+  if (!FrontMapping) {
+    // No mapping that starts before the first token of Spelled, we don't have
+    // to modify offsets.
+    ExpandedBegin = File.BeginExpanded + SpelledFrontI;
+  } else if (SpelledFrontI < FrontMapping->EndSpelled) {
+    // This mapping applies to Spelled tokens.
+    if (SpelledFrontI != FrontMapping->BeginSpelled) {
+      // Spelled tokens don't cover the entire mapping, returning empty result.
+      return {}; // FIXME: support macro arguments.
+    }
+    // Spelled tokens start at the beginning of this mapping.
+    ExpandedBegin = FrontMapping->BeginExpanded;
+  } else {
+    // Spelled tokens start after the mapping ends (they start in the hole
+    // between 2 mappings, or between a mapping and end of the file).
+    ExpandedBegin =
+        FrontMapping->EndExpanded + (SpelledFrontI - FrontMapping->EndSpelled);
+  }
+
+  auto *BackMapping = mappingStartingBeforeSpelled(File, &Spelled.back());
+  unsigned SpelledBackI = &Spelled.back() - File.SpelledTokens.data();
+  unsigned ExpandedEnd;
+  if (!BackMapping) {
+    // No mapping that starts before the last token of Spelled, we don't have to
+    // modify offsets.
+    ExpandedEnd = File.BeginExpanded + SpelledBackI + 1;
+  } else if (SpelledBackI < BackMapping->EndSpelled) {
+    // This mapping applies to Spelled tokens.
+    if (SpelledBackI + 1 != BackMapping->EndSpelled) {
+      // Spelled tokens don't cover the entire mapping, returning empty result.
+      return {}; // FIXME: support macro arguments.
+    }
+    ExpandedEnd = BackMapping->EndExpanded;
+  } else {
+    // Spelled tokens end after the mapping ends.
+    ExpandedEnd =
+        BackMapping->EndExpanded + (SpelledBackI - BackMapping->EndSpelled) + 1;
+  }
+
+  assert(ExpandedBegin < ExpandedTokens.size());
+  assert(ExpandedEnd < ExpandedTokens.size());
+  // Avoid returning empty ranges.
+  if (ExpandedBegin == ExpandedEnd)
+    return {};
+  return {llvm::makeArrayRef(ExpandedTokens.data() + ExpandedBegin,
+                             ExpandedTokens.data() + ExpandedEnd)};
 }
 
 llvm::ArrayRef<syntax::Token> TokenBuffer::spelledTokens(FileID FID) const {
@@ -182,9 +324,20 @@ llvm::ArrayRef<syntax::Token> TokenBuffer::spelledTokens(FileID FID) const {
   return It->second.SpelledTokens;
 }
 
+const syntax::Token *TokenBuffer::spelledTokenAt(SourceLocation Loc) const {
+  assert(Loc.isFileID());
+  const auto *Tok = llvm::partition_point(
+      spelledTokens(SourceMgr->getFileID(Loc)),
+      [&](const syntax::Token &Tok) { return Tok.location() < Loc; });
+  if (!Tok || Tok->location() != Loc)
+    return nullptr;
+  return Tok;
+}
+
 std::string TokenBuffer::Mapping::str() const {
-  return llvm::formatv("spelled tokens: [{0},{1}), expanded tokens: [{2},{3})",
-                       BeginSpelled, EndSpelled, BeginExpanded, EndExpanded);
+  return std::string(
+      llvm::formatv("spelled tokens: [{0},{1}), expanded tokens: [{2},{3})",
+                    BeginSpelled, EndSpelled, BeginExpanded, EndExpanded));
 }
 
 llvm::Optional<llvm::ArrayRef<syntax::Token>>
@@ -193,8 +346,6 @@ TokenBuffer::spelledForExpanded(llvm::ArrayRef<syntax::Token> Expanded) const {
   // of the range, bail out in that case.
   if (Expanded.empty())
     return llvm::None;
-
-  // FIXME: also allow changes uniquely mapping to macro arguments.
 
   const syntax::Token *BeginSpelled;
   const Mapping *BeginMapping;
@@ -213,12 +364,28 @@ TokenBuffer::spelledForExpanded(llvm::ArrayRef<syntax::Token> Expanded) const {
 
   const MarkedFile &File = Files.find(FID)->second;
 
-  // Do not allow changes that cross macro expansion boundaries.
+  // If both tokens are coming from a macro argument expansion, try and map to
+  // smallest part of the macro argument. BeginMapping && LastMapping check is
+  // only for performance, they are a prerequisite for Expanded.front() and
+  // Expanded.back() being part of a macro arg expansion.
+  if (BeginMapping && LastMapping &&
+      SourceMgr->isMacroArgExpansion(Expanded.front().location()) &&
+      SourceMgr->isMacroArgExpansion(Expanded.back().location())) {
+    auto CommonRange = findCommonRangeForMacroArgs(Expanded.front(),
+                                                   Expanded.back(), *SourceMgr);
+    // It might be the case that tokens are arguments of different macro calls,
+    // in that case we should continue with the logic below instead of returning
+    // an empty range.
+    if (CommonRange.isValid())
+      return getTokensCovering(File.SpelledTokens, CommonRange, *SourceMgr);
+  }
+
+  // Do not allow changes that doesn't cover full expansion.
   unsigned BeginExpanded = Expanded.begin() - ExpandedTokens.data();
   unsigned EndExpanded = Expanded.end() - ExpandedTokens.data();
-  if (BeginMapping && BeginMapping->BeginExpanded < BeginExpanded)
+  if (BeginMapping && BeginExpanded != BeginMapping->BeginExpanded)
     return llvm::None;
-  if (LastMapping && EndExpanded < LastMapping->EndExpanded)
+  if (LastMapping && LastMapping->EndExpanded != EndExpanded)
     return llvm::None;
   // All is good, return the result.
   return llvm::makeArrayRef(
@@ -253,29 +420,42 @@ TokenBuffer::expansionStartingAt(const syntax::Token *Spelled) const {
                                   ExpandedTokens.data() + M->EndExpanded);
   return E;
 }
-
 llvm::ArrayRef<syntax::Token>
 syntax::spelledTokensTouching(SourceLocation Loc,
-                              const syntax::TokenBuffer &Tokens) {
+                              llvm::ArrayRef<syntax::Token> Tokens) {
   assert(Loc.isFileID());
-  llvm::ArrayRef<syntax::Token> All =
-      Tokens.spelledTokens(Tokens.sourceManager().getFileID(Loc));
+
   auto *Right = llvm::partition_point(
-      All, [&](const syntax::Token &Tok) { return Tok.location() < Loc; });
-  bool AcceptRight = Right != All.end() && Right->location() <= Loc;
-  bool AcceptLeft = Right != All.begin() && (Right - 1)->endLocation() >= Loc;
+      Tokens, [&](const syntax::Token &Tok) { return Tok.location() < Loc; });
+  bool AcceptRight = Right != Tokens.end() && Right->location() <= Loc;
+  bool AcceptLeft =
+      Right != Tokens.begin() && (Right - 1)->endLocation() >= Loc;
   return llvm::makeArrayRef(Right - (AcceptLeft ? 1 : 0),
                             Right + (AcceptRight ? 1 : 0));
 }
 
+llvm::ArrayRef<syntax::Token>
+syntax::spelledTokensTouching(SourceLocation Loc,
+                              const syntax::TokenBuffer &Tokens) {
+  return spelledTokensTouching(
+      Loc, Tokens.spelledTokens(Tokens.sourceManager().getFileID(Loc)));
+}
+
 const syntax::Token *
 syntax::spelledIdentifierTouching(SourceLocation Loc,
-                                  const syntax::TokenBuffer &Tokens) {
+                                  llvm::ArrayRef<syntax::Token> Tokens) {
   for (const syntax::Token &Tok : spelledTokensTouching(Loc, Tokens)) {
     if (Tok.kind() == tok::identifier)
       return &Tok;
   }
   return nullptr;
+}
+
+const syntax::Token *
+syntax::spelledIdentifierTouching(SourceLocation Loc,
+                                  const syntax::TokenBuffer &Tokens) {
+  return spelledIdentifierTouching(
+      Loc, Tokens.spelledTokens(Tokens.sourceManager().getFileID(Loc)));
 }
 
 std::vector<const syntax::Token *>
@@ -293,7 +473,8 @@ TokenBuffer::macroExpansions(FileID FID) const {
   return Expansions;
 }
 
-std::vector<syntax::Token> syntax::tokenize(FileID FID, const SourceManager &SM,
+std::vector<syntax::Token> syntax::tokenize(const FileRange &FR,
+                                            const SourceManager &SM,
                                             const LangOptions &LO) {
   std::vector<syntax::Token> Tokens;
   IdentifierTable Identifiers(LO);
@@ -308,16 +489,26 @@ std::vector<syntax::Token> syntax::tokenize(FileID FID, const SourceManager &SM,
     Tokens.push_back(syntax::Token(T));
   };
 
-  Lexer L(FID, SM.getBuffer(FID), SM, LO);
+  auto SrcBuffer = SM.getBufferData(FR.file());
+  Lexer L(SM.getLocForStartOfFile(FR.file()), LO, SrcBuffer.data(),
+          SrcBuffer.data() + FR.beginOffset(),
+          // We can't make BufEnd point to FR.endOffset, as Lexer requires a
+          // null terminated buffer.
+          SrcBuffer.data() + SrcBuffer.size());
 
   clang::Token T;
-  while (!L.LexFromRawLexer(T))
+  while (!L.LexFromRawLexer(T) && L.getCurrentBufferOffset() < FR.endOffset())
     AddToken(T);
-  // 'eof' is only the last token if the input is null-terminated. Never store
-  // it, for consistency.
-  if (T.getKind() != tok::eof)
+  // LexFromRawLexer returns true when it parses the last token of the file, add
+  // it iff it starts within the range we are interested in.
+  if (SM.getFileOffset(T.getLocation()) < FR.endOffset())
     AddToken(T);
   return Tokens;
+}
+
+std::vector<syntax::Token> syntax::tokenize(FileID FID, const SourceManager &SM,
+                                            const LangOptions &LO) {
+  return tokenize(syntax::FileRange(FID, 0, SM.getFileIDSize(FID)), SM, LO);
 }
 
 /// Records information reqired to construct mappings for the token buffer that
@@ -448,6 +639,19 @@ public:
     // Create empty mappings up until the end of the file.
     for (const auto &File : Result.Files)
       discard(File.first);
+
+#ifndef NDEBUG
+    for (auto &pair : Result.Files) {
+      auto &mappings = pair.second.Mappings;
+      assert(llvm::is_sorted(mappings, [](const TokenBuffer::Mapping &M1,
+                                          const TokenBuffer::Mapping &M2) {
+        return M1.BeginSpelled < M2.BeginSpelled &&
+               M1.EndSpelled < M2.EndSpelled &&
+               M1.BeginExpanded < M2.BeginExpanded &&
+               M1.EndExpanded < M2.EndExpanded;
+      }));
+    }
+#endif
 
     return std::move(Result);
   }
@@ -598,19 +802,20 @@ TokenBuffer TokenCollector::consume() && {
 }
 
 std::string syntax::Token::str() const {
-  return llvm::formatv("Token({0}, length = {1})", tok::getTokenName(kind()),
-                       length());
+  return std::string(llvm::formatv("Token({0}, length = {1})",
+                                   tok::getTokenName(kind()), length()));
 }
 
 std::string syntax::Token::dumpForTests(const SourceManager &SM) const {
-  return llvm::formatv("{0}   {1}", tok::getTokenName(kind()), text(SM));
+  return std::string(llvm::formatv("Token(`{0}`, {1}, length = {2})", text(SM),
+                                   tok::getTokenName(kind()), length()));
 }
 
 std::string TokenBuffer::dumpForTests() const {
   auto PrintToken = [this](const syntax::Token &T) -> std::string {
     if (T.kind() == tok::eof)
       return "<eof>";
-    return T.text(*SourceMgr);
+    return std::string(T.text(*SourceMgr));
   };
 
   auto DumpTokens = [this, &PrintToken](llvm::raw_ostream &OS,

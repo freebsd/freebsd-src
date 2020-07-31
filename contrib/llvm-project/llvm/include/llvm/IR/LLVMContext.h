@@ -31,11 +31,16 @@ class LLVMContextImpl;
 class Module;
 class OptPassGate;
 template <typename T> class SmallVectorImpl;
+template <typename T> class StringMapEntry;
 class SMDiagnostic;
 class StringRef;
 class Twine;
-class RemarkStreamer;
+class LLVMRemarkStreamer;
 class raw_ostream;
+
+namespace remarks {
+class RemarkStreamer;
+}
 
 namespace SyncScope {
 
@@ -79,12 +84,15 @@ public:
   /// Known operand bundle tag IDs, which always have the same value.  All
   /// operand bundle tags that LLVM has special knowledge of are listed here.
   /// Additionally, this scheme allows LLVM to efficiently check for specific
-  /// operand bundle tags without comparing strings.
+  /// operand bundle tags without comparing strings. Keep this in sync with
+  /// LLVMContext::LLVMContext().
   enum : unsigned {
     OB_deopt = 0,         // "deopt"
     OB_funclet = 1,       // "funclet"
     OB_gc_transition = 2, // "gc-transition"
     OB_cfguardtarget = 3, // "cfguardtarget"
+    OB_preallocated = 4,  // "preallocated"
+    OB_gc_live = 5,       // "gc-live"
   };
 
   /// getMDKindID - Return a unique non-zero ID for the specified metadata kind.
@@ -100,6 +108,10 @@ public:
   /// by increasing bundle IDs.
   /// \see LLVMContext::getOperandBundleTagID
   void getOperandBundleTags(SmallVectorImpl<StringRef> &Result) const;
+
+  /// getOrInsertBundleTag - Returns the Tag to use for an operand bundle of
+  /// name TagName.
+  StringMapEntry<uint32_t> *getOrInsertBundleTag(StringRef TagName) const;
 
   /// getOperandBundleTagID - Maps a bundle tag to an integer ID.  Every bundle
   /// tag registered with an LLVMContext has an unique ID.
@@ -218,23 +230,27 @@ public:
   /// included in optimization diagnostics.
   void setDiagnosticsHotnessThreshold(uint64_t Threshold);
 
-  /// Return the streamer used by the backend to save remark diagnostics. If it
-  /// does not exist, diagnostics are not saved in a file but only emitted via
-  /// the diagnostic handler.
-  RemarkStreamer *getRemarkStreamer();
-  const RemarkStreamer *getRemarkStreamer() const;
+  /// The "main remark streamer" used by all the specialized remark streamers.
+  /// This streamer keeps generic remark metadata in memory throughout the life
+  /// of the LLVMContext. This metadata may be emitted in a section in object
+  /// files depending on the format requirements.
+  ///
+  /// All specialized remark streamers should convert remarks to
+  /// llvm::remarks::Remark and emit them through this streamer.
+  remarks::RemarkStreamer *getMainRemarkStreamer();
+  const remarks::RemarkStreamer *getMainRemarkStreamer() const;
+  void setMainRemarkStreamer(
+      std::unique_ptr<remarks::RemarkStreamer> MainRemarkStreamer);
 
-  /// Set the diagnostics output used for optimization diagnostics.
-  /// This filename may be embedded in a section for tools to find the
-  /// diagnostics whenever they're needed.
+  /// The "LLVM remark streamer" used by LLVM to serialize remark diagnostics
+  /// comming from IR and MIR passes.
   ///
-  /// If a remark streamer is already set, it will be replaced with
-  /// \p RemarkStreamer.
-  ///
-  /// By default, diagnostics are not saved in a file but only emitted via the
-  /// diagnostic handler.  Even if an output file is set, the handler is invoked
-  /// for each diagnostic message.
-  void setRemarkStreamer(std::unique_ptr<RemarkStreamer> RemarkStreamer);
+  /// If it does not exist, diagnostics are not saved in a file but only emitted
+  /// via the diagnostic handler.
+  LLVMRemarkStreamer *getLLVMRemarkStreamer();
+  const LLVMRemarkStreamer *getLLVMRemarkStreamer() const;
+  void
+  setLLVMRemarkStreamer(std::unique_ptr<LLVMRemarkStreamer> RemarkStreamer);
 
   /// Get the prefix that should be printed in front of a diagnostic of
   ///        the given \p Severity

@@ -1,4 +1,4 @@
-//===-- FormatEntity.cpp ----------------------------------------*- C++ -*-===//
+//===-- FormatEntity.cpp --------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -46,7 +46,6 @@
 #include "lldb/Utility/Log.h"
 #include "lldb/Utility/Logging.h"
 #include "lldb/Utility/RegisterValue.h"
-#include "lldb/Utility/SharingPtr.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
 #include "lldb/Utility/StringList.h"
@@ -166,6 +165,7 @@ static FormatEntity::Entry::Definition g_thread_child_entries[] = {
     ENTRY("queue", ThreadQueue),
     ENTRY("name", ThreadName),
     ENTRY("stop-reason", ThreadStopReason),
+    ENTRY("stop-reason-raw", ThreadStopReasonRaw),
     ENTRY("return-value", ThreadReturnValue),
     ENTRY("completed-expression", ThreadCompletedExpression),
 };
@@ -328,6 +328,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(ThreadName);
     ENUM_TO_CSTR(ThreadQueue);
     ENUM_TO_CSTR(ThreadStopReason);
+    ENUM_TO_CSTR(ThreadStopReasonRaw);
     ENUM_TO_CSTR(ThreadReturnValue);
     ENUM_TO_CSTR(ThreadCompletedExpression);
     ENUM_TO_CSTR(ScriptThread);
@@ -1273,15 +1274,23 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
 
   case Entry::Type::ThreadStopReason:
     if (exe_ctx) {
-      Thread *thread = exe_ctx->GetThreadPtr();
-      if (thread) {
-        StopInfoSP stop_info_sp = thread->GetStopInfo();
-        if (stop_info_sp && stop_info_sp->IsValid()) {
-          const char *cstr = stop_info_sp->GetDescription();
-          if (cstr && cstr[0]) {
-            s.PutCString(cstr);
-            return true;
-          }
+      if (Thread *thread = exe_ctx->GetThreadPtr()) {
+        std::string stop_description = thread->GetStopDescription();
+        if (!stop_description.empty()) {
+          s.PutCString(stop_description);
+          return true;
+        }
+      }
+    }
+    return false;
+
+  case Entry::Type::ThreadStopReasonRaw:
+    if (exe_ctx) {
+      if (Thread *thread = exe_ctx->GetThreadPtr()) {
+        std::string stop_description = thread->GetStopDescriptionRaw();
+        if (!stop_description.empty()) {
+          s.PutCString(stop_description);
+          return true;
         }
       }
     }
@@ -1544,7 +1553,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
                 sc->block->GetInlinedFunctionInfo();
             if (inline_info) {
               s.PutCString(" [inlined] ");
-              inline_info->GetName(sc->function->GetLanguage()).Dump(&s);
+              inline_info->GetName().Dump(&s);
             }
           }
         }
@@ -1628,8 +1637,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
           if (inline_info) {
             s.PutCString(cstr);
             s.PutCString(" [inlined] ");
-            cstr =
-                inline_info->GetName(sc->function->GetLanguage()).GetCString();
+            cstr = inline_info->GetName().GetCString();
           }
 
           VariableList args;
@@ -1750,12 +1758,11 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
   case Entry::Type::FunctionMangledName: {
     const char *name = nullptr;
     if (sc->symbol)
-      name = sc->symbol->GetMangled()
-                 .GetName(sc->symbol->GetLanguage(), Mangled::ePreferMangled)
-                 .AsCString();
+      name =
+          sc->symbol->GetMangled().GetName(Mangled::ePreferMangled).AsCString();
     else if (sc->function)
       name = sc->function->GetMangled()
-                 .GetName(sc->symbol->GetLanguage(), Mangled::ePreferMangled)
+                 .GetName(Mangled::ePreferMangled)
                  .AsCString();
 
     if (!name)
@@ -1766,7 +1773,7 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
       if (const InlineFunctionInfo *inline_info =
               sc->block->GetInlinedFunctionInfo()) {
         s.PutCString(" [inlined] ");
-        inline_info->GetName(sc->function->GetLanguage()).Dump(&s);
+        inline_info->GetName().Dump(&s);
       }
     }
     return true;
@@ -2340,10 +2347,10 @@ bool FormatEntity::FormatFileSpec(const FileSpec &file_spec, Stream &s,
     file_spec.Dump(s.AsRawOstream());
     return true;
   } else if (variable_name.equals(".basename")) {
-    s.PutCString(file_spec.GetFilename().AsCString(""));
+    s.PutCString(file_spec.GetFilename().GetStringRef());
     return true;
   } else if (variable_name.equals(".dirname")) {
-    s.PutCString(file_spec.GetFilename().AsCString(""));
+    s.PutCString(file_spec.GetFilename().GetStringRef());
     return true;
   }
   return false;
@@ -2402,7 +2409,7 @@ void FormatEntity::AutoComplete(CompletionRequest &request) {
 
   llvm::StringRef partial_variable(str.substr(dollar_pos + 2));
   if (partial_variable.empty()) {
-    // Suggest all top level entites as we are just past "${"
+    // Suggest all top level entities as we are just past "${"
     StringList new_matches;
     AddMatches(&g_root, str, llvm::StringRef(), new_matches);
     request.AddCompletions(new_matches);

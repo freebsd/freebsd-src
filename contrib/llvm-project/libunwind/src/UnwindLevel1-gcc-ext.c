@@ -149,7 +149,7 @@ _Unwind_Backtrace(_Unwind_Trace_Fn callback, void *ref) {
 
     struct _Unwind_Context *context = (struct _Unwind_Context *)&cursor;
     // Get and call the personality function to unwind the frame.
-    __personality_routine handler = (__personality_routine) frameInfo.handler;
+    _Unwind_Personality_Fn handler = (_Unwind_Personality_Fn)frameInfo.handler;
     if (handler == NULL) {
       return _URC_END_OF_STACK;
     }
@@ -181,10 +181,6 @@ _Unwind_Backtrace(_Unwind_Trace_Fn callback, void *ref) {
     }
   }
 }
-#ifdef __arm__
-/* Preserve legacy libgcc (pre r318024) ARM ABI mistake */
-__sym_compat(_Unwind_Backtrace, _Unwind_Backtrace, GCC_3.3);
-#endif
 
 
 /// Find DWARF unwind info for an address 'pc' in some function.
@@ -238,46 +234,6 @@ _LIBUNWIND_EXPORT uintptr_t _Unwind_GetIPInfo(struct _Unwind_Context *context,
 
 #if defined(_LIBUNWIND_SUPPORT_DWARF_UNWIND)
 
-#if defined(__FreeBSD__)
-
-// Based on LLVM's lib/ExecutionEngine/RuntimeDyld/RTDyldMemoryManager.cpp
-// and XXX should be fixed to be alignment-safe.
-static void processFDE(const char *addr, bool isDeregister) {
-  uint64_t length;
-  while ((length = *((const uint32_t *)addr)) != 0) {
-    const char *p = addr + 4;
-    if (length == 0xffffffff) {
-      length = *((const uint64_t *)p);
-      p += 8;
-    }
-    uint32_t offset = *((const uint32_t *)p);
-    if (offset != 0) {
-      if (isDeregister)
-        __unw_remove_dynamic_fde((unw_word_t)(uintptr_t)addr);
-      else
-        __unw_add_dynamic_fde((unw_word_t)(uintptr_t)addr);
-    }
-    addr = p + length;
-  }
-}
-
-/// Called by programs with dynamic code generators that want to register
-/// dynamically generated FDEs, with a libgcc-compatible API.
-
-_LIBUNWIND_EXPORT void __register_frame(const void *addr) {
-  _LIBUNWIND_TRACE_API("__register_frame(%p)", addr);
-  processFDE(addr, false);
-}
-
-/// Called by programs with dynamic code generators that want to unregister
-/// dynamically generated FDEs, with a libgcc-compatible API.
-_LIBUNWIND_EXPORT void __deregister_frame(const void *addr) {
-  _LIBUNWIND_TRACE_API("__deregister_frame(%p)", addr);
-  processFDE(addr, true);
-}
-
-#else // defined(__FreeBSD__)
-
 /// Called by programs with dynamic code generators that want
 /// to register a dynamically generated FDE.
 /// This function has existed on Mac OS X since 10.4, but
@@ -286,6 +242,7 @@ _LIBUNWIND_EXPORT void __register_frame(const void *fde) {
   _LIBUNWIND_TRACE_API("__register_frame(%p)", fde);
   __unw_add_dynamic_fde((unw_word_t)(uintptr_t)fde);
 }
+
 
 /// Called by programs with dynamic code generators that want
 /// to unregister a dynamically generated FDE.
@@ -296,7 +253,6 @@ _LIBUNWIND_EXPORT void __deregister_frame(const void *fde) {
   __unw_remove_dynamic_fde((unw_word_t)(uintptr_t)fde);
 }
 
-#endif // defined(__FreeBSD__)
 
 // The following register/deregister functions are gcc extensions.
 // They have existed on Mac OS X, but have never worked because Mac OS X

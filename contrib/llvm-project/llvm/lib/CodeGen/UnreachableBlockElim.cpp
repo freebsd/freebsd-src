@@ -81,7 +81,7 @@ namespace {
   class UnreachableMachineBlockElim : public MachineFunctionPass {
     bool runOnMachineFunction(MachineFunction &F) override;
     void getAnalysisUsage(AnalysisUsage &AU) const override;
-    MachineModuleInfo *MMI;
+
   public:
     static char ID; // Pass identification, replacement for typeid
     UnreachableMachineBlockElim() : MachineFunctionPass(ID) {}
@@ -104,8 +104,6 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
   df_iterator_default_set<MachineBasicBlock*> Reachable;
   bool ModifiedPHI = false;
 
-  auto *MMIWP = getAnalysisIfAvailable<MachineModuleInfoWrapperPass>();
-  MMI = MMIWP ? &MMIWP->getMMI() : nullptr;
   MachineDominatorTree *MDT = getAnalysisIfAvailable<MachineDominatorTree>();
   MachineLoopInfo *MLI = getAnalysisIfAvailable<MachineLoopInfo>();
 
@@ -151,7 +149,7 @@ bool UnreachableMachineBlockElim::runOnMachineFunction(MachineFunction &F) {
   for (unsigned i = 0, e = DeadBlocks.size(); i != e; ++i) {
     // Remove any call site information for calls in the block.
     for (auto &I : DeadBlocks[i]->instrs())
-      if (I.isCall(MachineInstr::IgnoreBundle))
+      if (I.shouldUpdateCallSiteInfo())
         DeadBlocks[i]->getParent()->eraseCallSiteInfo(&I);
 
     DeadBlocks[i]->eraseFromParent();
