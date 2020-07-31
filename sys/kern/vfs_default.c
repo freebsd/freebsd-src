@@ -616,7 +616,9 @@ vop_nopoll(ap)
 	} */ *ap;
 {
 
-	return (poll_no_poll(ap->a_events));
+	if (ap->a_events & ~POLLSTANDARD)
+		return (POLLNVAL);
+	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
 }
 
 /*

@@ -42,12 +42,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/machdep.h> /* For arm_set_delay */
 
+#include <dev/extres/clk/clk.h>
+
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/ti/ti_prcm.h>
-#include <arm/ti/ti_hwmods.h>
+#include <arm/ti/ti_sysc.h>
 
 #include "am335x_dmtreg.h"
 
@@ -58,7 +59,8 @@ struct am335x_dmtimer_softc {
 	int			tmr_irq_rid;
 	struct resource *	tmr_irq_res;
 	void			*tmr_irq_handler;
-	uint32_t		sysclk_freq;
+	clk_t			clk_fck;
+	uint64_t		sysclk_freq;
 	uint32_t		tclr;		/* Cached TCLR register. */
 	union {
 		struct timecounter tc;
@@ -251,6 +253,7 @@ am335x_dmtimer_probe(device_t dev)
 {
 	char strbuf[32];
 	int tmr_num;
+	uint64_t rev_address;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
@@ -259,13 +262,22 @@ am335x_dmtimer_probe(device_t dev)
 		return (ENXIO);
 
 	/*
-	 * Get the hardware unit number (the N from ti,hwmods="timerN").
+	 * Get the hardware unit number from address of rev register.
 	 * If this isn't the hardware unit we're going to use for either the
 	 * eventtimer or the timecounter, no point in instantiating the device.
 	 */
-	tmr_num = ti_hwmods_get_unit(dev, "timer");
-	if (tmr_num != ET_TMR_NUM && tmr_num != TC_TMR_NUM)
-		return (ENXIO);
+	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
+	switch (rev_address) {
+		case DMTIMER2_REV:
+			tmr_num = 2;
+			break;
+		case DMTIMER3_REV:
+			tmr_num = 3;
+			break;
+		default:
+			/* Not DMTIMER2 or DMTIMER3 */
+			return (ENXIO);
+	}
 
 	snprintf(strbuf, sizeof(strbuf), "AM335x DMTimer%d", tmr_num);
 	device_set_desc_copy(dev, strbuf);
@@ -277,23 +289,46 @@ static int
 am335x_dmtimer_attach(device_t dev)
 {
 	struct am335x_dmtimer_softc *sc;
-	clk_ident_t timer_id;
 	int err;
+	uint64_t rev_address;
+	clk_t sys_clkin;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	/* Get the base clock frequency. */
-	if ((err = ti_prcm_clk_get_source_freq(SYS_CLK, &sc->sysclk_freq)) != 0)
-		return (err);
+	/* expect one clock */
+	err = clk_get_by_ofw_index(dev, 0, 0, &sc->clk_fck);
+	if (err != 0) {
+		device_printf(dev, "Cant find clock index 0. err: %d\n", err);
+		return (ENXIO);
+	}
+
+	err = clk_get_by_name(dev, "sys_clkin_ck@40", &sys_clkin);
+	if (err != 0) {
+		device_printf(dev, "Cant find sys_clkin_ck@40 err: %d\n", err);
+		return (ENXIO);
+	}
+
+	/* Select M_OSC as DPLL parent */
+	err = clk_set_parent_by_clk(sc->clk_fck, sys_clkin);
+	if (err != 0) {
+		device_printf(dev, "Cant set mux to CLK_M_OSC\n");
+		return (ENXIO);
+	}
 
 	/* Enable clocks and power on the device. */
-	if ((timer_id = ti_hwmods_get_clock(dev)) == INVALID_CLK_IDENT)
+	err = ti_sysc_clock_enable(device_get_parent(dev));
+	if (err != 0) {
+		device_printf(dev, "Cant enable sysc clkctrl, err %d\n", err);
 		return (ENXIO);
-	if ((err = ti_prcm_clk_set_source(timer_id, SYSCLK_CLK)) != 0)
-		return (err);
-	if ((err = ti_prcm_clk_enable(timer_id)) != 0)
-		return (err);
+	}
+
+	/* Get the base clock frequency. */
+	err = clk_get_freq(sc->clk_fck, &sc->sysclk_freq);
+	if (err != 0) {
+		device_printf(dev, "Cant get sysclk frequency, err %d\n", err);
+		return (ENXIO);
+	}
 
 	/* Request the memory resources. */
 	sc->tmr_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -302,7 +337,20 @@ am335x_dmtimer_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->tmr_num = ti_hwmods_get_unit(dev, "timer");
+	rev_address = ti_sysc_get_rev_address(device_get_parent(dev));
+	switch (rev_address) {
+		case DMTIMER2_REV:
+			sc->tmr_num = 2;
+			break;
+		case DMTIMER3_REV:
+			sc->tmr_num = 3;
+			break;
+		default:
+			device_printf(dev, "Not timer 2 or 3! %#jx\n",
+			    rev_address);
+			return (ENXIO);
+	}
+
 	snprintf(sc->tmr_name, sizeof(sc->tmr_name), "DMTimer%d", sc->tmr_num);
 
 	/*
@@ -334,7 +382,7 @@ static driver_t am335x_dmtimer_driver = {
 static devclass_t am335x_dmtimer_devclass;
 
 DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, am335x_dmtimer_devclass, 0, 0);
-MODULE_DEPEND(am335x_dmtimer, am335x_prcm, 1, 1, 1);
+MODULE_DEPEND(am335x_dmtimer, ti_sysc, 1, 1, 1);
 
 static void
 am335x_dmtimer_delay(int usec, void *arg)

@@ -247,8 +247,8 @@ priv_check(struct thread *td, int priv)
 	return (priv_check_cred(td->td_ucred, priv));
 }
 
-int
-priv_check_cred_vfs_generation(struct ucred *cred)
+static int __noinline
+priv_check_cred_vfs_generation_slow(struct ucred *cred)
 {
 	int error;
 
@@ -270,4 +270,19 @@ priv_check_cred_vfs_generation(struct ucred *cred)
 out:
 	return (priv_check_cred_post(cred, PRIV_VFS_GENERATION, error, true));
 
+}
+
+int
+priv_check_cred_vfs_generation(struct ucred *cred)
+{
+	int error;
+
+	if (__predict_false(mac_priv_check_fp_flag ||
+	    mac_priv_grant_fp_flag || SDT_PROBES_ENABLED()))
+		return (priv_check_cred_vfs_generation_slow(cred));
+
+	error = EPERM;
+	if (!jailed(cred) && cred->cr_uid == 0 && suser_enabled)
+		error = 0;
+	return (error);
 }

@@ -3541,6 +3541,33 @@ sys_renameat(struct thread *td, struct renameat_args *uap)
 	    UIO_USERSPACE));
 }
 
+#ifdef MAC
+static int
+kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
+    const char *new, enum uio_seg pathseg, struct nameidata *fromnd)
+{
+	int error;
+
+	NDINIT_ATRIGHTS(fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
+	    AUDITVNODE1, pathseg, old, oldfd, &cap_renameat_source_rights, td);
+	if ((error = namei(fromnd)) != 0)
+		return (error);
+	error = mac_vnode_check_rename_from(td->td_ucred, fromnd->ni_dvp,
+	    fromnd->ni_vp, &fromnd->ni_cnd);
+	VOP_UNLOCK(fromnd->ni_dvp);
+	if (fromnd->ni_dvp != fromnd->ni_vp)
+		VOP_UNLOCK(fromnd->ni_vp);
+	if (error != 0) {
+		NDFREE(fromnd, NDF_ONLY_PNBUF);
+		vrele(fromnd->ni_dvp);
+		vrele(fromnd->ni_vp);
+		if (fromnd->ni_startdir)
+			vrele(fromnd->ni_startdir);
+	}
+	return (error);
+}
+#endif
+
 int
 kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
     const char *new, enum uio_seg pathseg)
@@ -3553,23 +3580,19 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 again:
 	bwillwrite();
 #ifdef MAC
-	NDINIT_ATRIGHTS(&fromnd, DELETE, LOCKPARENT | LOCKLEAF | SAVESTART |
-	    AUDITVNODE1, pathseg, old, oldfd,
-	    &cap_renameat_source_rights, td);
-#else
-	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | SAVESTART | AUDITVNODE1,
-	    pathseg, old, oldfd,
-	    &cap_renameat_source_rights, td);
+	if (mac_vnode_check_rename_from_enabled()) {
+		error = kern_renameat_mac(td, oldfd, old, newfd, new, pathseg,
+		    &fromnd);
+		if (error != 0)
+			return (error);
+	} else {
 #endif
-
+	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | SAVESTART | AUDITVNODE1,
+	    pathseg, old, oldfd, &cap_renameat_source_rights, td);
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
 #ifdef MAC
-	error = mac_vnode_check_rename_from(td->td_ucred, fromnd.ni_dvp,
-	    fromnd.ni_vp, &fromnd.ni_cnd);
-	VOP_UNLOCK(fromnd.ni_dvp);
-	if (fromnd.ni_dvp != fromnd.ni_vp)
-		VOP_UNLOCK(fromnd.ni_vp);
+	}
 #endif
 	fvp = fromnd.ni_vp;
 	NDINIT_ATRIGHTS(&tond, RENAME, LOCKPARENT | LOCKLEAF | NOCACHE |

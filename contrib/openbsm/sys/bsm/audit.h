@@ -46,7 +46,7 @@
 #define	MIN_AUDIT_FILE_SIZE	(512 * 1024)
 
 /*
- * Minimum noumber of free blocks on the filesystem containing the audit
+ * Minimum number of free blocks on the filesystem containing the audit
  * log necessary to avoid a hard log rotation. DO NOT SET THIS VALUE TO 0
  * as the kernel does an unsigned compare, plus we want to leave a few blocks
  * free so userspace can terminate the log, etc.
@@ -249,14 +249,14 @@ typedef	struct au_token	token_t;
 /*
  * Kernel audit queue control parameters:
  * 			Default:		Maximum:
- * 	aq_hiwater:	AQ_HIWATER (100)	AQ_MAXHIGH (10000) 
+ * 	aq_hiwater:	AQ_HIWATER (100)	AQ_MAXHIGH (10000)
  * 	aq_lowater:	AQ_LOWATER (10)		<aq_hiwater
  * 	aq_bufsz:	AQ_BUFSZ (32767)	AQ_MAXBUFSZ (1048576)
- * 	aq_delay:	20			20000 (not used) 
+ * 	aq_delay:	20			20000 (not used)
  */
 struct au_qctrl {
 	int	aq_hiwater;	/* Max # of audit recs in queue when */
-				/* threads with new ARs get blocked. */ 
+				/* threads with new ARs get blocked. */
 
 	int	aq_lowater;	/* # of audit recs in queue when */
 				/* blocked threads get unblocked. */

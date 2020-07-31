@@ -824,12 +824,12 @@ dofault:
 
 			i = SIGTRAP;
 			ucode = TRAP_BRKPT;
-			addr = trapframe->pc;
 
 			/* compute address of break instruction */
 			va = trapframe->pc;
 			if (DELAYBRANCH(trapframe->cause))
 				va += sizeof(int);
+			addr = va;
 
 			if (td->td_md.md_ss_addr != va)
 				break;
@@ -1107,7 +1107,7 @@ err:
 	ksi.ksi_signo = i;
 	ksi.ksi_code = ucode;
 	ksi.ksi_addr = (void *)addr;
-	ksi.ksi_trapno = type;
+	ksi.ksi_trapno = type & ~T_USER;
 	trapsignal(td, &ksi);
 out:
 

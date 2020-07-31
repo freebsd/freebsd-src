@@ -147,8 +147,8 @@ vop_close {
 
 
 %% fplookup_vexec	vp	- - -
-%! fplookup_vexec	pre	vop_fplookup_vexec_pre
-%! fplookup_vexec	post	vop_fplookup_vexec_post
+%! fplookup_vexec	debugpre	vop_fplookup_vexec_debugpre
+%! fplookup_vexec	debugpost	vop_fplookup_vexec_debugpost
 
 vop_fplookup_vexec {
 	IN struct vnode *vp;
@@ -379,8 +379,8 @@ vop_inactive {
 	IN struct thread *td;
 };
 
-%! need_inactive	pre	vop_need_inactive_pre
-%! need_inactive	post	vop_need_inactive_post
+%! need_inactive	debugpre	vop_need_inactive_debugpre
+%! need_inactive	debugpost	vop_need_inactive_debugpost
 
 vop_need_inactive {
         IN struct vnode *vp;
@@ -395,8 +395,8 @@ vop_reclaim {
 };
 
 
-%! lock1	pre	vop_lock_pre
-%! lock1	post	vop_lock_post
+%! lock1	debugpre	vop_lock_debugpre
+%! lock1	debugpost	vop_lock_debugpost
 
 vop_lock1 {
 	IN struct vnode *vp;
@@ -406,7 +406,7 @@ vop_lock1 {
 };
 
 
-%! unlock	pre	vop_unlock_pre
+%! unlock	debugpre	vop_unlock_debugpre
 
 vop_unlock {
 	IN struct vnode *vp;
@@ -426,7 +426,7 @@ vop_bmap {
 
 
 %% strategy	vp	L L L
-%! strategy	pre	vop_strategy_pre
+%! strategy	debugpre	vop_strategy_debugpre
 
 vop_strategy {
 	IN struct vnode *vp;

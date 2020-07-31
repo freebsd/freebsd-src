@@ -4,7 +4,9 @@ a[bc]d		&	abd	abd
 a\*c		&	a*c	a*c
 a\\b		&	a\b	a\b
 a\\\*b		&	a\*b	a\*b
-a\bc		&	abc	abc
+# Begin FreeBSD
+a\bc		&C	EESCAPE
+# End FreeBSD
 a\		&C	EESCAPE
 a\\bc		&	a\bc	a\bc
 \{		bC	BADRPT

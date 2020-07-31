@@ -1520,10 +1520,6 @@ mps_alloc_requests(struct mps_softc *sc)
 	 */
 	sc->commands = malloc(sizeof(struct mps_command) * sc->num_reqs,
 	    M_MPT2, M_WAITOK | M_ZERO);
-	if(!sc->commands) {
-		mps_dprint(sc, MPS_ERROR, "Cannot allocate command memory\n");
-		return (ENOMEM);
-	}
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
 		cm->cm_req = sc->req_frames + i * sc->reqframesz;
@@ -2598,10 +2594,6 @@ mps_register_events(struct mps_softc *sc, u32 *mask,
 	int error = 0;
 
 	eh = malloc(sizeof(struct mps_event_handle), M_MPT2, M_WAITOK|M_ZERO);
-	if(!eh) {
-		mps_dprint(sc, MPS_ERROR, "Cannot allocate event memory\n");
-		return (ENOMEM);
-	}
 	eh->callback = cb;
 	eh->data = data;
 	TAILQ_INSERT_TAIL(&sc->event_list, eh, eh_list);

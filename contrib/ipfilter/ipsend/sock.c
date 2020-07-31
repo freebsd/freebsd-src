@@ -21,14 +21,8 @@ static const char rcsid[] = "@(#)$Id$";
  */
 typedef int     boolean_t;
 #endif
-#ifndef	ultrix
 #include <fcntl.h>
-#endif
-#if (__FreeBSD_version >= 300000)
 # include <sys/dirent.h>
-#else
-# include <sys/dir.h>
-#endif
 # ifdef __NetBSD__
 #  include <machine/lock.h>
 # endif
@@ -37,10 +31,6 @@ typedef int     boolean_t;
 # else
 #  define _KERNEL
 #  define	KERNEL
-# endif
-# ifdef	ultrix
-#  undef	LOCORE
-#  include <sys/smp_lock.h>
 # endif
 # include <sys/file.h>
 # ifdef __FreeBSD__
@@ -54,18 +44,14 @@ typedef int     boolean_t;
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/proc.h>
-#if !defined(ultrix) && !defined(hpux) && !defined(__osf__)
 # include <kvm.h>
-#endif
 #ifdef sun
 #include <sys/systm.h>
 #include <sys/session.h>
 #endif
-#if BSD >= 199103
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <paths.h>
-#endif
 #include <math.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -143,128 +129,10 @@ int	kmemcpy(buf, pos, n)
 struct	nlist	names[4] = {
 	{ "_proc" },
 	{ "_nproc" },
-#ifdef	ultrix
-	{ "_u" },
-#else
 	{ NULL },
-#endif
 	{ NULL }
 	};
 
-#if BSD < 199103
-static struct proc *getproc()
-{
-	struct	proc	*p;
-	pid_t	pid = getpid();
-	int	siz, n;
-
-	n = nlist(KERNEL, names);
-	if (n != 0)
-	    {
-		fprintf(stderr, "nlist(%#x) == %d\n", names, n);
-		return NULL;
-	    }
-	if (KMCPY(&nproc, names[1].n_value, sizeof(nproc)) == -1)
-	    {
-		fprintf(stderr, "read nproc (%#x)\n", names[1].n_value);
-		return NULL;
-	    }
-	siz = nproc * sizeof(struct proc);
-	if (KMCPY(&p, names[0].n_value, sizeof(p)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x,%d) proc\n",
-			names[0].n_value, &p, sizeof(p));
-		return NULL;
-	    }
-	proc = (struct proc *)malloc(siz);
-	if (KMCPY(proc, p, siz) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x,%d) proc\n",
-			p, proc, siz);
-		return NULL;
-	    }
-
-	p = proc;
-
-	for (n = nproc; n; n--, p++)
-		if (p->p_pid == pid)
-			break;
-	if (!n)
-		return NULL;
-
-	return p;
-}
-
-
-struct	tcpcb	*find_tcp(fd, ti)
-	int	fd;
-	struct	tcpiphdr *ti;
-{
-	struct	tcpcb	*t;
-	struct	inpcb	*i;
-	struct	socket	*s;
-	struct	user	*up;
-	struct	proc	*p;
-	struct	file	*f, **o;
-
-	if (!(p = getproc()))
-		return NULL;
-	up = (struct user *)malloc(sizeof(*up));
-#ifndef	ultrix
-	if (KMCPY(up, p->p_uarea, sizeof(*up)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x) failed\n", p, p->p_uarea);
-		return NULL;
-	    }
-#else
-	if (KMCPY(up, names[2].n_value, sizeof(*up)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x) failed\n", p, names[2].n_value);
-		return NULL;
-	    }
-#endif
-
-	o = (struct file **)calloc(up->u_lastfile + 1, sizeof(*o));
-	if (KMCPY(o, up->u_ofile, (up->u_lastfile + 1) * sizeof(*o)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x,%d) - u_ofile - failed\n",
-			up->u_ofile, o, sizeof(*o));
-		return NULL;
-	    }
-	f = (struct file *)calloc(1, sizeof(*f));
-	if (KMCPY(f, o[fd], sizeof(*f)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x,%d) - o[fd] - failed\n",
-			up->u_ofile[fd], f, sizeof(*f));
-		return NULL;
-	    }
-
-	s = (struct socket *)calloc(1, sizeof(*s));
-	if (KMCPY(s, f->f_data, sizeof(*s)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x,%d) - f_data - failed\n",
-			o[fd], s, sizeof(*s));
-		return NULL;
-	    }
-
-	i = (struct inpcb *)calloc(1, sizeof(*i));
-	if (KMCPY(i, s->so_pcb, sizeof(*i)) == -1)
-	    {
-		fprintf(stderr, "kvm_read(%#x,%#x,%d) - so_pcb - failed\n",
-			s->so_pcb, i, sizeof(*i));
-		return NULL;
-	    }
-
-	t = (struct tcpcb *)calloc(1, sizeof(*t));
-	if (KMCPY(t, i->inp_ppcb, sizeof(*t)) == -1)
-	    {
-		fprintf(stderr, "read(%#x,%#x,%d) - inp_ppcb - failed\n",
-			i->inp_ppcb, t, sizeof(*t));
-		return NULL;
-	    }
-	return (struct tcpcb *)i->inp_ppcb;
-}
-#else
 static struct kinfo_proc *getproc()
 {
 	static	struct	kinfo_proc kp;
@@ -304,7 +172,7 @@ struct	tcpcb	*find_tcp(tfd, ti)
 	fd = (struct filedesc *)malloc(sizeof(*fd));
 	if (fd == NULL)
 		return NULL;
-#if defined( __FreeBSD_version) && __FreeBSD_version >= 500013
+#if defined( __FreeBSD_version)
 	if (KMCPY(fd, p->ki_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
@@ -381,7 +249,6 @@ finderror:
 		free(t);
 	return NULL;
 }
-#endif /* BSD < 199301 */
 
 int	do_socket(dev, mtu, ti, gwip)
 	char	*dev;

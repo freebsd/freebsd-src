@@ -2,10 +2,10 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	${_drti} \
+SUBDIR=	drti \
 	libavl \
 	libctf \
-	${_libdtrace} \
+	libdtrace \
 	libnvpair \
 	libumem \
 	libuutil \
@@ -21,11 +21,6 @@ _libzfs=	libzfs
 .if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool
 .endif
-.endif
-
-.if ${MACHINE_CPUARCH} != "sparc64"
-_drti=		drti
-_libdtrace=	libdtrace
 .endif
 
 SUBDIR_DEPEND_libdtrace=	libctf

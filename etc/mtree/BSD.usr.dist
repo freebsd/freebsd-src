@@ -864,8 +864,6 @@
                 ..
                 powerpc
                 ..
-                sparc64
-                ..
             ..
             man5
             ..
@@ -879,8 +877,6 @@
                 i386
                 ..
                 powerpc
-                ..
-                sparc64
                 ..
             ..
             man9

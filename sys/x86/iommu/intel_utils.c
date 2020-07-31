@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/tree.h>
 #include <sys/vmem.h>
-#include <dev/pci/pcivar.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
@@ -59,14 +58,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
 #include <x86/include/apicvar.h>
 #include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
 #include <dev/iommu/busdma_iommu.h>
-#include <dev/pci/pcireg.h>
+#include <x86/iommu/intel_reg.h>
 #include <x86/iommu/intel_dmar.h>
 
 u_int

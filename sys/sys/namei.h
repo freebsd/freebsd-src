@@ -210,7 +210,15 @@ void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
 #define NDF_NO_FREE_PNBUF	0x00000020
 #define NDF_ONLY_PNBUF		(~NDF_NO_FREE_PNBUF)
 
+void NDFREE_PNBUF(struct nameidata *);
 void NDFREE(struct nameidata *, const u_int);
+#define NDFREE(ndp, flags) do {						\
+	struct nameidata *_ndp = (ndp);					\
+	if (__builtin_constant_p(flags) && flags == NDF_ONLY_PNBUF)	\
+		NDFREE_PNBUF(_ndp);					\
+	else								\
+		NDFREE(_ndp, flags);					\
+} while (0)
 
 int	namei(struct nameidata *ndp);
 int	lookup(struct nameidata *ndp);
