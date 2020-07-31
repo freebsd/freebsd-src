@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2020
+.Dd July 31, 2020
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -882,7 +882,11 @@ Prevent booting to multiuser mode.
 If the
 .Va autoboot
 variable is set to
-.Ql yes ,
+.Ql yes
+(see
+.Xr rc 8
+to learn more about
+.Va autoboot ) ,
 or
 .Ic checkyesno Ar always
 indicates a truth value, then a
