@@ -120,6 +120,8 @@ public:
 
   void setMF(MachineFunction &MF);
 
+  Error verify();
+
   /// Records a newly created inst in a list and lazily insert it to the CSEMap.
   /// Sometimes, this method might be called with a partially constructed
   /// MachineInstr,
@@ -173,14 +175,14 @@ public:
       : ID(ID), MRI(MRI) {}
   // Profiling methods.
   const GISelInstProfileBuilder &addNodeIDOpcode(unsigned Opc) const;
-  const GISelInstProfileBuilder &addNodeIDRegType(const LLT &Ty) const;
-  const GISelInstProfileBuilder &addNodeIDRegType(const unsigned) const;
+  const GISelInstProfileBuilder &addNodeIDRegType(const LLT Ty) const;
+  const GISelInstProfileBuilder &addNodeIDRegType(const Register) const;
 
   const GISelInstProfileBuilder &
   addNodeIDRegType(const TargetRegisterClass *RC) const;
   const GISelInstProfileBuilder &addNodeIDRegType(const RegisterBank *RB) const;
 
-  const GISelInstProfileBuilder &addNodeIDRegNum(unsigned Reg) const;
+  const GISelInstProfileBuilder &addNodeIDRegNum(Register Reg) const;
 
   const GISelInstProfileBuilder &addNodeIDImmediate(int64_t Imm) const;
   const GISelInstProfileBuilder &

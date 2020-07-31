@@ -19,9 +19,7 @@
 namespace llvm {
 
 class FunctionPass;
-class ImmutablePass;
 class InstructionSelector;
-class ModulePass;
 class PassRegistry;
 class X86RegisterBankInfo;
 class X86Subtarget;
@@ -129,14 +127,23 @@ FunctionPass *createX86DiscriminateMemOpsPass();
 /// This pass applies profiling information to insert cache prefetches.
 FunctionPass *createX86InsertPrefetchPass();
 
+/// This pass insert wait instruction after X87 instructions which could raise
+/// fp exceptions when strict-fp enabled.
+FunctionPass *createX86InsertX87waitPass();
+
+/// This pass optimizes arithmetic based on knowledge that is only used by
+/// a reduction sequence and is therefore safe to reassociate in interesting
+/// ways.
+FunctionPass *createX86PartialReductionPass();
+
 InstructionSelector *createX86InstructionSelector(const X86TargetMachine &TM,
                                                   X86Subtarget &,
                                                   X86RegisterBankInfo &);
 
 FunctionPass *createX86LoadValueInjectionLoadHardeningPass();
-FunctionPass *createX86LoadValueInjectionLoadHardeningUnoptimizedPass();
 FunctionPass *createX86LoadValueInjectionRetHardeningPass();
 FunctionPass *createX86SpeculativeLoadHardeningPass();
+FunctionPass *createX86SpeculativeExecutionSideEffectSuppression();
 
 void initializeEvexToVexInstPassPass(PassRegistry &);
 void initializeFixupBWInstPassPass(PassRegistry &);
@@ -144,18 +151,21 @@ void initializeFixupLEAPassPass(PassRegistry &);
 void initializeFPSPass(PassRegistry &);
 void initializeWinEHStatePassPass(PassRegistry &);
 void initializeX86AvoidSFBPassPass(PassRegistry &);
+void initializeX86AvoidTrailingCallPassPass(PassRegistry &);
 void initializeX86CallFrameOptimizationPass(PassRegistry &);
 void initializeX86CmovConverterPassPass(PassRegistry &);
 void initializeX86CondBrFoldingPassPass(PassRegistry &);
 void initializeX86DomainReassignmentPass(PassRegistry &);
 void initializeX86ExecutionDomainFixPass(PassRegistry &);
 void initializeX86ExpandPseudoPass(PassRegistry &);
+void initializeX86FixupSetCCPassPass(PassRegistry &);
 void initializeX86FlagsCopyLoweringPassPass(PassRegistry &);
-void initializeX86LoadValueInjectionLoadHardeningUnoptimizedPassPass(PassRegistry &);
 void initializeX86LoadValueInjectionLoadHardeningPassPass(PassRegistry &);
 void initializeX86LoadValueInjectionRetHardeningPassPass(PassRegistry &);
 void initializeX86OptimizeLEAPassPass(PassRegistry &);
+void initializeX86PartialReductionPass(PassRegistry &);
 void initializeX86SpeculativeLoadHardeningPassPass(PassRegistry &);
+void initializeX86SpeculativeExecutionSideEffectSuppressionPass(PassRegistry &);
 
 namespace X86AS {
 enum : unsigned {

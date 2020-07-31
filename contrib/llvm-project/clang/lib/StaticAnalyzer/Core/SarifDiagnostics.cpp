@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Analysis/PathDiagnostic.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/Version.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
@@ -49,8 +50,14 @@ public:
 void ento::createSarifDiagnosticConsumer(
     AnalyzerOptions &AnalyzerOpts, PathDiagnosticConsumers &C,
     const std::string &Output, const Preprocessor &PP,
-    const cross_tu::CrossTranslationUnitContext &) {
+    const cross_tu::CrossTranslationUnitContext &CTU) {
+
+  // TODO: Emit an error here.
+  if (Output.empty())
+    return;
+
   C.push_back(new SarifDiagnostics(AnalyzerOpts, Output, PP.getLangOpts()));
+  createTextMinimalPathDiagnosticConsumer(AnalyzerOpts, C, Output, PP, CTU);
 }
 
 static StringRef getFileName(const FileEntry &FE) {
@@ -106,7 +113,7 @@ static std::string fileNameToURI(StringRef Filename) {
     }
   });
 
-  return Ret.str().str();
+  return std::string(Ret);
 }
 
 static json::Object createArtifactLocation(const FileEntry &FE) {
@@ -322,7 +329,7 @@ static json::Object createRule(const PathDiagnostic &Diag) {
       {"name", CheckName},
       {"id", CheckName}};
 
-  std::string RuleURI = getRuleHelpURIStr(CheckName);
+  std::string RuleURI = std::string(getRuleHelpURIStr(CheckName));
   if (!RuleURI.empty())
     Ret["helpUri"] = RuleURI;
 

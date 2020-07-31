@@ -1,4 +1,4 @@
-//===-- CommandObjectCommands.cpp -------------------------------*- C++ -*-===//
+//===-- CommandObjectCommands.cpp -----------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -527,14 +527,13 @@ protected:
     m_option_group.NotifyOptionParsingStarting(&exe_ctx);
 
     OptionsWithRaw args_with_suffix(raw_command_line);
-    const char *remainder = args_with_suffix.GetRawPart().c_str();
 
     if (args_with_suffix.HasArgs())
       if (!ParseOptionsAndNotify(args_with_suffix.GetArgs(), result,
                                  m_option_group, exe_ctx))
         return false;
 
-    llvm::StringRef raw_command_string(remainder);
+    llvm::StringRef raw_command_string = args_with_suffix.GetRawPart();
     Args args(raw_command_string);
 
     if (args.GetArgumentCount() < 2) {
@@ -652,8 +651,8 @@ protected:
     }
 
     // Save these in std::strings since we're going to shift them off.
-    const std::string alias_command(args[0].ref());
-    const std::string actual_command(args[1].ref());
+    const std::string alias_command(std::string(args[0].ref()));
+    const std::string actual_command(std::string(args[1].ref()));
 
     args.Shift(); // Shift the alias command word off the argument vector.
     args.Shift(); // Shift the old command word off the argument vector.
@@ -1007,7 +1006,7 @@ protected:
           *this, nullptr));
 
       if (io_handler_sp) {
-        debugger.PushIOHandler(io_handler_sp);
+        debugger.RunIOHandlerAsync(io_handler_sp);
         result.SetStatus(eReturnStatusSuccessFinishNoResult);
       }
     } else {
@@ -1114,12 +1113,12 @@ protected:
     }
 
     if (!check_only) {
-      std::string regex(regex_sed.substr(first_separator_char_pos + 1,
-                                         second_separator_char_pos -
-                                             first_separator_char_pos - 1));
-      std::string subst(regex_sed.substr(second_separator_char_pos + 1,
-                                         third_separator_char_pos -
-                                             second_separator_char_pos - 1));
+      std::string regex(std::string(regex_sed.substr(
+          first_separator_char_pos + 1,
+          second_separator_char_pos - first_separator_char_pos - 1)));
+      std::string subst(std::string(regex_sed.substr(
+          second_separator_char_pos + 1,
+          third_separator_char_pos - second_separator_char_pos - 1)));
       m_regex_cmd_up->AddRegexCommand(regex.c_str(), subst.c_str());
     }
     return error;
@@ -1150,10 +1149,10 @@ private:
 
       switch (short_option) {
       case 'h':
-        m_help.assign(option_arg);
+        m_help.assign(std::string(option_arg));
         break;
       case 's':
-        m_syntax.assign(option_arg);
+        m_syntax.assign(std::string(option_arg));
         break;
       default:
         llvm_unreachable("Unimplemented option");
@@ -1171,14 +1170,9 @@ private:
       return llvm::makeArrayRef(g_regex_options);
     }
 
-    // TODO: Convert these functions to return StringRefs.
-    const char *GetHelp() {
-      return (m_help.empty() ? nullptr : m_help.c_str());
-    }
+    llvm::StringRef GetHelp() { return m_help; }
 
-    const char *GetSyntax() {
-      return (m_syntax.empty() ? nullptr : m_syntax.c_str());
-    }
+    llvm::StringRef GetSyntax() { return m_syntax; }
 
   protected:
     // Instance variables to hold the values for command options.
@@ -1526,15 +1520,15 @@ protected:
       switch (short_option) {
       case 'f':
         if (!option_arg.empty())
-          m_funct_name = option_arg;
+          m_funct_name = std::string(option_arg);
         break;
       case 'c':
         if (!option_arg.empty())
-          m_class_name = option_arg;
+          m_class_name = std::string(option_arg);
         break;
       case 'h':
         if (!option_arg.empty())
-          m_short_help = option_arg;
+          m_short_help = std::string(option_arg);
         break;
       case 's':
         m_synchronicity =
@@ -1627,7 +1621,6 @@ protected:
     io_handler.SetIsDone(true);
   }
 
-protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {
     if (GetDebugger().GetScriptLanguage() != lldb::eScriptLanguagePython) {
       result.AppendError("only scripting language supported for scripted "
@@ -1643,7 +1636,7 @@ protected:
     }
 
     // Store the options in case we get multi-line input
-    m_cmd_name = command[0].ref();
+    m_cmd_name = std::string(command[0].ref());
     m_short_help.assign(m_options.m_short_help);
     m_synchronicity = m_options.m_synchronicity;
 
@@ -1772,6 +1765,16 @@ public:
   }
 
   ~CommandObjectCommandsScriptDelete() override = default;
+
+  void
+  HandleArgumentCompletion(CompletionRequest &request,
+                           OptionElementVector &opt_element_vector) override {
+    if (!m_interpreter.HasCommands() || request.GetCursorIndex() != 0)
+      return;
+
+    for (const auto &c : m_interpreter.GetUserCommands())
+      request.TryCompleteCurrentArg(c.first, c.second->GetHelp());
+  }
 
 protected:
   bool DoExecute(Args &command, CommandReturnObject &result) override {

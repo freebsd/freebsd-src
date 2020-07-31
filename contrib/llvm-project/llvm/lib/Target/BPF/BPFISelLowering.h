@@ -99,10 +99,9 @@ private:
                       const SmallVectorImpl<SDValue> &OutVals, const SDLoc &DL,
                       SelectionDAG &DAG) const override;
 
-  EVT getOptimalMemOpType(uint64_t Size, unsigned DstAlign, unsigned SrcAlign,
-                          bool IsMemset, bool ZeroMemset, bool MemcpyStrSrc,
+  EVT getOptimalMemOpType(const MemOp &Op,
                           const AttributeList &FuncAttributes) const override {
-    return Size >= 8 ? MVT::i64 : MVT::i32;
+    return Op.size() >= 8 ? MVT::i64 : MVT::i32;
   }
 
   bool shouldConvertConstantLoadToIntImm(const APInt &Imm,
@@ -122,6 +121,16 @@ private:
                              EVT NewVT) const override {
     return false;
   }
+
+  // isTruncateFree - Return true if it's free to truncate a value of
+  // type Ty1 to type Ty2. e.g. On BPF at alu32 mode, it's free to truncate
+  // a i64 value in register R1 to i32 by referencing its sub-register W1.
+  bool isTruncateFree(Type *Ty1, Type *Ty2) const override;
+  bool isTruncateFree(EVT VT1, EVT VT2) const override;
+
+  // For 32bit ALU result zext to 64bit is free.
+  bool isZExtFree(Type *Ty1, Type *Ty2) const override;
+  bool isZExtFree(EVT VT1, EVT VT2) const override;
 
   unsigned EmitSubregExt(MachineInstr &MI, MachineBasicBlock *BB, unsigned Reg,
                          bool isSigned) const;

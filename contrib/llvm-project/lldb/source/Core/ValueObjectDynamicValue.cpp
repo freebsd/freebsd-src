@@ -1,4 +1,4 @@
-//===-- ValueObjectDynamicValue.cpp ------------------------------*- C++-*-===//
+//===-- ValueObjectDynamicValue.cpp ---------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -237,7 +237,6 @@ bool ValueObjectDynamicValue::UpdateValue() {
     m_dynamic_type_info =
         runtime->FixUpDynamicType(m_dynamic_type_info, *m_parent);
 
-  // m_value.SetContext (Value::eContextTypeClangType, corrected_type);
   m_value.SetCompilerType(m_dynamic_type_info.GetCompilerType());
 
   m_value.SetValueType(value_type);
@@ -328,7 +327,7 @@ bool ValueObjectDynamicValue::SetData(DataExtractor &data, Status &error) {
     // but NULL'ing out a value should always be allowed
     lldb::offset_t offset = 0;
 
-    if (data.GetPointer(&offset) != 0) {
+    if (data.GetAddress(&offset) != 0) {
       error.SetErrorString(
           "unable to modify dynamic value, use 'expression' command");
       return false;

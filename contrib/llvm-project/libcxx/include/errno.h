@@ -32,79 +32,49 @@ Macros:
 
 #ifdef __cplusplus
 
-#if !defined(EOWNERDEAD) || !defined(ENOTRECOVERABLE) || !defined(EINTEGRITY)
+#if !defined(EOWNERDEAD) || !defined(ENOTRECOVERABLE)
 
-#if defined(ELAST)
+#ifdef ELAST
 
 static const int __elast1 = ELAST+1;
 static const int __elast2 = ELAST+2;
-static const int __elast3 = ELAST+3;
 
 #else
 
 static const int __elast1 = 104;
 static const int __elast2 = 105;
-static const int __elast3 = 106;
 
 #endif
 
-#if !defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
-#define ENOTRECOVERABLE __elast1
-#define EOWNERDEAD __elast2
-#define EINTEGRITY __elast3
-#if defined(ELAST)
-#undef ELAST
-#define ELAST EINTEGRITY
-#endif
+#ifdef ENOTRECOVERABLE
 
-#elif !defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
-#define ENOTRECOVERABLE __elast1
-#define EOWNERDEAD __elast2
-#if defined(ELAST)
+#define EOWNERDEAD __elast1
+
+#ifdef ELAST
 #undef ELAST
 #define ELAST EOWNERDEAD
 #endif
 
-#elif !defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
-#define EOWNERDEAD __elast1
-#define EINTEGRITY __elast2
-#if defined(ELAST)
-#undef ELAST
-#define ELAST EINTEGRITY
-#endif
+#elif defined(EOWNERDEAD)
 
-#elif !defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
-#define EOWNERDEAD __elast1
-#if defined(ELAST)
-#undef ELAST
-#define ELAST EOWNERDEAD
-#endif
-
-#elif defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
-#define EINTEGRITY __elast2
-#if defined(ELAST)
-#undef ELAST
-#define ELAST EINTEGRITY
-#endif
-
-#elif defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
-#define ENOTRECOVERABLE __elast1
-#if defined(ELAST)
+#ifdef ELAST
 #undef ELAST
 #define ELAST ENOTRECOVERABLE
 #endif
 
-#elif defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
-#define EINTEGRITY __elast1
-#if defined(ELAST)
+#else  // defined(EOWNERDEAD)
+
+#define EOWNERDEAD __elast1
+#define ENOTRECOVERABLE __elast2
+#ifdef ELAST
 #undef ELAST
-#define ELAST EINTEGRITY
+#define ELAST ENOTRECOVERABLE
 #endif
 
-#endif // !defined(OWNERDEAD) && !defined(NOTRECOVERABLE) && !defined(INTEGRITY)
+#endif  // defined(EOWNERDEAD)
 
-#endif // !defined(OWNERDEAD) || !defined(NOTRECOVERABLE) || !defined(INTEGRITY)
+#endif  // !defined(EOWNERDEAD) || !defined(ENOTRECOVERABLE)
 
 //  supply errno values likely to be missing, particularly on Windows
 
@@ -420,10 +390,6 @@ static const int __elast3 = 106;
 
 #ifndef EMLINK
 #define EMLINK 9979
-#endif
-
-#ifndef EINTEGRITY
-#define EINTEGRITY 9980
 #endif
 
 #endif // __cplusplus
