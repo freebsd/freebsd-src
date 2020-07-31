@@ -244,14 +244,11 @@ void dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt);
 vm_object_t domain_get_idmap_pgtbl(struct dmar_domain *domain,
     iommu_gaddr_t maxaddr);
 void put_idmap_pgtbl(vm_object_t obj);
-int domain_map_buf(struct iommu_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags);
-int domain_unmap_buf(struct dmar_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, int flags);
 void domain_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size);
 int domain_alloc_pgtbl(struct dmar_domain *domain);
 void domain_free_pgtbl(struct dmar_domain *domain);
+void domain_pgtbl_init(struct dmar_domain *domain);
 
 int dmar_dev_depth(device_t child);
 void dmar_dev_path(device_t child, int *busno, void *path1, int depth);
