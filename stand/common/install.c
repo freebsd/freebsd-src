@@ -286,10 +286,6 @@ install(char *pkgname)
 
 		setenv("serverip", inet_ntoa(servip), 1);
 
-		if (proto == &tftp_fsops) {
-			tftpip.s_addr = servip.s_addr;
-		}
-
 		*pkgname = '/';
 	} else
 		pkgname = s;
@@ -340,7 +336,7 @@ install(char *pkgname)
 	fd = open(s, O_RDONLY);
 	if (fd != -1) {
 		close(fd);
-		error = inter_include(s);
+		error = interp_include(s);
 		if (error == CMD_ERROR)
 			goto fail;
 	}
