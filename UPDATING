@@ -33,6 +33,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	ports, but other non-ports software may need extra escapes removed to
 	continue to function.
 
+	Because of this change, installworld may encounter the following error
+	from rtld: Undefined symbol "regcomp@FBSD_1.6" -- It is imperative that
+	you do not halt installworld. Instead, let it run to completion (whether
+	successful or not) and run installworld once more.
+
 20200627:
 	A new implementation of bc and dc has been imorted in r362681. This
 	implementation corrects non-conformant behavior of the previous bc
