@@ -1,4 +1,4 @@
-//===-- MemoryHistoryASan.cpp -----------------------------------*- C++ -*-===//
+//===-- MemoryHistoryASan.cpp ---------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -27,6 +27,8 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+LLDB_PLUGIN_DEFINE(MemoryHistoryASan)
 
 MemoryHistorySP MemoryHistoryASan::CreateInstance(const ProcessSP &process_sp) {
   if (!process_sp.get())
@@ -136,7 +138,12 @@ static void CreateHistoryThreadFromValueObject(ProcessSP process_sp,
     pcs.push_back(pc);
   }
 
-  HistoryThread *history_thread = new HistoryThread(*process_sp, tid, pcs);
+  // The ASAN runtime already massages the return addresses into call
+  // addresses, we don't want LLDB's unwinder to try to locate the previous
+  // instruction again as this might lead to us reporting a different line.
+  bool pcs_are_call_addresses = true;
+  HistoryThread *history_thread =
+      new HistoryThread(*process_sp, tid, pcs, pcs_are_call_addresses);
   ThreadSP new_thread_sp(history_thread);
   std::ostringstream thread_name_with_number;
   thread_name_with_number << thread_name << " Thread " << tid;

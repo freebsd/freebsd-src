@@ -1,4 +1,4 @@
-//===-- BreakpointLocation.cpp ----------------------------------*- C++ -*-===//
+//===-- BreakpointLocation.cpp --------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -369,7 +369,7 @@ BreakpointOptions *BreakpointLocation::GetLocationOptions() {
   // potentially expensive and we don't want to do that for the simple case
   // where someone is just disabling the location.
   if (m_options_up == nullptr)
-    m_options_up.reset(new BreakpointOptions(false));
+    m_options_up = std::make_unique<BreakpointOptions>(false);
 
   return m_options_up.get();
 }
@@ -597,7 +597,8 @@ void BreakpointLocation::GetDescription(Stream *s,
     s->EOL();
     s->Indent();
     s->Printf("resolved = %s\n", IsResolved() ? "true" : "false");
-
+    s->Indent();
+    s->Printf("hardware = %s\n", IsHardware() ? "true" : "false");
     s->Indent();
     s->Printf("hit count = %-4u\n", GetHitCount());
 
@@ -608,8 +609,8 @@ void BreakpointLocation::GetDescription(Stream *s,
     }
     s->IndentLess();
   } else if (level != eDescriptionLevelInitial) {
-    s->Printf(", %sresolved, hit count = %u ", (IsResolved() ? "" : "un"),
-              GetHitCount());
+    s->Printf(", %sresolved, %shit count = %u ", (IsResolved() ? "" : "un"),
+              (IsHardware() ? "hardware, " : ""), GetHitCount());
     if (m_options_up) {
       m_options_up->GetDescription(s, level);
     }

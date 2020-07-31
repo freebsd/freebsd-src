@@ -1,4 +1,4 @@
-//===-- FunctionCaller.cpp ---------------------------------------*- C++-*-===//
+//===-- FunctionCaller.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -364,8 +364,9 @@ lldb::ExpressionResults FunctionCaller::ExecuteFunction(
     if (return_value != lldb::eExpressionCompleted) {
       LLDB_LOGF(log,
                 "== [FunctionCaller::ExecuteFunction] Execution of \"%s\" "
-                "completed abnormally ==",
-                m_name.c_str());
+                "completed abnormally: %s ==",
+                m_name.c_str(),
+                Process::ExecutionResultAsCString(return_value));
     } else {
       LLDB_LOGF(log,
                 "== [FunctionCaller::ExecuteFunction] Execution of \"%s\" "

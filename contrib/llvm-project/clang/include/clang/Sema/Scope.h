@@ -320,15 +320,28 @@ public:
 
   /// isDeclScope - Return true if this is the scope that the specified decl is
   /// declared in.
-  bool isDeclScope(Decl *D) {
-    return DeclsInScope.count(D) != 0;
+  bool isDeclScope(const Decl *D) const { return DeclsInScope.count(D) != 0; }
+
+  /// Get the entity corresponding to this scope.
+  DeclContext *getEntity() const {
+    return isTemplateParamScope() ? nullptr : Entity;
   }
 
-  DeclContext *getEntity() const { return Entity; }
-  void setEntity(DeclContext *E) { Entity = E; }
+  /// Get the DeclContext in which to continue unqualified lookup after a
+  /// lookup in this scope.
+  DeclContext *getLookupEntity() const { return Entity; }
 
-  bool hasErrorOccurred() const { return ErrorTrap.hasErrorOccurred(); }
+  void setEntity(DeclContext *E) {
+    assert(!isTemplateParamScope() &&
+           "entity associated with template param scope");
+    Entity = E;
+  }
+  void setLookupEntity(DeclContext *E) { Entity = E; }
 
+  /// Determine whether any unrecoverable errors have occurred within this
+  /// scope. Note that this may return false even if the scope contains invalid
+  /// declarations or statements, if the errors for those invalid constructs
+  /// were suppressed because some prior invalid construct was referenced.
   bool hasUnrecoverableErrorOccurred() const {
     return ErrorTrap.hasUnrecoverableErrorOccurred();
   }

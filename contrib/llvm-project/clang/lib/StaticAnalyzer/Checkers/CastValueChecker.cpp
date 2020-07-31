@@ -30,7 +30,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class CastValueChecker : public Checker<eval::Call> {
+class CastValueChecker : public Checker<check::DeadSymbols, eval::Call> {
   enum class CallKind { Function, Method, InstanceOf };
 
   using CastCheck =
@@ -51,6 +51,7 @@ public:
   // 1) isa:             The parameter is non-null, returns boolean.
   // 2) isa_and_nonnull: The parameter is null or non-null, returns boolean.
   bool evalCall(const CallEvent &Call, CheckerContext &C) const;
+  void checkDeadSymbols(SymbolReaper &SR, CheckerContext &C) const;
 
 private:
   // These are known in the LLVM project. The pairs are in the following form:
@@ -129,7 +130,7 @@ static const NoteTag *getNoteTag(CheckerContext &C,
         Out << ' ' << (CastSucceeds ? "is a" : "is not a") << " '" << CastToName
             << '\'';
 
-        return Out.str();
+        return std::string(Out.str());
       },
       /*IsPrunable=*/true);
 }
@@ -432,10 +433,15 @@ bool CastValueChecker::evalCall(const CallEvent &Call,
   return true;
 }
 
+void CastValueChecker::checkDeadSymbols(SymbolReaper &SR,
+                                        CheckerContext &C) const {
+  C.addTransition(removeDeadCasts(C.getState(), SR));
+}
+
 void ento::registerCastValueChecker(CheckerManager &Mgr) {
   Mgr.registerChecker<CastValueChecker>();
 }
 
-bool ento::shouldRegisterCastValueChecker(const LangOptions &LO) {
+bool ento::shouldRegisterCastValueChecker(const CheckerManager &mgr) {
   return true;
 }

@@ -1,4 +1,4 @@
-//===-- JITLoaderGDB.cpp ----------------------------------------*- C++ -*-===//
+//===-- JITLoaderGDB.cpp --------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,9 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "JITLoaderGDB.h"
-#ifdef LLDB_ENABLE_ALL
 #include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
-#endif
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
@@ -33,6 +31,8 @@
 
 using namespace lldb;
 using namespace lldb_private;
+
+LLDB_PLUGIN_DEFINE(JITLoaderGDB)
 
 // Debug Interface Structures
 enum jit_actions_t { JIT_NOACTION = 0, JIT_REGISTER_FN, JIT_UNREGISTER_FN };
@@ -134,9 +134,9 @@ bool ReadJITEntry(const addr_t from_addr, Process *process,
   DataExtractor extractor(data.GetBytes(), data.GetByteSize(),
                           process->GetByteOrder(), sizeof(ptr_t));
   lldb::offset_t offset = 0;
-  entry->next_entry = extractor.GetPointer(&offset);
-  entry->prev_entry = extractor.GetPointer(&offset);
-  entry->symfile_addr = extractor.GetPointer(&offset);
+  entry->next_entry = extractor.GetAddress(&offset);
+  entry->prev_entry = extractor.GetAddress(&offset);
+  entry->symfile_addr = extractor.GetAddress(&offset);
   offset = llvm::alignTo(offset, uint64_align_bytes);
   entry->symfile_size = extractor.GetU64(&offset);
 
@@ -338,7 +338,6 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
         module_sp->GetObjectFile()->GetSymtab();
 
         m_jit_objects.insert(std::make_pair(symbolfile_addr, module_sp));
-#ifdef LLDB_ENABLE_ALL
         if (auto image_object_file =
                 llvm::dyn_cast<ObjectFileMachO>(module_sp->GetObjectFile())) {
           const SectionList *section_list = image_object_file->GetSectionList();
@@ -350,9 +349,7 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
                                      symbolfile_size, vmaddrheuristic, lower,
                                      upper);
           }
-        } else
-#endif
-        {
+        } else {
           bool changed = false;
           module_sp->SetLoadAddress(target, 0, true, changed);
         }
