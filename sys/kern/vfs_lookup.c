@@ -347,7 +347,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			*dpp = pwd->pwd_cdir;
 			vrefact(*dpp);
 		} else {
-			rights = ndp->ni_rightsneeded;
+			rights = *ndp->ni_rightsneeded;
 			cap_rights_set_one(&rights, CAP_LOOKUP);
 
 			if (cnp->cn_flags & AUDITVNODE1)
@@ -403,7 +403,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			ndp->ni_beneath_latch = pwd->pwd_cdir;
 			vrefact(ndp->ni_beneath_latch);
 		} else {
-			rights = ndp->ni_rightsneeded;
+			rights = *ndp->ni_rightsneeded;
 			cap_rights_set_one(&rights, CAP_LOOKUP);
 			error = fgetvp_rights(td, ndp->ni_dirfd, &rights,
 			    &dirfd_caps, &ndp->ni_beneath_latch);
@@ -1381,7 +1381,7 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
 	ndp->ni_resflags = 0;
 	filecaps_init(&ndp->ni_filecaps);
 	ndp->ni_cnd.cn_thread = td;
-	ndp->ni_rightsneeded = *rightsp;
+	ndp->ni_rightsneeded = rightsp;
 }
 
 /*
