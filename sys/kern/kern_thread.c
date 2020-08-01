@@ -543,6 +543,7 @@ thread_exit(void)
 	    (long)p->p_pid, td->td_name);
 	SDT_PROBE0(proc, , , lwp__exit);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
+	MPASS(td->td_realucred == td->td_ucred);
 
 	/*
 	 * drop FPU & debug register state storage, or any other
