@@ -196,9 +196,22 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, &cap_no_rights, td)
 
-void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
-    enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,
-    cap_rights_t *rightsp, struct thread *td);
+#define NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, startdir, rightsp, td)	\
+do {										\
+	struct nameidata *_ndp = (ndp);						\
+	cap_rights_t *_rightsp = (rightsp);					\
+	MPASS(_rightsp != NULL);						\
+	_ndp->ni_cnd.cn_nameiop = op;						\
+	_ndp->ni_cnd.cn_flags = flags;						\
+	_ndp->ni_segflg = segflg;						\
+	_ndp->ni_dirp = namep;							\
+	_ndp->ni_dirfd = dirfd;							\
+	_ndp->ni_startdir = startdir;						\
+	_ndp->ni_resflags = 0;							\
+	filecaps_init(&_ndp->ni_filecaps);					\
+	_ndp->ni_cnd.cn_thread = td;						\
+	_ndp->ni_rightsneeded = _rightsp;					\
+} while (0)
 
 #define NDF_NO_DVP_RELE		0x00000001
 #define NDF_NO_DVP_UNLOCK	0x00000002
