@@ -188,13 +188,13 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Initialization of a nameidata structure.
  */
 #define	NDINIT(ndp, op, flags, segflg, namep, td)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, 0, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, &cap_no_rights, td)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, 0, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, &cap_no_rights, td)
 #define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rightsp, td) \
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, 0, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, &cap_no_rights, td)
 
 void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
     enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,

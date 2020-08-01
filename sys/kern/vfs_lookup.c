@@ -1371,6 +1371,7 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
     struct thread *td)
 {
 
+	MPASS(rightsp != NULL);
 	ndp->ni_cnd.cn_nameiop = op;
 	ndp->ni_cnd.cn_flags = flags;
 	ndp->ni_segflg = segflg;
@@ -1380,10 +1381,7 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
 	ndp->ni_resflags = 0;
 	filecaps_init(&ndp->ni_filecaps);
 	ndp->ni_cnd.cn_thread = td;
-	if (rightsp != NULL)
-		ndp->ni_rightsneeded = *rightsp;
-	else
-		cap_rights_init_zero(&ndp->ni_rightsneeded);
+	ndp->ni_rightsneeded = *rightsp;
 }
 
 /*
