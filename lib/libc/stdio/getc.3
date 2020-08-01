@@ -32,7 +32,7 @@
 .\"     @(#)getc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2003
+.Dd April 4, 2020
 .Dt GETC 3
 .Os
 .Sh NAME
@@ -153,6 +153,22 @@ and
 .Fn getchar_unlocked
 functions conform to
 .St -p1003.1-2001 .
+.Sh HISTORY
+The
+.Fn getc
+and
+.Fn getw
+functions appeared in a similar form in
+.At v1 ;
+and were integrated into stdio in
+.At v7 ;
+.Fn getchar
+in
+.At v4 ;
+and
+.Fn fgetc
+in
+.At v7 .
 .Sh BUGS
 Since
 .Dv EOF
