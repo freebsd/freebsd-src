@@ -1365,25 +1365,6 @@ bad:
 	return (error);
 }
 
-void
-NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
-    const char *namep, int dirfd, struct vnode *startdir, cap_rights_t *rightsp,
-    struct thread *td)
-{
-
-	MPASS(rightsp != NULL);
-	ndp->ni_cnd.cn_nameiop = op;
-	ndp->ni_cnd.cn_flags = flags;
-	ndp->ni_segflg = segflg;
-	ndp->ni_dirp = namep;
-	ndp->ni_dirfd = dirfd;
-	ndp->ni_startdir = startdir;
-	ndp->ni_resflags = 0;
-	filecaps_init(&ndp->ni_filecaps);
-	ndp->ni_cnd.cn_thread = td;
-	ndp->ni_rightsneeded = rightsp;
-}
-
 /*
  * Free data allocated by namei(); see namei(9) for details.
  */
