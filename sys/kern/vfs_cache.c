@@ -2890,24 +2890,24 @@ cache_fpl_handle_root(struct nameidata *ndp, struct vnode **dpp)
  * need restoring in case fast path lookup fails.
  */
 struct nameidata_saved {
-	int cn_flags;
 	long cn_namelen;
 	char *cn_nameptr;
 	size_t ni_pathlen;
+	int cn_flags;
 };
 
 struct cache_fpl {
-	int line;
-	enum cache_fpl_status status;
-	bool in_smr;
 	struct nameidata *ndp;
-	struct nameidata_saved snd;
 	struct componentname *cnp;
-	struct vnode *dvp;
-	seqc_t dvp_seqc;
-	struct vnode *tvp;
-	seqc_t tvp_seqc;
 	struct pwd *pwd;
+	struct vnode *dvp;
+	struct vnode *tvp;
+	seqc_t dvp_seqc;
+	seqc_t tvp_seqc;
+	struct nameidata_saved snd;
+	int line;
+	enum cache_fpl_status status:8;
+	bool in_smr;
 };
 
 static void
