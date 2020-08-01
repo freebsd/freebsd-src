@@ -419,51 +419,6 @@ __END_DECLS
 #ifdef _KERNEL
 
 #include <sys/systm.h>
-extern cap_rights_t cap_accept_rights;
-extern cap_rights_t cap_bind_rights;
-extern cap_rights_t cap_connect_rights;
-extern cap_rights_t cap_event_rights;
-extern cap_rights_t cap_fchdir_rights;
-extern cap_rights_t cap_fchflags_rights;
-extern cap_rights_t cap_fchmod_rights;
-extern cap_rights_t cap_fchown_rights;
-extern cap_rights_t cap_fcntl_rights;
-extern cap_rights_t cap_fexecve_rights;
-extern cap_rights_t cap_flock_rights;
-extern cap_rights_t cap_fpathconf_rights;
-extern cap_rights_t cap_fstat_rights;
-extern cap_rights_t cap_fstatfs_rights;
-extern cap_rights_t cap_fsync_rights;
-extern cap_rights_t cap_ftruncate_rights;
-extern cap_rights_t cap_futimes_rights;
-extern cap_rights_t cap_getpeername_rights;
-extern cap_rights_t cap_getsockopt_rights;
-extern cap_rights_t cap_getsockname_rights;
-extern cap_rights_t cap_ioctl_rights;
-extern cap_rights_t cap_linkat_source_rights;
-extern cap_rights_t cap_linkat_target_rights;
-extern cap_rights_t cap_listen_rights;
-extern cap_rights_t cap_mkdirat_rights;
-extern cap_rights_t cap_mkfifoat_rights;
-extern cap_rights_t cap_mknodat_rights;
-extern cap_rights_t cap_mmap_rights;
-extern cap_rights_t cap_no_rights;
-extern cap_rights_t cap_pdgetpid_rights;
-extern cap_rights_t cap_pdkill_rights;
-extern cap_rights_t cap_pread_rights;
-extern cap_rights_t cap_pwrite_rights;
-extern cap_rights_t cap_read_rights;
-extern cap_rights_t cap_recv_rights;
-extern cap_rights_t cap_renameat_source_rights;
-extern cap_rights_t cap_renameat_target_rights;
-extern cap_rights_t cap_seek_rights;
-extern cap_rights_t cap_send_rights;
-extern cap_rights_t cap_send_connect_rights;
-extern cap_rights_t cap_setsockopt_rights;
-extern cap_rights_t cap_shutdown_rights;
-extern cap_rights_t cap_symlinkat_rights;
-extern cap_rights_t cap_unlinkat_rights;
-extern cap_rights_t cap_write_rights;
 
 #define IN_CAPABILITY_MODE(td) (((td)->td_ucred->cr_flags & CRED_FLAG_CAPMODE) != 0)
 
