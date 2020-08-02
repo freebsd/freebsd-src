@@ -490,14 +490,22 @@ cache_assert_vnode_locked(struct vnode *vp)
 	cache_assert_vlp_locked(vlp);
 }
 
+/*
+ * TODO: With the value stored we can do better than computing the hash based
+ * on the address and the choice of FNV should also be revisisted.
+ */
+static void
+cache_prehash(struct vnode *vp)
+{
+
+	vp->v_nchash = fnv_32_buf(&vp, sizeof(vp), FNV1_32_INIT);
+}
+
 static uint32_t
 cache_get_hash(char *name, u_char len, struct vnode *dvp)
 {
-	uint32_t hash;
 
-	hash = fnv_32_buf(name, len, FNV1_32_INIT);
-	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
-	return (hash);
+	return (fnv_32_buf(name, len, dvp->v_nchash));
 }
 
 static inline struct rwlock *
@@ -2077,6 +2085,7 @@ cache_vnode_init(struct vnode *vp)
 	LIST_INIT(&vp->v_cache_src);
 	TAILQ_INIT(&vp->v_cache_dst);
 	vp->v_cache_dd = NULL;
+	cache_prehash(vp);
 }
 
 void
