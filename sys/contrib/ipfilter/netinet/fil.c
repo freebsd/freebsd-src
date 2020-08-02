@@ -115,6 +115,8 @@ extern	int	opts;
 extern	int	blockreason;
 #endif /* _KERNEL */
 
+#define FASTROUTE_RECURSION
+
 #define	LBUMP(x)	softc->x++
 #define	LBUMPD(x, y)	do { softc->x.y++; DT(y); } while (0)
 
@@ -1696,7 +1698,7 @@ ipf_pr_ipv4hdr(fin)
 	fi->fi_p = p;
 	fin->fin_crc = p;
 	fi->fi_tos = ip->ip_tos;
-	fin->fin_id = ip->ip_id;
+	fin->fin_id = ntohs(ip->ip_id);
 	off = ntohs(ip->ip_off);
 
 	/* Get both TTL and protocol */
