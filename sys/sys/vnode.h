@@ -107,6 +107,7 @@ struct vnode {
 	enum	vtype v_type:8;			/* u vnode type */
 	short	v_irflag;			/* i frequently read flags */
 	seqc_t	v_seqc;				/* i modification count */
+	uint32_t v_nchash;			/* u namecache hash */
 	struct	vop_vector *v_op;		/* u vnode operations vector */
 	void	*v_data;			/* u private data for fs */
 
@@ -171,8 +172,8 @@ struct vnode {
 
 	u_int	v_holdcnt;			/* I prevents recycling. */
 	u_int	v_usecount;			/* I ref count of users */
-	u_int	v_iflag;			/* i vnode flags (see below) */
-	u_int	v_vflag;			/* v vnode flags */
+	u_short	v_iflag;			/* i vnode flags (see below) */
+	u_short	v_vflag;			/* v vnode flags */
 	u_short	v_mflag;			/* l mnt-specific vnode flags */
 	short	v_dbatchcpu;			/* i LRU requeue deferral batch */
 	int	v_writecount;			/* I ref count of writers or
@@ -245,10 +246,10 @@ struct xvnode {
 #define	VIRF_DOOMED	0x0001	/* This vnode is being recycled */
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
-#define	VI_MOUNT	0x0020	/* Mount in progress */
-#define	VI_DOINGINACT	0x0800	/* VOP_INACTIVE is in progress */
-#define	VI_OWEINACT	0x1000	/* Need to call inactive */
-#define	VI_DEFINACT	0x2000	/* deferred inactive */
+#define	VI_MOUNT	0x0002	/* Mount in progress */
+#define	VI_DOINGINACT	0x0004	/* VOP_INACTIVE is in progress */
+#define	VI_OWEINACT	0x0008	/* Need to call inactive */
+#define	VI_DEFINACT	0x0010	/* deferred inactive */
 
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
