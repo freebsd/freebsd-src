@@ -2071,6 +2071,15 @@ nchinit(void *dummy __unused)
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
 void
+cache_vnode_init(struct vnode *vp)
+{
+
+	LIST_INIT(&vp->v_cache_src);
+	TAILQ_INIT(&vp->v_cache_dst);
+	vp->v_cache_dd = NULL;
+}
+
+void
 cache_changesize(u_long newmaxvnodes)
 {
 	struct nchashhead *new_nchashtbl, *old_nchashtbl;
