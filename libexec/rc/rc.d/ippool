@@ -6,7 +6,7 @@
 # PROVIDE: ippool
 # REQUIRE: FILESYSTEMS
 # BEFORE:  ipfilter
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 

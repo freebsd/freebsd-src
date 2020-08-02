@@ -5,7 +5,7 @@
 
 # PROVIDE: ipnat
 # REQUIRE: ipfilter
-# KEYWORD: nojail
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 
