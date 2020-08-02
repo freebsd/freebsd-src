@@ -563,8 +563,7 @@ vnode_init(void *mem, int size, int flags)
 	/*
 	 * Initialize namecache.
 	 */
-	LIST_INIT(&vp->v_cache_src);
-	TAILQ_INIT(&vp->v_cache_dst);
+	cache_vnode_init(vp);
 	/*
 	 * Initialize rangelocks.
 	 */
