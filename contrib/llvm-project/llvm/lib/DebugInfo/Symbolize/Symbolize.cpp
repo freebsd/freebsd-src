@@ -553,6 +553,7 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
     StringRef PDBFileName;
     auto EC = CoffObject->getDebugPDBInfo(DebugInfo, PDBFileName);
     if (!EC && DebugInfo != nullptr && !PDBFileName.empty()) {
+#if 0
       using namespace pdb;
       std::unique_ptr<IPDBSession> Session;
       PDB_ReaderType ReaderType = Opts.UseNativePDBReader
@@ -565,6 +566,11 @@ LLVMSymbolizer::getOrCreateModuleInfo(const std::string &ModuleName) {
         return createFileError(PDBFileName, std::move(Err));
       }
       Context.reset(new PDBContext(*CoffObject, std::move(Session)));
+#else
+      return make_error<StringError>(
+          "PDB support not compiled in",
+          std::make_error_code(std::errc::not_supported));
+#endif
     }
   }
   if (!Context)
