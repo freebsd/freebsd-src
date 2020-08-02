@@ -142,6 +142,9 @@ int main(int argc, const char **argv) {
   InitLLVM x(argc, argv);
 
   std::vector<const char *> args(argv, argv + argc);
+#ifdef __FreeBSD__
+  return !elf::link(args, canExitEarly(), llvm::outs(), llvm::errs());
+#else
   switch (parseFlavor(args)) {
   case Gnu:
     if (isPETarget(args))
@@ -160,4 +163,5 @@ int main(int argc, const char **argv) {
         "Invoke ld.lld (Unix), ld64.lld (macOS), lld-link (Windows), wasm-ld"
         " (WebAssembly) instead");
   }
+#endif
 }
