@@ -108,13 +108,20 @@ void bc_args(int argc, char *argv[]) {
 
 			case 'e':
 			{
+				if (vm.no_exit_exprs)
+					bc_vm_verr(BC_ERROR_FATAL_OPTION, "-e (--expression)");
 				bc_args_exprs(opts.optarg);
 				break;
 			}
 
 			case 'f':
 			{
-				bc_args_file(opts.optarg);
+				if (!strcmp(opts.optarg, "-")) vm.no_exit_exprs = true;
+				else {
+					if (vm.no_exit_exprs)
+						bc_vm_verr(BC_ERROR_FATAL_OPTION, "-f (--file)");
+					bc_args_file(opts.optarg);
+				}
 				break;
 			}
 
@@ -155,7 +162,7 @@ void bc_args(int argc, char *argv[]) {
 			case 'q':
 			{
 				assert(BC_IS_BC);
-				vm.flags |= BC_FLAG_Q;
+				// Do nothing.
 				break;
 			}
 
@@ -205,9 +212,8 @@ void bc_args(int argc, char *argv[]) {
 
 	if (version) bc_vm_info(NULL);
 	if (do_exit) exit((int) vm.status);
-	if (vm.exprs.len > 1 || BC_IS_DC) vm.flags |= BC_FLAG_Q;
 
-	if (opts.optind < (size_t) argc)
+	if (opts.optind < (size_t) argc && vm.files.v == NULL)
 		bc_vec_init(&vm.files, sizeof(char*), NULL);
 
 	for (i = opts.optind; i < (size_t) argc; ++i)

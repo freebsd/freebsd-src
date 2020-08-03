@@ -102,11 +102,10 @@
 #define BC_FLAG_G (UINTMAX_C(1)<<4)
 #endif // BC_ENABLED
 
-#define BC_FLAG_Q (UINTMAX_C(1)<<5)
-#define BC_FLAG_I (UINTMAX_C(1)<<6)
-#define BC_FLAG_P (UINTMAX_C(1)<<7)
-#define BC_FLAG_TTYIN (UINTMAX_C(1)<<8)
-#define BC_FLAG_TTY (UINTMAX_C(1)<<9)
+#define BC_FLAG_I (UINTMAX_C(1)<<5)
+#define BC_FLAG_P (UINTMAX_C(1)<<6)
+#define BC_FLAG_TTYIN (UINTMAX_C(1)<<7)
+#define BC_FLAG_TTY (UINTMAX_C(1)<<8)
 #define BC_TTYIN (vm.flags & BC_FLAG_TTYIN)
 #define BC_TTY (vm.flags & BC_FLAG_TTY)
 
@@ -279,12 +278,6 @@
 
 #define BC_VM_INVALID_CATALOG ((nl_catd) -1)
 
-// dc does not use is_stdin.
-#if !BC_ENABLED
-#define bc_vm_process(text, is_stdin) bc_vm_process(text)
-#else // BC_ENABLED
-#endif // BC_ENABLED
-
 typedef struct BcVm {
 
 	volatile sig_atomic_t status;
@@ -310,6 +303,7 @@ typedef struct BcVm {
 	uint16_t nchars;
 	uint16_t line_len;
 
+	bool no_exit_exprs;
 	bool eof;
 
 	BcBigDig maxes[BC_PROG_GLOBALS_LEN + BC_ENABLE_EXTRA_MATH];
@@ -360,7 +354,7 @@ typedef struct BcVm {
 
 void bc_vm_info(const char* const help);
 void bc_vm_boot(int argc, char *argv[], const char *env_len,
-                const char* const env_args, const char* env_exp_quit);
+                const char* const env_args);
 void bc_vm_shutdown(void);
 
 void bc_vm_printf(const char *fmt, ...);
