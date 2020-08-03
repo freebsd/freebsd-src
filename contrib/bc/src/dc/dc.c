@@ -52,6 +52,6 @@ void dc_main(int argc, char **argv) {
 	vm.parse = dc_parse_parse;
 	vm.expr = dc_parse_expr;
 
-	bc_vm_boot(argc, argv, "DC_LINE_LENGTH", "DC_ENV_ARGS", "DC_EXPR_EXIT");
+	bc_vm_boot(argc, argv, "DC_LINE_LENGTH", "DC_ENV_ARGS");
 }
 #endif // DC_ENABLED

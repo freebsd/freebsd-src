@@ -133,10 +133,10 @@ The following are the options that bc(1) accepts.
 
 **-q**, **--quiet**
 
-:   Do not print copyright header. bc(1) will also suppress the header in
-    non-interactive mode.
-
-    This is mostly for compatibility with the [GNU bc(1)][2].
+:   This option is for compatibility with the [GNU bc(1)][2]; it is a no-op.
+    Without this option, GNU bc(1) prints a copyright header. This bc(1) only
+    prints the copyright header if one or more of the **-v**, **-V**, or
+    **--version** options are given.
 
     This is a **non-portable extension**.
 
@@ -167,9 +167,10 @@ The following are the options that bc(1) accepts.
     evaluated in the order given. This means that if a file is given before an
     expression, the file is read in and evaluated first.
 
-    In other bc(1) implementations, this option causes the program to execute
-    the expressions and then exit. This bc(1) does not, unless the
-    **BC_EXPR_EXIT** is defined (see the **ENVIRONMENT VARIABLES** section).
+    After processing all expressions and files, bc(1) will exit, unless **-**
+    (**stdin**) was given as an argument at least once to **-f** or **--file**.
+    However, if any other **-e**, **--expression**, **-f**, or **--file**
+    arguments are given after that, bc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
@@ -179,9 +180,8 @@ The following are the options that bc(1) accepts.
     through **stdin**. If expressions are also given (see above), the
     expressions are evaluated in the order given.
 
-    In other bc(1) implementations, this option causes the program to execute
-    the files and then exit. This bc(1) does not, unless the
-    **BC_EXPR_EXIT** is defined (see the **ENVIRONMENT VARIABLES** section).
+    After processing all expressions and files, bc(1) will exit, unless **-**
+    (**stdin**) was given as an argument at least once to **-f** or **--file**.
 
     This is a **non-portable extension**.
 
@@ -915,12 +915,6 @@ bc(1) recognizes the following environment variables:
     than **1** and is less than **UINT16_MAX** (**2\^16-1**), bc(1) will output
     lines to that length, including the backslash (**\\**). The default line
     length is **70**.
-
-**BC_EXPR_EXIT**
-
-:   If this variable exists (no matter the contents), bc(1) will exit
-    immediately after executing expressions and files given by the **-e** and/or
-    **-f** command-line options (and any equivalents).
 
 # EXIT STATUS
 
