@@ -62,6 +62,8 @@ struct sockaddr_un {
 
 #if __BSD_VISIBLE
 
+#define	SOL_LOCAL		0	/* Options for local socket */
+
 /* Socket options. */
 #define	LOCAL_PEERCRED		1	/* retrieve peer credentials */
 #define	LOCAL_CREDS		2	/* pass credentials to receiver */
