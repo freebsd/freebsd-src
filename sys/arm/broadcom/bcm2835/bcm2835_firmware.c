@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/sysctl.h>
 
+#include <dev/fdt/simplebus.h>
+
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -47,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
 
 struct bcm2835_firmware_softc {
-	device_t	sc_dev;
+	struct simplebus_softc	sc;
 	phandle_t	sc_mbox;
 };
 
@@ -82,7 +84,6 @@ bcm2835_firmware_attach(device_t dev)
 	int rv;
 
 	sc = device_get_softc(dev);
-	sc->sc_dev = dev;
 
 	node = ofw_bus_get_node(dev);
 	rv = OF_getencprop(node, "mboxes", &mbox, sizeof(mbox));
@@ -94,14 +95,17 @@ bcm2835_firmware_attach(device_t dev)
 
 	OF_device_register_xref(OF_xref_from_node(node), dev);
 
-	ctx = device_get_sysctl_ctx(sc->sc_dev);
-	tree_node = device_get_sysctl_tree(sc->sc_dev);
+	ctx = device_get_sysctl_ctx(dev);
+	tree_node = device_get_sysctl_tree(dev);
 	tree = SYSCTL_CHILDREN(tree_node);
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "revision",
 	    CTLTYPE_UINT | CTLFLAG_RD, sc, sizeof(*sc),
 	    sysctl_bcm2835_firmware_get_revision, "IU",
 	    "Firmware revision");
-	return (0);
+
+	/* The firmwaare doesn't have a ranges property */
+	sc->sc.flags |= SB_FLAG_NO_RANGES;
+	return (simplebus_attach(dev));
 }
 
 int
@@ -150,7 +154,7 @@ sysctl_bcm2835_firmware_get_revision(SYSCTL_HANDLER_ARGS)
 	uint32_t rev;
 	int err;
 
-	if (bcm2835_firmware_property(sc->sc_dev,
+	if (bcm2835_firmware_property(sc->sc.dev,
 	    BCM2835_MBOX_TAG_FIRMWARE_REVISION, &rev, sizeof(rev)) != 0)
 		return (ENXIO);
 
@@ -171,11 +175,9 @@ static device_method_t bcm2835_firmware_methods[] = {
 };
 
 static devclass_t bcm2835_firmware_devclass;
-static driver_t bcm2835_firmware_driver = {
-	"bcm2835_firmware",
-	bcm2835_firmware_methods,
-	sizeof(struct bcm2835_firmware_softc),
-};
+DEFINE_CLASS_1(bcm2835_firmware, bcm2835_firmware_driver,
+    bcm2835_firmware_methods, sizeof(struct bcm2835_firmware_softc),
+    simplebus_driver);
 
 EARLY_DRIVER_MODULE(bcm2835_firmware, simplebus, bcm2835_firmware_driver,
     bcm2835_firmware_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
