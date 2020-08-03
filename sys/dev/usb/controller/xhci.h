@@ -544,5 +544,8 @@ usb_error_t xhci_init(struct xhci_softc *, device_t, uint8_t);
 usb_error_t xhci_start_controller(struct xhci_softc *);
 void	xhci_interrupt(struct xhci_softc *);
 void	xhci_uninit(struct xhci_softc *);
+int	xhci_pci_attach(device_t);
+
+DECLARE_CLASS(xhci_pci_driver);
 
 #endif					/* _XHCI_H_ */
