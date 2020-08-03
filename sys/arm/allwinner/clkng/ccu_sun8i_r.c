@@ -122,7 +122,7 @@ NM_CLK(r_ccu_ir_clk,
     16, 2, 0, 0,			/* M flags */
     24, 2,				/* mux */
     31,					/* gate */
-    AW_CLK_HAS_MUX | AW_CLK_REPARENT);	/* flags */
+    AW_CLK_HAS_MUX | AW_CLK_REPARENT | AW_CLK_HAS_GATE);/* flags */
 
 static const char *a83t_ir_parents[] = {"osc16M", "osc24M"};
 static struct aw_clk_nm_def a83t_ir_clk = {
