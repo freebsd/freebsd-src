@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
  * Bus interface.
  */
 static int		simplebus_probe(device_t dev);
-static int		simplebus_attach(device_t dev);
 static struct resource *simplebus_alloc_resource(device_t, device_t, int,
     int *, rman_res_t, rman_res_t, rman_res_t, u_int);
 static void		simplebus_probe_nomatch(device_t bus, device_t child);
@@ -134,7 +133,7 @@ simplebus_probe(device_t dev)
 	return (BUS_PROBE_GENERIC);
 }
 
-static int
+int
 simplebus_attach(device_t dev)
 {
 	struct		simplebus_softc *sc;
@@ -142,7 +141,8 @@ simplebus_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	simplebus_init(dev, 0);
-	if (simplebus_fill_ranges(sc->node, sc) < 0) {
+	if ((sc->flags & SB_FLAG_NO_RANGES) == 0 &&
+	    simplebus_fill_ranges(sc->node, sc) < 0) {
 		device_printf(dev, "could not get ranges\n");
 		return (ENXIO);
 	}
