@@ -47,7 +47,7 @@ getpeereid(int s, uid_t *euid, gid_t *egid)
 	int error;
 
 	xuclen = sizeof(xuc);
-	error = _getsockopt(s, 0, LOCAL_PEERCRED, &xuc, &xuclen);
+	error = _getsockopt(s, SOL_LOCAL, LOCAL_PEERCRED, &xuc, &xuclen);
 	if (error != 0)
 		return (error);
 	if (xuc.cr_version != XUCRED_VERSION) {
