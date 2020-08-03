@@ -241,6 +241,10 @@ cmdloop(int top)
 		}
 	}
 	popstackmark(&smark);
+	if (top && iflag) {
+		out2c('\n');
+		flushout(out2);
+	}
 }
 
 
