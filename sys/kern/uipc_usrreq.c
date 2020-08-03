@@ -1470,7 +1470,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	struct xucred xu;
 	int error, optval;
 
-	if (sopt->sopt_level != 0)
+	if (sopt->sopt_level != SOL_LOCAL)
 		return (EINVAL);
 
 	unp = sotounpcb(so);
