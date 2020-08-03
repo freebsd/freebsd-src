@@ -1562,10 +1562,6 @@ mpr_alloc_requests(struct mpr_softc *sc)
 	 */
 	sc->commands = malloc(sizeof(struct mpr_command) * sc->num_reqs,
 	    M_MPR, M_WAITOK | M_ZERO);
-	if (!sc->commands) {
-		mpr_dprint(sc, MPR_ERROR, "Cannot allocate command memory\n");
-		return (ENOMEM);
-	}
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
 		cm->cm_req = sc->req_frames + i * sc->reqframesz;
@@ -2716,11 +2712,6 @@ mpr_register_events(struct mpr_softc *sc, uint8_t *mask,
 	int error = 0;
 
 	eh = malloc(sizeof(struct mpr_event_handle), M_MPR, M_WAITOK|M_ZERO);
-	if (!eh) {
-		mpr_dprint(sc, MPR_EVENT|MPR_ERROR,
-		    "Cannot allocate event memory\n");
-		return (ENOMEM);
-	}
 	eh->callback = cb;
 	eh->data = data;
 	TAILQ_INSERT_TAIL(&sc->event_list, eh, eh_list);
