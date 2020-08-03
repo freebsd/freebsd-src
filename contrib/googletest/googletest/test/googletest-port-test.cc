@@ -403,6 +403,8 @@ typedef testing::Types<
 TYPED_TEST_CASE(RETest, StringTypes);
 
 // Tests RE's implicit constructors.
+/*
+https://bugs.freebsd.org/248452
 TYPED_TEST(RETest, ImplicitConstructorWorks) {
   const RE empty(TypeParam(""));
   EXPECT_STREQ("", empty.pattern());
@@ -413,6 +415,7 @@ TYPED_TEST(RETest, ImplicitConstructorWorks) {
   const RE normal(TypeParam(".*(\\w+)"));
   EXPECT_STREQ(".*(\\w+)", normal.pattern());
 }
+*/
 
 // Tests that RE's constructors reject invalid regular expressions.
 TYPED_TEST(RETest, RejectsInvalidRegex) {
@@ -861,6 +864,8 @@ TEST(MatchRegexAnywhereTest, ReturnsTrueWhenMatchingNonPrefix) {
 }
 
 // Tests RE's implicit constructors.
+/*
+https://bugs.freebsd.org/248452
 TEST(RETest, ImplicitConstructorWorks) {
   const RE empty("");
   EXPECT_STREQ("", empty.pattern());
@@ -868,6 +873,7 @@ TEST(RETest, ImplicitConstructorWorks) {
   const RE simple("hello");
   EXPECT_STREQ("hello", simple.pattern());
 }
+*/
 
 // Tests that RE's constructors reject invalid regular expressions.
 TEST(RETest, RejectsInvalidRegex) {
