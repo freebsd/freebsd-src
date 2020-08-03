@@ -113,10 +113,9 @@ This means that if a file is given before an expression, the file is
 read in and evaluated first.
 .RS
 .PP
-In other dc(1) implementations, this option causes the program to
-execute the expressions and then exit.
-This dc(1) does not, unless the \f[B]DC_EXPR_EXIT\f[] is defined (see
-the \f[B]ENVIRONMENT VARIABLES\f[] section).
+After processing all expressions and files, dc(1) will exit, unless
+\f[B]\-\f[] (\f[B]stdin\f[]) was given as an argument at least once to
+\f[B]\-f\f[] or \f[B]\-\-file\f[].
 .PP
 This is a \f[B]non\-portable extension\f[].
 .RE
@@ -128,10 +127,12 @@ If expressions are also given (see above), the expressions are evaluated
 in the order given.
 .RS
 .PP
-In other dc(1) implementations, this option causes the program to
-execute the files and then exit.
-This dc(1) does not, unless the \f[B]DC_EXPR_EXIT\f[] is defined (see
-the \f[B]ENVIRONMENT VARIABLES\f[] section).
+After processing all expressions and files, dc(1) will exit, unless
+\f[B]\-\f[] (\f[B]stdin\f[]) was given as an argument at least once to
+\f[B]\-f\f[] or \f[B]\-\-file\f[].
+However, if any other \f[B]\-e\f[], \f[B]\-\-expression\f[],
+\f[B]\-f\f[], or \f[B]\-\-file\f[] arguments are given after that, bc(1)
+will give a fatal error and exit.
 .PP
 This is a \f[B]non\-portable extension\f[].
 .RE
