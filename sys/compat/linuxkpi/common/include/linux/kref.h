@@ -38,6 +38,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 
 #include <asm/atomic.h>
 
@@ -76,6 +77,20 @@ kref_put(struct kref *kref, void (*rel)(struct kref *kref))
 	}
 	return 0;
 }
+
+static inline int
+kref_put_lock(struct kref *kref, void (*rel)(struct kref *kref),
+    spinlock_t *lock)
+{
+
+	if (refcount_release(&kref->refcount.counter)) {
+		spin_lock(lock);
+		rel(kref);
+		return (1);
+	}
+	return (0);
+}
+
 
 static inline int
 kref_sub(struct kref *kref, unsigned int count,
