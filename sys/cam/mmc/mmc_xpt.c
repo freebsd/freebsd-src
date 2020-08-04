@@ -411,13 +411,11 @@ mmccam_start_discovery(struct cam_sim *sim) {
 }
 
 /* This func is called per attached device :-( */
-void
-mmc_print_ident(struct mmc_params *ident_data)
+static void
+mmc_print_ident(struct mmc_params *ident_data, struct sbuf *sb)
 {
-	struct sbuf *sb;
 	bool space = false;
 
-	sb = sbuf_new_auto();
 	sbuf_printf(sb, "Relative addr: %08x\n", ident_data->card_rca);
 	sbuf_printf(sb, "Card features: <");
 	if (ident_data->card_features & CARD_FEATURE_MMC) {
@@ -463,13 +461,20 @@ mmc_print_ident(struct mmc_params *ident_data)
 static void
 mmc_proto_announce(struct cam_ed *device)
 {
-	mmc_print_ident(&device->mmc_ident_data);
+	struct sbuf	sb;
+	char		buffer[256];
+
+	sbuf_new(&sb, buffer, sizeof(buffer), SBUF_FIXEDLEN);
+	mmc_print_ident(&device->mmc_ident_data, &sb);
+	sbuf_finish(&sb);
+	sbuf_putbuf(&sb);
 }
 
 static void
 mmc_proto_denounce(struct cam_ed *device)
 {
-	mmc_print_ident(&device->mmc_ident_data);
+
+	mmc_proto_announce(device);
 }
 
 static void
