@@ -2741,6 +2741,10 @@ _prebuild_libs+= gnu/lib/libdialog
 gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
 .endif
 
+.if ${MK_GOOGLETEST} != "no"
+_prebuild_libs+= lib/libregex
+.endif
+
 .if ${MK_LIBCPLUSPLUS} != "no"
 _prebuild_libs+= lib/libc++
 .endif
