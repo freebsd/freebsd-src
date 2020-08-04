@@ -410,7 +410,7 @@ iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 			    1) {
 				if (dmat == dmat->ctx->tag)
 					iommu_free_ctx(dmat->ctx);
-				free_domain(dmat->segments, M_IOMMU_DMAMAP);
+				free(dmat->segments, M_IOMMU_DMAMAP);
 				free(dmat, M_DEVBUF);
 				dmat = parent;
 			} else
@@ -447,7 +447,7 @@ iommu_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		    tag->common.nsegments, M_IOMMU_DMAMAP,
 		    DOMAINSET_PREF(tag->common.domain), M_NOWAIT);
 		if (tag->segments == NULL) {
-			free_domain(map, M_IOMMU_DMAMAP);
+			free(map, M_IOMMU_DMAMAP);
 			*mapp = NULL;
 			return (ENOMEM);
 		}
@@ -479,7 +479,7 @@ iommu_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
 			return (EBUSY);
 		}
 		IOMMU_DOMAIN_UNLOCK(domain);
-		free_domain(map, M_IOMMU_DMAMAP);
+		free(map, M_IOMMU_DMAMAP);
 	}
 	tag->map_count--;
 	return (0);
@@ -537,7 +537,7 @@ iommu_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map1)
 	map = (struct bus_dmamap_iommu *)map1;
 
 	if ((map->flags & BUS_DMAMAP_IOMMU_MALLOC) != 0) {
-		free_domain(vaddr, M_DEVBUF);
+		free(vaddr, M_DEVBUF);
 		map->flags &= ~BUS_DMAMAP_IOMMU_MALLOC;
 	} else {
 		KASSERT((map->flags & BUS_DMAMAP_IOMMU_KMEM_ALLOC) != 0,

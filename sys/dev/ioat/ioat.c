@@ -1578,7 +1578,7 @@ ioat_free_ring(struct ioat_softc *ioat, uint32_t size,
     struct ioat_descriptor *ring)
 {
 
-	free_domain(ring, M_IOAT);
+	free(ring, M_IOAT);
 }
 
 static struct ioat_descriptor *

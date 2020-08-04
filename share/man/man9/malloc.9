@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2018
+.Dd August 3, 2020
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -64,8 +64,6 @@
 .In sys/domainset.h
 .Ft void *
 .Fn malloc_domainset "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
-.Ft void
-.Fn free_domain "void *addr" "struct malloc_type *type"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -81,8 +79,6 @@ domain using the specified domain selection policy.
 See
 .Xr domainset 9
 for some example policies.
-Memory allocated with this function should be returned with
-.Fn free_domain .
 .Pp
 The
 .Fn mallocarray

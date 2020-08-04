@@ -4338,24 +4338,6 @@ cache_free(uma_zone_t zone, uma_cache_t cache, void *udata, void *item,
 	return (true);
 }
 
-void
-uma_zfree_domain(uma_zone_t zone, void *item, void *udata)
-{
-
-	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
-	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
-
-	CTR2(KTR_UMA, "uma_zfree_domain zone %s(%p)", zone->uz_name, zone);
-
-	KASSERT(curthread->td_critnest == 0 || SCHEDULER_STOPPED(),
-	    ("uma_zfree_domain: called with spinlock or critical section held"));
-
-        /* uma_zfree(..., NULL) does nothing, to match free(9). */
-        if (item == NULL)
-                return;
-	zone_free_item(zone, item, udata, SKIP_NONE);
-}
-
 static void
 slab_free_item(uma_zone_t zone, uma_slab_t slab, void *item)
 {
