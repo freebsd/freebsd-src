@@ -4146,7 +4146,7 @@ vgonel(struct vnode *vp)
 	 * Delete from old mount point vnode list.
 	 */
 	delmntque(vp);
-	cache_purge(vp);
+	cache_purge_vgone(vp);
 	/*
 	 * Done with purge, reset to the standard lock and invalidate
 	 * the vnode.
