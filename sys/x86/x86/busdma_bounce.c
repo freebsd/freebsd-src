@@ -271,7 +271,7 @@ bounce_bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			atomic_subtract_int(&dmat->common.ref_count, 1);
 			if (dmat->common.ref_count == 0) {
 				if (dmat->segments != NULL)
-					free_domain(dmat->segments, M_DEVBUF);
+					free(dmat->segments, M_DEVBUF);
 				free(dmat, M_DEVBUF);
 				/*
 				 * Last reference count, so
@@ -387,7 +387,7 @@ bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 		}
 		if (dmat->bounce_zone)
 			dmat->bounce_zone->map_count--;
-		free_domain(map, M_DEVBUF);
+		free(map, M_DEVBUF);
 	}
 	dmat->map_count--;
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
@@ -504,7 +504,7 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
 	if ((dmat->bounce_flags & BUS_DMA_KMEM_ALLOC) == 0)
-		free_domain(vaddr, M_DEVBUF);
+		free(vaddr, M_DEVBUF);
 	else
 		kmem_free((vm_offset_t)vaddr, dmat->common.maxsize);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat,
@@ -1188,7 +1188,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		    M_DEVBUF, DOMAINSET_PREF(dmat->common.domain), M_NOWAIT,
 		    0ul, bz->lowaddr, PAGE_SIZE, 0);
 		if (bpage->vaddr == 0) {
-			free_domain(bpage, M_DEVBUF);
+			free(bpage, M_DEVBUF);
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);

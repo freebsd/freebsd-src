@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 4, 2020
+.Dd August 3, 2020
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -85,8 +85,6 @@ typedef void (*uma_free)(void *item, vm_size_t size, uint8_t pflag);
 .Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
 .Fn uma_zfree_arg "uma_zone_t zone" "void *item" "void *arg"
-.Ft void
-.Fn uma_zfree_domain "uma_zone_t zone" "void *item" "void *arg"
 .Ft void
 .Fn uma_zfree_pcpu "uma_zone_t zone" "void *item"
 .Ft void
@@ -394,11 +392,6 @@ function allows callers to specify a fixed
 domain to allocate from.
 This uses a guaranteed but slow path in the allocator which reduces
 concurrency.
-The
-.Fn uma_zfree_domain
-function should be used to return memory allocated in this fashion.
-This function infers the domain from the pointer and does not require it as an
-argument.
 .Pp
 The
 .Fn uma_zone_prealloc

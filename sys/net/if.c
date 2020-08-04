@@ -629,10 +629,7 @@ if_free_internal(struct ifnet *ifp)
 
 	free(ifp->if_description, M_IFDESCR);
 	free(ifp->if_hw_addr, M_IFADDR);
-	if (ifp->if_numa_domain == IF_NODOM)
-		free(ifp, M_IFNET);
-	else
-		free_domain(ifp, M_IFNET);
+	free(ifp, M_IFNET);
 }
 
 static void
