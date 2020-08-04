@@ -275,6 +275,13 @@ find_next_zero_bit(const unsigned long *addr, unsigned long size,
 #define	test_bit(i, a)							\
     !!(READ_ONCE(((volatile const unsigned long *)(a))[BIT_WORD(i)]) & BIT_MASK(i))
 
+static inline void
+clear_bit_unlock(long bit, volatile unsigned long *var)
+{
+	clear_bit(bit, var);
+	wmb();
+}
+
 static inline int
 test_and_clear_bit(long bit, volatile unsigned long *var)
 {
