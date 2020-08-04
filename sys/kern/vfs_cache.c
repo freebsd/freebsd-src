@@ -3356,6 +3356,25 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	return (cache_fplookup_final_child(fpl, tvs));
 }
 
+static int __noinline
+cache_fplookup_dot(struct cache_fpl *fpl)
+{
+	struct vnode *dvp;
+
+	dvp = fpl->dvp;
+
+	fpl->tvp = dvp;
+	fpl->tvp_seqc = vn_seqc_read_any(dvp);
+	if (seqc_in_modify(fpl->tvp_seqc)) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	counter_u64_add(dothits, 1);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", dvp);
+
+	return (0);
+}
+
 static int
 cache_fplookup_next(struct cache_fpl *fpl)
 {
@@ -3371,12 +3390,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	dvp = fpl->dvp;
 
 	if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.')) {
-		fpl->tvp = dvp;
-		fpl->tvp_seqc = vn_seqc_read_any(dvp);
-		if (seqc_in_modify(fpl->tvp_seqc)) {
-			return (cache_fpl_aborted(fpl));
-		}
-		return (0);
+		return (cache_fplookup_dot(fpl));
 	}
 
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
