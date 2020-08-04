@@ -321,6 +321,13 @@ vmxnet3_register(device_t dev)
 }
 
 static int
+trunc_powerof2(int val)
+{
+
+	return (1U << (fls(val) - 1));
+}
+
+static int
 vmxnet3_attach_pre(if_ctx_t ctx)
 {
 	device_t dev;
@@ -349,12 +356,16 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	/* If 0, the iflib tunable was not set, so set to the default */
 	if (scctx->isc_nrxqsets == 0)
 		scctx->isc_nrxqsets = VMXNET3_DEF_RX_QUEUES;
+	scctx->isc_nrxqsets = trunc_powerof2(scctx->isc_nrxqsets);
 	scctx->isc_nrxqsets_max = min(VMXNET3_MAX_RX_QUEUES, mp_ncpus);
+	scctx->isc_nrxqsets_max = trunc_powerof2(scctx->isc_nrxqsets_max);
 
 	/* If 0, the iflib tunable was not set, so set to the default */
 	if (scctx->isc_ntxqsets == 0)
 		scctx->isc_ntxqsets = VMXNET3_DEF_TX_QUEUES;
+	scctx->isc_ntxqsets = trunc_powerof2(scctx->isc_ntxqsets);
 	scctx->isc_ntxqsets_max = min(VMXNET3_MAX_TX_QUEUES, mp_ncpus);
+	scctx->isc_ntxqsets_max = trunc_powerof2(scctx->isc_ntxqsets_max);
 
 	/*
 	 * Enforce that the transmit completion queue descriptor count is
@@ -380,6 +391,12 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	    sizeof(struct vmxnet3_rxdesc) * scctx->isc_nrxd[1];
 	scctx->isc_rxqsizes[2] =
 	    sizeof(struct vmxnet3_rxdesc) * scctx->isc_nrxd[2];
+
+	/*
+	 * Initialize the max frame size and descriptor queue buffer
+	 * sizes.
+	 */
+	vmxnet3_mtu_set(ctx, if_getmtu(sc->vmx_ifp));
 
 	scctx->isc_rss_table_size = UPT1_RSS_MAX_IND_TABLE_SIZE;
 
@@ -1494,6 +1511,7 @@ vmxnet3_isc_rxd_pkt_get(void *vsc, if_rxd_info_t ri)
 	int cqidx;
 	uint16_t total_len;
 	uint8_t nfrags;
+	uint8_t i;
 	uint8_t flid;
 
 	sc = vsc;
@@ -1517,6 +1535,7 @@ vmxnet3_isc_rxd_pkt_get(void *vsc, if_rxd_info_t ri)
 		KASSERT(rxcd->sop && rxcd->eop,
 		    ("%s: zero-length packet without both sop and eop set",
 			__func__));
+		rxc->vxcr_zero_length++;
 		if (++cqidx == rxc->vxcr_ndesc) {
 			cqidx = 0;
 			rxc->vxcr_gen ^= 1;
@@ -1572,31 +1591,6 @@ vmxnet3_isc_rxd_pkt_get(void *vsc, if_rxd_info_t ri)
 		}
 	}
 
-	/* VLAN */
-	if (rxcd->vlan) {
-		ri->iri_flags |= M_VLANTAG;
-		ri->iri_vtag = rxcd->vtag;
-	}
-
-	/* Checksum offload */
-	if (!rxcd->no_csum) {
-		uint32_t csum_flags = 0;
-
-		if (rxcd->ipv4) {
-			csum_flags |= CSUM_IP_CHECKED;
-			if (rxcd->ipcsum_ok)
-				csum_flags |= CSUM_IP_VALID;
-		}
-		if (!rxcd->fragment && (rxcd->tcp || rxcd->udp)) {
-			csum_flags |= CSUM_L4_CALC;
-			if (rxcd->csum_ok) {
-				csum_flags |= CSUM_L4_VALID;
-				ri->iri_csum_data = 0xffff;
-			}
-		}
-		ri->iri_csum_flags = csum_flags;
-	}
-
 	/*
 	 * The queue numbering scheme used for rxcd->qid is as follows:
 	 *  - All of the command ring 0s are numbered [0, nrxqsets - 1]
@@ -1632,6 +1626,46 @@ vmxnet3_isc_rxd_pkt_get(void *vsc, if_rxd_info_t ri)
 	ri->iri_nfrags = nfrags;
 	ri->iri_len = total_len;
 
+	/*
+	 * If there's an error, the last descriptor in the packet will
+	 * have the error indicator set.  In this case, set all
+	 * fragment lengths to zero.  This will cause iflib to discard
+	 * the packet, but process all associated descriptors through
+	 * the refill mechanism.
+	 */
+	if (__predict_false(rxcd->error)) {
+		rxc->vxcr_pkt_errors++;
+		for (i = 0; i < nfrags; i++) {
+			frag = &ri->iri_frags[i];
+			frag->irf_len = 0;
+		}
+	} else {
+		/* Checksum offload information is in the last descriptor. */
+		if (!rxcd->no_csum) {
+			uint32_t csum_flags = 0;
+
+			if (rxcd->ipv4) {
+				csum_flags |= CSUM_IP_CHECKED;
+				if (rxcd->ipcsum_ok)
+					csum_flags |= CSUM_IP_VALID;
+			}
+			if (!rxcd->fragment && (rxcd->tcp || rxcd->udp)) {
+				csum_flags |= CSUM_L4_CALC;
+				if (rxcd->csum_ok) {
+					csum_flags |= CSUM_L4_VALID;
+					ri->iri_csum_data = 0xffff;
+				}
+			}
+			ri->iri_csum_flags = csum_flags;
+		}
+
+		/* VLAN information is in the last descriptor. */
+		if (rxcd->vlan) {
+			ri->iri_flags |= M_VLANTAG;
+			ri->iri_vtag = rxcd->vtag;
+		}
+	}
+
 	return (0);
 }
 
@@ -1645,14 +1679,13 @@ vmxnet3_isc_rxd_refill(void *vsc, if_rxd_update_t iru)
 	uint64_t *paddrs;
 	int count;
 	int len;
-	int pidx;
+	int idx;
 	int i;
 	uint8_t flid;
 	uint8_t btype;
 
 	count = iru->iru_count;
 	len = iru->iru_buf_size;
-	pidx = iru->iru_pidx;
 	flid = iru->iru_flidx;
 	paddrs = iru->iru_paddrs;
 
@@ -1666,17 +1699,32 @@ vmxnet3_isc_rxd_refill(void *vsc, if_rxd_update_t iru)
 	 * command ring 1 is filled with BTYPE_BODY descriptors.
 	 */
 	btype = (flid == 0) ? VMXNET3_BTYPE_HEAD : VMXNET3_BTYPE_BODY;
-	for (i = 0; i < count; i++) {
-		rxd[pidx].addr = paddrs[i];
-		rxd[pidx].len = len;
-		rxd[pidx].btype = btype;
-		rxd[pidx].gen = rxr->vxrxr_gen;
+	/*
+	 * The refill entries from iflib will advance monotonically,
+	 * but the refilled descriptors may not be contiguous due to
+	 * earlier skipping of descriptors by the device.  The refill
+	 * entries from iflib need an entire state update, while the
+	 * descriptors previously skipped by the device only need to
+	 * have their generation numbers updated.
+	 */
+	idx = rxr->vxrxr_refill_start;
+	i = 0;
+	do {
+		if (idx == iru->iru_idxs[i]) {
+			rxd[idx].addr = paddrs[i];
+			rxd[idx].len = len;
+			rxd[idx].btype = btype;
+			i++;
+		} else
+			rxr->vxrxr_desc_skips++;
+		rxd[idx].gen = rxr->vxrxr_gen;
 
-		if (++pidx == rxr->vxrxr_ndesc) {
-			pidx = 0;
+		if (++idx == rxr->vxrxr_ndesc) {
+			idx = 0;
 			rxr->vxrxr_gen ^= 1;
 		}
-	}
+	} while (i != count);
+	rxr->vxrxr_refill_start = idx;
 }
 
 static void
@@ -1825,6 +1873,8 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	for (i = 0; i < sc->vmx_sctx->isc_nrxqs - 1; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
 		rxr->vxrxr_gen = VMXNET3_INIT_GEN;
+		rxr->vxrxr_desc_skips = 0;
+		rxr->vxrxr_refill_start = 0;
 		/*
 		 * iflib has zeroed out the descriptor array during the
 		 * prior attach or stop
@@ -1834,6 +1884,8 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	for (/**/; i < VMXNET3_RXRINGS_PERQ; i++) {
 		rxr = &rxq->vxrxq_cmd_ring[i];
 		rxr->vxrxr_gen = 0;
+		rxr->vxrxr_desc_skips = 0;
+		rxr->vxrxr_refill_start = 0;
 		bzero(rxr->vxrxr_rxd,
 		    rxr->vxrxr_ndesc * sizeof(struct vmxnet3_rxdesc));
 	}
@@ -1841,6 +1893,8 @@ vmxnet3_rxinit(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 	rxc = &rxq->vxrxq_comp_ring;
 	rxc->vxcr_next = 0;
 	rxc->vxcr_gen = VMXNET3_INIT_GEN;
+	rxc->vxcr_zero_length = 0;
+	rxc->vxcr_pkt_errors = 0;
 	/*
 	 * iflib has zeroed out the descriptor array during the prior attach
 	 * or stop
@@ -1906,13 +1960,8 @@ static void
 vmxnet3_init(if_ctx_t ctx)
 {
 	struct vmxnet3_softc *sc;
-	if_softc_ctx_t scctx;
 	
 	sc = iflib_get_softc(ctx);
-	scctx = sc->vmx_scctx;
-
-	scctx->isc_max_frame_size = if_getmtu(iflib_get_ifp(ctx)) +
-	    ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
 
 	/* Use the current MAC address. */
 	bcopy(IF_LLADDR(sc->vmx_ifp), sc->vmx_lladdr, ETHER_ADDR_LEN);
@@ -1938,10 +1987,36 @@ vmxnet3_multi_set(if_ctx_t ctx)
 static int
 vmxnet3_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
+	struct vmxnet3_softc *sc;
+	if_softc_ctx_t scctx;
+
+	sc = iflib_get_softc(ctx);
+	scctx = sc->vmx_scctx;
 
 	if (mtu > VMXNET3_TX_MAXSIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +
 		ETHER_CRC_LEN))
 		return (EINVAL);
+
+	/*
+	 * Update the max frame size so that the rx mbuf size is
+	 * chosen based on the new mtu during the interface init that
+	 * will occur after this routine returns.
+	 */
+	scctx->isc_max_frame_size = mtu +
+		ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ETHER_CRC_LEN;
+	/* RX completion queue - n/a */
+	scctx->isc_rxd_buf_size[0] = 0;
+	/*
+	 * For header-type descriptors (used for first segment of
+	 * packet), let iflib determine the buffer size based on the
+	 * max frame size.
+	 */
+	scctx->isc_rxd_buf_size[1] = 0;
+	/*
+	 * For body-type descriptors (used for jumbo frames and LRO),
+	 * always use page-sized buffers.
+	 */
+	scctx->isc_rxd_buf_size[2] = MJUMPAGESIZE;
 
 	return (0);
 }
@@ -2288,14 +2363,22 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 		    &rxq->vxrxq_cmd_ring[0].vxrxr_ndesc, 0, "");
 		SYSCTL_ADD_INT(ctx, list, OID_AUTO, "cmd0_gen", CTLFLAG_RD,
 		    &rxq->vxrxq_cmd_ring[0].vxrxr_gen, 0, "");
+		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "cmd0_desc_skips", CTLFLAG_RD,
+		    &rxq->vxrxq_cmd_ring[0].vxrxr_desc_skips, 0, "");
 		SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "cmd1_ndesc", CTLFLAG_RD,
 		    &rxq->vxrxq_cmd_ring[1].vxrxr_ndesc, 0, "");
 		SYSCTL_ADD_INT(ctx, list, OID_AUTO, "cmd1_gen", CTLFLAG_RD,
 		    &rxq->vxrxq_cmd_ring[1].vxrxr_gen, 0, "");
+		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "cmd1_desc_skips", CTLFLAG_RD,
+		    &rxq->vxrxq_cmd_ring[1].vxrxr_desc_skips, 0, "");
 		SYSCTL_ADD_UINT(ctx, list, OID_AUTO, "comp_ndesc", CTLFLAG_RD,
 		    &rxq->vxrxq_comp_ring.vxcr_ndesc, 0,"");
 		SYSCTL_ADD_INT(ctx, list, OID_AUTO, "comp_gen", CTLFLAG_RD,
 		    &rxq->vxrxq_comp_ring.vxcr_gen, 0, "");
+		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "comp_zero_length", CTLFLAG_RD,
+		    &rxq->vxrxq_comp_ring.vxcr_zero_length, 0, "");
+		SYSCTL_ADD_U64(ctx, list, OID_AUTO, "comp_pkt_errors", CTLFLAG_RD,
+		    &rxq->vxrxq_comp_ring.vxcr_pkt_errors, 0, "");
 	}
 }
 

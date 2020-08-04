@@ -41,7 +41,7 @@ struct vmxnet3_softc;
 #define VMXNET3_MAX_TX_NDESC		4096
 #define VMXNET3_MIN_TX_NDESC		32
 #define VMXNET3_MASK_TX_NDESC		0x1F
-#define VMXNET3_DEF_RX_NDESC		256
+#define VMXNET3_DEF_RX_NDESC		512
 #define VMXNET3_MAX_RX_NDESC		2048
 #define VMXNET3_MIN_RX_NDESC		32
 #define VMXNET3_MASK_RX_NDESC		0x1F
@@ -63,6 +63,8 @@ struct vmxnet3_rxring {
 	u_int			 vxrxr_ndesc;
 	int			 vxrxr_gen;
 	bus_addr_t		 vxrxr_paddr;
+	uint64_t		 vxrxr_desc_skips;
+	uint16_t		 vxrxr_refill_start;
 };
 
 struct vmxnet3_comp_ring {
@@ -78,6 +80,8 @@ struct vmxnet3_comp_ring {
 	u_int			 vxcr_ndesc;
 	int			 vxcr_gen;
 	bus_addr_t		 vxcr_paddr;
+	uint64_t		 vxcr_zero_length;
+	uint64_t		 vxcr_pkt_errors;
 };
 
 struct vmxnet3_txqueue {
