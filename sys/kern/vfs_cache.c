@@ -3484,29 +3484,29 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 
 	prev_mp = NULL;
 	for (;;) {
-		if (!vfs_op_thread_enter(mp)) {
+		if (!vfs_op_thread_enter_crit(mp)) {
 			if (prev_mp != NULL)
-				vfs_op_thread_exit(prev_mp);
+				vfs_op_thread_exit_crit(prev_mp);
 			return (cache_fpl_partial(fpl));
 		}
 		if (prev_mp != NULL)
-			vfs_op_thread_exit(prev_mp);
+			vfs_op_thread_exit_crit(prev_mp);
 		if (!vn_seqc_consistent(vp, vp_seqc)) {
-			vfs_op_thread_exit(mp);
+			vfs_op_thread_exit_crit(mp);
 			return (cache_fpl_partial(fpl));
 		}
 		if (!cache_fplookup_mp_supported(mp)) {
-			vfs_op_thread_exit(mp);
+			vfs_op_thread_exit_crit(mp);
 			return (cache_fpl_partial(fpl));
 		}
 		vp = atomic_load_ptr(&mp->mnt_rootvnode);
 		if (vp == NULL || VN_IS_DOOMED(vp)) {
-			vfs_op_thread_exit(mp);
+			vfs_op_thread_exit_crit(mp);
 			return (cache_fpl_partial(fpl));
 		}
 		vp_seqc = vn_seqc_read_any(vp);
 		if (seqc_in_modify(vp_seqc)) {
-			vfs_op_thread_exit(mp);
+			vfs_op_thread_exit_crit(mp);
 			return (cache_fpl_partial(fpl));
 		}
 		prev_mp = mp;
@@ -3515,7 +3515,7 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 			break;
 	}
 
-	vfs_op_thread_exit(prev_mp);
+	vfs_op_thread_exit_crit(prev_mp);
 	fpl->tvp = vp;
 	fpl->tvp_seqc = vp_seqc;
 	return (0);
