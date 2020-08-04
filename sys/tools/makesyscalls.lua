@@ -35,7 +35,8 @@
 local lfs = require("lfs")
 local unistd = require("posix.unistd")
 
-local maxsyscall = 0
+local savesyscall = -1
+local maxsyscall = -1
 local generated_tag = "@" .. "generated"
 
 -- Default configuration; any of these may get replaced by a configuration file
@@ -442,6 +443,11 @@ local pattern_table = {
 		dump_prevline = true,
 		pattern = "^#",
 		process = function(line)
+			if line:find("^#%s*if") then
+				savesyscall = maxsyscall
+			elseif line:find("^#%s*else") then
+				maxsyscall = savesyscall
+			end
 			line = line .. "\n"
 			write_line('sysent', line)
 			write_line('sysdcl', line)
@@ -916,6 +922,16 @@ process_syscall_def = function(line)
 		sysnum = nil
 		sysstart = tonumber(sysstart)
 		sysend = tonumber(sysend)
+		if sysstart ~= maxsyscall + 1 then
+			abort(1, "syscall number out of sync, missing " ..
+			    maxsyscall + 1)
+		end
+	else
+		sysnum = tonumber(sysnum)
+		if sysnum ~= maxsyscall + 1 then
+			abort(1, "syscall number out of sync, missing " ..
+			    maxsyscall + 1)
+		end
 	end
 
 	-- Split flags
@@ -1093,15 +1109,14 @@ process_syscall_def = function(line)
 		handle_obsol(sysnum, funcname, funcomment)
 	elseif flags & known_flags["UNIMPL"] ~= 0 then
 		handle_unimpl(sysnum, sysstart, sysend, funcomment)
-		if sysend ~= nil and sysend > maxsyscall then
-			maxsyscall = sysend
-		end
 	else
 		abort(1, "Bad flags? " .. line)
 	end
 
-	if sysnum ~= nil and tonumber(sysnum) > maxsyscall then
-		maxsyscall = tonumber(sysnum)
+	if sysend ~= nil then
+		maxsyscall = sysend
+	elseif sysnum ~= nil then
+		maxsyscall = sysnum
 	end
 end
 
