@@ -1790,6 +1790,14 @@ struct fhreadlink_args {
 	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
 	char bufsize_l_[PADL_(size_t)]; size_t bufsize; char bufsize_r_[PADR_(size_t)];
 };
+struct __sysctlbyname_args {
+	char name_l_[PADL_(const char *)]; const char * name; char name_r_[PADR_(const char *)];
+	char namelen_l_[PADL_(size_t)]; size_t namelen; char namelen_r_[PADR_(size_t)];
+	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
+	char oldlenp_l_[PADL_(size_t *)]; size_t * oldlenp; char oldlenp_r_[PADR_(size_t *)];
+	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
+	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2174,6 +2182,7 @@ int	sys_getfhat(struct thread *, struct getfhat_args *);
 int	sys_fhlink(struct thread *, struct fhlink_args *);
 int	sys_fhlinkat(struct thread *, struct fhlinkat_args *);
 int	sys_fhreadlink(struct thread *, struct fhreadlink_args *);
+int	sys___sysctlbyname(struct thread *, struct __sysctlbyname_args *);
 
 #ifdef COMPAT_43
 
@@ -3075,6 +3084,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_fhlink	AUE_NULL
 #define	SYS_AUE_fhlinkat	AUE_NULL
 #define	SYS_AUE_fhreadlink	AUE_NULL
+#define	SYS_AUE___sysctlbyname	AUE_SYSCTL
 
 #undef PAD_
 #undef PADL_

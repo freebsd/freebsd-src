@@ -651,4 +651,7 @@ struct sysent freebsd32_sysent[] = {
 	{ AS(fhlink_args), (sy_call_t *)sys_fhlink, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 565 = fhlink */
 	{ AS(fhlinkat_args), (sy_call_t *)sys_fhlinkat, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 566 = fhlinkat */
 	{ AS(fhreadlink_args), (sy_call_t *)sys_fhreadlink, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 567 = fhreadlink */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 568 = funlinkat */
+	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 569 = copy_file_range */
+	{ AS(freebsd32___sysctlbyname_args), (sy_call_t *)freebsd32___sysctlbyname, AUE_SYSCTL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 570 = freebsd32___sysctlbyname */
 };
