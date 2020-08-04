@@ -2542,7 +2542,7 @@ void
 device_set_softc(device_t dev, void *softc)
 {
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC))
-		free_domain(dev->softc, M_BUS_SC);
+		free(dev->softc, M_BUS_SC);
 	dev->softc = softc;
 	if (dev->softc)
 		dev->flags |= DF_EXTERNALSOFTC;
@@ -2559,7 +2559,7 @@ device_set_softc(device_t dev, void *softc)
 void
 device_free_softc(void *softc)
 {
-	free_domain(softc, M_BUS_SC);
+	free(softc, M_BUS_SC);
 }
 
 /**
@@ -2826,7 +2826,7 @@ device_set_driver(device_t dev, driver_t *driver)
 		return (0);
 
 	if (dev->softc && !(dev->flags & DF_EXTERNALSOFTC)) {
-		free_domain(dev->softc, M_BUS_SC);
+		free(dev->softc, M_BUS_SC);
 		dev->softc = NULL;
 	}
 	device_set_desc(dev, NULL);
