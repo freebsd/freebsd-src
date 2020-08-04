@@ -34,7 +34,7 @@ basic_v4_head()
 {
 	atf_set descr 'add/change/delete route test for v4'
 	atf_set require.user root
-	atf_set require.progs jq
+	atf_set require.progs jail jq
 }
 
 basic_v4_body()
@@ -79,7 +79,7 @@ basic_v6_head()
 {
 	atf_set descr 'add/change/delete route test for v6'
 	atf_set require.user root
-	atf_set require.progs jq
+	atf_set require.progs jail jq
 }
 
 basic_v6_body()
