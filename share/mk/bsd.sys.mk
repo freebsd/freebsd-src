@@ -152,6 +152,7 @@ CWARNFLAGS+=	-Wno-error=address			\
 .if ${COMPILER_VERSION} >= 60100
 CWARNFLAGS+=	-Wno-error=maybe-uninitialized		\
 		-Wno-error=nonnull-compare		\
+		-Wno-error=redundant-decls		\
 		-Wno-error=shift-negative-value		\
 		-Wno-error=tautological-compare		\
 		-Wno-error=unused-const-variable
