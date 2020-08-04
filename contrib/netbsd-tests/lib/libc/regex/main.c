@@ -338,7 +338,7 @@ options(int type, char *s)
 {
 	char *p;
 	int o = (type == 'c') ? copts : eopts;
-	const char *legal = (type == 'c') ? "bisnmp" : "^$#tl";
+	const char *legal = (type == 'c') ? "bisnmpP" : "^$#tl";
 
 	for (p = s; *p != '\0'; p++)
 		if (strchr(legal, *p) != NULL)
@@ -361,6 +361,9 @@ options(int type, char *s)
 				break;
 			case 'p':
 				o |= REG_PEND;
+				break;
+			case 'P':
+				o |= REG_POSIX;
 				break;
 			case '^':
 				o |= REG_NOTBOL;

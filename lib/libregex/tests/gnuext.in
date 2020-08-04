@@ -23,8 +23,12 @@ a\|b\|c	b	abc	a
 \B[abc]\B	&	<abc>	b
 \B[abc]+	-	<abc>	bc
 \B[abc]\+	b	<abc>	bc
+\`abc	&	abc	abc
+abc\'	&	abc	abc
 \`abc\'	&	abc	abc
 \`.+\'	-	abNc	abNc
 \`.\+\'	b	abNc	abNc
 (\`a)	-	Na
+(a\`)	-	aN
 (a\')	-	aN
+(\'a)	-	Na
