@@ -875,7 +875,7 @@ db_show_rm(const struct lock_object *lock)
  *
  * No attempt is made to track which CPUs read locked at least once,
  * consequently write locking sends IPIs to all of them. This will become a
- * problem at some point. The easiest way to lessen it is to provide a bitmamp.
+ * problem at some point. The easiest way to lessen it is to provide a bitmap.
  */
 
 void
