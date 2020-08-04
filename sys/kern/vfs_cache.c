@@ -3668,6 +3668,33 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
 	}
 }
 
+static int __noinline
+cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
+{
+
+	switch (error) {
+	case EAGAIN:
+		/*
+		 * Can happen when racing against vgone.
+		 * */
+	case EOPNOTSUPP:
+		cache_fpl_partial(fpl);
+		break;
+	default:
+		/*
+		 * See the API contract for VOP_FPLOOKUP_VEXEC.
+		 */
+		if (!vn_seqc_consistent(fpl->dvp, fpl->dvp_seqc)) {
+			error = cache_fpl_aborted(fpl);
+		} else {
+			cache_fpl_smr_exit(fpl);
+			cache_fpl_handled(fpl, error);
+		}
+		break;
+	}
+	return (error);
+}
+
 static int
 cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 {
@@ -3715,23 +3742,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 		error = VOP_FPLOOKUP_VEXEC(fpl->dvp, cnp->cn_cred, cnp->cn_thread);
 		if (__predict_false(error != 0)) {
-			switch (error) {
-			case EAGAIN:
-			case EOPNOTSUPP: /* can happen when racing against vgone */
-				cache_fpl_partial(fpl);
-				break;
-			default:
-				/*
-				 * See the API contract for VOP_FPLOOKUP_VEXEC.
-				 */
-				if (!vn_seqc_consistent(fpl->dvp, fpl->dvp_seqc)) {
-					error = cache_fpl_aborted(fpl);
-				} else {
-					cache_fpl_smr_exit(fpl);
-					cache_fpl_handled(fpl, error);
-				}
-				break;
-			}
+			error = cache_fplookup_failed_vexec(fpl, error);
 			break;
 		}
 
