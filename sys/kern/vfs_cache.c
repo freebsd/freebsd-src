@@ -2138,22 +2138,17 @@ cache_changesize(u_long newmaxvnodes)
 /*
  * Invalidate all entries from and to a particular vnode.
  */
-void
-cache_purge(struct vnode *vp)
+static void
+cache_purge_impl(struct vnode *vp)
 {
 	TAILQ_HEAD(, namecache) ncps;
 	struct namecache *ncp, *nnp;
 	struct mtx *vlp, *vlp2;
 
-	CTR1(KTR_VFS, "cache_purge(%p)", vp);
-	SDT_PROBE1(vfs, namecache, purge, done, vp);
-	if (LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
-	    vp->v_cache_dd == NULL)
-		return;
 	TAILQ_INIT(&ncps);
 	vlp = VP2VNODELOCK(vp);
 	vlp2 = NULL;
-	mtx_lock(vlp);
+	mtx_assert(vlp, MA_OWNED);
 retry:
 	while (!LIST_EMPTY(&vp->v_cache_src)) {
 		ncp = LIST_FIRST(&vp->v_cache_src);
@@ -2182,6 +2177,53 @@ retry:
 	TAILQ_FOREACH_SAFE(ncp, &ncps, nc_dst, nnp) {
 		cache_free(ncp);
 	}
+}
+
+void
+cache_purge(struct vnode *vp)
+{
+	struct mtx *vlp;
+
+	SDT_PROBE1(vfs, namecache, purge, done, vp);
+	if (LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
+	    vp->v_cache_dd == NULL)
+		return;
+	vlp = VP2VNODELOCK(vp);
+	mtx_lock(vlp);
+	cache_purge_impl(vp);
+}
+
+/*
+ * Only to be used by vgone.
+ */
+void
+cache_purge_vgone(struct vnode *vp)
+{
+	struct mtx *vlp;
+
+	VNPASS(VN_IS_DOOMED(vp), vp);
+	vlp = VP2VNODELOCK(vp);
+	if (!(LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
+	    vp->v_cache_dd == NULL)) {
+		mtx_lock(vlp);
+		cache_purge_impl(vp);
+		mtx_assert(vlp, MA_NOTOWNED);
+		return;
+	}
+
+	/*
+	 * All the NULL pointer state we found above may be transient.
+	 * Serialize against a possible thread doing cache_purge.
+	 */
+	mtx_wait_unlocked(vlp);
+	if (!(LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
+	    vp->v_cache_dd == NULL)) {
+		mtx_lock(vlp);
+		cache_purge_impl(vp);
+		mtx_assert(vlp, MA_NOTOWNED);
+		return;
+	}
+	return;
 }
 
 /*
