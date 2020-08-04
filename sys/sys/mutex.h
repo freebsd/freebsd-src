@@ -106,6 +106,7 @@ void	__mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v, int opts,
 void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v);
 void	__mtx_unlock_sleep(volatile uintptr_t *c, uintptr_t v);
 #endif
+void	mtx_wait_unlocked(struct mtx *m);
 
 #ifdef SMP
 #if LOCK_DEBUG > 0
