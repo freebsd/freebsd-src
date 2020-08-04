@@ -1109,7 +1109,9 @@ sdda_start_init_task(void *context, int pending) {
 		      CAM_PRIORITY_NONE);
 
 	cam_periph_lock(periph);
+	cam_periph_hold(periph, PRIBIO|PCATCH);
 	sdda_start_init(context, new_ccb);
+	cam_periph_unhold(periph);
 	cam_periph_unlock(periph);
 	xpt_free_ccb(new_ccb);
 }
