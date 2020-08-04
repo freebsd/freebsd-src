@@ -445,7 +445,13 @@ ffs_lock(ap)
 	struct lock *lkp;
 	int result;
 
-	ap->a_flags |= LK_ADAPTIVE;
+	/*
+	 * Adaptive spinning mixed with SU leads to trouble. use a giant hammer
+	 * and only use it when LK_NODDLKTREAT is set. Currently this means it
+	 * is only used during path lookup.
+	 */
+	if ((ap->a_flags & LK_NODDLKTREAT) != 0)
+		ap->a_flags |= LK_ADAPTIVE;
 	switch (ap->a_flags & LK_TYPE_MASK) {
 	case LK_SHARED:
 	case LK_UPGRADE:
@@ -483,7 +489,11 @@ ffs_lock(ap)
 	}
 	return (result);
 #else
-	ap->a_flags |= LK_ADAPTIVE;
+	/*
+	 * See above for an explanation.
+	 */
+	if ((ap->a_flags & LK_NODDLKTREAT) != 0)
+		ap->a_flags |= LK_ADAPTIVE;
 	return (VOP_LOCK1_APV(&ufs_vnodeops, ap));
 #endif
 }
