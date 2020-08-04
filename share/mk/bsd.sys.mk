@@ -184,6 +184,11 @@ CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=sizeof-pointer-memaccess		\
 		-Wno-error=stringop-truncation
 .endif
+
+# GCC's own arm_neon.h triggers various warnings
+.if ${MACHINE_ARCH} == "aarch64"
+CWARNFLAGS+=	-Wno-system-headers
+.endif
 .endif	# gcc
 
 # How to handle FreeBSD custom printf format specifiers.
