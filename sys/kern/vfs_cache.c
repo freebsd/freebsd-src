@@ -2001,6 +2001,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	return;
 out_unlock_free:
 	cache_enter_unlock(&cel);
+	atomic_add_long(&numcache, -1);
 	cache_free(ncp);
 	return;
 }
