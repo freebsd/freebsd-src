@@ -6881,16 +6881,28 @@ vn_dir_check_exec(struct vnode *vp, struct componentname *cnp)
 	return (VOP_ACCESS(vp, VEXEC, cnp->cn_cred, cnp->cn_thread));
 }
 
+/*
+ * Do not use this variant unless you have means other than the hold count
+ * to prevent the vnode from getting freed.
+ */
+void
+vn_seqc_write_begin_unheld_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(vp->v_seqc_users >= 0, vp);
+	vp->v_seqc_users++;
+	if (vp->v_seqc_users == 1)
+		seqc_sleepable_write_begin(&vp->v_seqc);
+}
+
 void
 vn_seqc_write_begin_locked(struct vnode *vp)
 {
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	VNPASS(vp->v_holdcnt > 0, vp);
-	VNPASS(vp->v_seqc_users >= 0, vp);
-	vp->v_seqc_users++;
-	if (vp->v_seqc_users == 1)
-		seqc_sleepable_write_begin(&vp->v_seqc);
+	vn_seqc_write_begin_unheld_locked(vp);
 }
 
 void
@@ -6899,6 +6911,15 @@ vn_seqc_write_begin(struct vnode *vp)
 
 	VI_LOCK(vp);
 	vn_seqc_write_begin_locked(vp);
+	VI_UNLOCK(vp);
+}
+
+void
+vn_seqc_write_begin_unheld(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	vn_seqc_write_begin_unheld_locked(vp);
 	VI_UNLOCK(vp);
 }
 
