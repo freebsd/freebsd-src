@@ -200,6 +200,15 @@
 #define CSUM_OFFLOAD_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6|CSUM_SCTP_IPV6)
 #define CSUM_OFFLOAD		(CSUM_OFFLOAD_IPV4|CSUM_OFFLOAD_IPV6|CSUM_TSO)
 
+/* Misc flags for ixl_vsi.flags */
+#define IXL_FLAGS_KEEP_TSO4	(1 << 0)
+#define IXL_FLAGS_KEEP_TSO6	(1 << 1)
+#define IXL_FLAGS_USES_MSIX	(1 << 2)
+#define IXL_FLAGS_IS_VF		(1 << 3)
+
+#define IXL_VSI_IS_PF(v)	((v->flags & IXL_FLAGS_IS_VF) == 0)
+#define IXL_VSI_IS_VF(v)	((v->flags & IXL_FLAGS_IS_VF) != 0)
+
 #define IXL_VF_RESET_TIMEOUT	100
 
 #define IXL_VSI_DATA_PORT	0x01
@@ -292,7 +301,7 @@
 #endif
 
 /* For stats sysctl naming */
-#define QUEUE_NAME_LEN 32
+#define IXL_QUEUE_NAME_LEN 32
 
 #define IXL_DEV_ERR(_dev, _format, ...) \
 	device_printf(_dev, "%s: " _format " (%s:%d)\n", __func__, ##__VA_ARGS__, __FILE__, __LINE__)
@@ -438,6 +447,7 @@ struct ixl_vsi {
 	/* MAC/VLAN Filter list */
 	struct ixl_ftl_head	ftl;
 	u16			num_macs;
+	u64			num_hw_filters;
 
 	/* Contains readylist & stat counter id */
 	struct i40e_aqc_vsi_properties_data info;
@@ -447,7 +457,7 @@ struct ixl_vsi {
 	/* Per-VSI stats from hardware */
 	struct i40e_eth_stats	eth_stats;
 	struct i40e_eth_stats	eth_stats_offsets;
-	bool 			stat_offsets_loaded;
+	bool			stat_offsets_loaded;
 	/* VSI stat counters */
 	u64			ipackets;
 	u64			ierrors;
@@ -461,14 +471,11 @@ struct ixl_vsi {
 	u64			oqdrops;
 	u64			noproto;
 
-	/* Driver statistics */
-	u64			hw_filters_del;
-	u64			hw_filters_add;
-
 	/* Misc. */
-	u64 			flags;
+	u64			flags;
 	/* Stats sysctls for this VSI */
 	struct sysctl_oid	*vsi_node;
+	struct sysctl_ctx_list  sysctl_ctx;
 };
 
 /*
@@ -497,9 +504,9 @@ ixl_new_filter(struct ixl_vsi *vsi, const u8 *macaddr, s16 vlan)
 */
 static inline bool
 cmp_etheraddr(const u8 *ea1, const u8 *ea2)
-{       
-	return (bcmp(ea1, ea2, 6) == 0);
-}       
+{
+	return (bcmp(ea1, ea2, ETHER_ADDR_LEN) == 0);
+}
 
 /*
  * Return next largest power of 2, unsigned
@@ -548,5 +555,6 @@ void		ixl_add_vsi_sysctls(device_t dev, struct ixl_vsi *vsi,
 void		ixl_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
 		    struct sysctl_oid_list *child,
 		    struct i40e_eth_stats *eth_stats);
-void		ixl_add_queues_sysctls(device_t dev, struct ixl_vsi *vsi);
+void		ixl_vsi_add_queues_stats(struct ixl_vsi *vsi,
+		    struct sysctl_ctx_list *ctx);
 #endif /* _IXL_H_ */

@@ -36,6 +36,8 @@
 #ifndef _IXL_PF_H_
 #define _IXL_PF_H_
 
+#include "i40e_dcb.h"
+
 #include "ixl.h"
 #include "ixl_pf_qmgr.h"
 
@@ -59,18 +61,37 @@
 	I40E_VFINT_DYN_CTLN(((vector) - 1) + \
 	    (((hw)->func_caps.num_msix_vectors_vf - 1) * (vf_num)))
 
+enum ixl_fw_mode {
+	IXL_FW_MODE_NORMAL,
+	IXL_FW_MODE_RECOVERY,
+	IXL_FW_MODE_UEMPR
+};
+
+enum ixl_i2c_access_method_t {
+	IXL_I2C_ACCESS_METHOD_BEST_AVAILABLE = 0,
+	IXL_I2C_ACCESS_METHOD_BIT_BANG_I2CPARAMS = 1,
+	IXL_I2C_ACCESS_METHOD_REGISTER_I2CCMD = 2,
+	IXL_I2C_ACCESS_METHOD_AQ = 3,
+	IXL_I2C_ACCESS_METHOD_TYPE_LENGTH = 4
+};
+
 /* Used in struct ixl_pf's state field */
 enum ixl_pf_state {
-	IXL_PF_STATE_ADAPTER_RESETTING	= (1 << 0),
-	IXL_PF_STATE_MDD_PENDING	= (1 << 1),
-	IXL_PF_STATE_PF_RESET_REQ	= (1 << 2),
-	IXL_PF_STATE_VF_RESET_REQ	= (1 << 3),
-	IXL_PF_STATE_PF_CRIT_ERR	= (1 << 4),
-	IXL_PF_STATE_CORE_RESET_REQ	= (1 << 5),
-	IXL_PF_STATE_GLOB_RESET_REQ	= (1 << 6),
-	IXL_PF_STATE_EMP_RESET_REQ	= (1 << 7),
-	IXL_PF_STATE_FW_LLDP_DISABLED	= (1 << 8),
+	IXL_PF_STATE_RECOVERY_MODE	= (1 << 0),
+	IXL_PF_STATE_ADAPTER_RESETTING	= (1 << 1),
+	IXL_PF_STATE_MDD_PENDING	= (1 << 2),
+	IXL_PF_STATE_PF_RESET_REQ	= (1 << 3),
+	IXL_PF_STATE_VF_RESET_REQ	= (1 << 4),
+	IXL_PF_STATE_PF_CRIT_ERR	= (1 << 5),
+	IXL_PF_STATE_CORE_RESET_REQ	= (1 << 6),
+	IXL_PF_STATE_GLOB_RESET_REQ	= (1 << 7),
+	IXL_PF_STATE_EMP_RESET_REQ	= (1 << 8),
+	IXL_PF_STATE_FW_LLDP_DISABLED	= (1 << 9),
 };
+
+#define IXL_PF_IN_RECOVERY_MODE(pf)	\
+	((atomic_load_acq_32(&pf->state) & IXL_PF_STATE_RECOVERY_MODE) != 0)
+
 
 struct ixl_vf {
 	struct ixl_vsi		vsi;
@@ -79,10 +100,9 @@ struct ixl_vf {
 
 	u8			mac[ETHER_ADDR_LEN];
 	u16			vf_num;
-	u32			version;
+	struct virtchnl_version_info version;
 
 	struct ixl_pf_qtag	qtag;
-	struct sysctl_ctx_list	ctx;
 };
 
 /* Physical controller structure */
@@ -105,8 +125,17 @@ struct ixl_pf {
 	struct ixl_pf_qmgr	qmgr;
 	struct ixl_pf_qtag	qtag;
 
+	char admin_mtx_name[16]; /* name of the admin mutex */
+	struct mtx admin_mtx; /* mutex to protect the admin timer */
+	struct callout admin_timer; /* timer to trigger admin task */
+
 	/* Tunable values */
+#ifdef IXL_DEBUG_FC
 	bool			enable_tx_fc_filter;
+#endif
+#ifdef IXL_DEBUG
+	bool			recovery_mode;
+#endif
 	int			dynamic_rx_itr;
 	int			dynamic_tx_itr;
 	int			tx_itr;
@@ -128,16 +157,17 @@ struct ixl_pf {
 	bool 				stat_offsets_loaded;
 
 	/* I2C access methods */
-	u8			i2c_access_method;
-	s32	(*read_i2c_byte)(struct ixl_pf *pf, u8 byte_offset,
+	enum ixl_i2c_access_method_t i2c_access_method;
+	s32 (*read_i2c_byte)(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 *data);
-	s32	(*write_i2c_byte)(struct ixl_pf *pf, u8 byte_offset,
+	s32 (*write_i2c_byte)(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 data);
 
 	/* SR-IOV */
 	struct ixl_vf		*vfs;
 	int			num_vfs;
 	uint16_t		veb_seid;
+	int			vc_debug_lvl;
 };
 
 /*
@@ -223,8 +253,6 @@ struct ixl_pf {
 "\t1 - Enable (VEB)\n"				\
 "Enabling this will allow VFs in separate VMs to communicate over the hardware bridge."
 
-extern const char * const ixl_fc_string[6];
-
 MALLOC_DECLARE(M_IXL);
 
 /*** Functions / Macros ***/
@@ -239,15 +267,14 @@ MALLOC_DECLARE(M_IXL);
 	ixl_send_vf_nack_msg((pf), (vf), (op), (st), __FILE__, __LINE__)
 
 /* Debug printing */
-#define ixl_dbg(pf, m, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, m, s, ##__VA_ARGS__)
-#define ixl_dbg_info(pf, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, IXL_DBG_INFO, s, ##__VA_ARGS__)
-#define ixl_dbg_filter(pf, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, IXL_DBG_FILTER, s, ##__VA_ARGS__)
-#define ixl_dbg_iov(pf, s, ...) ixl_debug_core(pf->dev, pf->dbg_mask, IXL_DBG_IOV, s, ##__VA_ARGS__)
+#define ixl_dbg(pf, m, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, m, s, ##__VA_ARGS__)
+#define ixl_dbg_info(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_INFO, s, ##__VA_ARGS__)
+#define ixl_dbg_filter(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_FILTER, s, ##__VA_ARGS__)
+#define ixl_dbg_iov(pf, s, ...) ixl_debug_core((pf)->dev, (pf)->dbg_mask, IXL_DBG_IOV, s, ##__VA_ARGS__)
 
 /* PF-only function declarations */
 int	ixl_setup_interface(device_t, struct ixl_pf *);
 void	ixl_print_nvm_cmd(device_t, struct i40e_nvm_access *);
-char *	ixl_aq_speed_to_str(enum i40e_aq_link_speed);
 
 void	ixl_handle_que(void *context, int pending);
 
@@ -261,9 +288,7 @@ int	ixl_msix_adminq(void *);
 void	ixl_do_adminq(void *, int);
 
 int	ixl_res_alloc_cmp(const void *, const void *);
-char *	ixl_switch_res_type_string(u8);
-char *	ixl_switch_element_string(struct sbuf *,
-	    struct i40e_aqc_switch_config_element_resp *);
+const char *	ixl_switch_res_type_string(u8);
 void	ixl_add_sysctls_mac_stats(struct sysctl_ctx_list *,
 		    struct sysctl_oid_list *, struct i40e_hw_port_stats *);
 
@@ -282,6 +307,7 @@ void	ixl_stat_update32(struct i40e_hw *, u32, bool,
 		    u64 *, u64 *);
 
 void	ixl_stop(struct ixl_pf *);
+void	ixl_vsi_add_sysctls(struct ixl_vsi *, const char *, bool);
 int	ixl_get_hw_capabilities(struct ixl_pf *);
 void	ixl_link_up_msg(struct ixl_pf *);
 void    ixl_update_link_status(struct ixl_pf *);
@@ -289,19 +315,20 @@ int	ixl_setup_stations(struct ixl_pf *);
 int	ixl_switch_config(struct ixl_pf *);
 void	ixl_stop_locked(struct ixl_pf *);
 int	ixl_teardown_hw_structs(struct ixl_pf *);
-int	ixl_reset(struct ixl_pf *);
 void	ixl_init_locked(struct ixl_pf *);
 void	ixl_set_rss_key(struct ixl_pf *);
 void	ixl_set_rss_pctypes(struct ixl_pf *);
 void	ixl_set_rss_hlut(struct ixl_pf *);
 int	ixl_setup_adminq_msix(struct ixl_pf *);
 int	ixl_setup_adminq_tq(struct ixl_pf *);
-int	ixl_teardown_adminq_msix(struct ixl_pf *);
+void	ixl_teardown_adminq_msix(struct ixl_pf *);
 void	ixl_configure_intr0_msix(struct ixl_pf *);
 void	ixl_configure_queue_intr_msix(struct ixl_pf *);
 void	ixl_free_adminq_tq(struct ixl_pf *);
 int	ixl_setup_legacy(struct ixl_pf *);
 int	ixl_init_msix(struct ixl_pf *);
+void	ixl_configure_tx_itr(struct ixl_pf *);
+void	ixl_configure_rx_itr(struct ixl_pf *);
 void	ixl_configure_itr(struct ixl_pf *);
 void	ixl_configure_legacy(struct ixl_pf *);
 void	ixl_free_pci_resources(struct ixl_pf *);
@@ -310,6 +337,7 @@ void	ixl_config_rss(struct ixl_pf *);
 int	ixl_set_advertised_speeds(struct ixl_pf *, int, bool);
 void	ixl_set_initial_advertised_speeds(struct ixl_pf *);
 void	ixl_print_nvm_version(struct ixl_pf *pf);
+void	ixl_add_sysctls_recovery_mode(struct ixl_pf *);
 void	ixl_add_device_sysctls(struct ixl_pf *);
 void	ixl_handle_mdd_event(struct ixl_pf *);
 void	ixl_add_hw_stats(struct ixl_pf *);
@@ -320,9 +348,14 @@ int	ixl_aq_get_link_status(struct ixl_pf *,
     struct i40e_aqc_get_link_status *);
 
 int	ixl_handle_nvmupd_cmd(struct ixl_pf *, struct ifdrv *);
+int	ixl_handle_i2c_eeprom_read_cmd(struct ixl_pf *, struct ifreq *ifr);
+
+int	ixl_setup_hmc(struct ixl_pf *);
+void	ixl_shutdown_hmc(struct ixl_pf *);
 void	ixl_handle_empr_reset(struct ixl_pf *);
 int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
-int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *);
+int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
+int	ixl_pf_reset(struct ixl_pf *);
 
 void	ixl_set_queue_rx_itr(struct ixl_rx_queue *);
 void	ixl_set_queue_tx_itr(struct ixl_tx_queue *);
@@ -344,7 +377,7 @@ int	ixl_enable_ring(struct ixl_pf *pf, struct ixl_pf_qtag *, u16);
 void	ixl_update_eth_stats(struct ixl_vsi *);
 void	ixl_cap_txcsum_tso(struct ixl_vsi *, struct ifnet *, int);
 int	ixl_initialize_vsi(struct ixl_vsi *);
-void	ixl_add_ifmedia(struct ixl_vsi *, u64);
+void	ixl_add_ifmedia(struct ifmedia *, u64);
 int	ixl_setup_queue_msix(struct ixl_vsi *);
 int	ixl_setup_queue_tqs(struct ixl_vsi *);
 int	ixl_teardown_queue_msix(struct ixl_vsi *);
@@ -388,8 +421,8 @@ s32	ixl_read_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 s32	ixl_write_i2c_byte_aq(struct ixl_pf *pf, u8 byte_offset,
 	    u8 dev_addr, u8 data);
 
-int	ixl_get_fw_lldp_status(struct ixl_pf *pf);
+u64	ixl_max_aq_speed_to_value(u8);
 int	ixl_attach_get_link_status(struct ixl_pf *);
-u64		ixl_max_aq_speed_to_value(u8);
+int	ixl_sysctl_set_flowcntl(SYSCTL_HANDLER_ARGS);
 
 #endif /* _IXL_PF_H_ */
