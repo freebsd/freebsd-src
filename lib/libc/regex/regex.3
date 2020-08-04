@@ -32,7 +32,7 @@
 .\"	@(#)regex.3	8.4 (Berkeley) 3/20/94
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2016
+.Dd April 15, 2017
 .Dt REGEX 3
 .Os
 .Sh NAME
@@ -178,6 +178,17 @@ member is of type
 .Ft "const char *" .
 This flag permits inclusion of NULs in the RE;
 they are considered ordinary characters.
+This is an extension,
+compatible with but not specified by
+.St -p1003.2 ,
+and should be used with
+caution in software intended to be portable to other systems.
+.It Dv REG_POSIX
+Compile only
+.St -p1003.2
+compliant expressions.
+This flag has no effect unless linking against
+.Nm libregex .
 This is an extension,
 compatible with but not specified by
 .St -p1003.2 ,
