@@ -2675,7 +2675,7 @@ retry:
 			 * ascending order.) (2) It is not reserved, and it is
 			 * transitioning from free to allocated.  (Conversely,
 			 * the transition from allocated to free for managed
-			 * pages is blocked by the page lock.) (3) It is
+			 * pages is blocked by the page busy lock.) (3) It is
 			 * allocated but not contained by an object and not
 			 * wired, e.g., allocated by Xen's balloon driver.
 			 */
@@ -3622,8 +3622,6 @@ vm_page_pqbatch_drain(void)
  *	Request removal of the given page from its current page
  *	queue.  Physical removal from the queue may be deferred
  *	indefinitely.
- *
- *	The page must be locked.
  */
 void
 vm_page_dequeue_deferred(vm_page_t m)
@@ -3804,8 +3802,8 @@ vm_page_free_prep(vm_page_t m)
  *	Returns the given page to the free list, disassociating it
  *	from any VM object.
  *
- *	The object must be locked.  The page must be locked if it is
- *	managed.
+ *	The object must be locked.  The page must be exclusively busied if it
+ *	belongs to an object.
  */
 static void
 vm_page_free_toq(vm_page_t m)
@@ -3834,9 +3832,6 @@ vm_page_free_toq(vm_page_t m)
  *	Returns a list of pages to the free list, disassociating it
  *	from any VM object.  In other words, this is equivalent to
  *	calling vm_page_free_toq() for each page of a list of VM objects.
- *
- *	The objects must be locked.  The pages must be locked if it is
- *	managed.
  */
 void
 vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
@@ -3974,8 +3969,6 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
  * of wirings transitions to zero and the page is eligible for page out, then
  * the page is added to the specified paging queue.  If the released wiring
  * represented the last reference to the page, the page is freed.
- *
- * A managed page must be locked.
  */
 void
 vm_page_unwire(vm_page_t m, uint8_t nqueue)
@@ -4022,8 +4015,6 @@ vm_page_unwire_noq(vm_page_t m)
  * Ensure that the page ends up in the specified page queue.  If the page is
  * active or being moved to the active queue, ensure that its act_count is
  * at least ACT_INIT but do not otherwise mess with it.
- *
- * A managed page must be locked.
  */
 static __always_inline void
 vm_page_mvqueue(vm_page_t m, const uint8_t nqueue, const uint16_t nflag)
@@ -4269,14 +4260,14 @@ vm_page_try_remove_write(vm_page_t m)
  * vm_page_advise
  *
  * 	Apply the specified advice to the given page.
- *
- *	The object and page must be locked.
  */
 void
 vm_page_advise(vm_page_t m, int advice)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(m->object);
+	vm_page_assert_xbusied(m);
+
 	if (advice == MADV_FREE)
 		/*
 		 * Mark the page clean.  This will allow the page to be freed
