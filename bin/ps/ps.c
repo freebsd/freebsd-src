@@ -1264,6 +1264,7 @@ fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
 static void
 saveuser(KINFO *ki)
 {
+	char tdname[COMMLEN + 1];
 	char *argsp;
 
 	if (ki->ki_p->ki_flag & P_INMEM) {
@@ -1280,12 +1281,14 @@ saveuser(KINFO *ki)
 	 * save arguments if needed
 	 */
 	if (needcomm) {
-		if (ki->ki_p->ki_stat == SZOMB)
+		if (ki->ki_p->ki_stat == SZOMB) {
 			ki->ki_args = strdup("<defunct>");
-		else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL))
+		} else if (UREADOK(ki) || (ki->ki_p->ki_args != NULL)) {
+			(void)snprintf(tdname, sizeof(tdname), "%s%s",
+			    ki->ki_p->ki_tdname, ki->ki_p->ki_moretdname);
 			ki->ki_args = fmt(kvm_getargv, ki,
-			    ki->ki_p->ki_comm, ki->ki_p->ki_tdname, MAXCOMLEN);
-		else {
+			    ki->ki_p->ki_comm, tdname, COMMLEN * 2 + 1);
+		} else {
 			asprintf(&argsp, "(%s)", ki->ki_p->ki_comm);
 			ki->ki_args = argsp;
 		}
