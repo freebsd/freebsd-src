@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 static int	devinfo_init_devices(int generation);
 static int	devinfo_init_resources(int generation);
+static void	devinfo_free_dev(struct devinfo_i_dev *dd);
 
 TAILQ_HEAD(,devinfo_i_dev)	devinfo_dev;
 TAILQ_HEAD(,devinfo_i_rman)	devinfo_rman;
@@ -225,7 +226,7 @@ devinfo_init_devices(int generation)
 			    rlen, sizeof(udev));
 			return (EINVAL);
 		}
-		if ((dd = malloc(sizeof(*dd))) == NULL)
+		if ((dd = calloc(1, sizeof(*dd))) == NULL)
 			return(ENOMEM);
 		dd->dd_dev.dd_handle = udev.dv_handle;
 		dd->dd_dev.dd_parent = udev.dv_parent;
@@ -242,10 +243,14 @@ devinfo_init_devices(int generation)
 		dd->dd_location = NULL;
 #define UNPACK(x)							\
 		dd->dd_dev.x = dd->x = strdup(walker);			\
-		if (dd->x == NULL)					\
+		if (dd->x == NULL) {					\
+			devinfo_free_dev(dd);				\
 			return(ENOMEM);					\
-		if (walker + strnlen(walker, ep - walker) >= ep)	\
+		}							\
+		if (walker + strnlen(walker, ep - walker) >= ep) {	\
+			devinfo_free_dev(dd);				\
 			return(EINVAL);					\
+		}							\
 		walker += strlen(walker) + 1;
 
 		UNPACK(dd_name);
@@ -365,6 +370,20 @@ devinfo_init_resources(int generation)
 }
 
 /*
+ * Free an individual dev.
+ */
+static void
+devinfo_free_dev(struct devinfo_i_dev *dd)
+{
+	free(dd->dd_name);
+	free(dd->dd_desc);
+	free(dd->dd_drivername);
+	free(dd->dd_pnpinfo);
+	free(dd->dd_location);
+	free(dd);
+}	
+
+/*
  * Free the list contents.
  */
 void
@@ -376,12 +395,7 @@ devinfo_free(void)
 
 	while ((dd = TAILQ_FIRST(&devinfo_dev)) != NULL) {
 		TAILQ_REMOVE(&devinfo_dev, dd, dd_link);
-		free(dd->dd_name);
-		free(dd->dd_desc);
-		free(dd->dd_drivername);
-		free(dd->dd_pnpinfo);
-		free(dd->dd_location);
-		free(dd);
+		devinfo_free_dev(dd);
 	}
 	while ((dm = TAILQ_FIRST(&devinfo_rman)) != NULL) {
 		TAILQ_REMOVE(&devinfo_rman, dm, dm_link);
