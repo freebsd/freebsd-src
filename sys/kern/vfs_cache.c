@@ -162,6 +162,7 @@ struct	namecache_ts {
 #define	NCF_DVDROP	0x10
 #define	NCF_NEGATIVE	0x20
 #define	NCF_INVALID	0x40
+#define	NCF_WIP		0x80
 
 /*
  * Flags in negstate.neg_flag
@@ -179,22 +180,22 @@ cache_ncp_invalidate(struct namecache *ncp)
 
 	KASSERT((ncp->nc_flag & NCF_INVALID) == 0,
 	    ("%s: entry %p already invalid", __func__, ncp));
-	ncp->nc_flag |= NCF_INVALID;
+	atomic_store_char(&ncp->nc_flag, ncp->nc_flag | NCF_INVALID);
 	atomic_thread_fence_rel();
 }
 
 /*
- * Verify validity of an entry.
+ * Check whether the entry can be safely used.
  *
  * All places which elide locks are supposed to call this after they are
  * done with reading from an entry.
  */
 static bool
-cache_ncp_invalid(struct namecache *ncp)
+cache_ncp_canuse(struct namecache *ncp)
 {
 
 	atomic_thread_fence_acq();
-	return ((ncp->nc_flag & NCF_INVALID) != 0);
+	return ((atomic_load_char(&ncp->nc_flag) & (NCF_INVALID | NCF_WIP)) == 0);
 }
 
 /*
@@ -1506,7 +1507,7 @@ success:
 		VOP_UNLOCK(dvp);
 	}
 	if (doing_smr) {
-		if (cache_ncp_invalid(ncp)) {
+		if (!cache_ncp_canuse(ncp)) {
 			vfs_smr_exit();
 			*vpp = NULL;
 			goto retry;
@@ -1560,7 +1561,7 @@ negative_success:
 		 */
 		negstate = NCP2NEGSTATE(ncp);
 		if ((negstate->neg_flag & NEG_HOT) == 0 ||
-		    cache_ncp_invalid(ncp)) {
+		    !cache_ncp_canuse(ncp)) {
 			vfs_smr_exit();
 			doing_smr = false;
 			goto retry_hashed;
@@ -1884,7 +1885,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * namecache entry as possible before acquiring the lock.
 	 */
 	ncp = cache_alloc(cnp->cn_namelen, tsp != NULL);
-	ncp->nc_flag = flag;
+	ncp->nc_flag = flag | NCF_WIP;
 	ncp->nc_vp = vp;
 	if (vp == NULL)
 		cache_negative_init(ncp);
@@ -1987,12 +1988,18 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		    ncp->nc_name);
 	}
 
-	atomic_thread_fence_rel();
 	/*
 	 * Insert the new namecache entry into the appropriate chain
 	 * within the cache entries table.
 	 */
 	CK_LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
+
+	atomic_thread_fence_rel();
+	/*
+	 * Mark the entry as fully constructed.
+	 * It is immutable past this point until its removal.
+	 */
+	atomic_store_char(&ncp->nc_flag, ncp->nc_flag & ~NCF_WIP);
 
 	cache_enter_unlock(&cel);
 	if (numneg * ncnegfactor > lnumcache)
@@ -3197,7 +3204,7 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 		goto out_abort;
 	}
 
-	if (__predict_false(cache_ncp_invalid(ncp))) {
+	if (__predict_false(!cache_ncp_canuse(ncp))) {
 		goto out_abort;
 	}
 
@@ -3458,7 +3465,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	if ((nc_flag & NCF_NEGATIVE) != 0) {
 		negstate = NCP2NEGSTATE(ncp);
 		neg_hot = ((negstate->neg_flag & NEG_HOT) != 0);
-		if (__predict_false(cache_ncp_invalid(ncp))) {
+		if (__predict_false(!cache_ncp_canuse(ncp))) {
 			return (cache_fpl_partial(fpl));
 		}
 		if (__predict_false((nc_flag & NCF_WHITE) != 0)) {
@@ -3474,7 +3481,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 		return (cache_fpl_handled(fpl, ENOENT));
 	}
 
-	if (__predict_false(cache_ncp_invalid(ncp))) {
+	if (__predict_false(!cache_ncp_canuse(ncp))) {
 		return (cache_fpl_partial(fpl));
 	}
 
