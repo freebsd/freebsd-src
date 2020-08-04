@@ -92,6 +92,7 @@ struct parse {
 	const char *next;	/* next character in RE */
 	const char *end;	/* end of string (-> NUL normally) */
 	int error;		/* has an error been seen? */
+	int gnuext;
 	sop *strip;		/* malloced strip */
 	sopno ssize;		/* malloced strip size (allocated) */
 	sopno slen;		/* malloced strip length (used) */
@@ -131,7 +132,9 @@ static int p_count(struct parse *p);
 static void p_bracket(struct parse *p);
 static int p_range_cmp(wchar_t c1, wchar_t c2);
 static void p_b_term(struct parse *p, cset *cs);
+static int p_b_pseudoclass(struct parse *p, char c);
 static void p_b_cclass(struct parse *p, cset *cs);
+static void p_b_cclass_named(struct parse *p, cset *cs, const char[]);
 static void p_b_eclass(struct parse *p, cset *cs);
 static wint_t p_b_symbol(struct parse *p);
 static wint_t p_b_coll_elem(struct parse *p, wint_t endc);
@@ -181,6 +184,7 @@ static char nuls[10];		/* place to point scanner in event of error */
 #define	SEESPEC(a)	(p->bre ? SEETWO('\\', a) : SEE(a))
 #define	EAT(c)	((SEE(c)) ? (NEXT(), 1) : 0)
 #define	EATTWO(a, b)	((SEETWO(a, b)) ? (NEXT2(), 1) : 0)
+#define	EATSPEC(a)	(p->bre ? EATTWO('\\', a) : EAT(a))
 #define	NEXT()	(p->next++)
 #define	NEXT2()	(p->next += 2)
 #define	NEXTn(n)	(p->next += (n))
@@ -270,14 +274,22 @@ regcomp_internal(regex_t * __restrict preg,
 		p->pbegin[i] = 0;
 		p->pend[i] = 0;
 	}
+#ifdef LIBREGEX
+	if (cflags&REG_POSIX) {
+		p->gnuext = false;
+		p->allowbranch = (cflags & REG_EXTENDED) != 0;
+	} else
+		p->gnuext = p->allowbranch = true;
+#else
+	p->gnuext = false;
+	p->allowbranch = (cflags & REG_EXTENDED) != 0;
+#endif
 	if (cflags & REG_EXTENDED) {
-		p->allowbranch = true;
 		p->bre = false;
 		p->parse_expr = p_ere_exp;
 		p->pre_parse = NULL;
 		p->post_parse = NULL;
 	} else {
-		p->allowbranch = false;
 		p->bre = true;
 		p->parse_expr = p_simp_re;
 		p->pre_parse = p_bre_pre_parse;
@@ -388,6 +400,10 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	sopno pos;
 	int count;
 	int count2;
+#ifdef LIBREGEX
+	int i;
+	int handled;
+#endif
 	sopno subno;
 	int wascaret = 0;
 
@@ -395,6 +411,9 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
 
+#ifdef LIBREGEX
+	handled = 0;
+#endif
 	pos = HERE();
 	switch (c) {
 	case '(':
@@ -457,6 +476,47 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 	case '\\':
 		(void)REQUIRE(MORE(), REG_EESCAPE);
 		wc = WGETNEXT();
+#ifdef LIBREGEX
+		if (p->gnuext) {
+			handled = 1;
+			switch (wc) {
+			case 'W':
+			case 'w':
+			case 'S':
+			case 's':
+				p_b_pseudoclass(p, wc);
+				break;
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+				i = wc - '0';
+				assert(i < NPAREN);
+				if (p->pend[i] != 0) {
+					assert(i <= p->g->nsub);
+					EMIT(OBACK_, i);
+					assert(p->pbegin[i] != 0);
+					assert(OP(p->strip[p->pbegin[i]]) == OLPAREN);
+					assert(OP(p->strip[p->pend[i]]) == ORPAREN);
+					(void) dupl(p, p->pbegin[i]+1, p->pend[i]);
+					EMIT(O_BACK, i);
+				} else
+					SETERROR(REG_ESUBREG);
+				p->g->backrefs = 1;
+				break;
+			default:
+				handled = 0;
+			}
+			/* Don't proceed to the POSIX bits if we've already handled it */
+			if (handled)
+				break;
+		}
+#endif
 		switch (wc) {
 		case '<':
 			EMIT(OBOW, 0);
@@ -567,7 +627,7 @@ p_branch_eat_delim(struct parse *p, struct branchc *bc)
 
 	(void)bc;
 	nskip = 0;
-	while (EAT('|'))
+	while (EATSPEC('|'))
 		++nskip;
 	return (nskip);
 }
@@ -619,9 +679,15 @@ static bool
 p_branch_empty(struct parse *p, struct branchc *bc)
 {
 
+#if defined(LIBREGEX) && defined(NOTYET)
+	if (bc->outer)
+		p->g->iflags |= EMPTBR;
+	return (true);
+#else
 	(void)bc;
 	SETERROR(REG_EMPTY);
 	return (false);
+#endif
 }
 
 /*
@@ -713,7 +779,11 @@ p_re(struct parse *p,
 		}
 		if (p->post_parse != NULL)
 			p->post_parse(p, &bc);
-		(void) REQUIRE(HERE() != bc.start, REG_EMPTY);
+		(void) REQUIRE(p->gnuext || HERE() != bc.start, REG_EMPTY);
+#ifdef LIBREGEX
+		if (HERE() == bc.start && !p_branch_empty(p, &bc))
+			break;
+#endif
 		if (!p->allowbranch)
 			break;
 		/*
@@ -740,101 +810,122 @@ static bool			/* was the simple RE an unbackslashed $? */
 p_simp_re(struct parse *p, struct branchc *bc)
 {
 	int c;
+	int cc;			/* convenient/control character */
 	int count;
 	int count2;
 	sopno pos;
+	bool handled;
 	int i;
 	wint_t wc;
 	sopno subno;
 #	define	BACKSL	(1<<CHAR_BIT)
 
 	pos = HERE();		/* repetition op, if any, covers from here */
+	handled = false;
 
 	assert(MORE());		/* caller should have ensured this */
 	c = GETNEXT();
 	if (c == '\\') {
 		(void)REQUIRE(MORE(), REG_EESCAPE);
-		c = BACKSL | GETNEXT();
-	}
-	switch (c) {
-	case '.':
-		if (p->g->cflags&REG_NEWLINE)
-			nonnewline(p);
-		else
-			EMIT(OANY, 0);
-		break;
-	case '[':
-		p_bracket(p);
-		break;
-	case BACKSL|'<':
-		EMIT(OBOW, 0);
-		break;
-	case BACKSL|'>':
-		EMIT(OEOW, 0);
-		break;
-	case BACKSL|'{':
-		SETERROR(REG_BADRPT);
-		break;
-	case BACKSL|'(':
-		p->g->nsub++;
-		subno = p->g->nsub;
-		if (subno < NPAREN)
-			p->pbegin[subno] = HERE();
-		EMIT(OLPAREN, subno);
-		/* the MORE here is an error heuristic */
-		if (MORE() && !SEETWO('\\', ')'))
-			p_re(p, '\\', ')');
-		if (subno < NPAREN) {
-			p->pend[subno] = HERE();
-			assert(p->pend[subno] != 0);
+		cc = GETNEXT();
+		c = BACKSL | cc;
+#ifdef LIBREGEX
+		if (p->gnuext) {
+			handled = true;
+			switch (c) {
+			case BACKSL|'W':
+			case BACKSL|'w':
+			case BACKSL|'S':
+			case BACKSL|'s':
+				p_b_pseudoclass(p, cc);
+				break;
+			default:
+				handled = false;
+			}
 		}
-		EMIT(ORPAREN, subno);
-		(void)REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
-		break;
-	case BACKSL|')':	/* should not get here -- must be user */
-		SETERROR(REG_EPAREN);
-		break;
-	case BACKSL|'1':
-	case BACKSL|'2':
-	case BACKSL|'3':
-	case BACKSL|'4':
-	case BACKSL|'5':
-	case BACKSL|'6':
-	case BACKSL|'7':
-	case BACKSL|'8':
-	case BACKSL|'9':
-		i = (c&~BACKSL) - '0';
-		assert(i < NPAREN);
-		if (p->pend[i] != 0) {
-			assert(i <= p->g->nsub);
-			EMIT(OBACK_, i);
-			assert(p->pbegin[i] != 0);
-			assert(OP(p->strip[p->pbegin[i]]) == OLPAREN);
-			assert(OP(p->strip[p->pend[i]]) == ORPAREN);
-			(void) dupl(p, p->pbegin[i]+1, p->pend[i]);
-			EMIT(O_BACK, i);
-		} else
-			SETERROR(REG_ESUBREG);
-		p->g->backrefs = 1;
-		break;
-	case '*':
-		/*
-		 * Ordinary if used as the first character beyond BOL anchor of
-		 * a (sub-)expression, counts as a bad repetition operator if it
-		 * appears otherwise.
-		 */
-		(void)REQUIRE(bc->nchain == 0, REG_BADRPT);
-		/* FALLTHROUGH */
-	default:
-		if (p->error != 0)
-			return (false);	/* Definitely not $... */
-		p->next--;
-		wc = WGETNEXT();
-		if ((c & BACKSL) == 0 || may_escape(p, wc))
-			ordinary(p, wc);
-		else
-			SETERROR(REG_EESCAPE);
-		break;
+#endif
+	}
+	if (!handled) {
+		switch (c) {
+		case '.':
+			if (p->g->cflags&REG_NEWLINE)
+				nonnewline(p);
+			else
+				EMIT(OANY, 0);
+			break;
+		case '[':
+			p_bracket(p);
+			break;
+		case BACKSL|'<':
+			EMIT(OBOW, 0);
+			break;
+		case BACKSL|'>':
+			EMIT(OEOW, 0);
+			break;
+		case BACKSL|'{':
+			SETERROR(REG_BADRPT);
+			break;
+		case BACKSL|'(':
+			p->g->nsub++;
+			subno = p->g->nsub;
+			if (subno < NPAREN)
+				p->pbegin[subno] = HERE();
+			EMIT(OLPAREN, subno);
+			/* the MORE here is an error heuristic */
+			if (MORE() && !SEETWO('\\', ')'))
+				p_re(p, '\\', ')');
+			if (subno < NPAREN) {
+				p->pend[subno] = HERE();
+				assert(p->pend[subno] != 0);
+			}
+			EMIT(ORPAREN, subno);
+			(void)REQUIRE(EATTWO('\\', ')'), REG_EPAREN);
+			break;
+		case BACKSL|')':	/* should not get here -- must be user */
+			SETERROR(REG_EPAREN);
+			break;
+		case BACKSL|'1':
+		case BACKSL|'2':
+		case BACKSL|'3':
+		case BACKSL|'4':
+		case BACKSL|'5':
+		case BACKSL|'6':
+		case BACKSL|'7':
+		case BACKSL|'8':
+		case BACKSL|'9':
+			i = (c&~BACKSL) - '0';
+			assert(i < NPAREN);
+			if (p->pend[i] != 0) {
+				assert(i <= p->g->nsub);
+				EMIT(OBACK_, i);
+				assert(p->pbegin[i] != 0);
+				assert(OP(p->strip[p->pbegin[i]]) == OLPAREN);
+				assert(OP(p->strip[p->pend[i]]) == ORPAREN);
+				(void) dupl(p, p->pbegin[i]+1, p->pend[i]);
+				EMIT(O_BACK, i);
+			} else
+				SETERROR(REG_ESUBREG);
+			p->g->backrefs = 1;
+			break;
+		case '*':
+			/*
+			 * Ordinary if used as the first character beyond BOL anchor of
+			 * a (sub-)expression, counts as a bad repetition operator if it
+			 * appears otherwise.
+			 */
+			(void)REQUIRE(bc->nchain == 0, REG_BADRPT);
+			/* FALLTHROUGH */
+		default:
+			if (p->error != 0)
+				return (false);	/* Definitely not $... */
+			p->next--;
+			wc = WGETNEXT();
+			if ((c & BACKSL) == 0 || may_escape(p, wc))
+				ordinary(p, wc);
+			else
+				SETERROR(REG_EESCAPE);
+			break;
+		}
 	}
 
 	if (EAT('*')) {		/* implemented as +? */
@@ -843,6 +934,14 @@ p_simp_re(struct parse *p, struct branchc *bc)
 		ASTERN(O_PLUS, pos);
 		INSERT(OQUEST_, pos);
 		ASTERN(O_QUEST, pos);
+#ifdef LIBREGEX
+	} else if (p->gnuext && EATTWO('\\', '?')) {
+		INSERT(OQUEST_, pos);
+		ASTERN(O_QUEST, pos);
+	} else if (p->gnuext && EATTWO('\\', '+')) {
+		INSERT(OPLUS_, pos);
+		ASTERN(O_PLUS, pos);
+#endif
 	} else if (EATTWO('\\', '{')) {
 		count = p_count(p);
 		if (EAT(',')) {
@@ -1035,6 +1134,41 @@ p_b_term(struct parse *p, cset *cs)
 }
 
 /*
+ - p_b_pseudoclass - parse a pseudo-class (\w, \W, \s, \S)
+ == static int p_b_pseudoclass(struct parse *p, char c)
+ */
+static int
+p_b_pseudoclass(struct parse *p, char c) {
+	cset *cs;
+
+	if ((cs = allocset(p)) == NULL)
+		return(0);
+
+	if (p->g->cflags&REG_ICASE)
+		cs->icase = 1;
+
+	switch (c) {
+	case 'W':
+		cs->invert = 1;
+		/* PASSTHROUGH */
+	case 'w':
+		p_b_cclass_named(p, cs, "alnum");
+		break;
+	case 'S':
+		cs->invert = 1;
+		/* PASSTHROUGH */
+	case 's':
+		p_b_cclass_named(p, cs, "space");
+		break;
+	default:
+		return(0);
+	}
+
+	EMIT(OANYOF, (int)(cs - p->g->sets));
+	return(1);
+}
+
+/*
  - p_b_cclass - parse a character-class name and deal with it
  == static void p_b_cclass(struct parse *p, cset *cs);
  */
@@ -1043,7 +1177,6 @@ p_b_cclass(struct parse *p, cset *cs)
 {
 	const char *sp = p->next;
 	size_t len;
-	wctype_t wct;
 	char clname[16];
 
 	while (MORE() && isalpha((uch)PEEK()))
@@ -1055,6 +1188,17 @@ p_b_cclass(struct parse *p, cset *cs)
 	}
 	memcpy(clname, sp, len);
 	clname[len] = '\0';
+
+	p_b_cclass_named(p, cs, clname);
+}
+/*
+ - p_b_cclass_named - deal with a named character class
+ == static void p_b_cclass_named(struct parse *p, cset *cs, const char []);
+ */
+static void
+p_b_cclass_named(struct parse *p, cset *cs, const char clname[]) {
+	wctype_t wct;
+
 	if ((wct = wctype(clname)) == 0) {
 		SETERROR(REG_ECTYPE);
 		return;
