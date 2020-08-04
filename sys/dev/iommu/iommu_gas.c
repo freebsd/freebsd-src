@@ -111,7 +111,7 @@ void
 iommu_gas_free_entry(struct iommu_domain *domain, struct iommu_map_entry *entry)
 {
 
-	KASSERT(domain == (struct iommu_domain *)entry->domain,
+	KASSERT(domain == entry->domain,
 	    ("mismatched free domain %p entry %p entry->domain %p", domain,
 	    entry, entry->domain));
 	atomic_subtract_int(&domain->entries_cnt, 1);
@@ -174,7 +174,7 @@ iommu_gas_check_free(struct iommu_domain *domain)
 	iommu_gaddr_t v;
 
 	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
-		KASSERT(domain == (struct iommu_domain *)entry->domain,
+		KASSERT(domain == entry->domain,
 		    ("mismatched free domain %p entry %p entry->domain %p",
 		    domain, entry, entry->domain));
 		l = RB_LEFT(entry, rb_entry);
