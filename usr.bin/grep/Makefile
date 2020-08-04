@@ -61,8 +61,8 @@ MLINKS+= grep.1 egrep.1 \
 .endif
 
 .if ${MK_GNU_GREP_COMPAT} != "no"
-CFLAGS+= -I${SYSROOT:U${DESTDIR}}/usr/include/gnu -DWITH_GNU
-LIBADD+=	gnuregex
+CFLAGS+=	-DWITH_GNU_COMPAT
+LIBADD+=	regex
 .endif
 
 HAS_TESTS=
