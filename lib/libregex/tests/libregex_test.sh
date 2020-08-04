@@ -30,10 +30,6 @@ check()
 {
 	local dataname="${1}"; shift
 
-	if [ "${dataname}" == "gnuext" ]; then
-		atf_expect_fail "GNU extensions are not currently implemented"
-	fi
-
 	prog="$(atf_get_srcdir)/h_regex"
 	data="$(atf_get_srcdir)/data/${dataname}.in"
 
