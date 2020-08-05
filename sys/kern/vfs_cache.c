@@ -3330,14 +3330,17 @@ cache_fplookup_final_child(struct cache_fpl *fpl, enum vgetstate tvs)
 	struct componentname *cnp;
 	struct vnode *tvp;
 	seqc_t tvp_seqc;
-	int error;
+	int error, lkflags;
 
 	cnp = fpl->cnp;
 	tvp = fpl->tvp;
 	tvp_seqc = fpl->tvp_seqc;
 
 	if ((cnp->cn_flags & LOCKLEAF) != 0) {
-		error = vget_finish(tvp, cnp->cn_lkflags, tvs);
+		lkflags = LK_SHARED;
+		if ((cnp->cn_flags & LOCKSHARED) == 0)
+			lkflags = LK_EXCLUSIVE;
+		error = vget_finish(tvp, lkflags, tvs);
 		if (error != 0) {
 			return (cache_fpl_aborted(fpl));
 		}
@@ -3864,9 +3867,6 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	ndp = fpl->ndp;
 	ndp->ni_lcf = 0;
 	cnp = fpl->cnp;
-	cnp->cn_lkflags = LK_SHARED;
-	if ((cnp->cn_flags & LOCKSHARED) == 0)
-		cnp->cn_lkflags = LK_EXCLUSIVE;
 
 	cache_fpl_checkpoint(fpl, &fpl->snd);
 
