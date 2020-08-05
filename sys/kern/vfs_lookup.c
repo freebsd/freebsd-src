@@ -297,6 +297,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 
 	startdir_used = false;
 	*pwdp = NULL;
+	*dpp = NULL;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -470,7 +471,6 @@ namei(struct nameidata *ndp)
 	struct iovec aiov;		/* uio for reading symbolic links */
 	struct componentname *cnp;
 	struct thread *td;
-	struct proc *p;
 	struct pwd *pwd;
 	struct uio auio;
 	int error, linklen;
@@ -478,23 +478,19 @@ namei(struct nameidata *ndp)
 
 	cnp = &ndp->ni_cnd;
 	td = cnp->cn_thread;
-	p = td->td_proc;
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
-	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
+	KASSERT(cnp->cn_cred && td->td_proc, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
 	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
 	    ndp->ni_startdir->v_type == VBAD);
-	TAILQ_INIT(&ndp->ni_cap_tracker);
-	ndp->ni_lcf = 0;
-	ndp->ni_loopcnt = 0;
-	dp = NULL;
 
 	/* We will set this ourselves if we need it. */
 	cnp->cn_flags &= ~TRAILINGSLASH;
 
+	ndp->ni_lcf = 0;
 	ndp->ni_vp = NULL;
 
 	/*
@@ -510,17 +506,15 @@ namei(struct nameidata *ndp)
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 
-	if (error != 0) {
+	if (__predict_false(error != 0)) {
 		namei_cleanup_cnp(cnp);
 		return (error);
 	}
 
-	cnp->cn_nameptr = cnp->cn_pnbuf;
-
 	/*
 	 * Don't allow empty pathnames.
 	 */
-	if (*cnp->cn_pnbuf == '\0') {
+	if (__predict_false(*cnp->cn_pnbuf == '\0')) {
 		namei_cleanup_cnp(cnp);
 		return (ENOENT);
 	}
@@ -532,6 +526,8 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
+
+	cnp->cn_nameptr = cnp->cn_pnbuf;
 
 	/*
 	 * First try looking up the target without locking any vnodes.
@@ -546,9 +542,11 @@ namei(struct nameidata *ndp)
 	case CACHE_FPL_STATUS_HANDLED:
 		return (error);
 	case CACHE_FPL_STATUS_PARTIAL:
+		TAILQ_INIT(&ndp->ni_cap_tracker);
 		dp = ndp->ni_startdir;
 		break;
 	case CACHE_FPL_STATUS_ABORTED:
+		TAILQ_INIT(&ndp->ni_cap_tracker);
 		error = namei_setup(ndp, &dp, &pwd);
 		if (error != 0) {
 			namei_cleanup_cnp(cnp);
@@ -556,6 +554,8 @@ namei(struct nameidata *ndp)
 		}
 		break;
 	}
+
+	ndp->ni_loopcnt = 0;
 
 	/*
 	 * Locked lookup.
