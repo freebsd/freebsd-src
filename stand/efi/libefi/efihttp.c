@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 
 #include <stand.h>
+#include <bootstrap.h>
 #include <net.h>
 
 #include <efi.h>

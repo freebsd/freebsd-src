@@ -345,8 +345,6 @@ void	delay(int delay);
 
 void	dev_cleanup(void);
 
-time_t	time(time_t *tloc);
-
 #ifndef CTASSERT
 #define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
 #endif
