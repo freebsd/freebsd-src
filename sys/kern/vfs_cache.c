@@ -3033,6 +3033,12 @@ cache_fpl_restore(struct cache_fpl *fpl, struct nameidata_saved *snd)
 #define cache_fpl_smr_assert_not_entered(fpl) do { } while (0)
 #endif
 
+#define cache_fpl_smr_enter_initial(fpl) ({			\
+	struct cache_fpl *_fpl = (fpl);				\
+	vfs_smr_enter();					\
+	_fpl->in_smr = true;					\
+})
+
 #define cache_fpl_smr_enter(fpl) ({				\
 	struct cache_fpl *_fpl = (fpl);				\
 	MPASS(_fpl->in_smr == false);				\
@@ -3865,7 +3871,6 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 	error = CACHE_FPL_FAILED;
 	ndp = fpl->ndp;
-	ndp->ni_lcf = 0;
 	cnp = fpl->cnp;
 
 	cache_fpl_checkpoint(fpl, &fpl->snd);
@@ -4055,8 +4060,8 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	struct nameidata_saved orig;
 	int error;
 
-	*status = CACHE_FPL_STATUS_UNSET;
-	bzero(&fpl, sizeof(fpl));
+	MPASS(ndp->ni_lcf == 0);
+
 	fpl.status = CACHE_FPL_STATUS_UNSET;
 	fpl.ndp = ndp;
 	fpl.cnp = &ndp->ni_cnd;
@@ -4070,7 +4075,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 
 	cache_fpl_checkpoint(&fpl, &orig);
 
-	cache_fpl_smr_enter(&fpl);
+	cache_fpl_smr_enter_initial(&fpl);
 	pwd = pwd_get_smr();
 	fpl.pwd = pwd;
 	ndp->ni_rootdir = pwd->pwd_rdir;
