@@ -1132,5 +1132,11 @@
 570	AUE_SYSCTL	STD	{ int freebsd32___sysctlbyname(const char *name, \
 				    size_t namelen, void *old, uint32_t *oldlenp, \
 				    void *new, size_t newlen); }
+571	AUE_NULL	UNIMPL	shm_open2
+572	AUE_NULL	UNIMPL	shm_rename
+573	AUE_NULL	UNIMPL	sigfastblock
+574	AUE_NULL	UNIMPL	__realpathat
+575	AUE_CLOSERANGE	NOPROTO	{ int close_range(u_int lowfd, u_int highfd, \
+				    int flags); }
 
 ; vim: syntax=off

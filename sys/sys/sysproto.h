@@ -1798,6 +1798,11 @@ struct __sysctlbyname_args {
 	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
 	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
 };
+struct close_range_args {
+	char lowfd_l_[PADL_(u_int)]; u_int lowfd; char lowfd_r_[PADR_(u_int)];
+	char highfd_l_[PADL_(u_int)]; u_int highfd; char highfd_r_[PADR_(u_int)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2183,6 +2188,7 @@ int	sys_fhlink(struct thread *, struct fhlink_args *);
 int	sys_fhlinkat(struct thread *, struct fhlinkat_args *);
 int	sys_fhreadlink(struct thread *, struct fhreadlink_args *);
 int	sys___sysctlbyname(struct thread *, struct __sysctlbyname_args *);
+int	sys_close_range(struct thread *, struct close_range_args *);
 
 #ifdef COMPAT_43
 
@@ -3085,6 +3091,7 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_fhlinkat	AUE_NULL
 #define	SYS_AUE_fhreadlink	AUE_NULL
 #define	SYS_AUE___sysctlbyname	AUE_SYSCTL
+#define	SYS_AUE_close_range	AUE_CLOSERANGE
 
 #undef PAD_
 #undef PADL_

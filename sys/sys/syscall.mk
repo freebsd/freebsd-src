@@ -409,4 +409,5 @@ MIASM =  \
 	fhlink.o \
 	fhlinkat.o \
 	fhreadlink.o \
-	__sysctlbyname.o
+	__sysctlbyname.o \
+	close_range.o

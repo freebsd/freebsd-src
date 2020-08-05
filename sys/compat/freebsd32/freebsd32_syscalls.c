@@ -607,4 +607,9 @@ const char *freebsd32_syscallnames[] = {
 	"#568",			/* 568 = funlinkat */
 	"#569",			/* 569 = copy_file_range */
 	"freebsd32___sysctlbyname",			/* 570 = freebsd32___sysctlbyname */
+	"#571",			/* 571 = shm_open2 */
+	"#572",			/* 572 = shm_rename */
+	"#573",			/* 573 = sigfastblock */
+	"#574",			/* 574 = __realpathat */
+	"close_range",			/* 575 = close_range */
 };

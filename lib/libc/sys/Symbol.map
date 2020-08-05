@@ -402,6 +402,7 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
+	close_range;
 	fhlink;
 	fhlinkat;
 	fhreadlink;

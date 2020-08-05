@@ -1380,6 +1380,17 @@
 		    size_t newlen \
 		); \
 	}
+571	AUE_NULL	UNIMPL	shm_open2
+572	AUE_NULL	UNIMPL	shm_rename
+573	AUE_NULL	UNIMPL	sigfastblock
+574	AUE_NULL	UNIMPL	__realpathat
+575	AUE_CLOSERANGE	STD { \
+		int close_range( \
+		    u_int lowfd, \
+		    u_int highfd, \
+		    int flags \
+		); \
+	}
 
 
 ; Please copy any additions and changes to the following compatability tables:

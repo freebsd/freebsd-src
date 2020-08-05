@@ -504,4 +504,5 @@
 #define	SYS_fhlinkat	566
 #define	SYS_fhreadlink	567
 #define	SYS___sysctlbyname	570
-#define	SYS_MAXSYSCALL	571
+#define	SYS_close_range	575
+#define	SYS_MAXSYSCALL	576
