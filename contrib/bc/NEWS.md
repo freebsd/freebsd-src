@@ -1,5 +1,13 @@
 # News
 
+## 3.1.5
+
+This is a production release that fixes the Chinese locales (which caused `bc`
+to crash) and a crash caused by `bc` executing code when it should not have been
+able to.
+
+***ALL USERS SHOULD UPGRADE.***
+
 ## 3.1.4
 
 This is a production release that fixes one bug, changes two behaviors, and

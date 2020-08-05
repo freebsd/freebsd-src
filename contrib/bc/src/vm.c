@@ -464,7 +464,7 @@ static void bc_vm_process(const char *text) {
 
 		while (BC_PARSE_CAN_PARSE(vm.prs)) vm.parse(&vm.prs);
 
-		bc_program_exec(&vm.prog);
+		if(BC_IS_DC || !BC_PARSE_NO_EXEC(&vm.prs)) bc_program_exec(&vm.prog);
 
 		assert(BC_IS_DC || vm.prog.results.len == 0);
 
