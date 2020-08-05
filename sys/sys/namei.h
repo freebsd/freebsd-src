@@ -196,11 +196,21 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
 	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, &cap_no_rights, td)
 
+/*
+ * Note the constant pattern may *hide* bugs.
+ */
+#ifdef INVARIANTS
+#define NDINIT_PREFILL(arg)	memset(arg, 0xff, sizeof(*arg))
+#else
+#define NDINIT_PREFILL(arg)	do { } while (0)
+#endif
+
 #define NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, startdir, rightsp, td)	\
 do {										\
 	struct nameidata *_ndp = (ndp);						\
 	cap_rights_t *_rightsp = (rightsp);					\
 	MPASS(_rightsp != NULL);						\
+	NDINIT_PREFILL(_ndp);							\
 	_ndp->ni_cnd.cn_nameiop = op;						\
 	_ndp->ni_cnd.cn_flags = flags;						\
 	_ndp->ni_segflg = segflg;						\
