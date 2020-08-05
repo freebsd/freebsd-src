@@ -679,7 +679,7 @@ shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 		accmode |= VWRITE;
 	mtx_lock(&shm_timestamp_lock);
 	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
-	    accmode, ucred, NULL);
+	    accmode, ucred);
 	mtx_unlock(&shm_timestamp_lock);
 	return (error);
 }
@@ -1240,8 +1240,8 @@ shm_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
 	if (error != 0)
 		goto out;
 #endif
-	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid,
-	    shmfd->shm_gid, VADMIN, active_cred, NULL);
+	error = vaccess(VREG, shmfd->shm_mode, shmfd->shm_uid, shmfd->shm_gid,
+	    VADMIN, active_cred);
 	if (error != 0)
 		goto out;
 	shmfd->shm_mode = mode & ACCESSPERMS;

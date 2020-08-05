@@ -390,12 +390,12 @@ ufs_accessx(ap)
 		case 0:
 			if (type == ACL_TYPE_NFS4) {
 				error = vaccess_acl_nfs4(vp->v_type, ip->i_uid,
-				    ip->i_gid, acl, accmode, ap->a_cred, NULL);
+				    ip->i_gid, acl, accmode, ap->a_cred);
 			} else {
 				error = vfs_unixify_accmode(&accmode);
 				if (error == 0)
 					error = vaccess_acl_posix1e(vp->v_type, ip->i_uid,
-					    ip->i_gid, acl, accmode, ap->a_cred, NULL);
+					    ip->i_gid, acl, accmode, ap->a_cred);
 			}
 			break;
 		default:
@@ -410,8 +410,8 @@ ufs_accessx(ap)
 			 */
 			error = vfs_unixify_accmode(&accmode);
 			if (error == 0)
-				error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
-				    ip->i_gid, accmode, ap->a_cred, NULL);
+				error = vaccess(vp->v_type, ip->i_mode,
+				    ip->i_uid, ip->i_gid, accmode, ap->a_cred);
 		}
 		acl_free(acl);
 
@@ -421,7 +421,7 @@ ufs_accessx(ap)
 	error = vfs_unixify_accmode(&accmode);
 	if (error == 0)
 		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-		    accmode, ap->a_cred, NULL);
+		    accmode, ap->a_cred);
 	return (error);
 }
 
