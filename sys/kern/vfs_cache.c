@@ -122,9 +122,9 @@ _Static_assert(sizeof(struct negstate) <= sizeof(struct vnode *),
     "the state must fit in a union with a pointer without growing it");
 
 struct	namecache {
-	CK_LIST_ENTRY(namecache) nc_hash;/* hash chain */
 	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
 	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
+	CK_LIST_ENTRY(namecache) nc_hash;/* hash chain */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	union {
 		struct	vnode *nu_vp;	/* vnode the name refers to */
@@ -142,6 +142,8 @@ struct	namecache {
  * to be stored.  The nc_dotdottime field is used when a cache entry is mapping
  * both a non-dotdot directory name plus dotdot for the directory's
  * parent.
+ *
+ * See below for alignment requirement.
  */
 struct	namecache_ts {
 	struct	timespec nc_time;	/* timespec provided by fs */
@@ -149,6 +151,14 @@ struct	namecache_ts {
 	int	nc_ticks;		/* ticks value when entry was added */
 	struct namecache nc_nc;
 };
+
+/*
+ * At least mips n32 performs 64-bit accesses to timespec as found
+ * in namecache_ts and requires them to be aligned. Since others
+ * may be in the same spot suffer a little bit and enforce the
+ * alignment for everyone. Note this is a nop for 64-bit platforms.
+ */
+#define CACHE_ZONE_ALIGNMENT	UMA_ALIGNOF(time_t)
 
 #define	nc_vp		n_un.nu_vp
 #define	nc_neg		n_un.nu_neg
@@ -2053,19 +2063,19 @@ nchinit(void *dummy __unused)
 
 	cache_zone_small = uma_zcreate("S VFS Cache",
 	    sizeof(struct namecache) + CACHE_PATH_CUTOFF + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 	cache_zone_small_ts = uma_zcreate("STS VFS Cache",
 	    sizeof(struct namecache_ts) + CACHE_PATH_CUTOFF + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache_ts),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 	cache_zone_large = uma_zcreate("L VFS Cache",
 	    sizeof(struct namecache) + NAME_MAX + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 	cache_zone_large_ts = uma_zcreate("LTS VFS Cache",
 	    sizeof(struct namecache_ts) + NAME_MAX + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache_ts),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 
 	VFS_SMR_ZONE_SET(cache_zone_small);
