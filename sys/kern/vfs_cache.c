@@ -2070,7 +2070,7 @@ nchinittbl(u_long elements, u_long *hashmask)
 	struct nchashhead *hashtbl;
 	u_long hashsize, i;
 
-	hashsize = cache_roundup_2(desiredvnodes * 2) / 2;
+	hashsize = cache_roundup_2(elements) / 2;
 
 	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), M_VFSCACHE, M_WAITOK);
 	for (i = 0; i < hashsize; i++)
