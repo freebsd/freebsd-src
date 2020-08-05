@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -501,7 +502,7 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 			    (void *)(cg->pcg_image->pi_vaddr + cg->pcg_func));
 			break;
 		case FLAG_SHOW_OFFSET:
-			snprintf(ns, sizeof(ns), "%s+%#0lx",
+			snprintf(ns, sizeof(ns), "%s+%#0" PRIx64,
 			    pmcstat_string_unintern(sym->ps_name),
 			    cg->pcg_func - sym->ps_start);
 			break;
