@@ -1635,7 +1635,7 @@ safexcel_instr_ccm(struct safexcel_request *req, struct safexcel_instr *instr,
 	b0 = (uint8_t *)instr;
 	memset(b0, 0, blen);
 	b0[0] =
-	    L - 1 | /* payload length size */
+	    (L - 1) | /* payload length size */
 	    ((CCM_CBC_MAX_DIGEST_LEN - 2) / 2) << 3 /* digest length */ |
 	    (crp->crp_aad_length > 0 ? 1 : 0) << 6 /* AAD present bit */;
 	memcpy(&b0[1], req->iv, AES_CCM_IV_LEN);
