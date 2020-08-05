@@ -16,6 +16,16 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200805	p12	FreeBSD-SA-20:21.usb_net
+			FreeBSD-SA-20:22.unbound
+			FreeBSD-SA-20:23.ipv6
+
+        Fix memory corruption in USB network device drivers. [SA-20:21.usb_net]
+
+        Fix multiple vulnerabilities in sqlite3. [SA-20:22.sqlite]
+
+        Fix sendmsg(2) privilege escalation. [SA-20:23.sendmsg]
+
 20200708	p11	FreeBSD-EN-20:14.linuxkpi
 			FreeBSD-EN-20:15.mps
 			FreeBSD-SA-20:19.unbound
