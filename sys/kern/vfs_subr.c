@@ -5299,14 +5299,12 @@ vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred
 
 /*
  * Common filesystem object access control check routine.  Accepts a
- * vnode's type, "mode", uid and gid, requested access mode, credentials,
- * and optional call-by-reference privused argument allowing vaccess()
- * to indicate to the caller whether privilege was used to satisfy the
- * request (obsoleted).  Returns 0 on success, or an errno on failure.
+ * vnode's type, "mode", uid and gid, requested access mode, and credentials.
+ * Returns 0 on success, or an errno on failure.
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
-    accmode_t accmode, struct ucred *cred, int *privused)
+    accmode_t accmode, struct ucred *cred)
 {
 	accmode_t dac_granted;
 	accmode_t priv_granted;
@@ -5320,9 +5318,6 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	 * Look for a normal, non-privileged way to access the file/directory
 	 * as requested.  If it exists, go with that.
 	 */
-
-	if (privused != NULL)
-		*privused = 0;
 
 	dac_granted = 0;
 
@@ -5409,9 +5404,6 @@ privcheck:
 		priv_granted |= VADMIN;
 
 	if ((accmode & (priv_granted | dac_granted)) == accmode) {
-		/* XXX audit: privilege used */
-		if (privused != NULL)
-			*privused = 1;
 		return (0);
 	}
 

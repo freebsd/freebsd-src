@@ -3393,8 +3393,8 @@ nfsspec_access(struct vop_access_args *ap)
 	error = VOP_GETATTR(vp, vap, cred);
 	if (error)
 		goto out;
-	error  = vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
-	    accmode, cred, NULL);
+	error = vaccess(vp->v_type, vap->va_mode, vap->va_uid, vap->va_gid,
+	    accmode, cred);
 out:
 	return error;
 }
