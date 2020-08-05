@@ -284,8 +284,8 @@ static struct neglist __read_mostly	*neglists;
 static struct neglist ncneg_hot;
 static u_long numhotneg;
 
-#define	numneglists (ncneghash + 1)
-static u_int __read_mostly	ncneghash;
+#define ncneghash	3
+#define	numneglists	(ncneghash + 1)
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
 {
@@ -2091,7 +2091,6 @@ nchinit(void *dummy __unused)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
 	ncpurgeminvnodes = numbucketlocks * 2;
 
-	ncneghash = 3;
 	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numneglists; i++) {
