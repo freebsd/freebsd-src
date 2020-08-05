@@ -406,8 +406,20 @@ void	mac_vnode_assert_locked(struct vnode *vp, const char *func);
 
 int	mac_vnode_associate_extattr(struct mount *mp, struct vnode *vp);
 void	mac_vnode_associate_singlelabel(struct mount *mp, struct vnode *vp);
-int	mac_vnode_check_access(struct ucred *cred, struct vnode *vp,
+int	mac_vnode_check_access_impl(struct ucred *cred, struct vnode *dvp,
 	    accmode_t accmode);
+extern bool mac_vnode_check_access_fp_flag;
+#define mac_vnode_check_access_enabled() __predict_false(mac_vnode_check_access_fp_flag)
+static inline int
+mac_vnode_check_access(struct ucred *cred, struct vnode *dvp,
+    accmode_t accmode)
+{
+
+	mac_vnode_assert_locked(dvp, "mac_vnode_check_access");
+	if (mac_vnode_check_access_enabled())
+                return (mac_vnode_check_access_impl(cred, dvp, accmode));
+	return (0);
+}
 int	mac_vnode_check_chdir(struct ucred *cred, struct vnode *dvp);
 int	mac_vnode_check_chroot(struct ucred *cred, struct vnode *dvp);
 int	mac_vnode_check_create(struct ucred *cred, struct vnode *dvp,
