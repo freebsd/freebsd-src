@@ -65,9 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#if defined(__amd64__) || defined(__i386__)
-#include <x86/iommu/intel_reg.h>
-#endif
+#include <machine/iommu.h>
 #include <dev/iommu/busdma_iommu.h>
 
 /*
