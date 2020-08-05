@@ -3098,6 +3098,29 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 	(LOCKLEAF | LOCKPARENT | WANTPARENT | FOLLOW | LOCKSHARED | SAVENAME | \
 	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
 
+#define CACHE_FPL_INTERNAL_CN_FLAGS \
+	(ISDOTDOT | MAKEENTRY | ISLASTCN)
+
+_Static_assert((CACHE_FPL_SUPPORTED_CN_FLAGS & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
+    "supported and internal flags overlap");
+
+static bool
+cache_fpl_islastcn(struct nameidata *ndp)
+{
+
+	return (*ndp->ni_next == 0);
+}
+
+static bool
+cache_fpl_isdotdot(struct componentname *cnp)
+{
+
+	if (cnp->cn_namelen == 2 &&
+	    cnp->cn_nameptr[1] == '.' && cnp->cn_nameptr[0] == '.')
+		return (true);
+	return (false);
+}
+
 static bool
 cache_can_fplookup(struct cache_fpl *fpl)
 {
@@ -3253,15 +3276,17 @@ out_abort:
 /*
  * The target vnode is not supported, prepare for the slow path to take over.
  */
-static int
+static int __noinline
 cache_fplookup_partial_setup(struct cache_fpl *fpl)
 {
+	struct nameidata *ndp;
 	struct componentname *cnp;
 	enum vgetstate dvs;
 	struct vnode *dvp;
 	struct pwd *pwd;
 	seqc_t dvp_seqc;
 
+	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
@@ -3287,7 +3312,14 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 		return (cache_fpl_aborted(fpl));
 	}
 
-	fpl->ndp->ni_startdir = dvp;
+	cache_fpl_restore(fpl, &fpl->snd);
+
+	ndp->ni_startdir = dvp;
+	cnp->cn_flags |= MAKEENTRY;
+	if (cache_fpl_islastcn(ndp))
+		cnp->cn_flags |= ISLASTCN;
+	if (cache_fpl_isdotdot(cnp))
+		cnp->cn_flags |= ISDOTDOT;
 
 	return (0);
 }
@@ -3763,18 +3795,6 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	}
 	ndp->ni_next = cp;
 
-	cnp->cn_flags |= MAKEENTRY;
-
-	if (cnp->cn_namelen == 2 &&
-	    cnp->cn_nameptr[1] == '.' && cnp->cn_nameptr[0] == '.')
-		cnp->cn_flags |= ISDOTDOT;
-	else
-		cnp->cn_flags &= ~ISDOTDOT;
-	if (*ndp->ni_next == 0)
-		cnp->cn_flags |= ISLASTCN;
-	else
-		cnp->cn_flags &= ~ISLASTCN;
-
 	/*
 	 * Check for degenerate name (e.g. / or "")
 	 * which is a way of talking about a directory,
@@ -3878,7 +3898,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 			break;
 		}
 
-		if (__predict_false(cnp->cn_flags & ISDOTDOT)) {
+		if (__predict_false(cache_fpl_isdotdot(cnp))) {
 			error = cache_fplookup_dotdot(fpl);
 			if (__predict_false(error != 0)) {
 				break;
@@ -3901,7 +3921,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 		VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
 
-		if (cnp->cn_flags & ISLASTCN) {
+		if (cache_fpl_islastcn(ndp)) {
 			error = cache_fplookup_final(fpl);
 			break;
 		}
@@ -4082,7 +4102,9 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 		break;
 	case CACHE_FPL_STATUS_PARTIAL:
 		*pwdp = fpl.pwd;
-		cache_fpl_restore(&fpl, &fpl.snd);
+		/*
+		 * Status restored by cache_fplookup_partial_setup.
+		 */
 		break;
 	case CACHE_FPL_STATUS_ABORTED:
 		cache_fpl_restore(&fpl, &orig);
