@@ -3656,7 +3656,9 @@ zfs_ioc_log_history(const char *unused, nvlist_t *innvl, nvlist_t *outnvl)
 
 #ifdef __FreeBSD__
 static const zfs_ioc_key_t zfs_keys_nextboot[] = {
-	{"command",	DATA_TYPE_STRING,	0},
+	{"command",			DATA_TYPE_STRING,	0},
+	{ZPOOL_CONFIG_POOL_GUID,	DATA_TYPE_UINT64,	0},
+	{ZPOOL_CONFIG_GUID,		DATA_TYPE_UINT64,	0}
 };
 
 static int
