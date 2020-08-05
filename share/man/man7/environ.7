@@ -28,7 +28,7 @@
 .\"	@(#)environ.7	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2020
+.Dd August 5, 2020
 .Dt ENVIRON 7
 .Os
 .Sh NAME
@@ -37,21 +37,59 @@
 .Sh SYNOPSIS
 .Ar extern char **environ ;
 .Sh DESCRIPTION
-An array of strings called the
+An array of strings, called the
 .Ar environment
-is made available by
+is made available to each process by
 .Xr execve 2
 when a process begins.
 By convention these strings have the form
-.Dq Ar name=value .
-The following names are used by various commands:
-.Bl -tag -width LC_MONETARY
+.Va name Ns No = Ns Ar value ,
+and are referred to as
+.Dq environment variables .
+A process can query, update, and delete these strings using the
+.Xr getenv 3 ,
+.Xr setenv 3 ,
+and
+.Xr unsetenv 3
+functions, respectively.
+The shells also provide commands to manipulate the environment;
+they are described in the respective shell manual pages.
+.Pp
+What follows is a list of environment variables typically
+seen on a
+.Ux
+system.
+It includes only those variables that a user can expect to see during their
+day-to-day use of the system, and is far from complete.
+Environment variables specific to a particular program or library function
+are documented in the
+.Sx ENVIRONMENT
+section of the appropriate manual page.
+.Sh ENVIRONMENT
+.Bl -tag -width LD_LIBRARY_PATH
 .It Ev BLOCKSIZE
-The size of the block units used by several commands, most notably
+The size of the block units used by several disk-related commands,
+most notably
 .Xr df 1 ,
 .Xr du 1
 and
 .Xr ls 1 .
+.Ev BLOCKSIZE
+may be specified in units of a byte by specifying a number,
+in units of a kilobyte by specifying a number followed by
+.Ql K
+or
+.Ql k ,
+in units of a megabyte by specifying a number followed by
+.Ql M
+or
+.Ql m ,
+and in units of a gigabyte by specifying a number followed
+by
+.Ql G
+or
+.Ql g .
+Sizes less than 512 bytes or greater than a gigabyte are ignored.
 This variable is processed by the
 .Xr getbsize 3
 function.
@@ -117,6 +155,10 @@ used by
 .Xr mail 1 ,
 .Xr sh 1 ,
 and many other mail clients.
+.It Ev MANPATH
+The sequence of directories, separated by colons, searched by
+.Xr man 1
+when looking for manual pages.
 .It Ev NLSPATH
 List of directories to be searched for the message catalog referred to by
 .Ev LC_MESSAGES .
@@ -139,6 +181,9 @@ etc, when looking for an executable file.
 .Ev PATH
 is set to ``/usr/bin:/bin'' initially by
 .Xr login 1 .
+.It Ev POSIXLY_CORRECT
+When set to any value, this environment variable modifies the behaviour
+of certain commands to (mostly) execute in a strictly POSIX-compliant manner.
 .It Ev PRINTER
 The name of the default printer to be used by
 .Xr lpr 1 ,
@@ -178,7 +223,7 @@ no
 is equivalent to a
 .Ev TERMPATH
 of
-.Dq Pa $HOME/.termcap:/etc/termcap .
+.Pa $HOME/.termcap:/etc/termcap .
 .Ev TERMPATH
 is ignored if
 .Ev TERMCAP
@@ -186,22 +231,27 @@ contains a full pathname.
 .It Ev TMPDIR
 The directory in which to store temporary files.
 Most applications use either
-.Dq /tmp
+.Pa /tmp
 or
-.Dq /var/tmp .
+.Pa /var/tmp .
 Setting this variable will make them use another directory.
 .It Ev TZ
 The timezone to use when displaying dates.
 The normal format is a pathname relative to
-.Dq Pa /usr/share/zoneinfo .
+.Pa /usr/share/zoneinfo .
 For example, the command
-.Dq env TZ=America/Los_Angeles date
+.Pp
+.Dl env TZ=America/Los_Angeles date
+.Pp
 displays the current time in California.
 See
 .Xr tzset 3
 for more information.
 .It Ev USER
 The login name of the user.
+It is recommended that portable applications use
+.Ev LOGNAME
+instead.
 .El
 .Pp
 Further names may be placed in the environment by the
