@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2012, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2020 by Delphix. All rights reserved.
  * Copyright (c) 2013 Steven Hartland. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
  * Copyright 2017 RackTop Systems.
@@ -1209,4 +1209,26 @@ lzc_initialize(const char *poolname, pool_initialize_func_t cmd_type,
 	fnvlist_free(args);
 
 	return (error);
+}
+
+/*
+ * Set the bootenv contents for the given pool.
+ */
+int
+lzc_set_bootenv(const char *pool, const char *env)
+{
+	nvlist_t *args = fnvlist_alloc();
+	fnvlist_add_string(args, "envmap", env);
+	int error = lzc_ioctl(ZFS_IOC_SET_BOOTENV, pool, args, NULL);
+	fnvlist_free(args);
+	return (error);
+}
+
+/*
+ * Get the contents of the bootenv of the given pool.
+ */
+int
+lzc_get_bootenv(const char *pool, nvlist_t **outnvl)
+{
+	return (lzc_ioctl(ZFS_IOC_GET_BOOTENV, pool, NULL, outnvl));
 }
