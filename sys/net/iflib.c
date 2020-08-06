@@ -1080,16 +1080,12 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	uint32_t nic_i;	/* index into the NIC ring */
 	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = kring->rhead;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	if_ctx_t ctx = ifp->if_softc;
 	iflib_rxq_t rxq = &ctx->ifc_rxqs[kring->ring_id];
 	iflib_fl_t fl = &rxq->ifr_fl[0];
 	struct if_rxd_info ri;
-
-	if (head > lim)
-		return netmap_ring_reinit(kring);
 
 	/*
 	 * netmap only uses free list 0, to avoid out of order consumption
