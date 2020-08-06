@@ -3389,7 +3389,7 @@ cache_fplookup_final_child(struct cache_fpl *fpl, enum vgetstate tvs)
 		if ((cnp->cn_flags & LOCKSHARED) == 0)
 			lkflags = LK_EXCLUSIVE;
 		error = vget_finish(tvp, lkflags, tvs);
-		if (error != 0) {
+		if (__predict_false(error != 0)) {
 			return (cache_fpl_aborted(fpl));
 		}
 	} else {
@@ -3442,7 +3442,7 @@ cache_fplookup_final_withparent(struct cache_fpl *fpl)
 
 	if ((cnp->cn_flags & LOCKPARENT) != 0) {
 		error = vget_finish(dvp, LK_EXCLUSIVE, dvs);
-		if (error != 0) {
+		if (__predict_false(error != 0)) {
 			vget_abort(tvp, tvs);
 			return (cache_fpl_aborted(fpl));
 		}
@@ -3460,7 +3460,7 @@ cache_fplookup_final_withparent(struct cache_fpl *fpl)
 	}
 
 	error = cache_fplookup_final_child(fpl, tvs);
-	if (error != 0) {
+	if (__predict_false(error != 0)) {
 		MPASS(fpl->status == CACHE_FPL_STATUS_ABORTED);
 		if ((cnp->cn_flags & LOCKPARENT) != 0)
 			vput(dvp);
