@@ -215,7 +215,7 @@ enum ScriptLanguage {
   eScriptLanguagePython,
   eScriptLanguageLua,
   eScriptLanguageUnknown,
-  eScriptLanguageDefault = eScriptLanguagePython
+  eScriptLanguageDefault = eScriptLanguageLua
 };
 
 /// Register numbering types.
