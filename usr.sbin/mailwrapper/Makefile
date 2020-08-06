@@ -26,10 +26,14 @@ SYMLINKS+=	..${BINDIR}/mailwrapper /bin/rmail
 .endif
 
 .if ${MK_MAILWRAPPER} != "no"
-.if !exists(${DESTDIR}/etc/mail/mailer.conf)
-FILES=		${SRCTOP}/etc/mail/mailer.conf
-FILESDIR=	/etc/mail
-FILESMODE=	644
+# We install here if either sendmail(8) is enabled, or dma(8) isn't.  In the
+# latter scenario, we take care of the possibility that neither sendmail(8) nor
+# dma(8) are installed and simply provide a default that can be changed for an
+# alternative in ports.
+.if ${MK_SENDMAIL} != "no" || ${MK_DMAGENT} == "no"
+CONFS=		${SRCTOP}/etc/mail/mailer.conf
+CONFSDIR=	/etc/mail
+CONFSMODE=	644
 .endif
 .endif
 
