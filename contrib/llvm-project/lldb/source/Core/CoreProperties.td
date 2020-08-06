@@ -39,7 +39,7 @@ let Definition = "debugger" in {
     Desc<"The debugger command line prompt displayed for the user.">;
   def ScriptLanguage: Property<"script-lang", "Enum">,
     Global,
-    DefaultEnumValue<"eScriptLanguagePython">,
+    DefaultEnumValue<"eScriptLanguageLua">,
     EnumValues<"OptionEnumValues(g_language_enumerators)">,
     Desc<"The script language to be used for evaluating user-written scripts.">;
   def StopDisassemblyCount: Property<"stop-disassembly-count", "SInt64">,
