@@ -102,7 +102,11 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		uint64_t *argp;
 
 		/* Skip past frame pointer and saved LR */
+#if !defined(_CALL_ELF) || _CALL_ELF == 1
 		argp = (uint64_t *)sp + 6;
+#else
+		argp = (uint64_t *)sp + 4;
+#endif
 
 		for (i = 0; i < stackargs; i++)
 			*argp++ = va_arg(ap, uint64_t);
