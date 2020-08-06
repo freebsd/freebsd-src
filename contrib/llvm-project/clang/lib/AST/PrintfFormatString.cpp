@@ -317,8 +317,8 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     case 'g': k = ConversionSpecifier::gArg; break;
     case 'i': k = ConversionSpecifier::iArg; break;
     case 'n':
-      // Not handled, but reserved in OpenCL.
-      if (!LO.OpenCL)
+      // Not handled, but reserved in OpenCL and FreeBSD kernel.
+      if (!LO.OpenCL && !isFreeBSDKPrintf)
         k = ConversionSpecifier::nArg;
       break;
     case 'o': k = ConversionSpecifier::oArg; break;
