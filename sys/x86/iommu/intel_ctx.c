@@ -322,6 +322,7 @@ static struct dmar_domain *
 dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 {
 	struct iommu_domain *iodom;
+	struct iommu_unit *unit;
 	struct dmar_domain *domain;
 	int error, id, mgaw;
 
@@ -330,16 +331,14 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 		return (NULL);
 	domain = malloc(sizeof(*domain), M_DMAR_DOMAIN, M_WAITOK | M_ZERO);
 	iodom = DOM2IODOM(domain);
+	unit = DMAR2IOMMU(dmar);
 	domain->domain = id;
 	LIST_INIT(&domain->contexts);
-	RB_INIT(&domain->iodom.rb_root);
-	TAILQ_INIT(&domain->iodom.unload_entries);
 	TASK_INIT(&domain->iodom.unload_task, 0, dmar_domain_unload_task,
 	    domain);
-	mtx_init(&domain->iodom.lock, "dmardom", NULL, MTX_DEF);
+	iommu_domain_init(unit, iodom, &dmar_domain_map_ops);
+
 	domain->dmar = dmar;
-	domain->iodom.iommu = &dmar->iommu;
-	domain_pgtbl_init(domain);
 
 	/*
 	 * For now, use the maximal usable physical address of the
@@ -430,7 +429,10 @@ dmar_ctx_unlink(struct dmar_ctx *ctx)
 static void
 dmar_domain_destroy(struct dmar_domain *domain)
 {
+	struct iommu_domain *iodom;
 	struct dmar_unit *dmar;
+
+	iodom = DOM2IODOM(domain);
 
 	KASSERT(TAILQ_EMPTY(&domain->iodom.unload_entries),
 	    ("unfinished unloads %p", domain));
@@ -442,7 +444,7 @@ dmar_domain_destroy(struct dmar_domain *domain)
 	    ("destroying dom %p with refs %d", domain, domain->refs));
 	if ((domain->iodom.flags & IOMMU_DOMAIN_GAS_INITED) != 0) {
 		DMAR_DOMAIN_LOCK(domain);
-		iommu_gas_fini_domain(DOM2IODOM(domain));
+		iommu_gas_fini_domain(iodom);
 		DMAR_DOMAIN_UNLOCK(domain);
 	}
 	if ((domain->iodom.flags & IOMMU_DOMAIN_PGTBL_INITED) != 0) {
@@ -450,7 +452,7 @@ dmar_domain_destroy(struct dmar_domain *domain)
 			DMAR_DOMAIN_PGLOCK(domain);
 		domain_free_pgtbl(domain);
 	}
-	mtx_destroy(&domain->iodom.lock);
+	iommu_domain_fini(iodom);
 	dmar = DOM2DMAR(domain);
 	free_unr(dmar->domids, domain->domain);
 	free(domain, M_DMAR_DOMAIN);

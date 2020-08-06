@@ -264,7 +264,7 @@ void domain_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size);
 int domain_alloc_pgtbl(struct dmar_domain *domain);
 void domain_free_pgtbl(struct dmar_domain *domain);
-void domain_pgtbl_init(struct dmar_domain *domain);
+extern const struct iommu_domain_map_ops dmar_domain_map_ops;
 
 int dmar_dev_depth(device_t child);
 void dmar_dev_path(device_t child, int *busno, void *path1, int depth);
