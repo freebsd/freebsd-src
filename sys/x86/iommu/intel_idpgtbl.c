@@ -813,16 +813,7 @@ domain_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
 	DMAR_UNLOCK(unit);
 }
 
-static const struct iommu_domain_map_ops dmar_domain_map_ops = {
+const struct iommu_domain_map_ops dmar_domain_map_ops = {
 	.map = domain_map_buf,
 	.unmap = domain_unmap_buf,
 };
-
-void
-domain_pgtbl_init(struct dmar_domain *domain)
-{
-	struct iommu_domain *iodom;
-
-	iodom = DOM2IODOM(domain);
-	iodom->ops = &dmar_domain_map_ops;
-}
