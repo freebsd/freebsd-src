@@ -1,6 +1,6 @@
 .\"
 .\" Copyright (c) 2003 Silicon Graphics International Corp.
-.\" Copyright (c) 2015 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2015-2020 Alexander Motin <mav@FreeBSD.org>
 .\" Copyright (c) 2018 Marcelo Araujo <araujo@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -36,7 +36,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2019
+.Dd August 6, 2020
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -877,6 +877,10 @@ EUI, NAA or UUID identifier should be set to UNIQUE value to allow
 EXTENDED COPY command access the LUN.
 Non-unique LUN identifiers may lead to data corruption.
 Some initiators may not support later introduced UUID identifiers.
+.It Va ident_info
+Specified LUN identification information (string or 0x + hex).
+.It Va text_ident_info
+Specified LUN text identification information (UTF-8 string).
 .It Va ha_role
 Setting to "primary" or "secondary" overrides default role of the node
 in HA cluster, set by kern.cam.ctl.ha_role sysctl.
