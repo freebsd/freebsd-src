@@ -3456,8 +3456,7 @@ cache_fplookup_final_withparent(struct cache_fpl *fpl)
 			vput(dvp);
 		else
 			vrele(dvp);
-		cache_fpl_aborted(fpl);
-		return (error);
+		return (cache_fpl_aborted(fpl));
 	}
 
 	error = cache_fplookup_final_child(fpl, tvs);
