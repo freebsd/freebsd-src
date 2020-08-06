@@ -18,6 +18,10 @@ SRCS+=		MachO/MachOReader.cpp
 SRCS+=		MachO/MachOWriter.cpp
 SRCS+=		MachO/Object.cpp
 SRCS+=		llvm-objcopy.cpp
+SRCS+=		wasm/Object.cpp
+SRCS+=		wasm/Reader.cpp
+SRCS+=		wasm/WasmObjcopy.cpp
+SRCS+=		wasm/Writer.cpp
 
 .include "${SRCTOP}/lib/clang/llvm.pre.mk"
 
