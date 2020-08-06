@@ -545,6 +545,13 @@ PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(PKG_VERSION)
 
+.if !defined(PKG_TIMESTAMP)
+TIMEEPOCHNOW=	%s
+SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
+.else
+SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
+.endif
+
 .if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
 		-m ${.CURDIR}/share/mk MK_AUTO_OBJ=no -V CPUTYPE
@@ -1831,6 +1838,7 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
+			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
 create-packages: .PHONY create-packages-world create-packages-kernel
@@ -1847,6 +1855,7 @@ create-world-packages:	_pkgbootstrap .PHONY
 	done > ${WSTAGEDIR}/packages.mk
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
+		SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 		.MAKE.JOB.PREFIX=
 
 .if make(create-world-packages-jobs)
