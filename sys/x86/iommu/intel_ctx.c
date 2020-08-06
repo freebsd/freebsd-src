@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_DMAR_CTX, "dmar_ctx", "Intel DMAR Context");
 static MALLOC_DEFINE(M_DMAR_DOMAIN, "dmar_dom", "Intel DMAR Domain");
 
-static void dmar_domain_unload_task(void *arg, int pending);
 static void dmar_unref_domain_locked(struct dmar_unit *dmar,
     struct dmar_domain *domain);
 static void dmar_domain_destroy(struct dmar_domain *domain);
@@ -334,8 +333,6 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 	unit = DMAR2IOMMU(dmar);
 	domain->domain = id;
 	LIST_INIT(&domain->contexts);
-	TASK_INIT(&domain->iodom.unload_task, 0, dmar_domain_unload_task,
-	    domain);
 	iommu_domain_init(unit, iodom, &dmar_domain_map_ops);
 
 	domain->dmar = dmar;
@@ -875,26 +872,6 @@ dmar_domain_unload(struct dmar_domain *domain,
 	}
 	TAILQ_CONCAT(&unit->tlb_flush_entries, entries, dmamap_link);
 	DMAR_UNLOCK(unit);
-}	
-
-static void
-dmar_domain_unload_task(void *arg, int pending)
-{
-	struct dmar_domain *domain;
-	struct iommu_map_entries_tailq entries;
-
-	domain = arg;
-	TAILQ_INIT(&entries);
-
-	for (;;) {
-		DMAR_DOMAIN_LOCK(domain);
-		TAILQ_SWAP(&domain->iodom.unload_entries, &entries,
-		    iommu_map_entry, dmamap_link);
-		DMAR_DOMAIN_UNLOCK(domain);
-		if (TAILQ_EMPTY(&entries))
-			break;
-		dmar_domain_unload(domain, &entries, true);
-	}
 }
 
 struct iommu_ctx *
