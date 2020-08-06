@@ -1760,30 +1760,30 @@ protected:
     ObjCContainerDeclBitfields ObjCContainerDeclBits;
     LinkageSpecDeclBitfields LinkageSpecDeclBits;
     BlockDeclBitfields BlockDeclBits;
-
-    static_assert(sizeof(DeclContextBitfields) <= 8,
-                  "DeclContextBitfields is larger than 8 bytes!");
-    static_assert(sizeof(TagDeclBitfields) <= 8,
-                  "TagDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(EnumDeclBitfields) <= 8,
-                  "EnumDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(RecordDeclBitfields) <= 8,
-                  "RecordDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(OMPDeclareReductionDeclBitfields) <= 8,
-                  "OMPDeclareReductionDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(FunctionDeclBitfields) <= 8,
-                  "FunctionDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(CXXConstructorDeclBitfields) <= 8,
-                  "CXXConstructorDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(ObjCMethodDeclBitfields) <= 8,
-                  "ObjCMethodDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(ObjCContainerDeclBitfields) <= 8,
-                  "ObjCContainerDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(LinkageSpecDeclBitfields) <= 8,
-                  "LinkageSpecDeclBitfields is larger than 8 bytes!");
-    static_assert(sizeof(BlockDeclBitfields) <= 8,
-                  "BlockDeclBitfields is larger than 8 bytes!");
   };
+
+  static_assert(sizeof(DeclContextBitfields) <= 8,
+                "DeclContextBitfields is larger than 8 bytes!");
+  static_assert(sizeof(TagDeclBitfields) <= 8,
+                "TagDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(EnumDeclBitfields) <= 8,
+                "EnumDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(RecordDeclBitfields) <= 8,
+                "RecordDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(OMPDeclareReductionDeclBitfields) <= 8,
+                "OMPDeclareReductionDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(FunctionDeclBitfields) <= 8,
+                "FunctionDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(CXXConstructorDeclBitfields) <= 8,
+                "CXXConstructorDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(ObjCMethodDeclBitfields) <= 8,
+                "ObjCMethodDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(ObjCContainerDeclBitfields) <= 8,
+                "ObjCContainerDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(LinkageSpecDeclBitfields) <= 8,
+                "LinkageSpecDeclBitfields is larger than 8 bytes!");
+  static_assert(sizeof(BlockDeclBitfields) <= 8,
+                "BlockDeclBitfields is larger than 8 bytes!");
 
   /// FirstDecl - The first declaration stored within this declaration
   /// context.
