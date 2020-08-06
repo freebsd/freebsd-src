@@ -180,7 +180,7 @@ udf_access(struct vop_access_args *a)
 	mode = udf_permtomode(node);
 
 	return (vaccess(vp->v_type, mode, node->fentry->uid, node->fentry->gid,
-	    accmode, a->a_cred, NULL));
+	    accmode, a->a_cred));
 }
 
 static int

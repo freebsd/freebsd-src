@@ -287,6 +287,10 @@ OLD_DIRS+=usr/lib/clang/10.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/10.0.1/lib
 OLD_DIRS+=usr/lib/clang/10.0.1
 
+# 20200803: remove free_domain(9) and uma_zfree_domain(9)
+OLD_FILES+=usr/share/man/man9/free_domain.9.gz
+OLD_FILES+=usr/share/man/man9/uma_zfree_domain.9.gz
+
 # 20200729: remove long expired serial drivers
 OLD_FILES+=usr/share/man/man4/cy.4.gz
 OLD_FILES+=usr/share/man/man4/rc.4.gz

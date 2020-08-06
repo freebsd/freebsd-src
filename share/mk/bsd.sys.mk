@@ -150,7 +150,9 @@ CWARNFLAGS+=	-Wno-error=address			\
 
 # GCC 6.1.0
 .if ${COMPILER_VERSION} >= 60100
-CWARNFLAGS+=	-Wno-error=nonnull-compare		\
+CWARNFLAGS+=	-Wno-error=maybe-uninitialized		\
+		-Wno-error=nonnull-compare		\
+		-Wno-error=redundant-decls		\
 		-Wno-error=shift-negative-value		\
 		-Wno-error=tautological-compare		\
 		-Wno-error=unused-const-variable
@@ -181,6 +183,11 @@ CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
 		-Wno-error=restrict				\
 		-Wno-error=sizeof-pointer-memaccess		\
 		-Wno-error=stringop-truncation
+.endif
+
+# GCC's own arm_neon.h triggers various warnings
+.if ${MACHINE_ARCH} == "aarch64"
+CWARNFLAGS+=	-Wno-system-headers
 .endif
 .endif	# gcc
 

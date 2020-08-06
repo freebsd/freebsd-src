@@ -7130,6 +7130,88 @@ ctl_read_defect(struct ctl_scsiio *ctsio)
 }
 
 int
+ctl_report_ident_info(struct ctl_scsiio *ctsio)
+{
+	struct ctl_lun *lun = CTL_LUN(ctsio);
+	struct scsi_report_ident_info *cdb;
+	struct scsi_report_ident_info_data *rii_ptr;
+	struct scsi_report_ident_info_descr *riid_ptr;
+	const char *oii, *otii;
+	int retval, alloc_len, total_len = 0, len = 0;
+
+	CTL_DEBUG_PRINT(("ctl_report_ident_info\n"));
+
+	cdb = (struct scsi_report_ident_info *)ctsio->cdb;
+	retval = CTL_RETVAL_COMPLETE;
+
+	total_len = sizeof(struct scsi_report_ident_info_data);
+	switch (cdb->type) {
+	case RII_LUII:
+		oii = dnvlist_get_string(lun->be_lun->options,
+		    "ident_info", NULL);
+		if (oii)
+			len = strlen(oii);	/* Approximately */
+		break;
+	case RII_LUTII:
+		otii = dnvlist_get_string(lun->be_lun->options,
+		    "text_ident_info", NULL);
+		if (otii)
+			len = strlen(otii) + 1;	/* NULL-terminated */
+		break;
+	case RII_IIS:
+		len = 2 * sizeof(struct scsi_report_ident_info_descr);
+		break;
+	default:
+		ctl_set_invalid_field(/*ctsio*/ ctsio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 11,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 2);
+		ctl_done((union ctl_io *)ctsio);
+		return(retval);
+	}
+	total_len += len;
+	alloc_len = scsi_4btoul(cdb->length);
+
+	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
+	ctsio->kern_sg_entries = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_data_len = min(total_len, alloc_len);
+	ctsio->kern_total_len = ctsio->kern_data_len;
+
+	rii_ptr = (struct scsi_report_ident_info_data *)ctsio->kern_data_ptr;
+	switch (cdb->type) {
+	case RII_LUII:
+		if (oii) {
+			if (oii[0] == '0' && oii[1] == 'x')
+				len = hex2bin(oii, (uint8_t *)(rii_ptr + 1), len);
+			else
+				strncpy((uint8_t *)(rii_ptr + 1), oii, len);
+		}
+		break;
+	case RII_LUTII:
+		if (otii)
+			strlcpy((uint8_t *)(rii_ptr + 1), otii, len);
+		break;
+	case RII_IIS:
+		riid_ptr = (struct scsi_report_ident_info_descr *)(rii_ptr + 1);
+		riid_ptr->type = RII_LUII;
+		scsi_ulto2b(0xffff, riid_ptr->length);
+		riid_ptr++;
+		riid_ptr->type = RII_LUTII;
+		scsi_ulto2b(0xffff, riid_ptr->length);
+	}
+	scsi_ulto2b(len, rii_ptr->length);
+
+	ctl_set_success(ctsio);
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+	ctl_datamove((union ctl_io *)ctsio);
+	return(retval);
+}
+
+int
 ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 {
 	struct ctl_softc *softc = CTL_SOFTC(ctsio);

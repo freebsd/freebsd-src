@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012, Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2014 Integros [integros.com]
@@ -1057,6 +1057,8 @@ typedef enum zfs_ioc {
 	ZFS_IOC_POOL_DISCARD_CHECKPOINT,
 	ZFS_IOC_POOL_INITIALIZE,
 	ZFS_IOC_POOL_SYNC,
+	ZFS_IOC_SET_BOOTENV,
+	ZFS_IOC_GET_BOOTENV,
 	ZFS_IOC_LAST
 } zfs_ioc_t;
 

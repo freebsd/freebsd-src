@@ -498,7 +498,7 @@ domain_map_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 	return (0);
 }
 
-int
+static int
 domain_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
     iommu_gaddr_t size, vm_page_t *ma, uint64_t eflags, int flags)
 {
@@ -512,7 +512,7 @@ domain_map_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
 	    ((eflags & IOMMU_MAP_ENTRY_SNOOP) != 0 ? DMAR_PTE_SNP : 0) |
 	    ((eflags & IOMMU_MAP_ENTRY_TM) != 0 ? DMAR_PTE_TM : 0);
 
-	domain = (struct dmar_domain *)iodom;
+	domain = IODOM2DOM(iodom);
 	unit = domain->dmar;
 
 	KASSERT((domain->iodom.flags & IOMMU_DOMAIN_IDMAP) == 0,
@@ -684,11 +684,14 @@ domain_unmap_buf_locked(struct dmar_domain *domain, iommu_gaddr_t base,
 	return (0);
 }
 
-int
-domain_unmap_buf(struct dmar_domain *domain, iommu_gaddr_t base,
+static int
+domain_unmap_buf(struct iommu_domain *iodom, iommu_gaddr_t base,
     iommu_gaddr_t size, int flags)
 {
+	struct dmar_domain *domain;
 	int error;
+
+	domain = IODOM2DOM(iodom);
 
 	DMAR_DOMAIN_PGLOCK(domain);
 	error = domain_unmap_buf_locked(domain, base, size, flags);
@@ -809,3 +812,8 @@ domain_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
 	}
 	DMAR_UNLOCK(unit);
 }
+
+const struct iommu_domain_map_ops dmar_domain_map_ops = {
+	.map = domain_map_buf,
+	.unmap = domain_unmap_buf,
+};

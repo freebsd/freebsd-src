@@ -50,6 +50,7 @@ SUBDIR += ${_rum} ${_run} ${_runfw} ${_uath} upgt usie ural ${_zyd} ${_urtw}
 SUBDIR += atp cfumass uhid uhid_snes ukbd ums udbp ufm uep wmt wsp ugold uled
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
+SUBDIR += cp2112
 SUBDIR += udl
 SUBDIR += uether aue axe axge cdce cdceem cue ${_kue} mos rue smsc udav uhso \
 	  ipheth

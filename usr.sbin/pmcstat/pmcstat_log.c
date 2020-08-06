@@ -612,6 +612,12 @@ pmcstat_keypress_log(void)
 	c = wgetch(w);
 	wprintw(w, "Key: %c => ", c);
 	switch (c) {
+	case 'A':
+		if (args.pa_flags & FLAG_SKIP_TOP_FN_RES)
+			args.pa_flags &= ~FLAG_SKIP_TOP_FN_RES;
+		else
+			args.pa_flags |= FLAG_SKIP_TOP_FN_RES;
+		break;
 	case 'c':
 		wprintw(w, "enter mode 'd' or 'a' => ");
 		c = wgetch(w);
@@ -622,6 +628,12 @@ pmcstat_keypress_log(void)
 			args.pa_topmode = PMCSTAT_TOP_ACCUM;
 			wprintw(w, "switching to accumulation mode");
 		}
+		break;
+	case 'I':
+		if (args.pa_flags & FLAG_SHOW_OFFSET)
+			args.pa_flags &= ~FLAG_SHOW_OFFSET;
+		else
+			args.pa_flags |= FLAG_SHOW_OFFSET;
 		break;
 	case 'm':
 		pmcstat_mergepmc = !pmcstat_mergepmc;

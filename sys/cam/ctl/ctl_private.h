@@ -517,6 +517,7 @@ int ctl_get_event_status(struct ctl_scsiio *ctsio);
 int ctl_mechanism_status(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_in(struct ctl_scsiio *ctsio);
 int ctl_persistent_reserve_out(struct ctl_scsiio *ctsio);
+int ctl_report_ident_info(struct ctl_scsiio *ctsio);
 int ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio);
 int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);

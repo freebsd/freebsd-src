@@ -680,9 +680,9 @@ int nfsvno_namei(struct nfsrv_descript *, struct nameidata *,
     vnode_t, int, struct nfsexstuff *, NFSPROC_T *, vnode_t *);
 void nfsvno_setpathbuf(struct nameidata *, char **, u_long **);
 void nfsvno_relpathbuf(struct nameidata *);
-int nfsvno_readlink(vnode_t, struct ucred *, NFSPROC_T *, struct mbuf **,
+int nfsvno_readlink(vnode_t, struct ucred *, int, NFSPROC_T *, struct mbuf **,
     struct mbuf **, int *);
-int nfsvno_read(vnode_t, off_t, int, struct ucred *, NFSPROC_T *,
+int nfsvno_read(vnode_t, off_t, int, struct ucred *, int, NFSPROC_T *,
     struct mbuf **, struct mbuf **);
 int nfsvno_write(vnode_t, off_t, int, int *, struct mbuf *, char *,
     struct ucred *, NFSPROC_T *);
@@ -748,7 +748,7 @@ int nfsvno_seek(struct nfsrv_descript *, struct vnode *, u_long, off_t *, int,
     bool *, struct ucred *, NFSPROC_T *);
 int nfsvno_allocate(struct vnode *, off_t, off_t, struct ucred *, NFSPROC_T *);
 int nfsvno_getxattr(struct vnode *, char *, uint32_t, struct ucred *,
-    struct thread *, struct mbuf **, struct mbuf **, int *);
+    uint64_t, int, struct thread *, struct mbuf **, struct mbuf **, int *);
 int nfsvno_setxattr(struct vnode *, char *, int, struct mbuf *, char *,
     struct ucred *, struct thread *);
 int nfsvno_rmxattr(struct nfsrv_descript *, struct vnode *, char *,

@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2012, 2016 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2020 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright 2017 RackTop Systems.
  * Copyright (c) 2017 Datto Inc.
@@ -105,6 +105,8 @@ int lzc_channel_program_nosync(const char *, const char *, uint64_t,
 int lzc_pool_checkpoint(const char *);
 int lzc_pool_checkpoint_discard(const char *);
 
+int lzc_set_bootenv(const char *, const char *);
+int lzc_get_bootenv(const char *, nvlist_t **);
 #ifdef	__cplusplus
 }
 #endif

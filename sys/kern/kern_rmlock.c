@@ -872,6 +872,10 @@ db_show_rm(const struct lock_object *lock)
  * Neither rms_rlock nor rms_runlock use fences. Instead compiler barriers are
  * inserted to prevert reordering of generated code. Execution ordering is
  * provided with the use of an IPI handler.
+ *
+ * No attempt is made to track which CPUs read locked at least once,
+ * consequently write locking sends IPIs to all of them. This will become a
+ * problem at some point. The easiest way to lessen it is to provide a bitmap.
  */
 
 void
