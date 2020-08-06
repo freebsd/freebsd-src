@@ -1505,6 +1505,7 @@ finish_hs_tests:
 
 	softc->state = SDDA_STATE_NORMAL;
 
+	cam_periph_unhold(periph);
 	/* MMC partitions support */
 	if (mmcp->card_features & CARD_FEATURE_MMC && mmc_get_spec_vers(periph) >= 4) {
 		sdda_process_mmc_partitions(periph, start_ccb);
@@ -1516,6 +1517,7 @@ finish_hs_tests:
 		    sdda_get_read_only(periph, start_ccb));
 		softc->part_curr = 0;
 	}
+	cam_periph_hold(periph, PRIBIO|PCATCH);
 
 	xpt_announce_periph(periph, softc->card_id_string);
 	/*
