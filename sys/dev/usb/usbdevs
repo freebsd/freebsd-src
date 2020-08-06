@@ -782,6 +782,7 @@ vendor NHJ		0x2770	NHJ
 vendor THINGM		0x27b8	ThingM
 vendor PERASO		0x2932	Peraso Technologies, Inc.
 vendor PLANEX		0x2c02	Planex Communications
+vendor MERCUSYS		0x2c4e	Mercusys, Inc.
 vendor QUECTEL		0x2c7c	Quectel Wireless Solutions
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor LINKINSTRUMENTS	0x3195	Link Instruments Inc.
@@ -3191,6 +3192,9 @@ product MELCO WLIUCGNM2		0x01ee	WLI-UC-GNM2
 product MELCO WIU2433DM		0x0242	WI-U2-433DM
 product MELCO WIU3866D		0x025d	WI-U3-866D
 product MELCO WIU2433DHP	0x029b	WI-U2-433DHP
+
+/* Mercusys, Inc. */
+product MERCUSYS MW150US	0x0102	Mercusys MW150US
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
