@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -152,10 +153,12 @@ pmcstat_cgnode_hash_lookup_pc(struct pmcstat_process *pp, pmc_id_t pmcid,
 	 * Try determine the function at this offset.  If we can't
 	 * find a function round leave the `pc' value alone.
 	 */
-	if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
-		pc = sym->ps_start;
-	else
-		pmcstat_stats.ps_samples_unknown_function++;
+	if (!(args.pa_flags & (FLAG_SKIP_TOP_FN_RES | FLAG_SHOW_OFFSET))) {
+		if ((sym = pmcstat_symbol_search(image, pc)) != NULL)
+			pc = sym->ps_start;
+		else
+			pmcstat_stats.ps_samples_unknown_function++;
+	}
 
 	for (hash = i = 0; i < sizeof(uintfptr_t); i++)
 		hash += (pc >> i) & 0xFF;
@@ -485,22 +488,35 @@ pmcstat_cgnode_topprint(struct pmcstat_cgnode *cg,
 	v = PMCPL_CG_COUNTP(cg);
 	snprintf(vs, sizeof(vs), "%.1f", v);
 	v_attrs = PMCSTAT_ATTRPERCENT(v);
-	sym = NULL;
 
 	/* Format name. */
-	if (!(args.pa_flags & FLAG_SKIP_TOP_FN_RES))
-		sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
-	if (sym != NULL) {
-		snprintf(ns, sizeof(ns), "%s",
-		    pmcstat_string_unintern(sym->ps_name));
-	} else
+	sym = pmcstat_symbol_search(cg->pcg_image, cg->pcg_func);
+	if (sym == NULL) {
 		snprintf(ns, sizeof(ns), "%p",
 		    (void *)(cg->pcg_image->pi_vaddr + cg->pcg_func));
+	} else {
+		switch (args.pa_flags & (FLAG_SKIP_TOP_FN_RES | FLAG_SHOW_OFFSET)) {
+		case FLAG_SKIP_TOP_FN_RES | FLAG_SHOW_OFFSET:
+		case FLAG_SKIP_TOP_FN_RES:
+			snprintf(ns, sizeof(ns), "%p",
+			    (void *)(cg->pcg_image->pi_vaddr + cg->pcg_func));
+			break;
+		case FLAG_SHOW_OFFSET:
+			snprintf(ns, sizeof(ns), "%s+%#0" PRIx64,
+			    pmcstat_string_unintern(sym->ps_name),
+			    cg->pcg_func - sym->ps_start);
+			break;
+		default:
+			snprintf(ns, sizeof(ns), "%s",
+			    pmcstat_string_unintern(sym->ps_name));
+			break;
+		}
+	}
 
 	PMCSTAT_ATTRON(v_attrs);
 	PMCSTAT_PRINTW("%5.5s", vs);
 	PMCSTAT_ATTROFF(v_attrs);
-	PMCSTAT_PRINTW(" %-10.10s %-20.20s",
+	PMCSTAT_PRINTW(" %-10.10s %-30.30s",
 	    pmcstat_string_unintern(cg->pcg_image->pi_name),
 	    ns);
 
@@ -624,7 +640,7 @@ pmcpl_cg_topdisplay(void)
 	qsort(sortbuffer, nentries, sizeof(struct pmcstat_cgnode *),
 	    pmcstat_cgnode_compare);
 
-	PMCSTAT_PRINTW("%5.5s %-10.10s %-20.20s %s\n",
+	PMCSTAT_PRINTW("%5.5s %-10.10s %-30.30s %s\n",
 	    "%SAMP", "IMAGE", "FUNCTION", "CALLERS");
 
 	nentries = min(pmcstat_displayheight - 2, nentries);

@@ -212,7 +212,7 @@ ksem_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
 		goto out;
 #endif
 	error = vaccess(VREG, ks->ks_mode, ks->ks_uid, ks->ks_gid, VADMIN,
-	    active_cred, NULL);
+	    active_cred);
 	if (error != 0)
 		goto out;
 	ks->ks_mode = mode & ACCESSPERMS;
@@ -362,7 +362,7 @@ ksem_access(struct ksem *ks, struct ucred *ucred)
 	int error;
 
 	error = vaccess(VREG, ks->ks_mode, ks->ks_uid, ks->ks_gid,
-	    VREAD | VWRITE, ucred, NULL);
+	    VREAD | VWRITE, ucred);
 	if (error)
 		error = priv_check_cred(ucred, PRIV_SEM_WRITE);
 	return (error);

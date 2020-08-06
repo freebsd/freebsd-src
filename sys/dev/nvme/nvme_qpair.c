@@ -819,7 +819,7 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 	}
 
 	if (qpair->act_tr) {
-		free_domain(qpair->act_tr, M_NVME);
+		free(qpair->act_tr, M_NVME);
 		qpair->act_tr = NULL;
 	}
 
@@ -828,7 +828,7 @@ nvme_qpair_destroy(struct nvme_qpair *qpair)
 		TAILQ_REMOVE(&qpair->free_tr, tr, tailq);
 		bus_dmamap_destroy(qpair->dma_tag_payload,
 		    tr->payload_dma_map);
-		free_domain(tr, M_NVME);
+		free(tr, M_NVME);
 	}
 
 	if (qpair->cmd != NULL) {

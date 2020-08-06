@@ -4941,7 +4941,7 @@ zfs_freebsd_access(ap)
 		accmode = ap->a_accmode & ~(VREAD|VWRITE|VEXEC|VAPPEND);
 		if (accmode != 0) {
 			error = vaccess(vp->v_type, zp->z_mode, zp->z_uid,
-			    zp->z_gid, accmode, ap->a_cred, NULL);
+			    zp->z_gid, accmode, ap->a_cred);
 		}
 	}
 

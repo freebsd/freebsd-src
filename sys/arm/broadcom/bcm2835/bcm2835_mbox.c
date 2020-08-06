@@ -397,10 +397,10 @@ int
 bcm2835_mbox_property(void *msg, size_t msg_size)
 {
 	struct bcm_mbox_softc *sc;
-	struct msg_set_power_state *buf;
 	bus_dma_tag_t msg_tag;
 	bus_dmamap_t msg_map;
 	bus_addr_t msg_phys;
+	char *buf;
 	uint32_t reg;
 	device_t mbox;
 	int err;
@@ -460,6 +460,26 @@ bcm2835_mbox_set_power_state(uint32_t device_id, boolean_t on)
 	msg.body.req.device_id = device_id;
 	msg.body.req.state = (on ? BCM2835_MBOX_POWER_ON : 0) |
 	    BCM2835_MBOX_POWER_WAIT;
+	msg.end_tag = 0;
+
+	err = bcm2835_mbox_property(&msg, sizeof(msg));
+
+	return (err);
+}
+
+int
+bcm2835_mbox_notify_xhci_reset(uint32_t pci_dev_addr)
+{
+	struct msg_notify_xhci_reset msg;
+	int err;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.hdr.buf_size = sizeof(msg);
+	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
+	msg.tag_hdr.tag = BCM2835_MBOX_TAG_NOTIFY_XHCI_RESET;
+	msg.tag_hdr.val_buf_size = sizeof(msg.body);
+	msg.tag_hdr.val_len = sizeof(msg.body.req);
+	msg.body.req.pci_device_addr = pci_dev_addr;
 	msg.end_tag = 0;
 
 	err = bcm2835_mbox_property(&msg, sizeof(msg));
@@ -572,3 +592,4 @@ bcm2835_mbox_fb_init(struct bcm2835_fb_config *fb)
 
 	return (err);
 }
+

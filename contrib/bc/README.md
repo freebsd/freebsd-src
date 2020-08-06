@@ -262,8 +262,8 @@ Other projects based on this bc are:
   toybox `bc` should be reported there.
 
 * [FreeBSD `bc`][23]. While the `bc` in FreeBSD is kept up-to-date, it is better
-  to report bugs there, and the maintainers of the package will contact me if
-  necessary.
+  to [report bugs there][24], as well as [submit patches][25], and the
+  maintainers of the package will contact me if necessary.
 
 ## Language
 
@@ -332,4 +332,6 @@ Folders:
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
 [22]: https://www.deepl.com/translator
-[23]: https://github.com/freebsd/freebsd/tree/master/contrib/bc
+[23]: https://svnweb.freebsd.org/base/head/contrib/bc/
+[24]: https://bugs.freebsd.org/
+[25]: https://reviews.freebsd.org/

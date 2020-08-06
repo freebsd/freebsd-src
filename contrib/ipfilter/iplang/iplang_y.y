@@ -30,11 +30,9 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#ifndef	linux
 # include <netinet/ip_var.h>
 # include <net/route.h>
 # include <netinet/if_ether.h>
-#endif
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
@@ -589,28 +587,6 @@ struct	statetoopt	tosecopts[] = {
 	{ 0, 0 }
 };
 
-#ifdef	bsdi
-struct ether_addr *
-ether_aton(s)
-	char *s;
-{
-	static struct ether_addr n;
-	u_int i[6];
-
-	if (sscanf(s, " %x:%x:%x:%x:%x:%x ", &i[0], &i[1],
-	    &i[2], &i[3], &i[4], &i[5]) == 6) {
-		n.ether_addr_octet[0] = (u_char)i[0];
-		n.ether_addr_octet[1] = (u_char)i[1];
-		n.ether_addr_octet[2] = (u_char)i[2];
-		n.ether_addr_octet[3] = (u_char)i[3];
-		n.ether_addr_octet[4] = (u_char)i[4];
-		n.ether_addr_octet[5] = (u_char)i[5];
-		return &n;
-	}
-	return NULL;
-}
-#endif
-
 
 struct in_addr getipv4addr(arg)
 char *arg;
@@ -645,7 +621,6 @@ struct ether_addr *buf;
 {
 	struct ether_addr *e;
 
-#if !defined(hpux) && !defined(linux)
 	e = ether_aton(arg);
 	if (!e)
 		fprintf(stderr, "Invalid ethernet address: %s\n", arg);
@@ -657,9 +632,6 @@ struct ether_addr *buf;
 		      sizeof(e->ether_addr_octet));
 # endif
 	return e;
-#else
-	return NULL;
-#endif
 }
 
 
@@ -1584,9 +1556,7 @@ int arg;
 void set_icmpmtu(arg)
 int arg;
 {
-#if	BSD >= 199306
 	icmp->icmp_nextmtu = htons(arg);
-#endif
 }
 
 

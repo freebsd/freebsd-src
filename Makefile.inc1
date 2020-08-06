@@ -545,6 +545,13 @@ PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(PKG_VERSION)
 
+.if !defined(PKG_TIMESTAMP)
+TIMEEPOCHNOW=	%s
+SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
+.else
+SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
+.endif
+
 .if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
 		-m ${.CURDIR}/share/mk MK_AUTO_OBJ=no -V CPUTYPE
@@ -1782,6 +1789,7 @@ KSTAGEDIR?=	${OBJTOP}/kernelstage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	txz
 PKGSIGNKEY?=	# empty
+PKG_OUTPUT_DIR?=	${PKG_VERSION}
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
@@ -1831,6 +1839,7 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
+			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
 create-packages: .PHONY create-packages-world create-packages-kernel
@@ -1847,6 +1856,7 @@ create-world-packages:	_pkgbootstrap .PHONY
 	done > ${WSTAGEDIR}/packages.mk
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
+		SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 		.MAKE.JOB.PREFIX=
 
 .if make(create-world-packages-jobs)
@@ -1874,7 +1884,7 @@ create-world-package-${pkgname}: .PHONY
 		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .endfor
 
 _default_flavor=	-default
@@ -1907,7 +1917,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 . endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
@@ -1940,7 +1950,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .   endfor
 .  endif
 . endfor
@@ -1956,7 +1966,7 @@ sign-packages:	_pkgbootstrap .PHONY
 		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
 		${PKGSIGNKEY} ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI); \
-	ln -s ${PKG_VERSION} latest
+	ln -s ${PKG_OUTPUT_DIR} latest
 
 #
 #
@@ -2739,6 +2749,10 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
 gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
+.endif
+
+.if ${MK_GOOGLETEST} != "no"
+_prebuild_libs+= lib/libregex
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"

@@ -206,15 +206,6 @@ static counter_u64_t recycles_free_count;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles_free, CTLFLAG_RD, &recycles_free_count,
     "Number of free vnodes recycled to meet vnode cache targets");
 
-/*
- * Various variables used for debugging the new implementation of
- * reassignbuf().
- * XXX these are probably of (very) limited utility now.
- */
-static int reassignbufcalls;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW | CTLFLAG_STATS,
-    &reassignbufcalls, 0, "Number of calls to reassignbuf");
-
 static counter_u64_t deferred_inact;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, deferred_inact, CTLFLAG_RD, &deferred_inact,
     "Number of times inactive processing was deferred");
@@ -563,8 +554,7 @@ vnode_init(void *mem, int size, int flags)
 	/*
 	 * Initialize namecache.
 	 */
-	LIST_INIT(&vp->v_cache_src);
-	TAILQ_INIT(&vp->v_cache_dst);
+	cache_vnode_init(vp);
 	/*
 	 * Initialize rangelocks.
 	 */
@@ -2266,13 +2256,17 @@ static void
 buf_vlist_remove(struct buf *bp)
 {
 	struct bufv *bv;
+	b_xflags_t flags;
+
+	flags = bp->b_xflags;
 
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	ASSERT_BO_WLOCKED(bp->b_bufobj);
-	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) !=
-	    (BX_VNDIRTY|BX_VNCLEAN),
-	    ("buf_vlist_remove: Buf %p is on two lists", bp));
-	if (bp->b_xflags & BX_VNDIRTY)
+	KASSERT((flags & (BX_VNDIRTY | BX_VNCLEAN)) != 0 &&
+	    (flags & (BX_VNDIRTY | BX_VNCLEAN)) != (BX_VNDIRTY | BX_VNCLEAN),
+	    ("%s: buffer %p has invalid queue state", __func__, bp));
+
+	if ((flags & BX_VNDIRTY) != 0)
 		bv = &bp->b_bufobj->bo_dirty;
 	else
 		bv = &bp->b_bufobj->bo_clean;
@@ -2401,10 +2395,7 @@ brelvp(struct buf *bp)
 	vp = bp->b_vp;		/* XXX */
 	bo = bp->b_bufobj;
 	BO_LOCK(bo);
-	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
-		buf_vlist_remove(bp);
-	else
-		panic("brelvp: Buffer %p not on queue.", bp);
+	buf_vlist_remove(bp);
 	if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 		bo->bo_flag &= ~BO_ONWORKLST;
 		mtx_lock(&sync_mtx);
@@ -2717,9 +2708,7 @@ syncer_resume(void)
 }
 
 /*
- * Reassign a buffer from one vnode to another.
- * Used to assign file specific control information
- * (indirect blocks) to the vnode to which they belong.
+ * Move the buffer between the clean and dirty lists of its vnode.
  */
 void
 reassignbuf(struct buf *bp)
@@ -2733,25 +2722,16 @@ reassignbuf(struct buf *bp)
 
 	vp = bp->b_vp;
 	bo = bp->b_bufobj;
-	++reassignbufcalls;
+
+	KASSERT((bp->b_flags & B_PAGING) == 0,
+	    ("%s: cannot reassign paging buffer %p", __func__, bp));
 
 	CTR3(KTR_BUF, "reassignbuf(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
-	/*
-	 * B_PAGING flagged buffers cannot be reassigned because their vp
-	 * is not fully linked in.
-	 */
-	if (bp->b_flags & B_PAGING)
-		panic("cannot reassign paging buffer");
 
-	/*
-	 * Delete from old vnode list, if on one.
-	 */
 	BO_LOCK(bo);
-	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
-		buf_vlist_remove(bp);
-	else
-		panic("reassignbuf: Buffer %p not on queue.", bp);
+	buf_vlist_remove(bp);
+
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
 	 * of clean buffers.
@@ -4147,7 +4127,7 @@ vgonel(struct vnode *vp)
 	 * Delete from old mount point vnode list.
 	 */
 	delmntque(vp);
-	cache_purge(vp);
+	cache_purge_vgone(vp);
 	/*
 	 * Done with purge, reset to the standard lock and invalidate
 	 * the vnode.
@@ -5300,14 +5280,12 @@ vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred
 
 /*
  * Common filesystem object access control check routine.  Accepts a
- * vnode's type, "mode", uid and gid, requested access mode, credentials,
- * and optional call-by-reference privused argument allowing vaccess()
- * to indicate to the caller whether privilege was used to satisfy the
- * request (obsoleted).  Returns 0 on success, or an errno on failure.
+ * vnode's type, "mode", uid and gid, requested access mode, and credentials.
+ * Returns 0 on success, or an errno on failure.
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
-    accmode_t accmode, struct ucred *cred, int *privused)
+    accmode_t accmode, struct ucred *cred)
 {
 	accmode_t dac_granted;
 	accmode_t priv_granted;
@@ -5321,9 +5299,6 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 	 * Look for a normal, non-privileged way to access the file/directory
 	 * as requested.  If it exists, go with that.
 	 */
-
-	if (privused != NULL)
-		*privused = 0;
 
 	dac_granted = 0;
 
@@ -5410,9 +5385,6 @@ privcheck:
 		priv_granted |= VADMIN;
 
 	if ((accmode & (priv_granted | dac_granted)) == accmode) {
-		/* XXX audit: privilege used */
-		if (privused != NULL)
-			*privused = 1;
 		return (0);
 	}
 
@@ -6882,16 +6854,28 @@ vn_dir_check_exec(struct vnode *vp, struct componentname *cnp)
 	return (VOP_ACCESS(vp, VEXEC, cnp->cn_cred, cnp->cn_thread));
 }
 
+/*
+ * Do not use this variant unless you have means other than the hold count
+ * to prevent the vnode from getting freed.
+ */
+void
+vn_seqc_write_begin_unheld_locked(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(vp->v_seqc_users >= 0, vp);
+	vp->v_seqc_users++;
+	if (vp->v_seqc_users == 1)
+		seqc_sleepable_write_begin(&vp->v_seqc);
+}
+
 void
 vn_seqc_write_begin_locked(struct vnode *vp)
 {
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	VNPASS(vp->v_holdcnt > 0, vp);
-	VNPASS(vp->v_seqc_users >= 0, vp);
-	vp->v_seqc_users++;
-	if (vp->v_seqc_users == 1)
-		seqc_sleepable_write_begin(&vp->v_seqc);
+	vn_seqc_write_begin_unheld_locked(vp);
 }
 
 void
@@ -6900,6 +6884,15 @@ vn_seqc_write_begin(struct vnode *vp)
 
 	VI_LOCK(vp);
 	vn_seqc_write_begin_locked(vp);
+	VI_UNLOCK(vp);
+}
+
+void
+vn_seqc_write_begin_unheld(struct vnode *vp)
+{
+
+	VI_LOCK(vp);
+	vn_seqc_write_begin_unheld_locked(vp);
 	VI_UNLOCK(vp);
 }
 

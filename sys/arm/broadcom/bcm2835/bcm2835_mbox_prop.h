@@ -112,6 +112,24 @@ struct msg_set_power_state {
 /* Sets the power state for a given device */
 int bcm2835_mbox_set_power_state(uint32_t, boolean_t);
 
+#define BCM2835_MBOX_TAG_NOTIFY_XHCI_RESET	0x00030058
+
+struct msg_notify_xhci_reset {
+	struct bcm2835_mbox_hdr hdr;
+	struct bcm2835_mbox_tag_hdr tag_hdr;
+	union {
+		struct {
+			uint32_t pci_device_addr;
+		} req;
+		struct {
+		} resp;
+	} body;
+	uint32_t end_tag;
+};
+
+/* Prompts the VideoCore processor to reload the xhci firmware. */
+int bcm2835_mbox_notify_xhci_reset(uint32_t);
+
 #define BCM2835_MBOX_CLOCK_ID_EMMC		0x00000001
 #define BCM2838_MBOX_CLOCK_ID_EMMC2		0x0000000c
 

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2018
+.Dd August 5, 2020
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nd "performance measurement with performance monitoring hardware"
 .Sh SYNOPSIS
 .Nm
+.Op Fl A
 .Op Fl C
 .Op Fl D Ar pathname
 .Op Fl E
@@ -123,6 +124,8 @@ process' current and future children.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
+.It Fl A
+Skip symbol lookup and display address instead.
 .It Fl C
 Toggle between showing cumulative or incremental counts for
 subsequent counting mode PMCs specified on the command line.
@@ -161,7 +164,7 @@ this information is sent to the output file specified by the
 .Fl o
 option.
 .It Fl I
-Skip symbol lookup and display address instead.
+Show the offset of the instruction pointer into the symbol.
 .It Fl L
 List all event names.
 .It Fl M Ar mapfilename
@@ -222,10 +225,10 @@ specified in
 .Ar event-spec .
 .It Fl T
 Use a top like mode for sampling PMCs. The following hotkeys
-can be used: 'c+a' switch to accumulative mode, 'c+d' switch
-to delta mode, 'm' merge PMCs, 'n' change view, 'p' show next
-PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under threshold
-is seen as a dot.
+can be used: 'A' toggle symbol resolution, 'c+a' switch to accumulative mode, 'c+d'
+switch to delta mode, 'I' toggle showing offsets into symbols, 'm' merge PMCs, 'n'
+change view, 'p' show next PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under
+threshold is seen as a dot.
 .It Fl U
 Toggle capturing user-space call traces while in kernel mode.
 The default is for sampling PMCs to capture user-space callchain information

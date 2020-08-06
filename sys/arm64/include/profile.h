@@ -70,7 +70,7 @@ void	mcount(uintfptr_t frompc, uintfptr_t selfpc);
 
 #else /* !_KERNEL */
 
-typedef unsigned long long	uintfptr_t;
+typedef __uintfptr_t    uintfptr_t;
 
 #define	_MCOUNT_DECL	void mcount
 #define	MCOUNT

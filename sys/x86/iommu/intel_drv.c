@@ -919,8 +919,7 @@ dmar_rmrr_iter(ACPI_DMAR_HEADER *dmarh, void *arg)
 		match = dmar_match_devscope(devscope, ria->dev_busno,
 		    ria->dev_path, ria->dev_path_len);
 		if (match == 1) {
-			entry = iommu_gas_alloc_entry(
-			    (struct iommu_domain *)ria->domain,
+			entry = iommu_gas_alloc_entry(DOM2IODOM(ria->domain),
 			    IOMMU_PGF_WAITOK);
 			entry->start = resmem->BaseAddress;
 			/* The RMRR entry end address is inclusive. */
@@ -1056,7 +1055,7 @@ dmar_instantiate_rmrr_ctxs(struct iommu_unit *unit)
 	struct inst_rmrr_iter_args iria;
 	int error;
 
-	dmar = (struct dmar_unit *)unit;
+	dmar = IOMMU2DMAR(unit);
 
 	if (!dmar_barrier_enter(dmar, DMAR_BARRIER_RMRR))
 		return (0);
@@ -1131,7 +1130,7 @@ dmar_print_domain(struct dmar_domain *domain, bool show_mappings)
 	struct iommu_map_entry *entry;
 	struct dmar_ctx *ctx;
 
-	iodom = (struct iommu_domain *)domain;
+	iodom = DOM2IODOM(domain);
 
 	db_printf(
 	    "  @%p dom %d mgaw %d agaw %d pglvl %d end %jx refs %d\n"

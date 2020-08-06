@@ -257,10 +257,9 @@ vm_pageout_end_scan(struct scan_state *ss)
  * physically dequeued if the caller so requests.  Otherwise, the returned
  * batch may contain marker pages, and it is up to the caller to handle them.
  *
- * When processing the batch queue, vm_page_queue() must be used to
- * determine whether the page has been logically dequeued by another thread.
- * Once this check is performed, the page lock guarantees that the page will
- * not be disassociated from the queue.
+ * When processing the batch queue, vm_pageout_defer() must be used to
+ * determine whether the page has been logically dequeued since the batch was
+ * collected.
  */
 static __always_inline void
 vm_pageout_collect_batch(struct scan_state *ss, const bool dequeue)

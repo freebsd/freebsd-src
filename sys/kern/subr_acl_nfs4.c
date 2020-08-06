@@ -172,7 +172,7 @@ _acl_denies(const struct acl *aclp, int access_mask, struct ucred *cred,
 
 int
 vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
-    struct acl *aclp, accmode_t accmode, struct ucred *cred, int *privused)
+    struct acl *aclp, accmode_t accmode, struct ucred *cred)
 {
 	accmode_t priv_granted = 0;
 	int denied, explicitly_denied, access_mask, is_directory,
@@ -186,9 +186,6 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	    ("invalid bit in accmode"));
 	KASSERT((accmode & VAPPEND) == 0 || (accmode & VWRITE),
 	    	("VAPPEND without VWRITE"));
-
-	if (privused != NULL)
-		*privused = 0;
 
 	if (accmode & VADMIN)
 		must_be_owner = 1;
@@ -289,9 +286,6 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 		priv_granted |= VSTAT_PERMS;
 
 	if ((accmode & priv_granted) == accmode) {
-		if (privused != NULL)
-			*privused = 1;
-
 		return (0);
 	}
 

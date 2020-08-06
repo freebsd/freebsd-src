@@ -95,19 +95,17 @@
  *	synchronized using either one of or a combination of locks.  If a
  *	field is annotated with two of these locks then holding either is
  *	sufficient for read access but both are required for write access.
- *	The physical address of a page is used to select its page lock from
- *	a pool.  The queue lock for a page depends on the value of its queue
- *	field and is described in detail below.
+ *	The queue lock for a page depends on the value of its queue field and is
+ *	described in detail below.
  *
  *	The following annotations are possible:
  *	(A) the field must be accessed using atomic(9) and may require
  *	    additional synchronization.
  *	(B) the page busy lock.
  *	(C) the field is immutable.
- *	(F) the per-domain lock for the free queues
+ *	(F) the per-domain lock for the free queues.
  *	(M) Machine dependent, defined by pmap layer.
  *	(O) the object that the page belongs to.
- *	(P) the page lock.
  *	(Q) the page's queue lock.
  *
  *	The busy lock is an embedded reader-writer lock that protects the
@@ -270,7 +268,7 @@ struct vm_page {
  * cleared only when the corresponding object's write lock is held.
  *
  * VPRC_BLOCKED is used to atomically block wirings via pmap lookups while
- * attempting to tear down all mappings of a given page.  The page lock and
+ * attempting to tear down all mappings of a given page.  The page busy lock and
  * object write lock must both be held in order to set or clear this bit.
  */
 #define	VPRC_BLOCKED	0x40000000u	/* mappings are being removed */
@@ -411,26 +409,25 @@ extern struct mtx_padalign pa_lock[];
  *
  * PGA_ENQUEUED is set and cleared when a page is inserted into or removed
  * from a page queue, respectively.  It determines whether the plinks.q field
- * of the page is valid.  To set or clear this flag, the queue lock for the
- * page must be held: the page queue lock corresponding to the page's "queue"
- * field if its value is not PQ_NONE, and the page lock otherwise.
+ * of the page is valid.  To set or clear this flag, page's "queue" field must
+ * be a valid queue index, and the corresponding page queue lock must be held.
  *
  * PGA_DEQUEUE is set when the page is scheduled to be dequeued from a page
  * queue, and cleared when the dequeue request is processed.  A page may
  * have PGA_DEQUEUE set and PGA_ENQUEUED cleared, for instance if a dequeue
  * is requested after the page is scheduled to be enqueued but before it is
- * actually inserted into the page queue.  For allocated pages, the page lock
- * must be held to set this flag, but it may be set by vm_page_free_prep()
- * without the page lock held.  The page queue lock must be held to clear the
- * PGA_DEQUEUE flag.
+ * actually inserted into the page queue.
  *
  * PGA_REQUEUE is set when the page is scheduled to be enqueued or requeued
- * in its page queue.  The page lock must be held to set this flag, and the
- * queue lock for the page must be held to clear it.
+ * in its page queue.
  *
  * PGA_REQUEUE_HEAD is a special flag for enqueuing pages near the head of
- * the inactive queue, thus bypassing LRU.  The page lock must be held to
- * set this flag, and the queue lock for the page must be held to clear it.
+ * the inactive queue, thus bypassing LRU.
+ *
+ * The PGA_DEQUEUE, PGA_REQUEUE and PGA_REQUEUE_HEAD flags must be set using an
+ * atomic RMW operation to ensure that the "queue" field is a valid queue index,
+ * and the corresponding page queue lock must be held when clearing any of the
+ * flags.
  *
  * PGA_SWAP_FREE is used to defer freeing swap space to the pageout daemon
  * when the context that dirties the page does not have the object write lock
@@ -451,8 +448,8 @@ extern struct mtx_padalign pa_lock[];
 #define	PGA_QUEUE_STATE_MASK	(PGA_ENQUEUED | PGA_QUEUE_OP_MASK)
 
 /*
- * Page flags.  If changed at any other time than page allocation or
- * freeing, the modification must be protected by the vm_page lock.
+ * Page flags.  Updates to these flags are not synchronized, and thus they must
+ * be set during page allocation or free to avoid races.
  *
  * The PG_PCPU_CACHE flag is set at allocation time if the page was
  * allocated from a per-CPU cache.  It is cleared the next time that the

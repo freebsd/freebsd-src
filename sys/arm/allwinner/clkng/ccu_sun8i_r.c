@@ -119,7 +119,7 @@ NM_CLK(r_ccu_ir_clk,
     "ir", r_ccu_ir_parents,		/* names, parents */
     0x54,				/* offset */
     0, 4, 0, 0,				/* N factor */
-    16, 2, 0, 0,			/* M flags */
+    16, 2, 0, 0,			/* M factor */
     24, 2,				/* mux */
     31,					/* gate */
     AW_CLK_HAS_MUX | AW_CLK_REPARENT | AW_CLK_HAS_GATE);/* flags */

@@ -586,7 +586,7 @@ SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_ND6_USELOOPBACK, nd6_useloopback,
 	"Create a loopback route when configuring an IPv6 address");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO, nodeinfo,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(icmp6_nodeinfo), 0,
-	"Mask of enabled RF4620 node information query types");
+	"Mask of enabled RFC4620 node information query types");
 SYSCTL_INT(_net_inet6_icmp6, ICMPV6CTL_NODEINFO_OLDMCPREFIX,
 	nodeinfo_oldmcprefix, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(icmp6_nodeinfo_oldmcprefix), 0,

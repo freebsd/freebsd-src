@@ -108,6 +108,8 @@ extern struct nfsdevicehead nfsrv_devidhead;
 
 static int nfsrv_createiovec(int, struct mbuf **, struct mbuf **,
     struct iovec **);
+static int nfsrv_createiovec_extpgs(int, int, struct mbuf **,
+    struct mbuf **, struct iovec **);
 static int nfsrv_createiovecw(int, struct mbuf *, char *, struct iovec **,
     int *);
 static void nfsrv_pnfscreate(struct vnode *, struct vattr *, struct ucred *,
@@ -738,8 +740,8 @@ nfsvno_relpathbuf(struct nameidata *ndp)
  * Readlink vnode op into an mbuf list.
  */
 int
-nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
-    struct mbuf **mpp, struct mbuf **mpendp, int *lenp)
+nfsvno_readlink(struct vnode *vp, struct ucred *cred, int maxextsiz,
+    struct thread *p, struct mbuf **mpp, struct mbuf **mpendp, int *lenp)
 {
 	struct iovec *iv;
 	struct uio io, *uiop = &io;
@@ -747,7 +749,11 @@ nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
 	int len, tlen, error = 0;
 
 	len = NFS_MAXPATHLEN;
-	uiop->uio_iovcnt = nfsrv_createiovec(len, &mp3, &mp, &iv);
+	if (maxextsiz > 0)
+		uiop->uio_iovcnt = nfsrv_createiovec_extpgs(len, maxextsiz,
+		    &mp3, &mp, &iv);
+	else
+		uiop->uio_iovcnt = nfsrv_createiovec(len, &mp3, &mp, &iv);
 	uiop->uio_iov = iv;
 	uiop->uio_offset = 0;
 	uiop->uio_resid = len;
@@ -819,7 +825,7 @@ nfsrv_createiovec(int len, struct mbuf **mpp, struct mbuf **mpendp,
 	i = 0;
 	while (left > 0) {
 		if (m == NULL)
-			panic("nfsvno_read iov");
+			panic("nfsrv_createiovec iov");
 		siz = min(M_TRAILINGSPACE(m), left);
 		if (siz > 0) {
 			iv->iov_base = mtod(m, caddr_t) + m->m_len;
@@ -837,11 +843,76 @@ nfsrv_createiovec(int len, struct mbuf **mpp, struct mbuf **mpendp,
 }
 
 /*
+ * Create an mbuf chain and an associated iovec that can be used to Read
+ * or Getextattr of data.
+ * Upon success, return pointers to the first and last mbufs in the chain
+ * plus the malloc'd iovec and its iovlen.
+ * Same as above, but creates ext_pgs mbuf(s).
+ */
+static int
+nfsrv_createiovec_extpgs(int len, int maxextsiz, struct mbuf **mpp,
+    struct mbuf **mpendp, struct iovec **ivp)
+{
+	struct mbuf *m, *m2 = NULL, *m3;
+	struct iovec *iv;
+	int i, left, pgno, siz;
+
+	left = len;
+	m3 = NULL;
+	/*
+	 * Generate the mbuf list with the uio_iov ref. to it.
+	 */
+	i = 0;
+	while (left > 0) {
+		siz = min(left, maxextsiz);
+		m = mb_alloc_ext_plus_pages(siz, M_WAITOK);
+		left -= siz;
+		i += m->m_epg_npgs;
+		if (m3 != NULL)
+			m2->m_next = m;
+		else
+			m3 = m;
+		m2 = m;
+	}
+	*ivp = iv = malloc(i * sizeof (struct iovec), M_TEMP, M_WAITOK);
+	m = m3;
+	left = len;
+	i = 0;
+	pgno = 0;
+	while (left > 0) {
+		if (m == NULL)
+			panic("nfsvno_createiovec_extpgs iov");
+		siz = min(PAGE_SIZE, left);
+		if (siz > 0) {
+			iv->iov_base = (void *)PHYS_TO_DMAP(m->m_epg_pa[pgno]);
+			iv->iov_len = siz;
+			m->m_len += siz;
+			if (pgno == m->m_epg_npgs - 1)
+				m->m_epg_last_len = siz;
+			left -= siz;
+			iv++;
+			i++;
+			pgno++;
+		}
+		if (pgno == m->m_epg_npgs && left > 0) {
+			m = m->m_next;
+			if (m == NULL)
+				panic("nfsvno_createiovec_extpgs iov");
+			pgno = 0;
+		}
+	}
+	*mpp = m3;
+	*mpendp = m2;
+	return (i);
+}
+
+/*
  * Read vnode op call into mbuf list.
  */
 int
 nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
-    struct thread *p, struct mbuf **mpp, struct mbuf **mpendp)
+    int maxextsiz, struct thread *p, struct mbuf **mpp,
+    struct mbuf **mpendp)
 {
 	struct mbuf *m;
 	struct iovec *iv;
@@ -860,7 +931,11 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 		return (error);
 
 	len = NFSM_RNDUP(cnt);
-	uiop->uio_iovcnt = nfsrv_createiovec(len, &m3, &m, &iv);
+	if (maxextsiz > 0)
+		uiop->uio_iovcnt = nfsrv_createiovec_extpgs(len, maxextsiz,
+		    &m3, &m, &iv);
+	else
+		uiop->uio_iovcnt = nfsrv_createiovec(len, &m3, &m, &iv);
 	uiop->uio_iov = iv;
 	uiop->uio_offset = off;
 	uiop->uio_resid = len;
@@ -938,7 +1013,7 @@ nfsrv_createiovecw(int retlen, struct mbuf *m, char *cp, struct iovec **ivpp,
 	len = retlen;
 	while (len > 0) {
 		if (mp == NULL)
-			panic("nfsvno_write");
+			panic("nfsrv_createiovecw");
 		if (i > 0) {
 			i = min(i, len);
 			ivp->iov_base = cp;
@@ -6241,8 +6316,8 @@ nfsvno_allocate(struct vnode *vp, off_t off, off_t len, struct ucred *cred,
  */
 int
 nfsvno_getxattr(struct vnode *vp, char *name, uint32_t maxresp,
-    struct ucred *cred, struct thread *p, struct mbuf **mpp,
-    struct mbuf **mpendp, int *lenp)
+    struct ucred *cred, uint64_t flag, int maxextsiz, struct thread *p,
+    struct mbuf **mpp, struct mbuf **mpendp, int *lenp)
 {
 	struct iovec *iv;
 	struct uio io, *uiop = &io;
@@ -6260,7 +6335,21 @@ nfsvno_getxattr(struct vnode *vp, char *name, uint32_t maxresp,
 	len = siz;
 	tlen = NFSM_RNDUP(len);
 	if (tlen > 0) {
-		uiop->uio_iovcnt = nfsrv_createiovec(tlen, &m, &m2, &iv);
+		/*
+		 * If cnt > MCLBYTES and the reply will not be saved, use
+		 * ext_pgs mbufs for TLS.
+		 * For NFSv4.0, we do not know for sure if the reply will
+		 * be saved, so do not use ext_pgs mbufs for NFSv4.0.
+		 * Always use ext_pgs mbufs if ND_EXTPG is set.
+		 */
+		if ((flag & ND_EXTPG) != 0 || (tlen > MCLBYTES &&
+		    (flag & (ND_TLS | ND_SAVEREPLY)) == ND_TLS &&
+		    (flag & (ND_NFSV4 | ND_NFSV41)) != ND_NFSV4))
+			uiop->uio_iovcnt = nfsrv_createiovec_extpgs(tlen,
+			    maxextsiz, &m, &m2, &iv);
+		else
+			uiop->uio_iovcnt = nfsrv_createiovec(tlen, &m, &m2,
+			    &iv);
 		uiop->uio_iov = iv;
 	} else {
 		uiop->uio_iovcnt = 0;

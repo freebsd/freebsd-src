@@ -837,6 +837,8 @@ extern int zpool_in_use(libzfs_handle_t *, int, pool_state_t *, char **,
 extern int zpool_read_label(int, nvlist_t **);
 extern int zpool_read_all_labels(int, nvlist_t **);
 extern int zpool_clear_label(int);
+extern int zpool_set_bootenv(zpool_handle_t *, const char *);
+extern int zpool_get_bootenv(zpool_handle_t *, char *, size_t, off_t);
 
 /* is this zvol valid for use as a dump device? */
 extern int zvol_check_dump_config(char *);

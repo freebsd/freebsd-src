@@ -141,7 +141,7 @@ smbfs_access(ap)
 	}
 	mpmode = vp->v_type == VREG ? smp->sm_file_mode : smp->sm_dir_mode;
 	return (vaccess(vp->v_type, mpmode, smp->sm_uid,
-	    smp->sm_gid, ap->a_accmode, ap->a_cred, NULL));
+	    smp->sm_gid, ap->a_accmode, ap->a_cred));
 }
 
 /* ARGSUSED */

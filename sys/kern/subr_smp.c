@@ -104,7 +104,7 @@ SYSCTL_INT(_kern_smp, OID_AUTO, threads_per_core, CTLFLAG_RD|CTLFLAG_CAPRD,
 
 int mp_ncores = -1;	/* how many physical cores running */
 SYSCTL_INT(_kern_smp, OID_AUTO, cores, CTLFLAG_RD|CTLFLAG_CAPRD, &mp_ncores, 0,
-    "Number of CPUs online");
+    "Number of physical cores online");
 
 int smp_topology = 0;	/* Which topology we're using. */
 SYSCTL_INT(_kern_smp, OID_AUTO, topology, CTLFLAG_RDTUN, &smp_topology, 0,

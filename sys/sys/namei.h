@@ -69,7 +69,7 @@ struct nameidata {
 	 */
 	const	char *ni_dirp;		/* pathname pointer */
 	enum	uio_seg ni_segflg;	/* location of pathname */
-	cap_rights_t ni_rightsneeded;	/* rights required to look up vnode */
+	cap_rights_t *ni_rightsneeded;	/* rights required to look up vnode */
 	/*
 	 * Arguments to lookup.
 	 */
@@ -188,17 +188,40 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Initialization of a nameidata structure.
  */
 #define	NDINIT(ndp, op, flags, segflg, namep, td)			\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, 0, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, NULL, &cap_no_rights, td)
 #define	NDINIT_AT(ndp, op, flags, segflg, namep, dirfd, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, 0, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, &cap_no_rights, td)
 #define	NDINIT_ATRIGHTS(ndp, op, flags, segflg, namep, dirfd, rightsp, td) \
 	NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, NULL, rightsp, td)
 #define	NDINIT_ATVP(ndp, op, flags, segflg, namep, vp, td)		\
-	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, 0, td)
+	NDINIT_ALL(ndp, op, flags, segflg, namep, AT_FDCWD, vp, &cap_no_rights, td)
 
-void NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags,
-    enum uio_seg segflg, const char *namep, int dirfd, struct vnode *startdir,
-    cap_rights_t *rightsp, struct thread *td);
+/*
+ * Note the constant pattern may *hide* bugs.
+ */
+#ifdef INVARIANTS
+#define NDINIT_PREFILL(arg)	memset(arg, 0xff, sizeof(*arg))
+#else
+#define NDINIT_PREFILL(arg)	do { } while (0)
+#endif
+
+#define NDINIT_ALL(ndp, op, flags, segflg, namep, dirfd, startdir, rightsp, td)	\
+do {										\
+	struct nameidata *_ndp = (ndp);						\
+	cap_rights_t *_rightsp = (rightsp);					\
+	MPASS(_rightsp != NULL);						\
+	NDINIT_PREFILL(_ndp);							\
+	_ndp->ni_cnd.cn_nameiop = op;						\
+	_ndp->ni_cnd.cn_flags = flags;						\
+	_ndp->ni_segflg = segflg;						\
+	_ndp->ni_dirp = namep;							\
+	_ndp->ni_dirfd = dirfd;							\
+	_ndp->ni_startdir = startdir;						\
+	_ndp->ni_resflags = 0;							\
+	filecaps_init(&_ndp->ni_filecaps);					\
+	_ndp->ni_cnd.cn_thread = td;						\
+	_ndp->ni_rightsneeded = _rightsp;					\
+} while (0)
 
 #define NDF_NO_DVP_RELE		0x00000001
 #define NDF_NO_DVP_UNLOCK	0x00000002

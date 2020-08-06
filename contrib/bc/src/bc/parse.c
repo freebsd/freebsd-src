@@ -179,10 +179,10 @@ static void bc_parse_params(BcParse *p, uint8_t flags) {
 
 	bc_lex_next(&p->l);
 
-	for (nparams = 0; p->l.t != BC_LEX_RPAREN; ++nparams) {
+	flags &= ~(BC_PARSE_PRINT | BC_PARSE_REL);
+	flags |= (BC_PARSE_ARRAY | BC_PARSE_NEEDVAL);
 
-		flags &= ~(BC_PARSE_PRINT | BC_PARSE_REL);
-		flags |= (BC_PARSE_ARRAY | BC_PARSE_NEEDVAL);
+	for (nparams = 0; p->l.t != BC_LEX_RPAREN; ++nparams) {
 
 		bc_parse_expr_status(p, flags, bc_parse_next_param);
 
@@ -516,6 +516,12 @@ static void bc_parse_return(BcParse *p) {
 	}
 }
 
+static void bc_parse_noElse(BcParse *p) {
+	uint16_t *flag_ptr = BC_PARSE_TOP_FLAG_PTR(p);
+	*flag_ptr = (*flag_ptr & ~(BC_PARSE_FLAG_IF_END));
+	bc_parse_setLabel(p);
+}
+
 static void bc_parse_endBody(BcParse *p, bool brace) {
 
 	bool has_brace, new_else = false;
@@ -608,12 +614,6 @@ static void bc_parse_startBody(BcParse *p, uint16_t flags) {
 	flags |= (BC_PARSE_TOP_FLAG(p) & (BC_PARSE_FLAG_FUNC | BC_PARSE_FLAG_LOOP));
 	flags |= BC_PARSE_FLAG_BODY;
 	bc_vec_push(&p->flags, &flags);
-}
-
-void bc_parse_noElse(BcParse *p) {
-	uint16_t *flag_ptr = BC_PARSE_TOP_FLAG_PTR(p);
-	*flag_ptr = (*flag_ptr & ~(BC_PARSE_FLAG_IF_END));
-	bc_parse_setLabel(p);
 }
 
 static void bc_parse_if(BcParse *p) {
