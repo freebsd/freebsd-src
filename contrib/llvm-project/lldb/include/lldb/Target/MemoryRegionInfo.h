@@ -126,7 +126,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &OS,
 // Forward-declarable wrapper.
 class MemoryRegionInfos : public std::vector<lldb_private::MemoryRegionInfo> {
 public:
-  using std::vector<lldb_private::MemoryRegionInfo>::vector;
+  //using std::vector<lldb_private::MemoryRegionInfo>::vector;
 };
 
 }
