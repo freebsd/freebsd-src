@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 Ryan Stone
+ * Copyright (c) 2020 Ankur Kothiwal
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,48 +26,50 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/epoch.h>
+#include <sys/errno.h>
+#include <sys/lock.h>
+#include <net/if.h>
+#include "pfil.h"
+#include <sys/ebpf_probe.h>
+#include <sys/xdp.h>
+#include <net/ethernet.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+#include <netinet/ip_icmp.h>
 
-#ifndef _SYS_EBPF_PARAM_H
-#define _SYS_EBPF_PARAM_H
-
-enum ebpf_fbsd_prog_types {
-	EBPF_PROG_TYPE_VFS,
-	EBPF_PROG_TYPE_XDP,
-	EBPF_PROG_TYPE_MAX
-};
-
-enum ebpf_basic_map_types {
-	EBPF_MAP_TYPE_BAD = 0,
-	EBPF_MAP_TYPE_ARRAY,
-	EBPF_MAP_TYPE_PERCPU_ARRAY,
-	EBPF_MAP_TYPE_HASHTABLE,
-	EBPF_MAP_TYPE_PERCPU_HASHTABLE,
-	EBPF_MAP_TYPE_PROGARRAY,
-	EBPF_MAP_TYPE_ARRAYQUEUE,
-	EBPF_MAP_TYPE_MAX
-};
-
-struct ebpf_symlink_res_bufs
+static int parse_ipv4(void *data, uint64_t nh_off, void *data_end)
 {
-	char *pathBuf;
-	char *scratch1;
-	char *scratch2;
-};
+	struct ip *iph = data + nh_off;
 
-struct ebpf_defer_kevent_args
+	if(iph + 1 > data_end)
+		return 0;
+	return iph->ip_p;
+}
+
+int icmp_filter(void *data, uint64_t len)
 {
-	struct wait4_args *wait4_args;
-	int error;
-	struct kevent ev;
-};
+	void *data_end = data + len;
+	struct ether_header *eth = data;
+	uint64_t nh_off;
+	uint32_t ip = 0;
+	short ether_type;
 
-struct ebpf_defer_wait4_args
-{
-	struct wait4_args *wait4_args;
-	int error;
-	int status;
-	struct rusage ru;
-	int fd;
-};
+	nh_off = sizeof(*eth);
+	
+	if (data + nh_off > data_end)
+		return XDP_ABORTED;
 
-#endif
+	if (eth->ether_type == htons(ETHERTYPE_IP))
+		ip = parse_ipv4(data, nh_off, data_end);
+	if (ip == IPPROTO_ICMP)
+		return XDP_DROP; 
+	return XDP_PASS;
+}
+
+
