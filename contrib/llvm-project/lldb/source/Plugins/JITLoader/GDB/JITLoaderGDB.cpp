@@ -7,7 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "JITLoaderGDB.h"
+#ifdef LLDB_ENABLE_ALL
 #include "Plugins/ObjectFile/Mach-O/ObjectFileMachO.h"
+#endif // LLDB_ENABLE_ALL
 #include "lldb/Breakpoint/Breakpoint.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
@@ -338,6 +340,7 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
         module_sp->GetObjectFile()->GetSymtab();
 
         m_jit_objects.insert(std::make_pair(symbolfile_addr, module_sp));
+#ifdef LLDB_ENABLE_ALL
         if (auto image_object_file =
                 llvm::dyn_cast<ObjectFileMachO>(module_sp->GetObjectFile())) {
           const SectionList *section_list = image_object_file->GetSectionList();
@@ -349,7 +352,9 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
                                      symbolfile_size, vmaddrheuristic, lower,
                                      upper);
           }
-        } else {
+        } else
+#endif // LLDB_ENABLE_ALL
+        {
           bool changed = false;
           module_sp->SetLoadAddress(target, 0, true, changed);
         }
