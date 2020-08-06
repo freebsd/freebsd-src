@@ -2256,13 +2256,17 @@ static void
 buf_vlist_remove(struct buf *bp)
 {
 	struct bufv *bv;
+	b_xflags_t flags;
+
+	flags = bp->b_xflags;
 
 	KASSERT(bp->b_bufobj != NULL, ("No b_bufobj %p", bp));
 	ASSERT_BO_WLOCKED(bp->b_bufobj);
-	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) !=
-	    (BX_VNDIRTY|BX_VNCLEAN),
-	    ("buf_vlist_remove: Buf %p is on two lists", bp));
-	if (bp->b_xflags & BX_VNDIRTY)
+	KASSERT((flags & (BX_VNDIRTY | BX_VNCLEAN)) != 0 &&
+	    (flags & (BX_VNDIRTY | BX_VNCLEAN)) != (BX_VNDIRTY | BX_VNCLEAN),
+	    ("%s: buffer %p has invalid queue state", __func__, bp));
+
+	if ((flags & BX_VNDIRTY) != 0)
 		bv = &bp->b_bufobj->bo_dirty;
 	else
 		bv = &bp->b_bufobj->bo_clean;
@@ -2391,10 +2395,7 @@ brelvp(struct buf *bp)
 	vp = bp->b_vp;		/* XXX */
 	bo = bp->b_bufobj;
 	BO_LOCK(bo);
-	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
-		buf_vlist_remove(bp);
-	else
-		panic("brelvp: Buffer %p not on queue.", bp);
+	buf_vlist_remove(bp);
 	if ((bo->bo_flag & BO_ONWORKLST) && bo->bo_dirty.bv_cnt == 0) {
 		bo->bo_flag &= ~BO_ONWORKLST;
 		mtx_lock(&sync_mtx);
@@ -2707,9 +2708,7 @@ syncer_resume(void)
 }
 
 /*
- * Reassign a buffer from one vnode to another.
- * Used to assign file specific control information
- * (indirect blocks) to the vnode to which they belong.
+ * Move the buffer between the clean and dirty lists of its vnode.
  */
 void
 reassignbuf(struct buf *bp)
@@ -2724,23 +2723,15 @@ reassignbuf(struct buf *bp)
 	vp = bp->b_vp;
 	bo = bp->b_bufobj;
 
+	KASSERT((bp->b_flags & B_PAGING) == 0,
+	    ("%s: cannot reassign paging buffer %p", __func__, bp));
+
 	CTR3(KTR_BUF, "reassignbuf(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
-	/*
-	 * B_PAGING flagged buffers cannot be reassigned because their vp
-	 * is not fully linked in.
-	 */
-	if (bp->b_flags & B_PAGING)
-		panic("cannot reassign paging buffer");
 
-	/*
-	 * Delete from old vnode list, if on one.
-	 */
 	BO_LOCK(bo);
-	if (bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN))
-		buf_vlist_remove(bp);
-	else
-		panic("reassignbuf: Buffer %p not on queue.", bp);
+	buf_vlist_remove(bp);
+
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
 	 * of clean buffers.
