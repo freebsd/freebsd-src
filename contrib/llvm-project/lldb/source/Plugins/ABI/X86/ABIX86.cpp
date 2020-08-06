@@ -7,26 +7,38 @@
 //===----------------------------------------------------------------------===//
 
 #include "ABIX86.h"
+#ifdef LLDB_ENABLE_ALL
 #include "ABIMacOSX_i386.h"
+#endif // LLDB_ENABLE_ALL
 #include "ABISysV_i386.h"
 #include "ABISysV_x86_64.h"
+#ifdef LLDB_ENABLE_ALL
 #include "ABIWindows_x86_64.h"
+#endif // LLDB_ENABLE_ALL
 #include "lldb/Core/PluginManager.h"
 
 LLDB_PLUGIN_DEFINE(ABIX86)
 
 void ABIX86::Initialize() {
+#ifdef LLDB_ENABLE_ALL
   ABIMacOSX_i386::Initialize();
+#endif // LLDB_ENABLE_ALL
   ABISysV_i386::Initialize();
   ABISysV_x86_64::Initialize();
+#ifdef LLDB_ENABLE_ALL
   ABIWindows_x86_64::Initialize();
+#endif // LLDB_ENABLE_ALL
 }
 
 void ABIX86::Terminate() {
+#ifdef LLDB_ENABLE_ALL
   ABIMacOSX_i386::Terminate();
+#endif // LLDB_ENABLE_ALL
   ABISysV_i386::Terminate();
   ABISysV_x86_64::Terminate();
+#ifdef LLDB_ENABLE_ALL
   ABIWindows_x86_64::Terminate();
+#endif // LLDB_ENABLE_ALL
 }
 
 uint32_t ABIX86::GetGenericNum(llvm::StringRef name) {

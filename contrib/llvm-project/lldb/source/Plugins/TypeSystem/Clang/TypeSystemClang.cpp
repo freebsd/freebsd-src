@@ -9092,11 +9092,13 @@ DWARFASTParser *TypeSystemClang::GetDWARFParser() {
   return m_dwarf_ast_parser_up.get();
 }
 
+#ifdef LLDB_ENABLE_ALL
 PDBASTParser *TypeSystemClang::GetPDBParser() {
   if (!m_pdb_ast_parser_up)
     m_pdb_ast_parser_up = std::make_unique<PDBASTParser>(*this);
   return m_pdb_ast_parser_up.get();
 }
+#endif // LLDB_ENABLE_ALL
 
 bool TypeSystemClang::LayoutRecordType(
     const clang::RecordDecl *record_decl, uint64_t &bit_size,
@@ -9109,8 +9111,10 @@ bool TypeSystemClang::LayoutRecordType(
   lldb_private::ClangASTImporter *importer = nullptr;
   if (m_dwarf_ast_parser_up)
     importer = &m_dwarf_ast_parser_up->GetClangASTImporter();
+#ifdef LLDB_ENABLE_ALL
   if (!importer && m_pdb_ast_parser_up)
     importer = &m_pdb_ast_parser_up->GetClangASTImporter();
+#endif // LLDB_ENABLE_ALL
   if (!importer)
     return false;
 
