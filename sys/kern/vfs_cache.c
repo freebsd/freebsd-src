@@ -102,9 +102,9 @@ SDT_PROBE_DEFINE2(vfs, namecache, shrink_negative, done, "struct vnode *",
  */
 
 struct	namecache {
-	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
 	LIST_ENTRY(namecache) nc_src;	/* source vnode list */
 	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
+	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	union {
 		struct	vnode *nu_vp;	/* vnode the name refers to */
@@ -121,6 +121,8 @@ struct	namecache {
  * to be stored.  The nc_dotdottime field is used when a cache entry is mapping
  * both a non-dotdot directory name plus dotdot for the directory's
  * parent.
+ *
+ * See below for alignment requirement.
  */
 struct	namecache_ts {
 	struct	timespec nc_time;	/* timespec provided by fs */
@@ -128,6 +130,14 @@ struct	namecache_ts {
 	int	nc_ticks;		/* ticks value when entry was added */
 	struct namecache nc_nc;
 };
+
+/*
+ * At least mips n32 performs 64-bit accesses to timespec as found
+ * in namecache_ts and requires them to be aligned. Since others
+ * may be in the same spot suffer a little bit and enforce the
+ * alignment for everyone. Note this is a nop for 64-bit platforms.
+ */
+#define CACHE_ZONE_ALIGNMENT	UMA_ALIGNOF(time_t)
 
 #define	nc_vp		n_un.nu_vp
 
@@ -226,8 +236,8 @@ static struct neglist __read_mostly	*neglists;
 static struct neglist ncneg_hot;
 static u_long numhotneg;
 
-#define	numneglists (ncneghash + 1)
-static u_int __read_mostly	ncneghash;
+#define ncneghash	3
+#define	numneglists	(ncneghash + 1)
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
 {
@@ -1853,6 +1863,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	return;
 out_unlock_free:
 	cache_enter_unlock(&cel);
+	atomic_add_long(&numcache, -1);
 	cache_free(ncp);
 	return;
 }
@@ -1878,19 +1889,19 @@ nchinit(void *dummy __unused)
 
 	cache_zone_small = uma_zcreate("S VFS Cache",
 	    sizeof(struct namecache) + CACHE_PATH_CUTOFF + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 	cache_zone_small_ts = uma_zcreate("STS VFS Cache",
 	    sizeof(struct namecache_ts) + CACHE_PATH_CUTOFF + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache_ts),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 	cache_zone_large = uma_zcreate("L VFS Cache",
 	    sizeof(struct namecache) + NAME_MAX + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 	cache_zone_large_ts = uma_zcreate("LTS VFS Cache",
 	    sizeof(struct namecache_ts) + NAME_MAX + 1,
-	    NULL, NULL, NULL, NULL, UMA_ALIGNOF(struct namecache_ts),
+	    NULL, NULL, NULL, NULL, CACHE_ZONE_ALIGNMENT,
 	    UMA_ZONE_ZINIT);
 
 	ncsize = desiredvnodes * ncsizefactor;
@@ -1911,7 +1922,6 @@ nchinit(void *dummy __unused)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
 	ncpurgeminvnodes = numbucketlocks * 2;
 
-	ncneghash = 3;
 	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numneglists; i++) {
