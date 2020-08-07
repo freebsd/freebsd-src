@@ -289,6 +289,9 @@ OLD_DIRS+=usr/lib/clang/10.0.0/lib/freebsd
 OLD_DIRS+=usr/lib/clang/10.0.0/lib
 OLD_DIRS+=usr/lib/clang/10.0.0
 
+# 20200715: rework of devstat(9) man page
+OLD_FILES+=usr/share/man/man9/devstat_add_entry.9.gz
+
 # 20200516: Remove bogus man links
 OLD_FILES+=usr/share/man/man3/getauusernam_R.3.gz
 OLD_FILES+=usr/share/man/man3/getauclassnam_3.3.gz
