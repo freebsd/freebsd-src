@@ -785,6 +785,13 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	int error = 0;
 
 	switch (ireq->i_type) {
+	case IEEE80211_IOC_IC_NAME:
+		len = strlen(ic->ic_name) + 1;
+		if (len > ireq->i_len)
+			return (EINVAL);
+		ireq->i_len = len;
+		error = copyout(ic->ic_name, ireq->i_data, ireq->i_len);
+		break;
 	case IEEE80211_IOC_SSID:
 		switch (vap->iv_state) {
 		case IEEE80211_S_INIT:
