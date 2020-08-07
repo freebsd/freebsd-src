@@ -166,7 +166,8 @@ PPC+=		ppc_wrappers/smmintrin.h
 PPC+=		ppc_wrappers/tmmintrin.h
 PPC+=		ppc_wrappers/xmmintrin.h
 
-.for hdr in bf16/bf16 cde/cde-header fp16/fp16 mve/mve-header sve/sve-header
+.for hdr in bf16/bf16 cde/cde-header fp16/fp16 mve/mve-header neon/neon \
+	sve/sve-header
 arm_${hdr:H}.h: ${CLANG_SRCS}/include/clang/Basic/arm_${hdr:H}.td
 	${CLANG_TBLGEN} -gen-arm-${hdr:T} \
 	    -I ${CLANG_SRCS}/include/clang/Basic -d ${.TARGET:C/$/.d/} \
