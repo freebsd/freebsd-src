@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2020 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +53,17 @@ static inline int
 radix_pos(long id, int height)
 {
 	return (id >> (RADIX_TREE_MAP_SHIFT * height)) & RADIX_TREE_MAP_MASK;
+}
+
+static void
+radix_tree_clean_root_node(struct radix_tree_root *root)
+{
+	/* Check if the root node should be freed */
+	if (root->rnode->count == 0) {
+		free(root->rnode, M_RADIX);
+		root->rnode = NULL;
+		root->height = 0;
+	}
 }
 
 void *
@@ -197,8 +208,10 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 	while (radix_max(root) < index) {
 
 		/* check if the radix tree is getting too big */
-		if (root->height == RADIX_TREE_MAX_HEIGHT)
+		if (root->height == RADIX_TREE_MAX_HEIGHT) {
+			radix_tree_clean_root_node(root);
 			return (-E2BIG);
+		}
 
 		/*
 		 * If the root radix level is not empty, we need to
@@ -206,8 +219,16 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 		 */
 		if (node->count != 0) {
 			node = malloc(sizeof(*node), M_RADIX, root->gfp_mask | M_ZERO);
-			if (node == NULL)
+			if (node == NULL) {
+				/*
+				 * Freeing the already allocated radix
+				 * levels, if any, will be handled by
+				 * the radix_tree_delete() function.
+				 * This code path can only happen when
+				 * the tree is not empty.
+				 */
 				return (-ENOMEM);
+			}
 			node->slots[0] = root->rnode;
 			node->count++;
 			root->rnode = node;
@@ -231,14 +252,9 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 		temp[idx] = malloc(sizeof(*node), M_RADIX,
 		    root->gfp_mask | M_ZERO);
 		if (temp[idx] == NULL) {
-			while(idx--)
+			while (idx--)
 				free(temp[idx], M_RADIX);
-			/* Check if we should free the root node as well. */
-			if (root->rnode->count == 0) {
-				free(root->rnode, M_RADIX);
-				root->rnode = NULL;
-				root->height = 0;
-			}
+			radix_tree_clean_root_node(root);
 			return (-ENOMEM);
 		}
 	}
@@ -260,5 +276,112 @@ radix_tree_insert(struct radix_tree_root *root, unsigned long index, void *item)
 	node->slots[idx] = item;
 	node->count++;
 
+	return (0);
+}
+
+int
+radix_tree_store(struct radix_tree_root *root, unsigned long index, void **ppitem)
+{
+	struct radix_tree_node *node;
+	struct radix_tree_node *temp[RADIX_TREE_MAX_HEIGHT - 1];
+	void *pitem;
+	int height;
+	int idx;
+
+	/*
+	 * Inserting a NULL item means delete it. The old pointer is
+	 * stored at the location pointed to by "ppitem".
+	 */
+	if (*ppitem == NULL) {
+		*ppitem = radix_tree_delete(root, index);
+		return (0);
+	}
+
+	/* get root node, if any */
+	node = root->rnode;
+
+	/* allocate root node, if any */
+	if (node == NULL) {
+		node = malloc(sizeof(*node), M_RADIX, root->gfp_mask | M_ZERO);
+		if (node == NULL)
+			return (-ENOMEM);
+		root->rnode = node;
+		root->height++;
+	}
+
+	/* expand radix tree as needed */
+	while (radix_max(root) < index) {
+
+		/* check if the radix tree is getting too big */
+		if (root->height == RADIX_TREE_MAX_HEIGHT) {
+			radix_tree_clean_root_node(root);
+			return (-E2BIG);
+		}
+
+		/*
+		 * If the root radix level is not empty, we need to
+		 * allocate a new radix level:
+		 */
+		if (node->count != 0) {
+			node = malloc(sizeof(*node), M_RADIX, root->gfp_mask | M_ZERO);
+			if (node == NULL) {
+				/*
+				 * Freeing the already allocated radix
+				 * levels, if any, will be handled by
+				 * the radix_tree_delete() function.
+				 * This code path can only happen when
+				 * the tree is not empty.
+				 */
+				return (-ENOMEM);
+			}
+			node->slots[0] = root->rnode;
+			node->count++;
+			root->rnode = node;
+		}
+		root->height++;
+	}
+
+	/* get radix tree height index */
+	height = root->height - 1;
+
+	/* walk down the tree until the first missing node, if any */
+	for ( ; height != 0; height--) {
+		idx = radix_pos(index, height);
+		if (node->slots[idx] == NULL)
+			break;
+		node = node->slots[idx];
+	}
+
+	/* allocate the missing radix levels, if any */
+	for (idx = 0; idx != height; idx++) {
+		temp[idx] = malloc(sizeof(*node), M_RADIX,
+		    root->gfp_mask | M_ZERO);
+		if (temp[idx] == NULL) {
+			while (idx--)
+				free(temp[idx], M_RADIX);
+			radix_tree_clean_root_node(root);
+			return (-ENOMEM);
+		}
+	}
+
+	/* setup new radix levels, if any */
+	for ( ; height != 0; height--) {
+		idx = radix_pos(index, height);
+		node->slots[idx] = temp[height - 1];
+		node->count++;
+		node = node->slots[idx];
+	}
+
+	/*
+	 * Insert and adjust count if the item does not already exist.
+	 */
+	idx = radix_pos(index, 0);
+	/* swap */
+	pitem = node->slots[idx];
+	node->slots[idx] = *ppitem;
+	*ppitem = pitem;
+
+	if (pitem == NULL)
+		node->count++;
 	return (0);
 }
