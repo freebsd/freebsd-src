@@ -163,7 +163,7 @@ VNET_PCPUSTAT_SYSUNINIT(udpstat);
 #ifdef INET
 static void	udp_detach(struct socket *so);
 static int	udp_output(struct inpcb *, struct mbuf *, struct sockaddr *,
-		    struct mbuf *, struct thread *);
+		    struct mbuf *, struct thread *, int);
 #endif
 
 static void
@@ -1083,9 +1083,65 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 }
 
 #ifdef INET
+#ifdef INET6
+/* The logic here is derived from ip6_setpktopt(). See comments there. */
+static int
+udp_v4mapped_pktinfo(struct cmsghdr *cm, struct sockaddr_in * src,
+    struct inpcb *inp, int flags)
+{
+	struct ifnet *ifp;
+	struct in6_pktinfo *pktinfo;
+	struct in_addr ia;
+
+	if ((flags & PRUS_IPV6) == 0)
+		return (0);
+
+	if (cm->cmsg_level != IPPROTO_IPV6)
+		return (0);
+
+	if  (cm->cmsg_type != IPV6_2292PKTINFO &&
+	    cm->cmsg_type != IPV6_PKTINFO)
+		return (0);
+
+	if (cm->cmsg_len !=
+	    CMSG_LEN(sizeof(struct in6_pktinfo)))
+		return (EINVAL);
+
+	pktinfo = (struct in6_pktinfo *)CMSG_DATA(cm);
+	if (!IN6_IS_ADDR_V4MAPPED(&pktinfo->ipi6_addr) &&
+	    !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr))
+		return (EINVAL);
+
+	/* Validate the interface index if specified. */
+	if (pktinfo->ipi6_ifindex > V_if_index)
+		return (ENXIO);
+
+	ifp = NULL;
+	if (pktinfo->ipi6_ifindex) {
+		ifp = ifnet_byindex(pktinfo->ipi6_ifindex);
+		if (ifp == NULL)
+			return (ENXIO);
+	}
+	if (ifp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
+
+		ia.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
+		if (in_ifhasaddr(ifp, ia) == 0)
+			return (EADDRNOTAVAIL);
+	}
+
+	bzero(src, sizeof(*src));
+	src->sin_family = AF_INET;
+	src->sin_len = sizeof(*src);
+	src->sin_port = inp->inp_lport;
+	src->sin_addr.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
+
+	return (0);
+}
+#endif
+
 static int
 udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
-    struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td, int flags)
 {
 	struct udpiphdr *ui;
 	int len = m->m_pkthdr.len;
@@ -1149,6 +1205,11 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				error = EINVAL;
 				break;
 			}
+#ifdef INET6
+			error = udp_v4mapped_pktinfo(cm, &src, inp, flags);
+			if (error != 0)
+				break;
+#endif
 			if (cm->cmsg_level != IPPROTO_IP)
 				continue;
 
@@ -1696,7 +1757,7 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("udp_send: inp == NULL"));
-	return (udp_output(inp, m, addr, control, td));
+	return (udp_output(inp, m, addr, control, td, flags));
 }
 #endif /* INET */
 
