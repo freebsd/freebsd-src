@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/md_var.h>
+#include <machine/smp.h>
 #include <machine/stdarg.h>
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -994,7 +995,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 	    void *arg, int pri, enum intr_type flags, void **cookiep)
 {
 	struct intr_event *ie;
-	int error;
+	int error = 0;
 
 	if (flags & INTR_ENTROPY)
 		return (EINVAL);
@@ -1012,8 +1013,10 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (eventp != NULL)
 			*eventp = ie;
 	}
-	error = intr_event_add_handler(ie, name, NULL, handler, arg,
-	    PI_SWI(pri), flags, cookiep);
+	if (handler != NULL) {
+		error = intr_event_add_handler(ie, name, NULL, handler, arg,
+		    PI_SWI(pri), flags, cookiep);
+	}
 	return (error);
 }
 
@@ -1031,9 +1034,11 @@ swi_sched(void *cookie, int flags)
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
 
-	entropy.event = (uintptr_t)ih;
-	entropy.td = curthread;
-	random_harvest_queue(&entropy, sizeof(entropy), RANDOM_SWI);
+	if ((flags & SWI_FROMNMI) == 0) {
+		entropy.event = (uintptr_t)ih;
+		entropy.td = curthread;
+		random_harvest_queue(&entropy, sizeof(entropy), RANDOM_SWI);
+	}
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already
@@ -1042,7 +1047,16 @@ swi_sched(void *cookie, int flags)
 	 */
 	ih->ih_need = 1;
 
-	if (!(flags & SWI_DELAY)) {
+	if (flags & SWI_DELAY)
+		return;
+
+	if (flags & SWI_FROMNMI) {
+#if defined(SMP) && (defined(__i386__) || defined(__amd64__))
+		KASSERT(ie == clk_intr_event,
+		    ("SWI_FROMNMI used not with clk_intr_event"));
+		ipi_self_from_nmi(IPI_SWI);
+#endif
+	} else {
 		VM_CNT_INC(v_soft);
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("stray software interrupt"));
@@ -1303,6 +1317,8 @@ intr_event_handle(struct intr_event *ie, struct trapframe *frame)
 
 	CK_SLIST_FOREACH(ih, &ie->ie_handlers, ih_next) {
 		if ((ih->ih_flags & IH_SUSP) != 0)
+			continue;
+		if ((ie->ie_flags & IE_SOFT) != 0 && ih->ih_need == 0)
 			continue;
 		if (ih->ih_filter == NULL) {
 			thread = true;

@@ -133,7 +133,8 @@ struct intr_event {
 #define	IE_ENTROPY	0x000002	/* Interrupt is an entropy source. */
 #define	IE_ADDING_THREAD 0x000004	/* Currently building an ithread. */
 
-/* Flags to pass to sched_swi. */
+/* Flags to pass to swi_sched. */
+#define	SWI_FROMNMI	0x1
 #define	SWI_DELAY	0x2
 
 /*

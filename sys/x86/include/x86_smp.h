@@ -76,6 +76,7 @@ inthand_t
 	IDTVEC(invlrng),	/* TLB shootdowns - page range */
 	IDTVEC(invlcache),	/* Write back and invalidate cache */
 	IDTVEC(ipi_intr_bitmap_handler), /* Bitmap based IPIs */ 
+	IDTVEC(ipi_swi),	/* Runs delayed SWI */
 	IDTVEC(cpustop),	/* CPU stops & waits to be restarted */
 	IDTVEC(cpususpend),	/* CPU suspends & waits to be resumed */
 	IDTVEC(rendezvous);	/* handle CPU rendezvous */
@@ -100,6 +101,7 @@ void	ipi_all_but_self(u_int ipi);
 void 	ipi_bitmap_handler(struct trapframe frame);
 void	ipi_cpu(int cpu, u_int ipi);
 int	ipi_nmi_handler(void);
+void	ipi_swi_handler(struct trapframe frame);
 void	ipi_selected(cpuset_t cpus, u_int ipi);
 void	ipi_self_from_nmi(u_int vector);
 void	set_interrupt_apic_ids(void);

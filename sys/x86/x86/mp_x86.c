@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #ifdef GPROF 
 #include <sys/gmon.h>
 #endif
+#include <sys/interrupt.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -1565,6 +1566,16 @@ invlcache_handler(void)
 	generation = smp_tlb_generation;
 	wbinvd();
 	PCPU_SET(smp_tlb_done, generation);
+}
+
+/*
+ * Handle an IPI_SWI by waking delayed SWI thread.
+ */
+void
+ipi_swi_handler(struct trapframe frame)
+{
+
+	intr_event_handle(clk_intr_event, &frame);
 }
 
 /*
