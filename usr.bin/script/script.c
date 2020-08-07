@@ -428,6 +428,33 @@ consume(FILE *fp, off_t len, char *buf, int reg)
 } while (0/*CONSTCOND*/)
 
 static void
+termset(void)
+{
+	struct termios traw;
+
+	if (tcgetattr(STDOUT_FILENO, &tt) == -1) {
+		if (errno == EBADF)
+			err(1, "%d not valid fd", STDOUT_FILENO);
+		/* errno == ENOTTY */
+		return;
+	}
+	ttyflg = 1;
+	traw = tt;
+	cfmakeraw(&traw);
+	traw.c_lflag |= ISIG;
+	(void)tcsetattr(STDOUT_FILENO, TCSANOW, &traw);
+}
+
+static void
+termreset(void)
+{
+	if (ttyflg) {
+		tcsetattr(STDOUT_FILENO, TCSADRAIN, &tt);
+		ttyflg = 0;
+	}
+}
+
+static void
 playback(FILE *fp)
 {
 	struct timespec tsi, tso;
@@ -470,8 +497,11 @@ playback(FILE *fp)
 				ctime(&tclock));
 			tsi = tso;
 			(void)consume(fp, stamp.scr_len, buf, reg);
+			termset();
+			atexit(termreset);
 			break;
 		case 'e':
+			termreset();
 			if (!qflg)
 				(void)printf("\nScript done on %s",
 				    ctime(&tclock));
