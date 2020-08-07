@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 5, 2020
 .Dt CAP_RIGHTS_INIT 3
 .Os
 .Sh NAME
@@ -232,6 +232,18 @@ if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 .Xr capsicum 4 ,
 .Xr rights 4
 .Sh HISTORY
+The functions
+.Fn cap_rights_init ,
+.Fn cap_rights_set ,
+.Fn cap_rights_clear ,
+.Fn cap_rights_is_set ,
+.Fn cap_rights_is_valid ,
+.Fn cap_rights_merge ,
+.Fn cap_rights_remove 
+and
+.Fn cap_rights_contains
+first appeared in
+.Fx 8.3 .
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.

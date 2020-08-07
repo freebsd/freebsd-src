@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 5, 2020
 .Dt CAP_FCNTLS_LIMIT 2
 .Os
 .Sh NAME
@@ -117,6 +117,12 @@ argument points at an invalid address.
 .Xr cap_rights_limit 2 ,
 .Xr fcntl 2
 .Sh HISTORY
+The
+.Fn cap_fcntls_get
+and
+.Fn cap_fcntls_limit
+system calls first appeared in
+.Fx 8.3 .
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.

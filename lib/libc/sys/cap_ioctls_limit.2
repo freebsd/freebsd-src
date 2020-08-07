@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2015
+.Dd May 5, 2020
 .Dt CAP_IOCTLS_LIMIT 2
 .Os
 .Sh NAME
@@ -150,6 +150,12 @@ argument points at invalid address.
 .Xr cap_rights_limit 2 ,
 .Xr ioctl 2
 .Sh HISTORY
+The
+.Fn cap_ioctls_get
+and
+.Fn cap_ioctls_limit
+system calls first appeared in
+.Fx 8.3 .
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.

@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 27, 2014
+.Dd May 5, 2020
 .Dt CAP_RIGHTS_LIMIT 2
 .Os
 .Sh NAME
@@ -148,6 +148,10 @@ Capability rights list can only be reduced, never expanded.
 .Xr capsicum 4 ,
 .Xr rights 4
 .Sh HISTORY
+The
+.Fn cap_rights_limit
+function first appeared in
+.Fx 8.3 .
 Support for capabilities and capabilities mode was developed as part of the
 .Tn TrustedBSD
 Project.
