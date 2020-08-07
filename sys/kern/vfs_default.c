@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/dirent.h>
 #include <sys/poll.h>
+#include <sys/stat.h>
+#include <security/audit/audit.h>
+#include <sys/priv.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -87,6 +90,7 @@ static int vop_stdadd_writecount(struct vop_add_writecount_args *ap);
 static int vop_stdcopy_file_range(struct vop_copy_file_range_args *ap);
 static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
+static int vop_stdstat(struct vop_stat_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -114,6 +118,7 @@ struct vop_vector default_vnodeops = {
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
+	.vop_stat =		vop_stdstat,
 	.vop_fdatasync =	vop_stdfdatasync,
 	.vop_getpages =		vop_stdgetpages,
 	.vop_getpages_async =	vop_stdgetpages_async,
@@ -1460,4 +1465,112 @@ vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a)
 	rc = bp(a);
 	sigallowstop(prev_stops);
 	return (rc);
+}
+
+static int
+vop_stdstat(struct vop_stat_args *a)
+{
+	struct vattr vattr;
+	struct vattr *vap;
+	struct vnode *vp;
+	struct stat *sb;
+	int error;
+	u_short mode;
+
+	vp = a->a_vp;
+	sb = a->a_sb;
+
+	error = vop_stat_helper_pre(a);
+	if (error != 0)
+		return (error);
+
+	vap = &vattr;
+
+	/*
+	 * Initialize defaults for new and unusual fields, so that file
+	 * systems which don't support these fields don't need to know
+	 * about them.
+	 */
+	vap->va_birthtime.tv_sec = -1;
+	vap->va_birthtime.tv_nsec = 0;
+	vap->va_fsid = VNOVAL;
+	vap->va_rdev = NODEV;
+
+	error = VOP_GETATTR(vp, vap, a->a_active_cred);
+	if (error)
+		goto out;
+
+	/*
+	 * Zero the spare stat fields
+	 */
+	bzero(sb, sizeof *sb);
+
+	/*
+	 * Copy from vattr table
+	 */
+	if (vap->va_fsid != VNOVAL)
+		sb->st_dev = vap->va_fsid;
+	else
+		sb->st_dev = vp->v_mount->mnt_stat.f_fsid.val[0];
+	sb->st_ino = vap->va_fileid;
+	mode = vap->va_mode;
+	switch (vap->va_type) {
+	case VREG:
+		mode |= S_IFREG;
+		break;
+	case VDIR:
+		mode |= S_IFDIR;
+		break;
+	case VBLK:
+		mode |= S_IFBLK;
+		break;
+	case VCHR:
+		mode |= S_IFCHR;
+		break;
+	case VLNK:
+		mode |= S_IFLNK;
+		break;
+	case VSOCK:
+		mode |= S_IFSOCK;
+		break;
+	case VFIFO:
+		mode |= S_IFIFO;
+		break;
+	default:
+		error = EBADF;
+		goto out;
+	}
+	sb->st_mode = mode;
+	sb->st_nlink = vap->va_nlink;
+	sb->st_uid = vap->va_uid;
+	sb->st_gid = vap->va_gid;
+	sb->st_rdev = vap->va_rdev;
+	if (vap->va_size > OFF_MAX) {
+		error = EOVERFLOW;
+		goto out;
+	}
+	sb->st_size = vap->va_size;
+	sb->st_atim.tv_sec = vap->va_atime.tv_sec;
+	sb->st_atim.tv_nsec = vap->va_atime.tv_nsec;
+	sb->st_mtim.tv_sec = vap->va_mtime.tv_sec;
+	sb->st_mtim.tv_nsec = vap->va_mtime.tv_nsec;
+	sb->st_ctim.tv_sec = vap->va_ctime.tv_sec;
+	sb->st_ctim.tv_nsec = vap->va_ctime.tv_nsec;
+	sb->st_birthtim.tv_sec = vap->va_birthtime.tv_sec;
+	sb->st_birthtim.tv_nsec = vap->va_birthtime.tv_nsec;
+
+	/*
+	 * According to www.opengroup.org, the meaning of st_blksize is
+	 *   "a filesystem-specific preferred I/O block size for this
+	 *    object.  In some filesystem types, this may vary from file
+	 *    to file"
+	 * Use minimum/default of PAGE_SIZE (e.g. for VCHR).
+	 */
+
+	sb->st_blksize = max(PAGE_SIZE, vap->va_blocksize);
+	sb->st_flags = vap->va_flags;
+	sb->st_blocks = vap->va_bytes / S_BLKSIZE;
+	sb->st_gen = vap->va_gen;
+out:
+	return (vop_stat_helper_post(a, error));
 }

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2008
+.Dd August 8, 2020
 .Dt VOP_ATTRIB 9
 .Os
 .Sh NAME
@@ -42,19 +42,49 @@
 .Fn VOP_GETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
 .Ft int
 .Fn VOP_SETATTR "struct vnode *vp" "struct vattr *vap" "struct ucred *cred"
+.Ft int
+.Fn VOP_STAT "struct vnode *vp" "struct stat *sb" "struct ucred *active_cred" \
+"struct ucred *file_cred" "struct thread *td"
 .Sh DESCRIPTION
 These entry points manipulate various attributes of a file or directory,
 including file permissions, owner, group, size,
 access time and modification time.
 .Pp
-The arguments are:
+.Fn VOP_STAT
+returns data in a format suitable for the
+.Xr stat 2
+system call and by default is implemented as a wrapper around
+.Fn VOP_GETATTR .
+Filesystems may want to implement their own variant for performance reasons.
+.Pp
+For
+.Fn VOP_GETATTR
+and
+.Fn VOP_SETATTR
+the arguments are:
 .Bl -tag -width cred
 .It Fa vp
 The vnode of the file.
 .It Fa vap
 The attributes of the file.
 .It Fa cred
-The user credentials of the calling process.
+The user credentials of the calling thread.
+.El
+.Pp
+For
+.Fn VOP_STAT
+the arguments are:
+.Bl -tag -width active_cred
+.It Fa vp
+The vnode of the file.
+.It Fa sb
+The attributes of the file.
+.It Fa active_cred
+The user credentials of the calling thread.
+.It Fa file_cred
+The credentials installed on the file description pointing to the vnode or NOCRED.
+.It Fa td
+The calling thread.
 .El
 .Pp
 Attributes which are not being modified by
@@ -67,8 +97,11 @@ the contents of
 .Fa *vap
 prior to setting specific values.
 .Sh LOCKS
+Both
 .Fn VOP_GETATTR
-expects the vnode to be locked on entry and will leave the vnode locked on
+and
+.Fn VOP_STAT
+expect the vnode to be locked on entry and will leave the vnode locked on
 return.
 The lock type can be either shared or exclusive.
 .Pp
@@ -84,6 +117,10 @@ otherwise an appropriate error is returned.
 .Fn VOP_SETATTR
 returns zero if the attributes were changed successfully, otherwise an
 appropriate error is returned.
+.Fn VOP_STAT
+returns 0 if it was able to retrieve the attribute data
+.Fa *sb ,
+otherwise an appropriate error is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EPERM
