@@ -177,6 +177,17 @@ vop_accessx {
 };
 
 
+%% stat	vp	L L L
+
+vop_stat {
+	IN struct vnode *vp;
+	OUT struct stat *sb;
+	IN struct ucred *active_cred;
+	IN struct ucred *file_cred;
+	IN struct thread *td;
+};
+
+
 %% getattr	vp	L L L
 
 vop_getattr {

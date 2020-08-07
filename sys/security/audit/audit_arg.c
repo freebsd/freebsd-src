@@ -854,7 +854,7 @@ audit_arg_upath2_canon(char *upath)
  * It is assumed that the caller will hold any vnode locks necessary to
  * perform a VOP_GETATTR() on the passed vnode.
  *
- * XXX: The attr code is very similar to vfs_vnops.c:vn_stat(), but always
+ * XXX: The attr code is very similar to vfs_default.c:vop_stdstat(), but always
  * provides access to the generation number as we need that to construct the
  * BSM file ID.
  *
