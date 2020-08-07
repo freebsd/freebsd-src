@@ -258,6 +258,7 @@ typedef struct {
 } pcih2cfgregs;
 
 extern uint32_t pci_numdevs;
+extern int pci_enable_aspm;
 
 struct pci_device_table {
 #if BYTE_ORDER == LITTLE_ENDIAN
