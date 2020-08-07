@@ -27,6 +27,7 @@
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/zmod.h>
