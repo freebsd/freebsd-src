@@ -97,6 +97,8 @@ main() {
 
 	outname="${outname%%_*}"
 
+	pkgdeps="$(echo ${pkgdeps} | tr '_' '-')"
+
 	desc="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_DESC)"
 	comment="$(make -C ${srctree}/release/packages -f Makefile.package -V ${outname}_COMMENT)"
 
