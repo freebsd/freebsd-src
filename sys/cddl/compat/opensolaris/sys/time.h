@@ -29,6 +29,7 @@
 #ifndef _OPENSOLARIS_SYS_TIME_H_
 #define	_OPENSOLARIS_SYS_TIME_H_
 
+#include <sys/types.h>
 #include_next <sys/time.h>
 
 #define SEC		1

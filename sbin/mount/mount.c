@@ -697,9 +697,9 @@ prmount(struct statfs *sfp)
 			    (uintmax_t)sfp->f_syncreads,
 			    (uintmax_t)sfp->f_asyncreads);
 		if (sfp->f_fsid.val[0] != 0 || sfp->f_fsid.val[1] != 0) {
-			printf(", fsid ");
+			(void)printf(", fsid ");
 			for (i = 0; i < sizeof(sfp->f_fsid); i++)
-				printf("%02x", ((u_char *)&sfp->f_fsid)[i]);
+				(void)printf("%02x", ((u_char *)&sfp->f_fsid)[i]);
 		}
 	}
 	(void)printf(")\n");

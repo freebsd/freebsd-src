@@ -1076,28 +1076,24 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	struct netmap_adapter *na = kring->na;
 	struct netmap_ring *ring = kring->ring;
 	if_t ifp = na->ifp;
-	iflib_fl_t fl;
 	uint32_t nm_i;	/* index into the netmap ring */
 	uint32_t nic_i;	/* index into the NIC ring */
-	u_int i, n;
+	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const head = kring->rhead;
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
-	struct if_rxd_info ri;
 
 	if_ctx_t ctx = ifp->if_softc;
 	iflib_rxq_t rxq = &ctx->ifc_rxqs[kring->ring_id];
-	if (head > lim)
-		return netmap_ring_reinit(kring);
+	iflib_fl_t fl = &rxq->ifr_fl[0];
+	struct if_rxd_info ri;
 
 	/*
-	 * XXX netmap_fl_refill() only ever (re)fills free list 0 so far.
+	 * netmap only uses free list 0, to avoid out of order consumption
+	 * of receive buffers
 	 */
 
-	for (i = 0, fl = rxq->ifr_fl; i < rxq->ifr_nfl; i++, fl++) {
-		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
-		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	}
+	bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	/*
 	 * First part: import newly received packets.
@@ -1119,38 +1115,35 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 		int crclen = iflib_crcstrip ? 0 : 4;
 		int error, avail;
 
-		for (i = 0; i < rxq->ifr_nfl; i++) {
-			fl = &rxq->ifr_fl[i];
-			nic_i = fl->ifl_cidx;
-			nm_i = netmap_idx_n2k(kring, nic_i);
-			avail = ctx->isc_rxd_available(ctx->ifc_softc,
-			    rxq->ifr_id, nic_i, USHRT_MAX);
-			for (n = 0; avail > 0 && nm_i != hwtail_lim; n++, avail--) {
-				rxd_info_zero(&ri);
-				ri.iri_frags = rxq->ifr_frags;
-				ri.iri_qsidx = kring->ring_id;
-				ri.iri_ifp = ctx->ifc_ifp;
-				ri.iri_cidx = nic_i;
+		nic_i = fl->ifl_cidx;
+		nm_i = netmap_idx_n2k(kring, nic_i);
+		avail = ctx->isc_rxd_available(ctx->ifc_softc,
+		    rxq->ifr_id, nic_i, USHRT_MAX);
+		for (n = 0; avail > 0 && nm_i != hwtail_lim; n++, avail--) {
+			rxd_info_zero(&ri);
+			ri.iri_frags = rxq->ifr_frags;
+			ri.iri_qsidx = kring->ring_id;
+			ri.iri_ifp = ctx->ifc_ifp;
+			ri.iri_cidx = nic_i;
 
-				error = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
-				ring->slot[nm_i].len = error ? 0 : ri.iri_len - crclen;
-				ring->slot[nm_i].flags = 0;
-				bus_dmamap_sync(fl->ifl_buf_tag,
-				    fl->ifl_sds.ifsd_map[nic_i], BUS_DMASYNC_POSTREAD);
-				nm_i = nm_next(nm_i, lim);
-				nic_i = nm_next(nic_i, lim);
-			}
-			if (n) { /* update the state variables */
-				if (netmap_no_pendintr && !force_update) {
-					/* diagnostics */
-					iflib_rx_miss ++;
-					iflib_rx_miss_bufs += n;
-				}
-				fl->ifl_cidx = nic_i;
-				kring->nr_hwtail = nm_i;
-			}
-			kring->nr_kflags &= ~NKR_PENDINTR;
+			error = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
+			ring->slot[nm_i].len = error ? 0 : ri.iri_len - crclen;
+			ring->slot[nm_i].flags = 0;
+			bus_dmamap_sync(fl->ifl_buf_tag,
+			    fl->ifl_sds.ifsd_map[nic_i], BUS_DMASYNC_POSTREAD);
+			nm_i = nm_next(nm_i, lim);
+			nic_i = nm_next(nic_i, lim);
 		}
+		if (n) { /* update the state variables */
+			if (netmap_no_pendintr && !force_update) {
+				/* diagnostics */
+				iflib_rx_miss ++;
+				iflib_rx_miss_bufs += n;
+			}
+			fl->ifl_cidx = nic_i;
+			kring->nr_hwtail = nm_i;
+		}
+		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
 	/*
 	 * Second part: skip past packets that userspace has released.
@@ -1160,7 +1153,6 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * nic_i is the index in the NIC ring, and
 	 * nm_i == (nic_i + kring->nkr_hwofs) % ring_size
 	 */
-	/* XXX not sure how this will work with multiple free lists */
 	nm_i = kring->nr_hwcur;
 
 	return (netmap_fl_refill(rxq, kring, nm_i, false));

@@ -32,11 +32,19 @@
 
 #include_next <sys/stat.h>
 
+/*
+ * When bootstrapping on Linux a stat64/fstat64 functions exists in both
+ * glibc and musl libc. To avoid compilation errors, use those functions instead
+ * of redefining them to stat/fstat.
+ * Similarly, macOS provides (deprecated) stat64 functions that we can use
+ * for now.
+ */
+#if !defined(__linux__) && !defined(__APPLE__)
 #define	stat64	stat
 
 #define	MAXOFFSET_T	OFF_MAX
 
-#ifndef _KERNEL
+#if !defined(_KERNEL)
 #include <sys/disk.h>
 
 static __inline int
@@ -51,6 +59,7 @@ fstat64(int fd, struct stat *sb)
 	}
 	return (ret);
 }
-#endif
+#endif /* !defined(_KERNEL) */
+#endif /* !defined(__linux__) && !defined(__APPLE__) */
 
 #endif	/* !_COMPAT_OPENSOLARIS_SYS_STAT_H_ */

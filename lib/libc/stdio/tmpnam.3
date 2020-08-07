@@ -32,7 +32,7 @@
 .\"     @(#)tmpnam.3	8.2 (Berkeley) 11/17/93
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2007
+.Dd August 7, 2020
 .Dt TMPFILE 3
 .Os
 .Sh NAME
@@ -156,6 +156,8 @@ on error.
 .Bl -tag -width Ds
 .It Ev TMPDIR
 .Pf [ Fn tempnam
+and
+.Fn tmpfile
 only]
 If set,
 the directory in which the temporary file is stored.
