@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_iface.8,v 1.5 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd February 6, 2019
+.Dd July 31, 2020
 .Dt NG_IFACE 4
 .Os
 .Sh NAME
@@ -70,7 +70,7 @@ Packets transmitted via the interface flow out the corresponding
 protocol-specific hook.
 Similarly, packets received on a hook appear on the interface as
 packets received into the corresponding protocol stack.
-The currently supported protocols are IP, IPv6, ATM, NATM, and NS.
+The currently supported protocols are IP and IPv6.
 .Pp
 An
 .Nm iface
@@ -87,12 +87,6 @@ This node type supports the following hooks:
 Transmission and reception of IP packets.
 .It Va inet6
 Transmission and reception of IPv6 packets.
-.It Va atm
-Transmission and reception of ATM packets.
-.It Va natm
-Transmission and reception of NATM packets.
-.It Va ns
-Transmission and reception of NS packets.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:

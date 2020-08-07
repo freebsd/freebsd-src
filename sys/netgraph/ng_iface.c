@@ -111,8 +111,6 @@ typedef const struct iffam *iffam_p;
 const static struct iffam gFamilies[] = {
 	{ AF_INET,	NG_IFACE_HOOK_INET	},
 	{ AF_INET6,	NG_IFACE_HOOK_INET6	},
-	{ AF_ATM,	NG_IFACE_HOOK_ATM	},
-	{ AF_NATM,	NG_IFACE_HOOK_NATM	},
 };
 #define	NUM_FAMILIES		nitems(gFamilies)
 
