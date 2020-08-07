@@ -574,7 +574,7 @@ apei_probe(device_t dev)
 	if (acpi_find_table(ACPI_SIG_HEST) == 0)
 		return (ENXIO);
 	if (acpi_get_handle(dev) != NULL)
-		rv = (ACPI_ID_PROBE(device_get_parent(dev), dev, apei_ids) != NULL);
+		rv = (ACPI_ID_PROBE(device_get_parent(dev), dev, apei_ids) == NULL);
 	else
 		rv = 0;
 	if (rv <= 0)
