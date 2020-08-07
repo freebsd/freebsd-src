@@ -4779,6 +4779,23 @@ getid(int s, int ix, void *data, size_t len, int *plen, int mesh)
 	return 0;
 }
 
+static int
+getdevicename(int s, void *data, size_t len, int *plen)
+{
+	struct ieee80211req ireq;
+
+	(void) memset(&ireq, 0, sizeof(ireq));
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name));
+	ireq.i_type = IEEE80211_IOC_IC_NAME;
+	ireq.i_val = -1;
+	ireq.i_data = data;
+	ireq.i_len = len;
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
+		return (-1);
+	*plen = ireq.i_len;
+	return (0);
+}
+
 static void
 ieee80211_status(int s)
 {
@@ -5501,6 +5518,12 @@ end:
 			LINE_CHECK("hwmpmaxhops %u", val);
 		}
 	}
+
+	LINE_BREAK();
+
+	if (getdevicename(s, data, sizeof(data), &len) < 0)
+		return;
+	LINE_CHECK("parent interface: %s", data);
 
 	LINE_BREAK();
 }

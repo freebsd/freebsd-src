@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 10, 2009
+.Dd August 7, 2020
 .Dt NET80211 4
 .Os
 .Sh NAME
@@ -393,6 +393,16 @@ Valid values are:
 and
 .Dv IEEE80211_HWMP_ROOTMODE_RANN
 (send broadcast Root Announcement (RANN) frames).
+.It Dv IEEE80211_IOC_IC_NAME
+Return the underlying hardware
+.Xr device 9
+name in the buffer pointed to by
+.Va i_data
+and the name length including terminating NUL character in
+.Va i_len .
+If the buffer length is too small to hold the full name
+.Er EINVAL
+will be returned.
 .It Dv IEEE80211_IOC_INACTIVITY
 Return whether or not the system handles inactivity processing in
 .Va i_val .
