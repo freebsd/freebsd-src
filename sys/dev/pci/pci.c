@@ -408,7 +408,7 @@ static int pci_enable_ari = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_ari, CTLFLAG_RDTUN, &pci_enable_ari,
     0, "Enable support for PCIe Alternative RID Interpretation");
 
-int pci_enable_aspm;
+int pci_enable_aspm = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_aspm, CTLFLAG_RDTUN, &pci_enable_aspm,
     0, "Enable support for PCIe Active State Power Management");
 
