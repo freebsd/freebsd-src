@@ -784,7 +784,7 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 				in6_sin6_2_sin_in_sock((struct sockaddr *)sin6);
 			pru = inetsw[ip_protox[nxt]].pr_usrreqs;
 			/* addr will just be freed in sendit(). */
-			return ((*pru->pru_send)(so, flags_arg, m,
+			return ((*pru->pru_send)(so, flags_arg | PRUS_IPV6, m,
 			    (struct sockaddr *)sin6, control, td));
 		}
 	} else
