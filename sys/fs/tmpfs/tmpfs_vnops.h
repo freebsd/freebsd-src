@@ -50,6 +50,7 @@ extern struct vop_vector tmpfs_vnodeop_nonc_entries;
 
 vop_access_t	tmpfs_access;
 vop_fplookup_vexec_t tmpfs_fplookup_vexec;
+vop_stat_t	tmpfs_stat;
 vop_getattr_t	tmpfs_getattr;
 vop_setattr_t	tmpfs_setattr;
 vop_pathconf_t	tmpfs_pathconf;
