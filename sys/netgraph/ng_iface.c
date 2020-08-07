@@ -731,7 +731,9 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 	}
 	random_harvest_queue(m, sizeof(*m), RANDOM_NET_NG);
 	M_SETFIB(m, ifp->if_fib);
+	CURVNET_SET(ifp->if_vnet);
 	netisr_dispatch(isr, m);
+	CURVNET_RESTORE();
 	return (0);
 }
 
