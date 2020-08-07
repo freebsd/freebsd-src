@@ -2293,13 +2293,12 @@ ${_bt}-links: .PHONY
 
 .for _tool in ${_bootstrap_tools_links}
 ${_bt}-link-${_tool}: .PHONY .MAKE
-	@if [ ! -e "${WORLDTMP}/legacy/bin/${_tool}" ]; then \
-		source_path=`which ${_tool}`; \
-		if [ ! -e "$${source_path}" ] ; then \
-			echo "Cannot find host tool '${_tool}'"; false; \
-		fi; \
-		ln -sfnv "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"; \
-	fi
+	@rm -f "${WORLDTMP}/legacy/bin/${_tool}"; \
+	source_path=`which ${_tool}`; \
+	if [ ! -e "$${source_path}" ] ; then \
+		echo "Cannot find host tool '${_tool}'"; false; \
+	fi; \
+	cp -f "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"
 ${_bt}-links: ${_bt}-link-${_tool}
 .endfor
 
