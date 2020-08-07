@@ -57,6 +57,8 @@ struct acpi_generic_address;
 int	acpi_map_addr(struct acpi_generic_address  *, bus_space_tag_t *,
     bus_space_handle_t *, bus_size_t);
 
+extern int (*apei_nmi)(void);
+
 #endif /* _KERNEL */
 
 #endif /* __ACPICA_MACHDEP_H__ */
