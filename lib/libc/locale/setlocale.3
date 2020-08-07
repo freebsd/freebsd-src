@@ -31,7 +31,7 @@
 .\"	@(#)setlocale.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2019
+.Dd August 7, 2020
 .Dt SETLOCALE 3
 .Os
 .Sh NAME
@@ -98,6 +98,10 @@ as well as values returned by
 Set a locale for formatting dates and times using the
 .Fn strftime
 function.
+.It Dv LANG
+Sets the generic locale category for native language, local customs
+and coded character set in the absence of more specific locale
+variables.
 .El
 .Pp
 Only three locales are defined by default,
@@ -153,6 +157,25 @@ if the given combination of
 and
 .Fa locale
 makes no sense.
+.Sh EXAMPLES
+The following code illustrates how a program can initialize the
+international environment for one language, while selectively
+modifying the program's locale such that regular expressions and
+string operations can be applied to text recorded in a different
+language:
+.Bd -literal
+    setlocale(LC_ALL, "de");
+    setlocale(LC_COLLATE, "fr");
+.Ed
+.Pp
+When a process is started, its current locale is set to the C or POSIX
+locale.
+An internationalized program that depends on locale data not defined in
+the C or POSIX locale must invoke the setlocale subroutine in the
+following manner before using any of the locale-specific information:
+.Bd -literal
+    setlocale(LC_ALL, "");
+.Ed
 .Sh FILES
 .Bl -tag -width /usr/share/locale/locale/category -compact
 .It Pa $PATH_LOCALE/ Ns Em locale/category
