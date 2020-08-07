@@ -93,6 +93,7 @@ EBPF_HELPER_TYPE_DEF(probe_, linkat);
 const struct ebpf_config fbsd_ebpf_config = {
 	.prog_types = {
 		[EBPF_PROG_TYPE_VFS] = &ept_vfs,
+		[EBPF_PROG_TYPE_XDP] = &ept_xdp,
 	},
 	.map_types = {
 		[EBPF_MAP_TYPE_ARRAY]            = &emt_array,

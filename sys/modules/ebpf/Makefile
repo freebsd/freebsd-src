@@ -28,6 +28,7 @@ SRCS+= \
 	ebpf_probe.c \
 	ebpf_probe_syscall.c \
 	ebpf_prog_vfs.c \
+	ebpf_prog_xdp.c\
 
 CFLAGS += -I${SYSDIR}/contrib/generic-ebpf/sys
 
