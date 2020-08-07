@@ -38,6 +38,7 @@
 #include <pthread.h>
 
 #include <sys/ccompile.h>
+#include <sys/endian.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,6 +64,15 @@ extern "C" {
 
 #ifndef MIN
 #define	MIN(a, b) 		((a) > (b) ? (b) : (a))
+#endif
+
+/* Sanity check for cross-build bootstrap tools */
+#if !defined(BYTE_ORDER)
+#error "Missing BYTE_ORDER defines"
+#elif !defined(_LITTLE_ENDIAN)
+#error "Missing _LITTLE_ENDIAN defines"
+#elif !defined(_BIG_ENDIAN)
+#error "Missing _BIG_ENDIAN defines"
 #endif
 
 #define	TRUE	1
