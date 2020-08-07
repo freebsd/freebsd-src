@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200807:
+	Makefile.inc has been updated to work around the issue documented in
+	20200729. It was a case where the optimization of using symbolic links
+	to point to binaries created a situation where we'd run new binaries
+	with old libraries starting midway through the installworld process.
+
 20200729:
 	r363679 has redefined some undefined behavior in regcomp(3); notably,
 	extraneous escapes of most ordinary characters will no longer be

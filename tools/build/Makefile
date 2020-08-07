@@ -119,26 +119,25 @@ _host_abs_tools_to_symlink=	${_make_abs}:make ${_make_abs}:bmake
 host-symlinks:
 	@echo "Linking host tools into ${DESTDIR}/bin"
 .for _tool in ${_host_tools_to_symlink}
-	@if [ ! -e "${DESTDIR}/bin/${_tool}" ]; then \
-		source_path=`which ${_tool}`; \
-		if [ ! -e "$${source_path}" ] ; then \
-			echo "Cannot find host tool '${_tool}'"; false; \
-		fi; \
-		ln -sfnv "$${source_path}" "${DESTDIR}/bin/${_tool}"; \
-	fi
+	@source_path=`which ${_tool}`; \
+	if [ ! -e "$${source_path}" ] ; then \
+		echo "Cannot find host tool '${_tool}'"; false; \
+	fi; \
+	rm -f "${DESTDIR}/bin/${_tool}"; \
+	cp -f "$${source_path}" "${DESTDIR}/bin/${_tool}"
 .endfor
 .for _tool in ${_host_abs_tools_to_symlink}
 	@source_path="${_tool:S/:/ /:[1]}"; \
 	target_path="${DESTDIR}/bin/${_tool:S/:/ /:[2]}"; \
-	if [ ! -e "$${target_path}" ] ; then \
-		if [ ! -e "$${source_path}" ] ; then \
-			echo "Host tool '${src_path}' is missing"; false; \
-		fi; \
-		ln -sfnv "$${source_path}" "$${target_path}"; \
-	fi
+	if [ ! -e "$${source_path}" ] ; then \
+		echo "Host tool '${src_path}' is missing"; false; \
+	fi; \
+	rm -f "$${target_path}"; \
+	cp -f "$${source_path}" "$${target_path}"
 .endfor
 .if exists(/usr/libexec/flua)
-	ln -sf /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
+	rm -f ${DESTDIR}/usr/libexec/flua
+	cp -f /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
 .endif
 
 # Create all the directories that are needed during the legacy, bootstrap-tools
