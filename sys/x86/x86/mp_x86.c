@@ -1359,7 +1359,7 @@ ipi_self_from_nmi(u_int vector)
 
 	/* Wait for IPI to finish. */
 	if (!lapic_ipi_wait(50000)) {
-		if (KERNEL_PANICKED())
+		if (panicstr != NULL)
 			return;
 		else
 			panic("APIC: IPI is stuck");
