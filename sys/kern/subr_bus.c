@@ -860,8 +860,6 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
  * The devctl protocol relies on quoted strings having matching quotes.
  * This routine quotes any internal quotes so the resulting string
  * is safe to pass to snprintf to construct, for example pnp info strings.
- * Strings are always terminated with a NUL, but may be truncated if longer
- * than @p len bytes after quotes.
  *
  * @param sb	sbuf to place the characters into
  * @param src	Original buffer.
