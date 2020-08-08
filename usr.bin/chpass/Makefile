@@ -3,7 +3,7 @@
 
 .include <src.opts.mk>
 
-.PATH: ${SRCTOP}/usr.sbin/pwd_mkdb ${SRCTOP}/lib/libc/gen
+.PATH: ${SRCTOP}/lib/libc/gen
 
 PROG=	chpass
 SRCS=	chpass.c edit.c field.c pw_scan.c table.c util.c
@@ -15,7 +15,7 @@ CFLAGS+= -DYP
 .endif
 #Some people need this, uncomment to activate
 #CFLAGS+=-DRESTRICT_FULLNAME_CHANGE
-CFLAGS+=-I${SRCTOP}/usr.sbin/pwd_mkdb -I${SRCTOP}/lib/libc/gen -I.
+CFLAGS+=-I${SRCTOP}/lib/libc/gen -I.
 
 LIBADD=	crypt util
 .if ${MK_NIS} != "no"
