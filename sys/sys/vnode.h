@@ -737,8 +737,6 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    struct thread *td);
 int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio,
 	    struct thread *td);
-int	vn_stat(struct vnode *vp, struct stat *sb, struct ucred *active_cred,
-	    struct ucred *file_cred, struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
 int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,
 	    int flags);
@@ -892,6 +890,22 @@ void	vop_need_inactive_debugpost(void *a, int rc);
 #endif
 
 void	vop_rename_fail(struct vop_rename_args *ap);
+
+#define	vop_stat_helper_pre(ap)	({						\
+	int _error;								\
+	AUDIT_ARG_VNODE1(ap->a_vp);						\
+	_error = mac_vnode_check_stat(ap->a_active_cred, ap->a_file_cred, ap->a_vp);\
+	if (__predict_true(_error == 0))					\
+		bzero(ap->a_sb, sizeof(*ap->a_sb));				\
+	_error;									\
+})
+
+#define	vop_stat_helper_post(ap, error)	({					\
+	int _error = (error);							\
+	if (priv_check_cred_vfs_generation(ap->a_td->td_ucred))			\
+		ap->a_sb->st_gen = 0;						\
+	_error;									\
+})
 
 #define	VOP_WRITE_PRE(ap)						\
 	struct vattr va;						\

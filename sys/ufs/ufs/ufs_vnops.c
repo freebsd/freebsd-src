@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/acl.h>
 #include <sys/smr.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 #include <sys/file.h>		/* XXX */
@@ -107,6 +108,7 @@ static int ufs_chmod(struct vnode *, int, struct ucred *, struct thread *);
 static int ufs_chown(struct vnode *, uid_t, gid_t, struct ucred *, struct thread *);
 static vop_close_t	ufs_close;
 static vop_create_t	ufs_create;
+static vop_stat_t	ufs_stat;
 static vop_getattr_t	ufs_getattr;
 static vop_ioctl_t	ufs_ioctl;
 static vop_link_t	ufs_link;
@@ -463,6 +465,65 @@ ufs_fplookup_vexec(ap)
 
 	cred = ap->a_cred;
 	return (vaccess_vexec_smr(mode, ip->i_uid, ip->i_gid, cred));
+}
+
+/* ARGSUSED */
+static int
+ufs_stat(struct vop_stat_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct inode *ip = VTOI(vp);
+	struct stat *sb = ap->a_sb;
+	int error;
+
+	error = vop_stat_helper_pre(ap);
+	if (__predict_false(error))
+		return (error);
+
+	VI_LOCK(vp);
+	ufs_itimes_locked(vp);
+	if (I_IS_UFS1(ip)) {
+		sb->st_atim.tv_sec = ip->i_din1->di_atime;
+		sb->st_atim.tv_nsec = ip->i_din1->di_atimensec;
+	} else {
+		sb->st_atim.tv_sec = ip->i_din2->di_atime;
+		sb->st_atim.tv_nsec = ip->i_din2->di_atimensec;
+	}
+	VI_UNLOCK(vp);
+
+	sb->st_dev = vp->v_mount->mnt_stat.f_fsid.val[0];
+	sb->st_ino = ip->i_number;
+	sb->st_mode = (ip->i_mode & ~IFMT) | VTTOIF(vp->v_type);
+	sb->st_nlink = ip->i_effnlink;
+	sb->st_uid = ip->i_uid;
+	sb->st_gid = ip->i_gid;
+	if (I_IS_UFS1(ip)) {
+		sb->st_rdev = ip->i_din1->di_rdev;
+		sb->st_size = ip->i_din1->di_size;
+		sb->st_mtim.tv_sec = ip->i_din1->di_mtime;
+		sb->st_mtim.tv_nsec = ip->i_din1->di_mtimensec;
+		sb->st_ctim.tv_sec = ip->i_din1->di_ctime;
+		sb->st_ctim.tv_nsec = ip->i_din1->di_ctimensec;
+		sb->st_birthtim.tv_sec = -1;
+		sb->st_birthtim.tv_nsec = 0;
+		sb->st_blocks = dbtob((u_quad_t)ip->i_din1->di_blocks) / S_BLKSIZE;
+	} else {
+		sb->st_rdev = ip->i_din2->di_rdev;
+		sb->st_size = ip->i_din2->di_size;
+		sb->st_mtim.tv_sec = ip->i_din2->di_mtime;
+		sb->st_mtim.tv_nsec = ip->i_din2->di_mtimensec;
+		sb->st_ctim.tv_sec = ip->i_din2->di_ctime;
+		sb->st_ctim.tv_nsec = ip->i_din2->di_ctimensec;
+		sb->st_birthtim.tv_sec = ip->i_din2->di_birthtime;
+		sb->st_birthtim.tv_nsec = ip->i_din2->di_birthnsec;
+		sb->st_blocks = dbtob((u_quad_t)ip->i_din2->di_blocks) / S_BLKSIZE;
+	}
+
+	sb->st_blksize = max(PAGE_SIZE, vp->v_mount->mnt_stat.f_iosize);
+	sb->st_flags = ip->i_flags;
+	sb->st_gen = ip->i_gen;
+
+	return (vop_stat_helper_post(ap, error));
 }
 
 /* ARGSUSED */
@@ -2822,6 +2883,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_cachedlookup =	ufs_lookup,
 	.vop_close =		ufs_close,
 	.vop_create =		ufs_create,
+	.vop_stat =		ufs_stat,
 	.vop_getattr =		ufs_getattr,
 	.vop_inactive =		ufs_inactive,
 	.vop_ioctl =		ufs_ioctl,

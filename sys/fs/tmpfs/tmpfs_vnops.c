@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/smr.h>
+#include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -403,6 +405,52 @@ out:
 	MPASS(VOP_ISLOCKED(vp));
 
 	return error;
+}
+
+int
+tmpfs_stat(struct vop_stat_args *v)
+{
+	struct vnode *vp = v->a_vp;
+	struct stat *sb = v->a_sb;
+	vm_object_t obj;
+	struct tmpfs_node *node;
+	int error;
+
+	node = VP_TO_TMPFS_NODE(vp);
+
+	tmpfs_update_getattr(vp);
+
+	error = vop_stat_helper_pre(v);
+	if (__predict_false(error))
+		return (error);
+
+	sb->st_dev = vp->v_mount->mnt_stat.f_fsid.val[0];
+	sb->st_ino = node->tn_id;
+	sb->st_mode = node->tn_mode | VTTOIF(vp->v_type);
+	sb->st_nlink = node->tn_links;
+	sb->st_uid = node->tn_uid;
+	sb->st_gid = node->tn_gid;
+	sb->st_rdev = (vp->v_type == VBLK || vp->v_type == VCHR) ?
+		node->tn_rdev : NODEV;
+	sb->st_size = node->tn_size;
+	sb->st_atim.tv_sec = node->tn_atime.tv_sec;
+	sb->st_atim.tv_nsec = node->tn_atime.tv_nsec;
+	sb->st_mtim.tv_sec = node->tn_mtime.tv_sec;
+	sb->st_mtim.tv_nsec = node->tn_mtime.tv_nsec;
+	sb->st_ctim.tv_sec = node->tn_ctime.tv_sec;
+	sb->st_ctim.tv_nsec = node->tn_ctime.tv_nsec;
+	sb->st_birthtim.tv_sec = node->tn_birthtime.tv_sec;
+	sb->st_birthtim.tv_nsec = node->tn_birthtime.tv_nsec;
+	sb->st_blksize = PAGE_SIZE;
+	sb->st_flags = node->tn_flags;
+	sb->st_gen = node->tn_gen;
+	if (vp->v_type == VREG) {
+		obj = node->tn_reg.tn_aobj;
+		sb->st_blocks = (u_quad_t)obj->resident_page_count * PAGE_SIZE;
+	} else
+		sb->st_blocks = node->tn_size;
+	sb->st_blocks /= S_BLKSIZE;
+	return (vop_stat_helper_post(v, error));
 }
 
 int
@@ -1675,6 +1723,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_close =			tmpfs_close,
 	.vop_fplookup_vexec =		tmpfs_fplookup_vexec,
 	.vop_access =			tmpfs_access,
+	.vop_stat =			tmpfs_stat,
 	.vop_getattr =			tmpfs_getattr,
 	.vop_setattr =			tmpfs_setattr,
 	.vop_read =			tmpfs_read,
