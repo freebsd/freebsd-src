@@ -988,6 +988,8 @@
         ..
         getconf
         ..
+        gh-bc
+        ..
         grep
         ..
         gzip

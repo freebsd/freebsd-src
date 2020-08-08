@@ -1,0 +1,31 @@
+aa = 0
+# This is a comment.
+while (q==0) { ++q; continue; }
+last
+print "i: ", i
+halt
+define x(e) { return 0; }
+define x(e) { return 4*(e+e); }
+define x(e) { return (e+e)*4; }
+limits
+.
+if (q!=0) { x=3; } else { x=4; }
+x<=0
+while (q!=0 && x==0) { ++q; }
+while (q!=0 || x==0) { ++q; }
+while (!q) { ++q; }
+for (; x<0; ++x) { y += 1; }
+for (x=0;; ++x) { y += 1; }
+for (x=0; x<0;) { y += 1; }
+for (x=0;;) { y += 1; }
+for (; x<0;) { y += 1; }
+for (;; ++x) { y += 1; }
+for (;;) { y += 1; }
+3e2981
+9.892108e-20
+obase = 0
+obase = 1
+define void a(e) { "stuff" }
+maxibase()
+maxobase()
+maxscale()

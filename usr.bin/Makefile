@@ -219,6 +219,12 @@ SUBDIR.${MK_GAMES}+=	random
 SUBDIR+=	dtc
 .endif
 .endif
+.if ${MK_GH_BC} == "yes"
+SUBDIR+=		gh-bc
+.else
+SUBDIR.${MK_OPENSSL}+=	bc
+SUBDIR.${MK_OPENSSL}+=	dc
+.endif
 SUBDIR.${MK_HESIOD}+=	hesinfo
 SUBDIR.${MK_ICONV}+=	iconv
 SUBDIR.${MK_ICONV}+=	mkcsmapper
@@ -242,9 +248,7 @@ SUBDIR.${MK_NIS}+=	ypcat
 SUBDIR.${MK_NIS}+=	ypmatch
 SUBDIR.${MK_NIS}+=	ypwhich
 SUBDIR.${MK_OPENSSH}+=	ssh-copy-id
-SUBDIR.${MK_OPENSSL}+=	bc
 SUBDIR.${MK_OPENSSL}+=	chkey
-SUBDIR.${MK_OPENSSL}+=	dc
 SUBDIR.${MK_OPENSSL}+=	newkey
 SUBDIR.${MK_QUOTAS}+=	quota
 SUBDIR.${MK_SENDMAIL}+=	vacation
