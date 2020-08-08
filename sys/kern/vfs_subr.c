@@ -3683,19 +3683,24 @@ vdropl(struct vnode *vp)
 	}
 	if (!VN_IS_DOOMED(vp)) {
 		vdrop_deactivate(vp);
+		/*
+		 * Also unlocks the interlock. We can't assert on it as we
+		 * released our hold and by now the vnode might have been
+		 * freed.
+		 */
 		return;
 	}
 	/*
-	 * We may be racing against vhold_smr.
+	 * Set the VHOLD_NO_SMR flag.
 	 *
-	 * If they win we can just pretend we never got this far, they will
-	 * vdrop later.
+	 * We may be racing against vhold_smr. If they win we can just pretend
+	 * we never got this far, they will vdrop later.
 	 */
 	if (!atomic_cmpset_int(&vp->v_holdcnt, 0, VHOLD_NO_SMR)) {
+		VI_UNLOCK(vp);
 		/*
-		 * We lost the aforementioned race. Note that any subsequent
-		 * access is invalid as they might have managed to vdropl on
-		 * their own.
+		 * We lost the aforementioned race. Any subsequent access is
+		 * invalid as they might have managed to vdropl on their own.
 		 */
 		return;
 	}

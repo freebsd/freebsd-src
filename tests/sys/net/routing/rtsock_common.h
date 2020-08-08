@@ -204,7 +204,7 @@ iface_open(char *ifname)
  * Sets primary IPv4 addr.
  * Returns 0 on success.
  */
-inline int
+static inline int
 iface_setup_addr(char *ifname, char *addr, int plen)
 {
 	char cmd[512];
@@ -225,7 +225,7 @@ iface_setup_addr(char *ifname, char *addr, int plen)
  * Removes primary IPv4 prefix.
  * Returns 0 on success.
  */
-inline int
+static inline int
 iface_delete_addr(char *ifname, char *addr)
 {
 	char cmd[512];
