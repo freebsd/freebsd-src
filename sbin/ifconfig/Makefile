@@ -37,7 +37,8 @@ SRCS+=	ifgif.c			# GIF reversed header workaround
 SRCS+=	ifipsec.c		# IPsec VTI
 
 SRCS+=	sfp.c			# SFP/SFP+ information
-LIBADD+=	m
+LIBADD+=	ifconfig m util
+CFLAGS+=	-I${SRCTOP}/lib/libifconfig -I${OBJTOP}/lib/libifconfig
 
 .if ${MK_WIRELESS_SUPPORT} != "no"
 SRCS+=	ifieee80211.c		# SIOC[GS]IEEE80211 support
