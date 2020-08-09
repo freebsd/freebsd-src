@@ -224,6 +224,9 @@ CRUNCH_ALIAS_chown= chgrp
 ##################################################################
 CRUNCH_LIBS+= -lm
 
+CRUNCH_LIBS+=		${OBJTOP}/lib/libifconfig/libifconfig.a
+CRUNCH_BUILDOPTS+=	CRUNCH_CFLAGS+=-I${OBJTOP}/lib/libifconfig
+
 .if ${MK_ISCSI} != "no"
 CRUNCH_PROGS_usr.bin+=	iscsictl
 CRUNCH_PROGS_usr.sbin+=	iscsid
