@@ -53,5 +53,6 @@ struct ebpf_vm_state
 };
 
 extern const struct ebpf_prog_type ept_vfs;
+extern const struct ebpf_prog_type ept_xdp;
 
 #endif

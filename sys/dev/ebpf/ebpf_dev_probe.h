@@ -47,5 +47,6 @@ struct ebpf_probe_ops
 };
 
 extern const struct ebpf_probe_ops vfs_probe_ops;
+extern const struct ebpf_probe_ops xdp_probe_ops;
 
 #endif
