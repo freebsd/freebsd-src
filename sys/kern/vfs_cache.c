@@ -3143,8 +3143,8 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 #define cache_fpl_handled(x, e)	cache_fpl_handled_impl((x), (e), __LINE__)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
-	(LOCKLEAF | LOCKPARENT | WANTPARENT | FOLLOW | LOCKSHARED | SAVENAME | \
-	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
+	(LOCKLEAF | LOCKPARENT | WANTPARENT | NOCACHE | FOLLOW | LOCKSHARED | SAVENAME | \
+	 WILLBEDIR | ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)
@@ -3191,10 +3191,6 @@ cache_can_fplookup(struct cache_fpl *fpl)
 	}
 #endif
 	if ((cnp->cn_flags & ~CACHE_FPL_SUPPORTED_CN_FLAGS) != 0) {
-		cache_fpl_aborted(fpl);
-		return (false);
-	}
-	if (cnp->cn_nameiop != LOOKUP) {
 		cache_fpl_aborted(fpl);
 		return (false);
 	}
@@ -3407,6 +3403,22 @@ cache_fplookup_final_child(struct cache_fpl *fpl, enum vgetstate tvs)
 	return (cache_fpl_handled(fpl, 0));
 }
 
+/*
+ * They want to possibly modify the state of the namecache.
+ *
+ * Don't try to match the API contract, just leave.
+ * TODO: this leaves scalability on the table
+ */
+static int
+cache_fplookup_final_modifying(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+
+	cnp = fpl->cnp;
+	MPASS(cnp->cn_nameiop != LOOKUP);
+	return (cache_fpl_partial(fpl));
+}
+
 static int __noinline
 cache_fplookup_final_withparent(struct cache_fpl *fpl)
 {
@@ -3488,6 +3500,10 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	tvp_seqc = fpl->tvp_seqc;
 
 	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
+
+	if (cnp->cn_nameiop != LOOKUP) {
+		return (cache_fplookup_final_modifying(fpl));
+	}
 
 	if ((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0)
 		return (cache_fplookup_final_withparent(fpl));
@@ -3633,6 +3649,12 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	tvp = atomic_load_ptr(&ncp->nc_vp);
 	nc_flag = atomic_load_char(&ncp->nc_flag);
 	if ((nc_flag & NCF_NEGATIVE) != 0) {
+		/*
+		 * If they want to create an entry we need to replace this one.
+		 */
+		if (__predict_false(fpl->cnp->cn_nameiop == CREATE)) {
+			return (cache_fpl_partial(fpl));
+		}
 		negstate = NCP2NEGSTATE(ncp);
 		neg_hot = ((negstate->neg_flag & NEG_HOT) != 0);
 		if (__predict_false(!cache_ncp_canuse(ncp))) {
