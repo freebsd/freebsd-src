@@ -3146,7 +3146,7 @@ cache_fpl_handled_impl(struct cache_fpl *fpl, int error, int line)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
 	(LOCKLEAF | LOCKPARENT | WANTPARENT | NOCACHE | FOLLOW | LOCKSHARED | SAVENAME | \
-	 WILLBEDIR | ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
+	 SAVESTART | WILLBEDIR | ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)
@@ -3654,7 +3654,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 		/*
 		 * If they want to create an entry we need to replace this one.
 		 */
-		if (__predict_false(fpl->cnp->cn_nameiop == CREATE)) {
+		if (__predict_false(fpl->cnp->cn_nameiop != LOOKUP)) {
 			return (cache_fpl_partial(fpl));
 		}
 		negstate = NCP2NEGSTATE(ncp);
@@ -4125,6 +4125,9 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	fpl.ndp = ndp;
 	fpl.cnp = &ndp->ni_cnd;
 	MPASS(curthread == fpl.cnp->cn_thread);
+
+	if ((fpl.cnp->cn_flags & SAVESTART) != 0)
+		MPASS(fpl.cnp->cn_nameiop != LOOKUP);
 
 	if (!cache_can_fplookup(&fpl)) {
 		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
