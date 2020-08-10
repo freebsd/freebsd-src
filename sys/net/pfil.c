@@ -242,6 +242,7 @@ pfil_head_register(struct pfil_head_args *pa)
 	LIST_INSERT_HEAD(&V_pfil_head_list, head, head_list);
 	PFIL_UNLOCK();
 
+	memset(&head->pfil_probe.name, 0, sizeof(head->pfil_probe.name));
 	strlcpy(head->pfil_probe.name.tracer,"ebpf",sizeof(head->pfil_probe.name.tracer));
 	strlcpy(head->pfil_probe.name.provider,"xdp",sizeof(head->pfil_probe.name.provider));
 	strlcpy(head->pfil_probe.name.function,pa->pa_headname,sizeof(head->pfil_probe.name.function));
