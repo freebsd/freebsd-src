@@ -372,6 +372,13 @@ tmpfs_mount(struct mount *mp)
 		}
 		tmp->tm_nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL,
 		    0) == 0;
+		MNT_ILOCK(mp);
+		if ((mp->mnt_flag & MNT_UNION) == 0) {
+			mp->mnt_kern_flag |= MNTK_FPLOOKUP;
+		} else {
+			mp->mnt_kern_flag &= ~MNTK_FPLOOKUP;
+		}
+		MNT_IUNLOCK(mp);
 		return (0);
 	}
 
@@ -462,7 +469,7 @@ tmpfs_mount(struct mount *mp)
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED |
 	    MNTK_TEXT_REFS | MNTK_NOMSYNC;
-	if (!nonc)
+	if (!nonc && (mp->mnt_flag & MNT_UNION) == 0)
 		mp->mnt_kern_flag |= MNTK_FPLOOKUP;
 	MNT_IUNLOCK(mp);
 
