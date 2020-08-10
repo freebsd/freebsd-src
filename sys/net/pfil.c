@@ -111,6 +111,7 @@ struct pfil_head {
 	LIST_ENTRY(pfil_head) head_list;
 	const char *head_name;
 	struct ebpf_probe pfil_probe;
+	struct vnet *vnet;
 };
 
 LIST_HEAD(pfilheadhead, pfil_head);
@@ -230,6 +231,7 @@ pfil_head_register(struct pfil_head_args *pa)
 	head->head_flags = pa->pa_flags;
 	head->head_type = pa->pa_type;
 	head->head_name = pa->pa_headname;
+	head->vnet = curvnet;
 	CK_STAILQ_INIT(&head->head_in);
 	CK_STAILQ_INIT(&head->head_out);
 
@@ -712,6 +714,9 @@ xdp_activate(struct ebpf_probe *probe, void *state)
 
 	struct pfil_hook_args hook_args;
 	struct pfil_link_args link_args;
+	struct pfil_head *pf_head;
+
+	pf_head = __containerof(probe, struct pfil_head, pfil_probe);
 
 	hook_state->probe = probe;
 	hook_state->module_state = state;
@@ -724,14 +729,15 @@ xdp_activate(struct ebpf_probe *probe, void *state)
 	hook_args.pa_modname = "xdp";
 	hook_args.pa_func = xdp_rx;
 
-
 	link_args.pa_version = PFIL_VERSION;
 	link_args.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 
+	CURVNET_SET(pf_head->vnet);
 	link_args.pa_hook = pfil_add_hook(&hook_args);
-	link_args.pa_head = __containerof(probe, struct pfil_head, pfil_probe);
+	link_args.pa_head = pf_head;
 
 	pfil_link(&link_args);	
+	CURVNET_RESTORE();
 }
 
 pfil_return_t
