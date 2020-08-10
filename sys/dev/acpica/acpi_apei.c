@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_pci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -207,8 +208,10 @@ static int
 apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 {
 	struct apei_pcie_error *p = (struct apei_pcie_error *)(ged + 1);
+	int h = 0, off;
+#ifdef DEV_PCI
 	device_t dev;
-	int h = 0, off, sev;
+	int sev;
 
 	if ((p->ValidationBits & 0x8) == 0x8) {
 		mtx_lock(&Giant);
@@ -235,6 +238,7 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	}
 	if (h)
 		return (h);
+#endif
 
 	printf("APEI %s PCIe Error:\n", apei_severity(ged->ErrorSeverity));
 	if (p->ValidationBits & 0x01)
