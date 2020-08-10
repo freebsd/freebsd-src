@@ -251,6 +251,7 @@ inm_release_wait(void *arg __unused)
 	taskqueue_drain(taskqueue_inm_free, &inm_free_task);
 }
 #ifdef VIMAGE
+/* XXX-BZ FIXME, see D24914. */
 VNET_SYSUNINIT(inm_release_wait, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, inm_release_wait, NULL);
 #endif
 
