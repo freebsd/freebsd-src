@@ -726,7 +726,7 @@ xdp_activate(struct ebpf_probe *probe, void *state)
 
 
 	link_args.pa_version = PFIL_VERSION;
-	link_args.pa_flags = PFIL_HEADPTR | PFIL_HOOKPTR;
+	link_args.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
 
 	link_args.pa_hook = pfil_add_hook(&hook_args);
 	link_args.pa_head = __containerof(probe, struct pfil_head, pfil_probe);
