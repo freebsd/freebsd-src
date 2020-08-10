@@ -713,6 +713,8 @@ xdp_activate(struct ebpf_probe *probe, void *state)
 	struct pfil_hook_args hook_args;
 	struct pfil_link_args link_args;
 
+	hook_state->probe = probe;
+	hook_state->module_state = state;
 
 	hook_args.pa_version = PFIL_VERSION;
 	hook_args.pa_flags = PFIL_IN;
