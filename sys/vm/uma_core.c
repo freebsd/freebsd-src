@@ -3429,12 +3429,6 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 		bucket_free(zone, bucket, udata);
 	}
 
-	/* Short-circuit for zones without buckets and low memory. */
-	if (zone->uz_bucket_size == 0 || bucketdisable) {
-		critical_enter();
-		return (false);
-	}
-
 	/*
 	 * Attempt to retrieve the item from the per-CPU cache has failed, so
 	 * we must go back to the zone.  This requires the zdom lock, so we
@@ -3449,11 +3443,12 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	    VM_DOMAIN_EMPTY(domain))
 		domain = zone_domain_highest(zone, domain);
 	bucket = cache_fetch_bucket(zone, cache, domain);
-	if (bucket == NULL) {
+	if (bucket == NULL && zone->uz_bucket_size != 0 && !bucketdisable) {
 		bucket = zone_alloc_bucket(zone, udata, domain, flags);
 		new = true;
-	} else
+	} else {
 		new = false;
+	}
 
 	CTR3(KTR_UMA, "uma_zalloc: zone %s(%p) bucket zone returned %p",
 	    zone->uz_name, zone, bucket);
