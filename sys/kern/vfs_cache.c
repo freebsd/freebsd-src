@@ -3701,8 +3701,6 @@ cache_fplookup_mp_supported(struct mount *mp)
 		return (false);
 	if ((mp->mnt_kern_flag & MNTK_FPLOOKUP) == 0)
 		return (false);
-	if ((mp->mnt_flag & MNT_UNION) != 0)
-		return (false);
 	return (true);
 }
 
