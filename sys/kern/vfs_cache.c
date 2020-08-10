@@ -3938,7 +3938,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 		VNPASS(cache_fplookup_vnode_supported(fpl->dvp), fpl->dvp);
 
-		error = VOP_FPLOOKUP_VEXEC(fpl->dvp, cnp->cn_cred, cnp->cn_thread);
+		error = VOP_FPLOOKUP_VEXEC(fpl->dvp, cnp->cn_cred);
 		if (__predict_false(error != 0)) {
 			error = cache_fplookup_failed_vexec(fpl, error);
 			break;
