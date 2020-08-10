@@ -743,10 +743,12 @@ xdp_activate(struct ebpf_probe *probe, void *state)
 pfil_return_t
 xdp_rx(pfil_packet_t pkt, struct ifnet *ifp, int flags, void *ruleset, struct inpcb *inp)
 {
-	struct mbuf *mb = 0;
+	struct mbuf *mb;
 
 	struct ebpf_hook_state *hook_state;
 	hook_state = ruleset;
+
+	mb = *pkt.m;
 
 	int act;
 	act = ebpf_probe_fire(hook_state->probe, hook_state->module_state, (uintptr_t) mb->m_data, mb->m_len, 0, 0, 0, 0);
