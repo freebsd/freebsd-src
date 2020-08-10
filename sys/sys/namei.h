@@ -159,7 +159,6 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	ISWHITEOUT	0x00020000 /* found whiteout */
 #define	DOWHITEOUT	0x00040000 /* do whiteouts */
 #define	WILLBEDIR	0x00080000 /* new files will be dirs; allow trailing / */
-#define	ISUNICODE	0x00100000 /* current component name is unicode*/
 #define	ISOPEN		0x00200000 /* caller is opening; return a real vnode. */
 #define	NOCROSSMOUNT	0x00400000 /* do not cross mount points */
 #define	NOMACCHECK	0x00800000 /* do not perform MAC checks */

@@ -510,6 +510,9 @@ syncache_timer(void *xsch)
 				sch->sch_nextc = sc->sc_rxttime;
 			continue;
 		}
+		if (sc->sc_rxmits > V_tcp_ecn_maxretries) {
+			sc->sc_flags &= ~SCF_ECN;
+		}
 		if (sc->sc_rxmits > V_tcp_syncache.rexmt_limit) {
 			if ((s = tcp_log_addrs(&sc->sc_inc, NULL, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: Retransmits exhausted, "
@@ -1505,6 +1508,13 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			sc->sc_tsreflect = to->to_tsval;
 		else
 			sc->sc_flags &= ~SCF_TIMESTAMP;
+		/*
+		 * Disable ECN if needed.
+		 */
+		if ((sc->sc_flags & SCF_ECN) &&
+		    ((th->th_flags & (TH_ECE|TH_CWR)) != (TH_ECE|TH_CWR))) {
+			sc->sc_flags &= ~SCF_ECN;
+		}
 #ifdef MAC
 		/*
 		 * Since we have already unconditionally allocated label

@@ -28,7 +28,7 @@
 .\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
 .\" $FreeBSD$
 .\"
-.Dd June 27, 2019
+.Dd August 10, 2020
 .Dt UNAME 1
 .Os
 .Sh NAME
@@ -107,6 +107,9 @@ and
 flags are intended to be used for fine grain differentiation of incremental
 .Fx
 development and user visible changes.
+Note that when both of these two options are specified, regardless of their
+order, the kernel version would be printed first, followed by the user
+environment version.
 .Sh ENVIRONMENT
 An environment variable composed of the string
 .Ev UNAME_
