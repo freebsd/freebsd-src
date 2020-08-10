@@ -25,4 +25,8 @@ SRCS+=		profile/InstrProfilingUtil.c
 SRCS+=		profile/InstrProfilingValue.c
 SRCS+=		profile/InstrProfilingWriter.c
 
+.PATH:		${CRTSRC}/include/profile
+INCSDIR=	${CLANGDIR}/include/profile
+INCS+=		InstrProfData.inc
+
 .include <bsd.lib.mk>

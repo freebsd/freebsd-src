@@ -224,16 +224,36 @@ inm_is_ifp_detached(const struct in_multi *inm)
 }
 #endif
 
-static struct task free_task;
+/*
+ * Interface detach can happen in a taskqueue thread context, so we must use a
+ * dedicated thread to avoid deadlocks when draining inm_release tasks.
+ */
+TASKQUEUE_DEFINE_THREAD(inm_free);
+static struct task inm_free_task;
 static struct in_multi_head inm_free_list = SLIST_HEAD_INITIALIZER();
 static void inm_release_task(void *arg __unused, int pending __unused);
 
 static void
-inm_init(void)
+inm_init(void *arg __unused)
 {
-	TASK_INIT(&free_task, 0, inm_release_task, NULL);
+	TASK_INIT(&inm_free_task, 0, inm_release_task, NULL);
 }
 SYSINIT(inm_init, SI_SUB_TASKQ, SI_ORDER_ANY, inm_init, NULL);
+
+void
+inm_release_wait(void *arg __unused)
+{
+
+	/*
+	 * Make sure all pending multicast addresses are freed before
+	 * the VNET or network device is destroyed:
+	 */
+	taskqueue_drain(taskqueue_inm_free, &inm_free_task);
+}
+#ifdef VIMAGE
+/* XXX-BZ FIXME, see D24914. */
+VNET_SYSUNINIT(inm_release_wait, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, inm_release_wait, NULL);
+#endif
 
 void
 inm_release_list_deferred(struct in_multi_head *inmh)
@@ -244,7 +264,7 @@ inm_release_list_deferred(struct in_multi_head *inmh)
 	mtx_lock(&in_multi_free_mtx);
 	SLIST_CONCAT(&inm_free_list, inmh, in_multi, inm_nrele);
 	mtx_unlock(&in_multi_free_mtx);
-	taskqueue_enqueue(taskqueue_thread, &free_task);
+	taskqueue_enqueue(taskqueue_inm_free, &inm_free_task);
 }
 
 void

@@ -192,6 +192,7 @@ char	*devfs_fqpn(char *, struct devfs_mount *, struct devfs_dirent *,
 	    struct componentname *);
 void	devfs_delete(struct devfs_mount *, struct devfs_dirent *, int);
 void	devfs_dirent_free(struct devfs_dirent *);
+int	devfs_populate_needed(struct devfs_mount *dm);
 void	devfs_populate(struct devfs_mount *);
 void	devfs_cleanup(struct devfs_mount *);
 void	devfs_unmount_final(struct devfs_mount *);

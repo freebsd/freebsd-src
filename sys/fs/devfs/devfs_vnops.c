@@ -235,6 +235,11 @@ devfs_populate_vp(struct vnode *vp)
 	ASSERT_VOP_LOCKED(vp, "devfs_populate_vp");
 
 	dmp = VFSTODEVFS(vp->v_mount);
+	if (!devfs_populate_needed(dmp)) {
+		sx_xlock(&dmp->dm_lock);
+		goto out_nopopulate;
+	}
+
 	locked = VOP_ISLOCKED(vp);
 
 	sx_xlock(&dmp->dm_lock);
@@ -252,6 +257,7 @@ devfs_populate_vp(struct vnode *vp)
 		devfs_unmount_final(dmp);
 		return (ERESTART);
 	}
+out_nopopulate:
 	if (VN_IS_DOOMED(vp)) {
 		sx_xunlock(&dmp->dm_lock);
 		return (ERESTART);
@@ -420,6 +426,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 	struct cdev *dev;
 	struct devfs_mount *dmp;
 	struct cdevsw *dsw;
+	enum vgetstate vs;
 
 	dmp = VFSTODEVFS(mp);
 	if (de->de_flags & DE_DOOMED) {
@@ -432,10 +439,10 @@ loop:
 	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
 	if (vp != NULL) {
-		VI_LOCK(vp);
+		vs = vget_prep(vp);
 		mtx_unlock(&devfs_de_interlock);
 		sx_xunlock(&dmp->dm_lock);
-		vget(vp, lockmode | LK_INTERLOCK | LK_RETRY, curthread);
+		vget_finish(vp, lockmode | LK_RETRY, vs);
 		sx_xlock(&dmp->dm_lock);
 		if (devfs_allocv_drop_refs(0, dmp, de)) {
 			vput(vp);
@@ -1492,13 +1499,14 @@ devfs_revoke(struct vop_revoke_args *ap)
 	struct cdev *dev;
 	struct cdev_priv *cdp;
 	struct devfs_dirent *de;
+	enum vgetstate vs;
 	u_int i;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("devfs_revoke !REVOKEALL"));
 
 	dev = vp->v_rdev;
 	cdp = cdev2priv(dev);
- 
+
 	dev_lock();
 	cdp->cdp_inuse++;
 	dev_unlock();
@@ -1521,17 +1529,16 @@ devfs_revoke(struct vop_revoke_args *ap)
 			vp2 = de->de_vnode;
 			if (vp2 != NULL) {
 				dev_unlock();
-				VI_LOCK(vp2);
+				vs = vget_prep(vp2);
 				mtx_unlock(&devfs_de_interlock);
-				if (vget(vp2, LK_EXCLUSIVE | LK_INTERLOCK,
-				    curthread))
+				if (vget_finish(vp2, LK_EXCLUSIVE, vs) != 0)
 					goto loop;
 				vhold(vp2);
 				vgone(vp2);
 				vdrop(vp2);
 				vput(vp2);
 				break;
-			} 
+			}
 		}
 		if (vp2 != NULL) {
 			continue;
@@ -1927,6 +1934,9 @@ static struct vop_vector devfs_vnodeops = {
 #endif
 	.vop_symlink =		devfs_symlink,
 	.vop_vptocnp =		devfs_vptocnp,
+	.vop_lock1 =		vop_lock,
+	.vop_unlock =		vop_unlock,
+	.vop_islocked =		vop_islocked,
 };
 VFS_VOP_VECTOR_REGISTER(devfs_vnodeops);
 
@@ -1965,6 +1975,9 @@ static struct vop_vector devfs_specops = {
 	.vop_symlink =		VOP_PANIC,
 	.vop_vptocnp =		devfs_vptocnp,
 	.vop_write =		dead_write,
+	.vop_lock1 =		vop_lock,
+	.vop_unlock =		vop_unlock,
+	.vop_islocked =		vop_islocked,
 };
 VFS_VOP_VECTOR_REGISTER(devfs_specops);
 

@@ -484,6 +484,9 @@ namei(struct nameidata *ndp)
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
+	if (cnp->cn_flags & NOCACHE)
+		KASSERT(cnp->cn_nameiop != LOOKUP,
+		    ("%s: NOCACHE passed with LOOKUP", __func__));
 	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
 	    ndp->ni_startdir->v_type == VBAD);
 
