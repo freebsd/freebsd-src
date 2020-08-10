@@ -549,6 +549,7 @@ in6m_release_wait(void *arg __unused)
 	taskqueue_drain_all(taskqueue_in6m_free);
 }
 #ifdef VIMAGE
+/* XXX-BZ FIXME, see D24914. */
 VNET_SYSUNINIT(in6m_release_wait, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, in6m_release_wait, NULL);
 #endif
 
