@@ -539,10 +539,18 @@ in6m_release_list_deferred(struct in6_multi_head *inmh)
 }
 
 void
-in6m_release_wait(void)
+in6m_release_wait(void *arg __unused)
 {
+
+	/*
+	 * Make sure all pending multicast addresses are freed before
+	 * the VNET or network device is destroyed:
+	 */
 	taskqueue_drain_all(taskqueue_in6m_free);
 }
+#ifdef VIMAGE
+VNET_SYSUNINIT(in6m_release_wait, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, in6m_release_wait, NULL);
+#endif
 
 void
 in6m_disconnect_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
