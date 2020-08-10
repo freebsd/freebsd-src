@@ -120,6 +120,7 @@ SRCS+=	__getosreldate.c \
 	recvmmsg.c \
 	rewinddir.c \
 	scandir.c \
+	scandir_b.c \
 	scandir-compat11.c \
 	seed48.c \
 	seekdir.c \
