@@ -400,11 +400,12 @@ form_file_list(char **files, int file_cnt)
 			sp = files[i];
 		else {
 			percent = 0;
-			for (sp = files[i]; isdigit((unsigned char)*sp); sp++)
+			for (sp = files[i]; isdigit((unsigned char)*sp); sp++) {
 				percent = percent * 10 + *sp - '0';
-			if (percent > 100) {
-				fprintf(stderr, "percentages must be <= 100\n");
-				return (FALSE);
+				if (percent > 100) {
+					fprintf(stderr, "percentages must be <= 100\n");
+					return (FALSE);
+				}
 			}
 			if (*sp == '.') {
 				fprintf(stderr, "percentages must be integers\n");
