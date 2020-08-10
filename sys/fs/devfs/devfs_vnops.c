@@ -1928,6 +1928,9 @@ static struct vop_vector devfs_vnodeops = {
 #endif
 	.vop_symlink =		devfs_symlink,
 	.vop_vptocnp =		devfs_vptocnp,
+	.vop_lock1 =		vop_lock,
+	.vop_unlock =		vop_unlock,
+	.vop_islocked =		vop_islocked,
 };
 VFS_VOP_VECTOR_REGISTER(devfs_vnodeops);
 
@@ -1966,6 +1969,9 @@ static struct vop_vector devfs_specops = {
 	.vop_symlink =		VOP_PANIC,
 	.vop_vptocnp =		devfs_vptocnp,
 	.vop_write =		dead_write,
+	.vop_lock1 =		vop_lock,
+	.vop_unlock =		vop_unlock,
+	.vop_islocked =		vop_islocked,
 };
 VFS_VOP_VECTOR_REGISTER(devfs_specops);
 
