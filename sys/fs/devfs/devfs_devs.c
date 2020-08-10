@@ -659,7 +659,7 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 	return (0);
 }
 
-bool
+int
 devfs_populate_needed(struct devfs_mount *dm)
 {
 
