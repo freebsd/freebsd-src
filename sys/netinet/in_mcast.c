@@ -229,7 +229,7 @@ static struct in_multi_head inm_free_list = SLIST_HEAD_INITIALIZER();
 static void inm_release_task(void *arg __unused, int pending __unused);
 
 static void
-inm_init(void)
+inm_init(void *arg __unused)
 {
 	TASK_INIT(&free_task, 0, inm_release_task, NULL);
 }

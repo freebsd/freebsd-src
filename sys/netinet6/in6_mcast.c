@@ -521,7 +521,7 @@ static struct in6_multi_head in6m_free_list = SLIST_HEAD_INITIALIZER();
 static void in6m_release_task(void *arg __unused, int pending __unused);
 
 static void
-in6m_init(void)
+in6m_init(void *arg __unused)
 {
 	TASK_INIT(&in6m_free_task, 0, in6m_release_task, NULL);
 }
