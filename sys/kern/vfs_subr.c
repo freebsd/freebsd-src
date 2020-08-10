@@ -408,7 +408,7 @@ sysctl_try_reclaim_vnode(SYSCTL_HANDLER_ARGS)
 
 	buf[req->newlen] = '\0';
 
-	ndflags = LOCKLEAF | NOFOLLOW | AUDITVNODE1 | NOCACHE | SAVENAME;
+	ndflags = LOCKLEAF | NOFOLLOW | AUDITVNODE1 | SAVENAME;
 	NDINIT(&nd, LOOKUP, ndflags, UIO_SYSSPACE, buf, curthread);
 	if ((error = namei(&nd)) != 0)
 		goto out;
