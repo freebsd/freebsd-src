@@ -1934,7 +1934,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	}
 	len = ncp->nc_nlen = cnp->cn_namelen;
 	hash = cache_get_hash(cnp->cn_nameptr, len, dvp);
-	strlcpy(ncp->nc_name, cnp->cn_nameptr, len + 1);
+	memcpy(ncp->nc_name, cnp->cn_nameptr, len);
+	ncp->nc_name[len] = '\0';
 	cache_enter_lock(&cel, dvp, vp, hash);
 
 	/*
