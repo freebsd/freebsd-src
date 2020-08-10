@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd August 21, 2018
+.Dd August 7, 2020
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -209,7 +209,7 @@ Note that
 and
 .Fl Fl include
 patterns are processed in the order given.
-If a name patches multiple patterns, the latest matching rule wins.
+If a name matches multiple patterns, the latest matching rule wins.
 If no
 .Fl Fl include
 pattern is specified, all files are searched that are
@@ -228,7 +228,7 @@ Note that
 and
 .Fl Fl include-dir
 patterns are processed in the order given.
-If a name patches multiple patterns, the latest matching rule wins.
+If a name matches multiple patterns, the latest matching rule wins.
 If no
 .Fl Fl include-dir
 pattern is specified, all directories are searched that are
@@ -284,7 +284,7 @@ Note that
 and
 .Fl Fl exclude
 patterns are processed in the order given.
-If a name patches multiple patterns, the latest matching rule wins.
+If a name matches multiple patterns, the latest matching rule wins.
 Patterns are matched to the full path specified,
 not only to the filename component.
 .It Fl Fl include-dir Ar pattern
@@ -298,7 +298,7 @@ Note that
 and
 .Fl Fl exclude-dir
 patterns are processed in the order given.
-If a name patches multiple patterns, the latest matching rule wins.
+If a name matches multiple patterns, the latest matching rule wins.
 .It Fl L , Fl Fl files-without-match
 Only the names of files not containing selected lines are written to
 standard output.
