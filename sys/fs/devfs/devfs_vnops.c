@@ -235,6 +235,11 @@ devfs_populate_vp(struct vnode *vp)
 	ASSERT_VOP_LOCKED(vp, "devfs_populate_vp");
 
 	dmp = VFSTODEVFS(vp->v_mount);
+	if (!devfs_populate_needed(dmp)) {
+		sx_xlock(&dmp->dm_lock);
+		goto out_nopopulate;
+	}
+
 	locked = VOP_ISLOCKED(vp);
 
 	sx_xlock(&dmp->dm_lock);
@@ -252,6 +257,7 @@ devfs_populate_vp(struct vnode *vp)
 		devfs_unmount_final(dmp);
 		return (ERESTART);
 	}
+out_nopopulate:
 	if (VN_IS_DOOMED(vp)) {
 		sx_xunlock(&dmp->dm_lock);
 		return (ERESTART);
