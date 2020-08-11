@@ -153,6 +153,7 @@ struct devfs_dirent {
 	struct timespec 	de_ctime;
 	struct vnode 		*de_vnode;
 	char 			*de_symlink;
+	int			de_usecount;
 };
 
 struct devfs_mount {
@@ -202,6 +203,10 @@ struct devfs_dirent	*devfs_vmkdir(struct devfs_mount *, char *, int,
 			    struct devfs_dirent *, u_int);
 struct devfs_dirent	*devfs_find(struct devfs_dirent *, const char *, int,
 			    int);
+
+void	devfs_ctty_ref(struct vnode *);
+void	devfs_ctty_unref(struct vnode *);
+int	devfs_usecount(struct vnode *);
 
 #endif /* _KERNEL */
 

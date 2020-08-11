@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+#include <fs/devfs/devfs.h>
+
 #include <ufs/ufs/quota.h>
 
 MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
@@ -4213,7 +4215,7 @@ sys_revoke(struct thread *td, struct revoke_args *uap)
 		if (error != 0)
 			goto out;
 	}
-	if (vp->v_usecount > 1 || vcount(vp) > 1)
+	if (devfs_usecount(vp) > 0)
 		VOP_REVOKE(vp, REVOKEALL);
 out:
 	vput(vp);
