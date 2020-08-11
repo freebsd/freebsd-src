@@ -94,6 +94,9 @@ ${X_}LINKER_FEATURES+=	riscv-relaxations
 .if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 60000
 ${X_}LINKER_FEATURES+=	retpoline
 .endif
+.if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 90000
+${X_}LINKER_FEATURES+=	ifunc-noplt
+.endif
 .endif
 .else
 # Use LD's values
