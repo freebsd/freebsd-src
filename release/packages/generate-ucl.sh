@@ -147,7 +147,7 @@ EOF
 		-e "s/%DESC%/${desc}/" \
 		-e "s/%CAP_MKDB_ENDIAN%/${cap_arg}/g" \
 		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
-		-e "s/%PKG_WWW%/${PKG_WWW}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
 		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
 		${uclfile}
 	return 0
