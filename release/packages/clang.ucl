@@ -2,13 +2,13 @@
 # $FreeBSD$
 #
 
-name = "FreeBSD-%PKGNAME%"
+name = "%PKG_NAME_PREFIX%-%PKGNAME%"
 origin = "base"
 version = "%VERSION%"
 comment = "%COMMENT%"
 categories = [ base ]
-maintainer = "re@FreeBSD.org"
-www = "https://www.FreeBSD.org"
+maintainer = "%PKG_MAINTAINER%"
+www = "%PKG_WWW%"
 prefix = "/"
 licenselogic = "single"
 licenses = [ NCSA ]
