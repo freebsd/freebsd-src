@@ -176,16 +176,16 @@ main(int argc, char *argv[])
 	if (pflg)
 		playback(fscript);
 
-	if ((ttyflg = isatty(STDIN_FILENO)) != 0) {
-		if (tcgetattr(STDIN_FILENO, &tt) == -1)
-			err(1, "tcgetattr");
-		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1)
-			err(1, "ioctl");
-		if (openpty(&master, &slave, NULL, &tt, &win) == -1)
-			err(1, "openpty");
-	} else {
+	if (tcgetattr(STDIN_FILENO, &tt) == -1 ||
+	    ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1) {
+		if (errno != ENOTTY) /* For debugger. */
+			err(1, "tcgetattr/ioctl");
 		if (openpty(&master, &slave, NULL, NULL, NULL) == -1)
 			err(1, "openpty");
+	} else {
+		if (openpty(&master, &slave, NULL, &tt, &win) == -1)
+			err(1, "openpty");
+		ttyflg = 1;
 	}
 
 	if (rawout)
@@ -433,9 +433,8 @@ termset(void)
 	struct termios traw;
 
 	if (tcgetattr(STDOUT_FILENO, &tt) == -1) {
-		if (errno == EBADF)
-			err(1, "%d not valid fd", STDOUT_FILENO);
-		/* errno == ENOTTY */
+		if (errno != ENOTTY) /* For debugger. */
+			err(1, "tcgetattr");
 		return;
 	}
 	ttyflg = 1;
