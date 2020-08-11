@@ -25,6 +25,7 @@
 # Use is subject to license terms.
 #
 #ident	"%Z%%M%	%I%	%E% SMI"
+set -e
 
 BSDECHO=-e
 
