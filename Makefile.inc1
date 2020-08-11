@@ -1915,7 +1915,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
 		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s/%PKG_WWW%/${PKG_WWW}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1951,7 +1951,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
 		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
 		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
-		-e "s/%PKG_WWW%/${PKG_WWW}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
