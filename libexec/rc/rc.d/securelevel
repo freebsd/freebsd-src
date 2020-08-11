@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: securelevel
-# REQUIRE: adjkerntz ipfw ipfilter pf
+# REQUIRE: adjkerntz ipfw pf
 
 . /etc/rc.subr
 
