@@ -222,6 +222,115 @@ devfs_clear_cdevpriv(void)
 	devfs_fpdrop(fp);
 }
 
+static void
+devfs_usecount_add(struct vnode *vp)
+{
+	struct devfs_dirent *de;
+	struct cdev *dev;
+
+	mtx_lock(&devfs_de_interlock);
+	VI_LOCK(vp);
+	VNPASS(vp->v_type == VCHR || vp->v_type == VBAD, vp);
+	if (VN_IS_DOOMED(vp)) {
+		goto out_unlock;
+	}
+
+	de = vp->v_data;
+	dev = vp->v_rdev;
+	MPASS(de != NULL);
+	MPASS(dev != NULL);
+	dev->si_usecount++;
+	de->de_usecount++;
+out_unlock:
+	VI_UNLOCK(vp);
+	mtx_unlock(&devfs_de_interlock);
+}
+
+static void
+devfs_usecount_subl(struct vnode *vp)
+{
+	struct devfs_dirent *de;
+	struct cdev *dev;
+
+	mtx_assert(&devfs_de_interlock, MA_OWNED);
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(vp->v_type == VCHR || vp->v_type == VBAD, vp);
+
+	de = vp->v_data;
+	dev = vp->v_rdev;
+	if (de == NULL)
+		return;
+	if (dev == NULL) {
+		MPASS(de->de_usecount == 0);
+		return;
+	}
+	if (dev->si_usecount < de->de_usecount)
+		panic("%s: si_usecount underflow for dev %p "
+		    "(has %ld, dirent has %d)\n",
+		    __func__, dev, dev->si_usecount, de->de_usecount);
+	if (VN_IS_DOOMED(vp)) {
+		dev->si_usecount -= de->de_usecount;
+		de->de_usecount = 0;
+	} else {
+		if (de->de_usecount == 0)
+			panic("%s: de_usecount underflow for dev %p\n",
+			    __func__, dev);
+		dev->si_usecount--;
+		de->de_usecount--;
+	}
+}
+
+static void
+devfs_usecount_sub(struct vnode *vp)
+{
+
+	mtx_lock(&devfs_de_interlock);
+	VI_LOCK(vp);
+	devfs_usecount_subl(vp);
+	VI_UNLOCK(vp);
+	mtx_unlock(&devfs_de_interlock);
+}
+
+static int
+devfs_usecountl(struct vnode *vp)
+{
+
+	VNPASS(vp->v_type == VCHR, vp);
+	mtx_assert(&devfs_de_interlock, MA_OWNED);
+	ASSERT_VI_LOCKED(vp, __func__);
+	return (vp->v_rdev->si_usecount);
+}
+
+int
+devfs_usecount(struct vnode *vp)
+{
+	int count;
+
+	VNPASS(vp->v_type == VCHR, vp);
+	mtx_lock(&devfs_de_interlock);
+	VI_LOCK(vp);
+	count = devfs_usecountl(vp);
+	VI_UNLOCK(vp);
+	mtx_unlock(&devfs_de_interlock);
+	return (count);
+}
+
+void
+devfs_ctty_ref(struct vnode *vp)
+{
+
+	vrefact(vp);
+	devfs_usecount_add(vp);
+}
+
+void
+devfs_ctty_unref(struct vnode *vp)
+{
+
+	devfs_usecount_sub(vp);
+	vrele(vp);
+}
+
 /*
  * On success devfs_populate_vp() returns with dmp->dm_lock held.
  */
@@ -487,7 +596,6 @@ loop:
 		/* XXX: v_rdev should be protect by vnode lock */
 		vp->v_rdev = dev;
 		VNPASS(vp->v_usecount == 1, vp);
-		dev->si_usecount++;
 		/* Special casing of ttys for deadfs.  Probably redundant. */
 		dsw = dev->si_devsw;
 		if (dsw != NULL && (dsw->d_flags & D_TTY) != 0)
@@ -569,6 +677,7 @@ devfs_close(struct vop_close_args *ap)
 	struct proc *p;
 	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
+	struct devfs_dirent *de = vp->v_data;
 	int dflags, error, ref, vp_locked;
 
 	/*
@@ -587,7 +696,7 @@ devfs_close(struct vop_close_args *ap)
 	 * if the reference count is 2 (this last descriptor
 	 * plus the session), release the reference from the session.
 	 */
-	if (vp->v_usecount == 2 && td != NULL) {
+	if (de->de_usecount == 2 && td != NULL) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 		if (vp == p->p_session->s_ttyvp) {
@@ -596,19 +705,20 @@ devfs_close(struct vop_close_args *ap)
 			sx_xlock(&proctree_lock);
 			if (vp == p->p_session->s_ttyvp) {
 				SESS_LOCK(p->p_session);
+				mtx_lock(&devfs_de_interlock);
 				VI_LOCK(vp);
-				if (vp->v_usecount == 2 && vcount(vp) == 1 &&
-				    !VN_IS_DOOMED(vp)) {
+				if (devfs_usecountl(vp) == 2 && !VN_IS_DOOMED(vp)) {
 					p->p_session->s_ttyvp = NULL;
 					p->p_session->s_ttydp = NULL;
 					oldvp = vp;
 				}
 				VI_UNLOCK(vp);
+				mtx_unlock(&devfs_de_interlock);
 				SESS_UNLOCK(p->p_session);
 			}
 			sx_xunlock(&proctree_lock);
 			if (oldvp != NULL)
-				vrele(oldvp);
+				devfs_ctty_unref(oldvp);
 		} else
 			PROC_UNLOCK(p);
 	}
@@ -625,9 +735,12 @@ devfs_close(struct vop_close_args *ap)
 	if (dsw == NULL)
 		return (ENXIO);
 	dflags = 0;
+	mtx_lock(&devfs_de_interlock);
 	VI_LOCK(vp);
-	if (vp->v_usecount == 1 && vcount(vp) == 1)
+	if (devfs_usecountl(vp) == 1)
 		dflags |= FLASTCLOSE;
+	devfs_usecount_subl(vp);
+	mtx_unlock(&devfs_de_interlock);
 	if (VN_IS_DOOMED(vp)) {
 		/* Forced close. */
 		dflags |= FREVOKE | FNONBLOCK;
@@ -850,7 +963,7 @@ devfs_ioctl(struct vop_ioctl_args *ap)
 			return (0);
 		}
 
-		vrefact(vp);
+		devfs_ctty_ref(vp);
 		SESS_LOCK(sess);
 		vpold = sess->s_ttyvp;
 		sess->s_ttyvp = vp;
@@ -1159,6 +1272,9 @@ devfs_open(struct vop_open_args *ap)
 		return (ENXIO);
 	}
 
+	if (vp->v_type == VCHR)
+		devfs_usecount_add(vp);
+
 	vlocked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp);
 
@@ -1178,6 +1294,9 @@ devfs_open(struct vop_open_args *ap)
 	td->td_fpop = fpop;
 
 	vn_lock(vp, vlocked | LK_RETRY);
+	if (error != 0 && vp->v_type == VCHR)
+		devfs_usecount_sub(vp);
+
 	dev_relthread(dev, ref);
 	if (error != 0) {
 		if (error == ERESTART)
@@ -1406,19 +1525,28 @@ devfs_readlink(struct vop_readlink_args *ap)
 	return (uiomove(de->de_symlink, strlen(de->de_symlink), ap->a_uio));
 }
 
+static void
+devfs_reclaiml(struct vnode *vp)
+{
+	struct devfs_dirent *de;
+
+	mtx_assert(&devfs_de_interlock, MA_OWNED);
+	de = vp->v_data;
+	if (de != NULL) {
+		MPASS(de->de_usecount == 0);
+		de->de_vnode = NULL;
+		vp->v_data = NULL;
+	}
+}
+
 static int
 devfs_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp;
-	struct devfs_dirent *de;
 
 	vp = ap->a_vp;
 	mtx_lock(&devfs_de_interlock);
-	de = vp->v_data;
-	if (de != NULL) {
-		de->de_vnode = NULL;
-		vp->v_data = NULL;
-	}
+	devfs_reclaiml(vp);
 	mtx_unlock(&devfs_de_interlock);
 	return (0);
 }
@@ -1432,14 +1560,14 @@ devfs_reclaim_vchr(struct vop_reclaim_args *ap)
 	vp = ap->a_vp;
 	MPASS(vp->v_type == VCHR);
 
-	devfs_reclaim(ap);
-
+	mtx_lock(&devfs_de_interlock);
 	VI_LOCK(vp);
+	devfs_usecount_subl(vp);
+	devfs_reclaiml(vp);
+	mtx_unlock(&devfs_de_interlock);
 	dev_lock();
 	dev = vp->v_rdev;
 	vp->v_rdev = NULL;
-	if (dev != NULL)
-		dev->si_usecount -= (vp->v_usecount > 0);
 	dev_unlock();
 	VI_UNLOCK(vp);
 	if (dev != NULL)
