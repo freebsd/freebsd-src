@@ -2240,9 +2240,13 @@ ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
 _basic_bootstrap_tools_multilink=usr.bin/grep grep,egrep,fgrep
 _basic_bootstrap_tools_multilink+=bin/test test,[
 # bootstrap tools needed by buildworld:
-_basic_bootstrap_tools=usr.bin/awk usr.bin/cut bin/expr usr.bin/gencat \
+_basic_bootstrap_tools=usr.bin/cut bin/expr usr.bin/gencat \
     usr.bin/join usr.bin/mktemp bin/rmdir usr.bin/sed usr.bin/sort \
     usr.bin/truncate usr.bin/tsort
+# Some build scripts use nawk instead of awk (this happens at least in
+# cddl/contrib/opensolaris/lib/libdtrace/common/mknames.sh) so we need both awk
+# and nawk in ${WORLDTMP}/legacy/bin.
+_basic_bootstrap_tools_multilink+=usr.bin/awk awk,nawk
 # file2c is required for building usr.sbin/config:
 _basic_bootstrap_tools+=usr.bin/file2c
 # uuencode/uudecode required for share/tabset
