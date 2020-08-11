@@ -26,6 +26,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200810:
+	r364092 modified the internal ABI used between the kernel NFS
+	modules.  As such, all of these modules need to be rebuilt
+	from sources, so a version bump was done.
+
 20200807:
 	Makefile.inc has been updated to work around the issue documented in
 	20200729. It was a case where the optimization of using symbolic links
