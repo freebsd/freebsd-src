@@ -1,8 +1,12 @@
 /*-
+ * Copyright (c) 2019 Klara Inc.
  * Copyright (c) 2015 Baptiste Daroussin <bapt@FreeBSD.org>
  * Copyright (c) 2015 Allan Jude <allanjude@FreeBSD.org>
  * Copyright (c) 2000 by Matthew Jacob
  * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from Klara Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
 #include <sys/param.h>
+#include <sys/disk.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
@@ -54,12 +59,20 @@ __FBSDID("$FreeBSD$");
 
 #define SESUTIL_XO_VERSION	"1"
 
+#define TEMPERATURE_OFFSET	20
+
+#define PRINT_STYLE_DASHED	0
+#define PRINT_STYLE_DASHED_2	1
+#define PRINT_STYLE_CSV 	2
+#define PRINT_STYLE_CSV_2	3
+
 static int encstatus(int argc, char **argv);
 static int fault(int argc, char **argv);
 static int locate(int argc, char **argv);
 static int objmap(int argc, char **argv);
 static int sesled(int argc, char **argv, bool fault);
-static void sesutil_print(bool *title, const char *fmt, ...) __printflike(2,3);
+static int show(int argc, char **argv);
+static void sesutil_print(int *style, const char *fmt, ...) __printflike(2,3);
 
 static struct command {
 	const char *name;
@@ -77,6 +90,8 @@ static struct command {
 	    locate },
 	{ "map", "",
 	    "Print a map of the devices managed by the enclosure", objmap } ,
+	{ "show", "",
+	    "Print a human-friendly summary of the enclosure", show } ,
 	{ "status", "", "Print the status of the enclosure",
 	    encstatus },
 };
@@ -313,64 +328,72 @@ fault(int argc, char **argv)
 	return (sesled(argc, argv, true));
 }
 
-#define TEMPERATURE_OFFSET 20
 static void
-sesutil_print(bool *title, const char *fmt, ...)
+sesutil_print(int *style, const char *fmt, ...)
 {
 	va_list args;
 
-	if (!*title) {
+	if (*style == PRINT_STYLE_DASHED) {
 		xo_open_container("extra_status");
 		xo_emit("\t\tExtra status:\n");
-		*title = true;
+		*style = PRINT_STYLE_DASHED_2;
+	} else if (*style == PRINT_STYLE_CSV) {
+		xo_open_container("extra_status");
+		*style = PRINT_STYLE_CSV_2;
 	}
+
+	if (*style == PRINT_STYLE_DASHED_2)
+		xo_emit("\t\t- ");
+	else if (*style == PRINT_STYLE_CSV_2)
+		xo_emit(", ");
 	va_start(args, fmt);
 	xo_emit_hv(NULL, fmt, args);
 	va_end(args);
+	if (*style == PRINT_STYLE_DASHED_2)
+		xo_emit("\n");
 }
 
 static void
-print_extra_status(int eletype, u_char *cstat)
+print_extra_status(int eletype, u_char *cstat, int style)
 {
-	bool title = false;
 
 	if (cstat[0] & 0x40) {
-		sesutil_print(&title, "\t\t-{e:predicted_failure/true} Predicted Failure\n");
+		sesutil_print(&style, "{e:predicted_failure/true} Predicted Failure");
 	}
 	if (cstat[0] & 0x20) {
-		sesutil_print(&title, "\t\t-{e:disabled/true} Disabled\n");
+		sesutil_print(&style, "{e:disabled/true} Disabled");
 	}
 	if (cstat[0] & 0x10) {
-		sesutil_print(&title, "\t\t-{e:swapped/true} Swapped\n");
+		sesutil_print(&style, "{e:swapped/true} Swapped");
 	}
 	switch (eletype) {
 	case ELMTYP_DEVICE:
 	case ELMTYP_ARRAY_DEV:
 		if (cstat[2] & 0x02) {
-			sesutil_print(&title, "\t\t- LED={q:led/locate}\n");
+			sesutil_print(&style, "LED={q:led/locate}");
 		}
 		if (cstat[2] & 0x20) {
-			sesutil_print(&title, "\t\t- LED={q:led/fault}\n");
+			sesutil_print(&style, "LED={q:led/fault}");
 		}
 		break;
 	case ELMTYP_FAN:
-		sesutil_print(&title, "\t\t- Speed: {:speed/%d}{Uw:rpm}\n",
+		sesutil_print(&style, "Speed: {:speed/%d}{Uw:rpm}",
 		    (((0x7 & cstat[1]) << 8) + cstat[2]) * 10);
 		break;
 	case ELMTYP_THERM:
 		if (cstat[2]) {
-			sesutil_print(&title, "\t\t- Temperature: {:temperature/%d}{Uw:C}\n",
+			sesutil_print(&style, "Temperature: {:temperature/%d}{Uw:C}",
 			    cstat[2] - TEMPERATURE_OFFSET);
 		} else {
-			sesutil_print(&title, "\t\t- Temperature: -{q:temperature/reserved}-\n");
+			sesutil_print(&style, "Temperature: -{q:temperature/reserved}");
 		}
 		break;
 	case ELMTYP_VOM:
-		sesutil_print(&title, "\t\t- Voltage: {:voltage/%.2f}{Uw:V}\n",
+		sesutil_print(&style, "Voltage: {:voltage/%.2f}{Uw:V}",
 		    be16dec(cstat + 2) / 100.0);
 		break;
 	}
-	if (title) {
+	if (style) {
 		xo_close_container("extra_status");
 	}
 }
@@ -499,10 +522,337 @@ objmap(int argc, char **argv __unused)
 				xo_emit("\t\tDevice Names: {:device_names/%s}\n",
 				    e_devname.elm_devnames);
 			}
-			print_extra_status(e_ptr[j].elm_type, e_status.cstat);
+			print_extra_status(e_ptr[j].elm_type, e_status.cstat, PRINT_STYLE_DASHED);
 			xo_close_instance("elements");
 			free(e_devname.elm_devnames);
 		}
+		xo_close_list("elements");
+		free(e_ptr);
+		close(fd);
+	}
+	globfree(&g);
+	xo_close_list("enclosures");
+	xo_close_container("sesutil");
+	xo_finish();
+
+	return (EXIT_SUCCESS);
+}
+
+/*
+ * Get rid of the 'passN' devices, unless there's nothing else to show.
+ */
+static void
+skip_pass_devices(char *devnames, size_t devnameslen)
+{
+	char *dev, devs[128], passes[128], *tmp;
+
+	devs[0] = passes[0] = '\0';
+	tmp = devnames;
+
+	while ((dev = strsep(&tmp, ",")) != NULL) {
+		if (strncmp(dev, "pass", 4) == 0) {
+			if (passes[0] != '\0')
+				strlcat(passes, ",", sizeof(passes));
+			strlcat(passes, dev, sizeof(passes));
+		} else {
+			if (devs[0] != '\0')
+				strlcat(devs, ",", sizeof(devs));
+			strlcat(devs, dev, sizeof(devs));
+		}
+	}
+	strlcpy(devnames, devs, devnameslen);
+	if (devnames[0] == '\0')
+		strlcpy(devnames, passes, devnameslen);
+}
+
+static void
+fetch_device_details(char *devnames, char **model, char **serial, off_t *size)
+{
+	char ident[DISK_IDENT_SIZE];
+	struct diocgattr_arg arg;
+	char *device, *tmp;
+	off_t mediasize;
+	int fd;
+
+	tmp = strdup(devnames);
+	if (tmp == NULL)
+		err(1, "strdup");
+
+	device = strsep(&tmp, ",");
+	asprintf(&tmp, "/dev/%s", device);
+	fd = open(tmp, O_RDONLY);
+	if (fd < 0) {
+		/*
+		 * This can happen with a disk so broken it cannot
+		 * be probed by GEOM.
+		 */
+		*model = strdup("?");
+		*serial = strdup("?");
+		*size = -1;
+		return;
+	}
+
+	strlcpy(arg.name, "GEOM::descr", sizeof(arg.name));
+	arg.len = sizeof(arg.value.str);
+	if (ioctl(fd, DIOCGATTR, &arg) == 0)
+		*model = strdup(arg.value.str);
+	else
+		*model = NULL;
+
+	if (ioctl(fd, DIOCGIDENT, ident) == 0)
+		*serial = strdup(ident);
+	else
+		*serial = NULL;
+
+	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) == 0)
+		*size = mediasize;
+	else
+		*size = -1;
+}
+
+static void
+show_device(int fd, int elm_idx, encioc_elm_status_t e_status, encioc_elm_desc_t e_desc)
+{
+	encioc_elm_devnames_t e_devname;
+	char *model, *serial;
+	off_t size;
+
+	/* Get the device name(s) of the element */
+	memset(&e_devname, 0, sizeof(e_devname));
+	e_devname.elm_idx = elm_idx;
+	e_devname.elm_names_size = 128;
+	e_devname.elm_devnames = calloc(128, sizeof(char));
+	if (e_devname.elm_devnames == NULL) {
+		close(fd);
+		xo_err(EXIT_FAILURE, "calloc()");
+	}
+
+	if (ioctl(fd, ENCIOC_GETELMDEVNAMES,
+	    (caddr_t) &e_devname) < 0) {
+		/* We don't care if this fails */
+		e_devname.elm_devnames[0] = '\0';
+		model = NULL;
+		serial = NULL;
+		size = -1;
+	} else {
+		skip_pass_devices(e_devname.elm_devnames, 128);
+		fetch_device_details(e_devname.elm_devnames, &model, &serial, &size);
+	}
+	xo_open_instance("elements");
+	xo_emit("{e:type/device_slot}");
+	xo_emit("{d:description/%-8s} ", e_desc.elm_desc_len > 0 ? e_desc.elm_desc_str : "-");
+	xo_emit("{e:description/%-8s}", e_desc.elm_desc_len > 0 ? e_desc.elm_desc_str : "");
+	xo_emit("{d:device_names/%-7s} ", e_devname.elm_names_len > 0 ? e_devname.elm_devnames : "-");
+	xo_emit("{e:device_names/%s}", e_devname.elm_names_len > 0 ? e_devname.elm_devnames : "");
+	xo_emit("{d:model/%-25s} ", model ? model : "-");
+	xo_emit("{e:model/%s}", model ? model : "");
+	xo_emit("{d:serial/%-20s} ", serial != NULL ? serial : "-");
+	xo_emit("{e:serial/%s}", serial != NULL ? serial : "");
+	if (e_status.cstat[0] == SES_OBJSTAT_OK && size >= 0) {
+		xo_emit("{h,hn-1000:size/%ld}{e:status/%s}",
+		    size, scode2ascii(e_status.cstat[0]));
+	} else {
+		xo_emit("{:status/%s}", scode2ascii(e_status.cstat[0]));
+	}
+	print_extra_status(ELMTYP_ARRAY_DEV, e_status.cstat, PRINT_STYLE_CSV);
+	xo_emit("\n");
+	xo_close_instance("elements");
+	free(e_devname.elm_devnames);
+}
+
+static void
+show_therm(encioc_elm_status_t e_status, encioc_elm_desc_t e_desc)
+{
+
+	if (e_desc.elm_desc_len <= 0) {
+		/* We don't have a label to display; might as well skip it. */
+		return;
+	}
+
+	if (e_status.cstat[2] == 0) {
+		/* No temperature to show. */
+		return;
+	}
+
+	xo_open_instance("elements");
+	xo_emit("{e:type/temperature_sensor}");
+	xo_emit("{:description/%s}: {:temperature/%d}{Uw:C}",
+	    e_desc.elm_desc_str, e_status.cstat[2] - TEMPERATURE_OFFSET);
+	xo_close_instance("elements");
+}
+
+static void
+show_vom(encioc_elm_status_t e_status, encioc_elm_desc_t e_desc)
+{
+
+	if (e_desc.elm_desc_len <= 0) {
+		/* We don't have a label to display; might as well skip it. */
+		return;
+	}
+
+	if (e_status.cstat[2] == 0) {
+		/* No voltage to show. */
+		return;
+	}
+
+	xo_open_instance("elements");
+	xo_emit("{e:type/voltage_sensor}");
+	xo_emit("{:description/%s}: {:voltage/%.2f}{Uw:V}",
+	    e_desc.elm_desc_str, be16dec(e_status.cstat + 2) / 100.0);
+	xo_close_instance("elements");
+}
+
+static int
+show(int argc, char **argv __unused)
+{
+	encioc_string_t stri;
+	encioc_elm_status_t e_status;
+	encioc_elm_desc_t e_desc;
+	encioc_element_t *e_ptr;
+	glob_t g;
+	elm_type_t prev_type;
+	int fd;
+	unsigned int j, nobj;
+	size_t i;
+	bool first_ses;
+	char str[32];
+
+	if (argc != 1) {
+		usage(stderr, "map");
+	}
+
+	first_ses = true;
+
+	/* Get the list of ses devices */
+	if (glob(uflag, 0, NULL, &g) == GLOB_NOMATCH) {
+		globfree(&g);
+		xo_errx(EXIT_FAILURE, "No SES devices found");
+	}
+	xo_set_version(SESUTIL_XO_VERSION);
+	xo_open_container("sesutil");
+	xo_open_list("enclosures");
+	for (i = 0; i < g.gl_pathc; i++) {
+		/* ensure we only got numbers after ses */
+		if (strspn(g.gl_pathv[i] + 8, "0123456789") !=
+		    strlen(g.gl_pathv[i] + 8)) {
+			continue;
+		}
+		if ((fd = open(g.gl_pathv[i], O_RDWR)) < 0) {
+			/*
+			 * Don't treat non-access errors as critical if we are
+			 * accessing all devices
+			 */
+			if (errno == EACCES && g.gl_pathc > 1) {
+				xo_err(EXIT_FAILURE, "unable to access SES device");
+			}
+			xo_warn("unable to access SES device: %s", g.gl_pathv[i]);
+			continue;
+		}
+
+		if (ioctl(fd, ENCIOC_GETNELM, (caddr_t) &nobj) < 0) {
+			close(fd);
+			xo_err(EXIT_FAILURE, "ENCIOC_GETNELM");
+		}
+
+		e_ptr = calloc(nobj, sizeof(encioc_element_t));
+		if (e_ptr == NULL) {
+			close(fd);
+			xo_err(EXIT_FAILURE, "calloc()");
+		}
+
+		if (ioctl(fd, ENCIOC_GETELMMAP, (caddr_t) e_ptr) < 0) {
+			close(fd);
+			xo_err(EXIT_FAILURE, "ENCIOC_GETELMMAP");
+		}
+
+		xo_open_instance("enclosures");
+
+		if (first_ses)
+			first_ses = false;
+		else
+			xo_emit("\n");
+
+		xo_emit("{t:enc/%s}: ", g.gl_pathv[i] + 5);
+		stri.bufsiz = sizeof(str);
+		stri.buf = &str[0];
+		if (ioctl(fd, ENCIOC_GETENCNAME, (caddr_t) &stri) == 0)
+			xo_emit("<{t:name/%s}>; ", stri.buf);
+		stri.bufsiz = sizeof(str);
+		stri.buf = &str[0];
+		if (ioctl(fd, ENCIOC_GETENCID, (caddr_t) &stri) == 0)
+			xo_emit("ID: {t:id/%s}", stri.buf);
+		xo_emit("\n");
+
+		xo_open_list("elements");
+		prev_type = -1;
+		for (j = 0; j < nobj; j++) {
+			/* Get the status of the element */
+			memset(&e_status, 0, sizeof(e_status));
+			e_status.elm_idx = e_ptr[j].elm_idx;
+			if (ioctl(fd, ENCIOC_GETELMSTAT,
+			    (caddr_t) &e_status) < 0) {
+				close(fd);
+				xo_err(EXIT_FAILURE, "ENCIOC_GETELMSTAT");
+			}
+
+			/*
+			 * Skip "Unsupported" elements; those usually precede
+			 * the actual device entries and are not particularly
+			 * interesting.
+			 */
+			if (e_status.cstat[0] == SES_OBJSTAT_UNSUPPORTED)
+				continue;
+
+			/* Get the description of the element */
+			memset(&e_desc, 0, sizeof(e_desc));
+			e_desc.elm_idx = e_ptr[j].elm_idx;
+			e_desc.elm_desc_len = UINT16_MAX;
+			e_desc.elm_desc_str = calloc(UINT16_MAX, sizeof(char));
+			if (e_desc.elm_desc_str == NULL) {
+				close(fd);
+				xo_err(EXIT_FAILURE, "calloc()");
+			}
+			if (ioctl(fd, ENCIOC_GETELMDESC,
+			    (caddr_t) &e_desc) < 0) {
+				close(fd);
+				xo_err(EXIT_FAILURE, "ENCIOC_GETELMDESC");
+			}
+
+			switch (e_ptr[j].elm_type) {
+			case ELMTYP_DEVICE:
+			case ELMTYP_ARRAY_DEV:
+				if (e_ptr[j].elm_type != prev_type)
+					xo_emit("Desc     Dev     Model                     Ident                Size/Status\n");
+
+				show_device(fd, e_ptr[j].elm_idx, e_status, e_desc);
+				prev_type = e_ptr[j].elm_type;
+				break;
+			case ELMTYP_THERM:
+				if (e_ptr[j].elm_type != prev_type)
+					xo_emit("\nVoltages: ");
+				else
+					xo_emit(", ");
+				prev_type = e_ptr[j].elm_type;
+				show_therm(e_status, e_desc);
+				break;
+			case ELMTYP_VOM:
+				if (e_ptr[j].elm_type != prev_type)
+					xo_emit("\nTemperatures: ");
+				else
+					xo_emit(", ");
+				prev_type = e_ptr[j].elm_type;
+				show_vom(e_status, e_desc);
+				break;
+			default:
+				/*
+				 * Ignore stuff not interesting to the user.
+				 */
+				break;
+			}
+		}
+		if (prev_type != (elm_type_t)-1 &&
+		    prev_type != ELMTYP_DEVICE && prev_type != ELMTYP_ARRAY_DEV)
+			xo_emit("\n");
 		xo_close_list("elements");
 		free(e_ptr);
 		close(fd);

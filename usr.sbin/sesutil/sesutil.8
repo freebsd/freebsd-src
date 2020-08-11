@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2017
+.Dd December 12, 2019
 .Dt SESUTIL 8
 .Os
 .Sh NAME
@@ -43,6 +43,10 @@
 .Op on | off
 .Nm
 .Cm map
+.Op Fl -libxo Ar options
+.Op Fl u Ar /dev/sesN
+.Nm
+.Cm show
 .Op Fl -libxo Ar options
 .Op Fl u Ar /dev/sesN
 .Nm
@@ -97,6 +101,11 @@ must be the element ID of a valid item attached to the controller.
 Use the
 .Cm map
 command to list the elements attached to a controller.
+.It Cm show Op Fl u Ar /dev/sesN
+Display user-friendly summary of specified
+.Xr ses 4
+controller.
+If no controller is specified, all controllers are mapped.
 .It Cm map Op Fl u Ar /dev/sesN
 Display a map of all elements connected to the specified
 .Xr ses 4
