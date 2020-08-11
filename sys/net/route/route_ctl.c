@@ -76,6 +76,12 @@ struct rib_subscription {
 	struct epoch_context			epoch_ctx;
 };
 
+static int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc);
+static int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc);
+static int change_route(struct rib_head *, struct rt_addrinfo *,
+    struct rib_cmd_info *rc);
 static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
 
@@ -128,7 +134,7 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
 	return (add_route(rnh, info, rc));
 }
 
-int
+static int
 add_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
@@ -389,7 +395,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 	return (rt);
 }
 
-int
+static int
 del_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
@@ -566,7 +572,7 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 	return (0);
 }
 
-int
+static int
 change_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
