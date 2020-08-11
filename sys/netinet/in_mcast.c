@@ -229,16 +229,9 @@ inm_is_ifp_detached(const struct in_multi *inm)
  * dedicated thread to avoid deadlocks when draining inm_release tasks.
  */
 TASKQUEUE_DEFINE_THREAD(inm_free);
-static struct task inm_free_task;
 static struct in_multi_head inm_free_list = SLIST_HEAD_INITIALIZER();
 static void inm_release_task(void *arg __unused, int pending __unused);
-
-static void
-inm_init(void *arg __unused)
-{
-	TASK_INIT(&inm_free_task, 0, inm_release_task, NULL);
-}
-SYSINIT(inm_init, SI_SUB_TASKQ, SI_ORDER_ANY, inm_init, NULL);
+static struct task inm_free_task = TASK_INITIALIZER(0, inm_release_task, NULL);
 
 void
 inm_release_wait(void *arg __unused)
