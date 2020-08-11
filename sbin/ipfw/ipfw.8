@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2019
+.Dd August 10, 2020
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -600,7 +600,7 @@ See Section
 By name or address
 .It Misc. IP header fields
 Version, type of service, datagram length, identification,
-fragment flag (non-zero IP offset),
+fragmentation flags,
 Time To Live
 .It IP options
 .It IPv6 Extension headers
@@ -1602,12 +1602,29 @@ Matches IPv6 packets containing any of the flow labels given in
 .Ar labels .
 .Ar labels
 is a comma separated list of numeric flow labels.
-.It Cm frag
-Matches packets that are fragments and not the first
-fragment of an IP datagram.
-Note that these packets will not have
-the next protocol header (e.g.\& TCP, UDP) so options that look into
-these headers cannot match.
+.It Cm frag Ar spec
+Matches IPv4 packets whose
+.Cm ip_off 
+field contains the comma separated list of IPv4 fragmentation
+options specified in
+.Ar spec .
+The recognized options are:
+.Cm df
+.Pq Dv don't fragment ,
+.Cm mf
+.Pq Dv more fragments ,
+.Cm rf
+.Pq Dv reserved fragment bit
+.Cm offset
+.Pq Dv non-zero fragment offset .
+The absence of a particular options may be denoted
+with a
+.Ql \&! .
+.Pp
+Empty list of options defaults to matching on non-zero fragment offset.
+Such rule would match all not the first fragment datagrams,
+both IPv4 and IPv6.
+This is a backward compatibility with older rulesets.
 .It Cm gid Ar group
 Matches all TCP or UDP packets sent by or received for a
 .Ar group .
