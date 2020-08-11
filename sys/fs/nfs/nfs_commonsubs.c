@@ -1058,25 +1058,6 @@ nfsaddr2_match(NFSSOCKADDR_T nam1, NFSSOCKADDR_T nam2)
 }
 
 /*
- * Trim trailing data off the mbuf list being built.
- */
-void
-newnfs_trimtrailing(nd, mb, bpos)
-	struct nfsrv_descript *nd;
-	struct mbuf *mb;
-	caddr_t bpos;
-{
-
-	if (mb->m_next) {
-		m_freem(mb->m_next);
-		mb->m_next = NULL;
-	}
-	mb->m_len = bpos - mtod(mb, caddr_t);
-	nd->nd_mb = mb;
-	nd->nd_bpos = bpos;
-}
-
-/*
  * Dissect a file handle on the client.
  */
 int
@@ -3650,7 +3631,7 @@ nfsrv_nfsuserdport(struct nfsuserd_args *nargs, NFSPROC_T *p)
  	}
 	rp->nr_vers = RPCNFSUSERD_VERS;
 	if (error == 0)
-		error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0);
+		error = newnfs_connect(NULL, rp, NFSPROCCRED(p), p, 0, false);
 	if (error == 0) {
 		NFSLOCKNAMEID();
 		nfsrv_nfsuserd = RUNNING;
