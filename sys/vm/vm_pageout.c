@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/blockcount.h>
 #include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -163,6 +164,12 @@ SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
 SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RWTUN, &vm_pageout_update_period, 0,
 	"Maximum active LRU update period");
+
+/* Access with get_pageout_threads_per_domain(). */
+static int pageout_threads_per_domain = 1;
+SYSCTL_INT(_vm, OID_AUTO, pageout_threads_per_domain, CTLFLAG_RDTUN,
+    &pageout_threads_per_domain, 0,
+    "Number of worker threads comprising each per-domain pagedaemon");
   
 SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RWTUN, &lowmem_period, 0,
 	"Low memory callback period");
@@ -1414,22 +1421,22 @@ vm_pageout_reinsert_inactive(struct scan_state *ss, struct vm_batchqueue *bq,
 	vm_batchqueue_init(bq);
 }
 
-/*
- * Attempt to reclaim the requested number of pages from the inactive queue.
- * Returns true if the shortage was addressed.
- */
-static int
-vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
-    int *addl_shortage)
+static void
+vm_pageout_scan_inactive(struct vm_domain *vmd, int page_shortage)
 {
+	struct timeval start, end;
 	struct scan_state ss;
 	struct vm_batchqueue rq;
+	struct vm_page marker_page;
 	vm_page_t m, marker;
 	struct vm_pagequeue *pq;
 	vm_object_t object;
 	vm_page_astate_t old, new;
-	int act_delta, addl_page_shortage, deficit, page_shortage, refs;
-	int starting_page_shortage;
+	int act_delta, addl_page_shortage, starting_page_shortage, refs;
+
+	object = NULL;
+	vm_batchqueue_init(&rq);
+	getmicrouptime(&start);
 
 	/*
 	 * The addl_page_shortage is an estimate of the number of temporarily
@@ -1440,24 +1447,14 @@ vm_pageout_scan_inactive(struct vm_domain *vmd, int shortage,
 	addl_page_shortage = 0;
 
 	/*
-	 * vmd_pageout_deficit counts the number of pages requested in
-	 * allocations that failed because of a free page shortage.  We assume
-	 * that the allocations will be reattempted and thus include the deficit
-	 * in our scan target.
-	 */
-	deficit = atomic_readandclear_int(&vmd->vmd_pageout_deficit);
-	starting_page_shortage = page_shortage = shortage + deficit;
-
-	object = NULL;
-	vm_batchqueue_init(&rq);
-
-	/*
 	 * Start scanning the inactive queue for pages that we can free.  The
 	 * scan will stop when we reach the target or we have scanned the
 	 * entire queue.  (Note that m->a.act_count is not used to make
 	 * decisions for the inactive queue, only for the active queue.)
 	 */
-	marker = &vmd->vmd_markers[PQ_INACTIVE];
+	starting_page_shortage = page_shortage;
+	marker = &marker_page;
+	vm_page_init_marker(marker, PQ_INACTIVE, 0);
 	pq = &vmd->vmd_pagequeues[PQ_INACTIVE];
 	vm_pagequeue_lock(pq);
 	vm_pageout_init_scan(&ss, pq, marker, NULL, pq->pq_cnt);
@@ -1637,7 +1634,97 @@ reinsert:
 	vm_pageout_end_scan(&ss);
 	vm_pagequeue_unlock(pq);
 
-	VM_CNT_ADD(v_dfree, starting_page_shortage - page_shortage);
+	/*
+	 * Record the remaining shortage and the progress and rate it was made.
+	 */
+	atomic_add_int(&vmd->vmd_addl_shortage, addl_page_shortage);
+	getmicrouptime(&end);
+	timevalsub(&end, &start);
+	atomic_add_int(&vmd->vmd_inactive_us,
+	    end.tv_sec * 1000000 + end.tv_usec);
+	atomic_add_int(&vmd->vmd_inactive_freed,
+	    starting_page_shortage - page_shortage);
+}
+
+/*
+ * Dispatch a number of inactive threads according to load and collect the
+ * results to prevent a coherent (CEM: incoherent?) view of paging activity on
+ * this domain.
+ */
+static int
+vm_pageout_inactive_dispatch(struct vm_domain *vmd, int shortage)
+{
+	u_int freed, pps, threads, us;
+
+	vmd->vmd_inactive_shortage = shortage;
+
+	/*
+	 * If we have more work than we can do in a quarter of our interval, we
+	 * fire off multiple threads to process it.
+	 */
+	if (vmd->vmd_inactive_threads > 1 && vmd->vmd_inactive_pps != 0 &&
+	    shortage > vmd->vmd_inactive_pps / VM_INACT_SCAN_RATE / 4) {
+		threads = vmd->vmd_inactive_threads;
+		vm_domain_pageout_lock(vmd);
+		vmd->vmd_inactive_shortage /= threads;
+		blockcount_acquire(&vmd->vmd_inactive_starting, threads - 1);
+		blockcount_acquire(&vmd->vmd_inactive_running, threads - 1);
+		wakeup(&vmd->vmd_inactive_shortage);
+		vm_domain_pageout_unlock(vmd);
+	}
+
+	/* Run the local thread scan. */
+	vm_pageout_scan_inactive(vmd, vmd->vmd_inactive_shortage);
+
+	/*
+	 * Block until helper threads report results and then accumulate
+	 * totals.
+	 */
+	blockcount_wait(&vmd->vmd_inactive_running, NULL, "vmpoid", PVM);
+	freed = atomic_readandclear_int(&vmd->vmd_inactive_freed);
+	VM_CNT_ADD(v_dfree, freed);
+
+	/*
+	 * Calculate the per-thread paging rate with an exponential decay of
+	 * prior results.  Careful to avoid integer rounding errors with large
+	 * us values.
+	 */
+	us = max(atomic_readandclear_int(&vmd->vmd_inactive_us), 1);
+	if (us > 1000000)
+		/* Keep rounding to tenths */
+		pps = (freed * 10) / ((us * 10) / 1000000);
+	else
+		pps = (1000000 / us) * freed;
+	vmd->vmd_inactive_pps = (vmd->vmd_inactive_pps / 2) + (pps / 2);
+
+	return (shortage - freed);
+}
+
+/*
+ * Attempt to reclaim the requested number of pages from the inactive queue.
+ * Returns true if the shortage was addressed.
+ */
+static int
+vm_pageout_inactive(struct vm_domain *vmd, int shortage, int *addl_shortage)
+{
+	struct vm_pagequeue *pq;
+	u_int addl_page_shortage, deficit, page_shortage;
+	u_int starting_page_shortage;
+
+	/*
+	 * vmd_pageout_deficit counts the number of pages requested in
+	 * allocations that failed because of a free page shortage.  We assume
+	 * that the allocations will be reattempted and thus include the deficit
+	 * in our scan target.
+	 */
+	deficit = atomic_readandclear_int(&vmd->vmd_pageout_deficit);
+	starting_page_shortage = shortage + deficit;
+
+	/*
+	 * Run the inactive scan on as many threads as is necessary.
+	 */
+	page_shortage = vm_pageout_inactive_dispatch(vmd, starting_page_shortage);
+	addl_page_shortage = atomic_readandclear_int(&vmd->vmd_addl_shortage);
 
 	/*
 	 * Wake up the laundry thread so that it can perform any needed
@@ -2066,7 +2153,7 @@ vm_pageout_worker(void *arg)
 			if (vm_pageout_lowmem() && vmd->vmd_free_count > ofree)
 				shortage -= min(vmd->vmd_free_count - ofree,
 				    (u_int)shortage);
-			target_met = vm_pageout_scan_inactive(vmd, shortage,
+			target_met = vm_pageout_inactive(vmd, shortage,
 			    &addl_shortage);
 		} else
 			addl_shortage = 0;
@@ -2079,6 +2166,72 @@ vm_pageout_worker(void *arg)
 		shortage = vm_pageout_active_target(vmd) + addl_shortage;
 		vm_pageout_scan_active(vmd, shortage);
 	}
+}
+
+/*
+ * vm_pageout_helper runs additional pageout daemons in times of high paging
+ * activity.
+ */
+static void
+vm_pageout_helper(void *arg)
+{
+	struct vm_domain *vmd;
+	int domain;
+
+	domain = (uintptr_t)arg;
+	vmd = VM_DOMAIN(domain);
+
+	vm_domain_pageout_lock(vmd);
+	for (;;) {
+		msleep(&vmd->vmd_inactive_shortage,
+		    vm_domain_pageout_lockptr(vmd), PVM, "psleep", 0);
+		blockcount_release(&vmd->vmd_inactive_starting, 1);
+
+		vm_domain_pageout_unlock(vmd);
+		vm_pageout_scan_inactive(vmd, vmd->vmd_inactive_shortage);
+		vm_domain_pageout_lock(vmd);
+
+		/*
+		 * Release the running count while the pageout lock is held to
+		 * prevent wakeup races.
+		 */
+		blockcount_release(&vmd->vmd_inactive_running, 1);
+	}
+}
+
+static int
+get_pageout_threads_per_domain(void)
+{
+	static bool resolved = false;
+	int half_cpus_per_dom;
+
+	/*
+	 * This is serialized externally by the sorted autoconfig portion of
+	 * boot.
+	 */
+	if (__predict_true(resolved))
+		return (pageout_threads_per_domain);
+
+	/*
+	 * Semi-arbitrarily constrain pagedaemon threads to less than half the
+	 * total number of threads in the system as an insane upper limit.
+	 */
+	half_cpus_per_dom = (mp_ncpus / vm_ndomains) / 2;
+
+	if (pageout_threads_per_domain < 1) {
+		printf("Invalid tuneable vm.pageout_threads_per_domain value: "
+		    "%d out of valid range: [1-%d]; clamping to 1\n",
+		    pageout_threads_per_domain, half_cpus_per_dom);
+		pageout_threads_per_domain = 1;
+	} else if (pageout_threads_per_domain > half_cpus_per_dom) {
+		printf("Invalid tuneable vm.pageout_threads_per_domain value: "
+		    "%d out of valid range: [1-%d]; clamping to %d\n",
+		    pageout_threads_per_domain, half_cpus_per_dom,
+		    half_cpus_per_dom);
+		pageout_threads_per_domain = half_cpus_per_dom;
+	}
+	resolved = true;
+	return (pageout_threads_per_domain);
 }
 
 /*
@@ -2134,6 +2287,8 @@ vm_pageout_init_domain(int domain)
 	oid = SYSCTL_ADD_NODE(NULL, SYSCTL_CHILDREN(vmd->vmd_oid), OID_AUTO,
 	    "pidctrl", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	pidctrl_init_sysctl(&vmd->vmd_pid, SYSCTL_CHILDREN(oid));
+
+	vmd->vmd_inactive_threads = get_pageout_threads_per_domain();
 }
 
 static void
@@ -2184,10 +2339,11 @@ vm_pageout(void)
 {
 	struct proc *p;
 	struct thread *td;
-	int error, first, i;
+	int error, first, i, j, pageout_threads;
 
 	p = curproc;
 	td = curthread;
+	pageout_threads = get_pageout_threads_per_domain();
 
 	mtx_init(&vm_oom_ratelim_mtx, "vmoomr", NULL, MTX_DEF);
 	swap_pager_swap_init();
@@ -2206,6 +2362,14 @@ vm_pageout(void)
 			if (error != 0)
 				panic("starting pageout for domain %d: %d\n",
 				    i, error);
+		}
+		for (j = 0; j < pageout_threads - 1; j++) {
+			error = kthread_add(vm_pageout_helper,
+			    (void *)(uintptr_t)i, p, NULL, 0, 0,
+			    "dom%d helper%d", i, j);
+			if (error != 0)
+				panic("starting pageout helper %d for domain "
+				    "%d: %d\n", j, i, error);
 		}
 		error = kthread_add(vm_pageout_laundry_worker,
 		    (void *)(uintptr_t)i, p, NULL, 0, 0, "laundry: dom%d", i);

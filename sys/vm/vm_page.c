@@ -421,7 +421,7 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
  * In principle, this function only needs to set the flag PG_MARKER.
  * Nonetheless, it write busies the page as a safety precaution.
  */
-static void
+void
 vm_page_init_marker(vm_page_t marker, int queue, uint16_t aflags)
 {
 
@@ -2488,7 +2488,7 @@ vm_page_zone_import(void *arg, void **store, int cnt, int domain, int flags)
 	 * main purpose is to replenish the store of free pages.
 	 */
 	if (vmd->vmd_severeset || curproc == pageproc ||
-	    !_vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
+	    !_vm_domain_allocate(vmd, VM_ALLOC_SYSTEM, cnt))
 		return (0);
 	domain = vmd->vmd_domain;
 	vm_domain_free_lock(vmd);
