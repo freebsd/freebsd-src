@@ -829,7 +829,7 @@ show(int argc, char **argv __unused)
 				break;
 			case ELMTYP_THERM:
 				if (e_ptr[j].elm_type != prev_type)
-					xo_emit("\nVoltages: ");
+					xo_emit("\nTemperatures: ");
 				else
 					xo_emit(", ");
 				prev_type = e_ptr[j].elm_type;
@@ -837,7 +837,7 @@ show(int argc, char **argv __unused)
 				break;
 			case ELMTYP_VOM:
 				if (e_ptr[j].elm_type != prev_type)
-					xo_emit("\nTemperatures: ");
+					xo_emit("\nVoltages: ");
 				else
 					xo_emit(", ");
 				prev_type = e_ptr[j].elm_type;
