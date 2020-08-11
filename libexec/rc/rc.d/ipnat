@@ -4,7 +4,6 @@
 #
 
 # PROVIDE: ipnat
-# REQUIRE: ipfilter
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr
