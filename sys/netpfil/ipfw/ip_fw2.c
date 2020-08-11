@@ -1944,7 +1944,23 @@ do {								\
 				break;
 
 			case O_FRAG:
-				match = (offset != 0);
+				if (is_ipv4) {
+					/*
+					 * Since flags_match() works with
+					 * uint8_t we pack ip_off into 8 bits.
+					 * For this match offset is a boolean.
+					 */
+					match = flags_match(cmd,
+					    ((ntohs(ip->ip_off) & ~IP_OFFMASK)
+					    >> 8) | (offset != 0));
+				} else {
+					/*
+					 * Compatiblity: historically bare
+					 * "frag" would match IPv6 fragments.
+					 */
+					match = (cmd->arg1 == 0x1 &&
+					    (offset != 0));
+				}
 				break;
 
 			case O_IN:	/* "out" is "not in" */
