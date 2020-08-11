@@ -144,7 +144,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	struct radix_node *rn;
 	struct ifaddr *ifa;
 	int error, flags;
-	struct epoch_tracker et;
 
 	dst = info->rti_info[RTAX_DST];
 	gateway = info->rti_info[RTAX_GATEWAY];
@@ -168,9 +167,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		ifa_ref(info->rti_ifa);
 	}
 
-	NET_EPOCH_ENTER(et);
 	error = nhop_create_from_info(rnh, info, &nh);
-	NET_EPOCH_EXIT(et);
 	if (error != 0) {
 		ifa_free(info->rti_ifa);
 		return (error);
