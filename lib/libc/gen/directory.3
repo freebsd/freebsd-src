@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2019
+.Dd August 1, 2020
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -242,7 +242,7 @@ returns the integer file descriptor associated with the named
 .Em directory stream ,
 see
 .Xr open 2 .
-.Pp
+.Sh EXAMPLES
 Sample code which searches a directory for entry ``name'' is:
 .Bd -literal -offset indent
 dirp = opendir(".");
@@ -258,6 +258,76 @@ while ((dp = readdir(dirp)) != NULL) {
 (void)closedir(dirp);
 return (NOT_FOUND);
 .Ed
+.Sh ERRORS
+The
+.Fn opendir
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EACCES
+Search permission is denied for the component of the path prefix of
+.Fa filename
+or read permission is denied for
+.Fa filename .
+.It Bq Er ELOOP
+A loop exists in symbolic links encountered during resolution of the
+.Fa filename
+argument.
+.It Bq Er ENAMETOOLONG
+The length of the
+.Fa filename
+argument exceeds
+.Brq Dv PATH_MAX
+or
+a pathname component is longer than
+.Brq Dv NAME_MAX .
+.It Bq Er ENOENT
+A component of
+.Fa filename
+does not name an existing directory or
+.Fa filename
+is an empty string.
+.It Bq Er ENOTDIR
+A component of
+.Fa filename
+is not a directory.
+.El
+.Pp
+The
+.Fn fdopendir
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument is not a valid file descriptor open for reading.
+.It Bq Er ENOTDIR
+The descriptor
+.Fa fd
+is not associated with a directory.
+.El
+.Pp
+The
+.Fn readdir
+and
+.Fn readdir_r
+functions may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr getdents 2 .
+.Pp
+The
+.Fn telldir
+function may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr realloc 3 .
+.Pp
+The
+.Fn closedir
+function may also fail and set
+.Va errno
+for any of the errors specified for the routine
+.Xr close 2 .
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr lseek 2 ,
