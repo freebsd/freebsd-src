@@ -630,6 +630,7 @@ vm_page_t vm_page_find_least(vm_object_t, vm_pindex_t);
 void vm_page_free_invalid(vm_page_t);
 vm_page_t vm_page_getfake(vm_paddr_t paddr, vm_memattr_t memattr);
 void vm_page_initfake(vm_page_t m, vm_paddr_t paddr, vm_memattr_t memattr);
+void vm_page_init_marker(vm_page_t marker, int queue, uint16_t aflags);
 int vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_invalid(vm_page_t m);
 void vm_page_launder(vm_page_t m);
