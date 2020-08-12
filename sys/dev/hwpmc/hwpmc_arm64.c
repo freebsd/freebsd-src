@@ -479,11 +479,12 @@ pmc_arm64_initialize()
 {
 	struct pmc_mdep *pmc_mdep;
 	struct pmc_classdep *pcd;
-	int idcode;
+	int idcode, impcode;
 	int reg;
 
 	reg = arm64_pmcr_read();
 	arm64_npmcs = (reg & PMCR_N_MASK) >> PMCR_N_SHIFT;
+	impcode = (reg & PMCR_IMP_MASK) >> PMCR_IMP_SHIFT;
 	idcode = (reg & PMCR_IDCODE_MASK) >> PMCR_IDCODE_SHIFT;
 
 	PMCDBG1(MDP, INI, 1, "arm64-init npmcs=%d", arm64_npmcs);
@@ -498,13 +499,24 @@ pmc_arm64_initialize()
 	/* Just one class */
 	pmc_mdep = pmc_mdep_alloc(1);
 
-	switch (idcode) {
-	case PMCR_IDCODE_CORTEX_A57:
-	case PMCR_IDCODE_CORTEX_A72:
-		pmc_mdep->pmd_cputype = PMC_CPU_ARMV8_CORTEX_A57;
+	switch(impcode) {
+	case PMCR_IMP_ARM:
+		switch (idcode) {
+		case PMCR_IDCODE_CORTEX_A76:
+		case PMCR_IDCODE_NEOVERSE_N1:
+			pmc_mdep->pmd_cputype = PMC_CPU_ARMV8_CORTEX_A76;
+			break;
+		case PMCR_IDCODE_CORTEX_A57:
+		case PMCR_IDCODE_CORTEX_A72:
+			pmc_mdep->pmd_cputype = PMC_CPU_ARMV8_CORTEX_A57;
+			break;
+		default:
+		case PMCR_IDCODE_CORTEX_A53:
+			pmc_mdep->pmd_cputype = PMC_CPU_ARMV8_CORTEX_A53;
+			break;
+		}
 		break;
 	default:
-	case PMCR_IDCODE_CORTEX_A53:
 		pmc_mdep->pmd_cputype = PMC_CPU_ARMV8_CORTEX_A53;
 		break;
 	}
