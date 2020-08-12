@@ -967,8 +967,13 @@ void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 void	vrefl(struct vnode *vp);
 void	vrefact(struct vnode *vp);
-int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
+static __inline int
+vrefcnt(struct vnode *vp)
+{
+
+	return (vp->v_usecount);
+}
 
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);
