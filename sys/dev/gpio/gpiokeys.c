@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 #include "opt_kbd.h"
+#include "opt_evdev.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,6 +56,11 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/gpio/gpiokeys.h>
+
+#ifdef EVDEV_SUPPORT
+#include <dev/evdev/evdev.h>
+#include <dev/evdev/input.h>
+#endif
 
 #define	KBD_DRIVER_NAME	"gpiokeys"
 
@@ -99,6 +105,9 @@ struct gpiokey
 	struct resource		*irq_res;
 	void			*intr_hl;
 	struct mtx		mtx;
+#ifdef EVDEV_SUPPORT
+	uint32_t		evcode;
+#endif
 	uint32_t		keycode;
 	int			autorepeat;
 	struct callout		debounce_callout;
@@ -115,6 +124,9 @@ struct gpiokeys_softc
 	struct gpiokey	*sc_keys;
 	int		sc_total_keys;
 
+#ifdef EVDEV_SUPPORT
+	struct evdev_dev	*sc_evdev;
+#endif
 	keyboard_t	sc_kbd;
 	keymap_t	sc_keymap;
 	accentmap_t	sc_accmap;
@@ -171,26 +183,34 @@ gpiokeys_put_key(struct gpiokeys_softc *sc, uint32_t key)
 }
 
 static void
-gpiokeys_key_event(struct gpiokeys_softc *sc, uint16_t keycode, int pressed)
+gpiokeys_key_event(struct gpiokeys_softc *sc, struct gpiokey *key, int pressed)
 {
-	uint32_t key;
-
-
-	key = keycode & SCAN_KEYCODE_MASK;
-
-	if (!pressed)
-		key |= KEY_RELEASE;
+	uint32_t code;
 
 	GPIOKEYS_LOCK(sc);
-	if (keycode & SCAN_PREFIX_E0)
-		gpiokeys_put_key(sc, 0xe0);
-	else if (keycode & SCAN_PREFIX_E1)
-		gpiokeys_put_key(sc, 0xe1);
+#ifdef EVDEV_SUPPORT
+	if (key->evcode != GPIOKEY_NONE &&
+	    (evdev_rcpt_mask & EVDEV_RCPT_HW_KBD) != 0) {
+		evdev_push_key(sc->sc_evdev, key->evcode, pressed);
+		evdev_sync(sc->sc_evdev);
+	}
+#endif
+	if (key->keycode != GPIOKEY_NONE) {
+		code = key->keycode & SCAN_KEYCODE_MASK;
+		if (!pressed)
+			code |= KEY_RELEASE;
 
-	gpiokeys_put_key(sc, key);
+		if (key->keycode & SCAN_PREFIX_E0)
+			gpiokeys_put_key(sc, 0xe0);
+		else if (key->keycode & SCAN_PREFIX_E1)
+			gpiokeys_put_key(sc, 0xe1);
+
+		gpiokeys_put_key(sc, code);
+	}
 	GPIOKEYS_UNLOCK(sc);
 
-	gpiokeys_event_keyinput(sc);
+	if (key->keycode != GPIOKEY_NONE)
+		gpiokeys_event_keyinput(sc);
 }
 
 static void
@@ -200,10 +220,7 @@ gpiokey_autorepeat(void *arg)
 
 	key = arg;
 
-	if (key->keycode == GPIOKEY_NONE)
-		return;
-
-	gpiokeys_key_event(key->parent_sc, key->keycode, 1);
+	gpiokeys_key_event(key->parent_sc, key, 1);
 
 	callout_reset(&key->repeat_callout, key->repeat,
 		    gpiokey_autorepeat, key);
@@ -217,12 +234,9 @@ gpiokey_debounced_intr(void *arg)
 
 	key = arg;
 
-	if (key->keycode == GPIOKEY_NONE)
-		return;
-
 	gpio_pin_is_active(key->pin, &active);
 	if (active) {
-		gpiokeys_key_event(key->parent_sc, key->keycode, 1);
+		gpiokeys_key_event(key->parent_sc, key, 1);
 		if (key->autorepeat) {
 			callout_reset(&key->repeat_callout, key->repeat_delay,
 			    gpiokey_autorepeat, key);
@@ -232,7 +246,7 @@ gpiokey_debounced_intr(void *arg)
 		if (key->autorepeat &&
 		    callout_pending(&key->repeat_callout))
 			callout_stop(&key->repeat_callout);
-		gpiokeys_key_event(key->parent_sc, key->keycode, 0);
+		gpiokeys_key_event(key->parent_sc, key, 0);
 	}
 }
 
@@ -301,6 +315,10 @@ gpiokeys_attach_key(struct gpiokeys_softc *sc, phandle_t node,
 		if (key->keycode == GPIOKEY_NONE)
 			device_printf(sc->sc_dev, "<%s> failed to map linux,code value 0x%x\n",
 			    key_name, code);
+#ifdef EVDEV_SUPPORT
+		key->evcode = code;
+		evdev_support_key(sc->sc_evdev, code);
+#endif
 	}
 	else
 		device_printf(sc->sc_dev, "<%s> no linux,code or freebsd,code property\n",
@@ -365,7 +383,6 @@ gpiokeys_detach_key(struct gpiokeys_softc *sc, struct gpiokey *key)
 	if (key->pin)
 		gpio_pin_release(key->pin);
 	GPIOKEY_UNLOCK(key);
-
 	GPIOKEY_LOCK_DESTROY(key);
 }
 
@@ -383,11 +400,14 @@ gpiokeys_probe(device_t dev)
 static int
 gpiokeys_attach(device_t dev)
 {
-	int unit;
 	struct gpiokeys_softc *sc;
 	keyboard_t *kbd;
+#ifdef EVDEV_SUPPORT
+	char *name;
+#endif
 	phandle_t keys, child;
 	int total_keys;
+	int unit;
 
 	if ((keys = ofw_bus_get_node(dev)) == -1)
 		return (ENXIO);
@@ -435,6 +455,19 @@ gpiokeys_attach(device_t dev)
 		kbdd_diag(kbd, 1);
 	}
 
+#ifdef EVDEV_SUPPORT
+	sc->sc_evdev = evdev_alloc();
+	evdev_set_name(sc->sc_evdev, device_get_desc(dev));
+
+	OF_getprop_alloc(keys, "name", (void **)&name);
+	evdev_set_phys(sc->sc_evdev, name != NULL ? name : "unknown");
+	OF_prop_free(name);
+
+	evdev_set_id(sc->sc_evdev, BUS_VIRTUAL, 0, 0, 0);
+	evdev_support_event(sc->sc_evdev, EV_SYN);
+	evdev_support_event(sc->sc_evdev, EV_KEY);
+#endif
+
 	total_keys = 0;
 
 	/* Traverse the 'gpio-keys' node and count keys */
@@ -457,6 +490,13 @@ gpiokeys_attach(device_t dev)
 			sc->sc_total_keys++;
 		}
 	}
+
+#ifdef EVDEV_SUPPORT
+	if (evdev_register_mtx(sc->sc_evdev, &sc->sc_mtx) != 0) {
+		device_printf(dev, "failed to register evdev device\n");
+		goto detach;
+	}
+#endif
 
 	return (0);
 
@@ -484,6 +524,10 @@ gpiokeys_detach(device_t dev)
 	kbd_detach(kbd);
 #endif
 	kbd_unregister(kbd);
+
+#ifdef EVDEV_SUPPORT
+	evdev_free(sc->sc_evdev);
+#endif
 
 	GPIOKEYS_LOCK_DESTROY(sc);
 	if (sc->sc_keys)
