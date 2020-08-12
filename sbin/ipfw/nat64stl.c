@@ -249,6 +249,9 @@ nat64stl_create(const char *name, uint8_t set, int ac, char *av[])
 			NEED1("IPv6 prefix6 required");
 			if ((p = strchr(*av, '/')) != NULL)
 				*p++ = '\0';
+			else
+				errx(EX_USAGE,
+				    "Prefix length required: %s", *av);
 			if (inet_pton(AF_INET6, *av, &cfg->prefix6) != 1)
 				errx(EX_USAGE,
 				    "Bad prefix: %s", *av);

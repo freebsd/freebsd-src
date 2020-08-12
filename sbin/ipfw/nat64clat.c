@@ -303,6 +303,9 @@ nat64clat_config(const char *name, uint8_t set, int ac, char **av)
 
 			if ((p = strchr(*av, '/')) != NULL)
 				*p++ = '\0';
+			else
+				errx(EX_USAGE,
+				    "Prefix length required: %s", *av);
 			if (inet_pton(AF_INET6, *av, &prefix) != 1)
 				errx(EX_USAGE,
 				    "Bad prefix: %s", *av);
