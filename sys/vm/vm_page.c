@@ -2488,7 +2488,7 @@ vm_page_zone_import(void *arg, void **store, int cnt, int domain, int flags)
 	 * main purpose is to replenish the store of free pages.
 	 */
 	if (vmd->vmd_severeset || curproc == pageproc ||
-	    !_vm_domain_allocate(vmd, VM_ALLOC_SYSTEM, cnt))
+	    !_vm_domain_allocate(vmd, VM_ALLOC_NORMAL, cnt))
 		return (0);
 	domain = vmd->vmd_domain;
 	vm_domain_free_lock(vmd);
