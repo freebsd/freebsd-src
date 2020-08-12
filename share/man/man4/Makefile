@@ -113,6 +113,7 @@ MAN=	aac.4 \
 	cloudabi.4 \
 	cmx.4 \
 	${_coretemp.4} \
+	cp2112.4 \
 	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
