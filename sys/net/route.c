@@ -1107,7 +1107,11 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 		rn = rnh->rnh_deladdr(info->rti_info[RTAX_DST],
 					info->rti_info[RTAX_NETMASK],
 					&rnh->head);
-		*perror = 0;
+		if (rn != NULL) {
+			*perror = 0;
+		} else {
+			*perror = ESRCH;
+		}
 		return (rn);
 	}
 		
