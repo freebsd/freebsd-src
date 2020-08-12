@@ -171,6 +171,7 @@ MAN=	aac.4 \
 	gif.4 \
 	gpio.4 \
 	gpioiic.4 \
+	gpiokeys.4 \
 	gpioled.4 \
 	gpioths.4 \
 	gre.4 \
