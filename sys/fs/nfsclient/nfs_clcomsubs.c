@@ -92,7 +92,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 					    nd->nd_maxextsiz, &nd->nd_bextpg);
 					mcp = (char *)(void *)PHYS_TO_DMAP(
 					  mp->m_epg_pa[nd->nd_bextpg]);
-					nd->nd_bextpgsiz = PAGE_SIZE;
+					nd->nd_bextpgsiz = mlen = PAGE_SIZE;
 				} else {
 					if (clflg)
 						NFSMCLGET(mp, M_WAITOK);
