@@ -150,8 +150,8 @@ rib6_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 int
 in6_inithead(void **head, int off, u_int fibnum)
 {
-	struct epoch_tracker et;
 	struct rib_head *rh;
+	struct rib_subscription *rs;
 
 	rh = rt_table_init(offsetof(struct sockaddr_in6, sin6_addr) << 3,
 	    AF_INET6, fibnum);
@@ -164,12 +164,9 @@ in6_inithead(void **head, int off, u_int fibnum)
 #endif
 	*head = (void *)rh;
 
-	NET_EPOCH_ENTER(et);
-	if (rib_subscribe(fibnum, AF_INET6, nd6_subscription_cb, NULL,
-	    RIB_NOTIFY_IMMEDIATE, M_NOWAIT) == NULL)
-		log(LOG_ERR, "in6_inithead(): unable to subscribe to fib %u\n",
-		    fibnum);
-	NET_EPOCH_EXIT(et);
+	rs = rib_subscribe(fibnum, AF_INET6, nd6_subscription_cb, NULL,
+	    RIB_NOTIFY_IMMEDIATE, true);
+	KASSERT(rs != NULL, ("Unable to subscribe to fib %u\n", fibnum));
 
 	return (1);
 }

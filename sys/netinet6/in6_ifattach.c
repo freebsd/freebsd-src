@@ -871,7 +871,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 	 * completed before returning. Else we risk accessing a freed
 	 * ifnet structure pointer.
 	 */
-	in6m_release_wait();
+	in6m_release_wait(NULL);
 }
 
 void

@@ -1449,78 +1449,90 @@ freebsd32_recvmsg(td, uap)
 static int
 freebsd32_copyin_control(struct mbuf **mp, caddr_t buf, u_int buflen)
 {
+	struct cmsghdr *cm;
 	struct mbuf *m;
-	void *md;
-	u_int idx, len, msglen;
+	void *in, *in1, *md;
+	u_int msglen, outlen;
 	int error;
-
-	buflen = FREEBSD32_ALIGN(buflen);
 
 	if (buflen > MCLBYTES)
 		return (EINVAL);
 
+	in = malloc(buflen, M_TEMP, M_WAITOK);
+	error = copyin(buf, in, buflen);
+	if (error != 0)
+		goto out;
+
 	/*
-	 * Iterate over the buffer and get the length of each message
-	 * in there. This has 32-bit alignment and padding. Use it to
-	 * determine the length of these messages when using 64-bit
-	 * alignment and padding.
+	 * Make a pass over the input buffer to determine the amount of space
+	 * required for 64 bit-aligned copies of the control messages.
 	 */
-	idx = 0;
-	len = 0;
-	while (idx < buflen) {
-		error = copyin(buf + idx, &msglen, sizeof(msglen));
-		if (error)
-			return (error);
-		if (msglen < sizeof(struct cmsghdr))
-			return (EINVAL);
-		msglen = FREEBSD32_ALIGN(msglen);
-		if (idx + msglen > buflen)
-			return (EINVAL);
-		idx += msglen;
-		msglen += CMSG_ALIGN(sizeof(struct cmsghdr)) -
-		    FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-		len += CMSG_ALIGN(msglen);
-	}
-
-	if (len > MCLBYTES)
-		return (EINVAL);
-
-	m = m_get(M_WAITOK, MT_CONTROL);
-	if (len > MLEN)
-		MCLGET(m, M_WAITOK);
-	m->m_len = len;
-
-	md = mtod(m, void *);
+	in1 = in;
+	outlen = 0;
 	while (buflen > 0) {
-		error = copyin(buf, md, sizeof(struct cmsghdr));
-		if (error)
+		if (buflen < sizeof(*cm)) {
+			error = EINVAL;
 			break;
-		msglen = *(u_int *)md;
-		msglen = FREEBSD32_ALIGN(msglen);
-
-		/* Modify the message length to account for alignment. */
-		*(u_int *)md = msglen + CMSG_ALIGN(sizeof(struct cmsghdr)) -
-		    FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-
-		md = (char *)md + CMSG_ALIGN(sizeof(struct cmsghdr));
-		buf += FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-		buflen -= FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-
-		msglen -= FREEBSD32_ALIGN(sizeof(struct cmsghdr));
-		if (msglen > 0) {
-			error = copyin(buf, md, msglen);
-			if (error)
-				break;
-			md = (char *)md + CMSG_ALIGN(msglen);
-			buf += msglen;
-			buflen -= msglen;
 		}
+		cm = (struct cmsghdr *)in1;
+		if (cm->cmsg_len < FREEBSD32_ALIGN(sizeof(*cm))) {
+			error = EINVAL;
+			break;
+		}
+		msglen = FREEBSD32_ALIGN(cm->cmsg_len);
+		if (msglen > buflen || msglen < cm->cmsg_len) {
+			error = EINVAL;
+			break;
+		}
+		buflen -= msglen;
+
+		in1 = (char *)in1 + msglen;
+		outlen += CMSG_ALIGN(sizeof(*cm)) +
+		    CMSG_ALIGN(msglen - FREEBSD32_ALIGN(sizeof(*cm)));
+	}
+	if (error == 0 && outlen > MCLBYTES) {
+		/*
+		 * XXXMJ This implies that the upper limit on 32-bit aligned
+		 * control messages is less than MCLBYTES, and so we are not
+		 * perfectly compatible.  However, there is no platform
+		 * guarantee that mbuf clusters larger than MCLBYTES can be
+		 * allocated.
+		 */
+		error = EINVAL;
+	}
+	if (error != 0)
+		goto out;
+
+	m = m_get2(outlen, M_WAITOK, MT_CONTROL, 0);
+	m->m_len = outlen;
+	md = mtod(m, void *);
+
+	/*
+	 * Make a second pass over input messages, copying them into the output
+	 * buffer.
+	 */
+	in1 = in;
+	while (outlen > 0) {
+		/* Copy the message header and align the length field. */
+		cm = md;
+		memcpy(cm, in1, sizeof(*cm));
+		msglen = cm->cmsg_len - FREEBSD32_ALIGN(sizeof(*cm));
+		cm->cmsg_len = CMSG_ALIGN(sizeof(*cm)) + msglen;
+
+		/* Copy the message body. */
+		in1 = (char *)in1 + FREEBSD32_ALIGN(sizeof(*cm));
+		md = (char *)md + CMSG_ALIGN(sizeof(*cm));
+		memcpy(md, in1, msglen);
+		in1 = (char *)in1 + FREEBSD32_ALIGN(msglen);
+		md = (char *)md + CMSG_ALIGN(msglen);
+		KASSERT(outlen >= CMSG_ALIGN(sizeof(*cm)) + CMSG_ALIGN(msglen),
+		    ("outlen %u underflow, msglen %u", outlen, msglen));
+		outlen -= CMSG_ALIGN(sizeof(*cm)) + CMSG_ALIGN(msglen);
 	}
 
-	if (error)
-		m_free(m);
-	else
-		*mp = m;
+	*mp = m;
+out:
+	free(in, M_TEMP);
 	return (error);
 }
 

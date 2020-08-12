@@ -180,7 +180,7 @@ MK_SYSTEM_LINKER=	no
 .if defined(CROSS_TOOLCHAIN_PREFIX)
 CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 .endif
-XBINUTILS=	AS AR LD NM OBJCOPY RANLIB SIZE STRINGS
+XBINUTILS=	AS AR LD NM OBJCOPY RANLIB SIZE STRINGS STRIPBIN
 .for BINUTIL in ${XBINUTILS}
 .if defined(CROSS_BINUTILS_PREFIX) && \
     exists(${CROSS_BINUTILS_PREFIX}/${${BINUTIL}})
@@ -554,6 +554,20 @@ PKG_VERSION=	${_REVISION}${EXTRA_REVISION}
 .endif
 .endif	# !defined(PKG_VERSION)
 
+.if !defined(PKG_TIMESTAMP)
+TIMEEPOCHNOW=	%s
+SOURCE_DATE_EPOCH=	${TIMEEPOCHNOW:gmtime}
+.else
+SOURCE_DATE_EPOCH=	${PKG_TIMESTAMP}
+.endif
+
+PKG_NAME_PREFIX?=	FreeBSD
+PKG_MAINTAINER?=	re@FreeBSD.org
+PKG_WWW?=		https://www.FreeBSD.org
+.export PKG_NAME_PREFIX
+.export PKG_MAINTAINER
+.export PKG_WWW
+
 .if !defined(_MKSHOWCONFIG)
 _CPUTYPE!=	MAKEFLAGS= CPUTYPE=${_TARGET_CPUTYPE} ${MAKE} -f /dev/null \
 		-m ${.CURDIR}/share/mk MK_AUTO_OBJ=no -V CPUTYPE
@@ -750,7 +764,7 @@ CROSSENV+=	CC="${XCC} ${XCFLAGS}" CXX="${XCXX} ${XCXXFLAGS} ${XCFLAGS}" \
 		AS="${XAS}" AR="${XAR}" LD="${XLD}" LLVM_LINK="${XLLVM_LINK}" \
 		NM=${XNM} OBJCOPY="${XOBJCOPY}" \
 		RANLIB=${XRANLIB} STRINGS=${XSTRINGS} \
-		SIZE="${XSIZE}"
+		SIZE="${XSIZE}" STRIPBIN="${XSTRIPBIN}"
 
 .if defined(CROSS_BINUTILS_PREFIX) && exists(${CROSS_BINUTILS_PREFIX})
 # In the case of xdev-build tools, CROSS_BINUTILS_PREFIX won't be a
@@ -1791,6 +1805,7 @@ KSTAGEDIR?=	${OBJTOP}/kernelstage
 REPODIR?=	${OBJROOT}repo
 PKG_FORMAT?=	txz
 PKGSIGNKEY?=	# empty
+PKG_OUTPUT_DIR?=	${PKG_VERSION}
 
 .ORDER:		stage-packages create-packages
 .ORDER:		create-packages create-world-packages
@@ -1840,6 +1855,7 @@ create-packages-kernel:	_pkgbootstrap _repodir .PHONY
 		${MAKE} -f Makefile.inc1 \
 			DESTDIR=${KSTAGEDIR} \
 			PKG_VERSION=${PKG_VERSION} DISTDIR=kernel \
+			SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 			create-kernel-packages
 
 create-packages: .PHONY create-packages-world create-packages-kernel
@@ -1856,6 +1872,7 @@ create-world-packages:	_pkgbootstrap .PHONY
 	done > ${WSTAGEDIR}/packages.mk
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 create-world-packages-jobs \
+		SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH} \
 		.MAKE.JOB.PREFIX=
 
 .if make(create-world-packages-jobs)
@@ -1883,7 +1900,7 @@ create-world-package-${pkgname}: .PHONY
 		create -f ${PKG_FORMAT} -M ${WSTAGEDIR}/${pkgname}.ucl \
 		-p ${WSTAGEDIR}/${pkgname}.plist \
 		-r ${WSTAGEDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .endfor
 
 _default_flavor=	-default
@@ -1905,6 +1922,9 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-e "s/%COMMENT%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${INSTALLKERNEL} kernel ${flavor}/" \
 		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1916,7 +1936,7 @@ create-kernel-packages-flavor${flavor:C,^""$,${_default_flavor},}: _pkgbootstrap
 		-M ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.ucl \
 		-p ${KSTAGEDIR}/${DISTDIR}/kernel.${INSTALLKERNEL}${flavor}.plist \
 		-r ${KSTAGEDIR}/${DISTDIR} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 . endfor
 .endif
 .if ${BUILDKERNELS:[#]} > 1 && ${NO_INSTALLEXTRAKERNELS} != "yes"
@@ -1938,6 +1958,9 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-e "s/%COMMENT%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/%DESC%/FreeBSD ${_kernel} kernel ${flavor}/" \
 		-e "s/ %VCS_REVISION%/${VCS_REVISION}/" \
+		-e "s/%PKG_NAME_PREFIX%/${PKG_NAME_PREFIX}/" \
+		-e "s/%PKG_MAINTAINER%/${PKG_MAINTAINER}/" \
+		-e "s|%PKG_WWW%|${PKG_WWW}|" \
 		${SRCDIR}/release/packages/kernel.ucl \
 		> ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl ; \
 	awk -F\" ' \
@@ -1949,7 +1972,7 @@ create-kernel-packages-extra-flavor${flavor:C,^""$,${_default_flavor},}-${_kerne
 		-M ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.ucl \
 		-p ${KSTAGEDIR}/kernel.${_kernel}/kernel.${_kernel}${flavor}.plist \
 		-r ${KSTAGEDIR}/kernel.${_kernel} \
-		-o ${REPODIR}/${PKG_ABI}/${PKG_VERSION}
+		-o ${REPODIR}/${PKG_ABI}/${PKG_OUTPUT_DIR}
 .   endfor
 .  endif
 . endfor
@@ -1965,7 +1988,7 @@ sign-packages:	_pkgbootstrap .PHONY
 		${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI)/${PKG_VERSION} \
 		${PKGSIGNKEY} ; \
 	cd ${REPODIR}/$$(${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI); \
-	ln -s ${PKG_VERSION} latest
+	ln -s ${PKG_OUTPUT_DIR} latest
 
 #
 #
@@ -2178,9 +2201,6 @@ _yacc=		usr.bin/yacc
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
-.if ${MK_LOCALES} != "no"
-_localedef=	usr.bin/localedef
-.endif
 
 # We need to build tblgen when we're building clang or lld, either as
 # bootstrap tools, or as the part of the normal build.
@@ -2229,9 +2249,13 @@ ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
 _basic_bootstrap_tools_multilink=usr.bin/grep grep,egrep,fgrep
 _basic_bootstrap_tools_multilink+=bin/test test,[
 # bootstrap tools needed by buildworld:
-_basic_bootstrap_tools=usr.bin/awk usr.bin/cut bin/expr usr.bin/gencat \
+_basic_bootstrap_tools=usr.bin/cut bin/expr usr.bin/gencat \
     usr.bin/join usr.bin/mktemp bin/rmdir usr.bin/sed usr.bin/sort \
     usr.bin/truncate usr.bin/tsort
+# Some build scripts use nawk instead of awk (this happens at least in
+# cddl/contrib/opensolaris/lib/libdtrace/common/mknames.sh) so we need both awk
+# and nawk in ${WORLDTMP}/legacy/bin.
+_basic_bootstrap_tools_multilink+=usr.bin/awk awk,nawk
 # file2c is required for building usr.sbin/config:
 _basic_bootstrap_tools+=usr.bin/file2c
 # uuencode/uudecode required for share/tabset
@@ -2295,13 +2319,12 @@ ${_bt}-links: .PHONY
 
 .for _tool in ${_bootstrap_tools_links}
 ${_bt}-link-${_tool}: .PHONY .MAKE
-	@if [ ! -e "${WORLDTMP}/legacy/bin/${_tool}" ]; then \
-		source_path=`which ${_tool}`; \
-		if [ ! -e "$${source_path}" ] ; then \
-			echo "Cannot find host tool '${_tool}'"; false; \
-		fi; \
-		ln -sfnv "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"; \
-	fi
+	@rm -f "${WORLDTMP}/legacy/bin/${_tool}"; \
+	source_path=`which ${_tool}`; \
+	if [ ! -e "$${source_path}" ] ; then \
+		echo "Cannot find host tool '${_tool}'"; false; \
+	fi; \
+	cp -f "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"
 ${_bt}-links: ${_bt}-link-${_tool}
 .endfor
 
@@ -2748,6 +2771,10 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 .if ${MK_DIALOG} != "no"
 _prebuild_libs+= gnu/lib/libdialog
 gnu/lib/libdialog__L: lib/msun__L lib/ncurses/ncursesw__L
+.endif
+
+.if ${MK_GOOGLETEST} != "no"
+_prebuild_libs+= lib/libregex
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"

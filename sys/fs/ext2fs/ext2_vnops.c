@@ -348,7 +348,7 @@ ext2_access(struct vop_access_args *ap)
 		return (EPERM);
 
 	error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-	    ap->a_accmode, ap->a_cred, NULL);
+	    ap->a_accmode, ap->a_cred);
 	return (error);
 }
 

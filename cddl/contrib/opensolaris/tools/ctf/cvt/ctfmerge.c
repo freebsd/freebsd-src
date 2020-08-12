@@ -665,6 +665,7 @@ wq_init(workqueue_t *wq, int nfiles)
 
 	for (i = 0; i < nslots; i++) {
 		pthread_mutex_init(&wq->wq_wip[i].wip_lock, NULL);
+		pthread_cond_init(&wq->wq_wip[i].wip_cv, NULL);
 		wq->wq_wip[i].wip_batchid = wq->wq_next_batchid++;
 	}
 

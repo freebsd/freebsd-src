@@ -29,6 +29,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_pci.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -207,8 +208,10 @@ static int
 apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 {
 	struct apei_pcie_error *p = (struct apei_pcie_error *)(ged + 1);
+	int h = 0, off;
+#ifdef DEV_PCI
 	device_t dev;
-	int h = 0, off, sev;
+	int sev;
 
 	if ((p->ValidationBits & 0x8) == 0x8) {
 		mtx_lock(&Giant);
@@ -235,6 +238,7 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	}
 	if (h)
 		return (h);
+#endif
 
 	printf("APEI %s PCIe Error:\n", apei_severity(ged->ErrorSeverity));
 	if (p->ValidationBits & 0x01)
@@ -344,7 +348,7 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	uint32_t sev;
 	int i, c, off;
 
-	if (ges->BlockStatus == 0)
+	if (ges == NULL || ges->BlockStatus == 0)
 		return (0);
 
 	c = (ges->BlockStatus >> 4) & 0x3ff;
@@ -359,7 +363,8 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 
 	/* Acknowledge the error has been processed. */
 	ges->BlockStatus = 0;
-	if (!copy && ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2) {
+	if (!copy && ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2 &&
+	    ge->res2) {
 		uint64_t val = READ8(ge->res2, 0);
 		val &= ge->v2.ReadAckPreserve;
 		val |= ge->v2.ReadAckWrite;
@@ -391,7 +396,7 @@ apei_nmi_handler(void)
 		return (0);
 
 	ges = (ACPI_HEST_GENERIC_STATUS *)ge->buf;
-	if (ges->BlockStatus == 0)
+	if (ges == NULL || ges->BlockStatus == 0)
 		return (0);
 
 	/* If ACPI told the error is fatal -- make it so. */
@@ -405,7 +410,8 @@ apei_nmi_handler(void)
 
 	/* Acknowledge the error has been processed. */
 	ges->BlockStatus = 0;
-	if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2) {
+	if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2 &&
+	    ge->res2) {
 		uint64_t val = READ8(ge->res2, 0);
 		val &= ge->v2.ReadAckPreserve;
 		val |= ge->v2.ReadAckWrite;
@@ -604,13 +610,19 @@ apei_attach(device_t dev)
 		ge->res_rid = rid++;
 		acpi_bus_alloc_gas(dev, &ge->res_type, &ge->res_rid,
 		    &ge->v1.ErrorStatusAddress, &ge->res, 0);
+		if (ge->res) {
+			ge->buf = pmap_mapdev_attr(READ8(ge->res, 0),
+			    ge->v1.ErrorBlockLength, VM_MEMATTR_WRITE_COMBINING);
+		} else {
+			device_printf(dev, "Can't allocate status resource.\n");
+		}
 		if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2) {
 			ge->res2_rid = rid++;
 			acpi_bus_alloc_gas(dev, &ge->res2_type, &ge->res2_rid,
 			    &ge->v2.ReadAckRegister, &ge->res2, 0);
+			if (ge->res2 == NULL)
+				device_printf(dev, "Can't allocate ack resource.\n");
 		}
-		ge->buf = pmap_mapdev_attr(READ8(ge->res, 0),
-		    ge->v1.ErrorBlockLength, VM_MEMATTR_WRITE_COMBINING);
 		if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_POLLED) {
 			callout_init(&ge->poll, 1);
 			callout_reset(&ge->poll,
@@ -648,7 +660,10 @@ apei_detach(device_t dev)
 
 	while ((ge = TAILQ_FIRST(&sc->ges)) != NULL) {
 		TAILQ_REMOVE(&sc->ges, ge, link);
-		bus_release_resource(dev, ge->res_type, ge->res_rid, ge->res);
+		if (ge->res) {
+			bus_release_resource(dev, ge->res_type,
+			    ge->res_rid, ge->res);
+		}
 		if (ge->res2) {
 			bus_release_resource(dev, ge->res2_type,
 			    ge->res2_rid, ge->res2);
@@ -659,7 +674,10 @@ apei_detach(device_t dev)
 			swi_remove(&ge->swi_ih);
 			free(ge->copybuf, M_DEVBUF);
 		}
-		pmap_unmapdev((vm_offset_t)ge->buf, ge->v1.ErrorBlockLength);
+		if (ge->buf) {
+			pmap_unmapdev((vm_offset_t)ge->buf,
+			    ge->v1.ErrorBlockLength);
+		}
 		free(ge, M_DEVBUF);
 	}
 	return (0);

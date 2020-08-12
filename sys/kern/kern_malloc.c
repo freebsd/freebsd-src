@@ -862,40 +862,6 @@ zfree(void *addr, struct malloc_type *mtp)
 	malloc_type_freed(mtp, size);
 }
 
-void
-free_domain(void *addr, struct malloc_type *mtp)
-{
-	uma_zone_t zone;
-	uma_slab_t slab;
-	u_long size;
-
-#ifdef MALLOC_DEBUG
-	if (free_dbg(&addr, mtp) != 0)
-		return;
-#endif
-
-	/* free(NULL, ...) does nothing */
-	if (addr == NULL)
-		return;
-
-	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
-	if (slab == NULL)
-		panic("free_domain: address %p(%p) has not been allocated.\n",
-		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
-
-	if (__predict_true(!malloc_large_slab(slab))) {
-		size = zone->uz_size;
-#ifdef INVARIANTS
-		free_save_type(addr, mtp, size);
-#endif
-		uma_zfree_domain(zone, addr, slab);
-	} else {
-		size = malloc_large_size(slab);
-		free_large(addr, size);
-	}
-	malloc_type_freed(mtp, size);
-}
-
 /*
  *	realloc: change the size of a memory block
  */

@@ -1637,7 +1637,7 @@ static struct buf *
 buf_alloc(struct bufdomain *bd)
 {
 	struct buf *bp;
-	int freebufs;
+	int freebufs, error;
 
 	/*
 	 * We can only run out of bufs in the buf zone if the average buf
@@ -1660,8 +1660,10 @@ buf_alloc(struct bufdomain *bd)
 	if (freebufs == bd->bd_lofreebuffers)
 		bufspace_daemon_wakeup(bd);
 
-	if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0)
-		panic("getnewbuf_empty: Locked buf %p on free queue.", bp);
+	error = BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
+	KASSERT(error == 0, ("%s: BUF_LOCK on free buf %p: %d.", __func__, bp,
+	    error));
+	(void)error;
 
 	KASSERT(bp->b_vp == NULL,
 	    ("bp: %p still has vnode %p.", bp, bp->b_vp));

@@ -4423,6 +4423,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	u_int32_t callback;
 	struct nfsdsession *sep = NULL;
 	uint64_t tval;
+	bool dotls;
 
 	nd = malloc(sizeof(*nd), M_TEMP, M_WAITOK | M_ZERO);
 	cred = newnfs_getcred();
@@ -4547,6 +4548,9 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	/*
 	 * Call newnfs_connect(), as required, and then newnfs_request().
 	 */
+	dotls = false;
+	if ((clp->lc_flags & LCL_TLSCB) != 0)
+		dotls = true;
 	(void) newnfs_sndlock(&clp->lc_req.nr_lock);
 	if (clp->lc_req.nr_client == NULL) {
 		if ((clp->lc_flags & LCL_NFSV41) != 0) {
@@ -4554,10 +4558,10 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 			nfsrv_freesession(sep, NULL);
 		} else if (nd->nd_procnum == NFSV4PROC_CBNULL)
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
-			    NULL, 1);
+			    NULL, 1, dotls);
 		else
 			error = newnfs_connect(NULL, &clp->lc_req, cred,
-			    NULL, 3);
+			    NULL, 3, dotls);
 	}
 	newnfs_sndunlock(&clp->lc_req.nr_lock);
 	NFSD_DEBUG(4, "aft sndunlock=%d\n", error);

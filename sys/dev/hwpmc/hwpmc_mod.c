@@ -5893,13 +5893,13 @@ pmc_cleanup(void)
 		KASSERT(pmc_pcpu[cpu]->pc_sb[PMC_UR] != NULL,
 		    ("[pmc,%d] Null userret cpu sample buffer cpu=%d", __LINE__,
 			cpu));
-		free_domain(pmc_pcpu[cpu]->pc_sb[PMC_HR]->ps_callchains, M_PMC);
-		free_domain(pmc_pcpu[cpu]->pc_sb[PMC_HR], M_PMC);
-		free_domain(pmc_pcpu[cpu]->pc_sb[PMC_SR]->ps_callchains, M_PMC);
-		free_domain(pmc_pcpu[cpu]->pc_sb[PMC_SR], M_PMC);
-		free_domain(pmc_pcpu[cpu]->pc_sb[PMC_UR]->ps_callchains, M_PMC);
-		free_domain(pmc_pcpu[cpu]->pc_sb[PMC_UR], M_PMC);
-		free_domain(pmc_pcpu[cpu], M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb[PMC_HR]->ps_callchains, M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb[PMC_HR], M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb[PMC_SR]->ps_callchains, M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb[PMC_SR], M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb[PMC_UR]->ps_callchains, M_PMC);
+		free(pmc_pcpu[cpu]->pc_sb[PMC_UR], M_PMC);
+		free(pmc_pcpu[cpu], M_PMC);
 	}
 
 	free(pmc_pcpu, M_PMC);

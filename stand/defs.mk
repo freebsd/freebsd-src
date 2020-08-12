@@ -237,6 +237,6 @@ ${_ILINKS}: .NOMETA
 	esac ; \
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -fhs $$path ${.TARGET}
+	ln -fns $$path ${.TARGET}
 .endif # !NO_OBJ
 .endif # __BOOT_DEFS_MK__

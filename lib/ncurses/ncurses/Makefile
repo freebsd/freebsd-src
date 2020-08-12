@@ -345,7 +345,7 @@ codes.c: MKcodes.awk
 	${AWK} -f ${NCURSES_DIR}/ncurses/tinfo/MKcodes.awk bigstrings=${USE_BIG_STRINGS} ${NCURSES_DIR}/include/Caps > codes.c
 
 lib_gen.c: MKlib_gen.sh curses.h ncurses_dll.h
-	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CPP:N${CCACHE_BIN}} ${CPPFLAGS}" \
+	LC_ALL=C sh ${NCURSES_DIR}/ncurses/base/MKlib_gen.sh "${CPP:N${CCACHE_BIN}} ${CFLAGS}" \
 	    "${AWK}" generated < curses.h >$@
 
 lib_keyname.c: keys.list MKkeyname.awk

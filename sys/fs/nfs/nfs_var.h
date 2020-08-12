@@ -324,8 +324,6 @@ int nfsm_mbufuio(struct nfsrv_descript *, struct uio *, int);
 int nfsm_fhtom(struct nfsrv_descript *, u_int8_t *, int, int);
 int nfsm_advance(struct nfsrv_descript *, int, int);
 void *nfsm_dissct(struct nfsrv_descript *, int, int);
-void newnfs_trimtrailing(struct nfsrv_descript *, struct mbuf *,
-    caddr_t);
 void newnfs_copycred(struct nfscred *, struct ucred *);
 void newnfs_copyincred(struct ucred *, struct nfscred *);
 int nfsrv_dissectacl(struct nfsrv_descript *, NFSACL_T *, int *,
@@ -680,9 +678,9 @@ int nfsvno_namei(struct nfsrv_descript *, struct nameidata *,
     vnode_t, int, struct nfsexstuff *, NFSPROC_T *, vnode_t *);
 void nfsvno_setpathbuf(struct nameidata *, char **, u_long **);
 void nfsvno_relpathbuf(struct nameidata *);
-int nfsvno_readlink(vnode_t, struct ucred *, NFSPROC_T *, struct mbuf **,
+int nfsvno_readlink(vnode_t, struct ucred *, int, NFSPROC_T *, struct mbuf **,
     struct mbuf **, int *);
-int nfsvno_read(vnode_t, off_t, int, struct ucred *, NFSPROC_T *,
+int nfsvno_read(vnode_t, off_t, int, struct ucred *, int, NFSPROC_T *,
     struct mbuf **, struct mbuf **);
 int nfsvno_write(vnode_t, off_t, int, int *, struct mbuf *, char *,
     struct ucred *, NFSPROC_T *);
@@ -748,7 +746,7 @@ int nfsvno_seek(struct nfsrv_descript *, struct vnode *, u_long, off_t *, int,
     bool *, struct ucred *, NFSPROC_T *);
 int nfsvno_allocate(struct vnode *, off_t, off_t, struct ucred *, NFSPROC_T *);
 int nfsvno_getxattr(struct vnode *, char *, uint32_t, struct ucred *,
-    struct thread *, struct mbuf **, struct mbuf **, int *);
+    uint64_t, int, struct thread *, struct mbuf **, struct mbuf **, int *);
 int nfsvno_setxattr(struct vnode *, char *, int, struct mbuf *, char *,
     struct ucred *, struct thread *);
 int nfsvno_rmxattr(struct nfsrv_descript *, struct vnode *, char *,
@@ -766,7 +764,7 @@ int newnfs_request(struct nfsrv_descript *, struct nfsmount *,
     struct ucred *, u_int32_t, u_int32_t, u_char *, int, u_int64_t *,
     struct nfsclsession *);
 int newnfs_connect(struct nfsmount *, struct nfssockreq *,
-    struct ucred *, NFSPROC_T *, int);
+    struct ucred *, NFSPROC_T *, int, bool);
 void newnfs_disconnect(struct nfssockreq *);
 int newnfs_sigintr(struct nfsmount *, NFSPROC_T *);
 

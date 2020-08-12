@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include "usb_if.h"
 
 static device_probe_t xhci_pci_probe;
-static device_attach_t xhci_pci_attach;
 static device_detach_t xhci_pci_detach;
 static usb_take_controller_t xhci_pci_take_controller;
 
@@ -80,15 +79,12 @@ static device_method_t xhci_device_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t xhci_driver = {
-	.name = "xhci",
-	.methods = xhci_device_methods,
-	.size = sizeof(struct xhci_softc),
-};
+DEFINE_CLASS_0(xhci, xhci_pci_driver, xhci_device_methods,
+    sizeof(struct xhci_softc));
 
 static devclass_t xhci_devclass;
 
-DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, NULL, NULL);
+DRIVER_MODULE(xhci, pci, xhci_pci_driver, xhci_devclass, NULL, NULL);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);
 
 static const char *
@@ -223,7 +219,7 @@ xhci_pci_port_route(device_t self, uint32_t set, uint32_t clear)
 	return (0);
 }
 
-static int
+int
 xhci_pci_attach(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);

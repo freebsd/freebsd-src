@@ -511,8 +511,12 @@ main(int argc, char **argv)
 	CPU_COPY(&rootmask, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:ILM:NO:P:R:S:TUWZa:c:def:gi:k:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
+	    "ACD:EF:G:ILM:NO:P:R:S:TUWZa:c:def:gi:k:l:m:n:o:p:qr:s:t:u:vw:z:")) != -1)
 		switch (option) {
+		case 'A':
+			args.pa_flags |= FLAG_SKIP_TOP_FN_RES;
+			break;
+
 		case 'a':	/* Annotate + callgraph */
 			args.pa_flags |= FLAG_DO_ANNOTATE;
 			args.pa_plugin = PMCSTAT_PL_ANNOTATE_CG;
@@ -586,12 +590,13 @@ main(int argc, char **argv)
 			args.pa_plugin	= PMCSTAT_PL_GPROF;
 			break;
 
-		case 'I':
-			args.pa_flags |= FLAG_SKIP_TOP_FN_RES;
-			break;
 		case 'i':
 			args.pa_flags |= FLAG_FILTER_THREAD_ID;
 			args.pa_tid = strtol(optarg, &end, 0);
+			break;
+
+		case 'I':
+			args.pa_flags |= FLAG_SHOW_OFFSET;
 			break;
 
 		case 'k':	/* pathname to the kernel */

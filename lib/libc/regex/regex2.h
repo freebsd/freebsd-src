@@ -182,6 +182,7 @@ struct re_guts {
 #		define	USEBOL	01	/* used ^ */
 #		define	USEEOL	02	/* used $ */
 #		define	BAD	04	/* something wrong */
+#		define	EMPTBR	010	/* empty branch present */
 	int nbol;		/* number of ^ used */
 	int neol;		/* number of $ used */
 	char *must;		/* match must contain this string */

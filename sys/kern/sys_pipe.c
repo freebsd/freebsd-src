@@ -230,6 +230,7 @@ static int pipe_create(struct pipe *pipe, bool backing);
 static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
+static void pipe_timestamp(struct timespec *tsp);
 #ifndef PIPE_NODIRECT
 static int pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio);
 static void pipe_destroy_write_buffer(struct pipe *wpipe);
@@ -279,7 +280,7 @@ pipe_zone_ctor(void *mem, int size, void *arg, int flags)
 	 */
 	rpipe = &pp->pp_rpipe;
 	bzero(rpipe, sizeof(*rpipe));
-	vfs_timestamp(&rpipe->pipe_ctime);
+	pipe_timestamp(&rpipe->pipe_ctime);
 	rpipe->pipe_atime = rpipe->pipe_mtime = rpipe->pipe_ctime;
 
 	wpipe = &pp->pp_wpipe;
@@ -419,6 +420,20 @@ pipe_dtor(struct pipe *dpipe)
 		funsetown(&peer->pipe_sigio);
 		pipeclose(peer);
 	}
+}
+
+/*
+ * Get a timestamp.
+ *
+ * This used to be vfs_timestamp but the higher precision is unnecessary and
+ * can very negatively affect performance in virtualized environments (e.g., on
+ * vms running on amd64 when using the rdtscp instruction).
+ */
+static void
+pipe_timestamp(struct timespec *tsp)
+{
+
+	getnanotime(tsp);
 }
 
 /*
@@ -804,7 +819,7 @@ locked_error:
 
 	/* XXX: should probably do this before getting any locks. */
 	if (error == 0)
-		vfs_timestamp(&rpipe->pipe_atime);
+		pipe_timestamp(&rpipe->pipe_atime);
 unlocked_error:
 	--rpipe->pipe_busy;
 
@@ -1290,7 +1305,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		error = 0;
 
 	if (error == 0)
-		vfs_timestamp(&wpipe->pipe_mtime);
+		pipe_timestamp(&wpipe->pipe_mtime);
 
 	/*
 	 * We have something to offer,

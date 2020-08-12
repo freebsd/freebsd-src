@@ -76,6 +76,12 @@ struct rib_subscription {
 	struct epoch_context			epoch_ctx;
 };
 
+static int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc);
+static int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc);
+static int change_route(struct rib_head *, struct rt_addrinfo *,
+    struct rib_cmd_info *rc);
 static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
 
@@ -128,7 +134,7 @@ rib_add_route(uint32_t fibnum, struct rt_addrinfo *info,
 	return (add_route(rnh, info, rc));
 }
 
-int
+static int
 add_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
@@ -138,7 +144,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	struct radix_node *rn;
 	struct ifaddr *ifa;
 	int error, flags;
-	struct epoch_tracker et;
 
 	dst = info->rti_info[RTAX_DST];
 	gateway = info->rti_info[RTAX_GATEWAY];
@@ -162,9 +167,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		ifa_ref(info->rti_ifa);
 	}
 
-	NET_EPOCH_ENTER(et);
 	error = nhop_create_from_info(rnh, info, &nh);
-	NET_EPOCH_EXIT(et);
 	if (error != 0) {
 		ifa_free(info->rti_ifa);
 		return (error);
@@ -389,7 +392,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 	return (rt);
 }
 
-int
+static int
 del_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
@@ -566,7 +569,7 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 	return (0);
 }
 
-int
+static int
 change_route(struct rib_head *rnh, struct rt_addrinfo *info,
     struct rib_cmd_info *rc)
 {
@@ -743,25 +746,25 @@ rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
 /*
  * Subscribe for the changes in the routing table specified by @fibnum and
  *  @family.
- * Needs to be run in network epoch.
  *
  * Returns pointer to the subscription structure on success.
  */
 struct rib_subscription *
 rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
-    enum rib_subscription_type type, int waitok)
+    enum rib_subscription_type type, bool waitok)
 {
 	struct rib_head *rnh;
 	struct rib_subscription *rs;
+	struct epoch_tracker et;
 	int flags = M_ZERO | (waitok ? M_WAITOK : 0);
-
-	NET_EPOCH_ASSERT();
-	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
-	rnh = rt_tables_get_rnh(fibnum, family);
 
 	rs = malloc(sizeof(struct rib_subscription), M_RTABLE, flags);
 	if (rs == NULL)
 		return (NULL);
+
+	NET_EPOCH_ENTER(et);
+	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
+	rnh = rt_tables_get_rnh(fibnum, family);
 
 	rs->func = f;
 	rs->arg = arg;
@@ -770,6 +773,7 @@ rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
 	RIB_WLOCK(rnh);
 	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
 	RIB_WUNLOCK(rnh);
+	NET_EPOCH_EXIT(et);
 
 	return (rs);
 }

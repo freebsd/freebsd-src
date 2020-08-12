@@ -454,7 +454,7 @@ vt_window_postswitch(struct vt_window *vw)
 	return (0);
 }
 
-/* vt_late_window_switch will done VT switching for regular case. */
+/* vt_late_window_switch will do VT switching for regular case. */
 static int
 vt_late_window_switch(struct vt_window *vw)
 {
@@ -2326,12 +2326,11 @@ skip_thunk:
 	case CONS_HISTORY:
 		if (*(int *)data < 0)
 			return EINVAL;
-		if (*(int *)data != vd->vd_curwindow->vw_buf.vb_history_size)
-			vtbuf_sethistory_size(&vd->vd_curwindow->vw_buf,
-			    *(int *)data);
+		if (*(int *)data != vw->vw_buf.vb_history_size)
+			vtbuf_sethistory_size(&vw->vw_buf, *(int *)data);
 		return (0);
 	case CONS_CLRHIST:
-		vtbuf_clearhistory(&vd->vd_curwindow->vw_buf);
+		vtbuf_clearhistory(&vw->vw_buf);
 		/*
 		 * Invalidate the entire visible window; it is not guaranteed
 		 * that this operation will be immediately followed by a scroll
@@ -2339,9 +2338,11 @@ skip_thunk:
 		 * to remain visible.
 		 */
 		VT_LOCK(vd);
-		vd->vd_flags |= VDF_INVALID;
+		if (vw == vd->vd_curwindow) {
+			vd->vd_flags |= VDF_INVALID;
+			vt_resume_flush_timer(vw, 0);
+		}
 		VT_UNLOCK(vd);
-		vt_resume_flush_timer(vd->vd_curwindow, 0);
 		return (0);
 	case CONS_GET:
 		/* XXX */

@@ -28,7 +28,7 @@
 .\"	@(#)telnet.1	8.6 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd September 18, 2006
+.Dd August 7, 2020
 .Dt TELNET 1
 .Os
 .Sh NAME
@@ -47,6 +47,7 @@ protocol
 .Op Fl l Ar user
 .Op Fl n Ar tracefile
 .Op Fl s Ar src_addr
+.Op Fl P Ar policy
 .Oo
 .Ar host
 .Op Ar port
@@ -189,6 +190,13 @@ for recording trace information.
 See the
 .Ic set tracefile
 command below.
+.It Fl P Ar policy
+Use IPsec policy specification string
+.Ar policy ,
+for the connections.
+See
+.Xr ipsec_set_policy 3
+for details.
 .It Fl r
 Specifies a user interface similar to
 .Xr rlogin 1 .

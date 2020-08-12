@@ -272,6 +272,9 @@ find_next_zero_bit(const unsigned long *addr, unsigned long size,
 #define	clear_bit(i, a)							\
     atomic_clear_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
 
+#define	clear_bit_unlock(i, a)						\
+    atomic_clear_rel_long(&((volatile unsigned long *)(a))[BIT_WORD(i)], BIT_MASK(i))
+
 #define	test_bit(i, a)							\
     !!(READ_ONCE(((volatile const unsigned long *)(a))[BIT_WORD(i)]) & BIT_MASK(i))
 

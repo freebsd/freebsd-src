@@ -78,6 +78,7 @@ radix_tree_exception(void *arg)
 void	*radix_tree_lookup(struct radix_tree_root *, unsigned long);
 void	*radix_tree_delete(struct radix_tree_root *, unsigned long);
 int	radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+int	radix_tree_store(struct radix_tree_root *, unsigned long, void **);
 bool	radix_tree_iter_find(struct radix_tree_root *, struct radix_tree_iter *, void ***);
 void	radix_tree_iter_delete(struct radix_tree_root *, struct radix_tree_iter *, void **);
 

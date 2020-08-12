@@ -1566,7 +1566,7 @@ vdev_probe(vdev_t *vd, zio_t *zio)
 	for (int l = 1; l < VDEV_LABELS; l++) {
 		zio_nowait(zio_read_phys(pio, vd,
 		    vdev_label_offset(vd->vdev_psize, l,
-		    offsetof(vdev_label_t, vl_pad2)), VDEV_PAD_SIZE,
+		    offsetof(vdev_label_t, vl_be)), VDEV_PAD_SIZE,
 		    abd_alloc_for_io(VDEV_PAD_SIZE, B_TRUE),
 		    ZIO_CHECKSUM_OFF, vdev_probe_done, vps,
 		    ZIO_PRIORITY_SYNC_READ, vps->vps_flags, B_TRUE));

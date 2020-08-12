@@ -357,6 +357,8 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
 #define CLSET_PRIVPORT		27	/* set privileged source port flag */
 #define CLGET_PRIVPORT		28	/* get privileged source port flag */
 #define CLSET_BACKCHANNEL	29	/* set backchannel for socket */
+#define	CLSET_TLS		30	/* set TLS for socket */
+#define	CLSET_BLOCKRCV		31	/* Temporarily block reception */
 #endif
 
 

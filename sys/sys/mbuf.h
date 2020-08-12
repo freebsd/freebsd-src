@@ -65,6 +65,7 @@ SDT_PROBE_DECLARE(sdt, , , m__init);
 SDT_PROBE_DECLARE(sdt, , , m__gethdr);
 SDT_PROBE_DECLARE(sdt, , , m__get);
 SDT_PROBE_DECLARE(sdt, , , m__getcl);
+SDT_PROBE_DECLARE(sdt, , , m__getjcl);
 SDT_PROBE_DECLARE(sdt, , , m__clget);
 SDT_PROBE_DECLARE(sdt, , , m__cljget);
 SDT_PROBE_DECLARE(sdt, , , m__cljset);

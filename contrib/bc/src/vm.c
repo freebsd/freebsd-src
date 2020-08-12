@@ -452,7 +452,7 @@ static void bc_vm_clean(void) {
 	}
 }
 
-static void bc_vm_process(const char *text, bool is_stdin) {
+static void bc_vm_process(const char *text) {
 
 	bc_parse_text(&vm.prs, text);
 
@@ -464,22 +464,7 @@ static void bc_vm_process(const char *text, bool is_stdin) {
 
 		while (BC_PARSE_CAN_PARSE(vm.prs)) vm.parse(&vm.prs);
 
-#if BC_ENABLED
-		if (BC_IS_BC) {
-
-			uint16_t *flags = BC_PARSE_TOP_FLAG_PTR(&vm.prs);
-
-			if (!is_stdin && vm.prs.flags.len == 1 &&
-			    *flags == BC_PARSE_FLAG_IF_END)
-			{
-				bc_parse_noElse(&vm.prs);
-			}
-
-			if (BC_PARSE_NO_EXEC(&vm.prs)) return;
-		}
-#endif // BC_ENABLED
-
-		bc_program_exec(&vm.prog);
+		if(BC_IS_DC || !BC_PARSE_NO_EXEC(&vm.prs)) bc_program_exec(&vm.prog);
 
 		assert(BC_IS_DC || vm.prog.results.len == 0);
 
@@ -487,6 +472,28 @@ static void bc_vm_process(const char *text, bool is_stdin) {
 
 	} while (vm.prs.l.t != BC_LEX_EOF);
 }
+
+#if BC_ENABLED
+static void bc_vm_endif(void) {
+
+	size_t i;
+	bool good;
+
+	if (BC_NO_ERR(!BC_PARSE_NO_EXEC(&vm.prs))) return;
+
+	good = true;
+
+	for (i = 0; good && i < vm.prs.flags.len; ++i) {
+		uint16_t flag = *((uint16_t*) bc_vec_item(&vm.prs.flags, i));
+		good = ((flag & BC_PARSE_FLAG_BRACE) != BC_PARSE_FLAG_BRACE);
+	}
+
+	if (good) {
+		while (BC_PARSE_IF_END(&vm.prs)) bc_vm_process("else {}");
+	}
+	else bc_parse_err(&vm.prs, BC_ERROR_PARSE_BLOCK);
+}
+#endif // BC_ENABLED
 
 static void bc_vm_file(const char *file) {
 
@@ -504,11 +511,10 @@ static void bc_vm_file(const char *file) {
 
 	BC_SIG_UNLOCK;
 
-	bc_vm_process(data, false);
+	bc_vm_process(data);
 
 #if BC_ENABLED
-	if (BC_IS_BC && BC_ERR(BC_PARSE_NO_EXEC(&vm.prs)))
-		bc_parse_err(&vm.prs, BC_ERROR_PARSE_BLOCK);
+	if (BC_IS_BC) bc_vm_endif();
 #endif // BC_ENABLED
 
 err:
@@ -589,7 +595,7 @@ restart:
 		if (vm.history.stdin_has_data) continue;
 #endif // BC_ENABLE_HISTORY
 
-		bc_vm_process(buffer.v, true);
+		bc_vm_process(buffer.v);
 		bc_vec_empty(&buffer);
 
 		if (vm.eof) break;
@@ -602,21 +608,7 @@ restart:
 		else if (BC_ERR(string))
 			bc_parse_err(&vm.prs, BC_ERROR_PARSE_STRING);
 #if BC_ENABLED
-		else if (BC_IS_BC && BC_ERR(BC_PARSE_NO_EXEC(&vm.prs))) {
-
-			size_t i;
-			bool good = true;
-
-			for (i = 0; good && i < vm.prs.flags.len; ++i) {
-				uint16_t flag = *((uint16_t*) bc_vec_item(&vm.prs.flags, i));
-				good = ((flag & BC_PARSE_FLAG_BRACE) != BC_PARSE_FLAG_BRACE);
-			}
-
-			if (good) {
-				while (BC_PARSE_IF_END(&vm.prs)) bc_vm_process("else {}", true);
-			}
-			else bc_parse_err(&vm.prs, BC_ERROR_PARSE_BLOCK);
-		}
+		else if (BC_IS_BC) bc_vm_endif();
 #endif // BC_ENABLED
 	}
 
@@ -706,7 +698,7 @@ static void bc_vm_gettext(void) {
 #endif // BC_ENABLE_NLS
 }
 
-static void bc_vm_exec(const char* env_exp_exit) {
+static void bc_vm_exec(void) {
 
 	size_t i;
 	bool has_file = false;
@@ -743,7 +735,7 @@ static void bc_vm_exec(const char* env_exp_exit) {
 
 			more = bc_read_buf(&buf, vm.exprs.v, &len);
 			bc_vec_pushByte(&buf, '\0');
-			bc_vm_process(buf.v, false);
+			bc_vm_process(buf.v);
 
 			bc_vec_npop(&buf, buf.len);
 
@@ -758,7 +750,7 @@ static void bc_vm_exec(const char* env_exp_exit) {
 
 		BC_SIG_UNLOCK;
 
-		if (getenv(env_exp_exit) != NULL) return;
+		if (!vm.no_exit_exprs) return;
 	}
 
 	for (i = 0; i < vm.files.len; ++i) {
@@ -784,7 +776,7 @@ err:
 }
 
 void  bc_vm_boot(int argc, char *argv[], const char *env_len,
-                 const char* const env_args, const char* env_exp_exit)
+                 const char* const env_args)
 {
 	int ttyin, ttyout, ttyerr;
 	struct sigaction sa;
@@ -863,9 +855,7 @@ void  bc_vm_boot(int argc, char *argv[], const char *env_len,
 		vm.maxes[BC_PROG_GLOBALS_IBASE] = BC_NUM_MAX_IBASE;
 #endif // BC_ENABLED
 
-	if (BC_IS_BC && BC_I && !(vm.flags & BC_FLAG_Q)) bc_vm_info(NULL);
-
 	BC_SIG_UNLOCK;
 
-	bc_vm_exec(env_exp_exit);
+	bc_vm_exec();
 }

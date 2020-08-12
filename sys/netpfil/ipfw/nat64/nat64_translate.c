@@ -1294,6 +1294,12 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 		ip6.ip6_hlim -= IPTTLDEC;
 	ip6.ip6_plen = htons(plen);
 	ip6.ip6_nxt = (proto == IPPROTO_ICMP) ? IPPROTO_ICMPV6: proto;
+
+	/* Handle delayed checksums if needed. */
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		in_delayed_cksum(m);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
 	/* Convert checksums. */
 	switch (proto) {
 	case IPPROTO_TCP:
@@ -1665,6 +1671,12 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 		return (NAT64RETURN);
 	}
 	nat64_init_ip4hdr(ip6, frag, plen, proto, &ip);
+
+	/* Handle delayed checksums if needed. */
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+		in6_delayed_cksum(m, plen, hlen);
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
+	}
 	/* Convert checksums. */
 	switch (proto) {
 	case IPPROTO_TCP:

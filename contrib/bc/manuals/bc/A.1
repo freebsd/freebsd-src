@@ -187,12 +187,12 @@ This is a \f[B]non\-portable extension\f[].
 .RE
 .TP
 .B \f[B]\-q\f[], \f[B]\-\-quiet\f[]
-Do not print copyright header.
-bc(1) will also suppress the header in non\-interactive mode.
+This option is for compatibility with the GNU
+bc(1) (https://www.gnu.org/software/bc/); it is a no\-op.
+Without this option, GNU bc(1) prints a copyright header.
+This bc(1) only prints the copyright header if one or more of the
+\f[B]\-v\f[], \f[B]\-V\f[], or \f[B]\-\-version\f[] options are given.
 .RS
-.PP
-This is mostly for compatibility with the GNU
-bc(1) (https://www.gnu.org/software/bc/).
 .PP
 This is a \f[B]non\-portable extension\f[].
 .RE
@@ -231,10 +231,12 @@ This means that if a file is given before an expression, the file is
 read in and evaluated first.
 .RS
 .PP
-In other bc(1) implementations, this option causes the program to
-execute the expressions and then exit.
-This bc(1) does not, unless the \f[B]BC_EXPR_EXIT\f[] is defined (see
-the \f[B]ENVIRONMENT VARIABLES\f[] section).
+After processing all expressions and files, bc(1) will exit, unless
+\f[B]\-\f[] (\f[B]stdin\f[]) was given as an argument at least once to
+\f[B]\-f\f[] or \f[B]\-\-file\f[].
+However, if any other \f[B]\-e\f[], \f[B]\-\-expression\f[],
+\f[B]\-f\f[], or \f[B]\-\-file\f[] arguments are given after that, bc(1)
+will give a fatal error and exit.
 .PP
 This is a \f[B]non\-portable extension\f[].
 .RE
@@ -246,10 +248,9 @@ If expressions are also given (see above), the expressions are evaluated
 in the order given.
 .RS
 .PP
-In other bc(1) implementations, this option causes the program to
-execute the files and then exit.
-This bc(1) does not, unless the \f[B]BC_EXPR_EXIT\f[] is defined (see
-the \f[B]ENVIRONMENT VARIABLES\f[] section).
+After processing all expressions and files, bc(1) will exit, unless
+\f[B]\-\f[] (\f[B]stdin\f[]) was given as an argument at least once to
+\f[B]\-f\f[] or \f[B]\-\-file\f[].
 .PP
 This is a \f[B]non\-portable extension\f[].
 .RE
@@ -1913,14 +1914,6 @@ greater than \f[B]1\f[] and is less than \f[B]UINT16_MAX\f[]
 (\f[B]2^16\-1\f[]), bc(1) will output lines to that length, including
 the backslash (\f[B]\\\f[]).
 The default line length is \f[B]70\f[].
-.RS
-.RE
-.TP
-.B \f[B]BC_EXPR_EXIT\f[]
-If this variable exists (no matter the contents), bc(1) will exit
-immediately after executing expressions and files given by the
-\f[B]\-e\f[] and/or \f[B]\-f\f[] command\-line options (and any
-equivalents).
 .RS
 .RE
 .SH EXIT STATUS

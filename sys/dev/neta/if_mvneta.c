@@ -2828,18 +2828,15 @@ mvneta_tx_set_csumflag(struct ifnet *ifp,
 	csum_flags = ifp->if_hwassist & m->m_pkthdr.csum_flags;
 	eh = mtod(m, struct ether_header *);
 
-	if (csum_flags == 0)
-		return;
-
 	switch (ntohs(eh->ether_type)) {
 	case ETHERTYPE_IP:
 		ipoff = ETHER_HDR_LEN;
 		break;
-	case ETHERTYPE_IPV6:
-		return;
 	case ETHERTYPE_VLAN:
 		ipoff = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 		break;
+	default:
+		csum_flags = 0;
 	}
 
 	if (__predict_true(csum_flags & (CSUM_IP|CSUM_IP_TCP|CSUM_IP_UDP))) {

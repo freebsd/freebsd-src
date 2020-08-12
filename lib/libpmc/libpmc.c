@@ -176,6 +176,11 @@ static const struct pmc_event_descr cortex_a57_event_table[] =
 	__PMC_EV_ALIAS_ARMV8_CORTEX_A57()
 };
 
+static const struct pmc_event_descr cortex_a76_event_table[] =
+{
+	__PMC_EV_ALIAS_ARMV8_CORTEX_A76()
+};
+
 /*
  * PMC_MDEP_TABLE(NAME, PRIMARYCLASS, ADDITIONAL_CLASSES...)
  *
@@ -193,6 +198,7 @@ PMC_MDEP_TABLE(cortex_a8, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
 PMC_MDEP_TABLE(cortex_a9, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
 PMC_MDEP_TABLE(cortex_a53, ARMV8, PMC_CLASS_SOFT, PMC_CLASS_ARMV8);
 PMC_MDEP_TABLE(cortex_a57, ARMV8, PMC_CLASS_SOFT, PMC_CLASS_ARMV8);
+PMC_MDEP_TABLE(cortex_a76, ARMV8, PMC_CLASS_SOFT, PMC_CLASS_ARMV8);
 PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_SOFT, PMC_CLASS_MIPS24K);
 PMC_MDEP_TABLE(mips74k, MIPS74K, PMC_CLASS_SOFT, PMC_CLASS_MIPS74K);
 PMC_MDEP_TABLE(octeon, OCTEON, PMC_CLASS_SOFT, PMC_CLASS_OCTEON);
@@ -235,6 +241,7 @@ PMC_CLASS_TABLE_DESC(cortex_a9, ARMV7, cortex_a9, armv7);
 #if	defined(__aarch64__)
 PMC_CLASS_TABLE_DESC(cortex_a53, ARMV8, cortex_a53, arm64);
 PMC_CLASS_TABLE_DESC(cortex_a57, ARMV8, cortex_a57, arm64);
+PMC_CLASS_TABLE_DESC(cortex_a76, ARMV8, cortex_a76, arm64);
 #endif
 #if defined(__mips__)
 PMC_CLASS_TABLE_DESC(beri, BERI, beri, mips);
@@ -817,6 +824,9 @@ static struct pmc_event_alias cortex_a53_aliases[] = {
 static struct pmc_event_alias cortex_a57_aliases[] = {
 	EV_ALIAS(NULL, NULL)
 };
+static struct pmc_event_alias cortex_a76_aliases[] = {
+	EV_ALIAS(NULL, NULL)
+};
 static int
 arm64_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
     struct pmc_op_pmcallocate *pmc_config __unused)
@@ -1273,6 +1283,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 			ev = cortex_a57_event_table;
 			count = PMC_EVENT_TABLE_SIZE(cortex_a57);
 			break;
+		case PMC_CPU_ARMV8_CORTEX_A76:
+			ev = cortex_a76_event_table;
+			count = PMC_EVENT_TABLE_SIZE(cortex_a76);
+			break;
 		}
 		break;
 	case PMC_CLASS_BERI:
@@ -1518,6 +1532,10 @@ pmc_init(void)
 		PMC_MDEP_INIT(cortex_a57);
 		pmc_class_table[n] = &cortex_a57_class_table_descr;
 		break;
+	case PMC_CPU_ARMV8_CORTEX_A76:
+		PMC_MDEP_INIT(cortex_a76);
+		pmc_class_table[n] = &cortex_a76_class_table_descr;
+		break;
 #endif
 #if defined(__mips__)
 	case PMC_CPU_MIPS_BERI:
@@ -1657,6 +1675,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 		case PMC_CPU_ARMV8_CORTEX_A57:
 			ev = cortex_a57_event_table;
 			evfence = cortex_a57_event_table + PMC_EVENT_TABLE_SIZE(cortex_a57);
+			break;
+		case PMC_CPU_ARMV8_CORTEX_A76:
+			ev = cortex_a76_event_table;
+			evfence = cortex_a76_event_table + PMC_EVENT_TABLE_SIZE(cortex_a76);
 			break;
 		default:	/* Unknown CPU type. */
 			break;

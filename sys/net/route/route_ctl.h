@@ -78,7 +78,7 @@ typedef void rib_subscription_cb_t(struct rib_head *rnh, struct rib_cmd_info *rc
 
 struct rib_subscription *rib_subscribe(uint32_t fibnum, int family,
     rib_subscription_cb_t *f, void *arg, enum rib_subscription_type type,
-    int waitok);
+    bool waitok);
 int rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs);
 
 #endif

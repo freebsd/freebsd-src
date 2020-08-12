@@ -372,7 +372,7 @@ MAC_CHECK_PROBE_DEFINE3(vnode_check_access, "struct ucred *",
     "struct vnode *", "accmode_t");
 
 int
-mac_vnode_check_access(struct ucred *cred, struct vnode *vp, accmode_t accmode)
+mac_vnode_check_access_impl(struct ucred *cred, struct vnode *vp, accmode_t accmode)
 {
 	int error;
 

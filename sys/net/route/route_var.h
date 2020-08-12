@@ -113,12 +113,6 @@ struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
     struct rt_addrinfo *info, struct rtentry *rto, int *perror);
 #endif
 struct rib_cmd_info;
-int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
-int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rib_cmd_info *rc);
-int change_route(struct rib_head *, struct rt_addrinfo *,
-    struct rib_cmd_info *rc);
 
 VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
 #define	RTSTAT_ADD(name, val)	\
