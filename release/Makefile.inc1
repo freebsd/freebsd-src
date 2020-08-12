@@ -23,3 +23,9 @@ GITBRANCH!=	${GIT_CMD} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\//
 GITREV!=	${GIT_CMD} rev-parse --verify --short HEAD 2>/dev/null || true
 .export GITREV
 .endif
+
+# Set the build date, primarily for snapshot builds.
+.if !defined(BUILDDATE) || empty(BUILDDATE)
+BUILDDATE!=		date +%Y%m%d
+.export BUILDDATE
+.endif

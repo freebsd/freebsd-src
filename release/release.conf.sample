@@ -24,7 +24,7 @@ DOCBRANCH="main"
 PORTBRANCH="main"
 
 ## Sample configuration for using git from ports.
-#GITCMD="/usr/local/bin/git clone --branch main"
+#GITCMD="/usr/local/bin/git clone -q --branch main"
 
 ## Set to override the default target architecture.
 #TARGET="amd64"

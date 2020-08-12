@@ -68,7 +68,7 @@ env_setup() {
 		echo "*** The devel/git port/package is required."
 		exit 1
 	fi
-	VCSCMD="/usr/local/bin/git clone"
+	VCSCMD="/usr/local/bin/git clone -q"
 
 	# The default git checkout server, and branches for src/, doc/,
 	# and ports/.
