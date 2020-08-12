@@ -368,7 +368,7 @@ aw_ir_intr(void *arg)
 			device_printf(sc->dev, "IR code status: %d\n",
 			    stat);
 		}
-		sc->dcnt = 0;
+		aw_ir_buf_reset(sc);
 	}
 	if (val & AW_IR_RXINT_ROI_EN) {
 		/* RX FIFO overflow */
@@ -469,7 +469,8 @@ aw_ir_attach(device_t dev)
 	    &sc->intrhand)) {
 		bus_release_resources(dev, aw_ir_spec, sc->res);
 		device_printf(dev, "cannot setup interrupt handler\n");
-		return (ENXIO);
+		err = ENXIO;
+		goto error;
 	}
 
 	/* Enable CIR Mode */
