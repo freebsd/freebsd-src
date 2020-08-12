@@ -1020,6 +1020,7 @@ m_getjcl(int how, short type, int flags, int size)
 		uma_zfree(zone_mbuf, m);
 		return (NULL);
 	}
+	MBUF_PROBE5(m__getjcl, how, type, flags, size, m);
 	return (m);
 }
 
