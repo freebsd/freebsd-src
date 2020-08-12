@@ -424,7 +424,7 @@ struct iflib_rxq {
 	struct pfil_head	*pfil;
 	/*
 	 * If there is a separate completion queue (IFLIB_HAS_RXCQ), this is
-	 * the command queue consumer index.  Otherwise it's unused.
+	 * the completion queue consumer index.  Otherwise it's unused.
 	 */
 	qidx_t		ifr_cq_cidx;
 	uint16_t	ifr_id;
@@ -1077,9 +1077,12 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	if_ctx_t ctx = ifp->if_softc;
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
+	if_softc_ctx_t scctx = &ctx->ifc_softc_ctx;
 	iflib_rxq_t rxq = &ctx->ifc_rxqs[kring->ring_id];
 	iflib_fl_t fl = &rxq->ifr_fl[0];
 	struct if_rxd_info ri;
+	qidx_t *cidxp;
 
 	/*
 	 * netmap only uses free list 0, to avoid out of order consumption
@@ -1093,40 +1096,56 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * First part: import newly received packets.
 	 *
 	 * nm_i is the index of the next free slot in the netmap ring,
-	 * nic_i is the index of the next received packet in the NIC ring,
-	 * and they may differ in case if_init() has been called while
+	 * nic_i is the index of the next received packet in the NIC ring
+	 * (or in the free list 0 if IFLIB_HAS_RXCQ is set), and they may
+	 * differ in case if_init() has been called while
 	 * in netmap mode. For the receive ring we have
 	 *
-	 *	nic_i = rxr->next_check;
+	 *	nic_i = fl->ifl_cidx;
 	 *	nm_i = kring->nr_hwtail (previous)
 	 * and
 	 *	nm_i == (nic_i + kring->nkr_hwofs) % ring_size
 	 *
-	 * rxr->next_check is set to 0 on a ring reinit
+	 * fl->ifl_cidx is set to 0 on a ring reinit
 	 */
 	if (netmap_no_pendintr || force_update) {
 		uint32_t hwtail_lim = nm_prev(kring->nr_hwcur, lim);
+		bool have_rxcq = sctx->isc_flags & IFLIB_HAS_RXCQ;
 		int crclen = iflib_crcstrip ? 0 : 4;
 		int error, avail;
 
+		/*
+		 * For the free list consumer index, we use the same
+		 * logic as in iflib_rxeof().
+		 */
+		if (have_rxcq)
+			cidxp = &rxq->ifr_cq_cidx;
+		else
+			cidxp = &fl->ifl_cidx;
+		avail = ctx->isc_rxd_available(ctx->ifc_softc,
+		    rxq->ifr_id, *cidxp, USHRT_MAX);
+
 		nic_i = fl->ifl_cidx;
 		nm_i = netmap_idx_n2k(kring, nic_i);
-		avail = ctx->isc_rxd_available(ctx->ifc_softc,
-		    rxq->ifr_id, nic_i, USHRT_MAX);
 		for (n = 0; avail > 0 && nm_i != hwtail_lim; n++, avail--) {
 			rxd_info_zero(&ri);
 			ri.iri_frags = rxq->ifr_frags;
 			ri.iri_qsidx = kring->ring_id;
 			ri.iri_ifp = ctx->ifc_ifp;
-			ri.iri_cidx = nic_i;
+			ri.iri_cidx = *cidxp;
 
 			error = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
 			ring->slot[nm_i].len = error ? 0 : ri.iri_len - crclen;
 			ring->slot[nm_i].flags = 0;
+			if (have_rxcq) {
+				*cidxp = ri.iri_cidx;
+				while (*cidxp >= scctx->isc_nrxd[0])
+					*cidxp -= scctx->isc_nrxd[0];
+			}
 			bus_dmamap_sync(fl->ifl_buf_tag,
 			    fl->ifl_sds.ifsd_map[nic_i], BUS_DMASYNC_POSTREAD);
 			nm_i = nm_next(nm_i, lim);
-			nic_i = nm_next(nic_i, lim);
+			fl->ifl_cidx = nic_i = nm_next(nic_i, lim);
 		}
 		if (n) { /* update the state variables */
 			if (netmap_no_pendintr && !force_update) {
@@ -1134,7 +1153,6 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 				iflib_rx_miss ++;
 				iflib_rx_miss_bufs += n;
 			}
-			fl->ifl_cidx = nic_i;
 			kring->nr_hwtail = nm_i;
 		}
 		kring->nr_kflags &= ~NKR_PENDINTR;
