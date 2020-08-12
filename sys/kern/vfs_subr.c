@@ -2952,22 +2952,6 @@ vrefact(struct vnode *vp)
 #endif
 }
 
-/*
- * Return reference count of a vnode.
- *
- * The results of this call are only guaranteed when some mechanism is used to
- * stop other processes from gaining references to the vnode.  This may be the
- * case if the caller holds the only reference.  This is also useful when stale
- * data is acceptable as race conditions may be accounted for by some other
- * means.
- */
-int
-vrefcnt(struct vnode *vp)
-{
-
-	return (vp->v_usecount);
-}
-
 void
 vlazy(struct vnode *vp)
 {
