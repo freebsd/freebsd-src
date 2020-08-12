@@ -156,7 +156,7 @@ devfs_dev_exists(const char *name)
 {
 	struct cdev_priv *cdp;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 
 	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
 		if ((cdp->cdp_flags & CDP_ACTIVE) == 0)
@@ -707,7 +707,7 @@ devfs_create(struct cdev *dev)
 {
 	struct cdev_priv *cdp;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	cdp = cdev2priv(dev);
 	cdp->cdp_flags |= CDP_ACTIVE;
 	cdp->cdp_inode = alloc_unrl(devfs_inos);
@@ -721,7 +721,7 @@ devfs_destroy(struct cdev *dev)
 {
 	struct cdev_priv *cdp;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	cdp = cdev2priv(dev);
 	cdp->cdp_flags &= ~CDP_ACTIVE;
 	devfs_generation++;
