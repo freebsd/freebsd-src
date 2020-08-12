@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR usb_debug
 #include <dev/usb/usb_debug.h>
 
+#define	SIZEOF_FIELD(_s, _f)	sizeof(((struct _s *)NULL)->_f)
+
 #define	CP2112GPIO_LOCK(sc)	sx_xlock(&sc->gpio_lock)
 #define	CP2112GPIO_UNLOCK(sc)	sx_xunlock(&sc->gpio_lock)
 #define	CP2112GPIO_LOCKED(sc)	sx_assert(&sc->gpio_lock, SX_XLOCKED)
@@ -93,7 +95,12 @@ __FBSDID("$FreeBSD$");
 #define	CP2112_REQ_LOCK			0x20
 #define	CP2112_REQ_USB_CFG		0x21
 
+#define	CP2112_IIC_MAX_READ_LEN		512
 #define	CP2112_IIC_REPSTART_VER		2	/* Erratum CP2112_E10. */
+
+#define	CP2112_GPIO_SPEC_CLK7		1	/* Pin 7 is clock output. */
+#define	CP2112_GPIO_SPEC_TX0		2	/* Pin 0 pulses on USB TX. */
+#define	CP2112_GPIO_SPEC_RX1		4	/* Pin 1 pulses on USB RX. */
 
 #define	CP2112_IIC_STATUS0_IDLE		0
 #define	CP2112_IIC_STATUS0_BUSY		1
@@ -104,6 +111,111 @@ __FBSDID("$FreeBSD$");
 #define	CP2112_IIC_STATUS1_TIMEOUT_BUS	1
 #define	CP2112_IIC_STATUS1_ARB_LOST	2
 
+/* CP2112_REQ_VERSION */
+struct version_request {
+	uint8_t id;
+	uint8_t part_num;
+	uint8_t version;
+} __packed;
+
+/* CP2112_REQ_GPIO_GET */
+struct gpio_get_req {
+	uint8_t id;
+	uint8_t state;
+} __packed;
+
+/* CP2112_REQ_GPIO_SET */
+struct gpio_set_req {
+	uint8_t id;
+	uint8_t state;
+	uint8_t mask;
+} __packed;
+
+/* CP2112_REQ_GPIO_CFG */
+struct gpio_config_req {
+	uint8_t id;
+	uint8_t output;
+	uint8_t pushpull;
+	uint8_t special;
+	uint8_t divider;
+} __packed;
+
+/* CP2112_REQ_SMB_XFER_STATUS_REQ */
+struct i2c_xfer_status_req {
+	uint8_t id;
+	uint8_t request;
+} __packed;
+
+/* CP2112_REQ_SMB_XFER_STATUS_RESP */
+struct i2c_xfer_status_resp {
+	uint8_t id;
+	uint8_t status0;
+	uint8_t status1;
+	uint16_t status2;
+	uint16_t status3;
+} __packed;
+
+/* CP2112_REQ_SMB_READ_FORCE_SEND */
+struct i2c_data_read_force_send_req {
+	uint8_t id;
+	uint16_t len;
+} __packed;
+
+/* CP2112_REQ_SMB_READ_RESPONSE */
+struct i2c_data_read_resp {
+	uint8_t id;
+	uint8_t status;
+	uint8_t len;
+	uint8_t data[61];
+} __packed;
+
+/* CP2112_REQ_SMB_READ */
+struct i2c_write_read_req {
+	uint8_t id;
+	uint8_t slave;
+	uint16_t rlen;
+	uint8_t wlen;
+	uint8_t wdata[16];
+} __packed;
+
+/* CP2112_REQ_SMB_WRITE */
+struct i2c_read_req {
+	uint8_t id;
+	uint8_t slave;
+	uint16_t len;
+} __packed;
+
+/* CP2112_REQ_SMB_WRITE_READ */
+struct i2c_write_req {
+	uint8_t id;
+	uint8_t slave;
+	uint8_t len;
+	uint8_t data[61];
+} __packed;
+
+/* CP2112_REQ_SMB_CFG */
+struct i2c_cfg_req {
+	uint8_t		id;
+	uint32_t	speed;		/* Hz */
+	uint8_t		slave_addr;	/* ACK only */
+	uint8_t		auto_send_read;	/* boolean */
+	uint16_t	write_timeout;	/* 0-1000 ms, 0 ~ no timeout */
+	uint16_t	read_timeout;	/* 0-1000 ms, 0 ~ no timeout */
+	uint8_t		scl_low_timeout;/* boolean */
+	uint16_t	retry_count;	/* 1-1000, 0 ~ forever */
+} __packed;
+
+enum cp2112_out_mode {
+	OUT_OD,
+	OUT_PP,
+	OUT_KEEP
+};
+
+enum {
+	CP2112_INTR_OUT = 0,
+	CP2112_INTR_IN,
+	CP2112_N_TRANSFER,
+};
 
 struct cp2112_softc {
 	device_t		sc_gpio_dev;
@@ -120,9 +232,37 @@ struct cp2112gpio_softc {
 	struct gpio_pin		pins[CP2112_GPIO_COUNT];
 };
 
+struct cp2112iic_softc {
+	device_t	dev;
+	device_t	iicbus_dev;
+	struct usb_xfer	*xfers[CP2112_N_TRANSFER];
+	u_char		own_addr;
+	struct {
+		struct mtx	lock;
+		struct cv	cv;
+		struct {
+			uint8_t		*data;
+			int		len;
+			int		done;
+			int		error;
+		}		in;
+		struct {
+			const uint8_t	*data;
+			int		len;
+			int		done;
+			int		error;
+		}		out;
+	}		io;
+};
+
 static int cp2112_detach(device_t dev);
 static int cp2112gpio_detach(device_t dev);
 static int cp2112iic_detach(device_t dev);
+
+static const STRUCT_USB_HOST_ID cp2112_devs[] = {
+	{ USB_VP(USB_VENDOR_SILABS, USB_PRODUCT_SILABS_CP2112) },
+	{ USB_VP(0x1009, USB_PRODUCT_SILABS_CP2112) }, /* XXX */
+};
 
 static int
 cp2112_get_report(device_t dev, uint8_t id, void *data, uint16_t len)
@@ -143,25 +283,103 @@ cp2112_set_report(device_t dev, uint8_t id, void *data, uint16_t len)
 	int err;
 
 	sc = device_get_softc(dev);
+	*(uint8_t *)data = id;
 	err = usbd_req_set_report(sc->sc_udev, NULL, data,
 	    len, sc->sc_iface_index, UHID_FEATURE_REPORT, id);
 	return (err);
 }
 
 static int
+cp2112_probe(device_t dev)
+{
+	struct usb_attach_arg *uaa;
+
+	uaa = device_get_ivars(dev);
+	if (uaa->usb_mode != USB_MODE_HOST)
+		return (ENXIO);
+	if (uaa->info.bInterfaceClass != UICLASS_HID)
+		return (ENXIO);
+
+	if (usbd_lookup_id_by_uaa(cp2112_devs, sizeof(cp2112_devs), uaa) == 0)
+		return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
+}
+
+static int
+cp2112_attach(device_t dev)
+{
+	struct version_request vdata;
+	struct usb_attach_arg *uaa;
+	struct cp2112_softc *sc;
+	int err;
+
+	uaa = device_get_ivars(dev);
+	sc = device_get_softc(dev);
+
+	device_set_usb_desc(dev);
+
+	sc->sc_udev = uaa->device;
+	sc->sc_iface_index = uaa->info.bIfaceIndex;
+
+	err = cp2112_get_report(dev, CP2112_REQ_VERSION, &vdata, sizeof(vdata));
+	if (err != 0)
+		goto detach;
+	device_printf(dev, "part number 0x%02x, version 0x%02x\n",
+	    vdata.part_num, vdata.version);
+	if (vdata.part_num != CP2112_PART_NUM) {
+		device_printf(dev, "unsupported part number\n");
+		goto detach;
+	}
+	sc->sc_version = vdata.version;
+	sc->sc_gpio_dev = device_add_child(dev, "gpio", -1);
+	if (sc->sc_gpio_dev != NULL) {
+		err = device_probe_and_attach(sc->sc_gpio_dev);
+		if (err != 0) {
+			device_printf(dev, "failed to attach gpio child\n");
+		}
+	} else {
+		device_printf(dev, "failed to create gpio child\n");
+	}
+
+	sc->sc_iic_dev = device_add_child(dev, "iichb", -1);
+	if (sc->sc_iic_dev != NULL) {
+		err = device_probe_and_attach(sc->sc_iic_dev);
+		if (err != 0) {
+			device_printf(dev, "failed to attach iic child\n");
+		}
+	} else {
+		device_printf(dev, "failed to create iic child\n");
+	}
+
+	return (0);
+
+detach:
+	cp2112_detach(dev);
+	return (ENXIO);
+}
+
+static int
+cp2112_detach(device_t dev)
+{
+	int err;
+
+	err = bus_generic_detach(dev);
+	if (err != 0)
+		return (err);
+	device_delete_children(dev);
+	return (0);
+}
+
+static int
 cp2112_gpio_read_pin(device_t dev, uint32_t pin_num, bool *on)
 {
-	struct {
-		uint8_t id;
-		uint8_t state;
-	} __packed data;
+	struct gpio_get_req data;
 	struct cp2112gpio_softc *sc;
 	int err;
 
 	sc = device_get_softc(dev);
 	CP2112GPIO_LOCKED(sc);
 
-	data.id = CP2112_REQ_GPIO_GET;
 	err = cp2112_get_report(device_get_parent(dev),
 	    CP2112_REQ_GPIO_GET, &data, sizeof(data));
 	if (err != 0)
@@ -174,11 +392,7 @@ cp2112_gpio_read_pin(device_t dev, uint32_t pin_num, bool *on)
 static int
 cp2112_gpio_write_pin(device_t dev, uint32_t pin_num, bool on)
 {
-	struct {
-		uint8_t id;
-		uint8_t state;
-		uint8_t mask;
-	} __packed data;
+	struct gpio_set_req data;
 	struct cp2112gpio_softc *sc;
 	int err;
 	bool actual;
@@ -186,10 +400,8 @@ cp2112_gpio_write_pin(device_t dev, uint32_t pin_num, bool on)
 	sc = device_get_softc(dev);
 	CP2112GPIO_LOCKED(sc);
 
-	data.id = CP2112_REQ_GPIO_SET;
 	data.state = (uint8_t)on << pin_num;
 	data.mask = (uint8_t)1 << pin_num;
-
 	err = cp2112_set_report(device_get_parent(dev),
 	    CP2112_REQ_GPIO_SET, &data, sizeof(data));
 	if (err != 0)
@@ -204,15 +416,9 @@ cp2112_gpio_write_pin(device_t dev, uint32_t pin_num, bool on)
 
 static int
 cp2112_gpio_configure_write_pin(device_t dev, uint32_t pin_num,
-    bool output, bool pushpull)
+    bool output, enum cp2112_out_mode *mode)
 {
-	struct {
-		uint8_t id;
-		uint8_t output;
-		uint8_t pushpull;
-		uint8_t special;
-		uint8_t divider;
-	} __packed data;
+	struct gpio_config_req data;
 	struct cp2112gpio_softc *sc;
 	int err;
 	uint8_t mask;
@@ -220,21 +426,26 @@ cp2112_gpio_configure_write_pin(device_t dev, uint32_t pin_num,
 	sc = device_get_softc(dev);
 	CP2112GPIO_LOCKED(sc);
 
-	mask = (uint8_t)1 << pin_num;
-	data.id = CP2112_REQ_GPIO_CFG;
 	err = cp2112_get_report(device_get_parent(dev),
 	    CP2112_REQ_GPIO_CFG, &data, sizeof(data));
 	if (err != 0)
 		return (err);
+
+	mask = (uint8_t)1 << pin_num;
 	if (output) {
 		data.output |= mask;
-		if (pushpull)
+		switch (*mode) {
+		case OUT_PP:
 			data.pushpull |= mask;
-		else
+			break;
+		case OUT_OD:
 			data.pushpull &= ~mask;
+			break;
+		default:
+			break;
+		}
 	} else {
 		data.output &= ~mask;
-		data.pushpull &= ~mask;
 	}
 
 	err = cp2112_set_report(device_get_parent(dev),
@@ -247,10 +458,25 @@ cp2112_gpio_configure_write_pin(device_t dev, uint32_t pin_num,
 	    CP2112_REQ_GPIO_CFG, &data, sizeof(data));
 	if (err != 0)
 		return (err);
+
 	if (((data.output & mask) != 0) != output)
 		return (EIO);
-	if (((data.pushpull & mask) != 0) != pushpull)
-		return (EIO);
+	if (output) {
+		switch (*mode) {
+		case OUT_PP:
+			if ((data.pushpull & mask) == 0)
+				return (EIO);
+			break;
+		case OUT_OD:
+			if ((data.pushpull & mask) != 0)
+				return (EIO);
+			break;
+		default:
+			*mode = (data.pushpull & mask) != 0 ?
+			    OUT_PP : OUT_OD;
+			break;
+		}
+	}
 	return (0);
 }
 
@@ -381,6 +607,7 @@ cp2112_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 {
 	struct cp2112gpio_softc *sc;
 	struct gpio_pin *pin;
+	enum cp2112_out_mode out_mode;
 	int err;
 
 	if (pin_num >= CP2112_GPIO_COUNT)
@@ -405,115 +632,42 @@ cp2112_gpio_pin_setflags(device_t dev, uint32_t pin_num, uint32_t flags)
 			return (EINVAL);
 	}
 
-	CP2112GPIO_LOCK(sc);
-	pin = &sc->pins[pin_num];
-
 	/*
-	 * If neither push-pull or opendrain is explcitely requested, then
+	 * If neither push-pull or open-drain is explicitly requested, then
 	 * preserve the current state.
 	 */
-	if ((flags & GPIO_PIN_OUTPUT) != 0 &&
-	    (flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) == 0)
-		flags |= pin->gp_flags & (GPIO_PIN_OPENDRAIN|GPIO_PIN_PUSHPULL);
+	out_mode = OUT_KEEP;
+	if ((flags & GPIO_PIN_OUTPUT) != 0) {
+		if ((flags & GPIO_PIN_OPENDRAIN) != 0)
+			out_mode = OUT_OD;
+		if ((flags & GPIO_PIN_PUSHPULL) != 0)
+			out_mode = OUT_PP;
+	}
+
+	CP2112GPIO_LOCK(sc);
+	pin = &sc->pins[pin_num];
 	err = cp2112_gpio_configure_write_pin(dev, pin_num,
-	    (flags & GPIO_PIN_OUTPUT) != 0,
-	    (flags & GPIO_PIN_PUSHPULL) != 0);
-	if (err == 0)
+	    (flags & GPIO_PIN_OUTPUT) != 0, &out_mode);
+	if (err == 0) {
+		/*
+		 * If neither open-drain or push-pull was requested, then see
+		 * what hardware actually had.  Otherwise, it has been
+		 * reconfigured as requested.
+		 */
+		if ((flags & GPIO_PIN_OUTPUT) != 0 &&
+		    (flags & (GPIO_PIN_OPENDRAIN | GPIO_PIN_PUSHPULL)) == 0) {
+			KASSERT(out_mode != OUT_KEEP,
+			    ("impossible current output mode"));
+			if (out_mode == OUT_OD)
+				flags |= GPIO_PIN_OPENDRAIN;
+			else
+				flags |= GPIO_PIN_PUSHPULL;
+		}
 		pin->gp_flags = flags;
+	}
 	CP2112GPIO_UNLOCK(sc);
 
 	return (err);
-}
-
-static const STRUCT_USB_HOST_ID cp2112_devs[] = {
-	{ USB_VP(USB_VENDOR_SILABS, USB_PRODUCT_SILABS_CP2112) },
-	{ USB_VP(0x1009, USB_PRODUCT_SILABS_CP2112) }, /* XXX */
-};
-
-static int
-cp2112_probe(device_t dev)
-{
-	struct usb_attach_arg *uaa;
-
-	uaa = device_get_ivars(dev);
-	if (uaa->usb_mode != USB_MODE_HOST)
-		return (ENXIO);
-	if (uaa->info.bInterfaceClass != UICLASS_HID)
-		return (ENXIO);
-
-	if (usbd_lookup_id_by_uaa(cp2112_devs, sizeof(cp2112_devs), uaa) == 0)
-		return (BUS_PROBE_DEFAULT);
-	return (ENXIO);
-}
-
-static int
-cp2112_attach(device_t dev)
-{
-	struct {
-		uint8_t id;
-		uint8_t part_num;
-		uint8_t version;
-	} __packed vdata;
-	struct usb_attach_arg *uaa;
-	struct cp2112_softc *sc;
-	int err;
-
-	uaa = device_get_ivars(dev);
-	sc = device_get_softc(dev);
-
-	device_set_usb_desc(dev);
-
-	sc->sc_udev = uaa->device;
-	sc->sc_iface_index = uaa->info.bIfaceIndex;
-
-	vdata.id = CP2112_REQ_VERSION;
-	err = cp2112_get_report(dev, CP2112_REQ_VERSION, &vdata, sizeof(vdata));
-	if (err != 0)
-		goto detach;
-	device_printf(dev, "part number 0x%02x, version 0x%02x\n",
-	    vdata.part_num, vdata.version);
-	if (vdata.part_num != CP2112_PART_NUM) {
-		device_printf(dev, "unsupported part number\n");
-		goto detach;
-	}
-	sc->sc_version = vdata.version;
-	sc->sc_gpio_dev = device_add_child(dev, "gpio", -1);
-	if (sc->sc_gpio_dev != NULL) {
-		err = device_probe_and_attach(sc->sc_gpio_dev);
-		if (err != 0) {
-			device_printf(dev, "failed to attach gpio child\n");
-		}
-	} else {
-		device_printf(dev, "failed to create gpio child\n");
-	}
-
-	sc->sc_iic_dev = device_add_child(dev, "iichb", -1);
-	if (sc->sc_iic_dev != NULL) {
-		err = device_probe_and_attach(sc->sc_iic_dev);
-		if (err != 0) {
-			device_printf(dev, "failed to attach iic child\n");
-		}
-	} else {
-		device_printf(dev, "failed to create iic child\n");
-	}
-
-	return (0);
-
-detach:
-	cp2112_detach(dev);
-	return (ENXIO);
-}
-
-static int
-cp2112_detach(device_t dev)
-{
-	int err;
-
-	err = bus_generic_detach(dev);
-	if (err != 0)
-		return (err);
-	device_delete_children(dev);
-	return (0);
 }
 
 static int
@@ -526,13 +680,7 @@ cp2112gpio_probe(device_t dev)
 static int
 cp2112gpio_attach(device_t dev)
 {
-	struct {
-		uint8_t id;
-		uint8_t output;
-		uint8_t pushpull;
-		uint8_t special;
-		uint8_t divider;
-	} __packed data;
+	struct gpio_config_req data;
 	struct cp2112gpio_softc *sc;
 	device_t cp2112;
 	int err;
@@ -546,7 +694,6 @@ cp2112gpio_attach(device_t dev)
 	sc->gpio_caps = GPIO_PIN_INPUT | GPIO_PIN_OUTPUT | GPIO_PIN_OPENDRAIN |
 	    GPIO_PIN_PUSHPULL;
 
-	data.id = CP2112_REQ_GPIO_CFG;
 	err = cp2112_get_report(cp2112, CP2112_REQ_GPIO_CFG,
 	    &data, sizeof(data));
 	if (err != 0)
@@ -562,7 +709,11 @@ cp2112gpio_attach(device_t dev)
 		snprintf(pin->gp_name, GPIOMAXNAME, "GPIO%u", i);
 		pin->gp_name[GPIOMAXNAME - 1] = '\0';
 
-		if ((data.output & mask) != 0) {
+		if ((i == 0 && (data.special & CP2112_GPIO_SPEC_TX0) != 0) ||
+		    (i == 1 && (data.special & CP2112_GPIO_SPEC_RX1) != 0) ||
+		    (i == 7 && (data.special & CP2112_GPIO_SPEC_CLK7) != 0)) {
+			/* Special mode means that a pin is not for GPIO. */
+		} else if ((data.output & mask) != 0) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
 			if ((data.pushpull & mask) != 0)
 				pin->gp_flags |= GPIO_PIN_PUSHPULL;
@@ -596,94 +747,6 @@ cp2112gpio_detach(device_t dev)
 	sx_destroy(&sc->gpio_lock);
 	return (0);
 }
-
-static device_method_t cp2112hid_methods[] = {
-	DEVMETHOD(device_probe,		cp2112_probe),
-	DEVMETHOD(device_attach,	cp2112_attach),
-	DEVMETHOD(device_detach,	cp2112_detach),
-
-	DEVMETHOD_END
-};
-
-static device_method_t cp2112gpio_methods[] = {
-	/* Device */
-	DEVMETHOD(device_probe,		cp2112gpio_probe),
-	DEVMETHOD(device_attach,	cp2112gpio_attach),
-	DEVMETHOD(device_detach,	cp2112gpio_detach),
-
-	/* GPIO */
-	DEVMETHOD(gpio_get_bus,		cp2112_gpio_get_bus),
-	DEVMETHOD(gpio_pin_max,		cp2112_gpio_pin_max),
-	DEVMETHOD(gpio_pin_get,		cp2112_gpio_pin_get),
-	DEVMETHOD(gpio_pin_set,		cp2112_gpio_pin_set),
-	DEVMETHOD(gpio_pin_toggle,	cp2112_gpio_pin_toggle),
-	DEVMETHOD(gpio_pin_getname,	cp2112_gpio_pin_getname),
-	DEVMETHOD(gpio_pin_getcaps,	cp2112_gpio_pin_getcaps),
-	DEVMETHOD(gpio_pin_getflags,	cp2112_gpio_pin_getflags),
-	DEVMETHOD(gpio_pin_setflags,	cp2112_gpio_pin_setflags),
-
-	DEVMETHOD_END
-};
-
-static driver_t cp2112hid_driver = {
-	.name = "cp2112hid",
-	.methods = cp2112hid_methods,
-	.size = sizeof(struct cp2112_softc),
-};
-
-static devclass_t cp2112hid_devclass;
-DRIVER_MODULE(cp2112hid, uhub, cp2112hid_driver, cp2112hid_devclass,
-    NULL, NULL);
-MODULE_DEPEND(cp2112hid, usb, 1, 1, 1);
-MODULE_VERSION(cp2112hid, 1);
-USB_PNP_HOST_INFO(cp2112_devs);
-
-static driver_t cp2112gpio_driver = {
-	.name = "gpio",
-	.methods = cp2112gpio_methods,
-	.size = sizeof(struct cp2112gpio_softc),
-};
-
-static devclass_t cp2112gpio_devclass;
-DRIVER_MODULE(cp2112gpio, cp2112hid, cp2112gpio_driver, cp2112gpio_devclass,
-    NULL, NULL);
-MODULE_DEPEND(cp2112gpio, cp2112hid, 1, 1, 1);
-MODULE_DEPEND(cp2112gpio, gpiobus, 1, 1, 1);
-MODULE_VERSION(cp2112gpio, 1);
-
-
-
-/* CP2112 I2C driver code. */
-
-
-enum {
-	CP2112_INTR_OUT = 0,
-	CP2112_INTR_IN,
-	CP2112_N_TRANSFER,
-};
-
-struct cp2112iic_softc {
-	device_t	dev;
-	device_t	iicbus_dev;
-	struct usb_xfer	*xfers[CP2112_N_TRANSFER];
-	u_char		own_addr;
-	struct {
-		struct mtx	lock;
-		struct cv	cv;
-		struct {
-			uint8_t		*data;
-			int		len;
-			int		done;
-			int		error;
-		}		in;
-		struct {
-			const uint8_t	*data;
-			int		len;
-			int		done;
-			int		error;
-		}		out;
-	}		io;
-};
 
 static void
 cp2112iic_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
@@ -890,17 +953,8 @@ cp2112iic_req_resp(struct cp2112iic_softc *sc, const void *req_data,
 static int
 cp2112iic_check_req_status(struct cp2112iic_softc *sc)
 {
-	struct {
-		uint8_t id;
-		uint8_t request;
-	} __packed xfer_status_req;
-	struct {
-		uint8_t id;
-		uint8_t status0;
-		uint8_t status1;
-		uint16_t status2;
-		uint16_t status3;
-	} __packed xfer_status_resp;
+	struct i2c_xfer_status_req xfer_status_req;
+	struct i2c_xfer_status_resp xfer_status_resp;
 	int err;
 
 	mtx_assert(&sc->io.lock, MA_OWNED);
@@ -971,16 +1025,8 @@ static int
 cp2112iic_read_data(struct cp2112iic_softc *sc, void *data, uint16_t in_len,
     uint16_t *out_len)
 {
-	struct {
-		uint8_t id;
-		uint16_t length;
-	} __packed data_read_force_send;
-	struct {
-		uint8_t id;
-		uint8_t status;
-		uint8_t length;
-		uint8_t data[61];
-	} __packed data_read_resp;
+	struct i2c_data_read_force_send_req data_read_force_send;
+	struct i2c_data_read_resp data_read_resp;
 	int err;
 
 	mtx_assert(&sc->io.lock, MA_OWNED);
@@ -993,7 +1039,7 @@ cp2112iic_read_data(struct cp2112iic_softc *sc, void *data, uint16_t in_len,
 	if (in_len > sizeof(data_read_resp.data))
 		in_len = sizeof(data_read_resp.data);
 	data_read_force_send.id = CP2112_REQ_SMB_READ_FORCE_SEND;
-	data_read_force_send.length = htobe16(in_len);
+	data_read_force_send.len = htobe16(in_len);
 	err = cp2112iic_req_resp(sc,
 	    &data_read_force_send, sizeof(data_read_force_send),
 	    &data_read_resp, sizeof(data_read_resp));
@@ -1009,7 +1055,7 @@ cp2112iic_read_data(struct cp2112iic_softc *sc, void *data, uint16_t in_len,
 	}
 
 	DTRACE_PROBE2(read__response, uint8_t, data_read_resp.status,
-	    uint8_t, data_read_resp.length);
+	    uint8_t, data_read_resp.len);
 
 	/*
 	 * We expect either the request completed status or, more typical for
@@ -1021,13 +1067,13 @@ cp2112iic_read_data(struct cp2112iic_softc *sc, void *data, uint16_t in_len,
 		err = IIC_EBUSERR;
 		goto out;
 	}
-	if (data_read_resp.length > in_len) {
+	if (data_read_resp.len > in_len) {
 		device_printf(sc->dev, "device returns more data than asked\n");
 		err = IIC_EOVERFLOW;
 		goto out;
 	}
 
-	*out_len = data_read_resp.length;
+	*out_len = data_read_resp.len;
 	if (*out_len > 0)
 		memcpy(data, data_read_resp.data, *out_len);
 out:
@@ -1070,11 +1116,13 @@ cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			reason = "message with no data";
 			break;
 		}
-		if ((msgs[i].flags & IIC_M_RD) != 0 && msgs[i].len > 512) {
+		if ((msgs[i].flags & IIC_M_RD) != 0 &&
+		    msgs[i].len > CP2112_IIC_MAX_READ_LEN) {
 			reason = "too long read";
 			break;
 		}
-		if ((msgs[i].flags & IIC_M_RD) == 0 && msgs[i].len > 61) {
+		if ((msgs[i].flags & IIC_M_RD) == 0 &&
+		    msgs[i].len > SIZEOF_FIELD(i2c_write_req, data)) {
 			reason = "too long write";
 			break;
 		}
@@ -1092,7 +1140,8 @@ cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			reason = "write without stop";
 			break;
 		}
-		if ((msgs[i].flags & IIC_M_NOSTOP) != 0 && msgs[i].len > 16) {
+		if ((msgs[i].flags & IIC_M_NOSTOP) != 0 &&
+		    msgs[i].len > SIZEOF_FIELD(i2c_write_read_req, wdata)) {
 			reason = "too long write without stop";
 			break;
 		}
@@ -1120,22 +1169,16 @@ cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	for (i = 0; i < nmsgs; i++) {
 		if (i + 1 < nmsgs && (msgs[i].flags & IIC_M_NOSTOP) != 0) {
-			KASSERT((msgs[i].flags & IIC_M_RD) == 0,
-			    ("read without stop"));
-			KASSERT((msgs[i + 1].flags & IIC_M_RD) != 0,
-			    ("write after write without stop"));
 			/*
 			 * Combine <write><repeated start><read> into a single
 			 * CP2112 operation.
 			 */
-			struct {
-				uint8_t id;
-				uint8_t slave;
-				uint16_t rlen;
-				uint8_t wlen;
-				uint8_t wdata[16];
-			} __packed req;
+			struct i2c_write_read_req req;
 
+			KASSERT((msgs[i].flags & IIC_M_RD) == 0,
+			    ("read without stop"));
+			KASSERT((msgs[i + 1].flags & IIC_M_RD) != 0,
+			    ("write after write without stop"));
 			req.id = CP2112_REQ_SMB_WRITE_READ;
 			req.slave = msgs[i].slave & ~LSB;
 			to_read = msgs[i + 1].len;
@@ -1150,11 +1193,7 @@ cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			 */
 			i++;
 		} else if ((msgs[i].flags & IIC_M_RD) != 0) {
-			struct {
-				uint8_t id;
-				uint8_t slave;
-				uint16_t len;
-			} __packed req;
+			struct i2c_read_req req;
 
 			req.id = CP2112_REQ_SMB_READ;
 			req.slave = msgs[i].slave & ~LSB;
@@ -1162,12 +1201,7 @@ cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			req.len = htobe16(to_read);
 			err = cp2112iic_send_req(sc, &req, sizeof(req));
 		} else {
-			struct {
-				uint8_t id;
-				uint8_t slave;
-				uint8_t len;
-				uint8_t data[61];
-			} __packed req;
+			struct i2c_write_req req;
 
 			req.id = CP2112_REQ_SMB_WRITE;
 			req.slave = msgs[i].slave & ~LSB;
@@ -1207,16 +1241,7 @@ cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 static int
 cp2112iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
-	struct {
-		uint8_t		id;
-		uint32_t	speed;		/* Hz */
-		uint8_t		slave_addr;	/* ACK only */
-		uint8_t		auto_send_read;	/* boolean */
-		uint16_t	write_timeout;	/* 0-1000 ms, 0 ~ no timeout */
-		uint16_t	read_timeout;	/* 0-1000 ms, 0 ~ no timeout */
-		uint8_t		scl_low_timeout;/* boolean */
-		uint16_t	retry_count;	/* 1-1000, 0 ~ forever */
-	} __packed smb_cfg;
+	struct i2c_cfg_req i2c_cfg;
 	struct cp2112iic_softc *sc;
 	device_t cp2112;
 	u_int busfreq;
@@ -1229,16 +1254,15 @@ cp2112iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	else
 		busfreq = IICBUS_GET_FREQUENCY(sc->iicbus_dev, speed);
 
-	smb_cfg.id = CP2112_REQ_SMB_CFG;
 	err = cp2112_get_report(cp2112, CP2112_REQ_SMB_CFG,
-	    &smb_cfg, sizeof(smb_cfg));
+	    &i2c_cfg, sizeof(i2c_cfg));
 	if (err != 0) {
 		device_printf(dev, "failed to get CP2112_REQ_SMB_CFG report\n");
 		return (err);
 	}
 
 	if (oldaddr != NULL)
-		*oldaddr = smb_cfg.slave_addr;
+		*oldaddr = i2c_cfg.slave_addr;
 	/*
 	 * For simplicity we do not enable Auto Send Read
 	 * because of erratum CP2112_E101 (fixed in version 3).
@@ -1251,28 +1275,28 @@ cp2112iic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	 * TODO: should the device reset request (0x01) be sent?
 	 * If the device disconnects as a result, then no.
 	 */
-	smb_cfg.speed = htobe32(busfreq);
+	i2c_cfg.speed = htobe32(busfreq);
 	if (addr != 0)
-		smb_cfg.slave_addr = addr;
-	smb_cfg.auto_send_read = 0;
-	smb_cfg.retry_count = htobe16(1);
-	smb_cfg.scl_low_timeout = 0;
+		i2c_cfg.slave_addr = addr;
+	i2c_cfg.auto_send_read = 0;
+	i2c_cfg.retry_count = htobe16(1);
+	i2c_cfg.scl_low_timeout = 0;
 	if (bootverbose) {
-		device_printf(dev, "speed %d Hz\n", be32toh(smb_cfg.speed));
-		device_printf(dev, "slave addr 0x%02x\n", smb_cfg.slave_addr);
+		device_printf(dev, "speed %d Hz\n", be32toh(i2c_cfg.speed));
+		device_printf(dev, "slave addr 0x%02x\n", i2c_cfg.slave_addr);
 		device_printf(dev, "auto send read %s\n",
-		    smb_cfg.auto_send_read ? "on" : "off");
+		    i2c_cfg.auto_send_read ? "on" : "off");
 		device_printf(dev, "write timeout %d ms (0 - disabled)\n",
-		    be16toh(smb_cfg.write_timeout));
+		    be16toh(i2c_cfg.write_timeout));
 		device_printf(dev, "read timeout %d ms (0 - disabled)\n",
-		    be16toh(smb_cfg.read_timeout));
+		    be16toh(i2c_cfg.read_timeout));
 		device_printf(dev, "scl low timeout %s\n",
-		    smb_cfg.scl_low_timeout ? "on" : "off");
+		    i2c_cfg.scl_low_timeout ? "on" : "off");
 		device_printf(dev, "retry count %d (0 - no limit)\n",
-		    be16toh(smb_cfg.retry_count));
+		    be16toh(i2c_cfg.retry_count));
 	}
 	err = cp2112_set_report(cp2112, CP2112_REQ_SMB_CFG,
-	    &smb_cfg, sizeof(smb_cfg));
+	    &i2c_cfg, sizeof(i2c_cfg));
 	if (err != 0) {
 		device_printf(dev, "failed to set CP2112_REQ_SMB_CFG report\n");
 		return (err);
@@ -1352,6 +1376,60 @@ cp2112iic_detach(device_t dev)
 
 	return (0);
 }
+
+static device_method_t cp2112hid_methods[] = {
+	DEVMETHOD(device_probe,		cp2112_probe),
+	DEVMETHOD(device_attach,	cp2112_attach),
+	DEVMETHOD(device_detach,	cp2112_detach),
+
+	DEVMETHOD_END
+};
+
+static driver_t cp2112hid_driver = {
+	.name = "cp2112hid",
+	.methods = cp2112hid_methods,
+	.size = sizeof(struct cp2112_softc),
+};
+
+static devclass_t cp2112hid_devclass;
+DRIVER_MODULE(cp2112hid, uhub, cp2112hid_driver, cp2112hid_devclass,
+    NULL, NULL);
+MODULE_DEPEND(cp2112hid, usb, 1, 1, 1);
+MODULE_VERSION(cp2112hid, 1);
+USB_PNP_HOST_INFO(cp2112_devs);
+
+static device_method_t cp2112gpio_methods[] = {
+	/* Device */
+	DEVMETHOD(device_probe,		cp2112gpio_probe),
+	DEVMETHOD(device_attach,	cp2112gpio_attach),
+	DEVMETHOD(device_detach,	cp2112gpio_detach),
+
+	/* GPIO */
+	DEVMETHOD(gpio_get_bus,		cp2112_gpio_get_bus),
+	DEVMETHOD(gpio_pin_max,		cp2112_gpio_pin_max),
+	DEVMETHOD(gpio_pin_get,		cp2112_gpio_pin_get),
+	DEVMETHOD(gpio_pin_set,		cp2112_gpio_pin_set),
+	DEVMETHOD(gpio_pin_toggle,	cp2112_gpio_pin_toggle),
+	DEVMETHOD(gpio_pin_getname,	cp2112_gpio_pin_getname),
+	DEVMETHOD(gpio_pin_getcaps,	cp2112_gpio_pin_getcaps),
+	DEVMETHOD(gpio_pin_getflags,	cp2112_gpio_pin_getflags),
+	DEVMETHOD(gpio_pin_setflags,	cp2112_gpio_pin_setflags),
+
+	DEVMETHOD_END
+};
+
+static driver_t cp2112gpio_driver = {
+	.name = "gpio",
+	.methods = cp2112gpio_methods,
+	.size = sizeof(struct cp2112gpio_softc),
+};
+
+static devclass_t cp2112gpio_devclass;
+DRIVER_MODULE(cp2112gpio, cp2112hid, cp2112gpio_driver, cp2112gpio_devclass,
+    NULL, NULL);
+MODULE_DEPEND(cp2112gpio, cp2112hid, 1, 1, 1);
+MODULE_DEPEND(cp2112gpio, gpiobus, 1, 1, 1);
+MODULE_VERSION(cp2112gpio, 1);
 
 static device_method_t cp2112iic_methods[] = {
 	/* Device interface */
