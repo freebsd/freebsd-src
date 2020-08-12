@@ -53,37 +53,41 @@ inline int M_MCAST =	0x00000020; /* send/received as link-level multicast */
 inline int M_PROMISC =	0x00000040; /* packet was not for us */
 #pragma D binding "1.6.3" M_VLANTAG
 inline int M_VLANTAG =	0x00000080; /* ether_vtag is valid */
-#pragma D binding "1.6.3" M_UNUSED_8
-inline int M_UNUSED_8 =	0x00000100; /* --available-- */
+#pragma D binding "1.13" M_EXTPG
+inline int M_EXTPG =	0x00000100; /* has array of unmapped pages and TLS */
 #pragma D binding "1.6.3" M_NOFREE
 inline int M_NOFREE =	0x00000200; /* do not free mbuf, embedded in cluster */
+#pragma D binding "1.13" M_TSTMP
+inline int M_TSTMP =	0x00000400; /* rcv_tstmp field is valid */
+#pragma D binding "1.13" M_TSTMP_HPREC
+inline int M_TSTMP_HPREC = 0x00000800; /* rcv_tstmp is high-prec */
+#pragma D binding "1.13" M_TSTMP_LRO
+inline int M_TSTMP_LRO = 0x00001000; /* Time LRO pushed in pkt is valid */
+ 
+#pragma D binding "1.13" M_PROTO1
+inline int M_PROTO1 =	0x00002000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO2
+inline int M_PROTO2 =	0x00004000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO3
+inline int M_PROTO3 =	0x00008000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO4
+inline int M_PROTO4 =	0x00010000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO5
+inline int M_PROTO5 =	0x00020000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO6
+inline int M_PROTO6 =	0x00040000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO7
+inline int M_PROTO7 =	0x00080000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO8
+inline int M_PROTO8 =	0x00100000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO9
+inline int M_PROTO9 =	0x00200000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO10
+inline int M_PROTO10 =	0x00400000; /* protocol-specific */
+#pragma D binding "1.13" M_PROTO11
+inline int M_PROTO11 =	0x00800000; /* protocol-specific */
 
-#pragma D binding "1.6.3" M_PROTO1
-inline int M_PROTO1 =	0x00001000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO2
-inline int M_PROTO2 =	0x00002000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO3
-inline int M_PROTO3 =	0x00004000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO4
-inline int M_PROTO4 =	0x00008000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO5
-inline int M_PROTO5 =	0x00010000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO6
-inline int M_PROTO6 =	0x00020000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO7
-inline int M_PROTO7 =	0x00040000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO8
-inline int M_PROTO8 =	0x00080000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO9
-inline int M_PROTO9 =	0x00100000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO10
-inline int M_PROTO10 =	0x00200000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO11
-inline int M_PROTO11 =	0x00400000; /* protocol-specific */
-#pragma D binding "1.6.3" M_PROTO12
-inline int M_PROTO12 =	0x00800000; /* protocol-specific */
-
-#pragma D binding "1.6.3" mbufflags_string
+#pragma D binding "1.13" mbufflags_string
 inline string mbufflags_string[uint32_t flags] =
     flags & M_EXT ? "M_EXT" :
     flags & M_PKTHDR ? "M_PKTHDR" :
@@ -93,8 +97,11 @@ inline string mbufflags_string[uint32_t flags] =
     flags & M_MCAST 	? "M_MCAST" :
     flags & M_PROMISC 	? "M_PROMISC" :
     flags & M_VLANTAG 	? "M_VLANTAG" :
-    flags & M_UNUSED_8 	? "M_UNUSED_8" :
-    flags & M_NOFREE  ? "M_NOFREE" :
+    flags & M_EXTPG 	? "M_EXTPG" :
+    flags & M_NOFREE	? "M_NOFREE" :
+    flags & M_TSTMP	? "M_TSTMP" :
+    flags & M_TSTMP_HPREC ? "M_TSTMP_HPREC" :
+    flags & M_TSTMP_LRO ? "M_TSTMP_LRO" :
     flags & M_PROTO1  ? "M_PROTO1" :
     flags & M_PROTO2 ? "M_PROTO2" :
     flags & M_PROTO3 ? "M_PROTO3" :
@@ -106,7 +113,6 @@ inline string mbufflags_string[uint32_t flags] =
     flags & M_PROTO9 ? "M_PROTO9" :
     flags & M_PROTO10 ? "M_PROTO10" :
     flags & M_PROTO11 ? "M_PROTO11" :
-    flags & M_PROTO12 ? "M_PROTO12" :
     "none" ;
 
 typedef struct mbufinfo {

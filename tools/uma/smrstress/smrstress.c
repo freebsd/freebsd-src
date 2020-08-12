@@ -68,7 +68,7 @@ smrs_error(struct smrs *smrs, const char *fmt, ...)
 
 	atomic_add_int(&smrs_failures, 1);
 	printf("SMR ERROR: wr_seq %d, rd_seq %d, c_seq %d, generation %d, count %d ",
-	    smrs_smr->c_shared->s_wr_seq, smrs_smr->c_shared->s_rd_seq,
+	    smrs_smr->c_shared->s_wr.seq, smrs_smr->c_shared->s_rd_seq,
 	    zpcpu_get(smrs_smr)->c_seq, smrs->generation, smrs->count);
 	va_start(ap, fmt);
 	(void)vprintf(fmt, ap);

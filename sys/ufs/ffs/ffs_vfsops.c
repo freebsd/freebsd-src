@@ -805,7 +805,7 @@ ffs_mount(struct mount *mp)
 	 */
 	if ((mp->mnt_kern_flag & MNTK_FPLOOKUP) != 0)
 		panic("MNTK_FPLOOKUP set on mount %p when it should not be", mp);
-	if ((mp->mnt_flag & (MNT_ACLS | MNT_NFS4ACLS)) == 0)
+	if ((mp->mnt_flag & (MNT_ACLS | MNT_NFS4ACLS | MNT_UNION)) == 0)
 		mp->mnt_kern_flag |= MNTK_FPLOOKUP;
 	MNT_IUNLOCK(mp);
 

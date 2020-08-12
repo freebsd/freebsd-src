@@ -88,7 +88,7 @@ dev_unlock_and_free(void)
 	struct cdev_priv *cdp;
 	struct cdevsw *csw;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 
 	/*
 	 * Make the local copy of the list heads while the dev_mtx is
@@ -116,7 +116,7 @@ dev_free_devlocked(struct cdev *cdev)
 {
 	struct cdev_priv *cdp;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	cdp = cdev2priv(cdev);
 	KASSERT((cdp->cdp_flags & CDP_UNREF_DTR) == 0,
 	    ("destroy_dev() was not called after delist_dev(%p)", cdev));
@@ -127,7 +127,7 @@ static void
 cdevsw_free_devlocked(struct cdevsw *csw)
 {
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	SLIST_INSERT_HEAD(&cdevsw_gt_post_list, csw, d_postfree_list);
 }
 
@@ -142,7 +142,7 @@ void
 dev_ref(struct cdev *dev)
 {
 
-	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock_assert_unlocked();
 	mtx_lock(&devmtx);
 	dev->si_refcount++;
 	mtx_unlock(&devmtx);
@@ -152,7 +152,7 @@ void
 dev_refl(struct cdev *dev)
 {
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	dev->si_refcount++;
 }
 
@@ -161,7 +161,7 @@ dev_rel(struct cdev *dev)
 {
 	int flag = 0;
 
-	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock_assert_unlocked();
 	dev_lock();
 	dev->si_refcount--;
 	KASSERT(dev->si_refcount >= 0,
@@ -181,7 +181,7 @@ dev_refthread(struct cdev *dev, int *ref)
 	struct cdevsw *csw;
 	struct cdev_priv *cdp;
 
-	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock_assert_unlocked();
 	if ((dev->si_flags & SI_ETERNAL) != 0) {
 		*ref = 0;
 		return (dev->si_devsw);
@@ -208,7 +208,7 @@ devvn_refthread(struct vnode *vp, struct cdev **devp, int *ref)
 	struct cdev_priv *cdp;
 	struct cdev *dev;
 
-	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock_assert_unlocked();
 	if ((vp->v_vflag & VV_ETERNALDEV) != 0) {
 		dev = vp->v_rdev;
 		if (dev == NULL)
@@ -249,7 +249,7 @@ void
 dev_relthread(struct cdev *dev, int ref)
 {
 
-	mtx_assert(&devmtx, MA_NOTOWNED);
+	dev_lock_assert_unlocked();
 	if (!ref)
 		return;
 	KASSERT(dev->si_threadcount > 0,
@@ -570,7 +570,7 @@ newdev(struct make_dev_args *args, struct cdev *si)
 	struct cdev *si2;
 	struct cdevsw *csw;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	csw = args->mda_devsw;
 	si2 = NULL;
 	if (csw->d_flags & D_NEEDMINOR) {
@@ -629,7 +629,7 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 {
 	struct cdevsw *dsw2;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	if (devsw->d_flags & D_INIT)
 		return (0);
 	if (devsw->d_flags & D_NEEDGIANT) {
@@ -714,7 +714,7 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 	int len;
 	char *from, *q, *s, *to;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 
 	len = vsnrprintf(dev->si_name, sizeof(dev->si_name), 32, fmt, ap);
 	if (len > sizeof(dev->si_name) - 1)
@@ -1098,7 +1098,7 @@ destroy_devl(struct cdev *dev)
 	struct cdev_privdata *p;
 	struct cdev_priv *cdp;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	KASSERT(dev->si_flags & SI_NAMED,
 	    ("WARNING: Driver mistake: destroy_dev on %d\n", dev2unit(dev)));
 	KASSERT((dev->si_flags & SI_ETERNAL) == 0,
@@ -1200,7 +1200,7 @@ delist_dev_locked(struct cdev *dev)
 	struct cdev_priv *cdp;
 	struct cdev *child;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	cdp = cdev2priv(dev);
 	if ((cdp->cdp_flags & CDP_UNREF_DTR) != 0)
 		return;
@@ -1464,7 +1464,7 @@ destroy_dev_sched_cbl(struct cdev *dev, void (*cb)(void *), void *arg)
 {
 	struct cdev_priv *cp;
 
-	mtx_assert(&devmtx, MA_OWNED);
+	dev_lock_assert_locked();
 	cp = cdev2priv(dev);
 	if (cp->cdp_flags & CDP_SCHED_DTR) {
 		dev_unlock();

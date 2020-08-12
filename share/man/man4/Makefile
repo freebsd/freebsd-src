@@ -113,6 +113,7 @@ MAN=	aac.4 \
 	cloudabi.4 \
 	cmx.4 \
 	${_coretemp.4} \
+	cp2112.4 \
 	${_cpuctl.4} \
 	cpufreq.4 \
 	crypto.4 \
@@ -171,6 +172,7 @@ MAN=	aac.4 \
 	gif.4 \
 	gpio.4 \
 	gpioiic.4 \
+	gpiokeys.4 \
 	gpioled.4 \
 	gpioths.4 \
 	gre.4 \

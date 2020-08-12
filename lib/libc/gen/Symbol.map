@@ -416,7 +416,6 @@ FBSD_1.5 {
 	readdir;
 	readdir_r;
 	scandir;
-	scandir_b;
 	sem_clockwait_np;
 	setproctitle_fast;
 	timespec_get;
@@ -424,6 +423,7 @@ FBSD_1.5 {
 
 FBSD_1.6 {
 	memalign;
+	scandir_b;
 	sigandset;
 	sigisemptyset;
 	sigorset;

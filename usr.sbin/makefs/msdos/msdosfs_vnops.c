@@ -53,7 +53,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/clock.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
 #include <sys/time.h>

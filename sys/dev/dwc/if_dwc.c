@@ -1209,14 +1209,23 @@ dwc_clock_init(device_t dev)
 	hwreset_t rst;
 	clk_t clk;
 	int error;
+	int64_t freq;
 
-	/* Enable clock */
+	/* Enable clocks */
 	if (clk_get_by_ofw_name(dev, 0, "stmmaceth", &clk) == 0) {
 		error = clk_enable(clk);
 		if (error != 0) {
 			device_printf(dev, "could not enable main clock\n");
 			return (error);
 		}
+		if (bootverbose) {
+			clk_get_freq(clk, &freq);
+			device_printf(dev, "MAC clock(%s) freq: %jd\n",
+					clk_get_name(clk), (intmax_t)freq);
+		}
+	}
+	else {
+		device_printf(dev, "could not find clock stmmaceth\n");
 	}
 
 	/* De-assert reset */
@@ -1254,6 +1263,8 @@ dwc_attach(device_t dev)
 	struct ifnet *ifp;
 	int error, i;
 	uint32_t reg;
+	char *phy_mode;
+	phandle_t node;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1261,6 +1272,15 @@ dwc_attach(device_t dev)
 	sc->txcount = TX_DESC_COUNT;
 	sc->mii_clk = IF_DWC_MII_CLK(dev);
 	sc->mactype = IF_DWC_MAC_TYPE(dev);
+
+	node = ofw_bus_get_node(dev);
+	if (OF_getprop_alloc(node, "phy-mode", (void **)&phy_mode)) {
+		if (strcmp(phy_mode, "rgmii") == 0)
+			sc->phy_mode = PHY_MODE_RGMII;
+		if (strcmp(phy_mode, "rmii") == 0)
+			sc->phy_mode = PHY_MODE_RMII;
+		OF_prop_free(phy_mode);
+	}
 
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
@@ -1475,6 +1495,9 @@ dwc_miibus_statchg(device_t dev)
 	else
 		reg &= ~(CONF_DM);
 	WRITE4(sc, MAC_CONFIGURATION, reg);
+
+	IF_DWC_SET_SPEED(dev, IFM_SUBTYPE(mii->mii_media_active));
+
 }
 
 static device_method_t dwc_methods[] = {

@@ -1334,6 +1334,11 @@ em_if_init(if_ctx_t ctx)
 			ctrl |= E1000_CTRL_VME;
 			E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 		}
+	} else {
+		u32 ctrl;
+		ctrl = E1000_READ_REG(&adapter->hw, E1000_CTRL);
+		ctrl &= ~E1000_CTRL_VME;
+		E1000_WRITE_REG(&adapter->hw, E1000_CTRL, ctrl);
 	}
 
 	/* Don't lose promiscuous settings */

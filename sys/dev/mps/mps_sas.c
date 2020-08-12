@@ -515,7 +515,6 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle)
 	mpssas_rescan_target(sc, targ);
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
-	memset(req, 0, sizeof(*req));
 	req->DevHandle = htole16(targ->handle);
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 

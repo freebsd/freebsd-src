@@ -95,6 +95,9 @@ extern struct sx clone_drain_lock;
 extern struct mtx cdevpriv_mtx;
 extern TAILQ_HEAD(cdev_priv_list, cdev_priv) cdevp_list;
 
+#define	dev_lock_assert_locked()	mtx_assert(&devmtx, MA_OWNED)
+#define	dev_lock_assert_unlocked()	mtx_assert(&devmtx, MA_NOTOWNED)
+
 #endif /* _KERNEL */
 
 #endif /* !_FS_DEVFS_DEVFS_INT_H_ */

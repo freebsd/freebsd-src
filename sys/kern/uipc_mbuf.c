@@ -78,6 +78,13 @@ SDT_PROBE_DEFINE4_XLATE(sdt, , , m__getcl,
     "uint32_t", "uint32_t",
     "struct mbuf *", "mbufinfo_t *");
 
+SDT_PROBE_DEFINE5_XLATE(sdt, , , m__getjcl,
+    "uint32_t", "uint32_t",
+    "uint16_t", "uint16_t",
+    "uint32_t", "uint32_t",
+    "uint32_t", "uint32_t",
+    "struct mbuf *", "mbufinfo_t *");
+
 SDT_PROBE_DEFINE3_XLATE(sdt, , , m__clget,
     "struct mbuf *", "mbufinfo_t *",
     "uint32_t", "uint32_t",

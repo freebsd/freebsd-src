@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#ifdef INVARIANTS
+#include <machine/_inttypes.h>
+#endif
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -70,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	NAMEI_DIAGNOSTIC 1
 #undef NAMEI_DIAGNOSTIC
 
-SDT_PROVIDER_DECLARE(vfs);
+SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
 SDT_PROBE_DEFINE3(vfs, namei, lookup, return, "int", "struct vnode *", "bool");
@@ -297,6 +300,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 
 	startdir_used = false;
 	*pwdp = NULL;
+	*dpp = NULL;
 
 #ifdef CAPABILITY_MODE
 	/*
@@ -347,7 +351,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			*dpp = pwd->pwd_cdir;
 			vrefact(*dpp);
 		} else {
-			rights = ndp->ni_rightsneeded;
+			rights = *ndp->ni_rightsneeded;
 			cap_rights_set_one(&rights, CAP_LOOKUP);
 
 			if (cnp->cn_flags & AUDITVNODE1)
@@ -403,7 +407,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 			ndp->ni_beneath_latch = pwd->pwd_cdir;
 			vrefact(ndp->ni_beneath_latch);
 		} else {
-			rights = ndp->ni_rightsneeded;
+			rights = *ndp->ni_rightsneeded;
 			cap_rights_set_one(&rights, CAP_LOOKUP);
 			error = fgetvp_rights(td, ndp->ni_dirfd, &rights,
 			    &dirfd_caps, &ndp->ni_beneath_latch);
@@ -470,7 +474,6 @@ namei(struct nameidata *ndp)
 	struct iovec aiov;		/* uio for reading symbolic links */
 	struct componentname *cnp;
 	struct thread *td;
-	struct proc *p;
 	struct pwd *pwd;
 	struct uio auio;
 	int error, linklen;
@@ -478,23 +481,22 @@ namei(struct nameidata *ndp)
 
 	cnp = &ndp->ni_cnd;
 	td = cnp->cn_thread;
-	p = td->td_proc;
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
-	KASSERT(cnp->cn_cred && p, ("namei: bad cred/proc"));
+	KASSERT(cnp->cn_cred && td->td_proc, ("namei: bad cred/proc"));
 	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
+	KASSERT((cnp->cn_flags & NAMEI_INTERNAL_FLAGS) == 0,
+	    ("namei: unexpected flags: %" PRIx64 "\n",
+	    cnp->cn_flags & NAMEI_INTERNAL_FLAGS));
+	if (cnp->cn_flags & NOCACHE)
+		KASSERT(cnp->cn_nameiop != LOOKUP,
+		    ("%s: NOCACHE passed with LOOKUP", __func__));
 	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
 	    ndp->ni_startdir->v_type == VBAD);
-	TAILQ_INIT(&ndp->ni_cap_tracker);
+
 	ndp->ni_lcf = 0;
-	ndp->ni_loopcnt = 0;
-	dp = NULL;
-
-	/* We will set this ourselves if we need it. */
-	cnp->cn_flags &= ~TRAILINGSLASH;
-
 	ndp->ni_vp = NULL;
 
 	/*
@@ -510,17 +512,15 @@ namei(struct nameidata *ndp)
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
 
-	if (error != 0) {
+	if (__predict_false(error != 0)) {
 		namei_cleanup_cnp(cnp);
 		return (error);
 	}
 
-	cnp->cn_nameptr = cnp->cn_pnbuf;
-
 	/*
 	 * Don't allow empty pathnames.
 	 */
-	if (*cnp->cn_pnbuf == '\0') {
+	if (__predict_false(*cnp->cn_pnbuf == '\0')) {
 		namei_cleanup_cnp(cnp);
 		return (ENOENT);
 	}
@@ -532,6 +532,8 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
+
+	cnp->cn_nameptr = cnp->cn_pnbuf;
 
 	/*
 	 * First try looking up the target without locking any vnodes.
@@ -546,9 +548,11 @@ namei(struct nameidata *ndp)
 	case CACHE_FPL_STATUS_HANDLED:
 		return (error);
 	case CACHE_FPL_STATUS_PARTIAL:
+		TAILQ_INIT(&ndp->ni_cap_tracker);
 		dp = ndp->ni_startdir;
 		break;
 	case CACHE_FPL_STATUS_ABORTED:
+		TAILQ_INIT(&ndp->ni_cap_tracker);
 		error = namei_setup(ndp, &dp, &pwd);
 		if (error != 0) {
 			namei_cleanup_cnp(cnp);
@@ -556,6 +560,8 @@ namei(struct nameidata *ndp)
 		}
 		break;
 	}
+
+	ndp->ni_loopcnt = 0;
 
 	/*
 	 * Locked lookup.
@@ -1363,27 +1369,6 @@ bad:
 	vput(dp);
 	*vpp = NULL;
 	return (error);
-}
-
-void
-NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
-    const char *namep, int dirfd, struct vnode *startdir, cap_rights_t *rightsp,
-    struct thread *td)
-{
-
-	ndp->ni_cnd.cn_nameiop = op;
-	ndp->ni_cnd.cn_flags = flags;
-	ndp->ni_segflg = segflg;
-	ndp->ni_dirp = namep;
-	ndp->ni_dirfd = dirfd;
-	ndp->ni_startdir = startdir;
-	ndp->ni_resflags = 0;
-	filecaps_init(&ndp->ni_filecaps);
-	ndp->ni_cnd.cn_thread = td;
-	if (rightsp != NULL)
-		ndp->ni_rightsneeded = *rightsp;
-	else
-		cap_rights_init_zero(&ndp->ni_rightsneeded);
 }
 
 /*

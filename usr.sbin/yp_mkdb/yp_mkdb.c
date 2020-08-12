@@ -88,8 +88,8 @@ unwind(char *map)
 
 	key.data = NULL;
 	while (yp_next_record(dbp, &key, &data, 1, 1) == YP_TRUE)
-		printf("%.*s %.*s\n", (int)key.size, key.data, (int)data.size,
-		    data.data);
+		printf("%.*s %.*s\n", (int)key.size, (char *)key.data,
+		    (int)data.size, (char *)data.data);
 
 	(void)(dbp->close)(dbp);
 	return;

@@ -55,6 +55,8 @@ if [ -n "${include_metadata}" ]; then
 	bootprog_info="$bootprog_info(${t} ${u}@${h})\\n"
 fi
 
-echo "char bootprog_info[] = \"$bootprog_info\";" > $tempfile
-echo "unsigned bootprog_rev = ${r%%.*}${r##*.};" >> $tempfile
+cat > $tempfile <<EOF
+char bootprog_info[] = "$bootprog_info";
+unsigned bootprog_rev = ${r%%.*}${r##*.};
+EOF
 mv $tempfile vers.c

@@ -91,6 +91,22 @@ struct dmar_ctx {
 #define	DMAR_DOMAIN_UNLOCK(dom)	mtx_unlock(&(dom)->iodom.lock)
 #define	DMAR_DOMAIN_ASSERT_LOCKED(dom) mtx_assert(&(dom)->iodom.lock, MA_OWNED)
 
+#define	DMAR2IOMMU(dmar)	&((dmar)->iommu)
+#define	IOMMU2DMAR(dmar)	\
+	__containerof((dmar), struct dmar_unit, iommu)
+
+#define	DOM2IODOM(domain)	&((domain)->iodom)
+#define	IODOM2DOM(domain)	\
+	__containerof((domain), struct dmar_domain, iodom)
+
+#define	CTX2IOCTX(ctx)		&((ctx)->context)
+#define	IOCTX2CTX(ctx)		\
+	__containerof((ctx), struct dmar_ctx, context)
+
+#define	CTX2DOM(ctx)		IODOM2DOM((ctx)->context.domain)
+#define	CTX2DMAR(ctx)		(CTX2DOM(ctx)->dmar)
+#define	DOM2DMAR(domain)	((domain)->dmar)
+
 struct dmar_msi_data {
 	int irq;
 	int irq_rid;
@@ -244,14 +260,11 @@ void dmar_qi_invalidate_iec(struct dmar_unit *unit, u_int start, u_int cnt);
 vm_object_t domain_get_idmap_pgtbl(struct dmar_domain *domain,
     iommu_gaddr_t maxaddr);
 void put_idmap_pgtbl(vm_object_t obj);
-int domain_map_buf(struct iommu_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, vm_page_t *ma, uint64_t pflags, int flags);
-int domain_unmap_buf(struct dmar_domain *domain, iommu_gaddr_t base,
-    iommu_gaddr_t size, int flags);
 void domain_flush_iotlb_sync(struct dmar_domain *domain, iommu_gaddr_t base,
     iommu_gaddr_t size);
 int domain_alloc_pgtbl(struct dmar_domain *domain);
 void domain_free_pgtbl(struct dmar_domain *domain);
+extern const struct iommu_domain_map_ops dmar_domain_map_ops;
 
 int dmar_dev_depth(device_t child);
 void dmar_dev_path(device_t child, int *busno, void *path1, int depth);

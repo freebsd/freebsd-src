@@ -1,7 +1,7 @@
-#!/bin/sh -
 #
-# Copyright 2004 John-Mark Gurney
-# All rights reserved.
+# $FreeBSD$
+#
+# Copyright (c) Andriy Gapon <avg@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,44 +24,14 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
 
-crashpath="/var/crash"
-kld_debpy="kld_deb.py"
+S=     ${SRCTOP}/sys
 
-if [ x"$1" = x"-?" -o x"$1" = x"-h" ]; then
-	echo "Usage: $0 <corenum> [ <gdbcmdfile> [ <modulepaths> ] ]"
-	echo ""
-	echo "Path for crash dumps: $crashpath"
-	exit 1
-fi
+.PATH: $S/dev/usb/misc
 
-if [ x"$1" = x"" ]; then
-	echo "Need core number."
-	exit 1
-fi
-corenum="$1"
-shift
+KMOD=	cp2112
+SRCS=	cp2112.c
+SRCS+=	opt_bus.h opt_usb.h
+SRCS+=	device_if.h bus_if.h gpio_if.h iicbus_if.h usb_if.h usbdevs.h
 
-cmd_file=""
-if [ x"$2" != x"" ]; then
-	cmd_file="-x $2"
-	shift
-fi
-
-core="$crashpath/vmcore.$corenum"
-info="$crashpath/info.$corenum"
-
-#Get the kernel source compile dir from the info file
-kernsrc="`awk 'i == 1 { split($0, a, ":"); print a[2]; i = 0 } $1 == "Versionstring:" { i = 1 }' < "$info"`"
-
-tmpfile="/tmp/kgdb.asf.$$"
-# -mapped (broken?)
-# -x command_file
-echo "Kernel Source:	$kernsrc"
-echo "Getting KLD information and locations..."
-python $kld_debpy "$kernsrc" "$core" $@ > "$tmpfile" &&
-echo "Please run the following command to load module symbols:"
-echo "source $tmpfile"
-(cd "$kernsrc"; kgdb "$kernsrc/kernel.debug" "$core")
-rm "$tmpfile"
+.include <bsd.kmod.mk>

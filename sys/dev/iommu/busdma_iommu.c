@@ -59,17 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <dev/iommu/iommu.h>
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#if defined(__amd64__) || defined(__i386__)
-#include <machine/specialreg.h>
-#include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
+#include <machine/iommu.h>
 #include <dev/iommu/busdma_iommu.h>
-#include <dev/iommu/iommu.h>
-#include <x86/iommu/intel_dmar.h>
-#endif
 
 /*
  * busdma_iommu.c, the implementation of the busdma(9) interface using
@@ -410,7 +405,7 @@ iommu_bus_dma_tag_destroy(bus_dma_tag_t dmat1)
 			    1) {
 				if (dmat == dmat->ctx->tag)
 					iommu_free_ctx(dmat->ctx);
-				free_domain(dmat->segments, M_IOMMU_DMAMAP);
+				free(dmat->segments, M_IOMMU_DMAMAP);
 				free(dmat, M_DEVBUF);
 				dmat = parent;
 			} else
@@ -447,7 +442,7 @@ iommu_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		    tag->common.nsegments, M_IOMMU_DMAMAP,
 		    DOMAINSET_PREF(tag->common.domain), M_NOWAIT);
 		if (tag->segments == NULL) {
-			free_domain(map, M_IOMMU_DMAMAP);
+			free(map, M_IOMMU_DMAMAP);
 			*mapp = NULL;
 			return (ENOMEM);
 		}
@@ -479,7 +474,7 @@ iommu_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map1)
 			return (EBUSY);
 		}
 		IOMMU_DOMAIN_UNLOCK(domain);
-		free_domain(map, M_IOMMU_DMAMAP);
+		free(map, M_IOMMU_DMAMAP);
 	}
 	tag->map_count--;
 	return (0);
@@ -537,7 +532,7 @@ iommu_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map1)
 	map = (struct bus_dmamap_iommu *)map1;
 
 	if ((map->flags & BUS_DMAMAP_IOMMU_MALLOC) != 0) {
-		free_domain(vaddr, M_DEVBUF);
+		free(vaddr, M_DEVBUF);
 		map->flags &= ~BUS_DMAMAP_IOMMU_MALLOC;
 	} else {
 		KASSERT((map->flags & BUS_DMAMAP_IOMMU_KMEM_ALLOC) != 0,
@@ -1067,4 +1062,45 @@ bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map1,
 		vm_page_putfake(ma[i]);
 	free(ma, M_TEMP);
 	return (error);
+}
+
+static void
+iommu_domain_unload_task(void *arg, int pending)
+{
+	struct iommu_domain *domain;
+	struct iommu_map_entries_tailq entries;
+
+	domain = arg;
+	TAILQ_INIT(&entries);
+
+	for (;;) {
+		IOMMU_DOMAIN_LOCK(domain);
+		TAILQ_SWAP(&domain->unload_entries, &entries,
+		    iommu_map_entry, dmamap_link);
+		IOMMU_DOMAIN_UNLOCK(domain);
+		if (TAILQ_EMPTY(&entries))
+			break;
+		iommu_domain_unload(domain, &entries, true);
+	}
+}
+
+void
+iommu_domain_init(struct iommu_unit *unit, struct iommu_domain *domain,
+    const struct iommu_domain_map_ops *ops)
+{
+
+	domain->ops = ops;
+	domain->iommu = unit;
+
+	TASK_INIT(&domain->unload_task, 0, iommu_domain_unload_task, domain);
+	RB_INIT(&domain->rb_root);
+	TAILQ_INIT(&domain->unload_entries);
+	mtx_init(&domain->lock, "iodom", NULL, MTX_DEF);
+}
+
+void
+iommu_domain_fini(struct iommu_domain *domain)
+{
+
+	mtx_destroy(&domain->lock);
 }

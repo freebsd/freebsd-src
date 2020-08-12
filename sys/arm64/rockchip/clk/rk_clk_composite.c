@@ -35,10 +35,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <dev/extres/clk/clk.h>
+#include <dev/extres/syscon/syscon.h>
 
 #include <arm64/rockchip/clk/rk_clk_composite.h>
 
 #include "clkdev_if.h"
+#include "syscon_if.h"
 
 struct rk_clk_composite_sc {
 	uint32_t	muxdiv_offset;
@@ -54,12 +56,14 @@ struct rk_clk_composite_sc {
 	uint32_t	gate_shift;
 
 	uint32_t	flags;
+
+	struct syscon	*grf;
 };
 
 #define	WRITE4(_clk, off, val)						\
-	CLKDEV_WRITE_4(clknode_get_device(_clk), off, val)
+	rk_clk_composite_write_4(_clk, off, val)
 #define	READ4(_clk, off, val)						\
-	CLKDEV_READ_4(clknode_get_device(_clk), off, val)
+	rk_clk_composite_read_4(_clk, off, val)
 #define	DEVICE_LOCK(_clk)						\
 	CLKDEV_DEVICE_LOCK(clknode_get_device(_clk))
 #define	DEVICE_UNLOCK(_clk)						\
@@ -74,6 +78,49 @@ struct rk_clk_composite_sc {
 #define	dprintf(format, arg...)
 #endif
 
+static void
+rk_clk_composite_read_4(struct clknode *clk, bus_addr_t addr, uint32_t *val)
+{
+	struct rk_clk_composite_sc *sc;
+
+	sc = clknode_get_softc(clk);
+	if (sc->grf)
+		*val = SYSCON_READ_4(sc->grf, addr);
+	else
+		CLKDEV_READ_4(clknode_get_device(clk), addr, val);
+}
+
+static void
+rk_clk_composite_write_4(struct clknode *clk, bus_addr_t addr, uint32_t val)
+{
+	struct rk_clk_composite_sc *sc;
+
+	sc = clknode_get_softc(clk);
+	if (sc->grf)
+		SYSCON_WRITE_4(sc->grf, addr, val | (0xffff << 16));
+	else
+		CLKDEV_WRITE_4(clknode_get_device(clk), addr, val);
+}
+
+static struct syscon *
+rk_clk_composite_get_grf(struct clknode *clk)
+{
+	device_t dev;
+	phandle_t node;
+	struct syscon *grf;
+
+	grf = NULL;
+	dev = clknode_get_device(clk);
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "rockchip,grf") &&
+	    syscon_get_by_ofw_property(dev, node,
+	    "rockchip,grf", &grf) != 0) {
+		return (NULL);
+        }
+
+	return (grf);
+}
+
 static int
 rk_clk_composite_init(struct clknode *clk, device_t dev)
 {
@@ -81,6 +128,12 @@ rk_clk_composite_init(struct clknode *clk, device_t dev)
 	uint32_t val, idx;
 
 	sc = clknode_get_softc(clk);
+	if ((sc->flags & RK_CLK_COMPOSITE_GRF) != 0) {
+		sc->grf = rk_clk_composite_get_grf(clk);
+		if (sc->grf == NULL)
+			panic("clock %s has GRF flag set but no syscon is available",
+			    clknode_get_name(clk));
+	}
 
 	idx = 0;
 	if ((sc->flags & RK_CLK_COMPOSITE_HAVE_MUX) != 0) {

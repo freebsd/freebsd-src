@@ -41,4 +41,10 @@ SRCS+=		xray/xray_trampoline_x86_64.S
 SRCS+=		xray/xray_utils.cpp
 SRCS+=		xray/xray_x86_64.cpp
 
+.PATH:		${CRTSRC}/include/xray
+INCSDIR=	${CLANGDIR}/include/xray
+INCS+=		xray_interface.h
+INCS+=		xray_log_interface.h
+INCS+=		xray_records.h
+
 .include <bsd.lib.mk>

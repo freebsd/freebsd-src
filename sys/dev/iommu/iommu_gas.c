@@ -65,12 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/bus.h>
 #include <machine/md_var.h>
-#if defined(__amd64__) || defined(__i386__)
-#include <machine/specialreg.h>
-#include <x86/include/busdma_impl.h>
-#include <x86/iommu/intel_reg.h>
-#include <x86/iommu/intel_dmar.h>
-#endif
+#include <machine/iommu.h>
 #include <dev/iommu/busdma_iommu.h>
 
 /*
@@ -114,7 +109,7 @@ void
 iommu_gas_free_entry(struct iommu_domain *domain, struct iommu_map_entry *entry)
 {
 
-	KASSERT(domain == (struct iommu_domain *)entry->domain,
+	KASSERT(domain == entry->domain,
 	    ("mismatched free domain %p entry %p entry->domain %p", domain,
 	    entry, entry->domain));
 	atomic_subtract_int(&domain->entries_cnt, 1);
@@ -177,7 +172,7 @@ iommu_gas_check_free(struct iommu_domain *domain)
 	iommu_gaddr_t v;
 
 	RB_FOREACH(entry, iommu_gas_entries_tree, &domain->rb_root) {
-		KASSERT(domain == (struct iommu_domain *)entry->domain,
+		KASSERT(domain == entry->domain,
 		    ("mismatched free domain %p entry %p entry->domain %p",
 		    domain, entry, entry->domain));
 		l = RB_LEFT(entry, rb_entry);
@@ -620,9 +615,9 @@ iommu_gas_map(struct iommu_domain *domain,
 	entry->flags |= eflags;
 	IOMMU_DOMAIN_UNLOCK(domain);
 
-	error = domain_map_buf(domain, entry->start, entry->end - entry->start,
-	    ma, eflags,
-	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
+	error = domain->ops->map(domain, entry->start,
+	    entry->end - entry->start, ma, eflags,
+	    ((flags & IOMMU_MF_CANWAIT) != 0 ?  IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, true);
 		return (error);
@@ -658,9 +653,9 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 	if (entry->end == entry->start)
 		return (0);
 
-	error = domain_map_buf(domain, entry->start, entry->end - entry->start,
-	    ma + OFF_TO_IDX(start - entry->start), eflags,
-	    ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
+	error = domain->ops->map(domain, entry->start,
+	    entry->end - entry->start, ma + OFF_TO_IDX(start - entry->start),
+	    eflags, ((flags & IOMMU_MF_CANWAIT) != 0 ? IOMMU_PGF_WAITOK : 0));
 	if (error == ENOMEM) {
 		iommu_domain_unload_entry(entry, false);
 		return (error);

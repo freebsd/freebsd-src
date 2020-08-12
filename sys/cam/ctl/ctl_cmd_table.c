@@ -829,8 +829,15 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 /* 04 */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* 05 */
-{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+/* 05 REPORT IDENTIFYING INFORMATION */
+{ctl_report_ident_info, CTL_SERIDX_INQ, CTL_CMD_FLAG_OK_ON_BOTH |
+					CTL_CMD_FLAG_OK_ON_NO_MEDIA |
+					CTL_CMD_FLAG_OK_ON_STANDBY |
+					CTL_CMD_FLAG_OK_ON_UNAVAIL |
+					CTL_FLAG_DATA_IN |
+					CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
+ CTL_LUN_PAT_NONE,
+ 12, {0x0f, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xfe, 0x07}},
 
 /* 06 */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
@@ -854,7 +861,7 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
  CTL_LUN_PAT_NONE,
  12, {0xea, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
-/* 0B */
+/* 0B REPORT ALIASES */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 0C REPORT SUPPORTED_OPCODES */
@@ -877,7 +884,7 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
  CTL_LUN_PAT_NONE,
  12, {0x0d, 0x80, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
-/* 0E */
+/* 0E REPORT PRIORITY */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
 /* 0F REPORT TIMESTAMP */
@@ -890,7 +897,10 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
  CTL_LUN_PAT_NONE,
  12, {0x0f, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
-/* 10-1f */
+/* 10 MANAGEMENT PROTOCOL IN */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+
+/* 11-1f */
 };
 
 const struct ctl_cmd_entry ctl_cmd_table[256] =

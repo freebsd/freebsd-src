@@ -208,7 +208,7 @@ fuse_internal_access(struct vnode *vp,
 
 		fuse_internal_getattr(vp, &va, cred, td);
 		return vaccess(vp->v_type, va.va_mode, va.va_uid,
-		    va.va_gid, mode, cred, NULL);
+		    va.va_gid, mode, cred);
 	}
 
 	if (mode & VADMIN) {

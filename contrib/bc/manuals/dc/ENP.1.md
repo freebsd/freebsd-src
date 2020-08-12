@@ -98,9 +98,8 @@ The following are the options that dc(1) accepts.
     evaluated in the order given. This means that if a file is given before an
     expression, the file is read in and evaluated first.
 
-    In other dc(1) implementations, this option causes the program to execute
-    the expressions and then exit. This dc(1) does not, unless the
-    **DC_EXPR_EXIT** is defined (see the **ENVIRONMENT VARIABLES** section).
+    After processing all expressions and files, dc(1) will exit, unless **-**
+    (**stdin**) was given as an argument at least once to **-f** or **--file**.
 
     This is a **non-portable extension**.
 
@@ -110,9 +109,10 @@ The following are the options that dc(1) accepts.
     through **stdin**. If expressions are also given (see above), the
     expressions are evaluated in the order given.
 
-    In other dc(1) implementations, this option causes the program to execute
-    the files and then exit. This dc(1) does not, unless the
-    **DC_EXPR_EXIT** is defined (see the **ENVIRONMENT VARIABLES** section).
+    After processing all expressions and files, dc(1) will exit, unless **-**
+    (**stdin**) was given as an argument at least once to **-f** or **--file**.
+    However, if any other **-e**, **--expression**, **-f**, or **--file**
+    arguments are given after that, bc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 

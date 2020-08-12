@@ -167,8 +167,8 @@ pfs_access(struct vop_access_args *va)
 	error = VOP_GETATTR(vn, &vattr, va->a_cred);
 	if (error)
 		PFS_RETURN (error);
-	error = vaccess(vn->v_type, vattr.va_mode, vattr.va_uid,
-	    vattr.va_gid, va->a_accmode, va->a_cred, NULL);
+	error = vaccess(vn->v_type, vattr.va_mode, vattr.va_uid, vattr.va_gid,
+	    va->a_accmode, va->a_cred);
 	PFS_RETURN (error);
 }
 

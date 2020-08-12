@@ -1307,7 +1307,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	 * the last page is partially invalid.  In this case the filesystem
 	 * may not properly clear the dirty bits for the entire page (which
 	 * could be VM_PAGE_BITS_ALL due to the page having been mmap()d).
-	 * With the page locked we are free to fix-up the dirty bits here.
+	 * With the page busied we are free to fix up the dirty bits here.
 	 *
 	 * We do not under any circumstances truncate the valid bits, as
 	 * this will screw up bogus page replacement.

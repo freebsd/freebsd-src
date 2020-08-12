@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Mar 10, 2020
+.Dd August 2, 2020
 .Dt VTFONTCVT 8
 .Os
 .Sh NAME
@@ -63,7 +63,7 @@ file.
 .It Fl h Ar height
 Set font height.
 The default is 16.
-Font height is set automatically for HEX files that have a
+Font height is set automatically for BDF files and for HEX files that have a
 .Ql # Height: Ar height
 comment before any font data.
 .It Fl n
@@ -75,7 +75,7 @@ Display verbose statistics about the converted font.
 .It Fl w Ar width
 Set font width.
 The default is 8.
-Font width is set automatically for HEX files that have a
+Font width is set automatically for BDF files and for HEX files that have a
 .Ql # Width: Ar width
 comment before any font data.
 .El
