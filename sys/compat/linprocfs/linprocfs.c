@@ -145,41 +145,35 @@ static int
 linprocfs_domeminfo(PFS_FILL_ARGS)
 {
 	unsigned long memtotal;		/* total memory in bytes */
-	unsigned long memused;		/* used memory in bytes */
 	unsigned long memfree;		/* free memory in bytes */
-	unsigned long buffers, cached;	/* buffer / cache memory ??? */
+	unsigned long cached;		/* page cache */
+	unsigned long buffers;		/* buffer cache */
 	unsigned long long swaptotal;	/* total swap space in bytes */
 	unsigned long long swapused;	/* used swap space in bytes */
 	unsigned long long swapfree;	/* free swap space in bytes */
-	int i, j;
+	size_t sz;
+	int error, i, j;
 
 	memtotal = physmem * PAGE_SIZE;
-	/*
-	 * The correct thing here would be:
-	 *
-	memfree = vm_free_count() * PAGE_SIZE;
-	memused = memtotal - memfree;
-	 *
-	 * but it might mislead linux binaries into thinking there
-	 * is very little memory left, so we cheat and tell them that
-	 * all memory that isn't wired down is free.
-	 */
-	memused = vm_wire_count() * PAGE_SIZE;
-	memfree = memtotal - memused;
+	memfree = (unsigned long)vm_free_count() * PAGE_SIZE;
 	swap_pager_status(&i, &j);
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
 	swapused = (unsigned long long)j * PAGE_SIZE;
 	swapfree = swaptotal - swapused;
+
 	/*
-	 * We'd love to be able to write:
-	 *
-	buffers = bufspace;
-	 *
-	 * but bufspace is internal to vfs_bio.c and we don't feel
-	 * like unstaticizing it just for linprocfs's sake.
+	 * This value may exclude wired pages, but we have no good way of
+	 * accounting for that.
 	 */
-	buffers = 0;
-	cached = vm_inactive_count() * PAGE_SIZE;
+	cached =
+	    (vm_active_count() + vm_inactive_count() + vm_laundry_count()) *
+	    PAGE_SIZE;
+
+	sz = sizeof(buffers);
+	error = kernel_sysctlbyname(curthread, "vfs.bufspace", &buffers, &sz,
+	    NULL, 0, 0, 0);
+	if (error != 0)
+		buffers = 0;
 
 	sbuf_printf(sb,
 	    "MemTotal: %9lu kB\n"
