@@ -134,8 +134,11 @@ __FBSDID("$FreeBSD$");
 #define	INV_CODE_MASK			0xff00ff00
 #define	VALID_CODE_MASK			0x00ff0000
 
-#define	A10_IR				1
-#define	A13_IR				2
+enum {
+	A10_IR = 1,
+	A13_IR,
+	A31_IR,
+};
 
 #define	AW_IR_RAW_BUF_SIZE		128
 
@@ -158,6 +161,7 @@ static struct resource_spec aw_ir_spec[] = {
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-ir",	A10_IR },
 	{ "allwinner,sun5i-a13-ir",	A13_IR },
+	{ "allwinner,sun6i-a31-ir",	A31_IR },
 	{ NULL,				0 }
 };
 
@@ -414,6 +418,7 @@ aw_ir_attach(device_t dev)
 		sc->fifo_size = 16;
 		break;
 	case A13_IR:
+	case A31_IR:
 		sc->fifo_size = 64;
 		break;
 	}
