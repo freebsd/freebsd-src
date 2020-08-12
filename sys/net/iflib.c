@@ -838,38 +838,40 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 	struct if_rxd_update iru;
 	if_ctx_t ctx = rxq->ifr_ctx;
 	iflib_fl_t fl = &rxq->ifr_fl[0];
-	uint32_t refill_pidx, nic_i;
+	uint32_t nic_i_first, nic_i;
+	int i;
 #if IFLIB_DEBUG_COUNTERS
 	int rf_count = 0;
 #endif
 
 	if (nm_i == head && __predict_true(!init))
-		return 0;
+		return (0);
+
 	iru_init(&iru, rxq, 0 /* flid */);
 	map = fl->ifl_sds.ifsd_map;
-	refill_pidx = netmap_idx_k2n(kring, nm_i);
+	nic_i = netmap_idx_k2n(kring, nm_i);
 	/*
 	 * IMPORTANT: we must leave one free slot in the ring,
 	 * so move head back by one unit
 	 */
 	head = nm_prev(head, lim);
-	nic_i = UINT_MAX;
 	DBG_COUNTER_INC(fl_refills);
 	while (nm_i != head) {
 #if IFLIB_DEBUG_COUNTERS
 		if (++rf_count == 9)
 			DBG_COUNTER_INC(fl_refills_large);
 #endif
-		for (int tmp_pidx = 0; tmp_pidx < IFLIB_MAX_RX_REFRESH && nm_i != head; tmp_pidx++) {
+		nic_i_first = nic_i;
+		for (i = 0; i < IFLIB_MAX_RX_REFRESH && nm_i != head; i++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
-			void *addr = PNMB(na, slot, &fl->ifl_bus_addrs[tmp_pidx]);
-			uint32_t nic_i_dma = refill_pidx;
-			nic_i = netmap_idx_k2n(kring, nm_i);
+			void *addr = PNMB(na, slot, &fl->ifl_bus_addrs[i]);
 
-			MPASS(tmp_pidx < IFLIB_MAX_RX_REFRESH);
+			MPASS(i < IFLIB_MAX_RX_REFRESH);
 
 			if (addr == NETMAP_BUF_BASE(na)) /* bad buf */
 			        return netmap_ring_reinit(kring);
+
+			fl->ifl_rxd_idxs[i] = nic_i;
 
 			if (__predict_false(init)) {
 				netmap_load_map(na, fl->ifl_buf_tag,
@@ -879,33 +881,25 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, uint32_t nm_i, boo
 				netmap_reload_map(na, fl->ifl_buf_tag,
 				    map[nic_i], addr);
 			}
+			bus_dmamap_sync(fl->ifl_buf_tag, map[nic_i],
+			    BUS_DMASYNC_PREREAD);
 			slot->flags &= ~NS_BUF_CHANGED;
 
 			nm_i = nm_next(nm_i, lim);
-			fl->ifl_rxd_idxs[tmp_pidx] = nic_i = nm_next(nic_i, lim);
-			if (nm_i != head && tmp_pidx < IFLIB_MAX_RX_REFRESH-1)
-				continue;
-
-			iru.iru_pidx = refill_pidx;
-			iru.iru_count = tmp_pidx+1;
-			ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
-			refill_pidx = nic_i;
-			for (int n = 0; n < iru.iru_count; n++) {
-				bus_dmamap_sync(fl->ifl_buf_tag, map[nic_i_dma],
-						BUS_DMASYNC_PREREAD);
-				/* XXX - change this to not use the netmap func*/
-				nic_i_dma = nm_next(nic_i_dma, lim);
-			}
+			nic_i = nm_next(nic_i, lim);
 		}
+
+		iru.iru_pidx = nic_i_first;
+		iru.iru_count = i;
+		ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
 	}
 	kring->nr_hwcur = head;
 
 	bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	if (__predict_true(nic_i != UINT_MAX)) {
-		ctx->isc_rxd_flush(ctx->ifc_softc, rxq->ifr_id, fl->ifl_id, nic_i);
-		DBG_COUNTER_INC(rxd_flush);
-	}
+	ctx->isc_rxd_flush(ctx->ifc_softc, rxq->ifr_id, fl->ifl_id, nic_i);
+	DBG_COUNTER_INC(rxd_flush);
+
 	return (0);
 }
 
