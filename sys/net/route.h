@@ -387,16 +387,7 @@ int	rtsock_routemsg_info(int, struct rt_addrinfo *, int);
 
 struct sockaddr *rtsock_fix_netmask(const struct sockaddr *dst,
 	    const struct sockaddr *smask, struct sockaddr_storage *dmask);
-/*
- * Note the following locking behavior:
- *
- *    rtfree() and RTFREE_LOCKED() require a locked rtentry
- *
- *    RTFREE() uses an unlocked entry.
- */
 
-void	 rtfree(struct rtentry *);
-void	 rtfree_func(struct rtentry *);
 void	rt_updatemtu(struct ifnet *);
 
 void	rt_flushifroutes_af(struct ifnet *, int);
