@@ -38,4 +38,6 @@ SRCS+=	lua_ucl.c
 CFLAGS+=	-I${UCLSRC}/include -I${UCLSRC}/src -I${UCLSRC}/uthash
 LIBADD+=	ucl
 
+LDFLAGS+=	-Wl,-E
+
 .include <bsd.prog.mk>
