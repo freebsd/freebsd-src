@@ -146,7 +146,8 @@ linux_map_osrel(char *osrelease, int *osrel)
 		return (EINVAL);
 	osrelease = sep + 1;
 	v2 = strtol(osrelease, &sep, 10);
-	if (osrelease == sep || sep != eosrelease)
+	if (osrelease == sep ||
+	    (sep != eosrelease && (sep + 1 >= eosrelease || *sep != '-')))
 		return (EINVAL);
 
 	v = LINUX_KERNVER(v0, v1, v2);
