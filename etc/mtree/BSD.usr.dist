@@ -68,6 +68,8 @@
         ..
         engines
         ..
+        flua
+        ..
         i18n
         ..
         libxo
@@ -369,6 +371,8 @@
             ..
         ..
         firmware
+        ..
+        flua
         ..
         games
             fortune
