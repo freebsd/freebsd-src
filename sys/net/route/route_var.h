@@ -237,4 +237,8 @@ void tmproutes_update(struct rib_head *rnh, struct rtentry *rt);
 void tmproutes_init(struct rib_head *rh);
 void tmproutes_destroy(struct rib_head *rh);
 
+/* route_ctl.c */
+void vnet_rtzone_init(void);
+void vnet_rtzone_destroy(void);
+
 #endif
