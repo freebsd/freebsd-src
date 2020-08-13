@@ -215,11 +215,11 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	static char *flags[] = {
 		"fpu",	    "vme",     "de",	   "pse",      "tsc",
 		"msr",	    "pae",     "mce",	   "cx8",      "apic",
-		"sep",	    "sep",     "mtrr",	   "pge",      "mca",
-		"cmov",	    "pat",     "pse36",	   "pn",       "b19",
-		"b20",	    "b21",     "mmxext",   "mmx",      "fxsr",
-		"xmm",	    "sse2",    "b27",	   "b28",      "b29",
-		"3dnowext", "3dnow"
+		"",	    "sep",     "mtrr",	   "pge",      "mca",
+		"cmov",	    "pat",     "pse36",	   "pn",       "clflush",
+		"",	    "dts",     "acpi",	   "mmx",      "fxsr",
+		"sse",	    "sse2",    "ss",	   "ht",       "tm",
+		"ia64",	    "pbe"
 	};
 
 	static char *power_flags[] = {
@@ -287,7 +287,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		    CPUID_TO_FAMILY(cpu_id), "yes");
 		sbuf_cat(sb, "flags\t\t:");
 		for (j = 0; j < nitems(flags); j++)
-			if (cpu_feature & (1 << j))
+			if (cpu_feature & (1 << j) && flags[j][0] != '\0')
 				sbuf_printf(sb, " %s", flags[j]);
 		sbuf_cat(sb, "\n");
 		sbuf_printf(sb,
