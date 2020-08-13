@@ -205,15 +205,6 @@ static counter_u64_t recycles_count;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, recycles, CTLFLAG_RD, &recycles_count,
     "Number of vnodes recycled to meet vnode cache targets");
 
-/*
- * Various variables used for debugging the new implementation of
- * reassignbuf().
- * XXX these are probably of (very) limited utility now.
- */
-static int reassignbufcalls;
-SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0,
-    "Number of calls to reassignbuf");
-
 static counter_u64_t free_owe_inact;
 SYSCTL_COUNTER_U64(_vfs, OID_AUTO, free_owe_inact, CTLFLAG_RD, &free_owe_inact,
     "Number of times free vnodes kept on active list due to VFS "
@@ -2544,7 +2535,6 @@ reassignbuf(struct buf *bp)
 
 	vp = bp->b_vp;
 	bo = bp->b_bufobj;
-	++reassignbufcalls;
 
 	CTR3(KTR_BUF, "reassignbuf(%p) vp %p flags %X",
 	    bp, bp->b_vp, bp->b_flags);
