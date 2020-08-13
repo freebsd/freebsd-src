@@ -198,14 +198,22 @@ data_abort(struct trapframe *frame, int usermode)
 	    "Kernel page fault") != 0)
 		goto fatal;
 
-	if (usermode)
+	if (usermode) {
 		map = &td->td_proc->p_vmspace->vm_map;
-	else if (stval >= VM_MAX_USER_ADDRESS)
-		map = kernel_map;
-	else {
-		if (pcb->pcb_onfault == 0)
-			goto fatal;
-		map = &td->td_proc->p_vmspace->vm_map;
+	} else {
+		/*
+		 * Enable interrupts for the duration of the page fault. For
+		 * user faults this was done already in do_trap_user().
+		 */
+		intr_enable();
+
+		if (stval >= VM_MAX_USER_ADDRESS) {
+			map = kernel_map;
+		} else {
+			if (pcb->pcb_onfault == 0)
+				goto fatal;
+			map = &td->td_proc->p_vmspace->vm_map;
+		}
 	}
 
 	va = trunc_page(stval);
@@ -324,6 +332,7 @@ do_trap_user(struct trapframe *frame)
 		riscv_cpu_intr(frame);
 		return;
 	}
+	intr_enable();
 
 	CTR3(KTR_TRAP, "do_trap_user: curthread: %p, sepc: %lx, frame: %p",
 	    curthread, frame->tf_sepc, frame);
