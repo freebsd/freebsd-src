@@ -32,4 +32,6 @@ CFLAGS+=	-I${SRCTOP}/lib/libedit -I${SRCTOP}/contrib/libedit
 LIBADD+=	edit
 .endif
 
+LDFLAGS+=	-Wl,-E
+
 .include <bsd.prog.mk>
