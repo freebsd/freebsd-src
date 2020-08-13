@@ -431,6 +431,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	if (error != 0) {
 		if (*dpp != NULL)
 			vrele(*dpp);
+		pwd_drop(pwd);
 		return (error);
 	}
 	MPASS((ndp->ni_lcf & (NI_LCF_BENEATH_ABS | NI_LCF_LATCH)) !=
