@@ -235,10 +235,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 	};
 
 	static char *cpu_feature2_names[] = {
-		/*  0 */ "pni", "pclmulqdq", "dtes3", "monitor",
+		/*  0 */ "pni", "pclmulqdq", "dtes64", "monitor",
 		/*  4 */ "ds_cpl", "vmx", "smx", "est",
 		/*  8 */ "tm2", "ssse3", "cid", "sdbg",
-		/* 12 */ "fma", "cx16", "xptr", "pdcm",
+		/* 12 */ "fma", "cx16", "xtpr", "pdcm",
 		/* 16 */ "", "pcid", "dca", "sse4_1",
 		/* 20 */ "sse4_2", "x2apic", "movbe", "popcnt",
 		/* 24 */ "tsc_deadline_timer", "aes", "xsave", "",
