@@ -817,6 +817,25 @@ rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
 	}
 }
 
+static struct rib_subscription *
+allocate_subscription(rib_subscription_cb_t *f, void *arg,
+    enum rib_subscription_type type, bool waitok)
+{
+	struct rib_subscription *rs;
+	int flags = M_ZERO | (waitok ? M_WAITOK : 0);
+
+	rs = malloc(sizeof(struct rib_subscription), M_RTABLE, flags);
+	if (rs == NULL)
+		return (NULL);
+
+	rs->func = f;
+	rs->arg = arg;
+	rs->type = type;
+
+	return (rs);
+}
+
+
 /*
  * Subscribe for the changes in the routing table specified by @fibnum and
  *  @family.
@@ -830,20 +849,33 @@ rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
 	struct rib_head *rnh;
 	struct rib_subscription *rs;
 	struct epoch_tracker et;
-	int flags = M_ZERO | (waitok ? M_WAITOK : 0);
 
-	rs = malloc(sizeof(struct rib_subscription), M_RTABLE, flags);
-	if (rs == NULL)
+	if ((rs = allocate_subscription(f, arg, type, waitok)) == NULL)
 		return (NULL);
 
 	NET_EPOCH_ENTER(et);
 	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
 	rnh = rt_tables_get_rnh(fibnum, family);
 
-	rs->func = f;
-	rs->arg = arg;
-	rs->type = type;
+	RIB_WLOCK(rnh);
+	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
+	RIB_WUNLOCK(rnh);
+	NET_EPOCH_EXIT(et);
 
+	return (rs);
+}
+
+struct rib_subscription *
+rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg,
+    enum rib_subscription_type type, bool waitok)
+{
+	struct rib_subscription *rs;
+	struct epoch_tracker et;
+
+	if ((rs = allocate_subscription(f, arg, type, waitok)) == NULL)
+		return (NULL);
+
+	NET_EPOCH_ENTER(et);
 	RIB_WLOCK(rnh);
 	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
 	RIB_WUNLOCK(rnh);
