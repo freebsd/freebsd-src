@@ -653,7 +653,7 @@ fillin_program(prog_t *p)
 
 	/* Determine the actual srcdir (maybe symlinked). */
 	if (p->srcdir) {
-		snprintf(line, MAXLINELEN, "cd %s && env pwd -P", p->srcdir);
+		snprintf(line, MAXLINELEN, "cd %s && pwd -P", p->srcdir);
 		f = popen(line,"r");
 		if (!f)
 			errx(1, "Can't execute: %s\n", line);
