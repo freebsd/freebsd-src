@@ -2216,7 +2216,7 @@ get_pageout_threads_per_domain(void)
 	 * Semi-arbitrarily constrain pagedaemon threads to less than half the
 	 * total number of threads in the system as an insane upper limit.
 	 */
-	half_cpus_per_dom = (mp_ncpus / vm_ndomains) / 2;
+	half_cpus_per_dom = howmany(mp_ncpus / vm_ndomains, 2);
 
 	if (pageout_threads_per_domain < 1) {
 		printf("Invalid tuneable vm.pageout_threads_per_domain value: "
