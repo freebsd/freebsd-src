@@ -294,9 +294,6 @@ IPPROTOSPACER,
 },
 };
 
-extern int in_inithead(void **, int, u_int);
-extern int in_detachhead(void **, int);
-
 struct domain inetdomain = {
 	.dom_family =		AF_INET,
 	.dom_name =		"internet",
