@@ -31,9 +31,6 @@ CFLAGS+=	-DLUA_USE_READLINE
 CFLAGS+=	-I${SRCTOP}/lib/libedit -I${SRCTOP}/contrib/libedit
 LIBADD+=	edit
 LDFLAGS+=	-Wl,-E
-.else
-# We don't support dynamic libs on bootstrap builds.
-CFLAGS+=	-DBOOTSTRAPPING
 .endif
 
 UCLSRC?=	${SRCTOP}/contrib/libucl
