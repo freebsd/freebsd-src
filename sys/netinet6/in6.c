@@ -2374,8 +2374,7 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	ndpc.rtm.rtm_type = RTM_GET;
 	ndpc.rtm.rtm_flags = RTF_UP;
 	ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-	if (V_deembed_scopeid)
-		sa6_recoverscope(&ndpc.sin6);
+	sa6_recoverscope(&ndpc.sin6);
 
 	/* publish */
 	if (lle->la_flags & LLE_PUB)
