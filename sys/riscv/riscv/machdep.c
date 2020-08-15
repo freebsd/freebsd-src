@@ -861,6 +861,7 @@ initriscv(struct riscv_bootparams *rvbp)
 	phandle_t chosen;
 	uint32_t hart;
 #endif
+	char *env;
 
 	TSRAW(&thread0, TS_ENTER, __func__, NULL);
 
@@ -954,6 +955,10 @@ initriscv(struct riscv_bootparams *rvbp)
 	mutex_init();
 	init_param2(physmem);
 	kdb_init();
+
+	env = kern_getenv("kernelname");
+	if (env != NULL)
+		strlcpy(kernelname, env, sizeof(kernelname));
 
 	if (boothowto & RB_VERBOSE)
 		physmem_print_tables();
