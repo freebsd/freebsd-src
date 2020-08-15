@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <fstab.h>
 #include <grp.h>
 #include <inttypes.h>
+#include <libufs.h>
 #include <mntopts.h>
 #include <paths.h>
 #include <stdint.h>
@@ -604,10 +605,8 @@ checkfilesys(char *filesys)
 		/*
 		 * Write out the duplicate super blocks
 		 */
-		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
-			blwrite(fswritefd, (char *)&sblock,
-			    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
-			    SBLOCKSIZE);
+		if (sbput(fswritefd, &sblock, sblock.fs_ncg) == 0)
+			fsmodified = 1;
 	}
 	if (rerun)
 		resolved = 0;
