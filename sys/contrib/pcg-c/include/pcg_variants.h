@@ -53,7 +53,7 @@ extern "C" {
  * Rotate helper functions.
  */
 
-inline uint8_t pcg_rotr_8(uint8_t value, unsigned int rot)
+static inline uint8_t pcg_rotr_8(uint8_t value, unsigned int rot)
 {
 /* Unfortunately, clang is kinda pathetic when it comes to properly
  * recognizing idiomatic rotate code, so for clang we actually provide
@@ -67,7 +67,7 @@ inline uint8_t pcg_rotr_8(uint8_t value, unsigned int rot)
 #endif
 }
 
-inline uint16_t pcg_rotr_16(uint16_t value, unsigned int rot)
+static inline uint16_t pcg_rotr_16(uint16_t value, unsigned int rot)
 {
 #if PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
     __asm__ ("rorw   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
@@ -77,7 +77,7 @@ inline uint16_t pcg_rotr_16(uint16_t value, unsigned int rot)
 #endif
 }
 
-inline uint32_t pcg_rotr_32(uint32_t value, unsigned int rot)
+static inline uint32_t pcg_rotr_32(uint32_t value, unsigned int rot)
 {
 #if PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
     __asm__ ("rorl   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
@@ -87,7 +87,7 @@ inline uint32_t pcg_rotr_32(uint32_t value, unsigned int rot)
 #endif
 }
 
-inline uint64_t pcg_rotr_64(uint64_t value, unsigned int rot)
+static inline uint64_t pcg_rotr_64(uint64_t value, unsigned int rot)
 {
 #if 0 && PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
     /* For whatever reason, clang actually *does* generate rotq by
@@ -100,7 +100,7 @@ inline uint64_t pcg_rotr_64(uint64_t value, unsigned int rot)
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_rotr_128(pcg128_t value, unsigned int rot)
+static inline pcg128_t pcg_rotr_128(pcg128_t value, unsigned int rot)
 {
     return (value >> rot) | (value << ((- rot) & 127));
 }
@@ -112,24 +112,24 @@ inline pcg128_t pcg_rotr_128(pcg128_t value, unsigned int rot)
 
 /* XSH RS */
 
-inline uint8_t pcg_output_xsh_rs_16_8(uint16_t state)
+static inline uint8_t pcg_output_xsh_rs_16_8(uint16_t state)
 {
     return (uint8_t)(((state >> 7u) ^ state) >> ((state >> 14u) + 3u));
 }
 
-inline uint16_t pcg_output_xsh_rs_32_16(uint32_t state)
+static inline uint16_t pcg_output_xsh_rs_32_16(uint32_t state)
 {
     return (uint16_t)(((state >> 11u) ^ state) >> ((state >> 30u) + 11u));
 }
 
-inline uint32_t pcg_output_xsh_rs_64_32(uint64_t state)
+static inline uint32_t pcg_output_xsh_rs_64_32(uint64_t state)
 {
 
     return (uint32_t)(((state >> 22u) ^ state) >> ((state >> 61u) + 22u));
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_output_xsh_rs_128_64(pcg128_t state)
+static inline uint64_t pcg_output_xsh_rs_128_64(pcg128_t state)
 {
     return (uint64_t)(((state >> 43u) ^ state) >> ((state >> 124u) + 45u));
 }
@@ -137,23 +137,23 @@ inline uint64_t pcg_output_xsh_rs_128_64(pcg128_t state)
 
 /* XSH RR */
 
-inline uint8_t pcg_output_xsh_rr_16_8(uint16_t state)
+static inline uint8_t pcg_output_xsh_rr_16_8(uint16_t state)
 {
     return pcg_rotr_8(((state >> 5u) ^ state) >> 5u, state >> 13u);
 }
 
-inline uint16_t pcg_output_xsh_rr_32_16(uint32_t state)
+static inline uint16_t pcg_output_xsh_rr_32_16(uint32_t state)
 {
     return pcg_rotr_16(((state >> 10u) ^ state) >> 12u, state >> 28u);
 }
 
-inline uint32_t pcg_output_xsh_rr_64_32(uint64_t state)
+static inline uint32_t pcg_output_xsh_rr_64_32(uint64_t state)
 {
     return pcg_rotr_32(((state >> 18u) ^ state) >> 27u, state >> 59u);
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_output_xsh_rr_128_64(pcg128_t state)
+static inline uint64_t pcg_output_xsh_rr_128_64(pcg128_t state)
 {
     return pcg_rotr_64(((state >> 35u) ^ state) >> 58u, state >> 122u);
 }
@@ -161,25 +161,25 @@ inline uint64_t pcg_output_xsh_rr_128_64(pcg128_t state)
 
 /* RXS M XS */
 
-inline uint8_t pcg_output_rxs_m_xs_8_8(uint8_t state)
+static inline uint8_t pcg_output_rxs_m_xs_8_8(uint8_t state)
 {
     uint8_t word = ((state >> ((state >> 6u) + 2u)) ^ state) * 217u;
     return (word >> 6u) ^ word;
 }
 
-inline uint16_t pcg_output_rxs_m_xs_16_16(uint16_t state)
+static inline uint16_t pcg_output_rxs_m_xs_16_16(uint16_t state)
 {
     uint16_t word = ((state >> ((state >> 13u) + 3u)) ^ state) * 62169u;
     return (word >> 11u) ^ word;
 }
 
-inline uint32_t pcg_output_rxs_m_xs_32_32(uint32_t state)
+static inline uint32_t pcg_output_rxs_m_xs_32_32(uint32_t state)
 {
     uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
     return (word >> 22u) ^ word;
 }
 
-inline uint64_t pcg_output_rxs_m_xs_64_64(uint64_t state)
+static inline uint64_t pcg_output_rxs_m_xs_64_64(uint64_t state)
 {
     uint64_t word = ((state >> ((state >> 59u) + 5u)) ^ state)
                     * 12605985483714917081ull;
@@ -187,7 +187,7 @@ inline uint64_t pcg_output_rxs_m_xs_64_64(uint64_t state)
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_output_rxs_m_xs_128_128(pcg128_t state)
+static inline pcg128_t pcg_output_rxs_m_xs_128_128(pcg128_t state)
 {
     pcg128_t word = ((state >> ((state >> 122u) + 6u)) ^ state)
                        * (PCG_128BIT_CONSTANT(17766728186571221404ULL,
@@ -199,24 +199,24 @@ inline pcg128_t pcg_output_rxs_m_xs_128_128(pcg128_t state)
 
 /* RXS M */
 
-inline uint8_t pcg_output_rxs_m_16_8(uint16_t state)
+static inline uint8_t pcg_output_rxs_m_16_8(uint16_t state)
 {
     return (((state >> ((state >> 13u) + 3u)) ^ state) * 62169u) >> 8u;
 }
 
-inline uint16_t pcg_output_rxs_m_32_16(uint32_t state)
+static inline uint16_t pcg_output_rxs_m_32_16(uint32_t state)
 {
     return (((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u) >> 16u;
 }
 
-inline uint32_t pcg_output_rxs_m_64_32(uint64_t state)
+static inline uint32_t pcg_output_rxs_m_64_32(uint64_t state)
 {
     return (((state >> ((state >> 59u) + 5u)) ^ state)
                * 12605985483714917081ull) >> 32u;
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_output_rxs_m_128_64(pcg128_t state)
+static inline uint64_t pcg_output_rxs_m_128_64(pcg128_t state)
 {
     return (((state >> ((state >> 122u) + 6u)) ^ state)
                * (PCG_128BIT_CONSTANT(17766728186571221404ULL,
@@ -227,14 +227,14 @@ inline uint64_t pcg_output_rxs_m_128_64(pcg128_t state)
 
 /* XSL RR (only defined for >= 64 bits) */
 
-inline uint32_t pcg_output_xsl_rr_64_32(uint64_t state)
+static inline uint32_t pcg_output_xsl_rr_64_32(uint64_t state)
 {
     return pcg_rotr_32(((uint32_t)(state >> 32u)) ^ (uint32_t)state,
                        state >> 59u);
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_output_xsl_rr_128_64(pcg128_t state)
+static inline uint64_t pcg_output_xsl_rr_128_64(pcg128_t state)
 {
     return pcg_rotr_64(((uint64_t)(state >> 64u)) ^ (uint64_t)state,
                        state >> 122u);
@@ -243,7 +243,7 @@ inline uint64_t pcg_output_xsl_rr_128_64(pcg128_t state)
 
 /* XSL RR RR (only defined for >= 64 bits) */
 
-inline uint64_t pcg_output_xsl_rr_rr_64_64(uint64_t state)
+static inline uint64_t pcg_output_xsl_rr_rr_64_64(uint64_t state)
 {
     uint32_t rot1 = (uint32_t)(state >> 59u);
     uint32_t high = (uint32_t)(state >> 32u);
@@ -255,7 +255,7 @@ inline uint64_t pcg_output_xsl_rr_rr_64_64(uint64_t state)
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_output_xsl_rr_rr_128_128(pcg128_t state)
+static inline pcg128_t pcg_output_xsl_rr_rr_128_128(pcg128_t state)
 {
     uint32_t rot1 = (uint32_t)(state >> 122u);
     uint64_t high = (uint64_t)(state >> 64u);
@@ -400,191 +400,191 @@ extern pcg128_t pcg_advance_lcg_128(pcg128_t state, pcg128_t delta,
  * a good reason to call them directly.
  */
 
-inline void pcg_oneseq_8_step_r(struct pcg_state_8* rng)
+static inline void pcg_oneseq_8_step_r(struct pcg_state_8* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_8
                  + PCG_DEFAULT_INCREMENT_8;
 }
 
-inline void pcg_oneseq_8_advance_r(struct pcg_state_8* rng, uint8_t delta)
+static inline void pcg_oneseq_8_advance_r(struct pcg_state_8* rng, uint8_t delta)
 {
     rng->state = pcg_advance_lcg_8(rng->state, delta, PCG_DEFAULT_MULTIPLIER_8,
                                    PCG_DEFAULT_INCREMENT_8);
 }
 
-inline void pcg_mcg_8_step_r(struct pcg_state_8* rng)
+static inline void pcg_mcg_8_step_r(struct pcg_state_8* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_8;
 }
 
-inline void pcg_mcg_8_advance_r(struct pcg_state_8* rng, uint8_t delta)
+static inline void pcg_mcg_8_advance_r(struct pcg_state_8* rng, uint8_t delta)
 {
     rng->state
         = pcg_advance_lcg_8(rng->state, delta, PCG_DEFAULT_MULTIPLIER_8, 0u);
 }
 
-inline void pcg_unique_8_step_r(struct pcg_state_8* rng)
+static inline void pcg_unique_8_step_r(struct pcg_state_8* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_8
                  + (uint8_t)(((intptr_t)rng) | 1u);
 }
 
-inline void pcg_unique_8_advance_r(struct pcg_state_8* rng, uint8_t delta)
+static inline void pcg_unique_8_advance_r(struct pcg_state_8* rng, uint8_t delta)
 {
     rng->state = pcg_advance_lcg_8(rng->state, delta, PCG_DEFAULT_MULTIPLIER_8,
                                    (uint8_t)(((intptr_t)rng) | 1u));
 }
 
-inline void pcg_setseq_8_step_r(struct pcg_state_setseq_8* rng)
+static inline void pcg_setseq_8_step_r(struct pcg_state_setseq_8* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_8 + rng->inc;
 }
 
-inline void pcg_setseq_8_advance_r(struct pcg_state_setseq_8* rng,
+static inline void pcg_setseq_8_advance_r(struct pcg_state_setseq_8* rng,
                                    uint8_t delta)
 {
     rng->state = pcg_advance_lcg_8(rng->state, delta, PCG_DEFAULT_MULTIPLIER_8,
                                    rng->inc);
 }
 
-inline void pcg_oneseq_16_step_r(struct pcg_state_16* rng)
+static inline void pcg_oneseq_16_step_r(struct pcg_state_16* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_16
                  + PCG_DEFAULT_INCREMENT_16;
 }
 
-inline void pcg_oneseq_16_advance_r(struct pcg_state_16* rng, uint16_t delta)
+static inline void pcg_oneseq_16_advance_r(struct pcg_state_16* rng, uint16_t delta)
 {
     rng->state = pcg_advance_lcg_16(
         rng->state, delta, PCG_DEFAULT_MULTIPLIER_16, PCG_DEFAULT_INCREMENT_16);
 }
 
-inline void pcg_mcg_16_step_r(struct pcg_state_16* rng)
+static inline void pcg_mcg_16_step_r(struct pcg_state_16* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_16;
 }
 
-inline void pcg_mcg_16_advance_r(struct pcg_state_16* rng, uint16_t delta)
+static inline void pcg_mcg_16_advance_r(struct pcg_state_16* rng, uint16_t delta)
 {
     rng->state
         = pcg_advance_lcg_16(rng->state, delta, PCG_DEFAULT_MULTIPLIER_16, 0u);
 }
 
-inline void pcg_unique_16_step_r(struct pcg_state_16* rng)
+static inline void pcg_unique_16_step_r(struct pcg_state_16* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_16
                  + (uint16_t)(((intptr_t)rng) | 1u);
 }
 
-inline void pcg_unique_16_advance_r(struct pcg_state_16* rng, uint16_t delta)
+static inline void pcg_unique_16_advance_r(struct pcg_state_16* rng, uint16_t delta)
 {
     rng->state
         = pcg_advance_lcg_16(rng->state, delta, PCG_DEFAULT_MULTIPLIER_16,
                              (uint16_t)(((intptr_t)rng) | 1u));
 }
 
-inline void pcg_setseq_16_step_r(struct pcg_state_setseq_16* rng)
+static inline void pcg_setseq_16_step_r(struct pcg_state_setseq_16* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_16 + rng->inc;
 }
 
-inline void pcg_setseq_16_advance_r(struct pcg_state_setseq_16* rng,
+static inline void pcg_setseq_16_advance_r(struct pcg_state_setseq_16* rng,
                                     uint16_t delta)
 {
     rng->state = pcg_advance_lcg_16(rng->state, delta,
                                     PCG_DEFAULT_MULTIPLIER_16, rng->inc);
 }
 
-inline void pcg_oneseq_32_step_r(struct pcg_state_32* rng)
+static inline void pcg_oneseq_32_step_r(struct pcg_state_32* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_32
                  + PCG_DEFAULT_INCREMENT_32;
 }
 
-inline void pcg_oneseq_32_advance_r(struct pcg_state_32* rng, uint32_t delta)
+static inline void pcg_oneseq_32_advance_r(struct pcg_state_32* rng, uint32_t delta)
 {
     rng->state = pcg_advance_lcg_32(
         rng->state, delta, PCG_DEFAULT_MULTIPLIER_32, PCG_DEFAULT_INCREMENT_32);
 }
 
-inline void pcg_mcg_32_step_r(struct pcg_state_32* rng)
+static inline void pcg_mcg_32_step_r(struct pcg_state_32* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_32;
 }
 
-inline void pcg_mcg_32_advance_r(struct pcg_state_32* rng, uint32_t delta)
+static inline void pcg_mcg_32_advance_r(struct pcg_state_32* rng, uint32_t delta)
 {
     rng->state
         = pcg_advance_lcg_32(rng->state, delta, PCG_DEFAULT_MULTIPLIER_32, 0u);
 }
 
-inline void pcg_unique_32_step_r(struct pcg_state_32* rng)
+static inline void pcg_unique_32_step_r(struct pcg_state_32* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_32
                  + (uint32_t)(((intptr_t)rng) | 1u);
 }
 
-inline void pcg_unique_32_advance_r(struct pcg_state_32* rng, uint32_t delta)
+static inline void pcg_unique_32_advance_r(struct pcg_state_32* rng, uint32_t delta)
 {
     rng->state
         = pcg_advance_lcg_32(rng->state, delta, PCG_DEFAULT_MULTIPLIER_32,
                              (uint32_t)(((intptr_t)rng) | 1u));
 }
 
-inline void pcg_setseq_32_step_r(struct pcg_state_setseq_32* rng)
+static inline void pcg_setseq_32_step_r(struct pcg_state_setseq_32* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_32 + rng->inc;
 }
 
-inline void pcg_setseq_32_advance_r(struct pcg_state_setseq_32* rng,
+static inline void pcg_setseq_32_advance_r(struct pcg_state_setseq_32* rng,
                                     uint32_t delta)
 {
     rng->state = pcg_advance_lcg_32(rng->state, delta,
                                     PCG_DEFAULT_MULTIPLIER_32, rng->inc);
 }
 
-inline void pcg_oneseq_64_step_r(struct pcg_state_64* rng)
+static inline void pcg_oneseq_64_step_r(struct pcg_state_64* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_64
                  + PCG_DEFAULT_INCREMENT_64;
 }
 
-inline void pcg_oneseq_64_advance_r(struct pcg_state_64* rng, uint64_t delta)
+static inline void pcg_oneseq_64_advance_r(struct pcg_state_64* rng, uint64_t delta)
 {
     rng->state = pcg_advance_lcg_64(
         rng->state, delta, PCG_DEFAULT_MULTIPLIER_64, PCG_DEFAULT_INCREMENT_64);
 }
 
-inline void pcg_mcg_64_step_r(struct pcg_state_64* rng)
+static inline void pcg_mcg_64_step_r(struct pcg_state_64* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_64;
 }
 
-inline void pcg_mcg_64_advance_r(struct pcg_state_64* rng, uint64_t delta)
+static inline void pcg_mcg_64_advance_r(struct pcg_state_64* rng, uint64_t delta)
 {
     rng->state
         = pcg_advance_lcg_64(rng->state, delta, PCG_DEFAULT_MULTIPLIER_64, 0u);
 }
 
-inline void pcg_unique_64_step_r(struct pcg_state_64* rng)
+static inline void pcg_unique_64_step_r(struct pcg_state_64* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_64
                  + (uint64_t)(((intptr_t)rng) | 1u);
 }
 
-inline void pcg_unique_64_advance_r(struct pcg_state_64* rng, uint64_t delta)
+static inline void pcg_unique_64_advance_r(struct pcg_state_64* rng, uint64_t delta)
 {
     rng->state
         = pcg_advance_lcg_64(rng->state, delta, PCG_DEFAULT_MULTIPLIER_64,
                              (uint64_t)(((intptr_t)rng) | 1u));
 }
 
-inline void pcg_setseq_64_step_r(struct pcg_state_setseq_64* rng)
+static inline void pcg_setseq_64_step_r(struct pcg_state_setseq_64* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_64 + rng->inc;
 }
 
-inline void pcg_setseq_64_advance_r(struct pcg_state_setseq_64* rng,
+static inline void pcg_setseq_64_advance_r(struct pcg_state_setseq_64* rng,
                                     uint64_t delta)
 {
     rng->state = pcg_advance_lcg_64(rng->state, delta,
@@ -592,7 +592,7 @@ inline void pcg_setseq_64_advance_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_oneseq_128_step_r(struct pcg_state_128* rng)
+static inline void pcg_oneseq_128_step_r(struct pcg_state_128* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_128
                  + PCG_DEFAULT_INCREMENT_128;
@@ -600,7 +600,7 @@ inline void pcg_oneseq_128_step_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_oneseq_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
+static inline void pcg_oneseq_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
 {
     rng->state
         = pcg_advance_lcg_128(rng->state, delta, PCG_DEFAULT_MULTIPLIER_128,
@@ -609,14 +609,14 @@ inline void pcg_oneseq_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_mcg_128_step_r(struct pcg_state_128* rng)
+static inline void pcg_mcg_128_step_r(struct pcg_state_128* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_128;
 }
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_mcg_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
+static inline void pcg_mcg_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
 {
     rng->state = pcg_advance_lcg_128(rng->state, delta,
                                      PCG_DEFAULT_MULTIPLIER_128, 0u);
@@ -624,7 +624,7 @@ inline void pcg_mcg_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_unique_128_step_r(struct pcg_state_128* rng)
+static inline void pcg_unique_128_step_r(struct pcg_state_128* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_128
                  + (pcg128_t)(((intptr_t)rng) | 1u);
@@ -632,7 +632,7 @@ inline void pcg_unique_128_step_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_unique_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
+static inline void pcg_unique_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
 {
     rng->state
         = pcg_advance_lcg_128(rng->state, delta, PCG_DEFAULT_MULTIPLIER_128,
@@ -641,14 +641,14 @@ inline void pcg_unique_128_advance_r(struct pcg_state_128* rng, pcg128_t delta)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_setseq_128_step_r(struct pcg_state_setseq_128* rng)
+static inline void pcg_setseq_128_step_r(struct pcg_state_setseq_128* rng)
 {
     rng->state = rng->state * PCG_DEFAULT_MULTIPLIER_128 + rng->inc;
 }
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_setseq_128_advance_r(struct pcg_state_setseq_128* rng,
+static inline void pcg_setseq_128_advance_r(struct pcg_state_setseq_128* rng,
                                      pcg128_t delta)
 {
     rng->state = pcg_advance_lcg_128(rng->state, delta,
@@ -661,7 +661,7 @@ inline void pcg_setseq_128_advance_r(struct pcg_state_setseq_128* rng,
  * these functions.
  */
 
-inline void pcg_oneseq_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
+static inline void pcg_oneseq_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
 {
     rng->state = 0U;
     pcg_oneseq_8_step_r(rng);
@@ -669,12 +669,12 @@ inline void pcg_oneseq_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
     pcg_oneseq_8_step_r(rng);
 }
 
-inline void pcg_mcg_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
+static inline void pcg_mcg_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
 {
     rng->state = initstate | 1u;
 }
 
-inline void pcg_unique_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
+static inline void pcg_unique_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
 {
     rng->state = 0U;
     pcg_unique_8_step_r(rng);
@@ -682,7 +682,7 @@ inline void pcg_unique_8_srandom_r(struct pcg_state_8* rng, uint8_t initstate)
     pcg_unique_8_step_r(rng);
 }
 
-inline void pcg_setseq_8_srandom_r(struct pcg_state_setseq_8* rng,
+static inline void pcg_setseq_8_srandom_r(struct pcg_state_setseq_8* rng,
                                    uint8_t initstate, uint8_t initseq)
 {
     rng->state = 0U;
@@ -692,7 +692,7 @@ inline void pcg_setseq_8_srandom_r(struct pcg_state_setseq_8* rng,
     pcg_setseq_8_step_r(rng);
 }
 
-inline void pcg_oneseq_16_srandom_r(struct pcg_state_16* rng,
+static inline void pcg_oneseq_16_srandom_r(struct pcg_state_16* rng,
                                     uint16_t initstate)
 {
     rng->state = 0U;
@@ -701,12 +701,12 @@ inline void pcg_oneseq_16_srandom_r(struct pcg_state_16* rng,
     pcg_oneseq_16_step_r(rng);
 }
 
-inline void pcg_mcg_16_srandom_r(struct pcg_state_16* rng, uint16_t initstate)
+static inline void pcg_mcg_16_srandom_r(struct pcg_state_16* rng, uint16_t initstate)
 {
     rng->state = initstate | 1u;
 }
 
-inline void pcg_unique_16_srandom_r(struct pcg_state_16* rng,
+static inline void pcg_unique_16_srandom_r(struct pcg_state_16* rng,
                                     uint16_t initstate)
 {
     rng->state = 0U;
@@ -715,7 +715,7 @@ inline void pcg_unique_16_srandom_r(struct pcg_state_16* rng,
     pcg_unique_16_step_r(rng);
 }
 
-inline void pcg_setseq_16_srandom_r(struct pcg_state_setseq_16* rng,
+static inline void pcg_setseq_16_srandom_r(struct pcg_state_setseq_16* rng,
                                     uint16_t initstate, uint16_t initseq)
 {
     rng->state = 0U;
@@ -725,7 +725,7 @@ inline void pcg_setseq_16_srandom_r(struct pcg_state_setseq_16* rng,
     pcg_setseq_16_step_r(rng);
 }
 
-inline void pcg_oneseq_32_srandom_r(struct pcg_state_32* rng,
+static inline void pcg_oneseq_32_srandom_r(struct pcg_state_32* rng,
                                     uint32_t initstate)
 {
     rng->state = 0U;
@@ -734,12 +734,12 @@ inline void pcg_oneseq_32_srandom_r(struct pcg_state_32* rng,
     pcg_oneseq_32_step_r(rng);
 }
 
-inline void pcg_mcg_32_srandom_r(struct pcg_state_32* rng, uint32_t initstate)
+static inline void pcg_mcg_32_srandom_r(struct pcg_state_32* rng, uint32_t initstate)
 {
     rng->state = initstate | 1u;
 }
 
-inline void pcg_unique_32_srandom_r(struct pcg_state_32* rng,
+static inline void pcg_unique_32_srandom_r(struct pcg_state_32* rng,
                                     uint32_t initstate)
 {
     rng->state = 0U;
@@ -748,7 +748,7 @@ inline void pcg_unique_32_srandom_r(struct pcg_state_32* rng,
     pcg_unique_32_step_r(rng);
 }
 
-inline void pcg_setseq_32_srandom_r(struct pcg_state_setseq_32* rng,
+static inline void pcg_setseq_32_srandom_r(struct pcg_state_setseq_32* rng,
                                     uint32_t initstate, uint32_t initseq)
 {
     rng->state = 0U;
@@ -758,7 +758,7 @@ inline void pcg_setseq_32_srandom_r(struct pcg_state_setseq_32* rng,
     pcg_setseq_32_step_r(rng);
 }
 
-inline void pcg_oneseq_64_srandom_r(struct pcg_state_64* rng,
+static inline void pcg_oneseq_64_srandom_r(struct pcg_state_64* rng,
                                     uint64_t initstate)
 {
     rng->state = 0U;
@@ -767,12 +767,12 @@ inline void pcg_oneseq_64_srandom_r(struct pcg_state_64* rng,
     pcg_oneseq_64_step_r(rng);
 }
 
-inline void pcg_mcg_64_srandom_r(struct pcg_state_64* rng, uint64_t initstate)
+static inline void pcg_mcg_64_srandom_r(struct pcg_state_64* rng, uint64_t initstate)
 {
     rng->state = initstate | 1u;
 }
 
-inline void pcg_unique_64_srandom_r(struct pcg_state_64* rng,
+static inline void pcg_unique_64_srandom_r(struct pcg_state_64* rng,
                                     uint64_t initstate)
 {
     rng->state = 0U;
@@ -781,7 +781,7 @@ inline void pcg_unique_64_srandom_r(struct pcg_state_64* rng,
     pcg_unique_64_step_r(rng);
 }
 
-inline void pcg_setseq_64_srandom_r(struct pcg_state_setseq_64* rng,
+static inline void pcg_setseq_64_srandom_r(struct pcg_state_setseq_64* rng,
                                     uint64_t initstate, uint64_t initseq)
 {
     rng->state = 0U;
@@ -792,7 +792,7 @@ inline void pcg_setseq_64_srandom_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_oneseq_128_srandom_r(struct pcg_state_128* rng,
+static inline void pcg_oneseq_128_srandom_r(struct pcg_state_128* rng,
                                      pcg128_t initstate)
 {
     rng->state = 0U;
@@ -803,14 +803,14 @@ inline void pcg_oneseq_128_srandom_r(struct pcg_state_128* rng,
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_mcg_128_srandom_r(struct pcg_state_128* rng, pcg128_t initstate)
+static inline void pcg_mcg_128_srandom_r(struct pcg_state_128* rng, pcg128_t initstate)
 {
     rng->state = initstate | 1u;
 }
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_unique_128_srandom_r(struct pcg_state_128* rng,
+static inline void pcg_unique_128_srandom_r(struct pcg_state_128* rng,
                                      pcg128_t initstate)
 {
     rng->state = 0U;
@@ -821,7 +821,7 @@ inline void pcg_unique_128_srandom_r(struct pcg_state_128* rng,
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline void pcg_setseq_128_srandom_r(struct pcg_state_setseq_128* rng,
+static inline void pcg_setseq_128_srandom_r(struct pcg_state_setseq_128* rng,
                                      pcg128_t initstate, pcg128_t initseq)
 {
     rng->state = 0U;
@@ -863,14 +863,14 @@ inline void pcg_setseq_128_srandom_r(struct pcg_state_setseq_128* rng,
 
 /* Generation functions for XSH RS */
 
-inline uint8_t pcg_oneseq_16_xsh_rs_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_oneseq_16_xsh_rs_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_oneseq_16_step_r(rng);
     return pcg_output_xsh_rs_16_8(oldstate);
 }
 
-inline uint8_t pcg_oneseq_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_oneseq_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
                                                     uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -881,14 +881,14 @@ inline uint8_t pcg_oneseq_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_oneseq_32_xsh_rs_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_oneseq_32_xsh_rs_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_oneseq_32_step_r(rng);
     return pcg_output_xsh_rs_32_16(oldstate);
 }
 
-inline uint16_t pcg_oneseq_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_oneseq_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
                                                       uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -899,14 +899,14 @@ inline uint16_t pcg_oneseq_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_oneseq_64_xsh_rs_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_oneseq_64_xsh_rs_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_oneseq_64_step_r(rng);
     return pcg_output_xsh_rs_64_32(oldstate);
 }
 
-inline uint32_t pcg_oneseq_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_oneseq_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
                                                       uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -918,7 +918,7 @@ inline uint32_t pcg_oneseq_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_oneseq_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_oneseq_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
 {
     pcg_oneseq_128_step_r(rng);
     return pcg_output_xsh_rs_128_64(rng->state);
@@ -926,7 +926,7 @@ inline uint64_t pcg_oneseq_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_oneseq_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
                                        uint64_t bound)
 {
@@ -939,14 +939,14 @@ pcg_oneseq_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_unique_16_xsh_rs_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_unique_16_xsh_rs_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_unique_16_step_r(rng);
     return pcg_output_xsh_rs_16_8(oldstate);
 }
 
-inline uint8_t pcg_unique_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_unique_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
                                                     uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -957,14 +957,14 @@ inline uint8_t pcg_unique_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_unique_32_xsh_rs_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_unique_32_xsh_rs_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_unique_32_step_r(rng);
     return pcg_output_xsh_rs_32_16(oldstate);
 }
 
-inline uint16_t pcg_unique_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_unique_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
                                                       uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -975,14 +975,14 @@ inline uint16_t pcg_unique_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_unique_64_xsh_rs_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_unique_64_xsh_rs_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_unique_64_step_r(rng);
     return pcg_output_xsh_rs_64_32(oldstate);
 }
 
-inline uint32_t pcg_unique_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_unique_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
                                                       uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -994,7 +994,7 @@ inline uint32_t pcg_unique_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_unique_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_unique_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
 {
     pcg_unique_128_step_r(rng);
     return pcg_output_xsh_rs_128_64(rng->state);
@@ -1002,7 +1002,7 @@ inline uint64_t pcg_unique_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_unique_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
                                        uint64_t bound)
 {
@@ -1015,14 +1015,14 @@ pcg_unique_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_setseq_16_xsh_rs_8_random_r(struct pcg_state_setseq_16* rng)
+static inline uint8_t pcg_setseq_16_xsh_rs_8_random_r(struct pcg_state_setseq_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_setseq_16_step_r(rng);
     return pcg_output_xsh_rs_16_8(oldstate);
 }
 
-inline uint8_t
+static inline uint8_t
 pcg_setseq_16_xsh_rs_8_boundedrand_r(struct pcg_state_setseq_16* rng,
                                      uint8_t bound)
 {
@@ -1034,7 +1034,7 @@ pcg_setseq_16_xsh_rs_8_boundedrand_r(struct pcg_state_setseq_16* rng,
     }
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_32_xsh_rs_16_random_r(struct pcg_state_setseq_32* rng)
 {
     uint32_t oldstate = rng->state;
@@ -1042,7 +1042,7 @@ pcg_setseq_32_xsh_rs_16_random_r(struct pcg_state_setseq_32* rng)
     return pcg_output_xsh_rs_32_16(oldstate);
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_32_xsh_rs_16_boundedrand_r(struct pcg_state_setseq_32* rng,
                                       uint16_t bound)
 {
@@ -1054,7 +1054,7 @@ pcg_setseq_32_xsh_rs_16_boundedrand_r(struct pcg_state_setseq_32* rng,
     }
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_xsh_rs_32_random_r(struct pcg_state_setseq_64* rng)
 {
     uint64_t oldstate = rng->state;
@@ -1062,7 +1062,7 @@ pcg_setseq_64_xsh_rs_32_random_r(struct pcg_state_setseq_64* rng)
     return pcg_output_xsh_rs_64_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_xsh_rs_32_boundedrand_r(struct pcg_state_setseq_64* rng,
                                       uint32_t bound)
 {
@@ -1075,7 +1075,7 @@ pcg_setseq_64_xsh_rs_32_boundedrand_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_xsh_rs_64_random_r(struct pcg_state_setseq_128* rng)
 {
     pcg_setseq_128_step_r(rng);
@@ -1084,7 +1084,7 @@ pcg_setseq_128_xsh_rs_64_random_r(struct pcg_state_setseq_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_xsh_rs_64_boundedrand_r(struct pcg_state_setseq_128* rng,
                                        uint64_t bound)
 {
@@ -1097,14 +1097,14 @@ pcg_setseq_128_xsh_rs_64_boundedrand_r(struct pcg_state_setseq_128* rng,
 }
 #endif
 
-inline uint8_t pcg_mcg_16_xsh_rs_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_mcg_16_xsh_rs_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_mcg_16_step_r(rng);
     return pcg_output_xsh_rs_16_8(oldstate);
 }
 
-inline uint8_t pcg_mcg_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_mcg_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
                                                  uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1115,14 +1115,14 @@ inline uint8_t pcg_mcg_16_xsh_rs_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_mcg_32_xsh_rs_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_mcg_32_xsh_rs_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_mcg_32_step_r(rng);
     return pcg_output_xsh_rs_32_16(oldstate);
 }
 
-inline uint16_t pcg_mcg_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_mcg_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
                                                    uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -1133,14 +1133,14 @@ inline uint16_t pcg_mcg_32_xsh_rs_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_mcg_64_xsh_rs_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_mcg_64_xsh_rs_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_mcg_64_step_r(rng);
     return pcg_output_xsh_rs_64_32(oldstate);
 }
 
-inline uint32_t pcg_mcg_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_mcg_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
                                                    uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -1152,7 +1152,7 @@ inline uint32_t pcg_mcg_64_xsh_rs_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_mcg_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
 {
     pcg_mcg_128_step_r(rng);
     return pcg_output_xsh_rs_128_64(rng->state);
@@ -1160,7 +1160,7 @@ inline uint64_t pcg_mcg_128_xsh_rs_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
+static inline uint64_t pcg_mcg_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
                                                     uint64_t bound)
 {
     uint64_t threshold = -bound % bound;
@@ -1174,14 +1174,14 @@ inline uint64_t pcg_mcg_128_xsh_rs_64_boundedrand_r(struct pcg_state_128* rng,
 
 /* Generation functions for XSH RR */
 
-inline uint8_t pcg_oneseq_16_xsh_rr_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_oneseq_16_xsh_rr_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_oneseq_16_step_r(rng);
     return pcg_output_xsh_rr_16_8(oldstate);
 }
 
-inline uint8_t pcg_oneseq_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_oneseq_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
                                                     uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1192,14 +1192,14 @@ inline uint8_t pcg_oneseq_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_oneseq_32_xsh_rr_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_oneseq_32_xsh_rr_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_oneseq_32_step_r(rng);
     return pcg_output_xsh_rr_32_16(oldstate);
 }
 
-inline uint16_t pcg_oneseq_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_oneseq_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
                                                       uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -1210,14 +1210,14 @@ inline uint16_t pcg_oneseq_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_oneseq_64_xsh_rr_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_oneseq_64_xsh_rr_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_oneseq_64_step_r(rng);
     return pcg_output_xsh_rr_64_32(oldstate);
 }
 
-inline uint32_t pcg_oneseq_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_oneseq_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
                                                       uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -1229,7 +1229,7 @@ inline uint32_t pcg_oneseq_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_oneseq_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_oneseq_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
 {
     pcg_oneseq_128_step_r(rng);
     return pcg_output_xsh_rr_128_64(rng->state);
@@ -1237,7 +1237,7 @@ inline uint64_t pcg_oneseq_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_oneseq_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
                                        uint64_t bound)
 {
@@ -1250,14 +1250,14 @@ pcg_oneseq_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_unique_16_xsh_rr_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_unique_16_xsh_rr_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_unique_16_step_r(rng);
     return pcg_output_xsh_rr_16_8(oldstate);
 }
 
-inline uint8_t pcg_unique_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_unique_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
                                                     uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1268,14 +1268,14 @@ inline uint8_t pcg_unique_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_unique_32_xsh_rr_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_unique_32_xsh_rr_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_unique_32_step_r(rng);
     return pcg_output_xsh_rr_32_16(oldstate);
 }
 
-inline uint16_t pcg_unique_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_unique_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
                                                       uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -1286,14 +1286,14 @@ inline uint16_t pcg_unique_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_unique_64_xsh_rr_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_unique_64_xsh_rr_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_unique_64_step_r(rng);
     return pcg_output_xsh_rr_64_32(oldstate);
 }
 
-inline uint32_t pcg_unique_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_unique_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
                                                       uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -1305,7 +1305,7 @@ inline uint32_t pcg_unique_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_unique_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_unique_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
 {
     pcg_unique_128_step_r(rng);
     return pcg_output_xsh_rr_128_64(rng->state);
@@ -1313,7 +1313,7 @@ inline uint64_t pcg_unique_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_unique_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
                                        uint64_t bound)
 {
@@ -1326,14 +1326,14 @@ pcg_unique_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_setseq_16_xsh_rr_8_random_r(struct pcg_state_setseq_16* rng)
+static inline uint8_t pcg_setseq_16_xsh_rr_8_random_r(struct pcg_state_setseq_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_setseq_16_step_r(rng);
     return pcg_output_xsh_rr_16_8(oldstate);
 }
 
-inline uint8_t
+static inline uint8_t
 pcg_setseq_16_xsh_rr_8_boundedrand_r(struct pcg_state_setseq_16* rng,
                                      uint8_t bound)
 {
@@ -1345,7 +1345,7 @@ pcg_setseq_16_xsh_rr_8_boundedrand_r(struct pcg_state_setseq_16* rng,
     }
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_32_xsh_rr_16_random_r(struct pcg_state_setseq_32* rng)
 {
     uint32_t oldstate = rng->state;
@@ -1353,7 +1353,7 @@ pcg_setseq_32_xsh_rr_16_random_r(struct pcg_state_setseq_32* rng)
     return pcg_output_xsh_rr_32_16(oldstate);
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_32_xsh_rr_16_boundedrand_r(struct pcg_state_setseq_32* rng,
                                       uint16_t bound)
 {
@@ -1365,7 +1365,7 @@ pcg_setseq_32_xsh_rr_16_boundedrand_r(struct pcg_state_setseq_32* rng,
     }
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_xsh_rr_32_random_r(struct pcg_state_setseq_64* rng)
 {
     uint64_t oldstate = rng->state;
@@ -1373,7 +1373,7 @@ pcg_setseq_64_xsh_rr_32_random_r(struct pcg_state_setseq_64* rng)
     return pcg_output_xsh_rr_64_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_xsh_rr_32_boundedrand_r(struct pcg_state_setseq_64* rng,
                                       uint32_t bound)
 {
@@ -1386,7 +1386,7 @@ pcg_setseq_64_xsh_rr_32_boundedrand_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_xsh_rr_64_random_r(struct pcg_state_setseq_128* rng)
 {
     pcg_setseq_128_step_r(rng);
@@ -1395,7 +1395,7 @@ pcg_setseq_128_xsh_rr_64_random_r(struct pcg_state_setseq_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_xsh_rr_64_boundedrand_r(struct pcg_state_setseq_128* rng,
                                        uint64_t bound)
 {
@@ -1408,14 +1408,14 @@ pcg_setseq_128_xsh_rr_64_boundedrand_r(struct pcg_state_setseq_128* rng,
 }
 #endif
 
-inline uint8_t pcg_mcg_16_xsh_rr_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_mcg_16_xsh_rr_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_mcg_16_step_r(rng);
     return pcg_output_xsh_rr_16_8(oldstate);
 }
 
-inline uint8_t pcg_mcg_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_mcg_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
                                                  uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1426,14 +1426,14 @@ inline uint8_t pcg_mcg_16_xsh_rr_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_mcg_32_xsh_rr_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_mcg_32_xsh_rr_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_mcg_32_step_r(rng);
     return pcg_output_xsh_rr_32_16(oldstate);
 }
 
-inline uint16_t pcg_mcg_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_mcg_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
                                                    uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -1444,14 +1444,14 @@ inline uint16_t pcg_mcg_32_xsh_rr_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_mcg_64_xsh_rr_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_mcg_64_xsh_rr_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_mcg_64_step_r(rng);
     return pcg_output_xsh_rr_64_32(oldstate);
 }
 
-inline uint32_t pcg_mcg_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_mcg_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
                                                    uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -1463,7 +1463,7 @@ inline uint32_t pcg_mcg_64_xsh_rr_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_mcg_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
 {
     pcg_mcg_128_step_r(rng);
     return pcg_output_xsh_rr_128_64(rng->state);
@@ -1471,7 +1471,7 @@ inline uint64_t pcg_mcg_128_xsh_rr_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
+static inline uint64_t pcg_mcg_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
                                                     uint64_t bound)
 {
     uint64_t threshold = -bound % bound;
@@ -1487,14 +1487,14 @@ inline uint64_t pcg_mcg_128_xsh_rr_64_boundedrand_r(struct pcg_state_128* rng,
  * don't make sense when you want to use the entire state)
  */
 
-inline uint8_t pcg_oneseq_8_rxs_m_xs_8_random_r(struct pcg_state_8* rng)
+static inline uint8_t pcg_oneseq_8_rxs_m_xs_8_random_r(struct pcg_state_8* rng)
 {
     uint8_t oldstate = rng->state;
     pcg_oneseq_8_step_r(rng);
     return pcg_output_rxs_m_xs_8_8(oldstate);
 }
 
-inline uint8_t pcg_oneseq_8_rxs_m_xs_8_boundedrand_r(struct pcg_state_8* rng,
+static inline uint8_t pcg_oneseq_8_rxs_m_xs_8_boundedrand_r(struct pcg_state_8* rng,
                                                      uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1505,14 +1505,14 @@ inline uint8_t pcg_oneseq_8_rxs_m_xs_8_boundedrand_r(struct pcg_state_8* rng,
     }
 }
 
-inline uint16_t pcg_oneseq_16_rxs_m_xs_16_random_r(struct pcg_state_16* rng)
+static inline uint16_t pcg_oneseq_16_rxs_m_xs_16_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_oneseq_16_step_r(rng);
     return pcg_output_rxs_m_xs_16_16(oldstate);
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_oneseq_16_rxs_m_xs_16_boundedrand_r(struct pcg_state_16* rng,
                                         uint16_t bound)
 {
@@ -1524,14 +1524,14 @@ pcg_oneseq_16_rxs_m_xs_16_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint32_t pcg_oneseq_32_rxs_m_xs_32_random_r(struct pcg_state_32* rng)
+static inline uint32_t pcg_oneseq_32_rxs_m_xs_32_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_oneseq_32_step_r(rng);
     return pcg_output_rxs_m_xs_32_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_oneseq_32_rxs_m_xs_32_boundedrand_r(struct pcg_state_32* rng,
                                         uint32_t bound)
 {
@@ -1543,14 +1543,14 @@ pcg_oneseq_32_rxs_m_xs_32_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint64_t pcg_oneseq_64_rxs_m_xs_64_random_r(struct pcg_state_64* rng)
+static inline uint64_t pcg_oneseq_64_rxs_m_xs_64_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_oneseq_64_step_r(rng);
     return pcg_output_rxs_m_xs_64_64(oldstate);
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_oneseq_64_rxs_m_xs_64_boundedrand_r(struct pcg_state_64* rng,
                                         uint64_t bound)
 {
@@ -1563,7 +1563,7 @@ pcg_oneseq_64_rxs_m_xs_64_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_oneseq_128_rxs_m_xs_128_random_r(struct pcg_state_128* rng)
+static inline pcg128_t pcg_oneseq_128_rxs_m_xs_128_random_r(struct pcg_state_128* rng)
 {
     pcg_oneseq_128_step_r(rng);
     return pcg_output_rxs_m_xs_128_128(rng->state);
@@ -1571,7 +1571,7 @@ inline pcg128_t pcg_oneseq_128_rxs_m_xs_128_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_oneseq_128_rxs_m_xs_128_boundedrand_r(struct pcg_state_128* rng,
                                           pcg128_t bound)
 {
@@ -1584,14 +1584,14 @@ pcg_oneseq_128_rxs_m_xs_128_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint16_t pcg_unique_16_rxs_m_xs_16_random_r(struct pcg_state_16* rng)
+static inline uint16_t pcg_unique_16_rxs_m_xs_16_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_unique_16_step_r(rng);
     return pcg_output_rxs_m_xs_16_16(oldstate);
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_unique_16_rxs_m_xs_16_boundedrand_r(struct pcg_state_16* rng,
                                         uint16_t bound)
 {
@@ -1603,14 +1603,14 @@ pcg_unique_16_rxs_m_xs_16_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint32_t pcg_unique_32_rxs_m_xs_32_random_r(struct pcg_state_32* rng)
+static inline uint32_t pcg_unique_32_rxs_m_xs_32_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_unique_32_step_r(rng);
     return pcg_output_rxs_m_xs_32_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_unique_32_rxs_m_xs_32_boundedrand_r(struct pcg_state_32* rng,
                                         uint32_t bound)
 {
@@ -1622,14 +1622,14 @@ pcg_unique_32_rxs_m_xs_32_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint64_t pcg_unique_64_rxs_m_xs_64_random_r(struct pcg_state_64* rng)
+static inline uint64_t pcg_unique_64_rxs_m_xs_64_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_unique_64_step_r(rng);
     return pcg_output_rxs_m_xs_64_64(oldstate);
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_unique_64_rxs_m_xs_64_boundedrand_r(struct pcg_state_64* rng,
                                         uint64_t bound)
 {
@@ -1642,7 +1642,7 @@ pcg_unique_64_rxs_m_xs_64_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_unique_128_rxs_m_xs_128_random_r(struct pcg_state_128* rng)
+static inline pcg128_t pcg_unique_128_rxs_m_xs_128_random_r(struct pcg_state_128* rng)
 {
     pcg_unique_128_step_r(rng);
     return pcg_output_rxs_m_xs_128_128(rng->state);
@@ -1650,7 +1650,7 @@ inline pcg128_t pcg_unique_128_rxs_m_xs_128_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_unique_128_rxs_m_xs_128_boundedrand_r(struct pcg_state_128* rng,
                                           pcg128_t bound)
 {
@@ -1663,14 +1663,14 @@ pcg_unique_128_rxs_m_xs_128_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_setseq_8_rxs_m_xs_8_random_r(struct pcg_state_setseq_8* rng)
+static inline uint8_t pcg_setseq_8_rxs_m_xs_8_random_r(struct pcg_state_setseq_8* rng)
 {
     uint8_t oldstate = rng->state;
     pcg_setseq_8_step_r(rng);
     return pcg_output_rxs_m_xs_8_8(oldstate);
 }
 
-inline uint8_t
+static inline uint8_t
 pcg_setseq_8_rxs_m_xs_8_boundedrand_r(struct pcg_state_setseq_8* rng,
                                       uint8_t bound)
 {
@@ -1682,7 +1682,7 @@ pcg_setseq_8_rxs_m_xs_8_boundedrand_r(struct pcg_state_setseq_8* rng,
     }
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_16_rxs_m_xs_16_random_r(struct pcg_state_setseq_16* rng)
 {
     uint16_t oldstate = rng->state;
@@ -1690,7 +1690,7 @@ pcg_setseq_16_rxs_m_xs_16_random_r(struct pcg_state_setseq_16* rng)
     return pcg_output_rxs_m_xs_16_16(oldstate);
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_16_rxs_m_xs_16_boundedrand_r(struct pcg_state_setseq_16* rng,
                                         uint16_t bound)
 {
@@ -1702,7 +1702,7 @@ pcg_setseq_16_rxs_m_xs_16_boundedrand_r(struct pcg_state_setseq_16* rng,
     }
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_32_rxs_m_xs_32_random_r(struct pcg_state_setseq_32* rng)
 {
     uint32_t oldstate = rng->state;
@@ -1710,7 +1710,7 @@ pcg_setseq_32_rxs_m_xs_32_random_r(struct pcg_state_setseq_32* rng)
     return pcg_output_rxs_m_xs_32_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_32_rxs_m_xs_32_boundedrand_r(struct pcg_state_setseq_32* rng,
                                         uint32_t bound)
 {
@@ -1722,7 +1722,7 @@ pcg_setseq_32_rxs_m_xs_32_boundedrand_r(struct pcg_state_setseq_32* rng,
     }
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_setseq_64_rxs_m_xs_64_random_r(struct pcg_state_setseq_64* rng)
 {
     uint64_t oldstate = rng->state;
@@ -1730,7 +1730,7 @@ pcg_setseq_64_rxs_m_xs_64_random_r(struct pcg_state_setseq_64* rng)
     return pcg_output_rxs_m_xs_64_64(oldstate);
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_setseq_64_rxs_m_xs_64_boundedrand_r(struct pcg_state_setseq_64* rng,
                                         uint64_t bound)
 {
@@ -1743,7 +1743,7 @@ pcg_setseq_64_rxs_m_xs_64_boundedrand_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_setseq_128_rxs_m_xs_128_random_r(struct pcg_state_setseq_128* rng)
 {
     pcg_setseq_128_step_r(rng);
@@ -1752,7 +1752,7 @@ pcg_setseq_128_rxs_m_xs_128_random_r(struct pcg_state_setseq_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_setseq_128_rxs_m_xs_128_boundedrand_r(struct pcg_state_setseq_128* rng,
                                           pcg128_t bound)
 {
@@ -1767,14 +1767,14 @@ pcg_setseq_128_rxs_m_xs_128_boundedrand_r(struct pcg_state_setseq_128* rng,
 
 /* Generation functions for RXS M */
 
-inline uint8_t pcg_oneseq_16_rxs_m_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_oneseq_16_rxs_m_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_oneseq_16_step_r(rng);
     return pcg_output_rxs_m_16_8(oldstate);
 }
 
-inline uint8_t pcg_oneseq_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_oneseq_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
                                                    uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1785,14 +1785,14 @@ inline uint8_t pcg_oneseq_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_oneseq_32_rxs_m_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_oneseq_32_rxs_m_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_oneseq_32_step_r(rng);
     return pcg_output_rxs_m_32_16(oldstate);
 }
 
-inline uint16_t pcg_oneseq_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_oneseq_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
                                                      uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -1803,14 +1803,14 @@ inline uint16_t pcg_oneseq_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_oneseq_64_rxs_m_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_oneseq_64_rxs_m_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_oneseq_64_step_r(rng);
     return pcg_output_rxs_m_64_32(oldstate);
 }
 
-inline uint32_t pcg_oneseq_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_oneseq_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
                                                      uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -1822,7 +1822,7 @@ inline uint32_t pcg_oneseq_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_oneseq_128_rxs_m_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_oneseq_128_rxs_m_64_random_r(struct pcg_state_128* rng)
 {
     pcg_oneseq_128_step_r(rng);
     return pcg_output_rxs_m_128_64(rng->state);
@@ -1830,7 +1830,7 @@ inline uint64_t pcg_oneseq_128_rxs_m_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_oneseq_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
+static inline uint64_t pcg_oneseq_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
                                                       uint64_t bound)
 {
     uint64_t threshold = -bound % bound;
@@ -1842,14 +1842,14 @@ inline uint64_t pcg_oneseq_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_unique_16_rxs_m_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_unique_16_rxs_m_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_unique_16_step_r(rng);
     return pcg_output_rxs_m_16_8(oldstate);
 }
 
-inline uint8_t pcg_unique_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_unique_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
                                                    uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -1860,14 +1860,14 @@ inline uint8_t pcg_unique_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_unique_32_rxs_m_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_unique_32_rxs_m_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_unique_32_step_r(rng);
     return pcg_output_rxs_m_32_16(oldstate);
 }
 
-inline uint16_t pcg_unique_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_unique_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
                                                      uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -1878,14 +1878,14 @@ inline uint16_t pcg_unique_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_unique_64_rxs_m_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_unique_64_rxs_m_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_unique_64_step_r(rng);
     return pcg_output_rxs_m_64_32(oldstate);
 }
 
-inline uint32_t pcg_unique_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_unique_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
                                                      uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -1897,7 +1897,7 @@ inline uint32_t pcg_unique_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_unique_128_rxs_m_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_unique_128_rxs_m_64_random_r(struct pcg_state_128* rng)
 {
     pcg_unique_128_step_r(rng);
     return pcg_output_rxs_m_128_64(rng->state);
@@ -1905,7 +1905,7 @@ inline uint64_t pcg_unique_128_rxs_m_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_unique_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
+static inline uint64_t pcg_unique_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
                                                       uint64_t bound)
 {
     uint64_t threshold = -bound % bound;
@@ -1917,14 +1917,14 @@ inline uint64_t pcg_unique_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint8_t pcg_setseq_16_rxs_m_8_random_r(struct pcg_state_setseq_16* rng)
+static inline uint8_t pcg_setseq_16_rxs_m_8_random_r(struct pcg_state_setseq_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_setseq_16_step_r(rng);
     return pcg_output_rxs_m_16_8(oldstate);
 }
 
-inline uint8_t
+static inline uint8_t
 pcg_setseq_16_rxs_m_8_boundedrand_r(struct pcg_state_setseq_16* rng,
                                     uint8_t bound)
 {
@@ -1936,14 +1936,14 @@ pcg_setseq_16_rxs_m_8_boundedrand_r(struct pcg_state_setseq_16* rng,
     }
 }
 
-inline uint16_t pcg_setseq_32_rxs_m_16_random_r(struct pcg_state_setseq_32* rng)
+static inline uint16_t pcg_setseq_32_rxs_m_16_random_r(struct pcg_state_setseq_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_setseq_32_step_r(rng);
     return pcg_output_rxs_m_32_16(oldstate);
 }
 
-inline uint16_t
+static inline uint16_t
 pcg_setseq_32_rxs_m_16_boundedrand_r(struct pcg_state_setseq_32* rng,
                                      uint16_t bound)
 {
@@ -1955,14 +1955,14 @@ pcg_setseq_32_rxs_m_16_boundedrand_r(struct pcg_state_setseq_32* rng,
     }
 }
 
-inline uint32_t pcg_setseq_64_rxs_m_32_random_r(struct pcg_state_setseq_64* rng)
+static inline uint32_t pcg_setseq_64_rxs_m_32_random_r(struct pcg_state_setseq_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_setseq_64_step_r(rng);
     return pcg_output_rxs_m_64_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_rxs_m_32_boundedrand_r(struct pcg_state_setseq_64* rng,
                                      uint32_t bound)
 {
@@ -1975,7 +1975,7 @@ pcg_setseq_64_rxs_m_32_boundedrand_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_rxs_m_64_random_r(struct pcg_state_setseq_128* rng)
 {
     pcg_setseq_128_step_r(rng);
@@ -1984,7 +1984,7 @@ pcg_setseq_128_rxs_m_64_random_r(struct pcg_state_setseq_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_rxs_m_64_boundedrand_r(struct pcg_state_setseq_128* rng,
                                       uint64_t bound)
 {
@@ -1997,14 +1997,14 @@ pcg_setseq_128_rxs_m_64_boundedrand_r(struct pcg_state_setseq_128* rng,
 }
 #endif
 
-inline uint8_t pcg_mcg_16_rxs_m_8_random_r(struct pcg_state_16* rng)
+static inline uint8_t pcg_mcg_16_rxs_m_8_random_r(struct pcg_state_16* rng)
 {
     uint16_t oldstate = rng->state;
     pcg_mcg_16_step_r(rng);
     return pcg_output_rxs_m_16_8(oldstate);
 }
 
-inline uint8_t pcg_mcg_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
+static inline uint8_t pcg_mcg_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
                                                 uint8_t bound)
 {
     uint8_t threshold = ((uint8_t)(-bound)) % bound;
@@ -2015,14 +2015,14 @@ inline uint8_t pcg_mcg_16_rxs_m_8_boundedrand_r(struct pcg_state_16* rng,
     }
 }
 
-inline uint16_t pcg_mcg_32_rxs_m_16_random_r(struct pcg_state_32* rng)
+static inline uint16_t pcg_mcg_32_rxs_m_16_random_r(struct pcg_state_32* rng)
 {
     uint32_t oldstate = rng->state;
     pcg_mcg_32_step_r(rng);
     return pcg_output_rxs_m_32_16(oldstate);
 }
 
-inline uint16_t pcg_mcg_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
+static inline uint16_t pcg_mcg_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
                                                   uint16_t bound)
 {
     uint16_t threshold = ((uint16_t)(-bound)) % bound;
@@ -2033,14 +2033,14 @@ inline uint16_t pcg_mcg_32_rxs_m_16_boundedrand_r(struct pcg_state_32* rng,
     }
 }
 
-inline uint32_t pcg_mcg_64_rxs_m_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_mcg_64_rxs_m_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_mcg_64_step_r(rng);
     return pcg_output_rxs_m_64_32(oldstate);
 }
 
-inline uint32_t pcg_mcg_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_mcg_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
                                                   uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -2052,7 +2052,7 @@ inline uint32_t pcg_mcg_64_rxs_m_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_rxs_m_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_mcg_128_rxs_m_64_random_r(struct pcg_state_128* rng)
 {
     pcg_mcg_128_step_r(rng);
     return pcg_output_rxs_m_128_64(rng->state);
@@ -2060,7 +2060,7 @@ inline uint64_t pcg_mcg_128_rxs_m_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
+static inline uint64_t pcg_mcg_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
                                                    uint64_t bound)
 {
     uint64_t threshold = -bound % bound;
@@ -2074,14 +2074,14 @@ inline uint64_t pcg_mcg_128_rxs_m_64_boundedrand_r(struct pcg_state_128* rng,
 
 /* Generation functions for XSL RR (only defined for "large" types) */
 
-inline uint32_t pcg_oneseq_64_xsl_rr_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_oneseq_64_xsl_rr_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_oneseq_64_step_r(rng);
     return pcg_output_xsl_rr_64_32(oldstate);
 }
 
-inline uint32_t pcg_oneseq_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_oneseq_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
                                                       uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -2093,7 +2093,7 @@ inline uint32_t pcg_oneseq_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_oneseq_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_oneseq_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
 {
     pcg_oneseq_128_step_r(rng);
     return pcg_output_xsl_rr_128_64(rng->state);
@@ -2101,7 +2101,7 @@ inline uint64_t pcg_oneseq_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_oneseq_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
                                        uint64_t bound)
 {
@@ -2114,14 +2114,14 @@ pcg_oneseq_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint32_t pcg_unique_64_xsl_rr_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_unique_64_xsl_rr_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_unique_64_step_r(rng);
     return pcg_output_xsl_rr_64_32(oldstate);
 }
 
-inline uint32_t pcg_unique_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_unique_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
                                                       uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -2133,7 +2133,7 @@ inline uint32_t pcg_unique_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_unique_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_unique_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
 {
     pcg_unique_128_step_r(rng);
     return pcg_output_xsl_rr_128_64(rng->state);
@@ -2141,7 +2141,7 @@ inline uint64_t pcg_unique_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_unique_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
                                        uint64_t bound)
 {
@@ -2154,7 +2154,7 @@ pcg_unique_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_xsl_rr_32_random_r(struct pcg_state_setseq_64* rng)
 {
     uint64_t oldstate = rng->state;
@@ -2162,7 +2162,7 @@ pcg_setseq_64_xsl_rr_32_random_r(struct pcg_state_setseq_64* rng)
     return pcg_output_xsl_rr_64_32(oldstate);
 }
 
-inline uint32_t
+static inline uint32_t
 pcg_setseq_64_xsl_rr_32_boundedrand_r(struct pcg_state_setseq_64* rng,
                                       uint32_t bound)
 {
@@ -2175,7 +2175,7 @@ pcg_setseq_64_xsl_rr_32_boundedrand_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_xsl_rr_64_random_r(struct pcg_state_setseq_128* rng)
 {
     pcg_setseq_128_step_r(rng);
@@ -2184,7 +2184,7 @@ pcg_setseq_128_xsl_rr_64_random_r(struct pcg_state_setseq_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t
+static inline uint64_t
 pcg_setseq_128_xsl_rr_64_boundedrand_r(struct pcg_state_setseq_128* rng,
                                        uint64_t bound)
 {
@@ -2197,14 +2197,14 @@ pcg_setseq_128_xsl_rr_64_boundedrand_r(struct pcg_state_setseq_128* rng,
 }
 #endif
 
-inline uint32_t pcg_mcg_64_xsl_rr_32_random_r(struct pcg_state_64* rng)
+static inline uint32_t pcg_mcg_64_xsl_rr_32_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_mcg_64_step_r(rng);
     return pcg_output_xsl_rr_64_32(oldstate);
 }
 
-inline uint32_t pcg_mcg_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
+static inline uint32_t pcg_mcg_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
                                                    uint32_t bound)
 {
     uint32_t threshold = -bound % bound;
@@ -2216,7 +2216,7 @@ inline uint32_t pcg_mcg_64_xsl_rr_32_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
+static inline uint64_t pcg_mcg_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
 {
     pcg_mcg_128_step_r(rng);
     return pcg_output_xsl_rr_128_64(rng->state);
@@ -2224,7 +2224,7 @@ inline uint64_t pcg_mcg_128_xsl_rr_64_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline uint64_t pcg_mcg_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
+static inline uint64_t pcg_mcg_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
                                                     uint64_t bound)
 {
     uint64_t threshold = -bound % bound;
@@ -2238,14 +2238,14 @@ inline uint64_t pcg_mcg_128_xsl_rr_64_boundedrand_r(struct pcg_state_128* rng,
 
 /* Generation functions for XSL RR RR (only defined for "large" types) */
 
-inline uint64_t pcg_oneseq_64_xsl_rr_rr_64_random_r(struct pcg_state_64* rng)
+static inline uint64_t pcg_oneseq_64_xsl_rr_rr_64_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_oneseq_64_step_r(rng);
     return pcg_output_xsl_rr_rr_64_64(oldstate);
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_oneseq_64_xsl_rr_rr_64_boundedrand_r(struct pcg_state_64* rng,
                                          uint64_t bound)
 {
@@ -2258,7 +2258,7 @@ pcg_oneseq_64_xsl_rr_rr_64_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_oneseq_128_xsl_rr_rr_128_random_r(struct pcg_state_128* rng)
+static inline pcg128_t pcg_oneseq_128_xsl_rr_rr_128_random_r(struct pcg_state_128* rng)
 {
     pcg_oneseq_128_step_r(rng);
     return pcg_output_xsl_rr_rr_128_128(rng->state);
@@ -2266,7 +2266,7 @@ inline pcg128_t pcg_oneseq_128_xsl_rr_rr_128_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_oneseq_128_xsl_rr_rr_128_boundedrand_r(struct pcg_state_128* rng,
                                            pcg128_t bound)
 {
@@ -2279,14 +2279,14 @@ pcg_oneseq_128_xsl_rr_rr_128_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint64_t pcg_unique_64_xsl_rr_rr_64_random_r(struct pcg_state_64* rng)
+static inline uint64_t pcg_unique_64_xsl_rr_rr_64_random_r(struct pcg_state_64* rng)
 {
     uint64_t oldstate = rng->state;
     pcg_unique_64_step_r(rng);
     return pcg_output_xsl_rr_rr_64_64(oldstate);
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_unique_64_xsl_rr_rr_64_boundedrand_r(struct pcg_state_64* rng,
                                          uint64_t bound)
 {
@@ -2299,7 +2299,7 @@ pcg_unique_64_xsl_rr_rr_64_boundedrand_r(struct pcg_state_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t pcg_unique_128_xsl_rr_rr_128_random_r(struct pcg_state_128* rng)
+static inline pcg128_t pcg_unique_128_xsl_rr_rr_128_random_r(struct pcg_state_128* rng)
 {
     pcg_unique_128_step_r(rng);
     return pcg_output_xsl_rr_rr_128_128(rng->state);
@@ -2307,7 +2307,7 @@ inline pcg128_t pcg_unique_128_xsl_rr_rr_128_random_r(struct pcg_state_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_unique_128_xsl_rr_rr_128_boundedrand_r(struct pcg_state_128* rng,
                                            pcg128_t bound)
 {
@@ -2320,7 +2320,7 @@ pcg_unique_128_xsl_rr_rr_128_boundedrand_r(struct pcg_state_128* rng,
 }
 #endif
 
-inline uint64_t
+static inline uint64_t
 pcg_setseq_64_xsl_rr_rr_64_random_r(struct pcg_state_setseq_64* rng)
 {
     uint64_t oldstate = rng->state;
@@ -2328,7 +2328,7 @@ pcg_setseq_64_xsl_rr_rr_64_random_r(struct pcg_state_setseq_64* rng)
     return pcg_output_xsl_rr_rr_64_64(oldstate);
 }
 
-inline uint64_t
+static inline uint64_t
 pcg_setseq_64_xsl_rr_rr_64_boundedrand_r(struct pcg_state_setseq_64* rng,
                                          uint64_t bound)
 {
@@ -2341,7 +2341,7 @@ pcg_setseq_64_xsl_rr_rr_64_boundedrand_r(struct pcg_state_setseq_64* rng,
 }
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_setseq_128_xsl_rr_rr_128_random_r(struct pcg_state_setseq_128* rng)
 {
     pcg_setseq_128_step_r(rng);
@@ -2350,7 +2350,7 @@ pcg_setseq_128_xsl_rr_rr_128_random_r(struct pcg_state_setseq_128* rng)
 #endif
 
 #if PCG_HAS_128BIT_OPS
-inline pcg128_t
+static inline pcg128_t
 pcg_setseq_128_xsl_rr_rr_128_boundedrand_r(struct pcg_state_setseq_128* rng,
                                            pcg128_t bound)
 {

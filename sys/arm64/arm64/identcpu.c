@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 
 static void print_cpu_features(u_int cpu);
-static u_long parse_cpu_features_hwcap(u_int cpu);
+static u_long parse_cpu_features_hwcap(void);
 
 char machine[] = "arm64";
 
@@ -364,6 +364,31 @@ static struct mrs_field id_aa64dfr1_fields[] = {
 
 
 /* ID_AA64ISAR0_EL1 */
+static struct mrs_field_value id_aa64isar0_rndr[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR0_RNDR_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_RNDR_IMPL, "RNG"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_tlb[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TLB_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TLB_TLBIOS, "TLBI-OS"),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TLB_TLBIOSR, "TLBI-OSR"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_ts[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TS_CondM_8_4, "CondM-8.4"),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TS_CondM_8_5, "CondM-8.5"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_fhm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, FHM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64isar0_dp[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, DP, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -417,6 +442,10 @@ static struct mrs_field_value id_aa64isar0_aes[] = {
 };
 
 static struct mrs_field id_aa64isar0_fields[] = {
+	MRS_FIELD(ID_AA64ISAR0, RNDR, false, MRS_LOWER, id_aa64isar0_rndr),
+	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_LOWER, id_aa64isar0_tlb),
+	MRS_FIELD(ID_AA64ISAR0, TS, false, MRS_LOWER, id_aa64isar0_ts),
+	MRS_FIELD(ID_AA64ISAR0, FHM, false, MRS_LOWER, id_aa64isar0_fhm),
 	MRS_FIELD(ID_AA64ISAR0, DP, false, MRS_LOWER, id_aa64isar0_dp),
 	MRS_FIELD(ID_AA64ISAR0, SM4, false, MRS_LOWER, id_aa64isar0_sm4),
 	MRS_FIELD(ID_AA64ISAR0, SM3, false, MRS_LOWER, id_aa64isar0_sm3),
@@ -432,6 +461,37 @@ static struct mrs_field id_aa64isar0_fields[] = {
 
 
 /* ID_AA64ISAR1_EL1 */
+static struct mrs_field_value id_aa64isar1_i8mm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, I8MM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_dgh[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, DGH, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_bf16[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, BF16, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_specres[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_IMPL, "PredInv"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_sb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, SB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_frintts[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, FRINTTS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64isar1_gpi[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPI, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -443,7 +503,9 @@ static struct mrs_field_value id_aa64isar1_gpa[] = {
 };
 
 static struct mrs_field_value id_aa64isar1_lrcpc[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, LRCPC, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_LRCPC_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_LRCPC_RCPC_8_3, "RCPC-8.3"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_LRCPC_RCPC_8_4, "RCPC-8.4"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -463,16 +525,26 @@ static struct mrs_field_value id_aa64isar1_api[] = {
 };
 
 static struct mrs_field_value id_aa64isar1_apa[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPA, NONE, IMPL),
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, APA, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field_value id_aa64isar1_dpb[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, DPB, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_DPB_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_DPB_DCCVAP, "DCPoP"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_DPB_DCCVADP, "DCCVADP"),
 	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field id_aa64isar1_fields[] = {
+	MRS_FIELD(ID_AA64ISAR1, I8MM, false, MRS_LOWER, id_aa64isar1_i8mm),
+	MRS_FIELD(ID_AA64ISAR1, DGH, false, MRS_LOWER, id_aa64isar1_dgh),
+	MRS_FIELD(ID_AA64ISAR1, BF16, false, MRS_LOWER, id_aa64isar1_bf16),
+	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_LOWER,
+	    id_aa64isar1_specres),
+	MRS_FIELD(ID_AA64ISAR1, SB, false, MRS_LOWER, id_aa64isar1_sb),
+	MRS_FIELD(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
+	    id_aa64isar1_frintts),
 	MRS_FIELD(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi),
 	MRS_FIELD(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa),
 	MRS_FIELD(ID_AA64ISAR1, LRCPC, false, MRS_LOWER, id_aa64isar1_lrcpc),
@@ -1023,7 +1095,7 @@ update_special_regs(u_int cpu)
 		for (j = 0; fields[j].type != 0; j++) {
 			switch (fields[j].type & MRS_TYPE_MASK) {
 			case MRS_EXACT:
-				user_reg &= ~(0xfu << fields[j].shift);
+				user_reg &= ~(0xful << fields[j].shift);
 				user_reg |=
 				    (uint64_t)MRS_EXACT_FIELD(fields[j].type) <<
 				    fields[j].shift;
@@ -1059,7 +1131,6 @@ static void
 identify_cpu_sysinit(void *dummy __unused)
 {
 	int cpu;
-	u_long hwcap;
 	bool dic, idc;
 
 	dic = (allow_dic != 0);
@@ -1067,11 +1138,6 @@ identify_cpu_sysinit(void *dummy __unused)
 
 	CPU_FOREACH(cpu) {
 		check_cpu_regs(cpu);
-		hwcap = parse_cpu_features_hwcap(cpu);
-		if (elf_hwcap == 0)
-			elf_hwcap = hwcap;
-		else
-			elf_hwcap &= hwcap;
 		if (cpu != 0)
 			update_special_regs(cpu);
 
@@ -1080,6 +1146,9 @@ identify_cpu_sysinit(void *dummy __unused)
 		if (CTR_IDC_VAL(cpu_desc[cpu].ctr) == 0)
 			idc = false;
 	}
+
+	/* Exposed to userspace as AT_HWCAP */
+	elf_hwcap = parse_cpu_features_hwcap();
 
 	if (dic && idc) {
 		arm64_icache_sync_range = &arm64_dic_idc_icache_sync_range;
@@ -1112,43 +1181,49 @@ cpu_features_sysinit(void *dummy __unused)
 SYSINIT(cpu_features, SI_SUB_SMP, SI_ORDER_ANY, cpu_features_sysinit, NULL);
 
 static u_long
-parse_cpu_features_hwcap(u_int cpu)
+parse_cpu_features_hwcap(void)
 {
 	u_long hwcap = 0;
 
-	if (ID_AA64ISAR0_DP_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_DP_IMPL)
+	if (ID_AA64ISAR0_DP_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_DP_IMPL)
 		hwcap |= HWCAP_ASIMDDP;
 
-	if (ID_AA64ISAR0_SM4_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM4_IMPL)
+	if (ID_AA64ISAR0_SM4_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_SM4_IMPL)
 		hwcap |= HWCAP_SM4;
 
-	if (ID_AA64ISAR0_SM3_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_SM3_IMPL)
+	if (ID_AA64ISAR0_SM3_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_SM3_IMPL)
 		hwcap |= HWCAP_SM3;
 
-	if (ID_AA64ISAR0_RDM_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_RDM_IMPL)
+	if (ID_AA64ISAR0_RDM_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_RDM_IMPL)
 		hwcap |= HWCAP_ASIMDRDM;
 
-	if (ID_AA64ISAR0_Atomic_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_Atomic_IMPL)
+	if (ID_AA64ISAR0_Atomic_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_Atomic_IMPL)
 		hwcap |= HWCAP_ATOMICS;
 
-	if (ID_AA64ISAR0_CRC32_VAL(cpu_desc[cpu].id_aa64isar0) == ID_AA64ISAR0_CRC32_BASE)
+	if (ID_AA64ISAR0_CRC32_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_CRC32_BASE)
 		hwcap |= HWCAP_CRC32;
 
-	switch (ID_AA64ISAR0_SHA2_VAL(cpu_desc[cpu].id_aa64isar0)) {
-		case ID_AA64ISAR0_SHA2_BASE:
-			hwcap |= HWCAP_SHA2;
-			break;
-		case ID_AA64ISAR0_SHA2_512:
-			hwcap |= HWCAP_SHA2 | HWCAP_SHA512;
-			break;
+	switch (ID_AA64ISAR0_SHA2_VAL(user_cpu_desc.id_aa64isar0)) {
+	case ID_AA64ISAR0_SHA2_BASE:
+		hwcap |= HWCAP_SHA2;
+		break;
+	case ID_AA64ISAR0_SHA2_512:
+		hwcap |= HWCAP_SHA2 | HWCAP_SHA512;
+		break;
 	default:
 		break;
 	}
 
-	if (ID_AA64ISAR0_SHA1_VAL(cpu_desc[cpu].id_aa64isar0))
+	if (ID_AA64ISAR0_SHA1_VAL(user_cpu_desc.id_aa64isar0))
 		hwcap |= HWCAP_SHA1;
 
-	switch (ID_AA64ISAR0_AES_VAL(cpu_desc[cpu].id_aa64isar0)) {
+	switch (ID_AA64ISAR0_AES_VAL(user_cpu_desc.id_aa64isar0)) {
 	case ID_AA64ISAR0_AES_BASE:
 		hwcap |= HWCAP_AES;
 		break;
@@ -1159,22 +1234,27 @@ parse_cpu_features_hwcap(u_int cpu)
 		break;
 	}
 
-	if (ID_AA64ISAR1_LRCPC_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_LRCPC_IMPL)
+	if (ID_AA64ISAR1_LRCPC_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_LRCPC_RCPC_8_3)
 		hwcap |= HWCAP_LRCPC;
 
-	if (ID_AA64ISAR1_FCMA_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_FCMA_IMPL)
+	if (ID_AA64ISAR1_FCMA_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_FCMA_IMPL)
 		hwcap |= HWCAP_FCMA;
 
-	if (ID_AA64ISAR1_JSCVT_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_JSCVT_IMPL)
+	if (ID_AA64ISAR1_JSCVT_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_JSCVT_IMPL)
 		hwcap |= HWCAP_JSCVT;
 
-	if (ID_AA64ISAR1_DPB_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_DPB_IMPL)
+	if (ID_AA64ISAR1_DPB_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_DPB_DCCVAP)
 		hwcap |= HWCAP_DCPOP;
 
-	if (ID_AA64PFR0_SVE_VAL(cpu_desc[cpu].id_aa64pfr0) == ID_AA64PFR0_SVE_IMPL)
+	if (ID_AA64PFR0_SVE_VAL(user_cpu_desc.id_aa64pfr0) ==
+	    ID_AA64PFR0_SVE_IMPL)
 		hwcap |= HWCAP_SVE;
 
-	switch (ID_AA64PFR0_AdvSIMD_VAL(cpu_desc[cpu].id_aa64pfr0)) {
+	switch (ID_AA64PFR0_AdvSIMD_VAL(user_cpu_desc.id_aa64pfr0)) {
 	case ID_AA64PFR0_AdvSIMD_IMPL:
 		hwcap |= HWCAP_ASIMD;
 		break;
@@ -1185,7 +1265,7 @@ parse_cpu_features_hwcap(u_int cpu)
 		break;
 	}
 
-	switch (ID_AA64PFR0_FP_VAL(cpu_desc[cpu].id_aa64pfr0)) {
+	switch (ID_AA64PFR0_FP_VAL(user_cpu_desc.id_aa64pfr0)) {
 	case ID_AA64PFR0_FP_IMPL:
 		hwcap |= HWCAP_FP;
 		break;
