@@ -338,6 +338,7 @@ static void	witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 static void	witness_ddb_level_descendants(struct witness *parent, int l);
 static void	witness_ddb_list(struct thread *td);
 #endif
+static void	witness_enter_debugger(const char *msg);
 static void	witness_debugger(int cond, const char *msg);
 static void	witness_free(struct witness *m);
 static struct witness	*witness_get(void);
@@ -358,6 +359,8 @@ static struct witness_lock_order_data	*witness_lock_order_get(
 static void	witness_list_lock(struct lock_instance *instance,
 		    int (*prnt)(const char *fmt, ...));
 static int	witness_output(const char *fmt, ...) __printflike(1, 2);
+static int	witness_output_drain(void *arg __unused, const char *data,
+		    int len);
 static int	witness_voutput(const char *fmt, va_list ap) __printflike(1, 0);
 static void	witness_setflag(struct lock_object *lock, int flag, int set);
 
@@ -1281,6 +1284,8 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 
 	for (j = 0, lle = lock_list; lle != NULL; lle = lle->ll_next) {
 		for (i = lle->ll_count - 1; i >= 0; i--, j++) {
+			struct stack pstack;
+			bool pstackv, trace;
 
 			MPASS(j < LOCK_CHILDCOUNT * LOCK_NCHILDREN);
 			lock1 = &lle->ll_children[i];
@@ -1367,6 +1372,19 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			 */
 			if (blessed(w, w1))
 				goto out;
+
+			trace = atomic_load_int(&witness_trace);
+			if (trace) {
+				struct witness_lock_order_data *data;
+
+				pstackv = false;
+				data = witness_lock_order_get(w, w1);
+				if (data != NULL) {
+					stack_copy(&data->wlod_stack,
+					    &pstack);
+					pstackv = true;
+				}
+			}
 			mtx_unlock_spin(&w_mtx);
 
 #ifdef WITNESS_NO_VNODE
@@ -1413,28 +1431,60 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 					i--;
 			} while (i >= 0);
 			if (i < 0) {
-				witness_output(" 1st %p %s (%s) @ %s:%d\n",
+				witness_output(" 1st %p %s (%s, %s) @ %s:%d\n",
 				    lock1->li_lock, lock1->li_lock->lo_name,
-				    w1->w_name, fixup_filename(lock1->li_file),
+				    w1->w_name, w1->w_class->lc_name,
+				    fixup_filename(lock1->li_file),
 				    lock1->li_line);
-				witness_output(" 2nd %p %s (%s) @ %s:%d\n", lock,
-				    lock->lo_name, w->w_name,
-				    fixup_filename(file), line);
+				witness_output(" 2nd %p %s (%s, %s) @ %s:%d\n",
+				    lock, lock->lo_name, w->w_name,
+				    w->w_class->lc_name, fixup_filename(file),
+				    line);
 			} else {
-				witness_output(" 1st %p %s (%s) @ %s:%d\n",
+				struct witness *w2 = lock2->li_lock->lo_witness;
+
+				witness_output(" 1st %p %s (%s, %s) @ %s:%d\n",
 				    lock2->li_lock, lock2->li_lock->lo_name,
-				    lock2->li_lock->lo_witness->w_name,
+				    w2->w_name, w2->w_class->lc_name,
 				    fixup_filename(lock2->li_file),
 				    lock2->li_line);
-				witness_output(" 2nd %p %s (%s) @ %s:%d\n",
+				witness_output(" 2nd %p %s (%s, %s) @ %s:%d\n",
 				    lock1->li_lock, lock1->li_lock->lo_name,
-				    w1->w_name, fixup_filename(lock1->li_file),
+				    w1->w_name, w1->w_class->lc_name,
+				    fixup_filename(lock1->li_file),
 				    lock1->li_line);
-				witness_output(" 3rd %p %s (%s) @ %s:%d\n", lock,
+				witness_output(" 3rd %p %s (%s, %s) @ %s:%d\n", lock,
 				    lock->lo_name, w->w_name,
-				    fixup_filename(file), line);
+				    w->w_class->lc_name, fixup_filename(file),
+				    line);
 			}
-			witness_debugger(1, __func__);
+			if (trace) {
+				char buf[64];
+				struct sbuf sb;
+
+				sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+				sbuf_set_drain(&sb, witness_output_drain,
+				    NULL);
+
+				if (pstackv) {
+					sbuf_printf(&sb,
+				    "lock order %s -> %s established at:\n",
+					    w->w_name, w1->w_name);
+					stack_sbuf_print_flags(&sb, &pstack,
+					    M_NOWAIT, STACK_SBUF_FMT_LONG);
+				}
+
+				sbuf_printf(&sb,
+				    "lock order %s -> %s attempted at:\n",
+				    w1->w_name, w->w_name);
+				stack_save(&pstack);
+				stack_sbuf_print_flags(&sb, &pstack, M_NOWAIT,
+				    STACK_SBUF_FMT_LONG);
+
+				sbuf_finish(&sb);
+				sbuf_delete(&sb);
+			}
+			witness_enter_debugger(__func__);
 			return;
 		}
 	}
@@ -3085,6 +3135,12 @@ witness_debugger(int cond, const char *msg)
 		sbuf_finish(&sb);
 	}
 
+	witness_enter_debugger(msg);
+}
+
+static void
+witness_enter_debugger(const char *msg)
+{
 #ifdef KDB
 	if (witness_kdb)
 		kdb_enter(KDB_WHY_WITNESS, msg);
