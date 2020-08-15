@@ -831,6 +831,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		inp->inp_vflag &= ~INP_IPV6;
 		inp->inp_vflag |= INP_IPV4;
 #endif
+		inp->inp_ip_ttl = sc->sc_ip_ttl;
+		inp->inp_ip_tos = sc->sc_ip_tos;
 		inp->inp_laddr = sc->sc_inc.inc_laddr;
 #ifdef INET6
 	}
@@ -866,6 +868,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 		if (oinp->in6p_outputopts)
 			inp->in6p_outputopts =
 			    ip6_copypktopts(oinp->in6p_outputopts, M_NOWAIT);
+		inp->in6p_hops = oinp->in6p_hops;
 	}
 
 	if (sc->sc_inc.inc_flags & INC_ISIPV6) {
@@ -1389,12 +1392,28 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	cred = crhold(so->so_cred);
 
 #ifdef INET6
-	if ((inc->inc_flags & INC_ISIPV6) &&
-	    (inp->inp_flags & IN6P_AUTOFLOWLABEL))
-		autoflowlabel = 1;
+	if (inc->inc_flags & INC_ISIPV6) {
+		if (inp->inp_flags & IN6P_AUTOFLOWLABEL) {
+			autoflowlabel = 1;
+		}
+		ip_ttl = in6_selecthlim(inp, NULL);
+		if ((inp->in6p_outputopts == NULL) ||
+		    (inp->in6p_outputopts->ip6po_tclass == -1)) {
+			ip_tos = 0;
+		} else {
+			ip_tos = inp->in6p_outputopts->ip6po_tclass;
+		}
+	}
 #endif
-	ip_ttl = inp->inp_ip_ttl;
-	ip_tos = inp->inp_ip_tos;
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET
+	{
+		ip_ttl = inp->inp_ip_ttl;
+		ip_tos = inp->inp_ip_tos;
+	}
+#endif
 	win = so->sol_sbrcv_hiwat;
 	ltflags = (tp->t_flags & (TF_NOOPT | TF_SIGNATURE));
 
@@ -1599,13 +1618,8 @@ skip_alloc:
 	cred = NULL;
 	sc->sc_ipopts = ipopts;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
-#ifdef INET6
-	if (!(inc->inc_flags & INC_ISIPV6))
-#endif
-	{
-		sc->sc_ip_tos = ip_tos;
-		sc->sc_ip_ttl = ip_ttl;
-	}
+	sc->sc_ip_tos = ip_tos;
+	sc->sc_ip_ttl = ip_ttl;
 #ifdef TCP_OFFLOAD
 	sc->sc_tod = tod;
 	sc->sc_todctx = todctx;
@@ -1807,6 +1821,7 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 		/* Zero out traffic class and flow label. */
 		ip6->ip6_flow &= ~IPV6_FLOWINFO_MASK;
 		ip6->ip6_flow |= sc->sc_flowlabel;
+		ip6->ip6_flow |= htonl(sc->sc_ip_tos << 20);
 
 		th = (struct tcphdr *)(ip6 + 1);
 	}
@@ -1935,7 +1950,7 @@ syncache_respond(struct syncache *sc, const struct mbuf *m0, int flags)
 		m->m_pkthdr.csum_flags = CSUM_TCP_IPV6;
 		th->th_sum = in6_cksum_pseudo(ip6, tlen + optlen - hlen,
 		    IPPROTO_TCP, 0);
-		ip6->ip6_hlim = in6_selecthlim(NULL, NULL);
+		ip6->ip6_hlim = sc->sc_ip_ttl;
 #ifdef TCP_OFFLOAD
 		if (ADDED_BY_TOE(sc)) {
 			struct toedev *tod = sc->sc_tod;

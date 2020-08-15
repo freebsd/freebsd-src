@@ -84,6 +84,7 @@ struct vm_batchqueue {
 } __aligned(CACHE_LINE_SIZE);
 
 #include <vm/uma.h>
+#include <sys/_blockcount.h>
 #include <sys/pidctrl.h>
 struct sysctl_oid;
 
@@ -254,6 +255,14 @@ struct vm_domain {
 	/* Paging control variables, used within single threaded page daemon. */
 	struct pidctrl vmd_pid;		/* Pageout controller. */
 	boolean_t vmd_oom;
+	u_int vmd_inactive_threads;
+	u_int vmd_inactive_shortage;		/* Per-thread shortage. */
+	blockcount_t vmd_inactive_running;	/* Number of inactive threads. */
+	blockcount_t vmd_inactive_starting;	/* Number of threads started. */
+	volatile u_int vmd_addl_shortage;	/* Shortage accumulator. */
+	volatile u_int vmd_inactive_freed;	/* Successful inactive frees. */
+	volatile u_int vmd_inactive_us;		/* Microseconds for above. */
+	u_int vmd_inactive_pps;		/* Exponential decay frees/second. */
 	int vmd_oom_seq;
 	int vmd_last_active_scan;
 	struct vm_page vmd_markers[PQ_COUNT]; /* (q) markers for queue scans */

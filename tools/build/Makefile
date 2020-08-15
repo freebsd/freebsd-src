@@ -92,6 +92,12 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 SYSINCS+=	${SRCTOP}/sys/sys/nv.h ${SRCTOP}/sys/sys/cnv.h \
 		${SRCTOP}/sys/sys/dnv.h
 
+# Needed when bootstrapping ldd (since it uses DF_1_PIE)
+SYSINCS+=	${SRCTOP}/sys/sys/elf32.h
+SYSINCS+=	${SRCTOP}/sys/sys/elf64.h
+SYSINCS+=	${SRCTOP}/sys/sys/elf_common.h
+SYSINCS+=	${SRCTOP}/sys/sys/elf_generic.h
+
 # vtfontcvt is using sys/font.h
 SYSINCS+=	${SRCTOP}/sys/sys/font.h
 
@@ -107,8 +113,8 @@ SYSINCS+=	${SRCTOP}/sys/sys/font.h
 # Linux/MacOS since we only use flags that are supported by all of them.
 _host_tools_to_symlink=	basename bzip2 bunzip2 chmod chown cmp comm cp date dd \
 	dirname echo env false find fmt gzip gunzip head hostname id ln ls \
-	mkdir mv nice patch rm realpath sh sleep stat tee touch tr true uname \
-	uniq wc which
+	mkdir mv nice patch rm realpath sh sleep stat tee touch tr true \
+	uname uniq wc which
 
 # We also need a symlink to the absolute path to the make binary used for
 # the toplevel makefile. This is not necessarily the same as `which make`

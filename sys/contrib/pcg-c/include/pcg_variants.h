@@ -36,22 +36,16 @@
 #ifndef PCG_VARIANTS_H_INCLUDED
 #define PCG_VARIANTS_H_INCLUDED 1
 
-#include <inttypes.h>
-
-#if __SIZEOF_INT128__
+#if defined(__SIZEOF_INT128__) && __SIZEOF_INT128__
     typedef __uint128_t pcg128_t;
     #define PCG_128BIT_CONSTANT(high,low) \
             ((((pcg128_t)high) << 64) + low)
     #define PCG_HAS_128BIT_OPS 1
+#else
+    #define PCG_HAS_128BIT_OPS 0
 #endif
 
-#if __GNUC_GNU_INLINE__  &&  !defined(__cplusplus)
-    #error Nonstandard GNU inlining semantics. Compile with -std=c99 or better.
-    /* We could instead use macros PCG_INLINE and PCG_EXTERN_INLINE
-       but better to just reject ancient C code. */
-#endif
-
-#if __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -65,8 +59,8 @@ inline uint8_t pcg_rotr_8(uint8_t value, unsigned int rot)
  * recognizing idiomatic rotate code, so for clang we actually provide
  * assembler directives (enabled with PCG_USE_INLINE_ASM).  Boo, hiss.
  */
-#if PCG_USE_INLINE_ASM && __clang__ && (__x86_64__  || __i386__)
-    asm ("rorb   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
+#if PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
+    __asm__ ("rorb   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
     return value;
 #else
     return (value >> rot) | (value << ((- rot) & 7));
@@ -75,8 +69,8 @@ inline uint8_t pcg_rotr_8(uint8_t value, unsigned int rot)
 
 inline uint16_t pcg_rotr_16(uint16_t value, unsigned int rot)
 {
-#if PCG_USE_INLINE_ASM && __clang__ && (__x86_64__  || __i386__)
-    asm ("rorw   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
+#if PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
+    __asm__ ("rorw   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
     return value;
 #else
     return (value >> rot) | (value << ((- rot) & 15));
@@ -85,8 +79,8 @@ inline uint16_t pcg_rotr_16(uint16_t value, unsigned int rot)
 
 inline uint32_t pcg_rotr_32(uint32_t value, unsigned int rot)
 {
-#if PCG_USE_INLINE_ASM && __clang__ && (__x86_64__  || __i386__)
-    asm ("rorl   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
+#if PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
+    __asm__ ("rorl   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
     return value;
 #else
     return (value >> rot) | (value << ((- rot) & 31));
@@ -95,10 +89,10 @@ inline uint32_t pcg_rotr_32(uint32_t value, unsigned int rot)
 
 inline uint64_t pcg_rotr_64(uint64_t value, unsigned int rot)
 {
-#if 0 && PCG_USE_INLINE_ASM && __clang__ && __x86_64__
+#if 0 && PCG_USE_INLINE_ASM && defined(__clang__) && (defined(__x86_64__)  || defined(__i386__))
     /* For whatever reason, clang actually *does* generate rotq by
        itself, so we don't need this code. */
-    asm ("rorq   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
+    __asm__ ("rorq   %%cl, %0" : "=r" (value) : "0" (value), "c" (rot));
     return value;
 #else
     return (value >> rot) | (value << ((- rot) & 63));
@@ -2491,18 +2485,6 @@ typedef struct pcg_state_setseq_128   pcg128i_random_t;
 #define pcg128i_advance_r             pcg_setseq_128_advance_r
 #endif
 
-extern uint32_t pcg32_random(void);
-extern uint32_t pcg32_boundedrand(uint32_t bound);
-extern void     pcg32_srandom(uint64_t seed, uint64_t seq);
-extern void     pcg32_advance(uint64_t delta);
-
-#if PCG_HAS_128BIT_OPS
-extern uint64_t pcg64_random(void);
-extern uint64_t pcg64_boundedrand(uint64_t bound);
-extern void     pcg64_srandom(pcg128_t seed, pcg128_t seq);
-extern void     pcg64_advance(pcg128_t delta);
-#endif
-
 /*
  * Static initialization constants (if you can't call srandom for some
  * bizarre reason).
@@ -2536,7 +2518,7 @@ extern void     pcg64_advance(pcg128_t delta);
 #define PCG128I_INITIALIZER     PCG_STATE_SETSEQ_128_INITIALIZER
 #endif
 
-#if __cplusplus
+#ifdef __cplusplus
 }
 #endif
 

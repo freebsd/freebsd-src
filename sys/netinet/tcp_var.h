@@ -105,12 +105,12 @@ struct sackhole {
 
 struct sackhint {
 	struct sackhole	*nexthole;
-	int		sack_bytes_rexmit;
+	int32_t		sack_bytes_rexmit;
 	tcp_seq		last_sack_ack;	/* Most recent/largest sacked ack */
 
-	int		ispare;		/* explicit pad for 64bit alignment */
-	int             sacked_bytes;	/*
-					 * Total sacked bytes reported by the
+	int32_t		delivered_data; /* Newly acked data from last SACK */
+
+	int32_t		sacked_bytes;	/* Total sacked bytes reported by the
 					 * receiver via sack option
 					 */
 	uint32_t	_pad1[1];	/* TBD */

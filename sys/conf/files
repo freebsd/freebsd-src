@@ -3834,6 +3834,7 @@ kern/subr_pctrie.c		standard
 kern/subr_pidctrl.c		standard
 kern/subr_power.c		standard
 kern/subr_prf.c			standard
+kern/subr_prng.c		standard
 kern/subr_prof.c		standard
 kern/subr_rangeset.c		standard
 kern/subr_rman.c		standard

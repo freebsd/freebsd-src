@@ -47,15 +47,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/stack.h>
 
 static void
-stack_capture(struct stack *st, struct unwind_state *frame)
+stack_capture(struct thread *td, struct stack *st, struct unwind_state *frame)
 {
 
 	stack_zero(st);
 
 	while (1) {
+		if ((vm_offset_t)frame->fp < td->td_kstack ||
+		    (vm_offset_t)frame->fp >= td->td_kstack +
+		    td->td_kstack_pages * PAGE_SIZE)
+			break;
 		unwind_frame(frame);
-		if (!INKERNEL((vm_offset_t)frame->fp) ||
-		     !INKERNEL((vm_offset_t)frame->pc))
+		if (!INKERNEL((vm_offset_t)frame->pc))
 			break;
 		if (stack_put(st, frame->pc) == -1)
 			break;
@@ -78,7 +81,7 @@ stack_save_td(struct stack *st, struct thread *td)
 	frame.fp = td->td_pcb->pcb_s[0];
 	frame.pc = td->td_pcb->pcb_ra;
 
-	stack_capture(st, &frame);
+	stack_capture(td, st, &frame);
 	return (0);
 }
 
@@ -86,13 +89,13 @@ void
 stack_save(struct stack *st)
 {
 	struct unwind_state frame;
-	uint64_t sp;
+	uintptr_t sp;
 
 	__asm __volatile("mv %0, sp" : "=&r" (sp));
 
 	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)stack_save;
+	frame.fp = (uintptr_t)__builtin_frame_address(0);
+	frame.pc = (uintptr_t)stack_save;
 
-	stack_capture(st, &frame);
+	stack_capture(curthread, st, &frame);
 }

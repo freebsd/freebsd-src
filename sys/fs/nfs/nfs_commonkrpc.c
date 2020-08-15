@@ -167,7 +167,7 @@ static int nfsv2_procid[NFS_V3NPROCS] = {
  */
 int
 newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
-    struct ucred *cred, NFSPROC_T *p, int callback_retry_mult)
+    struct ucred *cred, NFSPROC_T *p, int callback_retry_mult, bool dotls)
 {
 	int rcvreserve, sndreserve;
 	int pktscale, pktscalesav;
@@ -374,6 +374,8 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		} else {
 			retries = NFSV4_CALLBACKRETRY * callback_retry_mult;
 		}
+		if (dotls)
+			CLNT_CONTROL(client, CLSET_TLS, &one);
 	}
 	CLNT_CONTROL(client, CLSET_RETRIES, &retries);
 
@@ -586,7 +588,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	 * and let clnt_reconnect_create handle reconnects.
 	 */
 	if (nrp->nr_client == NULL)
-		newnfs_connect(nmp, nrp, cred, td, 0);
+		newnfs_connect(nmp, nrp, cred, td, 0, false);
 
 	/*
 	 * For a client side mount, nmp is != NULL and clp == NULL. For

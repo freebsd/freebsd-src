@@ -295,16 +295,26 @@ getargs(int argc, char **argv)
 
 	if (*argv) {
 		Infile = *argv;
-		if (*++argv)
-			strcpy(Outfile, *argv);
+		if (*++argv) {
+			if (strlcpy(Outfile, *argv, sizeof(Outfile)) >=
+			    sizeof(Outfile)) {
+				fprintf(stderr,
+				    "output_file path is too long\n");
+				exit(1);
+			}
+		}
 	}
 	if (!Infile) {
 		puts("No input file name");
 		usage();
 	}
 	if (*Outfile == '\0') {
-		strlcpy(Outfile, Infile, sizeof(Outfile));
-		strlcat(Outfile, ".dat", sizeof(Outfile));
+		if ((size_t)snprintf(Outfile, sizeof(Outfile), "%s.dat",
+		    Infile) >= sizeof(Outfile)) {
+			fprintf(stderr,
+			    "generated output_file path is too long\n");
+			exit(1);
+		}
 	}
 }
 

@@ -64,7 +64,7 @@ ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
 		-b ${BTXKERN} ${LOADER}.bin
 
 ${LOADER}.bin: ${LOADER}.sym
-	strip -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
+	${STRIPBIN} -R .comment -R .note -o ${.TARGET} ${.ALLSRC}
 
 .if ${MK_LOADER_ZFS} == "yes" && ${LOADER_INTERP} == ${LOADER_DEFAULT_INTERP}
 LINKS+=		${BINDIR}/${LOADER} ${BINDIR}/zfsloader

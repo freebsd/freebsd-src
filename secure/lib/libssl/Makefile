@@ -31,7 +31,7 @@ CFLAGS+=	-I${.OBJDIR:H}/libcrypto
 
 .include <bsd.lib.mk>
 
-PICFLAG+=	-DOPENSS_PIC
+PICFLAG+=	-DOPENSSL_PIC
 
 .PATH:	${LCRYPTO_SRC}/ssl \
 	${LCRYPTO_SRC}/ssl/record \

@@ -116,6 +116,7 @@ TEST_F(Forget, invalidate_names)
 	int err;
 
 	EXPECT_LOOKUP(FUSE_ROOT_ID, DNAME)
+	.Times(2)
 	.WillRepeatedly(Invoke(
 		ReturnImmediate([=](auto in __unused, auto& out) {
 		SET_OUT_HEADER_LEN(out, entry);
@@ -142,7 +143,7 @@ TEST_F(Forget, invalidate_names)
 		out.body.entry.attr_valid = UINT64_MAX;
 		out.body.entry.entry_valid = UINT64_MAX;
 	})));
-	expect_forget(dir_ino, 2);
+	expect_forget(dir_ino, 1);
 
 	/* Access the file to cache its name */
 	ASSERT_EQ(0, access(FULLFPATH, F_OK)) << strerror(errno);

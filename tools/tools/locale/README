@@ -1,32 +1,58 @@
 # $FreeBSD$
 
-To generate the locales:
+Files in this directory are used to generate locale source files
+from files in CLDR (Unicode Common Locale Data Repository). 
 
-Tools needed:
-	java (openjdk >= 8)
-	perl
-	converters/p5-Text-Iconv
-	devel/apache-ant
-	devel/p5-Tie-IxHash
-	textproc/p5-XML-Parser
+To generate the files, do the following:
 
-1. Fetch CLDR data from: http://unicode.org/Public/cldr/.  You need all of the
-core.zip, keyboards.zip, and tools.zip.
-2. Fetch unidata (UCD.zip) from http://www.unicode.org/Public/zipped/latest.
-3. Extract:
-	mkdir -p ~/unicode
-	cd ~/unicode
-	unzip ~/core.zip
-	unzip ~/keyboards.zip
-	unzip ~/tools.zip
-	unzip ~/UCD.zip
-4. Export variable:
-	UNIDIR=~/unicode; export UNIDIR
-5. Build the CLDR tools:
-	cd $UNIDIR/tools/java
-	ant jar
-6. Build POSIX data files from CLDR data:
-	make POSIX
-7. Build and install new locale data:
-	make
+	cd /usr/src/tools/tools/locale
+	make obj	(mandatory)
+	make -j16	(-jN recommended)
+	make diff	(check if the changes are reasonable)
 	make install
+
+"make" downloads the necessary files, build them, and install the
+results into /usr/src/share/* as source files for locales.
+
+More details are as follows:
+
+Variables:
+	LOCALESRCDIR
+		Destination path for the generated locale files.
+		Default: $DESTDIR/usr/src/share.
+	TMPDIR
+		Temporary directory.
+		Default: /tmp
+
+Targets:
+	make obj
+		Create a temporary directory for building.
+
+	make clean
+		Clean up the obj directories.
+
+	make cleandir
+		Remove the obj directories completely.
+
+	make tools-test
+		Check if necessary tools are installed or not.
+		If something is missing, install them.
+
+	make fetch
+		Download necessary files from CLDR.
+
+	make build-tools
+		Build a tool to generate locale source files.
+
+	make posix
+		Build POSIX locale source files.
+
+	make build
+		Build locale files.
+
+	make diff
+		Run diff(1) the build results against $LOCALESRCDIR.
+
+	make install
+		Install the build results into $LOCALESRCDIR.
+[EOF]

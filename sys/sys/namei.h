@@ -152,22 +152,31 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	HASBUF		0x00000400 /* has allocated pathname buffer */
 #define	SAVENAME	0x00000800 /* save pathname buffer */
 #define	SAVESTART	0x00001000 /* save starting directory */
-#define	ISDOTDOT	0x00002000 /* current component name is .. */
-#define	MAKEENTRY	0x00004000 /* entry is to be added to name cache */
-#define	ISLASTCN	0x00008000 /* this is last component of pathname */
-#define	ISSYMLINK	0x00010000 /* symlink needs interpretation */
-#define	ISWHITEOUT	0x00020000 /* found whiteout */
-#define	DOWHITEOUT	0x00040000 /* do whiteouts */
-#define	WILLBEDIR	0x00080000 /* new files will be dirs; allow trailing / */
-#define	ISOPEN		0x00200000 /* caller is opening; return a real vnode. */
-#define	NOCROSSMOUNT	0x00400000 /* do not cross mount points */
-#define	NOMACCHECK	0x00800000 /* do not perform MAC checks */
-#define	AUDITVNODE1	0x04000000 /* audit the looked up vnode information */
-#define	AUDITVNODE2	0x08000000 /* audit the looked up vnode information */
-#define	TRAILINGSLASH	0x10000000 /* path ended in a slash */
-#define	NOCAPCHECK	0x20000000 /* do not perform capability checks */
-#define	NOEXECCHECK	0x40000000 /* do not perform exec check on dir */
+#define	ISWHITEOUT	0x00002000 /* found whiteout */
+#define	DOWHITEOUT	0x00004000 /* do whiteouts */
+#define	WILLBEDIR	0x00008000 /* new files will be dirs; allow trailing / */
+#define	ISOPEN		0x00010000 /* caller is opening; return a real vnode. */
+#define	NOCROSSMOUNT	0x00020000 /* do not cross mount points */
+#define	NOMACCHECK	0x00040000 /* do not perform MAC checks */
+#define	AUDITVNODE1	0x00080000 /* audit the looked up vnode information */
+#define	AUDITVNODE2	0x00100000 /* audit the looked up vnode information */
+#define	NOCAPCHECK	0x00200000 /* do not perform capability checks */
+/* UNUSED		0x00400000 */
+/* UNUSED		0x00800000 */
+/* UNUSED		0x01000000 */
+#define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
+#define	MAKEENTRY	0x04000000 /* entry is to be added to name cache */
+#define	ISSYMLINK	0x08000000 /* symlink needs interpretation */
+#define	ISLASTCN	0x10000000 /* this is last component of pathname */
+#define	ISDOTDOT	0x20000000 /* current component name is .. */
+#define	TRAILINGSLASH	0x40000000 /* path ended in a slash */
 #define	PARAMASK	0x7ffffe00 /* mask of parameter descriptors */
+
+/*
+ * Flags which must not be passed in by callers.
+ */
+#define NAMEI_INTERNAL_FLAGS	\
+	(NOEXECCHECK | MAKEENTRY | ISSYMLINK | ISLASTCN | ISDOTDOT | TRAILINGSLASH)
 
 /*
  * Namei results flags

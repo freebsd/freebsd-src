@@ -333,11 +333,6 @@ IP6PROTOSPACER,
 },
 };
 
-extern int in6_inithead(void **, int, u_int);
-#ifdef VIMAGE
-extern int in6_detachhead(void **, int);
-#endif
-
 struct domain inet6domain = {
 	.dom_family =		AF_INET6,
 	.dom_name =		"internet6",

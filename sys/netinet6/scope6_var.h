@@ -47,9 +47,6 @@ struct scope6_id {
 	uint32_t s6id_list[IPV6_ADDR_SCOPES_COUNT];
 };
 
-VNET_DECLARE(int, deembed_scopeid);
-#define V_deembed_scopeid       VNET(deembed_scopeid)
-
 void	scope6_init(void);
 struct scope6_id *scope6_ifattach(struct ifnet *);
 void	scope6_ifdetach(struct scope6_id *);

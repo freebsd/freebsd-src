@@ -58,7 +58,7 @@ ${var}=	${${var}__${${X_}_ld_hash}}
 
 .if ${ld} == "LD" || (${ld} == "XLD" && ${XLD} != ${LD})
 .if !defined(${X_}LINKER_TYPE) || !defined(${X_}LINKER_VERSION)
-_ld_version!=	(${${ld}} --version || echo none) | sed -n 1p
+_ld_version!=	(${${ld}} -v 2>&1 || echo none) | sed -n 1p
 .if ${_ld_version} == "none"
 .warning Unable to determine linker type from ${ld}=${${ld}}
 .endif
@@ -73,6 +73,17 @@ _v=	${_ld_version:[2]}
 ${X_}LINKER_FREEBSD_VERSION:=	${_ld_version:[4]:C/.*-([^-]*)\)/\1/}
 .else
 ${X_}LINKER_FREEBSD_VERSION=	0
+.endif
+.elif ${_ld_version:[1]} == "@(\#)PROGRAM:ld"
+# bootstrap linker on MacOS
+${X_}LINKER_TYPE=        mac
+_v=        ${_ld_version:[2]:S/PROJECT:ld64-//}
+# Convert version 409.12 to 409.12.0 so that the echo + awk below works
+.if empty(_v:M[1-9]*.[0-9]*.[0-9]*) && !empty(_v:M[1-9]*.[0-9]*)
+_v:=${_v}.0
+.else
+# Some versions do not contain a minor version so we need to append .0.0 there
+_v:=${_v}.0.0
 .endif
 .else
 .warning Unknown linker from ${ld}=${${ld}}: ${_ld_version}, defaulting to bfd
@@ -93,6 +104,9 @@ ${X_}LINKER_FEATURES+=	riscv-relaxations
 .endif
 .if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 60000
 ${X_}LINKER_FEATURES+=	retpoline
+.endif
+.if ${${X_}LINKER_TYPE} == "lld" && ${${X_}LINKER_VERSION} >= 90000
+${X_}LINKER_FEATURES+=	ifunc-noplt
 .endif
 .endif
 .else

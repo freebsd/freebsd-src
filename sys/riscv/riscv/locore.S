@@ -223,19 +223,21 @@ va:
 	csrw	sscratch, t0
 
 	/* Initialize stack pointer */
-	la	s3, initstack_end
-	mv	sp, s3
+	la	sp, initstack_end
+
+	/* Clear frame pointer */
+	mv	s0, zero
 
 	/* Allocate space for thread0 PCB and riscv_bootparams */
 	addi	sp, sp, -(PCB_SIZE + RISCV_BOOTPARAMS_SIZE) & ~STACKALIGNBYTES
 
 	/* Clear BSS */
-	la	s0, _C_LABEL(__bss_start)
-	la	s1, _C_LABEL(_end)
+	la	t0, _C_LABEL(__bss_start)
+	la	t1, _C_LABEL(_end)
 1:
-	sd	zero, 0(s0)
-	addi	s0, s0, 8
-	bltu	s0, s1, 1b
+	sd	zero, 0(t0)
+	addi	t0, t0, 8
+	bltu	t0, t1, 1b
 
 	/* Fill riscv_bootparams */
 	la	t0, pagetable_l1
@@ -258,6 +260,11 @@ va:
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */
 	call	_C_LABEL(mi_startup)
+
+	/* We should never reach here, but if so just hang. */
+2:
+	wfi
+	j	2b
 
 /*
  * Get the physical address the kernel is loaded to. Returned in s9.
@@ -350,7 +357,7 @@ ENTRY(mpentry)
 	ld	sp, 0(t0)
 
 	/* Get the kernel's load address */
-	jal get_physmem
+	jal	get_physmem
 
 	/* Setup supervisor trap vector */
 	lla	t0, mpva

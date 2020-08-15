@@ -676,7 +676,6 @@ int	vaccess_acl_posix1e(enum vtype type, uid_t file_uid,
 	    gid_t file_gid, struct acl *acl, accmode_t accmode,
 	    struct ucred *cred);
 void	vattr_null(struct vattr *vap);
-int	vcount(struct vnode *vp);
 void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
@@ -968,9 +967,13 @@ void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
 void	vrefl(struct vnode *vp);
 void	vrefact(struct vnode *vp);
-void	vrefactn(struct vnode *vp, u_int n);
-int	vrefcnt(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
+static __inline int
+vrefcnt(struct vnode *vp)
+{
+
+	return (vp->v_usecount);
+}
 
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);

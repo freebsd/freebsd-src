@@ -552,6 +552,9 @@ vm_domain_stats_init(struct vm_domain *vmd, struct sysctl_oid *parent)
 	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "free_severe", CTLFLAG_RD, &vmd->vmd_free_severe, 0,
 	    "Severe free pages");
+	SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "inactive_pps", CTLFLAG_RD, &vmd->vmd_inactive_pps, 0,
+	    "inactive pages freed/second");
 
 }
 

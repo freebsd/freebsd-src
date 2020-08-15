@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/compat.h>
 #include <linux/poll.h>
 #include <linux/smp.h>
+#include <linux/wait_bit.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <asm/smp.h>
@@ -118,6 +119,9 @@ struct list_head pci_devices;
 spinlock_t pci_lock;
 
 unsigned long linux_timer_hz_mask;
+
+wait_queue_head_t linux_bit_waitq;
+wait_queue_head_t linux_var_waitq;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -2523,6 +2527,8 @@ linux_compat_init(void *arg)
 	mtx_init(&vmmaplock, "IO Map lock", NULL, MTX_DEF);
 	for (i = 0; i < VMMAP_HASH_SIZE; i++)
 		LIST_INIT(&vmmaphead[i]);
+	init_waitqueue_head(&linux_bit_waitq);
+	init_waitqueue_head(&linux_var_waitq);
 }
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 

@@ -108,8 +108,6 @@ static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
-static void	v_incr_devcount(struct vnode *);
-static void	v_decr_devcount(struct vnode *);
 static void	vgonel(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
@@ -2794,59 +2792,6 @@ v_init_counters(struct vnode *vp)
 }
 
 /*
- * Increment si_usecount of the associated device, if any.
- */
-static void
-v_incr_devcount(struct vnode *vp)
-{
-
-	ASSERT_VI_LOCKED(vp, __FUNCTION__);
-	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
-		dev_lock();
-		vp->v_rdev->si_usecount++;
-		dev_unlock();
-	}
-}
-
-/*
- * Decrement si_usecount of the associated device, if any.
- *
- * The caller is required to hold the interlock when transitioning a VCHR use
- * count to zero. This prevents a race with devfs_reclaim_vchr() that would
- * leak a si_usecount reference. The vnode lock will also prevent this race
- * if it is held while dropping the last ref.
- *
- * The race is:
- *
- * CPU1					CPU2
- *				  	devfs_reclaim_vchr
- * make v_usecount == 0
- * 				    	  VI_LOCK
- * 				    	  sees v_usecount == 0, no updates
- * 				    	  vp->v_rdev = NULL;
- * 				    	  ...
- * 				    	  VI_UNLOCK
- * VI_LOCK
- * v_decr_devcount
- *   sees v_rdev == NULL, no updates
- *
- * In this scenario si_devcount decrement is not performed.
- */
-static void
-v_decr_devcount(struct vnode *vp)
-{
-
-	ASSERT_VOP_LOCKED(vp, __func__);
-	ASSERT_VI_LOCKED(vp, __FUNCTION__);
-	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
-		dev_lock();
-		VNPASS(vp->v_rdev->si_usecount > 0, vp);
-		vp->v_rdev->si_usecount--;
-		dev_unlock();
-	}
-}
-
-/*
  * Grab a particular vnode from the free list, increment its
  * reference count and lock it.  VIRF_DOOMED is set if the vnode
  * is being destroyed.  Only callers who specify LK_RETRY will
@@ -2921,41 +2866,6 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	return (vget_finish(vp, flags, vs));
 }
 
-static void __noinline
-vget_finish_vchr(struct vnode *vp)
-{
-
-	VNASSERT(vp->v_type == VCHR, vp, ("type != VCHR)"));
-
-	/*
-	 * See the comment in vget_finish before usecount bump.
-	 */
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-#ifdef INVARIANTS
-		int old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
-		VNASSERT(old > 0, vp, ("%s: wrong hold count %d", __func__, old));
-#else
-		refcount_release(&vp->v_holdcnt);
-#endif
-		return;
-	}
-
-	VI_LOCK(vp);
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-#ifdef INVARIANTS
-		int old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
-		VNASSERT(old > 1, vp, ("%s: wrong hold count %d", __func__, old));
-#else
-		refcount_release(&vp->v_holdcnt);
-#endif
-		VI_UNLOCK(vp);
-		return;
-	}
-	v_incr_devcount(vp);
-	refcount_acquire(&vp->v_usecount);
-	VI_UNLOCK(vp);
-}
-
 int
 vget_finish(struct vnode *vp, int flags, enum vgetstate vs)
 {
@@ -2993,11 +2903,6 @@ vget_finish_ref(struct vnode *vp, enum vgetstate vs)
 	if (vs == VGET_USECOUNT)
 		return;
 
-	if (__predict_false(vp->v_type == VCHR)) {
-		vget_finish_vchr(vp);
-		return;
-	}
-
 	/*
 	 * We hold the vnode. If the usecount is 0 it will be utilized to keep
 	 * the vnode around. Otherwise someone else lended their hold count and
@@ -3015,85 +2920,14 @@ vget_finish_ref(struct vnode *vp, enum vgetstate vs)
 	}
 }
 
-/*
- * Increase the reference (use) and hold count of a vnode.
- * This will also remove the vnode from the free list if it is presently free.
- */
-static void __noinline
-vref_vchr(struct vnode *vp, bool interlock)
-{
-
-	/*
-	 * See the comment in vget_finish before usecount bump.
-	 */
-	if (!interlock) {
-		if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-			VNODE_REFCOUNT_FENCE_ACQ();
-			VNASSERT(vp->v_holdcnt > 0, vp,
-			    ("%s: active vnode not held", __func__));
-			return;
-		}
-		VI_LOCK(vp);
-		/*
-		 * By the time we get here the vnode might have been doomed, at
-		 * which point the 0->1 use count transition is no longer
-		 * protected by the interlock. Since it can't bounce back to
-		 * VCHR and requires vref semantics, punt it back
-		 */
-		if (__predict_false(vp->v_type == VBAD)) {
-			VI_UNLOCK(vp);
-			vref(vp);
-			return;
-		}
-	}
-	VNASSERT(vp->v_type == VCHR, vp, ("type != VCHR)"));
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-		VNODE_REFCOUNT_FENCE_ACQ();
-		VNASSERT(vp->v_holdcnt > 0, vp,
-		    ("%s: active vnode not held", __func__));
-		if (!interlock)
-			VI_UNLOCK(vp);
-		return;
-	}
-	vhold(vp);
-	v_incr_devcount(vp);
-	refcount_acquire(&vp->v_usecount);
-	if (!interlock)
-		VI_UNLOCK(vp);
-	return;
-}
-
 void
 vref(struct vnode *vp)
 {
-	int old;
+	enum vgetstate vs;
 
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (__predict_false(vp->v_type == VCHR)) {
-		 vref_vchr(vp, false);
-		 return;
-	}
-
-	if (refcount_acquire_if_not_zero(&vp->v_usecount)) {
-		VNODE_REFCOUNT_FENCE_ACQ();
-		VNASSERT(vp->v_holdcnt > 0, vp,
-		    ("%s: active vnode not held", __func__));
-		return;
-	}
-	vhold(vp);
-	/*
-	 * See the comment in vget_finish.
-	 */
-	old = atomic_fetchadd_int(&vp->v_usecount, 1);
-	VNASSERT(old >= 0, vp, ("%s: wrong use count %d", __func__, old));
-	if (old != 0) {
-#ifdef INVARIANTS
-		old = atomic_fetchadd_int(&vp->v_holdcnt, -1);
-		VNASSERT(old > 1, vp, ("%s: wrong hold count %d", __func__, old));
-#else
-		refcount_release(&vp->v_holdcnt);
-#endif
-	}
+	vs = vget_prep(vp);
+	vget_finish_ref(vp, vs);
 }
 
 void
@@ -3102,10 +2936,6 @@ vrefl(struct vnode *vp)
 
 	ASSERT_VI_LOCKED(vp, __func__);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	if (__predict_false(vp->v_type == VCHR)) {
-		vref_vchr(vp, true);
-		return;
-	}
 	vref(vp);
 }
 
@@ -3120,35 +2950,6 @@ vrefact(struct vnode *vp)
 #else
 	refcount_acquire(&vp->v_usecount);
 #endif
-}
-
-void
-vrefactn(struct vnode *vp, u_int n)
-{
-
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-#ifdef INVARIANTS
-	int old = atomic_fetchadd_int(&vp->v_usecount, n);
-	VNASSERT(old > 0, vp, ("%s: wrong use count %d", __func__, old));
-#else
-	atomic_add_int(&vp->v_usecount, n);
-#endif
-}
-
-/*
- * Return reference count of a vnode.
- *
- * The results of this call are only guaranteed when some mechanism is used to
- * stop other processes from gaining references to the vnode.  This may be the
- * case if the caller holds the only reference.  This is also useful when stale
- * data is acceptable as race conditions may be accounted for by some other
- * means.
- */
-int
-vrefcnt(struct vnode *vp)
-{
-
-	return (vp->v_usecount);
 }
 
 void
@@ -3246,9 +3047,6 @@ enum vput_op { VRELE, VPUT, VUNREF };
  * By releasing the last usecount we take ownership of the hold count which
  * provides liveness of the vnode, meaning we have to vdrop.
  *
- * If the vnode is of type VCHR we may need to decrement si_usecount, see
- * v_decr_devcount for details.
- *
  * For all vnodes we may need to perform inactive processing. It requires an
  * exclusive lock on the vnode, while it is legal to call here with only a
  * shared lock (or no locks). If locking the vnode in an expected manner fails,
@@ -3269,8 +3067,6 @@ vput_final(struct vnode *vp, enum vput_op func)
 	VNPASS(vp->v_holdcnt > 0, vp);
 
 	VI_LOCK(vp);
-	if (__predict_false(vp->v_type == VCHR && func != VRELE))
-		v_decr_devcount(vp);
 
 	/*
 	 * By the time we got here someone else might have transitioned
@@ -3358,27 +3154,8 @@ out:
  * Releasing the last use count requires additional processing, see vput_final
  * above for details.
  *
- * Note that releasing use count without the vnode lock requires special casing
- * for VCHR, see v_decr_devcount for details.
- *
  * Comment above each variant denotes lock state on entry and exit.
  */
-
-static void __noinline
-vrele_vchr(struct vnode *vp)
-{
-
-	if (refcount_release_if_not_last(&vp->v_usecount))
-		return;
-	VI_LOCK(vp);
-	if (!refcount_release(&vp->v_usecount)) {
-		VI_UNLOCK(vp);
-		return;
-	}
-	v_decr_devcount(vp);
-	VI_UNLOCK(vp);
-	vput_final(vp, VRELE);
-}
 
 /*
  * in: any
@@ -3389,10 +3166,6 @@ vrele(struct vnode *vp)
 {
 
 	ASSERT_VI_UNLOCKED(vp, __func__);
-	if (__predict_false(vp->v_type == VCHR)) {
-		vrele_vchr(vp);
-		return;
-	}
 	if (!refcount_release(&vp->v_usecount))
 		return;
 	vput_final(vp, VRELE);
@@ -4141,20 +3914,6 @@ vgonel(struct vnode *vp)
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
 	vp->v_type = VBAD;
-}
-
-/*
- * Calculate the total number of references to a special device.
- */
-int
-vcount(struct vnode *vp)
-{
-	int count;
-
-	dev_lock();
-	count = vp->v_rdev->si_usecount;
-	dev_unlock();
-	return (count);
 }
 
 /*

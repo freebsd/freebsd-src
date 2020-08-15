@@ -24,32 +24,30 @@
 # Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-#ident	"%Z%%M%	%I%	%E% SMI"
+set -e
 
-BSDECHO=-e
+printf "%s" "
+/*
+ * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+ * Use is subject to license terms.
+ */
 
-echo ${BSDECHO} "\
-/*\n\
- * Copyright 2005 Sun Microsystems, Inc.  All rights reserved.\n\
- * Use is subject to license terms.\n\
- */\n\
-\n\
-#pragma ident\t\"%Z%%M%\t%I%\t%E% SMI\"\n\
-\n\
-#include <dtrace.h>\n\
-\n\
+#include <dtrace.h>
+
 /*ARGSUSED*/
-const char *\n\
-dtrace_subrstr(dtrace_hdl_t *dtp, int subr)\n\
-{\n\
-	switch (subr) {"
+const char *
+dtrace_subrstr(dtrace_hdl_t *dtp, int subr)
+{
+	switch (subr) {
+"
 
 nawk '
 /^#define[ 	]*DIF_SUBR_/ && $2 != "DIF_SUBR_MAX" {
 	printf("\tcase %s: return (\"%s\");\n", $2, tolower(substr($2, 10)));
 }'
 
-echo ${BSDECHO} "\
-	default: return (\"unknown\");\n\
-	}\n\
-}"
+printf "%s" "
+	default: return (\"unknown\");
+	}
+}
+"
