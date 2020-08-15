@@ -30,6 +30,7 @@
 
 use strict;
 use Getopt::Long;
+use Encode qw(encode decode);
 
 if ($#ARGV != 0) {
 	print "Usage: $0 --unidir=<unidir>\n";
@@ -51,6 +52,23 @@ parse_unidata ("$UNIDIR/UnicodeData.txt");
 generate_footer ();
 
 ############################
+
+sub utf8to32 {
+	my @kl = split /\\x/, $_[0];
+
+	shift @kl if ($kl[0] eq '');
+	my $k = pack('H2' x scalar @kl, @kl);
+	my $ux = encode('UTF-32BE', decode('UTF-8', $k));
+	my $u = uc(unpack('H*', $ux));
+	# Remove BOM
+	$u =~ s/^0000FEFF//;
+	# Remove heading bytes of 0
+	while ($u =~ m/^0/ and length($u) > 4) {
+		$u =~ s/^0//;
+	}
+
+	return $u;
+}
 
 sub get_utf8map {
 	my $file = shift;
@@ -75,9 +93,10 @@ sub get_utf8map {
 		last if ($l eq "END CHARMAP");
 
 		$l =~ /^(<[^\s]+>)\s+(.*)/;
-		my $k = $2;
+		my $k = utf8to32($2);	# UTF-8 char code
 		my $v = $1;
-		$k =~ s/\\x//g;		# UTF-8 char code
+
+#		print STDERR "register: $k - $v\n";
 		$utf8map{$k} = $v;
 	}
 }
@@ -143,7 +162,7 @@ sub parse_unidata {
 
 	foreach my $l (@lines) {
 		my @d = split(/;/, $l, -1);
-		my $mb = wctomb($d[0]);
+		my $mb = $d[0];
 		my $cat;
 
 		# XXX There are code points present in UnicodeData.txt
@@ -180,9 +199,9 @@ sub parse_unidata {
 
 		# Check if there's upper/lower mapping
 		if ($d[12] ne "") {
-			$data{'toupper'}{$mb} = wctomb($d[12]);
+			$data{'toupper'}{$mb} = $d[12];
 		} elsif ($d[13] ne "") {
-			$data{'tolower'}{$mb} = wctomb($d[13]);
+			$data{'tolower'}{$mb} = $d[13];
 		}
 	}
 
@@ -193,7 +212,7 @@ sub parse_unidata {
 	foreach my $cat (sort keys (%data)) {
 		print FOUT "$cat\t";
 		$first = 1;
-	foreach my $mb (sort keys (%{$data{$cat}})) {
+	foreach my $mb (sort {hex($a) <=> hex($b)} keys (%{$data{$cat}})) {
 		if ($first == 1) {
 			$first = 0;
 		} elsif ($inrange == 1) {
