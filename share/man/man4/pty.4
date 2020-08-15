@@ -27,19 +27,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2008
+.Dd October 28, 2019
 .Dt PTY 4
 .Os
 .Sh NAME
 .Nm pty
-.Nd BSD-style and System V-style compatibility pseudo-terminal driver
+.Nd old-style compatibility pseudo-terminal driver
 .Sh SYNOPSIS
 .Cd "device pty"
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for the traditional BSD naming scheme that was
-used for accessing pseudo-terminals.
+used for accessing pseudo-terminals before it was replaced by
+.Xr pts 4 .
+This traditional naming is still used in Linux.
 When the device
 .Pa /dev/ptyXX
 is being opened, a new terminal shall be created with the
@@ -59,7 +61,8 @@ interface.
 It is only provided for compatibility with older C libraries
 that tried to open such devices when
 .Xr posix_openpt 2
-was being called.
+was being called,
+and for running Linux binaries.
 .Sh FILES
 The BSD-style compatibility pseudo-terminal driver uses the following
 device names:
