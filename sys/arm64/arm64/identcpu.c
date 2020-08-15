@@ -364,6 +364,31 @@ static struct mrs_field id_aa64dfr1_fields[] = {
 
 
 /* ID_AA64ISAR0_EL1 */
+static struct mrs_field_value id_aa64isar0_rndr[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR0_RNDR_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_RNDR_IMPL, "RNG"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_tlb[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TLB_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TLB_TLBIOS, "TLBI-OS"),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TLB_TLBIOSR, "TLBI-OSR"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_ts[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TS_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TS_CondM_8_4, "CondM-8.4"),
+	MRS_FIELD_VALUE(ID_AA64ISAR0_TS_CondM_8_5, "CondM-8.5"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar0_fhm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, FHM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64isar0_dp[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR0, DP, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -417,6 +442,10 @@ static struct mrs_field_value id_aa64isar0_aes[] = {
 };
 
 static struct mrs_field id_aa64isar0_fields[] = {
+	MRS_FIELD(ID_AA64ISAR0, RNDR, false, MRS_LOWER, id_aa64isar0_rndr),
+	MRS_FIELD(ID_AA64ISAR0, TLB, false, MRS_LOWER, id_aa64isar0_tlb),
+	MRS_FIELD(ID_AA64ISAR0, TS, false, MRS_LOWER, id_aa64isar0_ts),
+	MRS_FIELD(ID_AA64ISAR0, FHM, false, MRS_LOWER, id_aa64isar0_fhm),
 	MRS_FIELD(ID_AA64ISAR0, DP, false, MRS_LOWER, id_aa64isar0_dp),
 	MRS_FIELD(ID_AA64ISAR0, SM4, false, MRS_LOWER, id_aa64isar0_sm4),
 	MRS_FIELD(ID_AA64ISAR0, SM3, false, MRS_LOWER, id_aa64isar0_sm3),
@@ -432,6 +461,37 @@ static struct mrs_field id_aa64isar0_fields[] = {
 
 
 /* ID_AA64ISAR1_EL1 */
+static struct mrs_field_value id_aa64isar1_i8mm[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, I8MM, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_dgh[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, DGH, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_bf16[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, BF16, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_specres[] = {
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_SPECRES_IMPL, "PredInv"),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_sb[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, SB, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static struct mrs_field_value id_aa64isar1_frintts[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, FRINTTS, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
 static struct mrs_field_value id_aa64isar1_gpi[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPI, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
@@ -443,7 +503,9 @@ static struct mrs_field_value id_aa64isar1_gpa[] = {
 };
 
 static struct mrs_field_value id_aa64isar1_lrcpc[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, LRCPC, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_LRCPC_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_LRCPC_RCPC_8_3, "RCPC-8.3"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_LRCPC_RCPC_8_4, "RCPC-8.4"),
 	MRS_FIELD_VALUE_END,
 };
 
@@ -463,16 +525,26 @@ static struct mrs_field_value id_aa64isar1_api[] = {
 };
 
 static struct mrs_field_value id_aa64isar1_apa[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, GPA, NONE, IMPL),
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, APA, NONE, IMPL),
 	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field_value id_aa64isar1_dpb[] = {
-	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, DPB, NONE, IMPL),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_DPB_NONE, ""),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_DPB_DCCVAP, "DCPoP"),
+	MRS_FIELD_VALUE(ID_AA64ISAR1_DPB_DCCVADP, "DCCVADP"),
 	MRS_FIELD_VALUE_END,
 };
 
 static struct mrs_field id_aa64isar1_fields[] = {
+	MRS_FIELD(ID_AA64ISAR1, I8MM, false, MRS_LOWER, id_aa64isar1_i8mm),
+	MRS_FIELD(ID_AA64ISAR1, DGH, false, MRS_LOWER, id_aa64isar1_dgh),
+	MRS_FIELD(ID_AA64ISAR1, BF16, false, MRS_LOWER, id_aa64isar1_bf16),
+	MRS_FIELD(ID_AA64ISAR1, SPECRES, false, MRS_LOWER,
+	    id_aa64isar1_specres),
+	MRS_FIELD(ID_AA64ISAR1, SB, false, MRS_LOWER, id_aa64isar1_sb),
+	MRS_FIELD(ID_AA64ISAR1, FRINTTS, false, MRS_LOWER,
+	    id_aa64isar1_frintts),
 	MRS_FIELD(ID_AA64ISAR1, GPI, false, MRS_EXACT, id_aa64isar1_gpi),
 	MRS_FIELD(ID_AA64ISAR1, GPA, false, MRS_EXACT, id_aa64isar1_gpa),
 	MRS_FIELD(ID_AA64ISAR1, LRCPC, false, MRS_LOWER, id_aa64isar1_lrcpc),
@@ -1159,7 +1231,7 @@ parse_cpu_features_hwcap(u_int cpu)
 		break;
 	}
 
-	if (ID_AA64ISAR1_LRCPC_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_LRCPC_IMPL)
+	if (ID_AA64ISAR1_LRCPC_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_LRCPC_RCPC_8_3)
 		hwcap |= HWCAP_LRCPC;
 
 	if (ID_AA64ISAR1_FCMA_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_FCMA_IMPL)
@@ -1168,7 +1240,7 @@ parse_cpu_features_hwcap(u_int cpu)
 	if (ID_AA64ISAR1_JSCVT_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_JSCVT_IMPL)
 		hwcap |= HWCAP_JSCVT;
 
-	if (ID_AA64ISAR1_DPB_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_DPB_IMPL)
+	if (ID_AA64ISAR1_DPB_VAL(cpu_desc[cpu].id_aa64isar1) == ID_AA64ISAR1_DPB_DCCVAP)
 		hwcap |= HWCAP_DCPOP;
 
 	if (ID_AA64PFR0_SVE_VAL(cpu_desc[cpu].id_aa64pfr0) == ID_AA64PFR0_SVE_IMPL)
