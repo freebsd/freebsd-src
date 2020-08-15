@@ -75,6 +75,9 @@
 /* Local modifications: need io.popen */
 #ifdef __FreeBSD__
 #define LUA_USE_POSIX
+#ifndef BOOTSTRAPPING
+#define LUA_USE_DLOPEN
+#endif
 #endif
 
 /*
@@ -205,9 +208,9 @@
 
 #else			/* }{ */
 
-#define LUA_ROOT	"/usr/local/"
-#define LUA_LDIR	LUA_ROOT "share/lua/" LUA_VDIR "/"
-#define LUA_CDIR	LUA_ROOT "lib/lua/" LUA_VDIR "/"
+#define LUA_ROOT	"/usr/"
+#define LUA_LDIR	LUA_ROOT "share/flua/"
+#define LUA_CDIR	LUA_ROOT "lib/flua/"
 #if !defined(LUA_PATH_DEFAULT)
 #define LUA_PATH_DEFAULT  \
 		LUA_LDIR"?.lua;"  LUA_LDIR"?/init.lua;" \

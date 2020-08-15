@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+#include <fs/devfs/devfs.h>
+
 #ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_util.h>
@@ -858,7 +860,7 @@ killjobc(void)
 				VOP_REVOKE(ttyvp, REVOKEALL);
 				VOP_UNLOCK(ttyvp);
 			}
-			vrele(ttyvp);
+			devfs_ctty_unref(ttyvp);
 			sx_xlock(&proctree_lock);
 		}
 	}

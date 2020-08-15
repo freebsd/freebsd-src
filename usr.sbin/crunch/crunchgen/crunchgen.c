@@ -39,10 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <fcntl.h>
 #include <paths.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #define CRUNCH_VERSION	"0.2"
@@ -91,6 +94,7 @@ prog_t   *progs     = NULL;
 char confname[MAXPATHLEN], infilename[MAXPATHLEN];
 char outmkname[MAXPATHLEN], outcfname[MAXPATHLEN], execfname[MAXPATHLEN];
 char tempfname[MAXPATHLEN], cachename[MAXPATHLEN], curfilename[MAXPATHLEN];
+bool tempfname_initialized = false;
 char outhdrname[MAXPATHLEN] ;	/* user-supplied header for *.mk */
 char *objprefix;		/* where are the objects ? */
 char *path_make;
@@ -216,6 +220,7 @@ main(int argc, char **argv)
 	snprintf(cachename, sizeof(cachename), "%s.cache", confname);
 	snprintf(tempfname, sizeof(tempfname), "%s/crunchgen_%sXXXXXX",
 	getenv("TMPDIR") ? getenv("TMPDIR") : _PATH_TMP, confname);
+	tempfname_initialized = false;
 
 	parse_conf_file();
 	if (list_mode)
@@ -648,8 +653,7 @@ fillin_program(prog_t *p)
 
 	/* Determine the actual srcdir (maybe symlinked). */
 	if (p->srcdir) {
-		snprintf(line, MAXLINELEN, "cd %s && echo -n `/bin/pwd`",
-		    p->srcdir);
+		snprintf(line, MAXLINELEN, "cd %s && pwd -P", p->srcdir);
 		f = popen(line,"r");
 		if (!f)
 			errx(1, "Can't execute: %s\n", line);
@@ -721,14 +725,26 @@ fillin_program_objs(prog_t *p, char *path)
 
 	/* discover the objs from the srcdir Makefile */
 
-	if ((fd = mkstemp(tempfname)) == -1) {
-		perror(tempfname);
-		exit(1);
+	/*
+	 * We reuse the same temporary file name for multiple objects. However,
+	 * some libc implementations (such as glibc) return EINVAL if there
+	 * are no XXXXX characters in the template. This happens after the
+	 * first call to mkstemp since the argument is modified in-place.
+	 * To avoid this error we use open() instead of mkstemp() after the
+	 * call to mkstemp().
+	 */
+	if (tempfname_initialized) {
+		if ((fd = open(tempfname, O_CREAT | O_EXCL | O_RDWR, 0600)) == -1) {
+			err(EX_OSERR, "open(%s)", tempfname);
+		}
+	} else if ((fd = mkstemp(tempfname)) == -1) {
+		err(EX_OSERR, "mkstemp(%s)", tempfname);
 	}
+	tempfname_initialized = true;
 	if ((f = fdopen(fd, "w")) == NULL) {
-		warn("%s", tempfname);
+		warn("fdopen(%s)", tempfname);
 		goterror = 1;
-		return;
+		goto out;
 	}
 	if (p->objvar)
 		objvar = p->objvar;
@@ -763,14 +779,14 @@ fillin_program_objs(prog_t *p, char *path)
 	if ((f = popen(line, "r")) == NULL) {
 		warn("submake pipe");
 		goterror = 1;
-		return;
+		goto out;
 	}
 
 	while(fgets(line, MAXLINELEN, f)) {
 		if (strncmp(line, "OBJS= ", 6)) {
 			warnx("make error: %s", line);
 			goterror = 1;
-			continue;
+			goto out;
 		}
 
 		cp = line + 6;
@@ -793,7 +809,7 @@ fillin_program_objs(prog_t *p, char *path)
 		warnx("make error: make returned %d", rc);
 		goterror = 1;
 	}
-
+out:
 	unlink(tempfname);
 }
 

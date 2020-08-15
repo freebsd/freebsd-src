@@ -132,19 +132,29 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 
 	/*
 	 * Regular ACK and we're not in cong/fast recovery and we're cwnd
-	 * limited and we're either not doing ABC or are slow starting or are
-	 * doing ABC and we've sent a cwnd's worth of bytes.
+	 * limited and we're either not doing ABC or are just coming out
+	 * from slow-start or were application limited or are slow starting
+	 * or are doing ABC and we've sent a cwnd's worth of bytes.
 	 */
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED) && (!V_tcp_do_rfc3465 ||
+	    (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART | CUBICFLAG_IN_APPLIMIT)) ||
 	    CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
-	    (V_tcp_do_rfc3465 && ccv->flags & CCF_ABC_SENTAWND))) {
+	    (V_tcp_do_rfc3465 && (ccv->flags & CCF_ABC_SENTAWND)))) {
 		 /* Use the logic in NewReno ack_received() for slow start. */
 		if (CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
 		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE) {
 			cubic_data->flags |= CUBICFLAG_IN_SLOWSTART;
 			newreno_cc_algo.ack_received(ccv, type);
 		} else {
+			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
+						 CUBICFLAG_IN_APPLIMIT)) {
+				cubic_data->flags &= ~(CUBICFLAG_IN_SLOWSTART |
+						       CUBICFLAG_IN_APPLIMIT);
+				cubic_data->t_last_cong = ticks;
+				cubic_data->K = cubic_k(cubic_data->max_cwnd /
+							CCV(ccv, t_maxseg));
+			}
 			if ((ticks_since_cong =
 			    ticks - cubic_data->t_last_cong) < 0) {
 				/*
@@ -152,14 +162,6 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				 */
 				ticks_since_cong = INT_MAX;
 				cubic_data->t_last_cong = ticks - INT_MAX;
-			}
-
-			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
-						 CUBICFLAG_IN_APPLIMIT)) {
-				cubic_data->flags &= ~(CUBICFLAG_IN_SLOWSTART |
-						       CUBICFLAG_IN_APPLIMIT);
-				cubic_data->t_last_cong = ticks;
-				cubic_data->K = 0;
 			}
 			/*
 			 * The mean RTT is used to best reflect the equations in
@@ -284,8 +286,7 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
 				cubic_ssthresh_update(ccv);
 				cubic_data->flags |= CUBICFLAG_CONG_EVENT;
-				cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
-				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				cubic_data->t_last_cong = ticks;
 				cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
@@ -296,8 +297,6 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
 			cubic_ssthresh_update(ccv);
 			cubic_data->flags |= CUBICFLAG_CONG_EVENT;
-			cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
-			cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
 			cubic_data->t_last_cong = ticks;
 			cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
@@ -359,11 +358,6 @@ cubic_post_recovery(struct cc_var *ccv)
 	cubic_data = ccv->cc_data;
 	pipe = 0;
 
-	/* Fast convergence heuristic. */
-	if (cubic_data->max_cwnd < cubic_data->prev_max_cwnd)
-		cubic_data->max_cwnd = (cubic_data->max_cwnd * CUBIC_FC_FACTOR)
-		    >> CUBIC_SHIFT;
-
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 		/*
 		 * If inflight data is less than ssthresh, set cwnd
@@ -390,7 +384,6 @@ cubic_post_recovery(struct cc_var *ccv)
 			    CUBIC_BETA) >> CUBIC_SHIFT,
 			    2 * CCV(ccv, t_maxseg));
 	}
-	cubic_data->t_last_cong = ticks;
 
 	/* Calculate the average RTT between congestion epochs. */
 	if (cubic_data->epoch_ack_count > 0 &&
@@ -401,7 +394,6 @@ cubic_post_recovery(struct cc_var *ccv)
 
 	cubic_data->epoch_ack_count = 0;
 	cubic_data->sum_rtt_ticks = 0;
-	cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
 }
 
 /*
@@ -455,18 +447,32 @@ cubic_ssthresh_update(struct cc_var *ccv)
 {
 	struct cubic *cubic_data;
 	uint32_t ssthresh;
+	uint32_t cwnd;
 
 	cubic_data = ccv->cc_data;
+	cwnd = CCV(ccv, snd_cwnd);
+
+	/* Fast convergence heuristic. */
+	if (cwnd < cubic_data->max_cwnd) {
+		cwnd = ((uint64_t)cwnd * CUBIC_FC_FACTOR) >> CUBIC_SHIFT;
+	}
+	cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
+	cubic_data->max_cwnd = cwnd;
 
 	/*
-	 * On the first congestion event, set ssthresh to cwnd * 0.5, on
-	 * subsequent congestion events, set it to cwnd * beta.
+	 * On the first congestion event, set ssthresh to cwnd * 0.5
+	 * and reduce max_cwnd to cwnd * beta. This aligns the cubic concave
+	 * region appropriately. On subsequent congestion events, set
+	 * ssthresh to cwnd * beta.
 	 */
-	if ((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0)
-		ssthresh = CCV(ccv, snd_cwnd) >> 1;
-	else
-		ssthresh = ((uint64_t)CCV(ccv, snd_cwnd) *
+	if ((cubic_data->flags & CUBICFLAG_CONG_EVENT) == 0) {
+		ssthresh = cwnd >> 1;
+		cubic_data->max_cwnd = ((uint64_t)cwnd *
 		    CUBIC_BETA) >> CUBIC_SHIFT;
+	} else {
+		ssthresh = ((uint64_t)cwnd *
+		    CUBIC_BETA) >> CUBIC_SHIFT;
+	}
 	CCV(ccv, snd_ssthresh) = max(ssthresh, 2 * CCV(ccv, t_maxseg));
 }
 

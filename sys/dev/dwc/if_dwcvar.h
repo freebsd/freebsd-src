@@ -71,6 +71,7 @@ struct dwc_softc {
 	boolean_t		is_detaching;
 	int			tx_watchdog_count;
 	int			stats_harvest_count;
+	int			phy_mode;
 
 	/* RX */
 	bus_dma_tag_t		rxdesc_tag;

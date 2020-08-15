@@ -336,6 +336,7 @@ struct nfsreferral {
 #define	LCL_DONEBINDCONN	0x00040000
 #define	LCL_RECLAIMONEFS	0x00080000
 #define	LCL_NFSV42		0x00100000
+#define	LCL_TLSCB		0x00200000
 
 #define	LCL_GSS		LCL_KERBV	/* Or of all mechs */
 

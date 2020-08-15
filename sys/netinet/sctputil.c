@@ -1727,6 +1727,7 @@ sctp_timeout_handler(void *t)
 	stcb = (struct sctp_tcb *)tmr->tcb;
 	net = (struct sctp_nets *)tmr->net;
 	CURVNET_SET((struct vnet *)tmr->vnet);
+	NET_EPOCH_ENTER(et);
 	did_output = 1;
 	released_asoc_reference = false;
 
@@ -1786,7 +1787,6 @@ sctp_timeout_handler(void *t)
 
 	/* Record in stopped_from which timeout occurred. */
 	tmr->stopped_from = type;
-	NET_EPOCH_ENTER(et);
 	/* mark as being serviced now */
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
 		/*

@@ -67,6 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 
+#include <fs/devfs/devfs.h>
+
 #include <machine/stdarg.h>
 
 static MALLOC_DEFINE(M_TTY, "tty", "tty device");
@@ -1256,7 +1258,7 @@ tty_drop_ctty(struct tty *tp, struct proc *p)
 	 * is either changed or released.
 	 */
 	if (vp != NULL)
-		vrele(vp);
+		devfs_ctty_unref(vp);
 	return (0);
 }
 

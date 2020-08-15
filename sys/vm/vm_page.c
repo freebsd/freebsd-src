@@ -421,7 +421,7 @@ sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS)
  * In principle, this function only needs to set the flag PG_MARKER.
  * Nonetheless, it write busies the page as a safety precaution.
  */
-static void
+void
 vm_page_init_marker(vm_page_t marker, int queue, uint16_t aflags)
 {
 

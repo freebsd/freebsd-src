@@ -60,7 +60,7 @@ typedef	uint64_t	_bootstrap_time_t;
 #define	uid_t	_bootstrap_uid_t
 #define	time_t	_bootstrap_time_t
 #define	passwd	_bootstrap_passwd
-#include "../../include/pwd.h"
+#include "../../../include/pwd.h"
 #undef gid_t
 #undef uid_t
 #undef time_t

@@ -61,6 +61,9 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#ifdef INVARIANTS
+#include <machine/_inttypes.h>
+#endif
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -70,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #define	NAMEI_DIAGNOSTIC 1
 #undef NAMEI_DIAGNOSTIC
 
-SDT_PROVIDER_DECLARE(vfs);
+SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
 SDT_PROBE_DEFINE3(vfs, namei, lookup, return, "int", "struct vnode *", "bool");
@@ -428,6 +431,7 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	if (error != 0) {
 		if (*dpp != NULL)
 			vrele(*dpp);
+		pwd_drop(pwd);
 		return (error);
 	}
 	MPASS((ndp->ni_lcf & (NI_LCF_BENEATH_ABS | NI_LCF_LATCH)) !=
@@ -484,14 +488,14 @@ namei(struct nameidata *ndp)
 	    ("namei: nameiop contaminated with flags"));
 	KASSERT((cnp->cn_flags & OPMASK) == 0,
 	    ("namei: flags contaminated with nameiops"));
+	KASSERT((cnp->cn_flags & NAMEI_INTERNAL_FLAGS) == 0,
+	    ("namei: unexpected flags: %" PRIx64 "\n",
+	    cnp->cn_flags & NAMEI_INTERNAL_FLAGS));
 	if (cnp->cn_flags & NOCACHE)
 		KASSERT(cnp->cn_nameiop != LOOKUP,
 		    ("%s: NOCACHE passed with LOOKUP", __func__));
 	MPASS(ndp->ni_startdir == NULL || ndp->ni_startdir->v_type == VDIR ||
 	    ndp->ni_startdir->v_type == VBAD);
-
-	/* We will set this ourselves if we need it. */
-	cnp->cn_flags &= ~TRAILINGSLASH;
 
 	ndp->ni_lcf = 0;
 	ndp->ni_vp = NULL;

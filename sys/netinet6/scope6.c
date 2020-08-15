@@ -60,11 +60,7 @@ VNET_DEFINE(int, ip6_use_defzone) = 1;
 #else
 VNET_DEFINE(int, ip6_use_defzone) = 0;
 #endif
-VNET_DEFINE(int, deembed_scopeid) = 1;
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_INT(_net_inet6_ip6, OID_AUTO, deembed_scopeid, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(deembed_scopeid), 0,
-    "Extract embedded zone ID and set it to sin6_scope_id in sockaddr_in6.");
 
 /*
  * The scope6_lock protects the global sid default stored in

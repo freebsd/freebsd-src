@@ -2673,9 +2673,16 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_dupacks = 0;
 			/*
 			 * If this ack also has new SACK info, increment the
-			 * counter as per rfc6675.
+			 * counter as per rfc6675. The variable
+			 * sack_changed tracks all changes to the SACK
+			 * scoreboard, including when partial ACKs without
+			 * SACK options are received, and clear the scoreboard
+			 * from the left side. Such partial ACKs should not be
+			 * counted as dupacks here.
 			 */
-			if ((tp->t_flags & TF_SACK_PERMIT) && sack_changed)
+			if ((tp->t_flags & TF_SACK_PERMIT) &&
+			    (to.to_flags & TOF_SACK) &&
+			    sack_changed)
 				tp->t_dupacks++;
 		}
 

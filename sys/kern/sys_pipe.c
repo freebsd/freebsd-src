@@ -749,19 +749,19 @@ pipe_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		/*
 		 * Direct copy, bypassing a kernel buffer.
 		 */
-		} else if ((size = rpipe->pipe_map.cnt) != 0) {
+		} else if ((size = rpipe->pipe_pages.cnt) != 0) {
 			if (size > uio->uio_resid)
 				size = (u_int) uio->uio_resid;
 			PIPE_UNLOCK(rpipe);
-			error = uiomove_fromphys(rpipe->pipe_map.ms,
-			    rpipe->pipe_map.pos, size, uio);
+			error = uiomove_fromphys(rpipe->pipe_pages.ms,
+			    rpipe->pipe_pages.pos, size, uio);
 			PIPE_LOCK(rpipe);
 			if (error)
 				break;
 			nread += size;
-			rpipe->pipe_map.pos += size;
-			rpipe->pipe_map.cnt -= size;
-			if (rpipe->pipe_map.cnt == 0) {
+			rpipe->pipe_pages.pos += size;
+			rpipe->pipe_pages.cnt -= size;
+			if (rpipe->pipe_pages.cnt == 0) {
 				rpipe->pipe_state &= ~PIPE_WANTW;
 				wakeup(rpipe);
 			}
@@ -865,7 +865,7 @@ pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio)
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	KASSERT((wpipe->pipe_state & PIPE_DIRECTW) == 0,
 	    ("%s: PIPE_DIRECTW set on %p", __func__, wpipe));
-	KASSERT(wpipe->pipe_map.cnt == 0,
+	KASSERT(wpipe->pipe_pages.cnt == 0,
 	    ("%s: pipe map for %p contains residual data", __func__, wpipe));
 
 	if (uio->uio_iov->iov_len > wpipe->pipe_buffer.size)
@@ -877,17 +877,17 @@ pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio)
 	PIPE_UNLOCK(wpipe);
 	i = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
 	    (vm_offset_t)uio->uio_iov->iov_base, size, VM_PROT_READ,
-	    wpipe->pipe_map.ms, PIPENPAGES);
+	    wpipe->pipe_pages.ms, PIPENPAGES);
 	PIPE_LOCK(wpipe);
 	if (i < 0) {
 		wpipe->pipe_state &= ~PIPE_DIRECTW;
 		return (EFAULT);
 	}
 
-	wpipe->pipe_map.npages = i;
-	wpipe->pipe_map.pos =
+	wpipe->pipe_pages.npages = i;
+	wpipe->pipe_pages.pos =
 	    ((vm_offset_t) uio->uio_iov->iov_base) & PAGE_MASK;
-	wpipe->pipe_map.cnt = size;
+	wpipe->pipe_pages.cnt = size;
 
 	uio->uio_iov->iov_len -= size;
 	uio->uio_iov->iov_base = (char *)uio->uio_iov->iov_base + size;
@@ -908,12 +908,12 @@ pipe_destroy_write_buffer(struct pipe *wpipe)
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	KASSERT((wpipe->pipe_state & PIPE_DIRECTW) != 0,
 	    ("%s: PIPE_DIRECTW not set on %p", __func__, wpipe));
-	KASSERT(wpipe->pipe_map.cnt == 0,
+	KASSERT(wpipe->pipe_pages.cnt == 0,
 	    ("%s: pipe map for %p contains residual data", __func__, wpipe));
 
 	wpipe->pipe_state &= ~PIPE_DIRECTW;
-	vm_page_unhold_pages(wpipe->pipe_map.ms, wpipe->pipe_map.npages);
-	wpipe->pipe_map.npages = 0;
+	vm_page_unhold_pages(wpipe->pipe_pages.ms, wpipe->pipe_pages.npages);
+	wpipe->pipe_pages.npages = 0;
 }
 
 /*
@@ -933,9 +933,9 @@ pipe_clone_write_buffer(struct pipe *wpipe)
 	KASSERT((wpipe->pipe_state & PIPE_DIRECTW) != 0,
 	    ("%s: PIPE_DIRECTW not set on %p", __func__, wpipe));
 
-	size = wpipe->pipe_map.cnt;
-	pos = wpipe->pipe_map.pos;
-	wpipe->pipe_map.cnt = 0;
+	size = wpipe->pipe_pages.cnt;
+	pos = wpipe->pipe_pages.pos;
+	wpipe->pipe_pages.cnt = 0;
 
 	wpipe->pipe_buffer.in = size;
 	wpipe->pipe_buffer.out = 0;
@@ -951,7 +951,7 @@ pipe_clone_write_buffer(struct pipe *wpipe)
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = curthread;
-	uiomove_fromphys(wpipe->pipe_map.ms, pos, size, &uio);
+	uiomove_fromphys(wpipe->pipe_pages.ms, pos, size, &uio);
 	PIPE_LOCK(wpipe);
 	pipe_destroy_write_buffer(wpipe);
 }
@@ -1015,7 +1015,7 @@ retry:
 		goto error1;
 	}
 
-	while (wpipe->pipe_map.cnt != 0 &&
+	while (wpipe->pipe_pages.cnt != 0 &&
 	    (wpipe->pipe_state & PIPE_EOF) == 0) {
 		if (wpipe->pipe_state & PIPE_WANTR) {
 			wpipe->pipe_state &= ~PIPE_WANTR;
@@ -1032,7 +1032,7 @@ retry:
 	}
 
 	if ((wpipe->pipe_state & PIPE_EOF) != 0) {
-		wpipe->pipe_map.cnt = 0;
+		wpipe->pipe_pages.cnt = 0;
 		pipe_destroy_write_buffer(wpipe);
 		pipeselwakeup(wpipe);
 		error = EPIPE;
@@ -1157,7 +1157,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		 * pipe buffer.  We break out if a signal occurs or the
 		 * reader goes away.
 		 */
-		if (wpipe->pipe_map.cnt != 0) {
+		if (wpipe->pipe_pages.cnt != 0) {
 			if (wpipe->pipe_state & PIPE_WANTR) {
 				wpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(wpipe);
@@ -1375,8 +1375,8 @@ pipe_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 			PIPE_UNLOCK(mpipe);
 			return (0);
 		}
-		if (mpipe->pipe_map.cnt != 0)
-			*(int *)data = mpipe->pipe_map.cnt;
+		if (mpipe->pipe_pages.cnt != 0)
+			*(int *)data = mpipe->pipe_pages.cnt;
 		else
 			*(int *)data = mpipe->pipe_buffer.cnt;
 		break;
@@ -1431,7 +1431,7 @@ pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 		goto locked_error;
 #endif
 	if (fp->f_flag & FREAD && events & (POLLIN | POLLRDNORM))
-		if (rpipe->pipe_map.cnt > 0 || rpipe->pipe_buffer.cnt > 0)
+		if (rpipe->pipe_pages.cnt > 0 || rpipe->pipe_buffer.cnt > 0)
 			revents |= events & (POLLIN | POLLRDNORM);
 
 	if (fp->f_flag & FWRITE && events & (POLLOUT | POLLWRNORM))
@@ -1513,8 +1513,8 @@ pipe_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = PAGE_SIZE;
-	if (pipe->pipe_map.cnt != 0)
-		ub->st_size = pipe->pipe_map.cnt;
+	if (pipe->pipe_pages.cnt != 0)
+		ub->st_size = pipe->pipe_pages.cnt;
 	else
 		ub->st_size = pipe->pipe_buffer.cnt;
 	ub->st_blocks = howmany(ub->st_size, ub->st_blksize);
@@ -1604,9 +1604,9 @@ pipe_free_kmem(struct pipe *cpipe)
 	}
 #ifndef PIPE_NODIRECT
 	{
-		cpipe->pipe_map.cnt = 0;
-		cpipe->pipe_map.pos = 0;
-		cpipe->pipe_map.npages = 0;
+		cpipe->pipe_pages.cnt = 0;
+		cpipe->pipe_pages.pos = 0;
+		cpipe->pipe_pages.npages = 0;
 	}
 #endif
 }
@@ -1752,7 +1752,7 @@ filt_piperead(struct knote *kn, long hint)
 	PIPE_LOCK_ASSERT(rpipe, MA_OWNED);
 	kn->kn_data = rpipe->pipe_buffer.cnt;
 	if (kn->kn_data == 0)
-		kn->kn_data = rpipe->pipe_map.cnt;
+		kn->kn_data = rpipe->pipe_pages.cnt;
 
 	if ((rpipe->pipe_state & PIPE_EOF) != 0 &&
 	    ((rpipe->pipe_state & PIPE_NAMED) == 0 ||
