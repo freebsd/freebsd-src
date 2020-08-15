@@ -900,7 +900,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		error = lla_rt_output(rtm, &info);
 #ifdef INET6
 		if (error == 0)
-			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+			rti_need_deembed = 1;
 #endif
 		goto flush;
 	}
@@ -915,7 +915,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		error = rib_action(fibnum, rtm->rtm_type, &info, &rc);
 		if (error == 0) {
 #ifdef INET6
-			rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+			rti_need_deembed = 1;
 #endif
 			rtm->rtm_index = rc.rc_nh_new->nh_ifp->if_index;
 			nh = rc.rc_nh_new;
@@ -930,7 +930,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 		}
 #ifdef INET6
 		/* rt_msg2() will not be used when RTM_DELETE fails. */
-		rti_need_deembed = (V_deembed_scopeid) ? 1 : 0;
+		rti_need_deembed = 1;
 #endif
 		break;
 
@@ -1192,7 +1192,7 @@ rtsock_msg_mbuf(int type, struct rt_addrinfo *rtinfo)
 		rtinfo->rti_addrs |= (1 << i);
 		dlen = SA_SIZE(sa);
 #ifdef INET6
-		if (V_deembed_scopeid && sa->sa_family == AF_INET6) {
+		if (sa->sa_family == AF_INET6) {
 			sin6 = (struct sockaddr_in6 *)&ss;
 			bcopy(sa, sin6, sizeof(*sin6));
 			if (sa6_recoverscope(sin6) == 0)
@@ -1298,7 +1298,7 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 			dlen = SA_SIZE(sa);
 		if (cp != NULL && buflen >= dlen) {
 #ifdef INET6
-			if (V_deembed_scopeid && sa->sa_family == AF_INET6) {
+			if (sa->sa_family == AF_INET6) {
 				sin6 = (struct sockaddr_in6 *)&ss;
 				bcopy(sa, sin6, sizeof(*sin6));
 				if (sa6_recoverscope(sin6) == 0)
