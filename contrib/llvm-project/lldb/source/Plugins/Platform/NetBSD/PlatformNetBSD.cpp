@@ -1,4 +1,4 @@
-//===-- PlatformNetBSD.cpp -------------------------------------*- C++ -*-===//
+//===-- PlatformNetBSD.cpp ------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -33,6 +33,8 @@
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::platform_netbsd;
+
+LLDB_PLUGIN_DEFINE(PlatformNetBSD)
 
 static uint32_t g_initialize_count = 0;
 
@@ -329,14 +331,14 @@ PlatformNetBSD::DebugProcess(ProcessLaunchInfo &launch_info, Debugger &debugger,
 
     // Hook up process PTY if we have one (which we should for local debugging
     // with llgs).
-    int pty_fd = launch_info.GetPTY().ReleaseMasterFileDescriptor();
+    int pty_fd = launch_info.GetPTY().ReleasePrimaryFileDescriptor();
     if (pty_fd != PseudoTerminal::invalid_fd) {
       process_sp->SetSTDIOFileDescriptor(pty_fd);
       LLDB_LOG(log, "hooked up STDIO pty to process");
     } else
       LLDB_LOG(log, "not using process STDIO pty");
   } else {
-    LLDB_LOG(log, "process launch failed: {0}", error);
+    LLDB_LOG(log, "{0}", error);
     // FIXME figure out appropriate cleanup here.  Do we delete the target? Do
     // we delete the process?  Does our caller do that?
   }

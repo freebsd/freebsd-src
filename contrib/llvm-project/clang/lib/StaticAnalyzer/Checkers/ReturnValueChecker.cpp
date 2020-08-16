@@ -99,13 +99,13 @@ void ReturnValueChecker::checkPostCall(const CallEvent &Call,
 
   std::string Name = getName(Call);
   const NoteTag *CallTag = C.getNoteTag(
-      [Name, ExpectedValue](BugReport &) -> std::string {
+      [Name, ExpectedValue](PathSensitiveBugReport &) -> std::string {
         SmallString<128> Msg;
         llvm::raw_svector_ostream Out(Msg);
 
         Out << '\'' << Name << "' returns "
             << (ExpectedValue ? "true" : "false");
-        return Out.str();
+        return std::string(Out.str());
       },
       /*IsPrunable=*/true);
 
@@ -154,7 +154,7 @@ void ReturnValueChecker::checkEndFunction(const ReturnStmt *RS,
         Out << '\'' << Name << "' returns "
             << (ExpectedValue ? "false" : "true");
 
-        return Out.str();
+        return std::string(Out.str());
       },
       /*IsPrunable=*/false);
 
@@ -165,6 +165,6 @@ void ento::registerReturnValueChecker(CheckerManager &Mgr) {
   Mgr.registerChecker<ReturnValueChecker>();
 }
 
-bool ento::shouldRegisterReturnValueChecker(const LangOptions &LO) {
+bool ento::shouldRegisterReturnValueChecker(const CheckerManager &mgr) {
   return true;
 }

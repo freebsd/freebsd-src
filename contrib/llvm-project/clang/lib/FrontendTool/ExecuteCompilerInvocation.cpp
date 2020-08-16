@@ -23,6 +23,7 @@
 #include "clang/Frontend/Utils.h"
 #include "clang/FrontendTool/Utils.h"
 #include "clang/Rewrite/Frontend/FrontendActions.h"
+#include "clang/StaticAnalyzer/Frontend/AnalyzerHelpFlags.h"
 #include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
 #include "llvm/Option/OptTable.h"
 #include "llvm/Option/Option.h"
@@ -64,8 +65,8 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   case GenerateHeaderModule:
     return std::make_unique<GenerateHeaderModuleAction>();
   case GeneratePCH:            return std::make_unique<GeneratePCHAction>();
-  case GenerateInterfaceIfsExpV1:
-    return std::make_unique<GenerateInterfaceIfsExpV1Action>();
+  case GenerateInterfaceStubs:
+    return std::make_unique<GenerateInterfaceStubsAction>();
   case InitOnly:               return std::make_unique<InitOnlyAction>();
   case ParseSyntaxOnly:        return std::make_unique<SyntaxOnlyAction>();
   case ModuleFileInfo:         return std::make_unique<DumpModuleInfoAction>();
@@ -73,14 +74,15 @@ CreateFrontendBaseAction(CompilerInstance &CI) {
   case TemplightDump:          return std::make_unique<TemplightDumpAction>();
 
   case PluginAction: {
-    for (FrontendPluginRegistry::iterator it =
-           FrontendPluginRegistry::begin(), ie = FrontendPluginRegistry::end();
-         it != ie; ++it) {
-      if (it->getName() == CI.getFrontendOpts().ActionName) {
-        std::unique_ptr<PluginASTAction> P(it->instantiate());
+    for (const FrontendPluginRegistry::entry &Plugin :
+         FrontendPluginRegistry::entries()) {
+      if (Plugin.getName() == CI.getFrontendOpts().ActionName) {
+        std::unique_ptr<PluginASTAction> P(Plugin.instantiate());
         if ((P->getActionType() != PluginASTAction::ReplaceAction &&
              P->getActionType() != PluginASTAction::Cmdline) ||
-            !P->ParseArgs(CI, CI.getFrontendOpts().PluginArgs[it->getName()]))
+            !P->ParseArgs(
+                CI,
+                CI.getFrontendOpts().PluginArgs[std::string(Plugin.getName())]))
           return nullptr;
         return std::move(P);
       }
@@ -202,9 +204,7 @@ bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
   }
 
   // Load any requested plugins.
-  for (unsigned i = 0,
-         e = Clang->getFrontendOpts().Plugins.size(); i != e; ++i) {
-    const std::string &Path = Clang->getFrontendOpts().Plugins[i];
+  for (const std::string &Path : Clang->getFrontendOpts().Plugins) {
     std::string Error;
     if (llvm::sys::DynamicLibrary::LoadLibraryPermanently(Path.c_str(), &Error))
       Clang->getDiagnostics().Report(diag::err_fe_unable_to_load_plugin)
@@ -212,13 +212,12 @@ bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
   }
 
   // Check if any of the loaded plugins replaces the main AST action
-  for (FrontendPluginRegistry::iterator it = FrontendPluginRegistry::begin(),
-                                        ie = FrontendPluginRegistry::end();
-       it != ie; ++it) {
-    std::unique_ptr<PluginASTAction> P(it->instantiate());
+  for (const FrontendPluginRegistry::entry &Plugin :
+       FrontendPluginRegistry::entries()) {
+    std::unique_ptr<PluginASTAction> P(Plugin.instantiate());
     if (P->getActionType() == PluginASTAction::ReplaceAction) {
       Clang->getFrontendOpts().ProgramAction = clang::frontend::PluginAction;
-      Clang->getFrontendOpts().ActionName = it->getName();
+      Clang->getFrontendOpts().ActionName = Plugin.getName().str();
       break;
     }
   }
@@ -241,35 +240,24 @@ bool ExecuteCompilerInvocation(CompilerInstance *Clang) {
   // These should happen AFTER plugins have been loaded!
 
   AnalyzerOptions &AnOpts = *Clang->getAnalyzerOpts();
+
   // Honor -analyzer-checker-help and -analyzer-checker-help-hidden.
   if (AnOpts.ShowCheckerHelp || AnOpts.ShowCheckerHelpAlpha ||
       AnOpts.ShowCheckerHelpDeveloper) {
-    ento::printCheckerHelp(llvm::outs(),
-                           Clang->getFrontendOpts().Plugins,
-                           AnOpts,
-                           Clang->getDiagnostics(),
-                           Clang->getLangOpts());
+    ento::printCheckerHelp(llvm::outs(), *Clang);
     return true;
   }
 
   // Honor -analyzer-checker-option-help.
   if (AnOpts.ShowCheckerOptionList || AnOpts.ShowCheckerOptionAlphaList ||
       AnOpts.ShowCheckerOptionDeveloperList) {
-    ento::printCheckerConfigList(llvm::outs(),
-                                 Clang->getFrontendOpts().Plugins,
-                                 *Clang->getAnalyzerOpts(),
-                                 Clang->getDiagnostics(),
-                                 Clang->getLangOpts());
+    ento::printCheckerConfigList(llvm::outs(), *Clang);
     return true;
   }
 
   // Honor -analyzer-list-enabled-checkers.
   if (AnOpts.ShowEnabledCheckerList) {
-    ento::printEnabledCheckerList(llvm::outs(),
-                                  Clang->getFrontendOpts().Plugins,
-                                  AnOpts,
-                                  Clang->getDiagnostics(),
-                                  Clang->getLangOpts());
+    ento::printEnabledCheckerList(llvm::outs(), *Clang);
     return true;
   }
 

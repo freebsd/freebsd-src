@@ -45,7 +45,7 @@ enum {
   InstFormatCJ = 16,
   InstFormatOther = 17,
 
-  InstFormatMask = 31
+  InstFormatMask = 31,
 };
 
 // RISC-V Specific Machine Operand Flags
@@ -157,6 +157,7 @@ namespace RISCVSysReg {
 struct SysReg {
   const char *Name;
   unsigned Encoding;
+  const char *AltName;
   // FIXME: add these additional fields when needed.
   // Privilege Access: Read, Write, Read-Only.
   // unsigned ReadWrite;

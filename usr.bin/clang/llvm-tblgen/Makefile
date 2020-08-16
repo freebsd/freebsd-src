@@ -24,6 +24,7 @@ SRCS+=		DAGISelMatcherGen.cpp
 SRCS+=		DAGISelMatcherOpt.cpp
 SRCS+=		DFAEmitter.cpp
 SRCS+=		DFAPacketizerEmitter.cpp
+SRCS+=		DirectiveEmitter.cpp
 SRCS+=		DisassemblerEmitter.cpp
 SRCS+=		ExegesisEmitter.cpp
 SRCS+=		FastISelEmitter.cpp

@@ -1,5 +1,4 @@
-//===-- FormattersHelpers.cpp -------------------------------------*- C++
-//-*-===//
+//===-- FormattersHelpers.cpp ---------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -142,4 +141,15 @@ lldb_private::formatters::GetArrayAddressOrPointerValue(ValueObject &valobj) {
     data_addr = valobj.GetAddressOf();
 
   return data_addr;
+}
+
+lldb::ValueObjectSP
+lldb_private::formatters::GetValueOfLibCXXCompressedPair(ValueObject &pair) {
+  ValueObjectSP value =
+      pair.GetChildMemberWithName(ConstString("__value_"), true);
+  if (!value) {
+    // pre-r300140 member name
+    value = pair.GetChildMemberWithName(ConstString("__first_"), true);
+  }
+  return value;
 }

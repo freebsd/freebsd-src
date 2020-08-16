@@ -17,9 +17,8 @@
 using namespace llvm;
 using namespace llvm::support::endian;
 using namespace llvm::ELF;
-
-namespace lld {
-namespace elf {
+using namespace lld;
+using namespace lld::elf;
 
 namespace {
 class PPC final : public TargetInfo {
@@ -44,14 +43,19 @@ public:
                   int64_t a) const override;
   uint32_t getThunkSectionSpacing() const override;
   bool inBranchRange(RelType type, uint64_t src, uint64_t dst) const override;
-  void relocateOne(uint8_t *loc, RelType type, uint64_t val) const override;
+  void relocate(uint8_t *loc, const Relocation &rel,
+                uint64_t val) const override;
   RelExpr adjustRelaxExpr(RelType type, const uint8_t *data,
                           RelExpr expr) const override;
   int getTlsGdRelaxSkip(RelType type) const override;
-  void relaxTlsGdToIe(uint8_t *loc, RelType type, uint64_t val) const override;
-  void relaxTlsGdToLe(uint8_t *loc, RelType type, uint64_t val) const override;
-  void relaxTlsLdToLe(uint8_t *loc, RelType type, uint64_t val) const override;
-  void relaxTlsIeToLe(uint8_t *loc, RelType type, uint64_t val) const override;
+  void relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
+                      uint64_t val) const override;
+  void relaxTlsGdToLe(uint8_t *loc, const Relocation &rel,
+                      uint64_t val) const override;
+  void relaxTlsLdToLe(uint8_t *loc, const Relocation &rel,
+                      uint64_t val) const override;
+  void relaxTlsIeToLe(uint8_t *loc, const Relocation &rel,
+                      uint64_t val) const override;
 };
 } // namespace
 
@@ -66,7 +70,7 @@ static void writeFromHalf16(uint8_t *loc, uint32_t insn) {
   write32(config->isLE ? loc : loc - 2, insn);
 }
 
-void writePPC32GlinkSection(uint8_t *buf, size_t numEntries) {
+void elf::writePPC32GlinkSection(uint8_t *buf, size_t numEntries) {
   // Create canonical PLT entries for non-PIE code. Compilers don't generate
   // non-GOT-non-PLT relocations referencing external functions for -fpie/-fPIE.
   uint32_t glink = in.plt->getVA(); // VA of .glink
@@ -288,12 +292,12 @@ static std::pair<RelType, uint64_t> fromDTPREL(RelType type, uint64_t val) {
   }
 }
 
-void PPC::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
+void PPC::relocate(uint8_t *loc, const Relocation &rel, uint64_t val) const {
   RelType newType;
-  std::tie(newType, val) = fromDTPREL(type, val);
+  std::tie(newType, val) = fromDTPREL(rel.type, val);
   switch (newType) {
   case R_PPC_ADDR16:
-    checkIntUInt(loc, val, 16, type);
+    checkIntUInt(loc, val, 16, rel);
     write16(loc, val);
     break;
   case R_PPC_GOT16:
@@ -301,7 +305,7 @@ void PPC::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
   case R_PPC_GOT_TLSLD16:
   case R_PPC_GOT_TPREL16:
   case R_PPC_TPREL16:
-    checkInt(loc, val, 16, type);
+    checkInt(loc, val, 16, rel);
     write16(loc, val);
     break;
   case R_PPC_ADDR16_HA:
@@ -337,8 +341,8 @@ void PPC::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
     break;
   case R_PPC_REL14: {
     uint32_t mask = 0x0000FFFC;
-    checkInt(loc, val, 16, type);
-    checkAlignment(loc, val, 4, type);
+    checkInt(loc, val, 16, rel);
+    checkAlignment(loc, val, 4, rel);
     write32(loc, (read32(loc) & ~mask) | (val & mask));
     break;
   }
@@ -346,8 +350,8 @@ void PPC::relocateOne(uint8_t *loc, RelType type, uint64_t val) const {
   case R_PPC_LOCAL24PC:
   case R_PPC_PLTREL24: {
     uint32_t mask = 0x03FFFFFC;
-    checkInt(loc, val, 26, type);
-    checkAlignment(loc, val, 4, type);
+    checkInt(loc, val, 26, rel);
+    checkAlignment(loc, val, 4, rel);
     write32(loc, (read32(loc) & ~mask) | (val & mask));
     break;
   }
@@ -379,13 +383,14 @@ int PPC::getTlsGdRelaxSkip(RelType type) const {
   return 1;
 }
 
-void PPC::relaxTlsGdToIe(uint8_t *loc, RelType type, uint64_t val) const {
-  switch (type) {
+void PPC::relaxTlsGdToIe(uint8_t *loc, const Relocation &rel,
+                         uint64_t val) const {
+  switch (rel.type) {
   case R_PPC_GOT_TLSGD16: {
     // addi rT, rA, x@got@tlsgd --> lwz rT, x@got@tprel(rA)
     uint32_t insn = readFromHalf16(loc);
     writeFromHalf16(loc, 0x80000000 | (insn & 0x03ff0000));
-    relocateOne(loc, R_PPC_GOT_TPREL16, val);
+    relocateNoSym(loc, R_PPC_GOT_TPREL16, val);
     break;
   }
   case R_PPC_TLSGD:
@@ -397,8 +402,9 @@ void PPC::relaxTlsGdToIe(uint8_t *loc, RelType type, uint64_t val) const {
   }
 }
 
-void PPC::relaxTlsGdToLe(uint8_t *loc, RelType type, uint64_t val) const {
-  switch (type) {
+void PPC::relaxTlsGdToLe(uint8_t *loc, const Relocation &rel,
+                         uint64_t val) const {
+  switch (rel.type) {
   case R_PPC_GOT_TLSGD16:
     // addi r3, r31, x@got@tlsgd --> addis r3, r2, x@tprel@ha
     writeFromHalf16(loc, 0x3c620000 | ha(val));
@@ -412,8 +418,9 @@ void PPC::relaxTlsGdToLe(uint8_t *loc, RelType type, uint64_t val) const {
   }
 }
 
-void PPC::relaxTlsLdToLe(uint8_t *loc, RelType type, uint64_t val) const {
-  switch (type) {
+void PPC::relaxTlsLdToLe(uint8_t *loc, const Relocation &rel,
+                         uint64_t val) const {
+  switch (rel.type) {
   case R_PPC_GOT_TLSLD16:
     // addi r3, rA, x@got@tlsgd --> addis r3, r2, 0
     writeFromHalf16(loc, 0x3c620000);
@@ -428,15 +435,16 @@ void PPC::relaxTlsLdToLe(uint8_t *loc, RelType type, uint64_t val) const {
   case R_PPC_DTPREL16_HA:
   case R_PPC_DTPREL16_HI:
   case R_PPC_DTPREL16_LO:
-    relocateOne(loc, type, val);
+    relocate(loc, rel, val);
     break;
   default:
     llvm_unreachable("unsupported relocation for TLS LD to LE relaxation");
   }
 }
 
-void PPC::relaxTlsIeToLe(uint8_t *loc, RelType type, uint64_t val) const {
-  switch (type) {
+void PPC::relaxTlsIeToLe(uint8_t *loc, const Relocation &rel,
+                         uint64_t val) const {
+  switch (rel.type) {
   case R_PPC_GOT_TPREL16: {
     // lwz rT, x@got@tprel(rA) --> addis rT, r2, x@tprel@ha
     uint32_t rt = readFromHalf16(loc) & 0x03e00000;
@@ -459,10 +467,7 @@ void PPC::relaxTlsIeToLe(uint8_t *loc, RelType type, uint64_t val) const {
   }
 }
 
-TargetInfo *getPPCTargetInfo() {
+TargetInfo *elf::getPPCTargetInfo() {
   static PPC target;
   return &target;
 }
-
-} // namespace elf
-} // namespace lld

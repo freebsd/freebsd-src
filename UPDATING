@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200816:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 11.0.0.  Please see the 20141231 entry below for
+	information about prerequisites and upgrading, if you are not already
+	using clang 3.5.0 or higher.
+
 20200810:
 	r364092 modified the internal ABI used between the kernel NFS
 	modules.  As such, all of these modules need to be rebuilt

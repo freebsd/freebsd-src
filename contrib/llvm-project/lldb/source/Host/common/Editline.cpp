@@ -1,4 +1,4 @@
-//===-- Editline.cpp --------------------------------------------*- C++ -*-===//
+//===-- Editline.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,7 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 #include <iomanip>
-#include <iostream>
 #include <limits.h>
 
 #include "lldb/Host/ConnectionFileDescriptor.h"
@@ -35,7 +34,7 @@ using namespace lldb_private::line_editor;
 // with until TERM is set to VT100 where it stumbles over an implementation
 // assumption that may not exist on other platforms.  The setupterm() function
 // would normally require headers that don't work gracefully in this context,
-// so the function declaraction has been hoisted here.
+// so the function declaration has been hoisted here.
 #if defined(__APPLE__)
 extern "C" {
 int setupterm(char *term, int fildes, int *errret);
@@ -99,18 +98,24 @@ bool IsOnlySpaces(const EditLineStringType &content) {
 
 static int GetOperation(HistoryOperation op) {
   // The naming used by editline for the history operations is counter
-  // intuitive to how it's used here.
+  // intuitive to how it's used in LLDB's editline implementation.
+  //
+  //  - The H_LAST returns the oldest entry in the history.
   //
   //  - The H_PREV operation returns the previous element in the history, which
   //    is newer than the current one.
   //
+  //  - The H_CURR returns the current entry in the history.
+  //
   //  - The H_NEXT operation returns the next element in the history, which is
   //    older than the current one.
+  //
+  //  - The H_FIRST returns the most recent entry in the history.
   //
   // The naming of the enum entries match the semantic meaning.
   switch(op) {
     case HistoryOperation::Oldest:
-      return H_FIRST;
+      return H_LAST;
     case HistoryOperation::Older:
       return H_NEXT;
     case HistoryOperation::Current:
@@ -118,7 +123,7 @@ static int GetOperation(HistoryOperation op) {
     case HistoryOperation::Newer:
       return H_PREV;
     case HistoryOperation::Newest:
-      return H_LAST;
+      return H_FIRST;
   }
   llvm_unreachable("Fully covered switch!");
 }
@@ -138,10 +143,10 @@ std::vector<EditLineStringType> SplitLines(const EditLineStringType &input) {
   while (start < input.length()) {
     size_t end = input.find('\n', start);
     if (end == std::string::npos) {
-      result.insert(result.end(), input.substr(start));
+      result.push_back(input.substr(start));
       break;
     }
-    result.insert(result.end(), input.substr(start, end - start));
+    result.push_back(input.substr(start, end - start));
     start = end + 1;
   }
   return result;
@@ -214,7 +219,7 @@ private:
         std::string filename = m_prefix + "-history";
 #endif
         llvm::sys::path::append(lldb_history_file, filename);
-        m_path = lldb_history_file.str();
+        m_path = std::string(lldb_history_file.str());
       }
     }
 
@@ -296,19 +301,16 @@ protected:
 // Editline private methods
 
 void Editline::SetBaseLineNumber(int line_number) {
-  std::stringstream line_number_stream;
-  line_number_stream << line_number;
   m_base_line_number = line_number;
   m_line_number_digits =
-      std::max(3, (int)line_number_stream.str().length() + 1);
+      std::max<int>(3, std::to_string(line_number).length() + 1);
 }
 
 std::string Editline::PromptForIndex(int line_index) {
   bool use_line_numbers = m_multiline_enabled && m_base_line_number > 0;
   std::string prompt = m_set_prompt;
-  if (use_line_numbers && prompt.length() == 0) {
+  if (use_line_numbers && prompt.length() == 0)
     prompt = ": ";
-  }
   std::string continuation_prompt = prompt;
   if (m_set_continuation_prompt.length() > 0) {
     continuation_prompt = m_set_continuation_prompt;
@@ -327,7 +329,7 @@ std::string Editline::PromptForIndex(int line_index) {
     prompt_stream.Printf(
         "%*d%s", m_line_number_digits, m_base_line_number + line_index,
         (line_index == 0) ? prompt.c_str() : continuation_prompt.c_str());
-    return std::move(prompt_stream.GetString());
+    return std::string(std::move(prompt_stream.GetString()));
   }
   return (line_index == 0) ? prompt : continuation_prompt;
 }
@@ -423,7 +425,7 @@ void Editline::DisplayInput(int firstIndex) {
 }
 
 int Editline::CountRowsForLine(const EditLineStringType &content) {
-  auto prompt =
+  std::string prompt =
       PromptForIndex(0); // Prompt width is constant during an edit session
   int line_length = (int)(content.length() + prompt.length());
   return (line_length / m_terminal_width) + 1;
@@ -556,6 +558,9 @@ int Editline::GetCharacter(EditLineGetCharType *c) {
   while (true) {
     lldb::ConnectionStatus status = lldb::eConnectionStatusSuccess;
     char ch = 0;
+
+    if (m_terminal_size_has_changed)
+      ApplyTerminalSizeChange();
 
     // This mutex is locked by our caller (GetLine). Unlock it while we read a
     // character (blocking operation), so we do not hold the mutex
@@ -1049,7 +1054,7 @@ void Editline::ConfigureEditor(bool multiline) {
 
   m_editline =
       el_init(m_editor_name.c_str(), m_input_file, m_output_file, m_error_file);
-  TerminalSizeChanged();
+  ApplyTerminalSizeChange();
 
   if (m_history_sp && m_history_sp->IsValid()) {
     if (!m_history_sp->Load()) {
@@ -1302,28 +1307,32 @@ void Editline::SetContinuationPrompt(const char *continuation_prompt) {
       continuation_prompt == nullptr ? "" : continuation_prompt;
 }
 
-void Editline::TerminalSizeChanged() {
-  if (m_editline != nullptr) {
-    el_resize(m_editline);
-    int columns;
-    // This function is documenting as taking (const char *, void *) for the
-    // vararg part, but in reality in was consuming arguments until the first
-    // null pointer. This was fixed in libedit in April 2019
-    // <http://mail-index.netbsd.org/source-changes/2019/04/26/msg105454.html>,
-    // but we're keeping the workaround until a version with that fix is more
-    // widely available.
-    if (el_get(m_editline, EL_GETTC, "co", &columns, nullptr) == 0) {
-      m_terminal_width = columns;
-      if (m_current_line_rows != -1) {
-        const LineInfoW *info = el_wline(m_editline);
-        int lineLength =
-            (int)((info->lastchar - info->buffer) + GetPromptWidth());
-        m_current_line_rows = (lineLength / columns) + 1;
-      }
-    } else {
-      m_terminal_width = INT_MAX;
-      m_current_line_rows = 1;
+void Editline::TerminalSizeChanged() { m_terminal_size_has_changed = 1; }
+
+void Editline::ApplyTerminalSizeChange() {
+  if (!m_editline)
+    return;
+
+  m_terminal_size_has_changed = 0;
+  el_resize(m_editline);
+  int columns;
+  // This function is documenting as taking (const char *, void *) for the
+  // vararg part, but in reality in was consuming arguments until the first
+  // null pointer. This was fixed in libedit in April 2019
+  // <http://mail-index.netbsd.org/source-changes/2019/04/26/msg105454.html>,
+  // but we're keeping the workaround until a version with that fix is more
+  // widely available.
+  if (el_get(m_editline, EL_GETTC, "co", &columns, nullptr) == 0) {
+    m_terminal_width = columns;
+    if (m_current_line_rows != -1) {
+      const LineInfoW *info = el_wline(m_editline);
+      int lineLength =
+          (int)((info->lastchar - info->buffer) + GetPromptWidth());
+      m_current_line_rows = (lineLength / columns) + 1;
     }
+  } else {
+    m_terminal_width = INT_MAX;
+    m_current_line_rows = 1;
   }
 }
 
