@@ -149,21 +149,21 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * buffer and for vrele'ing ni_startdir.
  */
 #define	RDONLY		0x00000200 /* lookup with read-only semantics */
-#define	HASBUF		0x00000400 /* has allocated pathname buffer */
-#define	SAVENAME	0x00000800 /* save pathname buffer */
-#define	SAVESTART	0x00001000 /* save starting directory */
-#define	ISWHITEOUT	0x00002000 /* found whiteout */
-#define	DOWHITEOUT	0x00004000 /* do whiteouts */
-#define	WILLBEDIR	0x00008000 /* new files will be dirs; allow trailing / */
-#define	ISOPEN		0x00010000 /* caller is opening; return a real vnode. */
-#define	NOCROSSMOUNT	0x00020000 /* do not cross mount points */
-#define	NOMACCHECK	0x00040000 /* do not perform MAC checks */
-#define	AUDITVNODE1	0x00080000 /* audit the looked up vnode information */
-#define	AUDITVNODE2	0x00100000 /* audit the looked up vnode information */
-#define	NOCAPCHECK	0x00200000 /* do not perform capability checks */
+#define	SAVENAME	0x00000400 /* save pathname buffer */
+#define	SAVESTART	0x00000800 /* save starting directory */
+#define	ISWHITEOUT	0x00001000 /* found whiteout */
+#define	DOWHITEOUT	0x00002000 /* do whiteouts */
+#define	WILLBEDIR	0x00004000 /* new files will be dirs; allow trailing / */
+#define	ISOPEN		0x00008000 /* caller is opening; return a real vnode. */
+#define	NOCROSSMOUNT	0x00010000 /* do not cross mount points */
+#define	NOMACCHECK	0x00020000 /* do not perform MAC checks */
+#define	AUDITVNODE1	0x00040000 /* audit the looked up vnode information */
+#define	AUDITVNODE2	0x00080000 /* audit the looked up vnode information */
+#define	NOCAPCHECK	0x00100000 /* do not perform capability checks */
 /* UNUSED		0x00400000 */
+/* UNUSED		0x00200000 */
 /* UNUSED		0x00800000 */
-/* UNUSED		0x01000000 */
+#define	HASBUF		0x01000000 /* has allocated pathname buffer */
 #define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
 #define	MAKEENTRY	0x04000000 /* entry is to be added to name cache */
 #define	ISSYMLINK	0x08000000 /* symlink needs interpretation */
@@ -176,7 +176,8 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Flags which must not be passed in by callers.
  */
 #define NAMEI_INTERNAL_FLAGS	\
-	(NOEXECCHECK | MAKEENTRY | ISSYMLINK | ISLASTCN | ISDOTDOT | TRAILINGSLASH)
+	(HASBUF | NOEXECCHECK | MAKEENTRY | ISSYMLINK | ISLASTCN | ISDOTDOT | \
+	 TRAILINGSLASH)
 
 /*
  * Namei results flags

@@ -610,7 +610,7 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 	int err = 0;
 
 	if (data->vroot != NULL) {
-		err = vget(data->vroot, lkflags, curthread);
+		err = vget(data->vroot, lkflags);
 		if (err == 0)
 			*vpp = data->vroot;
 	} else {

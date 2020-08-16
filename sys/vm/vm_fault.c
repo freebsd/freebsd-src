@@ -673,7 +673,7 @@ vm_fault_lock_vnode(struct faultstate *fs, bool objlocked)
 	 * paging-in-progress count incremented.  Otherwise, we could
 	 * deadlock.
 	 */
-	error = vget(vp, locked | LK_CANRECURSE | LK_NOWAIT, curthread);
+	error = vget(vp, locked | LK_CANRECURSE | LK_NOWAIT);
 	if (error == 0) {
 		fs->vp = vp;
 		return (KERN_SUCCESS);
@@ -684,7 +684,7 @@ vm_fault_lock_vnode(struct faultstate *fs, bool objlocked)
 		unlock_and_deallocate(fs);
 	else
 		fault_deallocate(fs);
-	error = vget(vp, locked | LK_RETRY | LK_CANRECURSE, curthread);
+	error = vget(vp, locked | LK_RETRY | LK_CANRECURSE);
 	vdrop(vp);
 	fs->vp = vp;
 	KASSERT(error == 0, ("vm_fault: vget failed %d", error));

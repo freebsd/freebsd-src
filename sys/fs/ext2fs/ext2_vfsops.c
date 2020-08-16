@@ -799,7 +799,7 @@ loop:
 		/*
 		 * Step 4: invalidate all cached file data.
 		 */
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK)) {
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
@@ -1158,7 +1158,7 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
+		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK);
 		if (error) {
 			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);

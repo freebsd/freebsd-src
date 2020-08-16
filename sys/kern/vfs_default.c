@@ -1348,7 +1348,7 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		if ((error = vget(vp, lockreq, td)) != 0) {
+		if ((error = vget(vp, lockreq)) != 0) {
 			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
