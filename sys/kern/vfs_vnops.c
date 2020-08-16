@@ -127,11 +127,15 @@ struct 	fileops vnops = {
 
 static const int io_hold_cnt = 16;
 static int vn_io_fault_enable = 1;
-SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RWTUN,
     &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
 static int vn_io_fault_prefault = 0;
-SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_prefault, CTLFLAG_RW,
+SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_prefault, CTLFLAG_RWTUN,
     &vn_io_fault_prefault, 0, "Enable vn_io_fault prefaulting");
+static int vn_io_pgcache_read_enable = 1;
+SYSCTL_INT(_debug, OID_AUTO, vn_io_pgcache_read_enable, CTLFLAG_RWTUN,
+    &vn_io_pgcache_read_enable, 0,
+    "Enable copying from page cache for reads, avoiding fs");
 static u_long vn_io_faults_cnt;
 SYSCTL_ULONG(_debug, OID_AUTO, vn_io_faults, CTLFLAG_RD,
     &vn_io_faults_cnt, 0, "Count of vn_io_fault lock avoidance triggers");
@@ -844,6 +848,118 @@ get_advice(struct file *fp, struct uio *uio)
 	return (ret);
 }
 
+static int
+vn_read_from_obj(struct vnode *vp, struct uio *uio)
+{
+	vm_object_t obj;
+	vm_page_t ma[io_hold_cnt + 2];
+	off_t off, vsz;
+	ssize_t resid;
+	int error, i, j;
+
+	obj = vp->v_object;
+	MPASS(uio->uio_resid <= ptoa(io_hold_cnt + 2));
+	MPASS(obj != NULL);
+	MPASS(obj->type == OBJT_VNODE);
+
+	/*
+	 * Depends on type stability of vm_objects.
+	 */
+	vm_object_pip_add(obj, 1);
+	if ((obj->flags & OBJ_DEAD) != 0) {
+		/*
+		 * Note that object might be already reused from the
+		 * vnode, and the OBJ_DEAD flag cleared.  This is fine,
+		 * we recheck for DOOMED vnode state after all pages
+		 * are busied, and retract then.
+		 *
+		 * But we check for OBJ_DEAD to ensure that we do not
+		 * busy pages while vm_object_terminate_pages()
+		 * processes the queue.
+		 */
+		error = EJUSTRETURN;
+		goto out_pip;
+	}
+
+	resid = uio->uio_resid;
+	off = uio->uio_offset;
+	for (i = 0; resid > 0; i++) {
+		MPASS(i < io_hold_cnt + 2);
+		ma[i] = vm_page_grab_unlocked(obj, atop(off),
+		    VM_ALLOC_NOCREAT | VM_ALLOC_SBUSY | VM_ALLOC_IGN_SBUSY |
+		    VM_ALLOC_NOWAIT);
+		if (ma[i] == NULL)
+			break;
+
+		/*
+		 * Skip invalid pages.  Valid mask can be partial only
+		 * at EOF, and we clip later.
+		 */
+		if (vm_page_none_valid(ma[i])) {
+			vm_page_sunbusy(ma[i]);
+			break;
+		}
+
+		resid -= PAGE_SIZE;
+		off += PAGE_SIZE;
+	}
+	if (i == 0) {
+		error = EJUSTRETURN;
+		goto out_pip;
+	}
+
+	/*
+	 * Check VIRF_DOOMED after we busied our pages.  Since
+	 * vgonel() terminates the vnode' vm_object, it cannot
+	 * process past pages busied by us.
+	 */
+	if (VN_IS_DOOMED(vp)) {
+		error = EJUSTRETURN;
+		goto out;
+	}
+
+	resid = PAGE_SIZE - (uio->uio_offset & PAGE_MASK) + ptoa(i - 1);
+	if (resid > uio->uio_resid)
+		resid = uio->uio_resid;
+
+	/*
+	 * Unlocked read of vnp_size is safe because truncation cannot
+	 * pass busied page.  But we load vnp_size into a local
+	 * variable so that possible concurrent extension does not
+	 * break calculation.
+	 */
+#if defined(__powerpc__) && !defined(__powerpc64__)
+	vsz = object->un_pager.vnp.vnp_size;
+#else
+	vsz = atomic_load_64(&obj->un_pager.vnp.vnp_size);
+#endif
+	if (uio->uio_offset + resid > vsz)
+		resid = vsz - uio->uio_offset;
+
+	error = vn_io_fault_pgmove(ma, uio->uio_offset & PAGE_MASK, resid, uio);
+
+out:
+	for (j = 0; j < i; j++) {
+		if (error == 0)
+			vm_page_reference(ma[j]);
+		vm_page_sunbusy(ma[j]);
+	}
+out_pip:
+	vm_object_pip_wakeup(obj);
+	if (error != 0)
+		return (error);
+	return (uio->uio_resid == 0 ? 0 : EJUSTRETURN);
+}
+
+static bool
+do_vn_read_from_pgcache(struct vnode *vp, struct uio *uio, struct file *fp)
+{
+	return ((vp->v_irflag & (VIRF_DOOMED | VIRF_PGREAD)) == VIRF_PGREAD &&
+	    !mac_vnode_check_read_enabled() &&
+	    uio->uio_resid <= ptoa(io_hold_cnt) && uio->uio_offset >= 0 &&
+	    (fp->f_flag & O_DIRECT) == 0 && vn_io_pgcache_read_enable);
+}
+
 /*
  * File table vnode read routine.
  */
@@ -860,6 +976,15 @@ vn_read(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	    uio->uio_td, td));
 	KASSERT(flags & FOF_OFFSET, ("No FOF_OFFSET"));
 	vp = fp->f_vnode;
+	if (do_vn_read_from_pgcache(vp, uio, fp)) {
+		error = vn_read_from_obj(vp, uio);
+		if (error == 0) {
+			fp->f_nextoff[UIO_READ] = uio->uio_offset;
+			return (0);
+		}
+		if (error != EJUSTRETURN)
+			return (error);
+	}
 	ioflag = 0;
 	if (fp->f_flag & FNONBLOCK)
 		ioflag |= IO_NDELAY;
@@ -1164,8 +1289,8 @@ vn_io_fault1(struct vnode *vp, struct uio *uio, struct vn_io_fault_args *args,
 			uio_clone->uio_iovcnt--;
 			continue;
 		}
-		if (len > io_hold_cnt * PAGE_SIZE)
-			len = io_hold_cnt * PAGE_SIZE;
+		if (len > ptoa(io_hold_cnt))
+			len = ptoa(io_hold_cnt);
 		addr = (uintptr_t)uio_clone->uio_iov->iov_base;
 		end = round_page(addr + len);
 		if (end < addr) {

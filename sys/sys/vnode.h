@@ -244,6 +244,8 @@ struct xvnode {
 #define VHOLD_ALL_FLAGS (VHOLD_NO_SMR)
 
 #define	VIRF_DOOMED	0x0001	/* This vnode is being recycled */
+#define	VIRF_PGREAD	0x0002	/* Direct reads from the page cache are permitted,
+				   never cleared once set */
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
