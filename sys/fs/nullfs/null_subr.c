@@ -259,12 +259,33 @@ null_nodeget(mp, lowervp, vpp)
 		vp->v_vflag |= VV_ROOT;
 
 	/*
+	 * We might miss the case where lower vnode sets VIRF_PGREAD
+	 * some time after construction, which is typical case.
+	 * null_open rechecks.
+	 */
+	if ((lowervp->v_irflag & VIRF_PGREAD) != 0) {
+		MPASS(lowervp->v_object != NULL);
+		if ((vp->v_irflag & VIRF_PGREAD) == 0) {
+			if (vp->v_object == NULL)
+				vp->v_object = lowervp->v_object;
+			else
+				MPASS(vp->v_object == lowervp->v_object);
+			VI_LOCK(vp);
+			vp->v_irflag |= VIRF_PGREAD;
+			VI_UNLOCK(vp);
+		} else {
+			MPASS(vp->v_object != NULL);
+		}
+	}
+
+	/*
 	 * Atomically insert our new node into the hash or vget existing 
 	 * if someone else has beaten us to it.
 	 */
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
+		vp->v_object = NULL;	/* in case VIRF_PGREAD set it */
 		null_destroy_proto(vp, xp);
 		return (0);
 	}
