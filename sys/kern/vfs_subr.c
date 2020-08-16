@@ -2856,11 +2856,9 @@ vget_abort(struct vnode *vp, enum vgetstate vs)
 }
 
 int
-vget(struct vnode *vp, int flags, struct thread *td)
+vget(struct vnode *vp, int flags)
 {
 	enum vgetstate vs;
-
-	MPASS(td == curthread);
 
 	vs = vget_prep(vp);
 	return (vget_finish(vp, flags, vs));
@@ -4684,7 +4682,7 @@ vfs_periodic_msync_inactive(struct mount *mp, int flags)
 				VI_UNLOCK(vp);
 			continue;
 		}
-		if (vget(vp, lkflags, td) == 0) {
+		if (vget(vp, lkflags) == 0) {
 			obj = vp->v_object;
 			if (obj != NULL && (vp->v_vflag & VV_NOSYNC) == 0) {
 				VM_OBJECT_WLOCK(obj);

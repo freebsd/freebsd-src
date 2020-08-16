@@ -754,7 +754,7 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 found:
 		*vpp = vd->mv_vnode;
 		sx_xunlock(&mqfs->mi_lock);
-		error = vget(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
+		error = vget(*vpp, LK_RETRY | LK_EXCLUSIVE);
 		vdrop(*vpp);
 		return (error);
 	}

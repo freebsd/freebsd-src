@@ -163,7 +163,7 @@ fdesc_root(struct mount *mp, int flags, struct vnode **vpp)
 	 * Return locked reference to root.
 	 */
 	vp = VFSTOFDESC(mp)->f_root;
-	vget(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vget(vp, LK_EXCLUSIVE | LK_RETRY);
 	*vpp = vp;
 	return (0);
 }
