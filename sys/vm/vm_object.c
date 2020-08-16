@@ -192,9 +192,6 @@ vm_object_zdtor(void *mem, int size, void *arg)
 	    ("object %p has reservations",
 	    object));
 #endif
-	KASSERT(blockcount_read(&object->paging_in_progress) == 0,
-	    ("object %p paging_in_progress = %d",
-	    object, blockcount_read(&object->paging_in_progress)));
 	KASSERT(!vm_object_busied(object),
 	    ("object %p busy = %d", object, blockcount_read(&object->busy)));
 	KASSERT(object->resident_page_count == 0,
@@ -294,6 +291,9 @@ vm_object_init(void)
 	 * The lock portion of struct vm_object must be type stable due
 	 * to vm_pageout_fallback_object_lock locking a vm object
 	 * without holding any references to it.
+	 *
+	 * paging_in_progress is valid always.  Lockless references to
+	 * the objects may acquire pip and then check OBJ_DEAD.
 	 */
 	obj_zone = uma_zcreate("VM OBJECT", sizeof (struct vm_object), NULL,
 #ifdef INVARIANTS
@@ -936,12 +936,13 @@ vm_object_terminate(vm_object_t object)
 	    ("terminating shadow obj %p", object));
 
 	/*
-	 * wait for the pageout daemon to be done with the object
+	 * Wait for the pageout daemon and other current users to be
+	 * done with the object.  Note that new paging_in_progress
+	 * users can come after this wait, but they must check
+	 * OBJ_DEAD flag set (without unlocking the object), and avoid
+	 * the object being terminated.
 	 */
 	vm_object_pip_wait(object, "objtrm");
-
-	KASSERT(!blockcount_read(&object->paging_in_progress),
-	    ("vm_object_terminate: pageout in progress"));
 
 	KASSERT(object->ref_count == 0,
 	    ("vm_object_terminate: object with references, ref_count=%d",
