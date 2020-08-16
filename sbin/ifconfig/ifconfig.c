@@ -748,6 +748,7 @@ group_member(const char *ifname, const char *match, const char *nomatch)
 		if (nomatch)
 			nomatched &= fnmatch(nomatch, ifg->ifgrq_group, 0);
 	}
+	free(ifgr.ifgr_groups);
 
 	if (match && !nomatch)
 		return (matched);
