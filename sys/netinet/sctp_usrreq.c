@@ -190,7 +190,6 @@ sctp_notify(struct sctp_inpcb *inp,
 	} else if ((icmp_code == ICMP_UNREACH_PROTOCOL) ||
 	    (icmp_code == ICMP_UNREACH_PORT)) {
 		/* Treat it like an ABORT. */
-		SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_WAS_ABORTED);
 		sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
 		    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
