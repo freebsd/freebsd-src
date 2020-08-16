@@ -587,16 +587,11 @@ another_hunk(void)
 			len = pgets(true);
 			p_input_line++;
 			if (len == 0) {
-				if (p_max - p_end < 4) {
-					/* assume blank lines got chopped */
-					strlcpy(buf, "  \n", buf_size);
-				} else {
-					if (repl_beginning && repl_could_be_missing) {
-						repl_missing = true;
-						goto hunk_done;
-					}
-					fatal("unexpected end of file in patch\n");
+				if (repl_beginning && repl_could_be_missing) {
+					repl_missing = true;
+					goto hunk_done;
 				}
+				fatal("unexpected end of file in patch\n");
 			}
 			p_end++;
 			if (p_end >= hunkmax)
