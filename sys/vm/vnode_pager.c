@@ -520,7 +520,11 @@ vnode_pager_setsize(struct vnode *vp, vm_ooffset_t nsize)
 		vm_page_xunbusy(m);
 	}
 out:
+#if defined(__powerpc__) && !defined(__powerpc64__)
 	object->un_pager.vnp.vnp_size = nsize;
+#else
+	atomic_store_64(&object->un_pager.vnp.vnp_size, nsize);
+#endif
 	object->size = nobjsize;
 	VM_OBJECT_WUNLOCK(object);
 }
