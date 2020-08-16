@@ -136,7 +136,7 @@ retry:
 			vp = pvd->pvd_vnode;
 			VI_LOCK(vp);
 			mtx_unlock(&pfs_vncache_mutex);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread) == 0) {
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK) == 0) {
 				++pfs_vncache_hits;
 				*vpp = vp;
 				/*
@@ -218,7 +218,7 @@ retry2:
 			vp = pvd2->pvd_vnode;
 			VI_LOCK(vp);
 			mtx_unlock(&pfs_vncache_mutex);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread) == 0) {
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK) == 0) {
 				++pfs_vncache_hits;
 				vgone(*vpp);
 				vput(*vpp);

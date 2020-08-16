@@ -643,7 +643,7 @@ vm_pageout_clean(vm_page_t m, int *numpagedout)
 		VM_OBJECT_WUNLOCK(object);
 		lockmode = MNT_SHARED_WRITES(vp->v_mount) ?
 		    LK_SHARED : LK_EXCLUSIVE;
-		if (vget(vp, lockmode | LK_TIMELOCK, curthread)) {
+		if (vget(vp, lockmode | LK_TIMELOCK)) {
 			vp = NULL;
 			error = EDEADLK;
 			goto unlock_mp;

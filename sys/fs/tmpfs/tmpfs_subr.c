@@ -620,7 +620,7 @@ loop:
 			goto loop;
 		}
 		TMPFS_NODE_UNLOCK(node);
-		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		error = vget(vp, lkflag | LK_INTERLOCK);
 		if (error == ENOENT) {
 			TMPFS_NODE_LOCK(node);
 			goto loop;
