@@ -160,8 +160,8 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 #define	AUDITVNODE1	0x00040000 /* audit the looked up vnode information */
 #define	AUDITVNODE2	0x00080000 /* audit the looked up vnode information */
 #define	NOCAPCHECK	0x00100000 /* do not perform capability checks */
-/* UNUSED		0x00400000 */
 /* UNUSED		0x00200000 */
+/* UNUSED		0x00400000 */
 /* UNUSED		0x00800000 */
 #define	HASBUF		0x01000000 /* has allocated pathname buffer */
 #define	NOEXECCHECK	0x02000000 /* do not perform exec check on dir */
