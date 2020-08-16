@@ -20,6 +20,7 @@ SRCS+=		ClangSACheckersEmitter.cpp
 SRCS+=		ClangTypeNodesEmitter.cpp
 SRCS+=		MveEmitter.cpp
 SRCS+=		NeonEmitter.cpp
+SRCS+=		SveEmitter.cpp
 SRCS+=		TableGen.cpp
 
 .include "../llvm.prog.mk"

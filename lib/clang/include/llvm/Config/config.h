@@ -2,6 +2,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+// Include this header only under the llvm source tree.
+// This is a private header.
+
 /* Exported configuration */
 #include "llvm/Config/llvm-config.h"
 
@@ -105,10 +108,10 @@
 #define HAVE_LIBPTHREAD 1
 
 /* Define to 1 if you have the `pthread_getname_np' function. */
-/* #undef HAVE_PTHREAD_GETNAME_NP */
+#define HAVE_PTHREAD_GETNAME_NP 1
 
 /* Define to 1 if you have the `pthread_setname_np' function. */
-/* #undef HAVE_PTHREAD_SETNAME_NP */
+#define HAVE_PTHREAD_SETNAME_NP 1
 
 /* Define to 1 if you have the `z' library (-lz). */
 #define HAVE_LIBZ 1
@@ -160,12 +163,6 @@
 
 /* Define to 1 if you have the `setenv' function. */
 #define HAVE_SETENV 1
-
-/* Define to 1 if you have the `sched_getaffinity' function. */
-/* #undef HAVE_SCHED_GETAFFINITY */
-
-/* Define to 1 if you have the `CPU_COUNT' macro. */
-/* #undef HAVE_CPU_COUNT */
 
 /* Define to 1 if you have the `setrlimit' function. */
 #define HAVE_SETRLIMIT 1
@@ -322,10 +319,10 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 10.0.1"
+#define PACKAGE_STRING "LLVM 11.0.0"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "10.0.1"
+#define PACKAGE_VERSION "11.0.0"
 
 /* Define to the vendor of this package. */
 /* #undef PACKAGE_VENDOR */
@@ -344,9 +341,6 @@
 
 /* Whether GlobalISel rule coverage is being collected */
 #define LLVM_GISEL_COV_ENABLED 0
-
-/* Define if we have z3 and want to build it */
-/* #undef LLVM_WITH_Z3 */
 
 /* Define to the default GlobalISel coverage file prefix */
 /* #undef LLVM_GISEL_COV_PREFIX */

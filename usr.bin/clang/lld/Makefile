@@ -34,7 +34,6 @@ SRCS+=		Common/Memory.cpp
 SRCS+=		Common/Reproduce.cpp
 SRCS+=		Common/Strings.cpp
 SRCS+=		Common/TargetOptionsCommandFlags.cpp
-SRCS+=		Common/Threads.cpp
 SRCS+=		Common/Version.cpp
 SRCS+=		ELF/AArch64ErrataFix.cpp
 SRCS+=		ELF/ARMErrataFix.cpp

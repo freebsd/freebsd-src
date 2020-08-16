@@ -77,6 +77,9 @@ class ILFormat<dag outs, dag ins, string asmstr, list<dag> pattern>
 
 def TruePredicate : Predicate<"">;
 
+// FIXME: Tablegen should specially supports this
+def FalsePredicate : Predicate<"false">;
+
 // Add a predicate to the list if does not already exist to deduplicate it.
 class PredConcat<list<Predicate> lst, Predicate pred> {
   list<Predicate> ret =
@@ -101,12 +104,12 @@ class AMDGPUPat<dag pattern, dag result> : Pat<pattern, result>,
       PredicateControl;
 
 let RecomputePerFunction = 1 in {
-def FP16Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
-def FP32Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().FP32Denormals">;
-def FP64Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
-def NoFP16Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
-def NoFP32Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().FP32Denormals">;
-def NoFP64Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().FP64FP16Denormals">;
+def FP16Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
+def FP32Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP32Denormals()">;
+def FP64Denormals : Predicate<"MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
+def NoFP16Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
+def NoFP32Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP32Denormals()">;
+def NoFP64Denormals : Predicate<"!MF->getInfo<SIMachineFunctionInfo>()->getMode().allFP64FP16Denormals()">;
 def UnsafeFPMath : Predicate<"TM.Options.UnsafeFPMath">;
 }
 
@@ -408,7 +411,12 @@ def atomic_load_64_#as : PatFrag<(ops node:$ptr), (atomic_load_64 node:$ptr)> {
   let IsAtomic = 1;
   let MemoryVT = i64;
 }
+} // End let AddressSpaces
+} // End foreach as
 
+
+foreach as = [ "global", "flat", "local", "private", "region" ] in {
+let AddressSpaces = !cast<AddressSpaceList>("StoreAddress_"#as).AddrSpaces in {
 def store_#as : PatFrag<(ops node:$val, node:$ptr),
                     (unindexedstore node:$val, node:$ptr)> {
   let IsStore = 1;
@@ -444,8 +452,8 @@ def truncstorei16_hi16_#as : StoreHi16<truncstorei16>;
 
 defm atomic_store_#as : binary_atomic_op<atomic_store>;
 
-} // End let AddressSpaces = ...
-} // End foreach AddrSpace
+} // End let AddressSpaces
+} // End foreach as
 
 
 multiclass ret_noret_binary_atomic_op<SDNode atomic_op, bit IsInt = 1> {
@@ -520,7 +528,7 @@ class Constants {
 int TWO_PI = 0x40c90fdb;
 int PI = 0x40490fdb;
 int TWO_PI_INV = 0x3e22f983;
-int FP_UINT_MAX_PLUS_1 = 0x4f800000;    // 1 << 32 in floating point encoding
+int FP_4294966784 = 0x4f7ffffe; // 4294966784 = 4294967296 - 512 = 2^32 - 2^9
 int FP16_ONE = 0x3C00;
 int FP16_NEG_ONE = 0xBC00;
 int FP32_ONE = 0x3f800000;
@@ -731,6 +739,12 @@ multiclass BFEPattern <Instruction UBFE, Instruction SBFE, Instruction MOV> {
   >;
 }
 
+// fshr pattern
+class FSHRPattern <Instruction BIT_ALIGN> : AMDGPUPat <
+  (fshr i32:$src0, i32:$src1, i32:$src2),
+  (BIT_ALIGN $src0, $src1, $src2)
+>;
+
 // rotr pattern
 class ROTRPattern <Instruction BIT_ALIGN> : AMDGPUPat <
   (rotr i32:$src0, i32:$src1),
@@ -795,4 +809,14 @@ def fminnum_like_oneuse : PatFrags<(ops node:$src0, node:$src1),
 def fmaxnum_like_oneuse : PatFrags<(ops node:$src0, node:$src1),
   [(fmaxnum_ieee_oneuse node:$src0, node:$src1),
    (fmaxnum_oneuse node:$src0, node:$src1)]
+>;
+
+def any_fmad : PatFrags<(ops node:$src0, node:$src1, node:$src2),
+  [(fmad node:$src0, node:$src1, node:$src2),
+   (AMDGPUfmad_ftz node:$src0, node:$src1, node:$src2)]
+>;
+
+// FIXME: fsqrt should not select directly
+def any_amdgcn_sqrt : PatFrags<(ops node:$src0),
+  [(fsqrt node:$src0), (int_amdgcn_sqrt node:$src0)]
 >;

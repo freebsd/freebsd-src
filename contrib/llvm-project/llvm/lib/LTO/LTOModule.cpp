@@ -28,6 +28,7 @@
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Object/IRObjectFile.h"
+#include "llvm/Object/MachO.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Host.h"
@@ -413,9 +414,8 @@ void LTOModule::addDefinedFunctionSymbol(StringRef Name, const Function *F) {
 
 void LTOModule::addDefinedSymbol(StringRef Name, const GlobalValue *def,
                                  bool isFunction) {
-  // set alignment part log2() can have rounding errors
-  uint32_t align = def->getAlignment();
-  uint32_t attr = align ? countTrailingZeros(align) : 0;
+  const GlobalObject *go = dyn_cast<GlobalObject>(def);
+  uint32_t attr = go ? Log2(go->getAlign().valueOrOne()) : 0;
 
   // set permissions part
   if (isFunction) {
@@ -675,4 +675,12 @@ const char *LTOModule::getDependentLibrary(lto::InputFile *input, size_t index,
   StringRef S = input->getDependentLibraries()[index];
   *size = S.size();
   return S.data();
+}
+
+Expected<uint32_t> LTOModule::getMachOCPUType() const {
+  return MachO::getCPUType(Triple(Mod->getTargetTriple()));
+}
+
+Expected<uint32_t> LTOModule::getMachOCPUSubType() const {
+  return MachO::getCPUSubType(Triple(Mod->getTargetTriple()));
 }
