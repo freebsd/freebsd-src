@@ -13624,8 +13624,7 @@ softdep_request_cleanup_flush(mp, ump)
 			VI_UNLOCK(lvp);
 			continue;
 		}
-		if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT,
-		    td) != 0) {
+		if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT) != 0) {
 			failed_vnode = 1;
 			continue;
 		}

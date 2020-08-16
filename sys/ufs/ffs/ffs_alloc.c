@@ -3463,7 +3463,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		 */
 		pwd = pwd_hold(td);
 		dvp = pwd->pwd_cdir;
-		if ((error = vget(dvp, LK_EXCLUSIVE, td)) != 0) {
+		if ((error = vget(dvp, LK_EXCLUSIVE)) != 0) {
 			vput(fdvp);
 			pwd_drop(pwd);
 			break;

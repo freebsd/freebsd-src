@@ -124,7 +124,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		if (dvp == NULL)
 			return EINVAL;
 		vp = VTOSMB(VTOSMB(dvp)->n_parent)->n_vnode;
-		error = vget(vp, LK_EXCLUSIVE, td);
+		error = vget(vp, LK_EXCLUSIVE);
 		if (error == 0)
 			*vpp = vp;
 		return error;
