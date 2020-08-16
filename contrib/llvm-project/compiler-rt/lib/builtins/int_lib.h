@@ -50,12 +50,20 @@
 #define XSTR(a) STR(a)
 #define SYMBOL_NAME(name) XSTR(__USER_LABEL_PREFIX__) #name
 
-#if defined(__ELF__) || defined(__MINGW32__) || defined(__wasm__)
+#if defined(__ELF__) || defined(__MINGW32__) || defined(__wasm__) ||           \
+    defined(_AIX)
 #define COMPILER_RT_ALIAS(name, aliasname) \
   COMPILER_RT_ABI __typeof(name) aliasname __attribute__((__alias__(#name)));
 #elif defined(__APPLE__)
+#if defined(VISIBILITY_HIDDEN)
+#define COMPILER_RT_ALIAS_VISIBILITY(name) \
+  __asm__(".private_extern " SYMBOL_NAME(name));
+#else
+#define COMPILER_RT_ALIAS_VISIBILITY(name)
+#endif
 #define COMPILER_RT_ALIAS(name, aliasname) \
   __asm__(".globl " SYMBOL_NAME(aliasname)); \
+  COMPILER_RT_ALIAS_VISIBILITY(aliasname) \
   __asm__(SYMBOL_NAME(aliasname) " = " SYMBOL_NAME(name)); \
   COMPILER_RT_ABI __typeof(name) aliasname;
 #elif defined(_WIN32)
@@ -90,31 +98,8 @@
 // Include internal utility function declarations.
 #include "int_util.h"
 
-/*
- * Workaround for LLVM bug 11663.  Prevent endless recursion in
- * __c?zdi2(), where calls to __builtin_c?z() are expanded to
- * __c?zdi2() instead of __c?zsi2().
- *
- * Instead of placing this workaround in c?zdi2.c, put it in this
- * global header to prevent other C files from making the detour
- * through __c?zdi2() as well.
- *
- * This problem has been observed on FreeBSD for sparc64 and
- * mips64 with GCC 4.2.1, and for riscv with GCC 5.2.0.
- * Presumably it's any version of GCC, and targeting an arch that
- * does not have dedicated bit counting instructions.
- */
-#if defined(__FreeBSD__) && (defined(__sparc64__) || \
-    defined(__mips_n32) || defined(__mips_n64) || defined(__mips_o64) || \
-    defined(__riscv))
-si_int __clzsi2(si_int);
-si_int __ctzsi2(si_int);
-#define	__builtin_clz __clzsi2
-#define	__builtin_ctz __ctzsi2
-#endif /* FreeBSD && (sparc64 || mips_n32 || mips_n64 || mips_o64 || riscv) */
-
-COMPILER_RT_ABI si_int __paritysi2(si_int a);
-COMPILER_RT_ABI si_int __paritydi2(di_int a);
+COMPILER_RT_ABI int __paritysi2(si_int a);
+COMPILER_RT_ABI int __paritydi2(di_int a);
 
 COMPILER_RT_ABI di_int __divdi3(di_int a, di_int b);
 COMPILER_RT_ABI si_int __divsi3(si_int a, si_int b);
@@ -123,7 +108,7 @@ COMPILER_RT_ABI su_int __udivsi3(su_int n, su_int d);
 COMPILER_RT_ABI su_int __udivmodsi4(su_int a, su_int b, su_int *rem);
 COMPILER_RT_ABI du_int __udivmoddi4(du_int a, du_int b, du_int *rem);
 #ifdef CRT_HAS_128BIT
-COMPILER_RT_ABI si_int __clzti2(ti_int a);
+COMPILER_RT_ABI int __clzti2(ti_int a);
 COMPILER_RT_ABI tu_int __udivmodti4(tu_int a, tu_int b, tu_int *rem);
 #endif
 
@@ -131,14 +116,14 @@ COMPILER_RT_ABI tu_int __udivmodti4(tu_int a, tu_int b, tu_int *rem);
 #if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 
-uint32_t __inline __builtin_ctz(uint32_t value) {
+int __inline __builtin_ctz(uint32_t value) {
   unsigned long trailing_zero = 0;
   if (_BitScanForward(&trailing_zero, value))
     return trailing_zero;
   return 32;
 }
 
-uint32_t __inline __builtin_clz(uint32_t value) {
+int __inline __builtin_clz(uint32_t value) {
   unsigned long leading_zero = 0;
   if (_BitScanReverse(&leading_zero, value))
     return 31 - leading_zero;
@@ -146,14 +131,14 @@ uint32_t __inline __builtin_clz(uint32_t value) {
 }
 
 #if defined(_M_ARM) || defined(_M_X64)
-uint32_t __inline __builtin_clzll(uint64_t value) {
+int __inline __builtin_clzll(uint64_t value) {
   unsigned long leading_zero = 0;
   if (_BitScanReverse64(&leading_zero, value))
     return 63 - leading_zero;
   return 64;
 }
 #else
-uint32_t __inline __builtin_clzll(uint64_t value) {
+int __inline __builtin_clzll(uint64_t value) {
   if (value == 0)
     return 64;
   uint32_t msh = (uint32_t)(value >> 32);

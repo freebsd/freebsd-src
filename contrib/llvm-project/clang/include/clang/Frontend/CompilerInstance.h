@@ -128,7 +128,7 @@ class CompilerInstance : public ModuleLoader {
 
   /// The set of top-level modules that has already been built on the
   /// fly as part of this overall compilation action.
-  std::map<std::string, std::string> BuiltModules;
+  std::map<std::string, std::string, std::less<>> BuiltModules;
 
   /// Should we delete the BuiltModules when we're done?
   bool DeleteBuiltModules = true;
@@ -390,9 +390,7 @@ public:
   /// @name Virtual File System
   /// {
 
-  llvm::vfs::FileSystem &getVirtualFileSystem() const {
-    return getFileManager().getVirtualFileSystem();
-  }
+  llvm::vfs::FileSystem &getVirtualFileSystem() const;
 
   /// }
   /// @name File Manager
@@ -515,7 +513,7 @@ public:
   /// {
 
   IntrusiveRefCntPtr<ASTReader> getASTReader() const;
-  void setModuleManager(IntrusiveRefCntPtr<ASTReader> Reader);
+  void setASTReader(IntrusiveRefCntPtr<ASTReader> Reader);
 
   std::shared_ptr<ModuleDependencyCollector> getModuleDepCollector() const;
   void setModuleDepCollector(
@@ -766,10 +764,7 @@ public:
   static bool InitializeSourceManager(const FrontendInputFile &Input,
                                       DiagnosticsEngine &Diags,
                                       FileManager &FileMgr,
-                                      SourceManager &SourceMgr,
-                                      HeaderSearch *HS,
-                                      DependencyOutputOptions &DepOpts,
-                                      const FrontendOptions &Opts);
+                                      SourceManager &SourceMgr);
 
   /// }
 
@@ -781,7 +776,6 @@ public:
     return std::move(OutputStream);
   }
 
-  // Create module manager.
   void createASTReader();
 
   bool loadModuleFile(StringRef FileName);

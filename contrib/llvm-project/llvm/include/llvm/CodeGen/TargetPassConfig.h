@@ -103,6 +103,7 @@ private:
   bool Started = true;
   bool Stopped = false;
   bool AddingMachinePasses = false;
+  bool DebugifyIsSafe = true;
 
   /// Set the StartAfter, StartBefore and StopAfter passes to allow running only
   /// a portion of the normal code-gen pass sequence.
@@ -166,8 +167,8 @@ public:
   /// If hasLimitedCodeGenPipeline is true, this method
   /// returns a string with the name of the options, separated
   /// by \p Separator that caused this pipeline to be limited.
-  std::string
-  getLimitedCodeGenPipelineReason(const char *Separator = "/") const;
+  static std::string
+  getLimitedCodeGenPipelineReason(const char *Separator = "/");
 
   void setDisableVerify(bool Disable) { setOpt(DisableVerify, Disable); }
 
@@ -305,6 +306,21 @@ public:
   /// Add a pass to perform basic verification of the machine function if
   /// verification is enabled.
   void addVerifyPass(const std::string &Banner);
+
+  /// Add a pass to add synthesized debug info to the MIR.
+  void addDebugifyPass();
+
+  /// Add a pass to remove debug info from the MIR.
+  void addStripDebugPass();
+
+  /// Add standard passes before a pass that's about to be added. For example,
+  /// the DebugifyMachineModulePass if it is enabled.
+  void addMachinePrePasses(bool AllowDebugify = true);
+
+  /// Add standard passes after a pass that has just been added. For example,
+  /// the MachineVerifier if it is enabled.
+  void addMachinePostPasses(const std::string &Banner, bool AllowPrint = true,
+                            bool AllowVerify = true, bool AllowStrip = true);
 
   /// Check whether or not GlobalISel should abort on error.
   /// When this is disabled, GlobalISel will fall back on SDISel instead of

@@ -31,7 +31,7 @@ const char *x86::getX86TargetCPU(const ArgList &Args,
     //
     // FIXME: We should also incorporate the detected target features for use
     // with -native.
-    std::string CPU = llvm::sys::getHostCPUName();
+    std::string CPU = std::string(llvm::sys::getHostCPUName());
     if (!CPU.empty() && CPU != "generic")
       return Args.MakeArgString(CPU);
   }
@@ -183,6 +183,24 @@ void x86::getX86TargetFeatures(const Driver &D, const llvm::Triple &Triple,
                           false)) {
     Features.push_back("+lvi-cfi");
     LVIOpt = options::OPT_mlvi_cfi;
+  }
+
+  if (Args.hasFlag(options::OPT_m_seses, options::OPT_mno_seses, false)) {
+    if (LVIOpt == options::OPT_mlvi_hardening)
+      D.Diag(diag::err_drv_argument_not_allowed_with)
+          << D.getOpts().getOptionName(options::OPT_mlvi_hardening)
+          << D.getOpts().getOptionName(options::OPT_m_seses);
+
+    if (SpectreOpt != clang::driver::options::ID::OPT_INVALID)
+      D.Diag(diag::err_drv_argument_not_allowed_with)
+          << D.getOpts().getOptionName(SpectreOpt)
+          << D.getOpts().getOptionName(options::OPT_m_seses);
+
+    Features.push_back("+seses");
+    if (!Args.hasArg(options::OPT_mno_lvi_cfi)) {
+      Features.push_back("+lvi-cfi");
+      LVIOpt = options::OPT_mlvi_cfi;
+    }
   }
 
   if (SpectreOpt != clang::driver::options::ID::OPT_INVALID &&

@@ -43,6 +43,19 @@ Instruction::Instruction(Type *ty, unsigned it, Use *Ops, unsigned NumOps,
 
 Instruction::~Instruction() {
   assert(!Parent && "Instruction still linked in the program!");
+
+  // Replace any extant metadata uses of this instruction with undef to
+  // preserve debug info accuracy. Some alternatives include:
+  // - Treat Instruction like any other Value, and point its extant metadata
+  //   uses to an empty ValueAsMetadata node. This makes extant dbg.value uses
+  //   trivially dead (i.e. fair game for deletion in many passes), leading to
+  //   stale dbg.values being in effect for too long.
+  // - Call salvageDebugInfoOrMarkUndef. Not needed to make instruction removal
+  //   correct. OTOH results in wasted work in some common cases (e.g. when all
+  //   instructions in a BasicBlock are deleted).
+  if (isUsedByMetadata())
+    ValueAsMetadata::handleRAUW(this, UndefValue::get(getType()));
+
   if (hasMetadataHashEntry())
     clearMetadataHashEntries();
 }
@@ -95,6 +108,15 @@ void Instruction::moveBefore(BasicBlock &BB,
                              SymbolTableList<Instruction>::iterator I) {
   assert(I == BB.end() || I->getParent() == &BB);
   BB.getInstList().splice(I, getParent()->getInstList(), getIterator());
+}
+
+bool Instruction::comesBefore(const Instruction *Other) const {
+  assert(Parent && Other->Parent &&
+         "instructions without BB parents have no order");
+  assert(Parent == Other->Parent && "cross-BB instruction order comparison");
+  if (!Parent->isInstrOrderValid())
+    Parent->renumberInstructions();
+  return Order < Other->Order;
 }
 
 void Instruction::setHasNoUnsignedWrap(bool b) {
@@ -174,6 +196,11 @@ void Instruction::setHasNoSignedZeros(bool B) {
 void Instruction::setHasAllowReciprocal(bool B) {
   assert(isa<FPMathOperator>(this) && "setting fast-math flag on invalid op");
   cast<FPMathOperator>(this)->setHasAllowReciprocal(B);
+}
+
+void Instruction::setHasAllowContract(bool B) {
+  assert(isa<FPMathOperator>(this) && "setting fast-math flag on invalid op");
+  cast<FPMathOperator>(this)->setHasAllowContract(B);
 }
 
 void Instruction::setHasApproxFunc(bool B) {
@@ -434,6 +461,9 @@ static bool haveSameSpecialState(const Instruction *I1, const Instruction *I2,
            RMWI->isVolatile() == cast<AtomicRMWInst>(I2)->isVolatile() &&
            RMWI->getOrdering() == cast<AtomicRMWInst>(I2)->getOrdering() &&
            RMWI->getSyncScopeID() == cast<AtomicRMWInst>(I2)->getSyncScopeID();
+  if (const ShuffleVectorInst *SVI = dyn_cast<ShuffleVectorInst>(I1))
+    return SVI->getShuffleMask() ==
+           cast<ShuffleVectorInst>(I2)->getShuffleMask();
 
   return true;
 }
@@ -743,13 +773,4 @@ Instruction *Instruction::clone() const {
   New->SubclassOptionalData = SubclassOptionalData;
   New->copyMetadata(*this);
   return New;
-}
-
-void Instruction::setProfWeight(uint64_t W) {
-  assert(isa<CallBase>(this) &&
-         "Can only set weights for call like instructions");
-  SmallVector<uint32_t, 1> Weights;
-  Weights.push_back(W);
-  MDBuilder MDB(getContext());
-  setMetadata(LLVMContext::MD_prof, MDB.createBranchWeights(Weights));
 }
