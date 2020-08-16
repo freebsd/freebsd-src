@@ -929,7 +929,7 @@ vn_read_from_obj(struct vnode *vp, struct uio *uio)
 	 * break calculation.
 	 */
 #if defined(__powerpc__) && !defined(__powerpc64__)
-	vsz = object->un_pager.vnp.vnp_size;
+	vsz = obj->un_pager.vnp.vnp_size;
 #else
 	vsz = atomic_load_64(&obj->un_pager.vnp.vnp_size);
 #endif
