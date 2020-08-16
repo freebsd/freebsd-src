@@ -504,8 +504,7 @@ namei(struct nameidata *ndp)
 	 * Get a buffer for the name to be translated, and copy the
 	 * name into the buffer.
 	 */
-	if ((cnp->cn_flags & HASBUF) == 0)
-		cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
+	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
 		    &ndp->ni_pathlen);
