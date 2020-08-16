@@ -13148,12 +13148,21 @@ skip_preblock:
 			if (sinfo_flags & SCTP_UNORDERED) {
 				SCTP_STAT_INCR(sctps_sends_with_unord);
 			}
+			sp->processing = 1;
 			TAILQ_INSERT_TAIL(&strm->outqueue, sp, next);
 			stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, asoc, strm, sp, 1);
 			SCTP_TCB_SEND_UNLOCK(stcb);
 		} else {
 			SCTP_TCB_SEND_LOCK(stcb);
 			sp = TAILQ_LAST(&strm->outqueue, sctp_streamhead);
+			if (sp->processing) {
+				SCTP_TCB_SEND_UNLOCK(stcb);
+				SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
+				error = EINVAL;
+				goto out;
+			} else {
+				sp->processing = 1;
+			}
 			SCTP_TCB_SEND_UNLOCK(stcb);
 			if (sp == NULL) {
 				/* ???? Huh ??? last msg is gone */
@@ -13195,13 +13204,14 @@ skip_preblock:
 				}
 				/* Update the mbuf and count */
 				SCTP_TCB_SEND_LOCK(stcb);
-				if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+				if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
+				    (stcb->asoc.state & SCTP_STATE_WAS_ABORTED)) {
 					/*
 					 * we need to get out. Peer probably
 					 * aborted.
 					 */
 					sctp_m_freem(mm);
-					if (stcb->asoc.state & SCTP_PCB_FLAGS_WAS_ABORTED) {
+					if (stcb->asoc.state & SCTP_STATE_WAS_ABORTED) {
 						SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ECONNRESET);
 						error = ECONNRESET;
 					}
@@ -13405,7 +13415,8 @@ skip_preblock:
 			}
 		}
 		SCTP_TCB_SEND_LOCK(stcb);
-		if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+		if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
+		    (stcb->asoc.state & SCTP_STATE_WAS_ABORTED)) {
 			SCTP_TCB_SEND_UNLOCK(stcb);
 			goto out_unlocked;
 		}
@@ -13421,6 +13432,7 @@ skip_preblock:
 				strm->last_msg_incomplete = 0;
 				asoc->stream_locked = 0;
 			}
+			sp->processing = 0;
 		} else {
 			SCTP_PRINTF("Huh no sp TSNH?\n");
 			strm->last_msg_incomplete = 0;

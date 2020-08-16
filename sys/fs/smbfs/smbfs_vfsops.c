@@ -329,7 +329,7 @@ smbfs_root(struct mount *mp, int flags, struct vnode **vpp)
 
 	if (smp->sm_root) {
 		*vpp = SMBTOV(smp->sm_root);
-		return vget(*vpp, LK_EXCLUSIVE | LK_RETRY, td);
+		return vget(*vpp, LK_EXCLUSIVE | LK_RETRY);
 	}
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, cred);

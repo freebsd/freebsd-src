@@ -680,7 +680,7 @@ void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
-int	vget(struct vnode *vp, int flags, struct thread *td);
+int	vget(struct vnode *vp, int flags);
 enum vgetstate	vget_prep_smr(struct vnode *vp);
 enum vgetstate	vget_prep(struct vnode *vp);
 int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
