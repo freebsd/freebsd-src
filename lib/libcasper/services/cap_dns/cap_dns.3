@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd August 15, 2020
 .Dt CAP_DNS 3
 .Os
 .Sh NAME
@@ -58,6 +58,9 @@
 .Fn cap_dns_family_limit "const cap_channel_t *chan" "const int *families" "size_t nfamilies"
 .Sh DESCRIPTION
 .Bf -symbolic
+This service is obsolete and
+.Xr cap_net 3
+should be used instead.
 The
 .Fn cap_getaddrinfo ,
 and
