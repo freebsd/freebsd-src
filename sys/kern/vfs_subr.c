@@ -2929,15 +2929,6 @@ vref(struct vnode *vp)
 }
 
 void
-vrefl(struct vnode *vp)
-{
-
-	ASSERT_VI_LOCKED(vp, __func__);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	vref(vp);
-}
-
-void
 vrefact(struct vnode *vp)
 {
 
