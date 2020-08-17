@@ -218,7 +218,7 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 	    IEEE80211_VHTCAP_BITS);
 
 	/* For now, just 5GHz VHT.  Worry about 2GHz VHT later */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 		/* Each stream is 2 bits */
 		tx = (ic->ic_vht_mcsinfo.tx_mcs_map >> (2*i)) & 0x3;
 		rx = (ic->ic_vht_mcsinfo.rx_mcs_map >> (2*i)) & 0x3;
