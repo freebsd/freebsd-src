@@ -83,9 +83,9 @@ __FBSDID("$FreeBSD$");
 #define dbtokb(db)	(db)
 #endif
 
-const char *qfextension[] = INITQFNAMES;
-char tmpfil[] = _PATH_TMP;
-int hflag;
+static const char *qfextension[] = INITQFNAMES;
+static char tmpfil[] = _PATH_TMP;
+static int hflag;
 
 struct quotause {
 	struct	quotause *next;
