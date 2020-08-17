@@ -577,7 +577,7 @@ public:
   ///    we conservatively clear kill flag for all uses of \p RegNo for pre-RA
   ///    and for post-RA, we give an assertion as without reaching definition
   ///    analysis post-RA, \p StartMI and \p EndMI are hard to keep right.
-  void fixupIsDeadOrKill(MachineInstr *StartMI, MachineInstr *EndMI,
+  void fixupIsDeadOrKill(MachineInstr &StartMI, MachineInstr &EndMI,
                          unsigned RegNo) const;
   void replaceInstrWithLI(MachineInstr &MI, const LoadImmediateInfo &LII) const;
   void replaceInstrOperandWithImm(MachineInstr &MI, unsigned OpNo,
