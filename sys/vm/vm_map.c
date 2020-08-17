@@ -128,10 +128,8 @@ __FBSDID("$FreeBSD$");
 static struct mtx map_sleep_mtx;
 static uma_zone_t mapentzone;
 static uma_zone_t kmapentzone;
-static uma_zone_t mapzone;
 static uma_zone_t vmspace_zone;
 static int vmspace_zinit(void *mem, int size, int flags);
-static int vm_map_zinit(void *mem, int ize, int flags);
 static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
 static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
@@ -142,7 +140,6 @@ static int vm_map_growstack(vm_map_t map, vm_offset_t addr,
 static void vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
     vm_object_t object, vm_pindex_t pindex, vm_size_t size, int flags);
 #ifdef INVARIANTS
-static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
 #endif
 static int vm_map_stack_locked(vm_map_t map, vm_offset_t addrbos,
@@ -198,14 +195,6 @@ void
 vm_map_startup(void)
 {
 	mtx_init(&map_sleep_mtx, "vm map sleep mutex", NULL, MTX_DEF);
-	mapzone = uma_zcreate("MAP", sizeof(struct vm_map), NULL,
-#ifdef INVARIANTS
-	    vm_map_zdtor,
-#else
-	    NULL,
-#endif
-	    vm_map_zinit, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_prealloc(mapzone, MAX_KMAP);
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_MTXCLASS | UMA_ZONE_VM);
@@ -224,24 +213,16 @@ static int
 vmspace_zinit(void *mem, int size, int flags)
 {
 	struct vmspace *vm;
-
-	vm = (struct vmspace *)mem;
-
-	vm->vm_map.pmap = NULL;
-	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
-	PMAP_LOCK_INIT(vmspace_pmap(vm));
-	return (0);
-}
-
-static int
-vm_map_zinit(void *mem, int size, int flags)
-{
 	vm_map_t map;
 
-	map = (vm_map_t)mem;
+	vm = (struct vmspace *)mem;
+	map = &vm->vm_map;
+
 	memset(map, 0, sizeof(*map));
-	mtx_init(&map->system_mtx, "vm map (system)", NULL, MTX_DEF | MTX_DUPOK);
+	mtx_init(&map->system_mtx, "vm map (system)", NULL,
+	    MTX_DEF | MTX_DUPOK);
 	sx_init(&map->lock, "vm map (user)");
+	PMAP_LOCK_INIT(vmspace_pmap(vm));
 	return (0);
 }
 
@@ -252,29 +233,16 @@ vmspace_zdtor(void *mem, int size, void *arg)
 	struct vmspace *vm;
 
 	vm = (struct vmspace *)mem;
-
-	vm_map_zdtor(&vm->vm_map, sizeof(vm->vm_map), arg);
-}
-static void
-vm_map_zdtor(void *mem, int size, void *arg)
-{
-	vm_map_t map;
-
-	map = (vm_map_t)mem;
-	KASSERT(map->nentries == 0,
-	    ("map %p nentries == %d on free.",
-	    map, map->nentries));
-	KASSERT(map->size == 0,
-	    ("map %p size == %lu on free.",
-	    map, (unsigned long)map->size));
+	KASSERT(vm->vm_map.nentries == 0,
+	    ("vmspace %p nentries == %d on free", vm, vm->vm_map.nentries));
+	KASSERT(vm->vm_map.size == 0,
+	    ("vmspace %p size == %ju on free", vm, (uintmax_t)vm->vm_map.size));
 }
 #endif	/* INVARIANTS */
 
 /*
  * Allocate a vmspace structure, including a vm_map and pmap,
  * and initialize those structures.  The refcnt is set to 1.
- *
- * If 'pinit' is NULL then the embedded pmap is initialized via pmap_pinit().
  */
 struct vmspace *
 vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
@@ -871,24 +839,6 @@ vmspace_resident_count(struct vmspace *vmspace)
 }
 
 /*
- *	vm_map_create:
- *
- *	Creates and returns a new empty VM map with
- *	the given physical map structure, and having
- *	the given lower and upper address bounds.
- */
-vm_map_t
-vm_map_create(pmap_t pmap, vm_offset_t min, vm_offset_t max)
-{
-	vm_map_t result;
-
-	result = uma_zalloc(mapzone, M_WAITOK);
-	CTR1(KTR_VM, "vm_map_create: %p", result);
-	_vm_map_init(result, pmap, min, max);
-	return (result);
-}
-
-/*
  * Initialize an existing vm_map structure
  * such as that in the vmspace structure.
  */
@@ -918,8 +868,9 @@ vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 {
 
 	_vm_map_init(map, pmap, min, max);
-	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
-	sx_init(&map->lock, "user map");
+	mtx_init(&map->system_mtx, "vm map (system)", NULL,
+	    MTX_DEF | MTX_DUPOK);
+	sx_init(&map->lock, "vm map (user)");
 }
 
 /*
