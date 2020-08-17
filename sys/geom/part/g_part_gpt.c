@@ -168,6 +168,7 @@ static struct uuid gpt_uuid_apple_raid = GPT_ENT_TYPE_APPLE_RAID;
 static struct uuid gpt_uuid_apple_raid_offline = GPT_ENT_TYPE_APPLE_RAID_OFFLINE;
 static struct uuid gpt_uuid_apple_tv_recovery = GPT_ENT_TYPE_APPLE_TV_RECOVERY;
 static struct uuid gpt_uuid_apple_ufs = GPT_ENT_TYPE_APPLE_UFS;
+static struct uuid gpt_uuid_apple_zfs = GPT_ENT_TYPE_APPLE_ZFS;
 static struct uuid gpt_uuid_bios_boot = GPT_ENT_TYPE_BIOS_BOOT;
 static struct uuid gpt_uuid_chromeos_firmware = GPT_ENT_TYPE_CHROMEOS_FIRMWARE;
 static struct uuid gpt_uuid_chromeos_kernel = GPT_ENT_TYPE_CHROMEOS_KERNEL;
@@ -209,6 +210,14 @@ static struct uuid gpt_uuid_netbsd_raid = GPT_ENT_TYPE_NETBSD_RAID;
 static struct uuid gpt_uuid_netbsd_swap = GPT_ENT_TYPE_NETBSD_SWAP;
 static struct uuid gpt_uuid_openbsd_data = GPT_ENT_TYPE_OPENBSD_DATA;
 static struct uuid gpt_uuid_prep_boot = GPT_ENT_TYPE_PREP_BOOT;
+static struct uuid gpt_uuid_solaris_boot = GPT_ENT_TYPE_SOLARIS_BOOT;
+static struct uuid gpt_uuid_solaris_root = GPT_ENT_TYPE_SOLARIS_ROOT;
+static struct uuid gpt_uuid_solaris_swap = GPT_ENT_TYPE_SOLARIS_SWAP;
+static struct uuid gpt_uuid_solaris_backup = GPT_ENT_TYPE_SOLARIS_BACKUP;
+static struct uuid gpt_uuid_solaris_var = GPT_ENT_TYPE_SOLARIS_VAR;
+static struct uuid gpt_uuid_solaris_home = GPT_ENT_TYPE_SOLARIS_HOME;
+static struct uuid gpt_uuid_solaris_altsec = GPT_ENT_TYPE_SOLARIS_ALTSEC;
+static struct uuid gpt_uuid_solaris_reserved = GPT_ENT_TYPE_SOLARIS_RESERVED;
 static struct uuid gpt_uuid_unused = GPT_ENT_TYPE_UNUSED;
 static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
 static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
@@ -229,6 +238,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_apple_raid_offline,	G_PART_ALIAS_APPLE_RAID_OFFLINE, 0 },
 	{ &gpt_uuid_apple_tv_recovery,	G_PART_ALIAS_APPLE_TV_RECOVERY,	 0 },
 	{ &gpt_uuid_apple_ufs,		G_PART_ALIAS_APPLE_UFS,		 0 },
+	{ &gpt_uuid_apple_zfs,		G_PART_ALIAS_APPLE_ZFS,		 0 },
 	{ &gpt_uuid_bios_boot,		G_PART_ALIAS_BIOS_BOOT,		 0 },
 	{ &gpt_uuid_chromeos_firmware,	G_PART_ALIAS_CHROMEOS_FIRMWARE,	 0 },
 	{ &gpt_uuid_chromeos_kernel,	G_PART_ALIAS_CHROMEOS_KERNEL,	 0 },
@@ -270,6 +280,14 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_netbsd_swap,	G_PART_ALIAS_NETBSD_SWAP,	 0 },
 	{ &gpt_uuid_openbsd_data,	G_PART_ALIAS_OPENBSD_DATA,	 0 },
 	{ &gpt_uuid_prep_boot,		G_PART_ALIAS_PREP_BOOT,		 0x41 },
+	{ &gpt_uuid_solaris_boot,	G_PART_ALIAS_SOLARIS_BOOT,	 0 },
+	{ &gpt_uuid_solaris_root,	G_PART_ALIAS_SOLARIS_ROOT,	 0 },
+	{ &gpt_uuid_solaris_swap,	G_PART_ALIAS_SOLARIS_SWAP,	 0 },
+	{ &gpt_uuid_solaris_backup,	G_PART_ALIAS_SOLARIS_BACKUP,	 0 },
+	{ &gpt_uuid_solaris_var,	G_PART_ALIAS_SOLARIS_VAR,	 0 },
+	{ &gpt_uuid_solaris_home,	G_PART_ALIAS_SOLARIS_HOME,	 0 },
+	{ &gpt_uuid_solaris_altsec,	G_PART_ALIAS_SOLARIS_ALTSEC,	 0 },
+	{ &gpt_uuid_solaris_reserved,	G_PART_ALIAS_SOLARIS_RESERVED,	 0 },
 	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
 	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
 	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
