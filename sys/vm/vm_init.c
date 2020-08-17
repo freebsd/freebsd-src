@@ -253,8 +253,8 @@ again:
 	exec_map_entries = 2 * mp_ncpus + 4;
 #endif
 	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
-	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-	    exec_map_entries * exec_map_entry_size + 64 * PAGE_SIZE, FALSE);
-	pipe_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr, maxpipekva,
-	    FALSE);
+	kmem_subinit(exec_map, kernel_map, &minaddr, &maxaddr,
+	    exec_map_entries * exec_map_entry_size + 64 * PAGE_SIZE, false);
+	kmem_subinit(pipe_map, kernel_map, &minaddr, &maxaddr, maxpipekva,
+	    false);
 }
