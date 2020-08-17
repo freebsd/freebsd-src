@@ -110,6 +110,7 @@ SRCS+=	__getosreldate.c \
 	recvmmsg.c \
 	rewinddir.c \
 	scandir.c \
+	scandir_b.c \
 	seed48.c \
 	seekdir.c \
 	semctl.c \
