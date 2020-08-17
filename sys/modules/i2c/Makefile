@@ -20,6 +20,7 @@ SUBDIR = \
 	jedec_dimm \
 	mux \
 	nxprtc \
+	pcf8591 \
 	rtc8583 \
 	s35390a \
 	smb \
