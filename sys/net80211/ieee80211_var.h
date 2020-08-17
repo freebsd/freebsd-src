@@ -924,7 +924,7 @@ static __inline int
 ieee80211_vhtchanflags(const struct ieee80211_channel *c)
 {
 
-	if (IEEE80211_IS_CHAN_VHT80_80(c))
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
 		return IEEE80211_FVHT_USEVHT80P80;
 	if (IEEE80211_IS_CHAN_VHT160(c))
 		return IEEE80211_FVHT_USEVHT160;

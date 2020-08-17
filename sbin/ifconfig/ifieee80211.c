@@ -2177,7 +2177,7 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 			/*
 			 * VHT first - HT is a subset.
 			 *
-			 * XXX TODO: VHT80p80, VHT160 is not yet done.
+			 * XXX TODO: VHT80P80, VHT160 is not yet done.
 			 */
 			if (flags & IEEE80211_CHAN_VHT) {
 				if ((chanFlags & IEEE80211_CHAN_VHT20) &&
@@ -2387,7 +2387,7 @@ regdomain_makechannels(
 				    &dc->dc_chaninfo);
 			}
 
-			/* XXX TODO: VHT80_80, VHT160 */
+			/* XXX TODO: VHT80P80, VHT160 */
 		}
 
 		if (!LIST_EMPTY(&rd->bands_11ng) && dc->dc_htcaps != 0) {
@@ -4015,7 +4015,7 @@ chanpref(const struct ieee80211_channel *c)
 {
 	if (IEEE80211_IS_CHAN_VHT160(c))
 		return 80;
-	if (IEEE80211_IS_CHAN_VHT80_80(c))
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
 		return 75;
 	if (IEEE80211_IS_CHAN_VHT80(c))
 		return 70;

@@ -1957,7 +1957,7 @@ ieee80211_vht_get_vhtflags(struct ieee80211_node *ni, uint32_t htflags)
 		    (MS(vap->iv_vhtcaps,
 		     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2) &&
 		    (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80P80)) {
-			vhtflags = IEEE80211_CHAN_VHT80_80;
+			vhtflags = IEEE80211_CHAN_VHT80P80;
 			/* Mirror the HT40 flags */
 			if (htflags == IEEE80211_CHAN_HT40U) {
 				vhtflags |= IEEE80211_CHAN_HT40U;
