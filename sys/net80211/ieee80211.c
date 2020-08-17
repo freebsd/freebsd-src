@@ -529,8 +529,7 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		ic_printf(ic, "%s: unable to allocate ifnet\n",
-		    __func__);
+		ic_printf(ic, "%s: unable to allocate ifnet\n", __func__);
 		return ENOMEM;
 	}
 	if_initname(ifp, name, unit);
@@ -1210,9 +1209,7 @@ set_vht_extchan(struct ieee80211_channel *c)
 	}
 
 	printf("%s: unknown VHT channel type (ieee=%d, flags=0x%08x)\n",
-	    __func__,
-	    c->ic_ieee,
-	    c->ic_flags);
+	    __func__, c->ic_ieee, c->ic_flags);
 
 	return (0);
 }
@@ -1247,11 +1244,7 @@ addchan(struct ieee80211_channel chans[], int maxchans, int *nchans,
 
 #if 0
 	printf("%s: %d: ieee=%d, freq=%d, flags=0x%08x\n",
-	    __func__,
-	    *nchans,
-	    ieee,
-	    freq,
-	    flags);
+	    __func__, *nchans, ieee, freq, flags);
 #endif
 
 	c = &chans[(*nchans)++];
@@ -1281,9 +1274,7 @@ copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
 
 #if 0
 	printf("%s: %d: flags=0x%08x\n",
-	    __func__,
-	    *nchans,
-	    flags);
+	    __func__, *nchans, flags);
 #endif
 
 	c = &chans[(*nchans)++];
@@ -1779,11 +1770,7 @@ ieee80211_lookup_channel_rxstatus(struct ieee80211vap *vap,
 
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_INPUT,
 	    "%s: freq=%d, ieee=%d, flags=0x%08x; c=%p\n",
-	    __func__,
-	    (int) rxs->c_freq,
-	    (int) rxs->c_ieee,
-	    flags,
-	    c);
+	    __func__, (int) rxs->c_freq, (int) rxs->c_ieee, flags, c);
 
 	return (c);
 }

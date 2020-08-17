@@ -93,9 +93,7 @@ vht_recv_action_placeholder(struct ieee80211_node *ni,
 
 #ifdef IEEE80211_DEBUG
 	ieee80211_note(ni->ni_vap, "%s: called; fc=0x%.2x/0x%.2x",
-	    __func__,
-	    wh->i_fc[0],
-	    wh->i_fc[1]);
+	    __func__, wh->i_fc[0], wh->i_fc[1]);
 #endif
 	return (0);
 }
@@ -107,9 +105,7 @@ vht_send_action_placeholder(struct ieee80211_node *ni,
 
 #ifdef IEEE80211_DEBUG
 	ieee80211_note(ni->ni_vap, "%s: called; category=%d, action=%d",
-	    __func__,
-	    category,
-	    action);
+	    __func__, category, action);
 #endif
 	return (EINVAL);
 }
@@ -229,9 +225,7 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 		if (tx == 3 && rx == 3)
 			continue;
 		ic_printf(ic, "[VHT] NSS %d: TX MCS 0..%d, RX MCS 0..%d\n",
-		    i + 1,
-		    vht_mcs_to_num(tx),
-		    vht_mcs_to_num(rx));
+		    i + 1, vht_mcs_to_num(tx), vht_mcs_to_num(rx));
 	}
 }
 
@@ -269,10 +263,7 @@ ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
 
 #if 0
 	printf("%s: chan1=%d, chan2=%d, chanwidth=%d, basicmcs=0x%04x\n",
-	    __func__,
-	    ni->ni_vht_chan1,
-	    ni->ni_vht_chan2,
-	    ni->ni_vht_chanwidth,
+	    __func__, ni->ni_vht_chan1, ni->ni_vht_chan2, ni->ni_vht_chanwidth,
 	    ni->ni_vht_basicmcs);
 #endif
 }
@@ -702,27 +693,20 @@ ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 	 * well?
 	 */
 
-	if (IEEE80211_IS_CHAN_VHT160(c)) {
+	if (IEEE80211_IS_CHAN_VHT160(c))
 		return IEEE80211_VHT_CHANWIDTH_160MHZ;
-	}
-	if (IEEE80211_IS_CHAN_VHT80P80(c)) {
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
 		return IEEE80211_VHT_CHANWIDTH_80P80MHZ;
-	}
-	if (IEEE80211_IS_CHAN_VHT80(c)) {
+	if (IEEE80211_IS_CHAN_VHT80(c))
 		return IEEE80211_VHT_CHANWIDTH_80MHZ;
-	}
-	if (IEEE80211_IS_CHAN_VHT40(c)) {
+	if (IEEE80211_IS_CHAN_VHT40(c))
 		return IEEE80211_VHT_CHANWIDTH_USE_HT;
-	}
-	if (IEEE80211_IS_CHAN_VHT20(c)) {
+	if (IEEE80211_IS_CHAN_VHT20(c))
 		return IEEE80211_VHT_CHANWIDTH_USE_HT;
-	}
 
 	/* We shouldn't get here */
 	printf("%s: called on a non-VHT channel (freq=%d, flags=0x%08x\n",
-	    __func__,
-	    (int) c->ic_freq,
-	    c->ic_flags);
+	    __func__, (int) c->ic_freq, c->ic_flags);
 	return IEEE80211_VHT_CHANWIDTH_USE_HT;
 }
 
