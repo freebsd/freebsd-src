@@ -705,7 +705,7 @@ ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 	if (IEEE80211_IS_CHAN_VHT160(c)) {
 		return IEEE80211_VHT_CHANWIDTH_160MHZ;
 	}
-	if (IEEE80211_IS_CHAN_VHT80_80(c)) {
+	if (IEEE80211_IS_CHAN_VHT80P80(c)) {
 		return IEEE80211_VHT_CHANWIDTH_80P80MHZ;
 	}
 	if (IEEE80211_IS_CHAN_VHT80(c)) {
@@ -817,7 +817,7 @@ ieee80211_vht_adjust_channel(struct ieee80211com *ic,
 		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80);
 
 	if ((c == NULL) && (flags & IEEE80211_FVHT_USEVHT80P80))
-		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80_80);
+		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80P80);
 
 	if ((c == NULL) && (flags & IEEE80211_FVHT_USEVHT80))
 		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80);
