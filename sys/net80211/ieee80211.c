@@ -1367,8 +1367,8 @@ getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 		    IEEE80211_CHAN_HT40D | IEEE80211_CHAN_VHT80;
 	}
 
-	/* XXX VHT80+80 */
 	/* XXX VHT160 */
+	/* XXX VHT80+80 */
 	flags[nmodes] = 0;
 }
 
@@ -1555,6 +1555,9 @@ add_chanlist(struct ieee80211_channel chans[], int maxchans, int *nchans,
 			 *   check used for (V)HT40.
 			 */
 			is_vht = !! (flags[j] & IEEE80211_CHAN_VHT);
+
+			/* XXX TODO FIXME VHT80P80. */
+			/* XXX TODO FIXME VHT160. */
 
 			/*
 			 * Test for VHT80.
