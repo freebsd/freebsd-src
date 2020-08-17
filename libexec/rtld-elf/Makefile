@@ -29,7 +29,6 @@ SRCS= \
 	debug.c \
 	libmap.c
 MAN?=		rtld.1
-CSTD?=		gnu99
 ACFLAGS+=	-DLOCORE
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD -ffreestanding
 CFLAGS+=	-I${SRCTOP}/lib/csu/common
