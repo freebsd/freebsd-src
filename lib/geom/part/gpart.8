@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2019
+.Dd August 17, 2020
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -312,7 +312,7 @@ option.
 The partition cannot be actively used by the kernel.
 .Pp
 The
-.cm delete
+.Cm delete
 command accepts these options:
 .Bl -tag -width 10n
 .It Fl f Ar flags
@@ -755,6 +755,15 @@ for MBR,
 for APM and
 .Qq Li "!55465300-0000-11aa-aa11-00306543ecac"
 for GPT.
+.It Cm apple-zfs
+An Apple Mac OS X partition that contains a ZFS volume.
+The scheme-specific type is
+.Qq Li "!6a898cc3-1dd2-11b2-99a6-080020736631"
+for GPT. The same GUID is being used also for
+.Sy illumos/Solaris /usr partition .
+See
+.Sx CAVEATS
+section below.
 .It Cm dragonfly-label32
 A DragonFlyBSD partition subdivided into filesystems with a
 .Bx
@@ -920,7 +929,47 @@ notably those made by IBM.
 The scheme-specific types are
 .Qq Li "!65"
 for MBR and
-.Qq Li "!0x9e1a2d38-c612-4316-aa26-8b49521e5a8b"
+.Qq Li "!9e1a2d38-c612-4316-aa26-8b49521e5a8b"
+for GPT.
+.It Cm solaris-boot
+A illumos/Solaris partition dedicated to boot loader.
+The scheme-specific type is
+.Qq Li "!6a82cb45-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-root
+A illumos/Solaris partition dedicated to root filesystem.
+The scheme-specific type is
+.Qq Li "!6a85cf4d-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-swap
+A illumos/Solaris partition dedicated to swap.
+The scheme-specific type is
+.Qq Li "!6a87c46f-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-backup
+A illumos/Solaris partition dedicated to backup.
+The scheme-specific type is
+.Qq Li "!6a8b642b-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-var
+A illumos/Solaris partition dedicated to /var filesystem.
+The scheme-specific type is
+.Qq Li "!6a8ef2e9-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-home
+A illumos/Solaris partition dedicated to /home filesystem.
+The scheme-specific type is
+.Qq Li "!6a90ba39-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-altsec
+A illumos/Solaris partition dedicated to alternate sector.
+The scheme-specific type is
+.Qq Li "!6a9283a5-1dd2-11b2-99a6-080020736631"
+for GPT.
+.It Cm solaris-reserved
+A illumos/Solaris partition dedicated to reserved space.
+The scheme-specific type is
+.Qq Li "!6a945a3b-1dd2-11b2-99a6-080020736631"
 for GPT.
 .It Cm vmware-vmfs
 A partition that contains a VMware File System (VMFS).
@@ -1466,3 +1515,8 @@ utility appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 .An Marcel Moolenaar Aq Mt marcel@FreeBSD.org
+.Sh CAVEATS
+Partition type
+.Em apple-zfs
+(6a898cc3-1dd2-11b2-99a6-080020736631) is also being used
+on illumos/Solaris platforms for ZFS volumes.
