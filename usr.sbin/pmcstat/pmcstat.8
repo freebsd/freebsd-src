@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2020
+.Dd August 17, 2020
 .Dt PMCSTAT 8
 .Os
 .Sh NAME
@@ -224,11 +224,40 @@ Allocate a system mode sampling PMC measuring hardware events
 specified in
 .Ar event-spec .
 .It Fl T
-Use a top like mode for sampling PMCs. The following hotkeys
-can be used: 'A' toggle symbol resolution, 'c+a' switch to accumulative mode, 'c+d'
-switch to delta mode, 'I' toggle showing offsets into symbols, 'm' merge PMCs, 'n'
-change view, 'p' show next PMC, ' ' pause, 'q' quit. calltree only: 'f' cost under
-threshold is seen as a dot.
+Use a
+.Xr top 1 Ns -like
+mode for sampling PMCs. The following hotkeys
+can be used:
+.Pp
+.Bl -tag -compact -width "Ctrl+a" -offset 4n
+.It Ic A
+Toggle symbol resolution
+.Sm off
+.It Ic Ctrl + a
+.Sm on
+Switch to accumulative mode
+.Sm off
+.It Ic Ctrl + d
+.Sm on
+Switch to delta mode
+.It Ic f
+Represent the
+.Dq f
+cost under
+threshold as a dot (calltree only)
+.It Ic I
+Toggle showing offsets into symbols
+.It Ic m
+Merge PMCs
+.It Ic n
+Change view
+.It Ic p
+Show next PMC
+.It Ic q
+Quit
+.It Ic Space
+Pause
+.El
 .It Fl U
 Toggle capturing user-space call traces while in kernel mode.
 The default is for sampling PMCs to capture user-space callchain information
