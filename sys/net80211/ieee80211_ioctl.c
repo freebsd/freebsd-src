@@ -1162,17 +1162,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 
 	/* VHT */
 	case IEEE80211_IOC_VHTCONF:
-		ireq->i_val = 0;
-		if (vap->iv_flags_vht & IEEE80211_FVHT_VHT)
-			ireq->i_val |= 1;
-		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT40)
-			ireq->i_val |= 2;
-		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80)
-			ireq->i_val |= 4;
-		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT80P80)
-			ireq->i_val |= 8;
-		if (vap->iv_flags_vht & IEEE80211_FVHT_USEVHT160)
-			ireq->i_val |= 16;
+		ireq->i_val = vap->iv_flags_vht & IEEE80211_FVHT_MASK;
 		break;
 
 	default:
@@ -3493,30 +3483,30 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 
 	/* VHT */
 	case IEEE80211_IOC_VHTCONF:
-		if (ireq->i_val & 1)
+		if (ireq->i_val & IEEE80211_FVHT_VHT)
 			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_VHT);
 		else
 			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_VHT);
 
-		if (ireq->i_val & 2)
+		if (ireq->i_val & IEEE80211_FVHT_USEVHT40)
 			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT40);
 		else
 			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT40);
 
-		if (ireq->i_val & 4)
+		if (ireq->i_val & IEEE80211_FVHT_USEVHT80)
 			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT80);
 		else
 			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT80);
 
-		if (ireq->i_val & 8)
-			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT80P80);
-		else
-			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT80P80);
-
-		if (ireq->i_val & 16)
+		if (ireq->i_val & IEEE80211_FVHT_USEVHT160)
 			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT160);
 		else
 			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT160);
+
+		if (ireq->i_val & IEEE80211_FVHT_USEVHT80P80)
+			ieee80211_syncflag_vht(vap, IEEE80211_FVHT_USEVHT80P80);
+		else
+			ieee80211_syncflag_vht(vap, -IEEE80211_FVHT_USEVHT80P80);
 
 		error = ENETRESET;
 		break;
