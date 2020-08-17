@@ -1,0 +1,122 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2020 Andriy Gapon <avg@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD: head/share/man/man4/cp2112.4 364144 2020-08-12 09:42:05Z avg $
+.\"
+.Dd November 6, 2021
+.Dt PCF8591 4
+.Os
+.Sh NAME
+.Nm pcf8591
+.Nd driver for the PCF8591 8-bit A/D and D/A converter
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pcf8591"
+.Cd "device iicbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+pcf8591_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports reading four inputs and setting one output over I2C.
+The hardware supports configuring the input lines as:
+.Bl -bullet
+.It
+four single-ended inputs
+.It
+three differential inputs (one input line is shared between all three inputs)
+.It
+two single-ended inputs and one differential input
+.It
+two differential inputs.
+.El
+.Pp
+The
+.Nm
+driver reports data via
+.Xr sysctl 8
+entries in the device's node in the
+.Xr sysctl 8
+tree:
+.Bl -tag -width inputs.%d
+.It Va inputs.%d
+The input level of the corresponding input in steps between 0 and 255.
+Absolute voltage depends on an actual reference voltage.
+.El
+.Pp
+On an
+.Xr FDT 4
+based system the following properties must be set:
+.Bl -tag -width "compatible"
+.It Va compatible
+Must be set to "nxp,pcf8591".
+.It Va reg
+The I2C address of
+.Nm .
+It should be in the range from 0x40 to 0x4f (7-bit).
+.El
+.Pp
+The DTS part for a
+.Nm
+device usually looks like:
+.Bd -literal
+/ {
+
+	...
+	pcf8591adc {
+		compatible = "nxp,pcf8591";
+		reg = <0x48>;
+	};
+};
+.Ed
+.Sh SEE ALSO
+.Xr fdt 4 ,
+.Xr iicbus 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver and this manual page was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .
+.Sh BUGS
+The
+.Nm
+driver does not support changing the input configuration.
+All input lines are configured as single-ended inputs.
+.Pp
+The
+.Nm
+driver does not support setting the output.
+It is always disabled (tri-state).

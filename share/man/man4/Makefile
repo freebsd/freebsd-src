@@ -424,6 +424,7 @@ MAN=	aac.4 \
 	pccard.4 \
 	pccbb.4 \
 	pcf.4 \
+	pcf8591.4 \
 	${_pchtherm.4} \
 	pci.4 \
 	pcib.4 \
