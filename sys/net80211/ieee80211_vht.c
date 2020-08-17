@@ -161,7 +161,13 @@ ieee80211_vht_vattach(struct ieee80211vap *vap)
 	    IEEE80211_FVHT_VHT
 	    | IEEE80211_FVHT_USEVHT40
 	    | IEEE80211_FVHT_USEVHT80;
+#if 0
 	/* XXX TODO: enable VHT80+80, VHT160 capabilities */
+	if (XXX TODO FIXME)
+		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT160;
+	if (XXX TODO FIXME)
+		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT80P80;
+#endif
 
 	memcpy(&vap->iv_vht_mcsinfo, &ic->ic_vht_mcsinfo,
 	    sizeof(struct ieee80211_vht_mcs_info));
