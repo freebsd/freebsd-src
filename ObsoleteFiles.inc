@@ -535,6 +535,10 @@ OLD_LIBS+=usr/lib32/padlock.so
 
 # 20200528: libevent renamed libevent1
 OLD_FILES+=usr/include/private/event/event.h
+OLD_FILES+=usr/lib/libprivateevent.a
+OLD_FILES+=usr/lib/libprivateevent.so
+OLD_FILES+=usr/lib/libprivateevent.so.1
+OLD_FILES+=usr/lib/libprivateevent_p.a
 OLD_DIRS+=usr/include/private/event
 
 # 20200523: new clang import which bumps version from 10.0.0 to 10.0.1.
