@@ -1797,7 +1797,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ses_elem_index_type_t index_type;
 
 			eip_hdr = (struct ses_elm_addlstatus_eip_hdr *)elm_hdr;
-			if (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE) {
+			if (SES_ADDL_EIP_EIIOE_EI_GLOB(eip_hdr->byte2)) {
 				index_type = SES_ELEM_INDEX_GLOBAL;
 				expected_index = iter.global_element_index;
 			} else {
@@ -1807,8 +1807,8 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			if (eip_hdr->element_index < expected_index) {
 				ENC_VLOG(enc, "%s: provided %selement index "
 				    "%d is lower then expected %d\n",
-				    __func__, (eip_hdr->byte2 &
-				    SES_ADDL_EIP_EIIOE) ? "global " : "",
+				    __func__, SES_ADDL_EIP_EIIOE_EI_GLOB(
+				    eip_hdr->byte2) ? "global " : "",
 				    eip_hdr->element_index, expected_index);
 				goto badindex;
 			}
@@ -1818,7 +1818,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			if (telement == NULL) {
 				ENC_VLOG(enc, "%s: provided %selement index "
 				    "%d does not exist\n", __func__,
-				    (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE) ?
+				    SES_ADDL_EIP_EIIOE_EI_GLOB(eip_hdr->byte2) ?
 				    "global " : "", eip_hdr->element_index);
 				goto badindex;
 			}
@@ -1827,7 +1827,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 				ENC_VLOG(enc, "%s: provided %selement index "
 				    "%d can't have additional status\n",
 				    __func__,
-				    (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE) ?
+				    SES_ADDL_EIP_EIIOE_EI_GLOB(eip_hdr->byte2) ?
 				    "global " : "", eip_hdr->element_index);
 badindex:
 				/*
@@ -1843,7 +1843,7 @@ badindex:
 				element = telement;
 			}
 
-			if (eip_hdr->byte2 & SES_ADDL_EIP_EIIOE)
+			if (SES_ADDL_EIP_EIIOE_EI_GLOB(eip_hdr->byte2))
 				index = iter.global_element_index;
 			else
 				index = iter.individual_element_index;
@@ -1852,8 +1852,8 @@ badindex:
 				ENC_VLOG(enc, "%s: provided %s element"
 					"index %d skips mandatory status "
 					" element at index %d\n",
-					__func__, (eip_hdr->byte2 &
-					SES_ADDL_EIP_EIIOE) ? "global " : "",
+					__func__, SES_ADDL_EIP_EIIOE_EI_GLOB(
+					eip_hdr->byte2) ? "global " : "",
 					index, expected_index);
 			}
 		}
