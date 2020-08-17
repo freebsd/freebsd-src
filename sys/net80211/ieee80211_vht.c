@@ -211,10 +211,10 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 
 	/* Channel width */
 	ic_printf(ic, "[VHT] Channel Widths: 20MHz, 40MHz, 80MHz");
-	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
-		printf(" 80+80MHz");
 	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1)
 		printf(" 160MHz");
+	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
+		printf(" 80+80MHz");
 	printf("\n");
 
 	/* Features */

@@ -2176,8 +2176,6 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 
 			/*
 			 * VHT first - HT is a subset.
-			 *
-			 * XXX TODO: VHT80P80, VHT160 is not yet done.
 			 */
 			if (flags & IEEE80211_CHAN_VHT) {
 				if ((chanFlags & IEEE80211_CHAN_VHT20) &&
@@ -2201,7 +2199,20 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 						    "VHT80 channel\n", freq);
 					continue;
 				}
-
+				if ((chanFlags & IEEE80211_CHAN_VHT160) &&
+				    (flags & IEEE80211_CHAN_VHT160) == 0) {
+					if (verbose)
+						printf("%u: skip, not a "
+						    "VHT160 channel\n", freq);
+					continue;
+				}
+				if ((chanFlags & IEEE80211_CHAN_VHT80P80) &&
+				    (flags & IEEE80211_CHAN_VHT80P80) == 0) {
+					if (verbose)
+						printf("%u: skip, not a "
+						    "VHT80+80 channel\n", freq);
+					continue;
+				}
 				flags &= ~IEEE80211_CHAN_VHT;
 				flags |= chanFlags & IEEE80211_CHAN_VHT;
 			}
@@ -3958,8 +3969,11 @@ get_chaninfo(const struct ieee80211_channel *c, int precise,
 	if (IEEE80211_IS_CHAN_TURBO(c))
 		strlcat(buf, " Turbo", bsize);
 	if (precise) {
-		/* XXX should make VHT80U, VHT80D */
-		if (IEEE80211_IS_CHAN_VHT80(c) &&
+		if (IEEE80211_IS_CHAN_VHT80P80(c))
+			strlcat(buf, " vht/80p80", bsize);
+		else if (IEEE80211_IS_CHAN_VHT160(c))
+			strlcat(buf, " vht/160", bsize);
+		else if (IEEE80211_IS_CHAN_VHT80(c) &&
 		    IEEE80211_IS_CHAN_HT40D(c))
 			strlcat(buf, " vht/80-", bsize);
 		else if (IEEE80211_IS_CHAN_VHT80(c) &&
@@ -4013,10 +4027,11 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 static int
 chanpref(const struct ieee80211_channel *c)
 {
+
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
+		return 90;
 	if (IEEE80211_IS_CHAN_VHT160(c))
 		return 80;
-	if (IEEE80211_IS_CHAN_VHT80P80(c))
-		return 75;
 	if (IEEE80211_IS_CHAN_VHT80(c))
 		return 70;
 	if (IEEE80211_IS_CHAN_VHT40(c))
