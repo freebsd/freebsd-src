@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #define	SELECT(x)	select(x)
 
-void qsort_b(void *, size_t, size_t, void *);
-
 static int freebsd11_alphasort_thunk(void *thunk, const void *p1,
     const void *p2);
 
