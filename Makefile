@@ -578,7 +578,7 @@ universe_${target}_worlds: .PHONY
 _need_clang_${target}_${target_arch} != \
 	env TARGET=${target} TARGET_ARCH=${target_arch} \
 	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-compiler \
-	    ${MAKE_PARAMS_${target}} -V MK_CLANG_BOOTSTRAP 2>/dev/null || \
+	    ${MAKE_PARAMS_${target_arch}} -V MK_CLANG_BOOTSTRAP 2>/dev/null || \
 	    echo unknown
 .export _need_clang_${target}_${target_arch}
 .endif
@@ -586,7 +586,7 @@ _need_clang_${target}_${target_arch} != \
 _need_lld_${target}_${target_arch} != \
 	env TARGET=${target} TARGET_ARCH=${target_arch} \
 	${SUB_MAKE} -C ${.CURDIR} -f Makefile.inc1 test-system-linker \
-	    ${MAKE_PARAMS_${target}} -V MK_LLD_BOOTSTRAP 2>/dev/null || \
+	    ${MAKE_PARAMS_${target_arch}} -V MK_LLD_BOOTSTRAP 2>/dev/null || \
 	    echo unknown
 .export _need_lld_${target}_${target_arch}
 .endif
@@ -600,14 +600,14 @@ _need_lld_${target}_${target_arch} != \
 # XXX: Passing HOST_OBJTOP into the PATH would allow skipping legacy,
 #      bootstrap-tools, and cross-tools.  Need to ensure each tool actually
 #      supports all TARGETS though.
-MAKE_PARAMS_${target}+= \
+MAKE_PARAMS_${target_arch}+= \
 	XCC="${HOST_OBJTOP}/tmp/usr/bin/cc" \
 	XCXX="${HOST_OBJTOP}/tmp/usr/bin/c++" \
 	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp"
 .endif
 .if defined(_need_lld_${target}_${target_arch}) && \
     ${_need_lld_${target}_${target_arch}} == "yes"
-MAKE_PARAMS_${target}+= \
+MAKE_PARAMS_${target_arch}+= \
 	XLD="${HOST_OBJTOP}/tmp/usr/bin/ld"
 .endif
 .endfor
@@ -630,7 +630,7 @@ universe_${target}_${target_arch}: universe_${target}_prologue .MAKE .PHONY
 	    ${SUB_MAKE} ${JFLAG} ${UNIVERSE_TARGET} \
 	    TARGET=${target} \
 	    TARGET_ARCH=${target_arch} \
-	    ${MAKE_PARAMS_${target}} \
+	    ${MAKE_PARAMS_${target_arch}} \
 	    > _.${target}.${target_arch}.${UNIVERSE_TARGET} 2>&1 || \
 	    (echo "${target}.${target_arch} ${UNIVERSE_TARGET} failed," \
 	    "check _.${target}.${target_arch}.${UNIVERSE_TARGET} for details" | \
@@ -694,7 +694,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
-	    ${MAKE_PARAMS_${TARGET}} \
+	    ${MAKE_PARAMS_${TARGET_ARCH}} \
 	    KERNCONF=${kernel} \
 	    > _.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \
