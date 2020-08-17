@@ -286,7 +286,7 @@ struct ieee80211_wme_state {
 	u_int	wme_hipri_switch_thresh;/* aggressive mode switch thresh */
 	u_int	wme_hipri_switch_hysteresis;/* aggressive mode switch hysteresis */
 
-	struct wmeParams wme_params[4];		/* from assoc resp for each AC*/
+	struct wmeParams wme_params[WME_NUM_AC]; /* from assoc resp for each AC */
 	struct chanAccParams wme_wmeChanParams;	/* WME params applied to self */
 	struct chanAccParams wme_wmeBssChanParams;/* WME params bcast to stations */
 	struct chanAccParams wme_chanParams;	/* params applied to self */
