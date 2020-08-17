@@ -507,6 +507,10 @@ MK_DMAGENT:=	no
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
 MK_LDNS:=	no
+MK_PKGBOOTSTRAP:=	no
+MK_SVN:=		no
+MK_SVNLITE:=		no
+MK_WIRELESS:=		no
 .endif
 
 .if ${MK_LDNS} == "no"
