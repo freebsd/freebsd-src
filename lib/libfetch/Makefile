@@ -23,8 +23,6 @@ LIBADD+=	md
 
 CFLAGS+=	-DFTP_COMBINE_CWDS
 
-CSTD?=		c99
-
 SHLIB_MAJOR=    6
 
 ftperr.h: ftp.errors ${.CURDIR}/Makefile
