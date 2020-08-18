@@ -130,7 +130,7 @@ struct ng_pipe_cfg {
 /* Config structure for one hook */
 struct ng_pipe_hookcfg {
   u_int64_t  bandwidth;       /* bits per second */
-  u_int64_t  ber;             /* errors per 2^48 bits */
+  u_int64_t  ber;             /* avg. interval between bit errors (1 / BER) */
   u_int32_t  qin_size_limit;  /* number of queue items */
   u_int32_t  qout_size_limit; /* number of queue items */
   u_int32_t  duplicate;       /* probability in % */
