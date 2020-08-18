@@ -470,6 +470,79 @@ Notification that a process has crashed and dumped core.
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li PMU Ta Ta Ta
+Notification of events from various types of Power Management Units.
+.It Li PMU Ta Li "AC" Ta Ta
+Notifications of AC power related events.
+.It Li PMU Ta Li "AC" Ta Li overvoltage Ta
+An over voltage ondition was detected on the AC power line.
+.It Li PMU Ta Li "AC" Ta Li plugged Ta
+Power has been applied to the AC power line.
+.It Li PMU Ta Li "AC" Ta Li unplugged Ta
+Power has been removed from the AC power line.
+.It Li PMU Ta Li Battery Ta Ta
+.It Li PMU Ta Li Battery Ta absent Ta
+Battery is no longer absent.
+.It Li PMU Ta Li Battery Ta charged Ta
+The battery has become charged.
+.It Li PMU Ta Li Battery Ta charging Ta
+The battery has started charging.
+.It Li PMU Ta Li Battery Ta disconnected Ta
+The battery has been disconnected.
+.It Li PMU Ta Li Battery Ta high-temp Ta
+The battery reported a temperature over the limit.
+.It Li PMU Ta Li Battery Ta low-temp Ta
+The battery reported a temperature under the limit.
+.It Li PMU Ta Li Battery Ta plugged Ta
+The battery has become plugged (eg connected).
+.It Li PMU Ta Li Battery Ta shutdown-threshold Ta
+The power in the battery has fallen below the shutdown threshold.
+.It Li PMU Ta Li Battery Ta warning-threshold Ta
+The power in the battery has fallen below the warn the user threshold.
+.It Li PMU Ta Li Button Ta pressed Ta
+A button on a
+.Xr adb 4
+or
+.Xr pmu 4
+has been pressed.
+.It Li PMU Ta Li keys Ta Ta
+One of the keys on the
+.Xr adb 4
+keyboard has been pressed.
+.It Li PMU Ta Li keys Ta brightness Ta
+A brightness level change has been requested.
+Direction is in the $notify variable.
+.It Li PMU Ta Li keys Ta mute Ta
+The mute key 
+.It Li PMU Ta Li keys Ta volume Ta
+A volume level change has been requested.
+Direction is in the $notify variable.
+.It Li PMU Ta Li keys Ta eject Ta
+An ejection has been requested.
+.It Li PMU Ta Li lid Ta close Ta
+The
+.Xr pmc 4
+device has detected the lid closing.
+.It Li PMU Ta Li lid Ta open Ta
+The
+.Xr pmc 4
+device has detected the lid openinging.
+.It Li PMU Ta Li POWER Ta ACLINE Ta
+The
+.Xr pmc 4
+device has deteted an AC line state ($notify=0x00 is offline, 0x01 is online).
+.It Li PMU Ta Li USB Ta overvoltage Ta
+An over-voltage condition on the power lines for the USB power pins.
+.It Li PMU Ta Li USB Ta plugged Ta
+A device has been plugged into a USB device.
+.It Li PMU Ta Li USB Ta undervoltage Ta
+An under-voltage condition on the power lines for the USB power pins.
+.It Li PMU Ta Li USB Ta unplugged Ta
+A device has been unplugged into a USB device.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li RCTL Ta Ta Ta
 Events related to the
 .Xr rctl 8
@@ -492,7 +565,6 @@ USB interface is attached to a device.
 USB interface is detached from a device.
 .El
 .Pp
-
 .\"
 .\" End of tables
 .\"
