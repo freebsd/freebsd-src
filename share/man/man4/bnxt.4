@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2019
+.Dd August 18, 2020
 .Dt BNXT 4
 .Os
 .Sh NAME
@@ -130,15 +130,15 @@ completion ring, and the size of the transmit ring respectively.
 The completion ring should be at least twice the size of the transmit ring.
 These numbers must be powers of two, and zero means to use the default.
 Defaults to 0,0.
-.It Va override_qs_enable
+.It Va dev.bnxt.X.iflib.override_qs_enable
 When set, allows the number of transmit and receive queues to be different.
 If not set, the lower of the number of TX or RX queues will be used for both.
-.It Va override_nrxqs
+.It Va dev.bnxt.X.iflib.override_nrxqs
 Set the number of RX queues.
 If zero, the number of RX queues is derived from the number of cores on the
 socket connected to the controller.
 Defaults to 0.
-.It Va override_ntxqs
+.It Va dev.bnxt.X.iflib.override_ntxqs
 Set the number of TX queues.
 If zero, the number of TX queues is derived from the number of cores on the
 socket connected to the controller.
