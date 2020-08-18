@@ -40,7 +40,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd May 31, 2019
+.Dd August 18, 2020
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -252,10 +252,6 @@ Device name of parent bus.
 Device node path if one is created by the
 .Xr devfs 5
 filesystem.
-.It Li cisproduct
-CIS-product.
-.It Li cisvendor
-CIS-vendor.
 .It Li class
 Device class.
 .It Li comm
@@ -284,8 +280,6 @@ Interface Protocol (USB).
 Interface Sub-class (USB).
 .It Li jail
 Jail name for the process triggering the rule (RCTL).
-.It Li manufacturer
-Manufacturer ID (pccard).
 .It Li mode
 Peripheral mode (USB).
 .It Li notify
@@ -299,7 +293,7 @@ PID of the process triggering the rule (RCTL).
 .It Li port
 Hub port number (USB).
 .It Li product
-Product ID (pccard/USB).
+Product ID (USB).
 .It Li release
 Hardware revision (USB).
 .It Li ruid
@@ -311,9 +305,9 @@ Serial Number (USB).
 .It Li slot
 Card slot.
 .It Li subvendor
-Sub-vendor ID.
+Sub-vendor ID (PCI).
 .It Li subdevice
-Sub-device ID.
+Sub-device ID (PCI).
 .It Li subsystem
 Matches a subsystem of a system, see below.
 .It Li system
@@ -644,20 +638,20 @@ notify 0 {
 };
 
 #
-# Try to configure ath and wi devices with pccard_ether
+# Try to configure ath and iwn devices with pccard_ether
 # as they are attached.
 #
 attach 0 {
-        device-name "(ath|wi)[0-9]+";
+        device-name "(ath|iwn)[0-9]+";
         action "/etc/pccard_ether $device-name start";
 };
 
 #
-# Stop ath and wi devices as they are detached from
+# Stop ath and iwn devices as they are detached from
 # the system.
 #
 detach 0 {
-        device-name "(ath|wi)[0-9]+";
+        device-name "(ath|iwn)[0-9]+";
         action "/etc/pccard_ether $device-name stop";
 };
 .Ed
