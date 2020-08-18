@@ -418,6 +418,7 @@ MAN=	aac.4 \
 	owc.4 \
 	${_padlock.4} \
 	pass.4 \
+	pca954x.4 \
 	pccard.4 \
 	pccbb.4 \
 	pcf.4 \
