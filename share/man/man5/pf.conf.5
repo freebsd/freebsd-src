@@ -499,12 +499,12 @@ For example:
 .Bd -literal -offset indent
 set block-policy return
 .Ed
-
 .It Ar set fail-policy
 The
 .Ar fail-policy
-option sets the behaviour of rules which should pass a packet but were unable to
-do so. This might happen when a nat or route-to rule uses an empty table as list
+option sets the behaviour of rules which should pass a packet but were
+unable to do so.
+This might happen when a nat or route-to rule uses an empty table as list
 of targets or if a rule fails to create state or source node.
 The following
 .Ar block
@@ -523,7 +523,6 @@ For example:
 .Bd -literal -offset indent
 set fail-policy return
 .Ed
-
 .It Ar set state-policy
 The
 .Ar state-policy
