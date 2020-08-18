@@ -1124,7 +1124,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 							if (actual + sizeof(struct sockaddr_in6) > limit) {
 								return (actual);
 							}
-							in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)&addr);
+							in6_sin_2_v4mapsin6(sin, (struct sockaddr_in6 *)addr);
 							((struct sockaddr_in6 *)addr)->sin6_port = inp->sctp_lport;
 							addr = (struct sockaddr *)((caddr_t)addr + sizeof(struct sockaddr_in6));
 							actual += sizeof(struct sockaddr_in6);
@@ -2271,7 +2271,7 @@ flags_out:
 					    (net->ro._l_addr.sa.sa_family == AF_INET)) {
 						/* Must map the address */
 						in6_sin_2_v4mapsin6(&net->ro._l_addr.sin,
-						    (struct sockaddr_in6 *)&addr);
+						    (struct sockaddr_in6 *)addr);
 					} else {
 						memcpy(addr, &net->ro._l_addr, cpsz);
 					}
