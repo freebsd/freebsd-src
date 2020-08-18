@@ -104,7 +104,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
 	    args->envp);
-	free(path, M_TEMP);
+	LFREEPATH(path);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	return (error);
