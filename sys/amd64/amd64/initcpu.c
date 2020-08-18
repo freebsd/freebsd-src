@@ -218,6 +218,15 @@ init_via(void)
 }
 
 /*
+ * The value for the TSC_AUX MSR and rdtscp/rdpid.
+ */
+u_int
+cpu_auxmsr(void)
+{
+	return (PCPU_GET(cpuid));
+}
+
+/*
  * Initialize CPU control registers
  */
 void
@@ -283,7 +292,7 @@ initializecpu(void)
 
 	if ((amd_feature & AMDID_RDTSCP) != 0 ||
 	    (cpu_stdext_feature2 & CPUID_STDEXT2_RDPID) != 0)
-		wrmsr(MSR_TSC_AUX, PCPU_GET(cpuid));
+		wrmsr(MSR_TSC_AUX, cpu_auxmsr());
 }
 
 void
