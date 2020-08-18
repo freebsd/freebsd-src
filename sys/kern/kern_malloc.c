@@ -618,9 +618,6 @@ void *
 	unsigned long osize = size;
 #endif
 
-	KASSERT((flags & M_WAITOK) == 0 || THREAD_CAN_SLEEP(),
-	    ("malloc(M_WAITOK) in non-sleepable context"));
-
 #ifdef MALLOC_DEBUG
 	va = NULL;
 	if (malloc_dbg(&va, &size, mtp, flags) != 0)
