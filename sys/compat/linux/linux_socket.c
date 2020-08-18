@@ -1067,7 +1067,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			 * FreeBSD system call interface.
 			 */
 			if (sa_family != AF_UNIX)
-				continue;
+				goto next;
 
 			if (cmsg->cmsg_type == SCM_CREDS) {
 				len = sizeof(struct cmsgcred);
@@ -1094,6 +1094,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			data = (char *)data + CMSG_SPACE(len);
 			datalen += CMSG_SPACE(len);
 
+next:
 			if (clen <= LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len))
 				break;
 
