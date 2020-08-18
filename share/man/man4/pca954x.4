@@ -1,0 +1,119 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright (c) 2020 Andriy Gapon <avg@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 13, 2021
+.Dt PCA954X 4
+.Os
+.Sh NAME
+.Nm pca954x
+.Nd driver for PCA9548A I2C switch
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device pca954x"
+.Cd "device iicmux"
+.Cd "device iicbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+pca954x_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports the PCA9548A I2C bus switch and compatible chips such as
+TCA9548A.
+It automatically connects an upstream I2C bus to one of several downstream
+buses as needed when slave devices on the downstream buses initiate I/O.
+More information on the automatic switching behavior is available in
+.Xr iicmux 4 .
+.Sh FDT CONFIGURATION
+On an
+.Xr FDT 4
+based system, an
+.Nm
+device node is defined as a child node of its upstream I2C bus.
+The children of the
+.Nm
+node are additional I2C buses, which will have their own I2C slave
+devices described in their child nodes.
+.Pp
+The
+.Nm
+driver attaches to nodes where the
+.Va compatible
+property is set to one of
+.Bl -bullet
+.It
+.Qq nxp,pca9548
+.El
+.Pp
+The
+.Nm
+driver supports the following optional properties in addition to the standard
+I2C mux properties:
+.Bl -tag -width i2c-mux-idle-disconnect
+.It Va i2c-mux-idle-disconnect
+if defined, forces the switch to disconnect all children in idle state.
+.El
+.Sh HINTS CONFIGURATION
+On a
+.Xr device.hints 5
+based system, these values are configurable for
+.Nm :
+.Bl -tag -width hint.pca954x.<unit>.chip_type
+.It Va hint.pca954x.<unit>.at
+The upstream
+.Xr iicbus 4
+the
+.Nm
+instance is attached to.
+.It Va hint.pca954x.<unit>.chip_type
+The type of the chip.
+At present, only
+.Qq pca9548
+is supported.
+.El
+.Pp
+When configured via hints, the driver automatically adds an
+.Xr iicbus 4
+instance for every downstream bus supported by the chip.
+There is currently no way to indicate used versus unused channels.
+.Sh SEE ALSO
+.Xr iicbus 4 ,
+.Xr iicmux 4
+.Sh HISTORY
+The
+.Nm
+driver and this manual page was written by
+.An Andriy Gapon Aq Mt avg@FreeBSD.org .
