@@ -43,7 +43,7 @@
 #define NG_PIPE_HOOK_UPPER	"upper"
 #define NG_PIPE_HOOK_LOWER	"lower"
 
-#define MAX_FSIZE 16384	/* Largest supported frame size, in bytes, for BER */
+#define MAX_FSIZE 65536	/* Largest supported frame size, in bytes, for BER */
 #define MAX_OHSIZE 256	/* Largest supported dummy-framing size, in bytes */
 
 /* Statistics structure for one hook */
