@@ -112,22 +112,25 @@ linux_chown16(struct thread *td, struct linux_chown16_args *args)
 	char *path;
 	int error;
 
-	LCONVPATHEXIST(td, args->path, &path);
+	if (!LUSECONVPATH(td) && !SDT_PROBES_ENABLED()) {
+		error = kern_fchownat(td, AT_FDCWD, args->path, UIO_USERSPACE,
+		    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), 0);
+	} else {
+		LCONVPATHEXIST(td, args->path, &path);
+		/*
+		 * The DTrace probes have to be after the LCONVPATHEXIST, as
+		 * LCONVPATHEXIST may return on its own and we do not want to
+		 * have a stray entry without the corresponding return.
+		 */
+		LIN_SDT_PROBE3(uid16, linux_chown16, entry, args->path, args->uid,
+		    args->gid);
+		LIN_SDT_PROBE1(uid16, linux_chown16, conv_path, path);
 
-	/*
-	 * The DTrace probes have to be after the LCONVPATHEXIST, as
-	 * LCONVPATHEXIST may return on its own and we do not want to
-	 * have a stray entry without the corresponding return.
-	 */
-	LIN_SDT_PROBE3(uid16, linux_chown16, entry, args->path, args->uid,
-	    args->gid);
-	LIN_SDT_PROBE1(uid16, linux_chown16, conv_path, path);
-
-	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE,
-	    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), 0);
-	LFREEPATH(path);
-
-	LIN_SDT_PROBE1(uid16, linux_chown16, return, error);
+		error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), 0);
+		LFREEPATH(path);
+		LIN_SDT_PROBE1(uid16, linux_chown16, return, error);
+	}
 	return (error);
 }
 
@@ -137,22 +140,26 @@ linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
 	char *path;
 	int error;
 
-	LCONVPATHEXIST(td, args->path, &path);
+	if (!LUSECONVPATH(td) && !SDT_PROBES_ENABLED()) {
+		error = kern_fchownat(td, AT_FDCWD, args->path, UIO_USERSPACE,
+		    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), AT_SYMLINK_NOFOLLOW);
+	} else {
+		LCONVPATHEXIST(td, args->path, &path);
 
-	/*
-	 * The DTrace probes have to be after the LCONVPATHEXIST, as
-	 * LCONVPATHEXIST may return on its own and we do not want to
-	 * have a stray entry without the corresponding return.
-	 */
-	LIN_SDT_PROBE3(uid16, linux_lchown16, entry, args->path, args->uid,
-	    args->gid);
-	LIN_SDT_PROBE1(uid16, linux_lchown16, conv_path, path);
+		/*
+		 * The DTrace probes have to be after the LCONVPATHEXIST, as
+		 * LCONVPATHEXIST may return on its own and we do not want to
+		 * have a stray entry without the corresponding return.
+		 */
+		LIN_SDT_PROBE3(uid16, linux_lchown16, entry, args->path, args->uid,
+		    args->gid);
+		LIN_SDT_PROBE1(uid16, linux_lchown16, conv_path, path);
 
-	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE,
-	    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), AT_SYMLINK_NOFOLLOW);
-	LFREEPATH(path);
-
-	LIN_SDT_PROBE1(uid16, linux_lchown16, return, error);
+		error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), AT_SYMLINK_NOFOLLOW);
+		LFREEPATH(path);
+		LIN_SDT_PROBE1(uid16, linux_lchown16, return, error);
+	}
 	return (error);
 }
 
