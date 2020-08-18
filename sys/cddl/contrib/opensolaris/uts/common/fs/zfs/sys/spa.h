@@ -643,7 +643,7 @@ extern int spa_create(const char *pool, nvlist_t *config, nvlist_t *props,
 #ifdef illumos
 extern int spa_import_rootpool(char *devpath, char *devid);
 #else
-extern int spa_import_rootpool(const char *name);
+extern int spa_import_rootpool(const char *name, bool checkpointrewind);
 #endif
 extern int spa_import(const char *pool, nvlist_t *config, nvlist_t *props,
     uint64_t flags);

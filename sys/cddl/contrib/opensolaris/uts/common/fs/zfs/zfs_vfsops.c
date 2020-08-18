@@ -1783,6 +1783,18 @@ getpoolname(const char *osname, char *poolname)
 	return (0);
 }
 
+static void
+fetch_osname_options(char *name, bool *checkpointrewind)
+{
+
+	if (name[0] == '!') {
+		*checkpointrewind = true;
+		memmove(name, name + 1, strlen(name));
+	} else {
+		*checkpointrewind = false;
+	}
+}
+
 /*ARGSUSED*/
 static int
 zfs_mount(vfs_t *vfsp)
@@ -1793,6 +1805,7 @@ zfs_mount(vfs_t *vfsp)
 	char		*osname;
 	int		error = 0;
 	int		canwrite;
+	bool		checkpointrewind;
 
 #ifdef illumos
 	if (mvp->v_type != VDIR)
@@ -1836,6 +1849,7 @@ zfs_mount(vfs_t *vfsp)
 		secpolicy_fs_mount_clearopts(cr, vfsp);
 	}
 #endif	/* illumos */
+	fetch_osname_options(osname, &checkpointrewind);
 
 	/*
 	 * Check for mount privilege?
@@ -1921,7 +1935,7 @@ zfs_mount(vfs_t *vfsp)
 
 		error = getpoolname(osname, pname);
 		if (error == 0)
-			error = spa_import_rootpool(pname);
+			error = spa_import_rootpool(pname, checkpointrewind);
 		if (error)
 			goto out;
 	}
