@@ -269,7 +269,7 @@ probe_zfs_currdev(uint64_t guid)
 	currdev.root_guid = 0;
 	set_currdev_devdesc((struct devdesc *)&currdev);
 	devname = efi_fmtdev(&currdev);
-	init_zfs_bootenv(devname);
+	init_zfs_boot_options(devname);
 
 	rv = sanity_check_currdev();
 	if (rv) {
