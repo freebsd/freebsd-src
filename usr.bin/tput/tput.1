@@ -38,22 +38,24 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl T Ar term
-.Ar attribute ...
+.Op Ar attribute ...
 .Nm clear
 .Sh DESCRIPTION
 The
 .Nm
 utility makes terminal-dependent information available to users or shell
 applications.
-When invoked as the
+.Pp
+The
 .Nm clear
-utility, the screen will be cleared as if
+utility executes the
 .Dl tput clear
-had been executed.
-The options to
+command, ignoring any arguments.
+.Pp
+The only option to
 .Nm
-are as follows:
-.Bl -tag -width Ds
+is:
+.Bl -tag -width 2n
 .It Fl T
 The terminal name as specified in the
 .Xr termcap 5
@@ -65,7 +67,9 @@ If not specified,
 .Nm
 retrieves the
 .Dq Ev TERM
-variable from the environment.
+variable from the environment unless that too is not specified,
+in which case an error message will be sent to standard error and
+the error status will be 2.
 .El
 .Pp
 The
@@ -83,28 +87,37 @@ If an
 is of type string, and takes arguments (e.g.\& cursor movement,
 the termcap
 .Dq cm
-sequence) the arguments are taken from the command line immediately
+capability) the arguments are taken from the command line immediately
 following the attribute.
 .Pp
-The following special attributes are available:
+The following special attributes are available.
+The first three use the capabilities of the specified terminal,
+and only work if compatible with the utility's terminal.
 .Bl -tag -width Ar
 .It Cm clear
 Clear the screen (the
 .Xr termcap 5
 .Dq cl
-sequence).
+capability).
 .It Cm init
 Initialize the terminal (the
 .Xr termcap 5
 .Dq is
-sequence).
-.It Cm longname
-Print the descriptive name of the user's terminal type.
+capability).
 .It Cm reset
 Reset the terminal (the
 .Xr termcap 5
 .Dq rs
-sequence).
+capability).
+.It Cm longname
+Print the descriptive name of the user's terminal type.
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width ".Ev TERM"
+.It Ev TERM
+The terminal name, if set and
+.Fl T
+is not used.
 .El
 .Sh EXIT STATUS
 The exit status of
@@ -112,16 +125,28 @@ The exit status of
 is as follows:
 .Bl -tag -width indent
 .It 0
-If the last attribute
+If the last
 .Ar attribute
-argument is of type string or integer, its value was successfully written
+is of type string or integer, its value was successfully written
 to standard output.
-If the argument is of type boolean, the terminal has this attribute.
+If the
+.Ar attribute
+is of type boolean, the terminal does have the
+.Ar attribute .
+Otherwise, no
+.Ar attribute
+was specified.
 .It 1
-This terminal does not have the specified boolean
+If the last
+.Ar attribute
+is of type boolean,
+this terminal does not have the
 .Ar attribute .
 .It 2
 Usage error.
+For example, see
+.Fl T
+description.
 .It 3
 No information is available about the specified terminal type.
 .El
