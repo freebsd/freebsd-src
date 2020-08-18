@@ -71,7 +71,7 @@ linux_execve(struct thread *td, struct linux_execve_args *uap)
 
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
 	    uap->envp);
-	free(path, M_TEMP);
+	LFREEPATH(path);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	return (error);
