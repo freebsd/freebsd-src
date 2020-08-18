@@ -76,9 +76,9 @@ nmreq_register_from_legacy(struct nmreq *nmr, struct nmreq_header *hdr,
 		/* Convert the older nmr->nr_ringid (original
 		 * netmap control API) to nmr->nr_flags. */
 		u_int regmode = NR_REG_DEFAULT;
-		if (req->nr_ringid & NETMAP_SW_RING) {
+		if (nmr->nr_ringid & NETMAP_SW_RING) {
 			regmode = NR_REG_SW;
-		} else if (req->nr_ringid & NETMAP_HW_RING) {
+		} else if (nmr->nr_ringid & NETMAP_HW_RING) {
 			regmode = NR_REG_ONE_NIC;
 		} else {
 			regmode = NR_REG_ALL_NIC;
