@@ -263,18 +263,23 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	int error;
 	bool locked, opened, textset;
 
-	LCONVPATHEXIST(td, args->library, &library);
-
 	a_out = NULL;
 	vp = NULL;
 	locked = false;
 	textset = false;
 	opened = false;
 
-	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
-	    UIO_SYSSPACE, library, td);
-	error = namei(&ni);
-	LFREEPATH(library);
+	if (!LUSECONVPATH(td)) {
+		NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
+		    UIO_USERSPACE, args->library, td);
+		error = namei(&ni);
+	} else {
+		LCONVPATHEXIST(td, args->library, &library);
+		NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
+		    UIO_SYSSPACE, library, td);
+		error = namei(&ni);
+		LFREEPATH(library);
+	}
 	if (error)
 		goto cleanup;
 
@@ -732,12 +737,16 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	struct l_utimbuf lut;
 	char *fname;
 	int error;
+	bool convpath;
 
-	LCONVPATHEXIST(td, args->fname, &fname);
+	convpath = LUSECONVPATH(td);
+	if (convpath)
+		LCONVPATHEXIST(td, args->fname, &fname);
 
 	if (args->times) {
 		if ((error = copyin(args->times, &lut, sizeof lut))) {
-			LFREEPATH(fname);
+			if (convpath)
+				LFREEPATH(fname);
 			return (error);
 		}
 		tv[0].tv_sec = lut.l_actime;
@@ -748,9 +757,14 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	} else
 		tvp = NULL;
 
-	error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE, tvp,
-	    UIO_SYSSPACE);
-	LFREEPATH(fname);
+	if (!convpath) {
+		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
+		    tvp, UIO_SYSSPACE);
+	} else {
+		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE, tvp,
+		    UIO_SYSSPACE);
+		LFREEPATH(fname);
+	}
 	return (error);
 }
 #endif
@@ -763,8 +777,11 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 	struct timeval tv[2], *tvp = NULL;
 	char *fname;
 	int error;
+	bool convpath;
 
-	LCONVPATHEXIST(td, args->fname, &fname);
+	convpath = LUSECONVPATH(td);
+	if (convpath)
+		LCONVPATHEXIST(td, args->fname, &fname);
 
 	if (args->tptr != NULL) {
 		if ((error = copyin(args->tptr, ltv, sizeof ltv))) {
@@ -778,9 +795,14 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 		tvp = tv;
 	}
 
-	error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE,
-	    tvp, UIO_SYSSPACE);
-	LFREEPATH(fname);
+	if (!convpath) {
+		error = kern_utimesat(td, AT_FDCWD, args->fname, UIO_USERSPACE,
+		    tvp, UIO_SYSSPACE);
+	} else {
+		error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE,
+		    tvp, UIO_SYSSPACE);
+		LFREEPATH(fname);
+	}
 	return (error);
 }
 #endif
@@ -881,13 +903,17 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 	struct timeval tv[2], *tvp = NULL;
 	char *fname;
 	int error, dfd;
+	bool convpath;
 
+	convpath = LUSECONVPATH(td);
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	LCONVPATHEXIST_AT(td, args->filename, &fname, dfd);
+	if (convpath)
+		LCONVPATHEXIST_AT(td, args->filename, &fname, dfd);
 
 	if (args->utimes != NULL) {
 		if ((error = copyin(args->utimes, ltv, sizeof ltv))) {
-			LFREEPATH(fname);
+			if (convpath)
+				LFREEPATH(fname);
 			return (error);
 		}
 		tv[0].tv_sec = ltv[0].tv_sec;
@@ -897,8 +923,13 @@ linux_futimesat(struct thread *td, struct linux_futimesat_args *args)
 		tvp = tv;
 	}
 
-	error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
-	LFREEPATH(fname);
+	if (!convpath) {
+		error = kern_utimesat(td, dfd, args->filename, UIO_USERSPACE,
+		    tvp, UIO_SYSSPACE);
+	} else {
+		error = kern_utimesat(td, dfd, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+		LFREEPATH(fname);
+	}
 	return (error);
 }
 #endif
@@ -1062,19 +1093,28 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 {
 	char *path;
 	int error;
+	enum uio_seg seg;
+	bool convpath;
 
-	LCONVPATHCREAT(td, args->path, &path);
+	convpath = LUSECONVPATH(td);
+	if (!convpath) {
+		path = args->path;
+		seg = UIO_USERSPACE;
+	} else {
+		LCONVPATHCREAT(td, args->path, &path);
+		seg = UIO_SYSSPACE;
+	}
 
 	switch (args->mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFSOCK:
-		error = kern_mkfifoat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		error = kern_mkfifoat(td, AT_FDCWD, path, seg,
 		    args->mode);
 		break;
 
 	case S_IFCHR:
 	case S_IFBLK:
-		error = kern_mknodat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		error = kern_mknodat(td, AT_FDCWD, path, seg,
 		    args->mode, args->dev);
 		break;
 
@@ -1086,7 +1126,7 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		args->mode |= S_IFREG;
 		/* FALLTHROUGH */
 	case S_IFREG:
-		error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		error = kern_openat(td, AT_FDCWD, path, seg,
 		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
 		if (error == 0)
 			kern_close(td, td->td_retval[0]);
@@ -1096,7 +1136,8 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		error = EINVAL;
 		break;
 	}
-	LFREEPATH(path);
+	if (convpath)
+		LFREEPATH(path);
 	return (error);
 }
 #endif
@@ -1106,19 +1147,29 @@ linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
 {
 	char *path;
 	int error, dfd;
+	enum uio_seg seg;
+	bool convpath;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	LCONVPATHCREAT_AT(td, args->filename, &path, dfd);
+
+	convpath = LUSECONVPATH(td);
+	if (!convpath) {
+		path = __DECONST(char *, args->filename);
+		seg = UIO_USERSPACE;
+	} else {
+		LCONVPATHCREAT_AT(td, args->filename, &path, dfd);
+		seg = UIO_SYSSPACE;
+	}
 
 	switch (args->mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFSOCK:
-		error = kern_mkfifoat(td, dfd, path, UIO_SYSSPACE, args->mode);
+		error = kern_mkfifoat(td, dfd, path, seg, args->mode);
 		break;
 
 	case S_IFCHR:
 	case S_IFBLK:
-		error = kern_mknodat(td, dfd, path, UIO_SYSSPACE, args->mode,
+		error = kern_mknodat(td, dfd, path, seg, args->mode,
 		    args->dev);
 		break;
 
@@ -1130,7 +1181,7 @@ linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
 		args->mode |= S_IFREG;
 		/* FALLTHROUGH */
 	case S_IFREG:
-		error = kern_openat(td, dfd, path, UIO_SYSSPACE,
+		error = kern_openat(td, dfd, path, seg,
 		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
 		if (error == 0)
 			kern_close(td, td->td_retval[0]);
@@ -1140,7 +1191,8 @@ linux_mknodat(struct thread *td, struct linux_mknodat_args *args)
 		error = EINVAL;
 		break;
 	}
-	LFREEPATH(path);
+	if (convpath)
+		LFREEPATH(path);
 	return (error);
 }
 
