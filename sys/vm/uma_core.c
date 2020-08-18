@@ -3328,9 +3328,6 @@ uma_zalloc_smr(uma_zone_t zone, int flags)
 	uma_cache_bucket_t bucket;
 	uma_cache_t cache;
 
-	KASSERT((flags & M_WAITOK) == 0 || THREAD_CAN_SLEEP(),
-	    ("uma_zalloc_smr(M_WAITOK) in non-sleepable context"));
-
 #ifdef UMA_ZALLOC_DEBUG
 	void *item;
 
@@ -3354,9 +3351,6 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 {
 	uma_cache_bucket_t bucket;
 	uma_cache_t cache;
-
-	KASSERT((flags & M_WAITOK) == 0 || THREAD_CAN_SLEEP(),
-	    ("uma_zalloc(M_WAITOK) in non-sleepable context"));
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
