@@ -321,96 +321,112 @@ Vendor ID.
 A partial list of systems, subsystems, and types used within the
 .Ic notify
 mechanism.
+.\"
+.\" Please keep these tables sorted. Also, please use the same parameters
+.\" for each of the tables so that things line up in columns nicely.
+.\" Please do not omit the type column for notifiers that omit it.
 .Pp
-.Bl -tag -width ".Li coretemp" -compact
-.It Sy System
-.It Li ACPI
-Events related to the ACPI subsystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li ACAD
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li ACPI Ta Ta Ta
+Events related to the ACPI Sybsystem.
+.It Li ACPI Ta Li ACAD Ta Ta
 AC line state ($notify=0x00 is offline, 0x01 is online).
-.It Li Button
+.It Li ACPI Ta Li Button Ta Ta
 Button state ($notify=0x00 is power, 0x01 is sleep).
-.It Li CMBAT
+.It Li ACPI Ta Li CMBAT Ta Ta
 Battery events.
-.It Li Dock
+.It Li ACPI Ta Li Dock Ta Ta
 Dock state ($notify=0x00 is undocked, 0x01 is docked).
-.It Li Lid
+.It Li ACPI Ta Li Lid Ta Ta
 Lid state ($notify=0x00 is closed, 0x01 is open).
-.It Li PROCESSOR
+.It Li ACPI Ta Li PROCESSOR Ta Ta
 Processor state/configuration ($notify=0x81 is a change in available Cx states).
-.It Li Resume
+.It Li ACPI Ta Li Resume Ta Ta
 Resume notification.
-.It Li Suspend
+.It Li ACPI Ta Li Suspend Ta Ta
 Suspend notification.
-.It Li Thermal
+.It Li ACPI Ta Li Thermal Ta Ta
 Thermal zone events.
 .El
 .Pp
-.It Li CARP
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li CAM Ta Ta Ta
+Events related to the
+.Xr cam 4
+system.
+.It Li CAM Ta Li periph Ta Ta
+Events related to peripheral devices.
+.It Li CAM Ta Li periph Ta Li error Ta
+Generic errors.
+.It Li CAM Ta Li periph Ta Li timeout Ta
+Command timeouts.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li CARP Ta Ta Ta
 Events related to the
 .Xr carp 4
 protocol.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Ar vhid@interface
+.It CARP Ta Ar vhid@inet Ta Ta
 The
 .Dq subsystem
 contains the actual CARP vhid and the name of the network interface
 on which the event took place.
-.Bl -tag -width ".Li MASTER" -compact
-.It Sy Type
-.It Li MASTER
+.It CARP Ta Ar vhid@inet Ta MASTER Ta
 Node become the master for a virtual host.
-.It Li BACKUP
+.It CARP Ta Ar vhid@inet Ta BACKUP Ta
 Node become the backup for a virtual host.
 .El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li coretemp Ta Ta Ta
+Events related to the
+.Xr coretemp 4
+device.
+.It Li coretemp Ta Li Thermal Ta Ta
+Notification that the CPU core has reached critical temperature.
+.It Li coretemp Ta Li Thermal Ta Li temperature Ta
+String containing the temperature of the core that has become too hot.
 .El
 .Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li IFNET
-Events related to the network subsystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Ar interface
+.It Li IFNET Ta Ar inet Ta Ta
 The
 .Dq subsystem
 is the actual name of the network interface on which the event
 took place.
-.Bl -tag -width ".Li LINK_DOWN" -compact
-.It Sy Type
-.It Li LINK_UP
+.It Li IFNET Ta Ar inet Ta Li LINK_UP Ta
 Carrier status changed to UP.
-.It Li LINK_DOWN
+.It Li IFNET Ta Ar inet Ta Li LINK_DOWN Ta
 Carrier status changed to DOWN.
-.It Li ATTACH
+.It Li IFNET Ta Ar inet Ta Li ATTACH Ta
 The network interface is attached to the system.
-.It Li DETACH
+.It Li IFNET Ta Ar inet Ta Li DETACH Ta
 The network interface is detached from the system.
 .El
-.El
 .Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li DEVFS
-Events related to the
-.Xr devfs 5
-filesystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li CDEV
-.Bl -tag -width ".Li DESTROY" -compact
-.It Sy Type
-.It Li CREATE
+.It Li DEVFS Ta Li CDEV Ta Li CREATE Ta
 The
 .Xr devfs 5
 node is created.
-.It Li DESTROY
+.It Li DEVFS Ta Li CDEV Ta Li DESTROY Ta
 The
 .Xr devfs 5
 node is destroyed.
 .El
-.El
 .Pp
-.It Li GEOM
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li GEOM Ta Ta Ta
 Events related to the
 .Xr geom 4
 framework.
@@ -419,135 +435,77 @@ The difference compared to
 is that
 .Li GEOM
 only includes disk-like devices.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li DEV
-.Bl -tag -width ".Li MEDIACHANGE" -compact
-.It Sy Type
-.It Li CREATE
+.It Li GEOM Ta Li DEV Ta Li CREATE Ta
 A
 .Xr geom 4
 provider is created.
-.It Li DESTROY
+.It Li GEOM Ta Li DEV Ta Li DESTROY Ta
 A
 .Xr geom 4
 provider is destroyed.
-.It Li GEOM::physpath
+.It Li GEOM Ta Li DEV Ta Li GEOM::physpath Ta
 The physical path of a device has changed.
-.It Li MEDIACHANGE
+.It Li GEOM Ta Li DEV Ta Li MEDIACHANGE Ta
 Physical media has changed.
-.It Li SIZECHANGE
+.It Li GEOM Ta Li DEV Ta Li SIZECHANGE Ta
 A
 .Xr geom 4
 provider size has changed.
 .El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li kern Ta Li power Ta Li resume Ta
+Notification that the system has woken from the suspended state.
 .El
 .Pp
-.It Li RCTL
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li kernel Ta Li signal Ta Li coredump Ta
+Notification that a process has crashed and dumped core.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li RCTL Ta Ta Ta
 Events related to the
 .Xr rctl 8
 framework.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li rule
-.Bl -tag -width ".Li matched" -compact
-.It Sy Type
-.It Li matched
+.It Li RCTL Ta Li rule Ta Li matched Ta
 A rule with action specified as "devctl" was triggered.
 .El
-.El
 .Pp
-.It Li USB
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li USB Ta Ta Ta
 Events related to the USB subsystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li DEVICE
-.Bl -tag -width ".Li DETACH" -compact
-.It Sy Type
-.It Li ATTACH
+.It Li USB Ta Li DEVICE Ta Li ATTACH Ta
 USB device is attached to the system.
-.It Li DETACH
-USB device is detached from the system.
-.El
-.It Li INTERFACE
-.Bl -tag -width ".Li DETACH" -compact
-.It Sy Type
-.It Li ATTACH
+.It Li USB Ta Li DEVICE Ta Li DETACH Ta
+USB device is detached to the system.
+.It Li USB Ta Li INTERFACE Ta Li ATTACH Ta
 USB interface is attached to a device.
-.It Li DETACH
+.It Li USB Ta Li INTERFACE Ta Li DETACH Ta
 USB interface is detached from a device.
 .El
-.El
 .Pp
-.It Li coretemp
-Events related to the
-.Xr coretemp 4
-device.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li Thermal
-Notification that the CPU core has reached critical temperature.
-.Bl -tag -width ".Ar temperature" -compact
-.It Sy Type
-.It Ar temperature
-String containing the temperature of the core that has become too hot.
-.El
-.El
-.Pp
-.It Li kern
-Events related to the kernel.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li power
-.Bl -tag -width ".li resume" -compact
-.It Sy Type
-.It Li resume
-Notification that the system has woken from the suspended state.
-.El
-.El
-.Pp
-.It Li kernel
-More events related to the kernel.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li signal
-.Bl -tag -width ".li resume" -compact
-.It Sy Type
-.It Li coredump
-Notification that a process has crashed and dumped core.
-.El
-.El
-.Pp
-.It Li CAM
-Events related to the
-.Xr cam 4
-system.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li periph
-Events related to peripheral devices.
-.Bl -tag -width ".li timeout" -compact
-.It Sy Type
-.It Li error
-Generic errors.
-.It Li timeout
-Command timeouts.
-.El
-.El
-.El
-.Pp
+
+.\"
+.\" End of tables
+.\"
 A link state change to UP on the interface
 .Dq Li fxp0
 would result in the following notify event:
 .Bd -literal -offset indent
-system=IFNET, subsystem=fxp0, type=LINK_UP
+system=IFNET subsystem=fxp0 type=LINK_UP
 .Ed
 .Pp
 An AC line state change to
 .Dq offline
 would result in the following event:
 .Bd -literal -offset indent
-system=ACPI, subsystem=ACAD, notify=0x00
+system=ACPI subsystem=ACAD notify=0x00
 .Ed
 .Ss Comments
 Comments may appear anywhere that whitespace may appear in a
