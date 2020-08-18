@@ -365,9 +365,9 @@ void
 vmx_msr_guest_enter_tsc_aux(struct vmx *vmx, int vcpuid)
 {
 	uint64_t guest_tsc_aux = vmx->guest_msrs[vcpuid][IDX_MSR_TSC_AUX];
-	uint32_t cpuid = PCPU_GET(cpuid);
+	uint32_t host_aux = cpu_auxmsr();
 
-	if (vmx_have_msr_tsc_aux(vmx) && (guest_tsc_aux != cpuid))
+	if (vmx_have_msr_tsc_aux(vmx) && guest_tsc_aux != host_aux)
 		wrmsr(MSR_TSC_AUX, guest_tsc_aux);
 }
 
@@ -396,9 +396,9 @@ void
 vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, int vcpuid)
 {
 	uint64_t guest_tsc_aux = vmx->guest_msrs[vcpuid][IDX_MSR_TSC_AUX];
-	uint32_t cpuid = PCPU_GET(cpuid);
+	uint32_t host_aux = cpu_auxmsr();
 
-	if (vmx_have_msr_tsc_aux(vmx) && (guest_tsc_aux != cpuid))
+	if (vmx_have_msr_tsc_aux(vmx) && guest_tsc_aux != host_aux)
 		/*
 		 * Note that it is not necessary to save the guest value
 		 * here; vmx->guest_msrs[vcpuid][IDX_MSR_TSC_AUX] always
@@ -406,7 +406,7 @@ vmx_msr_guest_exit_tsc_aux(struct vmx *vmx, int vcpuid)
 		 * the guest writes to it (which is expected to be very
 		 * rare).
 		 */
-		wrmsr(MSR_TSC_AUX, cpuid);
+		wrmsr(MSR_TSC_AUX, host_aux);
 }
 
 int
