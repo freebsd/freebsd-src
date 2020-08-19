@@ -513,7 +513,7 @@ cache_assert_vnode_locked(struct vnode *vp)
 
 /*
  * TODO: With the value stored we can do better than computing the hash based
- * on the address and the choice of FNV should also be revisisted.
+ * on the address. The choice of FNV should also be revisited.
  */
 static void
 cache_prehash(struct vnode *vp)
