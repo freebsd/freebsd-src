@@ -4977,8 +4977,8 @@ vn_need_pageq_flush(struct vnode *vp)
 /*
  * Check if vnode represents a disk device
  */
-int
-vn_isdisk(struct vnode *vp, int *errp)
+bool
+vn_isdisk_error(struct vnode *vp, int *errp)
 {
 	int error;
 
@@ -4996,9 +4996,16 @@ vn_isdisk(struct vnode *vp, int *errp)
 		error = ENOTBLK;
 	dev_unlock();
 out:
-	if (errp != NULL)
-		*errp = error;
+	*errp = error;
 	return (error == 0);
+}
+
+bool
+vn_isdisk(struct vnode *vp)
+{
+	int error;
+
+	return (vn_isdisk_error(vp, &error));
 }
 
 /*

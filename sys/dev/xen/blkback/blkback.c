@@ -2735,7 +2735,7 @@ xbb_open_backend(struct xbb_softc *xbb)
 	xbb->vn = nd.ni_vp;
 
 	/* We only support disks and files. */
-	if (vn_isdisk(xbb->vn, &error)) {
+	if (vn_isdisk_error(xbb->vn, &error)) {
 		error = xbb_open_dev(xbb);
 	} else if (xbb->vn->v_type == VREG) {
 		error = xbb_open_file(xbb);

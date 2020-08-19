@@ -2184,7 +2184,7 @@ again:
 	be_lun->vn = nd.ni_vp;
 
 	/* We only support disks and files. */
-	if (vn_isdisk(be_lun->vn, &error)) {
+	if (vn_isdisk_error(be_lun->vn, &error)) {
 		error = ctl_be_block_open_dev(be_lun, req);
 	} else if (be_lun->vn->v_type == VREG) {
 		error = ctl_be_block_open_file(be_lun, req);
@@ -2547,7 +2547,7 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	    control_softc->ha_mode == CTL_HA_MODE_SER_ONLY) {
 		if (be_lun->vn == NULL)
 			error = ctl_be_block_open(be_lun, req);
-		else if (vn_isdisk(be_lun->vn, &error))
+		else if (vn_isdisk_error(be_lun->vn, &error))
 			error = ctl_be_block_open_dev(be_lun, req);
 		else if (be_lun->vn->v_type == VREG) {
 			vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
