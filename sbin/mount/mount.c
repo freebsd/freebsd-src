@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#define _WANT_MNTOPTNAMES
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -92,36 +93,8 @@ void	usage(void);
 char   *flags2opts(int);
 
 /* Map from mount options to printable formats. */
-static struct opt {
-	uint64_t o_opt;
-	const char *o_name;
-} optnames[] = {
-	{ MNT_ASYNC,		"asynchronous" },
-	{ MNT_EXPORTED,		"NFS exported" },
-	{ MNT_LOCAL,		"local" },
-	{ MNT_NOATIME,		"noatime" },
-	{ MNT_NOEXEC,		"noexec" },
-	{ MNT_NOSUID,		"nosuid" },
-	{ MNT_NOSYMFOLLOW,	"nosymfollow" },
-	{ MNT_QUOTA,		"with quotas" },
-	{ MNT_RDONLY,		"read-only" },
-	{ MNT_SYNCHRONOUS,	"synchronous" },
-	{ MNT_UNION,		"union" },
-	{ MNT_NOCLUSTERR,	"noclusterr" },
-	{ MNT_NOCLUSTERW,	"noclusterw" },
-	{ MNT_SUIDDIR,		"suiddir" },
-	{ MNT_SOFTDEP,		"soft-updates" },
-	{ MNT_SUJ,		"journaled soft-updates" },
-	{ MNT_MULTILABEL,	"multilabel" },
-	{ MNT_ACLS,		"acls" },
-	{ MNT_NFS4ACLS,		"nfsv4acls" },
-	{ MNT_GJOURNAL,		"gjournal" },
-	{ MNT_AUTOMOUNTED,	"automounted" },
-	{ MNT_VERIFIED,		"verified" },
-	{ MNT_UNTRUSTED,	"untrusted" },
-	{ MNT_NOCOVER,		"nocover" },
-	{ MNT_EMPTYDIR,		"emptydir" },
-	{ 0, NULL }
+static struct mntoptnames optnames[] = {
+	MNTOPT_NAMES
 };
 
 /*
@@ -664,7 +637,7 @@ prmount(struct statfs *sfp)
 {
 	uint64_t flags;
 	unsigned int i;
-	struct opt *o;
+	struct mntoptnames *o;
 	struct passwd *pw;
 
 	(void)printf("%s on %s (%s", sfp->f_mntfromname, sfp->f_mntonname,
