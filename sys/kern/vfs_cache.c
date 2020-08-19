@@ -1957,6 +1957,15 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		if (n2->nc_dvp == dvp &&
 		    n2->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+			MPASS(cache_ncp_canuse(n2));
+			if ((n2->nc_flag & NCF_NEGATIVE) != 0)
+				KASSERT(vp == NULL,
+				    ("%s: found entry pointing to a different vnode (%p != %p)",
+				    __func__, NULL, vp));
+			else
+				KASSERT(n2->nc_vp == vp,
+				    ("%s: found entry pointing to a different vnode (%p != %p)",
+				    __func__, n2->nc_vp, vp));
 			if (tsp != NULL) {
 				KASSERT((n2->nc_flag & NCF_TS) != 0,
 				    ("no NCF_TS"));
