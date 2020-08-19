@@ -74,6 +74,7 @@ struct linux_epoch_record {
 	ck_epoch_record_t epoch_record;
 	TAILQ_HEAD(, task_struct) ts_head;
 	int cpuid;
+	int type;
 } __aligned(CACHE_LINE_SIZE);
 
 /*
@@ -89,6 +90,8 @@ CTASSERT(sizeof(struct rcu_head) == sizeof(struct callback_head));
  * linux_epoch_record":
  */
 CTASSERT(offsetof(struct linux_epoch_record, epoch_record) == 0);
+
+CTASSERT(TS_RCU_TYPE_MAX == RCU_TYPE_MAX);
 
 static ck_epoch_t linux_epoch[RCU_TYPE_MAX];
 static struct linux_epoch_head linux_epoch_head[RCU_TYPE_MAX];
@@ -118,6 +121,7 @@ linux_rcu_runtime_init(void *arg __unused)
 			record = &DPCPU_ID_GET(i, linux_epoch_record[j]);
 
 			record->cpuid = i;
+			record->type = j;
 			ck_epoch_register(&linux_epoch[j],
 			    &record->epoch_record, NULL);
 			TAILQ_INIT(&record->ts_head);
@@ -201,9 +205,9 @@ linux_rcu_read_lock(unsigned type)
 	 */
 	critical_enter();
 	ck_epoch_begin(&record->epoch_record, NULL);
-	ts->rcu_recurse++;
-	if (ts->rcu_recurse == 1)
-		TAILQ_INSERT_TAIL(&record->ts_head, ts, rcu_entry);
+	ts->rcu_recurse[type]++;
+	if (ts->rcu_recurse[type] == 1)
+		TAILQ_INSERT_TAIL(&record->ts_head, ts, rcu_entry[type]);
 	critical_exit();
 }
 
@@ -227,9 +231,9 @@ linux_rcu_read_unlock(unsigned type)
 	 */
 	critical_enter();
 	ck_epoch_end(&record->epoch_record, NULL);
-	ts->rcu_recurse--;
-	if (ts->rcu_recurse == 0)
-		TAILQ_REMOVE(&record->ts_head, ts, rcu_entry);
+	ts->rcu_recurse[type]--;
+	if (ts->rcu_recurse[type] == 0)
+		TAILQ_REMOVE(&record->ts_head, ts, rcu_entry[type]);
 	critical_exit();
 
 	sched_unpin();
@@ -254,7 +258,7 @@ linux_synchronize_rcu_cb(ck_epoch_t *epoch __unused, ck_epoch_record_t *epoch_re
 		 * the threads in the queue are CPU-pinned and cannot
 		 * go anywhere while the current thread is locked.
 		 */
-		TAILQ_FOREACH(ts, &record->ts_head, rcu_entry) {
+		TAILQ_FOREACH(ts, &record->ts_head, rcu_entry[record->type]) {
 			if (ts->task_thread->td_priority > prio)
 				prio = ts->task_thread->td_priority;
 			is_sleeping |= (ts->task_thread->td_inhibitors != 0);
