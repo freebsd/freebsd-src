@@ -208,8 +208,6 @@ epoch_alloc(int flags)
 	epoch_t epoch;
 	int i;
 
-	MPASS(name != NULL);
-
 	if (__predict_false(!inited))
 		panic("%s called too early in boot", __func__);
 
