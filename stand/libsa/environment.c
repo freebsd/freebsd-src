@@ -98,7 +98,7 @@ env_setenv(const char *name, int flags, const void *value,
 		ev->ev_prev = NULL;
 		ev->ev_next = NULL;
 		/* Search for the record to insert before */
-		for (last = NULL, curr = environ; curr != NULL; 
+		for (last = NULL, curr = environ; curr != NULL;
 		    last = curr, curr = curr->ev_next) {
 
 			if (strcmp(ev->ev_name, curr->ev_name) < 0) {
