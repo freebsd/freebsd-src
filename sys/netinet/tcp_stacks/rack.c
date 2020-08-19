@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 #include "opt_ratelimit.h"
-#include "opt_kern_tls.h"
 #include <sys/param.h>
 #include <sys/arb.h>
 #include <sys/module.h>
@@ -48,9 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>		/* for proc0 declaration */
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#ifdef KERN_TLS
-#include <sys/ktls.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #ifdef STATS
@@ -200,7 +196,6 @@ static int32_t rack_non_rxt_use_cr = 0; /* does a non-rxt in recovery use the co
 static int32_t rack_persist_min = 250;	/* 250ms */
 static int32_t rack_persist_max = 2000;	/* 2 Second */
 static int32_t rack_sack_not_required = 0;	/* set to one to allow non-sack to use rack */
-static int32_t rack_hw_tls_max_seg = 3; /* 3 means use hw-tls single segment */
 static int32_t rack_default_init_window = 0; 	/* Use system default */
 static int32_t rack_limit_time_with_srtt = 0;
 static int32_t rack_hw_pace_adjust = 0;
@@ -348,15 +343,6 @@ counter_u64_t rack_input_idle_reduces;
 counter_u64_t rack_collapsed_win;
 counter_u64_t rack_tlp_does_nada;
 counter_u64_t rack_try_scwnd;
-
-/* Counters for HW TLS */
-counter_u64_t rack_tls_rwnd;
-counter_u64_t rack_tls_cwnd;
-counter_u64_t rack_tls_app;
-counter_u64_t rack_tls_other;
-counter_u64_t rack_tls_filled;
-counter_u64_t rack_tls_rxt;
-counter_u64_t rack_tls_tlp;
 
 /* Temp CPU counters */
 counter_u64_t rack_find_high;
@@ -564,13 +550,6 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_alloc_limited_conns);
 		counter_u64_zero(rack_split_limited);
 		counter_u64_zero(rack_find_high);
-		counter_u64_zero(rack_tls_rwnd);
-		counter_u64_zero(rack_tls_cwnd);
-		counter_u64_zero(rack_tls_app);
-		counter_u64_zero(rack_tls_other);
-		counter_u64_zero(rack_tls_filled);
-		counter_u64_zero(rack_tls_rxt);
-		counter_u64_zero(rack_tls_tlp);
 		counter_u64_zero(rack_sack_attacks_detected);
 		counter_u64_zero(rack_sack_attacks_reversed);
 		counter_u64_zero(rack_sack_used_next_merge);
@@ -627,11 +606,6 @@ rack_init_sysctls(void)
 	    OID_AUTO, "rate_sample_method", CTLFLAG_RW,
 	    &rack_rate_sample_method , USE_RTT_LOW,
 	    "What method should we use for rate sampling 0=high, 1=low ");
-	SYSCTL_ADD_S32(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_sysctl_root),
-	    OID_AUTO, "hw_tlsmax", CTLFLAG_RW,
-	    &rack_hw_tls_max_seg , 3,
-	    "What is the maximum number of full TLS records that will be sent at once");
 	/* Probe rtt related controls */
 	rack_probertt = SYSCTL_ADD_NODE(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
@@ -1449,48 +1423,6 @@ rack_init_sysctls(void)
 	    &rack_try_scwnd,
 	    "Total number of scwnd attempts");
 
-	rack_tls_rwnd = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_rwnd", CTLFLAG_RD,
-	    &rack_tls_rwnd,
-	    "Total hdwr tls rwnd limited");
-	rack_tls_cwnd = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_cwnd", CTLFLAG_RD,
-	    &rack_tls_cwnd,
-	    "Total hdwr tls cwnd limited");
-	rack_tls_app = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_app", CTLFLAG_RD,
-	    &rack_tls_app,
-	    "Total hdwr tls app limited");
-	rack_tls_other = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_other", CTLFLAG_RD,
-	    &rack_tls_other,
-	    "Total hdwr tls other limited");
-	rack_tls_filled = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_filled", CTLFLAG_RD,
-	    &rack_tls_filled,
-	    "Total hdwr tls filled");
-	rack_tls_rxt = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_rxt", CTLFLAG_RD,
-	    &rack_tls_rxt,
-	    "Total hdwr rxt");
-	rack_tls_tlp = counter_u64_alloc(M_WAITOK);
-	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
-	    SYSCTL_CHILDREN(rack_counters),
-	    OID_AUTO, "tls_tlp", CTLFLAG_RD,
-	    &rack_tls_tlp,
-	    "Total hdwr tls tlp");
 	rack_per_timer_hole = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_counters),
@@ -2247,13 +2179,6 @@ rack_counter_destroy(void)
 	counter_u64_free(rack_collapsed_win);
 	counter_u64_free(rack_tlp_does_nada);
 	counter_u64_free(rack_try_scwnd);
-	counter_u64_free(rack_tls_rwnd);
-	counter_u64_free(rack_tls_cwnd);
-	counter_u64_free(rack_tls_app);
-	counter_u64_free(rack_tls_other);
-	counter_u64_free(rack_tls_filled);
-	counter_u64_free(rack_tls_rxt);
-	counter_u64_free(rack_tls_tlp);
 	counter_u64_free(rack_per_timer_hole);
 	COUNTER_ARRAY_FREE(rack_out_size, TCP_MSS_ACCT_SIZE);
 	COUNTER_ARRAY_FREE(rack_opts_arry, RACK_OPTS_SIZE);
@@ -5273,15 +5198,6 @@ rack_timeout_tlp(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	if (rack->r_state && (rack->r_state != tp->t_state))
 		rack_set_state(tp, rack);
 	so = tp->t_inpcb->inp_socket;
-#ifdef KERN_TLS
-	if (rack->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-		/*
-		 * For hardware TLS we do *not* want to send
-		 * new data, lets instead just do a retransmission.
-		 */
-		goto need_retran;
-	}
-#endif
 	avail = sbavail(&so->so_snd);
 	out = tp->snd_max - tp->snd_una;
 	if (out > tp->snd_wnd) {
@@ -8206,11 +8122,8 @@ rack_check_bottom_drag(struct tcpcb *tp,
 	uint32_t segsiz, minseg;
 
 	segsiz = ctf_fixed_maxseg(tp);
-	if (so->so_snd.sb_flags & SB_TLS_IFNET) {
-		minseg = rack->r_ctl.rc_pace_min_segs;
-	} else {
-		minseg = segsiz;
-	}
+	minseg = segsiz;
+
 	if (tp->snd_max == tp->snd_una) {
 		/*
 		 * We are doing dynamic pacing and we are way
@@ -10384,24 +10297,13 @@ static void
 rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line)
 {
 	uint64_t bw_est, rate_wanted;
-	uint32_t tls_seg = 0;
 	int chged = 0;
 	uint32_t user_max;
 
 	user_max = ctf_fixed_maxseg(tp) * rack->rc_user_set_max_segs;
-#ifdef KERN_TLS
-	if (rack->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-		tls_seg = ctf_get_opt_tls_size(rack->rc_inp->inp_socket, rack->rc_tp->snd_wnd);
-		if (tls_seg != rack->r_ctl.rc_pace_min_segs)
-			chged = 1;
-		rack->r_ctl.rc_pace_min_segs = tls_seg;
-	} else
-#endif
-	{
-		if (ctf_fixed_maxseg(tp) != rack->r_ctl.rc_pace_min_segs)
-			chged = 1;
-		rack->r_ctl.rc_pace_min_segs = ctf_fixed_maxseg(tp);
-	}
+	if (ctf_fixed_maxseg(tp) != rack->r_ctl.rc_pace_min_segs)
+		chged = 1;
+	rack->r_ctl.rc_pace_min_segs = ctf_fixed_maxseg(tp);
 	if (rack->use_fixed_rate || rack->rc_force_max_seg) {
 		if (user_max != rack->r_ctl.rc_pace_max_segs)
 			chged = 1;
@@ -10458,31 +10360,8 @@ rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line)
 		chged = 1;
 		rack->r_ctl.rc_pace_max_segs = PACE_MAX_IP_BYTES;
 	}
-#ifdef KERN_TLS
-	uint32_t orig;
-
-	if (tls_seg != 0) {
-		orig = rack->r_ctl.rc_pace_max_segs;
-		if (rack_hw_tls_max_seg > 1) {
-			rack->r_ctl.rc_pace_max_segs /= tls_seg;
-			if (rack_hw_tls_max_seg > rack->r_ctl.rc_pace_max_segs)
-				rack->r_ctl.rc_pace_max_segs = rack_hw_tls_max_seg;
-		} else {
-			rack->r_ctl.rc_pace_max_segs = 1;
-		}
-		if (rack->r_ctl.rc_pace_max_segs == 0)
-			rack->r_ctl.rc_pace_max_segs = 1;
-		rack->r_ctl.rc_pace_max_segs *= tls_seg;
-		if (rack->r_ctl.rc_pace_max_segs > PACE_MAX_IP_BYTES) {
-			/* We can't go over the max bytes (usually 64k) */
-			rack->r_ctl.rc_pace_max_segs = ((PACE_MAX_IP_BYTES / tls_seg) * tls_seg);
-		}
-		if (orig != rack->r_ctl.rc_pace_max_segs)
-			chged = 1;
-	}
-#endif
 	if (chged)
-		rack_log_type_hrdwtso(tp, rack, tls_seg, rack->rc_inp->inp_socket->so_snd.sb_flags, line, 2);
+		rack_log_type_hrdwtso(tp, rack, 0, rack->rc_inp->inp_socket->so_snd.sb_flags, line, 2);
 }
 
 static int
@@ -11669,12 +11548,6 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 		slot = (uint32_t)res;
 		orig_val = rack->r_ctl.rc_pace_max_segs;
 		rack_set_pace_segments(rack->rc_tp, rack, __LINE__);
-#ifdef KERN_TLS
-		/* For TLS we need to override this, possibly  */
-		if (rack->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-			rack_set_pace_segments(rack->rc_tp, rack, __LINE__);
-		}
-#endif
 		/* Did we change the TSO size, if so log it */
 		if (rack->r_ctl.rc_pace_max_segs != orig_val)
 			rack_log_pacing_delay_calc(rack, len, slot, orig_val, 0, 0, 15, __LINE__, NULL);
@@ -12040,7 +11913,6 @@ rack_output(struct tcpcb *tp)
 	uint32_t cwnd_to_use;
 	int32_t do_a_prefetch;
 	int32_t prefetch_rsm = 0;
-	int force_tso = 0;
 	int32_t orig_len;
 	struct timeval tv;
 	int32_t prefetch_so_done = 0;
@@ -12062,9 +11934,7 @@ rack_output(struct tcpcb *tp)
 	kern_prefetch(sb, &do_a_prefetch);
 	do_a_prefetch = 1;
 	hpts_calling = inp->inp_hpts_calls;
-#ifdef KERN_TLS
 	hw_tls = (so->so_snd.sb_flags & SB_TLS_IFNET) != 0;
-#endif
 
 	NET_EPOCH_ASSERT();
 	INP_WLOCK_ASSERT(inp);
@@ -12206,11 +12076,7 @@ again:
 	tso = 0;
 	mtu = 0;
 	segsiz = min(ctf_fixed_maxseg(tp), rack->r_ctl.rc_pace_min_segs);
-	if (so->so_snd.sb_flags & SB_TLS_IFNET) {
-		minseg = rack->r_ctl.rc_pace_min_segs;
-	} else {
-		minseg = segsiz;
-	}
+	minseg = segsiz;
 	sb_offset = tp->snd_max - tp->snd_una;
 	cwnd_to_use = rack->r_ctl.cwnd_to_use = tp->snd_cwnd;
 #ifdef NETFLIX_SHARED_CWND
@@ -13243,12 +13109,6 @@ send:
 	ipoptlen += ipsec_optlen;
 #endif
 
-#ifdef KERN_TLS
- 	/* force TSO for so TLS offload can get mss */
- 	if (sb->sb_flags & SB_TLS_IFNET) {
- 		force_tso = 1;
- 	}
-#endif
 	/*
 	 * Adjust data length if insertion of options will bump the packet
 	 * length beyond the t_maxseg length. Clear the FIN bit because we
@@ -13288,8 +13148,7 @@ send:
 			 * unless the send sockbuf can be emptied:
 			 */
 			max_len = (tp->t_maxseg - optlen);
-			if (((sb_offset + len) < sbavail(sb)) &&
-			    (hw_tls == 0)) {
+			if ((sb_offset + len) < sbavail(sb)) {
 				moff = len % (u_int)max_len;
 				if (moff != 0) {
 					mark = 3;
@@ -13761,8 +13620,8 @@ send:
 	 * header checksum is always provided. XXX: Fixme: This is currently
 	 * not the case for IPv6.
 	 */
-	if (tso || force_tso) {
-		KASSERT(force_tso || len > tp->t_maxseg - optlen,
+	if (tso) {
+		KASSERT(len > tp->t_maxseg - optlen,
 			("%s: len <= tso_segsz", __func__));
 		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		m->m_pkthdr.tso_segsz = tp->t_maxseg - optlen;
@@ -13968,32 +13827,6 @@ out:
 				counter_u64_add(rack_out_size[(TCP_MSS_ACCT_ATIMER-1)], 1);
 			else
 				counter_u64_add(rack_out_size[idx], 1);
-		}
-		if (hw_tls && len > 0) {
-			if (filled_all) {
-				counter_u64_add(rack_tls_filled, 1);
-				rack_log_type_hrdwtso(tp, rack, len, 0, orig_len, 1);
-			} else {
-				if (rsm) {
-					counter_u64_add(rack_tls_rxt, 1);
-					rack_log_type_hrdwtso(tp, rack, len, 2, orig_len, 1);
-				} else if (doing_tlp) {
-					counter_u64_add(rack_tls_tlp, 1);
-					rack_log_type_hrdwtso(tp, rack, len, 3, orig_len, 1);
-				} else if ( (ctf_outstanding(tp) + minseg) > sbavail(sb)) {
-					counter_u64_add(rack_tls_app, 1);
-					rack_log_type_hrdwtso(tp, rack, len, 4, orig_len, 1);
-				} else if ((ctf_flight_size(tp, rack->r_ctl.rc_sacked) + minseg) > cwnd_to_use) {
-					counter_u64_add(rack_tls_cwnd, 1);
-					rack_log_type_hrdwtso(tp, rack, len, 5, orig_len, 1);
-				} else if ((ctf_outstanding(tp) + minseg) > tp->snd_wnd) {
-					counter_u64_add(rack_tls_rwnd, 1);
-					rack_log_type_hrdwtso(tp, rack, len, 6, orig_len, 1);
-				} else {
-					rack_log_type_hrdwtso(tp, rack, len, 7, orig_len, 1);
-					counter_u64_add(rack_tls_other, 1);
-				}
-			}
 		}
 	}
 	if (rack->rack_no_prr == 0) {
