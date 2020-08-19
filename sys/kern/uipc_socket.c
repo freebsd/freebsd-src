@@ -2056,6 +2056,32 @@ dontblock:
 	if (m != NULL && m->m_type == MT_CONTROL) {
 		struct mbuf *cm = NULL, *cmn;
 		struct mbuf **cme = &cm;
+#ifdef KERN_TLS
+		struct cmsghdr *cmsg;
+		struct tls_get_record tgr;
+
+		/*
+		 * For MSG_TLSAPPDATA, check for a non-application data
+		 * record.  If found, return ENXIO without removing
+		 * it from the receive queue.  This allows a subsequent
+		 * call without MSG_TLSAPPDATA to receive it.
+		 * Note that, for TLS, there should only be a single
+		 * control mbuf with the TLS_GET_RECORD message in it.
+		 */
+		if (flags & MSG_TLSAPPDATA) {
+			cmsg = mtod(m, struct cmsghdr *);
+			if (cmsg->cmsg_type == TLS_GET_RECORD &&
+			    cmsg->cmsg_len == CMSG_LEN(sizeof(tgr))) {
+				memcpy(&tgr, CMSG_DATA(cmsg), sizeof(tgr));
+				/* This will need to change for TLS 1.3. */
+				if (tgr.tls_type != TLS_RLTYPE_APP) {
+					SOCKBUF_UNLOCK(&so->so_rcv);
+					error = ENXIO;
+					goto release;
+				}
+			}
+		}
+#endif
 
 		do {
 			if (flags & MSG_PEEK) {
