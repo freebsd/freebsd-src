@@ -260,7 +260,6 @@ int
 smbfs_reclaim(ap)                     
         struct vop_reclaim_args /* {
 		struct vnode *a_vp;
-		struct thread *a_p;
         } */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
