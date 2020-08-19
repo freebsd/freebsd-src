@@ -12723,7 +12723,7 @@ softdep_fsync_mountdev(vp)
 	struct worklist *wk;
 	struct bufobj *bo;
 
-	if (!vn_isdisk(vp, NULL))
+	if (!vn_isdisk(vp))
 		panic("softdep_fsync_mountdev: vnode not a disk");
 	bo = &vp->v_bufobj;
 restart:

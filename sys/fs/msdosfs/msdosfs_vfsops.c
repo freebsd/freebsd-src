@@ -343,7 +343,7 @@ msdosfs_mount(struct mount *mp)
 	devvp = ndp.ni_vp;
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 
-	if (!vn_isdisk(devvp, &error)) {
+	if (!vn_isdisk_error(devvp, &error)) {
 		vput(devvp);
 		return (error);
 	}

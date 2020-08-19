@@ -152,7 +152,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 	struct vattr va;
 	bool last;
 
-	if (!vn_isdisk(vp, NULL) && vn_canvmio(vp) == FALSE)
+	if (!vn_isdisk(vp) && vn_canvmio(vp) == FALSE)
 		return (0);
 
 	object = vp->v_object;
@@ -160,7 +160,7 @@ vnode_create_vobject(struct vnode *vp, off_t isize, struct thread *td)
 		return (0);
 
 	if (size == 0) {
-		if (vn_isdisk(vp, NULL)) {
+		if (vn_isdisk(vp)) {
 			size = IDX_TO_OFF(INT_MAX);
 		} else {
 			if (VOP_GETATTR(vp, &va, td->td_ucred))
