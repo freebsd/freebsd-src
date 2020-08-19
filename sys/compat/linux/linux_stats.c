@@ -65,7 +65,7 @@ translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 {
 	int major, minor;
 
-	if (vn_isdisk(vp, NULL)) {
+	if (vn_isdisk(vp)) {
 		sb->st_mode &= ~S_IFMT;
 		sb->st_mode |= S_IFBLK;
 	}
@@ -131,7 +131,7 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 	    fget(td, fd, &cap_no_rights, &fp) != 0)
 		return;
 	vp = fp->f_vnode;
-	if (vp != NULL && vn_isdisk(vp, NULL)) {
+	if (vp != NULL && vn_isdisk(vp)) {
 		buf->st_mode &= ~S_IFMT;
 		buf->st_mode |= S_IFBLK;
 	}
