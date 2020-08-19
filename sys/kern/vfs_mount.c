@@ -1518,6 +1518,9 @@ vfs_op_enter(struct mount *mp)
 		mp->mnt_writeopcount +=
 		    zpcpu_replace_cpu(mp->mnt_writeopcount_pcpu, 0, cpu);
 	}
+	if (mp->mnt_ref <= 0 || mp->mnt_lockref < 0 || mp->mnt_writeopcount < 0)
+		panic("%s: invalid count(s) on mp %p: ref %d lockref %d writeopcount %d\n",
+		    __func__, mp, mp->mnt_ref, mp->mnt_lockref, mp->mnt_writeopcount);
 	MNT_IUNLOCK(mp);
 	vfs_assert_mount_counters(mp);
 }
