@@ -573,6 +573,20 @@ USB interface is detached from a device.
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li VFS Ta Ta Ta
+Events from the vfs system.
+.It Li VFS Ta Li FS Ta Ta
+Events that change what is mounted to the system.
+.It Li VFS Ta Li FS Ta Li MOUNT Ta
+Notification of a filesystem is mounted for the first time.
+.It Li VFS Ta Li FS Ta Li REMOUNT Ta
+Notification of a filesystem is remounted (whether or not the options actually change).
+.It Li VFS Ta Li FS Ta Li UNMOUNT Ta
+Notification of a filesystem being unmounted.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li ZFS Ta ZFS Ta Ta
 Events about the ZFS subsystem.
 See
