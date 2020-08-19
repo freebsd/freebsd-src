@@ -105,9 +105,6 @@ probe_table(vm_paddr_t address, const char *sig)
 			    (uintmax_t)address);
 		return (0);
 	}
-	if (bootverbose)
-		printf("Table '%.4s' at 0x%jx\n", table->Signature,
-		    (uintmax_t)address);
 
 	if (strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
 		pmap_unmapbios((vm_offset_t)table, sizeof(ACPI_TABLE_HEADER));
@@ -200,13 +197,8 @@ acpi_find_table(const char *sig)
 	}
 	pmap_unmapbios((vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
 
-	if (addr == 0) {
-		if (bootverbose)
-			printf("ACPI: No %s table found\n", sig);
+	if (addr == 0)
 		return (0);
-	}
-	if (bootverbose)
-		printf("%s: Found table at 0x%jx\n", sig, (uintmax_t)addr);
 
 	/*
 	 * Verify that we can map the full table and that its checksum is
