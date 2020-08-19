@@ -493,4 +493,5 @@ SYSCTL_UINT(_net_inet_tcp_cc_chd,  OID_AUTO, use_max,
     "as the basic delay measurement for the algorithm.");
 
 DECLARE_CC_MODULE(chd, &chd_cc_algo);
+MODULE_VERSION(chd, 1);
 MODULE_DEPEND(chd, ertt, 1, 1, 1);
