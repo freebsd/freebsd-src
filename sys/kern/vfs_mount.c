@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/smp.h>
+#include <sys/bus.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
@@ -100,6 +101,8 @@ MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
 EVENTHANDLER_LIST_DEFINE(vfs_mounted);
 EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
+
+static void dev_vfs_event(const char *type, struct mount *mp, bool donew);
 
 /*
  * Global opts, taken by all filesystems
@@ -1020,6 +1023,7 @@ vfs_domount_first(
 	VOP_UNLOCK(vp);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp);
+	dev_vfs_event("MOUNT", mp, false);
 	mountcheckdirs(vp, newdp);
 	vn_seqc_write_end(vp);
 	vn_seqc_write_end(newdp);
@@ -1221,6 +1225,7 @@ vfs_domount_update(
 	if (error != 0)
 		goto end;
 
+	dev_vfs_event("REMOUNT", mp, true);
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
 	mp->mnt_opt = mp->mnt_optnew;
@@ -1839,6 +1844,7 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_unmounted, mp, td);
+	dev_vfs_event("UNMOUNT", mp, false);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		vn_seqc_write_end(coveredvp);
@@ -2425,4 +2431,72 @@ kernel_vmount(int flags, ...)
 
 	error = kernel_mount(ma, flags);
 	return (error);
+}
+
+/* Map from mount options to printable formats. */
+static struct mntoptnames optnames[] = {
+	MNTOPT_NAMES
+};
+
+static void
+dev_vfs_event_mntopt(struct sbuf *sb, const char *what, struct vfsoptlist *opts)
+{
+	struct vfsopt *opt;
+
+	if (opts == NULL || TAILQ_EMPTY(opts))
+		return;
+	sbuf_printf(sb, " %s=\"", what);
+	TAILQ_FOREACH(opt, opts, link) {
+		if (opt->name[0] == '\0' || (opt->len > 0 && *(char *)opt->value == '\0'))
+			continue;
+		devctl_safe_quote_sb(sb, opt->name);
+		if (opt->len > 0) {
+			sbuf_putc(sb, '=');
+			devctl_safe_quote_sb(sb, opt->value);
+		}
+		sbuf_putc(sb, ';');
+	}
+	sbuf_putc(sb, '"');
+}
+
+#define DEVCTL_LEN 1024
+static void
+dev_vfs_event(const char *type, struct mount *mp, bool donew)
+{
+	const uint8_t *cp;
+	struct mntoptnames *fp;
+	struct sbuf sb;
+	struct statfs *sfp = &mp->mnt_stat;
+	char *buf;
+
+	buf = malloc(DEVCTL_LEN, M_MOUNT, M_WAITOK);
+	if (buf == NULL)
+		return;
+	sbuf_new(&sb, buf, DEVCTL_LEN, SBUF_FIXEDLEN);
+	sbuf_cpy(&sb, "mount-point=\"");
+	devctl_safe_quote_sb(&sb, sfp->f_mntonname);
+	sbuf_cat(&sb, "\" mount-dev=\"");
+	devctl_safe_quote_sb(&sb, sfp->f_mntfromname);
+	sbuf_cat(&sb, "\" mount-type=\"");
+	devctl_safe_quote_sb(&sb, sfp->f_fstypename);
+	sbuf_cat(&sb, "\" fsid=0x");
+	cp = (const uint8_t *)&sfp->f_fsid.val[0];
+	for (int i = 0; i < sizeof(sfp->f_fsid); i++)
+		sbuf_printf(&sb, "%02x", cp[i]);
+	sbuf_printf(&sb, " owner=%u flags=\"", sfp->f_owner);
+	for (fp = optnames; fp->o_opt != 0; fp++) {
+		if ((mp->mnt_flag & fp->o_opt) != 0) {
+			sbuf_cat(&sb, fp->o_name);
+			sbuf_putc(&sb, ';');
+		}
+	}
+	sbuf_putc(&sb, '"');
+	dev_vfs_event_mntopt(&sb, "opt", mp->mnt_opt);
+	if (donew)
+		dev_vfs_event_mntopt(&sb, "optnew", mp->mnt_optnew);
+	sbuf_finish(&sb);
+
+	devctl_notify("VFS", "FS", type, sbuf_data(&sb));
+	sbuf_delete(&sb);
+	free(buf, M_MOUNT);
 }
