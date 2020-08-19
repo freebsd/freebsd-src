@@ -514,16 +514,9 @@ in6m_release(struct in6_multi *inm)
  * dedicated thread to avoid deadlocks when draining in6m_release tasks.
  */
 TASKQUEUE_DEFINE_THREAD(in6m_free);
-static struct task in6m_free_task;
 static struct in6_multi_head in6m_free_list = SLIST_HEAD_INITIALIZER();
 static void in6m_release_task(void *arg __unused, int pending __unused);
-
-static void
-in6m_init(void)
-{
-	TASK_INIT(&in6m_free_task, 0, in6m_release_task, NULL);
-}
-SYSINIT(in6m_init, SI_SUB_TASKQ, SI_ORDER_ANY, in6m_init, NULL);
+static struct task in6m_free_task = TASK_INITIALIZER(0, in6m_release_task, NULL);
 
 void
 in6m_release_list_deferred(struct in6_multi_head *inmh)
@@ -537,10 +530,18 @@ in6m_release_list_deferred(struct in6_multi_head *inmh)
 }
 
 void
-in6m_release_wait(void)
+in6m_release_wait(void *arg __unused)
 {
+
+	/*
+	 * Make sure all pending multicast addresses are freed before
+	 * the VNET or network device is destroyed:
+	 */
 	taskqueue_drain_all(taskqueue_in6m_free);
 }
+#ifdef VIMAGE
+VNET_SYSUNINIT(in6m_release_wait, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST, in6m_release_wait, NULL);
+#endif
 
 void
 in6m_disconnect_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
