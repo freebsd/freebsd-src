@@ -3879,7 +3879,7 @@ vgonel(struct vnode *vp)
 	/*
 	 * Reclaim the vnode.
 	 */
-	if (VOP_RECLAIM(vp, td))
+	if (VOP_RECLAIM(vp))
 		panic("vgone: cannot reclaim");
 	if (mp != NULL)
 		vn_finished_secondary_write(mp);

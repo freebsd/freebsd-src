@@ -1731,7 +1731,7 @@ unionfs_reclaim(struct vop_reclaim_args *ap)
 {
 	/* UNIONFS_INTERNAL_DEBUG("unionfs_reclaim: enter\n"); */
 
-	unionfs_noderem(ap->a_vp, ap->a_td);
+	unionfs_noderem(ap->a_vp, curthread);
 
 	/* UNIONFS_INTERNAL_DEBUG("unionfs_reclaim: leave\n"); */
 
