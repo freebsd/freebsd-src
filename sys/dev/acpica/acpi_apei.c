@@ -550,20 +550,29 @@ apei_identify(driver_t *driver, device_t parent)
 {
 	device_t	child;
 	int		found;
+	ACPI_TABLE_HEADER *hest;
+	ACPI_STATUS	status;
 
 	if (acpi_disabled("apei"))
 		return;
-	if (acpi_find_table(ACPI_SIG_HEST) == 0)
+
+	/* Without HEST table we have nothing to do. */
+	status = AcpiGetTable(ACPI_SIG_HEST, 0, &hest);
+	if (ACPI_FAILURE(status))
 		return;
+	AcpiPutTable(hest);
+
 	/* Only one APEI device can exist. */
 	if (devclass_get_device(apei_devclass, 0))
 		return;
+
 	/* Search for ACPI error device to be used. */
 	found = 0;
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 	    100, apei_find, NULL, NULL, (void *)&found);
 	if (found)
 		return;
+
 	/* If not found - create a fake one. */
 	child = BUS_ADD_CHILD(parent, 2, "apei", 0);
 	if (child == NULL)
@@ -573,18 +582,27 @@ apei_identify(driver_t *driver, device_t parent)
 static int
 apei_probe(device_t dev)
 {
+	ACPI_TABLE_HEADER *hest;
+	ACPI_STATUS	status;
 	int rv;
 
 	if (acpi_disabled("apei"))
 		return (ENXIO);
-	if (acpi_find_table(ACPI_SIG_HEST) == 0)
-		return (ENXIO);
-	if (acpi_get_handle(dev) != NULL)
+
+	if (acpi_get_handle(dev) != NULL) {
 		rv = ACPI_ID_PROBE(device_get_parent(dev), dev, apei_ids, NULL);
-	else
+		if (rv > 0)
+			return (rv);
+	} else
 		rv = 0;
-	if (rv <= 0)
-		device_set_desc(dev, "Platform Error Interface");
+
+	/* Without HEST table we have nothing to do. */
+	status = AcpiGetTable(ACPI_SIG_HEST, 0, &hest);
+	if (ACPI_FAILURE(status))
+		return (ENXIO);
+	AcpiPutTable(hest);
+
+	device_set_desc(dev, "ACPI Platform Error Interface");
 	return (rv);
 }
 
