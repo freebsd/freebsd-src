@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include <string.h>
 
-static void	env_discard(struct env_var *ev);
-
 struct env_var	*environ = NULL;
 
 /*
@@ -194,7 +192,7 @@ unsetenv(const char *name)
 	return (err);
 }
 
-static void
+void
 env_discard(struct env_var *ev)
 {
 	if (ev->ev_prev)
