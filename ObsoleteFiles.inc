@@ -537,7 +537,7 @@ OLD_LIBS+=usr/lib32/padlock.so
 OLD_FILES+=usr/include/private/event/event.h
 OLD_FILES+=usr/lib/libprivateevent.a
 OLD_FILES+=usr/lib/libprivateevent.so
-OLD_FILES+=usr/lib/libprivateevent.so.1
+OLD_LIBS+=usr/lib/libprivateevent.so.1
 OLD_FILES+=usr/lib/libprivateevent_p.a
 OLD_DIRS+=usr/include/private/event
 
@@ -2274,7 +2274,7 @@ OLD_FILES+=usr/include/sys/dir.h
 # 20190729: gzip'ed a.out support removed
 OLD_FILES+=usr/include/sys/inflate.h
 # 20190722: cap_random(3) removed
-OLD_FILES+=lib/casper/libcap_random.so.1
+OLD_LIBS+=lib/casper/libcap_random.so.1
 OLD_FILES+=usr/include/casper/cap_random.h
 OLD_FILES+=usr/share/man/man3/cap_random.3.gz
 OLD_FILES+=usr/share/man/man3/cap_random_buf.3.gz
@@ -2465,7 +2465,7 @@ OLD_FILES+=usr/share/man/man4/wb.4.gz
 OLD_FILES+=usr/share/man/man4/xe.4.gz
 OLD_FILES+=usr/share/man/man4/if_xe.4.gz
 # 20190513: libcap_sysctl interface change
-OLD_FILES+=lib/casper/libcap_sysctl.so.1
+OLD_LIBS+=lib/casper/libcap_sysctl.so.1
 # 20190509: tests/sys/opencrypto requires the net/py-dpkt package.
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.py
 OLD_FILES+=usr/tests/sys/opencrypto/dpkt.pyc
@@ -4585,7 +4585,7 @@ OLD_FILES+=usr/include/netnatm/natm.h
 OLD_FILES+=usr/lib/debug/sbin/atmconfig.debug
 OLD_FILES+=usr/lib/debug/usr/lib/snmp_atm.so.6.debug
 OLD_FILES+=usr/lib/snmp_atm.so
-OLD_FILES+=usr/lib/snmp_atm.so.6
+OLD_LIBS+=usr/lib/snmp_atm.so.6
 OLD_FILES+=usr/share/doc/atm/atmconfig.help
 OLD_FILES+=usr/share/doc/atm/atmconfig_device.help
 OLD_DIRS+=usr/share/doc/atm
@@ -7079,11 +7079,11 @@ OLD_FILES+=usr/share/examples/libusb20/aux.h
 OLD_FILES+=usr/include/_libiconv_compat.h
 OLD_FILES+=usr/lib/libiconv.a
 OLD_FILES+=usr/lib/libiconv.so
-OLD_FILES+=usr/lib/libiconv.so.3
+OLD_LIBS+=usr/lib/libiconv.so.3
 OLD_FILES+=usr/lib/libiconv_p.a
 OLD_FILES+=usr/lib32/libiconv.a
 OLD_FILES+=usr/lib32/libiconv.so
-OLD_FILES+=usr/lib32/libiconv.so.3
+OLD_LIBS+=usr/lib32/libiconv.so.3
 OLD_FILES+=usr/lib32/libiconv_p.a
 # 20131103: removal of utxrm(8), use 'utx rm' instead.
 OLD_FILES+=usr/sbin/utxrm
@@ -9598,14 +9598,14 @@ OLD_FILES+=usr/lib/libalias_pptp.so
 OLD_FILES+=usr/lib/libalias_skinny.so
 OLD_FILES+=usr/lib/libalias_smedia.so
 # 20061201: remove old *.so.4 libalias modules
-OLD_FILES+=lib/libalias_cuseeme.so.4
-OLD_FILES+=lib/libalias_dummy.so.4
-OLD_FILES+=lib/libalias_ftp.so.4
-OLD_FILES+=lib/libalias_irc.so.4
-OLD_FILES+=lib/libalias_nbt.so.4
-OLD_FILES+=lib/libalias_pptp.so.4
-OLD_FILES+=lib/libalias_skinny.so.4
-OLD_FILES+=lib/libalias_smedia.so.4
+OLD_LIBS+=lib/libalias_cuseeme.so.4
+OLD_LIBS+=lib/libalias_dummy.so.4
+OLD_LIBS+=lib/libalias_ftp.so.4
+OLD_LIBS+=lib/libalias_irc.so.4
+OLD_LIBS+=lib/libalias_nbt.so.4
+OLD_LIBS+=lib/libalias_pptp.so.4
+OLD_LIBS+=lib/libalias_skinny.so.4
+OLD_LIBS+=lib/libalias_smedia.so.4
 # 20061126: remove old man page
 OLD_FILES+=usr/share/man/man3/archive_read_set_bytes_per_block.3.gz
 # 20061125: remove old man page
@@ -9988,10 +9988,10 @@ OLD_FILES+=usr/share/man/man3/tree_mung.3.gz
 OLD_FILES+=usr/share/man/man3/tree_srch.3.gz
 OLD_FILES+=usr/share/man/man3/tree_trav.3.gz
 # 2004XXYY: OS internal libs, no ports use them, no need to use OLD_LIBS
-OLD_FILES+=lib/geom/geom_concat.so.1
-OLD_FILES+=lib/geom/geom_label.so.1
-OLD_FILES+=lib/geom/geom_nop.so.1
-OLD_FILES+=lib/geom/geom_stripe.so.1
+OLD_LIBS+=lib/geom/geom_concat.so.1
+OLD_LIBS+=lib/geom/geom_label.so.1
+OLD_LIBS+=lib/geom/geom_nop.so.1
+OLD_LIBS+=lib/geom/geom_stripe.so.1
 # 20040728: GCC 3.4.2
 OLD_DIRS+=usr/include/c++/3.3
 OLD_FILES+=usr/include/c++/3.3/FlexLexer.h
