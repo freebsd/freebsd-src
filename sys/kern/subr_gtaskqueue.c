@@ -55,7 +55,6 @@ static int	task_is_running(struct gtaskqueue *queue, struct gtask *gtask);
 static void	gtaskqueue_drain_locked(struct gtaskqueue *queue, struct gtask *gtask);
 
 TASKQGROUP_DEFINE(softirq, mp_ncpus, 1);
-TASKQGROUP_DEFINE(config, 1, 1);
 
 struct gtaskqueue_busy {
 	struct gtask		*tb_running;
@@ -891,24 +890,6 @@ taskqgroup_bind(struct taskqgroup *qgroup)
 	}
 }
 
-static void
-taskqgroup_config_init(void *arg)
-{
-	struct taskqgroup *qgroup = qgroup_config;
-	LIST_HEAD(, grouptask) gtask_head = LIST_HEAD_INITIALIZER(NULL);
-
-	LIST_SWAP(&gtask_head, &qgroup->tqg_queue[0].tgc_tasks,
-	    grouptask, gt_list);
-	qgroup->tqg_queue[0].tgc_cnt = 0;
-	taskqgroup_cpu_create(qgroup, 0, 0);
-
-	qgroup->tqg_cnt = 1;
-	qgroup->tqg_stride = 1;
-}
-
-SYSINIT(taskqgroup_config_init, SI_SUB_TASKQ, SI_ORDER_SECOND,
-	taskqgroup_config_init, NULL);
-
 static int
 _taskqgroup_adjust(struct taskqgroup *qgroup, int cnt, int stride)
 {
@@ -1028,21 +1009,5 @@ taskqgroup_create(const char *name)
 void
 taskqgroup_destroy(struct taskqgroup *qgroup)
 {
-
 }
 
-void
-taskqgroup_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
-    const char *name)
-{
-
-	GROUPTASK_INIT(gtask, 0, fn, ctx);
-	taskqgroup_attach(qgroup_config, gtask, gtask, -1, name);
-}
-
-void
-taskqgroup_config_gtask_deinit(struct grouptask *gtask)
-{
-
-	taskqgroup_detach(qgroup_config, gtask);
-}
