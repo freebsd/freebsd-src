@@ -244,6 +244,7 @@ MAN=	aac.4 \
 	jedec_dimm.4 \
 	jme.4 \
 	kbdmux.4 \
+	kcov.4 \
 	keyboard.4 \
 	kld.4 \
 	ksyms.4 \
