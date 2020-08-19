@@ -35,6 +35,8 @@
  * $FreeBSD$
  */
 
+#define	KCSAN_RUNTIME
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
