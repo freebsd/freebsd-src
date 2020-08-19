@@ -1957,17 +1957,6 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 					*pkthdrlen = len_cp;
 				break;
 			}
-
-			/*
-			 * Don't end a send in the middle of a TLS
-			 * record if it spans multiple TLS records.
-			 */
-			if (tls != NULL && (m != start) && len < m->m_len) {
-				*plen = len_cp;
-				if (pkthdrlen != NULL)
-					*pkthdrlen = len_cp;
-				break;
-			}
 		}
 #endif
 		mlen = min(len, m->m_len - off);
