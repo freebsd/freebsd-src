@@ -286,6 +286,9 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
+	struct thread *td;
+
+	td = curthread;
 
 	/*
 	 * If the NLM is running, give it a chance to abort pending
@@ -295,7 +298,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		nfs_reclaim_p(ap);
 
 	NFSLOCKNODE(np);
-	ncl_releasesillyrename(vp, ap->a_td);
+	ncl_releasesillyrename(vp, td);
 	NFSUNLOCKNODE(np);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG)
@@ -305,7 +308,7 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 		 * ncl_inactive(), but there are cases where it is not
 		 * called, so we need to do it again here.
 		 */
-		(void) nfsrpc_close(vp, 1, ap->a_td);
+		(void) nfsrpc_close(vp, 1, td);
 
 	vfs_hash_remove(vp);
 
