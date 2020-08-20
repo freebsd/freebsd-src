@@ -1144,10 +1144,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	tmpfs_dir_attach(tdvp, de);
 
 	if (tmpfs_use_nc(fvp)) {
-		cache_purge(fvp);
-		if (tvp != NULL)
-			cache_purge(tvp);
-		cache_purge_negative(tdvp);
+		cache_rename(fdvp, fvp, tdvp, tvp, fcnp, tcnp);
 	}
 
 	error = 0;
