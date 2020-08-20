@@ -248,7 +248,12 @@ main(void)
 		fd = open(PATH_DOTCONFIG, O_RDONLY);
 
 	if (fd != -1) {
-		read(fd, cmd, sizeof (cmd));
+		ssize_t cmdlen;
+
+		if ((cmdlen = read(fd, cmd, sizeof(cmd))) > 0)
+			cmd[cmdlen] = '\0';
+		else
+			*cmd = '\0';
 		close(fd);
 	}
 
