@@ -165,6 +165,7 @@ ufm_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	gone_in_dev(dev, 13, "Driver no longer relevant");
 	return (0);			/* success */
 
 detach:
