@@ -408,10 +408,10 @@ static struct cdevsw dev_cdevsw = {
 struct dev_event_info
 {
 	char *dei_data;
-	TAILQ_ENTRY(dev_event_info) dei_link;
+	STAILQ_ENTRY(dev_event_info) dei_link;
 };
 
-TAILQ_HEAD(devq, dev_event_info);
+STAILQ_HEAD(devq, dev_event_info);
 
 static struct dev_softc
 {
@@ -444,7 +444,7 @@ devinit(void)
 	    UID_ROOT, GID_WHEEL, 0600, "devctl");
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
 	cv_init(&devsoftc.cv, "dev cv");
-	TAILQ_INIT(&devsoftc.devq);
+	STAILQ_INIT(&devsoftc.devq);
 	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 	devctl2_init();
 }
@@ -491,7 +491,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	int rv;
 
 	mtx_lock(&devsoftc.mtx);
-	while (TAILQ_EMPTY(&devsoftc.devq)) {
+	while (STAILQ_EMPTY(&devsoftc.devq)) {
 		if (devsoftc.nonblock) {
 			mtx_unlock(&devsoftc.mtx);
 			return (EAGAIN);
@@ -505,8 +505,8 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 			return (rv);
 		}
 	}
-	n1 = TAILQ_FIRST(&devsoftc.devq);
-	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	n1 = STAILQ_FIRST(&devsoftc.devq);
+	STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
@@ -554,7 +554,7 @@ devpoll(struct cdev *dev, int events, struct thread *td)
 
 	mtx_lock(&devsoftc.mtx);
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (!TAILQ_EMPTY(&devsoftc.devq))
+		if (!STAILQ_EMPTY(&devsoftc.devq))
 			revents = events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &devsoftc.sel);
@@ -629,13 +629,13 @@ devctl_queue_data_f(char *data, int flags)
 	}
 	/* Leave at least one spot in the queue... */
 	while (devsoftc.queued > devctl_queue_length - 1) {
-		n2 = TAILQ_FIRST(&devsoftc.devq);
-		TAILQ_REMOVE(&devsoftc.devq, n2, dei_link);
+		n2 = STAILQ_FIRST(&devsoftc.devq);
+		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 		free(n2->dei_data, M_BUS);
 		free(n2, M_BUS);
 		devsoftc.queued--;
 	}
-	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	STAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
@@ -811,9 +811,9 @@ sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
 	if (mtx_initialized(&devsoftc.mtx))
 		mtx_lock(&devsoftc.mtx);
 	if (dis) {
-		while (!TAILQ_EMPTY(&devsoftc.devq)) {
-			n1 = TAILQ_FIRST(&devsoftc.devq);
-			TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		while (!STAILQ_EMPTY(&devsoftc.devq)) {
+			n1 = STAILQ_FIRST(&devsoftc.devq);
+			STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 			free(n1->dei_data, M_BUS);
 			free(n1, M_BUS);
 		}
@@ -843,8 +843,8 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		mtx_lock(&devsoftc.mtx);
 	devctl_queue_length = q;
 	while (devsoftc.queued > devctl_queue_length) {
-		n1 = TAILQ_FIRST(&devsoftc.devq);
-		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		n1 = STAILQ_FIRST(&devsoftc.devq);
+		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 		free(n1->dei_data, M_BUS);
 		free(n1, M_BUS);
 		devsoftc.queued--;
