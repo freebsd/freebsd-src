@@ -607,7 +607,7 @@ devctl_process_running(void)
  * assumed that @p data is properly formatted.  It is further assumed
  * that @p data is allocated using the M_BUS malloc type.
  */
-void
+static void
 devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
@@ -653,7 +653,7 @@ out:
 	return;
 }
 
-void
+static void
 devctl_queue_data(char *data)
 {
 	devctl_queue_data_f(data, M_NOWAIT);
