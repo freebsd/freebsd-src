@@ -976,7 +976,6 @@ MAN+=	\
 	udbp.4 \
 	udl.4 \
 	uep.4 \
-	ufm.4 \
 	ufoma.4 \
 	uftdi.4 \
 	ugen.4 \
