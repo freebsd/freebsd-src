@@ -3904,10 +3904,8 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	if (!(sc->sc_hw.devs[index].ep_configured & mask)) {
 		sc->sc_hw.devs[index].ep_configured |= mask;
 		err = xhci_cmd_configure_ep(sc, buf_inp.physaddr, 0, index);
-	} else if (epno != 1) {
-		err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
 	} else {
-		err = 0;
+		err = xhci_cmd_evaluate_ctx(sc, buf_inp.physaddr, index);
 	}
 
 	if (err != 0) {
