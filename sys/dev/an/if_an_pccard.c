@@ -156,5 +156,7 @@ an_pccard_attach(device_t dev)
 fail:
 	if (error)
 		an_release_resources(dev);
+	else
+		gone_in_dev(dev, 13, "pccard removed");
 	return (error);
 }
