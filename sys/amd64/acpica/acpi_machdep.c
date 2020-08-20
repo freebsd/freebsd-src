@@ -91,91 +91,29 @@ acpi_machdep_quirks(int *quirks)
 }
 
 /*
- * Support for mapping ACPI tables during early boot.  Currently this
- * uses the crashdump map to map each table.  However, the crashdump
- * map is created in pmap_bootstrap() right after the direct map, so
- * we should be able to just use pmap_mapbios() here instead.
- *
- * This makes the following assumptions about how we use this KVA:
- * pages 0 and 1 are used to map in the header of each table found via
- * the RSDT or XSDT and pages 2 to n are used to map in the RSDT or
- * XSDT.  This has to use 2 pages for the table headers in case a
- * header spans a page boundary.
- *
- * XXX: We don't ensure the table fits in the available address space
- * in the crashdump map.
- */
-
-/*
- * Map some memory using the crashdump map.  'offset' is an offset in
- * pages into the crashdump map to use for the start of the mapping.
+ * Map a table.  First map the header to determine the table length and then map
+ * the entire table.
  */
 static void *
-table_map(vm_paddr_t pa, int offset, vm_offset_t length)
-{
-	vm_offset_t va, off;
-	void *data;
-
-	off = pa & PAGE_MASK;
-	length = round_page(length + off);
-	pa = pa & PG_FRAME;
-	va = (vm_offset_t)pmap_kenter_temporary(pa, offset) +
-	    (offset * PAGE_SIZE);
-	data = (void *)(va + off);
-	length -= PAGE_SIZE;
-	while (length > 0) {
-		va += PAGE_SIZE;
-		pa += PAGE_SIZE;
-		length -= PAGE_SIZE;
-		pmap_kenter(va, pa);
-		invlpg(va);
-	}
-	return (data);
-}
-
-/* Unmap memory previously mapped with table_map(). */
-static void
-table_unmap(void *data, vm_offset_t length)
-{
-	vm_offset_t va, off;
-
-	va = (vm_offset_t)data;
-	off = va & PAGE_MASK;
-	length = round_page(length + off);
-	va &= ~PAGE_MASK;
-	while (length > 0) {
-		pmap_kremove(va);
-		invlpg(va);
-		va += PAGE_SIZE;
-		length -= PAGE_SIZE;
-	}
-}
-
-/*
- * Map a table at a given offset into the crashdump map.  It first
- * maps the header to determine the table length and then maps the
- * entire table.
- */
-static void *
-map_table(vm_paddr_t pa, int offset, const char *sig)
+map_table(vm_paddr_t pa, const char *sig)
 {
 	ACPI_TABLE_HEADER *header;
 	vm_offset_t length;
 	void *table;
 
-	header = table_map(pa, offset, sizeof(ACPI_TABLE_HEADER));
+	header = pmap_mapbios(pa, sizeof(ACPI_TABLE_HEADER));
 	if (strncmp(header->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
-		table_unmap(header, sizeof(ACPI_TABLE_HEADER));
+		pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
 		return (NULL);
 	}
 	length = header->Length;
-	table_unmap(header, sizeof(ACPI_TABLE_HEADER));
-	table = table_map(pa, offset, length);
+	pmap_unmapbios((vm_offset_t)header, sizeof(ACPI_TABLE_HEADER));
+	table = pmap_mapbios(pa, length);
 	if (ACPI_FAILURE(AcpiTbChecksum(table, length))) {
 		if (bootverbose)
 			printf("ACPI: Failed checksum for table %s\n", sig);
 #if (ACPI_CHECKSUM_ABORT)
-		table_unmap(table, length);
+		pmap_unmapbios((vm_offset_t)table, length);
 		return (NULL);
 #endif
 	}
@@ -190,21 +128,12 @@ static int
 probe_table(vm_paddr_t address, const char *sig)
 {
 	ACPI_TABLE_HEADER *table;
+	int ret;
 
-	table = table_map(address, 0, sizeof(ACPI_TABLE_HEADER));
-	if (table == NULL) {
-		if (bootverbose)
-			printf("ACPI: Failed to map table at 0x%jx\n",
-			    (uintmax_t)address);
-		return (0);
-	}
-
-	if (strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
-		table_unmap(table, sizeof(ACPI_TABLE_HEADER));
-		return (0);
-	}
-	table_unmap(table, sizeof(ACPI_TABLE_HEADER));
-	return (1);
+	table = pmap_mapbios(address, sizeof(ACPI_TABLE_HEADER));
+	ret = strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) == 0;
+	pmap_unmapbios((vm_offset_t)table, sizeof(ACPI_TABLE_HEADER));
+	return (ret);
 }
 
 /*
@@ -215,7 +144,7 @@ void *
 acpi_map_table(vm_paddr_t pa, const char *sig)
 {
 
-	return (map_table(pa, 0, sig));
+	return (map_table(pa, sig));
 }
 
 /* Unmap a table previously mapped via acpi_map_table(). */
@@ -225,7 +154,7 @@ acpi_unmap_table(void *table)
 	ACPI_TABLE_HEADER *header;
 
 	header = (ACPI_TABLE_HEADER *)table;
-	table_unmap(table, header->Length);
+	pmap_unmapbios((vm_offset_t)table, header->Length);
 }
 
 /*
@@ -262,9 +191,7 @@ acpi_find_table(const char *sig)
 
 	/*
 	 * For ACPI >= 2.0, use the XSDT if it is available.
-	 * Otherwise, use the RSDT.  We map the XSDT or RSDT at page 2
-	 * in the crashdump area.  Pages 0 and 1 are used to map in the
-	 * headers of candidate ACPI tables.
+	 * Otherwise, use the RSDT.
 	 */
 	addr = 0;
 	if (rsdp->Revision >= 2 && rsdp->XsdtPhysicalAddress != 0) {
@@ -278,7 +205,7 @@ acpi_find_table(const char *sig)
 				printf("ACPI: RSDP failed extended checksum\n");
 			return (0);
 		}
-		xsdt = map_table(rsdp->XsdtPhysicalAddress, 2, ACPI_SIG_XSDT);
+		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map XSDT\n");
@@ -293,7 +220,7 @@ acpi_find_table(const char *sig)
 			}
 		acpi_unmap_table(xsdt);
 	} else {
-		rsdt = map_table(rsdp->RsdtPhysicalAddress, 2, ACPI_SIG_RSDT);
+		rsdt = map_table(rsdp->RsdtPhysicalAddress, ACPI_SIG_RSDT);
 		if (rsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map RSDT\n");
@@ -316,7 +243,7 @@ acpi_find_table(const char *sig)
 	 * Verify that we can map the full table and that its checksum is
 	 * correct, etc.
 	 */
-	table = map_table(addr, 0, sig);
+	table = map_table(addr, sig);
 	if (table == NULL)
 		return (0);
 	acpi_unmap_table(table);
