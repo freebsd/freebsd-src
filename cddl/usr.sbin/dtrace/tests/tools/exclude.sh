@@ -201,10 +201,6 @@ exclude EXFAIL common/usdt/tst.eliminate.ksh
 # Generated headers include <sys/sdt.h>, so _DTRACE_VERSION is always defined.
 exclude EXFAIL common/usdt/tst.nodtrace.ksh
 
-# The second dtrace -G invocation returns an error with "no probes found," which
-# makes sense to me. Not yet sure what the expected behaviour is here.
-exclude EXFAIL common/usdt/tst.static2.ksh
-
 # Uses the Solaris-specific ppriv(1).
 exclude EXFAIL common/usdt/tst.user.ksh
 
