@@ -805,7 +805,11 @@ ndaregister(struct cam_periph *periph, void *arg)
 	disk->d_hba_device = cpi.hba_device;
 	disk->d_hba_subvendor = cpi.hba_subvendor;
 	disk->d_hba_subdevice = cpi.hba_subdevice;
-	disk->d_stripesize = disk->d_sectorsize;
+	if (((nsd->nsfeat >> NVME_NS_DATA_NSFEAT_NPVALID_SHIFT) &
+	    NVME_NS_DATA_NSFEAT_NPVALID_MASK) != 0 && nsd->npwg != 0)
+		disk->d_stripesize = ((nsd->npwg + 1) * disk->d_sectorsize);
+	else
+		disk->d_stripesize = nsd->noiob * disk->d_sectorsize;
 	disk->d_stripeoffset = 0;
 	disk->d_devstat = devstat_new_entry(periph->periph_name,
 	    periph->unit_number, disk->d_sectorsize,
