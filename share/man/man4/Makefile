@@ -293,6 +293,7 @@ MAN=	aac.4 \
 	mac_stub.4 \
 	mac_test.4 \
 	malo.4 \
+	max44009.4 \
 	md.4 \
 	mdio.4 \
 	me.4 \
