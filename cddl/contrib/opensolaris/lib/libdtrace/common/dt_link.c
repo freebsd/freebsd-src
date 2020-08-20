@@ -773,6 +773,7 @@ dt_symtab_lookup(Elf_Data *data_sym, int start, int end, uintptr_t addr,
 #define	DT_OP_RET		0xd65f03c0
 #define	DT_OP_CALL26		0x94000000
 #define	DT_OP_JUMP26		0x14000000
+#define	DT_REL_NONE		R_AACH64_NONE
 
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -831,7 +832,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (0);
 }
 #elif defined(__arm__)
-/* XXX */
+#define	DT_REL_NONE		R_ARM_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -841,7 +843,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (-1);
 }
 #elif defined(__mips__)
-/* XXX */
+#define	DT_REL_NONE		R_MIPS_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -861,7 +864,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 #define DT_IS_BRANCH(inst)	((inst & 0xfc000000) == 0x48000000)
 #define DT_IS_BL(inst)	(DT_IS_BRANCH(inst) && (inst & 0x01))
 
-/* XXX */
+#define	DT_REL_NONE		R_PPC_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -878,7 +882,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * We only know about some specific relocation types.
 	 */
 	if (GELF_R_TYPE(rela->r_info) != R_PPC_REL24 &&
-	    GELF_R_TYPE(rela->r_info) != R_PPC_PLTREL24)
+	    GELF_R_TYPE(rela->r_info) != R_PPC_PLTREL24 &&
+	    GELF_R_TYPE(rela->r_info) != R_PPC_NONE)
 		return (-1);
 
 	/*
@@ -932,7 +937,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (0);
 }
 #elif defined(__riscv)
-/* XXX */
+#define	DT_REL_NONE		R_RISCV_NONE
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -951,6 +956,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 #define	DT_OP_REX_RAX		0x48
 #define	DT_OP_XOR_EAX_0		0x33
 #define	DT_OP_XOR_EAX_1		0xc0
+
+#define	DT_REL_NONE		R_386_NONE
 
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -974,7 +981,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * x86 architectures.
 	 */
 	if (GELF_R_TYPE(rela->r_info) != R_386_PC32 &&
-	    GELF_R_TYPE(rela->r_info) != R_386_PLT32)
+	    GELF_R_TYPE(rela->r_info) != R_386_PLT32 &&
+	    GELF_R_TYPE(rela->r_info) != R_386_NONE)
 		return (-1);
 
 	/*
@@ -1273,6 +1281,11 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		 * We take a first pass through all the relocations to
 		 * populate our string table and count the number of extra
 		 * symbols we'll require.
+		 *
+		 * We also handle the case where the object has already been
+		 * processed, to support incremental rebuilds.  Relocations
+		 * of interest are converted to type NONE, but all information
+		 * needed to reconstruct the output DOF is retained.
 		 */
 		strtab = dt_strtab_create(1);
 		nsym = 0;
@@ -1280,7 +1293,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		istr = data_str->d_size;
 
 		for (i = 0; i < shdr_rel.sh_size / shdr_rel.sh_entsize; i++) {
-
 			if (shdr_rel.sh_type == SHT_RELA) {
 				if (gelf_getrela(data_rel, i, &rela) == NULL)
 					continue;
@@ -1345,7 +1357,12 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			    objkey, s);
 
 			if (dt_strtab_index(strtab, p) == -1) {
-				nsym++;
+				/*
+				 * Do not add new symbols if this object file
+				 * has already been processed.
+				 */
+				if (GELF_R_TYPE(rela.r_info) != DT_REL_NONE)
+					nsym++;
 				(void) dt_strtab_insert(strtab, p);
 			}
 
@@ -1353,13 +1370,14 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		}
 
 		/*
-		 * If any probes were found, allocate the additional space for
-		 * the symbol table and string table, copying the old data into
-		 * the new buffers, and marking the buffers as dirty. We inject
-		 * those newly allocated buffers into the libelf data
+		 * If any new probes were found, allocate the additional space
+		 * for the symbol table and string table, copying the old data
+		 * into the new buffers, and marking the buffers as dirty. We
+		 * inject those newly allocated buffers into the libelf data
 		 * structures, but are still responsible for freeing them once
 		 * we're done with the elf handle.
 		 */
+		osym = isym;
 		if (nsym > 0) {
 			/*
 			 * The first byte of the string table is reserved for
@@ -1411,9 +1429,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			shdr_sym.sh_size += nsym * symsize;
 			(void) gelf_update_shdr(scn_sym, &shdr_sym);
 
-			osym = isym;
 			nsym += isym;
-		} else {
+		} else if (dt_strtab_empty(strtab)) {
 			dt_strtab_destroy(strtab);
 			continue;
 		}
@@ -1423,7 +1440,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		 * modifications described above.
 		 */
 		for (i = 0; i < shdr_rel.sh_size / shdr_rel.sh_entsize; i++) {
-
 			if (shdr_rel.sh_type == SHT_RELA) {
 				if (gelf_getrela(data_rel, i, &rela) == NULL)
 					continue;
@@ -1490,32 +1506,51 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 				bind = GELF_ST_BIND(fsym.st_info) == STB_WEAK ?
 				    STB_WEAK : STB_GLOBAL;
-
-				/*
-				 * Emit an alias for the symbol. It needs to be
-				 * non-preemptible so that .SUNW_dof relocations
-				 * may be resolved at static link time. Aliases
-				 * of weak symbols are given a non-unique name
-				 * so that they may be merged by the linker.
-				 */
-				dsym = fsym;
-				dsym.st_name = istr;
-				dsym.st_info = GELF_ST_INFO(bind, STT_FUNC);
-				dsym.st_other = GELF_ST_VISIBILITY(STV_HIDDEN);
-				(void) gelf_update_sym(data_sym, isym, &dsym);
-				r = (char *) data_str->d_buf + istr;
 				s = (char *) data_str->d_buf + fsym.st_name;
-				if (bind == STB_WEAK)
-					istr += sprintf(r, dt_weaksymfmt,
-					    dt_symprefix, s);
-				else
-					istr += sprintf(r, dt_symfmt,
-					    dt_symprefix, objkey, s);
-				istr++;
-				isym++;
-				assert(isym <= nsym);
-			} else
+				if (GELF_R_TYPE(rela.r_info) != DT_REL_NONE) {
+					/*
+					 * Emit an alias for the symbol. It
+					 * needs to be non-preemptible so that
+					 * .SUNW_dof relocations may be resolved
+					 * at static link time. Aliases of weak
+					 * symbols are given a non-unique name
+					 * so that they may be merged by the
+					 * linker.
+					 */
+					dsym = fsym;
+					dsym.st_name = istr;
+					dsym.st_info = GELF_ST_INFO(bind,
+					    STT_FUNC);
+					dsym.st_other =
+					    GELF_ST_VISIBILITY(STV_HIDDEN);
+					(void) gelf_update_sym(data_sym, isym,
+					    &dsym);
+					isym++;
+					assert(isym <= nsym);
+
+					r = (char *) data_str->d_buf + istr;
+					if (bind == STB_WEAK) {
+						istr += sprintf(r,
+						    dt_weaksymfmt, dt_symprefix,
+						    s);
+					} else {
+						istr += sprintf(r, dt_symfmt,
+						    dt_symprefix, objkey, s);
+					}
+					istr++;
+				} else {
+					if (bind == STB_WEAK) {
+						(void) asprintf(&r,
+						    dt_weaksymfmt, dt_symprefix,
+						    s);
+					} else {
+						(void) asprintf(&r, dt_symfmt,
+						    dt_symprefix, objkey, s);
+					}
+				}
+			} else {
 				goto err;
+			}
 
 			if ((pvp = dt_provider_lookup(dtp, pname)) == NULL) {
 				return (dt_link_error(dtp, elf, fd, bufs,
@@ -1544,24 +1579,18 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			}
 
 			/*
-			 * Our linker doesn't understand the SUNW_IGNORE ndx and
-			 * will try to use this relocation when we build the
-			 * final executable. Since we are done processing this
-			 * relocation, mark it as inexistant and let libelf
-			 * remove it from the file.
-			 * If this wasn't done, we would have garbage added to
-			 * the executable file as the symbol is going to be
-			 * change from UND to ABS.
+			 * We are done with this relocation, but it must be
+			 * preserved in order to support incremental rebuilds.
 			 */
 			if (shdr_rel.sh_type == SHT_RELA) {
-				rela.r_offset = 0;
-				rela.r_info  = 0;
-				rela.r_addend = 0;
+				rela.r_info =
+				    GELF_R_INFO(GELF_R_SYM(rela.r_info), 0);
 				(void) gelf_update_rela(data_rel, i, &rela);
 			} else {
 				GElf_Rel rel;
-				rel.r_offset = 0;
-				rel.r_info = 0;
+				rel.r_offset = rela.r_offset;
+				rela.r_info =
+				    GELF_R_INFO(GELF_R_SYM(rela.r_info), 0);
 				(void) gelf_update_rel(data_rel, i, &rel);
 			}
 
@@ -1613,19 +1642,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	char *cmd, tmp;
 	size_t len;
 	int eprobes = 0, ret = 0;
-
-	if (access(file, R_OK) == 0) {
-		fprintf(stderr, "dtrace: target object (%s) already exists. "
-		    "Please remove the target\ndtrace: object and rebuild all "
-		    "the source objects if you wish to run the DTrace\n"
-		    "dtrace: linking process again\n", file);
-		/*
-		 * Several build infrastructures run DTrace twice (e.g.
-		 * postgres) and we don't want the build to fail. Return
-		 * 0 here since this isn't really a fatal error.
-		 */
-		return (0);
-	}
 
 	/*
 	 * A NULL program indicates a special use in which we just link
