@@ -102,7 +102,7 @@ MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 EVENTHANDLER_LIST_DEFINE(vfs_mounted);
 EVENTHANDLER_LIST_DEFINE(vfs_unmounted);
 
-static void dev_vfs_event(const char *type, struct mount *mp, bool donew);
+static void mount_devctl_event(const char *type, struct mount *mp, bool donew);
 
 /*
  * Global opts, taken by all filesystems
@@ -1023,7 +1023,7 @@ vfs_domount_first(
 	VOP_UNLOCK(vp);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_mounted, mp, newdp, td);
 	VOP_UNLOCK(newdp);
-	dev_vfs_event("MOUNT", mp, false);
+	mount_devctl_event("MOUNT", mp, false);
 	mountcheckdirs(vp, newdp);
 	vn_seqc_write_end(vp);
 	vn_seqc_write_end(newdp);
@@ -1225,7 +1225,7 @@ vfs_domount_update(
 	if (error != 0)
 		goto end;
 
-	dev_vfs_event("REMOUNT", mp, true);
+	mount_devctl_event("REMOUNT", mp, true);
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
 	mp->mnt_opt = mp->mnt_optnew;
@@ -1844,13 +1844,13 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_unmounted, mp, td);
-	dev_vfs_event("UNMOUNT", mp, false);
 	if (coveredvp != NULL) {
 		coveredvp->v_mountedhere = NULL;
 		vn_seqc_write_end(coveredvp);
 		VOP_UNLOCK(coveredvp);
 		vdrop(coveredvp);
 	}
+	mount_devctl_event("UNMOUNT", mp, false);
 	if (rootvp != NULL) {
 		vn_seqc_write_end(rootvp);
 		vdrop(rootvp);
@@ -2439,7 +2439,7 @@ static struct mntoptnames optnames[] = {
 };
 
 static void
-dev_vfs_event_mntopt(struct sbuf *sb, const char *what, struct vfsoptlist *opts)
+mount_devctl_event_mntopt(struct sbuf *sb, const char *what, struct vfsoptlist *opts)
 {
 	struct vfsopt *opt;
 
@@ -2461,7 +2461,7 @@ dev_vfs_event_mntopt(struct sbuf *sb, const char *what, struct vfsoptlist *opts)
 
 #define DEVCTL_LEN 1024
 static void
-dev_vfs_event(const char *type, struct mount *mp, bool donew)
+mount_devctl_event(const char *type, struct mount *mp, bool donew)
 {
 	const uint8_t *cp;
 	struct mntoptnames *fp;
@@ -2469,7 +2469,7 @@ dev_vfs_event(const char *type, struct mount *mp, bool donew)
 	struct statfs *sfp = &mp->mnt_stat;
 	char *buf;
 
-	buf = malloc(DEVCTL_LEN, M_MOUNT, M_WAITOK);
+	buf = malloc(DEVCTL_LEN, M_MOUNT, M_NOWAIT);
 	if (buf == NULL)
 		return;
 	sbuf_new(&sb, buf, DEVCTL_LEN, SBUF_FIXEDLEN);
@@ -2491,12 +2491,13 @@ dev_vfs_event(const char *type, struct mount *mp, bool donew)
 		}
 	}
 	sbuf_putc(&sb, '"');
-	dev_vfs_event_mntopt(&sb, "opt", mp->mnt_opt);
+	mount_devctl_event_mntopt(&sb, "opt", mp->mnt_opt);
 	if (donew)
-		dev_vfs_event_mntopt(&sb, "optnew", mp->mnt_optnew);
+		mount_devctl_event_mntopt(&sb, "optnew", mp->mnt_optnew);
 	sbuf_finish(&sb);
 
-	devctl_notify("VFS", "FS", type, sbuf_data(&sb));
+	if (sbuf_error(&sb) == 0)
+		devctl_notify("VFS", "FS", type, sbuf_data(&sb));
 	sbuf_delete(&sb);
 	free(buf, M_MOUNT);
 }
