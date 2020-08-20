@@ -773,7 +773,7 @@ dt_symtab_lookup(Elf_Data *data_sym, int start, int end, uintptr_t addr,
 #define	DT_OP_RET		0xd65f03c0
 #define	DT_OP_CALL26		0x94000000
 #define	DT_OP_JUMP26		0x14000000
-#define	DT_REL_NONE		R_AACH64_NONE
+#define	DT_REL_NONE		R_AARCH64_NONE
 
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
