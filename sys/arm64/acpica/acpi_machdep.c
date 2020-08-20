@@ -63,7 +63,7 @@ acpi_machdep_quirks(int *quirks)
 }
 
 static void *
-map_table(vm_paddr_t pa, int offset, const char *sig)
+map_table(vm_paddr_t pa, const char *sig)
 {
 	ACPI_TABLE_HEADER *header;
 	vm_offset_t length;
@@ -132,7 +132,7 @@ void *
 acpi_map_table(vm_paddr_t pa, const char *sig)
 {
 
-	return (map_table(pa, 0, sig));
+	return (map_table(pa, sig));
 }
 
 /*
@@ -178,7 +178,7 @@ acpi_find_table(const char *sig)
 				printf("ACPI: RSDP failed extended checksum\n");
 			return (0);
 		}
-		xsdt = map_table(rsdp->XsdtPhysicalAddress, 2, ACPI_SIG_XSDT);
+		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map XSDT\n");
@@ -204,7 +204,7 @@ acpi_find_table(const char *sig)
 	 * Verify that we can map the full table and that its checksum is
 	 * correct, etc.
 	 */
-	table = map_table(addr, 0, sig);
+	table = map_table(addr, sig);
 	if (table == NULL)
 		return (0);
 	acpi_unmap_table(table);
