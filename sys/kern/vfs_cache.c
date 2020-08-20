@@ -2351,9 +2351,13 @@ cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
 		ASSERT_VOP_IN_SEQC(tvp);
 
 	cache_purge(fvp);
-	if (tvp != NULL)
+	if (tvp != NULL) {
 		cache_purge(tvp);
-	cache_purge_negative(tdvp);
+		KASSERT(!cache_remove_cnp(tdvp, tcnp),
+		    ("%s: lingering negative entry", __func__));
+	} else {
+		cache_remove_cnp(tdvp, tcnp);
+	}
 }
 
 /*
