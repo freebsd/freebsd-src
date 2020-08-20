@@ -1629,10 +1629,7 @@ relock:
 	 * name that references the old i-node if it has other links
 	 * or open file descriptors.
 	 */
-	cache_purge(fvp);
-	if (tvp)
-		cache_purge(tvp);
-	cache_purge_negative(tdvp);
+	cache_rename(fdvp, fvp, tdvp, tvp, fcnp, tcnp);
 
 unlockout:
 	if (want_seqc_end) {

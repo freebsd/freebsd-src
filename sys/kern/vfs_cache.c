@@ -2339,6 +2339,23 @@ cache_purge_negative(struct vnode *vp)
 	}
 }
 
+void
+cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
+    struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp)
+{
+
+	ASSERT_VOP_IN_SEQC(fdvp);
+	ASSERT_VOP_IN_SEQC(fvp);
+	ASSERT_VOP_IN_SEQC(tdvp);
+	if (tvp != NULL)
+		ASSERT_VOP_IN_SEQC(tvp);
+
+	cache_purge(fvp);
+	if (tvp != NULL)
+		cache_purge(tvp);
+	cache_purge_negative(tdvp);
+}
+
 /*
  * Flush all entries referencing a particular filesystem.
  */
