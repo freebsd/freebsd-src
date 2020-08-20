@@ -3434,7 +3434,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		}
 
 		if (!flags->dryrun && zhp->zfs_type == ZFS_TYPE_FILESYSTEM &&
-		    stream_wantsnewfs) {
+		    (stream_wantsnewfs || resuming)) {
 			/* We can't do online recv in this case */
 			clp = changelist_gather(zhp, ZFS_PROP_NAME, 0,
 			    flags->forceunmount ? MS_FORCE : 0);
