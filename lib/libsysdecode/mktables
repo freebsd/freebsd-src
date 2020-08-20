@@ -153,7 +153,7 @@ gen_table "seekwhence"      "SEEK_[A-Z]+[[:space:]]+[0-9]+"                "sys/
 gen_table "fcntlcmd"        "F_[A-Z0-9_]+[[:space:]]+[0-9]+[[:space:]]+"   "sys/fcntl.h"	"F_CANCEL|F_..LCK"
 gen_table "mmapflags"       "MAP_[A-Z_]+[[:space:]]+0x[0-9A-Fa-f]+"        "sys/mman.h"
 gen_table "rtpriofuncs"     "RTP_[A-Z]+[[:space:]]+[0-9]+"                 "sys/rtprio.h"
-gen_table "msgflags"        "MSG_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/socket.h"	"MSG_SOCALLBCK|MSG_MORETOCOME"
+gen_table "msgflags"        "MSG_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/socket.h"	"MSG_SOCALLBCK|MSG_MORETOCOME|MSG_TLSAPPDATA"
 gen_table "sigcode"         "SI_[A-Z]+[[:space:]]+0(x[0-9abcdef]+)?"       "sys/signal.h"
 gen_table "umtxcvwaitflags" "CVWAIT_[A-Z_]+[[:space:]]+0x[0-9]+"           "sys/umtx.h"
 gen_table "umtxrwlockflags" "URWLOCK_PREFER_READER[[:space:]]+0x[0-9]+"    "sys/umtx.h"
