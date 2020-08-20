@@ -73,10 +73,21 @@ puc_pccard_probe(device_t dev)
 	return (ENXIO);
 }
 
+static int
+puc_pccard_attach(device_t dev)
+{
+	int error;
+
+	error = puc_bfe_attach(dev);
+	if (error == 0)
+		gone_in_dev(dev, 13, "pccard removed");
+	return (error);
+}
+
 static device_method_t puc_pccard_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,		puc_pccard_probe),
-    DEVMETHOD(device_attach,		puc_bfe_attach),
+    DEVMETHOD(device_attach,		puc_pccard_attach),
     DEVMETHOD(device_detach,		puc_bfe_detach),
 
     DEVMETHOD(bus_alloc_resource,	puc_bus_alloc_resource),
