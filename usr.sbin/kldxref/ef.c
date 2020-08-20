@@ -49,7 +49,7 @@
 
 #include "ef.h"
 
-#define	MAXSEGS 3
+#define	MAXSEGS 16
 struct ef_file {
 	char		*ef_name;
 	struct elf_file *ef_efile;
