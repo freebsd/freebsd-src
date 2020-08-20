@@ -146,11 +146,11 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	ip->i_mtime = le32toh(ei->e2di_mtime);
 	ip->i_ctime = le32toh(ei->e2di_ctime);
 	if (E2DI_HAS_XTIME(ip)) {
-		ip->i_atimensec = XTIME_TO_NSEC(le32toh(ei->e2di_atime_extra));
-		ip->i_mtimensec = XTIME_TO_NSEC(le32toh(ei->e2di_mtime_extra));
-		ip->i_ctimensec = XTIME_TO_NSEC(le32toh(ei->e2di_ctime_extra));
+		ip->i_atimensec = XTIME_TO_NSEC(ei->e2di_atime_extra);
+		ip->i_mtimensec = XTIME_TO_NSEC(ei->e2di_mtime_extra);
+		ip->i_ctimensec = XTIME_TO_NSEC(ei->e2di_ctime_extra);
 		ip->i_birthtime = le32toh(ei->e2di_crtime);
-		ip->i_birthnsec = XTIME_TO_NSEC(le32toh(ei->e2di_crtime_extra));
+		ip->i_birthnsec = XTIME_TO_NSEC(ei->e2di_crtime_extra);
 	}
 	ip->i_flags = 0;
 	ei_flags_host = le32toh(ei->e2di_flags);
