@@ -715,6 +715,8 @@ stop_worker_threads(void)
 			cv_wait(&cwt->cwt_cv, &cwt->cwt_lock);
 		} while (cwt->cwt_state != CWT_STOPPED);
 		mtx_unlock(&cwt->cwt_lock);
+		mtx_destroy(&cwt->cwt_lock);
+		cv_destroy(&cwt->cwt_cv);
 	}
 	free(cwt_softc, M_CXGBE);
 }
