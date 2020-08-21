@@ -3952,8 +3952,10 @@ zone_alloc_item(uma_zone_t zone, void *udata, int domain, int flags)
 {
 	void *item;
 
-	if (zone->uz_max_items > 0 && zone_alloc_limit(zone, 1, flags) == 0)
+	if (zone->uz_max_items > 0 && zone_alloc_limit(zone, 1, flags) == 0) {
+		counter_u64_add(zone->uz_fails, 1);
 		return (NULL);
+	}
 
 	/* Avoid allocs targeting empty domains. */
 	if (domain != UMA_ANYDOMAIN && VM_DOMAIN_EMPTY(domain))
