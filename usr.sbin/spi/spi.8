@@ -1,5 +1,5 @@
 .\" Copyright (c) 2018 by S.F.T. Inc.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -23,28 +23,28 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd "15 April 2018"
-.Dt spi 8
+.Dd August 21, 2020
+.Dt SPI 8
 .Os
 .Sh NAME
 .Nm spi
 .Nd communicate on SPI bus with slave devices
 .Sh SYNOPSIS
 .Nm
-.Op Fl f Ar device
-.Op Fl d Ar r|w|rw
-.Op Fl m Ar mode
-.Op Fl s Ar max-speed
-.Op Fl c Ar count
-.Op Fl C Ar cmd_bytes
 .Op Fl A
 .Op Fl b
 .Op Fl L
 .Op Fl v
+.Op Fl C Ar command-bytes
+.Op Fl c Ar count
+.Op Fl d Cm r Ns | Ns Cm w Ns | Ns Cm rw
+.Op Fl f Ar device
+.Op Fl m Ar mode
+.Op Fl s Ar max-speed
 .Nm
 .Op Fl i
-.Op Fl f Ar device
 .Op Fl v
+.Op Fl f Ar device
 .Nm
 .Op Fl h
 .Sh DESCRIPTION
@@ -59,26 +59,26 @@ device.
 Each
 .Xr spigen 4
 device is associated with a specific
-.Sq chip select
+.Dq chip select
 .Pq cs
 pin on the spibus, and therefore needs to be specified.
 If no device name is specified on the command line,
 .Nm
 assumes
-.Sq spigen0.0 .
+.Dq spigen0.0 .
 .Pp
 For more information on the spigen device, see
 .Xr spigen 4 .
 .Pp
 The options are as follows:
-.Bl -tag -width ".Fl f Ar device"
+.Bl -tag -width "-f device"
 .It Fl A
 Specifies ASCII mode.
 Both read and write data is input and output as
 2-character hexadecimal values, optionally separated by white space,
 such as 00 01 02 etc.
 When combined with the
-.Sq -b
+.Fl b
 flag, the data on stdin remains a sequence of ASCII hexadecimal
 byte values, but the output reverts to binary mode.
 .It Fl b
@@ -86,24 +86,23 @@ Binary
 .Pq output
 mode.
 Only has an effect when
-.Sq -A
+.Fl A
 has been specified.
 Reverts the output back to binary
 .Pq rather than ASCII ,
 while leaving the input format as-is.
 Use in combination with
-.Sq -A
+.Fl A
 to allow using something like
-.Sq echo
+.Dq echo
 to pass hexadecimal values to the SPI device, but output the received data
 on stdout as binary.
-.It Fl C Ar command bytes
-Sends one or more 
-.Sq command
-bytes, skipping any bytes read-in during the transfer.
+.It Fl C Ar command-bytes
+Sends one or more command bytes,
+skipping any bytes read-in during the transfer.
 The byte values should be specified as a quoted parameter, similar to the
 format for data on stdin for
-.Sq -A ,
+.Fl A ,
 that is, 2 character hexadecimal values, optionally separated by white space.
 An SPI device will typically require that a command be sent, followed by
 bytes of data.
@@ -114,22 +113,23 @@ The total number of bytes to transfer as a decimal integer.
 If a write or a read/write transaction is being performed, and fewer than
 this number of bytes are read in from stdin, the remaining bytes will be
 sent with a value of
-.Sq 0 .
+.Dq 0 .
 If the length can be determined from the input file size, you can use a
-.Sq count
+.Ar count
 value of
-.Sq -1
+.Dq -1
 to base the transfer on the input file's size.
-.It Fl d Ar r|w|rw
+.It Fl d Cm r Ns | Ns Cm w Ns | Ns Cm rw
 Transfer direction: Use
-.Sq r
+.Cm r
 for read,
-.Sq w for write, and
-.Sq rw
+.Cm w
+for write, and
+.Cm rw
 for simultaneous read and write.
 .It Fl f Ar device
 SPI device to use
-.Pq default is /dev/spigen0 .
+.Pq default is Pa /dev/spigen0 .
 .It Fl h
 Print help text to stderr, explaining the command line options.
 .It Fl i
@@ -140,8 +140,10 @@ and clock speed are not changed.
 LSB bit order.
 The default is MSB, i.e., the highest order bit is
 transmitted first.
-Specifying -L caused the LSB to be transmitted and read first.
-.It Fl m Ar 0 - 3
+Specifying
+.Fl L
+caused the LSB to be transmitted and read first.
+.It Fl m Cm 0 Ns | Ns Cm 1 Ns | Ns Cm 2 Ns | Ns Cm 3
 SPI mode, 0 through 3.
 This defines the clock phase and timing with respect to reading and writing
 data, as per the SPI specification.
@@ -153,7 +155,7 @@ exceed this maximum.
 Specifies Verbose mode.
 Diagnostics and information are written to stderr.
 You can specify
-.Sq -v
+.Fl v
 more than once to increase verbosity.
 .El
 .Sh EXAMPLES
@@ -161,43 +163,54 @@ Here are a few examples of using the spi utility:
 .Bl -bullet
 .It
 Get information about the default SPI device
-.Pp
+.Bd -literal
 spi -i
+.Ed
 .It
 Set the maximum clock speed to 200Khz and the mode to 3 on spigen0.1, but do
 not transmit nor receive any data
-.Pp
+.Bd -literal
 spi -f spigen0.1 -s 200000 -m 3
+.Ed
 .It
 Send a command sequence consisting of 2 bytes, and read 2 additional bytes
 from the SPI device, using the current mode and speed on the default device
-.Pp
+.Bd -literal
 spi -d r -C "00 01" -c 2
+.Ed
 .It
 Transmit a byte value of 5, and receive 2 bytes, displaying their values as
 2-byte ASCII hexadecimal, with mode 2, and a maximum clock speed of 500khz.
-.Pp
+.Bd -literal
 echo "05" | spi -A -d rw -m 2 -s 500000 -c 2
+.Ed
 .It
 Send a binary file, and output the SPI result through
-.Sq od
+.Xr od 1
 as hexadecimal bytes, using the current maximum clock speed and SPI mode.
-.Pp
+.Bd -literal
 spi -d rw -c -1 <input_file.bin | od -An -t x1
+.Ed
 .It
 Send 2 bytes of data, receive a total of 4 bytes, and output the SPI result
 as binary data, piped through
-.Sq od ,
+.Xr od 1 ,
 displaying it as two hexadecimal unsigned short integer values.
-.Pp
+.Bd -literal
 echo "00 01" | spi -A -b -d rw -c 4 | od -t x2
+.Ed
 .It
 Query the manufacturer ID and size from a standard spiflash device, by
 sending the command byte 0x9f and displaying the 3-byte reply in ASCII hex.
-.Pp
+.Bd -literal
 spi -f spigen0.0 -m 0 -s 1000000 -d r -c 3 -A -C 9f
-
+.Ed
 .El
-.Pp
 .Sh SEE ALSO
 .Xr spigen 4
+.Sh HISTORY
+The
+.Nm
+utility
+appeared in
+.Fx 11.3 .
