@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2020
+.Dd August 21, 2020
 .Dt LS 1
 .Os
 .Sh NAME
@@ -89,7 +89,7 @@ where
 .Va xxx
 is the numeric value of the character in octal.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl C
 Force multi-column output; this is the default when output is to a terminal.
 .It Fl D Ar format
@@ -108,7 +108,7 @@ This option overrides the
 .Fl T
 option.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl F
 Display a slash
 .Pq Ql /
@@ -141,7 +141,7 @@ in the environment and setting
 This functionality can be compiled out by removing the definition of
 .Ev COLORLS .
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl H
 Symbolic links on the command line are followed.
 This option is assumed if
@@ -155,7 +155,7 @@ Prevent
 .Fl A
 from being automatically set for the super-user.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl L
 If argument is a symbolic link, list the file or directory the link references
 rather than the link itself.
@@ -184,15 +184,15 @@ The
 .Fl D
 option gives even more control over the output format.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl U
 Use time when file was created for sorting or printing.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl W
 Display whiteouts when scanning directories.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl Z
 Display each file's MAC label; see
 .Xr maclabel 7 .
@@ -895,13 +895,13 @@ and
 the
 .Nm
 utility conforms to
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 The options
 .Fl B , D , G , I , T , U , W , Z , b , h , w , y
 and
 .Fl ,
 are compatible extensions not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .Pp
 The ACL support is compatible with
 .Tn IEEE
