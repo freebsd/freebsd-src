@@ -74,29 +74,6 @@
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
 
-#include <vm/uma.h>
-
-#define	RT_MAXFIBS	UINT16_MAX
-
-/* Kernel config default option. */
-#ifdef ROUTETABLES
-#if ROUTETABLES <= 0
-#error "ROUTETABLES defined too low"
-#endif
-#if ROUTETABLES > RT_MAXFIBS
-#error "ROUTETABLES defined too big"
-#endif
-#define	RT_NUMFIBS	ROUTETABLES
-#endif /* ROUTETABLES */
-/* Initialize to default if not otherwise set. */
-#ifndef	RT_NUMFIBS
-#define	RT_NUMFIBS	1
-#endif
-
-/* This is read-only.. */
-u_int rt_numfibs = RT_NUMFIBS;
-SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RDTUN, &rt_numfibs, 0, "");
-
 /*
  * By default add routes to all fibs for new interfaces.
  * Once this is set to 0 then only allocate routes on interface
@@ -118,73 +95,12 @@ VNET_PCPUSTAT_SYSINIT(rtstat);
 VNET_PCPUSTAT_SYSUNINIT(rtstat);
 #endif
 
-VNET_DEFINE(struct rib_head *, rt_tables);
-#define	V_rt_tables	VNET(rt_tables)
-
-
 EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
 static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,
     void *arg);
 static int rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info,
     int flags);
-
-/*
- * handler for net.my_fibnum
- */
-static int
-sysctl_my_fibnum(SYSCTL_HANDLER_ARGS)
-{
-        int fibnum;
-        int error;
- 
-        fibnum = curthread->td_proc->p_fibnum;
-        error = sysctl_handle_int(oidp, &fibnum, 0, req);
-        return (error);
-}
-
-SYSCTL_PROC(_net, OID_AUTO, my_fibnum,
-    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    &sysctl_my_fibnum, "I",
-    "default FIB of caller");
-
-static __inline struct rib_head **
-rt_tables_get_rnh_ptr(int table, int fam)
-{
-	struct rib_head **rnh;
-
-	KASSERT(table >= 0 && table < rt_numfibs,
-	    ("%s: table out of bounds (0 <= %d < %d)", __func__, table,
-	     rt_numfibs));
-	KASSERT(fam >= 0 && fam < (AF_MAX + 1),
-	    ("%s: fam out of bounds (0 <= %d < %d)", __func__, fam, AF_MAX+1));
-
-	/* rnh is [fib=0][af=0]. */
-	rnh = (struct rib_head **)V_rt_tables;
-	/* Get the offset to the requested table and fam. */
-	rnh += table * (AF_MAX+1) + fam;
-
-	return (rnh);
-}
-
-struct rib_head *
-rt_tables_get_rnh(int table, int fam)
-{
-
-	return (*rt_tables_get_rnh_ptr(table, fam));
-}
-
-u_int
-rt_tables_get_gen(int table, int fam)
-{
-	struct rib_head *rnh;
-
-	rnh = *rt_tables_get_rnh_ptr(table, fam);
-	KASSERT(rnh != NULL, ("%s: NULL rib_head pointer table %d fam %d",
-	    __func__, table, fam));
-	return (rnh->rnh_gen);
-}
-
 
 /*
  * route initialization must occur before ip6_init2(), which happenas at
@@ -194,88 +110,9 @@ static void
 route_init(void)
 {
 
-	/* whack the tunable ints into  line. */
-	if (rt_numfibs > RT_MAXFIBS)
-		rt_numfibs = RT_MAXFIBS;
-	if (rt_numfibs == 0)
-		rt_numfibs = 1;
 	nhops_init();
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, NULL);
-
-static void
-vnet_route_init(const void *unused __unused)
-{
-	struct domain *dom;
-	struct rib_head **rnh;
-	int table;
-	int fam;
-
-	V_rt_tables = malloc(rt_numfibs * (AF_MAX+1) *
-	    sizeof(struct rib_head *), M_RTABLE, M_WAITOK|M_ZERO);
-
-	vnet_rtzone_init();
-	for (dom = domains; dom; dom = dom->dom_next) {
-		if (dom->dom_rtattach == NULL)
-			continue;
-
-		for  (table = 0; table < rt_numfibs; table++) {
-			fam = dom->dom_family;
-			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
-				break;
-
-			rnh = rt_tables_get_rnh_ptr(table, fam);
-			if (rnh == NULL)
-				panic("%s: rnh NULL", __func__);
-			*rnh = dom->dom_rtattach(table);
-		}
-	}
-}
-VNET_SYSINIT(vnet_route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
-    vnet_route_init, 0);
-
-#ifdef VIMAGE
-static void
-vnet_route_uninit(const void *unused __unused)
-{
-	int table;
-	int fam;
-	struct domain *dom;
-	struct rib_head **rnh;
-
-	for (dom = domains; dom; dom = dom->dom_next) {
-		if (dom->dom_rtdetach == NULL)
-			continue;
-
-		for (table = 0; table < rt_numfibs; table++) {
-			fam = dom->dom_family;
-
-			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
-				break;
-
-			rnh = rt_tables_get_rnh_ptr(table, fam);
-			if (rnh == NULL)
-				panic("%s: rnh NULL", __func__);
-			dom->dom_rtdetach(*rnh);
-		}
-	}
-
-	/*
-	 * dom_rtdetach calls rt_table_destroy(), which
-	 *  schedules deletion for all rtentries, nexthops and control
-	 *  structures. Wait for the destruction callbacks to fire.
-	 * Note that this should result in freeing all rtentries, but
-	 *  nexthops deletions will be scheduled for the next epoch run
-	 *  and will be completed after vnet teardown.
-	 */
-	epoch_drain_callbacks(net_epoch_preempt);
-
-	free(V_rt_tables, M_RTABLE);
-	vnet_rtzone_destroy();
-}
-VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
-    vnet_route_uninit, 0);
-#endif
 
 struct rib_head *
 rt_table_init(int offset, int family, u_int fibnum)
@@ -345,21 +182,6 @@ rt_table_destroy(struct rib_head *rh)
 	/* Assume table is already empty */
 	RIB_LOCK_DESTROY(rh);
 	free(rh, M_RTABLE);
-}
-
-
-#ifndef _SYS_SYSPROTO_H_
-struct setfib_args {
-	int     fibnum;
-};
-#endif
-int
-sys_setfib(struct thread *td, struct setfib_args *uap)
-{
-	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
-		return EINVAL;
-	td->td_proc->p_fibnum = uap->fibnum;
-	return (0);
 }
 
 /*
