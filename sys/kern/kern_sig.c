@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
-#include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/compressor.h>
 #include <sys/condvar.h>
+#include <sys/devctl.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
