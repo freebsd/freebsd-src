@@ -1,0 +1,7 @@
+# the minimal passing config - include in your bad.x to verify that
+# it is your option which triggers failure
+server:
+	chroot: ""
+	username: ""
+	directory: "."
+	pidfile: ""

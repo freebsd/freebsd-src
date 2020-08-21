@@ -1,0 +1,5 @@
+include: "good.min"
+
+server:
+	# an abnormal value for the option
+	ip-dscp: 500

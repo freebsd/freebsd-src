@@ -2,6 +2,7 @@
 ; config options go here.
 server:
 	minimal-responses: no
+	rrset-roundrobin: no
 forward-zone: name: "." forward-addr: 216.0.0.1
 CONFIG_END
 

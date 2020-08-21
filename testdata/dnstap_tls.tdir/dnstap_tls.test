@@ -1,0 +1,95 @@
+# #-- dnstap_tls.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+# test if the server is up.
+echo "> dig www.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat tap.log
+	cat tap.errlog
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> check tap.log for dnstap info"
+# see if it logged the information in tap.log
+# wait for a moment for filesystem to catch up.
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "www.example.com" tap.log; then echo "yes it is in tap.log";
+else
+	echo "information not in tap.log"
+	echo "failed"
+	echo "> cat logfiles"
+	cat tap.log
+	cat tap.errlog
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo ""
+echo "> test disconnect from the upstream server"
+
+kill_pid $DNSTAP_SOCKET_PID
+dig @127.0.0.1 -p $UNBOUND_PORT down.example.net.
+
+# bring log socket back up
+$PRE/unbound-dnstap-socket -t "127.0.0.1@$TAP_PORT" -x unbound_server.key -y unbound_server.pem -l -vvvv 2>tap2.errlog >tap2.log &
+if test $? -ne 0; then
+	echo "could not start (again) unbound-dnstap-socket server"
+	exit 1
+fi
+DNSTAP_SOCKET_PID=$!
+echo "DNSTAP_SOCKET_PID=$DNSTAP_SOCKET_PID" >> .tpkg.var.test
+# wait for the server to go up
+wait_server_up "tap2.errlog" "start of service"
+
+dig @127.0.0.1 -p $UNBOUND_PORT up.example.net.
+sleep 2
+dig @127.0.0.1 -p $UNBOUND_PORT up2.example.net.
+
+for x in down up up2; do
+	if grep "$x.example.net" tap2.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap2.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap2.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap2.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap2.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap2.log >/dev/null; then :; else sleep 10; fi
+	if grep "$x.example.net" tap2.log; then echo "yes it is in tap2.log";
+	else
+		echo "$x.example.net. information not in tap2.log"
+		echo "failed"
+		echo "> cat logfiles"
+		cat tap.log
+		cat tap.errlog
+		echo "> tap2 logfiles"
+		cat tap2.log
+		cat tap2.errlog
+		cat fwd.log
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+done
+
+echo "> OK"
+exit 0

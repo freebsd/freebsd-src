@@ -86,7 +86,8 @@ enum rpz_action {
 /**
  * RPZ containing policies. Pointed to from corresponding auth-zone. Part of a
  * linked list to keep configuration order. Iterating or changing the linked
- * list requires the rpz_lock from struct auth_zones.
+ * list requires the rpz_lock from struct auth_zones. Changing items in this
+ * struct require the lock from struct auth_zone.
  */
 struct rpz {
 	struct local_zones* local_zones;
@@ -97,14 +98,13 @@ struct rpz {
 	struct ub_packed_rrset_key* cname_override;
 	int log;
 	char* log_name;
-	struct rpz* next;
-	struct rpz* prev;
 	struct regional* region;
 };
 
 /**
  * Create policy from RR and add to this RPZ.
  * @param r: the rpz to add the policy to.
+ * @param azname: dname of the auth-zone
  * @param aznamelen: the length of the auth-zone name
  * @param dname: dname of the RR
  * @param dnamelen: length of the dname
@@ -117,7 +117,7 @@ struct rpz {
  * @param rr_len: the length of the complete RR
  * @return: 0 on error
  */
-int rpz_insert_rr(struct rpz* r, size_t aznamelen, uint8_t* dname,
+int rpz_insert_rr(struct rpz* r, uint8_t* azname, size_t aznamelen, uint8_t* dname,
 	size_t dnamelen, uint16_t rr_type, uint16_t rr_class, uint32_t rr_ttl,
 	uint8_t* rdatawl, size_t rdatalen, uint8_t* rr, size_t rr_len);
 

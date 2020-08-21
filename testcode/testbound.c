@@ -577,3 +577,13 @@ void wsvc_cron_cb(void* ATTR_UNUSED(arg))
 }
 #endif /* UB_ON_WINDOWS */
 
+int tcp_connect_errno_needs_log(struct sockaddr* ATTR_UNUSED(addr),
+	socklen_t ATTR_UNUSED(addrlen))
+{
+	return 1;
+}
+
+int squelch_err_ssl_handshake(unsigned long ATTR_UNUSED(err))
+{
+	return 0;
+}

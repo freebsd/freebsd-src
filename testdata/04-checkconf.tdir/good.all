@@ -220,6 +220,10 @@ server:
 	# more slabs reduce lock contention, but fragment memory usage.
 	key-cache-slabs: 4
 
+	# the value of the Differentiated Services Codepoint (DSCP)
+	# in the differentiated services field (DS) of the outgoing
+	# IP packets
+	ip-dscp: 5
 
 # Stub zones.
 # Create entries like below, to make all queries for 'example.com' and 

@@ -1,0 +1,50 @@
+# #-- dnstap_tls_clientauth.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+# test if the server is up.
+echo "> dig www.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat tap.log
+	cat tap.errlog
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> check tap.log for dnstap info"
+# see if it logged the information in tap.log
+# wait for a moment for filesystem to catch up.
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "www.example.com" tap.log; then echo "yes it is in tap.log";
+else
+	echo "information not in tap.log"
+	echo "failed"
+	echo "> cat logfiles"
+	cat tap.log
+	cat tap.errlog
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> OK"
+exit 0

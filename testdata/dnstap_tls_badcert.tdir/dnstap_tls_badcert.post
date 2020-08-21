@@ -1,0 +1,20 @@
+# #-- dnstap_tls_badcert.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+. ../common.sh
+PRE="../.."
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+kill_pid $DNSTAP_SOCKET_PID
+kill_pid $FWD_PID
+kill $UNBOUND_PID
+kill $UNBOUND_PID >/dev/null 2>&1
+cat unbound.log
+echo "> tap logfiles"
+cat tap.log
+cat tap.errlog
+cat fwd.log
+exit 0

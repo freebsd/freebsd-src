@@ -1,0 +1,54 @@
+# #-- dnstap_tcp.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+
+PRE="../.."
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+get_random_port 4
+UNBOUND_PORT=$RND_PORT
+FWD_PORT=$(($RND_PORT + 1))
+CONTROL_PORT=$(($RND_PORT + 2))
+TAP_PORT=$(($RND_PORT + 3))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+echo "CONTROL_PORT=$CONTROL_PORT" >> .tpkg.var.test
+echo "TAP_PORT=$TAP_PORT" >> .tpkg.var.test
+
+# start forwarder
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT dnstap_tcp.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# start the dnstap log server
+# the -vvvv flag prints protocol and connection information from the
+# unbound-dnstap-socket server.
+# the -l flag prints the DNS info in the DNSTAP packet in multiline output.
+# stderr is the '-vvvv' server logs and errors.
+# stdout is the one-line packet logs (or with -l, multiline).
+$PRE/unbound-dnstap-socket -s "127.0.0.1@$TAP_PORT" -l -vvvv 2>tap.errlog >tap.log &
+if test $? -ne 0; then
+	echo "could not start unbound-dnstap-socket server"
+	exit 1
+fi
+DNSTAP_SOCKET_PID=$!
+echo "DNSTAP_SOCKET_PID=$DNSTAP_SOCKET_PID" >> .tpkg.var.test
+# wait for the server to go up
+wait_server_up "tap.errlog" "start of service"
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' -e 's/@TAPPORT\@/'$TAP_PORT'/' < dnstap_tcp.conf > ub.conf
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_ldns_testns_up fwd.log
+wait_unbound_up unbound.log
+

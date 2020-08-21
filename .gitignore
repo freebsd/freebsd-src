@@ -37,6 +37,7 @@
 /petal
 /pktview
 /streamtcp
+/unbound-dnstap-socket
 /testbound
 /unittest
 /contrib/libunbound.pc
