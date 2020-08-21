@@ -10,6 +10,7 @@ server:
 	fake-sha1: yes
 	trust-anchor-signaling: no
 	minimal-responses: no
+	rrset-roundrobin: no
 
 stub-zone:
 	name: "."

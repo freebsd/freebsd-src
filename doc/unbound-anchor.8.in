@@ -1,4 +1,4 @@
-.TH "unbound-anchor" "8" "May 19, 2020" "NLnet Labs" "unbound 1.10.1"
+.TH "unbound-anchor" "8" "Jul 27, 2020" "NLnet Labs" "unbound 1.11.0"
 .\"
 .\" unbound-anchor.8 -- unbound anchor maintenance utility manual
 .\"
@@ -68,6 +68,9 @@ List the builtin root key and builtin root update certificate on stdout.
 The server name, it connects to https://name.  Specify without https:// prefix.
 The default is "data.iana.org".  It connects to the port specified with \-P.
 You can pass an IPv4 address or IPv6 address (no brackets) if you want.
+.TP
+.B \-S
+Do not use SNI for the HTTPS connection.  Default is to use SNI.
 .TP
 .B \-b \fIaddress
 The source address to bind to for domain resolution and contacting the server

@@ -85,7 +85,6 @@ www.example.com. IN A
 SECTION ANSWER
 www.example.com. IN A 10.20.30.40
 ENTRY_END
-RANGE_END
 
 RANGE_END
 

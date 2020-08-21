@@ -2,7 +2,7 @@ Description: based on the included patch contrib/fastrpz.patch
 Author: fastrpz@farsightsecurity.com
 ---
 diff --git a/Makefile.in b/Makefile.in
-index a20058cc..495779cc 100644
+index bac212df..4824927f 100644
 --- a/Makefile.in
 +++ b/Makefile.in
 @@ -23,6 +23,8 @@ CHECKLOCK_SRC=testcode/checklocks.c
@@ -13,8 +13,8 @@ index a20058cc..495779cc 100644
 +FASTRPZ_OBJ=@FASTRPZ_OBJ@
  DNSCRYPT_SRC=@DNSCRYPT_SRC@
  DNSCRYPT_OBJ=@DNSCRYPT_OBJ@
- WITH_PYTHONMODULE=@WITH_PYTHONMODULE@
-@@ -127,7 +129,7 @@ validator/val_sigcrypt.c validator/val_utils.c dns64/dns64.c \
+ WITH_DYNLIBMODULE=@WITH_DYNLIBMODULE@
+@@ -134,7 +136,7 @@ validator/val_sigcrypt.c validator/val_utils.c dns64/dns64.c \
  edns-subnet/edns-subnet.c edns-subnet/subnetmod.c \
  edns-subnet/addrtree.c edns-subnet/subnet-whitelist.c \
  cachedb/cachedb.c cachedb/redis.c respip/respip.c $(CHECKLOCK_SRC) \
@@ -23,16 +23,16 @@ index a20058cc..495779cc 100644
  COMMON_OBJ_WITHOUT_NETCALL=dns.lo infra.lo rrset.lo dname.lo msgencode.lo \
  as112.lo msgparse.lo msgreply.lo packed_rrset.lo iterator.lo iter_delegpt.lo \
  iter_donotq.lo iter_fwd.lo iter_hints.lo iter_priv.lo iter_resptype.lo \
-@@ -140,7 +142,7 @@ autotrust.lo val_anchor.lo rpz.lo \
+@@ -147,7 +149,7 @@ autotrust.lo val_anchor.lo rpz.lo \
  validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo \
  val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo redis.lo authzone.lo \
  $(SUBNET_OBJ) $(PYTHONMOD_OBJ) $(CHECKLOCK_OBJ) $(DNSTAP_OBJ) $(DNSCRYPT_OBJ) \
--$(IPSECMOD_OBJ) $(IPSET_OBJ) respip.lo
-+$(FASTRPZ_OBJ) $(IPSECMOD_OBJ) $(IPSET_OBJ) respip.lo
+-$(IPSECMOD_OBJ) $(IPSET_OBJ) $(DYNLIBMOD_OBJ) respip.lo
++$(FASTRPZ_OBJ) $(IPSECMOD_OBJ) $(IPSET_OBJ) $(DYNLIBMOD_OBJ) respip.lo
  COMMON_OBJ_WITHOUT_UB_EVENT=$(COMMON_OBJ_WITHOUT_NETCALL) netevent.lo listen_dnsport.lo \
  outside_network.lo
  COMMON_OBJ=$(COMMON_OBJ_WITHOUT_UB_EVENT) ub_event.lo
-@@ -410,6 +412,11 @@ dnscrypt.lo dnscrypt.o: $(srcdir)/dnscrypt/dnscrypt.c config.h \
+@@ -428,6 +430,11 @@ dnscrypt.lo dnscrypt.o: $(srcdir)/dnscrypt/dnscrypt.c config.h \
  	$(srcdir)/util/config_file.h $(srcdir)/util/log.h \
  	$(srcdir)/util/netevent.h
  
@@ -45,10 +45,10 @@ index a20058cc..495779cc 100644
  pythonmod.lo pythonmod.o: $(srcdir)/pythonmod/pythonmod.c config.h \
  	pythonmod/interface.h \
 diff --git a/config.h.in b/config.h.in
-index 78d47fed..e33073e4 100644
+index f7a4095e..d5a4fa01 100644
 --- a/config.h.in
 +++ b/config.h.in
-@@ -1345,4 +1345,11 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
+@@ -1364,4 +1364,11 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
  /** the version of unbound-control that this software implements */
  #define UNBOUND_CONTROL_VERSION 1
  
@@ -62,7 +62,7 @@ index 78d47fed..e33073e4 100644
 +/** turn on fastrpz response policy zones */
 +#undef ENABLE_FASTRPZ
 diff --git a/configure.ac b/configure.ac
-index 2b91dd3c..e6063d17 100644
+index 5c373d9d..e45abd89 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -6,6 +6,7 @@ sinclude(ax_pthread.m4)
@@ -73,9 +73,9 @@ index 2b91dd3c..e6063d17 100644
  sinclude(dnscrypt/dnscrypt.m4)
  
  # must be numbers. ac_defun because of later processing
-@@ -1778,6 +1779,9 @@ case "$enable_ipset" in
- 		;;
+@@ -1819,6 +1820,9 @@ case "$enable_explicit_port_randomisation" in
  esac
+ 
  
 +# check for Fastrpz with fastrpz/rpz.m4
 +ck_FASTRPZ
@@ -84,7 +84,7 @@ index 2b91dd3c..e6063d17 100644
  # on openBSD, the implicit rule make $< work.
  # on Solaris, it does not work ($? is changed sources, $^ lists dependencies).
 diff --git a/daemon/daemon.c b/daemon/daemon.c
-index 8b0fc348..7ffb9221 100644
+index 5d427925..f89f1437 100644
 --- a/daemon/daemon.c
 +++ b/daemon/daemon.c
 @@ -91,6 +91,9 @@
@@ -97,8 +97,8 @@ index 8b0fc348..7ffb9221 100644
  
  #ifdef HAVE_SYSTEMD
  #include <systemd/sd-daemon.h>
-@@ -458,6 +461,14 @@ daemon_create_workers(struct daemon* daemon)
- 		dt_apply_cfg(daemon->dtenv, daemon->cfg);
+@@ -456,6 +459,14 @@ daemon_create_workers(struct daemon* daemon)
+ 			fatal_exit("dt_create failed");
  #else
  		fatal_exit("dnstap enabled in config but not built with dnstap support");
 +#endif
@@ -112,7 +112,7 @@ index 8b0fc348..7ffb9221 100644
  #endif
  	}
  	for(i=0; i<daemon->num; i++) {
-@@ -731,6 +742,9 @@ daemon_cleanup(struct daemon* daemon)
+@@ -729,6 +740,9 @@ daemon_cleanup(struct daemon* daemon)
  #ifdef USE_DNSCRYPT
  	dnsc_delete(daemon->dnscenv);
  	daemon->dnscenv = NULL;
@@ -139,7 +139,7 @@ index 3effbafb..4d4c34da 100644
  
  /**
 diff --git a/daemon/worker.c b/daemon/worker.c
-index eb7fdf2f..1982228d 100644
+index 23e3244c..b63d49b7 100644
 --- a/daemon/worker.c
 +++ b/daemon/worker.c
 @@ -76,6 +76,9 @@
@@ -152,7 +152,7 @@ index eb7fdf2f..1982228d 100644
  #include "sldns/wire2str.h"
  #include "util/shm_side/shm_main.h"
  #include "dnscrypt/dnscrypt.h"
-@@ -534,8 +537,27 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
+@@ -535,8 +538,27 @@ answer_norec_from_cache(struct worker* worker, struct query_info* qinfo,
  			/* not secure */
  			secure = 0;
  			break;
@@ -180,7 +180,7 @@ index eb7fdf2f..1982228d 100644
  	/* return this delegation from the cache */
  	edns_bak = *edns;
  	edns->edns_version = EDNS_ADVERTISED_VERSION;
-@@ -710,6 +732,23 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
+@@ -711,6 +733,23 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
  			*is_secure_answer = 0;
  		}
  	} else *is_secure_answer = 0;
@@ -204,7 +204,7 @@ index eb7fdf2f..1982228d 100644
  
  	edns_bak = *edns;
  	edns->edns_version = EDNS_ADVERTISED_VERSION;
-@@ -1435,6 +1474,15 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
+@@ -1436,6 +1475,15 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
  		log_addr(VERB_ALGO, "refused nonrec (cache snoop) query from",
  			&repinfo->addr, repinfo->addrlen);
  		goto send_reply;
@@ -220,7 +220,7 @@ index eb7fdf2f..1982228d 100644
  	}
  
  	/* If we've found a local alias, replace the qname with the alias
-@@ -1485,12 +1533,21 @@ lookup_cache:
+@@ -1486,12 +1534,21 @@ lookup_cache:
  		h = query_info_hash(lookup_qinfo, sldns_buffer_read_u16_at(c->buffer, 2));
  		if((e=slabhash_lookup(worker->env.msg_cache, h, lookup_qinfo, 0))) {
  			/* answer from cache - we have acquired a readlock on it */
@@ -244,7 +244,7 @@ index eb7fdf2f..1982228d 100644
  				/* prefetch it if the prefetch TTL expired.
  				 * Note that if there is more than one pass
  				 * its qname must be that used for cache
-@@ -1547,11 +1604,19 @@ lookup_cache:
+@@ -1548,11 +1605,19 @@ lookup_cache:
  			lock_rw_unlock(&e->lock);
  		}
  		if(!LDNS_RD_WIRE(sldns_buffer_begin(c->buffer))) {
@@ -267,10 +267,10 @@ index eb7fdf2f..1982228d 100644
  			}
  			verbose(VERB_ALGO, "answer norec from cache -- "
 diff --git a/doc/unbound.conf.5.in b/doc/unbound.conf.5.in
-index 38c2d298..3b07f392 100644
+index cd43f04e..b92a1af8 100644
 --- a/doc/unbound.conf.5.in
 +++ b/doc/unbound.conf.5.in
-@@ -1828,6 +1828,81 @@ List domain for which the AAAA records are ignored and the A record is
+@@ -1878,6 +1878,81 @@ List domain for which the AAAA records are ignored and the A record is
  used by dns64 processing instead.  Can be entered multiple times, list a
  new domain for which it applies, one per line.  Applies also to names
  underneath the name given.
@@ -2888,7 +2888,7 @@ index 00000000..21235355
 +  fi
 +])
 diff --git a/iterator/iterator.c b/iterator/iterator.c
-index 1e0113a8..2fcbf547 100644
+index 23b07ea9..c3d31a33 100644
 --- a/iterator/iterator.c
 +++ b/iterator/iterator.c
 @@ -68,6 +68,9 @@
@@ -2901,7 +2901,7 @@ index 1e0113a8..2fcbf547 100644
  
  /* in msec */
  int UNKNOWN_SERVER_NICENESS = 376;
-@@ -555,6 +558,23 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -563,6 +566,23 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
  		if(ntohs(r->rk.type) == LDNS_RR_TYPE_CNAME &&
  			query_dname_compare(*mname, r->rk.dname) == 0 &&
  			!iter_find_rrset_in_prepend_answer(iq, r)) {
@@ -2925,7 +2925,7 @@ index 1e0113a8..2fcbf547 100644
  			/* Add this relevant CNAME rrset to the prepend list.*/
  			if(!iter_add_prepend_answer(qstate, iq, r))
  				return 0;
-@@ -563,6 +583,9 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -571,6 +591,9 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
  
  		/* Other rrsets in the section are ignored. */
  	}
@@ -2935,7 +2935,7 @@ index 1e0113a8..2fcbf547 100644
  	/* add authority rrsets to authority prepend, for wildcarded CNAMEs */
  	for(i=msg->rep->an_numrrsets; i<msg->rep->an_numrrsets +
  		msg->rep->ns_numrrsets; i++) {
-@@ -1199,6 +1222,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -1231,6 +1254,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
  	uint8_t* delname;
  	size_t delnamelen;
  	struct dns_msg* msg = NULL;
@@ -2943,7 +2943,7 @@ index 1e0113a8..2fcbf547 100644
  
  	log_query_info(VERB_DETAIL, "resolving", &qstate->qinfo);
  	/* check effort */
-@@ -1285,8 +1309,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -1317,8 +1341,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
  	}
  	if(msg) {
  		/* handle positive cache response */
@@ -2953,7 +2953,7 @@ index 1e0113a8..2fcbf547 100644
  		if(verbosity >= VERB_ALGO) {
  			log_dns_msg("msg from cache lookup", &msg->qinfo, 
  				msg->rep);
-@@ -1294,7 +1317,22 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -1326,7 +1349,22 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
  				(int)msg->rep->ttl, 
  				(int)msg->rep->prefetch_ttl);
  		}
@@ -2976,7 +2976,7 @@ index 1e0113a8..2fcbf547 100644
  		if(type == RESPONSE_TYPE_CNAME) {
  			uint8_t* sname = 0;
  			size_t slen = 0;
-@@ -2718,6 +2756,62 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -2801,6 +2839,62 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
  			sock_list_insert(&qstate->reply_origin, 
  				&qstate->reply->addr, qstate->reply->addrlen, 
  				qstate->region);
@@ -3039,7 +3039,7 @@ index 1e0113a8..2fcbf547 100644
  		if(iq->minimisation_state != DONOT_MINIMISE_STATE
  			&& !(iq->chase_flags & BIT_RD)) {
  			if(FLAGS_GET_RCODE(iq->response->rep->flags) != 
-@@ -3471,12 +3565,44 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
+@@ -3563,12 +3657,44 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
  		 * but only if we did recursion. The nonrecursion referral
  		 * from cache does not need to be stored in the msg cache. */
  		if(!qstate->no_cache_store && qstate->query_flags&BIT_RD) {
@@ -3085,10 +3085,10 @@ index 1e0113a8..2fcbf547 100644
  	qstate->return_msg = iq->response;
  	return 0;
 diff --git a/iterator/iterator.h b/iterator/iterator.h
-index a2f1b570..e1e4a738 100644
+index 342ac207..49b0ecdd 100644
 --- a/iterator/iterator.h
 +++ b/iterator/iterator.h
-@@ -386,6 +386,16 @@ struct iter_qstate {
+@@ -396,6 +396,16 @@ struct iter_qstate {
  	 */
  	int minimise_count;
  
@@ -3104,12 +3104,12 @@ index a2f1b570..e1e4a738 100644
 +
  	/**
  	 * Count number of time-outs. Used to prevent resolving failures when
- 	 * the QNAME minimisation QTYPE is blocked. */
+ 	 * the QNAME minimisation QTYPE is blocked. Used to determine if
 diff --git a/services/cache/dns.c b/services/cache/dns.c
-index 2a5bca4a..6de8863a 100644
+index 7b6e142c..6d7449f5 100644
 --- a/services/cache/dns.c
 +++ b/services/cache/dns.c
-@@ -967,6 +967,14 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
+@@ -969,6 +969,14 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
  	struct regional* region, uint32_t flags)
  {
  	struct reply_info* rep = NULL;
@@ -3125,7 +3125,7 @@ index 2a5bca4a..6de8863a 100644
  	rep = reply_info_copy(msgrep, env->alloc, NULL);
  	if(!rep)
 diff --git a/services/mesh.c b/services/mesh.c
-index 9114ef4c..3dc518e5 100644
+index 4b0c5db4..eb9cfa5b 100644
 --- a/services/mesh.c
 +++ b/services/mesh.c
 @@ -61,6 +61,9 @@
@@ -3138,7 +3138,7 @@ index 9114ef4c..3dc518e5 100644
  #include "respip/respip.h"
  #include "services/listen_dnsport.h"
  
-@@ -1195,6 +1198,13 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
+@@ -1207,6 +1210,13 @@ mesh_send_reply(struct mesh_state* m, int rcode, struct reply_info* rep,
  	else	secure = 0;
  	if(!rep && rcode == LDNS_RCODE_NOERROR)
  		rcode = LDNS_RCODE_SERVFAIL;
@@ -3152,7 +3152,7 @@ index 9114ef4c..3dc518e5 100644
  	/* send the reply */
  	/* We don't reuse the encoded answer if either the previous or current
  	 * response has a local alias.  We could compare the alias records
-@@ -1415,6 +1425,7 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
+@@ -1434,6 +1444,7 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
  	key.s.is_valrec = valrec;
  	key.s.qinfo = *qinfo;
  	key.s.query_flags = qflags;
@@ -3160,7 +3160,7 @@ index 9114ef4c..3dc518e5 100644
  	/* We are searching for a similar mesh state when we DO want to
  	 * aggregate the state. Thus unique is set to NULL. (default when we
  	 * desire aggregation).*/
-@@ -1461,6 +1472,10 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
+@@ -1480,6 +1491,10 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
  	if(!r)
  		return 0;
  	r->query_reply = *rep;
@@ -3172,11 +3172,11 @@ index 9114ef4c..3dc518e5 100644
  	if(edns->opt_list) {
  		r->edns.opt_list = edns_opt_copy_region(edns->opt_list,
 diff --git a/util/config_file.c b/util/config_file.c
-index 52ca5a18..0660248f 100644
+index 0e9ee471..a5fd72e0 100644
 --- a/util/config_file.c
 +++ b/util/config_file.c
-@@ -1460,6 +1460,8 @@ config_delete(struct config_file* cfg)
- 	free(cfg->dnstap_socket_path);
+@@ -1495,6 +1495,8 @@ config_delete(struct config_file* cfg)
+ 	free(cfg->dnstap_tls_client_cert_file);
  	free(cfg->dnstap_identity);
  	free(cfg->dnstap_version);
 +	if (cfg->rpz_cstr)
@@ -3185,10 +3185,10 @@ index 52ca5a18..0660248f 100644
  	config_deldblstrlist(cfg->ratelimit_below_domain);
  	config_delstrlist(cfg->python_script);
 diff --git a/util/config_file.h b/util/config_file.h
-index 8739ca2a..a2dcf215 100644
+index 66e5025d..504f4f92 100644
 --- a/util/config_file.h
 +++ b/util/config_file.h
-@@ -499,6 +499,11 @@ struct config_file {
+@@ -522,6 +522,11 @@ struct config_file {
  	/** true to disable DNSSEC lameness check in iterator */
  	int disable_dnssec_lame_check;
  
@@ -3201,10 +3201,10 @@ index 8739ca2a..a2dcf215 100644
  	int ip_ratelimit;
  	/** number of slabs for ip_ratelimit cache */
 diff --git a/util/configlexer.lex b/util/configlexer.lex
-index deedffa5..301458a3 100644
+index 83cea4b9..9a7feea4 100644
 --- a/util/configlexer.lex
 +++ b/util/configlexer.lex
-@@ -446,6 +446,10 @@ dnstap-log-forwarder-query-messages{COLON}	{
+@@ -467,6 +467,10 @@ dnstap-log-forwarder-query-messages{COLON}	{
  		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
  dnstap-log-forwarder-response-messages{COLON}	{
  		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
@@ -3216,18 +3216,18 @@ index deedffa5..301458a3 100644
  ip-ratelimit{COLON}		{ YDVAR(1, VAR_IP_RATELIMIT) }
  ratelimit{COLON}		{ YDVAR(1, VAR_RATELIMIT) }
 diff --git a/util/configparser.y b/util/configparser.y
-index d471babe..cb6b1d63 100644
+index fe600a99..ce43390f 100644
 --- a/util/configparser.y
 +++ b/util/configparser.y
-@@ -125,6 +125,7 @@ extern struct config_parser_state* cfg_parser;
+@@ -128,6 +128,7 @@ extern struct config_parser_state* cfg_parser;
  %token VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES
  %token VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES
  %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
 +%token VAR_RPZ VAR_RPZ_ENABLE VAR_RPZ_ZONE VAR_RPZ_OPTION
  %token VAR_RESPONSE_IP_TAG VAR_RESPONSE_IP VAR_RESPONSE_IP_DATA
  %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
- %token VAR_DISABLE_DNSSEC_LAME_CHECK
-@@ -173,7 +174,7 @@ extern struct config_parser_state* cfg_parser;
+ %token VAR_IP_DSCP
+@@ -179,7 +180,7 @@ extern struct config_parser_state* cfg_parser;
  
  %%
  toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -3236,7 +3236,7 @@ index d471babe..cb6b1d63 100644
  	forwardstart contents_forward | pythonstart contents_py | 
  	rcstart contents_rc | dtstart contents_dt | viewstart contents_view |
  	dnscstart contents_dnsc | cachedbstart contents_cachedb |
-@@ -2837,6 +2838,50 @@ dt_dnstap_log_forwarder_response_messages: VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MES
+@@ -2939,6 +2940,50 @@ dt_dnstap_log_forwarder_response_messages: VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MES
  		free($2);
  	}
  	;
@@ -3384,7 +3384,7 @@ index 729877ba..ccd1a0c2 100644
  
  /**
 diff --git a/util/netevent.c b/util/netevent.c
-index 9fe5da2d..037e70d1 100644
+index 3e7a433e..f20d806f 100644
 --- a/util/netevent.c
 +++ b/util/netevent.c
 @@ -57,6 +57,9 @@
@@ -3397,7 +3397,7 @@ index 9fe5da2d..037e70d1 100644
  
  /* -------- Start of local definitions -------- */
  /** if CMSG_ALIGN is not defined on this platform, a workaround */
-@@ -590,6 +593,9 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
+@@ -596,6 +599,9 @@ comm_point_udp_ancil_callback(int fd, short event, void* arg)
  	struct cmsghdr* cmsg;
  #endif /* S_SPLINT_S */
  
@@ -3407,7 +3407,7 @@ index 9fe5da2d..037e70d1 100644
  	rep.c = (struct comm_point*)arg;
  	log_assert(rep.c->type == comm_udp);
  
-@@ -679,6 +685,9 @@ comm_point_udp_callback(int fd, short event, void* arg)
+@@ -685,6 +691,9 @@ comm_point_udp_callback(int fd, short event, void* arg)
  	int i;
  	struct sldns_buffer *buffer;
  
@@ -3417,7 +3417,7 @@ index 9fe5da2d..037e70d1 100644
  	rep.c = (struct comm_point*)arg;
  	log_assert(rep.c->type == comm_udp);
  
-@@ -722,6 +731,9 @@ comm_point_udp_callback(int fd, short event, void* arg)
+@@ -728,6 +737,9 @@ comm_point_udp_callback(int fd, short event, void* arg)
  			(void)comm_point_send_udp_msg(rep.c, buffer,
  				(struct sockaddr*)&rep.addr, rep.addrlen);
  		}
@@ -3427,7 +3427,7 @@ index 9fe5da2d..037e70d1 100644
  		if(!rep.c || rep.c->fd != fd) /* commpoint closed to -1 or reused for
  		another UDP port. Note rep.c cannot be reused with TCP fd. */
  			break;
-@@ -3192,6 +3204,9 @@ comm_point_send_reply(struct comm_reply *repinfo)
+@@ -3175,6 +3187,9 @@ comm_point_send_reply(struct comm_reply *repinfo)
  				repinfo->c->tcp_timeout_msec);
  		}
  	}
@@ -3437,7 +3437,7 @@ index 9fe5da2d..037e70d1 100644
  }
  
  void 
-@@ -3201,6 +3216,9 @@ comm_point_drop_reply(struct comm_reply* repinfo)
+@@ -3184,6 +3199,9 @@ comm_point_drop_reply(struct comm_reply* repinfo)
  		return;
  	log_assert(repinfo->c);
  	log_assert(repinfo->c->type != comm_tcp_accept);
@@ -3447,7 +3447,7 @@ index 9fe5da2d..037e70d1 100644
  	if(repinfo->c->type == comm_udp)
  		return;
  	if(repinfo->c->tcp_req_info)
-@@ -3222,6 +3240,9 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
+@@ -3205,6 +3223,9 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
  {
  	verbose(VERB_ALGO, "comm point start listening %d (%d msec)", 
  		c->fd==-1?newfd:c->fd, msec);
@@ -3458,7 +3458,7 @@ index 9fe5da2d..037e70d1 100644
  		/* no use to start listening no free slots. */
  		return;
 diff --git a/util/netevent.h b/util/netevent.h
-index d80c72b3..0233292f 100644
+index bb2cd1e5..666067e8 100644
 --- a/util/netevent.h
 +++ b/util/netevent.h
 @@ -120,6 +120,10 @@ struct comm_reply {

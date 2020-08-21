@@ -13,9 +13,9 @@ Index: trunk/doc/unbound.conf.5.in
 +This also causes an additional A query to be sent for each AAAA query.
 +This breaks DNSSEC!
 +.TP
- .B private\-address: \fI<IP address or subnet>
- Give IPv4 of IPv6 addresses or classless subnets. These are addresses
- on your private network, and are not allowed to be returned for
+ .B aggressive\-nsec: \fI<yes or no>
+ Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
+ and other denials, using information from previous NXDOMAINs answers.
 Index: trunk/iterator/iter_scrub.c
 ===================================================================
 --- trunk/iterator/iter_scrub.c	(revision 4357)
@@ -125,7 +125,7 @@ Index: trunk/iterator/iterator.c
 + * ASN: This event state was added as an intermediary step between
 + * QUERYTARGETS_STATE and the next step, in order to cast a subquery for the
 + * purpose of caching A records for the queried name.
-+ * 
++ *
 + * @param qstate: query state.
 + * @param iq: iterator query state.
 + * @param ie: iterator shared global environment.
@@ -147,9 +147,9 @@ Index: trunk/iterator/iterator.c
 +
 +	/* re-throw same query, but with a different type */
 +	if(!generate_sub_request(iq->qchase.qname,
-+        	iq->qchase.qname_len, LDNS_RR_TYPE_A,
++		iq->qchase.qname_len, LDNS_RR_TYPE_A,
 +		iq->qchase.qclass, qstate, id, iq,
-+		INIT_REQUEST_STATE, FINISHED_STATE, &subq, 1)) {
++		INIT_REQUEST_STATE, FINISHED_STATE, &subq, 1, 0)) {
 +		log_nametypeclass(VERB_ALGO, "ASN-AAAA-filter: failed "
 +			"preloading of A record for",
 +			iq->qchase.qname, LDNS_RR_TYPE_A,
@@ -188,7 +188,7 @@ Index: trunk/iterator/iterator.c
  	return 0;
  }
  
-+/** 
++/**
 + * ASN: Do final processing on responses to A queries originated from AAAA
 + * queries. Events reach this state after the iterative resolution algorithm
 + * terminates.

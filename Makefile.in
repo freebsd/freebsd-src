@@ -25,6 +25,7 @@ DNSTAP_SRC=@DNSTAP_SRC@
 DNSTAP_OBJ=@DNSTAP_OBJ@
 DNSCRYPT_SRC=@DNSCRYPT_SRC@
 DNSCRYPT_OBJ=@DNSCRYPT_OBJ@
+WITH_DYNLIBMODULE=@WITH_DYNLIBMODULE@
 WITH_PYTHONMODULE=@WITH_PYTHONMODULE@
 WITH_PYUNBOUND=@WITH_PYUNBOUND@
 PY_MAJOR_VERSION=@PY_MAJOR_VERSION@
@@ -77,7 +78,7 @@ LINT=splint
 LINTFLAGS=+quiet -weak -warnposix -unrecog -Din_addr_t=uint32_t -Du_int=unsigned -Du_char=uint8_t -preproc -Drlimit=rlimit64 -D__gnuc_va_list=va_list -formatcode
 #-Dglob64=glob -Dglobfree64=globfree
 # compat with openssl linux edition.
-LINTFLAGS+="-DBN_ULONG=unsigned long" -Dkrb5_int32=int "-Dkrb5_ui_4=unsigned int" -DPQ_64BIT=uint64_t -DRC4_INT=unsigned -fixedformalarray -D"ENGINE=unsigned" -D"RSA=unsigned" -D"DSA=unsigned" -D"EVP_PKEY=unsigned" -D"EVP_MD=unsigned" -D"SSL=unsigned" -D"SSL_CTX=unsigned" -D"X509=unsigned" -D"RC4_KEY=unsigned" -D"EVP_MD_CTX=unsigned" -D"ECDSA_SIG=DSA_SIG" -Dfstrm_res=int
+LINTFLAGS+="-DBN_ULONG=unsigned long" -Dkrb5_int32=int "-Dkrb5_ui_4=unsigned int" -DPQ_64BIT=uint64_t -DRC4_INT=unsigned -fixedformalarray -D"ENGINE=unsigned" -D"RSA=unsigned" -D"DSA=unsigned" -D"EVP_PKEY=unsigned" -D"EVP_MD=unsigned" -D"SSL=unsigned" -D"SSL_CTX=unsigned" -D"X509=unsigned" -D"RC4_KEY=unsigned" -D"EVP_MD_CTX=unsigned" -D"ECDSA_SIG=DSA_SIG"
 # compat with NetBSD
 LINTFLAGS+=@NETBSD_LINTFLAGS@
 # compat with OpenBSD
@@ -86,6 +87,12 @@ LINTFLAGS+="-Dsigset_t=long"
 LINTFLAGS+="-D__uint16_t=uint16_t" "-DEVP_PKEY_ASN1_METHOD=int" "-D_RuneLocale=int" "-D__va_list=va_list" "-D__uint32_t=uint32_t" "-D_Alignof(x)=x" "-D__aligned(x)=" "-D__requires_exclusive(x)=" "-D__requires_unlocked(x)=" "-D__locks_exclusive(x)=" "-D__trylocks_exclusive(x)="  "-D__unlocks(x)=" "-D__locks_shared(x)=" "-D__trylocks_shared(x)="
 
 INSTALL=$(SHELL) $(srcdir)/install-sh
+
+DYNLIBMOD_SRC=dynlibmod/dynlibmod.c
+DYNLIBMOD_OBJ=@DYNLIBMOD_OBJ@
+DYNLIBMOD_HEADER=@DYNLIBMOD_HEADER@
+DYNLIBMOD_EXTRALIBS=@DYNLIBMOD_EXTRALIBS@
+
 
 #pythonmod.c is not here, it is mentioned by itself in its own rules,
 #makedepend fails on missing interface.h otherwise.
@@ -140,7 +147,7 @@ autotrust.lo val_anchor.lo rpz.lo \
 validator.lo val_kcache.lo val_kentry.lo val_neg.lo val_nsec3.lo val_nsec.lo \
 val_secalgo.lo val_sigcrypt.lo val_utils.lo dns64.lo cachedb.lo redis.lo authzone.lo \
 $(SUBNET_OBJ) $(PYTHONMOD_OBJ) $(CHECKLOCK_OBJ) $(DNSTAP_OBJ) $(DNSCRYPT_OBJ) \
-$(IPSECMOD_OBJ) $(IPSET_OBJ) respip.lo
+$(IPSECMOD_OBJ) $(IPSET_OBJ) $(DYNLIBMOD_OBJ) respip.lo
 COMMON_OBJ_WITHOUT_UB_EVENT=$(COMMON_OBJ_WITHOUT_NETCALL) netevent.lo listen_dnsport.lo \
 outside_network.lo
 COMMON_OBJ=$(COMMON_OBJ_WITHOUT_UB_EVENT) ub_event.lo
@@ -219,7 +226,7 @@ MEMSTATS_OBJ_LINK=$(MEMSTATS_OBJ) worker_cb.lo $(COMMON_OBJ) $(COMPAT_OBJ) \
 $(SLDNS_OBJ)
 ASYNCLOOK_SRC=testcode/asynclook.c
 ASYNCLOOK_OBJ=asynclook.lo
-ASYNCLOOK_OBJ_LINK=$(ASYNCLOOK_OBJ) log.lo locks.lo $(COMPAT_OBJ) @ASYNCLOOK_ALLOCCHECK_EXTRA_OBJ@
+ASYNCLOOK_OBJ_LINK=$(ASYNCLOOK_OBJ) log.lo locks.lo $(CHECKLOCK_OBJ) $(COMPAT_OBJ) @ASYNCLOOK_ALLOCCHECK_EXTRA_OBJ@
 STREAMTCP_SRC=testcode/streamtcp.c
 STREAMTCP_OBJ=streamtcp.lo
 STREAMTCP_OBJ_LINK=$(STREAMTCP_OBJ) worker_cb.lo $(COMMON_OBJ) $(COMPAT_OBJ) \
@@ -233,6 +240,10 @@ DELAYER_OBJ_LINK=$(DELAYER_OBJ) worker_cb.lo $(COMMON_OBJ) $(COMPAT_OBJ) \
 $(SLDNS_OBJ)
 IPSET_SRC=@IPSET_SRC@
 IPSET_OBJ=@IPSET_OBJ@
+DNSTAP_SOCKET_SRC=dnstap/unbound-dnstap-socket.c
+DNSTAP_SOCKET_OBJ=unbound-dnstap-socket.lo
+DNSTAP_SOCKET_OBJ_LINK=$(DNSTAP_SOCKET_OBJ) $(COMMON_OBJ) \
+$(COMPAT_OBJ) $(SLDNS_OBJ)
 LIBUNBOUND_SRC=libunbound/context.c libunbound/libunbound.c \
 libunbound/libworker.c
 LIBUNBOUND_OBJ=context.lo libunbound.lo libworker.lo ub_event_pluggable.lo
@@ -259,7 +270,7 @@ ALL_SRC=$(COMMON_SRC) $(UNITTEST_SRC) $(DAEMON_SRC) \
 	$(TESTBOUND_SRC) $(LOCKVERIFY_SRC) $(PKTVIEW_SRC) \
 	$(MEMSTATS_SRC) $(CHECKCONF_SRC) $(LIBUNBOUND_SRC) $(HOST_SRC) \
 	$(ASYNCLOOK_SRC) $(STREAMTCP_SRC) $(PERF_SRC) $(DELAYER_SRC) \
-	$(CONTROL_SRC) $(UBANCHOR_SRC) $(PETAL_SRC) \
+	$(CONTROL_SRC) $(UBANCHOR_SRC) $(PETAL_SRC) $(DNSTAP_SOCKET_SRC)\
 	$(PYTHONMOD_SRC) $(PYUNBOUND_SRC) $(WIN_DAEMON_THE_SRC) \
 	$(SVCINST_SRC) $(SVCUNINST_SRC) $(ANCHORUPD_SRC) $(SLDNS_SRC)
 
@@ -267,7 +278,7 @@ ALL_OBJ=$(COMMON_OBJ) $(UNITTEST_OBJ) $(DAEMON_OBJ) \
 	$(TESTBOUND_OBJ) $(LOCKVERIFY_OBJ) $(PKTVIEW_OBJ) \
 	$(MEMSTATS_OBJ) $(CHECKCONF_OBJ) $(LIBUNBOUND_OBJ) $(HOST_OBJ) \
 	$(ASYNCLOOK_OBJ) $(STREAMTCP_OBJ) $(PERF_OBJ) $(DELAYER_OBJ) \
-	$(CONTROL_OBJ) $(UBANCHOR_OBJ) $(PETAL_OBJ) \
+	$(CONTROL_OBJ) $(UBANCHOR_OBJ) $(PETAL_OBJ) $(DNSTAP_SOCKET_OBJ)\
 	$(COMPAT_OBJ) $(PYUNBOUND_OBJ) \
 	$(SVCINST_OBJ) $(SVCUNINST_OBJ) $(ANCHORUPD_OBJ) $(SLDNS_OBJ)
 
@@ -306,6 +317,7 @@ rsrc_unbound_checkconf.o:	$(srcdir)/winrc/rsrc_unbound_checkconf.rc config.h
 TEST_BIN=asynclook$(EXEEXT) delayer$(EXEEXT) \
 	lock-verify$(EXEEXT) memstats$(EXEEXT) perf$(EXEEXT) \
 	petal$(EXEEXT) pktview$(EXEEXT) streamtcp$(EXEEXT) \
+	unbound-dnstap-socket$(EXEEXT) \
 	testbound$(EXEEXT) unittest$(EXEEXT)
 tests:	all $(TEST_BIN)
 
@@ -315,7 +327,7 @@ longcheck: longtest
 test:	unittest$(EXEEXT) testbound$(EXEEXT)
 	./unittest$(EXEEXT)
 	./testbound$(EXEEXT) -s
-	for x in $(srcdir)/testdata/*.rpl; do echo -n "$$x "; if ./testbound$(EXEEXT) -p $$x >/dev/null 2>&1; then echo OK; else echo failed; exit 1; fi done
+	for x in $(srcdir)/testdata/*.rpl; do printf "%s" "$$x "; if ./testbound$(EXEEXT) -p $$x >/dev/null 2>&1; then echo OK; else echo failed; exit 1; fi done
 	@echo test OK
 
 longtest:	tests
@@ -328,13 +340,13 @@ libunbound.la:	$(LIBUNBOUND_OBJ_LINK)
 	$(LINK_LIB) $(UBSYMS) -o $@ $(LIBUNBOUND_OBJ_LINK) -rpath $(libdir) $(SSLLIB) $(LIBS)
 
 unbound$(EXEEXT):	$(DAEMON_OBJ_LINK) libunbound.la
-	$(LINK) -o $@ $(DAEMON_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(DAEMON_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 unbound-checkconf$(EXEEXT):	$(CHECKCONF_OBJ_LINK) libunbound.la
-	$(LINK) -o $@ $(CHECKCONF_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(CHECKCONF_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 unbound-control$(EXEEXT):	$(CONTROL_OBJ_LINK) libunbound.la
-	$(LINK) -o $@ $(CONTROL_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(CONTROL_OBJ_LINK) $(EXTRALINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 unbound-host$(EXEEXT):	$(HOST_OBJ_LINK) libunbound.la
 	$(LINK) -o $@ $(HOST_OBJ_LINK) -L. -L.libs -lunbound $(SSLLIB) $(LIBS)
@@ -352,34 +364,34 @@ anchor-update$(EXEEXT):  $(ANCHORUPD_OBJ_LINK) libunbound.la
 	$(LINK) -o $@ $(ANCHORUPD_OBJ_LINK) -L. -L.libs -lunbound $(LIBS)
 
 unittest$(EXEEXT):	$(UNITTEST_OBJ_LINK)
-	$(LINK) -o $@ $(UNITTEST_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(UNITTEST_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 testbound$(EXEEXT):	$(TESTBOUND_OBJ_LINK)
-	$(LINK) -o $@ $(TESTBOUND_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(TESTBOUND_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 lock-verify$(EXEEXT):	$(LOCKVERIFY_OBJ_LINK)
-	$(LINK) -o $@ $(LOCKVERIFY_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(LOCKVERIFY_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 petal$(EXEEXT):	$(PETAL_OBJ_LINK)
 	$(LINK) -o $@ $(PETAL_OBJ_LINK) $(SSLLIB) $(LIBS)
 
 pktview$(EXEEXT):	$(PKTVIEW_OBJ_LINK)
-	$(LINK) -o $@ $(PKTVIEW_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(PKTVIEW_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 memstats$(EXEEXT):	$(MEMSTATS_OBJ_LINK)
-	$(LINK) -o $@ $(MEMSTATS_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(MEMSTATS_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 asynclook$(EXEEXT):	$(ASYNCLOOK_OBJ_LINK) libunbound.la
 	$(LINK) -o $@ $(ASYNCLOOK_OBJ_LINK) -L. -L.libs -lunbound $(SSLLIB) $(LIBS)
 
 streamtcp$(EXEEXT):	$(STREAMTCP_OBJ_LINK)
-	$(LINK) -o $@ $(STREAMTCP_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(STREAMTCP_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 perf$(EXEEXT):	$(PERF_OBJ_LINK)
-	$(LINK) -o $@ $(PERF_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(PERF_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 delayer$(EXEEXT):	$(DELAYER_OBJ_LINK)
-	$(LINK) -o $@ $(DELAYER_OBJ_LINK) $(SSLLIB) $(LIBS)
+	$(LINK) -o $@ $(DELAYER_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
 
 signit$(EXEEXT):	testcode/signit.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) @PTHREAD_CFLAGS_ONLY@ -o $@ testcode/signit.c $(LDFLAGS) -lldns $(SSLLIB) $(LIBS)
@@ -401,7 +413,13 @@ dnstap/dnstap.pb-c.c dnstap/dnstap.pb-c.h: $(srcdir)/dnstap/dnstap.proto
 	@-if test ! -d dnstap; then $(INSTALL) -d dnstap; fi
 	$(PROTOC_C) --c_out=. --proto_path=$(srcdir) $(srcdir)/dnstap/dnstap.proto
 
+unbound-dnstap-socket$(EXEEXT):	$(DNSTAP_SOCKET_OBJ_LINK)
+	$(LINK) -o $@ $(DNSTAP_SOCKET_OBJ_LINK) $(SSLLIB) $(LIBS) $(DYNLIBMOD_EXTRALIBS)
+
 dnstap.pb-c.lo dnstap.pb-c.o: dnstap/dnstap.pb-c.c dnstap/dnstap.pb-c.h
+dtstream.lo dtstream.o: $(srcdir)/dnstap/dtstream.c config.h $(srcdir)/dnstap/dtstream.h
+dnstap_fstrm.lo dnstap_fstrm.o: $(srcdir)/dnstap/dnstap_fstrm.c config.h $(srcdir)/dnstap/dnstap_fstrm.h
+unbound-dnstap-socket.lo unbound-dnstap-socket.o: $(srcdir)/dnstap/unbound-dnstap-socket.c config.h $(srcdir)/dnstap/dtstream.h
 
 # dnscrypt
 dnscrypt.lo dnscrypt.o: $(srcdir)/dnscrypt/dnscrypt.c config.h \
@@ -455,6 +473,7 @@ clean:
 	rm -f unbound$(EXEEXT) unbound-checkconf$(EXEEXT) unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup libunbound.la unbound.h
 	rm -f $(ALL_SRC:.c=.lint)
 	rm -f _unbound.la libunbound/python/libunbound_wrap.c libunbound/python/unbound.py pythonmod/interface.h pythonmod/unboundmodule.py
+	rm -f libunbound.a
 	rm -rf autom4te.cache .libs build doc/html doc/xml
 
 distclean: clean
@@ -629,6 +648,7 @@ depend:
 			-e 's?$$(srcdir)/pythonmod/pythonmod.h?$$(PYTHONMOD_HEADER)?g' \
 			-e 's?$$(srcdir)/edns-subnet/subnetmod.h $$(srcdir)/edns-subnet/subnet-whitelist.h $$(srcdir)/edns-subnet/edns-subnet.h $$(srcdir)/edns-subnet/addrtree.h?$$(SUBNET_HEADER)?g' \
 			-e 's?$$(srcdir)/ipsecmod/ipsecmod.h $$(srcdir)/ipsecmod/ipsecmod-whitelist.h?$$(IPSECMOD_HEADER)?g' \
+			-e 's?$$(srcdir)/dynlibmod/dynlibmod.h?$$(DYNLIBMOD_HEADER)?g' \
 			-e 's!\(.*\)\.o[ :]*!\1.lo \1.o: !g' \
 			> $(DEPEND_TMP)
 	cp $(DEPEND_TARGET) $(DEPEND_TMP2)
@@ -796,12 +816,13 @@ modstack.lo modstack.o: $(srcdir)/services/modstack.c config.h $(srcdir)/service
  $(srcdir)/util/module.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h \
  $(srcdir)/util/data/msgreply.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgparse.h \
  $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/fptr_wlist.h $(srcdir)/util/netevent.h \
- $(srcdir)/dnscrypt/dnscrypt.h  $(srcdir)/util/tube.h \
- $(srcdir)/services/mesh.h $(srcdir)/util/rbtree.h $(srcdir)/services/rpz.h $(srcdir)/services/localzone.h \
- $(srcdir)/util/storage/dnstree.h $(srcdir)/services/view.h $(srcdir)/sldns/sbuffer.h \
- $(srcdir)/util/config_file.h $(srcdir)/services/authzone.h $(srcdir)/daemon/stats.h $(srcdir)/util/timehist.h \
- $(srcdir)/libunbound/unbound.h $(srcdir)/respip/respip.h $(srcdir)/dns64/dns64.h $(srcdir)/iterator/iterator.h \
- $(srcdir)/services/outbound_list.h $(srcdir)/validator/validator.h $(srcdir)/validator/val_utils.h
+ $(srcdir)/dnscrypt/dnscrypt.h  $(srcdir)/dnscrypt/cert.h \
+ $(srcdir)/util/tube.h $(srcdir)/services/mesh.h $(srcdir)/util/rbtree.h $(srcdir)/dns64/dns64.h \
+ $(srcdir)/iterator/iterator.h $(srcdir)/services/outbound_list.h $(srcdir)/validator/validator.h \
+ $(srcdir)/validator/val_utils.h $(srcdir)/respip/respip.h $(srcdir)/services/localzone.h \
+ $(srcdir)/util/storage/dnstree.h $(srcdir)/services/view.h $(PYTHONMOD_HEADER) $(srcdir)/ipsecmod/ipsecmod.h \
+ $(srcdir)/util/storage/slabhash.h $(srcdir)/edns-subnet/addrtree.h $(srcdir)/edns-subnet/edns-subnet.h \
+ $(srcdir)/ipset/ipset.h $(srcdir)/dynlibmod/dynlibmod.h
 view.lo view.o: $(srcdir)/services/view.c config.h $(srcdir)/services/view.h $(srcdir)/util/rbtree.h \
  $(srcdir)/util/locks.h $(srcdir)/util/log.h $(srcdir)/services/localzone.h $(srcdir)/util/storage/dnstree.h \
  $(srcdir)/util/module.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/data/msgreply.h \
@@ -886,21 +907,23 @@ authzone.lo authzone.o: $(srcdir)/services/authzone.c config.h $(srcdir)/service
  $(srcdir)/validator/val_secalgo.h
 fptr_wlist.lo fptr_wlist.o: $(srcdir)/util/fptr_wlist.c config.h $(srcdir)/util/fptr_wlist.h \
  $(srcdir)/util/netevent.h $(srcdir)/dnscrypt/dnscrypt.h  \
- $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h $(srcdir)/util/module.h \
- $(srcdir)/util/data/msgreply.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgparse.h \
- $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/tube.h $(srcdir)/services/mesh.h $(srcdir)/util/rbtree.h \
- $(srcdir)/services/modstack.h $(srcdir)/services/rpz.h $(srcdir)/services/localzone.h \
- $(srcdir)/util/storage/dnstree.h $(srcdir)/services/view.h $(srcdir)/sldns/sbuffer.h \
- $(srcdir)/util/config_file.h $(srcdir)/services/authzone.h $(srcdir)/daemon/stats.h $(srcdir)/util/timehist.h \
- $(srcdir)/libunbound/unbound.h $(srcdir)/respip/respip.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
- $(srcdir)/services/outside_network.h  $(srcdir)/services/cache/infra.h \
- $(srcdir)/util/rtt.h $(srcdir)/services/cache/rrset.h $(srcdir)/util/storage/slabhash.h $(srcdir)/dns64/dns64.h \
- $(srcdir)/iterator/iterator.h $(srcdir)/services/outbound_list.h $(srcdir)/iterator/iter_fwd.h \
- $(srcdir)/validator/validator.h $(srcdir)/validator/val_utils.h $(srcdir)/validator/val_anchor.h \
- $(srcdir)/validator/val_nsec3.h $(srcdir)/validator/val_sigcrypt.h $(srcdir)/validator/val_kentry.h \
- $(srcdir)/validator/val_neg.h $(srcdir)/validator/autotrust.h $(srcdir)/libunbound/libworker.h \
- $(srcdir)/libunbound/context.h $(srcdir)/util/alloc.h $(srcdir)/libunbound/unbound-event.h \
- $(srcdir)/libunbound/worker.h
+ $(srcdir)/dnscrypt/cert.h $(srcdir)/util/locks.h $(srcdir)/util/log.h $(srcdir)/util/storage/lruhash.h \
+ $(srcdir)/util/module.h $(srcdir)/util/data/msgreply.h $(srcdir)/util/data/packed_rrset.h \
+ $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/tube.h \
+ $(srcdir)/services/mesh.h $(srcdir)/util/rbtree.h $(srcdir)/services/modstack.h $(srcdir)/util/mini_event.h \
+ $(srcdir)/services/outside_network.h  $(srcdir)/services/localzone.h \
+ $(srcdir)/util/storage/dnstree.h $(srcdir)/services/view.h $(srcdir)/services/authzone.h \
+ $(srcdir)/services/cache/infra.h $(srcdir)/util/rtt.h $(srcdir)/services/cache/rrset.h \
+ $(srcdir)/util/storage/slabhash.h $(srcdir)/dns64/dns64.h $(srcdir)/iterator/iterator.h \
+ $(srcdir)/services/outbound_list.h $(srcdir)/iterator/iter_fwd.h $(srcdir)/validator/validator.h \
+ $(srcdir)/validator/val_utils.h $(srcdir)/validator/val_anchor.h $(srcdir)/validator/val_nsec3.h \
+ $(srcdir)/validator/val_sigcrypt.h $(srcdir)/validator/val_kentry.h $(srcdir)/validator/val_neg.h \
+ $(srcdir)/validator/autotrust.h $(srcdir)/libunbound/libworker.h $(srcdir)/libunbound/context.h \
+ $(srcdir)/util/alloc.h $(srcdir)/libunbound/unbound.h $(srcdir)/libunbound/unbound-event.h \
+ $(srcdir)/libunbound/worker.h $(srcdir)/sldns/sbuffer.h $(srcdir)/util/config_file.h $(srcdir)/respip/respip.h \
+ $(PYTHONMOD_HEADER) $(srcdir)/ipsecmod/ipsecmod.h $(srcdir)/edns-subnet/subnetmod.h $(srcdir)/util/net_help.h \
+ $(srcdir)/edns-subnet/addrtree.h $(srcdir)/edns-subnet/edns-subnet.h $(srcdir)/ipset/ipset.h \
+ $(srcdir)/dynlibmod/dynlibmod.h
 locks.lo locks.o: $(srcdir)/util/locks.c config.h $(srcdir)/util/locks.h $(srcdir)/util/log.h
 log.lo log.o: $(srcdir)/util/log.c config.h $(srcdir)/util/log.h $(srcdir)/util/locks.h $(srcdir)/sldns/sbuffer.h
 mini_event.lo mini_event.o: $(srcdir)/util/mini_event.c config.h $(srcdir)/util/mini_event.h $(srcdir)/util/rbtree.h \
@@ -1108,7 +1131,32 @@ respip.lo respip.o: $(srcdir)/respip/respip.c config.h $(srcdir)/services/localz
  $(srcdir)/util/regional.h
 checklocks.lo checklocks.o: $(srcdir)/testcode/checklocks.c config.h $(srcdir)/util/locks.h $(srcdir)/util/log.h \
  $(srcdir)/testcode/checklocks.h
+dnstap.lo dnstap.o: $(srcdir)/dnstap/dnstap.c  config.h $(srcdir)/sldns/sbuffer.h \
+ $(srcdir)/util/config_file.h $(srcdir)/util/net_help.h $(srcdir)/util/log.h $(srcdir)/util/netevent.h \
+ $(srcdir)/dnscrypt/dnscrypt.h  $(srcdir)/dnscrypt/cert.h \
+ $(srcdir)/util/locks.h $(srcdir)/dnstap/dnstap.h \
+ dnstap/dnstap.pb-c.h
+dnstap.pb-c.lo dnstap.pb-c.o: dnstap/dnstap.pb-c.c dnstap/dnstap.pb-c.h \
+ 
+dynlibmod.lo dynlibmod.o: $(srcdir)/dynlibmod/dynlibmod.c config.h $(srcdir)/dynlibmod/dynlibmod.h \
+ $(srcdir)/util/module.h $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h \
+ $(srcdir)/util/data/msgreply.h $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgparse.h \
+ $(srcdir)/sldns/pkthdr.h $(srcdir)/sldns/rrdef.h $(srcdir)/util/rbtree.h\
+ $(srcdir)/util/storage/dnstree.h $(srcdir)/util/fptr_wlist.h $(srcdir)/util/netevent.h \
+ $(srcdir)/dnscrypt/dnscrypt.h  $(srcdir)/util/tube.h \
+ $(srcdir)/services/mesh.h $(srcdir)/services/modstack.h $(srcdir)/util/regional.h $(srcdir)/util/net_help.h \
+ $(srcdir)/util/config_file.h $(srcdir)/services/cache/dns.h $(srcdir)/sldns/wire2str.h
+dnscrypt.lo dnscrypt.o: $(srcdir)/dnscrypt/dnscrypt.c config.h $(srcdir)/sldns/sbuffer.h \
+ $(srcdir)/util/config_file.h $(srcdir)/util/net_help.h $(srcdir)/util/log.h $(srcdir)/util/netevent.h \
+ $(srcdir)/dnscrypt/dnscrypt.h  $(srcdir)/dnscrypt/cert.h \
+ $(srcdir)/util/locks.h $(srcdir)/util/storage/slabhash.h $(srcdir)/util/storage/lruhash.h \
+ $(srcdir)/util/storage/lookup3.h
 ipsecmod.lo ipsecmod.o: $(srcdir)/ipsecmod/ipsecmod.c config.h
+ipset.lo ipset.o: $(srcdir)/ipset/ipset.c config.h $(srcdir)/ipset/ipset.h $(srcdir)/util/module.h \
+ $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/util/log.h $(srcdir)/util/data/msgreply.h \
+ $(srcdir)/util/data/packed_rrset.h $(srcdir)/util/data/msgparse.h $(srcdir)/sldns/pkthdr.h \
+ $(srcdir)/sldns/rrdef.h $(srcdir)/util/regional.h $(srcdir)/util/config_file.h $(srcdir)/services/cache/dns.h \
+ $(srcdir)/sldns/sbuffer.h $(srcdir)/sldns/wire2str.h $(srcdir)/sldns/parseutil.h
 ipsecmod-whitelist.lo ipsecmod-whitelist.o: $(srcdir)/ipsecmod/ipsecmod-whitelist.c config.h
 unitanchor.lo unitanchor.o: $(srcdir)/testcode/unitanchor.c config.h $(srcdir)/util/log.h $(srcdir)/util/data/dname.h \
  $(srcdir)/util/storage/lruhash.h $(srcdir)/util/locks.h $(srcdir)/testcode/unitmain.h \

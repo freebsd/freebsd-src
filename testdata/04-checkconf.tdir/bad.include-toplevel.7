@@ -1,0 +1,11 @@
+include-toplevel: include.withclauses.*
+include-toplevel: include.withclauses.*
+server:
+    identity: "top 1"
+    include: include.withoutclauses.*
+    include-toplevel: include.withclauses.*
+include: include.withclauses.*
+include-toplevel: include.withclauses.*
+server: identity: "top 2"
+include-toplevel: include.includetop.withclauses.*
+include-toplevel: include.include.withoutclauses.*

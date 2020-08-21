@@ -9,6 +9,7 @@ server:
 	qname-minimisation: "no"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	rrset-roundrobin: no
 
 stub-zone:
 	name: "."

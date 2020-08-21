@@ -121,7 +121,7 @@ void log_ident_set_default(const char* id);
 /**
  * Revert identity to print, back to the recorded default value.
  */
-void log_ident_revert_to_default();
+void log_ident_revert_to_default(void);
 
 /**
  * Set identity to print if there is an identity, otherwise

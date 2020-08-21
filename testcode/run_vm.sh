@@ -26,15 +26,20 @@ cd testdata
 TPKG=../testcode/mini_tdir.sh
 #RUNLIST=`(ls -1d *.tdir|grep -v '^0[016]')`
 RUNLIST=`(ls -1d *.tdir)`
-if test "$#" = "1"; then RUNLIST="$1"; fi
+if test "$#" = "1"; then
+	RUNLIST="$1";
+	if echo "$RUNLIST" | grep '/$' >/dev/null; then
+		RUNLIST=`echo "$RUNLIST" | sed -e 's?/$??'`
+	fi
+fi
 
 # fix up tdir that was edited on keyboard interrupt.
 cleanup() {
 	echo cleanup
-	if test -f "$t.bak"; then mv "$t.bak" "$t"; fi
+	if test -f "$t.bak"; then rm -fr "${t}"; mv "$t.bak" "$t"; fi
 	exit 0
 }
-trap cleanup SIGINT
+trap cleanup INT
 
 for t in $RUNLIST
 do

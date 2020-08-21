@@ -4,6 +4,7 @@ server:
 	hide-version: no
 	identity: "test-identity"
 	version: "test-version"
+	rrset-roundrobin: no
 
 	; implicit transparent zone should not block id.server
 	local-data: "mydata.server. CH A 10.11.12.13"

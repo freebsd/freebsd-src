@@ -2,6 +2,7 @@ server:
 	# to make sure the check doesn't fail on username or chrootdir.
 	username: ""	
 	chroot: ""
+	directory: ""
 
 forward-zone:
 	name: "example.com"

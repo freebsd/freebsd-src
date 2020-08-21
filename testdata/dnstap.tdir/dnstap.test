@@ -1,0 +1,86 @@
+# #-- dnstap.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+. ../common.sh
+PRE="../.."
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+# test if the server is up.
+echo "> dig www.example.com."
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+	echo "OK"
+else
+	echo "> cat logfiles"
+	cat tap.log
+	cat tap.errlog
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> check tap.log for dnstap info"
+# see if it logged the information in tap.log
+# wait for a moment for filesystem to catch up.
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "www.example.com" tap.log; then echo "yes it is in tap.log";
+else
+	echo "information not in tap.log"
+	echo "failed"
+	echo "> cat logfiles"
+	cat tap.log
+	cat tap.errlog
+	cat fwd.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "> make 10 queries to spread them over threads"
+dig @127.0.0.1 -p $UNBOUND_PORT q1.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q2.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q3.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q4.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q5.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q6.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q7.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q8.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q9.example.net.
+dig @127.0.0.1 -p $UNBOUND_PORT q10.example.net.
+for x in q1 q2 q3 q4 5 q6 q7 q8 q9 q10; do
+	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi
+	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 10; fi
+	if grep "$x.example.net" tap.log; then echo "yes it is in tap.log";
+	else
+		echo "$x.example.net. information not in tap.log"
+		echo "failed"
+		echo "> cat logfiles"
+		cat tap.log
+		cat tap.errlog
+		cat fwd.log
+		cat unbound.log
+		echo "Not OK"
+		exit 1
+	fi
+done
+
+echo "> cat logfiles"
+cat tap.log
+cat tap.errlog
+cat fwd.log
+echo "> OK"
+exit 0

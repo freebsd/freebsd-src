@@ -227,7 +227,7 @@ ipv4_to_ptr(uint32_t ipv4, char ptr[], size_t nm_len)
     static const char IPV4_PTR_SUFFIX[] = "\07in-addr\04arpa";
     int i;
     char* c = ptr;
-    log_assert(nm_len == MAX_PTR_QNAME_IPV4);
+    log_assert(nm_len == MAX_PTR_QNAME_IPV4); (void)nm_len;
 
     for (i = 0; i < 4; ++i) {
         *c = uitoa((unsigned int)(ipv4 % 256), c + 1);

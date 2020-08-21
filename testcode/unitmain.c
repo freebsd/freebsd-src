@@ -867,7 +867,13 @@ main(int argc, char* argv[])
 		printf("\tperforms unit tests.\n");
 		return 1;
 	}
+	/* Disable roundrobin for the unit tests */
+	RRSET_ROUNDROBIN = 0;
+#ifdef USE_LIBEVENT
+	printf("Start of %s+libevent unit test.\n", PACKAGE_STRING);
+#else
 	printf("Start of %s unit test.\n", PACKAGE_STRING);
+#endif
 #ifdef HAVE_SSL
 #  ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
 	ERR_load_crypto_strings();
@@ -917,7 +923,9 @@ main(int argc, char* argv[])
 #  ifdef HAVE_EVP_CLEANUP
 	EVP_cleanup();
 #  endif
+#  if (OPENSSL_VERSION_NUMBER < 0x10100000) && !defined(OPENSSL_NO_ENGINE) && defined(HAVE_ENGINE_CLEANUP)
 	ENGINE_cleanup();
+#  endif
 	CONF_modules_free();
 #  endif
 #  ifdef HAVE_CRYPTO_CLEANUP_ALL_EX_DATA
