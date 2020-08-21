@@ -2111,7 +2111,7 @@ pmap_init(void)
 		 * Collect the page table pages that were replaced by a 2MB
 		 * page in create_pagetables().  They are zero filled.
 		 */
-		if (i << PDRSHIFT < KERNend &&
+		if ((vm_paddr_t)i << PDRSHIFT < KERNend &&
 		    pmap_insert_pt_page(kernel_pmap, mpte, false))
 			panic("pmap_init: pmap_insert_pt_page failed");
 	}
