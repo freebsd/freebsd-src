@@ -115,7 +115,10 @@ typedef volatile u_int rt_gen_t;	/* tree generation (for adds) */
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 #ifdef _KERNEL
-extern u_int rt_numfibs;	/* number of usable routing tables */
+VNET_DECLARE(uint32_t, _rt_numfibs);	/* number of existing route tables */
+#define	V_rt_numfibs		VNET(_rt_numfibs)
+/* temporary compat arg */
+#define	rt_numfibs		V_rt_numfibs
 VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #define	V_rt_add_addr_allfibs	VNET(rt_add_addr_allfibs)
 #endif
@@ -379,7 +382,7 @@ void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
 struct rib_head *rt_table_init(int, int, u_int);
 void	rt_table_destroy(struct rib_head *);
-u_int	rt_tables_get_gen(int table, int fam);
+u_int	rt_tables_get_gen(uint32_t table, sa_family_t family);
 
 int	rtsock_addrmsg(int, struct ifaddr *, int);
 int	rtsock_routemsg(int, struct rtentry *, struct ifnet *ifp, int, int);
