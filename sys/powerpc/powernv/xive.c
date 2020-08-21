@@ -466,7 +466,7 @@ xive_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 		ncpus++;
 	}
 
-	opal_call(OPAL_XIVE_SYNC);
+	opal_call(OPAL_XIVE_SYNC, OPAL_XIVE_SYNC_QUEUE, irq);
 	
 	irqd->vp = pcpu_find(cpu)->pc_hwref;
 	error = opal_call(OPAL_XIVE_SET_IRQ_CONFIG, irq, irqd->vp,
