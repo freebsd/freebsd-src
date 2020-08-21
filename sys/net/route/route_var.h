@@ -79,6 +79,7 @@ struct rib_head {
 
 /* Constants */
 #define	RIB_MAX_RETRIES	3
+#define	RT_MAXFIBS	UINT16_MAX
 
 /* Macro for verifying fields in af-specific 'struct route' structures */
 #define CHK_STRUCT_FIELD_GENERIC(_s1, _f1, _s2, _f2)			\
@@ -104,7 +105,7 @@ CHK_STRUCT_ROUTE_FIELDS(_ro_new);						\
 _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new),\
 		"ro_dst and " #_dst_new " are at different offset")
 
-struct rib_head *rt_tables_get_rnh(int fib, int family);
+struct rib_head *rt_tables_get_rnh(uint32_t table, sa_family_t family);
 void rt_mpath_init_rnh(struct rib_head *rnh);
 int rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum);
 void rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt);
