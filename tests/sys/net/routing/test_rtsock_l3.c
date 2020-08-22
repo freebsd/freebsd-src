@@ -365,7 +365,6 @@ ATF_TC_BODY(rtm_get_v4_empty_dst_failure, tc)
 	    (struct sockaddr *)&c->mask4, NULL);
 	rtsock_update_rtm_len(rtm);
 
-	write(c->rtsock_fd, rtm, rtm->rtm_msglen);
 	ATF_CHECK_ERRNO(EINVAL, write(c->rtsock_fd, rtm, rtm->rtm_msglen));
 }
 
@@ -439,6 +438,30 @@ ATF_TC_BODY(rtm_add_v4_gw_direct_success, tc)
 ATF_TC_CLEANUP(rtm_add_v4_gw_direct_success, tc)
 {
 	CLEANUP_AFTER_TEST;
+}
+
+RTM_DECLARE_ROOT_TEST(rtm_add_v4_no_rtf_host_failure,
+    "Tests failure with netmask sa and RTF_HOST inconsistency");
+
+ATF_TC_BODY(rtm_add_v4_no_rtf_host_failure, tc)
+{
+	DECLARE_TEST_VARS;
+
+	c = presetup_ipv4(tc);
+
+	/* Create IPv4 subnetwork with smaller prefix */
+	struct sockaddr_in mask4;
+	struct sockaddr_in net4;
+	struct sockaddr_in gw4;
+	prepare_v4_network(c, &net4, &mask4, &gw4);
+
+	prepare_route_message(rtm, RTM_ADD, (struct sockaddr *)&net4,
+	    NULL, (struct sockaddr *)&gw4);
+	rtsock_update_rtm_len(rtm);
+
+	/* RTF_HOST is NOT specified, while netmask is empty */
+
+	ATF_CHECK_ERRNO(EINVAL, write(c->rtsock_fd, rtm, rtm->rtm_msglen));
 }
 
 ATF_TC_WITH_CLEANUP(rtm_del_v4_prefix_nogw_success);
@@ -1269,6 +1292,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rtm_get_v4_lpm_success);
 	ATF_TP_ADD_TC(tp, rtm_get_v4_hostbits_failure);
 	ATF_TP_ADD_TC(tp, rtm_get_v4_empty_dst_failure);
+	ATF_TP_ADD_TC(tp, rtm_add_v4_no_rtf_host_failure);
 	ATF_TP_ADD_TC(tp, rtm_add_v4_gw_direct_success);
 	ATF_TP_ADD_TC(tp, rtm_del_v4_prefix_nogw_success);
 	ATF_TP_ADD_TC(tp, rtm_add_v6_gu_gw_gu_direct_success);
