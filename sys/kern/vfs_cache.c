@@ -1892,10 +1892,12 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	u_long lnumcache;
 
 	CTR3(KTR_VFS, "cache_enter(%p, %p, %s)", dvp, vp, cnp->cn_nameptr);
-	VNASSERT(vp == NULL || !VN_IS_DOOMED(vp), vp,
-	    ("cache_enter: Adding a doomed vnode"));
-	VNASSERT(dvp == NULL || !VN_IS_DOOMED(dvp), dvp,
-	    ("cache_enter: Doomed vnode used as src"));
+	VNPASS(!VN_IS_DOOMED(dvp), dvp);
+	VNPASS(dvp->v_type != VNON, dvp);
+	if (vp != NULL) {
+		VNPASS(!VN_IS_DOOMED(vp), vp);
+		VNPASS(vp->v_type != VNON, vp);
+	}
 
 #ifdef DEBUG_CACHE
 	if (__predict_false(!doingcache))
