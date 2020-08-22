@@ -251,7 +251,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		return (ENOBUFS);
 	}
 	RT_LOCK_INIT(rt);
-	rt->rt_flags = RTF_UP | flags;
+	rt->rte_flags = RTF_UP | flags;
 	rt->rt_nhop = nh;
 
 	/* Fill in dst */
@@ -406,6 +406,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 {
 	struct sockaddr *dst, *netmask;
 	struct rtentry *rt;
+	struct nhop_object *nh;
 	struct radix_node *rn;
 
 	dst = info->rti_info[RTAX_DST];
@@ -417,16 +418,18 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 		return (NULL);
 	}
 
+	nh = rt->rt_nhop;
+
 	if ((info->rti_flags & RTF_PINNED) == 0) {
 		/* Check if target route can be deleted */
-		if (rt->rt_flags & RTF_PINNED) {
+		if (NH_IS_PINNED(nh)) {
 			*perror = EADDRINUSE;
 			return (NULL);
 		}
 	}
 
 	if (info->rti_filter != NULL) {
-		if (info->rti_filter(rt, rt->rt_nhop, info->rti_filterdata)==0){
+		if (info->rti_filter(rt, nh, info->rti_filterdata)==0){
 			/* Not matched */
 			*perror = ENOENT;
 			return (NULL);
@@ -437,7 +440,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 		 * Ease the caller work by filling in remaining info
 		 * from that particular entry.
 		 */
-		info->rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
+		info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 	}
 
 	/*
@@ -459,7 +462,7 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 
 	rt = RNTORT(rn);
 	RT_LOCK(rt);
-	rt->rt_flags &= ~RTF_UP;
+	rt->rte_flags &= ~RTF_UP;
 
 	*perror = 0;
 

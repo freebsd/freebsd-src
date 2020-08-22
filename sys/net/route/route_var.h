@@ -165,7 +165,7 @@ struct rtentry {
 		char			rt_dstb[28];
 	};
 
-	int		rt_flags;	/* up/down?, host/net */
+	int		rte_flags;	/* up/down?, host/net */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
 #define	rt_endzero	rt_mtx

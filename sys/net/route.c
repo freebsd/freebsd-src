@@ -243,7 +243,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	}
 
 	RT_LOCK(rc.rc_rt);
-	flags = rc.rc_rt->rt_flags;
+	flags = rc.rc_rt->rte_flags;
 	RT_UNLOCK(rc.rc_rt);
 
 	RTSTAT_INC(rts_dynamic);
@@ -354,6 +354,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 	struct nhop_object *nh;
 	int sa_len;
 
+	nh = rt->rt_nhop;
 	if (flags & NHR_COPY) {
 		/* Copy destination if dst is non-zero */
 		src = rt_key(rt);
@@ -383,9 +384,10 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 		}
 
 		/* Copy gateway is set && dst is non-zero */
-		src = &rt->rt_nhop->gw_sa;
+		src = &nh->gw_sa;
 		dst = info->rti_info[RTAX_GATEWAY];
-		if ((rt->rt_flags & RTF_GATEWAY) && src != NULL && dst != NULL){
+		if ((nhop_get_rtflags(nh) & RTF_GATEWAY) &&
+		    src != NULL && dst != NULL) {
 			if (src->sa_len > dst->sa_len)
 				return (ENOMEM);
 			memcpy(dst, src, src->sa_len);
@@ -398,20 +400,19 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 			info->rti_info[RTAX_NETMASK] = rt_mask(rt);
 			info->rti_addrs |= RTA_NETMASK;
 		}
-		if (rt->rt_flags & RTF_GATEWAY) {
-			info->rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
+		if (nhop_get_rtflags(nh) & RTF_GATEWAY) {
+			info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 			info->rti_addrs |= RTA_GATEWAY;
 		}
 	}
 
-	nh = rt->rt_nhop;
 	rmx = info->rti_rmx;
 	if (rmx != NULL) {
 		info->rti_mflags |= RTV_MTU;
 		rmx->rmx_mtu = nh->nh_mtu;
 	}
 
-	info->rti_flags = rt->rt_flags | nhop_get_rtflags(nh);
+	info->rti_flags = rt->rte_flags | nhop_get_rtflags(nh);
 	info->rti_ifp = nh->nh_ifp;
 	info->rti_ifa = nh->nh_ifa;
 	if (flags & NHR_REF) {
@@ -579,7 +580,7 @@ rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 	 * Protect (sorta) against walktree recursion problems
 	 * with cloned routes
 	 */
-	if ((rt->rt_flags & RTF_UP) == 0)
+	if ((rt->rte_flags & RTF_UP) == 0)
 		return (0);
 
 	return (1);
