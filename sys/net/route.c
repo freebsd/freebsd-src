@@ -812,9 +812,9 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 		if (rn) {
 			rto = RNTORT(rn);
 			RT_LOCK(rto);
-			rto->rt_flags |= RTF_UP;
+			rto->rte_flags |= RTF_UP;
 			RT_UNLOCK(rto);
-		} else if (rt->rt_flags & RTF_GATEWAY) {
+		} else if (rt->rte_flags & RTF_GATEWAY) {
 			/*
 			 * For gateway routes, we need to 
 			 * make sure that we we are deleting
