@@ -234,7 +234,11 @@ iort_copy_data(struct iort_node *node, ACPI_IORT_NODE *node_entry)
 	node->entries.mappings = mapping;
 	for (i = 0; i < node->nentries; i++, mapping++, map_entry++) {
 		mapping->base = map_entry->InputBase;
-		mapping->end = map_entry->InputBase + map_entry->IdCount - 1;
+		/*
+		 * IdCount means "The number of IDs in the range minus one" (ARM DEN 0049D).
+		 * We use <= for comparison against this field, so don't add one here.
+		 */
+		mapping->end = map_entry->InputBase + map_entry->IdCount;
 		mapping->outbase = map_entry->OutputBase;
 		mapping->out_node_offset = map_entry->OutputReference;
 		mapping->flags = map_entry->Flags;
