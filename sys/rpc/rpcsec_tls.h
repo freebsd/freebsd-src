@@ -48,6 +48,7 @@ int	rpctls_syscall(int, const char *);
 #define	RPCTLS_FLAGS_VERIFIED	0x08
 #define	RPCTLS_FLAGS_DISABLED	0x10
 #define	RPCTLS_FLAGS_CERTUSER	0x20
+#define	RPCTLS_FLAGS_HANDSHFAIL	0x40
 
 /* Error return values for upcall rpcs. */
 #define	RPCTLSERR_OK		0
@@ -72,10 +73,14 @@ enum clnt_stat	rpctls_srv_disconnect(uint64_t sec, uint64_t usec,
 int		rpctls_init(void);
 
 /* Get TLS information function. */
-bool		rpctls_getinfo(u_int *maxlen);
+bool		rpctls_getinfo(u_int *maxlen, bool rpctlscd_run,
+		    bool rpctlssd_run);
 
 /* String for AUTH_TLS reply verifier. */
 #define	RPCTLS_START_STRING	"STARTTLS"
+
+/* ssl refno value to indicate TLS handshake being done. */
+#define	RPCTLS_REFNO_HANDSHAKE	0xFFFFFFFFFFFFFFFFULL
 
 #endif	/* _KERNEL */
 
