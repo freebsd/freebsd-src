@@ -4868,6 +4868,41 @@ rpc/svc_auth_unix.c		optional krpc | nfslockd | nfscl | nfsd
 rpc/svc_dg.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/svc_generic.c		optional krpc | nfslockd | nfscl | nfsd
 rpc/svc_vc.c			optional krpc | nfslockd | nfscl | nfsd
+#
+# Kernel RPC-over-TLS
+#
+rpctlscd.h			optional krpc | nfslockd | nfscl | nfsd	\
+	dependency		"$S/rpc/rpcsec_tls/rpctlscd.x"			\
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -hM $S/rpc/rpcsec_tls/rpctlscd.x | grep -v pthread.h > rpctlscd.h" \
+	no-obj no-implicit-rule before-depend local			\
+	clean			"rpctlscd.h"
+rpctlscd_xdr.c			optional krpc | nfslockd | nfscl | nfsd	\
+	dependency		"$S/rpc/rpcsec_tls/rpctlscd.x rpctlscd.h"		\
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -c $S/rpc/rpcsec_tls/rpctlscd.x -o rpctlscd_xdr.c" no-ctfconvert \
+	no-implicit-rule before-depend local				\
+	clean			"rpctlscd_xdr.c"
+rpctlscd_clnt.c			optional krpc | nfslockd | nfscl | nfsd	\
+	dependency		"$S/rpc/rpcsec_tls/rpctlscd.x rpctlscd.h"		\
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -lM $S/rpc/rpcsec_tls/rpctlscd.x | grep -v string.h > rpctlscd_clnt.c" no-ctfconvert \
+	no-implicit-rule before-depend local				\
+	clean			"rpctlscd_clnt.c"
+rpctlssd.h			optional krpc | nfslockd | nfscl | nfsd	\
+	dependency		"$S/rpc/rpcsec_tls/rpctlssd.x"			\
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -hM $S/rpc/rpcsec_tls/rpctlssd.x | grep -v pthread.h > rpctlssd.h" \
+	no-obj no-implicit-rule before-depend local			\
+	clean			"rpctlssd.h"
+rpctlssd_xdr.c			optional krpc | nfslockd | nfscl | nfsd	\
+	dependency		"$S/rpc/rpcsec_tls/rpctlssd.x rpctlssd.h"		\
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -c $S/rpc/rpcsec_tls/rpctlssd.x -o rpctlssd_xdr.c" no-ctfconvert \
+	no-implicit-rule before-depend local				\
+	clean			"rpctlssd_xdr.c"
+rpctlssd_clnt.c			optional krpc | nfslockd | nfscl | nfsd	\
+	dependency		"$S/rpc/rpcsec_tls/rpctlssd.x rpctlssd.h"		\
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -lM $S/rpc/rpcsec_tls/rpctlssd.x | grep -v string.h > rpctlssd_clnt.c" no-ctfconvert \
+	no-implicit-rule before-depend local				\
+	clean			"rpctlssd_clnt.c"
+rpc/rpcsec_tls/rpctls_impl.c	optional krpc | nfslockd | nfscl | nfsd
+rpc/rpcsec_tls/auth_tls.c	optional krpc | nfslockd | nfscl | nfsd
 rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
 rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
 rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi

@@ -150,6 +150,7 @@ enum auth_stat {
 	 */
 	RPCSEC_GSS_CREDPROBLEM = 13,
 	RPCSEC_GSS_CTXPROBLEM = 14,
+	/* Also used by RPCSEC_TLS for the same purpose */
 	RPCSEC_GSS_NODISPATCH = 0x8000000
 };
 
@@ -249,6 +250,7 @@ extern AUTH *authunix_create(char *, u_int, u_int, int, u_int *);
 extern AUTH *authunix_create_default(void);	/* takes no parameters */
 #endif
 extern AUTH *authnone_create(void);		/* takes no parameters */
+extern AUTH *authtls_create(void);		/* takes no parameters */
 __END_DECLS
 /*
  * DES style authentication
@@ -344,6 +346,7 @@ struct rpc_msg;
 enum auth_stat _svcauth_null (struct svc_req *, struct rpc_msg *);
 enum auth_stat _svcauth_short (struct svc_req *, struct rpc_msg *);
 enum auth_stat _svcauth_unix (struct svc_req *, struct rpc_msg *);
+enum auth_stat _svcauth_rpcsec_tls (struct svc_req *, struct rpc_msg *);
 __END_DECLS
 
 #define AUTH_NONE	0		/* no authentication */
@@ -355,6 +358,7 @@ __END_DECLS
 #define AUTH_DES	AUTH_DH		/* for backward compatibility */
 #define AUTH_KERB	4		/* kerberos style */
 #define RPCSEC_GSS	6		/* RPCSEC_GSS */
+#define	AUTH_TLS	7		/* Initiate RPC-over-TLS */
 
 /*
  * Pseudo auth flavors for RPCSEC_GSS.
