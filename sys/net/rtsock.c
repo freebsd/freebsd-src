@@ -179,7 +179,8 @@ static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *m, struct socket *so, ...);
-static void	rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out);
+static void	rt_getmetrics(const struct rtentry *rt,
+			const struct nhop_object *nh, struct rt_metrics *out);
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 static int	handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 			struct rt_msghdr *rtm, struct rib_cmd_info *rc);
@@ -814,12 +815,12 @@ update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	w.w_tmemsize = alloc_len;
 	rtsock_msg_buffer(rtm->rtm_type, info, &w, &len);
 
-	if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+	if (rt->rte_flags & RTF_GWFLAG_COMPAT)
 		rtm->rtm_flags = RTF_GATEWAY | 
-			(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+			(rt->rte_flags & ~RTF_GWFLAG_COMPAT);
 	else
-		rtm->rtm_flags = rt->rt_flags;
-	rt_getmetrics(rt, &rtm->rtm_rmx);
+		rtm->rtm_flags = rt->rte_flags;
+	rt_getmetrics(rt, nh, &rtm->rtm_rmx);
 	rtm->rtm_addrs = info->rti_addrs;
 
 	if (orig_rtm != NULL)
@@ -1055,13 +1056,14 @@ send_rtm_reply(struct socket *so, struct rt_msghdr *rtm, struct mbuf *m,
 
 
 static void
-rt_getmetrics(const struct rtentry *rt, struct rt_metrics *out)
+rt_getmetrics(const struct rtentry *rt, const struct nhop_object *nh,
+    struct rt_metrics *out)
 {
 
 	bzero(out, sizeof(*out));
-	out->rmx_mtu = rt->rt_nhop->nh_mtu;
+	out->rmx_mtu = nh->nh_mtu;
 	out->rmx_weight = rt->rt_weight;
-	out->rmx_nhidx = nhop_get_idx(rt->rt_nhop);
+	out->rmx_nhidx = nhop_get_idx(nh);
 	/* Kernel -> userland timebase conversion. */
 	out->rmx_expire = rt->rt_expire ?
 	    rt->rt_expire - time_uptime + time_second : 0;
@@ -1472,15 +1474,17 @@ rtsock_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
 {
 	struct sockaddr_storage ss;
 	struct rt_addrinfo info;
+	struct nhop_object *nh;
 
 	if (V_route_cb.any_count == 0)
 		return (0);
 
+	nh = rt->rt_nhop;
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt), rt_mask(rt), &ss);
-	info.rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
-	info.rti_flags = rt->rt_flags;
+	info.rti_info[RTAX_GATEWAY] = &nh->gw_sa;
+	info.rti_flags = rt->rte_flags | nhop_get_rtflags(nh);
 	info.rti_ifp = ifp;
 
 	return (rtsock_routemsg_info(cmd, &info, fibnum));
@@ -1681,7 +1685,7 @@ static int
 can_export_rte(struct ucred *td_ucred, const struct rtentry *rt)
 {
 
-	if ((rt->rt_flags & RTF_HOST) == 0
+	if ((rt->rte_flags & RTF_HOST) == 0
 	    ? jailed_without_vnet(td_ucred)
 	    : prison_if(td_ucred, rt_key_const(rt)) != 0)
 		return (0);
@@ -1703,17 +1707,17 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 	NET_EPOCH_ASSERT();
 
-	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
+	if (w->w_op == NET_RT_FLAGS && !(rt->rte_flags & w->w_arg))
 		return 0;
 	if (!can_export_rte(w->w_req->td->td_ucred, rt))
 		return (0);
+	nh = rt->rt_nhop;
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
-	info.rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
+	info.rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
 	    rt_mask(rt), &ss);
 	info.rti_info[RTAX_GENMASK] = 0;
-	nh = rt->rt_nhop;
 	if (nh->nh_ifp && !(nh->nh_ifp->if_flags & IFF_DYING)) {
 		info.rti_info[RTAX_IFP] = nh->nh_ifp->if_addr->ifa_addr;
 		info.rti_info[RTAX_IFA] = nh->nh_ifa->ifa_addr;
@@ -1727,13 +1731,13 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 
 		bzero(&rtm->rtm_index,
 		    sizeof(*rtm) - offsetof(struct rt_msghdr, rtm_index));
-		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
+		if (rt->rte_flags & RTF_GWFLAG_COMPAT)
 			rtm->rtm_flags = RTF_GATEWAY | 
-				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
+				(rt->rte_flags & ~RTF_GWFLAG_COMPAT);
 		else
-			rtm->rtm_flags = rt->rt_flags;
+			rtm->rtm_flags = rt->rte_flags;
 		rtm->rtm_flags |= nhop_get_rtflags(nh);
-		rt_getmetrics(rt, &rtm->rtm_rmx);
+		rt_getmetrics(rt, nh, &rtm->rtm_rmx);
 		rtm->rtm_index = nh->nh_ifp->if_index;
 		rtm->rtm_addrs = info.rti_addrs;
 		error = SYSCTL_OUT(w->w_req, (caddr_t)rtm, size);
