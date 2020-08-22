@@ -1384,6 +1384,7 @@ NDFREE_PNBUF(struct nameidata *ndp)
 {
 
 	if ((ndp->ni_cnd.cn_flags & HASBUF) != 0) {
+		MPASS((ndp->ni_cnd.cn_flags & (SAVENAME | SAVESTART)) != 0);
 		uma_zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 		ndp->ni_cnd.cn_flags &= ~HASBUF;
 	}
