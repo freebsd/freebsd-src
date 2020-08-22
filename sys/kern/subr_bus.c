@@ -365,21 +365,8 @@ device_sysctl_fini(device_t dev)
  *
  * Also note: we specifically do not attach a device to the device_t tree
  * to avoid potential chicken and egg problems.  One could argue that all
- * of this belongs to the root node.  One could also further argue that the
- * sysctl interface that we have not might more properly be an ioctl
- * interface, but at this stage of the game, I'm not inclined to rock that
- * boat.
- *
- * I'm also not sure that the SIGIO support is done correctly or not, as
- * I copied it from a driver that had SIGIO support that likely hasn't been
- * tested since 3.4 or 2.2.8!
+ * of this belongs to the root node.
  */
-
-/* Deprecated way to adjust queue length */
-static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RWTUN |
-    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_disable, "I",
-    "devctl disable -- deprecated");
 
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
@@ -796,35 +783,6 @@ static void
 devnomatch(device_t dev)
 {
 	devaddq("?", "", dev);
-}
-
-static int
-sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
-{
-	struct dev_event_info *n1;
-	int dis, error;
-
-	dis = (devctl_queue_length == 0);
-	error = sysctl_handle_int(oidp, &dis, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	if (mtx_initialized(&devsoftc.mtx))
-		mtx_lock(&devsoftc.mtx);
-	if (dis) {
-		while (!STAILQ_EMPTY(&devsoftc.devq)) {
-			n1 = STAILQ_FIRST(&devsoftc.devq);
-			STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
-			free(n1->dei_data, M_BUS);
-			free(n1, M_BUS);
-		}
-		devsoftc.queued = 0;
-		devctl_queue_length = 0;
-	} else {
-		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
-	}
-	if (mtx_initialized(&devsoftc.mtx))
-		mtx_unlock(&devsoftc.mtx);
-	return (0);
 }
 
 static int
