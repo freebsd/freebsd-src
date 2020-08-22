@@ -2811,6 +2811,7 @@ vn_fullpath_hardlink(struct thread *td, struct nameidata *ndp, char **retbuf,
 	size_t addend;
 	int error;
 	bool slash_prefixed;
+	enum vtype type;
 
 	if (*buflen < 2)
 		return (EINVAL);
@@ -2824,7 +2825,31 @@ vn_fullpath_hardlink(struct thread *td, struct nameidata *ndp, char **retbuf,
 
 	addend = 0;
 	vp = ndp->ni_vp;
-	if (vp->v_type != VDIR) {
+	/*
+	 * Check for VBAD to work around the vp_crossmp bug in lookup().
+	 *
+	 * For example consider tmpfs on /tmp and realpath /tmp. ni_vp will be
+	 * set to mount point's root vnode while ni_dvp will be vp_crossmp.
+	 * If the type is VDIR (like in this very case) we can skip looking
+	 * at ni_dvp in the first place. However, since vnodes get passed here
+	 * unlocked the target may transition to doomed state (type == VBAD)
+	 * before we get to evaluate the condition. If this happens, we will
+	 * populate part of the buffer and descend to vn_fullpath_dir with
+	 * vp == vp_crossmp. Prevent the problem by checking for VBAD.
+	 *
+	 * This should be atomic_load(&vp->v_type) but it is ilegal to take
+	 * an address of a bit field, even if said field is sized to char.
+	 * Work around the problem by reading the value into a full-sized enum
+	 * and then re-reading it with atomic_load which will still prevent
+	 * the compiler from re-reading down the road.
+	 */
+	type = vp->v_type;
+	type = atomic_load_int(&type);
+	if (type == VBAD) {
+		error = ENOENT;
+		goto out_bad;
+	}
+	if (type != VDIR) {
 		cnp = &ndp->ni_cnd;
 		addend = cnp->cn_namelen + 2;
 		if (*buflen < addend) {
