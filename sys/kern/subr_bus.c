@@ -402,15 +402,15 @@ STAILQ_HEAD(devq, dev_event_info);
 
 static struct dev_softc
 {
-	int	inuse;
-	int	nonblock;
-	int	queued;
-	int	async;
-	struct mtx mtx;
-	struct cv cv;
-	struct selinfo sel;
-	struct devq devq;
-	struct sigio *sigio;
+	int		inuse;
+	int		nonblock;
+	int		queued;
+	int		async;
+	struct mtx	mtx;
+	struct cv	cv;
+	struct selinfo	sel;
+	struct devq	devq;
+	struct sigio	*sigio;
 } devsoftc;
 
 static void	filt_devctl_detach(struct knote *kn);
