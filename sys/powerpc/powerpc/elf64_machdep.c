@@ -135,8 +135,10 @@ struct sysentvec elf64_freebsd_sysvec_v2 = {
 };
 INIT_SYSENTVEC(elf64_sysvec_v2, &elf64_freebsd_sysvec_v2);
 
-static boolean_t ppc64_elfv1_header_match(struct image_params *params);
-static boolean_t ppc64_elfv2_header_match(struct image_params *params);
+static boolean_t ppc64_elfv1_header_match(struct image_params *params,
+    int32_t *, uint32_t *);
+static boolean_t ppc64_elfv2_header_match(struct image_params *params,
+    int32_t *, uint32_t *);
 
 static Elf64_Brandinfo freebsd_brand_info_elfv1 = {
 	.brand		= ELFOSABI_FREEBSD,
@@ -192,7 +194,8 @@ SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 void elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase);
 
 static boolean_t
-ppc64_elfv1_header_match(struct image_params *params)
+ppc64_elfv1_header_match(struct image_params *params, int32_t *osrel __unused,
+    uint32_t *fctl0 __unused)
 {
 	const Elf64_Ehdr *hdr = (const Elf64_Ehdr *)params->image_header;
 	int abi = (hdr->e_flags & 3);
@@ -201,7 +204,8 @@ ppc64_elfv1_header_match(struct image_params *params)
 }
 
 static boolean_t
-ppc64_elfv2_header_match(struct image_params *params)
+ppc64_elfv2_header_match(struct image_params *params, int32_t *osrel __unused,
+    uint32_t *fctl0 __unused)
 {
 	const Elf64_Ehdr *hdr = (const Elf64_Ehdr *)params->image_header;
 	int abi = (hdr->e_flags & 3);
