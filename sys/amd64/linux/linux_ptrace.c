@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
 #include <compat/linux/linux_signal.h>
+#include <compat/linux/linux_util.h>
 
 #define	LINUX_PTRACE_TRACEME		0
 #define	LINUX_PTRACE_PEEKTEXT		1
@@ -123,7 +124,7 @@ linux_ptrace_status(struct thread *td, pid_t pid, int status)
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	td->td_retval[0] = saved_retval;
 	if (error != 0) {
-		printf("%s: PT_LWPINFO failed with error %d\n", __func__, error);
+		linux_msg(td, "PT_LWPINFO failed with error %d", error);
 		return (status);
 	}
 
@@ -320,9 +321,9 @@ linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 	mask = 0;
 
 	if (data & ~LINUX_PTRACE_O_MASK) {
-		printf("%s: unknown ptrace option %lx set; "
-		    "returning EINVAL\n",
-		    __func__, data & ~LINUX_PTRACE_O_MASK);
+		linux_msg(td, "unknown ptrace option %lx set; "
+		    "returning EINVAL",
+		    data & ~LINUX_PTRACE_O_MASK);
 		return (EINVAL);
 	}
 
@@ -357,8 +358,8 @@ linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 		mask |= PTRACE_VFORK; /* XXX: Close enough? */
 
 	if (data & LINUX_PTRACE_O_TRACEEXIT) {
-		printf("%s: PTRACE_O_TRACEEXIT not implemented; "
-		    "returning EINVAL\n", __func__);
+		linux_msg(td, "PTRACE_O_TRACEEXIT not implemented; "
+		    "returning EINVAL");
 		return (EINVAL);
 	}
 
@@ -381,7 +382,7 @@ linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
-		printf("%s: PT_LWPINFO failed with error %d\n", __func__, error);
+		linux_msg(td, "PT_LWPINFO failed with error %d", error);
 		return (error);
 	}
 	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
@@ -433,7 +434,7 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 
 	error = copyin((const void *)data, &iov, sizeof(iov));
 	if (error != 0) {
-		printf("%s: copyin error %d\n", __func__, error);
+		linux_msg(td, "copyin error %d", error);
 		return (error);
 	}
 
@@ -451,8 +452,7 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 
 	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
 	if (error != 0) {
-		printf("%s: PT_LWPINFO failed with error %d\n",
-		    __func__, error);
+		linux_msg(td, "PT_LWPINFO failed with error %d", error);
 		return (error);
 	}
 	if (lwpinfo.pl_flags & PL_FLAG_SCE) {
@@ -474,14 +474,14 @@ linux_ptrace_getregset_prstatus(struct thread *td, pid_t pid, l_ulong data)
 	len = MIN(iov.iov_len, sizeof(l_regset));
 	error = copyout(&l_regset, (void *)iov.iov_base, len);
 	if (error != 0) {
-		printf("%s: copyout error %d\n", __func__, error);
+		linux_msg(td, "copyout error %d", error);
 		return (error);
 	}
 
 	iov.iov_len -= len;
 	error = copyout(&iov, (void *)data, sizeof(iov));
 	if (error != 0) {
-		printf("%s: iov copyout error %d\n", __func__, error);
+		linux_msg(td, "iov copyout error %d", error);
 		return (error);
 	}
 
@@ -496,8 +496,8 @@ linux_ptrace_getregset(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	case LINUX_NT_PRSTATUS:
 		return (linux_ptrace_getregset_prstatus(td, pid, data));
 	default:
-		printf("%s: PTRACE_GETREGSET request %ld not implemented; "
-		    "returning EINVAL\n", __func__, addr);
+		linux_msg(td, "PTRACE_GETREGSET request %ld not implemented; "
+		    "returning EINVAL", addr);
 		return (EINVAL);
 	}
 }
@@ -506,7 +506,7 @@ static int
 linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 {
 
-	printf("%s: PTRACE_SEIZE not implemented; returning EINVAL\n", __func__);
+	linux_msg(td, "PTRACE_SEIZE not implemented; returning EINVAL");
 	return (EINVAL);
 }
 
@@ -587,8 +587,8 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = linux_ptrace_seize(td, pid, uap->addr, uap->data);
 		break;
 	default:
-		printf("%s: ptrace(%ld, ...) not implemented; returning EINVAL\n",
-		    __func__, uap->req);
+		linux_msg(td, "ptrace(%ld, ...) not implemented; "
+		    "returning EINVAL", uap->req);
 		error = EINVAL;
 		break;
 	}
