@@ -46,11 +46,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sdt.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <machine/stdarg.h>
 
+#include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
 MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
@@ -58,7 +60,11 @@ MALLOC_DEFINE(M_EPOLL, "lepoll", "Linux events structures");
 MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
 MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futex waiting proc");
 
-const char      linux_emul_path[] = "/compat/linux";
+char linux_emul_path[MAXPATHLEN] = "/compat/linux";
+
+SYSCTL_STRING(_compat_linux, OID_AUTO, emul_path, CTLFLAG_RWTUN,
+    linux_emul_path, sizeof(linux_emul_path),
+    "Linux runtime environment path");
 
 /*
  * Search an alternate path before passing pathname arguments on to

@@ -50,7 +50,7 @@ MALLOC_DECLARE(M_EPOLL);
 MALLOC_DECLARE(M_FUTEX);
 MALLOC_DECLARE(M_FUTEX_WP);
 
-extern const char linux_emul_path[];
+extern char linux_emul_path[];
 
 int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, int, int);
 
