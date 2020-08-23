@@ -105,7 +105,7 @@ sctp_asconf_error_response(uint32_t id, uint16_t cause, uint8_t *error_tlv,
 	struct mbuf *m_reply = NULL;
 	struct sctp_asconf_paramhdr *aph;
 	struct sctp_error_cause *error;
-	size_t buf_len;
+	uint32_t buf_len;
 	uint16_t i, param_length, cause_length, padding_length;
 	uint8_t *tlv;
 
