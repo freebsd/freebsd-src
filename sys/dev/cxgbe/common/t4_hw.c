@@ -9614,7 +9614,7 @@ static void read_filter_mode_and_ingress_config(struct adapter *adap,
 int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
 {
 	int chan;
-	u32 v;
+	u32 tx_len, rx_len, r, v;
 	struct tp_params *tpp = &adap->params.tp;
 
 	v = t4_read_reg(adap, A_TP_TIMER_RESOLUTION);
@@ -9640,6 +9640,21 @@ int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
 			    htobe16(V_T6_COMPR_RXERR_VEC(M_T6_COMPR_RXERR_VEC));
 		}
 	}
+
+	rx_len = t4_read_reg(adap, A_TP_PMM_RX_PAGE_SIZE);
+	tx_len = t4_read_reg(adap, A_TP_PMM_TX_PAGE_SIZE);
+
+	r = t4_read_reg(adap, A_TP_PARA_REG2);
+	rx_len = min(rx_len, G_MAXRXDATA(r));
+	tx_len = min(tx_len, G_MAXRXDATA(r));
+
+	r = t4_read_reg(adap, A_TP_PARA_REG7);
+	v = min(G_PMMAXXFERLEN0(r), G_PMMAXXFERLEN1(r));
+	rx_len = min(rx_len, v);
+	tx_len = min(tx_len, v);
+
+	tpp->max_tx_pdu = tx_len;
+	tpp->max_rx_pdu = rx_len;
 
 	return 0;
 }
