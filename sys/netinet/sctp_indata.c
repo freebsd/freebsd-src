@@ -555,20 +555,6 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb,
 	sctp_ucount_incr(asoc->cnt_on_all_streams);
 	nxt_todel = strm->last_mid_delivered + 1;
 	if (SCTP_MID_EQ(asoc->idata_supported, nxt_todel, control->mid)) {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-		so = SCTP_INP_SO(stcb->sctp_ep);
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-			SCTP_SOCKET_UNLOCK(so, 1);
-			return;
-		}
-#endif
 		/* can be delivered right away? */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_STR_LOGGING_ENABLE) {
 			sctp_log_strm_del(control, NULL, SCTP_STR_LOG_FROM_IMMED_DEL);
@@ -638,9 +624,6 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb,
 			}
 			break;
 		}
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 	}
 	if (queue_needed) {
 		/*
@@ -1956,25 +1939,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 */
 		if (stcb->sctp_socket->so_rcv.sb_cc) {
 			/* some to read, wake-up */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			struct socket *so;
-
-			so = SCTP_INP_SO(stcb->sctp_ep);
-			atomic_add_int(&stcb->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK(stcb);
-			SCTP_SOCKET_LOCK(so, 1);
-			SCTP_TCB_LOCK(stcb);
-			atomic_subtract_int(&stcb->asoc.refcnt, 1);
-			if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-				/* assoc was freed while we were unlocked */
-				SCTP_SOCKET_UNLOCK(so, 1);
-				return (0);
-			}
-#endif
 			sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 		}
 		/* now is it in the mapping array of what we have accepted? */
 		if (chk_type == SCTP_DATA) {
@@ -4182,32 +4147,12 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	}
 	/* sa_ignore NO_NULL_CHK */
 	if (stcb->sctp_socket) {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-#endif
 		SOCKBUF_LOCK(&stcb->sctp_socket->so_snd);
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_WAKE_LOGGING_ENABLE) {
 			/* sa_ignore NO_NULL_CHK */
 			sctp_wakeup_log(stcb, 1, SCTP_WAKESND_FROM_SACK);
 		}
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		so = SCTP_INP_SO(stcb->sctp_ep);
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-			/* assoc was freed while we were unlocked */
-			SCTP_SOCKET_UNLOCK(so, 1);
-			return;
-		}
-#endif
 		sctp_sowwakeup_locked(stcb->sctp_ep, stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 	} else {
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_WAKE_LOGGING_ENABLE) {
 			sctp_wakeup_log(stcb, 1, SCTP_NOWAKE_FROM_SACK);
@@ -4894,31 +4839,11 @@ hopeless_peer:
 
 	/* sa_ignore NO_NULL_CHK */
 	if ((wake_him) && (stcb->sctp_socket)) {
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		struct socket *so;
-
-#endif
 		SOCKBUF_LOCK(&stcb->sctp_socket->so_snd);
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_WAKE_LOGGING_ENABLE) {
 			sctp_wakeup_log(stcb, wake_him, SCTP_WAKESND_FROM_SACK);
 		}
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		so = SCTP_INP_SO(stcb->sctp_ep);
-		atomic_add_int(&stcb->asoc.refcnt, 1);
-		SCTP_TCB_UNLOCK(stcb);
-		SCTP_SOCKET_LOCK(so, 1);
-		SCTP_TCB_LOCK(stcb);
-		atomic_subtract_int(&stcb->asoc.refcnt, 1);
-		if (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET) {
-			/* assoc was freed while we were unlocked */
-			SCTP_SOCKET_UNLOCK(so, 1);
-			return;
-		}
-#endif
 		sctp_sowwakeup_locked(stcb->sctp_ep, stcb->sctp_socket);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-		SCTP_SOCKET_UNLOCK(so, 1);
-#endif
 	} else {
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_WAKE_LOGGING_ENABLE) {
 			sctp_wakeup_log(stcb, wake_him, SCTP_NOWAKE_FROM_SACK);
