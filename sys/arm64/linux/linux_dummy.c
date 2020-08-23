@@ -65,7 +65,6 @@ UNIMPLEMENTED(uselib);
 UNIMPLEMENTED(vserver);
 
 DUMMY(sendfile);
-DUMMY(syslog);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(vhangup);

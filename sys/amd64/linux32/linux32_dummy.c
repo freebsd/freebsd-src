@@ -63,7 +63,6 @@ UNIMPLEMENTED(vserver);
 
 DUMMY(stime);
 DUMMY(olduname);
-DUMMY(syslog);
 DUMMY(uname);
 DUMMY(vhangup);
 DUMMY(swapoff);
