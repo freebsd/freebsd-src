@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_DETACH		17
 #define	LINUX_PTRACE_SYSCALL		24
 #define	LINUX_PTRACE_SETOPTIONS		0x4200
+#define	LINUX_PTRACE_GETSIGINFO		0x4202
 #define	LINUX_PTRACE_GETREGSET		0x4204
 #define	LINUX_PTRACE_SEIZE		0x4206
 
@@ -367,6 +368,31 @@ linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 }
 
 static int
+linux_ptrace_getsiginfo(struct thread *td, pid_t pid, l_ulong data)
+{
+	struct ptrace_lwpinfo lwpinfo;
+	l_siginfo_t l_siginfo;
+	int error, sig;
+
+	error = kern_ptrace(td, PT_LWPINFO, pid, &lwpinfo, sizeof(lwpinfo));
+	if (error != 0) {
+		linux_msg(td, "PT_LWPINFO failed with error %d", error);
+		return (error);
+	}
+
+	if ((lwpinfo.pl_flags & PL_FLAG_SI) == 0) {
+		error = EINVAL;
+		linux_msg(td, "no PL_FLAG_SI, returning %d", error);
+		return (error);
+	}
+
+	sig = bsd_to_linux_signal(lwpinfo.pl_siginfo.si_signo);
+	siginfo_to_lsiginfo(&lwpinfo.pl_siginfo, &l_siginfo, sig);
+	error = copyout(&l_siginfo, (void *)data, sizeof(l_siginfo));
+	return (error);
+}
+
+static int
 linux_ptrace_getregs(struct thread *td, pid_t pid, void *data)
 {
 	struct ptrace_lwpinfo lwpinfo;
@@ -579,6 +605,9 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		break;
 	case LINUX_PTRACE_SETOPTIONS:
 		error = linux_ptrace_setoptions(td, pid, uap->data);
+		break;
+	case LINUX_PTRACE_GETSIGINFO:
+		error = linux_ptrace_getsiginfo(td, pid, uap->data);
 		break;
 	case LINUX_PTRACE_GETREGSET:
 		error = linux_ptrace_getregset(td, pid, uap->addr, uap->data);
