@@ -1670,7 +1670,7 @@ sctp_timeout_handler(void *t)
 		    (type != SCTP_TIMER_TYPE_ASOCKILL))) {
 			SCTP_INP_DECR_REF(inp);
 			SCTPDBG(SCTP_DEBUG_TIMER2,
-			    "Timer type = %d handler exiting due to closed socket\n",
+			    "Timer type %d handler exiting due to closed socket.\n",
 			    type);
 			CURVNET_RESTORE();
 			return;
@@ -1685,7 +1685,7 @@ sctp_timeout_handler(void *t)
 				SCTP_INP_DECR_REF(inp);
 			}
 			SCTPDBG(SCTP_DEBUG_TIMER2,
-			    "Timer type = %d handler exiting due to CLOSED association\n",
+			    "Timer type %d handler exiting due to CLOSED association.\n",
 			    type);
 			CURVNET_RESTORE();
 			return;
@@ -1701,7 +1701,7 @@ sctp_timeout_handler(void *t)
 			atomic_add_int(&stcb->asoc.refcnt, -1);
 		}
 		SCTPDBG(SCTP_DEBUG_TIMER2,
-		    "Timer type = %d handler exiting due to not being active\n",
+		    "Timer type %d handler exiting due to not being active.\n",
 		    type);
 		CURVNET_RESTORE();
 		return;
@@ -1719,7 +1719,7 @@ sctp_timeout_handler(void *t)
 				SCTP_INP_DECR_REF(inp);
 			}
 			SCTPDBG(SCTP_DEBUG_TIMER2,
-			    "Timer type = %d handler exiting due to CLOSED association\n",
+			    "Timer type %d handler exiting due to CLOSED association.\n",
 			    type);
 			CURVNET_RESTORE();
 			return;
@@ -2047,7 +2047,7 @@ out_decr:
 	}
 
 out_no_decr:
-	SCTPDBG(SCTP_DEBUG_TIMER2, "Timer type = %d handler finished\n", type);
+	SCTPDBG(SCTP_DEBUG_TIMER2, "Timer type %d handler finished.\n", type);
 	CURVNET_RESTORE();
 }
 
