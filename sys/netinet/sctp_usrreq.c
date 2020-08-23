@@ -1023,7 +1023,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 	struct sctp_vrf *vrf;
 
 	actual = 0;
-	if (limit <= 0)
+	if (limit == 0)
 		return (actual);
 
 	if (stcb) {
