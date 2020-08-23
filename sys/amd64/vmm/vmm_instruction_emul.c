@@ -2189,8 +2189,12 @@ restart:
 		ptpphys = pte;
 
 		nlevels = 2;
-	} else
+	} else if (paging->paging_mode == PAGING_MODE_64_LA57) {
+		nlevels = 5;
+	} else {
 		nlevels = 4;
+	}
+
 	while (--nlevels >= 0) {
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
