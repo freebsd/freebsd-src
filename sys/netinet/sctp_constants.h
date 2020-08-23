@@ -807,7 +807,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_LOC_33 0x00000021
 #define SCTP_LOC_34 0x00000022
 #define SCTP_LOC_35 0x00000023
-
+#define SCTP_LOC_36 0x00000024
 
 /* Free assoc codes */
 #define SCTP_NORMAL_PROC      0
