@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
+#include <netinet/in.h>
+
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
@@ -507,6 +509,12 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 		return (error);
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
+		return (EINVAL);
+	/*
+	 * SCTP one-to-one style sockets currently don't work with
+	 * sendfile(). So indicate EINVAL for now.
+	 */
+	if ((*so)->so_proto->pr_protocol == IPPROTO_SCTP)
 		return (EINVAL);
 	if (SOLISTENING(*so))
 		return (ENOTCONN);
