@@ -484,10 +484,6 @@ namei(struct nameidata *ndp)
 	td = cnp->cn_thread;
 	ndp->ni_cnd.cn_cred = ndp->ni_cnd.cn_thread->td_ucred;
 	KASSERT(cnp->cn_cred && td->td_proc, ("namei: bad cred/proc"));
-	KASSERT((cnp->cn_nameiop & (~OPMASK)) == 0,
-	    ("namei: nameiop contaminated with flags"));
-	KASSERT((cnp->cn_flags & OPMASK) == 0,
-	    ("namei: flags contaminated with nameiops"));
 	KASSERT((cnp->cn_flags & NAMEI_INTERNAL_FLAGS) == 0,
 	    ("namei: unexpected flags: %" PRIx64 "\n",
 	    cnp->cn_flags & NAMEI_INTERNAL_FLAGS));
