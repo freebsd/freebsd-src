@@ -1940,14 +1940,18 @@ vmx_cpu_mode(void)
 static enum vm_paging_mode
 vmx_paging_mode(void)
 {
+	uint64_t cr4;
 
 	if (!(vmcs_read(VMCS_GUEST_CR0) & CR0_PG))
 		return (PAGING_MODE_FLAT);
-	if (!(vmcs_read(VMCS_GUEST_CR4) & CR4_PAE))
+	cr4 = vmcs_read(VMCS_GUEST_CR4);
+	if (!(cr4 & CR4_PAE))
 		return (PAGING_MODE_32);
-	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LME)
-		return (PAGING_MODE_64);
-	else
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LME) {
+		if (!(cr4 & CR4_LA57))
+			return (PAGING_MODE_64);
+		return (PAGING_MODE_64_LA57);
+	} else
 		return (PAGING_MODE_PAE);
 }
 

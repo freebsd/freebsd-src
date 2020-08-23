@@ -251,7 +251,8 @@ guest_paging_info(int vcpu, struct vm_guest_paging *paging)
 	else if (!(regs[2] & CR4_PAE))
 		paging->paging_mode = PAGING_MODE_32;
 	else if (regs[3] & EFER_LME)
-		paging->paging_mode = PAGING_MODE_64;
+		paging->paging_mode = (regs[2] & CR4_LA57) ?
+		    PAGING_MODE_64_LA57 :  PAGING_MODE_64;
 	else
 		paging->paging_mode = PAGING_MODE_PAE;
 	return (0);
