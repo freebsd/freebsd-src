@@ -392,16 +392,14 @@ static struct cdevsw dev_cdevsw = {
 	.d_name =	"devctl",
 };
 
-struct dev_event_info
-{
+struct dev_event_info {
 	char *dei_data;
 	STAILQ_ENTRY(dev_event_info) dei_link;
 };
 
 STAILQ_HEAD(devq, dev_event_info);
 
-static struct dev_softc
-{
+static struct dev_softc {
 	int		inuse;
 	int		nonblock;
 	int		queued;
