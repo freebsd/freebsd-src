@@ -36,13 +36,8 @@
 /*
  * Compiled KERNBASE location
  */
-	.globl	kernbase,loc_PTmap,loc_PDmap,loc_PDPmap,loc_PML4map,loc_PML4pml4e,dmapbase,dmapend
+	.globl	kernbase, loc_PTmap, loc_PDmap, loc_PDPmap, dmapbase, dmapend
 	.set	kernbase,KERNBASE
-	.set	loc_PTmap,addr_PTmap
-	.set	loc_PDmap,addr_PDmap
-	.set	loc_PDPmap,addr_PDPmap
-	.set	loc_PML4map,addr_PML4map
-	.set	loc_PML4pml4e,addr_PML4pml4e
 	.set	dmapbase,DMAP_MIN_ADDRESS
 	.set	dmapend,DMAP_MAX_ADDRESS
 
@@ -81,6 +76,62 @@ NON_GPROF_ENTRY(btext)
 	call	mi_startup		/* autoconfiguration, mountroot etc */
 0:	hlt
 	jmp	0b
+
+/* la57_trampoline(%rdi pml5) */
+NON_GPROF_ENTRY(la57_trampoline)
+	movq	%rsp,%r11
+	movq	%rbx,%r10
+	leaq	la57_trampoline_end(%rip),%rsp
+
+	movq	%cr0,%rdx
+	lgdtq	la57_trampoline_gdt_desc(%rip)
+
+	pushq	$(2<<3)
+	leaq	l1(%rip),%rax
+	leaq	l2(%rip),%rbx
+
+	pushq	%rax
+	lretq
+	.code32
+
+l1:	movl	$(3<<3),%eax
+	movl	%eax,%ss
+
+	movl	%edx,%eax
+	andl	$~CR0_PG,%eax
+	movl	%eax,%cr0
+
+	movl	%cr4,%eax
+	orl	$CR4_LA57,%eax
+	movl	%eax,%cr4
+
+	movl	%edi,%cr3
+	movl	%edx,%cr0
+
+	pushl	$(1<<3)
+	pushl	%ebx
+	lretl
+	.code64
+
+l2:	movq	%r11,%rsp
+	movq	%r10,%rbx
+	retq
+	.p2align 4,0
+NON_GPROF_ENTRY(la57_trampoline_gdt_desc)
+	.word	la57_trampoline_end - la57_trampoline_gdt
+	.long	0		/* filled by pmap_bootstrap_la57 */
+	.p2align 4,0
+NON_GPROF_ENTRY(la57_trampoline_gdt)
+	.long	0x00000000	/* null desc */
+	.long	0x00000000
+	.long	0x00000000	/* 64bit code */
+	.long	0x00209800
+	.long	0x0000ffff	/* 32bit code */
+	.long	0x00cf9b00
+	.long	0x0000ffff	/* universal data */
+	.long	0x00cf9300
+	.dcb.l	16,0
+NON_GPROF_ENTRY(la57_trampoline_end)
 
 	.bss
 	ALIGN_DATA			/* just to be sure */

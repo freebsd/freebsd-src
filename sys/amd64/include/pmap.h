@@ -166,14 +166,22 @@
  * Pte related macros.  This is complicated by having to deal with
  * the sign extension of the 48th bit.
  */
-#define KVADDR(l4, l3, l2, l1) ( \
+#define KV4ADDR(l4, l3, l2, l1) ( \
 	((unsigned long)-1 << 47) | \
 	((unsigned long)(l4) << PML4SHIFT) | \
 	((unsigned long)(l3) << PDPSHIFT) | \
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
+#define KV5ADDR(l5, l4, l3, l2, l1) (		\
+	((unsigned long)-1 << 56) | \
+	((unsigned long)(l5) << PML5SHIFT) | \
+	((unsigned long)(l4) << PML4SHIFT) | \
+	((unsigned long)(l3) << PDPSHIFT) | \
+	((unsigned long)(l2) << PDRSHIFT) | \
+	((unsigned long)(l1) << PAGE_SHIFT))
 
-#define UVADDR(l4, l3, l2, l1) ( \
+#define UVADDR(l5, l4, l3, l2, l1) (	     \
+	((unsigned long)(l5) << PML5SHIFT) | \
 	((unsigned long)(l4) << PML4SHIFT) | \
 	((unsigned long)(l3) << PDPSHIFT) | \
 	((unsigned long)(l2) << PDRSHIFT) | \
@@ -187,9 +195,19 @@
  */
 #define NKPML4E		4
 
-#define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
-#define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
-#define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
+/*
+ * We use the same numbering of the page table pages for 5-level and
+ * 4-level paging structures.
+ */
+#define	NUPML5E		(NPML5EPG / 2)		/* number of userland PML5
+						   pages */
+#define	NUPML4E		(NUPML5E * NPML4EPG)	/* number of userland PML4
+						   pages */
+#define	NUPDPE		(NUPML4E * NPDPEPG)	/* number of userland PDP
+						   pages */
+#define	NUPDE		(NUPDPE * NPDEPG)	/* number of userland PD
+						   entries */
+#define	NUP4ML4E	(NPML4EPG / 2)
 
 /*
  * NDMPML4E is the maximum number of PML4 entries that will be
@@ -216,7 +234,8 @@
  * Or, in other words, KPML4I provides bits 39..47 of KERNBASE,
  * and KPDPI provides bits 30..38.)
  */
-#define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
+#define	PML4PML4I	(NPML4EPG / 2)	/* Index of recursive pml4 mapping */
+#define	PML5PML5I	(NPML5EPG / 2)	/* Index of recursive pml5 mapping */
 
 #define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
 #define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
@@ -258,25 +277,34 @@ typedef u_int64_t pd_entry_t;
 typedef u_int64_t pt_entry_t;
 typedef u_int64_t pdp_entry_t;
 typedef u_int64_t pml4_entry_t;
+typedef u_int64_t pml5_entry_t;
 
 /*
  * Address of current address space page table maps and directories.
  */
 #ifdef _KERNEL
-#define	addr_PTmap	(KVADDR(PML4PML4I, 0, 0, 0))
-#define	addr_PDmap	(KVADDR(PML4PML4I, PML4PML4I, 0, 0))
-#define	addr_PDPmap	(KVADDR(PML4PML4I, PML4PML4I, PML4PML4I, 0))
-#define	addr_PML4map	(KVADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I))
-#define	addr_PML4pml4e	(addr_PML4map + (PML4PML4I * sizeof(pml4_entry_t)))
-#define	PTmap		((pt_entry_t *)(addr_PTmap))
-#define	PDmap		((pd_entry_t *)(addr_PDmap))
-#define	PDPmap		((pd_entry_t *)(addr_PDPmap))
-#define	PML4map		((pd_entry_t *)(addr_PML4map))
-#define	PML4pml4e	((pd_entry_t *)(addr_PML4pml4e))
+#define	addr_P4Tmap	(KV4ADDR(PML4PML4I, 0, 0, 0))
+#define	addr_P4Dmap	(KV4ADDR(PML4PML4I, PML4PML4I, 0, 0))
+#define	addr_P4DPmap	(KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, 0))
+#define	addr_P4ML4map	(KV4ADDR(PML4PML4I, PML4PML4I, PML4PML4I, PML4PML4I))
+#define	addr_P4ML4pml4e	(addr_PML4map + (PML4PML4I * sizeof(pml4_entry_t)))
+#define	P4Tmap		((pt_entry_t *)(addr_P4Tmap))
+#define	P4Dmap		((pd_entry_t *)(addr_P4Dmap))
+
+#define	addr_P5Tmap	(KV5ADDR(PML5PML5I, 0, 0, 0, 0))
+#define	addr_P5Dmap	(KV5ADDR(PML5PML5I, PML5PML5I, 0, 0, 0))
+#define	addr_P5DPmap	(KV5ADDR(PML5PML5I, PML5PML5I, PML5PML5I, 0, 0))
+#define	addr_P5ML4map	(KV5ADDR(PML5PML5I, PML5PML5I, PML5PML5I, PML5PML5I, 0))
+#define	addr_P5ML5map	\
+    (KVADDR(PML5PML5I, PML5PML5I, PML5PML5I, PML5PML5I, PML5PML5I))
+#define	addr_P5ML5pml5e	(addr_P5ML5map + (PML5PML5I * sizeof(pml5_entry_t)))
+#define	P5Tmap		((pt_entry_t *)(addr_P5Tmap))
+#define	P5Dmap		((pd_entry_t *)(addr_P5Dmap))
 
 extern int nkpt;		/* Initial number of kernel page tables */
 extern u_int64_t KPDPphys;	/* physical address of kernel level 3 */
 extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
+extern u_int64_t KPML5phys;	/* physical address of kernel level 5 */
 
 /*
  * virtual address to page table entry and
@@ -333,8 +361,8 @@ struct pmap_pcids {
  */
 struct pmap {
 	struct mtx		pm_mtx;
-	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
-	pml4_entry_t		*pm_pml4u;	/* KVA of user l4 page table */
+	pml4_entry_t		*pm_pmltop;	/* KVA of top level page table */
+	pml4_entry_t		*pm_pmltopu;	/* KVA of user top page table */
 	uint64_t		pm_cr3;
 	uint64_t		pm_ucr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
@@ -447,6 +475,7 @@ bool	pmap_not_in_di(void);
 boolean_t pmap_page_is_mapped(vm_page_t m);
 void	pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma);
 void	pmap_pinit_pml4(vm_page_t);
+void	pmap_pinit_pml5(vm_page_t);
 bool	pmap_ps_enabled(pmap_t pmap);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 void	pmap_invalidate_page(pmap_t, vm_offset_t);
@@ -500,6 +529,13 @@ pmap_pml4e_index(vm_offset_t va)
 {
 
 	return ((va >> PML4SHIFT) & ((1ul << NPML4EPGSHIFT) - 1));
+}
+
+static __inline vm_pindex_t
+pmap_pml5e_index(vm_offset_t va)
+{
+
+	return ((va >> PML5SHIFT) & ((1ul << NPML5EPGSHIFT) - 1));
 }
 
 #endif /* !LOCORE */
