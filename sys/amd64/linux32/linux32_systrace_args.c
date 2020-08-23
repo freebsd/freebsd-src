@@ -2152,7 +2152,11 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_getcpu */
 	case 318: {
-		*n_args = 0;
+		struct linux_getcpu_args *p = params;
+		uarg[0] = (intptr_t) p->cpu; /* l_uint * */
+		uarg[1] = (intptr_t) p->node; /* l_uint * */
+		uarg[2] = (intptr_t) p->cache; /* void * */
+		*n_args = 3;
 		break;
 	}
 	/* linux_epoll_pwait */
@@ -6235,6 +6239,19 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_getcpu */
 	case 318:
+		switch(ndx) {
+		case 0:
+			p = "userland l_uint *";
+			break;
+		case 1:
+			p = "userland l_uint *";
+			break;
+		case 2:
+			p = "userland void *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_epoll_pwait */
 	case 319:
@@ -8730,6 +8747,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 317:
 	/* linux_getcpu */
 	case 318:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_epoll_pwait */
 	case 319:
 		if (ndx == 0 || ndx == 1)

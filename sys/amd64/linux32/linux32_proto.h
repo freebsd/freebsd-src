@@ -1044,7 +1044,9 @@ struct linux_move_pages_args {
 	register_t dummy;
 };
 struct linux_getcpu_args {
-	register_t dummy;
+	char cpu_l_[PADL_(l_uint *)]; l_uint * cpu; char cpu_r_[PADR_(l_uint *)];
+	char node_l_[PADL_(l_uint *)]; l_uint * node; char node_r_[PADR_(l_uint *)];
+	char cache_l_[PADL_(void *)]; void * cache; char cache_r_[PADR_(void *)];
 };
 struct linux_epoll_pwait_args {
 	char epfd_l_[PADL_(l_int)]; l_int epfd; char epfd_r_[PADR_(l_int)];
