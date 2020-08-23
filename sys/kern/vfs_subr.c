@@ -3437,6 +3437,33 @@ vdrop_deactivate(struct vnode *vp)
 	vdbatch_enqueue(vp);
 }
 
+static void __noinline
+vdropl_final(struct vnode *vp)
+{
+
+	ASSERT_VI_LOCKED(vp, __func__);
+	VNPASS(VN_IS_DOOMED(vp), vp);
+	/*
+	 * Set the VHOLD_NO_SMR flag.
+	 *
+	 * We may be racing against vhold_smr. If they win we can just pretend
+	 * we never got this far, they will vdrop later.
+	 */
+	if (__predict_false(!atomic_cmpset_int(&vp->v_holdcnt, 0, VHOLD_NO_SMR))) {
+		vn_freevnodes_inc();
+		VI_UNLOCK(vp);
+		/*
+		 * We lost the aforementioned race. Any subsequent access is
+		 * invalid as they might have managed to vdropl on their own.
+		 */
+		return;
+	}
+	/*
+	 * Don't bump freevnodes as this one is going away.
+	 */
+	freevnode(vp);
+}
+
 void
 vdrop(struct vnode *vp)
 {
@@ -3469,25 +3496,7 @@ vdropl(struct vnode *vp)
 		 */
 		return;
 	}
-	/*
-	 * Set the VHOLD_NO_SMR flag.
-	 *
-	 * We may be racing against vhold_smr. If they win we can just pretend
-	 * we never got this far, they will vdrop later.
-	 */
-	if (__predict_false(!atomic_cmpset_int(&vp->v_holdcnt, 0, VHOLD_NO_SMR))) {
-		vn_freevnodes_inc();
-		VI_UNLOCK(vp);
-		/*
-		 * We lost the aforementioned race. Any subsequent access is
-		 * invalid as they might have managed to vdropl on their own.
-		 */
-		return;
-	}
-	/*
-	 * Don't bump freevnodes as this one is going away.
-	 */
-	freevnode(vp);
+	vdropl_final(vp);
 }
 
 /*
