@@ -46,6 +46,7 @@ struct componentname {
 	/*
 	 * Arguments to lookup.
 	 */
+	u_int64_t cn_origflags;	/* flags to namei */
 	u_int64_t cn_flags;	/* flags to namei */
 	struct	thread *cn_thread;/* thread requesting lookup */
 	struct	ucred *cn_cred;	/* credentials */
@@ -250,6 +251,12 @@ void NDFREE(struct nameidata *, const u_int);
 	else								\
 		NDFREE(_ndp, flags);					\
 } while (0)
+
+#ifdef INVARIANTS
+void NDVALIDATE(struct nameidata *);
+#else
+#define NDVALIDATE(ndp)	do { } while (0)
+#endif
 
 int	namei(struct nameidata *ndp);
 int	lookup(struct nameidata *ndp);
