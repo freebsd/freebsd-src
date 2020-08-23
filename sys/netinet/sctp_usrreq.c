@@ -71,7 +71,7 @@ sctp_init(void)
 		SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue) = (nmbclusters / 8);
 	/*
 	 * Allow a user to take no more than 1/2 the number of clusters or
-	 * the SB_MAX whichever is smaller for the send window.
+	 * the SB_MAX, whichever is smaller, for the send window.
 	 */
 	sb_max_adj = (u_long)((u_quad_t)(SB_MAX) * MCLBYTES / (MSIZE + MCLBYTES));
 	SCTP_BASE_SYSCTL(sctp_sendspace) = min(sb_max_adj,
