@@ -90,10 +90,16 @@ protmode:
 	mov	$bootdata-gdt, %eax
 	mov	%ax, %ds
 
-	/* Turn on the PAE bit for when paging is enabled */
+	/*
+	 * Turn on the PAE bit and optionally the LA57 bit for when paging
+	 * is later enabled.
+	 */
 	mov	%cr4, %eax
 	orl	$CR4_PAE, %eax
-	mov	%eax, %cr4
+	cmpb	$0, mptramp_la57-mptramp_start(%ebx)
+	je	1f
+	orl	$CR4_LA57, %eax
+1:	mov	%eax, %cr4
 
 	/*
 	 * Enable EFER.LME so that we get long mode when all the prereqs are
@@ -132,9 +138,9 @@ protmode:
 	/*
 	 * At this point paging is enabled, and we are in "compatibility" mode.
 	 * We do another far jump to reload %cs with the 64 bit selector.
-	 * %cr3 points to a 4-level page table page.
+	 * %cr3 points to a 4- or 5-level page table.
 	 * We cannot yet jump all the way to the kernel because we can only
-	 * specify a 32 bit linear address.  So, yet another trampoline.
+	 * specify a 32 bit linear address.  So, we use yet another trampoline.
 	 *
 	 * The following instruction is:
 	 * ljmp $kernelcode-gdt, $tramp_64-mptramp_start
@@ -209,6 +215,11 @@ gdtend:
 mptramp_pagetables:
 	.long	0
 
+	/* 5-level paging ? */
+	.globl	mptramp_la57
+mptramp_la57:
+	.long	0
+
 	/*
 	 * The pseudo descriptor for lgdt to use.
 	 */
@@ -251,8 +262,12 @@ entry_64:
 	 * Load a real %cr3 that has all the direct map stuff and switches
 	 * off the 1GB replicated mirror.  Load a stack pointer and jump
 	 * into AP startup code in C.
-	 */
+	*/
+	cmpl	$0, la57
+	jne	2f
 	movq	KPML4phys, %rax
-	movq	%rax, %cr3
+	jmp	3f
+2:	movq	KPML5phys, %rax
+3:	movq	%rax, %cr3
 	movq	bootSTK, %rsp
 	jmp	init_secondary

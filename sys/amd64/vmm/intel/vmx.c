@@ -1030,7 +1030,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	}
 	vmx->vm = vm;
 
-	vmx->eptp = eptp(vtophys((vm_offset_t)pmap->pm_pml4));
+	vmx->eptp = eptp(vtophys((vm_offset_t)pmap->pm_pmltop));
 
 	/*
 	 * Clean up EPTP-tagged guest physical and combined mappings
