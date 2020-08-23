@@ -56,7 +56,9 @@ void qsort_b(void *, size_t, size_t, void *);
 #define	SELECT(x)	select(x)
 #endif
 
+#ifndef I_AM_SCANDIR_B
 static int alphasort_thunk(void *thunk, const void *p1, const void *p2);
+#endif
 
 int
 #ifdef I_AM_SCANDIR_B
