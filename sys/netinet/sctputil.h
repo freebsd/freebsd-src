@@ -164,6 +164,9 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
 
 void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 
+/* Stop all timers for association and remote addresses. */
+void sctp_stop_association_timers(struct sctp_tcb *, bool);
+
 void
 sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)

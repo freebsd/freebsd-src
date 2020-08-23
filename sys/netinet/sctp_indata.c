@@ -2663,7 +2663,8 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 				 * is pending, we got our first packet OR
 				 * there are gaps or duplicates.
 				 */
-				(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
+				sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL,
+				    SCTP_FROM_SCTP_INDATA + SCTP_LOC_19);
 				sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
 			}
 		} else {
