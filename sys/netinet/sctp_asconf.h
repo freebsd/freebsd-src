@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 /*
  * function prototypes
  */
-extern void sctp_asconf_cleanup(struct sctp_tcb *, struct sctp_nets *);
+extern void sctp_asconf_cleanup(struct sctp_tcb *);
 
 extern struct mbuf *sctp_compose_asconf(struct sctp_tcb *, int *, int);
 
