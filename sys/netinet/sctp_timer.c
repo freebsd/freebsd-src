@@ -1524,10 +1524,10 @@ sctp_autoclose_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
 	struct timeval tn, *tim_touse;
 	struct sctp_association *asoc;
-	int ticks_gone_by;
+	uint32_t ticks_gone_by;
 
 	(void)SCTP_GETTIME_TIMEVAL(&tn);
-	if (stcb->asoc.sctp_autoclose_ticks &&
+	if (stcb->asoc.sctp_autoclose_ticks > 0 &&
 	    sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE)) {
 		/* Auto close is on */
 		asoc = &stcb->asoc;
@@ -1539,9 +1539,8 @@ sctp_autoclose_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 			tim_touse = &asoc->time_last_sent;
 		}
 		/* Now has long enough transpired to autoclose? */
-		ticks_gone_by = SEC_TO_TICKS(tn.tv_sec - tim_touse->tv_sec);
-		if ((ticks_gone_by > 0) &&
-		    (ticks_gone_by >= (int)asoc->sctp_autoclose_ticks)) {
+		ticks_gone_by = SEC_TO_TICKS((uint32_t)(tn.tv_sec - tim_touse->tv_sec));
+		if (ticks_gone_by >= asoc->sctp_autoclose_ticks) {
 			/*
 			 * autoclose time has hit, call the output routine,
 			 * which should do nothing just to be SURE we don't
@@ -1584,7 +1583,7 @@ sctp_autoclose_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 			 * No auto close at this time, reset t-o to check
 			 * later
 			 */
-			int tmp;
+			uint32_t tmp;
 
 			/* fool the timer startup to use the time left */
 			tmp = asoc->sctp_autoclose_ticks;
