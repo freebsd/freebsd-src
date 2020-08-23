@@ -56,7 +56,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_global.h"         /* for OPT_KDTRACE_HOOKS */
 #include "opt_stack.h"          /* for OPT_STACK */
 
-static boolean_t elf32_arm_abi_supported(struct image_params *);
+static boolean_t elf32_arm_abi_supported(struct image_params *, int32_t *,
+    uint32_t *);
 
 u_long elf_hwcap;
 u_long elf_hwcap2;
@@ -121,7 +122,8 @@ SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_FIRST,
 	&freebsd_brand_info);
 
 static boolean_t
-elf32_arm_abi_supported(struct image_params *imgp)
+elf32_arm_abi_supported(struct image_params *imgp, int32_t *osrel __unused,
+    uint32_t *fctl0 __unused)
 {
 	const Elf_Ehdr *hdr = (const Elf_Ehdr *)imgp->image_header;
 
