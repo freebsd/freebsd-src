@@ -522,6 +522,7 @@ enum vm_paging_mode {
 	PAGING_MODE_32,
 	PAGING_MODE_PAE,
 	PAGING_MODE_64,
+	PAGING_MODE_64_LA57,
 };
 
 struct vm_guest_paging {
