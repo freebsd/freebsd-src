@@ -5041,8 +5041,6 @@ vn_isdisk(struct vnode *vp)
 /*
  * VOP_FPLOOKUP_VEXEC routines are subject to special circumstances, see
  * the comment above cache_fplookup for details.
- *
- * We never deny as priv_check_cred calls are not yet supported, see vaccess.
  */
 int
 vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred *cred)
@@ -5054,20 +5052,32 @@ vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred
 	if (cred->cr_uid == file_uid) {
 		if (file_mode & S_IXUSR)
 			return (0);
-		return (EAGAIN);
+		goto out_error;
 	}
 
 	/* Otherwise, check the groups (first match) */
 	if (groupmember(file_gid, cred)) {
 		if (file_mode & S_IXGRP)
 			return (0);
-		return (EAGAIN);
+		goto out_error;
 	}
 
 	/* Otherwise, check everyone else. */
 	if (file_mode & S_IXOTH)
 		return (0);
-	return (EAGAIN);
+out_error:
+	/*
+	 * Permission check failed.
+	 *
+	 * vaccess() calls priv_check_cred which in turn can descent into MAC
+	 * modules overriding this result. It's quite unclear what semantics
+	 * are allowed for them to operate, thus for safety we don't call them
+	 * from within the SMR section. This also means if any such modules
+	 * are present, we have to let the regular lookup decide.
+	 */
+	if (__predict_false(mac_priv_check_fp_flag || mac_priv_grant_fp_flag))
+		return (EAGAIN);
+	return (EACCES);
 }
 
 /*
