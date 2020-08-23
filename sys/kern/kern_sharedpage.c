@@ -288,3 +288,21 @@ exec_sysvec_init(void *param)
 #endif
 	}
 }
+
+void
+exec_sysvec_init_secondary(struct sysentvec *sv, struct sysentvec *sv2)
+{
+	MPASS((sv2->sv_flags & SV_ABI_MASK) == (sv->sv_flags & SV_ABI_MASK));
+	MPASS((sv2->sv_flags & SV_TIMEKEEP) == (sv->sv_flags & SV_TIMEKEEP));
+	MPASS((sv2->sv_flags & SV_SHP) != 0 && (sv->sv_flags & SV_SHP) != 0);
+
+	sv2->sv_shared_page_obj = sv->sv_shared_page_obj;
+	sv2->sv_sigcode_base = sv2->sv_shared_page_base +
+	    (sv->sv_sigcode_base - sv->sv_shared_page_base);
+	if ((sv2->sv_flags & SV_ABI_MASK) != SV_ABI_FREEBSD)
+		return;
+	if ((sv2->sv_flags & SV_TIMEKEEP) != 0) {
+		sv2->sv_timekeep_base = sv2->sv_shared_page_base +
+		    (sv->sv_timekeep_base - sv->sv_shared_page_base);
+	}
+}
