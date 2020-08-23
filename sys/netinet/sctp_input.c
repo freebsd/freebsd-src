@@ -2094,7 +2094,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	int init_offset, initack_offset, initack_limit;
 	int retval;
 	int error = 0;
-	uint8_t auth_chunk_buf[SCTP_PARAM_BUFFER_SIZE];
+	uint8_t auth_chunk_buf[SCTP_CHUNK_BUFFER_SIZE];
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
@@ -2273,7 +2273,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	if (auth_skipped) {
 		struct sctp_auth_chunk *auth;
 
-		if (auth_len <= SCTP_PARAM_BUFFER_SIZE) {
+		if (auth_len <= SCTP_CHUNK_BUFFER_SIZE) {
 			auth = (struct sctp_auth_chunk *)sctp_m_getptr(m, auth_offset, auth_len, auth_chunk_buf);
 		} else {
 			auth = NULL;
@@ -4670,11 +4670,13 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			if (auth_skipped && (stcb != NULL)) {
 				struct sctp_auth_chunk *auth;
 
-				auth = (struct sctp_auth_chunk *)
-				    sctp_m_getptr(m, auth_offset,
-				    auth_len, chunk_buf);
-				got_auth = 1;
-				auth_skipped = 0;
+				if (auth_len <= SCTP_CHUNK_BUFFER_SIZE) {
+					auth = (struct sctp_auth_chunk *)sctp_m_getptr(m, auth_offset, auth_len, chunk_buf);
+					got_auth = 1;
+					auth_skipped = 0;
+				} else {
+					auth = NULL;
+				}
 				if ((auth == NULL) || sctp_handle_auth(stcb, auth, m,
 				    auth_offset)) {
 					/* auth HMAC failed so dump it */
