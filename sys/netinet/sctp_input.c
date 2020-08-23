@@ -2600,7 +2600,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
 	/* Expire time is in Ticks, so we convert to seconds */
-	time_expires.tv_sec = cookie->time_entered.tv_sec + TICKS_TO_SEC(cookie->cookie_life);
+	time_expires.tv_sec = cookie->time_entered.tv_sec + sctp_ticks_to_secs(cookie->cookie_life);
 	time_expires.tv_usec = cookie->time_entered.tv_usec;
 	if (timevalcmp(&now, &time_expires, >)) {
 		/* cookie is stale! */

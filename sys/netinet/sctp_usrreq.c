@@ -1581,7 +1581,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			break;
 		case SCTP_AUTOCLOSE:
 			if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_AUTOCLOSE))
-				val = TICKS_TO_SEC(inp->sctp_ep.auto_close_time);
+				val = sctp_ticks_to_secs(inp->sctp_ep.auto_close_time);
 			else
 				val = 0;
 			break;
@@ -1993,7 +1993,7 @@ flags_out:
 				    ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) &&
 				    (sack->sack_assoc_id == SCTP_FUTURE_ASSOC))) {
 					SCTP_INP_RLOCK(inp);
-					sack->sack_delay = TICKS_TO_MSEC(inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV]);
+					sack->sack_delay = sctp_ticks_to_msecs(inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV]);
 					sack->sack_freq = inp->sctp_ep.sctp_sack_freq;
 					SCTP_INP_RUNLOCK(inp);
 				} else {
@@ -2474,7 +2474,7 @@ flags_out:
 					/* Use endpoint defaults */
 					SCTP_INP_RLOCK(inp);
 					paddrp->spp_pathmaxrxt = inp->sctp_ep.def_net_failure;
-					paddrp->spp_hbinterval = TICKS_TO_MSEC(inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
+					paddrp->spp_hbinterval = sctp_ticks_to_msecs(inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 					paddrp->spp_assoc_id = SCTP_FUTURE_ASSOC;
 					/* get inp's default */
 					if (inp->sctp_ep.default_dscp & 0x01) {
@@ -2746,7 +2746,7 @@ flags_out:
 			SCTP_FIND_STCB(inp, stcb, sasoc->sasoc_assoc_id);
 
 			if (stcb) {
-				sasoc->sasoc_cookie_life = TICKS_TO_MSEC(stcb->asoc.cookie_life);
+				sasoc->sasoc_cookie_life = sctp_ticks_to_msecs(stcb->asoc.cookie_life);
 				sasoc->sasoc_asocmaxrxt = stcb->asoc.max_send_times;
 				sasoc->sasoc_number_peer_destinations = stcb->asoc.numnets;
 				sasoc->sasoc_peer_rwnd = stcb->asoc.peers_rwnd;
@@ -2758,7 +2758,7 @@ flags_out:
 				    ((inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) &&
 				    (sasoc->sasoc_assoc_id == SCTP_FUTURE_ASSOC))) {
 					SCTP_INP_RLOCK(inp);
-					sasoc->sasoc_cookie_life = TICKS_TO_MSEC(inp->sctp_ep.def_cookie_life);
+					sasoc->sasoc_cookie_life = sctp_ticks_to_msecs(inp->sctp_ep.def_cookie_life);
 					sasoc->sasoc_asocmaxrxt = inp->sctp_ep.max_send_times;
 					sasoc->sasoc_number_peer_destinations = 0;
 					sasoc->sasoc_peer_rwnd = 0;
@@ -3836,7 +3836,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			 * The value is in ticks. Note this does not effect
 			 * old associations, only new ones.
 			 */
-			inp->sctp_ep.auto_close_time = SEC_TO_TICKS(*mopt);
+			inp->sctp_ep.auto_close_time = sctp_secs_to_ticks(*mopt);
 			break;
 		}
 		SCTP_INP_WLOCK(inp);
@@ -4233,10 +4233,12 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(sack, optval, struct sctp_sack_info, optsize);
 			SCTP_FIND_STCB(inp, stcb, sack->sack_assoc_id);
 			if (sack->sack_delay) {
-				if (sack->sack_delay > SCTP_MAX_SACK_DELAY)
-					sack->sack_delay = SCTP_MAX_SACK_DELAY;
-				if (MSEC_TO_TICKS(sack->sack_delay) < 1) {
-					sack->sack_delay = TICKS_TO_MSEC(1);
+				if (sack->sack_delay > SCTP_MAX_SACK_DELAY) {
+					error = EINVAL;
+					if (stcb != NULL) {
+						SCTP_TCB_UNLOCK(stcb);
+					}
+					break;
 				}
 			}
 			if (stcb) {
@@ -4255,7 +4257,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				    (sack->sack_assoc_id == SCTP_ALL_ASSOC)))) {
 					SCTP_INP_WLOCK(inp);
 					if (sack->sack_delay) {
-						inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV] = MSEC_TO_TICKS(sack->sack_delay);
+						inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_RECV] = sctp_msecs_to_ticks(sack->sack_delay);
 					}
 					if (sack->sack_freq) {
 						inp->sctp_ep.sctp_sack_freq = sack->sack_freq;
@@ -5618,14 +5620,14 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					else if (paddrp->spp_hbinterval != 0) {
 						if (paddrp->spp_hbinterval > SCTP_MAX_HB_INTERVAL)
 							paddrp->spp_hbinterval = SCTP_MAX_HB_INTERVAL;
-						inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = MSEC_TO_TICKS(paddrp->spp_hbinterval);
+						inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = sctp_msecs_to_ticks(paddrp->spp_hbinterval);
 					}
 
 					if (paddrp->spp_flags & SPP_HB_ENABLE) {
 						if (paddrp->spp_flags & SPP_HB_TIME_IS_ZERO) {
 							inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = 0;
 						} else if (paddrp->spp_hbinterval) {
-							inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = MSEC_TO_TICKS(paddrp->spp_hbinterval);
+							inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT] = sctp_msecs_to_ticks(paddrp->spp_hbinterval);
 						}
 						sctp_feature_off(inp, SCTP_PCB_FLAGS_DONOT_HEARTBEAT);
 					} else if (paddrp->spp_flags & SPP_HB_DISABLE) {
@@ -5740,7 +5742,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				if (sasoc->sasoc_asocmaxrxt)
 					stcb->asoc.max_send_times = sasoc->sasoc_asocmaxrxt;
 				if (sasoc->sasoc_cookie_life) {
-					stcb->asoc.cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
+					stcb->asoc.cookie_life = sctp_msecs_to_ticks(sasoc->sasoc_cookie_life);
 				}
 				SCTP_TCB_UNLOCK(stcb);
 			} else {
@@ -5752,7 +5754,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					if (sasoc->sasoc_asocmaxrxt)
 						inp->sctp_ep.max_send_times = sasoc->sasoc_asocmaxrxt;
 					if (sasoc->sasoc_cookie_life) {
-						inp->sctp_ep.def_cookie_life = MSEC_TO_TICKS(sasoc->sasoc_cookie_life);
+						inp->sctp_ep.def_cookie_life = sctp_msecs_to_ticks(sasoc->sasoc_cookie_life);
 					}
 					SCTP_INP_WUNLOCK(inp);
 				} else {
