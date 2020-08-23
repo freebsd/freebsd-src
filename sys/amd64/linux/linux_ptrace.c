@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_GETREGSET		0x4204
 #define	LINUX_PTRACE_SEIZE		0x4206
 
+#define	LINUX_PTRACE_EVENT_EXIT		6
+
 #define	LINUX_PTRACE_O_TRACESYSGOOD	1
 #define	LINUX_PTRACE_O_TRACEFORK	2
 #define	LINUX_PTRACE_O_TRACEVFORK	4
@@ -139,6 +141,9 @@ linux_ptrace_status(struct thread *td, pid_t pid, int status)
 	if ((pem->ptrace_flags & LINUX_PTRACE_O_TRACESYSGOOD) &&
 	    lwpinfo.pl_flags & PL_FLAG_SCX)
 		status |= (LINUX_SIGTRAP | 0x80) << 8;
+	if ((pem->ptrace_flags & LINUX_PTRACE_O_TRACEEXIT) &&
+	    lwpinfo.pl_flags & PL_FLAG_EXITED)
+		status |= (LINUX_SIGTRAP | LINUX_PTRACE_EVENT_EXIT << 8) << 8;
 	LINUX_PEM_SUNLOCK(pem);
 
 	return (status);
@@ -359,9 +364,9 @@ linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 		mask |= PTRACE_VFORK; /* XXX: Close enough? */
 
 	if (data & LINUX_PTRACE_O_TRACEEXIT) {
-		linux_msg(td, "PTRACE_O_TRACEEXIT not implemented; "
-		    "returning EINVAL");
-		return (EINVAL);
+		pem->ptrace_flags |= LINUX_PTRACE_O_TRACEEXIT;
+	} else {
+		pem->ptrace_flags &= ~LINUX_PTRACE_O_TRACEEXIT;
 	}
 
 	return (kern_ptrace(td, PT_SET_EVENT_MASK, pid, &mask, sizeof(mask)));
