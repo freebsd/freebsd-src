@@ -2050,6 +2050,10 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (stcb) {
 		SCTP_TCB_LOCK_ASSERT(stcb);
 	}
+	/* Don't restart timer on net that's been removed. */
+	if (net != NULL && (net->dest_state & SCTP_ADDR_BEING_DELETED)) {
+		return;
+	}
 	switch (t_type) {
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		/* Only 1 tick away :-) */
