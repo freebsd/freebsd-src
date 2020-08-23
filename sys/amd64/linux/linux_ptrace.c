@@ -319,6 +319,22 @@ linux_ptrace_peek(struct thread *td, pid_t pid, void *addr, void *data)
 }
 
 static int
+linux_ptrace_peekuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+
+	linux_msg(td, "PTRACE_PEEKUSER not implemented; returning EINVAL");
+	return (EINVAL);
+}
+
+static int
+linux_ptrace_pokeuser(struct thread *td, pid_t pid, void *addr, void *data)
+{
+
+	linux_msg(td, "PTRACE_POKEUSER not implemented; returning EINVAL");
+	return (EINVAL);
+}
+
+static int
 linux_ptrace_setoptions(struct thread *td, pid_t pid, l_ulong data)
 {
 	struct linux_pemuldata *pem;
@@ -566,11 +582,17 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = linux_ptrace_peek(td, pid,
 		    (void *)(uap->addr + 4), (void *)(uap->data + 4));
 		break;
+	case LINUX_PTRACE_PEEKUSER:
+		error = linux_ptrace_peekuser(td, pid, addr, (void *)uap->data);
+		break;
 	case LINUX_PTRACE_POKETEXT:
 		error = kern_ptrace(td, PT_WRITE_I, pid, addr, uap->data);
 		break;
 	case LINUX_PTRACE_POKEDATA:
 		error = kern_ptrace(td, PT_WRITE_D, pid, addr, uap->data);
+		break;
+	case LINUX_PTRACE_POKEUSER:
+		error = linux_ptrace_pokeuser(td, pid, addr, (void *)uap->data);
 		break;
 	case LINUX_PTRACE_CONT:
 		error = map_signum(uap->data, &sig);
