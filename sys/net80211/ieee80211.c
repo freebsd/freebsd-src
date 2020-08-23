@@ -1920,12 +1920,18 @@ ieee80211_media_setup(struct ieee80211com *ic,
 
 	/*
 	 * Add VHT media.
+	 * XXX-BZ skip "VHT_2GHZ" for now.
 	 */
-	for (; mode <= IEEE80211_MODE_VHT_5GHZ; mode++) {
+	for (mode = IEEE80211_MODE_VHT_5GHZ; mode <= IEEE80211_MODE_VHT_5GHZ;
+	    mode++) {
 		if (isclr(ic->ic_modecaps, mode))
 			continue;
 		addmedia(media, caps, addsta, mode, IFM_AUTO);
 		addmedia(media, caps, addsta, mode, IFM_IEEE80211_VHT);
+	}
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_VHT_5GHZ)) {
+	       addmedia(media, caps, addsta,
+		   IEEE80211_MODE_AUTO, IFM_IEEE80211_VHT);
 
 		/* XXX TODO: VHT maxrate */
 	}
@@ -2043,6 +2049,12 @@ media2mode(const struct ifmedia_entry *ime, uint32_t flags, uint16_t *mode)
 		break;
 	case IFM_IEEE80211_11NG:
 		*mode = IEEE80211_MODE_11NG;
+		break;
+	case IFM_IEEE80211_VHT2G:
+		*mode = IEEE80211_MODE_VHT_2GHZ;
+		break;
+	case IFM_IEEE80211_VHT5G:
+		*mode = IEEE80211_MODE_VHT_5GHZ;
 		break;
 	case IFM_AUTO:
 		*mode = IEEE80211_MODE_AUTO;
@@ -2387,12 +2399,36 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{  75, IFM_IEEE80211_MCS },
 		{  76, IFM_IEEE80211_MCS },
 	};
+	static const struct ratemedia vhtrates[] = {
+		{   0, IFM_IEEE80211_VHT },
+		{   1, IFM_IEEE80211_VHT },
+		{   2, IFM_IEEE80211_VHT },
+		{   3, IFM_IEEE80211_VHT },
+		{   4, IFM_IEEE80211_VHT },
+		{   5, IFM_IEEE80211_VHT },
+		{   6, IFM_IEEE80211_VHT },
+		{   7, IFM_IEEE80211_VHT },
+		{   8, IFM_IEEE80211_VHT },	/* Optional. */
+		{   9, IFM_IEEE80211_VHT },	/* Optional. */
+#if 0
+		/* Some QCA and BRCM seem to support this; offspec. */
+		{  10, IFM_IEEE80211_VHT },
+		{  11, IFM_IEEE80211_VHT },
+#endif
+	};
 	int m;
 
 	/*
-	 * Check 11n rates first for match as an MCS.
+	 * Check 11ac/11n rates first for match as an MCS.
 	 */
-	if (mode == IEEE80211_MODE_11NA) {
+	if (mode == IEEE80211_MODE_VHT_5GHZ) {
+		if (rate & IFM_IEEE80211_VHT) {
+			rate &= ~IFM_IEEE80211_VHT;
+			m = findmedia(vhtrates, nitems(vhtrates), rate);
+			if (m != IFM_AUTO)
+				return (m | IFM_IEEE80211_VHT);
+		}
+	} else if (mode == IEEE80211_MODE_11NA) {
 		if (rate & IEEE80211_RATE_MCS) {
 			rate &= ~IEEE80211_RATE_MCS;
 			m = findmedia(htrates, nitems(htrates), rate);
