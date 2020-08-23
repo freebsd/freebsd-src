@@ -1168,23 +1168,17 @@ set_vht_extchan(struct ieee80211_channel *c)
 {
 	int i;
 
-	if (! IEEE80211_IS_CHAN_VHT(c)) {
+	if (! IEEE80211_IS_CHAN_VHT(c))
 		return (0);
+
+	if (IEEE80211_IS_CHAN_VHT80P80(c)) {
+		printf("%s: TODO VHT80+80 channel (ieee=%d, flags=0x%08x)\n",
+		    __func__, c->ic_ieee, c->ic_flags);
 	}
 
-	if (IEEE80211_IS_CHAN_VHT20(c)) {
-		c->ic_vht_ch_freq1 = c->ic_ieee;
-		return (1);
-	}
-
-	if (IEEE80211_IS_CHAN_VHT40(c)) {
-		if (IEEE80211_IS_CHAN_HT40U(c))
-			c->ic_vht_ch_freq1 = c->ic_ieee + 2;
-		else if (IEEE80211_IS_CHAN_HT40D(c))
-			c->ic_vht_ch_freq1 = c->ic_ieee - 2;
-		else
-			return (0);
-		return (1);
+	if (IEEE80211_IS_CHAN_VHT160(c)) {
+		printf("%s: TODO VHT160 channel (ieee=%d, flags=0x%08x)\n",
+		    __func__, c->ic_ieee, c->ic_flags);
 	}
 
 	if (IEEE80211_IS_CHAN_VHT80(c)) {
@@ -1206,6 +1200,21 @@ set_vht_extchan(struct ieee80211_channel *c)
 			}
 		}
 		return (0);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT40(c)) {
+		if (IEEE80211_IS_CHAN_HT40U(c))
+			c->ic_vht_ch_freq1 = c->ic_ieee + 2;
+		else if (IEEE80211_IS_CHAN_HT40D(c))
+			c->ic_vht_ch_freq1 = c->ic_ieee - 2;
+		else
+			return (0);
+		return (1);
+	}
+
+	if (IEEE80211_IS_CHAN_VHT20(c)) {
+		c->ic_vht_ch_freq1 = c->ic_ieee;
+		return (1);
 	}
 
 	printf("%s: unknown VHT channel type (ieee=%d, flags=0x%08x)\n",
