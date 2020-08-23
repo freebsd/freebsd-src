@@ -66,7 +66,7 @@ extern int sz_aarch32_sigcode;
 
 static int freebsd32_fetch_syscall_args(struct thread *td);
 static void freebsd32_setregs(struct thread *td, struct image_params *imgp,
-   u_long stack);
+    u_long stack);
 static void freebsd32_set_syscall_retval(struct thread *, int);
 
 static boolean_t elf32_arm_abi_supported(struct image_params *);
