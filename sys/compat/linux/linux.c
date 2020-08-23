@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_common.h>
 
 struct futex_list futex_list;
+struct mtx futex_mtx;			/* protects the futex list */
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 

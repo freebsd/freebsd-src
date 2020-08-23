@@ -224,7 +224,6 @@ struct futex {
 #define FUTEX_ASSERT_LOCKED(f)	mtx_assert(&(f)->f_lck, MA_OWNED)
 #define FUTEX_ASSERT_UNLOCKED(f) mtx_assert(&(f)->f_lck, MA_NOTOWNED)
 
-struct mtx futex_mtx;			/* protects the futex list */
 #define FUTEXES_LOCK		do { \
 				    mtx_lock(&futex_mtx); \
 				    LIN_SDT_PROBE1(locks, futex_mtx, \
