@@ -99,7 +99,7 @@ static void		acpi_wakeup_cpus(struct acpi_softc *);
 #endif
 
 #ifdef __amd64__
-#define	ACPI_WAKEPAGES	4
+#define	ACPI_WAKEPAGES	5
 #else
 #define	ACPI_WAKEPAGES	1
 #endif
@@ -414,8 +414,8 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	static void	*wakeaddr;
 	void		*wakepages[ACPI_WAKEPAGES];
 #ifdef __amd64__
-	uint64_t	*pt4, *pt3, *pt2;
-	vm_paddr_t	pt4pa, pt3pa, pt2pa;
+	uint64_t	*pt5, *pt4, *pt3, *pt2;
+	vm_paddr_t	pt5pa, pt4pa, pt3pa, pt2pa;
 	int		i;
 #endif
 
@@ -430,6 +430,10 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	sc->acpi_wakephys = vtophys(wakeaddr);
 
 #ifdef __amd64__
+	if (la57) {
+		pt5 = wakepages[4];
+		pt5pa = vtophys(pt5);
+	}
 	pt4 = wakepages[1];
 	pt3 = wakepages[2];
 	pt2 = wakepages[3];
@@ -448,7 +452,8 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 #ifdef __amd64__
 	WAKECODE_FIXUP((wakeup_sw64 + 1), uint32_t,
 	    sc->acpi_wakephys + wakeup_64);
-	WAKECODE_FIXUP(wakeup_pagetables, uint32_t, pt4pa);
+	WAKECODE_FIXUP(wakeup_pagetables, uint32_t, la57 ? (pt5pa | 0x1) :
+	    pt4pa);
 #endif
 
 	/* Save pointers to some global data. */
@@ -457,7 +462,12 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	WAKECODE_FIXUP(wakeup_cr3, register_t, pmap_get_kcr3());
 #else /* __amd64__ */
 	/* Create the initial 1GB replicated page tables */
-	for (i = 0; i < 512; i++) {
+	for (i = 0; i < NPTEPG; i++) {
+		if (la57) {
+			pt5[i] = (uint64_t)pt4pa;
+			pt5[i] |= PG_V | PG_RW | PG_U;
+		}
+
 		/*
 		 * Each slot of the level 4 pages points
 		 * to the same level 3 page
@@ -473,7 +483,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 		pt3[i] |= PG_V | PG_RW | PG_U;
 
 		/* The level 2 page slots are mapped with 2MB pages for 1GB. */
-		pt2[i] = i * (2 * 1024 * 1024);
+		pt2[i] = i * NBPDR;
 		pt2[i] |= PG_V | PG_RW | PG_PS | PG_U;
 	}
 #endif /* !__amd64__ */

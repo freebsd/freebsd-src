@@ -382,8 +382,11 @@ END(savectx)
  * Resuming processor state from pcb.
  */     
 ENTRY(resumectx)
-	/* Switch to KPML4phys. */
+	/* Switch to KPML5/4phys. */
 	movq	KPML4phys,%rax
+	movq	KPML5phys,%rcx
+	cmpl	$0, la57
+	cmovne	%rcx, %rax
 	movq	%rax,%cr3
 
 	/* Force kernel segment registers. */
