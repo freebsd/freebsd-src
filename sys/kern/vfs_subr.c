@@ -1756,7 +1756,7 @@ getnewvnode_drop_reserve(void)
 	}
 }
 
-static void
+static void __noinline
 freevnode(struct vnode *vp)
 {
 	struct bufobj *bo;
