@@ -46,6 +46,8 @@ extern int	syscall_ret_l1d_flush_mode;
 extern vm_paddr_t intel_graphics_stolen_base;
 extern vm_paddr_t intel_graphics_stolen_size;
 
+extern int la57;
+
 /*
  * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its
  * value is the physical address at which the kernel is loaded.

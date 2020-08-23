@@ -560,7 +560,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 		panic("contigmalloc of SVM IO bitmap failed");
 
 	svm_sc->vm = vm;
-	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pml4);
+	svm_sc->nptp = (vm_offset_t)vtophys(pmap->pm_pmltop);
 
 	/*
 	 * Intercept read and write accesses to all MSRs.
