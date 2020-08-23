@@ -377,21 +377,67 @@ cpu_exec_vmspace_reuse(struct proc *p, vm_map_t map)
 }
 
 static void
-cpu_procctl_kpti(struct proc *p, int com, int *val)
+cpu_procctl_kpti_ctl(struct proc *p, int val)
 {
 
-	if (com == PROC_KPTI_CTL) {
-		if (pti && *val == PROC_KPTI_CTL_ENABLE_ON_EXEC)
-			p->p_md.md_flags |= P_MD_KPTI;
-		if (*val == PROC_KPTI_CTL_DISABLE_ON_EXEC)
-			p->p_md.md_flags &= ~P_MD_KPTI;
-	} else /* PROC_KPTI_STATUS */ {
-		*val = (p->p_md.md_flags & P_MD_KPTI) != 0 ?
-		    PROC_KPTI_CTL_ENABLE_ON_EXEC:
-		    PROC_KPTI_CTL_DISABLE_ON_EXEC;
-		if (vmspace_pmap(p->p_vmspace)->pm_ucr3 != PMAP_NO_CR3)
-			*val |= PROC_KPTI_STATUS_ACTIVE;
+	if (pti && val == PROC_KPTI_CTL_ENABLE_ON_EXEC)
+		p->p_md.md_flags |= P_MD_KPTI;
+	if (val == PROC_KPTI_CTL_DISABLE_ON_EXEC)
+		p->p_md.md_flags &= ~P_MD_KPTI;
+}
+
+static void
+cpu_procctl_kpti_status(struct proc *p, int *val)
+{
+	*val = (p->p_md.md_flags & P_MD_KPTI) != 0 ?
+	    PROC_KPTI_CTL_ENABLE_ON_EXEC:
+	    PROC_KPTI_CTL_DISABLE_ON_EXEC;
+	if (vmspace_pmap(p->p_vmspace)->pm_ucr3 != PMAP_NO_CR3)
+		*val |= PROC_KPTI_STATUS_ACTIVE;
+}
+
+static int
+cpu_procctl_la_ctl(struct proc *p, int val)
+{
+	int error;
+
+	error = 0;
+	switch (val) {
+	case PROC_LA_CTL_LA48_ON_EXEC:
+		p->p_md.md_flags |= P_MD_LA48;
+		p->p_md.md_flags &= ~P_MD_LA57;
+		break;
+	case PROC_LA_CTL_LA57_ON_EXEC:
+		if (la57) {
+			p->p_md.md_flags &= ~P_MD_LA48;
+			p->p_md.md_flags |= P_MD_LA57;
+		} else {
+			error = ENOTSUP;
+		}
+		break;
+	case PROC_LA_CTL_DEFAULT_ON_EXEC:
+		p->p_md.md_flags &= ~(P_MD_LA48 | P_MD_LA57);
+		break;
 	}
+	return (error);
+}
+
+static void
+cpu_procctl_la_status(struct proc *p, int *val)
+{
+	int res;
+
+	if ((p->p_md.md_flags & P_MD_LA48) != 0)
+		res = PROC_LA_CTL_LA48_ON_EXEC;
+	else if ((p->p_md.md_flags & P_MD_LA57) != 0)
+		res = PROC_LA_CTL_LA57_ON_EXEC;
+	else
+		res = PROC_LA_CTL_DEFAULT_ON_EXEC;
+	if (p->p_sysent->sv_maxuser == VM_MAXUSER_ADDRESS_LA48)
+		res |= PROC_LA_STATUS_LA48;
+	else
+		res |= PROC_LA_STATUS_LA57;
+	*val = res;
 }
 
 int
@@ -403,6 +449,8 @@ cpu_procctl(struct thread *td, int idtype, id_t id, int com, void *data)
 	switch (com) {
 	case PROC_KPTI_CTL:
 	case PROC_KPTI_STATUS:
+	case PROC_LA_CTL:
+	case PROC_LA_STATUS:
 		if (idtype != P_PID) {
 			error = EINVAL;
 			break;
@@ -412,22 +460,45 @@ cpu_procctl(struct thread *td, int idtype, id_t id, int com, void *data)
 			error = priv_check(td, PRIV_IO);
 			if (error != 0)
 				break;
+		}
+		if (com == PROC_KPTI_CTL || com == PROC_LA_CTL) {
 			error = copyin(data, &val, sizeof(val));
 			if (error != 0)
 				break;
-			if (val != PROC_KPTI_CTL_ENABLE_ON_EXEC &&
-			    val != PROC_KPTI_CTL_DISABLE_ON_EXEC) {
-				error = EINVAL;
-				break;
-			}
+		}
+		if (com == PROC_KPTI_CTL &&
+		    val != PROC_KPTI_CTL_ENABLE_ON_EXEC &&
+		    val != PROC_KPTI_CTL_DISABLE_ON_EXEC) {
+			error = EINVAL;
+			break;
+		}
+		if (com == PROC_LA_CTL &&
+		    val != PROC_LA_CTL_LA48_ON_EXEC &&
+		    val != PROC_LA_CTL_LA57_ON_EXEC &&
+		    val != PROC_LA_CTL_DEFAULT_ON_EXEC) {
+			error = EINVAL;
+			break;
 		}
 		error = pget(id, PGET_CANSEE | PGET_NOTWEXIT | PGET_NOTID, &p);
-		if (error == 0) {
-			cpu_procctl_kpti(p, com, &val);
-			PROC_UNLOCK(p);
-			if (com == PROC_KPTI_STATUS)
-				error = copyout(&val, data, sizeof(val));
+		if (error != 0)
+			break;
+		switch (com) {
+		case PROC_KPTI_CTL:
+			cpu_procctl_kpti_ctl(p, val);
+			break;
+		case PROC_KPTI_STATUS:
+			cpu_procctl_kpti_status(p, &val);
+			break;
+		case PROC_LA_CTL:
+			error = cpu_procctl_la_ctl(p, val);
+			break;
+		case PROC_LA_STATUS:
+			cpu_procctl_la_status(p, &val);
+			break;
 		}
+		PROC_UNLOCK(p);
+		if (com == PROC_KPTI_STATUS || com == PROC_LA_STATUS)
+			error = copyout(&val, data, sizeof(val));
 		break;
 	default:
 		error = EINVAL;
