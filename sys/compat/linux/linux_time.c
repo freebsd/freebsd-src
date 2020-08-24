@@ -253,7 +253,7 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 	struct thread *targettd;
 	struct proc *p;
 	int error, clockwhich;
-	clockid_t nwhich = 0;	/* XXX: GCC */
+	clockid_t nwhich;
 	pid_t pid;
 	lwpid_t tid;
 
@@ -382,7 +382,7 @@ linux_clock_settime(struct thread *td, struct linux_clock_settime_args *args)
 	struct timespec ts;
 	struct l_timespec lts;
 	int error;
-	clockid_t nwhich = 0;	/* XXX: GCC */
+	clockid_t nwhich;
 
 	LIN_SDT_PROBE2(time, linux_clock_settime, entry, args->which, args->tp);
 
@@ -422,7 +422,7 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	struct timespec ts;
 	struct l_timespec lts;
 	int error, clockwhich;
-	clockid_t nwhich = 0;	/* XXX: GCC */
+	clockid_t nwhich;
 	pid_t pid;
 	lwpid_t tid;
 
