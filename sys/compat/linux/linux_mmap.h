@@ -45,8 +45,29 @@
 #define	LINUX_PROT_GROWSDOWN	0x01000000
 #define	LINUX_PROT_GROWSUP	0x02000000
 
+#define	LINUX_MADV_NORMAL	0
+#define	LINUX_MADV_RANDOM	1
+#define	LINUX_MADV_SEQUENTIAL	2
+#define	LINUX_MADV_WILLNEED	3
+#define	LINUX_MADV_DONTNEED	4
+#define	LINUX_MADV_FREE		8
+#define	LINUX_MADV_REMOVE	9
+#define	LINUX_MADV_DONTFORK	10
+#define	LINUX_MADV_DOFORK	11
+#define	LINUX_MADV_MERGEABLE	12
+#define	LINUX_MADV_UNMERGEABLE	13
+#define	LINUX_MADV_HUGEPAGE	14
+#define	LINUX_MADV_NOHUGEPAGE	15
+#define	LINUX_MADV_DONTDUMP	16
+#define	LINUX_MADV_DODUMP	17
+#define	LINUX_MADV_WIPEONFORK	18
+#define	LINUX_MADV_KEEPONFORK	19
+#define	LINUX_MADV_HWPOISON	100
+#define	LINUX_MADV_SOFT_OFFLINE	101
+
 int linux_mmap_common(struct thread *, uintptr_t, size_t, int, int,
 			int, off_t);
 int linux_mprotect_common(struct thread *, uintptr_t, size_t, int);
+int linux_madvise_common(struct thread *, uintptr_t, size_t, int);
 
 #endif	/* _LINUX_MMAP_H_ */

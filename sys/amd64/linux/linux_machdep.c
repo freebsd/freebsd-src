@@ -141,6 +141,13 @@ linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 }
 
 int
+linux_madvise(struct thread *td, struct linux_madvise_args *uap)
+{
+
+	return (linux_madvise_common(td, PTROUT(uap->addr), uap->len, uap->behav));
+}
+
+int
 linux_iopl(struct thread *td, struct linux_iopl_args *args)
 {
 	int error;
