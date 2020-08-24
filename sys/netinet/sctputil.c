@@ -5221,10 +5221,6 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 			if (((struct sockaddr_in *)addr)->sin_addr.s_addr ==
 			    laddr->ifa->address.sin.sin_addr.s_addr) {
 				/* found him. */
-				if (holds_lock == 0) {
-					SCTP_INP_RUNLOCK(inp);
-				}
-				return (laddr->ifa);
 				break;
 			}
 		}
@@ -5234,10 +5230,6 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 			if (SCTP6_ARE_ADDR_EQUAL((struct sockaddr_in6 *)addr,
 			    &laddr->ifa->address.sin6)) {
 				/* found him. */
-				if (holds_lock == 0) {
-					SCTP_INP_RUNLOCK(inp);
-				}
-				return (laddr->ifa);
 				break;
 			}
 		}
@@ -5246,7 +5238,7 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 	if (holds_lock == 0) {
 		SCTP_INP_RUNLOCK(inp);
 	}
-	return (NULL);
+	return (laddr->ifa);
 }
 
 uint32_t
@@ -5323,9 +5315,6 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 			if (((struct sockaddr_in *)addr)->sin_addr.s_addr ==
 			    sctp_ifap->address.sin.sin_addr.s_addr) {
 				/* found him. */
-				if (holds_lock == 0)
-					SCTP_IPI_ADDR_RUNLOCK();
-				return (sctp_ifap);
 				break;
 			}
 		}
@@ -5335,9 +5324,6 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 			if (SCTP6_ARE_ADDR_EQUAL((struct sockaddr_in6 *)addr,
 			    &sctp_ifap->address.sin6)) {
 				/* found him. */
-				if (holds_lock == 0)
-					SCTP_IPI_ADDR_RUNLOCK();
-				return (sctp_ifap);
 				break;
 			}
 		}
@@ -5345,7 +5331,7 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 	}
 	if (holds_lock == 0)
 		SCTP_IPI_ADDR_RUNLOCK();
-	return (NULL);
+	return (sctp_ifap);
 }
 
 static void
@@ -6918,7 +6904,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 #if defined(INET)
 	int ipv4_local_scope, ipv4_addr_legal;
 #endif
-#if defined (INET6)
+#if defined(INET6)
 	int local_scope, site_scope, ipv6_addr_legal;
 #endif
 	struct sctp_vrf *vrf;

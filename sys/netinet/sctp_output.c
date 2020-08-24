@@ -5124,7 +5124,6 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					}
 				}
 				return (op_err);
-				break;
 			}
 		default:
 			/*
