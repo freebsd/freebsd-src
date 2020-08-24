@@ -800,13 +800,13 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 		cause = (struct sctp_error_cause *)(abort + 1);
 		error = ntohs(cause->code);
 		if (error == SCTP_CAUSE_NAT_COLLIDING_STATE) {
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags:%x\n",
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state, ABORT flags:%x\n",
 			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_colliding_state(stcb)) {
 				return (0);
 			}
 		} else if (error == SCTP_CAUSE_NAT_MISSING_STATE) {
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags:%x\n",
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state, ABORT flags:%x\n",
 			    abort->ch.chunk_flags);
 			if (sctp_handle_nat_missing_state(stcb, net)) {
 				return (0);
@@ -1146,14 +1146,14 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			    cause_code);
 			break;
 		case SCTP_CAUSE_NAT_COLLIDING_STATE:
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state abort flags: %x\n",
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received Colliding state, ERROR flags: %x\n",
 			    ch->chunk_flags);
 			if (sctp_handle_nat_colliding_state(stcb)) {
 				return (0);
 			}
 			break;
 		case SCTP_CAUSE_NAT_MISSING_STATE:
-			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state abort flags: %x\n",
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received missing state, ERROR flags: %x\n",
 			    ch->chunk_flags);
 			if (sctp_handle_nat_missing_state(stcb, net)) {
 				return (0);
