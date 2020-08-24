@@ -984,9 +984,6 @@ sctp_fill_user_address(struct sockaddr *dst, struct sockaddr *src)
 
 
 
-/*
- * NOTE: assumes addr lock is held
- */
 static size_t
 sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
@@ -1006,6 +1003,7 @@ sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
 #endif
 	struct sctp_vrf *vrf;
 
+	SCTP_IPI_ADDR_LOCK_ASSERT();
 	actual = 0;
 	if (limit == 0)
 		return (actual);
@@ -1238,9 +1236,6 @@ sctp_fill_up_addresses(struct sctp_inpcb *inp,
 	return (size);
 }
 
-/*
- * NOTE: assumes addr lock is held
- */
 static int
 sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 {
@@ -1254,6 +1249,7 @@ sctp_count_max_addresses_vrf(struct sctp_inpcb *inp, uint32_t vrf_id)
 	 * bound-all case a TCB may NOT include the loopback or other
 	 * addresses as well.
 	 */
+	SCTP_IPI_ADDR_LOCK_ASSERT();
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
 		return (0);
