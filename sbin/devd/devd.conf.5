@@ -465,6 +465,8 @@ provider size has changed.
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li kern Ta Li power Ta Li resume Ta
 Notification that the system has woken from the suspended state.
+Note: this notification is deprecated and will be removed in
+.Fx 14.0 .
 .El
 .Pp
 .Pp
@@ -472,6 +474,8 @@ Notification that the system has woken from the suspended state.
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li kernel Ta Li signal Ta Li coredump Ta
 Notification that a process has crashed and dumped core.
+.It Li kernel Ta Li power Ta Li resume Ta
+Notification that the system has woken from the suspended state.
 .El
 .Pp
 .Bl -column "System" "Subsystem" "1234567" -compact
