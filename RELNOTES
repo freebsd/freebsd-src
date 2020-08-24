@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r364725:
+	Changes to one obscure devd event generated on resume need to
+	be documented. The old form will still be gerated in 13, but not
+	in 14.
+
 r363679:
 	Applications using regex(3), e.g. sed/grep, will no longer accept
 	redundant escapes for most ordinary characters.
