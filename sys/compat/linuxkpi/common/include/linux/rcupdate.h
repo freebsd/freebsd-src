@@ -97,6 +97,12 @@
 	    (uintptr_t)(v));					\
 } while (0)
 
+#define	rcu_swap_protected(rcu, ptr, c) do {			\
+	typeof(ptr) p = rcu_dereference_protected(rcu, c);	\
+	rcu_assign_pointer(rcu, ptr);				\
+	(ptr) = p;						\
+} while (0)
+
 /* prototypes */
 
 extern void linux_call_rcu(unsigned type, struct rcu_head *ptr, rcu_callback_t func);
