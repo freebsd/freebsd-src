@@ -3831,8 +3831,6 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	struct mbuf *copy_init, *copy_initack, *m_at, *sig, *mret;
 	struct sctp_state_cookie *stc;
 	struct sctp_paramhdr *ph;
-	uint8_t *foo;
-	int sig_offset;
 	uint16_t cookie_sz;
 
 	mret = sctp_get_mbuf_for_msg((sizeof(struct sctp_state_cookie) +
@@ -3896,24 +3894,20 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 			break;
 		}
 	}
-	sig = sctp_get_mbuf_for_msg(SCTP_SECRET_SIZE, 0, M_NOWAIT, 1, MT_DATA);
+	sig = sctp_get_mbuf_for_msg(SCTP_SIGNATURE_SIZE, 0, M_NOWAIT, 1, MT_DATA);
 	if (sig == NULL) {
 		/* no space, so free the entire chain */
 		sctp_m_freem(mret);
 		return (NULL);
 	}
-	SCTP_BUF_LEN(sig) = 0;
 	SCTP_BUF_NEXT(m_at) = sig;
-	sig_offset = 0;
-	foo = (uint8_t *)(mtod(sig, caddr_t)+sig_offset);
-	memset(foo, 0, SCTP_SIGNATURE_SIZE);
-	*signature = foo;
-	SCTP_BUF_LEN(sig) += SCTP_SIGNATURE_SIZE;
+	SCTP_BUF_LEN(sig) = SCTP_SIGNATURE_SIZE;
 	cookie_sz += SCTP_SIGNATURE_SIZE;
 	ph->param_length = htons(cookie_sz);
+	*signature = (uint8_t *)mtod(sig, caddr_t);
+	memset(*signature, 0, SCTP_SIGNATURE_SIZE);
 	return (mret);
 }
-
 
 static uint8_t
 sctp_get_ect(struct sctp_tcb *stcb)
