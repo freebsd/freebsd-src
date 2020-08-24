@@ -63,8 +63,6 @@ MLINKS+=libprocstat.3 procstat_close.3 \
 CFLAGS+=	-DLIBPROCSTAT_ZFS
 SRCS+=	zfs.c
 OBJS+=	zfs/zfs_defs.o
-SOBJS+=	zfs/zfs_defs.pico
-POBJS+=	zfs/zfs_defs.po
 SUBDIR=	zfs
 zfs/zfs_defs.o: .PHONY
 	@cd ${.CURDIR}/zfs && ${MAKE} zfs_defs.o
