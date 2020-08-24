@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
+#include <machine/psl.h>
 #include <machine/specialreg.h>
 
 #include <vm/vm.h>
@@ -218,11 +219,14 @@ init_via(void)
 }
 
 /*
- * The value for the TSC_AUX MSR and rdtscp/rdpid.
+ * The value for the TSC_AUX MSR and rdtscp/rdpid on the invoking CPU.
+ *
+ * Caller should prevent CPU migration.
  */
 u_int
 cpu_auxmsr(void)
 {
+	KASSERT((read_rflags() & PSL_I) == 0, ("context switch possible"));
 	return (PCPU_GET(cpuid));
 }
 
