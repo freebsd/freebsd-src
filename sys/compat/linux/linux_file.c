@@ -76,10 +76,7 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
 	int error;
 
 	LCONVPATHEXIST(td, args->path, &path);
-#ifdef DEBUG
-	if (ldebug(creat))
-		printf(ARGS(creat, "%s, %d"), path, args->mode);
-#endif
+
 	error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
 	    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
 	LFREEPATH(path);
@@ -170,14 +167,6 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	}
 
 done:
-#ifdef DEBUG
-#ifdef LINUX_LEGACY_SYSCALLS
-	if (ldebug(open))
-#else
-	if (ldebug(openat))
-#endif
-		printf(LMSG("open returns error %d"), error);
-#endif
 	LFREEPATH(path);
 	return (error);
 }
@@ -193,11 +182,7 @@ linux_openat(struct thread *td, struct linux_openat_args *args)
 		LCONVPATH_AT(td, args->filename, &path, 1, dfd);
 	else
 		LCONVPATH_AT(td, args->filename, &path, 0, dfd);
-#ifdef DEBUG
-	if (ldebug(openat))
-		printf(ARGS(openat, "%i, %s, 0x%x, 0x%x"), args->dfd,
-		    path, args->flags, args->mode);
-#endif
+
 	return (linux_common_open(td, dfd, path, args->flags, args->mode));
 }
 
@@ -211,11 +196,7 @@ linux_open(struct thread *td, struct linux_open_args *args)
 		LCONVPATHCREAT(td, args->path, &path);
 	else
 		LCONVPATHEXIST(td, args->path, &path);
-#ifdef DEBUG
-	if (ldebug(open))
-		printf(ARGS(open, "%s, 0x%x, 0x%x"),
-		    path, args->flags, args->mode);
-#endif
+
 	return (linux_common_open(td, AT_FDCWD, path, args->flags, args->mode));
 }
 #endif
@@ -224,11 +205,6 @@ int
 linux_lseek(struct thread *td, struct linux_lseek_args *args)
 {
 
-#ifdef DEBUG
-	if (ldebug(lseek))
-		printf(ARGS(lseek, "%d, %ld, %d"),
-		    args->fdes, (long)args->off, args->whence);
-#endif
 	return (kern_lseek(td, args->fdes, args->off, args->whence));
 }
 
@@ -239,11 +215,6 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 	int error;
 	off_t off;
 
-#ifdef DEBUG
-	if (ldebug(llseek))
-		printf(ARGS(llseek, "%d, %d:%d, %d"),
-		    args->fd, args->ohigh, args->olow, args->whence);
-#endif
 	off = (args->olow) | (((off_t) args->ohigh) << 32);
 
 	error = kern_lseek(td, args->fd, off, args->whence);
@@ -332,10 +303,6 @@ linux_getdents(struct thread *td, struct linux_getdents_args *args)
 	int buflen, error;
 	size_t retval;
 
-#ifdef DEBUG
-	if (ldebug(getdents))
-		printf(ARGS(getdents, "%d, *, %d"), args->fd, args->count);
-#endif
 	buflen = min(args->count, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 
@@ -413,10 +380,6 @@ linux_getdents64(struct thread *td, struct linux_getdents64_args *args)
 	int buflen, error;
 	size_t retval;
 
-#ifdef DEBUG
-	if (ldebug(getdents64))
-		uprintf(ARGS(getdents64, "%d, *, %d"), args->fd, args->count);
-#endif
 	buflen = min(args->count, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 
@@ -488,10 +451,6 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
 	struct l_dirent *linux_dirent;
 	int buflen, error;
 
-#ifdef DEBUG
-	if (ldebug(readdir))
-		printf(ARGS(readdir, "%d, *"), args->fd);
-#endif
 	buflen = LINUX_RECLEN(LINUX_NAME_MAX);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 
@@ -544,10 +503,6 @@ linux_access(struct thread *td, struct linux_access_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->amode);
-#endif
 	error = kern_accessat(td, AT_FDCWD, path, UIO_SYSSPACE, 0,
 	    args->amode);
 	LFREEPATH(path);
@@ -569,11 +524,6 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
 
-#ifdef DEBUG
-	if (ldebug(faccessat))
-		printf(ARGS(access, "%s, %d"), path, args->amode);
-#endif
-
 	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0, args->amode);
 	LFREEPATH(path);
 
@@ -589,11 +539,6 @@ linux_unlink(struct thread *td, struct linux_unlink_args *args)
 	struct stat st;
 
 	LCONVPATHEXIST(td, args->path, &path);
-
-#ifdef DEBUG
-	if (ldebug(unlink))
-		printf(ARGS(unlink, "%s"), path);
-#endif
 
 	error = kern_unlinkat(td, AT_FDCWD, path, UIO_SYSSPACE, 0);
 	if (error == EPERM) {
@@ -622,11 +567,6 @@ linux_unlinkat(struct thread *td, struct linux_unlinkat_args *args)
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
 
-#ifdef DEBUG
-	if (ldebug(unlinkat))
-		printf(ARGS(unlinkat, "%s"), path);
-#endif
-
 	if (args->flag & LINUX_AT_REMOVEDIR)
 		error = kern_rmdirat(td, dfd, path, UIO_SYSSPACE);
 	else
@@ -648,10 +588,6 @@ linux_chdir(struct thread *td, struct linux_chdir_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(chdir))
-		printf(ARGS(chdir, "%s"), path);
-#endif
 	error = kern_chdir(td, path, UIO_SYSSPACE);
 	LFREEPATH(path);
 	return (error);
@@ -666,10 +602,6 @@ linux_chmod(struct thread *td, struct linux_chmod_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(chmod))
-		printf(ARGS(chmod, "%s, %d"), path, args->mode);
-#endif
 	error = kern_fchmodat(td, AT_FDCWD, path, UIO_SYSSPACE,
 	    args->mode, 0);
 	LFREEPATH(path);
@@ -686,11 +618,6 @@ linux_fchmodat(struct thread *td, struct linux_fchmodat_args *args)
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
 
-#ifdef DEBUG
-	if (ldebug(fchmodat))
-		printf(ARGS(fchmodat, "%s, %d"), path, args->mode);
-#endif
-
 	error = kern_fchmodat(td, dfd, path, UIO_SYSSPACE, args->mode, 0);
 	LFREEPATH(path);
 	return (error);
@@ -705,10 +632,6 @@ linux_mkdir(struct thread *td, struct linux_mkdir_args *args)
 
 	LCONVPATHCREAT(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(mkdir))
-		printf(ARGS(mkdir, "%s, %d"), path, args->mode);
-#endif
 	error = kern_mkdirat(td, AT_FDCWD, path, UIO_SYSSPACE, args->mode);
 	LFREEPATH(path);
 	return (error);
@@ -724,10 +647,6 @@ linux_mkdirat(struct thread *td, struct linux_mkdirat_args *args)
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	LCONVPATHCREAT_AT(td, args->pathname, &path, dfd);
 
-#ifdef DEBUG
-	if (ldebug(mkdirat))
-		printf(ARGS(mkdirat, "%s, %d"), path, args->mode);
-#endif
 	error = kern_mkdirat(td, dfd, path, UIO_SYSSPACE, args->mode);
 	LFREEPATH(path);
 	return (error);
@@ -742,10 +661,6 @@ linux_rmdir(struct thread *td, struct linux_rmdir_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(rmdir))
-		printf(ARGS(rmdir, "%s"), path);
-#endif
 	error = kern_rmdirat(td, AT_FDCWD, path, UIO_SYSSPACE);
 	LFREEPATH(path);
 	return (error);
@@ -765,10 +680,6 @@ linux_rename(struct thread *td, struct linux_rename_args *args)
 		return (error);
 	}
 
-#ifdef DEBUG
-	if (ldebug(rename))
-		printf(ARGS(rename, "%s, %s"), from, to);
-#endif
 	error = kern_renameat(td, AT_FDCWD, from, AT_FDCWD, to, UIO_SYSSPACE);
 	LFREEPATH(from);
 	LFREEPATH(to);
@@ -812,10 +723,6 @@ linux_renameat2(struct thread *td, struct linux_renameat2_args *args)
 		return (error);
 	}
 
-#ifdef DEBUG
-	if (ldebug(renameat))
-		printf(ARGS(renameat, "%s, %s"), from, to);
-#endif
 	error = kern_renameat(td, olddfd, from, newdfd, to, UIO_SYSSPACE);
 	LFREEPATH(from);
 	LFREEPATH(to);
@@ -837,10 +744,6 @@ linux_symlink(struct thread *td, struct linux_symlink_args *args)
 		return (error);
 	}
 
-#ifdef DEBUG
-	if (ldebug(symlink))
-		printf(ARGS(symlink, "%s, %s"), path, to);
-#endif
 	error = kern_symlinkat(td, path, AT_FDCWD, to, UIO_SYSSPACE);
 	LFREEPATH(path);
 	LFREEPATH(to);
@@ -863,11 +766,6 @@ linux_symlinkat(struct thread *td, struct linux_symlinkat_args *args)
 		return (error);
 	}
 
-#ifdef DEBUG
-	if (ldebug(symlinkat))
-		printf(ARGS(symlinkat, "%s, %s"), path, to);
-#endif
-
 	error = kern_symlinkat(td, path, dfd, to, UIO_SYSSPACE);
 	LFREEPATH(path);
 	LFREEPATH(to);
@@ -883,11 +781,6 @@ linux_readlink(struct thread *td, struct linux_readlink_args *args)
 
 	LCONVPATHEXIST(td, args->name, &name);
 
-#ifdef DEBUG
-	if (ldebug(readlink))
-		printf(ARGS(readlink, "%s, %p, %d"), name, (void *)args->buf,
-		    args->count);
-#endif
 	error = kern_readlinkat(td, AT_FDCWD, name, UIO_SYSSPACE,
 	    args->buf, UIO_USERSPACE, args->count);
 	LFREEPATH(name);
@@ -904,12 +797,6 @@ linux_readlinkat(struct thread *td, struct linux_readlinkat_args *args)
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
 	LCONVPATHEXIST_AT(td, args->path, &name, dfd);
 
-#ifdef DEBUG
-	if (ldebug(readlinkat))
-		printf(ARGS(readlinkat, "%s, %p, %d"), name, (void *)args->buf,
-		    args->bufsiz);
-#endif
-
 	error = kern_readlinkat(td, dfd, name, UIO_SYSSPACE, args->buf,
 	    UIO_USERSPACE, args->bufsiz);
 	LFREEPATH(name);
@@ -923,11 +810,6 @@ linux_truncate(struct thread *td, struct linux_truncate_args *args)
 	int error;
 
 	LCONVPATHEXIST(td, args->path, &path);
-#ifdef DEBUG
-	if (ldebug(truncate))
-		printf(ARGS(truncate, "%s, %ld"), path, (long)args->length);
-#endif
-
 	error = kern_truncate(td, path, UIO_SYSSPACE, args->length);
 	LFREEPATH(path);
 	return (error);
@@ -948,11 +830,6 @@ linux_truncate64(struct thread *td, struct linux_truncate64_args *args)
 #endif
 
 	LCONVPATHEXIST(td, args->path, &path);
-
-#ifdef DEBUG
-	if (ldebug(truncate64))
-		printf(ARGS(truncate64, "%s, %jd"), path, length);
-#endif
 
 	error = kern_truncate(td, path, UIO_SYSSPACE, length);
 	LFREEPATH(path);
@@ -998,10 +875,6 @@ linux_link(struct thread *td, struct linux_link_args *args)
 		return (error);
 	}
 
-#ifdef DEBUG
-	if (ldebug(link))
-		printf(ARGS(link, "%s, %s"), path, to);
-#endif
 	error = kern_linkat(td, AT_FDCWD, AT_FDCWD, path, to, UIO_SYSSPACE,
 	    FOLLOW);
 	LFREEPATH(path);
@@ -1028,12 +901,6 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 		LFREEPATH(path);
 		return (error);
 	}
-
-#ifdef DEBUG
-	if (ldebug(linkat))
-		printf(ARGS(linkat, "%i, %s, %i, %s, %i"), args->olddfd, path,
-			args->newdfd, to, args->flag);
-#endif
 
 	follow = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? NOFOLLOW :
 	    FOLLOW;
@@ -1188,12 +1055,6 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	error = copyinstr(args->dir, mntonname, MNAMELEN - 1, NULL);
 	if (error != 0)
 		goto out;
-
-#ifdef DEBUG
-	if (ldebug(mount))
-		printf(ARGS(mount, "%s, %s, %s"),
-		    fstypename, mntfromname, mntonname);
-#endif
 
 	if (strcmp(fstypename, "ext2") == 0) {
 		strcpy(fstypename, "ext2fs");
@@ -1503,11 +1364,6 @@ int
 linux_fcntl(struct thread *td, struct linux_fcntl_args *args)
 {
 
-#ifdef DEBUG
-	if (ldebug(fcntl))
-		printf(ARGS(fcntl, "%d, %08x, *"), args->fd, args->cmd);
-#endif
-
 	return (fcntl_common(td, args));
 }
 
@@ -1519,11 +1375,6 @@ linux_fcntl64(struct thread *td, struct linux_fcntl64_args *args)
 	struct flock bsd_flock;
 	struct linux_fcntl_args fcntl_args;
 	int error;
-
-#ifdef DEBUG
-	if (ldebug(fcntl64))
-		printf(ARGS(fcntl64, "%d, %08x, *"), args->fd, args->cmd);
-#endif
 
 	switch (args->cmd) {
 	case LINUX_F_GETLK64:
@@ -1574,10 +1425,6 @@ linux_chown(struct thread *td, struct linux_chown_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(chown))
-		printf(ARGS(chown, "%s, %d, %d"), path, args->uid, args->gid);
-#endif
 	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE, args->uid,
 	    args->gid, 0);
 	LFREEPATH(path);
@@ -1597,11 +1444,6 @@ linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD :  args->dfd;
 	LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
 
-#ifdef DEBUG
-	if (ldebug(fchownat))
-		printf(ARGS(fchownat, "%s, %d, %d"), path, args->uid, args->gid);
-#endif
-
 	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
 	    AT_SYMLINK_NOFOLLOW;
 	error = kern_fchownat(td, dfd, path, UIO_SYSSPACE, args->uid, args->gid,
@@ -1619,10 +1461,6 @@ linux_lchown(struct thread *td, struct linux_lchown_args *args)
 
 	LCONVPATHEXIST(td, args->path, &path);
 
-#ifdef DEBUG
-	if (ldebug(lchown))
-		printf(ARGS(lchown, "%s, %d, %d"), path, args->uid, args->gid);
-#endif
 	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE, args->uid,
 	    args->gid, AT_SYMLINK_NOFOLLOW);
 	LFREEPATH(path);
@@ -1698,11 +1536,6 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 	int fildes[2];
 	int error;
 
-#ifdef DEBUG
-	if (ldebug(pipe))
-		printf(ARGS(pipe, "*"));
-#endif
-
 	error = kern_pipe(td, fildes, 0, NULL, NULL);
 	if (error != 0)
 		return (error);
@@ -1722,11 +1555,6 @@ linux_pipe2(struct thread *td, struct linux_pipe2_args *args)
 {
 	int fildes[2];
 	int error, flags;
-
-#ifdef DEBUG
-	if (ldebug(pipe2))
-		printf(ARGS(pipe2, "*, %d"), args->flags);
-#endif
 
 	if ((args->flags & ~(LINUX_O_NONBLOCK | LINUX_O_CLOEXEC)) != 0)
 		return (EINVAL);

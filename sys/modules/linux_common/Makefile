@@ -15,13 +15,4 @@ EXPORT_SYMS+=	linux_ioctl_unregister_handler
 EXPORT_SYMS+=	linux_get_osname
 EXPORT_SYMS+=	linux_get_osrelease
 
-.if !defined(KERNBUILDDIR)
-.if defined(DEBUG)
-CFLAGS+=-DDEBUG
-.endif
-.if defined(KTR)
-CFLAGS+=-DKTR
-.endif
-.endif
-
 .include <bsd.kmod.mk>

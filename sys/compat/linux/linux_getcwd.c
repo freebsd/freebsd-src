@@ -65,11 +65,6 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 	char *path;
 	int error, lenused;
 
-#ifdef DEBUG
-	if (ldebug(getcwd))
-		printf(ARGS(getcwd, "%p, %ld"), args->buf, (long)args->bufsize);
-#endif
-
 	/*
 	 * Linux returns ERANGE instead of EINVAL.
 	 */
