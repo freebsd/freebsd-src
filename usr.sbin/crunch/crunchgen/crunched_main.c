@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 
 struct stub {
-    char *name;
-    int (*f)();
+	char *name;
+	int (*f)();
 };
 
 extern char *__progname;
@@ -52,65 +52,64 @@ static void crunched_usage(void);
 int
 main(int argc, char **argv, char **envp)
 {
-    char *slash, *basename;
-    struct stub *ep;
+	char *slash, *basename;
+	struct stub *ep;
 
-    if(argv[0] == NULL || *argv[0] == '\0')
-	crunched_usage();
+	if (argv[0] == NULL || *argv[0] == '\0')
+		crunched_usage();
 
-    slash = strrchr(argv[0], '/');
-    basename = slash? slash+1 : argv[0];
+	slash = strrchr(argv[0], '/');
+	basename = slash ? slash + 1 : argv[0];
 
-    for(ep=entry_points; ep->name != NULL; ep++)
-	if(!strcmp(basename, ep->name)) break;
+	for (ep = entry_points; ep->name != NULL; ep++)
+		if (!strcmp(basename, ep->name))
+			break;
 
-    if(ep->name)
-	return ep->f(argc, argv, envp);
-    else {
-	fprintf(stderr, "%s: %s not compiled in\n", EXECNAME, basename);
-	crunched_usage();
-    }
+	if (ep->name)
+		return ep->f(argc, argv, envp);
+	else {
+		fprintf(stderr, "%s: %s not compiled in\n", EXECNAME, basename);
+		crunched_usage();
+	}
 }
-
 
 int
 crunched_main(int argc, char **argv, char **envp)
 {
-    char *slash;
-    struct stub *ep;
-    int columns, len;
+	char *slash;
+	struct stub *ep;
+	int columns, len;
 
-    if(argc <= 1)
-	crunched_usage();
+	if (argc <= 1)
+		crunched_usage();
 
-    slash = strrchr(argv[1], '/');
-    __progname = slash? slash+1 : argv[1];
+	slash = strrchr(argv[1], '/');
+	__progname = slash ? slash + 1 : argv[1];
 
-    return main(--argc, ++argv, envp);
+	return main(--argc, ++argv, envp);
 }
-
 
 static void
 crunched_usage()
 {
-    int columns, len;
-    struct stub *ep;
+	int columns, len;
+	struct stub *ep;
 
-    fprintf(stderr, "usage: %s <prog> <args> ..., where <prog> is one of:\n",
-	    EXECNAME);
-    columns = 0;
-    for(ep=entry_points; ep->name != NULL; ep++) {
-	len = strlen(ep->name) + 1;
-	if(columns+len < 80)
-	    columns += len;
-	else {
-	    fprintf(stderr, "\n");
-	    columns = len;
+	fprintf(stderr,
+	    "usage: %s <prog> <args> ..., where <prog> is one of:\n", EXECNAME);
+	columns = 0;
+	for (ep = entry_points; ep->name != NULL; ep++) {
+		len = strlen(ep->name) + 1;
+		if (columns + len < 80)
+			columns += len;
+		else {
+			fprintf(stderr, "\n");
+			columns = len;
+		}
+		fprintf(stderr, " %s", ep->name);
 	}
-	fprintf(stderr, " %s", ep->name);
-    }
-    fprintf(stderr, "\n");
-    exit(1);
+	fprintf(stderr, "\n");
+	exit(1);
 }
 
 /* end of crunched_main.c */
