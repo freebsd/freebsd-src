@@ -109,16 +109,6 @@ struct l_cmsghdr {
 #define CMSG_HDRSZ		CMSG_LEN(0)
 #define L_CMSG_HDRSZ		LINUX_CMSG_LEN(0)
 
-/* Supported address families */
-
-#define	LINUX_AF_UNSPEC		0
-#define	LINUX_AF_UNIX		1
-#define	LINUX_AF_INET		2
-#define	LINUX_AF_AX25		3
-#define	LINUX_AF_IPX		4
-#define	LINUX_AF_APPLETALK	5
-#define	LINUX_AF_INET6		10
-
 /* Supported socket types */
 
 #define	LINUX_SOCK_STREAM	1
