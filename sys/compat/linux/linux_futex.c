@@ -643,6 +643,7 @@ futex_wait(struct futex *f, struct waiting_proc *wp, struct timespec *ts,
 
 	if (bitset == 0) {
 		LIN_SDT_PROBE1(futex, futex_wait, return, EINVAL);
+		futex_put(f, wp);
 		return (EINVAL);
 	}
 
