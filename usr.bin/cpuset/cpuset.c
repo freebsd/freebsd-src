@@ -458,15 +458,16 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: cpuset [-l cpu-list] [-s setid] cmd ...\n");
+    "usage: cpuset [-l cpu-list] [-n policy:domain-list] [-s setid] cmd ...\n");
 	fprintf(stderr,
-	    "       cpuset [-l cpu-list] [-s setid] -p pid\n");
+    "       cpuset [-l cpu-list] [-n policy:domain-list] [-s setid] -p pid\n");
 	fprintf(stderr,
-	    "       cpuset [-c] [-l cpu-list] -C -p pid\n");
+    "       cpuset [-c] [-l cpu-list] [-n policy:domain-list] -C -p pid\n");
 	fprintf(stderr,
-	    "       cpuset [-c] [-l cpu-list] [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
+    "       cpuset [-c] [-l cpu-list] [-n policy:domain-list]\n"
+    "              [-j jailid | -p pid | -t tid | -s setid | -x irq]\n");
 	fprintf(stderr,
-	    "       cpuset -g [-cir] [-d domain | -j jailid | -p pid | -t tid | -s setid |\n"
-	    "              -x irq]\n");
+    "       cpuset -g [-cir]\n"
+    "              [-d domain | -j jailid | -p pid | -t tid | -s setid | -x irq]\n");
 	exit(1);
 }
