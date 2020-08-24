@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
@@ -127,6 +128,12 @@ static int linux_to_bsd_sigtbl[LINUX_SIGTBLSZ] = {
 	 */
 	SIGRTMIN,	/* LINUX_SIGPWR */
 	SIGSYS		/* LINUX_SIGSYS */
+};
+
+static struct cdev *dev_shm_cdev;
+static struct cdevsw dev_shm_cdevsw = {
+     .d_version = D_VERSION,
+     .d_name    = "dev_shm",
 };
 
 /*
@@ -523,4 +530,24 @@ linux_to_bsd_sockaddr(const struct l_sockaddr *osa, struct sockaddr **sap,
 out:
 	free(kosa, M_SONAME);
 	return (error);
+}
+
+void
+linux_dev_shm_create(void)
+{
+	int error;
+
+	error = make_dev_p(MAKEDEV_CHECKNAME | MAKEDEV_WAITOK, &dev_shm_cdev,
+	    &dev_shm_cdevsw, NULL, UID_ROOT, GID_WHEEL, 0, "shm/.mountpoint");
+	if (error != 0) {
+		printf("%s: failed to create device node, error %d\n",
+		    __func__, error);
+	}
+}
+
+void
+linux_dev_shm_destroy(void)
+{
+
+	destroy_dev(dev_shm_cdev);
 }

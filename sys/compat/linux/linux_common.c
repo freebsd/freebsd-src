@@ -68,6 +68,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 
 	switch(type) {
 	case MOD_LOAD:
+		linux_dev_shm_create();
 		linux_osd_jail_register();
 		linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,
 		    linux_proc_exit, NULL, 1000);
@@ -81,6 +82,7 @@ linux_common_modevent(module_t mod, int type, void *data)
 		mtx_init(&futex_mtx, "ftllk", NULL, MTX_DEF);
 		break;
 	case MOD_UNLOAD:
+		linux_dev_shm_destroy();
 		linux_osd_jail_deregister();
 		SET_FOREACH(ldhp, linux_device_handler_set)
 			linux_device_unregister_handler(*ldhp);
