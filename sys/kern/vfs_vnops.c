@@ -2513,7 +2513,7 @@ vn_fill_kinfo_vnode(struct vnode *vp, struct kinfo_file *kif)
 	kif->kf_un.kf_file.kf_file_type = vntype_to_kinfo(vp->v_type);
 	freepath = NULL;
 	fullpath = "-";
-	error = vn_fullpath(curthread, vp, &fullpath, &freepath);
+	error = vn_fullpath(vp, &fullpath, &freepath);
 	if (error == 0) {
 		strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
 	}

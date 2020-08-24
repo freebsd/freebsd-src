@@ -189,7 +189,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 			shadow_count = obj->shadow_count;
 			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
-				vn_fullpath(td, vp, &fullpath, &freepath);
+				vn_fullpath(vp, &fullpath, &freepath);
 				vrele(vp);
 			}
 		} else {
