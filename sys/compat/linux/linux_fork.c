@@ -278,6 +278,8 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 	    td->td_tid, (unsigned)args->flags,
 	    args->parent_tidptr, args->child_tidptr);
 
+	if ((args->flags & LINUX_CLONE_PARENT) != 0)
+		return (EINVAL);
 	if (args->flags & LINUX_CLONE_PARENT_SETTID)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
@@ -339,12 +341,8 @@ linux_clone_thread(struct thread *td, struct linux_clone_args *args)
 
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
+	thread_link(newtd, p);
 	bcopy(p->p_comm, newtd->td_name, sizeof(newtd->td_name));
-
-	if (args->flags & LINUX_CLONE_PARENT)
-		thread_link(newtd, p->p_pptr);
-	else
-		thread_link(newtd, p);
 
 	thread_lock(td);
 	/* let the scheduler know about these things. */
