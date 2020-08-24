@@ -1,0 +1,11 @@
+[Unit]
+Description=ZFS Event Daemon (zed)
+Documentation=man:zed(8)
+
+[Service]
+ExecStart=@sbindir@/zed -F
+Restart=on-abort
+
+[Install]
+Alias=zed.service
+WantedBy=zfs.target
