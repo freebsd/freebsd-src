@@ -20,7 +20,6 @@ SRCS+=		bootinfo.c
 SRCS+=		bootinfo32.c
 SRCS+=		bootinfo64.c
 SRCS+=		conf.c
-SRCS+=		console.c
 SRCS+=		copy.c
 SRCS+=		devicename.c
 SRCS+=		elf32_freebsd.c
