@@ -67,7 +67,6 @@ SRCF+=		floatunsisf
 SRCF+=		floatuntidf
 SRCF+=		floatuntisf
 SRCF+=		floatuntixf
-SRCF+=		gcc_personality_v0	# not in upstream
 SRCF+=		int_util
 SRCF+=		lshrdi3
 SRCF+=		lshrti3
