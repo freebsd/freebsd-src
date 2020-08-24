@@ -5976,77 +5976,35 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 		}
 	case SCTP_BINDX_ADD_ADDR:
 		{
-			struct sctp_getaddresses *addrs;
+			struct sockaddr *sa;
 			struct thread *td;
 
 			td = (struct thread *)p;
-			SCTP_CHECK_AND_CAST(addrs, optval, struct sctp_getaddresses,
-			    optsize);
+			SCTP_CHECK_AND_CAST(sa, optval, struct sockaddr, optsize);
 #ifdef INET
-			if (addrs->addr->sa_family == AF_INET) {
-				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in)) {
+			if (sa->sa_family == AF_INET) {
+				if (optsize < sizeof(struct sockaddr_in)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
 				}
-				if (td != NULL && (error = prison_local_ip4(td->td_ucred, &(((struct sockaddr_in *)(addrs->addr))->sin_addr)))) {
+				if (td != NULL &&
+				    (error = prison_local_ip4(td->td_ucred, &(((struct sockaddr_in *)sa)->sin_addr)))) {
 					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
 					break;
 				}
 			} else
 #endif
 #ifdef INET6
-			if (addrs->addr->sa_family == AF_INET6) {
-				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6)) {
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-					error = EINVAL;
-					break;
-				}
-				if (td != NULL && (error = prison_local_ip6(td->td_ucred, &(((struct sockaddr_in6 *)(addrs->addr))->sin6_addr),
-				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
-					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
-					break;
-				}
-			} else
-#endif
-			{
-				error = EAFNOSUPPORT;
-				break;
-			}
-			sctp_bindx_add_address(so, inp, addrs->addr, vrf_id, &error, p);
-			break;
-		}
-	case SCTP_BINDX_REM_ADDR:
-		{
-			struct sctp_getaddresses *addrs;
-			struct thread *td;
-
-			td = (struct thread *)p;
-
-			SCTP_CHECK_AND_CAST(addrs, optval, struct sctp_getaddresses, optsize);
-#ifdef INET
-			if (addrs->addr->sa_family == AF_INET) {
-				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in)) {
-					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-					error = EINVAL;
-					break;
-				}
-				if (td != NULL && (error = prison_local_ip4(td->td_ucred, &(((struct sockaddr_in *)(addrs->addr))->sin_addr)))) {
-					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
-					break;
-				}
-			} else
-#endif
-#ifdef INET6
-			if (addrs->addr->sa_family == AF_INET6) {
-				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6)) {
+			if (sa->sa_family == AF_INET6) {
+				if (optsize < sizeof(struct sockaddr_in6)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
 				}
 				if (td != NULL &&
 				    (error = prison_local_ip6(td->td_ucred,
-				    &(((struct sockaddr_in6 *)(addrs->addr))->sin6_addr),
+				    &(((struct sockaddr_in6 *)sa)->sin6_addr),
 				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
 					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
 					break;
@@ -6057,7 +6015,52 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EAFNOSUPPORT;
 				break;
 			}
-			sctp_bindx_delete_address(inp, addrs->addr, vrf_id, &error);
+			sctp_bindx_add_address(so, inp, sa, vrf_id, &error, p);
+			break;
+		}
+	case SCTP_BINDX_REM_ADDR:
+		{
+			struct sockaddr *sa;
+			struct thread *td;
+
+			td = (struct thread *)p;
+
+			SCTP_CHECK_AND_CAST(sa, optval, struct sockaddr, optsize);
+#ifdef INET
+			if (sa->sa_family == AF_INET) {
+				if (optsize < sizeof(struct sockaddr_in)) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+					break;
+				}
+				if (td != NULL &&
+				    (error = prison_local_ip4(td->td_ucred, &(((struct sockaddr_in *)sa)->sin_addr)))) {
+					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
+					break;
+				}
+			} else
+#endif
+#ifdef INET6
+			if (sa->sa_family == AF_INET6) {
+				if (optsize < sizeof(struct sockaddr_in6)) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+					error = EINVAL;
+					break;
+				}
+				if (td != NULL &&
+				    (error = prison_local_ip6(td->td_ucred,
+				    &(((struct sockaddr_in6 *)sa)->sin6_addr),
+				    (SCTP_IPV6_V6ONLY(inp) != 0))) != 0) {
+					SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_USRREQ, error);
+					break;
+				}
+			} else
+#endif
+			{
+				error = EAFNOSUPPORT;
+				break;
+			}
+			sctp_bindx_delete_address(inp, sa, vrf_id, &error);
 			break;
 		}
 	case SCTP_EVENT:

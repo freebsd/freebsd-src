@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -170,13 +171,12 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 int
 sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 {
-	struct sctp_getaddresses *gaddrs;
 	struct sockaddr *sa;
 	struct sockaddr_in *sin;
 	struct sockaddr_in6 *sin6;
 	int i;
-	size_t argsz;
-	uint16_t sport = 0;
+	uint16_t sport;
+	bool fix_port;
 
 	/* validate the flags */
 	if ((flags != SCTP_BINDX_ADD_ADDR) &&
@@ -189,6 +189,8 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		errno = EINVAL;
 		return (-1);
 	}
+	sport = 0;
+	fix_port = false;
 	/* First pre-screen the addresses */
 	sa = addrs;
 	for (i = 0; i < addrcnt; i++) {
@@ -210,6 +212,7 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 				} else {
 					/* save off the port */
 					sport = sin->sin_port;
+					fix_port = (i > 0);
 				}
 			}
 			break;
@@ -230,6 +233,7 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 				} else {
 					/* save off the port */
 					sport = sin6->sin6_port;
+					fix_port = (i > 0);
 				}
 			}
 			break;
@@ -240,42 +244,29 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		}
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 	}
-	argsz = sizeof(struct sctp_getaddresses) +
-	    sizeof(struct sockaddr_storage);
-	if ((gaddrs = (struct sctp_getaddresses *)malloc(argsz)) == NULL) {
-		errno = ENOMEM;
-		return (-1);
-	}
 	sa = addrs;
 	for (i = 0; i < addrcnt; i++) {
-		memset(gaddrs, 0, argsz);
-		gaddrs->sget_assoc_id = 0;
-		memcpy(gaddrs->addr, sa, sa->sa_len);
 		/*
 		 * Now, if there was a port mentioned, assure that the first
 		 * address has that port to make sure it fails or succeeds
 		 * correctly.
 		 */
-		if ((i == 0) && (sport != 0)) {
-			switch (gaddrs->addr->sa_family) {
+		if (fix_port) {
+			switch (sa->sa_family) {
 			case AF_INET:
-				sin = (struct sockaddr_in *)gaddrs->addr;
-				sin->sin_port = sport;
+				((struct sockaddr_in *)sa)->sin_port = sport;
 				break;
 			case AF_INET6:
-				sin6 = (struct sockaddr_in6 *)gaddrs->addr;
-				sin6->sin6_port = sport;
+				((struct sockaddr_in6 *)sa)->sin6_port = sport;
 				break;
 			}
+			fix_port = false;
 		}
-		if (setsockopt(sd, IPPROTO_SCTP, flags, gaddrs,
-		    (socklen_t)argsz) != 0) {
-			free(gaddrs);
+		if (setsockopt(sd, IPPROTO_SCTP, flags, sa, sa->sa_len) != 0) {
 			return (-1);
 		}
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 	}
-	free(gaddrs);
 	return (0);
 }
 
