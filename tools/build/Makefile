@@ -130,7 +130,7 @@ host-symlinks:
 		echo "Cannot find host tool '${_tool}'"; false; \
 	fi; \
 	rm -f "${DESTDIR}/bin/${_tool}"; \
-	cp -f "$${source_path}" "${DESTDIR}/bin/${_tool}"
+	cp -pf "$${source_path}" "${DESTDIR}/bin/${_tool}"
 .endfor
 .for _tool in ${_host_abs_tools_to_symlink}
 	@source_path="${_tool:S/:/ /:[1]}"; \
@@ -139,11 +139,11 @@ host-symlinks:
 		echo "Host tool '${src_path}' is missing"; false; \
 	fi; \
 	rm -f "$${target_path}"; \
-	cp -f "$${source_path}" "$${target_path}"
+	cp -pf "$${source_path}" "$${target_path}"
 .endfor
 .if exists(/usr/libexec/flua)
 	rm -f ${DESTDIR}/usr/libexec/flua
-	cp -f /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
+	cp -pf /usr/libexec/flua ${DESTDIR}/usr/libexec/flua
 .endif
 
 # Create all the directories that are needed during the legacy, bootstrap-tools
