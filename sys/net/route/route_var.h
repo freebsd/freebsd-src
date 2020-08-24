@@ -168,22 +168,9 @@ struct rtentry {
 	int		rte_flags;	/* up/down?, host/net */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_mtx
-	struct mtx	rt_mtx;		/* mutex for routing entry */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
 	struct epoch_context	rt_epoch_ctx;	/* net epoch tracker */
 };
-
-#define	RT_LOCK_INIT(_rt) \
-	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW)
-#define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
-#define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
-#define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
-#define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
-#define	RT_UNLOCK_COND(_rt)	do {				\
-	if (mtx_owned(&(_rt)->rt_mtx))				\
-		mtx_unlock(&(_rt)->rt_mtx);			\
-} while (0)
 
 /*
  * With the split between the routing entry and the nexthop,
