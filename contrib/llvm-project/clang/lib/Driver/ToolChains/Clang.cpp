@@ -1879,8 +1879,8 @@ void Clang::AddPPCTargetArgs(const ArgList &Args,
         ABIName = "elfv1-qpx";
         break;
       }
-
-      if (T.isMusl() || (T.isOSFreeBSD() && T.getOSMajorVersion() >= 13))
+      if ((T.isOSFreeBSD() && T.getOSMajorVersion() >= 13) ||
+          T.isOSOpenBSD() || T.isMusl())
         ABIName = "elfv2";
       else
         ABIName = "elfv1";
@@ -2971,7 +2971,7 @@ static void RenderSCPOptions(const ToolChain &TC, const ArgList &Args,
     return;
 
   if (Args.hasFlag(options::OPT_fstack_clash_protection,
-                   options::OPT_fnostack_clash_protection, false))
+                   options::OPT_fno_stack_clash_protection, false))
     CmdArgs.push_back("-fstack-clash-protection");
 }
 
