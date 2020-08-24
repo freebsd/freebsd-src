@@ -214,18 +214,19 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	/* Verify the allowed flag mask. */
 	KASSERT(((flags & ~(RTF_GATEWAY)) == 0),
 	    ("invalid redirect flags: %x", flags));
+	flags |= RTF_HOST | RTF_DYNAMIC;
 
 	/* Get the best ifa for the given interface and gateway. */
 	if ((ifa = ifaof_ifpforaddr(gateway, ifp)) == NULL)
 		return (ENETUNREACH);
 	ifa_ref(ifa);
-	
+
 	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_DST] = dst;
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_ifa = ifa;
 	info.rti_ifp = ifp;
-	info.rti_flags = flags | RTF_HOST | RTF_DYNAMIC;
+	info.rti_flags = flags;
 
 	/* Setup route metrics to define expire time. */
 	bzero(&rti_rmx, sizeof(rti_rmx));
@@ -242,10 +243,6 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 		return (error);
 	}
 
-	RT_LOCK(rc.rc_rt);
-	flags = rc.rc_rt->rte_flags;
-	RT_UNLOCK(rc.rc_rt);
-
 	RTSTAT_INC(rts_dynamic);
 
 	/* Send notification of a route addition to userland. */
@@ -253,7 +250,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	info.rti_info[RTAX_DST] = dst;
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_AUTHOR] = author;
-	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
+	rt_missmsg_fib(RTM_REDIRECT, &info, flags | RTF_UP, error, fibnum);
 
 	return (0);
 }
@@ -811,9 +808,7 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 		 */
 		if (rn) {
 			rto = RNTORT(rn);
-			RT_LOCK(rto);
 			rto->rte_flags |= RTF_UP;
-			RT_UNLOCK(rto);
 		} else if (rt->rte_flags & RTF_GATEWAY) {
 			/*
 			 * For gateway routes, we need to 

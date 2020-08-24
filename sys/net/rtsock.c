@@ -184,9 +184,9 @@ static void	rt_getmetrics(const struct rtentry *rt,
 static void	rt_dispatch(struct mbuf *, sa_family_t);
 static int	handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 			struct rt_msghdr *rtm, struct rib_cmd_info *rc);
-static int	update_rtm_from_rte(struct rt_addrinfo *info,
+static int	update_rtm_from_rc(struct rt_addrinfo *info,
 			struct rt_msghdr **prtm, int alloc_len,
-			struct rtentry *rt, struct nhop_object *nh);
+			struct rib_cmd_info *rc, struct nhop_object *nh);
 static void	send_rtm_reply(struct socket *so, struct rt_msghdr *rtm,
 			struct mbuf *m, sa_family_t saf, u_int fibnum,
 			int rtm_errno);
@@ -747,7 +747,7 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 }
 
 /*
- * Update sockaddrs, flags, etc in @prtm based on @rt data.
+ * Update sockaddrs, flags, etc in @prtm based on @rc data.
  * rtm can be reallocated.
  *
  * Returns 0 on success, along with pointer to (potentially reallocated)
@@ -755,8 +755,8 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
  *
  */
 static int
-update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
-    int alloc_len, struct rtentry *rt, struct nhop_object *nh)
+update_rtm_from_rc(struct rt_addrinfo *info, struct rt_msghdr **prtm,
+    int alloc_len, struct rib_cmd_info *rc, struct nhop_object *nh)
 {
 	struct sockaddr_storage netmask_ss;
 	struct walkarg w;
@@ -767,10 +767,10 @@ update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 
 	rtm = *prtm;
 
-	info->rti_info[RTAX_DST] = rt_key(rt);
+	info->rti_info[RTAX_DST] = rt_key(rc->rc_rt);
 	info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
-	info->rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
-	    rt_mask(rt), &netmask_ss);
+	info->rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rc->rc_rt),
+	    rt_mask(rc->rc_rt), &netmask_ss);
 	info->rti_info[RTAX_GENMASK] = 0;
 	ifp = nh->nh_ifp;
 	if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
@@ -815,12 +815,12 @@ update_rtm_from_rte(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	w.w_tmemsize = alloc_len;
 	rtsock_msg_buffer(rtm->rtm_type, info, &w, &len);
 
-	if (rt->rte_flags & RTF_GWFLAG_COMPAT)
+	rtm->rtm_flags = rc->rc_rt->rte_flags | nhop_get_rtflags(nh);
+	if (rtm->rtm_flags & RTF_GWFLAG_COMPAT)
 		rtm->rtm_flags = RTF_GATEWAY | 
-			(rt->rte_flags & ~RTF_GWFLAG_COMPAT);
-	else
-		rtm->rtm_flags = rt->rte_flags;
-	rt_getmetrics(rt, nh, &rtm->rtm_rmx);
+			(rtm->rtm_flags & ~RTF_GWFLAG_COMPAT);
+	rt_getmetrics(rc->rc_rt, nh, &rtm->rtm_rmx);
+	rtm->rtm_rmx.rmx_weight = rc->rc_nh_weight;
 	rtm->rtm_addrs = info->rti_addrs;
 
 	if (orig_rtm != NULL)
@@ -918,8 +918,8 @@ route_output(struct mbuf *m, struct socket *so, ...)
 #ifdef INET6
 			rti_need_deembed = 1;
 #endif
-			rtm->rtm_index = rc.rc_nh_new->nh_ifp->if_index;
 			nh = rc.rc_nh_new;
+			rtm->rtm_index = nh->nh_ifp->if_index;
 		}
 		break;
 
@@ -946,7 +946,7 @@ report:
 			senderr(ESRCH);
 		}
 
-		error = update_rtm_from_rte(&info, &rtm, alloc_len, rc.rc_rt, nh);
+		error = update_rtm_from_rc(&info, &rtm, alloc_len, &rc, nh);
 		/*
 		 * Note that some sockaddr pointers may have changed to
 		 * point to memory outsize @rtm. Some may be pointing

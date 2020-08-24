@@ -149,9 +149,6 @@ rtfree(struct rtentry *rt)
 
 	KASSERT(rt != NULL, ("%s: NULL rt", __func__));
 
-	RT_LOCK_ASSERT(rt);
-
-	RT_UNLOCK(rt);
 	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
 	    &rt->rt_epoch_ctx);
 }
@@ -250,7 +247,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		nhop_free(nh);
 		return (ENOBUFS);
 	}
-	RT_LOCK_INIT(rt);
 	rt->rte_flags = RTF_UP | flags;
 	rt->rt_nhop = nh;
 
@@ -283,7 +279,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	rt_old = NULL;
 
 	RIB_WLOCK(rnh);
-	RT_LOCK(rt);
 #ifdef RADIX_MPATH
 	/* do not permit exactly the same dst/mask/gw pair */
 	if (rt_mpath_capable(rnh) &&
@@ -291,7 +286,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		RIB_WUNLOCK(rnh);
 
 		nhop_free(nh);
-		RT_LOCK_DESTROY(rt);
 		uma_zfree(V_rtzone, rt);
 		return (EEXIST);
 	}
@@ -307,8 +301,9 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 		/* Finalize notification */
 		rnh->rnh_gen++;
 
-		rc->rc_rt = RNTORT(rn);
+		rc->rc_rt = rt;
 		rc->rc_nh_new = nh;
+		rc->rc_nh_weight = rt->rt_weight;
 
 		rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
 	} else if ((info->rti_flags & RTF_PINNED) != 0) {
@@ -333,14 +328,15 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 			if (rn != NULL) {
 				rc->rc_cmd = RTM_CHANGE;
-				rc->rc_rt = RNTORT(rn);
+				rc->rc_rt = rt;
 				rc->rc_nh_old = rt_old->rt_nhop;
 				rc->rc_nh_new = nh;
+				rc->rc_nh_weight = rt->rt_weight;
 			} else {
 				rc->rc_cmd = RTM_DELETE;
-				rc->rc_rt = RNTORT(rn);
+				rc->rc_rt = rt_old;
 				rc->rc_nh_old = rt_old->rt_nhop;
-				rc->rc_nh_new = nh;
+				rc->rc_nh_weight = rt_old->rt_weight;
 			}
 			rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
 		}
@@ -359,12 +355,9 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 	 */
 	if (rn == NULL) {
 		nhop_free(nh);
-		RT_LOCK_DESTROY(rt);
 		uma_zfree(V_rtzone, rt);
 		return (EEXIST);
 	}
-
-	RT_UNLOCK(rt);
 
 	return (0);
 }
@@ -461,7 +454,6 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, int *perror)
 		panic ("rtrequest delete");
 
 	rt = RNTORT(rn);
-	RT_LOCK(rt);
 	rt->rte_flags &= ~RTF_UP;
 
 	*perror = 0;
@@ -620,21 +612,19 @@ change_route_one(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 
 	/* Proceed with the update */
-	RT_LOCK(rt);
 
 	/* Provide notification to the protocols.*/
 	rt->rt_nhop = nh;
 	rt_setmetrics(info, rt);
 
 	/* Finalize notification */
+	rnh->rnh_gen++;
+
 	rc->rc_rt = rt;
 	rc->rc_nh_old = nh_orig;
 	rc->rc_nh_new = rt->rt_nhop;
+	rc->rc_nh_weight = rt->rt_weight;
 
-	RT_UNLOCK(rt);
-
-	/* Update generation id to reflect rtable change */
-	rnh->rnh_gen++;
 	rib_notify(rnh, RIB_NOTIFY_IMMEDIATE, rc);
 
 	RIB_WUNLOCK(rnh);
