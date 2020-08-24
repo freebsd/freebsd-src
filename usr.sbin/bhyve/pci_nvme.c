@@ -932,6 +932,7 @@ nvme_opc_create_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 			    NVME_SC_MAXIMUM_QUEUE_SIZE_EXCEEDED);
 			return (1);
 		}
+		nsq->head = nsq->tail = 0;
 
 		nsq->cqid = (command->cdw11 >> 16) & 0xffff;
 		if ((nsq->cqid == 0) || (nsq->cqid > sc->num_cqueues)) {
@@ -1053,6 +1054,7 @@ nvme_opc_create_io_cq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		    NVME_SC_MAXIMUM_QUEUE_SIZE_EXCEEDED);
 		return (1);
 	}
+	ncq->head = ncq->tail = 0;
 	ncq->qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx,
 		     command->prp1,
 		     sizeof(struct nvme_command) * (size_t)ncq->size);
