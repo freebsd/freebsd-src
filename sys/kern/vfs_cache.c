@@ -2003,24 +2003,22 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	}
 
 	if (vp != NULL) {
-		if (vp->v_type == VDIR) {
-			if (flag != NCF_ISDOTDOT) {
-				/*
-				 * For this case, the cache entry maps both the
-				 * directory name in it and the name ".." for the
-				 * directory's parent.
-				 */
-				vn_seqc_write_begin(vp);
-				if ((ndd = vp->v_cache_dd) != NULL) {
-					if ((ndd->nc_flag & NCF_ISDOTDOT) != 0)
-						cache_zap_locked(ndd);
-					else
-						ndd = NULL;
-				}
-				vp->v_cache_dd = ncp;
-				vn_seqc_write_end(vp);
+		if (flag != NCF_ISDOTDOT) {
+			/*
+			 * For this case, the cache entry maps both the
+			 * directory name in it and the name ".." for the
+			 * directory's parent.
+			 */
+			vn_seqc_write_begin(vp);
+			if ((ndd = vp->v_cache_dd) != NULL) {
+				if ((ndd->nc_flag & NCF_ISDOTDOT) != 0)
+					cache_zap_locked(ndd);
+				else
+					ndd = NULL;
 			}
-		} else {
+			vp->v_cache_dd = ncp;
+			vn_seqc_write_end(vp);
+		} else if (vp->v_type != VDIR) {
 			if (vp->v_cache_dd != NULL) {
 				vn_seqc_write_begin(vp);
 				vp->v_cache_dd = NULL;
