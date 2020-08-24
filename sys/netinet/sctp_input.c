@@ -3046,7 +3046,8 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 {
 	switch (desc->chunk_type) {
 	case SCTP_DATA:
-		/* find the tsn to resend (possibly */
+	case SCTP_IDATA:
+		/* find the tsn to resend (possibly) */
 		{
 			uint32_t tsn;
 			struct sctp_tmit_chunk *tp1;
@@ -3080,8 +3081,6 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 				SCTP_STAT_INCR(sctps_pdrptsnnf);
 			}
 			if ((tp1) && (tp1->sent < SCTP_DATAGRAM_ACKED)) {
-				uint8_t *ddp;
-
 				if (((flg & SCTP_BADCRC) == 0) &&
 				    ((flg & SCTP_FROM_MIDDLE_BOX) == 0)) {
 					return (0);
@@ -3096,20 +3095,18 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 					SCTP_STAT_INCR(sctps_pdrpdizrw);
 					return (0);
 				}
-				ddp = (uint8_t *)(mtod(tp1->data, caddr_t)+
-				    sizeof(struct sctp_data_chunk));
-				{
-					unsigned int iii;
-
-					for (iii = 0; iii < sizeof(desc->data_bytes);
-					    iii++) {
-						if (ddp[iii] != desc->data_bytes[iii]) {
-							SCTP_STAT_INCR(sctps_pdrpbadd);
-							return (-1);
-						}
-					}
+				if ((uint32_t)SCTP_BUF_LEN(tp1->data) <
+				    SCTP_DATA_CHUNK_OVERHEAD(stcb) + SCTP_NUM_DB_TO_VERIFY) {
+					/* Payload not matching. */
+					SCTP_STAT_INCR(sctps_pdrpbadd);
+					return (-1);
 				}
-
+				if (memcmp(mtod(tp1->data, caddr_t)+SCTP_DATA_CHUNK_OVERHEAD(stcb),
+				    desc->data_bytes, SCTP_NUM_DB_TO_VERIFY) != 0) {
+					/* Payload not matching. */
+					SCTP_STAT_INCR(sctps_pdrpbadd);
+					return (-1);
+				}
 				if (tp1->do_rtt) {
 					/*
 					 * this guy had a RTO calculation
@@ -4135,104 +4132,126 @@ static void
 sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t limit)
 {
-	uint32_t bottle_bw, on_queue;
-	uint16_t trunc_len;
-	unsigned int chlen;
-	unsigned int at;
 	struct sctp_chunk_desc desc;
-	struct sctp_chunkhdr *ch;
+	struct sctp_chunkhdr *chk_hdr;
+	struct sctp_data_chunk *data_chunk;
+	struct sctp_idata_chunk *idata_chunk;
+	uint32_t bottle_bw, on_queue;
+	uint32_t offset, chk_len;
+	uint16_t trunc_len;
+	uint16_t pktdrp_len;
+	uint8_t pktdrp_flags;
 
-	chlen = ntohs(cp->ch.chunk_length);
-	chlen -= sizeof(struct sctp_pktdrop_chunk);
-	/* XXX possible chlen underflow */
-	if (chlen == 0) {
-		ch = NULL;
-		if (cp->ch.chunk_flags & SCTP_FROM_MIDDLE_BOX)
-			SCTP_STAT_INCR(sctps_pdrpbwrpt);
+	KASSERT(sizeof(struct sctp_pktdrop_chunk) <= limit,
+	    ("PKTDROP chunk too small"));
+	pktdrp_flags = cp->ch.chunk_flags;
+	pktdrp_len = ntohs(cp->ch.chunk_length);
+	KASSERT(limit <= pktdrp_len, ("Inconsistent limit"));
+	if (pktdrp_flags & SCTP_PACKET_TRUNCATED) {
+		trunc_len = ntohs(cp->trunc_len);
+		if (trunc_len <= pktdrp_len - sizeof(struct sctp_pktdrop_chunk)) {
+			/* The peer plays games with us. */
+			return;
+		}
 	} else {
-		ch = (struct sctp_chunkhdr *)(cp->data + sizeof(struct sctphdr));
-		chlen -= sizeof(struct sctphdr);
-		/* XXX possible chlen underflow */
-		memset(&desc, 0, sizeof(desc));
+		trunc_len = 0;
 	}
-	trunc_len = (uint16_t)ntohs(cp->trunc_len);
-	if (trunc_len > limit) {
-		trunc_len = limit;
+	limit -= sizeof(struct sctp_pktdrop_chunk);
+	offset = 0;
+	if (offset == limit) {
+		if (pktdrp_flags & SCTP_FROM_MIDDLE_BOX) {
+			SCTP_STAT_INCR(sctps_pdrpbwrpt);
+		}
+	} else if (offset + sizeof(struct sctphdr) > limit) {
+		/* Only a partial SCTP common header. */
+		SCTP_STAT_INCR(sctps_pdrpcrupt);
+		offset = limit;
+	} else {
+		/* XXX: Check embedded SCTP common header. */
+		offset += sizeof(struct sctphdr);
 	}
-
-	/* now the chunks themselves */
-	while ((ch != NULL) && (chlen >= sizeof(struct sctp_chunkhdr))) {
-		desc.chunk_type = ch->chunk_type;
-		/* get amount we need to move */
-		at = ntohs(ch->chunk_length);
-		if (at < sizeof(struct sctp_chunkhdr)) {
-			/* corrupt chunk, maybe at the end? */
+	/* Now parse through the chunks themselves. */
+	while (offset < limit) {
+		if (offset + sizeof(struct sctp_chunkhdr) > limit) {
 			SCTP_STAT_INCR(sctps_pdrpcrupt);
 			break;
 		}
-		if (trunc_len == 0) {
-			/* we are supposed to have all of it */
-			if (at > chlen) {
-				/* corrupt skip it */
-				SCTP_STAT_INCR(sctps_pdrpcrupt);
-				break;
-			}
-		} else {
-			/* is there enough of it left ? */
-			if (desc.chunk_type == SCTP_DATA) {
-				if (chlen < (sizeof(struct sctp_data_chunk) +
-				    sizeof(desc.data_bytes))) {
-					break;
-				}
-			} else {
-				if (chlen < sizeof(struct sctp_chunkhdr)) {
-					break;
-				}
-			}
+		chk_hdr = (struct sctp_chunkhdr *)(cp->data + offset);
+		desc.chunk_type = chk_hdr->chunk_type;
+		/* get amount we need to move */
+		chk_len = (uint32_t)ntohs(chk_hdr->chunk_length);
+		if (chk_len < sizeof(struct sctp_chunkhdr)) {
+			/* Someone is lying... */
+			break;
 		}
 		if (desc.chunk_type == SCTP_DATA) {
-			/* can we get out the tsn? */
-			if ((cp->ch.chunk_flags & SCTP_FROM_MIDDLE_BOX))
-				SCTP_STAT_INCR(sctps_pdrpmbda);
-
-			if (chlen >= (sizeof(struct sctp_data_chunk) + sizeof(uint32_t))) {
-				/* yep */
-				struct sctp_data_chunk *dcp;
-				uint8_t *ddp;
-				unsigned int iii;
-
-				dcp = (struct sctp_data_chunk *)ch;
-				ddp = (uint8_t *)(dcp + 1);
-				for (iii = 0; iii < sizeof(desc.data_bytes); iii++) {
-					desc.data_bytes[iii] = ddp[iii];
-				}
-				desc.tsn_ifany = dcp->dp.tsn;
-			} else {
-				/* nope we are done. */
-				SCTP_STAT_INCR(sctps_pdrpnedat);
+			if (stcb->asoc.idata_supported) {
+				/* Some is playing games with us. */
 				break;
 			}
+			if (chk_len <= sizeof(struct sctp_data_chunk)) {
+				/* Some is playing games with us. */
+				break;
+			}
+			if (chk_len < sizeof(struct sctp_data_chunk) + SCTP_NUM_DB_TO_VERIFY) {
+				/*
+				 * Not enough data bytes available in the
+				 * chunk.
+				 */
+				SCTP_STAT_INCR(sctps_pdrpnedat);
+				goto next_chunk;
+			}
+			if (offset + sizeof(struct sctp_data_chunk) + SCTP_NUM_DB_TO_VERIFY > limit) {
+				/* Not enough data in buffer. */
+				break;
+			}
+			data_chunk = (struct sctp_data_chunk *)(cp->data + offset);
+			memcpy(desc.data_bytes, data_chunk + 1, SCTP_NUM_DB_TO_VERIFY);
+			desc.tsn_ifany = data_chunk->dp.tsn;
+			if (pktdrp_flags & SCTP_FROM_MIDDLE_BOX) {
+				SCTP_STAT_INCR(sctps_pdrpmbda);
+			}
+		} else if (desc.chunk_type == SCTP_IDATA) {
+			if (!stcb->asoc.idata_supported) {
+				/* Some is playing games with us. */
+				break;
+			}
+			if (chk_len <= sizeof(struct sctp_idata_chunk)) {
+				/* Some is playing games with us. */
+				break;
+			}
+			if (chk_len < sizeof(struct sctp_idata_chunk) + SCTP_NUM_DB_TO_VERIFY) {
+				/*
+				 * Not enough data bytes available in the
+				 * chunk.
+				 */
+				SCTP_STAT_INCR(sctps_pdrpnedat);
+				goto next_chunk;
+			}
+			if (offset + sizeof(struct sctp_idata_chunk) + SCTP_NUM_DB_TO_VERIFY > limit) {
+				/* Not enough data in buffer. */
+				break;
+			}
+			idata_chunk = (struct sctp_idata_chunk *)(cp->data + offset);
+			memcpy(desc.data_bytes, idata_chunk + 1, SCTP_NUM_DB_TO_VERIFY);
+			desc.tsn_ifany = idata_chunk->dp.tsn;
+			if (pktdrp_flags & SCTP_FROM_MIDDLE_BOX) {
+				SCTP_STAT_INCR(sctps_pdrpmbda);
+			}
 		} else {
-			if ((cp->ch.chunk_flags & SCTP_FROM_MIDDLE_BOX))
+			if (pktdrp_flags & SCTP_FROM_MIDDLE_BOX) {
 				SCTP_STAT_INCR(sctps_pdrpmbct);
+			}
 		}
-
-		if (process_chunk_drop(stcb, &desc, net, cp->ch.chunk_flags)) {
+		if (process_chunk_drop(stcb, &desc, net, pktdrp_flags)) {
 			SCTP_STAT_INCR(sctps_pdrppdbrk);
 			break;
 		}
-		if (SCTP_SIZE32(at) > chlen) {
-			break;
-		}
-		chlen -= SCTP_SIZE32(at);
-		if (chlen < sizeof(struct sctp_chunkhdr)) {
-			/* done, none left */
-			break;
-		}
-		ch = (struct sctp_chunkhdr *)((caddr_t)ch + SCTP_SIZE32(at));
+next_chunk:
+		offset += SCTP_SIZE32(chk_len);
 	}
 	/* Now update any rwnd --- possibly */
-	if ((cp->ch.chunk_flags & SCTP_FROM_MIDDLE_BOX) == 0) {
+	if ((pktdrp_flags & SCTP_FROM_MIDDLE_BOX) == 0) {
 		/* From a peer, we get a rwnd report */
 		uint32_t a_rwnd;
 
@@ -4268,7 +4287,7 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	}
 
 	/* now middle boxes in sat networks get a cwnd bump */
-	if ((cp->ch.chunk_flags & SCTP_FROM_MIDDLE_BOX) &&
+	if ((pktdrp_flags & SCTP_FROM_MIDDLE_BOX) &&
 	    (stcb->asoc.sat_t3_loss_recovery == 0) &&
 	    (stcb->asoc.sat_network)) {
 		/*
