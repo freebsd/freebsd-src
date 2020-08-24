@@ -517,7 +517,8 @@ main(int argc, char **argv)
 			if (!flag_B)
 				loop = 0;
 			else
-				fflush(stdout);
+				if (fflush(stdout) == EOF)
+					goto out;
 			usleep(flag_I);
 			continue;
 		}
@@ -585,7 +586,7 @@ main(int argc, char **argv)
 			}
 		}
 	}
-
+out:
 	if (!flag_b) {
 		el_end(el);
 		endwin();
