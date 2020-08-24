@@ -315,11 +315,6 @@ typedef struct callout sctp_os_timer_t;
                                                  rt->rt_mtu = mtu; \
                                            } while(0)
 
-/* (de-)register interface event notifications */
-#define SCTP_REGISTER_INTERFACE(ifhandle, af)
-#define SCTP_DEREGISTER_INTERFACE(ifhandle, af)
-
-
 /*************************/
 /* These are for logging */
 /*************************/
