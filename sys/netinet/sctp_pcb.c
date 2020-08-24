@@ -2739,23 +2739,54 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 			}
 		}
 	}
-	/*
-	 * Now any running timers need to be adjusted since we really don't
-	 * care if they are running or not just blast in the new_inp into
-	 * all of them.
-	 */
-
-	stcb->asoc.dack_timer.ep = (void *)new_inp;
-	stcb->asoc.asconf_timer.ep = (void *)new_inp;
-	stcb->asoc.strreset_timer.ep = (void *)new_inp;
-	stcb->asoc.shut_guard_timer.ep = (void *)new_inp;
-	stcb->asoc.autoclose_timer.ep = (void *)new_inp;
-	stcb->asoc.delete_prim_timer.ep = (void *)new_inp;
+	/* Now any running timers need to be adjusted. */
+	if (stcb->asoc.dack_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.dack_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.asconf_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.asconf_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.strreset_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.strreset_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.shut_guard_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.shut_guard_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.autoclose_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.autoclose_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
+	if (stcb->asoc.delete_prim_timer.ep == old_inp) {
+		SCTP_INP_DECR_REF(old_inp);
+		stcb->asoc.delete_prim_timer.ep = new_inp;
+		SCTP_INP_INCR_REF(new_inp);
+	}
 	/* now what about the nets? */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-		net->pmtu_timer.ep = (void *)new_inp;
-		net->hb_timer.ep = (void *)new_inp;
-		net->rxt_timer.ep = (void *)new_inp;
+		if (net->pmtu_timer.ep == old_inp) {
+			SCTP_INP_DECR_REF(old_inp);
+			net->pmtu_timer.ep = new_inp;
+			SCTP_INP_INCR_REF(new_inp);
+		}
+		if (net->hb_timer.ep == old_inp) {
+			SCTP_INP_DECR_REF(old_inp);
+			net->hb_timer.ep = new_inp;
+			SCTP_INP_INCR_REF(new_inp);
+		}
+		if (net->rxt_timer.ep == old_inp) {
+			SCTP_INP_DECR_REF(old_inp);
+			net->rxt_timer.ep = new_inp;
+			SCTP_INP_INCR_REF(new_inp);
+		}
 	}
 	SCTP_INP_WUNLOCK(new_inp);
 	SCTP_INP_WUNLOCK(old_inp);
@@ -3562,7 +3593,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		being_refed++;
 	if (SCTP_ASOC_CREATE_LOCK_CONTENDED(inp))
 		being_refed++;
-
+	/* NOTE: 0 refcount also means no timers are referencing us. */
 	if ((inp->refcount) ||
 	    (being_refed) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
@@ -3584,16 +3615,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_INP_WUNLOCK(inp);
 	SCTP_ASOC_CREATE_UNLOCK(inp);
 	SCTP_INP_INFO_WUNLOCK();
-	/*
-	 * Now we release all locks. Since this INP cannot be found anymore
-	 * except possibly by the kill timer that might be running. We call
-	 * the drain function here. It should hit the case were it sees the
-	 * ACTIVE flag cleared and exit out freeing us to proceed and
-	 * destroy everything.
-	 */
-	if (from != SCTP_CALLED_FROM_INPKILL_TIMER) {
-		(void)SCTP_OS_TIMER_STOP_DRAIN(&inp->sctp_ep.signature_change.timer);
-	}
 
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 5);
