@@ -276,7 +276,7 @@ extra_chroot_setup() {
 		GITUNSETOPTS="${GITUNSETOPTS} SEND_EMAIL SUBTREE SVN"
 		GITUNSETOPTS="${GITUNSETOPTS} PCRE PCRE2"
 		eval chroot ${CHROOTDIR} env OPTIONS_UNSET="${GITUNSETOPTS}" \
-			make -C \ /usr/ports/devel/git FORCE_PKG_REGISTER=1 \
+			make -C /usr/ports/devel/git FORCE_PKG_REGISTER=1 \
 			WRKDIRPREFIX=/tmp/ports \
 			DISTDIR=/tmp/distfiles \
 			install clean distclean
