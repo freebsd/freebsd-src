@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200824:
+	The resume code now notifies devd with the 'kernel' system
+	rather than the old 'kern' subsystem to be consistent with
+	other use. The old notification will be created as well, but
+	will be removed prior to FreeBSD 14.0.
+
 20200821:
 	r362275 changed the internal API between the kernel RPC and the
 	NFS modules. As such, all the modules must be recompiled from
