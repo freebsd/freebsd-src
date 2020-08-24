@@ -271,6 +271,7 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	if (error)
 		goto out_dma_init;
 
+	TAILQ_INIT(&pdev->mmio);
 	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK | M_ZERO);
 	pbus->self = pdev;
 	pbus->number = pci_get_bus(dev);

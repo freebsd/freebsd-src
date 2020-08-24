@@ -222,6 +222,13 @@ extern spinlock_t pci_lock;
 
 #define	__devexit_p(x)	x
 
+struct pci_mmio_region {
+	TAILQ_ENTRY(pci_mmio_region)	next;
+	struct resource			*res;
+	int				rid;
+	int				type;
+};
+
 struct pci_dev {
 	struct device		dev;
 	struct list_head	links;
@@ -236,6 +243,8 @@ struct pci_dev {
 	uint32_t		class;
 	uint8_t			revision;
 	bool			msi_enabled;
+
+	TAILQ_HEAD(, pci_mmio_region)	mmio;
 };
 
 static inline struct resource_list_entry *
@@ -657,6 +666,41 @@ static inline int pci_enable_sriov(struct pci_dev *dev, int nr_virtfn)
 }
 static inline void pci_disable_sriov(struct pci_dev *dev)
 {
+}
+
+static inline void *
+pci_iomap(struct pci_dev *dev, int mmio_bar, int mmio_size __unused)
+{
+	struct pci_mmio_region *mmio;
+
+	mmio = malloc(sizeof(*mmio), M_DEVBUF, M_WAITOK | M_ZERO);
+	mmio->rid = PCIR_BAR(mmio_bar);
+	mmio->type = pci_resource_type(dev, mmio_bar);
+	mmio->res = bus_alloc_resource_any(dev->dev.bsddev, mmio->type,
+	    &mmio->rid, RF_ACTIVE);
+	if (mmio->res == NULL) {
+		free(mmio, M_DEVBUF);
+		return (NULL);
+	}
+	TAILQ_INSERT_TAIL(&dev->mmio, mmio, next);
+
+	return ((void *)rman_get_bushandle(mmio->res));
+}
+
+static inline void
+pci_iounmap(struct pci_dev *dev, void *res)
+{
+	struct pci_mmio_region *mmio, *p;
+
+	TAILQ_FOREACH_SAFE(mmio, &dev->mmio, next, p) {
+		if (res != (void *)rman_get_bushandle(mmio->res))
+			continue;
+		bus_release_resource(dev->dev.bsddev,
+		    mmio->type, mmio->rid, mmio->res);
+		TAILQ_REMOVE(&dev->mmio, mmio, next);
+		free(mmio, M_DEVBUF);
+		return;
+	}
 }
 
 #define DEFINE_PCI_DEVICE_TABLE(_table) \
