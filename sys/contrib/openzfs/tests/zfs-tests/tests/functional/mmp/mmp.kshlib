@@ -1,0 +1,333 @@
+#
+# CDDL HEADER START
+#
+# The contents of this file are subject to the terms of the
+# Common Development and Distribution License (the "License").
+# You may not use this file except in compliance with the License.
+#
+# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+# or http://www.opensolaris.org/os/licensing.
+# See the License for the specific language governing permissions
+# and limitations under the License.
+#
+# When distributing Covered Code, include this CDDL HEADER in each
+# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+# If applicable, add the following below this CDDL HEADER, with the
+# fields enclosed by brackets "[]" replaced with your own identifying
+# information: Portions Copyright [yyyy] [name of copyright owner]
+#
+# CDDL HEADER END
+#
+
+#
+# Copyright (c) 2017 by Lawrence Livermore National Security, LLC.
+# Use is subject to license terms.
+#
+
+. $STF_SUITE/include/libtest.shlib
+. $STF_SUITE/tests/functional/mmp/mmp.cfg
+
+
+function check_pool_import # pool opts token keyword
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset opts=$2
+	typeset token=$3
+	typeset keyword=$4
+
+	zpool import $opts 2>&1 | \
+	    nawk -v token="$token:" '($1==token) {print $0}' | \
+	    grep -i "$keyword" > /dev/null 2>&1
+
+	return $?
+}
+
+function is_pool_imported # pool opts
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset opts=$2
+
+	check_pool_import "$pool" "$opts" "status" \
+	    "The pool is currently imported"
+	return $?
+}
+
+function wait_pool_imported # pool opts
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset opts=$2
+
+	while is_pool_imported "$pool" "$opts"; do
+		log_must sleep 5
+	done
+
+	return 0
+}
+
+function try_pool_import # pool opts message
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset opts=$2
+	typeset msg=$3
+
+	zpool import $opts $pool 2>&1 | grep -i "$msg"
+
+	return $?
+}
+
+function mmp_set_hostid
+{
+	typeset hostid=$1
+
+	zgenhostid $1
+
+	if [ $(hostid) != "$hostid" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+function mmp_clear_hostid
+{
+	rm -f $HOSTID_FILE
+}
+
+function mmp_pool_create_simple # pool dir
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset dir=${2:-$MMP_DIR}
+
+	log_must mkdir -p $dir
+	log_must rm -f $dir/*
+	log_must truncate -s $MINVDEVSIZE $dir/vdev1 $dir/vdev2
+
+	log_must mmp_clear_hostid
+	log_must mmp_set_hostid $HOSTID1
+	log_must zpool create -f -o cachefile=$MMP_CACHE $pool \
+	    mirror $dir/vdev1 $dir/vdev2
+	log_must zpool set multihost=on $pool
+}
+
+function mmp_pool_create # pool dir
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset dir=${2:-$MMP_DIR}
+	typeset opts="-VVVVV -T120 -M -k0 -f $dir -E -p $pool"
+
+	mmp_pool_create_simple $pool $dir
+
+	log_must mv $MMP_CACHE ${MMP_CACHE}.stale
+	log_must zpool export $pool
+	log_must mmp_clear_hostid
+	log_must mmp_set_hostid $HOSTID2
+
+	log_note "Starting ztest in the background as hostid $HOSTID1"
+	log_must eval "ZFS_HOSTID=$HOSTID1 ztest $opts >$MMP_ZTEST_LOG 2>&1 &"
+
+	while ! is_pool_imported "$pool" "-d $dir"; do
+		log_must pgrep ztest
+		log_must sleep 5
+	done
+}
+
+function mmp_pool_destroy # pool dir
+{
+	typeset pool=${1:-$MMP_POOL}
+	typeset dir=${2:-$MMP_DIR}
+
+	ZTESTPID=$(pgrep ztest)
+	if [ -n "$ZTESTPID" ]; then
+		log_must kill $ZTESTPID
+		wait $ZTESTPID
+	fi
+
+	if poolexists $pool; then
+		destroy_pool $pool
+        fi
+
+	log_must rm -f $dir/*
+	mmp_clear_hostid
+}
+
+function mmp_pool_set_hostid # pool hostid
+{
+	typeset pool=$1
+	typeset hostid=$2
+
+	log_must mmp_clear_hostid
+	log_must mmp_set_hostid $hostid
+	log_must zpool export $pool
+	log_must zpool import $pool
+
+	return 0
+}
+# Return the number of seconds the activity check portion of the import process
+# will take.  Does not include the time to find devices and assemble a config.
+# Note that the activity check may be skipped, e.g. if the pool and host
+# hostid's match, but this will return non-zero because mmp_* are populated.
+function seconds_mmp_waits_for_activity
+{
+	typeset pool=$1
+	typeset devpath=$2
+
+	typeset seconds=0
+	typeset devices=${#DISK[@]}
+	typeset import_intervals=$(get_tunable MULTIHOST_IMPORT_INTERVALS)
+	typeset import_interval=$(get_tunable MULTIHOST_INTERVAL)
+	typeset tmpfile=$(mktemp)
+	typeset mmp_fail
+	typeset mmp_write
+	typeset mmp_delay
+
+	log_must zdb -e -p $devpath $pool >$tmpfile 2>/dev/null
+	mmp_fail=$(awk '/mmp_fail/ {print $NF}' $tmpfile)
+	mmp_write=$(awk '/mmp_write/ {print $NF}' $tmpfile)
+	mmp_delay=$(awk '/mmp_delay/ {print $NF}' $tmpfile)
+	if [ -f $tmpfile ]; then
+		rm $tmpfile
+	fi
+
+	# In order of preference:
+	if [ -n $mmp_fail -a -n $mmp_write ]; then
+		seconds=$((2*mmp_fail*mmp_write/1000))
+	elif [ -n $mmp_delay ]; then
+		# MMP V0: Based on mmp_delay from the best Uberblock
+		seconds=$((import_intervals*devices*mmp_delay/1000000000))
+	else
+		# Non-MMP aware: Based on zfs_multihost_interval and import_intervals
+		seconds=$((import_intervals*import_interval/1000))
+	fi
+
+	echo $seconds
+}
+
+function import_no_activity_check # pool opts
+{
+	typeset pool=$1
+	typeset opts=$2
+
+	typeset max_duration=$((MMP_TEST_DURATION_DEFAULT-1))
+
+	SECONDS=0
+	zpool import $opts $pool
+	typeset rc=$?
+
+	if [[ $SECONDS -gt $max_duration ]]; then
+		log_fail "ERROR: import_no_activity_check unexpected activity \
+check (${SECONDS}s gt $max_duration)"
+	fi
+
+	return $rc
+}
+
+function import_activity_check # pool opts act_test_duration
+{
+	typeset pool=$1
+	typeset opts=$2
+	typeset min_duration=${3:-$MMP_TEST_DURATION_DEFAULT}
+
+	SECONDS=0
+	zpool import $opts $pool
+	typeset rc=$?
+
+	if [[ $SECONDS -le $min_duration ]]; then
+		log_fail "ERROR: import_activity_check expected activity check \
+(${SECONDS}s le min_duration $min_duration)"
+	fi
+
+	return $rc
+}
+
+function clear_mmp_history
+{
+	log_must set_tunable64 MULTIHOST_HISTORY $MMP_HISTORY_OFF
+	log_must set_tunable64 MULTIHOST_HISTORY $MMP_HISTORY
+}
+
+function count_skipped_mmp_writes # pool duration
+{
+	typeset pool=$1
+	typeset -i duration=$2
+	typeset hist_path="/proc/spl/kstat/zfs/$pool/multihost"
+
+	sleep $duration
+	awk 'BEGIN {count=0}; $NF == "-" {count++}; END {print count};' "$hist_path"
+}
+
+function count_mmp_writes # pool duration
+{
+	typeset pool=$1
+	typeset -i duration=$2
+	typeset hist_path="/proc/spl/kstat/zfs/$pool/multihost"
+
+	sleep $duration
+	awk 'BEGIN {count=0}; $NF != "-" {count++}; END {print count};' "$hist_path"
+}
+
+function summarize_uberblock_mmp # device
+{
+	typeset device=$1
+
+	zdb -luuuu $device | awk '
+	BEGIN				{write_fail_present=0; write_fail_missing=0; uber_invalid=0;}
+	/Uberblock\[[0-9][0-9]*\]/	{delay=-99; write=-99; fail=-99; total++; if (/invalid/) {uber_invalid++};};
+	/mmp_fail/			{fail=$3};
+	/mmp_seq/			{seq=$3};
+	/mmp_write/			{write=$3};
+	/mmp_delay/			{delay=$3; if (delay==0) {delay_zero++};};
+	/mmp_valid/ && delay>0 && write>0 && fail>0 {write_fail_present++};
+	/mmp_valid/ && delay>0 && (write<=0 || fail<=0) {write_fail_missing++};
+	/mmp_valid/ && delay>0 && write<=0 {write_missing++};
+	/mmp_valid/ && delay>0 && fail<=0 {fail_missing++};
+	/mmp_valid/ && delay>0 && seq>0 {seq_nonzero++};
+	END {
+		print "total_uberblocks " total;
+		print "delay_zero " delay_zero;
+		print "write_fail_present " write_fail_present;
+		print "write_fail_missing " write_fail_missing;
+		print "write_missing " write_missing;
+		print "fail_missing " fail_missing;
+		print "seq_nonzero " seq_nonzero;
+		print "uberblock_invalid " uber_invalid;
+	}'
+}
+
+function count_mmp_write_fail_present # device
+{
+	typeset device=$1
+
+	summarize_uberblock_mmp $device | awk '/write_fail_present/ {print $NF}'
+}
+
+function count_mmp_write_fail_missing # device
+{
+	typeset device=$1
+
+	summarize_uberblock_mmp $device | awk '/write_fail_missing/ {print $NF}'
+}
+
+function verify_mmp_write_fail_present # device
+{
+	typeset device=$1
+
+	count=$(count_mmp_write_fail_present $device)
+	log_note "present count: $count"
+	if [ $count -eq 0 ]; then
+		summarize_uberblock_mmp $device
+		log_note "----- snip -----"
+		zdb -luuuu $device
+		log_note "----- snip -----"
+		log_fail "No Uberblocks contain valid mmp_write and fail values"
+	fi
+
+	count=$(count_mmp_write_fail_missing $device)
+	log_note "missing count: $count"
+	if [ $count -gt 0 ]; then
+		summarize_uberblock_mmp $device
+		log_note "----- snip -----"
+		zdb -luuuu $device
+		log_note "----- snip -----"
+		log_fail "Uberblocks missing mmp_write or mmp_fail"
+	fi
+}
