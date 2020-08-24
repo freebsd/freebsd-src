@@ -2237,7 +2237,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	vref(vp);
 	if (*pidp != -1)
 		PROC_UNLOCK(p);
-	error = vn_fullpath(req->td, vp, &retbuf, &freebuf);
+	error = vn_fullpath(vp, &retbuf, &freebuf);
 	vrele(vp);
 	if (error)
 		return (error);
@@ -2375,8 +2375,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_shadow_count = obj->shadow_count;
 			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
-				vn_fullpath(curthread, vp, &fullpath,
-				    &freepath);
+				vn_fullpath(vp, &fullpath, &freepath);
 				cred = curthread->td_ucred;
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
@@ -2584,8 +2583,7 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 			kve->kve_shadow_count = obj->shadow_count;
 			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
-				vn_fullpath(curthread, vp, &fullpath,
-				    &freepath);
+				vn_fullpath(vp, &fullpath, &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
 				vn_lock(vp, LK_SHARED | LK_RETRY);
