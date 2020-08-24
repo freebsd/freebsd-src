@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+
+check() {
+	# We depend on udev-rules being loaded
+	[ "${1}" = "-d" ] && return 0
+
+	# Verify the zfs tool chain
+	for tool in "@sbindir@/zpool" "@sbindir@/zfs" "@mounthelperdir@/mount.zfs" ; do
+		test -x "$tool" || return 1
+	done
+	# Verify grep exists
+	which grep >/dev/null 2>&1 || return 1
+
+	return 0
+}
+
+depends() {
+	echo udev-rules
+	return 0
+}
+
+installkernel() {
+	instmods zfs
+	instmods zcommon
+	instmods znvpair
+	instmods zavl
+	instmods zunicode
+	instmods zlua
+	instmods icp
+	instmods spl
+	instmods zlib_deflate
+	instmods zlib_inflate
+}
+
+install() {
+	inst_rules @udevruledir@/90-zfs.rules
+	inst_rules @udevruledir@/69-vdev.rules
+	inst_rules @udevruledir@/60-zvol.rules
+	dracut_install hostid
+	dracut_install grep
+	dracut_install @sbindir@/zfs
+	dracut_install @sbindir@/zpool
+	# Workaround for zfsonlinux/zfs#4749 by ensuring libgcc_s.so(.1) is included
+	if [[ -n "$(ldd @sbindir@/zpool | grep -F 'libgcc_s.so')" ]]; then
+		# Dracut will have already tracked and included it
+		:;
+	elif command -v gcc-config 2>&1 1>/dev/null; then
+		# On systems with gcc-config (Gentoo, Funtoo, etc.):
+		# Use the current profile to resolve the appropriate path
+		dracut_install "/usr/lib/gcc/$(s=$(gcc-config -c); echo ${s%-*}/${s##*-})/libgcc_s.so.1"
+	elif [[ -n "$(ls /usr/lib/libgcc_s.so* 2>/dev/null)" ]]; then
+		# Try a simple path first
+		dracut_install /usr/lib/libgcc_s.so*
+	else
+		# Fallback: Guess the path and include all matches
+		dracut_install /usr/lib/gcc/*/*/libgcc_s.so*
+	fi
+	dracut_install @mounthelperdir@/mount.zfs
+	dracut_install @udevdir@/vdev_id
+	dracut_install awk
+	dracut_install basename
+	dracut_install cut
+	dracut_install head
+	dracut_install @udevdir@/zvol_id
+	inst_hook cmdline 95 "${moddir}/parse-zfs.sh"
+	if [ -n "$systemdutildir" ] ; then
+		inst_script "${moddir}/zfs-generator.sh" "$systemdutildir"/system-generators/dracut-zfs-generator
+	fi
+	inst_hook pre-mount 90 "${moddir}/zfs-load-key.sh"
+	inst_hook mount 98 "${moddir}/mount-zfs.sh"
+	inst_hook cleanup 99 "${moddir}/zfs-needshutdown.sh"
+	inst_hook shutdown 20 "${moddir}/export-zfs.sh"
+
+	inst_simple "${moddir}/zfs-lib.sh" "/lib/dracut-zfs-lib.sh"
+	if [ -e @sysconfdir@/zfs/zpool.cache ]; then
+		inst @sysconfdir@/zfs/zpool.cache
+		type mark_hostonly >/dev/null 2>&1 && mark_hostonly @sysconfdir@/zfs/zpool.cache
+	fi
+
+	if [ -e @sysconfdir@/zfs/vdev_id.conf ]; then
+		inst @sysconfdir@/zfs/vdev_id.conf
+		type mark_hostonly >/dev/null 2>&1 && mark_hostonly @sysconfdir@/zfs/vdev_id.conf
+	fi
+
+	# Synchronize initramfs and system hostid
+	AA=`hostid | cut -b 1,2`
+	BB=`hostid | cut -b 3,4`
+	CC=`hostid | cut -b 5,6`
+	DD=`hostid | cut -b 7,8`
+	echo -ne "\\x${DD}\\x${CC}\\x${BB}\\x${AA}" > "${initdir}/etc/hostid"
+
+	if dracut_module_included "systemd"; then
+		mkdir -p "${initdir}/$systemdsystemunitdir/zfs-import.target.wants"
+		for _item in scan cache ; do
+			dracut_install @systemdunitdir@/zfs-import-$_item.service
+			if ! [ -L "${initdir}/$systemdsystemunitdir/zfs-import.target.wants"/zfs-import-$_item.service ]; then
+				ln -s ../zfs-import-$_item.service "${initdir}/$systemdsystemunitdir/zfs-import.target.wants"/zfs-import-$_item.service
+				type mark_hostonly >/dev/null 2>&1 && mark_hostonly @systemdunitdir@/zfs-import-$_item.service
+			fi
+		done
+		inst "${moddir}"/zfs-env-bootfs.service "${systemdsystemunitdir}"/zfs-env-bootfs.service
+		ln -s ../zfs-env-bootfs.service "${initdir}/${systemdsystemunitdir}/zfs-import.target.wants"/zfs-env-bootfs.service
+		type mark_hostonly >/dev/null 2>&1 && mark_hostonly @systemdunitdir@/zfs-env-bootfs.service
+		dracut_install systemd-ask-password
+		dracut_install systemd-tty-ask-password-agent
+		mkdir -p "${initdir}/$systemdsystemunitdir/initrd.target.wants"
+		dracut_install @systemdunitdir@/zfs-import.target
+		if ! [ -L "${initdir}/$systemdsystemunitdir/initrd.target.wants"/zfs-import.target ]; then
+			ln -s ../zfs-import.target "${initdir}/$systemdsystemunitdir/initrd.target.wants"/zfs-import.target
+			type mark_hostonly >/dev/null 2>&1 && mark_hostonly @systemdunitdir@/zfs-import.target
+		fi
+		for _service in zfs-snapshot-bootfs.service zfs-rollback-bootfs.service ; do
+			inst "${moddir}"/$_service "${systemdsystemunitdir}"/$_service
+			if ! [ -L "${initdir}/$systemdsystemunitdir/initrd.target.wants"/$_service ]; then
+				ln -s ../$_service "${initdir}/$systemdsystemunitdir/initrd.target.wants"/$_service
+			fi
+		done
+	fi
+}

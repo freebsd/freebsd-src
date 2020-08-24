@@ -1,0 +1,198 @@
+'\" t
+.\"
+.\" CDDL HEADER START
+.\"
+.\" The contents of this file are subject to the terms of the
+.\" Common Development and Distribution License (the "License").
+.\" You may not use this file except in compliance with the License.
+.\"
+.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
+.\" or http://www.opensolaris.org/os/licensing.
+.\" See the License for the specific language governing permissions
+.\" and limitations under the License.
+.\"
+.\" When distributing Covered Code, include this CDDL HEADER in each
+.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
+.\" If applicable, add the following below this CDDL HEADER, with the
+.\" fields enclosed by brackets "[]" replaced with your own identifying
+.\" information: Portions Copyright [yyyy] [name of copyright owner]
+.\"
+.\" CDDL HEADER END
+.\"
+.\"
+.\" Copyright 2013 Darik Horn <dajhorn@vanadac.com>. All rights reserved.
+.\"
+.TH zinject 8 "2013 FEB 28" "ZFS on Linux" "System Administration Commands"
+
+.SH NAME
+zinject \- ZFS Fault Injector
+.SH DESCRIPTION
+.BR zinject
+creates artificial problems in a ZFS pool by simulating data corruption or device failures. This program is dangerous.
+.SH SYNOPSIS
+.TP
+.B "zinject"
+List injection records.
+.TP
+.B "zinject \-b \fIobjset:object:level:blkd\fB [\-f \fIfrequency\fB] [\-amu] \fIpool\fB"
+Force an error into the pool at a bookmark.
+.TP
+.B "zinject \-c <\fIid\fB | all>
+Cancel injection records.
+.TP
+.B "zinject \-d \fIvdev\fB \-A <degrade|fault> \fIpool\fB
+Force a vdev into the DEGRADED or FAULTED state.
+.TP
+.B "zinject -d \fIvdev\fB -D latency:lanes \fIpool\fB
+
+Add an artificial delay to IO requests on a particular
+device, such that the requests take a minimum of 'latency'
+milliseconds to complete. Each delay has an associated
+number of 'lanes' which defines the number of concurrent
+IO requests that can be processed.
+
+For example, with a single lane delay of 10 ms (-D 10:1),
+the device will only be able to service a single IO request
+at a time with each request taking 10 ms to complete. So,
+if only a single request is submitted every 10 ms, the
+average latency will be 10 ms; but if more than one request
+is submitted every 10 ms, the average latency will be more
+than 10 ms.
+
+Similarly, if a delay of 10 ms is specified to have two
+lanes (-D 10:2), then the device will be able to service
+two requests at a time, each with a minimum latency of
+10 ms. So, if two requests are submitted every 10 ms, then
+the average latency will be 10 ms; but if more than two
+requests are submitted every 10 ms, the average latency
+will be more than 10 ms.
+
+Also note, these delays are additive. So two invocations
+of '-D 10:1', is roughly equivalent to a single invocation
+of '-D 10:2'. This also means, one can specify multiple
+lanes with differing target latencies. For example, an
+invocation of '-D 10:1' followed by '-D 25:2' will
+create 3 lanes on the device; one lane with a latency
+of 10 ms and two lanes with a 25 ms latency.
+
+.TP
+.B "zinject \-d \fIvdev\fB [\-e \fIdevice_error\fB] [\-L \fIlabel_error\fB] [\-T \fIfailure\fB] [\-f \fIfrequency\fB] [\-F] \fIpool\fB"
+Force a vdev error.
+.TP
+.B "zinject \-I [\-s \fIseconds\fB | \-g \fItxgs\fB] \fIpool\fB"
+Simulate a hardware failure that fails to honor a cache flush.
+.TP
+.B "zinject \-p \fIfunction\fB \fIpool\fB
+Panic inside the specified function.
+.TP
+.B "zinject \-t data [\-C \fIdvas\fB] [\-e \fIdevice_error\fB] [\-f \fIfrequency\fB] [\-l \fIlevel\fB] [\-r \fIrange\fB] [\-amq] \fIpath\fB"
+Force an error into the contents of a file.
+.TP
+.B "zinject \-t dnode [\-C \fIdvas\fB] [\-e \fIdevice_error\fB] [\-f \fIfrequency\fB] [\-l \fIlevel\fB] [\-amq] \fIpath\fB"
+Force an error into the metadnode for a file or directory.
+.TP
+.B "zinject \-t \fImos_type\fB [\-C \fIdvas\fB] [\-e \fIdevice_error\fB] [\-f \fIfrequency\fB] [\-l \fIlevel\fB] [\-r \fIrange\fB] [\-amqu] \fIpool\fB"
+Force an error into the MOS of a pool.
+.SH OPTIONS
+.TP
+.BI "\-a"
+Flush the ARC before injection.
+.TP
+.BI "\-b" " objset:object:level:start:end"
+Force an error into the pool at this bookmark tuple. Each number is
+in hexadecimal, and only one block can be specified.
+.TP
+.BI "\-C" " dvas"
+Inject the given error only into specific DVAs. The mask should be
+specified as a list of 0-indexed DVAs separated by commas (ex. '0,2'). This
+option is not applicable to logical data errors such as
+.BR "decompress"
+and
+.BR "decrypt" .
+.TP
+.BI "\-d" " vdev"
+A vdev specified by path or GUID.
+.TP
+.BI "\-e" " device_error"
+Specify
+.BR "checksum" " for an ECKSUM error,"
+.BR "decompress" " for a data decompression error,"
+.BR "decrypt" " for a data decryption error,"
+.BR "corrupt" " to flip a bit in the data after a read,"
+.BR "dtl" " for an ECHILD error,"
+.BR "io" " for an EIO error where reopening the device will succeed, or"
+.BR "nxio" " for an ENXIO error where reopening the device will fail."
+For EIO and ENXIO, the "failed" reads or writes still occur.  The probe simply
+sets the error value reported by the I/O pipeline so it appears the read or
+write failed.  Decryption errors only currently work with file data.
+.TP
+.BI "\-f" " frequency"
+Only inject errors a fraction of the time. Expressed as a real number
+percentage between 0.0001 and 100.
+.TP
+.BI "\-F"
+Fail faster. Do fewer checks.
+.TP
+.BI "\-g" " txgs"
+Run for this many transaction groups before reporting failure.
+.TP
+.BI "\-h"
+Print the usage message.
+.TP
+.BI "\-l" " level"
+Inject an error at a particular block level. The default is 0.
+.TP
+.BI "\-L" " label_error"
+Set the label error region to one of
+.BR " nvlist" ","
+.BR " pad1" ","
+.BR " pad2" ", or"
+.BR " uber" "."
+.TP
+.BI "\-m"
+Automatically remount the underlying filesystem.
+.TP
+.BI "\-q"
+Quiet mode. Only print the handler number added.
+.TP
+.BI "\-r" " range"
+Inject an error over a particular logical range of an object, which
+will be translated to the appropriate blkid range according to the
+object's properties.
+.TP
+.BI "\-s" " seconds"
+Run for this many seconds before reporting failure.
+.TP
+.BI "\-T" " failure"
+Set the failure type to one of
+.BR " all" ","
+.BR " claim" ","
+.BR " free" ","
+.BR " read" ", or"
+.BR " write" "."
+.TP
+.BI "\-t" " mos_type"
+Set this to
+.BR "mos " "for any data in the MOS,"
+.BR "mosdir " "for an object directory,"
+.BR "config " "for the pool configuration,"
+.BR "bpobj " "for the block pointer list,"
+.BR "spacemap " "for the space map,"
+.BR "metaslab " "for the metaslab, or"
+.BR "errlog " "for the persistent error log."
+.TP
+.BI "\-u"
+Unload the pool after injection.
+
+.SH "ENVIRONMENT VARIABLES"
+.TP
+.B "ZINJECT_DEBUG"
+Run \fBzinject\fR in debug mode.
+
+.SH "AUTHORS"
+This man page was written by Darik Horn <dajhorn@vanadac.com>
+excerpting the \fBzinject\fR usage message and source code.
+
+.SH "SEE ALSO"
+.BR zpool (8),
+.BR zfs (8)

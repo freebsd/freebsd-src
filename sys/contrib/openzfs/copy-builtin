@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+set -e
+
+usage()
+{
+	echo "usage: $0 <kernel source tree>" >&2
+	exit 1
+}
+
+[ "$#" -eq 1 ] || usage
+KERNEL_DIR="$(readlink --canonicalize-existing "$1")"
+
+if ! [ -e 'zfs_config.h' ]
+then
+	echo >&2
+	echo "    $0: you did not run configure, or you're not in the ZFS source directory." >&2
+	echo "    $0: run configure with --with-linux=$KERNEL_DIR and --enable-linux-builtin." >&2
+	echo >&2
+	exit 1
+fi
+
+make clean || true
+make gitrev
+
+rm -rf "$KERNEL_DIR/include/zfs" "$KERNEL_DIR/fs/zfs"
+cp --recursive include "$KERNEL_DIR/include/zfs"
+cp --recursive module "$KERNEL_DIR/fs/zfs"
+cp zfs_config.h "$KERNEL_DIR/include/zfs/"
+
+cat > "$KERNEL_DIR/fs/zfs/Kconfig" <<"EOF"
+config ZFS
+	tristate "ZFS filesystem support"
+	depends on EFI_PARTITION
+	select ZLIB_INFLATE
+	select ZLIB_DEFLATE
+	help
+	  This is the ZFS filesystem from the ZFS On Linux project.
+
+	  See https://zfsonlinux.org/
+
+	  To compile this file system support as a module, choose M here.
+
+	  If unsure, say N.
+EOF
+
+add_after()
+{
+	local FILE="$1"
+	local MARKER="$2"
+	local NEW="$3"
+	local LINE
+
+	while IFS='' read -r LINE
+	do
+		echo "$LINE"
+
+		if [ -n "$MARKER" -a "$LINE" = "$MARKER" ]
+		then
+			echo "$NEW"
+			MARKER=''
+			if IFS='' read -r LINE
+			then
+				[ "$LINE" != "$NEW" ] && echo "$LINE"
+			fi
+		fi
+	done < "$FILE" > "$FILE.new"
+
+	mv "$FILE.new" "$FILE"
+}
+
+add_after "$KERNEL_DIR/fs/Kconfig" 'if BLOCK' 'source "fs/zfs/Kconfig"'
+add_after "$KERNEL_DIR/fs/Makefile" 'endif' 'obj-$(CONFIG_ZFS) += zfs/'
+
+echo >&2
+echo "    $0: done." >&2
+echo "    $0: now you can build the kernel with ZFS support." >&2
+echo "    $0: make sure you enable ZFS support (CONFIG_ZFS) before building." >&2
+echo >&2
