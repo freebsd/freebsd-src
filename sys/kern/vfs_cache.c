@@ -2834,8 +2834,6 @@ vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
 
 	orig_buflen = *buflen;
 
-	MPASS(*buflen >= 2);
-
 	if (!slash_prefixed) {
 		MPASS(*buflen >= 2);
 		*buflen -= 1;
