@@ -1012,7 +1012,7 @@ do { \
 do { \
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) { \
 		inp->sctp_flags |= SCTP_PCB_FLAGS_WAKEINPUT; \
-                SOCKBUF_UNLOCK(&((so)->so_rcv)); \
+		SOCKBUF_UNLOCK(&((so)->so_rcv)); \
 	} else { \
 		sorwakeup_locked(so); \
 	} \
