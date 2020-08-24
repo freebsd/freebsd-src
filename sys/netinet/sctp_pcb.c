@@ -3593,9 +3593,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	 */
 	if (from != SCTP_CALLED_FROM_INPKILL_TIMER) {
 		(void)SCTP_OS_TIMER_STOP_DRAIN(&inp->sctp_ep.signature_change.timer);
-	} else {
-		/* Probably un-needed */
-		(void)SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 	}
 
 #ifdef SCTP_LOG_CLOSING
