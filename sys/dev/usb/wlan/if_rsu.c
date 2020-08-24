@@ -779,7 +779,8 @@ rsu_getradiocaps(struct ieee80211com *ic,
 	if (sc->sc_ht)
 		setbit(bands, IEEE80211_MODE_11NG);
 	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans,
-	    bands, (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) != 0);
+	    bands, (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) ?
+		NET80211_CBW_FLAG_HT40 : 0);
 }
 
 static void

@@ -1301,7 +1301,7 @@ copychan_prev(struct ieee80211_channel chans[], int maxchans, int *nchans,
  * XXX VHT-2GHz
  */
 static void
-getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
+getflags_2ghz(const uint8_t bands[], uint32_t flags[], int cbw_flags)
 {
 	int nmodes;
 
@@ -1312,7 +1312,7 @@ getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
 		flags[nmodes++] = IEEE80211_CHAN_G;
 	if (isset(bands, IEEE80211_MODE_11NG))
 		flags[nmodes++] = IEEE80211_CHAN_G | IEEE80211_CHAN_HT20;
-	if (ht40) {
+	if (cbw_flags & NET80211_CBW_FLAG_HT40) {
 		flags[nmodes++] = IEEE80211_CHAN_G | IEEE80211_CHAN_HT40U;
 		flags[nmodes++] = IEEE80211_CHAN_G | IEEE80211_CHAN_HT40D;
 	}
@@ -1320,12 +1320,12 @@ getflags_2ghz(const uint8_t bands[], uint32_t flags[], int ht40)
 }
 
 static void
-getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
+getflags_5ghz(const uint8_t bands[], uint32_t flags[], int cbw_flags)
 {
 	int nmodes;
 
 	/*
-	 * the addchan_list function seems to expect the flags array to
+	 * The addchan_list() function seems to expect the flags array to
 	 * be in channel width order, so the VHT bits are interspersed
 	 * as appropriate to maintain said order.
 	 *
@@ -1344,36 +1344,51 @@ getflags_5ghz(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 	}
 
 	/* 40MHz */
-	if (ht40) {
+	if (cbw_flags & NET80211_CBW_FLAG_HT40)
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U;
-	}
-	if (ht40 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
-		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U
-		    | IEEE80211_CHAN_VHT40U;
-	}
-	if (ht40) {
+	if ((cbw_flags & NET80211_CBW_FLAG_HT40) &&
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ))
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
+		    IEEE80211_CHAN_VHT40U;
+	if (cbw_flags & NET80211_CBW_FLAG_HT40)
 		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D;
-	}
-	if (ht40 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
-		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D
-		    | IEEE80211_CHAN_VHT40D;
-	}
+	if ((cbw_flags & NET80211_CBW_FLAG_HT40) &&
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ))
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D |
+		    IEEE80211_CHAN_VHT40D;
 
 	/* 80MHz */
-	if (vht80 && isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
-		flags[nmodes++] = IEEE80211_CHAN_A |
-		    IEEE80211_CHAN_HT40U | IEEE80211_CHAN_VHT80;
-		flags[nmodes++] = IEEE80211_CHAN_A |
-		    IEEE80211_CHAN_HT40D | IEEE80211_CHAN_VHT80;
+	if ((cbw_flags & NET80211_CBW_FLAG_VHT80) &&
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
+		    IEEE80211_CHAN_VHT80;
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D |
+		    IEEE80211_CHAN_VHT80;
 	}
 
-	/* XXX VHT160 */
-	/* XXX VHT80+80 */
+	/* VHT160 */
+	if ((cbw_flags & NET80211_CBW_FLAG_VHT160) &&
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
+		    IEEE80211_CHAN_VHT160;
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D |
+		    IEEE80211_CHAN_VHT160;
+	}
+
+	/* VHT80+80 */
+	if ((cbw_flags & NET80211_CBW_FLAG_VHT80P80) &&
+	    isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
+		    IEEE80211_CHAN_VHT80P80;
+		flags[nmodes++] = IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D |
+		    IEEE80211_CHAN_VHT80P80;
+	}
+
 	flags[nmodes] = 0;
 }
 
 static void
-getflags(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
+getflags(const uint8_t bands[], uint32_t flags[], int cbw_flags)
 {
 
 	flags[0] = 0;
@@ -1386,15 +1401,16 @@ getflags(const uint8_t bands[], uint32_t flags[], int ht40, int vht80)
 		    isset(bands, IEEE80211_MODE_VHT_2GHZ))
 			return;
 
-		getflags_5ghz(bands, flags, ht40, vht80);
+		getflags_5ghz(bands, flags, cbw_flags);
 	} else
-		getflags_2ghz(bands, flags, ht40);
+		getflags_2ghz(bands, flags, cbw_flags);
 }
 
 /*
  * Add one 20 MHz channel into specified channel list.
  * You MUST NOT mix bands when calling this.  It will not add 5ghz
  * channels if you have any B/G/N band bit set.
+ * This also does not support 40/80/160/80+80.
  */
 /* XXX VHT */
 int
@@ -1405,7 +1421,7 @@ ieee80211_add_channel(struct ieee80211_channel chans[], int maxchans,
 	uint32_t flags[IEEE80211_MODE_MAX];
 	int i, error;
 
-	getflags(bands, flags, 0, 0);
+	getflags(bands, flags, 0);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	error = addchan(chans, maxchans, nchans, ieee, freq, maxregpower,
@@ -1632,12 +1648,12 @@ add_chanlist(struct ieee80211_channel chans[], int maxchans, int *nchans,
 int
 ieee80211_add_channel_list_2ghz(struct ieee80211_channel chans[], int maxchans,
     int *nchans, const uint8_t ieee[], int nieee, const uint8_t bands[],
-    int ht40)
+    int cbw_flags)
 {
 	uint32_t flags[IEEE80211_MODE_MAX];
 
 	/* XXX no VHT for now */
-	getflags_2ghz(bands, flags, ht40);
+	getflags_2ghz(bands, flags, cbw_flags);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	return (add_chanlist(chans, maxchans, nchans, ieee, nieee, flags));
@@ -1645,30 +1661,27 @@ ieee80211_add_channel_list_2ghz(struct ieee80211_channel chans[], int maxchans,
 
 int
 ieee80211_add_channels_default_2ghz(struct ieee80211_channel chans[],
-    int maxchans, int *nchans, const uint8_t bands[], int ht40)
+    int maxchans, int *nchans, const uint8_t bands[], int cbw_flags)
 {
 	const uint8_t default_chan_list[] =
 	    { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 
 	return (ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    default_chan_list, nitems(default_chan_list), bands, ht40));
+	    default_chan_list, nitems(default_chan_list), bands, cbw_flags));
 }
 
 int
 ieee80211_add_channel_list_5ghz(struct ieee80211_channel chans[], int maxchans,
     int *nchans, const uint8_t ieee[], int nieee, const uint8_t bands[],
-    int ht40)
+    int cbw_flags)
 {
-	uint32_t flags[IEEE80211_MODE_MAX];
-	int vht80 = 0;
-
 	/*
-	 * For now, assume VHT == VHT80 support as a minimum.
+	 * XXX-BZ with HT and VHT there is no 1:1 mapping anymore.  Review all
+	 * uses of IEEE80211_MODE_MAX and add a new #define name for array size.
 	 */
-	if (isset(bands, IEEE80211_MODE_VHT_5GHZ))
-		vht80 = 1;
+	uint32_t flags[2 * IEEE80211_MODE_MAX];
 
-	getflags_5ghz(bands, flags, ht40, vht80);
+	getflags_5ghz(bands, flags, cbw_flags);
 	KASSERT(flags[0] != 0, ("%s: no correct mode provided\n", __func__));
 
 	return (add_chanlist(chans, maxchans, nchans, ieee, nieee, flags));
