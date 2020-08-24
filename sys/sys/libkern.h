@@ -127,6 +127,7 @@ extern int arc4rand_iniseed_state;
 struct malloc_type;
 uint32_t arc4random(void);
 void	 arc4random_buf(void *, size_t);
+uint32_t arc4random_uniform(uint32_t);
 void	 arc4rand(void *, u_int, int);
 int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
