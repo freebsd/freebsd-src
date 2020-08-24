@@ -1178,7 +1178,9 @@ buildenv: .PHONY
 .if ${BUILDENV_SHELL:M*zsh*}
 	@echo For ZSH you must run: export CPUTYPE=${TARGET_CPUTYPE}
 .endif
-	@cd ${BUILDENV_DIR} && env ${WMAKEENV} BUILDENV=1 ${BUILDENV_SHELL}
+	@cd ${BUILDENV_DIR} && env ${WMAKEENV} \
+	INSTALL="${INSTALL_CMD} ${INSTALLFLAGS}" \
+	MTREE_CMD="${MTREE_CMD} ${MTREEFLAGS}" BUILDENV=1 ${BUILDENV_SHELL}
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:Neverything:Nbuild${libcompat}}
 toolchain: ${TOOLCHAIN_TGTS} .PHONY
