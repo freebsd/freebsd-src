@@ -6734,6 +6734,8 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 		} else {
 			addr_to_use = sa;
 		}
+#else
+		addr_to_use = sa;
 #endif
 		break;
 #endif
