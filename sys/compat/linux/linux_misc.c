@@ -143,11 +143,6 @@ struct l_pselect6arg {
 	l_size_t	ss_len;
 };
 
-static bool map_sched_prio = true;
-SYSCTL_BOOL(_compat_linux, OID_AUTO, map_sched_prio, CTLFLAG_RDTUN,
-    &map_sched_prio, 0, "Map scheduler priorities to Linux priorities "
-    "(not POSIX compliant)");
-
 static int	linux_utimensat_nsec_valid(l_long);
 
 
@@ -1591,7 +1586,7 @@ linux_sched_setscheduler(struct thread *td,
 	if (error)
 		return (error);
 
-	if (map_sched_prio) {
+	if (linux_map_sched_prio) {
 		switch (policy) {
 		case SCHED_OTHER:
 			if (sched_param.sched_priority != 0)
@@ -1671,7 +1666,7 @@ linux_sched_get_priority_max(struct thread *td,
 		printf(ARGS(sched_get_priority_max, "%d"), args->policy);
 #endif
 
-	if (map_sched_prio) {
+	if (linux_map_sched_prio) {
 		switch (args->policy) {
 		case LINUX_SCHED_OTHER:
 			td->td_retval[0] = 0;
@@ -1712,7 +1707,7 @@ linux_sched_get_priority_min(struct thread *td,
 		printf(ARGS(sched_get_priority_min, "%d"), args->policy);
 #endif
 
-	if (map_sched_prio) {
+	if (linux_map_sched_prio) {
 		switch (args->policy) {
 		case LINUX_SCHED_OTHER:
 			td->td_retval[0] = 0;
@@ -2198,7 +2193,7 @@ linux_sched_setparam(struct thread *td,
 	if (tdt == NULL)
 		return (ESRCH);
 
-	if( map_sched_prio ) {
+	if (linux_map_sched_prio) {
 		error = kern_sched_getscheduler(td, tdt, &policy);
 		if (error)
 			goto out;
@@ -2259,7 +2254,7 @@ linux_sched_getparam(struct thread *td,
 		return (error);
 	}
 
-	if (map_sched_prio) {
+	if (linux_map_sched_prio) {
 		error = kern_sched_getscheduler(td, tdt, &policy);
 		PROC_UNLOCK(tdt->td_proc);
 		if (error)
