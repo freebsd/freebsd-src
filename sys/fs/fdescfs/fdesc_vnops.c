@@ -640,7 +640,7 @@ fdesc_readlink(struct vop_readlink_args *va)
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
 		vp = fp->f_vnode;
-		error = vn_fullpath(td, vp, &fullpath, &freepath);
+		error = vn_fullpath(vp, &fullpath, &freepath);
 		break;
 	default:
 		fullpath = "anon_inode:[unknown]";

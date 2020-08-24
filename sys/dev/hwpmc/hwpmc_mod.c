@@ -832,7 +832,7 @@ pmc_getfilename(struct vnode *v, char **fullpath, char **freepath)
 
 	*fullpath = "unknown";
 	*freepath = NULL;
-	vn_fullpath(curthread, v, fullpath, freepath);
+	vn_fullpath(v, fullpath, freepath);
 }
 
 /*

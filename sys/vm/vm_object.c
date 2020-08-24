@@ -2582,7 +2582,7 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 			vref(vp);
 		VM_OBJECT_RUNLOCK(obj);
 		if (vp != NULL) {
-			vn_fullpath(curthread, vp, &fullpath, &freepath);
+			vn_fullpath(vp, &fullpath, &freepath);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			if (VOP_GETATTR(vp, &va, curthread->td_ucred) == 0) {
 				kvo->kvo_vn_fileid = va.va_fileid;
