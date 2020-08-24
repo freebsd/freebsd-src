@@ -9,7 +9,6 @@ STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 .PATH: ${COMPILERRTDIR}/lib/builtins
 .PATH: ${UNWINDSRCDIR}
 SRCS_EXC+=	gcc_personality_v0.c
-SRCS_EXC+=	int_util.c
 SRCS_EXC+=	Unwind-EHABI.cpp
 SRCS_EXC+=	Unwind-sjlj.c
 SRCS_EXC+=	UnwindLevel1-gcc-ext.c
