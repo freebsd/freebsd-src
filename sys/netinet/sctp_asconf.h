@@ -56,8 +56,8 @@ sctp_handle_asconf_ack(struct mbuf *, int, struct sctp_asconf_ack_chunk *,
     struct sctp_tcb *, struct sctp_nets *, int *);
 
 extern uint32_t
-sctp_addr_mgmt_ep_sa(struct sctp_inpcb *, struct sockaddr *,
-    uint32_t, uint32_t, struct sctp_ifa *);
+sctp_addr_mgmt_ep_sa(struct sctp_inpcb *, struct sockaddr *, uint32_t,
+    uint32_t);
 
 
 extern int
