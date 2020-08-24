@@ -2319,7 +2319,7 @@ ${_bt}-link-${_tool}: .PHONY .MAKE
 	if [ ! -e "$${source_path}" ] ; then \
 		echo "Cannot find host tool '${_tool}'"; false; \
 	fi; \
-	cp -f "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"
+	cp -pf "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"
 ${_bt}-links: ${_bt}-link-${_tool}
 .endfor
 
