@@ -117,9 +117,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
     struct sockbuf *sb,
     int end,
     int inpread_locked,
-    int so_locked
-    SCTP_UNUSED
-);
+    int so_locked);
 
 void sctp_iterator_worker(void);
 
@@ -145,10 +143,7 @@ struct mbuf *sctp_add_pad_tombuf(struct mbuf *, int);
 
 struct mbuf *sctp_pad_lastmbuf(struct mbuf *, int, struct mbuf *);
 
-void
-sctp_ulp_notify(uint32_t, struct sctp_tcb *, uint32_t, void *, int
-    SCTP_UNUSED
-);
+void sctp_ulp_notify(uint32_t, struct sctp_tcb *, uint32_t, void *, int);
 
 void
 sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
@@ -161,18 +156,13 @@ void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 /* Stop all timers for association and remote addresses. */
 void sctp_stop_association_timers(struct sctp_tcb *, bool);
 
-void
-sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int
-    SCTP_UNUSED
-);
+void sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int);
 
 int sctp_expand_mapping_array(struct sctp_association *, uint32_t);
 
 void
 sctp_abort_notification(struct sctp_tcb *, uint8_t, uint16_t,
-    struct sctp_abort_chunk *, int
-    SCTP_UNUSED
-);
+    struct sctp_abort_chunk *, int);
 
 /* We abort responding to an IP packet for some reason */
 void
@@ -186,9 +176,7 @@ sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *, struct mbuf *,
 /* We choose to abort via user input */
 void
 sctp_abort_an_association(struct sctp_inpcb *, struct sctp_tcb *,
-    struct mbuf *, int
-    SCTP_UNUSED
-);
+    struct mbuf *, int);
 
 void
 sctp_handle_ootb(struct mbuf *, int, int,
@@ -234,9 +222,7 @@ void sctp_print_address(struct sockaddr *);
 
 int
 sctp_release_pr_sctp_chunk(struct sctp_tcb *, struct sctp_tmit_chunk *,
-    uint8_t, int
-    SCTP_UNUSED
-);
+    uint8_t, int);
 
 struct mbuf *sctp_generate_cause(uint16_t, char *);
 struct mbuf *sctp_generate_no_user_data_cause(uint32_t);

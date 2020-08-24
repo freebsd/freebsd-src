@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctputil.h>
 #include <netinet/sctp_auth.h>
 
-
 int
 sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
 {

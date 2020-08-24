@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/smp.h>
 
-
-
 static void
 sctp_stop_all_cookie_timers(struct sctp_tcb *stcb)
 {
@@ -213,9 +211,7 @@ outnow:
  */
 
 int
-sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked
-    SCTP_UNUSED
-)
+sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked)
 {
 	int unsent_data;
 	unsigned int i;

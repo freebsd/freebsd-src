@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 
 
-
 extern const struct sctp_cc_functions sctp_cc_functions[];
 extern const struct sctp_ss_functions sctp_ss_functions[];
 
