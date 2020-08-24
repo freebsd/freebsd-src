@@ -2572,6 +2572,19 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	return (error);
 }
 
+static struct namecache *
+vn_dd_from_dst(struct vnode *vp)
+{
+	struct namecache *ncp;
+
+	cache_assert_vnode_locked(vp);
+	TAILQ_FOREACH(ncp, &vp->v_cache_dst, nc_dst) {
+		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
+			return (ncp);
+	}
+	return (NULL);
+}
+
 int
 vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 {
@@ -2582,9 +2595,13 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 
 	vlp = VP2VNODELOCK(*vp);
 	mtx_lock(vlp);
-	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
-		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
-			break;
+	ncp = (*vp)->v_cache_dd;
+	if (ncp != NULL && (ncp->nc_flag & NCF_ISDOTDOT) == 0) {
+		KASSERT(ncp == vn_dd_from_dst(*vp),
+		    ("%s: mismatch for dd entry (%p != %p)", __func__,
+		    ncp, vn_dd_from_dst(*vp)));
+	} else {
+		ncp = vn_dd_from_dst(*vp);
 	}
 	if (ncp != NULL) {
 		if (*buflen < ncp->nc_nlen) {
