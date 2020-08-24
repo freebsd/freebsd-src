@@ -406,7 +406,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		return (-1);
 	}
 	/* size required is returned in 'asoc' */
-	opt_len = (socklen_t)((size_t)asoc + sizeof(sctp_assoc_t));
+	opt_len = (socklen_t)((size_t)asoc + sizeof(struct sctp_getaddresses));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
 		errno = ENOMEM;
@@ -419,9 +419,9 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		free(addrs);
 		return (-1);
 	}
-	*raddrs = (struct sockaddr *)&addrs->addr[0];
+	*raddrs = &addrs->addr[0].sa;
 	cnt = 0;
-	sa = (struct sockaddr *)&addrs->addr[0];
+	sa = &addrs->addr[0].sa;
 	lim = (caddr_t)addrs + opt_len;
 	while (((caddr_t)sa < lim) && (sa->sa_len > 0)) {
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
@@ -436,7 +436,7 @@ sctp_freepaddrs(struct sockaddr *addrs)
 	void *fr_addr;
 
 	/* Take away the hidden association id */
-	fr_addr = (void *)((caddr_t)addrs - sizeof(sctp_assoc_t));
+	fr_addr = (void *)((caddr_t)addrs - offsetof(struct sctp_getaddresses, addr));
 	/* Now free it */
 	free(fr_addr);
 }
@@ -466,7 +466,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		errno = ENOTCONN;
 		return (-1);
 	}
-	opt_len = (socklen_t)(size_of_addresses + sizeof(sctp_assoc_t));
+	opt_len = (socklen_t)(size_of_addresses + sizeof(struct sctp_getaddresses));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
 		errno = ENOMEM;
@@ -480,9 +480,9 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		errno = ENOMEM;
 		return (-1);
 	}
-	*raddrs = (struct sockaddr *)&addrs->addr[0];
+	*raddrs = &addrs->addr[0].sa;
 	cnt = 0;
-	sa = (struct sockaddr *)&addrs->addr[0];
+	sa = &addrs->addr[0].sa;
 	lim = (caddr_t)addrs + opt_len;
 	while (((caddr_t)sa < lim) && (sa->sa_len > 0)) {
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
@@ -497,7 +497,7 @@ sctp_freeladdrs(struct sockaddr *addrs)
 	void *fr_addr;
 
 	/* Take away the hidden association id */
-	fr_addr = (void *)((caddr_t)addrs - sizeof(sctp_assoc_t));
+	fr_addr = (void *)((caddr_t)addrs - offsetof(struct sctp_getaddresses, addr));
 	/* Now free it */
 	free(fr_addr);
 }

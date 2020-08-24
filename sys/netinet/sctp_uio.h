@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #define _NETINET_SCTP_UIO_H_
 
 
-#if ! defined(_KERNEL)
+#if !defined(_KERNEL)
 #include <stdint.h>
 #endif
 #include <sys/types.h>
@@ -633,10 +633,15 @@ struct sctp_setpeerprim {
 	uint8_t sspp_padding[4];
 };
 
+union sctp_sockstore {
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+	struct sockaddr sa;
+};
+
 struct sctp_getaddresses {
 	sctp_assoc_t sget_assoc_id;
-	/* addr is filled in for N * sockaddr_storage */
-	struct sockaddr addr[1];
+	union sctp_sockstore addr[];
 };
 
 struct sctp_status {
@@ -1142,12 +1147,6 @@ struct sctpstat {
 #define SCTP_STAT_DECR_COUNTER32(_x) SCTP_STAT_DECR(_x)
 #define SCTP_STAT_DECR_COUNTER64(_x) SCTP_STAT_DECR(_x)
 #define SCTP_STAT_DECR_GAUGE32(_x) SCTP_STAT_DECR(_x)
-
-union sctp_sockstore {
-	struct sockaddr_in sin;
-	struct sockaddr_in6 sin6;
-	struct sockaddr sa;
-};
 
 
 /***********************************/
