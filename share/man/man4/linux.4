@@ -109,6 +109,14 @@ Recent versions of GNU libc are known to use different syscalls depending
 on the value of this sysctl.
 .It Va compat.linux.oss_version
 Linux Open Sound System version.
+.It Va compat.linux.preserve_vstatus
+When set to 1, it prevents Linux applications from resetting the
+.Xr termios 4
+VSTATUS setting.
+From a user perspective, this makes
+.Va SIGINFO
+work for Linux executables.
+Defaults to 0.
 .Sh FILES
 .Bl -tag -width /compat/linux/dev/shm -compact
 .It Pa /compat/linux

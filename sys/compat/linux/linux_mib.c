@@ -62,6 +62,10 @@ static unsigned linux_osd_jail_slot;
 
 SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0, "Linux mode");
 
+int linux_preserve_vstatus = 0;
+SYSCTL_INT(_compat_linux, OID_AUTO, preserve_vstatus, CTLFLAG_RWTUN,
+    &linux_preserve_vstatus, 0, "Preserve VSTATUS termios(4) flag");
+
 static int	linux_set_osname(struct thread *td, char *osname);
 static int	linux_set_osrelease(struct thread *td, char *osrelease);
 static int	linux_set_oss_version(struct thread *td, int oss_version);
