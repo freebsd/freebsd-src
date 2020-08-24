@@ -100,7 +100,7 @@ sctp_getaddrlen(sa_family_t family)
 
 int
 sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
-    sctp_assoc_t * id)
+    sctp_assoc_t *id)
 {
 	char *buf;
 	int i, ret, *aa;
@@ -159,9 +159,9 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 	aa = (int *)buf;
 	*aa = addrcnt;
 	ret = setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X, (void *)buf,
-	    (socklen_t) len);
+	    (socklen_t)len);
 	if ((ret == 0) && (id != NULL)) {
-		*id = *(sctp_assoc_t *) buf;
+		*id = *(sctp_assoc_t *)buf;
 	}
 	free(buf);
 	return (ret);
@@ -269,7 +269,7 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 			}
 		}
 		if (setsockopt(sd, IPPROTO_SCTP, flags, gaddrs,
-		    (socklen_t) argsz) != 0) {
+		    (socklen_t)argsz) != 0) {
 			free(gaddrs);
 			return (-1);
 		}
@@ -280,7 +280,7 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 }
 
 int
-sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
+sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t *size)
 {
 	if (arg == NULL) {
 		errno = EINVAL;
@@ -409,13 +409,13 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		return (-1);
 	}
 	asoc = id;
-	opt_len = (socklen_t) sizeof(sctp_assoc_t);
+	opt_len = (socklen_t)sizeof(sctp_assoc_t);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_REMOTE_ADDR_SIZE,
 	    &asoc, &opt_len) != 0) {
 		return (-1);
 	}
 	/* size required is returned in 'asoc' */
-	opt_len = (socklen_t) ((size_t)asoc + sizeof(sctp_assoc_t));
+	opt_len = (socklen_t)((size_t)asoc + sizeof(sctp_assoc_t));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
 		errno = ENOMEM;
@@ -465,7 +465,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		return (-1);
 	}
 	size_of_addresses = 0;
-	opt_len = (socklen_t) sizeof(int);
+	opt_len = (socklen_t)sizeof(int);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_LOCAL_ADDR_SIZE,
 	    &size_of_addresses, &opt_len) != 0) {
 		errno = ENOMEM;
@@ -475,7 +475,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		errno = ENOTCONN;
 		return (-1);
 	}
-	opt_len = (socklen_t) (size_of_addresses + sizeof(sctp_assoc_t));
+	opt_len = (socklen_t)(size_of_addresses + sizeof(sctp_assoc_t));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
 		errno = ENOMEM;
@@ -586,6 +586,7 @@ sctp_sendmsg(int s,
 		}
 		who = (struct sockaddr *)&addr;
 	}
+
 	iov.iov_base = (char *)data;
 	iov.iov_len = len;
 
@@ -632,7 +633,7 @@ sctp_getassocid(int sd, struct sockaddr *sa)
 	if (getsockopt(sd, IPPROTO_SCTP,
 	    SCTP_GET_PEER_ADDR_INFO, &sp, &siz) != 0) {
 		/* We depend on the fact that 0 can never be returned */
-		return ((sctp_assoc_t) 0);
+		return ((sctp_assoc_t)0);
 	}
 	return (sp.spinfo_assoc_id);
 }
@@ -748,7 +749,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	aa++;
 	memcpy((caddr_t)aa, addrs, (size_t)(len - sizeof(int)));
 	ret = setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X_DELAYED, (void *)buf,
-	    (socklen_t) len);
+	    (socklen_t)len);
 
 	free(buf);
 	if (ret != 0) {
@@ -766,7 +767,7 @@ continue_send:
 	sinfo->sinfo_assoc_id = sctp_getassocid(sd, addrs);
 	if (sinfo->sinfo_assoc_id == 0) {
 		(void)setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X_COMPLETE, (void *)addrs,
-		    (socklen_t) addrs->sa_len);
+		    (socklen_t)addrs->sa_len);
 		errno = ENOENT;
 		return (-1);
 	}
@@ -774,7 +775,7 @@ continue_send:
 	saved_errno = errno;
 	if (no_end_cx == 0)
 		(void)setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X_COMPLETE, (void *)addrs,
-		    (socklen_t) addrs->sa_len);
+		    (socklen_t)addrs->sa_len);
 
 	errno = saved_errno;
 	return (ret);
@@ -808,7 +809,7 @@ sctp_recvmsg(int s,
     void *dbuf,
     size_t len,
     struct sockaddr *from,
-    socklen_t * fromlen,
+    socklen_t *fromlen,
     struct sctp_sndrcvinfo *sinfo,
     int *msg_flags)
 {
@@ -878,14 +879,14 @@ sctp_recvmsg(int s,
 #endif
 }
 
-ssize_t 
+ssize_t
 sctp_recvv(int sd,
     const struct iovec *iov,
     int iovlen,
     struct sockaddr *from,
-    socklen_t * fromlen,
+    socklen_t *fromlen,
     void *info,
-    socklen_t * infolen,
+    socklen_t *infolen,
     unsigned int *infotype,
     int *flags)
 {
@@ -953,17 +954,17 @@ sctp_recvv(int sd,
 				rn_info = (struct sctp_recvv_rn *)info;
 				rn_info->recvv_rcvinfo = *rcvinfo;
 				rn_info->recvv_nxtinfo = *nxtinfo;
-				*infolen = (socklen_t) sizeof(struct sctp_recvv_rn);
+				*infolen = (socklen_t)sizeof(struct sctp_recvv_rn);
 				*infotype = SCTP_RECVV_RN;
 			} else if (*infolen >= sizeof(struct sctp_rcvinfo)) {
 				memcpy(info, rcvinfo, sizeof(struct sctp_rcvinfo));
-				*infolen = (socklen_t) sizeof(struct sctp_rcvinfo);
+				*infolen = (socklen_t)sizeof(struct sctp_rcvinfo);
 				*infotype = SCTP_RECVV_RCVINFO;
 			}
 		} else if (nxtinfo != NULL) {
 			if (*infolen >= sizeof(struct sctp_nxtinfo)) {
 				memcpy(info, nxtinfo, sizeof(struct sctp_nxtinfo));
-				*infolen = (socklen_t) sizeof(struct sctp_nxtinfo);
+				*infolen = (socklen_t)sizeof(struct sctp_nxtinfo);
 				*infotype = SCTP_RECVV_NXTINFO;
 			}
 		}
@@ -1105,7 +1106,7 @@ sctp_sendv(int sd,
 	for (i = 0; i < addrcnt; i++) {
 		switch (addr->sa_family) {
 		case AF_INET:
-			addr_len = (socklen_t) sizeof(struct sockaddr_in);
+			addr_len = (socklen_t)sizeof(struct sockaddr_in);
 			addr_in = (struct sockaddr_in *)addr;
 			if (addr_in->sin_len != addr_len) {
 				free(cmsgbuf);
@@ -1130,7 +1131,7 @@ sctp_sendv(int sd,
 			}
 			break;
 		case AF_INET6:
-			addr_len = (socklen_t) sizeof(struct sockaddr_in6);
+			addr_len = (socklen_t)sizeof(struct sockaddr_in6);
 			addr_in6 = (struct sockaddr_in6 *)addr;
 			if (addr_in6->sin6_len != addr_len) {
 				free(cmsgbuf);
