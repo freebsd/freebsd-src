@@ -6013,9 +6013,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EAFNOSUPPORT;
 				break;
 			}
-			sctp_bindx_add_address(so, inp, addrs->addr,
-			    addrs->sget_assoc_id, vrf_id,
-			    &error, p);
+			sctp_bindx_add_address(so, inp, addrs->addr, vrf_id, &error, p);
 			break;
 		}
 	case SCTP_BINDX_REM_ADDR:
@@ -6059,9 +6057,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				error = EAFNOSUPPORT;
 				break;
 			}
-			sctp_bindx_delete_address(inp, addrs->addr,
-			    addrs->sget_assoc_id, vrf_id,
-			    &error);
+			sctp_bindx_delete_address(inp, addrs->addr, vrf_id, &error);
 			break;
 		}
 	case SCTP_EVENT:
