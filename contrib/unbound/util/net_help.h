@@ -386,6 +386,14 @@ void log_crypto_err(const char* str);
 void log_crypto_err_code(const char* str, unsigned long err);
 
 /**
+ * Log certificate details verbosity, string, of X509 cert
+ * @param level: verbosity level
+ * @param str: string to prefix on output
+ * @param cert: X509* structure.
+ */
+void log_cert(unsigned level, const char* str, void* cert);
+
+/**
  * Set SSL_OP_NOxxx options on SSL context to disable bad crypto
  * @param ctxt: SSL_CTX*
  * @return false on failure.
@@ -435,6 +443,22 @@ void* incoming_ssl_fd(void* sslctx, int fd);
 void* outgoing_ssl_fd(void* sslctx, int fd);
 
 /**
+ * check if authname SSL functionality is available, false if not
+ * @param auth_name: the name for the remote server, used for error print.
+ * @return false if SSL functionality to check the SSL name is not available.
+ */
+int check_auth_name_for_ssl(char* auth_name);
+
+/**
+ * set auth name on SSL for verification
+ * @param ssl: SSL* to set
+ * @param auth_name: if NULL nothing happens, otherwise the name to check.
+ * @param use_sni: if SNI will be used.
+ * @return 1 on success or NULL auth_name, 0 on failure.
+ */
+int set_auth_name_on_ssl(void* ssl, char* auth_name, int use_sni);
+
+/**
  * Initialize openssl locking for thread safety
  * @return false on failure (alloc failure).
  */
@@ -453,20 +477,6 @@ void ub_openssl_lock_delete(void);
  */
 int listen_sslctx_setup_ticket_keys(void* sslctx,
 	struct config_strlist* tls_session_ticket_keys);
-
-/**
- * callback TLS session ticket encrypt and decrypt
- * For use with SSL_CTX_set_tlsext_ticket_key_cb
- * @param s: the SSL_CTX to use (from connect_sslctx_create())
- * @param key_name: secret name, 16 bytes
- * @param iv: up to EVP_MAX_IV_LENGTH.
- * @param evp_ctx: the evp cipher context, function sets this.
- * @param hmac_ctx: the hmax context, function sets this.
- * @param enc: 1 is encrypt, 0 is decrypt
- * @return 0 on no ticket, 1 for okay, and 2 for okay but renew the ticket
- * 	(the ticket is decrypt only). and <0 for failures.
- */
-int tls_session_ticket_key_cb(void *s, unsigned char* key_name,unsigned char* iv, void *evp_ctx, void *hmac_ctx, int enc);
 
 /** Free memory used for TLS session ticket keys */
 void listen_sslctx_delete_ticket_keys(void);

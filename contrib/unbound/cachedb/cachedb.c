@@ -160,7 +160,7 @@ testframe_lookup(struct module_env* env, struct cachedb_env* cachedb_env,
 
 static void
 testframe_store(struct module_env* env, struct cachedb_env* cachedb_env,
-	char* key, uint8_t* data, size_t data_len)
+	char* key, uint8_t* data, size_t data_len, time_t ATTR_UNUSED(ttl))
 {
 	struct testframe_moddata* d = (struct testframe_moddata*)
 		cachedb_env->backend_data;
@@ -606,7 +606,8 @@ cachedb_extcache_store(struct module_qstate* qstate, struct cachedb_env* ie)
 	/* call backend */
 	(*ie->backend->store)(qstate->env, ie, key,
 		sldns_buffer_begin(qstate->env->scratch_buffer),
-		sldns_buffer_limit(qstate->env->scratch_buffer));
+		sldns_buffer_limit(qstate->env->scratch_buffer),
+		qstate->return_msg->rep->ttl);
 }
 
 /**

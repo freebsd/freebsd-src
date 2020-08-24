@@ -392,12 +392,12 @@ auth_zone_delete(struct auth_zone* z, struct auth_zones* az)
 	if(az && z->rpz) {
 		/* keep RPZ linked list intact */
 		lock_rw_wrlock(&az->rpz_lock);
-		if(z->rpz->prev)
-			z->rpz->prev->next = z->rpz->next;
+		if(z->rpz_az_prev)
+			z->rpz_az_prev->rpz_az_next = z->rpz_az_next;
 		else
-			az->rpz_first = z->rpz->next;
-		if(z->rpz->next)
-			z->rpz->next->prev = z->rpz->prev;
+			az->rpz_first = z->rpz_az_next;
+		if(z->rpz_az_next)
+			z->rpz_az_next->rpz_az_prev = z->rpz_az_prev;
 		lock_rw_unlock(&az->rpz_lock);
 	}
 	if(z->rpz)
@@ -426,9 +426,11 @@ auth_zone_create(struct auth_zones* az, uint8_t* nm, size_t nmlen,
 	}
 	rbtree_init(&z->data, &auth_data_cmp);
 	lock_rw_init(&z->lock);
-	lock_protect(&z->lock, &z->name, sizeof(*z)-sizeof(rbnode_type));
+	lock_protect(&z->lock, &z->name, sizeof(*z)-sizeof(rbnode_type)-
+			sizeof(&z->rpz_az_next)-sizeof(&z->rpz_az_prev));
 	lock_rw_wrlock(&z->lock);
-	/* z lock protects all, except rbtree itself, which is az->lock */
+	/* z lock protects all, except rbtree itself and the rpz linked list
+	 * pointers, which are protected using az->lock */
 	if(!rbtree_insert(&az->ztree, &z->node)) {
 		lock_rw_unlock(&z->lock);
 		auth_zone_delete(z, NULL);
@@ -1178,9 +1180,9 @@ az_insert_rr(struct auth_zone* z, uint8_t* rr, size_t rr_len,
 		return 0;
 	}
 	if(z->rpz) {
-		if(!(rpz_insert_rr(z->rpz, z->namelen, dname, dname_len, 
-			rr_type, rr_class, rr_ttl, rdata, rdatalen, rr,
-			rr_len)))
+		if(!(rpz_insert_rr(z->rpz, z->name, z->namelen, dname,
+			dname_len, rr_type, rr_class, rr_ttl, rdata, rdatalen,
+			rr, rr_len)))
 			return 0;
 	}
 	return 1;
@@ -1864,15 +1866,26 @@ auth_zones_cfg(struct auth_zones* az, struct config_auth* c)
 	struct auth_xfer* x = NULL;
 
 	/* create zone */
+	if(c->isrpz) {
+		/* if the rpz lock is needed, grab it before the other
+		 * locks to avoid a lock dependency cycle */
+		lock_rw_wrlock(&az->rpz_lock);
+	}
 	lock_rw_wrlock(&az->lock);
 	if(!(z=auth_zones_find_or_add_zone(az, c->name))) {
 		lock_rw_unlock(&az->lock);
+		if(c->isrpz) {
+			lock_rw_unlock(&az->rpz_lock);
+		}
 		return 0;
 	}
 	if(c->masters || c->urls) {
 		if(!(x=auth_zones_find_or_add_xfer(az, z))) {
 			lock_rw_unlock(&az->lock);
 			lock_rw_unlock(&z->lock);
+			if(c->isrpz) {
+				lock_rw_unlock(&az->rpz_lock);
+			}
 			return 0;
 		}
 	}
@@ -1887,6 +1900,9 @@ auth_zones_cfg(struct auth_zones* az, struct config_auth* c)
 			lock_basic_unlock(&x->lock);
 		}
 		lock_rw_unlock(&z->lock);
+		if(c->isrpz) {
+			lock_rw_unlock(&az->rpz_lock);
+		}
 		return 0;
 	}
 	z->for_downstream = c->for_downstream;
@@ -1897,11 +1913,14 @@ auth_zones_cfg(struct auth_zones* az, struct config_auth* c)
 			fatal_exit("Could not setup RPZ zones");
 			return 0;
 		}
-		lock_rw_wrlock(&az->rpz_lock);
-		z->rpz->next = az->rpz_first;
+		lock_protect(&z->lock, &z->rpz->local_zones, sizeof(*z->rpz));
+		/* the az->rpz_lock is locked above */
+		z->rpz_az_next = az->rpz_first;
 		if(az->rpz_first)
-			az->rpz_first->prev = z->rpz;
-		az->rpz_first = z->rpz;
+			az->rpz_first->rpz_az_prev = z;
+		az->rpz_first = z;
+	}
+	if(c->isrpz) {
 		lock_rw_unlock(&az->rpz_lock);
 	}
 
@@ -5331,7 +5350,7 @@ void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 	log_assert(xfr->task_transfer);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_transfer->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return; /* stop on quit */
 	}
@@ -5770,7 +5789,7 @@ auth_xfer_transfer_timer_callback(void* arg)
 	log_assert(xfr->task_transfer);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_transfer->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return; /* stop on quit */
 	}
@@ -5812,7 +5831,7 @@ auth_xfer_transfer_tcp_callback(struct comm_point* c, void* arg, int err,
 	log_assert(xfr->task_transfer);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_transfer->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return 0; /* stop on quit */
 	}
@@ -5893,7 +5912,7 @@ auth_xfer_transfer_http_callback(struct comm_point* c, void* arg, int err,
 	log_assert(xfr->task_transfer);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_transfer->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return 0; /* stop on quit */
 	}
@@ -6107,7 +6126,7 @@ auth_xfer_probe_timer_callback(void* arg)
 	log_assert(xfr->task_probe);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_probe->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return; /* stop on quit */
 	}
@@ -6143,7 +6162,7 @@ auth_xfer_probe_udp_callback(struct comm_point* c, void* arg, int err,
 	log_assert(xfr->task_probe);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_probe->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return 0; /* stop on quit */
 	}
@@ -6388,7 +6407,7 @@ void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 	log_assert(xfr->task_probe);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_probe->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return; /* stop on quit */
 	}
@@ -6465,7 +6484,7 @@ auth_xfer_timer(void* arg)
 	log_assert(xfr->task_nextprobe);
 	lock_basic_lock(&xfr->lock);
 	env = xfr->task_nextprobe->env;
-	if(env->outnet->want_to_quit) {
+	if(!env || env->outnet->want_to_quit) {
 		lock_basic_unlock(&xfr->lock);
 		return; /* stop on quit */
 	}
