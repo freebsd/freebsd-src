@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2019
+.Dd June 10, 2020
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -95,6 +95,10 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width indent
+.It Va compat.linux.default_openfiles
+Default soft openfiles resource limit for Linux applications.
+Set to -1 to disable the limit.
+Defaults to 1024.
 .It Va compat.linux.emul_path
 Path to the Linux run-time environment.
 Defaults to
