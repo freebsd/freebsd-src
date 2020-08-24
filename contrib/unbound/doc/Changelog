@@ -1,6 +1,330 @@
+20 July 2020: Wouter
+	- Fix streamtcp to print packet data to stdout.  This makes the
+	  stdout and stderr not mix together lines, when parsing its output.
+	- Fix contrib/fastrpz.patch to apply cleanly.  It fixes for changes
+	  due to added libdynmod, but it does not compile, it conflicts with
+	  new rpz code.
+	- branch now named 1.11.0 and 1.11.0rc1 tag.
+
+17 July 2020: Wouter
+	- Fix libnettle compile for session ticket key callback function
+	  changes.
+	- Fix lock dependency cycle in rpz zone config setup.
+
+17 July 2020: Ralph
+	- Merge PR #234 - Ensure proper alignment of cmsg buffers by Jérémie
+	  Courrèges-Anglas.
+	- Fix PR #234 log_assert sizeof to use union buffer.
+
+16 July 2020: Wouter
+	- Fix check conf test for referencing installation paths.
+	- Fix unused variable warning for clang analyzer.
+
+16 July 2020: George
+	- Introduce 'include-toplevel:' configuration option.
+
+16 July 2020: Ralph
+	- Add bidirectional frame streams support.
+
+8 July 2020: Wouter
+	- Fix add missing DSA header, for compilation without deprecated
+	  OpenSSL APIs.
+	- Fix to use SSL_CTX_set_tlsext_ticket_key_evp_cb in OpenSSL
+	  3.0.0-alpha4.
+	- Longer keys for the test set, this avoids weak crypto errors.
+
+7 July 2020: Wouter
+	- Fix #259: Fix unbound-checkconf does not check view existence.
+	  unbound-checkconf checks access-control-view, access-control-tags,
+	  access-control-tag-actions and access-control-tag-datas.
+	- Fix offset of error printout for access-control-tag-datas.
+	- Review fixes for checkconf #259 change.
+
+6 July 2020: Wouter
+	- run_vm cleanup better and removes trailing slash on single argument.
+
+29 June 2020: Wouter
+	- Move reply list clean for serve expired mesh callback to after
+	  the reply is sent, so that script callbacks have reply_info.
+	- Also move reply list clean for mesh callbacks to the scrip callback
+	  can see the reply_info.
+	- Fix for mesh accounting if the reply list already empty to begin
+	  with.
+	- Fix for mesh accounting when rpz decides to drop a reply with a
+	  tcp stream waiting for it.
+	- Review fix for number of detached states due to use of variable
+	  after end of loop.
+	- Fix tcp req info drop due to size call into mesh accounting
+	  removal of mesh state during mesh send reply.
+
+24 June 2020: Wouter
+	- iana portlist updated.
+	- doxygen file comments for dynlibmodule.
+
+17 June 2020: Wouter
+	- Fix default explanation in man page for qname-minimisation-strict.
+	- Fix display of event loop method with libev.
+
+8 June 2020: Wouter
+	- Mention tls name possible when tls is enabled for stub-addr in the
+	  man page.
+
+27 May 2020: George
+	- Merge PR #241 by Robert Edmonds: contrib/libunbound.pc.in: Do not use
+	  "Requires:".
+
+25 May 2020: George
+	- Update contrib/aaaa-filter-iterator.patch for the recent
+	  generate_sub_request() change and to apply cleanly.
+
+21 May 2020: George
+	- Fix for integer overflow when printing RDF_TYPE_TIME.
+
+19 May 2020: Wouter
+	- CVE-2020-12662 Unbound can be tricked into amplifying an incoming
+	  query into a large number of queries directed to a target.
+	- CVE-2020-12663 Malformed answers from upstream name servers can be
+	  used to make Unbound unresponsive.
+	- Release 1.10.1 is 1.10.0 with fixes, code repository continues,
+	  including those fixes, towards the next release.  Configure has
+	  version 1.10.2 version number in it.
+	- For PR #93: windows compile warnings removal
+	- windows compile warnings removal for ip dscp option code.
+	- For PR #93: unit test for dynlib module.
+
+18 May 2020: Wouter
+	- For PR #93: dynlibmod can handle reloads and deinit and inits again,
+	  with dlclose and dlopen of the library again.  Also for multiple
+	  modules.  Fix memory leak by not closing dlopened content.  Fix
+	  to allow one dynlibmod instance by unbound-checkconf.
+	- For PR #93: checkconf allows multiple dynlib in module-config, for
+	  a couple cases.
+	- For PR #93: checkconf allows python dynlib in module-config, for
+	  a couple cases.
+	- For PR #93: man page spelling reference fix.
+	- For PR #93: fix link of other executables for dynlibmod dependency.
+
+15 May 2020: Wouter
+	- Merge PR #93: Add dynamic library support.
+	- Fixed conflicts for PR #93 and make configure, yacc, lex.
+	- For PR #93: Fix warnings for dynlibmodule.
+
+15 May 2020: Ralph
+	- Cache ECS answers with longest scope of CNAME chain.
+
+22 April 2020: George
+	- Explicitly use 'rrset-roundrobin: no' for test cases.
+
+21 April 2020: Wouter
+	- Merge #225 from akhait: KSK-2010 has been revoked. It removes the
+	  KSK-2010 from the default list in unbound-anchor, now that the
+	  revocation period is over.  KSK-2017 is the only trust anchor in
+	  the shipped default now.
+
+21 April 2020: George
+	- Change default value for 'rrset-roundrobin' to yes.
+	- Fix tests for new rrset-roundrobin default.
+
+20 April 2020: Wouter
+	- Fix #222: --enable-rpath, fails to rpath python lib.
+	- Fix for count of reply states in the mesh.
+	- Remove unneeded was_mesh_reply check.
+
+17 April 2020: George
+	- Add SNI support on more TLS connections (fixes #193).
+	- Add SNI support to unbound-anchor.
+
+16 April 2020: George
+	- Add doxygen documentation for DSCP.
+
+16 April 2020: Wouter
+	- Fix help return code in unbound-control-setup script.
+	- Fix for posix shell syntax for trap in nsd-control-setup.
+	- Fix for posix shell syntax for trap in run_msg.sh test script.
+
+15 April 2020: George
+	- Fix #220: auth-zone section in config may lead to segfault.
+
+7 April 2020: Wouter
+	- Merge PR #214 from gearnode: unbound-control-setup recreate
+	  certificates.  With the -r option the certificates are created
+	  again, without it, only the files that do not exist are created.
+
+6 April 2020: Ralph
+	- Keep track of number of timeouts. Use this counter to determine if
+	  capsforid fallback should be started.
+
+6 April 2020: George
+	- More documentation for redis-expire-records option.
+
+1 April 2020: George
+	- Merge PR #206: Redis TTL, by Talkabout.
+
+30 March 2020: Wouter
+	- Merge PR #207: Clarify if-automatic listens on 0.0.0.0 and ::
+	- Merge PR #208: Fix uncached CLIENT_RESPONSE'es on stateful
+	  transports.
+
+27 March 2020: Wouter
+	- Merge PR #203 from noloader: Update README-Travis.md with current
+	  procedures.
+
+27 March 2020: Ralph
+	- Make unbound-control error returned on missing domain name more user
+	  friendly.
+
+26 March 2020: Ralph
+	- Fix RPZ concurrency issue when using auth_zone_reload.
+
+25 March 2020: George
+	- Merge PR #201 from noloader: Fix OpenSSL cross-compaile warnings.
+	- Fix on #201.
+
+24 March 2020: Wouter
+	- Merge PR #200 from yarikk: add ip-dscp option to specify the DSCP
+	  tag for outgoing packets.
+	- Fixes on #200.
+	- Travis fix for ios by omitting tools from install.
+
+23 March 2020: Wouter
+	- Fix compile on Solaris for unbound-checkconf.
+
+20 March 2020: George
+	- Merge PR #198 from fobser: Declare lz_enter_rr_into_zone() static, it's
+	  only used in this file.
+
+20 March 2020: Wouter
+	- Merge PR #197 from fobser: Make log_ident_revert_to_default() a
+	  proper prototype.
+
+19 March 2020: Ralph
+	- Merge PR#191: Update iOS testing on Travis, by Jeffrey Walton.
+	- Fix #158: open tls-session-ticket-keys as binary, for Windows. By
+	  Daisuke HIGASHI.
+	- Merge PR#134, Allow the kernel to provide random source ports. By
+	  Florian Obser.
+	- Log warning when using outgoing-port-permit and outgoing-port-avoid
+	  while explicit port randomisation is disabled.
+	- Merge PR#194: Add libevent testing to Travis, by Jeffrey Walton.
+	- Fix .travis.yml error, missing 'env' option.
+
+16 March 2020: Wouter
+	- Fix #192: In the unbound-checkconf tool, the module config of
+	  dns64 subnetcache respip validator iterator is whitelisted, it was
+	  reported it seems to work.
+
+12 March 2020: Wouter
+	- Fix compile of test tools without protobuf.
+
+11 March 2020: Ralph
+	- Add check to make sure RPZ records are subdomains of configured
+	  zone origin.
+
+11 March 2020: George
+	- Fix #189: mini_event.h:142:17: error: field 'ev_timeout' has incomplete
+	  type, by noloader.
+	- Changelog entry for (Fix #189, Merge PR #190).
+
+11 March 2020: Wouter
+	- Fix #188: unbound-control.c:882:6: error: 'execlp' is
+	  unavailable: not available on tvOS.
+
+6 March 2020: George
+	- Merge PR #186, fix #183: Fix unrecognized 'echo -n' option on OS X, by
+	  noloader
+
+5 March 2020: Wouter
+	- Fix PR #182 from noloader: Add iOS testing to Travis.
+
+4 March 2020: Ralph
+	- Update README-Travis.md (from PR #179), by Jeffrey Walton.
+
+4 March 2020: George
+	- Merge PR #181 from noloader: Fix OpenSSL -pie warning on Android.
+
+4 March 2020: Wouter
+	- Merge PR #180 from noloader: Avoid calling exit in Travis script.
+
+3 March 2020: George
+	- Upgrade config.guess(2020-01-01) and config.sub(2020-01-01).
+
+2 March 2020: Ralph
+	- Fix #175, Merge PR #176: fix link error when OpenSSL is configured
+ 	  with no-engine, thanks noloader.
+
+2 March 2020: George
+	- Fix compiler warning in dns64/dns64.c
+	- Merge PR #174: Add Android to Travis testing, by noloader.
+	- Move android build scripts to contrib/ and allow android tests to fail.
+
+2 March 2020: Wouter
+	- Fix #177: dnstap does not build on macOS.
+
+28 February 2020: Ralph
+	- Merge PR #172: Add IBM s390x arch for testing, by noloader.
+
+28 February 2020: Wouter
+	- Merge PR #173: updated makedist.sh for config.guess and
+	  config.sub and sha256 digest for gpg, by noloader.
+	- Merge PR #164: Framestreams, this branch implements dnstap
+	  unidirectional connectivity in unbound. This has a number of
+	  new features.
+
+	  The dependency on libfstrm is removed. The fstrm protocol code
+	  resides in dnstap/dnstap_fstrm.h and dnstap/dnstap_fstrm.c. This
+	  contains a brief definition of what unbound needs.
+
+	  The make unbound-dnstap-socket builds a debug tool,
+	  unbound-dnstap-socket. It can listen, accept multiple DNSTAP
+	  streams and print information. Commandline options control it.
+
+	  Unbound can reconnect if the unix domain socket file socket is
+	  closed. This uses exponential backoff after which it uses a
+	  one second timer to throttle cpu down. There is also support
+	  to use TCP and TLS for connecting to the log server. There
+	  are new config options to turn them on, in the dnstap section
+	  in the man page and example config file. dnstap-ip with IP
+	  address of server for TCP or TLS use. dnstap-tls to turn
+	  on TLS. And dnstap-tls-server-name, dnstap-tls-cert-bundle,
+	  dnstap-tls-client-key-file and dnstap-tls-client-cert-file
+	  to configure the certificates for server authentication and
+	  client authentication, or leave at "" to not use that.
+
+27 February 2020: George
+	- Merge PR #171: Add additional compilers and platforms to Travis
+	  testing, by noloader.
+
+27 February 2020: Wouter
+	- Fix #169: Fix warning for daemon/remote.c output may be truncated
+	  from snprintf.
+	- Fix #170: Fix gcc undefined sanitizer signed integer overflow
+	  warning in signature expiry RFC1982 serial number arithmetic.
+	- Fix more undefined sanitizer issues, in respip copy_rrset null
+	  dname, and in the client_info_compare routine for null memcmp.
+
+26 February 2020: Wouter
+	- iana portlist updated.
+
+25 February 2020: Wouter
+	- Fix #165: Add prefer-ip4: yesno config option to prefer ipv4 for
+	  using ipv4 filters, because the hosts ip6 netblock /64 is not owned
+	  by one operator, and thus reputation is shared.
+
+24 February 2020: George
+	- Merge PR #166: Fix typo in unbound.service.in, by glitsj16.
+
 20 February 2020: Wouter
 	- Updated contrib/unbound_smf23.tar.gz with Solaris SMF service for
 	  Unbound from Yuri Voinov.
+	- master branch has 1.10.1 version.
+
+18 February 2020: Wouter
+	- protect X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS with ifdef for
+	  different openssl versions.
+
+17 February 2020: Wouter
+	- changelog point where the tag for 1.10.0rc2 release is.  And with
+	  the unbound_smf23 commit added to it, that is the 1.10.0 release.
 
 17 February 2020: Ralph
 	- Add respip to supported module-config options in unbound-checkconf.

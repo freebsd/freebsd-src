@@ -5,22 +5,22 @@
 # Copyright (c) 2008, NLnet Labs. All rights reserved.
 #
 # This software is open source.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
 # are met:
-# 
+#
 # Redistributions of source code must retain the above copyright notice,
 # this list of conditions and the following disclaimer.
-# 
+#
 # Redistributions in binary form must reproduce the above copyright notice,
 # this list of conditions and the following disclaimer in the documentation
 # and/or other materials provided with the distribution.
-# 
+#
 # Neither the name of the NLNET LABS nor the names of its contributors may
 # be used to endorse or promote products derived from this software without
 # specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -57,87 +57,144 @@ SVR_BASE=unbound_server
 # base name for unbound-control keys
 CTL_BASE=unbound_control
 
+# flag to recreate generated certificates
+RECREATE=0
+
 # we want -rw-r----- access (say you run this as root: grp=yes (server), all=no).
 umask 0027
 
 # end of options
 
-# functions:
-error ( ) {
-	echo "$0 fatal error: $1"
-	exit 1
+set -eu
+
+cleanup() {
+    echo "removing artifacts"
+
+    rm -rf \
+       server.cnf \
+       client.cnf \
+       "${SVR_BASE}_trust.pem" \
+       "${CTL_BASE}_trust.pem" \
+       "${SVR_BASE}_trust.srl"
 }
 
-# check arguments:
-while test $# -ne 0; do
-	case $1 in
-	-d)
-	if test $# -eq 1; then error "need argument for -d"; fi
-	DESTDIR="$2"
-	shift
-	;;
-	*)
-	echo "unbound-control-setup.sh - setup SSL keys for unbound-control"
-	echo "	-d dir	use directory to store keys and certificates."
-	echo "		default: $DESTDIR"
-	echo "please run this command using the same user id that the "
-	echo "unbound daemon uses, it needs read privileges."
-	exit 1
-	;;
-	esac
-	shift
+fatal() {
+    printf "fatal error: $*\n" >/dev/stderr
+    exit 1
+}
+
+usage() {
+    cat <<EOF
+usage: $0 OPTIONS
+OPTIONS
+-d <dir>  used directory to store keys and certificates (default: $DESTDIR)
+-h        show help notice
+-r        recreate certificates
+EOF
+}
+
+OPTIND=1
+while getopts 'd:hr' arg; do
+    case "$arg" in
+      d) DESTDIR="$OPTARG" ;;
+      h) usage; exit 1 ;;
+      r) RECREATE=1 ;;
+      ?) fatal "'$arg' unknown option" ;;
+    esac
 done
+shift $((OPTIND - 1))
 
-# go!:
+
 echo "setup in directory $DESTDIR"
-cd "$DESTDIR" || error "could not cd to $DESTDIR"
+cd "$DESTDIR"
 
-# create certificate keys; do not recreate if they already exist.
-if test -f $SVR_BASE.key; then
-	echo "$SVR_BASE.key exists"
-else
-	echo "generating $SVR_BASE.key"
-	openssl genrsa -out $SVR_BASE.key $BITS || error "could not genrsa"
-fi
-if test -f $CTL_BASE.key; then
-	echo "$CTL_BASE.key exists"
-else
-	echo "generating $CTL_BASE.key"
-	openssl genrsa -out $CTL_BASE.key $BITS || error "could not genrsa"
+trap cleanup INT
+
+# ===
+# Generate server certificate
+# ===
+
+# generate private key; do no recreate it if they already exist.
+if [ ! -f "$SVR_BASE.key" ]; then
+    openssl genrsa -out "$SVR_BASE.key" "$BITS"
 fi
 
-# create self-signed cert for server
-echo "[req]" > request.cfg
-echo "default_bits=$BITS" >> request.cfg
-echo "default_md=$HASH" >> request.cfg
-echo "prompt=no" >> request.cfg
-echo "distinguished_name=req_distinguished_name" >> request.cfg
-echo "" >> request.cfg
-echo "[req_distinguished_name]" >> request.cfg
-echo "commonName=$SERVERNAME" >> request.cfg
+cat >server.cnf <<EOF
+default_bits=$BITS
+default_md=$HASH
+prompt=no
+distinguished_name=req_distinguished_name
+[req_distinguished_name]
+commonName=$SERVERNAME
+EOF
 
-test -f request.cfg || error "could not create request.cfg"
+[ -f server.cnf ] || fatal "cannot create openssl configuration"
 
-echo "create $SVR_BASE.pem (self signed certificate)"
-openssl req -key $SVR_BASE.key -config request.cfg  -new -x509 -days $DAYS -out $SVR_BASE.pem || error "could not create $SVR_BASE.pem"
-# create trusted usage pem
-openssl x509 -in $SVR_BASE.pem -addtrust serverAuth -out $SVR_BASE"_trust.pem"
+if [ ! -f "$SVR_BASE.pem" -o $RECREATE -eq 1 ]; then
+    openssl req \
+            -new -x509 \
+            -key "$SVR_BASE.key" \
+            -config server.cnf  \
+            -days "$DAYS" \
+            -out "$SVR_BASE.pem"
 
-# create client request and sign it, piped
-echo "[req]" > request.cfg
-echo "default_bits=$BITS" >> request.cfg
-echo "default_md=$HASH" >> request.cfg
-echo "prompt=no" >> request.cfg
-echo "distinguished_name=req_distinguished_name" >> request.cfg
-echo "" >> request.cfg
-echo "[req_distinguished_name]" >> request.cfg
-echo "commonName=$CLIENTNAME" >> request.cfg
+    [ ! -f "SVR_BASE.pem" ] || fatal "cannot create server certificate"
+fi
 
-test -f request.cfg || error "could not create request.cfg"
+# ===
+# Generate client certificate
+# ===
 
-echo "create $CTL_BASE.pem (signed client certificate)"
-openssl req -key $CTL_BASE.key -config request.cfg -new | openssl x509 -req -days $DAYS -CA $SVR_BASE"_trust.pem" -CAkey $SVR_BASE.key -CAcreateserial -$HASH -out $CTL_BASE.pem
-test -f $CTL_BASE.pem || error "could not create $CTL_BASE.pem"
+# generate private key; do no recreate it if they already exist.
+if [ ! -f "$CTL_BASE.key" ]; then
+    openssl genrsa -out "$CTL_BASE.key" "$BITS"
+fi
+
+cat >client.cnf <<EOF
+[req]
+default_bits=$BITS
+default_md=$HASH
+prompt=no
+distinguished_name=req_distinguished_name
+[req_distinguished_name]
+commonName=$CLIENTNAME
+EOF
+
+[ -f client.cnf ] || fatal "cannot create openssl configuration"
+
+if [ ! -f "$CTL_BASE.pem" -o $RECREATE -eq 1 ]; then
+    openssl x509 \
+        -addtrust serverAuth \
+        -in "$SVR_BASE.pem" \
+        -out "${SVR_BASE}_trust.pem"
+
+    openssl req \
+            -new \
+            -config client.cnf \
+            -key "$CTL_BASE.key" \
+        | openssl x509 \
+                  -req \
+                  -days "$DAYS" \
+                  -CA "${SVR_BASE}_trust.pem" \
+                  -CAkey "$SVR_BASE.key" \
+                  -CAcreateserial \
+                  -$HASH \
+                  -out "$CTL_BASE.pem"
+
+    [ ! -f "CTL_BASE.pem" ] || fatal "cannot create signed client certificate"
+fi
+
+# remove unused permissions
+chmod o-rw \
+      "$SVR_BASE.pem" \
+      "$SVR_BASE.key" \
+      "$CTL_BASE.pem" \
+      "$CTL_BASE.key"
+
+cleanup
+
+echo "Setup success. Certificates created. Enable in unbound.conf file to use"
+
 # create trusted usage pem
 # openssl x509 -in $CTL_BASE.pem -addtrust clientAuth -out $CTL_BASE"_trust.pem"
 
@@ -148,13 +205,3 @@ test -f $CTL_BASE.pem || error "could not create $CTL_BASE.pem"
 # echo "empty password is used, simply click OK on the password dialog box."
 # openssl pkcs12 -export -in $CTL_BASE"_trust.pem" -inkey $CTL_BASE.key -name "unbound remote control client cert" -out $CTL_BASE"_browser.pfx" -password "pass:" || error "could not create browser certificate"
 
-# set desired permissions
-chmod 0640 $SVR_BASE.pem $SVR_BASE.key $CTL_BASE.pem $CTL_BASE.key
-
-# remove crap
-rm -f request.cfg
-rm -f $CTL_BASE"_trust.pem" $SVR_BASE"_trust.pem" $SVR_BASE"_trust.srl"
-
-echo "Setup success. Certificates created. Enable in unbound.conf file to use"
-
-exit 0

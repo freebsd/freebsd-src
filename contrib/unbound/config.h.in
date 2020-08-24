@@ -28,6 +28,9 @@
 /* Whether daemon is deprecated */
 #undef DEPRECATED_DAEMON
 
+/* Define this to enable kernel based UDP source port randomization. */
+#undef DISABLE_EXPLICIT_PORT_RANDOMISATION
+
 /* default dnstap socket path */
 #undef DNSTAP_SOCKET_PATH
 
@@ -175,6 +178,9 @@
 
 /* Define to 1 if you have the `endservent' function. */
 #undef HAVE_ENDSERVENT
+
+/* Define to 1 if you have the `ENGINE_cleanup' function. */
+#undef HAVE_ENGINE_CLEANUP
 
 /* Define to 1 if you have the `ERR_free_strings' function. */
 #undef HAVE_ERR_FREE_STRINGS
@@ -380,6 +386,9 @@
 /* Define to 1 if you have the <openssl/conf.h> header file. */
 #undef HAVE_OPENSSL_CONF_H
 
+/* Define to 1 if you have the <openssl/core_names.h> header file. */
+#undef HAVE_OPENSSL_CORE_NAMES_H
+
 /* Define to 1 if you have the <openssl/dh.h> header file. */
 #undef HAVE_OPENSSL_DH_H
 
@@ -494,8 +503,9 @@
 /* Define to 1 if you have the `SSL_CTX_set_security_level' function. */
 #undef HAVE_SSL_CTX_SET_SECURITY_LEVEL
 
-/* Define to 1 if you have the `SSL_CTX_set_tlsext_ticket_key_cb' function. */
-#undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_CB
+/* Define to 1 if you have the `SSL_CTX_set_tlsext_ticket_key_evp_cb'
+   function. */
+#undef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB
 
 /* Define to 1 if you have the `SSL_get0_peername' function. */
 #undef HAVE_SSL_GET0_PEERNAME
@@ -589,6 +599,9 @@
 
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #undef HAVE_SYS_WAIT_H
+
+/* Define to 1 if you have the <TargetConditionals.h> header file. */
+#undef HAVE_TARGETCONDITIONALS_H
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
@@ -805,6 +818,9 @@
 /* Define to 1 to use ipset support */
 #undef USE_IPSET
 
+/* Define if you enable libevent */
+#undef USE_LIBEVENT
+
 /* Define if you want to use internal select based events */
 #undef USE_MINI_EVENT
 
@@ -853,6 +869,9 @@
 
 /* the version of the windows API enabled */
 #undef WINVER
+
+/* Define if you want dynlib module. */
+#undef WITH_DYNLIBMODULE
 
 /* Define if you want Python module. */
 #undef WITH_PYTHONMODULE
