@@ -12,7 +12,7 @@ Changes to this file should not be MFCed.
 
 r364725:
 	Changes to one obscure devd event generated on resume need to
-	be documented. The old form will still be gerated in 13, but not
+	be documented. The old form will still be generated in 13, but not
 	in 14.
 
 r363679:
