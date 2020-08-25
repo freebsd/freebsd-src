@@ -91,7 +91,6 @@ CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
 CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
-CFLAGS+= -I${SRCDIR}/sys/contrib/openzfs/module/zstd/include
 CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -DHAVE_ISSETUGID
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
