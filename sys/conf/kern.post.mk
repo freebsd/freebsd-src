@@ -395,7 +395,7 @@ kernel-install: .PHONY
 		exit 1 ; \
 	fi
 .if exists(${DESTDIR}${KODIR})
-	-thiskernel=`sysctl -n kern.bootfile` ; \
+	-thiskernel=`sysctl -n kern.bootfile || echo /boot/kernel/kernel` ; \
 	if [ ! "`dirname "$$thiskernel"`" -ef ${DESTDIR}${KODIR} ] ; then \
 		chflags -R noschg ${DESTDIR}${KODIR} ; \
 		rm -rf ${DESTDIR}${KODIR} ; \
