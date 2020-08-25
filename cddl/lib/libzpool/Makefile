@@ -1,20 +1,17 @@
 # $FreeBSD$
 
-.include "${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/Makefile.files"
 
 # ZFS_COMMON_SRCS
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zfs
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zcommon
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/unicode
 # LUA_SRCS
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
-# ZFS_SHARED_SRCS
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-# LZ4_COMMON_SRCS
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
-# KERNEL_SRCS
-.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
-# LIST_SRCS
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/os
-# ATOMIC_SRCS
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/lua
+
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/os/linux/zfs
+
+.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzpool
+
 .if exists(${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}/opensolaris_atomic.S)
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/atomic/${MACHINE_ARCH}
 ATOMIC_SRCS=	opensolaris_atomic.S
@@ -23,40 +20,218 @@ ACFLAGS+=	-Wa,--noexecstack
 .PATH: ${SRCTOP}/sys/cddl/compat/opensolaris/kern
 ATOMIC_SRCS=	opensolaris_atomic.c
 .endif
-# UNICODE_SRCS
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/unicode
-# LIBCMDUTILS_SRCS
-.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils/common
+
+.if ${MACHINE_ARCH} == "powerpc"
+# Don't waste GOT entries on small data.
+PICFLAG=	-fPIC
+.endif
 
 LIB=		zpool
 
-ZFS_COMMON_SRCS= ${ZFS_COMMON_OBJS:C/.o$/.c/} trim_map.c
-ZFS_SHARED_SRCS= ${ZFS_SHARED_OBJS:C/.o$/.c/}
-LZ4_COMMON_SRCS= lz4.c
-LUA_SRCS=	${LUA_OBJS:C/.o$/.c/}
-KERNEL_SRCS=	kernel.c taskq.c util.c
-LIST_SRCS=	list.c
-UNICODE_SRCS=	u8_textprep.c
-LIBCMDUTILS_SRCS=nicenum.c
 
-SRCS=		${ZFS_COMMON_SRCS} ${ZFS_SHARED_SRCS} ${LUA_SRCS} \
-		${LZ4_COMMON_SRCS} ${KERNEL_SRCS} ${LIST_SRCS} ${ATOMIC_SRCS} \
-		${UNICODE_SRCS} ${LIBCMDUTILS_SRCS}
 
-WARNS?=		0
-CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris
-CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+=	-I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
-CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
-CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
-CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
-CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
-CFLAGS+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/head
-CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
-CFLAGS+=	-I${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils
+USER_C = \
+	kernel.c \
+	taskq.c \
+	util.c
+
+KERNEL_C = \
+	zfeature_common.c \
+	zfs_comutil.c \
+	zfs_deleg.c \
+	zfs_fletcher.c \
+	zfs_fletcher_superscalar.c \
+	zfs_fletcher_superscalar4.c \
+	zfs_namecheck.c \
+	zfs_prop.c \
+	zfs_uio.c \
+	zpool_prop.c \
+	zprop_common.c \
+	abd.c \
+	abd_os.c \
+	aggsum.c \
+	arc.c \
+	arc_os.c \
+	blkptr.c \
+	bplist.c \
+	bpobj.c \
+	bptree.c \
+	btree.c \
+	bqueue.c \
+	cityhash.c \
+	dbuf.c \
+	dbuf_stats.c \
+	ddt.c \
+	ddt_zap.c \
+	dmu.c \
+	dmu_diff.c \
+	dmu_object.c \
+	dmu_objset.c \
+	dmu_recv.c \
+	dmu_redact.c \
+	dmu_send.c \
+	dmu_traverse.c \
+	dmu_tx.c \
+	dmu_zfetch.c \
+	dnode.c \
+	dnode_sync.c \
+	dsl_bookmark.c \
+	dsl_dataset.c \
+	dsl_deadlist.c \
+	dsl_deleg.c \
+	dsl_dir.c \
+	dsl_crypt.c \
+	dsl_pool.c \
+	dsl_prop.c \
+	dsl_scan.c \
+	dsl_synctask.c \
+	dsl_destroy.c \
+	dsl_userhold.c \
+	edonr_zfs.c \
+	hkdf.c \
+	fm.c \
+	gzip.c \
+	lzjb.c \
+	lz4.c \
+	metaslab.c \
+	mmp.c \
+	multilist.c \
+	objlist.c \
+	pathname.c \
+	range_tree.c \
+	refcount.c \
+	rrwlock.c \
+	sa.c \
+	sha256.c \
+	skein_zfs.c \
+	spa.c \
+	spa_boot.c \
+	spa_checkpoint.c \
+	spa_config.c \
+	spa_errlog.c \
+	spa_history.c \
+	spa_log_spacemap.c \
+	spa_misc.c \
+	spa_stats.c \
+	space_map.c \
+	space_reftree.c \
+	txg.c \
+	trace.c \
+	uberblock.c \
+	unique.c \
+	vdev.c \
+	vdev_cache.c \
+	vdev_file.c \
+	vdev_indirect_births.c \
+	vdev_indirect.c \
+	vdev_indirect_mapping.c \
+	vdev_initialize.c \
+	vdev_label.c \
+	vdev_mirror.c \
+	vdev_missing.c \
+	vdev_queue.c \
+	vdev_raidz.c \
+	vdev_raidz_math_aarch64_neon.c \
+	vdev_raidz_math_aarch64_neonx2.c \
+	vdev_raidz_math_avx2.c \
+	vdev_raidz_math_avx512bw.c \
+	vdev_raidz_math_avx512f.c \
+	vdev_raidz_math.c \
+	vdev_raidz_math_scalar.c \
+	vdev_rebuild.c \
+	vdev_removal.c \
+	vdev_root.c \
+	vdev_trim.c \
+	zap.c \
+	zap_leaf.c \
+	zap_micro.c \
+	zcp.c \
+	zcp_get.c \
+	zcp_global.c \
+	zcp_iter.c \
+	zcp_set.c \
+	zcp_synctask.c \
+	zfeature.c \
+	zfs_byteswap.c \
+	zfs_debug.c \
+	zfs_fm.c \
+	zfs_fuid.c \
+	zfs_sa.c \
+	zfs_znode.c \
+	zfs_ratelimit.c \
+	zfs_rlock.c \
+	zil.c \
+	zio.c \
+	zio_checksum.c \
+	zio_compress.c \
+	zio_crypt.c \
+	zio_inject.c \
+	zle.c \
+	zrlock.c \
+	zthr.c
+
+ARCH_C =
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+ARCH_C += 	vdev_raidz_math_sse2.c \
+		vdev_raidz_math_ssse3.c \
+		zfs_fletcher_intel.c \
+		zfs_fletcher_sse.c 
+CFLAGS +=  -DHAVE_SSE2 	-DHAVE_SSE3
+.endif
+.if ${MACHINE_ARCH} == "amd64"
+ARCH_C +=	zfs_fletcher_avx512.c
+CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_AVX512F \
+	-DHAVE_AVX512BW
+.endif
+.if ${MACHINE_ARCH} == "aarch64"
+ARCH_C +=	zfs_fletcher_aarch64_neon.c
+.endif
+
+LUA_C = \
+	lapi.c \
+	lauxlib.c \
+	lbaselib.c \
+	lcode.c \
+	lcompat.c \
+	lcorolib.c \
+	lctype.c \
+	ldebug.c \
+	ldo.c \
+	lfunc.c \
+	lgc.c \
+	llex.c \
+	lmem.c \
+	lobject.c \
+	lopcodes.c \
+	lparser.c \
+	lstate.c \
+	lstring.c \
+	lstrlib.c \
+	ltable.c \
+	ltablib.c \
+	ltm.c \
+	lvm.c \
+	lzio.c
+
+UNICODE_C = u8_textprep.c uconv.c
+
+SRCS=		${USER_C} ${KERNEL_C} ${LUA_C} ${UNICODE_C} ${ARCH_C}
+
+WARNS?=		2
+CFLAGS+= -DIN_BASE
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys
+CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
+CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -DHAVE_ISSETUGID
+CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+CFLAGS+= -I${SRCTOP}/sys/modules/zfs
+CFLAGS+= -DLIB_ZPOOL_BUILD -DZFS_DEBUG
+
+
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
 #      into libthr private structures. That's sooo evil, but it's only for
 #      ZFS debugging tools needs.
@@ -64,10 +239,9 @@ CFLAGS+=	-DWANTS_MUTEX_OWNED
 CFLAGS+=	-I${SRCTOP}/lib/libpthread/thread
 CFLAGS+=	-I${SRCTOP}/lib/libpthread/sys
 CFLAGS+=	-I${SRCTOP}/lib/libthr/arch/${MACHINE_CPUARCH}/include
-CFLAGS.lz4.c+=	-D_FAKE_KERNEL
 CFLAGS.gcc+=	-fms-extensions
 
-LIBADD=		md pthread z nvpair avl umem
+LIBADD=		md pthread z spl icp nvpair avl umem
 
 # atomic.S doesn't like profiling.
 MK_PROFILE=	no

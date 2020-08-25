@@ -77,7 +77,6 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <arpa/nameser.h>
 
 #include <dt_module.h>
 #include <dt_printf.h>

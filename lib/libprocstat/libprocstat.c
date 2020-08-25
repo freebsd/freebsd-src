@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #define	_KERNEL
 #include <sys/mount.h>
+#include <sys/filedesc.h>
 #include <sys/pipe.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

@@ -10,29 +10,24 @@ SRCS=		callout.cc		\
 		zpool_list.cc		\
 		zfsd_main.cc
 
-WARNS?=		3
+WARNS?=		2
 
 # Ignore warnings about Solaris specific pragmas.
 IGNORE_PRAGMA=  YES
 
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
-INCFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-INCFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
-INCFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libumem/common
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs_core/common
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
-INCFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
-INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
-INCFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-INCFLAGS+= -I${SRCTOP}/cddl/usr.sbin
+CFLAGS+= -DIN_BASE
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd/spl
+CFLAGS+= -I${SRCTOP}/sys
+CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -I${SRCTOP}/cddl/usr.sbin
 
-CFLAGS+= -DNEED_SOLARIS_BOOLEAN ${INCFLAGS}
+# use issetugid(2)
+CFLAGS+= -D_MACHINE_FLOAT_H_ -DHAVE_ISSETUGID
 
-LIBADD+=	devdctl zfs zfs_core util geom bsdxml sbuf nvpair uutil
+LIBADD+=	devdctl zfs zfs_core util geom bsdxml sbuf nvpair avl uutil zutil
 
 cscope:
 	find ${.CURDIR} -type f -a \( -name "*.[ch]" -o -name "*.cc" \) \

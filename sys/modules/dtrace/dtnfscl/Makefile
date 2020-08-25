@@ -8,9 +8,7 @@ KMOD=		dtnfscl
 SRCS=		nfs_clkdtrace.c \
 		vnode_if.h
 
-CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
-		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
-		-I${SYSDIR}
+CFLAGS+=	${OPENZFS_CFLAGS}
 
 .include <bsd.kmod.mk>
 

@@ -9,9 +9,8 @@ KMOD=		systrace_linux32
 SRCS=		systrace.c
 SRCS+=		vnode_if.h
 
-CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
-		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
-		-I${SYSDIR} -DLINUX32_SYSTRACE
+CFLAGS+=	${OPENZFS_CFLAGS}
+CFLAGS+=	-DLINUX32_SYSTRACE
 
 .include <bsd.kmod.mk>
 

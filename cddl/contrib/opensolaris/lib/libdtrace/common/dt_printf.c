@@ -44,11 +44,18 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <arpa/nameser.h>
-
+#include <sys/byteorder.h>
 #include <dt_printf.h>
 #include <dt_string.h>
 #include <dt_impl.h>
+
+#ifndef NS_IN6ADDRSZ
+#define NS_IN6ADDRSZ 16
+#endif
+
+#ifndef NS_INADDRSZ
+#define NS_INADDRSZ 4
+#endif
 
 /*ARGSUSED*/
 static int

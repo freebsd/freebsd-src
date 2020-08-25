@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cpuvar.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/kdb.h>

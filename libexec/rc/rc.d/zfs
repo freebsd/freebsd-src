@@ -25,6 +25,13 @@ zfs_start_jail()
 
 zfs_start_main()
 {
+	local cachefile
+
+	for cachefile in /boot/zfs/zpool.cache /etc/zfs/zpool.cache; do
+		if [ -r $cachefile ]; then
+			zpool import -c $cachefile -a
+		fi
+	done
 	zfs mount -va
 	zfs share -a
 	if [ ! -r /etc/zfs/exports ]; then
