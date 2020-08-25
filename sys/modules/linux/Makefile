@@ -54,7 +54,7 @@ linux${SFX}_assym.h: linux${SFX}_genassym.o
 	sh ${SYSDIR}/kern/genassym.sh linux${SFX}_genassym.o > ${.TARGET}
 
 linux${SFX}_locore.o: linux${SFX}_assym.h assym.inc
-	${CC} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
+	${CC} ${CCLDFLAGS} -x assembler-with-cpp -DLOCORE -m32 -shared -s			\
 	-pipe -I. -I${SYSDIR} ${WERROR} -Wall -fno-common -nostdinc -nostdlib	\
 	-fno-omit-frame-pointer -fPIC						\
 	-Wl,-T${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}/${VDSO}.lds.s	\
