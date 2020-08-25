@@ -124,6 +124,7 @@ zpool_clear_005_pos_head()
 }
 zpool_clear_005_pos_body()
 {
+	atf_skip "Fails on OpenZFS, causing eventual deadlock. PR tests/248910"
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_clear.cfg
 
