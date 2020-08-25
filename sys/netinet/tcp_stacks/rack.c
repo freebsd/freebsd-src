@@ -3911,8 +3911,7 @@ rack_ack_received(struct tcpcb *tp, struct tcp_rack *rack, struct tcphdr *th, ui
 #endif
 	}
 	if (rack->r_ctl.cwnd_to_use > tp->snd_ssthresh) {
-		tp->t_bytes_acked += min(tp->ccv->bytes_this_ack,
-			 nsegs * V_tcp_abc_l_var * ctf_fixed_maxseg(tp));
+		tp->t_bytes_acked += tp->ccv->bytes_this_ack;
 		if (tp->t_bytes_acked >= rack->r_ctl.cwnd_to_use) {
 			tp->t_bytes_acked -= rack->r_ctl.cwnd_to_use;
 			tp->ccv->flags |= CCF_ABC_SENTAWND;
