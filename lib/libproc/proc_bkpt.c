@@ -112,7 +112,7 @@ proc_bkptset(struct proc_handle *phdl, uintptr_t address,
 		return (-1);
 	}
 
-	DPRINTFX("adding breakpoint at 0x%lx", address);
+	DPRINTFX("adding breakpoint at 0x%lx", (unsigned long)address);
 
 	stopped = 0;
 	if (phdl->status != PS_STOP) {
@@ -173,7 +173,7 @@ proc_bkptdel(struct proc_handle *phdl, uintptr_t address,
 		return (-1);
 	}
 
-	DPRINTFX("removing breakpoint at 0x%lx", address);
+	DPRINTFX("removing breakpoint at 0x%lx", (unsigned long)address);
 
 	stopped = 0;
 	if (phdl->status != PS_STOP) {

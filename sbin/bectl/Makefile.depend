@@ -4,6 +4,7 @@
 DIRDEPS = \
 	cddl/lib/libavl \
 	cddl/lib/libnvpair \
+	cddl/lib/libspl \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
 	cddl/lib/libzfs \

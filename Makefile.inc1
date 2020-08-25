@@ -2442,7 +2442,7 @@ _btxld=		usr.sbin/btxld
 # Rebuild ctfconvert and ctfmerge to avoid difficult-to-diagnose failures
 # resulting from missing bug fixes or ELF Toolchain updates.
 .if ${MK_CDDL} != "no"
-_dtrace_tools= cddl/lib/libctf cddl/usr.bin/ctfconvert \
+_dtrace_tools= cddl/lib/libctf cddl/lib/libspl cddl/usr.bin/ctfconvert \
     cddl/usr.bin/ctfmerge
 .endif
 
@@ -2756,7 +2756,12 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		${_cddl_lib_libuutil} \
 		${_cddl_lib_libavl} \
+		${_cddl_lib_libicp} \
+		${_cddl_lib_libicp_rescue} \
+		${_cddl_lib_libspl} \
+		${_cddl_lib_libtpool} \
 		${_cddl_lib_libzfs_core} ${_cddl_lib_libzfs} \
+		${_cddl_lib_libzutil} \
 		${_cddl_lib_libctf} \
 		lib/libufs \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
@@ -2826,21 +2831,34 @@ _cddl_lib_libumem= cddl/lib/libumem
 _cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib_libavl= cddl/lib/libavl
 _cddl_lib_libuutil= cddl/lib/libuutil
+_cddl_lib_libspl= cddl/lib/libspl
+
+cddl/lib/libuutil__L: cddl/lib/libavl__L cddl/lib/libspl__L
+
 .if ${MK_ZFS} != "no"
+_cddl_lib_libicp= cddl/lib/libicp
+_cddl_lib_libicp_rescue= cddl/lib/libicp_rescue
+_cddl_lib_libtpool= cddl/lib/libtpool
+_cddl_lib_libzutil= cddl/lib/libzutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib_libzfs= cddl/lib/libzfs
+
+cddl/lib/libtpool__L: cddl/lib/libspl__L
+
+cddl/lib/libzutil__L: cddl/lib/libavl__L cddl/lib/libtpool__L
 
 cddl/lib/libzfs_core__L: cddl/lib/libnvpair__L
 
 cddl/lib/libzfs__L: cddl/lib/libzfs_core__L lib/msun__L lib/libutil__L
 cddl/lib/libzfs__L: lib/libthr__L lib/libmd__L lib/libz__L cddl/lib/libumem__L
 cddl/lib/libzfs__L: cddl/lib/libuutil__L cddl/lib/libavl__L lib/libgeom__L
+cddl/lib/libzfs__L: cddl/lib/libnvpair__L cddl/lib/libzutil__L
 
 lib/libbe__L: cddl/lib/libzfs__L
 .endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib
-cddl/lib/libctf__L: lib/libz__L
+cddl/lib/libctf__L: lib/libz__L cddl/lib/libspl__L
 .endif
 # cddl/lib/libdtrace requires lib/libproc and lib/librtld_db
 _prebuild_libs+=	lib/libprocstat lib/libproc lib/librtld_db

@@ -54,6 +54,7 @@
 #endif
 #include <sys/cpuvar.h>
 
+
 typedef struct syment {
 	uintptr_t	addr;
 	char		*name;
@@ -71,6 +72,11 @@ static char maxsymname[64];
 #define	elf_getshdr elf32_getshdr
 #endif
 #endif
+
+#define __sElfN(x)       typedef __CONCAT(__CONCAT(__CONCAT(Elf,__ELF_WORD_SIZE),_),x) x
+__sElfN(Sym);
+__sElfN(Shdr);
+#define	elf_getshdr		__elfN(getshdr)
 
 static void
 add_symbol(char *name, uintptr_t addr, size_t size)

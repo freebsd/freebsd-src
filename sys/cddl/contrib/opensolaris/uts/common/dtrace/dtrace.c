@@ -67,13 +67,15 @@
  * on capital-f functions.
  */
 #include <sys/errno.h>
+#include <sys/param.h>
+#include <sys/types.h>
 #ifndef illumos
 #include <sys/time.h>
 #endif
 #include <sys/stat.h>
-#include <sys/modctl.h>
 #include <sys/conf.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #ifdef illumos
 #include <sys/ddi.h>
 #include <sys/sunddi.h>
@@ -96,7 +98,6 @@
 #include <sys/panic.h>
 #include <sys/priv_impl.h>
 #endif
-#include <sys/policy.h>
 #ifdef illumos
 #include <sys/cred_impl.h>
 #include <sys/procfs_isa.h>
@@ -119,6 +120,7 @@
 #include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/kdb.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -128,6 +130,13 @@
 #include <sys/rwlock.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+
+
+#include <sys/mount.h>
+#undef AT_UID
+#undef AT_GID
+#include <sys/vnode.h>
+#include <sys/cred.h>
 
 #include <sys/dtrace_bsd.h>
 
@@ -299,8 +308,10 @@ static kmutex_t		dtrace_meta_lock;	/* meta-provider state lock */
 #define	ipaddr_t	in_addr_t
 #define mod_modname	pathname
 #define vuprintf	vprintf
+#ifndef crgetzoneid
+#define crgetzoneid(_a)        0
+#endif
 #define ttoproc(_a)	((_a)->td_proc)
-#define crgetzoneid(_a)	0
 #define SNOCD		0
 #define CPU_ON_INTR(_a)	0
 
@@ -491,7 +502,7 @@ do {									\
 	if ((remp) != NULL) {						\
 		*(remp) = (uintptr_t)(baseaddr) + (basesz) - (addr);	\
 	}								\
-_NOTE(CONSTCOND) } while (0)
+} while (0)
 
 
 /*

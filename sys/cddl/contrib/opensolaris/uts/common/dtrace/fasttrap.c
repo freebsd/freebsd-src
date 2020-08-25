@@ -35,6 +35,7 @@
 #include <sys/atomic.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <sys/endian.h>
 #include <sys/modctl.h>
 #include <sys/conf.h>
 #include <sys/systm.h>
@@ -54,6 +55,8 @@
 #include <sys/dtrace_impl.h>
 #include <sys/sysmacros.h>
 #include <sys/proc.h>
+#undef AT_UID
+#undef AT_GID
 #include <sys/policy.h>
 #ifdef illumos
 #include <util/qsort.h>

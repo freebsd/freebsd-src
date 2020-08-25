@@ -115,7 +115,6 @@ extern "C" {
 #define	__VPRINTFLIKE(__n)	__sun_attr__((__VPRINTFLIKE__(__n)))
 #define	__KPRINTFLIKE(__n)	__sun_attr__((__KPRINTFLIKE__(__n)))
 #define	__KVPRINTFLIKE(__n)	__sun_attr__((__KVPRINTFLIKE__(__n)))
-#define	__NORETURN		__sun_attr__((__noreturn__))
 #define	__CONST			__sun_attr__((__const__))
 #define	__PURE			__sun_attr__((__pure__))
 

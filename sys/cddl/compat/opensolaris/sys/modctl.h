@@ -31,6 +31,7 @@
 #define	_COMPAT_OPENSOLARIS_SYS_MODCTL_H
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/linker.h>
 
 typedef struct linker_file modctl_t;

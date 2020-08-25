@@ -1,11 +1,10 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/avl
+.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libuutil
 
 PACKAGE=	runtime
 LIB=	uutil
-SRCS=	avl.c \
+SRCS=\
 	uu_alloc.c \
 	uu_avl.c \
 	uu_dprintf.c \
@@ -14,14 +13,17 @@ SRCS=	avl.c \
 	uu_misc.c \
 	uu_open.c \
 	uu_pname.c \
-	uu_strtoint.c
+	uu_string.c
 
-WARNS?=	1
-CFLAGS+= -DNATIVE_BUILD
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
-CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
+WARNS?=	2
+CFLAGS+= -DIN_BASE
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
+CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+
+LIBADD= avl spl
 
 .include <bsd.lib.mk>

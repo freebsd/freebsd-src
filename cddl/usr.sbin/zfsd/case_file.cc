@@ -39,11 +39,13 @@
  * accumulate in order to mark a device as degraded.
  */
 #include <sys/cdefs.h>
+#include <sys/byteorder.h>
 #include <sys/time.h>
 
 #include <sys/fs/zfs.h>
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <iomanip>
 #include <fstream>
 #include <functional>
@@ -75,7 +77,6 @@
 __FBSDID("$FreeBSD$");
 
 /*============================ Namespace Control =============================*/
-using std::auto_ptr;
 using std::hex;
 using std::ifstream;
 using std::stringstream;
@@ -239,8 +240,6 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 {
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	zpool_handle_t *pool(zpl.empty() ? NULL : zpl.front());
-	zpool_boot_label_t boot_type;
-	uint64_t boot_size;
 
 	if (pool == NULL || !RefreshVdevState()) {
 		/*
@@ -333,13 +332,7 @@ CaseFile::ReEvaluate(const string &devPath, const string &physPath, Vdev *vdev)
 	}
 
 	/* Write a label on the newly inserted disk. */
-	if (zpool_is_bootable(pool))
-		boot_type = ZPOOL_COPY_BOOT_LABEL;
-	else
-		boot_type = ZPOOL_NO_BOOT_LABEL;
-	boot_size = zpool_get_prop_int(pool, ZPOOL_PROP_BOOTSIZE, NULL);
-	if (zpool_label_disk(g_zfsHandle, pool, devPath.c_str(),
-	    boot_type, boot_size, NULL) != 0) {
+	if (zpool_label_disk(g_zfsHandle, pool, devPath.c_str()) != 0) {
 		syslog(LOG_ERR,
 		       "Replace vdev(%s/%s) by physical path (label): %s: %s\n",
 		       zpool_get_name(pool), VdevGUIDString().c_str(),
@@ -1118,7 +1111,7 @@ CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 	nvlist_free(newvd);
 
 	retval = (zpool_vdev_attach(zhp, oldstr.c_str(), path, nvroot,
-	    /*replace*/B_TRUE) == 0);
+       /*replace*/B_TRUE, /*rebuild*/ B_FALSE) == 0);
 	if (retval)
 		syslog(LOG_INFO, "Replacing vdev(%s/%s) with %s\n",
 		    poolname, oldstr.c_str(), path);
