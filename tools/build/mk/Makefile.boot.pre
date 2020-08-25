@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+# Various MK_* options need to be set before including bsd.prog.mk/bsd.lib.mk
+.if ${.MAKE.OS} != "FreeBSD"
+# Most Linux distributions don't ship the .a files for static linking.
+# And on macOS it is impossible to create a statically linked binary.
+NO_SHARED:=	no
+MK_PIE:=	no
+MK_RETPOLINE=	no
+# There is no objcopy on macOS so we can't do the MK_DEBUG_FILES objcopy magic.
+MK_DEBUG_FILES:=no
+.endif

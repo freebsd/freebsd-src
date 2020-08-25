@@ -5,6 +5,7 @@
 LIB=		egacy
 SRC=
 INCSGROUPS=	INCS SYSINCS CASPERINC UFSINCS FFSINCS MSDOSFSINCS DISKINCS
+INCSGROUPS+=	MACHINESYSINCS RPCINCS
 INCS=
 
 SYSINCSDIR=	${INCLUDEDIR}/sys
@@ -14,55 +15,188 @@ UFSINCSDIR=	${INCLUDEDIR}/ufs/ufs
 FFSINCSDIR=	${INCLUDEDIR}/ufs/ffs
 MSDOSFSINCSDIR=	${INCLUDEDIR}/fs/msdosfs
 DISKINCSDIR=	${INCLUDEDIR}/sys/disk
+MACHINESYSINCSDIR=	${INCLUDEDIR}/machine
+RPCINCSDIR=	${INCLUDEDIR}/rpc
 
 BOOTSTRAPPING?=	0
 
-_WITH_PWCACHEDB!= grep -c pwcache_groupdb /usr/include/grp.h || true
+
+.if ${.MAKE.OS} == "Darwin"
+_XCODE_ROOT!=xcode-select -p
+# since macOS 10.14 C headers are no longer installed in /usr but only
+# provided via the SDK
+.if ${_XCODE_ROOT} == "/Library/Developer/CommandLineTools"
+# Only command line tools installed -> host headers are in the SDKs directory
+_MACOS_SDK_DIR=${_XCODE_ROOT}/SDKs/MacOSX.sdk/
+.else
+# Full XCode installed -> host headers are below Platforms/MacOSX.platform
+_MACOS_SDK_DIR=${_XCODE_ROOT}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+.endif
+HOST_INCLUDE_ROOT=${_MACOS_SDK_DIR}/usr/include
+.if !exists(${HOST_INCLUDE_ROOT}/stdio.h)
+.error "You must install the macOS SDK (try xcode-select --install)"
+.endif
+.else
+HOST_INCLUDE_ROOT=/usr/include
+.endif
+
+# Allow building libc-internal files (also on non-FreeBSD hosts)
+CFLAGS+=	-I${.CURDIR}/libc-bootstrap
+# Symbol versioning is not required for -legacy (and macOS bootstrap)
+MK_SYMVER=	no
+
+_WITH_PWCACHEDB!= grep -c pwcache_groupdb ${HOST_INCLUDE_ROOT}/grp.h || true
 .if ${_WITH_PWCACHEDB} == 0
 .PATH: ${.CURDIR}/../../contrib/libc-pwcache
-CFLAGS+=	-I${.CURDIR}/../../contrib/libc-pwcache \
-		-I${.CURDIR}/../../lib/libc/include
+CFLAGS.pwcache.c+=	-I${.CURDIR}/../../contrib/libc-pwcache
 SRCS+=		pwcache.c
 .endif
 
-_WITH_STRSVIS!=	grep -c strsvis /usr/include/vis.h || true
+_WITH_STRSVIS!=	grep -c strsvis ${HOST_INCLUDE_ROOT}/vis.h 2>/dev/null || true
 .if ${_WITH_STRSVIS} == 0
 .PATH: ${.CURDIR}/../../contrib/libc-vis
-SRCS+=		vis.c
-CFLAGS+=	-I${.CURDIR}/../../contrib/libc-vis \
-		-I${.CURDIR}/../../lib/libc/include
+INCS+=		vis.h
+SRCS+=		vis.c unvis.c
+CFLAGS.vis.c+=	-I${.CURDIR}/../../contrib/libc-vis
+CFLAGS.unvis.c+=	-I${.CURDIR}/../../contrib/libc-vis
 .endif
 
-_WITH_REALLOCARRAY!= grep -c reallocarray /usr/include/stdlib.h || true
+_WITH_REALLOCARRAY!= grep -c reallocarray ${HOST_INCLUDE_ROOT}/stdlib.h || true
 .if ${_WITH_REALLOCARRAY} == 0
 .PATH: ${.CURDIR}/../../lib/libc/stdlib
 INCS+=		stdlib.h
 SRCS+=		reallocarray.c
-CFLAGS+=	-I${.CURDIR}/../../lib/libc/include
 .endif
 
-_WITH_UTIMENS!= grep -c utimensat /usr/include/sys/stat.h || true
+_WITH_UTIMENS!= grep -c utimensat ${HOST_INCLUDE_ROOT}/sys/stat.h || true
 .if ${_WITH_UTIMENS} == 0
 SYSINCS+=	stat.h
 SRCS+=		futimens.c utimensat.c
 .endif
 
-_WITH_EXPLICIT_BZERO!= grep -c explicit_bzero /usr/include/strings.h || true
+_WITH_EXPLICIT_BZERO!= grep -c explicit_bzero ${HOST_INCLUDE_ROOT}/strings.h || true
 .if ${_WITH_EXPLICIT_BZERO} == 0
-.PATH: ${SRCTOP}/sys/libkern
+# .PATH: ${SRCTOP}/sys/libkern
+# Adding sys/libkern to .PATH breaks building the cross-build compat library
+# since that attempts to build strlcpy.c from libc and adding libkern here will
+# cause it to pick the file from libkern instead (which won't compile).
+# Avoid modifying .PATH by creating a copy in the build directory instead.
+explicit_bzero.c: ${SRCTOP}/sys/libkern/explicit_bzero.c
+	cp ${.ALLSRC} ${.TARGET}
+CLEANFILES+=	explicit_bzero.c
 INCS+=		strings.h
 SRCS+=		explicit_bzero.c
 .endif
 
-.if exists(/usr/include/capsicum_helpers.h)
-_WITH_CAPH_ENTER!= grep -c caph_enter /usr/include/capsicum_helpers.h || true
-_WITH_CAPH_RIGHTS_LIMIT!= grep -c caph_rights_limit /usr/include/capsicum_helpers.h || true
+
+.if exists(${HOST_INCLUDE_ROOT}/capsicum_helpers.h)
+_WITH_CAPH_ENTER!= grep -c caph_enter ${HOST_INCLUDE_ROOT}/capsicum_helpers.h || true
+_WITH_CAPH_RIGHTS_LIMIT!= grep -c caph_rights_limit ${HOST_INCLUDE_ROOT}/capsicum_helpers.h || true
 .endif
 .if !defined(_WITH_CAPH_ENTER) || ${_WITH_CAPH_ENTER} == 0 || ${_WITH_CAPH_RIGHTS_LIMIT} == 0
 .PATH: ${SRCTOP}/lib/libcapsicum
 INCS+=		capsicum_helpers.h
 .PATH: ${SRCTOP}/lib/libcasper/libcasper
 INCS+=		libcasper.h
+.endif
+
+# rpcgen should build against the source tree rpc/types.h and not the host.
+# This is especially important on non-FreeBSD systems where the types may
+# not match.
+RPCINCS+=	${SRCTOP}/sys/rpc/types.h
+
+.if ${.MAKE.OS} != "FreeBSD"
+.PATH: ${.CURDIR}/cross-build
+
+INCS+=	${SRCTOP}/include/mpool.h
+INCS+=	${SRCTOP}/include/ndbm.h
+INCS+=	${SRCTOP}/include/err.h
+INCS+=	${SRCTOP}/include/stringlist.h
+
+# Needed to build arc4random.c
+INCSGROUPS+=	CHACHA20INCS
+CHACHA20INCSDIR=	${INCLUDEDIR}/crypto/chacha20
+CHACHA20INCS+=	${SRCTOP}/sys/crypto/chacha20/_chacha.h \
+	${SRCTOP}/sys/crypto/chacha20/chacha.h
+
+_host_arch=${MACHINE}
+.if ${_host_arch} == "x86_64"
+# bmake on Linux/mac often prints that instead of amd64
+_host_arch=amd64
+.endif
+.if ${_host_arch} == "unknown"
+# HACK: If MACHINE is unknown, assume we are building on x86
+_host_arch=amd64
+.endif
+MACHINESYSINCS+=	${SRCTOP}/sys/${_host_arch}/include/elf.h
+.if ${_host_arch} == "amd64" || ${_host_arch} == "i386"
+INCSGROUPS+=	X86INCS
+X86INCSDIR=	${INCLUDEDIR}/x86
+X86INCS+=	${SRCTOP}/sys/x86/include/elf.h
+.endif
+
+# needed for btxld:
+MACHINESYSINCS+=	${SRCTOP}/sys/${_host_arch}/include/exec.h
+MACHINESYSINCS+=	${SRCTOP}/sys/${_host_arch}/include/reloc.h
+INCS+=	${SRCTOP}/include/a.out.h
+INCS+=	${SRCTOP}/include/nlist.h
+SYSINCS+=	${SRCTOP}/sys/sys/imgact_aout.h
+SYSINCS+=	${SRCTOP}/sys/sys/nlist_aout.h
+
+# dbopen() behaves differently on Linux and FreeBSD so we ensure that we
+# bootstrap the FreeBSD db code. The cross-build headers #define dbopen() to
+# __freebsd_dbopen() so that we don't ever use the host version
+INCS+=	${SRCTOP}/include/db.h
+LIBC_SRCTOP=	${SRCTOP}/lib/libc/
+.include "${LIBC_SRCTOP}/db/Makefile.inc"
+# Do the same as we did for dbopen() for getopt() on since it's not compatible
+# on Linux (and to avoid surprises also compile the FreeBSD code on macOS)
+.PATH: ${LIBC_SRCTOP}/stdlib
+SRCS+=	getopt.c getopt_long.c
+INCS+=	 ${SRCTOP}/include/getopt.h
+
+# getcap.c is needed for cap_mkdb:
+.PATH: ${LIBC_SRCTOP}/gen
+SRCS+=	getcap.c
+# Add various libbc functions that are not available in glibc:
+SRCS+=	stringlist.c setmode.c
+SRCS+=	strtonum.c merge.c heapsort.c reallocf.c
+.PATH: ${LIBC_SRCTOP}/locale
+SRCS+=	rpmatch.c
+
+.if ${.MAKE.OS} == "Linux"
+# On Linux, glibc does not provide strlcpy,strlcat or strmode.
+.PATH: ${LIBC_SRCTOP}/string
+SRCS+=	strlcpy.c strlcat.c strmode.c
+# Compile the fgetln/fgetwln/closefrom fallback code from libbsd:
+SRCS+=	fgetln_fallback.c fgetwln_fallback.c closefrom.c
+CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
+	-DHAVE_DIRFD -DHAVE_SYSCONF
+# Provide warnc/errc/getprogname/setprograme
+SRCS+=	err.c progname.c
+.endif
+# Provide the same arc4random implementation on Linux/macOS
+CFLAGS.arc4random.c+=	-I${SRCTOP}/sys/crypto/chacha20 -D__isthreaded=1
+SRCS+=	arc4random.c arc4random_uniform.c
+
+# expand_number() is not provided by either Linux or MacOS libutil
+.PATH: ${SRCTOP}/lib/libutil
+SRCS+=	expand_number.c
+# Linux libutil also doesn't have fparseln
+SRCS+=	fparseln.c
+# A dummy sysctl for tzsetup:
+SRCS+=	fake_sysctl.c
+
+# capsicum support
+SYSINCS+=	${SRCTOP}/sys/sys/capsicum.h
+SYSINCS+=	${SRCTOP}/sys/sys/caprights.h
+SRCS+=	capsicum_stubs.c
+# XXX: we can't add ${SRCTOP}/sys/kern to .PATH since that will causes
+# conflicts with other files. Instead copy subr_capability to the build dir.
+subr_capability.c: ${SRCTOP}/sys/kern/subr_capability.c
+	cp ${.ALLSRC} ${.TARGET}
+SRCS+=	subr_capability.c
+CLEANFILES+=	subr_capability.c
 .endif
 
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
@@ -97,9 +231,22 @@ SYSINCS+=	${SRCTOP}/sys/sys/elf32.h
 SYSINCS+=	${SRCTOP}/sys/sys/elf64.h
 SYSINCS+=	${SRCTOP}/sys/sys/elf_common.h
 SYSINCS+=	${SRCTOP}/sys/sys/elf_generic.h
+SYSINCS+=	${SRCTOP}/sys/sys/queue.h
+SYSINCS+=	${SRCTOP}/sys/sys/md5.h
+SYSINCS+=	${SRCTOP}/sys/sys/sbuf.h
+SYSINCS+=	${SRCTOP}/sys/sys/tree.h
 
 # vtfontcvt is using sys/font.h
 SYSINCS+=	${SRCTOP}/sys/sys/font.h
+# For mkscrfil.c:
+SYSINCS+=	${SRCTOP}/sys/sys/consio.h
+# for gencat:
+INCS+=	${SRCTOP}/include/nl_types.h
+# for vtfontcvt:
+SYSINCS+=	${SRCTOP}/sys/sys/fnv_hash.h
+# opensolaris compatibility
+INCS+=	${SRCTOP}/include/elf.h
+SYSINCS+=	${SRCTOP}/sys/sys/elf.h
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.
@@ -121,6 +268,19 @@ _host_tools_to_symlink=	basename bzip2 bunzip2 chmod chown cmp comm cp date dd \
 # since e.g. on Linux and MacOS that will be GNU make.
 _make_abs!=	which "${MAKE}"
 _host_abs_tools_to_symlink=	${_make_abs}:make ${_make_abs}:bmake
+
+.if ${.MAKE.OS} != "FreeBSD"
+_make_abs!=	which "${MAKE}"
+_host_abs_tools_to_symlink+=	${_make_abs}:make ${_make_abs}:bmake
+.if ${.MAKE.OS} == "Darwin"
+# /usr/bin/cpp may invoke xcrun:
+_host_tools_to_symlink+=xcrun
+.endif  # ${.MAKE.OS} == "Darwin"
+# On Ubuntu /bin/sh is dash which is totally useless. Let's just link bash
+# as the build sh since that will work fine.
+_host_abs_tools_to_symlink+=	/bin/bash:sh
+_host_tools_to_symlink:=${_host_tools_to_symlink:Nsh}
+.endif
 
 host-symlinks:
 	@echo "Linking host tools into ${DESTDIR}/bin"
