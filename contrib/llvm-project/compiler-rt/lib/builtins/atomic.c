@@ -125,8 +125,8 @@ static __inline Lock *lock_for_pointer(void *ptr) {
 #define IS_LOCK_FREE_2 __c11_atomic_is_lock_free(2)
 #define IS_LOCK_FREE_4 __c11_atomic_is_lock_free(4)
 
-/// 32 bit PowerPC doesn't support 8-byte lock_free atomics
-#if !defined(__powerpc64__) && defined(__powerpc__)
+/// 32 bit MIPS and PowerPC don't support 8-byte lock_free atomics
+#if defined(__mips__) || (!defined(__powerpc64__) && defined(__powerpc__))
 #define IS_LOCK_FREE_8 0
 #else
 #define IS_LOCK_FREE_8 __c11_atomic_is_lock_free(8)
