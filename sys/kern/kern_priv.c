@@ -129,6 +129,8 @@ priv_check_cred(struct ucred *cred, int priv)
 	    priv));
 
 	switch (priv) {
+	case PRIV_VFS_LOOKUP:
+		return (priv_check_cred_vfs_lookup(cred));
 	case PRIV_VFS_GENERATION:
 		return (priv_check_cred_vfs_generation(cred));
 	}
@@ -245,6 +247,56 @@ priv_check(struct thread *td, int priv)
 	KASSERT(td == curthread, ("priv_check: td != curthread"));
 
 	return (priv_check_cred(td->td_ucred, priv));
+}
+
+static int __noinline
+priv_check_cred_vfs_lookup_slow(struct ucred *cred)
+{
+	int error;
+
+	error = priv_check_cred_pre(cred, PRIV_VFS_LOOKUP);
+	if (error)
+		goto out;
+
+	if (cred->cr_uid == 0 && suser_enabled) {
+		error = 0;
+		goto out;
+	}
+
+	return (priv_check_cred_post(cred, PRIV_VFS_LOOKUP, error, false));
+out:
+	return (priv_check_cred_post(cred, PRIV_VFS_LOOKUP, error, true));
+
+}
+
+int
+priv_check_cred_vfs_lookup(struct ucred *cred)
+{
+	int error;
+
+	if (__predict_false(mac_priv_check_fp_flag ||
+	    mac_priv_grant_fp_flag || SDT_PROBES_ENABLED()))
+		return (priv_check_cred_vfs_lookup_slow(cred));
+
+	error = EPERM;
+	if (cred->cr_uid == 0 && suser_enabled)
+		error = 0;
+	return (error);
+}
+
+int
+priv_check_cred_vfs_lookup_nomac(struct ucred *cred)
+{
+	int error;
+
+	if (__predict_false(mac_priv_check_fp_flag ||
+	    mac_priv_grant_fp_flag || SDT_PROBES_ENABLED()))
+		return (EAGAIN);
+
+	error = EPERM;
+	if (cred->cr_uid == 0 && suser_enabled)
+		error = 0;
+	return (error);
 }
 
 static int __noinline

@@ -5045,6 +5045,7 @@ vn_isdisk(struct vnode *vp)
 int
 vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred *cred)
 {
+	int error;
 
 	VFS_SMR_ASSERT_ENTERED();
 
@@ -5067,7 +5068,9 @@ vaccess_vexec_smr(mode_t file_mode, uid_t file_uid, gid_t file_gid, struct ucred
 		return (0);
 out_error:
 	/*
-	 * Permission check failed.
+	 * Permission check failed, but it is possible denial will get overwritten
+	 * (e.g., when root is traversing through a 700 directory owned by someone
+	 * else).
 	 *
 	 * vaccess() calls priv_check_cred which in turn can descent into MAC
 	 * modules overriding this result. It's quite unclear what semantics
@@ -5075,9 +5078,20 @@ out_error:
 	 * from within the SMR section. This also means if any such modules
 	 * are present, we have to let the regular lookup decide.
 	 */
-	if (__predict_false(mac_priv_check_fp_flag || mac_priv_grant_fp_flag))
+	error = priv_check_cred_vfs_lookup_nomac(cred);
+	switch (error) {
+	case 0:
+		return (0);
+	case EAGAIN:
+		/*
+		 * MAC modules present.
+		 */
 		return (EAGAIN);
-	return (EACCES);
+	case EPERM:
+		return (EACCES);
+	default:
+		return (error);
+	}
 }
 
 /*
