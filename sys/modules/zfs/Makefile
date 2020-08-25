@@ -338,7 +338,7 @@ CFLAGS.zil.c= -Wno-cast-qual
 CFLAGS.zio.c= -Wno-cast-qual
 CFLAGS.zrlock.c= -Wno-cast-qual
 CFLAGS.zfs_zstd.c= -Wno-cast-qual -Wno-pointer-arith
-CFLAGS.zstd.c= -fno-tree-vectorize
+CFLAGS.zstd.c= -U__BMI__ -fno-tree-vectorize
 .if ${MACHINE_CPUARCH} == "aarch64"
 CFLAGS.zstd.c+= -include ${SRCDIR}/zstd/include/aarch64_compat.h
 .endif
