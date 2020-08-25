@@ -71,6 +71,8 @@ struct ifinfo {
 	int probeinterval;	/* interval of probe timer (if necessary) */
 	int probetimer;		/* rest of probe timer */
 	int mediareqok;		/* whether the IF supports SIOCGIFMEDIA */
+	int managedconfig;	/* need a separate protocol for the "managed"
+				 * configuration */
 	int otherconfig;	/* need a separate protocol for the "other"
 				 * configuration */
 	int state;
@@ -156,6 +158,7 @@ extern int dflag;
 extern int aflag;
 extern int Fflag;
 extern int uflag;
+extern const char *managedconf_script;
 extern const char *otherconf_script;
 extern const char *resolvconf_script;
 extern struct cap_channel *capllflags, *capscript, *capsendmsg, *capsyslog;
