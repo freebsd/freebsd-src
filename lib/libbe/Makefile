@@ -12,9 +12,6 @@ SRCS=		be.c be_access.c be_error.c be_info.c
 INCS=		be.h
 MAN=		libbe.3
 
-WARNS?=	2
-IGNORE_PRAGMA=	yes
-
 LIBADD+= zfs
 LIBADD+= nvpair spl
 
