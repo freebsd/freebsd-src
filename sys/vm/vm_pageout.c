@@ -165,11 +165,10 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_update_period,
 	CTLFLAG_RWTUN, &vm_pageout_update_period, 0,
 	"Maximum active LRU update period");
 
-/* Access with get_pageout_threads_per_domain(). */
-static int pageout_threads_per_domain = 1;
-SYSCTL_INT(_vm, OID_AUTO, pageout_threads_per_domain, CTLFLAG_RDTUN,
-    &pageout_threads_per_domain, 0,
-    "Number of worker threads comprising each per-domain pagedaemon");
+static int pageout_cpus_per_thread = 16;
+SYSCTL_INT(_vm, OID_AUTO, pageout_cpus_per_thread, CTLFLAG_RDTUN,
+    &pageout_cpus_per_thread, 0,
+    "Number of CPUs per pagedaemon worker thread");
   
 SYSCTL_INT(_vm, OID_AUTO, lowmem_period, CTLFLAG_RWTUN, &lowmem_period, 0,
 	"Low memory callback period");
@@ -2200,38 +2199,38 @@ vm_pageout_helper(void *arg)
 }
 
 static int
-get_pageout_threads_per_domain(void)
+get_pageout_threads_per_domain(const struct vm_domain *vmd)
 {
-	static bool resolved = false;
-	int half_cpus_per_dom;
+	unsigned total_pageout_threads, eligible_cpus, domain_cpus;
 
-	/*
-	 * This is serialized externally by the sorted autoconfig portion of
-	 * boot.
-	 */
-	if (__predict_true(resolved))
-		return (pageout_threads_per_domain);
+	if (VM_DOMAIN_EMPTY(vmd->vmd_domain))
+		return (0);
 
 	/*
 	 * Semi-arbitrarily constrain pagedaemon threads to less than half the
-	 * total number of threads in the system as an insane upper limit.
+	 * total number of CPUs in the system as an upper limit.
 	 */
-	half_cpus_per_dom = howmany(mp_ncpus / vm_ndomains, 2);
+	if (pageout_cpus_per_thread < 2)
+		pageout_cpus_per_thread = 2;
+	else if (pageout_cpus_per_thread > mp_ncpus)
+		pageout_cpus_per_thread = mp_ncpus;
 
-	if (pageout_threads_per_domain < 1) {
-		printf("Invalid tuneable vm.pageout_threads_per_domain value: "
-		    "%d out of valid range: [1-%d]; clamping to 1\n",
-		    pageout_threads_per_domain, half_cpus_per_dom);
-		pageout_threads_per_domain = 1;
-	} else if (pageout_threads_per_domain > half_cpus_per_dom) {
-		printf("Invalid tuneable vm.pageout_threads_per_domain value: "
-		    "%d out of valid range: [1-%d]; clamping to %d\n",
-		    pageout_threads_per_domain, half_cpus_per_dom,
-		    half_cpus_per_dom);
-		pageout_threads_per_domain = half_cpus_per_dom;
-	}
-	resolved = true;
-	return (pageout_threads_per_domain);
+	total_pageout_threads = howmany(mp_ncpus, pageout_cpus_per_thread);
+	domain_cpus = CPU_COUNT(&cpuset_domain[vmd->vmd_domain]);
+
+	/* Pagedaemons are not run in empty domains. */
+	eligible_cpus = mp_ncpus;
+	for (unsigned i = 0; i < vm_ndomains; i++)
+		if (VM_DOMAIN_EMPTY(i))
+			eligible_cpus -= CPU_COUNT(&cpuset_domain[i]);
+
+	/*
+	 * Assign a portion of the total pageout threads to this domain
+	 * corresponding to the fraction of pagedaemon-eligible CPUs in the
+	 * domain.  In asymmetric NUMA systems, domains with more CPUs may be
+	 * allocated more threads than domains with fewer CPUs.
+	 */
+	return (howmany(total_pageout_threads * domain_cpus, eligible_cpus));
 }
 
 /*
@@ -2288,7 +2287,7 @@ vm_pageout_init_domain(int domain)
 	    "pidctrl", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
 	pidctrl_init_sysctl(&vmd->vmd_pid, SYSCTL_CHILDREN(oid));
 
-	vmd->vmd_inactive_threads = get_pageout_threads_per_domain();
+	vmd->vmd_inactive_threads = get_pageout_threads_per_domain(vmd);
 }
 
 static void
@@ -2343,7 +2342,6 @@ vm_pageout(void)
 
 	p = curproc;
 	td = curthread;
-	pageout_threads = get_pageout_threads_per_domain();
 
 	mtx_init(&vm_oom_ratelim_mtx, "vmoomr", NULL, MTX_DEF);
 	swap_pager_swap_init();
@@ -2363,6 +2361,7 @@ vm_pageout(void)
 				panic("starting pageout for domain %d: %d\n",
 				    i, error);
 		}
+		pageout_threads = VM_DOMAIN(i)->vmd_inactive_threads;
 		for (j = 0; j < pageout_threads - 1; j++) {
 			error = kthread_add(vm_pageout_helper,
 			    (void *)(uintptr_t)i, p, NULL, 0, 0,
