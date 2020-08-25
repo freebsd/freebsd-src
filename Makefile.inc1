@@ -765,7 +765,7 @@ KTMAKE=		\
 
 # world stage
 WMAKEENV=	${CROSSENV} \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		INSTALL="${INSTALL_CMD} -U" \
 		PATH=${TMPPATH} \
 		SYSROOT=${WORLDTMP}
 
