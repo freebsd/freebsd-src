@@ -734,7 +734,7 @@ universe_kernconf_${TARGET}_${kernel}: .MAKE
 	    ${SUB_MAKE} ${JFLAG} buildkernel \
 	    TARGET=${TARGET} \
 	    TARGET_ARCH=${TARGET_ARCH_${kernel}} \
-	    ${MAKE_PARAMS_${TARGET_ARCH}} \
+	    ${MAKE_PARAMS_${TARGET_ARCH_${kernel}}} \
 	    KERNCONF=${kernel} \
 	    > _.${TARGET}.${kernel} 2>&1 || \
 	    (echo "${TARGET} ${kernel} kernel failed," \
