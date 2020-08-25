@@ -16,11 +16,11 @@ GIT_CMD=   ${_P}/git
 
 # Set the git branch and hash to export where needed.
 .if !defined(GITBRANCH) || empty(GITBRANCH)
-GITBRANCH!=	${GIT_CMD} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
+GITBRANCH!=	cd ${.CURDIR} && ${GIT_CMD} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
 .export GITBRANCH
 .endif
 .if !defined(GITREV) || empty(GITREV)
-GITREV!=	${GIT_CMD} rev-parse --verify --short HEAD 2>/dev/null || true
+GITREV!=	cd ${.CURDIR} && ${GIT_CMD} rev-parse --verify --short HEAD 2>/dev/null || true
 .export GITREV
 .endif
 
