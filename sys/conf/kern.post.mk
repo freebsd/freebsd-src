@@ -228,7 +228,7 @@ kernel-clean:
 # in the a.out ld.  For now, this works.
 hack.pico: Makefile
 	:> hack.c
-	${CC} -shared ${CFLAGS} -nostdlib hack.c -o hack.pico
+	${CC} ${CCLDFLAGS} -shared ${CFLAGS} -nostdlib hack.c -o hack.pico
 	rm -f hack.c
 
 offset.inc: $S/kern/genoffset.sh genoffset.o
