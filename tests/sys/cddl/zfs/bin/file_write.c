@@ -28,6 +28,7 @@
 #pragma ident	"@(#)file_write.c	1.4	07/10/09 SMI"
 
 #include "file_common.h"
+#include <inttypes.h>
 #include <libgen.h>
 
 static unsigned char bigbuffer[BIGBUFFERSIZE];
@@ -180,14 +181,15 @@ main(int argc, char **argv)
 	}
 	noffset = lseek(bigfd, offset, SEEK_SET);
 	if (noffset != offset) {
-		(void) printf("lseek %s (%lld/%lld) failed [%s]%d.Aborting!\n",
+		(void) printf("lseek %s (%"PRId64"/%"PRId64") "
+		    "failed [%s]%d. Aborting!\n",
 		    filename, offset, noffset, strerror(errno), errno);
 		exit(errno);
 	}
 
 	if (verbose) {
 		(void) printf("%s: block_size = %d, write_count = %d, "
-		    "offset = %lld, data = %s%d\n", filename, block_size,
+		    "offset = %"PRId64", data = %s%d\n", filename, block_size,
 		    write_count, offset,
 		    (fillchar == 0) ? "0->" : "",
 		    (fillchar == 0) ? DATA_RANGE : fillchar);
@@ -197,17 +199,17 @@ main(int argc, char **argv)
 		ssize_t n;
 
 		if ((n = write(bigfd, &bigbuffer, block_size)) == -1) {
-			(void) printf("write failed (%ld), good_writes = %lld, "
+			(void) printf("write failed (%ld), "
+			    "good_writes = %"PRId64", "
 			    "error: %s[%d]\n", (long)n, good_writes,
-			    strerror(errno),
-			    errno);
+			    strerror(errno), errno);
 			exit(errno);
 		}
 		good_writes++;
 	}
 
 	if (verbose) {
-		(void) printf("Success: good_writes = %lld (%lld)\n",
+		(void) printf("Success: good_writes = %"PRId64" (%"PRId64")\n",
 		    good_writes, (good_writes * block_size));
 	}
 

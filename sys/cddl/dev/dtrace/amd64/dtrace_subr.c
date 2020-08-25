@@ -36,7 +36,6 @@
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/kmem.h>
 #include <sys/smp.h>
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>

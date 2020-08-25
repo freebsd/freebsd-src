@@ -30,6 +30,7 @@
  * Authors: Alan Somers         (Spectra Logic Corporation)
  */
 #include <sys/cdefs.h>
+#include <sys/byteorder.h>
 
 #include <stdarg.h>
 #include <syslog.h>

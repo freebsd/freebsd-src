@@ -24,6 +24,7 @@
  * Use is subject to license terms.
  */
 
+#include <sys/types.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dlfcn.h>

@@ -37,6 +37,8 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 
+extern struct opensolaris_utsname utsname;
+
 cpu_core_t	cpu_core[MAXCPU];
 kmutex_t	cpu_lock;
 solaris_cpu_t	solaris_cpu[MAXCPU];
@@ -82,7 +84,6 @@ opensolaris_modevent(module_t mod __unused, int type, void *data __unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		utsname.nodename = prison0.pr_hostname;
 		break;
 
 	case MOD_UNLOAD:

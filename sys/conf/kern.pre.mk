@@ -208,34 +208,82 @@ ZSTD_C= ${CC} -c -DZSTD_HEAPMODE=1 -I$S/contrib/zstd/lib/freebsd ${CFLAGS} -I$S/
 ZSTD_DECOMPRESS_BLOCK_FLAGS= -fno-tree-vectorize
 .endif
 
+ZINCDIR=$S/contrib/openzfs/include
 # Common for dtrace / zfs
-CDDL_CFLAGS=	-DFREEBSD_NAMECACHE -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
-CDDL_CFLAGS+=	-include $S/cddl/compat/opensolaris/sys/debug_compat.h
+CDDL_CFLAGS=	\
+	-DFREEBSD_NAMECACHE \
+	-D_SYS_VMEM_H_ \
+	-D__KERNEL \
+	-D__KERNEL__ \
+	-nostdinc \
+	-include $S/modules/zfs/static_ccompile.h \
+	-I${ZINCDIR} \
+	-I${ZINCDIR}/spl \
+	-I${ZINCDIR}/os/freebsd \
+	-I${ZINCDIR}/os/freebsd/spl \
+	-I${ZINCDIR}/os/freebsd/zfs  \
+	-I$S/modules/zfs \
+	-I$S/contrib/openzfs/module/zstd/include \
+	-I$S/contrib/openzfs/module/zstd/lib/freebsd/ \
+	${CFLAGS} \
+	-Wno-unknown-pragmas \
+	-Wno-missing-prototypes \
+	-Wno-undef \
+	-Wno-strict-prototypes \
+	-Wno-cast-qual \
+	-Wno-parentheses \
+	-Wno-redundant-decls \
+	-Wno-missing-braces \
+	-Wno-uninitialized \
+	-Wno-unused \
+	-Wno-inline \
+	-Wno-switch \
+	-Wno-pointer-arith \
+	-Wno-unknown-pragmas \
+	-Wno-duplicate-decl-specifier \
+	-include ${ZINCDIR}/os/freebsd/spl/sys/ccompile.h \
+	-I$S/cddl/contrib/opensolaris/uts/common \
+	-I$S -I$S/cddl/compat/opensolaris
 CDDL_C=		${CC} -c ${CDDL_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for ZFS
-ZFS_CFLAGS=	-DBUILDING_ZFS -I$S/cddl/contrib/opensolaris/uts/common/fs/zfs
-ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/common/fs/zfs/lua
-ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/common/zmod
-ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/lz4
-ZFS_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/zfs
-ZFS_CFLAGS+=	${CDDL_CFLAGS}
+ZFS_CFLAGS+=	${CDDL_CFLAGS} -DBUILDING_ZFS -DHAVE_UIO_ZEROCOPY \
+	-DWITH_NETDUMP -D__KERNEL__ -D_SYS_CONDVAR_H_ -DSMP \
+	-DIN_FREEBSD_BASE -DHAVE_KSID
+
+.if ${MACHINE_ARCH} == "amd64"
+ZFS_CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_SSE2 -DHAVE_AVX512F \
+	-DHAVE_SSSE3 -DHAVE_AVX512BW
+.endif
+
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
+	${MACHINE_ARCH} == "arm"
+ZFS_CFLAGS+= -DBITS_PER_LONG=32
+.else
+ZFS_CFLAGS+= -DBITS_PER_LONG=64
+.endif
+
+
 ZFS_ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${ZFS_CFLAGS}
 ZFS_C=		${CC} -c ${ZFS_CFLAGS} ${WERROR} ${PROF} ${.IMPSRC}
+ZFS_RPC_C=	${CC} -c ${ZFS_CFLAGS} -DHAVE_RPC_TYPES ${WERROR} ${PROF} ${.IMPSRC}
 ZFS_S=		${CC} -c ${ZFS_ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+
+
 
 # Special flags for managing the compat compiles for DTrace
 DTRACE_CFLAGS=	-DBUILDING_DTRACE ${CDDL_CFLAGS} -I$S/cddl/dev/dtrace -I$S/cddl/dev/dtrace/${MACHINE_CPUARCH}
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/intel -I$S/cddl/dev/dtrace/x86
 .endif
-DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/util -I$S -DDIS_MEM -DSMP
+DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/common/util -I$S -DDIS_MEM -DSMP -I$S/cddl/compat/opensolaris
+DTRACE_CFLAGS+=	-I$S/cddl/contrib/opensolaris/uts/common
 DTRACE_ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${DTRACE_CFLAGS}
 DTRACE_C=	${CC} -c ${DTRACE_CFLAGS}	${WERROR} ${PROF} ${.IMPSRC}
 DTRACE_S=	${CC} -c ${DTRACE_ASM_CFLAGS}	${WERROR} ${.IMPSRC}
 
 # Special flags for managing the compat compiles for DTrace/FBT
-FBT_CFLAGS=	-DBUILDING_DTRACE -nostdinc -I$S/cddl/dev/fbt/${MACHINE_CPUARCH} -I$S/cddl/dev/fbt -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common -I$S ${CDDL_CFLAGS}
+FBT_CFLAGS=	-DBUILDING_DTRACE -nostdinc -I$S/cddl/dev/fbt/${MACHINE_CPUARCH} -I$S/cddl/dev/fbt ${CDDL_CFLAGS} -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common  
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 FBT_CFLAGS+=	-I$S/cddl/dev/fbt/x86
 .endif

@@ -50,25 +50,22 @@ extern "C" {
 #ifndef _ASM
 
 #include <sys/types.h>
+#ifdef _KERNEL
+#include <sys/endian.h>
+#endif
 #include <sys/modctl.h>
 #include <sys/processor.h>
-#ifdef illumos
-#include <sys/systm.h>
-#else
 #include <sys/cpuvar.h>
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <sys/ioccom.h>
+#include <sys/cred.h>
+#include <sys/proc.h>
+#include <sys/types.h>
 #include <sys/ucred.h>
 typedef int model_t;
-#endif
 #include <sys/ctf_api.h>
-#ifdef illumos
-#include <sys/cyclic.h>
-#include <sys/int_limits.h>
-#else
 #include <sys/stdint.h>
-#endif
 
 /*
  * DTrace Universal Constants and Typedefs

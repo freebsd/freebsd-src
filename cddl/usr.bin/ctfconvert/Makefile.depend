@@ -5,6 +5,7 @@ DIRDEPS = \
 	gnu/lib/csu \
 	include \
 	include/xlocale \
+	cddl/lib/libspl \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libcompiler_rt \

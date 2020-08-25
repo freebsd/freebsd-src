@@ -55,7 +55,6 @@ struct opensolaris_utsname {
 };
 
 extern char hw_serial[11];
-extern struct opensolaris_utsname utsname;
 #endif
 
 #endif	/* _OPENSOLARIS_SYS_MISC_H_ */

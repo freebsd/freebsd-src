@@ -31,6 +31,7 @@
 
 #include <assert.h>
 #include <elf.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <gelf.h>
 #include <limits.h>

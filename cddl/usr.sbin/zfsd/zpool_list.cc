@@ -38,6 +38,7 @@
  * Implementation of the ZpoolList class.
  */
 #include <sys/cdefs.h>
+#include <sys/byteorder.h>
 #include <sys/fs/zfs.h>
 
 #include <stdint.h>

@@ -6,15 +6,19 @@ SRCS=	zfs_defs.c
 OBJS=	zfs_defs.o
 WARNS?=	1
 
-CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
-CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
-CFLAGS+= -I${.CURDIR:H}
-CFLAGS+= -DNEED_SOLARIS_BOOLEAN
+
+CFLAGS+= -DIN_BASE -D__KERNEL__ -D_KERNEL -I. -I${.CURDIR}
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/zfs
+CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
+
+CFLAGS+= -I${SRCTOP}/sys -I.  -I..
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
+CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -DHAVE_ISSETUGID -D_SYS_VMEM_H_ -UKLD_TIED -DKLD_MODULE
+
 CFLAGS+= -fno-builtin -nostdlib
 
 all: ${OBJS}

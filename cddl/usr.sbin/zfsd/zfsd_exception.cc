@@ -36,6 +36,7 @@
  * Implementation of the ZfsdException class.
  */
 #include <sys/cdefs.h>
+#include <sys/byteorder.h>
 #include <sys/fs/zfs.h>
 
 #include <syslog.h>

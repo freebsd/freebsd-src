@@ -8,10 +8,7 @@ KMOD=		sdt
 SRCS=		sdt.c
 SRCS+=		vnode_if.h
 
-CFLAGS+=	-I${SYSDIR}/cddl/compat/opensolaris \
-		-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
-		-I${SYSDIR}
+CFLAGS+=	${OPENZFS_CFLAGS}
 
 .include <bsd.kmod.mk>
-
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h

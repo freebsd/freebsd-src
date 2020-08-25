@@ -1,30 +1,33 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/cddl/contrib/opensolaris/cmd/ztest
+ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
+
+.PATH: ${ZFSTOP}/cmd/ztest
+.PATH: ${ZFSTOP}/man/man1
 
 PROG=	ztest
-MAN=
+MAN=	ztest.1
 
-WARNS?=	0
-CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
-CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
+WARNS?=	2
+CFLAGS+= \
+	-DIN_BASE \
+	-I${ZFSTOP}/include \
+	-I${ZFSTOP}/lib/libspl/include \
+	-I${ZFSTOP}/lib/libspl/include/os/freebsd \
+	-I${SRCTOP}/sys \
+	-I${SRCTOP}/cddl/compat/opensolaris/include \
+	-I${ZFSTOP}/module/icp/include \
+	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
+	-DHAVE_ISSETUGID \
+	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h
 
-LIBADD=	geom m nvpair umem zpool pthread avl zfs_core zfs uutil
+LIBADD=	geom m nvpair umem zpool pthread avl zfs_core spl zutil zfs uutil icp
 
 CSTD=	c99
 
 # Since there are many asserts in this program, it makes no sense to compile
 # it without debugging.
-CFLAGS+= -g -DDEBUG=1 -Wno-format
+CFLAGS+= -g -DDEBUG=1 -Wno-format -DZFS_DEBUG=1
 CFLAGS.gcc+= -fms-extensions
 
 HAS_TESTS=

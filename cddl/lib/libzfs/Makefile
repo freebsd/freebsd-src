@@ -1,62 +1,102 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/cddl/compat/opensolaris/misc
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-.PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
-.PATH: ${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils/common
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/icp
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zcommon
+.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzfs
+.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libzfs/os/freebsd
+.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libshare
+.PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libshare/os/freebsd
+.PATH: ${SRCTOP}/sys/contrib/openzfs/include
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zstd
+.PATH: ${SRCTOP}/sys/contrib/openzfs/module/zstd/lib
 
 PACKAGE=	runtime
 LIB=	zfs
-LIBADD=	md pthread umem util uutil m avl bsdxml geom nvpair z zfs_core
-SRCS=	deviceid.c \
-	fsshare.c \
-	mkdirp.c \
-	mnttab.c \
-	thread_pool.c \
-	zmount.c \
-	zone.c
+LIBADD=	md pthread umem util uutil m avl bsdxml geom nvpair z zfs_core zutil
 
-SRCS+=	nicenum.c
+INCS=	libzfs.h
+USER_C = \
+        libzfs_changelist.c \
+        libzfs_config.c \
+        libzfs_crypto.c \
+        libzfs_dataset.c \
+        libzfs_diff.c \
+        libzfs_import.c \
+        libzfs_iter.c \
+        libzfs_mount.c \
+        libzfs_pool.c \
+        libzfs_sendrecv.c \
+        libzfs_status.c \
+        libzfs_util.c
 
-SRCS+=	libzfs_changelist.c \
-	libzfs_compat.c \
-	libzfs_config.c \
-	libzfs_dataset.c \
-	libzfs_diff.c \
-	libzfs_import.c \
-	libzfs_iter.c \
-	libzfs_mount.c \
-	libzfs_pool.c \
-	libzfs_sendrecv.c \
-	libzfs_status.c \
-	libzfs_util.c \
-	zfeature_common.c \
-	zfs_comutil.c \
-	zfs_deleg.c \
-	zfs_fletcher.c \
-	zfs_namecheck.c \
-	zfs_prop.c \
-	zpool_prop.c \
-	zprop_common.c \
+# FreeBSD
+USER_C += \
+        libzfs_compat.c \
+        libzfs_ioctl_compat.c \
+        libzfs_zmount.c
 
-WARNS?=	0
-SHLIB_MAJOR= 3
+# libshare
+USER_C += \
+	libshare.c \
+	nfs.c \
+	smb.c
+
+
+KERNEL_C = \
+        algs/sha2/sha2.c \
+        cityhash.c \
+        zfeature_common.c \
+        zfs_comutil.c \
+        zfs_deleg.c \
+        zfs_fletcher.c \
+        zfs_fletcher_superscalar.c \
+        zfs_fletcher_superscalar4.c \
+        zfs_namecheck.c \
+        zfs_prop.c \
+        zfs_uio.c \
+        zpool_prop.c \
+        zprop_common.c
+
+
+KERNEL_C+= 	zstd.c \
+		zfs_zstd.c
+
+
+ARCH_C =
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
+ARCH_C += 	zfs_fletcher_intel.c \
+		zfs_fletcher_sse.c 
+CFLAGS +=  -DHAVE_SSE2
+.endif
+.if ${MACHINE_ARCH} == "amd64"
+ARCH_C +=	zfs_fletcher_avx512.c
+CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_AVX512F
+.endif
+.if ${MACHINE_ARCH} == "aarch64"
+ARCH_C +=	zfs_fletcher_aarch64_neon.c
+.endif
+
+SRCS= $(USER_C) $(KERNEL_C) $(ARCH_C)
+
+WARNS?=	2
+SHLIB_MAJOR= 4
 CSTD=	c99
-CFLAGS+= -DZFS_NO_ACL
-CFLAGS+= -I${SRCTOP}/sbin/mount
-CFLAGS+= -I${SRCTOP}/sys/cddl/compat/opensolaris
+CFLAGS+= -DIN_BASE
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libshare
+CFLAGS+= -I${SRCTOP}/sys/contrib/ck/include
+CFLAGS+= -I${SRCTOP}/sys
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
-CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/lib/libumem
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzpool/common
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/zfs
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common/fs/zfs
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/head
-CFLAGS+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/uts/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libnvpair
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libuutil/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libzfs_core/common
-CFLAGS+= -I${SRCTOP}/cddl/contrib/opensolaris/lib/libcmdutils
+CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/module/icp/include
+CFLAGS+= -I${SRCDIR}/sys/contrib/openzfs/module/zstd/include
+CFLAGS+= -include ${SRCTOP}/sys/contrib/openzfs/include/os/freebsd/spl/sys/ccompile.h
+CFLAGS+= -DHAVE_ISSETUGID
+CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+CFLAGS.zfs_zstd.c= -Wno-cast-qual -Wno-pointer-arith
+CFLAGS.zstd.c= -fno-tree-vectorize
+
 
 .include <bsd.lib.mk>

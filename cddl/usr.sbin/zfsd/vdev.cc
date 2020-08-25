@@ -39,6 +39,7 @@
  */
 #include <syslog.h>
 #include <sys/cdefs.h>
+#include <sys/byteorder.h>
 #include <sys/fs/zfs.h>
 
 #include <libzfs.h>

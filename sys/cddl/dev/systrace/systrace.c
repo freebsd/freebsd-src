@@ -290,7 +290,7 @@ systrace_provide(void *arg, dtrace_probedesc_t *desc)
 static void
 systrace_destroy(void *arg, dtrace_id_t id, void *parg)
 {
-#ifdef DEBUG
+#ifdef SYSTRACE_DEBUG
 	int sysnum = SYSTRACE_SYSNUM((uintptr_t)parg);
 
 	/*
