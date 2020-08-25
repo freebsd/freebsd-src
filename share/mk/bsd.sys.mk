@@ -284,6 +284,19 @@ CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
 .endif
 .endif
 
+# Please keep this if in sync with kern.mk
+.if ${LD} != "ld" && (${CC:[1]:H} != ${LD:[1]:H} || ${LD:[1]:T} != "ld")
+# Add -fuse-ld=${LD} if $LD is in a different directory or not called "ld".
+# Note: Clang 12+ will prefer --ld-path= over -fuse-ld=.
+.if ${COMPILER_TYPE} == "clang"
+LDFLAGS+=	-fuse-ld=${LD:[1]}
+.else
+# GCC does not support an absolute path for -fuse-ld so we just print this
+# warning instead and let the user add the required symlinks.
+.warning LD (${LD}) is not the default linker for ${CC} but -fuse-ld= is not supported
+.endif
+.endif
+
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
 PHONY_NOTMAIN = analyze afterdepend afterinstall all beforedepend beforeinstall \
