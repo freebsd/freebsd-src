@@ -3260,7 +3260,7 @@ DTBOUTPUTPATH= ${.CURDIR}
 #
 builddtb: .PHONY
 	@PATH=${TMPPATH} MACHINE=${TARGET} \
-	${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
+	sh ${.CURDIR}/sys/tools/fdt/make_dtb.sh ${.CURDIR}/sys \
 	    "${FDT_DTS_FILE}" ${DTBOUTPUTPATH}
 
 ###############
