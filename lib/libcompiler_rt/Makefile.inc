@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.compiler.mk>
-
 CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
 
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
@@ -129,10 +127,6 @@ SRCF+=		umodti3
 # Exclude arm which has its own implementations of atomic functions, below.
 .if "${COMPILER_TYPE}" == "clang" && ${MACHINE_CPUARCH} != "arm"
 SRCF+=		atomic
-.endif
-
-.if "${COMPILER_TYPE}" == "clang"
-CFLAGS.atomic.c+=      -Wno-atomic-alignment
 .endif
 
 # Avoid using SSE2 instructions on i386, if unsupported.
