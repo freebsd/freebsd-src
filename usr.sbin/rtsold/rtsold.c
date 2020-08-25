@@ -80,6 +80,7 @@ int aflag = 0;
 int dflag = 0;
 int uflag = 0;
 
+const char *managedconf_script;
 const char *otherconf_script;
 const char *resolvconf_script = "/sbin/resolvconf";
 
@@ -124,11 +125,11 @@ main(int argc, char **argv)
 
 	progname = basename(argv[0]);
 	if (strcmp(progname, "rtsold") == 0) {
-		opts = "adDfFm1O:p:R:u";
+		opts = "adDfFm1M:O:p:R:u";
 		once = 0;
 		pidfilepath = NULL;
 	} else {
-		opts = "adDFO:R:u";
+		opts = "adDFM:O:R:u";
 		fflag = 1;
 		once = 1;
 	}
@@ -155,6 +156,9 @@ main(int argc, char **argv)
 			break;
 		case '1':
 			once = 1;
+			break;
+		case 'M':
+			managedconf_script = optarg;
 			break;
 		case 'O':
 			otherconf_script = optarg;
@@ -190,6 +194,9 @@ main(int argc, char **argv)
 	else
 		log_upto = LOG_NOTICE;
 
+	if (managedconf_script != NULL && *managedconf_script != '/')
+		errx(1, "configuration script (%s) must be an absolute path",
+		    managedconf_script);
 	if (otherconf_script != NULL && *otherconf_script != '/')
 		errx(1, "configuration script (%s) must be an absolute path",
 		    otherconf_script);
@@ -324,9 +331,11 @@ static int
 init_capabilities(void)
 {
 #ifdef WITH_CASPER
-	const char *const scripts[2] = { resolvconf_script, otherconf_script };
+	const char *const scripts[] =
+	    { resolvconf_script, managedconf_script, otherconf_script };
 	cap_channel_t *capcasper;
 	nvlist_t *limits;
+	int count;
 
 	capcasper = cap_init();
 	if (capcasper == NULL)
@@ -339,9 +348,12 @@ init_capabilities(void)
 	capscript = cap_service_open(capcasper, "rtsold.script");
 	if (capscript == NULL)
 		return (-1);
+	count = 0;
+	for (size_t i = 0; i < nitems(scripts); i++)
+		if (scripts[i] != NULL)
+			count++;
 	limits = nvlist_create(0);
-	nvlist_add_string_array(limits, "scripts", scripts,
-	    otherconf_script != NULL ? 2 : 1);
+	nvlist_add_string_array(limits, "scripts", scripts, count);
 	if (cap_limit_set(capscript, limits) != 0)
 		return (-1);
 
@@ -597,10 +609,12 @@ rtsol_check_timer(void)
 
 				/*
 				 * If we need a probe, clear the previous
-				 * status wrt the "other" configuration.
+				 * status wrt the "managed/other" configuration.
 				 */
-				if (probe)
+				if (probe) {
+					ifi->managedconfig = 0;
 					ifi->otherconfig = 0;
+				}
 				if (probe && mobile_node) {
 					error = cap_probe_defrouters(capsendmsg,
 					    ifi);
