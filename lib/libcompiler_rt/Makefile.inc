@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.compiler.mk>
-
 CRTARCH=	${MACHINE_CPUARCH:C/amd64/x86_64/}
 
 CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
@@ -124,10 +122,6 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodsi3
 SRCF+=		umodti3
-
-.if "${COMPILER_TYPE}" == "clang"
-CFLAGS.atomic.c+=      -Wno-atomic-alignment
-.endif
 
 # Avoid using SSE2 instructions on i386, if unsupported.
 .if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
