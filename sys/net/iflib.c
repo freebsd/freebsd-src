@@ -832,7 +832,6 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 {
 	struct netmap_adapter *na = kring->na;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int head = kring->rhead;
 	u_int nm_i = kring->nr_hwcur;
 	struct netmap_ring *ring = kring->ring;
 	bus_dmamap_t *map;
@@ -840,39 +839,46 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 	if_ctx_t ctx = rxq->ifr_ctx;
 	iflib_fl_t fl = &rxq->ifr_fl[0];
 	u_int nic_i_first, nic_i;
-	int i;
+	int i, n;
 #if IFLIB_DEBUG_COUNTERS
 	int rf_count = 0;
 #endif
 
 	/*
-	 * Netmap requires that we leave (at least) one free slot
-	 * in the ring, so that it can distinguish between an empty
-	 * ring (nr_hwcur == nr_hwtail, i.e. all the buffers owned by the
-	 * user) and a full ring (nr_hwtail == (nr_hwcur - 1) mod N, i.e.
-	 * all the buffers owned by the kernel).
-	 * We thus set head (the refill limit) to nr_hwcur - 1
-	 * at initialization. The rest of the code will then make sure
-	 * than nr_hwtail never overcomes nr_hwcur.
+	 * This function is used both at initialization and in rxsync.
+	 * At initialization we need to prepare (with isc_rxd_refill())
+	 * all the (N) netmap buffers in the ring, in such a way to keep
+	 * fl->ifl_pidx and kring->nr_hwcur in sync (except for
+	 * kring->nkr_hwofs); at rxsync time, both indexes point to the
+	 * next buffer to be refilled.
+	 * In any case we publish (with isc_rxd_flush()) up to
+	 * (fl->ifl_pidx - 1) % N (included), to avoid the NIC tail/prod
+	 * pointer to overrun the head/cons pointer, although this is
+	 * not necessary for some NICs (e.g. vmx).
 	 */
-	if (__predict_false(init)) {
-		head = nm_prev(nm_i, lim);
-	} else if (nm_i == head) {
-		/* Nothing to do. We can leave early. */
-		return (0);
+	if (__predict_false(init))
+		n = kring->nkr_num_slots;
+	else {
+		n = kring->rhead - nm_i;
+		if (n == 0)
+			return (0); /* Nothing to do. */
+		if (n < 0)
+			n += kring->nkr_num_slots;
 	}
 
+	/* Start to refill from nr_hwcur, publishing n buffers. */
 	iru_init(&iru, rxq, 0 /* flid */);
 	map = fl->ifl_sds.ifsd_map;
-	nic_i = netmap_idx_k2n(kring, nm_i);
+	nic_i = fl->ifl_pidx;
+	MPASS(nic_i == netmap_idx_k2n(kring, nm_i));
 	DBG_COUNTER_INC(fl_refills);
-	while (nm_i != head) {
+	while (n > 0) {
 #if IFLIB_DEBUG_COUNTERS
 		if (++rf_count == 9)
 			DBG_COUNTER_INC(fl_refills_large);
 #endif
 		nic_i_first = nic_i;
-		for (i = 0; i < IFLIB_MAX_RX_REFRESH && nm_i != head; i++) {
+		for (i = 0; n > 0 && i < IFLIB_MAX_RX_REFRESH; n--, i++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			void *addr = PNMB(na, slot, &fl->ifl_bus_addrs[i]);
 
@@ -903,11 +909,11 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 		iru.iru_count = i;
 		ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
 	}
-	kring->nr_hwcur = head;
+	fl->ifl_pidx = nic_i;
+	MPASS(!init || nm_i == 0);
+	MPASS(nm_i == kring->rhead);
+	kring->nr_hwcur = nm_i;
 
-	/* The pidx argument of isc_rxd_flush() is the index of the last valid
-	 * slot in the free list ring. We need therefore to decrement nic_i,
-	 * similarly to what happens in iflib_fl_refill() for ifl_pidx. */
 	bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	ctx->isc_rxd_flush(ctx->ifc_softc, rxq->ifr_id, fl->ifl_id,
