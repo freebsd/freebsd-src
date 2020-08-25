@@ -260,8 +260,8 @@ SYSINCS+=	${SRCTOP}/sys/sys/elf.h
 # Linux/MacOS since we only use flags that are supported by all of them.
 _host_tools_to_symlink=	basename bzip2 bunzip2 chmod chown cmp comm cp date dd \
 	dirname echo env false find fmt gzip gunzip head hostname id ln ls \
-	mkdir mv nice patch rm realpath sh sleep stat tee touch tr true \
-	uname uniq wc which
+	mkdir mv nice patch rm sh sleep stat tee touch tr true uname uniq unxz \
+	wc which xz
 
 # We also need a symlink to the absolute path to the make binary used for
 # the toplevel makefile. This is not necessarily the same as `which make`
@@ -285,9 +285,9 @@ _host_tools_to_symlink:=${_host_tools_to_symlink:Nsh}
 host-symlinks:
 	@echo "Linking host tools into ${DESTDIR}/bin"
 .for _tool in ${_host_tools_to_symlink}
-	@source_path=`which ${_tool}`; \
+	@export PATH=$${PATH}:/usr/local/bin; source_path=`which ${_tool}`; \
 	if [ ! -e "$${source_path}" ] ; then \
-		echo "Cannot find host tool '${_tool}'"; false; \
+		echo "Cannot find host tool '${_tool}' in PATH ($$PATH)." >&2; false; \
 	fi; \
 	rm -f "${DESTDIR}/bin/${_tool}"; \
 	cp -pf "$${source_path}" "${DESTDIR}/bin/${_tool}"
@@ -330,7 +330,7 @@ installdirs:
 
 .for _dir in sbin usr/sbin usr/bin
 # delete existing directories from before r340157
-	@if [ ! -L ${DESTDIR}/${_dir} ]; then \
+	@if [ -e ${DESTDIR}/${_dir} ] && [ ! -L ${DESTDIR}/${_dir} ]; then \
 	    echo "removing old non-symlink ${DESTDIR}/${_dir}"; \
 	    rm -rf "${DESTDIR}/${_dir}"; \
 	fi
