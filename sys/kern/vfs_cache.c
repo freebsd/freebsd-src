@@ -388,8 +388,7 @@ cache_free(struct namecache *ncp)
 {
 	struct namecache_ts *ncp_ts;
 
-	if (ncp == NULL)
-		return;
+	MPASS(ncp != NULL);
 	if ((ncp->nc_flag & NCF_DVDROP) != 0)
 		vdrop(ncp->nc_dvp);
 	if (__predict_false(ncp->nc_flag & NCF_TS)) {
@@ -980,7 +979,8 @@ cache_negative_zap_one(void)
 	}
 	mtx_unlock(blp);
 	mtx_unlock(dvlp);
-	cache_free(ncp);
+	if (ncp != NULL)
+		cache_free(ncp);
 }
 
 /*
@@ -1962,7 +1962,8 @@ cache_enter_dotdot_prep(struct vnode *dvp, struct vnode *vp,
 	dvp->v_cache_dd = NULL;
 	vn_seqc_write_end(dvp);
 	cache_enter_unlock(&cel);
-	cache_free(ncp);
+	if (ncp != NULL)
+		cache_free(ncp);
 }
 
 /*
@@ -2158,7 +2159,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	cache_enter_unlock(&cel);
 	if (numneg * ncnegfactor > lnumcache)
 		cache_negative_zap_one();
-	cache_free(ndd);
+	if (ndd != NULL)
+		cache_free(ndd);
 	return;
 out_unlock_free:
 	cache_enter_unlock(&cel);
