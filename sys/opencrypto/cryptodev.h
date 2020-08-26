@@ -158,7 +158,7 @@
 #define	AES_XTS_MAX_KEY		(2 * AES_MAX_KEY)
 #define	ARC4_MIN_KEY		1
 #define	ARC4_MAX_KEY		32
-#define	CAMELLIA_MIN_KEY	8
+#define	CAMELLIA_MIN_KEY	16
 #define	CAMELLIA_MAX_KEY	32
 
 /* Maximum hash algorithm result length */
