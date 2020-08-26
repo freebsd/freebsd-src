@@ -12,6 +12,7 @@ PACKAGE=	runtime
 PROG=	zpool
 MAN= \
 	spl-module-parameters.5 \
+	zfs-events.5 \
 	zfs-module-parameters.5 \
 	zpool.8 \
 	zpool-add.8 \
