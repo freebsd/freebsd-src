@@ -2107,7 +2107,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 		    vi->rsrv_noflowq);
 
 	items[0] = m;
-	rc = mp_ring_enqueue(txq->r, items, 1, 4096);
+	rc = mp_ring_enqueue(txq->r, items, 1, 256);
 	if (__predict_false(rc != 0))
 		m_freem(m);
 
@@ -2128,7 +2128,7 @@ cxgbe_qflush(struct ifnet *ifp)
 			txq->eq.flags |= EQ_QFLUSH;
 			TXQ_UNLOCK(txq);
 			while (!mp_ring_is_idle(txq->r)) {
-				mp_ring_check_drainage(txq->r, 0);
+				mp_ring_check_drainage(txq->r, 4096);
 				pause("qflush", 1);
 			}
 			TXQ_LOCK(txq);
@@ -2177,7 +2177,7 @@ vi_get_counter(struct ifnet *ifp, ift_counter c)
 			struct sge_txq *txq;
 
 			for_each_txq(vi, i, txq)
-				drops += counter_u64_fetch(txq->r->drops);
+				drops += counter_u64_fetch(txq->r->dropped);
 		}
 
 		return (drops);
@@ -2242,7 +2242,7 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
 			struct sge_txq *txq;
 
 			for_each_txq(vi, i, txq)
-				drops += counter_u64_fetch(txq->r->drops);
+				drops += counter_u64_fetch(txq->r->dropped);
 		}
 
 		return (drops);
@@ -4276,6 +4276,13 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.fr_nsmr_tpte_wr_support = false;
 
+	param[0] = FW_PARAM_PFVF(MAX_PKTS_PER_ETH_TX_PKTS_WR);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.max_pkts_per_eth_tx_pkts_wr = val[0];
+	else
+		sc->params.max_pkts_per_eth_tx_pkts_wr = 15;
+
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
@@ -5687,7 +5694,7 @@ quiesce_txq(struct adapter *sc, struct sge_txq *txq)
 
 	/* Wait for the mp_ring to empty. */
 	while (!mp_ring_is_idle(txq->r)) {
-		mp_ring_check_drainage(txq->r, 0);
+		mp_ring_check_drainage(txq->r, 4096);
 		pause("rquiesce", 1);
 	}
 
