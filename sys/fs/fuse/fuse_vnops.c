@@ -1035,8 +1035,9 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		filesize = 0;
 	} else {
 		struct timespec now, timeout;
+		int ncpticks; /* here to accomodate for API contract */
 
-		err = cache_lookup(dvp, vpp, cnp, &timeout, NULL);
+		err = cache_lookup(dvp, vpp, cnp, &timeout, &ncpticks);
 		getnanouptime(&now);
 		SDT_PROBE3(fusefs, , vnops, cache_lookup, err, &timeout, &now);
 		switch (err) {
