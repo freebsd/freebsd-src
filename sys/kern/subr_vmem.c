@@ -249,6 +249,18 @@ static struct vmem memguard_arena_storage;
 vmem_t *memguard_arena = &memguard_arena_storage;
 #endif
 
+static bool
+bt_isbusy(bt_t *bt)
+{
+	return (bt->bt_type == BT_TYPE_BUSY);
+}
+
+static bool
+bt_isfree(bt_t *bt)
+{
+	return (bt->bt_type == BT_TYPE_FREE);
+}
+
 /*
  * Fill the vmem's boundary tag cache.  We guarantee that boundary tag
  * allocation will not fail once bt_fill() passes.  To do so we cache
@@ -795,24 +807,48 @@ SYSINIT(vfs, SI_SUB_CONFIGURE, SI_ORDER_ANY, vmem_start_callout, NULL);
 static void
 vmem_add1(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int type)
 {
-	bt_t *btspan;
-	bt_t *btfree;
+	bt_t *btfree, *btprev, *btspan;
 
+	VMEM_ASSERT_LOCKED(vm);
 	MPASS(type == BT_TYPE_SPAN || type == BT_TYPE_SPAN_STATIC);
 	MPASS((size & vm->vm_quantum_mask) == 0);
 
-	btspan = bt_alloc(vm);
-	btspan->bt_type = type;
-	btspan->bt_start = addr;
-	btspan->bt_size = size;
-	bt_insseg_tail(vm, btspan);
+	if (vm->vm_releasefn == NULL) {
+		/*
+		 * The new segment will never be released, so see if it is
+		 * contiguous with respect to an existing segment.  In this case
+		 * a span tag is not needed, and it may be possible now or in
+		 * the future to coalesce the new segment with an existing free
+		 * segment.
+		 */
+		btprev = TAILQ_LAST(&vm->vm_seglist, vmem_seglist);
+		if ((!bt_isbusy(btprev) && !bt_isfree(btprev)) ||
+		    btprev->bt_start + btprev->bt_size != addr)
+			btprev = NULL;
+	} else {
+		btprev = NULL;
+	}
 
-	btfree = bt_alloc(vm);
-	btfree->bt_type = BT_TYPE_FREE;
-	btfree->bt_start = addr;
-	btfree->bt_size = size;
-	bt_insseg(vm, btfree, btspan);
-	bt_insfree(vm, btfree);
+	if (btprev == NULL || bt_isbusy(btprev)) {
+		if (btprev == NULL) {
+			btspan = bt_alloc(vm);
+			btspan->bt_type = type;
+			btspan->bt_start = addr;
+			btspan->bt_size = size;
+			bt_insseg_tail(vm, btspan);
+		}
+
+		btfree = bt_alloc(vm);
+		btfree->bt_type = BT_TYPE_FREE;
+		btfree->bt_start = addr;
+		btfree->bt_size = size;
+		bt_insseg_tail(vm, btfree);
+		bt_insfree(vm, btfree);
+	} else {
+		bt_remfree(vm, btprev);
+		btprev->bt_size += size;
+		bt_insfree(vm, btprev);
+	}
 
 	vm->vm_size += size;
 }
@@ -1147,6 +1183,7 @@ vmem_set_import(vmem_t *vm, vmem_import_t *importfn,
 {
 
 	VMEM_LOCK(vm);
+	KASSERT(vm->vm_size == 0, ("%s: arena is non-empty", __func__));
 	vm->vm_importfn = importfn;
 	vm->vm_releasefn = releasefn;
 	vm->vm_arg = arg;
