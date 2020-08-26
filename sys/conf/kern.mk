@@ -278,7 +278,8 @@ CFLAGS+=        -std=${CSTD}
 # Note: unlike bsd.sys.mk we can't use LDFLAGS here since that is used for the
 # flags required when linking the kernel. We don't need those flags when
 # building the vdsos. However, we do need -fuse-ld, so use ${CCLDFLAGS} instead.
-CCLDFLAGS+=	-fuse-ld=${LD:[1]}
+# Note: Clang does not like relative paths in -fuse-ld so we map ld.lld -> lld.
+CCLDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
 .else
 # GCC does not support an absolute path for -fuse-ld so we just print this
 # warning instead and let the user add the required symlinks.
