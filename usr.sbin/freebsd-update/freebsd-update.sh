@@ -3341,8 +3341,18 @@ cmd_upgrade () {
 	upgrade_run || exit 1
 }
 
-# Check if there are fetched updates ready to install
+# Check if there are fetched updates ready to install.
+# Chdir into the working directory.
 cmd_updatesready () {
+	# Check if working directory exists (if not, no updates pending)
+	if ! [ -e "${WORKDIR}" ]; then
+		echo "No updates are available to install."
+		exit 2
+	fi
+	
+	# Change into working directory (fail if no permission/directory etc.)
+	cd ${WORKDIR} || exit 1
+
 	# Construct a unique name from ${BASEDIR}
 	BDHASH=`echo ${BASEDIR} | sha256 -q`
 
