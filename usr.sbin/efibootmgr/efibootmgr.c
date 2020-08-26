@@ -295,7 +295,7 @@ parse_args(int argc, char *argv[])
 		return;
 	}
 
-	if (opts.order && !(opts.order))
+	if (opts.order != NULL && *opts.order == '\0')
 		errx(1, "%s", ORDER_USAGE);
 
 	if ((opts.set_inactive || opts.set_active) && !opts.has_bootnum)
