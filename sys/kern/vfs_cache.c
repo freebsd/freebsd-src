@@ -1398,15 +1398,17 @@ retry:
 	return (-1);
 negative_success:
 	if (__predict_false(cnp->cn_nameiop == CREATE)) {
-		counter_u64_add(numnegzaps, 1);
-		error = cache_zap_locked_vnode(ncp, dvp);
-		if (__predict_false(error != 0)) {
-			zap_and_exit_bucket_fail2++;
-			cache_maybe_yield();
-			goto retry;
+		if (cnp->cn_flags & ISLASTCN) {
+			counter_u64_add(numnegzaps, 1);
+			error = cache_zap_locked_vnode(ncp, dvp);
+			if (__predict_false(error != 0)) {
+				zap_and_exit_bucket_fail2++;
+				cache_maybe_yield();
+				goto retry;
+			}
+			cache_free(ncp);
+			return (0);
 		}
-		cache_free(ncp);
-		return (0);
 	}
 
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
@@ -1603,15 +1605,17 @@ retry:
 negative_success:
 	/* We found a negative match, and want to create it, so purge */
 	if (__predict_false(cnp->cn_nameiop == CREATE)) {
-		counter_u64_add(numnegzaps, 1);
-		error = cache_zap_rlocked_bucket(ncp, cnp, hash, blp);
-		if (__predict_false(error != 0)) {
-			zap_and_exit_bucket_fail2++;
-			cache_maybe_yield();
-			goto retry;
+		if (cnp->cn_flags & ISLASTCN) {
+			counter_u64_add(numnegzaps, 1);
+			error = cache_zap_locked_vnode(ncp, dvp);
+			if (__predict_false(error != 0)) {
+				zap_and_exit_bucket_fail2++;
+				cache_maybe_yield();
+				goto retry;
+			}
+			cache_free(ncp);
+			return (0);
 		}
-		cache_free(ncp);
-		return (0);
 	}
 
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
@@ -1657,13 +1661,6 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		cache_remove_cnp(dvp, cnp);
 		return (0);
 	}
-
-	/*
-	 * TODO: we only fallback becasue if a negative entry is found it will
-	 * need to be purged.
-	 */
-	if (cnp->cn_nameiop == CREATE)
-		goto out_fallback;
 
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 	vfs_smr_enter();
@@ -1723,6 +1720,13 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	return (-1);
 
 negative_success:
+	if (__predict_false(cnp->cn_nameiop == CREATE)) {
+		if (cnp->cn_flags & ISLASTCN) {
+			vfs_smr_exit();
+			goto out_fallback;
+		}
+	}
+
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
 	cache_out_ts(ncp, tsp, ticksp);
 	counter_u64_add(numneghits, 1);
