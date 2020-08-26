@@ -23,9 +23,12 @@ SUBDIR_BOOTSTRAP= \
 	msun
 
 # The main list; please keep these sorted alphabetically.
+# The only exception is sqlite3: we place it at the start of the list since it
+# takes a long time to build and starting it first improves parallelism.
 
 SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	.WAIT \
+	libsqlite3 \
 	geom \
 	libalias \
 	libarchive \
@@ -84,7 +87,6 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	librtld_db \
 	libsbuf \
 	libsmb \
-	libsqlite3 \
 	libstdbuf \
 	libstdthreads \
 	libsysdecode \
