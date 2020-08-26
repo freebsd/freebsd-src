@@ -415,14 +415,12 @@ cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 	    (tsp == NULL && ticksp == NULL),
 	    ("No NCF_TS"));
 
-	if (tsp == NULL && ticksp == NULL)
+	if (tsp == NULL)
 		return;
 
 	ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
-	if (tsp != NULL)
-		*tsp = ncp_ts->nc_time;
-	if (ticksp != NULL)
-		*ticksp = ncp_ts->nc_ticks;
+	*tsp = ncp_ts->nc_time;
+	*ticksp = ncp_ts->nc_ticks;
 }
 
 #ifdef DEBUG_CACHE
@@ -1616,6 +1614,8 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	int error;
 	bool whiteout;
 	u_short nc_flag;
+
+	MPASS((tsp == NULL && ticksp == NULL) || (tsp != NULL && ticksp != NULL));
 
 #ifdef DEBUG_CACHE
 	if (__predict_false(!doingcache)) {
