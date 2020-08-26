@@ -365,6 +365,9 @@ struct mntoptnames {
 #define	MNT_EXPORTANON	0x0000000000000400ULL	/* anon uid mapping for all */
 #define	MNT_EXKERB	0x0000000000000800ULL	/* exported with Kerberos */
 #define	MNT_EXPUBLIC	0x0000000020000000ULL	/* public export (WebNFS) */
+#define	MNT_EXTLS	0x0000004000000000ULL /* require TLS */
+#define	MNT_EXTLSCERT	0x0000008000000000ULL /* require TLS with client cert */
+#define	MNT_EXTLSCERTUSER 0x0000010000000000ULL /* require TLS with user cert */
 
 /*
  * Flags set by internal operations,
