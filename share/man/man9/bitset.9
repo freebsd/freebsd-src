@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2019
+.Dd August 25, 2020
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -43,6 +43,7 @@
 .Nm BIT_EMPTY ,
 .Nm BIT_ISFULLSET ,
 .Nm BIT_FFS ,
+.Nm BIT_FFS_AT ,
 .Nm BIT_FLS ,
 .Nm BIT_COUNT ,
 .Nm BIT_SUBSET ,
@@ -85,6 +86,8 @@
 .Fn BIT_ISFULLSET "const SETSIZE" "struct STRUCTNAME *bitset"
 .Ft int
 .Fn BIT_FFS "const SETSIZE" "struct STRUCTNAME *bitset"
+.Ft int
+.Fn BIT_FFS_AT "const SETSIZE" "struct STRUCTNAME *bitset" "int start"
 .Ft int
 .Fn BIT_FLS "const SETSIZE" "struct STRUCTNAME *bitset"
 .Ft int
@@ -283,6 +286,18 @@ as a
 index parameter to any other
 .Nm
 macro, you must subtract one from the result.
+.Pp
+The
+.Fn BIT_FFS_AT
+macro returns the 1-index of the first (lowest) set bit in
+.Fa bitset ,
+which is greater than the given 1-indexed
+.Fa start ,
+or zero if no bits in
+.Fa bitset
+greater than
+.Fa start
+are set.
 .Pp
 The
 .Fn BIT_FLS
@@ -518,7 +533,8 @@ argument to all of these macros must match the value given to
 .Fn BITSET_DEFINE .
 .Pp
 Unlike every other reference to individual set members, which are zero-indexed,
-.Fn BIT_FFS
+.Fn BIT_FFS ,
+.Fn BIT_FFS_AT
 and
 .Fn BIT_FLS
 return a one-indexed result (or zero if the set is empty).
