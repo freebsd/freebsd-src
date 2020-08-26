@@ -1273,14 +1273,10 @@ cache_zap_wlocked_bucket_kl(struct namecache *ncp, struct rwlock *blp,
 }
 
 static void
-cache_lookup_unlock(struct rwlock *blp, struct mtx *vlp)
+cache_lookup_unlock(struct rwlock *blp)
 {
 
-	if (blp != NULL) {
-		rw_runlock(blp);
-	} else {
-		mtx_unlock(vlp);
-	}
+	rw_runlock(blp);
 }
 
 static int __noinline
@@ -1317,6 +1313,111 @@ cache_lookup_dot(struct vnode *dvp, struct vnode **vpp, struct componentname *cn
 			vn_lock(*vpp, LK_DOWNGRADE | LK_RETRY);
 	}
 	return (-1);
+}
+
+static __noinline int
+cache_remove_cnp(struct vnode *dvp, struct componentname *cnp);
+
+
+static int __noinline
+cache_lookup_dotdot(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
+    struct timespec *tsp, int *ticksp)
+{
+	struct namecache_ts *ncp_ts;
+	struct namecache *ncp;
+	struct mtx *dvlp;
+	enum vgetstate vs;
+	int error, ltype;
+	bool whiteout;
+
+	MPASS((cnp->cn_flags & ISDOTDOT) != 0);
+
+	if ((cnp->cn_flags & MAKEENTRY) == 0) {
+		cache_remove_cnp(dvp, cnp);
+		return (0);
+	}
+
+	counter_u64_add(dotdothits, 1);
+retry:
+	dvlp = VP2VNODELOCK(dvp);
+	mtx_lock(dvlp);
+	ncp = dvp->v_cache_dd;
+	if (ncp == NULL) {
+		SDT_PROBE3(vfs, namecache, lookup, miss, dvp,
+		    "..", NULL);
+		mtx_unlock(dvlp);
+		return (0);
+	}
+	if ((ncp->nc_flag & NCF_ISDOTDOT) != 0) {
+		if (ncp->nc_flag & NCF_NEGATIVE)
+			*vpp = NULL;
+		else
+			*vpp = ncp->nc_vp;
+	} else
+		*vpp = ncp->nc_dvp;
+	/* Return failure if negative entry was found. */
+	if (*vpp == NULL)
+		goto negative_success;
+	CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
+	    dvp, cnp->cn_nameptr, *vpp);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, "..",
+	    *vpp);
+	cache_out_ts(ncp, tsp, ticksp);
+	if ((ncp->nc_flag & (NCF_ISDOTDOT | NCF_DTS)) ==
+	    NCF_DTS && tsp != NULL) {
+		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+		*tsp = ncp_ts->nc_dotdottime;
+	}
+
+	/*
+	 * On success we return a locked and ref'd vnode as per the lookup
+	 * protocol.
+	 */
+	MPASS(dvp != *vpp);
+	ltype = 0;	/* silence gcc warning */
+	ltype = VOP_ISLOCKED(dvp);
+	VOP_UNLOCK(dvp);
+	vs = vget_prep(*vpp);
+	mtx_unlock(dvlp);
+	error = vget_finish(*vpp, cnp->cn_lkflags, vs);
+	vn_lock(dvp, ltype | LK_RETRY);
+	if (VN_IS_DOOMED(dvp)) {
+		if (error == 0)
+			vput(*vpp);
+		*vpp = NULL;
+		return (ENOENT);
+	}
+	if (error) {
+		*vpp = NULL;
+		goto retry;
+	}
+	if ((cnp->cn_flags & ISLASTCN) &&
+	    (cnp->cn_lkflags & LK_TYPE_MASK) == LK_EXCLUSIVE) {
+		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
+	}
+	return (-1);
+negative_success:
+	if (__predict_false(cnp->cn_nameiop == CREATE)) {
+		counter_u64_add(numnegzaps, 1);
+		error = cache_zap_locked_vnode(ncp, dvp);
+		if (__predict_false(error != 0)) {
+			zap_and_exit_bucket_fail2++;
+			cache_maybe_yield();
+			goto retry;
+		}
+		cache_free(ncp);
+		return (0);
+	}
+
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+	cache_out_ts(ncp, tsp, ticksp);
+	counter_u64_add(numneghits, 1);
+	whiteout = (ncp->nc_flag & NCF_WHITE);
+	cache_negative_hit(ncp);
+	mtx_unlock(dvlp);
+	if (whiteout)
+		cnp->cn_flags |= ISWHITEOUT;
+	return (ENOENT);
 }
 
 static __noinline int
@@ -1441,14 +1542,12 @@ int
 cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
     struct timespec *tsp, int *ticksp)
 {
-	struct namecache_ts *ncp_ts;
 	struct namecache *ncp;
 	struct negstate *negstate;
 	struct rwlock *blp;
-	struct mtx *dvlp;
 	uint32_t hash;
 	enum vgetstate vs;
-	int error, ltype;
+	int error;
 	bool try_smr, doing_smr, whiteout;
 
 #ifdef DEBUG_CACHE
@@ -1458,8 +1557,14 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	}
 #endif
 
-	if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.'))
-		return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
+	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
+		if (cnp->cn_namelen == 1)
+			return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
+		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.')
+			return (cache_lookup_dotdot(dvp, vpp, cnp, tsp, ticksp));
+	}
+
+	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 
 	if ((cnp->cn_flags & MAKEENTRY) == 0) {
 		cache_remove_cnp(dvp, cnp);
@@ -1472,42 +1577,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 retry:
 	doing_smr = false;
 	blp = NULL;
-	dvlp = NULL;
 	error = 0;
-	if (cnp->cn_namelen == 2 &&
-	    cnp->cn_nameptr[0] == '.' && cnp->cn_nameptr[1] == '.') {
-		counter_u64_add(dotdothits, 1);
-		dvlp = VP2VNODELOCK(dvp);
-		mtx_lock(dvlp);
-		ncp = dvp->v_cache_dd;
-		if (ncp == NULL) {
-			SDT_PROBE3(vfs, namecache, lookup, miss, dvp,
-			    "..", NULL);
-			mtx_unlock(dvlp);
-			return (0);
-		}
-		if ((ncp->nc_flag & NCF_ISDOTDOT) != 0) {
-			if (ncp->nc_flag & NCF_NEGATIVE)
-				*vpp = NULL;
-			else
-				*vpp = ncp->nc_vp;
-		} else
-			*vpp = ncp->nc_dvp;
-		/* Return failure if negative entry was found. */
-		if (*vpp == NULL)
-			goto negative_success;
-		CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
-		    dvp, cnp->cn_nameptr, *vpp);
-		SDT_PROBE3(vfs, namecache, lookup, hit, dvp, "..",
-		    *vpp);
-		cache_out_ts(ncp, tsp, ticksp);
-		if ((ncp->nc_flag & (NCF_ISDOTDOT | NCF_DTS)) ==
-		    NCF_DTS && tsp != NULL) {
-			ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
-			*tsp = ncp_ts->nc_dotdottime;
-		}
-		goto success;
-	}
 
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 retry_hashed:
@@ -1549,17 +1619,11 @@ retry_hashed:
 	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
 	    *vpp);
 	cache_out_ts(ncp, tsp, ticksp);
-success:
 	/*
 	 * On success we return a locked and ref'd vnode as per the lookup
 	 * protocol.
 	 */
 	MPASS(dvp != *vpp);
-	ltype = 0;	/* silence gcc warning */
-	if (cnp->cn_flags & ISDOTDOT) {
-		ltype = VOP_ISLOCKED(dvp);
-		VOP_UNLOCK(dvp);
-	}
 	if (doing_smr) {
 		if (!cache_ncp_canuse(ncp)) {
 			vfs_smr_exit();
@@ -1574,18 +1638,9 @@ success:
 		}
 	} else {
 		vs = vget_prep(*vpp);
-		cache_lookup_unlock(blp, dvlp);
+		cache_lookup_unlock(blp);
 	}
 	error = vget_finish(*vpp, cnp->cn_lkflags, vs);
-	if (cnp->cn_flags & ISDOTDOT) {
-		vn_lock(dvp, ltype | LK_RETRY);
-		if (VN_IS_DOOMED(dvp)) {
-			if (error == 0)
-				vput(*vpp);
-			*vpp = NULL;
-			return (ENOENT);
-		}
-	}
 	if (error) {
 		*vpp = NULL;
 		goto retry;
@@ -1598,10 +1653,17 @@ success:
 
 negative_success:
 	/* We found a negative match, and want to create it, so purge */
-	if (cnp->cn_nameiop == CREATE) {
+	if (__predict_false(cnp->cn_nameiop == CREATE)) {
 		MPASS(!doing_smr);
 		counter_u64_add(numnegzaps, 1);
-		goto zap_and_exit;
+		error = cache_zap_rlocked_bucket(ncp, cnp, hash, blp);
+		if (__predict_false(error != 0)) {
+			zap_and_exit_bucket_fail2++;
+			cache_maybe_yield();
+			goto retry;
+		}
+		cache_free(ncp);
+		return (0);
 	}
 
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
@@ -1623,25 +1685,11 @@ negative_success:
 		vfs_smr_exit();
 	} else {
 		cache_negative_hit(ncp);
-		cache_lookup_unlock(blp, dvlp);
+		cache_lookup_unlock(blp);
 	}
 	if (whiteout)
 		cnp->cn_flags |= ISWHITEOUT;
 	return (ENOENT);
-
-zap_and_exit:
-	MPASS(!doing_smr);
-	if (blp != NULL)
-		error = cache_zap_rlocked_bucket(ncp, cnp, hash, blp);
-	else
-		error = cache_zap_locked_vnode(ncp, dvp);
-	if (__predict_false(error != 0)) {
-		zap_and_exit_bucket_fail2++;
-		cache_maybe_yield();
-		goto retry;
-	}
-	cache_free(ncp);
-	return (0);
 }
 
 struct celockstate {
