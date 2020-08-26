@@ -851,6 +851,9 @@ sec_desc_map_dma(struct sec_softc *sc, struct sec_dma_mem *dma_mem,
 	case CRYPTO_BUF_MBUF:
 		size = m_length(crp->crp_buf.cb_mbuf, NULL);
 		break;
+	case CRYPTO_BUF_VMPAGE:
+		size = PAGE_SIZE - cb->cb_vm_page_offset;
+		break;
 	default:
 		return (EINVAL);
 	}
