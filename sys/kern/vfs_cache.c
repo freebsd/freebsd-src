@@ -1134,8 +1134,15 @@ cache_zap_locked_vnode(struct namecache *ncp, struct vnode *vp)
 		to_unlock = vlp2;
 	} else {
 		if (!mtx_trylock(vlp1)) {
-			error = EAGAIN;
-			goto out;
+			/*
+			 * TODO: Very wasteful but rare.
+			 */
+			mtx_unlock(pvlp);
+			mtx_lock(vlp1);
+			mtx_lock(vlp2);
+			mtx_unlock(vlp2);
+			mtx_unlock(vlp1);
+			return (EAGAIN);
 		}
 		to_unlock = vlp1;
 	}
@@ -1377,7 +1384,6 @@ negative_success:
 			error = cache_zap_locked_vnode(ncp, dvp);
 			if (__predict_false(error != 0)) {
 				zap_and_exit_bucket_fail2++;
-				cache_maybe_yield();
 				goto retry;
 			}
 			cache_free(ncp);
@@ -1465,7 +1471,6 @@ retry:
 	error = cache_zap_locked_bucket(ncp, cnp, hash, blp);
 	if (__predict_false(error != 0)) {
 		zap_and_exit_bucket_fail++;
-		cache_maybe_yield();
 		goto retry;
 	}
 	counter_u64_add(numposzaps, 1);
@@ -1584,7 +1589,6 @@ negative_success:
 			error = cache_zap_locked_vnode(ncp, dvp);
 			if (__predict_false(error != 0)) {
 				zap_and_exit_bucket_fail2++;
-				cache_maybe_yield();
 				goto retry;
 			}
 			cache_free(ncp);
