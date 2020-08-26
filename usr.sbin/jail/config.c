@@ -393,7 +393,8 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		else
 			for (ipnum = IP__NULL + 1; ipnum < IP_NPARAM; ipnum++)
 				if (!(intparams[ipnum].flags & PF_CONV) &&
-				    equalopts(name, intparams[ipnum].name)) {
+				    equalopts(name, intparams[ipnum].name) &&
+				    !(p->flags & PF_VAR)) {
 					j->intparams[ipnum] = np;
 					np->flags |= intparams[ipnum].flags;
 					break;
