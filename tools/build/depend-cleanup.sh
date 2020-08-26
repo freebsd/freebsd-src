@@ -43,3 +43,11 @@ clean_dep lib/libc   shm_open S
 clean_dep lib/libomp ittnotify_static c
 # 20200414  r359930  closefrom
 clean_dep lib/libc   closefrom S
+
+# 20200826  r364746  OpenZFS merge, apply a big hammer (remove whole tree)
+if [ -e "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o ] && \
+    egrep -qw "cddl/contrib/opensolaris/lib/libzfs/common/libzfs_changelist.c" \
+    "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o; then
+	echo "Removing old ZFS tree"
+	rm -rf "$OBJTOP"/cddl "$OBJTOP"/obj-lib32/cddl
+fi
