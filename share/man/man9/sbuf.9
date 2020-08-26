@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 7, 2019
+.Dd August 26, 2020
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -370,9 +370,8 @@ function sets the
 .Fa sbuf Ns 's
 end position to
 .Fa pos ,
-which is a value between zero and one less than the size of the
-storage buffer.
-This effectively truncates the sbuf at the new position.
+which is a value between zero and the current position in the buffer.
+It can only truncate the sbuf to the new position.
 .Pp
 The
 .Fn sbuf_bcat
