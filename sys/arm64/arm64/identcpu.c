@@ -916,6 +916,13 @@ static struct mrs_user_reg user_regs[] = {
 		.offset = __offsetof(struct cpu_desc, id_aa64dfr0),
 		.fields = id_aa64dfr0_fields,
 	},
+	{	/* id_aa64mmfr0_el1 */
+		.reg = ID_AA64MMFR0_EL1,
+		.CRm = 7,
+		.Op2 = 0,
+		.offset = __offsetof(struct cpu_desc, id_aa64mmfr0),
+		.fields = id_aa64mmfr0_fields,
+	},
 };
 
 #define	CPU_DESC_FIELD(desc, idx)					\
