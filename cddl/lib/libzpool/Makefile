@@ -8,6 +8,9 @@ ZFSTOP=	${SRCTOP}/sys/contrib/openzfs
 .PATH: ${ZFSTOP}/module/unicode
 # LUA_SRCS
 .PATH: ${ZFSTOP}/module/lua
+# ZSTD_SRCS
+.PATH: ${ZFSTOP}/module/zstd
+.PATH: ${ZFSTOP}/module/zstd/lib
 
 .PATH: ${ZFSTOP}/module/os/linux/zfs
 
@@ -44,6 +47,7 @@ KERNEL_C = \
 	zfs_namecheck.c \
 	zfs_prop.c \
 	zfs_uio.c \
+	zfs_zstd.c \
 	zpool_prop.c \
 	zprop_common.c \
 	abd.c \
@@ -167,6 +171,7 @@ KERNEL_C = \
 	zio_inject.c \
 	zle.c \
 	zrlock.c \
+	zstd.c \
 	zthr.c
 
 ARCH_C =
@@ -251,5 +256,8 @@ CSTD=	c99
 # it without debugging.
 
 CFLAGS+=	-g -DDEBUG=1
+
+CFLAGS.zfs_zstd.c=	-Wno-cast-qual -Wno-pointer-arith
+CFLAGS.zstd.c+=	-fno-tree-vectorize
 
 .include <bsd.lib.mk>
