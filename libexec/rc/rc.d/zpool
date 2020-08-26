@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: zpool
+# REQUIRE: hostid
+# BEFORE: zvol mountcritlocal
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="zpool"
+desc="Import ZPOOLs"
+rcvar="zfs_enable"
+start_cmd="zpool_start"
+required_modules="zfs"
+
+zpool_start()
+{
+	local cachefile
+
+	for cachefile in /boot/zfs/zpool.cache /etc/zfs/zpool.cache; do
+		if [ -r $cachefile ]; then
+			zpool import -c $cachefile -a -N
+		fi
+	done
+}
+
+load_rc_config $name
+run_rc_command "$1"
