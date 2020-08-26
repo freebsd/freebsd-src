@@ -63,6 +63,28 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_ELI);
 
 /*
+ * Copy data from a (potentially unmapped) bio to a kernelspace buffer.
+ *
+ * The buffer must have at least as much room as bp->bio_length.
+ */
+static void
+g_eli_bio_copyin(struct bio *bp, void *kaddr)
+{
+	struct uio uio;
+	struct iovec iov[1];
+
+	iov[0].iov_base = kaddr;
+	iov[0].iov_len = bp->bio_length;
+	uio.uio_iov = iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = 0;
+	uio.uio_resid = bp->bio_length;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uiomove_fromphys(bp->bio_ma, bp->bio_ma_offset, bp->bio_length, &uio);
+}
+
+/*
  * The function is called after we read and decrypt data.
  *
  * g_eli_start -> g_eli_crypto_read -> g_io_request -> g_eli_read_done -> g_eli_crypto_run -> G_ELI_CRYPTO_READ_DONE -> g_io_deliver
@@ -98,8 +120,7 @@ g_eli_crypto_read_done(struct cryptop *crp)
 	 */
 	if (bp->bio_inbed < bp->bio_children)
 		return (0);
-	free(bp->bio_driver2, M_ELI);
-	bp->bio_driver2 = NULL;
+
 	if (bp->bio_error != 0) {
 		G_ELI_LOGREQ(0, bp, "Crypto READ request failed (error=%d).",
 		    bp->bio_error);
@@ -167,6 +188,11 @@ g_eli_crypto_write_done(struct cryptop *crp)
 		return (0);
 	}
 	cbp->bio_data = bp->bio_driver2;
+	/* 
+	 * Clear BIO_UNMAPPED, which was inherited from where we cloned the bio
+	 * in g_eli_start, because we manually set bio_data
+	 */
+	cbp->bio_flags &= ~BIO_UNMAPPED;
 	cbp->bio_done = g_eli_write_done;
 	cp = LIST_FIRST(&gp->consumer);
 	cbp->bio_to = cp->provider;
@@ -236,10 +262,12 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 {
 	struct g_eli_softc *sc;
 	struct cryptop *crp;
+	vm_page_t *pages;
 	u_int i, nsec, secsize;
 	off_t dstoff;
-	u_char *data;
+	u_char *data = NULL;
 	int error;
+	int pages_offset;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -258,16 +286,37 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 	if (bp->bio_cmd == BIO_WRITE) {
 		data = malloc(bp->bio_length, M_ELI, M_WAITOK);
 		bp->bio_driver2 = data;
-		bcopy(bp->bio_data, data, bp->bio_length);
-	} else
-		data = bp->bio_data;
+		/* 
+		 * This copy could be eliminated by using crypto's output
+		 * buffer, instead of using a single overwriting buffer.
+		 */
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+			g_eli_bio_copyin(bp, data);
+		else
+			bcopy(bp->bio_data, data, bp->bio_length);
+	} else {
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+			pages = bp->bio_ma;
+			pages_offset = bp->bio_ma_offset;
+		} else {
+			data = bp->bio_data;
+		}
+	}
 
 	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
 		crp = crypto_getreq(wr->w_sid, M_WAITOK);
 
-		crypto_use_buf(crp, data, secsize);
+		if (data) {
+			crypto_use_buf(crp, data, secsize);
+			data += secsize;
+		} else {
+			MPASS(pages != NULL);
+			crypto_use_vmpage(crp, pages, secsize, pages_offset);
+			pages_offset += secsize;
+			pages += pages_offset >> PAGE_SHIFT;
+			pages_offset &= PAGE_MASK;
+		}
 		crp->crp_opaque = (void *)bp;
-		data += secsize;
 		if (bp->bio_cmd == BIO_WRITE) {
 			crp->crp_op = CRYPTO_OP_ENCRYPT;
 			crp->crp_callback = g_eli_crypto_write_done;
