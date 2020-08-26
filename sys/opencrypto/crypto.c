@@ -78,7 +78,9 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
+#include <machine/vmparam.h>
 #include <vm/uma.h>
+
 #include <crypto/intake.h>
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform_auth.h>
@@ -1218,6 +1220,8 @@ crypto_buffer_len(struct crypto_buffer *cb)
 		if (cb->cb_mbuf->m_flags & M_PKTHDR)
 			return (cb->cb_mbuf->m_pkthdr.len);
 		return (m_length(cb->cb_mbuf, NULL));
+	case CRYPTO_BUF_VMPAGE:
+		return (cb->cb_vm_page_len);
 	case CRYPTO_BUF_UIO:
 		return (cb->cb_uio->uio_resid);
 	default:
@@ -1232,9 +1236,25 @@ cb_sanity(struct crypto_buffer *cb, const char *name)
 {
 	KASSERT(cb->cb_type > CRYPTO_BUF_NONE && cb->cb_type <= CRYPTO_BUF_LAST,
 	    ("incoming crp with invalid %s buffer type", name));
-	if (cb->cb_type == CRYPTO_BUF_CONTIG)
+	switch (cb->cb_type) {
+	case CRYPTO_BUF_CONTIG:
 		KASSERT(cb->cb_buf_len >= 0,
 		    ("incoming crp with -ve %s buffer length", name));
+		break;
+	case CRYPTO_BUF_VMPAGE:
+		KASSERT(CRYPTO_HAS_VMPAGE,
+		    ("incoming crp uses dmap on supported arch"));
+		KASSERT(cb->cb_vm_page_len >= 0,
+		    ("incoming crp with -ve %s buffer length", name));
+		KASSERT(cb->cb_vm_page_offset >= 0,
+		    ("incoming crp with -ve %s buffer offset", name));
+		KASSERT(cb->cb_vm_page_offset < PAGE_SIZE,
+		    ("incoming crp with %s buffer offset greater than page size"
+		     , name));
+		break;
+	default:
+		break;
+	}
 }
 
 static void

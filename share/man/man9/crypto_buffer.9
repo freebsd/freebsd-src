@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2020
+.Dd August 12, 2020
 .Dt CRYPTO_BUFFER 9
 .Os
 .Sh NAME
@@ -197,10 +197,17 @@ A scatter/gather list of kernel buffers as described in
 .It Dv CRYPTO_BUF_MBUF
 A network memory buffer as described in
 .Xr mbuf 9 .
+.It Dv CRYPTO_BUF_VMPAGE
+A scatter/gather list of 
+.Vt vm_page_t
+structures describing pages in the kernel's address space.
+This buffer type is only available if
+.Dv CRYPTO_HAS_VMPAGE
+is true.
 .El
 .Pp
 The structure also contains the following type-specific fields:
-.Bl -tag -width "  cb_buf_len"
+.Bl -tag -width "  cb_vm_page_offset"
 .It Fa cb_buf
 A pointer to the start of a
 .Dv CRYPTO_BUF_CONTIG
@@ -219,6 +226,19 @@ A pointer to a
 .Vt struct uio
 for
 .Dv CRYPTO_BUF_UIO .
+.It Fa cb_vm_page
+A pointer to an array of
+.Vt struct vm_page
+for
+.Dv CRYPTO_BUF_VMPAGE .
+.It Fa cb_vm_page_len
+The total amount of data included in the
+.Fa cb_vm_page
+array, in bytes.
+.It Fa cb_vm_page_offset
+Offset in bytes in the first page of
+.Fa cb_vm_page
+where valid data begins.
 .El
 .Ss Cursors
 Cursors provide a mechanism for iterating over a data buffer.

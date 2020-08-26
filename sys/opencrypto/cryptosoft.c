@@ -980,6 +980,10 @@ swcr_compdec(struct swcr_session *ses, struct cryptop *crp)
 			}
 			}
 			break;
+		case CRYPTO_BUF_VMPAGE:
+			adj = crp->crp_payload_length - result;
+			crp->crp_buf.cb_vm_page_len -= adj;
+			break;
 		default:
 			break;
 		}
