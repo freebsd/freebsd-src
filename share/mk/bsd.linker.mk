@@ -41,10 +41,13 @@ _exported_vars=	${X_}LINKER_TYPE ${X_}LINKER_VERSION ${X_}LINKER_FEATURES \
 		${X_}LINKER_FREEBSD_VERSION
 ${X_}_ld_hash=	${${ld}}${MACHINE}${PATH}
 ${X_}_ld_hash:=	${${X_}_ld_hash:hash}
-# Only import if none of the vars are set somehow else.
+# Only import if none of the vars are set differently somehow else.
 _can_export=	yes
 .for var in ${_exported_vars}
-.if defined(${var})
+.if defined(${var}) && (!defined(${var}__${${X_}_ld_hash}) || ${${var}__${${X_}_ld_hash}} != ${${var}})
+.if defined(${var}__${${X_}_ld_hash})
+.info "Cannot import ${X_}LINKER variables since cached ${var} is different: ${${var}__${${X_}_ld_hash}} != ${${var}}"
+.endif
 _can_export=	no
 .endif
 .endfor
