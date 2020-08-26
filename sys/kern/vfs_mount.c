@@ -969,11 +969,14 @@ vfs_domount_first(
 	if ((error = VFS_MOUNT(mp)) != 0 ||
 	    (error1 = VFS_STATFS(mp, &mp->mnt_stat)) != 0 ||
 	    (error1 = VFS_ROOT(mp, LK_EXCLUSIVE, &newdp)) != 0) {
+		rootvp = NULL;
 		if (error1 != 0) {
 			error = error1;
 			rootvp = vfs_cache_root_clear(mp);
-			if (rootvp != NULL)
+			if (rootvp != NULL) {
+				vhold(rootvp);
 				vrele(rootvp);
+			}
 			if ((error1 = VFS_UNMOUNT(mp, 0)) != 0)
 				printf("VFS_UNMOUNT returned %d\n", error1);
 		}
@@ -983,6 +986,10 @@ vfs_domount_first(
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
+		if (rootvp != NULL) {
+			vn_seqc_write_end(rootvp);
+			vdrop(rootvp);
+		}
 		vn_seqc_write_end(vp);
 		vrele(vp);
 		return (error);
