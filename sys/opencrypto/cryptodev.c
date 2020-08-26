@@ -103,6 +103,20 @@ struct crypt_op32 {
 	u_int32_t	iv;
 };
 
+struct crypt_aead32 {
+	u_int32_t	ses;
+	u_int16_t	op;
+	u_int16_t	flags;
+	u_int		len;
+	u_int		aadlen;
+	u_int		ivlen;
+	u_int32_t	src;
+	u_int32_t	dst;
+	u_int32_t	aad;
+	u_int32_t	tag;
+	u_int32_t	iv;
+};
+
 struct crparam32 {
 	u_int32_t	crp_p;
 	u_int		crp_nbits;
@@ -122,6 +136,7 @@ struct crypt_kop32 {
 #define	CIOCKEY32	_IOWR('c', 104, struct crypt_kop32)
 #define	CIOCGSESSION232	_IOWR('c', 106, struct session2_op32)
 #define	CIOCKEY232	_IOWR('c', 107, struct crypt_kop32)
+#define	CIOCCRYPTAEAD32	_IOWR('c', 109, struct crypt_aead32)
 
 static void
 session_op_from_32(const struct session_op32 *from, struct session2_op *to)
@@ -192,6 +207,40 @@ crypt_op_to_32(const struct crypt_op *from, struct crypt_op32 *to)
 	PTROUT_CP(*from, *to, src);
 	PTROUT_CP(*from, *to, dst);
 	PTROUT_CP(*from, *to, mac);
+	PTROUT_CP(*from, *to, iv);
+}
+
+static void
+crypt_aead_from_32(const struct crypt_aead32 *from, struct crypt_aead *to)
+{
+
+	CP(*from, *to, ses);
+	CP(*from, *to, op);
+	CP(*from, *to, flags);
+	CP(*from, *to, len);
+	CP(*from, *to, aadlen);
+	CP(*from, *to, ivlen);
+	PTRIN_CP(*from, *to, src);
+	PTRIN_CP(*from, *to, dst);
+	PTRIN_CP(*from, *to, aad);
+	PTRIN_CP(*from, *to, tag);
+	PTRIN_CP(*from, *to, iv);
+}
+
+static void
+crypt_aead_to_32(const struct crypt_aead *from, struct crypt_aead32 *to)
+{
+
+	CP(*from, *to, ses);
+	CP(*from, *to, op);
+	CP(*from, *to, flags);
+	CP(*from, *to, len);
+	CP(*from, *to, aadlen);
+	CP(*from, *to, ivlen);
+	PTROUT_CP(*from, *to, src);
+	PTROUT_CP(*from, *to, dst);
+	PTROUT_CP(*from, *to, aad);
+	PTROUT_CP(*from, *to, tag);
 	PTROUT_CP(*from, *to, iv);
 }
 
@@ -388,6 +437,7 @@ cryptof_ioctl(
 		struct session2_op sopc;
 #ifdef COMPAT_FREEBSD32
 		struct crypt_op copc;
+		struct crypt_aead aeadc;
 		struct crypt_kop kopc;
 #endif
 	};
@@ -418,6 +468,13 @@ cryptof_ioctl(
 		cmd = CIOCCRYPT;
 		data = &copc;
 		crypt_op_from_32((struct crypt_op32 *)data32, &copc);
+		break;
+	case CIOCCRYPTAEAD32:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCCRYPTAEAD;
+		data = &aeadc;
+		crypt_aead_from_32((struct crypt_aead32 *)data32, &aeadc);
 		break;
 	case CIOCKEY32:
 	case CIOCKEY232:
@@ -822,6 +879,10 @@ bail:
 	case CIOCCRYPT32:
 		if (error == 0)
 			crypt_op_to_32(data, data32);
+		break;
+	case CIOCCRYPTAEAD32:
+		if (error == 0)
+			crypt_aead_to_32(data, data32);
 		break;
 	case CIOCKEY32:
 	case CIOCKEY232:
