@@ -232,12 +232,47 @@ acpi_map_addr(struct acpi_generic_address *addr, bus_space_tag_t *tag,
 static void
 parse_pxm_tables(void *dummy)
 {
+	uint64_t mmfr0, parange;
 
 	/* Only parse ACPI tables when booting via ACPI */
 	if (arm64_bus_method != ARM64_BUS_ACPI)
 		return;
 
-	acpi_pxm_init(MAXCPU, (vm_paddr_t)1 << 40);
+	if (!get_kernel_reg(ID_AA64MMFR0_EL1, &mmfr0)) {
+		/* chosen arbitrarily */
+		mmfr0 = ID_AA64MMFR0_PARange_1T;
+	}
+
+	switch (ID_AA64MMFR0_PARange_VAL(mmfr0)) {
+	case ID_AA64MMFR0_PARange_4G:
+		parange = (vm_paddr_t)4 << 30 /* GiB */;
+		break;
+	case ID_AA64MMFR0_PARange_64G:
+		parange = (vm_paddr_t)64 << 30 /* GiB */;
+		break;
+	case ID_AA64MMFR0_PARange_1T:
+		parange = (vm_paddr_t)1 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_4T:
+		parange = (vm_paddr_t)4 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_16T:
+		parange = (vm_paddr_t)16 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_256T:
+		parange = (vm_paddr_t)256 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_4P:
+		parange = (vm_paddr_t)4 << 50 /* PiB */;
+		break;
+	default:
+		/* chosen arbitrarily */
+		parange = (vm_paddr_t)1 << 40 /* TiB */;
+		printf("Unknown value for PARange in mmfr0 (%#lx)\n", mmfr0);
+		break;
+	}
+
+	acpi_pxm_init(MAXCPU, parange);
 	acpi_pxm_parse_tables();
 	acpi_pxm_set_mem_locality();
 }
