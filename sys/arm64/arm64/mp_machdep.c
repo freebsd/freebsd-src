@@ -304,6 +304,13 @@ pic_ipi_send(void *arg, cpuset_t cpus, u_int ipi)
 {
 
 	KASSERT(intr_irq_root_dev != NULL, ("%s: no root attached", __func__));
+
+	/*
+	 * Ensure that this CPU's stores will be visible to IPI
+	 * recipients before starting to send the interrupts.
+	 */
+	dsb(ishst);
+
 	PIC_IPI_SEND(intr_irq_root_dev, arg, cpus, ipi);
 }
 
