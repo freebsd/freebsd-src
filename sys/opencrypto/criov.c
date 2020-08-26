@@ -40,12 +40,21 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/sdt.h>
+
+#include <machine/vmparam.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/pmap.h>
 
 #include <opencrypto/cryptodev.h>
 
+SDT_PROVIDER_DECLARE(opencrypto);
+
 /*
- * This macro is only for avoiding code duplication, as we need to skip
- * given number of bytes in the same way in three functions below.
+ * These macros are only for avoiding code duplication, as we need to skip
+ * given number of bytes in the same way in several functions below.
  */
 #define	CUIO_SKIP()	do {						\
 	KASSERT(off >= 0, ("%s: off %d < 0", __func__, off));		\
@@ -57,6 +66,18 @@ __FBSDID("$FreeBSD$");
 		off -= iov->iov_len;					\
 		iol--;							\
 		iov++;							\
+	}								\
+} while (0)
+
+#define CVM_PAGE_SKIP()	do {					\
+	KASSERT(off >= 0, ("%s: off %d < 0", __func__, off));		\
+	KASSERT(len >= 0, ("%s: len %d < 0", __func__, len));		\
+	while (off > 0) {						\
+		if (off < PAGE_SIZE)					\
+			break;						\
+		processed += PAGE_SIZE - off;				\
+		off -= PAGE_SIZE - off;					\
+		pages++;						\
 	}								\
 } while (0)
 
@@ -128,6 +149,96 @@ cuio_getptr(struct uio *uio, int loc, int *off)
 	return (-1);
 }
 
+#if CRYPTO_MAY_HAVE_VMPAGE
+/*
+ * Apply function f to the data in a vm_page_t list starting "off" bytes from
+ * the beginning, continuing for "len" bytes.
+ */
+static int
+cvm_page_apply(vm_page_t *pages, int off, int len,
+    int (*f)(void *, const void *, u_int), void *arg)
+{
+	int processed = 0;
+	unsigned count;
+	int rval;
+
+	CVM_PAGE_SKIP();
+	while (len > 0) {
+		char *kaddr = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages));
+		count = min(PAGE_SIZE - off, len);
+		rval = (*f)(arg, kaddr + off, count);
+		if (rval)
+			return (rval);
+		len -= count;
+		processed += count;
+		off = 0;
+		pages++;
+	}
+	return (0);
+}
+
+static inline void *
+cvm_page_contiguous_segment(vm_page_t *pages, size_t skip, int len)
+{
+	if ((skip + len - 1) / PAGE_SIZE > skip / PAGE_SIZE)
+		return (NULL);
+
+	pages += (skip / PAGE_SIZE);
+	skip -= rounddown(skip, PAGE_SIZE);
+	return (((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages))) + skip);
+}
+
+/*
+ * Copy len bytes of data from the vm_page_t array, skipping the first off
+ * bytes, into the pointer cp.  Return the number of bytes skipped and copied.
+ * Does not verify the length of the array.
+ */
+static int
+cvm_page_copyback(vm_page_t *pages, int off, int len, c_caddr_t cp)
+{
+	int processed = 0;
+	unsigned count;
+
+	CVM_PAGE_SKIP();
+	while (len > 0) {
+		count = min(PAGE_SIZE - off, len);
+		bcopy(cp, (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages)) + off,
+		    count);
+		len -= count;
+		cp += count;
+		processed += count;
+		off = 0;
+		pages++;
+	}
+	return (processed);
+}
+
+/*
+ * Copy len bytes of data from the pointer cp into the vm_page_t array,
+ * skipping the first off bytes, Return the number of bytes skipped and copied.
+ * Does not verify the length of the array.
+ */
+static int
+cvm_page_copydata(vm_page_t *pages, int off, int len, caddr_t cp)
+{
+	int processed = 0;
+	unsigned count;
+
+	CVM_PAGE_SKIP();
+	while (len > 0) {
+		count = min(PAGE_SIZE - off, len);
+		bcopy(((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(*pages)) + off), cp,
+		    count);
+		len -= count;
+		cp += count;
+		processed += count;
+		off = 0;
+		pages++;
+	}
+	return processed;
+}
+#endif /* CRYPTO_MAY_HAVE_VMPAGE */
+
 void
 crypto_cursor_init(struct crypto_buffer_cursor *cc,
     const struct crypto_buffer *cb)
@@ -142,6 +253,11 @@ crypto_cursor_init(struct crypto_buffer_cursor *cc,
 	case CRYPTO_BUF_MBUF:
 		cc->cc_mbuf = cb->cb_mbuf;
 		break;
+	case CRYPTO_BUF_VMPAGE:
+		cc->cc_vmpage = cb->cb_vm_page;
+		cc->cc_buf_len = cb->cb_vm_page_len;
+		cc->cc_offset = cb->cb_vm_page_offset;
+		break;
 	case CRYPTO_BUF_UIO:
 		cc->cc_iov = cb->cb_uio->uio_iov;
 		break;
@@ -152,6 +268,8 @@ crypto_cursor_init(struct crypto_buffer_cursor *cc,
 		break;
 	}
 }
+
+SDT_PROBE_DEFINE2(opencrypto, criov, cursor_advance, vmpage, "struct crypto_buffer_cursor*", "size_t");
 
 void
 crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
@@ -175,6 +293,24 @@ crypto_cursor_advance(struct crypto_buffer_cursor *cc, size_t amount)
 			cc->cc_mbuf = cc->cc_mbuf->m_next;
 			cc->cc_offset = 0;
 			if (amount == 0)
+				break;
+		}
+		break;
+	case CRYPTO_BUF_VMPAGE:
+		for (;;) {
+			SDT_PROBE2(opencrypto, criov, cursor_advance, vmpage,
+			    cc, amount);
+			remain = MIN(PAGE_SIZE - cc->cc_offset, cc->cc_buf_len);
+			if (amount < remain) {
+				cc->cc_buf_len -= amount;
+				cc->cc_offset += amount;
+				break;
+			}
+			cc->cc_buf_len -= remain;
+			amount -= remain;
+			cc->cc_vmpage++;
+			cc->cc_offset = 0;
+			if (amount == 0 || cc->cc_buf_len == 0)
 				break;
 		}
 		break;
@@ -212,6 +348,9 @@ crypto_cursor_segbase(struct crypto_buffer_cursor *cc)
 		KASSERT((cc->cc_mbuf->m_flags & M_EXTPG) == 0,
 		    ("%s: not supported for unmapped mbufs", __func__));
 		return (mtod(cc->cc_mbuf, char *) + cc->cc_offset);
+	case CRYPTO_BUF_VMPAGE:
+		return ((char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
+		    *cc->cc_vmpage)) + cc->cc_offset);
 	case CRYPTO_BUF_UIO:
 		return ((char *)cc->cc_iov->iov_base + cc->cc_offset);
 	default:
@@ -228,6 +367,8 @@ crypto_cursor_seglen(struct crypto_buffer_cursor *cc)
 	switch (cc->cc_type) {
 	case CRYPTO_BUF_CONTIG:
 		return (cc->cc_buf_len);
+	case CRYPTO_BUF_VMPAGE:
+		return (PAGE_SIZE - cc->cc_offset);
 	case CRYPTO_BUF_MBUF:
 		if (cc->cc_mbuf == NULL)
 			return (0);
@@ -273,6 +414,26 @@ crypto_cursor_copyback(struct crypto_buffer_cursor *cc, int size,
 			}
 			size -= todo;	
 			cc->cc_mbuf = cc->cc_mbuf->m_next;
+			cc->cc_offset = 0;
+			if (size == 0)
+				break;
+		}
+		break;
+	case CRYPTO_BUF_VMPAGE:
+		for (;;) {
+			dst = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
+			    *cc->cc_vmpage)) + cc->cc_offset;
+			remain = MIN(PAGE_SIZE - cc->cc_offset, cc->cc_buf_len);
+			todo = MIN(remain, size);
+			memcpy(dst, src, todo);
+			src += todo;
+			cc->cc_buf_len -= todo;
+			if (todo < remain) {
+				cc->cc_offset += todo;
+				break;
+			}
+			size -= todo;
+			cc->cc_vmpage++;
 			cc->cc_offset = 0;
 			if (size == 0)
 				break;
@@ -334,6 +495,26 @@ crypto_cursor_copydata(struct crypto_buffer_cursor *cc, int size, void *vdst)
 			}
 			size -= todo;
 			cc->cc_mbuf = cc->cc_mbuf->m_next;
+			cc->cc_offset = 0;
+			if (size == 0)
+				break;
+		}
+		break;
+	case CRYPTO_BUF_VMPAGE:
+		for (;;) {
+			src = (char *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
+			    *cc->cc_vmpage)) + cc->cc_offset;
+			remain = MIN(PAGE_SIZE - cc->cc_offset, cc->cc_buf_len);
+			todo = MIN(remain, size);
+			memcpy(dst, src, todo);
+			src += todo;
+			cc->cc_buf_len -= todo;
+			if (todo < remain) {
+				cc->cc_offset += todo;
+				break;
+			}
+			size -= todo;
+			cc->cc_vmpage++;
 			cc->cc_offset = 0;
 			if (size == 0)
 				break;
@@ -421,6 +602,15 @@ crypto_copyback(struct cryptop *crp, int off, int size, const void *src)
 	case CRYPTO_BUF_MBUF:
 		m_copyback(cb->cb_mbuf, off, size, src);
 		break;
+#if CRYPTO_MAY_HAVE_VMPAGE
+	case CRYPTO_BUF_VMPAGE:
+		MPASS(size <= cb->cb_vm_page_len);
+		MPASS(size + off <=
+		    cb->cb_vm_page_len + cb->cb_vm_page_offset);
+		cvm_page_copyback(cb->cb_vm_page,
+		    off + cb->cb_vm_page_offset, size, src);
+		break;
+#endif /* CRYPTO_MAY_HAVE_VMPAGE */
 	case CRYPTO_BUF_UIO:
 		cuio_copyback(cb->cb_uio, off, size, src);
 		break;
@@ -444,6 +634,15 @@ crypto_copydata(struct cryptop *crp, int off, int size, void *dst)
 	case CRYPTO_BUF_MBUF:
 		m_copydata(crp->crp_buf.cb_mbuf, off, size, dst);
 		break;
+#if CRYPTO_MAY_HAVE_VMPAGE
+	case CRYPTO_BUF_VMPAGE:
+		MPASS(size <= crp->crp_buf.cb_vm_page_len);
+		MPASS(size + off <= crp->crp_buf.cb_vm_page_len +
+		    crp->crp_buf.cb_vm_page_offset);
+		cvm_page_copydata(crp->crp_buf.cb_vm_page,
+		    off + crp->crp_buf.cb_vm_page_offset, size, dst);
+		break;
+#endif /* CRYPTO_MAY_HAVE_VMPAGE */
 	case CRYPTO_BUF_UIO:
 		cuio_copydata(crp->crp_buf.cb_uio, off, size, dst);
 		break;
@@ -473,6 +672,12 @@ crypto_apply_buf(struct crypto_buffer *cb, int off, int len,
 	case CRYPTO_BUF_UIO:
 		error = cuio_apply(cb->cb_uio, off, len, f, arg);
 		break;
+#if CRYPTO_MAY_HAVE_VMPAGE
+	case CRYPTO_BUF_VMPAGE:
+		error = cvm_page_apply(cb->cb_vm_page,
+		    off + cb->cb_vm_page_offset, len, f, arg);
+		break;
+#endif /* CRYPTO_MAY_HAVE_VMPAGE */
 	case CRYPTO_BUF_CONTIG:
 		MPASS(off + len <= cb->cb_buf_len);
 		error = (*f)(arg, cb->cb_buf + off, len);
@@ -540,6 +745,12 @@ crypto_buffer_contiguous_subsegment(struct crypto_buffer *cb, size_t skip,
 		return (m_contiguous_subsegment(cb->cb_mbuf, skip, len));
 	case CRYPTO_BUF_UIO:
 		return (cuio_contiguous_segment(cb->cb_uio, skip, len));
+#if CRYPTO_MAY_HAVE_VMPAGE
+	case CRYPTO_BUF_VMPAGE:
+		MPASS(skip + len <= cb->cb_vm_page_len);
+		return (cvm_page_contiguous_segment(cb->cb_vm_page,
+		    skip + cb->cb_vm_page_offset, len));
+#endif /* CRYPTO_MAY_HAVE_VMPAGE */
 	case CRYPTO_BUF_CONTIG:
 		MPASS(skip + len <= cb->cb_buf_len);
 		return (cb->cb_buf + skip);

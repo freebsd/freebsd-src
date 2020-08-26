@@ -661,6 +661,11 @@ bus_dmamap_load_crp_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
 		error = _bus_dmamap_load_uio(dmat, map, cb->cb_uio, &nsegs,
 		    flags);
 		break;
+	case CRYPTO_BUF_VMPAGE:
+		error = _bus_dmamap_load_ma(dmat, map, cb->cb_vm_page,
+		    cb->cb_vm_page_len, cb->cb_vm_page_offset, flags, NULL,
+		    &nsegs);
+		break;
 	default:
 		error = EINVAL;
 	}
