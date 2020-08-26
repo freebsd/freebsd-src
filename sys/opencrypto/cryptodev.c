@@ -124,9 +124,10 @@ struct crypt_kop32 {
 #define	CIOCKEY232	_IOWR('c', 107, struct crypt_kop32)
 
 static void
-session_op_from_32(const struct session_op32 *from, struct session_op *to)
+session_op_from_32(const struct session_op32 *from, struct session2_op *to)
 {
 
+	memset(to, 0, sizeof(*to));
 	CP(*from, *to, cipher);
 	CP(*from, *to, mac);
 	CP(*from, *to, keylen);
@@ -134,19 +135,19 @@ session_op_from_32(const struct session_op32 *from, struct session_op *to)
 	CP(*from, *to, mackeylen);
 	PTRIN_CP(*from, *to, mackey);
 	CP(*from, *to, ses);
+	to->crid = CRYPTOCAP_F_HARDWARE;
 }
 
 static void
 session2_op_from_32(const struct session2_op32 *from, struct session2_op *to)
 {
 
-	session_op_from_32((const struct session_op32 *)from,
-	    (struct session_op *)to);
+	session_op_from_32((const struct session_op32 *)from, to);
 	CP(*from, *to, crid);
 }
 
 static void
-session_op_to_32(const struct session_op *from, struct session_op32 *to)
+session_op_to_32(const struct session2_op *from, struct session_op32 *to)
 {
 
 	CP(*from, *to, cipher);
@@ -162,8 +163,7 @@ static void
 session2_op_to_32(const struct session2_op *from, struct session2_op32 *to)
 {
 
-	session_op_to_32((const struct session_op *)from,
-	    (struct session_op32 *)to);
+	session_op_to_32(from, (struct session_op32 *)to);
 	CP(*from, *to, crid);
 }
 
@@ -239,6 +239,22 @@ crypt_kop_to_32(const struct crypt_kop *from, struct crypt_kop32 *to)
 		crparam_to_32(&from->crk_param[i], &to->crk_param[i]);
 }
 #endif
+
+static void
+session2_op_from_op(const struct session_op *from, struct session2_op *to)
+{
+
+	memset(to, 0, sizeof(*to));
+	memcpy(to, from, sizeof(*from));
+	to->crid = CRYPTOCAP_F_HARDWARE;
+}
+
+static void
+session2_op_to_op(const struct session2_op *from, struct session_op *to)
+{
+
+	memcpy(to, from, sizeof(*to));
+}
 
 struct csession {
 	TAILQ_ENTRY(csession) next;
@@ -354,11 +370,10 @@ cryptof_ioctl(
 	struct ucred *active_cred,
 	struct thread *td)
 {
-#define	SES2(p)	((struct session2_op *)p)
 	struct crypto_session_params csp;
 	struct fcrypt *fcr = fp->f_data;
 	struct csession *cse;
-	struct session_op *sop;
+	struct session2_op *sop;
 	struct crypt_op *cop;
 	struct crypt_aead *caead;
 	struct enc_xform *txform = NULL;
@@ -369,27 +384,64 @@ cryptof_ioctl(
 	crypto_session_t cses;
 	u_int32_t ses;
 	int error = 0, crid;
+	union {
+		struct session2_op sopc;
 #ifdef COMPAT_FREEBSD32
-	struct session2_op sopc;
-	struct crypt_op copc;
-	struct crypt_kop kopc;
+		struct crypt_op copc;
+		struct crypt_kop kopc;
+#endif
+	};
+#ifdef COMPAT_FREEBSD32
+	u_long cmd32;
+	void *data32;
+
+	cmd32 = 0;
+	data32 = NULL;
+	switch (cmd) {
+	case CIOCGSESSION32:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCGSESSION;
+		data = &sopc;
+		session_op_from_32((struct session_op32 *)data32, &sopc);
+		break;
+	case CIOCGSESSION232:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCGSESSION2;
+		data = &sopc;
+		session2_op_from_32((struct session2_op32 *)data32, &sopc);
+		break;
+	case CIOCCRYPT32:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCCRYPT;
+		data = &copc;
+		crypt_op_from_32((struct crypt_op32 *)data32, &copc);
+		break;
+	case CIOCKEY32:
+	case CIOCKEY232:
+		cmd32 = cmd;
+		data32 = data;
+		if (cmd == CIOCKEY32)
+			cmd = CIOCKEY;
+		else
+			cmd = CIOCKEY2;
+		data = &kopc;
+		crypt_kop_from_32((struct crypt_kop32 *)data32, &kopc);
+		break;
+	}
 #endif
 
 	switch (cmd) {
 	case CIOCGSESSION:
 	case CIOCGSESSION2:
-#ifdef COMPAT_FREEBSD32
-	case CIOCGSESSION32:
-	case CIOCGSESSION232:
-		if (cmd == CIOCGSESSION32) {
-			session_op_from_32(data, (struct session_op *)&sopc);
-			sop = (struct session_op *)&sopc;
-		} else if (cmd == CIOCGSESSION232) {
-			session2_op_from_32(data, &sopc);
-			sop = (struct session_op *)&sopc;
+		if (cmd == CIOCGSESSION) {
+			session2_op_from_op(data, &sopc);
+			sop = &sopc;
 		} else
-#endif
-			sop = (struct session_op *)data;
+			sop = (struct session2_op *)data;
+
 		switch (sop->cipher) {
 		case 0:
 			break;
@@ -652,22 +704,14 @@ cryptof_ioctl(
 				csp.csp_ivlen = AES_CCM_IV_LEN;
 		}
 
-		/* NB: CIOCGSESSION2 has the crid */
-		if (cmd == CIOCGSESSION2
-#ifdef COMPAT_FREEBSD32
-		    || cmd == CIOCGSESSION232
-#endif
-			) {
-			crid = SES2(sop)->crid;
-			error = checkforsoftware(&crid);
-			if (error) {
-				CRYPTDEB("checkforsoftware");
-				SDT_PROBE1(opencrypto, dev, ioctl, error,
-				    __LINE__);
-				goto bail;
-			}
-		} else
-			crid = CRYPTOCAP_F_HARDWARE;
+		crid = sop->crid;
+		error = checkforsoftware(&crid);
+		if (error) {
+			CRYPTDEB("checkforsoftware");
+			SDT_PROBE1(opencrypto, dev, ioctl, error,
+			    __LINE__);
+			goto bail;
+		}
 		error = crypto_newsession(&cses, &csp, crid);
 		if (error) {
 			CRYPTDEB("crypto_newsession");
@@ -685,28 +729,17 @@ cryptof_ioctl(
 			goto bail;
 		}
 		sop->ses = cse->ses;
-		if (cmd == CIOCGSESSION2
-#ifdef COMPAT_FREEBSD32
-		    || cmd == CIOCGSESSION232
-#endif
-		    ) {
-			/* return hardware/driver id */
-			SES2(sop)->crid = crypto_ses2hid(cse->cses);
-		}
+
+		/* return hardware/driver id */
+		sop->crid = crypto_ses2hid(cse->cses);
 bail:
 		if (error) {
 			free(key, M_XDATA);
 			free(mackey, M_XDATA);
 		}
-#ifdef COMPAT_FREEBSD32
-		else {
-			if (cmd == CIOCGSESSION32)
-				session_op_to_32(sop, data);
-			else if (cmd == CIOCGSESSION232)
-				session2_op_to_32((struct session2_op *)sop,
-				    data);
-		}
-#endif
+
+		if (cmd == CIOCGSESSION && error == 0)
+			session2_op_to_op(sop, data);
 		break;
 	case CIOCFSESSION:
 		ses = *(u_int32_t *)data;
@@ -716,14 +749,7 @@ bail:
 		}
 		break;
 	case CIOCCRYPT:
-#ifdef COMPAT_FREEBSD32
-	case CIOCCRYPT32:
-		if (cmd == CIOCCRYPT32) {
-			cop = &copc;
-			crypt_op_from_32(data, cop);
-		} else
-#endif
-			cop = (struct crypt_op *)data;
+		cop = (struct crypt_op *)data;
 		cse = csefind(fcr, cop->ses);
 		if (cse == NULL) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
@@ -731,33 +757,15 @@ bail:
 		}
 		error = cryptodev_op(cse, cop, active_cred, td);
 		csefree(cse);
-#ifdef COMPAT_FREEBSD32
-		if (error == 0 && cmd == CIOCCRYPT32)
-			crypt_op_to_32(cop, data);
-#endif
 		break;
 	case CIOCKEY:
 	case CIOCKEY2:
-#ifdef COMPAT_FREEBSD32
-	case CIOCKEY32:
-	case CIOCKEY232:
-#endif
 		if (!crypto_userasymcrypto) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EPERM);		/* XXX compat? */
 		}
-#ifdef COMPAT_FREEBSD32
-		if (cmd == CIOCKEY32 || cmd == CIOCKEY232) {
-			kop = &kopc;
-			crypt_kop_from_32(data, kop);
-		} else
-#endif
-			kop = (struct crypt_kop *)data;
-		if (cmd == CIOCKEY
-#ifdef COMPAT_FREEBSD32
-		    || cmd == CIOCKEY32
-#endif
-		    ) {
+		kop = (struct crypt_kop *)data;
+		if (cmd == CIOCKEY) {
 			/* NB: crypto core enforces s/w driver use */
 			kop->crk_crid =
 			    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
@@ -765,10 +773,6 @@ bail:
 		mtx_lock(&Giant);
 		error = cryptodev_key(kop);
 		mtx_unlock(&Giant);
-#ifdef COMPAT_FREEBSD32
-		if (cmd == CIOCKEY32 || cmd == CIOCKEY232)
-			crypt_kop_to_32(kop, data);
-#endif
 		break;
 	case CIOCASYMFEAT:
 		if (!crypto_userasymcrypto) {
@@ -804,8 +808,28 @@ bail:
 		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 		break;
 	}
+
+#ifdef COMPAT_FREEBSD32
+	switch (cmd32) {
+	case CIOCGSESSION32:
+		if (error == 0)
+			session_op_to_32(data, data32);
+		break;
+	case CIOCGSESSION232:
+		if (error == 0)
+			session2_op_to_32(data, data32);
+		break;
+	case CIOCCRYPT32:
+		if (error == 0)
+			crypt_op_to_32(data, data32);
+		break;
+	case CIOCKEY32:
+	case CIOCKEY232:
+		crypt_kop_to_32(data, data32);
+		break;
+	}
+#endif
 	return (error);
-#undef SES2
 }
 
 static int cryptodev_cb(struct cryptop *);
