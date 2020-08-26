@@ -11,6 +11,11 @@
 # We handle those cases here in an ad-hoc fashion by looking for the known-
 # bad case in the main .depend file, and if found deleting all of the related
 # .depend files (including for example the lib32 version).
+#
+# These tests increase the build time (albeit by a small amount), so they
+# should be removed once enough time has passed and it is extremely unlikely
+# anyone would try a NO_CLEAN build against an object tree from before the
+# related change.  One year should be sufficient.
 
 OBJTOP=$1
 if [ ! -d "$OBJTOP" ]; then
