@@ -1538,57 +1538,23 @@ out_no_entry:
  * .., dvp is unlocked.  If we're looking up . an extra ref is taken, but the
  * lock is not recursively acquired.
  */
-int
-cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
+static int __noinline
+cache_lookup_fallback(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
     struct timespec *tsp, int *ticksp)
 {
 	struct namecache *ncp;
-	struct negstate *negstate;
 	struct rwlock *blp;
 	uint32_t hash;
 	enum vgetstate vs;
 	int error;
-	bool try_smr, doing_smr, whiteout;
+	bool whiteout;
 
-#ifdef DEBUG_CACHE
-	if (__predict_false(!doingcache)) {
-		cnp->cn_flags &= ~MAKEENTRY;
-		return (0);
-	}
-#endif
+	MPASS((cnp->cn_flags & (MAKEENTRY | ISDOTDOT)) == MAKEENTRY);
 
-	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
-		if (cnp->cn_namelen == 1)
-			return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
-		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.')
-			return (cache_lookup_dotdot(dvp, vpp, cnp, tsp, ticksp));
-	}
-
-	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
-
-	if ((cnp->cn_flags & MAKEENTRY) == 0) {
-		cache_remove_cnp(dvp, cnp);
-		return (0);
-	}
-
-	try_smr = true;
-	if (cnp->cn_nameiop == CREATE)
-		try_smr = false;
 retry:
-	doing_smr = false;
-	blp = NULL;
-	error = 0;
-
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
-retry_hashed:
-	if (try_smr) {
-		vfs_smr_enter();
-		doing_smr = true;
-		try_smr = false;
-	} else {
-		blp = HASH2BUCKETLOCK(hash);
-		rw_rlock(blp);
-	}
+	blp = HASH2BUCKETLOCK(hash);
+	rw_rlock(blp);
 
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
@@ -1598,10 +1564,7 @@ retry_hashed:
 
 	/* We failed to find an entry */
 	if (__predict_false(ncp == NULL)) {
-		if (doing_smr)
-			vfs_smr_exit();
-		else
-			rw_runlock(blp);
+		rw_runlock(blp);
 		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
 		    NULL);
 		counter_u64_add(nummiss, 1);
@@ -1624,22 +1587,8 @@ retry_hashed:
 	 * protocol.
 	 */
 	MPASS(dvp != *vpp);
-	if (doing_smr) {
-		if (!cache_ncp_canuse(ncp)) {
-			vfs_smr_exit();
-			*vpp = NULL;
-			goto retry;
-		}
-		vs = vget_prep_smr(*vpp);
-		vfs_smr_exit();
-		if (__predict_false(vs == VGET_NONE)) {
-			*vpp = NULL;
-			goto retry;
-		}
-	} else {
-		vs = vget_prep(*vpp);
-		cache_lookup_unlock(blp);
-	}
+	vs = vget_prep(*vpp);
+	cache_lookup_unlock(blp);
 	error = vget_finish(*vpp, cnp->cn_lkflags, vs);
 	if (error) {
 		*vpp = NULL;
@@ -1654,7 +1603,6 @@ retry_hashed:
 negative_success:
 	/* We found a negative match, and want to create it, so purge */
 	if (__predict_false(cnp->cn_nameiop == CREATE)) {
-		MPASS(!doing_smr);
 		counter_u64_add(numnegzaps, 1);
 		error = cache_zap_rlocked_bucket(ncp, cnp, hash, blp);
 		if (__predict_false(error != 0)) {
@@ -1670,26 +1618,130 @@ negative_success:
 	cache_out_ts(ncp, tsp, ticksp);
 	counter_u64_add(numneghits, 1);
 	whiteout = (ncp->nc_flag & NCF_WHITE);
-
-	if (doing_smr) {
-		/*
-		 * We need to take locks to promote an entry.
-		 */
-		negstate = NCP2NEGSTATE(ncp);
-		if ((negstate->neg_flag & NEG_HOT) == 0 ||
-		    !cache_ncp_canuse(ncp)) {
-			vfs_smr_exit();
-			doing_smr = false;
-			goto retry_hashed;
-		}
-		vfs_smr_exit();
-	} else {
-		cache_negative_hit(ncp);
-		cache_lookup_unlock(blp);
-	}
+	cache_negative_hit(ncp);
+	cache_lookup_unlock(blp);
 	if (whiteout)
 		cnp->cn_flags |= ISWHITEOUT;
 	return (ENOENT);
+}
+
+int
+cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
+    struct timespec *tsp, int *ticksp)
+{
+	struct namecache *ncp;
+	struct negstate *negstate;
+	uint32_t hash;
+	enum vgetstate vs;
+	int error;
+	bool whiteout;
+	u_short nc_flag;
+
+#ifdef DEBUG_CACHE
+	if (__predict_false(!doingcache)) {
+		cnp->cn_flags &= ~MAKEENTRY;
+		return (0);
+	}
+#endif
+
+	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
+		if (cnp->cn_namelen == 1)
+			return (cache_lookup_dot(dvp, vpp, cnp, tsp, ticksp));
+		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.')
+			return (cache_lookup_dotdot(dvp, vpp, cnp, tsp, ticksp));
+	}
+
+	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
+
+	if ((cnp->cn_flags & MAKEENTRY) == 0) {
+		cache_remove_cnp(dvp, cnp);
+		return (0);
+	}
+
+	/*
+	 * TODO: we only fallback becasue if a negative entry is found it will
+	 * need to be purged.
+	 */
+	if (cnp->cn_nameiop == CREATE)
+		goto out_fallback;
+
+	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
+	vfs_smr_enter();
+
+	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))
+			break;
+	}
+
+	/* We failed to find an entry */
+	if (__predict_false(ncp == NULL)) {
+		vfs_smr_exit();
+		SDT_PROBE3(vfs, namecache, lookup, miss, dvp, cnp->cn_nameptr,
+		    NULL);
+		counter_u64_add(nummiss, 1);
+		return (0);
+	}
+
+	nc_flag = atomic_load_char(&ncp->nc_flag);
+	if (nc_flag & NCF_NEGATIVE)
+		goto negative_success;
+
+	/* We found a "positive" match, return the vnode */
+	counter_u64_add(numposhits, 1);
+	*vpp = ncp->nc_vp;
+	CTR4(KTR_VFS, "cache_lookup(%p, %s) found %p via ncp %p",
+	    dvp, cnp->cn_nameptr, *vpp, ncp);
+	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
+	    *vpp);
+	cache_out_ts(ncp, tsp, ticksp);
+	/*
+	 * On success we return a locked and ref'd vnode as per the lookup
+	 * protocol.
+	 */
+	MPASS(dvp != *vpp);
+	if (!cache_ncp_canuse(ncp)) {
+		vfs_smr_exit();
+		*vpp = NULL;
+		goto out_fallback;
+	}
+	vs = vget_prep_smr(*vpp);
+	vfs_smr_exit();
+	if (__predict_false(vs == VGET_NONE)) {
+		*vpp = NULL;
+		goto out_fallback;
+	}
+	error = vget_finish(*vpp, cnp->cn_lkflags, vs);
+	if (error) {
+		*vpp = NULL;
+		goto out_fallback;
+	}
+	if ((cnp->cn_flags & ISLASTCN) &&
+	    (cnp->cn_lkflags & LK_TYPE_MASK) == LK_EXCLUSIVE) {
+		ASSERT_VOP_ELOCKED(*vpp, "cache_lookup");
+	}
+	return (-1);
+
+negative_success:
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+	cache_out_ts(ncp, tsp, ticksp);
+	counter_u64_add(numneghits, 1);
+	whiteout = (ncp->nc_flag & NCF_WHITE);
+	/*
+	 * We need to take locks to promote an entry.
+	 */
+	negstate = NCP2NEGSTATE(ncp);
+	if ((negstate->neg_flag & NEG_HOT) == 0 ||
+	    !cache_ncp_canuse(ncp)) {
+		vfs_smr_exit();
+		goto out_fallback;
+	}
+	vfs_smr_exit();
+	if (whiteout)
+		cnp->cn_flags |= ISWHITEOUT;
+	return (ENOENT);
+out_fallback:
+	return (cache_lookup_fallback(dvp, vpp, cnp, tsp, ticksp));
 }
 
 struct celockstate {
