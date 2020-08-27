@@ -265,7 +265,8 @@ extra_chroot_setup() {
 
 	# Install git from ports or packages if the ports tree is
 	# available and VCSCMD is unset.
-	if [ -d ${CHROOTDIR}/usr/ports ]; then
+	_gitcmd="$(which git)"
+	if [ -d ${CHROOTDIR}/usr/ports -a ! -z "${_gitcmd}" ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
 		# thing.
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
