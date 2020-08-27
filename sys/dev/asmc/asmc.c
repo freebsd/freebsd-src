@@ -1073,7 +1073,7 @@ asmc_fan_count(device_t dev)
 {
 	uint8_t buf[1];
 
-	if (asmc_key_read(dev, ASMC_KEY_FANCOUNT, buf, sizeof buf) < 0)
+	if (asmc_key_read(dev, ASMC_KEY_FANCOUNT, buf, sizeof buf) != 0)
 		return (-1);
 
 	return (buf[0]);
@@ -1087,7 +1087,7 @@ asmc_fan_getvalue(device_t dev, const char *key, int fan)
 	char fankey[5];
 
 	snprintf(fankey, sizeof(fankey), key, fan);
-	if (asmc_key_read(dev, fankey, buf, sizeof buf) < 0)
+	if (asmc_key_read(dev, fankey, buf, sizeof buf) != 0)
 		return (-1);
 	speed = (buf[0] << 6) | (buf[1] >> 2);
 
@@ -1101,7 +1101,7 @@ asmc_fan_getstring(device_t dev, const char *key, int fan, uint8_t *buf, uint8_t
 	char* desc;
 
 	snprintf(fankey, sizeof(fankey), key, fan);
-	if (asmc_key_read(dev, fankey, buf, buflen) < 0)
+	if (asmc_key_read(dev, fankey, buf, buflen) != 0)
 		return (NULL);
 	desc = buf+4;
 
@@ -1240,7 +1240,7 @@ asmc_temp_getvalue(device_t dev, const char *key)
 	/*
 	 * Check for invalid temperatures.
 	 */
-	if (asmc_key_read(dev, key, buf, sizeof buf) < 0)
+	if (asmc_key_read(dev, key, buf, sizeof buf) != 0)
 		return (-1);
 
 	return (buf[0]);
