@@ -47,10 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
-#include <sys/bus.h>
 #include <sys/capsicum.h>
 #include <sys/compressor.h>
 #include <sys/condvar.h>
+#include <sys/devctl.h>
 #include <sys/event.h>
 #include <sys/fcntl.h>
 #include <sys/imgact.h>
@@ -3731,7 +3731,7 @@ coredump(struct thread *td)
 	if (error != 0 || coredump_devctl == 0)
 		goto out;
 	sb = sbuf_new_auto();
-	if (vn_fullpath_global(td, p->p_textvp, &fullpath, &freepath) != 0)
+	if (vn_fullpath_global(p->p_textvp, &fullpath, &freepath) != 0)
 		goto out2;
 	sbuf_printf(sb, "comm=\"");
 	devctl_safe_quote_sb(sb, fullpath);
@@ -3746,7 +3746,7 @@ coredump(struct thread *td)
 	if (name[0] != '/') {
 		fullpathsize = MAXPATHLEN;
 		freepath = malloc(fullpathsize, M_TEMP, M_WAITOK);
-		if (vn_getcwd(td, freepath, &fullpath, &fullpathsize) != 0) {
+		if (vn_getcwd(freepath, &fullpath, &fullpathsize) != 0) {
 			free(freepath, M_TEMP);
 			goto out2;
 		}

@@ -92,7 +92,8 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 {
 	const struct xsave_limits *limits;
 	uint64_t cr4;
-	int error, enable_invpcid, level, width, x2apic_id;
+	int error, enable_invpcid, enable_rdpid, enable_rdtscp, level,
+	    width, x2apic_id;
 	unsigned int func, regs[4], logical_cpus;
 	enum x2apic_state x2apic_state;
 	uint16_t cores, maxcpus, sockets, threads;
@@ -195,11 +196,13 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			/* Hide mwaitx/monitorx capability from the guest */
 			regs[2] &= ~AMDID2_MWAITX;
 
-			/*
-			 * Hide rdtscp/ia32_tsc_aux until we know how
-			 * to deal with them.
-			 */
-			regs[3] &= ~AMDID_RDTSCP;
+			/* Advertise RDTSCP if it is enabled. */
+			error = vm_get_capability(vm, vcpu_id,
+			    VM_CAP_RDTSCP, &enable_rdtscp);
+			if (error == 0 && enable_rdtscp)
+				regs[3] |= AMDID_RDTSCP;
+			else
+				regs[3] &= ~AMDID_RDTSCP;
 			break;
 
 		case CPUID_8000_0007:
@@ -442,6 +445,12 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 				    CPUID_STDEXT_AVX512CD | CPUID_STDEXT_SHA);
 				regs[2] = 0;
 				regs[3] &= CPUID_STDEXT3_MD_CLEAR;
+
+				/* Advertise RDPID if it is enabled. */
+				error = vm_get_capability(vm, vcpu_id,
+				    VM_CAP_RDPID, &enable_rdpid);
+				if (error == 0 && enable_rdpid)
+					regs[2] |= CPUID_STDEXT2_RDPID;
 
 				/* Advertise INVPCID if it is enabled. */
 				error = vm_get_capability(vm, vcpu_id,

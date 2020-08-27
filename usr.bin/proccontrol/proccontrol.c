@@ -48,6 +48,10 @@ enum {
 #ifdef PROC_KPTI_CTL
 	MODE_KPTI,
 #endif
+#ifdef PROC_LA_CTL
+	MODE_LA57,
+	MODE_LA48,
+#endif
 };
 
 static pid_t
@@ -69,13 +73,18 @@ str2pid(const char *str)
 #else
 #define	KPTI_USAGE
 #endif
+#ifdef PROC_LA_CTL
+#define	LA_USAGE "|la48|la57"
+#else
+#define	LA_USAGE
+#endif
 
 static void __dead2
 usage(void)
 {
 
 	fprintf(stderr, "Usage: proccontrol -m (aslr|protmax|trace|trapcap|"
-	    "stackgap"KPTI_USAGE") [-q] "
+	    "stackgap"KPTI_USAGE LA_USAGE") [-q] "
 	    "[-s (enable|disable)] [-p pid | command]\n");
 	exit(1);
 }
@@ -107,6 +116,12 @@ main(int argc, char *argv[])
 #ifdef PROC_KPTI_CTL
 			else if (strcmp(optarg, "kpti") == 0)
 				mode = MODE_KPTI;
+#endif
+#ifdef PROC_LA_CTL
+			else if (strcmp(optarg, "la57") == 0)
+				mode = MODE_LA57;
+			else if (strcmp(optarg, "la48") == 0)
+				mode = MODE_LA48;
 #endif
 			else
 				usage();
@@ -162,6 +177,12 @@ main(int argc, char *argv[])
 #ifdef PROC_KPTI_CTL
 		case MODE_KPTI:
 			error = procctl(P_PID, pid, PROC_KPTI_STATUS, &arg);
+			break;
+#endif
+#ifdef PROC_LA_CTL
+		case MODE_LA57:
+		case MODE_LA48:
+			error = procctl(P_PID, pid, PROC_LA_STATUS, &arg);
 			break;
 #endif
 		default:
@@ -259,6 +280,27 @@ main(int argc, char *argv[])
 				printf(", not active\n");
 			break;
 #endif
+#ifdef PROC_LA_CTL
+		case MODE_LA57:
+		case MODE_LA48:
+			switch (arg & ~(PROC_LA_STATUS_LA48 |
+			    PROC_LA_STATUS_LA57)) {
+			case PROC_LA_CTL_LA48_ON_EXEC:
+				printf("la48 on exec");
+				break;
+			case PROC_LA_CTL_LA57_ON_EXEC:
+				printf("la57 on exec");
+				break;
+			case PROC_LA_CTL_DEFAULT_ON_EXEC:
+				printf("default on exec");
+				break;
+			}
+			if ((arg & PROC_LA_STATUS_LA48) != 0)
+				printf(", la48 active\n");
+			else if ((arg & PROC_LA_STATUS_LA57) != 0)
+				printf(", la57 active\n");
+			break;
+#endif
 		}
 	} else {
 		switch (mode) {
@@ -293,6 +335,18 @@ main(int argc, char *argv[])
 			arg = enable ? PROC_KPTI_CTL_ENABLE_ON_EXEC :
 			    PROC_KPTI_CTL_DISABLE_ON_EXEC;
 			error = procctl(P_PID, pid, PROC_KPTI_CTL, &arg);
+			break;
+#endif
+#ifdef PROC_LA_CTL
+		case MODE_LA57:
+			arg = enable ? PROC_LA_CTL_LA57_ON_EXEC :
+			    PROC_LA_CTL_DEFAULT_ON_EXEC;
+			error = procctl(P_PID, pid, PROC_LA_CTL, &arg);
+			break;
+		case MODE_LA48:
+			arg = enable ? PROC_LA_CTL_LA48_ON_EXEC :
+			    PROC_LA_CTL_DEFAULT_ON_EXEC;
+			error = procctl(P_PID, pid, PROC_LA_CTL, &arg);
 			break;
 #endif
 		default:

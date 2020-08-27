@@ -164,7 +164,7 @@ void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 /* Stop all timers for association and remote addresses. */
 void sctp_stop_association_timers(struct sctp_tcb *, bool);
 
-void sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int);
+void sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int);
 
 int sctp_expand_mapping_array(struct sctp_association *, uint32_t);
 

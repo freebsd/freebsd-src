@@ -207,20 +207,31 @@
 		    (f)->__bits[__i]);					\
 } while (0)
 
-#define	BIT_FFS(_s, p) __extension__ ({					\
+/*
+ * Note that `start` and the returned value from BIT_FFS_AT are
+ * 1-based bit indices.
+ */
+#define	BIT_FFS_AT(_s, p, start) __extension__ ({			\
 	__size_t __i;							\
+	long __mask;							\
 	int __bit;							\
 									\
+	__mask = ~0UL << ((start) % _BITSET_BITS);			\
 	__bit = 0;							\
-	for (__i = 0; __i < __bitset_words((_s)); __i++) {		\
-		if ((p)->__bits[__i] != 0) {				\
-			__bit = ffsl((p)->__bits[__i]);			\
+	for (__i = __bitset_word((_s), (start));			\
+	    __i < __bitset_words((_s));					\
+	    __i++) {							\
+		if (((p)->__bits[__i] & __mask) != 0) {			\
+			__bit = ffsl((p)->__bits[__i] & __mask);	\
 			__bit += __i * _BITSET_BITS;			\
 			break;						\
 		}							\
+		__mask = ~0UL;						\
 	}								\
 	__bit;								\
 })
+
+#define	BIT_FFS(_s, p) BIT_FFS_AT((_s), (p), 0)
 
 #define	BIT_FLS(_s, p) __extension__ ({					\
 	__size_t __i;							\

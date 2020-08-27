@@ -132,6 +132,9 @@ menu.boot_environments = {
 		},
 		{
 			entry_type = core.MENU_ENTRY,
+			visible = function()
+				return core.isRewinded() == false
+			end,
 			name = function()
 				return color.highlight("b") .. "ootfs: " ..
 				    core.bootenvDefault()
@@ -250,6 +253,7 @@ menu.welcome = {
 			},
 			menu_entries.kernel_options,
 			menu_entries.boot_options,
+			menu_entries.zpool_checkpoints,
 			menu_entries.boot_envs,
 			menu_entries.chainload,
 		}
@@ -333,6 +337,32 @@ menu.welcome = {
 			name = "Boot " .. color.highlight("O") .. "ptions",
 			submenu = menu.boot_options,
 			alias = {"o", "O"},
+		},
+		zpool_checkpoints = {
+			entry_type = core.MENU_ENTRY,
+			name = function()
+				rewind = "No"
+				if core.isRewinded() then
+					rewind = "Yes"
+				end
+				return "Rewind ZFS " .. color.highlight("C") ..
+					"heckpoint: " .. rewind
+			end,
+			func = function()
+				core.changeRewindCheckpoint()
+				if core.isRewinded() then
+					bootenvSet(
+					    core.bootenvDefaultRewinded())
+				else
+					bootenvSet(core.bootenvDefault())
+				end
+				config.setCarouselIndex("be_active", 1)
+			end,
+			visible = function()
+				return core.isZFSBoot() and
+				    core.isCheckpointed()
+			end,
+			alias = {"c", "C"},
 		},
 		boot_envs = {
 			entry_type = core.MENU_SUBMENU,

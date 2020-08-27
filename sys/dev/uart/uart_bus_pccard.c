@@ -98,6 +98,7 @@ uart_pccard_attach(device_t dev)
 	error = uart_bus_probe(dev, 0, 0, 0, 0, 0, 0);
 	if (error > 0)
 		return (error);
+	gone_in_dev(dev, 13, "pccard removed");
 	return (uart_bus_attach(dev));
 }
 

@@ -1032,14 +1032,19 @@ t4_teardown_adapter_queues(struct adapter *sc)
 	return (0);
 }
 
-/* Maximum payload that can be delivered with a single iq descriptor */
+/* Maximum payload that could arrive with a single iq descriptor. */
 static inline int
-mtu_to_max_payload(struct adapter *sc, int mtu)
+max_rx_payload(struct adapter *sc, struct ifnet *ifp, const bool ofld)
 {
+	int maxp;
 
 	/* large enough even when hw VLAN extraction is disabled */
-	return (sc->params.sge.fl_pktshift + ETHER_HDR_LEN +
-	    ETHER_VLAN_ENCAP_LEN + mtu);
+	maxp = sc->params.sge.fl_pktshift + ETHER_HDR_LEN +
+	    ETHER_VLAN_ENCAP_LEN + ifp->if_mtu;
+	if (ofld && sc->tt.tls && sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
+	    maxp < sc->params.tp.max_rx_pdu)
+		maxp = sc->params.tp.max_rx_pdu;
+	return (maxp);
 }
 
 int
@@ -1065,7 +1070,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	struct ifnet *ifp = vi->ifp;
 	struct sysctl_oid *oid = device_get_sysctl_tree(vi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
-	int maxp, mtu = ifp->if_mtu;
+	int maxp;
 
 	/* Interrupt vector to start from (when using multiple vectors) */
 	intr_idx = vi->first_intr;
@@ -1109,7 +1114,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 	 * Allocate rx queues first because a default iqid is required when
 	 * creating a tx queue.
 	 */
-	maxp = mtu_to_max_payload(sc, mtu);
+	maxp = max_rx_payload(sc, ifp, false);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "rxq",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues");
 	for_each_rxq(vi, i, rxq) {
@@ -1131,6 +1136,7 @@ t4_setup_vi_queues(struct vi_info *vi)
 		intr_idx = saved_idx + max(vi->nrxq, vi->nnmrxq);
 #endif
 #ifdef TCP_OFFLOAD
+	maxp = max_rx_payload(sc, ifp, true);
 	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, "ofld_rxq",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queues for offloaded TCP connections");
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
@@ -2144,9 +2150,9 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 	struct sge_ofld_rxq *ofld_rxq;
 #endif
 	struct sge_fl *fl;
-	int i, maxp, mtu = ifp->if_mtu;
+	int i, maxp;
 
-	maxp = mtu_to_max_payload(sc, mtu);
+	maxp = max_rx_payload(sc, ifp, false);
 	for_each_rxq(vi, i, rxq) {
 		fl = &rxq->fl;
 
@@ -2156,6 +2162,7 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 		FL_UNLOCK(fl);
 	}
 #ifdef TCP_OFFLOAD
+	maxp = max_rx_payload(sc, ifp, true);
 	for_each_ofld_rxq(vi, i, ofld_rxq) {
 		fl = &ofld_rxq->fl;
 

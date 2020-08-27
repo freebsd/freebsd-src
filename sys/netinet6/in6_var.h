@@ -857,6 +857,7 @@ in6m_rele_locked(struct in6_multi_head *inmh, struct in6_multi *inm)
 struct ip6_moptions;
 struct sockopt;
 struct inpcbinfo;
+struct rib_head;
 
 /* Multicast KPIs. */
 int	im6o_mc_filter(const struct ip6_moptions *, const struct ifnet *,
@@ -891,6 +892,8 @@ void	in6_savemkludge(struct in6_ifaddr *);
 void	*in6_domifattach(struct ifnet *);
 void	in6_domifdetach(struct ifnet *, void *);
 int	in6_domifmtu(struct ifnet *);
+struct rib_head *in6_inithead(uint32_t fibnum);
+void	in6_detachhead(struct rib_head *rh);
 void	in6_setmaxmtu(void);
 int	in6_if2idlen(struct ifnet *);
 struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);

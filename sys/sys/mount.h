@@ -294,6 +294,45 @@ void          __mnt_vnode_markerfree_lazy(struct vnode **mvp, struct mount *mp);
 
 #endif /* _KERNEL */
 
+#if defined(_WANT_MNTOPTNAMES) || defined(_KERNEL)
+struct mntoptnames {
+	uint64_t o_opt;
+	const char *o_name;
+};
+#define MNTOPT_NAMES							\
+	{ MNT_ASYNC,		"asynchronous" },			\
+	{ MNT_EXPORTED,		"NFS exported" },			\
+	{ MNT_LOCAL,		"local" },				\
+	{ MNT_NOATIME,		"noatime" },				\
+	{ MNT_NOEXEC,		"noexec" },				\
+	{ MNT_NOSUID,		"nosuid" },				\
+	{ MNT_NOSYMFOLLOW,	"nosymfollow" },			\
+	{ MNT_QUOTA,		"with quotas" },			\
+	{ MNT_RDONLY,		"read-only" },				\
+	{ MNT_SYNCHRONOUS,	"synchronous" },			\
+	{ MNT_UNION,		"union" },				\
+	{ MNT_NOCLUSTERR,	"noclusterr" },				\
+	{ MNT_NOCLUSTERW,	"noclusterw" },				\
+	{ MNT_SUIDDIR,		"suiddir" },				\
+	{ MNT_SOFTDEP,		"soft-updates" },			\
+	{ MNT_SUJ,		"journaled soft-updates" },		\
+	{ MNT_MULTILABEL,	"multilabel" },				\
+	{ MNT_ACLS,		"acls" },				\
+	{ MNT_NFS4ACLS,		"nfsv4acls" },				\
+	{ MNT_GJOURNAL,		"gjournal" },				\
+	{ MNT_AUTOMOUNTED,	"automounted" },			\
+	{ MNT_VERIFIED,		"verified" },				\
+	{ MNT_UNTRUSTED,	"untrusted" },				\
+	{ MNT_NOCOVER,		"nocover" },				\
+	{ MNT_EMPTYDIR,		"emptydir" },				\
+	{ MNT_UPDATE,		"update" },				\
+	{ MNT_DELEXPORT,	"delexport" },				\
+	{ MNT_RELOAD,		"reload" },				\
+	{ MNT_FORCE,		"force" },				\
+	{ MNT_SNAPSHOT,		"snapshot" },				\
+	{ 0, NULL }
+#endif
+
 /*
  * User specifiable flags, stored in mnt_flag.
  */
@@ -326,6 +365,9 @@ void          __mnt_vnode_markerfree_lazy(struct vnode **mvp, struct mount *mp);
 #define	MNT_EXPORTANON	0x0000000000000400ULL	/* anon uid mapping for all */
 #define	MNT_EXKERB	0x0000000000000800ULL	/* exported with Kerberos */
 #define	MNT_EXPUBLIC	0x0000000020000000ULL	/* public export (WebNFS) */
+#define	MNT_EXTLS	0x0000004000000000ULL /* require TLS */
+#define	MNT_EXTLSCERT	0x0000008000000000ULL /* require TLS with client cert */
+#define	MNT_EXTLSCERTUSER 0x0000010000000000ULL /* require TLS with user cert */
 
 /*
  * Flags set by internal operations,

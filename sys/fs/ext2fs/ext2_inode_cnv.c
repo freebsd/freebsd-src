@@ -146,11 +146,11 @@ ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 	ip->i_mtime = le32toh(ei->e2di_mtime);
 	ip->i_ctime = le32toh(ei->e2di_ctime);
 	if (E2DI_HAS_XTIME(ip)) {
-		ip->i_atimensec = XTIME_TO_NSEC(le32toh(ei->e2di_atime_extra));
-		ip->i_mtimensec = XTIME_TO_NSEC(le32toh(ei->e2di_mtime_extra));
-		ip->i_ctimensec = XTIME_TO_NSEC(le32toh(ei->e2di_ctime_extra));
+		ip->i_atimensec = XTIME_TO_NSEC(ei->e2di_atime_extra);
+		ip->i_mtimensec = XTIME_TO_NSEC(ei->e2di_mtime_extra);
+		ip->i_ctimensec = XTIME_TO_NSEC(ei->e2di_ctime_extra);
 		ip->i_birthtime = le32toh(ei->e2di_crtime);
-		ip->i_birthnsec = XTIME_TO_NSEC(le32toh(ei->e2di_crtime_extra));
+		ip->i_birthnsec = XTIME_TO_NSEC(ei->e2di_crtime_extra);
 	}
 	ip->i_flags = 0;
 	ei_flags_host = le32toh(ei->e2di_flags);
@@ -213,11 +213,11 @@ ext2_i2ei(struct inode *ip, struct ext2fs_dinode *ei)
 	ei->e2di_dtime = htole32(le16toh(ei->e2di_nlink) ? 0 :
 	    le32toh(ei->e2di_mtime));
 	if (E2DI_HAS_XTIME(ip)) {
-		ei->e2di_ctime_extra = htole32(NSEC_TO_XTIME(ip->i_ctimensec));
-		ei->e2di_mtime_extra = htole32(NSEC_TO_XTIME(ip->i_mtimensec));
-		ei->e2di_atime_extra = htole32(NSEC_TO_XTIME(ip->i_atimensec));
+		ei->e2di_ctime_extra = NSEC_TO_XTIME(ip->i_ctimensec);
+		ei->e2di_mtime_extra = NSEC_TO_XTIME(ip->i_mtimensec);
+		ei->e2di_atime_extra = NSEC_TO_XTIME(ip->i_atimensec);
 		ei->e2di_crtime = htole32(ip->i_birthtime);
-		ei->e2di_crtime_extra = htole32(NSEC_TO_XTIME(ip->i_birthnsec));
+		ei->e2di_crtime_extra = NSEC_TO_XTIME(ip->i_birthnsec);
 	}
 	/* Keep these in host endian for a while since they change a lot */
 	ei->e2di_flags = 0;

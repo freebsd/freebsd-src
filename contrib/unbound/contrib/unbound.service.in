@@ -76,7 +76,7 @@ RestrictSUIDSGID=yes
 ReadWritePaths=@UNBOUND_RUN_DIR@ @UNBOUND_CHROOT_DIR@
 
 # Below rules are needed when chroot is enabled (usually it's enabled by default).
-# If chroot is disabled like chrooot: "" then they may be safely removed.
+# If chroot is disabled like chroot: "" then they may be safely removed.
 TemporaryFileSystem=@UNBOUND_CHROOT_DIR@/dev:ro
 TemporaryFileSystem=@UNBOUND_CHROOT_DIR@/run:ro
 BindReadOnlyPaths=-/run/systemd/notify:@UNBOUND_CHROOT_DIR@/run/systemd/notify

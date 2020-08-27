@@ -919,7 +919,7 @@ sysctl_swap_fragmentation(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (vn_isdisk(sp->sw_vp, NULL))
+		if (vn_isdisk(sp->sw_vp))
 			devname = devtoname(sp->sw_vp->v_rdev);
 		else
 			devname = "[file]";
@@ -2325,7 +2325,7 @@ sys_swapon(struct thread *td, struct swapon_args *uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	if (vn_isdisk(vp, &error)) {
+	if (vn_isdisk_error(vp, &error)) {
 		error = swapongeom(vp);
 	} else if (vp->v_type == VREG &&
 	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
@@ -2548,7 +2548,7 @@ swapoff_all(void)
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH_SAFE(sp, &swtailq, sw_list, spt) {
 		mtx_unlock(&sw_dev_mtx);
-		if (vn_isdisk(sp->sw_vp, NULL))
+		if (vn_isdisk(sp->sw_vp))
 			devname = devtoname(sp->sw_vp->v_rdev);
 		else
 			devname = "[file]";
@@ -2596,7 +2596,7 @@ swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len)
 		xs->xsw_nblks = sp->sw_nblks;
 		xs->xsw_used = sp->sw_used;
 		if (devname != NULL) {
-			if (vn_isdisk(sp->sw_vp, NULL))
+			if (vn_isdisk(sp->sw_vp))
 				tmp_devname = devtoname(sp->sw_vp->v_rdev);
 			else
 				tmp_devname = "[file]";

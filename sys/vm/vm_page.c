@@ -3854,18 +3854,19 @@ vm_page_free_pages_toq(struct spglist *free, bool update_wire_count)
 }
 
 /*
- * Mark this page as wired down, preventing reclamation by the page daemon
- * or when the containing object is destroyed.
+ * Mark this page as wired down.  For managed pages, this prevents reclamation
+ * by the page daemon, or when the containing object, if any, is destroyed.
  */
 void
 vm_page_wire(vm_page_t m)
 {
 	u_int old;
 
-	KASSERT(m->object != NULL,
-	    ("vm_page_wire: page %p does not belong to an object", m));
-	if (!vm_page_busied(m) && !vm_object_busied(m->object))
+#ifdef INVARIANTS
+	if (m->object != NULL && !vm_page_busied(m) &&
+	    !vm_object_busied(m->object))
 		VM_OBJECT_ASSERT_LOCKED(m->object);
+#endif
 	KASSERT((m->flags & PG_FICTITIOUS) == 0 ||
 	    VPRC_WIRE_COUNT(m->ref_count) >= 1,
 	    ("vm_page_wire: fictitious page %p has zero wirings", m));

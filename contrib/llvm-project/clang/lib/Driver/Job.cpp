@@ -36,11 +36,11 @@ using namespace clang;
 using namespace driver;
 
 Command::Command(const Action &Source, const Tool &Creator,
-                 const char *Executable,
+                 ResponseFileSupport ResponseSupport, const char *Executable,
                  const llvm::opt::ArgStringList &Arguments,
                  ArrayRef<InputInfo> Inputs)
-    : Source(Source), Creator(Creator), Executable(Executable),
-      Arguments(Arguments) {
+    : Source(Source), Creator(Creator), ResponseSupport(ResponseSupport),
+      Executable(Executable), Arguments(Arguments) {
   for (const auto &II : Inputs)
     if (II.isFilename())
       InputFilenames.push_back(II.getFilename());
@@ -100,27 +100,9 @@ static bool skipArgs(const char *Flag, bool HaveCrashVFS, int &SkipNum,
   return false;
 }
 
-void Command::printArg(raw_ostream &OS, StringRef Arg, bool Quote) {
-  const bool Escape = Arg.find_first_of(" \"\\$") != StringRef::npos;
-
-  if (!Quote && !Escape) {
-    OS << Arg;
-    return;
-  }
-
-  // Quote and escape. This isn't really complete, but good enough.
-  OS << '"';
-  for (const auto c : Arg) {
-    if (c == '"' || c == '\\' || c == '$')
-      OS << '\\';
-    OS << c;
-  }
-  OS << '"';
-}
-
 void Command::writeResponseFile(raw_ostream &OS) const {
   // In a file list, we only write the set of inputs to the response file
-  if (Creator.getResponseFilesSupport() == Tool::RF_FileList) {
+  if (ResponseSupport.ResponseKind == ResponseFileSupport::RF_FileList) {
     for (const auto *Arg : InputFileList) {
       OS << Arg << '\n';
     }
@@ -149,7 +131,7 @@ void Command::buildArgvForResponseFile(
   // When not a file list, all arguments are sent to the response file.
   // This leaves us to set the argv to a single parameter, requesting the tool
   // to read the response file.
-  if (Creator.getResponseFilesSupport() != Tool::RF_FileList) {
+  if (ResponseSupport.ResponseKind != ResponseFileSupport::RF_FileList) {
     Out.push_back(Executable);
     Out.push_back(ResponseFileFlag.c_str());
     return;
@@ -167,7 +149,7 @@ void Command::buildArgvForResponseFile(
       Out.push_back(Arg);
     } else if (FirstInput) {
       FirstInput = false;
-      Out.push_back(Creator.getResponseFileFlag());
+      Out.push_back(ResponseSupport.ResponseFlag);
       Out.push_back(ResponseFile);
     }
   }
@@ -217,7 +199,7 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
                     CrashReportInfo *CrashInfo) const {
   // Always quote the exe.
   OS << ' ';
-  printArg(OS, Executable, /*Quote=*/true);
+  llvm::sys::printArg(OS, Executable, /*Quote=*/true);
 
   ArrayRef<const char *> Args = Arguments;
   SmallVector<const char *, 128> ArgsRespFile;
@@ -245,7 +227,7 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
         if (!NewIncFlags.empty()) {
           for (auto &F : NewIncFlags) {
             OS << ' ';
-            printArg(OS, F.c_str(), Quote);
+            llvm::sys::printArg(OS, F.c_str(), Quote);
           }
           i += NumArgs - 1;
           continue;
@@ -259,20 +241,20 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
         // Replace the input file name with the crashinfo's file name.
         OS << ' ';
         StringRef ShortName = llvm::sys::path::filename(CrashInfo->Filename);
-        printArg(OS, ShortName.str(), Quote);
+        llvm::sys::printArg(OS, ShortName.str(), Quote);
         continue;
       }
     }
 
     OS << ' ';
-    printArg(OS, Arg, Quote);
+    llvm::sys::printArg(OS, Arg, Quote);
   }
 
   if (CrashInfo && HaveCrashVFS) {
     OS << ' ';
-    printArg(OS, "-ivfsoverlay", Quote);
+    llvm::sys::printArg(OS, "-ivfsoverlay", Quote);
     OS << ' ';
-    printArg(OS, CrashInfo->VFSPath.str(), Quote);
+    llvm::sys::printArg(OS, CrashInfo->VFSPath.str(), Quote);
 
     // The leftover modules from the crash are stored in
     //  <name>.cache/vfs/modules
@@ -287,7 +269,7 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
     ModCachePath.append(RelModCacheDir.c_str());
 
     OS << ' ';
-    printArg(OS, ModCachePath, Quote);
+    llvm::sys::printArg(OS, ModCachePath, Quote);
   }
 
   if (ResponseFile != nullptr) {
@@ -295,7 +277,7 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
     writeResponseFile(OS);
     // Avoiding duplicated newline terminator, since FileLists are
     // newline-separated.
-    if (Creator.getResponseFilesSupport() != Tool::RF_FileList)
+    if (ResponseSupport.ResponseKind != ResponseFileSupport::RF_FileList)
       OS << "\n";
     OS << " (end of response file)";
   }
@@ -305,7 +287,7 @@ void Command::Print(raw_ostream &OS, const char *Terminator, bool Quote,
 
 void Command::setResponseFile(const char *FileName) {
   ResponseFile = FileName;
-  ResponseFileFlag = Creator.getResponseFileFlag();
+  ResponseFileFlag = ResponseSupport.ResponseFlag;
   ResponseFileFlag += FileName;
 }
 
@@ -345,7 +327,7 @@ int Command::Execute(ArrayRef<llvm::Optional<StringRef>> Redirects,
 
     // Save the response file in the appropriate encoding
     if (std::error_code EC = writeFileWithEncoding(
-            ResponseFile, RespContents, Creator.getResponseFileEncoding())) {
+            ResponseFile, RespContents, ResponseSupport.ResponseEncoding)) {
       if (ErrMsg)
         *ErrMsg = EC.message();
       if (ExecutionFailed)
@@ -372,10 +354,11 @@ int Command::Execute(ArrayRef<llvm::Optional<StringRef>> Redirects,
 }
 
 CC1Command::CC1Command(const Action &Source, const Tool &Creator,
+                       ResponseFileSupport ResponseSupport,
                        const char *Executable,
                        const llvm::opt::ArgStringList &Arguments,
                        ArrayRef<InputInfo> Inputs)
-    : Command(Source, Creator, Executable, Arguments, Inputs) {
+    : Command(Source, Creator, ResponseSupport, Executable, Arguments, Inputs) {
   InProcess = true;
 }
 
@@ -428,11 +411,13 @@ void CC1Command::setEnvironment(llvm::ArrayRef<const char *> NewEnvironment) {
 }
 
 FallbackCommand::FallbackCommand(const Action &Source_, const Tool &Creator_,
+                                 ResponseFileSupport ResponseSupport,
                                  const char *Executable_,
                                  const llvm::opt::ArgStringList &Arguments_,
                                  ArrayRef<InputInfo> Inputs,
                                  std::unique_ptr<Command> Fallback_)
-    : Command(Source_, Creator_, Executable_, Arguments_, Inputs),
+    : Command(Source_, Creator_, ResponseSupport, Executable_, Arguments_,
+              Inputs),
       Fallback(std::move(Fallback_)) {}
 
 void FallbackCommand::Print(raw_ostream &OS, const char *Terminator,
@@ -469,9 +454,11 @@ int FallbackCommand::Execute(ArrayRef<llvm::Optional<StringRef>> Redirects,
 }
 
 ForceSuccessCommand::ForceSuccessCommand(
-    const Action &Source_, const Tool &Creator_, const char *Executable_,
+    const Action &Source_, const Tool &Creator_,
+    ResponseFileSupport ResponseSupport, const char *Executable_,
     const llvm::opt::ArgStringList &Arguments_, ArrayRef<InputInfo> Inputs)
-    : Command(Source_, Creator_, Executable_, Arguments_, Inputs) {}
+    : Command(Source_, Creator_, ResponseSupport, Executable_, Arguments_,
+              Inputs) {}
 
 void ForceSuccessCommand::Print(raw_ostream &OS, const char *Terminator,
                             bool Quote, CrashReportInfo *CrashInfo) const {

@@ -36,6 +36,7 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/sched.h>
 
 #include <asm/atomic.h>
 

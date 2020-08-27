@@ -200,6 +200,18 @@ typedef kmp_uint32 kmp_uint;
 #define KMP_INT_MAX ((kmp_int32)0x7FFFFFFF)
 #define KMP_INT_MIN ((kmp_int32)0x80000000)
 
+// stdarg handling
+#if (KMP_ARCH_ARM || KMP_ARCH_X86_64 || KMP_ARCH_AARCH64) &&                   \
+    (KMP_OS_FREEBSD || KMP_OS_LINUX)
+typedef va_list *kmp_va_list;
+#define kmp_va_deref(ap) (*(ap))
+#define kmp_va_addr_of(ap) (&(ap))
+#else
+typedef va_list kmp_va_list;
+#define kmp_va_deref(ap) (ap)
+#define kmp_va_addr_of(ap) (ap)
+#endif
+
 #ifdef __cplusplus
 // macros to cast out qualifiers and to re-interpret types
 #define CCAST(type, var) const_cast<type>(var)
@@ -338,10 +350,16 @@ extern "C" {
 #define KMP_ALIAS(alias_of) __attribute__((alias(alias_of)))
 #endif
 
-#if KMP_HAVE_WEAK_ATTRIBUTE
-#define KMP_WEAK_ATTRIBUTE __attribute__((weak))
+#if KMP_HAVE_WEAK_ATTRIBUTE && !KMP_DYNAMIC_LIB
+#define KMP_WEAK_ATTRIBUTE_EXTERNAL __attribute__((weak))
 #else
-#define KMP_WEAK_ATTRIBUTE /* Nothing */
+#define KMP_WEAK_ATTRIBUTE_EXTERNAL /* Nothing */
+#endif
+
+#if KMP_HAVE_WEAK_ATTRIBUTE
+#define KMP_WEAK_ATTRIBUTE_INTERNAL __attribute__((weak))
+#else
+#define KMP_WEAK_ATTRIBUTE_INTERNAL /* Nothing */
 #endif
 
 // Define KMP_VERSION_SYMBOL and KMP_EXPAND_NAME

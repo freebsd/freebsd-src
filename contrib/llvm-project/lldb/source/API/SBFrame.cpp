@@ -1,4 +1,4 @@
-//===-- SBFrame.cpp ---------------------------------------------*- C++ -*-===//
+//===-- SBFrame.cpp -------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -354,15 +354,15 @@ bool SBFrame::SetPC(addr_t new_pc) {
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        ret_val = frame->GetRegisterContext()->SetPC(new_pc);
+      if (StackFrame *frame = exe_ctx.GetFramePtr()) {
+        if (RegisterContextSP reg_ctx_sp = frame->GetRegisterContext()) {
+          ret_val = reg_ctx_sp->SetPC(new_pc);
+        }
       }
     }
   }
@@ -377,15 +377,15 @@ addr_t SBFrame::GetSP() const {
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame) {
-        addr = frame->GetRegisterContext()->GetSP();
+      if (StackFrame *frame = exe_ctx.GetFramePtr()) {
+        if (RegisterContextSP reg_ctx_sp = frame->GetRegisterContext()) {
+          addr = reg_ctx_sp->GetSP();
+        }
       }
     }
   }
@@ -400,15 +400,16 @@ addr_t SBFrame::GetFP() const {
   std::unique_lock<std::recursive_mutex> lock;
   ExecutionContext exe_ctx(m_opaque_sp.get(), lock);
 
-  StackFrame *frame = nullptr;
   Target *target = exe_ctx.GetTargetPtr();
   Process *process = exe_ctx.GetProcessPtr();
   if (target && process) {
     Process::StopLocker stop_locker;
     if (stop_locker.TryLock(&process->GetRunLock())) {
-      frame = exe_ctx.GetFramePtr();
-      if (frame)
-        addr = frame->GetRegisterContext()->GetFP();
+      if (StackFrame *frame = exe_ctx.GetFramePtr()) {
+        if (RegisterContextSP reg_ctx_sp = frame->GetRegisterContext()) {
+          addr = reg_ctx_sp->GetFP();
+        }
+      }
     }
   }
 
@@ -1225,8 +1226,7 @@ const char *SBFrame::GetFunctionName() const {
           if (inlined_block) {
             const InlineFunctionInfo *inlined_info =
                 inlined_block->GetInlinedFunctionInfo();
-            name =
-                inlined_info->GetName(sc.function->GetLanguage()).AsCString();
+            name = inlined_info->GetName().AsCString();
           }
         }
 
@@ -1269,8 +1269,7 @@ const char *SBFrame::GetDisplayFunctionName() {
           if (inlined_block) {
             const InlineFunctionInfo *inlined_info =
                 inlined_block->GetInlinedFunctionInfo();
-            name = inlined_info->GetDisplayName(sc.function->GetLanguage())
-                       .AsCString();
+            name = inlined_info->GetDisplayName().AsCString();
           }
         }
 

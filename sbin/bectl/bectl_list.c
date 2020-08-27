@@ -292,19 +292,23 @@ print_headers(nvlist_t *props, struct printc *pc)
 	nvpair_t *cur;
 	nvlist_t *dsprops;
 	char *propstr;
-	size_t be_maxcol;
+	size_t be_maxcol, mount_colsz;
 
 	if (pc->show_all_datasets || pc->show_snaps)
 		chosen_be_header = HEADER_BEPLUS;
 	else
 		chosen_be_header = HEADER_BE;
 	be_maxcol = strlen(chosen_be_header);
+	mount_colsz = strlen(HEADER_MOUNT);
 	for (cur = nvlist_next_nvpair(props, NULL); cur != NULL;
 	    cur = nvlist_next_nvpair(props, cur)) {
 		be_maxcol = MAX(be_maxcol, strlen(nvpair_name(cur)));
+		nvpair_value_nvlist(cur, &dsprops);
+
+		if (nvlist_lookup_string(dsprops, "mounted", &propstr) == 0)
+			mount_colsz = MAX(mount_colsz, strlen(propstr));
 		if (!pc->show_all_datasets && !pc->show_snaps)
 			continue;
-		nvpair_value_nvlist(cur, &dsprops);
 		if (nvlist_lookup_string(dsprops, "dataset", &propstr) != 0)
 			continue;
 		be_maxcol = MAX(be_maxcol, strlen(propstr) + INDENT_INCREMENT);
@@ -316,10 +320,10 @@ print_headers(nvlist_t *props, struct printc *pc)
 
 	pc->be_colsz = be_maxcol;
 	pc->active_colsz_def = strlen(HEADER_ACTIVE);
-	pc->mount_colsz = strlen(HEADER_MOUNT);
+	pc->mount_colsz = mount_colsz;
 	pc->space_colsz = strlen(HEADER_SPACE);
-	printf("%*s %s %s %s %s\n", -pc->be_colsz, chosen_be_header,
-	    HEADER_ACTIVE, HEADER_MOUNT, HEADER_SPACE, HEADER_CREATED);
+	printf("%*s %s %*s %s %s\n", -pc->be_colsz, chosen_be_header,
+	    HEADER_ACTIVE, -pc->mount_colsz, HEADER_MOUNT, HEADER_SPACE, HEADER_CREATED);
 
 	/*
 	 * All other invocations in which we aren't using the default header

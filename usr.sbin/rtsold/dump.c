@@ -84,6 +84,8 @@ rtsold_dump(FILE *fp)
 		}
 		fprintf(fp, "  interface status: %s\n",
 		    ifi->active > 0 ? "active" : "inactive");
+		fprintf(fp, "  managed config: %s\n",
+		    ifi->managedconfig ? "on" : "off");
 		fprintf(fp, "  other config: %s\n",
 		    ifi->otherconfig ? "on" : "off");
 		fprintf(fp, "  rtsold status: %s\n", ifstatstr[ifi->state]);

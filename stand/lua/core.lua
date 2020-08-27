@@ -38,6 +38,8 @@ local default_safe_mode = false
 local default_single_user = false
 local default_verbose = false
 
+local bootenv_list = "bootenvs"
+
 local function composeLoaderCmd(cmd_name, argstr)
 	if argstr ~= nil then
 		cmd_name = cmd_name .. " " .. argstr
@@ -270,7 +272,7 @@ function core.bootenvDefault()
 end
 
 function core.bootenvList()
-	local bootenv_count = tonumber(loader.getenv("bootenvs_count"))
+	local bootenv_count = tonumber(loader.getenv(bootenv_list .. "_count"))
 	local bootenvs = {}
 	local curenv
 	local envcount = 0
@@ -281,7 +283,12 @@ function core.bootenvList()
 	end
 
 	-- Currently selected bootenv is always first/default
-	curenv = core.bootenvDefault()
+	-- On the rewinded list the bootenv may not exists
+	if core.isRewinded() then
+		curenv = core.bootenvDefaultRewinded()
+	else
+		curenv = core.bootenvDefault()
+	end
 	if curenv ~= nil then
 		envcount = envcount + 1
 		bootenvs[envcount] = curenv
@@ -289,7 +296,7 @@ function core.bootenvList()
 	end
 
 	for curenv_idx = 0, bootenv_count - 1 do
-		curenv = loader.getenv("bootenvs[" .. curenv_idx .. "]")
+		curenv = loader.getenv(bootenv_list .. "[" .. curenv_idx .. "]")
 		if curenv ~= nil and unique[curenv] == nil then
 			envcount = envcount + 1
 			bootenvs[envcount] = curenv
@@ -297,6 +304,40 @@ function core.bootenvList()
 		end
 	end
 	return bootenvs
+end
+
+function core.isCheckpointed()
+	return loader.getenv("zpool_checkpoint") ~= nil
+end
+
+function core.bootenvDefaultRewinded()
+	local defname =  "zfs:!" .. string.sub(core.bootenvDefault(), 5)
+	local bootenv_count = tonumber("bootenvs_check_count")
+
+	if bootenv_count == nil or bootenv_count <= 0 then
+		return defname
+	end
+
+	for curenv_idx = 0, bootenv_count - 1 do
+		curenv = loader.getenv("bootenvs_check[" .. curenv_idx .. "]")
+		if curenv == defname then
+			return defname
+		end
+	end
+
+	return loader.getenv("bootenvs_check[0]")
+end
+
+function core.isRewinded()
+	return bootenv_list == "bootenvs_check"
+end
+
+function core.changeRewindCheckpoint()
+	if core.isRewinded() then
+		bootenv_list = "bootenvs"
+	else
+		bootenv_list = "bootenvs_check"
+	end
 end
 
 function core.setDefaults()

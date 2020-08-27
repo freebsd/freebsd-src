@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/vnode.h>
 
+#include <machine/vmparam.h>
+
 #include <vm/uma.h>
 
 #include <geom/geom.h>
@@ -972,6 +974,15 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 */
 	pp = g_new_providerf(gp, "%s%s", bpp->name, G_ELI_SUFFIX);
 	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
+	if (CRYPTO_HAS_VMPAGE) {
+		/*
+		 * On DMAP architectures we can use unmapped I/O.  But don't
+		 * use it with data integrity verification.  That code hasn't
+		 * been written yet.
+		 */
+		 if ((sc->sc_flags & G_ELI_FLAG_AUTH) == 0)
+			pp->flags |= G_PF_ACCEPT_UNMAPPED;
+	}
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
 	LIST_FOREACH(gap, &bpp->aliases, ga_next)

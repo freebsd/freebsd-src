@@ -845,6 +845,7 @@ pccard_attach(device_t dev)
 	sc->sc_enabled_count = 0;
 	if ((err = pccard_device_create(sc)) != 0)
 		return  (err);
+	gone_in_dev(dev, 13, "PC Card to be removed.");
 	STAILQ_INIT(&sc->card.pf_head);
 	return (bus_generic_attach(dev));
 }

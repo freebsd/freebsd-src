@@ -481,6 +481,8 @@ enum vm_cap_type {
 	VM_CAP_UNRESTRICTED_GUEST,
 	VM_CAP_ENABLE_INVPCID,
 	VM_CAP_BPT_EXIT,
+	VM_CAP_RDPID,
+	VM_CAP_RDTSCP,
 	VM_CAP_MAX
 };
 
@@ -520,6 +522,7 @@ enum vm_paging_mode {
 	PAGING_MODE_32,
 	PAGING_MODE_PAE,
 	PAGING_MODE_64,
+	PAGING_MODE_64_LA57,
 };
 
 struct vm_guest_paging {

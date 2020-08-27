@@ -209,6 +209,90 @@ smbios_setuuid(const char *name, const caddr_t addr, const int ver)
 
 #endif
 
+static const char *
+smbios_parse_chassis_type(caddr_t addr)
+{
+	int		type;
+
+	type = SMBIOS_GET8(addr, 0x5);
+	switch (type) {
+	case 0x1:
+		return ("Other");
+	case 0x2:
+		return ("Unknown");
+	case 0x3:
+		return ("Desktop");
+	case 0x4:
+		return ("Low Profile Desktop");
+	case 0x5:
+		return ("Pizza Box");
+	case 0x6:
+		return ("Mini Tower");
+	case 0x7:
+		return ("Tower");
+	case 0x8:
+		return ("Portable");
+	case 0x9:
+		return ("Laptop");
+	case 0xA:
+		return ("Notebook");
+	case 0xB:
+		return ("Hand Held");
+	case 0xC:
+		return ("Docking Station");
+	case 0xD:
+		return ("All in One");
+	case 0xE:
+		return ("Sub Notebook");
+	case 0xF:
+		return ("Lunch Box");
+	case 0x10:
+		return ("Space-saving");
+	case 0x11:
+		return ("Main Server Chassis");
+	case 0x12:
+		return ("Expansion Chassis");
+	case 0x13:
+		return ("SubChassis");
+	case 0x14:
+		return ("Bus Expansion Chassis");
+	case 0x15:
+		return ("Peripheral Chassis");
+	case 0x16:
+		return ("RAID Chassis");
+	case 0x17:
+		return ("Rack Mount Chassis");
+	case 0x18:
+		return ("Sealed-case PC");
+	case 0x19:
+		return ("Multi-system chassis");
+	case 0x1A:
+		return ("Compact PCI");
+	case 0x1B:
+		return ("Advanced TCA");
+	case 0x1C:
+		return ("Blade");
+	case 0x1D:
+		return ("Blade Enclosure");
+	case 0x1E:
+		return ("Tablet");
+	case 0x1F:
+		return ("Convertible");
+	case 0x20:
+		return ("Detachable");
+	case 0x21:
+		return ("IoT Gateway");
+	case 0x22:
+		return ("Embedded PC");
+	case 0x23:
+		return ("Mini PC");
+	case 0x24:
+		return ("Stick PC");
+	}
+
+	return ("Undefined");
+}
+
 static caddr_t
 smbios_parse_table(const caddr_t addr)
 {
@@ -251,6 +335,7 @@ smbios_parse_table(const caddr_t addr)
 
 	case 3:		/* 3.3.4 System Enclosure or Chassis (Type 3) */
 		smbios_setenv("smbios.chassis.maker", addr, 0x04);
+		setenv("smbios.chassis.type", smbios_parse_chassis_type(addr), 1);
 		smbios_setenv("smbios.chassis.version", addr, 0x06);
 #ifdef SMBIOS_SERIAL_NUMBERS
 		smbios_setenv("smbios.chassis.serial", addr, 0x07);

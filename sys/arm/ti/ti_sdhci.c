@@ -93,6 +93,7 @@ struct ti_sdhci_softc {
  * Note that vendor Beaglebone dtsi files use "ti,omap3-hsmmc" for the am335x.
  */
 static struct ofw_compat_data compat_data[] = {
+	{"ti,am335-sdhci",	1},
 	{"ti,omap3-hsmmc",	1},
 	{"ti,omap4-hsmmc",	1},
 	{"ti,mmchs",		1},

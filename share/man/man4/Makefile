@@ -244,6 +244,7 @@ MAN=	aac.4 \
 	jedec_dimm.4 \
 	jme.4 \
 	kbdmux.4 \
+	kcov.4 \
 	keyboard.4 \
 	kld.4 \
 	ksyms.4 \
@@ -975,7 +976,6 @@ MAN+=	\
 	udbp.4 \
 	udl.4 \
 	uep.4 \
-	ufm.4 \
 	ufoma.4 \
 	uftdi.4 \
 	ugen.4 \

@@ -9,7 +9,6 @@ STATIC_CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
 .PATH: ${COMPILERRTDIR}/lib/builtins
 .PATH: ${UNWINDSRCDIR}
 SRCS_EXC+=	gcc_personality_v0.c
-SRCS_EXC+=	int_util.c
 SRCS_EXC+=	Unwind-EHABI.cpp
 SRCS_EXC+=	Unwind-sjlj.c
 SRCS_EXC+=	UnwindLevel1-gcc-ext.c
@@ -26,7 +25,10 @@ CFLAGS.${file}+=	-fno-exceptions -funwind-tables
 CXXFLAGS.${file}+=	-fno-exceptions -funwind-tables
 .endfor
 
-CFLAGS+=	-I${UNWINDINCDIR} -I${.CURDIR} -D_LIBUNWIND_IS_NATIVE_ONLY
+CFLAGS+=	-I${UNWINDINCDIR}
+CFLAGS+=	-I${.CURDIR}
+CFLAGS+=	-D_LIBUNWIND_IS_NATIVE_ONLY
+CFLAGS+=	-D_LIBUNWIND_USE_FRAME_HEADER_CACHE
 CXXFLAGS+=	-fno-rtti
 CXXSTD?=	c++11
 STATIC_CXXFLAGS+= -fvisibility=hidden -fPIC

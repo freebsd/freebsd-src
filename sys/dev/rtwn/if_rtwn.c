@@ -1525,25 +1525,29 @@ rtwn_getradiocaps(struct ieee80211com *ic,
 {
 	struct rtwn_softc *sc = ic->ic_softc;
 	uint8_t bands[IEEE80211_MODE_BYTES];
-	int i;
+	int cbw_flags, i;
+
+	cbw_flags = (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) ?
+	    NET80211_CBW_FLAG_HT40 : 0;
 
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
 	setbit(bands, IEEE80211_MODE_11NG);
 	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans,
-	    bands, !!(ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40));
+	    bands, cbw_flags);
 
 	/* XXX workaround add_channel_list() limitations */
 	setbit(bands, IEEE80211_MODE_11A);
 	setbit(bands, IEEE80211_MODE_11NA);
 	for (i = 0; i < nitems(sc->chan_num_5ghz); i++) {
+
 		if (sc->chan_num_5ghz[i] == 0)
 			continue;
 
 		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
 		    sc->chan_list_5ghz[i], sc->chan_num_5ghz[i], bands,
-		    !!(ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40));
+		    cbw_flags);
 	}
 }
 

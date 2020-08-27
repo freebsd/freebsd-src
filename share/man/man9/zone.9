@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2020
+.Dd August 20, 2020
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -394,7 +394,7 @@ This uses a guaranteed but slow path in the allocator which reduces
 concurrency.
 .Pp
 The
-.Fn uma_zone_prealloc
+.Fn uma_prealloc
 function allocates slabs for the requested number of items, typically following
 the initial creation of a zone.
 Subsequent allocations from the zone will be satisfied using the pre-allocated
@@ -402,7 +402,7 @@ slabs.
 Note that slab allocation is performed with the
 .Dv M_WAITOK
 flag, so
-.Fn uma_zone_prealloc
+.Fn uma_prealloc
 may sleep.
 .Pp
 The

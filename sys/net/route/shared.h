@@ -72,9 +72,6 @@ void rib_init_subscriptions(struct rib_head *rnh);
 void rib_destroy_subscriptions(struct rib_head *rnh);
 
 /* route */
-VNET_DECLARE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
-#define	V_rtzone	VNET(rtzone)
-
 struct rtentry *rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info,
     int *perror);
 

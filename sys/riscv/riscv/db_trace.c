@@ -108,9 +108,9 @@ db_stack_trace_cmd(struct unwind_state *frame)
 				db_printf("--- exception %ld, tval = %#lx\n",
 				    tf->tf_scause & EXCP_MASK,
 				    tf->tf_stval);
-			frame->sp = (uint64_t)tf->tf_sp;
-			frame->fp = (uint64_t)tf->tf_s[0];
-			frame->pc = (uint64_t)tf->tf_sepc;
+			frame->sp = tf->tf_sp;
+			frame->fp = tf->tf_s[0];
+			frame->pc = tf->tf_sepc;
 			if (!INKERNEL(frame->fp))
 				break;
 			continue;
@@ -132,9 +132,9 @@ db_trace_thread(struct thread *thr, int count)
 
 	ctx = kdb_thr_ctx(thr);
 
-	frame.sp = (uint64_t)ctx->pcb_sp;
-	frame.fp = (uint64_t)ctx->pcb_s[0];
-	frame.pc = (uint64_t)ctx->pcb_ra;
+	frame.sp = ctx->pcb_sp;
+	frame.fp = ctx->pcb_s[0];
+	frame.pc = ctx->pcb_ra;
 	db_stack_trace_cmd(&frame);
 	return (0);
 }
@@ -143,12 +143,12 @@ void
 db_trace_self(void)
 {
 	struct unwind_state frame;
-	uint64_t sp;
+	uintptr_t sp;
 
 	__asm __volatile("mv %0, sp" : "=&r" (sp));
 
 	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)db_trace_self;
+	frame.fp = (uintptr_t)__builtin_frame_address(0);
+	frame.pc = (uintptr_t)db_trace_self;
 	db_stack_trace_cmd(&frame);
 }

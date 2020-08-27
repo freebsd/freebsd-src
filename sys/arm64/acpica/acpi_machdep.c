@@ -63,7 +63,7 @@ acpi_machdep_quirks(int *quirks)
 }
 
 static void *
-map_table(vm_paddr_t pa, int offset, const char *sig)
+map_table(vm_paddr_t pa, const char *sig)
 {
 	ACPI_TABLE_HEADER *header;
 	vm_offset_t length;
@@ -105,9 +105,6 @@ probe_table(vm_paddr_t address, const char *sig)
 			    (uintmax_t)address);
 		return (0);
 	}
-	if (bootverbose)
-		printf("Table '%.4s' at 0x%jx\n", table->Signature,
-		    (uintmax_t)address);
 
 	if (strncmp(table->Signature, sig, ACPI_NAMESEG_SIZE) != 0) {
 		pmap_unmapbios((vm_offset_t)table, sizeof(ACPI_TABLE_HEADER));
@@ -135,7 +132,7 @@ void *
 acpi_map_table(vm_paddr_t pa, const char *sig)
 {
 
-	return (map_table(pa, 0, sig));
+	return (map_table(pa, sig));
 }
 
 /*
@@ -181,7 +178,7 @@ acpi_find_table(const char *sig)
 				printf("ACPI: RSDP failed extended checksum\n");
 			return (0);
 		}
-		xsdt = map_table(rsdp->XsdtPhysicalAddress, 2, ACPI_SIG_XSDT);
+		xsdt = map_table(rsdp->XsdtPhysicalAddress, ACPI_SIG_XSDT);
 		if (xsdt == NULL) {
 			if (bootverbose)
 				printf("ACPI: Failed to map XSDT\n");
@@ -200,19 +197,14 @@ acpi_find_table(const char *sig)
 	}
 	pmap_unmapbios((vm_offset_t)rsdp, sizeof(ACPI_TABLE_RSDP));
 
-	if (addr == 0) {
-		if (bootverbose)
-			printf("ACPI: No %s table found\n", sig);
+	if (addr == 0)
 		return (0);
-	}
-	if (bootverbose)
-		printf("%s: Found table at 0x%jx\n", sig, (uintmax_t)addr);
 
 	/*
 	 * Verify that we can map the full table and that its checksum is
 	 * correct, etc.
 	 */
-	table = map_table(addr, 0, sig);
+	table = map_table(addr, sig);
 	if (table == NULL)
 		return (0);
 	acpi_unmap_table(table);
@@ -240,12 +232,47 @@ acpi_map_addr(struct acpi_generic_address *addr, bus_space_tag_t *tag,
 static void
 parse_pxm_tables(void *dummy)
 {
+	uint64_t mmfr0, parange;
 
 	/* Only parse ACPI tables when booting via ACPI */
 	if (arm64_bus_method != ARM64_BUS_ACPI)
 		return;
 
-	acpi_pxm_init(MAXCPU, (vm_paddr_t)1 << 40);
+	if (!get_kernel_reg(ID_AA64MMFR0_EL1, &mmfr0)) {
+		/* chosen arbitrarily */
+		mmfr0 = ID_AA64MMFR0_PARange_1T;
+	}
+
+	switch (ID_AA64MMFR0_PARange_VAL(mmfr0)) {
+	case ID_AA64MMFR0_PARange_4G:
+		parange = (vm_paddr_t)4 << 30 /* GiB */;
+		break;
+	case ID_AA64MMFR0_PARange_64G:
+		parange = (vm_paddr_t)64 << 30 /* GiB */;
+		break;
+	case ID_AA64MMFR0_PARange_1T:
+		parange = (vm_paddr_t)1 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_4T:
+		parange = (vm_paddr_t)4 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_16T:
+		parange = (vm_paddr_t)16 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_256T:
+		parange = (vm_paddr_t)256 << 40 /* TiB */;
+		break;
+	case ID_AA64MMFR0_PARange_4P:
+		parange = (vm_paddr_t)4 << 50 /* PiB */;
+		break;
+	default:
+		/* chosen arbitrarily */
+		parange = (vm_paddr_t)1 << 40 /* TiB */;
+		printf("Unknown value for PARange in mmfr0 (%#lx)\n", mmfr0);
+		break;
+	}
+
+	acpi_pxm_init(MAXCPU, parange);
 	acpi_pxm_parse_tables();
 	acpi_pxm_set_mem_locality();
 }

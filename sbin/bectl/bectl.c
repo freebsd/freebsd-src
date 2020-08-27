@@ -60,6 +60,8 @@ static int bectl_cmd_unmount(int argc, char *argv[]);
 
 libbe_handle_t *be;
 
+int aok;
+
 int
 usage(bool explicit)
 {

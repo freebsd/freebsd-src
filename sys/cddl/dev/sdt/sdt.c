@@ -44,6 +44,7 @@
 #include <sys/systm.h>
 
 #include <sys/conf.h>
+#include <sys/endian.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>

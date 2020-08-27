@@ -233,7 +233,7 @@ udf_mount(struct mount *mp)
 	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
-	if (vn_isdisk(devvp, &error) == 0) {
+	if (!vn_isdisk_error(devvp, &error)) {
 		vput(devvp);
 		return (error);
 	}

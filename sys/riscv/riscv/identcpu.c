@@ -186,15 +186,13 @@ identify_cpu(void)
 	const struct cpu_parts *cpu_partsp;
 	uint32_t part_id;
 	uint32_t impl_id;
-	uint64_t mimpid;
 	uint64_t misa;
 	u_int cpu;
 	size_t i;
 
 	cpu_partsp = NULL;
 
-	/* TODO: can we get mimpid and misa somewhere ? */
-	mimpid = 0;
+	/* TODO: can we get misa somewhere ? */
 	misa = 0;
 
 	cpu = PCPU_GET(cpuid);

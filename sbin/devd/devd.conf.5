@@ -40,7 +40,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd May 31, 2019
+.Dd August 18, 2020
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -252,10 +252,6 @@ Device name of parent bus.
 Device node path if one is created by the
 .Xr devfs 5
 filesystem.
-.It Li cisproduct
-CIS-product.
-.It Li cisvendor
-CIS-vendor.
 .It Li class
 Device class.
 .It Li comm
@@ -284,8 +280,6 @@ Interface Protocol (USB).
 Interface Sub-class (USB).
 .It Li jail
 Jail name for the process triggering the rule (RCTL).
-.It Li manufacturer
-Manufacturer ID (pccard).
 .It Li mode
 Peripheral mode (USB).
 .It Li notify
@@ -299,7 +293,7 @@ PID of the process triggering the rule (RCTL).
 .It Li port
 Hub port number (USB).
 .It Li product
-Product ID (pccard/USB).
+Product ID (USB).
 .It Li release
 Hardware revision (USB).
 .It Li ruid
@@ -311,9 +305,9 @@ Serial Number (USB).
 .It Li slot
 Card slot.
 .It Li subvendor
-Sub-vendor ID.
+Sub-vendor ID (PCI).
 .It Li subdevice
-Sub-device ID.
+Sub-device ID (PCI).
 .It Li subsystem
 Matches a subsystem of a system, see below.
 .It Li system
@@ -327,96 +321,118 @@ Vendor ID.
 A partial list of systems, subsystems, and types used within the
 .Ic notify
 mechanism.
+.\"
+.\" Please keep these tables sorted. Also, please use the same parameters
+.\" for each of the tables so that things line up in columns nicely.
+.\" Please do not omit the type column for notifiers that omit it.
 .Pp
-.Bl -tag -width ".Li coretemp" -compact
-.It Sy System
-.It Li ACPI
-Events related to the ACPI subsystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li ACAD
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li ACPI Ta Ta Ta
+Events related to the ACPI Subsystem.
+.It Li ACPI Ta Li ACAD Ta Ta
 AC line state ($notify=0x00 is offline, 0x01 is online).
-.It Li Button
+.It Li ACPI Ta Li Button Ta Ta
 Button state ($notify=0x00 is power, 0x01 is sleep).
-.It Li CMBAT
+.It Li ACPI Ta Li CMBAT Ta Ta
 Battery events.
-.It Li Dock
+.It Li ACPI Ta Li Dock Ta Ta
 Dock state ($notify=0x00 is undocked, 0x01 is docked).
-.It Li Lid
+.It Li ACPI Ta Li Lid Ta Ta
 Lid state ($notify=0x00 is closed, 0x01 is open).
-.It Li PROCESSOR
+.It Li ACPI Ta Li PROCESSOR Ta Ta
 Processor state/configuration ($notify=0x81 is a change in available Cx states).
-.It Li Resume
+.It Li ACPI Ta Li Resume Ta Ta
 Resume notification.
-.It Li Suspend
+.It Li ACPI Ta Li Suspend Ta Ta
 Suspend notification.
-.It Li Thermal
+.It Li ACPI Ta Li Thermal Ta Ta
 Thermal zone events.
 .El
 .Pp
-.It Li CARP
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li AEON Ta Li power Ta Li press Ta
+The power button on an Amiga has been pressed.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li CAM Ta Ta Ta
+Events related to the
+.Xr cam 4
+system.
+.It Li CAM Ta Li periph Ta Ta
+Events related to peripheral devices.
+.It Li CAM Ta Li periph Ta Li error Ta
+Generic errors.
+.It Li CAM Ta Li periph Ta Li timeout Ta
+Command timeouts.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li CARP Ta Ta Ta
 Events related to the
 .Xr carp 4
 protocol.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Ar vhid@interface
+.It CARP Ta Ar vhid@inet Ta Ta
 The
 .Dq subsystem
 contains the actual CARP vhid and the name of the network interface
 on which the event took place.
-.Bl -tag -width ".Li MASTER" -compact
-.It Sy Type
-.It Li MASTER
+.It CARP Ta Ar vhid@inet Ta MASTER Ta
 Node become the master for a virtual host.
-.It Li BACKUP
+.It CARP Ta Ar vhid@inet Ta BACKUP Ta
 Node become the backup for a virtual host.
 .El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li coretemp Ta Ta Ta
+Events related to the
+.Xr coretemp 4
+device.
+.It Li coretemp Ta Li Thermal Ta Ta
+Notification that the CPU core has reached critical temperature.
+.It Li coretemp Ta Li Thermal Ta Li temperature Ta
+String containing the temperature of the core that has become too hot.
 .El
 .Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li IFNET
-Events related to the network subsystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Ar interface
+.It Li IFNET Ta Ar inet Ta Ta
 The
 .Dq subsystem
 is the actual name of the network interface on which the event
 took place.
-.Bl -tag -width ".Li LINK_DOWN" -compact
-.It Sy Type
-.It Li LINK_UP
+.It Li IFNET Ta Ar inet Ta Li LINK_UP Ta
 Carrier status changed to UP.
-.It Li LINK_DOWN
+.It Li IFNET Ta Ar inet Ta Li LINK_DOWN Ta
 Carrier status changed to DOWN.
-.It Li ATTACH
+.It Li IFNET Ta Ar inet Ta Li ATTACH Ta
 The network interface is attached to the system.
-.It Li DETACH
+.It Li IFNET Ta Ar inet Ta Li DETACH Ta
 The network interface is detached from the system.
 .El
-.El
 .Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li DEVFS
-Events related to the
-.Xr devfs 5
-filesystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li CDEV
-.Bl -tag -width ".Li DESTROY" -compact
-.It Sy Type
-.It Li CREATE
+.It Li DEVFS Ta Li CDEV Ta Li CREATE Ta
 The
 .Xr devfs 5
 node is created.
-.It Li DESTROY
+.It Li DEVFS Ta Li CDEV Ta Li DESTROY Ta
 The
 .Xr devfs 5
 node is destroyed.
 .El
-.El
 .Pp
-.It Li GEOM
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li GEOM Ta Ta Ta
 Events related to the
 .Xr geom 4
 framework.
@@ -425,135 +441,180 @@ The difference compared to
 is that
 .Li GEOM
 only includes disk-like devices.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li DEV
-.Bl -tag -width ".Li MEDIACHANGE" -compact
-.It Sy Type
-.It Li CREATE
+.It Li GEOM Ta Li DEV Ta Li CREATE Ta
 A
 .Xr geom 4
 provider is created.
-.It Li DESTROY
+.It Li GEOM Ta Li DEV Ta Li DESTROY Ta
 A
 .Xr geom 4
 provider is destroyed.
-.It Li GEOM::physpath
+.It Li GEOM Ta Li DEV Ta Li GEOM::physpath Ta
 The physical path of a device has changed.
-.It Li MEDIACHANGE
+.It Li GEOM Ta Li DEV Ta Li GEOM::rotation_rate Ta
+The rotation rate of the disk has changed.
+.It Li GEOM Ta Li DEV Ta Li MEDIACHANGE Ta
 Physical media has changed.
-.It Li SIZECHANGE
+.It Li GEOM Ta Li DEV Ta Li SIZECHANGE Ta
 A
 .Xr geom 4
 provider size has changed.
 .El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li kern Ta Li power Ta Li resume Ta
+Notification that the system has woken from the suspended state.
+Note: this notification is deprecated and will be removed in
+.Fx 14.0 .
 .El
 .Pp
-.It Li RCTL
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li kernel Ta Li signal Ta Li coredump Ta
+Notification that a process has crashed and dumped core.
+.It Li kernel Ta Li power Ta Li resume Ta
+Notification that the system has woken from the suspended state.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li PMU Ta Ta Ta
+Notification of events from various types of Power Management Units.
+.It Li PMU Ta Li "AC" Ta Ta
+Notifications of AC power related events.
+.It Li PMU Ta Li "AC" Ta Li overvoltage Ta
+An over-voltage condition was detected on the AC power line.
+.It Li PMU Ta Li "AC" Ta Li plugged Ta
+Power has been applied to the AC power line.
+.It Li PMU Ta Li "AC" Ta Li unplugged Ta
+Power has been removed from the AC power line.
+.It Li PMU Ta Li Battery Ta Ta
+.It Li PMU Ta Li Battery Ta absent Ta
+Battery is no longer absent.
+.It Li PMU Ta Li Battery Ta charged Ta
+The battery has become charged.
+.It Li PMU Ta Li Battery Ta charging Ta
+The battery has started charging.
+.It Li PMU Ta Li Battery Ta disconnected Ta
+The battery has been disconnected.
+.It Li PMU Ta Li Battery Ta high-temp Ta
+The battery reported a temperature over the limit.
+.It Li PMU Ta Li Battery Ta low-temp Ta
+The battery reported a temperature under the limit.
+.It Li PMU Ta Li Battery Ta plugged Ta
+The battery has become plugged (eg connected).
+.It Li PMU Ta Li Battery Ta shutdown-threshold Ta
+The power in the battery has fallen below the shutdown threshold.
+.It Li PMU Ta Li Battery Ta warning-threshold Ta
+The power in the battery has fallen below the warn the user threshold.
+.It Li PMU Ta Li Button Ta pressed Ta
+A button on a
+.Xr adb 4
+or
+.Xr pmu 4
+has been pressed.
+.It Li PMU Ta Li keys Ta Ta
+One of the keys on the
+.Xr adb 4
+keyboard has been pressed.
+.It Li PMU Ta Li keys Ta brightness Ta
+A brightness level change has been requested.
+Direction is in the $notify variable.
+.It Li PMU Ta Li keys Ta mute Ta
+The mute key 
+.It Li PMU Ta Li keys Ta volume Ta
+A volume level change has been requested.
+Direction is in the $notify variable.
+.It Li PMU Ta Li keys Ta eject Ta
+An ejection has been requested.
+.It Li PMU Ta Li lid Ta close Ta
+The
+.Xr pmc 4
+device has detected the lid closing.
+.It Li PMU Ta Li lid Ta open Ta
+The
+.Xr pmc 4
+device has detected the lid openinging.
+.It Li PMU Ta Li POWER Ta ACLINE Ta
+The
+.Xr pmc 4
+device has deteted an AC line state ($notify=0x00 is offline, 0x01 is online).
+.It Li PMU Ta Li USB Ta overvoltage Ta
+An over-voltage condition on the power lines for the USB power pins.
+.It Li PMU Ta Li USB Ta plugged Ta
+A device has been plugged into a USB device.
+.It Li PMU Ta Li USB Ta undervoltage Ta
+An under-voltage condition on the power lines for the USB power pins.
+.It Li PMU Ta Li USB Ta unplugged Ta
+A device has been unplugged into a USB device.
+.El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li RCTL Ta Ta Ta
 Events related to the
 .Xr rctl 8
 framework.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li rule
-.Bl -tag -width ".Li matched" -compact
-.It Sy Type
-.It Li matched
+.It Li RCTL Ta Li rule Ta Li matched Ta
 A rule with action specified as "devctl" was triggered.
 .El
-.El
 .Pp
-.It Li USB
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li USB Ta Ta Ta
 Events related to the USB subsystem.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li DEVICE
-.Bl -tag -width ".Li DETACH" -compact
-.It Sy Type
-.It Li ATTACH
+.It Li USB Ta Li DEVICE Ta Li ATTACH Ta
 USB device is attached to the system.
-.It Li DETACH
-USB device is detached from the system.
-.El
-.It Li INTERFACE
-.Bl -tag -width ".Li DETACH" -compact
-.It Sy Type
-.It Li ATTACH
+.It Li USB Ta Li DEVICE Ta Li DETACH Ta
+USB device is detached to the system.
+.It Li USB Ta Li INTERFACE Ta Li ATTACH Ta
 USB interface is attached to a device.
-.It Li DETACH
+.It Li USB Ta Li INTERFACE Ta Li DETACH Ta
 USB interface is detached from a device.
 .El
+.Pp
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li VFS Ta Ta Ta
+Events from the vfs system.
+.It Li VFS Ta Li FS Ta Ta
+Events that change what is mounted to the system.
+.It Li VFS Ta Li FS Ta Li MOUNT Ta
+Notification of a filesystem is mounted for the first time.
+.It Li VFS Ta Li FS Ta Li REMOUNT Ta
+Notification of a filesystem is remounted (whether or not the options actually change).
+.It Li VFS Ta Li FS Ta Li UNMOUNT Ta
+Notification of a filesystem being unmounted.
 .El
 .Pp
-.It Li coretemp
-Events related to the
-.Xr coretemp 4
-device.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li Thermal
-Notification that the CPU core has reached critical temperature.
-.Bl -tag -width ".Ar temperature" -compact
-.It Sy Type
-.It Ar temperature
-String containing the temperature of the core that has become too hot.
-.El
+.Bl -column "System" "Subsystem" "1234567" -compact
+.Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
+.It Li ZFS Ta ZFS Ta Ta
+Events about the ZFS subsystem.
+See
+.Xr zfsd 8
+and
+.Pa /etc/devd/zfs.conf
+for details.
 .El
 .Pp
-.It Li kern
-Events related to the kernel.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li power
-.Bl -tag -width ".li resume" -compact
-.It Sy Type
-.It Li resume
-Notification that the system has woken from the suspended state.
-.El
-.El
-.Pp
-.It Li kernel
-More events related to the kernel.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li signal
-.Bl -tag -width ".li resume" -compact
-.It Sy Type
-.It Li coredump
-Notification that a process has crashed and dumped core.
-.El
-.El
-.Pp
-.It Li CAM
-Events related to the
-.Xr cam 4
-system.
-.Bl -tag -width ".Sy Subsystem" -compact
-.It Sy Subsystem
-.It Li periph
-Events related to peripheral devices.
-.Bl -tag -width ".li timeout" -compact
-.It Sy Type
-.It Li error
-Generic errors.
-.It Li timeout
-Command timeouts.
-.El
-.El
-.El
-.Pp
+.\"
+.\" End of tables
+.\"
 A link state change to UP on the interface
 .Dq Li fxp0
 would result in the following notify event:
 .Bd -literal -offset indent
-system=IFNET, subsystem=fxp0, type=LINK_UP
+system=IFNET subsystem=fxp0 type=LINK_UP
 .Ed
 .Pp
 An AC line state change to
 .Dq offline
 would result in the following event:
 .Bd -literal -offset indent
-system=ACPI, subsystem=ACAD, notify=0x00
+system=ACPI subsystem=ACAD notify=0x00
 .Ed
 .Ss Comments
 Comments may appear anywhere that whitespace may appear in a
@@ -644,20 +705,20 @@ notify 0 {
 };
 
 #
-# Try to configure ath and wi devices with pccard_ether
+# Try to configure ath and iwn devices with pccard_ether
 # as they are attached.
 #
 attach 0 {
-        device-name "(ath|wi)[0-9]+";
+        device-name "(ath|iwn)[0-9]+";
         action "/etc/pccard_ether $device-name start";
 };
 
 #
-# Stop ath and wi devices as they are detached from
+# Stop ath and iwn devices as they are detached from
 # the system.
 #
 detach 0 {
-        device-name "(ath|wi)[0-9]+";
+        device-name "(ath|iwn)[0-9]+";
         action "/etc/pccard_ether $device-name stop";
 };
 .Ed

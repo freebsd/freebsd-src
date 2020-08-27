@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef liblldb_Target_h_
-#define liblldb_Target_h_
+#ifndef LLDB_TARGET_TARGET_H
+#define LLDB_TARGET_TARGET_H
 
 #include <list>
 #include <map>
@@ -36,6 +36,8 @@
 
 namespace lldb_private {
 
+class ClangModulesDeclVendor;
+
 OptionEnumValues GetDynamicValueTypes();
 
 enum InlineStrategy {
@@ -62,7 +64,6 @@ enum LoadDependentFiles {
   eLoadDependentsNo,
 };
 
-// TargetProperties
 class TargetExperimentalProperties : public Properties {
 public:
   TargetExperimentalProperties();
@@ -133,6 +134,8 @@ public:
 
   bool GetEnableAutoApplyFixIts() const;
 
+  uint64_t GetNumberOfRetriesWithFixits() const;
+
   bool GetEnableNotifyAboutFixIts() const;
 
   bool GetEnableSaveObjects() const;
@@ -202,10 +205,15 @@ public:
   bool GetInjectLocalVariables(ExecutionContext *exe_ctx) const;
 
   void SetInjectLocalVariables(ExecutionContext *exe_ctx, bool b);
-
+  
   void SetRequireHardwareBreakpoints(bool b);
 
   bool GetRequireHardwareBreakpoints() const;
+
+  bool GetAutoInstallMainExecutable() const;
+
+  void UpdateLaunchInfoFromProperties();
+
 
 private:
   // Callbacks for m_launch_info.
@@ -219,9 +227,12 @@ private:
   void DisableASLRValueChangedCallback();
   void DisableSTDIOValueChangedCallback();
 
+  Environment ComputeEnvironment() const;
+
   // Member variables.
   ProcessLaunchInfo m_launch_info;
   std::unique_ptr<TargetExperimentalProperties> m_experimental_properties_up;
+  Target *m_target;
 };
 
 class EvaluateExpressionOptions {
@@ -371,6 +382,12 @@ public:
 
   bool GetAutoApplyFixIts() const { return m_auto_apply_fixits; }
 
+  void SetRetriesWithFixIts(uint64_t number_of_retries) {
+    m_retries_with_fixits = number_of_retries;
+  }
+
+  uint64_t GetRetriesWithFixIts() const { return m_retries_with_fixits; }
+
   bool IsForUtilityExpr() const { return m_running_utility_expression; }
 
   void SetIsForUtilityExpr(bool b) { m_running_utility_expression = b; }
@@ -392,6 +409,7 @@ private:
   bool m_ansi_color_errors = false;
   bool m_result_is_internal = false;
   bool m_auto_apply_fixits = true;
+  uint64_t m_retries_with_fixits = 1;
   /// True if the executed code should be treated as utility code that is only
   /// used by LLDB internally.
   bool m_running_utility_expression = false;
@@ -467,7 +485,8 @@ public:
     lldb::TargetSP m_target_sp;
     ModuleList m_module_list;
 
-    DISALLOW_COPY_AND_ASSIGN(TargetEventData);
+    TargetEventData(const TargetEventData &) = delete;
+    const TargetEventData &operator=(const TargetEventData &) = delete;
   };
 
   ~Target() override;
@@ -940,7 +959,7 @@ public:
   ///
   /// \param[in] set_platform
   ///     If \b true, then the platform will be adjusted if the currently
-  ///     selected platform is not compatible with the archicture being set.
+  ///     selected platform is not compatible with the architecture being set.
   ///     If \b false, then just the architecture will be set even if the
   ///     currently selected platform isn't compatible (in case it might be
   ///     manually set following this function call).
@@ -1054,8 +1073,6 @@ public:
                                                  const char *name,
                                                  Status &error);
 
-  lldb::ClangASTImporterSP GetClangASTImporter();
-
   // Install any files through the platform that need be to installed prior to
   // launching or attaching.
   Status Install(ProcessLaunchInfo *launch_info);
@@ -1092,11 +1109,6 @@ public:
       std::string *fixed_expression = nullptr, ValueObject *ctx_obj = nullptr);
 
   lldb::ExpressionVariableSP GetPersistentVariable(ConstString name);
-
-  /// Return the next available number for numbered persistent variables.
-  unsigned GetNextPersistentVariableIndex() {
-    return m_next_persistent_variable_index++;
-  }
 
   lldb::addr_t GetPersistentSymbol(ConstString name);
 
@@ -1302,8 +1314,7 @@ protected:
   typedef std::map<lldb::LanguageType, lldb::REPLSP> REPLMap;
   REPLMap m_repl_map;
 
-  lldb::ClangASTImporterSP m_ast_importer_sp;
-  lldb::ClangModulesDeclVendorUP m_clang_modules_decl_vendor_up;
+  std::unique_ptr<ClangModulesDeclVendor> m_clang_modules_decl_vendor_up;
 
   lldb::SourceManagerUP m_source_manager_up;
 
@@ -1359,9 +1370,10 @@ private:
 
   void FinalizeFileActions(ProcessLaunchInfo &info);
 
-  DISALLOW_COPY_AND_ASSIGN(Target);
+  Target(const Target &) = delete;
+  const Target &operator=(const Target &) = delete;
 };
 
 } // namespace lldb_private
 
-#endif // liblldb_Target_h_
+#endif // LLDB_TARGET_TARGET_H

@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: zvol
-# REQUIRE: hostid
+# REQUIRE: zpool
 # BEFORE: dumpon
 # KEYWORD: nojail
 

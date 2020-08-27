@@ -2445,8 +2445,6 @@ device		usb
 #
 # USB Double Bulk Pipe devices
 device		udbp
-# USB Fm Radio
-device		ufm
 # USB temperature meter
 device		ugold
 # USB LED

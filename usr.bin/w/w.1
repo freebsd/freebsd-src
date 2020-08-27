@@ -28,7 +28,7 @@
 .\"     @(#)w.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd August 24, 2020
 .Dt W 1
 .Os
 .Sh NAME
@@ -99,6 +99,41 @@ names are specified, the output is restricted to those users.
 .It Pa /var/run/utx.active
 list of users on the system
 .El
+.Sh EXAMPLES
+Show global activity of the system:
+.Bd -literal -offset indent
+$ w
+ 8:05PM  up 35 mins, 3 users, load averages: 0.09, 0.35, 0.27
+USER       TTY      FROM            LOGIN@  IDLE WHAT
+fernape    v0       -               7:30PM     - tmux: client (/tmp/tmux-1001/default) (tmux)
+root       v1       -               8:03PM     1 -bash (bash)
+fernape    pts/0    tmux(1391).%0   8:04PM     - w
+.Ed
+.Pp
+Show the entire process list per tty:
+.Bd -literal -offset indent
+$ w -d
+ 8:12PM  up 42 mins, 3 users, load averages: 0.01, 0.11, 0.17
+USER       TTY      FROM            LOGIN@  IDLE WHAT
+                1199      login [pam] (login)
+                1207      -bash (bash)
+                1507      tmux: client (/tmp/tmux-1001/default) (tmux)
+fernape    v0       -               7:30PM     - tmux: client (/tmp/tmux-1001/default) (tmux)
+                1488      login [pam] (login)
+                1489      -bash (bash)
+root       v1       -               8:08PM     3 -bash (bash)
+                1510      -bash (bash)
+                1515      w -d
+fernape    pts/0    tmux(1509).%0   8:11PM     - w -d
+.Ed
+.Pp
+Same as above but only for the root user and omitting the heading:
+.Bd -literal -offset indent
+$ w -d -h root
+		1183      login [pam] (login)
+		1204      -bash (bash)
+root       v1       -       7:15PM     - -bash (bash)
+.Ed
 .Sh COMPATIBILITY
 The
 .Fl f ,
@@ -137,9 +172,7 @@ to ignore interrupts.
 prints
 .Ql \- . )
 .Pp
-The
-.Tn CPU
-time is only an estimate, in particular, if someone leaves a background
+The CPU time is only an estimate, in particular, if someone leaves a background
 process running after logging out, the person currently on that terminal is
 .Dq charged
 with the time.

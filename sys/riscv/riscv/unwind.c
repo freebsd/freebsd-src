@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 int
 unwind_frame(struct unwind_state *frame)
 {
-	uint64_t fp;
+	uintptr_t fp;
 
 	fp = frame->fp;
 
@@ -50,8 +50,8 @@ unwind_frame(struct unwind_state *frame)
 		return (-1);
 
 	frame->sp = fp;
-	frame->fp = *(uint64_t *)(fp - 16);
-	frame->pc = *(uint64_t *)(fp - 8) - 4;
+	frame->fp = ((uintptr_t *)fp)[-2];
+	frame->pc = ((uintptr_t *)fp)[-1] - 4;
 
 	return (0);
 }

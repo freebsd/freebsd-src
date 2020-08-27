@@ -97,9 +97,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-vm_map_t kernel_map;
-vm_map_t exec_map;
-vm_map_t pipe_map;
+struct vm_map kernel_map_store;
+struct vm_map exec_map_store;
+struct vm_map pipe_map_store;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
@@ -128,6 +128,7 @@ SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
 #define	KVA_QUANTUM_SHIFT	(8 + PAGE_SHIFT)
 #endif
 #define	KVA_QUANTUM		(1 << KVA_QUANTUM_SHIFT)
+#define	KVA_NUMA_IMPORT_QUANTUM	(KVA_QUANTUM * 128)
 
 extern void     uma_startup2(void);
 
@@ -359,9 +360,9 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
 }
 
 /*
- *	kmem_suballoc:
+ *	kmem_subinit:
  *
- *	Allocates a map to manage a subrange
+ *	Initializes a map to manage a subrange
  *	of the kernel virtual address space.
  *
  *	Arguments are as follows:
@@ -371,12 +372,11 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
  *	size		Size of range to find
  *	superpage_align	Request that min is superpage aligned
  */
-vm_map_t
-kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
-    vm_size_t size, boolean_t superpage_align)
+void
+kmem_subinit(vm_map_t map, vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
+    vm_size_t size, bool superpage_align)
 {
 	int ret;
-	vm_map_t result;
 
 	size = round_page(size);
 
@@ -385,14 +385,11 @@ kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 	    VMFS_SUPER_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
 	    MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
-		panic("kmem_suballoc: bad status return of %d", ret);
+		panic("kmem_subinit: bad status return of %d", ret);
 	*max = *min + size;
-	result = vm_map_create(vm_map_pmap(parent), *min, *max);
-	if (result == NULL)
-		panic("kmem_suballoc: cannot create submap");
-	if (vm_map_submap(parent, *min, *max, result) != KERN_SUCCESS)
-		panic("kmem_suballoc: unable to change range to submap");
-	return (result);
+	vm_map_init(map, vm_map_pmap(parent), *min, *max);
+	if (vm_map_submap(parent, *min, *max, map) != KERN_SUCCESS)
+		panic("kmem_subinit: unable to change range to submap");
 }
 
 /*
@@ -749,15 +746,14 @@ kva_import_domain(void *arena, vmem_size_t size, int flags, vmem_addr_t *addrp)
 void
 kmem_init(vm_offset_t start, vm_offset_t end)
 {
-	vm_map_t m;
+	vm_size_t quantum;
 	int domain;
 
-	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
-	m->system_map = 1;
-	vm_map_lock(m);
+	vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
+	kernel_map->system_map = 1;
+	vm_map_lock(kernel_map);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
-	kernel_map = m;
-	(void)vm_map_insert(m, NULL, 0,
+	(void)vm_map_insert(kernel_map, NULL, 0,
 #ifdef __amd64__
 	    KERNBASE,
 #else		     
@@ -772,18 +768,28 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 	 * that handle vm_page_array allocation can simply adjust virtual_avail
 	 * instead.
 	 */
-	(void)vm_map_insert(m, NULL, 0, (vm_offset_t)vm_page_array,
+	(void)vm_map_insert(kernel_map, NULL, 0, (vm_offset_t)vm_page_array,
 	    (vm_offset_t)vm_page_array + round_2mpage(vm_page_array_size *
 	    sizeof(struct vm_page)),
 	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
 #endif
-	vm_map_unlock(m);
+	vm_map_unlock(kernel_map);
+
+	/*
+	 * Use a large import quantum on NUMA systems.  This helps minimize
+	 * interleaving of superpages, reducing internal fragmentation within
+	 * the per-domain arenas.
+	 */
+	if (vm_ndomains > 1 && PMAP_HAS_DMAP)
+		quantum = KVA_NUMA_IMPORT_QUANTUM;
+	else
+		quantum = KVA_QUANTUM;
 
 	/*
 	 * Initialize the kernel_arena.  This can grow on demand.
 	 */
 	vmem_init(kernel_arena, "kernel arena", 0, 0, PAGE_SIZE, 0, 0);
-	vmem_set_import(kernel_arena, kva_import, NULL, NULL, KVA_QUANTUM);
+	vmem_set_import(kernel_arena, kva_import, NULL, NULL, quantum);
 
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		/*
@@ -795,13 +801,15 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 		vm_dom[domain].vmd_kernel_arena = vmem_create(
 		    "kernel arena domain", 0, 0, PAGE_SIZE, 0, M_WAITOK);
 		vmem_set_import(vm_dom[domain].vmd_kernel_arena,
-		    kva_import_domain, NULL, kernel_arena, KVA_QUANTUM);
+		    kva_import_domain, NULL, kernel_arena, quantum);
 
 		/*
 		 * In architectures with superpages, maintain separate arenas
 		 * for allocations with permissions that differ from the
 		 * "standard" read/write permissions used for kernel memory,
 		 * so as not to inhibit superpage promotion.
+		 *
+		 * Use the base import quantum since this arena is rarely used.
 		 */
 #if VM_NRESERVLEVEL > 0
 		vm_dom[domain].vmd_kernel_rwx_arena = vmem_create(

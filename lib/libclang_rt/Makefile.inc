@@ -14,7 +14,7 @@ CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt
 
 .PATH:		${CRTSRC}/lib
 
-CLANGDIR=	/usr/lib/clang/10.0.1
+CLANGDIR=	/usr/lib/clang/11.0.0
 LIBDIR=		${CLANGDIR}/lib/freebsd
 SHLIBDIR=	${LIBDIR}
 

@@ -205,6 +205,15 @@
 #define CRYPTO_FLAG_HARDWARE	0x01000000	/* hardware accelerated */
 #define CRYPTO_FLAG_SOFTWARE	0x02000000	/* software implementation */
 
+/* Does the kernel support vmpage buffers on this platform? */
+#ifdef __powerpc__
+#define CRYPTO_MAY_HAVE_VMPAGE	1
+#else
+#define CRYPTO_MAY_HAVE_VMPAGE	( PMAP_HAS_DMAP )
+#endif
+/* Does the currently running system support vmpage buffers on this platform? */
+#define CRYPTO_HAS_VMPAGE	( PMAP_HAS_DMAP )
+
 /* NB: deprecated */
 struct session_op {
 	u_int32_t	cipher;		/* ie. CRYPTO_AES_CBC */
@@ -387,7 +396,8 @@ enum crypto_buffer_type {
 	CRYPTO_BUF_CONTIG,
 	CRYPTO_BUF_UIO,
 	CRYPTO_BUF_MBUF,
-	CRYPTO_BUF_LAST = CRYPTO_BUF_MBUF
+	CRYPTO_BUF_VMPAGE,
+	CRYPTO_BUF_LAST = CRYPTO_BUF_VMPAGE
 };
 
 /*
@@ -402,6 +412,11 @@ struct crypto_buffer {
 			int	cb_buf_len;
 		};
 		struct mbuf *cb_mbuf;
+		struct {
+			vm_page_t *cb_vm_page;
+			int cb_vm_page_len;
+			int cb_vm_page_offset;
+		};
 		struct uio *cb_uio;
 	};
 	enum crypto_buffer_type cb_type;
@@ -415,11 +430,15 @@ struct crypto_buffer_cursor {
 		char *cc_buf;
 		struct mbuf *cc_mbuf;
 		struct iovec *cc_iov;
+		vm_page_t *cc_vmpage;
 	};
-	union {
-		int cc_buf_len;
-		size_t cc_offset;
-	};
+	/* Optional bytes of valid data remaining */
+	int cc_buf_len;
+	/* 
+	 * Optional offset within the current buffer segment where
+	 * valid data begins
+	 */
+	size_t cc_offset;
 	enum crypto_buffer_type cc_type;
 };
 
@@ -509,6 +528,16 @@ _crypto_use_mbuf(struct crypto_buffer *cb, struct mbuf *m)
 }
 
 static __inline void
+_crypto_use_vmpage(struct crypto_buffer *cb, vm_page_t *pages, int len,
+    int offset)
+{
+	cb->cb_vm_page = pages;
+	cb->cb_vm_page_len = len;
+	cb->cb_vm_page_offset = offset;
+	cb->cb_type = CRYPTO_BUF_VMPAGE;
+}
+
+static __inline void
 _crypto_use_uio(struct crypto_buffer *cb, struct uio *uio)
 {
 	cb->cb_uio = uio;
@@ -528,6 +557,12 @@ crypto_use_mbuf(struct cryptop *crp, struct mbuf *m)
 }
 
 static __inline void
+crypto_use_vmpage(struct cryptop *crp, vm_page_t *pages, int len, int offset)
+{
+	_crypto_use_vmpage(&crp->crp_buf, pages, len, offset);
+}
+
+static __inline void
 crypto_use_uio(struct cryptop *crp, struct uio *uio)
 {
 	_crypto_use_uio(&crp->crp_buf, uio);
@@ -543,6 +578,13 @@ static __inline void
 crypto_use_output_mbuf(struct cryptop *crp, struct mbuf *m)
 {
 	_crypto_use_mbuf(&crp->crp_obuf, m);
+}
+
+static __inline void
+crypto_use_output_vmpage(struct cryptop *crp, vm_page_t *pages, int len,
+    int offset)
+{
+	_crypto_use_vmpage(&crp->crp_obuf, pages, len, offset);
 }
 
 static __inline void

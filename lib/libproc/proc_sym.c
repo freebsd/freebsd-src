@@ -307,7 +307,7 @@ open_object(struct map_info *mapping)
 	 */
 	if (data->d_size < sizeof(crc) + 1) {
 		DPRINTFX("ERROR: debuglink section is too small (%zd bytes)",
-		    data->d_size);
+		    (ssize_t)data->d_size);
 		goto internal;
 	}
 	if (strnlen(data->d_buf, data->d_size) >= data->d_size - sizeof(crc)) {
@@ -510,7 +510,7 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 	int error;
 
 	if ((mapping = _proc_addr2map(p, addr)) == NULL) {
-		DPRINTFX("ERROR: proc_addr2map failed to resolve 0x%jx", addr);
+		DPRINTFX("ERROR: proc_addr2map failed to resolve 0x%jx", (uintmax_t)addr);
 		return (-1);
 	}
 	if (open_object(mapping) != 0) {

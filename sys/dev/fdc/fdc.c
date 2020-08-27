@@ -492,7 +492,7 @@ fdc_cmd(struct fdc_data *fdc, int n_out, ...)
 	n_in = va_arg(ap, int);
 	for (n = 0; n < n_in; n++) {
 		int *ptr = va_arg(ap, int *);
-		if (fdc_in(fdc, ptr) < 0) {
+		if (fdc_in(fdc, ptr) != 0) {
 			char msg[50];
 			snprintf(msg, sizeof(msg),
 				"cmd %02x failed at in byte %d of %d\n",
@@ -587,7 +587,7 @@ fdc_sense_int(struct fdc_data *fdc, int *st0p, int *cylp)
 		return (FD_NOT_VALID);
 	}
 
-	if (fdc_in(fdc, &cyl) < 0)
+	if (fdc_in(fdc, &cyl) != 0)
 		return fdc_err(fdc, "can't get cyl num\n");
 
 	if (cylp)

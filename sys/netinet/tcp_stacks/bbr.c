@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_tcpdebug.h"
 #include "opt_ratelimit.h"
-#include "opt_kern_tls.h"
 #include <sys/param.h>
 #include <sys/arb.h>
 #include <sys/module.h>
@@ -52,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#ifdef KERN_TLS
-#include <sys/ktls.h>
-#endif
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #ifdef STATS
@@ -4600,15 +4596,6 @@ bbr_timeout_tlp(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 		bbr_set_state(tp, bbr, 0);
 	BBR_STAT_INC(bbr_tlp_tot);
 	maxseg = tp->t_maxseg - bbr->rc_last_options;
-#ifdef KERN_TLS
-	if (bbr->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-		/*
-		 * For hardware TLS we do *not* want to send
-		 * new data.
-		 */
-		goto need_retran;
-	}
-#endif
 	/*
 	 * A TLP timer has expired. We have been idle for 2 rtts. So we now
 	 * need to figure out how to force a full MSS segment out.
@@ -5802,8 +5789,6 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 	 * Note we do set anything TSO size until we are past the initial
 	 * window. Before that we gnerally use either a single MSS
 	 * or we use the full IW size (so we burst a IW at a time)
-	 * Also note that Hardware-TLS is special and does alternate
-	 * things to minimize PCI Bus Bandwidth use.
 	 */
 
 	if (bbr->rc_tp->t_maxseg > bbr->rc_last_options) {
@@ -5811,19 +5796,12 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 	} else {
 		maxseg = BBR_MIN_SEG - bbr->rc_last_options;
 	}
-#ifdef KERN_TLS
-	if (bbr->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-		tls_seg =  ctf_get_opt_tls_size(bbr->rc_inp->inp_socket, bbr->rc_tp->snd_wnd);
-		bbr->r_ctl.rc_pace_min_segs = (tls_seg + bbr->rc_last_options);
-	}
-#endif
 	old_tso = bbr->r_ctl.rc_pace_max_segs;
 	if (bbr->rc_past_init_win == 0) {
 		/*
 		 * Not enough data has been acknowledged to make a
-		 * judgement unless we are hardware TLS. Set up
-		 * the initial TSO based on if we are sending a
-		 * full IW at once or not.
+		 * judgement. Set up the initial TSO based on if we
+		 * are sending a full IW at once or not.
 		 */
 		if (bbr->rc_use_google)
 			bbr->r_ctl.rc_pace_max_segs = ((bbr->rc_tp->t_maxseg - bbr->rc_last_options) * 2);
@@ -5833,22 +5811,10 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 			bbr->r_ctl.rc_pace_max_segs = bbr->rc_tp->t_maxseg - bbr->rc_last_options;
 		if (bbr->r_ctl.rc_pace_min_segs != bbr->rc_tp->t_maxseg)
 			bbr->r_ctl.rc_pace_min_segs = bbr->rc_tp->t_maxseg;
-#ifdef KERN_TLS
-		if ((bbr->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) && tls_seg) {
-			/*
-			 * For hardware TLS we set our min to the tls_seg size.
-			 */
-			bbr->r_ctl.rc_pace_max_segs = tls_seg;
-			bbr->r_ctl.rc_pace_min_segs = tls_seg + bbr->rc_last_options;
-		}
-#endif
 		if (bbr->r_ctl.rc_pace_max_segs == 0) {
 			bbr->r_ctl.rc_pace_max_segs = maxseg;
 		}
 		bbr_log_type_tsosize(bbr, cts, bbr->r_ctl.rc_pace_max_segs, tls_seg, old_tso, maxseg, 0);
-#ifdef KERN_TLS
-		if ((bbr->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) == 0)
-#endif
 			bbr_adjust_for_hw_pacing(bbr, cts);
 		return;
 	}
@@ -5941,41 +5907,17 @@ tcp_bbr_tso_size_check(struct tcp_bbr *bbr, uint32_t cts)
 		new_tso = maxseg * bbr->r_ctl.bbr_hptsi_segments_floor;
 	if (new_tso > PACE_MAX_IP_BYTES)
 		new_tso = rounddown(PACE_MAX_IP_BYTES, maxseg);
-	/* Enforce an utter maximum if we are not HW-TLS */
-#ifdef KERN_TLS
-	if ((bbr->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) == 0)
-#endif
-		if (bbr->r_ctl.bbr_utter_max && (new_tso > (bbr->r_ctl.bbr_utter_max * maxseg))) {
-			new_tso = bbr->r_ctl.bbr_utter_max * maxseg;
-		}
-#ifdef KERN_TLS
-	if (tls_seg) {
-		/*
-		 * Lets move the output size
-		 * up to 1 or more TLS record sizes.
-		 */
-		uint32_t temp;
-
-		temp = roundup(new_tso, tls_seg);
-		new_tso = temp;
-		/* Back down if needed to under a full frame */
-		while (new_tso > PACE_MAX_IP_BYTES)
-			new_tso -= tls_seg;
+	/* Enforce an utter maximum. */
+	if (bbr->r_ctl.bbr_utter_max && (new_tso > (bbr->r_ctl.bbr_utter_max * maxseg))) {
+		new_tso = bbr->r_ctl.bbr_utter_max * maxseg;
 	}
-#endif
 	if (old_tso != new_tso) {
 		/* Only log changes */
 		bbr_log_type_tsosize(bbr, cts, new_tso, tls_seg, old_tso, maxseg, 0);
 		bbr->r_ctl.rc_pace_max_segs = new_tso;
 	}
-#ifdef KERN_TLS
-	if ((bbr->rc_inp->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) &&
-	     tls_seg) {
-		bbr->r_ctl.rc_pace_min_segs = tls_seg + bbr->rc_last_options;
-	} else
-#endif
-		/* We have hardware pacing and not hardware TLS! */
-		bbr_adjust_for_hw_pacing(bbr, cts);
+	/* We have hardware pacing! */
+	bbr_adjust_for_hw_pacing(bbr, cts);
 }
 
 static void
@@ -12094,7 +12036,6 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	volatile int32_t sack_rxmit;
 	struct bbr_sendmap *rsm = NULL;
 	int32_t tso, mtu;
-	int force_tso = 0;
 	struct tcpopt to;
 	int32_t slot = 0;
 	struct inpcb *inp;
@@ -12113,11 +12054,9 @@ bbr_output_wtime(struct tcpcb *tp, const struct timeval *tv)
 	inp = bbr->rc_inp;
 	so = inp->inp_socket;
 	sb = &so->so_snd;
-#ifdef KERN_TLS
  	if (sb->sb_flags & SB_TLS_IFNET)
  		hw_tls = 1;
  	else
-#endif
  		hw_tls = 0;
 	kern_prefetch(sb, &maxseg);
 	maxseg = tp->t_maxseg - bbr->rc_last_options;
@@ -12423,9 +12362,6 @@ recheck_resend:
 		} else
 			len = rsm->r_end - rsm->r_start;
 		if ((bbr->rc_resends_use_tso == 0) &&
-#ifdef KERN_TLS
-		    ((sb->sb_flags & SB_TLS_IFNET) == 0) &&
-#endif
 		    (len > maxseg)) {
 			len = maxseg;
 			more_to_rxt = 1;
@@ -13199,13 +13135,6 @@ send:
 	 * length beyond the t_maxseg length. Clear the FIN bit because we
 	 * cut off the tail of the segment.
 	 */
-#ifdef KERN_TLS
- 	/* force TSO for so TLS offload can get mss */
- 	if (sb->sb_flags & SB_TLS_IFNET) {
- 		force_tso = 1;
- 	}
-#endif
-
 	if (len > maxseg) {
 		if (len != 0 && (flags & TH_FIN)) {
 			flags &= ~TH_FIN;
@@ -13239,8 +13168,7 @@ send:
 			 * Prevent the last segment from being fractional
 			 * unless the send sockbuf can be emptied:
 			 */
-			if (((sb_offset + len) < sbavail(sb)) &&
-			    (hw_tls == 0)) {
+			if ((sb_offset + len) < sbavail(sb)) {
 				moff = len % (uint32_t)maxseg;
 				if (moff != 0) {
 					len -= moff;
@@ -13432,7 +13360,7 @@ send:
 				, &filled_all
 #endif
 				);
-			if (len <= maxseg && !force_tso) {
+			if (len <= maxseg) {
 				/*
 				 * Must have ran out of mbufs for the copy
 				 * shorten it to no longer need tso. Lets
@@ -13758,8 +13686,8 @@ send:
 	 * header checksum is always provided. XXX: Fixme: This is currently
 	 * not the case for IPv6.
 	 */
-	if (tso || force_tso) {
-		KASSERT(force_tso || len > maxseg,
+	if (tso) {
+		KASSERT(len > maxseg,
 		    ("%s: len:%d <= tso_segsz:%d", __func__, len, maxseg));
 		m->m_pkthdr.csum_flags |= CSUM_TSO;
 		csum_flags |= CSUM_TSO;
@@ -13938,35 +13866,6 @@ out:
 		bbr->bbr_segs_rcvd = 0;
 		if (len == 0)
 			counter_u64_add(bbr_out_size[TCP_MSS_ACCT_SNDACK], 1);
-		else if (hw_tls) {
-			if (filled_all ||
-			    (len >= bbr->r_ctl.rc_pace_max_segs))
-				BBR_STAT_INC(bbr_meets_tso_thresh);
-			else {
-				if (doing_tlp) {
-					BBR_STAT_INC(bbr_miss_tlp);
-					bbr_log_type_hrdwtso(tp, bbr, len, 1, what_we_can);
-
-
-				} else if (rsm) {
-					BBR_STAT_INC(bbr_miss_retran);
-					bbr_log_type_hrdwtso(tp, bbr, len, 2, what_we_can);
-				} else if ((ctf_outstanding(tp) + bbr->r_ctl.rc_pace_max_segs) > sbavail(sb)) {
-					BBR_STAT_INC(bbr_miss_tso_app);
-					bbr_log_type_hrdwtso(tp, bbr, len, 3, what_we_can);
-				} else if ((ctf_flight_size(tp, (bbr->r_ctl.rc_sacked +
-								 bbr->r_ctl.rc_lost_bytes)) + bbr->r_ctl.rc_pace_max_segs) > tp->snd_cwnd) {
-					BBR_STAT_INC(bbr_miss_tso_cwnd);
-					bbr_log_type_hrdwtso(tp, bbr, len, 4, what_we_can);
-				} else if ((ctf_outstanding(tp) + bbr->r_ctl.rc_pace_max_segs) > tp->snd_wnd) {
-					BBR_STAT_INC(bbr_miss_tso_rwnd);
-					bbr_log_type_hrdwtso(tp, bbr, len, 5, what_we_can);
-				} else {
-					BBR_STAT_INC(bbr_miss_unknown);
-					bbr_log_type_hrdwtso(tp, bbr, len, 6, what_we_can);
-				}
-			}
-		}
 		/* Do accounting for new sends */
 		if ((len > 0) && (rsm == NULL)) {
 			int idx;
@@ -14286,7 +14185,6 @@ nomore:
 	    (bbr->r_ctl.rc_pace_max_segs > tp->t_maxseg) &&
 	    (doing_tlp == 0) &&
 	    (tso == 0) &&
-	    (hw_tls == 0) &&
 	    (len > 0) &&
 	    ((flags & TH_RST) == 0) &&
 	    ((flags & TH_SYN) == 0) &&

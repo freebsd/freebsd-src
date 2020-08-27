@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018, Juniper Networks, Inc.
+ * Copyright (c) 2017-2020, Juniper Networks, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -255,6 +255,10 @@ severity_guess(const char *filename)
 		    strcmp(cp, ".cookie") == 0 ||
 			strcmp(cp, ".hints") == 0)
 			return (VE_TRY);
+		if (strcmp(cp, ".4th") == 0 ||
+		    strcmp(cp, ".lua") == 0 ||
+		    strcmp(cp, ".rc") == 0)
+			return (VE_MUST);
 	}
 	return (VE_WANT);
 }

@@ -724,10 +724,14 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FVHT_VHT	0x000000001	/* CONF: VHT supported */
 #define	IEEE80211_FVHT_USEVHT40	0x000000002	/* CONF: Use VHT40 */
 #define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
-#define	IEEE80211_FVHT_USEVHT80P80	0x000000008	/* CONF: Use VHT 80+80 */
-#define	IEEE80211_FVHT_USEVHT160	0x000000010	/* CONF: Use VHT160 */
+#define	IEEE80211_FVHT_USEVHT160	0x000000008	/* CONF: Use VHT160 */
+#define	IEEE80211_FVHT_USEVHT80P80	0x000000010	/* CONF: Use VHT 80+80 */
+#define	IEEE80211_FVHT_MASK						\
+	(IEEE80211_FVHT_VHT | IEEE80211_FVHT_USEVHT40 |			\
+	IEEE80211_FVHT_USEVHT80 | IEEE80211_FVHT_USEVHT160 |		\
+	IEEE80211_FVHT_USEVHT80P80)
 #define	IEEE80211_VFHT_BITS \
-	"\20\1VHT\2VHT40\3VHT80\4VHT80P80\5VHT160"
+	"\20\1VHT\2VHT40\3VHT80\4VHT160\5VHT80P80"
 
 #define	IEEE80211_COM_DETACHED	0x00000001	/* ieee80211_ifdetach called */
 #define	IEEE80211_COM_REF_ADD	0x00000002	/* add / remove reference */
@@ -775,6 +779,10 @@ int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
 uint32_t ieee80211_get_channel_center_freq(const struct ieee80211_channel *);
 uint32_t ieee80211_get_channel_center_freq1(const struct ieee80211_channel *);
 uint32_t ieee80211_get_channel_center_freq2(const struct ieee80211_channel *);
+#define	NET80211_CBW_FLAG_HT40		0x01
+#define	NET80211_CBW_FLAG_VHT80		0x02
+#define	NET80211_CBW_FLAG_VHT160	0x04
+#define	NET80211_CBW_FLAG_VHT80P80	0x08
 int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
 	    const uint8_t[], int, const uint8_t[], int);
 int	ieee80211_add_channels_default_2ghz(struct ieee80211_channel[], int,
@@ -920,10 +928,10 @@ static __inline int
 ieee80211_vhtchanflags(const struct ieee80211_channel *c)
 {
 
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
+		return IEEE80211_FVHT_USEVHT80P80;
 	if (IEEE80211_IS_CHAN_VHT160(c))
 		return IEEE80211_FVHT_USEVHT160;
-	if (IEEE80211_IS_CHAN_VHT80_80(c))
-		return IEEE80211_FVHT_USEVHT80P80;
 	if (IEEE80211_IS_CHAN_VHT80(c))
 		return IEEE80211_FVHT_USEVHT80;
 	if (IEEE80211_IS_CHAN_VHT40(c))

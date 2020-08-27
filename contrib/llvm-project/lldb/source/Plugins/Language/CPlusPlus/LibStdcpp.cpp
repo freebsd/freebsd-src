@@ -1,4 +1,4 @@
-//===-- LibStdcpp.cpp -------------------------------------------*- C++ -*-===//
+//===-- LibStdcpp.cpp -----------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -8,11 +8,11 @@
 
 #include "LibStdcpp.h"
 
+#include "Plugins/TypeSystem/Clang/TypeSystemClang.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/DataFormatters/StringPrinter.h"
 #include "lldb/DataFormatters/VectorIterator.h"
-#include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Endian.h"
@@ -259,6 +259,7 @@ bool lldb_private::formatters::LibStdcppStringSummaryProvider(
       if (error.Fail())
         return false;
       options.SetSourceSize(size_of_data);
+      options.SetHasSourceSize(true);
 
       if (!StringPrinter::ReadStringAndDumpToStream<
               StringPrinter::StringElementType::UTF8>(options)) {
@@ -319,6 +320,7 @@ bool lldb_private::formatters::LibStdcppWStringSummaryProvider(
       if (error.Fail())
         return false;
       options.SetSourceSize(size_of_data);
+      options.SetHasSourceSize(true);
       options.SetPrefixToken("L");
 
       switch (wchar_size) {

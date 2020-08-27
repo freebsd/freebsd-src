@@ -12723,7 +12723,7 @@ softdep_fsync_mountdev(vp)
 	struct worklist *wk;
 	struct bufobj *bo;
 
-	if (!vn_isdisk(vp, NULL))
+	if (!vn_isdisk(vp))
 		panic("softdep_fsync_mountdev: vnode not a disk");
 	bo = &vp->v_bufobj;
 restart:
@@ -13624,8 +13624,7 @@ softdep_request_cleanup_flush(mp, ump)
 			VI_UNLOCK(lvp);
 			continue;
 		}
-		if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT,
-		    td) != 0) {
+		if (vget(lvp, LK_EXCLUSIVE | LK_INTERLOCK | LK_NOWAIT) != 0) {
 			failed_vnode = 1;
 			continue;
 		}

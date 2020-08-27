@@ -652,6 +652,7 @@ passregister(struct cam_periph *periph, void *arg)
 	args.mda_gid = GID_OPERATOR;
 	args.mda_mode = 0600;
 	args.mda_si_drv1 = periph;
+	args.mda_flags = MAKEDEV_NOWAIT;
 	error = make_dev_s(&args, &softc->dev, "%s%d", periph->periph_name,
 	    periph->unit_number);
 	if (error != 0) {

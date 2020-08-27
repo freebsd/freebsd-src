@@ -1,4 +1,4 @@
-//===-- Function.cpp --------------------------------------------*- C++ -*-===//
+//===-- Function.cpp ------------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -82,25 +82,24 @@ void InlineFunctionInfo::Dump(Stream *s, bool show_fullpaths) const {
     m_mangled.Dump(s);
 }
 
-void InlineFunctionInfo::DumpStopContext(Stream *s,
-                                         LanguageType language) const {
+void InlineFunctionInfo::DumpStopContext(Stream *s) const {
   //    s->Indent("[inlined] ");
   s->Indent();
   if (m_mangled)
-    s->PutCString(m_mangled.GetName(language).AsCString());
+    s->PutCString(m_mangled.GetName().AsCString());
   else
     s->PutCString(m_name.AsCString());
 }
 
-ConstString InlineFunctionInfo::GetName(LanguageType language) const {
+ConstString InlineFunctionInfo::GetName() const {
   if (m_mangled)
-    return m_mangled.GetName(language);
+    return m_mangled.GetName();
   return m_name;
 }
 
-ConstString InlineFunctionInfo::GetDisplayName(LanguageType language) const {
+ConstString InlineFunctionInfo::GetDisplayName() const {
   if (m_mangled)
-    return m_mangled.GetDisplayDemangledName(language);
+    return m_mangled.GetDisplayDemangledName();
   return m_name;
 }
 
@@ -121,10 +120,32 @@ size_t InlineFunctionInfo::MemorySize() const {
 /// @name Call site related structures
 /// @{
 
+lldb::addr_t CallEdge::GetLoadAddress(lldb::addr_t unresolved_pc,
+                                      Function &caller, Target &target) {
+  Log *log(lldb_private::GetLogIfAllCategoriesSet(LIBLLDB_LOG_STEP));
+
+  const Address &caller_start_addr = caller.GetAddressRange().GetBaseAddress();
+
+  ModuleSP caller_module_sp = caller_start_addr.GetModule();
+  if (!caller_module_sp) {
+    LLDB_LOG(log, "GetLoadAddress: cannot get Module for caller");
+    return LLDB_INVALID_ADDRESS;
+  }
+
+  SectionList *section_list = caller_module_sp->GetSectionList();
+  if (!section_list) {
+    LLDB_LOG(log, "GetLoadAddress: cannot get SectionList for Module");
+    return LLDB_INVALID_ADDRESS;
+  }
+
+  Address the_addr = Address(unresolved_pc, section_list);
+  lldb::addr_t load_addr = the_addr.GetLoadAddress(&target);
+  return load_addr;
+}
+
 lldb::addr_t CallEdge::GetReturnPCAddress(Function &caller,
                                           Target &target) const {
-  const Address &base = caller.GetAddressRange().GetBaseAddress();
-  return base.GetLoadAddress(&target) + return_pc;
+  return GetLoadAddress(GetUnresolvedReturnPCAddress(), caller, target);
 }
 
 void DirectCallEdge::ParseSymbolFileAndResolve(ModuleList &images) {
@@ -269,6 +290,8 @@ void Function::GetEndLineSourceInfo(FileSpec &source_file, uint32_t &line_no) {
 }
 
 llvm::ArrayRef<std::unique_ptr<CallEdge>> Function::GetCallEdges() {
+  std::lock_guard<std::mutex> guard(m_call_edges_lock);
+
   if (m_call_edges_resolved)
     return m_call_edges;
 
@@ -288,36 +311,34 @@ llvm::ArrayRef<std::unique_ptr<CallEdge>> Function::GetCallEdges() {
   m_call_edges = sym_file->ParseCallEdgesInFunction(GetID());
 
   // Sort the call edges to speed up return_pc lookups.
-  llvm::sort(m_call_edges.begin(), m_call_edges.end(),
-             [](const std::unique_ptr<CallEdge> &LHS,
-                const std::unique_ptr<CallEdge> &RHS) {
-               return LHS->GetUnresolvedReturnPCAddress() <
-                      RHS->GetUnresolvedReturnPCAddress();
-             });
+  llvm::sort(m_call_edges, [](const std::unique_ptr<CallEdge> &LHS,
+                              const std::unique_ptr<CallEdge> &RHS) {
+    return LHS->GetSortKey() < RHS->GetSortKey();
+  });
 
   return m_call_edges;
 }
 
 llvm::ArrayRef<std::unique_ptr<CallEdge>> Function::GetTailCallingEdges() {
-  // Call edges are sorted by return PC, and tail calling edges have invalid
-  // return PCs. Find them at the end of the list.
-  return GetCallEdges().drop_until([](const std::unique_ptr<CallEdge> &edge) {
-    return edge->GetUnresolvedReturnPCAddress() == LLDB_INVALID_ADDRESS;
-  });
+  // Tail calling edges are sorted at the end of the list. Find them by dropping
+  // all non-tail-calls.
+  return GetCallEdges().drop_until(
+      [](const std::unique_ptr<CallEdge> &edge) { return edge->IsTailCall(); });
 }
 
 CallEdge *Function::GetCallEdgeForReturnAddress(addr_t return_pc,
                                                 Target &target) {
   auto edges = GetCallEdges();
   auto edge_it =
-      std::lower_bound(edges.begin(), edges.end(), return_pc,
-                       [&](const std::unique_ptr<CallEdge> &edge, addr_t pc) {
-                         return edge->GetReturnPCAddress(*this, target) < pc;
-                       });
+      llvm::partition_point(edges, [&](const std::unique_ptr<CallEdge> &edge) {
+        return std::make_pair(edge->IsTailCall(),
+                              edge->GetReturnPCAddress(*this, target)) <
+               std::make_pair(false, return_pc);
+      });
   if (edge_it == edges.end() ||
       edge_it->get()->GetReturnPCAddress(*this, target) != return_pc)
     return nullptr;
-  return &const_cast<CallEdge &>(*edge_it->get());
+  return edge_it->get();
 }
 
 Block &Function::GetBlock(bool can_create) {
@@ -349,9 +370,9 @@ void Function::GetDescription(Stream *s, lldb::DescriptionLevel level,
 
   *s << "id = " << (const UserID &)*this;
   if (name)
-    *s << ", name = \"" << name.GetCString() << '"';
+    s->AsRawOstream() << ", name = \"" << name << '"';
   if (mangled)
-    *s << ", mangled = \"" << mangled.GetCString() << '"';
+    s->AsRawOstream() << ", mangled = \"" << mangled << '"';
   *s << ", range = ";
   Address::DumpStyle fallback_style;
   if (level == eDescriptionLevelVerbose)
@@ -404,11 +425,11 @@ lldb::DisassemblerSP Function::GetInstructions(const ExecutionContext &exe_ctx,
                                                const char *flavor,
                                                bool prefer_file_cache) {
   ModuleSP module_sp(GetAddressRange().GetBaseAddress().GetModule());
-  if (module_sp) {
+  if (module_sp && exe_ctx.HasTargetScope()) {
     const bool prefer_file_cache = false;
     return Disassembler::DisassembleRange(module_sp->GetArchitecture(), nullptr,
-                                          flavor, exe_ctx, GetAddressRange(),
-                                          prefer_file_cache);
+                                          flavor, exe_ctx.GetTargetRef(),
+                                          GetAddressRange(), prefer_file_cache);
   }
   return lldb::DisassemblerSP();
 }
@@ -465,7 +486,7 @@ bool Function::IsTopLevelFunction() {
 }
 
 ConstString Function::GetDisplayName() const {
-  return m_mangled.GetDisplayDemangledName(GetLanguage());
+  return m_mangled.GetDisplayDemangledName();
 }
 
 CompilerDeclContext Function::GetDeclContext() {
@@ -633,15 +654,9 @@ lldb::LanguageType Function::GetLanguage() const {
 }
 
 ConstString Function::GetName() const {
-  LanguageType language = lldb::eLanguageTypeUnknown;
-  if (m_comp_unit)
-    language = m_comp_unit->GetLanguage();
-  return m_mangled.GetName(language);
+  return m_mangled.GetName();
 }
 
 ConstString Function::GetNameNoArguments() const {
-  LanguageType language = lldb::eLanguageTypeUnknown;
-  if (m_comp_unit)
-    language = m_comp_unit->GetLanguage();
-  return m_mangled.GetName(language, Mangled::ePreferDemangledWithoutArguments);
+  return m_mangled.GetName(Mangled::ePreferDemangledWithoutArguments);
 }

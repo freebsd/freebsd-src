@@ -79,7 +79,7 @@ procfs_doprocfile(PFS_FILL_ARGS)
 	textvp = p->p_textvp;
 	vhold(textvp);
 	PROC_UNLOCK(p);
-	error = vn_fullpath(td, textvp, &fullpath, &freepath);
+	error = vn_fullpath(textvp, &fullpath, &freepath);
 	vdrop(textvp);
 	if (error == 0)
 		sbuf_printf(sb, "%s", fullpath);

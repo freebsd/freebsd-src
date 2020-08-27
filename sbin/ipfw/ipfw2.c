@@ -2199,7 +2199,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 			*strchr(timestr, '\n') = '\0';
 			bprintf(bp, "%s ", timestr);
 		} else {
-			bprintf(bp, "%*s", twidth, " ");
+			bprintf(bp, "%*s", twidth + 1, " ");
 		}
 	}
 

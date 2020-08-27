@@ -642,6 +642,7 @@ struct ub_shm_stat_info {
 		long long respip;
 		long long dnscrypt_shared_secret;
 		long long dnscrypt_nonce;
+		long long dynlib;
 	} mem;
 };
 

@@ -79,6 +79,7 @@ struct rib_head {
 
 /* Constants */
 #define	RIB_MAX_RETRIES	3
+#define	RT_MAXFIBS	UINT16_MAX
 
 /* Macro for verifying fields in af-specific 'struct route' structures */
 #define CHK_STRUCT_FIELD_GENERIC(_s1, _f1, _s2, _f2)			\
@@ -104,7 +105,7 @@ CHK_STRUCT_ROUTE_FIELDS(_ro_new);						\
 _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new),\
 		"ro_dst and " #_dst_new " are at different offset")
 
-struct rib_head *rt_tables_get_rnh(int fib, int family);
+struct rib_head *rt_tables_get_rnh(uint32_t table, sa_family_t family);
 void rt_mpath_init_rnh(struct rib_head *rnh);
 int rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum);
 void rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt);
@@ -164,25 +165,12 @@ struct rtentry {
 		char			rt_dstb[28];
 	};
 
-	int		rt_flags;	/* up/down?, host/net */
+	int		rte_flags;	/* up/down?, host/net */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_mtx
-	struct mtx	rt_mtx;		/* mutex for routing entry */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
 	struct epoch_context	rt_epoch_ctx;	/* net epoch tracker */
 };
-
-#define	RT_LOCK_INIT(_rt) \
-	mtx_init(&(_rt)->rt_mtx, "rtentry", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW)
-#define	RT_LOCK(_rt)		mtx_lock(&(_rt)->rt_mtx)
-#define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
-#define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
-#define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
-#define	RT_UNLOCK_COND(_rt)	do {				\
-	if (mtx_owned(&(_rt)->rt_mtx))				\
-		mtx_unlock(&(_rt)->rt_mtx);			\
-} while (0)
 
 /*
  * With the split between the routing entry and the nexthop,
@@ -236,5 +224,9 @@ fib_rte_to_nh_flags(int rt_flags)
 void tmproutes_update(struct rib_head *rnh, struct rtentry *rt);
 void tmproutes_init(struct rib_head *rh);
 void tmproutes_destroy(struct rib_head *rh);
+
+/* route_ctl.c */
+void vnet_rtzone_init(void);
+void vnet_rtzone_destroy(void);
 
 #endif

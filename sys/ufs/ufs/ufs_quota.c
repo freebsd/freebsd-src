@@ -613,7 +613,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	 */
 again:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK)) {
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
@@ -680,7 +680,7 @@ again:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK)) {
 			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
@@ -1064,7 +1064,6 @@ int
 qsync(struct mount *mp)
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
-	struct thread *td = curthread;		/* XXX */
 	struct vnode *vp, *mvp;
 	struct dquot *dq;
 	int i, error;
@@ -1088,7 +1087,7 @@ again:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
+		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		if (error) {
 			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);

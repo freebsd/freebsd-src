@@ -106,3 +106,8 @@ CXXSTD?=	c++14
 CXXFLAGS+=	-fno-exceptions
 CXXFLAGS+=	-fno-rtti
 CXXFLAGS.clang+= -stdlib=libc++
+
+.if ${MACHINE_ARCH:Mmips64}
+STATIC_CFLAGS+= -mxgot
+STATIC_CXXFLAGS+= -mxgot
+.endif

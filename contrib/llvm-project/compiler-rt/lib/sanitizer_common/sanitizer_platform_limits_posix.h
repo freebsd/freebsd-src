@@ -47,6 +47,7 @@ extern unsigned struct_timezone_sz;
 extern unsigned struct_tms_sz;
 extern unsigned struct_itimerspec_sz;
 extern unsigned struct_sigevent_sz;
+extern unsigned struct_stack_t_sz;
 extern unsigned struct_sched_param_sz;
 extern unsigned struct_statfs64_sz;
 extern unsigned struct_regex_sz;
@@ -79,9 +80,6 @@ const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__powerpc64__)
 const unsigned struct_kernel_stat_sz = 144;
 const unsigned struct_kernel_stat64_sz = 104;
-#elif defined(__riscv) && __riscv_xlen == 64
-  const unsigned struct_kernel_stat_sz = 128;
-  const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__mips__)
 const unsigned struct_kernel_stat_sz = SANITIZER_ANDROID
                                            ? FIRST_32_SECOND_64(104, 128)
@@ -705,6 +703,12 @@ struct __sanitizer_dl_phdr_info {
 
 extern unsigned struct_ElfW_Phdr_sz;
 #endif
+
+struct __sanitizer_protoent {
+  char *p_name;
+  char **p_aliases;
+  int p_proto;
+};
 
 struct __sanitizer_addrinfo {
   int ai_flags;

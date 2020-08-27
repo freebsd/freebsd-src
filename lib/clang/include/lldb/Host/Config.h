@@ -47,6 +47,8 @@
 
 #define LLDB_ENABLE_PYTHON 0
 
+#define LLDB_EMBED_PYTHON_HOME 0
+
 /* #undef LLDB_PYTHON_HOME */
 
 #define LLDB_LIBDIR_SUFFIX ""

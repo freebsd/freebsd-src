@@ -47,6 +47,8 @@ enum g_part_alias {
 	G_PART_ALIAS_APPLE_RAID_OFFLINE,/* An Apple RAID (offline) part entry.*/
 	G_PART_ALIAS_APPLE_TV_RECOVERY,	/* An Apple TV recovery part entry. */
 	G_PART_ALIAS_APPLE_UFS,		/* An Apple UFS partition entry. */
+	G_PART_ALIAS_APPLE_ZFS,		/* An Apple ZFS partition entry.
+					   Also used for Solaris /usr partition. */
 	G_PART_ALIAS_BIOS_BOOT,		/* A GRUB 2 boot partition entry. */
 	G_PART_ALIAS_CHROMEOS_FIRMWARE,	/* A ChromeOS firmware part. entry. */
 	G_PART_ALIAS_CHROMEOS_KERNEL,	/* A ChromeOS Kernel part. entry. */
@@ -93,6 +95,14 @@ enum g_part_alias {
 	G_PART_ALIAS_NETBSD_SWAP,	/* A NetBSD swap partition entry. */
 	G_PART_ALIAS_OPENBSD_DATA,	/* An OpenBSD data partition entry. */
 	G_PART_ALIAS_PREP_BOOT,		/* A PREP/CHRP boot partition entry. */
+	G_PART_ALIAS_SOLARIS_BOOT,	/* A Solaris boot partition entry. */
+	G_PART_ALIAS_SOLARIS_ROOT,	/* A Solaris root partition entry. */
+	G_PART_ALIAS_SOLARIS_SWAP,	/* A Solaris swap partition entry. */
+	G_PART_ALIAS_SOLARIS_BACKUP,	/* A Solaris backup partition entry. */
+	G_PART_ALIAS_SOLARIS_VAR,	/* A Solaris /var partition entry. */
+	G_PART_ALIAS_SOLARIS_HOME,	/* A Solaris /home partition entry. */
+	G_PART_ALIAS_SOLARIS_ALTSEC,	/* A Solaris alternate sector partition entry. */
+	G_PART_ALIAS_SOLARIS_RESERVED,	/* A Solaris reserved partition entry. */
 	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
 	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
 	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */

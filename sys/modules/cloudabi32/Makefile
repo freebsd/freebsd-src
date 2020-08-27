@@ -33,7 +33,7 @@ BINARY_ARCHITECTURE=i386
 .endif
 
 cloudabi32_vdso.o: ${VDSO_SRCS}
-	${CC} -x assembler-with-cpp -m32 -shared -nostdinc -nostdlib \
+	${CC} ${CCLDFLAGS} -x assembler-with-cpp -m32 -shared -nostdinc -nostdlib \
 	    -Wl,-T${SYSDIR}/compat/cloudabi/cloudabi_vdso.lds \
 	    ${VDSO_SRCS} -o ${.TARGET}
 

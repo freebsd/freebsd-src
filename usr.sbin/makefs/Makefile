@@ -17,6 +17,7 @@ SRCS=	cd9660.c \
 MAN=	makefs.8
 
 WARNS?=	2
+CSTD=	c11
 
 .include "${SRCDIR}/cd9660/Makefile.inc"
 .include "${SRCDIR}/ffs/Makefile.inc"

@@ -1186,6 +1186,7 @@ vop_stdset_text(struct vop_set_text_args *ap)
 		mp = vp->v_mount;
 		if (mp != NULL && (mp->mnt_kern_flag & MNTK_TEXT_REFS) != 0 &&
 		    vp->v_writecount == 0) {
+			VNPASS((vp->v_iflag & VI_TEXT_REF) == 0, vp);
 			vp->v_iflag |= VI_TEXT_REF;
 			vrefl(vp);
 		}
@@ -1348,7 +1349,7 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		if ((error = vget(vp, lockreq, td)) != 0) {
+		if ((error = vget(vp, lockreq)) != 0) {
 			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;

@@ -62,9 +62,9 @@ main(int argc, char **argv)
 	pid_t child;
 
 	silent = keep = 0;
-	flags = O_CREAT;
+	flags = O_CREAT | O_RDONLY;
 	waitsec = -1;	/* Infinite. */
-	while ((ch = getopt(argc, argv, "sknt:")) != -1) {
+	while ((ch = getopt(argc, argv, "sknt:w")) != -1) {
 		switch (ch) {
 		case 'k':
 			keep = 1;
@@ -83,6 +83,9 @@ main(int argc, char **argv)
 				errx(EX_USAGE,
 				    "invalid timeout \"%s\"", optarg);
 		}
+			break;
+		case 'w':
+			flags = (flags & ~O_RDONLY) | O_WRONLY;
 			break;
 		default:
 			usage();
@@ -171,7 +174,7 @@ acquire_lock(const char *name, int flags)
 {
 	int fd;
 
-	if ((fd = open(name, O_RDONLY|O_EXLOCK|flags, 0666)) == -1) {
+	if ((fd = open(name, O_EXLOCK|flags, 0666)) == -1) {
 		if (errno == EAGAIN || errno == EINTR)
 			return (-1);
 		else if (errno == ENOENT && (flags & O_CREAT) == 0)

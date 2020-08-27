@@ -79,6 +79,7 @@ static int ra_opt_rdnss_dispatch(struct ifinfo *, struct rainfo *,
     struct script_msg_head_t *, struct script_msg_head_t *);
 static char *make_rsid(const char *, const char *, struct rainfo *);
 
+#define	_ARGS_MANAGED	managedconf_script, ifi->ifname
 #define	_ARGS_OTHER	otherconf_script, ifi->ifname
 #define	_ARGS_RESADD	resolvconf_script, "-a", rsid
 #define	_ARGS_RESDEL	resolvconf_script, "-d", rsid
@@ -291,18 +292,36 @@ rtsol_input(int sock)
 	nd_ra = (struct nd_router_advert *)icp;
 
 	/*
+	 * Process the "M bit."
+	 * If the value of ManagedConfigFlag changes from FALSE to TRUE, the
+	 * host should invoke the stateful autoconfiguration protocol,
+	 * requesting information.
+	 * [RFC 4861 Section 4.2]
+	 * XXX ??? [draft-ietf-v6ops-dhcpv6-slaac-problem-07]
+	 */
+	if (((nd_ra->nd_ra_flags_reserved) & ND_RA_FLAG_MANAGED) &&
+	    !ifi->managedconfig) {
+		warnmsg(LOG_DEBUG, __func__,
+		    "ManagedConfigFlag on %s is turned on", ifi->ifname);
+		ifi->managedconfig = 1;
+		CALL_SCRIPT(MANAGED, NULL);
+	}
+
+	/*
 	 * Process the "O bit."
 	 * If the value of OtherConfigFlag changes from FALSE to TRUE, the
 	 * host should invoke the stateful autoconfiguration protocol,
-	 * requesting information.
-	 * [RFC 2462 Section 5.5.3]
+	 * requesting information unless the "M bit" was set as well in
+	 * which case the "O bit" is redundant.
+	 * [RFC 4861 Section 4.2]
 	 */
 	if (((nd_ra->nd_ra_flags_reserved) & ND_RA_FLAG_OTHER) &&
 	    !ifi->otherconfig) {
 		warnmsg(LOG_DEBUG, __func__,
 		    "OtherConfigFlag on %s is turned on", ifi->ifname);
 		ifi->otherconfig = 1;
-		CALL_SCRIPT(OTHER, NULL);
+		if (!ifi->managedconfig)
+			CALL_SCRIPT(OTHER, NULL);
 	}
 	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 	newent_rai = 0;

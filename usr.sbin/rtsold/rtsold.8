@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2011
+.Dd August 19, 2020
 .Dt RTSOLD 8
 .Os
 .\"
@@ -40,23 +40,27 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl dDfFmu1
+.Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl p Ar pidfile
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm
 .Op Fl dDfFmu1
+.Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl p Ar pidfile
 .Op Fl R Ar script-name
 .Fl a
 .Nm rtsol
 .Op Fl dDu
+.Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl R Ar script-name
 .Ar interface ...
 .Nm rtsol
 .Op Fl dDu
+.Op Fl M Ar script-name
 .Op Fl O Ar script-name
 .Op Fl R Ar script-name
 .Fl a
@@ -208,6 +212,20 @@ Transmit Router Solicitation packets until at least one valid Router
 Advertisement packet has arrived on each
 .Ar interface ,
 then exit.
+.It Fl M Ar script-name
+Specifies a supplement script file to handle the Managed Configuration
+flag of the router advertisement.
+When the flag changes from FALSE to TRUE,
+.Nm
+will invoke
+.Ar script-name
+with a single argument of the receiving interface name,
+expecting the script will then start a protocol for the managed
+configuration.
+.Ar script-name
+must be the absolute path from root to the script file, be a regular
+file, and be created by the same owner who runs
+.Nm .
 .It Fl O Ar script-name
 Specifies a supplement script file to handle the Other Configuration
 flag of the router advertisement.
@@ -218,6 +236,8 @@ will invoke
 with a single argument of the receiving interface name,
 expecting the script will then start a protocol for the other
 configuration.
+The script will not be run if the Managed Configuration flag in the
+router advertisement is also TRUE.
 .Ar script-name
 must be the absolute path from root to the script file, be a regular
 file, and be created by the same owner who runs

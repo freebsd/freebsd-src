@@ -1284,7 +1284,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	cred = td->td_ucred;
 	writex = (*maxprotp & VM_PROT_WRITE) != 0 &&
 	    (*flagsp & MAP_SHARED) != 0;
-	if ((error = vget(vp, LK_SHARED, td)) != 0)
+	if ((error = vget(vp, LK_SHARED)) != 0)
 		return (error);
 	AUDIT_ARG_VNODE1(vp);
 	foff = *foffp;
@@ -1305,7 +1305,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			 * Bypass filesystems obey the mpsafety of the
 			 * underlying fs.  Tmpfs never bypasses.
 			 */
-			error = vget(vp, LK_SHARED, td);
+			error = vget(vp, LK_SHARED);
 			if (error != 0)
 				return (error);
 		}
