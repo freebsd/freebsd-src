@@ -111,6 +111,7 @@ CONFS=	DAEMON \
 	swaplate \
 	sysctl \
 	syslogd \
+	sysvipc \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \

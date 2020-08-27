@@ -14,14 +14,6 @@ desc="Enable foreign ABIs"
 start_cmd="${name}_start"
 stop_cmd=":"
 
-sysv_start()
-{
-	echo -n ' sysvipc'
-	load_kld sysvmsg
-	load_kld sysvsem
-	load_kld sysvshm
-}
-
 linux_start()
 {
 	local _tmpdir
@@ -48,12 +40,11 @@ abi_start()
 	local _echostop
 
 	_echostop=
-	if checkyesno sysvipc_enable || checkyesno linux_enable; then
+	if checkyesno linux_enable; then
 		echo -n 'Additional ABI support:'
 		_echostop=yes
 	fi
 
-	checkyesno sysvipc_enable && sysv_start
 	checkyesno linux_enable && linux_start
 
 	[ -n "${_echostop}" ] && echo '.'
