@@ -20,9 +20,9 @@ zpool_start()
 {
 	local cachefile
 
-	for cachefile in /boot/zfs/zpool.cache /etc/zfs/zpool.cache; do
+	for cachefile in /etc/zfs/zpool.cache /boot/zfs/zpool.cache; do
 		if [ -r $cachefile ]; then
-			zpool import -c $cachefile -a -N
+			zpool import -c $cachefile -a -N && break
 		fi
 	done
 }
