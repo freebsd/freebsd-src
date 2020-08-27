@@ -32,6 +32,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	'zpool upgrade' for the next few weeks. The change should be transparent
 	unless you  want to use new features.
 
+	Not all "NO_CLEAN" build scenarios work across these changes. Many
+	scenarios have been tested and fixed, but rebuilding kernels without
+	rebuilding world may fail.
+
 20200824:
 	The resume code now notifies devd with the 'kernel' system
 	rather than the old 'kern' subsystem to be consistent with
