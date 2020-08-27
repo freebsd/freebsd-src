@@ -74,29 +74,6 @@
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
 
-#include <vm/uma.h>
-
-#define	RT_MAXFIBS	UINT16_MAX
-
-/* Kernel config default option. */
-#ifdef ROUTETABLES
-#if ROUTETABLES <= 0
-#error "ROUTETABLES defined too low"
-#endif
-#if ROUTETABLES > RT_MAXFIBS
-#error "ROUTETABLES defined too big"
-#endif
-#define	RT_NUMFIBS	ROUTETABLES
-#endif /* ROUTETABLES */
-/* Initialize to default if not otherwise set. */
-#ifndef	RT_NUMFIBS
-#define	RT_NUMFIBS	1
-#endif
-
-/* This is read-only.. */
-u_int rt_numfibs = RT_NUMFIBS;
-SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RDTUN, &rt_numfibs, 0, "");
-
 /*
  * By default add routes to all fibs for new interfaces.
  * Once this is set to 0 then only allocate routes on interface
@@ -118,77 +95,12 @@ VNET_PCPUSTAT_SYSINIT(rtstat);
 VNET_PCPUSTAT_SYSUNINIT(rtstat);
 #endif
 
-VNET_DEFINE(struct rib_head *, rt_tables);
-#define	V_rt_tables	VNET(rt_tables)
-
-
-VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
-#define	V_rtzone	VNET(rtzone)
-
 EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
 static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,
     void *arg);
-static void destroy_rtentry_epoch(epoch_context_t ctx);
 static int rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info,
     int flags);
-
-/*
- * handler for net.my_fibnum
- */
-static int
-sysctl_my_fibnum(SYSCTL_HANDLER_ARGS)
-{
-        int fibnum;
-        int error;
- 
-        fibnum = curthread->td_proc->p_fibnum;
-        error = sysctl_handle_int(oidp, &fibnum, 0, req);
-        return (error);
-}
-
-SYSCTL_PROC(_net, OID_AUTO, my_fibnum,
-    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
-    &sysctl_my_fibnum, "I",
-    "default FIB of caller");
-
-static __inline struct rib_head **
-rt_tables_get_rnh_ptr(int table, int fam)
-{
-	struct rib_head **rnh;
-
-	KASSERT(table >= 0 && table < rt_numfibs,
-	    ("%s: table out of bounds (0 <= %d < %d)", __func__, table,
-	     rt_numfibs));
-	KASSERT(fam >= 0 && fam < (AF_MAX + 1),
-	    ("%s: fam out of bounds (0 <= %d < %d)", __func__, fam, AF_MAX+1));
-
-	/* rnh is [fib=0][af=0]. */
-	rnh = (struct rib_head **)V_rt_tables;
-	/* Get the offset to the requested table and fam. */
-	rnh += table * (AF_MAX+1) + fam;
-
-	return (rnh);
-}
-
-struct rib_head *
-rt_tables_get_rnh(int table, int fam)
-{
-
-	return (*rt_tables_get_rnh_ptr(table, fam));
-}
-
-u_int
-rt_tables_get_gen(int table, int fam)
-{
-	struct rib_head *rnh;
-
-	rnh = *rt_tables_get_rnh_ptr(table, fam);
-	KASSERT(rnh != NULL, ("%s: NULL rib_head pointer table %d fam %d",
-	    __func__, table, fam));
-	return (rnh->rnh_gen);
-}
-
 
 /*
  * route initialization must occur before ip6_init2(), which happenas at
@@ -198,127 +110,9 @@ static void
 route_init(void)
 {
 
-	/* whack the tunable ints into  line. */
-	if (rt_numfibs > RT_MAXFIBS)
-		rt_numfibs = RT_MAXFIBS;
-	if (rt_numfibs == 0)
-		rt_numfibs = 1;
 	nhops_init();
 }
 SYSINIT(route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, route_init, NULL);
-
-static int
-rtentry_zinit(void *mem, int size, int how)
-{
-	struct rtentry *rt = mem;
-
-	RT_LOCK_INIT(rt);
-
-	return (0);
-}
-
-static void
-rtentry_zfini(void *mem, int size)
-{
-	struct rtentry *rt = mem;
-
-	RT_LOCK_DESTROY(rt);
-}
-
-static int
-rtentry_ctor(void *mem, int size, void *arg, int how)
-{
-	struct rtentry *rt = mem;
-
-	bzero(rt, offsetof(struct rtentry, rt_endzero));
-	rt->rt_chain = NULL;
-
-	return (0);
-}
-
-static void
-rtentry_dtor(void *mem, int size, void *arg)
-{
-	struct rtentry *rt = mem;
-
-	RT_UNLOCK_COND(rt);
-}
-
-static void
-vnet_route_init(const void *unused __unused)
-{
-	struct domain *dom;
-	struct rib_head **rnh;
-	int table;
-	int fam;
-
-	V_rt_tables = malloc(rt_numfibs * (AF_MAX+1) *
-	    sizeof(struct rib_head *), M_RTABLE, M_WAITOK|M_ZERO);
-
-	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
-	    rtentry_ctor, rtentry_dtor,
-	    rtentry_zinit, rtentry_zfini, UMA_ALIGN_PTR, 0);
-	for (dom = domains; dom; dom = dom->dom_next) {
-		if (dom->dom_rtattach == NULL)
-			continue;
-
-		for  (table = 0; table < rt_numfibs; table++) {
-			fam = dom->dom_family;
-			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
-				break;
-
-			rnh = rt_tables_get_rnh_ptr(table, fam);
-			if (rnh == NULL)
-				panic("%s: rnh NULL", __func__);
-			dom->dom_rtattach((void **)rnh, 0, table);
-		}
-	}
-}
-VNET_SYSINIT(vnet_route_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_FOURTH,
-    vnet_route_init, 0);
-
-#ifdef VIMAGE
-static void
-vnet_route_uninit(const void *unused __unused)
-{
-	int table;
-	int fam;
-	struct domain *dom;
-	struct rib_head **rnh;
-
-	for (dom = domains; dom; dom = dom->dom_next) {
-		if (dom->dom_rtdetach == NULL)
-			continue;
-
-		for (table = 0; table < rt_numfibs; table++) {
-			fam = dom->dom_family;
-
-			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
-				break;
-
-			rnh = rt_tables_get_rnh_ptr(table, fam);
-			if (rnh == NULL)
-				panic("%s: rnh NULL", __func__);
-			dom->dom_rtdetach((void **)rnh, 0);
-		}
-	}
-
-	/*
-	 * dom_rtdetach calls rt_table_destroy(), which
-	 *  schedules deletion for all rtentries, nexthops and control
-	 *  structures. Wait for the destruction callbacks to fire.
-	 * Note that this should result in freeing all rtentries, but
-	 *  nexthops deletions will be scheduled for the next epoch run
-	 *  and will be completed after vnet teardown.
-	 */
-	epoch_drain_callbacks(net_epoch_preempt);
-
-	free(V_rt_tables, M_RTABLE);
-	uma_zdestroy(V_rtzone);
-}
-VNET_SYSUNINIT(vnet_route_uninit, SI_SUB_PROTO_DOMAIN, SI_ORDER_FIRST,
-    vnet_route_uninit, 0);
-#endif
 
 struct rib_head *
 rt_table_init(int offset, int family, u_int fibnum)
@@ -390,70 +184,6 @@ rt_table_destroy(struct rib_head *rh)
 	free(rh, M_RTABLE);
 }
 
-
-#ifndef _SYS_SYSPROTO_H_
-struct setfib_args {
-	int     fibnum;
-};
-#endif
-int
-sys_setfib(struct thread *td, struct setfib_args *uap)
-{
-	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
-		return EINVAL;
-	td->td_proc->p_fibnum = uap->fibnum;
-	return (0);
-}
-
-/*
- * Remove a reference count from an rtentry.
- * If the count gets low enough, take it out of the routing table
- */
-void
-rtfree(struct rtentry *rt)
-{
-
-	KASSERT(rt != NULL,("%s: NULL rt", __func__));
-
-	RT_LOCK_ASSERT(rt);
-
-	RT_UNLOCK(rt);
-	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
-	    &rt->rt_epoch_ctx);
-}
-
-static void
-destroy_rtentry(struct rtentry *rt)
-{
-
-	/*
-	 * At this moment rnh, nh_control may be already freed.
-	 * nhop interface may have been migrated to a different vnet.
-	 * Use vnet stored in the nexthop to delete the entry.
-	 */
-	CURVNET_SET(nhop_get_vnet(rt->rt_nhop));
-
-	/* Unreference nexthop */
-	nhop_free(rt->rt_nhop);
-
-	uma_zfree(V_rtzone, rt);
-
-	CURVNET_RESTORE();
-}
-
-/*
- * Epoch callback indicating rtentry is safe to destroy
- */
-static void
-destroy_rtentry_epoch(epoch_context_t ctx)
-{
-	struct rtentry *rt;
-
-	rt = __containerof(ctx, struct rtentry, rt_epoch_ctx);
-
-	destroy_rtentry(rt);
-}
-
 /*
  * Adds a temporal redirect entry to the routing table.
  * @fibnum: fib number
@@ -484,18 +214,19 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	/* Verify the allowed flag mask. */
 	KASSERT(((flags & ~(RTF_GATEWAY)) == 0),
 	    ("invalid redirect flags: %x", flags));
+	flags |= RTF_HOST | RTF_DYNAMIC;
 
 	/* Get the best ifa for the given interface and gateway. */
 	if ((ifa = ifaof_ifpforaddr(gateway, ifp)) == NULL)
 		return (ENETUNREACH);
 	ifa_ref(ifa);
-	
+
 	bzero(&info, sizeof(info));
 	info.rti_info[RTAX_DST] = dst;
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_ifa = ifa;
 	info.rti_ifp = ifp;
-	info.rti_flags = flags | RTF_HOST | RTF_DYNAMIC;
+	info.rti_flags = flags;
 
 	/* Setup route metrics to define expire time. */
 	bzero(&rti_rmx, sizeof(rti_rmx));
@@ -512,10 +243,6 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 		return (error);
 	}
 
-	RT_LOCK(rc.rc_rt);
-	flags = rc.rc_rt->rt_flags;
-	RT_UNLOCK(rc.rc_rt);
-
 	RTSTAT_INC(rts_dynamic);
 
 	/* Send notification of a route addition to userland. */
@@ -523,7 +250,7 @@ rib_add_redirect(u_int fibnum, struct sockaddr *dst, struct sockaddr *gateway,
 	info.rti_info[RTAX_DST] = dst;
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_AUTHOR] = author;
-	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
+	rt_missmsg_fib(RTM_REDIRECT, &info, flags | RTF_UP, error, fibnum);
 
 	return (0);
 }
@@ -624,6 +351,7 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 	struct nhop_object *nh;
 	int sa_len;
 
+	nh = rt->rt_nhop;
 	if (flags & NHR_COPY) {
 		/* Copy destination if dst is non-zero */
 		src = rt_key(rt);
@@ -653,9 +381,10 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 		}
 
 		/* Copy gateway is set && dst is non-zero */
-		src = &rt->rt_nhop->gw_sa;
+		src = &nh->gw_sa;
 		dst = info->rti_info[RTAX_GATEWAY];
-		if ((rt->rt_flags & RTF_GATEWAY) && src != NULL && dst != NULL){
+		if ((nhop_get_rtflags(nh) & RTF_GATEWAY) &&
+		    src != NULL && dst != NULL) {
 			if (src->sa_len > dst->sa_len)
 				return (ENOMEM);
 			memcpy(dst, src, src->sa_len);
@@ -668,20 +397,19 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 			info->rti_info[RTAX_NETMASK] = rt_mask(rt);
 			info->rti_addrs |= RTA_NETMASK;
 		}
-		if (rt->rt_flags & RTF_GATEWAY) {
-			info->rti_info[RTAX_GATEWAY] = &rt->rt_nhop->gw_sa;
+		if (nhop_get_rtflags(nh) & RTF_GATEWAY) {
+			info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 			info->rti_addrs |= RTA_GATEWAY;
 		}
 	}
 
-	nh = rt->rt_nhop;
 	rmx = info->rti_rmx;
 	if (rmx != NULL) {
 		info->rti_mflags |= RTV_MTU;
 		rmx->rmx_mtu = nh->nh_mtu;
 	}
 
-	info->rti_flags = rt->rt_flags | nhop_get_rtflags(nh);
+	info->rti_flags = rt->rte_flags | nhop_get_rtflags(nh);
 	info->rti_ifp = nh->nh_ifp;
 	info->rti_ifa = nh->nh_ifa;
 	if (flags & NHR_REF) {
@@ -849,7 +577,7 @@ rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
 	 * Protect (sorta) against walktree recursion problems
 	 * with cloned routes
 	 */
-	if ((rt->rt_flags & RTF_UP) == 0)
+	if ((rt->rte_flags & RTF_UP) == 0)
 		return (0);
 
 	return (1);
@@ -1080,10 +808,8 @@ rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
 		 */
 		if (rn) {
 			rto = RNTORT(rn);
-			RT_LOCK(rto);
-			rto->rt_flags |= RTF_UP;
-			RT_UNLOCK(rto);
-		} else if (rt->rt_flags & RTF_GATEWAY) {
+			rto->rte_flags |= RTF_UP;
+		} else if (rt->rte_flags & RTF_GATEWAY) {
 			/*
 			 * For gateway routes, we need to 
 			 * make sure that we we are deleting

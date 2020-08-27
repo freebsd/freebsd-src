@@ -92,7 +92,7 @@ construct, since the master thread is necessarily thread zero).
 
 If multiple non-OpenMP threads all enter an OpenMP construct then this
 will be a unique thread identifier among all the threads created by
-the OpenMP runtime (but the value cannote be defined in terms of
+the OpenMP runtime (but the value cannot be defined in terms of
 OpenMP thread ids returned by omp_get_thread_num()).
 */
 kmp_int32 __kmpc_global_thread_num(ident_t *loc) {
@@ -308,13 +308,7 @@ void __kmpc_fork_call(ident_t *loc, kmp_int32 argc, kmpc_micro microtask, ...) {
     __kmp_fork_call(loc, gtid, fork_context_intel, argc,
                     VOLATILE_CAST(microtask_t) microtask, // "wrapped" task
                     VOLATILE_CAST(launch_t) __kmp_invoke_task_func,
-/* TODO: revert workaround for Intel(R) 64 tracker #96 */
-#if (KMP_ARCH_X86_64 || KMP_ARCH_ARM || KMP_ARCH_AARCH64) && KMP_OS_LINUX
-                    &ap
-#else
-                    ap
-#endif
-                    );
+                    kmp_va_addr_of(ap));
 #if INCLUDE_SSC_MARKS
     SSC_MARK_JOINING();
 #endif
@@ -408,16 +402,10 @@ void __kmpc_fork_teams(ident_t *loc, kmp_int32 argc, kmpc_micro microtask,
   KMP_DEBUG_ASSERT(this_thr->th.th_teams_size.nteams >= 1);
   KMP_DEBUG_ASSERT(this_thr->th.th_teams_size.nth >= 1);
 
-  __kmp_fork_call(loc, gtid, fork_context_intel, argc,
-                  VOLATILE_CAST(microtask_t)
-                      __kmp_teams_master, // "wrapped" task
-                  VOLATILE_CAST(launch_t) __kmp_invoke_teams_master,
-#if (KMP_ARCH_X86_64 || KMP_ARCH_ARM || KMP_ARCH_AARCH64) && KMP_OS_LINUX
-                  &ap
-#else
-                  ap
-#endif
-                  );
+  __kmp_fork_call(
+      loc, gtid, fork_context_intel, argc,
+      VOLATILE_CAST(microtask_t) __kmp_teams_master, // "wrapped" task
+      VOLATILE_CAST(launch_t) __kmp_invoke_teams_master, kmp_va_addr_of(ap));
   __kmp_join_call(loc, gtid
 #if OMPT_SUPPORT
                   ,
@@ -4023,6 +4011,9 @@ void __kmpc_doacross_wait(ident_t *loc, int gtid, const kmp_int64 *vec) {
   lo = pr_buf->th_doacross_info[2];
   up = pr_buf->th_doacross_info[3];
   st = pr_buf->th_doacross_info[4];
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+  ompt_dependence_t deps[num_dims];
+#endif
   if (st == 1) { // most common case
     if (vec[0] < lo || vec[0] > up) {
       KA_TRACE(20, ("__kmpc_doacross_wait() exit: T#%d iter %lld is out of "
@@ -4048,6 +4039,10 @@ void __kmpc_doacross_wait(ident_t *loc, int gtid, const kmp_int64 *vec) {
     }
     iter_number = (kmp_uint64)(lo - vec[0]) / (-st);
   }
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+  deps[0].variable.value = iter_number;
+  deps[0].dependence_type = ompt_dependence_type_sink;
+#endif
   for (i = 1; i < num_dims; ++i) {
     kmp_int64 iter, ln;
     kmp_int32 j = i * 4;
@@ -4081,6 +4076,10 @@ void __kmpc_doacross_wait(ident_t *loc, int gtid, const kmp_int64 *vec) {
       iter = (kmp_uint64)(lo - vec[i]) / (-st);
     }
     iter_number = iter + ln * iter_number;
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+    deps[i].variable.value = iter;
+    deps[i].dependence_type = ompt_dependence_type_sink;
+#endif
   }
   shft = iter_number % 32; // use 32-bit granularity
   iter_number >>= 5; // divided by 32
@@ -4089,6 +4088,12 @@ void __kmpc_doacross_wait(ident_t *loc, int gtid, const kmp_int64 *vec) {
     KMP_YIELD(TRUE);
   }
   KMP_MB();
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+  if (ompt_enabled.ompt_callback_dependences) {
+    ompt_callbacks.ompt_callback(ompt_callback_dependences)(
+        &(OMPT_CUR_TASK_INFO(th)->task_data), deps, num_dims);
+  }
+#endif
   KA_TRACE(20,
            ("__kmpc_doacross_wait() exit: T#%d wait for iter %lld completed\n",
             gtid, (iter_number << 5) + shft));
@@ -4116,6 +4121,9 @@ void __kmpc_doacross_post(ident_t *loc, int gtid, const kmp_int64 *vec) {
   num_dims = pr_buf->th_doacross_info[0];
   lo = pr_buf->th_doacross_info[2];
   st = pr_buf->th_doacross_info[4];
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+  ompt_dependence_t deps[num_dims];
+#endif
   if (st == 1) { // most common case
     iter_number = vec[0] - lo;
   } else if (st > 0) {
@@ -4123,6 +4131,10 @@ void __kmpc_doacross_post(ident_t *loc, int gtid, const kmp_int64 *vec) {
   } else { // negative increment
     iter_number = (kmp_uint64)(lo - vec[0]) / (-st);
   }
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+  deps[0].variable.value = iter_number;
+  deps[0].dependence_type = ompt_dependence_type_source;
+#endif
   for (i = 1; i < num_dims; ++i) {
     kmp_int64 iter, ln;
     kmp_int32 j = i * 4;
@@ -4137,7 +4149,17 @@ void __kmpc_doacross_post(ident_t *loc, int gtid, const kmp_int64 *vec) {
       iter = (kmp_uint64)(lo - vec[i]) / (-st);
     }
     iter_number = iter + ln * iter_number;
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+    deps[i].variable.value = iter;
+    deps[i].dependence_type = ompt_dependence_type_source;
+#endif
   }
+#if OMPT_SUPPORT && OMPT_OPTIONAL
+  if (ompt_enabled.ompt_callback_dependences) {
+    ompt_callbacks.ompt_callback(ompt_callback_dependences)(
+        &(OMPT_CUR_TASK_INFO(th)->task_data), deps, num_dims);
+  }
+#endif
   shft = iter_number % 32; // use 32-bit granularity
   iter_number >>= 5; // divided by 32
   flag = 1 << shft;

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 29, 2020
+.Dd August 21, 2020
 .Dt GRE 4
 .Os
 .Sh NAME
@@ -210,6 +210,15 @@ The kernel must be set to forward datagrams by setting the
 .Va net.inet.ip.forwarding
 .Xr sysctl 8
 variable to non-zero.
+.Pp
+By default,
+.Nm
+tunnels may not be nested.
+This behavior may be modified at runtime by setting the
+.Xr sysctl 8
+variable
+.Va net.link.gre.max_nesting
+to the desired level of nesting.
 .Sh SEE ALSO
 .Xr gif 4 ,
 .Xr inet 4 ,

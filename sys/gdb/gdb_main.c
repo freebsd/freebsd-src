@@ -204,8 +204,14 @@ gdb_do_qsupported(uint32_t *feat)
 
 	/* Parse supported host features */
 	*feat = 0;
-	if (gdb_rx_char() != ':')
+	switch (gdb_rx_char()) {
+	case ':':
+		break;
+	case EOF:
+		goto nofeatures;
+	default:
 		goto error;
+	}
 
 	while (gdb_rxsz > 0) {
 		tok = gdb_rxp;
@@ -250,6 +256,7 @@ gdb_do_qsupported(uint32_t *feat)
 		*feat |= BIT(i);
 	}
 
+nofeatures:
 	/* Send a supported feature list back */
 	gdb_tx_begin(0);
 

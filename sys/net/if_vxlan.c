@@ -2545,7 +2545,7 @@ vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
 	 * the behavior of the Linux implementation.
 	 */
 	if (vxh->vxlh_flags != htonl(VXLAN_HDR_FLAGS_VALID_VNI) ||
-	    vxh->vxlh_vni & ~htonl(VXLAN_VNI_MASK))
+	    vxh->vxlh_vni & ~VXLAN_VNI_MASK)
 		goto out;
 
 	vni = ntohl(vxh->vxlh_vni) >> VXLAN_HDR_VNI_SHIFT;

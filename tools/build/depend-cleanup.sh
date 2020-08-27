@@ -11,6 +11,11 @@
 # We handle those cases here in an ad-hoc fashion by looking for the known-
 # bad case in the main .depend file, and if found deleting all of the related
 # .depend files (including for example the lib32 version).
+#
+# These tests increase the build time (albeit by a small amount), so they
+# should be removed once enough time has passed and it is extremely unlikely
+# anyone would try a NO_CLEAN build against an object tree from before the
+# related change.  One year should be sufficient.
 
 OBJTOP=$1
 if [ ! -d "$OBJTOP" ]; then
@@ -38,3 +43,11 @@ clean_dep lib/libc   shm_open S
 clean_dep lib/libomp ittnotify_static c
 # 20200414  r359930  closefrom
 clean_dep lib/libc   closefrom S
+
+# 20200826  r364746  OpenZFS merge, apply a big hammer (remove whole tree)
+if [ -e "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o ] && \
+    egrep -qw "cddl/contrib/opensolaris/lib/libzfs/common/libzfs_changelist.c" \
+    "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o; then
+	echo "Removing old ZFS tree"
+	rm -rf "$OBJTOP"/cddl "$OBJTOP"/obj-lib32/cddl
+fi

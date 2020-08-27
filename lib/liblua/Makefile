@@ -29,6 +29,8 @@ CFLAGS+=	-DLUA_PROGNAME="\"${PROG}\""
 .if defined(BOOTSTRAPPING)
 CFLAGS+=	-DLUA_PATH_DEFAULT="\"/nonexistent/?.lua\""
 CFLAGS+=	-DLUA_CPATH_DEFAULT="\"/nonexistent/?.so\""
+# We don't support dynamic libs on bootstrap builds.
+CFLAGS+=	-DBOOTSTRAPPING
 .endif
 
 .include <bsd.lib.mk>

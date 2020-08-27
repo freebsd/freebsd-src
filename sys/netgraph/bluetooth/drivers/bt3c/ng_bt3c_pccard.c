@@ -677,6 +677,8 @@ bt3c_pccard_attach(device_t dev)
 
 	NG_NODE_SET_PRIVATE(sc->node, sc);
 
+	gone_in_dev(dev, 13, "pccard removed");
+
 	return (0);
 bad:
 	if (sc->ith != NULL) {

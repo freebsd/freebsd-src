@@ -46,16 +46,6 @@ enum ice_fw_modes {
 	ICE_FW_MODE_ROLLBACK
 };
 
-/* prototype for functions used for SW locks */
-void ice_free_list(struct LIST_HEAD_TYPE *list);
-void ice_init_lock(struct ice_lock *lock);
-void ice_acquire_lock(struct ice_lock *lock);
-void ice_release_lock(struct ice_lock *lock);
-void ice_destroy_lock(struct ice_lock *lock);
-
-void *ice_alloc_dma_mem(struct ice_hw *hw, struct ice_dma_mem *m, u64 size);
-void ice_free_dma_mem(struct ice_hw *hw, struct ice_dma_mem *m);
-
 void ice_idle_aq(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 
@@ -77,13 +67,6 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 enum ice_status
 ice_get_link_status(struct ice_port_info *pi, bool *link_up);
 enum ice_status ice_update_link_info(struct ice_port_info *pi);
-enum ice_status
-ice_acquire_nvm(struct ice_hw *hw, enum ice_aq_res_access_type access);
-void ice_release_nvm(struct ice_hw *hw);
-enum ice_status
-ice_aq_read_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset, u16 length,
-		void *data, bool last_command, bool read_shadow_ram,
-		struct ice_sq_cd *cd);
 enum ice_status
 ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		enum ice_aq_res_access_type access, u32 timeout);

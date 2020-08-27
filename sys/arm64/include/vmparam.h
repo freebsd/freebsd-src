@@ -156,8 +156,8 @@
 #define	VM_MIN_KERNEL_ADDRESS	(0xffff000000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(0xffff008000000000UL)
 
-/* 2 TiB maximum for the direct map region */
-#define	DMAP_MIN_ADDRESS	(0xfffffd0000000000UL)
+/* 95 TiB maximum for the direct map region */
+#define	DMAP_MIN_ADDRESS	(0xffffa00000000000UL)
 #define	DMAP_MAX_ADDRESS	(0xffffff0000000000UL)
 
 #define	DMAP_MIN_PHYSADDR	(dmap_phys_base)

@@ -73,7 +73,7 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *uap)
 		buflen = LINUX_PATH_MAX;
 
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	error = vn_getcwd(td, buf, &retbuf, &buflen);
+	error = vn_getcwd(buf, &retbuf, &buflen);
 	if (error == 0) {
 		error = copyout(retbuf, uap->buf, buflen);
 		if (error == 0)

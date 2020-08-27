@@ -679,6 +679,9 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		return (EINVAL);
 	}
 
+	if (sc->sc_destroying == 1)
+		return (ENXIO);
+
 	/* Limit the maximal number of lagg ports */
 	if (sc->sc_count >= LAGG_MAX_PORTS)
 		return (ENOSPC);
@@ -1190,6 +1193,8 @@ lagg_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int count, buflen, len, error = 0, oldmtu;
 
 	bzero(&rpbuf, sizeof(rpbuf));
+
+	/* XXX: This can race with lagg_clone_destroy. */
 
 	switch (cmd) {
 	case SIOCGLAGG:

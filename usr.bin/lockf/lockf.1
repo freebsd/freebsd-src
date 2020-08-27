@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2020
+.Dd August 26, 2020
 .Dt LOCKF 1
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@
 .Nd execute a command while holding a file lock
 .Sh SYNOPSIS
 .Nm
-.Op Fl kns
+.Op Fl knsw
 .Op Fl t Ar seconds
 .Ar file
 .Ar command
@@ -121,6 +121,14 @@ When a lock times out,
 is
 .Em not
 executed.
+.It Fl w
+Causes
+.Nm
+to open
+.Ar file
+for writing rather than reading.
+This is necessary on filesystems (including NFSv4) where a file which
+has been opened read-only cannot be exclusively locked.
 .El
 .Pp
 In no event will

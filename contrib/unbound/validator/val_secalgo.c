@@ -77,6 +77,10 @@ int fake_sha1 = 0;
 #include <openssl/engine.h>
 #endif
 
+#if defined(HAVE_OPENSSL_DSA_H) && defined(USE_DSA)
+#include <openssl/dsa.h>
+#endif
+
 /**
  * Output a libcrypto openssl error to the logfile.
  * @param str: string to add to it.
@@ -1746,6 +1750,7 @@ _verify_nettle_ecdsa(sldns_buffer* buf, unsigned int digest_size, unsigned char*
 			res &= nettle_ecdsa_verify (&pubkey, SHA256_DIGEST_SIZE, digest, &signature);
 			mpz_clear(x);
 			mpz_clear(y);
+			nettle_ecc_point_clear(&pubkey);
 			break;
 		}
 		case SHA384_DIGEST_SIZE:

@@ -463,7 +463,7 @@ audit_canon_path_vp(struct thread *td, struct vnode *rdir, struct vnode *cdir,
 	 * on Darwin.  As a result, this may need some additional attention
 	 * in the future.
 	 */
-	error = vn_fullpath_global(td, vp, &rbuf, &fbuf);
+	error = vn_fullpath_global(vp, &rbuf, &fbuf);
 	if (error) {
 		cpath[0] = '\0';
 		return;

@@ -93,9 +93,7 @@ vht_recv_action_placeholder(struct ieee80211_node *ni,
 
 #ifdef IEEE80211_DEBUG
 	ieee80211_note(ni->ni_vap, "%s: called; fc=0x%.2x/0x%.2x",
-	    __func__,
-	    wh->i_fc[0],
-	    wh->i_fc[1]);
+	    __func__, wh->i_fc[0], wh->i_fc[1]);
 #endif
 	return (0);
 }
@@ -107,9 +105,7 @@ vht_send_action_placeholder(struct ieee80211_node *ni,
 
 #ifdef IEEE80211_DEBUG
 	ieee80211_note(ni->ni_vap, "%s: called; category=%d, action=%d",
-	    __func__,
-	    category,
-	    action);
+	    __func__, category, action);
 #endif
 	return (EINVAL);
 }
@@ -161,7 +157,13 @@ ieee80211_vht_vattach(struct ieee80211vap *vap)
 	    IEEE80211_FVHT_VHT
 	    | IEEE80211_FVHT_USEVHT40
 	    | IEEE80211_FVHT_USEVHT80;
+#if 0
 	/* XXX TODO: enable VHT80+80, VHT160 capabilities */
+	if (XXX TODO FIXME)
+		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT160;
+	if (XXX TODO FIXME)
+		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT80P80;
+#endif
 
 	memcpy(&vap->iv_vht_mcsinfo, &ic->ic_vht_mcsinfo,
 	    sizeof(struct ieee80211_vht_mcs_info));
@@ -205,10 +207,10 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 
 	/* Channel width */
 	ic_printf(ic, "[VHT] Channel Widths: 20MHz, 40MHz, 80MHz");
-	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
-		printf(" 80+80MHz");
 	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1)
 		printf(" 160MHz");
+	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
+		printf(" 80+80MHz");
 	printf("\n");
 
 	/* Features */
@@ -216,16 +218,14 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 	    IEEE80211_VHTCAP_BITS);
 
 	/* For now, just 5GHz VHT.  Worry about 2GHz VHT later */
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < 8; i++) {
 		/* Each stream is 2 bits */
 		tx = (ic->ic_vht_mcsinfo.tx_mcs_map >> (2*i)) & 0x3;
 		rx = (ic->ic_vht_mcsinfo.rx_mcs_map >> (2*i)) & 0x3;
 		if (tx == 3 && rx == 3)
 			continue;
 		ic_printf(ic, "[VHT] NSS %d: TX MCS 0..%d, RX MCS 0..%d\n",
-		    i + 1,
-		    vht_mcs_to_num(tx),
-		    vht_mcs_to_num(rx));
+		    i + 1, vht_mcs_to_num(tx), vht_mcs_to_num(rx));
 	}
 }
 
@@ -263,10 +263,7 @@ ieee80211_parse_vhtopmode(struct ieee80211_node *ni, const uint8_t *ie)
 
 #if 0
 	printf("%s: chan1=%d, chan2=%d, chanwidth=%d, basicmcs=0x%04x\n",
-	    __func__,
-	    ni->ni_vht_chan1,
-	    ni->ni_vht_chan2,
-	    ni->ni_vht_chanwidth,
+	    __func__, ni->ni_vht_chan1, ni->ni_vht_chan2, ni->ni_vht_chanwidth,
 	    ni->ni_vht_basicmcs);
 #endif
 }
@@ -696,27 +693,20 @@ ieee80211_vht_get_chwidth_ie(struct ieee80211_channel *c)
 	 * well?
 	 */
 
-	if (IEEE80211_IS_CHAN_VHT160(c)) {
-		return IEEE80211_VHT_CHANWIDTH_160MHZ;
-	}
-	if (IEEE80211_IS_CHAN_VHT80_80(c)) {
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
 		return IEEE80211_VHT_CHANWIDTH_80P80MHZ;
-	}
-	if (IEEE80211_IS_CHAN_VHT80(c)) {
+	if (IEEE80211_IS_CHAN_VHT160(c))
+		return IEEE80211_VHT_CHANWIDTH_160MHZ;
+	if (IEEE80211_IS_CHAN_VHT80(c))
 		return IEEE80211_VHT_CHANWIDTH_80MHZ;
-	}
-	if (IEEE80211_IS_CHAN_VHT40(c)) {
+	if (IEEE80211_IS_CHAN_VHT40(c))
 		return IEEE80211_VHT_CHANWIDTH_USE_HT;
-	}
-	if (IEEE80211_IS_CHAN_VHT20(c)) {
+	if (IEEE80211_IS_CHAN_VHT20(c))
 		return IEEE80211_VHT_CHANWIDTH_USE_HT;
-	}
 
 	/* We shouldn't get here */
 	printf("%s: called on a non-VHT channel (freq=%d, flags=0x%08x\n",
-	    __func__,
-	    (int) c->ic_freq,
-	    c->ic_flags);
+	    __func__, (int) c->ic_freq, c->ic_flags);
 	return IEEE80211_VHT_CHANWIDTH_USE_HT;
 }
 
@@ -811,7 +801,7 @@ ieee80211_vht_adjust_channel(struct ieee80211com *ic,
 		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80);
 
 	if ((c == NULL) && (flags & IEEE80211_FVHT_USEVHT80P80))
-		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80_80);
+		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80P80);
 
 	if ((c == NULL) && (flags & IEEE80211_FVHT_USEVHT80))
 		c = findvhtchan(ic, chan, IEEE80211_CHAN_VHT80);

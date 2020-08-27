@@ -260,7 +260,7 @@ igrab(struct inode *inode)
 {
 	int error;
 
-	error = vget(inode, 0, curthread);
+	error = vget(inode, 0);
 	if (error)
 		return (NULL);
 

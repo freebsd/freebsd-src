@@ -1035,8 +1035,9 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 		filesize = 0;
 	} else {
 		struct timespec now, timeout;
+		int ncpticks; /* here to accomodate for API contract */
 
-		err = cache_lookup(dvp, vpp, cnp, &timeout, NULL);
+		err = cache_lookup(dvp, vpp, cnp, &timeout, &ncpticks);
 		getnanouptime(&now);
 		SDT_PROBE3(fusefs, , vnops, cache_lookup, err, &timeout, &now);
 		switch (err) {
@@ -1527,14 +1528,13 @@ out:
 /*
     struct vnop_reclaim_args {
 	struct vnode *a_vp;
-	struct thread *a_td;
     };
 */
 static int
 fuse_vnop_reclaim(struct vop_reclaim_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
+	struct thread *td = curthread;
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
 	struct fuse_filehandle *fufh, *fufh_tmp;
 

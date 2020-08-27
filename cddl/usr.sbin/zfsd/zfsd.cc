@@ -42,10 +42,12 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/byteorder.h>
 #include <sys/param.h>
 #include <sys/fs/zfs.h>
 
 #include <err.h>
+#include <fcntl.h>
 #include <libgeom.h>
 #include <libutil.h>
 #include <poll.h>

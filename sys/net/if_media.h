@@ -807,9 +807,9 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_10G_KR,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_CR1,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_20G_KR2,	IF_Gbps(20ULL) },		\
-	{ IFM_ETHER | IFM_2500_KX,	IF_Mbps(2500) },		\
-	{ IFM_ETHER | IFM_2500_T,	IF_Mbps(2500) },		\
-	{ IFM_ETHER | IFM_5000_T,	IF_Mbps(5000) },		\
+	{ IFM_ETHER | IFM_2500_KX,	IF_Mbps(2500ULL) },		\
+	{ IFM_ETHER | IFM_2500_T,	IF_Mbps(2500ULL) },		\
+	{ IFM_ETHER | IFM_5000_T,	IF_Mbps(5000ULL) },		\
 	{ IFM_ETHER | IFM_50G_PCIE,	IF_Gbps(50ULL) },		\
 	{ IFM_ETHER | IFM_25G_PCIE,	IF_Gbps(25ULL) },		\
 	{ IFM_ETHER | IFM_1000_SGMII,	IF_Mbps(1000) },		\

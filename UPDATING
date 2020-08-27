@@ -26,6 +26,37 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200824:
+	OpenZFS support has been integrated. Do not upgrade root pools until
+	the loader is updated to support zstd. Furthermore, we caution against
+	'zpool upgrade' for the next few weeks. The change should be transparent
+	unless you  want to use new features.
+
+	Not all "NO_CLEAN" build scenarios work across these changes. Many
+	scenarios have been tested and fixed, but rebuilding kernels without
+	rebuilding world may fail.
+
+20200824:
+	The resume code now notifies devd with the 'kernel' system
+	rather than the old 'kern' subsystem to be consistent with
+	other use. The old notification will be created as well, but
+	will be removed prior to FreeBSD 14.0.
+
+20200821:
+	r362275 changed the internal API between the kernel RPC and the
+	NFS modules. As such, all the modules must be recompiled from
+	sources.
+
+20200817:
+	r364330 modified the internal API used between the NFS modules.
+	As such, all the NFS modules must be re-compiled from sources.
+
+20200816:
+	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
+	been upgraded to 11.0.0.  Please see the 20141231 entry below for
+	information about prerequisites and upgrading, if you are not already
+	using clang 3.5.0 or higher.
+
 20200810:
 	r364092 modified the internal ABI used between the kernel NFS
 	modules.  As such, all of these modules need to be rebuilt

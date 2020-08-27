@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2020
+.Dd August 25, 2020
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
@@ -54,6 +54,10 @@
 .Fl E
 .Op Fl d
 .Op Fl p
+.Nm
+.Fl F
+.Nm
+.Fl f
 .Nm
 .Fl n
 .Fl b Ar bootnum
@@ -137,6 +141,9 @@ is specified, the UEFI device path to the ESP is reported instead.
 If
 .Fl p -unix-path
 is specified, the mount point of the ESP is reported instead.
+.It Fl f -fw-ui , Fl F -no-fw-ui
+Set or clear the request to the system firmware to stop in its user
+interface on the next boot.
 .It Fl k -kernel Ar kernel
 The path to and name of the kernel.
 .It Fl l -loader Ar loader

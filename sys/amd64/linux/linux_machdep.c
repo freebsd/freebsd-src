@@ -98,13 +98,17 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	char *path;
 	int error;
 
-	LCONVPATHEXIST(td, args->path, &path);
-
 	LINUX_CTR(execve);
 
-	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
-	    args->envp);
-	free(path, M_TEMP);
+	if (!LUSECONVPATH(td)) {
+		error = exec_copyin_args(&eargs, args->path, UIO_USERSPACE,
+		    args->argp, args->envp);
+	} else {
+		LCONVPATHEXIST(td, args->path, &path);
+		error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, args->argp,
+		    args->envp);
+		LFREEPATH(path);
+	}
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
 	return (error);

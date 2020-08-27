@@ -146,10 +146,13 @@ _exported_vars=	${X_}COMPILER_TYPE ${X_}COMPILER_VERSION \
 		${X_}COMPILER_FREEBSD_VERSION ${X_}COMPILER_RESOURCE_DIR
 ${X_}_cc_hash=	${${cc}}${MACHINE}${PATH}
 ${X_}_cc_hash:=	${${X_}_cc_hash:hash}
-# Only import if none of the vars are set somehow else.
+# Only import if none of the vars are set differently somehow else.
 _can_export=	yes
 .for var in ${_exported_vars}
-.if defined(${var})
+.if defined(${var}) && (!defined(${var}__${${X_}_cc_hash}) || ${${var}__${${X_}_cc_hash}} != ${${var}})
+.if defined(${var}__${${X_}_ld_hash})
+.info "Cannot import ${X_}COMPILER variables since cached ${var} is different: ${${var}__${${X_}_cc_hash}} != ${${var}}"
+.endif
 _can_export=	no
 .endif
 .endfor

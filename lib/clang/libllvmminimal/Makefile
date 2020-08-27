@@ -31,6 +31,7 @@ SRCS+=		Support/Locale.cpp
 SRCS+=		Support/LowLevelType.cpp
 SRCS+=		Support/MD5.cpp
 SRCS+=		Support/ManagedStatic.cpp
+SRCS+=		Support/MemAlloc.cpp
 SRCS+=		Support/MemoryBuffer.cpp
 SRCS+=		Support/NativeFormatting.cpp
 SRCS+=		Support/Path.cpp

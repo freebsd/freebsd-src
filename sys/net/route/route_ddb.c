@@ -148,18 +148,17 @@ rt_dumpentry_ddb(struct radix_node *rn, void *arg __unused)
 	}
 
 	db_printf("flags ");
-	flags = rt->rt_flags;
+	flags = rt->rte_flags | nhop_get_rtflags(nh);
 	if (flags == 0)
 		db_printf("none");
 
 	while ((idx = ffs(flags)) > 0) {
 		idx--;
 
-		if (flags != rt->rt_flags)
-			db_printf(",");
 		db_printf("%s", rt_flag_name(idx));
-
 		flags &= ~(1ul << idx);
+		if (flags != 0)
+			db_printf(",");
 	}
 
 	db_printf("\n");

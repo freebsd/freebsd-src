@@ -96,13 +96,15 @@ __FBSDID("$FreeBSD$");
 
 #define GiB(v)			(v ## ULL << 30)
 
-#define	AP_BOOTPT_SZ		(PAGE_SIZE * 3)
+#define	AP_BOOTPT_SZ		(PAGE_SIZE * 4)
 
 /* Temporary variables for init_secondary()  */
 char *doublefault_stack;
 char *mce_stack;
 char *nmi_stack;
 char *dbg_stack;
+
+extern u_int mptramp_la57;
 
 /*
  * Local data and functions.
@@ -239,6 +241,8 @@ cpu_mp_start(void)
 	topo_probe();
 
 	assign_cpu_ids();
+
+	mptramp_la57 = la57;
 
 	/* Start each Application Processor */
 	init_ops.start_all_aps();
@@ -395,9 +399,9 @@ mp_realloc_pcpu(int cpuid, int domain)
 int
 native_start_all_aps(void)
 {
-	u_int64_t *pt4, *pt3, *pt2;
+	u_int64_t *pt5, *pt4, *pt3, *pt2;
 	u_int32_t mpbioswarmvec;
-	int apic_id, cpu, domain, i;
+	int apic_id, cpu, domain, i, xo;
 	u_char mpbiosreason;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
@@ -406,18 +410,38 @@ native_start_all_aps(void)
 	bcopy(mptramp_start, (void *)PHYS_TO_DMAP(boot_address), bootMP_size);
 
 	/* Locate the page tables, they'll be below the trampoline */
-	pt4 = (uint64_t *)PHYS_TO_DMAP(mptramp_pagetables);
+	if (la57) {
+		pt5 = (uint64_t *)PHYS_TO_DMAP(mptramp_pagetables);
+		xo = 1;
+	} else {
+		xo = 0;
+	}
+	pt4 = (uint64_t *)PHYS_TO_DMAP(mptramp_pagetables + xo * PAGE_SIZE);
 	pt3 = pt4 + (PAGE_SIZE) / sizeof(u_int64_t);
 	pt2 = pt3 + (PAGE_SIZE) / sizeof(u_int64_t);
 
 	/* Create the initial 1GB replicated page tables */
 	for (i = 0; i < 512; i++) {
-		/* Each slot of the level 4 pages points to the same level 3 page */
-		pt4[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables + PAGE_SIZE);
+		if (la57) {
+			pt5[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables +
+			    PAGE_SIZE);
+			pt5[i] |= PG_V | PG_RW | PG_U;
+		}
+
+		/*
+		 * Each slot of the level 4 pages points to the same
+		 * level 3 page.
+		 */
+		pt4[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables +
+		    (xo + 1) * PAGE_SIZE);
 		pt4[i] |= PG_V | PG_RW | PG_U;
 
-		/* Each slot of the level 3 pages points to the same level 2 page */
-		pt3[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables + (2 * PAGE_SIZE));
+		/*
+		 * Each slot of the level 3 pages points to the same
+		 * level 2 page.
+		 */
+		pt3[i] = (u_int64_t)(uintptr_t)(mptramp_pagetables +
+		    ((xo + 2) * PAGE_SIZE));
 		pt3[i] |= PG_V | PG_RW | PG_U;
 
 		/* The level 2 page slots are mapped with 2MB pages for 1GB. */

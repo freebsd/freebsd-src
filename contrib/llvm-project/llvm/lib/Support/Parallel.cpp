@@ -9,9 +9,6 @@
 #include "llvm/Support/Parallel.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/ManagedStatic.h"
-
-#if LLVM_ENABLE_THREADS
-
 #include "llvm/Support/Threading.h"
 
 #include <atomic>
@@ -19,6 +16,10 @@
 #include <stack>
 #include <thread>
 #include <vector>
+
+llvm::ThreadPoolStrategy llvm::parallel::strategy;
+
+#if LLVM_ENABLE_THREADS
 
 namespace llvm {
 namespace parallel {
@@ -39,20 +40,21 @@ public:
 ///   in filo order.
 class ThreadPoolExecutor : public Executor {
 public:
-  explicit ThreadPoolExecutor(unsigned ThreadCount = hardware_concurrency()) {
+  explicit ThreadPoolExecutor(ThreadPoolStrategy S = hardware_concurrency()) {
+    unsigned ThreadCount = S.compute_thread_count();
     // Spawn all but one of the threads in another thread as spawning threads
     // can take a while.
     Threads.reserve(ThreadCount);
     Threads.resize(1);
     std::lock_guard<std::mutex> Lock(Mutex);
-    Threads[0] = std::thread([&, ThreadCount] {
-      for (unsigned i = 1; i < ThreadCount; ++i) {
-        Threads.emplace_back([=] { work(); });
+    Threads[0] = std::thread([this, ThreadCount, S] {
+      for (unsigned I = 1; I < ThreadCount; ++I) {
+        Threads.emplace_back([=] { work(S, I); });
         if (Stop)
           break;
       }
       ThreadsCreated.set_value();
-      work();
+      work(S, 0);
     });
   }
 
@@ -77,6 +79,9 @@ public:
         T.join();
   }
 
+  struct Creator {
+    static void *call() { return new ThreadPoolExecutor(strategy); }
+  };
   struct Deleter {
     static void call(void *Ptr) { ((ThreadPoolExecutor *)Ptr)->stop(); }
   };
@@ -90,7 +95,8 @@ public:
   }
 
 private:
-  void work() {
+  void work(ThreadPoolStrategy S, unsigned ThreadID) {
+    S.apply_thread_strategy(ThreadID);
     while (true) {
       std::unique_lock<std::mutex> Lock(Mutex);
       Cond.wait(Lock, [&] { return Stop || !WorkStack.empty(); });
@@ -129,7 +135,8 @@ Executor *Executor::getDefaultExecutor() {
   // are more frequent with the debug static runtime.
   //
   // This also prevents intermittent deadlocks on exit with the MinGW runtime.
-  static ManagedStatic<ThreadPoolExecutor, object_creator<ThreadPoolExecutor>,
+
+  static ManagedStatic<ThreadPoolExecutor, ThreadPoolExecutor::Creator,
                        ThreadPoolExecutor::Deleter>
       ManagedExec;
   static std::unique_ptr<ThreadPoolExecutor> Exec(&(*ManagedExec));

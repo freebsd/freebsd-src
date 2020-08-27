@@ -95,7 +95,7 @@ cmx_pccard_attach(device_t dev)
 		return rv;
 	}
 
-	device_printf(dev, "attached\n");
+	gone_in_dev(dev, 13, "pccard removed");
 	return 0;
 }
 

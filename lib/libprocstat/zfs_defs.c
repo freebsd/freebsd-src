@@ -26,13 +26,9 @@
  */
 
 #include <sys/cdefs.h>
+#include <sys/types.h>
 __FBSDID("$FreeBSD$");
 
-/* Pretend we are kernel to get the same binary layout. */
-#define _KERNEL
-
-/* A hack to deal with kpilite.h. */
-#define KLD_MODULE
 
 /*
  * Prevent some headers from getting included and fake some types
@@ -41,14 +37,40 @@ __FBSDID("$FreeBSD$");
  */
 #define _OPENSOLARIS_SYS_PATHNAME_H_
 #define _OPENSOLARIS_SYS_POLICY_H_
-#define _OPENSOLARIS_SYS_VNODE_H_
 #define _VNODE_PAGER_
 
-typedef struct vnode vnode_t;
-typedef struct vattr vattr_t;
-typedef struct xvattr xvattr_t;
-typedef struct vsecattr vsecattr_t;
-typedef enum vtype vtype_t;
+
+enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD,
+		  VMARKER };
+
+/*
+ * Vnode attributes.  A field value of VNOVAL represents a field whose value
+ * is unavailable (getattr) or which is not to be changed (setattr).
+ */
+struct vattr {
+	enum vtype	va_type;	/* vnode type (for create) */
+	u_short		va_mode;	/* files access mode and type */
+	u_short		va_padding0;
+	uid_t		va_uid;		/* owner user id */
+	gid_t		va_gid;		/* owner group id */
+	nlink_t		va_nlink;	/* number of references to file */
+	dev_t		va_fsid;	/* filesystem id */
+	ino_t		va_fileid;	/* file id */
+	u_quad_t	va_size;	/* file size in bytes */
+	long		va_blocksize;	/* blocksize preferred for i/o */
+	struct timespec	va_atime;	/* time of last access */
+	struct timespec	va_mtime;	/* time of last modification */
+	struct timespec	va_ctime;	/* time file changed */
+	struct timespec	va_birthtime;	/* time file created */
+	u_long		va_gen;		/* generation number of file */
+	u_long		va_flags;	/* flags defined for file */
+	dev_t		va_rdev;	/* device the special file represents */
+	u_quad_t	va_bytes;	/* bytes of disk space held by file */
+	u_quad_t	va_filerev;	/* file modification number */
+	u_int		va_vaflags;	/* operations flags, see below */
+	long		va_spare;	/* remain quad aligned */
+};
+
 
 #include <sys/zfs_context.h>
 #include <sys/zfs_znode.h>

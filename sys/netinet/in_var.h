@@ -436,8 +436,7 @@ inm_rele_locked(struct in_multi_head *inmh, struct in_multi *inm)
 #define MCAST_NOTSMEMBER	2	/* This host excluded source */
 #define MCAST_MUTED		3	/* [deprecated] */
 
-struct	rtentry;
-struct	route;
+struct rib_head;
 struct	ip_moptions;
 
 struct in_multi *inm_lookup_locked(struct ifnet *, const struct in_addr);
@@ -471,6 +470,10 @@ void	in_ifadown(struct ifaddr *ifa, int);
 struct	mbuf	*ip_tryforward(struct mbuf *);
 void	*in_domifattach(struct ifnet *);
 void	in_domifdetach(struct ifnet *, void *);
+struct rib_head *in_inithead(uint32_t fibnum);
+#ifdef VIMAGE
+void	in_detachhead(struct rib_head *rh);
+#endif
 
 #endif /* _KERNEL */
 

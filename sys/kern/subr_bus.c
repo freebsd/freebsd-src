@@ -365,21 +365,8 @@ device_sysctl_fini(device_t dev)
  *
  * Also note: we specifically do not attach a device to the device_t tree
  * to avoid potential chicken and egg problems.  One could argue that all
- * of this belongs to the root node.  One could also further argue that the
- * sysctl interface that we have not might more properly be an ioctl
- * interface, but at this stage of the game, I'm not inclined to rock that
- * boat.
- *
- * I'm also not sure that the SIGIO support is done correctly or not, as
- * I copied it from a driver that had SIGIO support that likely hasn't been
- * tested since 3.4 or 2.2.8!
+ * of this belongs to the root node.
  */
-
-/* Deprecated way to adjust queue length */
-static int sysctl_devctl_disable(SYSCTL_HANDLER_ARGS);
-SYSCTL_PROC(_hw_bus, OID_AUTO, devctl_disable, CTLTYPE_INT | CTLFLAG_RWTUN |
-    CTLFLAG_MPSAFE, NULL, 0, sysctl_devctl_disable, "I",
-    "devctl disable -- deprecated");
 
 #define DEVCTL_DEFAULT_QUEUE_LEN 1000
 static int sysctl_devctl_queue(SYSCTL_HANDLER_ARGS);
@@ -405,25 +392,23 @@ static struct cdevsw dev_cdevsw = {
 	.d_name =	"devctl",
 };
 
-struct dev_event_info
-{
+struct dev_event_info {
 	char *dei_data;
-	TAILQ_ENTRY(dev_event_info) dei_link;
+	STAILQ_ENTRY(dev_event_info) dei_link;
 };
 
-TAILQ_HEAD(devq, dev_event_info);
+STAILQ_HEAD(devq, dev_event_info);
 
-static struct dev_softc
-{
-	int	inuse;
-	int	nonblock;
-	int	queued;
-	int	async;
-	struct mtx mtx;
-	struct cv cv;
-	struct selinfo sel;
-	struct devq devq;
-	struct sigio *sigio;
+static struct dev_softc {
+	int		inuse;
+	int		nonblock;
+	int		queued;
+	int		async;
+	struct mtx	mtx;
+	struct cv	cv;
+	struct selinfo	sel;
+	struct devq	devq;
+	struct sigio	*sigio;
 } devsoftc;
 
 static void	filt_devctl_detach(struct knote *kn);
@@ -444,7 +429,7 @@ devinit(void)
 	    UID_ROOT, GID_WHEEL, 0600, "devctl");
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
 	cv_init(&devsoftc.cv, "dev cv");
-	TAILQ_INIT(&devsoftc.devq);
+	STAILQ_INIT(&devsoftc.devq);
 	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 	devctl2_init();
 }
@@ -491,7 +476,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	int rv;
 
 	mtx_lock(&devsoftc.mtx);
-	while (TAILQ_EMPTY(&devsoftc.devq)) {
+	while (STAILQ_EMPTY(&devsoftc.devq)) {
 		if (devsoftc.nonblock) {
 			mtx_unlock(&devsoftc.mtx);
 			return (EAGAIN);
@@ -505,8 +490,8 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 			return (rv);
 		}
 	}
-	n1 = TAILQ_FIRST(&devsoftc.devq);
-	TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+	n1 = STAILQ_FIRST(&devsoftc.devq);
+	STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
@@ -554,7 +539,7 @@ devpoll(struct cdev *dev, int events, struct thread *td)
 
 	mtx_lock(&devsoftc.mtx);
 	if (events & (POLLIN | POLLRDNORM)) {
-		if (!TAILQ_EMPTY(&devsoftc.devq))
+		if (!STAILQ_EMPTY(&devsoftc.devq))
 			revents = events & (POLLIN | POLLRDNORM);
 		else
 			selrecord(td, &devsoftc.sel);
@@ -607,7 +592,7 @@ devctl_process_running(void)
  * assumed that @p data is properly formatted.  It is further assumed
  * that @p data is allocated using the M_BUS malloc type.
  */
-void
+static void
 devctl_queue_data_f(char *data, int flags)
 {
 	struct dev_event_info *n1 = NULL, *n2 = NULL;
@@ -629,13 +614,13 @@ devctl_queue_data_f(char *data, int flags)
 	}
 	/* Leave at least one spot in the queue... */
 	while (devsoftc.queued > devctl_queue_length - 1) {
-		n2 = TAILQ_FIRST(&devsoftc.devq);
-		TAILQ_REMOVE(&devsoftc.devq, n2, dei_link);
+		n2 = STAILQ_FIRST(&devsoftc.devq);
+		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 		free(n2->dei_data, M_BUS);
 		free(n2, M_BUS);
 		devsoftc.queued--;
 	}
-	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	STAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
@@ -653,7 +638,7 @@ out:
 	return;
 }
 
-void
+static void
 devctl_queue_data(char *data)
 {
 	devctl_queue_data_f(data, M_NOWAIT);
@@ -799,35 +784,6 @@ devnomatch(device_t dev)
 }
 
 static int
-sysctl_devctl_disable(SYSCTL_HANDLER_ARGS)
-{
-	struct dev_event_info *n1;
-	int dis, error;
-
-	dis = (devctl_queue_length == 0);
-	error = sysctl_handle_int(oidp, &dis, 0, req);
-	if (error || !req->newptr)
-		return (error);
-	if (mtx_initialized(&devsoftc.mtx))
-		mtx_lock(&devsoftc.mtx);
-	if (dis) {
-		while (!TAILQ_EMPTY(&devsoftc.devq)) {
-			n1 = TAILQ_FIRST(&devsoftc.devq);
-			TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
-			free(n1->dei_data, M_BUS);
-			free(n1, M_BUS);
-		}
-		devsoftc.queued = 0;
-		devctl_queue_length = 0;
-	} else {
-		devctl_queue_length = DEVCTL_DEFAULT_QUEUE_LEN;
-	}
-	if (mtx_initialized(&devsoftc.mtx))
-		mtx_unlock(&devsoftc.mtx);
-	return (0);
-}
-
-static int
 sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 {
 	struct dev_event_info *n1;
@@ -843,8 +799,8 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		mtx_lock(&devsoftc.mtx);
 	devctl_queue_length = q;
 	while (devsoftc.queued > devctl_queue_length) {
-		n1 = TAILQ_FIRST(&devsoftc.devq);
-		TAILQ_REMOVE(&devsoftc.devq, n1, dei_link);
+		n1 = STAILQ_FIRST(&devsoftc.devq);
+		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 		free(n1->dei_data, M_BUS);
 		free(n1, M_BUS);
 		devsoftc.queued--;
@@ -5033,8 +4989,10 @@ root_resume(device_t dev)
 	int error;
 
 	error = bus_generic_resume(dev);
-	if (error == 0)
-		devctl_notify("kern", "power", "resume", NULL);
+	if (error == 0) {
+		devctl_notify("kern", "power", "resume", NULL); /* Deprecated gone in 14 */
+		devctl_notify("kernel", "power", "resume", NULL);
+	}
 	return (error);
 }
 

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
+#include <rpc/rpcsec_tls.h>
 
 static enum auth_stat (*_svcauth_rpcsec_gss)(struct svc_req *,
     struct rpc_msg *) = NULL;
@@ -94,15 +95,24 @@ _authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 		dummy = _svcauth_null(rqst, msg);
 		return (dummy);
 	case AUTH_SYS:
+		if ((rqst->rq_xprt->xp_tls & RPCTLS_FLAGS_DISABLED) != 0)
+			return (AUTH_REJECTEDCRED);
 		dummy = _svcauth_unix(rqst, msg);
 		return (dummy);
 	case AUTH_SHORT:
+		if ((rqst->rq_xprt->xp_tls & RPCTLS_FLAGS_DISABLED) != 0)
+			return (AUTH_REJECTEDCRED);
 		dummy = _svcauth_short(rqst, msg);
 		return (dummy);
 	case RPCSEC_GSS:
+		if ((rqst->rq_xprt->xp_tls & RPCTLS_FLAGS_DISABLED) != 0)
+			return (AUTH_REJECTEDCRED);
 		if (!_svcauth_rpcsec_gss)
 			return (AUTH_REJECTEDCRED);
 		dummy = _svcauth_rpcsec_gss(rqst, msg);
+		return (dummy);
+	case AUTH_TLS:
+		dummy = _svcauth_rpcsec_tls(rqst, msg);
 		return (dummy);
 	default:
 		break;
@@ -169,10 +179,29 @@ svc_getcred(struct svc_req *rqst, struct ucred **crp, int *flavorp)
 	struct ucred *cr = NULL;
 	int flavor;
 	struct xucred *xcr;
+	SVCXPRT *xprt = rqst->rq_xprt;
 
 	flavor = rqst->rq_cred.oa_flavor;
 	if (flavorp)
 		*flavorp = flavor;
+
+	/*
+	 * If there are credentials acquired via a TLS
+	 * certificate for this TCP connection, use those
+	 * instead of what is in the RPC header.
+	 */
+	if ((xprt->xp_tls & (RPCTLS_FLAGS_CERTUSER |
+	    RPCTLS_FLAGS_DISABLED)) == RPCTLS_FLAGS_CERTUSER &&
+	    flavor == AUTH_UNIX) {
+		cr = crget();
+		cr->cr_uid = cr->cr_ruid = cr->cr_svuid = xprt->xp_uid;
+		crsetgroups(cr, xprt->xp_ngrps, xprt->xp_gidp);
+		cr->cr_rgid = cr->cr_svgid = xprt->xp_gidp[0];
+		cr->cr_prison = &prison0;
+		prison_hold(cr->cr_prison);
+		*crp = cr;
+		return (TRUE);
+	}
 
 	switch (flavor) {
 	case AUTH_UNIX:

@@ -1149,11 +1149,13 @@ netmap_dtor(void *data)
 static void
 netmap_send_up(struct ifnet *dst, struct mbq *q)
 {
-	struct epoch_tracker et;
 	struct mbuf *m;
 	struct mbuf *head = NULL, *prev = NULL;
+#ifdef __FreeBSD__
+	struct epoch_tracker et;
 
 	NET_EPOCH_ENTER(et);
+#endif /* __FreeBSD__ */
 	/* Send packets up, outside the lock; head/prev machinery
 	 * is only useful for Windows. */
 	while ((m = mbq_dequeue(q)) != NULL) {
@@ -1165,7 +1167,9 @@ netmap_send_up(struct ifnet *dst, struct mbq *q)
 	}
 	if (head)
 		nm_os_send_up(dst, NULL, head);
+#ifdef __FreeBSD__
 	NET_EPOCH_EXIT(et);
+#endif /* __FreeBSD__ */
 	mbq_fini(q);
 }
 

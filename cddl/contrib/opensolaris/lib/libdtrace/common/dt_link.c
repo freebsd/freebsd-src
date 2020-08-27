@@ -25,38 +25,24 @@
  * Copyright 2017-2018 Mark Johnston <markj@FreeBSD.org>
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+#include <sys/param.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 
-#define	ELF_TARGET_ALL
+#include <assert.h>
 #include <elf.h>
-
 #include <sys/types.h>
-#ifdef illumos
-#include <sys/sysmacros.h>
-#else
-#define	P2ROUNDUP(x, align)		(-(-(x) & -(align)))
-#endif
-
-#include <unistd.h>
-#include <strings.h>
-#ifdef illumos
-#include <alloca.h>
-#endif
+#include <fcntl.h>
+#include <gelf.h>
 #include <limits.h>
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <fcntl.h>
+#include <stdlib.h>
+#include <strings.h>
 #include <errno.h>
-#ifdef illumos
-#include <wait.h>
-#else
-#include <sys/wait.h>
+#include <unistd.h>
+
 #include <libelf.h>
-#include <gelf.h>
-#include <sys/mman.h>
-#endif
-#include <assert.h>
 
 #include <dt_impl.h>
 #include <dt_provider.h>
@@ -82,11 +68,7 @@ static const char DTRACE_SHSTRTAB32[] = "\0"
 ".SUNW_dof\0"		/* 11 */
 ".strtab\0"		/* 21 */
 ".symtab\0"		/* 29 */
-#ifdef __sparc
-".rela.SUNW_dof";	/* 37 */
-#else
 ".rel.SUNW_dof";	/* 37 */
-#endif
 
 static const char DTRACE_SHSTRTAB64[] = "\0"
 ".shstrtab\0"		/* 1 */
@@ -106,11 +88,7 @@ typedef struct dt_link_pair {
 
 typedef struct dof_elf32 {
 	uint32_t de_nrel;		/* relocation count */
-#ifdef __sparc
-	Elf32_Rela *de_rel;		/* array of relocations for sparc */
-#else
 	Elf32_Rel *de_rel;		/* array of relocations for x86 */
-#endif
 	uint32_t de_nsym;		/* symbol count */
 	Elf32_Sym *de_sym;		/* array of symbols */
 	uint32_t de_strlen;		/* size of of string table */
@@ -130,11 +108,7 @@ prepare_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf32_t *dep)
 	uint32_t count = 0;
 	size_t base;
 	Elf32_Sym *sym;
-#ifdef __sparc
-	Elf32_Rela *rel;
-#else
 	Elf32_Rel *rel;
-#endif
 
 	/*LINTED*/
 	dofs = (dof_sec_t *)((char *)dof + dof->dofh_secoff);
@@ -324,11 +298,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 	char *strtab;
 	int i, j, nrel;
 	size_t strtabsz = 1;
-#ifdef illumos
-	uint32_t count = 0;
-#else
 	uint64_t count = 0;
-#endif
 	size_t base;
 	Elf64_Sym *sym;
 	Elf64_Rela *rel;
@@ -530,9 +500,7 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 #else
 	elf_file.ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
 #endif
-#if defined(__FreeBSD__)
 	elf_file.ehdr.e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
-#endif
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
@@ -540,8 +508,6 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_machine = EM_MIPS;
 #elif defined(__powerpc__)
 	elf_file.ehdr.e_machine = EM_PPC;
-#elif defined(__sparc)
-	elf_file.ehdr.e_machine = EM_SPARC;
 #elif defined(__i386) || defined(__amd64)
 	elf_file.ehdr.e_machine = EM_386;
 #elif defined(__aarch64__)
@@ -562,7 +528,7 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	shp->sh_offset = off;
 	shp->sh_size = sizeof (DTRACE_SHSTRTAB32);
 	shp->sh_addralign = sizeof (char);
-	off = P2ROUNDUP(shp->sh_offset + shp->sh_size, 8);
+	off = roundup2(shp->sh_offset + shp->sh_size, 8);
 
 	shp = &elf_file.shdr[ESHDR_DOF];
 	shp->sh_name = 11; /* DTRACE_SHSTRTAB32[11] = ".SUNW_dof" */
@@ -580,7 +546,7 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	shp->sh_offset = off;
 	shp->sh_size = de.de_strlen;
 	shp->sh_addralign = sizeof (char);
-	off = P2ROUNDUP(shp->sh_offset + shp->sh_size, 4);
+	off = roundup2(shp->sh_offset + shp->sh_size, 4);
 
 	shp = &elf_file.shdr[ESHDR_SYMTAB];
 	shp->sh_name = 29; /* DTRACE_SHSTRTAB32[29] = ".symtab" */
@@ -592,7 +558,7 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	shp->sh_info = de.de_global;
 	shp->sh_size = de.de_nsym * sizeof (Elf32_Sym);
 	shp->sh_addralign = 4;
-	off = P2ROUNDUP(shp->sh_offset + shp->sh_size, 4);
+	off = roundup2(shp->sh_offset + shp->sh_size, 4);
 
 	if (de.de_nrel == 0) {
 		if (dt_write(dtp, fd, &elf_file,
@@ -607,11 +573,7 @@ dump_elf32(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 		shp = &elf_file.shdr[ESHDR_REL];
 		shp->sh_name = 37; /* DTRACE_SHSTRTAB32[37] = ".rel.SUNW_dof" */
 		shp->sh_flags = SHF_ALLOC;
-#ifdef __sparc
-		shp->sh_type = SHT_RELA;
-#else
 		shp->sh_type = SHT_REL;
-#endif
 		shp->sh_entsize = sizeof (de.de_rel[0]);
 		shp->sh_link = ESHDR_SYMTAB;
 		shp->sh_info = ESHDR_DOF;
@@ -678,9 +640,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 #else
 	elf_file.ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
 #endif
-#if defined(__FreeBSD__)
 	elf_file.ehdr.e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
-#endif
 	elf_file.ehdr.e_type = ET_REL;
 #if defined(__arm__)
 	elf_file.ehdr.e_machine = EM_ARM;
@@ -691,8 +651,6 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_flags = 2;
 #endif
 	elf_file.ehdr.e_machine = EM_PPC64;
-#elif defined(__sparc)
-	elf_file.ehdr.e_machine = EM_SPARCV9;
 #elif defined(__i386) || defined(__amd64)
 	elf_file.ehdr.e_machine = EM_AMD64;
 #elif defined(__aarch64__)
@@ -713,7 +671,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	shp->sh_offset = off;
 	shp->sh_size = sizeof (DTRACE_SHSTRTAB64);
 	shp->sh_addralign = sizeof (char);
-	off = P2ROUNDUP(shp->sh_offset + shp->sh_size, 8);
+	off = roundup2(shp->sh_offset + shp->sh_size, 8);
 
 	shp = &elf_file.shdr[ESHDR_DOF];
 	shp->sh_name = 11; /* DTRACE_SHSTRTAB64[11] = ".SUNW_dof" */
@@ -731,7 +689,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	shp->sh_offset = off;
 	shp->sh_size = de.de_strlen;
 	shp->sh_addralign = sizeof (char);
-	off = P2ROUNDUP(shp->sh_offset + shp->sh_size, 8);
+	off = roundup2(shp->sh_offset + shp->sh_size, 8);
 
 	shp = &elf_file.shdr[ESHDR_SYMTAB];
 	shp->sh_name = 29; /* DTRACE_SHSTRTAB64[29] = ".symtab" */
@@ -743,7 +701,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	shp->sh_info = de.de_global;
 	shp->sh_size = de.de_nsym * sizeof (Elf64_Sym);
 	shp->sh_addralign = 8;
-	off = P2ROUNDUP(shp->sh_offset + shp->sh_size, 8);
+	off = roundup2(shp->sh_offset + shp->sh_size, 8);
 
 	if (de.de_nrel == 0) {
 		if (dt_write(dtp, fd, &elf_file,
@@ -816,6 +774,7 @@ dt_symtab_lookup(Elf_Data *data_sym, int start, int end, uintptr_t addr,
 #define	DT_OP_RET		0xd65f03c0
 #define	DT_OP_CALL26		0x94000000
 #define	DT_OP_JUMP26		0x14000000
+#define	DT_REL_NONE		R_AARCH64_NONE
 
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -874,7 +833,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (0);
 }
 #elif defined(__arm__)
-/* XXX */
+#define	DT_REL_NONE		R_ARM_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -884,7 +844,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (-1);
 }
 #elif defined(__mips__)
-/* XXX */
+#define	DT_REL_NONE		R_MIPS_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -904,7 +865,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 #define DT_IS_BRANCH(inst)	((inst & 0xfc000000) == 0x48000000)
 #define DT_IS_BL(inst)	(DT_IS_BRANCH(inst) && (inst & 0x01))
 
-/* XXX */
+#define	DT_REL_NONE		R_PPC_NONE
+
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -921,7 +883,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * We only know about some specific relocation types.
 	 */
 	if (GELF_R_TYPE(rela->r_info) != R_PPC_REL24 &&
-	    GELF_R_TYPE(rela->r_info) != R_PPC_PLTREL24)
+	    GELF_R_TYPE(rela->r_info) != R_PPC_PLTREL24 &&
+	    GELF_R_TYPE(rela->r_info) != R_PPC_NONE)
 		return (-1);
 
 	/*
@@ -975,7 +938,7 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	return (0);
 }
 #elif defined(__riscv)
-/* XXX */
+#define	DT_REL_NONE		R_RISCV_NONE
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
     uint32_t *off)
@@ -983,132 +946,6 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	printf("%s:%s(%d): RISC-V implementation required\n", __FUNCTION__,
 	    __FILE__, __LINE__);
 	return (-1);
-}
-#elif defined(__sparc)
-
-#define	DT_OP_RET		0x81c7e008
-#define	DT_OP_NOP		0x01000000
-#define	DT_OP_CALL		0x40000000
-#define	DT_OP_CLR_O0		0x90102000
-
-#define	DT_IS_MOV_O7(inst)	(((inst) & 0xffffe000) == 0x9e100000)
-#define	DT_IS_RESTORE(inst)	(((inst) & 0xc1f80000) == 0x81e80000)
-#define	DT_IS_RETL(inst)	(((inst) & 0xfff83fff) == 0x81c02008)
-
-#define	DT_RS2(inst)		((inst) & 0x1f)
-#define	DT_MAKE_RETL(reg)	(0x81c02008 | ((reg) << 14))
-
-/*ARGSUSED*/
-static int
-dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
-    uint32_t *off)
-{
-	uint32_t *ip;
-
-	if ((rela->r_offset & (sizeof (uint32_t) - 1)) != 0)
-		return (-1);
-
-	/*LINTED*/
-	ip = (uint32_t *)(p + rela->r_offset);
-
-	/*
-	 * We only know about some specific relocation types.
-	 */
-	if (GELF_R_TYPE(rela->r_info) != R_SPARC_WDISP30 &&
-	    GELF_R_TYPE(rela->r_info) != R_SPARC_WPLT30)
-		return (-1);
-
-	/*
-	 * We may have already processed this object file in an earlier linker
-	 * invocation. Check to see if the present instruction sequence matches
-	 * the one we would install below.
-	 */
-	if (isenabled) {
-		if (ip[0] == DT_OP_NOP) {
-			(*off) += sizeof (ip[0]);
-			return (0);
-		}
-	} else {
-		if (DT_IS_RESTORE(ip[1])) {
-			if (ip[0] == DT_OP_RET) {
-				(*off) += sizeof (ip[0]);
-				return (0);
-			}
-		} else if (DT_IS_MOV_O7(ip[1])) {
-			if (DT_IS_RETL(ip[0]))
-				return (0);
-		} else {
-			if (ip[0] == DT_OP_NOP) {
-				(*off) += sizeof (ip[0]);
-				return (0);
-			}
-		}
-	}
-
-	/*
-	 * We only expect call instructions with a displacement of 0.
-	 */
-	if (ip[0] != DT_OP_CALL) {
-		dt_dprintf("found %x instead of a call instruction at %llx\n",
-		    ip[0], (u_longlong_t)rela->r_offset);
-		return (-1);
-	}
-
-	if (isenabled) {
-		/*
-		 * It would necessarily indicate incorrect usage if an is-
-		 * enabled probe were tail-called so flag that as an error.
-		 * It's also potentially (very) tricky to handle gracefully,
-		 * but could be done if this were a desired use scenario.
-		 */
-		if (DT_IS_RESTORE(ip[1]) || DT_IS_MOV_O7(ip[1])) {
-			dt_dprintf("tail call to is-enabled probe at %llx\n",
-			    (u_longlong_t)rela->r_offset);
-			return (-1);
-		}
-
-
-		/*
-		 * On SPARC, we take advantage of the fact that the first
-		 * argument shares the same register as for the return value.
-		 * The macro handles the work of zeroing that register so we
-		 * don't need to do anything special here. We instrument the
-		 * instruction in the delay slot as we'll need to modify the
-		 * return register after that instruction has been emulated.
-		 */
-		ip[0] = DT_OP_NOP;
-		(*off) += sizeof (ip[0]);
-	} else {
-		/*
-		 * If the call is followed by a restore, it's a tail call so
-		 * change the call to a ret. If the call if followed by a mov
-		 * of a register into %o7, it's a tail call in leaf context
-		 * so change the call to a retl-like instruction that returns
-		 * to that register value + 8 (rather than the typical %o7 +
-		 * 8); the delay slot instruction is left, but should have no
-		 * effect. Otherwise we change the call to be a nop. We
-		 * identify the subsequent instruction as the probe point in
-		 * all but the leaf tail-call case to ensure that arguments to
-		 * the probe are complete and consistent. An astute, though
-		 * largely hypothetical, observer would note that there is the
-		 * possibility of a false-positive probe firing if the function
-		 * contained a branch to the instruction in the delay slot of
-		 * the call. Fixing this would require significant in-kernel
-		 * modifications, and isn't worth doing until we see it in the
-		 * wild.
-		 */
-		if (DT_IS_RESTORE(ip[1])) {
-			ip[0] = DT_OP_RET;
-			(*off) += sizeof (ip[0]);
-		} else if (DT_IS_MOV_O7(ip[1])) {
-			ip[0] = DT_MAKE_RETL(DT_RS2(ip[1]));
-		} else {
-			ip[0] = DT_OP_NOP;
-			(*off) += sizeof (ip[0]);
-		}
-	}
-
-	return (0);
 }
 
 #elif defined(__i386) || defined(__amd64)
@@ -1120,6 +957,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 #define	DT_OP_REX_RAX		0x48
 #define	DT_OP_XOR_EAX_0		0x33
 #define	DT_OP_XOR_EAX_1		0xc0
+
+#define	DT_REL_NONE		R_386_NONE
 
 static int
 dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
@@ -1143,7 +982,8 @@ dt_modtext(dtrace_hdl_t *dtp, char *p, int isenabled, GElf_Rela *rela,
 	 * x86 architectures.
 	 */
 	if (GELF_R_TYPE(rela->r_info) != R_386_PC32 &&
-	    GELF_R_TYPE(rela->r_info) != R_386_PLT32)
+	    GELF_R_TYPE(rela->r_info) != R_386_PLT32 &&
+	    GELF_R_TYPE(rela->r_info) != R_386_NONE)
 		return (-1);
 
 	/*
@@ -1334,8 +1174,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
 		uses_funcdesc = 1;
 #endif
-#elif defined(__sparc)
-		emachine1 = emachine2 = EM_SPARCV9;
 #elif defined(__i386) || defined(__amd64)
 		emachine1 = emachine2 = EM_AMD64;
 #elif defined(__aarch64__)
@@ -1350,9 +1188,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		emachine1 = emachine2 = EM_MIPS;
 #elif defined(__powerpc__)
 		emachine1 = emachine2 = EM_PPC;
-#elif defined(__sparc)
-		emachine1 = EM_SPARC;
-		emachine2 = EM_SPARC32PLUS;
 #elif defined(__i386) || defined(__amd64)
 		emachine1 = emachine2 = EM_386;
 #endif
@@ -1447,6 +1282,11 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		 * We take a first pass through all the relocations to
 		 * populate our string table and count the number of extra
 		 * symbols we'll require.
+		 *
+		 * We also handle the case where the object has already been
+		 * processed, to support incremental rebuilds.  Relocations
+		 * of interest are converted to type NONE, but all information
+		 * needed to reconstruct the output DOF is retained.
 		 */
 		strtab = dt_strtab_create(1);
 		nsym = 0;
@@ -1454,7 +1294,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		istr = data_str->d_size;
 
 		for (i = 0; i < shdr_rel.sh_size / shdr_rel.sh_entsize; i++) {
-
 			if (shdr_rel.sh_type == SHT_RELA) {
 				if (gelf_getrela(data_rel, i, &rela) == NULL)
 					continue;
@@ -1519,7 +1358,12 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			    objkey, s);
 
 			if (dt_strtab_index(strtab, p) == -1) {
-				nsym++;
+				/*
+				 * Do not add new symbols if this object file
+				 * has already been processed.
+				 */
+				if (GELF_R_TYPE(rela.r_info) != DT_REL_NONE)
+					nsym++;
 				(void) dt_strtab_insert(strtab, p);
 			}
 
@@ -1527,13 +1371,14 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		}
 
 		/*
-		 * If any probes were found, allocate the additional space for
-		 * the symbol table and string table, copying the old data into
-		 * the new buffers, and marking the buffers as dirty. We inject
-		 * those newly allocated buffers into the libelf data
+		 * If any new probes were found, allocate the additional space
+		 * for the symbol table and string table, copying the old data
+		 * into the new buffers, and marking the buffers as dirty. We
+		 * inject those newly allocated buffers into the libelf data
 		 * structures, but are still responsible for freeing them once
 		 * we're done with the elf handle.
 		 */
+		osym = isym;
 		if (nsym > 0) {
 			/*
 			 * The first byte of the string table is reserved for
@@ -1585,9 +1430,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			shdr_sym.sh_size += nsym * symsize;
 			(void) gelf_update_shdr(scn_sym, &shdr_sym);
 
-			osym = isym;
 			nsym += isym;
-		} else {
+		} else if (dt_strtab_empty(strtab)) {
 			dt_strtab_destroy(strtab);
 			continue;
 		}
@@ -1597,7 +1441,6 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 		 * modifications described above.
 		 */
 		for (i = 0; i < shdr_rel.sh_size / shdr_rel.sh_entsize; i++) {
-
 			if (shdr_rel.sh_type == SHT_RELA) {
 				if (gelf_getrela(data_rel, i, &rela) == NULL)
 					continue;
@@ -1664,32 +1507,51 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 
 				bind = GELF_ST_BIND(fsym.st_info) == STB_WEAK ?
 				    STB_WEAK : STB_GLOBAL;
-
-				/*
-				 * Emit an alias for the symbol. It needs to be
-				 * non-preemptible so that .SUNW_dof relocations
-				 * may be resolved at static link time. Aliases
-				 * of weak symbols are given a non-unique name
-				 * so that they may be merged by the linker.
-				 */
-				dsym = fsym;
-				dsym.st_name = istr;
-				dsym.st_info = GELF_ST_INFO(bind, STT_FUNC);
-				dsym.st_other = GELF_ST_VISIBILITY(STV_HIDDEN);
-				(void) gelf_update_sym(data_sym, isym, &dsym);
-				r = (char *) data_str->d_buf + istr;
 				s = (char *) data_str->d_buf + fsym.st_name;
-				if (bind == STB_WEAK)
-					istr += sprintf(r, dt_weaksymfmt,
-					    dt_symprefix, s);
-				else
-					istr += sprintf(r, dt_symfmt,
-					    dt_symprefix, objkey, s);
-				istr++;
-				isym++;
-				assert(isym <= nsym);
-			} else
+				if (GELF_R_TYPE(rela.r_info) != DT_REL_NONE) {
+					/*
+					 * Emit an alias for the symbol. It
+					 * needs to be non-preemptible so that
+					 * .SUNW_dof relocations may be resolved
+					 * at static link time. Aliases of weak
+					 * symbols are given a non-unique name
+					 * so that they may be merged by the
+					 * linker.
+					 */
+					dsym = fsym;
+					dsym.st_name = istr;
+					dsym.st_info = GELF_ST_INFO(bind,
+					    STT_FUNC);
+					dsym.st_other =
+					    GELF_ST_VISIBILITY(STV_HIDDEN);
+					(void) gelf_update_sym(data_sym, isym,
+					    &dsym);
+					isym++;
+					assert(isym <= nsym);
+
+					r = (char *) data_str->d_buf + istr;
+					if (bind == STB_WEAK) {
+						istr += sprintf(r,
+						    dt_weaksymfmt, dt_symprefix,
+						    s);
+					} else {
+						istr += sprintf(r, dt_symfmt,
+						    dt_symprefix, objkey, s);
+					}
+					istr++;
+				} else {
+					if (bind == STB_WEAK) {
+						(void) asprintf(&r,
+						    dt_weaksymfmt, dt_symprefix,
+						    s);
+					} else {
+						(void) asprintf(&r, dt_symfmt,
+						    dt_symprefix, objkey, s);
+					}
+				}
+			} else {
 				goto err;
+			}
 
 			if ((pvp = dt_provider_lookup(dtp, pname)) == NULL) {
 				return (dt_link_error(dtp, elf, fd, bufs,
@@ -1716,29 +1578,22 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				return (dt_link_error(dtp, elf, fd, bufs,
 				    "failed to allocate space for probe"));
 			}
-#ifndef illumos
+
 			/*
-			 * Our linker doesn't understand the SUNW_IGNORE ndx and
-			 * will try to use this relocation when we build the
-			 * final executable. Since we are done processing this
-			 * relocation, mark it as inexistant and let libelf
-			 * remove it from the file.
-			 * If this wasn't done, we would have garbage added to
-			 * the executable file as the symbol is going to be
-			 * change from UND to ABS.
+			 * We are done with this relocation, but it must be
+			 * preserved in order to support incremental rebuilds.
 			 */
 			if (shdr_rel.sh_type == SHT_RELA) {
-				rela.r_offset = 0;
-				rela.r_info  = 0;
-				rela.r_addend = 0;
+				rela.r_info = GELF_R_INFO(
+				    GELF_R_SYM(rela.r_info), DT_REL_NONE);
 				(void) gelf_update_rela(data_rel, i, &rela);
 			} else {
 				GElf_Rel rel;
-				rel.r_offset = 0;
-				rel.r_info = 0;
+				rel.r_offset = rela.r_offset;
+				rel.r_info = GELF_R_INFO(
+				    GELF_R_SYM(rela.r_info), DT_REL_NONE);
 				(void) gelf_update_rel(data_rel, i, &rel);
 			}
-#endif
 
 			mod = 1;
 			(void) elf_flagdata(data_tgt, ELF_C_SET, ELF_F_DIRTY);
@@ -1750,11 +1605,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * already been processed by an earlier link
 			 * invocation.
 			 */
-#ifndef illumos
-#define SHN_SUNW_IGNORE	SHN_ABS
-#endif
-			if (rsym.st_shndx != SHN_SUNW_IGNORE) {
-				rsym.st_shndx = SHN_SUNW_IGNORE;
+			if (rsym.st_shndx != SHN_ABS) {
+				rsym.st_shndx = SHN_ABS;
 				(void) gelf_update_sym(data_sym, ndx, &rsym);
 			}
 		}
@@ -1784,30 +1636,13 @@ int
 dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
     const char *file, int objc, char *const objv[])
 {
-#ifndef illumos
 	char tfile[PATH_MAX];
-#endif
 	char drti[PATH_MAX];
 	dof_hdr_t *dof;
 	int fd, status, i, cur;
 	char *cmd, tmp;
 	size_t len;
 	int eprobes = 0, ret = 0;
-
-#ifndef illumos
-	if (access(file, R_OK) == 0) {
-		fprintf(stderr, "dtrace: target object (%s) already exists. "
-		    "Please remove the target\ndtrace: object and rebuild all "
-		    "the source objects if you wish to run the DTrace\n"
-		    "dtrace: linking process again\n", file);
-		/*
-		 * Several build infrastructures run DTrace twice (e.g.
-		 * postgres) and we don't want the build to fail. Return
-		 * 0 here since this isn't really a fatal error.
-		 */
-		return (0);
-	}
-#endif
 
 	/*
 	 * A NULL program indicates a special use in which we just link
@@ -1870,23 +1705,11 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	if ((dof = dtrace_dof_create(dtp, pgp, dflags)) == NULL)
 		return (-1); /* errno is set for us */
 
-#ifdef illumos
-	/*
-	 * Create a temporary file and then unlink it if we're going to
-	 * combine it with drti.o later.  We can still refer to it in child
-	 * processes as /dev/fd/<fd>.
-	 */
-	if ((fd = open64(file, O_RDWR | O_CREAT | O_TRUNC, 0666)) == -1) {
-		return (dt_link_error(dtp, NULL, -1, NULL,
-		    "failed to open %s: %s", file, strerror(errno)));
-	}
-#else
 	snprintf(tfile, sizeof(tfile), "%s.XXXXXX", file);
 	if ((fd = mkostemp(tfile, O_CLOEXEC)) == -1)
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to create temporary file %s: %s",
 		    tfile, strerror(errno)));
-#endif
 
 	/*
 	 * If -xlinktype=DOF has been selected, just write out the DOF.
@@ -1916,47 +1739,17 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	}
 
 
-#ifdef illumos
-	if (!dtp->dt_lazyload)
-		(void) unlink(file);
-#endif
-
 	if (dtp->dt_oflags & DTRACE_O_LP64)
 		status = dump_elf64(dtp, dof, fd);
 	else
 		status = dump_elf32(dtp, dof, fd);
 
-#ifdef illumos
-	if (status != 0 || lseek(fd, 0, SEEK_SET) != 0) {
-		return (dt_link_error(dtp, NULL, -1, NULL,
-		    "failed to write %s: %s", file, strerror(errno)));
-	}
-#else
 	if (status != 0)
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to write %s: %s", tfile,
 		    strerror(dtrace_errno(dtp))));
-#endif
 
 	if (!dtp->dt_lazyload) {
-#ifdef illumos
-		const char *fmt = "%s -o %s -r -Blocal -Breduce /dev/fd/%d %s";
-
-		if (dtp->dt_oflags & DTRACE_O_LP64) {
-			(void) snprintf(drti, sizeof (drti),
-			    "%s/64/drti.o", _dtrace_libdir);
-		} else {
-			(void) snprintf(drti, sizeof (drti),
-			    "%s/drti.o", _dtrace_libdir);
-		}
-
-		len = snprintf(&tmp, 1, fmt, dtp->dt_ld_path, file, fd,
-		    drti) + 1;
-
-		cmd = alloca(len);
-
-		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, fd, drti);
-#else
 		const char *fmt = "%s -o %s -r %s %s";
 		dt_dirpath_t *dp = dt_list_next(&dtp->dt_lib_path);
 
@@ -1969,7 +1762,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 
 		(void) snprintf(cmd, len, fmt, dtp->dt_ld_path, file, tfile,
 		    drti);
-#endif
 		if ((status = system(cmd)) == -1) {
 			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to run %s: %s", dtp->dt_ld_path,
@@ -1992,7 +1784,6 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 		}
 		(void) close(fd); /* release temporary file */
 
-#ifdef __FreeBSD__
 		/*
 		 * Now that we've linked drti.o, reduce the global __SUNW_dof
 		 * symbol to a local symbol. This is needed to so that multiple
@@ -2025,25 +1816,20 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 			    file, dtp->dt_objcopy_path, WEXITSTATUS(status));
 			goto done;
 		}
-#endif
 	} else {
-#ifdef __FreeBSD__
 		if (rename(tfile, file) != 0) {
 			ret = dt_link_error(dtp, NULL, fd, NULL,
 			    "failed to rename %s to %s: %s", tfile, file,
 			    strerror(errno));
 			goto done;
 		}
-#endif
 		(void) close(fd);
 	}
 
 done:
 	dtrace_dof_destroy(dtp, dof);
 
-#ifdef __FreeBSD__
 	if (!dtp->dt_lazyload)
 		(void) unlink(tfile);
-#endif
 	return (ret);
 }

@@ -575,8 +575,7 @@ interpret:
 		imgp->execpath = args->fname;
 	else {
 		VOP_UNLOCK(imgp->vp);
-		if (vn_fullpath(td, imgp->vp, &imgp->execpath,
-		    &imgp->freepath) != 0)
+		if (vn_fullpath(imgp->vp, &imgp->execpath, &imgp->freepath) != 0)
 			imgp->execpath = args->fname;
 		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	}

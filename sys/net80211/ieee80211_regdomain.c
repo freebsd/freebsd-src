@@ -118,10 +118,11 @@ ieee80211_init_channels(struct ieee80211com *ic,
 {
 	struct ieee80211_channel *chans = ic->ic_channels;
 	int *nchans = &ic->ic_nchans;
-	int ht40;
+	int cbw_flags;
 
 	/* XXX just do something for now */
-	ht40 = !!(ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
+	cbw_flags = (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) ?
+	    NET80211_CBW_FLAG_HT40 : 0;
 	*nchans = 0;
 	if (isset(bands, IEEE80211_MODE_11B) ||
 	    isset(bands, IEEE80211_MODE_11G) ||
@@ -131,19 +132,40 @@ ieee80211_init_channels(struct ieee80211com *ic,
 			nchan -= 3;
 
 		ieee80211_add_channel_list_2ghz(chans, IEEE80211_CHAN_MAX,
-		    nchans, def_chan_2ghz, nchan, bands, ht40);
+		    nchans, def_chan_2ghz, nchan, bands, cbw_flags);
 	}
+	/* XXX IEEE80211_MODE_VHT_2GHZ if we really want to. */
+
 	if (isset(bands, IEEE80211_MODE_11A) ||
 	    isset(bands, IEEE80211_MODE_11NA)) {
 		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
 		    nchans, def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),
-		    bands, ht40);
+		    bands, cbw_flags);
 		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
 		    nchans, def_chan_5ghz_band2, nitems(def_chan_5ghz_band2),
-		    bands, ht40);
+		    bands, cbw_flags);
 		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
 		    nchans, def_chan_5ghz_band3, nitems(def_chan_5ghz_band3),
-		    bands, ht40);
+		    bands, cbw_flags);
+	}
+	if (isset(bands, IEEE80211_MODE_VHT_5GHZ)) {
+		cbw_flags |= NET80211_CBW_FLAG_HT40;  /* Make sure this is set; or assert?  */
+		cbw_flags |= NET80211_CBW_FLAG_VHT80;
+#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
+		if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1)
+			cbw_flags |= NET80211_CBW_FLAG_VHT160;
+		if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
+			cbw_flags |= NET80211_CBW_FLAG_VHT80P80;
+#undef MS
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		   nchans, def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),
+		   bands, cbw_flags);
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band2, nitems(def_chan_5ghz_band2),
+		   bands, cbw_flags);
+		ieee80211_add_channel_list_5ghz(chans, IEEE80211_CHAN_MAX,
+		    nchans, def_chan_5ghz_band3, nitems(def_chan_5ghz_band3),
+		   bands, cbw_flags);
 	}
 	if (rd != NULL)
 		ic->ic_regdomain = *rd;

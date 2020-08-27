@@ -1,4 +1,4 @@
-//===-- IRInterpreter.cpp ---------------------------------------*- C++ -*-===//
+//===-- IRInterpreter.cpp -------------------------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -144,10 +144,10 @@ public:
       ss.Printf(" 0x%llx", (unsigned long long)addr);
     }
 
-    return ss.GetString();
+    return std::string(ss.GetString());
   }
 
-  bool AssignToMatchType(lldb_private::Scalar &scalar, uint64_t u64value,
+  bool AssignToMatchType(lldb_private::Scalar &scalar, llvm::APInt value,
                          Type *type) {
     size_t type_size = m_target_data.getTypeStoreSize(type);
 
@@ -157,7 +157,7 @@ public:
     if (type_size != 1)
       type_size = PowerOf2Ceil(type_size);
 
-    scalar = llvm::APInt(type_size*8, u64value);
+    scalar = value.zextOrTrunc(type_size * 8);
     return true;
   }
 
@@ -171,32 +171,32 @@ public:
       if (!ResolveConstantValue(value_apint, constant))
         return false;
 
-      return AssignToMatchType(scalar, value_apint.getLimitedValue(),
+      return AssignToMatchType(scalar, value_apint, value->getType());
+    }
+
+    lldb::addr_t process_address = ResolveValue(value, module);
+    size_t value_size = m_target_data.getTypeStoreSize(value->getType());
+
+    lldb_private::DataExtractor value_extractor;
+    lldb_private::Status extract_error;
+
+    m_execution_unit.GetMemoryData(value_extractor, process_address,
+                                   value_size, extract_error);
+
+    if (!extract_error.Success())
+      return false;
+
+    lldb::offset_t offset = 0;
+    if (value_size <= 8) {
+      uint64_t u64value = value_extractor.GetMaxU64(&offset, value_size);
+      return AssignToMatchType(scalar, llvm::APInt(64, u64value),
                                value->getType());
-    } else {
-      lldb::addr_t process_address = ResolveValue(value, module);
-      size_t value_size = m_target_data.getTypeStoreSize(value->getType());
-
-      lldb_private::DataExtractor value_extractor;
-      lldb_private::Status extract_error;
-
-      m_execution_unit.GetMemoryData(value_extractor, process_address,
-                                     value_size, extract_error);
-
-      if (!extract_error.Success())
-        return false;
-
-      lldb::offset_t offset = 0;
-      if (value_size <= 8) {
-        uint64_t u64value = value_extractor.GetMaxU64(&offset, value_size);
-        return AssignToMatchType(scalar, u64value, value->getType());
-      }
     }
 
     return false;
   }
 
-  bool AssignValue(const Value *value, lldb_private::Scalar &scalar,
+  bool AssignValue(const Value *value, lldb_private::Scalar scalar,
                    Module &module) {
     lldb::addr_t process_address = ResolveValue(value, module);
 
@@ -205,7 +205,9 @@ public:
 
     lldb_private::Scalar cast_scalar;
 
-    if (!AssignToMatchType(cast_scalar, scalar.ULongLong(), value->getType()))
+    scalar.MakeUnsigned();
+    if (!AssignToMatchType(cast_scalar, scalar.UInt128(llvm::APInt()),
+                           value->getType()))
       return false;
 
     size_t value_byte_size = m_target_data.getTypeStoreSize(value->getType());
@@ -403,7 +405,7 @@ public:
         ss.Printf("%02hhx ", buf.GetBytes()[i]);
     }
 
-    return ss.GetString();
+    return std::string(ss.GetString());
   }
 
   lldb::addr_t ResolveValue(const Value *value, Module &module) {
@@ -433,8 +435,6 @@ static const char *unsupported_opcode_error =
     "Interpreter doesn't handle one of the expression's opcodes";
 static const char *unsupported_operand_error =
     "Interpreter doesn't handle one of the expression's operands";
-// static const char *interpreter_initialization_error = "Interpreter couldn't
-// be initialized";
 static const char *interpreter_internal_error =
     "Interpreter encountered an internal error";
 static const char *bad_value_error =
@@ -444,8 +444,6 @@ static const char *memory_allocation_error =
 static const char *memory_write_error = "Interpreter couldn't write to memory";
 static const char *memory_read_error = "Interpreter couldn't read from memory";
 static const char *infinite_loop_error = "Interpreter ran for too many cycles";
-// static const char *bad_result_error                 = "Result of expression
-// is in bad memory";
 static const char *too_many_functions_error =
     "Interpreter doesn't handle modules with multiple function bodies.";
 
@@ -597,7 +595,8 @@ bool IRInterpreter::CanInterpret(llvm::Module &module, llvm::Function &function,
         switch (operand_type->getTypeID()) {
         default:
           break;
-        case Type::VectorTyID: {
+        case Type::FixedVectorTyID:
+        case Type::ScalableVectorTyID: {
           LLDB_LOGF(log, "Unsupported operand type: %s",
                     PrintType(operand_type).c_str());
           error.SetErrorString(unsupported_operand_error);
@@ -1370,7 +1369,7 @@ bool IRInterpreter::Interpret(llvm::Module &module, llvm::Function &function,
 
       // Find the address of the callee function
       lldb_private::Scalar I;
-      const llvm::Value *val = call_inst->getCalledValue();
+      const llvm::Value *val = call_inst->getCalledOperand();
 
       if (!frame.EvaluateValue(I, val, module)) {
         error.SetErrorToGenericError();
@@ -1510,7 +1509,7 @@ bool IRInterpreter::Interpret(llvm::Module &module, llvm::Function &function,
         lldb_private::ValueObject *vobj = retVal.get();
 
         // Check if the return value is valid
-        if (vobj == nullptr || retVal.empty()) {
+        if (vobj == nullptr || !retVal) {
           error.SetErrorToGenericError();
           error.SetErrorStringWithFormat("unable to get the return value");
           return false;

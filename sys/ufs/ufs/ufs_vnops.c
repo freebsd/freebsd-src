@@ -282,13 +282,20 @@ ufs_open(struct vop_open_args *ap)
 		return (EOPNOTSUPP);
 
 	ip = VTOI(vp);
+	vnode_create_vobject(vp, DIP(ip, i_size), ap->a_td);
+	if (vp->v_type == VREG && (vp->v_irflag & VIRF_PGREAD) == 0) {
+		VI_LOCK(vp);
+		vp->v_irflag |= VIRF_PGREAD;
+		VI_UNLOCK(vp);
+	}
+
 	/*
 	 * Files marked append-only must be opened for appending.
 	 */
 	if ((ip->i_flags & APPEND) &&
 	    (ap->a_mode & (FWRITE | O_APPEND)) == FWRITE)
 		return (EPERM);
-	vnode_create_vobject(vp, DIP(ip, i_size), ap->a_td);
+
 	return (0);
 }
 
@@ -1622,10 +1629,7 @@ relock:
 	 * name that references the old i-node if it has other links
 	 * or open file descriptors.
 	 */
-	cache_purge(fvp);
-	if (tvp)
-		cache_purge(tvp);
-	cache_purge_negative(tdvp);
+	cache_rename(fdvp, fvp, tdvp, tvp, fcnp, tcnp);
 
 unlockout:
 	if (want_seqc_end) {

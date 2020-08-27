@@ -182,7 +182,7 @@ loop:
 			vp = fd->fd_vnode;
 			VI_LOCK(vp);
 			mtx_unlock(&fdesc_hashmtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK))
 				goto loop;
 			*vpp = vp;
 			return (0);
@@ -232,7 +232,7 @@ loop:
 			vp2 = fd2->fd_vnode;
 			VI_LOCK(vp2);
 			mtx_unlock(&fdesc_hashmtx);
-			error = vget(vp2, LK_EXCLUSIVE | LK_INTERLOCK, td);
+			error = vget(vp2, LK_EXCLUSIVE | LK_INTERLOCK);
 			/* Someone beat us, dec use count and wait for reclaim */
 			vgone(vp);
 			vput(vp);
@@ -640,7 +640,7 @@ fdesc_readlink(struct vop_readlink_args *va)
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
 		vp = fp->f_vnode;
-		error = vn_fullpath(td, vp, &fullpath, &freepath);
+		error = vn_fullpath(vp, &fullpath, &freepath);
 		break;
 	default:
 		fullpath = "anon_inode:[unknown]";

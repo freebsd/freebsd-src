@@ -244,6 +244,8 @@ struct xvnode {
 #define VHOLD_ALL_FLAGS (VHOLD_NO_SMR)
 
 #define	VIRF_DOOMED	0x0001	/* This vnode is being recycled */
+#define	VIRF_PGREAD	0x0002	/* Direct reads from the page cache are permitted,
+				   never cleared once set */
 
 #define	VI_TEXT_REF	0x0001	/* Text ref grabbed use ref */
 #define	VI_MOUNT	0x0002	/* Mount in progress */
@@ -640,6 +642,8 @@ void	cache_vnode_init(struct vnode *vp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_vgone(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
+void	cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
+    struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
 void	cache_purgevfs(struct mount *mp, bool force);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
@@ -656,11 +660,9 @@ u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
 int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
 	    size_t *buflen);
-int	vn_getcwd(struct thread *td, char *buf, char **retbuf, size_t *buflen);
-int	vn_fullpath(struct thread *td, struct vnode *vn,
-	    char **retbuf, char **freebuf);
-int	vn_fullpath_global(struct thread *td, struct vnode *vn,
-	    char **retbuf, char **freebuf);
+int	vn_getcwd(char *buf, char **retbuf, size_t *buflen);
+int	vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf);
+int	vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf);
 struct vnode *
 	vn_dir_dd_ino(struct vnode *vp);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
@@ -680,7 +682,7 @@ void	vlazy(struct vnode *);
 void	vdrop(struct vnode *);
 void	vdropl(struct vnode *);
 int	vflush(struct mount *mp, int rootrefs, int flags, struct thread *td);
-int	vget(struct vnode *vp, int flags, struct thread *td);
+int	vget(struct vnode *vp, int flags);
 enum vgetstate	vget_prep_smr(struct vnode *vp);
 enum vgetstate	vget_prep(struct vnode *vp);
 int	vget_finish(struct vnode *vp, int flags, enum vgetstate vs);
@@ -716,7 +718,8 @@ int	vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	    unsigned int flags, struct ucred *incred, struct ucred *outcred,
 	    struct thread *fsize_td);
 int	vn_need_pageq_flush(struct vnode *vp);
-int	vn_isdisk(struct vnode *vp, int *errp);
+bool	vn_isdisk_error(struct vnode *vp, int *errp);
+bool	vn_isdisk(struct vnode *vp);
 int	_vn_lock(struct vnode *vp, int flags, const char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
@@ -965,7 +968,6 @@ do {									\
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
 void	vref(struct vnode *vp);
-void	vrefl(struct vnode *vp);
 void	vrefact(struct vnode *vp);
 void 	v_addpollinfo(struct vnode *vp);
 static __inline int
@@ -974,6 +976,11 @@ vrefcnt(struct vnode *vp)
 
 	return (vp->v_usecount);
 }
+
+#define	vrefl(vp)	do {						\
+	ASSERT_VI_LOCKED(vp, __func__);					\
+	vref(vp);							\
+} while (0)
 
 int vnode_create_vobject(struct vnode *vp, off_t size, struct thread *td);
 void vnode_destroy_vobject(struct vnode *vp);

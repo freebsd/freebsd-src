@@ -47,15 +47,21 @@ usage ()
   $1 = "numericdef" -o $1 = "timedef" -o $1 = "ctypedef" ] || usage
 
 self=$(realpath $0)
-base=$(dirname ${self})
-old=${base}/../${1}.draft
-new=${base}/../${1}
-TEMP=/tmp/${1}.locales
-TEMP2=/tmp/${1}.hashes
-TEMP3=/tmp/${1}.symlinks
-TEMP4=/tmp/${1}.mapped
-FULLMAP=/tmp/utf8-map
-FULLEXTRACT=/tmp/extracted-names
+base=${BASEDIR:-$(dirname ${self})}
+: ${ETCDIR:=${base}/../etc}
+: ${TOOLSDIR:=${base}}
+: ${OUTBASEDIR:=${base}/../${1}}
+: ${OLD_DIR:=${OUTBASEDIR}.draft}
+: ${NEW_DIR:=${OUTBASEDIR}}
+old=${OLD_DIR}
+new=${NEW_DIR}
+: ${TMPDIR:=/tmp}
+TEMP=${TMPDIR}/${1}.locales
+TEMP2=${TMPDIR}/${1}.hashes
+TEMP3=${TMPDIR}/${1}.symlinks
+TEMP4=${TMPDIR}/${1}.mapped
+FULLMAP=${TMPDIR}/utf8-map
+FULLEXTRACT=${TMPDIR}/extracted-names
 AWKCMD="/## PLACEHOLDER/ { \
 	  while ( getline line < \"${TEMP}\" ) {print line} } \
 	/## SYMPAIRS/ { \
@@ -65,6 +71,7 @@ AWKCMD="/## PLACEHOLDER/ { \
 	!/## / { print \$0 }"
 
 # Rename the sources with 3 components name into the POSIX version of the name using @modifier
+mkdir -p $old $new
 cd $old
 pwd
 for i in *_*_*.*.src; do
@@ -142,13 +149,13 @@ then
 	rm -f ${TEMP2}
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
 		${UNIDIR}/posix/UTF-8.cm \
-		> ${base}/../etc/final-maps/map.UTF-8
+		> ${ETCDIR}/final-maps/map.UTF-8
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
 		${UNIDIR}/posix/eucCN.cm \
-		> ${base}/../etc/final-maps/map.eucCN
+		> ${ETCDIR}/final-maps/map.eucCN
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
 		${UNIDIR}/posix/eucCN.cm \
-		> ${base}/../etc/final-maps/map.GB2312
+		> ${ETCDIR}/final-maps/map.GB2312
 
 	# GB18030 and Big5 are pre-generated from CLDR data
 	CHARMAPS="ARMSCII-8 CP1131 CP1251 \
@@ -160,10 +167,11 @@ then
 	for map in ${CHARMAPS}
 	do
 		encoding=${map}
-		/usr/local/bin/perl ${base}/convert_map.pl \
-			${base}/../etc/charmaps/${map}.TXT ${encoding} \
+		env ETCDIR="${ETCDIR}" \
+		/usr/local/bin/perl ${TOOLSDIR}/convert_map.pl \
+			${ETCDIR}/charmaps/${map}.TXT ${encoding} \
 			| /usr/bin/sed -E -e 's/	+/ /g' \
-		> ${base}/../etc/final-maps/map.${map}
+		> ${ETCDIR}/final-maps/map.${map}
 		echo map ${map} converted.
 	done
 

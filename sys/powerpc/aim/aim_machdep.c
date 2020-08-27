@@ -390,6 +390,25 @@ aim_cpu_init(vm_offset_t toc)
 		bcopy(&restorebridge, (void *)EXC_MCHK, trap_offset);
 		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset);
 		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset);
+	} else {
+
+		/*
+		 * Use an IBAT and a DBAT to map the bottom 256M segment.
+		 *
+		 * It is very important to do it *now* to avoid taking a
+		 * fault in .text / .data before the MMU is bootstrapped,
+		 * because until then, the translation data has not been
+		 * copied over from OpenFirmware, so our DSI/ISI will fail
+		 * to find a match.
+		 */
+
+		battable[0x0].batl = BATL(0x00000000, BAT_M, BAT_PP_RW);
+		battable[0x0].batu = BATU(0x00000000, BAT_BL_256M, BAT_Vs);
+
+		__asm (".balign 32; \n"
+		    "mtibatu 0,%0; mtibatl 0,%1; isync; \n"
+		    "mtdbatu 0,%0; mtdbatl 0,%1; isync"
+		    :: "r"(battable[0].batu), "r"(battable[0].batl));
 	}
 	#else
 	trapsize = (size_t)&hypertrapcodeend - (size_t)&hypertrapcode;

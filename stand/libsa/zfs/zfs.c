@@ -60,7 +60,10 @@ static off_t	zfs_seek(struct open_file *f, off_t offset, int where);
 static int	zfs_stat(struct open_file *f, struct stat *sb);
 static int	zfs_readdir(struct open_file *f, struct dirent *d);
 
-static void	zfs_bootenv_initial(const char *);
+static void	zfs_bootenv_initial(const char *envname, spa_t *spa,
+		    const char *name, const char *dsname, int checkpoint);
+static void	zfs_checkpoints_initial(spa_t *spa, const char *name,
+		    const char *dsname);
 
 struct devsw zfs_dev;
 
@@ -1077,15 +1080,15 @@ zfs_fmtdev(void *vdev)
 	return (buf);
 }
 
-int
-zfs_list(const char *name)
+static int
+split_devname(const char *name, char *poolname, size_t size,
+    const char **dsnamep)
 {
-	static char	poolname[ZFS_MAXNAMELEN];
-	uint64_t	objid;
-	spa_t		*spa;
-	const char	*dsname;
-	int		len;
-	int		rv;
+	const char *dsname;
+	size_t len;
+
+	ASSERT(name != NULL);
+	ASSERT(poolname != NULL);
 
 	len = strlen(name);
 	dsname = strchr(name, '/');
@@ -1094,8 +1097,29 @@ zfs_list(const char *name)
 		dsname++;
 	} else
 		dsname = "";
-	memcpy(poolname, name, len);
-	poolname[len] = '\0';
+
+	if (len + 1 > size)
+		return (EINVAL);
+
+	strlcpy(poolname, name, len + 1);
+
+	if (dsnamep != NULL)
+		*dsnamep = dsname;
+
+	return (0);
+}
+
+int
+zfs_list(const char *name)
+{
+	static char	poolname[ZFS_MAXNAMELEN];
+	uint64_t	objid;
+	spa_t		*spa;
+	const char	*dsname;
+	int		rv;
+
+	if (split_devname(name, poolname, sizeof(poolname), &dsname) != 0)
+		return (EINVAL);
 
 	spa = spa_find_by_name(poolname);
 	if (!spa)
@@ -1108,10 +1132,13 @@ zfs_list(const char *name)
 }
 
 void
-init_zfs_bootenv(const char *currdev_in)
+init_zfs_boot_options(const char *currdev_in)
 {
+	char poolname[ZFS_MAXNAMELEN];
 	char *beroot, *currdev;
+	spa_t *spa;
 	int currdev_len;
+	const char *dsname;
 
 	currdev = NULL;
 	currdev_len = strlen(currdev_in);
@@ -1124,6 +1151,7 @@ init_zfs_bootenv(const char *currdev_in)
 		return;
 	/* Remove the trailing : */
 	currdev[currdev_len - 1] = '\0';
+
 	setenv("zfs_be_active", currdev, 1);
 	setenv("zfs_be_currpage", "1", 1);
 	/* Remove the last element (current bootenv) */
@@ -1132,49 +1160,71 @@ init_zfs_bootenv(const char *currdev_in)
 		beroot[0] = '\0';
 	beroot = strchr(currdev, ':') + 1;
 	setenv("zfs_be_root", beroot, 1);
-	zfs_bootenv_initial(beroot);
+
+	if (split_devname(beroot, poolname, sizeof(poolname), &dsname) != 0)
+		return;
+
+	spa = spa_find_by_name(poolname);
+	if (spa == NULL)
+		return;
+
+	zfs_bootenv_initial("bootenvs", spa, beroot, dsname, 0);
+	zfs_checkpoints_initial(spa, beroot, dsname);
+
 	free(currdev);
 }
 
 static void
-zfs_bootenv_initial(const char *name)
+zfs_checkpoints_initial(spa_t *spa, const char *name, const char *dsname)
 {
-	char		poolname[ZFS_MAXNAMELEN], *dsname;
-	char envname[32], envval[256];
+	char envname[32];
+
+	if (spa->spa_uberblock_checkpoint.ub_checkpoint_txg != 0) {
+		snprintf(envname, sizeof(envname), "zpool_checkpoint");
+		setenv(envname, name, 1);
+
+		spa->spa_uberblock = &spa->spa_uberblock_checkpoint;
+		spa->spa_mos = &spa->spa_mos_checkpoint;
+
+		zfs_bootenv_initial("bootenvs_check", spa, name, dsname, 1);
+
+		spa->spa_uberblock = &spa->spa_uberblock_master;
+		spa->spa_mos = &spa->spa_mos_master;
+	}
+}
+
+static void
+zfs_bootenv_initial(const char *envprefix, spa_t *spa, const char *rootname,
+   const char *dsname, int checkpoint)
+{
+	char		envname[32], envval[256];
 	uint64_t	objid;
-	spa_t		*spa;
-	int		bootenvs_idx, len, rv;
+	int		bootenvs_idx, rv;
 
 	SLIST_INIT(&zfs_be_head);
 	zfs_env_count = 0;
-	len = strlen(name);
-	dsname = strchr(name, '/');
-	if (dsname != NULL) {
-		len = dsname - name;
-		dsname++;
-	} else
-		dsname = "";
-	strlcpy(poolname, name, len + 1);
-	spa = spa_find_by_name(poolname);
-	if (spa == NULL)
-		return;
+
 	rv = zfs_lookup_dataset(spa, dsname, &objid);
 	if (rv != 0)
 		return;
+
 	rv = zfs_callback_dataset(spa, objid, zfs_belist_add);
 	bootenvs_idx = 0;
 	/* Populate the initial environment variables */
 	SLIST_FOREACH_SAFE(zfs_be, &zfs_be_head, entries, zfs_be_tmp) {
 		/* Enumerate all bootenvs for general usage */
-		snprintf(envname, sizeof(envname), "bootenvs[%d]", bootenvs_idx);
-		snprintf(envval, sizeof(envval), "zfs:%s/%s", name, zfs_be->name);
+		snprintf(envname, sizeof(envname), "%s[%d]",
+		    envprefix, bootenvs_idx);
+		snprintf(envval, sizeof(envval), "zfs:%s%s/%s",
+		    checkpoint ? "!" : "", rootname, zfs_be->name);
 		rv = setenv(envname, envval, 1);
 		if (rv != 0)
 			break;
 		bootenvs_idx++;
 	}
+	snprintf(envname, sizeof(envname), "%s_count", envprefix);
 	snprintf(envval, sizeof(envval), "%d", bootenvs_idx);
-	setenv("bootenvs_count", envval, 1);
+	setenv(envname, envval, 1);
 
 	/* Clean up the SLIST of ZFS BEs */
 	while (!SLIST_EMPTY(&zfs_be_head)) {
@@ -1183,19 +1233,17 @@ zfs_bootenv_initial(const char *name)
 		free(zfs_be->name);
 		free(zfs_be);
 	}
-
-	return;
-
 }
 
 int
 zfs_bootenv(const char *name)
 {
-	static char	poolname[ZFS_MAXNAMELEN], *dsname, *root;
+	char		poolname[ZFS_MAXNAMELEN], *root;
+	const char	*dsname;
 	char		becount[4];
 	uint64_t	objid;
 	spa_t		*spa;
-	int		len, rv, pages, perpage, currpage;
+	int		rv, pages, perpage, currpage;
 
 	if (name == NULL)
 		return (EINVAL);
@@ -1209,15 +1257,9 @@ zfs_bootenv(const char *name)
 
 	SLIST_INIT(&zfs_be_head);
 	zfs_env_count = 0;
-	len = strlen(name);
-	dsname = strchr(name, '/');
-	if (dsname != NULL) {
-		len = dsname - name;
-		dsname++;
-	} else
-		dsname = "";
-	memcpy(poolname, name, len);
-	poolname[len] = '\0';
+
+	if (split_devname(name, poolname, sizeof(poolname), &dsname) != 0)
+		return (EINVAL);
 
 	spa = spa_find_by_name(poolname);
 	if (!spa)
@@ -1307,7 +1349,7 @@ zfs_set_env(void)
 			ctr++;
 			continue;
 		}
-		
+
 		snprintf(envname, sizeof(envname), "bootenvmenu_caption[%d]", zfs_env_index);
 		snprintf(envval, sizeof(envval), "%s", zfs_be->name);
 		rv = setenv(envname, envval, 1);
@@ -1340,7 +1382,7 @@ zfs_set_env(void)
 		}
 
 	}
-	
+
 	for (; zfs_env_index <= ZFS_BE_LAST; zfs_env_index++) {
 		snprintf(envname, sizeof(envname), "bootenvmenu_caption[%d]", zfs_env_index);
 		(void)unsetenv(envname);

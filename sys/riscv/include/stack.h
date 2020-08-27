@@ -41,9 +41,9 @@
 			 (va) <= VM_MAX_KERNEL_ADDRESS)
 
 struct unwind_state {
-	uint64_t fp;
-	uint64_t sp;
-	uint64_t pc;
+	uintptr_t fp;
+	uintptr_t sp;
+	uintptr_t pc;
 };
 
 int unwind_frame(struct unwind_state *);

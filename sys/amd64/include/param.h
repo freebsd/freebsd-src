@@ -118,6 +118,12 @@
 #define	PML4SHIFT	39		/* LOG2(NBPML4) */
 #define	NBPML4		(1UL<<PML4SHIFT)/* bytes/page map lev4 table */
 #define	PML4MASK	(NBPML4-1)
+/* Size of the level 5 page-map level-5 table units */
+#define	NPML5EPG	(PAGE_SIZE/(sizeof (pml5_entry_t)))
+#define	NPML5EPGSHIFT	9		/* LOG2(NPML5EPG) */
+#define	PML5SHIFT	48		/* LOG2(NBPML5) */
+#define	NBPML5		(1UL<<PML5SHIFT)/* bytes/page map lev5 table */
+#define	PML5MASK	(NBPML5-1)
 
 #define	MAXPAGESIZES	3	/* maximum number of supported page sizes */
 

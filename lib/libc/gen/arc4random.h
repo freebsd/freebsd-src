@@ -58,11 +58,13 @@ _rs_allocate(struct _rs **rsp, struct _rsx **rsxp)
 	if ((p = mmap(NULL, sizeof(*p), PROT_READ|PROT_WRITE,
 	    MAP_ANON|MAP_PRIVATE, -1, 0)) == MAP_FAILED)
 		return (-1);
+	/* Allow bootstrapping arc4random.c on Linux/macOS */
+#ifdef INHERIT_ZERO
 	if (minherit(p, sizeof(*p), INHERIT_ZERO) == -1) {
 		munmap(p, sizeof(*p));
 		return (-1);
 	}
-
+#endif
 	*rsp = &p->rs;
 	*rsxp = &p->rsx;
 	return (0);

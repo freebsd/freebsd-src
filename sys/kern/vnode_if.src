@@ -401,7 +401,6 @@ vop_need_inactive {
 
 vop_reclaim {
 	IN struct vnode *vp;
-	IN struct thread *td;
 };
 
 

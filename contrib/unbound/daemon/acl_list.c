@@ -273,7 +273,7 @@ check_data(const char* data, const struct config_strlist* head)
 	if(res == 0)
 		return 1;
 	log_err("rr data [char %d] parse error %s",
-		(int)LDNS_WIREPARSE_OFFSET(res)-13,
+		(int)LDNS_WIREPARSE_OFFSET(res)-2,
 		sldns_get_errorstr_parse(res));
 	return 0;
 }

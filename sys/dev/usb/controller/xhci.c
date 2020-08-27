@@ -2398,8 +2398,6 @@ xhci_configure_endpoint(struct usb_device *udev,
 
 	/* store endpoint mode */
 	pepext->trb_ep_mode = ep_mode;
-	/* store bMaxPacketSize for control endpoints */
-	pepext->trb_ep_maxp = edesc->wMaxPacketSize[0];
 	usb_pc_cpu_flush(pepext->page_cache);
 
 	if (ep_mode == USB_EP_MODE_STREAMS) {
@@ -2927,17 +2925,6 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 	if (pepext->trb_used[id] >= trb_limit) {
 		DPRINTFN(8, "Too many TDs queued.\n");
 		return (USB_ERR_NOMEM);
-	}
-
-	/* check if bMaxPacketSize changed */
-	if (xfer->flags_int.control_xfr != 0 &&
-	    pepext->trb_ep_maxp != xfer->endpoint->edesc->wMaxPacketSize[0]) {
-
-		DPRINTFN(8, "Reconfigure control endpoint\n");
-
-		/* force driver to reconfigure endpoint */
-		pepext->trb_halted = 1;
-		pepext->trb_running = 0;
 	}
 
 	/* check for stopped condition, after putting transfer on interrupt queue */
@@ -3808,6 +3795,28 @@ alloc_dma_set:
 	}
 }
 
+static uint8_t
+xhci_get_endpoint_state(struct usb_device *udev, uint8_t epno)
+{
+	struct xhci_softc *sc = XHCI_BUS2SC(udev->bus);
+	struct usb_page_search buf_dev;
+	struct xhci_hw_dev *hdev;
+	struct xhci_dev_ctx *pdev;
+	uint32_t temp;
+
+	MPASS(epno != 0);
+
+	hdev =	&sc->sc_hw.devs[udev->controller_slot_id];
+
+	usbd_get_page(&hdev->device_pc, 0, &buf_dev);
+	pdev = buf_dev.buffer;
+	usb_pc_cpu_invalidate(&hdev->device_pc);
+
+	temp = xhci_ctx_get_le32(sc, &pdev->ctx_ep[epno - 1].dwEpCtx0);
+
+	return (XHCI_EPCTX_0_EPSTATE_GET(temp));
+}
+
 static usb_error_t
 xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 {
@@ -3861,16 +3870,20 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 * Get the endpoint into the stopped state according to the
 	 * endpoint context state diagram in the XHCI specification:
 	 */
-
-	err = xhci_cmd_stop_ep(sc, 0, epno, index);
-
-	if (err != 0)
-		DPRINTF("Could not stop endpoint %u\n", epno);
-
-	err = xhci_cmd_reset_ep(sc, 0, epno, index);
-
-	if (err != 0)
-		DPRINTF("Could not reset endpoint %u\n", epno);
+	switch (xhci_get_endpoint_state(udev, epno)) {
+	case XHCI_EPCTX_0_EPSTATE_STOPPED:
+		break;
+	case XHCI_EPCTX_0_EPSTATE_HALTED:
+		err = xhci_cmd_reset_ep(sc, 0, epno, index);
+		if (err != 0)
+			DPRINTF("Could not reset endpoint %u\n", epno);
+		break;
+	default:
+		err = xhci_cmd_stop_ep(sc, 0, epno, index);
+		if (err != 0)
+			DPRINTF("Could not stop endpoint %u\n", epno);
+		break;
+	}
 
 	err = xhci_cmd_set_tr_dequeue_ptr(sc,
 	    (pepext->physaddr + (stream_id * sizeof(struct xhci_trb) *

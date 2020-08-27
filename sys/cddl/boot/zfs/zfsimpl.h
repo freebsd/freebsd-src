@@ -1351,6 +1351,7 @@ typedef struct dsl_dataset_phys {
 #define	DMU_POOL_REMOVING		"com.delphix:removing"
 #define	DMU_POOL_OBSOLETE_BPOBJ		"com.delphix:obsolete_bpobj"
 #define	DMU_POOL_CONDENSING_INDIRECT	"com.delphix:condensing_indirect"
+#define	DMU_POOL_ZPOOL_CHECKPOINT       "com.delphix:zpool_checkpoint"
 
 #define	ZAP_MAGIC 0x2F52AB2ABULL
 
@@ -1814,12 +1815,17 @@ typedef struct spa {
 	char		*spa_name;	/* pool name */
 	uint64_t	spa_guid;	/* pool guid */
 	uint64_t	spa_txg;	/* most recent transaction */
-	struct uberblock spa_uberblock;	/* best uberblock so far */
+	struct uberblock *spa_uberblock;	/* best uberblock so far */
 	vdev_t		*spa_root_vdev;	/* toplevel vdev container */
-	objset_phys_t	spa_mos;	/* MOS for this pool */
+	objset_phys_t	*spa_mos;	/* MOS for this pool */
 	zio_cksum_salt_t spa_cksum_salt;	/* secret salt for cksum */
 	void		*spa_cksum_tmpls[ZIO_CHECKSUM_FUNCTIONS];
 	boolean_t	spa_with_log;	/* this pool has log */
+
+	struct uberblock spa_uberblock_master;  /* best uberblock so far */
+	objset_phys_t    spa_mos_master;        /* MOS for this pool */
+	struct uberblock spa_uberblock_checkpoint;      /* checkpoint uberblock */
+	objset_phys_t    spa_mos_checkpoint;    /* Checkpoint MOS */
 } spa_t;
 
 /* IO related arguments. */

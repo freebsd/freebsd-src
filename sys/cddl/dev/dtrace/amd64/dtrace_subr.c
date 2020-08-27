@@ -36,13 +36,13 @@
 #include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/kmem.h>
 #include <sys/smp.h>
 #include <sys/dtrace_impl.h>
 #include <sys/dtrace_bsd.h>
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
+#include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #include <vm/pmap.h>
@@ -131,7 +131,7 @@ dtrace_invop_uninit(void)
 void
 dtrace_toxic_ranges(void (*func)(uintptr_t base, uintptr_t limit))
 {
-	(*func)(0, (uintptr_t) addr_PTmap);
+	(*func)(0, la57 ? (uintptr_t)addr_P5Tmap : (uintptr_t)addr_P4Tmap);
 }
 
 void

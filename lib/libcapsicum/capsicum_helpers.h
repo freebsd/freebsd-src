@@ -49,7 +49,17 @@
 __BEGIN_DECLS
 
 static const unsigned long caph_stream_cmds[] =
-	{ TIOCGETA, TIOCGWINSZ, FIODTYPE };
+    {
+#ifdef TIOCGETA
+	TIOCGETA,
+#endif
+#ifdef TIOCGWINSZ
+	TIOCGWINSZ,
+#endif
+#ifdef FIODTYPE
+	FIODTYPE,
+#endif
+    };
 static const uint32_t caph_stream_fcntls = CAP_FCNTL_GETFL;
 
 static __inline void

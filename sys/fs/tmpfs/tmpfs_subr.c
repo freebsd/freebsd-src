@@ -588,6 +588,7 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
     struct vnode **vpp)
 {
 	struct vnode *vp;
+	enum vgetstate vs;
 	struct tmpfs_mount *tm;
 	vm_object_t object;
 	int error;
@@ -600,18 +601,15 @@ loop:
 	TMPFS_NODE_ASSERT_LOCKED(node);
 	if ((vp = node->tn_vnode) != NULL) {
 		MPASS((node->tn_vpstate & TMPFS_VNODE_DOOMED) == 0);
-		VI_LOCK(vp);
 		if ((node->tn_type == VDIR && node->tn_dir.tn_parent == NULL) ||
 		    (VN_IS_DOOMED(vp) &&
 		     (lkflag & LK_NOWAIT) != 0)) {
-			VI_UNLOCK(vp);
 			TMPFS_NODE_UNLOCK(node);
 			error = ENOENT;
 			vp = NULL;
 			goto out;
 		}
 		if (VN_IS_DOOMED(vp)) {
-			VI_UNLOCK(vp);
 			node->tn_vpstate |= TMPFS_VNODE_WRECLAIM;
 			while ((node->tn_vpstate & TMPFS_VNODE_WRECLAIM) != 0) {
 				msleep(&node->tn_vnode, TMPFS_NODE_MTX(node),
@@ -619,8 +617,9 @@ loop:
 			}
 			goto loop;
 		}
+		vs = vget_prep(vp);
 		TMPFS_NODE_UNLOCK(node);
-		error = vget(vp, lkflag | LK_INTERLOCK, curthread);
+		error = vget_finish(vp, lkflag, vs);
 		if (error == ENOENT) {
 			TMPFS_NODE_LOCK(node);
 			goto loop;

@@ -66,7 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_util.h>
 #include <compat/linux/linux_file.h>
 
-static int	linux_common_open(struct thread *, int, char *, int, int);
+static int	linux_common_open(struct thread *, int, const char *, int, int,
+		    enum uio_seg);
 static int	linux_getdents_error(struct thread *, int, int);
 
 static struct bsd_to_linux_bitmap seal_bitmap[] = {
@@ -107,17 +108,22 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
 	char *path;
 	int error;
 
-	LCONVPATHEXIST(td, args->path, &path);
-
-	error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
-	    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
-	LFREEPATH(path);
+	if (!LUSECONVPATH(td)) {
+		error = kern_openat(td, AT_FDCWD, args->path, UIO_USERSPACE,
+		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+	} else {
+		LCONVPATHEXIST(td, args->path, &path);
+		error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+		LFREEPATH(path);
+	}
 	return (error);
 }
 #endif
 
 static int
-linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mode)
+linux_common_open(struct thread *td, int dirfd, const char *path, int l_flags,
+    int mode, enum uio_seg seg)
 {
 	struct proc *p = td->td_proc;
 	struct file *fp;
@@ -163,7 +169,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 		bsd_flags |= O_DIRECTORY;
 	/* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
-	error = kern_openat(td, dirfd, path, UIO_SYSSPACE, bsd_flags, mode);
+	error = kern_openat(td, dirfd, path, seg, bsd_flags, mode);
 	if (error != 0) {
 		if (error == EMLINK)
 			error = ELOOP;
@@ -201,7 +207,6 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	}
 
 done:
-	LFREEPATH(path);
 	return (error);
 }
 
@@ -209,15 +214,22 @@ int
 linux_openat(struct thread *td, struct linux_openat_args *args)
 {
 	char *path;
-	int dfd;
+	int dfd, error;
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
+	if (!LUSECONVPATH(td)) {
+		return (linux_common_open(td, dfd, args->filename, args->flags,
+		    args->mode, UIO_USERSPACE));
+	}
 	if (args->flags & LINUX_O_CREAT)
 		LCONVPATH_AT(td, args->filename, &path, 1, dfd);
 	else
 		LCONVPATH_AT(td, args->filename, &path, 0, dfd);
 
-	return (linux_common_open(td, dfd, path, args->flags, args->mode));
+	error = linux_common_open(td, dfd, path, args->flags, args->mode,
+	    UIO_SYSSPACE);
+	LFREEPATH(path);
+	return (error);
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
@@ -225,13 +237,21 @@ int
 linux_open(struct thread *td, struct linux_open_args *args)
 {
 	char *path;
+	int error;
 
+	if (!LUSECONVPATH(td)) {
+		return (linux_common_open(td, AT_FDCWD, args->path, args->flags,
+		    args->mode, UIO_USERSPACE));
+	}
 	if (args->flags & LINUX_O_CREAT)
 		LCONVPATHCREAT(td, args->path, &path);
 	else
 		LCONVPATHEXIST(td, args->path, &path);
 
-	return (linux_common_open(td, AT_FDCWD, path, args->flags, args->mode));
+	error = linux_common_open(td, AT_FDCWD, path, args->flags, args->mode,
+	    UIO_SYSSPACE);
+	LFREEPATH(path);
+	return (error);
 }
 #endif
 
@@ -535,11 +555,15 @@ linux_access(struct thread *td, struct linux_access_args *args)
 	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
-	LCONVPATHEXIST(td, args->path, &path);
-
-	error = kern_accessat(td, AT_FDCWD, path, UIO_SYSSPACE, 0,
-	    args->amode);
-	LFREEPATH(path);
+	if (!LUSECONVPATH(td)) {
+		error = kern_accessat(td, AT_FDCWD, args->path, UIO_USERSPACE, 0,
+		    args->amode);
+	} else {
+		LCONVPATHEXIST(td, args->path, &path);
+		error = kern_accessat(td, AT_FDCWD, path, UIO_SYSSPACE, 0,
+		    args->amode);
+		LFREEPATH(path);
+	}
 
 	return (error);
 }
@@ -556,10 +580,13 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 		return (EINVAL);
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
-	LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
-
-	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0, args->amode);
-	LFREEPATH(path);
+	if (!LUSECONVPATH(td)) {
+		error = kern_accessat(td, dfd, args->filename, UIO_USERSPACE, 0, args->amode);
+	} else {
+		LCONVPATHEXIST_AT(td, args->filename, &path, dfd);
+		error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0, args->amode);
+		LFREEPATH(path);
+	}
 
 	return (error);
 }
@@ -572,18 +599,31 @@ linux_unlink(struct thread *td, struct linux_unlink_args *args)
 	int error;
 	struct stat st;
 
-	LCONVPATHEXIST(td, args->path, &path);
-
-	error = kern_funlinkat(td, AT_FDCWD, path, FD_NONE, UIO_SYSSPACE, 0, 0);
-	if (error == EPERM) {
-		/* Introduce POSIX noncompliant behaviour of Linux */
-		if (kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st,
-		    NULL) == 0) {
-			if (S_ISDIR(st.st_mode))
-				error = EISDIR;
+	if (!LUSECONVPATH(td)) {
+		error = kern_funlinkat(td, AT_FDCWD, args->path, FD_NONE,
+		    UIO_USERSPACE, 0, 0);
+		if (error == EPERM) {
+			/* Introduce POSIX noncompliant behaviour of Linux */
+			if (kern_statat(td, 0, AT_FDCWD, args->path,
+			    UIO_SYSSPACE, &st, NULL) == 0) {
+				if (S_ISDIR(st.st_mode))
+					error = EISDIR;
+			}
 		}
+	} else {
+		LCONVPATHEXIST(td, args->path, &path);
+		error = kern_funlinkat(td, AT_FDCWD, path, FD_NONE, UIO_SYSSPACE, 0, 0);
+		if (error == EPERM) {
+			/* Introduce POSIX noncompliant behaviour of Linux */
+			if (kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st,
+			    NULL) == 0) {
+				if (S_ISDIR(st.st_mode))
+					error = EISDIR;
+			}
+		}
+		LFREEPATH(path);
 	}
-	LFREEPATH(path);
+
 	return (error);
 }
 #endif

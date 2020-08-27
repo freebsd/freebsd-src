@@ -38,6 +38,7 @@
 #include "llvm/Support/Host.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Regex.h"
@@ -61,7 +62,7 @@ std::string GetExecutablePath(const char *Argv0, bool CanonicalPrefixes) {
       if (llvm::ErrorOr<std::string> P =
               llvm::sys::findProgramByName(ExecutablePath))
         ExecutablePath = *P;
-    return ExecutablePath.str();
+    return std::string(ExecutablePath.str());
   }
 
   // This just needs to be some symbol in the binary; C++ doesn't
@@ -72,7 +73,7 @@ std::string GetExecutablePath(const char *Argv0, bool CanonicalPrefixes) {
 
 static const char *GetStableCStr(std::set<std::string> &SavedStrings,
                                  StringRef S) {
-  return SavedStrings.insert(S).first->c_str();
+  return SavedStrings.insert(std::string(S)).first->c_str();
 }
 
 /// ApplyQAOverride - Apply a list of edits to the input argument lists.
@@ -266,7 +267,7 @@ static void FixupDiagPrefixExeName(TextDiagnosticPrinter *DiagClient,
   StringRef ExeBasename(llvm::sys::path::stem(Path));
   if (ExeBasename.equals_lower("cl"))
     ExeBasename = "clang-cl";
-  DiagClient->setPrefix(ExeBasename);
+  DiagClient->setPrefix(std::string(ExeBasename));
 }
 
 // This lets us create the DiagnosticsEngine with a properly-filled-out
@@ -326,7 +327,7 @@ static int ExecuteCC1Tool(SmallVectorImpl<const char *> &ArgV) {
   StringRef Tool = ArgV[1];
   void *GetExecutablePathVP = (void *)(intptr_t)GetExecutablePath;
   if (Tool == "-cc1")
-    return cc1_main(makeArrayRef(ArgV).slice(2), ArgV[0], GetExecutablePathVP);
+    return cc1_main(makeArrayRef(ArgV).slice(1), ArgV[0], GetExecutablePathVP);
   if (Tool == "-cc1as")
     return cc1as_main(makeArrayRef(ArgV).slice(2), ArgV[0],
                       GetExecutablePathVP);
@@ -342,6 +343,9 @@ static int ExecuteCC1Tool(SmallVectorImpl<const char *> &ArgV) {
 int main(int argc_, const char **argv_) {
   noteBottomOfStack();
   llvm::InitLLVM X(argc_, argv_);
+  llvm::setBugReportMsg("PLEASE submit a bug report to " BUG_REPORT_URL
+                        " and include the crash backtrace, preprocessed "
+                        "source, and associated run script.\n");
   SmallVector<const char *, 256> argv(argv_, argv_ + argc_);
 
   if (llvm::sys::Process::FixupStandardFileDescriptors())
@@ -507,6 +511,11 @@ int main(int argc_, const char **argv_) {
       for (const auto &J : C->getJobs())
         if (const Command *C = dyn_cast<Command>(&J))
           FailingCommands.push_back(std::make_pair(-1, C));
+
+      // Print the bug report message that would be printed if we did actually
+      // crash, but only if we're crashing due to FORCE_CLANG_DIAGNOSTICS_CRASH.
+      if (::getenv("FORCE_CLANG_DIAGNOSTICS_CRASH"))
+        llvm::dbgs() << llvm::getBugReportMsg();
     }
 
     for (const auto &P : FailingCommands) {

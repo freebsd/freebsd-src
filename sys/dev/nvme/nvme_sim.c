@@ -197,8 +197,12 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->xport_specific.nvme.slot = pci_get_slot(dev);
 		cpi->xport_specific.nvme.function = pci_get_function(dev);
 		cpi->xport_specific.nvme.extra = 0;
-		strncpy(cpi->xport_specific.nvme.dev_name, device_get_nameunit(ctrlr->dev),
+		strncpy(cpi->xport_specific.nvme.dev_name, device_get_nameunit(dev),
 		    sizeof(cpi->xport_specific.nvme.dev_name));
+		cpi->hba_vendor = pci_get_vendor(dev);
+		cpi->hba_device = pci_get_device(dev);
+		cpi->hba_subvendor = pci_get_subvendor(dev);
+		cpi->hba_subdevice = pci_get_subdevice(dev);
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

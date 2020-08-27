@@ -23,6 +23,38 @@
  *			   Computer Science Department
  *			   University of Maryland at College Park
  */
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright 2020 Alex Richardson <arichardson@FreeBSD.org>
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory (Department of Computer Science and
+ * Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+ * DARPA SSITH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ */
 /*
  * crunched_main.c - main program for crunched binaries, it branches to a
  * 	particular subprogram based on the value of argv[0].  Also included
@@ -35,82 +67,138 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/auxv.h>
+#include <sys/sysctl.h>
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct stub {
-    char *name;
-    int (*f)();
+	char *name;
+	int (*f)();
 };
 
-extern char *__progname;
+extern const char *__progname;
 extern struct stub entry_points[];
 
 static void crunched_usage(void);
 
+static struct stub *
+find_entry_point(const char *basename)
+{
+	struct stub *ep = NULL;
+
+	for (ep = entry_points; ep->name != NULL; ep++)
+		if (!strcmp(basename, ep->name))
+			break;
+
+	return (ep);
+}
+
+static const char *
+get_basename(const char *exe_path)
+{
+	const char *slash = strrchr(exe_path, '/');
+	return (slash ? slash + 1 : exe_path);
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
-    char *slash, *basename;
-    struct stub *ep;
+	struct stub *ep = NULL;
+	const char *basename = NULL;
 
-    if(argv[0] == NULL || *argv[0] == '\0')
-	crunched_usage();
+	/*
+	 * Look at __progname first (this will be set if the crunched binary is
+	 * invoked directly).
+	 */
+	if (__progname) {
+		basename = get_basename(__progname);
+		ep = find_entry_point(basename);
+	}
 
-    slash = strrchr(argv[0], '/');
-    basename = slash? slash+1 : argv[0];
+	/*
+	 * Otherwise try to find entry point based on argv[0] (this works for
+	 * both symlinks as well as hardlinks). However, it does not work when
+	 * su invokes a crunched shell because it sets argv[0] to _su when
+	 * invoking the shell. In that case we look at AT_EXECPATH as a
+	 * fallback.
+	 */
+	if (ep == NULL) {
+		basename = get_basename(argv[0]);
+		ep = find_entry_point(basename);
+	}
 
-    for(ep=entry_points; ep->name != NULL; ep++)
-	if(!strcmp(basename, ep->name)) break;
+	/*
+	 * If we didn't find the entry point based on __progname or argv[0],
+	 * try AT_EXECPATH to get the actual binary that was executed.
+	 */
+	if (ep == NULL) {
+		char buf[MAXPATHLEN];
+		int error = elf_aux_info(AT_EXECPATH, &buf, sizeof(buf));
 
-    if(ep->name)
-	return ep->f(argc, argv, envp);
-    else {
-	fprintf(stderr, "%s: %s not compiled in\n", EXECNAME, basename);
-	crunched_usage();
-    }
+		if (error == 0) {
+			const char *exe_name = get_basename(buf);
+			/*
+			 * Keep using argv[0] if AT_EXECPATH is the crunched
+			 * binary so that symlinks to the crunched binary report
+			 * "not compiled in" instead of invoking
+			 * crunched_main().
+			 */
+			if (strcmp(exe_name, EXECNAME) != 0) {
+				basename = exe_name;
+				ep = find_entry_point(basename);
+			}
+		} else {
+			warnc(error, "elf_aux_info(AT_EXECPATH) failed");
+		}
+	}
+
+	if (basename == NULL || *basename == '\0')
+		crunched_usage();
+
+	if (ep != NULL) {
+		return ep->f(argc, argv, envp);
+	} else {
+		fprintf(stderr, "%s: %s not compiled in\n", EXECNAME, basename);
+		crunched_usage();
+	}
 }
-
 
 int
 crunched_main(int argc, char **argv, char **envp)
 {
-    char *slash;
-    struct stub *ep;
-    int columns, len;
+	if (argc <= 1)
+		crunched_usage();
 
-    if(argc <= 1)
-	crunched_usage();
-
-    slash = strrchr(argv[1], '/');
-    __progname = slash? slash+1 : argv[1];
-
-    return main(--argc, ++argv, envp);
+	__progname = get_basename(argv[1]);
+	return main(--argc, ++argv, envp);
 }
-
 
 static void
 crunched_usage()
 {
-    int columns, len;
-    struct stub *ep;
+	int columns, len;
+	struct stub *ep;
 
-    fprintf(stderr, "usage: %s <prog> <args> ..., where <prog> is one of:\n",
-	    EXECNAME);
-    columns = 0;
-    for(ep=entry_points; ep->name != NULL; ep++) {
-	len = strlen(ep->name) + 1;
-	if(columns+len < 80)
-	    columns += len;
-	else {
-	    fprintf(stderr, "\n");
-	    columns = len;
+	fprintf(stderr,
+	    "usage: %s <prog> <args> ..., where <prog> is one of:\n", EXECNAME);
+	columns = 0;
+	for (ep = entry_points; ep->name != NULL; ep++) {
+		len = strlen(ep->name) + 1;
+		if (columns + len < 80)
+			columns += len;
+		else {
+			fprintf(stderr, "\n");
+			columns = len;
+		}
+		fprintf(stderr, " %s", ep->name);
 	}
-	fprintf(stderr, " %s", ep->name);
-    }
-    fprintf(stderr, "\n");
-    exit(1);
+	fprintf(stderr, "\n");
+	exit(1);
 }
 
 /* end of crunched_main.c */

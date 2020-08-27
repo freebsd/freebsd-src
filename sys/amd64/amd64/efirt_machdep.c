@@ -61,9 +61,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
+static pml5_entry_t *efi_pml5;
 static pml4_entry_t *efi_pml4;
 static vm_object_t obj_1t1_pt;
-static vm_page_t efi_pml4_page;
+static vm_page_t efi_pmltop_page;
 static vm_pindex_t efi_1t1_idx;
 
 void
@@ -82,7 +83,8 @@ efi_destroy_1t1_map(void)
 
 	obj_1t1_pt = NULL;
 	efi_pml4 = NULL;
-	efi_pml4_page = NULL;
+	efi_pml5 = NULL;
+	efi_pmltop_page = NULL;
 }
 
 /*
@@ -109,22 +111,38 @@ efi_1t1_page(void)
 static pt_entry_t *
 efi_1t1_pte(vm_offset_t va)
 {
+	pml5_entry_t *pml5e;
 	pml4_entry_t *pml4e;
 	pdp_entry_t *pdpe;
 	pd_entry_t *pde;
 	pt_entry_t *pte;
 	vm_page_t m;
-	vm_pindex_t pml4_idx, pdp_idx, pd_idx;
+	vm_pindex_t pml5_idx, pml4_idx, pdp_idx, pd_idx;
 	vm_paddr_t mphys;
 
 	pml4_idx = pmap_pml4e_index(va);
-	pml4e = &efi_pml4[pml4_idx];
+	if (la57) {
+		pml5_idx = pmap_pml5e_index(va);
+		pml5e = &efi_pml5[pml5_idx];
+		if (*pml5e == 0) {
+			m = efi_1t1_page();
+			mphys = VM_PAGE_TO_PHYS(m);
+			*pml5e = mphys | X86_PG_RW | X86_PG_V;
+		} else {
+			mphys = *pml5e & PG_FRAME;
+		}
+		pml4e = (pml4_entry_t *)PHYS_TO_DMAP(mphys);
+		pml4e = &pml4e[pml4_idx];
+	} else {
+		pml4e = &efi_pml4[pml4_idx];
+	}
+
 	if (*pml4e == 0) {
 		m = efi_1t1_page();
 		mphys =  VM_PAGE_TO_PHYS(m);
 		*pml4e = mphys | X86_PG_RW | X86_PG_V;
 	} else {
-		mphys = *pml4e & ~PAGE_MASK;
+		mphys = *pml4e & PG_FRAME;
 	}
 
 	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(mphys);
@@ -135,7 +153,7 @@ efi_1t1_pte(vm_offset_t va)
 		mphys =  VM_PAGE_TO_PHYS(m);
 		*pdpe = mphys | X86_PG_RW | X86_PG_V;
 	} else {
-		mphys = *pdpe & ~PAGE_MASK;
+		mphys = *pdpe & PG_FRAME;
 	}
 
 	pde = (pd_entry_t *)PHYS_TO_DMAP(mphys);
@@ -146,7 +164,7 @@ efi_1t1_pte(vm_offset_t va)
 		mphys = VM_PAGE_TO_PHYS(m);
 		*pde = mphys | X86_PG_RW | X86_PG_V;
 	} else {
-		mphys = *pde & ~PAGE_MASK;
+		mphys = *pde & PG_FRAME;
 	}
 
 	pte = (pt_entry_t *)PHYS_TO_DMAP(mphys);
@@ -161,6 +179,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 {
 	struct efi_md *p;
 	pt_entry_t *pte;
+	void *pml;
 	vm_offset_t va;
 	uint64_t idx;
 	int bits, i, mode;
@@ -170,10 +189,16 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	    VM_PROT_ALL, 0, NULL);
 	efi_1t1_idx = 0;
 	VM_OBJECT_WLOCK(obj_1t1_pt);
-	efi_pml4_page = efi_1t1_page();
+	efi_pmltop_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
-	efi_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_pml4_page));
-	pmap_pinit_pml4(efi_pml4_page);
+	pml = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_pmltop_page));
+	if (la57) {
+		efi_pml5 = pml;
+		pmap_pinit_pml5(efi_pmltop_page);
+	} else {
+		efi_pml4 = pml;
+		pmap_pinit_pml4(efi_pmltop_page);
+	}
 
 	for (i = 0, p = map; i < ndesc; i++, p = efi_next_descriptor(p,
 	    descsz)) {
@@ -279,7 +304,7 @@ efi_arch_enter(void)
 	if (pmap_pcid_enabled && !invpcid_works)
 		PCPU_SET(curpmap, NULL);
 
-	load_cr3(VM_PAGE_TO_PHYS(efi_pml4_page) | (pmap_pcid_enabled ?
+	load_cr3(VM_PAGE_TO_PHYS(efi_pmltop_page) | (pmap_pcid_enabled ?
 	    curpmap->pm_pcids[PCPU_GET(cpuid)].pm_pcid : 0));
 	/*
 	 * If PCID is enabled, the clear CR3_PCID_SAVE bit in the loaded %cr3
