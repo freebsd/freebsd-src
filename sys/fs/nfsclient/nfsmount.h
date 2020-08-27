@@ -47,6 +47,7 @@
 struct	nfsmount {
 	struct	nfsmount_common nm_com;	/* Common fields for nlm */
 	uint32_t nm_privflag;		/* Private flags */
+	uint32_t nm_newflag;		/* New mount flags */
 	int	nm_numgrps;		/* Max. size of groupslist */
 	u_char	nm_fh[NFSX_FHMAX];	/* File handle of root dir */
 	int	nm_fhsize;		/* Size of root file handle */
@@ -113,6 +114,9 @@ struct	nfsmount {
 #define	NFSMNTP_NOXATTR		0x00000080
 #define	NFSMNTP_NOADVISE	0x00000100
 #define	NFSMNTP_NOALLOCATE	0x00000200
+
+/* New mount flags only used by the kernel via nmount(2). */
+#define	NFSMNT_TLS		0x00000001
 
 #define	NFSMNT_DIRPATH(m)	(&((m)->nm_name[(m)->nm_krbnamelen + 1]))
 #define	NFSMNT_SRVKRBNAME(m)						\

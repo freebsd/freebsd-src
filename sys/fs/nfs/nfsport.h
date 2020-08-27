@@ -1055,6 +1055,7 @@ bool ncl_pager_setsize(struct vnode *vp, u_quad_t *nsizep);
 #define	NFSHASOPENMODE(n)	((n)->nm_state & NFSSTA_OPENMODE)
 #define	NFSHASONEOPENOWN(n)	(((n)->nm_flag & NFSMNT_ONEOPENOWN) != 0 &&	\
 				    (n)->nm_minorvers > 0)
+#define	NFSHASTLS(n)		(((n)->nm_newflag & NFSMNT_TLS) != 0)
 
 /*
  * Set boottime.
