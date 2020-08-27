@@ -3284,6 +3284,19 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	}
 
 	/*
+	 * If TLS is required by the export, check the flags in nd_flag.
+	 */
+	if (nd->nd_repstat == 0 && ((NFSVNO_EXTLS(exp) &&
+	    (nd->nd_flag & ND_TLS) == 0) ||
+	     (NFSVNO_EXTLSCERT(exp) &&
+	      (nd->nd_flag & ND_TLSCERT) == 0) ||
+	     (NFSVNO_EXTLSCERTUSER(exp) &&
+	      (nd->nd_flag & ND_TLSCERTUSER) == 0))) {
+		vput(*vpp);
+		nd->nd_repstat = NFSERR_ACCES;
+	}
+
+	/*
 	 * Personally, I've never seen any point in requiring a
 	 * reserved port#, since only in the rare case where the
 	 * clients are all boxes with secure system privileges,
@@ -3545,6 +3558,15 @@ nfsvno_v4rootexport(struct nfsrv_descript *nd)
 			nd->nd_flag |= ND_EXGSSINTEGRITY;
 		else if (secflavors[i] == RPCSEC_GSS_KRB5P)
 			nd->nd_flag |= ND_EXGSSPRIVACY;
+	}
+
+	/* And set ND_EXxx flags for TLS. */
+	if ((exflags & MNT_EXTLS) != 0) {
+		nd->nd_flag |= ND_EXTLS;
+		if ((exflags & MNT_EXTLSCERT) != 0)
+			nd->nd_flag |= ND_EXTLSCERT;
+		if ((exflags & MNT_EXTLSCERTUSER) != 0)
+			nd->nd_flag |= ND_EXTLSCERTUSER;
 	}
 
 out:
