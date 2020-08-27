@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2018 The FreeBSD Foundation
+# Copyright (c) 2020 Rubicon Communications, LLC (netgate.com)
+# Copyright (c) 2013-2019 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
@@ -275,7 +276,7 @@ extra_chroot_setup() {
 		GITUNSETOPTS="${GITUNSETOPTS} ICONV NLS P4 PERL"
 		GITUNSETOPTS="${GITUNSETOPTS} SEND_EMAIL SUBTREE SVN"
 		GITUNSETOPTS="${GITUNSETOPTS} PCRE PCRE2"
-		eval chroot ${CHROOTDIR} env OPTIONS_UNSET="${GITUNSETOPTS}" \
+		eval chroot ${CHROOTDIR} env OPTIONS_UNSET=\"${GITUNSETOPTS}\" \
 			make -C /usr/ports/devel/git FORCE_PKG_REGISTER=1 \
 			WRKDIRPREFIX=/tmp/ports \
 			DISTDIR=/tmp/distfiles \
