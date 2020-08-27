@@ -17,7 +17,7 @@ stop_cmd=":"
 
 linux_start()
 {
-	local _tmpdir
+	local _emul_path _tmpdir
 
 	load_kld -e 'linux(aout|elf)' linux
 	case `sysctl -n hw.machine_arch` in
@@ -33,6 +33,25 @@ linux_start()
 		fi
 		rm -rf ${_tmpdir}
 	fi
+
+	# Linux uses the pre-pts(4) tty naming scheme.
+	load_kld pty
+
+	# Handle unbranded ELF executables by defaulting to ELFOSABI_LINUX.
+	if [ `sysctl -ni kern.elf64.fallback_brand` -eq "-1" ]; then
+		sysctl kern.elf64.fallback_brand=3 > /dev/null
+	fi
+
+	if [ `sysctl -ni kern.elf32.fallback_brand` -eq "-1" ]; then
+		sysctl kern.elf32.fallback_brand=3 > /dev/null
+	fi
+
+	_emul_path="/compat/linux"
+	mount -o nocover -t linprocfs linprocfs "${_emul_path}/proc"
+	mount -o nocover -t linsysfs linsysfs "${_emul_path}/sys"
+	mount -o nocover -t devfs devfs "${_emul_path}/dev"
+	mount -o nocover -t fdescfs fdescfs "${_emul_path}/dev/fd"
+	mount -o nocover,mode=1777 -t tmpfs tmpfs "${_emul_path}/dev/shm"
 }
 
 load_rc_config $name
