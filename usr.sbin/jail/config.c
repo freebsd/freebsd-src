@@ -369,11 +369,13 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		if ((flags ^ dp->flags) & PF_VAR) {
 			jail_warnx(j, "variable \"$%s\" cannot have the same "
 			    "name as a parameter.", name);
+			j->flags |= JF_FAILED;
 			return;
 		}
 		if (dp->flags & PF_IMMUTABLE) {
 			jail_warnx(j, "cannot redefine parameter \"%s\".",
 			    dp->name);
+			j->flags |= JF_FAILED;
 			return;
 		}
 		if (strcmp(dp->name, name)) {
@@ -405,6 +407,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 						    "cannot have the same "
 						    "name as a parameter.",
 						    name);
+						j->flags |= JF_FAILED;
 						return;
 					}
 					j->intparams[ipnum] = np;
