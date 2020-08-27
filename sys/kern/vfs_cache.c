@@ -1925,7 +1925,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 {
 	struct celockstate cel;
 	struct namecache *ncp, *n2, *ndd;
-	struct namecache_ts *ncp_ts, *n2_ts;
+	struct namecache_ts *ncp_ts;
 	struct nchashhead *ncpp;
 	uint32_t hash;
 	int flag;
@@ -2013,6 +2013,17 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				KASSERT(n2->nc_vp == vp,
 				    ("%s: found entry pointing to a different vnode (%p != %p)",
 				    __func__, n2->nc_vp, vp));
+			/*
+			 * Entries are supposed to be immutable unless in the
+			 * process of getting destroyed. Accommodating for
+			 * changing timestamps is possible but not worth it.
+			 * This should be harmless in terms of correctness, in
+			 * the worst case resulting in an earlier expiration.
+			 * Alternatively, the found entry can be replaced
+			 * altogether.
+			 */
+			MPASS((n2->nc_flag & (NCF_TS | NCF_DTS)) == (ncp->nc_flag & (NCF_TS | NCF_DTS)));
+#if 0
 			if (tsp != NULL) {
 				KASSERT((n2->nc_flag & NCF_TS) != 0,
 				    ("no NCF_TS"));
@@ -2024,6 +2035,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 					n2_ts->nc_nc.nc_flag |= NCF_DTS;
 				}
 			}
+#endif
 			goto out_unlock_free;
 		}
 	}
