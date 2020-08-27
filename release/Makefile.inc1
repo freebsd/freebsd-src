@@ -3,24 +3,24 @@
 #
 
 # Figure out where the git binary is.
-.if !defined(GIT_CMD) || empty(GIT_CMD)
-. for _P in /usr/bin /usr/local/bin
+.for _P in /usr/bin /usr/local/bin
+. if !defined(GIT_CMD) || empty(GIT_CMD)
 .  if exists(${_P}/git)
 GIT_CMD=   ${_P}/git
 .  endif
-. endfor
-. export GIT_CMD
-.else
+. endif
+.endfor
+.if !defined(GIT_CMD) && empty(GIT_CMD)
 . error "Git binary not found.  Set GIT_CMD appropriately."
 .endif
 
 # Set the git branch and hash to export where needed.
 .if !defined(GITBRANCH) || empty(GITBRANCH)
-GITBRANCH!=	cd ${.CURDIR} && ${GIT_CMD} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
+GITBRANCH!=	${GIT_CMD} -C ${.CURDIR} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
 .export GITBRANCH
 .endif
 .if !defined(GITREV) || empty(GITREV)
-GITREV!=	cd ${.CURDIR} && ${GIT_CMD} rev-parse --verify --short HEAD 2>/dev/null || true
+GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null || true
 .export GITREV
 .endif
 
