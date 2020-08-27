@@ -1,0 +1,31 @@
+#
+# $FreeBSD$
+#
+
+# Figure out where the git binary is.
+.for _P in /usr/bin /usr/local/bin
+. if !defined(GIT_CMD) || empty(GIT_CMD)
+.  if exists(${_P}/git)
+GIT_CMD=   ${_P}/git
+.  endif
+. endif
+.endfor
+.if !defined(GIT_CMD) && empty(GIT_CMD)
+. error "Git binary not found.  Set GIT_CMD appropriately."
+.endif
+
+# Set the git branch and hash to export where needed.
+.if !defined(GITBRANCH) || empty(GITBRANCH)
+GITBRANCH!=	${GIT_CMD} -C ${.CURDIR} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
+.export GITBRANCH
+.endif
+.if !defined(GITREV) || empty(GITREV)
+GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null || true
+.export GITREV
+.endif
+
+# Set the build date, primarily for snapshot builds.
+.if !defined(BUILDDATE) || empty(BUILDDATE)
+BUILDDATE!=		date +%Y%m%d
+.export BUILDDATE
+.endif
