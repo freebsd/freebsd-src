@@ -12,7 +12,21 @@
 
 PACKAGE=	runtime
 LIB=	zfs
-LIBADD=	md pthread umem util uutil m avl bsdxml geom nvpair z zfs_core zutil
+LIBADD= \
+	avl \
+	bsdxml \
+	crypto \
+	geom \
+	m \
+	md \
+	nvpair \
+	pthread \
+	umem \
+	util \
+	uutil \
+	z \
+	zfs_core \
+	zutil
 
 INCS=	libzfs.h
 USER_C = \

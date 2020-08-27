@@ -382,7 +382,7 @@ _DP_fifolog=	z
 _DP_ipf=	kvm
 _DP_tpool=	spl
 _DP_uutil=	avl spl
-_DP_zfs=	md pthread umem util uutil m avl bsdxml geom nvpair \
+_DP_zfs=	md pthread umem util uutil m avl bsdxml crypto geom nvpair \
 	z zfs_core zutil
 _DP_zfs_core=	nvpair
 _DP_zpool=	md pthread z icp spl nvpair avl umem
