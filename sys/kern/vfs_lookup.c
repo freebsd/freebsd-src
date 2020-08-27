@@ -785,6 +785,16 @@ lookup(struct nameidata *ndp)
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	KASSERT(cnp->cn_nameiop == LOOKUP || wantparent,
 	    ("CREATE, DELETE, RENAME require LOCKPARENT or WANTPARENT."));
+	/*
+	 * When set to zero, docache causes the last component of the
+	 * pathname to be deleted from the cache and the full lookup
+	 * of the name to be done (via VOP_CACHEDLOOKUP()). Often
+	 * filesystems need some pre-computed values that are made
+	 * during the full lookup, for instance UFS sets dp->i_offset.
+	 *
+	 * The docache variable is set to zero when requested by the
+	 * NOCACHE flag and for all modifying operations except CREATE.
+	 */
 	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
 	if (cnp->cn_nameiop == DELETE ||
 	    (wantparent && cnp->cn_nameiop != CREATE &&
