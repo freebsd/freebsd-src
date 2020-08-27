@@ -2938,6 +2938,7 @@ vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
 	i = 0;
 #endif
 	error = -1;
+	ncp = NULL; /* for sdt probe down below */
 	vp_seqc = vn_seqc_read_any(vp);
 	if (seqc_in_modify(vp_seqc)) {
 		cache_rev_failed(&reason);
