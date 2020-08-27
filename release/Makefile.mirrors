@@ -19,7 +19,6 @@ FTPDIR?=		${RELEASEDIR}/ftp-stage
 .if exists(${RELEASEDIR})
 STAGE_TARGETS?=		iso-images-stage
 .endif
-SRCBRANCH!=		${SVN_CMD} info --show-item relative-url ${WORLDDIR}
 
 .if (defined(EMBEDDED_TARGET) && !empty(EMBEDDED_TARGET)) || (defined(EMBEDDEDBUILD) && !empty(EMBEDDEDBUILD))
 . if ${TARGET:Marm*} != "" || ${EMBEDDED_TARGET:Marm*} != ""
@@ -31,26 +30,10 @@ EMBEDDED=		1
 .if ${BRANCH} == "STABLE" || ${BRANCH} == "CURRENT" || ${BRANCH} == "PRERELEASE" || ${BRANCH:MALPHA*} != ""
 SNAPSHOT=		1
 TLD?=			${FTPDIR}/snapshots
-. if !defined(SVNREVISION) || empty(SVNREVISION)
-.  for _D in /usr/bin /usr/local/bin
-.   for _S in svnversion svnliteversion
-.    if exists(${_D}/${_S})
-SVNVERSION?=		${_D}/${_S}
-.    endif
-.   endfor
-.  endfor
-.  if exists(${SVNVERSION}) && !empty(SVNVERSION)
-SVNREVISION!=		${SVNVERSION} ${WORLDDIR}/Makefile
-.  endif
-. endif # !defined(SVNREVISION)
-. if !defined(BUILDDATE) || empty(BUILDDATE)
-.  if exists(${.CURDIR}/${.OBJDIR}/dist/base/bin/sh)
-BUILDDATE!=		cd ${.CURDIR} && date -j -f '%s' $$(stat -f "%c" ${.OBJDIR}/dist/base/bin/sh) +%Y%m%d
-.  else
+.if !defined(BUILDDATE) || empty(BUILDDATE)
 BUILDDATE!=		date +%Y%m%d
-.  endif
-. endif
-_SNAP_SUFFIX:=		${BUILDDATE}-r${SVNREVISION}
+.endif
+_SNAP_SUFFIX:=		${BUILDDATE}-${GITREV}
 .else
 # release
 SNAPSHOT=
@@ -187,8 +170,8 @@ iso-images-stage:
 	mkdir -p ${FTP_DIR}
 	cp -p ${RELEASEDIR}/ftp/*.txz ${RELEASEDIR}/ftp/MANIFEST ${FTP_DIR}
 	echo ${BUILDDATE} > ${FTP_DIR}/BUILDDATE
-	echo ${SRCBRANCH} > ${FTP_DIR}/SRCBRANCH
-	echo r${SVNREVISION} > ${FTP_DIR}/REVISION
+	echo ${GITBRANCH} > ${FTP_DIR}/GITBRANCH
+	echo ${GITREV} > ${FTP_DIR}/REVISION
 	cd ${TLD}/${TARGET} && \
 		ln -s ${TARGET_ARCH}/${REVISION}-${BRANCH} \
 			${REVISION}-${BRANCH}

@@ -510,6 +510,15 @@ VCS_REVISION=	$$(echo r${_VCS_REVISION})
 .export VCS_REVISION
 .endif
 
+.if !defined(GIT_CMD) || empty(GIT_CMD)
+. for _P in /usr/bin /usr/local/bin
+.  if exists(${_P}/git)
+GIT_CMD=   ${_P}/git
+.  endif
+. endfor
+.export GIT_CMD
+.endif
+
 .if !defined(OSRELDATE)
 .if exists(/usr/include/osreldate.h)
 OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \

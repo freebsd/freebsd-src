@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2013-2018 The FreeBSD Foundation
+# Copyright (c) 2020 Rubicon Communications, LLC (netgate.com)
+# Copyright (c) 2013-2019 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
@@ -38,7 +39,7 @@
 
 export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 
-VERSION=2
+VERSION=3
 
 # Prototypes that can be redefined per-chroot or per-target.
 load_chroot_env() { }
@@ -51,7 +52,7 @@ usage() {
 }
 
 # env_setup(): Set up the default build environment variables, such as the
-# CHROOTDIR, VCSCMD, SVNROOT, etc.  This is called before the release.conf
+# CHROOTDIR, VCSCMD, GITROOT, etc.  This is called before the release.conf
 # file is sourced, if '-c <release.conf>' is specified.
 env_setup() {
 	# The directory within which the release will be built.
@@ -60,26 +61,28 @@ env_setup() {
 
 	# The default version control system command to obtain the sources.
 	for _dir in /usr/bin /usr/local/bin; do
-		for _svn in svn svnlite; do
-			[ -x "${_dir}/${_svn}" ] && VCSCMD="${_dir}/${_svn}"
-			[ ! -z "${VCSCMD}" ] && break 2
-		done
+		[ -x "${_dir}/git" ] && VCSCMD="/${_dir}/git"
+		[ ! -z "${VCSCMD}" ] && break 2
 	done
-	VCSCMD="${VCSCMD} checkout"
 
-	# The default svn checkout server, and svn branches for src/, doc/,
+	if [ -z "${VCSCMD}" ]; then
+		echo "*** The devel/git port/package is required."
+		exit 1
+	fi
+	VCSCMD="/usr/local/bin/git clone -q"
+
+	# The default git checkout server, and branches for src/, doc/,
 	# and ports/.
-	SVNROOT="svn://svn.FreeBSD.org/"
-	SRCBRANCH="base/head@rHEAD"
-	DOCBRANCH="doc/head@rHEAD"
-	PORTBRANCH="ports/head@rHEAD"
+	GITROOT="https://cgit-beta.FreeBSD.org/"
+	SRCBRANCH="main"
+	DOCBRANCH="main"
+	PORTBRANCH="main"
+	GITSRC="src.git"
+	GITPORTS="ports.git"
+	GITDOC="doc.git"
 
 	# Set for embedded device builds.
 	EMBEDDEDBUILD=
-
-	# Sometimes one needs to checkout src with --force svn option.
-	# If custom kernel configs copied to src tree before checkout, e.g.
-	SRC_FORCE_CHECKOUT=
 
 	# The default make.conf and src.conf to use.  Set to /dev/null
 	# by default to avoid polluting the chroot(8) environment with
@@ -128,20 +131,11 @@ env_setup() {
 # in env_setup() if '-c <release.conf>' is specified.
 env_check() {
 	chroot_build_release_cmd="chroot_build_release"
-	# Fix for backwards-compatibility with release.conf that does not have
-	# the trailing '/'.
-	case ${SVNROOT} in
-		*svn*)
-			SVNROOT="${SVNROOT}/"
-			;;
-		*)
-			;;
-	esac
 
-	# Prefix the branches with the SVNROOT for the full checkout URL.
-	SRCBRANCH="${SVNROOT}${SRCBRANCH}"
-	DOCBRANCH="${SVNROOT}${DOCBRANCH}"
-	PORTBRANCH="${SVNROOT}${PORTBRANCH}"
+	# Prefix the branches with the GITROOT for the full checkout URL.
+	SRC="${GITROOT}${GITSRC}"
+	DOC="${GITROOT}${GITDOC}"
+	PORT="${GITROOT}${GITPORTS}"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
@@ -187,11 +181,6 @@ env_check() {
 	else
 		ARCH_FLAGS=
 	fi
-	# Force src checkout if configured
-	FORCE_SRC_KEY=
-	if [ -n "${SRC_FORCE_CHECKOUT}" ]; then
-		FORCE_SRC_KEY="--force"
-	fi
 
 	if [ -z "${CHROOTDIR}" ]; then
 		echo "Please set CHROOTDIR."
@@ -231,13 +220,13 @@ chroot_setup() {
 	mkdir -p ${CHROOTDIR}/usr
 
 	if [ -z "${SRC_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
+		${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
 	fi
 	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${DOCBRANCH} ${CHROOTDIR}/usr/doc
+		${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+		${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 	fi
 
 	if [ -z "${CHROOTBUILD_SKIP}" ]; then
@@ -274,6 +263,26 @@ extra_chroot_setup() {
 		cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 	fi
 
+	# Install git from ports or packages if the ports tree is
+	# available and VCSCMD is unset.
+	_gitcmd="$(which git)"
+	if [ -d ${CHROOTDIR}/usr/ports -a -z "${_gitcmd}" ]; then
+		# Trick the ports 'run-autotools-fixup' target to do the right
+		# thing.
+		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+		REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+		BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+		UNAME_r=${REVISION}-${BRANCH}
+		GITUNSETOPTS="CONTRIB CURL CVS GITWEB GUI HTMLDOCS"
+		GITUNSETOPTS="${GITUNSETOPTS} ICONV NLS P4 PERL"
+		GITUNSETOPTS="${GITUNSETOPTS} SEND_EMAIL SUBTREE SVN"
+		GITUNSETOPTS="${GITUNSETOPTS} PCRE PCRE2"
+		eval chroot ${CHROOTDIR} env OPTIONS_UNSET=\"${GITUNSETOPTS}\" \
+			make -C /usr/ports/devel/git FORCE_PKG_REGISTER=1 \
+			WRKDIRPREFIX=/tmp/ports \
+			DISTDIR=/tmp/distfiles \
+			install clean distclean
+	fi
 	if [ -d ${CHROOTDIR}/usr/ports ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
 		# thing.
