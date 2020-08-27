@@ -3816,6 +3816,11 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 		clp->lc_uid = nd->nd_cred->cr_uid;
 		clp->lc_gid = nd->nd_cred->cr_gid;
 	}
+
+	/* If the client is using TLS, do so for the callback connection. */
+	if (nd->nd_flag & ND_TLS)
+		clp->lc_flags |= LCL_TLSCB;
+
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	clp->lc_program = fxdr_unsigned(u_int32_t, *tl);
 	error = nfsrv_getclientipaddr(nd, clp);

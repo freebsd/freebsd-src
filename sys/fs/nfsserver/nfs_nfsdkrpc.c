@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
 #include "opt_kgssapi.h"
+#include "opt_kern_tls.h"
 
 #include <fs/nfs/nfsport.h>
 
 #include <rpc/rpc.h>
 #include <rpc/rpcsec_gss.h>
+#include <rpc/rpcsec_tls.h>
 
 #include <fs/nfsserver/nfs_fha_new.h>
 
@@ -120,6 +122,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	struct nfsrv_descript nd;
 	struct nfsrvcache *rp = NULL;
 	int cacherep, credflavor;
+#ifdef KERN_TLS
+	u_int maxlen;
+#endif
 
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_vers == NFS_VER2) {
@@ -234,6 +239,14 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			goto out;
 		}
 
+		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0) {
+			nd.nd_flag |= ND_TLS;
+			if ((xprt->xp_tls & RPCTLS_FLAGS_VERIFIED) != 0)
+				nd.nd_flag |= ND_TLSCERT;
+			if ((xprt->xp_tls & RPCTLS_FLAGS_CERTUSER) != 0)
+				nd.nd_flag |= ND_TLSCERTUSER;
+		}
+		nd.nd_maxextsiz = 16384;
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
@@ -268,6 +281,11 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			}
 		}
 
+#ifdef KERN_TLS
+		if ((xprt->xp_tls & RPCTLS_FLAGS_HANDSHAKE) != 0 &&
+		    rpctls_getinfo(&maxlen, false, false))
+			nd.nd_maxextsiz = maxlen;
+#endif
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt, &rp);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsd_suspend_lock);
