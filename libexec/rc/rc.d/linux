@@ -46,12 +46,14 @@ linux_start()
 		sysctl kern.elf32.fallback_brand=3 > /dev/null
 	fi
 
-	_emul_path="/compat/linux"
-	mount -o nocover -t linprocfs linprocfs "${_emul_path}/proc"
-	mount -o nocover -t linsysfs linsysfs "${_emul_path}/sys"
-	mount -o nocover -t devfs devfs "${_emul_path}/dev"
-	mount -o nocover -t fdescfs fdescfs "${_emul_path}/dev/fd"
-	mount -o nocover,mode=1777 -t tmpfs tmpfs "${_emul_path}/dev/shm"
+	if checkyesno linux_mounts_enable; then 
+		_emul_path="/compat/linux"
+		mount -o nocover -t linprocfs linprocfs "${_emul_path}/proc"
+		mount -o nocover -t linsysfs linsysfs "${_emul_path}/sys"
+		mount -o nocover -t devfs devfs "${_emul_path}/dev"
+		mount -o nocover -t fdescfs fdescfs "${_emul_path}/dev/fd"
+		mount -o nocover,mode=1777 -t tmpfs tmpfs "${_emul_path}/dev/shm"
+	fi
 }
 
 load_rc_config $name
