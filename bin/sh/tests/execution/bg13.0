@@ -1,0 +1,16 @@
+# $FreeBSD$
+
+T=`mktemp -d ${TMPDIR:-/tmp}/sh-test.XXXXXXXX`
+trap 'rm -rf $T' 0
+cd $T || exit 3
+mkfifo fifo1
+# Use a trap, not the default action, since the shell may catch SIGINT and
+# therefore its processing may be delayed.
+{ set -C; trap 'exit 5' TERM; read dummy <fifo1; exit 4; } &
+exec 3>fifo1
+kill -INT "$!"
+kill -TERM "$!"
+exec 3>&-
+wait "$!"
+r=$?
+[ "$r" = 5 ]
