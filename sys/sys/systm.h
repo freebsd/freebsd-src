@@ -497,7 +497,6 @@ void	kern_reboot(int) __dead2;
 void	shutdown_nice(int);
 
 /* Stubs for obsolete functions that used to be for interrupt management */
-static __inline intrmask_t	splclock(void)		{ return 0; }
 static __inline intrmask_t	splhigh(void)		{ return 0; }
 static __inline intrmask_t	splimp(void)		{ return 0; }
 static __inline intrmask_t	splnet(void)		{ return 0; }
