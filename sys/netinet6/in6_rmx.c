@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/route/nhop.h>
-#include <net/route/shared.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_var.h>

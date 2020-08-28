@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
-#include <net/route/shared.h>
 #include <net/route/route_var.h>
 #include <net/route/nhop.h>
 #include <net/if.h>
