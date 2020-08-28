@@ -226,6 +226,14 @@ void tmproutes_init(struct rib_head *rh);
 void tmproutes_destroy(struct rib_head *rh);
 
 /* route_ctl.c */
+struct route_nhop_data {
+	struct nhop_object	*rnd_nhop;
+	uint32_t		rnd_weight;
+};
+int change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
+    struct rt_addrinfo *info, struct route_nhop_data *nhd_orig,
+    struct route_nhop_data *nhd_new, struct rib_cmd_info *rc);
+
 void vnet_rtzone_init(void);
 void vnet_rtzone_destroy(void);
 
