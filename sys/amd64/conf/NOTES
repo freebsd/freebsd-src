@@ -635,6 +635,7 @@ options 	LINSYSFS
 #####################################################################
 # ZFS support
 
+# NB: This depends on crypto, cryptodev and ZSTDIO
 options		ZFS
 
 #####################################################################
