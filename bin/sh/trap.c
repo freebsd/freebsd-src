@@ -474,14 +474,20 @@ dotrap(void)
 }
 
 
+void
+trap_init(void)
+{
+	setsignal(SIGINT);
+	setsignal(SIGQUIT);
+}
+
+
 /*
  * Controls whether the shell is interactive or not based on iflag.
  */
 void
 setinteractive(void)
 {
-	setsignal(SIGINT);
-	setsignal(SIGQUIT);
 	setsignal(SIGTERM);
 }
 
