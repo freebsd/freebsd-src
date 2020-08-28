@@ -526,6 +526,10 @@ struct uma_zone {
 	KASSERT(uma_zone_get_allocs((z)) == 0,				\
 	    ("zone %s initialization after use.", (z)->uz_name))
 
+/* Domains are contiguous after the last CPU */
+#define	ZDOM_GET(z, n)							\
+	(&((uma_zone_domain_t)&(z)->uz_cpu[mp_maxid + 1])[n])
+
 #undef	UMA_ALIGN
 
 #ifdef _KERNEL
@@ -560,10 +564,6 @@ static __inline uma_slab_t hash_sfind(struct uma_hash *hash, uint8_t *data);
 #define	KEG_ASSERT_COLD(k)						\
 	KASSERT(uma_keg_get_allocs((k)) == 0,				\
 	    ("keg %s initialization after use.", (k)->uk_name))
-
-/* Domains are contiguous after the last CPU */
-#define	ZDOM_GET(z, n)							\
-    (&((uma_zone_domain_t)&(z)->uz_cpu[mp_maxid + 1])[n])
 
 #define	ZDOM_LOCK_INIT(z, zdom, lc)					\
 	do {								\

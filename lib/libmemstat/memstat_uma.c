@@ -455,9 +455,8 @@ skip_percpu:
 			mtp->mt_byteslimit = mtp->mt_countlimit * mtp->mt_size;
 			mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
 			for (i = 0; i < ndomains; i++) {
-				ret = kread(kvm,
-				    &uz.uz_cpu[mp_maxid + 1] + i * sizeof(uzd),
-				    &uzd, sizeof(uzd), 0);
+				ret = kread(kvm, ZDOM_GET(uzp, i), &uzd,
+				    sizeof(uzd), 0);
 				if (ret != 0)
 					continue;
 				for (ubp =
