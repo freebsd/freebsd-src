@@ -32,6 +32,7 @@
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2017 Datto Inc.
  * Copyright 2018 OmniOS Community Edition (OmniOSce) Association.
+ * Copyright (c) 2016 Actifio, Inc. All rights reserved.
  */
 
 /*
@@ -1280,6 +1281,24 @@ spa_activate(spa_t *spa, int mode)
 	 */
 	trim_thread_create(spa);
 
+	/*
+	 * This taskq is used to perform zvol-minor-related tasks
+	 * asynchronously. This has several advantages, including easy
+	 * resolution of various deadlocks (zfsonlinux bug #3681).
+	 *
+	 * The taskq must be single threaded to ensure tasks are always
+	 * processed in the order in which they were dispatched.
+	 *
+	 * A taskq per pool allows one to keep the pools independent.
+	 * This way if one pool is suspended, it will not impact another.
+	 *
+	 * The preferred location to dispatch a zvol minor task is a sync
+	 * task. In this context, there is easy access to the spa_t and minimal
+	 * error handling is required because the sync task must succeed.
+	 */
+	spa->spa_zvol_taskq = taskq_create("z_zvol", 1, minclsyspri,
+	    1, INT_MAX, 0);
+
 	for (size_t i = 0; i < TXG_SIZE; i++) {
 		spa->spa_txg_zio[i] = zio_root(spa, NULL, NULL,
 		    ZIO_FLAG_CANFAIL);
@@ -1322,6 +1341,11 @@ spa_deactivate(spa_t *spa)
 	trim_thread_destroy(spa);
 
 	spa_evicting_os_wait(spa);
+
+	if (spa->spa_zvol_taskq) {
+		taskq_destroy(spa->spa_zvol_taskq);
+		spa->spa_zvol_taskq = NULL;
+	}
 
 	txg_list_destroy(&spa->spa_vdev_txg_list);
 
@@ -4614,7 +4638,7 @@ spa_open_common(const char *pool, spa_t **spapp, void *tag, nvlist_t *nvpolicy,
 #ifdef __FreeBSD__
 #ifdef _KERNEL
 		if (firstopen)
-			zvol_create_minors(spa->spa_name);
+			zvol_create_minors(spa, spa->spa_name);
 #endif
 #endif
 	}
@@ -5970,7 +5994,7 @@ spa_import(const char *pool, nvlist_t *config, nvlist_t *props, uint64_t flags)
 
 #ifdef __FreeBSD__
 #ifdef _KERNEL
-	zvol_create_minors(pool);
+	zvol_create_minors(spa, pool);
 #endif
 #endif
 	return (0);
@@ -6119,6 +6143,12 @@ spa_export_common(char *pool, int new_state, nvlist_t **oldconfig,
 	spa_open_ref(spa, FTAG);
 	mutex_exit(&spa_namespace_lock);
 	spa_async_suspend(spa);
+	if (spa->spa_zvol_taskq) {
+#ifdef _KERNEL
+		zvol_remove_minors(spa, spa_name(spa));
+#endif
+		taskq_wait(spa->spa_zvol_taskq);
+	}
 	mutex_enter(&spa_namespace_lock);
 	spa_close(spa, FTAG);
 

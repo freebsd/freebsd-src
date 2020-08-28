@@ -43,6 +43,10 @@
 #include <sys/dsl_deleg.h>
 #include <sys/dmu_impl.h>
 #include <sys/zcp.h>
+#if defined(__FreeBSD__) && defined(_KERNEL)
+#include <sys/zvol.h>
+#endif
+
 
 int
 dsl_destroy_snapshot_check_impl(dsl_dataset_t *ds, boolean_t defer)
@@ -489,6 +493,14 @@ dsl_destroy_snapshot_sync_impl(dsl_dataset_t *ds, boolean_t defer, dmu_tx_t *tx)
 	if (dsl_dataset_phys(ds)->ds_userrefs_obj != 0)
 		VERIFY0(zap_destroy(mos, dsl_dataset_phys(ds)->ds_userrefs_obj,
 		    tx));
+
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	char dsname[ZFS_MAX_DATASET_NAME_LEN];
+
+	dsl_dataset_name(ds, dsname);
+	zvol_remove_minors(dp->dp_spa, dsname);
+#endif
+
 	dsl_dir_rele(ds->ds_dir, ds);
 	ds->ds_dir = NULL;
 	dmu_object_free_zapified(mos, obj, tx);
@@ -979,6 +991,9 @@ dsl_destroy_head_sync(void *arg, dmu_tx_t *tx)
 
 	VERIFY0(dsl_dataset_hold(dp, ddha->ddha_name, FTAG, &ds));
 	dsl_destroy_head_sync_impl(ds, tx);
+#if defined(__FreeBSD__) && defined(_KERNEL)
+	zvol_remove_minors(dp->dp_spa, ddha->ddha_name);
+#endif
 	dsl_dataset_rele(ds, FTAG);
 }
 

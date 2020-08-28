@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016 Actifio, Inc. All rights reserved.
  */
 
 #ifndef	_SYS_ZVOL_H
@@ -40,9 +41,6 @@ extern int zvol_check_volsize(uint64_t volsize, uint64_t blocksize);
 extern int zvol_check_volblocksize(uint64_t volblocksize);
 extern int zvol_get_stats(objset_t *os, nvlist_t *nv);
 extern void zvol_create_cb(objset_t *os, void *arg, cred_t *cr, dmu_tx_t *tx);
-extern int zvol_create_minor(const char *);
-extern int zvol_remove_minor(const char *);
-extern void zvol_remove_minors(const char *);
 extern int zvol_set_volsize(const char *, uint64_t);
 
 #ifdef illumos
@@ -72,8 +70,10 @@ extern void zvol_log_write_minor(void *minor_hdl, dmu_tx_t *tx, offset_t off,
 #endif	/* illumos */
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
-extern int zvol_create_minors(const char *name);
-extern void zvol_rename_minors(const char *oldname, const char *newname);
+extern void zvol_create_minors(spa_t *spa, const char *name);
+extern void zvol_remove_minors(spa_t *spa, const char *name);
+extern void zvol_rename_minors(spa_t *spa, const char *oldname,
+    const char *newname);
 #endif
 
 #endif	/* _KERNEL */
