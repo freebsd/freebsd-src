@@ -65,7 +65,7 @@ static void playstring(char *cp, size_t slen);
 static void
 tone(unsigned int thz, unsigned int centisecs)
 {
-	int sps, timo;
+	int timo;
 
 	if (thz <= 0)
 		return;
@@ -75,14 +75,10 @@ tone(unsigned int thz, unsigned int centisecs)
 #endif /* DEBUG */
 
 	/* set timer to generate clicks at given frequency in Hertz */
-	sps = splclock();
-
 	if (timer_spkr_acquire()) {
 		/* enter list of waiting procs ??? */
-		splx(sps);
 		return;
 	}
-	splx(sps);
 	disable_intr();
 	timer_spkr_setfreq(thz);
 	enable_intr();
@@ -95,9 +91,7 @@ tone(unsigned int thz, unsigned int centisecs)
 	timo = centisecs * hz / 100;
 	if (timo > 0)
 		tsleep(&endtone, SPKRPRI | PCATCH, "spkrtn", timo);
-	sps = splclock();
 	timer_spkr_release();
-	splx(sps);
 }
 
 /*
