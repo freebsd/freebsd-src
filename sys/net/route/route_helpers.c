@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop_utils.h>
 #include <net/route/nhop.h>
 #include <net/route/nhop_var.h>
-#include <net/route/shared.h>
 #ifdef INET
 #include <netinet/in_fib.h>
 #endif
