@@ -31,7 +31,7 @@ S=     ${SRCTOP}/sys
 
 KMOD=	cp2112
 SRCS=	cp2112.c
-SRCS+=	opt_bus.h opt_usb.h
+SRCS+=	opt_bus.h opt_platform.h opt_usb.h
 SRCS+=	device_if.h bus_if.h gpio_if.h iicbus_if.h usb_if.h usbdevs.h
 
 .include <bsd.kmod.mk>
