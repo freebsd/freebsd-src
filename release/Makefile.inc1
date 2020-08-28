@@ -29,3 +29,4 @@ GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null ||
 BUILDDATE!=		date +%Y%m%d
 .export BUILDDATE
 .endif
+
