@@ -743,7 +743,7 @@ ngmn_connect(hook_p hook)
 	if (!(u & 1))
 		printf("%s: init chan %d stat %08x\n", sc->name, chan, u);
 	sc->m32x->stat = 1; 
-	/* probably not at splnet, force outward queueing */
+	/* force outward queueing */
 	NG_HOOK_FORCE_QUEUE(NG_HOOK_PEER(hook));
 
 	return (0);
