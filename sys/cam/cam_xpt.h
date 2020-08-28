@@ -140,8 +140,6 @@ cam_status		xpt_compile_path(struct cam_path *new_path,
 					 lun_id_t lun_id);
 cam_status		xpt_clone_path(struct cam_path **new_path,
 				      struct cam_path *path);
-void			xpt_copy_path(struct cam_path *new_path,
-				      struct cam_path *path);
 
 void			xpt_release_path(struct cam_path *path);
 
