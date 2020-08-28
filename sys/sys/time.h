@@ -492,7 +492,7 @@ struct clockinfo {
 #define	CPUCLOCK_WHICH_TID	1
 #endif
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_STANDALONE)
 
 /*
  * Kernel to clock driver interface.
@@ -600,7 +600,7 @@ int	tvtohz(struct timeval *tv);
 	(((sbt2) >= sbt_timethreshold) ?				\
 	    ((*(sbt) = getsbinuptime()), 1) : ((*(sbt) = sbinuptime()), 0))
 
-#else /* !_KERNEL */
+#else /* !_KERNEL && !_STANDALONE */
 #include <time.h>
 
 #include <sys/cdefs.h>
