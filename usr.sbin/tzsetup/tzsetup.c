@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dialog.h>
 #endif
 
-#define	_PATH_ZONETAB		"/usr/share/zoneinfo/zone.tab"
+#define	_PATH_ZONETAB		"/usr/share/zoneinfo/zone1970.tab"
 #define	_PATH_ISO3166		"/usr/share/misc/iso3166"
 #define	_PATH_ZONEINFO		"/usr/share/zoneinfo"
 #define	_PATH_LOCALTIME		"/etc/localtime"
@@ -217,7 +217,7 @@ struct continent {
 	int		nitems;
 };
 
-static struct continent	africa, america, antarctica, arctic, asia, atlantic;
+static struct continent	africa, america, antarctica, asia, atlantic;
 static struct continent	australia, europe, indian, pacific, utc;
 
 static struct continent_names {
@@ -227,7 +227,6 @@ static struct continent_names {
 	{ "Africa",	&africa },
 	{ "America",	&america },
 	{ "Antarctica",	&antarctica },
-	{ "Arctic",	&arctic },
 	{ "Asia",	&asia },
 	{ "Atlantic",	&atlantic },
 	{ "Australia",	&australia },
@@ -244,21 +243,20 @@ static struct continent_items {
 	{ "1",	"Africa" },
 	{ "2",	"America -- North and South" },
 	{ "3",	"Antarctica" },
-	{ "4",	"Arctic Ocean" },
-	{ "5",	"Asia" },
-	{ "6",	"Atlantic Ocean" },
-	{ "7",	"Australia" },
-	{ "8",	"Europe" },
-	{ "9",	"Indian Ocean" },
-	{ "0",	"Pacific Ocean" },
-	{ "a",	"UTC" }
+	{ "4",	"Asia" },
+	{ "5",	"Atlantic Ocean" },
+	{ "6",	"Australia" },
+	{ "7",	"Europe" },
+	{ "8",	"Indian Ocean" },
+	{ "9",	"Pacific Ocean" },
+	{ "0",	"UTC" }
 };
 
 #define	NCONTINENTS	\
     (int)((sizeof(continent_items)) / (sizeof(continent_items[0])))
 static dialogMenuItem continents[NCONTINENTS];
 
-#define	OCEANP(x)	((x) == 3 || (x) == 5 || (x) == 8 || (x) == 9)
+#define	OCEANP(x)	((x) == 4 || (x) == 7 || (x) == 8)
 
 static int
 continent_country_menu(dialogMenuItem *continent)
@@ -482,7 +480,7 @@ read_zones(void)
 	FILE		*fp;
 	struct continent *cont;
 	size_t		len, contlen;
-	char		*line, *tlc, *file, *descr, *p;
+	char		*line, *country_list, *tlc, *file, *descr, *p;
 	int		lineno;
 
 	fp = fopen(path_zonetab, "r");
@@ -498,10 +496,7 @@ read_zones(void)
 		if (line[0] == '#')
 			continue;
 
-		tlc = strsep(&line, "\t");
-		if (strlen(tlc) != 2)
-			errx(1, "%s:%d: invalid country code `%s'",
-			    path_zonetab, lineno, tlc);
+		country_list = strsep(&line, "\t");
 		/* coord = */ strsep(&line, "\t");	 /* Unused */
 		file = strsep(&line, "\t");
 		/* get continent portion from continent/country */
@@ -521,7 +516,13 @@ read_zones(void)
 
 		descr = (line != NULL && *line != '\0') ? line : NULL;
 
-		add_zone_to_country(lineno, tlc, descr, file, cont);
+		while (country_list != NULL) {
+			tlc = strsep(&country_list, ",");
+			if (strlen(tlc) != 2)
+				errx(1, "%s:%d: invalid country code `%s'",
+				    path_zonetab, lineno, tlc);
+			add_zone_to_country(lineno, tlc, descr, file, cont);
+		}
 	}
 	fclose(fp);
 }
