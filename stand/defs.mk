@@ -55,6 +55,11 @@ LIBSA32=	${BOOTOBJ}/libsa32/libsa32.a
 
 # Standard options:
 CFLAGS+=	-nostdinc
+# Allow CFLAGS_EARLY.file/target so that code that needs specific stack
+# of include paths can set them up before our include paths. Normally
+# the only thing that should be there are -I directives, and as few of
+# those as possible.
+CFLAGS+=	${CFLAGS_EARLY} ${CFLAGS_EARLY.${.IMPSRC:T}} ${CFLAGS_EARLY.${.TARGET:T}}
 .if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
 CFLAGS+=	-I${BOOTOBJ}/libsa32
 .else
