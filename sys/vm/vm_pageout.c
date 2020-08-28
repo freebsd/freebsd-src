@@ -1287,8 +1287,10 @@ act_scan:
 			 * so, discarding any references collected by
 			 * pmap_ts_referenced().
 			 */
-			if (__predict_false(_vm_page_queue(old) == PQ_NONE))
+			if (__predict_false(_vm_page_queue(old) == PQ_NONE)) {
+				ps_delta = 0;
 				break;
+			}
 
 			/*
 			 * Advance or decay the act_count based on recent usage.
