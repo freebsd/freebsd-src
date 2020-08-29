@@ -267,10 +267,10 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sbuf_new_for_sysctl(&sb, NULL, 1024, req);
 	switch (arg2) {
 	case DEVICE_SYSCTL_DESC:
-		sbuf_cpy(&sb, dev->desc ? dev->desc : "");
+		sbuf_cat(&sb, dev->desc ? dev->desc : "");
 		break;
 	case DEVICE_SYSCTL_DRIVER:
-		sbuf_cpy(&sb, dev->driver ? dev->driver->name : "");
+		sbuf_cat(&sb, dev->driver ? dev->driver->name : "");
 		break;
 	case DEVICE_SYSCTL_LOCATION:
 		bus_child_location_sb(dev, &sb);
@@ -279,7 +279,7 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		bus_child_pnpinfo_sb(dev, &sb);
 		break;
 	case DEVICE_SYSCTL_PARENT:
-		sbuf_cpy(&sb, dev->parent ? dev->parent->nameunit : "");
+		sbuf_cat(&sb, dev->parent ? dev->parent->nameunit : "");
 		break;
 	default:
 		sbuf_delete(&sb);
