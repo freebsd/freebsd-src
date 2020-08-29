@@ -221,14 +221,14 @@ aw_clk_nm_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	if ((best < *fout) &&
 	  ((flags & CLK_SET_ROUND_DOWN) == 0)) {
 		*stop = 1;
-		printf("best freq (%llu) < requested freq(%llu)\n",
+		printf("best freq (%ju) < requested freq(%ju)\n",
 		    best, *fout);
 		return (ERANGE);
 	}
 	if ((best > *fout) &&
 	  ((flags & CLK_SET_ROUND_UP) == 0)) {
 		*stop = 1;
-		printf("best freq (%llu) > requested freq(%llu)\n",
+		printf("best freq (%ju) > requested freq(%ju)\n",
 		    best, *fout);
 		return (ERANGE);
 	}
