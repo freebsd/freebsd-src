@@ -36,8 +36,6 @@
  * hook to send the message.
  */
 boolean_t devctl_process_running(void);
-void devctl_notify_f(const char *__system, const char *__subsystem,
-    const char *__type, const char *__data, int __flags);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 struct sbuf;
