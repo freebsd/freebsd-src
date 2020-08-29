@@ -101,7 +101,7 @@ vnet_rtzone_init()
 {
 	
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
-		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+		NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 }
 
 #ifdef VIMAGE
@@ -310,6 +310,7 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	RIB_WLOCK(rnh);
 #ifdef RADIX_MPATH
+	netmask = info->rti_info[RTAX_NETMASK];
 	/* do not permit exactly the same dst/mask/gw pair */
 	if (rt_mpath_capable(rnh) &&
 		rt_mpath_conflict(rnh, rt, netmask)) {
