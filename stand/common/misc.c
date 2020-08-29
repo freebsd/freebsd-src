@@ -169,46 +169,6 @@ alloc_pread(readin_handle_t fd, off_t off, size_t len)
 	return (buf);
 }
 
-/*
- * Display a region in traditional hexdump format.
- */
-void
-hexdump(caddr_t region, size_t len)
-{
-    caddr_t	line;
-    int		x, c;
-    char	lbuf[80];
-#define emit(fmt, args...)	{sprintf(lbuf, fmt , ## args); pager_output(lbuf);}
-
-    pager_open();
-    for (line = region; line < (region + len); line += 16) {
-	emit("%08lx  ", (long) line);
-	
-	for (x = 0; x < 16; x++) {
-	    if ((line + x) < (region + len)) {
-		emit("%02x ", *(uint8_t *)(line + x));
-	    } else {
-		emit("-- ");
-	    }
-	    if (x == 7)
-		emit(" ");
-	}
-	emit(" |");
-	for (x = 0; x < 16; x++) {
-	    if ((line + x) < (region + len)) {
-		c = *(uint8_t *)(line + x);
-		if ((c < ' ') || (c > '~'))	/* !isprint(c) */
-		    c = '.';
-		emit("%c", c);
-	    } else {
-		emit(" ");
-	    }
-	}
-	emit("|\n");
-    }
-    pager_close();
-}
-
 void
 dev_cleanup(void)
 {
