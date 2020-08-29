@@ -265,6 +265,7 @@ device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	sbuf_new_for_sysctl(&sb, NULL, 1024, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	switch (arg2) {
 	case DEVICE_SYSCTL_DESC:
 		sbuf_cat(&sb, dev->desc ? dev->desc : "");
