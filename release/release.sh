@@ -282,6 +282,11 @@ extra_chroot_setup() {
 			WRKDIRPREFIX=/tmp/ports \
 			DISTDIR=/tmp/distfiles \
 			install clean distclean
+	else
+		eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
+			pkg install -y devel/git
+		eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
+			pkg clean -y
 	fi
 	if [ -d ${CHROOTDIR}/usr/ports ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
