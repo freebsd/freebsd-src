@@ -101,7 +101,7 @@ vnet_rtzone_init()
 {
 	
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
-		NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
+		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
 
 #ifdef VIMAGE
