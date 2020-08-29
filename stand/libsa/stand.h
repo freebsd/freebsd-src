@@ -470,4 +470,7 @@ extern void *reallocf(void *, size_t);
  */
 caddr_t ptov(uintptr_t);
 
+/* hexdump.c */
+void	hexdump(caddr_t region, size_t len);
+
 #endif	/* STAND_H */

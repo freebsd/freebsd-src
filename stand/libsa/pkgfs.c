@@ -60,7 +60,7 @@ struct fs_ops pkgfs_fsops = {
 };
 
 #define PKG_BUFSIZE	512
-#define	PKG_MAXCACHESZ	(16384 * 3)
+#define	PKG_MAXCACHESZ	(512 * 1024)
 
 #define	PKG_FILEEXT	".tgz"
 

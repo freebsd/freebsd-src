@@ -13,8 +13,9 @@ LIBSA_CPUARCH?=${MACHINE_CPUARCH}
 LIB?=		sa
 
 # standalone components and stuff we have modified locally
-SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c getopt.c gets.c \
-	globals.c pager.c panic.c printf.c strdup.c strerror.c \
+SRCS+=	gzguts.h zutil.h __main.c abort.c assert.c bcd.c environment.c \
+	getopt.c gets.c globals.c \
+	hexdump.c pager.c panic.c printf.c strdup.c strerror.c \
 	random.c sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
