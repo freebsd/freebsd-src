@@ -260,36 +260,33 @@ enum {
 static int
 device_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
+	struct sbuf sb;
 	device_t dev = (device_t)arg1;
-	const char *value;
-	char *buf;
 	int error;
 
-	buf = NULL;
+	sbuf_new_for_sysctl(&sb, NULL, 1024, req);
 	switch (arg2) {
 	case DEVICE_SYSCTL_DESC:
-		value = dev->desc ? dev->desc : "";
+		sbuf_cpy(&sb, dev->desc ? dev->desc : "");
 		break;
 	case DEVICE_SYSCTL_DRIVER:
-		value = dev->driver ? dev->driver->name : "";
+		sbuf_cpy(&sb, dev->driver ? dev->driver->name : "");
 		break;
 	case DEVICE_SYSCTL_LOCATION:
-		value = buf = malloc(1024, M_BUS, M_WAITOK | M_ZERO);
-		bus_child_location_str(dev, buf, 1024);
+		bus_child_location_sb(dev, &sb);
 		break;
 	case DEVICE_SYSCTL_PNPINFO:
-		value = buf = malloc(1024, M_BUS, M_WAITOK | M_ZERO);
-		bus_child_pnpinfo_str(dev, buf, 1024);
+		bus_child_pnpinfo_sb(dev, &sb);
 		break;
 	case DEVICE_SYSCTL_PARENT:
-		value = dev->parent ? dev->parent->nameunit : "";
+		sbuf_cpy(&sb, dev->parent ? dev->parent->nameunit : "");
 		break;
 	default:
+		sbuf_delete(&sb);
 		return (EINVAL);
 	}
-	error = SYSCTL_OUT_STR(req, value);
-	if (buf != NULL)
-		free(buf, M_BUS);
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
 	return (error);
 }
 
@@ -5464,13 +5461,13 @@ SYSCTL_PROC(_hw_bus, OID_AUTO, info, CTLTYPE_STRUCT | CTLFLAG_RD |
 static int
 sysctl_devices(SYSCTL_HANDLER_ARGS)
 {
+	struct sbuf		sb;
 	int			*name = (int *)arg1;
 	u_int			namelen = arg2;
 	int			index;
 	device_t		dev;
 	struct u_device		*udev;
 	int			error;
-	char			*walker, *ep;
 
 	if (namelen != 2)
 		return (EINVAL);
@@ -5501,34 +5498,21 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	udev->dv_devflags = dev->devflags;
 	udev->dv_flags = dev->flags;
 	udev->dv_state = dev->state;
-	walker = udev->dv_fields;
-	ep = walker + sizeof(udev->dv_fields);
-#define CP(src)						\
-	if ((src) == NULL)				\
-		*walker++ = '\0';			\
-	else {						\
-		strlcpy(walker, (src), ep - walker);	\
-		walker += strlen(walker) + 1;		\
-	}						\
-	if (walker >= ep)				\
-		break;
-
-	do {
-		CP(dev->nameunit);
-		CP(dev->desc);
-		CP(dev->driver != NULL ? dev->driver->name : NULL);
-		bus_child_pnpinfo_str(dev, walker, ep - walker);
-		walker += strlen(walker) + 1;
-		if (walker >= ep)
-			break;
-		bus_child_location_str(dev, walker, ep - walker);
-		walker += strlen(walker) + 1;
-		if (walker >= ep)
-			break;
-		*walker++ = '\0';
-	} while (0);
-#undef CP
-	error = SYSCTL_OUT(req, udev, sizeof(*udev));
+	sbuf_new(&sb, udev->dv_fields, sizeof(udev->dv_fields), SBUF_FIXEDLEN);
+	sbuf_cat(&sb, dev->nameunit);
+	sbuf_putc(&sb, '\0');
+	sbuf_cat(&sb, dev->desc);
+	sbuf_putc(&sb, '\0');
+	sbuf_cat(&sb, dev->driver != NULL ? dev->driver->name : '\0');
+	sbuf_putc(&sb, '\0');
+	bus_child_pnpinfo_sb(dev, &sb);
+	sbuf_putc(&sb, '\0');
+	bus_child_location_sb(dev, &sb);
+	sbuf_putc(&sb, '\0');
+	error = sbuf_finish(&sb);
+	if (error == 0)
+		error = SYSCTL_OUT(req, udev, sizeof(*udev));
+	sbuf_delete(&sb);
 	free(udev, M_BUS);
 	return (error);
 }
