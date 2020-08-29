@@ -221,22 +221,22 @@ chroot_setup() {
 	mkdir -p ${CHROOTDIR}/usr
 
 	if [ -z "${SRC_UPDATE_SKIP}" ]; then
-		if [ -d "${CHROOTDIR}/usr/src" ]; then
-			cd ${CHROOTDIR}/usr/src && ${VCSUPDATE} && cd -
+		if [ -d "${CHROOTDIR}/usr/src/.git" ]; then
+			${VCSUPDATE} -C ${CHROOTDIR}/usr/src
 		else
 			${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
 		fi
 	fi
 	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
-		if [ -d "${CHROOTDIR}/usr/doc" ]; then
-			cd ${CHROOTDIR}/usr/doc && ${VCSUPDATE} && cd -
+		if [ -d "${CHROOTDIR}/usr/doc/.git" ]; then
+			${VCSUPDATE} -C ${CHROOTDIR}/usr/doc
 		else
 			${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 		fi
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
-		if [ -d "${CHROOTDIR}/usr/ports" ]; then
-			cd ${CHROOTDIR}/usr/ports && ${VCSUPDATE} && cd -
+		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
+			${VCSUPDATE} -C ${CHROOTDIR}/usr/ports
 		else
 			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 		fi
