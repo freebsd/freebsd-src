@@ -70,6 +70,7 @@ env_setup() {
 		exit 1
 	fi
 	VCSCMD="/usr/local/bin/git clone -q"
+	VCSUPDATE="/usr/local/bin/git pull -q"
 
 	# The default git checkout server, and branches for src/, doc/,
 	# and ports/.
@@ -220,13 +221,25 @@ chroot_setup() {
 	mkdir -p ${CHROOTDIR}/usr
 
 	if [ -z "${SRC_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
+		if [ -d "${CHROOTDIR}/usr/src" ]; then
+			cd ${CHROOTDIR}/usr/src && ${VCSUPDATE} && cd -
+		else
+			${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
+		fi
 	fi
 	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
+		if [ -d "${CHROOTDIR}/usr/doc" ]; then
+			cd ${CHROOTDIR}/usr/doc && ${VCSUPDATE} && cd -
+		else
+			${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
+		fi
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
-		${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+		if [ -d "${CHROOTDIR}/usr/ports" ]; then
+			cd ${CHROOTDIR}/usr/ports && ${VCSUPDATE} && cd -
+		else
+			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+		fi
 	fi
 
 	if [ -z "${CHROOTBUILD_SKIP}" ]; then
