@@ -110,11 +110,13 @@ struct xprison {
 
 struct iovec;
 
+__BEGIN_DECLS
 int jail(struct jail *);
 int jail_set(struct iovec *, unsigned int, int);
 int jail_get(struct iovec *, unsigned int, int);
 int jail_attach(int);
 int jail_remove(int);
+__END_DECLS
 
 #else /* _KERNEL */
 
