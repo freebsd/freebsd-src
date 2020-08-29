@@ -70,7 +70,6 @@ env_setup() {
 		exit 1
 	fi
 	VCSCMD="/usr/local/bin/git clone -q"
-	VCSUPDATE="/usr/local/bin/git pull -q"
 
 	# The default git checkout server, and branches for src/, doc/,
 	# and ports/.
@@ -222,21 +221,21 @@ chroot_setup() {
 
 	if [ -z "${SRC_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/src/.git" ]; then
-			${VCSUPDATE} -C ${CHROOTDIR}/usr/src
+			git -C ${CHROOTDIR}/usr/src pull
 		else
 			${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
 		fi
 	fi
 	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/doc/.git" ]; then
-			${VCSUPDATE} -C ${CHROOTDIR}/usr/doc
+			git -C ${CHROOTDIR}/usr/doc pull
 		else
 			${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 		fi
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
-			${VCSUPDATE} -C ${CHROOTDIR}/usr/ports
+			git -C ${CHROOTDIR}/usr/ports pull
 		else
 			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 		fi
