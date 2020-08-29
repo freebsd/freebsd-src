@@ -504,3 +504,9 @@ memguard_cmp_zone(uma_zone_t zone)
 	 */
 	return (strcmp(zone->uz_name, vm_memguard_desc) == 0);
 }
+
+unsigned long
+memguard_get_req_size(const void *addr)
+{
+	return (*v2sizep(trunc_page((uintptr_t)addr)));
+}

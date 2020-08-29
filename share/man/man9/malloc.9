@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2020
+.Dd August 28, 2020
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -55,6 +55,8 @@
 .Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
 .Fn reallocf "void *addr" "size_t size" "struct malloc_type *type" "int flags"
+.Ft size_t
+.Fn malloc_usable_size "const void *addr"
 .Fn MALLOC_DECLARE type
 .In sys/param.h
 .In sys/malloc.h
@@ -149,6 +151,13 @@ function is identical to
 .Fn realloc
 except that it
 will free the passed pointer when the requested memory cannot be allocated.
+.Pp
+The
+.Fn malloc_usable_size
+function returns the usable size of the allocation pointed to by
+.Fa addr .
+The return value may be larger than the size that was requested during
+allocation.
 .Pp
 Unlike its standard C library counterpart
 .Pq Xr malloc 3 ,
