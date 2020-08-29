@@ -221,21 +221,21 @@ chroot_setup() {
 
 	if [ -z "${SRC_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/src/.git" ]; then
-			git -C ${CHROOTDIR}/usr/src pull
+			git -C ${CHROOTDIR}/usr/src -q pull
 		else
 			${VCSCMD} ${SRC} -b ${SRCBRANCH} ${CHROOTDIR}/usr/src
 		fi
 	fi
 	if [ -z "${NODOC}" ] && [ -z "${DOC_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/doc/.git" ]; then
-			git -C ${CHROOTDIR}/usr/doc pull
+			git -C ${CHROOTDIR}/usr/doc -q pull
 		else
 			${VCSCMD} ${DOC} -b ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 		fi
 	fi
 	if [ -z "${NOPORTS}" ] && [ -z "${PORTS_UPDATE_SKIP}" ]; then
 		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
-			git -C ${CHROOTDIR}/usr/ports pull
+			git -C ${CHROOTDIR}/usr/ports -q pull
 		else
 			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 		fi
