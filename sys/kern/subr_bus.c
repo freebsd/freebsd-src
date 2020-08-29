@@ -156,6 +156,8 @@ EVENTHANDLER_LIST_DEFINE(device_attach);
 EVENTHANDLER_LIST_DEFINE(device_detach);
 EVENTHANDLER_LIST_DEFINE(dev_lookup);
 
+static int bus_child_location_sb(device_t child, struct sbuf *sb);
+static int bus_child_pnpinfo_sb(device_t child, struct sbuf *sb);
 static void devctl2_init(void);
 static bool device_frozen;
 
@@ -392,9 +394,10 @@ static struct cdevsw dev_cdevsw = {
 	.d_name =	"devctl",
 };
 
+#define DEVCTL_BUFFER (1024 - sizeof(void *))
 struct dev_event_info {
-	char *dei_data;
 	STAILQ_ENTRY(dev_event_info) dei_link;
+	char dei_data[DEVCTL_BUFFER];
 };
 
 STAILQ_HEAD(devq, dev_event_info);
@@ -409,6 +412,7 @@ static struct dev_softc {
 	struct selinfo	sel;
 	struct devq	devq;
 	struct sigio	*sigio;
+	uma_zone_t	zone;
 } devsoftc;
 
 static void	filt_devctl_detach(struct knote *kn);
@@ -431,6 +435,11 @@ devinit(void)
 	cv_init(&devsoftc.cv, "dev cv");
 	STAILQ_INIT(&devsoftc.devq);
 	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
+	if (devctl_queue_length > 0) {
+		devsoftc.zone = uma_zcreate("DEVCTL", sizeof(struct dev_event_info),
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+		uma_prealloc(devsoftc.zone, devctl_queue_length);
+	}
 	devctl2_init();
 }
 
@@ -495,8 +504,7 @@ devread(struct cdev *dev, struct uio *uio, int ioflag)
 	devsoftc.queued--;
 	mtx_unlock(&devsoftc.mtx);
 	rv = uiomove(n1->dei_data, strlen(n1->dei_data), uio);
-	free(n1->dei_data, M_BUS);
-	free(n1, M_BUS);
+	uma_zfree(devsoftc.zone, n1);
 	return (rv);
 }
 
@@ -585,42 +593,51 @@ devctl_process_running(void)
 	return (devsoftc.inuse == 1);
 }
 
-/**
- * @brief Queue data to be read from the devctl device
- *
- * Generic interface to queue data to the devctl device.  It is
- * assumed that @p data is properly formatted.  It is further assumed
- * that @p data is allocated using the M_BUS malloc type.
- */
-static void
-devctl_queue_data_f(char *data, int flags)
+static struct dev_event_info *
+devctl_alloc_dei(void)
 {
-	struct dev_event_info *n1 = NULL, *n2 = NULL;
+	struct dev_event_info *dei = NULL;
 
-	if (strlen(data) == 0)
-		goto out;
+	mtx_lock(&devsoftc.mtx);
 	if (devctl_queue_length == 0)
 		goto out;
-	n1 = malloc(sizeof(*n1), M_BUS, flags);
-	if (n1 == NULL)
-		goto out;
-	n1->dei_data = data;
-	mtx_lock(&devsoftc.mtx);
-	if (devctl_queue_length == 0) {
-		mtx_unlock(&devsoftc.mtx);
-		free(n1->dei_data, M_BUS);
-		free(n1, M_BUS);
-		return;
-	}
-	/* Leave at least one spot in the queue... */
-	while (devsoftc.queued > devctl_queue_length - 1) {
-		n2 = STAILQ_FIRST(&devsoftc.devq);
+	if (devctl_queue_length == devsoftc.queued) {
+		dei = STAILQ_FIRST(&devsoftc.devq);
 		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
-		free(n2->dei_data, M_BUS);
-		free(n2, M_BUS);
 		devsoftc.queued--;
+	} else {
+		/* dei can't be NULL -- we know we have at least one in the zone */
+		dei = uma_zalloc(devsoftc.zone, M_NOWAIT);
+		MPASS(dei != NULL);
 	}
-	STAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
+	*dei->dei_data = '\0';
+out:
+	mtx_unlock(&devsoftc.mtx);
+	return (dei);
+}
+
+static struct dev_event_info *
+devctl_alloc_dei_sb(struct sbuf *sb)
+{
+	struct dev_event_info *dei;
+
+	dei = devctl_alloc_dei();
+	if (dei != NULL)
+		sbuf_new(sb, dei->dei_data, sizeof(dei->dei_data), SBUF_FIXEDLEN);
+	return (dei);
+}
+
+static void
+devctl_free_dei(struct dev_event_info *dei)
+{
+	uma_zfree(devsoftc.zone, dei);
+}
+
+static void
+devctl_queue(struct dev_event_info *dei)
+{
+	mtx_lock(&devsoftc.mtx);
+	STAILQ_INSERT_TAIL(&devsoftc.devq, dei, dei_link);
 	devsoftc.queued++;
 	cv_broadcast(&devsoftc.cv);
 	KNOTE_LOCKED(&devsoftc.sel.si_note, 0);
@@ -628,20 +645,6 @@ devctl_queue_data_f(char *data, int flags)
 	selwakeup(&devsoftc.sel);
 	if (devsoftc.async && devsoftc.sigio != NULL)
 		pgsigio(&devsoftc.sigio, SIGIO, 0);
-	return;
-out:
-	/*
-	 * We have to free data on all error paths since the caller
-	 * assumes it will be free'd when this item is dequeued.
-	 */
-	free(data, M_BUS);
-	return;
-}
-
-static void
-devctl_queue_data(char *data)
-{
-	devctl_queue_data_f(data, M_NOWAIT);
 }
 
 /**
@@ -649,34 +652,31 @@ devctl_queue_data(char *data)
  */
 void
 devctl_notify_f(const char *system, const char *subsystem, const char *type,
-    const char *data, int flags)
+    const char *data, int flags __unused)
 {
-	int len = 0;
-	char *msg;
+	struct dev_event_info *dei;
+	struct sbuf sb;
 
-	if (system == NULL)
-		return;		/* BOGUS!  Must specify system. */
-	if (subsystem == NULL)
-		return;		/* BOGUS!  Must specify subsystem. */
-	if (type == NULL)
-		return;		/* BOGUS!  Must specify type. */
-	len += strlen(" system=") + strlen(system);
-	len += strlen(" subsystem=") + strlen(subsystem);
-	len += strlen(" type=") + strlen(type);
-	/* add in the data message plus newline. */
-	if (data != NULL)
-		len += strlen(data);
-	len += 3;	/* '!', '\n', and NUL */
-	msg = malloc(len, M_BUS, flags);
-	if (msg == NULL)
-		return;		/* Drop it on the floor */
-	if (data != NULL)
-		snprintf(msg, len, "!system=%s subsystem=%s type=%s %s\n",
-		    system, subsystem, type, data);
+	if (system == NULL || subsystem == NULL || type == NULL)
+		return;
+	dei = devctl_alloc_dei_sb(&sb);
+	if (dei == NULL)
+		return;
+	sbuf_cpy(&sb, "!system=");
+	sbuf_cat(&sb, system);
+	sbuf_cat(&sb, " subsystem=");
+	sbuf_cat(&sb, subsystem);
+	sbuf_cat(&sb, " type=");
+	sbuf_cat(&sb, type);
+	if (data != NULL) {
+		sbuf_putc(&sb, ' ');
+		sbuf_cat(&sb, data);
+	}
+	sbuf_putc(&sb, '\n');
+	if (sbuf_finish(&sb) != 0)
+		devctl_free_dei(dei);	/* overflow -> drop it */
 	else
-		snprintf(msg, len, "!system=%s subsystem=%s type=%s\n",
-		    system, subsystem, type);
-	devctl_queue_data_f(msg, flags);
+		devctl_queue(dei);
 }
 
 void
@@ -698,53 +698,46 @@ devctl_notify(const char *system, const char *subsystem, const char *type,
  * object of that event, plus the plug and play info and location info
  * for that event.  This is likely most useful for devices, but less
  * useful for other consumers of this interface.  Those should use
- * the devctl_queue_data() interface instead.
+ * the devctl_notify() interface instead.
+ *
+ * Output: 
+ *	${type}${what} at $(location dev) $(pnp-info dev) on $(parent dev)
  */
 static void
 devaddq(const char *type, const char *what, device_t dev)
 {
-	char *data = NULL;
-	char *loc = NULL;
-	char *pnp = NULL;
+	struct dev_event_info *dei;
 	const char *parstr;
+	struct sbuf sb;
 
-	if (!devctl_queue_length)/* Rare race, but lost races safely discard */
+	dei = devctl_alloc_dei_sb(&sb);
+	if (dei == NULL)
 		return;
-	data = malloc(1024, M_BUS, M_NOWAIT);
-	if (data == NULL)
-		goto bad;
+	sbuf_cpy(&sb, type);
+	sbuf_cat(&sb, what);
+	sbuf_cat(&sb, " at ");
 
-	/* get the bus specific location of this device */
-	loc = malloc(1024, M_BUS, M_NOWAIT);
-	if (loc == NULL)
-		goto bad;
-	*loc = '\0';
-	bus_child_location_str(dev, loc, 1024);
+	/* Add in the location */
+	bus_child_location_sb(dev, &sb);
+	sbuf_putc(&sb, ' ');
 
-	/* Get the bus specific pnp info of this device */
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto bad;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
+	/* Add in pnpinfo */
+	bus_child_pnpinfo_sb(dev, &sb);
 
 	/* Get the parent of this device, or / if high enough in the tree. */
 	if (device_get_parent(dev) == NULL)
 		parstr = ".";	/* Or '/' ? */
 	else
 		parstr = device_get_nameunit(device_get_parent(dev));
-	/* String it all together. */
-	snprintf(data, 1024, "%s%s at %s %s on %s\n", type, what, loc, pnp,
-	  parstr);
-	free(loc, M_BUS);
-	free(pnp, M_BUS);
-	devctl_queue_data(data);
+	sbuf_cat(&sb, " on ");
+	sbuf_cat(&sb, parstr);
+	sbuf_putc(&sb, '\n');
+	if (sbuf_finish(&sb) != 0)
+		goto bad;
+	devctl_queue(dei);
 	return;
 bad:
-	free(pnp, M_BUS);
-	free(loc, M_BUS);
-	free(data, M_BUS);
-	return;
+	devctl_free_dei(dei);
 }
 
 /*
@@ -786,7 +779,6 @@ devnomatch(device_t dev)
 static int
 sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 {
-	struct dev_event_info *n1;
 	int q, error;
 
 	q = devctl_queue_length;
@@ -795,18 +787,32 @@ sysctl_devctl_queue(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (q < 0)
 		return (EINVAL);
-	if (mtx_initialized(&devsoftc.mtx))
-		mtx_lock(&devsoftc.mtx);
-	devctl_queue_length = q;
-	while (devsoftc.queued > devctl_queue_length) {
-		n1 = STAILQ_FIRST(&devsoftc.devq);
-		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
-		free(n1->dei_data, M_BUS);
-		free(n1, M_BUS);
-		devsoftc.queued--;
+
+	/*
+	 * When set as a tunable, we've not yet initialized the mutex.
+	 * It is safe to just assign to devctl_queue_length and return
+	 * as we're racing no one. We'll use whatever value set in
+	 * devinit.
+	 */
+	if (!mtx_initialized(&devsoftc.mtx)) {
+		devctl_queue_length = q;
+		return (0);
 	}
-	if (mtx_initialized(&devsoftc.mtx))
-		mtx_unlock(&devsoftc.mtx);
+
+	/*
+	 * XXX It's hard to grow or shrink the UMA zone. Only allow
+	 * disabling the queue size for the moment until underlying
+	 * UMA issues can be sorted out.
+	 */
+	if (q != 0)
+		return (EINVAL);
+	if (q == devctl_queue_length)
+		return (0);
+	mtx_lock(&devsoftc.mtx);
+	devctl_queue_length = 0;
+	uma_zdestroy(devsoftc.zone);
+	devsoftc.zone = 0;
+	mtx_unlock(&devsoftc.mtx);
 	return (0);
 }
 
@@ -4918,6 +4924,70 @@ bus_child_location_str(device_t child, char *buf, size_t buflen)
 	}
 	return (BUS_CHILD_LOCATION_STR(parent, child, buf, buflen));
 }
+
+/**
+ * @brief Wrapper function for bus_child_pnpinfo_str using sbuf
+ *
+ * A convenient wrapper frunction for bus_child_pnpinfo_str that allows
+ * us to splat that into an sbuf. It uses unholy knowledge of sbuf to
+ * accomplish this, however. It is an interim function until we can convert
+ * this interface more fully.
+ */
+/* Note: we reach inside of sbuf because it's API isn't rich enough to do this */
+#define	SPACE(s)	((s)->s_size - (s)->s_len)
+#define EOB(s)		((s)->s_buf + (s)->s_len)
+
+static int
+bus_child_pnpinfo_sb(device_t dev, struct sbuf *sb)
+{
+	char *p;
+	size_t space;
+
+	MPASS((sb->s_flags & SBUF_INCLUDENUL) == 0);
+	if (sb->s_error != 0)
+		return (-1);
+	p = EOB(sb);
+	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
+	space = SPACE(sb);
+	if (space <= 1) {
+		sb->s_error = ENOMEM;
+		return (-1);
+	}
+	bus_child_pnpinfo_str(dev, p, space);
+	sb->s_len += strlen(p);
+	return (0);
+}
+
+/**
+ * @brief Wrapper function for bus_child_pnpinfo_str using sbuf
+ *
+ * A convenient wrapper frunction for bus_child_pnpinfo_str that allows
+ * us to splat that into an sbuf. It uses unholy knowledge of sbuf to
+ * accomplish this, however. It is an interim function until we can convert
+ * this interface more fully.
+ */
+static int
+bus_child_location_sb(device_t dev, struct sbuf *sb)
+{
+	char *p;
+	size_t space;
+
+	MPASS((sb->s_flags & SBUF_INCLUDENUL) == 0);
+	if (sb->s_error != 0)
+		return (-1);
+	p = EOB(sb);
+	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
+	space = SPACE(sb);
+	if (space <= 1) {
+		sb->s_error = ENOMEM;
+		return (-1);
+	}
+	bus_child_location_str(dev, p, space);
+	sb->s_len += strlen(p);
+	return (0);
+}
+#undef SPACE
+#undef EOB
 
 /**
  * @brief Wrapper function for BUS_GET_CPUS().
