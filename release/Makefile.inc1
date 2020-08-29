@@ -10,10 +10,8 @@ GIT_CMD=   ${_P}/git
 .  endif
 . endif
 .endfor
-.if !defined(GIT_CMD) && empty(GIT_CMD)
-. error "Git binary not found.  Set GIT_CMD appropriately."
-.endif
 
+.if !empty(GIT_CMD) && exists(${GIT_CMD})
 # Set the git branch and hash to export where needed.
 .if !defined(GITBRANCH) || empty(GITBRANCH)
 GITBRANCH!=	${GIT_CMD} -C ${.CURDIR} rev-parse --abbrev-ref HEAD 2>/dev/null | sed -e 's/\^\///'
@@ -21,6 +19,12 @@ GITBRANCH!=	${GIT_CMD} -C ${.CURDIR} rev-parse --abbrev-ref HEAD 2>/dev/null | s
 .endif
 .if !defined(GITREV) || empty(GITREV)
 GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null || true
+.export GITREV
+.endif
+.else
+GITBRANCH=	nullbranch
+GITREV=		nullhash
+.export GITBRANCH
 .export GITREV
 .endif
 
