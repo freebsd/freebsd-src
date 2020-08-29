@@ -213,7 +213,7 @@ g_dev_destroy(void *arg, int flags __unused)
 	sc = cp->private;
 	g_trace(G_T_TOPOLOGY, "g_dev_destroy(%p(%s))", cp, gp->name);
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
-	devctl_notify_f("GEOM", "DEV", "DESTROY", buf, M_WAITOK);
+	devctl_notify("GEOM", "DEV", "DESTROY", buf);
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 	g_detach(cp);
@@ -277,13 +277,13 @@ g_dev_set_media(struct g_consumer *cp)
 	sc = cp->private;
 	dev = sc->sc_dev;
 	snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
-	devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
-	devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
+	devctl_notify("DEVFS", "CDEV", "MEDIACHANGE", buf);
+	devctl_notify("GEOM", "DEV", "MEDIACHANGE", buf);
 	dev = sc->sc_alias;
 	if (dev != NULL) {
 		snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
-		devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
-		devctl_notify_f("GEOM", "DEV", "MEDIACHANGE", buf, M_WAITOK);
+		devctl_notify("DEVFS", "CDEV", "MEDIACHANGE", buf);
+		devctl_notify("GEOM", "DEV", "MEDIACHANGE", buf);
 	}
 }
 
@@ -308,7 +308,7 @@ g_dev_resize(struct g_consumer *cp)
 	char buf[SPECNAMELEN + 6];
 
 	snprintf(buf, sizeof(buf), "cdev=%s", cp->provider->name);
-	devctl_notify_f("GEOM", "DEV", "SIZECHANGE", buf, M_WAITOK);
+	devctl_notify("GEOM", "DEV", "SIZECHANGE", buf);
 }
 
 struct g_provider *
@@ -379,7 +379,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	g_dev_attrchanged(cp, "GEOM::physpath");
 	snprintf(buf, sizeof(buf), "cdev=%s", gp->name);
-	devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+	devctl_notify("GEOM", "DEV", "CREATE", buf);
 	/*
 	 * Now add all the aliases for this drive
 	 */
@@ -392,7 +392,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 			continue;
 		}
 		snprintf(buf, sizeof(buf), "cdev=%s", gap->ga_alias);
-		devctl_notify_f("GEOM", "DEV", "CREATE", buf, M_WAITOK);
+		devctl_notify("GEOM", "DEV", "CREATE", buf);
 	}
 
 	return (gp);

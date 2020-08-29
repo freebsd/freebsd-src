@@ -546,7 +546,7 @@ notify(struct cdev *dev, const char *ev, int flags)
 		return;
 	memcpy(data, prefix, sizeof(prefix) - 1);
 	memcpy(data + sizeof(prefix) - 1, dev->si_name, namelen + 1);
-	devctl_notify_f("DEVFS", "CDEV", ev, data, mflags);
+	devctl_notify("DEVFS", "CDEV", ev, data);
 	free(data, M_TEMP);
 }
 

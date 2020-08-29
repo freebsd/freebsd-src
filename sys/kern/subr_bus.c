@@ -651,8 +651,8 @@ devctl_queue(struct dev_event_info *dei)
  * @brief Send a 'notification' to userland, using standard ways
  */
 void
-devctl_notify_f(const char *system, const char *subsystem, const char *type,
-    const char *data, int flags __unused)
+devctl_notify(const char *system, const char *subsystem, const char *type,
+    const char *data)
 {
 	struct dev_event_info *dei;
 	struct sbuf sb;
@@ -677,13 +677,6 @@ devctl_notify_f(const char *system, const char *subsystem, const char *type,
 		devctl_free_dei(dei);	/* overflow -> drop it */
 	else
 		devctl_queue(dei);
-}
-
-void
-devctl_notify(const char *system, const char *subsystem, const char *type,
-    const char *data)
-{
-	devctl_notify_f(system, subsystem, type, data, M_NOWAIT);
 }
 
 /*
