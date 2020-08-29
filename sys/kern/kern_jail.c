@@ -943,40 +943,45 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			error = EINVAL;
 			goto done_free;
 		}
-		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
-		    path, td);
-		error = namei(&nd);
-		if (error)
-			goto done_free;
-		root = nd.ni_vp;
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-		strlcpy(g_path, path, MAXPATHLEN);
-		error = vn_path_to_global_path(td, root, g_path, MAXPATHLEN);
-		if (error == 0)
-			path = g_path;
-		else if (error == ENODEV) {
-			/* proceed if sysctl debug.disablefullpath == 1 */
-			fullpath_disabled = 1;
-			if (len < 2 || (len == 2 && path[0] == '/'))
-				path = NULL;
-		} else {
-			/* exit on other errors */
-			goto done_free;
-		}
-		if (root->v_type != VDIR) {
-			error = ENOTDIR;
-			vput(root);
-			goto done_free;
-		}
-		VOP_UNLOCK(root, 0);
-		if (fullpath_disabled) {
-			/* Leave room for a real-root full pathname. */
-			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
-			    ? strlen(mypr->pr_path) : 0) > MAXPATHLEN) {
-				error = ENAMETOOLONG;
-				vrele(root);
+		if (len < 2 || (len == 2 && path[0] == '/'))
+			path = NULL;
+		else
+		{
+			NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
+			    path, td);
+			error = namei(&nd);
+			if (error)
 				goto done_free;
+			root = nd.ni_vp;
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+			strlcpy(g_path, path, MAXPATHLEN);
+			error = vn_path_to_global_path(td, root, g_path,
+			    MAXPATHLEN);
+			if (error == 0)
+				path = g_path;
+			else if (error == ENODEV) {
+				/* means sysctl debug.disablefullpath == 1 */
+				fullpath_disabled = 1;
+			} else {
+				/* exit on other errors */
+				goto done_free;
+			}
+			if (root->v_type != VDIR) {
+				error = ENOTDIR;
+				vput(root);
+				goto done_free;
+			}
+			VOP_UNLOCK(root, 0);
+			if (fullpath_disabled) {
+				/* Leave room for a real-root full pathname. */
+				if (len + (path[0] == '/' &&
+				    strcmp(mypr->pr_path, "/")
+				    ? strlen(mypr->pr_path) : 0) > MAXPATHLEN) {
+					error = ENAMETOOLONG;
+					vrele(root);
+					goto done_free;
+				}
 			}
 		}
 	}
