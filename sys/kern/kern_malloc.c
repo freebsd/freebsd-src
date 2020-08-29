@@ -938,6 +938,42 @@ reallocf(void *addr, size_t size, struct malloc_type *mtp, int flags)
 	return (mem);
 }
 
+/*
+ *	malloc_usable_size: returns the usable size of the allocation.
+ */
+size_t
+malloc_usable_size(const void *addr)
+{
+#ifndef DEBUG_REDZONE
+	uma_zone_t zone;
+	uma_slab_t slab;
+#endif
+	u_long size;
+
+	if (addr == NULL)
+		return (0);
+
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(__DECONST(void *, addr)))
+		return (memguard_get_req_size(addr));
+#endif
+
+#ifdef DEBUG_REDZONE
+	size = redzone_get_size(__DECONST(void *, addr));
+#else
+	vtozoneslab((vm_offset_t)addr & (~UMA_SLAB_MASK), &zone, &slab);
+	if (slab == NULL)
+		panic("malloc_usable_size: address %p(%p) is not allocated.\n",
+		    addr, (void *)((u_long)addr & (~UMA_SLAB_MASK)));
+
+	if (!malloc_large_slab(slab))
+		size = zone->uz_size;
+	else
+		size = malloc_large_size(slab);
+#endif
+	return (size);
+}
+
 CTASSERT(VM_KMEM_SIZE_SCALE >= 1);
 
 /*
