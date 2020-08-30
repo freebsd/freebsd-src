@@ -2795,6 +2795,13 @@ do_opt(char **cpp, char **endcpp, struct exportlist *ep, struct grouplist *grp,
 				return (1);
 			opt_flags |= OP_SEC;
 			usedarg++;
+		} else if (!strcmp(cpopt, "tls")) {
+			*exflagsp |= MNT_EXTLS;
+		} else if (!strcmp(cpopt, "tlscert")) {
+			*exflagsp |= (MNT_EXTLS | MNT_EXTLSCERT);
+		} else if (!strcmp(cpopt, "tlscertuser")) {
+			*exflagsp |= (MNT_EXTLS | MNT_EXTLSCERT |
+			    MNT_EXTLSCERTUSER);
 		} else {
 			syslog(LOG_ERR, "bad opt %s", cpopt);
 			return (1);
