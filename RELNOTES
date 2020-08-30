@@ -10,6 +10,17 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r364896:
+	A series of commits ending with r364896 added NFS over TLS
+	to the kernel.  This is believed to be compatible with
+	the Internet Draft titled "Towards Remote Procedure Call Encryption
+	By Default" (expected to soon become an RFC).
+	The mount_nfs(8) and exports(5) man pages describe the mount and
+	export option(s) related to NFS over TLS.
+	For NFS over TLS to work, the rpctlscd(8) { client } or rpctlssd(8)
+	{ server } must be running on a kernel built with "options KERN_TLS"
+	on an architecture where PMAP_HAS_DMAP != 0.
+
 r364725:
 	Changes to one obscure devd event generated on resume need to
 	be documented. The old form will still be generated in 13, but not
