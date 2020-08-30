@@ -31,7 +31,7 @@
 .\"     @(#)tsort.1	8.3 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2006
+.Dd August 30, 2020
 .Dt TSORT 1
 .Os
 .Sh NAME
@@ -75,6 +75,71 @@ This is primarily
 intended for building libraries, where optimal ordering is not critical,
 and cycles occur often.
 .El
+.Sh EXAMPLES
+Assuming a file named
+.Pa dag
+with the following contents representing a directed acyclic graph:
+.Bd -literal -offset indent
+A B
+A F
+B C
+B D
+D E
+.Ed
+.Pp
+Sort the nodes of the graph:
+.Bd -literal -offset indent
+$ tsort dag
+A
+F
+B
+D
+C
+E
+.Ed
+.Pp
+White spaces and new line characters are considered equal.
+This file for example is considered equal to the one we defined before:
+.Bd -literal -offset indent
+$ cat dga
+A B A F B C B D D E
+.Ed
+.Pp
+Assume we add a new directed arc from D to A creating a cycle:
+.Bd -literal -offset indent
+A B
+A F
+B C
+B D
+D E
+D A
+.Ed
+.Pp
+Ordering the graph detects the cycle:
+.Bd -literal -offset indent
+$ tsort dag
+tsort: cycle in data
+tsort: A
+tsort: B
+tsort: D
+D
+E
+A
+F
+B
+C
+.Ed
+.Pp
+Same as above but silencing the warning about the cycle:
+.Bd -literal -offset indent
+$ tsort -q dag
+D
+E
+A
+F
+B
+C
+.Ed
 .Sh SEE ALSO
 .Xr ar 1
 .Sh HISTORY
