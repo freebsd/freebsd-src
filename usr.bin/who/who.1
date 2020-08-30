@@ -28,7 +28,7 @@
 .\"     @(#)who.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2012
+.Dd August 30, 2020
 .Dt WHO 1
 .Os
 .Sh NAME
@@ -80,7 +80,7 @@ An error occurred.
 .El
 .It Fl u
 Show idle time for each user in hours and minutes as
-.Ar hh Ns : Ns Ar mm ,
+.Ar hh : Ns Ar mm ,
 .Ql \&.
 if the user has been idle less than a minute, and
 .Dq Li old
@@ -140,6 +140,47 @@ as described in
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show a brief summary of who is logged in:
+.Bd -literal -offset indent
+$ who -q
+fernape          root             root
+# users = 3
+.Ed
+.Pp
+Show who is logged in along with the line and time fields (without the headers):
+.Bd -literal -offset indent
+$ who -s
+fernape          ttyv0        Aug 26 16:23
+root             ttyv1        Aug 26 16:23
+root             ttyv2        Aug 26 16:23
+.Ed
+.Pp
+Show information about the terminal attached to standard input:
+.Bd -literal -offset indent
+$ who am i
+fernape                       Aug 26 16:24
+.Ed
+.Pp
+Show time and date of the last system reboot, whether the users accept messages
+and the idle time for each of them:
+.Bd -literal -offset indent
+$ who -a
+                 - system boot  Aug 26 16:23   .
+fernape          - ttyv0        Aug 26 16:23   .
+root             - ttyv1        Aug 26 16:23   .
+root             - ttyv2        Aug 26 16:23   .
+.Ed
+.Pp
+Same as above but showing headers:
+.Bd -literal -offset indent
+$ who -aH
+NAME             S LINE         TIME         IDLE  FROM
+                 - system boot  Aug 26 16:23   .
+fernape          - ttyv0        Aug 26 16:23   .
+root             - ttyv1        Aug 26 16:23 00:01
+root             - ttyv2        Aug 26 16:23 00:01
+.Ed
 .Sh SEE ALSO
 .Xr last 1 ,
 .Xr users 1 ,
