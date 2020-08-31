@@ -780,10 +780,6 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         reserved_1[0x7200];
 };
 
-enum {
-	MLX5_ACCESS_REG_SUMMARY_CTRL_ID_PDDR                   = 0x5031,
-};
-
 struct mlx5_ifc_pddr_module_info_bits {
 	u8         cable_technology[0x8];
 	u8         cable_breakout[0x8];
