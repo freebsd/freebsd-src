@@ -66,9 +66,12 @@
 #define	_VM_VM_KERN_H_
 
 /* Kernel memory management definitions. */
-extern vm_map_t kernel_map;
-extern vm_map_t exec_map;
-extern vm_map_t pipe_map;
+extern struct vm_map kernel_map_store;
+#define	kernel_map	(&kernel_map_store)
+extern struct vm_map exec_map_store;
+#define	exec_map	(&exec_map_store)
+extern struct vm_map pipe_map_store;
+#define	pipe_map	(&pipe_map_store)
 extern struct vmem *kernel_arena;
 extern struct vmem *kmem_arena;
 extern struct vmem *buffer_arena;
