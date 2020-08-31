@@ -127,6 +127,7 @@ an_attach_isa(device_t dev)
 		an_release_resources(dev);
 		return (error);
 	}
+	gone_in_dev(dev, 13, "pccard removed, an doesn't support modern crypto");
 	return (0);
 }
 

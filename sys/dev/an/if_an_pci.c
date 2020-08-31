@@ -230,7 +230,8 @@ an_attach_pci(dev)
 	    NULL, an_intr, sc, &sc->irq_handle);
 	if (error)
 		device_printf(dev, "couldn't setup interrupt\n");
-
+	else
+		gone_in_dev(dev, 13, "pccard removed, an doesn't support modern crypto");
 fail:
 	if (error)
 		an_release_resources(dev);
