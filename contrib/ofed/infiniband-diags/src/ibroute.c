@@ -222,6 +222,7 @@ char *dump_multicast_tables(ib_portid_t * portid, unsigned startlid,
 				fprintf(stderr, "SubnGet() failed"
 						"; MAD status 0x%x AM 0x%x\n",
 						status, mod);
+				free(mapnd);
 				return NULL;
 			}
 		}
