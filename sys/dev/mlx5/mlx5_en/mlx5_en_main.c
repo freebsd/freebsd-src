@@ -3233,6 +3233,7 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct mlx5e_priv *priv;
 	struct ifreq *ifr;
+	struct ifdownreason *ifdr;
 	struct ifi2creq i2c;
 	int error = 0;
 	int mask = 0;
@@ -3500,6 +3501,16 @@ out:
 		error = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 err_i2c:
 		PRIV_UNLOCK(priv);
+		break;
+	case SIOCGIFDOWNREASON:
+		ifdr = (struct ifdownreason *)data;
+		bzero(ifdr->ifdr_msg, sizeof(ifdr->ifdr_msg));
+		PRIV_LOCK(priv);
+		error = -mlx5_query_pddr_troubleshooting_info(priv->mdev, NULL,
+		    ifdr->ifdr_msg, sizeof(ifdr->ifdr_msg));
+		PRIV_UNLOCK(priv);
+		if (error == 0)
+			ifdr->ifdr_reason = IFDR_REASON_MSG;
 		break;
 
 	default:

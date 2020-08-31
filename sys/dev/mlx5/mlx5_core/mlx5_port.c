@@ -1221,6 +1221,31 @@ int mlx5_query_pddr_range_info(struct mlx5_core_dev *mdev, u8 local_port, u8 *is
 }
 EXPORT_SYMBOL_GPL(mlx5_query_pddr_range_info);
 
+int mlx5_query_pddr_troubleshooting_info(struct mlx5_core_dev *mdev,
+    u16 *monitor_opcode, u8 *status_message, size_t sm_len)
+{
+	int outlen = MLX5_ST_SZ_BYTES(pddr_reg);
+	u32 out[MLX5_ST_SZ_DW(pddr_reg)] = {0};
+	int err;
+
+	err = mlx5_query_pddr(mdev, MLX5_PDDR_TROUBLESHOOTING_INFO_PAGE, 1,
+	    out, outlen);
+	if (err != 0)
+		return err;
+	if (monitor_opcode != NULL) {
+		*monitor_opcode = MLX5_GET(pddr_reg, out,
+		    page_data.troubleshooting_info_page.status_opcode.
+		    monitor_opcodes);
+	}
+	if (status_message != NULL) {
+		strlcpy(status_message,
+		    MLX5_ADDR_OF(pddr_reg, out,
+		    page_data.troubleshooting_info_page.status_message),
+		    sm_len);
+	}
+	return (0);
+}
+
 int
 mlx5_query_mfrl_reg(struct mlx5_core_dev *mdev, u8 *reset_level)
 {
