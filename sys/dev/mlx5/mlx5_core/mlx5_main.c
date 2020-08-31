@@ -180,6 +180,8 @@ static struct mlx5_profile profiles[] = {
 
 #ifdef PCI_IOV
 static const char iov_mac_addr_name[] = "mac-addr";
+static const char iov_node_guid_name[] = "node-guid";
+static const char iov_port_guid_name[] = "port-guid";
 #endif
 
 static int set_dma_caps(struct pci_dev *pdev)
@@ -1624,6 +1626,10 @@ static int init_one(struct pci_dev *pdev,
 			vf_schema = pci_iov_schema_alloc_node();
 			pci_iov_schema_add_unicast_mac(vf_schema,
 			    iov_mac_addr_name, 0, NULL);
+			pci_iov_schema_add_uint64(vf_schema, iov_node_guid_name,
+			    0, 0);
+			pci_iov_schema_add_uint64(vf_schema, iov_port_guid_name,
+			    0, 0);
 			err = pci_iov_attach(bsddev, pf_schema, vf_schema);
 			if (err != 0) {
 				device_printf(bsddev,
@@ -1825,6 +1831,7 @@ mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
 	struct mlx5_priv *priv;
 	const void *mac;
 	size_t mac_size;
+	uint64_t node_guid, port_guid;
 	int error;
 
 	pdev = device_get_softc(dev);
@@ -1842,6 +1849,28 @@ mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
 		if (error != 0) {
 			mlx5_core_err(core_dev,
 			    "setting MAC for VF %d failed, error %d\n",
+			    vfnum + 1, error);
+		}
+	}
+
+	if (nvlist_exists_number(vf_config, iov_node_guid_name)) {
+		node_guid = nvlist_get_number(vf_config, iov_node_guid_name);
+		error = -mlx5_modify_nic_vport_node_guid(core_dev, vfnum + 1,
+		    node_guid);
+		if (error != 0) {
+			mlx5_core_err(core_dev,
+		    "modifying node GUID for VF %d failed, error %d\n",
+			    vfnum + 1, error);
+		}
+	}
+
+	if (nvlist_exists_number(vf_config, iov_port_guid_name)) {
+		port_guid = nvlist_get_number(vf_config, iov_port_guid_name);
+		error = -mlx5_modify_nic_vport_port_guid(core_dev, vfnum + 1,
+		    port_guid);
+		if (error != 0) {
+			mlx5_core_err(core_dev,
+		    "modifying port GUID for VF %d failed, error %d\n",
 			    vfnum + 1, error);
 		}
 	}
