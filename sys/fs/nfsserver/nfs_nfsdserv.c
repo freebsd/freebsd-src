@@ -2720,6 +2720,8 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 			stp->ls_stateid.seqid = 0;
 		} else {
 			nd->nd_repstat = NFSERR_BADSTATEID;
+			free(stp, M_NFSDSTATE);
+			free(lop, M_NFSDLOCK);
 			goto nfsmout;
 		}
 	}
