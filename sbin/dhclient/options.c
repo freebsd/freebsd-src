@@ -298,6 +298,8 @@ find_search_domain_name_len(struct option_data *option, size_t *offset)
 
 			pointed_len = find_search_domain_name_len(option,
 			    &pointer);
+			if (pointed_len < 0)
+				return (-1);
 			domain_name_len += pointed_len;
 
 			*offset = i + 2;
