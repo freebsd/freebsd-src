@@ -151,6 +151,12 @@ SYSCTL_UINT(_hw_storvsc, OID_AUTO, max_io, CTLFLAG_RDTUN,
 static int hv_storvsc_chan_cnt = 0;
 SYSCTL_INT(_hw_storvsc, OID_AUTO, chan_cnt, CTLFLAG_RDTUN,
 	&hv_storvsc_chan_cnt, 0, "# of channels to use");
+#ifdef DIAGNOSTIC
+static int hv_storvsc_srb_status = -1;
+SYSCTL_INT(_hw_storvsc, OID_AUTO, srb_status,  CTLFLAG_RW,
+	&hv_storvsc_srb_status, 0, "srb_status to inject");
+TUNABLE_INT("hw_storvsc.srb_status", &hv_storvsc_srb_status);
+#endif /* DIAGNOSTIC */
 
 #define STORVSC_MAX_IO						\
 	vmbus_chan_prplist_nelem(hv_storvsc_ringbuffer_size,	\
@@ -704,7 +710,16 @@ hv_storvsc_io_request(struct storvsc_softc *sc,
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTESRB;
 
 	ch_sel = (vstor_packet->u.vm_srb.lun + curcpu) % sc->hs_nchan;
-	outgoing_channel = sc->hs_sel_chan[ch_sel];
+	/*
+	 * If we are panic'ing, then we are dumping core. Since storvsc_polls
+	 * always uses sc->hs_chan, then we must send to that channel or a poll
+	 * timeout will occur.
+	 */
+	if (panicstr) {
+		outgoing_channel = sc->hs_chan;
+	} else {
+		outgoing_channel = sc->hs_sel_chan[ch_sel];
+	}
 
 	mtx_unlock(&request->softc->hs_lock);
 	if (request->prp_list.gpa_range.gpa_len) {
@@ -2155,26 +2170,133 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	int srb_status = SRB_STATUS(vm_srb->srb_status);
+#ifdef DIAGNOSTIC
+	if (hv_storvsc_srb_status != -1) {
+		srb_status = SRB_STATUS(hv_storvsc_srb_status & 0x3f);
+		hv_storvsc_srb_status = -1;
+	}
+#endif /* DIAGNOSTIC */
 	if (vm_srb->scsi_status == SCSI_STATUS_OK) {
 		if (srb_status != SRB_STATUS_SUCCESS) {
-			/*
-			 * If there are errors, for example, invalid LUN,
-			 * host will inform VM through SRB status.
-			 */
-			if (bootverbose) {
-				if (srb_status == SRB_STATUS_INVALID_LUN) {
-					xpt_print(ccb->ccb_h.path,
-					    "invalid LUN %d for op: %s\n",
-					    vm_srb->lun,
-					    scsi_op_desc(cmd->opcode, NULL));
-				} else {
-					xpt_print(ccb->ccb_h.path,
-					    "Unknown SRB flag: %d for op: %s\n",
-					    srb_status,
-					    scsi_op_desc(cmd->opcode, NULL));
-				}
+			bool log_error = true;
+			switch (srb_status) {
+				case SRB_STATUS_PENDING:
+					/* We should never get this */
+					panic("storvsc_io_done: SRB_STATUS_PENDING");
+					break;
+				case SRB_STATUS_ABORTED:
+					/*
+					 * storvsc doesn't support aborts yet
+					 * but if we ever get this status
+					 * the I/O is complete - treat it as a
+					 * timeout
+					 */
+					ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
+					break;
+				case SRB_STATUS_ABORT_FAILED:
+					/* We should never get this */
+					panic("storvsc_io_done: SRB_STATUS_ABORT_FAILED");
+					break;
+				case SRB_STATUS_ERROR:
+					/*
+					 * We should never get this.
+					 * Treat it as a CAM_UNREC_HBA_ERROR.
+					 * It will be retried
+					 */
+					ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR;
+					break;
+				case SRB_STATUS_BUSY:
+					/* Host is busy. Delay and retry */
+					ccb->ccb_h.status |= CAM_BUSY;
+					break;
+				case SRB_STATUS_INVALID_REQUEST:
+				case SRB_STATUS_INVALID_PATH_ID:
+				case SRB_STATUS_NO_DEVICE:
+				case SRB_STATUS_INVALID_TARGET_ID:
+					/*
+					 * These indicate an invalid address
+					 * and really should never be seen.
+					 * A CAM_PATH_INVALID could be
+					 * used here but I want to run
+					 * down retries.  Do a CAM_BUSY
+					 * since the host might be having issues.
+					 */
+					ccb->ccb_h.status |= CAM_BUSY;
+					break;
+				case SRB_STATUS_TIMEOUT:
+				case SRB_STATUS_COMMAND_TIMEOUT:
+					/* The backend has timed this out */
+					ccb->ccb_h.status |= CAM_BUSY;
+					break;
+				/* Some old pSCSI errors below */
+				case SRB_STATUS_SELECTION_TIMEOUT:
+				case SRB_STATUS_MESSAGE_REJECTED:
+				case SRB_STATUS_PARITY_ERROR:
+				case SRB_STATUS_NO_HBA:
+				case SRB_STATUS_DATA_OVERRUN:
+				case SRB_STATUS_UNEXPECTED_BUS_FREE:
+				case SRB_STATUS_PHASE_SEQUENCE_FAILURE:
+					/*
+					 * Old pSCSI responses, should never get.
+					 * If we do treat as a CAM_UNREC_HBA_ERROR
+					 * which will be retried
+					 */
+					ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR;
+					break;
+				case SRB_STATUS_BUS_RESET:
+					ccb->ccb_h.status |= CAM_SCSI_BUS_RESET;
+					break;
+				case SRB_STATUS_BAD_SRB_BLOCK_LENGTH:
+					/*
+					 * The request block is malformed and
+					 * I doubt it is from the guest. Just retry.
+					 */
+					ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR;
+					break;
+				/* Not used statuses just retry */
+				case SRB_STATUS_REQUEST_FLUSHED:
+				case SRB_STATUS_BAD_FUNCTION:
+				case SRB_STATUS_NOT_POWERED:
+					ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR;
+					break;
+				case SRB_STATUS_INVALID_LUN:
+					/*
+					 * Don't log an EMS for this response since
+					 * there is no device at this LUN. This is a
+					 * normal and expected response when a device
+					 * is detached.
+					 */
+					ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+					log_error = false;
+					break;
+				case SRB_STATUS_ERROR_RECOVERY:
+				case SRB_STATUS_LINK_DOWN:
+					/*
+					 * I don't ever expect these from
+					 * the host but if we ever get
+					 * retry after a delay
+					 */
+					ccb->ccb_h.status |= CAM_BUSY;
+					break;
+				default:
+					/*
+					 * An undefined response assert on
+					 * on debug builds else retry
+					 */
+					ccb->ccb_h.status |= CAM_UNREC_HBA_ERROR;
+					KASSERT(srb_status <= SRB_STATUS_LINK_DOWN,
+					    ("storvsc: %s, unexpected srb_status of 0x%x",
+					    __func__, srb_status));
+					break;
 			}
-			ccb->ccb_h.status |= CAM_DEV_NOT_THERE;
+			if (log_error) {
+				xpt_print(ccb->ccb_h.path, "The hypervisor's I/O adapter "
+					"driver received an unexpected response code 0x%x "
+					"for operation: %s. If this continues to occur, "
+					"report the condition to your hypervisor vendor so "
+					"they can rectify the issue.\n", srb_status,
+					scsi_op_desc(cmd->opcode, NULL));
+			}
 		} else {
 			ccb->ccb_h.status |= CAM_REQ_CMP;
 		}
