@@ -241,12 +241,34 @@ struct vstor_packet {
 /**
  * SRB (SCSI Request Block) Status Codes
  */
-#define SRB_STATUS_PENDING		0x00
-#define SRB_STATUS_SUCCESS		0x01
-#define SRB_STATUS_ABORTED		0x02
-#define SRB_STATUS_ERROR 		0x04
-#define SRB_STATUS_DATA_OVERRUN		0x12
-#define SRB_STATUS_INVALID_LUN		0x20
+#define SRB_STATUS_PENDING                  0x00
+#define SRB_STATUS_SUCCESS                  0x01
+#define SRB_STATUS_ABORTED                  0x02
+#define SRB_STATUS_ABORT_FAILED             0x03
+#define SRB_STATUS_ERROR                    0x04
+#define SRB_STATUS_BUSY                     0x05
+#define SRB_STATUS_INVALID_REQUEST          0x06
+#define SRB_STATUS_INVALID_PATH_ID          0x07
+#define SRB_STATUS_NO_DEVICE                0x08
+#define SRB_STATUS_TIMEOUT                  0x09
+#define SRB_STATUS_SELECTION_TIMEOUT        0x0A
+#define SRB_STATUS_COMMAND_TIMEOUT          0x0B
+#define SRB_STATUS_MESSAGE_REJECTED         0x0D
+#define SRB_STATUS_BUS_RESET                0x0E
+#define SRB_STATUS_PARITY_ERROR             0x0F
+#define SRB_STATUS_REQUEST_SENSE_FAILED     0x10
+#define SRB_STATUS_NO_HBA                   0x11
+#define SRB_STATUS_DATA_OVERRUN             0x12
+#define SRB_STATUS_UNEXPECTED_BUS_FREE      0x13
+#define SRB_STATUS_PHASE_SEQUENCE_FAILURE   0x14
+#define SRB_STATUS_BAD_SRB_BLOCK_LENGTH     0x15
+#define SRB_STATUS_REQUEST_FLUSHED          0x16
+#define SRB_STATUS_INVALID_LUN              0x20
+#define SRB_STATUS_INVALID_TARGET_ID        0x21
+#define SRB_STATUS_BAD_FUNCTION             0x22
+#define SRB_STATUS_ERROR_RECOVERY           0x23
+#define SRB_STATUS_NOT_POWERED              0x24
+#define SRB_STATUS_LINK_DOWN                0x25
 /**
  * SRB Status Masks (can be combined with above status codes)
  */
