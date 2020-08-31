@@ -57,6 +57,13 @@ struct rdma_addr_client {
 	struct completion comp;
 };
 
+union rdma_sockaddr {
+	struct sockaddr         _sockaddr;
+	struct sockaddr_in      _sockaddr_in;
+	struct sockaddr_in6     _sockaddr_in6;
+	struct sockaddr_storage _sockaddr_ss;
+};
+
 /**
  * rdma_addr_register_client - Register an address client.
  */
