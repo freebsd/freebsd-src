@@ -1214,6 +1214,8 @@ apm_attach(device_t dev)
 	sc->sc_resume.ah_arg = sc;
 	apm_hook_establish(APM_HOOK_RESUME, &sc->sc_resume);
 
+	gone_in_dev(dev, 13, "APM support has been removed.");
+
 	return 0;
 }
 
