@@ -450,18 +450,15 @@ static int cma_igmp_send(struct net_device *ndev, const union ib_gid *mgid, bool
 	int retval;
 
 	if (ndev) {
-		union {
-			struct sockaddr sock;
-			struct sockaddr_storage storage;
-		} addr;
+		union rdma_sockaddr addr;
 
-		rdma_gid2ip(&addr.sock, mgid);
+		rdma_gid2ip(&addr._sockaddr, mgid);
 
 		CURVNET_SET_QUIET(ndev->if_vnet);
 		if (join)
-			retval = -if_addmulti(ndev, &addr.sock, NULL);
+			retval = -if_addmulti(ndev, &addr._sockaddr, NULL);
 		else
-			retval = -if_delmulti(ndev, &addr.sock);
+			retval = -if_delmulti(ndev, &addr._sockaddr);
 		CURVNET_RESTORE();
 	} else {
 		retval = -ENODEV;

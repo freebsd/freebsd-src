@@ -668,11 +668,7 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 		struct rdma_dev_addr dev_addr = {.bound_dev_if = rec->ifindex,
 						 .net = rec->net ? rec->net :
 							 &init_net};
-		union {
-			struct sockaddr     _sockaddr;
-			struct sockaddr_in  _sockaddr_in;
-			struct sockaddr_in6 _sockaddr_in6;
-		} sgid_addr, dgid_addr;
+		union rdma_sockaddr sgid_addr, dgid_addr;
 
 		if (!device->get_netdev)
 			return -EOPNOTSUPP;
