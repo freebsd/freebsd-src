@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2020
+.Dd August 31, 2020
 .Dt LS 1
 .Os
 .Sh NAME
@@ -197,7 +197,7 @@ This option is not defined in
 Display each file's MAC label; see
 .Xr maclabel 7 .
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl a
 Include directory entries whose names begin with a
 dot
@@ -209,7 +209,7 @@ but use
 .Tn C
 escape codes whenever possible.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl c
 Use time when file status was last changed for sorting or printing.
 .It Fl -color Ns = Ns Ar when
@@ -292,7 +292,7 @@ and
 .Fl t
 options.
 As allowed by
-.St -p1003.1-2001 ,
+.St -p1003.1-2008 ,
 this option has no effect on the
 .Fl d ,
 .Fl l ,
@@ -308,7 +308,7 @@ where it was used to display the group name in the long
 .Pq Fl l
 format output.
 This option is incompatible with
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl h
 When used with the
 .Fl l
@@ -316,7 +316,7 @@ option, use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte
 and Petabyte in order to reduce the number of digits to four or fewer
 using base 2 for sizes.
 This option is not defined in
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 .It Fl i
 For each file, print the file's file serial number (inode number).
 .It Fl k
@@ -343,7 +343,7 @@ Include the file flags in a long
 .Pq Fl l
 output.
 This option is incompatible with
-.St -p1003.1-2001 .
+.St -p1003.1-2008 .
 See
 .Xr chflags 1
 for a list of file flags and their meanings.
@@ -895,13 +895,14 @@ and
 the
 .Nm
 utility conforms to
+.St -p1003.1-2001
+and
 .St -p1003.1-2008 .
 The options
 .Fl B , D , G , I , T , U , W , Z , b , h , w , y
 and
 .Fl ,
-are compatible extensions not defined in
-.St -p1003.1-2008 .
+are non-standard extensions.
 .Pp
 The ACL support is compatible with
 .Tn IEEE
