@@ -1839,6 +1839,11 @@ mlx5_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *vf_config)
 		    &mac_size);
 		error = -mlx5_eswitch_set_vport_mac(priv->eswitch,
 		    vfnum + 1, __DECONST(u8 *, mac));
+		if (error != 0) {
+			mlx5_core_err(core_dev,
+			    "setting MAC for VF %d failed, error %d\n",
+			    vfnum + 1, error);
+		}
 	}
 
 	error = -mlx5_eswitch_set_vport_state(priv->eswitch, vfnum + 1,
