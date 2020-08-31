@@ -97,9 +97,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-struct vm_map kernel_map_store;
-struct vm_map exec_map_store;
-struct vm_map pipe_map_store;
+vm_map_t kernel_map;
+vm_map_t exec_map;
+vm_map_t pipe_map;
 
 const void *zero_region;
 CTASSERT((ZERO_REGION_SIZE & PAGE_MASK) == 0);
@@ -357,9 +357,9 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
 }
 
 /*
- *	kmem_subinit:
+ *	kmem_suballoc:
  *
- *	Initializes a map to manage a subrange
+ *	Allocates a map to manage a subrange
  *	of the kernel virtual address space.
  *
  *	Arguments are as follows:
@@ -369,11 +369,12 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
  *	size		Size of range to find
  *	superpage_align	Request that min is superpage aligned
  */
-void
-kmem_subinit(vm_map_t map, vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
-    vm_size_t size, bool superpage_align)
+vm_map_t
+kmem_suballoc(vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
+    vm_size_t size, boolean_t superpage_align)
 {
 	int ret;
+	vm_map_t result;
 
 	size = round_page(size);
 
@@ -382,11 +383,14 @@ kmem_subinit(vm_map_t map, vm_map_t parent, vm_offset_t *min, vm_offset_t *max,
 	    VMFS_SUPER_SPACE : VMFS_ANY_SPACE, VM_PROT_ALL, VM_PROT_ALL,
 	    MAP_ACC_NO_CHARGE);
 	if (ret != KERN_SUCCESS)
-		panic("kmem_subinit: bad status return of %d", ret);
+		panic("kmem_suballoc: bad status return of %d", ret);
 	*max = *min + size;
-	vm_map_init(map, vm_map_pmap(parent), *min, *max);
-	if (vm_map_submap(parent, *min, *max, map) != KERN_SUCCESS)
-		panic("kmem_subinit: unable to change range to submap");
+	result = vm_map_create(vm_map_pmap(parent), *min, *max);
+	if (result == NULL)
+		panic("kmem_suballoc: cannot create submap");
+	if (vm_map_submap(parent, *min, *max, result) != KERN_SUCCESS)
+		panic("kmem_suballoc: unable to change range to submap");
+	return (result);
 }
 
 /*
@@ -742,13 +746,15 @@ kva_import_domain(void *arena, vmem_size_t size, int flags, vmem_addr_t *addrp)
 void
 kmem_init(vm_offset_t start, vm_offset_t end)
 {
+	vm_map_t m;
 	int domain;
 
-	vm_map_init(kernel_map, kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
-	kernel_map->system_map = 1;
-	vm_map_lock(kernel_map);
+	m = vm_map_create(kernel_pmap, VM_MIN_KERNEL_ADDRESS, end);
+	m->system_map = 1;
+	vm_map_lock(m);
 	/* N.B.: cannot use kgdb to debug, starting with this assignment ... */
-	(void) vm_map_insert(kernel_map, NULL, (vm_ooffset_t) 0,
+	kernel_map = m;
+	(void) vm_map_insert(m, NULL, (vm_ooffset_t) 0,
 #ifdef __amd64__
 	    KERNBASE,
 #else		     
@@ -756,7 +762,7 @@ kmem_init(vm_offset_t start, vm_offset_t end)
 #endif
 	    start, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	/* ... and ending with the completion of the above `insert' */
-	vm_map_unlock(kernel_map);
+	vm_map_unlock(m);
 
 	/*
 	 * Initialize the kernel_arena.  This can grow on demand.
