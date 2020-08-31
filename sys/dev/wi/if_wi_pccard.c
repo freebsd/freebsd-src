@@ -200,7 +200,7 @@ wi_pccard_attach(device_t dev)
 		error = wi_attach(dev);
 		if (error != 0)
 			wi_free(dev);
-		gone_in_dev(dev, 13, "pccard removed");
+		gone_in_dev(dev, 13, "pccard removed, wi doesn't support modern crypto");
 	}
 	return error;
 }
