@@ -454,6 +454,8 @@ enum nvme_critical_warning_state {
 	NVME_CRIT_WARN_ST_VOLATILE_MEMORY_BACKUP	= 0x10,
 };
 #define NVME_CRIT_WARN_ST_RESERVED_MASK			(0xE0)
+#define	NVME_ASYNC_EVENT_NS_ATTRIBUTE			(0x100)
+#define	NVME_ASYNC_EVENT_FW_ACTIVATE			(0x200)
 
 /* slot for current FW */
 #define NVME_FIRMWARE_PAGE_AFI_SLOT_SHIFT		(0)
