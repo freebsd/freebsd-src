@@ -3004,6 +3004,14 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 
 		MPASS(rc != 0 && rc != EAGAIN);
 		MPASS(txp->npkt == 0);
+
+		n = tx_len16_to_desc(mbuf_len16(m0));
+		if (__predict_false(avail < n)) {
+			avail += reclaim_tx_descs(txq, min(n, 32));
+			if (avail < n)
+				break;	/* out of descriptors */
+		}
+
 		wr = &eq->desc[eq->pidx];
 		if (mbuf_cflags(m0) & MC_RAW_WR) {
 			n = write_raw_wr(txq, wr, m0, avail);
@@ -3014,12 +3022,6 @@ eth_tx(struct mp_ring *r, u_int cidx, u_int pidx, bool *coalescing)
 			    avail);
 #endif
 		} else {
-			n = tx_len16_to_desc(mbuf_len16(m0));
-			if (__predict_false(avail < n)) {
-				avail += reclaim_tx_descs(txq, 32);
-				if (avail < n)
-					break;	/* out of descriptors */
-			}
 			ETHER_BPF_MTAP(ifp, m0);
 			if (sc->flags & IS_VF)
 				n = write_txpkt_vm_wr(sc, txq, m0);
