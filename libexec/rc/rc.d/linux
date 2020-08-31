@@ -15,6 +15,12 @@ rcvar="linux_enable"
 start_cmd="${name}_start"
 stop_cmd=":"
 
+unmounted()
+{
+	[ `stat -f "%d" "$1"` == `stat -f "%d" "$1/.."` -a \
+	  `stat -f "%i" "$1"` != `stat -f "%i" "$1/.."` ]
+}
+
 linux_start()
 {
 	local _emul_path _tmpdir
@@ -48,11 +54,12 @@ linux_start()
 
 	if checkyesno linux_mounts_enable; then 
 		_emul_path="/compat/linux"
-		mount -t linprocfs linprocfs "${_emul_path}/proc"
-		mount -t linsysfs linsysfs "${_emul_path}/sys"
-		mount -t devfs devfs "${_emul_path}/dev"
-		mount -o linrdlnk -t fdescfs fdescfs "${_emul_path}/dev/fd"
-		mount -o mode=1777 -t tmpfs tmpfs "${_emul_path}/dev/shm"
+		unmounted "${_emul_path}/proc" && mount -t linprocfs linprocfs "${_emul_path}/proc"
+		unmounted "${_emul_path}/sys" && mount -t linsysfs linsysfs "${_emul_path}/sys"
+		unmounted "${_emul_path}/dev" && mount -t devfs devfs "${_emul_path}/dev"
+		unmounted "${_emul_path}/dev/fd" && mount -o linrdlnk -t fdescfs fdescfs "${_emul_path}/dev/fd"
+		unmounted "${_emul_path}/dev/shm" && mount -o mode=1777 -t tmpfs tmpfs "${_emul_path}/dev/shm"
+		true
 	fi
 }
 
