@@ -795,7 +795,7 @@ jedec_dimm_field_to_str(struct jedec_dimm_softc *sc, char *dst, size_t dstsz,
 
 	/* If we're dealing with ASCII, convert trailing spaces to NULs. */
 	if (ascii) {
-		for (i = dstsz; i > 0; i--) {
+		for (i = dstsz - 1; i > 0; i--) {
 			if (dst[i] == ' ') {
 				dst[i] = 0;
 			} else if (dst[i] == 0) {
