@@ -263,7 +263,6 @@ qportcfg_exit:
 	return (rc);
 }
 
-
 int
 bnxt_hwrm_ver_get(struct bnxt_softc *softc)
 {
@@ -377,7 +376,6 @@ bnxt_hwrm_func_drv_rgtr(struct bnxt_softc *softc)
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
-
 int
 bnxt_hwrm_func_drv_unrgtr(struct bnxt_softc *softc, bool shutdown)
 {
@@ -389,7 +387,6 @@ bnxt_hwrm_func_drv_unrgtr(struct bnxt_softc *softc, bool shutdown)
 		    HWRM_FUNC_DRV_UNRGTR_INPUT_FLAGS_PREPARE_FOR_SHUTDOWN;
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
-
 
 static inline int
 _is_valid_ether_addr(uint8_t *addr)
@@ -529,7 +526,6 @@ bnxt_hwrm_set_link_common(struct bnxt_softc *softc,
 	req->flags |= htole32(HWRM_PORT_PHY_CFG_INPUT_FLAGS_RESET_PHY);
 }
 
-
 static void
 bnxt_hwrm_set_pause_common(struct bnxt_softc *softc,
     struct hwrm_port_phy_cfg_input *req)
@@ -559,7 +555,6 @@ bnxt_hwrm_set_pause_common(struct bnxt_softc *softc,
 	}
 }
 
-
 /* JFV this needs interface connection */
 static void
 bnxt_hwrm_set_eee(struct bnxt_softc *softc, struct hwrm_port_phy_cfg_input *req)
@@ -586,7 +581,6 @@ bnxt_hwrm_set_eee(struct bnxt_softc *softc, struct hwrm_port_phy_cfg_input *req)
 	}
 }
 
-
 int
 bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
     bool set_eee, bool set_link)
@@ -598,7 +592,7 @@ bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
 		return ENOTSUP;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_PORT_PHY_CFG);
-	
+
 	if (set_pause) {
 		bnxt_hwrm_set_pause_common(softc, &req);
 
@@ -608,10 +602,10 @@ bnxt_hwrm_set_link_setting(struct bnxt_softc *softc, bool set_pause,
 
 	if (set_link)
 		bnxt_hwrm_set_link_common(softc, &req);
-	
+
 	if (set_eee)
 		bnxt_hwrm_set_eee(softc, &req);
-	
+
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
 
@@ -905,7 +899,6 @@ bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt_softc *softc,
 	return hwrm_send_message(softc, &req, sizeof(req));
 }
 
-
 int
 bnxt_hwrm_set_filter(struct bnxt_softc *softc, struct bnxt_vnic_info *vnic)
 {
@@ -966,7 +959,7 @@ int
 bnxt_cfg_async_cr(struct bnxt_softc *softc)
 {
 	int rc = 0;
-	
+
 	if (BNXT_PF(softc)) {
 		struct hwrm_func_cfg_input req = {0};
 
@@ -1569,7 +1562,7 @@ bnxt_hwrm_port_phy_qcfg(struct bnxt_softc *softc)
          * 3. When the auto_mode is set to none and this flag is set to 1,
          *    auto_pause bits should be ignored and should be set to 0.
          */
-	
+
 	link_info->flow_ctrl.autoneg = false;
 	link_info->flow_ctrl.tx = false;
 	link_info->flow_ctrl.rx = false;
@@ -1697,7 +1690,6 @@ static void bnxt_hwrm_set_coal_params(struct bnxt_softc *softc, uint32_t max_fra
         req->num_cmpl_aggr_int = htole16((uint16_t)max_frames * 4);
 }
 
-
 int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
 {
         int i, rc = 0;
@@ -1749,7 +1741,6 @@ int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
                                   buf_tmr_irq << 16 | buf_tmr, flags, &req_tx);
 
         for (i = 0; i < softc->nrxqsets; i++) {
-
                 
 		req = &req_rx;
                 /*
@@ -1767,8 +1758,6 @@ int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
         }
         return rc;
 }
-
-
 
 int bnxt_hwrm_func_rgtr_async_events(struct bnxt_softc *softc, unsigned long *bmap,
                                      int bmap_size)
