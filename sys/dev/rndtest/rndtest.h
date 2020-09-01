@@ -34,7 +34,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /* Some of the tests depend on these values */
 #define	RNDTEST_NBYTES	2500
 #define	RNDTEST_NBITS	(8 * RNDTEST_NBYTES)
