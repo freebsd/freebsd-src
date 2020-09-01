@@ -40,7 +40,6 @@
 
 #define R92E_MAX_FW_SIZE	0x8000
 
-
 /*
  * Function declarations.
  */

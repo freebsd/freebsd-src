@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_fw_cmd.h>
 #include <dev/rtwn/rtl8192c/r92c_tx_desc.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 static int
 r92c_fw_cmd(struct rtwn_softc *sc, uint8_t id, const void *buf, int len)

@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/pci/r92ce_reg.h>
 
-
 static struct mbuf *
 rtwn_mbuf_defrag(struct mbuf *m0, int how)
 {

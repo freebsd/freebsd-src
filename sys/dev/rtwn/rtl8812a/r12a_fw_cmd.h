@@ -77,7 +77,6 @@ struct r12a_fw_cmd_iq_calib {
 #define RTWN_CMD_IQ_EXT_LNA_5G(lna)	((lna) << 1)
 } __packed;
 
-
 /*
  * C2H event types.
  */

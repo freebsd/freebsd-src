@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/r88e.h>
 #include <dev/rtwn/rtl8188e/r88e_tx_desc.h>
 
-
 void
 r88e_tx_enable_ampdu(void *buf, int enable)
 {

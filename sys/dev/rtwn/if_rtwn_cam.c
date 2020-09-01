@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
-
 void
 rtwn_init_cam(struct rtwn_softc *sc)
 {

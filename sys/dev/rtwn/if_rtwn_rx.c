@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
-
 void
 rtwn_get_rates(struct rtwn_softc *sc, const struct ieee80211_rateset *rs,
     const struct ieee80211_htrateset *rs_ht, uint32_t *rates_p,
@@ -398,7 +397,6 @@ rtwn_set_multi(struct rtwn_softc *sc)
 			if_foreach_llmaddr(vap->iv_ifp, rtwm_hash_maddr, mfilt);
 	} else
 		mfilt[0] = mfilt[1] = ~0;
-
 
 	rtwn_write_4(sc, R92C_MAR + 0, mfilt[0]);
 	rtwn_write_4(sc, R92C_MAR + 4, mfilt[1]);

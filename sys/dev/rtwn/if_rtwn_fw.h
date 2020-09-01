@@ -53,7 +53,6 @@ struct r92c_fw_hdr {
 	uint32_t	reserved5;
 } __packed;
 
-
 int		rtwn_load_firmware(struct rtwn_softc *);
 
 #endif	/* IF_RTWN_FW_H */

@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwn_debug.h>
 #include <dev/rtwn/if_rtwn_task.h>
 
-
 static void
 rtwn_temp_calib(struct rtwn_softc *sc)
 {

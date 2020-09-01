@@ -26,7 +26,6 @@
 
 #define R92C_H2C_NBOX		4
 
-
 /* Common part of Tx descriptor (named only!). */
 struct rtwn_tx_desc_common {
 	uint16_t	pktlen;
@@ -115,7 +114,6 @@ struct rtwn_rx_stat_pci {
 #define RW(var, field, val)						\
 	(((var) & ~field##_M) | SM(field, val))
 
-
 #define RTWN_MAX_CONDITIONS	3
 
 /*
@@ -154,7 +152,6 @@ struct rtwn_rf_prog {
 	const uint8_t	cond[RTWN_MAX_CONDITIONS];
 	const struct rtwn_rf_prog *next;
 };
-
 
 /* XXX move to net80211. */
 static __inline int

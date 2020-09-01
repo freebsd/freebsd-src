@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/pci/r92ce_reg.h>
 
-
 static device_probe_t	rtwn_pci_probe;
 static device_attach_t	rtwn_pci_attach;
 static device_detach_t	rtwn_pci_detach;
@@ -91,7 +90,6 @@ static void	rtwn_pci_beacon_update_begin(struct rtwn_softc *,
 static void	rtwn_pci_beacon_update_end(struct rtwn_softc *,
 		    struct ieee80211vap *);
 static void	rtwn_pci_attach_methods(struct rtwn_softc *);
-
 
 static const struct rtwn_pci_ident *
 rtwn_pci_probe_sub(device_t dev)

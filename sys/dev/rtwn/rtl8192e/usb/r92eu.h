@@ -26,7 +26,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef RTL8192EU_H
 #define RTL8192EU_H
 
