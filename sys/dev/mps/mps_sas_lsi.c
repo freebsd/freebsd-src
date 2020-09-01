@@ -593,7 +593,6 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		mps_dprint(sc, MPS_TRACE,"Unhandled event 0x%0X\n",
 		    fw_event->event);
 		break;
-
 	}
 	mps_dprint(sc, MPS_EVENT, "(%d)->(%s) Event Free: [%x]\n",event_count,__func__, fw_event->event);
 	mpssas_fw_event_free(sc, fw_event);
@@ -822,7 +821,7 @@ out:
 	mpssas_startup_decrement(sassc);
 	return (error);
 }
-	
+
 int
 mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD)

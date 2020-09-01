@@ -171,7 +171,6 @@ typedef struct mps_adapter_data
 	mps_pci_bits_t	PciInformation;
 } mps_adapter_data_t;
 
-
 typedef struct mps_update_flash
 {
 	uint64_t	PtrBuffer;
@@ -180,7 +179,6 @@ typedef struct mps_update_flash
 	uint32_t	ImageSize;
 	uint32_t	ImageType;
 } mps_update_flash_t;
-
 
 #define	MPS_PASS_THRU_DIRECTION_NONE	0
 #define	MPS_PASS_THRU_DIRECTION_READ	1
@@ -200,7 +198,6 @@ typedef struct mps_pass_thru
 	uint32_t	DataOutSize;
 	uint32_t	Timeout;
 } mps_pass_thru_t;
-
 
 /*
  * Event queue defines
@@ -236,7 +233,6 @@ typedef struct mps_event_report
 	uint64_t	PtrEvents;
 } mps_event_report_t;
 
-
 typedef struct mps_pci_info
 {
 	uint32_t	BusNumber;
@@ -245,7 +241,6 @@ typedef struct mps_pci_info
 	uint16_t	InterruptVector;
 	uint8_t		PciHeader[256];
 } mps_pci_info_t;
-
 
 typedef struct mps_diag_action
 {
@@ -278,7 +273,6 @@ typedef struct mps_diag_action
 #define	MPS_FW_DIAG_ERROR_RELEASE_FAILED	(0x00000012)
 #define	MPS_FW_DIAG_ERROR_NO_BUFFER		(0x00000013)
 #define	MPS_FW_DIAG_ERROR_ALREADY_RELEASED	(0x00000014)
-
 
 typedef struct mps_fw_diag_register
 {

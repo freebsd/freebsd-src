@@ -169,7 +169,7 @@ mps_diag_reset(struct mps_softc *sc,int sleep_flag)
 		sleep_flag = NO_SLEEP;
 
 	mps_dprint(sc, MPS_INIT, "sequence start, sleep_flag= %d\n", sleep_flag);
- 
+
 	/* Push the magic sequence */
 	error = ETIMEDOUT;
 	while (tries++ < 20) {
@@ -338,7 +338,7 @@ mps_transition_ready(struct mps_softc *sc)
 			error = EINVAL;
 			break;
 		}
-	
+
 		/* Wait 50ms for things to settle down. */
 		DELAY(50000);
 	}
@@ -1910,7 +1910,6 @@ mps_parse_debug(struct mps_softc *sc, char *list)
 	flags = 0;
 	sz = sizeof(mps_debug_strings) / sizeof(mps_debug_strings[0]);
 	while ((token = strsep(&list, ":,")) != NULL) {
-
 		/* Handle integer flags */
 		flags |= strtol(token, &endtoken, 0);
 		if (token != endtoken)
@@ -2265,7 +2264,6 @@ mps_complete_command(struct mps_softc *sc, struct mps_command *cm)
 		    "out of sync - resynching to 0\n");
 	}
 }
-
 
 static void
 mps_sas_log_info(struct mps_softc *sc , u32 log_info)
@@ -2624,7 +2622,6 @@ mps_update_events(struct mps_softc *sc, struct mps_event_handle *handle,
 
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 		sc->event_mask[i] &= ~handle->mask[i];
-
 
 	if ((cm = mps_alloc_command(sc)) == NULL)
 		return (EBUSY);

@@ -723,7 +723,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 		sz = rpl->MsgLength * 4;
 	else
 		sz = 0;
-	
+
 	if (sz > cmd->rpl_len) {
 		mps_printf(sc, "%s: user reply buffer (%d) smaller than "
 		    "returned buffer (%d)\n", __func__, cmd->rpl_len, sz);
@@ -866,7 +866,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		if ((cm != NULL) && (cm->cm_reply != NULL)) {
 			rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 			sz = rpl->MsgLength * 4;
-	
+
 			if (sz > data->ReplySize) {
 				mps_printf(sc, "%s: user reply buffer (%d) "
 				    "smaller than returned buffer (%d)\n",
@@ -1445,7 +1445,6 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
 	    ctx, 0);
 
 	if (error == EINPROGRESS) {
-
 		/* XXX KDM */
 		device_printf(sc->mps_dev, "%s: Deferred bus_dmamap_load\n",
 		    __func__);

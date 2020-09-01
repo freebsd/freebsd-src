@@ -236,7 +236,7 @@ void
 mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm)
 {
 	int target_id = 0xFFFFFFFF;
- 
+
 	if (tm == NULL)
 		return;
 
@@ -346,7 +346,6 @@ mpssas_log_command(struct mps_command *cm, u_int level, const char *fmt, ...)
 	va_end(ap);
 }
 
-
 static void
 mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 {
@@ -383,7 +382,7 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 
 	mps_dprint(sc, MPS_XINFO,
 	    "clearing target %u handle 0x%04x\n", targ->tid, handle);
-	
+
 	/*
 	 * Don't clear target if remove fails because things will get confusing.
 	 * Leave the devname and sasaddr intact so that we know to avoid reusing
@@ -405,7 +404,6 @@ mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
 
 	mpssas_free_tm(sc, tm);
 }
-
 
 /*
  * No Need to call "MPI2_SAS_OP_REMOVE_DEVICE" For Volume removal.
@@ -604,7 +602,6 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 		targ->pending_remove_tm = tm;
 	}
 
-
 	mps_dprint(sc, MPS_XINFO, "clearing target %u handle 0x%04x\n",
 		   targ->tid, handle);
 }
@@ -629,7 +626,6 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 	 */
 	KASSERT(TAILQ_FIRST(&targ->commands) == NULL,
 	    ("%s: no commands should be pending\n", __func__));
-
 
 	/*
 	 * Currently there should be no way we can hit this case.  It only
@@ -680,7 +676,6 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 			free(lun, M_MPT2);
 		}
 	}
-	
 
 	mpssas_free_tm(sc, tm);
 }
@@ -1416,7 +1411,6 @@ mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm, uint8_t type)
 	return err;
 }
 
-
 static void
 mpssas_abort_complete(struct mps_softc *sc, struct mps_command *tm)
 {
@@ -1768,7 +1762,7 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		mpi_control = MPI2_SCSIIO_CONTROL_NODATATRANSFER;
 		break;
 	}
- 
+
 	if (csio->cdb_len == 32)
                 mpi_control |= 4 << MPI2_SCSIIO_CONTROL_ADDCDBLEN_SHIFT;
 	/*
@@ -1926,7 +1920,7 @@ mps_sc_failed_io_info(struct mps_softc *sc, struct ccb_scsiio *csio,
 	u8 scsi_status = mpi_reply->SCSIStatus;
 	u32 log_info = le32toh(mpi_reply->IOCLogInfo);
 	const char *desc_ioc_state, *desc_scsi_status;
-	
+
 	if (log_info == 0x31170000)
 		return;
 
@@ -2368,7 +2362,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		mpssas_set_ccbstatus(ccb, CAM_REQ_CMP_ERR);
 		break;
 	}
-	
+
 	mps_sc_failed_io_info(sc,csio,rep);
 
 	if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
@@ -2997,7 +2991,6 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   targ->handle, parent_target->handle);
 			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
-
 		}
 
 		sasaddr = parent_target->sasaddr;
@@ -3010,7 +3003,6 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 				   targ->handle, targ->parent_handle);
 			mpssas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
-
 		}
 		if (targ->parent_sasaddr == 0x0) {
 			mps_dprint(sc, MPS_ERROR,
@@ -3023,7 +3015,6 @@ mpssas_action_smpio(struct mpssas_softc *sassc, union ccb *ccb)
 
 		sasaddr = targ->parent_sasaddr;
 #endif /* OLD_MPS_PROBE */
-
 	}
 
 	if (sasaddr == 0) {

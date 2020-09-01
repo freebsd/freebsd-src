@@ -69,7 +69,6 @@ struct _map_topology_change {
 	struct _map_phy_change *phy_details;
 };
 
-
 extern int
 mpssas_get_sas_address_for_sata_disk(struct mps_softc *ioc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
