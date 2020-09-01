@@ -36,17 +36,13 @@
  * Modifications by: Adam Radford
  */
 
-
-
 #ifndef TW_CL_H
 
 #define TW_CL_H
 
-
 /*
  * Common Layer internal macros, structures and functions.
  */
-
 
 #define TW_CLI_SECTOR_SIZE		0x200
 #define TW_CLI_REQUEST_TIMEOUT_PERIOD	60 /* seconds */
@@ -76,14 +72,12 @@
 #define TW_CLI_PCI_CONFIG_STATUS_OFFSET		0x6 /* status register offset */
 #endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
 
-
 #ifdef TW_OSL_DEBUG
 struct tw_cli_q_stats {
 	TW_UINT32	cur_len;/* current # of entries in q */
 	TW_UINT32	max_len;	 /* max # of entries in q, ever reached */
 };
 #endif /* TW_OSL_DEBUG */
-
 
 /* Queues of CL internal request context packets. */
 #define TW_CLI_FREE_Q		0	/* free q */
@@ -92,7 +86,6 @@ struct tw_cli_q_stats {
 #define TW_CLI_COMPLETE_Q	3	/* q of reqs completed by fw */
 #define TW_CLI_RESET_Q		4	/* q of reqs reset by timeout */
 #define TW_CLI_Q_COUNT		5	/* total number of queues */
-
 
 /* CL's internal request context. */
 struct tw_cli_req_context {
@@ -118,7 +111,6 @@ struct tw_cli_req_context {
 	TW_UINT32	request_id;	/* request id for tracking with fw */
 	struct tw_cl_link link;		/* to link this request in a list */
 };
-
 
 /* CL's internal controller context. */
 struct tw_cli_ctlr_context {
@@ -209,8 +201,6 @@ struct tw_cli_ctlr_context {
 #endif /* TW_OSL_DEBUG */
 };
 
-
-
 /*
  * Queue primitives
  */
@@ -222,14 +212,12 @@ struct tw_cli_ctlr_context {
 	(ctlr)->q_stats[q_type].max_len = 0;				\
 } while (0)
 
-
 #define TW_CLI_Q_INSERT(ctlr, q_type)	do {				\
 	struct tw_cli_q_stats *q_stats = &((ctlr)->q_stats[q_type]);	\
 									\
 	if (++(q_stats->cur_len) > q_stats->max_len)			\
 		q_stats->max_len = q_stats->cur_len;			\
 } while (0)
-
 
 #define TW_CLI_Q_REMOVE(ctlr, q_type)					\
 	(ctlr)->q_stats[q_type].cur_len--
@@ -242,7 +230,6 @@ struct tw_cli_ctlr_context {
 
 #endif /* TW_OSL_DEBUG */
 
-
 /* Initialize a queue of requests. */
 static __inline TW_VOID
 tw_cli_req_q_init(struct tw_cli_ctlr_context *ctlr, TW_UINT8 q_type)
@@ -250,8 +237,6 @@ tw_cli_req_q_init(struct tw_cli_ctlr_context *ctlr, TW_UINT8 q_type)
 	TW_CL_Q_INIT(&(ctlr->req_q_head[q_type]));
 	TW_CLI_Q_INIT(ctlr, q_type);
 }
-
-
 
 /* Insert the given request at the head of the given queue (q_type). */
 static __inline TW_VOID
@@ -265,8 +250,6 @@ tw_cli_req_q_insert_head(struct tw_cli_req_context *req, TW_UINT8 q_type)
 	tw_osl_free_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 }
 
-
-
 /* Insert the given request at the tail of the given queue (q_type). */
 static __inline TW_VOID
 tw_cli_req_q_insert_tail(struct tw_cli_req_context *req, TW_UINT8 q_type)
@@ -278,8 +261,6 @@ tw_cli_req_q_insert_tail(struct tw_cli_req_context *req, TW_UINT8 q_type)
 	TW_CLI_Q_INSERT(ctlr, q_type);
 	tw_osl_free_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 }
-
-
 
 /* Remove and return the request at the head of the given queue (q_type). */
 static __inline struct tw_cli_req_context *
@@ -300,8 +281,6 @@ tw_cli_req_q_remove_head(struct tw_cli_ctlr_context *ctlr, TW_UINT8 q_type)
 	return(req);
 }
 
-
-
 /* Remove the given request from the given queue (q_type). */
 static __inline TW_VOID
 tw_cli_req_q_remove_item(struct tw_cli_req_context *req, TW_UINT8 q_type)
@@ -313,8 +292,6 @@ tw_cli_req_q_remove_item(struct tw_cli_req_context *req, TW_UINT8 q_type)
 	TW_CLI_Q_REMOVE(ctlr, q_type);
 	tw_osl_free_lock(ctlr->ctlr_handle, ctlr->gen_lock);
 }
-
-
 
 /* Create an event packet for an event/error posted by the controller. */
 #define tw_cli_create_ctlr_event(ctlr, event_src, cmd_hdr)	do {	\
@@ -343,7 +320,5 @@ tw_cli_req_q_remove_item(struct tw_cli_req_context *req, TW_UINT8 q_type)
 		(cmd_hdr)->sense_data[14], (cmd_hdr)->sense_data[15],	\
 		(cmd_hdr)->sense_data[16], (cmd_hdr)->sense_data[17]);	\
 } while (0)
-
-
 
 #endif /* TW_CL_H */

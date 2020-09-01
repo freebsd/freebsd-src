@@ -37,11 +37,9 @@
  * Modifications by: Manjunath Ranganathaiah
  */
 
-
 /*
  * Common Layer interrupt handling functions.
  */
-
 
 #include "tw_osl_share.h"
 #include "tw_cl_share.h"
@@ -50,8 +48,6 @@
 #include "tw_cl.h"
 #include "tw_cl_externs.h"
 #include "tw_osl_ioctl.h"
-
-
 
 /*
  * Function name:	twa_interrupt
@@ -122,8 +118,6 @@ out:
 	return(rc);
 }
 
-
-
 /*
  * Function name:	tw_cli_process_host_intr
  * Description:		This function gets called if we triggered an interrupt.
@@ -138,8 +132,6 @@ tw_cli_process_host_intr(struct tw_cli_ctlr_context *ctlr)
 {
 	tw_cli_dbg_printf(6, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 }
-
-
 
 /*
  * Function name:	tw_cli_process_attn_intr
@@ -175,8 +167,6 @@ tw_cli_process_attn_intr(struct tw_cli_ctlr_context *ctlr)
 	}
 }
 
-
-
 /*
  * Function name:	tw_cli_process_cmd_intr
  * Description:		This function gets called if we hit a queue full
@@ -201,8 +191,6 @@ tw_cli_process_cmd_intr(struct tw_cli_ctlr_context *ctlr)
 	 * tw_cli_submit_cmd.  We don't need to do it again... simply return.
 	 */
 }
-
-
 
 /*
  * Function name:	tw_cli_process_resp_intr
@@ -260,16 +248,13 @@ tw_cli_process_resp_intr(struct tw_cli_ctlr_context *ctlr)
 		tw_cli_req_q_remove_item(req, TW_CLI_BUSY_Q);
 		req->state = TW_CLI_REQ_STATE_COMPLETE;
 		tw_cli_req_q_insert_tail(req, TW_CLI_COMPLETE_Q);
-
 	}
 
 	/* Complete this, and other requests in the complete queue. */
 	tw_cli_process_complete_queue(ctlr);
-	
+
 	return(error);
 }
-
-
 
 /*
  * Function name:	tw_cli_submit_pending_queue
@@ -287,7 +272,7 @@ tw_cli_submit_pending_queue(struct tw_cli_ctlr_context *ctlr)
 	TW_INT32			error = TW_OSL_ESUCCESS;
     
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
-	
+
 	/*
 	 * Pull requests off the pending queue, and submit them.
 	 */
@@ -339,8 +324,6 @@ tw_cli_submit_pending_queue(struct tw_cli_ctlr_context *ctlr)
 	return(error);
 }
 
-
-
 /*
  * Function name:	tw_cli_process_complete_queue
  * Description:		Calls the CL internal callback routine, if any, for
@@ -367,8 +350,6 @@ tw_cli_process_complete_queue(struct tw_cli_ctlr_context *ctlr)
 			req->tw_cli_callback(req);
 	}
 }
-
-
 
 /*
  * Function name:	tw_cli_complete_io
@@ -417,8 +398,6 @@ out:
 	req_pkt->tw_osl_callback(req->req_handle);
 	tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 }
-
-
 
 /*
  * Function name:	tw_cli_scsi_complete
@@ -505,8 +484,6 @@ tw_cli_scsi_complete(struct tw_cli_req_context *req)
 	req_pkt->status |= TW_CL_ERR_REQ_SCSI_ERROR;
 }
 
-
-
 /*
  * Function name:	tw_cli_param_callback
  * Description:		Callback for get/set_param requests.
@@ -558,8 +535,6 @@ tw_cli_param_callback(struct tw_cli_req_context *req)
 				"error = %d", error);
 	}
 }
-
-
 
 /*
  * Function name:	tw_cli_aen_callback
@@ -632,8 +607,6 @@ tw_cli_aen_callback(struct tw_cli_req_context *req)
 	}
 }
 
-
-
 /*
  * Function name:	tw_cli_manage_aen
  * Description:		Handles AEN's.
@@ -694,12 +667,10 @@ tw_cli_manage_aen(struct tw_cli_ctlr_context *ctlr,
 
 		break;
 
-
 	case TWA_AEN_QUEUE_EMPTY:
 		tw_cli_dbg_printf(4, ctlr->ctlr_handle, tw_osl_cur_func(),
 			"AEN queue empty");
 		break;
-
 
 	default:
 		/* Queue the event. */
@@ -713,8 +684,6 @@ tw_cli_manage_aen(struct tw_cli_ctlr_context *ctlr,
 	} /* switch */
 	return(aen_code);
 }
-
-
 
 /*
  * Function name:	tw_cli_enable_interrupts
@@ -736,8 +705,6 @@ tw_cli_enable_interrupts(struct tw_cli_ctlr_context *ctlr)
 		TWA_CONTROL_ENABLE_INTERRUPTS);
 }
 
-
-
 /*
  * Function name:	twa_setup
  * Description:		Disables interrupts on the controller
@@ -755,4 +722,3 @@ tw_cli_disable_interrupts(struct tw_cli_ctlr_context *ctlr)
 		TWA_CONTROL_DISABLE_INTERRUPTS);
 	ctlr->interrupts_enabled = TW_CL_FALSE;
 }
-

@@ -40,12 +40,10 @@ __FBSDID("$FreeBSD$");
  * Modifications by: Manjunath Ranganathaiah
  */
 
-
 /*
  * FreeBSD specific functions not related to CAM, and other
  * miscellaneous functions.
  */
-
 
 #include <dev/twa/tw_osl_includes.h>
 #include <dev/twa/tw_cl_fwif.h>
@@ -58,7 +56,6 @@ TW_INT32	TW_OSL_DEBUG_LEVEL_FOR_CL = TW_OSL_DEBUG;
 #endif /* TW_OSL_DEBUG */
 
 static MALLOC_DEFINE(TW_OSLI_MALLOC_CLASS, "twa_commands", "twa commands");
-
 
 static	d_open_t		twa_open;
 static	d_close_t		twa_close;
@@ -73,7 +70,6 @@ static struct cdevsw twa_cdevsw = {
 };
 
 static devclass_t	twa_devclass;
-
 
 /*
  * Function name:	twa_open
@@ -98,8 +94,6 @@ twa_open(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, struct thread *proc)
 	return(0);
 }
 
-
-
 /*
  * Function name:	twa_close
  * Description:		Called when the controller is closed.
@@ -122,8 +116,6 @@ twa_close(struct cdev *dev, TW_INT32 flags, TW_INT32 fmt, struct thread *proc)
 	sc->open = TW_CL_FALSE;
 	return(0);
 }
-
-
 
 /*
  * Function name:	twa_ioctl
@@ -170,8 +162,6 @@ twa_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, TW_INT32 flags, struct thre
 	return(error);
 }
 
-
-
 static TW_INT32	twa_probe(device_t dev);
 static TW_INT32	twa_attach(device_t dev);
 static TW_INT32	twa_detach(device_t dev);
@@ -189,7 +179,6 @@ static TW_VOID	twa_map_load_data_callback(TW_VOID *arg,
 	bus_dma_segment_t *segs, TW_INT32 nsegments, TW_INT32 error);
 static TW_VOID	twa_map_load_callback(TW_VOID *arg,
 	bus_dma_segment_t *segs, TW_INT32 nsegments, TW_INT32 error);
-
 
 static device_method_t	twa_methods[] = {
 	/* Device interface */
@@ -210,7 +199,6 @@ static driver_t	twa_pci_driver = {
 DRIVER_MODULE(twa, pci, twa_pci_driver, twa_devclass, 0, 0);
 MODULE_DEPEND(twa, cam, 1, 1, 1);
 MODULE_DEPEND(twa, pci, 1, 1, 1);
-
 
 /*
  * Function name:	twa_probe
@@ -255,7 +243,6 @@ int twa_setup_intr(struct twa_softc *sc)
 	return( error );
 }
 
-
 int twa_teardown_intr(struct twa_softc *sc)
 {
 	int error = 0;
@@ -267,8 +254,6 @@ int twa_teardown_intr(struct twa_softc *sc)
 	}
 	return( error );
 }
-
-
 
 /*
  * Function name:	twa_attach
@@ -433,7 +418,6 @@ twa_attach(device_t dev)
 	return(0);
 }
 
-
 static TW_VOID
 twa_watchdog(TW_VOID *arg)
 {
@@ -446,7 +430,6 @@ twa_watchdog(TW_VOID *arg)
 	int				my_watchdog_was_pending = 1234;
 	TW_UINT64			current_time;
 	struct tw_osli_req_context	*my_req;
-
 
 //==============================================================================
 	current_time = (TW_UINT64) (tw_osl_get_local_time());
@@ -495,7 +478,6 @@ twa_watchdog(TW_VOID *arg)
 		i_need_a_reset, driver_is_active, my_watchdog_was_pending);
 #endif /* TW_OSL_DEBUG */
 }
-
 
 /*
  * Function name:	tw_osli_alloc_mem
@@ -679,7 +661,6 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 		return(ENOMEM);
 	}
 
-
 	/* Initialize request queues. */
 	tw_osli_req_q_init(sc, TW_OSLI_FREE_Q);
 	tw_osli_req_q_init(sc, TW_OSLI_BUSY_Q);
@@ -722,8 +703,6 @@ tw_osli_alloc_mem(struct twa_softc *sc)
 
 	return(0);
 }
-
-
 
 /*
  * Function name:	tw_osli_free_resources
@@ -793,7 +772,6 @@ tw_osli_free_resources(struct twa_softc *sc)
 			tw_osli_dbg_dprintf(1, sc,
 				"dma_tag_destroy(parent) returned %d", error);
 
-
 	/* Disconnect the interrupt handler. */
 	if ((error = twa_teardown_intr(sc)))
 			tw_osli_dbg_dprintf(1, sc,
@@ -805,14 +783,12 @@ tw_osli_free_resources(struct twa_softc *sc)
 			tw_osli_dbg_dprintf(1, sc,
 				"release_resource(irq) returned %d", error);
 
-
 	/* Release the register window mapping. */
 	if (sc->reg_res != NULL)
 		if ((error = bus_release_resource(sc->bus_dev,
 				SYS_RES_MEMORY, sc->reg_res_id, sc->reg_res)))
 			tw_osli_dbg_dprintf(1, sc,
 				"release_resource(io) returned %d", error);
-
 
 	/* Destroy the control device. */
 	if (sc->ctrl_dev != (struct cdev *)NULL)
@@ -823,8 +799,6 @@ tw_osli_free_resources(struct twa_softc *sc)
 			"sysctl_ctx_free returned %d", error);
 
 }
-
-
 
 /*
  * Function name:	twa_detach
@@ -867,8 +841,6 @@ out:
 	return(error);
 }
 
-
-
 /*
  * Function name:	twa_shutdown
  * Description:		Called at unload/shutdown time.  Lets the controller
@@ -906,8 +878,6 @@ twa_shutdown(device_t dev)
 	return(error);
 }
 
-
-
 /*
  * Function name:	twa_busdma_lock
  * Description:		Function to provide synchronization during busdma_swi.
@@ -937,7 +907,6 @@ twa_busdma_lock(TW_VOID *lock_arg, bus_dma_lock_op_t op)
 	}
 }
 
-
 /*
  * Function name:	twa_pci_intr
  * Description:		Interrupt handler.  Wrapper for twa_interrupt.
@@ -954,7 +923,6 @@ twa_pci_intr(TW_VOID *arg)
 	tw_osli_dbg_dprintf(10, sc, "entered");
 	tw_cl_interrupt(&(sc->ctlr_handle));
 }
-
 
 /*
  * Function name:	tw_osli_fw_passthru
@@ -1122,7 +1090,7 @@ tw_osli_fw_passthru(struct twa_softc *sc, TW_INT8 *buf)
 				0x2019,
 				"Could not copyout fw_passthru data_buf",
 				error);
-	
+
 fw_passthru_err:
 
 	if (req_pkt->status == TW_CL_ERR_REQ_BUS_RESET)
@@ -1135,8 +1103,6 @@ fw_passthru_err:
 	tw_osli_req_q_insert_tail(req, TW_OSLI_FREE_Q);
 	return(error);
 }
-
-
 
 /*
  * Function name:	tw_osl_complete_passthru
@@ -1220,8 +1186,6 @@ tw_osl_complete_passthru(struct tw_cl_req_handle *req_handle)
 	}
 }
 
-
-
 /*
  * Function name:	tw_osli_get_request
  * Description:		Gets a request pkt from the free queue.
@@ -1257,12 +1221,9 @@ tw_osli_get_request(struct twa_softc *sc)
 		req->orig_req = NULL;
 
 		bzero(&(req->req_pkt), sizeof(struct tw_cl_req_packet));
-
 	}
 	return(req);
 }
-
-
 
 /*
  * Function name:	twa_map_load_data_callback
@@ -1370,8 +1331,6 @@ out:
 	}
 }
 
-
-
 /*
  * Function name:	twa_map_load_callback
  * Description:		Callback of bus_dmamap_load for the buffer associated
@@ -1391,8 +1350,6 @@ twa_map_load_callback(TW_VOID *arg, bus_dma_segment_t *segs,
 {
 	*((bus_addr_t *)arg) = segs[0].ds_addr;
 }
-
-
 
 /*
  * Function name:	tw_osli_map_request
@@ -1449,7 +1406,7 @@ tw_osli_map_request(struct tw_osli_req_context *req)
 				return(ENOMEM);
 			}
 		}
-	
+
 		/*
 		 * Map the data buffer into bus space and build the SG list.
 		 */
@@ -1533,8 +1490,6 @@ tw_osli_map_request(struct tw_osli_req_context *req)
 	return(error);
 }
 
-
-
 /*
  * Function name:	tw_osli_unmap_request
  * Description:		Undoes the mapping done by tw_osli_map_request.
@@ -1606,15 +1561,12 @@ tw_osli_unmap_request(struct tw_osli_req_context *req)
 	}
 }
 
-
-
 #ifdef TW_OSL_DEBUG
 
 TW_VOID	twa_report_stats(TW_VOID);
 TW_VOID	twa_reset_stats(TW_VOID);
 TW_VOID	tw_osli_print_ctlr_stats(struct twa_softc *sc);
 TW_VOID twa_print_req_info(struct tw_osli_req_context *req);
-
 
 /*
  * Function name:	twa_report_stats
@@ -1637,8 +1589,6 @@ twa_report_stats(TW_VOID)
 	}
 }
 
-
-
 /*
  * Function name:	tw_osli_print_ctlr_stats
  * Description:		For being called from ddb.  Prints OSL controller stats
@@ -1659,8 +1609,6 @@ tw_osli_print_ctlr_stats(struct twa_softc *sc)
 		sc->q_stats[TW_OSLI_BUSY_Q].cur_len,
 		sc->q_stats[TW_OSLI_BUSY_Q].max_len);
 }	
-
-
 
 /*
  * Function name:	twa_print_req_info
@@ -1687,8 +1635,6 @@ twa_print_req_info(struct tw_osli_req_context *req)
 		req->link.next, req->link.prev, req->dma_map);
 	tw_cl_print_req_info(&(req->req_handle));
 }
-
-
 
 /*
  * Function name:	twa_reset_stats
