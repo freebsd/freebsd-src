@@ -109,7 +109,6 @@ paddr_unmap(void *phys, uint32_t size)
 static inline void
 _vq_record(uint32_t offs, int i, volatile struct vring_desc *vd,
 	struct iovec *iov, int n_iov, uint16_t *flags) {
-
 	if (i >= n_iov)
 		return;
 
