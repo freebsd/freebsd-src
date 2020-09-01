@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
-
 #include <dev/ppbus/ppbconf.h>
 #include "ppbus_if.h"
 #include <dev/ppbus/ppbio.h>

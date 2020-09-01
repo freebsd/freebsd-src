@@ -185,7 +185,6 @@ struct ppb_context {
 /* other fields are reserved to the ppbus internals */
 
 struct ppb_device {
-
 	const char *name;		/* name of the device */
 
 	u_int flags;			/* flags */
@@ -224,7 +223,6 @@ struct ppb_device {
  * Parallel Port Bus structure.
  */
 struct ppb_data {
-
 #define PPB_PnP_PRINTER	0
 #define PPB_PnP_MODEM	1
 #define PPB_PnP_NET	2
