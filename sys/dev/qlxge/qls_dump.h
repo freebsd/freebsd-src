@@ -276,4 +276,3 @@ typedef struct qls_mpi_coredump qls_mpi_coredump_t;
 #define Q81_BAD_DATA	0xDEADBEEF
 
 #endif /* #ifndef  _QLS_DUMP_H_ */
-

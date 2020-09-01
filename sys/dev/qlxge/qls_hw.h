@@ -86,7 +86,6 @@
 #define BIT_30                  (0x1 << 30)
 #define BIT_31                  (0x1 << 31)
 
-
 /*
  * Firmware Interface
  */
@@ -169,7 +168,6 @@
 #define Q81_CTL_XG_PROBE_MUX_ADDR	0xF8 /* R/W  - Y - */
 #define Q81_CTL_XG_PROBE_MUX_DATA	0xFC /* R/W  - Y - */
 
-
 /*
  * Process Address Register (0x00)
  */
@@ -180,7 +178,6 @@
 #define Q81_CTL_PROC_ADDR_MDE		(0x01 << 16)
 #define Q81_CTL_PROC_ADDR_REG_BLOCK	(0x02 << 16)
 #define Q81_CTL_PROC_ADDR_RISC_INT_REG	(0x03 << 16)
-
 
 /*
  * System Register (0x08)
@@ -228,7 +225,6 @@
 #define Q81_CTL_FUNC_SPECIFIC_DBRST_768		0x02			
 #define Q81_CTL_FUNC_SPECIFIC_DBRST_1024	0x03			
 
-
 /*
  * Host Command/Status Register (0x14)
  */
@@ -250,7 +246,6 @@
 #define Q81_CTL_HCS_RISC_RESET			BIT_8
 #define Q81_CTL_HCS_ERR_STATUS_MASK		0x3F
 
-
 /*
  * Configuration Register (0x28)
  */
@@ -264,7 +259,6 @@
 #define Q81_CTL_CONFIG_LR			BIT_2
 #define Q81_CTL_CONFIG_DRQ			BIT_1
 #define Q81_CTL_CONFIG_LRQ			BIT_0
-
 
 /*
  * Status Register (0x30)
@@ -363,7 +357,6 @@
 #define Q81_CTL_SEM_SET_XGMAC1			0x0004
 #define Q81_CTL_SEM_SET_XGMAC0			0x0001
 
-
 /*
  * Flash Address Register (0x88)
  */
@@ -439,7 +432,6 @@
 #define Q81_CTL_NIC_RCVC_VLAN_REJECT		(0x3 << 1)
 #define Q81_CTL_NIC_RCVC_PPE			BIT_0
 
-
 /*
  * Routing Index Register (0xE4)
  */
@@ -505,7 +497,6 @@
 #define Q81_CTL_RD_RSS_IPV4			BIT_30
 #define Q81_CTL_RD_RSS_MATCH			BIT_31
 
-
 /*********************************************************************
  * Host Data Structures *
  *********************************************************************/
@@ -515,7 +506,6 @@
  */
 
 typedef struct _q81_wq_icb {
-
 	uint16_t	length_v;
 #define Q81_WQ_ICB_VALID			BIT_4
 
@@ -539,7 +529,6 @@ typedef struct _q81_wq_icb {
 	uint32_t	ci_addr_lo;
 	uint32_t	ci_addr_hi;
 } __packed q81_wq_icb_t;
-
 
 /*
  * Completion Queue Initialization Control Block
@@ -606,8 +595,6 @@ typedef struct _q81_rss_icb {
 	uint32_t	ipv4_rss_hash_key[4];
 } __packed q81_rss_icb_t;
 
-
-
 /*
  * Transmit Buffer Descriptor
  */
@@ -621,7 +608,6 @@ typedef struct _q81_txb_desc {
 #define Q81_TXB_DESC_FLAGS_C	BIT_14
 
 } __packed q81_txb_desc_t;
-
 
 /*
  * Receive Buffer Descriptor
@@ -651,7 +637,6 @@ typedef struct _q81_rxb_desc {
 #define Q81_IOCB_MPI		0x21
 #define Q81_IOCB_SYS		0x3F
 
-
 /*
  * IOCB Definitions
  */
@@ -663,7 +648,6 @@ typedef struct _q81_rxb_desc {
 #define MAX_TX_MAC_DESC		8
 
 typedef struct _q81_tx_mac {
-
 	uint8_t		opcode;
 
 	uint16_t	flags;
@@ -692,8 +676,7 @@ typedef struct _q81_tx_mac {
 
 	q81_txb_desc_t	txd[MAX_TX_MAC_DESC];
 } __packed q81_tx_mac_t;
-	
-	
+
 /*
  * MAC Tx Frame with TSO IOCB
  * Total Size of each IOCB Entry = 4 * 32 = 128 bytes
@@ -734,7 +717,7 @@ typedef struct _q81_tx_tso {
 
 	q81_txb_desc_t	txd[MAX_TX_MAC_DESC];
 } __packed q81_tx_tso_t;
-	
+
 typedef struct _q81_tx_cmd {
 	uint8_t		bytes[128];
 } __packed q81_tx_cmd_t;
@@ -766,7 +749,6 @@ typedef struct _q81_tx_mac_comp {
 	uint32_t	rsrvd1[13];
 } __packed q81_tx_mac_comp_t;
 
-
 /*
  * MAC TX Frame with LSO Completion
  * Total Size of each IOCB Entry = 4 * 16 = 64 bytes
@@ -792,7 +774,6 @@ typedef struct _q81_tx_tso_comp {
 
 	uint32_t	rsrvd1[13];
 } __packed q81_tx_tso_comp_t;
-
 
 /*
  * SYS - Chip Event Notification Completion
@@ -822,8 +803,6 @@ typedef struct _q81_sys_comp {
 
 	uint32_t	rsrvd1[15];
 } __packed q81_sys_comp_t;
-
-
 
 /*
  * Mac Rx Packet Completion
@@ -904,7 +883,6 @@ typedef struct _q81_bq_addr_e {
 	uint32_t	addr_hi;
 } __packed q81_bq_addr_e_t;
 
-
 /*
  * Macros for reading and writing registers
  */
@@ -946,7 +924,6 @@ typedef struct _q81_bq_addr_e {
 #define Q81_RD_WQ_IDX(wq_idx) bus_read_4((ha->pci_reg1),\
 		(ha->tx_ring[wq_idx].wq_db_offset + Q81_WRKQ_INDEX_REG))
 
-
 #define Q81_SET_WQ_VALID(wq_idx) bus_write_4((ha->pci_reg1),\
 		(ha->tx_ring[wq_idx].wq_db_offset + Q81_WRKQ_VALID_REG),\
 			Q81_COMPQ_VALID_V)
@@ -981,7 +958,6 @@ typedef struct _q81_bq_addr_e {
 #define Q81_RD_SBQ_IDX(cq_idx) bus_read_4((ha->pci_reg1),\
 		(ha->rx_ring[cq_idx].cq_db_offset + Q81_SMBQ_INDEX_REG))
 
-
 /*
  * Flash Related
  */
@@ -991,7 +967,6 @@ typedef struct _q81_bq_addr_e {
 #define Q81_FLASH_ID		"8000"
 
 typedef struct _q81_flash {
-
 	uint8_t		id[4]; /* equal to "8000" */
 
 	uint16_t	version;
@@ -1024,7 +999,6 @@ typedef struct _q81_flash {
 
 	uint8_t		rsrvd2[4];
 } __packed q81_flash_t;
-
 
 /*
  * MPI Related 
