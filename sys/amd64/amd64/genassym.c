@@ -238,7 +238,7 @@ ASSYM(PC_IBPB_SET, offsetof(struct pcpu, pc_ibpb_set));
 ASSYM(PC_MDS_TMP, offsetof(struct pcpu, pc_mds_tmp));
 ASSYM(PC_MDS_BUF, offsetof(struct pcpu, pc_mds_buf));
 ASSYM(PC_MDS_BUF64, offsetof(struct pcpu, pc_mds_buf64));
- 
+
 ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
 ASSYM(LA_ISR, LAPIC_ISR0 * LAPIC_MEM_MUL);
 

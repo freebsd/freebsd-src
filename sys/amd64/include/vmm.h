@@ -287,7 +287,6 @@ void vm_exit_reqidle(struct vm *vm, int vcpuid, uint64_t rip);
 int vm_snapshot_req(struct vm *vm, struct vm_snapshot_meta *meta);
 int vm_restore_time(struct vm *vm);
 
-
 #ifdef _SYS__CPUSET_H_
 /*
  * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
@@ -490,7 +489,7 @@ enum vm_intr_trigger {
 	EDGE_TRIGGER,
 	LEVEL_TRIGGER
 };
-	
+
 /*
  * The 'access' field has the format specified in Table 21-2 of the Intel
  * Architecture Manual vol 3b.

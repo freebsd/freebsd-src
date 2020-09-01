@@ -456,7 +456,7 @@ vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 	uint64_t *guest_msrs;
 	uint64_t changed;
 	int error;
-	
+
 	guest_msrs = vmx->guest_msrs[vcpuid];
 	error = 0;
 

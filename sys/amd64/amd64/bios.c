@@ -85,7 +85,6 @@ bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs
 
     /* loop searching */
     while ((sp + sigofs + siglen) < end) {
-	
 	/* compare here */
 	if (!bcmp(sp + sigofs, sig, siglen)) {
 	    /* convert back to physical address */

@@ -604,7 +604,6 @@ static struct cdev_pager_ops sgx_pg_ops = {
 	.cdev_pg_fault = sgx_pg_fault,
 };
 
-
 static void
 sgx_insert_epc_page_by_index(vm_page_t page, vm_object_t object,
     vm_pindex_t pidx)

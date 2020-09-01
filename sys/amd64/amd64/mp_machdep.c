@@ -515,7 +515,6 @@ native_start_all_aps(void)
 	return (mp_naps);
 }
 
-
 /*
  * This function starts the AP (application processor) identified
  * by the APIC ID 'physicalCpu'.  It does quite a "song and dance"

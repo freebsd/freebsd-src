@@ -363,7 +363,7 @@ vmm_init(void)
 	error = vmm_mem_init();
 	if (error)
 		return (error);
-	
+
 	if (vmm_is_intel())
 		ops = &vmm_ops_intel;
 	else if (vmm_is_svm())
@@ -1075,7 +1075,7 @@ is_descriptor_table(int reg)
 static bool
 is_segment_register(int reg)
 {
-	
+
 	switch (reg) {
 	case VM_REG_GUEST_ES:
 	case VM_REG_GUEST_CS:
@@ -1502,7 +1502,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	vcpu->nextrip += vie->num_processed;
 	VCPU_CTR1(vm, vcpuid, "nextrip updated to %#lx after instruction "
 	    "decoding", vcpu->nextrip);
- 
+
 	/* return to userland unless this is an in-kernel emulated device */
 	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
 		mread = lapic_mmio_read;
@@ -2690,7 +2690,7 @@ vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo, void *kaddr,
 {
 	char *dst;
 	int idx;
-	
+
 	dst = kaddr;
 	idx = 0;
 	while (len > 0) {

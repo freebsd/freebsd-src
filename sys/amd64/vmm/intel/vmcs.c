@@ -372,7 +372,7 @@ vmcs_init(struct vmcs *vmcs)
 	cr0 = vmm_get_host_cr0();
 	if ((error = vmwrite(VMCS_HOST_CR0, cr0)) != 0)
 		goto done;
-	
+
 	cr4 = vmm_get_host_cr4() | CR4_VMXE;
 	if ((error = vmwrite(VMCS_HOST_CR4, cr4)) != 0)
 		goto done;

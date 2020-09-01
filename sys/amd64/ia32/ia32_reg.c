@@ -153,7 +153,7 @@ fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 	fpugetregs(td);
 	sv_fpu = get_pcb_user_save_td(td);
 	penv_xmm = &sv_fpu->sv_env;
-	
+
 	/* FPU control/status */
 	penv_87->en_cw = penv_xmm->en_cw;
 	penv_87->en_sw = penv_xmm->en_sw;

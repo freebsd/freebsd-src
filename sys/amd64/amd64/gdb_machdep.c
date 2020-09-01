@@ -138,4 +138,3 @@ gdb_end_write(void *arg)
 
 	restore_wp(arg != NULL);
 }
-

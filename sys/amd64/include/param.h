@@ -41,7 +41,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _AMD64_INCLUDE_PARAM_H_
 #define	_AMD64_INCLUDE_PARAM_H_
 
@@ -50,7 +49,6 @@
 /*
  * Machine dependent constants for AMD64.
  */
-
 
 #define __HAVE_ACPI
 #define __PCI_REROUTE_INTERRUPT

@@ -171,7 +171,7 @@ domain_id(void)
 		if (dom == NULL)
 			break;		/* found it */
 	}
-	
+
 	if (id >= max_domains)
 		panic("domain ids exhausted");
 
@@ -274,7 +274,7 @@ vtd_iotlb_global_invalidate(struct vtdmap *vtdmap)
 
 	offset = VTD_ECAP_IRO(vtdmap->ext_cap) * 16;
 	iotlb_reg = (volatile uint64_t *)((caddr_t)vtdmap + offset + 8);
-	
+
 	*iotlb_reg =  VTD_IIR_IVT | VTD_IIR_IIRG_GLOBAL |
 		      VTD_IIR_DRAIN_READS | VTD_IIR_DRAIN_WRITES;
 
@@ -753,7 +753,7 @@ static void
 vtd_destroy_domain(void *arg)
 {
 	struct domain *dom;
-	
+
 	dom = arg;
 
 	SLIST_REMOVE(&domhead, dom, domain, next);

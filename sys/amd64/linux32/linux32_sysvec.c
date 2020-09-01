@@ -359,7 +359,6 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	mtx_lock(&psp->ps_mtx);
 }
 
-
 /*
  * Send an interrupt to process.
  *
