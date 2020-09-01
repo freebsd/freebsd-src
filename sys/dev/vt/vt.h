@@ -450,4 +450,3 @@ extern const unsigned int vt_logo_sprite_width;
 void vtterm_draw_cpu_logos(struct vt_device *);
 
 #endif /* !_DEV_VT_VT_H_ */
-
