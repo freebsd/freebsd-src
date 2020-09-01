@@ -52,6 +52,4 @@ void deregister_plugin(struct wtap_hal *);
 int32_t new_wtap(struct wtap_hal *, int32_t id);
 int32_t free_wtap(struct wtap_hal *, int32_t id);
 
-
 #endif
-

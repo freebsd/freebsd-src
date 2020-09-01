@@ -70,7 +70,6 @@
 
 #include <net/bpf.h>
 
-
 #include <sys/errno.h>
 #include <sys/conf.h>   /* cdevsw struct */
 #include <sys/uio.h>    /* uio struct */
@@ -200,7 +199,6 @@ del_link(struct visibility_plugin *vis_plugin, struct link *l)
 #endif
 }
 
-
 int
 vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
     int fflag, struct thread *td)
@@ -239,4 +237,3 @@ vis_ioctl(struct cdev *sdev, u_long cmd, caddr_t data,
 	CURVNET_RESTORE();
 	return error;
 }
-

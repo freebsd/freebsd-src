@@ -214,4 +214,3 @@ free_wtap(struct wtap_hal *hal, int32_t id)
 	hal->hal_devs[id] = NULL;
 	return 0;
 }
-
