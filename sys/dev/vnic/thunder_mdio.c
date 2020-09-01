@@ -142,7 +142,6 @@ MALLOC_DEFINE(M_THUNDER_MDIO, "ThunderX MDIO",
 #define	MDIO_LOCK_ASSERT(sc)				\
     mtx_assert(&(sc)->mtx, MA_OWNED)
 
-
 #define	mdio_reg_read(sc, reg)				\
     bus_read_8((sc)->reg_base, (reg))
 
