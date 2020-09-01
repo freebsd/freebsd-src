@@ -35,7 +35,7 @@ enum ow_device_ivars {
 
 #define OW_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(ow, var, OW, ivar, type);
-	
+
 OW_ACCESSOR(family,	FAMILY,	uint8_t)
 OW_ACCESSOR(romid,	ROMID, uint8_t *)
 
