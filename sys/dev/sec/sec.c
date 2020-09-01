@@ -266,7 +266,6 @@ sec_attach(device_t dev)
 	if (error)
 		goto fail2;
 
-
 	if (sc->sc_version == 3) {
 		sc->sc_sec_irid = 1;
 		error = sec_setup_intr(sc, &sc->sc_sec_ires, &sc->sc_sec_ihand,
