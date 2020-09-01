@@ -29,7 +29,6 @@
  * $FreeBSD$
  */
 
-
 /* -------------------------------------------------------------------- */
 
 /* PCI device ID */
@@ -92,7 +91,7 @@
 #define ENVY24HT_CCSM_SPDIF_OUT      0x01 /* External S/PDIF Out implemented */
 
 /* Professional Multi-Track Control Registers */
- 
+
 #define ENVY24HT_MT_INT_STAT    0x00 /* DMA Interrupt Mask and Status Register */ 
 #define ENVY24HT_MT_INT_RSTAT   0x02 /* Multi-track record interrupt status */
 #define ENVY24HT_MT_INT_PSTAT   0x01 /* Multi-track playback interrupt status */
@@ -185,4 +184,3 @@
 #define ENVY24HT_CCS_GPIO_LMASK 0x16
 #define ENVY24HT_CCS_GPIO_HMASK 0x1F
 #define ENVY24HT_CCS_GPIO_CTLDIR 0x18
-

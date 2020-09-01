@@ -558,7 +558,6 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	return (0);
 }
 
-
 /****************************************************************************
  * void hdac_dma_cb
  *
@@ -576,7 +575,6 @@ hdac_dma_cb(void *callback_arg, bus_dma_segment_t *segs, int nseg, int error)
 		dma->dma_paddr = segs[0].ds_addr;
 	}
 }
-
 
 /****************************************************************************
  * int hdac_dma_alloc

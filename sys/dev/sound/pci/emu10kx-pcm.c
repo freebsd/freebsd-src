@@ -116,7 +116,6 @@ struct emu_pcm_info {
 	unsigned int		emu10k1_volcache[2][2];
 };
 
-
 static uint32_t emu_rfmt_adc[] = {
 	SND_FORMAT(AFMT_S16_LE, 1, 0),
 	SND_FORMAT(AFMT_S16_LE, 2, 0),
@@ -404,7 +403,7 @@ emu_dspmixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 	recmask = 0;
 	for (i=0; i < 8; i++)
 		input[i]=0;
-	
+
 	if (sc->sm != NULL)
 		if ((src & sc->ac97_recdevs) !=0)
 			if (mix_setrecsrc(sc->sm, src & sc->ac97_recdevs) == 0) {
@@ -456,7 +455,7 @@ emu_dspmixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
 
 	emumix_set_volume(sc->card, M_IN6_REC_L, input[6] == 1 ? 100 : 0);
 	emumix_set_volume(sc->card, M_IN6_REC_R, input[6] == 1 ? 100 : 0);
-	
+
 	/* XXX check for K1/k2 differences? */
 	if ((src & (1 << SOUND_MIXER_PCM)) == (1 << SOUND_MIXER_PCM)) {
 		emumix_set_volume(sc->card, M_FX0_REC_L, emumix_get_volume(sc->card, M_FX0_FRONT_L));
@@ -684,7 +683,6 @@ static kobj_method_t emu_ac97_methods[] = {
 };
 AC97_DECLARE(emu_ac97);
 
-
 static int
 emu_k1_recval(int speed)
 {
@@ -716,7 +714,6 @@ emupchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 
 	KASSERT(dir == PCMDIR_PLAY, ("emupchan_init: bad direction"));
 	KASSERT(sc->card != NULL, ("empchan_init: no soundcard"));
-
 
 	if (sc->pnum >= MAX_CHANNELS)
 		return (NULL);
@@ -1229,7 +1226,6 @@ static kobj_method_t emufxrchan_methods[] = {
 };
 CHANNEL_DECLARE(emufxrchan);
 
-
 static uint32_t
 emu_pcm_intr(void *pcm, uint32_t stat)
 {
@@ -1240,7 +1236,7 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 	ack = 0;
 
 	snd_mtxlock(sc->lock);
-	
+
 	if (stat & EMU_IPR_INTERVALTIMER) {
 		ack |= EMU_IPR_INTERVALTIMER;
 		for (i = 0; i < MAX_CHANNELS; i++)
@@ -1263,7 +1259,6 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 		 * buffer at least 32x times faster than ADC.
 		 */
 	}
-
 
 	if (stat & (EMU_IPR_ADCBUFFULL | EMU_IPR_ADCBUFHALFFULL)) {
 		ack |= stat & (EMU_IPR_ADCBUFFULL | EMU_IPR_ADCBUFHALFFULL);

@@ -290,7 +290,6 @@ gusisa_probe(device_t dev)
 		device_set_desc(dev, "Gravis UltraSound MAX");
 		return 0;
 	} else {
-
 		/*
 		 * TODO: Support even older GUS cards.  MIDI should work on
 		 * all models.

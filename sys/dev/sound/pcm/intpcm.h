@@ -87,7 +87,6 @@ intpcm_write_##SIGN##32##ENDIAN(uint8_t *dst, intpcm_t v)		\
 	_PCM_WRITE_##SIGN##32##_##ENDIAN(dst, v);			\
 }
 
-
 #define INTPCM_DECLARE(t)						\
 									\
 G711_DECLARE_TABLE(t);							\

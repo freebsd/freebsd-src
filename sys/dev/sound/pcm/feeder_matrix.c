@@ -297,7 +297,6 @@ feed_matrix_setup(struct feed_matrix_info *info, struct pcmchan_matrix *m_in,
 	uint32_t i, j, ch, in_mask, merge_mask;
 	int mul, shift;
 
-
 	if (info == NULL || m_in == NULL || m_out == NULL ||
 	    AFMT_CHANNEL(info->in) != m_in->channels ||
 	    AFMT_CHANNEL(info->out) != m_out->channels ||

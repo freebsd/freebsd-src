@@ -223,7 +223,6 @@ emu_midi_attach(device_t dev)
 	return (0);
 }
 
-
 static int
 emu_midi_detach(device_t dev)
 {

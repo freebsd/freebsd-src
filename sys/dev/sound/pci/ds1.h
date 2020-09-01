@@ -8,7 +8,6 @@
  * $FreeBSD$
  */
 
-
 /* ----- YAMAHA DS-XG Devices -------------------------------------------- */
 #define	YAMAHA		0x1073
 #define	YMF724		0x0004
@@ -23,12 +22,10 @@
 #define	YMF738_TEG	0x0006
 #define DEVICE4CH(x)	((x == YMF738) || (x == YMF744) || (x == YMF754))
 
-
 #define	PCIR_DSXGCTRL		0x48
 /* ----- interrupt flag -------------------------------------------------- */
 #define	YDSXG_DEFINT				0x01
 #define	YDSXG_TIMERINT				0x02
-
 
 /* ----- AC97 ------------------------------------------------------------ */
 #define	YDSXG_AC97TIMEOUT			1000
@@ -36,20 +33,16 @@
 #define	YDSXG_AC97WRITECMD			0x0000
 #define	YDSXG_AC97READFALSE			0xFFFF
 
-
 /* ----- AC97 register map _---------------------------------------------- */
 #define	AC97R_GPIOSTATUS			0x54
 
-
 /* ----- work buffer ----------------------------------------------------- */
 #define	DEF_WORKBUFFLENGTH			0x0400
-
 
 /* ----- register size --------------------------------------------------- */
 #define	YDSXG_MAPLENGTH				0x8000
 #define	YDSXG_DSPLENGTH				0x0080
 #define	YDSXG_CTRLLENGTH			0x3000
-
 
 /* ----- register map ---------------------------------------------------- */
 #define	YDSXGR_INTFLAG				0x0004
@@ -150,7 +143,5 @@
 #define	YDSXGR_DSPINSTRAM			0x1000
 #define	YDSXGR_CTRLINSTRAM			0x4000
 
-
 /* ----- time out -------------------------------------------------------- */
 #define	YDSXG_WORKBITTIMEOUT		250000
-

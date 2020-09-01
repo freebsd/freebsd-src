@@ -310,7 +310,6 @@ static void timer_setvals(struct seq_softc *t, int tempo, int timerbase);
 static void timer_wait(struct seq_softc *t, int ticks, int wait_abs);
 static int timer_now(struct seq_softc *t);
 
-
 static void
 timer_start(struct seq_softc *t)
 {
@@ -1011,7 +1010,6 @@ mseq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 
 		/* Have a look at the event code. */
 		if (ev_code == SEQ_FULLSIZE) {
-
 			/*
 			 * TODO: restore code for SEQ_FULLSIZE
 			 */
@@ -1044,7 +1042,6 @@ mseq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				mtx_lock(&scp->seq_lock);
 				if (retval)
 					goto err0;
-
 			}
 			retval = 0;
 			goto err0;
@@ -1111,7 +1108,6 @@ mseq_write(struct cdev *i_dev, struct uio *uio, int ioflag)
 				goto err0;
 #endif
 		}
-
 	}
 
 	scp->playing = 1;
@@ -1837,7 +1833,6 @@ seq_chncommon(struct seq_softc *scp, kobj_t md, u_char *event)
 		    printf("seq_chncommon event type %d not handled.\n",
 		    event[1]));
 		break;
-
 	}
 	mtx_lock(&scp->seq_lock);
 	return ret;
@@ -2028,7 +2023,6 @@ seq_sync(struct seq_softc *scp)
 	 * the queue is moving along.  If it isn't just abort.
 	 */
 	while (!MIDIQ_EMPTY(scp->out_q)) {
-
 		if (!scp->playing) {
 			scp->playing = 1;
 			cv_broadcast(&scp->state_cv);

@@ -62,7 +62,6 @@
 	    (d->flags & SD_F_SIMPLEX)) ? " simplex" : "",		\
 	    (device_get_unit(dev) == snd_unit) ? " default" : "")
 
-
 #define SNDSTAT_PREPARE_PCM_END()					\
 	if (verbose <= 1)						\
 		return (0);						\

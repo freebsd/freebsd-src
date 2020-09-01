@@ -921,7 +921,7 @@ envy24ht_spi_create(device_t dev, void *info, int dir, int num)
 #if(0)
 	device_printf(sc->dev, "envy24ht_spi_create(dev, sc, %d, %d)\n", dir, num);
 #endif
-	
+
 	buff = malloc(sizeof(*buff), M_ENVY24HT, M_NOWAIT);
 	if (buff == NULL)
 		return NULL;
@@ -1336,7 +1336,7 @@ envy24ht_p32sl(struct sc_chinfo *ch)
 		src += 2;
 		src %= ssize;
 	}
-	
+
 	return;
 }
 
@@ -1363,7 +1363,7 @@ envy24ht_p16sl(struct sc_chinfo *ch)
 #if(0)
 	device_printf(ch->parent->dev, "envy24ht_p16sl():%lu-->%lu(%lu)\n", src, dst, length);
 #endif
-	
+
 	for (i = 0; i < length; i++) {
 		dmabuf[dst * ENVY24HT_PLAY_CHNUM + slot].buffer = (u_int32_t)data[src] << 16;
 		dmabuf[dst * ENVY24HT_PLAY_CHNUM + slot + 1].buffer = (u_int32_t)data[src + 1] << 16;
@@ -1381,7 +1381,7 @@ envy24ht_p16sl(struct sc_chinfo *ch)
 #if(0)
 	printf("\n");
 #endif
-	
+
 	return;
 }
 
@@ -1402,7 +1402,7 @@ envy24ht_p8u(struct sc_chinfo *ch)
 	ssize = ch->size;
 	dsize = ch->size / 4;
 	slot = ch->num * 2;
-	
+
 	for (i = 0; i < length; i++) {
 		dmabuf[dst * ENVY24HT_PLAY_CHNUM + slot].buffer = ((u_int32_t)data[src] ^ 0x80) << 24;
 		dmabuf[dst * ENVY24HT_PLAY_CHNUM + slot + 1].buffer = ((u_int32_t)data[src + 1] ^ 0x80) << 24;
@@ -1411,7 +1411,7 @@ envy24ht_p8u(struct sc_chinfo *ch)
 		src += 2;
 		src %= ssize;
 	}
-	
+
 	return;
 }
 
@@ -1441,7 +1441,7 @@ envy24ht_r32sl(struct sc_chinfo *ch)
 		src++;
 		src %= ssize;
 	}
-	
+
 	return;
 }
 
@@ -1471,7 +1471,7 @@ envy24ht_r16sl(struct sc_chinfo *ch)
 		src++;
 		src %= ssize;
 	}
-	
+
 	return;
 }
 
@@ -1627,7 +1627,7 @@ envy24htchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 			break;
 	}
 	ch->speed = prev;
-	
+
 #if(0)
 	device_printf(ch->parent->dev, "envy24htchan_setspeed(): return %d\n", ch->speed);
 #endif
@@ -1875,7 +1875,7 @@ envy24htmixer_init(struct snd_mixer *m)
 
 	mix_setdevs(m, ENVY24HT_MIX_MASK);
 	mix_setrecdevs(m, ENVY24HT_MIX_REC_MASK);
-	
+
 	snd_mtxunlock(sc->lock);
 
 	return 0;
@@ -2298,7 +2298,6 @@ envy24ht_init(struct sc_info *sc)
 	int i;
 	u_int32_t sv, sd;
 
-
 #if(0)
 	device_printf(sc->dev, "envy24ht_init()\n");
 #endif
@@ -2355,7 +2354,7 @@ envy24ht_init(struct sc_info *sc)
 		envy24ht_wri2c(sc, 0x22, 0x04, 0x5f | 0x80);
 		envy24ht_wri2c(sc, 0x22, 0x05, 0x5f | 0x80);
 	}
-	
+
 	for (i = 0; i < sc->adcn; i++) {
 		sc->adc[i] = sc->cfg->codec->create(sc->dev, sc, PCMDIR_REC, i);
 		sc->cfg->codec->init(sc->adc[i]);

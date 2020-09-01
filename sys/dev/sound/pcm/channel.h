@@ -325,7 +325,6 @@ uint32_t snd_afmt2str(uint32_t, char *, size_t);
 
 #define AFMTSTR_LEN	16
 
-
 extern int chn_latency;
 extern int chn_latency_profile;
 extern int report_soft_formats;
@@ -394,7 +393,6 @@ extern int report_soft_matrix;
 				"\036BITPERFECT"			\
 				"\037PASSTHROUGH"			\
 				"\040EXCLUSIVE"
-
 
 #define CHN_F_RESET		(CHN_F_BUSY | CHN_F_DEAD |		\
 				 CHN_F_VIRTUAL | CHN_F_HAS_VCHAN |	\

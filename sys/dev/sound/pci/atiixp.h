@@ -34,7 +34,7 @@
 /*
  * Constants, pretty much FreeBSD specific.
  */
- 
+
 /* Number of playback / recording channel */
 #define ATI_IXP_NPCHAN		1
 #define ATI_IXP_NRCHAN		1

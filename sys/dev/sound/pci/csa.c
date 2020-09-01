@@ -876,7 +876,7 @@ static int
 csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len)
 {
 	u_long ul;
-	
+
 	/*
 	 * We do not allow DMAs from host memory to host memory (although the DMA
 	 * can do it) and we do not allow DMAs which are not a multiple of 4 bytes

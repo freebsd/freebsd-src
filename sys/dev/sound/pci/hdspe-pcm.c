@@ -80,7 +80,6 @@ static struct hdspe_rate rate_map[] = {
 	{ 0, 0 },
 };
 
-
 static int
 hdspe_hw_mixer(struct sc_chinfo *ch, unsigned int dst,
     unsigned int src, unsigned short data)
@@ -329,7 +328,6 @@ clean(struct sc_chinfo *ch)
 
 	return (0);
 }
-
 
 /* Channel interface. */
 static void *
@@ -659,7 +657,6 @@ static kobj_method_t hdspechan_methods[] = {
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(hdspechan);
-
 
 static int
 hdspe_pcm_probe(device_t dev)

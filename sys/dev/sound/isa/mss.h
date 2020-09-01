@@ -193,7 +193,6 @@ typedef struct mixer_def mixer_tab[32][2];
 #define MSS_REC_DEVICES	\
     (SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD|SOUND_MASK_IMIX)
 
-
 /*
  * Table of mixer registers. There is a default table for the
  * AD1848/CS423x clones, one for the OPTI931 and one for the
@@ -241,7 +240,6 @@ MIX_NONE(SOUND_MIXER_LINE3),
 #define MODE1_MIXER_DEVICES	\
     (SOUND_MASK_SYNTH | SOUND_MASK_PCM    | SOUND_MASK_MIC     | \
      SOUND_MASK_CD    | SOUND_MASK_IMIX   | SOUND_MASK_IGAIN     )
-
 
 mixer_ent opti930_devices[32][2] = {
 MIX_ENT(SOUND_MIXER_VOLUME,	22, 1, 0, 4,	23, 1, 0, 4),
@@ -411,5 +409,3 @@ MIX_NONE(SOUND_MIXER_LINE3),
 #define OPL3SAx_HWVOL	0x17		/* HW Volume IRQ Configuration (R/W) */
 #define OPL3SAx_HWVOL_IRQA	0x10	/* HW Volume IRQ on IRQ-A */
 #define OPL3SAx_HWVOL_IRQB	0x20	/* HW Volume IRQ on IRQ-B */
-
-
