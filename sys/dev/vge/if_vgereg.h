@@ -396,7 +396,6 @@
  *   0xC0 (controls which pattern is set)
  */
 
-
 #define VGE_CAMCTL_WRITE	0x04	/* CAM write command */
 #define VGE_CAMCTL_READ		0x08	/* CAM read command */
 #define VGE_CAMCTL_INTPKT_SIZ	0x10	/* select interesting pkt CAM size */

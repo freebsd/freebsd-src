@@ -246,4 +246,3 @@ struct vge_softc {
 
 #define VGE_RXCHUNK		4
 #define VGE_TIMEOUT		10000
-
