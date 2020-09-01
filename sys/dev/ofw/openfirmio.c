@@ -151,7 +151,6 @@ openfirm_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 	name = value = NULL;
 	error = 0;
 	switch (cmd) {
-
 	case OFIOCGET:
 	case OFIOCGETPROPLEN:
 		if (node == 0)

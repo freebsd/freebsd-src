@@ -41,4 +41,3 @@ phandle_t ofw_graph_get_remote_parent(phandle_t remote);
 device_t ofw_graph_get_device_by_port_ep(phandle_t node, uint32_t port_id, uint32_t ep_id);
 
 #endif /* _OFW_GRAPH_H_ */
-
