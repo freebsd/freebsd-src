@@ -193,7 +193,7 @@ static struct resource *
 cbb_find_res(struct cbb_softc *sc, int type, int rid)
 {
 	struct cbb_reslist *rle;
-	
+
 	SLIST_FOREACH(rle, &sc->rl, link)
 		if (SYS_RES_MEMORY == rle->type && rid == rle->rid)
 			return (rle->res);
@@ -404,7 +404,6 @@ cbb_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	free(ih, M_DEVBUF);
 	return (0);
 }
-
 
 void
 cbb_driver_added(device_t brdev, driver_t *driver)
@@ -884,7 +883,7 @@ cbb_current_voltage(device_t brdev)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 	uint32_t ctrl;
-	
+
 	ctrl = cbb_get(sc, CBB_SOCKET_CONTROL);
 	switch (ctrl & CBB_SOCKET_CTRL_VCCMASK) {
 	case CBB_SOCKET_CTRL_VCC_5V:
@@ -1496,7 +1495,6 @@ cbb_pcic_set_memory_offset(device_t brdev, device_t child, int rid,
 /************************************************************************/
 /* BUS Methods								*/
 /************************************************************************/
-
 
 int
 cbb_activate_resource(device_t brdev, device_t child, int type, int rid,
