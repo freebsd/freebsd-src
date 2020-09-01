@@ -61,9 +61,9 @@ qla_rx_intr(qla_host_t *ha, uint64_t data, uint32_t sds_idx,
 	struct ifnet *ifp = ha->ifp;
 	qla_sds_t *sdsp;
 	struct ether_vlan_header *eh;
-	
+
 	sdsp = &ha->hw.sds[sds_idx];
-	
+
 	ring = (uint32_t)Q8_STAT_DESC_TYPE(data);
 	idx = (uint32_t)Q8_STAT_DESC_HANDLE(data);
 	length = (uint32_t)Q8_STAT_DESC_TOTAL_LENGTH(data);
@@ -113,11 +113,11 @@ qla_rx_intr(qla_host_t *ha, uint64_t data, uint32_t sds_idx,
 		sdsp->rxjb_free = rxb;
 		sdsp->rxj_free++;
 	}
-	
+
 	mp->m_len = length;
 	mp->m_pkthdr.len = length;
 	mp->m_pkthdr.rcvif = ifp;
-	
+
 	eh = mtod(mp, struct ether_vlan_header *);
 
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
@@ -174,7 +174,6 @@ qla_replenish_jumbo_rx(qla_host_t *ha, qla_sds_t *sdsp)
 
 		sdsp->rxjb_free = rxb->next;
 		sdsp->rxj_free--;
-
 
 		if (qla_get_mbuf(ha, rxb, NULL, RDS_RING_INDEX_JUMBO) == 0) {
 			qla_set_hw_rcv_desc(ha, RDS_RING_INDEX_JUMBO,
@@ -289,7 +288,6 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 	lro = &hw->sds[sds_idx].lro;
 
 	while (count--) {
-
 		sdesc = (q80_stat_desc_t *)
 				&hw->sds[sds_idx].sds_ring_base[comp_idx];
 
@@ -303,7 +301,6 @@ qla_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		desc_count = Q8_STAT_DESC_COUNT((sdesc->data[0]));
 
 		switch (Q8_STAT_DESC_OPCODE((sdesc->data[0]))) {
-
 		case Q8_STAT_DESC_OPCODE_RCV_PKT:
 		case Q8_STAT_DESC_OPCODE_SYN_OFFLOAD:
 			qla_rx_intr(ha, (sdesc->data[0]), sds_idx, lro);
@@ -410,4 +407,3 @@ qla_rcv(void *context, int pending)
 
 	QL_ENABLE_INTERRUPTS(ha, sds_idx);
 }
-

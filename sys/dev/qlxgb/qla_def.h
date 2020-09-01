@@ -141,7 +141,7 @@ struct qla_host {
 	int			msix_count;
 	void			*intr_handle;
 	qla_ivec_t		irq_vec[Q8_MSI_COUNT];
-	
+
 	/* parent dma tag */
 	bus_dma_tag_t           parent_tag;
 
