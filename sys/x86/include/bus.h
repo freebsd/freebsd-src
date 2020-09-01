@@ -194,7 +194,6 @@ bus_space_free(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
 {
 }
 
-
 /*
  * Read a 1, 2, 4, or 8 byte quantity from bus space
  * described by tag/handle/offset.
@@ -361,7 +360,6 @@ static __inline void bus_space_read_region_4(bus_space_tag_t tag,
 					     bus_space_handle_t bsh,
 					     bus_size_t offset, u_int32_t *addr,
 					     size_t count);
-
 
 static __inline void
 bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,

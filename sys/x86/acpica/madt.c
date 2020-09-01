@@ -405,7 +405,6 @@ madt_setup_cpus_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	}
 }
 
-
 /*
  * Add an I/O APIC from an entry in the table.
  */

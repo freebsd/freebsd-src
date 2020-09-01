@@ -76,7 +76,6 @@
 #define APME_NOPMEVENT		0x80
 #define APME_NOAPMPRESENT	0x86
 
-
 /* device code */
 #define PMDV_APMBIOS		0x0000
 #define PMDV_ALLDEV		0x0001

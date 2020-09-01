@@ -789,7 +789,7 @@ mca_scan(enum scan_mode mode, int *recoverablep)
 			}
 			mca_record_entry(mode, &rec);
 		}
-	
+
 #ifdef DEV_APIC
 		/*
 		 * If this is a bank this CPU monitors via CMCI,

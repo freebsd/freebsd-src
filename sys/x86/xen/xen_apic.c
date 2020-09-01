@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #define XEN_APIC_UNSUPPORTED \
 	panic("%s: not available in Xen PV port.", __func__)
 
-
 /*--------------------------- Forward Declarations ---------------------------*/
 #ifdef SMP
 static driver_filter_t xen_smp_rendezvous_action;
@@ -549,7 +548,6 @@ xen_cpu_ipi_init(int cpu)
 	ipi_handle = DPCPU_ID_GET(cpu, ipi_handle);
 
 	for (ipi = xen_ipis, idx = 0; idx < nitems(xen_ipis); ipi++, idx++) {
-
 		if (ipi->filter == NULL) {
 			ipi_handle[idx] = NULL;
 			continue;

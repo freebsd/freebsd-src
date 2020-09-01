@@ -406,7 +406,6 @@ xen_pv_start_all_aps(void)
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-
 		/* attempt to start the Application Processor */
 		if (!start_xen_ap(cpu))
 			panic("AP #%d failed to start!", cpu);

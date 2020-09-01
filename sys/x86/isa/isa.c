@@ -97,7 +97,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
 	struct resource_list_entry *rle;
-	
+
 	if (!passthrough && !isdefault) {
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
