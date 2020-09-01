@@ -1,0 +1,99 @@
+.\"
+.\" Copyright (c) 2020 Netflix, Inc
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 1, 2020
+.Dt BOOT1.EFI 8
+.Os
+.Sh NAME
+.Nm boot1.efi
+.Nd UEFI chain loader
+.Sh DESCRIPTION
+.Nm
+has been deprecated and will be removed from a future release.
+.Xr loader.efi 8 handles all its former use cases with more flexibility.
+.Pp
+On UEFI systems,
+.Nm
+loads
+.Pa /boot/loader.efi
+from the default root file system and transfers execution there.
+.Ss Initialization
+Before looking for the boot device,
+.Nm
+does the following initialization
+.Bl -bullet
+.It
+Sets up the console using the default UEFI console routines.
+.It
+Discovers all possible block devices on the system.
+.It
+Initializes all file system modules to read files from those devices
+.El
+.Ss Boot Device Selection
+.Nm
+uses the following sequence to determine the root file system for
+booting:
+.Bl -bullet
+.It
+If ZFS is configured,
+.Nm
+will search the for zpools that are bootable, preferring the zpool on
+the boot device over the others.
+.It
+If UFS is configured,
+.Nm
+will search all UFS partitions for a bootable partition.
+It will prefer the lowest numbered bootable partition on the boot
+device over all other choices.
+It will fall back to partitions on other devices if none are found.
+.El
+.Pp
+A partition is considered bootable if it can load
+.Pa /boot/loader.efi
+from it.
+Command line arguments to the next boot stage are
+read from the first existing file of
+.Pa /boot.config
+or
+.Pa /boot/config
+in that order.
+.Ss Caveats
+.Bl -bullet
+.It
+The order in which file systems are tried is undefined.
+.It
+No encryption support is available.
+.It
+There's no way to interrupt the boot process to select booting from some
+other location.
+.It
+When configuring a serial console for FreeBSD, but not for UEFI, no output
+will show up on the serial console from boot1.efi.
+.It
+There's no support for marking partitions as the preferred one.
+.It
+There's no support for boot-once functionality.
+.El
