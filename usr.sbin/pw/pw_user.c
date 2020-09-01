@@ -712,24 +712,24 @@ rmopie(char const * name)
 {
 	char tmp[1014];
 	FILE *fp;
-	int fd;
 	size_t len;
-	off_t	atofs = 0;
-	
+	long atofs;
+	int fd;
+
 	if ((fd = openat(conf.rootfd, "etc/opiekeys", O_RDWR)) == -1)
 		return;
 
 	fp = fdopen(fd, "r+");
 	len = strlen(name);
 
-	while (fgets(tmp, sizeof(tmp), fp) != NULL) {
+	for (atofs = 0; fgets(tmp, sizeof(tmp), fp) != NULL && atofs >= 0;
+	    atofs = ftell(fp)) {
 		if (strncmp(name, tmp, len) == 0 && tmp[len]==' ') {
 			/* Comment username out */
 			if (fseek(fp, atofs, SEEK_SET) == 0)
 				fwrite("#", 1, 1, fp);
 			break;
 		}
-		atofs = ftell(fp);
 	}
 	/*
 	 * If we got an error of any sort, don't update!
