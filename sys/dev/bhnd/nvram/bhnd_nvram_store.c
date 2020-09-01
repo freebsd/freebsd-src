@@ -199,7 +199,6 @@ bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
 	struct bhnd_nvram_data	*data;
 	int			 error;
 
-
 	/* Try to parse the data */
 	if ((error = bhnd_nvram_data_new(cls, &data, io)))
 		return (error);
@@ -220,7 +219,7 @@ bhnd_nvram_store_parse_new(struct bhnd_nvram_store **store,
 void
 bhnd_nvram_store_free(struct bhnd_nvram_store *sc)
 {
-	
+
 	/* Clean up alias hash table */
 	for (size_t i = 0; i < nitems(sc->aliases); i++) {
 		bhnd_nvstore_alias *alias, *anext;
@@ -384,7 +383,6 @@ bhnd_nvstore_parse_data(struct bhnd_nvram_store *sc)
 	return (0);
 }
 
-
 /**
  * Parse and register path and path alias entries for all declarations found in
  * the NVRAM data backing @p nvram.
@@ -433,7 +431,6 @@ bhnd_nvstore_parse_path_entries(struct bhnd_nvram_store *sc)
 
 	return (0);
 }
-
 
 /**
  * Merge exported per-path variables (uncommitted, committed, or both) into 
@@ -706,7 +703,7 @@ bhnd_nvram_store_export_child(struct bhnd_nvram_store *sc,
 			error = ENOMEM;
 			goto finished;
 		}
-	
+
 		prefix_len = len;
 	} else if (relpath_len > 0) {
 		int len;
@@ -834,7 +831,7 @@ bhnd_nvram_store_export(struct bhnd_nvram_store *sc, const char *path,
 	void			*cookiep;
 	size_t			 num_dpath_flags;
 	int			 error;
-	
+
 	*props = NULL;
 	unordered = NULL;
 	num_dpath_flags = 0;
@@ -961,7 +958,7 @@ bhnd_nvram_store_export(struct bhnd_nvram_store *sc, const char *path,
 		/* Append to ordered result */
 		if ((error = bhnd_nvram_plist_append(*props, prop)))
 			goto failed;
-	
+
 		/* Remove from unordered list */
 		bhnd_nvram_plist_remove(unordered, name);
 	}

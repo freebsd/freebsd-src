@@ -90,7 +90,6 @@ struct bhnd_erom {
 	KOBJ_FIELDS;
 };
 
-
 /** Number of additional bytes to reserve for statically allocated
  *  bhnd_erom instances. */
 #define	BHND_EROM_STATIC_BYTES	64

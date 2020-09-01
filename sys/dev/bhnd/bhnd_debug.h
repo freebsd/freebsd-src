@@ -108,7 +108,6 @@
 	} while(0);
 #endif /* BHND_LOGGING > BHND_INFO_LEVEL */
 
-
 #define	_BHND_RAWPRINTFN	printf(
 #define	_BHND_DEVPRINTFN(dev)	device_printf(dev,
 

@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #ifdef _KERNEL
 
 #include <sys/param.h>
@@ -206,7 +205,6 @@ bhnd_nvram_data_probe_classes(struct bhnd_nvram_data **data,
 		/* Record best new match */
 		prio = result;
 		cls = next_cls;
-
 
 		/* Terminate search immediately on
 		 * BHND_NVRAM_DATA_PROBE_SPECIFIC */
@@ -549,7 +547,6 @@ bhnd_nvram_data_getvar_ptr_info(struct bhnd_nvram_data *nv, void *cookiep,
 
 	/* Select a default value format implementation */
 
-
 	/* Fetch the reference variable name */
 	name = bhnd_nvram_data_getvar_name(nv, cookiep);
 
@@ -701,7 +698,6 @@ bhnd_nvram_data_getvar_ptr(struct bhnd_nvram_data *nv, void *cookiep,
 {
 	return (nv->cls->op_getvar_ptr(nv, cookiep, len, type));
 }
-
 
 /**
  * Return the variable name associated with a given @p cookiep.

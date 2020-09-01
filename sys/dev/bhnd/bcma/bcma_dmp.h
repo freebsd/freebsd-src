@@ -219,7 +219,6 @@
 #define	BCMA_DMP_COMPONENTID2	0xff8
 #define	BCMA_DMP_COMPONENTID3	0xffc
 
-
 /* OOBSEL(IN|OUT) */
 #define	BCMA_DMP_OOBSEL_MASK		0xFF		/**< OOB selector mask */
 #define	BCMA_DMP_OOBSEL_EN		(1<<7)		/**< OOB selector enable bit */

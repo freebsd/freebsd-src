@@ -1041,7 +1041,6 @@ bhnd_nvram_parse_env(const char *env, size_t env_len, char delim,
 	return (0);
 }
 
-
 /**
  * Parse a field value, returning the actual pointer to the first
  * non-whitespace character and the total size of the field.
@@ -1057,19 +1056,19 @@ size_t
 bhnd_nvram_parse_field(const char **inp, size_t ilen, char delim)
 {
 	const char	*p, *sp;
-	
+
 	/* Skip any leading whitespace */
 	for (sp = *inp; (size_t)(sp-*inp) < ilen && bhnd_nv_isspace(*sp); sp++)
 		continue;
-	
+
 	*inp = sp;
-	
+
 	/* Find the last field character */
 	for (p = *inp; (size_t)(p - *inp) < ilen; p++) {
 		if (*p == delim || *p == '\0')
 			break;
 	}
-	
+
 	return (p - *inp);
 }
 
@@ -1091,9 +1090,9 @@ bhnd_nvram_trim_field(const char **inp, size_t ilen, char delim)
 {
 	const char	*sp;
 	size_t		 plen;
-	
+
 	plen = bhnd_nvram_parse_field(inp, ilen, delim);
-	
+
 	/* Trim trailing whitespace */
 	sp = *inp;
 	while (plen > 0) {
@@ -1102,6 +1101,6 @@ bhnd_nvram_trim_field(const char **inp, size_t ilen, char delim)
 		
 		plen--;
 	}
-	
+
 	return (plen);
 }

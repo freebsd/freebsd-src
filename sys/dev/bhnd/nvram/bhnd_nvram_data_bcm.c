@@ -439,7 +439,7 @@ bhnd_nvram_bcm_serialize(bhnd_nvram_data_class *cls, bhnd_nvram_plist *props,
 	hdr.cfg0 = BCM_NVRAM_SET_BITS(hdr.cfg0, BCM_NVRAM_CFG0_VER, bcm_ver);
 	hdr.cfg0 = BCM_NVRAM_SET_BITS(hdr.cfg0, BCM_NVRAM_CFG0_SDRAM_INIT,
 	    htole16(sdram_init));
-	
+
 	hdr.cfg1 = BCM_NVRAM_SET_BITS(hdr.cfg1, BCM_NVRAM_CFG1_SDRAM_CFG,
 	    htole16(sdram_cfg));
 	hdr.cfg1 = BCM_NVRAM_SET_BITS(hdr.cfg1, BCM_NVRAM_CFG1_SDRAM_REFRESH,
@@ -722,7 +722,7 @@ bhnd_nvram_bcm_init(struct bhnd_nvram_bcm *bcm, struct bhnd_nvram_io *src)
 		/* Seek to the next record */
 		if (++io_offset == io_size) {
 			char ch;
-	
+
 			/* Hit EOF without finding a terminating NUL
 			 * byte; we need to grow our buffer and append
 			 * it */
@@ -833,7 +833,7 @@ bhnd_nvram_bcm_next(struct bhnd_nvram_data *nv, void **cookiep)
 	int				 error;
 
 	bcm = (struct bhnd_nvram_bcm *)nv;
-	
+
 	io_offset = sizeof(struct bhnd_nvram_bcmhdr);
 	io_size = bhnd_nvram_io_getsize(bcm->data) - io_offset;
 

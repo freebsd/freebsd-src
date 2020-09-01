@@ -60,7 +60,7 @@ const char	*chipc_sflash_device_name(chipc_flash type);
 enum {
 	/** No quirks */
 	CHIPC_QUIRK_NONE			= 0,
-	
+
 	/**
 	 * ChipCommon-controlled SPROM/OTP is supported, along with the
 	 * CHIPC_CAP_SPROM capability flag.
@@ -78,7 +78,7 @@ enum {
 	 * to allow reading/writing.
 	 */
 	CHIPC_QUIRK_MUX_SPROM			= (1<<3),
-	
+
 	/**
 	 * Access to the SPROM uses pins shared with the 802.11a external PA.
 	 * 
@@ -109,7 +109,6 @@ enum {
 	 */
 	CHIPC_QUIRK_4331_EXTPA2_MUX_SPROM	= (1<<6) |
 	    CHIPC_QUIRK_4331_EXTPA_MUX_SPROM,
-	
 
 	/**
 	 * SPROM pins are muxed with the FEM control lines on this 4360-family

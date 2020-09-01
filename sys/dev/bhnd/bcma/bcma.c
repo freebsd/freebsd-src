@@ -140,10 +140,10 @@ bcma_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 {
 	const struct bcma_devinfo *dinfo;
 	const struct bhnd_core_info *ci;
-	
+
 	dinfo = device_get_ivars(child);
 	ci = &dinfo->corecfg->core_info;
-	
+
 	switch (index) {
 	case BHND_IVAR_VENDOR:
 		*result = ci->vendor;
@@ -500,7 +500,7 @@ bcma_get_region_count(device_t dev, device_t child, bhnd_port_type type,
 
 	dinfo = device_get_ivars(child);
 	ports = bcma_corecfg_get_port_list(dinfo->corecfg, type);
-	
+
 	STAILQ_FOREACH(port, ports, sp_link) {
 		if (port->sp_num == port_num)
 			return (port->sp_num_maps);
@@ -518,7 +518,7 @@ bcma_get_port_rid(device_t dev, device_t child, bhnd_port_type port_type,
 	struct bcma_map		*map;
 	struct bcma_sport_list	*ports;
 	struct bcma_sport	*port;
-	
+
 	dinfo = device_get_ivars(child);
 	ports = bcma_corecfg_get_port_list(dinfo->corecfg, port_type);
 
@@ -584,7 +584,7 @@ bcma_get_region_addr(device_t dev, device_t child, bhnd_port_type port_type,
 	struct bcma_map		*map;
 	struct bcma_sport_list	*ports;
 	struct bcma_sport	*port;
-	
+
 	dinfo = device_get_ivars(child);
 	ports = bcma_corecfg_get_port_list(dinfo->corecfg, port_type);
 
@@ -710,7 +710,7 @@ bcma_add_children(device_t bus)
 	/* EOF while parsing cores is expected */
 	if (error == ENOENT)
 		error = 0;
-	
+
 cleanup:
 	bhnd_erom_free(erom);
 
@@ -723,13 +723,12 @@ cleanup:
 	return (error);
 }
 
-
 static device_method_t bcma_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bcma_probe),
 	DEVMETHOD(device_attach,		bcma_attach),
 	DEVMETHOD(device_detach,		bcma_detach),
-	
+
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,		bcma_add_child),
 	DEVMETHOD(bus_child_deleted,		bcma_child_deleted),

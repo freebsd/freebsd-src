@@ -84,7 +84,7 @@ struct siba_devinfo *
 siba_alloc_dinfo(device_t bus)
 {
 	struct siba_devinfo *dinfo;
-	
+
 	dinfo = malloc(sizeof(struct siba_devinfo), M_BHND, M_NOWAIT|M_ZERO);
 	if (dinfo == NULL)
 		return NULL;
@@ -156,7 +156,6 @@ siba_init_dinfo(device_t dev, device_t child, struct siba_devinfo *dinfo,
 
 	return (0);
 }
-
 
 /**
  * Register and map all interrupts for @p dinfo.
@@ -458,7 +457,7 @@ siba_addrspace_index(struct siba_core_id *core_id, bhnd_port_type port_type,
 	/* Port must be valid */
 	if (!siba_is_port_valid(core_id, port_type, port))
 		return (ENOENT);
-	
+
 	if (port == 0)
 		idx = region;
 	else if (port == 1)
@@ -629,7 +628,7 @@ int
 siba_parse_admatch(uint32_t am, struct siba_admatch *admatch)
 {
 	u_int am_type;
-	
+
 	/* Extract the base address and size */
 	am_type = SIBA_REG_GET(am, AM_TYPE);
 	switch (am_type) {

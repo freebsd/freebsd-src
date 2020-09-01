@@ -312,7 +312,6 @@ bhnd_erom_read_chipid(struct bhnd_erom_io *eio, struct bhnd_chipid *cid)
 	return (0);
 }
 
-
 /**
  * Attempt to map @p size bytes at @p addr, replacing any existing
  * @p eio mapping.

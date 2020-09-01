@@ -74,13 +74,12 @@ struct bhndb_regwin {
 	bhndb_regwin_type_t	win_type;	/**< window type */
 	bus_size_t		win_offset;	/**< offset of the window within the resource */
 	bus_size_t		win_size;	/**< size of the window */
-	
+
 	/** Resource identification */
 	struct {
 		int		type;		/**< resource type */
 		int		rid;		/**< resource id */
 	} res;
-
 
 	union {
 		/** Core-specific register window (BHNDB_REGWIN_T_CORE). */
@@ -102,7 +101,6 @@ struct bhndb_regwin {
 		} dyn;
 	} d;
 };
-
 #define	BHNDB_REGWIN_TABLE_END	{ BHNDB_REGWIN_T_INVALID, 0, 0, { 0, 0 } }
 
 /**
@@ -129,7 +127,6 @@ struct bhndb_hw {
 	u_int				 num_hw_reqs;	/**< number of match requirements */
 	const struct bhndb_hwcfg	*cfg;		/**< associated hardware configuration */
 };
-
 
 /**
  * bhndb resource allocation priorities.
@@ -190,8 +187,6 @@ struct bhndb_hw_priority {
 	const struct bhndb_port_priority	*ports;		/**< port priorities */
 	u_int					 num_ports;	/**< number of port priority records. */
 };
-
 #define	BHNDB_HW_PRIORITY_TABLE_END	{ {}, BHNDB_PRIORITY_NONE, NULL, 0 }
-
 
 #endif /* _BHND_BHNDB_H_ */

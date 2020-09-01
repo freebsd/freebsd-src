@@ -59,7 +59,7 @@ struct bhnd_nvram_bcm_hvar {
 	/** variable data */
 	union bhnd_nvram_bcm_hvar_value value;
 };
-	
+
 /** BCM NVRAM header */
 struct bhnd_nvram_bcmhdr {
 	uint32_t magic;

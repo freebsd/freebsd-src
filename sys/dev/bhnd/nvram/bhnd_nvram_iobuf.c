@@ -120,7 +120,6 @@ bhnd_nvram_iobuf_empty(size_t size, size_t capacity)
 	else
 		iobuf->buf = bhnd_nv_malloc(iobuf->capacity);
 
-
 	if (iobuf->buf == NULL) {
 		bhnd_nv_free(iobuf);
 		return (NULL);
@@ -218,7 +217,6 @@ bhnd_nvram_iobuf_copy_range(struct bhnd_nvram_io *src, size_t offset,
 
 	return (io);
 }
-
 
 static void
 bhnd_nvram_iobuf_free(struct bhnd_nvram_io *io)

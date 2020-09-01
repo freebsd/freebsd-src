@@ -75,7 +75,6 @@ bhndb_pci_sprom_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-
 static device_method_t bhndb_pci_sprom_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			bhndb_pci_sprom_probe),

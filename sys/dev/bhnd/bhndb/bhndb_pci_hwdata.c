@@ -70,7 +70,6 @@ static const struct bhndb_hwcfg bhndb_pci_hwcfg_v3;
 	    sizeof(_BHNDB_HW_REQ_ARRAY(__VA_ARGS__)[0])),		\
 	.cfg		= &bhndb_pci_hwcfg_ ## _vers			\
 }
-
 #define	_BHNDB_HW_REQ_ARRAY(...) (struct bhnd_core_match[]) { __VA_ARGS__ }
 
 /**
@@ -107,7 +106,6 @@ const struct bhndb_hwcfg bhndb_pci_siba_generic_hwcfg = {
 	/* DMA unsupported under generic configuration */
 	.dma_translations = NULL,
 };
-
 
 /**
  * Generic PCI-BCMA bridge configuration usable with all known bcma(4)-based
@@ -181,7 +179,7 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
-	
+
 	/* PCI/V1 WLAN */
 	BHNDB_HW_MATCH("PCI/v1 WLAN", v1_pci,
 		/* PCI Core */
@@ -258,7 +256,6 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 		}
 	),
 
-
 	/* PCIE/V3 WLAN */
 	BHNDB_HW_MATCH("PCIe-Gen2/v3 WLAN", v3,
 		/* PCIe Gen2 Core */
@@ -276,7 +273,6 @@ const struct bhndb_hw bhndb_pci_generic_hw_table[] = {
 			BHND_MATCH_CORE_UNIT	(0)
 		}
 	),
-
 	{ NULL, NULL, 0, NULL }
 };
 

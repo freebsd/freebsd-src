@@ -51,7 +51,7 @@ DECLARE_CLASS(bhnd_pci_hostb_driver);
 enum {
 	/** No quirks */
 	BHND_PCI_QUIRK_NONE			= 0,
-	
+
 	/**
 	 * SBTOPCI_PREF and SBTOPCI_BURST must be set on the
 	 * SSB_PCICORE_SBTOPCI2 register.
@@ -112,7 +112,7 @@ enum {
 	 * explicitly set (to 114ns) to fix slow L1->L0 transition issues.
 	 */
 	BHND_PCIE_QUIRK_L1_IDLE_THRESH		= (1<<8),
-	
+
 	/**
 	 * The ASPM L1 entry timer should be extended for better performance,
 	 * and restored for better power savings.
@@ -171,7 +171,7 @@ enum {
 	 * If L23READY_EXIT_NOPRST is not already set in the SPROM, set it
 	 */
 	BHND_PCIE_QUIRK_SPROM_L23_PCI_RESET	= (1<<14),
-	
+
 	/**
 	 * The PCIe SerDes PLL must be configured to not retry the startup
 	 * sequence upon frequency detection failure on SerDes <= rev9 devices
@@ -253,6 +253,5 @@ struct bhnd_pcihb_softc {
 		bool	inv;
 	} sdr9_quirk_polarity;
 };
-
 
 #endif /* _BHND_CORES_PCI_BHND_PCI_HOSTBVAR_H_ */

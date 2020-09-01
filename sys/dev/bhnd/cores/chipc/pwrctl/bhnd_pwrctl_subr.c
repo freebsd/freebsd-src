@@ -539,7 +539,7 @@ bhnd_pwrctl_setclk(struct bhnd_pwrctl_softc *sc, bhnd_clock clock)
 			scc &= ~(CHIPC_SCC_FS | CHIPC_SCC_IP | CHIPC_SCC_XC);
 			if ((scc & CHIPC_SCC_SS_MASK) != CHIPC_SCC_SS_XTAL)
 				scc |= CHIPC_SCC_XC;
-	
+
 			bhnd_bus_write_4(sc->res, CHIPC_PLL_SLOWCLK_CTL, scc);
 
 			/* for dynamic control, we have to release our xtal_pu

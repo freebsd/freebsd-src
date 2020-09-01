@@ -68,7 +68,6 @@ static int	bhnd_pwrctl_updateclk(struct bhnd_pwrctl_softc *sc,
 
 static struct bhnd_device_quirk pwrctl_quirks[];
 
-
 /* Supported parent core device identifiers */
 static const struct bhnd_device pwrctl_devices[] = {
 	BHND_DEVICE(BCM, CC, "ChipCommon Power Control", pwrctl_quirks),
@@ -471,7 +470,6 @@ bhnd_pwrctl_request_clock(device_t dev, device_t child, bhnd_clock clock)
 	PWRCTL_UNLOCK(sc);
 	return (error);
 }
-
 
 static device_method_t bhnd_pwrctl_methods[] = {
 	/* Device interface */

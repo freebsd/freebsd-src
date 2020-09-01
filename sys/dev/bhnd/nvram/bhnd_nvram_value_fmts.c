@@ -80,7 +80,6 @@ static const void 	*bhnd_nvram_val_bcm_macaddr_string_next(
 			     bhnd_nvram_val *value, const void *prev,
 			     size_t *len);
 
-
 static int		 bhnd_nvram_val_bcm_int_filter(
 			     const bhnd_nvram_val_fmt **fmt, const void *inp,
 			     size_t ilen, bhnd_nvram_type itype);
@@ -103,7 +102,6 @@ static int		 bhnd_nvram_val_bcm_leddc_encode_elem(
 			     bhnd_nvram_val *value, const void *inp,
 			     size_t ilen, void *outp, size_t *olen,
 			     bhnd_nvram_type otype);
-
 
 static int		 bhnd_nvram_val_bcmstr_encode(bhnd_nvram_val *value,
 			     void *outp, size_t *olen, bhnd_nvram_type otype);
@@ -197,7 +195,6 @@ static const bhnd_nvram_val_fmt bhnd_nvram_val_bcm_string_csv_fmt = {
 	.op_filter	= bhnd_nvram_val_bcmstr_csv_filter,
 	.op_next	= bhnd_nvram_val_bcmstr_csv_next,
 };
-
 
 /* Built-in format definitions */
 #define	BHND_NVRAM_VAL_FMT_NATIVE(_n, _type)				\
@@ -754,7 +751,6 @@ bhnd_nvram_val_bcm_macaddr_string_filter(const bhnd_nvram_val_fmt **fmt,
 	}
 }
 
-
 /**
  * MAC address string octet encoding.
  */
@@ -842,7 +838,6 @@ bhnd_nvram_val_bcm_macaddr_string_next(bhnd_nvram_val *value, const void *prev,
 
 	return (next);
 }
-
 
 /**
  * Determine whether @p inp is in octet string format, consisting of a
@@ -948,7 +943,6 @@ bhnd_nvram_ident_octet_string(const char *inp, size_t ilen, char *delim,
 
 	return (true);
 }
-
 
 /**
  * Determine whether @p inp is in hexadecimal, octal, or decimal string

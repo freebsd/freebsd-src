@@ -65,7 +65,7 @@ BHND_NVRAM_IOPS_DEFN(ioptr)
 
 /**
  * Allocate and return a new I/O context, mapping @p size bytes at @p ptr.
- 
+
  * The caller is responsible for deallocating the returned I/O context via
  * bhnd_nvram_io_free().
  *
@@ -90,12 +90,12 @@ bhnd_nvram_ioptr_new(const void *ptr, size_t size, size_t capacity,
 	/* Sanity check the capacity */
 	if (size > capacity)
 		return (NULL);
-	
+
 	/* Allocate I/O context */
 	ioptr = bhnd_nv_malloc(sizeof(*ioptr));
 	if (ioptr == NULL)
 		return (NULL);
-	
+
 	ioptr->io.iops = &bhnd_nvram_ioptr_ops;
 	ioptr->ptr = __DECONST(void *, ptr);
 	ioptr->size = size;
@@ -126,11 +126,11 @@ bhnd_nvram_ioptr_setsize(struct bhnd_nvram_io *io, size_t size)
 	/* Must be writable */
 	if (!(ioptr->flags & BHND_NVRAM_IOPTR_RDWR))
 		return (ENODEV);
-	
+
 	/* Can't exceed the actual capacity */
 	if (size > ioptr->capacity)
 		return (ENXIO);
-	
+
 	ioptr->size = size;
 	return (0);
 }
@@ -141,21 +141,21 @@ bhnd_nvram_ioptr_ptr(struct bhnd_nvram_ioptr *ioptr, size_t offset, void **ptr,
 		     size_t nbytes, size_t *navail)
 {
 	size_t avail;
-	
+
 	/* Verify offset+nbytes fall within the buffer range */
 	if (offset > ioptr->size)
 		return (ENXIO);
-	
+
 	avail = ioptr->size - offset;
 	if (avail < nbytes)
 		return (ENXIO);
-	
+
 	/* Valid I/O range, provide a pointer to the buffer and the
 	 * total count of available bytes */
 	*ptr = ((uint8_t *)ioptr->ptr) + offset;
 	if (navail != NULL)
 		*navail = avail;
-	
+
 	return (0);
 }
 
@@ -166,16 +166,16 @@ bhnd_nvram_ioptr_read_ptr(struct bhnd_nvram_io *io, size_t offset,
 	struct bhnd_nvram_ioptr	*ioptr;
 	void			*writep;
 	int			 error;
-	
+
 	ioptr = (struct bhnd_nvram_ioptr *) io;
-	
+
 	/* Return a pointer into our backing buffer */
 	error = bhnd_nvram_ioptr_ptr(ioptr, offset, &writep, nbytes, navail);
 	if (error)
 		return (error);
-	
+
 	*ptr = writep;
-	
+
 	return (0);
 }
 
@@ -184,13 +184,13 @@ bhnd_nvram_ioptr_write_ptr(struct bhnd_nvram_io *io, size_t offset,
 			   void **ptr, size_t nbytes, size_t *navail)
 {
 	struct bhnd_nvram_ioptr	*ioptr;
-	
+
 	ioptr = (struct bhnd_nvram_ioptr *) io;
 
 	/* Must be writable */
 	if (!(ioptr->flags & BHND_NVRAM_IOPTR_RDWR))
 		return (ENODEV);
-	
+
 	/* Return a pointer into our backing buffer */
 	return (bhnd_nvram_ioptr_ptr(ioptr, offset, ptr, nbytes, navail));
 }
@@ -201,11 +201,11 @@ bhnd_nvram_ioptr_read(struct bhnd_nvram_io *io, size_t offset, void *buffer,
 {
 	const void	*ptr;
 	int		 error;
-	
+
 	/* Try to fetch a direct pointer for at least nbytes */
 	if ((error = bhnd_nvram_io_read_ptr(io, offset, &ptr, nbytes, NULL)))
 		return (error);
-	
+
 	/* Copy out the requested data */
 	memcpy(buffer, ptr, nbytes);
 	return (0);
@@ -217,11 +217,11 @@ bhnd_nvram_ioptr_write(struct bhnd_nvram_io *io, size_t offset,
 {
 	void	*ptr;
 	int	 error;
-	
+
 	/* Try to fetch a direct pointer for at least nbytes */
 	if ((error = bhnd_nvram_io_write_ptr(io, offset, &ptr, nbytes, NULL)))
 		return (error);
-	
+
 	/* Copy in the provided data */
 	memcpy(ptr, buffer, nbytes);
 	return (0);

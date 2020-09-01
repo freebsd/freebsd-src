@@ -169,7 +169,6 @@ static const struct bhnd_core_desc {
 	    "PL368 Device Management Interface" },
 	{ BHND_MFGID_ARM,	BHND_PRIMEID_MWRAP,	BHND_DEVCLASS_OTHER,
 	    "PL369 Device Management Interface" },
-
 	{ 0, 0, 0, NULL }
 };
 
@@ -276,7 +275,7 @@ bhnd_find_core_desc(uint16_t vendor, uint16_t device)
 		
 		return (&bhnd_core_descs[i]);
 	}
-	
+
 	return (NULL);
 }
 
@@ -290,7 +289,7 @@ const char *
 bhnd_find_core_name(uint16_t vendor, uint16_t device)
 {
 	const struct bhnd_core_desc *desc;
-	
+
 	if ((desc = bhnd_find_core_desc(vendor, device)) == NULL)
 		return ("unknown");
 
@@ -307,7 +306,7 @@ bhnd_devclass_t
 bhnd_find_core_class(uint16_t vendor, uint16_t device)
 {
 	const struct bhnd_core_desc *desc;
-	
+
 	if ((desc = bhnd_find_core_desc(vendor, device)) == NULL)
 		return (BHND_DEVCLASS_OTHER);
 
@@ -654,7 +653,6 @@ bhnd_match_core(const struct bhnd_core_info *cores, u_int num_cores,
 	return (NULL);
 }
 
-
 /**
  * Find the first core in @p cores with the given @p class.
  * 
@@ -676,7 +674,6 @@ bhnd_find_core(const struct bhnd_core_info *cores, u_int num_cores,
 	return bhnd_match_core(cores, num_cores, &md);
 }
 
-
 /**
  * Create an equality match descriptor for @p core.
  * 
@@ -696,7 +693,6 @@ bhnd_core_get_match_desc(const struct bhnd_core_info *core)
 		BHND_MATCH_CORE_UNIT(core->unit)
 	});
 }
-
 
 /**
  * Return true if the @p lhs is equal to @p rhs.
@@ -942,7 +938,7 @@ bhnd_device_lookup(device_t dev, const struct bhnd_device *table,
 		/* hostb implies BHND_ATTACH_ADAPTER requirement */
 		if (dflags & BHND_DF_HOSTB)
 			dflags |= BHND_DF_ADAPTER;
-	
+
 		if (dflags & BHND_DF_ADAPTER)
 			if (attach_type != BHND_ATTACH_ADAPTER)
 				continue;
@@ -998,7 +994,6 @@ bhnd_device_quirks(device_t dev, const struct bhnd_device *table,
 
 	return (quirks);
 }
-
 
 /**
  * Allocate bhnd(4) resources defined in @p rs from a parent bus.
@@ -1444,7 +1439,6 @@ bhnd_nvram_getvar_int32(device_t dev, const char *name, int32_t *value)
 	return (bhnd_nvram_getvar_int(dev, name, value, sizeof(*value)));
 }
 
-
 /**
  * Read an NVRAM variable's array value.
  *
@@ -1799,7 +1793,6 @@ bhnd_set_default_core_desc(device_t dev)
 	bhnd_set_custom_core_desc(dev, bhnd_get_device_name(dev));
 }
 
-
 /**
  * Using the bhnd @p chip_id, populate the bhnd(4) bus @p dev's device
  * description.
@@ -1843,7 +1836,7 @@ bhnd_set_default_bus_desc(device_t dev, const struct bhnd_chipid *chip_id)
 	} else {
 		device_set_desc(dev, bus_name);
 	}
-	
+
 }
 
 /**
@@ -2236,7 +2229,7 @@ bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
 	br = malloc(sizeof(struct bhnd_resource), M_BHND, M_NOWAIT);
 	if (br == NULL)
 		goto failed;
-	
+
 	br->direct = false;
 	br->res = res;
 
@@ -2248,7 +2241,7 @@ bhnd_bus_generic_alloc_resource(device_t dev, device_t child, int type,
 	}
 
 	return (br);
-	
+
 failed:
 	if (res != NULL)
 		BUS_RELEASE_RESOURCE(dev, child, type, *rid, res);
@@ -2275,7 +2268,6 @@ bhnd_bus_generic_release_resource(device_t dev, device_t child, int type,
 	free(r, M_BHND);
 	return (0);
 }
-
 
 /**
  * Helper function for implementing BHND_BUS_ACTIVATE_RESOURCE().
