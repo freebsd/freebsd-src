@@ -940,7 +940,6 @@ nlm_setlock(struct nlm_host *host, struct rpc_callextra *ext,
 					 */
 					break;
 				}
-
 			}
 		} else {
 			error = nlm_map_status(res.stat.stat);
