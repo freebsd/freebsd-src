@@ -512,7 +512,6 @@ fail1:
 	return (rc);
 }
 
-
 void
 efx_nvram_fini(
 	__in		efx_nic_t *enp)
@@ -948,7 +947,6 @@ fail1:
 	return (rc);
 }
 
-
 /*
  * MC_CMD_NVRAM_UPDATE_FINISH_V2 must be used to support firmware-verified
  * NVRAM updates. Older firmware will ignore the flags field in the request.
@@ -1059,7 +1057,6 @@ efx_mcdi_nvram_test(
 
 	result = MCDI_OUT_DWORD(req, NVRAM_TEST_OUT_RESULT);
 	if (result == MC_CMD_NVRAM_TEST_FAIL) {
-
 		EFSYS_PROBE1(nvram_test_failure, int, partn);
 
 		rc = (EINVAL);
@@ -1079,6 +1076,5 @@ fail1:
 }
 
 #endif	/* EFSYS_OPT_DIAG */
-
 
 #endif /* EFSYS_OPT_NVRAM || EFSYS_OPT_VPD */

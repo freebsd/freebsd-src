@@ -30,8 +30,6 @@
 #ifndef _SYS_EFX_REGS_MCDI_AOE_H
 #define	_SYS_EFX_REGS_MCDI_AOE_H
 
-
-
 /***********************************/
 /* MC_CMD_FC
  * Perform an FC operation
@@ -2203,7 +2201,6 @@
 
 /* MC_CMD_FC_OUT_DIAG_DATAPATH_CTRL_RAW_CONFIG msgresponse */
 #define	MC_CMD_FC_OUT_DIAG_DATAPATH_CTRL_RAW_CONFIG_LEN 0
-
 
 /***********************************/
 /* MC_CMD_AOE

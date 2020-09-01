@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_MEDFORD
 
 static	__checkReturn	efx_rc_t
@@ -84,7 +83,6 @@ medford_board_cfg(
 	 *
 	 * See efx_mcdi_request_errcode() for MCDI error translations.
 	 */
-
 
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/*

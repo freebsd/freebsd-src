@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
@@ -86,9 +85,7 @@ static	__checkReturn	boolean_t
 siena_intr_check_fatal(
 	__in		efx_nic_t *enp);
 
-
 #endif /* EFSYS_OPT_SIENA */
-
 
 #if EFSYS_OPT_SIENA
 static const efx_intr_ops_t	__efx_intr_siena_ops = {
@@ -245,7 +242,6 @@ efx_intr_disable_unlocked(
 	eiop->eio_disable_unlocked(enp);
 }
 
-
 	__checkReturn	efx_rc_t
 efx_intr_trigger(
 	__in		efx_nic_t *enp,
@@ -302,7 +298,6 @@ efx_intr_fatal(
 
 	eiop->eio_fatal(enp);
 }
-
 
 /* ************************************************************************* */
 /* ************************************************************************* */
@@ -522,7 +517,6 @@ siena_intr_status_message(
 	else
 		*fatalp = B_FALSE;
 }
-
 
 static		void
 siena_intr_fatal(

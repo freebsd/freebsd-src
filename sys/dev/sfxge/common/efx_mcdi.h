@@ -196,7 +196,6 @@ efx_mcdi_mac_spoofing_supported(
 	__in			efx_nic_t *enp,
 	__out			boolean_t *supportedp);
 
-
 #if EFSYS_OPT_BIST
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 extern	__checkReturn		efx_rc_t
@@ -235,7 +234,6 @@ efx_mcdi_mac_stats_periodic(
 	__in		efsys_mem_t *esmp,
 	__in		uint16_t period_ms,
 	__in		boolean_t events);
-
 
 #if EFSYS_OPT_LOOPBACK
 extern	__checkReturn	efx_rc_t

@@ -577,7 +577,6 @@ ef10_filter_restore(
 	    enp->en_family == EFX_FAMILY_MEDFORD2);
 
 	for (tbl_id = 0; tbl_id < EFX_EF10_FILTER_TBL_ROWS; tbl_id++) {
-
 		EFSYS_LOCK(enp->en_eslp, state);
 
 		spec = ef10_filter_entry_spec(eftp, tbl_id);
@@ -729,7 +728,6 @@ found:
 			/* This is a filter we are refreshing */
 			ef10_filter_set_entry_not_auto_old(eftp, ins_index);
 			goto out_unlock;
-
 		}
 		replacing = B_TRUE;
 	} else {
@@ -834,7 +832,6 @@ fail1:
 
 	return (rc);
 }
-
 
 static	__checkReturn	efx_rc_t
 ef10_filter_delete_internal(
@@ -1288,7 +1285,6 @@ ef10_filter_insert_multicast_list(
 			/* Only stop upon failure if told to rollback */
 			goto rollback;
 		}
-
 	}
 
 	if (brdcst == B_TRUE) {
@@ -1493,7 +1489,6 @@ ef10_filter_remove_old(
 	}
 }
 
-
 static	__checkReturn	efx_rc_t
 ef10_filter_get_workarounds(
 	__in				efx_nic_t *enp)
@@ -1528,7 +1523,6 @@ fail1:
 	return (rc);
 
 }
-
 
 /*
  * Reconfigure all filters.
@@ -1767,7 +1761,6 @@ ef10_filter_get_default_rxq(
 	*using_rss = table->eft_using_rss;
 }
 
-
 		void
 ef10_filter_default_rxq_set(
 	__in		efx_nic_t *enp,
@@ -1796,7 +1789,6 @@ ef10_filter_default_rxq_clear(
 	table->eft_default_rxq = NULL;
 	table->eft_using_rss = B_FALSE;
 }
-
 
 #endif /* EFSYS_OPT_FILTER */
 

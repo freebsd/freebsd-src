@@ -110,7 +110,6 @@ __FBSDID("$FreeBSD$");
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
-
 /* Produce a 32-bit hash from 32-bit aligned input */
 	__checkReturn		uint32_t
 efx_hash_dwords(

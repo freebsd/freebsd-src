@@ -85,7 +85,6 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
 
-
 SYSCTL_NODE(_hw, OID_AUTO, sfxge, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "SFXGE driver parameters");
 
@@ -325,7 +324,6 @@ sfxge_stop(struct sfxge_softc *sc)
 	sc->ifnet->if_drv_flags &= ~IFF_DRV_RUNNING;
 }
 
-
 static int
 sfxge_vpd_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ioc)
 {
@@ -384,7 +382,6 @@ sfxge_private_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ioc)
 		return (EOPNOTSUPP);
 	}
 }
-
 
 static int
 sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)

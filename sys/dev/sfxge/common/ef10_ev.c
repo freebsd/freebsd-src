@@ -91,7 +91,6 @@ ef10_ev_mcdi(
 	__in		const efx_ev_callbacks_t *eecp,
 	__in_opt	void *arg);
 
-
 static	__checkReturn	efx_rc_t
 efx_mcdi_set_evq_tmr(
 	__in		efx_nic_t *enp,
@@ -273,7 +272,6 @@ fail1:
 	return (rc);
 }
 
-
 static	__checkReturn	efx_rc_t
 efx_mcdi_init_evq_v2(
 	__in		efx_nic_t *enp,
@@ -439,8 +437,6 @@ fail1:
 
 	return (rc);
 }
-
-
 
 	__checkReturn	efx_rc_t
 ef10_ev_init(
@@ -753,7 +749,6 @@ fail1:
 
 	return (rc);
 }
-
 
 #if EFSYS_OPT_QSTATS
 			void

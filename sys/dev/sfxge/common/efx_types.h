@@ -454,7 +454,6 @@ extern int fix_lint;
 	(EFX_EXTRACT8((_byte).eb_u8[0], FIX_LINT(0), FIX_LINT(7),	\
 	    _low, _high))
 
-
 #define	EFX_OWORD_FIELD64(_oword, _field)				\
 	((uint32_t)EFX_EXTRACT_OWORD64(_oword, EFX_LOW_BIT(_field),	\
 	    EFX_HIGH_BIT(_field)) & EFX_MASK32(_field))
@@ -483,7 +482,6 @@ extern int fix_lint;
 	(EFX_EXTRACT_BYTE(_byte, EFX_LOW_BIT(_field),			\
 	    EFX_HIGH_BIT(_field)) & EFX_MASK8(_field))
 
-
 #define	EFX_OWORD_IS_EQUAL64(_oword_a, _oword_b)			\
 	((_oword_a).eo_u64[0] == (_oword_b).eo_u64[0] &&		\
 	    (_oword_a).eo_u64[1] == (_oword_b).eo_u64[1])
@@ -510,7 +508,6 @@ extern int fix_lint;
 #define	EFX_BYTE_IS_EQUAL(_byte_a, _byte_b)				\
 	((_byte_a).eb_u8[0] == (_byte_b).eb_u8[0])
 
-
 #define	EFX_OWORD_IS_ZERO64(_oword)					\
 	(((_oword).eo_u64[0] |						\
 	    (_oword).eo_u64[1]) == 0)
@@ -536,7 +533,6 @@ extern int fix_lint;
 
 #define	EFX_BYTE_IS_ZERO(_byte)						\
 	(((_byte).eb_u8[0]) == 0)
-
 
 #define	EFX_OWORD_IS_SET64(_oword)					\
 	(((_oword).eo_u64[0] &						\
@@ -1408,7 +1404,6 @@ extern int fix_lint;
 	((_oword).eo_u32[3] &						\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(96)))))
 
-
 #define	EFX_SET_QWORD_BIT64(_qword, _bit)				\
 	do {								\
 		_NOTE(CONSTANTCONDITION)				\
@@ -1455,7 +1450,6 @@ extern int fix_lint;
 	((_qword).eq_u32[1] &						\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(32)))))
 
-
 #define	EFX_SET_DWORD_BIT(_dword, _bit)					\
 	do {								\
 		(_dword).ed_u32[0] |=					\
@@ -1473,7 +1467,6 @@ extern int fix_lint;
 #define	EFX_TEST_DWORD_BIT(_dword, _bit)				\
 	(((_dword).ed_u32[0] &						\
 		    __CPU_TO_LE_32(EFX_SHIFT32(_bit, FIX_LINT(0)))) != 0)
-
 
 #define	EFX_SET_WORD_BIT(_word, _bit)					\
 	do {								\
@@ -1493,7 +1486,6 @@ extern int fix_lint;
 	(((_word).ew_u16[0] &						\
 		    __CPU_TO_LE_16(EFX_SHIFT16(_bit, FIX_LINT(0)))) != 0)
 
-
 #define	EFX_SET_BYTE_BIT(_byte, _bit)					\
 	do {								\
 		(_byte).eb_u8[0] |=					\
@@ -1511,7 +1503,6 @@ extern int fix_lint;
 #define	EFX_TEST_BYTE_BIT(_byte, _bit)					\
 	(((_byte).eb_u8[0] &						\
 		    __NATIVE_8(EFX_SHIFT8(_bit, FIX_LINT(0)))) != 0)
-
 
 #define	EFX_OR_OWORD64(_oword1, _oword2)				\
 	do {								\

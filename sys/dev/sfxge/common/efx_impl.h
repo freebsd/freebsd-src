@@ -44,7 +44,6 @@
 #define	ESE_DZ_EV_CODE_DRV_GEN_EV FSE_AZ_EV_CODE_DRV_GEN_EV
 #endif
 
-
 #if EFSYS_OPT_SIENA
 #include "siena_impl.h"
 #endif	/* EFSYS_OPT_SIENA */
@@ -401,7 +400,6 @@ typedef struct efx_nic_ops_s {
 #ifndef EFX_RXQ_LIMIT_TARGET
 #define	EFX_RXQ_LIMIT_TARGET 512
 #endif
-
 
 #if EFSYS_OPT_FILTER
 
@@ -767,7 +765,6 @@ struct efx_nic_s {
 	} en_arch;
 #endif	/* (EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2) */
 };
-
 
 #define	EFX_NIC_MAGIC	0x02121996
 

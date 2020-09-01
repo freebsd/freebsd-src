@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_SIENA
 static const efx_phy_ops_t	__efx_phy_siena_ops = {
 	siena_phy_power,		/* epo_power */
@@ -483,7 +482,6 @@ efx_phy_stats_update(
 }
 
 #endif	/* EFSYS_OPT_PHY_STATS */
-
 
 #if EFSYS_OPT_BIST
 

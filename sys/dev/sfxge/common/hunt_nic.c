@@ -251,5 +251,4 @@ fail1:
 	return (rc);
 }
 
-
 #endif	/* EFSYS_OPT_HUNTINGTON */

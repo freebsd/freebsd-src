@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include "common/efx.h"
 
-
 #include "sfxge.h"
 #include "sfxge_rx.h"
 

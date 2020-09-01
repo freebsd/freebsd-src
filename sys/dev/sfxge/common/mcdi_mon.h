@@ -51,7 +51,6 @@ mcdi_mon_cfg_build(
 mcdi_mon_cfg_free(
 	__in		efx_nic_t *enp);
 
-
 extern	__checkReturn			efx_rc_t
 mcdi_mon_ev(
 	__in				efx_nic_t *enp,

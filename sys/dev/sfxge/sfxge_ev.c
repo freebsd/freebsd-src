@@ -675,7 +675,6 @@ static const efx_ev_callbacks_t sfxge_ev_callbacks = {
 	.eec_link_change	= sfxge_ev_link_change,
 };
 
-
 int
 sfxge_ev_qpoll(struct sfxge_evq *evq)
 {

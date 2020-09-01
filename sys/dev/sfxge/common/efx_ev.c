@@ -53,8 +53,6 @@ __FBSDID("$FreeBSD$");
 	(EFX_QWORD_FIELD((_qword), EFX_DWORD_0) != 0xffffffff &&	\
 	EFX_QWORD_FIELD((_qword), EFX_DWORD_1) != 0xffffffff)
 
-
-
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
@@ -134,7 +132,6 @@ static const efx_ev_ops_t	__efx_ev_ef10_ops = {
 #endif
 };
 #endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
-
 
 	__checkReturn	efx_rc_t
 efx_ev_init(
@@ -220,7 +217,6 @@ efx_ev_fini(
 	enp->en_eevop = NULL;
 	enp->en_mod_flags &= ~EFX_MOD_EV;
 }
-
 
 	__checkReturn	efx_rc_t
 efx_ev_qcreate(
@@ -903,7 +899,6 @@ siena_ev_tx(
 	    EFX_QWORD_FIELD(*eqp, FSF_AZ_TX_EV_PKT_ERR) == 0 &&
 	    EFX_QWORD_FIELD(*eqp, FSF_AZ_TX_EV_PKT_TOO_BIG) == 0 &&
 	    EFX_QWORD_FIELD(*eqp, FSF_AZ_TX_EV_WQ_FF_FULL) == 0) {
-
 		id = EFX_QWORD_FIELD(*eqp, FSF_AZ_TX_EV_DESC_PTR);
 		label = EFX_QWORD_FIELD(*eqp, FSF_AZ_TX_EV_Q_LABEL);
 

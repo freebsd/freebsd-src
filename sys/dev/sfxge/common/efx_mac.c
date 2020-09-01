@@ -516,7 +516,6 @@ efx_mac_filter_default_rxq_clear(
 		emop->emo_filter_default_rxq_clear(enp);
 }
 
-
 #if EFSYS_OPT_MAC_STATS
 
 #if EFSYS_OPT_NAMES
@@ -826,7 +825,6 @@ fail1:
 	return (rc);
 }
 
-
 	__checkReturn			efx_rc_t
 efx_mac_stats_update(
 	__in				efx_nic_t *enp,
@@ -906,7 +904,6 @@ fail1:
 
 	return (rc);
 }
-
 
 #if EFSYS_OPT_SIENA
 

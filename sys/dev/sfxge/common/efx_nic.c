@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 	__checkReturn	efx_rc_t
 efx_family(
 	__in		uint16_t venid,
@@ -117,7 +116,6 @@ efx_family(
 	*efp = EFX_FAMILY_INVALID;
 	return (ENOTSUP);
 }
-
 
 #if EFSYS_OPT_SIENA
 
@@ -202,7 +200,6 @@ static const efx_nic_ops_t	__efx_nic_medford2_ops = {
 };
 
 #endif	/* EFSYS_OPT_MEDFORD2 */
-
 
 	__checkReturn	efx_rc_t
 efx_nic_create(
@@ -442,7 +439,6 @@ fail1:
 	return (rc);
 }
 
-
 	__checkReturn	efx_rc_t
 efx_nic_get_vi_pool(
 	__in		efx_nic_t *enp,
@@ -481,7 +477,6 @@ fail1:
 
 	return (rc);
 }
-
 
 	__checkReturn	efx_rc_t
 efx_nic_init(
@@ -724,7 +719,6 @@ efx_nic_set_hw_unavailable(
 	if (enop->eno_set_hw_unavailable != NULL)
 		enop->eno_set_hw_unavailable(enp);
 }
-
 
 #if EFSYS_OPT_DIAG
 

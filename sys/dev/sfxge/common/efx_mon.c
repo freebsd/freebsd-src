@@ -73,7 +73,6 @@ static const efx_mon_ops_t	__efx_mon_mcdi_ops = {
 };
 #endif
 
-
 	__checkReturn	efx_rc_t
 efx_mon_init(
 	__in		efx_nic_t *enp)

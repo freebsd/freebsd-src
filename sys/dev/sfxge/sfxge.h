@@ -110,7 +110,6 @@
 
 #define	SFXGE_ETHERTYPE_LOOPBACK	0x9000	/* Xerox loopback */
 
-
 #define	SFXGE_MAGIC_RESERVED		0x8000
 
 #define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6

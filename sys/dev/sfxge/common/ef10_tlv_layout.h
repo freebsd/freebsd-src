@@ -85,16 +85,13 @@
  * well enough.)
  */
 
-
 #ifndef CI_MGMT_TLV_LAYOUT_H
 #define CI_MGMT_TLV_LAYOUT_H
-
 
 /* ----------------------------------------------------------------------------
  *  General structure (defined by SF-108797-SW)
  * ----------------------------------------------------------------------------
  */
-
 
 /* The "end" tag.
  *
@@ -104,13 +101,11 @@
 
 #define TLV_TAG_END                     (0xEEEEEEEE)
 
-
 /* Other special reserved tag values.
  */
 
 #define TLV_TAG_SKIP                    (0x00000000)
 #define TLV_TAG_INVALID                 (0xFFFFFFFF)
-
 
 /* TLV partition header.
  *
@@ -133,7 +128,6 @@ struct tlv_partition_header {
   uint32_t total_length;
 };
 
-
 /* TLV partition trailer.
  *
  * In a TLV partition, this must be the last item in the sequence, immediately
@@ -148,7 +142,6 @@ struct tlv_partition_trailer {
   uint32_t generation;
   uint32_t checksum;
 };
-
 
 /* Appendable TLV partition header.
  *
@@ -166,12 +159,10 @@ struct tlv_appendable_partition_header {
   uint16_t reserved;
 };
 
-
 /* ----------------------------------------------------------------------------
  *  Configuration items
  * ----------------------------------------------------------------------------
  */
-
 
 /* NIC global capabilities.
  */
@@ -183,7 +174,6 @@ struct tlv_global_capabilities {
   uint32_t length;
   uint32_t flags;
 };
-
 
 /* Siena-style per-port MAC address allocation.
  *
@@ -204,7 +194,6 @@ struct tlv_port_mac {
   uint16_t count;
   uint16_t stride;
 };
-
 
 /* Static VPD.
  *
@@ -230,7 +219,6 @@ struct tlv_global_static_vpd {
   uint8_t  bytes[];
 };
 
-
 /* Dynamic VPD.
  *
  * This is the portion of VPD which may be changed (e.g. by firmware updates).
@@ -255,7 +243,6 @@ struct tlv_global_dynamic_vpd {
   uint8_t  bytes[];
 };
 
-
 /* "DBI" PCI config space changes.
  *
  * This is a set of edits made to the default PCI config space values before
@@ -276,7 +263,6 @@ struct tlv_pf_dbi {
   } items[];
 };
 
-
 #define TLV_TAG_GLOBAL_DBI              (0x00210000)
 
 struct tlv_global_dbi {
@@ -288,7 +274,6 @@ struct tlv_global_dbi {
     uint32_t value;
   } items[];
 };
-
 
 /* Partition subtype codes.
  *
@@ -309,7 +294,6 @@ struct tlv_partition_subtype {
   uint32_t subtype;
   uint8_t  description[];
 };
-
 
 /* Partition version codes.
  *
@@ -366,7 +350,6 @@ struct tlv_per_pf_pcie_config {
   uint16_t msix_vec_base;
 };
 
-
 /* Development ONLY. This is a single TLV tag for all the gubbins
  * that can be set through the MC command-line other than the PCIe
  * settings. This is a temporary measure. */
@@ -410,7 +393,6 @@ struct tlv_global_port_config {
   uint32_t ports_per_core;
   uint32_t max_port_speed;
 };
-
 
 /* Firmware options.
  *
@@ -468,7 +450,6 @@ struct tlv_0v9_settings {
   uint16_t panic_high;     /* In millivolts */
 };
 
-
 /* Clock configuration */
 
 #define TLV_TAG_CLOCK_CONFIG       (0x000d0000) /* legacy symbol - do not use */
@@ -495,7 +476,6 @@ struct tlv_clock_config_medford {
   uint16_t clk_dpcpu;      /* MHz */
   uint16_t clk_pcs;        /* MHz */
 };
-
 
 /* EF10-style global pool of MAC addresses.
  *
@@ -536,7 +516,6 @@ struct tlv_pcie_tx_amp_config {
   uint8_t quad_tx_imp50[4];
   uint8_t lane_amp[16];
 };
-
 
 /* Global PCIe configuration, second revision. This represents the visible PFs
  * by a bitmap rather than having the number of the highest visible one. As such

@@ -37,7 +37,6 @@
 extern "C" {
 #endif
 
-
 /* Number of hardware PIO buffers (for compile-time resource dimensions) */
 #define	EF10_MAX_PIOBUF_NBUFS	(16)
 
@@ -56,8 +55,6 @@ extern "C" {
 #  error "EF10_MAX_PIOBUF_NBUFS too small"
 # endif
 #endif /* EFSYS_OPT_MEDFORD2 */
-
-
 
 /*
  * FIXME: This is just a power of 2 which fits in an MCDI v1 message, and could
@@ -80,7 +77,6 @@ extern "C" {
 
 /* Invalid RSS context handle */
 #define	EF10_RSS_CONTEXT_INVALID	(0xffffffff)
-
 
 /* EV */
 
@@ -240,7 +236,6 @@ extern			void
 ef10_nic_unprobe(
 	__in		efx_nic_t *enp);
 
-
 /* MAC */
 
 extern	__checkReturn	efx_rc_t
@@ -310,7 +305,6 @@ ef10_mac_stats_update(
 	__inout_opt			uint32_t *generationp);
 
 #endif	/* EFSYS_OPT_MAC_STATS */
-
 
 /* MCDI */
 
@@ -615,7 +609,6 @@ ef10_nvram_buffer_finish(
 
 #endif	/* EFSYS_OPT_NVRAM */
 
-
 /* PHY */
 
 typedef struct ef10_link_state_s {
@@ -876,7 +869,6 @@ ef10_nic_pio_unlink(
 	__inout		efx_nic_t *enp,
 	__in		uint32_t vi_index);
 
-
 /* VPD */
 
 #if EFSYS_OPT_VPD
@@ -942,7 +934,6 @@ ef10_vpd_fini(
 
 #endif	/* EFSYS_OPT_VPD */
 
-
 /* RX */
 
 extern	__checkReturn	efx_rc_t
@@ -955,7 +946,6 @@ ef10_rx_scatter_enable(
 	__in		efx_nic_t *enp,
 	__in		unsigned int buf_size);
 #endif	/* EFSYS_OPT_RX_SCATTER */
-
 
 #if EFSYS_OPT_RX_SCALE
 
@@ -1166,7 +1156,6 @@ extern		void
 ef10_filter_default_rxq_clear(
 	__in		efx_nic_t *enp);
 
-
 #endif /* EFSYS_OPT_FILTER */
 
 extern	__checkReturn			efx_rc_t
@@ -1215,7 +1204,6 @@ efx_mcdi_get_clock(
 	__out		uint32_t *sys_freqp,
 	__out		uint32_t *dpcpu_freqp);
 
-
 extern	__checkReturn	efx_rc_t
 efx_mcdi_get_rxdp_config(
 	__in		efx_nic_t *enp,
@@ -1248,7 +1236,6 @@ efx_mcdi_set_nic_global(
 	__in		uint32_t value);
 
 #endif	/* EFSYS_OPT_FW_SUBVARIANT_AWARE */
-
 
 #if EFSYS_OPT_RX_PACKED_STREAM
 
