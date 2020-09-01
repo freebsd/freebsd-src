@@ -57,7 +57,6 @@
 #define MACREG_REG_A2H_INTERRUPT_CLEAR_SEL      0x00000C38 // (From ARM to host)
 #define MACREG_REG_A2H_INTERRUPT_STATUS_MASK    0x00000C3C // (From ARM to host)
 
-
 //  Map to 0x80000000 on BAR1
 #define MACREG_REG_GEN_PTR                  0x00000C10
 #define MACREG_REG_INT_CODE                 0x00000C14
@@ -100,7 +99,6 @@
 			     (MACREQ_A2HRIC_BIT_TX_ACK))
 
 #define MACREG_A2HRIC_BIT_MASK      ISR_SRC_BITS                             
-
 
 //	Bit definitio for MACREG_REG_H2A_INTERRUPT_CAUSE (H2ARIC)
 #define MACREG_H2ARIC_BIT_PPA_READY	0x00000001 // bit 0
@@ -341,7 +339,6 @@ struct mwl_rxdesc {
 #define HostCmd_RESULT_BUSY                     0x0004 // System is busy (command ignored)
 #define HostCmd_RESULT_PARTIAL_DATA             0x0005 // Data buffer is not big enough
 
-
 /*
 //          Definition of action or option for each command
 //
@@ -376,7 +373,6 @@ struct mwl_rxdesc {
 #define HostCmd_NUM_OF_WEP_KEYS                 4
 
 #define HostCmd_WEP_KEY_INDEX_MASK              0x3fffffff
-
 
 //          Define action or option for HostCmd_CMD_802_11_RESET
 #define HostCmd_ACT_HALT                        0x0001
@@ -484,7 +480,6 @@ typedef struct {
     FWCmdHdr    CmdHdr;
     u_int32_t   Enable;   /* FALSE: Disable or TRUE: Enable */
 } __packed HostCmd_DS_BSS_START;
-
 
 typedef struct {
     u_int8_t    ElemId;
@@ -704,7 +699,7 @@ typedef  struct {
     uint32_t 	FixedRate;	// legacy rate(not index) or an MCS code.
     uint32_t	RetryCount;
 } __packed FIXED_RATE_ENTRY;
-	
+
 typedef  struct {
     FWCmdHdr	CmdHdr;
     uint32_t    Action;	//HostCmd_ACT_GEN_GET		0x0000
@@ -723,7 +718,7 @@ typedef struct {
     uint32_t	EntryCount;
     FIXED_RATE_ENTRY FixedRateTable[4];
 } __packed USE_FIXED_RATE_INFO;
- 
+
 typedef struct {
    FWCmdHdr    CmdHdr;
    uint32_t    Action;
@@ -744,7 +739,6 @@ typedef struct {
    uint16_t    Action;
    uint8_t     Slot;   // Slot=0 if regular, Slot=1 if short.
 } __packed HostCmd_FW_SET_SLOT;
-
 
 //          Define data structure for HostCmd_CMD_802_11_GET_STAT
 typedef struct {
@@ -778,7 +772,6 @@ typedef struct {
     uint32_t 	RxExcludedFrames;
 } __packed HostCmd_DS_802_11_GET_STAT;
 
-
 //          Define data structure for HostCmd_CMD_MAC_REG_ACCESS
 typedef struct {
    FWCmdHdr    CmdHdr;
@@ -806,7 +799,6 @@ typedef struct {
    uint8_t       Reserverd[3];
 } __packed HostCmd_DS_RF_REG_ACCESS;
 
-
 //          Define data structure for HostCmd_CMD_802_11_RADIO_CONTROL
 typedef struct {
    FWCmdHdr    CmdHdr;
@@ -814,7 +806,6 @@ typedef struct {
    uint16_t      Control;	// @bit0: 1/0,on/off, @bit1: 1/0, long/short @bit2: 1/0,auto/fix
    uint16_t      RadioOn;
 } __packed HostCmd_DS_802_11_RADIO_CONTROL;
-
 
 #define TX_POWER_LEVEL_TOTAL  8
 //          Define data structure for HostCmd_CMD_802_11_RF_TX_POWER
@@ -1141,7 +1132,6 @@ typedef struct {
     uint8_t	ActionData[1];
 } __packed HostCmd_FW_UPDATE_ENCRYPTION;
 
-
 typedef struct {
     FWCmdHdr    CmdHdr;
     uint32_t	ActionType;		// ENCR_ACTION_TYPE
@@ -1271,8 +1261,6 @@ typedef struct {
    FWCmdHdr	CmdHdr;
    uint8_t	Watchdogbitmap;		// for SW/BA
 } __packed HostCmd_FW_GET_WATCHDOG_BITMAP;
-
-
 
 //          Define data structure for HostCmd_CMD_SET_REGION_POWER
 typedef struct {
