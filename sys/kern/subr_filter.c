@@ -76,7 +76,7 @@ setup_time_filter(struct time_filter *tf, int fil_type, uint32_t time_len)
 {
 	uint64_t set_val;
 	int i;
-	
+
 	/* 
 	 * You must specify either a MIN or MAX filter,
 	 * though its up to the user to use the correct
@@ -107,7 +107,7 @@ setup_time_filter_small(struct time_filter_small *tf, int fil_type, uint32_t tim
 {
 	uint32_t set_val;
 	int i;
-	
+
 	/* 
 	 * You must specify either a MIN or MAX filter,
 	 * though its up to the user to use the correct
@@ -333,7 +333,6 @@ tick_filter_clock(struct time_filter *tf, uint32_t now)
 			tf->entries[i].value = tf->entries[(i+1)].value;
 			tf->entries[i].time_up = tf->entries[(i+1)].time_up;
 		}
-
 	}
 }
 
@@ -365,7 +364,6 @@ tick_filter_clock_small(struct time_filter_small *tf, uint32_t now)
 			tf->entries[i].value = tf->entries[(i+1)].value;
 			tf->entries[i].time_up = tf->entries[(i+1)].time_up;
 		}
-
 	}
 }
 
@@ -373,7 +371,7 @@ uint32_t
 apply_filter_min(struct time_filter *tf, uint64_t value, uint32_t now)
 {
 	int i, j;
-	
+
 	if (value <= tf->entries[0].value) {
 		/* Zap them all */
 		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
@@ -400,7 +398,7 @@ apply_filter_min_small(struct time_filter_small *tf,
 		       uint32_t value, uint32_t now)
 {
 	int i, j;
-	
+
 	if (value <= tf->entries[0].value) {
 		/* Zap them all */
 		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
@@ -426,7 +424,7 @@ uint32_t
 apply_filter_max(struct time_filter *tf, uint64_t value, uint32_t now)
 {
 	int i, j;
-	
+
 	if (value >= tf->entries[0].value) {
 		/* Zap them all */
 		for(i=0; i<NUM_FILTER_ENTRIES; i++) {
@@ -453,7 +451,7 @@ apply_filter_max_small(struct time_filter_small *tf,
 		       uint32_t value, uint32_t now)
 {
 	int i, j;
-	
+
 	if (value >= tf->entries[0].value) {
 		/* Zap them all */
 		for(i=0; i<NUM_FILTER_ENTRIES; i++) {

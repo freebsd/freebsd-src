@@ -1063,16 +1063,16 @@ static void
 rctl_rule_free(void *context, int pending)
 {
 	struct rctl_rule *rule;
-	
+
 	rule = (struct rctl_rule *)context;
 
 	ASSERT_RACCT_ENABLED();
 	KASSERT(rule->rr_refcount == 0, ("rule->rr_refcount != 0"));
-	
+
 	/*
 	 * We don't need locking here; rule is guaranteed to be inaccessible.
 	 */
-	
+
 	rctl_rule_release_subject(rule);
 	uma_zfree(rctl_rule_zone, rule);
 }
@@ -2021,7 +2021,7 @@ again:
 			rulecnt--;
 		}
 	}
-	
+
 	LIST_FOREACH(link, &newuip->ui_racct->r_rule_links, rrl_next) {
 		if (newlink == NULL)
 			goto goaround;
@@ -2208,35 +2208,35 @@ rctl_init(void)
 int
 sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 {
-	
+
 	return (ENOSYS);
 }
 
 int
 sys_rctl_get_rules(struct thread *td, struct rctl_get_rules_args *uap)
 {
-	
+
 	return (ENOSYS);
 }
 
 int
 sys_rctl_get_limits(struct thread *td, struct rctl_get_limits_args *uap)
 {
-	
+
 	return (ENOSYS);
 }
 
 int
 sys_rctl_add_rule(struct thread *td, struct rctl_add_rule_args *uap)
 {
-	
+
 	return (ENOSYS);
 }
 
 int
 sys_rctl_remove_rule(struct thread *td, struct rctl_remove_rule_args *uap)
 {
-	
+
 	return (ENOSYS);
 }
 

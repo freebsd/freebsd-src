@@ -415,7 +415,7 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	
+
 	/*
 	 * Attempt to return sanish values for fstat() on a memory file
 	 * descriptor.
@@ -1203,7 +1203,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	if (error != 0)
 		goto out;
 #endif
-	
+
 	mtx_lock(&shm_timestamp_lock);
 	vfs_timestamp(&shmfd->shm_atime);
 	mtx_unlock(&shm_timestamp_lock);

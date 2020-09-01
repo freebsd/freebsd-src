@@ -1212,10 +1212,10 @@ kern_ktimer_create(struct thread *td, clockid_t clock_id, struct sigevent *evp,
 			!_SIG_VALID(evp->sigev_signo))
 			return (EINVAL);
 	}
-	
+
 	if (p->p_itimers == NULL)
 		itimers_alloc(p);
-	
+
 	it = uma_zalloc(itimer_zone, M_WAITOK);
 	it->it_flags = 0;
 	it->it_usecount = 0;
@@ -1491,7 +1491,7 @@ static int
 realtimer_delete(struct itimer *it)
 {
 	mtx_assert(&it->it_mtx, MA_OWNED);
-	
+
 	/*
 	 * clear timer's value and interval to tell realtimer_expire
 	 * to not rearm the timer.
@@ -1545,7 +1545,7 @@ realtimer_settime(struct itimer *it, int flags,
 	} else {
 		timespecclear(&val.it_interval);
 	}
-	
+
 	if (ovalue != NULL)
 		realtimer_gettime(it, ovalue);
 

@@ -541,4 +541,3 @@ vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, uint64_t *extflagsp,
 	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
 	return (0);
 }
-

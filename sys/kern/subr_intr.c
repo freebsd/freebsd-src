@@ -936,7 +936,6 @@ intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 		    ("%s: Found a non-PIC controller: %s", __func__,
 		     device_get_name(pic->pic_dev)));
 		return (PIC_MAP_INTR(pic->pic_dev, data, isrc));
-
 	}
 }
 
@@ -1318,7 +1317,6 @@ intr_alloc_msi(device_t pci, device_t child, intptr_t xref, int count,
 		msi-> isrc = isrc[i];
 		irqs[i] = intr_map_irq(pic->pic_dev, xref,
 		    (struct intr_map_data *)msi);
-
 	}
 	free(isrc, M_INTRNG);
 

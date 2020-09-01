@@ -2961,7 +2961,6 @@ issignal(struct thread *td)
 		 * to clear it from the pending mask.
 		 */
 		switch ((intptr_t)p->p_sigacts->ps_sigact[_SIG_IDX(sig)]) {
-
 		case (intptr_t)SIG_DFL:
 			/*
 			 * Don't take default actions on system processes.

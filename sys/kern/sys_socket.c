@@ -310,7 +310,7 @@ soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 			ub->st_mode |= S_IRUSR | S_IRGRP | S_IROTH;
 		ub->st_size = sbavail(sb) - sb->sb_ctl;
 		SOCKBUF_UNLOCK(sb);
-	
+
 		sb = &so->so_snd;
 		SOCKBUF_LOCK(sb);
 		if ((sb->sb_state & SBS_CANTSENDMORE) == 0)

@@ -563,7 +563,6 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 		goto abort;
 
 	TAILQ_FOREACH(ent, &fp_setting->fp_entry_queue, fe_entries) {
-
 		if (ent->fe_stale)
 			continue;
 

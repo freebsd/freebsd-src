@@ -1427,7 +1427,6 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 		if (len > MCLBYTES) {
 			mb = m_getjcl(M_NOWAIT, type, (flags & M_PKTHDR),
 			    MJUMPAGESIZE);
-
 		}
 		if (mb == NULL) {
 			if (len >= MINCLSIZE)

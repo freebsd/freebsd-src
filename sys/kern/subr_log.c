@@ -258,7 +258,6 @@ logioctl(struct cdev *dev, u_long com, caddr_t data, int flag, struct thread *td
 {
 
 	switch (com) {
-
 	/* return number of characters immediately available */
 	case FIONREAD:
 		*(int *)data = msgbuf_getcount(msgbufp);

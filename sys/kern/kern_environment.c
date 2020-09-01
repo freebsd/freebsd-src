@@ -696,7 +696,6 @@ getenv_array(const char *name, void *pdata, int size, int *psize,
 	n = 0;
 
 	for (ptr = buf; *ptr != 0; ) {
-
 		value = strtoq(ptr, &end, 0);
 
 		/* check if signed numbers are allowed */

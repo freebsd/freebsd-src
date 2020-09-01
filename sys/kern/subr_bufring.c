@@ -42,7 +42,7 @@ buf_ring_alloc(int count, struct malloc_type *type, int flags, struct mtx *lock)
 	struct buf_ring *br;
 
 	KASSERT(powerof2(count), ("buf ring must be size power of 2"));
-	
+
 	br = malloc(sizeof(struct buf_ring) + count*sizeof(caddr_t),
 	    type, flags|M_ZERO);
 	if (br == NULL)

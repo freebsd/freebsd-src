@@ -290,7 +290,7 @@ socket_zone_change(void *tag)
 static void
 socket_hhook_register(int subtype)
 {
-	
+
 	if (hhook_head_register(HHOOK_TYPE_SOCKET, subtype,
 	    &V_socket_hhh[subtype],
 	    HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
@@ -300,7 +300,7 @@ socket_hhook_register(int subtype)
 static void
 socket_hhook_deregister(int subtype)
 {
-	
+
 	if (hhook_head_deregister(V_socket_hhh[subtype]) != 0)
 		printf("%s: WARNING: unable to deregister hook\n", __func__);
 }

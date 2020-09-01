@@ -176,4 +176,3 @@ p31b_set_standard(void *dummy)
 
 SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard, 
     NULL);
-

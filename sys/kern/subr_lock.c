@@ -548,7 +548,6 @@ lock_profile_lookup(struct lock_object *lo, int spin, const char *file,
 		if (lp->line == line && lp->file == p &&
 		    lp->name == lo->lo_name)
 			return (lp);
-
 	}
 	lp = SLIST_FIRST(&type->lpt_lpalloc);
 	if (lp == NULL) {

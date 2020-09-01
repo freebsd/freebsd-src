@@ -650,7 +650,7 @@ blst_next_leaf_alloc(blmeta_t *scan, daddr_t start, int count, int maxcount)
 			}
 		}
 	}
-	
+
 	/*
 	 * 'scan' is the last leaf that provides blocks.  Clear from 1 to
 	 * BLIST_RADIX bits to represent the allocation of those last blocks.

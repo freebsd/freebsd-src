@@ -364,4 +364,3 @@ init_hwpmc(void *dummy __unused)
 }
 
 SYSINIT(hwpmc, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_hwpmc, NULL);
-

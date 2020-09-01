@@ -113,7 +113,7 @@ sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS)
 	 */
 	for (int i = 0; i < arg2; i++)
 		counter_u64_zero(((counter_u64_t *)arg1)[i]);
- 
+
 	return (0);
 }
 

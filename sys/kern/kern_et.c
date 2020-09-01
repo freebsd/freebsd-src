@@ -268,4 +268,3 @@ sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, choice,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_eventtimer_choice, "A", "Present event timers");
-
