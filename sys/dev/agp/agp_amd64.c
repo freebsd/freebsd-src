@@ -499,7 +499,6 @@ static device_method_t agp_amd64_methods[] = {
 	DEVMETHOD(agp_free_memory,	agp_generic_free_memory),
 	DEVMETHOD(agp_bind_memory,	agp_generic_bind_memory),
 	DEVMETHOD(agp_unbind_memory,	agp_generic_unbind_memory),
-
 	{ 0, 0 }
 };
 
