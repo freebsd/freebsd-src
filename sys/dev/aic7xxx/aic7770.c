@@ -323,7 +323,6 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 					/*start_addr*/0, sizeof(*sc)/2);
 
 	if (have_seeprom) {
-
 		if (ahc_verify_cksum(sc) == 0) {
 			if(bootverbose)
 				printf ("checksum error\n");

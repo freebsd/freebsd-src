@@ -257,7 +257,7 @@ ahd_attach(struct ahd_softc *ahd)
 		sim = NULL;
 		goto fail;
 	}
-	
+
 	if (xpt_create_path(&path, /*periph*/NULL,
 			    cam_sim_path(sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
@@ -286,7 +286,6 @@ fail:
 					  ahd, SHUTDOWN_PRI_DEFAULT);
 		ahd_intr_enable(ahd, TRUE);
 	}
-
 
 	return (count);
 }
@@ -349,7 +348,6 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 		ccb_path = ccb->ccb_h.path;
 		if (ahd->pending_device != NULL
 		 && xpt_path_comp(ahd->pending_device->path, ccb_path) == 0) {
-
 			if ((ccb->ccb_h.flags & CAM_SEND_STATUS) != 0) {
 				ahd->pending_device = NULL;
 			} else {
@@ -385,7 +383,6 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 			 */
 			LIST_FOREACH(list_scb,
 				     &ahd->pending_scbs, pending_links) {
-
 				aic_scb_timer_reset(list_scb,
 						    aic_get_timeout(scb));
 			}
@@ -461,12 +458,12 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 	u_int	our_id;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahd_action\n"));
-	
+
 	ahd = (struct ahd_softc *)cam_sim_softc(sim);
 
 	target_id = ccb->ccb_h.target_id;
 	our_id = SIM_SCSI_ID(ahd, sim);
-	
+
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
 #ifdef AHD_TARGET_MODE
@@ -491,7 +488,6 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 			}
 		}
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
-
 			SLIST_INSERT_HEAD(&lstate->accept_tios, &ccb->ccb_h,
 					  sim_links.sle);
 			ccb->ccb_h.status = CAM_REQ_INPROG;
@@ -541,7 +537,6 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 						    ccb->ccb_h.target_lun);
 		}
 		if ((scb = ahd_get_scb(ahd, col_idx)) == NULL) {
-	
 			xpt_freeze_simq(sim, /*count*/1);
 			ahd->flags |= AHD_RESOURCE_SHORTAGE;
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
@@ -721,7 +716,6 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 	}
 }
 
-
 static void
 ahd_set_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 		      struct ccb_trans_settings *cts)
@@ -764,14 +758,14 @@ ahd_set_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 		cts->ccb_h.status = CAM_REQ_INVALID;
 		return;
 	}
-	
+
 	if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
 		if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
 			*discenable |= devinfo.target_mask;
 		else
 			*discenable &= ~devinfo.target_mask;
 	}
-	
+
 	if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
 		if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0)
 			*tagenable |= devinfo.target_mask;
@@ -858,12 +852,12 @@ ahd_get_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 	targ_info = ahd_fetch_transinfo(ahd, devinfo.channel,
 					devinfo.our_scsiid,
 					devinfo.target, &tstate);
-	
+
 	if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
 		tinfo = &targ_info->curr;
 	else
 		tinfo = &targ_info->user;
-	
+
 	scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
 	spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
 	if (cts->type == CTS_TYPE_USER_SETTINGS) {
@@ -886,7 +880,7 @@ ahd_get_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 	spi->sync_offset = tinfo->offset;
 	spi->bus_width = tinfo->width;
 	spi->ppr_options = tinfo->ppr_options;
-	
+
 	cts->protocol = PROTO_SCSI;
 	cts->transport = XPORT_SPI;
 	spi->valid = CTS_SPI_VALID_SYNC_RATE
@@ -973,7 +967,6 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 		/* Copy the segments into our SG list */
 		for (i = nsegments, sg = scb->sg_list; i > 0; i--) {
-
 			sg = ahd_sg_setup(ahd, scb, sg, dm_segs->ds_addr,
 					  dm_segs->ds_len,
 					  /*last*/i == 1);
@@ -1072,19 +1065,17 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 	struct hardware_scb *hscb;
 	struct ccb_hdr *ccb_h;
 	int error;
-	
+
 	hscb = scb->hscb;
 	ccb_h = &csio->ccb_h;
-	
+
 	csio->resid = 0;
 	csio->sense_resid = 0;
 	if (ccb_h->func_code == XPT_SCSI_IO) {
 		hscb->cdb_len = csio->cdb_len;
 		if ((ccb_h->flags & CAM_CDB_POINTER) != 0) {
-
 			if (hscb->cdb_len > MAX_CDB_LEN
 			 && (ccb_h->flags & CAM_CDB_PHYS) == 0) {
-
 				/*
 				 * Should CAM start to support CDB sizes
 				 * greater than 16 bytes, we could use
@@ -1109,7 +1100,6 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 			}
 		} else {
 			if (hscb->cdb_len > MAX_CDB_LEN) {
-
 				aic_set_transaction_status(scb,
 							   CAM_REQ_INVALID);
 				ahd_free_scb(ahd, scb);
@@ -1240,7 +1230,7 @@ ahd_send_async(struct ahd_softc *ahd, char channel, u_int target,
 	case AC_TRANSFER_NEG:
 	{
 		struct	ccb_trans_settings_scsi *scsi;
-	
+
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		scsi = &cts.proto_specific.scsi;
 		cts.ccb_h.path = path;
@@ -1440,7 +1430,7 @@ DB_COMMAND(ahd_in, ahd_ddb_in)
 {
 	int c;
 	int size;
- 
+
 	if (ahd_ddb_softc == NULL) {
 		db_error("Must set unit with ahd_sunit first!\n");
 		return;
@@ -1487,7 +1477,7 @@ DB_FUNC(ahd_out, ahd_ddb_out, db_cmd_table, CS_MORE, NULL)
 	db_expr_t old_value;
 	db_expr_t new_value;
 	int	  size;
- 
+
 	if (ahd_ddb_softc == NULL) {
 		db_error("Must set unit with ahd_sunit first!\n");
 		return;
@@ -1508,7 +1498,7 @@ DB_FUNC(ahd_out, ahd_ddb_out, db_cmd_table, CS_MORE, NULL)
 		db_error("Unknown size\n");
 		return;
 	}
- 
+
 	while (db_expression(&new_value)) {
 		switch (size) {
 		default:
@@ -1543,7 +1533,6 @@ DB_COMMAND(ahd_dump, ahd_ddb_dump)
 }
 
 #endif
-
 
 DECLARE_MODULE(ahd, ahd_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_DEPEND(ahd, cam, 1, 1, 1);

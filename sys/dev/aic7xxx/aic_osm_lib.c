@@ -63,7 +63,7 @@ void
 aic_platform_timeout(void *arg)
 {
 	struct	scb *scb;
-	
+
 	scb = (struct scb *)arg; 
 	aic_lock(scb->aic_softc);
 	aic_timeout(scb);
@@ -130,4 +130,3 @@ aic_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
 {
 	cam_calc_geometry(ccg, extended);
 }
-

@@ -191,7 +191,7 @@ aic_scb_timer_reset(struct scb *scb, u_int msec)
 static __inline void
 aic_scb_timer_start(struct scb *scb)
 {
-	
+
 	if (AIC_SCB_DATA(scb->aic_softc)->recovery_scbs == 0
 	 && scb->io_ctx->ccb_h.timeout != CAM_TIME_INFINITY) {
 		aic_scb_timer_reset(scb, scb->io_ctx->ccb_h.timeout);
@@ -354,7 +354,6 @@ static __inline void	 aic_pci_write_config(aic_dev_softc_t pci,
 static __inline int	 aic_get_pci_function(aic_dev_softc_t);
 static __inline int	 aic_get_pci_slot(aic_dev_softc_t);
 static __inline int	 aic_get_pci_bus(aic_dev_softc_t);
-
 
 static __inline uint32_t
 aic_pci_read_config(aic_dev_softc_t pci, int reg, int width)
