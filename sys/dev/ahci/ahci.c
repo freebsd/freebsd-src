@@ -148,7 +148,6 @@ ahci_ctlr_reset(device_t dev)
 	if ((ATA_INL(ctlr->r_mem, AHCI_VS) >= 0x00010200) &&
 	    (ATA_INL(ctlr->r_mem, AHCI_CAP2) & AHCI_CAP2_BOH) &&
 	    ((v = ATA_INL(ctlr->r_mem, AHCI_BOHC)) & AHCI_BOHC_OOS) == 0) {
-
 		/* Request OS ownership. */
 		ATA_OUTL(ctlr->r_mem, AHCI_BOHC, v | AHCI_BOHC_OOS);
 
@@ -192,7 +191,6 @@ ahci_ctlr_reset(device_t dev)
 
 	return (0);
 }
-
 
 int
 ahci_attach(device_t dev)

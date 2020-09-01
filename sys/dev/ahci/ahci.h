@@ -679,4 +679,3 @@ struct ahci_channel * ahci_getch(device_t dev, int n);
 void ahci_putch(struct ahci_channel *ch);
 
 extern devclass_t ahci_devclass;
-
