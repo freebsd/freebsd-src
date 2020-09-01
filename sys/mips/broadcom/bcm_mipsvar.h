@@ -51,7 +51,6 @@ struct bcm_mips_softc;
 #define	BCM_MIPS_IRQ_SHARED	0			/**< MIPS CPU IRQ reserved for shared interrupt handling */
 #define	INTR_MAP_DATA_BCM_MIPS	INTR_MAP_DATA_PLAT_2	/**< Broadcom MIPS PIC interrupt map data type */
 
-
 int	bcm_mips_attach(device_t dev, u_int num_cpuirqs, u_int timer_irq,
 	    driver_filter_t filter);
 int	bcm_mips_detach(device_t dev);
@@ -99,7 +98,6 @@ struct bcm_mips_softc {
 	struct bcm_mips_irqsrc	 isrcs[BCM_MIPS_NINTR];
 	struct mtx		 mtx;
 };
-
 
 #define	BCM_MIPS_IVEC_MASK(_isrc)	(1 << ((_isrc)->ivec))
 

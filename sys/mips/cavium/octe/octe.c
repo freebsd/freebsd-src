@@ -112,7 +112,6 @@ static device_method_t octe_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	octe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	octe_miibus_writereg),
-
 	{ 0, 0 }
 };
 
@@ -454,7 +453,7 @@ octe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		priv->if_flags = ifp->if_flags;
 		return (0);
-	
+
 	case SIOCSIFCAP:
 		/*
 		 * Just change the capabilities in software, currently none
@@ -483,7 +482,7 @@ octe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (error != 0)
 			return (error);
 		return (0);
-	
+
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		if (error != 0)

@@ -258,7 +258,6 @@ octopci_bs_r_4(void *t, bus_space_handle_t handle,
 	return (rd32(handle + offset));
 }
 
-
 void
 octopci_bs_rm_1(void *t, bus_space_handle_t bsh,
     bus_size_t offset, uint8_t *addr, size_t count)
@@ -287,7 +286,6 @@ octopci_bs_rm_4(void *t, bus_space_handle_t bsh,
 	while (count--)
 		*addr++ = rd32(baddr);
 }
-
 
 /*
  * Read `count' 1, 2, 4, or 8 byte quantities from bus space

@@ -48,7 +48,6 @@
 #define USB_OHCI_INTERRUPT2_EN		0x08
 #define USB_CTRL_INTERRUPT_EN		0x10
 
-
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
 #define nlm_read_usb_reg(b, r)		nlm_read_reg(b,r)

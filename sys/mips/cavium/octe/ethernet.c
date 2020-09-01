@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -251,7 +250,6 @@ static void cvm_oct_configure_common_hw(device_t bus)
 		return;
         }
 
-
 #ifdef SMP
 	{
 		cvmx_ciu_intx0_t en;
@@ -268,7 +266,6 @@ static void cvm_oct_configure_common_hw(device_t bus)
 	}
 #endif
 }
-
 
 /**
  * Free a work queue entry received in a intercept callback.
@@ -294,7 +291,6 @@ int cvm_oct_free_work(void *work_queue_entry)
 
 	return 0;
 }
-
 
 /**
  * Module/ driver initialization. Creates the linux network
@@ -379,7 +375,6 @@ int cvm_oct_init_module(device_t bus)
 			TASK_INIT(&priv->link_task, 0, cvm_oct_update_link, priv);
 
 			switch (priv->imode) {
-
 			/* These types don't support ports to IPD/PKO */
 			case CVMX_HELPER_INTERFACE_MODE_DISABLED:
 			case CVMX_HELPER_INTERFACE_MODE_PCIE:
@@ -462,7 +457,6 @@ int cvm_oct_init_module(device_t bus)
 
 	return 0;
 }
-
 
 /**
  * Module / driver shutdown

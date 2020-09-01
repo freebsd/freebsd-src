@@ -297,11 +297,11 @@ mtk_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 			buf[i] = byte;
 		}
 	}
-	
+
 	/*
 	 * Transfer/Receive data
 	 */
-	
+
 	if (cmd->tx_data_sz + cmd->rx_data_sz) {
 		write = (cmd->tx_data_sz > 0)?1:0;
 		buf = (uint8_t *)(write ? cmd->tx_data : cmd->rx_data);

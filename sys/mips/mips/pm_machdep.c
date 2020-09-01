@@ -295,7 +295,6 @@ out:
 	return (error);
 }
 
-
 void
 makectx(struct trapframe *tf, struct pcb *pcb)
 {
@@ -399,7 +398,6 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 	memcpy(&td->td_frame->f0, fpregs, sizeof(struct fpreg));
 	return 0;
 }
-
 
 /*
  * Clear registers on exec

@@ -171,7 +171,6 @@ platform_init_secondary(int cpuid)
 	}
 }
 
-
 void
 platform_ipi_send(int cpuid)
 {

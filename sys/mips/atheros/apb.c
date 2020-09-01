@@ -356,7 +356,6 @@ apb_filter(void *arg)
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
 		if (reg & (1 << irq)) {
-
 			switch (ar71xx_soc) {
 			case AR71XX_SOC_AR7240:
 			case AR71XX_SOC_AR7241:
@@ -508,7 +507,6 @@ apb_print_child(device_t bus, device_t child)
 
 	return (retval);
 }
-
 
 static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_activate_resource,	apb_activate_resource),

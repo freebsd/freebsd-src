@@ -47,7 +47,6 @@
 #define	XLP_SEC_KASUMI_F8_KEY_LENGTH	16	/* Bytes */
 #define	XLP_SEC_MAX_CRYPT_KEY_LENGTH	XLP_SEC_AES256F8_KEY_LENGTH
 
-
 #define	XLP_SEC_DES_IV_LENGTH		8	/* Bytes */
 #define	XLP_SEC_AES_IV_LENGTH		16	/* Bytes */
 #define	XLP_SEC_ARC4_IV_LENGTH		0	/* Bytes */

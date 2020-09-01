@@ -39,12 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/reboot.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
- 
+
 #include <net/ethernet.h>
- 
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
- 
+
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar933xreg.h>
 #include <mips/atheros/ar934xreg.h>
@@ -234,4 +234,3 @@ ar71xx_get_system_type(void)
 {
 	return ar71xx_sys_type;
 }
-

@@ -108,7 +108,6 @@ nlm_write_c0_config7(uint32_t value)
  * (G) = Global mode
  */
 
-
 /* en = 1 to enable
  * en = 0 to disable
  */

@@ -58,7 +58,6 @@ struct octusb_td {
 };
 
 struct octusb_qh {
-
 	uint64_t fixup_phys;
 
 	struct octusb_softc *sc;
@@ -110,7 +109,6 @@ struct octusb_port {
 };
 
 struct octusb_softc {
-
 	struct usb_bus sc_bus;		/* base device */
 	union octusb_hub_desc sc_hub_desc;
 

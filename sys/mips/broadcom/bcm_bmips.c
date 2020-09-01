@@ -103,7 +103,6 @@ bcm_bmips_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
-
 static int
 bcm_bmips_attach(device_t dev)
 {

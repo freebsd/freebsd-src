@@ -244,7 +244,6 @@ next_instr_address(db_addr_t pc, boolean_t bd)
 	return (next);
 }
 
-
 /*
  *	Decode instruction and figure out type.
  */

@@ -51,7 +51,7 @@ struct obio_softc {
 	bus_size_t oba_size;		/* size of device */
 	struct rman oba_rman;
 	struct rman oba_irq_rman;
-	
+
 };
 
 #endif /* _OCTEON_OBIOVAR_H_ */

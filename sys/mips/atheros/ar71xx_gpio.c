@@ -411,8 +411,6 @@ ar71xx_gpio_filter(void *arg)
 	return (FILTER_STRAY);
 }
 
-
-
 static void
 ar71xx_gpio_intr(void *arg)
 {

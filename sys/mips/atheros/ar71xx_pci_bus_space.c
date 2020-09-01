@@ -188,7 +188,7 @@ pcimem_bs_w_2_s(void *t, bus_space_handle_t h, bus_size_t o, uint16_t v)
 static uint32_t
 pcimem_bs_r_4_s(void *t, bus_space_handle_t h, bus_size_t o)
 {
-	
+
 	return le32toh(readl(h + o));
 }
 

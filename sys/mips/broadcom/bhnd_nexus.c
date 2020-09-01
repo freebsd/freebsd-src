@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bhnd_nexusvar.h"
 
-
 /**
  * Default bhnd_nexus implementation of BHND_BUS_GET_SERVICE_REGISTRY().
  */

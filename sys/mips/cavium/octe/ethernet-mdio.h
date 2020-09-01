@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -39,4 +38,3 @@ extern struct mtx cvm_oct_mdio_mtx;
 int cvm_oct_mdio_read(struct ifnet *ifp, int phy_id, int location);
 void cvm_oct_mdio_write(struct ifnet *ifp, int phy_id, int location, int val);
 int cvm_oct_mdio_setup_device(struct ifnet *ifp);
-

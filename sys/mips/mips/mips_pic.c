@@ -390,7 +390,6 @@ static device_method_t mips_pic_methods[] = {
 	DEVMETHOD(pic_pre_ithread,	mips_pic_pre_ithread),
 	DEVMETHOD(pic_post_ithread,	mips_pic_post_ithread),
 	DEVMETHOD(pic_post_filter,	mips_pic_post_filter),
-
 	{ 0, 0 }
 };
 
@@ -610,7 +609,7 @@ mips_pic_deactivate_intr(device_t child, struct resource *r)
 		}
 	}
 	intr->consumers--;
-	
+
 	mtx_unlock(&mips_pic_mtx);
 	return (0);
 }
@@ -672,7 +671,7 @@ cpu_establish_intr(struct mips_pic_softc *sc, const char *name,
 			res = intr->res;
 			mtx_unlock(&mips_pic_mtx);
 		}
-	
+
 		if (res == NULL) {
 			panic("Unable to allocate IRQ %d->%u resource", irq,
 			    intr->intr_irq);
@@ -711,4 +710,3 @@ cpu_establish_softintr(const char *name, driver_filter_t *filt,
 	cpu_establish_intr(pic_sc, name, filt, handler, arg, irq, flags,
 	    cookiep);
 }
-

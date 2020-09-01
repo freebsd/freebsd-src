@@ -163,7 +163,6 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
 #endif
 #endif
-
 	{ 0, 0 }
 };
 

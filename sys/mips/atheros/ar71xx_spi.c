@@ -282,7 +282,6 @@ static device_method_t ar71xx_spi_methods[] = {
 	DEVMETHOD(device_detach,	ar71xx_spi_detach),
 
 	DEVMETHOD(spibus_transfer,	ar71xx_spi_transfer),
-
 	{0, 0}
 };
 

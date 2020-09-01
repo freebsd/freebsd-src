@@ -55,7 +55,6 @@
  *
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -121,7 +120,7 @@ oct16550_delay (struct uart_bas *bas)
 	uart_barrier(bas);
 	uart_setreg(bas, REG_LCR, lcr);
 	uart_barrier(bas);
-	
+
 	if(!bas->rclk)
 		return 10; /* return an approx delay value */
 
@@ -598,7 +597,6 @@ oct16550_bus_ioctl (struct uart_softc *sc, int request, intptr_t data)
 	return (error);
 }
 
-
 static int
 oct16550_bus_ipend(struct uart_softc *sc)
 {
@@ -611,7 +609,6 @@ oct16550_bus_ipend(struct uart_softc *sc)
 
 	iir = uart_getreg(bas, REG_IIR) & IIR_IMASK;
 	if (iir != IIR_NOPEND) {
-
             	if (iir == IIR_RLS) {
                     	lsr = uart_getreg(bas, REG_LSR);
                         if (lsr & LSR_OE)
@@ -698,7 +695,6 @@ oct16550_bus_probe (struct uart_softc *sc)
 	sc->sc_rxfifosz = 1;
 	sc->sc_txfifosz = 1;
 #endif
-
 
 #if 0
 	/*

@@ -116,12 +116,11 @@ ar5315_wdog_sysctl(device_t dev)
                 "whether the system rebooted from the watchdog");
 }
 
-
 static int
 ar5315_wdog_attach(device_t dev)
 {
 	struct ar5315_wdog_softc *sc = device_get_softc(dev);
-	
+
 	/* Initialise */
 	sc->reboot_from_watchdog = 0;
 	sc->armed = 0;

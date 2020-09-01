@@ -241,7 +241,6 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 
 	/* Detect the system type - this is needed for subsequent chipset-specific calls */
 
-
 	ar531x_device_soc_init();
 	ar531x_detect_sys_frequency();
 

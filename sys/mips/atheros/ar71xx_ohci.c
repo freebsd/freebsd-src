@@ -79,7 +79,6 @@ ar71xx_ohci_intr(void *arg)
 	ohci_interrupt(arg);
 }
 
-
 static int
 ar71xx_ohci_attach(device_t dev)
 {

@@ -285,7 +285,6 @@ clock_intr(void *arg)
 	DPCPU_SET(counter_lower_last, count);
 
 	if (cycles_per_tick > 0) {
-
 		/*
 		 * Account for the "lost time" between when the timer interrupt
 		 * fired and when 'clock_intr' actually started executing.
@@ -373,7 +372,6 @@ static device_method_t clock_methods[] = {
 	DEVMETHOD(device_attach, clock_attach),
 	DEVMETHOD(device_detach, bus_generic_detach),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
 	{0, 0}
 };
 

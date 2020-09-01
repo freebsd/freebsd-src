@@ -386,7 +386,6 @@ apb_release_resource(device_t dev, device_t child, int type,
 	return (0);
 }
 
-
 static int
 apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 		int flags, driver_filter_t *filt, driver_intr_t *handler,
@@ -402,7 +401,7 @@ apb_setup_intr(device_t bus, device_t child, struct resource *ires,
 #ifdef INTRNG
 	struct intr_irqsrc *isrc;
 	const char *name;
-	
+
 	if ((rman_get_flags(ires) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
@@ -479,7 +478,6 @@ apb_teardown_intr(device_t dev, device_t child, struct resource *ires,
 #endif
 }
 
-
 static int
 apb_filter(void *arg)
 {
@@ -496,7 +494,6 @@ apb_filter(void *arg)
 
 	for (irq = 0; irq < APB_NIRQS; irq++) {
 		if (reg & (1 << irq)) {
-
 			if(ar531x_soc >= AR531X_SOC_AR5315) {
 				ATH_WRITE_REG(AR5315_SYSREG_BASE +
 				    AR5315_SYSREG_MISC_INTSTAT,

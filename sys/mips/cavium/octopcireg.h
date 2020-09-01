@@ -90,7 +90,6 @@ typedef union
     } s;
 } octeon_pci_io_space_address_t;
 
-
 #define CVMX_OCT_SUBDID_PCI_CFG     1
 #define CVMX_OCT_SUBDID_PCI_IO      2
 #define CVMX_OCT_SUBDID_PCI_MEM1    3
