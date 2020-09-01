@@ -139,7 +139,7 @@ acpi_panasonic_probe(device_t dev)
 {
 	static char *mat_ids[] = { "MAT0019", NULL };
 	int rv;
-	
+
 	if (acpi_disabled("panasonic") ||
 	    device_get_unit(dev) != 0)
 		return (ENXIO);
