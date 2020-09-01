@@ -354,7 +354,6 @@ struct an_rxframe_802_3 {
 };
 #define AN_RXGAP_MAX	8
 
-
 struct an_txframe_802_3 {
 /*
  * Transmit 802.3 header structure.
