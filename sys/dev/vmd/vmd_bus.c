@@ -95,7 +95,7 @@ vmd_bus_attach(device_t dev)
 	end = rman_get_end(sc->vmd_io_resource);
 	resource_list_add_next(&dinfo->resources, SYS_RES_IOPORT, start, end,
 	    end - start + 1);
- 
+
 	bus_generic_attach(dev);
 
 	return (0);
