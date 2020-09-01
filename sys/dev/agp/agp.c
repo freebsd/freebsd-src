@@ -93,7 +93,6 @@ agp_find_caps(device_t dev)
 {
 	int capreg;
 
-
 	if (pci_find_cap(dev, PCIY_AGP, &capreg) != 0)
 		capreg = 0;
 	return (capreg);
@@ -357,7 +356,7 @@ agp_v3_enable(device_t dev, device_t mdev, u_int32_t mode)
 	fw = (AGP_MODE_GET_FW(tstatus)
 	       & AGP_MODE_GET_FW(mstatus)
 	       & AGP_MODE_GET_FW(mode));
-	
+
 	/* Figure out the max rate */
 	rate = (AGP_MODE_GET_RATE(tstatus)
 		& AGP_MODE_GET_RATE(mstatus)
@@ -563,7 +562,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		i = 0;
 		goto bad;
 	}
-	
+
 	/*
 	 * Bind the individual pages and flush the chipset's
 	 * TLB.
@@ -637,7 +636,6 @@ agp_generic_unbind_memory(device_t dev, struct agp_memory *mem)
 		mtx_unlock(&sc->as_lock);
 		return EINVAL;
 	}
-
 
 	/*
 	 * Unbind the individual pages and flush the chipset's

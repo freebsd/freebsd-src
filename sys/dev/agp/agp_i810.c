@@ -1216,7 +1216,7 @@ agp_i830_install_gatt_init(struct agp_i810_softc *sc)
 	pgtblctl = bus_read_4(sc->sc_res[0], AGP_I810_PGTBL_CTL);
 	pgtblctl |= 1;
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, pgtblctl);
-	
+
 	sc->gatt->ag_physical = pgtblctl & ~1;
 }
 
@@ -1412,7 +1412,7 @@ agp_i810_set_aperture(device_t dev, u_int32_t aperture)
 		miscc |= AGP_I810_MISCC_WINSIZE_32;
 	else
 		miscc |= AGP_I810_MISCC_WINSIZE_64;
-	
+
 	pci_write_config(sc->bdev, AGP_I810_MISCC, miscc, 2);
 	return (0);
 }
@@ -1915,7 +1915,6 @@ static device_method_t agp_i810_methods[] = {
 	DEVMETHOD(agp_bind_memory,	agp_i810_bind_memory),
 	DEVMETHOD(agp_unbind_memory,	agp_i810_unbind_memory),
 	DEVMETHOD(agp_chipset_flush,	agp_intel_gtt_chipset_flush),
-
 	{ 0, 0 }
 };
 
