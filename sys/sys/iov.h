@@ -256,4 +256,3 @@ struct pci_iov_arg
 #define	IOV_GET_SCHEMA	_IOWR('p', 12, struct pci_iov_schema)
 
 #endif
-

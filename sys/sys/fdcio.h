@@ -125,7 +125,6 @@ enum fd_drivetype {
 	FDT_288M
 };
 
-
 #define FD_FORM   _IOW('F', 61, struct fd_formb) /* format a track */
 #define FD_GTYPE  _IOR('F', 62, struct fd_type)  /* get drive type */
 #define FD_STYPE  _IOW('F', 63, struct fd_type)  /* set drive type */

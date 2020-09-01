@@ -328,7 +328,6 @@ __END_DECLS
 		_FAIL_POINT_EVAL(name, true, code) \
 	} while (0)
 
-
 /**
  * Instantiate a failpoint which runs arbitrary code when triggered.
  * @param parent     The parent sysctl under which to locate the sysctl

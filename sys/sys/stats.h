@@ -557,7 +557,6 @@ extern const struct voistatdata_numeric numeric_limits[2][VSD_DTYPE_Q_U64 + 1];
 #define	STATS_VSS_DVHIST64_USR(vals, vsdflags) \
     STATS_VSS_HIST(VSD_DTYPE_DVHIST64, HIST_HLPR_INFO(VSD_DTYPE_DVHIST64, \
     BKT_USR, vsdflags, 0, 0, HIST_HLPR_INFO_USR_FIELDS(vals)))
-
 #define	DRBKT(lb, ub) { stats_ctor_vsd_numeric(lb), stats_ctor_vsd_numeric(ub) }
 #define	DVBKT(val) DRBKT(val, val)
 #define	CRBKT(lb) DRBKT(lb, lb)
@@ -583,7 +582,7 @@ extern const struct voistatdata_numeric numeric_limits[2][VSD_DTYPE_Q_U64 + 1];
     VSD_HIST_FIELD(hist, , hist_dtype, (void *)&,field)
 #define	VSD_CONSTHIST_FIELDPTR(hist, hist_dtype, field) \
     VSD_HIST_FIELD(hist, const, hist_dtype, (void *)&,field)
-	
+
 #define	VSD_CRHIST_FIELD(hist, cnst, hist_dtype, op, field) \
     (VSD_DTYPE_CRHIST32 == (hist_dtype) ? \
     op(_VSD(cnst, crhist32, hist)->field) : \

@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 /* Copyrights macros  */
 
 /* Add a FreeBSD vendor copyright here */

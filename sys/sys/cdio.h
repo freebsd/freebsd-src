@@ -108,7 +108,6 @@ struct cd_sub_channel_info {
 	} what;
 };
 
-
 /***************************************************************\
 * Ioctls for the CD drive					*
 \***************************************************************/
@@ -121,13 +120,11 @@ struct ioc_play_track {
 };
 #define	CDIOCPLAYTRACKS	_IOW('c',1,struct ioc_play_track)
 
-
 struct ioc_play_blocks {
 	int	blk;
 	int	len;
 };
 #define	CDIOCPLAYBLOCKS	_IOW('c',2,struct ioc_play_blocks)
-
 
 struct ioc_read_subchannel {
 	u_char address_format;
@@ -144,14 +141,12 @@ struct ioc_read_subchannel {
 };
 #define CDIOCREADSUBCHANNEL _IOWR('c', 3 , struct ioc_read_subchannel )
 
-
 struct ioc_toc_header {
 	u_short len;
 	u_char  starting_track;
 	u_char  ending_track;
 };
 #define CDIOREADTOCHEADER _IOR('c',4,struct ioc_toc_header)
-
 
 struct ioc_read_toc_entry {
 	u_char	address_format;
@@ -161,7 +156,6 @@ struct ioc_read_toc_entry {
 };
 #define CDIOREADTOCENTRYS _IOWR('c',5,struct ioc_read_toc_entry)
 
-
 struct ioc_read_toc_single_entry {
 	u_char	address_format;
 	u_char	track;
@@ -169,12 +163,10 @@ struct ioc_read_toc_single_entry {
 };
 #define CDIOREADTOCENTRY _IOWR('c',6,struct ioc_read_toc_single_entry)
 
-
 struct ioc_patch {
 	u_char	patch[4];	/* one for each channel */
 };
 #define	CDIOCSETPATCH	_IOW('c',9,struct ioc_patch)
-
 
 struct ioc_vol {
 	u_char	vol[4];	/* one for each channel */
@@ -210,7 +202,6 @@ struct ioc_vol {
 
 #define	CDIOCEJECT	_IO('c',24)
 
-
 struct ioc_play_msf {
 	u_char	start_m;
 	u_char	start_s;
@@ -229,7 +220,6 @@ struct ioc_play_msf {
 				/*<1>causes the drive to close its door*/
 				/*<1>and make the media (if any) ready*/
 #define CDIOCCLOSE	_IO('c',28)	/*<1>*/
-
 
 struct ioc_pitch {		/*<1>For drives that support it, this*/
 				/*<1>call instructs the drive to play the*/

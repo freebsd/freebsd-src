@@ -88,7 +88,6 @@ validbcd(int bcd)
 
 	return (bcd == 0 || (bcd > 0 && bcd <= 0x99 && bcd2bin_data[bcd] != 0));
 }
-
 static __inline int imax(int a, int b) { return (a > b ? a : b); }
 static __inline int imin(int a, int b) { return (a < b ? a : b); }
 static __inline long lmax(long a, long b) { return (a > b ? a : b); }
@@ -113,7 +112,6 @@ static __inline __uintmax_t ummin(__uintmax_t a, __uintmax_t b)
 }
 static __inline off_t omax(off_t a, off_t b) { return (a > b ? a : b); }
 static __inline off_t omin(off_t a, off_t b) { return (a < b ? a : b); }
-
 static __inline int abs(int a) { return (a < 0 ? -a : a); }
 static __inline long labs(long a) { return (a < 0 ? -a : a); }
 static __inline quad_t qabs(quad_t a) { return (a < 0 ? -a : a); }

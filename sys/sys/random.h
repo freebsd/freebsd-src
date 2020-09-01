@@ -153,7 +153,6 @@ void random_harvest_deregister_source(enum random_entropy_source);
 #define random_harvest_queue_ether(a, b)	do {} while (0)
 #endif /* defined(RANDOM_ENABLE_ETHER) */
 
-
 #endif /* _KERNEL */
 
 #define GRND_NONBLOCK	0x1

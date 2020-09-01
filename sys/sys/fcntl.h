@@ -327,7 +327,6 @@ struct __oflock {
 #define	POSIX_FADV_NOREUSE	5	/* access data only once */
 #endif
 
-
 #ifdef __BSD_VISIBLE
 /*
  * Magic value that specify that corresponding file descriptor to filename

@@ -44,7 +44,7 @@ enum intr_map_data_type {
 	INTR_MAP_DATA_FDT,
 	INTR_MAP_DATA_GPIO,
 	INTR_MAP_DATA_MSI,
-	
+
 	/* Placeholders for platform specific types */
 	INTR_MAP_DATA_PLAT_1 = 1000,
 	INTR_MAP_DATA_PLAT_2,

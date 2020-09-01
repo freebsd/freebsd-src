@@ -167,7 +167,7 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
  */
 #define	CRITICAL_ASSERT(td)						\
 	KASSERT((td)->td_critnest >= 1, ("Not in critical section"));
- 
+
 /*
  * If we have already panic'd and this is the thread that called
  * panic(), then don't block on any mutexes but silently succeed.
@@ -268,7 +268,6 @@ void	tablefull(const char *);
 extern int (*lkpi_alloc_current)(struct thread *, int);
 int linux_alloc_current_noop(struct thread *, int);
 
-
 #if defined(KLD_MODULE) || defined(KTR_CRITICAL) || !defined(_KERNEL) || defined(GENOFFSET)
 #define critical_enter() critical_enter_KBI()
 #define critical_exit() critical_exit_KBI()
@@ -299,7 +298,6 @@ critical_exit(void)
 
 }
 #endif
-
 
 #ifdef  EARLY_PRINTF
 typedef void early_putc_t(int ch);
@@ -564,7 +562,6 @@ struct root_hold_token *root_mount_hold(const char *identifier);
 void root_mount_hold_token(const char *identifier, struct root_hold_token *h);
 void root_mount_rel(struct root_hold_token *h);
 int root_mounted(void);
-
 
 /*
  * Unit number allocation API. (kern/subr_unit.c)
