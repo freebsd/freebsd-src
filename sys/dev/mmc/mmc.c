@@ -130,7 +130,6 @@ static const struct mmc_quirk mmc_quirks[] = {
 	 */
 	{ 0x70, MMC_QUIRK_OID_ANY,	"V10008", MMC_QUIRK_BROKEN_TRIM },
 	{ 0x70, MMC_QUIRK_OID_ANY,	"V10016", MMC_QUIRK_BROKEN_TRIM },
-
 	{ 0x0, 0x0, NULL, 0x0 }
 };
 
