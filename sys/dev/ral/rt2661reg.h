@@ -119,7 +119,6 @@
 #define RT2661_IO_CNTL_CSR		0x3498
 #define RT2661_MCU_CODE_BASE		0x4000
 
-
 /* possible flags for register HOST_CMD_CSR */
 #define RT2661_KICK_CMD		(1 << 7)
 /* Host to MCU (8051) command identifiers */

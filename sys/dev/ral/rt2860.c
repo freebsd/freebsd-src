@@ -504,7 +504,6 @@ rt2860_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
-
 static int
 rt2860_alloc_tx_ring(struct rt2860_softc *sc, struct rt2860_tx_ring *ring)
 {
@@ -2591,7 +2590,7 @@ rt5390_set_chan(struct rt2860_softc *sc, u_int chan)
 	rf = MIN(rf, 0x5f);
 	if (tmp != rf)
 		rt2860_mcu_cmd(sc, 0x74, (tmp << 8 ) | rf, 0);
-	
+
 	if (sc->mac_ver == 0x5390) {
 		if (chan <= 4)
 			rf = 0x73;
