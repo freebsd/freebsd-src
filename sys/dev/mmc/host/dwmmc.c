@@ -1478,7 +1478,6 @@ dwmmc_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_SET_TRAN_SETTINGS:
 	{
-
 		dwmmc_cam_settran_settings(sc, ccb);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
