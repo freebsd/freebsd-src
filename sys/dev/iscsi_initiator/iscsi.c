@@ -370,7 +370,6 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	  sprintf(buf, "/---- socket -----/\nso_count=%d so_state=%x\n", so->so_count, so->so_state);
 	  uiomove(buf, strlen(buf), uio);
-
      }
 #endif
      return 0;
@@ -749,7 +748,7 @@ iscsi_start(void)
 		       iscsi_driver_version,
 		       0,
 		       "iscsi driver version");
- 
+
      SYSCTL_ADD_STRING(&isc->clist,
 		       SYSCTL_CHILDREN(isc->oid),
 		       OID_AUTO,

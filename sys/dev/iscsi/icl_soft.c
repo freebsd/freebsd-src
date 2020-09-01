@@ -954,7 +954,6 @@ icl_conn_send_pdus(struct icl_conn *ic, struct icl_pdu_stailq *queue)
 		request = STAILQ_FIRST(queue);
 		size = icl_pdu_size(request);
 		if (available < size) {
-
 			/*
 			 * Set the low watermark, to be checked by
 			 * sowriteable() in icl_soupcall_send()
