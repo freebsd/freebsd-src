@@ -576,7 +576,6 @@ struct nvme_command
 _Static_assert(sizeof(struct nvme_command) == 16 * 4, "bad size for nvme_command");
 
 struct nvme_completion {
-
 	/* dword 0 */
 	uint32_t		cdw0;	/* command-specific */
 
@@ -871,7 +870,6 @@ _Static_assert(sizeof(struct nvme_power_state) == 32, "bad size for nvme_power_s
 #define NVME_FIRMWARE_REVISION_LENGTH	8
 
 struct nvme_controller_data {
-
 	/* bytes 0-255: controller capabilities and features */
 
 	/** pci vendor id */
@@ -1117,7 +1115,6 @@ struct nvme_controller_data {
 _Static_assert(sizeof(struct nvme_controller_data) == 4096, "bad size for nvme_controller_data");
 
 struct nvme_namespace_data {
-
 	/** namespace size */
 	uint64_t		nsze;
 
@@ -1231,7 +1228,6 @@ struct nvme_namespace_data {
 _Static_assert(sizeof(struct nvme_namespace_data) == 4096, "bad size for nvme_namepsace_data");
 
 enum nvme_log_page {
-
 	/* 0x00 - reserved */
 	NVME_LOG_ERROR			= 0x01,
 	NVME_LOG_HEALTH_INFORMATION	= 0x02,
@@ -1272,7 +1268,6 @@ enum nvme_log_page {
 };
 
 struct nvme_error_information_entry {
-
 	uint64_t		error_count;
 	uint16_t		sqid;
 	uint16_t		cid;
@@ -1291,7 +1286,6 @@ struct nvme_error_information_entry {
 _Static_assert(sizeof(struct nvme_error_information_entry) == 64, "bad size for nvme_error_information_entry");
 
 struct nvme_health_information_page {
-
 	uint8_t			critical_warning;
 	uint16_t		temperature;
 	uint8_t			available_spare;
@@ -1336,7 +1330,6 @@ struct nvme_health_information_page {
 _Static_assert(sizeof(struct nvme_health_information_page) == 512, "bad size for nvme_health_information_page");
 
 struct nvme_firmware_page {
-
 	uint8_t			afi;
 	uint8_t			reserved[7];
 	uint64_t		revision[7]; /* revisions for 7 slots */
@@ -1456,7 +1449,6 @@ _Static_assert(sizeof(struct nvme_resv_status_ext) == 64, "bad size for nvme_res
 #define NVME_TEST_MAX_THREADS	128
 
 struct nvme_io_test {
-
 	enum nvme_nvm_opcode	opc;
 	uint32_t		size;
 	uint32_t		time;	/* in seconds */
@@ -1466,7 +1458,6 @@ struct nvme_io_test {
 };
 
 enum nvme_io_test_flags {
-
 	/*
 	 * Specifies whether dev_refthread/dev_relthread should be
 	 *  called during NVME_BIO_TEST.  Ignored for other test
@@ -1476,7 +1467,6 @@ enum nvme_io_test_flags {
 };
 
 struct nvme_pt_command {
-
 	/*
 	 * cmd is used to specify a passthrough command to a controller or
 	 *  namespace.
@@ -1854,7 +1844,6 @@ void	nvme_health_information_page_swapbytes(struct nvme_health_information_page 
 	s->ttftmt1 = le32toh(s->ttftmt1);
 	s->ttftmt2 = le32toh(s->ttftmt2);
 }
-
 
 static inline
 void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s)

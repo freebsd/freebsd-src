@@ -86,7 +86,6 @@ nvme_dump_queue(struct nvme_qpair *qpair)
 	}
 }
 
-
 static int
 nvme_sysctl_dump_debug(SYSCTL_HANDLER_ARGS)
 {
@@ -252,7 +251,6 @@ nvme_sysctl_reset_stats(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-
 
 static void
 nvme_sysctl_initialize_queue(struct nvme_qpair *qpair,
