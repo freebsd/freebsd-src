@@ -78,12 +78,9 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-
-
 #include "smartpqi_defines.h"
 #include "smartpqi_structures.h"
 #include "smartpqi_prototypes.h"
 #include "smartpqi_ioctl.h"
-
 
 #endif // _PQI_INCLUDES_H

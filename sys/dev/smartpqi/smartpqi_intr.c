@@ -28,7 +28,6 @@
 
 #include "smartpqi_includes.h"
 
-
 /*
  * Function to get processor count
  */
@@ -37,7 +36,7 @@ int os_get_processor_config(pqisrc_softstate_t *softs)
 	DBG_FUNC("IN\n");
 	softs->num_cpus_online = mp_ncpus;
 	DBG_FUNC("OUT\n");
-	
+
 	return PQI_STATUS_SUCCESS;
 }
 
@@ -118,7 +117,7 @@ static void shared_ithread_routine(void *arg)
 	pqi_intr_ctx_t *intr_ctx = (pqi_intr_ctx_t *)arg;
 	pqisrc_softstate_t *softs = device_get_softc(intr_ctx->pqi_dev);
 	int oq_id  = intr_ctx->oq_id;
-	
+
 	DBG_FUNC("IN\n");
 
 	pqisrc_process_response_queue(softs, oq_id);
@@ -137,7 +136,7 @@ static void common_ithread_routine(void *arg)
 	int oq_id  = intr_ctx->oq_id;
 
 	DBG_FUNC("IN\n");
-	
+
 	pqisrc_process_response_queue(softs, oq_id);
 
 	DBG_FUNC("OUT\n");
@@ -371,7 +370,7 @@ void deregister_pqi_msix(pqisrc_softstate_t *softs)
 	int i = 0;
 
 	DBG_FUNC("IN\n");
-	
+
 	os_mem_free(softs, (char*)softs->os_specific.msi_ctx, sizeof(pqi_intr_ctx_t) * msix_count);
 	softs->os_specific.msi_ctx = NULL;
 
@@ -412,7 +411,7 @@ int os_destroy_intr(pqisrc_softstate_t *softs)
 		pci_release_msi(dev);
 		softs->os_specific.msi_enabled = FALSE;
 	} 
-	
+
 	DBG_FUNC("OUT\n");
 
 	return PQI_STATUS_SUCCESS;

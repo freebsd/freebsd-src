@@ -39,7 +39,6 @@ void os_get_time(struct bmic_host_wellness_time *host_wellness_time)
 	getnanotime(&ts);
 	clock_ts_to_ct(&ts, &ct);
 
-
 	/* Fill the time In BCD Format */
 	host_wellness_time->hour= (uint8_t)bin2bcd(ct.hour);
 	host_wellness_time->min = (uint8_t)bin2bcd(ct.min);
@@ -60,7 +59,6 @@ void os_wellness_periodic(void *data)
 {
 	struct pqisrc_softstate *softs = (struct pqisrc_softstate *)data;
 	int ret = 0;
-
 
 	/* update time to FW */
 	if (!pqisrc_ctrl_offline(softs)){
@@ -160,7 +158,6 @@ void inline os_sema_unlock(struct sema *sema)
 {
 	sema_wait(sema);
 }
-
 
 /*
  * string copy wrapper function

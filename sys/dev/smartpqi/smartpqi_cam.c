@@ -76,7 +76,7 @@ static void get_transport_settings(struct pqisrc_softstate *softs,
 	struct ccb_trans_settings_spi	*spi = &cts->xport_specific.spi;
 
 	DBG_FUNC("IN\n");
-	
+
 	cts->protocol = PROTO_SCSI;
 	cts->protocol_version = SCSI_REV_SPC4;
 	cts->transport = XPORT_SPI;
@@ -126,7 +126,7 @@ void os_remove_device(pqisrc_softstate_t *softs,
 	struct cam_path *tmppath;
 
 	DBG_FUNC("IN\n");
-	
+
 	if(softs->os_specific.sim_registered) {
 		if (xpt_create_path(&tmppath, NULL, 
 			cam_sim_path(softs->os_specific.sim),
@@ -224,7 +224,6 @@ smartpqi_fix_ld_inquiry(pqisrc_softstate_t *softs, struct ccb_scsiio *csio)
 		(cdb[1] & SI_EVPD) == 0 &&
 		(csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN &&
 		csio->dxfer_len >= SHORT_INQUIRY_LENGTH) {
-
 		inq = (struct scsi_inquiry_data *)csio->data_ptr;
 
 		device = softs->device_list[csio->ccb_h.target_id][csio->ccb_h.target_lun];
@@ -263,7 +262,7 @@ os_io_response_success(rcb_t *rcb)
 		panic("rcb is null");
 
 	csio = (struct ccb_scsiio *)&rcb->cm_ccb->csio;
-	
+
 	if (csio == NULL) 
 		panic("csio is null");
 
@@ -332,7 +331,6 @@ void os_raid_response_error(rcb_t *rcb, raid_path_error_info_elem_t *err_info)
 				csio->ccb_h.status = CAM_SCSI_STATUS_ERROR
 							| CAM_AUTOSNS_VALID
 							| CAM_REQ_CMP_ERR;
-
 				}
 				break;
 
@@ -363,7 +361,6 @@ void os_raid_response_error(rcb_t *rcb, raid_path_error_info_elem_t *err_info)
 
 	DBG_IO("OUT\n");
 }
-
 
 /*
  * Error response handling for aio.
@@ -564,7 +561,6 @@ static int pqi_map_request( rcb_t *rcb )
 		rcb->status = REQUEST_PENDING;
 
 		error = pqisrc_build_send_io(softs, rcb);
-
 	}
 
 	DBG_FUNC("OUT error = %d\n", error);
@@ -604,7 +600,6 @@ static void smartpqi_lunrescan_cb(struct cam_periph *periph, union ccb *ccb)
         xpt_free_path(ccb->ccb_h.path);
         xpt_free_ccb(ccb);
 }
-
 
 /*
  * Function to rescan the lun
@@ -717,7 +712,7 @@ static int pqisrc_io_start(struct cam_sim *sim, union ccb *ccb)
 	pqi_scsi_dev_t *dvp;
 
 	DBG_FUNC("IN\n");
-	
+
 	if( softs->device_list[ccb->ccb_h.target_id][ccb->ccb_h.target_lun] == NULL ) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
 		DBG_INFO("Device  = %d not there\n", ccb->ccb_h.target_id);
@@ -1172,13 +1167,12 @@ int register_sim(struct pqisrc_softstate *softs, int card_index)
 void deregister_sim(struct pqisrc_softstate *softs)
 {
 	struct ccb_setasync csa;
-	
+
 	DBG_FUNC("IN\n");
 
 	if (softs->os_specific.mtx_init) {
 		mtx_lock(&softs->os_specific.cam_lock);
 	}
-
 
 	xpt_setup_ccb(&csa.ccb_h, softs->os_specific.path, 5);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;

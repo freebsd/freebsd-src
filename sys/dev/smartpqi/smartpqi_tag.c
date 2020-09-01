@@ -85,7 +85,7 @@ int pqisrc_init_taglist(pqisrc_softstate_t *softs, pqi_taglist_t *taglist,
 {
 	int ret = PQI_STATUS_SUCCESS;
 	int i = 0;
-	
+
 	DBG_FUNC("IN\n");
 
 	taglist->max_elem = max_elem;
@@ -99,7 +99,7 @@ int pqisrc_init_taglist(pqisrc_softstate_t *softs, pqi_taglist_t *taglist,
 		ret = PQI_STATUS_FAILURE;
 		goto err_out;
 	}
- 
+
     	os_strlcpy(taglist->lockname, "tag_lock",  LOCKNAME_SIZE);
     	ret = os_init_spinlock(softs, &taglist->lock, taglist->lockname);
     	if(ret){
@@ -114,7 +114,7 @@ int pqisrc_init_taglist(pqisrc_softstate_t *softs, pqi_taglist_t *taglist,
 		softs->rcb[i].tag = INVALID_ELEM;
 		pqisrc_put_tag(taglist, i);
 	}
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 
@@ -155,14 +155,14 @@ int pqisrc_init_taglist(pqisrc_softstate_t *softs, lockless_stack_t *stack,
 {
 	int ret = PQI_STATUS_SUCCESS;
 	int index = 0;
-	
+
 	DBG_FUNC("IN\n");
-	
+
 	/* indices 1 to max_elem are considered as valid tags */
 	stack->num_elements = max_elem + 1; 
 	stack->head.data = 0; 
 	DBG_INFO("Stack head address :%p\n",&stack->head);
-	
+
 	/*Allocate memory for stack*/
 	stack->next_index_array = (uint32_t*)os_mem_alloc(softs,
 		(stack->num_elements * sizeof(uint32_t)));
@@ -177,7 +177,7 @@ int pqisrc_init_taglist(pqisrc_softstate_t *softs, lockless_stack_t *stack,
 		softs->rcb[index].tag = INVALID_ELEM;
 		pqisrc_put_tag(stack, index);
 	}
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 err_out:
@@ -191,14 +191,14 @@ err_out:
 void pqisrc_destroy_taglist(pqisrc_softstate_t *softs, lockless_stack_t *stack)
 {
 	DBG_FUNC("IN\n");
-	
+
 	/* de-allocate stack memory */
 	if (stack->next_index_array) {
 		os_mem_free(softs,(char*)stack->next_index_array,
 			(stack->num_elements * sizeof(uint32_t)));
 		stack->next_index_array = NULL;
 	}
-	
+
 	DBG_FUNC("OUT\n");
 }
 
@@ -217,7 +217,7 @@ void pqisrc_put_tag(lockless_stack_t *stack, uint32_t index)
  		DBG_ERR("Pushed Invalid index\n"); /* stack full */               
 		return;
 	}
-	
+
 	if ( stack->next_index_array[index] != 0) {
  		ASSERT(false);
 		DBG_ERR("Index already present as tag in the stack\n");

@@ -47,7 +47,7 @@ uint32_t pqisrc_embedded_sgl_count(uint32_t elem_alloted)
 	DBG_FUNC(" OUT ");
 
 	return embedded_sgl_count;
-	
+
 }
 
 /* Subroutine to find out contiguous free elem in IU */
@@ -141,13 +141,12 @@ boolean_t pqisrc_build_sgl(sgt_t *sg_array, rcb_t *rcb, iu_header_t *iu_hdr,
 		sg_chain[num_sg - 1].flags = SG_FLAG_LAST; 
 		num_sg = 1;
 		partial = true;
-
 	}
 out:
 	iu_hdr->iu_length = num_sg * sizeof(sgt_t);
 	DBG_FUNC(" OUT ");
 	return partial;
-	
+
 }
 
 /*Subroutine used to Build the RAID request */
@@ -156,7 +155,7 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
  	pqisrc_raid_req_t *raid_req, uint32_t num_elem_alloted)
 {
 	DBG_FUNC(" IN ");
-	
+
 	raid_req->header.iu_type = PQI_IU_TYPE_RAID_PATH_IO_REQUEST;
 	raid_req->header.comp_feature = 0;
 	raid_req->response_queue_id = OS_GET_IO_RESP_QID(softs, rcb);
@@ -187,7 +186,7 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	for(i = 0; i < rcb->cmdlen ; i++)
 		DBG_IO(" 0x%x \n ",raid_req->cdb[i]);
 #endif
-	
+
 	switch (rcb->cmdlen) {
 		case 6:
 		case 10:
@@ -214,14 +213,14 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 				PQI_ADDITIONAL_CDB_BYTES_16;
 			break;
 	}
-	
+
 	/* Frame SGL Descriptor */
 	raid_req->partial = pqisrc_build_sgl(&raid_req->sg_descriptors[0], rcb,
 		&raid_req->header, num_elem_alloted);							
 
 	raid_req->header.iu_length += 
 			offsetof(pqisrc_raid_req_t, sg_descriptors) - sizeof(iu_header_t);
-	
+
 #if 0
 	DBG_IO("raid_req->header.iu_type : 0x%x", raid_req->header.iu_type);
 	DBG_IO("raid_req->response_queue_id :%d\n"raid_req->response_queue_id);
@@ -237,9 +236,9 @@ pqisrc_build_raid_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	rcb->success_cmp_callback = pqisrc_process_io_response_success; 
 	rcb->error_cmp_callback = pqisrc_process_raid_response_error; 
 	rcb->resp_qid = raid_req->response_queue_id;
-	
+
  	DBG_FUNC(" OUT ");
-	
+
 }
 
 /*Subroutine used to Build the AIO request */
@@ -278,7 +277,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 #endif
 	memset(aio_req->lun,0,sizeof(aio_req->lun));
 	memset(aio_req->res4,0,sizeof(aio_req->res4));
-	
+
 	if(rcb->encrypt_enable == true) {
 		aio_req->encrypt_enable = true;
 		aio_req->encrypt_key_index = LE_16(rcb->enc_info.data_enc_key_index);
@@ -290,7 +289,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 		aio_req->encrypt_twk_high = 0;
 		aio_req->encrypt_twk_low = 0;
 	}	
-	
+
 	/* Frame SGL Descriptor */
 	aio_req->partial = pqisrc_build_sgl(&aio_req->sg_desc[0], rcb,
  		&aio_req->header, num_elem_alloted);
@@ -298,7 +297,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	aio_req->num_sg = aio_req->header.iu_length / sizeof(sgt_t);
 
 	DBG_INFO("aio_req->num_sg :%d",aio_req->num_sg);
-	
+
 	aio_req->header.iu_length += offsetof(pqi_aio_req_t, sg_desc) - 
 		sizeof(iu_header_t);
 #if 0
@@ -315,7 +314,7 @@ pqisrc_build_aio_io(pqisrc_softstate_t *softs, rcb_t *rcb,
 	DBG_IO("aio_req->sg_desc[0].len : 0%x \n", aio_req->sg_desc[0].len);
 	DBG_IO("aio_req->sg_desc[0].flags : 0%x \n", aio_req->sg_desc[0].flags);
 #endif
-	
+
 	rcb->success_cmp_callback = pqisrc_process_io_response_success; 
 	rcb->error_cmp_callback = pqisrc_process_aio_response_error; 
 	rcb->resp_qid = aio_req->response_queue_id;
@@ -339,12 +338,11 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 	uint32_t num_elem_alloted = 0;
 	pqi_scsi_dev_t *devp = rcb->dvp;
 	uint8_t raidbypass_cdb[16];
-	
+
 	DBG_FUNC(" IN ");
 
-
 	rcb->cdbp = OS_GET_CDBP(rcb);
-	
+
 	if(IS_AIO_PATH(devp)) {
 		/**  IO for Physical Drive  **/
 		/** Send in AIO PATH**/
@@ -367,10 +365,10 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 			rcb->cdbp = raidbypass_cdb;
 		}
 	}
-	
+
 	num_elem_needed = pqisrc_num_elem_needed(softs, OS_GET_IO_SG_COUNT(rcb));
 	DBG_IO("num_elem_needed :%d",num_elem_needed);
-	
+
 	do {
 		uint32_t num_elem_available;
 		ib_q = (ib_q_array + qindex);
@@ -394,16 +392,16 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 			num_elem_needed = 1;
 		}
 	}while(TraverseCount < 2);
-	
+
 	DBG_IO("num_elem_alloted :%d",num_elem_alloted);
 	if (num_elem_alloted == 0) {
 		DBG_WARN("OUT: IB Queues were full\n");
 		return PQI_STATUS_QFULL;
 	}	
-	
+
 	/* Get IB Queue Slot address to build IU */
 	ib_iu = ib_q->array_virt_addr + (ib_q->pi_local * ib_q->elem_size);
-	
+
 	if(io_path == AIO_PATH) {
 		/** Build AIO structure **/
  		pqisrc_build_aio_io(softs, rcb, (pqi_aio_req_t*)ib_iu,
@@ -413,9 +411,9 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 		pqisrc_build_raid_io(softs, rcb, (pqisrc_raid_req_t*)ib_iu,
 			num_elem_alloted);
 	}
-	
+
 	rcb->req_pending = true;
-	
+
 	/* Update the local PI */
 	ib_q->pi_local = (ib_q->pi_local + num_elem_alloted) % ib_q->num_elem;
 
@@ -424,7 +422,7 @@ int pqisrc_build_send_io(pqisrc_softstate_t *softs,rcb_t *rcb)
 
 	/* Inform the fw about the new IU */
 	PCI_MEM_PUT32(softs, ib_q->pi_register_abs, ib_q->pi_register_offset, ib_q->pi_local);
-	
+
 	PQI_UNLOCK(&ib_q->lock);	
 	DBG_FUNC(" OUT ");
 	return PQI_STATUS_SUCCESS;
@@ -452,7 +450,6 @@ static inline void pqisrc_set_enc_info(
 	enc_info->encrypt_tweak_lower = ((uint32_t)(first_block));
 }
 
-
 /*
  * Attempt to perform offload RAID mapping for a logical volume I/O.
  */
@@ -470,7 +467,6 @@ static inline void pqisrc_set_enc_info(
 /* Subroutine used to parse the scsi opcode and build the CDB for RAID bypass*/
 int check_for_scsi_opcode(uint8_t *cdb, boolean_t *is_write, uint64_t *fst_blk,
 				uint32_t *blk_cnt) {
-	
 	switch (cdb[0]) {
 	case SCMD_WRITE_6:
 		*is_write = true;
@@ -540,7 +536,7 @@ int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 
 	/* Check for eligible opcode, get LBA and block count. */
 	memcpy(cdb, OS_GET_CDBP(rcb), rcb->cmdlen);
-	
+
 	for(i = 0; i < rcb->cmdlen ; i++)
 		DBG_IO(" CDB [ %d ] : %x\n",i,cdb[i]);
 	if(check_for_scsi_opcode(cdb, &is_write, 
@@ -740,10 +736,10 @@ int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 	}
 
 	rcb->cmdlen = cdb_length;
-	
+
 		
 	DBG_FUNC("OUT");
-	
+
 	return PQI_STATUS_SUCCESS;
 }
 

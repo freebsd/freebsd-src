@@ -29,9 +29,6 @@
 #ifndef _PQI_STRUCTURES_H
 #define _PQI_STRUCTURES_H
 
-
-
-
 struct bmic_host_wellness_driver_version {
 	uint8_t		start_tag[4];
 	uint8_t		driver_version_tag[2];
@@ -40,7 +37,6 @@ struct bmic_host_wellness_driver_version {
 	uint8_t		end_tag[2];
 
 }OS_ATTRIBUTE_PACKED;
-
 
 struct bmic_host_wellness_time {
 	uint8_t		start_tag[4];
@@ -58,7 +54,6 @@ struct bmic_host_wellness_time {
 	uint8_t		end_tag[2];
 
 }OS_ATTRIBUTE_PACKED;
-
 
 /* As per PQI Spec pqi-2r00a , 6.2.2. */
 
@@ -110,7 +105,7 @@ struct pqi_registers {
  * IOA controller registers
  * Mapped in PCIe BAR 0.
  */
- 
+
 struct ioa_registers {
 	uint8_t		res1[0x18];				 	
 	uint32_t	host_to_ioa_db_mask_clr; 	/* 18h */
@@ -135,7 +130,6 @@ struct ioa_registers {
 	uint8_t		res8[0xf34];			/* 0xC8 + 4 + 0xf34 = 1000h */
 	uint32_t	mb[8];				/* 1000h */
 }OS_ATTRIBUTE_PACKED;
-
 
 /* PQI Preferred settings */
 struct pqi_pref_settings {
@@ -266,7 +260,6 @@ typedef struct iu_header
 	uint16_t	iu_length;
 }OS_ATTRIBUTE_PACKED iu_header_t;
 
-
 typedef struct general_admin_request /* REPORT_PQI_DEVICE_CAPABILITY, REPORT_MANUFACTURER_INFO,  REPORT_OPERATIONAL_IQ,  REPORT_OPERATIONAL_OQ all same layout. */
 {
 	iu_header_t	header;		/* !< Bytes 0-3. */
@@ -329,7 +322,6 @@ typedef struct general_admin_request /* REPORT_PQI_DEVICE_CAPABILITY, REPORT_MAN
     } OS_ATTRIBUTE_PACKED req_type;
 
 }OS_ATTRIBUTE_PACKED gen_adm_req_iu_t;
-
 
 typedef struct general_admin_response {
 	iu_header_t 	header;
@@ -439,7 +431,6 @@ struct pqi_event {
 	uint32_t	additional_event_id;
 };
 
-
 typedef struct op_q_params
 {
 	uint8_t		fn_code;	
@@ -449,7 +440,6 @@ typedef struct op_q_params
 	uint16_t	int_msg_num;
     
 } OS_ATTRIBUTE_PACKED op_q_params;
-
 
 /* Driver will use this structure to interpret the error 
    info element returned from a failed requests */
@@ -536,7 +526,6 @@ typedef struct pqisrc_sg_desc{
 	uint32_t	flags;
 }sgt_t;
 
-
 typedef struct pqi_iu_layer_desc {
 	uint8_t		ib_spanning_supported : 1;
 	uint8_t		res1 : 7;
@@ -547,7 +536,6 @@ typedef struct pqi_iu_layer_desc {
 	uint8_t		res4[5];
 	uint16_t	max_ob_iu_len;
 }OS_ATTRIBUTE_PACKED pqi_iu_layer_desc_t;
-
 
 /* Response IU data */
 typedef struct pqi_device_capabilities {
@@ -609,7 +597,6 @@ typedef struct pqi_aio_req {
 	sgt_t		sg_desc[4];
 }OS_ATTRIBUTE_PACKED pqi_aio_req_t;
 
-
 typedef struct pqisrc_raid_request {
 	iu_header_t 	header;
 	uint16_t 	response_queue_id;	/* specifies the OQ where the response
@@ -637,7 +624,6 @@ typedef struct pqisrc_raid_request {
 	sgt_t		sg_descriptors[4];
 }OS_ATTRIBUTE_PACKED pqisrc_raid_req_t;
 
-
 typedef struct pqi_tmf_req {
         iu_header_t     header;
         uint16_t        resp_qid;
@@ -654,7 +640,6 @@ typedef struct pqi_tmf_req {
         uint8_t         fence : 1;
 }OS_ATTRIBUTE_PACKED pqi_tmf_req_t;
 
-
 typedef struct pqi_tmf_resp {
         iu_header_t     header;
         uint16_t        resp_qid;
@@ -665,7 +650,6 @@ typedef struct pqi_tmf_resp {
         uint8_t         resp_code;
 }pqi_tmf_resp_t;
 
-
 struct pqi_io_response {
 	iu_header_t	header;
 	uint16_t	queue_id;
@@ -675,13 +659,11 @@ struct pqi_io_response {
 	uint8_t		reserved[4];
 }OS_ATTRIBUTE_PACKED;
 
-
 struct pqi_enc_info {
 	uint16_t	data_enc_key_index;
 	uint32_t	encrypt_tweak_lower;
 	uint32_t	encrypt_tweak_upper;
 };
-
 
 typedef struct pqi_scsi_device {
 	device_type_t	devtype;		/* as reported by INQUIRY commmand */
@@ -728,7 +710,6 @@ typedef struct pqi_scsi_device {
 	boolean_t	invalid;		
 }pqi_scsi_dev_t;
 
-
 struct sense_header_scsi {		/* See SPC-3 section 4.5 */
 	uint8_t 	response_code;		/* permit: 0x0, 0x70, 0x71, 0x72, 0x73 */
 	uint8_t 	sense_key;
@@ -740,14 +721,11 @@ struct sense_header_scsi {		/* See SPC-3 section 4.5 */
 	uint8_t 	additional_length;	/* always 0 for fixed sense format */
 }OS_ATTRIBUTE_PACKED;
 
-
-
 typedef struct report_lun_header {
 	uint32_t 	list_length;
 	uint8_t		extended_response;
 	uint8_t		reserved[3];
 }OS_ATTRIBUTE_PACKED reportlun_header_t;
-
 
 typedef struct report_lun_ext_entry {
 	uint8_t		lunid[8];
@@ -758,7 +736,6 @@ typedef struct report_lun_ext_entry {
 	uint8_t		redundant_paths;
 	uint32_t 	ioaccel_handle;
 }OS_ATTRIBUTE_PACKED reportlun_ext_entry_t;
-
 
 typedef struct report_lun_data_ext {
 	reportlun_header_t 	header;
@@ -795,7 +772,6 @@ typedef struct raid_map {
 	uint8_t		reserved[16];
 	raidmap_data_t 	dev_data[RAID_MAP_MAX_ENTRIES];
 }OS_ATTRIBUTE_PACKED pqisrc_raid_map_t;
-
 
 typedef struct bmic_ident_ctrl {
 	uint8_t		conf_ld_count;

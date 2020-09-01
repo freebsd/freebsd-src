@@ -34,7 +34,7 @@
 static int pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	
+
 	DBG_FUNC("IN\n");
 
 	gen_adm_req_iu_t	admin_req;
@@ -64,7 +64,7 @@ static int pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 		DBG_ERR("Failed to allocate capability DMA buffer : %d\n", ret);
 		goto err_dma_alloc;
 	}
-	
+
 	admin_req.fn_code = PQI_FUNCTION_REPORT_DEV_CAP;
 	admin_req.req_type.general_func.buf_size = pqi_cap_dma_buf.size;
 	admin_req.req_type.general_func.sg_desc.length = pqi_cap_dma_buf.size;
@@ -107,7 +107,6 @@ static int pqisrc_report_pqi_capability(pqisrc_softstate_t *softs)
 	DBG_INIT("softs->max_ib_iu_length_per_fw: %d\n", softs->max_ib_iu_length_per_fw);
 	DBG_INIT("softs->ib_spanning_supported: %d\n", softs->ib_spanning_supported);
 	DBG_INIT("softs->ob_spanning_supported: %d\n", softs->ob_spanning_supported);
-	
 
 	os_mem_free(softs, (void *)capability,
 		    REPORT_PQI_DEV_CAP_DATA_BUF_SIZE);
@@ -132,7 +131,7 @@ err_out:
  */
 void pqisrc_free_rcb(pqisrc_softstate_t *softs, int req_count)
 {
-	
+
 	uint32_t num_req;
 	size_t size;
 	int i;
@@ -146,7 +145,6 @@ void pqisrc_free_rcb(pqisrc_softstate_t *softs, int req_count)
 	softs->rcb = NULL;
 	DBG_FUNC("OUT\n");
 }
-
 
 /*
  * Allocate memory for rcb and SG descriptors.
@@ -181,7 +179,7 @@ static int pqisrc_allocate_rcb(pqisrc_softstate_t *softs)
 		goto err_out;
 	}
 	softs->rcb = rcb;
-	
+
 	/* Allocate sg dma memory for sg chain  */
 	sg_buf_size = softs->pqi_cap.max_sg_elem *
 			sizeof(sgt_t);
@@ -227,7 +225,7 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 
 	DBG_INIT("softs->intr_count : %d  softs->num_cpus_online : %d", 
 		softs->intr_count, softs->num_cpus_online);
-	
+
 	if (softs->intr_count == 1 || softs->num_cpus_online == 1) {
 		/* Share the event and Operational queue. */
 		softs->num_op_obq = 1;
@@ -247,7 +245,7 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 	 */
 	if (softs->intr_count > 1)	 
 		softs->share_opq_and_eventq = false;
-	
+
 	DBG_INIT("softs->num_op_obq : %d\n",softs->num_op_obq);
 
 	softs->num_op_raid_ibq = softs->num_op_obq;
@@ -270,11 +268,11 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 		Max.Outstanding IO and  Max.Spanning element */
 	total_iq_elements = (softs->max_outstanding_io * 
 		(softs->max_ib_iu_length / softs->ibq_elem_size));
-	
+
 	softs->num_elem_per_op_ibq = total_iq_elements / softs->num_op_raid_ibq;
 	softs->num_elem_per_op_ibq = MIN(softs->num_elem_per_op_ibq, 
 		softs->pqi_dev_cap.max_iq_elements);
-	
+
 	softs->num_elem_per_op_obq = softs->max_outstanding_io / softs->num_op_obq; 
 	softs->num_elem_per_op_obq = MIN(softs->num_elem_per_op_obq,
 		softs->pqi_dev_cap.max_oq_elements);
@@ -298,7 +296,7 @@ void pqisrc_decide_opq_config(pqisrc_softstate_t *softs)
 int pqisrc_configure_op_queues(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	
+
 	/* Get the PQI capability, 
 		REPORT PQI DEVICE CAPABILITY request */
 	ret = pqisrc_report_pqi_capability(softs);
@@ -313,7 +311,7 @@ int pqisrc_configure_op_queues(pqisrc_softstate_t *softs)
 
 	/* Decide the Op queue configuration */
 	pqisrc_decide_opq_config(softs);	
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 		
@@ -363,7 +361,6 @@ int pqisrc_check_pqimode(pqisrc_softstate_t *softs)
 		ret = PQI_STATUS_TIMEOUT;
 		goto err_out;
 	}
-
 
 	tmo = PQISRC_PQIMODE_READY_TIMEOUT;
 	/* Check the PQI device status register */
@@ -417,7 +414,6 @@ int pqisrc_process_config_table(pqisrc_softstate_t *softs)
 			softs->pqi_cap.conf_tab_off,
 			(uint8_t*)conf_table, config_table_size);
 
-
 	if (memcmp(conf_table->sign, PQI_CONF_TABLE_SIGNATURE,
 			sizeof(conf_table->sign)) != 0) {
 		DBG_ERR("Invalid PQI config signature\n");
@@ -427,7 +423,6 @@ int pqisrc_process_config_table(pqisrc_softstate_t *softs)
 	section_off = LE_32(conf_table->first_section_off);
 
 	while (section_off) {
-
 		if (section_off+ sizeof(*section_hdr) >= config_table_size) {
 			DBG_ERR("PQI config table section offset (%u) beyond \
 			end of config table (config table length: %u)\n",
@@ -505,7 +500,7 @@ int pqi_reset(pqisrc_softstate_t *softs)
 	DBG_FUNC("IN\n");
 
 	if (true == softs->ctrl_in_pqi_mode) { 
-	
+
 		if (softs->pqi_reset_quiesce_allowed) {
 			val = PCI_MEM_GET32(softs, &softs->ioa_reg->host_to_ioa_db,
 					LEGACY_SIS_IDBR);
@@ -555,7 +550,7 @@ int pqisrc_pqi_init(pqisrc_softstate_t *softs)
 
 	PQI_SAVE_CTRL_MODE(softs, CTRL_PQI_MODE);
 	softs->ctrl_in_pqi_mode = true;
-	
+
 	/* Get the No. of Online CPUs,NUMA/Processor config from OS */
 	ret = os_get_processor_config(softs);
 	if (ret) {
@@ -563,7 +558,7 @@ int pqisrc_pqi_init(pqisrc_softstate_t *softs)
 			ret);
 		goto err_out;
 	}
-	
+
 	softs->intr_type = INTR_TYPE_NONE;	
 
 	/* Get the interrupt count, type, priority available from OS */
@@ -682,7 +677,7 @@ int pqisrc_wait_for_cmnd_complete(pqisrc_softstate_t *softs)
 {
 	int ret = PQI_STATUS_SUCCESS;
 	int tmo = PQI_CMND_COMPLETE_TMO;
-	
+
 	COND_WAIT((softs->taglist.num_elem == softs->max_outstanding_io), tmo);
 	if (!tmo) {
 		DBG_ERR("Pending commands %x!!!",softs->taglist.num_elem);
@@ -695,7 +690,7 @@ void pqisrc_complete_internal_cmds(pqisrc_softstate_t *softs)
 {
 	int tag = 0;
 	rcb_t *rcb;
-	
+
 	for (tag = 1; tag <= softs->max_outstanding_io; tag++) {
 		rcb = &softs->rcb[tag];
 		if(rcb->req_pending && is_internal_req(rcb)) {
@@ -713,13 +708,13 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	int i, ret;
 
 	DBG_FUNC("IN\n");
-	
+
 	/* Wait for any rescan to finish */
 	pqisrc_wait_for_rescan_complete(softs);
 
 	/* Wait for commands to complete */
 	ret = pqisrc_wait_for_cmnd_complete(softs);
-	
+
 	/* Complete all pending commands. */
 	if(ret != PQI_STATUS_SUCCESS) {
 		pqisrc_complete_internal_cmds(softs);
@@ -749,7 +744,7 @@ void pqisrc_pqi_uninit(pqisrc_softstate_t *softs)
 	os_dma_mem_free(softs, &softs->op_ibq_dma_mem);
 	os_dma_mem_free(softs, &softs->op_obq_dma_mem);
 	os_dma_mem_free(softs, &softs->event_q_dma_mem);
-	
+
 	/* Free  rcb */
 	pqisrc_free_rcb(softs, softs->max_outstanding_io + 1);
 
@@ -848,10 +843,9 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 		goto err_lock;
 	}
 	softs->devlist_lockcreated = true;
-	
+
 	OS_ATOMIC64_SET(softs, num_intrs, 0);
 	softs->prev_num_intrs = softs->num_intrs;
-
 
 	/* Get the PQI configuration table to read heart-beat counter*/
 	if (PQI_NEW_HEARTBEAT_MECHANISM(softs)) {
@@ -864,7 +858,7 @@ int pqisrc_init(pqisrc_softstate_t *softs)
 
 	if (PQI_NEW_HEARTBEAT_MECHANISM(softs))
 		softs->prev_heartbeat_count = CTRLR_HEARTBEAT_CNT(softs) - OS_FW_HEARTBEAT_TIMER_INTERVAL;
-	
+
 	/* Init device list */
 	for(i = 0; i < PQI_MAX_DEVICES; i++)
 		for(j = 0; j < PQI_MAX_MULTILUN; j++)
@@ -945,13 +939,13 @@ int pqisrc_flush_cache( pqisrc_softstate_t *softs,
 void pqisrc_uninit(pqisrc_softstate_t *softs)
 {
 	DBG_FUNC("IN\n");
-	
+
 	pqisrc_pqi_uninit(softs);
 
 	pqisrc_sis_uninit(softs);
 
 	os_destroy_semaphore(&softs->scan_lock);
-	
+
 	os_destroy_intr(softs);
 
 	pqisrc_cleanup_devices(softs);

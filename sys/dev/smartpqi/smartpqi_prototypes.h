@@ -119,14 +119,11 @@ void pqisrc_process_raid_response_error(pqisrc_softstate_t *,
 		rcb_t *, uint16_t);
 void pqisrc_process_response_queue(pqisrc_softstate_t *, int);
 
-
 /* pqi_request.c */
 int pqisrc_build_send_io(pqisrc_softstate_t *,rcb_t *);
 
-	
 int pqisrc_send_scsi_cmd_raidbypass(pqisrc_softstate_t *softs,
 				pqi_scsi_dev_t *device, rcb_t *rcb, uint8_t*);
-	
 
 int pqisrc_send_tmf(pqisrc_softstate_t *, pqi_scsi_dev_t *,
                     rcb_t *, int, int);
@@ -138,7 +135,6 @@ int pqisrc_report_event_config(pqisrc_softstate_t *);
 int pqisrc_set_event_config(pqisrc_softstate_t *);
 int pqisrc_process_event_intr_src(pqisrc_softstate_t *,int);
 void pqisrc_ack_all_events(void *arg);
-
 
 void pqisrc_event_worker(void *, int);
 int pqisrc_scsi_setup(struct pqisrc_softstate *);
@@ -194,12 +190,10 @@ int pqisrc_process_task_management_response(pqisrc_softstate_t *,
                                 pqi_tmf_resp_t *);
 void pqisrc_wait_for_rescan_complete(pqisrc_softstate_t *softs);
 
-
 /* pqi_ioctl.c*/
 
 int
 pqisrc_passthru_ioctl(struct pqisrc_softstate *, void *, int);
-
 
 /* Functions Prototypes */
 /* FreeBSD_mem.c */
@@ -223,7 +217,7 @@ int os_copy_from_user(struct pqisrc_softstate *, void *,
                 void *, int, int);
 int create_char_dev(struct pqisrc_softstate *, int);
 void destroy_char_dev(struct pqisrc_softstate *);
- 
+
 /* FreeBSD_misc.c*/ 
 int os_init_spinlock(struct pqisrc_softstate *, struct mtx *, char *);
 void os_uninit_spinlock(struct mtx *);
