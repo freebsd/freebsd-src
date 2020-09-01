@@ -249,7 +249,6 @@ struct age_softc {
 #define AGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->age_mtx)
 #define AGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->age_mtx, MA_OWNED)
 
-
 #define	AGE_COMMIT_MBOX(_sc)						\
 do {									\
 	CSR_WRITE_4(_sc, AGE_MBOX,					\
