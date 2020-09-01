@@ -1182,7 +1182,6 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	return (error);
 }
 
-
 /*
  * Vnode operating to retrieve a named extended attribute.
  *
@@ -1411,7 +1410,6 @@ struct vop_openextattr_args {
 	return (ffs_open_ea(ap->a_vp, ap->a_cred, ap->a_td));
 }
 
-
 /*
  * Vnode extattr transaction commit/abort
  */
@@ -1473,7 +1471,6 @@ vop_deleteextattr {
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
-
 		/*
 		 * ffs_lock_ea is not needed there, because the vnode
 		 * must be exclusively locked.
@@ -1675,7 +1672,6 @@ vop_setextattr {
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
-
 		/*
 		 * ffs_lock_ea is not needed there, because the vnode
 		 * must be exclusively locked.
@@ -1836,4 +1832,3 @@ ffs_getpages_async(struct vop_getpages_async_args *ap)
 
 	return (error);
 }
-

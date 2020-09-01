@@ -1741,7 +1741,7 @@ ufs_do_posix1e_acl_inheritance_dir(struct vnode *dvp, struct vnode *tvp,
 		DIP_SET(ip, i_mode, dmode);
 		error = 0;
 		goto out;
-	
+
 	default:
 		goto out;
 	}
@@ -2108,7 +2108,7 @@ ufs_mkdir(ap)
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp, 0);
-	
+
 bad:
 	if (error == 0) {
 		*ap->a_vpp = tvp;

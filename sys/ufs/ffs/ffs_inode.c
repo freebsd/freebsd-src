@@ -517,7 +517,7 @@ ffs_truncate(vp, length, flags, cred)
 	}
 	UFS_INODE_SET_FLAG(ip, IN_CHANGE | IN_UPDATE);
 	allerror = ffs_update(vp, waitforupdate);
-	
+
 	/*
 	 * Having written the new inode to disk, save its new configuration
 	 * and put back the old block pointers long enough to process them.
@@ -795,4 +795,3 @@ ffs_rdonly(struct inode *ip)
 
 	return (ITOFS(ip)->fs_ronly != 0);
 }
-

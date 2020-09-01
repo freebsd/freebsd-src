@@ -108,7 +108,6 @@ ufs_quotactl(mp, cmds, id, arg)
 	type = cmds & SUBCMDMASK;
 	if (id == -1) {
 		switch (type) {
-
 		case USRQUOTA:
 			id = td->td_ucred->cr_ruid;
 			break;
