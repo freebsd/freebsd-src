@@ -86,4 +86,3 @@ gss_verify_mic_mbuf(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
 
 	return (KGSS_VERIFY_MIC(ctx, minor_status, m, mic, qop_state));
 }
-

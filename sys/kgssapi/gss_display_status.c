@@ -64,7 +64,7 @@ gss_display_status(OM_uint32 *minor_status,
 	args.status_type = status_type;
 	args.mech_type = mech_type;
 	args.message_context = *message_context;
-	
+
 	bzero(&res, sizeof(res));
 	stat = gssd_display_status_1(&args, &res, cl);
 	CLNT_RELEASE(cl);
