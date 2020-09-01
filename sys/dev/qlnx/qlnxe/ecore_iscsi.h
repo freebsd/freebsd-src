@@ -185,4 +185,3 @@ ecore_sp_iscsi_conn_clear_sq(struct ecore_hwfn *p_hwfn,
 			     struct ecore_spq_comp_cb *p_comp_addr);
 
 #endif  /*__ECORE_ISCSI_H__*/
-

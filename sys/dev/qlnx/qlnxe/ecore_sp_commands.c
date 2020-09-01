@@ -512,7 +512,6 @@ enum _ecore_status_t ecore_sp_pf_update_ufp(struct ecore_hwfn *p_hwfn)
 	return ecore_spq_post(p_hwfn, p_ent, OSAL_NULL);
 }
 
-
 /* QM rate limiter resolution is 1.6Mbps */
 #define QM_RL_RESOLUTION(mb_val)	((mb_val) * 10 / 16)
 

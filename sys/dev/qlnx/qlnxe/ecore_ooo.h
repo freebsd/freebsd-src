@@ -99,7 +99,6 @@ static inline void
 ecore_ooo_free(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {}
 #endif
 
-
 void ecore_ooo_save_history_entry(struct ecore_ooo_info *p_ooo_info,
 				  struct ooo_opaque *p_cqe);
 
@@ -149,4 +148,3 @@ void ecore_ooo_dump_rx_event(struct ecore_hwfn	*p_hwfn,
 			     struct ecore_ooo_buffer *p_buffer);
 
 #endif  /*__ECORE_OOO_H__*/
-

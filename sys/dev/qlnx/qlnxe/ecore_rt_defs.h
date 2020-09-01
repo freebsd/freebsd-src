@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __RT_DEFS_H__
 #define __RT_DEFS_H__
 

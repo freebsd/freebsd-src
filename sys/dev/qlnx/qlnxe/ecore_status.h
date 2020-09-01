@@ -52,4 +52,3 @@ enum _ecore_status_t {
 };
 
 #endif /* __ECORE_STATUS_H__ */
-

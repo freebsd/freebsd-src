@@ -290,4 +290,3 @@ enum _ecore_status_t ecore_pglueb_rbc_attn_handler(struct ecore_hwfn *p_hwfn,
 						   struct ecore_ptt *p_ptt);
 
 #endif /* __ECORE_INT_H__ */
-

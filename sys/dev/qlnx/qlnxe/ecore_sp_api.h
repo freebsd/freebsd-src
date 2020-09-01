@@ -51,7 +51,6 @@ struct ecore_spq_comp_cb {
 	void	*cookie;
 };
 
-
 /**
  * @brief ecore_eth_cqe_completion - handles the completion of a
  *        ramrod on the cqe ring

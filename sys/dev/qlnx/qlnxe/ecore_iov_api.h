@@ -790,7 +790,6 @@ static OSAL_INLINE enum _ecore_status_t ecore_iov_bulletin_set_mac(struct ecore_
 static OSAL_INLINE enum _ecore_status_t ecore_iov_bulletin_set_forced_untagged_default(struct ecore_hwfn OSAL_UNUSED *p_hwfn, bool OSAL_UNUSED b_untagged_only, int OSAL_UNUSED vfid) {return ECORE_INVAL;}
 static OSAL_INLINE void ecore_iov_get_vfs_opaque_fid(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, u16 OSAL_UNUSED *opaque_fid) {}
 static OSAL_INLINE void ecore_iov_bulletin_set_forced_vlan(struct ecore_hwfn OSAL_UNUSED p_hwfn, u16 OSAL_UNUSED pvid, int OSAL_UNUSED vfid) {}
-
 static OSAL_INLINE bool ecore_iov_vf_has_vport_instance(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) {return false;}
 static OSAL_INLINE enum _ecore_status_t ecore_iov_post_vf_bulletin(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid, struct ecore_ptt OSAL_UNUSED *p_ptt) {return ECORE_INVAL;}
 static OSAL_INLINE bool ecore_iov_is_vf_stopped(struct ecore_hwfn OSAL_UNUSED *p_hwfn, int OSAL_UNUSED vfid) {return false;}
@@ -806,7 +805,6 @@ static OSAL_INLINE u8 *ecore_iov_bulletin_get_forced_mac(struct ecore_hwfn OSAL_
 static OSAL_INLINE u16 ecore_iov_bulletin_get_forced_vlan(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
 static OSAL_INLINE enum _ecore_status_t ecore_iov_configure_tx_rate(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, int OSAL_UNUSED vfid, int OSAL_UNUSED val) { return ECORE_INVAL; }
 static OSAL_INLINE enum _ecore_status_t ecore_iov_get_vf_stats(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_ptt OSAL_UNUSED *p_ptt, int OSAL_UNUSED vfid, struct ecore_eth_stats OSAL_UNUSED *p_stats) { return ECORE_INVAL; }
-
 static OSAL_INLINE u8 ecore_iov_get_vf_num_rxqs(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
 static OSAL_INLINE u8 ecore_iov_get_vf_num_active_rxqs(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return 0;}
 static OSAL_INLINE void *ecore_iov_get_vf_ctx(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED rel_vf_id) {return OSAL_NULL;}

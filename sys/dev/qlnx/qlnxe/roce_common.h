@@ -45,7 +45,6 @@
 #define ROCE_DCQCN_NP_MAX_QPS  (64)	/* notification point max QPs*/
 #define ROCE_DCQCN_RP_MAX_QPS  (64)		/* reaction point max QPs*/
 
-
 /*
  * Affiliated asynchronous events / errors enumeration
  */

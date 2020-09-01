@@ -476,7 +476,6 @@ struct e4_iwarp_conn_context
 	struct ustorm_iwarp_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 };
 
-
 struct e5_xstorm_iwarp_conn_ag_ctx
 {
 	u8 reserved0 /* cdu_validation */;
@@ -889,7 +888,6 @@ struct e5_iwarp_conn_context
 	struct ustorm_iwarp_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 };
 
-
 /*
  * iWARP create QP params passed by driver to FW in CreateQP Request Ramrod 
  */
@@ -927,7 +925,6 @@ struct iwarp_create_qp_ramrod_data
 	u8 reserved2[6];
 };
 
-
 /*
  * iWARP completion queue types
  */
@@ -943,13 +940,11 @@ enum iwarp_eqe_async_opcode
 	MAX_IWARP_EQE_ASYNC_OPCODE
 };
 
-
 struct iwarp_eqe_data_mpa_async_completion
 {
 	__le16 ulp_data_len /* On active side, length of ULP Data, from peers MPA Connect Response */;
 	u8 reserved[6];
 };
-
 
 struct iwarp_eqe_data_tcp_async_completion
 {
@@ -957,7 +952,6 @@ struct iwarp_eqe_data_tcp_async_completion
 	u8 mpa_handshake_mode /* Negotiation type Basic/Enhanced */;
 	u8 reserved[5];
 };
-
 
 /*
  * iWARP completion queue types
@@ -974,7 +968,6 @@ enum iwarp_eqe_sync_opcode
 	IWARP_EVENT_TYPE_ABORT_TCP_OFFLOAD,
 	MAX_IWARP_EQE_SYNC_OPCODE
 };
-
 
 /*
  * iWARP EQE completion status 
@@ -1012,7 +1005,6 @@ enum iwarp_fw_return_code
 	MAX_IWARP_FW_RETURN_CODE
 };
 
-
 /*
  * unaligned opaque data received from LL2
  */
@@ -1021,7 +1013,6 @@ struct iwarp_init_func_params
 	u8 ll2_ooo_q_index /* LL2 OOO queue id. The unaligned queue id will be + 1 */;
 	u8 reserved1[7];
 };
-
 
 /*
  * iwarp func init ramrod data
@@ -1033,7 +1024,6 @@ struct iwarp_init_func_ramrod_data
 	struct iwarp_init_func_params iwarp;
 };
 
-
 /*
  * iWARP QP - possible states to transition to
  */
@@ -1043,7 +1033,6 @@ enum iwarp_modify_qp_new_state_type
 	IWARP_MODIFY_QP_STATE_ERROR=2 /* abortive close, if LLP connection still exists */,
 	MAX_IWARP_MODIFY_QP_NEW_STATE_TYPE
 };
-
 
 /*
  * iwarp modify qp responder ramrod data
@@ -1070,7 +1059,6 @@ struct iwarp_modify_qp_ramrod_data
 	__le16 physical_q1 /* Updated physicalQ1Val */;
 	__le32 reserved1[10];
 };
-
 
 /*
  * MPA params for Enhanced mode
@@ -1127,7 +1115,6 @@ struct iwarp_mpa_offload_ramrod_data
 	u8 reserved3[13];
 };
 
-
 /*
  * iWARP TCP connection offload params passed by driver to FW 
  */
@@ -1143,7 +1130,6 @@ struct iwarp_offload_params
 	u8 reserved[10];
 };
 
-
 /*
  * iWARP query QP output params
  */
@@ -1157,7 +1143,6 @@ struct iwarp_query_qp_output_params
 	u8 reserved1[4] /* 64 bit alignment */;
 };
 
-
 /*
  * iWARP query QP ramrod data
  */
@@ -1165,7 +1150,6 @@ struct iwarp_query_qp_ramrod_data
 {
 	struct regpair output_params_addr;
 };
-
 
 /*
  * iWARP Ramrod Command IDs 
@@ -1183,7 +1167,6 @@ enum iwarp_ramrod_cmd_id
 	MAX_IWARP_RAMROD_CMD_ID
 };
 
-
 /*
  * Per PF iWARP retransmit path statistics
  */
@@ -1192,7 +1175,6 @@ struct iwarp_rxmit_stats_drv
 	struct regpair tx_go_to_slow_start_event_cnt /* Number of times slow start event occurred */;
 	struct regpair tx_fast_retransmit_event_cnt /* Number of times fast retransmit event occurred */;
 };
-
 
 /*
  * iWARP and TCP connection offload params passed by driver to FW in iWARP offload ramrod 
@@ -1203,7 +1185,6 @@ struct iwarp_tcp_offload_ramrod_data
 	struct tcp_offload_params_opt2 tcp /* tcp offload params */;
 };
 
-
 /*
  * iWARP MPA negotiation types
  */
@@ -1213,9 +1194,6 @@ enum mpa_negotiation_mode
 	MPA_NEGOTIATION_TYPE_ENHANCED=2,
 	MAX_MPA_NEGOTIATION_MODE
 };
-
-
-
 
 /*
  * iWARP MPA Enhanced mode RTR types
@@ -1233,11 +1211,6 @@ enum mpa_rtr_type
 	MAX_MPA_RTR_TYPE
 };
 
-
-
-
-
-
 /*
  * unaligned opaque data received from LL2
  */
@@ -1254,10 +1227,6 @@ struct unaligned_opaque_data
 #define UNALIGNED_OPAQUE_DATA_RESERVED_SHIFT                   2
 	__le32 cid;
 };
-
-
-
-
 
 struct e4_mstorm_iwarp_conn_ag_ctx
 {
@@ -1296,8 +1265,6 @@ struct e4_mstorm_iwarp_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
-
 
 struct e4_ustorm_iwarp_conn_ag_ctx
 {
@@ -1369,8 +1336,6 @@ struct e4_ustorm_iwarp_conn_ag_ctx
 	__le16 word3 /* word3 */;
 };
 
-
-
 struct e4_ystorm_iwarp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -1416,7 +1381,6 @@ struct e4_ystorm_iwarp_conn_ag_ctx
 	__le32 reg3 /* reg3 */;
 };
 
-
 struct e5_mstorm_iwarp_conn_ag_ctx
 {
 	u8 reserved /* cdu_validation */;
@@ -1454,8 +1418,6 @@ struct e5_mstorm_iwarp_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
-
 
 struct e5_ustorm_iwarp_conn_ag_ctx
 {
@@ -1538,8 +1500,6 @@ struct e5_ustorm_iwarp_conn_ag_ctx
 	__le16 word2 /* word2 */;
 	__le16 word3 /* word3 */;
 };
-
-
 
 struct e5_ystorm_iwarp_conn_ag_ctx
 {

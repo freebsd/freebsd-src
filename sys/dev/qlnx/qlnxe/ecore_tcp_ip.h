@@ -58,7 +58,6 @@
 #define ntohs(val) OSAL_BE16_TO_CPU(val)
 #endif
 
-
 struct ecore_ethhdr {
 	unsigned char	h_dest[ETH_ALEN];	/* destination eth addr	*/
 	unsigned char	h_source[ETH_ALEN];	/* source ether addr	*/

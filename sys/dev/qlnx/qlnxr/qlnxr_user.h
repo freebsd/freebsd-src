@@ -90,7 +90,7 @@ struct qlnxr_create_qp_uresp {
 	/* SQ*/
 	u32 sq_db_offset;
 	u16 sq_icid;
-	
+
 	/* RQ */
 	u32 rq_db_offset;
 	u16 rq_icid;

@@ -808,7 +808,7 @@ enum _ecore_status_t ecore_sp_vport_update(struct ecore_hwfn *p_hwfn,
 	p_cmn->anti_spoofing_en = p_params->anti_spoofing_en;
 	val = p_params->update_anti_spoofing_en_flg;
 	p_ramrod->common.update_anti_spoofing_en_flg = val;
-	
+
 	rc = ecore_sp_vport_update_rss(p_hwfn, p_ramrod, p_rss_params);
 	if (rc != ECORE_SUCCESS) {
 		/* Return spq entry which is taken in ecore_sp_init_request()*/

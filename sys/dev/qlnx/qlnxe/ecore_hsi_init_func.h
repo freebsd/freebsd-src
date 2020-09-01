@@ -54,7 +54,6 @@ struct init_brb_ram_req
 	u8 num_active_tcs[MAX_NUM_PORTS] /* number of active TCs per port */;
 };
 
-
 /*
  * ETS per-TC init requirements
  */
@@ -74,8 +73,6 @@ struct init_ets_req
 	struct init_ets_tc_req tc_req[NUM_OF_TCS] /* ETS initialization requirements per TC. */;
 };
 
-
-
 /*
  * NIG LB RL init requirements
  */
@@ -87,7 +84,6 @@ struct init_nig_lb_rl_req
 	u16 tc_rate[NUM_OF_PHYS_TCS] /* RL rate per physical TC (in Mbps). If set to 0, the RL will be disabled. */;
 };
 
-
 /*
  * NIG TC mapping for each priority
  */
@@ -97,7 +93,6 @@ struct init_nig_pri_tc_map_entry
 	u8 valid /* indicates if the mapping entry is valid */;
 };
 
-
 /*
  * NIG priority to TC map init requirements
  */
@@ -105,7 +100,6 @@ struct init_nig_pri_tc_map_req
 {
 	struct init_nig_pri_tc_map_entry pri[NUM_OF_VLAN_PRIORITIES];
 };
-
 
 /*
  * QM per-port init parameters
@@ -119,7 +113,6 @@ struct init_qm_port_params
 	u16 reserved;
 };
 
-
 /*
  * QM per-PQ init parameters
  */
@@ -130,7 +123,6 @@ struct init_qm_pq_params
 	u8 wrr_group /* WRR group */;
 	u8 rl_valid /* Indicates if a rate limiter should be allocated for the PQ (0/1) */;
 };
-
 
 /*
  * QM per-vport init parameters

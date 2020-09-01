@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "qlnx_os.h"
 #include "bcm_osal.h"
 
@@ -154,7 +153,7 @@ qlnx_rdma_dev_add(struct qlnx_host *ha)
 	mtx_unlock(&qlnx_rdma_dev_lock);
 
 	_qlnx_rdma_dev_add(ha);
-	
+
 	QL_DPRINT12(ha, "exit (%p)\n", ha);
 
 	return;
@@ -235,7 +234,6 @@ qlnx_rdma_register_if(qlnx_rdma_if_t *rdma_if)
 	qlnx_host_t *ha;
 
 	if (mtx_initialized(&qlnx_rdma_dev_lock)) {
-
 		mtx_lock(&qlnx_rdma_dev_lock);
 		qlnx_rdma_if = rdma_if;
 
@@ -263,13 +261,11 @@ qlnx_rdma_deregister_if(qlnx_rdma_if_t *rdma_if)
 	printf("%s: enter rdma_if = %p\n", __func__, rdma_if);
 
         if (mtx_initialized(&qlnx_rdma_dev_lock)) {
-
                 mtx_lock(&qlnx_rdma_dev_lock);
 
 		ha = qlnx_host_list;
 
 		while (ha != NULL) {
-
                 	mtx_unlock(&qlnx_rdma_dev_lock);
 
 			if (ha->dbg_level & 0xF000)
@@ -293,13 +289,11 @@ qlnx_rdma_deregister_if(qlnx_rdma_if_t *rdma_if)
 			qlnx_rdma_if = NULL;
 
                 mtx_unlock(&qlnx_rdma_dev_lock);
-
         }
 	printf("%s: exit rdma_if = %p\n", __func__, rdma_if);
 
         return (ret);
 }
-
 
 void
 qlnx_rdma_dev_open(struct qlnx_host *ha)
@@ -318,7 +312,6 @@ qlnx_rdma_dev_open(struct qlnx_host *ha)
 	QL_DPRINT12(ha, "exit ha = %p qlnx_rdma_if = %p\n", ha, qlnx_rdma_if);
 	return;
 }
-
 
 void
 qlnx_rdma_dev_close(struct qlnx_host *ha)
@@ -343,5 +336,3 @@ qlnx_rdma_get_num_irqs(struct qlnx_host *ha)
 {
         return (QLNX_NUM_CNQ + ecore_rdma_get_sb_id(&ha->cdev.hwfns[0], 0) + 2);
 }
-
-

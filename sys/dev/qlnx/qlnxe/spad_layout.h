@@ -120,7 +120,6 @@ struct spad_layout {
 
 #endif /* MDUMP_PARSE_TOOL */
 
-
 #define STRUCT_OFFSET(f)    (STATIC_INIT_BASE + __builtin_offsetof(struct static_init, f))
 
 /* This section is located at a fixed location in the beginning of the scratchpad,
@@ -132,7 +131,6 @@ struct spad_layout {
  */
 
 struct static_init {
-
 	u32 num_sections;						/* 0xe20000 */
 	offsize_t sections[SPAD_SECTION_MAX];				/* 0xe20004 */
 #define SECTION(_sec_) *((offsize_t*)(STRUCT_OFFSET(sections[_sec_])))
@@ -178,7 +176,7 @@ struct static_init {
 #define AH_PCIE_LINK_PARAMS_ASPM_CAP_MASK	(0xff000000)
 #define AH_PCIE_LINK_PARAMS_ASPM_CAP_OFFSET	(24)
 #define AH_PCIE_LINK_PARAMS *((u32*)(STRUCT_OFFSET(ah_pcie_link_params)))
-	
+
 	u32 flags;							/* 0xe20850 */
 #define M_GLOB_FLAGS		*((u32*)(STRUCT_OFFSET(flags)))
 #define FLAGS_VAUX_REQUIRED		(1 << 0)

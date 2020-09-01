@@ -600,7 +600,6 @@ ecore_iwarp_destroy_qp(struct ecore_hwfn *p_hwfn,
 			  fpdu->incomplete_bytes);
 
 	if (qp->iwarp_state != ECORE_IWARP_QP_STATE_ERROR) {
-
 		rc = ecore_iwarp_modify_qp(p_hwfn, qp,
 					   ECORE_IWARP_QP_STATE_ERROR,
 					   false);
@@ -1724,7 +1723,6 @@ ecore_iwarp_resc_free(struct ecore_hwfn *p_hwfn)
 	ecore_rdma_bmap_free(p_hwfn, &p_hwfn->p_rdma_info->tcp_cid_map, 1);
 }
 
-
 enum _ecore_status_t
 ecore_iwarp_accept(void *rdma_cxt,
 		   struct ecore_iwarp_accept_in *iparams)
@@ -1972,7 +1970,6 @@ ecore_iwarp_get_listener(struct ecore_hwfn *p_hwfn,
 	OSAL_LIST_FOR_EACH_ENTRY(listener,
 				 &p_hwfn->p_rdma_info->iwarp.listen_list,
 				 list_entry, struct ecore_iwarp_listener) {
-
 		if (listener->port == cm_info->local_port) {
 			/* Any IP (i.e. 0.0.0.0 ) will be treated as any vlan */
 			if (!OSAL_MEMCMP(listener->ip_addr,
@@ -3026,7 +3023,6 @@ ecore_iwarp_ll2_stop(struct ecore_hwfn *p_hwfn)
 	int rc = 0;
 
 	if (iwarp_info->ll2_syn_handle != ECORE_IWARP_HANDLE_INVAL) {
-
 		rc = ecore_ll2_terminate_connection(p_hwfn,
 						    iwarp_info->ll2_syn_handle);
 		if (rc)

@@ -344,7 +344,6 @@ u32 ecore_vf_hw_bar_size(struct ecore_hwfn *p_hwfn, enum BAR_ID bar_id);
 static OSAL_INLINE enum _ecore_status_t ecore_vf_hw_prepare(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxq_start(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid, u16 OSAL_UNUSED bd_max_bytes, dma_addr_t OSAL_UNUSED bd_chain_phys_addr, dma_addr_t OSAL_UNUSED cqe_pbl_addr, u16 OSAL_UNUSED cqe_pbl_size, void OSAL_IOMEM OSAL_UNUSED **pp_prod) {return ECORE_INVAL;}
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_txq_start(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid, dma_addr_t OSAL_UNUSED pbl_addr, u16 OSAL_UNUSED pbl_size, void OSAL_IOMEM OSAL_UNUSED **pp_doorbell) {return ECORE_INVAL;}
-
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_rxq_stop(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid, bool OSAL_UNUSED cqe_completion) {return ECORE_INVAL;}
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_txq_stop(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_queue_cid OSAL_UNUSED *p_cid) {return ECORE_INVAL;}
 #ifndef LINUX_REMOVE
@@ -355,7 +354,6 @@ static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_reset(struct ecore_hwfn OSAL
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_release(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
 static OSAL_INLINE u16 ecore_vf_get_igu_sb_id(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED sb_id) {return 0;}
 static OSAL_INLINE void ecore_vf_set_sb_info(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u16 OSAL_UNUSED sb_id, struct ecore_sb_info OSAL_UNUSED *p_sb) {}
-
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_start(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED vport_id, u16 OSAL_UNUSED mtu, u8 OSAL_UNUSED inner_vlan_removal, enum ecore_tpa_mode OSAL_UNUSED tpa_mode, u8 OSAL_UNUSED max_buffers_per_cqe, u8 OSAL_UNUSED only_untagged, u8 OSAL_UNUSED zero_placement_offset) {return ECORE_INVAL;}
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_vport_stop(struct ecore_hwfn OSAL_UNUSED *p_hwfn) {return ECORE_INVAL;}
 static OSAL_INLINE enum _ecore_status_t ecore_vf_pf_filter_ucast(struct ecore_hwfn OSAL_UNUSED *p_hwfn, struct ecore_filter_ucast OSAL_UNUSED *p_param) {return ECORE_INVAL;}

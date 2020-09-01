@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_SP_COMMANDS_H__
 #define __ECORE_SP_COMMANDS_H__
 

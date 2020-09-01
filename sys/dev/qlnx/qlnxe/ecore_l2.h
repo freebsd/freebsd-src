@@ -31,7 +31,6 @@
 #ifndef __ECORE_L2_H__
 #define __ECORE_L2_H__
 
-
 #include "ecore.h"
 #include "ecore_hw.h"
 #include "ecore_spq.h"

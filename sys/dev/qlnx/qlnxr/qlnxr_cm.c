@@ -216,7 +216,6 @@ qlnxr_check_gsi_qp_attrs(struct qlnxr_dev *dev,
 	return 0;
 }
 
-
 static int
 qlnxr_ll2_post_tx(struct qlnxr_dev *dev, struct ecore_roce_ll2_packet *pkt)
 {
@@ -252,7 +251,6 @@ qlnxr_ll2_post_tx(struct qlnxr_dev *dev, struct ecore_roce_ll2_packet *pkt)
 			&ll2_tx_pkt,
 			1);
 	if (rc) {
-
 		QL_DPRINT11(dev->ha, "ecore_ll2_prepare_tx_packet failed\n");
 
 		/* TX failed while posting header - release resources*/
@@ -466,7 +464,6 @@ qlnxr_destroy_gsi_qp(struct qlnxr_dev *dev)
 	return (rc);
 }
 
-
 static inline bool
 qlnxr_get_vlan_id_gsi(struct ib_ah_attr *ah_attr, u16 *vlan_id)
 {
@@ -505,7 +502,6 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	int ip_ver = 0;
 	bool has_udp = false;
 #endif /* #if __FreeBSD_version >= 1102000 */
-
 
 #if !DEFINE_IB_AH_ATTR_WITH_DMAC
 	u8 mac[ETH_ALEN];
@@ -565,7 +561,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 		QL_DPRINT12(dev->ha, "source mac: %x\n",
 				udh->eth.smac_h[j]);
 	}
-	
+
 	QL_DPRINT12(dev->ha, "QP: %p, opcode: %d, wq: %lx, roce: %x, hops:%d,"
 			"imm : %d, vlan :%d, AH: %p\n",
 			qp, swr->opcode, swr->wr_id, *roce_mode, grh->hop_limit,
@@ -884,4 +880,3 @@ qlnxr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	QL_DPRINT12(dev->ha, "exit i = %d\n", i);
 	return i;
 }
-
