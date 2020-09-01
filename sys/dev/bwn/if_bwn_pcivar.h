@@ -91,7 +91,6 @@ struct bwn_pci_device {
 	uint32_t	quirks;
 };
 
-
 #define	BWN_BCM_DEV(_devid, _desc, _quirks)		\
     { PCI_VENDOR_BROADCOM, PCI_DEVID_ ## _devid,	\
         "Broadcom " _desc " Wireless", _quirks }
