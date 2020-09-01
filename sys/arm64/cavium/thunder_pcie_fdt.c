@@ -90,7 +90,6 @@ DRIVER_MODULE(thunder_pcib, simplebus, thunder_pcie_fdt_driver,
 DRIVER_MODULE(thunder_pcib, ofwbus, thunder_pcie_fdt_driver,
     thunder_pcie_fdt_devclass, 0, 0);
 
-
 static int
 thunder_pcie_fdt_probe(device_t dev)
 {

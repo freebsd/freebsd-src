@@ -185,7 +185,6 @@ thunder_pcie_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	if (((type == SYS_RES_IOPORT) || (type == SYS_RES_MEMORY)) &&
 	    RMAN_IS_DEFAULT_RANGE(start, end)) {
-
 		/* Read BAR manually to get resource address and size */
 		pci_read_bar(child, *rid, &map, &testval, NULL);
 

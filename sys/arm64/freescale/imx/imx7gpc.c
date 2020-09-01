@@ -142,7 +142,6 @@ imx7gpc_pre_ithread(device_t dev, struct intr_irqsrc *isrc)
 	PIC_PRE_ITHREAD(sc->parent, isrc);
 }
 
-
 static void
 imx7gpc_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 {
@@ -206,7 +205,6 @@ imx7gpc_attach(device_t dev)
 		device_printf(dev, "Can't find parent controller\n");
 		return (ENXIO);
 	}
-
 
 	i = 0;
 	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,

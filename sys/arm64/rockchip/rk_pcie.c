@@ -203,7 +203,6 @@ struct rk_pcie_softc {
 	phandle_t		node;
 	struct mtx		mtx;
 
-
 	struct ofw_pci_range	mem_range;
 	struct ofw_pci_range	pref_mem_range;
 	struct ofw_pci_range	io_range;
@@ -244,7 +243,6 @@ static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk3399-pcie", 1},
 	{NULL,		 	 0},
 };
-
 
 static uint32_t
 rk_pcie_local_cfg_read(struct rk_pcie_softc *sc, bool priv, u_int reg,
@@ -305,7 +303,6 @@ rk_pcie_local_cfg_write(struct rk_pcie_softc *sc, bool priv, u_int reg,
 	}
 }
 
-
 static bool
 rk_pcie_check_dev(struct rk_pcie_softc *sc, u_int bus, u_int slot, u_int func,
     u_int reg)
@@ -334,14 +331,12 @@ rk_pcie_check_dev(struct rk_pcie_softc *sc, u_int bus, u_int slot, u_int func,
 	return (true);
 }
 
-
 static void
 rk_pcie_map_out_atu(struct rk_pcie_softc *sc, int idx, int type,
    int num_bits, uint64_t pa)
 {
 	uint32_t addr0;
 	uint64_t max_size;
-
 
 	/* Check HW constrains */
 	max_size = idx == 0 ? ATU_OB_REGION_0_SIZE: ATU_OB_REGION_SIZE;
@@ -1027,7 +1022,6 @@ rk_pcie_setup_sw(struct rk_pcie_softc *sc)
 
 	pcib_bridge_init(sc->dev);
 
-
 	/* Setup config registers */
 	APB_WR4(sc, PCIE_CORE_CONFIG_VENDOR, 0x1D87); /* Rockchip vendor ID*/
 	PRIV_CFG_WR1(sc, PCIR_CLASS, PCIC_BRIDGE);
@@ -1137,7 +1131,6 @@ rk_pcie_legacy_irq(void *arg)
 	return (FILTER_STRAY);
 }
 
-
 static bus_dma_tag_t
 rk_pcie_get_dma_tag(device_t dev, device_t child)
 {
@@ -1146,7 +1139,6 @@ rk_pcie_get_dma_tag(device_t dev, device_t child)
 	sc = device_get_softc(dev);
 	return (sc->dmat);
 }
-
 
 static int
 rk_pcie_probe(device_t dev)
@@ -1369,7 +1361,6 @@ out:
 	/* XXX Cleanup */
 	return (rv);
 }
-
 
 static device_method_t rk_pcie_methods[] = {
 	/* Device interface */

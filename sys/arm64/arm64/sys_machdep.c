@@ -37,11 +37,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/sysarch.h>
 
-
 int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 
 	return (ENOTSUP);
 }
-
