@@ -53,7 +53,7 @@ struct smc_softc {
 	struct task		smc_tx;
 	struct mbuf		*smc_pending;
 	struct callout		smc_watchdog;
-	
+
 	/* MII support */
 	device_t		smc_miibus;
 	struct callout		smc_mii_tick_ch;
