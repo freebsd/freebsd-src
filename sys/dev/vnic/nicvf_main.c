@@ -656,7 +656,6 @@ nicvf_if_transmit(struct ifnet *ifp, struct mbuf *mbuf)
 	int qidx;
 	int err = 0;
 
-
 	if (__predict_false(qs == NULL)) {
 		panic("%s: missing queue set for %s", __func__,
 		    device_get_nameunit(nic->dev));

@@ -891,7 +891,6 @@ nicvf_cmp_task(void *arg, int pending)
 		 * process the entire CQ due to Tx or Rx CQ parse error.
 		 */
 		taskqueue_enqueue(cq->cmp_taskq, &cq->cmp_task);
-
 	}
 
 	nicvf_clear_intr(nic, NICVF_INTR_CQ, cq->idx);
@@ -1533,7 +1532,6 @@ nicvf_free_resources(struct nicvf *nic)
 		while (taskqueue_cancel(qs->qs_err_taskq,
 		    &qs->qs_err_task,  NULL) != 0) {
 			taskqueue_drain(qs->qs_err_taskq, &qs->qs_err_task);
-
 		}
 		taskqueue_free(qs->qs_err_taskq);
 		qs->qs_err_taskq = NULL;
