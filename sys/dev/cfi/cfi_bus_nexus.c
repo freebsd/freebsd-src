@@ -72,7 +72,6 @@ static device_method_t cfi_nexus_methods[] = {
 	DEVMETHOD(device_probe,		cfi_nexus_probe),
 	DEVMETHOD(device_attach,	cfi_nexus_attach),
 	DEVMETHOD(device_detach,	cfi_detach),
-
 	{0, 0}
 };
 
