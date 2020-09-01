@@ -43,7 +43,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _MACHINE_VMPARAM_H_
 #define	_MACHINE_VMPARAM_H_ 1
 

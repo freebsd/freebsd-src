@@ -177,7 +177,6 @@ DEFINE_IFUNC(, int, copyin, (const void *, void *, size_t))
 		return (copyin_smap_erms);
 	default:
 		return (copyin_nosmap_std);
-
 	}
 }
 

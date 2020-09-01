@@ -478,7 +478,7 @@ pptintr(void *arg)
 {
 	struct pptdev *ppt;
 	struct pptintr_arg *pptarg;
-	
+
 	pptarg = arg;
 	ppt = pptarg->pptdev;
 
@@ -556,7 +556,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 			/* success */
 		}
 	}
-	
+
 	ppt->msi.startrid = startrid;
 
 	/*
@@ -583,7 +583,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 		if (error != 0)
 			break;
 	}
-	
+
 	if (i < numvec) {
 		ppt_teardown_msi(ppt);
 		return (ENXIO);
@@ -676,17 +676,17 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 							    &rid, RF_ACTIVE);
 		if (ppt->msix.res[idx] == NULL)
 			return (ENXIO);
-	
+
 		ppt->msix.arg[idx].pptdev = ppt;
 		ppt->msix.arg[idx].addr = addr;
 		ppt->msix.arg[idx].msg_data = msg;
-	
+
 		/* Setup the MSI-X interrupt */
 		error = bus_setup_intr(ppt->dev, ppt->msix.res[idx],
 				       INTR_TYPE_NET | INTR_MPSAFE,
 				       pptintr, NULL, &ppt->msix.arg[idx],
 				       &ppt->msix.cookie[idx]);
-	
+
 		if (error != 0) {
 			bus_release_resource(ppt->dev, SYS_RES_IRQ, rid, ppt->msix.res[idx]);
 			ppt->msix.cookie[idx] = NULL;

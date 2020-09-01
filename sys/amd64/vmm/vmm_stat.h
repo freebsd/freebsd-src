@@ -99,7 +99,7 @@ vmm_stat_array_incr(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
 {
 #ifdef VMM_KEEP_STATS
 	uint64_t *stats;
-	
+
 	stats = vcpu_stats(vm, vcpu);
 
 	if (vst->index >= 0 && statidx < vst->nelems)
@@ -113,7 +113,7 @@ vmm_stat_array_set(struct vm *vm, int vcpu, struct vmm_stat_type *vst,
 {
 #ifdef VMM_KEEP_STATS
 	uint64_t *stats;
-	
+
 	stats = vcpu_stats(vm, vcpu);
 
 	if (vst->index >= 0 && statidx < vst->nelems)

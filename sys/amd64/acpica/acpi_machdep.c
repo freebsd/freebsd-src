@@ -282,7 +282,6 @@ static device_method_t nexus_acpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_acpi_probe),
 	DEVMETHOD(device_attach,	nexus_acpi_attach),
-
 	{ 0, 0 }
 };
 
