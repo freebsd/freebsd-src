@@ -1681,4 +1681,3 @@ ahc_sg_cache_pre_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	return (ahc_print_register(SG_CACHE_PRE_parse_table, 3, "SG_CACHE_PRE",
 	    0xfc, regvalue, cur_col, wrap));
 }
-

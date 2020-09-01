@@ -257,7 +257,6 @@ void	  ahd_sysctl(struct ahd_softc *ahd);
 int	  ahd_detach(device_t);
 #define	ahd_platform_init(arg)
 
-
 /****************************** Interrupts ************************************/
 void			ahd_platform_intr(void *);
 static __inline void	ahd_platform_flushwork(struct ahd_softc *ahd);

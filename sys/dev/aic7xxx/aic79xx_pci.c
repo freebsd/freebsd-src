@@ -404,7 +404,7 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 		aic_pci_write_config(ahd->dev_softc, DEVCONFIG,
 				     devconfig, /*bytes*/4);
 	}
-	
+
 	/* Ensure busmastering is enabled */
 	command = aic_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/2);
 	command |= PCIM_CMD_BUSMASTEREN;
@@ -529,7 +529,6 @@ ahd_pci_test_register_access(struct ahd_softc *ahd)
 
 fail:
 	if ((ahd_inb(ahd, INTSTAT) & PCIINT) != 0) {
-
 		ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
 		targpcistat = ahd_inb(ahd, TARGPCISTAT);
 
@@ -699,7 +698,7 @@ ahd_configure_termination(struct ahd_softc *ahd, u_int adapter_control)
 		printf("%s: STPWLEVEL is %s\n",
 		       ahd_name(ahd), (devconfig & STPWLEVEL) ? "on" : "off");
 	aic_pci_write_config(ahd->dev_softc, DEVCONFIG, devconfig, /*bytes*/4);
- 
+
 	/* Make sure current sensing is off. */
 	if ((ahd->flags & AHD_CURRENT_SENSING) != 0) {
 		(void)ahd_write_flexport(ahd, FLXADDR_ROMSTAT_CURSENSECTL, 0);
@@ -836,7 +835,7 @@ ahd_pci_intr(struct ahd_softc *ahd)
 	u_int		intstat;
 	u_int		i;
 	u_int		reg;
-	
+
 	intstat = ahd_inb(ahd, INTSTAT);
 
 	if ((intstat & SPLTINT) != 0)
@@ -850,7 +849,6 @@ ahd_pci_intr(struct ahd_softc *ahd)
 	ahd_dump_card_state(ahd);
 	ahd_set_modes(ahd, AHD_MODE_CFG, AHD_MODE_CFG);
 	for (i = 0, reg = DF0PCISTAT; i < 8; i++, reg++) {
-
 		if (i == 5)
 			continue;
 		pci_status[i] = ahd_inb(ahd, reg);
@@ -860,12 +858,11 @@ ahd_pci_intr(struct ahd_softc *ahd)
 
 	for (i = 0; i < 8; i++) {
 		u_int bit;
-	
+
 		if (i == 5)
 			continue;
 
 		for (bit = 0; bit < 8; bit++) {
-
 			if ((pci_status[i] & (0x1 << bit)) != 0) {
 				static const char *s;
 
@@ -926,7 +923,6 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 		u_int bit;
 
 		for (bit = 0; bit < 8; bit++) {
-
 			if ((split_status[i] & (0x1 << bit)) != 0) {
 				static const char *s;
 

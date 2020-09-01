@@ -132,7 +132,7 @@ main(int argc, char *argv[])
 	/* Set Sentinal scope node */
 	sentinal = scope_alloc();
 	sentinal->type = SCOPE_ROOT;
-	
+
 	includes_search_curdir = 1;
 	appname = *argv;
 	regfile = NULL;
@@ -369,7 +369,6 @@ output_code(void)
 	for (cur_instr = STAILQ_FIRST(&seq_program);
 	     cur_instr != NULL;
 	     cur_instr = STAILQ_NEXT(cur_instr, links)) {
-
 		fprintf(ofile, "%s\t0x%02x, 0x%02x, 0x%02x, 0x%02x",
 			cur_instr == STAILQ_FIRST(&seq_program) ? "" : ",\n",
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -476,7 +475,6 @@ dump_scope(scope_t *scope)
 	cur_scope = TAILQ_FIRST(&scope->inner_scope);
 
 	while (cur_scope != NULL) {
-
 		dump_scope(cur_scope);
 
 		cur_scope = TAILQ_NEXT(cur_scope, scope_links);
@@ -578,7 +576,6 @@ output_listing(char *ifilename)
 				"this expression[T/F]:");
 
 			while (1) {
-
 				input = getchar();
 				input = toupper(input);
 
@@ -601,7 +598,6 @@ output_listing(char *ifilename)
 	for (cur_instr = STAILQ_FIRST(&seq_program);
 	     cur_instr != NULL;
 	     cur_instr = STAILQ_NEXT(cur_instr, links), instrcount++) {
-
 		if (check_patch(&cur_patch, instrcount,
 				&skip_addr, func_values) == 0) {
 			/* Don't count this instruction as it is in a patch
@@ -757,7 +753,7 @@ cs_alloc(void)
 	if (new_cs == NULL)
 		stop("Unable to malloc critical_section object", EX_SOFTWARE);
 	memset(new_cs, 0, sizeof(*new_cs));
-	
+
 	TAILQ_INSERT_TAIL(&cs_tailq, new_cs, links);
 	return new_cs;
 }
@@ -772,7 +768,7 @@ scope_alloc(void)
 		stop("Unable to malloc scope object", EX_SOFTWARE);
 	memset(new_scope, 0, sizeof(*new_scope));
 	TAILQ_INIT(&new_scope->inner_scope);
-	
+
 	if (SLIST_FIRST(&scope_stack) != NULL) {
 		TAILQ_INSERT_TAIL(&SLIST_FIRST(&scope_stack)->inner_scope,
 				  new_scope, scope_links);

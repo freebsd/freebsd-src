@@ -165,7 +165,6 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 
 	if ((ahd->bugs & AHD_PCIX_MMAPIO_BUG) == 0
 	 && allow_memio != 0) {
-
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHD_PCI_MEMADDR;
 		regs = bus_alloc_resource_any(ahd->dev_softc, regs_type,

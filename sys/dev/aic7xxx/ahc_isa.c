@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>		/* For CHAR_BIT*/
 #include <isa/isavar.h>		/* For ISA attach glue */
 
-
 static struct aic7770_identity *ahc_isa_find_device(bus_space_tag_t tag,
 						    bus_space_handle_t bsh);
 static void			ahc_isa_identify(driver_t *driver,

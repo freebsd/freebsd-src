@@ -1064,7 +1064,6 @@ ahc_reg_print_t ahc_sg_cache_pre_print;
     ahc_print_register(NULL, 0, "SG_CACHE_PRE", 0xfc, regvalue, cur_col, wrap)
 #endif
 
-
 #define	SCSISEQ         		0x00
 #define		TEMODE          	0x80
 #define		SCSIRSTO        	0x01
@@ -1749,7 +1748,6 @@ ahc_reg_print_t ahc_sg_cache_pre_print;
 
 #define	SG_CACHE_PRE    		0xfc
 
-
 #define	MAX_OFFSET_ULTRA2	0x7f
 #define	SCB_LIST_NULL	0xff
 #define	HOST_MSG	0xff
@@ -1775,7 +1773,6 @@ ahc_reg_print_t ahc_sg_cache_pre_print;
 #define	CCSGADDR_MAX	0x80
 #define	STACK_SIZE	0x04
 
-
 /* Downloaded Constant Definitions */
 #define	SG_PREFETCH_ADDR_MASK	0x06
 #define	SG_PREFETCH_ALIGN_MASK	0x05
@@ -1785,6 +1782,5 @@ ahc_reg_print_t ahc_sg_cache_pre_print;
 #define	CACHESIZE_MASK	0x02
 #define	QINFIFO_OFFSET	0x01
 #define	DOWNLOAD_CONST_COUNT	0x07
-
 
 /* Exported Labels */

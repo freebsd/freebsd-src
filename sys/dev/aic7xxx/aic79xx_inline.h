@@ -969,7 +969,6 @@ ahd_intr(struct ahd_softc *ahd)
 	} else if ((intstat & (PCIINT|SPLTINT)) != 0) {
 		ahd->bus_intr(ahd);
 	} else {
-
 		if ((intstat & SEQINT) != 0)
 			ahd_handle_seqint(ahd, intstat);
 
