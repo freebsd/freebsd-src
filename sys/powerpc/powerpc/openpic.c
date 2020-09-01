@@ -73,21 +73,6 @@ openpic_write(struct openpic_softc *sc, u_int reg, uint32_t val)
 	bus_space_write_4(sc->sc_bt, sc->sc_bh, reg, val);
 }
 
-static __inline void
-openpic_set_priority(struct openpic_softc *sc, int pri)
-{
-	u_int tpr;
-	uint32_t x;
-
-	sched_pin();
-	tpr = OPENPIC_PCPU_TPR((sc->sc_dev == root_pic) ? PCPU_GET(cpuid) : 0);
-	x = openpic_read(sc, tpr);
-	x &= ~OPENPIC_TPR_MASK;
-	x |= pri;
-	openpic_write(sc, tpr, x);
-	sched_unpin();
-}
-
 int
 openpic_common_attach(device_t dev, uint32_t node)
 {
