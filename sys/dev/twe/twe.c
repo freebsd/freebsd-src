@@ -184,10 +184,9 @@ twe_setup(struct twe_softc *sc)
      * check for errors, drain the response queue.
      */
     for (i = 0; i < TWE_MAX_RESET_TRIES; i++) {
-
 	if (i > 0)
 	    twe_printf(sc, "reset %d failed, trying again\n", i);
-	
+
 	if (!twe_soft_reset(sc))
 	    break;			/* reset process complete */
     }
@@ -413,7 +412,6 @@ twe_startio(struct twe_softc *sc)
 
     /* spin until something prevents us from doing any work */
     for (;;) {
-
 	/* try to get a command that's already ready to go */
 	tr = twe_dequeue_ready(sc);
 
@@ -447,18 +445,18 @@ twe_startio(struct twe_softc *sc)
 		biofinish(bp, NULL, EOPNOTSUPP);
 		break;
 	    }
-	
+
 	    /* build a suitable I/O command (assumes 512-byte rounded transfers) */
 	    cmd->io.size = 3;
 	    cmd->io.unit = *(int *)(bp->bio_driver1);
 	    cmd->io.block_count = (tr->tr_length + TWE_BLOCK_SIZE - 1) / TWE_BLOCK_SIZE;
 	    cmd->io.lba = bp->bio_pblkno;
 	}
-	
+
 	/* did we find something to do? */
 	if (tr == NULL)
 	    break;
-	
+
 	/* try to map and submit the command to controller */
 	error = twe_map_request(tr);
 
@@ -578,7 +576,7 @@ twe_ioctl(struct twe_softc *sc, u_long ioctlcmd, void *addr)
 
 	/* copy the command out again */
 	bcopy(cmd, &tu->tu_command, sizeof(TWE_Command));
-	
+
 	/* if there was a data buffer, copy it out */
 	if (tr->tr_length > 0)
 	    error = copyout(tr->tr_data, tu->tu_data, tu->tu_size);
@@ -1024,7 +1022,6 @@ twe_completeio(struct twe_request *tr)
     debug_called(4);
 
     if (tr->tr_status == TWE_CMD_COMPLETE) {
-
 	if (cmd->generic.status)
 	    if (twe_report_request(tr)) {
 		bp->bio_error = EIO;
@@ -1065,10 +1062,9 @@ twe_reset(struct twe_softc *sc)
      * Try to soft-reset the controller.
      */
     for (i = 0; i < TWE_MAX_RESET_TRIES; i++) {
-
 	if (i > 0)
 	    twe_printf(sc, "reset %d failed, trying again\n", i);
-	
+
 	if (!twe_soft_reset(sc))
 	    break;			/* reset process complete */
     }
@@ -1132,7 +1128,6 @@ twe_start(struct twe_request *tr)
      *     and let the command be rescheduled.
      */
     for (i = 100000; (i > 0); i--) {
-	
 	/* check to see if we can post a command */
 	status_reg = TWE_STATUS(sc);
 	twe_check_bits(sc, status_reg);
@@ -1541,7 +1536,6 @@ twe_find_aen(struct twe_softc *sc, u_int16_t aen)
     return(missing);
 }
 
-
 #if 0	/* currently unused */
 /********************************************************************************
  * Sleep waiting for at least (timeout) seconds until we see (aen) as 
@@ -1809,7 +1803,6 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 	    TWE_AEN_UNIT(aen), msg);
 	return(sc->twe_aen_buf);
 
-	
     case 'x':
     default:
 	break;

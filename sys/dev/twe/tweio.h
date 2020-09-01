@@ -31,7 +31,6 @@
  *	$FreeBSD$
  */
 
-
 /*
  * User-space command
  *
