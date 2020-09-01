@@ -1618,3 +1618,17 @@ linux_fallocate(struct thread *td, struct linux_fallocate_args *args)
 
 	return (kern_posix_fallocate(td, args->fd, offset, len));
 }
+
+int
+linux_splice(struct thread *td, struct linux_splice_args *args)
+{
+
+	linux_msg(td, "syscall splice not really implemented");
+
+	/*
+	 * splice(2) is documented to return EINVAL in various circumstances;
+	 * returning it instead of ENOSYS should hint the caller to use fallback
+	 * instead.
+	 */
+	return (EINVAL);
+}

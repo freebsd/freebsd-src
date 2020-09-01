@@ -524,7 +524,8 @@
 					l_size_t len); }
 312	AUE_NULL	STD	{ int linux_get_robust_list(l_int pid, \
 				    struct linux_robust_list_head **head, l_size_t *len); }
-313	AUE_NULL	STD	{ int linux_splice(void); }
+313	AUE_NULL	STD	{ int linux_splice(int fd_in, l_loff_t *off_in, \
+				    int fd_out, l_loff_t *off_out, l_size_t len, l_uint flags); }
 314	AUE_NULL	STD	{ int linux_sync_file_range(l_int fd, uint32_t offset1,
 				    uint32_t offset2, uint32_t nbytes1, uint32_t nbytes2,
 				    unsigned int flags); }
