@@ -2394,7 +2394,6 @@ ale_rx_update_page(struct ale_softc *sc, struct ale_rx_page **page,
 	}
 }
 
-
 /*
  * It seems that AR81xx controller can compute partial checksum.
  * The partial checksum value can be used to accelerate checksum
