@@ -317,7 +317,7 @@ sdhci_init_rk3399(device_t dev)
 	val = SHIFTIN((freq + (1000000 / 2)) / 1000000,
 	    RK3399_CORECFG_BASECLKFREQ);
 	SYSCON_WRITE_4(grf, RK3399_GRF_EMMCCORE_CON0, (mask << 16) | val);
-	
+
 	return (0);
 }
 #endif
