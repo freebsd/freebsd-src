@@ -150,7 +150,6 @@
  *
  */
 
-
 #ifdef	_KERNEL
 #include <sys/cdefs.h>
 
@@ -202,7 +201,6 @@ print_value(int n, const char *name, unsigned val)
 #else
 #define	print_value(n, name, val)
 #endif
-
 
 /*
  * vert_refresh() - as defined by the GTF Timing Standard, compute the
@@ -565,7 +563,6 @@ vesagtf_mode_params(unsigned h_pixels, unsigned v_lines, unsigned freq,
     print_value(22, "[H FREQ]", h_freq);
 #endif
     
-
 
     /* Stage 1 computations are now complete; I should really pass
        the results to another function and do the Stage 2

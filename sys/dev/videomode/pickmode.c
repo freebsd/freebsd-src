@@ -77,7 +77,6 @@ pick_mode_by_ref(int width, int height, int refresh)
 	DPRINTF("%s: looking for %d x %d at up to %d Hz\n", __func__, width,
 	    height, refresh);
 	for (i = 0; i < videomode_count; i++) {
-
 		this = &videomode_list[i];
 		mref = this->dot_clock * 1000 / (this->htotal * this->vtotal);
 		diff = abs(mref - refresh);

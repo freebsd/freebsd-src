@@ -54,7 +54,6 @@
 #define EDID_OFFSET_MFG_TIMING		0x25
 #define	EDID_OFFSET_STD_TIMING		0x26
 #define	EDID_OFFSET_DESC_BLOCK		0x36
-
 #define	EDID_SIGNATURE		{ 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0 }
 
 /* assume x is 16-bit value */
@@ -209,7 +208,6 @@
 #define	EDID_DET_TIMING_FLAG_VSYNC_POSITIVE	0x04
 #define	EDID_DET_TIMING_FLAG_HSYNC_POSITIVE	0x02
 #define	EDID_DET_TIMING_FLAG_STEREO_MODE	0x01	/* stereo mode */
-
 
 /* N.B.: these tests assume that we already checked for detailed timing! */
 #define	EDID_BLOCK_TYPE(ptr)			((ptr)[3])
