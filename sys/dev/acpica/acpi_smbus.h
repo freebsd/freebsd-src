@@ -49,7 +49,6 @@
 /* Base address */
 #define SMBATT_ADDRESS		0x16
 
-
 /* access: READ WRITE WORD */
 #define SMBATT_CMD_MANUFACTURER_ACCESS		0
 

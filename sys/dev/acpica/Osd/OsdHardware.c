@@ -119,7 +119,6 @@ AcpiOsReadPciConfiguration(ACPI_PCI_ID *PciId, UINT32 Register, UINT64 *Value,
 #endif
 }
 
-
 ACPI_STATUS
 AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
     UINT64 Value, UINT32 Width)

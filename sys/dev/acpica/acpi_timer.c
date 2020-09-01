@@ -354,7 +354,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 {
     int error;
     u_int freq;
- 
+
     if (acpi_timer_timecounter.tc_frequency == 0)
 	return (EOPNOTSUPP);
     freq = acpi_timer_frequency;
@@ -366,7 +366,7 @@ acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS)
 
     return (error);
 }
- 
+
 SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT, 0, sizeof(u_int),
     acpi_timer_sysctl_freq, "I",

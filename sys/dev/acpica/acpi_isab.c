@@ -92,7 +92,7 @@ acpi_isab_probe(device_t dev)
 {
 	static char *isa_ids[] = { "PNP0A05", "PNP0A06", NULL };
 	int rv;
-	
+
 	if (acpi_disabled("isab") ||
 	    devclass_get_device(isab_devclass, 0) != dev)
 		return (ENXIO);
