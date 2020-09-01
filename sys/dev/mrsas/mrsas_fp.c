@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
 
-
 /*
  * Function prototypes
  */
@@ -105,7 +104,6 @@ MR_LdSpanInfoGet(u_int32_t ld,
 MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
 static int MR_PopulateDrvRaidMap(struct mrsas_softc *sc);
 
-
 /*
  * Spanset related function prototypes Added for PRL11 configuration (Uneven
  * span support)
@@ -125,7 +123,6 @@ mr_spanset_get_span_block(struct mrsas_softc *sc,
 static u_int8_t
 get_arm(struct mrsas_softc *sc, u_int32_t ld, u_int8_t span,
     u_int64_t stripe, MR_DRV_RAID_MAP_ALL * map);
-
 
 /*
  * Spanset related defines Added for PRL11 configuration(Uneven span support)
@@ -149,7 +146,6 @@ typedef u_int32_t REGION_LEN;
 
 #define	LB_PENDING_CMDS_DEFAULT 4
 
-
 /*
  * Related Macros
  */
@@ -162,7 +158,6 @@ typedef u_int32_t REGION_LEN;
     (((unsigned int)(x) & (unsigned int)0x0000ff00UL) <<  8) | \
     (((unsigned int)(x) & (unsigned int)0x00ff0000UL) >>  8) | \
     (((unsigned int)(x) & (unsigned int)0xff000000UL) >> 24) ))
-
 
 /*
  * In-line functions for mod and divide of 64-bit dividend and 32-bit
@@ -182,7 +177,6 @@ remainder;})
 int quotient; \
 quotient = ((u_int64_t) (dividend)) / (u_int32_t) (divisor); \
 quotient;})
-
 
 /*
  * Various RAID map access functions.  These functions access the various
@@ -223,7 +217,6 @@ static u_int8_t MR_PdInterfaceTypeGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL *map)
 {
     return map->raidMap.devHndlInfo[pd].interfaceType;
 }
-
 
 static u_int16_t
 MR_ArPdGet(u_int32_t ar, u_int32_t arm, MR_DRV_RAID_MAP_ALL * map)
@@ -768,7 +761,6 @@ get_row_from_strip(struct mrsas_softc *sc,
 	return -1LLU;
 }
 
-
 /*
  *
  * This routine calculates the Start Strip for given row using spanset.
@@ -880,7 +872,6 @@ get_arm_from_strip(struct mrsas_softc *sc,
 	return -1;
 }
 
-
 /* This Function will return Phys arm */
 u_int8_t
 get_arm(struct mrsas_softc *sc, u_int32_t ld, u_int8_t span, u_int64_t stripe,
@@ -941,7 +932,6 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	row = io_info->start_row;
 	span = io_info->start_span;
 
-
 	if (raid->level == 6) {
 		logArm = get_arm_from_strip(sc, ld, stripRow, map);
 		rowMod = mega_mod64(row, SPAN_ROW_SIZE(map, ld, span));
@@ -953,7 +943,6 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	} else
 		/* Calculate the arm */
 		physArm = get_arm(sc, ld, span, stripRow, map);
-
 
 	arRef = MR_LdSpanArrayGet(ld, span, map);
 	pd = MR_ArPdGet(arRef, physArm, map);
@@ -1350,7 +1339,6 @@ mrsas_update_load_balance_params(struct mrsas_softc *sc,
 		lbInfo[ldCount].loadBalanceFlag = 1;
 	}
 }
-
 
 /*
  * mrsas_set_pd_lba:	Sets PD LBA

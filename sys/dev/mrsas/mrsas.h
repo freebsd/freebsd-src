@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>		/* For pci_get macros! */
 #include <dev/pci/pcireg.h>
 
-
 #define	IOCTL_SEMA_DESCRIPTION	"mrsas semaphore for MFI pool"
 
 /*
@@ -100,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #define	MRSAS_AERO_10E5             0x10E5
 #define	MRSAS_AERO_10E6             0x10E6
 #define	MRSAS_AERO_10E7             0x10E7
-
 
 /*
  * Firmware State Defines
@@ -166,7 +164,6 @@ do {                                                \
     if (sc->mrsas_debug & level)                    \
         device_printf(sc->mrsas_dev, msg, ##args);  \
 } while (0)
-
 
 /****************************************************************************
  * Raid Context structure which describes MegaRAID specific IO Paramenters
@@ -242,7 +239,6 @@ typedef union _RAID_CONTEXT_UNION {
 	RAID_CONTEXT_G35 raid_context_g35;
 }	RAID_CONTEXT_UNION, *PRAID_CONTEXT_UNION;
 
-
 /*************************************************************************
  * MPI2 Defines
  ************************************************************************/
@@ -295,7 +291,6 @@ typedef union _RAID_CONTEXT_UNION {
 #ifndef MPI2_POINTER
 #define	MPI2_POINTER	*
 #endif
-
 
 /***************************************
  * MPI2 Structures
@@ -762,7 +757,6 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 #define	MRSAS_MAX_LD_IDS			(MRSAS_MAX_LD_CHANNELS * \
 			MRSAS_MAX_DEV_PER_CHANNEL)
 
-
 #define	VD_EXT_DEBUG	0
 #define TM_DEBUG		1
 
@@ -904,7 +898,6 @@ typedef struct _MR_FW_RAID_MAP {
 	MR_LD_SPAN_MAP ldSpanMap[1];
 }	MR_FW_RAID_MAP;
 
-
 typedef struct _MR_FW_RAID_MAP_EXT {
 	/* Not used in new map */
 	u_int32_t reserved;
@@ -934,7 +927,6 @@ typedef struct _MR_FW_RAID_MAP_EXT {
 	MR_ARRAY_INFO arMapInfo[MAX_API_ARRAYS_EXT];
 	MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_EXT];
 }	MR_FW_RAID_MAP_EXT;
-
 
 typedef struct _MR_DRV_RAID_MAP {
 	/*
@@ -979,7 +971,6 @@ typedef struct _MR_DRV_RAID_MAP {
 
 #pragma pack(1)
 typedef struct _MR_DRV_RAID_MAP_ALL {
-
 	MR_DRV_RAID_MAP raidMap;
 	MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN - 1];
 }	MR_DRV_RAID_MAP_ALL;
@@ -1084,13 +1075,11 @@ typedef struct _LD_STREAM_DETECT {
 	STREAM_DETECT streamTrack[MAX_STREAMS_TRACKED];
 } LD_STREAM_DETECT, *PTR_LD_STREAM_DETECT;
 
-
 typedef struct _MR_LD_TARGET_SYNC {
 	u_int8_t targetId;
 	u_int8_t reserved;
 	u_int16_t seqNum;
 }	MR_LD_TARGET_SYNC;
-
 
 /*
  * RAID Map descriptor Types.
@@ -1166,7 +1155,6 @@ typedef struct _MR_FW_RAID_MAP_DYNAMIC {
 
 }	MR_FW_RAID_MAP_DYNAMIC;
 
-
 #define	IEEE_SGE_FLAGS_ADDR_MASK		(0x03)
 #define	IEEE_SGE_FLAGS_SYSTEM_ADDR		(0x00)
 #define	IEEE_SGE_FLAGS_IOCDDR_ADDR		(0x01)
@@ -1182,7 +1170,6 @@ typedef struct _MR_FW_RAID_MAP_DYNAMIC {
 #define IEEE_SGE_FLAGS_FORMAT_PQI           (0x01)
 #define IEEE_SGE_FLAGS_FORMAT_NVME          (0x02)
 #define IEEE_SGE_FLAGS_FORMAT_AHCI          (0x03)
-
 
 #define MPI26_IEEE_SGE_FLAGS_NSF_MASK           (0x1C)
 #define MPI26_IEEE_SGE_FLAGS_NSF_MPI_IEEE       (0x00)
@@ -1212,7 +1199,6 @@ struct mrsas_tmp_dcmd {
 #define	MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT  16
 #define	MR_MAX_RAID_MAP_SIZE_MASK      0x1FF
 #define	MR_MIN_MAP_SIZE                0x10000
-
 
 /*******************************************************************
  * Register set, included legacy controllers 1068 and 1078,
@@ -1472,7 +1458,6 @@ enum MFI_STAT {
 #define	MFI_MBOX_SIZE	12
 
 enum MR_EVT_CLASS {
-
 	MR_EVT_CLASS_DEBUG = -2,
 	MR_EVT_CLASS_PROGRESS = -1,
 	MR_EVT_CLASS_INFO = 0,
@@ -1484,7 +1469,6 @@ enum MR_EVT_CLASS {
 };
 
 enum MR_EVT_LOCALE {
-
 	MR_EVT_LOCALE_LD = 0x0001,
 	MR_EVT_LOCALE_PD = 0x0002,
 	MR_EVT_LOCALE_ENCL = 0x0004,
@@ -1498,7 +1482,6 @@ enum MR_EVT_LOCALE {
 };
 
 enum MR_EVT_ARGS {
-
 	MR_EVT_ARGS_NONE,
 	MR_EVT_ARGS_CDB_SENSE,
 	MR_EVT_ARGS_LD,
@@ -1616,7 +1599,6 @@ typedef enum _REGION_TYPE {
 	REGION_TYPE_SHARED_WRITE = 2,
 	REGION_TYPE_EXCLUSIVE = 3,
 }	REGION_TYPE;
-
 
 /*
  * SCSI-CAM Related Defines
@@ -1736,7 +1718,6 @@ struct mrsas_mfi_cmd {
 	TAILQ_ENTRY(mrsas_mfi_cmd) next;
 };
 
-
 /*
  * define constants for device list query options
  */
@@ -1833,7 +1814,6 @@ typedef union _MR_LD_REF {
 	u_int32_t ref;
 }	MR_LD_REF;
 
-
 /*
  * defines the logical drive list structure
  */
@@ -1928,7 +1908,6 @@ struct mrsas_ctrl_prop {
 };
 
 #pragma pack()
-
 
 /*
  * SAS controller information
@@ -2213,7 +2192,6 @@ struct mrsas_ctrl_info {
 		u_int32_t headlessMode:1;
 		u_int32_t dedicatedHotSparesLimited:1;
 
-
 		u_int32_t supportUnevenSpans:1;
 		u_int32_t reserved:11;
 	}	adapterOperations2;
@@ -2224,7 +2202,6 @@ struct mrsas_ctrl_info {
 	u_int8_t temperatureCtrl;	/* 0x7CA */
 	u_int8_t reserved4;		/* 0x7CB */
 	u_int16_t maxConfigurablePds;	/* 0x7CC */
-
 
 	u_int8_t reserved5[2];		/* 0x7CD reserved */
 
@@ -2580,7 +2557,6 @@ struct mrsas_smp_frame {
 
 #pragma pack()
 
-
 #pragma pack(1)
 struct mrsas_stp_frame {
 	u_int8_t cmd;			/* 00h */
@@ -2625,7 +2601,6 @@ union mrsas_frame {
 
 #pragma pack(1)
 union mrsas_evt_class_locale {
-
 	struct {
 		u_int16_t locale;
 		u_int8_t reserved;
@@ -2637,7 +2612,6 @@ union mrsas_evt_class_locale {
 } __packed;
 
 #pragma pack()
-
 
 #pragma pack(1)
 struct mrsas_evt_log_info {
@@ -2652,14 +2626,12 @@ struct mrsas_evt_log_info {
 #pragma pack()
 
 struct mrsas_progress {
-
 	u_int16_t progress;
 	u_int16_t elapsed_seconds;
 
 } __packed;
 
 struct mrsas_evtarg_ld {
-
 	u_int16_t target_id;
 	u_int8_t ld_index;
 	u_int8_t reserved;
@@ -2674,7 +2646,6 @@ struct mrsas_evtarg_pd {
 } __packed;
 
 struct mrsas_evt_detail {
-
 	u_int32_t seq_num;
 	u_int32_t time_stamp;
 	u_int32_t code;
@@ -2952,7 +2923,6 @@ typedef struct _MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY {
 
 #define	MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY_SIZE sizeof(MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY)
 
-
 typedef struct _MRSAS_DRV_PCI_CAPABILITIES {
 	MRSAS_DRV_PCI_LINK_CAPABILITY linkCapability;
 	MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY linkStatusCapability;
@@ -3060,7 +3030,6 @@ struct MR_PD_PROGRESS {
 
     union MR_PROGRESS     reserved[3];
 } __packed;
-
 
 struct  mrsas_pd_info {
 	 MR_PD_REF	 ref;
