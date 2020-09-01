@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 	__checkReturn	efx_rc_t
@@ -442,7 +441,6 @@ ef10_mac_filter_default_rxq_clear(
 				    epp->ep_mulcst_addr_count);
 }
 
-
 #if EFSYS_OPT_LOOPBACK
 
 	__checkReturn	efx_rc_t
@@ -602,7 +600,6 @@ fail1:
 
 #define	EF10_MAC_STAT_READ(_esmp, _field, _eqp)			\
 	EFSYS_MEM_READQ((_esmp), (_field) * sizeof (efx_qword_t), _eqp)
-
 
 	__checkReturn			efx_rc_t
 ef10_mac_stats_update(
@@ -856,7 +853,6 @@ ef10_mac_stats_update(
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_RXDP_HLB_WAIT_CONDITIONS, &value);
 	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_RXDP_HLB_WAIT]), &value);
 
-
 	/* VADAPTER RX */
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_VADAPTER_RX_UNICAST_PACKETS,
 	    &value);
@@ -938,7 +934,6 @@ ef10_mac_stats_update(
 
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_VADAPTER_TX_OVERFLOW, &value);
 	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_VADAPTER_TX_OVERFLOW]), &value);
-
 
 	if (encp->enc_mac_stats_nstats < MC_CMD_MAC_NSTATS_V2)
 		goto done;

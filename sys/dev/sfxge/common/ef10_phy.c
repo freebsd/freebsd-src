@@ -188,7 +188,6 @@ mcdi_phy_decode_link_mode(
 	}
 }
 
-
 			void
 ef10_phy_link_ev(
 	__in		efx_nic_t *enp,
@@ -334,7 +333,6 @@ ef10_phy_get_link(
 		mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_V2_LD_CAP),
 				    &elsp->epls.epls_ld_cap_mask);
 	}
-
 
 #if EFSYS_OPT_LOOPBACK
 	/*
@@ -598,7 +596,6 @@ fail1:
 
 	return (rc);
 }
-
 
 #if EFSYS_OPT_PHY_STATS
 

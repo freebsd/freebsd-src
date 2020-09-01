@@ -210,7 +210,6 @@ fail1:
 	return (rc);
 }
 
-
 static	__checkReturn	efx_rc_t
 efx_mcdi_read_sensors(
 	__in		efx_nic_t *enp,
@@ -408,7 +407,6 @@ efx_mcdi_sensor_info_page(
 
 	/* Copy an entry for all but the highest bit set. */
 	while (mask_copy) {
-
 		if (mask_copy == (1U << MC_CMD_SENSOR_PAGE0_NEXT)) {
 			/* Only next page bit set. */
 			mask_copy = 0;
@@ -655,7 +653,6 @@ mcdi_mon_cfg_free(
 		    encp->enc_mcdi_sensor_maskp);
 	}
 }
-
 
 #endif	/* EFSYS_OPT_MON_STATS */
 

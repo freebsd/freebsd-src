@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <sys/types.h>
 #include <sys/malloc.h>
 
@@ -108,7 +107,6 @@ fail3:
 fail1:
 	return (rc);
 }
-
 
 static int
 sfxge_nvram_erase(struct sfxge_softc *sc, efx_nvram_type_t type)

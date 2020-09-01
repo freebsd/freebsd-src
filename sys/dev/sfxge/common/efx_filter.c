@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_FILTER
 
 #if EFSYS_OPT_SIENA
@@ -348,7 +347,6 @@ efx_filter_spec_init_tx(
 	spec->efs_dmaq_id = (uint16_t)etp->et_index;
 }
 
-
 /*
  *  Specify IPv4 host, transport protocol and port in a filter specification
  */
@@ -460,7 +458,6 @@ efx_filter_spec_set_mc_def(
 	spec->efs_match_flags |= EFX_FILTER_MATCH_UNKNOWN_MCAST_DST;
 	return (0);
 }
-
 
 __checkReturn		efx_rc_t
 efx_filter_spec_set_encap_type(
@@ -888,7 +885,6 @@ siena_filter_clear_used(
 	EFSYS_ASSERT3U(sftp->sft_used, >=, 0);
 }
 
-
 static			siena_filter_tbl_id_t
 siena_filter_tbl_id(
 	__in		siena_filter_type_t type)
@@ -1176,7 +1172,6 @@ fail1:
 	return (rc);
 }
 
-
 static	__checkReturn	boolean_t
 siena_filter_equal(
 	__in		const siena_filter_spec_t *left,
@@ -1185,7 +1180,6 @@ siena_filter_equal(
 	siena_filter_tbl_id_t tbl_id;
 
 	tbl_id = siena_filter_tbl_id(left->sfs_type);
-
 
 	if (left->sfs_type != right->sfs_type)
 		return (B_FALSE);
@@ -1479,7 +1473,6 @@ siena_filter_add(
 	unsigned int depth;
 	efsys_lock_state_t state;
 	uint32_t key;
-
 
 	EFSYS_ASSERT3P(spec, !=, NULL);
 

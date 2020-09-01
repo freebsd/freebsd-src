@@ -204,7 +204,6 @@ sfxge_intr_bus_enable(struct sfxge_softc *sc)
 #else
 		bus_bind_intr(sc->dev, table[index].eih_res, index);
 #endif
-
 	}
 
 	return (0);

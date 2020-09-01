@@ -261,7 +261,6 @@ siena_nvram_type_to_partn(
 	return (ENOTSUP);
 }
 
-
 #if EFSYS_OPT_DIAG
 
 	__checkReturn		efx_rc_t
@@ -298,7 +297,6 @@ fail1:
 }
 
 #endif	/* EFSYS_OPT_DIAG */
-
 
 #define	SIENA_DYNAMIC_CFG_SIZE(_nitems)					\
 	(sizeof (siena_mc_dynamic_config_hdr_t) + ((_nitems) *		\

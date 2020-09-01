@@ -55,7 +55,6 @@
 #define	SIENA_MC_BOOT_MAGIC (0x51E4A001)
 #define	SIENA_MC_BOOT_VERSION (1)
 
-
 /*Structures supporting an arbitrary number of binary blobs in the flash image
   intended to house code and tables for the satellite cpus*/
 /*thanks to random.org for:*/

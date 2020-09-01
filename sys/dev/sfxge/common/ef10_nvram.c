@@ -63,11 +63,9 @@ typedef struct nvram_partition_s {
 	tlv_cursor_t tlv_cursor;
 } nvram_partition_t;
 
-
 static	__checkReturn		efx_rc_t
 tlv_validate_state(
 	__inout			tlv_cursor_t *cursor);
-
 
 static				void
 tlv_init_block(
@@ -129,7 +127,6 @@ tlv_item(
  */
 #define	TLV_DWORD_COUNT(length) \
 	(1 + 1 + (((length) + sizeof (uint32_t) - 1) / sizeof (uint32_t)))
-
 
 static				uint32_t *
 tlv_next_item_ptr(
@@ -374,7 +371,6 @@ tlv_last_segment_end(
 
 	return (last_segment_end);
 }
-
 
 static				uint32_t *
 tlv_write(
@@ -1168,7 +1164,6 @@ fail1:
 	return (rc);
 }
 
-
 	__checkReturn		efx_rc_t
 ef10_nvram_buffer_delete_item(
 	__in_bcount(buffer_size)
@@ -1233,8 +1228,6 @@ fail1:
 
 	return (rc);
 }
-
-
 
 /*
  * Read and validate a segment from a partition. A segment is a complete

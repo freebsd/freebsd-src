@@ -35,11 +35,9 @@
 #ifndef	_SYS_EFX_REGS_H
 #define	_SYS_EFX_REGS_H
 
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
 
 /**************************************************************************
  *
@@ -93,7 +91,6 @@ extern "C" {
 #define	FRF_AB_EE_VPD_EN_AD9_MODE_WIDTH 1
 #define	FRF_AB_EE_VPD_EN_LBN 0
 #define	FRF_AB_EE_VPD_EN_WIDTH 1
-
 
 /*
  * FR_AB_PCIE_SD_CTL0123_REG_SF(128bit):
@@ -163,7 +160,6 @@ extern "C" {
 #define	FRF_AB_PCIE_LODRV_LBN 0
 #define	FRF_AB_PCIE_LODRV_WIDTH 8
 
-
 /*
  * FR_AB_PCIE_SD_CTL45_REG_SF(128bit):
  * PCIE SerDes control register 4 and 5
@@ -210,7 +206,6 @@ extern "C" {
 #define	FRF_AB_PCIE_DEQ0_LBN 0
 #define	FRF_AB_PCIE_DEQ0_WIDTH 4
 
-
 /*
  * FR_AB_PCIE_PCS_CTL_STAT_REG_SF(128bit):
  * PCIE PCS control and status register
@@ -250,7 +245,6 @@ extern "C" {
 #define	FRF_AB_PCIE_PRBSERRACK_L_WIDTH 1
 #define	FRF_AB_PCIE_PRBSSEL_LBN 0
 #define	FRF_AB_PCIE_PRBSSEL_WIDTH 8
-
 
 /*
  * FR_AB_HW_INIT_REG_SF(128bit):
@@ -306,7 +300,6 @@ extern "C" {
 #define	FRF_AZ_TLP_TD_LBN 0
 #define	FRF_AZ_TLP_TD_WIDTH 1
 
-
 /*
  * FR_AB_NIC_STAT_REG_SF(128bit):
  * NIC status register
@@ -338,7 +331,6 @@ extern "C" {
 #define	FRF_AB_ATE_MODE_WIDTH 1
 #define	FRF_AB_STRAP_PINS_LBN 0
 #define	FRF_AB_STRAP_PINS_WIDTH 3
-
 
 /*
  * FR_AB_GLB_CTL_REG_SF(128bit):
@@ -438,7 +430,6 @@ extern "C" {
 #define	FRF_AB_SWRST_LBN 0
 #define	FRF_AB_SWRST_WIDTH 1
 
-
 /*
  * FR_AZ_IOM_IND_ADR_REG(32bit):
  * IO-mapped indirect access address register
@@ -451,7 +442,6 @@ extern "C" {
 #define	FRF_AZ_IOM_IND_ADR_LBN 0
 #define	FRF_AZ_IOM_IND_ADR_WIDTH 24
 
-
 /*
  * FR_AZ_IOM_IND_DAT_REG(32bit):
  * IO-mapped indirect access data register
@@ -461,7 +451,6 @@ extern "C" {
 
 #define	FRF_AZ_IOM_IND_DAT_LBN 0
 #define	FRF_AZ_IOM_IND_DAT_WIDTH 32
-
 
 /*
  * FR_AZ_ADR_REGION_REG(128bit):
@@ -479,7 +468,6 @@ extern "C" {
 #define	FRF_AZ_ADR_REGION0_LBN 0
 #define	FRF_AZ_ADR_REGION0_WIDTH 18
 
-
 /*
  * FR_AZ_INT_EN_REG_KER(128bit):
  * Kernel driver Interrupt enable register
@@ -495,7 +483,6 @@ extern "C" {
 #define	FRF_AZ_KER_INT_KER_WIDTH 1
 #define	FRF_AZ_DRV_INT_EN_KER_LBN 0
 #define	FRF_AZ_DRV_INT_EN_KER_WIDTH 1
-
 
 /*
  * FR_AZ_INT_EN_REG_CHAR(128bit):
@@ -513,7 +500,6 @@ extern "C" {
 #define	FRF_AZ_DRV_INT_EN_CHAR_LBN 0
 #define	FRF_AZ_DRV_INT_EN_CHAR_WIDTH 1
 
-
 /*
  * FR_AZ_INT_ADR_REG_KER(128bit):
  * Interrupt host address for Kernel driver
@@ -529,7 +515,6 @@ extern "C" {
 #define	FRF_AZ_INT_ADR_KER_DW0_WIDTH 32
 #define	FRF_AZ_INT_ADR_KER_DW1_LBN 32
 #define	FRF_AZ_INT_ADR_KER_DW1_WIDTH 32
-
 
 /*
  * FR_AZ_INT_ADR_REG_CHAR(128bit):
@@ -547,7 +532,6 @@ extern "C" {
 #define	FRF_AZ_INT_ADR_CHAR_DW1_LBN 32
 #define	FRF_AZ_INT_ADR_CHAR_DW1_WIDTH 32
 
-
 /*
  * FR_AA_INT_ACK_KER(32bit):
  * Kernel interrupt acknowledge register
@@ -557,7 +541,6 @@ extern "C" {
 
 #define	FRF_AA_INT_ACK_KER_FIELD_LBN 0
 #define	FRF_AA_INT_ACK_KER_FIELD_WIDTH 32
-
 
 /*
  * FR_BZ_INT_ISR0_REG(128bit):
@@ -572,7 +555,6 @@ extern "C" {
 #define	FRF_BZ_INT_ISR_REG_DW0_WIDTH 32
 #define	FRF_BZ_INT_ISR_REG_DW1_LBN 32
 #define	FRF_BZ_INT_ISR_REG_DW1_WIDTH 32
-
 
 /*
  * FR_AB_EE_SPI_HCMD_REG(128bit):
@@ -598,7 +580,6 @@ extern "C" {
 #define	FRF_AB_EE_SPI_HCMD_ENC_LBN 0
 #define	FRF_AB_EE_SPI_HCMD_ENC_WIDTH 8
 
-
 /*
  * FR_CZ_USR_EV_CFG(32bit):
  * User Level Event Configuration register
@@ -611,7 +592,6 @@ extern "C" {
 #define	FRF_CZ_DFLT_EVQ_LBN 0
 #define	FRF_CZ_DFLT_EVQ_WIDTH 10
 
-
 /*
  * FR_AB_EE_SPI_HADR_REG(128bit):
  * SPI host address register
@@ -623,7 +603,6 @@ extern "C" {
 #define	FRF_AB_EE_SPI_HADR_DUBYTE_WIDTH 8
 #define	FRF_AB_EE_SPI_HADR_ADR_LBN 0
 #define	FRF_AB_EE_SPI_HADR_ADR_WIDTH 24
-
 
 /*
  * FR_AB_EE_SPI_HDATA_REG(128bit):
@@ -641,7 +620,6 @@ extern "C" {
 #define	FRF_AB_EE_SPI_HDATA0_LBN 0
 #define	FRF_AB_EE_SPI_HDATA0_WIDTH 32
 
-
 /*
  * FR_AB_EE_BASE_PAGE_REG(128bit):
  * Expansion ROM base mirror register
@@ -653,7 +631,6 @@ extern "C" {
 #define	FRF_AB_EE_EXPROM_MASK_WIDTH 13
 #define	FRF_AB_EE_EXP_ROM_WINDOW_BASE_LBN 0
 #define	FRF_AB_EE_EXP_ROM_WINDOW_BASE_WIDTH 13
-
 
 /*
  * FR_AB_EE_VPD_SW_CNTL_REG(128bit):
@@ -669,7 +646,6 @@ extern "C" {
 #define	FRF_AB_EE_VPD_CYC_ADR_LBN 0
 #define	FRF_AB_EE_VPD_CYC_ADR_WIDTH 15
 
-
 /*
  * FR_AB_EE_VPD_SW_DATA_REG(128bit):
  * VPD access SW data register
@@ -679,7 +655,6 @@ extern "C" {
 
 #define	FRF_AB_EE_VPD_CYC_DAT_LBN 0
 #define	FRF_AB_EE_VPD_CYC_DAT_WIDTH 32
-
 
 /*
  * FR_BB_PCIE_CORE_INDIRECT_REG(64bit):
@@ -694,7 +669,6 @@ extern "C" {
 #define	FRF_BB_PCIE_CORE_INDIRECT_ACCESS_DIR_WIDTH 1
 #define	FRF_BB_PCIE_CORE_TARGET_REG_ADRS_LBN 0
 #define	FRF_BB_PCIE_CORE_TARGET_REG_ADRS_WIDTH 12
-
 
 /*
  * FR_AB_GPIO_CTL_REG(128bit):
@@ -820,7 +794,6 @@ extern "C" {
 #define	FRF_AB_GPIO0_PWRUP_VALUE_LBN 0
 #define	FRF_AB_GPIO0_PWRUP_VALUE_WIDTH 1
 
-
 /*
  * FR_AZ_FATAL_INTR_REG_KER(128bit):
  * Fatal interrupt register for Kernel
@@ -884,7 +857,6 @@ extern "C" {
 #define	FRF_AZ_ILL_ADR_INT_KER_WIDTH 1
 #define	FRF_AZ_SRM_PERR_INT_KER_LBN 0
 #define	FRF_AZ_SRM_PERR_INT_KER_WIDTH 1
-
 
 /*
  * FR_AZ_FATAL_INTR_REG_CHAR(128bit):
@@ -950,7 +922,6 @@ extern "C" {
 #define	FRF_AZ_SRM_PERR_INT_CHAR_LBN 0
 #define	FRF_AZ_SRM_PERR_INT_CHAR_WIDTH 1
 
-
 /*
  * FR_AZ_DP_CTRL_REG(128bit):
  * Datapath control register
@@ -960,7 +931,6 @@ extern "C" {
 
 #define	FRF_AZ_FLS_EVQ_ID_LBN 0
 #define	FRF_AZ_FLS_EVQ_ID_WIDTH 12
-
 
 /*
  * FR_AZ_MEM_STAT_REG(128bit):
@@ -989,7 +959,6 @@ extern "C" {
 #define	FRF_CZ_MEM_PERR_VEC_DW0_WIDTH 32
 #define	FRF_CZ_MEM_PERR_VEC_DW1_LBN 32
 #define	FRF_CZ_MEM_PERR_VEC_DW1_WIDTH 3
-
 
 /*
  * FR_PORT0_CS_DEBUG_REG(128bit):
@@ -1036,7 +1005,6 @@ extern "C" {
 #define	FRF_AZ_CS_DEBUG_EN_LBN 0
 #define	FRF_AZ_CS_DEBUG_EN_WIDTH 1
 
-
 /*
  * FR_AZ_DRIVER_REG(128bit):
  * Driver scratch register [0-7]
@@ -1049,7 +1017,6 @@ extern "C" {
 #define	FRF_AZ_DRIVER_DW0_LBN 0
 #define	FRF_AZ_DRIVER_DW0_WIDTH 32
 
-
 /*
  * FR_AZ_ALTERA_BUILD_REG(128bit):
  * Altera build register
@@ -1059,7 +1026,6 @@ extern "C" {
 
 #define	FRF_AZ_ALTERA_BUILD_VER_LBN 0
 #define	FRF_AZ_ALTERA_BUILD_VER_WIDTH 32
-
 
 /*
  * FR_AZ_CSR_SPARE_REG(128bit):
@@ -1079,7 +1045,6 @@ extern "C" {
 #define	FRF_AZ_CSR_SPARE_BITS_LBN 0
 #define	FRF_AZ_CSR_SPARE_BITS_WIDTH 32
 
-
 /*
  * FR_BZ_DEBUG_DATA_OUT_REG(128bit):
  * Live Debug and Debug 2 out ports
@@ -1091,7 +1056,6 @@ extern "C" {
 #define	FRF_BZ_DEBUG2_PORT_WIDTH 15
 #define	FRF_BZ_DEBUG1_PORT_LBN 0
 #define	FRF_BZ_DEBUG1_PORT_WIDTH 25
-
 
 /*
  * FR_BZ_EVQ_RPTR_REGP0(32bit):
@@ -1131,7 +1095,6 @@ extern "C" {
 #define	FRF_AZ_EVQ_RPTR_VLD_WIDTH 1
 #define	FRF_AZ_EVQ_RPTR_LBN 0
 #define	FRF_AZ_EVQ_RPTR_WIDTH 15
-
 
 /*
  * FR_BZ_TIMER_COMMAND_REGP0(128bit):
@@ -1175,7 +1138,6 @@ extern "C" {
 #define	FRF_AB_TC_TIMER_VAL_LBN 0
 #define	FRF_AB_TC_TIMER_VAL_WIDTH 12
 
-
 /*
  * FR_AZ_DRV_EV_REG(128bit):
  * Driver generated event register
@@ -1191,7 +1153,6 @@ extern "C" {
 #define	FRF_AZ_DRV_EV_DATA_DW0_WIDTH 32
 #define	FRF_AZ_DRV_EV_DATA_DW1_LBN 32
 #define	FRF_AZ_DRV_EV_DATA_DW1_WIDTH 32
-
 
 /*
  * FR_AZ_EVQ_CTL_REG(128bit):
@@ -1210,7 +1171,6 @@ extern "C" {
 #define	FRF_AZ_EVQ_FIFO_AF_TH_WIDTH 7
 #define	FRF_AZ_EVQ_FIFO_NOTAF_TH_LBN 0
 #define	FRF_AZ_EVQ_FIFO_NOTAF_TH_WIDTH 7
-
 
 /*
  * FR_AZ_EVQ_CNT1_REG(128bit):
@@ -1234,7 +1194,6 @@ extern "C" {
 #define	FRF_AZ_EVQ_ERR_REQ_CNT_LBN 0
 #define	FRF_AZ_EVQ_ERR_REQ_CNT_WIDTH 20
 
-
 /*
  * FR_AZ_EVQ_CNT2_REG(128bit):
  * Event counter 2 register
@@ -1257,7 +1216,6 @@ extern "C" {
 #define	FRF_AZ_EVQ_TM_REQ_CNT_LBN 0
 #define	FRF_AZ_EVQ_TM_REQ_CNT_WIDTH 20
 
-
 /*
  * FR_CZ_USR_EV_REG(32bit):
  * Event mailbox register
@@ -1270,7 +1228,6 @@ extern "C" {
 #define	FRF_CZ_USR_EV_DATA_LBN 0
 #define	FRF_CZ_USR_EV_DATA_WIDTH 32
 
-
 /*
  * FR_AZ_BUF_TBL_CFG_REG(128bit):
  * Buffer table configuration register
@@ -1280,7 +1237,6 @@ extern "C" {
 
 #define	FRF_AZ_BUF_TBL_MODE_LBN 3
 #define	FRF_AZ_BUF_TBL_MODE_WIDTH 1
-
 
 /*
  * FR_AZ_SRM_RX_DC_CFG_REG(128bit):
@@ -1294,7 +1250,6 @@ extern "C" {
 #define	FRF_AZ_SRM_RX_DC_BASE_ADR_LBN 0
 #define	FRF_AZ_SRM_RX_DC_BASE_ADR_WIDTH 21
 
-
 /*
  * FR_AZ_SRM_TX_DC_CFG_REG(128bit):
  * SRAM transmit descriptor cache configuration register
@@ -1304,7 +1259,6 @@ extern "C" {
 
 #define	FRF_AZ_SRM_TX_DC_BASE_ADR_LBN 0
 #define	FRF_AZ_SRM_TX_DC_BASE_ADR_WIDTH 21
-
 
 /*
  * FR_AZ_SRM_CFG_REG(128bit):
@@ -1330,7 +1284,6 @@ extern "C" {
 #define	FRF_AZ_SRM_BANK_SIZE_LBN 0
 #define	FRF_AZ_SRM_BANK_SIZE_WIDTH 2
 
-
 /*
  * FR_AZ_BUF_TBL_UPD_REG(128bit):
  * Buffer table update register
@@ -1347,7 +1300,6 @@ extern "C" {
 #define	FRF_AZ_BUF_CLR_START_ID_LBN 0
 #define	FRF_AZ_BUF_CLR_START_ID_WIDTH 20
 
-
 /*
  * FR_AZ_SRM_UPD_EVQ_REG(128bit):
  * Buffer table update register
@@ -1357,7 +1309,6 @@ extern "C" {
 
 #define	FRF_AZ_SRM_UPD_EVQ_ID_LBN 0
 #define	FRF_AZ_SRM_UPD_EVQ_ID_WIDTH 12
-
 
 /*
  * FR_AZ_SRAM_PARITY_REG(128bit):
@@ -1376,7 +1327,6 @@ extern "C" {
 #define	FRF_CZ_FORCE_SRAM_SINGLE_ERR_WIDTH 1
 #define	FRF_AB_FORCE_SRAM_PERR_LBN 0
 #define	FRF_AB_FORCE_SRAM_PERR_WIDTH 1
-
 
 /*
  * FR_AZ_RX_CFG_REG(128bit):
@@ -1442,7 +1392,6 @@ extern "C" {
 #define	FRF_AZ_RX_XOFF_MAC_EN_LBN 0
 #define	FRF_AZ_RX_XOFF_MAC_EN_WIDTH 1
 
-
 /*
  * FR_AZ_RX_FILTER_CTL_REG(128bit):
  * Receive filter control registers
@@ -1483,7 +1432,6 @@ extern "C" {
 #define	FRF_AZ_TCP_FULL_SRCH_LIMIT_LBN 0
 #define	FRF_AZ_TCP_FULL_SRCH_LIMIT_WIDTH 8
 
-
 /*
  * FR_AZ_RX_FLUSH_DESCQ_REG(128bit):
  * Receive flush descriptor queue register
@@ -1495,7 +1443,6 @@ extern "C" {
 #define	FRF_AZ_RX_FLUSH_DESCQ_CMD_WIDTH 1
 #define	FRF_AZ_RX_FLUSH_DESCQ_LBN 0
 #define	FRF_AZ_RX_FLUSH_DESCQ_WIDTH 12
-
 
 /*
  * FR_BZ_RX_DESC_UPD_REGP0(128bit):
@@ -1541,7 +1488,6 @@ extern "C" {
 #define	FRF_AZ_RX_DESC_DW1_LBN 32
 #define	FRF_AZ_RX_DESC_DW1_WIDTH 32
 
-
 /*
  * FR_AZ_RX_DC_CFG_REG(128bit):
  * Receive descriptor cache configuration register
@@ -1558,7 +1504,6 @@ extern "C" {
 #define	FFE_AZ_RX_DC_SIZE_16 1
 #define	FFE_AZ_RX_DC_SIZE_8 0
 
-
 /*
  * FR_AZ_RX_DC_PF_WM_REG(128bit):
  * Receive descriptor cache pre-fetch watermark register
@@ -1570,7 +1515,6 @@ extern "C" {
 #define	FRF_AZ_RX_DC_PF_HWM_WIDTH 6
 #define	FRF_AZ_RX_DC_PF_LWM_LBN 0
 #define	FRF_AZ_RX_DC_PF_LWM_WIDTH 6
-
 
 /*
  * FR_BZ_RX_RSS_TKEY_REG(128bit):
@@ -1590,7 +1534,6 @@ extern "C" {
 #define	FRF_BZ_RX_RSS_TKEY_DW0_LBN 0
 #define	FRF_BZ_RX_RSS_TKEY_DW0_WIDTH 32
 
-
 /*
  * FR_AZ_RX_NODESC_DROP_REG(128bit):
  * Receive dropped packet counter register
@@ -1600,7 +1543,6 @@ extern "C" {
 
 #define	FRF_AZ_RX_NODESC_DROP_CNT_LBN 0
 #define	FRF_AZ_RX_NODESC_DROP_CNT_WIDTH 16
-
 
 /*
  * FR_AZ_RX_SELF_RST_REG(128bit):
@@ -1620,7 +1562,6 @@ extern "C" {
 #define	FRF_AZ_RX_MAX_LU_LAT_LBN 0
 #define	FRF_AZ_RX_MAX_LU_LAT_WIDTH 4
 
-
 /*
  * FR_AZ_RX_DEBUG_REG(128bit):
  * undocumented register
@@ -1635,7 +1576,6 @@ extern "C" {
 #define	FRF_AZ_RX_DEBUG_DW1_LBN 32
 #define	FRF_AZ_RX_DEBUG_DW1_WIDTH 32
 
-
 /*
  * FR_AZ_RX_PUSH_DROP_REG(128bit):
  * Receive descriptor push dropped counter register
@@ -1645,7 +1585,6 @@ extern "C" {
 
 #define	FRF_AZ_RX_PUSH_DROP_CNT_LBN 0
 #define	FRF_AZ_RX_PUSH_DROP_CNT_WIDTH 32
-
 
 /*
  * FR_CZ_RX_RSS_IPV6_REG1(128bit):
@@ -1665,7 +1604,6 @@ extern "C" {
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_LO_DW3_LBN 96
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_LO_DW3_WIDTH 32
 
-
 /*
  * FR_CZ_RX_RSS_IPV6_REG2(128bit):
  * IPv6 RSS Toeplitz hash key middle bytes
@@ -1683,7 +1621,6 @@ extern "C" {
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_MID_DW2_WIDTH 32
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_MID_DW3_LBN 96
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_MID_DW3_WIDTH 32
-
 
 /*
  * FR_CZ_RX_RSS_IPV6_REG3(128bit):
@@ -1705,7 +1642,6 @@ extern "C" {
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_HI_DW1_LBN 32
 #define	FRF_CZ_RX_RSS_IPV6_TKEY_HI_DW1_WIDTH 32
 
-
 /*
  * FR_AZ_TX_FLUSH_DESCQ_REG(128bit):
  * Transmit flush descriptor queue register
@@ -1717,7 +1653,6 @@ extern "C" {
 #define	FRF_AZ_TX_FLUSH_DESCQ_CMD_WIDTH 1
 #define	FRF_AZ_TX_FLUSH_DESCQ_LBN 0
 #define	FRF_AZ_TX_FLUSH_DESCQ_WIDTH 12
-
 
 /*
  * FR_BZ_TX_DESC_UPD_REGP0(128bit):
@@ -1765,7 +1700,6 @@ extern "C" {
 #define	FRF_AZ_TX_DESC_DW2_LBN 64
 #define	FRF_AZ_TX_DESC_DW2_WIDTH 31
 
-
 /*
  * FR_AZ_TX_DC_CFG_REG(128bit):
  * Transmit descriptor cache configuration register
@@ -1778,7 +1712,6 @@ extern "C" {
 #define	FFE_AZ_TX_DC_SIZE_32 2
 #define	FFE_AZ_TX_DC_SIZE_16 1
 #define	FFE_AZ_TX_DC_SIZE_8 0
-
 
 /*
  * FR_AA_TX_CHKSM_CFG_REG(128bit):
@@ -1795,7 +1728,6 @@ extern "C" {
 #define	FRF_AA_TX_Q_CHKSM_DIS_32_63_WIDTH 32
 #define	FRF_AA_TX_Q_CHKSM_DIS_0_31_LBN 0
 #define	FRF_AA_TX_Q_CHKSM_DIS_0_31_WIDTH 32
-
 
 /*
  * FR_AZ_TX_CFG_REG(128bit):
@@ -1839,7 +1771,6 @@ extern "C" {
 #define	FRF_AZ_TX_IP_ID_REP_EN_LBN 0
 #define	FRF_AZ_TX_IP_ID_REP_EN_WIDTH 1
 
-
 /*
  * FR_AZ_TX_PUSH_DROP_REG(128bit):
  * Transmit push dropped register
@@ -1849,7 +1780,6 @@ extern "C" {
 
 #define	FRF_AZ_TX_PUSH_DROP_CNT_LBN 0
 #define	FRF_AZ_TX_PUSH_DROP_CNT_WIDTH 32
-
 
 /*
  * FR_AZ_TX_RESERVED_REG(128bit):
@@ -1921,7 +1851,6 @@ extern "C" {
 #define	FFE_AZ_TX_MAX_PREF_8 1
 #define	FFE_AZ_TX_MAX_PREF_OFF 0
 
-
 /*
  * FR_BZ_TX_PACE_REG(128bit):
  * Transmit pace control register
@@ -1944,7 +1873,6 @@ extern "C" {
 #define	FRF_AZ_TX_PACE_BIN_TH_LBN 0
 #define	FRF_AZ_TX_PACE_BIN_TH_WIDTH 5
 
-
 /*
  * FR_AZ_TX_PACE_DROP_QID_REG(128bit):
  * PACE Drop QID Counter
@@ -1954,7 +1882,6 @@ extern "C" {
 
 #define	FRF_AZ_TX_PACE_QID_DRP_CNT_LBN 0
 #define	FRF_AZ_TX_PACE_QID_DRP_CNT_WIDTH 16
-
 
 /*
  * FR_AB_TX_VLAN_REG(128bit):
@@ -2013,7 +1940,6 @@ extern "C" {
 #define	FRF_AB_TX_VLAN0_PORT0_EN_WIDTH 1
 #define	FRF_AB_TX_VLAN0_LBN 0
 #define	FRF_AB_TX_VLAN0_WIDTH 12
-
 
 /*
  * FR_AZ_TX_IPFIL_PORTEN_REG(128bit):
@@ -2089,7 +2015,6 @@ extern "C" {
 #define	FRF_AB_TX_IPFIL0_PORT_EN_LBN 0
 #define	FRF_AB_TX_IPFIL0_PORT_EN_WIDTH 1
 
-
 /*
  * FR_AB_TX_IPFIL_TBL(128bit):
  * Transmit IP source address filter table
@@ -2108,7 +2033,6 @@ extern "C" {
 #define	FRF_AB_TX_IP_SRC_ADR_0_LBN 0
 #define	FRF_AB_TX_IP_SRC_ADR_0_WIDTH 32
 
-
 /*
  * FR_AB_MD_TXD_REG(128bit):
  * PHY management transmit data register
@@ -2119,7 +2043,6 @@ extern "C" {
 #define	FRF_AB_MD_TXD_LBN 0
 #define	FRF_AB_MD_TXD_WIDTH 16
 
-
 /*
  * FR_AB_MD_RXD_REG(128bit):
  * PHY management receive data register
@@ -2129,7 +2052,6 @@ extern "C" {
 
 #define	FRF_AB_MD_RXD_LBN 0
 #define	FRF_AB_MD_RXD_WIDTH 16
-
 
 /*
  * FR_AB_MD_CS_REG(128bit):
@@ -2161,7 +2083,6 @@ extern "C" {
 #define	FRF_AB_MD_WRC_LBN 0
 #define	FRF_AB_MD_WRC_WIDTH 1
 
-
 /*
  * FR_AB_MD_PHY_ADR_REG(128bit):
  * PHY management PHY address register
@@ -2171,7 +2092,6 @@ extern "C" {
 
 #define	FRF_AB_MD_PHY_ADR_LBN 0
 #define	FRF_AB_MD_PHY_ADR_WIDTH 16
-
 
 /*
  * FR_AB_MD_ID_REG(128bit):
@@ -2184,7 +2104,6 @@ extern "C" {
 #define	FRF_AB_MD_PRT_ADR_WIDTH 5
 #define	FRF_AB_MD_DEV_ADR_LBN 6
 #define	FRF_AB_MD_DEV_ADR_WIDTH 5
-
 
 /*
  * FR_AB_MD_STAT_REG(128bit):
@@ -2204,7 +2123,6 @@ extern "C" {
 #define	FRF_AB_MD_BSY_LBN 0
 #define	FRF_AB_MD_BSY_WIDTH 1
 
-
 /*
  * FR_AB_MAC_STAT_DMA_REG(128bit):
  * Port MAC statistical counter DMA register
@@ -2220,7 +2138,6 @@ extern "C" {
 #define	FRF_AB_MAC_STAT_DMA_ADR_DW0_WIDTH 32
 #define	FRF_AB_MAC_STAT_DMA_ADR_DW1_LBN 32
 #define	FRF_AB_MAC_STAT_DMA_ADR_DW1_WIDTH 16
-
 
 /*
  * FR_AB_MAC_CTRL_REG(128bit):
@@ -2264,7 +2181,6 @@ extern "C" {
 #define	FRF_BB_XG_PHY_INT_MASK_LBN 0
 #define	FRF_BB_XG_PHY_INT_MASK_WIDTH 1
 
-
 /*
  * FR_AB_MAC_MC_HASH_REG0(128bit):
  * Multicast address hash table
@@ -2283,7 +2199,6 @@ extern "C" {
 #define	FRF_AB_MAC_MCAST_HASH0_DW3_LBN 96
 #define	FRF_AB_MAC_MCAST_HASH0_DW3_WIDTH 32
 
-
 /*
  * FR_AB_MAC_MC_HASH_REG1(128bit):
  * Multicast address hash table
@@ -2301,7 +2216,6 @@ extern "C" {
 #define	FRF_AB_MAC_MCAST_HASH1_DW2_WIDTH 32
 #define	FRF_AB_MAC_MCAST_HASH1_DW3_LBN 96
 #define	FRF_AB_MAC_MCAST_HASH1_DW3_WIDTH 32
-
 
 /*
  * FR_AB_GM_CFG1_REG(32bit):
@@ -2337,7 +2251,6 @@ extern "C" {
 #define	FRF_AB_GM_TX_EN_LBN 0
 #define	FRF_AB_GM_TX_EN_WIDTH 1
 
-
 /*
  * FR_AB_GM_CFG2_REG(32bit):
  * GMAC configuration register 2
@@ -2362,7 +2275,6 @@ extern "C" {
 #define	FRF_AB_GM_FD_LBN 0
 #define	FRF_AB_GM_FD_WIDTH 1
 
-
 /*
  * FR_AB_GM_IPG_REG(32bit):
  * GMAC IPG register
@@ -2378,7 +2290,6 @@ extern "C" {
 #define	FRF_AB_GM_MIN_IPG_ENF_WIDTH 8
 #define	FRF_AB_GM_B2B_IPG_LBN 0
 #define	FRF_AB_GM_B2B_IPG_WIDTH 7
-
 
 /*
  * FR_AB_GM_HD_REG(32bit):
@@ -2402,7 +2313,6 @@ extern "C" {
 #define	FRF_AB_GM_COL_WIN_LBN 0
 #define	FRF_AB_GM_COL_WIN_WIDTH 10
 
-
 /*
  * FR_AB_GM_MAX_FLEN_REG(32bit):
  * GMAC maximum frame length register
@@ -2412,7 +2322,6 @@ extern "C" {
 
 #define	FRF_AB_GM_MAX_FLEN_LBN 0
 #define	FRF_AB_GM_MAX_FLEN_WIDTH 16
-
 
 /*
  * FR_AB_GM_TEST_REG(32bit):
@@ -2430,7 +2339,6 @@ extern "C" {
 #define	FRF_AB_GM_SHORT_SLOT_LBN 0
 #define	FRF_AB_GM_SHORT_SLOT_WIDTH 1
 
-
 /*
  * FR_AB_GM_ADR1_REG(32bit):
  * GMAC station address register 1
@@ -2447,7 +2355,6 @@ extern "C" {
 #define	FRF_AB_GM_ADR_B3_LBN 0
 #define	FRF_AB_GM_ADR_B3_WIDTH 8
 
-
 /*
  * FR_AB_GM_ADR2_REG(32bit):
  * GMAC station address register 2
@@ -2459,7 +2366,6 @@ extern "C" {
 #define	FRF_AB_GM_ADR_B4_WIDTH 8
 #define	FRF_AB_GM_ADR_B5_LBN 16
 #define	FRF_AB_GM_ADR_B5_WIDTH 8
-
 
 /*
  * FR_AB_GMF_CFG0_REG(32bit):
@@ -2499,7 +2405,6 @@ extern "C" {
 #define	FRF_AB_GMF_HSTRSTWT_LBN 0
 #define	FRF_AB_GMF_HSTRSTWT_WIDTH 1
 
-
 /*
  * FR_AB_GMF_CFG1_REG(32bit):
  * GMAC FIFO configuration register 1
@@ -2511,7 +2416,6 @@ extern "C" {
 #define	FRF_AB_GMF_CFGFRTH_WIDTH 5
 #define	FRF_AB_GMF_CFGXOFFRTX_LBN 0
 #define	FRF_AB_GMF_CFGXOFFRTX_WIDTH 16
-
 
 /*
  * FR_AB_GMF_CFG2_REG(32bit):
@@ -2525,7 +2429,6 @@ extern "C" {
 #define	FRF_AB_GMF_CFGLWM_LBN 0
 #define	FRF_AB_GMF_CFGLWM_WIDTH 6
 
-
 /*
  * FR_AB_GMF_CFG3_REG(32bit):
  * GMAC FIFO configuration register 3
@@ -2538,7 +2441,6 @@ extern "C" {
 #define	FRF_AB_GMF_CFGFTTH_LBN 0
 #define	FRF_AB_GMF_CFGFTTH_WIDTH 6
 
-
 /*
  * FR_AB_GMF_CFG4_REG(32bit):
  * GMAC FIFO configuration register 4
@@ -2548,7 +2450,6 @@ extern "C" {
 
 #define	FRF_AB_GMF_HSTFLTRFRM_LBN 0
 #define	FRF_AB_GMF_HSTFLTRFRM_WIDTH 18
-
 
 /*
  * FR_AB_GMF_CFG5_REG(32bit):
@@ -2569,7 +2470,6 @@ extern "C" {
 #define	FRF_AB_GMF_HSTDRPLT64_WIDTH 1
 #define	FRF_AB_GMF_HSTFLTRFRMDC_LBN 0
 #define	FRF_AB_GMF_HSTFLTRFRMDC_WIDTH 18
-
 
 /*
  * FR_BB_TX_SRC_MAC_TBL(128bit):
@@ -2593,7 +2493,6 @@ extern "C" {
 #define	FRF_BB_TX_SRC_MAC_ADR_0_DW1_LBN 32
 #define	FRF_BB_TX_SRC_MAC_ADR_0_DW1_WIDTH 16
 
-
 /*
  * FR_BB_TX_SRC_MAC_CTL_REG(128bit):
  * Transmit MAC source address filter control
@@ -2610,7 +2509,6 @@ extern "C" {
 #define	FRF_BB_TX_MAC_QID_SEL_LBN 0
 #define	FRF_BB_TX_MAC_QID_SEL_WIDTH 3
 
-
 /*
  * FR_AB_XM_ADR_LO_REG(128bit):
  * XGMAC address register low
@@ -2621,7 +2519,6 @@ extern "C" {
 #define	FRF_AB_XM_ADR_LO_LBN 0
 #define	FRF_AB_XM_ADR_LO_WIDTH 32
 
-
 /*
  * FR_AB_XM_ADR_HI_REG(128bit):
  * XGMAC address register high
@@ -2631,7 +2528,6 @@ extern "C" {
 
 #define	FRF_AB_XM_ADR_HI_LBN 0
 #define	FRF_AB_XM_ADR_HI_WIDTH 16
-
 
 /*
  * FR_AB_XM_GLB_CFG_REG(128bit):
@@ -2656,7 +2552,6 @@ extern "C" {
 #define	FRF_AB_XM_INTCLR_MODE_WIDTH 1
 #define	FRF_AB_XM_CORE_RST_LBN 0
 #define	FRF_AB_XM_CORE_RST_WIDTH 1
-
 
 /*
  * FR_AB_XM_TX_CFG_REG(128bit):
@@ -2683,7 +2578,6 @@ extern "C" {
 #define	FRF_AB_XM_TXEN_WIDTH 1
 #define	FRF_AB_XM_TX_RST_LBN 0
 #define	FRF_AB_XM_TX_RST_WIDTH 1
-
 
 /*
  * FR_AB_XM_RX_CFG_REG(128bit):
@@ -2715,7 +2609,6 @@ extern "C" {
 #define	FRF_AB_XM_RX_RST_LBN 0
 #define	FRF_AB_XM_RX_RST_WIDTH 1
 
-
 /*
  * FR_AB_XM_MGT_INT_MASK(128bit):
  * documentation to be written for sum_XM_MGT_INT_MASK
@@ -2735,7 +2628,6 @@ extern "C" {
 #define	FRF_AB_XM_MSK_RMTFLT_WIDTH 1
 #define	FRF_AB_XM_MSK_LCLFLT_LBN 0
 #define	FRF_AB_XM_MSK_LCLFLT_WIDTH 1
-
 
 /*
  * FR_AB_XM_FC_REG(128bit):
@@ -2763,7 +2655,6 @@ extern "C" {
 #define	FRF_AB_XM_DIS_FCNTL_LBN 0
 #define	FRF_AB_XM_DIS_FCNTL_WIDTH 1
 
-
 /*
  * FR_AB_XM_PAUSE_TIME_REG(128bit):
  * XGMAC pause time register
@@ -2775,7 +2666,6 @@ extern "C" {
 #define	FRF_AB_XM_TX_PAUSE_CNT_WIDTH 16
 #define	FRF_AB_XM_RX_PAUSE_CNT_LBN 0
 #define	FRF_AB_XM_RX_PAUSE_CNT_WIDTH 16
-
 
 /*
  * FR_AB_XM_TX_PARAM_REG(128bit):
@@ -2793,7 +2683,6 @@ extern "C" {
 #define	FRF_AB_XM_PAD_CHAR_LBN 0
 #define	FRF_AB_XM_PAD_CHAR_WIDTH 8
 
-
 /*
  * FR_AB_XM_RX_PARAM_REG(128bit):
  * XGMAC receive parameter register
@@ -2805,7 +2694,6 @@ extern "C" {
 #define	FRF_AB_XM_MAX_RX_FRM_SIZE_HI_WIDTH 11
 #define	FRF_AB_XM_MAX_RX_FRM_SIZE_LO_LBN 0
 #define	FRF_AB_XM_MAX_RX_FRM_SIZE_LO_WIDTH 3
-
 
 /*
  * FR_AB_XM_MGT_INT_MSK_REG(128bit):
@@ -2824,7 +2712,6 @@ extern "C" {
 #define	FRF_AB_XM_RMTFLT_WIDTH 1
 #define	FRF_AB_XM_LCLFLT_LBN 0
 #define	FRF_AB_XM_LCLFLT_WIDTH 1
-
 
 /*
  * FR_AB_XX_PWR_RST_REG(128bit):
@@ -2888,7 +2775,6 @@ extern "C" {
 #define	FRF_AB_XX_RST_XX_EN_LBN 0
 #define	FRF_AB_XX_RST_XX_EN_WIDTH 1
 
-
 /*
  * FR_AB_XX_SD_CTL_REG(128bit):
  * XGXS/XAUI powerdown/reset control register
@@ -2925,7 +2811,6 @@ extern "C" {
 #define	FRF_AB_XX_LPBKA_LBN 0
 #define	FRF_AB_XX_LPBKA_WIDTH 1
 
-
 /*
  * FR_AB_XX_TXDRV_CTL_REG(128bit):
  * XAUI SerDes transmit drive control register
@@ -2949,7 +2834,6 @@ extern "C" {
 #define	FRF_AB_XX_DTXB_WIDTH 4
 #define	FRF_AB_XX_DTXA_LBN 0
 #define	FRF_AB_XX_DTXA_WIDTH 4
-
 
 /*
  * FR_AB_XX_PRBS_CTL_REG(128bit):
@@ -3007,7 +2891,6 @@ extern "C" {
 #define	FRF_AB_XX_CH0_TX_PRBS_CHKEN_LBN 0
 #define	FRF_AB_XX_CH0_TX_PRBS_CHKEN_WIDTH 1
 
-
 /*
  * FR_AB_XX_PRBS_CHK_REG(128bit):
  * documentation to be written for sum_XX_PRBS_CHK_REG
@@ -3050,7 +2933,6 @@ extern "C" {
 #define	FRF_AB_XX_CH0_ERR_CHK_LBN 0
 #define	FRF_AB_XX_CH0_ERR_CHK_WIDTH 1
 
-
 /*
  * FR_AB_XX_PRBS_ERR_REG(128bit):
  * documentation to be written for sum_XX_PRBS_ERR_REG
@@ -3066,7 +2948,6 @@ extern "C" {
 #define	FRF_AB_XX_CH1_PRBS_ERR_CNT_WIDTH 8
 #define	FRF_AB_XX_CH0_PRBS_ERR_CNT_LBN 0
 #define	FRF_AB_XX_CH0_PRBS_ERR_CNT_WIDTH 8
-
 
 /*
  * FR_AB_XX_CORE_STAT_REG(128bit):
@@ -3140,7 +3021,6 @@ extern "C" {
 #define	FRF_AB_XX_DISPERR_CH0_LBN 0
 #define	FRF_AB_XX_DISPERR_CH0_WIDTH 1
 
-
 /*
  * FR_AA_RX_DESC_PTR_TBL_KER(128bit):
  * Receive descriptor pointer table
@@ -3195,7 +3075,6 @@ extern "C" {
 #define	FRF_AZ_RX_DESCQ_JUMBO_WIDTH 1
 #define	FRF_AZ_RX_DESCQ_EN_LBN 0
 #define	FRF_AZ_RX_DESCQ_EN_WIDTH 1
-
 
 /*
  * FR_AA_TX_DESC_PTR_TBL_KER(128bit):
@@ -3258,7 +3137,6 @@ extern "C" {
 #define	FRF_AZ_TX_DESCQ_FLUSH_LBN 0
 #define	FRF_AZ_TX_DESCQ_FLUSH_WIDTH 1
 
-
 /*
  * FR_AA_EVQ_PTR_TBL_KER(128bit):
  * Event queue pointer table
@@ -3297,7 +3175,6 @@ extern "C" {
 #define	FRF_AZ_EVQ_BUF_BASE_ID_LBN 0
 #define	FRF_AZ_EVQ_BUF_BASE_ID_WIDTH 20
 
-
 /*
  * FR_AA_BUF_HALF_TBL_KER(64bit):
  * Buffer table in half buffer table mode direct access by driver
@@ -3324,7 +3201,6 @@ extern "C" {
 #define	FRF_AZ_BUF_ADR_HBUF_EVEN_WIDTH 20
 #define	FRF_AZ_BUF_OWNER_ID_HBUF_EVEN_LBN 0
 #define	FRF_AZ_BUF_OWNER_ID_HBUF_EVEN_WIDTH 12
-
 
 /*
  * FR_AA_BUF_FULL_TBL_KER(64bit):
@@ -3364,7 +3240,6 @@ extern "C" {
 #define	FRF_AZ_BUF_OWNER_ID_FBUF_LBN 0
 #define	FRF_AZ_BUF_OWNER_ID_FBUF_WIDTH 14
 
-
 /*
  * FR_AZ_RX_FILTER_TBL0(128bit):
  * TCP/IPv4 Receive filter table
@@ -3399,7 +3274,6 @@ extern "C" {
 #define	FRF_AZ_SRC_TCP_DEST_UDP_LBN 0
 #define	FRF_AZ_SRC_TCP_DEST_UDP_WIDTH 16
 
-
 /*
  * FR_CZ_RX_MAC_FILTER_TBL0(128bit):
  * Receive Ethernet filter table
@@ -3427,7 +3301,6 @@ extern "C" {
 #define	FRF_CZ_RMFT_DEST_MAC_DW1_WIDTH 16
 #define	FRF_CZ_RMFT_VLAN_ID_LBN 0
 #define	FRF_CZ_RMFT_VLAN_ID_WIDTH 12
-
 
 /*
  * FR_AZ_TIMER_TBL(128bit):
@@ -3466,7 +3339,6 @@ extern "C" {
 #define	FRF_AB_TIMER_VAL_LBN 0
 #define	FRF_AB_TIMER_VAL_WIDTH 12
 
-
 /*
  * FR_BZ_TX_PACE_TBL(128bit):
  * Transmit pacing table
@@ -3488,7 +3360,6 @@ extern "C" {
 #define	FRF_AZ_TX_PACE_LBN 0
 #define	FRF_AZ_TX_PACE_WIDTH 5
 
-
 /*
  * FR_BZ_RX_INDIRECTION_TBL(7bit):
  * RX Indirection Table
@@ -3500,7 +3371,6 @@ extern "C" {
 
 #define	FRF_BZ_IT_QUEUE_LBN 0
 #define	FRF_BZ_IT_QUEUE_WIDTH 6
-
 
 /*
  * FR_CZ_TX_FILTER_TBL0(128bit):
@@ -3524,7 +3394,6 @@ extern "C" {
 #define	FRF_CZ_TIFT_SRC_TCP_DEST_UDP_LBN 0
 #define	FRF_CZ_TIFT_SRC_TCP_DEST_UDP_WIDTH 16
 
-
 /*
  * FR_CZ_TX_MAC_FILTER_TBL0(128bit):
  * Transmit Ethernet filter table
@@ -3547,7 +3416,6 @@ extern "C" {
 #define	FRF_CZ_TMFT_VLAN_ID_LBN 0
 #define	FRF_CZ_TMFT_VLAN_ID_WIDTH 12
 
-
 /*
  * FR_CZ_MC_TREG_SMEM(32bit):
  * MC Shared Memory
@@ -3559,7 +3427,6 @@ extern "C" {
 
 #define	FRF_CZ_MC_TREG_SMEM_ROW_LBN 0
 #define	FRF_CZ_MC_TREG_SMEM_ROW_WIDTH 32
-
 
 /*
  * FR_BB_MSIX_VECTOR_TABLE(128bit):
@@ -3589,7 +3456,6 @@ extern "C" {
 #define	FRF_BZ_MSIX_MESSAGE_ADDRESS_LO_LBN 0
 #define	FRF_BZ_MSIX_MESSAGE_ADDRESS_LO_WIDTH 32
 
-
 /*
  * FR_BB_MSIX_PBA_TABLE(32bit):
  * MSIX Pending Bit Array
@@ -3610,7 +3476,6 @@ extern "C" {
 #define	FRF_BZ_MSIX_PBA_PEND_DWORD_LBN 0
 #define	FRF_BZ_MSIX_PBA_PEND_DWORD_WIDTH 32
 
-
 /*
  * FR_AZ_SRM_DBG_REG(64bit):
  * SRAM debug access
@@ -3629,7 +3494,6 @@ extern "C" {
 #define	FRF_AZ_SRM_DBG_DW1_LBN 32
 #define	FRF_AZ_SRM_DBG_DW1_WIDTH 32
 
-
 /*
  * FR_AA_INT_ACK_CHAR(32bit):
  * CHAR interrupt acknowledge register
@@ -3639,7 +3503,6 @@ extern "C" {
 
 #define	FRF_AA_INT_ACK_CHAR_FIELD_LBN 0
 #define	FRF_AA_INT_ACK_CHAR_FIELD_WIDTH 32
-
 
 /* FS_DRIVER_EV */
 #define	FSF_AZ_DRIVER_EV_SUBCODE_LBN 56
@@ -3658,7 +3521,6 @@ extern "C" {
 #define	FSF_AZ_DRIVER_EV_SUBDATA_LBN 0
 #define	FSF_AZ_DRIVER_EV_SUBDATA_WIDTH 14
 
-
 /* FS_EVENT_ENTRY */
 #define	FSF_AZ_EV_CODE_LBN 60
 #define	FSF_AZ_EV_CODE_WIDTH 4
@@ -3675,7 +3537,6 @@ extern "C" {
 #define	FSF_AZ_EV_DATA_DW1_LBN 32
 #define	FSF_AZ_EV_DATA_DW1_WIDTH 28
 
-
 /* FS_GLOBAL_EV */
 #define	FSF_AA_GLB_EV_RX_RECOVERY_LBN 12
 #define	FSF_AA_GLB_EV_RX_RECOVERY_WIDTH 1
@@ -3687,7 +3548,6 @@ extern "C" {
 #define	FSF_AZ_GLB_EV_XG_PHY0_INTR_WIDTH 1
 #define	FSF_AZ_GLB_EV_G_PHY0_INTR_LBN 7
 #define	FSF_AZ_GLB_EV_G_PHY0_INTR_WIDTH 1
-
 
 /* FS_RX_EV */
 #define	FSF_CZ_RX_EV_PKT_NOT_PARSED_LBN 58
@@ -3756,7 +3616,6 @@ extern "C" {
 #define	FSF_AZ_RX_EV_DESC_PTR_LBN 0
 #define	FSF_AZ_RX_EV_DESC_PTR_WIDTH 12
 
-
 /* FS_RX_KER_DESC */
 #define	FSF_AZ_RX_KER_BUF_SIZE_LBN 48
 #define	FSF_AZ_RX_KER_BUF_SIZE_WIDTH 14
@@ -3769,13 +3628,11 @@ extern "C" {
 #define	FSF_AZ_RX_KER_BUF_ADDR_DW1_LBN 32
 #define	FSF_AZ_RX_KER_BUF_ADDR_DW1_WIDTH 14
 
-
 /* FS_RX_USER_DESC */
 #define	FSF_AZ_RX_USER_2BYTE_OFFSET_LBN 20
 #define	FSF_AZ_RX_USER_2BYTE_OFFSET_WIDTH 12
 #define	FSF_AZ_RX_USER_BUF_ID_LBN 0
 #define	FSF_AZ_RX_USER_BUF_ID_WIDTH 20
-
 
 /* FS_TX_EV */
 #define	FSF_AZ_TX_EV_PKT_ERR_LBN 38
@@ -3795,7 +3652,6 @@ extern "C" {
 #define	FSF_AZ_TX_EV_DESC_PTR_LBN 0
 #define	FSF_AZ_TX_EV_DESC_PTR_WIDTH 12
 
-
 /* FS_TX_KER_DESC */
 #define	FSF_AZ_TX_KER_CONT_LBN 62
 #define	FSF_AZ_TX_KER_CONT_WIDTH 1
@@ -3810,7 +3666,6 @@ extern "C" {
 #define	FSF_AZ_TX_KER_BUF_ADDR_DW1_LBN 32
 #define	FSF_AZ_TX_KER_BUF_ADDR_DW1_WIDTH 14
 
-
 /* FS_TX_USER_DESC */
 #define	FSF_AZ_TX_USER_SW_EV_EN_LBN 48
 #define	FSF_AZ_TX_USER_SW_EV_EN_WIDTH 1
@@ -3823,13 +3678,11 @@ extern "C" {
 #define	FSF_AZ_TX_USER_BYTE_OFS_LBN 0
 #define	FSF_AZ_TX_USER_BYTE_OFS_WIDTH 13
 
-
 /* FS_USER_EV */
 #define	FSF_CZ_USER_QID_LBN 32
 #define	FSF_CZ_USER_QID_WIDTH 10
 #define	FSF_CZ_USER_EV_REG_VALUE_LBN 0
 #define	FSF_CZ_USER_EV_REG_VALUE_WIDTH 32
-
 
 /* FS_NET_IVEC */
 #define	FSF_AZ_NET_IVEC_FATAL_INT_LBN 64
@@ -3843,15 +3696,12 @@ extern "C" {
 #define	FSF_AZ_NET_IVEC_EVQ_FIFO_AF_LBN 0
 #define	FSF_AZ_NET_IVEC_EVQ_FIFO_AF_WIDTH 1
 
-
 /* DRIVER_EV */
 /* Sub-fields of an RX flush completion event */
 #define	FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL_LBN 12
 #define	FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL_WIDTH 1
 #define	FSF_AZ_DRIVER_EV_RX_DESCQ_ID_LBN 0
 #define	FSF_AZ_DRIVER_EV_RX_DESCQ_ID_WIDTH 12
-
-
 
 /**************************************************************************
  *
@@ -3860,15 +3710,10 @@ extern "C" {
  **************************************************************************
  */
 
-
 #define	FR_AZ_TX_PACE_TBL_OFST FR_BZ_TX_PACE_TBL_OFST
-
 
 #ifdef	__cplusplus
 }
 #endif
-
-
-
 
 #endif /* _SYS_EFX_REGS_H */

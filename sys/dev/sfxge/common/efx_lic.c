@@ -127,7 +127,6 @@ efx_lic_v1v2_finish_partition(
 
 #endif	/* EFSYS_OPT_HUNTINGTON | EFSYS_OPT_SIENA */
 
-
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
@@ -317,7 +316,6 @@ static const efx_lic_ops_t	__efx_lic_v3_ops = {
 };
 
 #endif	/* EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
-
 
 /* V1 Licensing - used in Siena Modena only */
 
@@ -549,7 +547,6 @@ fail1:
 	return (B_FALSE);
 }
 
-
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_read_key(
 	__in			efx_nic_t *enp,
@@ -661,7 +658,6 @@ efx_lic_v1v2_create_partition(
 	return (0);
 }
 
-
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_finish_partition(
 	__in			efx_nic_t *enp,
@@ -675,7 +671,6 @@ efx_lic_v1v2_finish_partition(
 }
 
 #endif	/* EFSYS_OPT_HUNTINGTON | EFSYS_OPT_SIENA */
-
 
 /* V2 Licensing - used by Huntington family only. See SF-113611-TC */
 
@@ -1271,7 +1266,6 @@ fail1:
 	return (rc);
 }
 
-
 #endif	/* EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn		efx_rc_t
@@ -1287,7 +1281,6 @@ efx_lic_init(
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_LIC));
 
 	switch (enp->en_family) {
-
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
 		elop = &__efx_lic_v1_ops;
@@ -1358,7 +1351,6 @@ efx_lic_fini(
 	enp->en_elop = NULL;
 	enp->en_mod_flags &= ~EFX_MOD_LIC;
 }
-
 
 	__checkReturn	efx_rc_t
 efx_lic_update_licenses(
@@ -1538,7 +1530,6 @@ efx_lic_find_key(
 				    startp, lengthp));
 }
 
-
 /*
  * Validate that the buffer contains a single key in a recognised format.
  * An empty or terminator buffer is not accepted as a valid key.
@@ -1678,7 +1669,6 @@ fail1:
 
 	return (rc);
 }
-
 
 	__checkReturn		efx_rc_t
 efx_lic_finish_partition(

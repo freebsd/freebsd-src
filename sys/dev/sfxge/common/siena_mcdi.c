@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 	? MC_SMEM_P0_STATUS_OFST >> 2		\
 	: MC_SMEM_P1_STATUS_OFST >> 2)
 
-
 			void
 siena_mcdi_send_request(
 	__in			efx_nic_t *enp,
@@ -264,6 +263,5 @@ siena_mcdi_get_timeout(
 
 	*timeoutp = SIENA_MCDI_CMD_TIMEOUT_US;
 }
-
 
 #endif	/* EFSYS_OPT_SIENA && EFSYS_OPT_MCDI */

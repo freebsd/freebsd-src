@@ -280,7 +280,6 @@ sfxge_mcdi_ioctl(struct sfxge_softc *sc, sfxge_ioc_t *ip)
 	 * Both ports will see ->emt_exception callbacks on the next MCDI poll
 	 */
 	if (ip->u.mcdi.cmd == MC_CMD_REBOOT) {
-
 		EFSYS_PROBE(mcdi_ioctl_mc_reboot);
 		/* sfxge_t->s_state_lock held */
 		(void) sfxge_schedule_reset(sc);
@@ -298,7 +297,6 @@ fail2:
 fail1:
 	return (rc);
 }
-
 
 int
 sfxge_mcdi_init(struct sfxge_softc *sc)

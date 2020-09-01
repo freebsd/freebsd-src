@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
  * response with ERROR=1 and DATALEN=0 until a request is seen with NOT_EPOCH=0.
  */
 
-
-
 #if EFSYS_OPT_SIENA
 
 static const efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
@@ -88,8 +86,6 @@ static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 };
 
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
-
-
 
 	__checkReturn	efx_rc_t
 efx_mcdi_init(
@@ -344,7 +340,6 @@ efx_mcdi_request_start(
 	    emrp->emr_in_buf, emrp->emr_in_length);
 }
 
-
 static			void
 efx_mcdi_read_response_header(
 	__in		efx_nic_t *enp,
@@ -503,7 +498,6 @@ efx_mcdi_finish_response(
 	}
 #endif /* EFSYS_OPT_MCDI_LOGGING */
 }
-
 
 	__checkReturn	boolean_t
 efx_mcdi_request_poll(
@@ -1274,7 +1268,6 @@ fail1:
 	return (rc);
 }
 
-
 /*
  * Internal routines for for specific MCDI requests.
  */
@@ -1770,7 +1763,6 @@ fail1:
 
 #endif /* EFSYS_OPT_BIST */
 
-
 /* Enable logging of some events (e.g. link state changes) */
 	__checkReturn	efx_rc_t
 efx_mcdi_log_ctrl(
@@ -1805,7 +1797,6 @@ fail1:
 
 	return (rc);
 }
-
 
 #if EFSYS_OPT_MAC_STATS
 
@@ -2131,7 +2122,6 @@ fail1:
 
 	return (rc);
 }
-
 
 	__checkReturn		efx_rc_t
 efx_mcdi_get_workarounds(
