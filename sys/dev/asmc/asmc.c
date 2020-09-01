@@ -371,7 +371,6 @@ struct asmc_model asmc_models[] = {
 	  ASMC_LIGHT_FUNCS,
 	  ASMC_MBA7_TEMPS, ASMC_MBA7_TEMPNAMES, ASMC_MBA7_TEMPDESCS
 	},
-
 	{ NULL, NULL }
 };
 
@@ -389,7 +388,6 @@ static device_method_t	asmc_methods[] = {
 	DEVMETHOD(device_attach,	asmc_attach),
 	DEVMETHOD(device_detach,	asmc_detach),
 	DEVMETHOD(device_resume,	asmc_resume),
-
 	{ 0, 0 }
 };
 
@@ -712,7 +710,6 @@ asmc_resume(device_t dev)
     return (0);
 }
 
-
 #ifdef DEBUG
 void asmc_dumpall(device_t dev)
 {
@@ -871,7 +868,6 @@ asmc_wait(device_t dev, uint8_t val)
  */
 static int
 asmc_command(device_t dev, uint8_t command) {
-
 	int i;
 	struct asmc_softc *sc = device_get_softc(dev);
 
@@ -1171,7 +1167,6 @@ asmc_mb_sysctl_fansafespeed(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-
 static int
 asmc_mb_sysctl_fanminspeed(SYSCTL_HANDLER_ARGS)
 {
@@ -1315,8 +1310,6 @@ asmc_sms_intrfast(void *arg)
 	taskqueue_enqueue(sc->sc_sms_tq, &sc->sc_sms_task);
 	return (FILTER_HANDLED);
 }
-
-
 
 static void
 asmc_sms_printintr(device_t dev, uint8_t type)
