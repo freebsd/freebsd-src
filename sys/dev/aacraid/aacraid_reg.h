@@ -1342,7 +1342,6 @@ typedef enum {
 	CMUNSTABLE
 } AAC_CommitLevel;
 
-
 #define	CT_FIB_PARAMS			6
 #define	MAX_FIB_PARAMS			10
 #define	CT_PACKET_SIZE \
@@ -1589,7 +1588,6 @@ enum {
 /* Sunrise Lake dual core reset */
 #define AAC_IRCSR		0x38	/* inbound dual cores reset */
 #define AAC_IRCSR_CORES_RST	3
-
 
 /*
  * Common bit definitions for the doorbell registers.

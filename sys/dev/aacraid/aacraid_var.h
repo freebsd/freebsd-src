@@ -235,7 +235,7 @@ struct aac_common {
 
 	/* buffer for text messages from the controller */
 	char		       	ac_printf[AAC_PRINTF_BUFSIZE];
-	
+
 	/* fib for synchronous commands */
 	struct aac_fib		ac_sync_fib;
 
@@ -555,7 +555,6 @@ struct aac_code_lookup {
 		sc->aac_qstat[qname].q_length = 0;	\
 		sc->aac_qstat[qname].q_max = 0;		\
 	} while (0)
-
 
 #define AACQ_COMMAND_QUEUE(name, index)					\
 static __inline void							\
