@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom.h>
 
-
 #define	G_ZERO_CLASS_NAME	"ZERO"
 
 static int	g_zero_clear_sysctl(SYSCTL_HANDLER_ARGS);

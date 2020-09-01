@@ -560,7 +560,7 @@ g_raid_tr_raid1e_maybe_rebuild(struct g_raid_tr_object *tr,
 	struct g_raid_volume *vol;
 	struct g_raid_tr_raid1e_object *trs;
 	int nr;
-	
+
 	vol = tr->tro_volume;
 	trs = (struct g_raid_tr_raid1e_object *)tr;
 	if (trs->trso_stopping)
@@ -899,7 +899,6 @@ g_raid_tr_iodone_raid1e(struct g_raid_tr_object *tr,
 		if (trs->trso_type == TR_RAID1E_REBUILD) {
 			nsd = trs->trso_failed_sd;
 			if (bp->bio_cmd == BIO_READ) {
-
 				/* Immediately abort rebuild, if requested. */
 				if (trs->trso_flags & TR_RAID1E_F_ABORT) {
 					trs->trso_flags &= ~TR_RAID1E_F_DOING_SOME;

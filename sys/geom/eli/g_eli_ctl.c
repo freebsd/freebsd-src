@@ -49,9 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_dbg.h>
 #include <geom/eli/g_eli.h>
 
-
 MALLOC_DECLARE(M_ELI);
-
 
 static void
 g_eli_ctl_attach(struct gctl_req *req, struct g_class *mp)

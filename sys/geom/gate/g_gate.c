@@ -84,7 +84,6 @@ static struct cdevsw g_gate_cdevsw = {
 	.d_name =	G_GATE_CTL_NAME
 };
 
-
 static struct g_gate_softc **g_gate_units;
 static u_int g_gate_nunits;
 static struct mtx g_gate_units_lock;

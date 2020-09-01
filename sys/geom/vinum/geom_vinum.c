@@ -61,14 +61,13 @@ static void	gv_attach(struct gv_softc *, struct gctl_req *);
 static void	gv_detach(struct gv_softc *, struct gctl_req *);
 static void	gv_parityop(struct gv_softc *, struct gctl_req *);
 
-
 static void
 gv_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct gv_softc *sc;
 	struct gv_drive *d;
-	
+
 	g_topology_assert();
 
 	KASSERT(cp != NULL, ("gv_orphan: null cp"));
@@ -89,7 +88,7 @@ gv_start(struct bio *bp)
 {
 	struct g_geom *gp;
 	struct gv_softc *sc;
-	
+
 	gp = bp->bio_to->geom;
 	sc = gp->softc;
 
@@ -114,7 +113,7 @@ gv_done(struct bio *bp)
 {
 	struct g_geom *gp;
 	struct gv_softc *sc;
-	
+
 	KASSERT(bp != NULL, ("NULL bp"));
 
 	gp = bp->bio_from->geom;
@@ -133,7 +132,7 @@ gv_access(struct g_provider *pp, int dr, int dw, int de)
 	struct gv_softc *sc;
 	struct gv_drive *d, *d2;
 	int error;
-	
+
 	gp = pp->geom;
 	sc = gp->softc;
 	/*
@@ -367,7 +366,6 @@ gv_create(struct g_geom *gp, struct gctl_req *req)
 			goto error;
 		}
 
-
 		d = g_malloc(sizeof(*d), M_WAITOK | M_ZERO);
 		bcopy(d2, d, sizeof(*d));
 
@@ -513,7 +511,7 @@ gv_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 
 	} else if (!strcmp(verb, "rename")) {
 		gv_rename(gp, req);
-	
+
 	} else if (!strcmp(verb, "resetconfig")) {
 		gv_post_event(sc, GV_EVENT_RESET_CONFIG, sc, NULL, 0, 0);
 
@@ -580,7 +578,6 @@ gv_parityop(struct gv_softc *sc, struct gctl_req *req)
 	else
 		gv_post_event(sc, GV_EVENT_PARITY_CHECK, p, NULL, 0, 0);
 }
-
 
 static struct g_geom *
 gv_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)

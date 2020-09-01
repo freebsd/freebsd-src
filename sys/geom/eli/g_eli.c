@@ -176,7 +176,6 @@ struct g_class g_eli_class = {
 	.fini = g_eli_fini
 };
 
-
 /*
  * Code paths:
  * BIO_READ:
@@ -184,7 +183,6 @@ struct g_class g_eli_class = {
  * BIO_WRITE:
  *	g_eli_start -> g_eli_crypto_run -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
-
 
 /*
  * EAGAIN from crypto(9) means, that we were probably balanced to another crypto

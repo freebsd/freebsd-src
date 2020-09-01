@@ -82,7 +82,6 @@ g_label_msdosfs_taste(struct g_consumer *cp, char *label, size_t size)
 		goto error;
 	}
 
-
 	/*
 	 * Test if this is really a FAT volume and determine the FAT type.
 	 */

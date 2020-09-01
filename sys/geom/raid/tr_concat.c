@@ -123,7 +123,6 @@ g_raid_tr_update_state_concat(struct g_raid_volume *vol)
 			s = G_RAID_VOLUME_S_BROKEN;
 	}
 	if (s != vol->v_state) {
-
 		/*
 		 * Some metadata modules may not know CONCAT volume
 		 * mediasize until all disks connected. Recalculate.

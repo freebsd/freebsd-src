@@ -130,7 +130,7 @@ gv_set_drive_state(struct gv_drive *d, int newstate, int flags)
 	KASSERT(d != NULL, ("gv_set_drive_state: NULL d"));
 
 	oldstate = d->state;
-	
+
 	if (newstate == oldstate)
 		return (0);
 
@@ -166,7 +166,7 @@ gv_set_sd_state(struct gv_sd *s, int newstate, int flags)
 
 	/* We are optimistic and assume it will work. */
 	status = 0;
-	
+
 	if (newstate == oldstate)
 		return (0);
 
@@ -385,7 +385,7 @@ gv_update_sd_state(struct gv_sd *s)
 	KASSERT(d != NULL, ("gv_update_sd_state: NULL d"));
 
 	oldstate = s->state;
-	
+
 	/* If our drive isn't up we cannot be up either. */
 	if (d->state != GV_DRIVE_UP) {
 		s->state = GV_SD_DOWN;
@@ -401,7 +401,7 @@ gv_update_sd_state(struct gv_sd *s)
 			s->state = GV_SD_STALE;
 	} else
 		s->state = GV_SD_UP;
-	
+
 	if (s->state != oldstate)
 		G_VINUM_DEBUG(1, "subdisk %s state change: %s -> %s", s->name,
 		    gv_sdstate(oldstate), gv_sdstate(s->state));
@@ -425,7 +425,7 @@ gv_update_plex_state(struct gv_plex *p)
 
 	/* First, check the state of our subdisks. */
 	sdstates = gv_sdstatemap(p);
-	
+
 	/* If all subdisks are up, our plex can be up, too. */
 	if (sdstates == GV_SD_UPSTATE)
 		p->state = GV_PLEX_UP;
@@ -440,7 +440,6 @@ gv_update_plex_state(struct gv_plex *p)
 
 	/* Some of our subdisks are initializing. */
 	} else if (sdstates & GV_SD_INITSTATE) {
-
 		if (p->flags & GV_PLEX_SYNCING ||
 		    p->flags & GV_PLEX_REBUILDING)
 			p->state = GV_PLEX_DEGRADED;
@@ -507,7 +506,7 @@ gv_sdstatemap(struct gv_plex *p)
 	int statemap;
 
 	KASSERT(p != NULL, ("gv_sdstatemap: NULL p"));
-	
+
 	statemap = 0;
 	p->sddown = 0;	/* No subdisks down yet. */
 

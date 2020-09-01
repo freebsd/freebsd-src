@@ -210,7 +210,6 @@ ebr_parse_type(const char *type, u_char *dp_typ)
 	return (EINVAL);
 }
 
-
 static void
 ebr_set_chs(struct g_part_table *table, uint32_t lba, u_char *cylp, u_char *hdp,
     u_char *secp)
@@ -248,7 +247,6 @@ ebr_align(struct g_part_table *basetable, uint32_t *start, uint32_t *size)
 		return (EINVAL);
 	return (0);
 }
-
 
 static int
 g_part_ebr_add(struct g_part_table *basetable, struct g_part_entry *baseentry,

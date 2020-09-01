@@ -305,7 +305,7 @@ g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp)
 {
 	struct bio *bp;
 	int error;
-	
+
 	g_trace(G_T_BIO, "bio_zone(%d)", zone_args->zone_cmd);
 	bp = g_alloc_bio();
 	bp->bio_cmd = BIO_ZONE;

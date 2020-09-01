@@ -1081,7 +1081,7 @@ sysctl_disks(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(sb);
 	return error;
 }
- 
+
 SYSCTL_PROC(_kern, OID_AUTO, disks,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_disks, "A", "names of available disks");

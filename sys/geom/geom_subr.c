@@ -101,7 +101,7 @@ g_dbg_printf(const char *classname, int lvl, struct bio *bp,
 	sbuf_cat(&sb, classname);
 	if (lvl >= 0)
 		sbuf_printf(&sb, "[%d]", lvl);
-	
+
 	va_start(ap, format);
 	sbuf_vprintf(&sb, format, ap);
 	va_end(ap);
@@ -598,7 +598,6 @@ g_new_provider_event(void *arg, int flag)
 	}
 }
 
-
 struct g_provider *
 g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 {
@@ -717,7 +716,7 @@ g_resize_provider_event(void *arg, int flag)
 	}
 
 	pp->mediasize = size;
-	
+
 	LIST_FOREACH_SAFE(cp, &pp->consumers, consumers, cp2) {
 		gp = cp->geom;
 		if ((gp->flags & G_GEOM_WITHER) == 0 && gp->resize != NULL)

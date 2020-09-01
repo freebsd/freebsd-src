@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/virstor/binstream.h>
 
-
 /* "Open" a binary stream for reading */
 void
 bs_open(bin_stream_t * bs, void *data)
@@ -44,7 +43,6 @@ bs_open(bin_stream_t * bs, void *data)
 	bs->data = (char *)data;
 	bs->pos = 0;
 }
-
 
 /* "Reset" position in binary stream to zero */
 void
@@ -66,7 +64,6 @@ bs_write_str(bin_stream_t * bs, char *data)
 	return bs->pos;
 }
 
-
 /* Write an arbitrary buffer; return next position */
 unsigned
 bs_write_buf(bin_stream_t * bs, char *data, unsigned data_size)
@@ -78,7 +75,6 @@ bs_write_buf(bin_stream_t * bs, char *data, unsigned data_size)
 	return bs->pos;
 }
 
-
 /* Write a 8bit uint; return next position. */
 unsigned
 bs_write_u8(bin_stream_t * bs, uint8_t data)
@@ -86,7 +82,6 @@ bs_write_u8(bin_stream_t * bs, uint8_t data)
 	*((uint8_t *) (bs->data + bs->pos)) = data;
 	return ++(bs->pos);
 }
-
 
 /* Write a 16bit uint; return next position. */
 unsigned
@@ -96,7 +91,6 @@ bs_write_u16(bin_stream_t * bs, uint16_t data)
 	return (bs->pos += 2);
 }
 
-
 /* Write a 32bit uint; return next position. */
 unsigned
 bs_write_u32(bin_stream_t * bs, uint32_t data)
@@ -104,7 +98,6 @@ bs_write_u32(bin_stream_t * bs, uint32_t data)
 	le32enc(bs->data + bs->pos, data);
 	return (bs->pos += 4);
 }
-
 
 /* Write a 64bit uint; return next position. */
 unsigned
@@ -114,7 +107,6 @@ bs_write_u64(bin_stream_t * bs, uint64_t data)
 	return (bs->pos += 8);
 }
 
-
 /* Read a 8bit uint & return it */
 uint8_t
 bs_read_u8(bin_stream_t * bs)
@@ -123,7 +115,6 @@ bs_read_u8(bin_stream_t * bs)
 	bs->pos++;
 	return data;
 }
-
 
 /*
  * Read a null-terminated string from stream into a buffer; buf_size is size
@@ -145,7 +136,6 @@ bs_read_str(bin_stream_t * bs, char *buf, unsigned buf_size)
 	return buf;
 }
 
-
 /* Read an arbitrary buffer. */
 void
 bs_read_buf(bin_stream_t * bs, char *buf, unsigned buf_size)
@@ -156,7 +146,6 @@ bs_read_buf(bin_stream_t * bs, char *buf, unsigned buf_size)
 	bs->pos += buf_size;
 }
 
-
 /* Read a 16bit uint & return it */
 uint16_t
 bs_read_u16(bin_stream_t * bs)
@@ -166,7 +155,6 @@ bs_read_u16(bin_stream_t * bs)
 	return data;
 }
 
-
 /* Read a 32bit uint & return it */
 uint32_t
 bs_read_u32(bin_stream_t * bs)
@@ -175,7 +163,6 @@ bs_read_u32(bin_stream_t * bs)
 	bs->pos += 4;
 	return data;
 }
-
 
 /* Read a 64bit uint & return it */
 uint64_t

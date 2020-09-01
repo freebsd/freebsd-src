@@ -470,7 +470,6 @@ g_ctl_req(void *arg, int flag __unused)
 	g_topology_assert();
 }
 
-
 static int
 g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
