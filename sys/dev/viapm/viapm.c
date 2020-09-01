@@ -178,7 +178,6 @@ static devclass_t viapropm_devclass;
 
 #define SMBSCTRL_ENABLE		0x01	/* enable slave */
 
-
 /*
  * VIA8233 definitions
  */
@@ -242,7 +241,6 @@ viapm_586b_probe(device_t dev)
 
 	return ENXIO;
 }
-
 
 static int
 viapm_pro_probe(device_t dev)
@@ -528,7 +526,7 @@ viabb_setsda(device_t dev, int data)
 
 	return;
 }
-	
+
 static int
 viabb_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
@@ -987,7 +985,7 @@ static device_method_t viapropm_methods[] = {
 	DEVMETHOD(smbus_readw,		viasmb_readw),
 	DEVMETHOD(smbus_bwrite,		viasmb_bwrite),
 	DEVMETHOD(smbus_bread,		viasmb_bread),
-	
+
 	/* Bus interface */
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
