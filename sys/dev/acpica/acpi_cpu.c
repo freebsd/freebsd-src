@@ -873,7 +873,6 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    acpi_PkgInt32(pkg, 1, &cx_ptr->type) != 0 ||
 	    acpi_PkgInt32(pkg, 2, &cx_ptr->trans_lat) != 0 ||
 	    acpi_PkgInt32(pkg, 3, &cx_ptr->power) != 0) {
-
 	    device_printf(sc->cpu_dev, "skipping invalid Cx state package\n");
 	    continue;
 	}

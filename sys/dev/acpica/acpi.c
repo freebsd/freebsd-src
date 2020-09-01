@@ -1709,7 +1709,7 @@ acpi_device_id_probe(device_t bus, device_t dev, char **ids, char **match)
 	rv = acpi_MatchHid(h, ids[i]);
 	if (rv == ACPI_MATCHHID_NOMATCH)
 	    continue;
-	
+
 	if (match != NULL) {
 	    *match = ids[i];
 	}

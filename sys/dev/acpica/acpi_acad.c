@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpiio.h>
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
- 
+
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_AC_ADAPTER
 ACPI_MODULE_NAME("AC_ADAPTER")
