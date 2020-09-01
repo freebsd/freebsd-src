@@ -71,7 +71,6 @@
 #define aac_blockread64_tole(ptr)
 #define aac_blockwrite64_tole(ptr)
 
-
 #else /* _BYTE_ORDER != _LITTLE_ENDIAN */
 
 /* Convert from Little-Endian to host order (TOH) */
