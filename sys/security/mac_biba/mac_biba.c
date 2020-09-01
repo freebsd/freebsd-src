@@ -2745,7 +2745,7 @@ biba_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 		if (!biba_dominate_effective(subj, obj))
 			return (EACCES);
 	}
-	
+
 	return (0);
 }
 

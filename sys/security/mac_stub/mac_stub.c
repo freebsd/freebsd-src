@@ -1181,7 +1181,6 @@ stub_sysvmsq_check_msgrcv(struct ucred *cred, struct msg *msgptr,
 	return (0);
 }
 
-
 static int
 stub_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr,
     struct label *msglabel)
@@ -1190,7 +1189,6 @@ stub_sysvmsq_check_msgrmid(struct ucred *cred, struct msg *msgptr,
 	return (0);
 }
 
-
 static int
 stub_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel)
@@ -1198,7 +1196,6 @@ stub_sysvmsq_check_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 	return (0);
 }
-
 
 static int
 stub_sysvmsq_check_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
@@ -1216,7 +1213,6 @@ stub_sysvmsq_check_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
 	return (0);
 }
 
-
 static int
 stub_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqklabel, int cmd)
@@ -1224,7 +1220,6 @@ stub_sysvmsq_check_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 	return (0);
 }
-
 
 static void
 stub_sysvmsq_cleanup(struct label *msqlabel)
@@ -1254,7 +1249,6 @@ stub_sysvsem_check_semget(struct ucred *cred, struct semid_kernel *semakptr,
 
 	return (0);
 }
-
 
 static int
 stub_sysvsem_check_semop(struct ucred *cred, struct semid_kernel *semakptr,
@@ -1300,7 +1294,6 @@ stub_sysvshm_check_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr,
 
 	return (0);
 }
-
 
 static int
 stub_sysvshm_check_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,

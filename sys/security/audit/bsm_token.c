@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-
 #include <bsm/audit.h>
 #include <bsm/audit_internal.h>
 #include <bsm/audit_record.h>
@@ -341,7 +340,6 @@ au_to_data(char unit_print, char unit_type, char unit_count, const char *p)
 
 	return (t);
 }
-
 
 /*
  * token ID                1 byte
