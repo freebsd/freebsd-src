@@ -44,7 +44,6 @@
 	((_entry & SIBA_ ## _attr ## _MASK)	\
 	>> SIBA_ ## _attr ## _SHIFT)
 
-
 #define	SIBA_ENUM_ADDR		BHND_DEFAULT_CHIPC_ADDR	/**< enumeration space */
 #define	SIBA_ENUM_SIZE		0x00100000		/**< size of the enumeration space */ 
 #define	SIBA_CORE_SIZE		BHND_DEFAULT_CORE_SIZE	/**< per-core register block size */

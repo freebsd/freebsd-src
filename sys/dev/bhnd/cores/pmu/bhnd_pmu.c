@@ -197,7 +197,7 @@ bhnd_pmu_attach(device_t dev, struct bhnd_resource *res)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "cpu_freq", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    bhnd_pmu_sysctl_cpu_freq, "IU", "CPU clock frequency");
-	
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "mem_freq", CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT, sc, 0,
 	    bhnd_pmu_sysctl_mem_freq, "IU", "Memory clock frequency");
@@ -237,7 +237,7 @@ bhnd_pmu_detach(device_t dev)
 	bhnd_pmu_query_fini(&sc->query);
 	bhnd_free_core_clkctl(sc->clkctl);
 	bhnd_release_provider(sc->dev, sc->chipc_dev, BHND_SERVICE_CHIPC);
-	
+
 	return (0);
 }
 
@@ -275,7 +275,7 @@ bhnd_pmu_sysctl_bus_freq(SYSCTL_HANDLER_ARGS)
 {
 	struct bhnd_pmu_softc	*sc;
 	uint32_t		 freq;
-	
+
 	sc = arg1;
 
 	BPMU_LOCK(sc);
@@ -290,7 +290,7 @@ bhnd_pmu_sysctl_cpu_freq(SYSCTL_HANDLER_ARGS)
 {
 	struct bhnd_pmu_softc	*sc;
 	uint32_t		 freq;
-	
+
 	sc = arg1;
 
 	BPMU_LOCK(sc);
@@ -305,7 +305,7 @@ bhnd_pmu_sysctl_mem_freq(SYSCTL_HANDLER_ARGS)
 {
 	struct bhnd_pmu_softc	*sc;
 	uint32_t		 freq;
-	
+
 	sc = arg1;
 
 	BPMU_LOCK(sc);
@@ -427,7 +427,7 @@ bhnd_pmu_set_voltage_raw_method(device_t dev, bhnd_pmu_regulator regulator,
 	case BHND_REGULATOR_PAREF_LDO:
 		if (value > UINT8_MAX)
 			return (EINVAL);
-	
+
 		BPMU_LOCK(sc);
 		error = bhnd_pmu_set_ldo_voltage(sc, SET_LDO_VOLTAGE_PAREF,
 		    value);
@@ -487,7 +487,6 @@ bhnd_pmu_disable_regulator_method(device_t dev, bhnd_pmu_regulator regulator)
 		return (ENODEV);
 	}
 }
-
 
 /**
  * Default bhnd_pmu driver implementation of BHND_PMU_GET_CLOCK_LATENCY().
@@ -625,7 +624,7 @@ static device_method_t bhnd_pmu_methods[] = {
 
 	DEVMETHOD(bhnd_pmu_get_max_transition_latency,	bhnd_pmu_get_max_transition_latency_method),
 	DEVMETHOD(bhnd_pmu_request_spuravoid,		bhnd_pmu_request_spuravoid_method),
-	
+
 	DEVMETHOD_END
 };
 

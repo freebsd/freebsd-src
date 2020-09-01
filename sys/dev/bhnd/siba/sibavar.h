@@ -227,7 +227,6 @@ struct siba_softc {
 	struct mtx			mtx;		/**< state mutex */
 };
 
-
 #define	SIBA_LOCK_INIT(sc)	\
     mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), NULL, MTX_DEF)
 #define	SIBA_LOCK(sc)			mtx_lock(&(sc)->mtx)

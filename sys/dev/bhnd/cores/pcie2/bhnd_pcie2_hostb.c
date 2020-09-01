@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 
 static const struct bhnd_device_quirk bhnd_pcie2_quirks[];
 
-
 static int	bhnd_pcie2_wars_early_once(struct bhnd_pcie2hb_softc *sc);
 static int	bhnd_pcie2_wars_hwup(struct bhnd_pcie2hb_softc *sc);
 static int	bhnd_pcie2_wars_hwdown(struct bhnd_pcie2hb_softc *sc);
@@ -125,19 +124,16 @@ bhnd_pcie2_hostb_attach(device_t dev)
 	if ((error = bhnd_pcie2_generic_attach(dev)))
 		return (error);
 
-
 	/* Apply early single-shot work-arounds */
 	if ((error = bhnd_pcie2_wars_early_once(sc)))
 		goto failed;
-
 
 	/* Apply attach/resume work-arounds */
 	if ((error = bhnd_pcie2_wars_hwup(sc)))
 		goto failed;
 
-
 	return (0);
-	
+
 failed:
 	bhnd_pcie2_generic_detach(dev);
 	return (error);

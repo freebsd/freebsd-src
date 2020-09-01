@@ -70,7 +70,6 @@
 #define	BHND_PMU_PLL_WRITE(_sc, _reg, _val, _mask)	\
 	BHND_PMU_IND_WRITE((_sc), PLL_CONTROL, (_reg), (_val), (_mask))
 
-
 /** FVCO frequencies, in Hz */
 enum {
 	FVCO_880	= 880	* 1000,	/**< 880MHz */
@@ -92,7 +91,6 @@ enum {
 	SET_LDO_VOLTAGE_LNLDO1		= 9,
 	SET_LDO_VOLTAGE_LNLDO2_SEL	= 10,
 };
-
 
 uint32_t	bhnd_pmu_ind_read(const struct bhnd_pmu_io *io, void *io_ctx,
 		    bus_size_t addr, bus_size_t data, uint32_t reg);

@@ -173,7 +173,6 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 	BHND_DEVICE_QUIRK_END
 };
 
-
 #define	BHND_PCI_SOFTC(_sc)	(&((_sc)->common))
 
 #define	BHND_PCI_READ_2(_sc, _reg)		\
@@ -184,7 +183,7 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 
 #define	BHND_PCI_WRITE_2(_sc, _reg, _val)	\
 	bhnd_bus_write_2(BHND_PCI_SOFTC(_sc)->mem_res, (_reg), (_val))
-	
+
 #define	BHND_PCI_WRITE_4(_sc, _reg, _val)	\
 	bhnd_bus_write_4(BHND_PCI_SOFTC(_sc)->mem_res, (_reg), (_val))
 
@@ -193,7 +192,7 @@ static const struct bhnd_device_quirk bhnd_pcie_quirks[] = {
 
 #define	BHND_PCI_PROTO_WRITE_4(_sc, _reg, _val)	\
 	bhnd_pcie_write_proto_reg(BHND_PCI_SOFTC(_sc), (_reg), (_val))
-	
+
 #define	BHND_PCI_MDIO_READ(_sc, _phy, _reg)	\
 	bhnd_pcie_mdio_read(BHND_PCI_SOFTC(_sc), (_phy), (_reg))
 
@@ -252,7 +251,7 @@ bhnd_pci_hostb_attach(device_t dev)
 		goto failed;
 
 	return (0);
-	
+
 failed:
 	bhnd_pci_generic_detach(dev);
 	return (error);
@@ -406,12 +405,12 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 	/* Disable PCI CLKRUN# */
 	if (sc->quirks & BHND_PCI_QUIRK_CLKRUN_DSBL) {
 		uint32_t ctl;
-	
+
 		ctl = BHND_PCI_READ_4(sc, BHND_PCI_CLKRUN_CTL);
 		ctl |= BHND_PCI_CLKRUN_DSBL;
 		BHND_PCI_WRITE_4(sc, BHND_PCI_CLKRUN_CTL, ctl);
 	}
-	
+
 	/* Enable TLP unmatched address handling work-around */
 	if (sc->quirks & BHND_PCIE_QUIRK_UR_STATUS_FIX) {
 		uint32_t wrs;
@@ -476,7 +475,7 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 		BHND_PCI_MDIO_WRITE(sc, BHND_PCIE_PHY_SDR9_PLL,
 		    BHND_PCIE_SDR9_PLL_CTRL, pctl);
 	}
-	
+
 	/* Explicitly enable PCI-PM */
 	if (sc->quirks & BHND_PCIE_QUIRK_PCIPM_REQEN) {
 		uint32_t lcreg;
@@ -519,7 +518,6 @@ bhnd_pci_wars_hwup(struct bhnd_pcihb_softc *sc, bhnd_pci_war_state state)
 			cfg &= ~BHND_PCIE_SRSH_ASPM_ENB;
 		
 		BHND_PCI_WRITE_2(sc, reg, cfg);
-
 
 		/* Set ASPM/ECPM (CLKREQ) flags in PCIe link control register */
 		cfg = pcie_read_config(sc->pci_dev, PCIER_LINK_CTL, 2);

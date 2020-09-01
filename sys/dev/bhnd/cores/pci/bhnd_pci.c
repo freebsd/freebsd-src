@@ -82,7 +82,6 @@ static const struct bhnd_pci_device {
 	BHND_PCI_DEV(PCI,	"PCI-BHND bridge",		BHND_DF_SOC),
 	BHND_PCI_DEV(PCIE,	"PCIe-G1 Host-PCI bridge",	BHND_DF_HOSTB),
 	BHND_PCI_DEV(PCIE,	"PCIe-G1 PCI-BHND bridge",	BHND_DF_SOC),
-
 	{ BHND_DEVICE_END, 0 }
 };
 
@@ -168,7 +167,7 @@ bhnd_pci_generic_detach(device_t dev)
 		return (error);
 
 	bhnd_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem_res);
-	
+
 	BHND_PCI_LOCK_DESTROY(sc);
 
 	return (0);
@@ -191,7 +190,7 @@ bhnd_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	struct bhnd_pci_devinfo	*dinfo;
 	device_t		 child;
-	
+
 	child = device_add_child_ordered(dev, order, name, unit);
 	if (child == NULL)
 		return (NULL);
@@ -203,7 +202,7 @@ bhnd_pci_add_child(device_t dev, u_int order, const char *name, int unit)
 	}
 
 	resource_list_init(&dinfo->resources);
-	
+
 	device_set_ivars(child, dinfo);
 	return (child);
 }
@@ -295,7 +294,6 @@ bhnd_pcie_mdio_wait_idle(struct bhnd_pci_softc *sc)
 	return (ETIMEDOUT);
 }
 
-
 /**
  * Write an MDIO IOCTL and wait for completion.
  */
@@ -333,7 +331,6 @@ bhnd_pcie_mdio_disable(struct bhnd_pci_softc *sc)
 	if (bhnd_pcie_mdio_ioctl(sc, 0))
 		device_printf(sc->dev, "failed to disable MDIO clock\n");
 }
-
 
 /**
  * Issue a write command and wait for completion
@@ -379,7 +376,6 @@ bhnd_pcie_mdio_cmd_read(struct bhnd_pci_softc *sc, uint32_t cmd,
 	    BHND_PCIE_MDIODATA_DATA_MASK);
 	return (0);
 }
-
 
 int
 bhnd_pcie_mdio_read(struct bhnd_pci_softc *sc, int phy, int reg)
@@ -530,7 +526,7 @@ static device_method_t bhnd_pci_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,      bus_generic_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource,          bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,		bus_generic_rl_release_resource),
-	
+
 	DEVMETHOD_END
 };
 

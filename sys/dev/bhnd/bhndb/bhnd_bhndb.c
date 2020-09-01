@@ -72,7 +72,6 @@ bhnd_bhndb_get_attach_type(device_t dev, device_t child)
 	return (BHND_ATTACH_ADAPTER);
 }
 
-
 static bool
 bhnd_bhndb_is_hw_disabled(device_t dev, device_t child)
 {
@@ -81,7 +80,6 @@ bhnd_bhndb_is_hw_disabled(device_t dev, device_t child)
 	/* Delegate to parent bridge */
 	return (BHNDB_IS_CORE_DISABLED(device_get_parent(dev), dev, &core));
 }
-
 
 static device_t
 bhnd_bhndb_find_hostb_device(device_t dev)

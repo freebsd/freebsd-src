@@ -50,7 +50,7 @@ struct bhnd_hwrev_match {
 #define	_BHND_COPY_MATCH_FIELD(_src, _name)	\
 	.m.match._name = (_src)->m.match._name,	\
 	._name = (_src)->_name
-	
+
 /* Set match field @p _name with @p _value */
 #define	_BHND_SET_MATCH_FIELD(_name, _value)	\
 	.m.match._name = 1, ._name = _value
@@ -112,7 +112,7 @@ struct bhnd_core_match {
 			    flags_unused:2;
 		} match;
 	} m;
-	
+
 	uint16_t		core_vendor;	/**< required JEP106 device vendor */
 	uint16_t		core_id;	/**< required core ID */
 	struct bhnd_hwrev_match	core_rev;	/**< matching core revisions. */
@@ -261,7 +261,6 @@ struct bhnd_board_match {
 #define	BHND_MATCH_BOARD(_vend, _type)	\
 	BHND_MATCH_BOARD_VENDOR(_vend), BHND_MATCH_BOARD_TYPE(_type)
 
-
 /**
  * A bhnd(4) device match descriptor.
  *
@@ -292,7 +291,7 @@ struct bhnd_device_match {
 			flags_unused:15;
 		} match;
 	} m;
-	
+
 	uint16_t		core_vendor;	/**< required JEP106 device vendor */
 	uint16_t		core_id;	/**< required core ID */
 	struct bhnd_hwrev_match	core_rev;	/**< matching core revisions. */

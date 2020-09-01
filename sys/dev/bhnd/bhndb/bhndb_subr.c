@@ -154,7 +154,7 @@ bhnd_generic_br_resume_child(device_t dev, device_t child)
 	struct resource_list		*rl;
 	struct resource_list_entry	*rle;
 	int				 error;
-	
+
 	if (device_get_parent(child) != dev)
 		BUS_RESUME_CHILD(device_get_parent(dev), child);
 
@@ -306,7 +306,6 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 	}
 	free_ht_mem = true;
 
-
 	/* Initialize resource manager for the bridged address space. */
 	r->br_mem_rman.rm_start = 0;
 	r->br_mem_rman.rm_end = BUS_SPACE_MAXADDR_32BIT;
@@ -324,7 +323,6 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 		device_printf(r->dev, "could not configure br_mem_rman\n");
 		goto failed;
 	}
-
 
 	/* Initialize resource manager for the bridged interrupt controller. */
 	r->br_irq_rman.rm_start = 0;
@@ -352,7 +350,7 @@ bhndb_alloc_resources(device_t dev, device_t parent_dev,
 		device_printf(r->dev, "max dynamic regwin count exceeded\n");
 		goto failed;
 	}
-	
+
 	/* Allocate the dynamic window allocation table. */
 	r->dw_alloc = malloc(sizeof(r->dw_alloc[0]) * r->dwa_count, M_BHND,
 	    M_NOWAIT);
@@ -615,7 +613,7 @@ bhndb_free_resources(struct bhndb_resources *br)
 			free(dwr, M_BHND);
 		}
 	}
-	
+
 	/* Release bus regions */
 	STAILQ_FOREACH_SAFE(region, &br->bus_regions, link, r_next) {
 		STAILQ_REMOVE(&br->bus_regions, region, bhndb_region, link);
@@ -779,7 +777,6 @@ bhndb_release_host_resources(struct bhndb_host_resources *hr)
 	free(hr->dma_tags, M_BHND);
 	free(hr, M_BHND);
 }
-
 
 /**
  * Search @p cores for the core serving as the bhnd host bridge.
@@ -1120,7 +1117,6 @@ bhndb_has_static_region_mapping(struct bhndb_resources *br,
 		/* Have we traversed a complete (if discontiguous) mapping? */
 		if (r_addr == addr + size)
 			return (true);
-
 	}
 
 	/* No complete mapping found */
@@ -1286,7 +1282,7 @@ bhndb_dw_retain(struct bhndb_resources *br, struct bhndb_dw_alloc *dwa,
 
 	/* Update the free list */
 	bit_set(br->dwa_freelist, dwa->rnid);
- 
+
 	return (0);
 }
 
@@ -1354,7 +1350,7 @@ bhndb_dw_set_addr(device_t dev, struct bhndb_resources *br,
 	/* Verify that the window is large enough for the full target */
 	if (rw->win_size - offset < size)
 		return (ENOMEM);
-	
+
 	/* Update the window target */
 	error = BHNDB_SET_WINDOW_ADDR(dev, dwa->win, dwa->target);
 	if (error) {
@@ -1629,7 +1625,6 @@ bhndb_hw_priority_find_core(const struct bhndb_hw_priority *table,
 	/* not found */
 	return (NULL);
 }
-
 
 /**
  * Search for a port resource priority descriptor in @p table.

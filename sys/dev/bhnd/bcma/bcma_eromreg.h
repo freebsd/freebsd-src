@@ -105,7 +105,6 @@
 #define	BCMA_EROM_MPORT_ID_MASK		0x000000F0	/* AXI master ID (unique per master). */
 #define	BCMA_EROM_MPORT_ID_SHIFT	4
 
-
 /* EROM Slave Port MMIO Region Descriptor */
 #define	BCMA_EROM_REGION_BASE_MASK	0xFFFFF000	/* region base address */
 #define	BCMA_EROM_REGION_BASE_SHIFT	0

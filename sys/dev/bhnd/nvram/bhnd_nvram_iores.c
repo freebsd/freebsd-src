@@ -102,7 +102,7 @@ bhnd_nvram_iores_new(struct bhnd_resource *r, bus_size_t offset,
 		    (uintmax_t)offset, (uintmax_t)offset);
 		return (NULL);
 	}
-	
+
 	if (size > BUS_SPACE_MAXSIZE || offset > BUS_SPACE_MAXSIZE)
 	{
 		BHND_NV_LOG("offset %#jx+%#jx exceeds BUS_SPACE_MAXSIZE\n",
@@ -209,7 +209,6 @@ bhnd_nvram_iores_validate_req(struct bhnd_nvram_iores *iores, size_t offset,
 
 	return (0);
 }
-
 
 static int
 bhnd_nvram_iores_read(struct bhnd_nvram_io *io, size_t offset, void *buffer,

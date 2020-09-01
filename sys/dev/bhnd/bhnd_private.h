@@ -96,7 +96,7 @@ struct bhnd_core_clkctl {
 
 #define	BHND_CLKCTL_WRITE_4(_clkctl, _val)	\
 	bhnd_bus_write_4((_clkctl)->cc_res, (_clkctl)->cc_res_offset, (_val))
-	
+
 #define	BHND_CLKCTL_SET_4(_clkctl, _val, _mask)	\
 	BHND_CLKCTL_WRITE_4((_clkctl),		\
 	    ((_val) & (_mask)) | (BHND_CLKCTL_READ_4(_clkctl) & ~(_mask)))

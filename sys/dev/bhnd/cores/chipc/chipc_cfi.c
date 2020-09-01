@@ -78,7 +78,6 @@ static device_method_t chipc_cfi_methods[] = {
 	DEVMETHOD(device_probe,		chipc_cfi_probe),
 	DEVMETHOD(device_attach,	chipc_cfi_attach),
 	DEVMETHOD(device_detach,	cfi_detach),
-
 	{0, 0}
 };
 

@@ -90,7 +90,6 @@ static const struct bhnd_nomatch {
 	{ BHND_MFGID_ARM,	BHND_COREID_PL301,		true	},
 	{ BHND_MFGID_ARM,	BHND_COREID_APB_BRIDGE,		true	},
 	{ BHND_MFGID_ARM,	BHND_COREID_AXI_UNMAPPED,	false	},
-
 	{ BHND_MFGID_INVALID,	BHND_COREID_INVALID,		false	}
 };
 
@@ -491,7 +490,7 @@ bhnd_generic_release_pmu(device_t dev, device_t child)
 	device_t		 pmu_dev;
 
 	GIANT_REQUIRED;	/* for newbus */
-	
+
 	sc = device_get_softc(dev);
 
 	if (device_get_parent(child) != dev)
@@ -756,7 +755,6 @@ bhnd_generic_release_ext_rsrc(device_t dev, device_t child, u_int rsrc)
 	if ((clkctl = bhnd_get_pmu_info(child)) == NULL)
 		panic("no active PMU allocation");
 
-
 	BHND_ASSERT_CLKCTL_AVAIL(clkctl);
 
 	sc = device_get_softc(dev);
@@ -844,8 +842,7 @@ bhnd_generic_print_child(device_t dev, device_t child)
 	retval += bus_print_child_header(dev, child);
 
 	rl = BUS_GET_RESOURCE_LIST(dev, child);
-	
-	
+
 	if (rl != NULL) {
 		retval += resource_list_print_type(rl, "mem", SYS_RES_MEMORY,
 		    "%#jx");
@@ -889,7 +886,7 @@ bhnd_generic_probe_nomatch(device_t dev, device_t child)
 			report = true;
 		break;
 	}
-	
+
 	if (!report)
 		return;
 
@@ -935,12 +932,11 @@ bhnd_child_location_str(device_t dev, device_t child, char *buf,
 {
 	bhnd_addr_t	addr;
 	bhnd_size_t	size;
-	
+
 	if (device_get_parent(child) != dev) {
 		return (BUS_CHILD_LOCATION_STR(device_get_parent(dev), child,
 		    buf, buflen));
 	}
-
 
 	if (bhnd_get_region_addr(child, BHND_PORT_DEVICE, 0, 0, &addr, &size)) {
 		/* No device default port/region */
@@ -1009,7 +1005,6 @@ bhnd_generic_resume_child(device_t dev, device_t child)
 
 	return bus_generic_resume_child(dev, child);
 }
-
 
 /**
  * Default bhnd(4) bus driver implementation of BUS_SETUP_INTR().
@@ -1176,7 +1171,7 @@ static device_method_t bhnd_methods[] = {
 	DEVMETHOD(bhnd_bus_write_multi_1,	bhnd_write_multi_1),
 	DEVMETHOD(bhnd_bus_write_multi_2,	bhnd_write_multi_2),
 	DEVMETHOD(bhnd_bus_write_multi_4,	bhnd_write_multi_4),
-	
+
 	DEVMETHOD(bhnd_bus_read_multi_stream_1,	bhnd_read_multi_stream_1),
 	DEVMETHOD(bhnd_bus_read_multi_stream_2,	bhnd_read_multi_stream_2),
 	DEVMETHOD(bhnd_bus_read_multi_stream_4,	bhnd_read_multi_stream_4),

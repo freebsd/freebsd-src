@@ -67,7 +67,6 @@
  */
 #define	OCP_VENDOR_BCM		0x4243		/**< Broadcom OCP vendor id */
 
-
 /* PCI vendor IDs */
 #define	PCI_VENDOR_ASUSTEK	0x1043
 #define	PCI_VENDOR_EPIGRAM	0xfeda
@@ -88,14 +87,11 @@
 #define	PCI_VENDOR_RICOH	0x1180		/* Ricoh */
 #define	PCI_VENDOR_JMICRON	0x197b
 
-
 /* PCMCIA vendor IDs */
 #define	PCMCIA_VENDOR_BROADCOM	0x02d0
 
-
 /* SDIO vendor IDs */
 #define	SDIO_VENDOR_BROADCOM	0x00BF
-
 
 /* USB dongle VID/PIDs */
 #define	USB_VID_BROADCOM	0x0a5c
@@ -119,10 +115,8 @@
 #define	USB_PID_BCM_DNGL_BDC	0x0bdc		/* BDC USB device controller IP? */
 #define	USB_PID_BCM_DNGL_JTAG	0x4a44
 
-
 /* HW USB BLOCK [CPULESS USB] PIDs */
 #define	USB_PID_CCM_HWUSB_43239	43239
-
 
 /* PCI Device IDs */
 #define	PCI_DEVID_BCM4210		0x1072	/* never used */
@@ -228,13 +222,11 @@
 #define	PCI_DEVID_PCIXX21_FLASHMEDIA0	0x8033	/* TI PCI xx21 Standard Host Controller */
 #define	PCI_DEVID_PCIXX21_SDIOH0	0x8034	/* TI PCI xx21 Standard Host Controller */
 
-
 /* PCI Subsystem Vendor IDs */
 #define	PCI_SUBVENDOR_BCM943228HMB	0x0607
 #define	PCI_SUBVENDOR_BCM94313HMGBL	0x0608
 #define	PCI_SUBVENDOR_BCM94313HMG	0x0609
 #define	PCI_SUBVENDOR_BCM943142HM	0x0611
-
 
 /* PCI Subsystem Device IDs */
 #define	PCI_SUBDEVID_BCM43143_D11N2G		0x4366	/* 43143 802.11n 2.4G device */
@@ -295,7 +287,6 @@
 #define	PCI_SUBDEVID_BCM_PCIXX21_SDIOH		0x803c	/* TI PCI xx21 Standard Host Controller */
 #define	PCI_SUBDEVID_BCM_R5C822_SDIOH		0x0822	/* Ricoh Co Ltd R5C822 SD/SDIO/MMC/MS/MSPro Host */
 #define	PCI_SUBDEVID_BCM_JMICRON_SDIOH		0x2381	/* JMicron Standard SDIO Host Controller */
-
 
 /* Broadcom ChipCommon Chip IDs */
 #define	BHND_CHIPID_BCM4306		0x4306		/* 4306 chipcommon chipid */
@@ -380,7 +371,6 @@
 #define	BHND_CHIPID_BCM5356		0x5356		/* 5356 chipcommon chipid */
 #define	BHND_CHIPID_BCM5357		0x5357		/* 5357 chipcommon chipid */
 #define	BHND_CHIPID_BCM53572		53572		/* 53572 chipcommon chipid */
-
 
 /* Broadcom ChipCommon Package IDs */
 #define	BHND_PKGID_BCM4303		2		/* 4303 package id */
@@ -522,8 +512,6 @@
 #define	BHND_COREID_4706_GMAC		0x52d           /* Gigabit MAC core */
 #define	BHND_COREID_AMEMC		0x52e           /* DDR1/2 cadence/denali memory controller core */
 
-
-
 /* ARM PrimeCell Peripherial IDs. These were derived from inspection of the
  * PrimeCell-compatible BCM4331 cores, but due to lack of documentation, the
  * surmised core name/description may be incorrect. */
@@ -593,7 +581,6 @@
 							 */
 #define	BHND_BFL_EXTLNA_TX		0x20000000	/* Temp boardflag to indicate to */
 
-
 /* Boardflags2 */
 #define	BHND_BFL2_RXBB_INT_REG_DIS	0x00000001	/* Board has an external rxbb regulator */
 #define	BHND_BFL2_APLL_WAR		0x00000002	/* Flag to implement alternative A-band PLL settings */
@@ -642,7 +629,6 @@
 #define	BHND_BFL2_LNA1BYPFORTR2G  	0x40000000	/* acphy, enable lna1 bypass for clip gain, 2g */
 #define	BHND_BFL2_LNA1BYPFORTR5G  	0x80000000	/* acphy, enable lna1 bypass for clip gain, 5g */
 
-
 /* SROM 11 - 11ac boardflag definitions */
 #define	BHND_BFL_SROM11_BTCOEX		0x00000001	/* Board supports BTCOEX */
 #define	BHND_BFL_SROM11_WLAN_BT_SH_XTL	0x00000002	/* bluetooth and wlan share same crystal */
@@ -652,7 +638,6 @@
 #define	BHND_BFL2_SROM11_APLL_WAR	0x00000002	/* Flag to implement alternative A-band PLL settings */
 #define	BHND_BFL2_SROM11_ANAPACTRL_2G	0x00100000	/* 2G ext PAs are ctrl-ed by analog PA ctrl lines */
 #define	BHND_BFL2_SROM11_ANAPACTRL_5G	0x00200000	/* 5G ext PAs are ctrl-ed by analog PA ctrl lines */
-
 
 /* Boardflags3 */
 #define	BHND_BFL3_FEMCTRL_SUB			0x00000007	/* acphy, subrevs of femctrl on top of srom_femctrl */
@@ -679,7 +664,6 @@
 #define	BHND_BFL3_BT_SHARE_BM_BIT1		0x40000000	/* bit 1 of WLAN/BT shared core bitmap */
 #define	BHND_BFL3_EN_NONBRCM_TXBF		0x10000000	/* acphy, enable non-brcm TXBF */
 #define	BHND_BFL3_EN_P2PLINK_TXBF		0x20000000	/* acphy, enable TXBF in p2p links */
-
 
 /* board specific GPIO assignment, gpio 0-3 are also customer-configurable led */
 #define	BHND_GPIO_BOARD_BTC3W_IN	0x850	/* bit 4 is RF_ACTIVE, bit 6 is STATUS, bit 11 is PRI */
@@ -730,14 +714,12 @@
 
 #define	BHND_BOARD_BU2050		0x041f
 
-
 #define	BHND_BOARD_BCM94309G		0x0421
 
 #define	BHND_BOARD_BU4704		0x0423
 #define	BHND_BOARD_BU4702		0x0424
 
 #define	BHND_BOARD_BCM94306PC		0x0425		/* pcmcia 3.3v 4306 card */
-
 
 #define	BHND_BOARD_BCM94702MN		0x0428
 
@@ -761,8 +743,6 @@
 
 /* 11a-only minipci */
 #define	BHND_BOARD_BCM94308MP		0x0430
-
-
 
 #define	BHND_BOARD_BU4712		0x0444
 #define	BHND_BOARD_BU4712SD		0x045d
