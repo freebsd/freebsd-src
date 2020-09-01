@@ -133,7 +133,6 @@ struct al_eth_lm_led_config_data {
 	enum al_eth_lm_led_config_speed	speed;
 };
 
-
 struct al_eth_lm_context {
 	struct al_hal_eth_adapter	*adapter;
 	struct al_serdes_grp_obj	*serdes_obj;
