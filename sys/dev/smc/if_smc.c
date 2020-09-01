@@ -434,10 +434,10 @@ smc_detach(device_t dev)
 	if (sc->smc_ifp != NULL) {
 		ether_ifdetach(sc->smc_ifp);
 	}
-	
+
 	callout_drain(&sc->smc_watchdog);
 	callout_drain(&sc->smc_mii_tick_ch);
-	
+
 #ifdef DEVICE_POLLING
 	if (sc->smc_ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(sc->smc_ifp);
@@ -491,7 +491,6 @@ static device_method_t smc_methods[] = {
 	DEVMETHOD(miibus_readreg,	smc_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	smc_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	smc_miibus_statchg),
-
 	{ 0, 0 }
 };
 
@@ -603,7 +602,7 @@ smc_task_tx(void *context, int pending)
 	sc = ifp->if_softc;
 
 	SMC_LOCK(sc);
-	
+
 	if (sc->smc_pending == NULL) {
 		SMC_UNLOCK(sc);
 		goto next_packet;
@@ -722,7 +721,7 @@ smc_task_rx(void *context, int pending)
 			m_freem(m);
 			break;
 		}
-	
+
 		/*
 		 * Point to the start of the packet.
 		 */
@@ -749,14 +748,14 @@ smc_task_rx(void *context, int pending)
 			m_freem(m);
 			break;
 		}
-	
+
 		/*
 		 * Set the mbuf up the way we want it.
 		 */
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = len + 2; /* XXX: Is this right? */
 		m_adj(m, ETHER_ALIGN);
-	
+
 		/*
 		 * Pull the packet out of the device.  Make sure we're in the
 		 * right bank first as things may have changed while we were
@@ -865,7 +864,7 @@ smc_task_intr(void *context, int pending)
 	sc = ifp->if_softc;
 
 	SMC_LOCK(sc);
-	
+
 	smc_select_bank(sc, 2);
 
 	/*
@@ -1255,7 +1254,7 @@ static void
 smc_watchdog(void *arg)
 {
 	struct smc_softc	*sc;
-	
+
 	sc = (struct smc_softc *)arg;
 	device_printf(sc->smc_dev, "watchdog timeout\n");
 	taskqueue_enqueue(sc->smc_tq, &sc->smc_intr);
