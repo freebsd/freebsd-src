@@ -700,4 +700,3 @@ cmx_intr(void *arg)
 	return;
 }
 #endif
-
