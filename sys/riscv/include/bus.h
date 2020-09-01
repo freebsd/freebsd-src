@@ -89,7 +89,6 @@
 #define	BUS_SPACE_BARRIER_READ	0x01
 #define	BUS_SPACE_BARRIER_WRITE	0x02
 
-
 struct bus_space {
 	/* cookie */
 	void		*bs_cookie;
@@ -256,7 +255,6 @@ struct bus_space {
 			    bus_size_t, const u_int64_t *, bus_size_t);
 };
 
-
 /*
  * Utility macros; INTERNAL USE ONLY.
  */
@@ -282,7 +280,6 @@ struct bus_space {
 #define	__bs_nonsingle_s(type, sz, t, h, o, a, c)			\
 	(*(t)->__bs_opname_s(type,sz))((t)->bs_cookie, h, o, a, c)
 
-
 /*
  * Mapping and unmapping operations.
  */
@@ -292,7 +289,6 @@ struct bus_space {
 	(*(t)->bs_unmap)((t)->bs_cookie, (h), (s))
 #define	bus_space_subregion(t, h, o, s, hp)				\
 	(*(t)->bs_subregion)((t)->bs_cookie, (h), (o), (s), (hp))
-
 
 /*
  * Allocation and deallocation operations.
@@ -308,8 +304,6 @@ struct bus_space {
  */
 #define	bus_space_barrier(t, h, o, l, f)				\
 	(*(t)->bs_barrier)((t)->bs_cookie, (h), (o), (l), (f))
-
-
 
 /*
  * Bus read (single) operations.
@@ -345,7 +339,6 @@ struct bus_space {
 #define	bus_space_read_multi_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(rm,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Bus read region operations.
  */
@@ -367,7 +360,6 @@ struct bus_space {
 #define	bus_space_read_region_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(rr,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Bus write (single) operations.
  */
@@ -380,7 +372,6 @@ struct bus_space {
 #define	bus_space_write_stream_2(t, h, o, v)	__bs_ws_s(2,(t),(h),(o),(v))
 #define	bus_space_write_stream_4(t, h, o, v)	__bs_ws_s(4,(t),(h),(o),(v))
 #define	bus_space_write_stream_8(t, h, o, v)	__bs_ws_s(8,(t),(h),(o),(v))
-
 
 /*
  * Bus write multiple operations.
@@ -403,7 +394,6 @@ struct bus_space {
 #define	bus_space_write_multi_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(wm,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Bus write region operations.
  */
@@ -425,7 +415,6 @@ struct bus_space {
 #define	bus_space_write_region_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(wr,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Set multiple operations.
  */
@@ -438,7 +427,6 @@ struct bus_space {
 #define	bus_space_set_multi_8(t, h, o, v, c)				\
 	__bs_set(sm,8,(t),(h),(o),(v),(c))
 
-
 /*
  * Set region operations.
  */
@@ -450,7 +438,6 @@ struct bus_space {
 	__bs_set(sr,4,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_8(t, h, o, v, c)				\
 	__bs_set(sr,8,(t),(h),(o),(v),(c))
-
 
 /*
  * Copy operations.
