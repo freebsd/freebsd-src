@@ -36,7 +36,6 @@
  * OCS bsd driver common include file
  */
 
-
 #if !defined(__OCS_H__)
 #define __OCS_H__
 
@@ -103,7 +102,6 @@ typedef struct ocs_fcport_s {
  */
 
 struct ocs_softc {
-
 	device_t		dev;
 	struct cdev		*cdev;
 
@@ -197,7 +195,6 @@ struct ocs_softc {
 	uint32_t		config_tgt:1,	/**< Configured to support target mode */
 				config_ini:1;	/**< Configured to support initiator mode */
 
-
 	uint32_t nodedb_mask;			/**< Node debugging mask */
 
 	char			modeldesc[64];
@@ -218,7 +215,7 @@ struct ocs_softc {
 
 	bool			attached;
 	struct mtx		dbg_lock;
-	
+
 	struct cam_devq		*devq;
 	ocs_fcport		*fcports;
 

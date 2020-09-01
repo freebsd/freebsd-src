@@ -36,7 +36,6 @@
  * Details SLI port (sport) functions.
  */
 
-
 #include "ocs.h"
 #include "ocs_fabric.h"
 #include "ocs_els.h"
@@ -456,7 +455,6 @@ ocs_sport_attach(ocs_sport_t *sport, uint32_t fc_id)
 			ocs_log_debug(ocs, "[%s] %-20s\n", sport->display_name, ocs_sm_event_name(evt)); \
 	} while (0)
 
-
 /**
  * @brief SLI port state machine: Common event handler.
  *
@@ -634,7 +632,6 @@ __ocs_sport_vport_init(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 			ocs_log_err(ocs, "Can't allocate port\n");
 			break;
 		}
-
 
 		break;
 	}
@@ -1043,7 +1040,7 @@ ocs_sport_vport_new(ocs_domain_t *domain, uint64_t wwpn, uint64_t wwnn,
 	sport->is_vport = 1;
 	sport->tgt_data = tgt_data;
 	sport->ini_data = ini_data;
-	
+
 	/* Transition to vport_init */
 	ocs_sm_transition(&sport->sm, __ocs_sport_vport_init, NULL);
 
@@ -1253,7 +1250,6 @@ ocs_ddump_sport(ocs_textbuf_t *textbuf, ocs_sli_port_t *sport)
 	return retval;
 }
 
-
 void
 ocs_mgmt_sport_list(ocs_textbuf_t *textbuf, void *object)
 {
@@ -1278,13 +1274,11 @@ ocs_mgmt_sport_list(ocs_textbuf_t *textbuf, void *object)
 	ocs_mgmt_emit_property_name(textbuf, MGMT_MODE_RD, "wwnn");
 
 	if (ocs_sport_lock_try(sport) == TRUE) {
-
 		/* If we get here, then we are holding the sport lock */
 		ocs_list_foreach(&sport->node_list, node) {
 			if ((node->mgmt_functions) && (node->mgmt_functions->get_list_handler)) {
 				node->mgmt_functions->get_list_handler(textbuf, node);
 			}
-
 		}
 		ocs_sport_unlock(sport);
 	}
@@ -1427,7 +1421,6 @@ ocs_mgmt_sport_set(char *parent, char *name, char *value, void *object)
 	return retval;
 }
 
-
 int
 ocs_mgmt_sport_exec(char *parent, char *action, void *arg_in, uint32_t arg_in_length,
 		    void *arg_out, uint32_t arg_out_length, void *object)
@@ -1441,7 +1434,6 @@ ocs_mgmt_sport_exec(char *parent, char *action, void *arg_in, uint32_t arg_in_le
 
 	/* If it doesn't start with my qualifier I don't know what to do with it */
 	if (ocs_strncmp(action, qualifier, strlen(qualifier)) == 0) {
-
 		/* See if it's an action I can perform */
 
 		/* if (ocs_strcmp ....
@@ -1461,7 +1453,6 @@ ocs_mgmt_sport_exec(char *parent, char *action, void *arg_in, uint32_t arg_in_le
 					if (retval == 0) {
 						break;
 					}
-
 				}
 			ocs_sport_unlock(sport);
 		}
@@ -1759,10 +1750,8 @@ ocs_remote_node_group_alloc(ocs_node_group_dir_t *node_group_dir)
 	sport = node_group_dir->sport;
 	ocs = sport->ocs;
 
-
 	node_group = ocs_malloc(ocs, sizeof(*node_group), OCS_M_ZERO | OCS_M_NOWAIT);
 	if (node_group != NULL) {
-
 		/* set pointer to node group directory */
 		node_group->node_group_dir = node_group_dir;
 
@@ -1809,7 +1798,6 @@ ocs_remote_node_group_free(ocs_remote_node_group_t *node_group)
 	ocs_node_group_dir_t *node_group_dir;
 
 	if (node_group != NULL) {
-
 		ocs_assert(node_group->node_group_dir);
 		ocs_assert(node_group->node_group_dir->sport);
 		ocs_assert(node_group->node_group_dir->sport->ocs);
@@ -1922,5 +1910,3 @@ ocs_node_group_init(ocs_node_t *node)
 
 	return (hrc == OCS_HW_RTN_SUCCESS) ? 0 : -1;
 }
-
-

@@ -362,7 +362,6 @@ typedef struct {
 #define OCS_IOCTL_CMD_UNLOAD		_IO(OCS_IOCTL_CMD_BASE, 18)
 #define OCS_IOCTL_CMD_SEND_FRAME	_IOWR(OCS_IOCTL_CMD_BASE, 19, ocs_ioctl_send_frame_t)
 
-
 extern void ocs_info_get_xport_address(ocs_t *ocs, ocs_ioctl_driver_info_t *info);
 extern int32_t ocs_device_ioctl_xport(ocs_t *ocs, unsigned int cmd, unsigned long arg);
 #endif 

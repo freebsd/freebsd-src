@@ -36,7 +36,6 @@
  * Declarations for the interface exported by ocs_fabric
  */
 
-
 #if !defined(__OCS_FABRIC_H__)
 #define __OCS_FABRIC_H__
 extern void *__ocs_fabric_init(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg);

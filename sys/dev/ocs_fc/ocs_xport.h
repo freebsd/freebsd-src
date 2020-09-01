@@ -201,7 +201,6 @@ struct ocs_xport_s {
 	ocs_xport_stats_t fc_xport_stats;
 };
 
-
 extern ocs_xport_t *ocs_xport_alloc(ocs_t *ocs);
 extern int32_t ocs_xport_attach(ocs_xport_t *xport);
 extern int32_t ocs_xport_initialize(ocs_xport_t *xport);

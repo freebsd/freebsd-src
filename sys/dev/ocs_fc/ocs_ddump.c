@@ -118,7 +118,6 @@ ocs_ddump_sli4_queue(ocs_textbuf_t *textbuf, const char *name, ocs_hw_t *hw, sli
 	}
 }
 
-
 /**
  * @brief Generate SLI4 ddump
  *
@@ -152,7 +151,6 @@ ocs_ddump_sli_q_fields(ocs_textbuf_t *textbuf, sli4_t *sli4, sli4_qtype_e qtype)
 	ocs_ddump_value(textbuf, "qpage_count", "%d", sli4->config.qpage_count[qtype]);
 	ocs_ddump_endsection(textbuf, q_desc, qtype);
 }
-
 
 /**
  * @brief Generate SLI4 ddump
@@ -259,7 +257,6 @@ ocs_ddump_sli(ocs_textbuf_t *textbuf, sli4_t *sli4)
 	ocs_ddump_endsection(textbuf, "sli4", 0);
 }
 
-
 /**
  * @brief Dump HW IO
  *
@@ -333,7 +330,6 @@ ocs_ddump_queue_history(ocs_textbuf_t *textbuf, ocs_hw_q_hist_t *q_hist)
 		int i;
 		ocs_q_hist_ftr_t ftr;
 		uint32_t mask;
-
 
 		/* footer's mask indicates what words were captured */
 		ftr.word = q_hist->q_hist[x];
@@ -878,4 +874,3 @@ ocs_clear_saved_ddump(ocs_t *ocs)
 		return 1;
 	}
 }
-
