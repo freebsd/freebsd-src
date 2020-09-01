@@ -217,7 +217,6 @@
 #define MGB_INTR_VEC_STS(_v)		(1 << (_v))
 #define MGB_INTR_RX_VEC_STS(_qid)	MGB_INTR_VEC_STS((_qid) + 1)
 
-
 #define MGB_STS_OK			( 0 )
 #define MGB_STS_TIMEOUT 		(-1 )
 
@@ -322,7 +321,6 @@ struct mgb_softc {
 	struct mtx			 mtx;
 	struct callout			 watchdog;
 	int				 timer;
-
 
 	bus_dma_tag_t			 dma_parent_tag;
 	struct mgb_ring_data		 rx_ring_data;
