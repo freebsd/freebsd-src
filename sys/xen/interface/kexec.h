@@ -27,7 +27,6 @@
 #ifndef _XEN_PUBLIC_KEXEC_H
 #define _XEN_PUBLIC_KEXEC_H
 
-
 /* This file describes the Kexec / Kdump hypercall interface for Xen.
  *
  * Kexec under vanilla Linux allows a user to reboot the physical machine 
@@ -83,7 +82,6 @@
 #define KEXEC_TYPE_DEFAULT 0
 #define KEXEC_TYPE_CRASH   1
 
-
 /* The kexec implementation for Xen allows the user to load two
  * types of kernels, KEXEC_TYPE_DEFAULT and KEXEC_TYPE_CRASH.
  * All data needed for a kexec reboot is kept in one xen_kexec_image_t
@@ -92,7 +90,7 @@
  * is passed to the "code page" which is one page of code that performs
  * the final relocations before jumping to the new kernel.
  */
- 
+
 typedef struct xen_kexec_image {
 #if defined(__i386__) || defined(__x86_64__)
     unsigned long page_list[KEXEC_XEN_NO_PAGES];

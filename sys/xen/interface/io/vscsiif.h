@@ -247,7 +247,6 @@ typedef struct vscsiif_response vscsiif_response_t;
 
 DEFINE_RING_TYPES(vscsiif, struct vscsiif_request, struct vscsiif_response);
 
-
 #endif  /*__XEN__PUBLIC_IO_SCSI_H__*/
 /*
  * Local variables:

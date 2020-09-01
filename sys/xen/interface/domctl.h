@@ -118,7 +118,6 @@ struct xen_domctl_getdomaininfo {
 typedef struct xen_domctl_getdomaininfo xen_domctl_getdomaininfo_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_getdomaininfo_t);
 
-
 /* XEN_DOMCTL_getmemlist */
 struct xen_domctl_getmemlist {
     /* IN variables. */
@@ -132,7 +131,6 @@ struct xen_domctl_getmemlist {
 };
 typedef struct xen_domctl_getmemlist xen_domctl_getmemlist_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_getmemlist_t);
-
 
 /* XEN_DOMCTL_getpageframeinfo */
 
@@ -156,7 +154,6 @@ struct xen_domctl_getpageframeinfo3 {
     /* IN/OUT variables. */
     XEN_GUEST_HANDLE_64(xen_pfn_t) array;
 };
-
 
 /*
  * Control shadow pagetables operation
@@ -233,7 +230,6 @@ struct xen_domctl_shadow_op {
 typedef struct xen_domctl_shadow_op xen_domctl_shadow_op_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_shadow_op_t);
 
-
 /* XEN_DOMCTL_max_mem */
 struct xen_domctl_max_mem {
     /* IN variables. */
@@ -241,7 +237,6 @@ struct xen_domctl_max_mem {
 };
 typedef struct xen_domctl_max_mem xen_domctl_max_mem_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_mem_t);
-
 
 /* XEN_DOMCTL_setvcpucontext */
 /* XEN_DOMCTL_getvcpucontext */
@@ -251,7 +246,6 @@ struct xen_domctl_vcpucontext {
 };
 typedef struct xen_domctl_vcpucontext xen_domctl_vcpucontext_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_vcpucontext_t);
-
 
 /* XEN_DOMCTL_getvcpuinfo */
 struct xen_domctl_getvcpuinfo {
@@ -267,7 +261,6 @@ struct xen_domctl_getvcpuinfo {
 typedef struct xen_domctl_getvcpuinfo xen_domctl_getvcpuinfo_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_getvcpuinfo_t);
 
-
 /* Get/set the NUMA node(s) with which the guest has affinity with. */
 /* XEN_DOMCTL_setnodeaffinity */
 /* XEN_DOMCTL_getnodeaffinity */
@@ -276,7 +269,6 @@ struct xen_domctl_nodeaffinity {
 };
 typedef struct xen_domctl_nodeaffinity xen_domctl_nodeaffinity_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_nodeaffinity_t);
-
 
 /* Get/set which physical cpus a vcpu can execute on. */
 /* XEN_DOMCTL_setvcpuaffinity */
@@ -313,14 +305,12 @@ struct xen_domctl_vcpuaffinity {
 typedef struct xen_domctl_vcpuaffinity xen_domctl_vcpuaffinity_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_vcpuaffinity_t);
 
-
 /* XEN_DOMCTL_max_vcpus */
 struct xen_domctl_max_vcpus {
     uint32_t max;           /* maximum number of vcpus */
 };
 typedef struct xen_domctl_max_vcpus xen_domctl_max_vcpus_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_max_vcpus_t);
-
 
 /* XEN_DOMCTL_scheduler_op */
 /* Scheduler types. */
@@ -353,14 +343,12 @@ struct xen_domctl_scheduler_op {
 typedef struct xen_domctl_scheduler_op xen_domctl_scheduler_op_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_scheduler_op_t);
 
-
 /* XEN_DOMCTL_setdomainhandle */
 struct xen_domctl_setdomainhandle {
     xen_domain_handle_t handle;
 };
 typedef struct xen_domctl_setdomainhandle xen_domctl_setdomainhandle_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_setdomainhandle_t);
-
 
 /* XEN_DOMCTL_setdebugging */
 struct xen_domctl_setdebugging {
@@ -369,7 +357,6 @@ struct xen_domctl_setdebugging {
 typedef struct xen_domctl_setdebugging xen_domctl_setdebugging_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_setdebugging_t);
 
-
 /* XEN_DOMCTL_irq_permission */
 struct xen_domctl_irq_permission {
     uint8_t pirq;
@@ -377,7 +364,6 @@ struct xen_domctl_irq_permission {
 };
 typedef struct xen_domctl_irq_permission xen_domctl_irq_permission_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_irq_permission_t);
-
 
 /* XEN_DOMCTL_iomem_permission */
 struct xen_domctl_iomem_permission {
@@ -388,7 +374,6 @@ struct xen_domctl_iomem_permission {
 typedef struct xen_domctl_iomem_permission xen_domctl_iomem_permission_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_iomem_permission_t);
 
-
 /* XEN_DOMCTL_ioport_permission */
 struct xen_domctl_ioport_permission {
     uint32_t first_port;              /* first port int range */
@@ -398,14 +383,12 @@ struct xen_domctl_ioport_permission {
 typedef struct xen_domctl_ioport_permission xen_domctl_ioport_permission_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_ioport_permission_t);
 
-
 /* XEN_DOMCTL_hypercall_init */
 struct xen_domctl_hypercall_init {
     uint64_aligned_t  gmfn;           /* GMFN to be initialised */
 };
 typedef struct xen_domctl_hypercall_init xen_domctl_hypercall_init_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_hypercall_init_t);
-
 
 /* XEN_DOMCTL_settimeoffset */
 struct xen_domctl_settimeoffset {
@@ -424,14 +407,12 @@ typedef struct xen_domctl_hvmcontext {
 } xen_domctl_hvmcontext_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_hvmcontext_t);
 
-
 /* XEN_DOMCTL_set_address_size */
 /* XEN_DOMCTL_get_address_size */
 typedef struct xen_domctl_address_size {
     uint32_t size;
 } xen_domctl_address_size_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_address_size_t);
-
 
 /* XEN_DOMCTL_sendtrigger */
 #define XEN_DOMCTL_SENDTRIGGER_NMI    0
@@ -445,7 +426,6 @@ struct xen_domctl_sendtrigger {
 };
 typedef struct xen_domctl_sendtrigger xen_domctl_sendtrigger_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_sendtrigger_t);
-
 
 /* Assign a device to a guest. Sets up IOMMU structures. */
 /* XEN_DOMCTL_assign_device */
@@ -526,7 +506,6 @@ struct xen_domctl_bind_pt_irq {
 typedef struct xen_domctl_bind_pt_irq xen_domctl_bind_pt_irq_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_bind_pt_irq_t);
 
-
 /* Bind machine I/O address range -> HVM address range. */
 /* If this returns -E2BIG lower nr_mfns value. */
 /* XEN_DOMCTL_memory_mapping */
@@ -542,7 +521,6 @@ struct xen_domctl_memory_mapping {
 typedef struct xen_domctl_memory_mapping xen_domctl_memory_mapping_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_memory_mapping_t);
 
-
 /* Bind machine I/O port range -> HVM I/O port range. */
 /* XEN_DOMCTL_ioport_mapping */
 struct xen_domctl_ioport_mapping {
@@ -553,7 +531,6 @@ struct xen_domctl_ioport_mapping {
 };
 typedef struct xen_domctl_ioport_mapping xen_domctl_ioport_mapping_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_ioport_mapping_t);
-
 
 /*
  * Pin caching type of RAM space for x86 HVM domU.
@@ -573,7 +550,6 @@ struct xen_domctl_pin_mem_cacheattr {
 };
 typedef struct xen_domctl_pin_mem_cacheattr xen_domctl_pin_mem_cacheattr_t;
 DEFINE_XEN_GUEST_HANDLE(xen_domctl_pin_mem_cacheattr_t);
-
 
 /* XEN_DOMCTL_set_ext_vcpucontext */
 /* XEN_DOMCTL_get_ext_vcpucontext */
@@ -691,7 +667,6 @@ DEFINE_XEN_GUEST_HANDLE(xen_domctl_hvmcontext_partial_t);
 typedef struct xen_domctl_disable_migrate {
     uint32_t disable; /* IN: 1: disable migration and restore */
 } xen_domctl_disable_migrate_t;
-
 
 /* XEN_DOMCTL_gettscinfo */
 /* XEN_DOMCTL_settscinfo */

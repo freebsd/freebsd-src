@@ -114,7 +114,6 @@ struct xenbusb_softc {
  * the xenbusb_softc structure.
  */
 typedef enum {
-
 	/**
 	 * This device is contributing to the xbs_connecting_children
 	 * count of its parent bus.

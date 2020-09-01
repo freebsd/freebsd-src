@@ -88,7 +88,6 @@
 #define XEN_MC_NOTDELIVERED 0x10
 /* Note, XEN_MC_CANNOTHANDLE and XEN_MC_NOTDELIVERED are mutually exclusive. */
 
-
 #ifndef __ASSEMBLY__
 
 #define VIRQ_MCA VIRQ_ARCH_0 /* G. (DOM0) Machine Check Architecture */
@@ -110,7 +109,6 @@ struct mcinfo_common {
     uint16_t type;      /* structure type */
     uint16_t size;      /* size of this struct in bytes */
 };
-
 
 #define MC_FLAG_CORRECTABLE     (1 << 0)
 #define MC_FLAG_UNCORRECTABLE   (1 << 1)
@@ -148,7 +146,6 @@ struct mcinfo_bank {
     uint64_t mc_ctrl2;
     uint64_t mc_tsc;
 };
-
 
 struct mcinfo_msr {
     uint64_t reg;   /* MSR */
@@ -229,7 +226,6 @@ struct mcinfo_recovery
     } action_info;
 };
 
-
 #define MCINFO_HYPERCALLSIZE	1024
 #define MCINFO_MAXSIZE		768
 
@@ -280,7 +276,6 @@ struct mcinfo_logical_cpu {
 typedef struct mcinfo_logical_cpu xen_mc_logical_cpu_t;
 DEFINE_XEN_GUEST_HANDLE(xen_mc_logical_cpu_t);
 
-
 /* 
  * OS's should use these instead of writing their own lookup function
  * each with its own bugs and drawbacks.
@@ -325,7 +320,6 @@ DEFINE_XEN_GUEST_HANDLE(xen_mc_logical_cpu_t);
         (_ret) = found ? _mic : NULL;                           \
     } while (0)
 
-
 /* Usecase 1
  * Register machine check trap callback handler
  *    (already done via "set_trap_table" hypercall)
@@ -355,7 +349,6 @@ struct xen_mc_fetch {
 };
 typedef struct xen_mc_fetch xen_mc_fetch_t;
 DEFINE_XEN_GUEST_HANDLE(xen_mc_fetch_t);
-
 
 /* Usecase 4
  * This tells the hypervisor to notify a DomU about the machine check error

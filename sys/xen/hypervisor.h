@@ -55,7 +55,6 @@ HYPERVISOR_block(
         return (rc);
 }
 
-
 static inline void 
 HYPERVISOR_shutdown(unsigned int reason)
 {

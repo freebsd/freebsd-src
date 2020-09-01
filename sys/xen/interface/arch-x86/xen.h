@@ -94,7 +94,6 @@ typedef unsigned long xen_pfn_t;
 #define FIRST_RESERVED_GDT_BYTE  (FIRST_RESERVED_GDT_PAGE * 4096)
 #define FIRST_RESERVED_GDT_ENTRY (FIRST_RESERVED_GDT_BYTE / 8)
 
-
 /*
  * ` enum neg_errnoval
  * ` HYPERVISOR_update_descriptor(u64 pa, u64 desc);

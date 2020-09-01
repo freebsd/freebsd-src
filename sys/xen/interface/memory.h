@@ -61,7 +61,6 @@
 #endif
 
 struct xen_memory_reservation {
-
     /*
      * XENMEM_increase_reservation:
      *   OUT: MFN (*not* GMFN) bases of extents that were allocated

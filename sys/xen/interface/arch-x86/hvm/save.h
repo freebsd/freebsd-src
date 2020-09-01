@@ -43,7 +43,6 @@ struct hvm_save_header {
 
 DECLARE_HVM_SAVE_TYPE(HEADER, 1, struct hvm_save_header);
 
-
 /*
  * Processor
  *
@@ -269,7 +268,6 @@ struct hvm_hw_cpu_compat {
 };
 
 static inline int _hvm_hw_fix_cpu(void *h) {
-
     union hvm_hw_cpu_union {
         struct hvm_hw_cpu nat;
         struct hvm_hw_cpu_compat cmp;
@@ -342,7 +340,6 @@ struct hvm_hw_vpic {
 
 DECLARE_HVM_SAVE_TYPE(PIC, 3, struct hvm_hw_vpic);
 
-
 /*
  * IO-APIC
  */
@@ -374,7 +371,6 @@ struct hvm_hw_vioapic {
 
 DECLARE_HVM_SAVE_TYPE(IOAPIC, 4, struct hvm_hw_vioapic);
 
-
 /*
  * LAPIC
  */
@@ -393,7 +389,6 @@ struct hvm_hw_lapic_regs {
 };
 
 DECLARE_HVM_SAVE_TYPE(LAPIC_REGS, 6, struct hvm_hw_lapic_regs);
-
 
 /*
  * IRQs
@@ -463,7 +458,6 @@ struct hvm_hw_pit {
 
 DECLARE_HVM_SAVE_TYPE(PIT, 10, struct hvm_hw_pit);
 
-
 /* 
  * RTC
  */ 
@@ -478,7 +472,6 @@ struct hvm_hw_rtc {
 };
 
 DECLARE_HVM_SAVE_TYPE(RTC, 11, struct hvm_hw_rtc);
-
 
 /*
  * HPET
@@ -508,7 +501,6 @@ struct hvm_hw_hpet {
 };
 
 DECLARE_HVM_SAVE_TYPE(HPET, 12, struct hvm_hw_hpet);
-
 
 /*
  * PM timer
@@ -593,7 +585,6 @@ struct hvm_tsc_adjust {
 };
 
 DECLARE_HVM_SAVE_TYPE(TSC_ADJUST, 19, struct hvm_tsc_adjust);
-
 
 struct hvm_msr {
     uint32_t count;
