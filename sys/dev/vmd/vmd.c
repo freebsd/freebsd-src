@@ -316,7 +316,6 @@ vmd_attach(device_t dev)
 		goto fail;
 	}
 
-
 	sc->vmd_btag = rman_get_bustag(sc->vmd_regs_resource[0]);
 	sc->vmd_bhandle = rman_get_bushandle(sc->vmd_regs_resource[0]);
 
@@ -365,7 +364,6 @@ vmd_attach(device_t dev)
 		    rman_get_start(bus->res), rman_get_start(bus->res) +
 		    min_count - 1);
 	}
-
 
 	/*
 	 * Add the initial resource to the rman.
@@ -423,7 +421,6 @@ vmd_attach(device_t dev)
 		device_printf(dev, "Failed to add probe child\n");
 		goto fail;
 	}
-
 
 	return (0);
 
@@ -517,7 +514,6 @@ vmd_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 {
 	return (pcib_route_interrupt(pcib, dev, pin));
 }
-
 
 static int
 vmd_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
