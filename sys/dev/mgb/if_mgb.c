@@ -241,7 +241,6 @@ static device_method_t mgb_iflib_methods[] = {
 	DEVMETHOD(ifdi_intr_enable, mgb_intr_enable_all),
 	DEVMETHOD(ifdi_intr_disable, mgb_intr_disable_all),
 
-
 #if 0 /* Not yet implemented IFLIB methods */
 	/*
 	 * Set multicast addresses, mtu and promiscuous mode
@@ -323,7 +322,6 @@ struct if_shared_ctx mgb_sctx_init = {
 };
 
 /*********************************************************************/
-
 
 static void *
 mgb_register(device_t dev)
