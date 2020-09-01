@@ -713,7 +713,6 @@ linux_ioctl_termio(struct thread *td, struct linux_ioctl_args *args)
 		return (error);
 
 	switch (args->cmd & 0xffff) {
-
 	case LINUX_TCGETS:
 		error = fo_ioctl(fp, TIOCGETA, (caddr_t)&bios, td->td_ucred,
 		    td);
@@ -1455,7 +1454,6 @@ linux_ioctl_cdrom(struct thread *td, struct linux_ioctl_args *args)
 	if (error != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
-
 	case LINUX_CDROMPAUSE:
 		args->cmd = CDIOCPAUSE;
 		error = (sys_ioctl(td, (struct ioctl_args *)args));
@@ -1723,7 +1721,6 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 {
 
 	switch (args->cmd & 0xffff) {
-
 	case LINUX_SOUND_MIXER_WRITE_VOLUME:
 		args->cmd = SETDIR(SOUND_MIXER_WRITE_VOLUME);
 		return (sys_ioctl(td, (struct ioctl_args *)args));
@@ -1981,7 +1978,6 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 	case LINUX_SNDCTL_SYNTH_MEMAVL:
 		args->cmd = SNDCTL_SYNTH_MEMAVL;
 		return (sys_ioctl(td, (struct ioctl_args *)args));
-
 	}
 
 	return (ENOIOCTL);
@@ -2001,7 +1997,6 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 	if (error != 0)
 		return (error);
 	switch (args->cmd & 0xffff) {
-
 	case LINUX_KIOCSOUND:
 		args->cmd = KIOCSOUND;
 		error = (sys_ioctl(td, (struct ioctl_args *)args));
@@ -2295,7 +2290,6 @@ linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
 	return (copyout(&lsa, &ifr->ifr_hwaddr, sizeof(lsa)));
 }
 
-
  /*
 * If we fault in bsd_to_linux_ifreq() then we will fault when we call
 * the native ioctl().  Thus, we don't really need to check the return
@@ -2351,7 +2345,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	switch (args->cmd & 0xffff) {
-
 	case LINUX_FIOGETOWN:
 	case LINUX_FIOSETOWN:
 	case LINUX_SIOCADDMULTI:
@@ -2404,7 +2397,6 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	}
 
 	switch (args->cmd & 0xffff) {
-
 	case LINUX_FIOSETOWN:
 		args->cmd = FIOSETOWN;
 		error = sys_ioctl(td, (struct ioctl_args *)args);

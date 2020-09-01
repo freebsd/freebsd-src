@@ -999,7 +999,6 @@ retry2:
 			else
 				op_ret += futex_wake(f, nrwake, args->val3);
 			ret += op_ret;
-
 		}
 		if (f2 != NULL)
 			futex_put(f2, NULL);

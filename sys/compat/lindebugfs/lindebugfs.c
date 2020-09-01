@@ -294,7 +294,6 @@ debugfs_remove_recursive(struct dentry *dnode)
 	pfs_destroy(dnode->d_pfs_node);
 }
 
-
 static int
 debugfs_init(PFS_INIT_ARGS)
 {

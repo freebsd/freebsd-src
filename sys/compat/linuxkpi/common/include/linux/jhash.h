@@ -116,7 +116,6 @@ static inline u32 jhash2(const u32 *k, u32 length, u32 initval)
 	return c;
 }
 
-
 /* A special ultra-optimized versions that knows they are hashing exactly
  * 3, 2 or 1 word(s).
  *

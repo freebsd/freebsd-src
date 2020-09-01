@@ -276,7 +276,6 @@ static inline unsigned int dma_set_max_seg_size(struct device *dev,
 	return (0);
 }
 
-
 #define dma_map_single(d, a, s, r) dma_map_single_attrs(d, a, s, r, NULL)
 #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, NULL)
 #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, NULL)

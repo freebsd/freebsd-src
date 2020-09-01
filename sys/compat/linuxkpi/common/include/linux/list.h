@@ -73,7 +73,6 @@
 #ifndef prefetch
 #define	prefetch(x)
 #endif
-
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 
 #define LINUX_LIST_HEAD(name) \
@@ -324,7 +323,6 @@ list_splice_tail_init(struct list_head *list, struct list_head *head)
 #undef LIST_HEAD
 #define LIST_HEAD(name)	struct list_head name = { &(name), &(name) }
 
-
 struct hlist_head {
 	struct hlist_node *first;
 };
@@ -332,7 +330,6 @@ struct hlist_head {
 struct hlist_node {
 	struct hlist_node *next, **pprev;
 };
-
 #define	HLIST_HEAD_INIT { }
 #define	HLIST_HEAD(name) struct hlist_head name = HLIST_HEAD_INIT
 #define	INIT_HLIST_HEAD(head) (head)->first = NULL

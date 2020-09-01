@@ -221,7 +221,6 @@ static int	eventfd_create(struct thread *td, uint32_t initval, int flags);
 static void	linux_timerfd_expire(void *);
 static void	linux_timerfd_curval(struct timerfd *, struct itimerspec *);
 
-
 static void
 epoll_fd_install(struct thread *td, int fd, epoll_udata_t udata)
 {
@@ -574,7 +573,6 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 		td->td_flags |= TDF_ASTPENDING;
 		thread_unlock(td);
 	}
-
 
 	coargs.leventlist = events;
 	coargs.p = td->td_proc;

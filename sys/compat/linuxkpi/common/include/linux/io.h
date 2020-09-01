@@ -43,7 +43,6 @@
  * XXX This is all x86 specific.  It should be bus space access.
  */
 
-
 /* rmb and wmb are declared in machine/atomic.h, so should be included first. */
 #ifndef __io_br
 #define	__io_br()	__compiler_membar()

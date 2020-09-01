@@ -206,7 +206,6 @@ kobject_add_complete(struct kobject *kobj, struct kobject *parent)
 		}
 		if (error)
 			sysfs_remove_dir(kobj);
-
 	}
 	return (error);
 }
@@ -1011,7 +1010,6 @@ linux_poll_wakeup_state(atomic_t *v, const uint8_t *pstate)
 
 	return (c);
 }
-
 
 static int
 linux_poll_wakeup_callback(wait_queue_t *wq, unsigned int wq_state, int flags, void *key)
@@ -1835,7 +1833,6 @@ iounmap(void *addr)
 	kfree(vmmap);
 }
 
-
 void *
 vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 {
@@ -2002,7 +1999,7 @@ linux_timer_init(void *arg)
 	linux_timer_hz_mask--;
 
 	/* compute some internal constants */
-	
+
 	lkpi_nsec2hz_rem = hz;
 	lkpi_usec2hz_rem = hz;
 	lkpi_msec2hz_rem = hz;

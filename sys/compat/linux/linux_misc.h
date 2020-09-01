@@ -128,7 +128,6 @@ extern int stclohz;
 #define	LINUX_WCONTINUED	0x00000008
 #define	LINUX_WNOWAIT		0x01000000
 
-
 #define	__WNOTHREAD		0x20000000
 #define	__WALL			0x40000000
 #define	__WCLONE		0x80000000
