@@ -114,7 +114,7 @@ struct rt2661_softc {
  * The same in both up to here
  * ------------------------------------------------
  */
-	
+
 	int                             sc_flags;
 #define	RAL_FW_LOADED		0x1
 #define	RAL_INPUT_RUNNING	0x2
