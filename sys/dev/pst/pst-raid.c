@@ -365,7 +365,7 @@ static device_method_t pst_methods[] = {
     DEVMETHOD(device_attach,	pst_attach),
     { 0, 0 }
 };
-	
+
 static driver_t pst_driver = {
     "pst",
     pst_methods,
