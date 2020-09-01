@@ -82,8 +82,6 @@ static struct cdevsw zero_cdevsw = {
 	.d_flags =	D_MMAP_ANON,
 };
 
-
-
 /* ARGSUSED */
 static int
 full_write(struct cdev *dev __unused, struct uio *uio __unused, int flags __unused)
@@ -159,7 +157,6 @@ zero_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 	}
 	return (error);
 }
-
 
 /* ARGSUSED */
 static int
