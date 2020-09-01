@@ -36,7 +36,7 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl adfkpqr
+.Op Fl adefkpqr
 .Op Fl F Ar pipe
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
@@ -77,6 +77,12 @@ retaining the prior contents.
 When playing back a session with the
 .Fl p
 flag, do not sleep between records when playing back a timestamped session.
+.It Fl e
+Accepted for compatibility with
+.Em util-linux
+.Nm .
+The child command exit status is always the exit status of
+.Nm .
 .It Fl F Ar pipe
 Immediately flush output after each write.
 This will allow a user to create a named pipe using
