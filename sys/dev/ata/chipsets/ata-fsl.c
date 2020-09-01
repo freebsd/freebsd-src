@@ -154,7 +154,6 @@ imx_ata_ch_attach(device_t dev)
 	bus_write_2(ctrl->r_res1, 0x24, 0xc0);
 	DELAY(100);
 
-
 	/* Write TIME_OFF/ON/1/2W */
 	bus_write_1(ctrl->r_res1, 0x00, 3);
 	bus_write_1(ctrl->r_res1, 0x01, 3);

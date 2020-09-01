@@ -147,7 +147,7 @@ ata_marvell_ch_attach(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 	int error;
- 
+
 	error = ata_pci_ch_attach(dev);
     	/* dont use 32 bit PIO transfers */
 	ch->flags |= ATA_USE_16BIT;

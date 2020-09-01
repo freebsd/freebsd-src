@@ -65,7 +65,6 @@ static int ata_highpoint_check_80pin(device_t dev, int mode);
 #define HPT_374		3
 #define HPT_OLD		1
 
-
 /*
  * HighPoint chipset support functions
  */

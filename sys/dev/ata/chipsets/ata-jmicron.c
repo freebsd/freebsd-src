@@ -135,7 +135,7 @@ ata_jmicron_ch_attach(device_t dev)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 	int error;
- 
+
 	error = ata_pci_ch_attach(dev);
 	ch->flags |= ATA_CHECKS_CABLE;
 	return (error);
