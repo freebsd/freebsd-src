@@ -45,7 +45,6 @@ static __inline void qla_hw_reset(qla_host_t *ha)
 
 #define QL8_SEMLOCK_TIMEOUT	1000/* QLA8020 Semaphore Lock Timeout 10ms */
 
-
 /*
  * Inline functions for hardware semaphores
  */
