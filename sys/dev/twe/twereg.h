@@ -494,4 +494,3 @@ typedef struct
     u_int8_t	parameter_size_bytes;
     u_int8_t	data[0];
 } __packed TWE_Param;
-

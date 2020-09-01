@@ -108,7 +108,7 @@ struct twe_request
 			((tr)->tr_tag * sizeof(TWE_Command)))
 #define TWE_FIND_COMMANDPHYS(tr)	((tr)->tr_sc->twe_cmdphys +	\
 					 ((tr)->tr_tag * sizeof(TWE_Command)))
-	
+
 /*
  * Per-controller state.
  */
@@ -201,7 +201,6 @@ extern void	twe_unmap_request(struct twe_request *tr);	/* cleanup after transfer
 	    sc->twe_qstat[qname].q_max = 0;			\
 	    sc->twe_qstat[qname].q_min = 0xFFFFFFFF;		\
 	} while(0)
-
 
 #define TWEQ_REQUEST_QUEUE(name, index)					\
 static __inline void							\
