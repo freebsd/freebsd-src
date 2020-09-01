@@ -545,7 +545,6 @@ ahci_pci_attach(device_t dev)
 		}
 	}
 
-
 	if (ctlr->quirks & AHCI_Q_NOMSIX)
 		msix_count = 0;
 
