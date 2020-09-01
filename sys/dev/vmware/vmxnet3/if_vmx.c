@@ -1744,13 +1744,6 @@ vmxnet3_isc_rxd_flush(void *vsc, uint16_t rxqid, uint8_t flid, qidx_t pidx)
 	else
 		r = VMXNET3_BAR0_RXH2(rxqid);
 
-	/*
-	 * pidx is the index of the last descriptor with a buffer the device
-	 * can use, and the device needs to be told which index is one past
-	 * that.
-	 */
-	if (++pidx == rxr->vxrxr_ndesc)
-		pidx = 0;
 	vmxnet3_write_bar0(sc, r, pidx);
 }
 

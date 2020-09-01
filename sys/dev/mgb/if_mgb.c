@@ -1191,7 +1191,12 @@ mgb_isc_rxd_flush(void *xsc, uint16_t rxqid, uint8_t flid, qidx_t pidx)
 	sc = xsc;
 
 	KASSERT(rxqid == 0, ("tried to flush RX Channel %d.\n", rxqid));
-	sc->rx_ring_data.last_tail = pidx;
+	/*
+	 * According to the programming guide, last_tail must be set to
+	 * the last valid RX descriptor, rather than to the one past that.
+	 * Note that this is not true for the TX ring!
+	 */
+	sc->rx_ring_data.last_tail = MGB_PREV_RING_IDX(pidx);
 	CSR_WRITE_REG(sc, MGB_DMA_RX_TAIL(rxqid), sc->rx_ring_data.last_tail);
 	return;
 }
