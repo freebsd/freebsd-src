@@ -55,7 +55,6 @@ enum {
 	RC_RDY = 0x80
 };
 
-
 /* CSR1 mapping */
 #define PR_RES 0x80
 
@@ -65,8 +64,6 @@ struct sbni_csr1 {
 	unsigned 	: 1;
 };
 
-
-
 #define FRAME_ACK_MASK  (u_int16_t)0x7000
 #define FRAME_LEN_MASK  (u_int16_t)0x03FF
 #define FRAME_FIRST     (u_int16_t)0x8000
@@ -75,14 +72,12 @@ struct sbni_csr1 {
 #define FRAME_SENT_BAD  (u_int16_t)0x4000
 #define FRAME_SENT_OK   (u_int16_t)0x3000
 
-
 enum {
 	FL_WAIT_ACK    = 1,
 	FL_NEED_RESEND = 2,
 	FL_PREV_OK     = 4,
 	FL_SLOW_MODE   = 8
 };
-
 
 enum {
 	DEFAULT_IOBASEADDR = 0x210,
