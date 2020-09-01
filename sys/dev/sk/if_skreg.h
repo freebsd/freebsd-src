@@ -133,7 +133,6 @@
  * there are a few 16-bit and 8-bit ones as well.
  */
 
-
 /* Start of remappable register window. */
 #define SK_WIN_BASE		0x0080
 

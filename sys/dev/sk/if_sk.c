@@ -265,7 +265,7 @@ static int sysctl_hw_sk_int_mod(SYSCTL_HANDLER_ARGS);
 /* Tunables. */
 static int jumbo_disable = 0;
 TUNABLE_INT("hw.skc.jumbo_disable", &jumbo_disable);
- 
+
 /*
  * It seems that SK-NET GENESIS supports very simple checksum offload
  * capability for Tx and I believe it can generate 0 checksum value for
@@ -935,7 +935,6 @@ sk_discard_rxbuf(sc_if, idx)
 	struct sk_rx_desc	*r;
 	struct sk_rxdesc	*rxd;
 	struct mbuf		*m;
-
 
 	r = &sc_if->sk_rdata.sk_rx_ring[idx];
 	rxd = &sc_if->sk_cdata.sk_rxdesc[idx];
@@ -2535,7 +2534,6 @@ sk_start_locked(ifp)
 		sc_if->sk_watchdog_timer = 5;
 	}
 }
-
 
 static void
 sk_watchdog(arg)
