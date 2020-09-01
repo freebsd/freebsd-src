@@ -156,7 +156,6 @@ static int sysctl_int_range(SYSCTL_HANDLER_ARGS, int, int);
 static int sysctl_hw_age_proc_limit(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_age_int_mod(SYSCTL_HANDLER_ARGS);
 
-
 static device_method_t age_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		age_probe),
@@ -170,7 +169,6 @@ static device_method_t age_methods[] = {
 	DEVMETHOD(miibus_readreg,	age_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	age_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	age_miibus_statchg),
-
 	{ NULL, NULL }
 };
 
@@ -565,7 +563,6 @@ age_attach(device_t dev)
 		device_printf(dev, "cannot allocate IRQ resources.\n");
 		goto fail;
 	}
-
 
 	/* Get DMA parameters from PCIe device control register. */
 	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
