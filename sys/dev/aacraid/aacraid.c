@@ -1023,7 +1023,6 @@ aac_command_thread(struct aac_softc *sc)
 	sc->aifflags = AAC_AIFFLAGS_RUNNING;
 
 	while ((sc->aifflags & AAC_AIFFLAGS_EXIT) == 0) {
-
 		retval = 0;
 		if ((sc->aifflags & AAC_AIFFLAGS_PENDING) == 0)
 			retval = msleep(sc->aifthread, &sc->aac_io_lock, PRIBIO,
@@ -1267,7 +1266,6 @@ aac_free_commands(struct aac_softc *sc)
 	fwprintf(sc, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	while ((fm = TAILQ_FIRST(&sc->aac_fibmap_tqh)) != NULL) {
-
 		TAILQ_REMOVE(&sc->aac_fibmap_tqh, fm, fm_link);
 		/*
 		 * We check against total_fibs to handle partially
@@ -1451,7 +1449,6 @@ aacraid_map_command_sg(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 }
 
-
 static int 
 aac_convert_sgraw2(struct aac_softc *sc, struct aac_raw_io2 *raw,
 				   int pages, int nseg, int nseg_new)
@@ -1487,7 +1484,6 @@ aac_convert_sgraw2(struct aac_softc *sc, struct aac_raw_io2 *raw,
 	raw->sgeNominalSize = pages * PAGE_SIZE;
 	return nseg_new;
 }
-
 
 /*
  * Unmap a command from controller-visible space.
@@ -1851,7 +1847,7 @@ aac_define_int_mode(struct aac_softc *sc)
 	device_t dev;
 	int cap, msi_count, error = 0;
 	uint32_t val;
-	
+
 	dev = sc->aac_dev;
 
 	if (sc->flags & AAC_FLAGS_SYNC_MODE) {
@@ -2377,7 +2373,7 @@ aac_src_access_devreg(struct aac_softc *sc, int mode)
 		AAC_MEM0_SETREG4(sc, AAC_SRC_OIMR, 
 			val & (~(PMC_GLOBAL_INT_BIT2)));
 		break;
-	
+
 	default:
 		break;
 	}
@@ -2398,7 +2394,7 @@ aac_src_send_command(struct aac_softc *sc, struct aac_command *cm)
 	if (sc->msi_enabled && cm->cm_fib->Header.Command != AifRequest &&
 		sc->aac_max_msix > 1) { 
 		u_int16_t vector_no, first_choice = 0xffff;
-	
+
 		vector_no = sc->aac_fibs_pushed_no % sc->aac_max_msix;
 		do {
 			vector_no += 1;
@@ -3102,7 +3098,6 @@ aac_request_aif(struct aac_softc *sc)
 
 	aacraid_map_command_sg(cm, NULL, 0, 0);
 }
-
 
 /*
  * cdevpriv interface private destructor.
