@@ -62,7 +62,6 @@
 #ifndef MPI_SAS_H
 #define MPI_SAS_H
 
-
 /*
  * Values for SASStatus.
  */
@@ -88,7 +87,6 @@
 #define MPI_SASSTATUS_SDSF_CONNECTION_FAILED            (0x13)
 #define MPI_SASSTATUS_INITIATOR_RESPONSE_TIMEOUT        (0x14)
 
-
 /*
  * Values for the SAS DeviceInfo field used in SAS Device Status Change Event
  * data and SAS IO Unit Configuration pages.
@@ -113,8 +111,6 @@
 #define MPI_SAS_DEVICE_INFO_END_DEVICE          (0x00000001)
 #define MPI_SAS_DEVICE_INFO_EDGE_EXPANDER       (0x00000002)
 #define MPI_SAS_DEVICE_INFO_FANOUT_EXPANDER     (0x00000003)
-
-
 
 /*****************************************************************************
 *
@@ -152,7 +148,6 @@ typedef struct _MSG_SMP_PASSTHROUGH_REQUEST
 #define MPI_SMP_PT_REQ_CONNECT_RATE_1_5         (0x08)
 #define MPI_SMP_PT_REQ_CONNECT_RATE_3_0         (0x09)
 
-
 /* Serial Management Protocol Passthrough Reply */
 typedef struct _MSG_SMP_PASSTHROUGH_REPLY
 {
@@ -174,7 +169,6 @@ typedef struct _MSG_SMP_PASSTHROUGH_REPLY
   SmpPassthroughReply_t, MPI_POINTER pSmpPassthroughReply_t;
 
 #define MPI_SMP_PT_REPLY_PT_FLAGS_IMMEDIATE     (0x80)
-
 
 /****************************************************************************/
 /* SATA Passthrough Request                                                 */
@@ -215,7 +209,6 @@ typedef struct _MSG_SATA_PASSTHROUGH_REQUEST
 #define MPI_SATA_PT_REQ_CONNECT_RATE_1_5        (0x08)
 #define MPI_SATA_PT_REQ_CONNECT_RATE_3_0        (0x09)
 
-
 /* SATA Passthrough Reply */
 typedef struct _MSG_SATA_PASSTHROUGH_REPLY
 {
@@ -236,9 +229,6 @@ typedef struct _MSG_SATA_PASSTHROUGH_REPLY
     U32                     TransferCount;      /* 2Ch */
 } MSG_SATA_PASSTHROUGH_REPLY, MPI_POINTER PTR_MSG_SATA_PASSTHROUGH_REPLY,
   SataPassthroughReply_t, MPI_POINTER pSataPassthroughReply_t;
-
-
-
 
 /****************************************************************************/
 /* SAS IO Unit Control Request                                              */
@@ -284,7 +274,6 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REQUEST
 #define MPI_SAS_PRIMFLAGS_TRIPLE                (0x02)
 #define MPI_SAS_PRIMFLAGS_REDUNDANT             (0x01)
 
-
 /* SAS IO Unit Control Reply */
 typedef struct _MSG_SAS_IOUNIT_CONTROL_REPLY
 {
@@ -303,5 +292,3 @@ typedef struct _MSG_SAS_IOUNIT_CONTROL_REPLY
   SasIoUnitControlReply_t, MPI_POINTER pSasIoUnitControlReply_t;
 
 #endif
-
-

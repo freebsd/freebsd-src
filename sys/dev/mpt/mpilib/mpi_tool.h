@@ -68,7 +68,6 @@
 #define MPI_TOOLBOX_FC_MANAGEMENT_TOOL              (0x04)
 #define MPI_TOOLBOX_BEACON_TOOL                     (0x05)
 
-
 /****************************************************************************/
 /* Toolbox reply                                                            */
 /****************************************************************************/
@@ -88,7 +87,6 @@ typedef struct _MSG_TOOLBOX_REPLY
     U32                     IOCLogInfo;                 /* 10h */
 } MSG_TOOLBOX_REPLY, MPI_POINTER PTR_MSG_TOOLBOX_REPLY,
   ToolboxReply_t, MPI_POINTER pToolboxReply_t;
-
 
 /****************************************************************************/
 /* Toolbox Clean Tool request                                               */
@@ -118,7 +116,6 @@ typedef struct _MSG_TOOLBOX_CLEAN_REQUEST
 #define MPI_TOOLBOX_CLEAN_PERSIST_MANUFACT_PAGES    (0x40000000)
 #define MPI_TOOLBOX_CLEAN_BOOT_SERVICES             (0x80000000)
 
-
 /****************************************************************************/
 /* Toolbox Memory Move request                                              */
 /****************************************************************************/
@@ -136,7 +133,6 @@ typedef struct _MSG_TOOLBOX_MEM_MOVE_REQUEST
     SGE_SIMPLE_UNION        SGL;                        /* 0Ch */
 } MSG_TOOLBOX_MEM_MOVE_REQUEST, MPI_POINTER PTR_MSG_TOOLBOX_MEM_MOVE_REQUEST,
   ToolboxMemMoveRequest_t, MPI_POINTER pToolboxMemMoveRequest_t;
-
 
 /****************************************************************************/
 /* Toolbox Diagnostic Data Upload request                                   */
@@ -172,7 +168,6 @@ typedef struct _DIAG_DATA_UPLOAD_HEADER
 #define MPI_TB_DIAG_FORMAT_SCSI_3                   (0x03)
 #define MPI_TB_DIAG_FORMAT_FC_TRACE_1               (0x04)
 
-
 /****************************************************************************/
 /* Toolbox ISTWI Read Write request                                         */
 /****************************************************************************/
@@ -204,7 +199,6 @@ typedef struct _MSG_TOOLBOX_ISTWI_READ_WRITE_REQUEST
 
 #define MPI_TB_ISTWI_FLAGS_WRITE                    (0x00)
 #define MPI_TB_ISTWI_FLAGS_READ                     (0x01)
-
 
 /****************************************************************************/
 /* Toolbox FC Management request                                            */
@@ -267,7 +261,6 @@ typedef struct _MSG_TOOLBOX_FC_MANAGE_REQUEST
 #define MPI_TB_FC_MANAGE_ACTION_DISC_BUS_TID        (0x02)
 #define MPI_TB_FC_MANAGE_ACTION_SET_MAX_FRAME_SIZE  (0x03)
 
-
 /****************************************************************************/
 /* Toolbox Beacon Tool request                                               */
 /****************************************************************************/
@@ -291,7 +284,6 @@ typedef struct _MSG_TOOLBOX_BEACON_REQUEST
 
 #define MPI_TOOLBOX_FLAGS_BEACON_MODE_OFF       (0x00)
 #define MPI_TOOLBOX_FLAGS_BEACON_MODE_ON        (0x01)
-
 
 /****************************************************************************/
 /* Diagnostic Buffer Post request                                           */
@@ -323,7 +315,6 @@ typedef struct _MSG_DIAG_BUFFER_POST_REQUEST
 
 #define MPI_DIAG_EXTENDED_QTAG                      (0x00000001)
 
-
 /* Diagnostic Buffer Post reply */
 typedef struct _MSG_DIAG_BUFFER_POST_REPLY
 {
@@ -342,7 +333,6 @@ typedef struct _MSG_DIAG_BUFFER_POST_REPLY
 } MSG_DIAG_BUFFER_POST_REPLY, MPI_POINTER PTR_MSG_DIAG_BUFFER_POST_REPLY,
   DiagBufferPostReply_t, MPI_POINTER pDiagBufferPostReply_t;
 
-
 /****************************************************************************/
 /* Diagnostic Release request                                               */
 /****************************************************************************/
@@ -360,7 +350,6 @@ typedef struct _MSG_DIAG_RELEASE_REQUEST
 } MSG_DIAG_RELEASE_REQUEST, MPI_POINTER PTR_MSG_DIAG_RELEASE_REQUEST,
   DiagReleaseRequest_t, MPI_POINTER pDiagReleaseRequest_t;
 
-
 /* Diagnostic Release reply */
 typedef struct _MSG_DIAG_RELEASE_REPLY
 {
@@ -377,6 +366,5 @@ typedef struct _MSG_DIAG_RELEASE_REPLY
     U32                     IOCLogInfo;                 /* 10h */
 } MSG_DIAG_RELEASE_REPLY, MPI_POINTER PTR_MSG_DIAG_RELEASE_REPLY,
   DiagReleaseReply_t, MPI_POINTER pDiagReleaseReply_t;
-
 
 #endif

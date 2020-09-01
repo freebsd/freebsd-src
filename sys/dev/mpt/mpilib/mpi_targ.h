@@ -90,7 +90,6 @@
 #ifndef MPI_TARG_H
 #define MPI_TARG_H
 
-
 /******************************************************************************
 *
 *        S C S I    T a r g e t    M e s s a g e s
@@ -108,7 +107,6 @@ typedef struct _CMD_BUFFER_DESCRIPTOR
     } u;
 } CMD_BUFFER_DESCRIPTOR, MPI_POINTER PTR_CMD_BUFFER_DESCRIPTOR,
   CmdBufferDescriptor_t, MPI_POINTER pCmdBufferDescriptor_t;
-
 
 /****************************************************************************/
 /* Target Command Buffer Post Request                                       */
@@ -137,7 +135,6 @@ typedef struct _MSG_TARGET_CMD_BUFFER_POST_REQUEST
 
 #define CMD_BUFFER_POST_IO_INDEX_MASK           (0x00003FFF)
 #define CMD_BUFFER_POST_IO_INDEX_MASK_0100      (0x000003FF) /* obsolete */
-
 
 typedef struct _MSG_TARGET_CMD_BUFFER_POST_REPLY
 {
@@ -174,7 +171,6 @@ typedef struct _MSG_PRIORITY_CMD_RECEIVED_REPLY
 } MSG_PRIORITY_CMD_RECEIVED_REPLY, MPI_POINTER PTR_MSG_PRIORITY_CMD_RECEIVED_REPLY,
   PriorityCommandReceivedReply_t, MPI_POINTER pPriorityCommandReceivedReply_t;
 
-
 typedef struct _MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY
 {
     U16                     Reserved;                   /* 00h */
@@ -205,7 +201,6 @@ typedef struct _MSG_TARGET_CMD_BUFFER_POST_ERROR_REPLY
 #define PRIORITY_REASON_TARGET_BUSY             (0x09)
 #define PRIORITY_REASON_UNKNOWN                 (0xFF)
 
-
 /****************************************************************************/
 /* Target Command Buffer Post Base Request                                  */
 /****************************************************************************/
@@ -232,7 +227,6 @@ typedef struct _MSG_TARGET_CMD_BUF_POST_BASE_REQUEST
 
 #define CMD_BUFFER_POST_BASE_FLAGS_AUTO_POST_ALL    (0x01)
 
-
 typedef struct _MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY
 {
     U16                     Reserved;                   /* 00h */
@@ -249,7 +243,6 @@ typedef struct _MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY
   MPI_POINTER PTR_MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY,
   TargetCmdBufferPostBaseListReply_t,
   MPI_POINTER pTargetCmdBufferPostBaseListReply_t;
-
 
 /****************************************************************************/
 /* Target Command Buffer Post List Request                                  */
@@ -272,7 +265,6 @@ typedef struct _MSG_TARGET_CMD_BUF_POST_LIST_REQUEST
   TargetCmdBufferPostListRequest_t,
   MPI_POINTER pTargetCmdBufferPostListRequest_t;
 
-
 /****************************************************************************/
 /* Command Buffer Formats (with 16 byte CDB)                                */
 /****************************************************************************/
@@ -288,7 +280,6 @@ typedef struct _MPI_TARGET_FCP_CMD_BUFFER
     U16     OptionalOxid;                               /* 22h */
 } MPI_TARGET_FCP_CMD_BUFFER, MPI_POINTER PTR_MPI_TARGET_FCP_CMD_BUFFER,
   MpiTargetFcpCmdBuffer, MPI_POINTER pMpiTargetFcpCmdBuffer;
-
 
 typedef struct _MPI_TARGET_SCSI_SPI_CMD_BUFFER
 {
@@ -311,7 +302,6 @@ typedef struct _MPI_TARGET_SCSI_SPI_CMD_BUFFER
 } MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MPI_POINTER PTR_MPI_TARGET_SCSI_SPI_CMD_BUFFER,
   MpiTargetScsiSpiCmdBuffer, MPI_POINTER pMpiTargetScsiSpiCmdBuffer;
-
 
 typedef struct _MPI_TARGET_SSP_CMD_BUFFER
 {
@@ -351,7 +341,6 @@ typedef struct _MPI_TARGET_SSP_TASK_BUFFER
     U32     Reserved9;                                  /* 20h */
 } MPI_TARGET_SSP_TASK_BUFFER, MPI_POINTER PTR_MPI_TARGET_SSP_TASK_BUFFER,
   MpiTargetSspTaskBuffer, MPI_POINTER pMpiTargetSspTaskBuffer;
-
 
 /****************************************************************************/
 /* Target Assist Request                                                    */
@@ -399,7 +388,6 @@ typedef struct _MSG_TARGET_ERROR_REPLY
     U32                     TransferCount;              /* 18h */
 } MSG_TARGET_ERROR_REPLY, MPI_POINTER PTR_MSG_TARGET_ERROR_REPLY,
   TargetErrorReply_t, MPI_POINTER pTargetErrorReply_t;
-
 
 /****************************************************************************/
 /* Target Assist Extended Request                                           */
@@ -470,7 +458,6 @@ typedef struct _MSG_TARGET_ASSIST_EXT_REQUEST
 #define TARGET_ASSIST_EXT_EEDP_INC_PRI_APPTAG   (0x2000)
 #define TARGET_ASSIST_EXT_EEDP_INC_SEC_REFTAG   (0x4000)
 #define TARGET_ASSIST_EXT_EEDP_INC_PRI_REFTAG   (0x8000)
-
 
 /****************************************************************************/
 /* Target Status Send Request                                               */
@@ -551,7 +538,6 @@ typedef struct _MPI_TARGET_SSP_RSP_IU
 } MPI_TARGET_SSP_RSP_IU, MPI_POINTER PTR_MPI_TARGET_SSP_RSP_IU,
   MpiTargetSspRspIu_t, MPI_POINTER pMpiTargetSspRspIu_t;
 
-
 /****************************************************************************/
 /* Target Mode Abort Request                                                */
 /****************************************************************************/
@@ -594,7 +580,6 @@ typedef struct _MSG_TARGET_MODE_ABORT_REPLY
 } MSG_TARGET_MODE_ABORT_REPLY, MPI_POINTER PTR_MSG_TARGET_MODE_ABORT_REPLY,
   TargetModeAbortReply_t, MPI_POINTER pTargetModeAbortReply_t;
 
-
 /****************************************************************************/
 /* Target Mode Context Reply                                                */
 /****************************************************************************/
@@ -607,7 +592,6 @@ typedef struct _MSG_TARGET_MODE_ABORT_REPLY
 #define TARGET_MODE_REPLY_ALIAS_SHIFT           (26)
 #define TARGET_MODE_REPLY_PORT_MASK             (0x10000000)
 #define TARGET_MODE_REPLY_PORT_SHIFT            (28)
-
 
 #define GET_IO_INDEX(x)     (((x) & TARGET_MODE_REPLY_IO_INDEX_MASK)           \
                                     >> TARGET_MODE_REPLY_IO_INDEX_SHIFT)
@@ -674,6 +658,4 @@ typedef struct _MSG_TARGET_MODE_ABORT_REPLY
                    (((ii) << TARGET_MODE_REPLY_0100_SHIFT_INITIATOR_INDEX) &   \
                                 TARGET_MODE_REPLY_0100_MASK_INITIATOR_INDEX))
 
-
 #endif
-

@@ -118,7 +118,6 @@
 #ifndef MPI_H
 #define MPI_H
 
-
 /*****************************************************************************
 *
 *        M P I    V e r s i o n    D e f i n i t i o n s
@@ -175,7 +174,6 @@
 #define MPI_FAULT_DATA_RECEIVE_PCI_PARITY_ERROR     (0x8117)
 #define MPI_FAULT_DATA_RECEIVE_PCI_BUS_FAULT        (0x8118)
 
-
 /*****************************************************************************
 *
 *        P C I    S y s t e m    I n t e r f a c e    R e g i s t e r s
@@ -205,7 +203,6 @@
 #define MPI_DB_HPBAC_ENABLE_ACCESS          (0x01)
 #define MPI_DB_HPBAC_DISABLE_ACCESS         (0x02)
 #define MPI_DB_HPBAC_FREE_BUFFER            (0x03)
-
 
 #define MPI_WRITE_SEQUENCE_OFFSET           (0x00000004)
 #define MPI_WRSEQ_KEY_VALUE_MASK            (0x0000000F)
@@ -250,8 +247,6 @@
 
 #define MPI_HI_PRI_REQUEST_QUEUE_OFFSET     (0x00000048)
 
-
-
 /*****************************************************************************
 *
 *        M e s s a g e    F r a m e    D e s c r i p t o r s
@@ -273,7 +268,6 @@
 #define MPI_CONTEXT_REPLY_TYPE_SHIFT        (29)
 #define MPI_CONTEXT_REPLY_CONTEXT_MASK      (0x1FFFFFFF)
 
-
 /****************************************************************************/
 /* Context Reply macros                                                     */
 /****************************************************************************/
@@ -285,7 +279,6 @@
             ((x) = ((x) & ~MPI_CONTEXT_REPLY_TYPE_MASK) |                   \
                             (((typ) << MPI_CONTEXT_REPLY_TYPE_SHIFT) &      \
                                         MPI_CONTEXT_REPLY_TYPE_MASK))
-
 
 /*****************************************************************************
 *
@@ -354,7 +347,6 @@
 #define MPI_FUNCTION_REPLY_FRAME_REMOVAL            (0x43)
 #define MPI_FUNCTION_HOST_PAGEBUF_ACCESS_CONTROL    (0x44)
 
-
 /* standard version format */
 typedef struct _MPI_VERSION_STRUCT
 {
@@ -371,7 +363,6 @@ typedef union _MPI_VERSION_FORMAT
     U32                     Word;
 } MPI_VERSION_FORMAT, MPI_POINTER PTR_MPI_VERSION_FORMAT,
   MpiVersionFormat_t, MPI_POINTER pMpiVersionFormat_t;
-
 
 /*****************************************************************************
 *
@@ -508,7 +499,6 @@ typedef struct _SGE_TRANSACTION_UNION
 } SGE_TRANSACTION_UNION, MPI_POINTER PTR_SGE_TRANSACTION_UNION,
   SGETransactionUnion_t, MPI_POINTER pSGETransactionUnion_t;
 
-
 /****************************************************************************/
 /*  SGE IO types union  for IO SGL's                                        */
 /****************************************************************************/
@@ -552,7 +542,6 @@ typedef struct _SGE_MPI_UNION
 } SGE_MPI_UNION, MPI_POINTER PTR_SGE_MPI_UNION,
   MPI_SGE_UNION_t, MPI_POINTER pMPI_SGE_UNION_t,
   SGEAllUnion_t, MPI_POINTER pSGEAllUnion_t;
-
 
 /****************************************************************************/
 /*  SGE field definition and masks                                          */
@@ -604,7 +593,6 @@ typedef struct _SGE_MPI_UNION
 #define MPI_SGE_CHAIN_OFFSET_MASK               (0x00FF0000)
 #define MPI_SGE_CHAIN_OFFSET_SHIFT              (16)
 
-
 /****************************************************************************/
 /*  SGE operation Macros                                                    */
 /****************************************************************************/
@@ -625,8 +613,6 @@ typedef struct _SGE_MPI_UNION
 #define  MPI_pSGE_SET_LENGTH(psg,l)     (psg)->FlagsLength |= MPI_SGE_LENGTH(l)
 
 #define  MPI_GET_CHAIN_OFFSET(x) ((x&MPI_SGE_CHAIN_OFFSET_MASK)>>MPI_SGE_CHAIN_OFFSET_SHIFT)
-
-
 
 /*****************************************************************************
 *
@@ -649,7 +635,6 @@ typedef struct _MSG_REQUEST_HEADER
 } MSG_REQUEST_HEADER, MPI_POINTER PTR_MSG_REQUEST_HEADER,
   MPIHeader_t, MPI_POINTER pMPIHeader_t;
 
-
 /****************************************************************************/
 /*  Default Reply                                                           */
 /****************************************************************************/
@@ -668,11 +653,9 @@ typedef struct _MSG_DEFAULT_REPLY
 } MSG_DEFAULT_REPLY, MPI_POINTER PTR_MSG_DEFAULT_REPLY,
   MPIDefaultReply_t, MPI_POINTER pMPIDefaultReply_t;
 
-
 /* MsgFlags definition for all replies */
 
 #define MPI_MSGFLAGS_CONTINUATION_REPLY         (0x80)
-
 
 /*****************************************************************************
 *
@@ -731,7 +714,6 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_EEDP_GUARD_ERROR          (0x004D)
 #define MPI_IOCSTATUS_EEDP_REF_TAG_ERROR        (0x004E)
 #define MPI_IOCSTATUS_EEDP_APP_TAG_ERROR        (0x004F)
-
 
 /****************************************************************************/
 /*  SCSI Target values                                                      */
@@ -804,7 +786,6 @@ typedef struct _MSG_DEFAULT_REPLY
 
 #define MPI_IOCSTATUS_DIAGNOSTIC_RELEASED       (0x00A0)
 
-
 /****************************************************************************/
 /*  IOCStatus flag to indicate that log info is available                   */
 /****************************************************************************/
@@ -824,6 +805,5 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCLOGINFO_TYPE_SAS                 (0x3)
 #define MPI_IOCLOGINFO_TYPE_ISCSI               (0x4)
 #define MPI_IOCLOGINFO_LOG_DATA_MASK            (0x0FFFFFFF)
-
 
 #endif

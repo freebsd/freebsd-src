@@ -158,7 +158,6 @@
 #ifndef MPI_IOC_H
 #define MPI_IOC_H
 
-
 /*****************************************************************************
 *
 *               I O C    M e s s a g e s
@@ -216,7 +215,6 @@ typedef struct _MSG_IOC_INIT
 #define MPI_IOCINIT_HEADERVERSION_DEV_MASK              (0x00FF)
 #define MPI_IOCINIT_HEADERVERSION_DEV_SHIFT             (0)
 
-
 typedef struct _MSG_IOC_INIT_REPLY
 {
     U8                      WhoInit;                    /* 00h */
@@ -233,8 +231,6 @@ typedef struct _MSG_IOC_INIT_REPLY
     U32                     IOCLogInfo;                 /* 10h */
 } MSG_IOC_INIT_REPLY, MPI_POINTER PTR_MSG_IOC_INIT_REPLY,
   IOCInitReply_t, MPI_POINTER pIOCInitReply_t;
-
-
 
 /****************************************************************************/
 /*  IOC Facts message                                                       */
@@ -340,7 +336,6 @@ typedef struct _MSG_IOC_FACTS_REPLY
 #define MPI_IOCFACTS_CAPABILITY_NO_SCSIIO16             (0x00000400)
 #define MPI_IOCFACTS_CAPABILITY_TLR                     (0x00000800)
 
-
 /*****************************************************************************
 *
 *               P o r t    M e s s a g e s
@@ -389,7 +384,6 @@ typedef struct _MSG_PORT_FACTS_REPLY
 } MSG_PORT_FACTS_REPLY, MPI_POINTER PTR_MSG_PORT_FACTS_REPLY,
   PortFactsReply_t, MPI_POINTER pPortFactsReply_t;
 
-
 /* PortTypes values */
 
 #define MPI_PORTFACTS_PORTTYPE_INACTIVE         (0x00)
@@ -404,7 +398,6 @@ typedef struct _MSG_PORT_FACTS_REPLY
 #define MPI_PORTFACTS_PROTOCOL_LAN              (0x02)
 #define MPI_PORTFACTS_PROTOCOL_TARGET           (0x04)
 #define MPI_PORTFACTS_PROTOCOL_INITIATOR        (0x08)
-
 
 /****************************************************************************/
 /*  Port Enable Message                                                     */
@@ -436,7 +429,6 @@ typedef struct _MSG_PORT_ENABLE_REPLY
     U32                     IOCLogInfo;                 /* 10h */
 } MSG_PORT_ENABLE_REPLY, MPI_POINTER PTR_MSG_PORT_ENABLE_REPLY,
   PortEnableReply_t, MPI_POINTER pPortEnableReply_t;
-
 
 /*****************************************************************************
 *
@@ -654,7 +646,6 @@ typedef struct _EVENT_DATA_SAS_DEVICE_STATUS_CHANGE
 #define MPI_EVENT_SAS_DEV_STAT_RC_CMPL_INTERNAL_DEV_RESET   (0x0E)
 #define MPI_EVENT_SAS_DEV_STAT_RC_CMPL_TASK_ABORT_INTERNAL  (0x0F)
 
-
 /* SCSI Event data for Queue Full event */
 
 typedef struct _EVENT_DATA_QUEUE_FULL
@@ -693,7 +684,6 @@ typedef struct _EVENT_DATA_RAID
 #define MPI_EVENT_RAID_RC_DOMAIN_VAL_NEEDED             (0x09)
 #define MPI_EVENT_RAID_RC_SMART_DATA                    (0x0A)
 #define MPI_EVENT_RAID_RC_REPLACE_ACTION_STARTED        (0x0B)
-
 
 /* MPI Integrated RAID Resync Update Event data */
 
@@ -1010,8 +1000,6 @@ typedef struct _EVENT_DATA_SAS_EXPANDER_STATUS_CHANGE
 #define MPI_EVENT_SAS_EXP_FLAGS_ROUTE_TABLE_CONFIG      (0x02)
 #define MPI_EVENT_SAS_EXP_FLAGS_CONFIG_IN_PROGRESS      (0x01)
 
-
-
 /*****************************************************************************
 *
 *               F i r m w a r e    L o a d    M e s s a g e s
@@ -1048,7 +1036,6 @@ typedef struct _MSG_FW_DOWNLOAD
 #define MPI_FW_DOWNLOAD_ITYPE_MEGARAID          (0x09)
 #define MPI_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK (0x0B)
 
-
 typedef struct _FWDownloadTCSGE
 {
     U8                      Reserved;                   /* 00h */
@@ -1076,7 +1063,6 @@ typedef struct _MSG_FW_DOWNLOAD_REPLY
     U32                     IOCLogInfo;                 /* 10h */
 } MSG_FW_DOWNLOAD_REPLY, MPI_POINTER PTR_MSG_FW_DOWNLOAD_REPLY,
   FWDownloadReply_t, MPI_POINTER pFWDownloadReply_t;
-
 
 /****************************************************************************/
 /*  Firmware Upload message and associated structures                       */
@@ -1136,7 +1122,6 @@ typedef struct _MSG_FW_UPLOAD_REPLY
     U32                     ActualImageSize;            /* 14h */
 } MSG_FW_UPLOAD_REPLY, MPI_POINTER PTR_MSG_FW_UPLOAD_REPLY,
   FWUploadReply_t, MPI_POINTER pFWUploadReply_t;
-
 
 typedef struct _MPI_FW_HEADER
 {
