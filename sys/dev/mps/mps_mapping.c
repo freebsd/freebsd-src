@@ -503,7 +503,7 @@ _mapping_get_free_ir_mt_idx(struct mps_softc *sc)
 		    "free entry in the mapping table for a Volume. The mapping "
 		    "table is probably corrupt.\n", __func__);
 	}
-	
+
 	return high_idx;
 }
 
@@ -563,7 +563,6 @@ _mapping_get_dpm_idx_from_id(struct mps_softc *sc, u64 id, u32 phy_bits)
 
 	return MPS_DPM_BAD_IDX;
 }
-
 
 /**
  * _mapping_get_free_dpm_idx - get first available DPM index
@@ -782,7 +781,7 @@ _mapping_add_to_removal_table(struct mps_softc *sc, u16 dpm_idx)
 	for (i = 0; i < sc->max_devices; i++, remove_entry++) {
 		if (remove_entry->dpm_entry_num != MPS_DPM_BAD_IDX)
 			continue;
- 
+
 		mps_dprint(sc, MPS_MAPPING, "%s: Adding DPM entry %d to table "
 		    "for removal.\n", __func__, dpm_idx);
 		remove_entry->dpm_entry_num = dpm_idx;
@@ -1516,7 +1515,6 @@ _mapping_add_new_device(struct mps_softc *sc,
 		} else if ((ioc_pg8_flags &
 		    MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
 		    MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) {
-
 			/*
 			 * Get the mapping table index for this device. If it's
 			 * not in the mapping table yet, find a free entry if
@@ -1828,7 +1826,6 @@ _mapping_process_dpm_pg0(struct mps_softc *sc)
 		}
 		if ((ioc_pg8_flags & MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
 		    MPI2_IOCPAGE8_FLAGS_ENCLOSURE_SLOT_MAPPING) {
-
 			/*
 			 * The dev_idx for an enclosure is the start index. If
 			 * the start index is within the controller's default
@@ -1904,7 +1901,6 @@ _mapping_process_dpm_pg0(struct mps_softc *sc)
 		} else if ((ioc_pg8_flags &
 		    MPI2_IOCPAGE8_FLAGS_MASK_MAPPING_MODE) ==
 		    MPI2_IOCPAGE8_FLAGS_DEVICE_PERSISTENCE_MAPPING) {
-
 			/*
 			 * Device mapping, so simply copy the DPM entries to the
 			 * mapping table, but check for a corrupt mapping table
@@ -2113,7 +2109,6 @@ mps_mapping_initialize(struct mps_softc *sc)
 	sc->max_dpm_entries = sc->ioc_pg8.MaxPersistentEntries;
 	sc->is_dpm_enable = (sc->max_dpm_entries) ? 1 : 0;
 	sc->track_mapping_events = 0;
-	
 
 	mps_dprint(sc, MPS_MAPPING, "%s: Mapping table has a max of %d entries "
 	    "and DPM has a max of %d entries.\n", __func__, sc->max_devices,
