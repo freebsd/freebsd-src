@@ -93,7 +93,6 @@ static struct _pcsid
 	{ 0x00000000,		0, 0, NULL  }
 };
 
-
 static int
 nvme_match(uint32_t devid, uint16_t subdevice, struct _pcsid *ep)
 {

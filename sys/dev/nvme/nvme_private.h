@@ -118,7 +118,6 @@ extern int32_t		nvme_retry_count;
 extern bool		nvme_verbose_cmd_dump;
 
 struct nvme_completion_poll_status {
-
 	struct nvme_completion	cpl;
 	int			done;
 };
@@ -132,7 +131,6 @@ extern devclass_t nvme_devclass;
 #define NVME_REQUEST_CCB        5
 
 struct nvme_request {
-
 	struct nvme_command		cmd;
 	struct nvme_qpair		*qpair;
 	union {
@@ -149,7 +147,6 @@ struct nvme_request {
 };
 
 struct nvme_async_event_request {
-
 	struct nvme_controller		*ctrlr;
 	struct nvme_request		*req;
 	struct nvme_completion		cpl;
@@ -159,7 +156,6 @@ struct nvme_async_event_request {
 };
 
 struct nvme_tracker {
-
 	TAILQ_ENTRY(nvme_tracker)	tailq;
 	struct nvme_request		*req;
 	struct nvme_qpair		*qpair;
@@ -172,7 +168,6 @@ struct nvme_tracker {
 };
 
 struct nvme_qpair {
-
 	struct nvme_controller	*ctrlr;
 	uint32_t		id;
 	int			domain;
@@ -221,7 +216,6 @@ struct nvme_qpair {
 } __aligned(CACHE_LINE_SIZE);
 
 struct nvme_namespace {
-
 	struct nvme_controller		*ctrlr;
 	struct nvme_namespace_data	data;
 	uint32_t			id;
@@ -236,7 +230,6 @@ struct nvme_namespace {
  * One of these per allocated PCI device.
  */
 struct nvme_controller {
-
 	device_t		dev;
 
 	struct mtx		lock;

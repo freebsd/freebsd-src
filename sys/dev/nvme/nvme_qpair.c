@@ -47,7 +47,6 @@ static void	_nvme_qpair_submit_request(struct nvme_qpair *qpair,
 static void	nvme_qpair_destroy(struct nvme_qpair *qpair);
 
 struct nvme_opcode_string {
-
 	uint16_t	opc;
 	const char *	str;
 };
@@ -128,7 +127,6 @@ get_io_opcode_string(uint16_t opc)
 	return (entry->str);
 }
 
-
 static void
 nvme_admin_qpair_print_command(struct nvme_qpair *qpair,
     struct nvme_command *cmd)
@@ -195,7 +193,6 @@ nvme_qpair_print_command(struct nvme_qpair *qpair, struct nvme_command *cmd)
 }
 
 struct nvme_status_string {
-
 	uint16_t	sc;
 	const char *	str;
 };
@@ -662,7 +659,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->ctrlr = ctrlr;
 
 	if (ctrlr->msix_enabled) {
-
 		/*
 		 * MSI-X vector resource IDs start at 1, so we add one to
 		 *  the queue's vector to get the corresponding rid to use.
@@ -762,7 +758,6 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	list_phys = prpmem_phys;
 	prp_list = prpmem;
 	for (i = 0; i < qpair->num_trackers; i++) {
-
 		if (list_phys + prpsz > prpmem_phys + prpmemsz) {
 			qpair->num_trackers = i;
 			break;
