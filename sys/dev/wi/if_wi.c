@@ -162,7 +162,7 @@ static void wi_scan_end(struct ieee80211com *);
 static void wi_getradiocaps(struct ieee80211com *, int, int *,
 		struct ieee80211_channel[]);
 static void wi_set_channel(struct ieee80211com *);
-	
+
 static __inline int
 wi_write_val(struct wi_softc *sc, int rid, u_int16_t val)
 {
