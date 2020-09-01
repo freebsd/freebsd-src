@@ -361,7 +361,6 @@ ofw_cpu_early_foreach(ofw_cpu_foreach_cb callback, boolean_t only_runnable)
 
 	for (child = OF_child(node); child != 0; child = OF_peer(child),
 	    id = next_id) {
-
 		/* Check if child is a CPU */
 		memset(device_type, 0, sizeof(device_type));
 		rv = OF_getprop(child, "device_type", device_type,
