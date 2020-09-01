@@ -127,7 +127,6 @@ static int pvscsi_probe(device_t dev);
 static int pvscsi_shutdown(device_t dev);
 static int pvscsi_get_tunable(struct pvscsi_softc *sc, char *name, int value);
 
-
 #ifdef PVSCSI_DEBUG_LOGGING
 static int pvscsi_log_level = 0;
 static SYSCTL_NODE(_hw, OID_AUTO, pvscsi, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -154,11 +153,9 @@ TUNABLE_INT("hw.pvscsi.use_req_call_threshold", &pvscsi_use_req_call_threshold);
 static int pvscsi_max_queue_depth = 0;
 TUNABLE_INT("hw.pvscsi.max_queue_depth", &pvscsi_max_queue_depth);
 
-
 struct pvscsi_sg_list {
 	struct pvscsi_sg_element sge[PVSCSI_MAX_SG_ENTRIES_PER_SEGMENT];
 };
-
 
 #define	PVSCSI_ABORT_TIMEOUT	2
 #define	PVSCSI_RESET_TIMEOUT	10
