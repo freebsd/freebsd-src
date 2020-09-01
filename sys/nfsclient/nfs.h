@@ -100,7 +100,6 @@
 #define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
 #define	NFSSTA_LOCKTIMEO	0x20000000  /* Experiencing a lockd timeout */
 
-
 /*
  * XXX to allow amd to include nfs.h without nfsproto.h
  */
