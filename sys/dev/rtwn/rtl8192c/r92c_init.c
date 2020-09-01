@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 
-
 int
 r92c_check_condition(struct rtwn_softc *sc, const uint8_t cond[])
 {

@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/pci/r92ce.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 void
 r92ce_fw_reset(struct rtwn_softc *sc, int reason)

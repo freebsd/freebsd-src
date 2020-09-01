@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c.h>
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
-
 /* Registers to save and restore during IQ calibration. */
 struct r92c_iq_cal_reg_vals {
 	uint32_t	adda[16];

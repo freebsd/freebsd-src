@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/r12a_fw_cmd.h>
 #include <dev/rtwn/rtl8812a/r12a_rx_desc.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 void
 r12a_ratectl_tx_complete(struct rtwn_softc *sc, uint8_t *buf, int len)

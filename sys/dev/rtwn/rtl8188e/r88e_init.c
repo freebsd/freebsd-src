@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/r88e.h>
 #include <dev/rtwn/rtl8188e/r88e_reg.h>
 
-
 static void
 r88e_crystalcap_write(struct rtwn_softc *sc)
 {

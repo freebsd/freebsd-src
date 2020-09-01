@@ -73,7 +73,6 @@ static const struct rtwn_mac_prog rtl8812au_mac_no_ext_pa_lna[] = {
 	RTL8812AU_MAC_PROG_END
 };
 
-
 /*
  * Baseband initialization values.
  */
@@ -211,7 +210,6 @@ static const struct rtwn_bb_prog rtl8812au_bb[] = {
 		NULL
 	}
 };
-
 
 static const uint32_t rtl8812au_agc_vals0_lna_g0[] = {
 	0xfc000001, 0xfb020001, 0xfa040001, 0xf9060001, 0xf8080001,
@@ -831,7 +829,6 @@ static const struct rtwn_rf_prog rtl8812au_rf[] = {
 	},
 	{ 0, NULL, NULL, { 0 }, NULL }
 };
-
 
 /*
  * Registers to save before IQ calibration.

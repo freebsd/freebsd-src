@@ -50,7 +50,6 @@
 #define R12A_ARFR_2G(i)			(0x48c + (i) * 8)
 #define R12A_HT_SINGLE_AMPDU		0x4c7
 
-
 /* Bits for R92C_MAC_PHY_CTRL. */
 #define R12A_MAC_PHY_CRYSTALCAP_M	0x7ff80000
 #define R12A_MAC_PHY_CRYSTALCAP_S	19
@@ -88,7 +87,6 @@
 #define R12A_RCR_DIS_CHK_14		0x00200000
 #define R12A_RCR_TCP_OFFLD_EN		0x02000000
 #define R12A_RCR_VHT_ACK		0x04000000
-
 
 /*
  * Baseband registers.
@@ -233,7 +231,6 @@
 #define R12A_TXAGC_MCS14_S		16
 #define R12A_TXAGC_MCS15_M		0xff000000
 #define R12A_TXAGC_MCS15_S		24
-
 
 /*
  * RF (6052) registers.

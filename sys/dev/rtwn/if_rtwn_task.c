@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/if_rtwn_task.h>
 
-
 static void
 rtwn_cmdq_cb(void *arg, int pending)
 {

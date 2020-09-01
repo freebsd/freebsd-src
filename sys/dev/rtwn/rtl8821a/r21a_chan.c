@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8821a/r21a.h>
 #include <dev/rtwn/rtl8821a/r21a_reg.h>
 
-
 static void
 r21a_bypass_ext_lna_2ghz(struct rtwn_softc *sc)
 {

@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/pci/r92ce.h>
 #include <dev/rtwn/rtl8192c/pci/r92ce_reg.h>
 
-
 void
 r92ce_init_intr(struct rtwn_softc *sc)
 {

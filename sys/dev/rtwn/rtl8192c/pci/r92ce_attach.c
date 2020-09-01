@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/pci/r92ce_reg.h>
 #include <dev/rtwn/rtl8192c/pci/r92ce_tx_desc.h>
 
-
 static struct rtwn_r92c_txpwr r92c_txpwr;
 
 void	r92ce_attach(struct rtwn_pci_softc *);

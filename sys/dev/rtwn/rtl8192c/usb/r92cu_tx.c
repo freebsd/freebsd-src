@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/usb/r92cu.h>
 #include <dev/rtwn/rtl8192c/usb/r92cu_tx_desc.h>
 
-
 void
 r92cu_dump_tx_desc(struct rtwn_softc *sc, const void *desc)
 {

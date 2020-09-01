@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/usb/r92cu_reg.h>
 
-
 static const struct usb_config rtwn_config_common[RTWN_N_TRANSFER] = {
 	[RTWN_BULK_RX] = {
 		.type = UE_BULK,

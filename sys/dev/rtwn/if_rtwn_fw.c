@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 static int
 rtwn_fw_loadpage(struct rtwn_softc *sc, int page, const uint8_t *buf,

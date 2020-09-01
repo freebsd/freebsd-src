@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 
-
 void
 r92c_detach_private(struct rtwn_softc *sc)
 {

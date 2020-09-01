@@ -25,7 +25,6 @@
 
 #include <dev/rtwn/rtl8192c/r92c_priv.h>
 
-
 /*
  * MAC initialization values.
  */
@@ -52,7 +51,6 @@ static const struct rtwn_mac_prog rtl8192ce_mac[] = {
 	{ 0x703, 0x87 }, { 0x708, 0x21 }, { 0x709, 0x43 }, { 0x70a, 0x65 },
 	{ 0x70b, 0x87 }
 };
-
 
 /*
  * Baseband initialization values.

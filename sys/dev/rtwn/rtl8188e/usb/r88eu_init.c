@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/usb/r88eu.h>
 #include <dev/rtwn/rtl8188e/usb/r88eu_reg.h>
 
-
 void
 r88eu_init_bb(struct rtwn_softc *sc)
 {

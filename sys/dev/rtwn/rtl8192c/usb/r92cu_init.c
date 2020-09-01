@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/usb/r92cu.h>
 #include <dev/rtwn/rtl8192c/usb/r92cu_reg.h>
 
-
 void
 r92cu_init_bb(struct rtwn_softc *sc)
 {

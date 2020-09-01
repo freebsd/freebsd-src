@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/usb/r92cu.h>
 
-
 void
 r92cu_set_led(struct rtwn_softc *sc, int led, int on)
 {
