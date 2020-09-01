@@ -154,13 +154,13 @@ MALLOC_DECLARE(M_QLA83XXBUF);
 		else  \
 			pause(fn, qla_ms_to_hz(msecs)); \
 	}
-	
+
 /*
  * Locks
  */
 #define QLA_LOCK(ha, str, to_ms, no_sleep)	qla_lock(ha, str, to_ms, no_sleep)
 #define QLA_UNLOCK(ha, str)			qla_unlock(ha, str)
- 
+
 /*
  * structure encapsulating a DMA buffer
  */
@@ -173,6 +173,5 @@ struct qla_dma {
         bus_dma_tag_t           dma_tag;
 };
 typedef struct qla_dma qla_dma_t;
-
 
 #endif /* #ifndef _QL_OS_H_ */

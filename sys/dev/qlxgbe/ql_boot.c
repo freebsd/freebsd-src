@@ -10962,4 +10962,3 @@ unsigned char ql83xx_bootloader[] = {
   0x00, 0x00, 0x00, 0x00, 0x9b, 0x64, 0x92, 0x0e
 };
 unsigned int ql83xx_bootloader_len = 131072;
-

@@ -35,7 +35,6 @@
 #ifndef _QL_TMPLT_H_
 #define _QL_TMPLT_H_
 
-
 typedef struct _q8_tmplt_hdr {
 	uint16_t	version;
 	uint16_t	signature;
@@ -46,7 +45,6 @@ typedef struct _q8_tmplt_hdr {
 	uint16_t	init_seq_off;
 	uint16_t	start_seq_off;
 } __packed q8_tmplt_hdr_t;
-
 
 typedef struct _q8_ce_hdr {
 	uint16_t	opcode;

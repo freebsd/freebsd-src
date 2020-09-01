@@ -35,9 +35,7 @@
 #ifndef _QL_INLINE_H_
 #define _QL_INLINE_H_
 
-
 #define QL8_SEMLOCK_TIMEOUT	1000/* QLA8020 Semaphore Lock Timeout 10ms */
-
 
 /*
  * Inline functions for hardware semaphores

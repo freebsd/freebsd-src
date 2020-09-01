@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "ql_os.h"
 #include "ql_hw.h"
 #include "ql_def.h"
@@ -53,7 +52,6 @@ qla_rcv_error(qla_host_t *ha)
 	ha->stop_rcv = 1;
 	QL_INITIATE_RECOVERY(ha);
 }
-
 
 /*
  * Name: qla_rx_intr
@@ -76,12 +74,12 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 
 	if (ha->hw.num_rds_rings > 1)
 		r_idx = sds_idx;
-	
+
 	ha->hw.rds[r_idx].count++;
 
 	sdsp = &ha->hw.sds[sds_idx];
 	rx_ring = &ha->rx_ring[r_idx];
-	
+
 	for (i = 0; i < sgc->num_handles; i++) {
 		rxb = &rx_ring->rx_buf[sgc->handle[i] & 0x7FFF];
 
@@ -112,7 +110,7 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 		rxb->next = sdsp->rxb_free;
 		sdsp->rxb_free = rxb;
 		sdsp->rx_free++;
-	
+
 		if ((mp == NULL) || QL_ERR_INJECT(ha, INJCT_RX_MP_NULL)) {
 			/* log the error */
 			device_printf(ha->pci_dev,
@@ -176,7 +174,6 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 #endif /* #if __FreeBSD_version >= 1100000 */
 
 	if (ha->hw.enable_soft_lro) {
-
 #if (__FreeBSD_version >= 1100101)
 
 		tcp_lro_queue_mbuf(lro, mpf);
@@ -186,7 +183,6 @@ qla_rx_intr(qla_host_t *ha, qla_sgl_rcv_t *sgc, uint32_t sds_idx)
 			(*ifp->if_input)(ifp, mpf);
 
 #endif /* #if (__FreeBSD_version >= 1100101) */
-
 
 	} else {
 		(*ifp->if_input)(ifp, mpf);
@@ -227,11 +223,11 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
 	ha->hw.rds[r_idx].count++;
 
 	rx_ring = &ha->rx_ring[r_idx];
-	
+
 	ha->hw.rds[r_idx].lro_pkt_count++;
 
 	sdsp = &ha->hw.sds[sds_idx];
-	
+
 	pkt_length = sgc->payload_length + sgc->l4_offset;
 
 	if (sgc->flags & Q8_LRO_COMP_TS) {
@@ -271,7 +267,7 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
 		rxb->next = sdsp->rxb_free;
 		sdsp->rxb_free = rxb;
 		sdsp->rx_free++;
-	
+
 		if ((mp == NULL) || QL_ERR_INJECT(ha, INJCT_LRO_MP_NULL)) {
 			/* log the error */
 			device_printf(ha->pci_dev,
@@ -325,7 +321,7 @@ qla_lro_intr(qla_host_t *ha, qla_sgl_lro_t *sgc, uint32_t sds_idx)
 
 	if (etype == ETHERTYPE_IP) {
 		ip = (struct ip *)(mpf->m_data + ETHER_HDR_LEN);
-	
+
 		iplen = (ip->ip_hl << 2) + (th->th_off << 2) +
 				sgc->payload_length;
 
@@ -408,7 +404,6 @@ qla_rcv_cont_sds(qla_host_t *ha, uint32_t sds_idx, uint32_t comp_idx,
 			num_handles = -1;
 
 		switch (num_handles) {
-
 		case 1:
 			*handle++ = Q8_SGL_STAT_DESC_HANDLE1((sdesc->data[0]));
 			break;
@@ -512,7 +507,6 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 	comp_idx = hw->sds[sds_idx].sdsr_next;
 
 	while (count-- && !ha->stop_rcv) {
-
 		sdesc = (q80_stat_desc_t *)
 				&hw->sds[sds_idx].sds_ring_base[comp_idx];
 
@@ -522,7 +516,6 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 			break;
 
 		switch (opcode) {
-
 		case Q8_STAT_DESC_OPCODE_RCV_PKT:
 
 			desc_count = 1;
@@ -714,7 +707,6 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 
 		sds_replenish_threshold += desc_count;
 
-
 		while (desc_count--) {
 			sdesc->data[0] = 0ULL;
 			sdesc->data[1] = 0ULL;
@@ -752,7 +744,6 @@ ql_rcv_isr(qla_host_t *ha, uint32_t sds_idx, uint32_t count)
 		}
 
 #endif /* #if (__FreeBSD_version >= 1100101) */
-
 	}
 
 	if (ha->stop_rcv)
@@ -811,7 +802,6 @@ ql_mbx_isr(void *arg)
 	data = data & 0xFFFF;
 
 	switch (data) {
-
 	case 0x8001:  /* It's an AEN */
 		
 		ha->hw.cable_oui = READ_REG32(ha, (Q8_FW_MBOX0 + 4));
@@ -839,7 +829,6 @@ ql_mbx_isr(void *arg)
 			else
 				if_link_state_change(ha->ifp, LINK_STATE_DOWN);
 		}
-
 
 		ha->hw.module_type = ((data >> 8) & 0xFF);
 		ha->hw.fduplex = (((data & 0xFF0000) == 0) ? 0 : 1);
@@ -921,7 +910,6 @@ ql_mbx_isr(void *arg)
 	WRITE_REG32(ha, ha->hw.mbx_intr_mask_offset, 0x0);
 	return;
 }
-
 
 static void
 qla_replenish_normal_rx(qla_host_t *ha, qla_sds_t *sdsp, uint32_t r_idx)
@@ -1009,4 +997,3 @@ ql_isr(void *arg)
 
 	return;
 }
-
