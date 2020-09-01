@@ -46,7 +46,6 @@ extern void qla_dump_buf16(qla_host_t *ha, char *str, void *dbuf,
 extern void qla_dump_buf32(qla_host_t *ha, char *str, void *dbuf,
 		uint32_t len32);
 
-
 #define DBG 1
 
 #if DBG

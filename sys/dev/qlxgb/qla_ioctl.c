@@ -94,7 +94,6 @@ qla_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	pci_dev= ha->pci_dev;
 
         switch(cmd) {
-
         case QLA_RDWR_REG:
 
                 rv = (qla_reg_val_t *)data;
@@ -125,7 +124,6 @@ qla_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
                         rval = ENXIO;
                 break;
 
-
 	case QLA_ERASE_FLASH:
 		if (qla_erase_flash(ha, ((qla_erase_flash_t *)data)->off,
 			((qla_erase_flash_t *)data)->size))
@@ -147,4 +145,3 @@ qla_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
         return rval;
 }
-
