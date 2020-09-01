@@ -105,7 +105,6 @@ struct wmt_hid_map_item {
 };
 
 static const struct wmt_hid_map_item wmt_hid_map[WMT_N_USAGES] = {
-
 	[WMT_TIP_SWITCH] = {	/* WMT_SLOT */
 		.name = "TIP",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_SWITCH),
@@ -246,7 +245,6 @@ static const struct evdev_methods wmt_evdev_methods = {
 };
 
 static const struct usb_config wmt_config[WMT_N_TRANSFER] = {
-
 	[WMT_INTR_DT] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -423,7 +421,6 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 
 	/* Use protocol Type B for reporting events */
 	for (cont = 0; cont < nconts; cont++) {
-
 		bzero(slot_data, sizeof(sc->slot_data));
 		WMT_FOREACH_USAGE(sc->caps, usage) {
 			if (sc->locs[cont][usage].size > 0)

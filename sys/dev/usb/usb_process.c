@@ -123,7 +123,6 @@ usb_process(void *arg)
 	up->up_curtd = td;
 
 	while (1) {
-
 		if (up->up_gone)
 			break;
 
@@ -450,7 +449,6 @@ usb_proc_drain(struct usb_process *up)
 	up->up_gone = 1;
 
 	while (up->up_ptr) {
-
 		/* Check if we need to wakeup the USB process */
 
 		if (up->up_msleep || up->up_csleep) {

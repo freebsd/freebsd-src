@@ -156,7 +156,6 @@ DRIVER_MODULE(g_modem, uhub, g_modem_driver, g_modem_devclass, 0, 0);
 MODULE_DEPEND(g_modem, usb, 1, 1, 1);
 
 static const struct usb_config g_modem_config[G_MODEM_N_TRANSFER] = {
-
 	[G_MODEM_INTR_DT] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -403,7 +402,6 @@ g_modem_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		if (sc->sc_mode == G_MODEM_MODE_PATTERN) {
-
 			mod = sc->sc_pattern_len;
 			max = sc->sc_tx_interval ? mod : G_MODEM_BUFSIZE;
 
@@ -421,7 +419,6 @@ tr_setup:
 			usbd_transfer_submit(xfer);
 
 		} else if (sc->sc_mode == G_MODEM_MODE_LOOP) {
-
 			if (sc->sc_tx_busy == 0)
 				break;
 
@@ -500,7 +497,6 @@ tr_setup:
 	}
 }
 
-
 static int
 g_modem_handle_request(device_t dev,
     const void *preq, void **pptr, uint16_t *plen,
@@ -515,7 +511,6 @@ g_modem_handle_request(device_t dev,
 		    (req->bRequest == UCDC_SET_LINE_CODING) &&
 		    (req->wValue[0] == 0x00) &&
 		    (req->wValue[1] == 0x00)) {
-
 			if (offset == 0) {
 				*plen = sizeof(sc->sc_line_coding);
 				*pptr = &sc->sc_line_coding;
@@ -525,7 +520,6 @@ g_modem_handle_request(device_t dev,
 			return (0);
 		} else if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
 		    (req->bRequest == UCDC_SET_COMM_FEATURE)) {
-
 			if (offset == 0) {
 				*plen = sizeof(sc->sc_abstract_state);
 				*pptr = &sc->sc_abstract_state;

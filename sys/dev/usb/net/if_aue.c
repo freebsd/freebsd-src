@@ -229,7 +229,6 @@ static int	aue_ifmedia_upd(struct ifnet *);
 static void	aue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static const struct usb_config aue_config[AUE_N_TRANSFER] = {
-
 	[AUE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -755,7 +754,6 @@ aue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 		    actlen >= (int)sizeof(pkt)) {
-
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
 
@@ -800,13 +798,11 @@ aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(11, "received %d bytes\n", actlen);
 
 		if (sc->sc_flags & AUE_FLAG_VER_2) {
-
 			if (actlen == 0) {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 		} else {
-
 			if (actlen <= (int)(sizeof(stat) + ETHER_CRC_LEN)) {
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
@@ -883,13 +879,11 @@ tr_setup:
 		if (m->m_pkthdr.len > MCLBYTES)
 			m->m_pkthdr.len = MCLBYTES;
 		if (sc->sc_flags & AUE_FLAG_VER_2) {
-
 			usbd_xfer_set_frame_len(xfer, 0, m->m_pkthdr.len);
 
 			usbd_m_copy_in(pc, 0, m, 0, m->m_pkthdr.len);
 
 		} else {
-
 			usbd_xfer_set_frame_len(xfer, 0, (m->m_pkthdr.len + 2));
 
 			/*

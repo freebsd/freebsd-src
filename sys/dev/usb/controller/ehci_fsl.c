@@ -83,7 +83,6 @@ static device_method_t ehci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	{ 0, 0 }
 };
 
@@ -426,4 +425,3 @@ fsl_ehci_detach(device_t self)
 
 	return (0);
 }
-

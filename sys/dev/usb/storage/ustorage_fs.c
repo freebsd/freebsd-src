@@ -165,7 +165,6 @@ typedef struct {
 #define	USTORAGE_FS_BBB_CSW_SIZE	13
 
 struct ustorage_fs_lun {
-
 	uint8_t	*memory_image;
 
 	uint32_t num_sectors;
@@ -180,7 +179,6 @@ struct ustorage_fs_lun {
 };
 
 struct ustorage_fs_softc {
-
 	ustorage_fs_bbb_cbw_t *sc_cbw;	/* Command Wrapper Block */
 	ustorage_fs_bbb_csw_t *sc_csw;	/* Command Status Block */
 	void *sc_dma_ptr;		/* Main data buffer */
@@ -275,7 +273,6 @@ MODULE_VERSION(ustorage_fs, 0);
 MODULE_DEPEND(ustorage_fs, usb, 1, 1, 1);
 
 static struct usb_config ustorage_fs_bbb_config[USTORAGE_FS_T_BBB_MAX] = {
-
 	[USTORAGE_FS_T_BBB_COMMAND] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -1488,7 +1485,6 @@ static uint8_t
 ustorage_fs_min_len(struct ustorage_fs_softc *sc, uint32_t len, uint32_t mask)
 {
 	if (len != sc->sc_transfer.data_rem) {
-
 		if (sc->sc_transfer.cbw_dir == DIR_READ) {
 			/*
 			 * there must be something wrong about this SCSI
@@ -1545,7 +1541,6 @@ ustorage_fs_check_cmd(struct ustorage_fs_softc *sc, uint8_t min_cmd_size,
 
 	/* Check if LUN is correct */
 	if (lun != sc->sc_transfer.lun) {
-
 	}
 	/* Check the LUN */
 	if (sc->sc_transfer.lun <= sc->sc_last_lun) {

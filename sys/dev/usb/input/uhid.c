@@ -338,7 +338,6 @@ uhid_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 
 		if (usb_fifo_put_bytes_max(sc->sc_fifo.fp[USB_FIFO_RX]) > 0) {
-
 			uhid_fill_get_report
 			    (&req, sc->sc_iface_no, UHID_INPUT_REPORT,
 			    sc->sc_iid, sc->sc_isize);
@@ -360,7 +359,6 @@ uhid_read_callback(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static const struct usb_config uhid_config[UHID_N_TRANSFER] = {
-
 	[UHID_INTR_DT_WR] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -569,7 +567,6 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			break;
 		}
 		if (*(int *)addr) {
-
 			/* do a test read */
 
 			error = uhid_get_report(sc, UHID_INPUT_REPORT,
@@ -746,17 +743,14 @@ uhid_attach(device_t dev)
 		goto detach;
 	}
 	if (uaa->info.idVendor == USB_VENDOR_WACOM) {
-
 		/* the report descriptor for the Wacom Graphire is broken */
 
 		if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE) {
-
 			sc->sc_repdesc_size = sizeof(uhid_graphire_report_descr);
 			sc->sc_repdesc_ptr = __DECONST(void *, &uhid_graphire_report_descr);
 			sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 
 		} else if (uaa->info.idProduct == USB_PRODUCT_WACOM_GRAPHIRE3_4X5) {
-
 			static uint8_t reportbuf[] = {2, 2, 2};
 
 			/*
@@ -797,7 +791,6 @@ uhid_attach(device_t dev)
 		sc->sc_flags |= UHID_FLAG_STATIC_DESC;
 	}
 	if (sc->sc_repdesc_ptr == NULL) {
-
 		error = usbd_req_get_hid_desc(uaa->device, NULL,
 		    &sc->sc_repdesc_ptr, &sc->sc_repdesc_size,
 		    M_USBDEV, uaa->info.bIfaceIndex);

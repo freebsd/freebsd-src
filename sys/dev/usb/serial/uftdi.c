@@ -214,7 +214,6 @@ static void	uftdi_stop_write(struct ucom_softc *);
 static void	uftdi_poll(struct ucom_softc *ucom);
 
 static const struct usb_config uftdi_config[UFTDI_N_TRANSFER] = {
-
 	[UFTDI_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -1101,7 +1100,6 @@ uftdi_attach(device_t dev)
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
-
 
 	uftdi_devtype_setup(sc, uaa);
 

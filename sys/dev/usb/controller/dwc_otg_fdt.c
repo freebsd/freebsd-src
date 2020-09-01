@@ -107,7 +107,6 @@ dwc_otg_attach(device_t dev)
 	/* get USB mode, if any */
 	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode",
 	    &usb_mode, sizeof(usb_mode)) > 0) {
-
 		/* ensure proper zero termination */
 		usb_mode[sizeof(usb_mode) - 1] = 0;
 

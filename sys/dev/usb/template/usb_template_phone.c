@@ -388,7 +388,6 @@ phone_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 	if ((req->bmRequestType == 0x81) && (req->bRequest == 0x06) &&
 	    (req->wValue[0] == 0x00) && (req->wValue[1] == 0x22) &&
 	    (req->wIndex[1] == 0) && (req->wIndex[0] == 3 /* iface */)) {
-
 		*plen = sizeof(phone_hid_descriptor);
 		return (phone_hid_descriptor);
 	}

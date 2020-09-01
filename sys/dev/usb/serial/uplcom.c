@@ -204,7 +204,6 @@ static usb_callback_t uplcom_write_callback;
 static usb_callback_t uplcom_read_callback;
 
 static const struct usb_config uplcom_config_data[UPLCOM_N_TRANSFER] = {
-
 	[UPLCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -601,7 +600,7 @@ uplcom_pl2303_init(struct usb_device *udev, uint8_t chiptype)
 		err = uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 2, 0x24, 0);
 	if (err)
 		return (EIO);
-	
+
 	return (0);
 }
 
@@ -870,7 +869,6 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	    &req, &ls, 0, 1000);
 
 	if (t->c_cflag & CRTSCTS) {
-
 		DPRINTF("crtscts = on\n");
 
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
@@ -962,7 +960,6 @@ uplcom_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("actlen = %u\n", actlen);
 
 		if (actlen >= 9) {
-
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, buf, sizeof(buf));
 
@@ -1027,7 +1024,6 @@ tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UPLCOM_BULK_BUF_SIZE, &actlen)) {
-
 			DPRINTF("actlen = %d\n", actlen);
 
 			usbd_xfer_set_frame_len(xfer, 0, actlen);

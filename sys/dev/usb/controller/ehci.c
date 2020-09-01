@@ -455,7 +455,6 @@ ehci_init(ehci_softc_t *sc)
 		sitd->sitd_next =
 		    sc->sc_intr_p_last[i | (EHCI_VIRTUAL_FRAMELIST_COUNT / 2)]->qh_self;
 
-
 		usbd_get_page(sc->sc_hw.isoc_hs_start_pc + i, 0, &buf_res);
 
 		itd = buf_res.buffer;
@@ -498,7 +497,6 @@ ehci_init(ehci_softc_t *sc)
 	usbd_get_page(&sc->sc_hw.async_start_pc, 0, &buf_res);
 
 	if (1) {
-
 		ehci_qh_t *qh;
 
 		qh = buf_res.buffer;
@@ -1053,7 +1051,6 @@ _ehci_remove_qh(ehci_qh_t *sqh, ehci_qh_t *last)
 
 	/* only remove if not removed from a queue */
 	if (sqh->prev) {
-
 		sqh->prev->next = sqh->next;
 		sqh->prev->qh_link = sqh->qh_link;
 
@@ -1110,7 +1107,6 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 		usbd_xfer_set_frame_len(xfer, xfer->aframes, 0);
 	}
 	while (1) {
-
 		usb_pc_cpu_invalidate(td->page_cache);
 		status = hc32toh(sc, td->qtd_status);
 
@@ -1220,9 +1216,7 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 	xfer->td_transfer_cache = xfer->td_transfer_first;
 
 	if (xfer->flags_int.control_xfr) {
-
 		if (xfer->flags_int.control_hdr) {
-
 			err = ehci_non_isoc_done_sub(xfer);
 		}
 		xfer->aframes = 1;
@@ -1232,7 +1226,6 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 		}
 	}
 	while (xfer->aframes != xfer->nframes) {
-
 		err = ehci_non_isoc_done_sub(xfer);
 		xfer->aframes++;
 
@@ -1243,7 +1236,6 @@ ehci_non_isoc_done(struct usb_xfer *xfer)
 
 	if (xfer->flags_int.control_xfr &&
 	    !xfer->flags_int.control_act) {
-
 		err = ehci_non_isoc_done_sub(xfer);
 	}
 done:
@@ -1580,9 +1572,7 @@ restart:
 	td_next = temp->td_next;
 
 	while (1) {
-
 		if (temp->len == 0) {
-
 			if (temp->shortpkt) {
 				break;
 			}
@@ -1592,7 +1582,6 @@ restart:
 			average = 0;
 
 		} else {
-
 			average = temp->average;
 
 			if (temp->len < average) {
@@ -1614,7 +1603,6 @@ restart:
 		/* check if we are pre-computing */
 
 		if (precompute) {
-
 			/* update remaining length */
 
 			temp->len -= average;
@@ -1629,9 +1617,7 @@ restart:
 			EHCI_QTD_SET_BYTES(average));
 
 		if (average == 0) {
-
 			if (temp->auto_data_toggle == 0) {
-
 				/* update data toggle, ZLP case */
 
 				temp->qtd_status ^=
@@ -1651,11 +1637,9 @@ restart:
 			td->qtd_buffer_hi[3] = 0;
 			td->qtd_buffer_hi[4] = 0;
 		} else {
-
 			uint8_t x;
 
 			if (temp->auto_data_toggle == 0) {
-
 				/* update data toggle */
 
 				if (howmany(average, temp->max_frame_size) & 1) {
@@ -1802,7 +1786,6 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->flags_int.control_hdr) {
-
 			xfer->endpoint->toggle_next = 0;
 
 			temp.qtd_status &=
@@ -1831,7 +1814,6 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	}
 
 	while (x != xfer->nframes) {
-
 		/* DATA0 / DATA1 message */
 
 		temp.len = xfer->frlengths[x];
@@ -1858,13 +1840,11 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 		    EHCI_QTD_SET_TOGGLE(1));
 
 		if (temp.len == 0) {
-
 			/* make sure that we send an USB packet */
 
 			temp.shortpkt = 0;
 
 		} else {
-
 			/* regular data transfer */
 
 			temp.shortpkt = (xfer->flags.force_short_xfer) ? 0 : 1;
@@ -1886,7 +1866,6 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 
 	if (xfer->flags_int.control_xfr &&
 	    !xfer->flags_int.control_act) {
-
 		/*
 		 * Send a DATA1 message and invert the current endpoint
 		 * direction.
@@ -1948,7 +1927,6 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 		if (methods != &ehci_device_intr_methods)
 			qh_endp |= EHCI_QH_SET_NRL(8);
 	} else {
-
 		if (usbd_get_speed(xfer->xroot->udev) == USB_SPEED_FULL) {
 			qh_endp |= EHCI_QH_SET_EPS(EHCI_QH_SPEED_FULL);
 		} else {
@@ -2132,7 +2110,6 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 		DPRINTFN(2, "status=0x%08x, len=%u\n", status, len);
 
 		if (xfer->endpoint->usb_smask & (1 << td_no)) {
-
 			if (*plen >= len) {
 				/*
 				 * The length is valid. NOTE: The
@@ -2430,9 +2407,7 @@ ehci_device_isoc_fs_open(struct usb_xfer *xfer)
 	/* initialize all TD's */
 
 	for (ds = 0; ds != 2; ds++) {
-
 		for (td = xfer->td_start[ds]; td; td = td->obj_next) {
-
 			td->sitd_portaddr = sitd_portaddr;
 
 			/*
@@ -2713,9 +2688,7 @@ ehci_device_isoc_hs_open(struct usb_xfer *xfer)
 	/* initialize all TD's */
 
 	for (ds = 0; ds != 2; ds++) {
-
 		for (td = xfer->td_start[ds]; td; td = td->obj_next) {
-
 			/* set TD inactive */
 			td->itd_status[0] = 0;
 			td->itd_status[1] = 0;
@@ -2883,7 +2856,6 @@ ehci_device_isoc_hs_enter(struct usb_xfer *xfer)
 		td_no++;
 
 		if ((td_no == 8) || (nframes == 0)) {
-
 			/* the rest of the transfers are not active, if any */
 			for (x = td_no; x != 8; x++) {
 				td->itd_status[x] = 0;	/* not active */
@@ -3254,7 +3226,6 @@ ehci_roothub_exec(struct usb_device *udev,
 			break;
 		case UHF_PORT_SUSPEND:
 			if ((v & EHCI_PS_SUSP) && (!(v & EHCI_PS_FPR))) {
-
 				/*
 				 * waking up a High Speed device is rather
 				 * complicated if
@@ -3514,7 +3485,6 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 	 * compute maximum number of some structures
 	 */
 	if (parm->methods == &ehci_device_ctrl_methods) {
-
 		/*
 		 * The proof for the "nqtd" formula is illustrated like
 		 * this:
@@ -3556,7 +3526,6 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 		    + (xfer->max_data_length / xfer->max_hc_frame_size));
 
 	} else if (parm->methods == &ehci_device_bulk_methods) {
-
 		parm->hc_max_packet_size = 0x400;
 		parm->hc_max_packet_count = 1;
 		parm->hc_max_frame_size = EHCI_QTD_PAYLOAD_MAX;
@@ -3569,7 +3538,6 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 		    + (xfer->max_data_length / xfer->max_hc_frame_size));
 
 	} else if (parm->methods == &ehci_device_intr_methods) {
-
 		if (parm->speed == USB_SPEED_HIGH) {
 			parm->hc_max_packet_size = 0x400;
 			parm->hc_max_packet_count = 3;
@@ -3591,7 +3559,6 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 		    + (xfer->max_data_length / xfer->max_hc_frame_size));
 
 	} else if (parm->methods == &ehci_device_isoc_fs_methods) {
-
 		parm->hc_max_packet_size = 0x3FF;
 		parm->hc_max_packet_count = 1;
 		parm->hc_max_frame_size = 0x3FF;
@@ -3602,7 +3569,6 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 		nsitd = xfer->nframes;
 
 	} else if (parm->methods == &ehci_device_isoc_hs_methods) {
-
 		parm->hc_max_packet_size = 0x400;
 		parm->hc_max_packet_count = 3;
 		parm->hc_max_frame_size = 0xC00;
@@ -3614,7 +3580,6 @@ ehci_xfer_setup(struct usb_setup_params *parm)
 		    usbd_xfer_get_fps_shift(xfer);
 
 	} else {
-
 		parm->hc_max_packet_size = 0x400;
 		parm->hc_max_packet_count = 1;
 		parm->hc_max_frame_size = 0x400;
@@ -3758,7 +3723,6 @@ ehci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	    sc->sc_addr);
 
 	if (udev->device_index != sc->sc_addr) {
-
 		if ((udev->speed != USB_SPEED_HIGH) &&
 		    ((udev->hs_hub_addr == 0) ||
 		    (udev->hs_port_no == 0) ||
@@ -3815,9 +3779,7 @@ ehci_device_resume(struct usb_device *udev)
 	USB_BUS_LOCK(udev->bus);
 
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-
 		if (xfer->xroot->udev == udev) {
-
 			methods = xfer->endpoint->methods;
 
 			if ((methods == &ehci_device_bulk_methods) ||
@@ -3849,9 +3811,7 @@ ehci_device_suspend(struct usb_device *udev)
 	USB_BUS_LOCK(udev->bus);
 
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-
 		if (xfer->xroot->udev == udev) {
-
 			methods = xfer->endpoint->methods;
 
 			if ((methods == &ehci_device_bulk_methods) ||

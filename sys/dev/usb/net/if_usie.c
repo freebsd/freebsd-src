@@ -496,7 +496,6 @@ usie_detach(device_t self)
 	for (x = 0; x != USIE_UCOM_MAX; x++)
 		usbd_transfer_unsetup(sc->sc_uc_xfer[x], USIE_UC_N_XFER);
 
-
 	device_claim_softc(self);
 
 	usie_free_softc(sc);
@@ -634,14 +633,12 @@ usie_uc_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* handle CnS response */
 		if (ucom == sc->sc_ucom && actlen >= USIE_HIPCNS_MIN) {
-
 			DPRINTF("transferred=%u\n", actlen);
 
 			/* check if it is really CnS reply */
 			usbd_copy_out(pc, 0, sc->sc_resp_temp, 1);
 
 			if (sc->sc_resp_temp[0] == USIE_HIP_FRM_CHR) {
-
 				/* verify actlen */
 				if (actlen > USIE_BUFSIZE)
 					actlen = USIE_BUFSIZE;
@@ -1522,7 +1519,6 @@ usie_hip_rsp(struct usie_softc *sc, uint8_t *rsp, uint32_t len)
 	uint8_t tmp[USIE_HIPCNS_MAX] __aligned(4);
 
 	for (off = 0; (off + USIE_HIPCNS_MIN) <= len; off++) {
-
 		uint8_t pad;
 
 		while ((off < len) && (rsp[off] == USIE_HIP_FRM_CHR))
@@ -1531,7 +1527,6 @@ usie_hip_rsp(struct usie_softc *sc, uint8_t *rsp, uint32_t len)
 		/* Unstuff the bytes */
 		for (i = j = 0; ((i + off) < len) &&
 		    (j < USIE_HIPCNS_MAX); i++) {
-
 			if (rsp[i + off] == USIE_HIP_FRM_CHR)
 				break;
 
@@ -1619,4 +1614,3 @@ usie_driver_loaded(struct module *mod, int what, void *arg)
 	}
 	return (0);
 }
-

@@ -298,7 +298,6 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 
 	/* get next item */
 	while (s->p != s->end) {
-
 		bSize = hid_get_byte(s, 1);
 		if (bSize == 0xfe) {
 			/* long item */

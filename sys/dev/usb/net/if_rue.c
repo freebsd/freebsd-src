@@ -162,7 +162,6 @@ static int	rue_ifmedia_upd(struct ifnet *);
 static void	rue_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static const struct usb_config rue_config[RUE_N_TRANSFER] = {
-
 	[RUE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -654,7 +653,6 @@ rue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if (ifp && (ifp->if_drv_flags & IFF_DRV_RUNNING) &&
 		    actlen >= (int)sizeof(pkt)) {
-
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
 

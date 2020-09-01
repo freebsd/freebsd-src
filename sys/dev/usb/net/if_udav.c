@@ -120,7 +120,6 @@ static miibus_writereg_t udav_miibus_writereg;
 static miibus_statchg_t udav_miibus_statchg;
 
 static const struct usb_config udav_config[UDAV_N_TRANSFER] = {
-
 	[UDAV_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,

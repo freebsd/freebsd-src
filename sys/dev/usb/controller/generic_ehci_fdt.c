@@ -71,7 +71,6 @@ struct clk_list {
 	clk_t			clk;
 };
 
-
 struct hwrst_list {
 	TAILQ_ENTRY(hwrst_list)	next;
 	hwreset_t		rst;

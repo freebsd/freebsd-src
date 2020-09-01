@@ -206,7 +206,6 @@ static usb_callback_t		cfumass_t_data_callback;
 static usb_callback_t		cfumass_t_status_callback;
 
 static device_method_t cfumass_methods[] = {
-
 	/* USB interface. */
 	DEVMETHOD(usb_handle_request, cfumass_handle_request),
 
@@ -234,7 +233,6 @@ MODULE_DEPEND(cfumass, usb, 1, 1, 1);
 MODULE_DEPEND(cfumass, usb_template, 1, 1, 1);
 
 static struct usb_config cfumass_config[CFUMASS_T_MAX] = {
-
 	[CFUMASS_T_COMMAND] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,

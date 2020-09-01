@@ -785,7 +785,6 @@ udl_select_chip(struct udl_softc *sc, struct usb_attach_arg *uaa)
 
 	if ((uaa->info.idVendor == USB_VENDOR_DISPLAYLINK) &&
 	    (uaa->info.idProduct == USB_PRODUCT_DISPLAYLINK_WSDVI)) {
-
 		/*
 		 * WS Tech DVI is DL120 or DL160. All deviced uses the
 		 * same revision (0.04) so iSerialNumber must be used
@@ -801,7 +800,6 @@ udl_select_chip(struct udl_softc *sc, struct usb_attach_arg *uaa)
 	}
 	if ((uaa->info.idVendor == USB_VENDOR_DISPLAYLINK) &&
 	    (uaa->info.idProduct == USB_PRODUCT_DISPLAYLINK_SWDVI)) {
-
 		/*
 		 * SUNWEIT DVI is DL160, DL125, DL165 or DL195. Major revision
 		 * can be used to differ between DL1x0 and DL1x5. Minor to

@@ -659,7 +659,7 @@ rsu_do_request(struct rsu_softc *sc, struct usb_device_request *req,
 {
 	usb_error_t err;
 	int ntries = 10;
-	
+
 	RSU_ASSERT_LOCKED(sc);
 
 	while (ntries--) {
@@ -1894,7 +1894,7 @@ rsu_site_survey(struct rsu_softc *sc, struct ieee80211_scan_ssid *ssid)
 	if (sc->sc_active_scan)
 		cmd.active = htole32(1);
 	cmd.limit = htole32(48);
-	
+
 	if (ssid != NULL) {
 		sc->sc_extra_scan = 1;
 		cmd.ssidlen = htole32(ssid->len);
@@ -2330,7 +2330,7 @@ rsu_rx_copy_to_mbuf(struct rsu_softc *sc, struct r92s_rx_stat *stat,
 	/* Finalize mbuf. */
 	memcpy(mtod(m, uint8_t *), (uint8_t *)stat, totlen);
 	m->m_pkthdr.len = m->m_len = totlen;
- 
+
 	return (m);
 fail:
 	counter_u64_add(ic->ic_ierrors, 1);
@@ -3526,7 +3526,6 @@ rsu_load_firmware(struct rsu_softc *sc)
 	firmware_put(fw, FIRMWARE_UNLOAD);
 	return (error);
 }
-
 
 static int	
 rsu_raw_xmit(struct ieee80211_node *ni, struct mbuf *m, 

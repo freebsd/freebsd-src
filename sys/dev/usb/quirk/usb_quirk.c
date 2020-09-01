@@ -1049,7 +1049,7 @@ usb_quirk_init(void *arg)
 		/* parse environment variable */
 		usb_quirk_add_entry_from_str(envkey, kern_getenv(envkey));
 	}
-	
+
 	/* register our function */
 	usb_test_quirk_p = &usb_test_quirk_by_info;
 	usb_quirk_ioctl_p = &usb_quirk_ioctl;

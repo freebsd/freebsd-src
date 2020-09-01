@@ -439,7 +439,6 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 	/* search for a free FIFO slot */
 	DPRINTFN(5, "Endpoint device, searching for 0x%02x\n", e);
 	for (n = 0;; n += 2) {
-
 		if (n == USB_FIFO_MAX) {
 			if (no_null) {
 				no_null = 0;
@@ -532,7 +531,6 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 	/* Check RX FIFO */
 	if (is_rx &&
 	    (udev->fifo[n + USB_FIFO_RX] == NULL)) {
-
 		ep = usb_dev_get_ep(udev, e, USB_FIFO_RX);
 		DPRINTFN(5, "dev_get_endpoint(%d, 0x%x)\n", e, USB_FIFO_RX);
 		if (ep == NULL) {
@@ -813,9 +811,7 @@ usb_fifo_close(struct usb_fifo *f, int fflags)
 
 	/* flush written data, if any */
 	if ((f->fifo_index & 1) == USB_FIFO_TX) {
-
 		if (!f->flag_iserror) {
-
 			/* set flushing flag */
 			f->flag_flushing = 1;
 
@@ -1121,7 +1117,6 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 	/* Wait for re-enumeration, if any */
 
 	while (f->udev->re_enumerate_wait != USB_RE_ENUM_DONE) {
-
 		usb_unref_device(cpd, &refs);
 
 		usb_pause_mtx(NULL, hz / 128);
@@ -1246,7 +1241,6 @@ static struct filterops usb_filtops_read = {
 	.f_event = usb_filter_read,
 };
 
-
 /* ARGSUSED */
 static int
 usb_kqfilter(struct cdev* dev, struct knote *kn)
@@ -1318,7 +1312,6 @@ usb_poll(struct cdev* dev, int events, struct thread* td)
 	revents = 0;
 	if ((events & (POLLOUT | POLLWRNORM)) &&
 	    (fflags & FWRITE)) {
-
 		f = refs.txfifo;
 
 		mtx_lock(f->priv_mtx);
@@ -1357,7 +1350,6 @@ usb_poll(struct cdev* dev, int events, struct thread* td)
 	}
 	if ((events & (POLLIN | POLLRDNORM)) &&
 	    (fflags & FREAD)) {
-
 		f = refs.rxfifo;
 
 		mtx_lock(f->priv_mtx);
@@ -1446,11 +1438,9 @@ usb_read(struct cdev *dev, struct uio *uio, int ioflag)
 		goto done;
 	}
 	while (uio->uio_resid > 0) {
-
 		USB_IF_DEQUEUE(&f->used_q, m);
 
 		if (m == NULL) {
-
 			/* start read transfer, if not already started */
 
 			(f->methods->f_start_read) (f);
@@ -1493,7 +1483,6 @@ usb_read(struct cdev *dev, struct uio *uio, int ioflag)
 		m->cur_data_ptr += io_len;
 
 		if (m->cur_data_len == 0) {
-
 			uint8_t last_packet;
 
 			last_packet = m->last_packet;
@@ -1574,7 +1563,6 @@ usb_write(struct cdev *dev, struct uio *uio, int ioflag)
 		USB_IF_DEQUEUE(&f->free_q, m);
 
 		if (m == NULL) {
-
 			if (ioflag & IO_NDELAY) {
 				if (tr_data) {
 					/* return length before error */
@@ -1851,7 +1839,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 	/* search for a free FIFO slot */
 	for (n = 0;; n += 2) {
-
 		if (n == USB_FIFO_MAX) {
 			/* end of FIFOs reached */
 			return (ENOMEM);
@@ -1900,7 +1887,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 	mtx_unlock(&usb_ref_lock);
 
 	for (n = 0; n != 4; n++) {
-
 		if (pm->basename[n] == NULL) {
 			continue;
 		}
@@ -2037,7 +2023,6 @@ usb_fifo_put_data(struct usb_fifo *f, struct usb_page_cache *pc,
 	usb_frlength_t io_len;
 
 	while (len || (what == 1)) {
-
 		USB_IF_DEQUEUE(&f->free_q, m);
 
 		if (m) {
@@ -2075,7 +2060,6 @@ usb_fifo_put_data_linear(struct usb_fifo *f, void *ptr,
 	usb_size_t io_len;
 
 	while (len || (what == 1)) {
-
 		USB_IF_DEQUEUE(&f->free_q, m);
 
 		if (m) {
@@ -2152,11 +2136,9 @@ usb_fifo_get_data(struct usb_fifo *f, struct usb_page_cache *pc,
 	actlen[0] = 0;
 
 	while (1) {
-
 		USB_IF_DEQUEUE(&f->used_q, m);
 
 		if (m) {
-
 			tr_data = 1;
 
 			io_len = MIN(len, m->cur_data_len);
@@ -2181,7 +2163,6 @@ usb_fifo_get_data(struct usb_fifo *f, struct usb_page_cache *pc,
 				USB_IF_PREPEND(&f->used_q, m);
 			}
 		} else {
-
 			if (tr_data) {
 				/* wait for data to be written out */
 				break;
@@ -2217,11 +2198,9 @@ usb_fifo_get_data_linear(struct usb_fifo *f, void *ptr,
 	actlen[0] = 0;
 
 	while (1) {
-
 		USB_IF_DEQUEUE(&f->used_q, m);
 
 		if (m) {
-
 			tr_data = 1;
 
 			io_len = MIN(len, m->cur_data_len);
@@ -2246,7 +2225,6 @@ usb_fifo_get_data_linear(struct usb_fifo *f, void *ptr,
 				USB_IF_PREPEND(&f->used_q, m);
 			}
 		} else {
-
 			if (tr_data) {
 				/* wait for data to be written out */
 				break;
@@ -2354,7 +2332,6 @@ usb_read_symlink(uint8_t *user_ptr, uint32_t startentry, uint32_t user_len)
 	sx_xlock(&usb_sym_lock);
 
 	TAILQ_FOREACH(ps, &usb_sym_head, sym_entry) {
-
 		/*
 		 * Compute total length of source and destination symlink
 		 * strings pluss one length byte and two NUL bytes:
@@ -2426,7 +2403,6 @@ usb_read_symlink(uint8_t *user_ptr, uint32_t startentry, uint32_t user_len)
 	/* a zero length entry indicates the end */
 
 	if ((user_len != 0) && (error == 0)) {
-
 		len = 0;
 
 		error = copyout(&len,

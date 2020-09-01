@@ -370,7 +370,6 @@ typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
 #define	NO_PREVENT_ALLOW	0x8000
 
 struct umass_softc {
-
 	struct scsi_sense cam_scsi_sense;
 	struct scsi_test_unit_ready cam_scsi_test_unit_ready;
 	struct mtx sc_mtx;
@@ -493,7 +492,6 @@ static void	umass_dump_buffer(struct umass_softc *, uint8_t *, uint32_t,
 #endif
 
 static struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
-
 	[UMASS_T_BBB_RESET1] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
@@ -583,7 +581,6 @@ static struct usb_config umass_bbb_config[UMASS_T_BBB_MAX] = {
 };
 
 static struct usb_config umass_cbi_config[UMASS_T_CBI_MAX] = {
-
 	[UMASS_T_CBI_RESET1] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
@@ -975,7 +972,6 @@ umass_attach(device_t dev)
 	/* allocate all required USB transfers */
 
 	if (sc->sc_proto & UMASS_PROTO_BBB) {
-
 		err = usbd_transfer_setup(uaa->device,
 		    &uaa->info.bIfaceIndex, sc->sc_xfer, umass_bbb_config,
 		    UMASS_T_BBB_MAX, sc, &sc->sc_mtx);
@@ -984,7 +980,6 @@ umass_attach(device_t dev)
 		sc->sc_last_xfer_index = UMASS_T_BBB_COMMAND;
 
 	} else if (sc->sc_proto & (UMASS_PROTO_CBI | UMASS_PROTO_CBI_I)) {
-
 		err = usbd_transfer_setup(uaa->device,
 		    &uaa->info.bIfaceIndex, sc->sc_xfer, umass_cbi_config,
 		    UMASS_T_CBI_MAX, sc, &sc->sc_mtx);
@@ -1162,7 +1157,6 @@ umass_tr_error(struct usb_xfer *xfer, usb_error_t error)
 	struct umass_softc *sc = usbd_xfer_softc(xfer);
 
 	if (error != USB_ERR_CANCELLED) {
-
 		DPRINTF(sc, UDMASS_GEN, "transfer error, %s -> "
 		    "reset\n", usbd_errstr(error));
 	}
@@ -1282,7 +1276,6 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 		sc->sc_status_try = 0;
 
 		if (ccb) {
-
 			/*
 		         * the initial value is not important,
 		         * as long as the values are unique:
@@ -1500,7 +1493,6 @@ umass_t_bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		}
 		/* translate weird command-status signatures: */
 		if (sc->sc_quirks & WRONG_CSWSIG) {
-
 			uint32_t temp = UGETDW(sc->csw.dCSWSignature);
 
 			if ((temp == CSWSIGNATURE_OLYMPUS_C1) ||
@@ -1803,7 +1795,6 @@ umass_t_cbi_command_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 
 		if (ccb) {
-
 			/*
 		         * do a CBI transfer with cmd_len bytes from
 		         * cmd_data, possibly a data phase of data_len
@@ -2000,7 +1991,6 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* dissect the information in the buffer */
 
 		if (sc->sc_proto & UMASS_PROTO_UFI) {
-
 			/*
 			 * Section 3.4.3.1.3 specifies that the UFI command
 			 * protocol returns an ASC and ASCQ in the interrupt
@@ -2025,14 +2015,12 @@ umass_t_cbi_status_callback(struct usb_xfer *xfer, usb_error_t error)
 			break;
 
 		} else {
-
 			/* Command Interrupt Data Block */
 
 			DPRINTF(sc, UDMASS_CBI, "type=0x%02x, value=0x%02x\n",
 			    sc->sbl.common.type, sc->sbl.common.value);
 
 			if (sc->sbl.common.type == IDB_TYPE_CCI) {
-
 				status = (sc->sbl.common.value & IDB_VALUE_STATUS_MASK);
 
 				status = ((status == IDB_VALUE_PASS) ? STATUS_CMD_OK :
@@ -2213,7 +2201,6 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 			 * "sc->sc_transfer.cmd_data"
 			 */
 			if (umass_std_transform(sc, ccb, cmd, ccb->csio.cdb_len)) {
-
 				if (sc->sc_transfer.cmd_data[0] == INQUIRY) {
 					const char *pserial;
 
@@ -2245,7 +2232,6 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					if ((sc->sc_quirks & (NO_INQUIRY_EVPD | NO_INQUIRY)) &&
 					    (sc->sc_transfer.cmd_data[1] & SI_EVPD)) {
-
 						scsi_set_sense_data(&ccb->csio.sense_data,
 							/*sense_format*/ SSD_TYPE_NONE,
 							/*current_error*/ 1,
@@ -2440,7 +2426,6 @@ umass_cam_poll(struct cam_sim *sim)
 	usbd_transfer_poll(sc->sc_xfer, UMASS_T_MAX);
 }
 
-
 /* umass_cam_cb
  *	finalise a completed CAM command
  */
@@ -2501,7 +2486,6 @@ umass_cam_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 
 		if (umass_std_transform(sc, ccb, &sc->cam_scsi_sense.opcode,
 		    sizeof(sc->cam_scsi_sense))) {
-
 			if ((sc->sc_quirks & FORCE_SHORT_INQUIRY) &&
 			    (sc->sc_transfer.cmd_data[0] == INQUIRY)) {
 				ccb->csio.sense_len = SHORT_INQUIRY_LENGTH;

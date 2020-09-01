@@ -227,7 +227,6 @@ static void	umodem_find_data_iface(struct usb_attach_arg *uaa,
 		    uint8_t, uint8_t *, uint8_t *);
 
 static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
-
 	[UMODEM_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -359,7 +358,6 @@ umodem_attach(device_t dev)
 	cmd = umodem_get_desc(uaa, UDESC_CS_INTERFACE, UDESCSUB_CDC_CM);
 
 	if ((cmd == NULL) || (cmd->bLength < sizeof(*cmd))) {
-
 		cud = usbd_find_descriptor(uaa->device, NULL,
 		    uaa->info.bIfaceIndex, UDESC_CS_INTERFACE,
 		    0xFF, UDESCSUB_CDC_UNION, 0xFF);
@@ -411,7 +409,6 @@ umodem_attach(device_t dev)
 		iface = usbd_get_iface(uaa->device, i);
 
 		if (iface) {
-
 			id = usbd_get_interface_descriptor(iface);
 
 			if (id && (id->bInterfaceNumber == sc->sc_data_iface_no)) {
@@ -430,7 +427,6 @@ umodem_attach(device_t dev)
 	} else {
 		if (sc->sc_cm_cap & USB_CDC_CM_OVER_DATA) {
 			if (sc->sc_acm_cap & USB_CDC_ACM_HAS_FEATURE) {
-
 				error = umodem_set_comm_feature
 				(uaa->device, sc->sc_ctrl_iface_no,
 				 UCDC_ABSTRACT_STATE, UCDC_DATA_MULTIPLEXED);
@@ -480,7 +476,7 @@ umodem_find_data_iface(struct usb_attach_arg *uaa,
 {
 	struct usb_interface_descriptor *id;
 	struct usb_interface *iface;
-	
+
 	iface = usbd_get_iface(uaa->device, iface_index);
 
 	/* check for end of interfaces */
@@ -722,7 +718,6 @@ umodem_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	DPRINTF("onoff=%d\n", onoff);
 
 	if (sc->sc_acm_cap & USB_CDC_ACM_HAS_BREAK) {
-
 		temp = onoff ? UCDC_BREAK_ON : UCDC_BREAK_OFF;
 
 		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
@@ -852,7 +847,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 
@@ -870,7 +864,6 @@ tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    UMODEM_BUF_SIZE, &actlen)) {
-
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}

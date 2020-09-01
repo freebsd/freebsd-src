@@ -594,7 +594,6 @@ axge_detach(device_t dev)
 	sc = device_get_softc(dev);
 	ue = &sc->sc_ue;
 	if (device_is_attached(dev)) {
-
 		/* wait for any post attach or other command to complete */
 		usb_proc_drain(&ue->ue_tq);
 
@@ -740,7 +739,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 

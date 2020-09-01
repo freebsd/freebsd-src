@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
  * streaming, and <5k to avoid overflowing the system with small TDs).
  */
 
-
 /* probe/attach/detach:
  *  Connect the driver to the hardware and netgraph
  *
@@ -116,7 +115,6 @@ SYSCTL_INT(_hw_usb_udbp, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UDBP_Q_MAXLEN   50
 
 struct udbp_softc {
-
 	struct mtx sc_mtx;
 	struct ng_bt_mbufq sc_xmitq_hipri;	/* hi-priority transmit queue */
 	struct ng_bt_mbufq sc_xmitq;	/* low-priority transmit queue */
@@ -203,7 +201,6 @@ static struct ng_type ng_udbp_typestruct = {
 
 /* USB config */
 static const struct usb_config udbp_config[UDBP_T_MAX] = {
-
 	[UDBP_T_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -458,7 +455,6 @@ tr_setup:
 			usbd_transfer_start(sc->sc_xfer[UDBP_T_RD_CS]);
 		}
 		return;
-
 	}
 }
 
@@ -490,7 +486,6 @@ udbp_bulk_read_complete(node_p node, hook_p hook, void *arg1, int arg2)
 	m = sc->sc_bulk_in_buffer;
 
 	if (m) {
-
 		sc->sc_bulk_in_buffer = NULL;
 
 		if ((sc->sc_hook == NULL) ||
@@ -567,7 +562,6 @@ udbp_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 			usbd_transfer_start(sc->sc_xfer[UDBP_T_WR_CS]);
 		}
 		return;
-
 	}
 }
 
@@ -828,13 +822,11 @@ ng_udbp_disconnect(hook_p hook)
 	int error = 0;
 
 	if (sc != NULL) {
-
 		mtx_lock(&sc->sc_mtx);
 
 		if (hook != sc->sc_hook) {
 			error = EINVAL;
 		} else {
-
 			/* stop bulk-in transfer */
 			usbd_transfer_stop(sc->sc_xfer[UDBP_T_RD_CS]);
 			usbd_transfer_stop(sc->sc_xfer[UDBP_T_RD]);

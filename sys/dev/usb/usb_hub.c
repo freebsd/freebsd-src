@@ -75,9 +75,7 @@
 #include <dev/usb/usb_bus.h>
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
-
 #include <dev/usb/usb_hub_private.h>
-
 
 #ifdef USB_DEBUG
 static int uhub_debug = 0;
@@ -107,7 +105,6 @@ SYSCTL_INT(_hw_usb, OID_AUTO, disable_port_power, CTLFLAG_RWTUN,
     &usb_disable_port_power, 0, "Set to disable all USB port power.");
 #endif
 
-
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
 #define	UHUB_IS_HIGH_SPEED(sc) (UHUB_PROTO(sc) != UDPROTO_FSHUB)
 #define	UHUB_IS_SINGLE_TT(sc) (UHUB_PROTO(sc) == UDPROTO_HSHUBSTT)
@@ -132,7 +129,6 @@ static void usb_dev_suspend_peer(struct usb_device *udev);
 static uint8_t usb_peer_should_wakeup(struct usb_device *udev);
 
 static const struct usb_config uhub_config[UHUB_N_TRANSFER] = {
-
 	[UHUB_INTR_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -682,7 +678,6 @@ repeat:
 	/* check if the device is in Host Mode */
 
 	if (!(sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)) {
-
 		DPRINTF("Port %d is in Host Mode\n", portno);
 
 		if (sc->sc_st.port_status & UPS_SUSPEND) {
@@ -1067,7 +1062,6 @@ uhub_explore(struct usb_device *udev)
 				DPRINTFN(0, "illegal enable change, "
 				    "port %d\n", portno);
 			} else {
-
 				if (up->restartcnt == USB_RESTART_MAX) {
 					/* XXX could try another speed ? */
 					DPRINTFN(0, "port error, giving up "
@@ -1556,7 +1550,6 @@ uhub_detach(device_t dev)
 
 	/* Detach all ports */
 	for (x = 0; x != hub->nports; x++) {
-
 		child = usb_bus_port_get_device(bus, hub->ports + x);
 
 		if (child == NULL) {
@@ -1807,7 +1800,6 @@ usb_intr_find_best_slot(usb_size_t *ptr, uint8_t start,
 	/* find the last slot with lesser used bandwidth */
 
 	for (x = start; x < end; x++) {
-
 		sum = 0;
 
 		/* compute sum of bandwidth */
@@ -2080,7 +2072,6 @@ usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time)
 	bus = isoc_xfer->xroot->bus;
 
 	TAILQ_FOREACH(xfer, &bus->intr_q.head, wait_entry) {
-
 		/* skip self, if any */
 
 		if (xfer == isoc_xfer)
@@ -2121,7 +2112,6 @@ usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time)
 		 */
 		TAILQ_FOREACH(pipe_xfer, &xfer->endpoint->endpoint_q[0].head,
 		    wait_entry) {
-
 			/* skip self, if any */
 
 			if (pipe_xfer == isoc_xfer)
@@ -2495,7 +2485,6 @@ usb_bus_powerd(struct usb_bus *bus)
 	 */
 	for (x = USB_ROOT_HUB_ADDR + 1;
 	    x != bus->devices_max; x++) {
-
 		udev = bus->devices[x];
 		if (udev == NULL)
 			continue;
@@ -2533,7 +2522,6 @@ usb_bus_powerd(struct usb_bus *bus)
 
 	for (x = USB_ROOT_HUB_ADDR + 1;
 	    x != bus->devices_max; x++) {
-
 		udev = bus->devices[x];
 		if (udev == NULL)
 			continue;
@@ -2864,7 +2852,6 @@ repeat:
 		temp = usbd_get_dma_delay(udev);
 		if (temp != 0)
 			usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
-
 	}
 
 	if (usb_device_20_compatible(udev)) {

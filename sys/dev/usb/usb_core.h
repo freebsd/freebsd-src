@@ -88,7 +88,6 @@ struct usb_string_lang;
  * flags.
  */
 struct usb_xfer_flags_int {
-
 	enum usb_hc_mode usb_mode;	/* shadow copy of "udev->usb_mode" */
 	uint16_t control_rem;		/* remainder in bytes */
 

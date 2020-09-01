@@ -196,7 +196,6 @@ mouse_get_vendor_desc(const struct usb_device_request *req, uint16_t *plen)
 	if ((req->bmRequestType == 0x81) && (req->bRequest == 0x06) &&
 	    (req->wValue[0] == 0x00) && (req->wValue[1] == 0x22) &&
 	    (req->wIndex[1] == 0) && (req->wIndex[0] == 0)) {
-
 		*plen = sizeof(mouse_hid_descriptor);
 		return (mouse_hid_descriptor);
 	}
