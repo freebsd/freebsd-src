@@ -347,7 +347,6 @@ vq_init(struct beri_vtblk_softc *sc)
 	return (0);
 }
 
-
 static void
 vtblk_thread(void *arg)
 {
