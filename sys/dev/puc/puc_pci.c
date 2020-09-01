@@ -160,7 +160,7 @@ puc_pci_detach(device_t dev)
 	int error;
 
 	sc = device_get_softc(dev);
-	
+
 	error = puc_bfe_detach(dev);
 
 	if (error != 0)
@@ -171,7 +171,6 @@ puc_pci_detach(device_t dev)
 
 	return (error);
 }
-
 
 static device_method_t puc_pci_methods[] = {
     /* Device interface */
