@@ -855,6 +855,4 @@ struct ciss_bmic_flush_cache {
 	CISS_TL_SIMPLE_WRITE(sc, CISS_TL_SIMPLE_IMR, \
 			     CISS_TL_SIMPLE_READ(sc, CISS_TL_SIMPLE_IMR) & ~(sc)->ciss_interrupt_mask)
 
-
-
 #endif /* _KERNEL */
