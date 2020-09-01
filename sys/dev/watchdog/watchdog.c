@@ -120,7 +120,6 @@ seconds_to_pow2ns(int seconds)
 	return (power);
 }
 
-
 int
 wdog_kern_pat(u_int utim)
 {
