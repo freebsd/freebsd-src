@@ -309,7 +309,6 @@ cfi_disk_getattr(struct bio *bp)
 	return (0);
 }
 
-
 static void
 cfi_disk_strategy(struct bio *bp)
 {
@@ -350,7 +349,6 @@ static device_method_t cfi_disk_methods[] = {
 	DEVMETHOD(device_probe,		cfi_disk_probe),
 	DEVMETHOD(device_attach,	cfi_disk_attach),
 	DEVMETHOD(device_detach,	cfi_disk_detach),
-
 	{ 0, 0 }
 };
 static driver_t cfi_disk_driver = {

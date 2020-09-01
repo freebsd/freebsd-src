@@ -162,7 +162,7 @@ uint8_t
 cfi_read_qry(struct cfi_softc *sc, u_int ofs)
 {
 	uint8_t val;
- 
+
 	cfi_write(sc, CFI_QRY_CMD_ADDR * sc->sc_width, CFI_QRY_CMD_DATA); 
 	val = cfi_read(sc, ofs * sc->sc_width);
 	cfi_reset_default(sc);
@@ -751,12 +751,10 @@ cfi_write_block(struct cfi_softc *sc)
 			/* Fall through to single word case */
 			break;
 		}
-
 	}
 
 	/* Write the block one byte/word at a time. */
 	for (i = 0; i < sc->sc_wrbufsz; i += sc->sc_width) {
-
 		/* Avoid writing unless we are actually changing bits */
 		if (!neederase) {
 			switch (sc->sc_width) {
