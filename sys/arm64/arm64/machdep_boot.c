@@ -55,7 +55,6 @@ extern int *end;
 static char *loader_envp;
 static char static_kenv[4096];
 
-
 #ifdef FDT
 #define	CMDLINE_GUARD "FreeBSD:"
 #define	LBABI_MAX_COMMAND_LINE 512
@@ -78,7 +77,6 @@ static char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
 	size += ssize;					\
 	size = roundup(size, sizeof(u_long));		\
 } while (0)
-
 
 /* Build minimal set of metatda. */
 static vm_offset_t

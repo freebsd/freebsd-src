@@ -71,7 +71,6 @@ coresight_fdt_get_ports(phandle_t dev_node,
 
 		if (strcasecmp(name, "port") ||
 		    strncasecmp(name, "port@", 6)) {
-
 			port_reg = -1;
 			OF_getencprop(child, "reg", (void *)&port_reg,
 			    sizeof(port_reg));

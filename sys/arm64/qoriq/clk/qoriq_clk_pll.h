@@ -50,4 +50,3 @@ int qoriq_clk_pll_register(struct clkdom *clkdom,
     const struct qoriq_clk_pll_def *clkdef);
 
 #endif	/* _QORIQ_CLK_PLL_H_ */
-

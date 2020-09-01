@@ -263,7 +263,6 @@ struct mrs_field_value {
 	MRS_FIELD_VALUE(13ul<< _reg ## _ ## _field ## _SHIFT, "14 "_desc "s"), \
 	MRS_FIELD_VALUE(14ul<< _reg ## _ ## _field ## _SHIFT, "15 "_desc "s"), \
 	MRS_FIELD_VALUE(15ul<< _reg ## _ ## _field ## _SHIFT, "16 "_desc "s")
-
 #define	MRS_FIELD_VALUE_END	{ .desc = NULL }
 
 struct mrs_field {
@@ -284,7 +283,6 @@ struct mrs_field {
 		.mask = _register ## _ ## _name ## _MASK,		\
 		.values = (_values),					\
 	}
-
 #define	MRS_FIELD_END	{ .type = MRS_INVALID, }
 
 /* ID_AA64AFR0_EL1 */
@@ -292,12 +290,10 @@ static struct mrs_field id_aa64afr0_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64AFR1_EL1 */
 static struct mrs_field id_aa64afr1_fields[] = {
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64DFR0_EL1 */
 static struct mrs_field_value id_aa64dfr0_pmsver[] = {
@@ -356,12 +352,10 @@ static struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64DFR1 */
 static struct mrs_field id_aa64dfr1_fields[] = {
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64ISAR0_EL1 */
 static struct mrs_field_value id_aa64isar0_rndr[] = {
@@ -459,7 +453,6 @@ static struct mrs_field id_aa64isar0_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64ISAR1_EL1 */
 static struct mrs_field_value id_aa64isar1_i8mm[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64ISAR1, I8MM, NONE, IMPL),
@@ -556,7 +549,6 @@ static struct mrs_field id_aa64isar1_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64MMFR0_EL1 */
 static struct mrs_field_value id_aa64mmfr0_tgran4[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR0, TGran4, NONE, IMPL),
@@ -622,7 +614,6 @@ static struct mrs_field id_aa64mmfr0_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64MMFR1_EL1 */
 static struct mrs_field_value id_aa64mmfr1_xnx[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR1, XNX, NONE, IMPL),
@@ -684,7 +675,6 @@ static struct mrs_field id_aa64mmfr1_fields[] = {
 	MRS_FIELD_END,
 };
 
-
 /* ID_AA64MMFR2_EL1 */
 static struct mrs_field_value id_aa64mmfr2_nv[] = {
 	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64MMFR2, NV, NONE, IMPL),
@@ -734,7 +724,6 @@ static struct mrs_field id_aa64mmfr2_fields[] = {
 	MRS_FIELD(ID_AA64MMFR2, CnP, false, MRS_EXACT, id_aa64mmfr2_cnp),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64PFR0_EL1 */
 static struct mrs_field_value id_aa64pfr0_csv3[] = {
@@ -842,7 +831,6 @@ static struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(ID_AA64PFR0, EL0, false, MRS_LOWER, id_aa64pfr0_el0),
 	MRS_FIELD_END,
 };
-
 
 /* ID_AA64PFR1_EL1 */
 static struct mrs_field_value id_aa64pfr1_bt[] = {

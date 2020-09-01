@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #define	CRU_CLKSEL_CON(x)	(0x100 + (x) * 0x4)
 #define	CRU_CLKGATE_CON(x)	(0x300 + (x) * 0x4)
 
-
 /* GATES */
 
 static struct rk_cru_gate rk3399_gates[] = {
@@ -105,7 +104,6 @@ static struct rk_cru_gate rk3399_gates[] = {
 	GATE(0, "clk_ddrc_dpll_src", "dpll",				3, 2),
 	GATE(0, "clk_ddrc_bpll_src", "bpll",				3, 1),
 	GATE(0, "clk_ddrc_lpll_src", "lpll",				3, 0),
-
 
 	/* CRU_CLKGATE_CON4 */
 	/* 15 - 12 unused */
@@ -219,7 +217,6 @@ static struct rk_cru_gate rk3399_gates[] = {
 	GATE(SCLK_I2C5, "clk_i2c5", "clk_i2c5_c",			10, 1),
 	GATE(SCLK_I2C1, "clk_i2c1", "clk_i2c1_c",			10, 0),
 
-
 	/* CRU_CLKGATE_CON11 */
 	GATE(SCLK_MIPIDPHY_CFG, "clk_mipidphy_cfg", "xin24m",		11, 15),
 	GATE(SCLK_MIPIDPHY_REF, "clk_mipidphy_ref", "xin24m",		11, 14),
@@ -311,7 +308,6 @@ static struct rk_cru_gate rk3399_gates[] = {
 	GATE(ACLK_IEP_NOC, "aclk_iep_noc", "aclk_iep_pre",		16, 1),
 	GATE(ACLK_IEP, "aclk_iep", "aclk_iep_pre", 			16, 0),
 
-
 	/* CRU_CLKGATE_CON17 */
 	/* 15 - 12 unused */
 	GATE(HCLK_VDU_NOC, "hclk_vdu_noc", "hclk_vdu_pre",		17, 11),
@@ -346,7 +342,6 @@ static struct rk_cru_gate rk3399_gates[] = {
 	GATE(ACLK_CENTER_PERI_NOC, "aclk_center_peri_noc", "aclk_center", 19, 1),
 	GATE(ACLK_CENTER_MAIN_NOC, "aclk_center_main_noc", "aclk_center", 19, 0),
 
-
 	/* CRU_CLKGATE_CON20 */
 	GATE(0, "hclk_ahb1tom", "hclk_perihp",				20, 15),
 	GATE(0, "pclk_perihp_noc", "pclk_perihp",			20, 14),
@@ -375,7 +370,6 @@ static struct rk_cru_gate rk3399_gates[] = {
 	GATE(SCLK_DPHY_TX1RX1_CFG, "clk_dphy_tx1rx1_cfg", "clk_mipidphy_cfg", 21, 2),
 	GATE(SCLK_DPHY_TX0_CFG, "clk_dphy_tx0_cfg", "clk_mipidphy_cfg",	21, 1),
 	GATE(SCLK_DPHY_PLL, "clk_dphy_pll", "clk_mipidphy_ref",		21, 0),
-
 
 	/* CRU_CLKGATE_CON22 */
 	GATE(PCLK_EFUSE1024S, "pclk_efuse1024s", "pclk_perilp1",	22, 15),
@@ -690,7 +684,6 @@ static struct rk_clk_armclk_rates rk3399_cpu_b_rates[] = {
 	{  96000000, 1},
 };
 
-
 /* Standard PLL. */
 #define PLL(_id, _name, _base)						\
 {									\
@@ -739,7 +732,6 @@ PLIST(dclk_vop1_p)= 	{"dclk_vop1_div", "dclk_vop1_frac"};
 
 PLIST(clk_cif_p) = 	{"clk_cifout_src", "xin24m"};
 
-
 PLIST(pll_src_24m_usbphy480m_p) = { "xin24m", "clk_usbphy_480m"};
 PLIST(pll_src_24m_pciephy_p) = { "xin24m", "clk_pciephy_ref100m"};
 PLIST(pll_src_24m_32k_cpll_gpll_p)= {"xin24m", "xin32k", "cpll", "gpll"};
@@ -781,7 +773,6 @@ PLIST(uart2_p)= {"clk_uart2_div", "clk_uart2_frac", "xin24m"};
 PLIST(uart3_p)= {"clk_uart3_div", "clk_uart3_frac", "xin24m"};
 
 static struct rk_clk rk3399_clks[] = {
-
 	/* External clocks */
 	LINK("xin24m"),
 	FRATE(0, "xin32k", 32768),
@@ -1063,7 +1054,6 @@ static struct rk_clk rk3399_clks[] = {
 	COMP(0, "aclk_vio_c", pll_src_cpll_gpll_ppll_p, 0,
 	    42, 0, 5,	6, 2),
 
-
 	/* CRU_CLKSEL_CON43 */
 	CDIV(0, "pclk_hdcp_c", "aclk_hdcp", 0,
 	    43, 10, 5),
@@ -1228,8 +1218,6 @@ static struct rk_clk rk3399_clks[] = {
  *	MMC(SCLK_SDIO_DRV,      "sdio_drv",     "clk_sdio",  RK3399_SDIO_CON0,  1),
  *	MMC(SCLK_SDIO_SAMPLE,   "sdio_sample",  "clk_sdio",  RK3399_SDIO_CON1,  1),
  */
-
-
 
 };
 

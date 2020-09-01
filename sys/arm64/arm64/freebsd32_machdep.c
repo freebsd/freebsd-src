@@ -116,8 +116,6 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 	return (EINVAL);
 }
 
-
-
 #ifdef VFP
 static void
 get_fpcontext32(struct thread *td, mcontext32_vfp_t *mcp)

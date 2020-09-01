@@ -387,7 +387,6 @@ tsadc_raw_to_temp(struct tsadc_softc *sc, uint32_t raw)
 		}
 	}
 
-
 	/*
 	* Translated value is between i and i - 1 table entries.
 	* Do linear interpolation for it.

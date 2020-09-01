@@ -218,7 +218,6 @@ vfp_restore_state(void)
 	 * cpu we need to restore the old state.
 	 */
 	if (PCPU_GET(fpcurthread) != curthread || cpu != curpcb->pcb_vfpcpu) {
-
 		vfp_restore(curthread->td_pcb->pcb_fpusaved);
 		PCPU_SET(fpcurthread, curthread);
 		curpcb->pcb_vfpcpu = cpu;

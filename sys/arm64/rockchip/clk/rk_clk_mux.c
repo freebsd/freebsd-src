@@ -29,7 +29,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/bus.h>
@@ -74,7 +73,6 @@ static clknode_method_t rk_clk_mux_methods[] = {
 };
 DEFINE_CLASS_1(rk_clk_mux, rk_clk_mux_class, rk_clk_mux_methods,
    sizeof(struct rk_clk_mux_sc), clknode_class);
-
 
 static int
 rk_clk_mux_init(struct clknode *clk, device_t dev)

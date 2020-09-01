@@ -134,7 +134,7 @@ static struct imx_clk imx_clks[] = {
 	FIXED(IMX8MQ_SYS1_PLL_OUT, "sys1_pll_out", 800000000),
 	FIXED(IMX8MQ_SYS2_PLL_OUT, "sys2_pll_out", 1000000000),
 	SSCG_PLL(IMX8MQ_SYS3_PLL_OUT, "sys3_pll_out", sys3_pll_out_p, 0x48),
-	
+
 	MUX(IMX8MQ_ARM_PLL_REF_SEL, "arm_pll_ref_sel", pll_ref_p, 0, 0x28, 16, 2),
 	MUX(IMX8MQ_GPU_PLL_REF_SEL, "gpu_pll_ref_sel", pll_ref_p, 0, 0x18, 16, 2),
 	MUX(IMX8MQ_VPU_PLL_REF_SEL, "vpu_pll_ref_sel", pll_ref_p, 0, 0x20, 16, 2),

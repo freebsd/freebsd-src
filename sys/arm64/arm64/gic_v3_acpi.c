@@ -83,7 +83,6 @@ static devclass_t gic_v3_acpi_devclass;
 EARLY_DRIVER_MODULE(gic_v3, acpi, gic_v3_acpi_driver, gic_v3_acpi_devclass,
     0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
-
 struct madt_table_data {
 	device_t parent;
 	device_t dev;

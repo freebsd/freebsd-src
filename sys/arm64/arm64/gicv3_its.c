@@ -1575,7 +1575,6 @@ its_cmd_wait_completion(device_t dev, struct its_cmd *cmd_first,
 	}
 }
 
-
 static struct its_cmd *
 its_cmd_alloc_locked(device_t dev)
 {

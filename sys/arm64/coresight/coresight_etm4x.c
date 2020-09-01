@@ -256,7 +256,6 @@ etm_attach(device_t dev)
 }
 
 static device_method_t etm_methods[] = {
-
 	/* Coresight interface */
 	DEVMETHOD(coresight_init,	etm_init),
 	DEVMETHOD(coresight_enable,	etm_enable),

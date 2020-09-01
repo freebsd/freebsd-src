@@ -109,7 +109,6 @@ static int qoriq_gpio_pin_access_32(device_t, uint32_t, uint32_t, uint32_t,
     uint32_t*);
 static int qoriq_gpio_pin_config_32(device_t, uint32_t, uint32_t, uint32_t*);
 
-
 static device_method_t qoriq_gpio_methods[] = {
 	DEVMETHOD(device_probe,		qoriq_gpio_probe),
 	DEVMETHOD(device_attach,	qoriq_gpio_attach),
