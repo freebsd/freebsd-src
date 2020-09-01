@@ -76,7 +76,6 @@ struct tws_compatibility_packet {
     u_int16_t   fw_on_ctlr_build;/* build # of running firmware */
 };
 
-
 /* Driver understandable part of the ioctl packet built by the API. */
 struct tws_driver_packet {
     u_int32_t       control_code;
@@ -97,7 +96,6 @@ struct tws_ioctl_packet {
 
 #pragma pack()
 
-
 #pragma pack(1)
 /*
  * We need the structure below to ensure that the first byte of
@@ -115,7 +113,6 @@ struct tws_ioctl_no_data_buf {
 };
 
 #pragma pack()
-
 
 #include <sys/ioccom.h> 
 
@@ -155,4 +152,3 @@ struct tws_ioctl_with_payload {
         _IOWR('T', 208, struct tws_ioctl_with_payload)
 #define TWS_IOCTL_GET_COMPATIBILITY_INFO              \
         _IOWR('T', 209, struct tws_ioctl_with_payload)
-
