@@ -179,7 +179,6 @@ typedef union _MPI2_RAID_ACTION_DATA
 } MPI2_RAID_ACTION_DATA, MPI2_POINTER PTR_MPI2_RAID_ACTION_DATA,
   Mpi2RaidActionData_t, MPI2_POINTER pMpi2RaidActionData_t;
 
-
 /* RAID Action Request Message */
 typedef struct _MPI2_RAID_ACTION_REQUEST
 {
@@ -224,7 +223,6 @@ typedef struct _MPI2_RAID_ACTION_REQUEST
 #define MPI2_RAID_ACTION_PHYSDISK_HIDDEN            (0x24)
 #define MPI2_RAID_ACTION_MIN_PRODUCT_SPECIFIC       (0x80)
 #define MPI2_RAID_ACTION_MAX_PRODUCT_SPECIFIC       (0xFF)
-
 
 /* RAID Volume Creation Structure */
 
@@ -277,7 +275,6 @@ typedef struct _MPI2_RAID_VOLUME_CREATION_STRUCT
  */
 #define MPI2_RAID_VOL_CREATION_USE_DEFAULT_SETTINGS (0x80)
 
-
 /* RAID Online Capacity Expansion Structure */
 
 typedef struct _MPI2_RAID_ONLINE_CAPACITY_EXPANSION
@@ -291,7 +288,6 @@ typedef struct _MPI2_RAID_ONLINE_CAPACITY_EXPANSION
   MPI2_POINTER PTR_MPI2_RAID_ONLINE_CAPACITY_EXPANSION,
   Mpi2RaidOnlineCapacityExpansion_t,
   MPI2_POINTER pMpi2RaidOnlineCapacityExpansion_t;
-
 
 /* RAID Compatibility Input Structure */
 
@@ -310,7 +306,6 @@ typedef struct _MPI2_RAID_COMPATIBILITY_INPUT_STRUCT
 /* defines for RAID Compatibility Structure Flags field */
 #define MPI2_RAID_COMPAT_SOURCE_IS_VOLUME_FLAG      (0x00000002)
 #define MPI2_RAID_COMPAT_REPORT_SOURCE_INFO_FLAG    (0x00000001)
-
 
 /* RAID Volume Indicator Structure */
 
@@ -332,7 +327,6 @@ typedef struct _MPI2_RAID_VOL_INDICATOR
 #define MPI2_RAID_VOL_FLAGS_OP_CONSISTENCY_CHECK    (0x00000002)
 #define MPI2_RAID_VOL_FLAGS_OP_RESYNC               (0x00000003)
 #define MPI2_RAID_VOL_FLAGS_OP_MDC                  (0x00000004)
-
 
 /* RAID Compatibility Result Structure */
 
@@ -365,7 +359,6 @@ typedef struct _MPI2_RAID_COMPATIBILITY_RESULT_STRUCT
 #define MPI2_RAID_COMPAT_GENATTRIB_SAS_PROTOCOL         (0x00000002)
 #define MPI2_RAID_COMPAT_GENATTRIB_SATA_PROTOCOL        (0x00000001)
 
-
 /* RAID Action Reply ActionData union */
 typedef union _MPI2_RAID_ACTION_REPLY_DATA
 {
@@ -379,7 +372,6 @@ typedef union _MPI2_RAID_ACTION_REPLY_DATA
   Mpi2RaidActionReplyData_t, MPI2_POINTER pMpi2RaidActionReplyData_t;
 
 /* use MPI2_RAIDVOL0_SETTING_ defines from mpi2_cnfg.h for MPI2_RAID_ACTION_CHANGE_VOL_WRITE_CACHE action */
-
 
 /* RAID Action Reply Message */
 typedef struct _MPI2_RAID_ACTION_REPLY
@@ -401,6 +393,4 @@ typedef struct _MPI2_RAID_ACTION_REPLY
 } MPI2_RAID_ACTION_REPLY, MPI2_POINTER PTR_MPI2_RAID_ACTION_REPLY,
   Mpi2RaidActionReply_t, MPI2_POINTER pMpi2RaidActionReply_t;
 
-
 #endif
-

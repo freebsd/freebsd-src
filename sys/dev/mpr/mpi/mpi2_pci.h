@@ -62,7 +62,6 @@
 #ifndef MPI2_PCI_H
 #define MPI2_PCI_H
 
-
 /*
  * Values for the PCIe DeviceInfo field used in PCIe Device Status Change Event
  * data and PCIe Configuration pages.
@@ -73,7 +72,6 @@
 #define MPI26_PCIE_DEVINFO_NO_DEVICE            (0x00000000)
 #define MPI26_PCIE_DEVINFO_PCI_SWITCH           (0x00000001)
 #define MPI26_PCIE_DEVINFO_NVME                 (0x00000003)
-
 
 /****************************************************************************
 *  NVMe Encapsulated message
@@ -119,7 +117,6 @@ typedef struct _MPI26_NVME_ENCAPSULATED_REQUEST
 #define MPI26_NVME_FLAGS_READ                       (0x0002)
 #define MPI26_NVME_FLAGS_BIDIRECTIONAL              (0x0003)
 
-
 /* NVMe Encapuslated Reply Message */
 typedef struct _MPI26_NVME_ENCAPSULATED_ERROR_REPLY
 {
@@ -142,7 +139,4 @@ typedef struct _MPI26_NVME_ENCAPSULATED_ERROR_REPLY
   Mpi26NVMeEncapsulatedErrorReply_t,
   MPI2_POINTER pMpi26NVMeEncapsulatedErrorReply_t;
 
-
 #endif
-
-

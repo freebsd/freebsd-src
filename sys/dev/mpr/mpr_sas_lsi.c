@@ -797,7 +797,6 @@ skip_fp_send:
 		mpr_dprint(sc, MPR_TRACE,"Unhandled event 0x%0X\n",
 		    fw_event->event);
 		break;
-
 	}
 	mpr_dprint(sc, MPR_EVENT, "(%d)->(%s) Event Free: [%x]\n", event_count,
 	    __func__, fw_event->event);
