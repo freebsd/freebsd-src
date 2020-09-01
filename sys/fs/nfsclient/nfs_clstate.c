@@ -1917,7 +1917,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 	if (clp != NULL) {
 		if ((clp->nfsc_flags & NFSCLFLAGS_INITED) == 0)
 			panic("nfscl umount");
-	
+
 		/*
 		 * First, handshake with the nfscl renew thread, to terminate
 		 * it.
@@ -1926,7 +1926,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		while (clp->nfsc_flags & NFSCLFLAGS_HASTHREAD)
 			(void)mtx_sleep(clp, NFSCLSTATEMUTEXPTR, PWAIT,
 			    "nfsclumnt", hz);
-	
+
 		/*
 		 * Now, get the exclusive lock on the client state, so
 		 * that no uses of the state are still in progress.
@@ -1936,7 +1936,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 			    NFSCLSTATEMUTEXPTR, NULL);
 		} while (!igotlock);
 		NFSUNLOCKCLSTATE();
-	
+
 		/*
 		 * Free up all the state. It will expire on the server, but
 		 * maybe we should do a SetClientId/SetClientIdConfirm so
@@ -5479,4 +5479,3 @@ tryagain:
 	NFSUNLOCKCLSTATE();
 	return (0);
 }
-

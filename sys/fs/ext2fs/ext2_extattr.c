@@ -581,7 +581,6 @@ ext2_extattr_inode_delete(struct inode *ip, int attrnamespace, const char *name)
 	if ((EXT2_IS_LAST_ENTRY(EXT2_EXTATTR_NEXT(entry))) &&
 	    (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) ==
 	    attrnamespace)) {
-
 		name_len = entry->e_name_len;
 		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
 		    entry->e_name, &name_len);
@@ -715,7 +714,6 @@ ext2_extattr_block_delete(struct inode *ip, int attrnamespace, const char *name)
 	if (EXT2_IS_LAST_ENTRY(EXT2_EXTATTR_NEXT(entry)) &&
 	    (ext2_extattr_attrnamespace_to_bsd(entry->e_name_index) ==
 	    attrnamespace)) {
-
 		name_len = entry->e_name_len;
 		attr_name = ext2_extattr_name_to_bsd(entry->e_name_index,
 		    entry->e_name, &name_len);

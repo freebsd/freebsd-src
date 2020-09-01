@@ -118,4 +118,3 @@ struct nfsexstuff {
 		if (nfsd_debuglevel >= (level))				\
 			printf(__VA_ARGS__);				\
 	} while (0)
-

@@ -944,7 +944,6 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	int DIRBLKSIZ = ip->i_e2fs->e2fs_bsize;
 	int error;
 
-
 #ifdef INVARIANTS
 	if ((cnp->cn_flags & SAVENAME) == 0)
 		panic("ext2_direnter: missing name");

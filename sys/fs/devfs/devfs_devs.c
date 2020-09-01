@@ -58,7 +58,6 @@ struct cdev_priv_list cdevp_list = TAILQ_HEAD_INITIALIZER(cdevp_list);
 
 struct unrhdr *devfs_inos;
 
-
 static MALLOC_DEFINE(M_DEVFS2, "DEVFS2", "DEVFS data 2");
 static MALLOC_DEFINE(M_DEVFS3, "DEVFS3", "DEVFS data 3");
 static MALLOC_DEFINE(M_CDEVP, "DEVFS1", "DEVFS cdev_priv storage");
@@ -523,7 +522,6 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
 	dev_lock();
 	TAILQ_FOREACH(cdp, &cdevp_list, cdp_list) {
-
 		KASSERT(cdp->cdp_dirents != NULL, ("NULL cdp_dirents"));
 
 		/*
@@ -575,7 +573,6 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			continue;
 		}
 
-
 		cdp->cdp_inuse++;
 		dev_unlock();
 
@@ -604,7 +601,6 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			    (dd->de_flags & (DE_DOT | DE_DOTDOT)) == 0,
 			    ("%s: invalid directory (si_name=%s)",
 			    __func__, cdp->cdp_c.si_name));
-
 		}
 		de_flags = 0;
 		de = devfs_find(dd, s, q - s, DT_LNK);

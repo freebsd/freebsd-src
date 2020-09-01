@@ -1037,7 +1037,6 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 					"Short read of a dirty file");
 				uiop->uio_resid = 0;
 			}
-
 		}
 		if (error) {
 			bp->b_ioflags |= BIO_ERROR;

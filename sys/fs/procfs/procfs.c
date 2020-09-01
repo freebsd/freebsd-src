@@ -100,7 +100,6 @@ procfs_docurproc(PFS_FILL_ARGS)
 
 static int
 procfs_attr(PFS_ATTR_ARGS, int mode) {
-
 	vap->va_mode = mode;
 	if (p != NULL) {
 		PROC_LOCK_ASSERT(p, MA_OWNED);

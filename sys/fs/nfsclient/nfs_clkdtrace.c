@@ -540,7 +540,6 @@ dtnfsclient_load(void *dummy)
 	    (dtrace_nfsclient_nfs23_done_probe_func_t)dtrace_probe;
 }
 
-
 static int
 dtnfsclient_unload()
 {

@@ -78,7 +78,6 @@ SDT_PROBE_DEFINE2(ext2fs, , vfsops, trace, "int", "char*");
 SDT_PROBE_DEFINE2(ext2fs, , vfsops, ext2_cg_validate_error, "char*", "int");
 SDT_PROBE_DEFINE1(ext2fs, , vfsops, ext2_compute_sb_data_error, "char*");
 
-
 static int	ext2_flushfiles(struct mount *mp, int flags, struct thread *td);
 static int	ext2_mountfs(struct vnode *, struct mount *);
 static int	ext2_reload(struct mount *mp, struct thread *td);
@@ -398,7 +397,6 @@ ext2_cg_validate(struct m_ext2fs *fs)
 			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,
 			    "block bitmap is zero", i);
 			return (EINVAL);
-
 		}
 		if (b_bitmap <= last_cg_block) {
 			SDT_PROBE2(ext2fs, , vfsops, ext2_cg_validate_error,

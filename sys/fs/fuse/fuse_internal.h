@@ -199,7 +199,6 @@ fuse_validity_2_timespec(const struct fuse_entry_out *feo,
 	}
 }
 
-
 /* VFS ops */
 int
 fuse_internal_get_cached_vnode(struct mount*, ino_t, int, struct vnode**);

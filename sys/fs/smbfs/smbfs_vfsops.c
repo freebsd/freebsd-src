@@ -42,7 +42,6 @@
 #include <sys/module.h>
 #include <sys/sx.h>
 
-
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
 #include <netsmb/smb_subr.h>
@@ -81,7 +80,6 @@ static struct vfsops smbfs_vfsops = {
 	.vfs_uninit =		smbfs_uninit,
 	.vfs_unmount =		smbfs_unmount,
 };
-
 
 VFS_SET(smbfs_vfsops, smbfs, VFCF_NETWORK);
 
@@ -155,7 +153,7 @@ smbfs_mount(struct mount *mp)
 
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, td->td_ucred);
-	
+
 	/* Ask userspace of `fd`, the file descriptor of this session */
 	if (1 != vfs_scanopt(mp->mnt_optnew, "fd", "%d", &v)) {
 		vfs_mount_error(mp, "No fd option");
@@ -401,7 +399,7 @@ smbfs_statfs(struct mount *mp, struct statfs *sbp)
 		vfs_mount_error(mp, "np == NULL");
 		return EINVAL;
 	}
-	
+
 	sbp->f_iosize = SSTOVC(ssp)->vc_txmax;		/* optimal transfer block size */
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, td->td_ucred);

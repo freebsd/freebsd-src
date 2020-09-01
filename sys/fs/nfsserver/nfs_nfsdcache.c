@@ -1034,4 +1034,3 @@ static void
 nfsrc_marksametcpconn(u_int64_t sockref)
 {
 }
-

@@ -468,7 +468,6 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	else
 		memset(ip->i_data, 0, sizeof(ip->i_data));
 
-
 	/*
 	 * Set up a new generation number for this inode.
 	 * Avoid zero values.
@@ -1300,7 +1299,6 @@ ext2_fix_bitmap_tail(unsigned char *bitmap, int first, int last)
 	for (i = first; i <= last; i++)
 		bitmap[i] = 0xff;
 }
-
 
 /*
  * Determine whether an inode can be allocated.

@@ -181,7 +181,6 @@ cd9660_open(ap)
 	return (0);
 }
 
-
 static int
 cd9660_getattr(ap)
 	struct vop_getattr_args /* {

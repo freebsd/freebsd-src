@@ -776,4 +776,3 @@ void nfsrvd_init(int);
 /* nfs_clkrpc.c */
 int nfscbd_addsock(struct file *);
 int nfscbd_nfsd(NFSPROC_T *, struct nfsd_nfscbd_args *);
-

@@ -338,7 +338,6 @@ unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	if (i < 0)
 		return 0;
 
-
 	/*
 	 * Filenames with some characters are not allowed!
 	 */

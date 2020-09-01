@@ -106,7 +106,7 @@
 
 #ifndef _FUSE_FUSE_KERNEL_H
 #define _FUSE_FUSE_KERNEL_H
- 
+
 #ifdef __linux__
 #include <linux/types.h>
 #else

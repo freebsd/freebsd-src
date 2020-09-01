@@ -83,7 +83,6 @@ ext2_ext_balloc(struct inode *ip, uint32_t lbn, int size,
 		}
 	}
 
-
 	bp->b_blkno = fsbtodb(fs, newblk);
 	if (flags & BA_CLRBUF)
 		vfs_bio_clrbuf(bp);

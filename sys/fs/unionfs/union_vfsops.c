@@ -416,7 +416,6 @@ unionfs_statfs(struct mount *mp, struct statfs *sbp)
 		return (error);
 	}
 
-
 	/*
 	 * The FS type etc is copy from upper vfs.
 	 * (write able vfs have priority)

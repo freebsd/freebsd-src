@@ -285,7 +285,6 @@ fiov_adjust(struct fuse_iov *fiov, size_t size)
 	    (fuse_iov_permanent_bufsize >= 0 &&
 	    fiov->allocated_size - size > fuse_iov_permanent_bufsize &&
 	    --fiov->credit < 0)) {
-
 		fiov->base = realloc(fiov->base, FU_AT_LEAST(size), M_FUSEMSG,
 		    M_WAITOK | M_ZERO);
 		if (!fiov->base) {

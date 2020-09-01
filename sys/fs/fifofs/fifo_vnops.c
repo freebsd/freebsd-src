@@ -366,4 +366,3 @@ fifo_advlock(ap)
 
 	return (ap->a_flags & F_FLOCK ? EOPNOTSUPP : EINVAL);
 }
-

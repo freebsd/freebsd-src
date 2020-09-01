@@ -204,7 +204,6 @@ autofs_vget_callback(struct mount *mp, void *arg, int flags,
     struct vnode **vpp)
 {
 
-
 	return (autofs_node_vn(arg, mp, flags, vpp));
 }
 

@@ -83,7 +83,6 @@ int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 	NFSPROC_NOOP,
 };
 
-
 SYSCTL_DECL(_vfs_nfsd);
 
 SVCPOOL		*nfsrvd_pool;
@@ -536,12 +535,12 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 				ret4 = rpc_gss_set_svc_name_call(principal,
 				    "kerberosv5", GSS_C_INDEFINITE, NFS_PROG,
 				    NFS_VER4);
-	
+
 				if (!ret2 || !ret3 || !ret4)
 					printf(
 					    "nfsd: can't register svc name\n");
 			}
-	
+
 			nfsrvd_pool->sp_minthreads = args->minthreads;
 			nfsrvd_pool->sp_maxthreads = args->maxthreads;
 				
@@ -555,7 +554,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 			}
 
 			svc_run(nfsrvd_pool);
-	
+
 			/* Reset Getattr to not do a vn_start_write(). */
 			nfsrv_writerpc[NFSPROC_GETATTR] = 0;
 			nfsv4_opflag[NFSV4OP_GETATTR].modifyfs = 0;
@@ -610,4 +609,3 @@ nfsrvd_init(int terminating)
 		NFSD_LOCK();
 	}
 }
-

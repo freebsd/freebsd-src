@@ -192,7 +192,6 @@ ext4_index_store_pblock(struct ext4_extent_index *index, e4fs_daddr_t pb)
 	index->ei_leaf_hi = htole16((pb >> 32) & 0xffff);
 }
 
-
 static inline e4fs_daddr_t
 ext4_ext_extent_pblock(struct ext4_extent *extent)
 {

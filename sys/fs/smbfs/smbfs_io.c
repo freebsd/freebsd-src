@@ -70,7 +70,6 @@ static int smbfs_fastlookup = 1;
 SYSCTL_DECL(_vfs_smbfs);
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, fastlookup, CTLFLAG_RW, &smbfs_fastlookup, 0, "");
 
-
 #define DE_SIZE	(sizeof(struct dirent))
 
 static int
@@ -286,7 +285,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 
 	if (vn_rlimit_fsize(vp, uiop, td))
 		return (EFBIG);
-	
+
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, cred);
 	error = smb_write(smp->sm_share, np->n_fid, uiop, scred);
