@@ -599,4 +599,3 @@ mpr_print_scsiio_cmd(struct mpr_softc *sc, struct mpr_command *cm)
 	req = (MPI2_SCSI_IO_REQUEST *)cm->cm_req;
 	mpr_print_sgl(sc, cm, req->SGLOffset0);
 }
-

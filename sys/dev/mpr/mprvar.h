@@ -967,4 +967,3 @@ struct unmap_parm_list {
 #define SCSI_ASCQ_INVALID_LUN_ID                        0x09
 
 #endif
-
