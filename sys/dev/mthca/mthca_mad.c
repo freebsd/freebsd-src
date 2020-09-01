@@ -311,7 +311,6 @@ int mthca_create_agents(struct mthca_dev *dev)
 			dev->send_agent[p][q] = agent;
 		}
 
-
 	for (p = 1; p <= dev->limits.num_ports; ++p) {
 		ret = mthca_update_rate(dev, p);
 		if (ret) {
