@@ -333,7 +333,6 @@ static device_method_t pps_methods[] = {
 	DEVMETHOD(device_identify,	ppsidentify),
 	DEVMETHOD(device_probe,		ppsprobe),
 	DEVMETHOD(device_attach,	ppsattach),
-
 	{ 0, 0 }
 };
 

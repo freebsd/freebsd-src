@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_PPBUSDEV, "ppbusdev", "Parallel Port bus device");
 
-
 static int	ppbus_intr(void *arg);
 
 /*
@@ -593,7 +592,6 @@ static device_method_t ppbus_methods[] = {
 	DEVMETHOD(bus_teardown_intr,	ppbus_teardown_intr),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-
 	{ 0, 0 }
 };
 
