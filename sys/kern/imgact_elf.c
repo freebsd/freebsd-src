@@ -908,7 +908,7 @@ __elfN(enforce_limits)(struct image_params *imgp, const Elf_Ehdr *hdr,
 		}
 		total_size += seg_size;
 	}
-	
+
 	if (data_addr == 0 && data_size == 0) {
 		data_addr = text_addr;
 		data_size = text_size;

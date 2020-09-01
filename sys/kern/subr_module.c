@@ -54,7 +54,6 @@ preload_search_by_name(const char *name)
     int		next;
     
     if (preload_metadata != NULL) {
-	
 	curp = preload_metadata;
 	for (;;) {
 	    hdr = (uint32_t *)curp;
@@ -86,7 +85,6 @@ preload_search_by_type(const char *type)
     int		next;
 
     if (preload_metadata != NULL) {
-
 	curp = preload_metadata;
 	lname = NULL;
 	for (;;) {
@@ -123,7 +121,6 @@ preload_search_next_name(caddr_t base)
     int		next;
     
     if (preload_metadata != NULL) {
-	
 	/* Pick up where we left off last time */
 	if (base) {
 	    /* skip to next field */
@@ -184,7 +181,7 @@ preload_search_info(caddr_t mod, int inf)
 	    if (hdr[0] == type)
 		break;
 	}
-	
+
 	/* 
 	 * Attribute match? Return pointer to data.
 	 * Consumer may safely assume that size value precedes	
@@ -216,7 +213,6 @@ preload_delete_name(const char *name)
     sz = 0;
     
     if (preload_metadata != NULL) {
-
 	clearing = 0;
 	curp = preload_metadata;
 	for (;;) {
@@ -284,7 +280,6 @@ preload_bootstrap_relocate(vm_offset_t offset)
     int		next;
     
     if (preload_metadata != NULL) {
-	
 	curp = preload_metadata;
 	for (;;) {
 	    hdr = (uint32_t *)curp;

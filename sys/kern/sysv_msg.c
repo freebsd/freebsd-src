@@ -546,7 +546,6 @@ kern_msgctl(struct thread *td, int msqid, int cmd, struct msqid_ds *msqbuf)
 	rval = 0;
 
 	switch (cmd) {
-
 	case IPC_RMID:
 	{
 #ifdef MAC

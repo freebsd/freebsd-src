@@ -599,7 +599,7 @@ sysctl_handle_sb_max(SYSCTL_HANDLER_ARGS)
 	sb_max_adj = (u_quad_t)sb_max * MCLBYTES / (MSIZE + MCLBYTES);
 	return (0);
 }
-	
+
 /*
  * Allot mbufs to a sockbuf.  Attempt to scale mbmax so that mbcnt doesn't
  * become limiting if buffering efficiency is near the normal case.

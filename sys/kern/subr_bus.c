@@ -169,7 +169,6 @@ static bool device_frozen;
 static int bus_debug = 1;
 SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RWTUN, &bus_debug, 0,
     "Bus debug level");
-
 #define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a; printf("\n");}
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
 
@@ -1921,7 +1920,7 @@ device_delete_child(device_t dev, device_t child)
 	/* detach parent before deleting children, if any */
 	if ((error = device_detach(child)) != 0)
 		return (error);
-	
+
 	/* remove children second */
 	while ((grandchild = TAILQ_FIRST(&child->children)) != NULL) {
 		error = device_delete_child(child, grandchild);

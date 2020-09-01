@@ -779,4 +779,3 @@ vty_set_preferred(unsigned vty)
 	vty_prefer &= ~VTY_VT;
 #endif
 }
-

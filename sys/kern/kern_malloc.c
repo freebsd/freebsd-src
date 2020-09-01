@@ -1108,7 +1108,6 @@ mallocinit(void *dummy)
 		}		    
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
-
 	}
 }
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_SECOND, mallocinit, NULL);
@@ -1260,7 +1259,6 @@ sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS)
 		for (; i < MAXCPU; i++) {
 			(void)sbuf_bcat(&sbuf, &zeromts, sizeof(zeromts));
 		}
-
 	}
 	mtx_unlock(&malloc_mtx);
 	error = sbuf_finish(&sbuf);

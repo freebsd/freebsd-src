@@ -1262,7 +1262,7 @@ sched_pickcpu(struct thread *td)
 	CPU_FOREACH(cpu) {
 		if (!THREAD_CAN_SCHED(td, cpu))
 			continue;
-	
+
 		if (best == NOCPU)
 			best = cpu;
 		else if (runq_length[cpu] < runq_length[best])
@@ -1311,7 +1311,6 @@ sched_add(struct thread *td, int flags)
 			td->td_lock = &sched_lock;
 		else
 			thread_lock_set(td, &sched_lock);
-
 	}
 	TD_SET_RUNQ(td);
 
@@ -1629,7 +1628,7 @@ sched_pctcpu_delta(struct thread *td)
 u_int
 sched_estcpu(struct thread *td)
 {
-	
+
 	return (td_get_sched(td)->ts_estcpu);
 }
 

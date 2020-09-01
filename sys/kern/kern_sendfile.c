@@ -1313,7 +1313,7 @@ out:
 int
 sys_sendfile(struct thread *td, struct sendfile_args *uap)
 {
- 
+
 	return (sendfile(td, uap, 0));
 }
 

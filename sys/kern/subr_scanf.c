@@ -97,7 +97,7 @@ sscanf(const char *ibuf, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
-	
+
 	va_start(ap, fmt);
 	ret = vsscanf(ibuf, fmt, ap);
 	va_end(ap);
@@ -128,7 +128,7 @@ vsscanf(const char *inp, char const *fmt0, va_list ap)
 		{ 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
 
 	inr = strlen(inp);
-	
+
 	nassigned = 0;
 	nconversions = 0;
 	nread = 0;
@@ -309,7 +309,6 @@ literal:
 		 * Do the conversion.
 		 */
 		switch (c) {
-
 		case CT_CHAR:
 			/* scan arbitrary characters (sets NOSKIP) */
 			if (width == 0)
@@ -434,7 +433,6 @@ literal:
 				 * if we accept it as a part of number.
 				 */
 				switch (c) {
-
 				/*
 				 * The digit 0 is always legal, but is
 				 * special.  For %i conversions, if no
@@ -565,7 +563,6 @@ literal:
 			nread += p - buf;
 			nconversions++;
 			break;
-
 		}
 	}
 input_failure:
@@ -613,7 +610,6 @@ __sccl(char *tab, const u_char *fmt)
 doswitch:
 		n = *fmt++;		/* and examine the next */
 		switch (n) {
-
 		case 0:			/* format ended too soon */
 			return (fmt - 1);
 
@@ -665,4 +661,3 @@ doswitch:
 	}
 	/* NOTREACHED */
 }
-

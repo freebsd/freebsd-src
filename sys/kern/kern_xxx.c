@@ -173,7 +173,6 @@ ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 	u_int needed = 0;
 
 	switch (uap->op & 0xff00) {
-
 	case KINFO_RT:
 		name[0] = CTL_NET;
 		name[1] = PF_ROUTE;

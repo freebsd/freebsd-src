@@ -1041,7 +1041,6 @@ main(int argc, char **argv)
 			usage(argv);
 			exit(2);
 		}
-
 	}
 
 	setbuf(stdout, NULL);

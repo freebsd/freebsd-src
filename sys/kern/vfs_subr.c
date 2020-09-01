@@ -2625,7 +2625,6 @@ sched_sync(void)
 				wdog_kern_pat(WD_LASTVAL);
 				mtx_lock(&sync_mtx);
 			}
-
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;

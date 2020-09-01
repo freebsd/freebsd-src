@@ -121,4 +121,3 @@ power_profile_set_state(int state)
 	if (changed)
 		EVENTHANDLER_INVOKE(power_profile_change, 0);
 }
-

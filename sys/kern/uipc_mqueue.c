@@ -907,7 +907,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 	if (pn != NULL)
 		mqnode_addref(pn);
 	sx_xunlock(&mqfs->mi_lock);
-	
+
 	/* found */
 	if (pn != NULL) {
 		/* DELETE */
@@ -932,7 +932,7 @@ mqfs_lookupx(struct vop_cachedlookup_args *ap)
 			cache_enter(dvp, *vpp, cnp);
 		return (error);
 	}
-	
+
 	/* not found */
 
 	/* will create a new entry in the directory ? */
@@ -1916,7 +1916,7 @@ static int
 _mqueue_recv(struct mqueue *mq, struct mqueue_msg **msg, int timo)
 {	
 	int error = 0;
-	
+
 	mtx_lock(&mq->mq_mutex);
 	while ((*msg = TAILQ_FIRST(&mq->mq_msgq)) == NULL && error == 0) {
 		if (timo < 0) {
@@ -2447,7 +2447,7 @@ mqueue_fdclose(struct thread *td, int fd, struct file *fp)
 	struct mqueue *mq;
 #ifdef INVARIANTS
 	struct filedesc *fdp;
- 
+
 	fdp = td->td_proc->p_fd;
 	FILEDESC_LOCK_ASSERT(fdp);
 #endif

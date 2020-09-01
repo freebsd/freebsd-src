@@ -200,7 +200,7 @@ module_release(module_t mod)
 		panic("module_release: bad reference count");
 
 	MOD_DPF(REFS, ("module_release: before, refs=%d\n", mod->refs));
-	
+
 	mod->refs--;
 	if (mod->refs == 0) {
 		TAILQ_REMOVE(&modules, mod, link);
