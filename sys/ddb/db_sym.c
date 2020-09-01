@@ -205,7 +205,6 @@ db_qualify(c_db_sym_t sym, char *symtabname)
 	return tmp;
 }
 
-
 bool
 db_eqname(const char *src, const char *dst, int c)
 {
@@ -407,7 +406,6 @@ db_symbol_values(c_db_sym_t sym, const char **namep, db_expr_t *valuep)
 	if (valuep)
 		*valuep = value;
 }
-
 
 /*
  * Print a the closest symbol to value

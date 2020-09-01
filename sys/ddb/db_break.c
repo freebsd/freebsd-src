@@ -178,7 +178,6 @@ db_set_breakpoints(void)
 	register db_breakpoint_t	bkpt;
 
 	if (!db_breakpoints_inserted) {
-
 		for (bkpt = db_breakpoint_list;
 		     bkpt != 0;
 		     bkpt = bkpt->link)
@@ -195,7 +194,6 @@ db_clear_breakpoints(void)
 	register db_breakpoint_t	bkpt;
 
 	if (db_breakpoints_inserted) {
-
 		for (bkpt = db_breakpoint_list;
 		     bkpt != 0;
 		     bkpt = bkpt->link)
