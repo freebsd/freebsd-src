@@ -108,7 +108,6 @@ mem_modevent(module_t mod __unused, int type, void *data __unused)
 
 	default:
 		return(EOPNOTSUPP);
-
 	}
 
 	return (0);
