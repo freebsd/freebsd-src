@@ -276,7 +276,6 @@ enum _ecore_status_t
 ecore_iscsi_terminate_connection(struct ecore_hwfn *p_hwfn,
 				 struct ecore_iscsi_conn *p_conn);
 
-
 /**
  * @brief ecore_iscsi_update_connection - updates previously 
  *        offloaded iSCSI connection

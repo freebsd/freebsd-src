@@ -62,5 +62,3 @@ struct mcp_trace {
 };
 
 #endif /* MFW_HSI_H */
-
-

@@ -25,7 +25,6 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /*
  * File: qlnx_ioctl.c
  * Author : David C Somayajulu, Qlogic Corporation, Aliso Viejo, CA 92656.
@@ -65,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include "qlnx_def.h"
 #include "qlnx_ver.h"
 #include <sys/smp.h>
-
 
 static int qlnx_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
                 struct thread *td);
@@ -164,7 +162,6 @@ qlnx_get_grc_dump(qlnx_host_t *ha, qlnx_grcdump_t *grcdump)
 	grcdump->pci_func = ha->pci_func;
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 		if ((ha->grcdump[i] == NULL) || (grcdump->grcdump[i] == NULL) ||
 			(grcdump->grcdump_size[i] < ha->grcdump_size[i]))
 			return (EINVAL);
@@ -253,7 +250,6 @@ qlnx_get_idle_chk(qlnx_host_t *ha, qlnx_idle_chk_t *idle_chk)
 	idle_chk->pci_func = ha->pci_func;
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 		if ((ha->idle_chk[i] == NULL) ||
 				(idle_chk->idle_chk[i] == NULL) ||
 				(idle_chk->idle_chk_size[i] <
@@ -300,7 +296,6 @@ qlnx_get_trace_cmd_size(qlnx_host_t *ha, int hwfn_index, uint16_t cmd)
         }
 
 	switch (cmd) {
-
 	case QLNX_MCP_TRACE:
         	rval = ecore_dbg_mcp_trace_get_dump_buf_size(p_hwfn,
 				p_ptt, &num_dwords);
@@ -378,7 +373,6 @@ qlnx_get_trace(qlnx_host_t *ha, int hwfn_index, qlnx_trace_t *trace)
         }
 
 	switch (trace->cmd) {
-
 	case QLNX_MCP_TRACE:
         	rval = ecore_dbg_mcp_trace_dump(p_hwfn, p_ptt,
 				buffer, (trace->size[hwfn_index] >> 2),
@@ -440,7 +434,6 @@ qlnx_reg_rd_wr(qlnx_host_t *ha, qlnx_reg_rd_wr_t *reg_rd_wr)
 	p_hwfn = &ha->cdev.hwfns[reg_rd_wr->hwfn_index];
 
 	switch (reg_rd_wr->cmd) {
-
 		case QLNX_REG_READ_CMD:
 			if (reg_rd_wr->access_type == QLNX_REG_ACCESS_DIRECT) {
 				reg_rd_wr->val = qlnx_reg_rd32(p_hwfn,
@@ -469,7 +462,6 @@ qlnx_rd_wr_pci_config(qlnx_host_t *ha, qlnx_pcicfg_rd_wr_t *pci_cfg_rd_wr)
 	int rval = 0;
 
 	switch (pci_cfg_rd_wr->cmd) {
-
 		case QLNX_PCICFG_READ:
 			pci_cfg_rd_wr->val = pci_read_config(ha->pci_dev,
 						pci_cfg_rd_wr->reg,
@@ -513,7 +505,6 @@ qlnx_get_regs(qlnx_host_t *ha, qlnx_get_regs_t *regs)
 	outb = regs->reg_buf;
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 		rval = qlnx_grc_dump(ha, &dwords, i);
 
 		if (rval)
@@ -656,7 +647,6 @@ qlnx_get_nvram_resp(qlnx_host_t *ha, qlnx_nvram_t *nvram)
 
 	buf = qlnx_zalloc(nvram->data_len);
 
-
 	ret = ecore_mcp_nvm_resp(&ha->cdev, buf);
 
 	QL_DPRINT9(ha, "data = %p data_len = 0x%x \
@@ -678,7 +668,6 @@ qlnx_nvram(qlnx_host_t *ha, qlnx_nvram_t *nvram)
 	int ret = 0;
 
 	switch (nvram->cmd) {
-
 	case QLNX_NVRAM_CMD_WRITE_NVRAM:
 		ret = qlnx_write_nvram(ha, nvram, ECORE_NVM_WRITE_NVRAM);
 		break;
@@ -743,11 +732,9 @@ qlnx_storm_stats(qlnx_host_t *ha, qlnx_storm_stats_dump_t *s_stats)
 	s_stats->num_samples = ha->storm_stats_index;
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 		index = (QLNX_STORM_STATS_SAMPLES_PER_HWFN * i);
 
 		if (s_stats->buffer[i]) {
-
 			ret = copyout(&ha->storm_stats[index],
 					s_stats->buffer[i],
 					QLNX_STORM_STATS_BYTES_PER_HWFN);
@@ -757,7 +744,6 @@ qlnx_storm_stats(qlnx_host_t *ha, qlnx_storm_stats_dump_t *s_stats)
 
 			if (s_stats->num_samples ==
 				QLNX_STORM_STATS_SAMPLES_PER_HWFN) {
-
 				bzero((void *)&ha->storm_stats[i],
 					QLNX_STORM_STATS_BYTES_PER_HWFN);
 
@@ -811,7 +797,6 @@ qlnx_lldp_configure(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn,
 	lldp_params.chassis_id_tlv[1] = lldp_mac[1] | (lldp_mac[2] << 8) |
 		 (lldp_mac[3] << 16) | (lldp_mac[4] << 24);
 	lldp_params.chassis_id_tlv[2] = lldp_mac[5];
-
 
 	lldp_params.port_id_tlv[0] = 0;
 	lldp_params.port_id_tlv[0] |= (QLNX_LLDP_TYPE_PORT_ID << 1);
@@ -987,7 +972,7 @@ qlnx_set_lldp_tlvx(qlnx_host_t *ha, qlnx_lldp_sys_tlvs_t *lldp_tlvs)
 		memcpy(tlv_params.buf, lldp_tlvs->buf, lldp_tlvs->buf_size);
 
 		ret = ecore_lldp_set_system_tlvs(p_hwfn, p_ptt, &tlv_params);
-	
+
 		if (ret) {
 			device_printf(ha->pci_dev,
 				"%s: ecore_lldp_set_system_tlvs failed\n",
@@ -1018,7 +1003,6 @@ qlnx_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	ifp = ha->ifp;
 
 	switch (cmd) {
-
 	case QLNX_GRC_DUMP_SIZE:
 		qlnx_get_grc_dump_size(ha, (qlnx_grcdump_t *)data);
 		break;
@@ -1075,7 +1059,6 @@ qlnx_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		trace = (qlnx_trace_t *)data;
 
 		for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 			if (trace->size[i] && trace->cmd && trace->buffer[i])
 				rval = qlnx_get_trace(ha, i, trace);
 
@@ -1097,4 +1080,3 @@ qlnx_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	return (rval);
 }
-

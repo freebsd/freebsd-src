@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef __QLNXR_VERBS_H__
 #define __QLNXR_VERBS_H__
 
@@ -46,7 +45,6 @@ extern struct ib_srq *qlnxr_create_srq(struct ib_pd *,
 			struct ib_udata *);
 
 extern int qlnxr_destroy_srq(struct ib_srq *);
-
 
 extern int qlnxr_modify_srq(struct ib_srq *,
 			struct ib_srq_attr *,
@@ -116,7 +114,6 @@ extern int qlnxr_resize_cq(struct ib_cq *,
 extern int qlnxr_poll_cq(struct ib_cq *,
 			int num_entries,
 			struct ib_wc *wc);
-
 
 extern struct ib_qp *qlnxr_create_qp(struct ib_pd *,
 		       struct ib_qp_init_attr *attrs,
@@ -228,7 +225,6 @@ extern int qlnxr_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg,
 extern struct ib_mr *qlnxr_alloc_frmr(struct ib_pd *pd,
 			int max_page_list_len);
 
-
 extern struct ib_fast_reg_page_list *qlnxr_alloc_frmr_page_list(
 			struct ib_device *ibdev,
 			int page_list_len);
@@ -241,7 +237,6 @@ extern struct ib_ucontext *qlnxr_alloc_ucontext(struct ib_device *ibdev,
                 struct ib_udata *udata);
 
 extern int qlnxr_dealloc_ucontext(struct ib_ucontext *ibctx);
-
 
 extern int qlnxr_mmap(struct ib_ucontext *, struct vm_area_struct *vma);
 
@@ -264,4 +259,3 @@ extern void qlnxr_iw_qp_rem_ref(struct ib_qp *qp);
 extern struct ib_qp *qlnxr_iw_get_qp(struct ib_device *dev, int qpn);
 
 #endif /* #ifndef __QLNXR_VERBS_H__ */
-

@@ -77,7 +77,6 @@ struct qlnx_trace {
 };
 typedef struct qlnx_trace qlnx_trace_t;
 
-
 /*
  * Read driver info
  */
@@ -181,12 +180,10 @@ struct qlnx_perm_mac_addr {
 };
 typedef struct qlnx_perm_mac_addr qlnx_perm_mac_addr_t;
 
-
 /*
  * Read STORM statistics registers
  */
 struct qlnx_storm_stats {
-
 	/* xstorm */
 	uint32_t xstorm_active_cycles;
 	uint32_t xstorm_stall_cycles;
@@ -267,7 +264,6 @@ struct qlnx_lldp_sys_tlvs {
 	uint16_t	buf_size;
 };
 typedef struct qlnx_lldp_sys_tlvs qlnx_lldp_sys_tlvs_t;
-
 
 /*
  * Read grcdump size

@@ -28,8 +28,6 @@
  *
  */
 
-
-
 /*
  * File: qlnx_def.h
  * Author : David C Somayajulu, Cavium Inc., San Jose, CA 95131.
@@ -69,7 +67,6 @@ enum QLNX_STATE {
 #ifndef BITS_PER_BYTE
 #define BITS_PER_BYTE	8
 #endif /* #ifndef BITS_PER_BYTE */
-
 
 /* 
  * RX ring buffer contains pointer to kmalloc() data only,
@@ -128,12 +125,10 @@ struct qlnx_rx_queue {
         uint16_t		num_rx_buffers;
         uint16_t		rxq_id;
 
-
 #ifdef QLNX_SOFT_LRO
 	struct lro_ctrl		lro;
 #endif
 };
-
 
 union db_prod {
         struct eth_db_data	data;
@@ -152,7 +147,6 @@ struct sw_tx_bd {
 
 #define QLNX_MAX_SEGMENTS		255
 struct qlnx_tx_queue {
-
         int                     index; /* Queue index */
         volatile __le16         *hw_cons_ptr;
         struct sw_tx_bd         sw_tx_ring[TX_RING_SIZE];
@@ -178,7 +172,6 @@ struct qlnx_tx_queue {
                 (bd)->addr.lo = htole32(U64_LO(maddr)); \
                 (bd)->nbytes = htole16(len); \
         } while (0);
-
 
 #define QLNX_FP_MAX_SEGS	24
 
@@ -299,7 +292,6 @@ typedef struct qlnx_link_output qlnx_link_output_t;
 #define QLNX_LINK_CAP_50000baseKR2_Full		0x0200
 #define QLNX_LINK_CAP_100000baseKR4_Full	0x0400
 
-
 /* Functions definition */
 
 #define XMIT_PLAIN              0
@@ -327,7 +319,6 @@ typedef struct qlnx_link_output qlnx_link_output_t;
 #define QLNX_TX_ELEM_MIN_THRESH		32
 #define QLNX_TX_COMPL_THRESH		32
 
-
 #define QLNX_TPA_MAX_AGG_BUFFERS             (20)
 
 #define QLNX_MAX_NUM_MULTICAST_ADDRS	ECORE_MAX_MC_ADDRS
@@ -342,7 +333,6 @@ typedef struct _qlnx_vf_attr {
 } qlnx_vf_attr_t;
 
 typedef struct _qlnx_sriov_task {
-
 	struct task		pf_task;
 	struct taskqueue	*pf_taskqueue;
 
@@ -353,13 +343,11 @@ typedef struct _qlnx_sriov_task {
 
 } qlnx_sriov_task_t;
 
-
 /*
  * Adapter structure contains the hardware independent information of the
  * pci function.
  */
 struct qlnx_host {
-
 	/* interface to ecore */
 
 	struct ecore_dev	cdev;
@@ -426,7 +414,6 @@ struct qlnx_host {
 	bus_dma_tag_t		tx_tag;
 	bus_dma_tag_t		rx_tag;
 
-	
         struct ecore_sb_info    sb_array[QLNX_MAX_RSS];
         struct qlnx_rx_queue    rxq_array[QLNX_MAX_RSS];
         struct qlnx_tx_queue    txq_array[(QLNX_MAX_RSS * MAX_NUM_TC)];
@@ -456,7 +443,6 @@ struct qlnx_host {
 #define QLNX_MAX_TSS_CNT(ha)	((ha->num_rss) * (ha->num_tc))
 
 	qlnx_ivec_t              irq_vec[QLNX_MAX_RSS];
-	
 
 	uint8_t			filter;
 	uint32_t                nmcast;
@@ -468,7 +454,7 @@ struct qlnx_host {
 	struct ecore_rss_params	rss_params;
         uint32_t		rx_buf_size;
         bool			rx_csum_offload;
-	
+
 	uint32_t		rx_coalesce_usecs;
 	uint32_t		tx_coalesce_usecs;
 
@@ -480,7 +466,7 @@ struct qlnx_host {
 	uint64_t		err_illegal_intr;
 	uint64_t		err_fp_null;
 	uint64_t		err_get_proto_invalid_type;
-	
+
 	/* error recovery related */
 	uint32_t		error_recovery;
 	struct task		err_task;
@@ -534,7 +520,6 @@ typedef struct qlnx_host qlnx_host_t;
 //#define QLNX_MAX_TSO_FRAME_SIZE		((64 * 1024 - 1) + 22)
 #define QLNX_MAX_TSO_FRAME_SIZE		65536
 #define QLNX_MAX_TX_MBUF_SIZE		65536    /* bytes - bd_len = 16bits */
-
 
 #define QL_MAC_CMP(mac1, mac2)    \
         ((((*(uint32_t *) mac1) == (*(uint32_t *) mac2) && \
@@ -667,7 +652,6 @@ typedef struct qlnx_host qlnx_host_t;
 		}						\
 	} while (0)
 
-
 #else
 
 #define QL_DPRINT1(ha, x, ...)
@@ -692,7 +676,6 @@ typedef struct qlnx_host qlnx_host_t;
 #define QL_ERR_INJCT_TX_INT_DIFF	0x0001
 #define QL_ERR_INJCT_TX_INT_MBUF_NULL	0x0002
 
-
 /*
  * exported functions
  */
@@ -710,7 +693,6 @@ extern int qlnx_vf_device(qlnx_host_t *ha);
 extern void qlnx_free_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info);
 extern int qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info,
 		u16 sb_id);
-
 
 /*
  * Some OS specific stuff
@@ -732,7 +714,6 @@ extern int qlnx_alloc_mem_sb(qlnx_host_t *ha, struct ecore_sb_info *sb_info,
 #define QLNX_IFM_25G_SR IFM_UNKNOWN
 #define QLNX_IFM_25G_CR IFM_UNKNOWN
 #endif /* #if (defined IFM_25G_SR) */
-
 
 #if __FreeBSD_version < 1100000
 
@@ -786,6 +767,5 @@ void prefetch(void *x)
 #define prefetch(x)
 #endif
 #endif
-
 
 #endif /* #ifndef _QLNX_DEF_H_ */

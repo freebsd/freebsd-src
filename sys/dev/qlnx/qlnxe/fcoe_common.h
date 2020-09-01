@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __FCOE_COMMON__
 #define __FCOE_COMMON__ 
 /*********************/
@@ -36,10 +35,6 @@
 /*********************/
 
 #define FC_ABTS_REPLY_MAX_PAYLOAD_LEN	12
-
-
-
-
 
 /*
  * The fcoe storm task context protection-information of Ystorm
@@ -612,7 +607,6 @@ struct e4_fcoe_task_context
 	struct rdif_task_context rdif_context /* rdif context */;
 };
 
-
 struct e5_ystorm_fcoe_task_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -930,8 +924,6 @@ struct e5_fcoe_task_context
 	struct rdif_task_context rdif_context /* rdif context */;
 };
 
-
-
 /*
  * FCoE additional WQE (Sq/ XferQ) information
  */
@@ -943,8 +935,6 @@ union fcoe_additional_info_union
 	__le32 seq_rec_updated_offset /* The updated offset in SGL - Used in sequence recovery */;
 };
 
-
-
 /*
  * FCoE Ramrod Command IDs 
  */
@@ -955,7 +945,6 @@ enum fcoe_completion_status
 	FCOE_COMPLETION_STATUS_SRC_MAC_ADD_ARR_ERR /* src_mac_arr for the current physical port is full- allocation failed */,
 	MAX_FCOE_COMPLETION_STATUS
 };
-
 
 /*
  * FC address (SID/DID) network presentation 
@@ -1022,7 +1011,6 @@ struct fcoe_conn_offload_ramrod_data
 	u8 reserved[5];
 };
 
-
 /*
  * FCoE terminate connection request 
  */
@@ -1030,7 +1018,6 @@ struct fcoe_conn_terminate_ramrod_data
 {
 	struct regpair terminate_params_addr /* Terminate params ptr */;
 };
-
 
 /*
  * FCoE device type
@@ -1042,9 +1029,6 @@ enum fcoe_device_type
 	MAX_FCOE_DEVICE_TYPE
 };
 
-
-
-
 /*
  * Data sgl
  */
@@ -1055,10 +1039,6 @@ struct fcoe_fast_sgl_ctx
 	__le16 task_reuse_cnt /* The reuse count for that task. Wrap ion 4K value. */;
 	__le16 init_offset_in_first_sge /* offset from the beginning of the first page in the SGL, never changed by FW */;
 };
-
-
-
-
 
 /*
  * FCoE firmware function init
@@ -1072,7 +1052,6 @@ struct fcoe_init_func_ramrod_data
 	__le32 reserved[3];
 };
 
-
 /*
  * FCoE: Mode of the connection: Target or Initiator or both
  */
@@ -1083,7 +1062,6 @@ enum fcoe_mode_type
 	FCOE_BOTH_OR_NOT_CHOSEN=0x3,
 	MAX_FCOE_MODE_TYPE
 };
-
 
 /*
  * Per PF FCoE receive path statistics - tStorm RAM structure
@@ -1101,8 +1079,6 @@ struct fcoe_rx_stat
 	__le32 fcoe_silent_drop_total_pkt_cnt /* Number of FCoE packets that were silently dropped */;
 	__le32 rsrv;
 };
-
-
 
 /*
  * FCoE SQE request type
@@ -1124,7 +1100,6 @@ enum fcoe_sqe_request_type
 	MAX_FCOE_SQE_REQUEST_TYPE
 };
 
-
 /*
  * FCoe statistics request 
  */
@@ -1132,7 +1107,6 @@ struct fcoe_stat_ramrod_data
 {
 	struct regpair stat_params_addr /* Statistics host address */;
 };
-
 
 /*
  * FCoE task type
@@ -1155,13 +1129,6 @@ enum fcoe_task_type
 	MAX_FCOE_TASK_TYPE
 };
 
-
-
-
-
-
-
-
 /*
  * Per PF FCoE transmit path statistics - pStorm RAM structure
  */
@@ -1172,7 +1139,6 @@ struct fcoe_tx_stat
 	struct regpair fcoe_tx_xfer_pkt_cnt /* Transmitted FCoE XFER_RDY packets count */;
 	struct regpair fcoe_tx_other_pkt_cnt /* Transmitted FCoE packets which are not DATA/XFER_RDY count */;
 };
-
 
 /*
  * FCoE SQ/XferQ element 
@@ -1198,14 +1164,6 @@ struct fcoe_wqe
 	union fcoe_additional_info_union additional_info_union /* Additional wqe information (if needed) */;
 };
 
-
-
-
-
-
-
-
-
 /*
  * FCoE XFRQ element 
  */
@@ -1221,16 +1179,6 @@ struct xfrqe_prot_flags
 #define XFRQE_PROT_FLAGS_RESERVED_MASK                0x1 /* Must set to 0 */
 #define XFRQE_PROT_FLAGS_RESERVED_SHIFT               7
 };
-
-
-
-
-
-
-
-
-
-
 
 /*
  * FCoE doorbell data

@@ -194,7 +194,6 @@ static u32 (*cond_arr[])(const u32 *r, const u32 *imm) = {
 
 #endif /* __PREVENT_COND_ARR__ */
 
-
 /******************************* Data Types **********************************/
 
 enum platform_ids {
@@ -540,7 +539,6 @@ struct phy_defs {
 #define EMPTY_FW_VERSION_STR		"???_???_???_???"
 #define EMPTY_FW_IMAGE_STR		"???????????????"
 
-
 /***************************** Constant Arrays *******************************/
 
 struct dbg_array {
@@ -553,7 +551,6 @@ struct dbg_array {
 static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { { OSAL_NULL } };
 #else
 static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = {
-
 	/* BIN_BUF_DBG_MODE_TREE */
 	{ (const u32 *)dbg_modes_tree_buf, OSAL_ARRAY_SIZE(dbg_modes_tree_buf)},
 
@@ -651,7 +648,6 @@ static struct chip_defs s_chip_defs[MAX_CHIP_IDS] = {
 
 /* Storm constant definitions array */
 static struct storm_defs s_storm_defs[] = {
-
 	/* Tstorm */
 	{	'T', BLOCK_TSEM,
 		{ DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT, DBG_BUS_CLIENT_RBCT }, true,
@@ -1405,7 +1401,6 @@ static struct block_defs block_bar0_map_defs = {
 	0, 0, 0, 0, 0,
 	false, false, MAX_DBG_RESET_REGS, 0 };
 
-
 static struct block_defs* s_block_defs[MAX_BLOCK_ID] = {
 	&block_grc_defs,
  	&block_miscs_defs,
@@ -1498,10 +1493,8 @@ static struct block_defs* s_block_defs[MAX_BLOCK_ID] = {
 
 };
 
-
 /* Constraint operation types */
 static struct dbg_bus_constraint_op_defs s_constraint_op_defs[] = {
-
 	/* DBG_BUS_CONSTRAINT_OP_EQ */
 	{ 0, false },
 
@@ -1534,7 +1527,6 @@ static struct dbg_bus_constraint_op_defs s_constraint_op_defs[] = {
 };
 
 static const char* s_dbg_target_names[] = {
-
 	/* DBG_BUS_TARGET_ID_INT_BUF */
 	"int-buf",
 
@@ -1546,7 +1538,6 @@ static const char* s_dbg_target_names[] = {
 };
 
 static struct storm_mode_defs s_storm_mode_defs[] = {
-
 	/* DBG_BUS_STORM_MODE_PRINTF */
 	{ "printf", true, 0 },
 
@@ -1576,7 +1567,6 @@ static struct storm_mode_defs s_storm_mode_defs[] = {
 };
 
 static struct platform_defs s_platform_defs[] = {
-
 	/* PLATFORM_ASIC */
 	{ "asic", 1, 256, 32768 },
 
@@ -1591,7 +1581,6 @@ static struct platform_defs s_platform_defs[] = {
 };
 
 static struct grc_param_defs s_grc_param_defs[] = {
-
 	/* DBG_GRC_PARAM_DUMP_TSTORM */
 	{ { 1, 1, 1 }, 0, 1, false, 1, 1 },
 
@@ -1755,7 +1744,6 @@ static struct big_ram_defs s_big_ram_defs[] = {
 };
 
 static struct reset_reg_defs s_reset_regs_defs[] = {
-
 	/* DBG_RESET_REG_MISCS_PL_UA */
 	{ MISCS_REG_RESET_PL_UA, { true, true, true }, { 0x0, 0x0, 0x0 } },
 
@@ -2308,7 +2296,6 @@ static void ecore_bus_enable_storm(struct ecore_hwfn *p_hwfn,
 
 	/* Config SEM */
 	if (storm_mode->is_fast_dbg) {
-
 		/* Enable fast debug */
 		ecore_wr(p_hwfn, p_ptt, storm->sem_frame_mode_addr, DBG_BUS_SEMI_FRAME_MODE_0SLOW_4FAST);
 		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DEBUG_MODE, storm_mode->id_in_hw);
@@ -2323,7 +2310,6 @@ static void ecore_bus_enable_storm(struct ecore_hwfn *p_hwfn,
 		ecore_wr(p_hwfn, p_ptt, base_addr + SEM_FAST_REG_DBG_MODE6_SRC_DISABLE, SEM_FAST_MODE6_SRC_ENABLE_VAL);
 	}
 	else {
-
 		/* Enable slow debug */
 		ecore_wr(p_hwfn, p_ptt, storm->sem_frame_mode_addr, DBG_BUS_SEMI_FRAME_MODE_4SLOW_0FAST);
 		ecore_wr(p_hwfn, p_ptt, storm->sem_slow_enable_addr, 1);
@@ -2521,7 +2507,6 @@ static u32 ecore_bus_dump_int_buf(struct ecore_hwfn *p_hwfn,
 	last_written_line = ecore_rd(p_hwfn, p_ptt, DBG_REG_INTR_BUFFER_WR_PTR);
 
 	if (ecore_rd(p_hwfn, p_ptt, DBG_REG_WRAP_ON_INT_BUFFER)) {
-
 		/* Internal buffer was wrapped: first dump from write pointer
 		 * to buffer end, then dump from buffer start to write pointer.
 		 */
@@ -2530,7 +2515,6 @@ static u32 ecore_bus_dump_int_buf(struct ecore_hwfn *p_hwfn,
 		offset += ecore_bus_dump_int_buf_range(p_hwfn, p_ptt, dump_buf + offset, dump, 0, last_written_line);
 	}
 	else if (last_written_line) {
-
 		/* Internal buffer wasn't wrapped: dump from buffer start until
 		 *  write pointer.
 		 */
@@ -3392,7 +3376,6 @@ static u32 ecore_grc_dump_mem_hdr(struct ecore_hwfn *p_hwfn,
 	offset += ecore_dump_section_hdr(dump_buf + offset, dump, "grc_mem", num_params);
 
 	if (name) {
-
 		/* Dump name */
 		if (is_storm) {
 			OSAL_STRCPY(buf, "?STORM_");
@@ -3406,7 +3389,6 @@ static u32 ecore_grc_dump_mem_hdr(struct ecore_hwfn *p_hwfn,
 		offset += ecore_dump_str_param(dump_buf + offset, dump, "name", buf);
 	}
 	else {
-
 		/* Dump address */
 		u32 addr_in_bytes = DWORDS_TO_BYTES(addr);
 
@@ -3712,7 +3694,6 @@ static u32 ecore_grc_dump_vfc_cam(struct ecore_hwfn *p_hwfn,
 	SET_VAR_FIELD(cam_addr, VFC_CAM_ADDR, OP, VFC_OPCODE_CAM_RD);
 
 	for (row = 0; row < VFC_CAM_NUM_ROWS; row++, offset += VFC_CAM_RESP_DWORDS) {
-
 		/* Write VFC CAM command */
 		SET_VAR_FIELD(cam_cmd, VFC_CAM_CMD, ROW, row);
 		ARR_REG_WR(p_hwfn, p_ptt, storm->sem_fast_mem_addr + SEM_FAST_REG_VFC_DATA_WR, cam_cmd, VFC_CAM_CMD_DWORDS);
@@ -3750,7 +3731,6 @@ static u32 ecore_grc_dump_vfc_ram(struct ecore_hwfn *p_hwfn,
 		return offset + total_size;
 
 	for (row = ram_defs->base_row; row < ram_defs->base_row + ram_defs->num_rows; row++, offset += VFC_RAM_RESP_DWORDS) {
-
 		/* Write VFC RAM command */
 		ARR_REG_WR(p_hwfn, p_ptt, storm->sem_fast_mem_addr + SEM_FAST_REG_VFC_DATA_WR, ram_cmd, VFC_RAM_CMD_DWORDS);
 
@@ -4036,7 +4016,6 @@ static u32 ecore_grc_dump_static_debug(struct ecore_hwfn *p_hwfn,
 		/* Enable block's client */
 		ecore_bus_enable_clients(p_hwfn, p_ptt, 1 << block->dbg_client_id[dev_data->chip_id]);
 		for (line_id = 0; line_id < (u32)NUM_DBG_LINES(block_desc); line_id++) {
-
 			/* Configure debug line ID */
 			ecore_config_dbg_line(p_hwfn, p_ptt, (enum block_id)block_id, (u8)line_id, 0xf, 0, 0, 0);
 
@@ -4076,7 +4055,6 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 	*num_dumped_dwords = 0;
 
 	if (dump) {
-
 		/* Find port mode */
 		switch (ecore_rd(p_hwfn, p_ptt, MISC_REG_PORT_MODE)) {
 		case 0: port_mode = 1; break;
@@ -4177,7 +4155,6 @@ static enum dbg_status ecore_grc_dump(struct ecore_hwfn *p_hwfn,
 	offset += ecore_dump_last_section(dump_buf, offset, dump);
 
 	if (dump) {
-
 		/* Unstall storms */
 		if (ecore_grc_get_param(p_hwfn, DBG_GRC_PARAM_UNSTALL))
 			ecore_grc_stall_storms(p_hwfn, p_ptt, false);
@@ -4745,7 +4722,6 @@ static enum dbg_status ecore_reg_fifo_dump(struct ecore_hwfn *p_hwfn,
 		ecore_dump_num_param(dump_buf + size_param_offset, dump, "size", dwords_read);
 	}
 	else {
-
 		/* FIFO max size is REG_FIFO_DEPTH_DWORDS. There is no way to
 		 * test how much data is available, except for reading it.
 		 */
@@ -4799,7 +4775,6 @@ static enum dbg_status ecore_igu_fifo_dump(struct ecore_hwfn *p_hwfn,
 		ecore_dump_num_param(dump_buf + size_param_offset, dump, "size", dwords_read);
 	}
 	else {
-
 		/* FIFO max size is IGU_FIFO_DEPTH_DWORDS. There is no way to
 		 * test how much data is available, except for reading it.
 		 */
@@ -5084,7 +5059,6 @@ enum dbg_status ecore_dbg_bus_set_nw_output(struct ecore_hwfn *p_hwfn,
 		ecore_wr(p_hwfn, p_ptt, DBG_REG_OTHER_ENGINE_MODE_BB_K2, DBG_BUS_OTHER_ENGINE_MODE_CROSS_ENGINE_RX);
 	}
 	else {
-
 		/* Configure ethernet header of 14 bytes */
 		ecore_wr(p_hwfn, p_ptt, DBG_REG_ETHERNET_HDR_WIDTH, 0);
 		ecore_wr(p_hwfn, p_ptt, DBG_REG_ETHERNET_HDR_7, dest_addr_lo32);
@@ -5671,7 +5645,6 @@ static enum dbg_status ecore_config_storm_inputs(struct ecore_hwfn *p_hwfn,
 
 	/* Configure calendar */
 	for (i = 0; i < NUM_CALENDAR_SLOTS; i++, next_storm_id = (next_storm_id + 1) % MAX_DBG_STORMS) {
-
 		/* Find next enabled Storm */
 		for (; !dev_data->bus.storms[next_storm_id].enabled; next_storm_id = (next_storm_id + 1) % MAX_DBG_STORMS);
 
@@ -5718,7 +5691,6 @@ static void ecore_assign_hw_ids(struct ecore_hwfn *p_hwfn,
 	}
 
 	if (hw_id_per_dword) {
-
 		/* Assign a different HW ID for each dword */
 		for (val_id = 0; val_id < VALUES_PER_CYCLE; val_id++)
 			hw_ids[val_id] = val_id;
@@ -6047,7 +6019,6 @@ enum dbg_status ecore_dbg_grc_config(struct ecore_hwfn *p_hwfn,
 		return DBG_STATUS_INVALID_ARGS;
 
 	if (s_grc_param_defs[grc_param].is_preset) {
-
 		/* Preset param */
 
 		/* Disabling a preset is not allowed. Call
@@ -6071,7 +6042,6 @@ enum dbg_status ecore_dbg_grc_config(struct ecore_hwfn *p_hwfn,
 		}
 	}
 	else {
-
 		/* Regular param - set its value */
 		ecore_grc_set_param(p_hwfn, grc_param, val);
 	}
@@ -6506,4 +6476,3 @@ bool ecore_is_block_in_reset(struct ecore_hwfn *p_hwfn,
 	return s_reset_regs_defs[reset_reg].exists[dev_data->chip_id] ?
 		!(ecore_rd(p_hwfn, p_ptt, s_reset_regs_defs[reset_reg].addr) & (1 << block->reset_bit_offset)) :	true;
 }
-

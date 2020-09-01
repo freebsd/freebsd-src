@@ -25,7 +25,6 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /*
  * File: qlnxr_verbs.c
  */
@@ -46,7 +45,6 @@ __FBSDID("$FreeBSD$");
 		(type_ptr)->field.hi = cpu_to_le32(upper_32_bits(vaddr));\
 		(type_ptr)->field.lo = cpu_to_le32(lower_32_bits(vaddr));\
 	} while (0)
-
 
 #define RQ_SGE_SET(sge, vaddr, vlength, vflags)			\
 	do {							\
@@ -90,7 +88,6 @@ qlnxr_alloc_srq_kernel_params(struct qlnxr_srq *srq,
 	struct qlnxr_dev *dev,
 	struct ib_srq_init_attr *init_attr);
 
-
 static int
 qlnxr_copy_srq_uresp(struct qlnxr_dev *dev,
 	struct qlnxr_srq *srq,
@@ -101,7 +98,6 @@ qlnxr_free_srq_user_params(struct qlnxr_srq *srq);
 
 static void
 qlnxr_free_srq_kernel_params(struct qlnxr_srq *srq);
-
 
 static u32
 qlnxr_srq_elem_left(struct qlnxr_srq_hwq_info *hw_srq);
@@ -762,7 +758,6 @@ qlnxr_alloc_pd(struct ib_device *ibdev, struct ib_ucontext *context,
 	pd->pd_id = pd_id;
 
 	if (udata && context) {
-
 		rc = ib_copy_to_udata(udata, &pd->pd_id, sizeof(pd->pd_id));
 		if (rc) {
 			QL_DPRINT11(ha, "ib_copy_to_udata failed\n");
@@ -842,7 +837,6 @@ qlnxr_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 	return 0;
 }
 
-
 static inline bool
 qlnxr_get_vlan_id_qp(qlnx_host_t *ha, struct ib_qp_attr *attr, int attr_mask,
        u16 *vlan_id)
@@ -917,8 +911,6 @@ get_gid_info(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	QL_DPRINT12(ha, "exit\n");
 	return;
 }
-
-
 
 static int
 qlnxr_add_mmap(struct qlnxr_ucontext *uctx, u64 phy_addr, unsigned long len)
@@ -1041,7 +1033,7 @@ ib_ucontext *qlnxr_alloc_ucontext(struct ib_device *ibdev,
         uresp.sges_per_recv_wr = QLNXR_MAX_RQE_ELEMENTS_PER_RQE;
         uresp.sges_per_srq_wr = dev->attr.max_srq_sge;
         uresp.max_cqes = QLNXR_MAX_CQES;
-	
+
 	rc = ib_copy_to_udata(udata, &uresp, sizeof(uresp));
 	if (rc)
 		goto err;
@@ -1053,7 +1045,7 @@ ib_ucontext *qlnxr_alloc_ucontext(struct ib_device *ibdev,
 		goto err;
 	QL_DPRINT12(ha, "Allocated user context %p\n",
 		&ctx->ibucontext);
-	
+
 	return &ctx->ibucontext;
 err:
 	kfree(ctx);
@@ -1151,7 +1143,6 @@ qlnxr_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 
 	if ((vm_page >= unmapped_db) && (vm_page <= (unmapped_db +
 		dev->db_size))) {
-
 		QL_DPRINT12(ha, "Mapping doorbell bar\n");
 
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
@@ -1394,7 +1385,6 @@ qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
         int                     entry;
 #endif
 
-
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
@@ -1430,7 +1420,6 @@ qlnxr_populate_pbls(struct qlnxr_dev *dev, struct ib_umem *umem,
 #ifndef DEFINE_IB_UMEM_WITH_CHUNK
 
 	for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-
 #else
 	list_for_each_entry(chunk, &umem->chunk_list, list) {
 		/* get all the dma regions from the chunk. */
@@ -1560,7 +1549,6 @@ done:
 
 	return rc;
 }
-
 
 struct ib_mr *
 #if __FreeBSD_version >= 1102000
@@ -2065,7 +2053,6 @@ qlnxr_destroy_cq(struct ib_cq *ibcq)
 	/* GSIs CQs are handled by driver, so they don't exist in the FW */
 
 	if (cq->cq_type != QLNXR_CQ_TYPE_GSI) {
-
 		iparams.icid = cq->icid;
 
 		rc = ecore_rdma_destroy_cq(dev->rdma_ctx, &iparams, &oparams);
@@ -2297,7 +2284,6 @@ qlnxr_copy_rq_uresp(struct qlnxr_dev *dev,
 
 	/* iWARP requires two doorbells per RQ. */
 	if (QLNX_IS_IWARP(dev)) {
-
 		uresp->rq_db_offset =
 			DB_ADDR_SHIFT(DQ_PWM_OFFSET_TCM_IWARP_RQ_PROD);
 		uresp->rq_db2_offset =
@@ -2365,7 +2351,6 @@ qlnxr_copy_qp_uresp(struct qlnxr_dev *dev,
 	QL_DPRINT12(ha, "exit [%d]\n", rc);
 	return rc;
 }
-
 
 static void
 qlnxr_set_common_qp_params(struct qlnxr_dev *dev,
@@ -2451,7 +2436,6 @@ qlnxr_check_srq_params(struct ib_pd *ibpd,
 	return 0;
 }
 
-
 static void
 qlnxr_free_srq_user_params(struct qlnxr_srq *srq)
 {
@@ -2520,7 +2504,6 @@ qlnxr_init_srq_user_params(struct ib_ucontext *ib_ctx,
 				     sizeof(struct rdma_srq_producers),
 				     access, dmasync);
 	if (IS_ERR(srq->prod_umem)) {
-
 		qlnxr_free_pbl(srq->dev, &srq->usrq.pbl_info, srq->usrq.pbl_tbl);
 		ib_umem_release(srq->usrq.umem);
 
@@ -2542,7 +2525,6 @@ qlnxr_init_srq_user_params(struct ib_ucontext *ib_ctx,
 	QL_DPRINT12(ha, "exit\n");
 	return 0;
 }
-
 
 static int
 qlnxr_alloc_srq_kernel_params(struct qlnxr_srq *srq,
@@ -2645,7 +2627,6 @@ qlnxr_init_common_qp_in_params(struct qlnxr_dev *dev,
 	QL_DPRINT12(ha, "exit\n");
 	return;
 }
-
 
 static inline void
 qlnxr_qp_user_print( struct qlnxr_dev *dev,
@@ -2946,7 +2927,6 @@ qlnxr_roce_create_kernel_qp(struct qlnxr_dev *dev,
 	in_params->sq_pbl_ptr = ecore_chain_get_pbl_phys(&qp->sq.pbl);
 
 	if (!qp->srq) {
-
                 rc = ecore_chain_alloc(
                         dev->cdev,
                         ECORE_CHAIN_USE_TO_CONSUME_PRODUCE,
@@ -3089,7 +3069,6 @@ qlnxr_iwarp_create_kernel_qp(struct qlnxr_dev *dev,
 		ext_pbl.p_pbl_virt, ext_pbl.p_pbl_phys);
 
 	if (!qp->srq) {
-
                 rc = ecore_chain_alloc(
                         dev->cdev,
                         ECORE_CHAIN_USE_TO_CONSUME_PRODUCE,
@@ -3312,7 +3291,6 @@ err:
 	QL_DPRINT12(ha, "failed exit\n");
 	return ERR_PTR(-EFAULT);
 }
-
 
 static enum ib_qp_state
 qlnxr_get_ibqp_state(enum ecore_roce_qp_state qp_state)
@@ -3645,7 +3623,6 @@ qlnxr_modify_qp(struct ib_qp	*ibqp,
 		if (attr_mask & IB_QP_PATH_MTU) {
 			if (attr->path_mtu < IB_MTU_256 ||
 			    attr->path_mtu > IB_MTU_4096) {
-
 				QL_DPRINT12(ha,
 					"Only MTU sizes of 256, 512, 1024,"
 					" 2048 and 4096 are supported "
@@ -3981,7 +3958,6 @@ err:
 	return rc;
 }
 
-
 static void
 qlnxr_cleanup_user(struct qlnxr_dev *dev, struct qlnxr_qp *qp)
 {
@@ -3990,7 +3966,7 @@ qlnxr_cleanup_user(struct qlnxr_dev *dev, struct qlnxr_qp *qp)
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (qp->usq.umem)
 		ib_umem_release(qp->usq.umem);
 
@@ -4013,7 +3989,7 @@ qlnxr_cleanup_kernel(struct qlnxr_dev *dev, struct qlnxr_qp *qp)
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (qlnxr_qp_has_sq(qp)) {
 		QL_DPRINT12(ha, "freeing SQ\n");
 		ha->qlnxr_debug = 1;
@@ -4045,7 +4021,7 @@ qlnxr_free_qp_resources(struct qlnxr_dev *dev,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 #if 0
 	if (qp->qp_type != IB_QPT_GSI) {
 		rc = ecore_rdma_destroy_qp(dev->rdma_ctx, qp->ecore_qp,
@@ -4095,7 +4071,6 @@ qlnxr_destroy_qp(struct ib_qp *ibqp)
 	if (QLNX_IS_ROCE(dev) && (qp->state != (ECORE_ROCE_QP_STATE_RESET |
 				  ECORE_ROCE_QP_STATE_ERR |
 				  ECORE_ROCE_QP_STATE_INIT))) {
-
 		attr.qp_state = IB_QPS_ERR;
 		attr_mask |= IB_QP_STATE;
 
@@ -4143,7 +4118,6 @@ swap_wqe_data64(u64 *p)
 	for (i = 0; i < QLNXR_SQE_ELEMENT_SIZE / sizeof(u64); i++, p++)
 		*p = cpu_to_be64(cpu_to_le64(*p));
 }
-
 
 static u32
 qlnxr_prepare_sq_inline_data(struct qlnxr_dev *dev,
@@ -4233,7 +4207,7 @@ qlnxr_prepare_sq_sges(struct qlnxr_dev *dev, struct qlnxr_qp *qp,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter wr->num_sge = %d \n", wr->num_sge);
- 
+
 	for (i = 0; i < wr->num_sge; i++) {
 		struct rdma_sq_sge *sge = ecore_chain_produce(&qp->sq.pbl);
 
@@ -4264,7 +4238,7 @@ qlnxr_prepare_sq_rdma_data(struct qlnxr_dev *dev,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	rwqe2->r_key = cpu_to_le32(rdma_wr(wr)->rkey);
 	TYPEPTR_ADDR_SET(rwqe2, remote_va, rdma_wr(wr)->remote_addr);
 
@@ -4296,7 +4270,7 @@ qlnxr_prepare_sq_send_data(struct qlnxr_dev *dev,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	memset(swqe2, 0, sizeof(*swqe2));
 
 	if (wr->send_flags & IB_SEND_INLINE) {
@@ -4323,7 +4297,7 @@ qlnx_handle_completed_mrs(struct qlnxr_dev *dev, struct mr_info *info)
 	int work = info->completed - info->completed_handled - 1;
 
 	QL_DPRINT12(ha, "enter [%d]\n", work);
- 
+
 	while (work-- > 0 && !list_empty(&info->inuse_pbl_list)) {
 		struct qlnxr_pbl *pbl;
 
@@ -4401,7 +4375,7 @@ build_frmr_pbes(struct qlnxr_dev *dev, struct ib_send_wr *wr,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	pbe = (struct regpair *)pbl_tbl->va;
 	num_pbes = 0;
 
@@ -4441,7 +4415,7 @@ qlnxr_prepare_safe_pbl(struct qlnxr_dev *dev, struct mr_info *info)
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (info->completed == 0) {
 		//DP_VERBOSE(dev, QLNXR_MSG_MR, "First FMR\n");
 		/* first fmr */
@@ -4486,7 +4460,7 @@ qlnxr_prepare_fmr(struct qlnxr_qp *qp,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (wr->wr.fast_reg.page_list_len == 0)
 		BUG();
 
@@ -4583,7 +4557,7 @@ qlnxr_can_post_send(struct qlnxr_qp *qp, struct ib_send_wr *wr)
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter[qp, wr] = [%p,%p]\n", qp, wr);
- 
+
 	/* prevent SQ overflow and/or processing of a bad WR */
 	err_wr = wr->num_sge > qp->sq.max_sges;
 	wq_is_full = qlnxr_wq_is_full(&qp->sq);
@@ -4592,7 +4566,6 @@ qlnxr_can_post_send(struct qlnxr_qp *qp, struct ib_send_wr *wr)
 	if (wq_is_full || err_wr || pbl_is_full) {
 		if (wq_is_full &&
 		    !(qp->err_bitmap & QLNXR_QP_ERR_SQ_FULL)) {
-
 			qp->err_bitmap |= QLNXR_QP_ERR_SQ_FULL;
 
 			QL_DPRINT12(ha,
@@ -4604,7 +4577,6 @@ qlnxr_can_post_send(struct qlnxr_qp *qp, struct ib_send_wr *wr)
 
 		if (err_wr &&
 		    !(qp->err_bitmap & QLNXR_QP_ERR_BAD_SR)) {
-
 			qp->err_bitmap |= QLNXR_QP_ERR_BAD_SR;
 
 			QL_DPRINT12(ha,
@@ -4616,7 +4588,6 @@ qlnxr_can_post_send(struct qlnxr_qp *qp, struct ib_send_wr *wr)
 
 		if (pbl_is_full &&
 		    !(qp->err_bitmap & QLNXR_QP_ERR_SQ_PBL_FULL)) {
-
 			qp->err_bitmap |= QLNXR_QP_ERR_SQ_PBL_FULL;
 
 			QL_DPRINT12(ha,
@@ -4643,7 +4614,7 @@ qlnxr_post_send(struct ib_qp *ibqp,
 	bool			comp;
 	qlnx_host_t		*ha;
 	uint32_t		reg_addr;
- 
+
 	*bad_wr = NULL;
 	ha = dev->ha;
 
@@ -4714,9 +4685,7 @@ qlnxr_post_send(struct ib_qp *ibqp,
 
 		qp->wqe_wr_id[qp->sq.prod].opcode = qlnxr_ib_to_wc_opcode(wr->opcode);
 
-
 		switch (wr->opcode) {
-
 		case IB_WR_SEND_WITH_IMM:
 
 			wqe->req_type = RDMA_SQ_REQ_TYPE_SEND_WITH_IMM;
@@ -5024,7 +4993,6 @@ qlnxr_srq_elem_left(struct qlnxr_srq_hwq_info *hw_srq)
 	return hw_srq->max_wr - used;
 }
 
-
 int
 qlnxr_post_recv(struct ib_qp *ibqp,
 	struct ib_recv_wr *wr,
@@ -5043,7 +5011,7 @@ qlnxr_post_recv(struct ib_qp *ibqp,
 		return -EINVAL;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (qp->qp_type == IB_QPT_GSI) {
 		QL_DPRINT12(ha, "(qp->qp_type = IB_QPT_GSI)\n");
 		return qlnxr_gsi_post_recv(ibqp, wr, bad_wr);
@@ -5187,7 +5155,7 @@ process_req(struct qlnxr_dev *dev,
 	qlnx_host_t	*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	while (num_entries && qp->sq.wqe_cons != hw_cons) {
 		if (!qp->wqe_wr_id[qp->sq.cons].signaled && !force) {
 			qlnxr_chk_if_fmr(qp);
@@ -5207,7 +5175,6 @@ process_req(struct qlnxr_dev *dev,
 		wc->opcode = qp->wqe_wr_id[qp->sq.cons].opcode;
 
 		switch (wc->opcode) {
-
 		case IB_WC_RDMA_WRITE:
 
 			wc->byte_len = qp->wqe_wr_id[qp->sq.cons].bytes_len;
@@ -5266,9 +5233,8 @@ qlnxr_poll_cq_req(struct qlnxr_dev *dev,
 	qlnx_host_t	*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter req->status = 0x%x\n", req->status);
- 
-	switch (req->status) {
 
+	switch (req->status) {
 	case RDMA_CQE_REQ_STS_OK:
 
 		cnt = process_req(dev, qp, cq, num_entries, wc, req->sq_cons,
@@ -5354,12 +5320,11 @@ __process_resp_one(struct qlnxr_dev *dev,
 
 	QL_DPRINT12(ha, "enter qp = %p resp->status = 0x%x\n",
 		qp, resp->status);
- 
+
 	wc->opcode = IB_WC_RECV;
 	wc->wc_flags = 0;
 
 	switch (resp->status) {
-
 	case RDMA_CQE_RESP_STS_LOCAL_ACCESS_ERR:
 		wc_status = IB_WC_LOC_ACCESS_ERR;
 		break;
@@ -5426,7 +5391,6 @@ __process_resp_one(struct qlnxr_dev *dev,
 		flags = resp->flags & QLNXR_RESP_RDMA_IMM;
 
 		switch (flags) {
-
 		case QLNXR_RESP_RDMA_IMM:
 			/* update opcode */
 			wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
@@ -5476,7 +5440,7 @@ process_resp_one_srq(struct qlnxr_dev *dev,
 	qlnx_host_t		*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	wr_id = HILO_U64(resp->srq_wr_id.hi, resp->srq_wr_id.lo);
 
 	if (resp->status == RDMA_CQE_RESP_STS_WORK_REQUEST_FLUSHED_ERR) {
@@ -5511,7 +5475,7 @@ process_resp_one(struct qlnxr_dev *dev,
 	u64		wr_id = qp->rqe_wr_id[qp->rq.cons].wr_id;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	__process_resp_one(dev, qp, cq, wc, resp, wr_id);
 
 	while (qp->rqe_wr_id[qp->rq.cons].wqe_size--)
@@ -5532,7 +5496,7 @@ process_resp_flush(struct qlnxr_qp *qp,
 	qlnx_host_t	*ha = qp->dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	while (num_entries && qp->rq.wqe_cons != hw_cons) {
 		/* fill WC */
 		wc->status = IB_WC_WR_FLUSH_ERR;
@@ -5579,7 +5543,7 @@ qlnxr_poll_cq_resp_srq(struct qlnxr_dev *dev,
 	qlnx_host_t	*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	cnt = process_resp_one_srq(dev, qp, cq, wc, resp);
 	consume_cqe(cq);
 	*update |= 1;
@@ -5601,7 +5565,7 @@ qlnxr_poll_cq_resp(struct qlnxr_dev *dev,
 	qlnx_host_t	*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (resp->status == RDMA_CQE_RESP_STS_WORK_REQUEST_FLUSHED_ERR) {
 		cnt = process_resp_flush(qp, num_entries, wc,
 				resp->rq_cons);
@@ -5633,7 +5597,7 @@ doorbell_cq(struct qlnxr_dev *dev, struct qlnxr_cq *cq, u32 cons, u8 flags)
 	qlnx_host_t	*ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	wmb();
 	cq->db.data.agg_flags = flags;
 	cq->db.data.value = cpu_to_le32(cons);
@@ -5659,7 +5623,6 @@ doorbell_cq(struct qlnxr_dev *dev, struct qlnxr_cq *cq, u32 cons, u8 flags)
 //#endif
 }
 
-
 static int
 is_valid_cqe(struct qlnxr_cq *cq, union rdma_cqe *cqe)
 {
@@ -5684,7 +5647,7 @@ qlnxr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return -EINVAL;
- 
+
 	if (cq->destroyed) {
 		QL_DPRINT11(ha, "called after destroy for cq %p (icid=%d)\n",
 			cq, cq->icid);
@@ -5762,10 +5725,9 @@ qlnxr_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	spin_unlock_irqrestore(&cq->cq_lock, flags);
 
 	QL_DPRINT12(ha, "exit\n");
- 
+
 	return done;
 }
-
 
 int
 qlnxr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
@@ -5814,7 +5776,6 @@ qlnxr_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
         return 0;
 }
 
-
 static struct qlnxr_mr *
 __qlnxr_alloc_mr(struct ib_pd *ibpd, int max_page_list_len)
 {
@@ -5825,7 +5786,7 @@ __qlnxr_alloc_mr(struct ib_pd *ibpd, int max_page_list_len)
 	qlnx_host_t	*ha;
 
 	ha = dev->ha;
- 
+
 	QL_DPRINT12(ha, "enter ibpd = %p pd = %p "
 		" pd_id = %d max_page_list_len = %d\n",
 		ibpd, pd, pd->pd_id, max_page_list_len);
@@ -6019,7 +5980,7 @@ qlnxr_free_frmr_page_list(struct ib_fast_reg_page_list *page_list)
 	struct qlnxr_fast_reg_page_list *frmr_list;
 
 	frmr_list = get_qlnxr_frmr_list(page_list);
- 
+
 	free_mr_info(frmr_list->dev, &frmr_list->info);
 
 	kfree(frmr_list->ibfrpl.page_list);
@@ -6098,7 +6059,6 @@ qlnxr_validate_phys_buf_list(qlnx_host_t *ha, struct ib_phys_buf *buf_list,
 	}
 
 	while (buf_cnt) {
-
 		*total_size += buf_list->size;
 
 		if (buf_list->size != size) {
@@ -6124,7 +6084,6 @@ qlnxr_get_num_pages(qlnx_host_t *ha, struct ib_phys_buf *buf_list,
 	u64	size;
 
 	for (i = 0; i < buf_cnt; i++) {
-
 		size = 0;
 		while (size < buf_list->size) {
 			size += PAGE_SIZE;
@@ -6178,7 +6137,6 @@ qlnxr_populate_phys_mem_pbls(struct qlnxr_dev *dev,
 	pbe_cnt = 0;
 
 	for (i = 0; i < buf_cnt; i++) {
-
 		pages = buf_list->size >> PAGE_SHIFT;
 
 		for (pg_cnt = 0; pg_cnt < pages; pg_cnt++) {
@@ -6353,9 +6311,9 @@ qlnxr_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
 		QL_DPRINT12(ha, "no address handle can be allocated\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	
+
 	ah->attr = *attr;	
- 
+
 	return &ah->ibah;
 }
 
@@ -6365,7 +6323,7 @@ qlnxr_destroy_ah(struct ib_ah *ibah)
 	struct qlnxr_dev *dev;
 	qlnx_host_t     *ha;
 	struct qlnxr_ah *ah = get_qlnxr_ah(ibah);
-	
+
 	dev = get_qlnxr_dev((ibah->device));
 	ha = dev->ha;
 
@@ -6442,7 +6400,6 @@ qlnxr_process_mad(struct ib_device *ibdev,
 //	return IB_MAD_RESULT_SUCCESS;	
 }
 
-
 #if __FreeBSD_version >= 1102000
 int
 qlnxr_get_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -6479,9 +6436,7 @@ qlnxr_get_port_immutable(struct ib_device *ibdev, u8 port_num,
 }
 #endif /* #if __FreeBSD_version > 1102000 */
 
-
 /***** iWARP related functions *************/
-
 
 static void
 qlnxr_iw_mpa_request(void *context,
@@ -6504,7 +6459,7 @@ qlnxr_iw_mpa_request(void *context,
 			params->cm_info->ip_version);
 		return;
 	}
- 
+
 	ep = kzalloc(sizeof(*ep), GFP_ATOMIC);
 
 	if (!ep) {
@@ -6583,7 +6538,7 @@ qlnxr_iw_issue_event(void *context,
 
 	QL_DPRINT12(ha, "event=[%d] %s\n", event.event, str);
 	QL_DPRINT12(ha, "status=[%d] \n", event.status);
-	
+
 	if (ep) {
 		if (ep->cm_id)
 			ep->cm_id->event_handler(ep->cm_id, &event);
@@ -6609,7 +6564,7 @@ qlnxr_iw_close_event(void *context,
 	ha = dev->ha;
 
 	QL_DPRINT12(ha, "enter\n");
- 
+
 	if (ep->cm_id) {
 		qlnxr_iw_issue_event(context,
 				    params,
@@ -6764,7 +6719,6 @@ qlnxr_iw_mpa_reply(void *context,
         return rc;
 }
 
-
 void
 qlnxr_iw_qp_event(void *context,
 	struct ecore_iwarp_cm_event_params *params,
@@ -6805,9 +6759,8 @@ qlnxr_iw_event_handler(void *context,
 
 	QL_DPRINT12(ha, "[context, event] = [%p, 0x%x] "
 		"enter\n", context, params->event);
- 
-	switch (params->event) {
 
+	switch (params->event) {
 	/* Passive side request received */
 	case ECORE_IWARP_EVENT_MPA_REQUEST:
 		qlnxr_iw_mpa_request(context, params);
@@ -7167,7 +7120,7 @@ qlnxr_iw_accept(struct iw_cm_id *cm_id,
 
 	if (!(ha->ifp->if_drv_flags & IFF_DRV_RUNNING))
 		return -EINVAL;
- 
+
 	qp = idr_find(&dev->qpidr, conn_param->qpn);
 	if (!qp) {
 		QL_DPRINT11(ha, "idr_find failed invalid qpn = %d\n",
@@ -7238,7 +7191,7 @@ qlnxr_iw_qp_add_ref(struct ib_qp *ibqp)
 	ha = qp->dev->ha;
 
 	QL_DPRINT12(ha, "enter ibqp = %p\n", ibqp);
- 
+
 	atomic_inc(&qp->refcnt);
 
 	QL_DPRINT12(ha, "exit \n");

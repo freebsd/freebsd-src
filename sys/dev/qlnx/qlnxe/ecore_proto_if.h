@@ -90,7 +90,6 @@ struct ecore_fcoe_pf_params {
 
 /* Most of the the parameters below are described in the FW iSCSI / TCP HSI */
 struct ecore_iscsi_pf_params {
-
 	u64		glbl_q_params_addr;
 	u64		bdq_pbl_base_addr[3];
 	u16		cq_num_entries;
@@ -172,5 +171,3 @@ struct ecore_pf_params {
 };
 
 #endif
-
-

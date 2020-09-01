@@ -172,7 +172,6 @@ struct private_path {
 	u64 ecc_events;
 };
 
-
 /**************************************/
 /*                                    */
 /*     P R I V A T E    P O R T       */
@@ -477,7 +476,6 @@ struct private_func {
 	struct pf_sb_t sb;
 	struct dci_info_func dci_func;
 };
-
 
 /**************************************/
 /*                                    */

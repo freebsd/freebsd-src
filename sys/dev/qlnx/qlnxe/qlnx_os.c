@@ -25,7 +25,6 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /*
  * File: qlnx_os.c
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
@@ -70,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #endif /* #ifdef QLNX_ENABLE_IWARP */
 
 #include <sys/smp.h>
-
 
 /*
  * static functions
@@ -157,7 +155,6 @@ static void qlnx_free_tpa_mbuf(qlnx_host_t *ha, struct qlnx_agg_info *tpa);
 #if __FreeBSD_version >= 1100000
 static uint64_t qlnx_get_counter(if_t ifp, ift_counter cnt);
 #endif
-
 
 /*
  * Hooks to the Operating Systems
@@ -274,8 +271,6 @@ char qlnx_name_str[NAME_SIZE];
 #define QLOGIC_PCI_DEVICE_ID_8090	0x8090
 #endif
 
-
-
 SYSCTL_NODE(_hw, OID_AUTO, qlnxe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "qlnxe driver parameters");
 
@@ -290,7 +285,6 @@ TUNABLE_INT("hw.qlnxe.queue_count", &qlnxe_queue_count);
 
 SYSCTL_INT(_hw_qlnxe, OID_AUTO, queue_count, CTLFLAG_RDTUN,
 		&qlnxe_queue_count, 0, "Multi-Queue queue count");
-
 
 /*
  * Note on RDMA personality setting
@@ -396,7 +390,6 @@ qlnx_pci_probe(device_t dev)
 	}
 
         switch (pci_get_device(dev)) {
-
 #ifndef QLNX_VF
 
         case QLOGIC_PCI_DEVICE_ID_1644:
@@ -488,14 +481,13 @@ qlnx_num_tx_compl(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	return diff;
 }
 
-
 static void
 qlnx_sp_intr(void *arg)
 {
 	struct ecore_hwfn	*p_hwfn;
 	qlnx_host_t		*ha;
 	int			i;
-	
+
 	p_hwfn = arg;
 
 	if (p_hwfn == NULL) {
@@ -514,7 +506,7 @@ qlnx_sp_intr(void *arg)
 		}
 	}
 	QL_DPRINT2(ha, "exit\n");
-	
+
 	return;
 }
 
@@ -538,7 +530,6 @@ qlnx_create_sp_taskqueues(qlnx_host_t *ha)
 	uint8_t	tq_name[32];
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
                 struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[i];
 
 		bzero(tq_name, sizeof (tq_name));
@@ -592,11 +583,8 @@ qlnx_fp_taskqueue(void *context, int pending)
 	ifp = ha->ifp;
 
         if(ifp->if_drv_flags & IFF_DRV_RUNNING) {
-
                 if (!drbr_empty(ifp, fp->tx_br)) {
-
                         if(mtx_trylock(&fp->tx_mtx)) {
-
 #ifdef QLNX_TRACE_PERF_DATA
                                 tx_pkts = fp->tx_pkts_transmitted;
                                 tx_compl = fp->tx_pkts_completed;
@@ -627,7 +615,6 @@ qlnx_create_fp_taskqueues(qlnx_host_t *ha)
 	struct qlnx_fastpath *fp;
 
 	for (i = 0; i < ha->num_rss; i++) {
-
                 fp = &ha->fp_array[i];
 
 		bzero(tq_name, sizeof (tq_name));
@@ -658,11 +645,9 @@ qlnx_destroy_fp_taskqueues(qlnx_host_t *ha)
 	struct qlnx_fastpath	*fp;
 
 	for (i = 0; i < ha->num_rss; i++) {
-
                 fp = &ha->fp_array[i];
 
 		if (fp->fp_taskqueue != NULL) {
-
 			taskqueue_drain(fp->fp_taskqueue, &fp->fp_task);
 			taskqueue_free(fp->fp_taskqueue);
 			fp->fp_taskqueue = NULL;
@@ -745,7 +730,6 @@ qlnx_create_error_recovery_taskqueue(qlnx_host_t *ha)
 
         ha->err_taskqueue = taskqueue_create(tq_name, M_NOWAIT,
                                 taskqueue_thread_enqueue, &ha->err_taskqueue);
-
 
         if (ha->err_taskqueue == NULL)
                 return (-1);
@@ -830,7 +814,6 @@ qlnx_pci_attach(device_t dev)
 					SYS_RES_MEMORY,
 					ha->dbells_rid);
 	if (rsrc_len_dbells) {
-
 		ha->pci_dbells = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 					&ha->dbells_rid, RF_ACTIVE);
 
@@ -903,7 +886,6 @@ qlnx_pci_attach(device_t dev)
 	 * Allocate MSI-x vectors
 	 */
 	if (qlnx_vf_device(ha) != 0) {
-
 		if (qlnxe_queue_count == 0)
 			ha->num_rss = QLNX_DEFAULT_RSS;
 		else
@@ -976,12 +958,10 @@ qlnx_pci_attach(device_t dev)
 	 */
 
 	if (num_sp_msix) {
-
 		if (qlnx_create_sp_taskqueues(ha) != 0)
 			goto qlnx_pci_attach_err;
 
 		for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 			struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[i];
 
 			ha->sp_irq_rid[i] = i + 1;
@@ -1033,18 +1013,14 @@ qlnx_pci_attach(device_t dev)
 		if (qlnx_alloc_tx_br(ha, &ha->fp_array[i])) {
                         device_printf(dev, "could not allocate tx_br[%d]\n", i);
                         goto qlnx_pci_attach_err;
-
 		}
 	}
 
-
 	if (qlnx_vf_device(ha) != 0) {
-
 		callout_init(&ha->qlnx_callout, 1);
 		ha->flags.callout_init = 1;
 
 		for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
 			if (qlnx_grc_dumpsize(ha, &ha->grcdump_size[i], i) != 0)
 				goto qlnx_pci_attach_err;
 			if (ha->grcdump_size[i] == 0)
@@ -1127,7 +1103,6 @@ qlnx_pci_attach_err0:
 	 * create ioctl device interface
 	 */
 	if (qlnx_vf_device(ha) != 0) {
-
 		if (qlnx_make_cdev(ha)) {
 			device_printf(dev, "%s: ql_make_cdev failed\n", __func__);
 			goto qlnx_pci_attach_err;
@@ -1223,7 +1198,6 @@ qlnx_set_personality(qlnx_host_t *ha)
 	personality = qlnx_get_personality(ha->pci_func);
 
 	switch (personality) {
-
 	case QLNX_PERSONALITY_DEFAULT:
                	device_printf(ha->pci_dev, "%s: DEFAULT\n",
 			__func__);
@@ -1248,7 +1222,7 @@ qlnx_set_personality(qlnx_host_t *ha)
 		ha->personality = ECORE_PCI_ETH_ROCE;
 		break;
 	}
- 
+
 	return;
 }
 
@@ -1300,7 +1274,6 @@ qlnx_init_hw(qlnx_host_t *ha)
 			qlnx_set_personality(ha);
 		
 #endif /* #ifdef QLNX_ENABLE_IWARP */
-
 	}
 	QL_DPRINT2(ha, "%s: %s\n", __func__,
 		(ha->personality == ECORE_PCI_ETH_IWARP ? "iwarp": "ethernet"));
@@ -1486,7 +1459,6 @@ qlnx_set_tx_coalesce(SYSCTL_HANDLER_ARGS)
 		return (-1);
 
 	for (i = 0; i < ha->num_rss; i++) {
-
 		p_hwfn = &ha->cdev.hwfns[(i % ha->cdev.num_hwfns)];
 
         	fp = &ha->fp_array[i];
@@ -1522,7 +1494,6 @@ qlnx_set_rx_coalesce(SYSCTL_HANDLER_ARGS)
 		return (-1);
 
 	for (i = 0; i < ha->num_rss; i++) {
-
 		p_hwfn = &ha->cdev.hwfns[(i % ha->cdev.num_hwfns)];
 
         	fp = &ha->fp_array[i];
@@ -1579,7 +1550,6 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 	children = SYSCTL_CHILDREN(ctx_oid);
 
 	for (i = 0; i < ha->num_rss; i++) {
-
 		bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
 		snprintf(name_str, sizeof(name_str), "%d", i);
 
@@ -1685,7 +1655,6 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 			"tx_tso_min_pkt_len");
 
 		for (j = 0; j < QLNX_FP_MAX_SEGS; j++) {
-
 			bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
 			snprintf(name_str, sizeof(name_str),
 				"tx_pkts_nseg_%02d", (j+1));
@@ -1697,7 +1666,6 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
 
 #ifdef QLNX_TRACE_PERF_DATA
                 for (j = 0; j < 18; j++) {
-
                         bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                         snprintf(name_str, sizeof(name_str),
                                 "tx_pkts_hist_%02d", (j+1));
@@ -1707,7 +1675,6 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
                                 &ha->fp_array[i].tx_pkts_hist[j], name_str);
                 }
                 for (j = 0; j < 5; j++) {
-
                         bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                         snprintf(name_str, sizeof(name_str),
                                 "tx_comInt_%02d", (j+1));
@@ -1717,7 +1684,6 @@ qlnx_add_fp_stats_sysctls(qlnx_host_t *ha)
                                 &ha->fp_array[i].tx_comInt[j], name_str);
                 }
                 for (j = 0; j < 18; j++) {
-
                         bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                         snprintf(name_str, sizeof(name_str),
                                 "tx_pkts_q_%02d", (j+1));
@@ -2354,8 +2320,6 @@ qlnx_add_sysctls(qlnx_host_t *ha)
 	return;
 }
 
-
-
 /*****************************************************************************
  * Operating System Network Interface Functions
  *****************************************************************************/
@@ -2448,7 +2412,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
 	ifp->if_hw_tsomaxsegcount = QLNX_MAX_SEGMENTS - 1 /* hdr */;
 	ifp->if_hw_tsomaxsegsize = QLNX_MAX_TX_MBUF_SIZE;
 
-
         ifp->if_capenable = ifp->if_capabilities;
 
 	ifp->if_hwassist = CSUM_IP;
@@ -2484,7 +2447,6 @@ qlnx_init_ifnet(device_t dev, qlnx_host_t *ha)
         ifmedia_add(&ha->media, (IFM_ETHER | IFM_FDX), 0, NULL);
         ifmedia_add(&ha->media, (IFM_ETHER | IFM_AUTO), 0, NULL);
 
-
         ifmedia_set(&ha->media, (IFM_ETHER | IFM_AUTO));
 
         QL_DPRINT2(ha, "exit\n");
@@ -2502,7 +2464,6 @@ qlnx_init_locked(qlnx_host_t *ha)
 	qlnx_stop(ha);
 
 	if (qlnx_load(ha) == 0) {
-
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
@@ -2565,20 +2526,17 @@ qlnx_hw_add_mcast(qlnx_host_t *ha, uint8_t *mta)
         int	i;
 
         for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-
                 if (QL_MAC_CMP(ha->mcast[i].addr, mta) == 0)
                         return 0; /* its been already added */
         }
 
         for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-
                 if ((ha->mcast[i].addr[0] == 0) &&
                         (ha->mcast[i].addr[1] == 0) &&
                         (ha->mcast[i].addr[2] == 0) &&
                         (ha->mcast[i].addr[3] == 0) &&
                         (ha->mcast[i].addr[4] == 0) &&
                         (ha->mcast[i].addr[5] == 0)) {
-
                         if (qlnx_config_mcast_mac_addr(ha, mta, 1))
                                 return (-1);
 
@@ -2598,7 +2556,6 @@ qlnx_hw_del_mcast(qlnx_host_t *ha, uint8_t *mta)
 
         for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
                 if (QL_MAC_CMP(ha->mcast[i].addr, mta) == 0) {
-
                         if (qlnx_config_mcast_mac_addr(ha, mta, 0))
                                 return (-1);
 
@@ -2641,7 +2598,6 @@ qlnx_hw_set_multi(qlnx_host_t *ha, uint8_t *mta, uint32_t mcnt,
         }
         return;
 }
-
 
 static u_int
 qlnx_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int mcnt)
@@ -2707,7 +2663,6 @@ qlnx_set_allmulti(qlnx_host_t *ha)
 
 	return (rc);
 }
-
 
 static int
 qlnx_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
@@ -2949,7 +2904,6 @@ qlnx_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	return;
 }
 
-
 static void
 qlnx_free_tx_pkt(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	struct qlnx_tx_queue *txq)
@@ -2967,7 +2921,6 @@ qlnx_free_tx_pkt(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	map = txq->sw_tx_ring[idx].map;
 
 	if ((mp == NULL) || QL_ERR_INJECT(ha, QL_ERR_INJCT_TX_INT_MBUF_NULL)){
-
 		QL_RESET_ERR_INJECT(ha, QL_ERR_INJCT_TX_INT_MBUF_NULL);
 
 		QL_DPRINT1(ha, "(mp == NULL) "
@@ -2991,7 +2944,6 @@ qlnx_free_tx_pkt(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 
 		return;
 	} else {
-
 		QLNX_INC_OPACKETS((ha->ifp));
 		QLNX_INC_OBYTES((ha->ifp), (mp->m_pkthdr.len));
 
@@ -3033,7 +2985,6 @@ qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 
 	while (hw_bd_cons !=
 		(ecore_cons_idx = ecore_chain_get_cons_idx(&txq->tx_pbl))) {
-
 		if (hw_bd_cons < ecore_cons_idx) {
 			diff = (1 << 16) - (ecore_cons_idx - hw_bd_cons);
 		} else {
@@ -3041,7 +2992,6 @@ qlnx_tx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		}
 		if ((diff > TX_RING_SIZE) ||
 			QL_ERR_INJECT(ha, QL_ERR_INJCT_TX_INT_DIFF)){
-
 			QL_RESET_ERR_INJECT(ha, QL_ERR_INJCT_TX_INT_DIFF);
 
 			QL_DPRINT1(ha, "(diff = 0x%x) "
@@ -3088,7 +3038,6 @@ qlnx_transmit_locked(struct ifnet *ifp,struct qlnx_fastpath  *fp, struct mbuf  *
         txq = fp->txq[0];
         ha = (qlnx_host_t *)fp->edev;
 
-
         if ((!(ifp->if_drv_flags & IFF_DRV_RUNNING)) || (!ha->link_up)) {
                 if(mp != NULL)
                         ret = drbr_enqueue(ifp, fp->tx_br, mp);
@@ -3101,9 +3050,7 @@ qlnx_transmit_locked(struct ifnet *ifp,struct qlnx_fastpath  *fp, struct mbuf  *
         mp = drbr_peek(ifp, fp->tx_br);
 
         while (mp != NULL) {
-
                 if (qlnx_send(ha, fp, &mp)) {
-
                         if (mp != NULL) {
                                 drbr_putback(ifp, fp->tx_br, mp);
                         } else {
@@ -3130,7 +3077,6 @@ qlnx_transmit_locked_exit:
         QL_DPRINT2(ha, "%s: exit ret = %d\n", __func__, ret);
         return ret;
 }
-
 
 static int
 qlnx_transmit(struct ifnet *ifp, struct mbuf  *mp)
@@ -3161,7 +3107,6 @@ qlnx_transmit(struct ifnet *ifp, struct mbuf  *mp)
         }
 
         if (mtx_trylock(&fp->tx_mtx)) {
-
 #ifdef QLNX_TRACEPERF_DATA
                         tx_pkts = fp->tx_pkts_transmitted;
                         tx_compl = fp->tx_pkts_completed;
@@ -3200,7 +3145,6 @@ qlnx_qflush(struct ifnet *ifp)
 	QL_DPRINT2(ha, "enter\n");
 
 	for (rss_id = 0; rss_id < ha->num_rss; rss_id++) {
-
 		fp = &ha->fp_array[rss_id];
 
 		if (fp == NULL)
@@ -3263,7 +3207,6 @@ qlnx_tcp_offset(qlnx_host_t *ha, struct mbuf *mp)
         }
 
         switch (etype) {
-
                 case ETHERTYPE_IP:
                         ip = (struct ip *)(mp->m_data + ehdrlen);
 
@@ -3327,7 +3270,6 @@ qlnx_tso_check(struct qlnx_fastpath *fp, bus_dma_segment_t *segs, int nsegs,
         nsegs = nsegs - i;
 
         while (nsegs >= window) {
-
                 sum = 0;
                 s_seg = segs;
 
@@ -3389,7 +3331,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
         if ((int)(elem_left = ecore_chain_get_elem_left(&txq->tx_pbl)) <
 		QLNX_TX_ELEM_MIN_THRESH) {
-
                 fp->tx_nsegs_gt_elem_left++;
                 fp->err_tx_nsegs_gt_elem_left++;
 
@@ -3428,7 +3369,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			(!(m_head->m_pkthdr.csum_flags & CSUM_TSO)) ||
 		((m_head->m_pkthdr.csum_flags & CSUM_TSO) &&
 			qlnx_tso_check(fp, segs, nsegs, offset))))) {
-
 		struct mbuf *m;
 
 		QL_DPRINT8(ha, "EFBIG [%d]\n", m_head->m_pkthdr.len);
@@ -3450,7 +3390,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 		if ((ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head,
 				segs, &nsegs, BUS_DMA_NOWAIT))) {
-
 			fp->err_tx_defrag_dmamap_load++;
 
 			QL_DPRINT1(ha,
@@ -3466,7 +3405,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 		if ((nsegs > QLNX_MAX_SEGMENTS_NON_TSO) &&
 			!(m_head->m_pkthdr.csum_flags & CSUM_TSO)) {
-
 			fp->err_tx_non_tso_max_seg++;
 
 			QL_DPRINT1(ha,
@@ -3483,7 +3421,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			offset = qlnx_tcp_offset(ha, m_head);
 
 	} else if (ret) {
-
 		fp->err_tx_dmamap_load++;
 
 		QL_DPRINT1(ha, "bus_dmamap_load_mbuf_sg failed1 [%d, %d]\n",
@@ -3560,7 +3497,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
         }
 
         if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-
                 elem_left =  ecore_chain_get_elem_left(&txq->tx_pbl);
                 bd_used = TX_RING_SIZE - elem_left;
 
@@ -3604,7 +3540,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 	if ((nsegs + QLNX_TX_ELEM_RESERVE) >
 		(int)(elem_left = ecore_chain_get_elem_left(&txq->tx_pbl))) {
-
 		QL_DPRINT1(ha, "(%d, 0x%x) insuffient BDs"
 			" in chain[%d] trying to free packets\n",
 			nsegs, elem_left, fp->rss_id);
@@ -3615,7 +3550,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 
 		if ((nsegs + QLNX_TX_ELEM_RESERVE) > (int)(elem_left =
 			ecore_chain_get_elem_left(&txq->tx_pbl))) {
-
 			QL_DPRINT1(ha,
 				"(%d, 0x%x) insuffient BDs in chain[%d]\n",
 				nsegs, elem_left, fp->rss_id);
@@ -3661,7 +3595,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
         }
 
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-
                 first_bd->data.bd_flags.bitfields |=
 			(1 << ETH_TX_1ST_BD_FLAGS_LSO_SHIFT);
 		first_bd->data.bd_flags.bitfields |=
@@ -3753,7 +3686,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			segs++;
 
 			for (seg_idx = 1; seg_idx < nsegs; seg_idx++) {
-
 				if (offset)
 					nbds_in_hdr++;
 
@@ -3830,7 +3762,6 @@ qlnx_send(qlnx_host_t *ha, struct qlnx_fastpath *fp, struct mbuf **m_headp)
 			htole16(first_bd->data.bitfields);
 		fp->tx_non_tso_pkts++;
 	}
-
 
 	first_bd->data.nbds = nbd;
 
@@ -3931,7 +3862,6 @@ qlnx_get_optics(qlnx_host_t *ha, struct qlnx_link_output *if_link)
 	uint32_t	ifm_type = 0;
 
 	switch (if_link->media_type) {
-
 	case MEDIA_MODULE_FIBER:
 	case MEDIA_UNSPECIFIED:
 		if (if_link->speed == (100 * 1000))
@@ -3966,8 +3896,6 @@ qlnx_get_optics(qlnx_host_t *ha, struct qlnx_link_output *if_link)
 	return (ifm_type);
 }
 
-
-
 /*****************************************************************************
  * Interrupt Service Functions
  *****************************************************************************/
@@ -3985,7 +3913,6 @@ qlnx_rx_jumbo_chain(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	mpf = mpl = mp = NULL;
 
 	while (len) {
-
         	rxq->sw_rx_cons  = (rxq->sw_rx_cons + 1) & (RX_RING_SIZE - 1);
 
                 sw_rx_data = &rxq->sw_rx_ring[rxq->sw_rx_cons];
@@ -4006,7 +3933,6 @@ qlnx_rx_jumbo_chain(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 			BUS_DMASYNC_POSTREAD);
 
                 if (qlnx_alloc_rx_buffer(ha, rxq) != 0) {
-
                         QL_DPRINT1(ha, "New buffer allocation failed, dropping"
 				" incoming packet and reusing its buffer\n");
 
@@ -4112,7 +4038,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	}
 
 	if ((le16toh(cqe->pars_flags.flags)) & CQE_FLAGS_ERR) {
-
 		QL_DPRINT7(ha, "[%d]: CQE in CONS = %u has error,"
 			" flags = %x, dropping incoming packet\n", fp->rss_id,
 			rxq->sw_rx_cons, le16toh(cqe->pars_flags.flags));
@@ -4127,7 +4052,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	}
 
 	if (qlnx_alloc_rx_buffer(ha, rxq) != 0) {
-
 		QL_DPRINT7(ha, "[%d]: New buffer allocation failed,"
 			" dropping incoming packet and reusing its buffer\n",
 			fp->rss_id);
@@ -4169,7 +4093,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 
 		/* Now reuse any buffers posted in ext_bd_len_list */
 		for (i = 0; i < ETH_TPA_CQE_START_LEN_LIST_SIZE; i++) {
-
 			if (cqe->ext_bd_len_list[i] == 0)
 				break;
 
@@ -4181,7 +4104,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	}
 
 	if (rxq->tpa_info[agg_index].agg_state != QLNX_AGG_STATE_NONE) {
-
 		QL_DPRINT7(ha, "[%d]: invalid aggregation state,"
 			" dropping incoming packet and reusing its buffer\n",
 			fp->rss_id);
@@ -4201,7 +4123,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 
 		/* Now reuse any buffers posted in ext_bd_len_list */
 		for (i = 0; i < ETH_TPA_CQE_START_LEN_LIST_SIZE; i++) {
-
 			if (cqe->ext_bd_len_list[i] == 0)
 				break;
 
@@ -4220,7 +4141,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	rxq->sw_rx_cons  = (rxq->sw_rx_cons + 1) & (RX_RING_SIZE - 1);
 
 	for (i = 0; i < ETH_TPA_CQE_START_LEN_LIST_SIZE; i++) {
-
 		QL_DPRINT7(ha, "[%d]: 4\n ", fp->rss_id);
 
 		if (cqe->ext_bd_len_list[i] == 0)
@@ -4271,7 +4191,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 		mpc->m_next = NULL;
 		mpc->m_len = cqe->ext_bd_len_list[i];
 
-
 		if (mpf == NULL) {
 			mpf = mpl = mpc;
 		} else {
@@ -4286,7 +4205,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 	}
 
 	if (rxq->tpa_info[agg_index].agg_state != QLNX_AGG_STATE_NONE) {
-
 		QL_DPRINT7(ha, "[%d]: invalid aggregation state, dropping"
 			" incoming packet and reusing its buffer\n",
 			fp->rss_id);
@@ -4331,7 +4249,6 @@ qlnx_tpa_start(qlnx_host_t *ha,
 			ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_SHIFT);
 
 	switch (hash_type) {
-
 	case RSS_HASH_TYPE_IPV4:
 		M_HASHTYPE_SET(mp, M_HASHTYPE_RSS_IPV4);
 		break;
@@ -4411,9 +4328,7 @@ qlnx_tpa_cont(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		return;
 	}
 
-
 	for (i = 0; i < ETH_TPA_CQE_CONT_LEN_LIST_SIZE; i++) {
-
 		QL_DPRINT7(ha, "[%d]: 1\n ", fp->rss_id);
 
 		if (cqe->len_list[i] == 0)
@@ -4432,7 +4347,6 @@ qlnx_tpa_cont(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		mpc = sw_rx_data->data;
 
 		if (mpc == NULL) {
-
 			QL_DPRINT7(ha, "[%d]: mpc = NULL\n", fp->rss_id);
 
 			fp->err_rx_mp_null++;
@@ -4448,7 +4362,6 @@ qlnx_tpa_cont(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		}
 
 		if (qlnx_alloc_rx_buffer(ha, rxq) != 0) {
-
 			QL_DPRINT7(ha, "[%d]: New buffer allocation failed,"
 				" dropping incoming packet and reusing its"
 				" buffer\n", fp->rss_id);
@@ -4472,7 +4385,6 @@ qlnx_tpa_cont(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		mpc->m_flags &= ~M_PKTHDR;
 		mpc->m_next = NULL;
 		mpc->m_len = cqe->len_list[i];
-
 
 		if (mpf == NULL) {
 			mpf = mpl = mpc;
@@ -4537,16 +4449,13 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	agg_index = cqe->tpa_agg_index;
 
 	if (agg_index >= ETH_TPA_MAX_AGGS_NUM) {
-
 		QL_DPRINT7(ha, "[%d]: 0\n ", fp->rss_id);
 
 		fp->err_rx_tpa_invalid_agg_num++;
 		return (0);
 	}
 
-
 	for (i = 0; i < ETH_TPA_CQE_END_LEN_LIST_SIZE; i++) {
-
 		QL_DPRINT7(ha, "[%d]: 1\n ", fp->rss_id);
 
 		if (cqe->len_list[i] == 0)
@@ -4554,9 +4463,8 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 
 		if (rxq->tpa_info[agg_index].agg_state != 
 			QLNX_AGG_STATE_START) {
-
 			QL_DPRINT7(ha, "[%d]: 2\n ", fp->rss_id);
-	
+
 			qlnx_reuse_rx_data(rxq);
 			continue;
 		}
@@ -4568,7 +4476,6 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		mpc = sw_rx_data->data;
 
 		if (mpc == NULL) {
-
 			QL_DPRINT7(ha, "[%d]: mpc = NULL\n", fp->rss_id);
 
 			fp->err_rx_mp_null++;
@@ -4608,7 +4515,6 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 		mpc->m_next = NULL;
 		mpc->m_len = cqe->len_list[i];
 
-
 		if (mpf == NULL) {
 			mpf = mpl = mpc;
 		} else {
@@ -4625,7 +4531,6 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	QL_DPRINT7(ha, "[%d]: 5\n ", fp->rss_id);
 
 	if (mpf != NULL) {
-
 		QL_DPRINT7(ha, "[%d]: 6\n ", fp->rss_id);
 
 		mp = rxq->tpa_info[agg_index].mpl;
@@ -4634,7 +4539,6 @@ qlnx_tpa_end(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 	}
 
 	if (rxq->tpa_info[agg_index].agg_state != QLNX_AGG_STATE_START) {
-
 		QL_DPRINT7(ha, "[%d]: 7\n ", fp->rss_id);
 
 		if (rxq->tpa_info[agg_index].mpf != NULL)
@@ -4737,9 +4641,7 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
                 }
 
 		if (cqe_type != ETH_RX_CQE_TYPE_REGULAR) {
-
 			switch (cqe_type) {
-
 			case ETH_RX_CQE_TYPE_TPA_START:
 				qlnx_tpa_start(ha, fp, rxq,
 					&cqe->fast_path_tpa_start);
@@ -4805,7 +4707,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 		/* If this is an error packet then drop it */
 		if ((le16toh(cqe->fast_path_regular.pars_flags.flags)) &
 			CQE_FLAGS_ERR) {
-
 			QL_DPRINT1(ha, "CQE in CONS = %u has error, flags = %x,"
 				" dropping incoming packet\n", sw_comp_cons,
 			le16toh(cqe->fast_path_regular.pars_flags.flags));
@@ -4819,7 +4720,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 		}
 
                 if (qlnx_alloc_rx_buffer(ha, rxq) != 0) {
-
                         QL_DPRINT1(ha, "New buffer allocation failed, dropping"
 				" incoming packet and reusing its buffer\n");
                         qlnx_reuse_rx_data(rxq);
@@ -4838,12 +4738,10 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 		mp->m_pkthdr.len = len;
 
 		if ((len > 60 ) && (len > len_on_first_bd)) {
-
 			mp->m_len = len_on_first_bd;
 
 			if (qlnx_rx_jumbo_chain(ha, fp, mp,
 				(len - len_on_first_bd)) != 0) {
-
 				m_freem(mp);
 
 				QLNX_INC_IQDROPS(ifp);
@@ -4874,7 +4772,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 				ETH_FAST_PATH_RX_REG_CQE_RSS_HASH_TYPE_SHIFT);
 
 		switch (hash_type) {
-
 		case RSS_HASH_TYPE_IPV4:
 			M_HASHTYPE_SET(mp, M_HASHTYPE_RSS_IPV4);
 			break;
@@ -4925,7 +4822,6 @@ qlnx_rx_int(qlnx_host_t *ha, struct qlnx_fastpath *fp, int budget,
 #ifdef QLNX_SOFT_LRO
 
 		if (lro_enable) {
-
 #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
 
 			tcp_lro_queue_mbuf(lro, mp);
@@ -4965,7 +4861,6 @@ next_cqe:	/* don't consume bd rx buffer */
 
         return rx_pkt;
 }
-
 
 /*
  * fast path interrupt
@@ -5008,13 +4903,11 @@ qlnx_fp_isr(void *arg)
 
                 do {
                         for (tc = 0; tc < ha->num_tc; tc++) {
-
 				txq = fp->txq[tc];
 
 				if((int)(elem_left =
 					ecore_chain_get_elem_left(&txq->tx_pbl)) <
 						QLNX_TX_ELEM_THRESH)  {
-
                                 	if (mtx_trylock(&fp->tx_mtx)) {
 #ifdef QLNX_TRACE_PERF_DATA
 						tx_compl = fp->tx_pkts_completed;
@@ -5057,7 +4950,6 @@ qlnx_fp_isr(void *arg)
                         lro = &fp->rxq->lro;
 
                         if (lro_enable && total_rx_count) {
-
 #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO)
 
 #ifdef QLNX_TRACE_LRO_CNT
@@ -5097,7 +4989,6 @@ qlnx_fp_isr(void *arg)
         return;
 }
 
-
 /*
  * slow path interrupt processing function
  * can be invoked in polled mode or in interrupt mode via taskqueue.
@@ -5107,7 +4998,7 @@ qlnx_sp_isr(void *arg)
 {
 	struct ecore_hwfn	*p_hwfn;
 	qlnx_host_t		*ha;
-	
+
 	p_hwfn = arg;
 
 	ha = (qlnx_host_t *)p_hwfn->p_dev;
@@ -5119,7 +5010,7 @@ qlnx_sp_isr(void *arg)
 	ecore_int_sp_dpc(p_hwfn);
 
 	QL_DPRINT2(ha, "exit\n");
-	
+
 	return;
 }
 
@@ -5333,7 +5224,6 @@ qlnx_alloc_tx_dma_tag(qlnx_host_t *ha)
                 NULL,    /* lockfunc */
                 NULL,    /* lockfuncarg */
                 &ha->tx_tag)) {
-
                 QL_DPRINT1(ha, "tx_tag alloc failed\n");
                 return (-1);
         }
@@ -5366,7 +5256,6 @@ qlnx_alloc_rx_dma_tag(qlnx_host_t *ha)
                         NULL,    /* lockfunc */
                         NULL,    /* lockfuncarg */
                         &ha->rx_tag)) {
-
                 QL_DPRINT1(ha, " rx_tag alloc failed\n");
 
                 return (-1);
@@ -5514,7 +5403,7 @@ void
 qlnx_reg_wr16(void *hwfn, uint32_t reg_addr, uint16_t value)
 {
 	struct ecore_hwfn	*p_hwfn = hwfn;
-	
+
 	bus_write_2(((qlnx_host_t *)p_hwfn->p_dev)->pci_reg, \
 		(bus_size_t)(p_hwfn->reg_offset + reg_addr), value);
 	return;
@@ -5673,7 +5562,6 @@ qlnx_fill_link(qlnx_host_t *ha, struct ecore_hwfn *hwfn,
 	uint8_t				p_change;
 	struct ecore_ptt *p_ptt = NULL;
 
-
 	memset(if_link, 0, sizeof(*if_link));
 	memset(&link_params, 0, sizeof(struct ecore_mcp_link_params));
 	memset(&link_state, 0, sizeof(struct ecore_mcp_link_state));
@@ -5683,7 +5571,6 @@ qlnx_fill_link(qlnx_host_t *ha, struct ecore_hwfn *hwfn,
 	/* Prepare source inputs */
 	/* we only deal with physical functions */
 	if (qlnx_vf_device(ha) != 0) {
-
         	p_ptt = ecore_ptt_acquire(hwfn);
 
 	        if (p_ptt == NULL) {
@@ -5820,7 +5707,6 @@ qlnx_nic_setup(struct ecore_dev *cdev, struct ecore_pf_params *func_params)
 			p_hwfn->using_ll2 = true;
 		}
 #endif /* #ifdef QLNX_ENABLE_IWARP */
-
         }
 
         rc = ecore_resc_alloc(cdev);
@@ -5929,7 +5815,6 @@ qlnx_slowpath_stop(qlnx_host_t *ha)
 	ecore_hw_stop(cdev);
 
  	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
         	if (ha->sp_handle[i])
                 	(void)bus_teardown_intr(dev, ha->sp_irq[i],
 				ha->sp_handle[i]);
@@ -5977,7 +5862,6 @@ qlnx_get_protocol_stats(void *cdev, int proto_type, void *proto_stats)
 	type = proto_type;
 
         switch (type) {
-
         case ECORE_MCP_LAN_STATS:
                 ecore_get_vport_stats((struct ecore_dev *)cdev, &eth_stats);
                 stats->lan_stats.ucast_rx_pkts = eth_stats.common.rx_ucast_pkts;
@@ -6008,7 +5892,7 @@ qlnx_get_mfw_version(qlnx_host_t *ha, uint32_t *mfw_ver)
                 return (-1);
 	}
 	ecore_mcp_get_mfw_ver(p_hwfn, p_ptt, mfw_ver, NULL);
-	
+
 	ecore_ptt_release(p_hwfn, p_ptt);
 
 	return (0);
@@ -6028,7 +5912,7 @@ qlnx_get_flash_size(qlnx_host_t *ha, uint32_t *flash_size)
                 return (-1);
 	}
 	ecore_mcp_get_flash_size(p_hwfn, p_ptt, flash_size);
-	
+
 	ecore_ptt_release(p_hwfn, p_ptt);
 
 	return (0);
@@ -6054,7 +5938,6 @@ qlnx_init_fp(qlnx_host_t *ha)
 	int rss_id, txq_array_index, tc;
 
 	for (rss_id = 0; rss_id < ha->num_rss; rss_id++) {
-
 		struct qlnx_fastpath *fp = &ha->fp_array[rss_id];
 
 		fp->rss_id = rss_id;
@@ -6182,7 +6065,6 @@ qlnx_free_rx_buffers(qlnx_host_t *ha, struct qlnx_rx_queue *rxq)
 	struct sw_rx_data	*rx_buf;
 
         for (i = 0; i < rxq->num_rx_buffers; i++) {
-
                 rx_buf = &rxq->sw_rx_ring[i];
 
 		if (rx_buf->data != NULL) {
@@ -6416,7 +6298,6 @@ qlnx_alloc_mem_rxq(qlnx_host_t *ha, struct qlnx_rx_queue *rxq)
 			&rxq->tpa_info[i]);
                 if (rc)
                         break;
-
 	}
 
         for (i = 0; i < rxq->num_rx_buffers; i++) {
@@ -6463,7 +6344,6 @@ err:
         qlnx_free_mem_rxq(ha, rxq);
         return -ENOMEM;
 }
-
 
 static void
 qlnx_free_mem_txq(qlnx_host_t *ha, struct qlnx_fastpath *fp,
@@ -6527,9 +6407,7 @@ qlnx_free_tx_br(qlnx_host_t *ha, struct qlnx_fastpath *fp)
 	struct ifnet	*ifp = ha->ifp;
 
 	if (mtx_initialized(&fp->tx_mtx)) {
-
 		if (fp->tx_br != NULL) {
-
 			mtx_lock(&fp->tx_mtx);
 
 			while ((mp = drbr_dequeue(ifp, fp->tx_br)) != NULL) {
@@ -6681,7 +6559,6 @@ qlnx_start_vport(struct ecore_dev *cdev,
 	vport_start_params.vport_id = vport_id;
 	vport_start_params.mtu = mtu;
 
-
 	QL_DPRINT2(ha, "Setting mtu to %d and VPORT ID = %d\n", mtu, vport_id);
 
         for_each_hwfn(cdev, i) {
@@ -6705,7 +6582,6 @@ qlnx_start_vport(struct ecore_dev *cdev,
         }
         return 0;
 }
-
 
 static int
 qlnx_update_vport(struct ecore_dev *cdev,
@@ -6745,17 +6621,14 @@ qlnx_update_vport(struct ecore_dev *cdev,
 		sp_params.rss_params =  NULL;
 
         for_each_hwfn(cdev, i) {
-
 		p_hwfn = &cdev->hwfns[i];
 
 		if ((cdev->num_hwfns > 1) &&
 			params->rss_params->update_rss_config &&
 			params->rss_params->rss_enable) {
-
 			rss = params->rss_params;
 
 			for (j = 0; j < ECORE_RSS_IND_TABLE_SIZE; j++) {
-
 				fp_index = ((cdev->num_hwfns * j) + i) %
 						ha->num_rss;
 
@@ -7000,7 +6873,6 @@ qlnx_start_queues(qlnx_host_t *ha)
 
         /* Fill struct with RSS params */
         if (ha->num_rss > 1) {
-
                 rss_params->update_rss_config = 1;
                 rss_params->rss_enable = 1;
                 rss_params->update_rss_capabilities = 1;
@@ -7021,7 +6893,6 @@ qlnx_start_queues(qlnx_host_t *ha)
         } else {
                 memset(rss_params, 0, sizeof(*rss_params));
         }
-
 
         /* Prepare and send the vport enable */
         memset(&vport_update_params, 0, sizeof(vport_update_params));
@@ -7077,7 +6948,6 @@ qlnx_drain_txq(qlnx_host_t *ha, struct qlnx_fastpath *fp,
 
 	while (hw_bd_cons !=
 		(ecore_cons_idx = ecore_chain_get_cons_idx(&txq->tx_pbl))) {
-
 		mtx_lock(&fp->tx_mtx);
 
 		(void)qlnx_tx_int(ha, fp, txq);
@@ -7142,7 +7012,6 @@ qlnx_stop_queues(qlnx_host_t *ha)
 
         /* Stop all Queues in reverse order*/
         for (i = ha->num_rss - 1; i >= 0; i--) {
-
 		struct ecore_hwfn *p_hwfn = &cdev->hwfns[(i % cdev->num_hwfns)];
 
                 fp = &ha->fp_array[i];
@@ -7173,7 +7042,6 @@ qlnx_stop_queues(qlnx_host_t *ha)
 
         /* Stop the vport */
 	for_each_hwfn(cdev, i) {
-
 		struct ecore_hwfn *p_hwfn = &cdev->hwfns[i];
 
 		rc = ecore_sp_vport_stop(p_hwfn, p_hwfn->hw_info.opaque_fid, 0);
@@ -7246,11 +7114,9 @@ qlnx_remove_all_mcast_mac(qlnx_host_t *ha)
 	mcast->opcode = ECORE_FILTER_REMOVE;
 
 	for (i = 0; i < QLNX_MAX_NUM_MULTICAST_ADDRS; i++) {
-
 		if (ha->mcast[i].addr[0] || ha->mcast[i].addr[1] ||
 			ha->mcast[i].addr[2] || ha->mcast[i].addr[3] ||
 			ha->mcast[i].addr[4] || ha->mcast[i].addr[5]) {
-
 			memcpy(&mcast->mac[i][0], &ha->mcast[i].addr[0], ETH_ALEN);
 			mcast->num_mc_addrs++;
 		}
@@ -7352,7 +7218,6 @@ qlnx_set_link(qlnx_host_t *ha, bool link_up)
 	cdev = &ha->cdev;
 
         for_each_hwfn(cdev, i) {
-
                 hwfn = &cdev->hwfns[i];
 
                 ptt = ecore_ptt_acquire(hwfn);
@@ -7379,7 +7244,6 @@ qlnx_get_counter(if_t ifp, ift_counter cnt)
         ha = (qlnx_host_t *)if_getsoftc(ifp);
 
         switch (cnt) {
-
         case IFCOUNTER_IPACKETS:
 		count = ha->hw_stats.common.rx_ucast_pkts +
 			ha->hw_stats.common.rx_mcast_pkts +
@@ -7437,7 +7301,6 @@ qlnx_get_counter(if_t ifp, ift_counter cnt)
 }
 #endif
 
-
 static void
 qlnx_timer(void *arg)
 {
@@ -7488,12 +7351,10 @@ qlnx_load(qlnx_host_t *ha)
 		   ha->num_rss, ha->num_tc);
 
 	for (i = 0; i < ha->num_rss; i++) {
-
 		if ((rc = bus_setup_intr(dev, ha->irq_vec[i].irq,
                         (INTR_TYPE_NET | INTR_MPSAFE),
                         NULL, qlnx_fp_isr, &ha->irq_vec[i],
                         &ha->irq_vec[i].handle))) {
-
                         QL_DPRINT1(ha, "could not setup interrupt\n");
                         goto qlnx_load_exit2;
 		}
@@ -7553,11 +7414,8 @@ qlnx_drain_soft_lro(qlnx_host_t *ha)
 
 	ifp = ha->ifp;
 
-
 	if (ifp->if_capenable & IFCAP_LRO) {
-
 	        for (i = 0; i < ha->num_rss; i++) {
-
 			struct qlnx_fastpath *fp = &ha->fp_array[i];
 			struct lro_ctrl *lro;
 
@@ -7577,7 +7435,6 @@ qlnx_drain_soft_lro(qlnx_host_t *ha)
 			}
 
 #endif /* #if (__FreeBSD_version >= 1100101) || (defined QLNX_QSORT_LRO) */
-
                 }
 	}
 
@@ -7600,7 +7457,6 @@ qlnx_unload(qlnx_host_t *ha)
         QL_DPRINT1(ha, " QLNX STATE = %d\n",ha->state);
 
 	if (ha->state == QLNX_STATE_OPEN) {
-
 		qlnx_set_link(ha, false);
 		qlnx_clean_filters(ha);
 		qlnx_stop_queues(ha);
@@ -7693,7 +7549,6 @@ qlnx_idle_chk_size(qlnx_host_t *ha, uint32_t *num_dwords, int hwfn_index)
         return (rval);
 }
 
-
 static void
 qlnx_sample_storm_stats(qlnx_host_t *ha)
 {
@@ -7712,7 +7567,6 @@ qlnx_sample_storm_stats(qlnx_host_t *ha)
         cdev = &ha->cdev;
 
         for_each_hwfn(cdev, i) {
-
                 hwfn = &cdev->hwfns[i];
 
                 p_ptt = ecore_ptt_acquire(hwfn);
@@ -8078,18 +7932,15 @@ __qlnx_pf_vf_msg(struct ecore_hwfn *p_hwfn, uint16_t rel_vf_id)
 		return (-1);
 
 	if (ha->sriov_task[i].pf_taskqueue != NULL) {
-
 		atomic_testandset_32(&ha->sriov_task[i].flags,
 			QLNX_SRIOV_TASK_FLAGS_VF_PF_MSG);
 
 		taskqueue_enqueue(ha->sriov_task[i].pf_taskqueue,
 			&ha->sriov_task[i].pf_task);
-
 	}
 
 	return (ECORE_SUCCESS);
 }
-
 
 int
 qlnx_pf_vf_msg(void *p_hwfn, uint16_t relative_vf_id)
@@ -8112,9 +7963,7 @@ __qlnx_vf_flr_update(struct ecore_hwfn *p_hwfn)
 	if ((i = qlnx_find_hwfn_index(p_hwfn)) == -1)
 		return;
 
-
 	if (ha->sriov_task[i].pf_taskqueue != NULL) {
-
 		atomic_testandset_32(&ha->sriov_task[i].flags,
 			QLNX_SRIOV_TASK_FLAGS_VF_FLR_UPDATE);
 
@@ -8124,7 +7973,6 @@ __qlnx_vf_flr_update(struct ecore_hwfn *p_hwfn)
 
 	return;
 }
-
 
 void
 qlnx_vf_flr_update(void *p_hwfn)
@@ -8152,7 +8000,6 @@ qlnx_vf_bulleting_update(struct ecore_hwfn *p_hwfn)
 		ha, p_hwfn->p_dev, p_hwfn, i);
 
 	if (ha->sriov_task[i].pf_taskqueue != NULL) {
-
 		atomic_testandset_32(&ha->sriov_task[i].flags,
 			QLNX_SRIOV_TASK_FLAGS_BULLETIN_UPDATE);
 
@@ -8203,9 +8050,7 @@ qlnx_sriov_disable(qlnx_host_t *ha)
 
 	ecore_iov_set_vfs_to_disable(cdev, true);
 
-
 	for_each_hwfn(cdev, i) {
-
 		struct ecore_hwfn *hwfn = &cdev->hwfns[i];
 		struct ecore_ptt *ptt = ecore_ptt_acquire(hwfn);
 
@@ -8248,7 +8093,6 @@ qlnx_sriov_disable(qlnx_host_t *ha)
 
 	return;
 }
-
 
 static void
 qlnx_sriov_enable_qid_config(struct ecore_hwfn *hwfn, u16 vfid,
@@ -8312,7 +8156,6 @@ qlnx_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *nvlist_params)
 	if (ha->vf_attr == NULL)
 		goto qlnx_iov_init_err0;
 
-
         memset(&params, 0, sizeof(params));
 
         /* Initialize HW for VF access */
@@ -8331,7 +8174,6 @@ qlnx_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *nvlist_params)
                 }
 
                 for (i = 0; i < num_vfs; i++) {
-
                         if (!ecore_iov_is_valid_vfid(hwfn, i, false, true))
                                 continue;
 
@@ -8452,7 +8294,6 @@ qlnx_handle_vf_msg(qlnx_host_t *ha, struct ecore_hwfn *p_hwfn)
                    events[0], events[1], events[2]);
 
         ecore_for_each_vf(p_hwfn, i) {
-
                 /* Skip VFs with no pending messages */
                 if (!(events[i / 64] & (1ULL << (i % 64))))
                         continue;
@@ -8562,7 +8403,6 @@ qlnx_create_pf_taskqueues(qlnx_host_t *ha)
 	uint8_t	tq_name[32];
 
 	for (i = 0; i < ha->cdev.num_hwfns; i++) {
-
                 struct ecore_hwfn *p_hwfn = &ha->cdev.hwfns[i];
 
 		bzero(tq_name, sizeof (tq_name));
@@ -8625,7 +8465,6 @@ qlnx_inform_vf_link_state(struct ecore_hwfn *p_hwfn, qlnx_host_t *ha)
 
         /* Update bulletin of all future possible VFs with link configuration */
         for (i = 0; i < p_hwfn->p_dev->p_iov_info->total_vfs; i++) {
-
                 /* Modify link according to the VF's configured link state */
 
                 link.link_up = false;

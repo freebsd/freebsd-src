@@ -276,4 +276,3 @@ ecore_rdma_allocated_qps(struct ecore_hwfn *p_hwfn);
 u16 ecore_rdma_get_fw_srq_id(struct ecore_hwfn *p_hwfn, u16 id, bool is_xrc);
 
 #endif /*__ECORE_RDMA_H__*/
-

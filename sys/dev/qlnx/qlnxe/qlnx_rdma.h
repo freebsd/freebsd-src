@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 /*
  * File: qlnx_rdma.h
  * Author: David C Somayajulu

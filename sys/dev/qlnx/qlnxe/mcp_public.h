@@ -108,7 +108,6 @@ struct eth_phy_cfg {
 };
 
 struct port_mf_cfg {
-
 	u32 dynamic_cfg;    /* device control channel */
 #define PORT_MF_CFG_OV_TAG_MASK              0x0000ffff
 #define PORT_MF_CFG_OV_TAG_OFFSET             0
@@ -350,7 +349,6 @@ struct dcbx_app_priority_entry {
 #define DCBX_APP_PROTOCOL_ID_MASK   0xffff0000
 #define DCBX_APP_PROTOCOL_ID_OFFSET  16
 };
-
 
 /* FW structure in BE */
 struct dcbx_app_priority_feature {
@@ -853,7 +851,6 @@ struct public_port {
 /**************************************/
 
 struct public_func {
-
 	u32 iscsi_boot_signature;
 	u32 iscsi_boot_block_offset;
 
@@ -886,7 +883,6 @@ struct public_func {
 #define FUNC_MF_CFG_FUNC_HIDE                   0x00000001
 #define FUNC_MF_CFG_PAUSE_ON_HOST_RING          0x00000002
 #define FUNC_MF_CFG_PAUSE_ON_HOST_RING_OFFSET    0x00000001
-
 
 #define FUNC_MF_CFG_PROTOCOL_MASK               0x000000f0
 #define FUNC_MF_CFG_PROTOCOL_OFFSET              4
@@ -1240,7 +1236,6 @@ union drv_union_data {
 };
 
 struct public_drv_mb {
-
 	u32 drv_mb_header;
 #define DRV_MSG_CODE_MASK                       0xffff0000
 #define DRV_MSG_CODE_LOAD_REQ                   0x10000000
@@ -1734,7 +1729,6 @@ struct public_drv_mb {
 #define FW_MSG_CODE_WOL_READ_WRITE_INVALID_ADDR	0x00840000
 #define FW_MSG_CODE_WOL_READ_BUFFER_OK		0x00850000
 #define FW_MSG_CODE_WOL_READ_BUFFER_INVALID_VAL	0x00860000
-
 
 #define FW_MSG_CODE_DRV_CFG_PF_VFS_MSIX_DONE   	 0x00870000
 #define FW_MSG_CODE_DRV_CFG_PF_VFS_MSIX_BAD_ASIC 0x00880000

@@ -102,7 +102,6 @@ void ecore_init_store_rt_agg(struct ecore_hwfn *p_hwfn,
 	for (i = 0; i < size / sizeof(u32); i++) {
 		p_hwfn->rt_data.init_val[rt_offset + i] = p_val[i];
 		p_hwfn->rt_data.b_valid[rt_offset + i] = true;
-
 	}
 }
 
@@ -240,7 +239,6 @@ static void ecore_init_fill(struct ecore_hwfn *p_hwfn,
 	for (i = 0; i < fill_count; i++, addr += sizeof(u32))
 		ecore_wr(p_hwfn, p_ptt, addr, fill);
 }
-
 
 static enum _ecore_status_t ecore_init_cmd_array(struct ecore_hwfn *p_hwfn,
 						 struct ecore_ptt *p_ptt,

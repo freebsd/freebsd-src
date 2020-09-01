@@ -35,7 +35,6 @@
 #define ETH_ALEN 6
 #endif
 
-
 enum ecore_roce_ll2_tx_dest
 {
 	ECORE_ROCE_LL2_TX_DEST_NW /* Light L2 TX Destination to the Network */,
@@ -326,7 +325,6 @@ struct ecore_rdma_create_cq_in_params {
 	u16	int_timeout;
 };
 
-
 struct ecore_rdma_resize_cq_in_params {
 	/* input variables (given by miniport) */
 
@@ -339,7 +337,6 @@ struct ecore_rdma_resize_cq_in_params {
 		       * pointers to the CQ pages
 		       */
 };
-
 
 enum roce_mode
 {
@@ -711,7 +708,6 @@ void ecore_rdma_resc_free(struct ecore_hwfn *p_hwfn);
 
 /* iWARP API */
 
-
 enum ecore_iwarp_event_type {
 	ECORE_IWARP_EVENT_MPA_REQUEST, /* Passive side request received */
 	ECORE_IWARP_EVENT_PASSIVE_COMPLETE, /* Passive side established
@@ -833,7 +829,6 @@ struct ecore_iwarp_send_rtr_in {
 struct ecore_iwarp_tcp_abort_in {
 	void *ep_context;
 };
-
 
 enum _ecore_status_t
 ecore_iwarp_connect(void *rdma_cxt,
